@@ -2,7 +2,7 @@ import Database from "better-sqlite3";
 import path from "path";
 
 // DB 파일 경로 설정 (server 폴더 바로 아래)
-const dbPath = path.resolve(__dirname, "../../data.db");
+const dbPath = path.resolve(__dirname, "../data.db");
 const db = new Database(dbPath);
 
 db.pragma("journal_mode = WAL");
