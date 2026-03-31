@@ -17,6 +17,21 @@
 - 서버단에서 `Socket.io` 채널을 가동하여 브라우저 클라이언트(`onedal-web/client`)에 `new-order` 이벤트를 즉각 Emit(푸시) 합니다.
 - 클라이언트(Vite+React)는 수신 데이터를 대시보드의 큰 카드 형태로 렌더링하고, 상차지 딥링크 전화 및 카카오내비 연동을 통해 휴먼-인-더-루프(Human-in-the-loop)의 최종 배차 결정을 지원합니다.
 
-※ 상세 기술 기술서는 각 파트별 문서를 참고하세요.
+## 🛠 필수 구현 기술 스택 (What to Build)
+
+### 1. onedal-app (Android Native)
+- **언어 및 환경**: Kotlin, Android API 30+
+- **핵심 엔진**: `AccessibilityService` (노드 캡처 및 시스템 레벨 터치 발생)
+- **보조 엔진**: `MediaProjection API` + `Google ML Kit` (이미지 텍스트 강제 OCR)
+- **데이터 파싱**: Regex (정규식 기반 텍스트 추출)
+- **네트워크**: `OkHttp` 또는 `Retrofit` (순수 HTTP POST 전송)
+
+### 2. onedal-web (Vite + Express Polyrepo)
+- **Frontend (client)**: Vite 6, React 19, Tailwind CSS v4.0
+- **Backend (server)**: Express 5.x, Node.js
+- **실시간 통신**: `Socket.io 4.x` (서버-클라이언트 간 무손실 양방향 통신)
+- **데이터베이스**: `better-sqlite3` (서버 로컬 파일 DB 연동)
+
+※ 상세 아키텍처 기술서는 각 파트별 문서를 참고하세요.
 - **안드로이드 기술 상세**: `onedal-app/docs/TRD.md`
 - **웹 서버/프론트 기술 상세**: `onedal-web/docs/TRD.md`
