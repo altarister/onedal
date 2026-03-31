@@ -2,8 +2,8 @@ module.exports = {
   apps: [
     {
       name: 'onedal-web-server',
-      script: 'npx',
-      args: 'tsx src/index.ts',
+      script: 'src/index.ts',
+      interpreter: 'node_modules/.bin/tsx',
       cwd: './server',
       instances: 1, // SQLite를 사용하므로 다중 노드(클러스터) 대신 단일 인스턴스로 실행
       autorestart: true,
