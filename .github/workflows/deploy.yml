@@ -38,12 +38,11 @@ jobs:
             pnpm install --frozen-lockfile
             pnpm rebuild better-sqlite3 esbuild
             
-            echo "🔨 [3/4] 클라이언트 프론트엔드 및 서버 백엔드 빌드"
+            echo "🔨 [3/4] 클라이언트 프론트엔드 빌드"
             # 프론트엔드 빌드 (정적 파일 생성)
             cd client && pnpm build && cd ..
             
-            # 백엔드 빌드 (TypeScript -> JS 컴파일)
-            cd server && pnpm build && cd ..
+            # 백엔드는 tsx로 실행되므로 빌드 생략
             
             echo "🔄 [4/4] PM2 서버 재시작 (무중단 갱신)"
             pm2 reload ecosystem.config.cjs --update-env || pm2 start ecosystem.config.cjs
