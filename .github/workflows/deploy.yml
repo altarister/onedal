@@ -34,7 +34,9 @@ jobs:
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # nvm 로드
             
+            
             pnpm install --frozen-lockfile
+            pnpm rebuild better-sqlite3 esbuild
             
             echo "🔨 [3/4] 클라이언트 프론트엔드 및 서버 백엔드 빌드"
             # 프론트엔드 빌드 (정적 파일 생성)
