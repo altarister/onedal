@@ -1,26 +1,33 @@
 import { Router } from "express";
 import db from "../db";
+import { OrderData } from "../types";
 
 const router = Router();
 
 // POST: 탈락 콜 빅데이터 수신 (오답노트용)
 router.post("/", (req, res) => {
     try {
-        const { texts } = req.body;
+        const { data } = req.body;
 
-        if (!texts || !Array.isArray(texts)) {
-            return res.status(400).json({ error: "texts 배열이 필요합니다" });
+        if (!data || !Array.isArray(data)) {
+            return res.status(400).json({ error: "data 배열이 필요합니다" });
         }
 
         const timestamp = new Date().toISOString();
+        const stmt = db.prepare("INSERT INTO intel (type, origin, destination, price, timestamp) VALUES (?, ?, ?, ?, ?)");
 
-        const stmt = db.prepare("INSERT INTO intel (texts, timestamp) VALUES (?, ?)");
-        stmt.run(JSON.stringify(texts), timestamp);
+        const insertMany = db.transaction((intelItems: OrderData[]) => {
+            for (const item of intelItems) {
+                stmt.run("INTEL_BULK", item.origin, item.destination, item.price || 0, timestamp);
+            }
+        });
+
+        insertMany(data);
 
         const countStmt = db.prepare("SELECT COUNT(*) as count FROM intel");
         const totalIntel = (countStmt.get() as { count: number })?.count || 0;
 
-        console.log(`📊 [인텔 데이터 수신] ${texts.length}항목 저장 (누적: ${totalIntel}건)`);
+        console.log(`📊 [인텔 데이터 수신] ${data.length}항목 저장 (누적: ${totalIntel}건)`);
 
         res.json({ success: true, totalIntel });
     } catch (error) {
@@ -33,12 +40,7 @@ router.post("/", (req, res) => {
 router.get("/", (req, res) => {
     try {
         const stmt = db.prepare("SELECT * FROM intel ORDER BY timestamp DESC");
-        const rows = stmt.all() as any[];
-
-        const intelData = rows.map((row) => ({
-            ...row,
-            texts: JSON.parse(row.texts),
-        }));
+        const intelData = stmt.all() as OrderData[];
 
         res.json({ intelData, total: intelData.length });
     } catch (error) {

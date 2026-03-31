@@ -1,15 +1,18 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { io, Socket } from "socket.io-client";
 
-type Order = {
+type OrderData = {
     id: string;
-    texts: string[];
+    type: string;
+    origin: string;
+    destination: string;
+    price: number;
     timestamp: string;
     status: "pending" | "confirmed" | "completed";
 };
 
 export default function Dashboard() {
-    const [orders, setOrders] = useState<Order[]>([]);
+    const [orders, setOrders] = useState<OrderData[]>([]);
     const [isConnected, setIsConnected] = useState(false);
     const [wakeLockActive, setWakeLockActive] = useState(false);
     const socketRef = useRef<Socket | null>(null);
@@ -91,7 +94,7 @@ export default function Dashboard() {
         });
 
         // 3. 새 콜이 오면 즉시 카드 배열에 추가 + 소리 리스너
-        socket.on("new-order", (newOrder: Order) => {
+        socket.on("new-order", (newOrder: OrderData) => {
             console.log("🆕 새 콜 도착!", newOrder);
             setOrders((prev) => [...prev, newOrder]);
             playAlertSound();
@@ -154,10 +157,10 @@ export default function Dashboard() {
                                 </span>
                                 <span
                                     className={`text-xs px-2 py-1 rounded-full ${order.status === "pending"
-                                            ? "bg-amber-500/20 text-amber-400"
-                                            : order.status === "confirmed"
-                                                ? "bg-emerald-500/20 text-emerald-400"
-                                                : "bg-gray-700 text-gray-400"
+                                        ? "bg-amber-500/20 text-amber-400"
+                                        : order.status === "confirmed"
+                                            ? "bg-emerald-500/20 text-emerald-400"
+                                            : "bg-gray-700 text-gray-400"
                                         }`}
                                 >
                                     {order.status === "pending"
@@ -168,15 +171,17 @@ export default function Dashboard() {
                                 </span>
                             </div>
 
-                            <div className="flex flex-wrap gap-2">
-                                {order.texts.map((text, i) => (
-                                    <span
-                                        key={i}
-                                        className="bg-gray-800 text-white px-3 py-2 rounded-xl text-lg font-bold"
-                                    >
-                                        {text}
-                                    </span>
-                                ))}
+                            <div className="flex flex-wrap gap-2 items-center">
+                                <span className="bg-gray-800 text-white px-3 py-2 rounded-xl text-lg font-bold">
+                                    {order.origin}
+                                </span>
+                                <span className="text-gray-500">➡️</span>
+                                <span className="bg-gray-800 text-white px-3 py-2 rounded-xl text-lg font-bold">
+                                    {order.destination}
+                                </span>
+                                <span className="bg-violet-900/50 text-violet-300 border border-violet-800/50 px-3 py-2 rounded-xl text-lg font-black ml-auto">
+                                    {order.price.toLocaleString()}원
+                                </span>
                             </div>
 
                             <div className="flex gap-3 mt-4">
@@ -187,9 +192,7 @@ export default function Dashboard() {
                                     📞 상차지 전화
                                 </a>
                                 <a
-                                    href={`kakaonavi://navigate?ep=${encodeURIComponent(
-                                        order.texts[order.texts.length - 1] || ""
-                                    )}`}
+                                    href={`kakaonavi://navigate?ep=${encodeURIComponent(order.destination)}`}
                                     className="flex-1 bg-blue-600 hover:bg-blue-500 text-white text-center py-3 rounded-xl font-bold text-lg transition-colors"
                                 >
                                     🗺️ 카카오내비
@@ -199,6 +202,7 @@ export default function Dashboard() {
                     ))}
                 </div>
             )}
+
         </main>
     );
 }

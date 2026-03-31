@@ -1,14 +1,17 @@
 import { useEffect, useState } from "react";
 
-type Order = {
+type OrderData = {
     id: string;
-    texts: string[];
+    type: string;
+    origin: string;
+    destination: string;
+    price: number;
     timestamp: string;
     status: "pending" | "confirmed" | "completed";
 };
 
 export default function Settlement() {
-    const [orders, setOrders] = useState<Order[]>([]);
+    const [orders, setOrders] = useState<OrderData[]>([]);
 
     useEffect(() => {
         // API에서 기존 데이터 가져오기
@@ -63,20 +66,17 @@ export default function Settlement() {
                                 <div>
                                     <div className="text-sm text-gray-400 mb-1">{timeStr}</div>
                                     <div className="font-semibold text-gray-200">
-                                        {order.texts.length > 0 ? (
-                                            <span>{order.texts[0]} → {order.texts[1] || order.texts[order.texts.length - 1]}</span>
-                                        ) : "데이터 없음"}
+                                        <span>{order.origin} → {order.destination}</span>
                                     </div>
                                 </div>
 
                                 <div className="text-right">
-                                    <div className={`text-sm font-bold px-2 py-1 rounded-md ${isConfirmed ? "text-emerald-400 bg-emerald-400/10" : "text-gray-400 bg-gray-800"
+                                    <div className={`text-sm font-bold px-2 py-1 rounded-md inline-block ${isConfirmed ? "text-emerald-400 bg-emerald-400/10" : "text-gray-400 bg-gray-800"
                                         }`}>
                                         {isConfirmed ? "확정" : "대기"}
                                     </div>
-                                    {/* 금액 표시 (마지막 텍스트가 금액이라고 가정) */}
                                     <div className="text-lg font-black text-white mt-1">
-                                        {order.texts.length > 2 ? order.texts[order.texts.length - 1] : ""}
+                                        {order.price.toLocaleString()}원
                                     </div>
                                 </div>
                             </div>

@@ -9,22 +9,30 @@ db.pragma("journal_mode = WAL");
 
 console.log(`📂 SQLite DB 준비 완료: ${dbPath}`);
 
-// 테이블 초기화
+// 테이블 생성 (초기화 시 한 번 실행됨)
+// 스캐너가 잡은 콜
 db.exec(`
-  CREATE TABLE IF NOT EXISTS orders (
-    id TEXT PRIMARY KEY,
-    texts TEXT NOT NULL,
-    timestamp TEXT NOT NULL,
-    status TEXT NOT NULL
-  )
+    CREATE TABLE IF NOT EXISTS orders (
+        id TEXT PRIMARY KEY,
+        type TEXT NOT NULL,
+        origin TEXT NOT NULL,
+        destination TEXT NOT NULL,
+        price INTEGER DEFAULT 0,
+        timestamp TEXT NOT NULL,
+        status TEXT DEFAULT 'pending'
+    )
 `);
 
+// 스캐너가 버린 데이터 (나중에 AI 분석용 모델)
 db.exec(`
-  CREATE TABLE IF NOT EXISTS intel (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    texts TEXT NOT NULL,
-    timestamp TEXT NOT NULL
-  )
+    CREATE TABLE IF NOT EXISTS intel (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        type TEXT NOT NULL,
+        origin TEXT NOT NULL,
+        destination TEXT NOT NULL,
+        price INTEGER DEFAULT 0,
+        timestamp TEXT NOT NULL
+    )
 `);
 
 export default db;

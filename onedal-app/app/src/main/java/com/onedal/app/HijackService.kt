@@ -42,9 +42,20 @@ class HijackService : AccessibilityService() {
                     Log.d("1DAL_MVP", "=================================")
                     Log.d("1DAL_MVP", "🆕 새로 감지 : ${newlyAppearedTexts.joinToString(", ")}")
                     
-                    // 서버로 인텔 데이터(또는 꿀콜 데이터) 백그라운드 전송
-                    val jsonArray = newlyAppearedTexts.joinToString(",") { "\"$it\"" }
-                    val jsonBody = """{"texts": [$jsonArray]}"""
+                    // 서버로 새 콜 데이터 전송 (임시 JSON 하드코딩 - 차후 Gson 도입)
+                    val origin = newlyAppearedTexts.getOrNull(0) ?: "알수없음"
+                    val dest = newlyAppearedTexts.getOrNull(1) ?: "알수없음"
+                    val price = newlyAppearedTexts.lastOrNull()?.replace(Regex("[^0-9]"), "")?.toIntOrNull() ?: 0
+                    
+                    val jsonBody = """
+                        {
+                            "type": "NEW_ORDER",
+                            "origin": "$origin",
+                            "destination": "$dest",
+                            "price": $price,
+                            "timestamp": "${java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'").format(java.util.Date())}"
+                        }
+                    """.trimIndent()
                     sendToServer(jsonBody)
                 }
                 

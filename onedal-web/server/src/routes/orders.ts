@@ -1,31 +1,39 @@
 import { Router } from "express";
 import db from "../db";
 
+import { OrderData } from "../types";
+
 const router = Router();
 
 // POST: 스캐너에서 콜 수신
 router.post("/", (req, res) => {
     try {
-        const { texts } = req.body;
+        const { type, origin, destination, price, timestamp } = req.body as OrderData;
 
-        if (!texts || !Array.isArray(texts)) {
-            return res.status(400).json({ error: "texts 배열이 필요합니다" });
+        if (!origin || !destination) {
+            return res.status(400).json({ error: "필수 데이터(origin, destination)가 누락되었습니다" });
         }
 
-        const newOrder = {
+        const newOrder: OrderData = {
             id: crypto.randomUUID(),
-            texts,
-            timestamp: new Date().toISOString(),
+            type: type || "NEW_ORDER",
+            origin,
+            destination,
+            price: price || 0,
+            timestamp: timestamp || new Date().toISOString(),
             status: "pending",
         };
 
         // DB에 저장
         const stmt = db.prepare(
-            "INSERT INTO orders (id, texts, timestamp, status) VALUES (?, ?, ?, ?)"
+            "INSERT INTO orders (id, type, origin, destination, price, timestamp, status) VALUES (?, ?, ?, ?, ?, ?, ?)"
         );
         stmt.run(
             newOrder.id,
-            JSON.stringify(newOrder.texts),
+            newOrder.type,
+            newOrder.origin,
+            newOrder.destination,
+            newOrder.price,
             newOrder.timestamp,
             newOrder.status
         );
@@ -34,9 +42,9 @@ router.post("/", (req, res) => {
         const io = req.app.get("io");
         if (io) {
             io.emit("new-order", newOrder);
-            console.log(`🆕 [새 콜 수신 + 소켓 전송] ${texts.join(", ")}`);
+            console.log(`🆕 [새 콜 수신 + 소켓 전송] ${origin} ➡️ ${destination} (${price}원)`);
         } else {
-            console.log(`🆕 [새 콜 수신] ${texts.join(", ")} (소켓 전송 실패)`);
+            console.log(`🆕 [새 콜 수신] ${origin} ➡️ ${destination} (${price}원) (소켓 전송 실패)`);
         }
 
         // 서버에 저장된 총 콜 수 반환
@@ -58,15 +66,9 @@ router.post("/", (req, res) => {
 router.get("/", (req, res) => {
     try {
         const stmt = db.prepare("SELECT * FROM orders ORDER BY timestamp ASC");
-        const rows = stmt.all() as any[];
+        const rows = stmt.all() as OrderData[];
 
-        // DB에 저장된 문자열(JSON)을 다시 배열로 파싱
-        const orders = rows.map((row) => ({
-            ...row,
-            texts: JSON.parse(row.texts),
-        }));
-
-        res.json({ orders });
+        res.json({ orders: rows });
     } catch (error) {
         console.error("Orders GET 에러:", error);
         res.status(500).json({ error: "서버 오류 발생" });
