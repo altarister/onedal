@@ -1,15 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { io, Socket } from "socket.io-client";
-
-type OrderData = {
-    id: string;
-    type: string;
-    origin: string;
-    destination: string;
-    price: number;
-    timestamp: string;
-    status: "pending" | "confirmed" | "completed";
-};
+import type { OrderData } from "@onedal/shared";
 
 export default function Dashboard() {
     const [orders, setOrders] = useState<OrderData[]>([]);
@@ -173,14 +164,14 @@ export default function Dashboard() {
 
                             <div className="flex flex-wrap gap-2 items-center">
                                 <span className="bg-gray-800 text-white px-3 py-2 rounded-xl text-lg font-bold">
-                                    {order.origin}
+                                    {order.pickup}
                                 </span>
                                 <span className="text-gray-500">➡️</span>
                                 <span className="bg-gray-800 text-white px-3 py-2 rounded-xl text-lg font-bold">
-                                    {order.destination}
+                                    {order.dropoff}
                                 </span>
                                 <span className="bg-violet-900/50 text-violet-300 border border-violet-800/50 px-3 py-2 rounded-xl text-lg font-black ml-auto">
-                                    {order.price.toLocaleString()}원
+                                    {order.fare.toLocaleString()}원
                                 </span>
                             </div>
 
@@ -192,7 +183,7 @@ export default function Dashboard() {
                                     📞 상차지 전화
                                 </a>
                                 <a
-                                    href={`kakaonavi://navigate?ep=${encodeURIComponent(order.destination)}`}
+                                    href={`kakaonavi://navigate?ep=${encodeURIComponent(order.dropoff)}`}
                                     className="flex-1 bg-blue-600 hover:bg-blue-500 text-white text-center py-3 rounded-xl font-bold text-lg transition-colors"
                                 >
                                     🗺️ 카카오내비

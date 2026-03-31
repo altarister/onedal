@@ -1,6 +1,6 @@
 import { Router } from "express";
+import type { OrderData } from "@onedal/shared";
 import db from "../db";
-import { OrderData } from "../types";
 
 const router = Router();
 
@@ -14,11 +14,11 @@ router.post("/", (req, res) => {
         }
 
         const timestamp = new Date().toISOString();
-        const stmt = db.prepare("INSERT INTO intel (type, origin, destination, price, timestamp) VALUES (?, ?, ?, ?, ?)");
+        const stmt = db.prepare("INSERT INTO intel (type, pickup, dropoff, fare, timestamp) VALUES (?, ?, ?, ?, ?)");
 
         const insertMany = db.transaction((intelItems: OrderData[]) => {
             for (const item of intelItems) {
-                stmt.run("INTEL_BULK", item.origin, item.destination, item.price || 0, timestamp);
+                stmt.run("INTEL_BULK", item.pickup, item.dropoff, item.fare || 0, timestamp);
             }
         });
 

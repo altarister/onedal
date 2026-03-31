@@ -42,21 +42,44 @@ class HijackService : AccessibilityService() {
                     Log.d("1DAL_MVP", "=================================")
                     Log.d("1DAL_MVP", "🆕 새로 감지 : ${newlyAppearedTexts.joinToString(", ")}")
                     
-                    // 서버로 새 콜 데이터 전송 (임시 JSON 하드코딩 - 차후 Gson 도입)
-                    val origin = newlyAppearedTexts.getOrNull(0) ?: "알수없음"
-                    val dest = newlyAppearedTexts.getOrNull(1) ?: "알수없음"
-                    val price = newlyAppearedTexts.lastOrNull()?.replace(Regex("[^0-9]"), "")?.toIntOrNull() ?: 0
+                    val rawJoined = newlyAppearedTexts.joinToString(", ")
                     
-                    val jsonBody = """
-                        {
-                            "type": "NEW_ORDER",
-                            "origin": "$origin",
-                            "destination": "$dest",
-                            "price": $price,
-                            "timestamp": "${java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'").format(java.util.Date())}"
+                    // --- Best-Effort 휴리스틱 파서 ---
+                    
+                    // 1. 요금(Fare) 파싱: "요금 : 133,000" 형태에서 숫자만 추출
+                    val fareText = newlyAppearedTexts.find { it.contains("요금") }
+                    val fare = fareText?.replace(Regex("[^0-9]"), "")?.toIntOrNull() ?: 0
+                    
+                    // 2. 상차지(Pickup) 파싱: '@' 기호가 포함된 텍스트
+                    val pickupText = newlyAppearedTexts.find { it.contains("@") } ?: "미상"
+                    val pickup = pickupText.substringAfter("@").split("/").firstOrNull()?.trim()?.replace("()", "") ?: pickupText
+
+                    // 3. 하차지(Dropoff) 파싱: '/' 구분자가 2개 이상이면서 '@'가 없는 주소 텍스트
+                    val dropoffText = newlyAppearedTexts.find { it.split("/").size >= 3 && !it.contains("@") } ?: "미상"
+                    val dropoff = dropoffText.split("/").take(3).joinToString(" ").trim() // 뒷자리 상세 이름 제외
+                    
+                    val orderData = com.onedal.app.models.OrderData(
+                        type = "NEW_ORDER",
+                        pickup = pickup,
+                        dropoff = dropoff,
+                        fare = fare,
+                        timestamp = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'").format(java.util.Date()),
+                        rawText = rawJoined
+                    )
+                    
+                    // 요금이 있거나 유의미한 길이의 덩어리일 때만 서버로 발송
+                    if (fare > 0 || newlyAppearedTexts.size > 10) {
+                        try {
+                            val gson = com.google.gson.Gson()
+                            val jsonBody = gson.toJson(orderData)
+                            Log.d("1DAL_MVP", "🚀 서버 전송 시도: $jsonBody")
+                            sendToServer(jsonBody)
+                        } catch (e: Exception) {
+                            Log.e("1DAL_MVP", "JSON 직렬화 에러", e)
                         }
-                    """.trimIndent()
-                    sendToServer(jsonBody)
+                    } else {
+                        Log.d("1DAL_MVP", "🗑️ 의미 없는 부스러기 데이터 (전송 스킵)")
+                    }
                 }
                 
                 lastSeenTextCounts = currentTextCounts
@@ -139,10 +162,10 @@ class HijackService : AccessibilityService() {
         Thread {
             try {
                 // 승욱님의 로컬 웹 서버 주소 (에뮬레이터에서는 10.0.2.2 가 localhost를 의미)
-                val url = java.net.URL("http://10.0.2.2:5173/api/orders")
+                val url = java.net.URL("http://10.0.2.2:4000/api/orders")
                 val conn = url.openConnection() as java.net.HttpURLConnection
                 conn.requestMethod = "POST"
-                conn.setRequestProperty("Content-Type", "application/json; utf-8")
+                conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
                 conn.setRequestProperty("Accept", "application/json")
                 conn.doOutput = true
 

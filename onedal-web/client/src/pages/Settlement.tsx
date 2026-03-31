@@ -1,14 +1,5 @@
 import { useEffect, useState } from "react";
-
-type OrderData = {
-    id: string;
-    type: string;
-    origin: string;
-    destination: string;
-    price: number;
-    timestamp: string;
-    status: "pending" | "confirmed" | "completed";
-};
+import type { OrderData } from "@onedal/shared";
 
 export default function Settlement() {
     const [orders, setOrders] = useState<OrderData[]>([]);
@@ -66,7 +57,7 @@ export default function Settlement() {
                                 <div>
                                     <div className="text-sm text-gray-400 mb-1">{timeStr}</div>
                                     <div className="font-semibold text-gray-200">
-                                        <span>{order.origin} → {order.destination}</span>
+                                        <span>{order.pickup} → {order.dropoff}</span>
                                     </div>
                                 </div>
 
@@ -76,7 +67,7 @@ export default function Settlement() {
                                         {isConfirmed ? "확정" : "대기"}
                                     </div>
                                     <div className="text-lg font-black text-white mt-1">
-                                        {order.price.toLocaleString()}원
+                                        {order.fare.toLocaleString()}원
                                     </div>
                                 </div>
                             </div>

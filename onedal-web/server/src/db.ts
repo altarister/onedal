@@ -15,9 +15,9 @@ db.exec(`
     CREATE TABLE IF NOT EXISTS orders (
         id TEXT PRIMARY KEY,
         type TEXT NOT NULL,
-        origin TEXT NOT NULL,
-        destination TEXT NOT NULL,
-        price INTEGER DEFAULT 0,
+        pickup TEXT NOT NULL,
+        dropoff TEXT NOT NULL,
+        fare INTEGER DEFAULT 0,
         timestamp TEXT NOT NULL,
         status TEXT DEFAULT 'pending'
     )
@@ -28,9 +28,9 @@ db.exec(`
     CREATE TABLE IF NOT EXISTS intel (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         type TEXT NOT NULL,
-        origin TEXT NOT NULL,
-        destination TEXT NOT NULL,
-        price INTEGER DEFAULT 0,
+        pickup TEXT NOT NULL,
+        dropoff TEXT NOT NULL,
+        fare INTEGER DEFAULT 0,
         timestamp TEXT NOT NULL
     )
 `);
