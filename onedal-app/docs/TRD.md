@@ -10,8 +10,8 @@
 - **동작 방식**:
   - `event.eventType == TYPE_WINDOW_CONTENT_CHANGED` 일 때 트리거.
   - 타겟 패키지(`com.insung.app` 등)인지 검증.
-  - `rootInActiveWindow` 노드부터 BFS/DFS로 순회하며 정규식(Regex)을 돌려 원하는 데이터를 파싱.
-  - 합격 노드 발견 시 `node.getBoundsInScreen(rect)`로 좌표 획득 후 `dispatchGesture()`를 사용해 강제 클릭.
+  - 리스트 아이템 내부에서 무작위 순서로 떨어지는 텍스트 파편들을 수집 (ex: `"요금"`, `"/ "`, `"@"`)하여 **휴리스틱(Fuzzy) 파서**로 핵심 필드(상차지, 하차지, 운임)만 추출.
+  - 1차 검증 (e.g. `fare > 0`) 후 서버와 통신하며, 합격 노드 발견 시 `node.getBoundsInScreen(rect)`로 좌표 획득 후 `dispatchGesture()`를 사용해 강제 클릭.
 
 ### 1-2. MainForegroundService (백그라운드 지속 보장)
 - **상속**: `android.app.Service`
@@ -25,9 +25,10 @@
     ```json
     {
       "type": "NEW_ORDER",
-      "origin": "경기 광주",
-      "destination": "강남구 역삼동",
-      "price": 45000,
+      "pickup": "강남역삼",
+      "dropoff": "LG로지스",
+      "fare": 133000,
+      "rawText": "고양퀵서비스... [앱 원본 파편 텍스트 전체]",
       "timestamp": "2026-03-31T21:40:00Z"
     }
     ```
@@ -49,6 +50,9 @@
 <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
+<application android:usesCleartextTraffic="true"> <!-- 로컬 HTTP 전송 허용 -->
+</application>
 
 <service
     android:name=".services.HijackAccessibilityService"
@@ -84,12 +88,11 @@
 ## 4. 라이브러리 (Dependencies)
 ```gradle
 dependencies {
-    // 네트워크
+    // 네트워크 통신 및 JSON 시리얼라이저 (필수!)
+    implementation("com.google.code.gson:gson:2.10.1")
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
     // 코루틴
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
-    // (옵션) ML Kit OCR
-    implementation("com.google.mlkit:text-recognition:16.0.0")
 }
 ```

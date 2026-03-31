@@ -5,9 +5,9 @@
 ## 🔗 아키텍처 및 통신 파이프라인 (The Master Flow)
 
 ### 1단계: [Perception] onedal-app (Android) -> HTTP POST 전송
-- `onedal-app`은 스캐닝이 성공하여 꿀콜을 선점하거나, 탈락한 콜 데이터를 모았을 때 `onedal-web/server`로 단방향 `HTTP POST /api/orders` 를 통해 데이터를 쏩니다.
-- **JSON Payload (예시)**: `{"texts": ["대전 유성구", "부산 해운대", "105,000"]}`
-- 무거운 WebSocket은 앱 단에서 절대 사용하지 않고 비동기(Coroutines)로 Data를 쏘고 즉시 메모리를 반환하여 레이턴시를 0.05초로 방어합니다.
+- `onedal-app`은 스캐닝 및 휴리스틱(Fuzzy) 파싱을 완료한 데이터를 `onedal-web/server`로 단방향 `HTTP POST /api/orders` 로 전송(ClearText/UTF-8 Json).
+- **JSON Payload (예시)**: `{"pickup": "고산동", "dropoff": "LG로지스", "fare": 143000, "rawText": "고양퀵서비스...", "type": "NEW_ORDER"}`
+- 무거운 WebSocket은 앱 단에서 절대 사용하지 않고 비동기(Coroutines)와 `Gson`으로 Data를 쏘고 즉시 메모리를 반환하여 레이턴시를 0.05초로 방어.
 
 ### 2단계: [Intelligence] onedal-web/server (Express + Node.js)
 - 수신된 JSON을 정규식 및 수익성 공식을 통해 디코딩하고 SQLite DB(`data.db`)에 누적 저장합니다.
@@ -26,9 +26,10 @@
 - **데이터 파싱**: Regex (정규식 기반 텍스트 추출)
 - **네트워크**: `OkHttp` 또는 `Retrofit` (순수 HTTP POST 전송)
 
-### 2. onedal-web (Vite + Express Polyrepo)
-- **Frontend (client)**: Vite 6, React 19, Tailwind CSS v4.0
-- **Backend (server)**: Express 5.x, Node.js
+### 2. onedal-web (Vite + Express Polyrepo feat. PNPM Workspaces)
+- **Frontend (client)**: Vite 6 (port: 3000), React 19, Tailwind CSS v4.0
+- **Backend (server)**: Express 5.x, Node.js (port: 4000)
+- **Shared (@onedal/shared)**: 타입스크립트 기반 공통 DTO 규격 (`OrderData`)
 - **실시간 통신**: `Socket.io 4.x` (서버-클라이언트 간 무손실 양방향 통신)
 - **데이터베이스**: `better-sqlite3` (서버 로컬 파일 DB 연동)
 
