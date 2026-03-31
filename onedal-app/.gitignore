@@ -1,0 +1,19 @@
+# Android Studio
+*.iml
+.gradle/
+.idea/
+.kotlin/
+local.properties
+.DS_Store
+
+# Build outputs
+app/build/
+build/
+
+# Signing
+*.jks
+*.keystore
+
+# APK (빌드 결과물은 Git에 올리지 않음)
+*.apk
+*.aab

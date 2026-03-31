@@ -1,0 +1,21 @@
+# OS
+.DS_Store
+
+# Node.js (onedal-web)
+node_modules/
+.next/
+.env
+.env.local
+
+# Android (onedal-app)
+*.iml
+.gradle/
+.idea/
+.kotlin/
+local.properties
+onedal-app/app/build/
+onedal-app/build/
+*.apk
+*.aab
+*.jks
+*.keystore

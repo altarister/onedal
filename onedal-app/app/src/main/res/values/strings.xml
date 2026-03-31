@@ -1,0 +1,6 @@
+<resources>
+    <string name="app_name">원달(1DAL) MVP</string>
+    <string name="accessibility_service_description">원달(1DAL) 콜 스캐너 엔진입니다. 앱 화면의 요금 및 텍스트를 실시간으로 읽어와 선점 여부를 판단합니다.</string>
+    <string name="main_title">원달(1DAL) MVP: 접근성 자동화 엔진</string>
+    <string name="btn_open_accessibility_settings">접근성 권한 설정 열기</string>
+</resources>
