@@ -16,6 +16,9 @@ yarn-error.log*
 server.log
 client.log
 
+# Security (Private Keys)
+*.pem
+
 # SQLite DB
 *.db
 *.db-shm

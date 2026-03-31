@@ -1,0 +1,50 @@
+name: Auto Deploy to AWS EC2
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "onedal-web/**" # 웹 폴더가 수정될 때만 배포 발동
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 커밋된 최신 코드 확인
+        uses: actions/checkout@v4
+
+      - name: 원격 서버(EC2) 연결 후 배포 스크립트 실행
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_PEM_KEY }}
+          script: |
+            # 1. 원달 프로젝트 폴더로 이동 (폴더가 없으면 에러)
+            cd ~/onedal/onedal/onedal-web || exit 1
+            
+            echo "🚀 [1/4] 최신 코드 가져오기"
+            git fetch --all
+            git reset --hard origin/main
+            git pull origin main
+            
+            echo "📦 [2/4] 핵심 패키지 재설치 (SQLite C++ 빌드 포함)"
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # nvm 로드
+            
+            pnpm install --frozen-lockfile
+            
+            echo "🔨 [3/4] 클라이언트 프론트엔드 및 서버 백엔드 빌드"
+            # 프론트엔드 빌드 (정적 파일 생성)
+            cd client && pnpm build && cd ..
+            
+            # 백엔드 빌드 (TypeScript -> JS 컴파일)
+            cd server && pnpm build && cd ..
+            
+            echo "🔄 [4/4] PM2 서버 재시작 (무중단 갱신)"
+            pm2 reload ecosystem.config.cjs --update-env || pm2 start ecosystem.config.cjs
+            pm2 save
+            
+            echo "✅ 배포 완료!"
