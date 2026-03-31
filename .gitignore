@@ -1,11 +1,25 @@
 # OS
 .DS_Store
 
-# Node.js (onedal-web)
+# Node.js
 node_modules/
 .next/
+dist/
+build/
 .env
 .env.local
+.env.*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+server.log
+client.log
+
+# SQLite DB
+*.db
+*.db-shm
+*.db-wal
 
 # Android (onedal-app)
 *.iml
