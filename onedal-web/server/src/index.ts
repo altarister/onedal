@@ -8,6 +8,7 @@ import fs from "fs";
 
 import ordersRouter from "./routes/orders";
 import intelRouter from "./routes/intel";
+import kakaoRouter from "./routes/kakao";
 
 dotenv.config();
 
@@ -31,6 +32,7 @@ app.use(express.json());
 // API 라우터 등록
 app.use("/api/orders", ordersRouter);
 app.use("/api/intel", intelRouter);
+app.use("/api/kakao", kakaoRouter);
 
 // 소켓 연결 이벤트 핸들링
 io.on("connection", (socket) => {

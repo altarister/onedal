@@ -23,7 +23,11 @@ export interface OrderData {
     
     // 1. 현재 스캐너 연동 필수 1차원 데이터 (호환성 보장)
     pickup: string;                   // 예: "경기 광주 오포"
+    pickupX?: number;                 // 카카오 길찾기 API용 MOCK X좌표
+    pickupY?: number;                 // 카카오 길찾기 API용 MOCK Y좌표
     dropoff: string;                  // 예: "강남구 역삼동"
+    dropoffX?: number;                // 카카오 길찾기 API용 MOCK X좌표
+    dropoffY?: number;                // 카카오 길찾기 API용 MOCK Y좌표
     fare: number;                     // 45000 (숫자)
     timestamp: string;                // ISO 8601 포맷
     status?: OrderStatus;             // 진행 상태
