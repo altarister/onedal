@@ -10,8 +10,13 @@ module.exports = {
       autorestart: true,
       watch: false,
       max_memory_restart: '1G',
+      env_production: {
+        NODE_ENV: 'production',
+        DB_FILE: 'data.db' // AWS에서 강제로 실데이터용 DB를 바라보도록 설정
+      },
       env: {
         NODE_ENV: 'production',
+        DB_FILE: 'data.db', // AWS에서 강제로 실데이터용 DB를 바라보도록 설정
         PORT: 4000 // 백엔드 포트 고정 (차후 AWS 서버에서 80포트를 4000으로 리다이렉트)
       }
     }

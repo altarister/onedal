@@ -1,8 +1,9 @@
 import Database from "better-sqlite3";
 import path from "path";
 
-// DB 파일 경로 설정 (server 폴더 바로 아래)
-const dbPath = path.resolve(__dirname, "../data.db");
+// .env 또는 서버 환경에서 주입된 DB_FILE 환경 변수 사용 (기본값: local.db)
+const dbFileName = process.env.DB_FILE || "local.db";
+const dbPath = path.resolve(__dirname, `../${dbFileName}`);
 const db = new Database(dbPath);
 
 db.pragma("journal_mode = WAL");

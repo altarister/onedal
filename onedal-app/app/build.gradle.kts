@@ -26,6 +26,10 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            buildConfigField("String", "SERVER_URL", "\"https://1dal.altari.com/api/orders\"")
+        }
+        debug {
+            buildConfigField("String", "SERVER_URL", "\"http://10.0.2.2:4000/api/orders\"")
         }
     }
     compileOptions {
@@ -37,6 +41,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

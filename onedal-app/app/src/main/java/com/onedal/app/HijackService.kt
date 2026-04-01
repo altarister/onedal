@@ -161,8 +161,8 @@ class HijackService : AccessibilityService() {
     private fun sendToServer(jsonBody: String) {
         Thread {
             try {
-                // 승욱님의 로컬 웹 서버 주소 (에뮬레이터에서는 10.0.2.2 가 localhost를 의미)
-                val url = java.net.URL("http://10.0.2.2:4000/api/orders")
+                // BuildConfig를 통해 Debug(로컬) / Release(실제서버) 환경변수를 자동 파싱합니다.
+                val url = java.net.URL(BuildConfig.SERVER_URL)
                 val conn = url.openConnection() as java.net.HttpURLConnection
                 conn.requestMethod = "POST"
                 conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")

@@ -30,6 +30,13 @@ client.log
 .idea/
 .kotlin/
 local.properties
+# Database and secrets
+*.db
+*.sqlite
+*.sqlite3
+.env
+.env.*
+!.env.example
 onedal-app/app/build/
 onedal-app/build/
 *.apk
