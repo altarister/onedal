@@ -22,3 +22,8 @@
 body {
   @apply bg-gray-950 text-gray-50;
 }
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}

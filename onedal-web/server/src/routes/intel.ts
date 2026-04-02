@@ -1,5 +1,5 @@
 import { Router } from "express";
-import type { OrderData } from "@onedal/shared";
+import type { SimplifiedOfficeOrder } from "@onedal/shared";
 import db from "../db";
 
 const router = Router();
@@ -7,7 +7,7 @@ const router = Router();
 // POST: 탈락 콜 빅데이터 수신 (오답노트용)
 router.post("/", (req, res) => {
     try {
-        const { data } = req.body;
+        const data: SimplifiedOfficeOrder[] = req.body.data;
 
         if (!data || !Array.isArray(data)) {
             return res.status(400).json({ error: "data 배열이 필요합니다" });
@@ -16,7 +16,7 @@ router.post("/", (req, res) => {
         const timestamp = new Date().toISOString();
         const stmt = db.prepare("INSERT INTO intel (type, pickup, dropoff, fare, timestamp) VALUES (?, ?, ?, ?, ?)");
 
-        const insertMany = db.transaction((intelItems: OrderData[]) => {
+        const insertMany = db.transaction((intelItems: SimplifiedOfficeOrder[]) => {
             for (const item of intelItems) {
                 stmt.run("INTEL_BULK", item.pickup, item.dropoff, item.fare || 0, timestamp);
             }
@@ -40,7 +40,7 @@ router.post("/", (req, res) => {
 router.get("/", (req, res) => {
     try {
         const stmt = db.prepare("SELECT * FROM intel ORDER BY timestamp DESC");
-        const intelData = stmt.all() as OrderData[];
+        const intelData = stmt.all() as SimplifiedOfficeOrder[];
 
         res.json({ intelData, total: intelData.length });
     } catch (error) {

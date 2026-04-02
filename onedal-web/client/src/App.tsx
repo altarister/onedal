@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Link, useLocation } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
 import Settlement from "./pages/Settlement";
+import OrderFilterConfig from "./pages/OrderFilterConfig";
 
 // Navigation Wrapper
 function AppLayout() {
@@ -11,6 +12,7 @@ function AppLayout() {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/settlement" element={<Settlement />} />
+        <Route path="/settings/filter" element={<OrderFilterConfig />} />
       </Routes>
 
       {/* 하단 네비게이션 */}

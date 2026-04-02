@@ -19,6 +19,16 @@ router.post('/directions/compare', async (req: Request, res: Response) => {
         const { origin, destination, waypoints } = req.body as CompareRequest;
         const apiKey = process.env.KAKAO_REST_API_KEY;
 
+        console.log(`\n======================================================`);
+        console.log(`[KAKAO API] 🚀 새로운 동선 계산 요청 수신`);
+        console.log(`   - 기존 경로: [${origin.name}] ➡️ [${destination.name}]`);
+        if (waypoints && waypoints.length > 0) {
+            console.log(`   - 추가 경유: [${waypoints.map(w => w.name).join(' ➡️ ')}]`);
+        } else {
+            console.log(`   - 추가 경유: 없음 (단독 배차 검수)`);
+        }
+        console.log(`------------------------------------------------------`);
+
         if (!apiKey) {
             return res.status(500).json({ error: "KAKAO_REST_API_KEY is not configured on the server." });
         }
@@ -61,6 +71,15 @@ router.post('/directions/compare', async (req: Request, res: Response) => {
         // 결과 계산
         const timeDiffSeconds = mergedSummary.duration - baseSummary.duration;
         const distDiffMeters = mergedSummary.distance - baseSummary.distance;
+
+        console.log(`[KAKAO API] 🟢 연산 완료!`);
+        console.log(`   - 🧭 단독 기준 소요시간: ${Math.round(baseSummary.duration/60)}분 (${(baseSummary.distance/1000).toFixed(1)}km)`);
+        if (waypoints && waypoints.length > 0) {
+            console.log(`   - 🗺️ 합짐 경유 소요시간: ${Math.round(mergedSummary.duration/60)}분 (${(mergedSummary.distance/1000).toFixed(1)}km)`);
+            const extMin = Math.round(timeDiffSeconds/60);
+            console.log(`   - ⚠️ 시간 패널티: ${extMin > 0 ? '+' : ''}${extMin}분 추가 소요`);
+        }
+        console.log(`======================================================\n`);
 
         res.json({
             base: baseSummary,
