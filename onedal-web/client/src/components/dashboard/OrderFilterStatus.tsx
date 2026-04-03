@@ -1,8 +1,6 @@
-import { useNavigate } from "react-router-dom";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
 
-export default function OrderFilterStatus() {
-    const navigate = useNavigate();
+export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () => void }) {
     const { filter } = useFilterConfig();
 
     // 상태별 배지 색상 매핑
@@ -22,7 +20,7 @@ export default function OrderFilterStatus() {
 
     return (
         <section
-            onClick={() => navigate('/settings/filter')}
+            onClick={onOpenFilter}
             className={`flex items-center justify-between cursor-pointer rounded-xl px-4 py-3 border shadow-md transition-all active:scale-95 ${filter.mode === '대기' ? 'bg-amber-950/40 border-amber-500/50 hover:bg-amber-900/50' :
                 filter.mode === '합짐' ? 'bg-purple-950/30 border-purple-500/40 hover:bg-purple-900/40' :
                     'bg-indigo-950/30 border-indigo-500/30 hover:bg-indigo-900/40'

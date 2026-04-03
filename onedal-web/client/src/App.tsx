@@ -1,7 +1,6 @@
-import { BrowserRouter, Routes, Route, Link, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
 import Settlement from "./pages/Settlement";
-import OrderFilterConfig from "./pages/OrderFilterConfig";
 import DevTools from "./components/dev/DevTools";
 
 // Navigation Wrapper
@@ -9,11 +8,11 @@ function AppLayout() {
   const location = useLocation();
 
   return (
-    <div className="min-h-screen pb-20">
+    <div className="min-h-screen">
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/settlement" element={<Settlement />} />
-        <Route path="/settings/filter" element={<OrderFilterConfig />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 
       {/* 하단 네비게이션 */}
@@ -23,14 +22,14 @@ function AppLayout() {
           className={`flex-1 py-4 text-center font-bold text-sm transition-colors ${location.pathname === "/" ? "text-violet-400" : "text-gray-500"
             }`}
         >
-          📡 실시간
+          실시간
         </Link>
         <Link
           to="/settlement"
           className={`flex-1 py-4 text-center font-bold text-sm transition-colors ${location.pathname === "/settlement" ? "text-violet-400" : "text-gray-500"
             }`}
         >
-          💰 정산
+          정산
         </Link>
       </nav>
     </div>

@@ -108,9 +108,9 @@ function DevTools() {
     }
 
     return (
-        <div className="fixed bottom-24 right-4 z-[9999] w-48 bg-slate-900 border border-fuchsia-500/50 rounded-lg shadow-2xl overflow-hidden backdrop-blur-md">
+        <div className="fixed bottom-24 right-4 z-[9999] w-22 bg-slate-900 border border-fuchsia-500/50 rounded-lg shadow-2xl overflow-hidden backdrop-blur-md">
             <div className="bg-fuchsia-900/40 border-b border-fuchsia-500/30 px-2 py-1 flex justify-between items-center">
-                <span className="font-bold text-fuchsia-300 text-xs text-center w-full">🛠️ DEV TOOLS</span>
+                <span className="font-bold text-fuchsia-300 text-xs text-center w-full">목업 툴</span>
                 <button onClick={() => setIsOpen(false)} className="text-slate-400 hover:text-white px-1 ml-1 rounded font-bold text-xs">X</button>
             </div>
             <div className="p-2 flex flex-col gap-1.5">
@@ -119,7 +119,7 @@ function DevTools() {
                     onClick={spawnBot}
                     className="w-full h-7 text-xs bg-slate-800 border-dashed border border-fuchsia-500/30 text-fuchsia-400 hover:bg-slate-700 font-bold"
                 >
-                    + 봇 투입 ({botCount}대)
+                    폰 ({botCount})
                 </Button>
 
                 <Button
@@ -128,12 +128,8 @@ function DevTools() {
                     onClick={fireMockOfficeOrder}
                     className="w-full h-7 text-xs bg-emerald-950/40 border-dashed border border-emerald-500/50 text-emerald-400 hover:bg-emerald-900/60 font-bold"
                 >
-                    🎯 프리미엄 배차
+                    가상 콜
                 </Button>
-
-                <div className="text-xs text-slate-500 bg-black/30 p-2 rounded">
-                    현재 구동중인 프론트 봇: <strong className="text-fuchsia-400">{botCount}</strong> 대
-                </div>
 
                 <Button
                     size="sm"
@@ -141,7 +137,7 @@ function DevTools() {
                     variant="outline"
                     className="w-full h-7 text-xs bg-red-950/30 border-dashed border border-red-500/30 text-red-400 hover:bg-red-900/50 hover:text-red-300 font-bold px-0"
                 >
-                    🧹 세션 비우기
+                    퇴근
                 </Button>
             </div>
         </div>

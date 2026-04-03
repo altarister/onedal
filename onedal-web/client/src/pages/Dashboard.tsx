@@ -2,14 +2,18 @@ import type { SecuredOrder } from "@onedal/shared";
 import Header from "../components/layout/Header";
 import DeviceControlPanel from "../components/dashboard/DeviceControlPanel";
 import OrderFilterStatus from "../components/dashboard/OrderFilterStatus";
+import OrderFilterModal from "../components/dashboard/OrderFilterModal";
 import PinnedRoute from "../components/dashboard/PinnedRoute";
 import PendingOrderList from "../components/dashboard/PendingOrderList";
 import DrillDownModal from "../components/dashboard/DrillDownModal";
+import { useState } from "react";
 
 import { useOrderEngine } from "../hooks/useOrderEngine";
 import { useKakaoRouting } from "../hooks/useKakaoRouting";
 
 export default function Dashboard() {
+    const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+
     const {
         orders,
         isConnected,
@@ -41,8 +45,8 @@ export default function Dashboard() {
                 {/* 🎛️ 앱폰 제어 패널 */}
                 <DeviceControlPanel />
 
-                {/* ⚙️ 오더 필터 한 줄 현황판 (클릭 시 설정 이동) */}
-                <OrderFilterStatus />
+                {/* ⚙️ 오더 필터 한 줄 현황판 (클릭 시 설정 모달 띄움) */}
+                <OrderFilterStatus onOpenFilter={() => setIsFilterModalOpen(true)} />
 
                 {/* 🏆 배차 확정 콜 (및 데스밸리 연산 구역) */}
                 <PinnedRoute activeRoute={activeRoute} onDecision={handleDecision} />
@@ -66,6 +70,12 @@ export default function Dashboard() {
                 onClose={() => setSelectedOrder(null)}
                 onReject={() => setSelectedOrder(null)}
                 onAccept={() => alert("웹 관제탑에서는 수동 배차를 지원하지 않습니다 (앱에서 자동 확정 됨)")}
+            />
+
+            {/* 필터 설정 모달 */}
+            <OrderFilterModal 
+                isOpen={isFilterModalOpen} 
+                onClose={() => setIsFilterModalOpen(false)} 
             />
 
         </main>
