@@ -12,7 +12,8 @@ module.exports = {
       max_memory_restart: '1G',
       env_production: {
         NODE_ENV: 'production',
-        DB_FILE: 'data.db' // AWS에서 강제로 실데이터용 DB를 바라보도록 설정
+        DB_FILE: 'data.db', // AWS에서 강제로 실데이터용 DB를 바라보도록 설정
+        PORT: 3000 // 구형 Nginx 프록시와의 호환성을 위해 3000포트로 구동
       },
       env: {
         NODE_ENV: 'production',

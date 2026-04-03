@@ -34,8 +34,7 @@ jobs:
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # nvm 로드
             
-            
-            pnpm install --frozen-lockfile
+            pnpm install
             pnpm rebuild better-sqlite3 esbuild
             
             echo "🔨 [3/4] 클라이언트 프론트엔드 빌드"
@@ -45,7 +44,9 @@ jobs:
             # 백엔드는 tsx로 실행되므로 빌드 생략
             
             echo "🔄 [4/4] PM2 서버 재시작 (무중단 갱신)"
-            pm2 reload ecosystem.config.cjs --update-env || pm2 start ecosystem.config.cjs
+            # 구버전 Next.js 엔진 강제 삭제
+            pm2 delete all || true
+            pm2 start ecosystem.config.cjs --env production
             pm2 save
             
             echo "✅ 배포 완료!"
