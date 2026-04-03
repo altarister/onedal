@@ -1,11 +1,13 @@
 name: Auto Deploy to AWS EC2
 
-on:
-  push:
-    branches:
-      - main
-    paths:
-      - "onedal-web/**" # 웹 폴더가 수정될 때만 배포 발동
+# 자동 배포 로봇 비활성화 (개발 중 비용 청구 방지)
+# [알림] 다시 켜려면 아래 on: push 블록의 주석을 해제해주세요!
+# on:
+#   push:
+#     branches:
+#       - main
+#     paths:
+#       - "onedal-web/**" # 웹 폴더가 수정될 때만 배포 발동
 
 jobs:
   deploy:
