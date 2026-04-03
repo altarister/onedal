@@ -4,7 +4,6 @@ import DeviceControlPanel from "../components/dashboard/DeviceControlPanel";
 import OrderFilterStatus from "../components/dashboard/OrderFilterStatus";
 import OrderFilterModal from "../components/dashboard/OrderFilterModal";
 import PinnedRoute from "../components/dashboard/PinnedRoute";
-import PendingOrderList from "../components/dashboard/PendingOrderList";
 import DrillDownModal from "../components/dashboard/DrillDownModal";
 import { useState } from "react";
 
@@ -51,14 +50,18 @@ export default function Dashboard() {
                 {/* 🏆 배차 확정 콜 (및 데스밸리 연산 구역) */}
                 <PinnedRoute activeRoute={activeRoute} onDecision={handleDecision} />
 
-                {/* 📥 수신 대기열 리스트 (비어있을 땐 숨김 처리하여 공간 확보) */}
-                {pendingOrders.length > 0 && (
-                    <div className="flex-1 mt-4">
-                        <PendingOrderList 
-                            pendingOrders={pendingOrders} 
-                            simulationResults={simulationResults} 
-                            onOpenModal={setSelectedOrder} 
-                        />
+                {/* 📡 관제 대기 중 (Empty State) */}
+                {activeRoute.length === 0 && (
+                    <div className="flex-1 mt-12 py-16 flex flex-col items-center justify-center border-2 border-dashed border-slate-800/60 bg-slate-900/20 rounded-3xl mx-2 transition-all">
+                        <div className="relative">
+                            <div className="text-5xl mb-4 relative z-10 animate-bounce transition-transform">🤖</div>
+                            <div className="absolute inset-0 bg-fuchsia-500/20 blur-xl rounded-full"></div>
+                        </div>
+                        <h3 className="text-lg font-black text-slate-400 mb-2 tracking-wider mt-4">실시간 자동 사냥 중</h3>
+                        <p className="text-slate-500 text-xs text-center leading-relaxed">
+                            연동된 기기들이 인성 서버를 스캔하고 있습니다<br/>
+                            조건에 맞는 꿀콜을 낚아채면 즉시 보고합니다
+                        </p>
                     </div>
                 )}
             </div>
