@@ -11,6 +11,7 @@ import android.view.accessibility.AccessibilityNodeInfo
 class HijackService : AccessibilityService() {
 
     private var lastSeenTextCounts = mapOf<String, Int>()
+    private var hasClickedInThisCycle = false
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
@@ -18,6 +19,7 @@ class HijackService : AccessibilityService() {
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
             val rootNode = rootInActiveWindow
             if (rootNode != null) {
+                hasClickedInThisCycle = false
                 val currentTexts = mutableListOf<String>()
                 
                 // 텍스트 추출 및 100 이상 자동 클릭 동시 수행
@@ -66,14 +68,38 @@ class HijackService : AccessibilityService() {
                         timestamp = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'").format(java.util.Date()),
                         rawText = rawJoined
                     )
-                    
                     // 요금이 있거나 유의미한 길이의 덩어리일 때만 서버로 발송
-                    if (fare > 0 || newlyAppearedTexts.size > 10) {
+                    if (hasClickedInThisCycle) {
+                        try {
+                            // 가로채기에 성공했다면 관제탑 UI(데스밸리 검증 프로세스)에 '배차 확정' 띠를 띄우기 위해 /confirm 으로 발송
+                            val orderId = java.util.UUID.randomUUID().toString()
+                            val confirmPayload = """
+                                {
+                                    "step": "BASIC",
+                                    "deviceId": "Android-1DAL-Bot",
+                                    "order": {
+                                        "id": "$orderId",
+                                        "type": "NEW_ORDER",
+                                        "pickup": "$pickup",
+                                        "dropoff": "$dropoff",
+                                        "fare": $fare,
+                                        "timestamp": "${orderData.timestamp}"
+                                    },
+                                    "capturedAt": "${orderData.timestamp}",
+                                    "matchType": "AUTO"
+                                }
+                            """.trimIndent()
+                            Log.d("1DAL_MVP", "🚀 선점 성공! 배차 확정(Confirm) 프로세스 시작")
+                            sendToServer(confirmPayload, isConfirm = true)
+                        } catch (e: Exception) {
+                            Log.e("1DAL_MVP", "Confirm 전송 에러", e)
+                        }
+                    } else if (fare > 0 || newlyAppearedTexts.size > 10) {
                         try {
                             val gson = com.google.gson.Gson()
                             val jsonBody = gson.toJson(orderData)
-                            Log.d("1DAL_MVP", "🚀 서버 전송 시도: $jsonBody")
-                            sendToServer(jsonBody)
+                            Log.d("1DAL_MVP", "🚀 일반 스크랩(Pending) 전송: $jsonBody")
+                            sendToServer(jsonBody, isConfirm = false)
                         } catch (e: Exception) {
                             Log.e("1DAL_MVP", "JSON 직렬화 에러", e)
                         }
@@ -114,6 +140,7 @@ class HijackService : AccessibilityService() {
             if (value != null && value >= 100) {
                 Log.d("1DAL_MVP", "💥 [자동 배차 엔진 발동] 조건 충족 (요금: $value)")
                 performSimulatedTouch(node)
+                hasClickedInThisCycle = true
             }
         } catch (e: Exception) {
             // 무시
@@ -158,18 +185,20 @@ class HijackService : AccessibilityService() {
     }
 
     // 초경량 백그라운드 HTTP POST 요청 (무거운 라이브러리 제거)
-    private fun sendToServer(jsonBody: String) {
+    private fun sendToServer(jsonBody: String, isConfirm: Boolean = false) {
         Thread {
             try {
                 // BuildConfig 대신 MainActivity에서 설정한 SharedPreferences 스위치를 읽어옵니다.
                 val sharedPref = getSharedPreferences("OneDalPrefs", android.content.Context.MODE_PRIVATE)
                 val isLiveMode = sharedPref.getBoolean("isLiveMode", false)
                 
+                val endpoint = if (isConfirm) "/api/orders/confirm" else "/api/orders"
+
                 // Live 모드면 실서버(1dal.altari.com), Local 모드면 내 PC(10.0.2.2)로 발송
                 val targetUrl = if (isLiveMode) {
-                    "https://1dal.altari.com/api/orders"
+                    "https://1dal.altari.com$endpoint"
                 } else {
-                    "http://10.0.2.2:4000/api/orders"
+                    "http://10.0.2.2:4000$endpoint"
                 }
 
                 val url = java.net.URL(targetUrl)
