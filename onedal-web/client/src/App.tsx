@@ -40,7 +40,8 @@ export default function App() {
   return (
     <BrowserRouter>
       <AppLayout />
-      {import.meta.env.DEV && <DevTools />}
+      {/* 배포 테스트를 위해 임시로 DevTools 강제 활성화 */}
+      <DevTools /> 
     </BrowserRouter>
   );
 }
