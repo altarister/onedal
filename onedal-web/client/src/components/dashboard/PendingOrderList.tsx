@@ -17,7 +17,6 @@ export default function PendingOrderList({
 
     return (
         <section id="pending-list" className="pt-2">
-            <h2 className="text-xs font-bold text-slate-500 mb-3 ml-1">수신 대기열 ({pendingOrders.length})</h2>
             <div className="space-y-2">
                 {pendingOrders.map(order => {
                     const sim = order.id ? simulationResults[order.id] : null;
