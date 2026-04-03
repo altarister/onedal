@@ -42,7 +42,22 @@ class MainActivity : ComponentActivity() {
                         val sharedPref = context.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
                         var isLiveMode by remember { mutableStateOf(sharedPref.getBoolean("isLiveMode", false)) }
                         
+                        // 기기 ID (자동 생성 or 기존값 표시)
+                        val deviceId = remember {
+                            sharedPref.getString("deviceId", null) ?: run {
+                                val generated = "앱폰-${android.os.Build.MODEL.take(8)}-${(100..999).random()}"
+                                sharedPref.edit().putString("deviceId", generated).apply()
+                                generated
+                            }
+                        }
+                        
                         Text(text = stringResource(id = R.string.main_title))
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "기기 ID: $deviceId",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                         Spacer(modifier = Modifier.height(32.dp))
                         
                         // 서버 접속 토글 스위치 (Local vs Live)
