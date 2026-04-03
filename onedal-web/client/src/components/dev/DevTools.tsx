@@ -147,11 +147,11 @@ function DevTools() {
                 </Button>
 
                 {/* API 발송 타겟 (Local / Live) 전환 토글 */}
-                <div 
+                <div
                     onClick={() => setIsLiveMode(!isLiveMode)}
                     className={`mt-1 flex items-center justify-center py-1 rounded cursor-pointer border text-[10px] font-black transition-all shadow-inner ${isLiveMode ? 'bg-indigo-900/40 border-indigo-500 text-indigo-300' : 'bg-slate-800 border-slate-600 text-slate-400'}`}
                 >
-                    {isLiveMode ? '📡 실서버로 발송 중' : '🏠 내 PC로 발송 중'}
+                    {isLiveMode ? '실서버로 발송' : '내 PC로 발송'}
                 </div>
             </div>
         </div>
