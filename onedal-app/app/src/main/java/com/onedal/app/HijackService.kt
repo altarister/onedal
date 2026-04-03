@@ -161,8 +161,18 @@ class HijackService : AccessibilityService() {
     private fun sendToServer(jsonBody: String) {
         Thread {
             try {
-                // BuildConfig를 통해 Debug(로컬) / Release(실제서버) 환경변수를 자동 파싱합니다.
-                val url = java.net.URL(BuildConfig.SERVER_URL)
+                // BuildConfig 대신 MainActivity에서 설정한 SharedPreferences 스위치를 읽어옵니다.
+                val sharedPref = getSharedPreferences("OneDalPrefs", android.content.Context.MODE_PRIVATE)
+                val isLiveMode = sharedPref.getBoolean("isLiveMode", false)
+                
+                // Live 모드면 실서버(1dal.altari.com), Local 모드면 내 PC(10.0.2.2)로 발송
+                val targetUrl = if (isLiveMode) {
+                    "https://1dal.altari.com/api/orders"
+                } else {
+                    "http://10.0.2.2:4000/api/orders"
+                }
+
+                val url = java.net.URL(targetUrl)
                 val conn = url.openConnection() as java.net.HttpURLConnection
                 conn.requestMethod = "POST"
                 conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")

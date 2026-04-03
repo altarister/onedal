@@ -16,6 +16,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import android.content.Context
+import androidx.compose.material3.Switch
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.foundation.layout.Row
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -32,9 +39,26 @@ class MainActivity : ComponentActivity() {
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         val context = LocalContext.current
+                        val sharedPref = context.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
+                        var isLiveMode by remember { mutableStateOf(sharedPref.getBoolean("isLiveMode", false)) }
                         
                         Text(text = stringResource(id = R.string.main_title))
                         Spacer(modifier = Modifier.height(32.dp))
+                        
+                        // 서버 접속 토글 스위치 (Local vs Live)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(if (isLiveMode) "📡 실서버로 발송 중 (1dal.altari.com)" else "🏠 내 PC로 발송 중 (10.0.2.2)")
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Switch(
+                                checked = isLiveMode,
+                                onCheckedChange = { checked ->
+                                    isLiveMode = checked
+                                    sharedPref.edit().putBoolean("isLiveMode", checked).apply()
+                                }
+                            )
+                        }
+                        
+                        Spacer(modifier = Modifier.height(16.dp))
                         
                         Button(onClick = {
                             val intent = Intent(Intent.ACTION_VIEW, Uri.parse("http://10.0.2.2:5173/?mode=standalone"))
