@@ -11,6 +11,12 @@ let activeBotIds: string[] = [];
 function DevTools() {
     const [isOpen, setIsOpen] = useState(false);
     const [botCount, setBotCount] = useState<number>(0);
+    const [isLiveMode, setIsLiveMode] = useState<boolean>(false);
+
+    // 타겟 서버 URL 결정 함수
+    const getApiUrl = (path: string) => {
+        return isLiveMode ? `https://1dal.altari.com${path}` : path;
+    };
 
     const spawnBot = () => {
         const botId = `테스트폰-${Math.floor(Math.random() * 1000)}`;
@@ -32,7 +38,7 @@ function DevTools() {
                 };
             });
 
-            fetch("/api/scrap", {
+            fetch(getApiUrl("/api/scrap"), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ deviceId: botId, data: mockScrapBatch })
@@ -56,7 +62,7 @@ function DevTools() {
         activeBotIds = [];
 
         // 백엔드 메모리 DB 완전 삭제
-        fetch("/api/devices/clear", { method: "POST" })
+        fetch(getApiUrl("/api/devices/clear"), { method: "POST" })
             .then(() => {
                 setBotCount(0);
                 console.log("🧹 프론트 및 서버 기기 세션 모두 초기화 완료");
@@ -80,7 +86,7 @@ function DevTools() {
             capturedAt: new Date().toISOString(),
             matchType: 'AUTO'
         };
-        fetch("/api/orders/confirm", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(basicPayload) });
+        fetch(getApiUrl("/api/orders/confirm"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(basicPayload) });
 
         setTimeout(() => {
             const detailedPayload: DispatchConfirmRequest = {
@@ -90,7 +96,7 @@ function DevTools() {
                 capturedAt: new Date().toISOString(),
                 matchType: 'AUTO'
             };
-            fetch("/api/orders/confirm", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(detailedPayload) });
+            fetch(getApiUrl("/api/orders/confirm"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(detailedPayload) });
         }, 1000);
 
         console.log(`🎯 [테스트 배차] ${botId}가 콜을 선점했습니다!`);
@@ -139,6 +145,14 @@ function DevTools() {
                 >
                     퇴근
                 </Button>
+
+                {/* API 발송 타겟 (Local / Live) 전환 토글 */}
+                <div 
+                    onClick={() => setIsLiveMode(!isLiveMode)}
+                    className={`mt-1 flex items-center justify-center py-1 rounded cursor-pointer border text-[10px] font-black transition-all shadow-inner ${isLiveMode ? 'bg-indigo-900/40 border-indigo-500 text-indigo-300' : 'bg-slate-800 border-slate-600 text-slate-400'}`}
+                >
+                    {isLiveMode ? '📡 실서버로 발송 중' : '🏠 내 PC로 발송 중'}
+                </div>
             </div>
         </div>
     );
