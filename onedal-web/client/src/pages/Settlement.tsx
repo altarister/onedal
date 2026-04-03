@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import type { OrderData } from "@onedal/shared";
+import type { SecuredOrder } from "@onedal/shared";
 
 export default function Settlement() {
-    const [orders, setOrders] = useState<OrderData[]>([]);
+    const [orders, setOrders] = useState<SecuredOrder[]>([]);
 
     useEffect(() => {
         // API에서 기존 데이터 가져오기

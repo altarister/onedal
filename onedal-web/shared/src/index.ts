@@ -25,6 +25,11 @@ export interface SimplifiedOfficeOrder {
     fare: number;                     // 45000 (숫자)
     timestamp: string;                // ISO 8601 포맷
     rawText?: string;                 // 안드로이드 스캐너에서 긁어온 원본 텍스트         
+    // (선택) MOCK 지도 연산 및 시뮬레이션 용 임시 좌표
+    pickupX?: number;
+    pickupY?: number;
+    dropoffX?: number;
+    dropoffY?: number;
 }
 // 2. [상세 페이지] 배차 확정 후, 들어가서 스크래핑해올 구체적 데이터
 export interface DetailedOfficeOrder {
@@ -40,12 +45,6 @@ export interface DetailedOfficeOrder {
     itemDescription?: string;         // 화물 요약 (예: "박스 2개")
     companyName?: string;             // 화주 상호/이름
     pickupTime?: string;              // 픽업 예약 시간 지정
-
-    // (선택) MOCK 지도 렌더링용 임시 좌표
-    pickupX?: number;
-    pickupY?: number;
-    dropoffX?: number;
-    dropoffY?: number;
 }
 
 export interface FilterConfig {

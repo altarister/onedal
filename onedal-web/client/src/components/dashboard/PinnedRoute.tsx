@@ -24,8 +24,8 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
     };
 
     // 가상의 통합 노선도(타임라인) 생성: 상차는 순방향, 하차는 역방향(간단한 LIFO 모의)
-    const pickups = activeRoute.map((r, i) => ({ type: '상차', name: r.pickup.split(' ')[1] || r.pickup, isEvaluating: r.status.includes('evaluating') }));
-    const dropoffs = [...activeRoute].reverse().map((r, i) => ({ type: '하차', name: r.dropoff.split(' ')[1] || r.dropoff, isEvaluating: r.status.includes('evaluating') }));
+    const pickups = activeRoute.map((r) => ({ type: '상차', name: r.pickup.split(' ')[1] || r.pickup, isEvaluating: r.status.includes('evaluating') }));
+    const dropoffs = [...activeRoute].reverse().map((r) => ({ type: '하차', name: r.dropoff.split(' ')[1] || r.dropoff, isEvaluating: r.status.includes('evaluating') }));
     const unifiedRoutePoints = [...pickups, ...dropoffs];
 
     return (

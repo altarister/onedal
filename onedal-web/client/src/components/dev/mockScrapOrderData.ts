@@ -19,17 +19,6 @@ const dropoffLocations = [
     "전남 여수시 국가산단", "울산 남구 옥동", "경남 창원시 성산구"
 ];
 
-// 다양한 적요 파편 텍스트 조합 테스트용
-const rawTextFragments = [
-    "상하차 수작업, 기사님수고비포함",
-    "지게차 상하차, 연락처 010-XXXX-XXXX 필",
-    "박스 5개 구르마 필수. 도착전 미리 연락",
-    "오전 10시까지 무조건 착",
-    "눈비 조심, 방수갑바 필수",
-    "도착지 문앞에 그냥 두시면 됩니다.",
-    "급송! 바로 픽업 가능하신 분만"
-];
-
 const generateDiverseMockData = (count: number): SimplifiedOfficeOrder[] => {
     return Array.from({ length: count }).map((_, i) => {
         const pickup = pickupLocations[Math.floor(Math.random() * pickupLocations.length)];
