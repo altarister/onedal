@@ -78,7 +78,7 @@ if (fs.existsSync(clientBuildPath)) {
     app.use(express.static(clientBuildPath));
 
     // API가 아닌 모든 요청은 React의 index.html을 응답 (SPA 라우팅 지원)
-    app.get(/^.*$/, (req, res) => {
+    app.use((req, res) => {
         res.sendFile(path.join(clientBuildPath, 'index.html'));
     });
 } else {
