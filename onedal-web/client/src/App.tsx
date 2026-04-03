@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Link, useLocation } from "react-router-do
 import Dashboard from "./pages/Dashboard";
 import Settlement from "./pages/Settlement";
 import OrderFilterConfig from "./pages/OrderFilterConfig";
+import DevTools from "./components/dev/DevTools";
 
 // Navigation Wrapper
 function AppLayout() {
@@ -40,6 +41,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AppLayout />
+      {import.meta.env.DEV && <DevTools />}
     </BrowserRouter>
   );
 }

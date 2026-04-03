@@ -2,6 +2,7 @@ import { Router, Response } from "express";
 import crypto from "crypto";
 import type { SimplifiedOfficeOrder, DispatchConfirmRequest, DispatchConfirmResponse, SecuredOrder } from "@onedal/shared";
 import db from "../db";
+import { activeFilterConfig, updateActiveFilter } from "../state/filterStore";
 
 const router = Router();
 const pendingConfirmRequests = new Map<string, Response>();
@@ -109,6 +110,12 @@ router.post("/confirm", async (req, res) => {
                 // UI를 '대기' 상태로 만들고 평가 카드를 올리라는 신호
                 io.emit("order-evaluating", securedOrder);
                 console.log(`⏱️ [1차 선빵 수신] ${securedOrder.pickup} ➡️ ${securedOrder.dropoff} (기기: ${payload.deviceId})`);
+
+                // 중앙 통제 필터를 '대기' 모드로 전환 후 브로드캐스트
+                if (activeFilterConfig.mode === '첫짐') {
+                    updateActiveFilter({ mode: '대기' });
+                    io.emit("filter-updated", activeFilterConfig);
+                }
             }
         } else if (payload.step === 'DETAILED') {
             // 2단계: 상세 보고 (상세 페이지에서 값 획득 후 전송)
@@ -251,10 +258,22 @@ router.post("/decision/:id", (req, res) => {
                 }
             }
 
-            if (io) io.emit("order-confirmed", id);
+            if (io) {
+                io.emit("order-confirmed", id);
+                // 본콜 확정이면 합짐 사냥 모드로 필터 전면 개편
+                updateActiveFilter({ mode: '합짐', detourBaseId: id });
+                io.emit("filter-updated", activeFilterConfig);
+            }
             console.log(`✅ [최종 수락 완료] ID: ${id}`);
         } else {
-            if (io) io.emit("order-canceled", id);
+            if (io) {
+                io.emit("order-canceled", id);
+                // 만약 본콜 확정 전 대기 중 취소였다면 다시 첫짐 사냥으로 원복
+                if (!mainCallState && activeFilterConfig.mode === '대기') {
+                    updateActiveFilter({ mode: '첫짐' });
+                    io.emit("filter-updated", activeFilterConfig);
+                }
+            }
             // 취소되면 메모리에서도 비움
             pendingOrdersData.delete(id);
             console.log(`❌ [최종 뱉기(방출) 완료] ID: ${id}`);

@@ -32,10 +32,10 @@
       "timestamp": "2026-03-31T21:40:00Z"
     }
     ```
-  - `POST [Web_URL]:4000/api/intel` : 불합격 콜 10개씩 Bulk 전송
+  - `POST [Web_URL]:4000/api/scrap` : 불합격 콜 10개씩 Bulk 전송
     ```json
     {
-       "type": "INTEL_BULK",
+       "type": "SCRAP_BULK",
        "data": [
          {"origin": "수원", "dest": "파주", "price": 10000}, ...
        ]

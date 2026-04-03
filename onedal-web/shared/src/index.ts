@@ -31,6 +31,7 @@ export interface DetailedOfficeOrder {
     pickups?: LocationPoint[];        // 다중/상세 상차지
     dropoffs?: LocationPoint[];       // 다중/상세 하차지
     distanceKm?: number;              // 운행 거리(km)
+    isMock?: boolean;                 // 목업 콜 여부
     isShared?: boolean;               // 합짐(혼적) 여부
     isExpress?: boolean;              // 급송(독차) 여부
     paymentType?: PaymentType;        // 신용, 착불 등 결제수단
@@ -45,6 +46,17 @@ export interface DetailedOfficeOrder {
     pickupY?: number;
     dropoffX?: number;
     dropoffY?: number;
+}
+
+export interface FilterConfig {
+    mode: '첫짐' | '대기' | '합짐';
+    minFare: number;       // 예: 40000
+    pickupRadius: number;  // 예: 10
+    targetCity: string;    // 예: '용인시'
+    targetRadius: number;  // 예: 10
+    blacklist: string;     // 예: '착불, 수거'
+    // 합짐 모드 시 동적 회랑 정보 (옵션)
+    detourBaseId?: string;
 }
 
 // 3. [오더 풀스팩] 배차 확정 후, 들어가서 스크래핑해올 구체적 데이터
@@ -119,4 +131,23 @@ export type DispatchConfirmRequest = DispatchBasicRequest | DispatchDetailedRequ
 export interface DispatchConfirmResponse {
     deviceId: string;                 // 수락한 앱폰 ID
     action: 'KEEP' | 'CANCEL';        // KEEP: 유지, CANCEL: 서버가 보기에 구리니 즉시 취소 후 복귀
+}
+
+/**
+ * 📱 관제 기기 관리 관련 타입 (Device Telemetry)
+ */
+export type DeviceStatusType = "ONLINE" | "OFFLINE_GRACEFUL" | "DISCONNECTED";
+export type DeviceModeType = "AUTO" | "MANUAL";
+
+export interface DeviceSession {
+    deviceId: string;
+    lastSeen: number;       // 밀리초 타임스탬프
+    status: DeviceStatusType;
+    mode: DeviceModeType;
+    stats: {
+        polled: number;     // 리스트 조회(콜 수집) 누적 횟수
+        grabbed: number;    // 성공 횟수
+        canceled: number;   // 취소 통보 횟수
+    };
+    version?: string;       // 앱/인성앱 버전 등 추가 정보용
 }

@@ -13,10 +13,10 @@ export default function DrillDownModal({
 }: { 
     selectedOrder: SecuredOrder | SimplifiedOfficeOrder | null, 
     activeOrderSim: SimResult | undefined,
-    mainCall: OrderData | null,
+    mainCall: SecuredOrder | SimplifiedOfficeOrder | null,
     onClose: () => void,
     onReject: (id: string) => void,
-    onAccept: (order: OrderData) => void
+    onAccept: (order: SecuredOrder | SimplifiedOfficeOrder) => void
 }) {
     // selectedOrder가 넘길 때만 모달을 표시
     const isOpen = !!selectedOrder;

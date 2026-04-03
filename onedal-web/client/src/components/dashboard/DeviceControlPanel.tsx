@@ -1,68 +1,56 @@
-import { useState, useEffect } from "react";
+import { useDevices } from "../../hooks/useDevices";
+import type { DeviceSession } from "@onedal/shared";
 
-export default function DeviceControlPanel() {
-    const [device1Mode, setDevice1Mode] = useState<"AUTO" | "MANUAL">("AUTO");
-    const [device2Mode, setDevice2Mode] = useState<"AUTO" | "MANUAL">("MANUAL");
-    
-    // CPS (토스트 폴링 동기화) 로직 목업 - 1초 단위 카운트다운
-    const [timeLeft, setTimeLeft] = useState(3);
-    
-    useEffect(() => {
-        const timer = setInterval(() => {
-            setTimeLeft(prev => {
-                if (prev <= 1) return Math.floor(2 + Math.random() * 2); // 2~3초 리셋
-                return prev - 1;
-            });
-        }, 1000);
-        return () => clearInterval(timer);
-    }, []);
+function DeviceRow({ device, onModeChange }: { device: DeviceSession; onModeChange: (id: string, mode: "AUTO" | "MANUAL") => void }) {
+    const isDisconnected = device.status === "DISCONNECTED";
+    const isGraceful = device.status === "OFFLINE_GRACEFUL";
 
     return (
-        <section id="telemetry-panel" className="bg-slate-900 border border-slate-800 rounded-xl p-2 shadow-lg">
-            <div className="flex flex-col gap-2">
-                {/* 앱폰 1호기 */}
-                <div id="device-1" className="flex justify-between items-center bg-black/20 rounded-lg px-3 py-1.5 border border-white/5">
-                    <span className="text-sm font-bold text-white w-28 shrink-0 flex items-center gap-1">
-                        📱 1호기 <span className="text-[10px] text-fuchsia-400 font-black tracking-tighter w-8 text-center bg-fuchsia-400/10 rounded">[ {timeLeft}s ]</span>
+        <div className="flex items-center justify-between py-1 border-b border-slate-800 last:border-0 hover:bg-slate-800/20 px-2 transition-colors">
+            <div className={`flex items-center gap-4 ${isDisconnected ? 'opacity-50' : isGraceful ? 'opacity-30' : ''}`}>
+                <span className="font-bold flex items-center gap-2">
+                    <span className={`font-black text-[10px] px-1.5 py-0.5 rounded ${isDisconnected ? 'bg-red-500/20 text-red-500 animate-pulse' : isGraceful ? 'bg-slate-700 text-slate-400' : 'text-emerald-500'}`}>
+                        {device.deviceId}
                     </span>
-                    <div className="hidden sm:flex gap-3 text-[11px] font-medium tracking-tight whitespace-nowrap">
-                        <span className="text-slate-400">수집: 240</span>
-                        <span className="text-emerald-400">수락: 3</span>
-                        <span className="text-red-400">취소: 0</span>
-                    </div>
-                    <button 
-                        onClick={() => setDevice1Mode(prev => prev === "AUTO" ? "MANUAL" : "AUTO")}
-                        className={`text-xs px-3 py-1 rounded-md font-black transition-colors ${
-                            device1Mode === "AUTO" 
-                            ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.2)]" 
-                            : "bg-amber-500/10 text-amber-500 border border-amber-500/30"
-                        }`}
-                    >
-                        {device1Mode === "AUTO" ? "🚀 풀오토" : "✋ 반자동"}
-                    </button>
+                </span>
+                <div className="flex items-center gap-3 text-xs text-slate-400 font-medium">
+                    <span>수집: {device.stats.polled}</span>
+                    <span className="text-emerald-500">수락: {device.stats.grabbed}</span>
+                    <span className="text-red-400">취소: {device.stats.canceled}</span>
                 </div>
+            </div>
+            <button
+                onClick={() => onModeChange(device.deviceId, device.mode === "AUTO" ? "MANUAL" : "AUTO")}
+                className={`border px-2 py-1 text-xs font-black rounded-md transition-colors ${device.mode === "AUTO"
+                    ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                    : "bg-amber-500/10 text-amber-500 border-amber-500/30"
+                    }`}
+            >
+                {device.mode === "AUTO" ? "풀오토" : "반자동/대기"}
+            </button>
+        </div>
+    );
+}
 
-                {/* 앱폰 2호기 */}
-                <div id="device-2" className="flex justify-between items-center bg-black/20 rounded-lg px-3 py-1.5 border border-white/5 opacity-70">
-                    <span className="text-sm font-bold text-white w-28 shrink-0 flex items-center gap-1">
-                        📱 2호기 <span className="text-[10px] text-slate-500 font-bold tracking-tighter w-8 text-center bg-slate-800 rounded">[ 대기 ]</span>
-                    </span>
-                    <div className="hidden sm:flex gap-3 text-[11px] font-medium tracking-tight whitespace-nowrap">
-                        <span className="text-slate-400">수집: 18</span>
-                        <span className="text-emerald-400">수락: 0</span>
-                        <span className="text-red-400">취소: 0</span>
+export default function DeviceControlPanel() {
+    const { devices, changeDeviceMode } = useDevices();
+
+    return (
+        <section id="telemetry-panel" className="bg-[#111522] border border-slate-800/80 rounded-xl p-3 shadow-lg">
+            <div className="flex flex-col">
+                {devices.length === 0 ? (
+                    <div className="text-center text-xs text-slate-500 py-4 opacity-60 font-bold tracking-tight">
+                        대기 중인 스크래퍼 앱폰이 없습니다.
                     </div>
-                    <button 
-                        onClick={() => setDevice2Mode(prev => prev === "AUTO" ? "MANUAL" : "AUTO")}
-                        className={`text-xs px-3 py-1 rounded-md font-black transition-colors ${
-                            device2Mode === "AUTO" 
-                            ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" 
-                            : "bg-slate-800 text-slate-500 border border-slate-700"
-                        }`}
-                    >
-                        {device2Mode === "AUTO" ? "🚀 풀오토" : "✋ 반자동"}
-                    </button>
-                </div>
+                ) : (
+                    devices.map(device => (
+                        <DeviceRow
+                            key={device.deviceId}
+                            device={device}
+                            onModeChange={changeDeviceMode}
+                        />
+                    ))
+                )}
             </div>
         </section>
     );

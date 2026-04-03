@@ -1,8 +1,33 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/Button";
+import { useFilterConfig } from "../hooks/useFilterConfig";
 
 export default function OrderFilterConfig() {
     const navigate = useNavigate();
+    const { filter, updateFilter } = useFilterConfig();
+    
+    // 이 페이지는 폼 역할이므로 로컬 state로 관리 후 저장 시 소켓 발송
+    const [minFare, setMinFare] = useState<string>("");
+    const [pickupRadius, setPickupRadius] = useState<string>("");
+    const [targetCity, setTargetCity] = useState<string>("");
+    const [targetRadius, setTargetRadius] = useState<string>("");
+    const [blacklist, setBlacklist] = useState<string>("");
+
+    if (!filter) {
+        return <div className="min-h-screen bg-slate-950 p-4 text-white">동기화 대기 중...</div>;
+    }
+
+    const handleSave = () => {
+        updateFilter({
+            minFare: minFare ? parseInt(minFare, 10) : filter.minFare,
+            pickupRadius: pickupRadius ? parseInt(pickupRadius, 10) : filter.pickupRadius,
+            targetCity: targetCity || filter.targetCity,
+            targetRadius: targetRadius ? parseInt(targetRadius, 10) : filter.targetRadius,
+            blacklist: blacklist || filter.blacklist
+        });
+        navigate(-1);
+    };
 
     return (
         <div className="min-h-screen bg-slate-950 p-4 pb-32 text-slate-200">
@@ -16,7 +41,12 @@ export default function OrderFilterConfig() {
                 <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-md">
                     <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wide">하한가 (최소 운임)</label>
                     <div className="flex items-center gap-2">
-                        <input type="number" defaultValue={40000} className="w-full bg-black/50 border border-slate-700 rounded-lg p-3 text-xl text-emerald-400 font-black outline-none focus:border-emerald-500" />
+                        <input 
+                            type="number" 
+                            defaultValue={filter.minFare} 
+                            onChange={(e) => setMinFare(e.target.value)}
+                            className="w-full bg-black/50 border border-slate-700 rounded-lg p-3 text-xl text-emerald-400 font-black outline-none focus:border-emerald-500" 
+                        />
                         <span className="text-slate-400 font-bold shrink-0">원 이상</span>
                     </div>
                 </div>
@@ -25,7 +55,12 @@ export default function OrderFilterConfig() {
                 <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-md">
                     <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wide">상차 반경 (내 위치 반경)</label>
                     <div className="flex items-center gap-2">
-                        <input type="number" defaultValue={10} className="w-full bg-black/50 border border-slate-700 rounded-lg p-3 text-lg text-white font-bold outline-none focus:border-indigo-500" />
+                        <input 
+                            type="number" 
+                            defaultValue={filter.pickupRadius} 
+                            onChange={(e) => setPickupRadius(e.target.value)}
+                            className="w-full bg-black/50 border border-slate-700 rounded-lg p-3 text-lg text-white font-bold outline-none focus:border-indigo-500" 
+                        />
                         <span className="text-slate-400 font-bold shrink-0">km 이내</span>
                     </div>
                 </div>
@@ -33,11 +68,21 @@ export default function OrderFilterConfig() {
                 {/* 도착지 설정 영역 */}
                 <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-md">
                     <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wide">하차 목표 (시/군/자치구)</label>
-                    <input type="text" defaultValue="용인시" className="w-full bg-black/50 border border-slate-700 rounded-lg p-3 text-lg text-white font-bold outline-none focus:border-indigo-500 mb-4" />
+                    <input 
+                        type="text" 
+                        defaultValue={filter.targetCity} 
+                        onChange={(e) => setTargetCity(e.target.value)}
+                        className="w-full bg-black/50 border border-slate-700 rounded-lg p-3 text-lg text-white font-bold outline-none focus:border-indigo-500 mb-4" 
+                    />
                     
                     <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wide">목표 범위 주위 반경</label>
                     <div className="flex items-center gap-2">
-                        <input type="number" defaultValue={10} className="w-full bg-black/50 border border-slate-700 rounded-lg p-3 text-lg text-white font-bold outline-none focus:border-indigo-500" />
+                        <input 
+                            type="number" 
+                            defaultValue={filter.targetRadius} 
+                            onChange={(e) => setTargetRadius(e.target.value)}
+                            className="w-full bg-black/50 border border-slate-700 rounded-lg p-3 text-lg text-white font-bold outline-none focus:border-indigo-500" 
+                        />
                         <span className="text-slate-400 font-bold shrink-0">km 주변</span>
                     </div>
 
@@ -54,7 +99,8 @@ export default function OrderFilterConfig() {
                 <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-md">
                     <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wide">제외 단어 (블랙리스트)</label>
                     <textarea 
-                        defaultValue="착불, 수거, 까대기" 
+                        defaultValue={filter.blacklist} 
+                        onChange={(e) => setBlacklist(e.target.value)}
                         placeholder="쉼표(,)로 구분하세요"
                         className="w-full h-24 bg-black/50 border border-slate-700 rounded-lg p-3 text-sm text-red-300 font-bold outline-none focus:border-red-500 resize-none" 
                     />
@@ -64,7 +110,7 @@ export default function OrderFilterConfig() {
             {/* 고정 하단 저장 버튼 */}
             <div className="fixed bottom-[74px] left-0 right-0 p-4 bg-slate-950/80 backdrop-blur-md border-t border-white/5 z-40">
                 <div className="max-w-lg mx-auto">
-                    <Button className="w-full h-14 text-lg tracking-wide rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.2)] font-black" onClick={() => navigate(-1)}>
+                    <Button className="w-full h-14 text-lg tracking-wide rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.2)] font-black" onClick={handleSave}>
                         📲 1/2호기 즉시 동기화 적용
                     </Button>
                 </div>

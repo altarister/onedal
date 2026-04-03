@@ -13,15 +13,11 @@ export default function Dashboard() {
     const {
         orders,
         isConnected,
-        filterStatus,
         mainCall,
         subCalls,
         rejectedCallIds,
         selectedOrder,
         setSelectedOrder,
-        startMockSequence,
-        handleSetMainCall,
-        handleConfirmSub,
         handleDecision,
     } = useOrderEngine();
 
@@ -39,34 +35,37 @@ export default function Dashboard() {
         <main className="min-h-screen bg-slate-950 text-slate-200 font-sans pb-32">
             
             {/* 📍 공통 헤더 컴포넌트 */}
-            <Header isConnected={isConnected} onTestClick={startMockSequence} />
+            <Header isConnected={isConnected} />
 
             <div className="p-2 space-y-2 max-w-2xl mx-auto">
                 {/* 🎛️ 앱폰 제어 패널 */}
                 <DeviceControlPanel />
 
                 {/* ⚙️ 오더 필터 한 줄 현황판 (클릭 시 설정 이동) */}
-                <OrderFilterStatus filterStatus={filterStatus} />
+                <OrderFilterStatus />
 
                 {/* 🏆 배차 확정 콜 (및 데스밸리 연산 구역) */}
                 <PinnedRoute activeRoute={activeRoute} onDecision={handleDecision} />
 
-                {/* 📥 수신 대기열 리스트 */}
-                <PendingOrderList 
-                    pendingOrders={pendingOrders} 
-                    simulationResults={simulationResults} 
-                    onOpenModal={setSelectedOrder} 
-                />
+                {/* 📥 수신 대기열 리스트 (비어있을 땐 숨김 처리하여 공간 확보) */}
+                {pendingOrders.length > 0 && (
+                    <div className="flex-1 mt-4">
+                        <PendingOrderList 
+                            pendingOrders={pendingOrders} 
+                            simulationResults={simulationResults} 
+                            onOpenModal={setSelectedOrder} 
+                        />
+                    </div>
+                )}
             </div>
 
-            {/* 💎 팝업 드릴다운 모달 */}
             <DrillDownModal 
                 selectedOrder={selectedOrder!}
                 activeOrderSim={selectedOrder && selectedOrder.id ? simulationResults[selectedOrder.id] : undefined}
                 mainCall={mainCall}
                 onClose={() => setSelectedOrder(null)}
                 onReject={() => setSelectedOrder(null)}
-                onAccept={mainCall ? handleConfirmSub : handleSetMainCall}
+                onAccept={() => alert("웹 관제탑에서는 수동 배차를 지원하지 않습니다 (앱에서 자동 확정 됨)")}
             />
 
         </main>
