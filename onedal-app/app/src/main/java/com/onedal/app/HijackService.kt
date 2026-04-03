@@ -42,7 +42,7 @@ class HijackService : AccessibilityService() {
     }
 
     // 기기 ID (SharedPreferences에서 읽음)
-    private fun getDeviceId(): String {
+    private fun getOneDalDeviceId(): String {
         val prefs = getSharedPreferences("OneDalPrefs", android.content.Context.MODE_PRIVATE)
         return prefs.getString("deviceId", null) ?: run {
             // 최초 실행 시 고유 ID 자동 생성
@@ -57,7 +57,7 @@ class HijackService : AccessibilityService() {
     // ─────────────────────────────────────────────────────────
     override fun onServiceConnected() {
         super.onServiceConnected()
-        Log.i(TAG, "1DAL Accessibility Service Connected! (기기: ${getDeviceId()})")
+        Log.i(TAG, "1DAL Accessibility Service Connected! (기기: ${getOneDalDeviceId()})")
         // 텔레메트리 루프 시작
         handler.postDelayed(scrapRunnable, SCRAP_INTERVAL_MS)
     }
@@ -138,7 +138,7 @@ class HijackService : AccessibilityService() {
                     statGrabbed++
                     val confirmPayload = DispatchBasicRequest(
                         step = "BASIC",
-                        deviceId = getDeviceId(),
+                        deviceId = getOneDalDeviceId(),
                         order = order,
                         capturedAt = now,
                         matchType = "AUTO"
@@ -251,7 +251,7 @@ class HijackService : AccessibilityService() {
         }
 
         val payload = ScrapPayload(
-            deviceId = getDeviceId(),
+            deviceId = getOneDalDeviceId(),
             data = snapshot
         )
         val json = gson.toJson(payload)
