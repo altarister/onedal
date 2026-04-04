@@ -5,7 +5,7 @@ import android.os.Looper
 import android.util.Log
 import com.onedal.app.api.ApiClient
 import com.onedal.app.models.ScrapPayload
-import com.onedal.app.models.SimplifiedOrder
+import com.onedal.app.models.SimplifiedOfficeOrder
 
 /**
  * 3초 주기 스크랩/생존신고 버퍼와 전송 스케줄링을 관리.
@@ -17,7 +17,7 @@ class TelemetryManager(private val apiClient: ApiClient) {
         private const val SCRAP_INTERVAL_MS = 3000L
     }
 
-    private val scrapBuffer = mutableListOf<SimplifiedOrder>()
+    private val scrapBuffer = mutableListOf<SimplifiedOfficeOrder>()
     private val handler = Handler(Looper.getMainLooper())
     private var isRunning = false
 
@@ -46,14 +46,14 @@ class TelemetryManager(private val apiClient: ApiClient) {
     /**
      * 버퍼에 콜 데이터를 쌓음 (Thread-safe)
      */
-    fun enqueue(order: SimplifiedOrder) {
+    fun enqueue(order: SimplifiedOfficeOrder) {
         synchronized(scrapBuffer) {
             scrapBuffer.add(order)
         }
     }
 
     private fun flush() {
-        val snapshot: List<SimplifiedOrder>
+        val snapshot: List<SimplifiedOfficeOrder>
         synchronized(scrapBuffer) {
             snapshot = scrapBuffer.toList()
             scrapBuffer.clear()

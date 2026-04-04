@@ -8,7 +8,7 @@ package com.onedal.app.models
 // ────────────────────────────────────────────────
 // 1. 콜 데이터 모델 (웹의 SimplifiedOfficeOrder 대응)
 // ────────────────────────────────────────────────
-data class SimplifiedOrder(
+data class SimplifiedOfficeOrder(
     val id: String,
     val type: String = "NEW_ORDER",
     val pickup: String,
@@ -26,8 +26,8 @@ data class SimplifiedOrder(
 // 2. 상세 콜 데이터 (웹의 DetailedOfficeOrder 대응)
 //    3단계(상세 페이지 스크래핑) 구현 시 사용
 // ────────────────────────────────────────────────
-data class DetailedOrder(
-    // SimplifiedOrder 필드 포함
+data class DetailedOfficeOrder(
+    // SimplifiedOfficeOrder 필드 포함
     val id: String,
     val type: String = "NEW_ORDER",
     val pickup: String,
@@ -55,7 +55,7 @@ data class DetailedOrder(
 data class DispatchBasicRequest(
     val step: String = "BASIC",
     val deviceId: String,
-    val order: SimplifiedOrder,
+    val order: SimplifiedOfficeOrder,
     val capturedAt: String,
     val matchType: String = "AUTO"
 )
@@ -63,7 +63,7 @@ data class DispatchBasicRequest(
 data class DispatchDetailedRequest(
     val step: String = "DETAILED",
     val deviceId: String,
-    val order: DetailedOrder,
+    val order: DetailedOfficeOrder,
     val capturedAt: String,
     val matchType: String = "AUTO"
 )
@@ -81,7 +81,7 @@ data class DispatchConfirmResponse(
 // ────────────────────────────────────────────────
 data class ScrapPayload(
     val deviceId: String,
-    val data: List<SimplifiedOrder>
+    val data: List<SimplifiedOfficeOrder>
 )
 
 // 서버 응답 (Piggyback 통신: 상태, 통계, 최신 필터를 한 번에 태워보냄)

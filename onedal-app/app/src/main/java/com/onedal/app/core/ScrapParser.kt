@@ -1,6 +1,6 @@
 package com.onedal.app.core
 
-import com.onedal.app.models.SimplifiedOrder
+import com.onedal.app.models.SimplifiedOfficeOrder
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -8,16 +8,16 @@ import java.util.UUID
 
 /**
  * 화면에서 추출된 원시 문자열 데이터를 파싱하여
- * 구조화된 모델(SimplifiedOrder)로 변환해 주는 로직 전담 클래스.
+ * 구조화된 모델(SimplifiedOfficeOrder)로 변환해 주는 로직 전담 클래스.
  * UI나 Network 코드가 없어 Unit Test 가 용이합니다.
  */
 class ScrapParser {
 
     /**
      * @param texts 한 화면 주기에서 새로 나타난 텍스트 블록 리스트
-     * @return 파싱 성공 시 SimplifiedOrder 객체
+     * @return 파싱 성공 시 SimplifiedOfficeOrder 객체
      */
-    fun parse(texts: List<String>): SimplifiedOrder {
+    fun parse(texts: List<String>): SimplifiedOfficeOrder {
         val rawJoined = texts.joinToString(", ")
 
         // 1. 요금 파싱
@@ -34,7 +34,7 @@ class ScrapParser {
 
         val now = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault()).format(Date())
 
-        return SimplifiedOrder(
+        return SimplifiedOfficeOrder(
             id = java.util.UUID.randomUUID().toString(),
             type = "NEW_ORDER",
             pickup = pickup,
