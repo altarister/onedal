@@ -91,8 +91,18 @@ class ScrapParser(private val context: Context) {
         val fare = if (fareCandidate != null) fareCandidate * 1000 else 0
 
         // ── 2. 지역명 파싱 (동/읍/면/리 로 끝나는 텍스트) ──
-        val regionPattern = Regex(".+(동|읍|면|리|로|가)$")
-        val regions = texts.filter { regionPattern.matches(it.trim()) }
+        // 인성앱 컬럼 헤더 및 UI 텍스트 제외 목록 (이것들이 지역명으로 오인됨)
+        val uiNoiseWords = setOf(
+            "거리", "출발지", "도착지", "차종", "요금", "설정", "메뉴", "정산",
+            "시작", "전체", "리셋", "신규", "잠금", "원터치", "빠른설정",
+            "메시지함", "장터게시판", "그룹공지"
+        )
+        // 하이픈(-)이 붙은 지역명도 처리 (예: "태전동-" → "태전동")
+        val regionPattern = Regex("(.+)(동|읍|면|리)[-+]?$")
+        val regions = texts
+            .map { it.trim().removeSuffix("-").removeSuffix("+") }  // "태전동-" → "태전동"
+            .filter { regionPattern.matches(it) && !uiNoiseWords.contains(it) && !it.startsWith("@") && it.length >= 2 }
+            .distinct()
 
         // 첫 번째 지역 = 상차지, 두 번째 지역 = 하차지 (인성앱 리스트 순서)
         val pickup = regions.getOrNull(0) ?: "미상"
