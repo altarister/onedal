@@ -42,6 +42,10 @@ class HijackService : AccessibilityService() {
         telemetryManager = TelemetryManager(apiClient) {
             // [세션 끊기] 수신 시 콜백
             isKickedOut = true
+            Log.w(TAG, "🔴 원격 서버 명령에 의해 접근성 권한 스위치를 스스로 해제합니다 (disableSelf)")
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                disableSelf()
+            }
         }
         scrapParser = ScrapParser()
         touchManager = AutoTouchManager(this)
