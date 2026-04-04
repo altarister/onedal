@@ -64,21 +64,26 @@ export function useKakaoRouting(pendingOrders: SimplifiedOfficeOrder[], mainCall
     useEffect(() => {
         pendingOrders.forEach((order) => {
             if (!order.id) return;
-            const sim = simulationResults[order.id];
             if (fetchingIdsRef.current.has(order.id)) return;
 
-            const needsBaseCalc = !mainCall && (!sim || sim.isDetourCalc);
-            const needsDetourCalc = mainCall && (!sim || !sim.isDetourCalc || sim.calcMainCallId !== mainCall.id);
+            // simulationResults를 setState의 콜백 내에서 읽어서 의존성에서 제거
+            setSimulationResults(prev => {
+                const sim = prev[order.id as string];
+                const needsBaseCalc = !mainCall && (!sim || sim.isDetourCalc);
+                const needsDetourCalc = mainCall && (!sim || !sim.isDetourCalc || sim.calcMainCallId !== mainCall.id);
 
-            if (needsBaseCalc) {
-                fetchingIdsRef.current.add(order.id);
-                handleSimulateBase(order).finally(() => { fetchingIdsRef.current.delete(order.id as string); });
-            } else if (needsDetourCalc) {
-                fetchingIdsRef.current.add(order.id);
-                handleSimulate(order).finally(() => { fetchingIdsRef.current.delete(order.id as string); });
-            }
+                if (needsBaseCalc) {
+                    fetchingIdsRef.current.add(order.id as string);
+                    handleSimulateBase(order).finally(() => { fetchingIdsRef.current.delete(order.id as string); });
+                } else if (needsDetourCalc) {
+                    fetchingIdsRef.current.add(order.id as string);
+                    handleSimulate(order).finally(() => { fetchingIdsRef.current.delete(order.id as string); });
+                }
+                return prev; // 상태 변경 안 함 (side effect만 실행)
+            });
         });
-    }, [pendingOrders, mainCall, simulationResults]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pendingOrders.length, mainCall?.id]);
 
     return { simulationResults };
 }
