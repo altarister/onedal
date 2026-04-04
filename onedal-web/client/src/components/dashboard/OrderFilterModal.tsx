@@ -17,6 +17,7 @@ export default function OrderFilterModal({ isOpen, onClose }: OrderFilterModalPr
     const [blacklist, setBlacklist] = useState<string>("");
 
     // 모달이 열릴 때마다 중앙 통제값으로 로컬 폼 상태 초기화
+    // ⚠️ filter를 의존성에 넣으면 소켓으로 매번 새 객체가 들어와 무한 리렌더 발생
     useEffect(() => {
         if (isOpen && filter) {
             setMinFare(filter.minFare?.toString() || "");
@@ -25,7 +26,8 @@ export default function OrderFilterModal({ isOpen, onClose }: OrderFilterModalPr
             setTargetRadius(filter.targetRadius?.toString() || "");
             setBlacklist(Array.isArray(filter.blacklist) ? filter.blacklist.join(', ') : (filter.blacklist || ""));
         }
-    }, [isOpen, filter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen]);
 
     if (!isOpen) return null;
 
