@@ -23,7 +23,7 @@ export default function OrderFilterModal({ isOpen, onClose }: OrderFilterModalPr
             setPickupRadius(filter.pickupRadius?.toString() || "");
             setTargetCity(filter.targetCity || "");
             setTargetRadius(filter.targetRadius?.toString() || "");
-            setBlacklist(filter.blacklist ? filter.blacklist.join(', ') : "");
+            setBlacklist(Array.isArray(filter.blacklist) ? filter.blacklist.join(', ') : (filter.blacklist || ""));
         }
     }, [isOpen, filter]);
 

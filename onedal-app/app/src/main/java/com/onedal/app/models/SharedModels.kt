@@ -99,3 +99,16 @@ data class ApiStatus(
 data class DeviceControl(
     val mode: String = "MANUAL"
 )
+
+// ────────────────────────────────────────────────
+// 6. 관제탑 필터 규격 (웹의 FilterConfig 대응)
+// ────────────────────────────────────────────────
+data class FilterConfig(
+    val mode: String = "첫짐",
+    val minFare: Int = 0,
+    val pickupRadius: Int = 999,
+    val targetCity: String = "",
+    val targetRegions: List<String> = emptyList(),
+    val targetRadius: Int = 10,
+    val blacklist: List<String> = emptyList()
+)
