@@ -8,6 +8,7 @@ import fs from "fs";
 
 import ordersRouter from "./routes/orders";
 import scrapRouter from "./routes/scrap";
+import { getRegionsByCity } from "./geoResolver";
 import kakaoRouter from "./routes/kakao";
 import devicesRouter, { getActiveDevicesSnapshot } from "./routes/devices";
 import { activeFilterConfig, updateActiveFilter } from "./state/filterStore";
@@ -55,8 +56,14 @@ io.on("connection", (socket) => {
 
     // 관제탑으로부터 필터 업데이트 요청 수신
     socket.on("update-filter", (newFilter: Partial<FilterConfig>) => {
+        // targetCity가 변경되면 GeoJSON에서 해당 도시의 읍면동을 자동 조회하여 targetRegions 갱신
+        if (newFilter.targetCity && newFilter.targetCity !== activeFilterConfig.targetCity) {
+            const regions = getRegionsByCity(newFilter.targetCity);
+            newFilter.targetRegions = regions;
+            console.log(`🗺️ [지역 자동 갱신] ${newFilter.targetCity} → ${regions.length}개 읍면동 조회 완료`);
+        }
         const updated = updateActiveFilter(newFilter);
-        console.log(`🌐 [필터 변경] 모드: ${updated.mode}, 단가: ${updated.minFare}, 반경: ${updated.pickupRadius}km`);
+        console.log(`🌐 [필터 변경] 모드: ${updated.mode}, 단가: ${updated.minFare}, 반경: ${updated.pickupRadius}km, 지역: ${updated.targetCity}(${updated.targetRegions?.length}개동)`);
         // 내 서버를 포함한 모든 클라이언트 대시보드에 즉각 브로드캐스트
         io.emit("filter-updated", updated);
     });
