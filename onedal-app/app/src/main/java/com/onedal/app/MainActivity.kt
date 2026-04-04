@@ -23,6 +23,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import android.content.ComponentName
 import android.text.TextUtils
 import androidx.compose.runtime.DisposableEffect
@@ -70,8 +72,11 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     Column(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(vertical = 24.dp),
+                        verticalArrangement = Arrangement.Top,
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         val context = LocalContext.current
@@ -104,6 +109,12 @@ class MainActivity : ComponentActivity() {
                         var lastScrapTime by remember { mutableStateOf(sharedPref.getLong("lastScrapTime", 0L)) }
                         var lastScrapSize by remember { mutableStateOf(sharedPref.getInt("lastScrapSize", 0)) }
                         var lastScrapPreview by remember { mutableStateOf(sharedPref.getString("lastScrapPreview", "-")) }
+                        
+                        // API 디버깅 로그
+                        var apiScrapReq by remember { mutableStateOf(sharedPref.getString("api_scrap_req", "없음")) }
+                        var apiScrapRes by remember { mutableStateOf(sharedPref.getString("api_scrap_res", "없음")) }
+                        var apiConfirmReq by remember { mutableStateOf(sharedPref.getString("api_confirm_req", "없음")) }
+                        var apiConfirmRes by remember { mutableStateOf(sharedPref.getString("api_confirm_res", "없음")) }
 
                         LaunchedEffect(Unit) {
                             while (true) {
@@ -112,6 +123,11 @@ class MainActivity : ComponentActivity() {
                                 lastScrapTime = sharedPref.getLong("lastScrapTime", 0L)
                                 lastScrapSize = sharedPref.getInt("lastScrapSize", 0)
                                 lastScrapPreview = sharedPref.getString("lastScrapPreview", "-")
+                                
+                                apiScrapReq = sharedPref.getString("api_scrap_req", "없음")
+                                apiScrapRes = sharedPref.getString("api_scrap_res", "없음")
+                                apiConfirmReq = sharedPref.getString("api_confirm_req", "없음")
+                                apiConfirmRes = sharedPref.getString("api_confirm_res", "없음")
                                 
                                 delay(1000)
                             }
@@ -210,6 +226,49 @@ class MainActivity : ComponentActivity() {
                                 Text(lastScrapPreview ?: "-", style = MaterialTheme.typography.bodySmall, color = androidx.compose.ui.graphics.Color(0xFFEF6C00))
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text("📡 마지막 전송 시간: $timeString", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall, color = androidx.compose.ui.graphics.Color(0xFFE65100).copy(alpha=0.7f))
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        // API 통신 로그
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 32.dp),
+                            colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color(0xFFE3F2FD))
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text("📡 실시간 API 통신 로그", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium, color = androidx.compose.ui.graphics.Color(0xFF1565C0))
+                                Spacer(modifier = Modifier.height(8.dp))
+                                
+                                Text("[ /api/scrap ]", fontWeight = FontWeight.SemiBold, color = androidx.compose.ui.graphics.Color(0xFF0D47A1))
+                                Text("보낸값: ${apiScrapReq?.take(80)}...", style = MaterialTheme.typography.bodySmall)
+                                Text("받은값: ${apiScrapRes}", style = MaterialTheme.typography.bodySmall)
+                                
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("[ /api/orders/confirm ]", fontWeight = FontWeight.SemiBold, color = androidx.compose.ui.graphics.Color(0xFF0D47A1))
+                                Text("보낸값: ${apiConfirmReq?.take(80)}...", style = MaterialTheme.typography.bodySmall)
+                                Text("받은값: ${apiConfirmRes}", style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        // 기획상 미구현된 기능 목록
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 32.dp),
+                            colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color(0xFFF5F5F5))
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text("🚧 기획상 미구현된 기능 (PRD)", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium, color = androidx.compose.ui.graphics.Color(0xFF424242))
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("1. [3단계] 인성앱 상세 대화상자 스크래핑", style = MaterialTheme.typography.bodySmall, color = androidx.compose.ui.graphics.Color(0xFF616161))
+                                Text("2. [4단계] 데스밸리 방어 (15초 내 자동 취소 매크로)", style = MaterialTheme.typography.bodySmall, color = androidx.compose.ui.graphics.Color(0xFF616161))
+                                Text("3. 서버에서 취소요청(CANCEL) 시 인성앱 제어 로직", style = MaterialTheme.typography.bodySmall, color = androidx.compose.ui.graphics.Color(0xFF616161))
+                                Text("4. 앱 비인가 우회 및 포그라운드 고정화 고도화", style = MaterialTheme.typography.bodySmall, color = androidx.compose.ui.graphics.Color(0xFF616161))
                             }
                         }
 

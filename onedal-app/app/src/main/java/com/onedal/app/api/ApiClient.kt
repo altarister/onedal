@@ -59,6 +59,7 @@ class ApiClient(private val context: Context) {
             var conn: java.net.HttpURLConnection? = null
             try {
                 val jsonBody = gson.toJson(payload)
+                prefs.edit().putString("api_confirm_req", jsonBody).apply()
                 val targetUrl = getTargetUrl("/api/orders/confirm")
                 val url = java.net.URL(targetUrl)
 
@@ -79,6 +80,7 @@ class ApiClient(private val context: Context) {
 
                 if (code == 200) {
                     val body = conn.inputStream.bufferedReader().readText()
+                    prefs.edit().putString("api_confirm_res", body).apply()
                     Log.d(TAG, "🌐 [Confirm 서버 대답] $body")
                     // 추후 4단계 취소 로직(CANCEL) 연동 지점
                 }
@@ -100,6 +102,7 @@ class ApiClient(private val context: Context) {
             var conn: java.net.HttpURLConnection? = null
             try {
                 val jsonBody = gson.toJson(payload)
+                prefs.edit().putString("api_scrap_req", jsonBody).apply()
                 val targetUrl = getTargetUrl("/api/scrap")
                 val url = java.net.URL(targetUrl)
 
@@ -118,6 +121,7 @@ class ApiClient(private val context: Context) {
                 val code = conn.responseCode
                 if (code == 200) {
                     val body = conn.inputStream.bufferedReader().readText()
+                    prefs.edit().putString("api_scrap_res", body).apply()
                     val scrapRes = gson.fromJson(body, ScrapResponse::class.java)
                     Log.d(TAG, "📡 [텔레메트리] 스크랩 ${payload.data.size}건 전송 완료 (모드: ${scrapRes.mode})")
                     
