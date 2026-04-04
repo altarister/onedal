@@ -19,11 +19,11 @@ export default function OrderFilterModal({ isOpen, onClose }: OrderFilterModalPr
     // 모달이 열릴 때마다 중앙 통제값으로 로컬 폼 상태 초기화
     useEffect(() => {
         if (isOpen && filter) {
-            setMinFare(filter.minFare.toString());
-            setPickupRadius(filter.pickupRadius.toString());
-            setTargetCity(filter.targetCity);
-            setTargetRadius(filter.targetRadius.toString());
-            setBlacklist(filter.blacklist);
+            setMinFare(filter.minFare?.toString() || "");
+            setPickupRadius(filter.pickupRadius?.toString() || "");
+            setTargetCity(filter.targetCity || "");
+            setTargetRadius(filter.targetRadius?.toString() || "");
+            setBlacklist(filter.blacklist ? filter.blacklist.join(', ') : "");
         }
     }, [isOpen, filter]);
 
@@ -46,7 +46,7 @@ export default function OrderFilterModal({ isOpen, onClose }: OrderFilterModalPr
             pickupRadius: pickupRadius ? parseInt(pickupRadius, 10) : filter.pickupRadius,
             targetCity: targetCity || filter.targetCity,
             targetRadius: targetRadius ? parseInt(targetRadius, 10) : filter.targetRadius,
-            blacklist: blacklist || filter.blacklist
+            blacklist: blacklist ? blacklist.split(',').map(s => s.trim()).filter(Boolean) : filter.blacklist
         });
         onClose();
     };
@@ -127,12 +127,18 @@ export default function OrderFilterModal({ isOpen, onClose }: OrderFilterModalPr
                         <div className="flex gap-4">
                             <div className="flex-1">
                                 <label className="block text-[10px] font-bold text-slate-400 mb-1.5 pl-1">공략 시/군 단위</label>
-                                <input
-                                    type="text"
-                                    defaultValue={filter.targetCity}
+                                <select
+                                    value={targetCity || filter.targetCity}
                                     onChange={(e) => setTargetCity(e.target.value)}
-                                    className="w-full bg-black/50 border border-slate-600/40 rounded-lg p-2.5 text-[15px] text-indigo-300 font-bold outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400/50 transition-all shadow-inner"
-                                />
+                                    className="w-full bg-black/50 border border-slate-600/40 rounded-lg p-2.5 text-[15px] text-indigo-300 font-bold outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400/50 transition-all shadow-inner appearance-none"
+                                >
+                                    <option value="용인시">용인시</option>
+                                    <option value="수원시">수원시</option>
+                                    <option value="성남시">성남시</option>
+                                    <option value="화성시">화성시</option>
+                                    <option value="광주시">광주시</option>
+                                    <option value="평택시">평택시</option>
+                                </select>
                             </div>
 
                             <div className="flex-1">
