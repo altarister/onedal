@@ -121,6 +121,8 @@ class HijackService : AccessibilityService() {
                 Log.d(TAG, "🚀 선점 성공! 배차 확정(Confirm) 프로세스 시작")
                 apiClient.sendConfirm(payload)
 
+            } else if (shouldClick && candidateNode == null) {
+                Log.w(TAG, "⚠️ [Shoot 실패] 4대 조건은 통과했으나 클릭할 요금 노드를 찾지 못했습니다")
             } else if (order.fare > 0 || newlyAppearedTexts.size > 10) {
                 // 조건 불일치지만 유의미한 콜 → 스크랩 버퍼로 적재 (빅데이터용)
                 telemetryManager.enqueue(order)
@@ -149,9 +151,9 @@ class HijackService : AccessibilityService() {
         val nodeText = node.text?.toString()?.trim()
         if (!nodeText.isNullOrEmpty()) {
             texts.add(nodeText)
-            // 요금 후보 감지: 숫자이고 만 단위 이상 (운임으로 추정)
+            // 요금 후보 감지: 소수점 없는 정수이고 10~9999 범위 (인성앱 운임 표시: "47" = 47,000원)
             val numValue = nodeText.replace(",", "").toIntOrNull()
-            if (numValue != null && numValue >= 10000) {
+            if (numValue != null && numValue in 10..9999 && !nodeText.contains(".")) {
                 onCandidateFound(node)
             }
         }
