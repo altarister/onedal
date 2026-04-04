@@ -40,8 +40,9 @@ export function getRegionsByCity(cityName: string): string[] {
     const data = loadGeoData();
     
     const regions = data.features
-        .filter(f => f.properties.SIG_KOR_NM.includes(cityName))
-        .map(f => f.properties.EMD_KOR_NM);
+        .filter(f => f.properties?.SIG_KOR_NM?.includes(cityName))
+        .map(f => f.properties.EMD_KOR_NM)
+        .filter(Boolean);
     
     // 중복 제거 후 정렬
     const unique = [...new Set(regions)].sort();
