@@ -26,6 +26,8 @@ import androidx.compose.foundation.layout.Row
 import android.content.ComponentName
 import android.text.TextUtils
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.delay
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -74,7 +76,7 @@ class MainActivity : ComponentActivity() {
                             sharedPref.getString("deviceId", null) ?: "(서비스 시작 시 자동 생성됨)"
                         }
 
-                        // 접근 권한 상태 체크 (화면이 다시 켜질 때마다 갱신)
+                        // 접근 권한 상태 체크 (화면이 다시 켜질 때 & 1초마다 실시간 갱신)
                         val lifecycleOwner = LocalLifecycleOwner.current
                         var isServiceActive by remember { mutableStateOf(isAccessibilityServiceEnabled(context, HijackService::class.java)) }
                         
@@ -86,6 +88,13 @@ class MainActivity : ComponentActivity() {
                             }
                             lifecycleOwner.lifecycle.addObserver(observer)
                             onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+                        }
+
+                        LaunchedEffect(Unit) {
+                            while (true) {
+                                isServiceActive = isAccessibilityServiceEnabled(context, HijackService::class.java)
+                                delay(1000)
+                            }
                         }
                         
                         Text(text = stringResource(id = R.string.main_title))
