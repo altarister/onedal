@@ -79,19 +79,36 @@ class ScrapParser(private val context: Context) {
     fun parse(texts: List<String>): SimplifiedOfficeOrder {
         val rawJoined = texts.joinToString(", ")
 
-        // 1. 요금 파싱 (숫자만 추출, 만 단위 이상인 것)
-        val fareText = texts.find { it.contains("요금") }
-        val fare = fareText?.replace(Regex("[^0-9]"), "")?.toIntOrNull() ?: 0
+        // ── 1. 요금 파싱 ──
+        // 인성앱은 "요금" 라벨 없이 숫자만 표시 (예: "47" = 47,000원)
+        // 소수점 없는 정수 중 가장 큰 값을 요금으로 추정 (거리는 소수점이 있음)
+        val fareCandidate = texts
+            .filter { !it.contains(".") }  // 소수점 있으면 거리이므로 제외
+            .mapNotNull { it.replace(",", "").toIntOrNull() }
+            .filter { it in 10..9999 }     // 10~9999 범위 (만원 단위 운임 추정)
+            .maxOrNull()
+        // 인성앱 운임 표시: "47" = 47,000원 (천원 단위)
+        val fare = if (fareCandidate != null) fareCandidate * 1000 else 0
 
-        // 2. 상차지 파싱
-        val pickupText = texts.find { it.contains("@") } ?: "미상"
-        val pickup = pickupText.substringAfter("@").split("/").firstOrNull()?.trim()?.replace("()", "") ?: pickupText
+        // ── 2. 지역명 파싱 (동/읍/면/리 로 끝나는 텍스트) ──
+        val regionPattern = Regex(".+(동|읍|면|리|로|가)$")
+        val regions = texts.filter { regionPattern.matches(it.trim()) }
 
-        // 3. 하차지 파싱
-        val dropoffText = texts.find { it.split("/").size >= 3 && !it.contains("@") } ?: "미상"
-        val dropoff = dropoffText.split("/").take(3).joinToString(" ").trim()
+        // 첫 번째 지역 = 상차지, 두 번째 지역 = 하차지 (인성앱 리스트 순서)
+        val pickup = regions.getOrNull(0) ?: "미상"
+        val dropoff = regions.getOrNull(1) ?: regions.getOrNull(0) ?: "미상"
+
+        // ── 3. 거리 파싱 ──
+        // 소수점 있는 숫자들이 거리 (예: "9.6", "22.1")
+        val distances = texts
+            .filter { it.contains(".") }
+            .mapNotNull { it.toDoubleOrNull() }
+            .sortedBy { it }
+        // 첫 번째(작은 값) = 상차지 직선거리, 두 번째(큰 값) = 배송거리
 
         val now = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault()).format(Date())
+
+        Log.d(TAG, "📋 [파싱 결과] 요금=${fare}원(원본:$fareCandidate), 상차=$pickup, 하차=$dropoff, 거리=$distances")
 
         return SimplifiedOfficeOrder(
             id = UUID.randomUUID().toString(),
