@@ -125,6 +125,13 @@ class ApiClient(private val context: Context) {
                         prefs.edit().putString("activeFilter", gson.toJson(scrapRes.filter)).apply()
                     }
 
+                    // 방금 보낸 스크랩 정보 화면 표시용으로 저장
+                    prefs.edit()
+                        .putLong("lastScrapTime", System.currentTimeMillis())
+                        .putInt("lastScrapSize", payload.data.size)
+                        .putString("lastScrapPreview", if (payload.data.isNotEmpty()) "${payload.data.first().pickup} -> ${payload.data.first().dropoff}" else "-")
+                        .apply()
+
                     onModeReceived(scrapRes.mode)
                 } else {
                     Log.w(TAG, "📡 [텔레메트리] 서버 에러 응답: $code")

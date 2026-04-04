@@ -96,12 +96,26 @@ class MainActivity : ComponentActivity() {
 
                         // 서버로부터 전달받은 최신 필터 상태 (JSON 문자열)
                         var activeFilterJson by remember { mutableStateOf(sharedPref.getString("activeFilter", "{}")) }
+                        
+                        // 전송 정보 및 타이머
+                        var lastScrapTime by remember { mutableStateOf(sharedPref.getLong("lastScrapTime", 0L)) }
+                        var lastScrapSize by remember { mutableStateOf(sharedPref.getInt("lastScrapSize", 0)) }
+                        var lastScrapPreview by remember { mutableStateOf(sharedPref.getString("lastScrapPreview", "-")) }
+                        var timeRemaining by remember { mutableStateOf("0.0") }
 
                         LaunchedEffect(Unit) {
                             while (true) {
                                 isServiceActive = isAccessibilityServiceEnabled(context, HijackService::class.java)
                                 activeFilterJson = sharedPref.getString("activeFilter", "{}")
-                                delay(1000)
+                                lastScrapTime = sharedPref.getLong("lastScrapTime", 0L)
+                                lastScrapSize = sharedPref.getInt("lastScrapSize", 0)
+                                lastScrapPreview = sharedPref.getString("lastScrapPreview", "-")
+                                
+                                val nextTime = lastScrapTime + 3000L
+                                val diff = nextTime - System.currentTimeMillis()
+                                timeRemaining = if (diff > 0) String.format("%.1f", diff / 1000f) else "전송 중..."
+                                
+                                delay(100)
                             }
                         }
                         
@@ -177,6 +191,23 @@ class MainActivity : ComponentActivity() {
                                 Text("서버 동기화 필터 상태", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(filterText, style = MaterialTheme.typography.bodyMedium)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        // 발송 정보 표시 카드
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 32.dp),
+                            colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color(0xFFFFF3E0))
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text("📡 다음 스크랩 발송까지: $timeRemaining", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium, color = androidx.compose.ui.graphics.Color(0xFFE65100))
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("방금 보낸 데이터 (${lastScrapSize}건)", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium, color = androidx.compose.ui.graphics.Color(0xFFE65100))
+                                Text(lastScrapPreview ?: "-", style = MaterialTheme.typography.bodySmall, color = androidx.compose.ui.graphics.Color(0xFFEF6C00))
                             }
                         }
 
