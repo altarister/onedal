@@ -28,6 +28,9 @@ import android.text.TextUtils
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import kotlinx.coroutines.delay
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -97,11 +100,10 @@ class MainActivity : ComponentActivity() {
                         // 서버로부터 전달받은 최신 필터 상태 (JSON 문자열)
                         var activeFilterJson by remember { mutableStateOf(sharedPref.getString("activeFilter", "{}")) }
                         
-                        // 전송 정보 및 타이머
+                        // 전송 정보 및 기록
                         var lastScrapTime by remember { mutableStateOf(sharedPref.getLong("lastScrapTime", 0L)) }
                         var lastScrapSize by remember { mutableStateOf(sharedPref.getInt("lastScrapSize", 0)) }
                         var lastScrapPreview by remember { mutableStateOf(sharedPref.getString("lastScrapPreview", "-")) }
-                        var timeRemaining by remember { mutableStateOf("0.0") }
 
                         LaunchedEffect(Unit) {
                             while (true) {
@@ -111,13 +113,12 @@ class MainActivity : ComponentActivity() {
                                 lastScrapSize = sharedPref.getInt("lastScrapSize", 0)
                                 lastScrapPreview = sharedPref.getString("lastScrapPreview", "-")
                                 
-                                val nextTime = lastScrapTime + 3000L
-                                val diff = nextTime - System.currentTimeMillis()
-                                timeRemaining = if (diff > 0) String.format("%.1f", diff / 1000f) else "전송 중..."
-                                
-                                delay(100)
+                                delay(1000)
                             }
                         }
+                        
+                        val dateFormat = remember { SimpleDateFormat("HH:mm:ss", Locale.getDefault()) }
+                        val timeString = if (lastScrapTime > 0) dateFormat.format(Date(lastScrapTime)) else "발송 전"
                         
                         Text(text = stringResource(id = R.string.main_title))
                         Spacer(modifier = Modifier.height(8.dp))
@@ -204,10 +205,11 @@ class MainActivity : ComponentActivity() {
                             colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color(0xFFFFF3E0))
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
-                                Text("📡 다음 스크랩 발송까지: $timeRemaining", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium, color = androidx.compose.ui.graphics.Color(0xFFE65100))
-                                Spacer(modifier = Modifier.height(8.dp))
                                 Text("방금 보낸 데이터 (${lastScrapSize}건)", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium, color = androidx.compose.ui.graphics.Color(0xFFE65100))
+                                Spacer(modifier = Modifier.height(4.dp))
                                 Text(lastScrapPreview ?: "-", style = MaterialTheme.typography.bodySmall, color = androidx.compose.ui.graphics.Color(0xFFEF6C00))
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("📡 마지막 전송 시간: $timeString", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall, color = androidx.compose.ui.graphics.Color(0xFFE65100).copy(alpha=0.7f))
                             }
                         }
 
