@@ -12,7 +12,11 @@ import com.onedal.app.models.DispatchBasicRequest
 
 /**
  * 접근성 서비스 메인 관제탑 (Orchestrator)
- * 로직을 각 매니저(ApiClient, ScrapParser, TelemetryManager, AutoTouchManager)에게 위임합니다.
+ *
+ * ★ 핵심 아키텍처: Scan → Judge → Shoot ★
+ * 1단계(Scan):  화면 전체 텍스트를 수집 (클릭하지 않음)
+ * 2단계(Judge): 파싱된 오더를 4대 필터 조건으로 종합 판정
+ * 3단계(Shoot): 조건 통과 시에만 저장해 둔 타겟 노드를 정밀 타격
  */
 class HijackService : AccessibilityService() {
 
@@ -28,14 +32,13 @@ class HijackService : AccessibilityService() {
 
     // 화면 사이클 1회당 상태 임시 저장
     private var lastSeenTextCounts = mapOf<String, Int>()
-    private var hasClickedInThisCycle = false
     
     // 원격 퇴근(세션 끊기) 상태 플래그
     private var isKickedOut = false
 
     override fun onServiceConnected() {
         super.onServiceConnected()
-        Log.i(TAG, "1DAL Service Connected! [Clean Architecture]")
+        Log.i(TAG, "1DAL Service Connected! [Scan→Judge→Shoot Architecture]")
 
         // 매니저 초기화
         apiClient = ApiClient(this)
@@ -47,7 +50,7 @@ class HijackService : AccessibilityService() {
                 disableSelf()
             }
         }
-        scrapParser = ScrapParser()
+        scrapParser = ScrapParser(this)  // Context 주입
         touchManager = AutoTouchManager(this)
 
         // 텔레메트리 루프 시작
@@ -72,14 +75,21 @@ class HijackService : AccessibilityService() {
         if (event == null || event.eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) return
         val rootNode = rootInActiveWindow ?: return
 
-        hasClickedInThisCycle = false
-        val currentTexts = mutableListOf<String>()
+        // ════════════════════════════════════════
+        // [1단계: Scan] 화면 전체 텍스트 수집 + 클릭 후보 노드 확보
+        // ════════════════════════════════════════
+        val allTexts = mutableListOf<String>()
+        var candidateNode: AccessibilityNodeInfo? = null
 
-        // 텍스트 추출 및 광클 검사
-        extractTextsAndCheckClick(rootNode, currentTexts)
+        collectTextsAndCandidateNode(rootNode, allTexts) { node ->
+            // 아직 후보가 없고, 숫자(요금처럼 보이는 것)를 발견하면 후보로 기억
+            if (candidateNode == null) {
+                candidateNode = node
+            }
+        }
 
         // 이번 사이클에 새로 나타난 텍스트 블록만 필터링
-        val currentTextCounts = currentTexts.groupingBy { it }.eachCount()
+        val currentTextCounts = allTexts.groupingBy { it }.eachCount()
         val newlyAppearedTexts = getNewlyAppearedTexts(currentTextCounts, lastSeenTextCounts)
 
         if (newlyAppearedTexts.isNotEmpty()) {
@@ -87,11 +97,20 @@ class HijackService : AccessibilityService() {
             Log.d(TAG, "=================================")
             Log.d(TAG, "🆕 새로 감지 : $rawStr")
 
-            // 파서 엔진 가동
+            // ════════════════════════════════════════
+            // [2단계: Judge] 파서 엔진으로 오더 구조체 생성 → 4대 필터 AND 검사
+            // ════════════════════════════════════════
             val order = scrapParser.parse(newlyAppearedTexts)
+            val shouldClick = scrapParser.shouldClick(order)
 
-            if (hasClickedInThisCycle) {
-                // 선점 성공 (Confirm 파이프라인 진입)
+            if (shouldClick && candidateNode != null) {
+                // ════════════════════════════════════════
+                // [3단계: Shoot] 조건 통과! 정밀 타격 실행
+                // ════════════════════════════════════════
+                Log.d(TAG, "💥 [Scan→Judge→Shoot] 4대 조건 통과! 타겟 클릭 실행!")
+                touchManager.performSimulatedTouch(candidateNode!!)
+
+                // 선점 성공 → Confirm 파이프라인 진입
                 val payload = DispatchBasicRequest(
                     step = "BASIC",
                     deviceId = apiClient.getDeviceId(),
@@ -103,9 +122,9 @@ class HijackService : AccessibilityService() {
                 apiClient.sendConfirm(payload)
 
             } else if (order.fare > 0 || newlyAppearedTexts.size > 10) {
-                // 일반 콜 (스크랩 버퍼로 적재)
+                // 조건 불일치지만 유의미한 콜 → 스크랩 버퍼로 적재 (빅데이터용)
                 telemetryManager.enqueue(order)
-                Log.d(TAG, "📦 스크랩 버퍼에 적재 (일반 콜)")
+                Log.d(TAG, "📦 스크랩 버퍼에 적재 (일반 콜 / 조건 불일치)")
             } else {
                 Log.d(TAG, "🗑️ 의미 없는 부스러기 데이터 (전송 스킵)")
             }
@@ -115,31 +134,35 @@ class HijackService : AccessibilityService() {
         rootNode.recycle()
     }
 
-    private fun extractTextsAndCheckClick(node: AccessibilityNodeInfo?, texts: MutableList<String>) {
+    /**
+     * [1단계: Scan] 노드 트리를 순회하며 텍스트만 수집합니다.
+     * 클릭 판단은 절대 하지 않습니다.
+     * 요금처럼 보이는 숫자 노드를 발견하면 onCandidateFound 콜백으로 알립니다.
+     */
+    private fun collectTextsAndCandidateNode(
+        node: AccessibilityNodeInfo?,
+        texts: MutableList<String>,
+        onCandidateFound: (AccessibilityNodeInfo) -> Unit
+    ) {
         if (node == null) return
 
         val nodeText = node.text?.toString()?.trim()
         if (!nodeText.isNullOrEmpty()) {
             texts.add(nodeText)
-            if (!hasClickedInThisCycle && scrapParser.isHighProfit(nodeText)) {
-                Log.d(TAG, "💥 [자동 배차 엔진 발동] 조건 충족 ($nodeText)")
-                touchManager.performSimulatedTouch(node)
-                hasClickedInThisCycle = true
+            // 요금 후보 감지: 숫자이고 만 단위 이상 (운임으로 추정)
+            val numValue = nodeText.replace(",", "").toIntOrNull()
+            if (numValue != null && numValue >= 10000) {
+                onCandidateFound(node)
             }
         }
 
         val contentDesc = node.contentDescription?.toString()?.trim()
         if (!contentDesc.isNullOrEmpty()) {
             texts.add(contentDesc)
-            if (!hasClickedInThisCycle && scrapParser.isHighProfit(contentDesc)) {
-                Log.d(TAG, "💥 [자동 배차 엔진 발동] 조건 충족 ($contentDesc)")
-                touchManager.performSimulatedTouch(node)
-                hasClickedInThisCycle = true
-            }
         }
 
         for (i in 0 until node.childCount) {
-            extractTextsAndCheckClick(node.getChild(i), texts)
+            collectTextsAndCandidateNode(node.getChild(i), texts, onCandidateFound)
         }
     }
 
