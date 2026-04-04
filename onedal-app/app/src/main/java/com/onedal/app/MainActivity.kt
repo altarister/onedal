@@ -193,11 +193,24 @@ class MainActivity : ComponentActivity() {
                             val json = JSONObject(activeFilterJson ?: "{}")
                             if (json.length() == 0) "대기 중 (서버 응답 없음)"
                             else {
-                                "• 모드: ${json.optString("mode")}\n" +
-                                "• 최소운임: ${json.optString("minFare")}원\n" +
-                                "• 상차반경: ${json.optString("pickupRadius")}km 이내\n" +
-                                "• 목표지역: ${json.optString("targetCity")} (${json.optJSONArray("targetRegions")?.length()}개 동네)\n" +
-                                "• 제외단어: ${json.optJSONArray("blacklist")?.join(", ")?.replace("\"", "")}"
+                                val regionsArr = json.optJSONArray("targetRegions")
+                                val regionsList = if (regionsArr != null) {
+                                    (0 until regionsArr.length()).map { regionsArr.getString(it) }.joinToString(", ")
+                                } else "없음"
+                                
+                                val blackArr = json.optJSONArray("blacklist")
+                                val blacklistStr = if (blackArr != null) {
+                                    (0 until blackArr.length()).map { blackArr.getString(it) }.joinToString(", ")
+                                } else json.optString("blacklist", "없음")
+
+                                "mode: ${json.optString("mode", "미설정")}\n" +
+                                "minFare: ${json.optString("minFare", "0")}원\n" +
+                                "pickupRadius: ${json.optString("pickupRadius", "0")}km\n" +
+                                "targetCity: ${json.optString("targetCity", "미설정")}\n" +
+                                "targetRegions: $regionsList\n" +
+                                "targetRadius: ${json.optString("targetRadius", "0")}km\n" +
+                                "blacklist: $blacklistStr\n" +
+                                "detourBaseId: ${json.optString("detourBaseId", "없음")}"
                             }
                         } catch (e: Exception) {
                             "필터 파싱 오류"
