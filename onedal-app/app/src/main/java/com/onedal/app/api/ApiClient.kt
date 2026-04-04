@@ -20,8 +20,9 @@ class ApiClient(private val context: Context) {
     }
 
     private val gson = Gson()
-    // 성능 개선: 매번 Thread를 만들지 않고 스레드 풀 재사용
-    private val executor = Executors.newSingleThreadExecutor()
+    // Confirm(최대 35초 대기)과 Telemetry(3초 주기)가 서로를 차단하지 않도록 스레드풀 분리
+    private val confirmExecutor = Executors.newSingleThreadExecutor()
+    private val telemetryExecutor = Executors.newSingleThreadExecutor()
 
     private val prefs by lazy {
         context.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
@@ -54,13 +55,14 @@ class ApiClient(private val context: Context) {
      * 배차 확정(Confirm) / BASIC 보고 전송
      */
     fun sendConfirm(payload: DispatchBasicRequest) {
-        executor.submit {
+        confirmExecutor.submit {
+            var conn: java.net.HttpURLConnection? = null
             try {
                 val jsonBody = gson.toJson(payload)
                 val targetUrl = getTargetUrl("/api/orders/confirm")
                 val url = java.net.URL(targetUrl)
 
-                val conn = url.openConnection() as java.net.HttpURLConnection
+                conn = url.openConnection() as java.net.HttpURLConnection
                 conn.requestMethod = "POST"
                 conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
                 conn.setRequestProperty("Accept", "application/json")
@@ -82,6 +84,8 @@ class ApiClient(private val context: Context) {
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "❌ [Confirm 전송 실패] ${e.message}")
+            } finally {
+                conn?.disconnect()
             }
         }
     }
@@ -92,13 +96,14 @@ class ApiClient(private val context: Context) {
      * @param onModeReceived 서버로부터 모드(AUTO/MANUAL) 수신 시 콜백
      */
     fun sendScrapTelemetry(payload: ScrapPayload, onModeReceived: (String) -> Unit) {
-        executor.submit {
+        telemetryExecutor.submit {
+            var conn: java.net.HttpURLConnection? = null
             try {
                 val jsonBody = gson.toJson(payload)
                 val targetUrl = getTargetUrl("/api/scrap")
                 val url = java.net.URL(targetUrl)
 
-                val conn = url.openConnection() as java.net.HttpURLConnection
+                conn = url.openConnection() as java.net.HttpURLConnection
                 conn.requestMethod = "POST"
                 conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
                 conn.setRequestProperty("Accept", "application/json")
@@ -121,11 +126,14 @@ class ApiClient(private val context: Context) {
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "📡 [텔레메트리 통신 실패] ${e.message}")
+            } finally {
+                conn?.disconnect()
             }
         }
     }
 
     fun shutdown() {
-        executor.shutdown()
+        confirmExecutor.shutdown()
+        telemetryExecutor.shutdown()
     }
 }

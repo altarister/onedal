@@ -42,13 +42,9 @@ class MainActivity : ComponentActivity() {
                         val sharedPref = context.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
                         var isLiveMode by remember { mutableStateOf(sharedPref.getBoolean("isLiveMode", false)) }
                         
-                        // 기기 ID (자동 생성 or 기존값 표시)
+                        // 기기 ID 표시 (실제 생성은 HijackService 시작 시 ApiClient가 담당)
                         val deviceId = remember {
-                            sharedPref.getString("deviceId", null) ?: run {
-                                val generated = "앱폰-${android.os.Build.MODEL.take(8)}-${(100..999).random()}"
-                                sharedPref.edit().putString("deviceId", generated).apply()
-                                generated
-                            }
+                            sharedPref.getString("deviceId", null) ?: "(서비스 시작 시 자동 생성됨)"
                         }
                         
                         Text(text = stringResource(id = R.string.main_title))

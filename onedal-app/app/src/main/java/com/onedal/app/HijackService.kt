@@ -71,6 +71,7 @@ class HijackService : AccessibilityService() {
 
         if (newlyAppearedTexts.isNotEmpty()) {
             val rawStr = newlyAppearedTexts.joinToString(", ")
+            Log.d(TAG, "=================================")
             Log.d(TAG, "🆕 새로 감지 : $rawStr")
 
             // 파서 엔진 가동
@@ -92,6 +93,8 @@ class HijackService : AccessibilityService() {
                 // 일반 콜 (스크랩 버퍼로 적재)
                 telemetryManager.enqueue(order)
                 Log.d(TAG, "📦 스크랩 버퍼에 적재 (일반 콜)")
+            } else {
+                Log.d(TAG, "🗑️ 의미 없는 부스러기 데이터 (전송 스킵)")
             }
         }
 

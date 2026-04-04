@@ -37,26 +37,21 @@ class AutoTouchManager(private val service: AccessibilityService) {
         val clickStroke = GestureDescription.StrokeDescription(clickPath, 0, 50)
         val gesture = GestureDescription.Builder().addStroke(clickStroke).build()
 
-        var success = false
-        val result = service.dispatchGesture(gesture, object : AccessibilityService.GestureResultCallback() {
+        val dispatched = service.dispatchGesture(gesture, object : AccessibilityService.GestureResultCallback() {
             override fun onCompleted(gestureDescription: GestureDescription?) {
                 super.onCompleted(gestureDescription)
                 Log.d(TAG, "✅ [가로채기 성공!] 화면 좌표 (X:$x, Y:$y) 터치 완료!")
-                success = true
             }
             override fun onCancelled(gestureDescription: GestureDescription?) {
                 super.onCancelled(gestureDescription)
                 Log.e(TAG, "❌ [터치 실패] 시스템에 의해 무시됨")
-                success = false
             }
         }, null)
 
-        if (!result) {
+        if (!dispatched) {
             Log.e(TAG, "❌ [권한 오류] 제스처 발생이 차단되었습니다.")
         }
-        
-        // 주의: dispatchGesture는 비동기이지만, 
-        // 일단 이 함수 자체의 반환값은 요청의 성공 여부 위주로 리턴합니다.
-        return result
+
+        return dispatched
     }
 }
