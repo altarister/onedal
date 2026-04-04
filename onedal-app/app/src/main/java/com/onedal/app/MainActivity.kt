@@ -195,8 +195,9 @@ class MainActivity : ComponentActivity() {
                             else {
                                 "• 모드: ${json.optString("mode")}\n" +
                                 "• 최소운임: ${json.optString("minFare")}원\n" +
-                                "• 목표지역: ${json.optString("targetCity")} (반경 ${json.optString("targetRadius")}km)\n" +
-                                "• 제외단어: ${json.optString("blacklist")}"
+                                "• 상차반경: ${json.optString("pickupRadius")}km 이내\n" +
+                                "• 목표지역: ${json.optString("targetCity")} (${json.optJSONArray("targetRegions")?.length()}개 동네)\n" +
+                                "• 제외단어: ${json.optJSONArray("blacklist")?.join(", ")?.replace("\"", "")}"
                             }
                         } catch (e: Exception) {
                             "필터 파싱 오류"
@@ -266,7 +267,8 @@ class MainActivity : ComponentActivity() {
                                 
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text("[ /api/orders/confirm ]", fontWeight = FontWeight.SemiBold, color = androidx.compose.ui.graphics.Color(0xFF0D47A1))
-                                Text("보낸값: ${apiConfirmReq?.take(80)}...", style = MaterialTheme.typography.bodySmall)
+                                Text("보낸값: ${apiConfirmReq}", style = MaterialTheme.typography.bodySmall)
+                                Spacer(modifier = Modifier.height(8.dp))
                                 Text("받은값: ${apiConfirmRes}", style = MaterialTheme.typography.bodySmall)
                             }
                         }

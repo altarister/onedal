@@ -48,12 +48,13 @@ export interface DetailedOfficeOrder {
 }
 
 export interface FilterConfig {
-    mode: '첫짐' | '대기' | '합짐';
-    minFare: number;       // 예: 40000
-    pickupRadius: number;  // 예: 10
-    targetCity: string;    // 예: '용인시'
-    targetRadius: number;  // 예: 10
-    blacklist: string;     // 예: '착불, 수거'
+    mode: '첫짐' | '합짐' | '복귀';
+    minFare: number;       // 최소 운임 (예: 60000)
+    pickupRadius: number;  // [조건4] 상차지 최대 직선 거리 (km)
+    targetCity: string;    // 관제 UI용 대표 도시명 (예: "용인시")
+    targetRegions: string[]; // [조건1] 목표 하차지 법정동 배열 (예: ["마평동", "역북동"])
+    targetRadius: number;  // 목표 도시 매칭 반경 (km)
+    blacklist: string[];   // [조건3] 제외 키워드 배열 (예: ["착불", "수거", "까대기"])
     // 합짐 모드 시 동적 회랑 정보 (옵션)
     detourBaseId?: string;
 }

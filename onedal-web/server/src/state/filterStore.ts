@@ -4,10 +4,11 @@ import type { FilterConfig } from "@onedal/shared";
 export let activeFilterConfig: FilterConfig = {
     mode: '첫짐',
     minFare: 40000,
-    pickupRadius: 10,
+    pickupRadius: 30,
     targetCity: '용인시',
+    targetRegions: ['마평동', '역북동', '삼가동', '김량장동', '유방동', '고림동', '남동', '운학동', '호동', '해곡동', '포곡읍', '모현읍', '이동읍', '남사읍', '원삼면', '백암면', '양지면', '중앙동', '역삼동', '유림동', '동부동'],
     targetRadius: 10,
-    blacklist: '착불, 수거, 까대기'
+    blacklist: ['착불', '수거', '까대기', '전화금지']
 };
 
 // 필터 상태를 덮어쓰는 유틸리티
