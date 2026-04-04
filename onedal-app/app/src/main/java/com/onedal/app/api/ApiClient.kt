@@ -120,6 +120,11 @@ class ApiClient(private val context: Context) {
                     val body = conn.inputStream.bufferedReader().readText()
                     val scrapRes = gson.fromJson(body, ScrapResponse::class.java)
                     Log.d(TAG, "📡 [텔레메트리] 스크랩 ${payload.data.size}건 전송 완료 (모드: ${scrapRes.mode})")
+                    
+                    if (scrapRes.filter != null) {
+                        prefs.edit().putString("activeFilter", gson.toJson(scrapRes.filter)).apply()
+                    }
+
                     onModeReceived(scrapRes.mode)
                 } else {
                     Log.w(TAG, "📡 [텔레메트리] 서버 에러 응답: $code")

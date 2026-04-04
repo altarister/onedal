@@ -33,6 +33,10 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.ui.text.font.FontWeight
+import org.json.JSONObject
 
 fun isAccessibilityServiceEnabled(context: Context, service: Class<*>): Boolean {
     val expectedComponentName = ComponentName(context, service)
@@ -90,9 +94,13 @@ class MainActivity : ComponentActivity() {
                             onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
                         }
 
+                        // 서버로부터 전달받은 최신 필터 상태 (JSON 문자열)
+                        var activeFilterJson by remember { mutableStateOf(sharedPref.getString("activeFilter", "{}")) }
+
                         LaunchedEffect(Unit) {
                             while (true) {
                                 isServiceActive = isAccessibilityServiceEnabled(context, HijackService::class.java)
+                                activeFilterJson = sharedPref.getString("activeFilter", "{}")
                                 delay(1000)
                             }
                         }
@@ -144,6 +152,35 @@ class MainActivity : ComponentActivity() {
                         }
                         
                         Spacer(modifier = Modifier.height(16.dp))
+                        
+                        // 서버 필터 상태 표시 카드
+                        val filterText = try {
+                            val json = JSONObject(activeFilterJson ?: "{}")
+                            if (json.length() == 0) "대기 중 (서버 응답 없음)"
+                            else {
+                                "• 모드: ${json.optString("mode")}\n" +
+                                "• 최소운임: ${json.optString("minFare")}원\n" +
+                                "• 목표지역: ${json.optString("targetCity")} (반경 ${json.optString("targetRadius")}km)\n" +
+                                "• 제외단어: ${json.optString("blacklist")}"
+                            }
+                        } catch (e: Exception) {
+                            "필터 파싱 오류"
+                        }
+                        
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 32.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text("서버 동기화 필터 상태", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(filterText, style = MaterialTheme.typography.bodyMedium)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(32.dp))
                         
                         Button(onClick = {
                             val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
