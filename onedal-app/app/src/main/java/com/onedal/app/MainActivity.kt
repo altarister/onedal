@@ -102,8 +102,10 @@ class MainActivity : ComponentActivity() {
                             onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
                         }
 
-                        // 서버로부터 전달받은 최신 필터 상태 (JSON 문자열)
+                        // 서버로부터 전달받은 최신 상태값 (JSON 문자열)
                         var activeFilterJson by remember { mutableStateOf(sharedPref.getString("activeFilter", "{}")) }
+                        var apiStatusJson by remember { mutableStateOf(sharedPref.getString("apiStatus", "{}")) }
+                        var deviceControlJson by remember { mutableStateOf(sharedPref.getString("deviceControl", "{}")) }
                         
                         // 전송 정보 및 기록
                         var lastScrapTime by remember { mutableStateOf(sharedPref.getLong("lastScrapTime", 0L)) }
@@ -120,6 +122,8 @@ class MainActivity : ComponentActivity() {
                             while (true) {
                                 isServiceActive = isAccessibilityServiceEnabled(context, HijackService::class.java)
                                 activeFilterJson = sharedPref.getString("activeFilter", "{}")
+                                apiStatusJson = sharedPref.getString("apiStatus", "{}")
+                                deviceControlJson = sharedPref.getString("deviceControl", "{}")
                                 lastScrapTime = sharedPref.getLong("lastScrapTime", 0L)
                                 lastScrapSize = sharedPref.getInt("lastScrapSize", 0)
                                 lastScrapPreview = sharedPref.getString("lastScrapPreview", "-")
@@ -208,6 +212,36 @@ class MainActivity : ComponentActivity() {
                                 Text("서버 동기화 필터 상태", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(filterText, style = MaterialTheme.typography.bodyMedium)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        // 서버 누적 통계 및 제어 상태 카드
+                        val statusText = try {
+                            val json = JSONObject(apiStatusJson ?: "{}")
+                            if (json.length() == 0) "대기 중.."
+                            else "• 통신 성공여부: ${json.optBoolean("success")}\n• 누적 수집된 오더: ${json.optInt("totalItems")}건"
+                        } catch (e: Exception) { "파싱 오류" }
+
+                        val controlText = try {
+                            val json = JSONObject(deviceControlJson ?: "{}")
+                            if (json.length() == 0) "대기 중.."
+                            else "• 데스맨 스위치 모드: ${json.optString("mode")}"
+                        } catch (e: Exception) { "파싱 오류" }
+
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 32.dp),
+                            colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color(0xFFE8F5E9))
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text("서버 통계 및 제어 상태", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium, color = androidx.compose.ui.graphics.Color(0xFF2E7D32))
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(statusText, style = MaterialTheme.typography.bodyMedium)
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(controlText, style = MaterialTheme.typography.bodyMedium)
                             }
                         }
 

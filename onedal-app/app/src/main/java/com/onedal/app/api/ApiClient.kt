@@ -128,6 +128,9 @@ class ApiClient(private val context: Context) {
                     if (scrapRes.dispatchEngineArgs != null) {
                         prefs.edit().putString("activeFilter", gson.toJson(scrapRes.dispatchEngineArgs)).apply()
                     }
+                    
+                    prefs.edit().putString("apiStatus", gson.toJson(scrapRes.apiStatus)).apply()
+                    prefs.edit().putString("deviceControl", gson.toJson(scrapRes.deviceControl)).apply()
 
                     // 방금 보낸 스크랩 정보 화면 표시용으로 저장
                     prefs.edit()
