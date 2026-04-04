@@ -10,7 +10,10 @@ import com.onedal.app.models.SimplifiedOfficeOrder
 /**
  * 3초 주기 스크랩/생존신고 버퍼와 전송 스케줄링을 관리.
  */
-class TelemetryManager(private val apiClient: ApiClient) {
+class TelemetryManager(
+    private val apiClient: ApiClient,
+    private val onShutdown: () -> Unit
+) {
 
     companion object {
         private const val TAG = "1DAL_TELEMETRY"
@@ -65,8 +68,12 @@ class TelemetryManager(private val apiClient: ApiClient) {
         )
 
         apiClient.sendScrapTelemetry(payload) { mode ->
-            // [TODO] 향후 모드 값이 "MANUAL" 이면 앱 내부적으로 터치를 막는 연동 가능
             Log.d(TAG, "Received Mode: $mode")
+            if (mode == "SHUTDOWN") {
+                Log.e(TAG, "🔴 [원격 제어] 서버로부터 퇴근(SHUTDOWN) 명령 수신! 타이머를 강제 정지합니다.")
+                stop()
+                onShutdown()
+            }
         }
     }
 }

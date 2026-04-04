@@ -66,6 +66,14 @@ export const getActiveDevicesSnapshot = (): DeviceSession[] => {
     const result: DeviceSession[] = [];
 
     activeDevices.forEach((session, key) => {
+        // [퇴근 모드 처리] SHUTDOWN 명령이 들어간 기기는 UI에서 즉시 숨기고, 핑이 끊기면 완전히 메모리에서 제거
+        if (session.mode === "SHUTDOWN") {
+            if (now - session.lastSeen > DEADMAN_TIMEOUT_MS) {
+                activeDevices.delete(key);
+            }
+            return;
+        }
+
         // 데드맨 스위치: 정상 종료(OFFLINE_GRACEFUL)가 아닌데 5초 이상 핑이 없으면 통신 단절(DISCONNECTED) 표기
         if (session.status !== "OFFLINE_GRACEFUL") {
             if (now - session.lastSeen > DEADMAN_TIMEOUT_MS) {

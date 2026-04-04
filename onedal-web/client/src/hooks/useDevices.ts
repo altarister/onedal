@@ -27,9 +27,13 @@ export function useDevices() {
             });
             if (res.ok) {
                 // 즉각적인 UI 피드백을 위해 로컬 상태 선갱신 (낙관적 업데이트)
-                setDevices(prev => prev.map(d => 
-                    d.deviceId === deviceId ? { ...d, mode } : d
-                ));
+                if (mode === "SHUTDOWN") {
+                    setDevices(prev => prev.filter(d => d.deviceId !== deviceId));
+                } else {
+                    setDevices(prev => prev.map(d => 
+                        d.deviceId === deviceId ? { ...d, mode } : d
+                    ));
+                }
             }
         } catch (error) {
             console.error("모드 변경 실패:", error);

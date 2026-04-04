@@ -1,7 +1,7 @@
 import { useDevices } from "../../hooks/useDevices";
 import type { DeviceSession } from "@onedal/shared";
 
-function DeviceRow({ device, onModeChange }: { device: DeviceSession; onModeChange: (id: string, mode: "AUTO" | "MANUAL") => void }) {
+function DeviceRow({ device, onModeChange }: { device: DeviceSession; onModeChange: (id: string, mode: "AUTO" | "MANUAL" | "SHUTDOWN") => void }) {
     const isDisconnected = device.status === "DISCONNECTED";
     const isGraceful = device.status === "OFFLINE_GRACEFUL";
 
@@ -19,6 +19,7 @@ function DeviceRow({ device, onModeChange }: { device: DeviceSession; onModeChan
                     <span className="text-red-400">취소: {device.stats.canceled}</span>
                 </div>
             </div>
+         <div className="flex flex-col items-end gap-1">
             <button
                 onClick={() => onModeChange(device.deviceId, device.mode === "AUTO" ? "MANUAL" : "AUTO")}
                 className={`border px-2 py-1 text-xs font-black rounded-md transition-colors ${device.mode === "AUTO"
@@ -28,7 +29,15 @@ function DeviceRow({ device, onModeChange }: { device: DeviceSession; onModeChan
             >
                 {device.mode === "AUTO" ? "풀오토" : "반자동/대기"}
             </button>
-        </div>
+            <button
+                onClick={() => onModeChange(device.deviceId, "SHUTDOWN")}
+                className="px-2 py-0.5 text-[10px] font-black rounded text-red-500 hover:bg-red-500/20 transition-colors"
+                title="기기를 원격으로 오프라인으로 만들고 서버와의 통신을 차단합니다."
+            >
+                세션 끊기 (퇴근)
+            </button>
+         </div>
+     </div>
     );
 }
 

@@ -136,7 +136,7 @@ export interface DispatchConfirmResponse {
  * 📱 관제 기기 관리 관련 타입 (Device Telemetry)
  */
 export type DeviceStatusType = "ONLINE" | "OFFLINE_GRACEFUL" | "DISCONNECTED";
-export type DeviceModeType = "AUTO" | "MANUAL";
+export type DeviceModeType = "AUTO" | "MANUAL" | "SHUTDOWN";
 
 export interface DeviceSession {
     deviceId: string;

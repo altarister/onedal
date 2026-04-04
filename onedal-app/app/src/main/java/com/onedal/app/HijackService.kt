@@ -29,6 +29,9 @@ class HijackService : AccessibilityService() {
     // 화면 사이클 1회당 상태 임시 저장
     private var lastSeenTextCounts = mapOf<String, Int>()
     private var hasClickedInThisCycle = false
+    
+    // 원격 퇴근(세션 끊기) 상태 플래그
+    private var isKickedOut = false
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -36,7 +39,10 @@ class HijackService : AccessibilityService() {
 
         // 매니저 초기화
         apiClient = ApiClient(this)
-        telemetryManager = TelemetryManager(apiClient)
+        telemetryManager = TelemetryManager(apiClient) {
+            // [세션 끊기] 수신 시 콜백
+            isKickedOut = true
+        }
         scrapParser = ScrapParser()
         touchManager = AutoTouchManager(this)
 
@@ -56,6 +62,9 @@ class HijackService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        // 이미 쫓겨난(퇴근) 상태면 어떤 이벤트도 처리하지 않고 무시
+        if (isKickedOut) return
+
         if (event == null || event.eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) return
         val rootNode = rootInActiveWindow ?: return
 
