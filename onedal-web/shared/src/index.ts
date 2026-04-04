@@ -138,6 +138,17 @@ export interface DispatchConfirmResponse {
 export type DeviceStatusType = "ONLINE" | "OFFLINE_GRACEFUL" | "DISCONNECTED";
 export type DeviceModeType = "AUTO" | "MANUAL" | "SHUTDOWN";
 
+export interface ScrapResponse {
+    apiStatus: {
+        success: boolean;
+        totalItems: number;
+    };
+    deviceControl: {
+        mode: DeviceModeType;
+    };
+    dispatchEngineArgs?: FilterConfig;
+}
+
 export interface DeviceSession {
     deviceId: string;
     lastSeen: number;       // 밀리초 타임스탬프

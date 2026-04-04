@@ -37,8 +37,17 @@ router.post("/", (req, res) => {
             deviceMode = touchDeviceSession(deviceId, data.length);
         }
 
-        // [응답 꼬리(Piggyback)] 성공과 통계, 그리고 최신 서버 오더 필터를 앱폰에 즉시 내려준다
-        res.json({ success: true, total: totalScrap, mode: deviceMode, filter: activeFilterConfig });
+        // [응답 꼬리(Piggyback)] 성공과 통계, 제어 명령, 그리고 최신 서버 오더 필터를 앱폰에 역할별로 분리해서 즉시 내려준다
+        res.json({
+            apiStatus: {
+                success: true,
+                totalItems: totalScrap
+            },
+            deviceControl: {
+                mode: deviceMode
+            },
+            dispatchEngineArgs: activeFilterConfig
+        });
     } catch (error) {
         console.error("Scrap POST 에러:", error);
         res.status(500).json({ error: "서버 오류 발생" });

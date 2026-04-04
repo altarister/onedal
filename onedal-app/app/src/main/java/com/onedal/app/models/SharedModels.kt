@@ -84,10 +84,18 @@ data class ScrapPayload(
     val data: List<SimplifiedOfficeOrder>
 )
 
-// 서버 응답 (Piggyback 통신: 상태, 통계, 최신 필터를 한 번에 태워보냄)
+// 서버 응답 (Piggyback 통신: 상태, 통계, 제어명령, 최신 필터를 구조화하여 한 번에 태워보냄)
 data class ScrapResponse(
+    val apiStatus: ApiStatus,
+    val deviceControl: DeviceControl,
+    val dispatchEngineArgs: Map<String, Any>? = null
+)
+
+data class ApiStatus(
     val success: Boolean = false,
-    val total: Int = 0,
-    val mode: String = "MANUAL",  // "AUTO" or "MANUAL"
-    val filter: Map<String, Any>? = null
+    val totalItems: Int = 0
+)
+
+data class DeviceControl(
+    val mode: String = "MANUAL"
 )

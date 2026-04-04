@@ -213,24 +213,6 @@ class MainActivity : ComponentActivity() {
 
                         Spacer(modifier = Modifier.height(16.dp))
                         
-                        // 발송 정보 표시 카드
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 32.dp),
-                            colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color(0xFFFFF3E0))
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Text("방금 보낸 데이터 (${lastScrapSize}건)", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium, color = androidx.compose.ui.graphics.Color(0xFFE65100))
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(lastScrapPreview ?: "-", style = MaterialTheme.typography.bodySmall, color = androidx.compose.ui.graphics.Color(0xFFEF6C00))
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text("📡 마지막 전송 시간: $timeString", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall, color = androidx.compose.ui.graphics.Color(0xFFE65100).copy(alpha=0.7f))
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-                        
                         // API 통신 로그
                         Card(
                             modifier = Modifier
@@ -239,11 +221,13 @@ class MainActivity : ComponentActivity() {
                             colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color(0xFFE3F2FD))
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
+                                Text("📡 마지막 전송 시간: $timeString", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall, color = androidx.compose.ui.graphics.Color(0xFFE65100).copy(alpha=0.7f))
                                 Text("📡 실시간 API 통신 로그", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium, color = androidx.compose.ui.graphics.Color(0xFF1565C0))
                                 Spacer(modifier = Modifier.height(8.dp))
                                 
                                 Text("[ /api/scrap ]", fontWeight = FontWeight.SemiBold, color = androidx.compose.ui.graphics.Color(0xFF0D47A1))
-                                Text("보낸값: ${apiScrapReq?.take(80)}...", style = MaterialTheme.typography.bodySmall)
+                                Text("보낸값: ${apiScrapReq}", style = MaterialTheme.typography.bodySmall)
+                                Spacer(modifier = Modifier.height(8.dp))
                                 Text("받은값: ${apiScrapRes}", style = MaterialTheme.typography.bodySmall)
                                 
                                 Spacer(modifier = Modifier.height(8.dp))

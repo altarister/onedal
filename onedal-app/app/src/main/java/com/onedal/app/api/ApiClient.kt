@@ -123,10 +123,10 @@ class ApiClient(private val context: Context) {
                     val body = conn.inputStream.bufferedReader().readText()
                     prefs.edit().putString("api_scrap_res", body).apply()
                     val scrapRes = gson.fromJson(body, ScrapResponse::class.java)
-                    Log.d(TAG, "📡 [텔레메트리] 스크랩 ${payload.data.size}건 전송 완료 (모드: ${scrapRes.mode})")
+                    Log.d(TAG, "📡 [텔레메트리] 스크랩 ${payload.data.size}건 전송 완료 (모드: ${scrapRes.deviceControl.mode})")
                     
-                    if (scrapRes.filter != null) {
-                        prefs.edit().putString("activeFilter", gson.toJson(scrapRes.filter)).apply()
+                    if (scrapRes.dispatchEngineArgs != null) {
+                        prefs.edit().putString("activeFilter", gson.toJson(scrapRes.dispatchEngineArgs)).apply()
                     }
 
                     // 방금 보낸 스크랩 정보 화면 표시용으로 저장
@@ -136,7 +136,7 @@ class ApiClient(private val context: Context) {
                         .putString("lastScrapPreview", if (payload.data.isNotEmpty()) "${payload.data.first().pickup} -> ${payload.data.first().dropoff}" else "-")
                         .apply()
 
-                    onModeReceived(scrapRes.mode)
+                    onModeReceived(scrapRes.deviceControl.mode)
                 } else {
                     Log.w(TAG, "📡 [텔레메트리] 서버 에러 응답: $code")
                 }
