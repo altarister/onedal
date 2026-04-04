@@ -5,6 +5,8 @@ import android.util.Log
 import com.google.gson.Gson
 import com.onedal.app.models.FilterConfig
 import com.onedal.app.models.SimplifiedOfficeOrder
+import org.json.JSONObject
+import org.json.JSONArray
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -33,12 +35,37 @@ class ScrapParser(private val context: Context) {
      */
     fun loadCurrentFilter(): FilterConfig {
         return try {
-            val json = prefs.getString("activeFilter", null)
-            if (json != null) {
-                gson.fromJson(json, FilterConfig::class.java)
-            } else {
-                FilterConfig() // 기본값 (아직 서버 응답이 없는 경우)
-            }
+            val jsonStr = prefs.getString("activeFilter", null) ?: return FilterConfig()
+            val json = JSONObject(jsonStr)
+            
+            // blacklist: 배열이면 그대로, 문자열이면 콤마로 분리
+            val blacklist = try {
+                val arr = json.optJSONArray("blacklist")
+                if (arr != null) {
+                    (0 until arr.length()).map { arr.getString(it) }
+                } else {
+                    val str = json.optString("blacklist", "")
+                    if (str.isNotEmpty()) str.split(",").map { it.trim() }.filter { it.isNotEmpty() } else emptyList()
+                }
+            } catch (e: Exception) { emptyList() }
+            
+            // targetRegions: 배열이면 그대로, 없으면 빈 리스트
+            val targetRegions = try {
+                val arr = json.optJSONArray("targetRegions")
+                if (arr != null) {
+                    (0 until arr.length()).map { arr.getString(it) }
+                } else emptyList()
+            } catch (e: Exception) { emptyList() }
+
+            FilterConfig(
+                mode = json.optString("mode", "첫짐"),
+                minFare = json.optInt("minFare", 0),
+                pickupRadius = json.optInt("pickupRadius", 999),
+                targetCity = json.optString("targetCity", ""),
+                targetRegions = targetRegions,
+                targetRadius = json.optInt("targetRadius", 10),
+                blacklist = blacklist
+            )
         } catch (e: Exception) {
             Log.e(TAG, "❌ 필터 JSON 파싱 실패: ${e.message}")
             FilterConfig()
