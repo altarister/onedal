@@ -190,13 +190,18 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
 
                                             {/* 평가 상태(데스밸리) 액션 버튼 */}
                                             {route.status === 'evaluating_basic' && onDecision && (
-                                                <div className="mt-4 flex gap-3">
-                                                    <button onClick={(e) => { e.stopPropagation(); onDecision(route.id, 'CANCEL'); }} className="flex-1 bg-slate-800 text-rose-400 text-sm font-bold py-3.5 rounded-lg border border-rose-500/20 hover:bg-rose-950 transition-all shadow-sm active:scale-95">
-                                                        포기
-                                                    </button>
-                                                    <button onClick={(e) => { e.stopPropagation(); onDecision(route.id, 'KEEP'); }} className="flex-1 bg-slate-700 text-slate-200 text-sm font-bold py-3.5 rounded-lg border border-slate-600 hover:bg-slate-600 transition-all shadow-sm active:scale-95">
-                                                        상세 대기
-                                                    </button>
+                                                <div className="mt-4 flex flex-col gap-2">
+                                                    <div className="text-xs text-amber-300/70 text-center animate-pulse font-medium">
+                                                        ⏳ 앱폰이 상세 정보를 긁고 있습니다... 잠시 기다려주세요
+                                                    </div>
+                                                    <div className="flex gap-3">
+                                                        <button onClick={(e) => { e.stopPropagation(); onDecision(route.id, 'CANCEL'); }} className="flex-1 bg-slate-800 text-rose-400 text-sm font-bold py-3.5 rounded-lg border border-rose-500/20 hover:bg-rose-950 transition-all shadow-sm active:scale-95">
+                                                            즉시 포기
+                                                        </button>
+                                                        <button disabled className="flex-1 bg-slate-800 text-slate-500 text-sm font-bold py-3.5 rounded-lg border border-slate-700 cursor-not-allowed">
+                                                            상세 대기중...
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             )}
                                             {route.status === 'evaluating_detailed' && onDecision && (

@@ -28,7 +28,7 @@ export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () =
         >
             <div className="flex items-center gap-3 text-sm font-black text-white tracking-tight">
                 <span className={getStatusColor(filter.mode)}>
-                    {filter.mode === '대기' ? '⏸️ 통신 대기' : `${filter.mode}`}
+                    {filter.mode}
                 </span>
                 <span className="text-emerald-400">{(filter.minFare / 10000).toLocaleString()}</span>
                 <span className="text-slate-600 font-medium">|</span>
@@ -36,7 +36,7 @@ export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () =
                 <span className="text-slate-600 font-medium">|</span>
                 <span className="text-indigo-300">{filter.targetCity}({filter.targetRadius}km)</span>
             </div>
-            <div className={`text-lg sm:text-xl ${filter.mode === '대기' ? 'text-amber-400 animate-spin-slow' : 'text-slate-400'}`}>
+            <div className={`text-lg sm:text-xl ${filter.mode}`}>
                 ⚙️
             </div>
         </section>

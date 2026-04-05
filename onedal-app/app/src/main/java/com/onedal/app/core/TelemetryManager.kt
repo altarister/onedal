@@ -8,7 +8,7 @@ import com.onedal.app.models.ScrapPayload
 import com.onedal.app.models.SimplifiedOfficeOrder
 
 /**
- * 3초 주기 스크랩/생존신고 버퍼와 전송 스케줄링을 관리.
+ * 이벤트 기반 즉각 스크랩 전송 및 20초 주기 생존신고(Heartbeat) 관리.
  */
 class TelemetryManager(
     private val apiClient: ApiClient,
@@ -17,42 +17,56 @@ class TelemetryManager(
 
     companion object {
         private const val TAG = "1DAL_TELEMETRY"
-        private const val SCRAP_INTERVAL_MS = 3000L
+        private const val HEARTBEAT_INTERVAL_MS = 20000L // 20초 (빈 통신)
+        private const val DEBOUNCE_MS = 300L // 콜 수집 후 모아쏘기 위한 디바운스 대기시간
     }
 
     private val scrapBuffer = mutableListOf<SimplifiedOfficeOrder>()
     private val handler = Handler(Looper.getMainLooper())
     private var isRunning = false
 
-    private val scrapRunnable = object : Runnable {
+    // 하트비트용 (주기적)
+    private val heartbeatRunnable = object : Runnable {
         override fun run() {
-            flush()
             if (isRunning) {
-                handler.postDelayed(this, SCRAP_INTERVAL_MS)
+                flush() // 버퍼가 비어있어도 생존신고를 위해 발송
             }
+        }
+    }
+
+    // 디바운스용 (이벤트 기반)
+    private val eventFlushRunnable = Runnable {
+        if (isRunning) {
+            flush()
         }
     }
 
     fun start() {
         if (isRunning) return
         isRunning = true
-        handler.postDelayed(scrapRunnable, SCRAP_INTERVAL_MS)
-        Log.i(TAG, "Telemetry Loop Started")
+        resetHeartbeatTimer()
+        Log.i(TAG, "Telemetry Loop Started (Event-driven + 20s Keep-alive)")
     }
 
     fun stop() {
         isRunning = false
-        handler.removeCallbacks(scrapRunnable)
+        handler.removeCallbacks(heartbeatRunnable)
+        handler.removeCallbacks(eventFlushRunnable)
         Log.i(TAG, "Telemetry Loop Stopped")
     }
 
     /**
      * 버퍼에 콜 데이터를 쌓음 (Thread-safe)
+     * 수집 시점에 즉각 발송되도록 타이머 조작
      */
     fun enqueue(order: SimplifiedOfficeOrder) {
         synchronized(scrapBuffer) {
             scrapBuffer.add(order)
         }
+        
+        // 데이터가 들어오면 300ms 뒤에 한꺼번에 쏘도록 디바운스 세팅
+        handler.removeCallbacks(eventFlushRunnable)
+        handler.postDelayed(eventFlushRunnable, DEBOUNCE_MS)
     }
 
     private fun flush() {
@@ -74,6 +88,16 @@ class TelemetryManager(
                 stop()
                 onShutdown()
             }
+        }
+
+        // 통신을 방금 했으므로, 다음 하트비트 시점을 20초 뒤로 연기함
+        resetHeartbeatTimer()
+    }
+
+    private fun resetHeartbeatTimer() {
+        handler.removeCallbacks(heartbeatRunnable)
+        if (isRunning) {
+            handler.postDelayed(heartbeatRunnable, HEARTBEAT_INTERVAL_MS)
         }
     }
 }

@@ -54,4 +54,64 @@ class AutoTouchManager(private val service: AccessibilityService) {
 
         return dispatched
     }
+
+    /**
+     * 화면 상의 특정 텍스트를 포함하는 노드를 찾아 클릭합니다.
+     * @param rootNode 최상위 화면 노드
+     * @param targetText 찾을 텍스트 (명확한 식별을 위해 포함 여부 또는 시작 여부 검사)
+     * @param isStartsWith true면 startsWith 매칭, false면 정확한 매칭
+     * @return 성패 여부
+     */
+    fun findAndClickByText(rootNode: AccessibilityNodeInfo?, targetText: String, isStartsWith: Boolean = false): Boolean {
+        val targetNode = findNodeByText(rootNode, targetText, isStartsWith)
+        if (targetNode != null) {
+            val result = performSimulatedTouch(targetNode)
+            targetNode.recycle()
+            return result
+        }
+        Log.w(TAG, "⚠️ 요소 찾기 실패: '$targetText'")
+        return false
+    }
+
+    /**
+     * 노드 트리를 재귀적으로 순회하며 텍스트를 찾습니다.
+     */
+    private fun findNodeByText(node: AccessibilityNodeInfo?, targetText: String, isStartsWith: Boolean): AccessibilityNodeInfo? {
+        if (node == null) return null
+
+        val nodeText = node.text?.toString()?.trim() ?: ""
+        val contentDesc = node.contentDescription?.toString()?.trim() ?: ""
+
+        val isMatch = if (isStartsWith) {
+            nodeText.startsWith(targetText) || contentDesc.startsWith(targetText)
+        } else {
+            nodeText == targetText || contentDesc == targetText
+        }
+
+        if (isMatch) return AccessibilityNodeInfo.obtain(node)
+
+        for (i in 0 until node.childCount) {
+            val child = node.getChild(i)
+            val found = findNodeByText(child, targetText, isStartsWith)
+            if (found != null) {
+                child?.recycle()
+                return found
+            }
+            child?.recycle()
+        }
+        return null
+    }
+
+    /**
+     * 시스템 [뒤로 가기] 버튼 기능을 수행합니다.
+     */
+    fun performBack(): Boolean {
+        val dispatched = service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
+        if (dispatched) {
+            Log.d(TAG, "🔙 [백버튼 전송] 글로벌 액션 수행 완료")
+        } else {
+            Log.e(TAG, "❌ [백버튼 실패] 글로벌 액션 권한 오류")
+        }
+        return dispatched
+    }
 }

@@ -5,6 +5,8 @@ import android.os.Build
 import android.util.Log
 import com.google.gson.Gson
 import com.onedal.app.models.DispatchBasicRequest
+import com.onedal.app.models.DispatchConfirmResponse
+import com.onedal.app.models.DispatchDetailedRequest
 import com.onedal.app.models.ScrapPayload
 import com.onedal.app.models.ScrapResponse
 import java.util.concurrent.Executors
@@ -69,7 +71,7 @@ class ApiClient(private val context: Context) {
                 conn.setRequestProperty("Accept", "application/json")
                 conn.doOutput = true
                 conn.connectTimeout = 5000
-                conn.readTimeout = 35000 // 서버의 30초 데스밸리 Wait을 견디기 위한 넉넉한 타임아웃
+                conn.readTimeout = 5000 // 1차 선점(BASIC)은 즉시 응답이므로 짧은 타임아웃
 
                 conn.outputStream.use { os ->
                     os.write(jsonBody.toByteArray(Charsets.UTF_8))
@@ -86,6 +88,54 @@ class ApiClient(private val context: Context) {
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "❌ [Confirm 전송 실패] ${e.message}")
+            } finally {
+                conn?.disconnect()
+            }
+        }
+    }
+
+    /**
+     * 배차 2차 상세(DETAILED) 보고 및 서버 최종 판결(Decision) 대기 (롱폴링)
+     */
+    fun sendDetail(payload: DispatchDetailedRequest, onDecisionReceived: (String, String) -> Unit) {
+        confirmExecutor.submit {
+            var conn: java.net.HttpURLConnection? = null
+            try {
+                val jsonBody = gson.toJson(payload)
+                prefs.edit().putString("api_detail_req", jsonBody).apply()
+                val targetUrl = getTargetUrl("/api/orders/detail")
+                val url = java.net.URL(targetUrl)
+
+                conn = url.openConnection() as java.net.HttpURLConnection
+                conn.requestMethod = "POST"
+                conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                conn.setRequestProperty("Accept", "application/json")
+                conn.doOutput = true
+                conn.connectTimeout = 5000
+                conn.readTimeout = 40000 // 서버의 30초 롱폴링 홀드를 견디기 위함
+
+                conn.outputStream.use { os ->
+                    os.write(jsonBody.toByteArray(Charsets.UTF_8))
+                }
+
+                val code = conn.responseCode
+                Log.d(TAG, "🌐 [Detail] 응답: $code")
+
+                if (code == 200) {
+                    val body = conn.inputStream.bufferedReader().readText()
+                    prefs.edit().putString("api_detail_res", body).apply()
+                    Log.d(TAG, "🌐 [Detail 서버 대답] $body")
+                    
+                    val res = gson.fromJson(body, DispatchConfirmResponse::class.java)
+                    // 서버가 내려준 최종 판결 (KEEP or CANCEL) 콜백
+                    onDecisionReceived(payload.order.id, res.action)
+                } else {
+                    // 타임아웃 등의 이유로 실패 시 CANCEL로 간주하여 뱉기
+                    onDecisionReceived(payload.order.id, "CANCEL")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ [Detail 전송 실패] ${e.message}")
+                onDecisionReceived(payload.order.id, "CANCEL")
             } finally {
                 conn?.disconnect()
             }

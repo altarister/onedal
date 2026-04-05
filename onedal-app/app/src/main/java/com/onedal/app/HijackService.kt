@@ -1,6 +1,8 @@
 package com.onedal.app
 
 import android.accessibilityservice.AccessibilityService
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
@@ -8,15 +10,29 @@ import com.onedal.app.api.ApiClient
 import com.onedal.app.core.AutoTouchManager
 import com.onedal.app.core.ScrapParser
 import com.onedal.app.core.TelemetryManager
+import com.onedal.app.models.DetailedOfficeOrder
 import com.onedal.app.models.DispatchBasicRequest
+import com.onedal.app.models.DispatchDetailedRequest
+import com.onedal.app.models.SimplifiedOfficeOrder
+
+enum class DispatchState {
+    SEARCHING,           // 리스트 감시 중
+    CLICKED_LIST,        // 리스트 클릭 후 상세페이지 대기 (확정 버튼 클릭 대기)
+    CLICKED_CONFIRM,     // 확정 클릭 후 확정페이지 로딩 대기 (적요상세 버튼 대기)
+    SCRAPING_MEMO,       // 적요상세 페이지 열림 대기 및 스크래핑
+    MEMO_DONE,           // 적요상세 닫은 후 메인 복귀 대기 (출발지 버튼 대기)
+    SCRAPING_PICKUP,     // 출발지 페이지 열림 대기 및 스크래핑
+    PICKUP_DONE,         // 출발지 닫은 후 메인 복귀 대기 (도착지 버튼 대기)
+    SCRAPING_DROPOFF,    // 도착지 페이지 열림 대기 및 스크래핑
+    WAITING_DECISION,    // /detail 전송 후 롱폴링 응답 대기
+    EXECUTING_DECISION   // 결과(KEEP/CANCEL) 수신 후 '닫기'/'취소' 버튼 누르기
+}
 
 /**
  * 접근성 서비스 메인 관제탑 (Orchestrator)
  *
  * ★ 핵심 아키텍처: Scan → Judge → Shoot ★
- * 1단계(Scan):  화면 전체 텍스트를 수집 (클릭하지 않음)
- * 2단계(Judge): 파싱된 오더를 4대 필터 조건으로 종합 판정
- * 3단계(Shoot): 조건 통과 시에만 저장해 둔 타겟 노드를 정밀 타격
+ * 2-Step 아키텍처 구현체
  */
 class HijackService : AccessibilityService() {
 
@@ -24,41 +40,43 @@ class HijackService : AccessibilityService() {
         private const val TAG = "1DAL_MVP"
     }
 
-    // 의존성 주입 (매니저 객체들)
     private lateinit var apiClient: ApiClient
     private lateinit var telemetryManager: TelemetryManager
     private lateinit var scrapParser: ScrapParser
     private lateinit var touchManager: AutoTouchManager
 
-    // 화면 사이클 1회당 상태 임시 저장
     private var lastSeenTextCounts = mapOf<String, Int>()
-    
-    // 원격 퇴근(세션 끊기) 상태 플래그
     private var isKickedOut = false
+
+    // State Machine 변수
+    private var currentState = DispatchState.SEARCHING
+    private var stateTimestamp = 0L
+    private var currentOrder: DetailedOfficeOrder? = null
+    private var serverDecision: String? = null // "KEEP" or "CANCEL"
+
+    // 화면 변경 감지용 핑거프린트 (화면 텍스트의 해시)
+    private var lastScreenFingerprint = 0
+    private val processedOrderHashes = mutableSetOf<Int>()
 
     override fun onServiceConnected() {
         super.onServiceConnected()
-        Log.i(TAG, "1DAL Service Connected! [Scan→Judge→Shoot Architecture]")
+        Log.i(TAG, "1DAL Service Connected! [Scan→Judge→Shoot 2-Step Architecture]")
 
-        // 매니저 초기화
         apiClient = ApiClient(this)
         telemetryManager = TelemetryManager(apiClient) {
-            // [세션 끊기] 수신 시 콜백
             isKickedOut = true
-            Log.w(TAG, "🔴 원격 서버 명령에 의해 접근성 권한 스위치를 스스로 해제합니다 (disableSelf)")
+            Log.w(TAG, "🔴 원격 서버 명령에 의해 접근성 권한 스위치를 스스로 해제합니다")
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
                 disableSelf()
             }
         }
-        scrapParser = ScrapParser(this)  // Context 주입
+        scrapParser = ScrapParser(this)
         touchManager = AutoTouchManager(this)
 
-        // 텔레메트리 루프 시작
         telemetryManager.start()
     }
 
     override fun onInterrupt() {
-        Log.e(TAG, "Service Interrupted")
         telemetryManager.stop()
     }
 
@@ -68,114 +86,278 @@ class HijackService : AccessibilityService() {
         apiClient.shutdown()
     }
 
-    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        // 이미 쫓겨난(퇴근) 상태면 어떤 이벤트도 처리하지 않고 무시
-        if (isKickedOut) return
+    private fun transitionTo(newState: DispatchState) {
+        currentState = newState
+        stateTimestamp = System.currentTimeMillis()
+        lastScreenFingerprint = 0  // 핑거프린트 리셋 → 새 상태에서 첫 화면 변경을 감지하도록
+        Log.d(TAG, "🔄 State Changed: $newState")
+    }
 
+    private fun checkTimeout() {
+        if (currentState != DispatchState.SEARCHING && currentState != DispatchState.WAITING_DECISION) {
+            if (System.currentTimeMillis() - stateTimestamp > 12000) {
+                Log.w(TAG, "⏰ 12초 타임아웃 발생! 화면 꼬임 방지를 위해 SEARCHING 상태로 강제 롤백합니다.")
+                transitionTo(DispatchState.SEARCHING)
+                currentOrder = null
+            }
+        }
+    }
+
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        if (isKickedOut) return
         if (event == null || event.eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) return
         val rootNode = rootInActiveWindow ?: return
 
-        // ════════════════════════════════════════
-        // [1단계: Scan] 화면 전체 텍스트 수집 + 클릭 후보 노드 확보
-        // ════════════════════════════════════════
-        val allTexts = mutableListOf<String>()
-        var candidateNode: AccessibilityNodeInfo? = null
+        checkTimeout()
 
-        collectTextsAndCandidateNode(rootNode, allTexts) { node ->
-            // 아직 후보가 없고, 숫자(요금처럼 보이는 것)를 발견하면 후보로 기억
-            if (candidateNode == null) {
-                candidateNode = node
+        // ═══ 화면 변경 감지 (핑거프린트 비교) ═══
+        if (currentState != DispatchState.WAITING_DECISION) {
+            val screenTexts = mutableListOf<String>()
+            collectTextsOnly(rootNode, screenTexts)
+            val currentFingerprint = screenTexts.sorted().hashCode()
+            
+            if (currentFingerprint == lastScreenFingerprint) {
+                // 화면이 아직 안 바뀜 → 이번 이벤트는 건너뜀
+                rootNode.recycle()
+                return
+            }
+            lastScreenFingerprint = currentFingerprint
+            
+            // 화면이 바뀔 때마다 구분선 + 현재 상태 로깅
+            Log.d(TAG, "-------------------------------")
+            Log.d(TAG, "📡 화면 변경 감지 | 상태: $currentState")
+        }
+
+        // ════════════════════════════════════════
+        // State Machine 로직
+        // ════════════════════════════════════════
+        when (currentState) {
+            DispatchState.SEARCHING -> {
+                val allNodes = mutableListOf<ScreenTextNode>()
+                extractAllTextNodes(rootNode, allNodes)
+                
+                // 1) 요금 후보(Fare)만 먼저 추출합니다.
+                val fareNodes = allNodes.filter { it.isFareCandidate() }
+                
+                // 2) 각 요금 노드별로 동일한 가로줄(Row)에 속하는 텍스트들을 모아 파싱합니다.
+                var clickedSomething = false
+                
+                for (fareNode in fareNodes) {
+                    // 수평 밴드 검사: Y센터가 fareNode의 Y 영역과 겹치거나 인접한 노드들을 한 줄로 간주
+                    val rowNodes = allNodes.filter { 
+                        it.rect.top < fareNode.rect.bottom && it.rect.bottom > fareNode.rect.top 
+                    }
+                    
+                    val rowTexts = rowNodes.map { it.text }
+                    val order = scrapParser.parse(rowTexts)
+                    
+                    if (order.fare == 0) continue // 파싱 실패 시 스킵
+                    
+                    // 주문 해시 (동일한 콜을 중복 클릭하지 않기 위함)
+                    val orderHash = (order.pickup + order.dropoff + order.fare.toString() + (order.rawText?.hashCode() ?: 0)).hashCode()
+                    if (processedOrderHashes.contains(orderHash)) continue
+                    
+                    // 신규 콜이면 필터 검사
+                    val shouldClick = scrapParser.shouldClick(order)
+                    if (shouldClick) {
+                        Log.d(TAG, "💥 [1단계] 4대 조건 통과! Y좌표 그룹핑 명중! 타겟 클릭 실행!")
+                        touchManager.performSimulatedTouch(fareNode.node)
+                        
+                        currentOrder = DetailedOfficeOrder(
+                            id = order.id, type = order.type, pickup = order.pickup,
+                            dropoff = order.dropoff, fare = order.fare, timestamp = order.timestamp,
+                            rawText = order.rawText
+                        )
+                        processedOrderHashes.add(orderHash)
+                        transitionTo(DispatchState.CLICKED_LIST)
+                        clickedSomething = true
+                        break // 하나만 선점하고 즉시 탈출
+                    } else if (order.fare > 0 || rowTexts.size >= 4) {
+                        processedOrderHashes.add(orderHash)
+                        telemetryManager.enqueue(order)
+                    }
+                }
+                
+                // 불필요 메모리가 쌓이지 않도록 최대 100개 제한
+                if (processedOrderHashes.size > 100) {
+                    val keepers = processedOrderHashes.toList().takeLast(50)
+                    processedOrderHashes.clear()
+                    processedOrderHashes.addAll(keepers)
+                }
+            }
+
+            DispatchState.CLICKED_LIST -> {
+                // "확정" 텍스트가 포함된 버튼을 찾아 누름 (예: "확정(10)")
+                if (touchManager.findAndClickByText(rootNode, "확정", isStartsWith = true)) {
+                    Log.d(TAG, "🚀 [1차 BASIC] 확정 클릭! 서버에 Confirm 전송")
+                    val payload = DispatchBasicRequest(
+                        step = "BASIC",
+                        deviceId = apiClient.getDeviceId(),
+                        order = SimplifiedOfficeOrder(
+                            id = currentOrder!!.id, pickup = currentOrder!!.pickup,
+                            dropoff = currentOrder!!.dropoff, fare = currentOrder!!.fare,
+                            timestamp = currentOrder!!.timestamp, rawText = currentOrder!!.rawText
+                        ),
+                        capturedAt = currentOrder!!.timestamp
+                    )
+                    apiClient.sendConfirm(payload)
+                    transitionTo(DispatchState.CLICKED_CONFIRM)
+                }
+            }
+
+            DispatchState.CLICKED_CONFIRM -> {
+                // 적요상세 버튼 누르기
+                if (touchManager.findAndClickByText(rootNode, "적요상세", isStartsWith = false)) {
+                    transitionTo(DispatchState.SCRAPING_MEMO)
+                    
+                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                        val currentRoot = rootInActiveWindow
+                        if (currentRoot != null) {
+                            val texts = mutableListOf<String>()
+                            collectTextsOnly(currentRoot, texts)
+                            currentOrder = currentOrder?.copy(itemDescription = texts.joinToString("\n"))
+                            Log.d(TAG, "📝 적요상세 스크래핑 완료 (1초 지연 캡처)")
+                            currentRoot.recycle()
+                            transitionTo(DispatchState.MEMO_DONE)
+                        } else {
+                            transitionTo(DispatchState.SEARCHING) // 비상 복구
+                        }
+                    }, 1000)
+                }
+            }
+
+            DispatchState.SCRAPING_MEMO -> {
+                // 백그라운드 Handler가 1초 뒤에 스크랩 후 MEMO_DONE으로 보낼 때까지 숨죽여 대기합니다.
+            }
+
+            DispatchState.MEMO_DONE -> {
+                // 메인 페이지 복귀 확인 후 다음 버튼("출발지") 클릭
+                // texts.contains("출발지") 완전 일치(==) 검사가 실패하는 경우가 많아 touchManager 내부 검사로 위임합니다.
+                val debugTexts = mutableListOf<String>()
+                collectTextsOnly(rootNode, debugTexts)
+                Log.d(TAG, "🛠️ [디버그] MEMO_DONE 화면 텍스트들: \n${debugTexts.joinToString(" | ")}")
+
+                if (touchManager.findAndClickByText(rootNode, "출발지", isStartsWith = true) || touchManager.findAndClickByText(rootNode, "상차", isStartsWith = true)) {
+                    transitionTo(DispatchState.SCRAPING_PICKUP)
+                    
+                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                        val currentRoot = rootInActiveWindow
+                        if (currentRoot != null) {
+                            val pickupTexts = mutableListOf<String>()
+                            collectTextsOnly(currentRoot, pickupTexts)
+                            val pickupRaw = pickupTexts.joinToString("\n")
+                            currentOrder = currentOrder?.copy(rawText = currentOrder!!.rawText + "\n[출발지상세]\n" + pickupRaw)
+                            Log.d(TAG, "📝 출발지 스크래핑 완료 (1초 지연 캡처)")
+                            currentRoot.recycle()
+                            transitionTo(DispatchState.PICKUP_DONE)
+                        }
+                    }, 1000)
+                }
+            }
+
+            DispatchState.SCRAPING_PICKUP -> {
+                // 대기
+            }
+
+            DispatchState.PICKUP_DONE -> {
+                // 출발지 팝업에서 복귀 후 다음 버튼("도착지") 클릭
+                if (touchManager.findAndClickByText(rootNode, "도착지", isStartsWith = true) || touchManager.findAndClickByText(rootNode, "하차", isStartsWith = true)) {
+                    transitionTo(DispatchState.SCRAPING_DROPOFF)
+                    
+                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                            val currentRoot = rootInActiveWindow
+                            if (currentRoot != null) {
+                                val dropTexts = mutableListOf<String>()
+                                collectTextsOnly(currentRoot, dropTexts)
+                                val dropoffRaw = dropTexts.joinToString("\n")
+                                currentOrder = currentOrder?.copy(rawText = currentOrder!!.rawText + "\n[도착지상세]\n" + dropoffRaw)
+                                Log.d(TAG, "📝 도착지 스크래핑 완료! 2차 서버 보고 시작")
+                                currentRoot.recycle()
+                                
+                                val payload = DispatchDetailedRequest(
+                                    step = "DETAILED",
+                                    deviceId = apiClient.getDeviceId(),
+                                    order = currentOrder!!,
+                                    capturedAt = currentOrder!!.timestamp
+                                )
+                                apiClient.sendDetail(payload) { orderId, action ->
+                                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                                        if (currentState == DispatchState.WAITING_DECISION && currentOrder?.id == orderId) {
+                                            serverDecision = action
+                                            transitionTo(DispatchState.EXECUTING_DECISION)
+                                        }
+                                    }
+                                }
+                                transitionTo(DispatchState.WAITING_DECISION)
+                            }
+                        }, 1000)
+                }
+            }
+
+            DispatchState.SCRAPING_DROPOFF -> {
+                // 대기
+            }
+
+            DispatchState.WAITING_DECISION -> {
+                // API 응답 올 때까지 무한 대기 (타임아웃 로직 대상 제외)
+            }
+
+            DispatchState.EXECUTING_DECISION -> {
+                // KEEP 이면 "닫기" 버튼, CANCEL 이면 "취소" 버튼
+                val targetBtnStr = if (serverDecision == "KEEP") "닫기" else "취소"
+                Log.d(TAG, "⚔️ [최종 판결 집행] 행동=$serverDecision, 누를버튼=$targetBtnStr")
+                
+                val clicked = touchManager.findAndClickByText(rootNode, targetBtnStr, isStartsWith = false)
+                if (clicked) {
+                    Log.d(TAG, "🎉 사이클 완료! 타겟($targetBtnStr) 명중.")
+                    transitionTo(DispatchState.SEARCHING)
+                } else {
+                    // 화면 로딩 지연 대응: 아직 버튼이 안 떴을 수 있음 (타임아웃 12초 내 계속 재시도)
+                }
             }
         }
 
-        // 이번 사이클에 새로 나타난 텍스트 블록만 필터링
-        val currentTextCounts = allTexts.groupingBy { it }.eachCount()
-        val newlyAppearedTexts = getNewlyAppearedTexts(currentTextCounts, lastSeenTextCounts)
-
-        if (newlyAppearedTexts.isNotEmpty()) {
-            val rawStr = newlyAppearedTexts.joinToString(", ")
-            Log.d(TAG, "=================================")
-            Log.d(TAG, "🆕 새로 감지 : $rawStr")
-
-            // ════════════════════════════════════════
-            // [2단계: Judge] 파서 엔진으로 오더 구조체 생성 → 4대 필터 AND 검사
-            // ════════════════════════════════════════
-            val order = scrapParser.parse(newlyAppearedTexts)
-            val shouldClick = scrapParser.shouldClick(order)
-
-            if (shouldClick && candidateNode != null) {
-                // ════════════════════════════════════════
-                // [3단계: Shoot] 조건 통과! 정밀 타격 실행
-                // ════════════════════════════════════════
-                Log.d(TAG, "💥 [Scan→Judge→Shoot] 4대 조건 통과! 타겟 클릭 실행!")
-                touchManager.performSimulatedTouch(candidateNode!!)
-
-                // 선점 성공 → Confirm 파이프라인 진입
-                val payload = DispatchBasicRequest(
-                    step = "BASIC",
-                    deviceId = apiClient.getDeviceId(),
-                    order = order,
-                    capturedAt = order.timestamp,
-                    matchType = "AUTO"
-                )
-                Log.d(TAG, "🚀 선점 성공! 배차 확정(Confirm) 프로세스 시작")
-                apiClient.sendConfirm(payload)
-
-            } else if (shouldClick && candidateNode == null) {
-                Log.w(TAG, "⚠️ [Shoot 실패] 4대 조건은 통과했으나 클릭할 요금 노드를 찾지 못했습니다")
-            } else if (order.fare > 0 || newlyAppearedTexts.size > 10) {
-                // 조건 불일치지만 유의미한 콜 → 스크랩 버퍼로 적재 (빅데이터용)
-                telemetryManager.enqueue(order)
-                Log.d(TAG, "📦 스크랩 버퍼에 적재 (일반 콜 / 조건 불일치)")
-            } else {
-                Log.d(TAG, "🗑️ 의미 없는 부스러기 데이터 (전송 스킵)")
-            }
-        }
-
-        lastSeenTextCounts = currentTextCounts
         rootNode.recycle()
     }
 
-    /**
-     * [1단계: Scan] 노드 트리를 순회하며 텍스트만 수집합니다.
-     * 클릭 판단은 절대 하지 않습니다.
-     * 요금처럼 보이는 숫자 노드를 발견하면 onCandidateFound 콜백으로 알립니다.
-     */
-    private fun collectTextsAndCandidateNode(
-        node: AccessibilityNodeInfo?,
-        texts: MutableList<String>,
-        onCandidateFound: (AccessibilityNodeInfo) -> Unit
-    ) {
+    private fun extractAllTextNodes(node: AccessibilityNodeInfo?, list: MutableList<ScreenTextNode>) {
         if (node == null) return
-
-        val nodeText = node.text?.toString()?.trim()
-        if (!nodeText.isNullOrEmpty()) {
-            texts.add(nodeText)
-            // 요금 후보 감지: 소수점 없는 정수이고 10~9999 범위 (인성앱 운임 표시: "47" = 47,000원)
-            val numValue = nodeText.replace(",", "").toIntOrNull()
-            if (numValue != null && numValue in 10..9999 && !nodeText.contains(".")) {
-                onCandidateFound(node)
-            }
+        val text = node.text?.toString()?.trim() ?: node.contentDescription?.toString()?.trim()
+        if (!text.isNullOrEmpty()) {
+            val rect = android.graphics.Rect()
+            node.getBoundsInScreen(rect)
+            list.add(ScreenTextNode(text, node, rect))
         }
-
-        val contentDesc = node.contentDescription?.toString()?.trim()
-        if (!contentDesc.isNullOrEmpty()) {
-            texts.add(contentDesc)
-        }
-
         for (i in 0 until node.childCount) {
-            collectTextsAndCandidateNode(node.getChild(i), texts, onCandidateFound)
+            extractAllTextNodes(node.getChild(i), list)
         }
     }
 
-    private fun getNewlyAppearedTexts(current: Map<String, Int>, last: Map<String, Int>): List<String> {
-        val newlyAppeared = mutableListOf<String>()
-        for ((text, currentCount) in current) {
-            val lastCount = last.getOrDefault(text, 0)
-            if (currentCount > lastCount) {
-                repeat(currentCount - lastCount) { newlyAppeared.add(text) }
-            }
+    /**
+     * 화면 핑거프린트 생성을 위한 경량 텍스트 수집기.
+     * 요금 후보 감지 없이 텍스트만 빠르게 모읍니다.
+     */
+    private fun collectTextsOnly(node: AccessibilityNodeInfo?, texts: MutableList<String>) {
+        if (node == null) return
+        val nodeText = node.text?.toString()?.trim()
+        if (!nodeText.isNullOrEmpty()) texts.add(nodeText)
+        val contentDesc = node.contentDescription?.toString()?.trim()
+        if (!contentDesc.isNullOrEmpty()) texts.add(contentDesc)
+        for (i in 0 until node.childCount) {
+            collectTextsOnly(node.getChild(i), texts)
         }
-        return newlyAppeared
+    }
+}
+
+data class ScreenTextNode(val text: String, val node: AccessibilityNodeInfo, val rect: android.graphics.Rect) {
+    fun isFareCandidate(): Boolean {
+        val numValueStr = text.replace(",", "")
+        val isIntegerPattern = numValueStr.toIntOrNull() != null && !numValueStr.contains(".")
+        val isDecimalPattern = numValueStr.toDoubleOrNull() != null && (numValueStr.endsWith(".0") || numValueStr.endsWith(".5"))
+        if (isIntegerPattern || isDecimalPattern) {
+            val value = numValueStr.toDoubleOrNull() ?: 0.0
+            return value in 10.0..9999.0
+        }
+        return false
     }
 }
