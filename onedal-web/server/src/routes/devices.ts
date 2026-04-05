@@ -6,8 +6,8 @@ const router = Router();
 // 메모리 내부 세션 저장소 (앱폰 -> 서버 핑 유지용)
 const activeDevices = new Map<string, DeviceSession>();
 
-// 데드맨 스위치 감지 주기 (5초 이상 통신 없으면 DISCONNECTED 처리)
-const DEADMAN_TIMEOUT_MS = 5000;
+// 데드맨 스위치 감지 주기 (안드로이드 하트비트가 20초이므로, 여유를 두어 25초로 설정)
+const DEADMAN_TIMEOUT_MS = 25000;
 
 /**
  * App에서 데이터를 전송할 때마다 세션 생명주기를 갱신하는 헬퍼 함수
