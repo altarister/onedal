@@ -10,6 +10,7 @@ import ordersRouter from "./routes/orders";
 import detailRouter, { handleDecision } from "./routes/detail";
 import scrapRouter from "./routes/scrap";
 import { getRegionsByCity } from "./geoResolver";
+import kakaoRouter from "./routes/kakao";
 import devicesRouter, { getActiveDevicesSnapshot } from "./routes/devices";
 import { activeFilterConfig, updateActiveFilter } from "./state/filterStore";
 import type { FilterConfig } from "@onedal/shared";
@@ -37,8 +38,8 @@ app.use(express.json());
 app.use("/api/orders", ordersRouter);
 app.use("/api/orders/detail", detailRouter);
 app.use("/api/scrap", scrapRouter);
+app.use("/api/kakao", kakaoRouter); // Dashboard UI의 클라이언트 사이드 카카오 연산용 프록시 (유지)
 app.use("/api/devices", devicesRouter);
-// ※ kakao REST 프록시(/api/kakao) 제거됨 — 서버 내부에서 kakaoUtil.ts로 직접 호출
 
 // 소켓 연결 이벤트 핸들링
 io.on("connection", (socket) => {

@@ -60,6 +60,7 @@ export function useOrderEngine() {
             playAlertSound();
         };
 
+        // 1단계: 1차 선빵 수신 (BASIC) — 닫기/취소 버튼 노출
         const onOrderEvaluating = (secured: SecuredOrder) => {
             if (!mainCallIdRef.current || mainCallIdRef.current === secured.id) {
                 if (!mainCallIdRef.current) playAlertSound();
@@ -76,8 +77,26 @@ export function useOrderEngine() {
                     return [...subs, secured];
                 });
             }
-            
             setSelectedOrder(null);
+        };
+
+        // 2단계: 상하차지+적요 수신 (DETAIL 접수) — 경로/적요 섹션 업데이트
+        const onOrderDetailReceived = (secured: SecuredOrder) => {
+            if (mainCallIdRef.current === secured.id) {
+                setMainCall(secured);
+            } else {
+                setSubCalls(subs => subs.map(s => s.id === secured.id ? secured : s));
+            }
+        };
+
+        // 3단계: 카카오 연산 완료 — 수익률/경로 최종 노출 (판단 버튼 활성화)
+        const onOrderEvaluated = (secured: SecuredOrder) => {
+            playAlertSound();
+            if (mainCallIdRef.current === secured.id) {
+                setMainCall(secured);
+            } else {
+                setSubCalls(subs => subs.map(s => s.id === secured.id ? secured : s));
+            }
         };
 
         const onOrderConfirmed = (id: string) => {
@@ -95,6 +114,8 @@ export function useOrderEngine() {
         socket.on("disconnect", onDisconnect);
         socket.on("new-order", onNewOrder);
         socket.on("order-evaluating", onOrderEvaluating);
+        socket.on("order-detail-received", onOrderDetailReceived);
+        socket.on("order-evaluated", onOrderEvaluated);
         socket.on("order-confirmed", onOrderConfirmed);
         socket.on("order-canceled", onOrderCanceled);
 
@@ -103,19 +124,16 @@ export function useOrderEngine() {
              socket.off("disconnect", onDisconnect);
              socket.off("new-order", onNewOrder);
              socket.off("order-evaluating", onOrderEvaluating);
+             socket.off("order-detail-received", onOrderDetailReceived);
+             socket.off("order-evaluated", onOrderEvaluated);
              socket.off("order-confirmed", onOrderConfirmed);
              socket.off("order-canceled", onOrderCanceled);
         };
     }, [playAlertSound]);
 
-    const handleDecision = useCallback(async (id: string, action: 'KEEP' | 'CANCEL') => {
-        try {
-            await fetch(`/api/orders/decision/${id}`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ action })
-            });
-        } catch (e) { console.error("결정 전송 에러:", e); }
+    const handleDecision = useCallback((id: string, action: 'KEEP' | 'CANCEL') => {
+        // 다이어그램 Line 84~99: 관제탑 → 서버 [Socket] 취소/유지 전달
+        socket.emit("decision", { orderId: id, action });
     }, []);
 
 

@@ -96,7 +96,7 @@ function DevTools() {
                 capturedAt: new Date().toISOString(),
                 matchType: 'AUTO'
             };
-            fetch(getApiUrl("/api/orders/confirm"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(detailedPayload) });
+            fetch(getApiUrl("/api/orders/detail"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(detailedPayload) });
         }, 1000);
 
         console.log(`🎯 [테스트 배차] ${botId}가 콜을 선점했습니다!`);
