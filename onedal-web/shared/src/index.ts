@@ -48,7 +48,7 @@ export interface DetailedOfficeOrder {
 }
 
 export interface FilterConfig {
-    mode: '첫짐' | '합짐' | '복귀';
+    mode: '첫짐' | '대기' | '합짐' | '복귀';
     minFare: number;       // 최소 운임 (예: 60000)
     pickupRadius: number;  // [조건4] 상차지 최대 직선 거리 (km)
     targetCity: string;    // 관제 UI용 대표 도시명 (예: "용인시")

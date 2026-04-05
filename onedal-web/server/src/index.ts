@@ -7,9 +7,9 @@ import path from "path";
 import fs from "fs";
 
 import ordersRouter from "./routes/orders";
+import detailRouter, { handleDecision } from "./routes/detail";
 import scrapRouter from "./routes/scrap";
 import { getRegionsByCity } from "./geoResolver";
-import kakaoRouter from "./routes/kakao";
 import devicesRouter, { getActiveDevicesSnapshot } from "./routes/devices";
 import { activeFilterConfig, updateActiveFilter } from "./state/filterStore";
 import type { FilterConfig } from "@onedal/shared";
@@ -35,9 +35,10 @@ app.use(express.json());
 
 // API 라우터 등록
 app.use("/api/orders", ordersRouter);
+app.use("/api/orders/detail", detailRouter);
 app.use("/api/scrap", scrapRouter);
-app.use("/api/kakao", kakaoRouter);
 app.use("/api/devices", devicesRouter);
+// ※ kakao REST 프록시(/api/kakao) 제거됨 — 서버 내부에서 kakaoUtil.ts로 직접 호출
 
 // 소켓 연결 이벤트 핸들링
 io.on("connection", (socket) => {
@@ -66,6 +67,15 @@ io.on("connection", (socket) => {
         console.log(`🌐 [필터 변경] 모드: ${updated.mode}, 단가: ${updated.minFare}, 반경: ${updated.pickupRadius}km, 지역: ${updated.targetCity}(${updated.targetRegions?.length}개동)`);
         // 내 서버를 포함한 모든 클라이언트 대시보드에 즉각 브로드캐스트
         io.emit("filter-updated", updated);
+    });
+
+    // ⭐ 관제사(사람)의 최종 판단 — 다이어그램 Line 84~99 대응
+    // REST POST /decision/:id 를 Socket.io 이벤트로 전환
+    socket.on("decision", ({ orderId, action }: { orderId: string, action: 'KEEP' | 'CANCEL' }) => {
+        console.log(`⚖️ [소켓 Decision 수신] ID: ${orderId}, Action: ${action}`);
+        const result = handleDecision(orderId, action, io);
+        // 결과를 요청한 소켓에만 ACK
+        socket.emit("decision-ack", result);
     });
 
     socket.on("disconnect", () => {
