@@ -54,3 +54,16 @@ cd /Users/seungwookkim/reps/onedal
 1. EC2 IP: `44.222.73.86`
 2. PEM KEY: `/Users/seungwookkim/reps/onedal/.github/1dal.pem`
 3. 아이디: `(그냥 엔터 키 눌러서 ubuntu로 접속)`
+
+---
+
+## 🗺️ [추가] 카카오 API 연동 트러블슈팅 (OPEN_MAP_AND_LOCAL 오류)
+
+### 🚨 발생했던 문제 증상
+*   **현상**: 안드로이드 봇이 주소를 완벽하게 스크래핑해 서버로 넘겼음에도 불구하고, 서버의 `kakaoUtil.ts` 에서 지오코딩 1~3차 폴백 시도가 모두 에러(`카카오 좌표 변환 최종 실패`)로 떨어짐.
+*   **에러 로그 확인**: 서버에서 직접 API를 때려보니 카카오 서버가 `{"errorType":"NotAuthorizedError","message":"App(1DAL) disabled OPEN_MAP_AND_LOCAL service."}` 패킷을 반환 중이던 상태.
+
+### 🔍 원인 파악 및 조치 내역
+*   **원인**: 소스코드나 로직 결함이 아닌, 실제 **[Kakao Developers 콘솔]** 상에서 해당 REST API Key를 품고 있는 앱의 **'카카오맵(Local API)' 제품 권한 스위치가 꺼져 있어(Disabled)** 발생한 시스템적 호출 거부.
+*   **조치**: 카카오 데브 콘솔 접속 ➡️ `[내 애플리케이션]` ➡️ 좌측 하단 스크롤 ➡️ `[제품 설정]` - `[카카오맵]` 접속 ➡️ **사용 설정 스위치 `[ON]`** 전환.
+*   **결과**: 스위치를 켜자마자 서버 재부팅 없이 즉각적으로 카카오 좌표 변환이 뚫리면서, 단독 주행 예상 거리/시간 연산 파이프라인이 정상 작동함.

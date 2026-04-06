@@ -85,30 +85,54 @@ export async function geocodeAddress(apiKey: string, query: string): Promise<{x:
     try {
         if (!query || query === "미상") return null;
 
-        // "사음동+곤지암읍" 처럼 복수 지역이 합쳐진 경우, 카카오 API가 인식하지 못하므로 첫 번째 지역만 추출
-        const cleanQuery = query.split('+')[0].trim();
+        // "경기 화성시 안녕동 158-95(경기 화성시 안녕남로119번길 25)빌딩명" 처럼 괄호가 포함된 경우 제거
+        const noParenQuery = query.replace(/\(.*?\)/g, '').split('+')[0].trim();
 
-        // 1. 주소 검색 API 시도 (도로명/지번 주소용)
-        let url = `https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(cleanQuery)}`;
+        // [시도 1] 정제된 전체 텍스트로 주소 검색
+        let url = `https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(noParenQuery)}`;
         let res = await fetch(url, { headers: getHeaders(apiKey) });
         let data = await res.json();
         
         if (data.documents && data.documents.length > 0) {
-            return { x: parseFloat(data.documents[0].x), y: parseFloat(data.documents[0].y) };
+            return {
+                x: parseFloat(data.documents[0].x),
+                y: parseFloat(data.documents[0].y)
+            };
         }
         
-        // 2. 검색 실패 시 혹은 처음부터 지역명(모현읍 등)일 경우 키워드 장소 검색 API 시도
-        url = `https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(cleanQuery)}`;
+        // [시도 2] 위의 텍스트로 키워드 검색 시도
+        url = `https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(noParenQuery)}`;
         res = await fetch(url, { headers: getHeaders(apiKey) });
         data = await res.json();
         
         if (data.documents && data.documents.length > 0) {
-            return { x: parseFloat(data.documents[0].x), y: parseFloat(data.documents[0].y) };
+            return {
+                x: parseFloat(data.documents[0].x),
+                y: parseFloat(data.documents[0].y)
+            };
         }
-        
+
+        // [시도 3] 건물명(KGIT센터 등)이 섞여서 주소를 못 찾는 경우 대비:
+        // 보통 '시 구 동 번지' 형태이므로, 띄어쓰기 기준으로 맨 앞 4개 단어만 추출해서 다시 주소 검색 시도
+        const words = noParenQuery.split(' ');
+        if (words.length > 3) {
+            const shortQuery = words.slice(0, 4).join(' '); // "서울 마포구 상암동 1601" 까지만
+            url = `https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(shortQuery)}`;
+            res = await fetch(url, { headers: getHeaders(apiKey) });
+            data = await res.json();
+            if (data.documents && data.documents.length > 0) {
+                return {
+                    x: parseFloat(data.documents[0].x),
+                    y: parseFloat(data.documents[0].y)
+                };
+            }
+        }
+
+        // 모든 시도 실패
+        console.log(`[GeoResolver] 카카오 좌표 변환 최종 실패: 원본=${query}`);
         return null;
     } catch (e) {
-        console.error("Geocoding 에러:", e);
+        console.error("카카오 지오코딩 에러:", e);
         return null;
     }
 }

@@ -52,7 +52,7 @@ router.post('/directions/compare', async (req: Request, res: Response) => {
             ? `&waypoints=${waypoints.map(wp => `${wp.x},${wp.y}`).join('|')}`
             : '';
         const mergedUrl = `${KAKAO_API_URL}?origin=${origin.x},${origin.y}&destination=${destination.x},${destination.y}${waypointsQuery}&priority=RECOMMEND&car_type=1`;
-        
+
         const mergedRes = await fetch(mergedUrl, {
             method: "GET",
             headers
@@ -73,10 +73,10 @@ router.post('/directions/compare', async (req: Request, res: Response) => {
         const distDiffMeters = mergedSummary.distance - baseSummary.distance;
 
         console.log(`[KAKAO API] 🟢 연산 완료!`);
-        console.log(`   - 🧭 단독 기준 소요시간: ${Math.round(baseSummary.duration/60)}분 (${(baseSummary.distance/1000).toFixed(1)}km)`);
+        console.log(`   - 🧭 단독 기준 소요시간: ${Math.round(baseSummary.duration / 60)}분 (${(baseSummary.distance / 1000).toFixed(1)}km)`);
         if (waypoints && waypoints.length > 0) {
-            console.log(`   - 🗺️ 합짐 경유 소요시간: ${Math.round(mergedSummary.duration/60)}분 (${(mergedSummary.distance/1000).toFixed(1)}km)`);
-            const extMin = Math.round(timeDiffSeconds/60);
+            console.log(`   - 🗺️ 합짐 경유 소요시간: ${Math.round(mergedSummary.duration / 60)}분 (${(mergedSummary.distance / 1000).toFixed(1)}km)`);
+            const extMin = Math.round(timeDiffSeconds / 60);
             console.log(`   - ⚠️ 시간 패널티: ${extMin > 0 ? '+' : ''}${extMin}분 추가 소요`);
         }
         console.log(`======================================================\n`);
