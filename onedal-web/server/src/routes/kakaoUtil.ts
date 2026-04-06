@@ -85,8 +85,11 @@ export async function geocodeAddress(apiKey: string, query: string): Promise<{x:
     try {
         if (!query || query === "미상") return null;
 
+        // "사음동+곤지암읍" 처럼 복수 지역이 합쳐진 경우, 카카오 API가 인식하지 못하므로 첫 번째 지역만 추출
+        const cleanQuery = query.split('+')[0].trim();
+
         // 1. 주소 검색 API 시도 (도로명/지번 주소용)
-        let url = `https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(query)}`;
+        let url = `https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(cleanQuery)}`;
         let res = await fetch(url, { headers: getHeaders(apiKey) });
         let data = await res.json();
         
@@ -95,7 +98,7 @@ export async function geocodeAddress(apiKey: string, query: string): Promise<{x:
         }
         
         // 2. 검색 실패 시 혹은 처음부터 지역명(모현읍 등)일 경우 키워드 장소 검색 API 시도
-        url = `https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(query)}`;
+        url = `https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(cleanQuery)}`;
         res = await fetch(url, { headers: getHeaders(apiKey) });
         data = await res.json();
         

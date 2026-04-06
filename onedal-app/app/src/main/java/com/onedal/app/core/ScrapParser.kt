@@ -126,7 +126,11 @@ class ScrapParser(private val context: Context) {
 
         val now = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault()).format(Date())
 
-        Log.d(TAG, "📋 [파싱 결과] 요금=${fare}원(원본:$maxFareValue), 상차=$pickup, 하차=$dropoff, 거리=$distances")
+        // 의미 없는 화면(오더 목록이 아닌 화면 등)에서 무의미한 로그 도배 방지
+        val isValidOrder = fare > 0 || pickup != "미상" || dropoff != "미상"
+        if (isValidOrder) {
+            Log.d(TAG, "📋 [파싱 결과] 요금=${fare}원(원본:$maxFareValue), 상차=$pickup, 하차=$dropoff, 거리=$distances")
+        }
 
         return SimplifiedOfficeOrder(
             id = UUID.randomUUID().toString(),
@@ -135,18 +139,14 @@ class ScrapParser(private val context: Context) {
             dropoff = dropoff,
             fare = fare,
             timestamp = now,
-            rawText = rawJoined
+            rawText = rawJoined,
+            pickupDistance = distances.getOrNull(0)
         )
     }
 
     /**
      * 파싱된 오더가 4대 필터 조건을 모두 만족하는지 종합 판정합니다.
      * 모든 조건이 AND(교집합)로 통과해야만 true를 반환합니다.
-     *
-     * 조건1: 도착지(dropoff)에 targetRegions 중 하나라도 포함
-     * 조건2: 요금(fare) >= minFare
-     * 조건3: rawText에 blacklist 단어가 단 하나도 없음
-     * 조건4: 상차지 직선거리 <= pickupRadius
      */
     fun shouldClick(order: SimplifiedOfficeOrder): Boolean {
         val filter = loadCurrentFilter()
@@ -174,26 +174,28 @@ class ScrapParser(private val context: Context) {
         }
 
         // ── 조건 4: 상차지 거리 ──
-        val pickupDistance = parsePickupDistance(rawText)
-        val distanceMatch = if (pickupDistance == null) {
+        val distanceMatch = if (order.pickupDistance == null) {
             true // 거리 정보 없으면 일단 통과 (데이터 부족)
         } else {
-            pickupDistance <= filter.pickupRadius
+            order.pickupDistance <= filter.pickupRadius
         }
 
         // ── 로그 출력 (디버깅용) ──
-        Log.d(TAG, "🔍 [필터 검사] 도착지=${order.dropoff}, 요금=${order.fare}, 거리=${pickupDistance ?: "미상"}km")
-        Log.d(TAG, "   조건1(지역)=${if(regionMatch) "✅" else "❌"} " +
-                    "조건2(요금)=${if(fareMatch) "✅" else "❌"} " +
-                    "조건3(블랙)=${if(blacklistClear) "✅" else "❌"} " +
-                    "조건4(거리)=${if(distanceMatch) "✅" else "❌"}")
+        val isValidOrder = order.fare > 0 || order.pickup != "미상" || order.dropoff != "미상"
+        if (isValidOrder) {
+            Log.d(TAG, "🔍 [필터 검사] 도착지=${order.dropoff}, 요금=${order.fare}, 거리=${order.pickupDistance ?: "미상"}km")
+            Log.d(TAG, "   조건1(지역)=${if(regionMatch) "✅" else "❌"} " +
+                        "조건2(요금)=${if(fareMatch) "✅" else "❌"} " +
+                        "조건3(블랙)=${if(blacklistClear) "✅" else "❌"} " +
+                        "조건4(거리)=${if(distanceMatch) "✅" else "❌"}")
+        }
 
         val result = regionMatch && fareMatch && blacklistClear && distanceMatch
 
         if (result) {
             Log.d(TAG, "🎯 [4대 조건 통과!] → 클릭 실행 대상")
         } else {
-            Log.d(TAG, "⛔ [조건 불충족] → 스킵")
+            if (isValidOrder) Log.d(TAG, "⛔ [조건 불충족] → 스킵")
         }
 
         return result

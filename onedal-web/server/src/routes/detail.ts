@@ -14,6 +14,7 @@ import { Router, Response } from "express";
 import type { DispatchConfirmRequest, DispatchConfirmResponse, SecuredOrder } from "@onedal/shared";
 import { calculateSoloRoute, calculateDetourRoute, geocodeAddress } from "./kakaoUtil";
 import { activeFilterConfig, updateActiveFilter } from "../state/filterStore";
+import { parseLocationDetails } from "../utils/parser";
 
 const router = Router();
 
@@ -95,6 +96,12 @@ router.post("/", async (req, res) => {
             capturedAt: payload.capturedAt || new Date().toISOString()
         };
 
+        // 새로 추가된 정규식 파서로 문자열 분리 및 LocationDetailInfo 이식
+        if (securedOrder.rawText) {
+            securedOrder.pickupDetails = parseLocationDetails(securedOrder.rawText, "[출발지상세]");
+            securedOrder.dropoffDetails = parseLocationDetails(securedOrder.rawText, "[도착지상세]");
+        }
+
         // 좌표 보존을 위해 메모리에 보관
         pendingOrdersData.set(payload.order.id, securedOrder);
 
@@ -103,7 +110,7 @@ router.post("/", async (req, res) => {
         // ━━━━━━━━━━ 1단계: 수신 즉시 → 상하차지+적요 먼저 관제탑에 emit ━━━━━━━━━━
         if (io) {
             io.emit("order-detail-received", securedOrder);
-            console.log(`📋 [2차 상세 수신] 상하차지+적요 관제탑 전송: ${securedOrder.pickup} ➡️ ${securedOrder.dropoff}`);
+            console.log(`📋 [2차 상세 수신] 상하차지+적요 전송. 상세주소(${securedOrder.pickupDetails?.[0]?.addressDetail || '없음'} ➡️ ${securedOrder.dropoffDetails?.[0]?.addressDetail || '없음'})`);
         }
 
         // ━━━━━━━━━━ 2단계: 카카오 연산 → 경로/시간/수익률 관제탑에 emit ━━━━━━━━━━
@@ -118,7 +125,8 @@ router.post("/", async (req, res) => {
             if (apiKey) {
                 // 1.5단계: 지오코딩 (텍스트 주소를 X, Y 좌표로 변환)
                 if (!securedOrder.pickupX || !securedOrder.pickupY) {
-                    const pCoord = await geocodeAddress(apiKey, securedOrder.pickup);
+                    const bestPickupQuery = securedOrder.pickupDetails?.[0]?.addressDetail || securedOrder.pickup;
+                    const pCoord = await geocodeAddress(apiKey, bestPickupQuery);
                     if (pCoord) {
                         securedOrder.pickupX = pCoord.x;
                         securedOrder.pickupY = pCoord.y;
