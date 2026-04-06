@@ -206,96 +206,91 @@ class HijackService : AccessibilityService() {
             }
 
             DispatchState.CLICKED_CONFIRM -> {
-                // 적요상세 버튼 누르기
-                if (touchManager.findAndClickByText(rootNode, "적요상세", isStartsWith = false)) {
-                    transitionTo(DispatchState.SCRAPING_MEMO)
-                    
-                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                        val currentRoot = rootInActiveWindow
-                        if (currentRoot != null) {
-                            val texts = mutableListOf<String>()
-                            collectTextsOnly(currentRoot, texts)
-                            currentOrder = currentOrder?.copy(itemDescription = texts.joinToString("\n"))
-                            Log.d(TAG, "📝 적요상세 스크래핑 완료 (1초 지연 캡처)")
-                            currentRoot.recycle()
-                            transitionTo(DispatchState.MEMO_DONE)
-                        } else {
-                            transitionTo(DispatchState.SEARCHING) // 비상 복구
-                        }
-                    }, 1000)
-                }
-            }
-
-            DispatchState.SCRAPING_MEMO -> {
-                // 백그라운드 Handler가 1초 뒤에 스크랩 후 MEMO_DONE으로 보낼 때까지 숨죽여 대기합니다.
-            }
-
-            DispatchState.MEMO_DONE -> {
-                // 메인 페이지 복귀 확인 후 다음 버튼("출발지") 클릭
-                // texts.contains("출발지") 완전 일치(==) 검사가 실패하는 경우가 많아 touchManager 내부 검사로 위임합니다.
-                val debugTexts = mutableListOf<String>()
-                collectTextsOnly(rootNode, debugTexts)
-                Log.d(TAG, "🛠️ [디버그] MEMO_DONE 화면 텍스트들: \n${debugTexts.joinToString(" | ")}")
-
+                /*
+                 * [적요상세 클릭 보류] 나중에 필요시 복구
+                 * if (touchManager.findAndClickByText(rootNode, "적요상세", isStartsWith = false)) {
+                 *     transitionTo(DispatchState.SCRAPING_MEMO)
+                 * }
+                 */
+                 
+                // 확정페이지(메인) 로딩 이벤트 진입 시: 적요 즉시 스크랩 후 "출발지" 광클!
+                val texts = mutableListOf<String>()
+                collectTextsOnly(rootNode, texts)
+                currentOrder = currentOrder?.copy(itemDescription = texts.joinToString("\n"))
+                Log.d(TAG, "📝 메인 적요내용 즉시 0초 스크래핑 완료 (클릭 생략)")
+                
                 if (touchManager.findAndClickByText(rootNode, "출발지", isStartsWith = true) || touchManager.findAndClickByText(rootNode, "상차", isStartsWith = true)) {
                     transitionTo(DispatchState.SCRAPING_PICKUP)
-                    
-                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                        val currentRoot = rootInActiveWindow
-                        if (currentRoot != null) {
-                            val pickupTexts = mutableListOf<String>()
-                            collectTextsOnly(currentRoot, pickupTexts)
-                            val pickupRaw = pickupTexts.joinToString("\n")
-                            currentOrder = currentOrder?.copy(rawText = currentOrder!!.rawText + "\n[출발지상세]\n" + pickupRaw)
-                            Log.d(TAG, "📝 출발지 스크래핑 완료 (1초 지연 캡처)")
-                            currentRoot.recycle()
-                            transitionTo(DispatchState.PICKUP_DONE)
-                        }
-                    }, 1000)
+                } else {
+                    transitionTo(DispatchState.SEARCHING) // 비상 복구
                 }
             }
 
+            DispatchState.SCRAPING_MEMO -> { } // 사용 안함
+            DispatchState.MEMO_DONE -> { } // 사용 안함
+
             DispatchState.SCRAPING_PICKUP -> {
-                // 대기
+                // 출발지 팝업 화면 이벤트 진입 시: 진짜 팝업인지 검증
+                val pickupTexts = mutableListOf<String>()
+                collectTextsOnly(rootNode, pickupTexts)
+                val pickupRaw = pickupTexts.joinToString("\n")
+                
+                // 가짜 잔상 이벤트 필터링: "출발" 또는 "출발지" 타이틀이 없으면 패스 (도착지랑 혼동 방지를 위해 단순화)
+                // 보통 팝업 맨 위에 "출발지 상세"가 뜹니다.
+                if (!pickupRaw.contains("출발지 상세") && !pickupRaw.contains("전화1")) {
+                    Log.d(TAG, "거짓 이벤트 무시: 아직 출발지 팝업 안 뜸")
+                    return
+                }
+
+                currentOrder = currentOrder?.copy(rawText = currentOrder!!.rawText + "\n[출발지상세]\n" + pickupRaw)
+                Log.d(TAG, "📝 출발지 즉시 0초 스크래핑 완료! 닫기 누름")
+                
+                touchManager.findAndClickByText(rootNode, "닫기", isStartsWith = true)
+                transitionTo(DispatchState.PICKUP_DONE)
             }
 
             DispatchState.PICKUP_DONE -> {
-                // 출발지 팝업에서 복귀 후 다음 버튼("도착지") 클릭
+                // 출발지 팝업 닫히고 다시 메인 복귀 이벤트 진입 시: "도착지" 광클!
                 if (touchManager.findAndClickByText(rootNode, "도착지", isStartsWith = true) || touchManager.findAndClickByText(rootNode, "하차", isStartsWith = true)) {
                     transitionTo(DispatchState.SCRAPING_DROPOFF)
-                    
-                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                            val currentRoot = rootInActiveWindow
-                            if (currentRoot != null) {
-                                val dropTexts = mutableListOf<String>()
-                                collectTextsOnly(currentRoot, dropTexts)
-                                val dropoffRaw = dropTexts.joinToString("\n")
-                                currentOrder = currentOrder?.copy(rawText = currentOrder!!.rawText + "\n[도착지상세]\n" + dropoffRaw)
-                                Log.d(TAG, "📝 도착지 스크래핑 완료! 2차 서버 보고 시작")
-                                currentRoot.recycle()
-                                
-                                val payload = DispatchDetailedRequest(
-                                    step = "DETAILED",
-                                    deviceId = apiClient.getDeviceId(),
-                                    order = currentOrder!!,
-                                    capturedAt = currentOrder!!.timestamp
-                                )
-                                apiClient.sendDetail(payload) { orderId, action ->
-                                    android.os.Handler(android.os.Looper.getMainLooper()).post {
-                                        if (currentState == DispatchState.WAITING_DECISION && currentOrder?.id == orderId) {
-                                            serverDecision = action
-                                            transitionTo(DispatchState.EXECUTING_DECISION)
-                                        }
-                                    }
-                                }
-                                transitionTo(DispatchState.WAITING_DECISION)
-                            }
-                        }, 1000)
+                } else {
+                    // 도착지를 못 찾으면 아직 메인 화면으로 완전히 안 돌아온 것이므로 이벤트 무시 (대기)
+                    Log.d(TAG, "거짓 이벤트 무시: 도착지 버튼 활성화 안됨")
                 }
             }
 
             DispatchState.SCRAPING_DROPOFF -> {
-                // 대기
+                // 도착지 팝업 화면 이벤트 진입 시: 진짜 팝업인지 검증
+                val dropTexts = mutableListOf<String>()
+                collectTextsOnly(rootNode, dropTexts)
+                val dropoffRaw = dropTexts.joinToString("\n")
+                
+                // 가짜 잔상 이벤트 필터링
+                if (!dropoffRaw.contains("도착지 상세") && !dropoffRaw.contains("전화1")) {
+                    Log.d(TAG, "거짓 이벤트 무시: 아직 도착지 팝업 안 뜸")
+                    return
+                }
+
+                currentOrder = currentOrder?.copy(rawText = currentOrder!!.rawText + "\n[도착지상세]\n" + dropoffRaw)
+                Log.d(TAG, "📝 도착지 즉시 0초 스크래핑 완료! 닫기 및 2차 서버 보고 시작")
+                
+                touchManager.findAndClickByText(rootNode, "닫기", isStartsWith = true)
+                
+                val payload = DispatchDetailedRequest(
+                    step = "DETAILED",
+                    deviceId = apiClient.getDeviceId(),
+                    order = currentOrder!!,
+                    capturedAt = currentOrder!!.timestamp
+                )
+                apiClient.sendDetail(payload) { orderId, action ->
+                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                        if (currentState == DispatchState.WAITING_DECISION && currentOrder?.id == orderId) {
+                            serverDecision = action
+                            transitionTo(DispatchState.EXECUTING_DECISION)
+                        }
+                    }
+                }
+                transitionTo(DispatchState.WAITING_DECISION)
             }
 
             DispatchState.WAITING_DECISION -> {

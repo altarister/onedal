@@ -77,3 +77,35 @@ export async function calculateDetourRoute(
         distDiffKm: ((mergedDistance - baseDistance) / 1000).toFixed(1)
     };
 }
+
+/**
+ * 지오코딩: 주소 또는 지역명(키워드)을 주면 X, Y 좌표를 찾아 반환
+ */
+export async function geocodeAddress(apiKey: string, query: string): Promise<{x: number, y: number} | null> {
+    try {
+        if (!query || query === "미상") return null;
+
+        // 1. 주소 검색 API 시도 (도로명/지번 주소용)
+        let url = `https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(query)}`;
+        let res = await fetch(url, { headers: getHeaders(apiKey) });
+        let data = await res.json();
+        
+        if (data.documents && data.documents.length > 0) {
+            return { x: parseFloat(data.documents[0].x), y: parseFloat(data.documents[0].y) };
+        }
+        
+        // 2. 검색 실패 시 혹은 처음부터 지역명(모현읍 등)일 경우 키워드 장소 검색 API 시도
+        url = `https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(query)}`;
+        res = await fetch(url, { headers: getHeaders(apiKey) });
+        data = await res.json();
+        
+        if (data.documents && data.documents.length > 0) {
+            return { x: parseFloat(data.documents[0].x), y: parseFloat(data.documents[0].y) };
+        }
+        
+        return null;
+    } catch (e) {
+        console.error("Geocoding 에러:", e);
+        return null;
+    }
+}

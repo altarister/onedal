@@ -10,7 +10,7 @@ export let activeFilterConfig: FilterConfig = {
     targetCity: '용인시',
     targetRegions: getRegionsByCity('용인시'),
     targetRadius: 10,
-    blacklist: ['착불', '수거', '까대기', '전화금지']
+    blacklist: ['착불', '수거', '까대기', '전화금지', '타일']
 };
 
 // 필터 상태를 덮어쓰는 유틸리티

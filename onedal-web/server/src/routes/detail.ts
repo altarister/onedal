@@ -12,7 +12,7 @@
 
 import { Router, Response } from "express";
 import type { DispatchConfirmRequest, DispatchConfirmResponse, SecuredOrder } from "@onedal/shared";
-import { calculateSoloRoute, calculateDetourRoute } from "./kakaoUtil";
+import { calculateSoloRoute, calculateDetourRoute, geocodeAddress } from "./kakaoUtil";
 import { activeFilterConfig, updateActiveFilter } from "../state/filterStore";
 
 const router = Router();
@@ -115,44 +115,67 @@ router.post("/", async (req, res) => {
 
         try {
             const apiKey = process.env.KAKAO_REST_API_KEY;
-            if (apiKey && securedOrder.pickupX && securedOrder.dropoffY) {
-                if (!mainCallState) {
-                    // 첫짐: 단독 주행 연산
-                    console.log(`   - 💡 상태: [첫짐] 단독 주행 연산`);
-                    const result = await calculateSoloRoute(
-                        apiKey,
-                        securedOrder.pickupX!, securedOrder.pickupY!,
-                        securedOrder.dropoffX!, securedOrder.dropoffY!
-                    );
-                    const durationMin = Math.round(result.duration / 60);
-                    const distKm = (result.distance / 1000).toFixed(1);
-                    timeExt = `🧭 단독 주행: ${durationMin}분 소요`;
-                    distExt = `🛣️ 예상 거리: ${distKm}km`;
-                    console.log(`   - ⏱️ 결과: ${timeExt} / ${distExt}`);
-                } else if (mainCallState.pickupX && mainCallState.dropoffY) {
-                    // 합짐: 우회 동선 연산
-                    console.log(`   - 💡 상태: [합짐] 우회 동선 연산`);
-                    console.log(`   - 기존 본콜: ${mainCallState.pickup} ➡️ ${mainCallState.dropoff}`);
-                    console.log(`   - 추가 경유: ${securedOrder.pickup} ➡️ ${securedOrder.dropoff}`);
+            if (apiKey) {
+                // 1.5단계: 지오코딩 (텍스트 주소를 X, Y 좌표로 변환)
+                if (!securedOrder.pickupX || !securedOrder.pickupY) {
+                    const pCoord = await geocodeAddress(apiKey, securedOrder.pickup);
+                    if (pCoord) {
+                        securedOrder.pickupX = pCoord.x;
+                        securedOrder.pickupY = pCoord.y;
+                    }
+                }
+                if (!securedOrder.dropoffX || !securedOrder.dropoffY) {
+                    const dCoord = await geocodeAddress(apiKey, securedOrder.dropoff);
+                    if (dCoord) {
+                        securedOrder.dropoffX = dCoord.x;
+                        securedOrder.dropoffY = dCoord.y;
+                    }
+                }
+                
+                // 좌표 보존
+                pendingOrdersData.set(payload.order.id, securedOrder);
 
-                    const waypoints = [
-                        { x: securedOrder.pickupX!, y: securedOrder.pickupY! },
-                        { x: securedOrder.dropoffX!, y: securedOrder.dropoffY! }
-                    ];
-                    const result = await calculateDetourRoute(
-                        apiKey,
-                        mainCallState.pickupX!, mainCallState.pickupY!,
-                        mainCallState.dropoffX!, mainCallState.dropoffY!,
-                        waypoints
-                    );
-                    timeExt = `⏳ 기존 대비 +${result.timeDiffMin}분 추가 소요`;
-                    distExt = `+${result.distDiffKm}km 추가 주행`;
-                    console.log(`   - ⚠️ 패널티 결과: ${timeExt} / ${distExt}`);
+                if (securedOrder.pickupX && securedOrder.dropoffY) {
+                    if (!mainCallState) {
+                        // 첫짐: 단독 주행 연산
+                        console.log(`   - 💡 상태: [첫짐] 단독 주행 연산`);
+                        const result = await calculateSoloRoute(
+                            apiKey,
+                            securedOrder.pickupX, securedOrder.pickupY!,
+                            securedOrder.dropoffX!, securedOrder.dropoffY
+                        );
+                        const durationMin = Math.round(result.duration / 60);
+                        const distKm = (result.distance / 1000).toFixed(1);
+                        timeExt = `🧭 단독 주행: ${durationMin}분 소요`;
+                        distExt = `🛣️ 예상 거리: ${distKm}km`;
+                        console.log(`   - ⏱️ 결과: ${timeExt} / ${distExt}`);
+                    } else if (mainCallState.pickupX && mainCallState.dropoffY) {
+                        // 합짐: 우회 동선 연산
+                        console.log(`   - 💡 상태: [합짐] 우회 동선 연산`);
+                        console.log(`   - 기존 본콜: ${mainCallState.pickup} ➡️ ${mainCallState.dropoff}`);
+                        console.log(`   - 추가 경유: ${securedOrder.pickup} ➡️ ${securedOrder.dropoff}`);
+
+                        const waypoints = [
+                            { x: securedOrder.pickupX, y: securedOrder.pickupY! },
+                            { x: securedOrder.dropoffX!, y: securedOrder.dropoffY }
+                        ];
+                        const result = await calculateDetourRoute(
+                            apiKey,
+                            mainCallState.pickupX!, mainCallState.pickupY!,
+                            mainCallState.dropoffX!, mainCallState.dropoffY!,
+                            waypoints
+                        );
+                        timeExt = `⏳ 기존 대비 +${result.timeDiffMin}분 추가 소요`;
+                        distExt = `+${result.distDiffKm}km 추가 주행`;
+                        console.log(`   - ⚠️ 패널티 결과: ${timeExt} / ${distExt}`);
+                    } else {
+                        console.log(`   - ❌ 본콜은 있으나 좌표값이 누락됨.`);
+                    }
                 } else {
-                    console.log(`   - ❌ 본콜은 있으나 좌표값이 누락됨.`);
+                    console.log(`   - ❌ 지오코딩 실패: API 키는 있으나 X/Y 좌표 변환 불가능`);
                 }
             } else {
-                console.log(`   - ❌ API 키 누락 또는 X/Y 좌표 누락`);
+                console.log(`   - ❌ KAKAO_REST_API_KEY 서버 환경 변수 누락`);
             }
         } catch (error) {
             console.error("서버-사이드 카카오 연산 에러:", error);

@@ -164,23 +164,42 @@ class MainActivity : ComponentActivity() {
                         
                         Spacer(modifier = Modifier.height(32.dp))
                         
-                        // 서버 접속 토글 스위치 (Local vs Live)
+                        // 서버 접속 환경 설정 구간
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(if (isLiveMode) "📡 실서버로 발송 중 (1dal.altari.com)" else "🏠 내 PC로 발송 중 (10.0.2.2)")
+                            Text(if (isLiveMode) "📡 실서버로 발송 중 (1dal.altari.com)" else "🏠 개발용 로컬망 전송 (아래 IP 참조)")
                             Spacer(modifier = Modifier.width(16.dp))
-                            Switch(
-                                checked = isLiveMode,
-                                onCheckedChange = { checked ->
-                                    isLiveMode = checked
-                                    sharedPref.edit().putBoolean("isLiveMode", checked).apply()
-                                }
+                            Switch(checked = isLiveMode, onCheckedChange = { checked ->
+                                isLiveMode = checked
+                                sharedPref.edit().putBoolean("isLiveMode", checked).apply()
+                            })
+                        }
+                        
+                        // 실기기 접속을 위한 로컬 IP 입력 필드
+                        if (!isLiveMode) {
+                            var customIp by remember { mutableStateOf(sharedPref.getString("localPcIp", "172.30.1.54") ?: "172.30.1.54") }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            androidx.compose.material3.OutlinedTextField(
+                                value = customIp,
+                                onValueChange = { newValue ->
+                                    customIp = newValue
+                                    sharedPref.edit().putString("localPcIp", newValue).apply()
+                                },
+                                label = { Text("개발용 PC IP (기본 172.30.1.54)") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp)
+                            )
+                            Text(
+                                "※ 실기기 연결 시 PC의 접속 IP(예: 192.168.0.x:4000)를 수동으로 입력해주세요.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = androidx.compose.ui.graphics.Color.Gray,
+                                modifier = Modifier.padding(horizontal = 32.dp, vertical = 4.dp)
                             )
                         }
                         
                         Spacer(modifier = Modifier.height(16.dp))
                         
                         Button(onClick = {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("http://10.0.2.2:5173/?mode=standalone"))
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("http://172.30.1.54:5173/?mode=standalone"))
                             context.startActivity(intent)
                         }) {
                             Text("테스트 가상 콜 화면 열기")

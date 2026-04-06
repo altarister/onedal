@@ -49,7 +49,10 @@ class ApiClient(private val context: Context) {
         return if (isLiveMode) {
             "https://1dal.altari.com$endpoint"
         } else {
-            "http://10.0.2.2:4000$endpoint"
+            val customIp = prefs.getString("localPcIp", "172.30.1.54:4000") ?: "172.30.1.54:4000"
+            // 사용자가 'http://'를 안 붙였을 수도 있으니 방어 로직 추가
+            val base = if (customIp.startsWith("http")) customIp else "http://$customIp"
+            "$base$endpoint"
         }
     }
 
