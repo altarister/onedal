@@ -19,7 +19,8 @@ data class SimplifiedOfficeOrder(
     val pickupX: Double? = null,
     val pickupY: Double? = null,
     val dropoffX: Double? = null,
-    val dropoffY: Double? = null
+    val dropoffY: Double? = null,
+    val pickupDistance: Double? = null
 )
 
 // ────────────────────────────────────────────────
@@ -39,6 +40,7 @@ data class DetailedOfficeOrder(
     val pickupY: Double? = null,
     val dropoffX: Double? = null,
     val dropoffY: Double? = null,
+    val pickupDistance: Double? = null,
     // 상세 추가 필드
     val distanceKm: Double? = null,
     val paymentType: String? = null,     // "신용", "착불", "선불" 등

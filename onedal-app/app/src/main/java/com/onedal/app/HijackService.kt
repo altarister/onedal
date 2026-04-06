@@ -250,7 +250,15 @@ class HijackService : AccessibilityService() {
             }
 
             DispatchState.PICKUP_DONE -> {
-                // 출발지 팝업 닫히고 다시 메인 복귀 이벤트 진입 시: "도착지" 광클!
+                // 출발지 팝업 닫히고 다시 메인 복귀 이벤트 진입 시: 잔상 방어
+                val checkTexts = mutableListOf<String>()
+                collectTextsOnly(rootNode, checkTexts)
+                if (checkTexts.joinToString("\n").contains("출발지 상세")) {
+                    Log.d(TAG, "거짓 이벤트 무시: 아직 출발지 팝업이 안 닫힘! 대기 중..")
+                    return
+                }
+
+                // "도착지" 광클!
                 if (touchManager.findAndClickByText(rootNode, "도착지", isStartsWith = true) || touchManager.findAndClickByText(rootNode, "하차", isStartsWith = true)) {
                     transitionTo(DispatchState.SCRAPING_DROPOFF)
                 } else {

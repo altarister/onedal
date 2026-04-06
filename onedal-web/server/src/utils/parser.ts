@@ -33,7 +33,7 @@ export function parseLocationDetails(rawText: string, searchTag: "[출발지상�
 
         const info: LocationDetailInfo = {};
 
-        const customerName = extractField(lines, "상호/이름");
+        const customerName = extractField(lines, "고객");
         if (customerName) info.customerName = customerName;
 
         // 사용자가 명시한 "위치"
