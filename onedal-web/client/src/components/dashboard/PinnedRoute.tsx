@@ -15,7 +15,7 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
     const allEvaluating = activeRoute.some(r => r.status === 'evaluating_basic' || r.status === 'evaluating_detailed');
 
     const toggleExpand = (id: string) => {
-        setExpandedIds(prev => {    
+        setExpandedIds(prev => {
             const newSet = new Set(prev);
             if (newSet.has(id)) newSet.delete(id);
             else newSet.add(id);
@@ -34,7 +34,7 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
                 <div className={`absolute -top-3 left-4 ${allEvaluating ? 'bg-amber-500' : 'bg-emerald-500'} text-black text-[10px] font-black px-2 py-0.5 rounded-md shadow-lg transition-colors`}>
                     {allEvaluating ? "🟡 최적의 경로를 찾습니다..." : "🟢 사냥 (배차) 확정"}
                 </div>
-                
+
                 <div className="space-y-4 mt-4">
                     {/* 통합 라우팅 타임라인 (상단) */}
                     <div className="bg-[#0f1423] p-4 rounded-xl border border-slate-700/50 shadow-inner overflow-x-auto hide-scrollbar">
@@ -43,8 +43,8 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
                                 <React.Fragment key={idx}>
                                     <div className="flex flex-col items-center flex-shrink-0 w-16">
                                         <div className={`w-8 h-8 flex items-center justify-center rounded-full shadow-lg border-2 z-10 transition-colors
-                                            ${point.type === '상차' 
-                                                ? (point.isEvaluating ? 'bg-amber-500 border-amber-300 animate-pulse' : 'bg-emerald-600 border-emerald-400') 
+                                            ${point.type === '상차'
+                                                ? (point.isEvaluating ? 'bg-amber-500 border-amber-300 animate-pulse' : 'bg-emerald-600 border-emerald-400')
                                                 : (point.isEvaluating ? 'bg-rose-500 border-rose-300 animate-pulse' : 'bg-rose-700 border-rose-400')}`}
                                         >
                                             <span className="text-white text-xs font-black">{idx + 1}</span>
@@ -56,7 +56,7 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
                                             </span>
                                         </div>
                                     </div>
-                                    
+
                                     {/* 연결선 (마지막 노드 제외) */}
                                     {idx < unifiedRoutePoints.length - 1 && (
                                         <div className="flex-1 w-12 h-[2px] bg-slate-700 mt-4 mx-1 relative overflow-hidden flex-shrink-0">
@@ -66,11 +66,11 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
                                 </React.Fragment>
                             ))}
                         </div>
-                        
+
                         {/* 🌟 다중 경유지 포함 웹 지도 링크 버튼 🌟 */}
                         <div className="mt-4 pt-3 border-t border-slate-700/50 flex flex-col sm:flex-row gap-2">
                             {/* 데스크탑에서 다중 경유지가 완벽하게 지원되는 구글맵 링크 */}
-                            <a 
+                            <a
                                 href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(unifiedRoutePoints[0]?.name || '')}&destination=${encodeURIComponent(unifiedRoutePoints[unifiedRoutePoints.length - 1]?.name || '')}&waypoints=${encodeURIComponent(unifiedRoutePoints.slice(1, -1).map(p => p.name).join('|'))}&travelmode=driving`}
                                 target="_blank"
                                 rel="noopener noreferrer"
@@ -79,7 +79,7 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
                                 <span>🗺️</span> 브라우저 통합 경로표 보기 (다중 경유지 테스트용)
                             </a>
                             {/* 모바일 카카오내비 다중 경유지 딥링크 포맷 (모바일 전용) */}
-                            <a 
+                            <a
                                 href={`kakaonavi://route?sp=127.0,37.5&ep=127.1,37.6&v1=127.05,37.55`}
                                 onClick={(e) => {
                                     // 웹에서는 작동하지 않으므로 경고
@@ -102,16 +102,16 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
                             const originalIdx = activeRoute.length - 1 - reversedIdx;
                             const isEvaluating = route.status.includes('evaluating');
                             const isExpanded = isEvaluating || expandedIds.has(route.id);
-                            const roleText = originalIdx === 0 ? "본콜" : "합짐"+originalIdx;
+                            const roleText = originalIdx === 0 ? "본콜" : "합짐" + originalIdx;
 
                             return (
                                 <div key={route.id} className={`flex flex-col bg-[#111522] rounded-xl border border-slate-700/60 relative overflow-hidden transition-all duration-300 shadow-md ${isEvaluating ? 'ring-1 ring-amber-500/50' : 'hover:border-slate-500/50'}`}>
                                     {route.status === 'evaluating_detailed' && (
                                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-500/5 to-transparent -translate-x-full animate-[shimmer_2s_infinite] pointer-events-none" />
                                     )}
-                                    
+
                                     {/* 1. 카드 헤더 구역 (최대한 얇고 타이트하게 하나의 Flex Row로 통합) */}
-                                    <div 
+                                    <div
                                         onClick={() => !isEvaluating && toggleExpand(route.id)}
                                         className={`p-2 sm:p-2.5 flex justify-between items-center w-full ${!isEvaluating && 'cursor-pointer group hover:bg-white/5'}`}
                                     >
@@ -121,17 +121,17 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
                                                 <span className="text-[9px] font-bold text-indigo-400 mb-0.5">📞 상차지</span>
                                                 <span className={`text-[13px] sm:text-sm font-black tracking-tight ${isEvaluating ? 'text-amber-200' : 'text-slate-100'} truncate max-w-[80px]`}>{route.pickup.split(' ')[1] || route.pickup}</span>
                                             </button>
-                                            
+
                                             {/* 초소형 화살표 */}
                                             <span className="text-slate-600 text-[10px] mx-0.5">▶</span>
-                                            
+
                                             {/* 하차지 버튼형 블록 */}
                                             <button onClick={(e) => e.stopPropagation()} className="flex flex-col items-center justify-center p-1.5 sm:p-2 min-w-[70px] bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 rounded border border-rose-500/20 active:scale-95 transition-all">
                                                 <span className="text-[9px] font-bold text-rose-400 mb-0.5">📞 하차지</span>
                                                 <span className={`text-[13px] sm:text-sm font-black tracking-tight ${isEvaluating ? 'text-amber-100' : 'text-slate-200'} truncate max-w-[80px]`}>{route.dropoff.split(' ')[1] || route.dropoff}</span>
                                             </button>
                                         </div>
-                                        
+
                                         <div className="flex items-center gap-3">
                                             {/* 요금 표기 */}
                                             <div className="flex flex-col items-end">
@@ -158,34 +158,28 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
                                             <div className="grid grid-cols-[80px_1fr] gap-y-2 mt-4 text-slate-400 text-xs bg-black/20 p-3 rounded-lg border border-white/5">
                                                 <span className="text-slate-500 font-medium py-1">적요 / 물품</span>
                                                 <span className="text-slate-200 font-bold py-1 truncate">{route.itemDescription || "1파레트 / 박스 혼재"}</span>
-                                                
+
                                                 <span className="text-slate-500 font-medium py-1">화주 / 퀵사</span>
                                                 <span className="text-slate-200 font-bold py-1 truncate">{route.companyName || "1DAL 통합 물류망"}</span>
                                             </div>
 
                                             {/* 2차 상세 수신 시뮬레이션 결과 표기 (데스밸리 카카오결과) */}
                                             {route.status === 'evaluating_detailed' && route.kakaoTimeExt && (
-                                                <div className="mt-4 text-xs font-bold text-amber-200 bg-amber-950/40 p-3 rounded-lg flex flex-col gap-1.5 border border-amber-500/40 shadow-inner">
-                                                    <div className="flex justify-between items-center opacity-80 mb-1 border-b border-amber-500/20 pb-1.5">
-                                                        <span className="text-[11px] uppercase tracking-wider">카카오 동선 최적화 결과</span>
-                                                        {route.kakaoDistExt && <span>{route.kakaoDistExt}</span>}
-                                                    </div>
-                                                    <div className="text-sm font-black">
-                                                        {route.kakaoTimeExt.includes("'꿀'") ? (
-                                                            <span>{route.kakaoTimeExt.replace("'꿀'", "")} <span className="text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-500/30">꿀 🍯</span></span>
-                                                        ) : route.kakaoTimeExt.includes("'똥'") ? (
-                                                            <span>{route.kakaoTimeExt.replace("'똥'", "")} <span className="text-rose-400 bg-rose-950 px-2 py-0.5 rounded border border-rose-500/30">똥 💩</span></span>
-                                                        ) : route.kakaoTimeExt.includes("'콜'") ? (
-                                                            <span>{route.kakaoTimeExt.replace("'콜'", "")} <span className="text-blue-400 bg-blue-950 px-2 py-0.5 rounded border border-blue-500/30">콜 🚙</span></span>
-                                                        ) : route.kakaoTimeExt}
-                                                    </div>
+                                                <div className="mt-4 text-xs font-bold text-amber-200 bg-amber-950/40 px-3 py-1 rounded-lg flex flex-col gap-1.5 border border-amber-500/40 shadow-inner">
+                                                    {route.kakaoTimeExt.includes("'꿀'") ? (
+                                                        <span>{route.kakaoTimeExt.replace("'꿀'", "")} <span className="text-emerald-400 px-2 py-0.5">꿀 🍯</span></span>
+                                                    ) : route.kakaoTimeExt.includes("'똥'") ? (
+                                                        <span>{route.kakaoTimeExt.replace("'똥'", "")} <span className="text-rose-400 px-2 py-0.5">똥 💩</span></span>
+                                                    ) : route.kakaoTimeExt.includes("'콜'") ? (
+                                                        <span>{route.kakaoTimeExt.replace("'콜'", "")} <span className="text-blue-400 px-2 py-0.5">콜 🚙</span></span>
+                                                    ) : route.kakaoTimeExt}
                                                 </div>
                                             )}
 
                                             {/* 카카오맵 외부 링크 (웹용 내비게이션/지도) */}
                                             {!isEvaluating && route.status === 'confirmed' && (
                                                 <div className="mt-4">
-                                                    <a 
+                                                    <a
                                                         href={`https://map.kakao.com/?sName=${encodeURIComponent(route.pickup)}&eName=${encodeURIComponent(route.dropoff)}`}
                                                         target="_blank"
                                                         rel="noopener noreferrer"

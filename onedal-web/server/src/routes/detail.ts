@@ -186,7 +186,10 @@ router.post("/", async (req, res) => {
                         if (result.timeDiffMin <= 30 && distDiff <= 15) recommend = "'꿀'";
                         else if (result.timeDiffMin >= 60 || distDiff >= 30) recommend = "'똥'";
                         
-                        timeExt = `+${result.distDiffKm}km, +${result.timeDiffMin}분 ${recommend}`;
+                        const signDist = distDiff > 0 ? "+" : "";
+                        const signTime = result.timeDiffMin > 0 ? "+" : "";
+                        
+                        timeExt = `${signDist}${result.distDiffKm}km, ${signTime}${result.timeDiffMin}분 ${recommend}`;
                         distExt = "";
                         console.log(`   - ⚠️ 패널티 결과: ${timeExt}`);
                     } else {
