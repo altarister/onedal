@@ -9,9 +9,11 @@ import fs from "fs";
 import ordersRouter from "./routes/orders";
 import detailRouter, { handleDecision } from "./routes/detail";
 import scrapRouter from "./routes/scrap";
+import emergencyRouter from "./routes/emergency";
 import { getRegionsByCity } from "./geoResolver";
 import kakaoRouter from "./routes/kakao";
 import devicesRouter, { getActiveDevicesSnapshot } from "./routes/devices";
+import configRouter from "./routes/config";
 import { activeFilterConfig, updateActiveFilter } from "./state/filterStore";
 import type { FilterConfig } from "@onedal/shared";
 
@@ -40,6 +42,8 @@ app.use("/api/orders/detail", detailRouter);
 app.use("/api/scrap", scrapRouter);
 app.use("/api/kakao", kakaoRouter); // Dashboard UI의 클라이언트 사이드 카카오 연산용 프록시 (유지)
 app.use("/api/devices", devicesRouter);
+app.use("/api/emergency", emergencyRouter);  // [Safety Mode V3] 앱폰 비상 보고
+app.use("/api/config", configRouter); // 타겟 앱 키워드 연동
 
 // 소켓 연결 이벤트 핸들링
 io.on("connection", (socket) => {

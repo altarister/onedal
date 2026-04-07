@@ -1,13 +1,19 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { socket } from "../lib/socket";
 import type { DeviceSession, DeviceModeType } from "@onedal/shared";
 
 export function useDevices() {
     const [devices, setDevices] = useState<DeviceSession[]>([]);
+    const prevDataRef = useRef<string>("");
 
     useEffect(() => {
         // 웹소켓을 통한 텔레메트리 실시간 수신 (서버 푸시)
         const onTelemetry = (data: DeviceSession[]) => {
+            // 🚀 핵심 최적화: 이전 데이터와 비교해서 실제로 변한 경우에만 setState 호출
+            // 1초마다 들어오는 telemetry 이벤트가 같은 내용이면 리렌더링을 완전 차단
+            const serialized = JSON.stringify(data);
+            if (serialized === prevDataRef.current) return;
+            prevDataRef.current = serialized;
             setDevices(data || []);
         };
 

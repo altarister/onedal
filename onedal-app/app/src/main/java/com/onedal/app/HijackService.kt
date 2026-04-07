@@ -1,6 +1,7 @@
 package com.onedal.app
 
 import android.accessibilityservice.AccessibilityService
+import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -13,6 +14,9 @@ import com.onedal.app.core.TelemetryManager
 import com.onedal.app.models.DetailedOfficeOrder
 import com.onedal.app.models.DispatchBasicRequest
 import com.onedal.app.models.DispatchDetailedRequest
+import com.onedal.app.models.EmergencyReport
+import com.onedal.app.models.EmergencyReason
+import com.onedal.app.models.ScreenContext
 import com.onedal.app.models.SimplifiedOfficeOrder
 
 enum class DispatchState {
@@ -32,12 +36,14 @@ enum class DispatchState {
  * 접근성 서비스 메인 관제탑 (Orchestrator)
  *
  * ★ 핵심 아키텍처: Scan → Judge → Shoot ★
- * 2-Step 아키텍처 구현체
+ * Safety Mode V3: Smart Server, Dumb Client
  */
 class HijackService : AccessibilityService() {
 
     companion object {
         private const val TAG = "1DAL_MVP"
+        private const val DEFAULT_DEATHVALLEY_MS = 30000L  // 기본 데스밸리 타이머 (30초)
+        private const val SCRAPING_TIMEOUT_MS = 15000L     // 스크래핑 단계 타임아웃 (15초)
     }
 
     private lateinit var apiClient: ApiClient
@@ -58,9 +64,19 @@ class HijackService : AccessibilityService() {
     private var lastScreenFingerprint = 0
     private val processedOrderHashes = mutableSetOf<Int>()
 
+    // [Safety Mode V3] 데스밸리 자동취소 타이머
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var deathValleyRunnable: Runnable? = null
+
+    // [Safety Mode V3] SharedPreference에서 데스밸리 타이머 값 읽기
+    private fun getDeathValleyTimeout(): Long {
+        val prefs = getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
+        return prefs.getLong("deathValleyTimeout", DEFAULT_DEATHVALLEY_MS)
+    }
+
     override fun onServiceConnected() {
         super.onServiceConnected()
-        Log.i(TAG, "1DAL Service Connected! [Scan→Judge→Shoot 2-Step Architecture]")
+        Log.i(TAG, "1DAL Service Connected! [Safety Mode V3 — Smart Server, Dumb Client]")
 
         apiClient = ApiClient(this)
         telemetryManager = TelemetryManager(apiClient) {
@@ -74,16 +90,28 @@ class HijackService : AccessibilityService() {
         touchManager = AutoTouchManager(this)
 
         telemetryManager.start()
+        apiClient.fetchKeywords()
+        updateScreenContext(ScreenContext.LIST) // 시작 시 리스트 상태
     }
 
     override fun onInterrupt() {
         telemetryManager.stop()
+        cancelDeathValleyTimer()
     }
 
     override fun onDestroy() {
         super.onDestroy()
         telemetryManager.stop()
+        cancelDeathValleyTimer()
         apiClient.shutdown()
+    }
+
+    /**
+     * [Safety Mode V3] 화면 상태를 TelemetryManager에 동기화
+     */
+    private fun updateScreenContext(context: ScreenContext) {
+        telemetryManager.currentScreenContext = context
+        Log.d(TAG, "📱 ScreenContext → ${context.value}")
     }
 
     private fun transitionTo(newState: DispatchState) {
@@ -91,12 +119,112 @@ class HijackService : AccessibilityService() {
         stateTimestamp = System.currentTimeMillis()
         lastScreenFingerprint = 0  // 핑거프린트 리셋 → 새 상태에서 첫 화면 변경을 감지하도록
         Log.d(TAG, "🔄 State Changed: $newState")
+
+        // [Safety Mode V3] 상태 전이 시 ScreenContext 자동 매핑
+        when (newState) {
+            DispatchState.SEARCHING -> {
+                updateScreenContext(ScreenContext.LIST)
+                cancelDeathValleyTimer() // 검색 모드에서는 타이머 불필요
+            }
+            DispatchState.CLICKED_LIST -> updateScreenContext(ScreenContext.DETAIL_PRE_CONFIRM)
+            DispatchState.CLICKED_CONFIRM -> updateScreenContext(ScreenContext.DETAIL_CONFIRMED)
+            DispatchState.SCRAPING_PICKUP -> updateScreenContext(ScreenContext.POPUP_PICKUP)
+            DispatchState.PICKUP_DONE -> updateScreenContext(ScreenContext.DETAIL_CONFIRMED)
+            DispatchState.SCRAPING_DROPOFF -> updateScreenContext(ScreenContext.POPUP_DROPOFF)
+            DispatchState.WAITING_DECISION -> {
+                updateScreenContext(ScreenContext.WAITING_SERVER)
+                startDeathValleyTimer() // 데스밸리 카운트다운 시작!
+            }
+            DispatchState.EXECUTING_DECISION -> {
+                updateScreenContext(ScreenContext.DETAIL_CONFIRMED)
+                cancelDeathValleyTimer()
+            }
+            else -> {}
+        }
     }
 
-    private fun checkTimeout() {
-        if (currentState != DispatchState.SEARCHING && currentState != DispatchState.WAITING_DECISION) {
-            if (System.currentTimeMillis() - stateTimestamp > 12000) {
-                Log.w(TAG, "⏰ 12초 타임아웃 발생! 화면 꼬임 방지를 위해 SEARCHING 상태로 강제 롤백합니다.")
+    /**
+     * [Safety Mode V3] 데스밸리 자동취소 타이머 시작
+     * 서버 응답이 없으면 설정된 시간(기본 30초) 후 스스로 취소 실행
+     */
+    private fun startDeathValleyTimer() {
+        cancelDeathValleyTimer()
+        val timeoutMs = getDeathValleyTimeout()
+        Log.w(TAG, "⏳ 데스밸리 타이머 시작: ${timeoutMs / 1000}초")
+
+        deathValleyRunnable = Runnable {
+            if (currentState == DispatchState.WAITING_DECISION) {
+                Log.e(TAG, "🚨🚨🚨 데스밸리 ${timeoutMs / 1000}초 만료! 자동취소 집행!")
+                // 서버 응답 콜백 대신 직접 CANCEL 실행
+                serverDecision = "CANCEL"
+                transitionTo(DispatchState.EXECUTING_DECISION)
+                executeDecisionImmediately("CANCEL")
+                // 자동취소 실행 후 서버에 비상 보고
+                sendEmergencyReport(EmergencyReason.AUTO_CANCEL, "데스밸리 타임아웃 자동취소")
+            }
+        }
+        mainHandler.postDelayed(deathValleyRunnable!!, timeoutMs)
+    }
+
+    /**
+     * [Safety Mode V3] 서버 판결이나 데스밸리 타임아웃 직후 
+     * AccessibilityEvent(화면 변경)를 기다리지 않고 즉시 클릭을 시도합니다.
+     */
+    private fun executeDecisionImmediately(decision: String) {
+        val rootNode = rootInActiveWindow ?: return
+        val targetBtnStr = if (decision == "KEEP") "닫기" else "취소"
+        Log.d(TAG, "⚡ 즉시 판결 집행 시도: 행동=$decision, 누를버튼=$targetBtnStr")
+        
+        val clicked = touchManager.findAndClickByText(rootNode, targetBtnStr, isStartsWith = false)
+        if (clicked) {
+            Log.d(TAG, "🎉 사이클 완료! 타겟($targetBtnStr) 명중.")
+            transitionTo(DispatchState.SEARCHING)
+            currentOrder = null
+        }
+        rootNode.recycle()
+    }
+
+    private fun cancelDeathValleyTimer() {
+        deathValleyRunnable?.let { mainHandler.removeCallbacks(it) }
+        deathValleyRunnable = null
+    }
+
+    /**
+     * [Safety Mode V3] 서버에 비상 보고 전송
+     */
+    private fun sendEmergencyReport(reason: EmergencyReason, extraText: String = "") {
+        val orderId = currentOrder?.id ?: "unknown"
+        val screenText = extraText.ifEmpty { "state=$currentState" }
+        val report = EmergencyReport(
+            deviceId = apiClient.getDeviceId(),
+            orderId = orderId,
+            reason = reason.value,
+            screenContext = telemetryManager.currentScreenContext.value,
+            screenText = screenText,
+            timestamp = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).format(java.util.Date())
+        )
+        apiClient.sendEmergency(report)
+    }
+
+    /**
+     * [Safety Mode V3] 스크래핑 단계(CLICKED_LIST ~ SCRAPING_DROPOFF) 전용 타임아웃
+     * WAITING_DECISION과 SEARCHING은 제외
+     */
+    private fun checkScrapingTimeout() {
+        val scrapingStates = setOf(
+            DispatchState.CLICKED_LIST,
+            DispatchState.CLICKED_CONFIRM,
+            DispatchState.SCRAPING_MEMO,
+            DispatchState.MEMO_DONE,
+            DispatchState.SCRAPING_PICKUP,
+            DispatchState.PICKUP_DONE,
+            DispatchState.SCRAPING_DROPOFF
+        )
+        if (currentState in scrapingStates) {
+            if (System.currentTimeMillis() - stateTimestamp > SCRAPING_TIMEOUT_MS) {
+                Log.w(TAG, "⏰ 스크래핑 15초 타임아웃! 비상 복구 시작")
+                updateScreenContext(ScreenContext.UNKNOWN)
+                sendEmergencyReport(EmergencyReason.BUTTON_NOT_FOUND, "스크래핑 타임아웃 state=$currentState")
                 transitionTo(DispatchState.SEARCHING)
                 currentOrder = null
             }
@@ -108,7 +236,7 @@ class HijackService : AccessibilityService() {
         if (event == null || event.eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) return
         val rootNode = rootInActiveWindow ?: return
 
-        checkTimeout()
+        checkScrapingTimeout()
 
         // ═══ 화면 변경 감지 (핑거프린트 비교) ═══
         if (currentState != DispatchState.WAITING_DECISION) {
@@ -125,7 +253,7 @@ class HijackService : AccessibilityService() {
             
             // 화면이 바뀔 때마다 구분선 + 현재 상태 로깅
             Log.d(TAG, "-------------------------------")
-            Log.d(TAG, "📡 화면 변경 감지 | 상태: $currentState")
+            Log.d(TAG, "📡 화면 변경 감지 | 상태: $currentState | 화면: ${telemetryManager.currentScreenContext.value}")
         }
 
         // ════════════════════════════════════════
@@ -206,13 +334,6 @@ class HijackService : AccessibilityService() {
             }
 
             DispatchState.CLICKED_CONFIRM -> {
-                /*
-                 * [적요상세 클릭 보류] 나중에 필요시 복구
-                 * if (touchManager.findAndClickByText(rootNode, "적요상세", isStartsWith = false)) {
-                 *     transitionTo(DispatchState.SCRAPING_MEMO)
-                 * }
-                 */
-                 
                 // 확정페이지(메인) 로딩 이벤트 진입 시: 적요 즉시 스크랩 후 "출발지" 광클!
                 val texts = mutableListOf<String>()
                 collectTextsOnly(rootNode, texts)
@@ -222,7 +343,8 @@ class HijackService : AccessibilityService() {
                 if (touchManager.findAndClickByText(rootNode, "출발지", isStartsWith = true) || touchManager.findAndClickByText(rootNode, "상차", isStartsWith = true)) {
                     transitionTo(DispatchState.SCRAPING_PICKUP)
                 } else {
-                    transitionTo(DispatchState.SEARCHING) // 비상 복구
+                    // 비상 복구: 출발지 버튼 못 찾으면 알 수 없는 화면
+                    updateScreenContext(ScreenContext.UNKNOWN)
                 }
             }
 
@@ -235,8 +357,6 @@ class HijackService : AccessibilityService() {
                 collectTextsOnly(rootNode, pickupTexts)
                 val pickupRaw = pickupTexts.joinToString("\n")
                 
-                // 가짜 잔상 이벤트 필터링: "출발" 또는 "출발지" 타이틀이 없으면 패스 (도착지랑 혼동 방지를 위해 단순화)
-                // 보통 팝업 맨 위에 "출발지 상세"가 뜹니다.
                 if (!pickupRaw.contains("출발지 상세") && !pickupRaw.contains("전화1")) {
                     Log.d(TAG, "거짓 이벤트 무시: 아직 출발지 팝업 안 뜸")
                     return
@@ -262,7 +382,6 @@ class HijackService : AccessibilityService() {
                 if (touchManager.findAndClickByText(rootNode, "도착지", isStartsWith = true) || touchManager.findAndClickByText(rootNode, "하차", isStartsWith = true)) {
                     transitionTo(DispatchState.SCRAPING_DROPOFF)
                 } else {
-                    // 도착지를 못 찾으면 아직 메인 화면으로 완전히 안 돌아온 것이므로 이벤트 무시 (대기)
                     Log.d(TAG, "거짓 이벤트 무시: 도착지 버튼 활성화 안됨")
                 }
             }
@@ -273,7 +392,6 @@ class HijackService : AccessibilityService() {
                 collectTextsOnly(rootNode, dropTexts)
                 val dropoffRaw = dropTexts.joinToString("\n")
                 
-                // 가짜 잔상 이벤트 필터링
                 if (!dropoffRaw.contains("도착지 상세") && !dropoffRaw.contains("전화1")) {
                     Log.d(TAG, "거짓 이벤트 무시: 아직 도착지 팝업 안 뜸")
                     return
@@ -294,7 +412,9 @@ class HijackService : AccessibilityService() {
                     android.os.Handler(android.os.Looper.getMainLooper()).post {
                         if (currentState == DispatchState.WAITING_DECISION && currentOrder?.id == orderId) {
                             serverDecision = action
+                            cancelDeathValleyTimer() // 서버 응답 수신! 타이머 해제
                             transitionTo(DispatchState.EXECUTING_DECISION)
+                            executeDecisionImmediately(action)
                         }
                     }
                 }
@@ -302,7 +422,8 @@ class HijackService : AccessibilityService() {
             }
 
             DispatchState.WAITING_DECISION -> {
-                // API 응답 올 때까지 무한 대기 (타임아웃 로직 대상 제외)
+                // 서버 응답 또는 데스밸리 타이머 만료까지 대기
+                // (데스밸리 타이머가 만료되면 자동으로 EXECUTING_DECISION으로 전이됨)
             }
 
             DispatchState.EXECUTING_DECISION -> {
@@ -314,8 +435,24 @@ class HijackService : AccessibilityService() {
                 if (clicked) {
                     Log.d(TAG, "🎉 사이클 완료! 타겟($targetBtnStr) 명중.")
                     transitionTo(DispatchState.SEARCHING)
+                    currentOrder = null
                 } else {
-                    // 화면 로딩 지연 대응: 아직 버튼이 안 떴을 수 있음 (타임아웃 12초 내 계속 재시도)
+                    // [Safety Mode V3] 화면 텍스트를 검사하여 이상 팝업 감지
+                    val currentTexts = mutableListOf<String>()
+                    collectTextsOnly(rootNode, currentTexts)
+                    val screenText = currentTexts.joinToString("\n")
+
+                    // "취소할 수 없습니다" / "시간이 지나" 등 취소 불가 팝업 감지
+                    if (screenText.contains("취소할 수 없") || screenText.contains("시간이 지나")) {
+                        Log.e(TAG, "🚨 취소 불가 팝업 감지! 서버에 비상 보고!")
+                        updateScreenContext(ScreenContext.POPUP_ERROR)
+                        sendEmergencyReport(EmergencyReason.CANCEL_EXPIRED, screenText.take(300))
+                        // 팝업 닫기 시도 후 SEARCHING 복귀
+                        touchManager.findAndClickByText(rootNode, "확인", isStartsWith = false)
+                        transitionTo(DispatchState.SEARCHING)
+                        currentOrder = null
+                    }
+                    // 그 외: 버튼 로딩 대기 (스크래핑 타임아웃이 처리)
                 }
             }
         }

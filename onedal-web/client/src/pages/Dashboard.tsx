@@ -9,6 +9,15 @@ import { useState } from "react";
 
 import { useOrderEngine } from "../hooks/useOrderEngine";
 import { useKakaoRouting } from "../hooks/useKakaoRouting";
+import { useEmergencyAlerts } from "../hooks/useEmergencyAlerts";
+
+const EMERGENCY_LABELS: Record<string, string> = {
+    AUTO_CANCEL: "⏱️ 자동취소 실행됨",
+    CANCEL_EXPIRED: "🔴 취소 불가 팝업! 배차실 직접 취소 요망!",
+    UNKNOWN_SCREEN: "🟠 알 수 없는 화면에 진입함",
+    BUTTON_NOT_FOUND: "🟡 버튼을 찾을 수 없음",
+    APP_CRASH: "💀 앱 비정상 종료 후 재시작",
+};
 
 export default function Dashboard() {
     const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
@@ -23,6 +32,8 @@ export default function Dashboard() {
         setSelectedOrder,
         handleDecision,
     } = useOrderEngine();
+
+    const { alerts, warnings, dismissAlert, dismissWarning } = useEmergencyAlerts();
 
     const activeRoute = [mainCall, ...subCalls].filter(Boolean) as SecuredOrder[];
 
@@ -41,6 +52,58 @@ export default function Dashboard() {
             <Header isConnected={isConnected} />
 
             <div className="p-2 space-y-2 max-w-2xl mx-auto">
+
+                {/* 🚨 Safety Mode V3: 비상 알림 배너 */}
+                {alerts.length > 0 && (
+                    <div className="space-y-1">
+                        {alerts.map((alert) => (
+                            <div
+                                key={alert.timestamp}
+                                className="bg-red-500/15 border border-red-500/40 rounded-xl p-3 animate-pulse"
+                            >
+                                <div className="flex items-center justify-between">
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-xs font-black text-red-400">
+                                            🚨 {alert.deviceId} — {EMERGENCY_LABELS[alert.reason] || alert.reason}
+                                        </span>
+                                        {alert.screenText && (
+                                            <span className="text-[10px] text-red-300/60 truncate max-w-[300px]">
+                                                화면: {alert.screenText.substring(0, 80)}...
+                                            </span>
+                                        )}
+                                    </div>
+                                    <button
+                                        onClick={() => dismissAlert(alert.timestamp)}
+                                        className="text-red-400 hover:text-red-300 text-xs font-bold px-2"
+                                    >✕</button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {/* ⚠️ Safety Mode V3: 데스밸리 타임아웃 경고 */}
+                {warnings.length > 0 && (
+                    <div className="space-y-1">
+                        {warnings.map((w) => (
+                            <div
+                                key={w.orderId}
+                                className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-2.5"
+                            >
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs font-black text-amber-400">
+                                        ⚠️ {w.deviceId} — {w.message}
+                                    </span>
+                                    <button
+                                        onClick={() => dismissWarning(w.orderId)}
+                                        className="text-amber-400 hover:text-amber-300 text-xs font-bold px-2"
+                                    >✕</button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
                 {/* 🎛️ 앱폰 제어 패널 */}
                 <DeviceControlPanel />
 

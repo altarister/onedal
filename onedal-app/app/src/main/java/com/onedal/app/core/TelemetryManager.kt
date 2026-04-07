@@ -6,6 +6,7 @@ import android.util.Log
 import com.onedal.app.api.ApiClient
 import com.onedal.app.models.ScrapPayload
 import com.onedal.app.models.SimplifiedOfficeOrder
+import com.onedal.app.models.ScreenContext
 
 /**
  * 이벤트 기반 즉각 스크랩 전송 및 20초 주기 생존신고(Heartbeat) 관리.
@@ -24,6 +25,10 @@ class TelemetryManager(
     private val scrapBuffer = mutableListOf<SimplifiedOfficeOrder>()
     private val handler = Handler(Looper.getMainLooper())
     private var isRunning = false
+
+    // [Safety Mode V3] 현재 화면 상태 (HijackService에서 상태 전이 시 업데이트)
+    @Volatile
+    var currentScreenContext: ScreenContext = ScreenContext.UNKNOWN
 
     // 하트비트용 (주기적)
     private val heartbeatRunnable = object : Runnable {
@@ -78,7 +83,8 @@ class TelemetryManager(
 
         val payload = ScrapPayload(
             deviceId = apiClient.getDeviceId(),
-            data = snapshot
+            data = snapshot,
+            screenContext = currentScreenContext.value  // [Safety Mode V3] 화면 상태 포함
         )
 
         apiClient.sendScrapTelemetry(payload) { mode ->
@@ -101,3 +107,4 @@ class TelemetryManager(
         }
     }
 }
+

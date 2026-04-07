@@ -6,6 +6,48 @@ package com.onedal.app.models
  */
 
 // ────────────────────────────────────────────────
+// 0. Safety Mode V3: 화면 상태 타입 + 비상 보고
+// ────────────────────────────────────────────────
+
+/**
+ * 앱폰이 현재 보고 있는 화면 상태 (서버 ScreenContextType과 1:1 대응)
+ */
+enum class ScreenContext(val value: String) {
+    LIST("LIST"),                          // 사냥 리스트 화면
+    DETAIL_PRE_CONFIRM("DETAIL_PRE_CONFIRM"),  // 광클 직전 상세
+    DETAIL_CONFIRMED("DETAIL_CONFIRMED"),      // 확정 후 상세 화면
+    POPUP_PICKUP("POPUP_PICKUP"),              // 출발지 상세 팝업
+    POPUP_DROPOFF("POPUP_DROPOFF"),            // 도착지 상세 팝업
+    POPUP_MEMO("POPUP_MEMO"),                  // 적요 상세 팝업
+    POPUP_ERROR("POPUP_ERROR"),                // 에러/실패 팝업
+    WAITING_SERVER("WAITING_SERVER"),           // 서버 응답 대기 (데스밸리)
+    UNKNOWN("UNKNOWN");                        // 알 수 없는 화면
+}
+
+/**
+ * 비상 보고 사유 (서버 EmergencyReason과 1:1 대응)
+ */
+enum class EmergencyReason(val value: String) {
+    AUTO_CANCEL("AUTO_CANCEL"),           // 타임아웃 자동취소
+    CANCEL_EXPIRED("CANCEL_EXPIRED"),     // "취소할 수 없습니다" 팝업
+    UNKNOWN_SCREEN("UNKNOWN_SCREEN"),     // 알 수 없는 화면
+    BUTTON_NOT_FOUND("BUTTON_NOT_FOUND"), // 버튼 못 찾음
+    APP_CRASH("APP_CRASH");               // 앱 비정상 종료
+}
+
+/**
+ * POST /api/emergency 요청 바디 (서버 EmergencyReport와 1:1 대응)
+ */
+data class EmergencyReport(
+    val deviceId: String,
+    val orderId: String,
+    val reason: String,
+    val screenContext: String,
+    val screenText: String,
+    val timestamp: String
+)
+
+// ────────────────────────────────────────────────
 // 1. 콜 데이터 모델 (웹의 SimplifiedOfficeOrder 대응)
 // ────────────────────────────────────────────────
 data class SimplifiedOfficeOrder(
@@ -83,7 +125,8 @@ data class DispatchConfirmResponse(
 // ────────────────────────────────────────────────
 data class ScrapPayload(
     val deviceId: String,
-    val data: List<SimplifiedOfficeOrder>
+    val data: List<SimplifiedOfficeOrder>,
+    val screenContext: String? = null  // [Safety Mode V3] 현재 화면 상태
 )
 
 // 서버 응답 (Piggyback 통신: 상태, 통계, 제어명령, 최신 필터를 구조화하여 한 번에 태워보냄)
@@ -114,3 +157,4 @@ data class FilterConfig(
     val targetRadius: Int = 10,
     val blacklist: List<String> = emptyList()
 )
+

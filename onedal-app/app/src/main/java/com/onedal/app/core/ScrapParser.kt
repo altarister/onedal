@@ -99,12 +99,22 @@ class ScrapParser(private val context: Context) {
         val fare = (maxFareValue * 1000).toInt()
 
         // ── 2. 지역명 파싱 (동/읍/면/리 로 끝나는 텍스트) ──
-        // 인성앱 컬럼 헤더 및 UI 텍스트 제외 목록 (이것들이 지역명으로 오인됨)
-        val uiNoiseWords = setOf(
-            "거리", "출발지", "도착지", "차종", "요금", "설정", "메뉴", "정산",
-            "시작", "전체", "리셋", "신규", "잠금", "원터치", "빠른설정",
-            "메시지함", "장터게시판", "그룹공지"
-        )
+        // 서버에서 다운받은 동적 키워드 사전에서 uiNoiseWords 로드, 없으면 기본값
+        val uiNoiseWords = try {
+            val keywordsJsonStr = prefs.getString("targetAppKeywords", null)
+            if (keywordsJsonStr != null) {
+                val keywordsObj = JSONObject(keywordsJsonStr)
+                val arr = keywordsObj.optJSONArray("uiNoiseWords")
+                if (arr != null) {
+                    (0 until arr.length()).map { arr.getString(it) }.toSet()
+                } else setOf("거리", "출발지", "도착지", "차종", "요금", "설정", "콜상세")
+            } else {
+                setOf("거리", "출발지", "도착지", "차종", "요금", "설정", "콜상세")
+            }
+        } catch(e: Exception) {
+            setOf("거리", "출발지", "도착지", "차종", "요금", "설정")
+        }
+
         // 하이픈(-)이 붙은 지역명도 처리 (예: "태전동-" → "태전동")
         val regionPattern = Regex("(.+)(동|읍|면|리)[-+]?$")
         val regions = texts

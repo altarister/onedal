@@ -65,6 +65,16 @@ fun isAccessibilityServiceEnabled(context: Context, service: Class<*>): Boolean 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // --- 배터리 최적화 제외 권한 요청 (P1-2) ---
+        val powerManager = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+        if (!powerManager.isIgnoringBatteryOptimizations(packageName)) {
+            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+            intent.data = Uri.parse("package:$packageName")
+            startActivity(intent)
+        }
+        // ----------------------------------------
+
         setContent {
             MaterialTheme {
                 Surface(
@@ -194,6 +204,63 @@ class MainActivity : ComponentActivity() {
                                 color = androidx.compose.ui.graphics.Color.Gray,
                                 modifier = Modifier.padding(horizontal = 32.dp, vertical = 4.dp)
                             )
+                        }
+                        
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        // --- 타겟 앱 선택 (P2/P3) ---
+                        var targetApp by remember { mutableStateOf(sharedPref.getString("targetApp", "인성콜") ?: "인성콜") }
+                        Card(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp),
+                            colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color(0xFFFFF3E0))
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text("🎯 타겟 스크래핑 앱 선택", fontWeight = FontWeight.Bold)
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    androidx.compose.material3.RadioButton(
+                                        selected = targetApp == "인성콜",
+                                        onClick = { targetApp = "인성콜"; sharedPref.edit().putString("targetApp", "인성콜").apply() }
+                                    )
+                                    Text("인성콜 (기본)")
+                                    Spacer(modifier = Modifier.width(16.dp))
+                                    androidx.compose.material3.RadioButton(
+                                        selected = targetApp == "24시",
+                                        onClick = { targetApp = "24시"; sharedPref.edit().putString("targetApp", "24시").apply() }
+                                    )
+                                    Text("24시 (준비중)")
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // --- 데스밸리 타이머 설정 UI (P1-1) ---
+                        var deathValleyValue by remember { mutableStateOf(sharedPref.getLong("deathValleyTimeout", 30000L)) }
+                        Card(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp),
+                            colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color(0xFFFCE4EC))
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text("⏱️ 데스밸리 비상 자동취소 타이머", fontWeight = FontWeight.Bold, color = androidx.compose.ui.graphics.Color(0xFFC2185B))
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    val options = listOf(30000L to "30초", 40000L to "40초", 50000L to "50초")
+                                    options.forEach { (ms, label) ->
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            androidx.compose.material3.RadioButton(
+                                                selected = deathValleyValue == ms,
+                                                onClick = {
+                                                    deathValleyValue = ms
+                                                    sharedPref.edit().putLong("deathValleyTimeout", ms).apply()
+                                                }
+                                            )
+                                            Text(label)
+                                        }
+                                        if (ms != 50000L) Spacer(modifier = Modifier.width(8.dp))
+                                    }
+                                }
+                            }
                         }
                         
                         Spacer(modifier = Modifier.height(16.dp))

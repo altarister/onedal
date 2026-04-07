@@ -168,6 +168,44 @@ export interface DispatchConfirmResponse {
 export type DeviceStatusType = "ONLINE" | "OFFLINE_GRACEFUL" | "DISCONNECTED";
 export type DeviceModeType = "AUTO" | "MANUAL" | "SHUTDOWN";
 
+/**
+ * 🛡️ Safety Mode V3: 앱폰 화면 상태 타입
+ * 앱폰이 현재 보고 있는 화면을 서버에 실시간 보고합니다.
+ * 판별 기준 키워드는 서버의 config/inseong.json에서 관리됩니다.
+ */
+export type ScreenContextType =
+    | 'LIST'                  // 사냥 리스트 화면
+    | 'DETAIL_PRE_CONFIRM'    // 광클 직전 상세 (확정 버튼 보임)
+    | 'DETAIL_CONFIRMED'      // 확정 후 상세 화면 (닫기/취소 버튼)
+    | 'POPUP_PICKUP'          // 출발지 상세 팝업
+    | 'POPUP_DROPOFF'         // 도착지 상세 팝업
+    | 'POPUP_MEMO'            // 적요 상세 팝업
+    | 'POPUP_ERROR'           // 에러/실패 팝업 (확정실패, 취소불가 등)
+    | 'WAITING_SERVER'        // 서버 응답 대기 중 (데스밸리)
+    | 'UNKNOWN';              // 알 수 없는 화면
+
+/**
+ * 🚨 Safety Mode V3: 비상 보고 사유
+ */
+export type EmergencyReason =
+    | 'AUTO_CANCEL'           // 30초 타임아웃으로 앱이 스스로 취소함
+    | 'CANCEL_EXPIRED'        // "시간이 지나 취소할 수 없습니다" 팝업 발생
+    | 'UNKNOWN_SCREEN'        // 알 수 없는 화면에 빠짐
+    | 'BUTTON_NOT_FOUND'      // 버튼(닫기/취소)을 찾을 수 없음
+    | 'APP_CRASH';            // 앱 비정상 종료 후 재시작
+
+/**
+ * 🚨 Safety Mode V3: POST /api/emergency 요청 바디
+ */
+export interface EmergencyReport {
+    deviceId: string;
+    orderId: string;
+    reason: EmergencyReason;
+    screenContext: ScreenContextType;
+    screenText: string;           // 현재 화면 텍스트 전부 (서버 분석용)
+    timestamp: string;
+}
+
 export interface ScrapResponse {
     apiStatus: {
         success: boolean;
@@ -184,6 +222,7 @@ export interface DeviceSession {
     lastSeen: number;       // 밀리초 타임스탬프
     status: DeviceStatusType;
     mode: DeviceModeType;
+    screenContext?: ScreenContextType;  // [Safety Mode V3] 현재 화면 상태
     stats: {
         polled: number;     // 리스트 조회(콜 수집) 누적 횟수
         grabbed: number;    // 성공 횟수
@@ -191,3 +230,4 @@ export interface DeviceSession {
     };
     version?: string;       // 앱/인성앱 버전 등 추가 정보용
 }
+

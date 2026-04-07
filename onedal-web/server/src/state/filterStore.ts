@@ -5,7 +5,7 @@ import { getRegionsByCity } from "../geoResolver";
 // 서버 부팅 시 GeoJSON에서 용인시의 읍면동을 자동 조회하여 초기화합니다.
 export let activeFilterConfig: FilterConfig = {
     mode: '첫짐',
-    minFare: 30000,
+    minFare: 40000,
     pickupRadius: 30,
     targetCity: '광주시',
     targetRegions: getRegionsByCity('광주시'),

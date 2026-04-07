@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { DeviceSession, DeviceStatusType, DeviceModeType } from "@onedal/shared";
+import { DeviceSession, DeviceStatusType, DeviceModeType, ScreenContextType } from "@onedal/shared";
 
 const router = Router();
 
@@ -13,7 +13,7 @@ const DEADMAN_TIMEOUT_MS = 25000;
  * App에서 데이터를 전송할 때마다 세션 생명주기를 갱신하는 헬퍼 함수
  * @returns 현재 기기의 관제 모드 (AUTO | MANUAL)
  */
-export const touchDeviceSession = (deviceId: string, addedPollCount: number = 0): DeviceModeType => {
+export const touchDeviceSession = (deviceId: string, addedPollCount: number = 0, screenContext?: ScreenContextType): DeviceModeType => {
     let session = activeDevices.get(deviceId);
     
     if (!session) {
@@ -22,12 +22,16 @@ export const touchDeviceSession = (deviceId: string, addedPollCount: number = 0)
             lastSeen: Date.now(),
             status: "ONLINE",
             mode: "MANUAL", // 최초 접속 시 무조건 안전모드(수동) 진입
+            screenContext: screenContext || 'UNKNOWN',
             stats: { polled: addedPollCount, grabbed: 0, canceled: 0 }
         };
     } else {
         session.lastSeen = Date.now();
         session.status = "ONLINE"; // 데이터가 왔으므로 다시 활성화
         session.stats.polled += addedPollCount;
+        if (screenContext) {
+            session.screenContext = screenContext;
+        }
     }
 
     activeDevices.set(deviceId, session);

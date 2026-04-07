@@ -7,6 +7,7 @@ import com.google.gson.Gson
 import com.onedal.app.models.DispatchBasicRequest
 import com.onedal.app.models.DispatchConfirmResponse
 import com.onedal.app.models.DispatchDetailedRequest
+import com.onedal.app.models.EmergencyReport
 import com.onedal.app.models.ScrapPayload
 import com.onedal.app.models.ScrapResponse
 import java.util.concurrent.Executors
@@ -198,6 +199,81 @@ class ApiClient(private val context: Context) {
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "📡 [텔레메트리 통신 실패] ${e.message}")
+            } finally {
+                conn?.disconnect()
+            }
+        }
+    }
+
+
+    /**
+     * [Safety Mode V3] 비상 보고 전송 (POST /api/emergency)
+     * 자동취소 실행, 취소불가 팝업, 알 수 없는 화면 등 이상 상황 시 서버에 즉시 보고.
+     * 서버는 이 신호를 받고 해당 오더의 메모리를 초기화합니다.
+     */
+    fun sendEmergency(report: EmergencyReport) {
+        confirmExecutor.submit {
+            var conn: java.net.HttpURLConnection? = null
+            try {
+                val jsonBody = gson.toJson(report)
+                Log.w(TAG, "🚨 [EMERGENCY 전송] reason=${report.reason}, orderId=${report.orderId}")
+                prefs.edit().putString("api_emergency_req", jsonBody).apply()
+                val targetUrl = getTargetUrl("/api/emergency")
+                val url = java.net.URL(targetUrl)
+
+                conn = url.openConnection() as java.net.HttpURLConnection
+                conn.requestMethod = "POST"
+                conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                conn.setRequestProperty("Accept", "application/json")
+                conn.doOutput = true
+                conn.connectTimeout = 5000
+                conn.readTimeout = 5000
+
+                conn.outputStream.use { os ->
+                    os.write(jsonBody.toByteArray(Charsets.UTF_8))
+                }
+
+                val code = conn.responseCode
+                if (code == 200) {
+                    val body = conn.inputStream.bufferedReader().readText()
+                    prefs.edit().putString("api_emergency_res", body).apply()
+                    Log.w(TAG, "🚨 [EMERGENCY 응답] $body")
+                } else {
+                    Log.e(TAG, "🚨 [EMERGENCY 서버 에러] HTTP $code")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "🚨 [EMERGENCY 전송 실패] ${e.message}")
+            } finally {
+                conn?.disconnect()
+            }
+        }
+    }
+
+    fun fetchKeywords() {
+        telemetryExecutor.submit {
+            var conn: java.net.HttpURLConnection? = null
+            try {
+                val targetApp = prefs.getString("targetApp", "인성콜") ?: "인성콜"
+                // URLEncoder.encode 가 필요할 수도 있으나 한글 쿼리는 안드로이드에서 종종 깨지므로 기본적으로 안전하게 요청
+                val targetUrl = getTargetUrl("/api/config/keywords?app=$targetApp")
+                val url = java.net.URL(targetUrl)
+
+                conn = url.openConnection() as java.net.HttpURLConnection
+                conn.requestMethod = "GET"
+                conn.setRequestProperty("Accept", "application/json")
+                conn.connectTimeout = 5000
+                conn.readTimeout = 5000
+
+                val code = conn.responseCode
+                if (code == 200) {
+                    val body = conn.inputStream.bufferedReader().readText()
+                    prefs.edit().putString("targetAppKeywords", body).apply()
+                    Log.d(TAG, "🎯 [$targetApp] 키워드 사전 다운로드 성공: $body")
+                } else {
+                    Log.e(TAG, "🎯 키워드 서버 에러 응답: $code")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "🎯 키워드 다운로드 실패: ${e.message}")
             } finally {
                 conn?.disconnect()
             }

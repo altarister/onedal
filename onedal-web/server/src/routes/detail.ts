@@ -34,6 +34,9 @@ export const getSubCalls = () => subCalls;
 export const getPendingDetailRequests = () => pendingDetailRequests;
 export const getPendingOrdersData = () => pendingOrdersData;
 
+// [Safety Mode V3] emergency.ts에서 본콜 초기화 시 사용
+export const resetMainCallState = () => { mainCallState = null; };
+
 /**
  * 관제사 최종 판정 처리 (소켓 이벤트 `decision`에서 호출)
  */
@@ -202,16 +205,21 @@ router.post("/", async (req, res) => {
         // ━━━━━━━━━━ 3단계: HTTP 롱폴링 홀드 (관제사 decision 대기) ━━━━━━━━━━
         pendingDetailRequests.set(payload.order.id, res);
 
-        // 안전장치: 30초 후 자동 취소 (데스밸리 타임아웃)
+        // [Safety Mode V3] 30초 후 관제탑에 경고만 emit (자동 CANCEL 제거)
+        // 취소 판단은 앱폰이 스스로 합니다 (앱 내부 데스밸리 타이머).
+        // 앱이 자동취소를 집행하면 POST /api/emergency로 서버에 보고합니다.
         setTimeout(() => {
             if (pendingDetailRequests.has(payload.order.id)) {
-                const heldRes = pendingDetailRequests.get(payload.order.id);
-                pendingDetailRequests.delete(payload.order.id);
-                if (heldRes && !heldRes.headersSent) {
-                    const failResponse: DispatchConfirmResponse = { deviceId: payload.deviceId, action: 'CANCEL' };
-                    heldRes.json(failResponse);
-                    if (io) io.emit("order-canceled", payload.order.id);
-                    console.log(`🚫 [타임아웃 자동 취소] ${securedOrder.pickup} ➡️ ${securedOrder.dropoff}`);
+                console.log(`⚠️ [데스밸리 경고] 30초 경과 — 아직 판정 미결: ${securedOrder.pickup} ➡️ ${securedOrder.dropoff}`);
+                if (io) {
+                    io.emit("deathvalley-warning", {
+                        orderId: payload.order.id,
+                        deviceId: payload.deviceId,
+                        pickup: securedOrder.pickup,
+                        dropoff: securedOrder.dropoff,
+                        message: "⚠️ 응답기한 30초 초과 — 앱폰 자동취소 임박!",
+                        timestamp: new Date().toISOString(),
+                    });
                 }
             }
         }, 30000);
