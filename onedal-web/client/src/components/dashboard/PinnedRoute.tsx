@@ -170,7 +170,15 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
                                                         <span className="text-[11px] uppercase tracking-wider">카카오 동선 최적화 결과</span>
                                                         {route.kakaoDistExt && <span>{route.kakaoDistExt}</span>}
                                                     </div>
-                                                    <div className="text-sm font-black">{route.kakaoTimeExt}</div>
+                                                    <div className="text-sm font-black">
+                                                        {route.kakaoTimeExt.includes("'꿀'") ? (
+                                                            <span>{route.kakaoTimeExt.replace("'꿀'", "")} <span className="text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-500/30">꿀 🍯</span></span>
+                                                        ) : route.kakaoTimeExt.includes("'똥'") ? (
+                                                            <span>{route.kakaoTimeExt.replace("'똥'", "")} <span className="text-rose-400 bg-rose-950 px-2 py-0.5 rounded border border-rose-500/30">똥 💩</span></span>
+                                                        ) : route.kakaoTimeExt.includes("'콜'") ? (
+                                                            <span>{route.kakaoTimeExt.replace("'콜'", "")} <span className="text-blue-400 bg-blue-950 px-2 py-0.5 rounded border border-blue-500/30">콜 🚙</span></span>
+                                                        ) : route.kakaoTimeExt}
+                                                    </div>
                                                 </div>
                                             )}
 

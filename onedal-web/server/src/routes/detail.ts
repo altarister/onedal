@@ -157,9 +157,13 @@ router.post("/", async (req, res) => {
                         );
                         const durationMin = Math.round(result.duration / 60);
                         const distKm = (result.distance / 1000).toFixed(1);
-                        timeExt = `🧭 단독 주행: ${durationMin}분 소요`;
-                        distExt = `🛣️ 예상 거리: ${distKm}km`;
-                        console.log(`   - ⏱️ 결과: ${timeExt} / ${distExt}`);
+                        let recommend = "'콜'";
+                        if (durationMin <= 40) recommend = "'꿀'";
+                        else if (durationMin >= 90) recommend = "'똥'";
+                        
+                        timeExt = `단독 ${distKm}km, ${durationMin}분 ${recommend}`;
+                        distExt = "";
+                        console.log(`   - ⏱️ 결과: ${timeExt}`);
                     } else if (mainCallState.pickupX && mainCallState.dropoffY) {
                         // 합짐: 우회 동선 연산
                         console.log(`   - 💡 상태: [합짐] 우회 동선 연산`);
@@ -176,9 +180,15 @@ router.post("/", async (req, res) => {
                             mainCallState.dropoffX!, mainCallState.dropoffY!,
                             waypoints
                         );
-                        timeExt = `⏳ 기존 대비 +${result.timeDiffMin}분 추가 소요`;
-                        distExt = `+${result.distDiffKm}km 추가 주행`;
-                        console.log(`   - ⚠️ 패널티 결과: ${timeExt} / ${distExt}`);
+                        
+                        let recommend = "'콜'";
+                        const distDiff = parseFloat(result.distDiffKm);
+                        if (result.timeDiffMin <= 30 && distDiff <= 15) recommend = "'꿀'";
+                        else if (result.timeDiffMin >= 60 || distDiff >= 30) recommend = "'똥'";
+                        
+                        timeExt = `+${result.distDiffKm}km, +${result.timeDiffMin}분 ${recommend}`;
+                        distExt = "";
+                        console.log(`   - ⚠️ 패널티 결과: ${timeExt}`);
                     } else {
                         console.log(`   - ❌ 본콜은 있으나 좌표값이 누락됨.`);
                     }
