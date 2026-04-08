@@ -1,0 +1,1 @@
+{"root":["./src/db.ts","./src/georesolver.ts","./src/index.ts","./src/routes/config.ts","./src/routes/detail.ts","./src/routes/devices.ts","./src/routes/emergency.ts","./src/routes/kakao.ts","./src/routes/kakaoutil.ts","./src/routes/orders.ts","./src/routes/scrap.ts","./src/state/filterstore.ts","./src/utils/parser.ts"],"errors":true,"version":"6.0.2"}

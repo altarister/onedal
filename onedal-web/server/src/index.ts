@@ -7,7 +7,7 @@ import path from "path";
 import fs from "fs";
 
 import ordersRouter from "./routes/orders";
-import detailRouter, { handleDecision } from "./routes/detail";
+import detailRouter, { handleDecision, getPendingOrdersData, deviceEvaluatingMap } from "./routes/detail";
 import scrapRouter from "./routes/scrap";
 import emergencyRouter from "./routes/emergency";
 import { getRegionsByCity } from "./geoResolver";
@@ -15,7 +15,8 @@ import kakaoRouter from "./routes/kakao";
 import devicesRouter, { getActiveDevicesSnapshot } from "./routes/devices";
 import configRouter from "./routes/config";
 import { activeFilterConfig, updateActiveFilter } from "./state/filterStore";
-import type { FilterConfig } from "@onedal/shared";
+import { initGeoService } from "./services/geoService";
+import type { AutoDispatchFilter } from "@onedal/shared";
 
 dotenv.config();
 
@@ -35,6 +36,15 @@ app.set("io", io);
 // 미들웨어 설정
 app.use(cors());
 app.use(express.json());
+
+// 글로벌 HTTP 로깅 미들웨어
+app.use((req, res, next) => {
+    // 1초 주기로 발생하는 스크랩/디바이스 통계 제외하여 스팸 방지
+    if (!req.url.includes('/api/scrap') && !req.url.includes('/api/devices')) {
+        console.log(`📡 [HTTP 수신] ${req.method} ${req.url} - IP: ${req.ip}`);
+    }
+    next();
+});
 
 // API 라우터 등록
 app.use("/api/orders", ordersRouter);
@@ -61,15 +71,15 @@ io.on("connection", (socket) => {
     });
 
     // 관제탑으로부터 필터 업데이트 요청 수신
-    socket.on("update-filter", (newFilter: Partial<FilterConfig>) => {
-        // targetCity가 변경되면 GeoJSON에서 해당 도시의 읍면동을 자동 조회하여 targetRegions 갱신
-        if (newFilter.targetCity && newFilter.targetCity !== activeFilterConfig.targetCity) {
-            const regions = getRegionsByCity(newFilter.targetCity);
-            newFilter.targetRegions = regions;
-            console.log(`🗺️ [지역 자동 갱신] ${newFilter.targetCity} → ${regions.length}개 읍면동 조회 완료`);
+    socket.on("update-filter", (newFilter: Partial<AutoDispatchFilter>) => {
+        // destinationCity가 변경되면 GeoJSON에서 해당 도시의 읍면동을 자동 조회하여 destinationKeywords 갱신
+        if (newFilter.destinationCity && newFilter.destinationCity !== activeFilterConfig.destinationCity) {
+            const regions = getRegionsByCity(newFilter.destinationCity);
+            newFilter.destinationKeywords = regions.join(',');
+            console.log(`🗺️ [지역 자동 갱신] ${newFilter.destinationCity} → ${regions.length}개 읍면동 조회 완료`);
         }
         const updated = updateActiveFilter(newFilter);
-        console.log(`🌐 [필터 변경] 모드: ${updated.mode}, 단가: ${updated.minFare}, 반경: ${updated.pickupRadius}km, 지역: ${updated.targetCity}(${updated.targetRegions?.length}개동)`);
+        console.log(`🌐 [필터 변경] 합짐모드: ${updated.isSharedMode}, 활성: ${updated.isActive}, 단가: ${updated.minFare}, 상차반경: ${updated.pickupRadiusKm}km, 지역: ${updated.destinationCity}`);
         // 내 서버를 포함한 모든 클라이언트 대시보드에 즉각 브로드캐스트
         io.emit("filter-updated", updated);
     });
@@ -88,9 +98,13 @@ io.on("connection", (socket) => {
     });
 });
 
-// 백그라운드 텔레메트리 (1초 주기로 모든 웹 클라이언트에게 기기 상태 푸시)
+// 백그라운드 텔레메트리 (1초 주기로 모든 웹 클라이언트에게 기기 상태 + 평가 오더 싱크 푸시)
 setInterval(() => {
     io.emit("telemetry-devices", getActiveDevicesSnapshot());
+    // ⭐ 서버 메모리의 '실제 전체 평가 오더 객체 배열'을 1초마다 브로드캐스트
+    // 웹 클라이언트가 중간에 새로고침(재접속)하더라도 즉시 화면을 복구할 수 있도록 전체 데이터를 보냄
+    const activeOrdersPayload = Array.from(getPendingOrdersData().values());
+    io.emit("sync-active-orders", activeOrdersPayload);
 }, 1000);
 
 // React 프론트엔드 정적 파일 서빙 (프로덕션 배포용)
@@ -110,6 +124,7 @@ if (fs.existsSync(clientBuildPath)) {
 const PORT = process.env.PORT || 4000;
 
 httpServer.listen(PORT, () => {
+    initGeoService();
     console.log(`\n🚀 1DAL 서버 (Express + Socket.io) 시작됨`);
     console.log(`📡 포트: ${PORT}`);
     console.log(`🌐 대시보드는 http://localhost:5173 에서 확인하세요\n`);

@@ -21,10 +21,10 @@ export default function OrderFilterModal({ isOpen, onClose }: OrderFilterModalPr
     useEffect(() => {
         if (isOpen && filter) {
             setMinFare(filter.minFare?.toString() || "");
-            setPickupRadius(filter.pickupRadius?.toString() || "");
-            setTargetCity(filter.targetCity || "");
-            setTargetRadius(filter.targetRadius?.toString() || "");
-            setBlacklist(Array.isArray(filter.blacklist) ? filter.blacklist.join(', ') : (filter.blacklist || ""));
+            setPickupRadius(filter.pickupRadiusKm?.toString() || "");
+            setTargetCity(filter.destinationCity || "");
+            setTargetRadius(filter.destinationRadiusKm?.toString() || "");
+            setBlacklist(filter.excludedKeywords || "");
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen]);
@@ -45,10 +45,10 @@ export default function OrderFilterModal({ isOpen, onClose }: OrderFilterModalPr
     const handleSave = () => {
         updateFilter({
             minFare: minFare ? parseInt(minFare, 10) : filter.minFare,
-            pickupRadius: pickupRadius ? parseInt(pickupRadius, 10) : filter.pickupRadius,
-            targetCity: targetCity || filter.targetCity,
-            targetRadius: targetRadius ? parseInt(targetRadius, 10) : filter.targetRadius,
-            blacklist: blacklist ? blacklist.split(',').map(s => s.trim()).filter(Boolean) : filter.blacklist
+            pickupRadiusKm: pickupRadius ? parseInt(pickupRadius, 10) : filter.pickupRadiusKm,
+            destinationCity: targetCity || filter.destinationCity,
+            destinationRadiusKm: targetRadius ? parseInt(targetRadius, 10) : filter.destinationRadiusKm,
+            excludedKeywords: blacklist || filter.excludedKeywords
         });
         onClose();
     };
@@ -110,7 +110,7 @@ export default function OrderFilterModal({ isOpen, onClose }: OrderFilterModalPr
                             <div className="relative flex items-center mb-1">
                                 <input
                                     type="number"
-                                    defaultValue={filter.pickupRadius}
+                                    defaultValue={filter.pickupRadiusKm}
                                     onChange={(e) => setPickupRadius(e.target.value)}
                                     className="w-full bg-black/60 border border-slate-700/50 rounded-lg p-2.5 pr-10 text-xl text-white font-bold outline-none focus:bg-indigo-950/20 focus:border-indigo-400/60 transition-all shadow-inner"
                                 />
@@ -130,7 +130,7 @@ export default function OrderFilterModal({ isOpen, onClose }: OrderFilterModalPr
                             <div className="flex-1">
                                 <label className="block text-[10px] font-bold text-slate-400 mb-1.5 pl-1">공략 시/군 단위</label>
                                 <select
-                                    value={targetCity || filter.targetCity}
+                                    value={targetCity || filter.destinationCity}
                                     onChange={(e) => setTargetCity(e.target.value)}
                                     className="w-full bg-black/50 border border-slate-600/40 rounded-lg p-2.5 text-[15px] text-indigo-300 font-bold outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400/50 transition-all shadow-inner appearance-none"
                                 >
@@ -148,7 +148,7 @@ export default function OrderFilterModal({ isOpen, onClose }: OrderFilterModalPr
                                 <div className="relative flex items-center">
                                     <input
                                         type="number"
-                                        defaultValue={filter.targetRadius}
+                                        defaultValue={filter.destinationRadiusKm}
                                         onChange={(e) => setTargetRadius(e.target.value)}
                                         className="w-full bg-black/50 border border-slate-600/40 rounded-lg p-2.5 text-[15px] text-indigo-300 font-bold outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400/50 transition-all shadow-inner"
                                     />
@@ -167,7 +167,7 @@ export default function OrderFilterModal({ isOpen, onClose }: OrderFilterModalPr
                             <span className="text-red-500">🚫</span> 블랙리스트
                         </label>
                         <textarea
-                            defaultValue={filter.blacklist}
+                            defaultValue={filter.excludedKeywords}
                             onChange={(e) => setBlacklist(e.target.value)}
                             placeholder="단어 쉼표(,) 구분"
                             className="w-full h-12 bg-black/60 border border-red-900/50 rounded-lg p-2 text-xs text-red-300 font-medium outline-none focus:bg-red-950/20 focus:border-red-500/60 transition-all resize-none shadow-inner leading-relaxed"

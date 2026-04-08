@@ -15,6 +15,7 @@ import crypto from "crypto";
 import type { SimplifiedOfficeOrder, DispatchConfirmRequest, SecuredOrder } from "@onedal/shared";
 import db from "../db";
 import { activeFilterConfig, updateActiveFilter } from "../state/filterStore";
+import { deviceEvaluatingMap, forceCancelEvaluatingOrder, getPendingOrdersData, handleDecision } from "./detail";
 
 const router = Router();
 
@@ -105,8 +106,23 @@ router.post("/confirm", (req, res) => {
             return res.status(400).json({ error: "이 엔드포인트는 step=BASIC 전용입니다. 상세 보고는 POST /api/orders/detail 을 사용하세요." });
         }
 
+        const io = req.app.get("io");
+
         // 즉시 응답 (앱은 멈추지 않고 상세 페이지 긁으러 진입해야 함)
         res.json({ success: true, message: "1차 수신 완료. 상세 페이지 내용을 긁어서 POST /api/orders/detail 로 보내주세요." });
+
+        const previousEvaluatingId = deviceEvaluatingMap.get(payload.deviceId);
+
+        // 새 콜이 들어오면 기존에 해당 장치에서 보고 있던 콜을 자동 정리!
+        if (previousEvaluatingId && previousEvaluatingId !== payload.order.id && previousEvaluatingId !== "unknown") {
+            console.log(`🧹 [자동 정리] 새 콜 진입 감지! 기존 평가 중이던 콜(${previousEvaluatingId}) 백그라운드 강제 취소`);
+            forceCancelEvaluatingOrder(previousEvaluatingId, io);
+        }
+
+        // 앱이 나중에 DETAILED 보낼 때 'unknown' 아이디를 복구해 주기 위해 저장해 둠
+        if (payload.order.id && payload.order.id !== "unknown") {
+            deviceEvaluatingMap.set(payload.deviceId, payload.order.id);
+        }
 
         const securedOrder: SecuredOrder = {
             ...payload.order,
@@ -115,20 +131,43 @@ router.post("/confirm", (req, res) => {
             capturedAt: payload.capturedAt || new Date().toISOString()
         };
 
-        const io = req.app.get("io");
+        // 💡 1차 선빵 즉시 서버 메모리에 저장! 그래야 웹이 중간에 재접속해도 이 상태를 받을 수 있음
+        if (securedOrder.id && securedOrder.id !== "unknown") {
+            getPendingOrdersData().set(securedOrder.id, securedOrder);
+        }
+
         if (io) {
-            // UI를 '대기' 상태로 만들고 평가 카드를 올리라는 신호
+            console.log(`📤 [Socket 푸시] order-evaluating (${securedOrder.id})`);
             io.emit("order-evaluating", securedOrder);
             console.log(`⏱️ [1차 선빵 수신] ${securedOrder.pickup} ➡️ ${securedOrder.dropoff} (기기: ${payload.deviceId})`);
 
-            // 중앙 통제 필터를 '대기' 모드로 전환 후 브로드캐스트
-            if (activeFilterConfig.mode === '첫짐') {
-                updateActiveFilter({ mode: '대기' });
+            // 중앙 통제 필터를 '대기' 모드로 전환 후 (매크로 일시중지) 브로드캐스트
+            if (activeFilterConfig.isActive) {
+                updateActiveFilter({ isActive: false });
+                console.log(`📤 [Socket 푸시] filter-updated (isActive: false)`);
                 io.emit("filter-updated", activeFilterConfig);
             }
         }
     } catch (error) {
         console.error("Orders Confirm 에러:", error);
+        res.status(500).json({ error: "서버 오류 발생" });
+    }
+});
+// POST /decision - 기사님의 앱 내 의사결정 수신 (수동 배차 최종 확정/취소)
+router.post("/decision", (req, res) => {
+    try {
+        const payload = req.body as { orderId: string, action: 'KEEP' | 'CANCEL' };
+        if (!payload.orderId || !payload.action) {
+            return res.status(400).json({ error: "Missing orderId or action" });
+        }
+
+        const io = req.app.get("io");
+        console.log(`⚖️ [REST Decision 수신] ID: ${payload.orderId}, Action: ${payload.action} (앱에서 직통)`);
+
+        const result = handleDecision(payload.orderId, payload.action, io);
+        res.json(result);
+    } catch (error) {
+        console.error("Decision POST 에러:", error);
         res.status(500).json({ error: "서버 오류 발생" });
     }
 });

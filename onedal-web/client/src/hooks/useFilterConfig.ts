@@ -1,17 +1,17 @@
 import { useState, useEffect } from "react";
 import { socket } from "../lib/socket";
-import type { FilterConfig } from "@onedal/shared";
+import type { AutoDispatchFilter } from "@onedal/shared";
 
 export function useFilterConfig() {
-    const [filter, setFilter] = useState<FilterConfig | null>(null);
+    const [filter, setFilter] = useState<AutoDispatchFilter | null>(null);
 
     useEffect(() => {
         // 소켓 이벤트 핸들러 구독
-        const onFilterInit = (initialFilter: FilterConfig) => {
+        const onFilterInit = (initialFilter: AutoDispatchFilter) => {
             setFilter(initialFilter);
         };
 
-        const onFilterUpdated = (updatedFilter: FilterConfig) => {
+        const onFilterUpdated = (updatedFilter: AutoDispatchFilter) => {
             setFilter(updatedFilter);
         };
 
@@ -30,7 +30,7 @@ export function useFilterConfig() {
     }, []);
 
     // 프론트엔드에서 필터값을 임의로 즉시 업데이트 후 서버로 전송 (Optimisitc UI)
-    const updateFilter = (newFilter: Partial<FilterConfig>) => {
+    const updateFilter = (newFilter: Partial<AutoDispatchFilter>) => {
         // 로컬 상태 선반영
         if (filter) {
             setFilter({ ...filter, ...newFilter });

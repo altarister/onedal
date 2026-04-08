@@ -42,31 +42,50 @@ router.post("/", (req, res) => {
         console.log(`   화면: ${screenContext}`);
         console.log(`   텍스트: ${screenText?.substring(0, 100)}...`);
 
+        let targetOrderId = orderId;
+
+        const pendingOrdersData = getPendingOrdersData();
+
+        // 앱폰이 orderId를 분실하여 'unknown'으로 보냈을 경우, 해당 기기에서 보류 중인 오더를 역추적
+        if (!targetOrderId || targetOrderId === "unknown") {
+            for (const [id, order] of pendingOrdersData.entries()) {
+                if (order.capturedDeviceId === deviceId) {
+                    targetOrderId = id;
+                    console.log(`   🔍 잃어버린 orderId 역추적 성공: ${targetOrderId}`);
+                    break;
+                }
+            }
+        }
+
         const io = req.app.get("io");
 
         // 1. 롱폴링 해제: pendingDetailRequests에서 삭제
         const pendingDetailRequests = getPendingDetailRequests();
-        if (pendingDetailRequests.has(orderId)) {
-            const heldRes = pendingDetailRequests.get(orderId);
-            pendingDetailRequests.delete(orderId);
+        if (pendingDetailRequests.has(targetOrderId)) {
+            const heldRes = pendingDetailRequests.get(targetOrderId);
+            pendingDetailRequests.delete(targetOrderId);
             // 아직 응답을 안 보냈다면 연결을 정리 (앱폰은 이미 자체 처리했으므로)
+            // CANCEL 상태를 주면 앱폰이 물리적 클릭을 시도하므로, 에러 코드로 무음 종료 처리함
             if (heldRes && !heldRes.headersSent) {
-                heldRes.json({ deviceId: 'server', action: 'CANCEL' });
+                heldRes.status(408).json({ error: "Emergency Timeout Cleaned" });
             }
-            console.log(`   ✅ 롱폴링 파이프 해제 완료`);
+            console.log(`   ✅ 롱폴링 파이프 무음 해제 완료`);
         }
 
         // 2. 오더 데이터 삭제
-        const pendingOrdersData = getPendingOrdersData();
-        pendingOrdersData.delete(orderId);
-        console.log(`   ✅ 오더 캐시 삭제 완료`);
+        if (pendingOrdersData.has(targetOrderId)) {
+            pendingOrdersData.delete(targetOrderId);
+            console.log(`   ✅ 오더 캐시 삭제 완료`);
+        } else {
+            console.log(`   ⚠️ 오더 캐시에 삭제할 내용이 없음 (${targetOrderId})`);
+        }
 
         // 3. mainCallState 초기화 (해당 오더가 본콜이었을 경우)
         const mainCall = getMainCallState();
-        if (mainCall && mainCall.id === orderId) {
+        if (mainCall && mainCall.id === targetOrderId) {
             resetMainCallState();
-            // 필터를 '첫짐' 사냥으로 복원
-            updateActiveFilter({ mode: '첫짐' });
+            // 필터 속성을 '단독(첫짐)' 사냥으로 복원
+            updateActiveFilter({ isSharedMode: false, isActive: true });
             if (io) io.emit("filter-updated", activeFilterConfig);
             console.log(`   ✅ 본콜 초기화 + 필터 '첫짐' 복원 완료`);
         }
@@ -75,7 +94,7 @@ router.post("/", (req, res) => {
         if (io) {
             io.emit("emergency-alert", {
                 deviceId,
-                orderId,
+                orderId: targetOrderId,
                 reason,
                 screenContext,
                 screenText: screenText?.substring(0, 300), // 관제탑에는 축약본만
@@ -86,7 +105,8 @@ router.post("/", (req, res) => {
 
         // 5. 관제탑에 오더 취소 알림
         if (io) {
-            io.emit("order-canceled", orderId);
+            console.log(`📤 [Socket 푸시] order-canceled (${targetOrderId})`);
+            io.emit("order-canceled", targetOrderId);
         }
 
         console.log(`🚨🚨🚨 [EMERGENCY] 처리 완료 🚨🚨🚨\n`);

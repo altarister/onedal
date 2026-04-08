@@ -37,8 +37,9 @@ router.post("/", (req, res) => {
         
         let deviceMode = "MANUAL";
         if (deviceId) {
-            // Devices 세션 업데이트 (데드맨 스위치 생존 신고 + 화면 상태)
-            deviceMode = touchDeviceSession(deviceId, data.length, screenContext);
+            // Devices 세션 업데이트 (데드맨 스위치 생존 신고 + 화면 상태 + Zero-Latency 화면 이탈 동기화)
+            const io = req.app.get("io");
+            deviceMode = touchDeviceSession(deviceId, data.length, screenContext, io);
         }
 
         // [응답 꼬리(Piggyback)] 성공과 통계, 제어 명령, 그리고 최신 서버 오더 필터를 앱폰에 역할별로 분리해서 즉시 내려준다

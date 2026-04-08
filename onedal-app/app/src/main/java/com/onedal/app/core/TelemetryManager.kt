@@ -34,7 +34,7 @@ class TelemetryManager(
     private val heartbeatRunnable = object : Runnable {
         override fun run() {
             if (isRunning) {
-                flush() // 버퍼가 비어있어도 생존신고를 위해 발송
+                flush(isHeartbeat = true) // 버퍼가 비어있어도 생존신고를 위해 발송
             }
         }
     }
@@ -42,7 +42,7 @@ class TelemetryManager(
     // 디바운스용 (이벤트 기반)
     private val eventFlushRunnable = Runnable {
         if (isRunning) {
-            flush()
+            flush(isHeartbeat = false)
         }
     }
 
@@ -74,7 +74,18 @@ class TelemetryManager(
         handler.postDelayed(eventFlushRunnable, DEBOUNCE_MS)
     }
 
-    private fun flush() {
+    // [추가] 이벤트 화면 변경 시 200ms 디바운스를 적용하여 전송
+    // 안드로이드 화면의 로딩 애니메이션 잔상으로 인해 강제 전송이 폭격(Spam)되는 것을 방지합니다.
+    fun forceFlushEvent() {
+        if (!isRunning) return
+        handler.removeCallbacks(eventFlushRunnable)
+        handler.postDelayed(eventFlushRunnable, 200)
+    }
+
+    @Volatile
+    var currentMode: String = "MANUAL"
+
+    private fun flush(isHeartbeat: Boolean) {
         val snapshot: List<SimplifiedOfficeOrder>
         synchronized(scrapBuffer) {
             snapshot = scrapBuffer.toList()
@@ -87,8 +98,17 @@ class TelemetryManager(
             screenContext = currentScreenContext.value  // [Safety Mode V3] 화면 상태 포함
         )
 
+        val triggerStr = if (isHeartbeat) "⏱️ 타이머 생존신고" else "👀 화면 변경 감지"
+        Log.d(TAG, "🚀 [서버 송신] $triggerStr 발송 시작 (건수: ${snapshot.size}, 화면: ${currentScreenContext.value})")
+        
+        // [추가] 기사님 요청: 텔레메트리로 보내는 실제 JSON 형태를 터미널에서 구경할 수 있도록 세분화 출력
+        val previewData = if (snapshot.isEmpty()) "[]" else "[ ${snapshot.size}개의 오더 객체... ]"
+        Log.d(TAG, "📦 [전송 페이로드] { \"deviceId\": \"${payload.deviceId}\", \"screenContext\": \"${payload.screenContext}\", \"data\": $previewData }")
+
+
         apiClient.sendScrapTelemetry(payload) { mode ->
-            Log.d(TAG, "Received Mode: $mode")
+            currentMode = mode
+            Log.d(TAG, "📥 [서버 수신] $triggerStr 완료 (수신된 모드: $mode)")
             if (mode == "SHUTDOWN") {
                 Log.e(TAG, "🔴 [원격 제어] 서버로부터 퇴근(SHUTDOWN) 명령 수신! 타이머를 강제 정지합니다.")
                 stop()

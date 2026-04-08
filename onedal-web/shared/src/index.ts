@@ -1,6 +1,7 @@
 export const EVENT_TYPES = {
     NEW_ORDER: "NEW_ORDER" as const,
     INTEL_BULK: "INTEL_BULK" as const,
+    MANUAL: "MANUAL" as const,
 };
 
 export type EventType = typeof EVENT_TYPES[keyof typeof EVENT_TYPES];
@@ -65,18 +66,7 @@ export interface DetailedOfficeOrder {
     pickupTime?: string;              // 픽업 예약 시간 지정
 }
 
-export interface FilterConfig {
-    mode: '첫짐' | '대기' | '합짐' | '복귀';
-    minFare: number;       // 최소 운임 (예: 60000)
-    pickupRadius: number;  // [조건4] 상차지 최대 직선 거리 (km)
-    targetCity: string;    // 관제 UI용 대표 도시명 (예: "용인시")
-    targetRegions: string[]; // [조건1] 목표 하차지 법정동 배열 (예: ["마평동", "역북동"])
-    targetRadius: number;  // 목표 도시 매칭 반경 (km)
-    blacklist: string[];   // [조건3] 제외 키워드 배열 (예: ["착불", "수거", "까대기"])
-    // 합짐 모드 시 동적 회랑 정보 (옵션)
-    detourBaseId?: string;
-}
-
+// (FilterConfig removed in favor of AutoDispatchFilter)
 // 3. [오더 풀스팩] 배차 확정 후, 들어가서 스크래핑해올 구체적 데이터
 export interface OfficeOrder extends SimplifiedOfficeOrder, DetailedOfficeOrder { }
 
@@ -87,7 +77,9 @@ export interface SecuredOrder extends OfficeOrder {
     capturedAt: string;               // 낚아챈 실제 타임스탬프
     kakaoCalculatedFare?: number;     // 서버 연산 기반 가성비 단가 (미래 확장성)
     kakaoTimeExt?: string;            // 카카오 연산 결과: 예상 소요 시간 텍스트
-    kakaoDistExt?: string;            // 카카오 연산 결과: 예상 거리 텍스트
+    routePolyline?: Array<{x: number; y: number}>;  // [신규] 카카오 실제 궤적 좌표들
+    totalDistanceKm?: number;         // [추가] 통합 연산된 전체 총 주행 거리
+    totalDurationMin?: number;        // [추가] 통합 연산된 전체 총 주행 시간
     settlement?: SettlementInfo;      // [추가] 정산 및 미수금 관리 트래킹 (운행일지용)
 }
 
@@ -103,15 +95,37 @@ export interface SettlementInfo {
 
 // 자동배차 설정 인터페이스 (전역 설정 동기화용)
 export interface AutoDispatchFilter {
-    pickupRadiusKm: number;       // 내위치 반경 상차지 탐색(km)
-    status: '첫짐' | '대기' | '합짐';
-    minFare: number;              // 최소 운임 (하한선)
-    maxFare: number;              // 최대 운임 (디폴트 100만)
-    destinationCity: string;      // 하차 목표 메인 지역 (시/군/자치구)
-    destinationRadiusKm: number;  // 하차 목표 주위 탐색 반경 (km)
-    excludedKeywords: string;     // 제외 단어 (콤마 분리 문자열)
-    destinationKeywords: string;  // 목표 지역+반경 기반 서버 환산 동이름(키워드 콤마 분리형)
-    customFilters: string[];      // 특수 기호 등 하단 빠른 설정 텍스트 (ex: "^^,@", "김포,인천...")
+    model: '1t' | '다마스' | '라보' | '오토바이';    // 차량 모델 (예: "1톤카고", "다마스")
+    isActive: boolean;              // 필터링(매크로) 활성화 여부
+    isSharedMode: boolean;          // 첫짐/합짐 분기 (true면 합짐 회랑, false면 첫짐 수동)
+    pickupRadiusKm: number;         // 내위치 반경 상차지 탐색(km)
+    minFare: number;                // 최소 운임 (하한선)
+    maxFare: number;                // 최대 운임 (디폴트 100만)
+    destinationCity: string;        // 하차 목표 메인 지역 (시/군/자치구) / 합짐 시에는 UI 축약 문구로 오버로딩
+    destinationRadiusKm: number;    // 하차 목표 주위 탐색 반경 (km)
+    excludedKeywords: string;       // 제외 단어 (콤마 분리 문자열)
+    destinationKeywords: string;    // (내부망) 앱 파싱용 읍/면/동 50개 콤마 분리 문자열
+    customFilters: string[];        // 특수 기호 등 하단 빠른 설정 텍스트 (ex: "^^,@", "김포,인천...")
+}
+
+// 스마트 회랑 전용 데이터 구조 (PinnedRoute 등 프론트엔드 UI용)
+export interface CorridorRouteData {
+    summaryText: string;
+    totalDistanceKm: number;
+    totalTimeMinutes: number;
+    tollFare?: number;
+    waypoints: {
+        lat: number;
+        lng: number;
+        type: 'PICKUP' | 'DROPOFF';
+        label: string; 
+    }[];
+    alternatives?: {
+        id: string; 
+        name: string; 
+        timeMinutes: number; 
+        distanceKm: number; 
+    }[];
 }
 
 // 안드로이드 앱폰 -> 서버로 쏘는 주기적인 상태 보고(텔레메트리)
@@ -214,7 +228,7 @@ export interface ScrapResponse {
     deviceControl: {
         mode: DeviceModeType;
     };
-    dispatchEngineArgs?: FilterConfig;
+    dispatchEngineArgs?: AutoDispatchFilter;
 }
 
 export interface DeviceSession {

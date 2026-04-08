@@ -7,10 +7,6 @@
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "paths": {
-      "@onedal/shared": ["../shared/src"]
-    }
   },
   "include": ["src/**/*"]
 }

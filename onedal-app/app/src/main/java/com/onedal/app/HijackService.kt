@@ -29,7 +29,8 @@ enum class DispatchState {
     PICKUP_DONE,         // 출발지 닫은 후 메인 복귀 대기 (도착지 버튼 대기)
     SCRAPING_DROPOFF,    // 도착지 페이지 열림 대기 및 스크래핑
     WAITING_DECISION,    // /detail 전송 후 롱폴링 응답 대기
-    EXECUTING_DECISION   // 결과(KEEP/CANCEL) 수신 후 '닫기'/'취소' 버튼 누르기
+    EXECUTING_DECISION,  // 결과(KEEP/CANCEL) 수신 후 '닫기'/'취소' 버튼 누르기
+    MANUAL_STANDBY       // 수동 배차 스크랩 완료 후 기사님의 수동 조작 대기 상태
 }
 
 /**
@@ -63,6 +64,7 @@ class HijackService : AccessibilityService() {
     // 화면 변경 감지용 핑거프린트 (화면 텍스트의 해시)
     private var lastScreenFingerprint = 0
     private val processedOrderHashes = mutableSetOf<Int>()
+    private var lastManualScrapeTime = 0L
 
     // [Safety Mode V3] 데스밸리 자동취소 타이머
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -107,11 +109,17 @@ class HijackService : AccessibilityService() {
     }
 
     /**
-     * [Safety Mode V3] 화면 상태를 TelemetryManager에 동기화
+     * [Safety Mode V3] 화면 상태를 TelemetryManager에 동기화하고 즉시 서버로 발송
      */
     private fun updateScreenContext(context: ScreenContext) {
+        val changed = telemetryManager.currentScreenContext != context
         telemetryManager.currentScreenContext = context
         Log.d(TAG, "📱 ScreenContext → ${context.value}")
+        
+        // 화면 상태가 바뀌었다면 1초 대기 없이 즉시 서버에 텔레메트리를 쏘도록 강제
+        if (changed) {
+            telemetryManager.forceFlushEvent()
+        }
     }
 
     private fun transitionTo(newState: DispatchState) {
@@ -233,7 +241,44 @@ class HijackService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (isKickedOut) return
-        if (event == null || event.eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) return
+        if (event == null) return
+
+        // ═══ 수동 배차 조작 감지 (MANUAL_STANDBY 상태 한정) ═══
+        // 기사님이 앱에서 최종적으로 "닫기"(확정)나 "취소"를 누르는 시점을 포착하여 서버로 직통 통보
+        if (currentState == DispatchState.MANUAL_STANDBY && event.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED) {
+            val texts = mutableListOf<String>()
+            event.text?.forEach { texts.add(it.toString()) }
+            event.contentDescription?.let { texts.add(it.toString()) }
+            
+            // event.text가 비어있을 수 있으므로 (레이아웃 클릭 등), 클릭된 source 노드 하위 텍스트도 긁어옵니다.
+            event.source?.let { sourceNode ->
+                collectTextsOnly(sourceNode, texts)
+                sourceNode.recycle()
+            }
+            
+            val clickedText = texts.joinToString("").lowercase()
+            Log.d(TAG, "👆 [디버그] 클릭된 영역 텍스트 추출 결과: '$clickedText'")
+
+            if (clickedText.contains("닫기") || clickedText.contains("확인") || clickedText.contains("close") || clickedText.contains("ok") || clickedText.contains("confirm")) {
+                Log.d(TAG, "👆 [버튼 감지] 앱에서 수동배차 후 리스트 복귀(닫기/확인) 버튼 터치됨")
+                currentOrder?.let {
+                    apiClient.sendDecision(it.id, "KEEP")
+                }
+                transitionTo(DispatchState.SEARCHING)
+                currentOrder = null
+                return
+            } else if (clickedText.contains("취소") || clickedText.contains("cancel")) {
+                Log.d(TAG, "👆 [버튼 감지] 앱에서 수동배차 후 [취소] 버튼 터치됨")
+                currentOrder?.let {
+                    apiClient.sendDecision(it.id, "CANCEL")
+                }
+                transitionTo(DispatchState.SEARCHING)
+                currentOrder = null
+                return
+            }
+        }
+
+        if (event.eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) return
         val rootNode = rootInActiveWindow ?: return
 
         checkScrapingTimeout()
@@ -251,9 +296,72 @@ class HijackService : AccessibilityService() {
             }
             lastScreenFingerprint = currentFingerprint
             
+            // [동적 화면 감지기] State Machine에만 의존하지 않고 실제 화면의 글자를 보고 상태를 강제 보정합니다.
+            // 기사님이 수동으로 팝업을 열거나 닫을 때 서로 엇갈리는 현상을 원천 방지합니다.
+            val rawScreenStr = screenTexts.joinToString(" ")
+            if (rawScreenStr.contains("오더 조회") || rawScreenStr.contains("기다려 주십")) {
+                // [수정] 기사님 피드백 반영: 로딩 화면은 일시적인 노이즈일 뿐이므로 완전히 무시합니다! 
+                // 향후 화면 분할(인성1, 2) 시 로딩 팝업이 서로의 상태를 덮어씌우는 것을 방지하고 서버 폭격을 원천 차단합니다.
+                rootNode.recycle()
+                return
+            } else if (rawScreenStr.contains("취소할 수 없") || rawScreenStr.contains("시간이 지나") || rawScreenStr.contains("실패")) {
+                updateScreenContext(ScreenContext.POPUP_ERROR)
+            } else if (rawScreenStr.contains("출발지 상세") || rawScreenStr.contains("상차지 상세")) {
+                updateScreenContext(ScreenContext.POPUP_PICKUP)
+            } else if (rawScreenStr.contains("도착지 상세") || rawScreenStr.contains("하차지 상세")) {
+                updateScreenContext(ScreenContext.POPUP_DROPOFF)
+            } else if (rawScreenStr.contains("적요상세") && rawScreenStr.contains("요금")) {
+                // 버튼 라벨을 통해 확정(배차) 전/후 상태를 정밀하게 구분
+                // 주의: 두 팝업 모두 '닫기' 버튼이 있을 수 있으므로, '확정/배차' 버튼 유무로 구분합니다.
+                if (rawScreenStr.contains("확정") || rawScreenStr.contains("배차")) {
+                    updateScreenContext(ScreenContext.DETAIL_PRE_CONFIRM)
+                } else {
+                    updateScreenContext(ScreenContext.DETAIL_CONFIRMED)
+                    
+                    // [번개치기 자동 스크래핑 로직] 수동 배차(확정) 감지 시
+                    if (currentState == DispatchState.SEARCHING) {
+                        val currentTime = System.currentTimeMillis()
+                        if (currentTime - lastManualScrapeTime > 5000) { // 5초 쿨타임 (중복 방지)
+                            Log.d(TAG, "⚡ 수동 확정 감지! 0.3초 번개치기 주소 스크래핑 체인 발동!")
+                            lastManualScrapeTime = currentTime
+                            
+                            // 화면 텍스트를 임시 파싱하여 요금과 ID 등 기초 정보 추출
+                            val tempOrder = scrapParser.parse(screenTexts)
+                        
+                        currentOrder = DetailedOfficeOrder(
+                            id = tempOrder.id.takeIf { it.isNotEmpty() } ?: "MANUAL_${System.currentTimeMillis()}",
+                            type = "MANUAL",
+                            pickup = tempOrder.pickup,
+                            dropoff = tempOrder.dropoff,
+                            fare = tempOrder.fare,
+                            timestamp = tempOrder.timestamp,
+                            rawText = rawScreenStr
+                        )
+                        // 상하차지 스크래핑을 강제 트리거하기 위해 상태 이동
+                        transitionTo(DispatchState.CLICKED_CONFIRM)
+                        }
+                    }
+                }
+            } else if (rawScreenStr.contains("신규") && (rawScreenStr.contains("메시지함") || rawScreenStr.contains("GPS") || rawScreenStr.contains("거리"))) {
+                // 완전히 명확한 리스트 화면일 때만 리스트로 확정
+                updateScreenContext(ScreenContext.LIST)
+                if (currentState == DispatchState.MANUAL_STANDBY) {
+                    Log.d(TAG, "🚀 [수동 모드 폴백] 기사님이 리스트로 복귀했습니다. 클릭을 감지하지 못했으므로 암묵적으로 KEEP을 전송합니다.")
+                    currentOrder?.let { apiClient.sendDecision(it.id, "KEEP") }
+                    transitionTo(DispatchState.SEARCHING)
+                    currentOrder = null
+                }
+            } else if (currentState == DispatchState.SEARCHING) {
+                // 혹시 모를 상황 대비 (기존 fallback 보존)
+                updateScreenContext(ScreenContext.LIST)
+            }
+
             // 화면이 바뀔 때마다 구분선 + 현재 상태 로깅
             Log.d(TAG, "-------------------------------")
-            Log.d(TAG, "📡 화면 변경 감지 | 상태: $currentState | 화면: ${telemetryManager.currentScreenContext.value}")
+            Log.d(TAG, "📡 화면 변경 감지 | 상태: $currentState | 화면: ${telemetryManager.currentScreenContext.value} | 모드: ${telemetryManager.currentMode}")
+            if (telemetryManager.currentScreenContext == ScreenContext.LIST) {
+                Log.d(TAG, "🔍 [디버그] 추출된 화면 텍스트 샘플: ${rawScreenStr.take(100)}")
+            }
         }
 
         // ════════════════════════════════════════
@@ -287,8 +395,9 @@ class HijackService : AccessibilityService() {
                     
                     // 신규 콜이면 필터 검사
                     val shouldClick = scrapParser.shouldClick(order)
-                    if (shouldClick) {
-                        Log.d(TAG, "💥 [1단계] 4대 조건 통과! Y좌표 그룹핑 명중! 타겟 클릭 실행!")
+                    
+                    if (shouldClick && telemetryManager.currentMode == "AUTO") {
+                        Log.d(TAG, "💥 [AUTO 모드] 4대 조건 통과! 타겟 자동 클릭 실행!")
                         touchManager.performSimulatedTouch(fareNode.node)
                         
                         currentOrder = DetailedOfficeOrder(
@@ -301,6 +410,7 @@ class HijackService : AccessibilityService() {
                         clickedSomething = true
                         break // 하나만 선점하고 즉시 탈출
                     } else if (order.fare > 0 || rowTexts.size >= 4) {
+                        // MANUAL 모드이거나 조건을 만족하지 못하면 클릭하지 않고 텔레메트리 관제탑 보고만 수행
                         processedOrderHashes.add(orderHash)
                         telemetryManager.enqueue(order)
                     }
@@ -410,7 +520,15 @@ class HijackService : AccessibilityService() {
                 )
                 apiClient.sendDetail(payload) { orderId, action ->
                     android.os.Handler(android.os.Looper.getMainLooper()).post {
-                        if (currentState == DispatchState.WAITING_DECISION && currentOrder?.id == orderId) {
+                        if (action == "ACK" || currentOrder?.type == "MANUAL") {
+                            // 사후 동기화 (Post-Dispatch Sync) - 서버가 찾아낸 원래 ID로 즉시 덮어씌움
+                            currentOrder?.let {
+                                if (it.id != orderId) {
+                                    Log.d(TAG, "🔄 [사후 동기화] 통신 완료. 현재 콜 ID 갱신: ${it.id} -> $orderId")
+                                    currentOrder = it.copy(id = orderId)
+                                }
+                            }
+                        } else if (currentState == DispatchState.WAITING_DECISION && currentOrder?.id == orderId) {
                             serverDecision = action
                             cancelDeathValleyTimer() // 서버 응답 수신! 타이머 해제
                             transitionTo(DispatchState.EXECUTING_DECISION)
@@ -418,7 +536,15 @@ class HijackService : AccessibilityService() {
                         }
                     }
                 }
-                transitionTo(DispatchState.WAITING_DECISION)
+                
+                if (currentOrder!!.type == "MANUAL") {
+                    Log.d(TAG, "😎 [번개치기 완료] 수동 배차 스크래핑 통신 완료. 기사님의 조작을 대기하는 스탠바이 모드(MANUAL_STANDBY)로 진입합니다!")
+                    transitionTo(DispatchState.MANUAL_STANDBY)
+                    // 지금 currentOrder를 지우면 안됩니다. (LIST 복귀 시 지워짐)
+                } else {
+                    // 자동 모드일 때만 서버의 결재(KEEP/CANCEL)를 기다리는 데스밸리 진입
+                    transitionTo(DispatchState.WAITING_DECISION)
+                }
             }
 
             DispatchState.WAITING_DECISION -> {
@@ -454,6 +580,12 @@ class HijackService : AccessibilityService() {
                     }
                     // 그 외: 버튼 로딩 대기 (스크래핑 타임아웃이 처리)
                 }
+            }
+            
+            DispatchState.MANUAL_STANDBY -> {
+                // 기사님이 수동으로 배차를 완료하고 화면을 응시 중이거나 조작 중인 상태입니다.
+                // 이 상태에서는 아무것도 하지 않고 대기합니다.
+                // (기사님이 리스트로 복귀하면 onAccessibilityEvent 최상단 LIST 감지 로직에 의해 SEARCHING 으로 돌아갑니다)
             }
         }
 

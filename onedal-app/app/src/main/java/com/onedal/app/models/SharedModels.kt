@@ -117,7 +117,8 @@ data class DispatchDetailedRequest(
 // ────────────────────────────────────────────────
 data class DispatchConfirmResponse(
     val deviceId: String = "",
-    val action: String = ""  // "KEEP" or "CANCEL"
+    val action: String = "",  // "KEEP", "CANCEL", or "ACK"
+    val orderId: String? = null
 )
 
 // ────────────────────────────────────────────────

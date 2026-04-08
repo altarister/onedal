@@ -131,8 +131,9 @@ class ApiClient(private val context: Context) {
                     Log.d(TAG, "🌐 [Detail 서버 대답] $body")
                     
                     val res = gson.fromJson(body, DispatchConfirmResponse::class.java)
-                    // 서버가 내려준 최종 판결 (KEEP or CANCEL) 콜백
-                    onDecisionReceived(payload.order.id, res.action)
+                    // 서버가 내려준 최종 판결 (KEEP or CANCEL) 콜백. 
+                    // 사후 동기화(Post-Dispatch Sync)로 진짜 ID가 내려왔다면 그걸 씁니다.
+                    onDecisionReceived(res.orderId ?: payload.order.id, res.action)
                 } else {
                     // 타임아웃 등의 이유로 실패 시 CANCEL로 간주하여 뱉기
                     onDecisionReceived(payload.order.id, "CANCEL")
@@ -243,6 +244,47 @@ class ApiClient(private val context: Context) {
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "🚨 [EMERGENCY 전송 실패] ${e.message}")
+            } finally {
+                conn?.disconnect()
+            }
+        }
+    }
+
+    /**
+     * 수동 배차 결정 전송 (POST /api/orders/decision)
+     * 앱 내에서 닫기/취소 등 최종 승인(KEEP/CANCEL)을 서버로 직통 통보합니다.
+     */
+    fun sendDecision(orderId: String, action: String) {
+        confirmExecutor.submit {
+            var conn: java.net.HttpURLConnection? = null
+            try {
+                // 웹 대시보드와 동일한 규격: { orderId, action }
+                val jsonBody = """{"orderId":"$orderId", "action":"$action"}"""
+                Log.d(TAG, "📲 [Decision 전송] orderId=${orderId}, action=${action}")
+                val targetUrl = getTargetUrl("/api/orders/decision")
+                val url = java.net.URL(targetUrl)
+
+                conn = url.openConnection() as java.net.HttpURLConnection
+                conn.requestMethod = "POST"
+                conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                conn.setRequestProperty("Accept", "application/json")
+                conn.doOutput = true
+                conn.connectTimeout = 5000
+                conn.readTimeout = 5000
+
+                conn.outputStream.use { os ->
+                    os.write(jsonBody.toByteArray(Charsets.UTF_8))
+                }
+
+                val code = conn.responseCode
+                if (code == 200) {
+                    val body = conn.inputStream.bufferedReader().readText()
+                    Log.d(TAG, "📲 [Decision 응답] $body")
+                } else {
+                    Log.e(TAG, "📲 [Decision 서버 에러] HTTP $code")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "📲 [Decision 전송 실패] ${e.message}")
             } finally {
                 conn?.disconnect()
             }
