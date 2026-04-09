@@ -58,6 +58,56 @@ export const getSubCalls = () => subCalls;
 export const getPendingDetailRequests = () => pendingDetailRequests;
 export const getPendingOrdersData = () => pendingOrdersData;
 
+/** 취소/방출 등 메모리 변동 발생 시, 오더가 남아있다면 카카오 경로를 백그라운드에서 재탐색하여 폴리라인 및 소요시간을 복원합니다. */
+async function recalculateActiveKakaoRoute(io: any) {
+    if (!mainCallState && subCalls.length > 0) {
+        mainCallState = subCalls.shift() || null;
+    }
+
+    if (mainCallState) {
+        try {
+            const apiKey = process.env.KAKAO_REST_API_KEY || "";
+            if (!apiKey) return;
+
+            if (subCalls.length === 0) {
+                // 단독 주행 복원
+                if (mainCallState.pickupX && mainCallState.dropoffY) {
+                    const res = await calculateSoloRoute(apiKey, mainCallState.pickupX, mainCallState.pickupY!, mainCallState.dropoffX!, mainCallState.dropoffY!);
+                    mainCallState.routePolyline = res.polyline;
+                    mainCallState.totalDistanceKm = res.distance / 1000;
+                    mainCallState.totalDurationMin = Math.round(res.duration / 60);
+                }
+            } else {
+                // 우회 동선 복원
+                const prevPickups = subCalls.map(c => ({ x: c.pickupX!, y: c.pickupY! }));
+                const prevDropoffs = [...subCalls].reverse().map(c => ({ x: c.dropoffX!, y: c.dropoffY! }));
+                const waypoints = [...prevPickups, ...prevDropoffs];
+                
+                const result = await calculateDetourRoute(
+                    apiKey,
+                    mainCallState.pickupX!, mainCallState.pickupY!,
+                    mainCallState.dropoffX!, mainCallState.dropoffY!,
+                    waypoints
+                );
+                
+                const lastSub = subCalls[subCalls.length - 1]; // 화면에는 마지막 합짐 기준으로 polyline이 그려짐
+                lastSub.routePolyline = result.merged.polyline;
+                lastSub.totalDistanceKm = result.merged.distance / 1000;
+                lastSub.totalDurationMin = Math.round(result.merged.duration / 60);
+            }
+            console.log(`🗺️ [사후 재계산 완료] 취소 반영 후 경로/소요시간 갱신 완료.`);
+        } catch (error) {
+            console.log(`⚠️ [사후 재계산 실패] 경로 연산 중 예외 발생:`, error);
+        }
+    }
+    
+    // 메모리에 최종 보관되어있는 activeOrder 전체 Payload를 즉시 클라이언트 갱신
+    if (io) {
+        const payload = Array.from(pendingOrdersData.values());
+        io.emit("sync-active-orders", payload);
+    }
+}
+
 // [Safety Mode V3] emergency.ts에서 본콜 초기화 시 사용
 export const resetMainCallState = () => { mainCallState = null; };
 
@@ -74,18 +124,28 @@ export function handleDecision(orderId: string, action: 'KEEP' | 'CANCEL', io: a
         heldRes.json(deviceResponse);
     } else {
         console.log(`💡 [Decision] 롱폴링 대기열에 없음 (수동 배차이거나 이미 종료된 통신). 웹 관제 상태만 업데이트합니다: ID ${orderId}`);
-        if (action === 'CANCEL' && io) {
-            // [Safety] 취소 시에는 필요 없는 캐시 완전 삭제
-            pendingOrdersData.delete(orderId);
-            Array.from(deviceEvaluatingMap.entries()).forEach(([k, v]) => {
-                if (v === orderId) deviceEvaluatingMap.delete(k);
-            });
-        }
+    }
+
+    // [버그 수정] 판결이 났으면 (KEEP이든 CANCEL이든) 기기 평가 대기록을 무조건 삭제하여 다음 콜 진입 시 기존 확정 콜을 덮어씌워 부수는 것을 방지합니다.
+    Array.from(deviceEvaluatingMap.entries()).forEach(([k, v]) => {
+        if (v === orderId) deviceEvaluatingMap.delete(k);
+    });
+
+    if (action === 'CANCEL' && io) {
+        // [Safety] 취소 시에는 필요 없는 캐시 완전 삭제
+        pendingOrdersData.delete(orderId);
     }
 
     if (action === 'KEEP') {
-        // 본콜이 없었다면 현재 수락한 콜을 본콜로 지정
         const cachedOrder = pendingOrdersData.get(orderId);
+        
+        // [Safety] 이미 방출된 콜에 대해 늦게 도착한 KEEP 무시
+        if (!cachedOrder) {
+             console.log(`⚠️ [예외] 웹에서 이미 방출되었거나 존재하지 않는 오더(ID: ${orderId})에 대한 KEEP 요청입니다. 무시합니다.`);
+             return { success: false, action };
+        }
+
+        // 본콜이 없었다면 현재 수락한 콜을 본콜로 지정
         let destinationKeywords = activeFilterConfig.destinationKeywords;
 
         if (cachedOrder && cachedOrder.routePolyline) {
@@ -140,6 +200,9 @@ export function handleDecision(orderId: string, action: 'KEEP' | 'CANCEL', io: a
         }
         pendingOrdersData.delete(orderId);
         console.log(`❌ [최종 뱉기(취소)] ID: ${orderId}`);
+        
+        // 🌟 콜이 삭제되었으므로 나머지 콜들의 경로를 재탐색!
+        recalculateActiveKakaoRoute(io);
     }
 
     return { success: true, action };
@@ -176,28 +239,34 @@ router.post("/", async (req, res) => {
 
         // ━━━━━━━━━━ [사후 동기화 (Post-Dispatch Sync) 검사] ━━━━━━━━━━
         // 기사님이 '완료(1/3)' 탭에서 이미 확정된 오더를 다시 열었을 경우 검사
-        // 출발지, 도착지를 비교하여 일치하면 동일 오더로 간주함
         const checkMatch = (existingOrder: SecuredOrder) => {
-             // 1순위: 출발지 전화번호가 같을 때
-             const p1Phone = existingOrder.pickupDetails?.[0]?.phone1;
-             const p2Phone = securedOrder.pickupDetails?.[0]?.phone1;
-             if (p1Phone && p2Phone && p1Phone === p2Phone) return true;
-
-             // 2순위: 출발지 상세 주소가 포함관계이거나 매우 유사할 때 (가장 강력한 식별)
+             const phone1 = existingOrder.pickupDetails?.[0]?.phone1;
+             const phone2 = securedOrder.pickupDetails?.[0]?.phone1;
+             const isPhoneMatch = (phone1 === phone2) && !!phone1;
+             
+             const isPickupAddressMatch = existingOrder.pickup === securedOrder.pickup;
+             const isDropoffAddressMatch = existingOrder.dropoff === securedOrder.dropoff;
+             const isFareMatch = existingOrder.fare > 0 && existingOrder.fare === securedOrder.fare;
+             
              const p1Addr = existingOrder.pickupDetails?.[0]?.addressDetail;
              const p2Addr = securedOrder.pickupDetails?.[0]?.addressDetail;
-             if (p1Addr && p2Addr && (p1Addr.includes(p2Addr) || p2Addr.includes(p1Addr))) return true;
-
-             // 3순위: 도착지 상세 주소
-             const d1Addr = existingOrder.dropoffDetails?.[0]?.addressDetail;
-             const d2Addr = securedOrder.dropoffDetails?.[0]?.addressDetail;
-             if (d1Addr && d2Addr && (d1Addr.includes(d2Addr) || d2Addr.includes(d1Addr))) return true;
-
-             // 4순위: 요금이 완전히 동일하고 원래 출발지/도착지 텍스트가 부분 일치하는 경우
-             if (existingOrder.fare > 0 && existingOrder.fare === securedOrder.fare) {
-                 if (existingOrder.pickup === securedOrder.pickup && existingOrder.dropoff === securedOrder.dropoff) return true;
-             }
+             const isExactAddrMatch = !!p1Addr && !!p2Addr && p1Addr === p2Addr;
              
+             if (existingOrder.id === securedOrder.id) {
+                 console.log(`🧐 [checkMatch] 매칭 성공 (사유: ID 완벽 동일)`);
+                 return true;
+             }
+
+             if (isPhoneMatch && isPickupAddressMatch && isDropoffAddressMatch && isFareMatch) {
+                 console.log(`🧐 [checkMatch] 매칭 성공 (사유: 전화번호 일치. phone: ${phone1}, 요금: ${existingOrder.fare})`);
+                 return true;
+             }
+
+             if (isFareMatch && isPickupAddressMatch && isDropoffAddressMatch && isExactAddrMatch) {
+                 console.log(`🧐 [checkMatch] 매칭 성공 (사유: 전화번호 무관 상세주소 완벽 일치. addr: ${p1Addr}, 요금: ${existingOrder.fare})`);
+                 return true;
+             }
+
              return false;
         }
 
@@ -361,8 +430,8 @@ router.post("/", async (req, res) => {
 
         // ━━━━━━━━━━ 3단계: HTTP 롱폴링 홀드 (관제사/기사님 decision 대기) ━━━━━━━━━━
         if (securedOrder.type === "MANUAL") {
-            console.log(`✅ [수동 배차 통과] 기사님이 폰에서 직집 잡은 오더(${securedOrder.id}). 롱폴링 홀드 없이 200 OK만 응답하고 앱 내 버튼 입력을 대기합니다.`);
-            // 앱 로직이 이미 MANUAL_STANDBY에 있으므로 서버 사이드 롱폴링 커넥션을 즉시 끊어줌
+            console.log(`✅ [수동 배차 통과] 기사님이 폰에서 직접 잡은 오더(${securedOrder.id}). 즉시 확정(KEEP) 처리합니다!`);
+            handleDecision(securedOrder.id, "KEEP", io);
             return res.json({ deviceId: 'server', action: 'ACK' });
         }
 

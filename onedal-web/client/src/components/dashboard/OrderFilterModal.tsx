@@ -26,7 +26,7 @@ export default function OrderFilterModal({ isOpen, onClose }: OrderFilterModalPr
             setTargetRadius(filter.destinationRadiusKm?.toString() || "");
             setBlacklist(filter.excludedKeywords || "");
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen]);
 
     if (!isOpen) return null;

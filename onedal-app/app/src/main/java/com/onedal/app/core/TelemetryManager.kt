@@ -104,6 +104,12 @@ class TelemetryManager(
         // [추가] 기사님 요청: 텔레메트리로 보내는 실제 JSON 형태를 터미널에서 구경할 수 있도록 세분화 출력
         val previewData = if (snapshot.isEmpty()) "[]" else "[ ${snapshot.size}개의 오더 객체... ]"
         Log.d(TAG, "📦 [전송 페이로드] { \"deviceId\": \"${payload.deviceId}\", \"screenContext\": \"${payload.screenContext}\", \"data\": $previewData }")
+        
+        if (snapshot.isNotEmpty()) {
+            snapshot.forEachIndexed { index, order ->
+                Log.d(TAG, "   └─ [data][$index] 요금=${order.fare}원, 출발=${order.pickup}, 도착=${order.dropoff}")
+            }
+        }
 
 
         apiClient.sendScrapTelemetry(payload) { mode ->

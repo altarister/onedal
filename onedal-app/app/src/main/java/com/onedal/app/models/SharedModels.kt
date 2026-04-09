@@ -21,6 +21,7 @@ enum class ScreenContext(val value: String) {
     POPUP_MEMO("POPUP_MEMO"),                  // 적요 상세 팝업
     POPUP_ERROR("POPUP_ERROR"),                // 에러/실패 팝업
     WAITING_SERVER("WAITING_SERVER"),           // 서버 응답 대기 (데스밸리)
+    LIST_COMPLETED("LIST_COMPLETED"),          // 완료 리스트 화면
     UNKNOWN("UNKNOWN");                        // 알 수 없는 화면
 }
 

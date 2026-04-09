@@ -82,13 +82,19 @@ class ApiClient(private val context: Context) {
                 }
 
                 val code = conn.responseCode
-                Log.d(TAG, "🌐 [Confirm] 응답: $code")
 
                 if (code == 200) {
                     val body = conn.inputStream.bufferedReader().readText()
                     prefs.edit().putString("api_confirm_res", body).apply()
-                    Log.d(TAG, "🌐 [Confirm 서버 대답] $body")
+                    Log.d(TAG, "🌐 [post /confirm response / $code] $body")
                     // 추후 4단계 취소 로직(CANCEL) 연동 지점
+                } else {
+                    val errorBody = try {
+                        conn.errorStream?.bufferedReader()?.readText() ?: "Error body empty"
+                    } catch (e: Exception) {
+                        "Cannot read error body: ${e.message}"
+                    }
+                    Log.e(TAG, "❌ [post /confirm response / $code] $errorBody")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "❌ [Confirm 전송 실패] ${e.message}")
@@ -123,18 +129,23 @@ class ApiClient(private val context: Context) {
                 }
 
                 val code = conn.responseCode
-                Log.d(TAG, "🌐 [Detail] 응답: $code")
 
                 if (code == 200) {
                     val body = conn.inputStream.bufferedReader().readText()
                     prefs.edit().putString("api_detail_res", body).apply()
-                    Log.d(TAG, "🌐 [Detail 서버 대답] $body")
+                    Log.d(TAG, "🌐 [post /detail response / $code] $body")
                     
                     val res = gson.fromJson(body, DispatchConfirmResponse::class.java)
                     // 서버가 내려준 최종 판결 (KEEP or CANCEL) 콜백. 
                     // 사후 동기화(Post-Dispatch Sync)로 진짜 ID가 내려왔다면 그걸 씁니다.
                     onDecisionReceived(res.orderId ?: payload.order.id, res.action)
                 } else {
+                    val errorBody = try {
+                        conn.errorStream?.bufferedReader()?.readText() ?: "Error body empty"
+                    } catch (e: Exception) {
+                        "Cannot read error body: ${e.message}"
+                    }
+                    Log.e(TAG, "❌ [post /detail response / $code] $errorBody")
                     // 타임아웃 등의 이유로 실패 시 CANCEL로 간주하여 뱉기
                     onDecisionReceived(payload.order.id, "CANCEL")
                 }

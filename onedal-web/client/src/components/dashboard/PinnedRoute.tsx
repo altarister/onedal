@@ -410,14 +410,14 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
 
 
                                     {/* 평가 상태(데스밸리) 액션 버튼 */}
-                                    {route.type === 'MANUAL' && route.status.includes('evaluating') && (
-                                        <div className="mt-5 p-4 bg-blue-900/40 border border-blue-500/40 rounded-xl flex items-center justify-center gap-3 shadow-inner">
-                                            <div className="w-4 h-4 rounded-full bg-blue-500/20 flex items-center justify-center animate-ping">
-                                                <div className="w-2 h-2 rounded-full bg-blue-400"></div>
-                                            </div>
-                                            <span className="text-blue-200 font-black tracking-wide text-sm">
-                                                📲 스마트폰에서 기사님의 [닫기/취소] 조작을 기다리는 중입니다...
-                                            </span>
+                                    {route.status === 'confirmed' && onDecision && (
+                                        <div className="mt-4 flex gap-3">
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); onDecision(route.id, 'CANCEL'); }}
+                                                className="w-full bg-rose-950/40 text-rose-400 text-sm font-bold py-4 rounded-lg border border-rose-500/20 hover:bg-rose-900/60 transition-all shadow-sm active:scale-[0.98]"
+                                            >
+                                                🚨 확정 배차 취소 (해당 오더 방출)
+                                            </button>
                                         </div>
                                     )}
 
