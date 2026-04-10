@@ -5,16 +5,23 @@ interface Props {
     onDecision?: (id: string, action: 'KEEP' | 'CANCEL') => void;
 }
 
-import React, { useState, useEffect, useRef } from 'react';
-import seoulDataRaw from './seoulData.json';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import sidoDataRaw from '../../mapData/sidoData.json';
 
-const seoulData = seoulDataRaw as number[][][][];
+const sidoData = sidoDataRaw as any; // GeoJSON FeatureCollection
 
 export default function PinnedRoute({ activeRoute, onDecision }: Props) {
     const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
     const [myLocation, setMyLocation] = useState<{ x: number, y: number } | null>(null);
 
     const canvasRef = useRef<HTMLCanvasElement>(null);
+
+    // 초경량 성능을 위한 퓨어 줌/팬 상태 (React State 대신 Ref 사용으로 60fps 보장)
+    const zoomRef = useRef(1);
+    const panRef = useRef({ x: 0, y: 0 });
+    const isDragging = useRef(false);
+    const lastPos = useRef({ x: 0, y: 0 });
+    const lastDist = useRef(0);
 
     // 내 GPS 위치 추적 (백그라운드 지속 관찰)
     useEffect(() => {
@@ -51,8 +58,8 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
 
 
 
-    // 캔버스 미니맵 렌더링
-    useEffect(() => {
+    // 캔버스 미니맵 렌더링 (단독 함수로 분리하여 제스처 시 즉각 호출)
+    const drawMap = useCallback(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
@@ -75,7 +82,7 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
         const lastValidOrderWithPolyline = [...safeRoute].reverse().find(r => r.routePolyline && r.routePolyline.length > 0);
         const currentPolyline = lastValidOrderWithPolyline?.routePolyline || [];
         const hasPolyline = currentPolyline.length > 0;
-        
+
         console.log(`[Canvas Map] 노드(상/하차지) 갯수: ${validPoints.length}`);
         validPoints.forEach((vp, idx) => {
             console.log(`   - 노드 ${idx + 1} [${vp.type}] ${vp.name} : X=${vp.x}, Y=${vp.y}`);
@@ -87,7 +94,7 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
             const lastPt = currentPolyline[currentPolyline.length - 1];
             console.log(`   - 폴리라인 출발점: X=${firstPt.x}, Y=${firstPt.y}`);
             console.log(`   - 폴리라인 도착점: X=${lastPt.x}, Y=${lastPt.y}`);
-            console.log(`[Canvas Map] 합짐 여부: ${safeRoute.length > 1 ? 'Yes' : 'No'} | 마지막 궤적 오더 ID: ${lastValidOrderWithPolyline?.id?.substring(0,8)}`);
+            console.log(`[Canvas Map] 합짐 여부: ${safeRoute.length > 1 ? 'Yes' : 'No'} | 마지막 궤적 오더 ID: ${lastValidOrderWithPolyline?.id?.substring(0, 8)}`);
         }
 
         // Bounding Box 기준 설정 (노드와 주행 궤적, 내 위치 모두 포함해야 잘림 현상 없음)
@@ -131,39 +138,57 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
         const offsetX = paddingX + (drawWidth - contentWidth) / 2;
         const offsetY = paddingY + (drawHeight - contentHeight) / 2;
 
-        // 카카오 지도(타일) 형식에 맞춰 X는 경도(순방향), Y는 위도(역방향 처리)
+        // 카카오 지도(타일) 형식에 맞춰 X는 경도(순방향), Y는 위도(역방향 처리) + 줌/팬 적용
+        // 도로 등 모든 스케일 객체는 zoomRef.current를 곱해 크기를 증폭/축소시킵니다.
         const getScreenPt = (p: { x: number, y: number }) => ({
-            cx: offsetX + (p.x - minX) * scale,
-            cy: offsetY + (maxY - p.y) * latScaleCorrection * scale
+            cx: (offsetX + (p.x - minX) * scale) * zoomRef.current + panRef.current.x,
+            cy: (offsetY + (maxY - p.y) * latScaleCorrection * scale) * zoomRef.current + panRef.current.y
         });
 
-        // 0. 서울 배경 그리기 (가장 밑바닥 레이어)
-        ctx.fillStyle = 'rgba(100, 116, 139, 0.15)'; // slate-500 반투명 회색
-        ctx.strokeStyle = 'rgba(100, 116, 139, 0.3)'; // 조금 더 진한 테두리
-        ctx.lineWidth = 1;
+        // 0. 시도/배경 그리기 (GeoJSON 연동)
+        if (sidoData.features) {
+            // 시/도 경계를 먼저 그리고, 시군구 경계를 나중에 그리도록 정렬
+            const sortedFeatures = [...sidoData.features].sort((a: any, b: any) => 
+                (a.properties?.isGyeonggiSigungu ? 1 : 0) - (b.properties?.isGyeonggiSigungu ? 1 : 0)
+            );
 
-        seoulData.forEach(polygon => {
-            polygon.forEach(ring => {
-                ctx.beginPath();
-                ring.forEach((pt, i) => {
-                    const mapped = getScreenPt({ x: pt[0], y: pt[1] });
-                    if (i === 0) ctx.moveTo(mapped.cx, mapped.cy);
-                    else ctx.lineTo(mapped.cx, mapped.cy);
+            sortedFeatures.forEach((feature: any) => {
+                const isGyeonggiSigungu = feature.properties?.isGyeonggiSigungu;
+                
+                ctx.fillStyle = 'rgba(100, 116, 139, 0.15)'; // 동일한 반투명 배경색
+                // 경기도 시/군/구는 테두리를 얇고 조금 더 또렷하게, 시도 경계선은 기존 유지
+                ctx.strokeStyle = isGyeonggiSigungu ? 'rgba(100, 116, 139, 0.4)' : 'rgba(100, 116, 139, 0.3)'; 
+                ctx.lineWidth = isGyeonggiSigungu ? 0.5 : 1; 
+                const geom = feature.geometry;
+                if (!geom) return;
+                let polygons: number[][][][] = [];
+                if (geom.type === 'Polygon') polygons = [geom.coordinates];
+                else if (geom.type === 'MultiPolygon') polygons = geom.coordinates;
+
+                polygons.forEach(polygon => {
+                    polygon.forEach(ring => {
+                        ctx.beginPath();
+                        ring.forEach((pt, _i) => {
+                            const mapped = getScreenPt({ x: pt[0], y: pt[1] });
+                            if (_i === 0) ctx.moveTo(mapped.cx, mapped.cy);
+                            else ctx.lineTo(mapped.cx, mapped.cy);
+                        });
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.stroke();
+                    });
                 });
-                ctx.closePath();
-                ctx.fill();
-                ctx.stroke();
             });
-        });
+        }
 
         // 1.5. 기초 연결선 렌더링 (노드들을 잇는 보조 점선 - 폴리라인 유무 무관하게 기반 레이어로 그림)
         ctx.beginPath();
         ctx.strokeStyle = 'rgba(100, 116, 139, 0.4)'; // 매우 연한 회색 점선
         ctx.lineWidth = 2;
         ctx.setLineDash([4, 6]);
-        
+
         let pathStarted = false;
-        
+
         // 내 위치가 존재하면 내 위치에서부터 첫 번째 상차지까지 연결
         if (myLocation) {
             const { cx, cy } = getScreenPt(myLocation);
@@ -171,7 +196,7 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
             pathStarted = true;
         }
 
-        validPoints.forEach((p, i) => {
+        validPoints.forEach((p, _i) => {
             const { cx, cy } = getScreenPt(p);
             if (!pathStarted) {
                 ctx.moveTo(cx, cy);
@@ -187,14 +212,14 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
         if (hasPolyline && validPolyline.length > 0) {
             ctx.beginPath();
             ctx.strokeStyle = '#3b82f6';
-            ctx.lineWidth = 3; // 선을 더 두껍게
-            ctx.lineJoin = 'round'; // 꺾이는 부분 부드럽게
+            ctx.lineWidth = 3 * zoomRef.current; // 선 두께 스케일 반영
+            ctx.lineJoin = 'round';
             ctx.lineCap = 'round';
 
-            validPolyline.forEach((p, i) => {
+            validPolyline.forEach((p, _i) => {
                 const { cx, cy } = getScreenPt(p);
                 // 카카오 노드들의 미세 오차로 인한 끊김 방지
-                if (i === 0) ctx.moveTo(cx, cy);
+                if (_i === 0) ctx.moveTo(cx, cy);
                 else ctx.lineTo(cx, cy);
             });
             ctx.stroke();
@@ -227,9 +252,9 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
             ctx.fillText((i + 1).toString(), cx, cy + 1); // 세로정렬 미세조정
 
             // 라벨 텍스트 배경
-            ctx.font = 'bold 12px sans-serif';
+            // 텍스트 길이 측정 후 반투명 배경 상자 렌더링 (지도 가림 방지)
             const textWidth = ctx.measureText(p.name).width;
-            ctx.fillStyle = 'rgba(15, 20, 35, 0.85)';
+            ctx.fillStyle = 'rgba(15, 20, 35, 0.45)';
             ctx.fillRect(cx - (textWidth / 2) - 6, cy + 14, textWidth + 12, 18);
 
             // 라벨 텍스트
@@ -260,18 +285,96 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
             ctx.fill();
             ctx.stroke();
 
-            // 내 위치 라벨 텍스트
-            ctx.fillStyle = 'rgba(15, 20, 35, 0.8)';
+            // 내 위치 라벨 반투명 배경 상자
+            ctx.fillStyle = 'rgba(15, 20, 35, 0.45)';
             ctx.fillRect(cx - 20, cy + 10, 40, 16);
 
-            ctx.fillStyle = '#38bdf8';
-            ctx.font = 'bold 10px sans-serif';
-            ctx.textBaseline = 'top';
+            ctx.fillStyle = '#e0f2fe';
+            ctx.font = 'bold 11px sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText('내위치', cx, cy + 12);
+            ctx.fillText("현위치", cx, cy + 22);
+        }
+    }, [unifiedRoutePoints, safeRoute, myLocation]);
+
+    // 데이터가 바뀔 때마다 다시 그리기
+    useEffect(() => {
+        drawMap();
+    }, [drawMap]);
+
+    // 제스처 핸들러 (드래그 팬 & 줌)
+    const handlePointerDown = (e: any) => {
+        isDragging.current = true;
+        if (e.touches && e.touches.length === 1) {
+            lastPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        } else if (e.clientX !== undefined) {
+            lastPos.current = { x: e.clientX, y: e.clientY };
+        } else if ('touches' in e && e.touches.length === 2) {
+            // 두 손가락 핀치 줌 초기화
+            const dx = e.touches[0].clientX - e.touches[1].clientX;
+            const dy = e.touches[0].clientY - e.touches[1].clientY;
+            lastDist.current = Math.hypot(dx, dy);
+        }
+    };
+
+    const handlePointerMove = (e: any) => {
+        if (!isDragging.current) return;
+
+        let clientX = 0; let clientY = 0;
+
+        if (e.touches) {
+            if (e.touches.length === 1) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else if (e.touches.length === 2) {
+                // 핀치 줌 로직
+                const dx = e.touches[0].clientX - e.touches[1].clientX;
+                const dy = e.touches[0].clientY - e.touches[1].clientY;
+                const dist = Math.hypot(dx, dy);
+                const scaleDiff = (dist - lastDist.current) * 0.01;
+                zoomRef.current = Math.max(0.5, Math.min(10, zoomRef.current + scaleDiff));
+                lastDist.current = dist;
+                drawMap();
+                return;
+            }
+        } else {
+            clientX = e.clientX;
+            clientY = e.clientY;
         }
 
-    }, [unifiedRoutePoints, safeRoute, myLocation]);
+        if (clientX === 0 && clientY === 0) return;
+
+        const deltaX = clientX - lastPos.current.x;
+        const deltaY = clientY - lastPos.current.y;
+
+        panRef.current.x += deltaX;
+        panRef.current.y += deltaY;
+
+        lastPos.current = { x: clientX, y: clientY };
+        drawMap(); // GPU 가속 없는 직접 Redraw 이지만 3000개 정도는 60fps 통과
+    };
+
+    const handlePointerUp = () => {
+        isDragging.current = false;
+    };
+
+    const handleWheel = (e: any) => {
+        // 기존 pan + 확대 비율에 따른 포인터 위치 가중치 계산 (마우스 포인트 중심 줌 기능)
+        const rect = canvasRef.current?.getBoundingClientRect();
+        if (!rect) return;
+
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        const zoomDelta = e.deltaY > 0 ? 0.9 : 1.1; // 10% 줌인/아웃
+        const newZoom = Math.max(0.5, Math.min(10, zoomRef.current * zoomDelta));
+
+        // 마우스 커서 위치를 중심으로 확대/축소되도록 Pan Offset 보정 로직
+        panRef.current.x = x - (x - panRef.current.x) * (newZoom / zoomRef.current);
+        panRef.current.y = y - (y - panRef.current.y) * (newZoom / zoomRef.current);
+
+        zoomRef.current = newZoom;
+        drawMap();
+    };
 
     if (!safeRoute || safeRoute.length === 0) return null;
 
@@ -285,30 +388,66 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
             {/* 통합 라우팅 타임라인 (상단) */}
             <div id="routing-timeline">
                 {/* 데스크탑에서 다중 경유지가 완벽하게 지원되는 구글맵 링크 */}
-                <a
-                    href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(unifiedRoutePoints[0]?.name || '')}&destination=${encodeURIComponent(unifiedRoutePoints[unifiedRoutePoints.length - 1]?.name || '')}&waypoints=${encodeURIComponent(unifiedRoutePoints.slice(1, -1).map(p => p.name).join('|'))}&travelmode=driving`}
-                    target="_blank"
-                    rel="noopener noreferrer"
 
-                >
-                    <div className="w-full h-40 mb-3 bg-[#0a0d16] rounded-lg relative overflow-hidden border border-slate-700/50 shadow-inner">
-                        <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
+                {/* 캔버스 미니맵 영역 - 직접 제스처 핸들러 연결 */}
+                <div className="relative w-full h-64 bg-slate-100/50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700/50 cursor-grab active:cursor-grabbing overflow-hidden">
+                    <canvas
+                        ref={canvasRef}
+                        className="absolute inset-0 w-full h-full touch-none"
+                        onMouseDown={handlePointerDown}
+                        onMouseMove={handlePointerMove}
+                        onMouseUp={handlePointerUp}
+                        onMouseLeave={handlePointerUp}
+                        onTouchStart={handlePointerDown}
+                        onTouchMove={handlePointerMove}
+                        onTouchEnd={handlePointerUp}
+                        onWheel={handleWheel}
+                    />
+
+                    {/* 줌인/줌아웃 컨트롤 버튼셋 */}
+                    <div className="absolute top-3 right-3 flex flex-col space-y-2 z-10">
+                        <button
+                            onClick={() => { zoomRef.current *= 1.2; drawMap(); }}
+                            className="w-8 h-8 flex items-center justify-center bg-slate-700/80 hover:bg-slate-600 rounded-md shadow-lg text-slate-100 border border-slate-500 backdrop-blur-sm font-black opacity-80 hover:opacity-100 transition-all"
+                        >
+                            +
+                        </button>
+                        <button
+                            onClick={() => { zoomRef.current *= 0.8; drawMap(); }}
+                            className="w-8 h-8 flex items-center justify-center bg-slate-700/80 hover:bg-slate-600 rounded-md shadow-lg text-slate-100 border border-slate-500 backdrop-blur-sm font-black opacity-80 hover:opacity-100 transition-all"
+                        >
+                            -
+                        </button>
+                        <button
+                            onClick={() => { zoomRef.current = 1; panRef.current = { x: 0, y: 0 }; drawMap(); }}
+                            className="w-8 h-8 flex items-center justify-center bg-slate-700/80 hover:bg-slate-600 rounded-md shadow-lg text-slate-100 border border-slate-500 backdrop-blur-sm text-[10px] font-bold opacity-80 hover:opacity-100 transition-all"
+                        >
+                            초기화
+                        </button>
                     </div>
-                </a>
+                </div>
+
+
 
                 {/* 통합 맵 정보 브리핑 (하단에서 맵 바로 아래로 이동됨) */}
                 <div className="flex justify-between items-end mb-4 px-1 pb-4 border-b border-slate-700/50">
-                    <div className="flex flex-col gap-0.5">
-                        <span className="text-xs font-bold text-slate-500 text-left">통합 경로 정보</span>
-                        <span className="text-[13px] font-black text-slate-300">
-                            {(() => {
-                                const lastRoute = [...safeRoute].reverse().find(r => r.totalDistanceKm !== undefined);
-                                if (!lastRoute) return "카카오 연산 대기중...";
-                                return `총 도로 주행거리 ${(lastRoute.totalDistanceKm!).toFixed(1)}km / 예상 소요 ${lastRoute.totalDurationMin}분`;
-                            })()}
-                        </span>
-                    </div>
+                    <a
+                        href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(unifiedRoutePoints[0]?.name || '')}&destination=${encodeURIComponent(unifiedRoutePoints[unifiedRoutePoints.length - 1]?.name || '')}&waypoints=${encodeURIComponent(unifiedRoutePoints.slice(1, -1).map(p => p.name).join('|'))}&travelmode=driving`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
 
+                        <div className="flex flex-col gap-0.5">
+                            <span className="text-xs font-bold text-slate-500 text-left">통합 경로 정보</span>
+                            <span className="text-[13px] font-black text-slate-300">
+                                {(() => {
+                                    const lastRoute = [...safeRoute].reverse().find(r => r.totalDistanceKm !== undefined);
+                                    if (!lastRoute) return "카카오 연산 대기중...";
+                                    return `총 도로 주행거리 ${(lastRoute.totalDistanceKm!).toFixed(1)}km / 예상 소요 ${lastRoute.totalDurationMin}분`;
+                                })()}
+                            </span>
+                        </div>
+                    </a>
                     <div className="flex flex-col items-end gap-0.5">
                         <span className="text-xs font-bold text-slate-500">총 합계 운임</span>
                         <span className={`text-xl md:text-2xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r ${allEvaluating ? 'from-amber-400 to-yellow-200' : 'from-emerald-400 to-cyan-400'}`}>
@@ -368,7 +507,6 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
                     const originalIdx = activeRoute.length - 1 - reversedIdx;
                     const isEvaluating = route.status.includes('evaluating');
                     const isExpanded = isEvaluating || expandedIds.has(route.id);
-                    const roleText = originalIdx === 0 ? "본콜" : "합짐" + originalIdx;
 
                     return (
                         <div key={route.id} className={`flex flex-col bg-[#111522] rounded-xl border border-slate-700/60 relative overflow-hidden transition-all duration-300 shadow-md ${isEvaluating ? 'ring-1 ring-amber-500/50' : 'hover:border-slate-500/50'}`}>
