@@ -14,7 +14,7 @@ import { Router, Response } from "express";
 import type { DispatchConfirmRequest, DispatchConfirmResponse, SecuredOrder } from "@onedal/shared";
 import { calculateSoloRoute, calculateDetourRoute, geocodeAddress } from "./kakaoUtil";
 import { activeFilterConfig, updateActiveFilter } from "../state/filterStore";
-import { parseLocationDetails } from "../utils/parser";
+import { parseLocationDetails, parseMockupFare, parseMockupDistance, parseMockupVehicleType } from "../utils/parser";
 import { getCorridorRegions } from "../services/geoService";
 
 const router = Router();
@@ -235,6 +235,18 @@ router.post("/", async (req, res) => {
         if (securedOrder.rawText) {
             securedOrder.pickupDetails = parseLocationDetails(securedOrder.rawText, "[출발지상세]");
             securedOrder.dropoffDetails = parseLocationDetails(securedOrder.rawText, "[도착지상세]");
+            
+            // [서버사이드 파싱 폴백] 안드로이드 앱에서 요금 파싱에 실패했거나 (수동 배차 테스트 등), 
+            // 거리/차종 정보가 누락된 경우 서버가 직접 원시 텍스트에서 한 번 더 추출(구제)을 시도합니다.
+            if (!securedOrder.fare || securedOrder.fare <= 0) {
+                securedOrder.fare = parseMockupFare(securedOrder.rawText) || 0;
+            }
+            if (!securedOrder.distanceKm) {
+                securedOrder.distanceKm = parseMockupDistance(securedOrder.rawText) || 0;
+            }
+            if (!securedOrder.vehicleType) {
+                securedOrder.vehicleType = parseMockupVehicleType(securedOrder.rawText) || "";
+            }
         }
 
         // ━━━━━━━━━━ [사후 동기화 (Post-Dispatch Sync) 검사] ━━━━━━━━━━
@@ -331,6 +343,7 @@ router.post("/", async (req, res) => {
                 if (!securedOrder.pickupX || !securedOrder.pickupY) {
                     const bestPickupQuery = securedOrder.pickupDetails?.[0]?.addressDetail || securedOrder.pickup;
                     const pCoord = await geocodeAddress(apiKey, bestPickupQuery);
+                    console.log(`🌍 [Geocoding] 상차지 변환 시도: 입력값='${bestPickupQuery}' -> 결과=${pCoord ? `X:${pCoord.x}, Y:${pCoord.y}` : '실패(null)'}`);
                     if (pCoord) {
                         securedOrder.pickupX = pCoord.x;
                         securedOrder.pickupY = pCoord.y;
@@ -339,6 +352,7 @@ router.post("/", async (req, res) => {
                 if (!securedOrder.dropoffX || !securedOrder.dropoffY) {
                     const bestDropoffQuery = securedOrder.dropoffDetails?.[0]?.addressDetail || securedOrder.dropoff;
                     const dCoord = await geocodeAddress(apiKey, bestDropoffQuery);
+                    console.log(`🌍 [Geocoding] 하차지 변환 시도: 입력값='${bestDropoffQuery}' -> 결과=${dCoord ? `X:${dCoord.x}, Y:${dCoord.y}` : '실패(null)'}`);
                     if (dCoord) {
                         securedOrder.dropoffX = dCoord.x;
                         securedOrder.dropoffY = dCoord.y;

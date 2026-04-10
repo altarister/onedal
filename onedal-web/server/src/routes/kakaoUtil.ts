@@ -17,8 +17,11 @@ function extractPolyline(routes?: any[]): Array<{x: number; y: number}> {
         return polyline;
     }
     
-    for (const section of routes[0].sections) {
+    console.log(`🗺️ [extractPolyline] 섹션(구간) 수: ${routes[0].sections.length}`);
+    for (let sIdx = 0; sIdx < routes[0].sections.length; sIdx++) {
+        const section = routes[0].sections[sIdx];
         if (!section.roads) continue;
+        let sectionPoints = 0;
         for (const road of section.roads) {
             if (!road.vertexes) continue;
             // vertexes is [x1, y1, x2, y2, ...] flat array
@@ -27,8 +30,10 @@ function extractPolyline(routes?: any[]): Array<{x: number; y: number}> {
                     x: road.vertexes[i],
                     y: road.vertexes[i+1]
                 });
+                sectionPoints++;
             }
         }
+        console.log(`   - 섹션 ${sIdx + 1} (${section.bound?.min_x || '?'},${section.bound?.min_y || '?'} -> ${section.bound?.max_x || '?'},${section.bound?.max_y || '?'}) 추출 라인 좌표수: ${sectionPoints}`);
     }
     console.log(`🗺️ [extractPolyline] 카카오 폴리라인 궤적 총 ${polyline.length}개의 포인트 추출 성공`);
     return polyline;
@@ -90,11 +95,19 @@ export async function calculateDetourRoute(
     // 2. 합짐(경유) 연산
     const wpQuery = waypoints.map(wp => `${wp.x},${wp.y}`).join('|');
     const mergedUrl = `${KAKAO_API_URL}?origin=${originX},${originY}&destination=${destX},${destY}&waypoints=${wpQuery}&priority=RECOMMEND&car_type=1`;
+    console.log(`\n🚙 [Kakao API Request] 합짐 우회 경로 요청`);
+    console.log(`   - Origin: ${originX},${originY} / Dest: ${destX},${destY}`);
+    console.log(`   - Waypoints: ${wpQuery}`);
+    
     const mergedRes = await fetch(mergedUrl, { headers });
     const mergedData = await mergedRes.json();
+    
     if (!mergedData.routes || mergedData.routes.length === 0) {
-        console.error(`❌ [Kakao API Error (Detour)] 우회 경로 탐색 실패:`, JSON.stringify(mergedData));
+        console.error(`❌ [Kakao API Error (Detour)] 우회 경로 탐색 실패. 응답 코드=${mergedData.msg || '알수없음'}, 상세:`, JSON.stringify(mergedData));
+    } else {
+        console.log(`✅ [Kakao API Response] 폴리라인 길이 예상: (데이터 추출 중)`);
     }
+    
     const mergedSummary = mergedData?.routes?.[0]?.summary;
 
     const baseDuration = baseSummary?.duration || 0;

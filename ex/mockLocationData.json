@@ -1,0 +1,1002 @@
+[
+  {
+    "customerName": "삼성전자 본사",
+    "department": "동문 납품장",
+    "contactName": "한프로",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "경기 수원시",
+    "addressDetail": "경기 수원시 영통구 삼성로 129 삼성전자 디지털시티"
+  },
+  {
+    "customerName": "AK플라자 수원점",
+    "department": "지하 1층 하역장",
+    "contactName": "강사원",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "041-7311-3715",
+    "region": "경기 수원시",
+    "addressDetail": "경기 수원시 팔달구 덕영대로 924 수원역"
+  },
+  {
+    "customerName": "롯데몰 수원점",
+    "department": "관리실",
+    "contactName": "최주임",
+    "mileage": 2,
+    "phone1": "010-2684-8748",
+    "phone2": "031-5563-9768",
+    "region": "경기 수원시",
+    "addressDetail": "경기 수원시 권선구 서둔로 166 롯데몰 수원"
+  },
+  {
+    "customerName": "카카오 판교오피스",
+    "department": "리셉션",
+    "contactName": "신팀장",
+    "mileage": 15,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "경기 성남시",
+    "addressDetail": "경기 성남시 분당구 판교역로 235 에이치스퀘어"
+  },
+  {
+    "customerName": "네이버 본사 1784",
+    "department": "총무팀",
+    "contactName": "한프로",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "경기 성남시",
+    "addressDetail": "경기 성남시 분당구 정자일로 95 네이버 1784"
+  },
+  {
+    "customerName": "AK플라자 분당점",
+    "department": "입고장",
+    "contactName": "*",
+    "mileage": 5,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "경기 성남시",
+    "addressDetail": "경기 성남시 분당구 황새울로 360번길 42 AK플라자"
+  },
+  {
+    "customerName": "현대백화점 판교점",
+    "department": "지하 2층 납품처",
+    "contactName": "윤차장",
+    "mileage": 10,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "경기 성남시",
+    "addressDetail": "경기 성남시 분당구 판교역로 146 현대백화점 판교점"
+  },
+  {
+    "customerName": "삼성전자 평택사업장",
+    "department": "P1 게이트",
+    "contactName": "송소장",
+    "mileage": 10,
+    "phone1": "010-2684-8748",
+    "phone2": "061-9747-4331",
+    "region": "경기 평택시",
+    "addressDetail": "경기 평택시 첨단대로 1 삼성전자 평택캠퍼스"
+  },
+  {
+    "customerName": "평택항 국제여객터미널",
+    "department": "세관검사장",
+    "contactName": "송소장",
+    "mileage": 15,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "경기 평택시",
+    "addressDetail": "경기 평택시 포승읍 평택항로 266"
+  },
+  {
+    "customerName": "한진택배 용인HUB",
+    "department": "허브관리팀",
+    "contactName": "최주임",
+    "mileage": 2,
+    "phone1": "010-2684-8748",
+    "phone2": "024-4337-9795",
+    "region": "경기 용인시",
+    "addressDetail": "경기 용인시 기흥구 흥덕중앙로 55 한진택배"
+  },
+  {
+    "customerName": "신세계백화점 경기점",
+    "department": "지하 하역장",
+    "contactName": "오책임",
+    "mileage": 10,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "경기 용인시",
+    "addressDetail": "경기 용인시 수지구 포은대로 536 신세계백화점 경기점"
+  },
+  {
+    "customerName": "에버랜드 리조트",
+    "department": "식음료 납품창고",
+    "contactName": "강사원",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "경기 용인시",
+    "addressDetail": "경기 용인시 처인구 포곡읍 에버랜드로 199"
+  },
+  {
+    "customerName": "롯데백화점 동탄점",
+    "department": "검수장",
+    "contactName": "홍매니저",
+    "mileage": 10,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "경기 화성시",
+    "addressDetail": "경기 화성시 동탄대로 181 롯데백화점 동탄점"
+  },
+  {
+    "customerName": "삼성전자 H1 게이트",
+    "department": "방문객센터",
+    "contactName": "이대리",
+    "mileage": 15,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "경기 화성시",
+    "addressDetail": "경기 화성시 삼성1로 5 삼성전자 화성캠퍼스"
+  },
+  {
+    "customerName": "*레드캠프",
+    "department": "정실장님",
+    "contactName": "*",
+    "mileage": 15,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "경기 화성시",
+    "addressDetail": "경기 화성시 안녕남로119번길 25"
+  },
+  {
+    "customerName": "쿠팡 광주물류센터",
+    "department": "입고지원팀",
+    "contactName": "송소장",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "경기 광주시",
+    "addressDetail": "경기 광주시 오포로 89"
+  },
+  {
+    "customerName": "광주 신세계백화점",
+    "department": "하역장",
+    "contactName": "고반장",
+    "mileage": 5,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "광주 서구",
+    "addressDetail": "광주 서구 무진대로 904 유스퀘어"
+  },
+  {
+    "customerName": "롯데백화점 본점",
+    "department": "물류검수장",
+    "contactName": "한프로",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "서울 중구",
+    "addressDetail": "서울 중구 남대문로 81 롯데백화점 본점"
+  },
+  {
+    "customerName": "웨스틴조선호텔",
+    "department": "시설팀",
+    "contactName": "정실장님",
+    "mileage": 10,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "서울 중구",
+    "addressDetail": "서울 중구 소공로 106 웨스틴조선호텔"
+  },
+  {
+    "customerName": "서울특별시청",
+    "department": "총무과",
+    "contactName": "*",
+    "mileage": 10,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "서울 중구",
+    "addressDetail": "서울 중구 세종대로 110 서울특별시청"
+  },
+  {
+    "customerName": "낙원상가",
+    "department": "관리사무소",
+    "contactName": "김철수과장",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "서울 종로구",
+    "addressDetail": "서울 종로구 삼일대로 428 낙원상가"
+  },
+  {
+    "customerName": "교보문고 광화문점",
+    "department": "입고처",
+    "contactName": "김철수과장",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "051-1338-7314",
+    "region": "서울 종로구",
+    "addressDetail": "서울 종로구 종로 1 교보생명빌딩"
+  },
+  {
+    "customerName": "코레일 서울역",
+    "department": "역무실",
+    "contactName": "윤차장",
+    "mileage": 10,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "서울 용산구",
+    "addressDetail": "서울 용산구 한강대로 405 서울역"
+  },
+  {
+    "customerName": "용산 아이파크몰",
+    "department": "입고장",
+    "contactName": "박부장",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "044-7766-2117",
+    "region": "서울 용산구",
+    "addressDetail": "서울 용산구 한강대로23길 55 아이파크몰"
+  },
+  {
+    "customerName": "엔터식스 한양대점",
+    "department": "물류팀",
+    "contactName": "신팀장",
+    "mileage": 2,
+    "phone1": "010-2684-8748",
+    "phone2": "044-4486-1801",
+    "region": "서울 성동구",
+    "addressDetail": "서울 성동구 왕십리로 241 엔터식스 한양대점"
+  },
+  {
+    "customerName": "커먼그라운드",
+    "department": "관리팀",
+    "contactName": "김철수과장",
+    "mileage": 2,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "서울 광진구",
+    "addressDetail": "서울 광진구 아차산로 200 커먼그라운드"
+  },
+  {
+    "customerName": "강변테크노마트",
+    "department": "방재실",
+    "contactName": "최주임",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "서울 광진구",
+    "addressDetail": "서울 광진구 광나루로56길 85 강변테크노마트"
+  },
+  {
+    "customerName": "경희대학교",
+    "department": "본관 행정실",
+    "contactName": "홍매니저",
+    "mileage": 5,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "서울 동대문구",
+    "addressDetail": "서울 동대문구 경희대로 26 경희대학교"
+  },
+  {
+    "customerName": "엔터식스 상봉점",
+    "department": "보안실",
+    "contactName": "신팀장",
+    "mileage": 2,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "서울 중랑구",
+    "addressDetail": "서울 중랑구 망우로 353 이노시티"
+  },
+  {
+    "customerName": "고려대학교",
+    "department": "총무팀",
+    "contactName": "*",
+    "mileage": 2,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "서울 성북구",
+    "addressDetail": "서울 성북구 안암로 145 고려대학교"
+  },
+  {
+    "customerName": "롯데백화점 미아점",
+    "department": "수선실",
+    "contactName": "윤차장",
+    "mileage": 5,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "서울 강북구",
+    "addressDetail": "서울 강북구 도봉로 62 롯데백화점 미아점"
+  },
+  {
+    "customerName": "이마트 창동점",
+    "department": "지원팀",
+    "contactName": "송소장",
+    "mileage": 10,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "서울 도봉구",
+    "addressDetail": "서울 도봉구 마들로11길 74 이마트 창동점"
+  },
+  {
+    "customerName": "롯데백화점 노원점",
+    "department": "물류장",
+    "contactName": "송소장",
+    "mileage": 2,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "서울 노원구",
+    "addressDetail": "서울 노원구 동일로 1414 롯데백화점 노원점"
+  },
+  {
+    "customerName": "은평성모병원",
+    "department": "의료물류팀",
+    "contactName": "정실장님",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "서울 은평구",
+    "addressDetail": "서울 은평구 진관3로 15-27 은평뉴타운"
+  },
+  {
+    "customerName": "연세대학교 세브란스병원",
+    "department": "납품처",
+    "contactName": "한프로",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "서울 서대문구",
+    "addressDetail": "서울 서대문구 연세로 50 연세대학교"
+  },
+  {
+    "customerName": "마포구 홈플러스",
+    "department": "지하 하역장",
+    "contactName": "신팀장",
+    "mileage": 5,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "서울 마포구",
+    "addressDetail": "서울 마포구 월드컵로 240 월드컵경기장"
+  },
+  {
+    "customerName": "KGIT센터",
+    "department": "관리단",
+    "contactName": "서대리",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "서울 마포구",
+    "addressDetail": "서울 마포구 상암동 1601 KGIT센터"
+  },
+  {
+    "customerName": "상암 MBC 방송국",
+    "department": "소품실",
+    "contactName": "박부장",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "서울 마포구",
+    "addressDetail": "서울 마포구 성암로 267 MBC"
+  },
+  {
+    "customerName": "현대백화점 목동점",
+    "department": "물류센터",
+    "contactName": "한프로",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "서울 양천구",
+    "addressDetail": "서울 양천구 목동동로 257 현대백화점 목동점"
+  },
+  {
+    "customerName": "김포공항 국내선",
+    "department": "화물터미널",
+    "contactName": "신팀장",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "서울 강서구",
+    "addressDetail": "서울 강서구 하늘길 38 김포국제공항"
+  },
+  {
+    "customerName": "LG사이언스파크",
+    "department": "통합보안실",
+    "contactName": "강사원",
+    "mileage": 15,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "서울 강서구",
+    "addressDetail": "서울 강서구 마곡동 766-1"
+  },
+  {
+    "customerName": "현대백화점 디큐브시티",
+    "department": "지하 1층 납품장",
+    "contactName": "홍매니저",
+    "mileage": 10,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "서울 구로구",
+    "addressDetail": "서울 구로구 경인로 662 디큐브시티"
+  },
+  {
+    "customerName": "마리오아울렛 3관",
+    "department": "물류창고",
+    "contactName": "송소장",
+    "mileage": 15,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "서울 금천구",
+    "addressDetail": "서울 금천구 벚꽃로 278 SJ테크노빌"
+  },
+  {
+    "customerName": "더현대 서울",
+    "department": "B3 하역장",
+    "contactName": "박부장",
+    "mileage": 5,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "서울 영등포구",
+    "addressDetail": "서울 영등포구 여의대로 108 더현대 서울"
+  },
+  {
+    "customerName": "KBS 본관",
+    "department": "제작팀",
+    "contactName": "최주임",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "서울 영등포구",
+    "addressDetail": "서울 영등포구 여의공원로 13 KBS"
+  },
+  {
+    "customerName": "영등포 타임스퀘어",
+    "department": "보안실",
+    "contactName": "윤차장",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "062-7182-5180",
+    "region": "서울 영등포구",
+    "addressDetail": "서울 영등포구 영중로 15 타임스퀘어"
+  },
+  {
+    "customerName": "노량진 수산시장",
+    "department": "경매장",
+    "contactName": "서대리",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "052-4689-6210",
+    "region": "서울 동작구",
+    "addressDetail": "서울 동작구 노들로 674 노량진수산시장"
+  },
+  {
+    "customerName": "서울대학교 본관",
+    "department": "행정처",
+    "contactName": "박부장",
+    "mileage": 10,
+    "phone1": "010-2684-8748",
+    "phone2": "064-2885-1790",
+    "region": "서울 관악구",
+    "addressDetail": "서울 관악구 관악로 1 서울대학교"
+  },
+  {
+    "customerName": "고속터미널 센트럴시티",
+    "department": "화물보관소",
+    "contactName": "*",
+    "mileage": 5,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "서울 서초구",
+    "addressDetail": "서울 서초구 반포지하상가"
+  },
+  {
+    "customerName": "신세계백화점 강남점",
+    "department": "하역장",
+    "contactName": "한프로",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "서울 서초구",
+    "addressDetail": "서울 서초구 신반포로 176 신세계백화점"
+  },
+  {
+    "customerName": "코엑스 전시장",
+    "department": "A홀 하역장",
+    "contactName": "정실장님",
+    "mileage": 10,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "서울 강남구",
+    "addressDetail": "서울 강남구 영동대로 513 코엑스"
+  },
+  {
+    "customerName": "구글코리아",
+    "department": "리셉션",
+    "contactName": "신팀장",
+    "mileage": 2,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "서울 강남구",
+    "addressDetail": "서울 강남구 테헤란로 152 강남파이낸스센터"
+  },
+  {
+    "customerName": "조선팰리스 호텔",
+    "department": "B4 하역장",
+    "contactName": "강사원",
+    "mileage": 15,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "서울 강남구",
+    "addressDetail": "서울 강남구 테헤란로 231 센터필드"
+  },
+  {
+    "customerName": "강남역 지하상가",
+    "department": "관리사무소",
+    "contactName": "정실장님",
+    "mileage": 5,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "서울 강남구",
+    "addressDetail": "서울 강남구 강남대로 396 강남역"
+  },
+  {
+    "customerName": "롯데월드타워",
+    "department": "지하물류센터",
+    "contactName": "정실장님",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "서울 송파구",
+    "addressDetail": "서울 송파구 올림픽로 300 롯데월드타워"
+  },
+  {
+    "customerName": "롯데월드 어드벤처",
+    "department": "식재료 납품처",
+    "contactName": "홍매니저",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "044-1505-6745",
+    "region": "서울 송파구",
+    "addressDetail": "서울 송파구 올림픽로 240 롯데월드"
+  },
+  {
+    "customerName": "가든파이브 라이프",
+    "department": "물류팀",
+    "contactName": "한프로",
+    "mileage": 2,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "서울 송파구",
+    "addressDetail": "서울 송파구 충민로 66 가든파이브"
+  },
+  {
+    "customerName": "가락농수산물시장",
+    "department": "청과청동",
+    "contactName": "*",
+    "mileage": 10,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "서울 송파구",
+    "addressDetail": "서울 송파구 양재대로 932 가락시장"
+  },
+  {
+    "customerName": "중앙보훈병원",
+    "department": "약제부 납품",
+    "contactName": "최주임",
+    "mileage": 15,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "서울 강동구",
+    "addressDetail": "서울 강동구 동남로 892 중앙보훈병원"
+  },
+  {
+    "customerName": "웨스턴돔",
+    "department": "관리단",
+    "contactName": "오책임",
+    "mileage": 10,
+    "phone1": "010-2684-8748",
+    "phone2": "064-1603-3668",
+    "region": "경기 고양시",
+    "addressDetail": "경기 고양시 일산동구 정발산로 24 웨스턴돔"
+  },
+  {
+    "customerName": "스타필드 고양",
+    "department": "물류지원팀",
+    "contactName": "신팀장",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "경기 고양시",
+    "addressDetail": "경기 고양시 덕양구 고양대로 1955 스타필드 고양"
+  },
+  {
+    "customerName": "킨텍스 제1전시장",
+    "department": "운영사무실",
+    "contactName": "강사원",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "032-6888-3392",
+    "region": "경기 고양시",
+    "addressDetail": "경기 고양시 일산서구 킨텍스로 217-60 킨텍스"
+  },
+  {
+    "customerName": "현대백화점 중동점",
+    "department": "하역장",
+    "contactName": "오책임",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "경기 부천시",
+    "addressDetail": "경기 부천시 길주로 300 현대백화점 중동점"
+  },
+  {
+    "customerName": "투나 쇼핑몰",
+    "department": "시설팀",
+    "contactName": "최주임",
+    "mileage": 2,
+    "phone1": "010-2684-8748",
+    "phone2": "043-7430-8175",
+    "region": "경기 부천시",
+    "addressDetail": "경기 부천시 부일로 232 송내역"
+  },
+  {
+    "customerName": "이케아 광명점",
+    "department": "상품수령처",
+    "contactName": "한프로",
+    "mileage": 5,
+    "phone1": "010-2684-8748",
+    "phone2": "062-6918-9098",
+    "region": "경기 광명시",
+    "addressDetail": "경기 광명시 일직로 17 이케아 광명점"
+  },
+  {
+    "customerName": "KTX 광명역",
+    "department": "역무실",
+    "contactName": "신팀장",
+    "mileage": 15,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "경기 광명시",
+    "addressDetail": "경기 광명시 광명역로 21 광명역"
+  },
+  {
+    "customerName": "안양우편집중국",
+    "department": "소포분류장",
+    "contactName": "송소장",
+    "mileage": 2,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "경기 안양시",
+    "addressDetail": "경기 안양시 만안구 전파로 44 안양우편집중국"
+  },
+  {
+    "customerName": "롯데백화점 평촌점",
+    "department": "물류관리",
+    "contactName": "송소장",
+    "mileage": 15,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "경기 안양시",
+    "addressDetail": "경기 안양시 동안구 시민대로 160 롯데백화점 평촌점"
+  },
+  {
+    "customerName": "NC백화점 안산고잔점",
+    "department": "수선실",
+    "contactName": "고반장",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "064-7015-2930",
+    "region": "경기 안산시",
+    "addressDetail": "경기 안산시 단원구 광덕대로 193 NC백화점 고잔점"
+  },
+  {
+    "customerName": "홈플러스 안산상록점",
+    "department": "지원팀",
+    "contactName": "오책임",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "경기 안산시",
+    "addressDetail": "경기 안산시 상록구 충장로 427 홈플러스 안산점"
+  },
+  {
+    "customerName": "시흥 프리미엄아울렛",
+    "department": "상품팀",
+    "contactName": "박부장",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "경기 시흥시",
+    "addressDetail": "경기 시흥시 서해안로 699 신세계프리미엄아울렛"
+  },
+  {
+    "customerName": "CJ대한통운 군포HUB",
+    "department": "물류팀",
+    "contactName": "이대리",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "경기 군포시",
+    "addressDetail": "경기 군포시 번영로 82 군포복합물류터미널"
+  },
+  {
+    "customerName": "현대글로비스 의왕센터",
+    "department": "부품센터",
+    "contactName": "윤차장",
+    "mileage": 5,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "경기 의왕시",
+    "addressDetail": "경기 의왕시 철도박물관로 142 철도박물관"
+  },
+  {
+    "customerName": "스타필드 하남",
+    "department": "신라호텔 베이커리 납품",
+    "contactName": "이대리",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "경기 하남시",
+    "addressDetail": "경기 하남시 미사대로 750 스타필드 하남"
+  },
+  {
+    "customerName": "과천 국립과천과학관",
+    "department": "전시팀",
+    "contactName": "김철수과장",
+    "mileage": 10,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "경기 과천시",
+    "addressDetail": "경기 과천시 대공원광장로 102 서울대공원"
+  },
+  {
+    "customerName": "정부과천청사",
+    "department": "안내데스크",
+    "contactName": "홍매니저",
+    "mileage": 15,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "경기 과천시",
+    "addressDetail": "경기 과천시 관문로 47 정부과천청사"
+  },
+  {
+    "customerName": "현대아울렛 스페이스원",
+    "department": "납품장",
+    "contactName": "윤차장",
+    "mileage": 2,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "경기 남양주시",
+    "addressDetail": "경기 남양주시 다산순환로 50 현대프리미엄아울렛"
+  },
+  {
+    "customerName": "신세계아울렛 파주점",
+    "department": "안내센터",
+    "contactName": "오책임",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "경기 파주시",
+    "addressDetail": "경기 파주시 탄현면 필승로 200 파주프리미엄아울렛"
+  },
+  {
+    "customerName": "아름다운가게 파주출판도시",
+    "department": "보관창고",
+    "contactName": "이대리",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "042-1211-3285",
+    "region": "경기 파주시",
+    "addressDetail": "경기 파주시 문발로 211 파주출판단지"
+  },
+  {
+    "customerName": "파주 롯데프리미엄아울렛",
+    "department": "B블럭 하역장",
+    "contactName": "서대리",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "053-7059-8661",
+    "region": "경기 파주시",
+    "addressDetail": "경기 파주시 회동길 330"
+  },
+  {
+    "customerName": "이천 롯데프리미엄아울렛",
+    "department": "백자동 납품단",
+    "contactName": "강사원",
+    "mileage": 10,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "경기 이천시",
+    "addressDetail": "경기 이천시 마장면 프리미엄아울렛로 177-74"
+  },
+  {
+    "customerName": "SK하이닉스 본사",
+    "department": "물품수발실",
+    "contactName": "정실장님",
+    "mileage": 5,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "경기 이천시",
+    "addressDetail": "경기 이천시 부발읍 경충대로 2091 SK하이닉스"
+  },
+  {
+    "customerName": "현대프리미엄아울렛 김포점",
+    "department": "신관 하역장",
+    "contactName": "서대리",
+    "mileage": 5,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "경기 김포시",
+    "addressDetail": "경기 김포시 고촌읍 아라육로152번길 100"
+  },
+  {
+    "customerName": "롯데백화점 구리점",
+    "department": "물류센터",
+    "contactName": "신팀장",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "031-3872-5321",
+    "region": "경기 구리시",
+    "addressDetail": "경기 구리시 구리역공원길 15"
+  },
+  {
+    "customerName": "인천공항 제1터미널",
+    "department": "화물청사",
+    "contactName": "서대리",
+    "mileage": 5,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "인천 중구",
+    "addressDetail": "인천 중구 공항로 272 인천국제공항"
+  },
+  {
+    "customerName": "인천항 연안여객터미널",
+    "department": "물류창고",
+    "contactName": "정실장님",
+    "mileage": 2,
+    "phone1": "010-2684-8748",
+    "phone2": "043-3537-1173",
+    "region": "인천 중구",
+    "addressDetail": "인천 중구 신포로27번길 63 신포국제시장"
+  },
+  {
+    "customerName": "부평역 지하상가",
+    "department": "관리팀",
+    "contactName": "서대리",
+    "mileage": 2,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "인천 부평구",
+    "addressDetail": "인천 부평구 부평문화로 35 부평역"
+  },
+  {
+    "customerName": "롯데백화점 인천점",
+    "department": "지하 2층",
+    "contactName": "오책임",
+    "mileage": 2,
+    "phone1": "010-2684-8748",
+    "phone2": "051-1468-2453",
+    "region": "인천 미추홀구",
+    "addressDetail": "인천 미추홀구 연남로 35 신세계백화점 인천점"
+  },
+  {
+    "customerName": "송도 현대아울렛",
+    "department": "B1 하역장",
+    "contactName": "고반장",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "인천 연수구",
+    "addressDetail": "인천 연수구 송도국제대로 123 현대프리미엄아울렛 송도점"
+  },
+  {
+    "customerName": "CJ대한통운 인천HUB",
+    "department": "배송지원센터",
+    "contactName": "서대리",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "034-3384-7759",
+    "region": "인천 서구",
+    "addressDetail": "인천 서구 봉수대로 966"
+  },
+  {
+    "customerName": "인천 남동공단 물류센터",
+    "department": "공단관리처",
+    "contactName": "박부장",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "인천 남동구",
+    "addressDetail": "인천 남동구 인하로 484 뉴코아아울렛 인천점"
+  },
+  {
+    "customerName": "대전 신세계 Art&Science",
+    "department": "지하 3층 납품장",
+    "contactName": "서대리",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "032-8455-6495",
+    "region": "대전 유성구",
+    "addressDetail": "대전 유성구 엑스포로 1 대전신세계"
+  },
+  {
+    "customerName": "갤러리아 타임월드",
+    "department": "검품장",
+    "contactName": "윤차장",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "061-1593-7701",
+    "region": "대전 서구",
+    "addressDetail": "대전 서구 대덕대로 211 갤러리아 타임월드"
+  },
+  {
+    "customerName": "대구 신세계백화점",
+    "department": "지하물류장",
+    "contactName": "김철수과장",
+    "mileage": 10,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "대구 동구",
+    "addressDetail": "대구 동구 동부로 149 신세계백화점 대구점"
+  },
+  {
+    "customerName": "더현대 대구",
+    "department": "식품관 납품",
+    "contactName": "오책임",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "대구 중구",
+    "addressDetail": "대구 중구 달구벌대로 2077 더현대 대구"
+  },
+  {
+    "customerName": "신세계백화점 센텀시티",
+    "department": "B4 하역장",
+    "contactName": "한프로",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "부산 해운대구",
+    "addressDetail": "부산 해운대구 센텀남대로 35 신세계백화점 센텀시티점"
+  },
+  {
+    "customerName": "롯데백화점 부산본점",
+    "department": "관리부",
+    "contactName": "오책임",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "부산 부산진구",
+    "addressDetail": "부산 부산진구 가야대로 772 롯데백화점 부산본점"
+  },
+  {
+    "customerName": "현대백화점 울산점",
+    "department": "물류검수장",
+    "contactName": "*",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "062-1939-4724",
+    "region": "울산 남구",
+    "addressDetail": "울산 남구 삼산로 288 현대백화점 울산점"
+  },
+  {
+    "customerName": "제주 드림타워",
+    "department": "납품관리실",
+    "contactName": "김철수과장",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "제주 제주시",
+    "addressDetail": "제주 제주시 노연로 12 그랜드하얏트 제주"
+  },
+  {
+    "customerName": "제주 신라호텔",
+    "department": "연회부",
+    "contactName": "정실장님",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "021-1321-9303",
+    "region": "제주 서귀포시",
+    "addressDetail": "제주 서귀포시 중문관광로72번길 75 신라호텔"
+  }
+]

@@ -16,21 +16,19 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
 
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
-    // 10초 주기로 내 GPS 위치 추적 (백그라운드 폴링)
+    // 내 GPS 위치 추적 (백그라운드 지속 관찰)
     useEffect(() => {
         if (!navigator.geolocation) return;
 
-        const updateLocation = () => {
-            navigator.geolocation.getCurrentPosition(
-                (pos) => setMyLocation({ x: pos.coords.longitude, y: pos.coords.latitude }),
-                (err) => console.warn("GPS 추적 실패:", err),
-                { enableHighAccuracy: false, maximumAge: 10000, timeout: 5000 }
-            );
-        };
+        // 모바일 웹뷰(WebView) 특성상 최초 GPS 락을 잡는 데 오래 걸릴 수 있으므로 
+        // timeout을 30초(30000ms)로 넉넉하게 잡고, getCurrentPosition 대신 watchPosition 사용
+        const watchId = navigator.geolocation.watchPosition(
+            (pos) => setMyLocation({ x: pos.coords.longitude, y: pos.coords.latitude }),
+            (err) => console.warn("GPS 추적 실패:", err),
+            { enableHighAccuracy: false, maximumAge: 10000, timeout: 30000 }
+        );
 
-        updateLocation(); // 첫 렌더링 즉시 가져오기
-        const interval = setInterval(updateLocation, 10000); // 10초마다 갱신
-        return () => clearInterval(interval);
+        return () => navigator.geolocation.clearWatch(watchId);
     }, []);
 
     const safeRoute = activeRoute || [];
@@ -77,9 +75,24 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
         const lastValidOrderWithPolyline = [...safeRoute].reverse().find(r => r.routePolyline && r.routePolyline.length > 0);
         const currentPolyline = lastValidOrderWithPolyline?.routePolyline || [];
         const hasPolyline = currentPolyline.length > 0;
+        
+        console.log(`[Canvas Map] 노드(상/하차지) 갯수: ${validPoints.length}`);
+        validPoints.forEach((vp, idx) => {
+            console.log(`   - 노드 ${idx + 1} [${vp.type}] ${vp.name} : X=${vp.x}, Y=${vp.y}`);
+        });
+
+        console.log(`[Canvas Map] 적용된 폴리라인(도로궤적) 갯수: ${currentPolyline.length}`);
+        if (currentPolyline.length > 0) {
+            const firstPt = currentPolyline[0];
+            const lastPt = currentPolyline[currentPolyline.length - 1];
+            console.log(`   - 폴리라인 출발점: X=${firstPt.x}, Y=${firstPt.y}`);
+            console.log(`   - 폴리라인 도착점: X=${lastPt.x}, Y=${lastPt.y}`);
+            console.log(`[Canvas Map] 합짐 여부: ${safeRoute.length > 1 ? 'Yes' : 'No'} | 마지막 궤적 오더 ID: ${lastValidOrderWithPolyline?.id?.substring(0,8)}`);
+        }
 
         // Bounding Box 기준 설정 (노드와 주행 궤적, 내 위치 모두 포함해야 잘림 현상 없음)
-        const allCoords = [...validPoints, ...currentPolyline];
+        const validPolyline = currentPolyline.filter(p => typeof p.x === 'number' && typeof p.y === 'number' && !isNaN(p.x) && !isNaN(p.y));
+        const allCoords = [...validPoints, ...validPolyline];
         if (myLocation) allCoords.push(myLocation);
 
         if (allCoords.length < 2) {
@@ -143,27 +156,48 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
             });
         });
 
-        // 1. 연결선 렌더링 (폴리라인이 있으면 그걸 그리고, 없으면 점들을 직선으로 이음)
+        // 1.5. 기초 연결선 렌더링 (노드들을 잇는 보조 점선 - 폴리라인 유무 무관하게 기반 레이어로 그림)
         ctx.beginPath();
-        ctx.strokeStyle = '#3b82f6';
-        ctx.lineWidth = 2; // 폴리라인은 선을 좀 더 얇고 선명하게
+        ctx.strokeStyle = 'rgba(100, 116, 139, 0.4)'; // 매우 연한 회색 점선
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 6]);
+        
+        let pathStarted = false;
+        
+        // 내 위치가 존재하면 내 위치에서부터 첫 번째 상차지까지 연결
+        if (myLocation) {
+            const { cx, cy } = getScreenPt(myLocation);
+            ctx.moveTo(cx, cy);
+            pathStarted = true;
+        }
 
-        if (hasPolyline) {
-            currentPolyline.forEach((p, i) => {
+        validPoints.forEach((p, i) => {
+            const { cx, cy } = getScreenPt(p);
+            if (!pathStarted) {
+                ctx.moveTo(cx, cy);
+                pathStarted = true;
+            } else {
+                ctx.lineTo(cx, cy);
+            }
+        });
+        ctx.stroke();
+        ctx.setLineDash([]); // 원래대로 점선 해제
+
+        // 1. 카카오 실제 도로 궤적(폴리라인) 렌더링
+        if (hasPolyline && validPolyline.length > 0) {
+            ctx.beginPath();
+            ctx.strokeStyle = '#3b82f6';
+            ctx.lineWidth = 3; // 선을 더 두껍게
+            ctx.lineJoin = 'round'; // 꺾이는 부분 부드럽게
+            ctx.lineCap = 'round';
+
+            validPolyline.forEach((p, i) => {
                 const { cx, cy } = getScreenPt(p);
+                // 카카오 노드들의 미세 오차로 인한 끊김 방지
                 if (i === 0) ctx.moveTo(cx, cy);
                 else ctx.lineTo(cx, cy);
             });
             ctx.stroke();
-        } else {
-            ctx.setLineDash([5, 5]);
-            validPoints.forEach((p, i) => {
-                const { cx, cy } = getScreenPt(p);
-                if (i === 0) ctx.moveTo(cx, cy);
-                else ctx.lineTo(cx, cy);
-            });
-            ctx.stroke();
-            ctx.setLineDash([]);
         }
 
         // 2. 노드 렌더링
@@ -257,10 +291,34 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
                     rel="noopener noreferrer"
 
                 >
-                    <div className="w-full h-40 mb-4 bg-[#0a0d16] rounded-lg relative overflow-hidden border border-slate-700/50 shadow-inner">
+                    <div className="w-full h-40 mb-3 bg-[#0a0d16] rounded-lg relative overflow-hidden border border-slate-700/50 shadow-inner">
                         <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
                     </div>
                 </a>
+
+                {/* 통합 맵 정보 브리핑 (하단에서 맵 바로 아래로 이동됨) */}
+                <div className="flex justify-between items-end mb-4 px-1 pb-4 border-b border-slate-700/50">
+                    <div className="flex flex-col gap-0.5">
+                        <span className="text-xs font-bold text-slate-500 text-left">통합 경로 정보</span>
+                        <span className="text-[13px] font-black text-slate-300">
+                            {(() => {
+                                const lastRoute = [...safeRoute].reverse().find(r => r.totalDistanceKm !== undefined);
+                                if (!lastRoute) return "카카오 연산 대기중...";
+                                return `총 도로 주행거리 ${(lastRoute.totalDistanceKm!).toFixed(1)}km / 예상 소요 ${lastRoute.totalDurationMin}분`;
+                            })()}
+                        </span>
+                    </div>
+
+                    <div className="flex flex-col items-end gap-0.5">
+                        <span className="text-xs font-bold text-slate-500">총 합계 운임</span>
+                        <span className={`text-xl md:text-2xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r ${allEvaluating ? 'from-amber-400 to-yellow-200' : 'from-emerald-400 to-cyan-400'}`}>
+                            {(() => {
+                                const total = activeRoute.reduce((sum, o) => sum + (o.fare || 0), 0);
+                                return total > 0 ? `${total.toLocaleString()} 원` : '미상 (테스트콜)';
+                            })()}
+                        </span>
+                    </div>
+                </div>
                 {/* <div className="flex items-start min-w-max">
                     {unifiedRoutePoints.map((point, idx) => (
                         <React.Fragment key={idx}>
@@ -331,8 +389,8 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
                                     <span className={`${isEvaluating ? 'text-amber-400' : 'text-rose-400'} flex-shrink-0`}>
                                         {activeRoute.length + (activeRoute.length - 1 - originalIdx) + 1}. {route.dropoff.split(' ')[1] || route.dropoff}
                                     </span>
-                                    <span className="ml-3 text-slate-400 font-medium text-[11px] truncate mt-0.5 flex items-center gap-1.5">
-                                        <span>금액 {(route.fare / 10000).toFixed(1)}만</span>
+                                    <span className="ml-3 text-slate-400 font-medium text-[11px] truncate mt-0.5 flex items-center gap-1.5 flex-[2]">
+                                        <span>{route.fare > 0 ? `금액 ${(route.fare / 10000).toFixed(1)}만` : '금액미상'}</span>
                                         <span className="text-slate-600">,</span>
                                         <span>{route.status.includes('evaluating') ? '계산중' : route.distanceKm ? `${route.distanceKm}Km` : '거리미상'}</span>
                                         <span className="text-slate-600">,</span>
@@ -453,26 +511,7 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
                 })}
             </div>
 
-            <div className="flex justify-between items-end mt-4 pt-4 border-t border-slate-700/50">
-                <div className="flex flex-col gap-1">
-                    <span className="text-xs font-bold text-slate-500 text-left">통합 경로 정보</span>
-                    <span className="text-[12px] font-black text-slate-300">
-                        {(() => {
-                            // 합짐 판정이 끝난 최신 오더 (totalDistanceKm가 들어있는 녀석)
-                            const lastRoute = [...safeRoute].reverse().find(r => r.totalDistanceKm !== undefined);
-                            if (!lastRoute) return "카카오 모빌리티 연산 대기중...";
-                            return `총 도로 주행거리 ${(lastRoute.totalDistanceKm!).toFixed(1)}km / 예상 소요 ${lastRoute.totalDurationMin}분`;
-                        })()}
-                    </span>
-                </div>
-
-                <div className="flex flex-col items-end gap-1">
-                    <span className="text-xs font-bold text-slate-500">총 합계 운임</span>
-                    <span className={`text-2xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r ${allEvaluating ? 'from-amber-400 to-yellow-200' : 'from-emerald-400 to-cyan-400'}`}>
-                        {(activeRoute.reduce((sum, o) => sum + o.fare, 0)).toLocaleString()} <span className="text-sm">원</span>
-                    </span>
-                </div>
-            </div>
+            {/* 하단 통합 정보 바는 상단(맵 아래)으로 이동되었습니다. */}
 
         </section>
     );
