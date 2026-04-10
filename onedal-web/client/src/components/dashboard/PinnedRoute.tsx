@@ -7,12 +7,28 @@ interface Props {
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import sidoDataRaw from '../../mapData/sidoData.json';
+import { socket } from '../../lib/socket';
 
 const sidoData = sidoDataRaw as any; // GeoJSON FeatureCollection
 
+function getDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
+    const R = 6371; // km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+}
+
 export default function PinnedRoute({ activeRoute, onDecision }: Props) {
     const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-    const [myLocation, setMyLocation] = useState<{ x: number, y: number } | null>(null);
+    
+    // [개발/테스트용 목업 GPS] 
+    // 브라우저에서 GPS 락이 늦게 잡히는 문제를 방지하고, 서버로 현위치를 보내 반경 필터를 테스트하기 위한 가짜 현위치입니다.
+    // ※ 실제 라이브 배포 전에는 초기값을 null로 돌려주세요.
+    const [myLocation, setMyLocation] = useState<{ x: number, y: number } | null>({ x: 127.29441569159479, y: 37.376544054495625 });
 
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -28,15 +44,25 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
         if (!navigator.geolocation) return;
 
         // 모바일 웹뷰(WebView) 특성상 최초 GPS 락을 잡는 데 오래 걸릴 수 있으므로 
-        // timeout을 30초(30000ms)로 넉넉하게 잡고, getCurrentPosition 대신 watchPosition 사용
         const watchId = navigator.geolocation.watchPosition(
-            (pos) => setMyLocation({ x: pos.coords.longitude, y: pos.coords.latitude }),
+            (pos) => {
+                const newLoc = { x: pos.coords.longitude, y: pos.coords.latitude };
+                console.log("[GPS] 현위치 갱신됨:", newLoc);
+                setMyLocation(newLoc);
+            },
             (err) => console.warn("GPS 추적 실패:", err),
             { enableHighAccuracy: false, maximumAge: 10000, timeout: 30000 }
         );
 
         return () => navigator.geolocation.clearWatch(watchId);
     }, []);
+
+    // 서버로 현위치 동기화
+    useEffect(() => {
+        if (myLocation) {
+            socket.emit("update-my-location", myLocation);
+        }
+    }, [myLocation]);
 
     const safeRoute = activeRoute || [];
     const allEvaluating = safeRoute.some(r => r.status === 'evaluating_basic' || r.status === 'evaluating_detailed');
@@ -83,19 +109,19 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
         const currentPolyline = lastValidOrderWithPolyline?.routePolyline || [];
         const hasPolyline = currentPolyline.length > 0;
 
-        console.log(`[Canvas Map] 노드(상/하차지) 갯수: ${validPoints.length}`);
-        validPoints.forEach((vp, idx) => {
-            console.log(`   - 노드 ${idx + 1} [${vp.type}] ${vp.name} : X=${vp.x}, Y=${vp.y}`);
-        });
+        // console.log(`[Canvas Map] 노드(상/하차지) 갯수: ${validPoints.length}`);
+        // validPoints.forEach((vp, idx) => {
+        //     console.log(`   - 노드 ${idx + 1} [${vp.type}] ${vp.name} : X=${vp.x}, Y=${vp.y}`);
+        // });
 
-        console.log(`[Canvas Map] 적용된 폴리라인(도로궤적) 갯수: ${currentPolyline.length}`);
-        if (currentPolyline.length > 0) {
-            const firstPt = currentPolyline[0];
-            const lastPt = currentPolyline[currentPolyline.length - 1];
-            console.log(`   - 폴리라인 출발점: X=${firstPt.x}, Y=${firstPt.y}`);
-            console.log(`   - 폴리라인 도착점: X=${lastPt.x}, Y=${lastPt.y}`);
-            console.log(`[Canvas Map] 합짐 여부: ${safeRoute.length > 1 ? 'Yes' : 'No'} | 마지막 궤적 오더 ID: ${lastValidOrderWithPolyline?.id?.substring(0, 8)}`);
-        }
+        // console.log(`[Canvas Map] 적용된 폴리라인(도로궤적) 갯수: ${currentPolyline.length}`);
+        // if (currentPolyline.length > 0) {
+        // const firstPt = currentPolyline[0];
+        // const lastPt = currentPolyline[currentPolyline.length - 1];
+        // console.log(`   - 폴리라인 출발점: X=${firstPt.x}, Y=${firstPt.y}`);
+        // console.log(`   - 폴리라인 도착점: X=${lastPt.x}, Y=${lastPt.y}`);
+        // console.log(`[Canvas Map] 합짐 여부: ${safeRoute.length > 1 ? 'Yes' : 'No'} | 마지막 궤적 오더 ID: ${lastValidOrderWithPolyline?.id?.substring(0, 8)}`);
+        // }
 
         // Bounding Box 기준 설정 (노드와 주행 궤적, 내 위치 모두 포함해야 잘림 현상 없음)
         const validPolyline = currentPolyline.filter(p => typeof p.x === 'number' && typeof p.y === 'number' && !isNaN(p.x) && !isNaN(p.y));
@@ -148,17 +174,17 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
         // 0. 시도/배경 그리기 (GeoJSON 연동)
         if (sidoData.features) {
             // 시/도 경계를 먼저 그리고, 시군구 경계를 나중에 그리도록 정렬
-            const sortedFeatures = [...sidoData.features].sort((a: any, b: any) => 
+            const sortedFeatures = [...sidoData.features].sort((a: any, b: any) =>
                 (a.properties?.isGyeonggiSigungu ? 1 : 0) - (b.properties?.isGyeonggiSigungu ? 1 : 0)
             );
 
             sortedFeatures.forEach((feature: any) => {
                 const isGyeonggiSigungu = feature.properties?.isGyeonggiSigungu;
-                
+
                 ctx.fillStyle = 'rgba(100, 116, 139, 0.15)'; // 동일한 반투명 배경색
                 // 경기도 시/군/구는 테두리를 얇고 조금 더 또렷하게, 시도 경계선은 기존 유지
-                ctx.strokeStyle = isGyeonggiSigungu ? 'rgba(100, 116, 139, 0.4)' : 'rgba(100, 116, 139, 0.3)'; 
-                ctx.lineWidth = isGyeonggiSigungu ? 0.5 : 1; 
+                ctx.strokeStyle = isGyeonggiSigungu ? 'rgba(100, 116, 139, 0.4)' : 'rgba(100, 116, 139, 0.3)';
+                ctx.lineWidth = isGyeonggiSigungu ? 0.5 : 1;
                 const geom = feature.geometry;
                 if (!geom) return;
                 let polygons: number[][][][] = [];
@@ -181,7 +207,7 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
             });
         }
 
-        // 1.5. 기초 연결선 렌더링 (노드들을 잇는 보조 점선 - 폴리라인 유무 무관하게 기반 레이어로 그림)
+        // 1.5. 기초 연결선 렌더링 (노드들을 잇는 보조 점선 및 직선거리)
         ctx.beginPath();
         ctx.strokeStyle = 'rgba(100, 116, 139, 0.4)'; // 매우 연한 회색 점선
         ctx.lineWidth = 2;
@@ -207,6 +233,28 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
         });
         ctx.stroke();
         ctx.setLineDash([]); // 원래대로 점선 해제
+        
+        // (추가요청) 현위치 - 첫 상차지 간 회색 점선 지점에 직선거리(km) 표기
+        if (myLocation && validPoints.length > 0) {
+            const startPt = getScreenPt(myLocation);
+            const endPt = getScreenPt(validPoints[0]);
+            const distKm = getDistanceKm(myLocation.y, myLocation.x, validPoints[0].y, validPoints[0].x);
+            
+            const midX = Math.round((startPt.cx + endPt.cx) / 2);
+            const midY = Math.round((startPt.cy + endPt.cy) / 2);
+            
+            const text = `직선 ${distKm.toFixed(1)}km`;
+            ctx.font = 'bold 11px sans-serif';
+            ctx.textAlign = 'center';
+            const tWidth = ctx.measureText(text).width;
+            
+            // 텍스트 가독성을 위한 배경 상자
+            ctx.fillStyle = 'rgba(15, 20, 35, 0.7)';
+            ctx.fillRect(midX - (tWidth/2) - 4, midY - 14, tWidth + 8, 18);
+            
+            ctx.fillStyle = '#94a3b8'; // slate-400
+            ctx.fillText(text, midX, midY - 1);
+        }
 
         // 1. 카카오 실제 도로 궤적(폴리라인) 렌더링
         if (hasPolyline && validPolyline.length > 0) {
@@ -357,6 +405,22 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
         isDragging.current = false;
     };
 
+    const handleZoomClick = (zoomDelta: number) => {
+        const rect = canvasRef.current?.getBoundingClientRect();
+        if (!rect) return;
+
+        // 버튼 줌은 항상 화면 정중앙을 기준으로 확대/축소
+        const x = rect.width / 2;
+        const y = rect.height / 2;
+
+        const newZoom = Math.max(0.5, Math.min(10, zoomRef.current * zoomDelta));
+        panRef.current.x = x - (x - panRef.current.x) * (newZoom / zoomRef.current);
+        panRef.current.y = y - (y - panRef.current.y) * (newZoom / zoomRef.current);
+
+        zoomRef.current = newZoom;
+        drawMap();
+    };
+
     const handleWheel = (e: any) => {
         // 기존 pan + 확대 비율에 따른 포인터 위치 가중치 계산 (마우스 포인트 중심 줌 기능)
         const rect = canvasRef.current?.getBoundingClientRect();
@@ -390,7 +454,7 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
                 {/* 데스크탑에서 다중 경유지가 완벽하게 지원되는 구글맵 링크 */}
 
                 {/* 캔버스 미니맵 영역 - 직접 제스처 핸들러 연결 */}
-                <div className="relative w-full h-64 bg-slate-100/50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700/50 cursor-grab active:cursor-grabbing overflow-hidden">
+                <div className="relative w-full h-64 bg-slate-100/50 dark:bg-slate-800 cursor-grab active:cursor-grabbing overflow-hidden">
                     <canvas
                         ref={canvasRef}
                         className="absolute inset-0 w-full h-full touch-none"
@@ -407,13 +471,13 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
                     {/* 줌인/줌아웃 컨트롤 버튼셋 */}
                     <div className="absolute top-3 right-3 flex flex-col space-y-2 z-10">
                         <button
-                            onClick={() => { zoomRef.current *= 1.2; drawMap(); }}
+                            onClick={() => handleZoomClick(1.2)}
                             className="w-8 h-8 flex items-center justify-center bg-slate-700/80 hover:bg-slate-600 rounded-md shadow-lg text-slate-100 border border-slate-500 backdrop-blur-sm font-black opacity-80 hover:opacity-100 transition-all"
                         >
                             +
                         </button>
                         <button
-                            onClick={() => { zoomRef.current *= 0.8; drawMap(); }}
+                            onClick={() => handleZoomClick(0.8)}
                             className="w-8 h-8 flex items-center justify-center bg-slate-700/80 hover:bg-slate-600 rounded-md shadow-lg text-slate-100 border border-slate-500 backdrop-blur-sm font-black opacity-80 hover:opacity-100 transition-all"
                         >
                             -
@@ -426,8 +490,6 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
                         </button>
                     </div>
                 </div>
-
-
 
                 {/* 통합 맵 정보 브리핑 (하단에서 맵 바로 아래로 이동됨) */}
                 <div className="flex justify-between items-end mb-4 px-1 pb-4 border-b border-slate-700/50">

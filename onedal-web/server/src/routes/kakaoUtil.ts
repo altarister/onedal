@@ -4,10 +4,12 @@
  */
 
 interface RouteResult {
-    duration: number;  // 초
-    distance: number;  // 미터
+    duration: number;  // 총 소요 초
+    distance: number;  // 총 이동거리 미터
+    approachDuration?: number; // 현위치 -> 상차지 소요시간 (초)
+    approachDistance?: number; // 현위치 -> 상차지 거리 (미터)
     raw?: any;
-    polyline?: Array<{x: number; y: number}>; // [신규] 카카오 실제 도로 곡선 데이터
+    polyline?: Array<{x: number; y: number}>; // 카카오 실제 도로 곡선 데이터
 }
 
 function extractPolyline(routes?: any[]): Array<{x: number; y: number}> {
@@ -58,18 +60,38 @@ function getHeaders(apiKey: string) {
 export async function calculateSoloRoute(
     apiKey: string,
     pickupX: number, pickupY: number,
-    dropoffX: number, dropoffY: number
+    dropoffX: number, dropoffY: number,
+    driverLoc?: { x: number, y: number } | null
 ): Promise<RouteResult> {
-    const url = `${KAKAO_API_URL}?origin=${pickupX},${pickupY}&destination=${dropoffX},${dropoffY}&priority=RECOMMEND&car_type=1`;
+    let url = "";
+    if (driverLoc) {
+        url = `${KAKAO_API_URL}?origin=${driverLoc.x},${driverLoc.y}&destination=${dropoffX},${dropoffY}&waypoints=${pickupX},${pickupY}&priority=RECOMMEND&car_type=1`;
+    } else {
+        url = `${KAKAO_API_URL}?origin=${pickupX},${pickupY}&destination=${dropoffX},${dropoffY}&priority=RECOMMEND&car_type=1`;
+    }
+    
     const res = await fetch(url, { headers: getHeaders(apiKey) });
     const data = await res.json();
     if (!data.routes || data.routes.length === 0) {
         console.error(`❌ [Kakao API Error (Solo)] 경로 탐색 실패:`, JSON.stringify(data));
     }
     const summary = data?.routes?.[0]?.summary;
+    const sections = data?.routes?.[0]?.sections;
+    
+    let approachDuration = 0;
+    let approachDistance = 0;
+    
+    // 현위치가 포함된 경우 section[0]은 현위치->상차지 접근 구간입니다.
+    if (driverLoc && sections && sections.length > 1) {
+        approachDuration = sections[0].duration;
+        approachDistance = sections[0].distance;
+    }
+
     return {
         duration: summary?.duration || 0,
         distance: summary?.distance || 0,
+        approachDuration,
+        approachDistance,
         raw: summary,
         polyline: extractPolyline(data?.routes)
     };
@@ -80,23 +102,45 @@ export async function calculateSoloRoute(
  */
 export async function calculateDetourRoute(
     apiKey: string,
-    originX: number, originY: number,
-    destX: number, destY: number,
-    waypoints: Array<{ x: number; y: number }>
+    baseDestX: number, baseDestY: number,     // 단독 본콜 하차지
+    mainPickupX: number, mainPickupY: number, // 단독 본콜 상차지
+    mergedDestX: number, mergedDestY: number, // 합짐 최종 하차지
+    mergedWaypoints: Array<{ x: number; y: number }>, // 스마트 정렬된 경유지들
+    driverLoc?: { x: number, y: number } | null
 ): Promise<DetourResult> {
     const headers = getHeaders(apiKey);
 
-    // 1. 베이스(단독) 연산
-    const baseUrl = `${KAKAO_API_URL}?origin=${originX},${originY}&destination=${destX},${destY}&priority=RECOMMEND&car_type=1`;
+    let baseOriginX = mainPickupX;
+    let baseOriginY = mainPickupY;
+    let baseWaypoints = "";
+
+    if (driverLoc) {
+        baseOriginX = driverLoc.x;
+        baseOriginY = driverLoc.y;
+        baseWaypoints = `${mainPickupX},${mainPickupY}`; // 현위치에서 기존 상차지로 먼저 이동
+    }
+
+    // 1. 베이스(단독 본콜) 연산
+    let baseUrl = `${KAKAO_API_URL}?origin=${baseOriginX},${baseOriginY}&destination=${baseDestX},${baseDestY}&priority=RECOMMEND&car_type=1`;
+    if (baseWaypoints) {
+        baseUrl += `&waypoints=${baseWaypoints}`;
+    }
     const baseRes = await fetch(baseUrl, { headers });
     const baseData = await baseRes.json();
     const baseSummary = baseData?.routes?.[0]?.summary;
 
     // 2. 합짐(경유) 연산
-    const wpQuery = waypoints.map(wp => `${wp.x},${wp.y}`).join('|');
-    const mergedUrl = `${KAKAO_API_URL}?origin=${originX},${originY}&destination=${destX},${destY}&waypoints=${wpQuery}&priority=RECOMMEND&car_type=1`;
-    console.log(`\n🚙 [Kakao API Request] 합짐 우회 경로 요청`);
-    console.log(`   - Origin: ${originX},${originY} / Dest: ${destX},${destY}`);
+    // 스마트 정렬 시 driverLoc는 무조건 Origin으로 취급
+    let mergedOriginX = driverLoc ? driverLoc.x : mergedWaypoints[0].x;
+    let mergedOriginY = driverLoc ? driverLoc.y : mergedWaypoints[0].y;
+    let wpArray = driverLoc ? mergedWaypoints : mergedWaypoints.slice(1);
+    
+    // 웨이포인트가 너무 많을 경우(카카오 무료 한도 3개 초과 시 등 대응 필요. 현재는 무시)
+    const wpQuery = wpArray.map(wp => `${wp.x},${wp.y}`).join('|');
+    const mergedUrl = `${KAKAO_API_URL}?origin=${mergedOriginX},${mergedOriginY}&destination=${mergedDestX},${mergedDestY}${wpQuery ? '&waypoints='+wpQuery : ''}&priority=RECOMMEND&car_type=1`;
+    
+    console.log(`\n🚙 [Kakao API Request] 스마트 합짐 우회 경로 요청`);
+    console.log(`   - Origin: ${mergedOriginX},${mergedOriginY} / Dest: ${mergedDestX},${mergedDestY}`);
     console.log(`   - Waypoints: ${wpQuery}`);
     
     const mergedRes = await fetch(mergedUrl, { headers });
@@ -115,9 +159,31 @@ export async function calculateDetourRoute(
     const mergedDuration = mergedSummary?.duration || 0;
     const mergedDistance = mergedSummary?.distance || 0;
 
+    let baseApproachDuration = 0, baseApproachDistance = 0;
+    let mergedApproachDuration = 0, mergedApproachDistance = 0;
+    
+    if (driverLoc) {
+        if (baseData?.routes?.[0]?.sections?.length > 1) {
+            baseApproachDuration = baseData.routes[0].sections[0].duration;
+            baseApproachDistance = baseData.routes[0].sections[0].distance;
+        }
+        if (mergedData?.routes?.[0]?.sections?.length > 1) {
+            mergedApproachDuration = mergedData.routes[0].sections[0].duration;
+            mergedApproachDistance = mergedData.routes[0].sections[0].distance;
+        }
+    }
+
     return {
-        base: { duration: baseDuration, distance: baseDistance, raw: baseSummary, polyline: extractPolyline(baseData?.routes) },
-        merged: { duration: mergedDuration, distance: mergedDistance, raw: mergedSummary, polyline: extractPolyline(mergedData?.routes) },
+        base: { 
+            duration: baseDuration, distance: baseDistance, 
+            approachDuration: baseApproachDuration, approachDistance: baseApproachDistance, 
+            raw: baseSummary, polyline: extractPolyline(baseData?.routes) 
+        },
+        merged: { 
+            duration: mergedDuration, distance: mergedDistance, 
+            approachDuration: mergedApproachDuration, approachDistance: mergedApproachDistance, 
+            raw: mergedSummary, polyline: extractPolyline(mergedData?.routes) 
+        },
         timeDiffMin: Math.round((mergedDuration - baseDuration) / 60),
         distDiffKm: ((mergedDistance - baseDistance) / 1000).toFixed(1)
     };

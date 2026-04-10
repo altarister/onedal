@@ -16,6 +16,7 @@ import devicesRouter, { getActiveDevicesSnapshot } from "./routes/devices";
 import configRouter from "./routes/config";
 import { activeFilterConfig, updateActiveFilter } from "./state/filterStore";
 import { initGeoService } from "./services/geoService";
+import { updateDriverLocation } from "./state/locationStore";
 import type { AutoDispatchFilter } from "@onedal/shared";
 
 dotenv.config();
@@ -82,6 +83,11 @@ io.on("connection", (socket) => {
         console.log(`🌐 [필터 변경] 합짐모드: ${updated.isSharedMode}, 활성: ${updated.isActive}, 단가: ${updated.minFare}, 상차반경: ${updated.pickupRadiusKm}km, 지역: ${updated.destinationCity}`);
         // 내 서버를 포함한 모든 클라이언트 대시보드에 즉각 브로드캐스트
         io.emit("filter-updated", updated);
+    });
+
+    // 앱폰 현위치 동기화 (관제탑 / 브라우저 기준)
+    socket.on("update-my-location", (loc: { x: number, y: number }) => {
+        updateDriverLocation(loc);
     });
 
     // ⭐ 관제사(사람)의 최종 판단 — 다이어그램 Line 84~99 대응
