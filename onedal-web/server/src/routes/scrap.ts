@@ -34,7 +34,14 @@ router.post("/", (req, res) => {
         const totalScrap = (countStmt.get() as { count: number })?.count || 0;
 
         console.log(`📊 [스크랩 데이터 수신] ${data.length}항목 저장 (누적: ${totalScrap}건)${screenContext ? ` [화면: ${screenContext}]` : ''}`);
-        
+        if (deviceId && data.length > 0) {
+            console.log(`📦 [전송 페이로드] { "deviceId": "${deviceId}", "screenContext": "${screenContext}", "data": [ ${data.length}개의 오더 객체... ] }`);
+            data.forEach((item, index) => {
+                console.log(`   └─ [data][${index}] 상세 정보:`);
+                console.log(JSON.stringify(item, null, 2));
+            });
+        }
+
         let deviceMode = "MANUAL";
         if (deviceId) {
             // Devices 세션 업데이트 (데드맨 스위치 생존 신고 + 화면 상태 + Zero-Latency 화면 이탈 동기화)

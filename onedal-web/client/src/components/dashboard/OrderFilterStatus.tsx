@@ -24,8 +24,23 @@ export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () =
 
     const styles = getStatusStyles(filter.isActive, filter.isSharedMode);
 
+    const getRegionSummary = () => {
+        // 합짐, 첫짐 모두 콤마 단위로 파싱된 '읍/면/동' 타겟팅 총 개수를 가져옵니다.
+        const regionCount = filter.destinationKeywords 
+            ? filter.destinationKeywords.split(',').length 
+            : 0;
+
+        if (filter.isSharedMode) {
+            // 합짐 모드: 지정된 경로 이탈 반경 + 하차 거점 반경 및 총 타겟팅된 읍/면/동 개수 표시
+            return `회랑 ±${filter.corridorRadiusKm || 10}km (${regionCount}개 지역)`;
+        }
+        // 단독 모드: 지정된 도착 도시 명칭 및 타겟팅된 읍/면/동 개수 표시
+        return `${filter.destinationCity} (${regionCount}개 지역)`;
+    };
+
     return (
         <section
+            id="filter-status"
             onClick={onOpenFilter}
             className={`flex items-center justify-between cursor-pointer rounded-xl px-4 py-3 border shadow-md transition-all active:scale-95 ${styles.border}`}
         >
@@ -37,11 +52,16 @@ export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () =
                 <span className="text-slate-600 font-medium">|</span>
                 <span className="text-slate-300">{filter.pickupRadiusKm}km</span>
                 <span className="text-slate-600 font-medium">|</span>
-                <span className="text-indigo-300">{filter.destinationCity}({filter.destinationRadiusKm}km)</span>
-                {filter.model && (
+                <span className="text-indigo-300">{getRegionSummary()}</span>
+                {filter.allowedVehicleTypes && filter.allowedVehicleTypes.length > 0 ? (
                     <>
                         <span className="text-slate-600 font-medium">|</span>
-                        <span className="text-orange-300">{filter.model}</span>
+                        <span className="text-orange-300">{filter.allowedVehicleTypes.join(',')}</span>
+                    </>
+                ) : (
+                    <>
+                        <span className="text-slate-600 font-medium">|</span>
+                        <span className="text-orange-300/50">전체</span>
                     </>
                 )}
             </div>

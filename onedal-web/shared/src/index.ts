@@ -40,6 +40,9 @@ export interface SimplifiedOfficeOrder {
     dropoff: string;                  // 예: "강남구 역삼동"
     fare: number;                     // 45000 (숫자)
     timestamp: string;                // ISO 8601 포맷
+    postTime?: string;                // [추가] 앱에서 긁어온 콜 상차시간/등록시간 (예: "12:23")
+    scheduleText?: string;            // [추가] 예약일정/수식어 (예: "낼09시", "11일)09시", "@")
+    vehicleType?: string;             // [추가] 차종 (예: "라", "다", "1t" 등)
     rawText?: string;                 // 안드로이드 스캐너에서 긁어온 원본 텍스트         
     // (선택) MOCK 지도 연산 및 시뮬레이션 용 임시 좌표
     pickupX?: number;
@@ -80,6 +83,9 @@ export interface SecuredOrder extends OfficeOrder {
     routePolyline?: Array<{x: number; y: number}>;  // [신규] 카카오 실제 궤적 좌표들
     totalDistanceKm?: number;         // [추가] 통합 연산된 전체 총 주행 거리
     totalDurationMin?: number;        // [추가] 통합 연산된 전체 총 주행 시간
+    sectionEtas?: string[];           // [신규] 카카오 궤적 연산 기반 각 경유지 도착 예상 시간 배열
+    pickupEta?: string;               // [신규] 카카오 궤적 연산 기반 상차지 예상 도착 시간 (예: "14:30")
+    dropoffEta?: string;              // [신규] 카카오 궤적 연산 기반 하차지 예상 도착 시간 (예: "15:20")
     settlement?: SettlementInfo;      // [추가] 정산 및 미수금 관리 트래킹 (운행일지용)
 }
 
@@ -95,7 +101,7 @@ export interface SettlementInfo {
 
 // 자동배차 설정 인터페이스 (전역 설정 동기화용)
 export interface AutoDispatchFilter {
-    model: '1t' | '다마스' | '라보' | '오토바이';    // 차량 모델 (예: "1톤카고", "다마스")
+    allowedVehicleTypes: string[];   // 허용 차종 배열 (예: ["1t","다마스"]) — 빈 배열이면 모든 차종 허용
     isActive: boolean;              // 필터링(매크로) 활성화 여부
     isSharedMode: boolean;          // 첫짐/합짐 분기 (true면 합짐 회랑, false면 첫짐 수동)
     pickupRadiusKm: number;         // 내위치 반경 상차지 탐색(km)
@@ -105,7 +111,10 @@ export interface AutoDispatchFilter {
     destinationRadiusKm: number;    // 하차 목표 주위 탐색 반경 (km)
     excludedKeywords: string;       // 제외 단어 (콤마 분리 문자열)
     destinationKeywords: string;    // (내부망) 앱 파싱용 읍/면/동 50개 콤마 분리 문자열
+    destinationGroups?: Record<string, string[]>; // (UI용) 시/구 단위로 그룹핑된 읍면동 목록
     customFilters: string[];        // 특수 기호 등 하단 빠른 설정 텍스트 (ex: "^^,@", "김포,인천...")
+    corridorRadiusKm?: number;      // (합짐 모드) 경로 주변 이탈 허용 반경 (기본값 10km)
+    userOverrides?: boolean;        // 기사가 팝업에서 수동으로 필터(destinationKeywords 등)를 조작했는지 여부(서버 덮어쓰기 방지용)
 }
 
 // 스마트 회랑 전용 데이터 구조 (PinnedRoute 등 프론트엔드 UI용)

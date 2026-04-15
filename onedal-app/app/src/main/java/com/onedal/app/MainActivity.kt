@@ -279,24 +279,17 @@ class MainActivity : ComponentActivity() {
                             val json = JSONObject(activeFilterJson ?: "{}")
                             if (json.length() == 0) "대기 중 (서버 응답 없음)"
                             else {
-                                val regionsArr = json.optJSONArray("targetRegions")
-                                val regionsList = if (regionsArr != null) {
-                                    (0 until regionsArr.length()).map { regionsArr.getString(it) }.joinToString(", ")
-                                } else "없음"
-                                
-                                val blackArr = json.optJSONArray("blacklist")
-                                val blacklistStr = if (blackArr != null) {
-                                    (0 until blackArr.length()).map { blackArr.getString(it) }.joinToString(", ")
-                                } else json.optString("blacklist", "없음")
+                                val vehicleArr = json.optJSONArray("allowedVehicleTypes")
+                                val vehicleStr = if (vehicleArr != null && vehicleArr.length() > 0) {
+                                    (0 until vehicleArr.length()).map { vehicleArr.getString(it) }.joinToString(", ")
+                                } else "전체 허용"
 
-                                "mode: ${json.optString("mode", "미설정")}\n" +
+                                "allowedVehicleTypes: $vehicleStr\n" +
                                 "minFare: ${json.optString("minFare", "0")}원\n" +
-                                "pickupRadius: ${json.optString("pickupRadius", "0")}km\n" +
-                                "targetCity: ${json.optString("targetCity", "미설정")}\n" +
-                                "targetRegions: $regionsList\n" +
-                                "targetRadius: ${json.optString("targetRadius", "0")}km\n" +
-                                "blacklist: $blacklistStr\n" +
-                                "detourBaseId: ${json.optString("detourBaseId", "없음")}"
+                                "pickupRadiusKm: ${json.optString("pickupRadiusKm", "0")}km\n" +
+                                "destinationCity: ${json.optString("destinationCity", "미설정")}\n" +
+                                "destinationKeywords: ${json.optString("destinationKeywords", "없음")}\n" +
+                                "excludedKeywords: ${json.optString("excludedKeywords", "없음")}"
                             }
                         } catch (e: Exception) {
                             "필터 파싱 오류"

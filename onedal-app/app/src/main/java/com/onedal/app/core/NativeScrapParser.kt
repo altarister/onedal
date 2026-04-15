@@ -33,38 +33,41 @@ class NativeScrapParser(private val context: Context) : IScrapParser {
      * SharedPreferences에 저장된 최신 필터를 로드합니다.
      * 3초마다 텔레메트리 응답이 갱신해 주므로 항상 최신 상태입니다.
      */
+    /**
+     * JSON 배열을 List<String>으로 파싱하는 헬퍼
+     */
+    private fun parseJsonArray(json: JSONObject, key: String): List<String> {
+        return try {
+            val arr = json.optJSONArray(key)
+            if (arr != null) (0 until arr.length()).map { arr.getString(it) } else emptyList()
+        } catch (e: Exception) { emptyList() }
+    }
+
+    /**
+     * 콤마 구분 문자열을 List<String>으로 파싱하는 헬퍼
+     */
+    private fun parseCommaSeparated(json: JSONObject, key: String): List<String> {
+        val str = json.optString(key, "")
+        return if (str.isNotEmpty()) str.split(",").map { it.trim() }.filter { it.isNotEmpty() } else emptyList()
+    }
+
     fun loadCurrentFilter(): FilterConfig {
         return try {
             val jsonStr = prefs.getString("activeFilter", null) ?: return FilterConfig()
             val json = JSONObject(jsonStr)
-            
-            // blacklist: 배열이면 그대로, 문자열이면 콤마로 분리
-            val blacklist = try {
-                val arr = json.optJSONArray("blacklist")
-                if (arr != null) {
-                    (0 until arr.length()).map { arr.getString(it) }
-                } else {
-                    val str = json.optString("blacklist", "")
-                    if (str.isNotEmpty()) str.split(",").map { it.trim() }.filter { it.isNotEmpty() } else emptyList()
-                }
-            } catch (e: Exception) { emptyList() }
-            
-            // targetRegions: 배열이면 그대로, 없으면 빈 리스트
-            val targetRegions = try {
-                val arr = json.optJSONArray("targetRegions")
-                if (arr != null) {
-                    (0 until arr.length()).map { arr.getString(it) }
-                } else emptyList()
-            } catch (e: Exception) { emptyList() }
 
             FilterConfig(
-                mode = json.optString("mode", "첫짐"),
+                allowedVehicleTypes = parseJsonArray(json, "allowedVehicleTypes"),
+                isActive = json.optBoolean("isActive", true),
+                isSharedMode = json.optBoolean("isSharedMode", false),
+                pickupRadiusKm = json.optInt("pickupRadiusKm", 999),
                 minFare = json.optInt("minFare", 0),
-                pickupRadius = json.optInt("pickupRadius", 999),
-                targetCity = json.optString("targetCity", ""),
-                targetRegions = targetRegions,
-                targetRadius = json.optInt("targetRadius", 10),
-                blacklist = blacklist
+                maxFare = json.optInt("maxFare", 1000000),
+                destinationCity = json.optString("destinationCity", ""),
+                destinationRadiusKm = json.optInt("destinationRadiusKm", 10),
+                excludedKeywords = parseCommaSeparated(json, "excludedKeywords"),
+                destinationKeywords = parseCommaSeparated(json, "destinationKeywords"),
+                customFilters = parseJsonArray(json, "customFilters")
             )
         } catch (e: Exception) {
             Log.e(TAG, "❌ 필터 JSON 파싱 실패: ${e.message}")
@@ -79,34 +82,40 @@ class NativeScrapParser(private val context: Context) : IScrapParser {
     override fun parse(texts: List<String>): SimplifiedOfficeOrder {
         val rawJoined = texts.joinToString(", ")
 
-        // ── 1. 요금 파싱 ──
-        // (예: "47" = 47,000원, "42.5" = 42,500원)
-        var maxFareValue = 0.0
-        for (text in texts) {
-            val cleanStr = text.replace(",", "")
-            val isIntegerPattern = cleanStr.toIntOrNull() != null && !cleanStr.contains(".")
-            val isDecimalPattern = cleanStr.toDoubleOrNull() != null && (cleanStr.endsWith(".0") || cleanStr.endsWith(".5"))
+        // ── 1. 차종 앵커링을 통한 요금(Fare) 및 차종(VehicleType) 파싱 ──
+        val vehicleRegex = Regex("^(오|다|라|1t|1\\.4|2\\.5t?|3\\.5t?|5t|11t|14t|18t|25t)$")
+        var fare = 0
+        var vehicleType: String? = null
+
+        for (i in texts.indices) {
+            val text = texts[i].trim().replace(",", "")
             
-            if (isIntegerPattern || isDecimalPattern) {
-                val value = cleanStr.toDoubleOrNull() ?: 0.0
-                if (value in 10.0..9999.0) {
-                    if (value > maxFareValue) {
-                        maxFareValue = value
+            // 만약 현재 텍스트(예: "라")가 차종이라면
+            if (vehicleRegex.matches(text)) {
+                vehicleType = text
+                // 바로 다음 텍스트 노드가 오더 창 우측 끝의 요금(예: "2.2" -> 22,000원)
+                if (i + 1 < texts.size) {
+                    val nextText = texts[i + 1].trim().replace(",", "")
+                    val nextVal = nextText.toDoubleOrNull()
+                    // 요금이 만 단위(0.1만 = 1000원 이상)이면 채택
+                    if (nextVal != null && nextVal > 0) {
+                        fare = (nextVal * 10000).toInt()
+                        break
                     }
                 }
             } else {
-                // [목업 테스트 전용 지원] "9.549.4경기 수원시-대구 동구라84" 처럼 차종 뒤에 한 줄로 통째로 나오는 경우
-                val mockupRegex = Regex("""(?:오|다|라|1t|1\.4|2\.5t?|3\.5t?|5t|11t|14t|18t|25t)(\d+(?:\.\d+)?)""")
-                val match = mockupRegex.find(cleanStr)
-                if (match != null) {
-                    val value = match.groupValues[1].toDoubleOrNull() ?: 0.0
-                    if (value in 10.0..9999.0 && value > maxFareValue) {
-                        maxFareValue = value
+                // 예외 fallback: 텍스트 노드가 하나로 뭉쳐진 경우 ("라2.2" 등)
+                val clumpedMatch = Regex("(오|다|라|1t|1\\.4|2\\.5t?|3\\.5t?|5t|11t|14t|18t|25t)\\s*(\\d+(?:\\.\\d+)?)").find(text)
+                if (clumpedMatch != null) {
+                    vehicleType = clumpedMatch.groupValues[1]
+                    val nextVal = clumpedMatch.groupValues[2].toDoubleOrNull()
+                    if (nextVal != null && nextVal > 0) {
+                        fare = (nextVal * 10000).toInt()
+                        break
                     }
                 }
             }
         }
-        val fare = (maxFareValue * 1000).toInt()
 
         // ── 2. 지역명 파싱 (동/읍/면/리 로 끝나는 텍스트) ──
         // 서버에서 다운받은 동적 키워드 사전에서 uiNoiseWords 로드, 없으면 기본값
@@ -125,21 +134,26 @@ class NativeScrapParser(private val context: Context) : IScrapParser {
             setOf("거리", "출발지", "도착지", "차종", "요금", "설정")
         }
 
-        // 하이픈(-)이 붙은 지역명도 처리 (예: "태전동-" → "태전동")
-        // 다른 배차 앱(또는 목업 데이터)에서 구/시/군 단위로만 끝나는 경우도 포용하기 위해 확장
-        val regionPattern = Regex("(.+)(동|읍|면|리|시|구|군)[-+]?$")
-        val regions = texts
-            .map { it.trim().removeSuffix("-").removeSuffix("+") }
-            .filter { regionPattern.matches(it) && !uiNoiseWords.contains(it) && !it.startsWith("@") && it.length >= 2 }
-            .distinct()
+        // ── 2. 지역명 및 예약일정 파싱 (LocationTextAnalyzer 활용) ──
+        val locationInfos = texts
+            .map { it.trim() }
+            .filter { text ->
+                !uiNoiseWords.any { text.equals(it, ignoreCase = true) } && text.length >= 2
+            }
+            .mapNotNull { LocationTextAnalyzer.analyze(it) }
+            .distinctBy { it.cleanRegion }
 
-        // 첫 번째 지역 = 상차지, 두 번째 지역 = 하차지 (인성앱 리스트 순서)
-        val pickup = regions.getOrNull(0) ?: "미상"
-        val dropoff = regions.getOrNull(1) ?: regions.getOrNull(0) ?: "미상"
+        // 첫 번째 유효 지역 = 상차지, 두 번째 유효 지역 = 하차지 (인성앱 리스트 순서)
+        val pickupInfo = locationInfos.getOrNull(0)
+        val dropoffInfo = locationInfos.getOrNull(1) ?: pickupInfo
+        
+        val pickup = pickupInfo?.cleanRegion ?: "미상"
+        val dropoff = dropoffInfo?.cleanRegion ?: "미상"
+        val scheduleText = pickupInfo?.scheduleText ?: dropoffInfo?.scheduleText
 
         // ── 3. 거리 파싱 ──
-        // 소수점 있는 숫자들이 거리 (예: "9.6", "22.1")
-        // 원래는 독립된 텍스트 노드에서 추출했으나, 목업 환경에서 "4.44.7서울..." 처럼 뭉쳐있을 경우를 대비해 정규식 활용
+        // 소수점 있는 숫자들이 거리 (예: "9.6", "38.5")
+        // 화면 최좌측에 상, 하로 두 개가 뜸. 먼저 오는 값이 [접근거리], 다음 오는 값이 [배송거리]
         val distances = mutableListOf<Double>()
         val distanceRegex = Regex("""(\d+\.\d+)""")
         texts.forEach { textNode ->
@@ -152,16 +166,21 @@ class NativeScrapParser(private val context: Context) : IScrapParser {
                 }
             }
         }
-        distances.sort()
-        // 첫 번째(작은 값) = 상차지 직선거리, 두 번째(큰 값) = 배송거리
+        
+        // 첫 번째 값 = 상차지 직선거리 / 두 번째 값 = 배송거리 (의도적으로 sort() 제외)
 
         val now = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault()).format(Date())
+        
+        // 시간 포맷 (HH:mm) 추출
+        var postTime: String? = null
+        val timeRegex = Regex("\\b([0-2]?\\d:[0-5]\\d)\\b")
+        val timeMatch = timeRegex.find(rawJoined)
+        if (timeMatch != null) {
+            postTime = timeMatch.groupValues[1]
+        }
 
         // 의미 없는 화면(오더 목록이 아닌 화면 등)에서 무의미한 로그 도배 방지
         val isValidOrder = fare > 0 || pickup != "미상" || dropoff != "미상"
-        // if (isValidOrder) {
-        //     Log.d(TAG, "📋 [파싱 결과] 요금=${fare}원(원본:$maxFareValue), 상차=$pickup, 하차=$dropoff, 거리=$distances")
-        // }
 
         return SimplifiedOfficeOrder(
             id = UUID.randomUUID().toString(),
@@ -170,6 +189,9 @@ class NativeScrapParser(private val context: Context) : IScrapParser {
             dropoff = dropoff,
             fare = fare,
             timestamp = now,
+            postTime = postTime,
+            scheduleText = scheduleText,
+            vehicleType = vehicleType,
             rawText = rawJoined,
             pickupDistance = distances.getOrNull(0)
         )
@@ -183,60 +205,68 @@ class NativeScrapParser(private val context: Context) : IScrapParser {
         val filter = loadCurrentFilter()
         val rawText = order.rawText ?: ""
 
-        // ── 조건 1: 도착지 매칭 ──
-        // [임시 주석 처리] 목업 데이터 테스트를 위해 필터 조건 무시 (요금만 체크)
-        val regionMatch = true
-        /*
-        val regionMatch = if (filter.targetRegions.isEmpty()) {
-            true // 필터 미설정 시 통과
+        // ── 조건 0: 차종 매칭 (빈 배열이면 전체 허용) ──
+        val vehicleMatch = if (filter.allowedVehicleTypes.isEmpty()) {
+            true
         } else {
-            filter.targetRegions.any { region ->
-                order.dropoff.contains(region) || rawText.contains(region)
+            order.vehicleType != null && filter.allowedVehicleTypes.any { allowed ->
+                val normAllowed = allowed.lowercase(Locale.getDefault())
+                val normParsed = order.vehicleType.lowercase(Locale.getDefault())
+                when (normAllowed) {
+                    "1t" -> normParsed.contains("1") || normParsed.contains("t") || normParsed.contains("톤")
+                    "다마스" -> normParsed.contains("다")
+                    "라보" -> normParsed.contains("라")
+                    "오토바이" -> normParsed.contains("오") || normParsed.contains("바")
+                    else -> normParsed.contains(normAllowed) || normAllowed.contains(normParsed)
+                }
             }
         }
-        */
+
+        // ── 조건 1: 도착지 매칭 (dropoff만 검사, rawText는 출발지도 포함되므로 사용 금지) ──
+        val regionMatch = if (filter.destinationKeywords.isEmpty()) {
+            true
+        } else {
+            filter.destinationKeywords.any { region ->
+                order.dropoff.contains(region, ignoreCase = true)
+            }
+        }
 
         // ── 조건 2: 요금 하한선 ──
         val fareMatch = order.fare >= filter.minFare
 
-        // ── 조건 3: 블랙리스트 제외 ──
-        // [임시 주석 처리] 목업 데이터 테스트를 위해 필터 조건 무시
-        val blacklistClear = true
-        /*
-        val blacklistClear = if (filter.blacklist.isEmpty()) {
-            true // 블랙리스트 미설정 시 통과
+        // ── 조건 3: 상차지 거리 ──
+        val distanceMatch = if (order.pickupDistance == null) {
+            true
         } else {
-            filter.blacklist.none { banned ->
+            order.pickupDistance <= filter.pickupRadiusKm
+        }
+
+        // ── 조건 4: 블랙리스트 제외 ──
+        val blacklistClear = if (filter.excludedKeywords.isEmpty()) {
+            true
+        } else {
+            filter.excludedKeywords.none { banned ->
                 rawText.contains(banned, ignoreCase = true)
             }
         }
-        */
-
-        // ── 조건 4: 상차지 거리 ──
-        // [임시 주석 처리] 목업 데이터 테스트를 위해 필터 조건 무시
-        val distanceMatch = true
-        /*
-        val distanceMatch = if (order.pickupDistance == null) {
-            true // 거리 정보 없으면 일단 통과 (데이터 부족)
-        } else {
-            order.pickupDistance <= filter.pickupRadius
-        }
-        */
 
         // ── 로그 출력 (디버깅용) ──
         val isValidOrder = order.fare > 0 || order.pickup != "미상" || order.dropoff != "미상"
         if (isValidOrder) {
-            Log.d(TAG, "🔍 [필터 검사] 도착지=${order.dropoff}, 요금=${order.fare}, 거리=${order.pickupDistance ?: "미상"}km")
-            Log.d(TAG, "   조건1(지역)=${if(regionMatch) "✅" else "❌"} " +
+            Log.d(TAG, "📋 [현재 셋팅된 필터값] 차종=${filter.allowedVehicleTypes}, 지역=${filter.destinationKeywords}, 하한요금=${filter.minFare}, 반경=${filter.pickupRadiusKm}km, 블랙=${filter.excludedKeywords}")
+            val scheduleLog = if (order.scheduleText != null) "[수식어:${order.scheduleText}] " else ""
+            Log.d(TAG, "🔍 [타겟 콜 파싱 결과] ${scheduleLog}차종=${order.vehicleType ?: "미상"}, 도착지=${order.dropoff}, 요금=${order.fare}, 거리=${order.pickupDistance ?: "미상"}km")
+            Log.d(TAG, "   조건0(차종)=${if(vehicleMatch) "✅" else "❌"} " +
+                        "조건1(지역)=${if(regionMatch) "✅" else "❌"} " +
                         "조건2(요금)=${if(fareMatch) "✅" else "❌"} " +
-                        "조건3(블랙)=${if(blacklistClear) "✅" else "❌"} " +
-                        "조건4(거리)=${if(distanceMatch) "✅" else "❌"}")
+                        "조건3(거리)=${if(distanceMatch) "✅" else "❌"} " +
+                        "조건4(블랙)=${if(blacklistClear) "✅" else "❌"}")
         }
 
-        val result = regionMatch && fareMatch && blacklistClear && distanceMatch
+        val result = vehicleMatch && regionMatch && fareMatch && distanceMatch && blacklistClear
 
         if (result) {
-            Log.d(TAG, "🎯 [4대 조건 통과!] → 클릭 실행 대상")
+            Log.d(TAG, "🎯 [5대 조건 통과!] → 클릭 실행 대상")
         } else {
             if (isValidOrder) Log.d(TAG, "⛔ [조건 불충족] → 스킵")
         }

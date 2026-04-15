@@ -107,7 +107,20 @@ class TelemetryManager(
         
         if (snapshot.isNotEmpty()) {
             snapshot.forEachIndexed { index, order ->
-                Log.d(TAG, "   └─ [data][$index] 요금=${order.fare}원, 출발=${order.pickup}, 도착=${order.dropoff}")
+                val entries = mutableListOf<String>()
+                entries.add("  \"dropoff\": \"${order.dropoff}\"")
+                entries.add("  \"fare\": ${order.fare}")
+                entries.add("  \"id\": \"${order.id}\"")
+                entries.add("  \"pickup\": \"${order.pickup}\"")
+                if (order.pickupDistance != null) entries.add("  \"pickupDistance\": ${order.pickupDistance}")
+                if (order.postTime != null) entries.add("  \"postTime\": \"${order.postTime}\"")
+                if (order.rawText != null) entries.add("  \"rawText\": \"${order.rawText}\"")
+                entries.add("  \"timestamp\": \"${order.timestamp}\"")
+                entries.add("  \"type\": \"${order.type}\"")
+                if (order.vehicleType != null) entries.add("  \"vehicleType\": \"${order.vehicleType}\"")
+
+                val jsonLikeStr = "{\n${entries.joinToString(",\n")}\n}"
+                Log.d(TAG, "   └─ [data][$index] 상세 정보:\n$jsonLikeStr")
             }
         }
 

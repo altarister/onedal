@@ -55,9 +55,9 @@ sequenceDiagram
     Note over 앱폰1: 상세페이지 진입으로 바뀐 text중 '확정' 추출 후 클릭 
     앱폰1->>인성DB: [인성 Socket] 콜 확정 완료
     인성DB-->>앱폰1: 확정페이지 데이터 전달 
-    앱폰1->>서버: [HTTP 폴링] POST /confirm 확정정보 정보 전송
+    앱폰1->>서버: [HTTP 폴링] POST /orders/confirm 확정정보 정보 전송
     Note over 서버 : 대기 필터로 설정값 업데이트
-    서버-->>앱폰1: [HTTP 폴링] 응답 /confirm 
+    서버-->>앱폰1: [HTTP 폴링] 응답 /orders/confirm 
     서버->>관제탑: [Socket] 확정정보 정보 + 대기 필터 정보 전송
     Note over 관제탑: 닫기 ,취소 버튼 노출
     
@@ -72,7 +72,7 @@ sequenceDiagram
     앱폰1->>인성DB: [인성 Socket] 도착지 정보 요청
     인성DB-->>앱폰1: 도착지 정보 전달 
     Note over 앱폰1: 도착지페이지 text중 '전화, 위치' 추출 및 저장 후 닫기 클릭
-    앱폰1->>서버: [HTTP 폴링] POST /detail 상하차지 + 적요내용 정보 전송
+    앱폰1->>서버: [HTTP 폴링] POST /orders/detail 상하차지 + 적요내용 정보 전송
     서버->>관제탑: [Socket] 상하차지 + 적요내용 정보 전송
     Note over 관제탑: 경로 섹션 표현, 적요 내용표현 
     Note over 서버: 🛡️ [카카오 API 3중 폴백] 괄호제거 ➡️ 주소검색 ➡️ 키워드검색 ➡️ 4어절 절사
@@ -87,7 +87,7 @@ sequenceDiagram
         Note over 서버: 첫콜 필터로 설정값 업데이트
         서버->>관제탑: [Socket] 첫콜 필터 전송 (UI 대기화면 복구)
         Note over 관제탑: 관제 대기 중
-        서버-->>앱폰1: [HTTP 폴링] 응답 /detail 취소 정보 전송
+        서버-->>앱폰1: [HTTP 폴링] 응답 /orders/detail 취소 정보 전송
         Note over 앱폰1: 확정페이지 진입으로 바뀐 text중 '취소' 추출 후 클릭 
         앱폰1->>인성DB: [인성 Socket] 취소
         인성DB-->>앱폰1: 리스트 데이터 전달 
@@ -97,7 +97,7 @@ sequenceDiagram
         Note over 서버: 합짐 필터로 설정값 업데이트 (합짐 사냥용)
         서버->>관제탑: [Socket] 합짐 필터 전송 (대시보드 합짐 모드)
         Note over 관제탑: 합짐 사냥 모드 돌입
-        서버-->>앱폰1: [HTTP 폴링] 응답 /detail 유지 정보 전송
+        서버-->>앱폰1: [HTTP 폴링] 응답 /orders/detail 유지 정보 전송
         Note over 앱폰1: '닫기' 클릭 후 리스트 페이지로 복귀 후 감지 대기 
     end
     
@@ -122,12 +122,12 @@ sequenceDiagram
     앱폰2->>인성DB: [인성 Socket] 콜 확정 완료
     인성DB-->>앱폰2: 확정페이지 데이터 전달
     
-    앱폰2->>서버: [HTTP 폴링] POST /confirm 확정(합짐) 정보 전송
-    서버-->>앱폰2: [HTTP 폴링] 응답 /confirm
+    앱폰2->>서버: [HTTP 폴링] POST /orders/confirm 확정(합짐) 정보 전송
+    서버-->>앱폰2: [HTTP 폴링] 응답 /orders/confirm
     
     Note over 앱폰2: 적요상세, 출발지, 도착지 추출 순차 진행...
     
-    앱폰2->>서버: [HTTP 폴링] POST /detail 상하차지 + 적요내용 정보 전송
+    앱폰2->>서버: [HTTP 폴링] POST /orders/detail 상하차지 + 적요내용 정보 전송
     서버->>관제탑: [Socket] 합짐 상하차지 + 적요 전송
     Note over 관제탑: 대시보드 상단 Subway UI (상차→상차→하차) 노선도 업데이트
     
@@ -140,7 +140,7 @@ sequenceDiagram
     관제탑->>서버: [Socket] 합짐 최종 유지 전달
     Note over 서버: 2번째 합짐 대비 콜필터 재변경 및 카카오맵 경유지 링크 생성
     서버->>관제탑: [Socket] 운행일지 DB 세팅 정보 브로드캐스트
-    서버-->>앱폰2: [HTTP 폴링] 응답 /detail 합짐 수락(유지) 결과 전송
+    서버-->>앱폰2: [HTTP 폴링] 응답 /orders/detail 합짐 수락(유지) 결과 전송
     Note over 앱폰2: '닫기' 클릭 후 콜 유지 상태로 합짐 감시 대기
     end
 

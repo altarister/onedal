@@ -10,6 +10,7 @@ interface RouteResult {
     approachDistance?: number; // 현위치 -> 상차지 거리 (미터)
     raw?: any;
     polyline?: Array<{x: number; y: number}>; // 카카오 실제 도로 곡선 데이터
+    sectionEtas?: string[]; // [추가] 각 구간 도착 시점(HH:mm) 배열
 }
 
 function extractPolyline(routes?: any[]): Array<{x: number; y: number}> {
@@ -93,8 +94,23 @@ export async function calculateSoloRoute(
         approachDuration,
         approachDistance,
         raw: summary,
-        polyline: extractPolyline(data?.routes)
+        polyline: extractPolyline(data?.routes),
+        sectionEtas: calculateEtas(sections) // [추가] 첫콜에 대한 ETA 정보 제공
     };
+}
+
+// ETA 계산 유틸 함수 (현재 시간 기준 누적 초단위 더해서 HH:mm 반환)
+function calculateEtas(sections: any[]): string[] {
+    const etas: string[] = [];
+    if (!sections) return etas;
+    const now = new Date();
+    let cumulativeSec = 0;
+    for (const section of sections) {
+        cumulativeSec += section.duration || 0;
+        const targetTime = new Date(now.getTime() + cumulativeSec * 1000);
+        etas.push(targetTime.toTimeString().substring(0, 5));
+    }
+    return etas;
 }
 
 /**
@@ -129,21 +145,39 @@ export async function calculateDetourRoute(
     const baseData = await baseRes.json();
     const baseSummary = baseData?.routes?.[0]?.summary;
 
-    // 2. 합짐(경유) 연산
+    // 2. 합짐(경유) 연산 (다중 경유지 POST API 사용 - 최대 30개 지원)
     // 스마트 정렬 시 driverLoc는 무조건 Origin으로 취급
     let mergedOriginX = driverLoc ? driverLoc.x : mergedWaypoints[0].x;
     let mergedOriginY = driverLoc ? driverLoc.y : mergedWaypoints[0].y;
     let wpArray = driverLoc ? mergedWaypoints : mergedWaypoints.slice(1);
     
-    // 웨이포인트가 너무 많을 경우(카카오 무료 한도 3개 초과 시 등 대응 필요. 현재는 무시)
-    const wpQuery = wpArray.map(wp => `${wp.x},${wp.y}`).join('|');
-    const mergedUrl = `${KAKAO_API_URL}?origin=${mergedOriginX},${mergedOriginY}&destination=${mergedDestX},${mergedDestY}${wpQuery ? '&waypoints='+wpQuery : ''}&priority=RECOMMEND&car_type=1`;
+    // 카카오 다중 경유지 API (POST) URL
+    const WAYPOINTS_API_URL = "https://apis-navi.kakaomobility.com/v1/waypoints/directions";
     
-    console.log(`\n🚙 [Kakao API Request] 스마트 합짐 우회 경로 요청`);
+    const requestBody = {
+        origin: { x: mergedOriginX.toString(), y: mergedOriginY.toString() },
+        destination: { x: mergedDestX.toString(), y: mergedDestY.toString() },
+        waypoints: wpArray.map((wp, i) => ({
+            name: `wp${i}`,
+            x: wp.x,
+            y: wp.y
+        })),
+        priority: "RECOMMEND",
+        car_type: 1
+    };
+    
+    console.log(`\n🚙 [Kakao API Request] 스마트 합짐 우회 경로 요청 (다중 경유지 API)`);
     console.log(`   - Origin: ${mergedOriginX},${mergedOriginY} / Dest: ${mergedDestX},${mergedDestY}`);
-    console.log(`   - Waypoints: ${wpQuery}`);
+    console.log(`   - Waypoints Count: ${wpArray.length}`);
     
-    const mergedRes = await fetch(mergedUrl, { headers });
+    const mergedRes = await fetch(WAYPOINTS_API_URL, { 
+        method: "POST",
+        headers: {
+            ...headers,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(requestBody)
+    });
     const mergedData = await mergedRes.json();
     
     if (!mergedData.routes || mergedData.routes.length === 0) {
@@ -177,12 +211,14 @@ export async function calculateDetourRoute(
         base: { 
             duration: baseDuration, distance: baseDistance, 
             approachDuration: baseApproachDuration, approachDistance: baseApproachDistance, 
-            raw: baseSummary, polyline: extractPolyline(baseData?.routes) 
+            raw: baseSummary, polyline: extractPolyline(baseData?.routes),
+            sectionEtas: calculateEtas(baseData?.routes?.[0]?.sections)
         },
         merged: { 
             duration: mergedDuration, distance: mergedDistance, 
             approachDuration: mergedApproachDuration, approachDistance: mergedApproachDistance, 
-            raw: mergedSummary, polyline: extractPolyline(mergedData?.routes) 
+            raw: mergedSummary, polyline: extractPolyline(mergedData?.routes),
+            sectionEtas: calculateEtas(mergedData?.routes?.[0]?.sections)
         },
         timeDiffMin: Math.round((mergedDuration - baseDuration) / 60),
         distDiffKm: ((mergedDistance - baseDistance) / 1000).toFixed(1)

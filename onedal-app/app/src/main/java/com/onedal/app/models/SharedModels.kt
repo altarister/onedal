@@ -58,6 +58,9 @@ data class SimplifiedOfficeOrder(
     val dropoff: String,
     val fare: Int = 0,
     val timestamp: String,
+    val postTime: String? = null,
+    val scheduleText: String? = null,
+    val vehicleType: String? = null,
     val rawText: String? = null,
     val pickupX: Double? = null,
     val pickupY: Double? = null,
@@ -151,12 +154,16 @@ data class DeviceControl(
 // 6. 관제탑 필터 규격 (웹의 FilterConfig 대응)
 // ────────────────────────────────────────────────
 data class FilterConfig(
-    val mode: String = "첫짐",
+    val allowedVehicleTypes: List<String> = emptyList(),  // 빈 배열 = 모든 차종
+    val isActive: Boolean = true,
+    val isSharedMode: Boolean = false,
+    val pickupRadiusKm: Int = 999,
     val minFare: Int = 0,
-    val pickupRadius: Int = 999,
-    val targetCity: String = "",
-    val targetRegions: List<String> = emptyList(),
-    val targetRadius: Int = 10,
-    val blacklist: List<String> = emptyList()
+    val maxFare: Int = 1000000,
+    val destinationCity: String = "",
+    val destinationRadiusKm: Int = 10,
+    val excludedKeywords: List<String> = emptyList(),
+    val destinationKeywords: List<String> = emptyList(),
+    val customFilters: List<String> = emptyList()
 )
 

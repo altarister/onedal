@@ -36,6 +36,8 @@ class MockWebScrapParser(private val context: Context) : IScrapParser {
             dropoff = "미상",
             fare = 0,
             timestamp = now,
+            postTime = null,
+            vehicleType = null,
             rawText = rawJoined,
             pickupDistance = null
         )

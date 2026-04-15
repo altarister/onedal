@@ -11,12 +11,32 @@
  */
 
 import { Router, Response } from "express";
-import type { DispatchConfirmRequest, DispatchConfirmResponse, SecuredOrder } from "@onedal/shared";
+import type { DispatchConfirmRequest, DispatchConfirmResponse, SecuredOrder, AutoDispatchFilter } from "@onedal/shared";
 import { calculateSoloRoute, calculateDetourRoute, geocodeAddress } from "./kakaoUtil";
 import { activeFilterConfig, updateActiveFilter } from "../state/filterStore";
 import { parseLocationDetails, parseMockupFare, parseMockupDistance, parseMockupVehicleType } from "../utils/parser";
 import { getCorridorRegions } from "../services/geoService";
 import { globalDriverLocation } from "../state/locationStore";
+
+// ━━━━━━━━━━ [관제 배차 평가 상숫값] ━━━━━━━━━━
+// 기사님이 언제든지 이 수치들을 조정해서 콜 판독 기준을 바꿀 수 있습니다.
+const DISPATCH_CONFIG = {
+    // 1. 단독 주행 판독 기준 (분)
+    SOLO_HONEY_TIME_MAX: 40,    // 이 시간 이하로 걸리면 '꿀'
+    SOLO_SHIT_TIME_MIN: 90,     // 이 시간 이상 걸리면 '똥'
+
+    // 2. 합짐(경유) 판독 기준 (추가 패널티)
+    DETOUR_HONEY_TIME_MAX: 30,  // 추가되는 시간이 이 분 이하 AND
+    DETOUR_HONEY_DIST_MAX: 15,  // 추가되는 거리가 이 km 이하면 '꿀'
+    
+    DETOUR_SHIT_TIME_MIN: 60,   // 추가되는 시간이 이 분 이상 OR
+    DETOUR_SHIT_DIST_MIN: 30,   // 추가되는 거리가 이 km 이상이면 '똥'
+    
+    // 3. 통신 타임아웃 세팅 (밀리초)
+    WAITING_WARNING_MS: 30000,  // 30초 후 경고 푸시
+    WAITING_TIMEOUT_MS: 35000,  // 35초 후 강제 연결 해제
+};
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const router = Router();
 
@@ -128,6 +148,7 @@ async function recalculateActiveKakaoRoute(io: any) {
                     mainCallState.routePolyline = res.polyline;
                     mainCallState.totalDistanceKm = res.distance / 1000;
                     mainCallState.totalDurationMin = Math.round(res.duration / 60);
+                    mainCallState.sectionEtas = res.sectionEtas;
                     if (res.approachDistance && res.approachDuration) {
                         console.log(`🗺️ [사후 재계산 - 첫짐] 현위치 접근: ${res.approachDistance}m (${res.approachDuration}초) / 총 이동: ${res.distance}m`);
                     }
@@ -183,10 +204,32 @@ async function recalculateActiveKakaoRoute(io: any) {
 // [Safety Mode V3] emergency.ts에서 본콜 초기화 시 사용
 export const resetMainCallState = () => { mainCallState = null; };
 
+// [기능 추가] 사용자가 필터에서 corridorRadiusKm을 변경했을 때, 가장 최신 확보된 Polyline을 바탕으로 지역셋 재추출
+export const recalculateCorridorFilter = (corridorRadiusKm: number, destinationRadiusKm?: number) => {
+    let polylineToUse = null;
+    if (subCalls.length > 0) {
+        polylineToUse = subCalls[subCalls.length - 1].routePolyline;
+    } else if (mainCallState) {
+        polylineToUse = mainCallState.routePolyline;
+    }
+
+    if (polylineToUse && polylineToUse.length > 0) {
+        const regions = getCorridorRegions(polylineToUse, corridorRadiusKm, destinationRadiusKm);
+        if (regions && regions.flat.length > 0) {
+            console.log(`🗺️ [필터 반경 조절] 회랑 ${corridorRadiusKm}km, 목적지 ${destinationRadiusKm || 0}km 반경으로 재추출: ${regions.flat.length}개 지역 확보됨`);
+            return {
+                destinationKeywords: regions.flat.join(", "),
+                destinationGroups: regions.grouped
+            };
+        }
+    }
+    return null;
+};
+
 /**
  * 관제사 최종 판정 처리 (소켓 이벤트 `decision`에서 호출)
  */
-export function handleDecision(orderId: string, action: 'KEEP' | 'CANCEL', io: any) {
+export async function handleDecision(orderId: string, action: 'KEEP' | 'CANCEL', io: any) {
     const heldRes = pendingDetailRequests.get(orderId);
 
     if (heldRes && !heldRes.headersSent) {
@@ -221,13 +264,16 @@ export function handleDecision(orderId: string, action: 'KEEP' | 'CANCEL', io: a
         let destinationKeywords = activeFilterConfig.destinationKeywords;
 
         if (cachedOrder && cachedOrder.routePolyline) {
-            const radius = activeFilterConfig.destinationRadiusKm || 5;
-            const regions = getCorridorRegions(cachedOrder.routePolyline, radius);
-            if (regions.length > 0) {
+            const cRadius = activeFilterConfig.corridorRadiusKm || 10; // Use corridor radius for polyline intersection
+            const dRadius = activeFilterConfig.destinationRadiusKm;
+            const regions = getCorridorRegions(cachedOrder.routePolyline, cRadius, dRadius);
+            if (regions && regions.flat.length > 0) {
                 // 앱폰 연동을 위해 콤마로 연결
-                destinationKeywords = regions.join(", ");
-                console.log(`🗺️ [Turf.js 연산] 반경 ${radius}km 내 읍면동 ${regions.length}개 추출: ${destinationKeywords.substring(0, 50)}...`);
+                destinationKeywords = regions.flat.join(", ");
+                // 팝업 카테고리 뷰를 위해 그룹 데이터 저장
+                activeFilterConfig.destinationGroups = regions.grouped;
             }
+            console.log(`🗺️ [자동 회랑(Corridor) 설정 완료] 궤적주변 반경 ${cRadius}km, 하차반경 ${dRadius || 0}km 내 ${regions?.flat.length || 0}개 지역 타겟팅`);
         }
         if (cachedOrder) {
             cachedOrder.status = 'confirmed';
@@ -241,13 +287,70 @@ export function handleDecision(orderId: string, action: 'KEEP' | 'CANCEL', io: a
                 mainCallState = cachedOrder;
             } else {
                 subCalls.push(cachedOrder);
+                // [버그 수정] 수동(MANUAL) 콜이 병렬로 들어와서 둘 다 단독으로 판정받은 경우, 
+                // KEEP 처리 시점에 합짐 동선을 재계산(Recalculate)하여 전체 궤적(Polyline)을 얻어야 합니다.
+                try {
+                    const apiKey = process.env.KAKAO_REST_API_KEY;
+                    if (apiKey) {
+                        const allPickups = [
+                            { x: mainCallState.pickupX!, y: mainCallState.pickupY! },
+                            ...subCalls.map(c => ({ x: c.pickupX!, y: c.pickupY! }))
+                        ];
+                        const allDropoffs = [
+                            { x: mainCallState.dropoffX!, y: mainCallState.dropoffY! },
+                            ...subCalls.map(c => ({ x: c.dropoffX!, y: c.dropoffY! }))
+                        ];
+                        
+                        // startLoc = 기사 현위치(있으면) 혹은 첫 상차지
+                        const startLoc = allPickups[0]; 
+                        const { sortedPickups, sortedDropoffs } = optimizeWaypoints(startLoc, allPickups, allDropoffs);
+                        
+                        const mergedDest = sortedDropoffs.pop()!;
+                        const waypoints = [...sortedPickups, ...sortedDropoffs];
+                        
+                        const calcResult = await calculateDetourRoute(
+                            apiKey,
+                            mainCallState.dropoffX!, mainCallState.dropoffY!,
+                            mainCallState.pickupX!, mainCallState.pickupY!,
+                            mergedDest.x, mergedDest.y,
+                            waypoints,
+                            globalDriverLocation
+                        );
+                        
+                        // 마지막 서브콜(가장 최신 합짐콜)에 병합된 전체 궤적 저장
+                        const lastSub = subCalls[subCalls.length - 1];
+                        lastSub.routePolyline = calcResult.merged.polyline;
+                        lastSub.totalDistanceKm = calcResult.merged.distance / 1000;
+                        lastSub.totalDurationMin = Math.round(calcResult.merged.duration / 60);
+                        lastSub.sectionEtas = calcResult.merged.sectionEtas;
+
+                        console.log(`🗺️ [사후 병합 궤적 생성] 수동 병렬 진입 콜에 대해 통합 합짐 궤적(길이: ${lastSub.routePolyline?.length || 0}) 재계산 성공!`);
+                        
+                        // 생성된 궤적을 바탕으로 회랑 필터 재추출
+                        const cRadius = activeFilterConfig.corridorRadiusKm || 10;
+                        const dRadius = activeFilterConfig.destinationRadiusKm;
+                        const regions = getCorridorRegions(lastSub.routePolyline || [], cRadius, dRadius);
+                        if (regions && regions.flat.length > 0) {
+                            destinationKeywords = regions.flat.join(", ");
+                            activeFilterConfig.destinationGroups = regions.grouped;
+                        }
+                    }
+                } catch(e) {
+                    console.error('🗺️ [사후 병합 궤적 생성 실패]', e);
+                }
             }
         }
 
         io.emit("order-confirmed", orderId);
 
         // 합짐 사냥 모드로 필터 전면 개편하고 다시 매크로(isActive)를 켭니다.
-        updateActiveFilter({ isSharedMode: true, isActive: true, destinationKeywords });
+        // [버그 수정] 합짐 모드로 돌입 시, 대형 차량(1t 등) 배제 및 소형 화물 위주로 필터를 강제 전환합니다 (UI 모달에서 기사님이 수정할 수 있도록 연동됨)
+        updateActiveFilter({ 
+             isSharedMode: true, 
+             isActive: true, 
+             destinationKeywords,
+             allowedVehicleTypes: ["다마스", "라보", "오토바이"] 
+        });
         io.emit("filter-updated", activeFilterConfig);
         console.log(`✅ [최종 수락(유지)] ID: ${orderId}`);
     } else {
@@ -266,8 +369,14 @@ export function handleDecision(orderId: string, action: 'KEEP' | 'CANCEL', io: a
         io.emit("order-canceled", orderId);
 
         // 평가를 위해 매크로가 정지되어 있었다면 다시 켭니다.
-        if (!activeFilterConfig.isActive) {
-            updateActiveFilter({ isActive: true });
+        if (!activeFilterConfig.isActive || activeFilterConfig.isSharedMode) {
+            // [버그 수정] 합짐 상태에서 취소되어 본콜이 사라지면, 단독 모드로 되돌리면서 차량 필터도 다시 전체(오픈)로 초기화합니다.
+            const resetFilter: Partial<AutoDispatchFilter> = { isActive: true };
+            if (!mainCallState && subCalls.length === 0) {
+                resetFilter.isSharedMode = false;
+                resetFilter.allowedVehicleTypes = []; // 전체 허용
+            }
+            updateActiveFilter(resetFilter);
             io.emit("filter-updated", activeFilterConfig);
         }
         pendingOrdersData.delete(orderId);
@@ -382,6 +491,27 @@ router.post("/", async (req, res) => {
             }
         }
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        
+        // ━━━━━━━━━━ [차종 정밀 필터링] ━━━━━━━━━━
+        if (securedOrder.type !== "MANUAL" && activeFilterConfig.allowedVehicleTypes && activeFilterConfig.allowedVehicleTypes.length > 0) {
+            const vTypeRaw = securedOrder.vehicleType || "";
+            // 파싱된 차종 문자열(예: '다', '라', '1t', '오토')이 필터 배열에 포함되어 있는지 확인
+            const isMatch = activeFilterConfig.allowedVehicleTypes.some(allowed => {
+                const normRaw = vTypeRaw.toLowerCase();
+                if (allowed === '1t') return normRaw.includes('1') || normRaw.includes('t') || normRaw.includes('톤');
+                if (allowed === '다마스') return normRaw.includes('다');
+                if (allowed === '라보') return normRaw.includes('라');
+                if (allowed === '오토바이') return normRaw.includes('오');
+                return normRaw.includes(allowed);
+            });
+            
+            if (!isMatch) {
+                console.log(`🚫 [필터 거절] 차종 불일치: '${vTypeRaw}' (허용된 차종: ${activeFilterConfig.allowedVehicleTypes.join(', ')})`);
+                if (io) io.emit("order-canceled", payload.order.id);
+                return res.json({ deviceId: 'server', action: 'CANCEL' });
+            }
+        }
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
         // 좌표 보존을 위해 메모리에 보관
         pendingOrdersData.set(payload.order.id, securedOrder);
@@ -447,8 +577,8 @@ router.post("/", async (req, res) => {
                         const durationMin = Math.round(result.duration / 60);
                         const distKm = (result.distance / 1000).toFixed(1);
                         let recommend = "'콜'";
-                        if (durationMin <= 40) recommend = "'꿀'";
-                        else if (durationMin >= 90) recommend = "'똥'";
+                        if (durationMin <= DISPATCH_CONFIG.SOLO_HONEY_TIME_MAX) recommend = "'꿀'";
+                        else if (durationMin >= DISPATCH_CONFIG.SOLO_SHIT_TIME_MIN) recommend = "'똥'";
                         
                         timeExt = `단독 ${distKm}km, ${durationMin}분 ${recommend}`;
                         securedOrder.routePolyline = result.polyline; // [추가] 궤적 저장
@@ -495,8 +625,8 @@ router.post("/", async (req, res) => {
                         
                         let recommend = "'콜'";
                         const distDiff = parseFloat(result.distDiffKm);
-                        if (result.timeDiffMin <= 30 && distDiff <= 15) recommend = "'꿀'";
-                        else if (result.timeDiffMin >= 60 || distDiff >= 30) recommend = "'똥'";
+                        if (result.timeDiffMin <= DISPATCH_CONFIG.DETOUR_HONEY_TIME_MAX && distDiff <= DISPATCH_CONFIG.DETOUR_HONEY_DIST_MAX) recommend = "'꿀'";
+                        else if (result.timeDiffMin >= DISPATCH_CONFIG.DETOUR_SHIT_TIME_MIN || distDiff >= DISPATCH_CONFIG.DETOUR_SHIT_DIST_MIN) recommend = "'똥'";
                         
                         const signDist = distDiff > 0 ? "+" : "";
                         const signTime = result.timeDiffMin > 0 ? "+" : "";
@@ -505,6 +635,7 @@ router.post("/", async (req, res) => {
                         securedOrder.routePolyline = result.merged.polyline; // [추가] 궤적 저장
                         securedOrder.totalDistanceKm = result.merged.distance / 1000;
                         securedOrder.totalDurationMin = Math.round(result.merged.duration / 60);
+                        securedOrder.sectionEtas = result.merged.sectionEtas;
                         
                         const appDist = result.merged.approachDistance ? (result.merged.approachDistance/1000).toFixed(1) : '?';
                         const appTime = result.merged.approachDuration ? Math.round(result.merged.approachDuration/60) : '?';
@@ -537,7 +668,7 @@ router.post("/", async (req, res) => {
         // ━━━━━━━━━━ 3단계: HTTP 롱폴링 홀드 (관제사/기사님 decision 대기) ━━━━━━━━━━
         if (securedOrder.type === "MANUAL") {
             console.log(`✅ [수동 배차 통과] 기사님이 폰에서 직접 잡은 오더(${securedOrder.id}). 즉시 확정(KEEP) 처리합니다!`);
-            handleDecision(securedOrder.id, "KEEP", io);
+            await handleDecision(securedOrder.id, "KEEP", io);
             return res.json({ deviceId: 'server', action: 'ACK' });
         }
 
@@ -560,7 +691,7 @@ router.post("/", async (req, res) => {
                     });
                 }
             }
-        }, 30000);
+        }, DISPATCH_CONFIG.WAITING_WARNING_MS);
 
         // [Safety Fallback] 만약 앱폰이 수동(MANUAL) 모드라서 AUTO_CANCEL 비상 보고를 보내지 않고 사용자가 수동으로 닫기를 누른 경우,
         // 서버의 HTTP 연결이 영원히 물려있으면 앱폰의 State 머신이 영원히 WAITING_SERVER에 갇히게 됩니다.
@@ -586,7 +717,7 @@ router.post("/", async (req, res) => {
                     io.emit("order-canceled", payload.order.id);
                 }
             }
-        }, 35000);
+        }, DISPATCH_CONFIG.WAITING_TIMEOUT_MS);
 
     } catch (error) {
         console.error("Detail POST 에러:", error);

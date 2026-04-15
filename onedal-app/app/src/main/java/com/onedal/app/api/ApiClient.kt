@@ -192,7 +192,9 @@ class ApiClient(private val context: Context) {
                     Log.d(TAG, "📡 [텔레메트리] 스크랩 ${payload.data.size}건 전송 완료 (모드: ${scrapRes.deviceControl.mode})")
                     
                     if (scrapRes.dispatchEngineArgs != null) {
-                        prefs.edit().putString("activeFilter", gson.toJson(scrapRes.dispatchEngineArgs)).apply()
+                        val filterJson = gson.toJson(scrapRes.dispatchEngineArgs)
+                        prefs.edit().putString("activeFilter", filterJson).apply()
+                        Log.d(TAG, "📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:\n$filterJson")
                     }
                     
                     prefs.edit().putString("apiStatus", gson.toJson(scrapRes.apiStatus)).apply()

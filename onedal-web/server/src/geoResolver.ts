@@ -22,7 +22,7 @@ let geoData: GeoJSON | null = null;
 function loadGeoData(): GeoJSON {
     if (geoData) return geoData;
     
-    const filePath = path.join(__dirname, "data", "merged_map.geojson");
+    const filePath = path.join(__dirname, "..", "mapData", "merged_map.geojson");
     const raw = fs.readFileSync(filePath, "utf-8");
     geoData = JSON.parse(raw) as GeoJSON;
     console.log(`🗺️ [GeoResolver] ${geoData.features.length}개 읍면동 데이터 로드 완료`);

@@ -7,7 +7,7 @@ import path from "path";
 import fs from "fs";
 
 import ordersRouter from "./routes/orders";
-import detailRouter, { handleDecision, getPendingOrdersData, deviceEvaluatingMap } from "./routes/detail";
+import detailRouter, { handleDecision, getPendingOrdersData, deviceEvaluatingMap, recalculateCorridorFilter } from "./routes/detail";
 import scrapRouter from "./routes/scrap";
 import emergencyRouter from "./routes/emergency";
 import { getRegionsByCity } from "./geoResolver";
@@ -79,8 +79,23 @@ io.on("connection", (socket) => {
             newFilter.destinationKeywords = regions.join(',');
             console.log(`🗺️ [지역 자동 갱신] ${newFilter.destinationCity} → ${regions.length}개 읍면동 조회 완료`);
         }
+        
+        // [버그 수정] 합짐 경로 이탈 허용 반경 또는 하차 거점 주변 반경이 사용자에 의해 수정된 경우 실시간 재계산
+        const isCorridorChanged = newFilter.corridorRadiusKm !== undefined && newFilter.corridorRadiusKm !== activeFilterConfig.corridorRadiusKm;
+        const isTargetChanged = newFilter.destinationRadiusKm !== undefined && newFilter.destinationRadiusKm !== activeFilterConfig.destinationRadiusKm;
+        
+        if (isCorridorChanged || isTargetChanged) {
+            const cRadius = newFilter.corridorRadiusKm ?? activeFilterConfig.corridorRadiusKm ?? 1;
+            const dRadius = newFilter.destinationRadiusKm ?? activeFilterConfig.destinationRadiusKm ?? 10;
+            const newRegions = recalculateCorridorFilter(cRadius, dRadius);
+            if (newRegions) {
+                newFilter.destinationKeywords = newRegions.destinationKeywords;
+                newFilter.destinationGroups = newRegions.destinationGroups;
+            }
+        }
+        
         const updated = updateActiveFilter(newFilter);
-        console.log(`🌐 [필터 변경] 합짐모드: ${updated.isSharedMode}, 활성: ${updated.isActive}, 단가: ${updated.minFare}, 상차반경: ${updated.pickupRadiusKm}km, 지역: ${updated.destinationCity}`);
+        console.log(`🌐 [필터 전체 스키마 적용됨]\n${JSON.stringify(updated, null, 2)}`);
         // 내 서버를 포함한 모든 클라이언트 대시보드에 즉각 브로드캐스트
         io.emit("filter-updated", updated);
     });

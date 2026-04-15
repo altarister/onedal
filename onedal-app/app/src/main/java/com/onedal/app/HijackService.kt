@@ -202,9 +202,12 @@ class HijackService : AccessibilityService() {
             val orderHash = (order.pickup + order.dropoff + order.fare.toString()).hashCode()
             if (processedOrderHashes.contains(orderHash)) continue
 
-            // 🌟 [AUTO 인터셉터] 사냥 중이지 않고 AUTO 모드일 때 필터링
+            // 🌟 [항시 인터셉터] 콜 필터 매칭 검사 (디버그 로그를 위해 MANUAL/AUTO 무관하게 항시 실행)
+            val isTarget = scrapParser.shouldClick(order)
+
+            // 🌟 [AUTO 실행] 사냥 중이지 않고 AUTO 모드일 때만 실제 클릭 동작 수행
             if (!isAutoSessionActive && telemetryManager.currentMode == "AUTO") {
-                if (scrapParser.shouldClick(order)) {
+                if (isTarget) {
                     Log.d(TAG, "💥 [AUTO] 꿀콜 조건 통과! 대상 콜 강제 터치 진행!")
                     touchManager.performSimulatedTouch(fareNode.node)
                     
@@ -537,12 +540,8 @@ data class ScreenTextNode(
     val node: AccessibilityNodeInfo,
     val rect: Rect
 ) {
-    /** 이 텍스트가 요금처럼 생겼는지 판별 (예: "47" → 47,000원, "42.5" → 42,500원) */
+    /** 이 텍스트가 차종(Row의 기준축)인지 판별 (예: "오", "다", "라", "1t" 등) */
     fun isFareCandidate(): Boolean {
-        val n = text.replace(",", "")
-        val isInt = n.toIntOrNull() != null && !n.contains(".")
-        val isDec = n.toDoubleOrNull() != null && (n.endsWith(".0") || n.endsWith(".5"))
-        if (isInt || isDec) return (n.toDoubleOrNull() ?: 0.0) in HijackService.FARE_RANGE_MIN..HijackService.FARE_RANGE_MAX
-        return false
+        return text.matches(Regex("^(오|다|라|1t|1\\.4|2\\.5t?|3\\.5t?|5t|11t|14t|18t|25t)$"))
     }
 }

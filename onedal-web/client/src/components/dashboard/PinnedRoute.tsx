@@ -5,7 +5,7 @@ interface Props {
     onDecision?: (id: string, action: 'KEEP' | 'CANCEL') => void;
 }
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import sidoDataRaw from '../../mapData/sidoData.json';
 import { socket } from '../../lib/socket';
 
@@ -22,8 +22,23 @@ function getDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
     return R * c;
 }
 
+function getMinuteDiff(start?: string, end?: string) {
+    if (!start || !end || start === '?' || end === '?') return null;
+    const [h1, m1] = start.split(':').map(Number);
+    const [h2, m2] = end.split(':').map(Number);
+    let diff = (h2 * 60 + m2) - (h1 * 60 + m1);
+    if (diff < 0) diff += 1440;
+    return diff;
+}
+
 export default function PinnedRoute({ activeRoute, onDecision }: Props) {
     const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+    const [processingId, setProcessingId] = useState<string | null>(null);
+    
+    // 서버 통신 완료 시 (상태가 변하거나 삭제될 때) 로딩 상태 즉각 해제
+    useEffect(() => {
+        setProcessingId(null);
+    }, [activeRoute]);
     
     // [개발/테스트용 목업 GPS] 
     // 브라우저에서 GPS 락이 늦게 잡히는 문제를 방지하고, 서버로 현위치를 보내 반경 필터를 테스트하기 위한 가짜 현위치입니다.
@@ -76,12 +91,79 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
         });
     };
 
-    // 가상의 통합 노선도(타임라인) 생성: 상차는 순방향, 하차는 역방향(간단한 LIFO 모의)
-    const pickups = safeRoute.map((r) => ({ type: '상차', name: r.pickup.split(' ')[1] || r.pickup, isEvaluating: r.status.includes('evaluating'), x: r.pickupX, y: r.pickupY }));
-    const dropoffs = [...safeRoute].reverse().map((r) => ({ type: '하차', name: r.dropoff.split(' ')[1] || r.dropoff, isEvaluating: r.status.includes('evaluating'), x: r.dropoffX, y: r.dropoffY }));
-    const unifiedRoutePoints = [...pickups, ...dropoffs];
+    // 서버와 동일한 동선 최적화(TSP Nearest Neighbor) 로직 적용
+    const rawPickups = safeRoute.map((r) => ({ type: '상차', name: r.pickup.split(' ')[1] || r.pickup, isEvaluating: r.status.includes('evaluating'), x: r.pickupX, y: r.pickupY, routeId: r.id }));
+    const rawDropoffs = safeRoute.map((r) => ({ type: '하차', name: r.dropoff.split(' ')[1] || r.dropoff, isEvaluating: r.status.includes('evaluating'), x: r.dropoffX, y: r.dropoffY, routeId: r.id }));
 
+    const sortedPickups: typeof rawPickups = [];
+    let currentLoc = myLocation || (rawPickups[0] ? { x: rawPickups[0].x!, y: rawPickups[0].y! } : { x: 0, y: 0 });
+    
+    // 상차지 최적화
+    const pPool = [...rawPickups].filter(p => typeof p.x === 'number' && typeof p.y === 'number');
+    while (pPool.length > 0) {
+        let bestIdx = 0; let minD = Infinity;
+        pPool.forEach((p, idx) => {
+            const d = getDistanceKm(currentLoc.y, currentLoc.x, p.y!, p.x!);
+            if (d < minD) { minD = d; bestIdx = idx; }
+        });
+        const best = pPool.splice(bestIdx, 1)[0];
+        sortedPickups.push(best);
+        currentLoc = { x: best.x!, y: best.y! };
+    }
+    
+    // 하차지 최적화
+    const sortedDropoffs: typeof rawDropoffs = [];
+    const dPool = [...rawDropoffs].filter(d => typeof d.x === 'number' && typeof d.y === 'number');
+    while (dPool.length > 0) {
+        let bestIdx = 0; let minD = Infinity;
+        dPool.forEach((p, idx) => {
+            const d = getDistanceKm(currentLoc.y, currentLoc.x, p.y!, p.x!);
+            if (d < minD) { minD = d; bestIdx = idx; }
+        });
+        const best = dPool.splice(bestIdx, 1)[0];
+        sortedDropoffs.push(best);
+        currentLoc = { x: best.x!, y: best.y! };
+    }
 
+    const unifiedRoutePoints = [...sortedPickups, ...sortedDropoffs];
+
+    // 각 콜별 상하차 예상 시간(ETA) 매핑
+    const etaMap = useMemo(() => {
+        const result = new Map<string, { pickupEta?: string, dropoffEta?: string }>();
+        const routeWithEtas = [...safeRoute].reverse().find(r => r.sectionEtas && r.sectionEtas.length > 0);
+        if (!routeWithEtas) return result;
+        
+        const etas = routeWithEtas.sectionEtas!;
+        const offset = myLocation ? 0 : 1; 
+
+        unifiedRoutePoints.forEach((pt, index) => {
+            // 카카오 네비가 중복된 거점(예: 파주시 파주시 파주시)을 하나로 병합하여 
+            // etas 배열 길이가 예상보다 짧을 경우, 가장 마지막에 도착한 ETA를 복사해서 공유합니다.
+            const eta = etas[index + offset] || etas[etas.length - 1] || "?";
+            if (!pt.routeId) return;
+            const existing = result.get(pt.routeId) || {};
+            if (pt.type === '상차') result.set(pt.routeId, { ...existing, pickupEta: eta });
+            else result.set(pt.routeId, { ...existing, dropoffEta: eta });
+        });
+        return result;
+    }, [unifiedRoutePoints, safeRoute, myLocation]);
+
+    // 지도 상의 방문 순번(1, 2, 3...)을 콜(주문) ID별 상/하차지로 매핑
+    const visitOrderMap = useMemo(() => {
+        const result = new Map<string, { pickupIdx: number, dropoffIdx: number }>();
+        // unifiedRoutePoints는 [현위치(옵션), P1, P2... D1, D2...]로 구성됨
+        unifiedRoutePoints.forEach((pt, idx) => {
+            if (!pt.routeId) return;
+            const existing = result.get(pt.routeId) || { pickupIdx: 0, dropoffIdx: 0 };
+            if (pt.type === '상차') {
+                existing.pickupIdx = idx + 1;
+            } else {
+                existing.dropoffIdx = idx + 1;
+            }
+            result.set(pt.routeId, existing);
+        });
+        return result;
+    }, [unifiedRoutePoints]);
 
 
     // 캔버스 미니맵 렌더링 (단독 함수로 분리하여 제스처 시 즉각 호출)
@@ -152,23 +234,20 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
         const rangeX = (maxX - minX) === 0 ? 0.001 : (maxX - minX);
         const rangeY = (maxY - minY) === 0 ? 0.001 : (maxY - minY);
 
-        // 위도(Y, 우리나라 37도 부근)는 경도(X)에 비해 동일 각도당 실제 거리가 약 1.25배 깁니다. 
-        // 찌그러짐을 방지하기 위한 비율 보정 및 통합 스케일 계산
-        const latScaleCorrection = 1.25;
-        const scale = Math.min(drawWidth / rangeX, drawHeight / (rangeY * latScaleCorrection));
+        // 비율 잠금 (Isotropic Scaling): 가로/세로 중 더 작은 스케일로 통일하여 찌그러짐 방지
+        const scale = Math.min(drawWidth / rangeX, drawHeight / rangeY);
 
         const contentWidth = rangeX * scale;
-        const contentHeight = rangeY * latScaleCorrection * scale;
+        const contentHeight = rangeY * scale;
 
-        // 정중앙 배치를 위한 오프셋
+        // 정중앙 배치를 위한 오프셋 (남는 여백을 양쪽에 균등 분배)
         const offsetX = paddingX + (drawWidth - contentWidth) / 2;
         const offsetY = paddingY + (drawHeight - contentHeight) / 2;
 
-        // 카카오 지도(타일) 형식에 맞춰 X는 경도(순방향), Y는 위도(역방향 처리) + 줌/팬 적용
-        // 도로 등 모든 스케일 객체는 zoomRef.current를 곱해 크기를 증폭/축소시킵니다.
+        // X는 경도(순방향), Y는 위도(역방향 처리) + 줌/팬 적용
         const getScreenPt = (p: { x: number, y: number }) => ({
             cx: (offsetX + (p.x - minX) * scale) * zoomRef.current + panRef.current.x,
-            cy: (offsetY + (maxY - p.y) * latScaleCorrection * scale) * zoomRef.current + panRef.current.y
+            cy: (offsetY + (maxY - p.y) * scale) * zoomRef.current + panRef.current.y
         });
 
         // 0. 시도/배경 그리기 (GeoJSON 연동)
@@ -504,8 +583,10 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
                             <span className="text-[13px] font-black text-slate-300">
                                 {(() => {
                                     const lastRoute = [...safeRoute].reverse().find(r => r.totalDistanceKm !== undefined);
-                                    if (!lastRoute) return "카카오 연산 대기중...";
-                                    return `총 도로 주행거리 ${(lastRoute.totalDistanceKm!).toFixed(1)}km / 예상 소요 ${lastRoute.totalDurationMin}분`;
+                                    const callCount = activeRoute.length;
+                                    const callCountStr = callCount > 0 ? ` (총 ${callCount}개 콜)` : '';
+                                    if (!lastRoute) return `카카오 연산 대기중...${callCountStr}`;
+                                    return `총 도로 주행거리 ${(lastRoute.totalDistanceKm!).toFixed(1)}km / 예상 소요 ${lastRoute.totalDurationMin}분${callCountStr}`;
                                 })()}
                             </span>
                         </div>
@@ -563,40 +644,57 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
                 </div> */}
             </div>
 
-            {/* 오더 관리 아코디언 리스트 (하단: 최신순 정렬 - 스크롤 방지용) */}
+            {/* 오더 관리 아코디언 리스트 (지도 상의 상차 순서 번호대로 정렬) */}
             <div className="space-y-2">
-                {[...activeRoute].reverse().map((route, reversedIdx) => {
-                    const originalIdx = activeRoute.length - 1 - reversedIdx;
-                    const isEvaluating = route.status.includes('evaluating');
-                    const isExpanded = isEvaluating || expandedIds.has(route.id);
+                {[...activeRoute]
+                    .sort((a, b) => {
+                        const aEvaluating = a.status.includes('evaluating');
+                        const bEvaluating = b.status.includes('evaluating');
+                        // 평가중인 콜은 항상 맨 위에
+                        if (aEvaluating && !bEvaluating) return -1;
+                        if (!aEvaluating && bEvaluating) return 1;
 
-                    return (
-                        <div key={route.id} className={`flex flex-col bg-[#111522] rounded-xl border border-slate-700/60 relative overflow-hidden transition-all duration-300 shadow-md ${isEvaluating ? 'ring-1 ring-amber-500/50' : 'hover:border-slate-500/50'}`}>
-                            {route.status === 'evaluating_detailed' && (
-                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-500/5 to-transparent -translate-x-full animate-[shimmer_2s_infinite] pointer-events-none" />
-                            )}
+                        const orderA = visitOrderMap.get(a.id)?.pickupIdx || 999;
+                        const orderB = visitOrderMap.get(b.id)?.pickupIdx || 999;
+                        return orderA - orderB;
+                    })
+                    .map((route) => {
+                        const isEvaluating = route.status.includes('evaluating');
+                        const isExpanded = isEvaluating || expandedIds.has(route.id);
+                        const etas = etaMap.get(route.id);
+                        const visitOrder = visitOrderMap.get(route.id);
+                        
+                        const pLabel = visitOrder?.pickupIdx || '?';
+                        const dLabel = visitOrder?.dropoffIdx || '?';
+                        
+                        const minuteDiff = getMinuteDiff(etas?.pickupEta, etas?.dropoffEta);
+                        const separatorText = minuteDiff !== null ? `-${minuteDiff}분-` : '-';
 
-                            {/* 1. 카드 헤더 구역 (최대한 얇고 타이트하게 하나의 Flex Row로 통합) */}
-                            <div
-                                onClick={() => !isEvaluating && toggleExpand(route.id)}
-                                className={`p-2.5 flex justify-between items-center w-full text-sm font-bold tracking-tight ${!isEvaluating && 'cursor-pointer group hover:bg-white/5'}`}
-                            >
-                                <div className="flex items-center gap-1.5 truncate text-slate-300 flex-1">
-                                    <span className={`${isEvaluating ? 'text-amber-400' : 'text-emerald-400'} flex-shrink-0`}>
-                                        {originalIdx + 1}. {route.pickup.split(' ')[1] || route.pickup}
-                                    </span>
-                                    <span className="text-slate-600 flex-shrink-0">-</span>
-                                    <span className={`${isEvaluating ? 'text-amber-400' : 'text-rose-400'} flex-shrink-0`}>
-                                        {activeRoute.length + (activeRoute.length - 1 - originalIdx) + 1}. {route.dropoff.split(' ')[1] || route.dropoff}
-                                    </span>
+                        return (
+                            <div key={route.id} className={`flex flex-col bg-[#111522] rounded-xl border border-slate-700/60 relative overflow-hidden transition-all duration-300 shadow-md ${isEvaluating ? 'ring-1 ring-amber-500/50' : 'hover:border-slate-500/50'}`}>
+                                {route.status === 'evaluating_detailed' && (
+                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-500/5 to-transparent -translate-x-full animate-[shimmer_2s_infinite] pointer-events-none" />
+                                )}
+
+                                {/* 1. 카드 헤더 구역 (최대한 얇고 타이트하게 하나의 Flex Row로 통합) */}
+                                <div
+                                    onClick={() => !isEvaluating && toggleExpand(route.id)}
+                                    className={`p-2.5 flex justify-between items-center w-full text-sm font-bold tracking-tight ${!isEvaluating ? 'cursor-pointer group hover:bg-white/5' : ''}`}
+                                >
+                                    <div className="flex items-center gap-1.5 truncate text-slate-300 flex-1">
+                                        <span className={`${isEvaluating ? 'text-amber-400' : 'text-emerald-400'} flex-shrink-0 flex items-center`}>
+                                            {pLabel}. {route.pickup.split(' ')[1] || route.pickup}{etas?.pickupEta && <span className="text-emerald-200 ml-0.5">({etas.pickupEta})</span>}
+                                        </span>
+                                        <span className="text-slate-500 font-bold text-[11px] flex-shrink-0 mx-0.5 tracking-tighter">{separatorText}</span>
+                                        <span className={`${isEvaluating ? 'text-amber-400' : 'text-rose-400'} flex-shrink-0`}>
+                                            {dLabel}. {route.dropoff.split(' ')[1] || route.dropoff}{etas?.dropoffEta && <span className="text-rose-200 ml-0.5">({etas.dropoffEta})</span>}
+                                        </span>
                                     <span className="ml-3 text-slate-400 font-medium text-[11px] truncate mt-0.5 flex items-center gap-1.5 flex-[2]">
-                                        <span>{route.fare > 0 ? `금액 ${(route.fare / 10000).toFixed(1)}만` : '금액미상'}</span>
+                                        <span>{route.fare > 0 ? `${(route.fare / 10000).toFixed(1)}만` : '금액미상'}</span>
                                         <span className="text-slate-600">,</span>
-                                        <span>{route.status.includes('evaluating') ? '계산중' : route.distanceKm ? `${route.distanceKm}Km` : '거리미상'}</span>
+                                        <span>{route.status.includes('evaluating') ? '계산중' : route.distanceKm ? `${route.distanceKm}Km` : '미상'}</span>
                                         <span className="text-slate-600">,</span>
-                                        <span>{route.vehicleType || '차량미상'}</span>
-                                        <span className="text-slate-600">,</span>
-                                        <span>[{route.companyName?.split('-')[0] || '퀵사무실'}]</span>
+                                        <span>{route.vehicleType?.substring(0, 1) || '차'}</span>
                                     </span>
                                 </div>
 
@@ -660,7 +758,7 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
                                             <span>카카오 분석 결과</span>
                                             <span>
                                                 {route.kakaoTimeExt.replace(/['꿀똥콜🚙💩🍯]/g, "").trim()}
-                                                {route.kakaoTimeExt.includes("'꿀'") ? " (꿀)" : route.kakaoTimeExt.includes("'똥'") ? " (패널티 주의)" : " (양호)"}
+                                                {route.kakaoTimeExt.includes("실패") ? "" : route.kakaoTimeExt.includes("'꿀'") ? " (꿀)" : route.kakaoTimeExt.includes("'똥'") ? " (패널티 주의)" : " (양호)"}
                                             </span>
                                         </div>
                                     )}
@@ -671,10 +769,11 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
                                     {route.status === 'confirmed' && onDecision && (
                                         <div className="mt-4 flex gap-3">
                                             <button
-                                                onClick={(e) => { e.stopPropagation(); onDecision(route.id, 'CANCEL'); }}
-                                                className="w-full bg-rose-950/40 text-rose-400 text-sm font-bold py-4 rounded-lg border border-rose-500/20 hover:bg-rose-900/60 transition-all shadow-sm active:scale-[0.98]"
+                                                disabled={processingId === route.id}
+                                                onClick={(e) => { e.stopPropagation(); setProcessingId(route.id); onDecision(route.id, 'CANCEL'); }}
+                                                className={`w-full bg-rose-950/40 text-rose-400 text-sm font-bold py-4 rounded-lg border border-rose-500/20 transition-all shadow-sm ${processingId === route.id ? 'opacity-50 cursor-not-allowed' : 'hover:bg-rose-900/60 active:scale-[0.98]'}`}
                                             >
-                                                🚨 확정 배차 취소 (해당 오더 방출)
+                                                {processingId === route.id ? '처리 중...' : '🚨 확정 배차 취소 (해당 오더 방출)'}
                                             </button>
                                         </div>
                                     )}
@@ -685,8 +784,8 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
                                                 ⏳ 앱폰이 상세 정보를 긁고 있습니다... 잠시 기다려주세요
                                             </div>
                                             <div className="flex gap-3">
-                                                <button onClick={(e) => { e.stopPropagation(); onDecision(route.id, 'CANCEL'); }} className="flex-1 bg-slate-800 text-rose-400 text-sm font-bold py-3.5 rounded-lg border border-rose-500/20 hover:bg-rose-950 transition-all shadow-sm active:scale-95">
-                                                    즉시 포기
+                                                <button disabled={processingId === route.id} onClick={(e) => { e.stopPropagation(); setProcessingId(route.id); onDecision(route.id, 'CANCEL'); }} className={`flex-1 bg-slate-800 text-rose-400 text-sm font-bold py-3.5 rounded-lg border border-rose-500/20 transition-all shadow-sm ${processingId === route.id ? 'opacity-50 cursor-not-allowed' : 'hover:bg-rose-950 active:scale-95'}`}>
+                                                    {processingId === route.id ? '처리 중...' : '즉시 포기'}
                                                 </button>
                                                 <button disabled className="flex-1 bg-slate-800 text-slate-500 text-sm font-bold py-3.5 rounded-lg border border-slate-700 cursor-not-allowed">
                                                     상세 대기중...
@@ -696,12 +795,18 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
                                     )}
                                     {route.type !== 'MANUAL' && route.status === 'evaluating_detailed' && onDecision && (
                                         <div className="mt-4 flex gap-3">
-                                            <button onClick={(e) => { e.stopPropagation(); onDecision(route.id, 'CANCEL'); }} className="flex-1 bg-[#2a131b] text-rose-400 text-sm font-bold py-4 rounded-lg border border-rose-500/30 hover:bg-[#3d1a25] transition-all shadow-sm active:scale-95">
-                                                방출
+                                            <button disabled={processingId === route.id} onClick={(e) => { e.stopPropagation(); setProcessingId(route.id); onDecision(route.id, 'CANCEL'); }} className={`flex-1 bg-[#2a131b] text-rose-400 text-sm font-bold py-4 rounded-lg border border-rose-500/30 transition-all shadow-sm ${processingId === route.id ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#3d1a25] active:scale-95'}`}>
+                                                {processingId === route.id ? '처리 중...' : '방출'}
                                             </button>
-                                            <button onClick={(e) => { e.stopPropagation(); onDecision(route.id, 'KEEP'); }} className="flex-[2] bg-emerald-500 text-emerald-950 text-base font-black py-4 rounded-lg shadow-[0_0_20px_rgba(16,185,129,0.4)] hover:bg-emerald-400 hover:scale-[1.02] active:scale-95 transition-all">
-                                                유지 확정
-                                            </button>
+                                            {!!route.kakaoTimeExt ? (
+                                                <button disabled={processingId === route.id} onClick={(e) => { e.stopPropagation(); setProcessingId(route.id); onDecision(route.id, 'KEEP'); }} className={`flex-[2] bg-emerald-500 text-emerald-950 text-base font-black py-4 rounded-lg transition-all ${processingId === route.id ? 'opacity-50 cursor-not-allowed' : 'shadow-[0_0_20px_rgba(16,185,129,0.4)] hover:bg-emerald-400 hover:scale-[1.02] active:scale-95'}`}>
+                                                    {processingId === route.id ? '서버와 통신 중...' : '유지 확정'}
+                                                </button>
+                                            ) : (
+                                                <button disabled className="flex-[2] bg-slate-800 text-slate-500 text-base font-black py-4 rounded-lg border border-slate-700 cursor-not-allowed">
+                                                    좌표 분석 중...
+                                                </button>
+                                            )}
                                         </div>
                                     )}
                                 </div>
@@ -710,9 +815,6 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
                     );
                 })}
             </div>
-
-            {/* 하단 통합 정보 바는 상단(맵 아래)으로 이동되었습니다. */}
-
         </section>
     );
 }

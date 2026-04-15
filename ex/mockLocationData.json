@@ -998,5 +998,405 @@
     "phone2": "021-1321-9303",
     "region": "제주 서귀포시",
     "addressDetail": "제주 서귀포시 중문관광로72번길 75 신라호텔"
+  },
+  {
+    "customerName": "경기광주 곤지암리조트",
+    "department": "관리사무소",
+    "contactName": "박실장",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "031-8026-9000",
+    "region": "경기 광주시",
+    "addressDetail": "경기 광주시 도척면 도척윗로 278 곤지암리조트"
+  },
+  {
+    "customerName": "광주 프리미엄아울렛",
+    "department": "하역장",
+    "contactName": "이주임",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "031-760-2500",
+    "region": "경기 광주시",
+    "addressDetail": "경기 광주시 초월읍 경충대로 2170 신세계사이먼 광주프리미엄아울렛"
+  },
+  {
+    "customerName": "경안천 체육공원",
+    "department": "관리실",
+    "contactName": "김관리",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "경기 광주시",
+    "addressDetail": "경기 광주시 경안동 167-1 경안천 체육공원"
+  },
+  {
+    "customerName": "남한산성",
+    "department": "방문자센터",
+    "contactName": "한프로",
+    "mileage": 5,
+    "phone1": "010-2684-8748",
+    "phone2": "031-746-1560",
+    "region": "경기 광주시",
+    "addressDetail": "경기 광주시 남한산성면 남한산성로 731 남한산성"
+  },
+  {
+    "customerName": "광주시청",
+    "department": "민원실",
+    "contactName": "박사무관",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "031-760-2114",
+    "region": "경기 광주시",
+    "addressDetail": "경기 광주시 행정타운로 50 광주시청"
+  },
+  {
+    "customerName": "퇴촌 농협하나로마트",
+    "department": "배송부",
+    "contactName": "최배송",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "031-768-2000",
+    "region": "경기 광주시",
+    "addressDetail": "경기 광주시 퇴촌면 경충대로 1520 농협하나로마트"
+  },
+  {
+    "customerName": "오포 물류센터",
+    "department": "입고팀",
+    "contactName": "강팀장",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "031-768-3300",
+    "region": "경기 광주시",
+    "addressDetail": "경기 광주시 오포읍 오포로 538-21 오포물류센터"
+  },
+  {
+    "customerName": "광주 이마트",
+    "department": "식품팀",
+    "contactName": "박점장",
+    "mileage": 2,
+    "phone1": "010-2684-8748",
+    "phone2": "031-760-1234",
+    "region": "경기 광주시",
+    "addressDetail": "경기 광주시 경안동 493-4 이마트 광주점"
+  },
+  {
+    "customerName": "곤지암도자공원",
+    "department": "전시관리팀",
+    "contactName": "이학예사",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "031-799-1500",
+    "region": "경기 광주시",
+    "addressDetail": "경기 광주시 곤지암읍 경충대로 727 곤지암도자공원"
+  },
+  {
+    "customerName": "광주 쏘카 정비센터",
+    "department": "정비부",
+    "contactName": "한프로",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "경기 광주시",
+    "addressDetail": "경기 광주시 목현동 558 쏘카 광주정비센터"
+  },
+  {
+    "customerName": "태전동 우체국",
+    "department": "소포접수",
+    "contactName": "조국장",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "031-762-0015",
+    "region": "경기 광주시",
+    "addressDetail": "경기 광주시 태전동 409-1 광주태전우체국"
+  },
+  {
+    "customerName": "실촌읍사무소",
+    "department": "총무과",
+    "contactName": "정주무관",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "031-760-4600",
+    "region": "경기 광주시",
+    "addressDetail": "경기 광주시 실촌읍 곤지암로 27 실촌읍사무소"
+  },
+  {
+    "customerName": "광주 역세권주차장",
+    "department": "관리팀",
+    "contactName": "서관리",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "경기 광주시",
+    "addressDetail": "경기 광주시 경안동 22-1 광주역 공영주차장"
+  },
+  {
+    "customerName": "광주 한국도자재단",
+    "department": "사무국",
+    "contactName": "윤실장",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "031-799-1400",
+    "region": "경기 광주시",
+    "addressDetail": "경기 광주시 초월읍 경충대로 2697 한국도자재단"
+  },
+  {
+    "customerName": "광주 농협 경안지점",
+    "department": "영업부",
+    "contactName": "박지점장",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "031-765-1234",
+    "region": "경기 광주시",
+    "addressDetail": "경기 광주시 경안동 165-15 농협 경안지점"
+  },
+  {
+    "customerName": "팔당댐 관리소",
+    "department": "관리과",
+    "contactName": "김과장",
+    "mileage": 10,
+    "phone1": "010-2684-8748",
+    "phone2": "031-770-5500",
+    "region": "경기 광주시",
+    "addressDetail": "경기 광주시 남종면 팔당로 29 팔당댐 관리사무소"
+  },
+  {
+    "customerName": "광주 중앙도서관",
+    "department": "자료실",
+    "contactName": "한프로",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "031-760-4900",
+    "region": "경기 광주시",
+    "addressDetail": "경기 광주시 송정동 532-2 광주시립 중앙도서관"
+  },
+  {
+    "customerName": "삼성물산 곤지암연수원",
+    "department": "시설관리팀",
+    "contactName": "이연수",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "031-761-0300",
+    "region": "경기 광주시",
+    "addressDetail": "경기 광주시 곤지암읍 곤지암로 63 삼성인력개발원"
+  },
+  {
+    "customerName": "초월읍행정복지센터",
+    "department": "총무과",
+    "contactName": "최주무관",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "031-760-4700",
+    "region": "경기 광주시",
+    "addressDetail": "경기 광주시 초월읍 경충대로 2073 초월읍행정복지센터"
+  },
+  {
+    "customerName": "광주 홈플러스",
+    "department": "배송센터",
+    "contactName": "오주임",
+    "mileage": 3,
+    "phone1": "010-2684-8748",
+    "phone2": "031-760-8000",
+    "region": "경기 광주시",
+    "addressDetail": "경기 광주시 경안동 204-5 홈플러스 광주점"
+  },
+  {
+    "customerName": "파주 프리미엄아울렛",
+    "department": "물류센터",
+    "contactName": "김센터장",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "031-960-4600",
+    "region": "경기 파주시",
+    "addressDetail": "경기 파주시 탄현면 필승로 200 신세계사이먼 파주프리미엄아울렛"
+  },
+  {
+    "customerName": "파주 롯데아울렛",
+    "department": "하역장",
+    "contactName": "이주임",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "031-960-2500",
+    "region": "경기 파주시",
+    "addressDetail": "경기 파주시 문발로 90 롯데프리미엄아울렛 파주"
+  },
+  {
+    "customerName": "파주출판도시",
+    "department": "관리사무소",
+    "contactName": "박관리",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "031-955-0090",
+    "region": "경기 파주시",
+    "addressDetail": "경기 파주시 회동길 145 아시아출판문화정보센터"
+  },
+  {
+    "customerName": "파주시청",
+    "department": "민원실",
+    "contactName": "정사무관",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "031-940-4114",
+    "region": "경기 파주시",
+    "addressDetail": "경기 파주시 시청로 36 파주시청"
+  },
+  {
+    "customerName": "헤이리 예술마을",
+    "department": "운영팀",
+    "contactName": "한프로",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "031-946-8551",
+    "region": "경기 파주시",
+    "addressDetail": "경기 파주시 탄현면 헤이리마을길 70 헤이리 예술마을"
+  },
+  {
+    "customerName": "임진각 평화누리공원",
+    "department": "관광안내소",
+    "contactName": "안내원",
+    "mileage": 20,
+    "phone1": "010-2684-8748",
+    "phone2": "031-953-4744",
+    "region": "경기 파주시",
+    "addressDetail": "경기 파주시 문산읍 임진각로 148-53 임진각 평화누리공원"
+  },
+  {
+    "customerName": "운정 이마트",
+    "department": "식품팀",
+    "contactName": "윤점장",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "031-936-1234",
+    "region": "경기 파주시",
+    "addressDetail": "경기 파주시 와석순환로 415 이마트 운정점"
+  },
+  {
+    "customerName": "LG디스플레이 파주",
+    "department": "자재부 입고장",
+    "contactName": "강과장",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "031-930-1114",
+    "region": "경기 파주시",
+    "addressDetail": "경기 파주시 월롱면 엘지로 245 LG디스플레이 파주공장"
+  },
+  {
+    "customerName": "파주 CJ대한통운",
+    "department": "B2B팀",
+    "contactName": "조팀장",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "031-940-5000",
+    "region": "경기 파주시",
+    "addressDetail": "경기 파주시 파주읍 파주리 169 CJ대한통운 파주터미널"
+  },
+  {
+    "customerName": "문산역",
+    "department": "역무실",
+    "contactName": "한역장",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "경기 파주시",
+    "addressDetail": "경기 파주시 문산읍 문산역로 65 문산역"
+  },
+  {
+    "customerName": "파주 우체국물류센터",
+    "department": "소포접수",
+    "contactName": "김국장",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "031-940-0015",
+    "region": "경기 파주시",
+    "addressDetail": "경기 파주시 금촌동 905-1 파주우체국 물류센터"
+  },
+  {
+    "customerName": "운정 홈플러스",
+    "department": "배송센터",
+    "contactName": "박센터장",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "031-929-8000",
+    "region": "경기 파주시",
+    "addressDetail": "경기 파주시 경의로 1007 홈플러스 운정점"
+  },
+  {
+    "customerName": "파주 교하도서관",
+    "department": "자료실",
+    "contactName": "한프로",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "031-940-5400",
+    "region": "경기 파주시",
+    "addressDetail": "경기 파주시 교하로 129 교하도서관"
+  },
+  {
+    "customerName": "파주 농협 금촌지점",
+    "department": "영업부",
+    "contactName": "이지점장",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "031-940-1234",
+    "region": "경기 파주시",
+    "addressDetail": "경기 파주시 금촌동 768-2 농협 금촌지점"
+  },
+  {
+    "customerName": "쿠팡 파주물류센터",
+    "department": "입고팀",
+    "contactName": "최팀장",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "031-955-3000",
+    "region": "경기 파주시",
+    "addressDetail": "경기 파주시 탄현면 축현리 243 쿠팡 파주풀필먼트센터"
+  },
+  {
+    "customerName": "파주 코스트코",
+    "department": "회원관리",
+    "contactName": "서매니저",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "031-948-0900",
+    "region": "경기 파주시",
+    "addressDetail": "경기 파주시 금바위로 15 코스트코 파주점"
+  },
+  {
+    "customerName": "한국전력 파주지사",
+    "department": "자재부",
+    "contactName": "김자재",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "031-940-3000",
+    "region": "경기 파주시",
+    "addressDetail": "경기 파주시 금촌동 511-1 한국전력공사 파주지사"
+  },
+  {
+    "customerName": "감악산 출렁다리",
+    "department": "관리사무소",
+    "contactName": "안관리원",
+    "mileage": 15,
+    "phone1": "010-2684-8748",
+    "phone2": "*",
+    "region": "경기 파주시",
+    "addressDetail": "경기 파주시 적성면 설마리 산86 감악산 출렁다리"
+  },
+  {
+    "customerName": "법원읍행정복지센터",
+    "department": "총무과",
+    "contactName": "정주무관",
+    "mileage": 0,
+    "phone1": "010-2684-8748",
+    "phone2": "031-940-8600",
+    "region": "경기 파주시",
+    "addressDetail": "경기 파주시 법원읍 법원리 495-1 법원읍행정복지센터"
+  },
+  {
+    "customerName": "파주 오두산통일전망대",
+    "department": "관리팀",
+    "contactName": "한프로",
+    "mileage": 25,
+    "phone1": "010-2684-8748",
+    "phone2": "031-945-3171",
+    "region": "경기 파주시",
+    "addressDetail": "경기 파주시 탄현면 필승로 369 오두산 통일전망대"
   }
 ]
