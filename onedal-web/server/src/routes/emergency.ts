@@ -49,7 +49,8 @@ router.post("/", (req, res) => {
         // 앱폰이 orderId를 분실하여 'unknown'으로 보냈을 경우, 해당 기기에서 보류 중인 오더를 역추적
         if (!targetOrderId || targetOrderId === "unknown") {
             for (const [id, order] of pendingOrdersData.entries()) {
-                if (order.capturedDeviceId === deviceId) {
+                // [안전장치] 이미 확정된('KEEP') 오더는 앱폰 에러로 취소될 대상이 아니므로 제외합니다!
+                if (order.capturedDeviceId === deviceId && order.status !== 'confirmed') {
                     targetOrderId = id;
                     console.log(`   🔍 잃어버린 orderId 역추적 성공: ${targetOrderId}`);
                     break;
