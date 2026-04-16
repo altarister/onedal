@@ -62,6 +62,7 @@ class HijackService : AccessibilityService() {
     // ── 팝업 자동 서핑 관련 상태 ──
     private enum class SurfingState {
         IDLE,
+        WAITING_FOR_MEMO_POPUP,
         WAITING_FOR_PICKUP_POPUP,
         WAITING_FOR_DROPOFF_POPUP,
         DONE
@@ -167,6 +168,7 @@ class HijackService : AccessibilityService() {
             ScreenContext.LIST -> handleListScreen(rootNode, screenTexts)
             ScreenContext.DETAIL_PRE_CONFIRM -> handlePreConfirmScreen(rootNode, screenTexts, rawScreenStr)
             ScreenContext.DETAIL_CONFIRMED -> handleConfirmedScreen(rootNode, screenTexts, rawScreenStr)
+            ScreenContext.POPUP_MEMO -> handleMemoPopup(rootNode, screenTexts)
             ScreenContext.POPUP_PICKUP -> handlePickupPopup(rootNode, screenTexts)
             ScreenContext.POPUP_DROPOFF -> handleDropoffPopup(rootNode, screenTexts)
             else -> {} // UNKNOWN, POPUP_ERROR 등은 현재 별도 처리 없음
@@ -271,28 +273,73 @@ class HijackService : AccessibilityService() {
         // 잔상 방어
         if (isPopupResidue(rawScreenStr)) return
 
-        // 확정 화면에 처음 진입했을 때 서핑 시작!
+        // 확정 화면에 처음 진입했을 때 서핑 시작! (적요상세 → 출발지 → 도착지 순서)
         if (surfingState == SurfingState.IDLE) {
             ensureSessionId()
             lastDetailOrder = buildOrderFromScreen(screenTexts)
             accumulatedDetailText = screenTexts.joinToString("\n") + "\n"
 
-            Log.d(TAG, "🏄‍♂️ [자동 팝업 서핑] 확정 화면 진입 확인! 출발지 정보 확인을 위해 자동 클릭 시도")
-            if (touchManager.findAndClickByText(rootNode, "출발지", isStartsWith = true) ||
-                touchManager.findAndClickByText(rootNode, "상차", isStartsWith = true)) {
+            Log.d(TAG, "🏄‍♂️ [자동 팝업 서핑] 확정 화면 진입 확인! 적요상세 팝업 호출 시도")
+            if (touchManager.findAndClickByText(rootNode, "적요상세", isStartsWith = true)) {
+                Log.i(TAG, "📋 [SEQ 81] 적요상세 버튼 클릭 → 적요 정보 요청")
+                surfingState = SurfingState.WAITING_FOR_MEMO_POPUP
+            } else if (touchManager.findAndClickByText(rootNode, "출발지", isStartsWith = true) ||
+                       touchManager.findAndClickByText(rootNode, "상차", isStartsWith = true)) {
+                Log.w(TAG, "⚠️ 적요상세 버튼을 찾을 수 없습니다. 곧바로 출발지 서핑으로 넘어갑니다.")
+                Log.i(TAG, "📋 [SEQ 82] 출발지/상차 클릭 → 출발지 정보 요청")
                 surfingState = SurfingState.WAITING_FOR_PICKUP_POPUP
             } else {
-                Log.e(TAG, "❌ [서핑 실패] 출발지 버튼을 찾을 수 없습니다.")
-                surfingState = SurfingState.IDLE
+                Log.w(TAG, "⚠️ [서핑 대기] 팝업 호출 버튼(적요상세/출발지)을 찾지 못했습니다. (대기)")
+                return // 다음 UI 업데이트 이벤트를 기다림
+            }
+        }
+        
+        // 서핑 중: 적요상세 팝업에서 돌아온 후 출발지 누르기
+        else if (surfingState == SurfingState.WAITING_FOR_PICKUP_POPUP) {
+            Log.d(TAG, "🏄‍♂️ [자동 팝업 서핑] 적요 정보 확인 완료. 출발지 정보 확인을 위해 자동 클릭 시도")
+            if (touchManager.findAndClickByText(rootNode, "출발지", isStartsWith = true) ||
+                touchManager.findAndClickByText(rootNode, "상차", isStartsWith = true)) {
+                // 클릭 성공 시
+            } else {
+                Log.w(TAG, "⚠️ [서핑 대기] 출발지/상차 버튼을 찾지 못했습니다.")
+                return
             }
         }
 
         // 서핑 중: 출발지 팝업에서 돌아온 후 도착지 누르기
         else if (surfingState == SurfingState.WAITING_FOR_DROPOFF_POPUP) {
             Log.d(TAG, "🏄‍♂️ [자동 팝업 서핑] 출발지 확인 완료. 도착지 정보 확인을 위해 자동 클릭 시도")
-            touchManager.findAndClickByText(rootNode, "도착지", isStartsWith = true) ||
-                touchManager.findAndClickByText(rootNode, "하차", isStartsWith = true)
+            if (touchManager.findAndClickByText(rootNode, "도착지", isStartsWith = true) ||
+                touchManager.findAndClickByText(rootNode, "하차", isStartsWith = true)) {
+                // 클릭 성공 시 별도 처리 없음 (다음 팝업 이벤트를 기다림)
+            } else {
+                Log.w(TAG, "⚠️ [서핑 대기] 팝업은 닫혔으나 도착지/하차 버튼을 찾지 못했습니다. (대기)")
+                return
+            }
         }
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    //  기능 4 (팝업 핸들링): 적요 팝업 스크래핑
+    // ════════════════════════════════════════════════════════════════
+
+    private fun handleMemoPopup(rootNode: AccessibilityNodeInfo, screenTexts: List<String>) {
+        if (surfingState != SurfingState.WAITING_FOR_MEMO_POPUP) return
+
+        val multilineScreenStr = screenTexts.joinToString("\n")
+
+        // 팝업 데이터 로딩 검증: "적요 내용" 헤더가 보여야 로딩 완료
+        if (!multilineScreenStr.contains("적요 내용")) {
+            Log.d(TAG, "거짓 이벤트 무시: 아직 적요상세 팝업 데이터 로딩 안됨")
+            return
+        }
+
+        accumulatedDetailText += "[적요상세/정보]\n$multilineScreenStr\n"
+        Log.d(TAG, "📝 적요 스크래핑 성공! 닫기 버튼 누름")
+        Log.i(TAG, "📋 [SEQ 81-82] 적요상세 추출 완료 → 닫기")
+
+        touchManager.findAndClickByText(rootNode, "닫기", isStartsWith = true)
+        surfingState = SurfingState.WAITING_FOR_PICKUP_POPUP
     }
 
     // ════════════════════════════════════════════════════════════════
@@ -377,6 +424,8 @@ class HijackService : AccessibilityService() {
         keywords.errorKeywords.any { text.contains(it) }    -> ScreenContext.POPUP_ERROR
         keywords.pickupKeywords.any { text.contains(it) }   -> ScreenContext.POPUP_PICKUP
         keywords.dropoffKeywords.any { text.contains(it) }  -> ScreenContext.POPUP_DROPOFF
+        // 적요 팝업: "적요 상세"(띄어쓰기) + "적요 내용" → 확정화면("적요상세" 붙여쓰기)과 구분
+        keywords.memoKeywords.all { text.contains(it) }     -> ScreenContext.POPUP_MEMO
         keywords.detailKeywords.all { text.contains(it) }   -> if (keywords.confirmKeywords.any { text.contains(it) })
                                                                     ScreenContext.DETAIL_PRE_CONFIRM
                                                                 else ScreenContext.DETAIL_CONFIRMED
@@ -405,8 +454,8 @@ class HijackService : AccessibilityService() {
         deathValleyRunnable = Runnable {
             if (isWaitingForServerDecision) {
                 Log.e(TAG, "🚨 데스밸리 타임아웃! 기사님 보호를 위해 강제 배차 취소 집행!")
-                executeDecisionImmediately("CANCEL")
                 sendEmergencyReport(EmergencyReason.AUTO_CANCEL, "데스밸리 응답 없음 강제취소")
+                executeDecisionImmediately("CANCEL")
             }
         }
         mainHandler.postDelayed(deathValleyRunnable!!, timeoutMs)
@@ -423,25 +472,26 @@ class HijackService : AccessibilityService() {
         cancelDeathValleyTimer() // 타이머 해제
         if (!isAutoSessionActive) return // 이미 풀렸으면 스킵
 
-        val rootNode = rootInActiveWindow
-        if (rootNode == null) {
-            resetSessionState()
-            return
-        }
-
         val targetBtnStr = if (decision == "KEEP") "닫기" else "취소"
-        Log.d(TAG, "⚡ 판결 집행: 행동=$decision, 누를버튼=$targetBtnStr (버튼클릭을 시작합니다)")
-
-        if (touchManager.findAndClickByText(rootNode, targetBtnStr, isStartsWith = false)) {
-            Log.d(TAG, "🎉 행동 완료! 타겟($targetBtnStr) 명중.")
-        } else {
-            Log.e(TAG, "❌ 대상 버튼($targetBtnStr)을 찾을 수 없음.")
-            sendEmergencyReport(EmergencyReason.BUTTON_NOT_FOUND, "판결 $decision 의 대상 $targetBtnStr 버튼 누락")
-        }
+        Log.d(TAG, "⚡ 판결 집행: 행동=$decision, 누를버튼=$targetBtnStr (버튼클릭을 시작합니다), 500ms 지연")
+        
+        mainHandler.postDelayed({
+            val rootNode = rootInActiveWindow
+            if (rootNode == null) {
+                resetSessionState()
+                return@postDelayed
+            }
+            if (touchManager.findAndClickByText(rootNode, targetBtnStr, isStartsWith = false)) {
+                Log.d(TAG, "🎉 행동 완료! 타겟($targetBtnStr) 명중.")
+            } else {
+                Log.e(TAG, "❌ 대상 버튼($targetBtnStr)을 찾을 수 없음.")
+                sendEmergencyReport(EmergencyReason.BUTTON_NOT_FOUND, "판결 $decision 의 대상 $targetBtnStr 버튼 누락")
+            }
+            rootNode.recycle()
+        }, 500)
 
         // 세션 리셋
         resetSessionState()
-        rootNode.recycle()
     }
 
     private fun sendEmergencyReport(reason: EmergencyReason, extraText: String = "") {

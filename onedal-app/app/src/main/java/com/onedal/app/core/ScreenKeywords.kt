@@ -25,6 +25,9 @@ data class ScreenKeywords(
     /** 도착지 팝업 판별 */
     val dropoffKeywords: List<String>,
 
+    /** 적요 상세 팝업 판별 */
+    val memoKeywords: List<String>,
+
     /** 에러 팝업 판별 */
     val errorKeywords: List<String>,
 
@@ -42,6 +45,7 @@ object AppKeywords {
         confirmKeywords = listOf("확정", "배차"),
         pickupKeywords = listOf("출발지 상세", "상차지 상세"),
         dropoffKeywords = listOf("도착지 상세", "하차지 상세"),
+        memoKeywords = listOf("적요 상세", "적요 내용"), // 팝업 타이틀"적요 상세"(띄어쓰기) + 본문 헤더"적요 내용" → 확정화면("적요상세" 붙여쓰기)과 구분
         errorKeywords = listOf("취소할 수 없", "시간이 지나", "실패"),
         loadingKeywords = listOf("오더 조회", "기다려 주십")
     )
@@ -54,6 +58,7 @@ object AppKeywords {
         confirmKeywords = listOf("TODO"),
         pickupKeywords = listOf("TODO"),
         dropoffKeywords = listOf("TODO"),
+        memoKeywords = listOf("TODO"),
         errorKeywords = listOf("TODO"),
         loadingKeywords = listOf("TODO")
     )

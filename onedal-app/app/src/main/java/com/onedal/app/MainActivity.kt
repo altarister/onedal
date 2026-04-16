@@ -266,7 +266,7 @@ class MainActivity : ComponentActivity() {
                         Spacer(modifier = Modifier.height(16.dp))
                         
                         Button(onClick = {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("http://172.30.1.54:5173/?mode=standalone"))
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("http://172.30.1.54:5173/inseong"))
                             context.startActivity(intent)
                         }) {
                             Text("테스트 가상 콜 화면 열기")

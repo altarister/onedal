@@ -795,11 +795,11 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
                                     )}
                                     {route.type !== 'MANUAL' && route.status === 'evaluating_detailed' && onDecision && (
                                         <div className="mt-4 flex gap-3">
-                                            <button disabled={processingId === route.id} onClick={(e) => { e.stopPropagation(); setProcessingId(route.id); onDecision(route.id, 'CANCEL'); }} className={`flex-1 bg-[#2a131b] text-rose-400 text-sm font-bold py-4 rounded-lg border border-rose-500/30 transition-all shadow-sm ${processingId === route.id ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#3d1a25] active:scale-95'}`}>
+                                            <button disabled={processingId === route.id} onClick={(e) => { e.stopPropagation(); console.log(`👆 [사용자 클릭] 프론트에서 '🚨 배차 취소' 버튼 클릭 (ID: ${route.id})`); setProcessingId(route.id); onDecision(route.id, 'CANCEL'); }} className={`flex-1 bg-[#2a131b] text-rose-400 text-sm font-bold py-4 rounded-lg border border-rose-500/30 transition-all shadow-sm ${processingId === route.id ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#3d1a25] active:scale-95'}`}>
                                                 {processingId === route.id ? '처리 중...' : '방출'}
                                             </button>
                                             {!!route.kakaoTimeExt ? (
-                                                <button disabled={processingId === route.id} onClick={(e) => { e.stopPropagation(); setProcessingId(route.id); onDecision(route.id, 'KEEP'); }} className={`flex-[2] bg-emerald-500 text-emerald-950 text-base font-black py-4 rounded-lg transition-all ${processingId === route.id ? 'opacity-50 cursor-not-allowed' : 'shadow-[0_0_20px_rgba(16,185,129,0.4)] hover:bg-emerald-400 hover:scale-[1.02] active:scale-95'}`}>
+                                                <button disabled={processingId === route.id} onClick={(e) => { e.stopPropagation(); console.log(`👆 [사용자 클릭] 프론트에서 '유지 확정' 버튼 클릭 (ID: ${route.id})`); setProcessingId(route.id); onDecision(route.id, 'KEEP'); }} className={`flex-[2] bg-emerald-500 text-emerald-950 text-base font-black py-4 rounded-lg transition-all ${processingId === route.id ? 'opacity-50 cursor-not-allowed' : 'shadow-[0_0_20px_rgba(16,185,129,0.4)] hover:bg-emerald-400 hover:scale-[1.02] active:scale-95'}`}>
                                                     {processingId === route.id ? '서버와 통신 중...' : '유지 확정'}
                                                 </button>
                                             ) : (

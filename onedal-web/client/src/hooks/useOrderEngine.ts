@@ -47,11 +47,13 @@ export function useOrderEngine() {
             playAlertSound();
             
             setActiveOrders(prev => {
-                // ⭐ 같은 기기에서 새 콜이 들어오면 그 기기의 모든 이전 카드를 무조건 제거!
-                // status 체크 없이 capturedDeviceId만으로 판단 — 상태가 뭐든 같은 폰은 하나만!
+                // ⭐ 같은 기기에서 새 콜이 들어오면 그 기기의 모든 이전 카드를 무조건 제거하되,
+                // 이미 '확정된(KEEP)' 상태인 콜은 절대 임의로 지우지 않음!
+                // (상태 진실 공급원은 서버이므로, 임의 삭제를 방지해야 시스템 엉킴이 발생하지 않음)
                 const cleaned = prev.filter(order => 
-                    order.capturedDeviceId !== secured.capturedDeviceId &&
-                    order.id !== secured.id
+                    order.capturedDeviceId !== secured.capturedDeviceId ||
+                    order.status === 'confirmed' ||
+                    order.id === secured.id
                 );
                 const next = [...cleaned, secured];
                 console.log(`   ➡️ activeOrders 변경: [${prev.map(o => o.id.slice(0,8)).join(', ')}] → [${next.map(o => o.id.slice(0,8)).join(', ')}]`);
