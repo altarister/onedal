@@ -256,11 +256,11 @@ class NativeScrapParser(private val context: Context) : IScrapParser {
             Log.d(TAG, "📋 [현재 셋팅된 필터값] 차종=${filter.allowedVehicleTypes}, 지역=${filter.destinationKeywords}, 하한요금=${filter.minFare}, 반경=${filter.pickupRadiusKm}km, 블랙=${filter.excludedKeywords}")
             val scheduleLog = if (order.scheduleText != null) "[수식어:${order.scheduleText}] " else ""
             Log.d(TAG, "🔍 [타겟 콜 파싱 결과] ${scheduleLog}차종=${order.vehicleType ?: "미상"}, 도착지=${order.dropoff}, 요금=${order.fare}, 거리=${order.pickupDistance ?: "미상"}km")
-            Log.d(TAG, "   조건0(차종)=${if(vehicleMatch) "✅" else "❌"} " +
-                        "조건1(지역)=${if(regionMatch) "✅" else "❌"} " +
-                        "조건2(요금)=${if(fareMatch) "✅" else "❌"} " +
-                        "조건3(거리)=${if(distanceMatch) "✅" else "❌"} " +
-                        "조건4(블랙)=${if(blacklistClear) "✅" else "❌"}")
+            Log.d(TAG, "   차종(${order.vehicleType ?: "미상"})=${if(vehicleMatch) "✅" else "❌"} " +
+                        "도착지(${order.dropoff})=${if(regionMatch) "✅" else "❌"} " +
+                        "요금(${order.fare})=${if(fareMatch) "✅" else "❌"} " +
+                        "상차지/거리(${order.pickupDistance ?: "미상"}km)=${if(distanceMatch) "✅" else "❌"} " +
+                        "블랙()=${if(blacklistClear) "✅" else "❌"}")
         }
 
         val result = vehicleMatch && regionMatch && fareMatch && distanceMatch && blacklistClear
