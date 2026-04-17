@@ -2,7 +2,7 @@ package com.onedal.app.core
 
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
+import com.onedal.app.core.AppLogger
 import com.onedal.app.api.ApiClient
 import com.onedal.app.models.ScrapPayload
 import com.onedal.app.models.SimplifiedOfficeOrder
@@ -50,14 +50,14 @@ class TelemetryManager(
         if (isRunning) return
         isRunning = true
         resetHeartbeatTimer()
-        Log.i(TAG, "Telemetry Loop Started (Event-driven + 20s Keep-alive)")
+        AppLogger.i(TAG, "Telemetry Loop Started (Event-driven + 20s Keep-alive)")
     }
 
     fun stop() {
         isRunning = false
         handler.removeCallbacks(heartbeatRunnable)
         handler.removeCallbacks(eventFlushRunnable)
-        Log.i(TAG, "Telemetry Loop Stopped")
+        AppLogger.i(TAG, "Telemetry Loop Stopped")
     }
 
     /**
@@ -99,12 +99,14 @@ class TelemetryManager(
         )
 
         val triggerStr = if (isHeartbeat) "⏱️ 타이머 생존신고" else "👀 화면 변경 감지"
-        Log.d(TAG, "🚀 [서버 송신] $triggerStr 발송 시작 (건수: ${snapshot.size}, 화면: ${currentScreenContext.value})")
+        AppLogger.roadmap("[post /api/scrap request] $triggerStr 발송  deviceId: ${payload.deviceId}, (건수: ${snapshot.size})", currentScreenContext.name)
         
         // [추가] 기사님 요청: 텔레메트리로 보내는 실제 JSON 형태를 터미널에서 구경할 수 있도록 세분화 출력
-        val previewData = if (snapshot.isEmpty()) "[]" else "[ ${snapshot.size}개의 오더 객체... ]"
-        Log.d(TAG, "📦 [전송 페이로드] { \"deviceId\": \"${payload.deviceId}\", \"screenContext\": \"${payload.screenContext}\", \"data\": $previewData }")
-        
+        val previewData = if (snapshot.isEmpty()) "[]" else "[ ${snapshot.size}개의 콜... ]"
+        // AppLogger.d(TAG, "📦 [전송 페이로드] { \"deviceId\": \"${payload.deviceId}\", \"screenContext\": \"${payload.screenContext}\", \"data\": $previewData }")
+
+        // AppLogger.d(TAG, "📦 [전송 페이로드] { deviceId: ${payload.deviceId}, screenContext: ${payload.screenContext}, data: $previewData }")
+        /**
         if (snapshot.isNotEmpty()) {
             snapshot.forEachIndexed { index, order ->
                 val entries = mutableListOf<String>()
@@ -120,16 +122,16 @@ class TelemetryManager(
                 if (order.vehicleType != null) entries.add("  \"vehicleType\": \"${order.vehicleType}\"")
 
                 val jsonLikeStr = "{\n${entries.joinToString(",\n")}\n}"
-                Log.d(TAG, "   └─ [data][$index] 상세 정보:\n$jsonLikeStr")
+                AppLogger.d(TAG, "   └─ [data][$index] 상세 정보:\n$jsonLikeStr")
             }
         }
-
+        */
 
         apiClient.sendScrapTelemetry(payload) { mode ->
             currentMode = mode
-            Log.d(TAG, "📥 [서버 수신] $triggerStr 완료 (수신된 모드: $mode)")
+            AppLogger.d(TAG, "📥 [서버 수신] $triggerStr 완료 (수신된 모드: $mode)")
             if (mode == "SHUTDOWN") {
-                Log.e(TAG, "🔴 [원격 제어] 서버로부터 퇴근(SHUTDOWN) 명령 수신! 타이머를 강제 정지합니다.")
+                AppLogger.e(TAG, "🔴 [원격 제어] 서버로부터 퇴근(SHUTDOWN) 명령 수신! 타이머를 강제 정지합니다.")
                 stop()
                 onShutdown()
             }

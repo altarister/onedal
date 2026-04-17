@@ -25,9 +25,9 @@ export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () =
     const styles = getStatusStyles(filter.isActive, filter.isSharedMode);
 
     const getRegionSummary = () => {
-        // 합짐, 첫짐 모두 콤마 단위로 파싱된 '읍/면/동' 타겟팅 총 개수를 가져옵니다.
-        const regionCount = filter.destinationKeywords 
-            ? filter.destinationKeywords.split(',').length 
+        // 합짐, 첫짐 모두 파싱된 '읍/면/동' 타겟팅 총 개수를 가져옵니다.
+        const regionCount = filter.destinationKeywords && filter.destinationKeywords.length > 0
+            ? filter.destinationKeywords.length 
             : 0;
 
         if (filter.isSharedMode) {

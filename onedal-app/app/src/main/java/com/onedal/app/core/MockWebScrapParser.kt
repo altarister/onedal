@@ -1,7 +1,7 @@
 package com.onedal.app.core
 
 import android.content.Context
-import android.util.Log
+import com.onedal.app.core.AppLogger
 import com.onedal.app.models.SimplifiedOfficeOrder
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -27,7 +27,7 @@ class MockWebScrapParser(private val context: Context) : IScrapParser {
         val now = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault()).format(Date())
 
         // TODO: 사금 채취식 정규식으로 뭉쳐진 텍스트에서 요금/주소/거리를 추출
-        Log.d(TAG, "🧪 [MockWebParser] 텍스트 수신: ${rawJoined.take(200)}")
+        AppLogger.d(TAG, "🧪 [MockWebParser] 텍스트 수신: ${rawJoined.take(200)}")
 
         return SimplifiedOfficeOrder(
             id = UUID.randomUUID().toString(),
@@ -45,7 +45,7 @@ class MockWebScrapParser(private val context: Context) : IScrapParser {
 
     override fun shouldClick(order: SimplifiedOfficeOrder): Boolean {
         // TODO: NativeScrapParser와 동일한 필터 로직 적용 예정
-        Log.d(TAG, "🧪 [MockWebParser] shouldClick 호출됨 (미구현)")
+        AppLogger.d(TAG, "🧪 [MockWebParser] shouldClick 호출됨 (미구현)")
         return false
     }
 

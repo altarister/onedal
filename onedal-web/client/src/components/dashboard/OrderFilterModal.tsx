@@ -30,7 +30,7 @@ export default function OrderFilterModal({ isOpen, onClose }: OrderFilterModalPr
             setTargetCity(filter.destinationCity || "");
             setTargetRadius(filter.destinationRadiusKm?.toString() || "");
             setCorridorRadius(filter.corridorRadiusKm?.toString() || "10");
-            setBlacklist(filter.excludedKeywords || "");
+            setBlacklist(filter.excludedKeywords ? filter.excludedKeywords.join(',') : "");
 
             // 첫짐/합짐 모드 변환에 따른 차종 자동 필터링 (합짐 시 1t 제외)
             let initialVehicles = filter.allowedVehicleTypes || [];
@@ -63,14 +63,25 @@ export default function OrderFilterModal({ isOpen, onClose }: OrderFilterModalPr
             destinationCity: targetCity || filter.destinationCity,
             destinationRadiusKm: targetRadius ? parseInt(targetRadius, 10) : filter.destinationRadiusKm,
             corridorRadiusKm: corridorRadius ? parseInt(corridorRadius, 10) : filter.corridorRadiusKm,
-            excludedKeywords: blacklist || filter.excludedKeywords,
+            excludedKeywords: blacklist ? blacklist.split(',').map(s => s.trim()).filter(Boolean) : filter.excludedKeywords,
             userOverrides: true // 기사가 수동 개입했음을 마킹
         });
         onClose();
     };
 
     const isSharedMode = filter.isSharedMode;
-    const destKeywordsLimit = filter.destinationKeywords ? filter.destinationKeywords.split(',').filter(Boolean) : [];
+    const destKeywordsLimit = filter.destinationKeywords || [];
+
+    const handleBlacklistChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        let val = e.target.value;
+        // 다중 엔터 방지 (줄바꿈을 콤마로 치환)
+        val = val.replace(/[\r\n]+/g, ',');
+        // 허용되지 않은 특수문자 제거 (한글, 영문, 숫자, 공백, 콤마만 허용)
+        val = val.replace(/[^a-zA-Z0-9가-힣\s,]/g, '');
+        // 콤마 다중 연타 방지
+        val = val.replace(/,+/g, ',');
+        setBlacklist(val);
+    };
 
     return (
         <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
@@ -320,7 +331,7 @@ export default function OrderFilterModal({ isOpen, onClose }: OrderFilterModalPr
                         </label>
                         <textarea
                             value={blacklist}
-                            onChange={(e) => setBlacklist(e.target.value)}
+                            onChange={handleBlacklistChange}
                             placeholder="단어 쉼표(,) 구분"
                             className="w-full h-12 bg-black/60 border border-red-900/50 rounded-lg p-2 text-xs text-red-300 font-medium outline-none focus:bg-red-950/20 focus:border-red-500/60 transition-all resize-none shadow-inner leading-relaxed"
                         />

@@ -2,13 +2,13 @@ package com.onedal.app.api
 
 import android.content.Context
 import android.os.Build
-import android.util.Log
+import com.onedal.app.core.AppLogger
 import com.google.gson.Gson
-import com.onedal.app.core.RoadmapLogger
 import com.onedal.app.models.DispatchBasicRequest
 import com.onedal.app.models.DispatchConfirmResponse
 import com.onedal.app.models.DispatchDetailedRequest
 import com.onedal.app.models.EmergencyReport
+import com.onedal.app.models.FilterConfig
 import com.onedal.app.models.ScrapPayload
 import com.onedal.app.models.ScrapResponse
 import java.util.concurrent.Executors
@@ -87,8 +87,8 @@ class ApiClient(private val context: Context) {
                 if (code == 200) {
                     val body = conn.inputStream.bufferedReader().readText()
                     prefs.edit().putString("api_confirm_res", body).apply()
-                    Log.d(TAG, "🌐 [post /confirm response / $code] $body")
-                    RoadmapLogger.log("[HTTP 폴링] 응답 /orders/confirm")
+                    AppLogger.d(TAG, "🌐 [post /confirm response / $code] $body")
+                    AppLogger.roadmap("[HTTP 폴링] 응답 /orders/confirm")
                     // 추후 4단계 취소 로직(CANCEL) 연동 지점
                 } else {
                     val errorBody = try {
@@ -96,10 +96,10 @@ class ApiClient(private val context: Context) {
                     } catch (e: Exception) {
                         "Cannot read error body: ${e.message}"
                     }
-                    Log.e(TAG, "❌ [post /confirm response / $code] $errorBody")
+                    AppLogger.e(TAG, "❌ [post /confirm response / $code] $errorBody")
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "❌ [Confirm 전송 실패] ${e.message}")
+                AppLogger.e(TAG, "❌ [Confirm 전송 실패] ${e.message}")
             } finally {
                 conn?.disconnect()
             }
@@ -135,11 +135,11 @@ class ApiClient(private val context: Context) {
                 if (code == 200) {
                     val body = conn.inputStream.bufferedReader().readText()
                     prefs.edit().putString("api_detail_res", body).apply()
-                    Log.d(TAG, "🌐 [post /detail response / $code] $body")
+                    AppLogger.d(TAG, "🌐 [post /detail response / $code] $body")
                     
                     val res = gson.fromJson(body, DispatchConfirmResponse::class.java)
                     val actionStr = if (res.action == "KEEP") "유지" else "취소"
-                    RoadmapLogger.log("[HTTP 폴링] 응답 /orders/detail $actionStr 정보 전송")
+                    AppLogger.roadmap("[HTTP 폴링] 응답 /orders/detail $actionStr 정보 전송")
                     
                     // 서버가 내려준 최종 판결 (KEEP or CANCEL) 콜백. 
                     // 사후 동기화(Post-Dispatch Sync)로 진짜 ID가 내려왔다면 그걸 씁니다.
@@ -150,12 +150,12 @@ class ApiClient(private val context: Context) {
                     } catch (e: Exception) {
                         "Cannot read error body: ${e.message}"
                     }
-                    Log.e(TAG, "❌ [post /detail response / $code] $errorBody")
+                    AppLogger.e(TAG, "❌ [post /detail response / $code] $errorBody")
                     // 타임아웃 등의 이유로 실패 시 CANCEL로 간주하여 뱉기
                     onDecisionReceived(payload.order.id, "CANCEL")
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "❌ [Detail 전송 실패] ${e.message}")
+                AppLogger.e(TAG, "❌ [Detail 전송 실패] ${e.message}")
                 onDecisionReceived(payload.order.id, "CANCEL")
             } finally {
                 conn?.disconnect()
@@ -194,13 +194,17 @@ class ApiClient(private val context: Context) {
                     val body = conn.inputStream.bufferedReader().readText()
                     prefs.edit().putString("api_scrap_res", body).apply()
                     val scrapRes = gson.fromJson(body, ScrapResponse::class.java)
-                    Log.d(TAG, "📡 [텔레메트리] 스크랩 ${payload.data.size}건 전송 완료 (모드: ${scrapRes.deviceControl.mode})")
-                    RoadmapLogger.log("[HTTP 폴링] 응답 (첫콜필터정보/제어명령)")
+                    
+                    val screenName = payload.screenContext ?: "UNKNOWN"
+                    AppLogger.roadmap("[post /api/scrap response] deviceId: ${payload.deviceId}, (건수: ${payload.data.size})", screenName)
                     
                     if (scrapRes.dispatchEngineArgs != null) {
                         val filterJson = gson.toJson(scrapRes.dispatchEngineArgs)
                         prefs.edit().putString("activeFilter", filterJson).apply()
-                        Log.d(TAG, "📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:\n$filterJson")
+                        
+                        // 서버가 이제 Array로 내려주므로 Gson 파싱(역직렬화) 시 에러(IllegalStateException)가 전혀 발생하지 않음
+                        val updatedFilter = gson.fromJson(filterJson, FilterConfig::class.java)
+                        AppLogger.d(TAG, "📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:\n$updatedFilter")
                     }
                     
                     prefs.edit().putString("apiStatus", gson.toJson(scrapRes.apiStatus)).apply()
@@ -215,10 +219,10 @@ class ApiClient(private val context: Context) {
 
                     onModeReceived(scrapRes.deviceControl.mode)
                 } else {
-                    Log.w(TAG, "📡 [텔레메트리] 서버 에러 응답: $code")
+                    AppLogger.w(TAG, "📡 [텔레메트리] 서버 에러 응답: $code")
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "📡 [텔레메트리 통신 실패] ${e.message}")
+                AppLogger.e(TAG, "📡 [텔레메트리 통신 실패] ${e.message}")
             } finally {
                 conn?.disconnect()
             }
@@ -236,7 +240,7 @@ class ApiClient(private val context: Context) {
             var conn: java.net.HttpURLConnection? = null
             try {
                 val jsonBody = gson.toJson(report)
-                Log.w(TAG, "🚨 [EMERGENCY 전송] reason=${report.reason}, orderId=${report.orderId}")
+                AppLogger.w(TAG, "🚨 [EMERGENCY 전송] reason=${report.reason}, orderId=${report.orderId}")
                 prefs.edit().putString("api_emergency_req", jsonBody).apply()
                 val targetUrl = getTargetUrl("/api/emergency")
                 val url = java.net.URL(targetUrl)
@@ -257,12 +261,12 @@ class ApiClient(private val context: Context) {
                 if (code == 200) {
                     val body = conn.inputStream.bufferedReader().readText()
                     prefs.edit().putString("api_emergency_res", body).apply()
-                    Log.w(TAG, "🚨 [EMERGENCY 응답] $body")
+                    AppLogger.w(TAG, "🚨 [EMERGENCY 응답] $body")
                 } else {
-                    Log.e(TAG, "🚨 [EMERGENCY 서버 에러] HTTP $code")
+                    AppLogger.e(TAG, "🚨 [EMERGENCY 서버 에러] HTTP $code")
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "🚨 [EMERGENCY 전송 실패] ${e.message}")
+                AppLogger.e(TAG, "🚨 [EMERGENCY 전송 실패] ${e.message}")
             } finally {
                 conn?.disconnect()
             }
@@ -279,7 +283,7 @@ class ApiClient(private val context: Context) {
             try {
                 // 웹 대시보드와 동일한 규격: { orderId, action }
                 val jsonBody = """{"orderId":"$orderId", "action":"$action"}"""
-                Log.d(TAG, "📲 [Decision 전송] orderId=${orderId}, action=${action}")
+                AppLogger.d(TAG, "📲 [Decision 전송] orderId=${orderId}, action=${action}")
                 val targetUrl = getTargetUrl("/api/orders/decision")
                 val url = java.net.URL(targetUrl)
 
@@ -298,12 +302,12 @@ class ApiClient(private val context: Context) {
                 val code = conn.responseCode
                 if (code == 200) {
                     val body = conn.inputStream.bufferedReader().readText()
-                    Log.d(TAG, "📲 [Decision 응답] $body")
+                    AppLogger.d(TAG, "📲 [Decision 응답] $body")
                 } else {
-                    Log.e(TAG, "📲 [Decision 서버 에러] HTTP $code")
+                    AppLogger.e(TAG, "📲 [Decision 서버 에러] HTTP $code")
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "📲 [Decision 전송 실패] ${e.message}")
+                AppLogger.e(TAG, "📲 [Decision 전송 실패] ${e.message}")
             } finally {
                 conn?.disconnect()
             }
@@ -329,12 +333,12 @@ class ApiClient(private val context: Context) {
                 if (code == 200) {
                     val body = conn.inputStream.bufferedReader().readText()
                     prefs.edit().putString("targetAppKeywords", body).apply()
-                    Log.d(TAG, "🎯 [$targetApp] 키워드 사전 다운로드 성공: $body")
+                    AppLogger.d(TAG, "🎯 [$targetApp] 키워드 사전 다운로드 성공: $body")
                 } else {
-                    Log.e(TAG, "🎯 키워드 서버 에러 응답: $code")
+                    AppLogger.e(TAG, "🎯 키워드 서버 에러 응답: $code")
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "🎯 키워드 다운로드 실패: ${e.message}")
+                AppLogger.e(TAG, "🎯 키워드 다운로드 실패: ${e.message}")
             } finally {
                 conn?.disconnect()
             }

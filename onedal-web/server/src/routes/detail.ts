@@ -219,7 +219,7 @@ export const recalculateCorridorFilter = (corridorRadiusKm: number, destinationR
         if (regions && regions.flat.length > 0) {
             console.log(`🗺️ [필터 반경 조절] 회랑 ${corridorRadiusKm}km, 목적지 ${destinationRadiusKm || 0}km 반경으로 재추출: ${regions.flat.length}개 지역 확보됨`);
             return {
-                destinationKeywords: regions.flat.join(", "),
+                destinationKeywords: regions.flat,
                 destinationGroups: regions.grouped
             };
         }
@@ -270,8 +270,8 @@ export async function handleDecision(orderId: string, action: 'KEEP' | 'CANCEL',
             const dRadius = activeFilterConfig.destinationRadiusKm;
             const regions = getCorridorRegions(cachedOrder.routePolyline, cRadius, dRadius);
             if (regions && regions.flat.length > 0) {
-                // 앱폰 연동을 위해 콤마로 연결
-                destinationKeywords = regions.flat.join(", ");
+                // 앱폰 연동을 위해 통배열로 할당
+                destinationKeywords = regions.flat;
                 // 팝업 카테고리 뷰를 위해 그룹 데이터 저장
                 activeFilterConfig.destinationGroups = regions.grouped;
             }
@@ -333,7 +333,7 @@ export async function handleDecision(orderId: string, action: 'KEEP' | 'CANCEL',
                         const dRadius = activeFilterConfig.destinationRadiusKm;
                         const regions = getCorridorRegions(lastSub.routePolyline || [], cRadius, dRadius);
                         if (regions && regions.flat.length > 0) {
-                            destinationKeywords = regions.flat.join(", ");
+                            destinationKeywords = regions.flat;
                             activeFilterConfig.destinationGroups = regions.grouped;
                         }
                     }

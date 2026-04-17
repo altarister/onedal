@@ -21,7 +21,7 @@ export let activeFilterConfig: AutoDispatchFilter = {
     minFare: 35000,
     maxFare: 1000000,
     // 오더 적요나 상세에 이 단어들이 포함되어 있으면 매력을 삭감하거나 배제함
-    excludedKeywords: ['착불', '수거', '까대기', '전화금지', '타일'].join(','),
+    excludedKeywords: ['착불', '수거', '까대기', '전화금지', '타일'],
 
     // 🏁 [첫짐(단독) 사냥 전용 설정]
     // 잡고 싶은 초기 하차지 도시 (예: '파주시')
@@ -29,7 +29,7 @@ export let activeFilterConfig: AutoDispatchFilter = {
     // 하차지 도시 중심으로 반경 몇 km까지 추가로 아우를 것인지 결정
     destinationRadiusKm: 10,
     // 위 두 설정에 의해 추출된 '읍면동' 텍스트 모음 (앱폰에서 텍스트 기반 거르기용)
-    destinationKeywords: getRegionsByCity('파주시').join(','),
+    destinationKeywords: getRegionsByCity('파주시'),
 
     // 🛣️ [합짐(우회) 사냥 전용 설정]
     // 기사님이 이미 수행 중인 콜의 "경로(파란선)"에서 추가로 이탈해도 되는 폭(반경) 설정 (km)

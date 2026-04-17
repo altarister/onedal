@@ -4,9 +4,8 @@ import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
 import android.graphics.Path
 import android.graphics.Rect
-import android.util.Log
+import com.onedal.app.core.AppLogger
 import android.view.accessibility.AccessibilityNodeInfo
-import com.onedal.app.core.RoadmapLogger
 
 /**
  * 시스템 레벨 스크린 터치 및 제스처 동작 전담 매니저
@@ -30,7 +29,7 @@ class AutoTouchManager(private val service: AccessibilityService) {
         val y = rect.centerY().toFloat()
 
         if (x <= 0f || y <= 0f) {
-            Log.e(TAG, "❌ [터치 실패] 화면 좌표를 구할 수 없습니다. (X:$x, Y:$y)")
+            AppLogger.e(TAG, "❌ [터치 실패] 화면 좌표를 구할 수 없습니다. (X:$x, Y:$y)")
             return false
         }
 
@@ -41,17 +40,17 @@ class AutoTouchManager(private val service: AccessibilityService) {
         val dispatched = service.dispatchGesture(gesture, object : AccessibilityService.GestureResultCallback() {
             override fun onCompleted(gestureDescription: GestureDescription?) {
                 super.onCompleted(gestureDescription)
-                Log.d(TAG, "✅ [가로채기 성공!] 화면 좌표 (X:$x, Y:$y) 터치 완료!")
-                RoadmapLogger.log("버튼 터치 완료 (가로채기 성공) X:$x, Y:$y", "")
+                AppLogger.d(TAG, "✅ [가로채기 성공!] 화면 좌표 (X:$x, Y:$y) 터치 완료!")
+                AppLogger.roadmap("버튼 터치 완료 (가로채기 성공) X:$x, Y:$y", "")
             }
             override fun onCancelled(gestureDescription: GestureDescription?) {
                 super.onCancelled(gestureDescription)
-                Log.e(TAG, "❌ [터치 실패] 시스템에 의해 무시됨")
+                AppLogger.e(TAG, "❌ [터치 실패] 시스템에 의해 무시됨")
             }
         }, null)
 
         if (!dispatched) {
-            Log.e(TAG, "❌ [권한 오류] 제스처 발생이 차단되었습니다.")
+            AppLogger.e(TAG, "❌ [권한 오류] 제스처 발생이 차단되었습니다.")
         }
 
         return dispatched
@@ -67,12 +66,12 @@ class AutoTouchManager(private val service: AccessibilityService) {
     fun findAndClickByText(rootNode: AccessibilityNodeInfo?, targetText: String, isStartsWith: Boolean = false): Boolean {
         val targetNode = findNodeByText(rootNode, targetText, isStartsWith)
         if (targetNode != null) {
-            RoadmapLogger.log("'$targetText' 버튼 인식 ➡️ 클릭 시도", "")
+            AppLogger.roadmap("'$targetText' 버튼 인식 ➡️ 클릭 시도", "")
             val result = performSimulatedTouch(targetNode)
             targetNode.recycle()
             return result
         }
-        Log.w(TAG, "⚠️ 요소 찾기 실패: '$targetText'")
+        AppLogger.w(TAG, "⚠️ 요소 찾기 실패: '$targetText'")
         return false
     }
 
@@ -111,9 +110,9 @@ class AutoTouchManager(private val service: AccessibilityService) {
     fun performBack(): Boolean {
         val dispatched = service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
         if (dispatched) {
-            Log.d(TAG, "🔙 [백버튼 전송] 글로벌 액션 수행 완료")
+            AppLogger.d(TAG, "🔙 [백버튼 전송] 글로벌 액션 수행 완료")
         } else {
-            Log.e(TAG, "❌ [백버튼 실패] 글로벌 액션 권한 오류")
+            AppLogger.e(TAG, "❌ [백버튼 실패] 글로벌 액션 권한 오류")
         }
         return dispatched
     }

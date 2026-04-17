@@ -109,8 +109,8 @@ export interface AutoDispatchFilter {
     maxFare: number;                // 최대 운임 (디폴트 100만)
     destinationCity: string;        // 하차 목표 메인 지역 (시/군/자치구) / 합짐 시에는 UI 축약 문구로 오버로딩
     destinationRadiusKm: number;    // 하차 목표 주위 탐색 반경 (km)
-    excludedKeywords: string;       // 제외 단어 (콤마 분리 문자열)
-    destinationKeywords: string;    // (내부망) 앱 파싱용 읍/면/동 50개 콤마 분리 문자열
+    excludedKeywords: string[];     // 제외 단어 배열 (예: ["착불", "수거", "까대기"])
+    destinationKeywords: string[];  // (내부망) 앱 파싱용 읍/면/동 50개 키워드 배열
     destinationGroups?: Record<string, string[]>; // (UI용) 시/구 단위로 그룹핑된 읍면동 목록
     customFilters: string[];        // 특수 기호 등 하단 빠른 설정 텍스트 (ex: "^^,@", "김포,인천...")
     corridorRadiusKm?: number;      // (합짐 모드) 경로 주변 이탈 허용 반경 (기본값 10km)

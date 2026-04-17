@@ -1,7 +1,7 @@
 package com.onedal.app.core
 
 import android.content.Context
-import android.util.Log
+import com.onedal.app.core.AppLogger
 import com.google.gson.Gson
 import com.onedal.app.models.FilterConfig
 import com.onedal.app.models.SimplifiedOfficeOrder
@@ -65,12 +65,12 @@ class NativeScrapParser(private val context: Context) : IScrapParser {
                 maxFare = json.optInt("maxFare", 1000000),
                 destinationCity = json.optString("destinationCity", ""),
                 destinationRadiusKm = json.optInt("destinationRadiusKm", 10),
-                excludedKeywords = parseCommaSeparated(json, "excludedKeywords"),
-                destinationKeywords = parseCommaSeparated(json, "destinationKeywords"),
+                excludedKeywords = parseJsonArray(json, "excludedKeywords"),
+                destinationKeywords = parseJsonArray(json, "destinationKeywords"),
                 customFilters = parseJsonArray(json, "customFilters")
             )
         } catch (e: Exception) {
-            Log.e(TAG, "❌ 필터 JSON 파싱 실패: ${e.message}")
+            AppLogger.e(TAG, "❌ 필터 JSON 파싱 실패: ${e.message}")
             FilterConfig()
         }
     }
@@ -253,23 +253,17 @@ class NativeScrapParser(private val context: Context) : IScrapParser {
         // ── 로그 출력 (디버깅용) ──
         val isValidOrder = order.fare > 0 || order.pickup != "미상" || order.dropoff != "미상"
         if (isValidOrder) {
-            Log.d(TAG, "📋 [현재 셋팅된 필터값] 차종=${filter.allowedVehicleTypes}, 지역=${filter.destinationKeywords}, 하한요금=${filter.minFare}, 반경=${filter.pickupRadiusKm}km, 블랙=${filter.excludedKeywords}")
+            // AppLogger.d(TAG, "📋 [필터값] 차종=${filter.allowedVehicleTypes}, 하한요금=${filter.minFare}, 반경=${filter.pickupRadiusKm}km, 블랙=${filter.excludedKeywords}, 지역=${filter.destinationKeywords.size}")
             val scheduleLog = if (order.scheduleText != null) "[수식어:${order.scheduleText}] " else ""
-            Log.d(TAG, "🔍 [타겟 콜 파싱 결과] ${scheduleLog}차종=${order.vehicleType ?: "미상"}, 도착지=${order.dropoff}, 요금=${order.fare}, 거리=${order.pickupDistance ?: "미상"}km")
-            Log.d(TAG, "   차종(${order.vehicleType ?: "미상"})=${if(vehicleMatch) "✅" else "❌"} " +
-                        "도착지(${order.dropoff})=${if(regionMatch) "✅" else "❌"} " +
-                        "요금(${order.fare})=${if(fareMatch) "✅" else "❌"} " +
-                        "상차지/거리(${order.pickupDistance ?: "미상"}km)=${if(distanceMatch) "✅" else "❌"} " +
-                        "블랙()=${if(blacklistClear) "✅" else "❌"}")
+            
+            AppLogger.roadmap("🔍 [타겟 콜 필터 결과] 차종(${order.vehicleType ?: "미상"})=${if(vehicleMatch) "✅" else "❌"} " +
+                        "도착지(${filter.destinationKeywords.size}중 ${order.dropoff})=${if(regionMatch) "✅" else "❌"} " +
+                        "요금(${filter.minFare} <= ${order.fare})=${if(fareMatch) "✅" else "❌"} " +
+                        "상차지/거리(${filter.pickupRadiusKm} >= ${order.pickupDistance ?: "미상"}km)=${if(distanceMatch) "✅" else "❌"} " +
+                        "블랙()=${if(blacklistClear) "✅" else "❌"}", "LIST")
         }
 
         val result = vehicleMatch && regionMatch && fareMatch && distanceMatch && blacklistClear
-
-        if (result) {
-            Log.d(TAG, "🎯 [5대 조건 통과!] → 클릭 실행 대상")
-        } else {
-            if (isValidOrder) Log.d(TAG, "⛔ [조건 불충족] → 스킵")
-        }
 
         return result
     }

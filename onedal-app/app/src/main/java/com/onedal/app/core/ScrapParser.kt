@@ -1,7 +1,7 @@
 package com.onedal.app.core
 
 import android.content.Context
-import android.util.Log
+import com.onedal.app.core.AppLogger
 import com.onedal.app.models.SimplifiedOfficeOrder
 
 /**
@@ -24,13 +24,13 @@ class ScrapParser(private val context: Context) : IScrapParser {
 
     /** 웹뷰 테스트 모드로 전환 */
     fun switchToMock() {
-        Log.i(TAG, "🧪 파서 전환: MockWebScrapParser (테스트 모드)")
+        AppLogger.i(TAG, "🧪 파서 전환: MockWebScrapParser (테스트 모드)")
         delegate = MockWebScrapParser(context)
     }
 
     /** 네이티브 앱 모드로 복귀 */
     fun switchToNative() {
-        Log.i(TAG, "🏭 파서 전환: NativeScrapParser (프로덕션 모드)")
+        AppLogger.i(TAG, "🏭 파서 전환: NativeScrapParser (프로덕션 모드)")
         delegate = NativeScrapParser(context)
     }
 
