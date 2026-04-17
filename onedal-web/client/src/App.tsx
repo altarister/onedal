@@ -1,11 +1,17 @@
 import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from "react-router-dom";
+import { useEffect } from "react";
 import Dashboard from "./pages/Dashboard";
 import Settlement from "./pages/Settlement";
 import DevTools from "./components/dev/DevTools";
+import { logRoadmapEvent } from "./lib/roadmapLogger";
 
 // Navigation Wrapper
 function AppLayout() {
   const location = useLocation();
+
+  useEffect(() => {
+    logRoadmapEvent("웹", "1DAL 웹(관제웹) 시작, 로그인");
+  }, []);
 
   return (
     <div className="min-h-screen">

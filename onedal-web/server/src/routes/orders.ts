@@ -16,6 +16,7 @@ import type { SimplifiedOfficeOrder, DispatchConfirmRequest, SecuredOrder } from
 import db from "../db";
 import { activeFilterConfig, updateActiveFilter } from "../state/filterStore";
 import { deviceEvaluatingMap, forceCancelEvaluatingOrder, getPendingOrdersData, handleDecision } from "./detail";
+import { logRoadmapEvent } from "../utils/roadmapLogger";
 
 const router = Router();
 
@@ -109,6 +110,7 @@ router.post("/confirm", (req, res) => {
         const io = req.app.get("io");
 
         // 즉시 응답 (앱은 멈추지 않고 상세 페이지 긁으러 진입해야 함)
+        logRoadmapEvent("서버", "[HTTP 폴링] 응답 /orders/confirm");
         res.json({ success: true, message: "1차 수신 완료. 상세 페이지 내용을 긁어서 POST /api/orders/detail 로 보내주세요." });
 
         const previousEvaluatingId = deviceEvaluatingMap.get(payload.deviceId);
@@ -140,12 +142,25 @@ router.post("/confirm", (req, res) => {
             console.log(`📤 [Socket 푸시] order-evaluating (${securedOrder.id})`);
             io.emit("order-evaluating", securedOrder);
             console.log(`⏱️ [1차 선빵 수신] ${securedOrder.pickup} ➡️ ${securedOrder.dropoff} (기기: ${payload.deviceId})`);
+            logRoadmapEvent("서버", "[HTTP 폴링] POST /orders/confirm 확정정보 정보 전송 수신");
 
             // 중앙 통제 필터를 '대기' 모드로 전환 후 (매크로 일시중지) 브로드캐스트
             if (activeFilterConfig.isActive) {
                 updateActiveFilter({ isActive: false });
+                logRoadmapEvent("서버", `대기 필터로 설정값 업데이트 (isActive: false)`);
                 console.log(`📤 [Socket 푸시] filter-updated (isActive: false)`);
                 io.emit("filter-updated", activeFilterConfig);
+                logRoadmapEvent("서버", "[Socket] 확정정보 정보 + 대기 필터 정보 전송");
+                
+                // 관제탑 무응답 대비 30초 데스밸리 타이머 기동
+                logRoadmapEvent("서버", "관제탑 무응답 대비 30초 데스밸리 타이머 기동 (안전망 강화)");
+                setTimeout(() => {
+                    const cached = getPendingOrdersData().get(securedOrder.id);
+                    if (cached && cached.status === 'evaluating_basic') {
+                         console.log(`💀 [서버 데스밸리 타이머] 30초 경과! 기기(${payload.deviceId})가 상세 수집에 실패했거나 응답이 끊겼다고 판단합니다. 오더(ID: ${securedOrder.id})를 강제 취소합니다.`);
+                         handleDecision(securedOrder.id, "CANCEL", io);
+                    }
+                }, 30000);
             }
         }
     } catch (error) {

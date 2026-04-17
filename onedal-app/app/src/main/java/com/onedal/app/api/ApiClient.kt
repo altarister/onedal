@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Build
 import android.util.Log
 import com.google.gson.Gson
+import com.onedal.app.core.RoadmapLogger
 import com.onedal.app.models.DispatchBasicRequest
 import com.onedal.app.models.DispatchConfirmResponse
 import com.onedal.app.models.DispatchDetailedRequest
@@ -87,6 +88,7 @@ class ApiClient(private val context: Context) {
                     val body = conn.inputStream.bufferedReader().readText()
                     prefs.edit().putString("api_confirm_res", body).apply()
                     Log.d(TAG, "🌐 [post /confirm response / $code] $body")
+                    RoadmapLogger.log("[HTTP 폴링] 응답 /orders/confirm")
                     // 추후 4단계 취소 로직(CANCEL) 연동 지점
                 } else {
                     val errorBody = try {
@@ -136,6 +138,9 @@ class ApiClient(private val context: Context) {
                     Log.d(TAG, "🌐 [post /detail response / $code] $body")
                     
                     val res = gson.fromJson(body, DispatchConfirmResponse::class.java)
+                    val actionStr = if (res.action == "KEEP") "유지" else "취소"
+                    RoadmapLogger.log("[HTTP 폴링] 응답 /orders/detail $actionStr 정보 전송")
+                    
                     // 서버가 내려준 최종 판결 (KEEP or CANCEL) 콜백. 
                     // 사후 동기화(Post-Dispatch Sync)로 진짜 ID가 내려왔다면 그걸 씁니다.
                     onDecisionReceived(res.orderId ?: payload.order.id, res.action)
@@ -190,6 +195,7 @@ class ApiClient(private val context: Context) {
                     prefs.edit().putString("api_scrap_res", body).apply()
                     val scrapRes = gson.fromJson(body, ScrapResponse::class.java)
                     Log.d(TAG, "📡 [텔레메트리] 스크랩 ${payload.data.size}건 전송 완료 (모드: ${scrapRes.deviceControl.mode})")
+                    RoadmapLogger.log("[HTTP 폴링] 응답 (첫콜필터정보/제어명령)")
                     
                     if (scrapRes.dispatchEngineArgs != null) {
                         val filterJson = gson.toJson(scrapRes.dispatchEngineArgs)

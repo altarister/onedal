@@ -154,13 +154,19 @@ export async function calculateDetourRoute(
     // 카카오 다중 경유지 API (POST) URL
     const WAYPOINTS_API_URL = "https://apis-navi.kakaomobility.com/v1/waypoints/directions";
     
+    // Fallback defaults to prevent undefined .toString() errors
+    mergedOriginX = mergedOriginX || 0;
+    mergedOriginY = mergedOriginY || 0;
+    const safeDestX = mergedDestX || 0;
+    const safeDestY = mergedDestY || 0;
+
     const requestBody = {
         origin: { x: mergedOriginX.toString(), y: mergedOriginY.toString() },
-        destination: { x: mergedDestX.toString(), y: mergedDestY.toString() },
-        waypoints: wpArray.map((wp, i) => ({
+        destination: { x: safeDestX.toString(), y: safeDestY.toString() },
+        waypoints: wpArray.filter(wp => wp.x !== undefined && wp.y !== undefined).map((wp, i) => ({
             name: `wp${i}`,
-            x: wp.x,
-            y: wp.y
+            x: wp.x.toString(),
+            y: wp.y.toString()
         })),
         priority: "RECOMMEND",
         car_type: 1
@@ -271,6 +277,14 @@ export async function geocodeAddress(apiKey: string, query: string): Promise<{x:
         if (words.length > 2) {
             const lastWords = words.slice(-2).join(' ');
             fallbackQueries.push({ type: 'keyword', text: lastWords });
+        }
+
+        // [시도 6] 상위 지역명(1~3어절) + 상호명(마지막 어절) 조합 검색
+        // 예: "경기 광주시 퇴촌면 경충대로 1520 농협하나로마트" -> "경기 광주시 퇴촌면 농협하나로마트"
+        if (words.length > 3) {
+            const regionPart = words.slice(0, 3).join(' ');
+            const storePart = words[words.length - 1];
+            fallbackQueries.push({ type: 'keyword', text: `${regionPart} ${storePart}` });
         }
 
         // 🌟 [최적화] 순차 호출이 아닌 '병렬 호출(Concurrent)' 로 전환하여 지연 시간(Latency)을 200ms 이하로 단축

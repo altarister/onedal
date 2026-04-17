@@ -18,6 +18,7 @@ import { activeFilterConfig, updateActiveFilter } from "./state/filterStore";
 import { initGeoService } from "./services/geoService";
 import { updateDriverLocation } from "./state/locationStore";
 import type { AutoDispatchFilter } from "@onedal/shared";
+import { logRoadmapEvent } from "./utils/roadmapLogger";
 
 dotenv.config();
 
@@ -65,6 +66,7 @@ io.on("connection", (socket) => {
 
     // 접속 직후 최신 필터 1회 즉시 전송
     socket.emit("filter-init", activeFilterConfig);
+    logRoadmapEvent("서버", "[Socket] 디폴트 필터 설정값 전송 (관제 UI 초기화)");
 
     // 컴포넌트 마운트 시 발생할 수 있는 레이스 컨디션 해결을 위한 명시적 재요청 핸들러
     socket.on("request-filter-init", () => {
@@ -73,6 +75,7 @@ io.on("connection", (socket) => {
 
     // 관제탑으로부터 필터 업데이트 요청 수신
     socket.on("update-filter", (newFilter: Partial<AutoDispatchFilter>) => {
+        logRoadmapEvent("서버", "[Socket] 첫콜 필터 설정값 전송 (서버 필터 세팅 업데이트)");
         // destinationCity가 변경되면 GeoJSON에서 해당 도시의 읍면동을 자동 조회하여 destinationKeywords 갱신
         if (newFilter.destinationCity && newFilter.destinationCity !== activeFilterConfig.destinationCity) {
             const regions = getRegionsByCity(newFilter.destinationCity);
@@ -146,6 +149,7 @@ const PORT = process.env.PORT || 4000;
 
 httpServer.listen(PORT, () => {
     initGeoService();
+    logRoadmapEvent("서버", "서버 기동 및 디폴트 필터 셋업 (대기 모드)");
     console.log(`\n🚀 1DAL 서버 (Express + Socket.io) 시작됨`);
     console.log(`📡 포트: ${PORT}`);
     console.log(`🌐 대시보드는 http://localhost:5173 에서 확인하세요\n`);

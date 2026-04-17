@@ -8,6 +8,7 @@ import android.view.accessibility.AccessibilityNodeInfo
 import com.onedal.app.api.ApiClient
 import com.onedal.app.core.AppKeywords
 import com.onedal.app.core.AutoTouchManager
+import com.onedal.app.core.RoadmapLogger
 import com.onedal.app.core.ScrapParser
 import com.onedal.app.core.ScreenKeywords
 import com.onedal.app.core.TelemetryManager
@@ -60,6 +61,7 @@ class HijackService : AccessibilityService() {
     private var isDetailScrapSent = false
 
     // ── 팝업 자동 서핑 관련 상태 ──
+    private val recentListOrders = mutableListOf<SimplifiedOfficeOrder>()
     private enum class SurfingState {
         IDLE,
         WAITING_FOR_MEMO_POPUP,
@@ -102,6 +104,7 @@ class HijackService : AccessibilityService() {
         apiClient.fetchKeywords()
         updateScreenContext(ScreenContext.LIST)
 
+        RoadmapLogger.log("[0초] 인성앱 실행 후 1DAL앱 접근성 권한 on", telemetryManager.currentScreenContext.name)
         Log.i(TAG, "✅ 1DAL Service Connected!")
         Log.i(TAG, "  📡 ApiClient  (기기ID: ${apiClient.getDeviceId()})")
         Log.i(TAG, "  📤 Telemetry  (생존신고 시작)")
@@ -159,6 +162,8 @@ class HijackService : AccessibilityService() {
         val detected = detectScreenContext(rawScreenStr)
         updateScreenContext(detected)
 
+        RoadmapLogger.log("새로운 화면 진입 판별: ${detected.value}", telemetryManager.currentScreenContext.name)
+
         Log.d(TAG, "-------------------------------")
         Log.d(TAG, "📡 화면 변경 감지 | 화면: ${detected.value} | 모드: ${telemetryManager.currentMode}")
         Log.d(TAG, "🔍 [디버그] ${rawScreenStr.take(200)}")
@@ -210,8 +215,11 @@ class HijackService : AccessibilityService() {
             // 🌟 [AUTO 실행] 사냥 중이지 않고 AUTO 모드일 때만 실제 클릭 동작 수행
             if (!isAutoSessionActive && telemetryManager.currentMode == "AUTO") {
                 if (isTarget) {
+                    RoadmapLogger.log("AccessibilityService로 바뀐 리스트 감지 후 text 추출", telemetryManager.currentScreenContext.name)
                     Log.d(TAG, "💥 [AUTO] 꿀콜 조건 통과! 대상 콜 강제 터치 진행!")
+                    RoadmapLogger.log("리스트에서 바뀐 text 감지 후 text 추출", telemetryManager.currentScreenContext.name)
                     touchManager.performSimulatedTouch(fareNode.node)
+                    RoadmapLogger.log("[인성 Socket] 인성콜에 선택된 콜 정보 전달 (꿀콜 클릭!)", telemetryManager.currentScreenContext.name)
                     
                     isAutoSessionActive = true // 사냥 시작!
                     currentSessionOrderId = order.id
@@ -222,6 +230,7 @@ class HijackService : AccessibilityService() {
             // 4) 신규 콜 → 서버에 텔레메트리 보고
             processedOrderHashes.add(orderHash)
             telemetryManager.enqueue(order)
+            recentListOrders.add(order)
         }
 
         // 메모리 관리
@@ -229,6 +238,11 @@ class HijackService : AccessibilityService() {
             val keepers = processedOrderHashes.toList().takeLast(ORDER_HASH_KEEP_COUNT)
             processedOrderHashes.clear()
             processedOrderHashes.addAll(keepers)
+        }
+        if (recentListOrders.size > MAX_ORDER_HASH_CACHE) {
+            val keepers = recentListOrders.takeLast(ORDER_HASH_KEEP_COUNT)
+            recentListOrders.clear()
+            recentListOrders.addAll(keepers)
         }
     }
 
@@ -243,13 +257,49 @@ class HijackService : AccessibilityService() {
         if (isDetailScrapSent) return // 이미 전송함
 
         ensureSessionId()
-        val order = buildOrderFromScreen(screenTexts)
+        
+        // 화면에서 임시 추출
+        val tempOrder = scrapParser.parse(screenTexts)
+        
+        // 최근 LIST 화면에서 파싱된 원본 오더 중 요금이 일치하는 콜 역추적 매칭 (전표오염 회피)
+        val matchedOrder = recentListOrders.reversed().find { it.fare > 0 && it.fare == tempOrder.fare }
+
+        val finalOrder = if (isAutoSessionActive && lastDetailOrder != null) {
+            // AUTO 모드는 이미 클릭 시점에 order를 가지고 있음
+            lastDetailOrder!!.copy(
+                type = "AUTO_CLICK",
+                rawText = rawScreenStr
+            )
+        } else if (matchedOrder != null) {
+            // MANUAL 클릭인데 캐시 매칭에 성공한 경우 (원본 데이터 재활용)
+            matchedOrder.copy(
+                id = currentSessionOrderId.ifEmpty { "MANUAL-${System.currentTimeMillis()}" },
+                type = "${telemetryManager.currentMode}_CLICK",
+                rawText = rawScreenStr
+            )
+        } else {
+            // 캐시 매칭 모두 실패 시 (임시 폴백 - 오파싱 가능성 있음)
+            tempOrder.copy(
+                id = currentSessionOrderId.ifEmpty { "MANUAL-${System.currentTimeMillis()}" },
+                type = "${telemetryManager.currentMode}_CLICK",
+                pickup = tempOrder.pickup.takeIf { it.isNotBlank() && it != "미상" } ?: "수집중(상세확인필요)",
+                dropoff = tempOrder.dropoff.takeIf { it.isNotBlank() && it != "미상" } ?: "수집중(상세확인필요)",
+                timestamp = nowTimestamp(),
+                rawText = rawScreenStr
+            )
+        }
+
+        if (currentSessionOrderId.isEmpty()) {
+            currentSessionOrderId = finalOrder.id
+        }
+        
+        lastDetailOrder = finalOrder // 팝업 서핑용으로 최종 갱신
 
         val request = DispatchBasicRequest(
             step = "BASIC",
             deviceId = apiClient.getDeviceId(),
-            order = order,
-            capturedAt = order.timestamp,
+            order = finalOrder,
+            capturedAt = finalOrder.timestamp,
             matchType = telemetryManager.currentMode
         )
 
@@ -261,6 +311,7 @@ class HijackService : AccessibilityService() {
         // ⚡ AUTO 모드 확정 버튼 광클 (자동 사냥 중일 때만)
         if (isAutoSessionActive) {
             Log.d(TAG, "🚀 [AUTO] 확정 버튼 광클 (배차 시도)")
+            RoadmapLogger.log("상세페이지 진입으로 바뀐 text중 '확정' 추출 후 클릭", telemetryManager.currentScreenContext.name)
             touchManager.findAndClickByText(rootNode, "확정", isStartsWith = true)
         }
     }
@@ -275,12 +326,19 @@ class HijackService : AccessibilityService() {
 
         // 확정 화면에 처음 진입했을 때 서핑 시작! (적요상세 → 출발지 → 도착지 순서)
         if (surfingState == SurfingState.IDLE) {
+            RoadmapLogger.log("확정페이지 진입", telemetryManager.currentScreenContext.name)
             ensureSessionId()
-            lastDetailOrder = buildOrderFromScreen(screenTexts)
+            
+            // lastDetailOrder는 PRE_CONFIRM에서 안전하게 매칭/세팅되었으므로 재파싱하지 않음
+            if (lastDetailOrder == null) {
+                lastDetailOrder = buildOrderFromScreen(screenTexts)
+            }
+            
             accumulatedDetailText = screenTexts.joinToString("\n") + "\n"
 
             Log.d(TAG, "🏄‍♂️ [자동 팝업 서핑] 확정 화면 진입 확인! 적요상세 팝업 호출 시도")
             if (touchManager.findAndClickByText(rootNode, "적요상세", isStartsWith = true)) {
+                RoadmapLogger.log("확정페이지에서 '적요상세' 추출 후 클릭", telemetryManager.currentScreenContext.name)
                 Log.i(TAG, "📋 [SEQ 81] 적요상세 버튼 클릭 → 적요 정보 요청")
                 surfingState = SurfingState.WAITING_FOR_MEMO_POPUP
             } else if (touchManager.findAndClickByText(rootNode, "출발지", isStartsWith = true) ||
@@ -296,7 +354,9 @@ class HijackService : AccessibilityService() {
         
         // 서핑 중: 적요상세 팝업에서 돌아온 후 출발지 누르기
         else if (surfingState == SurfingState.WAITING_FOR_PICKUP_POPUP) {
+            RoadmapLogger.log("확정페이지 진입", telemetryManager.currentScreenContext.name)
             Log.d(TAG, "🏄‍♂️ [자동 팝업 서핑] 적요 정보 확인 완료. 출발지 정보 확인을 위해 자동 클릭 시도")
+            RoadmapLogger.log("확정페이지에서 '출발지' 추출 후 클릭", telemetryManager.currentScreenContext.name)
             if (touchManager.findAndClickByText(rootNode, "출발지", isStartsWith = true) ||
                 touchManager.findAndClickByText(rootNode, "상차", isStartsWith = true)) {
                 // 클릭 성공 시
@@ -308,7 +368,9 @@ class HijackService : AccessibilityService() {
 
         // 서핑 중: 출발지 팝업에서 돌아온 후 도착지 누르기
         else if (surfingState == SurfingState.WAITING_FOR_DROPOFF_POPUP) {
+            RoadmapLogger.log("확정페이지 진입", telemetryManager.currentScreenContext.name)
             Log.d(TAG, "🏄‍♂️ [자동 팝업 서핑] 출발지 확인 완료. 도착지 정보 확인을 위해 자동 클릭 시도")
+            RoadmapLogger.log("확정페이지에서 '도착지' 추출 후 클릭", telemetryManager.currentScreenContext.name)
             if (touchManager.findAndClickByText(rootNode, "도착지", isStartsWith = true) ||
                 touchManager.findAndClickByText(rootNode, "하차", isStartsWith = true)) {
                 // 클릭 성공 시 별도 처리 없음 (다음 팝업 이벤트를 기다림)
@@ -338,6 +400,7 @@ class HijackService : AccessibilityService() {
         Log.d(TAG, "📝 적요 스크래핑 성공! 닫기 버튼 누름")
         Log.i(TAG, "📋 [SEQ 81-82] 적요상세 추출 완료 → 닫기")
 
+        RoadmapLogger.log("적요상세페이지에서 '젹요 내용' 추출 및 저장 후 닫기 클릭", telemetryManager.currentScreenContext.name)
         touchManager.findAndClickByText(rootNode, "닫기", isStartsWith = true)
         surfingState = SurfingState.WAITING_FOR_PICKUP_POPUP
     }
@@ -360,6 +423,7 @@ class HijackService : AccessibilityService() {
         accumulatedDetailText += "[출발지상세]\n$multilineScreenStr\n"
         Log.d(TAG, "📝 출발지 스크래핑 성공! 닫기 버튼 누름")
 
+        RoadmapLogger.log("출발지페이지 text중 '전화, 위치' 추출 및 저장 후 닫기 클릭", telemetryManager.currentScreenContext.name)
         touchManager.findAndClickByText(rootNode, "닫기", isStartsWith = true)
         surfingState = SurfingState.WAITING_FOR_DROPOFF_POPUP
     }
@@ -382,8 +446,10 @@ class HijackService : AccessibilityService() {
         accumulatedDetailText += "[도착지상세]\n$multilineScreenStr\n"
         Log.d(TAG, "📝 도착지 스크래핑 성공! 닫기 누름 및 전체 내용 /detail 로 발송")
 
+        RoadmapLogger.log("도착지페이지 text중 '전화, 위치' 추출 및 저장 후 닫기 클릭", telemetryManager.currentScreenContext.name)
         touchManager.findAndClickByText(rootNode, "닫기", isStartsWith = true)
         surfingState = SurfingState.DONE
+        RoadmapLogger.log("확정페이지 진입", telemetryManager.currentScreenContext.name)
 
         // /detail 서버 전송 (팝업 수집 완료)
         lastDetailOrder?.let { order ->
@@ -482,7 +548,9 @@ class HijackService : AccessibilityService() {
                 return@postDelayed
             }
             if (touchManager.findAndClickByText(rootNode, targetBtnStr, isStartsWith = false)) {
-                Log.d(TAG, "🎉 행동 완료! 타겟($targetBtnStr) 명중.")
+                if (decision == "KEEP") RoadmapLogger.log("'닫기' 클릭 후 리스트 페이지 복귀 (유지)", telemetryManager.currentScreenContext.name)
+                else RoadmapLogger.log("'취소' 클릭 후 인성 Socket 취소 지시", telemetryManager.currentScreenContext.name)
+                Log.d(TAG, "🎉 행동 완료! 타겟(\$targetBtnStr) 명중.")
             } else {
                 Log.e(TAG, "❌ 대상 버튼($targetBtnStr)을 찾을 수 없음.")
                 sendEmergencyReport(EmergencyReason.BUTTON_NOT_FOUND, "판결 $decision 의 대상 $targetBtnStr 버튼 누락")
@@ -532,7 +600,9 @@ class HijackService : AccessibilityService() {
 
     /** 팝업 잔상이 화면에 남아있는지 검사 */
     private fun isPopupResidue(rawScreenStr: String): Boolean {
-        return rawScreenStr.contains("출발지 상세") || rawScreenStr.contains("도착지 상세")
+        val resid = rawScreenStr.contains("출발지 상세") || rawScreenStr.contains("도착지 상세")
+        if (resid) RoadmapLogger.log("✋ [Race Condition 방어] 출발지/도착지 팝업 닫힘 애니메이션 잔상 대기", telemetryManager.currentScreenContext.name)
+        return resid
     }
 
     /** 현재 ISO 타임스탬프 생성 */

@@ -6,6 +6,7 @@ import android.graphics.Path
 import android.graphics.Rect
 import android.util.Log
 import android.view.accessibility.AccessibilityNodeInfo
+import com.onedal.app.core.RoadmapLogger
 
 /**
  * 시스템 레벨 스크린 터치 및 제스처 동작 전담 매니저
@@ -41,6 +42,7 @@ class AutoTouchManager(private val service: AccessibilityService) {
             override fun onCompleted(gestureDescription: GestureDescription?) {
                 super.onCompleted(gestureDescription)
                 Log.d(TAG, "✅ [가로채기 성공!] 화면 좌표 (X:$x, Y:$y) 터치 완료!")
+                RoadmapLogger.log("버튼 터치 완료 (가로채기 성공) X:$x, Y:$y", "")
             }
             override fun onCancelled(gestureDescription: GestureDescription?) {
                 super.onCancelled(gestureDescription)
@@ -65,6 +67,7 @@ class AutoTouchManager(private val service: AccessibilityService) {
     fun findAndClickByText(rootNode: AccessibilityNodeInfo?, targetText: String, isStartsWith: Boolean = false): Boolean {
         val targetNode = findNodeByText(rootNode, targetText, isStartsWith)
         if (targetNode != null) {
+            RoadmapLogger.log("'$targetText' 버튼 인식 ➡️ 클릭 시도", "")
             val result = performSimulatedTouch(targetNode)
             targetNode.recycle()
             return result

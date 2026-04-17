@@ -17,6 +17,7 @@ import { activeFilterConfig, updateActiveFilter } from "../state/filterStore";
 import { parseLocationDetails, parseMockupFare, parseMockupDistance, parseMockupVehicleType } from "../utils/parser";
 import { getCorridorRegions } from "../services/geoService";
 import { globalDriverLocation } from "../state/locationStore";
+import { logRoadmapEvent } from "../utils/roadmapLogger";
 
 // ━━━━━━━━━━ [관제 배차 평가 상숫값] ━━━━━━━━━━
 // 기사님이 언제든지 이 수치들을 조정해서 콜 판독 기준을 바꿀 수 있습니다.
@@ -236,6 +237,7 @@ export async function handleDecision(orderId: string, action: 'KEEP' | 'CANCEL',
         // 잡고 있던 앱폰의 HTTP(롱폴링) 파이프에 판결문을 내려줌 (AUTO 배차의 경우)
         pendingDetailRequests.delete(orderId);
         const deviceResponse: DispatchConfirmResponse = { deviceId: 'server', action };
+        logRoadmapEvent("서버", `[HTTP 폴링] 응답 /orders/detail ${action === 'KEEP' ? '유지' : '취소'} 정보 전송`);
         heldRes.json(deviceResponse);
     } else {
         console.log(`💡 [Decision] 롱폴링 대기열에 없음 (수동 배차이거나 이미 종료된 통신). 웹 관제 상태만 업데이트합니다: ID ${orderId}`);
@@ -351,7 +353,9 @@ export async function handleDecision(orderId: string, action: 'KEEP' | 'CANCEL',
              destinationKeywords,
              allowedVehicleTypes: ["다마스", "라보", "오토바이"] 
         });
+        logRoadmapEvent("서버", "합짐 필터로 설정값 업데이트 (합짐 사냥용)");
         io.emit("filter-updated", activeFilterConfig);
+        logRoadmapEvent("서버", "[Socket] 합짐 필터 전송 (대시보드 합짐 모드)");
         console.log(`✅ [최종 수락(유지)] ID: ${orderId}`);
     } else {
         // [사후 동기화 (Post-Dispatch Sync)] 취소 명령 시, 이미 확정된 오더 목록에서도 제거
@@ -377,7 +381,9 @@ export async function handleDecision(orderId: string, action: 'KEEP' | 'CANCEL',
                 resetFilter.allowedVehicleTypes = []; // 전체 허용
             }
             updateActiveFilter(resetFilter);
+            logRoadmapEvent("서버", "첫콜 필터로 설정값 업데이트");
             io.emit("filter-updated", activeFilterConfig);
+            logRoadmapEvent("서버", "[Socket] 첫콜 필터 전송 (UI 대기화면 복구)");
         }
         pendingOrdersData.delete(orderId);
         console.log(`❌ [최종 뱉기(취소)] ID: ${orderId}`);
@@ -397,6 +403,8 @@ router.post("/", async (req, res) => {
         if (payload.step !== 'DETAILED') {
             return res.status(400).json({ error: "이 엔드포인트는 step=DETAILED 전용입니다." });
         }
+        
+        logRoadmapEvent("서버", "[HTTP 폴링] POST /orders/detail 상하차지 + 적요내용 정보 수신");
 
         // 'unknown' ID 구제 로직
         const realOrderId = (payload.order.id === "unknown" || !payload.order.id)
@@ -520,6 +528,7 @@ router.post("/", async (req, res) => {
         if (io) {
             console.log(`📤 [Socket 푸시] order-detail-received (${securedOrder.id})`);
             io.emit("order-detail-received", securedOrder);
+            logRoadmapEvent("서버", "[Socket] 상하차지 + 적요내용 정보 전송");
             console.log(`📋 [2차 상세 수신] 상하차지+적요 전송. 상세주소(${securedOrder.pickupDetails?.[0]?.addressDetail || '없음'} ➡️ ${securedOrder.dropoffDetails?.[0]?.addressDetail || '없음'})`);
         }
 
@@ -541,6 +550,7 @@ router.post("/", async (req, res) => {
         try {
             const apiKey = process.env.KAKAO_REST_API_KEY;
             if (apiKey) {
+                logRoadmapEvent("서버", "🛡️ [카카오 API 3중 폴백] 괄호제거 ➡️ 주소검색 ➡️ 키워드검색 ➡️ 4어절 절사");
                 // 1.5단계: 지오코딩 (텍스트 주소를 X, Y 좌표로 변환)
                 if (!securedOrder.pickupX || !securedOrder.pickupY) {
                     const bestPickupQuery = securedOrder.pickupDetails?.[0]?.addressDetail || securedOrder.pickup;
@@ -662,6 +672,7 @@ router.post("/", async (req, res) => {
             // 카카오 연산 결과 포함 발송 (다이어그램 Line 80)
             console.log(`📤 [Socket 푸시] order-evaluated (${securedOrder.id})`);
             io.emit("order-evaluated", securedOrder);
+            logRoadmapEvent("서버", "[Socket] 경로 및 시간 정보, 수익률 전송");
             console.log(`🔎 [카카오 연산 완료] ${timeExt} (기기: ${payload.deviceId}) | Polyline 길이: ${securedOrder.routePolyline?.length || 0}`);
         }
 

@@ -55,23 +55,28 @@ sequenceDiagram
     Note over 앱폰1: 상세페이지 진입으로 바뀐 text중 '확정' 추출 후 클릭 
     앱폰1->>인성DB: [인성 Socket] 콜 확정 완료
     인성DB-->>앱폰1: 확정페이지 데이터 전달 
+    Note over 앱폰1: 확정페이지 진입
     앱폰1->>서버: [HTTP 폴링] POST /orders/confirm 확정정보 정보 전송
     Note over 서버 : 대기 필터로 설정값 업데이트
     서버-->>앱폰1: [HTTP 폴링] 응답 /orders/confirm 
     서버->>관제탑: [Socket] 확정정보 정보 + 대기 필터 정보 전송
     Note over 관제탑: 닫기 ,취소 버튼 노출
     
-    Note over 앱폰1: 확정페이지 진입으로 바뀐 text중 '적요상세' 추출 후 클릭
+    Note over 앱폰1: 확정페이지에서 '적요상세' 추출 후 클릭
     앱폰1->>인성DB: [인성 Socket] 적요상세 정보 요청 
     인성DB-->>앱폰1: 적요상세 정보 전달 
-    Note over 앱폰1: 적요상세페이지 진입으로 바뀐 text중 '젹요 내용' 추출 및 저장 후 돌아가기 클릭 
+    Note over 앱폰1: 적요상세페이지에서 '젹요 내용' 추출 및 저장 후 닫기 클릭
+    Note over 앱폰1: 확정페이지 진입
+    Note over 앱폰1: 확정페이지에서 '출발지' 추출 후 클릭
     앱폰1->>인성DB: [인성 Socket] 출발지 정보 요청 
     인성DB-->>앱폰1: 출발지 정보 전달 
-    Note over 앱폰1: 출발지페이지 text중 '전화, 위치' 추출 및 저장 후 닫기 클릭 
-    Note over 앱폰1: ✋ [Race Condition 방어] 출발지 팝업 닫힘 애니메이션 잔상 대기
+    Note over 앱폰1: 출발지페이지 text중 '전화, 위치' 추출 및 저장 후 닫기 클릭
+    Note over 앱폰1: 확정페이지 진입
+    Note over 앱폰1: 확정페이지에서 '도착지' 추출 후 클릭 
     앱폰1->>인성DB: [인성 Socket] 도착지 정보 요청
     인성DB-->>앱폰1: 도착지 정보 전달 
     Note over 앱폰1: 도착지페이지 text중 '전화, 위치' 추출 및 저장 후 닫기 클릭
+    Note over 앱폰1: 확정페이지 진입
     앱폰1->>서버: [HTTP 폴링] POST /orders/detail 상하차지 + 적요내용 정보 전송
     서버->>관제탑: [Socket] 상하차지 + 적요내용 정보 전송
     Note over 관제탑: 경로 섹션 표현, 적요 내용표현 

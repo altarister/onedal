@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { socket } from "../lib/socket";
 import type { AutoDispatchFilter } from "@onedal/shared";
+import { logRoadmapEvent } from "../lib/roadmapLogger";
 
 export function useFilterConfig() {
     const [filter, setFilter] = useState<AutoDispatchFilter | null>(null);
@@ -36,6 +37,7 @@ export function useFilterConfig() {
             setFilter({ ...filter, ...newFilter });
         }
         // 서버로 방출
+        logRoadmapEvent("웹", "필터 설정(첫콜) 및 서버 소켓 전송");
         socket.emit("update-filter", newFilter);
     };
 
