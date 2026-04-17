@@ -220,7 +220,8 @@ export const recalculateCorridorFilter = (corridorRadiusKm: number, destinationR
             console.log(`🗺️ [필터 반경 조절] 회랑 ${corridorRadiusKm}km, 목적지 ${destinationRadiusKm || 0}km 반경으로 재추출: ${regions.flat.length}개 지역 확보됨`);
             return {
                 destinationKeywords: regions.flat,
-                destinationGroups: regions.grouped
+                destinationGroups: regions.grouped,
+                customCityFilters: regions.customCityFilters
             };
         }
     }
@@ -274,6 +275,7 @@ export async function handleDecision(orderId: string, action: 'KEEP' | 'CANCEL',
                 destinationKeywords = regions.flat;
                 // 팝업 카테고리 뷰를 위해 그룹 데이터 저장
                 activeFilterConfig.destinationGroups = regions.grouped;
+                activeFilterConfig.customCityFilters = regions.customCityFilters;
             }
             console.log(`🗺️ [자동 회랑(Corridor) 설정 완료] 궤적주변 반경 ${cRadius}km, 하차반경 ${dRadius || 0}km 내 ${regions?.flat.length || 0}개 지역 타겟팅`);
         }
@@ -335,6 +337,7 @@ export async function handleDecision(orderId: string, action: 'KEEP' | 'CANCEL',
                         if (regions && regions.flat.length > 0) {
                             destinationKeywords = regions.flat;
                             activeFilterConfig.destinationGroups = regions.grouped;
+                            activeFilterConfig.customCityFilters = regions.customCityFilters;
                         }
                     }
                 } catch(e) {

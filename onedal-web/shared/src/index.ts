@@ -80,7 +80,7 @@ export interface SecuredOrder extends OfficeOrder {
     capturedAt: string;               // 낚아챈 실제 타임스탬프
     kakaoCalculatedFare?: number;     // 서버 연산 기반 가성비 단가 (미래 확장성)
     kakaoTimeExt?: string;            // 카카오 연산 결과: 예상 소요 시간 텍스트
-    routePolyline?: Array<{x: number; y: number}>;  // [신규] 카카오 실제 궤적 좌표들
+    routePolyline?: Array<{ x: number; y: number }>;  // [신규] 카카오 실제 궤적 좌표들
     totalDistanceKm?: number;         // [추가] 통합 연산된 전체 총 주행 거리
     totalDurationMin?: number;        // [추가] 통합 연산된 전체 총 주행 시간
     sectionEtas?: string[];           // [신규] 카카오 궤적 연산 기반 각 경유지 도착 예상 시간 배열
@@ -112,6 +112,7 @@ export interface AutoDispatchFilter {
     excludedKeywords: string[];     // 제외 단어 배열 (예: ["착불", "수거", "까대기"])
     destinationKeywords: string[];  // (내부망) 앱 파싱용 읍/면/동 50개 키워드 배열
     destinationGroups?: Record<string, string[]>; // (UI용) 시/구 단위로 그룹핑된 읍면동 목록
+    customCityFilters: string[];    // (UI용) 시/구 단위로 그룹핑된 읍면동 목록
     customFilters: string[];        // 특수 기호 등 하단 빠른 설정 텍스트 (ex: "^^,@", "김포,인천...")
     corridorRadiusKm?: number;      // (합짐 모드) 경로 주변 이탈 허용 반경 (기본값 10km)
     userOverrides?: boolean;        // 기사가 팝업에서 수동으로 필터(destinationKeywords 등)를 조작했는지 여부(서버 덮어쓰기 방지용)
@@ -127,13 +128,13 @@ export interface CorridorRouteData {
         lat: number;
         lng: number;
         type: 'PICKUP' | 'DROPOFF';
-        label: string; 
+        label: string;
     }[];
     alternatives?: {
-        id: string; 
-        name: string; 
-        timeMinutes: number; 
-        distanceKm: number; 
+        id: string;
+        name: string;
+        timeMinutes: number;
+        distanceKm: number;
     }[];
 }
 

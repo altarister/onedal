@@ -67,6 +67,7 @@ class NativeScrapParser(private val context: Context) : IScrapParser {
                 destinationRadiusKm = json.optInt("destinationRadiusKm", 10),
                 excludedKeywords = parseJsonArray(json, "excludedKeywords"),
                 destinationKeywords = parseJsonArray(json, "destinationKeywords"),
+                customCityFilters = parseJsonArray(json, "customCityFilters"),
                 customFilters = parseJsonArray(json, "customFilters")
             )
         } catch (e: Exception) {
@@ -222,13 +223,38 @@ class NativeScrapParser(private val context: Context) : IScrapParser {
             }
         }
 
-        // ── 조건 1: 도착지 매칭 (dropoff만 검사, rawText는 출발지도 포함되므로 사용 금지) ──
-        val regionMatch = if (filter.destinationKeywords.isEmpty()) {
-            true
-        } else {
-            filter.destinationKeywords.any { region ->
-                order.dropoff.contains(region, ignoreCase = true)
+        // ── 조건 1: 도착지 매칭 (2단계 필터링 지원) ──
+        val isDetailPreConfirmStage = order.type.endsWith("_CLICK", ignoreCase = true)
+
+        val regionMatch = if (isDetailPreConfirmStage && filter.customCityFilters.isNotEmpty()) {
+            val dropoffIdx = rawText.indexOf("도착지상세").takeIf { it != -1 } 
+                             ?: rawText.indexOf("도착지")
+            val pureDropoffText = if (dropoffIdx != -1) rawText.substring(dropoffIdx) else rawText
+
+            val hasCityAlias = filter.customCityFilters.any { alias -> 
+                pureDropoffText.contains(alias, ignoreCase = true) 
             }
+            
+            val matchResult = if (!hasCityAlias) {
+                false
+            } else {
+                filter.destinationKeywords.any { dong -> 
+                    pureDropoffText.contains(dong, ignoreCase = true) 
+                }
+            }
+            if (order.fare > 0) AppLogger.d(TAG, "🔍 [2차 상세 필터] 시/도 통과=$hasCityAlias, 최종결과=$matchResult | 대상문자열: ${pureDropoffText.replace('\n', ' ').take(50)}")
+            matchResult
+        } else {
+            // [1차 리스트 필터] 기존 구조 유지 (dropoff만 검사, rawText는 출발지도 포함되므로 사용 금지)
+            val matchResult = if (filter.destinationKeywords.isEmpty()) {
+                true
+            } else {
+                filter.destinationKeywords.any { region ->
+                    order.dropoff.contains(region, ignoreCase = true)
+                }
+            }
+            if (!isDetailPreConfirmStage && order.fare > 0) AppLogger.d(TAG, "🔍 [1차 리스트 필터] 도착지=${order.dropoff}, 결과=$matchResult")
+            matchResult
         }
 
         // ── 조건 2: 요금 하한선 ──

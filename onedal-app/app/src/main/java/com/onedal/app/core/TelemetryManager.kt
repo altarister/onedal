@@ -83,7 +83,7 @@ class TelemetryManager(
     }
 
     @Volatile
-    var currentMode: String = "MANUAL"
+    var currentMode: String = "AUTO"
 
     private fun flush(isHeartbeat: Boolean) {
         val snapshot: List<SimplifiedOfficeOrder>

@@ -114,12 +114,31 @@ export function getCorridorRegions(polyline: Array<{x: number; y: number}>, corr
     }
 
     const resultGroups: Record<string, string[]> = {};
+    const customCitySet = new Set<string>();
+
     for (const [parent, set] of Object.entries(groupedRegions)) {
         resultGroups[parent] = Array.from(set).sort();
+        
+        // 🚀 자동 약어 생성 엔진: 앱의 2단계 필터링(customCityFilters)에 사용될 지역명 폭탄 생성
+        customCitySet.add(parent);
+        
+        // 예: 광주시 -> 광주, 송파구 -> 송파
+        if (parent.endsWith('구') || parent.endsWith('시') || parent.endsWith('군')) {
+            const shortName = parent.slice(0, -1);
+            customCitySet.add(shortName);
+            
+            // 특수 룰: 경기 광주시 -> '경기 광주시', '경기 광주', '경광주'
+            if (parent === '광주시') {
+                customCitySet.add('경기 광주');
+                customCitySet.add('경기 광주시');
+                customCitySet.add('경광주');
+            }
+        }
     }
 
     return {
         flat: Array.from(matchedRegionNames).sort(),
-        grouped: resultGroups
+        grouped: resultGroups,
+        customCityFilters: Array.from(customCitySet)
     };
 }

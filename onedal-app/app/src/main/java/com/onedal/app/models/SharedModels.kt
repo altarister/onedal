@@ -164,6 +164,8 @@ data class FilterConfig(
     val destinationRadiusKm: Int = 10,
     val excludedKeywords: List<String> = emptyList(),
     val destinationKeywords: List<String> = emptyList(),
+    val customCityFilters: List<String> = emptyList(),
+    val destinationGroups: Map<String, List<String>> = emptyMap(),
     val customFilters: List<String> = emptyList()
 )
 
