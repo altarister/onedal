@@ -2,15 +2,36 @@ import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from "react
 import { useEffect } from "react";
 import Dashboard from "./pages/Dashboard";
 import Settlement from "./pages/Settlement";
+import Login from "./pages/Login";
 import DevTools from "./components/dev/DevTools";
 import { logRoadmapEvent } from "./lib/roadmapLogger";
+import { useAuth } from "./contexts/AuthContext";
+
+function AuthGuard({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading } = useAuth();
+  
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center text-gray-500">
+        <div className="w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p>인증 정보를 확인 중입니다...</p>
+      </div>
+    );
+  }
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return <>{children}</>;
+}
 
 // Navigation Wrapper
 function AppLayout() {
   const location = useLocation();
 
   useEffect(() => {
-    logRoadmapEvent("웹", "1DAL 웹(관제웹) 시작, 로그인");
+    logRoadmapEvent("웹", "1DAL 웹(관제웹) 로그인됨");
   }, []);
 
   return (
@@ -45,7 +66,17 @@ function AppLayout() {
 export default function App() {
   return (
     <BrowserRouter>
-      <AppLayout />
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route 
+          path="/*" 
+          element={
+            <AuthGuard>
+              <AppLayout />
+            </AuthGuard>
+          } 
+        />
+      </Routes>
       {/* 배포 테스트를 위해 임시로 DevTools 강제 활성화 */}
       <DevTools /> 
     </BrowserRouter>
