@@ -42,6 +42,7 @@ export let activeFilterConfig: AutoDispatchFilter = {
 
     // 이 외, 특정 키워드/건물명만 집중적으로 잡고 싶을 때 사용하는 확장 필터 배열
     customFilters: [],
+    customCityFilters: [],
 };
 
 // 필터 상태를 덮어쓰는 유틸리티

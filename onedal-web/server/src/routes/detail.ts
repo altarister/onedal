@@ -208,7 +208,7 @@ async function recalculateActiveKakaoRoute(io: any) {
  * 서버 메모리에 저장된 좌표를 기반으로 calculate API를 다시 찌른 후, 
  * order-evaluated 이벤트를 뿌려 웹 화면과 데이터를 교체합니다.
  */
-export async function recalculateKakaoRoute(orderId: string, priority: string, io: SocketIOServer) {
+export async function recalculateKakaoRoute(orderId: string, priority: string, io: any) {
     const securedOrder = pendingOrdersData.get(orderId);
     if (!securedOrder) {
         console.warn(`[Recalculate] 메모리에 존재하지 않는 오더입니다. (ID: ${orderId})`);
@@ -250,48 +250,64 @@ export async function recalculateKakaoRoute(orderId: string, priority: string, i
                 priority
             );
             
-            let recommend = "";
             let paramLabel = "추천";
             if (priority === "TIME") paramLabel = "최단시간";
             if (priority === "DISTANCE") paramLabel = "최단거리";
             
-            if (result.distDiffKm === "0.0") {
-                timeExt = `[${paramLabel}] 단독 꿀콜 (패널티 제로!)`;
-            } else {
-                timeExt = `[${paramLabel}] ${result.distDiffKm}km 우회 (단독오류)`;
-            }
+            timeExt = `[${paramLabel}] 재탐색 완료`;
             
             securedOrder.routePolyline = result.polyline;
             securedOrder.totalDistanceKm = parseFloat((result.distance / 1000).toFixed(1));
             securedOrder.totalDurationMin = Math.round(result.duration / 60);
-            if (result.polyline?.length) {
-                timeExt = `[${paramLabel}] 재탐색 완료`;
-            }
             
         } else {
-            // 합짐
-            const firstPickX = previousOrders[0].pickupX || securedOrder.pickupX!;
-            const firstPickY = previousOrders[0].pickupY || securedOrder.pickupY!;
-            const firstDestX = previousOrders[0].dropoffX || securedOrder.dropoffX!;
-            const firstDestY = previousOrders[0].dropoffY || securedOrder.dropoffY!;
+            // 합짐 (Detour) 모터
+            const allPickups: { x: number; y: number }[] = [];
+            const allDropoffs: { x: number; y: number }[] = [];
             
-            const points = [];
-            if (previousOrders[0].pickupX) points.push({ x: previousOrders[0].pickupX, y: previousOrders[0].pickupY });
-            if (previousOrders[0].dropoffX) points.push({ x: previousOrders[0].dropoffX, y: previousOrders[0].dropoffY });
-            if (securedOrder.pickupX) points.push({ x: securedOrder.pickupX, y: securedOrder.pickupY });
-            if (securedOrder.dropoffX) points.push({ x: securedOrder.dropoffX, y: securedOrder.dropoffY });
+            // 1. 이미 평가 완료/운영 중인 오더들을 모두 집어넣습니다.
+            if (mainCallState) {
+                allPickups.push({ x: mainCallState.pickupX!, y: mainCallState.pickupY! });
+                allDropoffs.push({ x: mainCallState.dropoffX!, y: mainCallState.dropoffY! });
+            }
+            subCalls.forEach(c => {
+                if (c.pickupX && c.pickupY) allPickups.push({ x: c.pickupX, y: c.pickupY });
+                if (c.dropoffX && c.dropoffY) allDropoffs.push({ x: c.dropoffX, y: c.dropoffY });
+            });
             
-            const geoService = require('./../services/geoService');
-            const sortedWps = [...points]; 
-            // In a full implementation we extract the exact parameters. 
-            // Since we previously stored routing results, we can just call it accurately
+            // 2. 만약 지금 탐색 버튼을 누른 대상(securedOrder)이 아직 수락 전이라 위 리스트에 없다면 끝에 덧붙여줍니다.
+            const isIncluded = mainCallState?.id === securedOrder.id || subCalls.some(c => c.id === securedOrder.id);
+            if (!isIncluded && securedOrder.pickupX && securedOrder.pickupY && securedOrder.dropoffX && securedOrder.dropoffY) {
+                allPickups.push({ x: securedOrder.pickupX, y: securedOrder.pickupY });
+                allDropoffs.push({ x: securedOrder.dropoffX, y: securedOrder.dropoffY });
+            }
+            
+            // 3. 서버 정식 TSP 정렬 함수를 통과시킵니다.
+            const startLoc = dLoc || allPickups[0]; 
+            const { sortedPickups, sortedDropoffs } = optimizeWaypoints(startLoc, allPickups, allDropoffs);
+            
+            // 4. 알고리즘이 뽑아준 가장 합리적인 최종 도착지를 Dest로 빼고, 나머지를 경유지로 세팅
+            const mergedDest = sortedDropoffs.pop()!;
+            const waypoints = [...sortedPickups, ...sortedDropoffs];
+            
+            // 기존 함수 파라미터 유지를 위해 본콜 좌표 지정 (단독 경로 대비 비교용)
+            let firstPickX = allPickups[0].x;
+            let firstPickY = allPickups[0].y;
+            let firstDestX = allDropoffs[0].x;
+            let firstDestY = allDropoffs[0].y;
+            if (mainCallState) {
+                firstPickX = mainCallState.pickupX!;
+                firstPickY = mainCallState.pickupY!;
+                firstDestX = mainCallState.dropoffX!;
+                firstDestY = mainCallState.dropoffY!;
+            }
             
             const result = await calculateDetourRoute(
                 apiKey,
                 firstDestX, firstDestY,
                 firstPickX, firstPickY,
-                securedOrder.dropoffX!, securedOrder.dropoffY!,
-                sortedWps,
+                mergedDest.x, mergedDest.y,
+                waypoints,
                 dLoc,
                 priority
             );
@@ -322,6 +338,11 @@ export async function recalculateKakaoRoute(orderId: string, priority: string, i
         
         securedOrder.kakaoTimeExt = timeExt;
         
+        if (securedOrder.status === 'confirmed' || mainCallState?.id === securedOrder.id || subCalls.some(c => c.id === securedOrder.id)) {
+            syncCorridorFilter(io);
+            console.log("🗺️ [동적 경로 연동] 변경된 궤적에 맞춰 회랑 필터를 실시간으로 개편했습니다.");
+        }
+
         io.emit("order-evaluated", securedOrder);
         console.log(`🔎 [카카오 재계산 완료] ${timeExt} | Polyline 길이: ${securedOrder.routePolyline?.length || 0}`);
         
@@ -364,6 +385,33 @@ export const recalculateCorridorFilter = (corridorRadiusKm: number, destinationR
     return null;
 };
 
+export const syncCorridorFilter = (io: any) => {
+    let polylineToUse = null;
+    if (subCalls.length > 0) {
+        polylineToUse = subCalls[subCalls.length - 1].routePolyline;
+    } else if (mainCallState) {
+        polylineToUse = mainCallState.routePolyline;
+    }
+
+    if (polylineToUse && polylineToUse.length > 0) {
+        const cRadius = activeFilterConfig.corridorRadiusKm || 10;
+        const dRadius = activeFilterConfig.destinationRadiusKm;
+        const regions = getCorridorRegions(polylineToUse, cRadius, dRadius);
+        
+        if (regions && regions.flat.length > 0) {
+            updateActiveFilter({ 
+                destinationKeywords: regions.flat,
+                destinationGroups: regions.grouped,
+                customCityFilters: regions.customCityFilters
+            });
+            console.log(`🗺️ [동적 필터 동기화] 궤적주변 반경 ${cRadius}km 내 ${regions.flat.length}개 지역 타겟팅 자동 업데이트 완료`);
+            if (io) {
+                io.emit("filter-updated", activeFilterConfig);
+            }
+        }
+    }
+};
+
 /**
  * 관제사 최종 판정 처리 (소켓 이벤트 `decision`에서 호출)
  */
@@ -403,17 +451,8 @@ export async function handleDecision(orderId: string, action: 'KEEP' | 'CANCEL',
         let destinationKeywords = activeFilterConfig.destinationKeywords;
 
         if (cachedOrder && cachedOrder.routePolyline) {
-            const cRadius = activeFilterConfig.corridorRadiusKm || 10; // Use corridor radius for polyline intersection
-            const dRadius = activeFilterConfig.destinationRadiusKm;
-            const regions = getCorridorRegions(cachedOrder.routePolyline, cRadius, dRadius);
-            if (regions && regions.flat.length > 0) {
-                // 앱폰 연동을 위해 통배열로 할당
-                destinationKeywords = regions.flat;
-                // 팝업 카테고리 뷰를 위해 그룹 데이터 저장
-                activeFilterConfig.destinationGroups = regions.grouped;
-                activeFilterConfig.customCityFilters = regions.customCityFilters;
-            }
-            console.log(`🗺️ [자동 회랑(Corridor) 설정 완료] 궤적주변 반경 ${cRadius}km, 하차반경 ${dRadius || 0}km 내 ${regions?.flat.length || 0}개 지역 타겟팅`);
+            syncCorridorFilter(null);
+            destinationKeywords = activeFilterConfig.destinationKeywords;
         }
         if (cachedOrder) {
             cachedOrder.status = 'confirmed';
@@ -466,15 +505,7 @@ export async function handleDecision(orderId: string, action: 'KEEP' | 'CANCEL',
 
                         console.log(`🗺️ [사후 병합 궤적 생성] 수동 병렬 진입 콜에 대해 통합 합짐 궤적(길이: ${lastSub.routePolyline?.length || 0}) 재계산 성공!`);
                         
-                        // 생성된 궤적을 바탕으로 회랑 필터 재추출
-                        const cRadius = activeFilterConfig.corridorRadiusKm || 10;
-                        const dRadius = activeFilterConfig.destinationRadiusKm;
-                        const regions = getCorridorRegions(lastSub.routePolyline || [], cRadius, dRadius);
-                        if (regions && regions.flat.length > 0) {
-                            destinationKeywords = regions.flat;
-                            activeFilterConfig.destinationGroups = regions.grouped;
-                            activeFilterConfig.customCityFilters = regions.customCityFilters;
-                        }
+                        syncCorridorFilter(null); // Will be emitted later below
                     }
                 } catch(e) {
                     console.error('🗺️ [사후 병합 궤적 생성 실패]', e);

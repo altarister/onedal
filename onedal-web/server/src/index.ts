@@ -79,7 +79,7 @@ io.on("connection", (socket) => {
         // destinationCity가 변경되면 GeoJSON에서 해당 도시의 읍면동을 자동 조회하여 destinationKeywords 갱신
         if (newFilter.destinationCity && newFilter.destinationCity !== activeFilterConfig.destinationCity) {
             const regions = getRegionsByCity(newFilter.destinationCity);
-            newFilter.destinationKeywords = regions.join(',');
+            newFilter.destinationKeywords = regions;
             console.log(`🗺️ [지역 자동 갱신] ${newFilter.destinationCity} → ${regions.length}개 읍면동 조회 완료`);
         }
         

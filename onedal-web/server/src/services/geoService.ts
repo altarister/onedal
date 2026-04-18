@@ -30,7 +30,7 @@ export function initGeoService() {
  * 하차 거점(마지막 좌표)에 대해 (destinationRadiusKm)만큼의 넓은 원 폴리곤을 시뮬레이션하여 두 폴리곤을 합병한 뒤,
  * 그 영역에 찍힌 모든 읍/면/동 행정구역명 키워드를 추출해 반환합니다.
  */
-export function getCorridorRegions(polyline: Array<{x: number; y: number}>, corridorRadiusKm: number, destinationRadiusKm?: number): { flat: string[], grouped: Record<string, string[]> } | null {
+export function getCorridorRegions(polyline: Array<{x: number; y: number}>, corridorRadiusKm: number, destinationRadiusKm?: number): { flat: string[], grouped: Record<string, string[]>, customCityFilters: string[] } | null {
     if (!mergedMapFeatureCollection || !mergedMapFeatureCollection.features) return null;
     if (!polyline || polyline.length < 2) return null;
 

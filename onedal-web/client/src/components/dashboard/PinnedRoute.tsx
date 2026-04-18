@@ -602,6 +602,39 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: 
                         </span>
                     </div>
                 </div>
+
+                {/* 글로벌 상시 경로 재탐색 파이프라인 */}
+                {activeRoute.length > 0 && onRecalculate && (() => {
+                    const lastExt = activeRoute[activeRoute.length - 1].kakaoTimeExt || '';
+                    const isRecommend = lastExt.includes('[추천]');
+                    const isTime = lastExt.includes('[최단시간]');
+                    const isDistance = lastExt.includes('[최단거리]');
+                    return (
+                        <div className="mb-4 px-1 flex gap-2 justify-center">
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); setProcessingId(`recalc-global`); onRecalculate(activeRoute[activeRoute.length - 1].id, 'RECOMMEND'); }}
+                                disabled={processingId !== null}
+                                className={`flex-1 text-[11px] font-bold py-2.5 rounded border transition-all shadow-sm ${processingId !== null ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'} ${isRecommend ? 'bg-blue-600 text-white border-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.5)]' : 'bg-blue-900/40 text-blue-300 border-blue-500/30 hover:bg-blue-800/60 hover:border-blue-400'}`}
+                            >
+                                {processingId === `recalc-global` && !isRecommend ? '검색중...' : '🌟 추천경로'}
+                            </button>
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); setProcessingId(`recalc-global`); onRecalculate(activeRoute[activeRoute.length - 1].id, 'TIME'); }}
+                                disabled={processingId !== null}
+                                className={`flex-1 text-[11px] font-bold py-2.5 rounded border transition-all shadow-sm ${processingId !== null ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'} ${isTime ? 'bg-indigo-600 text-white border-indigo-400 shadow-[0_0_10px_rgba(79,70,229,0.5)]' : 'bg-indigo-900/40 text-indigo-300 border-indigo-500/30 hover:bg-indigo-800/60 hover:border-indigo-400'}`}
+                            >
+                                {processingId === `recalc-global` && !isTime ? '검색중...' : '⏳ 최단시간'}
+                            </button>
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); setProcessingId(`recalc-global`); onRecalculate(activeRoute[activeRoute.length - 1].id, 'DISTANCE'); }}
+                                disabled={processingId !== null}
+                                className={`flex-1 text-[11px] font-bold py-2.5 rounded border transition-all shadow-sm ${processingId !== null ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'} ${isDistance ? 'bg-teal-600 text-white border-teal-400 shadow-[0_0_10px_rgba(20,184,166,0.5)]' : 'bg-teal-900/40 text-teal-300 border-teal-500/30 hover:bg-teal-800/60 hover:border-teal-400'}`}
+                            >
+                                {processingId === `recalc-global` && !isDistance ? '검색중...' : '📏 최단거리'}
+                            </button>
+                        </div>
+                    );
+                })()}
                 {/* <div className="flex items-start min-w-max">
                     {unifiedRoutePoints.map((point, idx) => (
                         <React.Fragment key={idx}>
@@ -764,32 +797,7 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: 
                                         </div>
                                     )}
 
-                                    {/* 카카오 경로 재탐색 옵션 파이프라인 */}
-                                    {route.status === 'evaluating_detailed' && onRecalculate && (
-                                        <div className="mt-2 flex gap-2">
-                                            <button 
-                                                onClick={(e) => { e.stopPropagation(); setProcessingId(`recalc-${route.id}`); onRecalculate(route.id, 'RECOMMEND'); }}
-                                                disabled={processingId !== null}
-                                                className={`flex-1 bg-blue-900/30 text-blue-300 text-[10px] font-bold py-2 rounded-lg border border-blue-500/30 transition-all ${processingId !== null ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-800/50 active:scale-95'}`}
-                                            >
-                                                {processingId === `recalc-${route.id}` ? '검색중...' : '🌟 추천경로'}
-                                            </button>
-                                            <button 
-                                                onClick={(e) => { e.stopPropagation(); setProcessingId(`recalc-${route.id}`); onRecalculate(route.id, 'TIME'); }}
-                                                disabled={processingId !== null}
-                                                className={`flex-1 bg-indigo-900/30 text-indigo-300 text-[10px] font-bold py-2 rounded-lg border border-indigo-500/30 transition-all ${processingId !== null ? 'opacity-50 cursor-not-allowed' : 'hover:bg-indigo-800/50 active:scale-95'}`}
-                                            >
-                                                {processingId === `recalc-${route.id}` ? '검색중...' : '⏳ 최단시간'}
-                                            </button>
-                                            <button 
-                                                onClick={(e) => { e.stopPropagation(); setProcessingId(`recalc-${route.id}`); onRecalculate(route.id, 'DISTANCE'); }}
-                                                disabled={processingId !== null}
-                                                className={`flex-1 bg-teal-900/30 text-teal-300 text-[10px] font-bold py-2 rounded-lg border border-teal-500/30 transition-all ${processingId !== null ? 'opacity-50 cursor-not-allowed' : 'hover:bg-teal-800/50 active:scale-95'}`}
-                                            >
-                                                {processingId === `recalc-${route.id}` ? '검색중...' : '📏 최단거리'}
-                                            </button>
-                                        </div>
-                                    )}
+
                                     {/* 평가 상태(데스밸리) 액션 버튼 */}
                                     {route.status === 'confirmed' && onDecision && (
                                         <div className="mt-4 flex gap-3">
