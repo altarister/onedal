@@ -63,11 +63,12 @@ export async function calculateSoloRoute(
     pickupX: number, pickupY: number,
     dropoffX: number, dropoffY: number,
     driverLoc?: { x: number, y: number } | null,
-    priority: string = "RECOMMEND"
+    priority: string = "RECOMMEND",
+    carType: number = 1
 ): Promise<RouteResult> {
     const originCoord = driverLoc ? `${driverLoc.x},${driverLoc.y}` : `${pickupX},${pickupY}`;
     const waypointsQuery = driverLoc ? `&waypoints=${pickupX},${pickupY}` : "";
-    const url = `${KAKAO_API_URL}?origin=${originCoord}&destination=${dropoffX},${dropoffY}${waypointsQuery}&priority=${priority}&car_type=1`;
+    const url = `${KAKAO_API_URL}?origin=${originCoord}&destination=${dropoffX},${dropoffY}${waypointsQuery}&priority=${priority}&car_type=${carType}`;
     
     console.log(`[Kakao Nav API (Solo)] 호출 URL: ${url}`);
     
@@ -134,7 +135,8 @@ export async function calculateDetourRoute(
     mergedDestX: number, mergedDestY: number, // 합짐 최종 하차지
     mergedWaypoints: Array<{ x: number; y: number }>, // 스마트 정렬된 경유지들
     driverLoc?: { x: number, y: number } | null,
-    priority: string = "RECOMMEND"
+    priority: string = "RECOMMEND",
+    carType: number = 1
 ): Promise<DetourResult> {
     const headers = getHeaders(apiKey);
 
@@ -149,7 +151,7 @@ export async function calculateDetourRoute(
     }
 
     // 1. 베이스(단독 본콜) 연산
-    let baseUrl = `${KAKAO_API_URL}?origin=${baseOriginX},${baseOriginY}&destination=${baseDestX},${baseDestY}&priority=${priority}&car_type=1`;
+    let baseUrl = `${KAKAO_API_URL}?origin=${baseOriginX},${baseOriginY}&destination=${baseDestX},${baseDestY}&priority=${priority}&car_type=${carType}`;
     if (baseWaypoints) {
         baseUrl += `&waypoints=${baseWaypoints}`;
     }
@@ -181,7 +183,7 @@ export async function calculateDetourRoute(
             y: wp.y.toString()
         })),
         priority: priority,
-        car_type: 1
+        car_type: carType
     };
     
     console.log(`\n🚙 [Kakao API Request] 스마트 합짐 우회 경로 요청 (다중 경유지 API)`);

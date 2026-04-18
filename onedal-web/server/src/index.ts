@@ -14,6 +14,8 @@ import kakaoRouter from "./routes/kakao";
 import devicesRouter from "./routes/devices";
 import configRouter from "./routes/config";
 import authRouter from "./routes/auth";
+import settingsRouter from "./routes/settings";
+import filtersRouter from "./routes/filters";
 
 import { initGeoService } from "./services/geoService";
 import { logRoadmapEvent } from "./utils/roadmapLogger";
@@ -57,6 +59,8 @@ app.use("/api/devices", devicesRouter);
 app.use("/api/emergency", emergencyRouter);  // [Safety Mode V3] 앱폰 비상 보고
 app.use("/api/config", configRouter); // 타겟 앱 키워드 연동
 app.use("/api/auth", authRouter); // OAuth 로그인/인증 라우터
+app.use("/api/settings", settingsRouter); // 개인화 설정 라우터
+app.use("/api/filters", filtersRouter); // 콜 사냥용 필터 라우터
 
 
 // 소켓 연결 이벤트 핸들링 (Step 4 분리 완료)

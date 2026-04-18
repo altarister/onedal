@@ -5,6 +5,15 @@ import { optimizeWaypoints } from "../utils/routeOptimizer";
 import { getCorridorRegions } from "../services/geoService";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { DISPATCH_CONFIG } from "../config/dispatchConfig";
+import db from "../db";
+
+function getKakaoRoutingOptions(userId: string) {
+    const row = db.prepare("SELECT car_type, default_priority FROM user_settings WHERE user_id = ?").get(userId) as any;
+    return {
+        carType: row?.car_type ?? 1,
+        defaultPriority: row?.default_priority || "RECOMMEND"
+    };
+}
 
 /** 기존 평가 중이던 콜을 외부에서 강제 삭제할 때 호출 */
 export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: any) {
@@ -40,6 +49,8 @@ export async function recalculateActiveKakaoRoute(userId: string, io: any) {
             const apiKey = process.env.KAKAO_REST_API_KEY || "";
             if (!apiKey) return;
 
+            const routingOptions = getKakaoRoutingOptions(userId);
+
             if (session.subCalls.length === 0) {
                 // 단독 오더로 복귀
                 const res = await calculateSoloRoute(
@@ -47,7 +58,8 @@ export async function recalculateActiveKakaoRoute(userId: string, io: any) {
                     session.mainCallState.pickupX!, session.mainCallState.pickupY!,
                     session.mainCallState.dropoffX!, session.mainCallState.dropoffY!,
                     session.driverLocation,
-                    "RECOMMEND"
+                    routingOptions.defaultPriority,
+                    routingOptions.carType
                 );
                 session.mainCallState.routePolyline = res.polyline;
                 session.mainCallState.totalDistanceKm = Math.round(res.distance / 1000);
@@ -79,7 +91,9 @@ export async function recalculateActiveKakaoRoute(userId: string, io: any) {
                     session.mainCallState.pickupX!, session.mainCallState.pickupY!,   
                     mergedDest.x, mergedDest.y,                       
                     waypoints,
-                    session.driverLocation
+                    session.driverLocation,
+                    routingOptions.defaultPriority,
+                    routingOptions.carType
                 );
                 
                 const lastSub = session.subCalls[session.subCalls.length - 1]; 
@@ -123,13 +137,16 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
         let previousOrders = currentOrders.filter(o => o.id !== orderId && o.status === 'confirmed');
         if (previousOrders.length > 0) isDetour = true;
         
+        const routingOptions = getKakaoRoutingOptions(userId);
+        
         if (!isDetour) {
             const result = await calculateSoloRoute(
                 apiKey,
                 securedOrder.pickupX!, securedOrder.pickupY!,
                 securedOrder.dropoffX!, securedOrder.dropoffY!,
                 session.driverLocation,
-                priority
+                priority || routingOptions.defaultPriority,
+                routingOptions.carType
             );
             
             let paramLabel = "추천";
@@ -185,7 +202,8 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
                 mergedDest.x, mergedDest.y,
                 waypoints,
                 session.driverLocation,
-                priority
+                priority || routingOptions.defaultPriority,
+                routingOptions.carType
             );
             
             securedOrder.routePolyline = result.merged.polyline;
@@ -346,13 +364,17 @@ export async function handleDecision(userId: string, orderId: string, action: 'K
                         const mergedDest = sortedDropoffs.pop()!;
                         const waypoints = [...sortedPickups, ...sortedDropoffs];
                         
+                        const routingOptions = getKakaoRoutingOptions(userId);
+                        
                         const calcResult = await calculateDetourRoute(
                             apiKey,
                             session.mainCallState.dropoffX!, session.mainCallState.dropoffY!,
                             session.mainCallState.pickupX!, session.mainCallState.pickupY!,
                             mergedDest.x, mergedDest.y,
                             waypoints,
-                            session.driverLocation
+                            session.driverLocation,
+                            routingOptions.defaultPriority,
+                            routingOptions.carType
                         );
                         
                         const lastSub = session.subCalls[session.subCalls.length - 1];
@@ -453,6 +475,8 @@ export async function evaluateNewOrder(userId: string, securedOrder: SecuredOrde
             session.pendingOrdersData.set(securedOrder.id, securedOrder);
 
             if (securedOrder.pickupX && securedOrder.dropoffY) {
+                const routingOptions = getKakaoRoutingOptions(userId);
+
                 if (!session.mainCallState) {
                     // 첫짐: 단독 주행 연산
                     console.log(`   - 💡 상태: [첫짐] 단독 주행 연산`);
@@ -460,7 +484,9 @@ export async function evaluateNewOrder(userId: string, securedOrder: SecuredOrde
                         apiKey,
                         securedOrder.pickupX, securedOrder.pickupY!,
                         securedOrder.dropoffX!, securedOrder.dropoffY,
-                        session.driverLocation
+                        session.driverLocation,
+                        routingOptions.defaultPriority,
+                        routingOptions.carType
                     );
                     const durationMin = Math.round(result.duration / 60);
                     const distKm = (result.distance / 1000).toFixed(1);
@@ -507,7 +533,9 @@ export async function evaluateNewOrder(userId: string, securedOrder: SecuredOrde
                         session.mainCallState.pickupX!, session.mainCallState.pickupY!,
                         mergedDest.x, mergedDest.y,
                         waypoints,
-                        session.driverLocation
+                        session.driverLocation,
+                        routingOptions.defaultPriority,
+                        routingOptions.carType
                     );
 
                     let recommend = "'콜'";
