@@ -7,18 +7,16 @@ import path from "path";
 import fs from "fs";
 
 import ordersRouter from "./routes/orders";
-import detailRouter, { handleDecision, getPendingOrdersData, deviceEvaluatingMap, recalculateCorridorFilter, recalculateKakaoRoute } from "./routes/detail";
+import detailRouter from "./routes/detail";
 import scrapRouter from "./routes/scrap";
 import emergencyRouter from "./routes/emergency";
-import { getRegionsByCity } from "./geoResolver";
 import kakaoRouter from "./routes/kakao";
-import devicesRouter, { getActiveDevicesSnapshot } from "./routes/devices";
+import devicesRouter from "./routes/devices";
 import configRouter from "./routes/config";
-import { activeFilterConfig, updateActiveFilter } from "./state/filterStore";
+
 import { initGeoService } from "./services/geoService";
-import { updateDriverLocation } from "./state/locationStore";
-import type { AutoDispatchFilter } from "@onedal/shared";
 import { logRoadmapEvent } from "./utils/roadmapLogger";
+import { registerSocketHandlers } from "./socket/socketHandlers";
 
 dotenv.config();
 
@@ -57,85 +55,8 @@ app.use("/api/devices", devicesRouter);
 app.use("/api/emergency", emergencyRouter);  // [Safety Mode V3] 앱폰 비상 보고
 app.use("/api/config", configRouter); // 타겟 앱 키워드 연동
 
-// 소켓 연결 이벤트 핸들링
-io.on("connection", (socket) => {
-    console.log(`🔌 [소켓 연결] 클라이언트 접속: ${socket.id}`);
-
-    // 접속 직후 최신 텔레메트리 1회 즉시 전송
-    socket.emit("telemetry-devices", getActiveDevicesSnapshot());
-
-    // 접속 직후 최신 필터 1회 즉시 전송
-    socket.emit("filter-init", activeFilterConfig);
-    logRoadmapEvent("서버", "[Socket] 디폴트 필터 설정값 전송 (관제 UI 초기화)");
-
-    // 컴포넌트 마운트 시 발생할 수 있는 레이스 컨디션 해결을 위한 명시적 재요청 핸들러
-    socket.on("request-filter-init", () => {
-        socket.emit("filter-init", activeFilterConfig);
-    });
-
-    // 관제탑으로부터 필터 업데이트 요청 수신
-    socket.on("update-filter", (newFilter: Partial<AutoDispatchFilter>) => {
-        logRoadmapEvent("서버", "[Socket] 첫콜 필터 설정값 전송 (서버 필터 세팅 업데이트)");
-        // destinationCity가 변경되면 GeoJSON에서 해당 도시의 읍면동을 자동 조회하여 destinationKeywords 갱신
-        if (newFilter.destinationCity && newFilter.destinationCity !== activeFilterConfig.destinationCity) {
-            const regions = getRegionsByCity(newFilter.destinationCity);
-            newFilter.destinationKeywords = regions;
-            console.log(`🗺️ [지역 자동 갱신] ${newFilter.destinationCity} → ${regions.length}개 읍면동 조회 완료`);
-        }
-        
-        // [버그 수정] 합짐 경로 이탈 허용 반경 또는 하차 거점 주변 반경이 사용자에 의해 수정된 경우 실시간 재계산
-        const isCorridorChanged = newFilter.corridorRadiusKm !== undefined && newFilter.corridorRadiusKm !== activeFilterConfig.corridorRadiusKm;
-        const isTargetChanged = newFilter.destinationRadiusKm !== undefined && newFilter.destinationRadiusKm !== activeFilterConfig.destinationRadiusKm;
-        
-        if (isCorridorChanged || isTargetChanged) {
-            const cRadius = newFilter.corridorRadiusKm ?? activeFilterConfig.corridorRadiusKm ?? 1;
-            const dRadius = newFilter.destinationRadiusKm ?? activeFilterConfig.destinationRadiusKm ?? 10;
-            const newRegions = recalculateCorridorFilter(cRadius, dRadius);
-            if (newRegions) {
-                newFilter.destinationKeywords = newRegions.destinationKeywords;
-                newFilter.destinationGroups = newRegions.destinationGroups;
-            }
-        }
-        
-        const updated = updateActiveFilter(newFilter);
-        console.log(`🌐 [필터 전체 스키마 적용됨]\n${JSON.stringify(updated, null, 2)}`);
-        // 내 서버를 포함한 모든 클라이언트 대시보드에 즉각 브로드캐스트
-        io.emit("filter-updated", updated);
-    });
-
-    // 앱폰 현위치 동기화 (관제탑 / 브라우저 기준)
-    socket.on("update-my-location", (loc: { x: number, y: number }) => {
-        updateDriverLocation(loc);
-    });
-
-    // ⭐ 관제사(사람)의 최종 판단 — 다이어그램 Line 84~99 대응
-    // REST POST /decision/:id 를 Socket.io 이벤트로 전환
-    socket.on("decision", ({ orderId, action }: { orderId: string, action: 'KEEP' | 'CANCEL' }) => {
-        console.log(`⚖️ [소켓 Decision 수신] ID: ${orderId}, Action: ${action}`);
-        const result = handleDecision(orderId, action, io);
-        // 결과를 요청한 소켓에만 ACK
-        socket.emit("decision-ack", result);
-    });
-
-    // ⭐ 카카오 경로 재탐색 (우회 옵션 변경) 요청
-    socket.on("recalculate-route", async ({ orderId, priority }: { orderId: string, priority: string }) => {
-        const result = await recalculateKakaoRoute(orderId, priority, io);
-        socket.emit("recalculate-route-ack", result);
-    });
-
-    socket.on("disconnect", () => {
-        console.log(`❌ [소켓 해제] 클라이언트 종료: ${socket.id}`);
-    });
-});
-
-// 백그라운드 텔레메트리 (1초 주기로 모든 웹 클라이언트에게 기기 상태 + 평가 오더 싱크 푸시)
-setInterval(() => {
-    io.emit("telemetry-devices", getActiveDevicesSnapshot());
-    // ⭐ 서버 메모리의 '실제 전체 평가 오더 객체 배열'을 1초마다 브로드캐스트
-    // 웹 클라이언트가 중간에 새로고침(재접속)하더라도 즉시 화면을 복구할 수 있도록 전체 데이터를 보냄
-    const activeOrdersPayload = Array.from(getPendingOrdersData().values());
-    io.emit("sync-active-orders", activeOrdersPayload);
-}, 1000);
+// 소켓 연결 이벤트 핸들링 (Step 4 분리 완료)
+registerSocketHandlers(io);
 
 // React 프론트엔드 정적 파일 서빙 (프로덕션 배포용)
 const clientBuildPath = path.join(__dirname, '../../client/dist');

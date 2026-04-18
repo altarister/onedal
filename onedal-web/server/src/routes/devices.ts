@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { DeviceSession, DeviceStatusType, DeviceModeType, ScreenContextType } from "@onedal/shared";
-import { deviceEvaluatingMap, forceCancelEvaluatingOrder, getPendingOrdersData } from "./detail";
+import { forceCancelEvaluatingOrder } from "../services/dispatchEngine";
+import { getUserSession } from "../state/userSessionStore";
 
 const router = Router();
 
@@ -41,14 +42,14 @@ export const touchDeviceSession = (deviceId: string, addedPollCount: number = 0,
     // 기사님이 수동으로 닫기를 누르거나 오더가 사라져서 안드로이드 앱이 리스트 화면으로 이탈했다면, 
     // 서버가 쥐고 있는 대기 중(롱폴링)인 콜 결정을 즉시 강제 파괴하여 데드락을 방지합니다!
     if (screenContext === 'LIST') {
-        const stuckOrderId = deviceEvaluatingMap.get(deviceId);
+        const userId = "ADMIN_USER";
+        const userSession = getUserSession(userId);
+        const stuckOrderId = userSession.deviceEvaluatingMap.get(deviceId);
         if (stuckOrderId) {
-            const stuckOrder = getPendingOrdersData().get(stuckOrderId);
-            // [Fix] 수동 오더(MANUAL)는 원래 앱이 롱폴링을 대기하지 않고 리스트로 즉시 복귀하므로, 
-            // 웹 관제사가 천천히 검토버튼(유지확정)을 누를 수 있도록 강제 파괴를 건너뜁니다!
+            const stuckOrder = userSession.pendingOrdersData.get(stuckOrderId);
             if (stuckOrder && stuckOrder.type !== "MANUAL") {
                 console.log(`🚀 [화면 이탈 감지] 기기(${deviceId})가 리스트 화면으로 이탈함! 대기 중이던 AUTO 롱폴링 파이프 강제 파괴.`);
-                forceCancelEvaluatingOrder(stuckOrderId, io);
+                forceCancelEvaluatingOrder(userId, stuckOrderId, io);
             }
         }
     }

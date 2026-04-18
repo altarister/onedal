@@ -1,7 +1,7 @@
 import { Router } from "express";
 import type { SimplifiedOfficeOrder, ScreenContextType } from "@onedal/shared";
 import db from "../db";
-import { activeFilterConfig } from "../state/filterStore";
+import { getUserSession } from "../state/userSessionStore";
 import { touchDeviceSession } from "./devices";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 
@@ -54,6 +54,9 @@ router.post("/", (req, res) => {
 
         // [응답 꼬리(Piggyback)] 성공과 통계, 제어 명령, 그리고 최신 서버 오더 필터를 앱폰에 역할별로 분리해서 즉시 내려준다
         logRoadmapEvent("서버", "[HTTP 폴링] 응답 (첫콜필터정보/제어명령)");
+        const userId = "ADMIN_USER";
+        const session = getUserSession(userId);
+
         res.json({
             apiStatus: {
                 success: true,
@@ -62,7 +65,7 @@ router.post("/", (req, res) => {
             deviceControl: {
                 mode: deviceMode
             },
-            dispatchEngineArgs: activeFilterConfig
+            dispatchEngineArgs: session.activeFilter
         });
     } catch (error) {
         console.error("Scrap POST 에러:", error);

@@ -18,11 +18,7 @@ export default function Header({ isConnected }: { isConnected: boolean }) {
                 <div className="flex gap-3">
                     <div className="flex items-center gap-2 bg-slate-900 px-3 py-1 rounded-full border border-slate-800">
                         <span className={`w-2 h-2 rounded-full ${isConnected ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" : "bg-red-500"}`} />
-                        <span className="text-xs font-bold text-slate-400">접속됨</span>
-                    </div>
-                    <div className="flex flex-col items-end justify-center px-1">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase leading-none mb-0.5">서버 시간</span>
-                        <span className="text-sm font-black text-slate-200 tabular-nums leading-none tracking-tight">
+                        <span className="text-xs font-bold text-slate-400">
                             {time.toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                         </span>
                     </div>

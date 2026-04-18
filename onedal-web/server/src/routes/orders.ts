@@ -14,8 +14,8 @@ import { Router } from "express";
 import crypto from "crypto";
 import type { SimplifiedOfficeOrder, DispatchConfirmRequest, SecuredOrder } from "@onedal/shared";
 import db from "../db";
-import { activeFilterConfig, updateActiveFilter } from "../state/filterStore";
-import { deviceEvaluatingMap, forceCancelEvaluatingOrder, getPendingOrdersData, handleDecision } from "./detail";
+import { getUserSession } from "../state/userSessionStore";
+import { forceCancelEvaluatingOrder, handleDecision } from "../services/dispatchEngine";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 
 const router = Router();
@@ -113,17 +113,18 @@ router.post("/confirm", (req, res) => {
         logRoadmapEvent("서버", "[HTTP 폴링] 응답 /orders/confirm");
         res.json({ success: true, message: "1차 수신 완료. 상세 페이지 내용을 긁어서 POST /api/orders/detail 로 보내주세요." });
 
-        const previousEvaluatingId = deviceEvaluatingMap.get(payload.deviceId);
+        const userId = "ADMIN_USER";
+        const session = getUserSession(userId);
 
-        // 새 콜이 들어오면 기존에 해당 장치에서 보고 있던 콜을 자동 정리!
+        const previousEvaluatingId = session.deviceEvaluatingMap.get(payload.deviceId);
+
         if (previousEvaluatingId && previousEvaluatingId !== payload.order.id && previousEvaluatingId !== "unknown") {
             console.log(`🧹 [자동 정리] 새 콜 진입 감지! 기존 평가 중이던 콜(${previousEvaluatingId}) 백그라운드 강제 취소`);
-            forceCancelEvaluatingOrder(previousEvaluatingId, io);
+            forceCancelEvaluatingOrder(userId, previousEvaluatingId, io);
         }
 
-        // 앱이 나중에 DETAILED 보낼 때 'unknown' 아이디를 복구해 주기 위해 저장해 둠
         if (payload.order.id && payload.order.id !== "unknown") {
-            deviceEvaluatingMap.set(payload.deviceId, payload.order.id);
+            session.deviceEvaluatingMap.set(payload.deviceId, payload.order.id);
         }
 
         const securedOrder: SecuredOrder = {
@@ -133,32 +134,29 @@ router.post("/confirm", (req, res) => {
             capturedAt: payload.capturedAt || new Date().toISOString()
         };
 
-        // 💡 1차 선빵 즉시 서버 메모리에 저장! 그래야 웹이 중간에 재접속해도 이 상태를 받을 수 있음
         if (securedOrder.id && securedOrder.id !== "unknown") {
-            getPendingOrdersData().set(securedOrder.id, securedOrder);
+            session.pendingOrdersData.set(securedOrder.id, securedOrder);
         }
 
         if (io) {
             console.log(`📤 [Socket 푸시] order-evaluating (${securedOrder.id})`);
-            io.emit("order-evaluating", securedOrder);
+            io.to(userId).emit("order-evaluating", securedOrder);
             console.log(`⏱️ [1차 선빵 수신] ${securedOrder.pickup} ➡️ ${securedOrder.dropoff} (기기: ${payload.deviceId})`);
             logRoadmapEvent("서버", "[HTTP 폴링] POST /orders/confirm 확정정보 정보 전송 수신");
 
-            // 중앙 통제 필터를 '대기' 모드로 전환 후 (매크로 일시중지) 브로드캐스트
-            if (activeFilterConfig.isActive) {
-                updateActiveFilter({ isActive: false });
+            if (session.activeFilter.isActive) {
+                session.activeFilter = { ...session.activeFilter, isActive: false };
                 logRoadmapEvent("서버", `대기 필터로 설정값 업데이트 (isActive: false)`);
                 console.log(`📤 [Socket 푸시] filter-updated (isActive: false)`);
-                io.emit("filter-updated", activeFilterConfig);
+                io.to(userId).emit("filter-updated", session.activeFilter);
                 logRoadmapEvent("서버", "[Socket] 확정정보 정보 + 대기 필터 정보 전송");
                 
-                // 관제탑 무응답 대비 30초 데스밸리 타이머 기동
                 logRoadmapEvent("서버", "관제탑 무응답 대비 30초 데스밸리 타이머 기동 (안전망 강화)");
                 setTimeout(() => {
-                    const cached = getPendingOrdersData().get(securedOrder.id);
+                    const cached = session.pendingOrdersData.get(securedOrder.id);
                     if (cached && cached.status === 'evaluating_basic') {
-                         console.log(`💀 [서버 데스밸리 타이머] 30초 경과! 기기(${payload.deviceId})가 상세 수집에 실패했거나 응답이 끊겼다고 판단합니다. 오더(ID: ${securedOrder.id})를 강제 취소합니다.`);
-                         handleDecision(securedOrder.id, "CANCEL", io);
+                         console.log(`💀 [서버 데스밸리 타이머] 30초 경과 강제 취소 (ID: ${securedOrder.id}).`);
+                         handleDecision(userId, securedOrder.id, "CANCEL", io);
                     }
                 }, 30000);
             }
@@ -169,7 +167,7 @@ router.post("/confirm", (req, res) => {
     }
 });
 // POST /decision - 기사님의 앱 내 의사결정 수신 (수동 배차 최종 확정/취소)
-router.post("/decision", (req, res) => {
+router.post("/decision", async (req, res) => {
     try {
         const payload = req.body as { orderId: string, action: 'KEEP' | 'CANCEL' };
         if (!payload.orderId || !payload.action) {
@@ -179,7 +177,8 @@ router.post("/decision", (req, res) => {
         const io = req.app.get("io");
         console.log(`⚖️ [REST Decision 수신] ID: ${payload.orderId}, Action: ${payload.action} (앱에서 직통)`);
 
-        const result = handleDecision(payload.orderId, payload.action, io);
+        const userId = "ADMIN_USER";
+        const result = await handleDecision(userId, payload.orderId, payload.action, io);
         res.json(result);
     } catch (error) {
         console.error("Decision POST 에러:", error);
