@@ -8,7 +8,7 @@ import { getUserSession, getAllActiveUserIds } from "../state/userSessionStore";
 import { recalculateCorridorFilter, handleDecision, recalculateKakaoRoute } from "../services/dispatchEngine";
 import db from "../db";
 
-const JWT_SECRET = process.env.JWT_SECRET || "fallback";
+
 
 export function registerSocketHandlers(io: Server) {
 
@@ -23,7 +23,8 @@ export function registerSocketHandlers(io: Server) {
         }
         
         try {
-            const decoded = jwt.verify(token, JWT_SECRET) as any;
+            const secret = process.env.JWT_SECRET || "fallback_secret";
+            const decoded = jwt.verify(token, secret) as any;
             socket.data.user = decoded; // { id, email, name, role }
             next();
         } catch (err) {

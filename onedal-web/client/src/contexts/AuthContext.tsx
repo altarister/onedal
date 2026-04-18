@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { apiClient } from "../api/apiClient";
+import { socket } from "../lib/socket";
 
 interface User {
     id: string;
@@ -47,9 +48,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const loginWithGoogle = async (credential: string) => {
         try {
             const { data } = await apiClient.post("/auth/google", { credential });
-            localStorage.setItem("access_token", data.access_token);
-            localStorage.setItem("refresh_token", data.refresh_token);
+            localStorage.setItem("access_token", data.accessToken);
+            localStorage.setItem("refresh_token", data.refreshToken);
             setUser(data.user);
+            socket.disconnect(); // 기존 연결 끊고
+            socket.connect();    // 새 토큰으로 확실하게 재접속
         } catch (error) {
             console.error("Google Login failed:", error);
             throw error;
@@ -58,13 +61,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const logout = async () => {
         try {
-            await apiClient.post("/auth/logout");
+            const refreshToken = localStorage.getItem("refresh_token");
+            await apiClient.post("/auth/logout", { refreshToken });
         } catch (error) {
             console.error("Logout error", error);
         } finally {
             localStorage.removeItem("access_token");
             localStorage.removeItem("refresh_token");
             setUser(null);
+            socket.disconnect(); // 로그아웃 시 소켓도 끊어주기
             window.location.href = "/login";
         }
     };

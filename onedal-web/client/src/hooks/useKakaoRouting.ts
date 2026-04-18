@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import type { SecuredOrder, SimplifiedOfficeOrder } from "@onedal/shared";
+import { apiClient } from "../api/apiClient";
 
 export type SimResult = {
     timeExt: string;
@@ -19,16 +20,12 @@ export function useKakaoRouting(pendingOrders: SimplifiedOfficeOrder[], mainCall
         setSimulationResults(prev => ({ ...prev, [order.id as string]: { timeExt: "카카오 API 연산 중...", distExt: "경로 탐색 중...", isGood: true, isLoading: true } }));
         try {
             if (!order.pickupX || !order.pickupY || !order.dropoffX || !order.dropoffY) return;
-            const res = await fetch("/api/kakao/directions/compare", {
-                method: "POST", headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    origin: { x: order.pickupX, y: order.pickupY, name: order.pickup },
-                    destination: { x: order.dropoffX, y: order.dropoffY, name: order.dropoff },
-                    waypoints: []
-                })
+            const res = await apiClient.post("/kakao/directions/compare", {
+                origin: { x: order.pickupX, y: order.pickupY, name: order.pickup },
+                destination: { x: order.dropoffX, y: order.dropoffY, name: order.dropoff },
+                waypoints: []
             });
-            if (!res.ok) return;
-            const data = await res.json();
+            const data = res.data;
             const durationMin = Math.round(data.base.duration / 60);
             const distKm = (data.base.distance / 1000).toFixed(1);
             setSimulationResults(prev => ({
@@ -42,16 +39,12 @@ export function useKakaoRouting(pendingOrders: SimplifiedOfficeOrder[], mainCall
         setSimulationResults(prev => ({ ...prev, [order.id as string]: { timeExt: "카카오 API 연산 중...", distExt: "거리를 불러오는 중...", isGood: true, isLoading: true } }));
         try {
             if (!mainCall.pickupX || !mainCall.pickupY || !mainCall.dropoffX || !mainCall.dropoffY || !order.pickupX || !order.pickupY || !order.dropoffX || !order.dropoffY) return;
-            const res = await fetch("/api/kakao/directions/compare", {
-                method: "POST", headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    origin: { x: mainCall.pickupX, y: mainCall.pickupY, name: mainCall.pickup },
-                    destination: { x: mainCall.dropoffX, y: mainCall.dropoffY, name: mainCall.dropoff },
-                    waypoints: [ { x: order.pickupX, y: order.pickupY, name: order.pickup }, { x: order.dropoffX, y: order.dropoffY, name: order.dropoff } ]
-                })
+            const res = await apiClient.post("/kakao/directions/compare", {
+                origin: { x: mainCall.pickupX, y: mainCall.pickupY, name: mainCall.pickup },
+                destination: { x: mainCall.dropoffX, y: mainCall.dropoffY, name: mainCall.dropoff },
+                waypoints: [ { x: order.pickupX, y: order.pickupY, name: order.pickup }, { x: order.dropoffX, y: order.dropoffY, name: order.dropoff } ]
             });
-            if (!res.ok) return;
-            const data = await res.json();
+            const data = res.data;
             const timeDiffMin = Math.round(data.diff.timeExtSeconds / 60);
             const distDiffKm = (data.diff.distExtMeters / 1000).toFixed(1);
             const isGood = timeDiffMin < 25;

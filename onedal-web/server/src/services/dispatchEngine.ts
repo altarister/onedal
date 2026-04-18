@@ -1,3 +1,4 @@
+import { mapVehicleToKakaoCarType } from "@onedal/shared";
 import type { DispatchConfirmResponse, SecuredOrder, AutoDispatchFilter } from "@onedal/shared";
 import { geocodeAddress, calculateSoloRoute, calculateDetourRoute } from "../routes/kakaoUtil";
 import { getUserSession } from "../state/userSessionStore";
@@ -8,9 +9,10 @@ import { DISPATCH_CONFIG } from "../config/dispatchConfig";
 import db from "../db";
 
 function getKakaoRoutingOptions(userId: string) {
-    const row = db.prepare("SELECT car_type, default_priority FROM user_settings WHERE user_id = ?").get(userId) as any;
+    const row = db.prepare("SELECT vehicle_type, default_priority FROM user_settings WHERE user_id = ?").get(userId) as any;
+    const vehicleTypeStr = row?.vehicle_type || '1t';
     return {
-        carType: row?.car_type ?? 1,
+        carType: mapVehicleToKakaoCarType(vehicleTypeStr),
         defaultPriority: row?.default_priority || "RECOMMEND"
     };
 }

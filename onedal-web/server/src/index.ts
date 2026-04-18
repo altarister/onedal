@@ -20,9 +20,9 @@ import filtersRouter from "./routes/filters";
 import { initGeoService } from "./services/geoService";
 import { logRoadmapEvent } from "./utils/roadmapLogger";
 import { registerSocketHandlers } from "./socket/socketHandlers";
-import { hydrateSessionsFromDB } from "./state/userSessionStore";
+import { Server as SocketIOServer } from "socket.io";
 
-dotenv.config();
+dotenv.config({ path: path.join(__dirname, "../.env") });
 
 const app = express();
 const httpServer = createServer(app);
@@ -84,9 +84,9 @@ const PORT = process.env.PORT || 4000;
 
 httpServer.listen(PORT, () => {
     initGeoService();
-    hydrateSessionsFromDB(); // 서버 기동 시 DB에서 세션 복구 
+    // hydrateSessionsFromDB(); // 서버 기동 시 일괄 복구 로직 폐기 완료 (userSessionStore에서 Lazy Load로 대체)
     logRoadmapEvent("서버", "서버 기동 및 디폴트 필터 셋업 (대기 모드)");
     console.log(`\n🚀 1DAL 서버 (Express + Socket.io) 시작됨`);
-    console.log(`📡 포트: ${PORT}`);
-    console.log(`🌐 대시보드는 http://localhost:5173 에서 확인하세요\n`);
+    console.log(`📡 서버 포트: ${PORT}`);
+    console.log(`🌐 대시보드는 http://localhost:3000 에서 확인하세요\n`);
 });

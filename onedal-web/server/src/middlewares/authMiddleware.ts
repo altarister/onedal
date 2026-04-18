@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET || "fallback_secret";
+
 
 // 토큰(디코딩)에 들어갈 유저 기본 정보 형태
 export interface AuthUser {
@@ -34,10 +34,12 @@ export const requireAuth = (req: Request, res: Response, next: NextFunction): vo
     const token = authHeader.split(" ")[1];
 
     try {
-        const decoded = jwt.verify(token, JWT_SECRET) as AuthUser;
+        const secret = process.env.JWT_SECRET || "fallback_secret";
+        const decoded = jwt.verify(token, secret) as AuthUser;
         req.user = decoded; // 이후 라우터 로직에서 req.user.id 접근 가능
         next();
     } catch (err) {
+        console.log("❌ [AuthMiddleware] 토큰 검증 실패:", err);
         // 만료되었거나 서명이 일치하지 않는 경우
         res.status(401).json({ error: "유효하지 않거나 만료된 토큰입니다." });
         return;

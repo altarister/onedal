@@ -5,13 +5,13 @@ import bcrypt from "bcrypt";
 import { v4 as uuidv4 } from "uuid";
 import db from "../db";
 import { requireAuth } from "../middlewares/authMiddleware";
+import { getUserSession } from "../state/userSessionStore";
 
 const router = Router();
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const client = new OAuth2Client(GOOGLE_CLIENT_ID);
 
-const JWT_SECRET = process.env.JWT_SECRET || "fallback";
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "fallback_rt";
+
 
 // ============================================
 // 1. POST /api/auth/google : 구글 로그인 처리
@@ -60,16 +60,18 @@ router.post("/google", async (req, res) => {
         }
 
         // 3. 1시간짜리 Access Token 발급
+        const secret = process.env.JWT_SECRET || "fallback_secret";
         const accessToken = jwt.sign(
             { id: userRow.id, email: userRow.email, name: userRow.name, role: userRow.role },
-            JWT_SECRET,
+            secret,
             { expiresIn: "1h" }
         );
 
         // 4. 14일짜리 Refresh Token 발급 및 DB 저장 (다중 기기 동시 지원 방식)
+        const refreshSecret = process.env.JWT_REFRESH_SECRET || "fallback_rt_secret";
         const refreshToken = jwt.sign(
             { sub: userRow.id, type: "refresh" },
-            JWT_REFRESH_SECRET,
+            refreshSecret,
             { expiresIn: "14d" }
         );
 
@@ -113,7 +115,8 @@ router.post("/refresh", async (req, res) => {
 
     try {
         // 1. RT 조작/만료 여부 1차 검증
-        const decoded = jwt.verify(refreshToken, JWT_REFRESH_SECRET) as { sub: string, type: string };
+        const refreshSecret = process.env.JWT_REFRESH_SECRET || "fallback_rt_secret";
+        const decoded = jwt.verify(refreshToken, refreshSecret) as { sub: string, type: string };
         if (decoded.type !== "refresh") {
             return res.status(403).json({ error: "유효하지 않은 토큰 유형입니다." });
         }
@@ -140,10 +143,11 @@ router.post("/refresh", async (req, res) => {
         }
 
         // 4. 조회가 완료되었으므로 새 Access Token 발급 후 반환 (Silent Refresh)
+        const secret = process.env.JWT_SECRET || "fallback_secret";
         const userRow = db.prepare("SELECT * FROM users WHERE id = ?").get(userId) as any;
         const newAccessToken = jwt.sign(
             { id: userRow.id, email: userRow.email, name: userRow.name, role: userRow.role },
-            JWT_SECRET,
+            secret,
             { expiresIn: "1h" }
         );
 
@@ -159,7 +163,7 @@ router.post("/refresh", async (req, res) => {
 // 3. POST /api/auth/logout : 로그아웃 (기기 연동 토큰 폐기)
 // ============================================
 router.post("/logout", requireAuth, (req, res) => {
-    const { refreshToken } = req.body;
+    const refreshToken = req.body?.refreshToken;
     const userId = req.user?.id;
 
     if (!userId || !refreshToken) {
@@ -192,8 +196,11 @@ router.get("/me", requireAuth, (req, res) => {
         const user = db.prepare("SELECT id, email, name, avatar, role FROM users WHERE id = ?").get(userId);
         const settings = db.prepare("SELECT * FROM user_settings WHERE user_id = ?").get(userId);
         const devices = db.prepare("SELECT * FROM user_devices WHERE user_id = ?").all(userId);
+        
+        // 관제 웹 로딩 속도(0초 동기화)를 위한 필터 선제공
+        const session = getUserSession(userId as string);
 
-        res.json({ user, settings, devices });
+        res.json({ user, settings, devices, filter: session.activeFilter });
     } catch(err) {
         res.status(500).json({ error: "정보 조회 중 오류가 발생했습니다." });
     }

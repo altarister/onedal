@@ -1,4 +1,7 @@
 import { Router, Request, Response } from 'express';
+import { requireAuth } from '../middlewares/authMiddleware';
+import { mapVehicleToKakaoCarType } from '@onedal/shared';
+import db from '../db';
 
 const router = Router();
 
@@ -14,7 +17,7 @@ interface CompareRequest {
     waypoints: Point[];
 }
 
-router.post('/directions/compare', async (req: Request, res: Response) => {
+router.post('/directions/compare', requireAuth, async (req: Request, res: Response) => {
     try {
         const { origin, destination, waypoints } = req.body as CompareRequest;
         const apiKey = process.env.KAKAO_REST_API_KEY;
@@ -39,8 +42,16 @@ router.post('/directions/compare', async (req: Request, res: Response) => {
             "Content-Type": "application/json"
         };
 
+        let mappedCarType = 1;
+        if (req.user?.id) {
+            const row = db.prepare("SELECT vehicle_type FROM user_settings WHERE user_id = ?").get(req.user.id) as any;
+            if (row && row.vehicle_type) {
+                mappedCarType = mapVehicleToKakaoCarType(row.vehicle_type);
+            }
+        }
+
         // 1. 단독 주행 (목적지 다이렉트)
-        const baseUrl = `${KAKAO_API_URL}?origin=${origin.x},${origin.y}&destination=${destination.x},${destination.y}&priority=RECOMMEND&car_type=1`;
+        const baseUrl = `${KAKAO_API_URL}?origin=${origin.x},${origin.y}&destination=${destination.x},${destination.y}&priority=RECOMMEND&car_type=${mappedCarType}`;
         const baseRes = await fetch(baseUrl, {
             method: "GET",
             headers
@@ -51,7 +62,7 @@ router.post('/directions/compare', async (req: Request, res: Response) => {
         const waypointsQuery = waypoints && waypoints.length > 0
             ? `&waypoints=${waypoints.map(wp => `${wp.x},${wp.y}`).join('|')}`
             : '';
-        const mergedUrl = `${KAKAO_API_URL}?origin=${origin.x},${origin.y}&destination=${destination.x},${destination.y}${waypointsQuery}&priority=RECOMMEND&car_type=1`;
+        const mergedUrl = `${KAKAO_API_URL}?origin=${origin.x},${origin.y}&destination=${destination.x},${destination.y}${waypointsQuery}&priority=RECOMMEND&car_type=${mappedCarType}`;
 
         const mergedRes = await fetch(mergedUrl, {
             method: "GET",

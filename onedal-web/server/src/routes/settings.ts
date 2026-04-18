@@ -16,7 +16,7 @@ router.get("/", requireAuth, (req, res) => {
         }
 
         res.json({
-            carType: row.car_type,
+            vehicleType: row.vehicle_type || '1t',
             carFuel: row.car_fuel,
             carHipass: !!row.car_hipass,
             fuelPrice: row.fuel_price,
@@ -39,6 +39,7 @@ router.put("/", requireAuth, (req, res) => {
         const updateStmt = db.prepare(`
             UPDATE user_settings 
             SET car_type = COALESCE(@carType, car_type),
+                vehicle_type = COALESCE(@vehicleType, vehicle_type),
                 car_fuel = COALESCE(@carFuel, car_fuel),
                 car_hipass = COALESCE(@carHipass, car_hipass),
                 fuel_price = COALESCE(@fuelPrice, fuel_price),
@@ -51,6 +52,7 @@ router.put("/", requireAuth, (req, res) => {
         const result = updateStmt.run({
             userId,
             carType: payload.carType ?? null,
+            vehicleType: payload.vehicleType ?? null,
             carFuel: payload.carFuel ?? null,
             carHipass: payload.carHipass !== undefined ? (payload.carHipass ? 1 : 0) : null,
             fuelPrice: payload.fuelPrice ?? null,
@@ -64,6 +66,7 @@ router.put("/", requireAuth, (req, res) => {
             updateStmt.run({
                 userId,
                 carType: payload.carType ?? null,
+                vehicleType: payload.vehicleType ?? null,
                 carFuel: payload.carFuel ?? null,
                 carHipass: payload.carHipass !== undefined ? (payload.carHipass ? 1 : 0) : null,
                 fuelPrice: payload.fuelPrice ?? null,

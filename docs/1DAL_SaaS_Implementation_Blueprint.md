@@ -292,7 +292,7 @@ erDiagram
     }
 
     user_settings {
-        TEXT user_id PK_FK "users.id"
+        TEXT user_id PK, FK "users.id"
         INTEGER car_type "카카오 차종코드 (1~6)"
         TEXT car_fuel "GASOLINE|DIESEL|LPG"
         BOOLEAN car_hipass "하이패스 장착"
@@ -303,7 +303,7 @@ erDiagram
     }
 
     user_filters {
-        TEXT user_id PK_FK "users.id"
+        TEXT user_id PK, FK "users.id"
         TEXT destination_city "목적지 도시"
         INTEGER destination_radius_km "목적지 반경"
         INTEGER corridor_radius_km "회랑 반경"
@@ -697,15 +697,30 @@ socket.on('connect_error', async (err) => {
 });
 ```
 
-### 8-5. Dashboard 헤더 변경
+### 8-5. Dashboard 헤더 및 설정 모달 UI 변경
 
-현재 `Header.tsx`에 사용자 정보를 표시합니다:
+사용자 실수 방지 및 깔끔한 상단 바를 위해 `Header.tsx`에는 기본 사용자 정보(아바타, 이름)만 남기고, 로그아웃 기능은 환경 변경 팝업인 `SettingsModal.tsx` 안으로 이동시켰습니다.
 
+**[상단 헤더(Header.tsx)]**
 ```
-┌────────────────────────────────────────────────────┐
-│  🚛 1DAL     [김기사 | 다마스 | 디젤]    ⚙️  🚪   │
-│              사용자명  차종    유종    설정 로그아웃  │
-└────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────┐
+│  🚛 1DAL                 [프로필 사진] 김기사 │
+└──────────────────────────────────────────────┘
+```
+
+**[설정 모달(SettingsModal.tsx)]**
+```
+┌──────────────────────────────────────────────┐
+│  ⚙️ 설정                                      │
+│                                              │
+│  내 차량 종류 (배차 탐색 기준)                   │
+│  [ 다마스 ▼ ]                                 │
+│                                              │
+│  기본 경로 탐색 옵션                            │
+│  [ 추천 경로 ▼ ]                              │
+│                                              │
+│  [ 로그아웃 ]              [ 취소 ] [ 저장하기 ] │
+└──────────────────────────────────────────────┘
 ```
 
 ---

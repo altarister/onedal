@@ -255,3 +255,5 @@ export interface DeviceSession {
     version?: string;       // 앱/인성앱 버전 등 추가 정보용
 }
 
+
+export * from './vehicles';

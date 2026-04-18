@@ -162,29 +162,3 @@ sequenceDiagram
 
 
 ```
-
-## 🔄 3각 동기화 (Triangular Synchronization) 흐름도: 다중 기기 필터/상태 동기화
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant 앱 as 📱 안드로이드 앱폰<br>(1초마다 폴링)
-    participant 서버 as ☁️ Node.js 서버<br>(userSessionStore + DB)
-    participant 관제 as 🖥️ React 관제웹<br>(OrderFilterModal)
-
-    Note over 서버: 1. DB (user_filters)에<br>기사 개인의 필터 저장 완료 통과 상태
-
-    관제->>서버: 2. 웹 로그인 (구글) 후 Socket 접속
-    서버->>서버: 3. DB에서 내 차종에 맞는 필터 꺼내기<br>(Lazy Load)
-    서버-->>관제: 4. filter-init (기존 설정 복원)
-    Note over 관제: 기사님이 보내주신 UI 화면 완성!<br>(차종, 단가, 지역 등)
-
-    관제->>서버: 5. 스마트폰 화면에서 하한가/지역 수정 후 저장
-    서버->>서버: 6. 메모리 업데이트 및 DB 저장 (UPDATE)
-    서버-->>관제: 7. 변경 완료 시그널 (UI 즉시 반영)
-
-    앱->>서버: 8. 인성앱 콜 리스트 긁어서 POST /api/scrap 전송
-    서버->>서버: 9. "어? 기사님 필터 방금 5만원으로 바꼈네!"
-    서버-->>앱: 10. 응답 (dispatchEngineArgs)에 최신 필터 주입
-    Note over 앱: 11. 안드로이드 자체 메모리에 필터 적용<br>0.01초 광클 시작!
-```

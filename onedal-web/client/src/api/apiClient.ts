@@ -52,18 +52,18 @@ apiClient.interceptors.response.use(
                     if (!refreshToken) throw new Error("No refresh token at all.");
 
                     // Note: use simple axios instead of apiClient to avoid loop
-                    const { data } = await axios.post(`${baseURL}/auth/refresh`, { refresh_token: refreshToken });
+                    const { data } = await axios.post(`${baseURL}/auth/refresh`, { refreshToken: refreshToken });
                     
-                    localStorage.setItem("access_token", data.access_token);
-                    if (data.refresh_token) {
-                        localStorage.setItem("refresh_token", data.refresh_token);
+                    localStorage.setItem("access_token", data.accessToken);
+                    if (data.refreshToken) {
+                        localStorage.setItem("refresh_token", data.refreshToken);
                     }
                     
-                    apiClient.defaults.headers.common["Authorization"] = `Bearer ${data.access_token}`;
-                    onRefreshed(data.access_token);
+                    apiClient.defaults.headers.common["Authorization"] = `Bearer ${data.accessToken}`;
+                    onRefreshed(data.accessToken);
                     
                     // retry original request with new token
-                    originalRequest.headers.Authorization = `Bearer ${data.access_token}`;
+                    originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
                     return apiClient(originalRequest);
                 } catch (refreshErr) {
                     console.error("Token refresh failed:", refreshErr);

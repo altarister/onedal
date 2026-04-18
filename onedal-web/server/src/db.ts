@@ -139,4 +139,20 @@ try {
     console.error("intel 테이블 마이그레이션 오류:", e);
 }
 
+// ═══════════════════════════════════════
+// [9] user_settings 변경 마이그레이션 (car_type -> vehicle_type)
+// ═══════════════════════════════════════
+try {
+    const tableInfo = db.prepare("PRAGMA table_info(user_settings)").all() as any[];
+    const hasVehicleType = tableInfo.some(col => col.name === 'vehicle_type');
+    if (!hasVehicleType) {
+        db.exec(`
+            ALTER TABLE user_settings ADD COLUMN vehicle_type TEXT DEFAULT '1t';
+        `);
+        console.log("🛠️ user_settings 테이블 마이그레이션 완료 (vehicle_type 컬럼 추가)");
+    }
+} catch (e) {
+    console.error("user_settings 테이블 마이그레이션 오류:", e);
+}
+
 export default db;
