@@ -27,20 +27,18 @@
 
 ### 1-1. 현재 아키텍처 (AS-IS)
 
+```mermaid
+flowchart LR
+    A[📱 안드로이드<br>1DAL앱+인성앱] <-->|HTTP Polling<br>POST /api/scrap| B(☁️ Node.js 서버<br>Express+Socket)
+    B <-->|Socket.io<br>io.emit: 전역 방송| C[🖥️ React 관제웹<br>브라우저]
+    
+    B --> DB[(SQLite<br>orders, intel<br>기존 테이블 2개)]
+    A -->|배차/상태 폴링| Ext([인성 서버<br>외부])
+    
+    style A fill:#f9f,stroke:#333,stroke-width:2px
+    style B fill:#bbf,stroke:#333,stroke-width:2px
+    style C fill:#bfb,stroke:#333,stroke-width:2px
 ```
-┌─────────────────┐     HTTP Polling      ┌──────────────────┐     Socket.io      ┌──────────────────┐
-│  📱 안드로이드    │ ◀─────────────────▶  │  ☁️ Node.js 서버  │ ◀──────────────▶ │  🖥️ React 관제웹  │
-│  (1DAL앱+인성앱) │   POST /api/scrap     │  Express+Socket   │   전역 broadcast  │  (브라우저)       │
-│                 │   POST /orders/*      │                  │   io.emit(...)    │                  │
-└─────────────────┘                       └──────────────────┘                   └──────────────────┘
-         │                                        │
-         │                                  ┌─────┴─────┐
-         │                                  │  SQLite    │
-         ▼                                  │  orders    │  ← 현재 테이블 2개뿐
-    인성 서버                                │  intel     │
-    (외부)                                   └───────────┘
-```
-
 **현재 한계점:**
 - **인증 없음**: 누구나 URL만 알면 관제 대시보드 접근 가능
 - **전역 상태**: 필터, 콜 상태 등이 서버 메모리에 전역(Global)으로 1개만 존재
@@ -48,27 +46,43 @@
 
 ### 1-2. 목표 아키텍처 (TO-BE)
 
-```
-┌─────────────────┐                        ┌──────────────────┐                   ┌──────────────────┐
-│  📱 기사A 폰1   │ ─── HTTP ───▶          │                  │  socket room(A)   │  🖥️ 기사A 웹     │
-│  📱 기사A 폰2   │ ─── HTTP ───▶          │  ☁️ Node.js 서버  │ ◀──────────────▶ │  (본인 콜만 열람) │
-├─────────────────┤                        │                  │                   ├──────────────────┤
-│  📱 기사B 폰1   │ ─── HTTP ───▶          │  JWT 인증 미들웨어 │  socket room(B)   │  🖥️ 기사B 웹     │
-├─────────────────┤                        │  Per-User 세션    │ ◀──────────────▶ │  (본인 콜만 열람) │
-│  📱 기사C 폰1   │ ─── HTTP ───▶          │  Map<userId,     │                   ├──────────────────┤
-│  📱 기사C 폰2   │ ─── HTTP ───▶          │    UserSession>  │  socket room(*)   │  🖥️ ADMIN 웹     │
-│  📱 기사C 폰3   │ ─── HTTP ───▶          │                  │ ◀──────────────▶ │  (전체 모니터링)  │
-└─────────────────┘                        └──────┬───────────┘                   └──────────────────┘
-                                                  │
-                                           ┌──────┴──────┐
-                                           │  SQLite DB   │
-                                           │  users       │ ← 신규 4개 테이블
-                                           │  user_devices│
-                                           │  user_settings│
-                                           │  user_filters│
-                                           │  orders      │ ← 기존 유지
-                                           │  intel (+uid)│ ← 마이그레이션
-                                           └─────────────┘
+```mermaid
+flowchart LR
+    subgraph AppDevices ["앱 단말기 (Devices)"]
+        direction TB
+        A1[📱 기사A 폰 1,2]
+        B1[📱 기사B 폰 1]
+        C1[📱 기사C 폰 1~3]
+    end
+
+    subgraph NodeServer ["☁️ Node.js 서버 (Multi-Tenant)"]
+        direction TB
+        Auth{JWT &<br>Device 인증 미들웨어}
+        Session[Per-User 세션<br>Map&lt;userId, UserSession&gt;]
+        Auth --> Session
+    end
+
+    DB[(SQLite DB<br>users, tokens, settings<br>filters, intel, orders)]
+    Session <--> DB
+
+    A1 -->|HTTP POST| Auth
+    B1 -->|HTTP POST| Auth
+    C1 -->|HTTP POST| Auth
+
+    subgraph WebClients ["🖥️ 웹 대시보드 (Clients)"]
+        direction TB
+        W_A[🖥️ 기사A 웹<br>본인 콜만 열람]
+        W_B[🖥️ 기사B 웹<br>본인 콜만 열람]
+        W_Admin[🖥️ ADMIN 웹<br>전체 현황 모니터링]
+    end
+
+    Session <-->|socket.join: user_A| W_A
+    Session <-->|socket.join: user_B| W_B
+    Session <-->|socket.join: admin| W_Admin
+
+    style Auth fill:#fec,stroke:#333,stroke-width:2px
+    style Session fill:#bbf,stroke:#333,stroke-width:2px
+    style DB fill:#eee,stroke:#333,stroke-width:2px
 ```
 
 ### 1-3. 기술 스택
