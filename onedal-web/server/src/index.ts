@@ -13,6 +13,7 @@ import emergencyRouter from "./routes/emergency";
 import kakaoRouter from "./routes/kakao";
 import devicesRouter from "./routes/devices";
 import configRouter from "./routes/config";
+import authRouter from "./routes/auth";
 
 import { initGeoService } from "./services/geoService";
 import { logRoadmapEvent } from "./utils/roadmapLogger";
@@ -55,6 +56,8 @@ app.use("/api/kakao", kakaoRouter); // Dashboard UI의 클라이언트 사이드
 app.use("/api/devices", devicesRouter);
 app.use("/api/emergency", emergencyRouter);  // [Safety Mode V3] 앱폰 비상 보고
 app.use("/api/config", configRouter); // 타겟 앱 키워드 연동
+app.use("/api/auth", authRouter); // OAuth 로그인/인증 라우터
+
 
 // 소켓 연결 이벤트 핸들링 (Step 4 분리 완료)
 registerSocketHandlers(io);
