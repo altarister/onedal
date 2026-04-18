@@ -17,6 +17,7 @@ import configRouter from "./routes/config";
 import { initGeoService } from "./services/geoService";
 import { logRoadmapEvent } from "./utils/roadmapLogger";
 import { registerSocketHandlers } from "./socket/socketHandlers";
+import { hydrateSessionsFromDB } from "./state/userSessionStore";
 
 dotenv.config();
 
@@ -76,6 +77,7 @@ const PORT = process.env.PORT || 4000;
 
 httpServer.listen(PORT, () => {
     initGeoService();
+    hydrateSessionsFromDB(); // 서버 기동 시 DB에서 세션 복구 
     logRoadmapEvent("서버", "서버 기동 및 디폴트 필터 셋업 (대기 모드)");
     console.log(`\n🚀 1DAL 서버 (Express + Socket.io) 시작됨`);
     console.log(`📡 포트: ${PORT}`);
