@@ -113,7 +113,11 @@ router.post("/confirm", (req, res) => {
         logRoadmapEvent("서버", "[HTTP 폴링] 응답 /orders/confirm");
         res.json({ success: true, message: "1차 수신 완료. 상세 페이지 내용을 긁어서 POST /api/orders/detail 로 보내주세요." });
 
-        const userId = "ADMIN_USER";
+        let userId = "ADMIN_USER";
+        if (payload.deviceId) {
+            const row = db.prepare("SELECT user_id FROM user_devices WHERE device_id = ?").get(payload.deviceId) as any;
+            if (row) userId = row.user_id;
+        }
         const session = getUserSession(userId);
 
         const previousEvaluatingId = session.deviceEvaluatingMap.get(payload.deviceId);
@@ -169,7 +173,7 @@ router.post("/confirm", (req, res) => {
 // POST /decision - 기사님의 앱 내 의사결정 수신 (수동 배차 최종 확정/취소)
 router.post("/decision", async (req, res) => {
     try {
-        const payload = req.body as { orderId: string, action: 'KEEP' | 'CANCEL' };
+        const payload = req.body as { orderId: string, action: 'KEEP' | 'CANCEL', deviceId?: string };
         if (!payload.orderId || !payload.action) {
             return res.status(400).json({ error: "Missing orderId or action" });
         }
@@ -177,7 +181,12 @@ router.post("/decision", async (req, res) => {
         const io = req.app.get("io");
         console.log(`⚖️ [REST Decision 수신] ID: ${payload.orderId}, Action: ${payload.action} (앱에서 직통)`);
 
-        const userId = "ADMIN_USER";
+        let userId = "ADMIN_USER";
+        if (payload.deviceId) {
+            const row = db.prepare("SELECT user_id FROM user_devices WHERE device_id = ?").get(payload.deviceId) as any;
+            if (row) userId = row.user_id;
+        }
+        
         const result = await handleDecision(userId, payload.orderId, payload.action, io);
         res.json(result);
     } catch (error) {

@@ -21,6 +21,7 @@
 import { Router } from "express";
 import type { EmergencyReport } from "@onedal/shared";
 import { getUserSession } from "../state/userSessionStore";
+import db from "../db";
 
 const router = Router();
 
@@ -36,7 +37,12 @@ router.post("/", (req, res) => {
         console.log(`   화면: ${screenContext}`);
         console.log(`   텍스트: ${screenText?.substring(0, 100)}...`);
 
-        const userId = "ADMIN_USER";
+        let userId = "ADMIN_USER";
+        if (deviceId) {
+            const deviceRow = db.prepare("SELECT user_id FROM user_devices WHERE device_id = ?").get(deviceId) as any;
+            if (deviceRow) userId = deviceRow.user_id;
+        }
+        
         const session = getUserSession(userId);
 
         let targetOrderId = orderId;

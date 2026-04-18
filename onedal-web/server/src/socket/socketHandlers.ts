@@ -1,40 +1,68 @@
 import { Server, Socket } from "socket.io";
+import jwt from "jsonwebtoken";
 import { getActiveDevicesSnapshot } from "../routes/devices";
 import { getRegionsByCity } from "../geoResolver";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import type { AutoDispatchFilter } from "@onedal/shared";
-import { getUserSession } from "../state/userSessionStore";
+import { getUserSession, getAllActiveUserIds } from "../state/userSessionStore";
 import { recalculateCorridorFilter, handleDecision, recalculateKakaoRoute } from "../services/dispatchEngine";
+import db from "../db";
+
+const JWT_SECRET = process.env.JWT_SECRET || "fallback";
 
 export function registerSocketHandlers(io: Server) {
-    io.on("connection", (socket: Socket) => {
-        console.log(`🔌 [소켓 연결] 클라이언트 접속: ${socket.id}`);
 
-        // V2 SaaS: 소켓 접속 시 해당 사용자의 세션을 획득합니다 (현재는 ADMIN_USER 고정)
-        const userId = "ADMIN_USER";
+    // 1. Socket.io JWT 핸드셰이크 인증 미들웨어
+    io.use((socket, next) => {
+        const token = socket.handshake.auth?.token 
+                    || socket.handshake.headers?.authorization?.split(' ')[1];
+        
+        if (!token) {
+            console.log("❌ [Socket] 인증 토큰 누락 접속 거부");
+            return next(new Error('인증 토큰 없음'));
+        }
+        
+        try {
+            const decoded = jwt.verify(token, JWT_SECRET) as any;
+            socket.data.user = decoded; // { id, email, name, role }
+            next();
+        } catch (err) {
+            console.log("❌ [Socket] 토큰 검증 실패:", err);
+            next(new Error('토큰 만료 또는 위조'));
+        }
+    });
+
+    // 2. 개별 유저 연결 수립
+    io.on("connection", (socket: Socket) => {
+        const userId = socket.data.user.id;
+        const role = socket.data.user.role;
+        console.log(`🔌 [소켓 연결] 유저 접속: ${socket.data.user.name} (${userId})`);
+
         const session = getUserSession(userId);
 
-        // socket 방 참여 (해당 유저의 private room)
+        // 방 참여 (개별 유저 룸)
         socket.join(userId);
+        if (role === "ADMIN") {
+            socket.join("admin_room");
+        }
 
-        // 접속 직후 최신 텔레메트리 1회 즉시 전송
+        // 접속 시 초기 데이터 전송
         socket.emit("telemetry-devices", getActiveDevicesSnapshot());
-
-        // 접속 직후 최신 필터 1회 즉시 전송
         socket.emit("filter-init", session.activeFilter);
-        logRoadmapEvent("서버", "[Socket] 디폴트 필터 설정값 전송 (관제 UI 초기화)");
+        logRoadmapEvent("서버", `[Socket] 소켓 연결 및 디폴트 필터 전송 (User: ${userId})`);
 
+        // 프론트의 필터 요구 시
         socket.on("request-filter-init", () => {
             socket.emit("filter-init", session.activeFilter);
         });
 
+        // 프론트에서 필터 변경 시
         socket.on("update-filter", (newFilter: Partial<AutoDispatchFilter>) => {
-            logRoadmapEvent("서버", "[Socket] 첫콜 필터 설정값 전송 (서버 필터 세팅 업데이트)");
+            logRoadmapEvent("서버", `[Socket] 첫콜 필터 세팅 업데이트 (User: ${userId})`);
             
             if (newFilter.destinationCity && newFilter.destinationCity !== session.activeFilter.destinationCity) {
                 const regions = getRegionsByCity(newFilter.destinationCity);
                 newFilter.destinationKeywords = regions;
-                console.log(`🗺️ [지역 자동 갱신] ${newFilter.destinationCity} → ${regions.length}개 읍면동 조회 완료`);
             }
             
             const isCorridorChanged = newFilter.corridorRadiusKm !== undefined && newFilter.corridorRadiusKm !== session.activeFilter.corridorRadiusKm;
@@ -52,20 +80,41 @@ export function registerSocketHandlers(io: Server) {
             }
             
             session.activeFilter = { ...session.activeFilter, ...newFilter };
-            console.log(`🌐 [필터 전체 스키마 적용됨]\n${JSON.stringify(session.activeFilter, null, 2)}`);
+            
+            // DB에 영구 저장 (비동기 처리)
+            try {
+                db.prepare(`
+                    UPDATE user_filters SET
+                        destination_city = ?, destination_radius_km = ?, corridor_radius_km = ?,
+                        allowed_vehicle_types = ?, min_fare = ?, max_fare = ?, pickup_radius_km = ?,
+                        excluded_keywords = ?, destination_keywords = ?, is_active = ?, is_shared_mode = ?
+                    WHERE user_id = ?
+                `).run(
+                    session.activeFilter.destinationCity || "", session.activeFilter.destinationRadiusKm || 10, session.activeFilter.corridorRadiusKm || 1,
+                    JSON.stringify(session.activeFilter.allowedVehicleTypes || []), session.activeFilter.minFare || 0, session.activeFilter.maxFare || 1000000, session.activeFilter.pickupRadiusKm || 999,
+                    JSON.stringify(session.activeFilter.excludedKeywords || []), JSON.stringify(session.activeFilter.destinationKeywords || []), session.activeFilter.isActive ? 1 : 0, session.activeFilter.isSharedMode ? 1 : 0,
+                    userId
+                );
+            } catch(e) {
+                console.error("필터 DB 저장 에러:", e);
+            }
+
             io.to(userId).emit("filter-updated", session.activeFilter);
         });
 
+        // 프론트에서 현재 위치 전송 시 (지도 등 활용)
         socket.on("update-my-location", (loc: { x: number, y: number }) => {
             session.driverLocation = loc;
         });
 
+        // 배차 심사 수락/거절
         socket.on("decision", async ({ orderId, action }: { orderId: string, action: 'KEEP' | 'CANCEL' }) => {
-            console.log(`⚖️ [소켓 Decision 수신] ID: ${orderId}, Action: ${action}`);
+            console.log(`⚖️ [소켓 Decision] User: ${userId}, ID: ${orderId}, Action: ${action}`);
             const result = await handleDecision(userId, orderId, action, io);
             socket.emit("decision-ack", result);
         });
 
+        // 카카오 경로 재탐색
         socket.on("recalculate-route", async ({ orderId, priority }: { orderId: string, priority: string }) => {
             const result = await recalculateKakaoRoute(userId, orderId, priority, io);
             socket.emit("recalculate-route-ack", result);
@@ -76,13 +125,18 @@ export function registerSocketHandlers(io: Server) {
         });
     });
 
-    // 백그라운드 싱크: 전체 유저 루프 대신 ADMIN_USER 고정 폴링
+    // 3. 백그라운드 싱크: 접속 중인 모든 활성 세션을 순회하며 각 룸에 배차 상태 분리 전송
     setInterval(() => {
+        // 단말기 전체 리스트는 모두에게 브로드캐스트 (MVP 단계 정책)
         io.emit("telemetry-devices", getActiveDevicesSnapshot());
         
-        const userId = "ADMIN_USER";
-        const session = getUserSession(userId);
-        const activeOrdersPayload = Array.from(session.pendingOrdersData.values());
-        io.to(userId).emit("sync-active-orders", activeOrdersPayload);
+        // 각 기사별로 자신의 화면에 뜰 오더 리스트만 전달
+        const userIds = getAllActiveUserIds();
+        for (const uid of userIds) {
+            const session = getUserSession(uid);
+            const activeOrdersPayload = Array.from(session.pendingOrdersData.values());
+            io.to(uid).emit("sync-active-orders", activeOrdersPayload);
+        }
+        
     }, 1000);
 }

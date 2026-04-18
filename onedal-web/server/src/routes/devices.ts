@@ -2,6 +2,8 @@ import { Router } from "express";
 import { DeviceSession, DeviceStatusType, DeviceModeType, ScreenContextType } from "@onedal/shared";
 import { forceCancelEvaluatingOrder } from "../services/dispatchEngine";
 import { getUserSession } from "../state/userSessionStore";
+import { requireAuth } from "../middlewares/authMiddleware";
+import db from "../db";
 
 const router = Router();
 
@@ -42,7 +44,12 @@ export const touchDeviceSession = (deviceId: string, addedPollCount: number = 0,
     // 기사님이 수동으로 닫기를 누르거나 오더가 사라져서 안드로이드 앱이 리스트 화면으로 이탈했다면, 
     // 서버가 쥐고 있는 대기 중(롱폴링)인 콜 결정을 즉시 강제 파괴하여 데드락을 방지합니다!
     if (screenContext === 'LIST') {
-        const userId = "ADMIN_USER";
+        let userId = "ADMIN_USER";
+        if (deviceId) {
+            const row = db.prepare("SELECT user_id FROM user_devices WHERE device_id = ?").get(deviceId) as any;
+            if (row) userId = row.user_id;
+        }
+        
         const userSession = getUserSession(userId);
         const stuckOrderId = userSession.deviceEvaluatingMap.get(deviceId);
         if (stuckOrderId) {
@@ -61,7 +68,7 @@ export const touchDeviceSession = (deviceId: string, addedPollCount: number = 0,
  * 2. POST /api/devices/:deviceId/mode
  * 관제 웹에서 특정 기기의 모드(AUTO/MANUAL)를 변경할 때 사용
  */
-router.post("/:deviceId/mode", (req, res) => {
+router.post("/:deviceId/mode", requireAuth, (req, res) => {
     try {
         const { deviceId } = req.params;
         const { mode } = req.body as { mode: DeviceModeType };
@@ -116,7 +123,7 @@ export const getActiveDevicesSnapshot = (): DeviceSession[] => {
  * 3. GET /api/devices
  * (예비용) 관제 대시보드 강제 폴링 시 현재 기기 상태 조회
  */
-router.get("/", (req, res) => {
+router.get("/", requireAuth, (req, res) => {
     res.json({ devices: getActiveDevicesSnapshot() });
 });
 
@@ -124,7 +131,7 @@ router.get("/", (req, res) => {
  * 4. POST /api/devices/clear
  * 개발/테스트용: 모든 기기 세션 강제 초기화
  */
-router.post("/clear", (req, res) => {
+router.post("/clear", requireAuth, (req, res) => {
     activeDevices.clear();
     res.json({ success: true });
 });

@@ -37,6 +37,10 @@ export function getUserSession(userId: string): UserSession {
     return sessions.get(userId)!;
 }
 
+export function getAllActiveUserIds(): string[] {
+    return Array.from(sessions.keys());
+}
+
 /**
  * 서버 재부팅 시 DB에 저장된 활성화된 필터 정보를 찾아
  * 메모리(Map)에 적재하여, 기사들이 웹에서 재저장할 필요 없도록 복구합니다.

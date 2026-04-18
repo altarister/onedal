@@ -9,6 +9,7 @@ import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { DISPATCH_CONFIG } from "../config/dispatchConfig";
 import { getUserSession } from "../state/userSessionStore";
 import { handleDecision, evaluateNewOrder } from "../services/dispatchEngine";
+import db from "../db";
 
 const router = Router();
 
@@ -22,8 +23,12 @@ router.post("/", async (req, res) => {
         
         logRoadmapEvent("서버", "[HTTP 폴링] POST /orders/detail 데이터 수신");
 
-        // V2 SaaS: 임시로 접속한 기사를 ADMIN_USER로 매핑합니다.
-        const userId = "ADMIN_USER";
+        // V2 SaaS: 단말기 ID를 기반으로 소유권을 확인하여 개별 룸으로 라우팅합니다.
+        let userId = "ADMIN_USER";
+        if (payload.deviceId) {
+            const row = db.prepare("SELECT user_id FROM user_devices WHERE device_id = ?").get(payload.deviceId) as any;
+            if (row) userId = row.user_id;
+        }
         const session = getUserSession(userId);
 
         const realOrderId = (payload.order.id === "unknown" || !payload.order.id)
