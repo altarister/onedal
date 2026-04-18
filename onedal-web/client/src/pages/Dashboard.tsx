@@ -31,6 +31,7 @@ export default function Dashboard() {
         selectedOrder,
         setSelectedOrder,
         handleDecision,
+        handleRecalculate,
     } = useOrderEngine();
 
     const { alerts, warnings, dismissAlert, dismissWarning } = useEmergencyAlerts();
@@ -111,7 +112,7 @@ export default function Dashboard() {
                 <OrderFilterStatus onOpenFilter={() => setIsFilterModalOpen(true)} />
 
                 {/* 🏆 배차 확정 콜 (및 데스밸리 연산 구역) */}
-                <PinnedRoute activeRoute={activeRoute} onDecision={handleDecision} />
+                <PinnedRoute activeRoute={activeRoute} onDecision={handleDecision} onRecalculate={handleRecalculate} />
 
                 {/* 📡 관제 대기 중 (Empty State) */}
                 {activeRoute.length === 0 && (

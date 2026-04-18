@@ -7,7 +7,7 @@ import path from "path";
 import fs from "fs";
 
 import ordersRouter from "./routes/orders";
-import detailRouter, { handleDecision, getPendingOrdersData, deviceEvaluatingMap, recalculateCorridorFilter } from "./routes/detail";
+import detailRouter, { handleDecision, getPendingOrdersData, deviceEvaluatingMap, recalculateCorridorFilter, recalculateKakaoRoute } from "./routes/detail";
 import scrapRouter from "./routes/scrap";
 import emergencyRouter from "./routes/emergency";
 import { getRegionsByCity } from "./geoResolver";
@@ -115,6 +115,12 @@ io.on("connection", (socket) => {
         const result = handleDecision(orderId, action, io);
         // 결과를 요청한 소켓에만 ACK
         socket.emit("decision-ack", result);
+    });
+
+    // ⭐ 카카오 경로 재탐색 (우회 옵션 변경) 요청
+    socket.on("recalculate-route", async ({ orderId, priority }: { orderId: string, priority: string }) => {
+        const result = await recalculateKakaoRoute(orderId, priority, io);
+        socket.emit("recalculate-route-ack", result);
     });
 
     socket.on("disconnect", () => {

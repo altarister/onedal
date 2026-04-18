@@ -16,7 +16,7 @@ interface RouteResult {
 function extractPolyline(routes?: any[]): Array<{x: number; y: number}> {
     const polyline: Array<{x: number; y: number}> = [];
     if (!routes || !routes[0] || !routes[0].sections) {
-        console.log(`🗺️ [extractPolyline] routes/sections 배열이 없습니다.`);
+        console.log(`🗺️ [extractPolyline] routes/sections 배열이 없습니다. 카카오가 넘겨준 원본 배열:`, JSON.stringify(routes));
         return polyline;
     }
     
@@ -62,22 +62,33 @@ export async function calculateSoloRoute(
     apiKey: string,
     pickupX: number, pickupY: number,
     dropoffX: number, dropoffY: number,
-    driverLoc?: { x: number, y: number } | null
+    driverLoc?: { x: number, y: number } | null,
+    priority: string = "RECOMMEND"
 ): Promise<RouteResult> {
-    let url = "";
-    if (driverLoc) {
-        url = `${KAKAO_API_URL}?origin=${driverLoc.x},${driverLoc.y}&destination=${dropoffX},${dropoffY}&waypoints=${pickupX},${pickupY}&priority=RECOMMEND&car_type=1`;
-    } else {
-        url = `${KAKAO_API_URL}?origin=${pickupX},${pickupY}&destination=${dropoffX},${dropoffY}&priority=RECOMMEND&car_type=1`;
-    }
+    const originCoord = driverLoc ? `${driverLoc.x},${driverLoc.y}` : `${pickupX},${pickupY}`;
+    const waypointsQuery = driverLoc ? `&waypoints=${pickupX},${pickupY}` : "";
+    const url = `${KAKAO_API_URL}?origin=${originCoord}&destination=${dropoffX},${dropoffY}${waypointsQuery}&priority=${priority}&car_type=1`;
+    
+    console.log(`[Kakao Nav API (Solo)] 호출 URL: ${url}`);
     
     const res = await fetch(url, { headers: getHeaders(apiKey) });
     const data = await res.json();
     if (!data.routes || data.routes.length === 0) {
         console.error(`❌ [Kakao API Error (Solo)] 경로 탐색 실패:`, JSON.stringify(data));
+        throw new Error(`경로 탐색 실패: ${data.msg || "routes 배열 없음"}`);
     }
-    const summary = data?.routes?.[0]?.summary;
-    const sections = data?.routes?.[0]?.sections;
+    const summary = data.routes[0]?.summary;
+    const sections = data.routes[0]?.sections;
+    if (data.routes[0].result_code !== 0) {
+        let msg = data.routes[0].result_msg;
+        if (data.routes[0].result_code === 101) msg = "경유지 주변 탐색불가 (" + msg + ")";
+        if (data.routes[0].result_code === 102) msg = "시작지점 탐색불가 (" + msg + ")";
+        if (data.routes[0].result_code === 103) msg = "도착지점 탐색불가 (" + msg + ")";
+        if (data.routes[0].result_code === 104) msg = "도로 단절구간 (5m이내 등) (" + msg + ")";
+        
+        console.error(`❌ [Kakao API Error (Solo)] 에러 코드 ${data.routes[0].result_code}: ${msg}`);
+        throw new Error(`카카오에러: ${msg}`);
+    }
     
     let approachDuration = 0;
     let approachDistance = 0;
@@ -122,7 +133,8 @@ export async function calculateDetourRoute(
     mainPickupX: number, mainPickupY: number, // 단독 본콜 상차지
     mergedDestX: number, mergedDestY: number, // 합짐 최종 하차지
     mergedWaypoints: Array<{ x: number; y: number }>, // 스마트 정렬된 경유지들
-    driverLoc?: { x: number, y: number } | null
+    driverLoc?: { x: number, y: number } | null,
+    priority: string = "RECOMMEND"
 ): Promise<DetourResult> {
     const headers = getHeaders(apiKey);
 
@@ -137,7 +149,7 @@ export async function calculateDetourRoute(
     }
 
     // 1. 베이스(단독 본콜) 연산
-    let baseUrl = `${KAKAO_API_URL}?origin=${baseOriginX},${baseOriginY}&destination=${baseDestX},${baseDestY}&priority=RECOMMEND&car_type=1`;
+    let baseUrl = `${KAKAO_API_URL}?origin=${baseOriginX},${baseOriginY}&destination=${baseDestX},${baseDestY}&priority=${priority}&car_type=1`;
     if (baseWaypoints) {
         baseUrl += `&waypoints=${baseWaypoints}`;
     }
@@ -168,7 +180,7 @@ export async function calculateDetourRoute(
             x: wp.x.toString(),
             y: wp.y.toString()
         })),
-        priority: "RECOMMEND",
+        priority: priority,
         car_type: 1
     };
     
@@ -188,11 +200,22 @@ export async function calculateDetourRoute(
     
     if (!mergedData.routes || mergedData.routes.length === 0) {
         console.error(`❌ [Kakao API Error (Detour)] 우회 경로 탐색 실패. 응답 코드=${mergedData.msg || '알수없음'}, 상세:`, JSON.stringify(mergedData));
+        throw new Error(`합짐 경로 탐색 실패: ${mergedData.msg || "routes 배열 없음"}`);
     } else {
+        if (mergedData.routes[0].result_code !== 0) {
+            let msg = mergedData.routes[0].result_msg;
+            if (mergedData.routes[0].result_code === 101) msg = "경유지 주변 탐색불가 (" + msg + ")";
+            if (mergedData.routes[0].result_code === 102) msg = "시작지점 탐색불가 (" + msg + ")";
+            if (mergedData.routes[0].result_code === 103) msg = "도착지점 탐색불가 (" + msg + ")";
+            if (mergedData.routes[0].result_code === 104) msg = "도로 단절구간 (5m이내 등) (" + msg + ")";
+            
+            console.error(`❌ [Kakao API Error (Detour)] 에러 코드 ${mergedData.routes[0].result_code}: ${msg}`);
+            throw new Error(`카카오합짐에러: ${msg}`);
+        }
         console.log(`✅ [Kakao API Response] 폴리라인 길이 예상: (데이터 추출 중)`);
     }
     
-    const mergedSummary = mergedData?.routes?.[0]?.summary;
+    const mergedSummary = mergedData.routes[0]?.summary;
 
     const baseDuration = baseSummary?.duration || 0;
     const baseDistance = baseSummary?.distance || 0;

@@ -3,6 +3,7 @@ import type { SecuredOrder } from "@onedal/shared";
 interface Props {
     activeRoute: SecuredOrder[];
     onDecision?: (id: string, action: 'KEEP' | 'CANCEL') => void;
+    onRecalculate?: (id: string, priority: string) => void;
 }
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -31,7 +32,7 @@ function getMinuteDiff(start?: string, end?: string) {
     return diff;
 }
 
-export default function PinnedRoute({ activeRoute, onDecision }: Props) {
+export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: Props) {
     const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
     const [processingId, setProcessingId] = useState<string | null>(null);
     
@@ -582,11 +583,11 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
                             <span className="text-xs font-bold text-slate-500 text-left">통합 경로 정보</span>
                             <span className="text-[13px] font-black text-slate-300">
                                 {(() => {
-                                    const lastRoute = [...safeRoute].reverse().find(r => r.totalDistanceKm !== undefined);
+                                    const lastRoute = [...safeRoute].reverse().find(r => r.totalDistanceKm != null);
                                     const callCount = activeRoute.length;
                                     const callCountStr = callCount > 0 ? ` (총 ${callCount}개 콜)` : '';
-                                    if (!lastRoute) return `카카오 연산 대기중...${callCountStr}`;
-                                    return `총 도로 주행거리 ${(lastRoute.totalDistanceKm!).toFixed(1)}km / 예상 소요 ${lastRoute.totalDurationMin}분${callCountStr}`;
+                                    if (!lastRoute || lastRoute.totalDistanceKm == null) return `카카오 연산 에러 혹은 대기중...${callCountStr}`;
+                                    return `총 도로 주행거리 ${(Number(lastRoute.totalDistanceKm) || 0).toFixed(1)}km / 예상 소요 ${lastRoute.totalDurationMin || 0}분${callCountStr}`;
                                 })()}
                             </span>
                         </div>
@@ -763,8 +764,32 @@ export default function PinnedRoute({ activeRoute, onDecision }: Props) {
                                         </div>
                                     )}
 
-
-
+                                    {/* 카카오 경로 재탐색 옵션 파이프라인 */}
+                                    {route.status === 'evaluating_detailed' && onRecalculate && (
+                                        <div className="mt-2 flex gap-2">
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); setProcessingId(`recalc-${route.id}`); onRecalculate(route.id, 'RECOMMEND'); }}
+                                                disabled={processingId !== null}
+                                                className={`flex-1 bg-blue-900/30 text-blue-300 text-[10px] font-bold py-2 rounded-lg border border-blue-500/30 transition-all ${processingId !== null ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-800/50 active:scale-95'}`}
+                                            >
+                                                {processingId === `recalc-${route.id}` ? '검색중...' : '🌟 추천경로'}
+                                            </button>
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); setProcessingId(`recalc-${route.id}`); onRecalculate(route.id, 'TIME'); }}
+                                                disabled={processingId !== null}
+                                                className={`flex-1 bg-indigo-900/30 text-indigo-300 text-[10px] font-bold py-2 rounded-lg border border-indigo-500/30 transition-all ${processingId !== null ? 'opacity-50 cursor-not-allowed' : 'hover:bg-indigo-800/50 active:scale-95'}`}
+                                            >
+                                                {processingId === `recalc-${route.id}` ? '검색중...' : '⏳ 최단시간'}
+                                            </button>
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); setProcessingId(`recalc-${route.id}`); onRecalculate(route.id, 'DISTANCE'); }}
+                                                disabled={processingId !== null}
+                                                className={`flex-1 bg-teal-900/30 text-teal-300 text-[10px] font-bold py-2 rounded-lg border border-teal-500/30 transition-all ${processingId !== null ? 'opacity-50 cursor-not-allowed' : 'hover:bg-teal-800/50 active:scale-95'}`}
+                                            >
+                                                {processingId === `recalc-${route.id}` ? '검색중...' : '📏 최단거리'}
+                                            </button>
+                                        </div>
+                                    )}
                                     {/* 평가 상태(데스밸리) 액션 버튼 */}
                                     {route.status === 'confirmed' && onDecision && (
                                         <div className="mt-4 flex gap-3">

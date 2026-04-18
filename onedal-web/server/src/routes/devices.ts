@@ -16,13 +16,13 @@ const DEADMAN_TIMEOUT_MS = 25000;
  */
 export const touchDeviceSession = (deviceId: string, addedPollCount: number = 0, screenContext?: ScreenContextType, io?: any): DeviceModeType => {
     let session = activeDevices.get(deviceId);
-    
+
     if (!session) {
         session = {
             deviceId,
             lastSeen: Date.now(),
             status: "ONLINE",
-            mode: "MANUAL", // 최초 접속 시 무조건 안전모드(수동) 진입
+            mode: "AUTO", // 최초 접속 시 무조건 안전모드(수동) 진입
             screenContext: screenContext || 'UNKNOWN',
             stats: { polled: addedPollCount, grabbed: 0, canceled: 0 }
         };

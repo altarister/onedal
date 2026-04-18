@@ -196,6 +196,10 @@ export function useOrderEngine() {
         socket.emit("decision", { orderId: id, action });
     }, []);
 
+    const handleRecalculate = useCallback((id: string, priority: string) => {
+        logRoadmapEvent("웹", `[Socket] 카카오 ${priority} 탐색 옵션으로 재계산 요청`, "관제대시보드");
+        socket.emit("recalculate-route", { orderId: id, priority });
+    }, []);
 
     return {
         orders,
@@ -206,5 +210,6 @@ export function useOrderEngine() {
         selectedOrder,
         setSelectedOrder,
         handleDecision,
+        handleRecalculate,
     };
 }

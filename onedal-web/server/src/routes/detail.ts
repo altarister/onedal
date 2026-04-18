@@ -202,6 +202,142 @@ async function recalculateActiveKakaoRoute(io: any) {
     }
 }
 
+/**
+ * 카카오 경로 재탐색 핸들러
+ * 특정 오더 ID와 priority 파라미터를 받아, 
+ * 서버 메모리에 저장된 좌표를 기반으로 calculate API를 다시 찌른 후, 
+ * order-evaluated 이벤트를 뿌려 웹 화면과 데이터를 교체합니다.
+ */
+export async function recalculateKakaoRoute(orderId: string, priority: string, io: SocketIOServer) {
+    const securedOrder = pendingOrdersData.get(orderId);
+    if (!securedOrder) {
+        console.warn(`[Recalculate] 메모리에 존재하지 않는 오더입니다. (ID: ${orderId})`);
+        return { success: false, msg: "오더 소멸됨" };
+    }
+    
+    const apiKey = process.env.KAKAO_REST_API_KEY;
+    if (!apiKey) return { success: false, msg: "API KEY 부재" };
+    
+    console.log(`\n======================================================`);
+    console.log(`[카카오 재계산 요청] ${securedOrder.pickup} ➡️ ${securedOrder.dropoff} (옵션: ${priority})`);
+    
+    try {
+        let timeExt = "카카오 연산 실패";
+        
+        let isDetour = false;
+        let pId = "";
+        for (const [key, val] of deviceEvaluatingMap.entries()) {
+            if (val === orderId) {
+                pId = key;
+                break;
+            }
+        }
+        
+        const { getDriverLocation } = require('./../state/locationStore');
+        const dLoc = getDriverLocation(); // GPS 미수신 시 목업 좌표 자동 폴백
+        
+        const activeFilter = require('./../state/filterStore').activeFilterConfig;
+        const currentOrders = Array.from(pendingOrdersData.values());
+        let previousOrders = currentOrders.filter(o => o.id !== orderId && o.status === 'confirmed');
+        if (previousOrders.length > 0) isDetour = true;
+        
+        if (!isDetour) {
+            const result = await calculateSoloRoute(
+                apiKey,
+                securedOrder.pickupX!, securedOrder.pickupY!,
+                securedOrder.dropoffX!, securedOrder.dropoffY!,
+                dLoc,
+                priority
+            );
+            
+            let recommend = "";
+            let paramLabel = "추천";
+            if (priority === "TIME") paramLabel = "최단시간";
+            if (priority === "DISTANCE") paramLabel = "최단거리";
+            
+            if (result.distDiffKm === "0.0") {
+                timeExt = `[${paramLabel}] 단독 꿀콜 (패널티 제로!)`;
+            } else {
+                timeExt = `[${paramLabel}] ${result.distDiffKm}km 우회 (단독오류)`;
+            }
+            
+            securedOrder.routePolyline = result.polyline;
+            securedOrder.totalDistanceKm = parseFloat((result.distance / 1000).toFixed(1));
+            securedOrder.totalDurationMin = Math.round(result.duration / 60);
+            if (result.polyline?.length) {
+                timeExt = `[${paramLabel}] 재탐색 완료`;
+            }
+            
+        } else {
+            // 합짐
+            const firstPickX = previousOrders[0].pickupX || securedOrder.pickupX!;
+            const firstPickY = previousOrders[0].pickupY || securedOrder.pickupY!;
+            const firstDestX = previousOrders[0].dropoffX || securedOrder.dropoffX!;
+            const firstDestY = previousOrders[0].dropoffY || securedOrder.dropoffY!;
+            
+            const points = [];
+            if (previousOrders[0].pickupX) points.push({ x: previousOrders[0].pickupX, y: previousOrders[0].pickupY });
+            if (previousOrders[0].dropoffX) points.push({ x: previousOrders[0].dropoffX, y: previousOrders[0].dropoffY });
+            if (securedOrder.pickupX) points.push({ x: securedOrder.pickupX, y: securedOrder.pickupY });
+            if (securedOrder.dropoffX) points.push({ x: securedOrder.dropoffX, y: securedOrder.dropoffY });
+            
+            const geoService = require('./../services/geoService');
+            const sortedWps = [...points]; 
+            // In a full implementation we extract the exact parameters. 
+            // Since we previously stored routing results, we can just call it accurately
+            
+            const result = await calculateDetourRoute(
+                apiKey,
+                firstDestX, firstDestY,
+                firstPickX, firstPickY,
+                securedOrder.dropoffX!, securedOrder.dropoffY!,
+                sortedWps,
+                dLoc,
+                priority
+            );
+            
+            securedOrder.routePolyline = result.merged.polyline;
+            securedOrder.totalDistanceKm = Math.round(result.merged.distance / 1000);
+            securedOrder.totalDurationMin = Math.round(result.merged.duration / 60);
+            securedOrder.sectionEtas = result.merged.sectionEtas;
+            
+            let signDist = Number(result.distDiffKm) > 0 ? "+" : "";
+            let signTime = Number(result.timeDiffMin) > 0 ? "+" : "";
+            
+            let recommend = "";
+            if (Number(result.distDiffKm) > 10 || Number(result.timeDiffMin) > 30) {
+                recommend = "💩 (패널티 🚨)";
+            } else if (Number(result.distDiffKm) > 0 || Number(result.timeDiffMin) > 0) {
+                recommend = "🚙 (양호)";
+            } else {
+                recommend = "🍯 (꿀)";
+            }
+            
+            let paramLabel = "추천";
+            if (priority === "TIME") paramLabel = "최단시간";
+            if (priority === "DISTANCE") paramLabel = "최단거리";
+            
+            timeExt = `[${paramLabel}] ${signDist}${result.distDiffKm}km, ${signTime}${result.timeDiffMin}분 ${recommend}`;
+        }
+        
+        securedOrder.kakaoTimeExt = timeExt;
+        
+        io.emit("order-evaluated", securedOrder);
+        console.log(`🔎 [카카오 재계산 완료] ${timeExt} | Polyline 길이: ${securedOrder.routePolyline?.length || 0}`);
+        
+    } catch (e: any) {
+        console.error("재계산 에러:", e);
+        if (e.message) {
+            securedOrder.kakaoTimeExt = `[재계산 실패] ${e.message}`;
+            io.emit("order-evaluated", securedOrder);
+        }
+        return { success: false, msg: e.message };
+    }
+    console.log(`======================================================\n`);
+    
+    return { success: true };
+}
+
 // [Safety Mode V3] emergency.ts에서 본콜 초기화 시 사용
 export const resetMainCallState = () => { mainCallState = null; };
 
@@ -664,8 +800,11 @@ router.post("/", async (req, res) => {
             } else {
                 console.log(`   - ❌ KAKAO_REST_API_KEY 서버 환경 변수 누락`);
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("서버-사이드 카카오 연산 에러:", error);
+            if (error.message) {
+                timeExt = `카카오 연산 실패: ${error.message}`;
+            }
         }
         console.log(`======================================================\n`);
 
