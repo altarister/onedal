@@ -199,7 +199,7 @@ entries.forEach(e => {
             if (i === 0 && steps[0].added) continue;
             
             if (lastEmittedStep !== i) {
-                if (prevIsCode) { md += "```\n\n    </details>\n"; prevIsCode = false; }
+                if (prevIsCode) { md += "    ```\n\n    </details>\n"; prevIsCode = false; }
                 steps[i].added = true;
                 lastEmittedStep = i;
                 md += "\n" + steps[i].title + "\n";
