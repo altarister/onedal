@@ -21,14 +21,17 @@ router.post("/", async (req, res) => {
             return res.status(400).json({ error: "step=DETAILED 전용" });
         }
         
-        logRoadmapEvent("서버", "[HTTP 폴링] POST /orders/detail 데이터 수신");
+        logRoadmapEvent("서버", "앱폰으로 부터 무인서핑이 완료된 '2차 오더 상세' 요청 받음");
 
-        // V2 SaaS: 단말기 ID를 기반으로 소유권을 확인하여 개별 룸으로 라우팅합니다.
-        let userId = "ADMIN_USER";
-        if (payload.deviceId) {
-            const row = db.prepare("SELECT user_id FROM user_devices WHERE device_id = ?").get(payload.deviceId) as any;
-            if (row) userId = row.user_id;
+        // [하드 락] 미등록 기기 차단
+        if (!payload.deviceId) {
+            return res.status(401).json({ error: "MISSING_DEVICE_ID" });
         }
+        const deviceRow = db.prepare("SELECT user_id FROM user_devices WHERE device_id = ?").get(payload.deviceId) as any;
+        if (!deviceRow) {
+            return res.status(401).json({ error: "UNREGISTERED_DEVICE", message: "미등록 기기입니다. PIN 연동을 먼저 진행해주세요." });
+        }
+        const userId = deviceRow.user_id;
         const session = getUserSession(userId);
 
         const realOrderId = (payload.order.id === "unknown" || !payload.order.id)
@@ -44,6 +47,7 @@ router.post("/", async (req, res) => {
             capturedAt: payload.capturedAt || new Date().toISOString()
         };
 
+        logRoadmapEvent("서버", "상하차지 주소 및 적요 텍스트 정제 연산");
         if (securedOrder.rawText) {
             securedOrder.pickupDetails = parseLocationDetails(securedOrder.rawText, "[출발지상세]");
             securedOrder.dropoffDetails = parseLocationDetails(securedOrder.rawText, "[도착지상세]");
@@ -122,9 +126,10 @@ router.post("/", async (req, res) => {
 
         if (io) {
             io.to(userId).emit("order-detail-received", securedOrder);
-            logRoadmapEvent("서버", "[Socket] 상하차지 송출");
+            logRoadmapEvent("서버", "관제탑에게 정제된 상세 텍스트(order-detail-received) 정보 전달");
         }
 
+        logRoadmapEvent("서버", "앱폰에게 디테일 데이터 정상 수신 완료 응답 전달");
         // ━━━ Service 계층에 카카오 경로 연산 위임 (evaluateNewOrder) ━━━
         // 지오코딩 + 단독/합짐 경로 연산 + 꿀/콜/똥 판정 + order-evaluated emit
         await evaluateNewOrder(userId, securedOrder, io);
@@ -139,6 +144,7 @@ router.post("/", async (req, res) => {
         setTimeout(() => {
             if (session.pendingDetailRequests.has(payload.order.id)) {
                 if (io) {
+                    logRoadmapEvent("서버", "관제탑에게 지연 위급 상황(deathvalley-warning) 정보 전달");
                     io.to(userId).emit("deathvalley-warning", {
                         orderId: payload.order.id,
                         deviceId: payload.deviceId,

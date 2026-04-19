@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { apiClient } from "../api/apiClient";
 import { socket } from "../lib/socket";
+import { logRoadmapEvent } from "../lib/roadmapLogger";
 
 interface User {
     id: string;
@@ -47,6 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const loginWithGoogle = async (credential: string) => {
         try {
+            logRoadmapEvent("웹", "서버에게 구글 인증(id_token) 정보 전달");
             const { data } = await apiClient.post("/auth/google", { credential });
             localStorage.setItem("access_token", data.accessToken);
             localStorage.setItem("refresh_token", data.refreshToken);

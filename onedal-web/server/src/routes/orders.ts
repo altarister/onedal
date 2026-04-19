@@ -107,17 +107,21 @@ router.post("/confirm", (req, res) => {
             return res.status(400).json({ error: "이 엔드포인트는 step=BASIC 전용입니다. 상세 보고는 POST /api/orders/detail 을 사용하세요." });
         }
 
+        // [하드 락] 미등록 기기 차단
+        if (!payload.deviceId) {
+            return res.status(401).json({ error: "MISSING_DEVICE_ID" });
+        }
+        const deviceRow = db.prepare("SELECT user_id FROM user_devices WHERE device_id = ?").get(payload.deviceId) as any;
+        if (!deviceRow) {
+            return res.status(401).json({ error: "UNREGISTERED_DEVICE", message: "미등록 기기입니다. PIN 연동을 먼저 진행해주세요." });
+        }
+        const userId = deviceRow.user_id;
+
         const io = req.app.get("io");
 
         // 즉시 응답 (앱은 멈추지 않고 상세 페이지 긁으러 진입해야 함)
-        logRoadmapEvent("서버", "[HTTP 폴링] 응답 /orders/confirm");
+        logRoadmapEvent("서버", "앱폰에게 상세 정보 스크래핑을 즉시 진행하라고 응답 전달");
         res.json({ success: true, message: "1차 수신 완료. 상세 페이지 내용을 긁어서 POST /api/orders/detail 로 보내주세요." });
-
-        let userId = "ADMIN_USER";
-        if (payload.deviceId) {
-            const row = db.prepare("SELECT user_id FROM user_devices WHERE device_id = ?").get(payload.deviceId) as any;
-            if (row) userId = row.user_id;
-        }
         const session = getUserSession(userId);
 
         const previousEvaluatingId = session.deviceEvaluatingMap.get(payload.deviceId);
@@ -139,6 +143,7 @@ router.post("/confirm", (req, res) => {
         };
 
         if (securedOrder.id && securedOrder.id !== "unknown") {
+            logRoadmapEvent("서버", "콜의 가확정 상태를 메모리에 캐싱 연산");
             session.pendingOrdersData.set(securedOrder.id, securedOrder);
         }
 
@@ -146,16 +151,16 @@ router.post("/confirm", (req, res) => {
             console.log(`📤 [Socket 푸시] order-evaluating (${securedOrder.id})`);
             io.to(userId).emit("order-evaluating", securedOrder);
             console.log(`⏱️ [1차 선빵 수신] ${securedOrder.pickup} ➡️ ${securedOrder.dropoff} (기기: ${payload.deviceId})`);
-            logRoadmapEvent("서버", "[HTTP 폴링] POST /orders/confirm 확정정보 정보 전송 수신");
+            logRoadmapEvent("서버", "앱폰으로 부터 가로챈 '1차 오더 확정' 요청 받음");
+            logRoadmapEvent("서버", "관제탑에게 이 콜을 선점했음(order-evaluating) 정보 전달");
 
             if (session.activeFilter.isActive) {
                 session.activeFilter = { ...session.activeFilter, isActive: false };
-                logRoadmapEvent("서버", `대기 필터로 설정값 업데이트 (isActive: false)`);
                 console.log(`📤 [Socket 푸시] filter-updated (isActive: false)`);
                 io.to(userId).emit("filter-updated", session.activeFilter);
-                logRoadmapEvent("서버", "[Socket] 확정정보 정보 + 대기 필터 정보 전송");
+                logRoadmapEvent("서버", "폰의 isHolding=true 기간 동안 다른 콜을 물지 않도록 필터 비활성 정보 전달");
                 
-                logRoadmapEvent("서버", "관제탑 무응답 대비 30초 데스밸리 타이머 기동 (안전망 강화)");
+                logRoadmapEvent("서버", "데스밸리 15초 카운트다운 타이머 감시 연산");
                 setTimeout(() => {
                     const cached = session.pendingOrdersData.get(securedOrder.id);
                     if (cached && cached.status === 'evaluating_basic') {
@@ -181,11 +186,15 @@ router.post("/decision", async (req, res) => {
         const io = req.app.get("io");
         console.log(`⚖️ [REST Decision 수신] ID: ${payload.orderId}, Action: ${payload.action} (앱에서 직통)`);
 
-        let userId = "ADMIN_USER";
-        if (payload.deviceId) {
-            const row = db.prepare("SELECT user_id FROM user_devices WHERE device_id = ?").get(payload.deviceId) as any;
-            if (row) userId = row.user_id;
+        // [하드 락] 미등록 기기 차단
+        if (!payload.deviceId) {
+            return res.status(401).json({ error: "MISSING_DEVICE_ID" });
         }
+        const deviceRow = db.prepare("SELECT user_id FROM user_devices WHERE device_id = ?").get(payload.deviceId) as any;
+        if (!deviceRow) {
+            return res.status(401).json({ error: "UNREGISTERED_DEVICE", message: "미등록 기기입니다. PIN 연동을 먼저 진행해주세요." });
+        }
+        const userId = deviceRow.user_id;
         
         const result = await handleDecision(userId, payload.orderId, payload.action, io);
         res.json(result);

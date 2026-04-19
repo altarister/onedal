@@ -25,15 +25,20 @@ apiClient.interceptors.request.use(
 
 // Response interceptor to handle token refresh automatically
 let isRefreshing = false;
-let refreshSubscribers: ((token: string) => void)[] = [];
-
-function subscribeTokenRefresh(cb: (token: string) => void) {
-    refreshSubscribers.push(cb);
-}
+let refreshSubscribers: { resolve: (token: string) => void, reject: (err: any) => void }[] = [];
 
 function onRefreshed(token: string) {
-    refreshSubscribers.forEach((cb) => cb(token));
+    refreshSubscribers.forEach((cb) => cb.resolve(token));
     refreshSubscribers = [];
+}
+
+function onRefreshFailed(err: any) {
+    refreshSubscribers.forEach((cb) => cb.reject(err));
+    refreshSubscribers = [];
+}
+
+function subscribeTokenRefresh(resolve: (token: string) => void, reject: (err: any) => void) {
+    refreshSubscribers.push({ resolve, reject });
 }
 
 apiClient.interceptors.response.use(
@@ -67,6 +72,7 @@ apiClient.interceptors.response.use(
                     return apiClient(originalRequest);
                 } catch (refreshErr) {
                     console.error("Token refresh failed:", refreshErr);
+                    onRefreshFailed(refreshErr);
                     localStorage.removeItem("access_token");
                     localStorage.removeItem("refresh_token");
                     window.location.href = "/login";
@@ -76,11 +82,16 @@ apiClient.interceptors.response.use(
                 }
             } else {
                 // Wait until the current active token request resolves
-                return new Promise((resolve) => {
-                    subscribeTokenRefresh((token) => {
-                        originalRequest.headers.Authorization = `Bearer ${token}`;
-                        resolve(apiClient(originalRequest));
-                    });
+                return new Promise((resolve, reject) => {
+                    subscribeTokenRefresh(
+                        (token) => {
+                            originalRequest.headers.Authorization = `Bearer ${token}`;
+                            resolve(apiClient(originalRequest));
+                        },
+                        (err) => {
+                            reject(err);
+                        }
+                    );
                 });
             }
         }

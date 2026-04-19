@@ -75,8 +75,7 @@ sequenceDiagram
             Note over 앱폰1: 확정페이지에서 '적요상세' 추출 후 클릭
             앱폰1->>인성DB: [인성 Socket] 적요상세 정보 요청 
             인성DB-->>앱폰1: 적요상세 정보 전달 
-            Note over 앱폰1: 적요상세페이지 진입
-            Note over 앱폰1: 적요상세페이지에서 '적요 내용' 추출 및 저장 후 닫기 클릭
+            Note over 앱폰1: 적요상세페이지에서 '젹요 내용' 추출 및 저장 후 닫기 클릭
             Note over 앱폰1: 확정페이지 진입
             Note over 앱폰1: 확정페이지에서 '출발지' 추출 후 클릭
             앱폰1->>인성DB: [인성 Socket] 출발지 정보 요청 
@@ -188,4 +187,80 @@ sequenceDiagram
     서버->>서버: 9. "어? 기사님 필터 방금 5만원으로 바꼈네!"
     서버-->>앱: 10. 응답 (dispatchEngineArgs)에 최신 필터 주입
     Note over 앱: 11. 안드로이드 자체 메모리에 필터 적용<br>0.01초 광클 시작!
+```
+
+
+### 3-1. 인증 시퀀스 다이어그램
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant 유저 as 🖥️ 프론트엔드<br/>(React 웹 / RN 앱)
+    participant 구글 as ☁️ Google OAuth
+    participant 서버 as ☁️ 1DAL 서버<br/>(Node.js)
+    participant DB as 💾 SQLite
+
+    유저->>구글: 1. 구글 로그인 버튼 클릭
+    구글-->>유저: 2. credential (id_token) 반환
+    유저->>서버: 3. POST /api/auth/google { credential }
+    서버->>구글: 4. google-auth-library로 id_token 위조 검증
+    구글-->>서버: 5. 검증 완료 (email, name, picture, sub)
+    서버->>DB: 6. users 테이블 조회/신규 등록 (UPSERT)
+    서버->>DB: 7. user_settings 기본값 생성 (첫 가입 시)
+    서버-->>유저: 8. { accessToken (1h), refreshToken (14d), user 프로필 }
+    
+    Note over 유저: localStorage에 토큰 저장
+
+    유저->>서버: 9. 이후 모든 API: Authorization: Bearer <accessToken>
+    서버->>서버: 10. authMiddleware에서 JWT 검증 + req.user 주입
+
+    Note over 유저,서버: Access Token 만료 시 (1시간 후)
+    유저->>서버: 11. POST /api/auth/refresh { refreshToken }
+    서버->>DB: 12. refreshToken 유효성 확인
+    서버-->>유저: 13. 새로운 accessToken 발급 (Silent Refresh)
+```
+
+### 3-1. 카카오 경로탐색 시퀀스 다이어그램
+```mermaid
+sequenceDiagram
+    autonumber
+    participant 관제탑 as 🖥️ 관제웹<br/>(브라우저)
+    participant 서버 as ☁️ 1DAL 서버<br/>(Node.js)
+    participant 앱폰1 as 📱 앱폰1<br/>(1DAL앱 + 인성앱)
+    participant 카카오 as ☁️ 카카오 API
+    
+    Note over 앱폰1: 확정페이지 진입
+    Note over 앱폰1: 적요, 상하차지 정보 추출
+    앱폰1->>서버: [HTTP 폴링] POST /orders/detail 상하차지 + 적요내용 전송
+    서버->>관제탑: [Socket] 상하차지 + 적요내용 전송
+    Note over 관제탑: 경로 섹션 표현, 적요 내용표현 
+    Note over 서버: 🛡️ 주소 정제 (3중 폴백 지오코딩 로직)
+    서버->>카카오: [지오코딩 API] 정제된 텍스트 주소로 좌표 요청
+    카카오-->>서버: 정확한 X, Y 좌표 반환
+    Note over 서버: 🚙 주행 형태 분류 (단독 짐 vs 추가 합짐) 및 최적 경로 검출
+    Note over 서버: 🧩 TSP 알고리즘 적용 (경유지가 2개 이상일 경우 동선 최적화)
+    서버->>카카오: [내비게이션 API] 좌표 기반 최초 노선 검색 (조건: 추천경로)
+    카카오-->>서버: 폴리라인(도로 궤적) 및 소요 시간, 거리, 통행료 반환
+    Note over 서버: 카카오 코드 분석 
+    alt 카카오 API 호출 성공
+        Note over 서버: 올바른 경로 및 시간 계산 및 수익률 계산
+        서버->>관제탑: [Socket] 초기 경로 및 시간 정보, 수익률 전송
+        Note over 관제탑: 추천 결과 노출, 탐색 옵션 변경(고속/무료/최단거리) 등 경로 변경 버튼 노출
+        loop 최적의 경로를 찾을 때까지 반복 (수동 조회)
+            관제탑->>서버: [Socket] 탐색 옵션(추천/고속/무료 등) 변경 후 재탐색 요청
+            서버->>카카오: 변경된 priority 옵션으로 새로운 경로 호출 
+            카카오-->>서버: 새로운 노선 경로 및 소요 시간, 통행료 반환
+            Note over 서버: 재계산된 시간, 통행료 기반 수익률/기회비용 확인
+            서버->>관제탑: [Socket] 새로운 경로 및 시간 정보, 수익률 전송
+            Note over 관제탑: 변경된 추천 결과 화면 렌더링, 최종 경로 비교 및 판단
+        end    
+    else 카카오 API 호출 실패 or 경로 탐색 실패 코드, 메시지 전송
+        서버->>관제탑: [Socket] 에러 코드 전송 
+        Note over 관제탑: 에러 코드, 메시지 노출
+    end
+    
+    
+    
+    Note over 관제탑: [Socket] 콜 keep or cancel (최종 결정)
+    관제탑->>서버: [Socket] 콜 keep or cancel 명령 발송
 ```

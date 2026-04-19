@@ -9,10 +9,14 @@ export function useFilterConfig() {
     useEffect(() => {
         // 소켓 이벤트 핸들러 구독
         const onFilterInit = (initialFilter: AutoDispatchFilter) => {
+            logRoadmapEvent("웹", "서버로 부터 filter-init 초기 필터값(isSharedMode, distance 등) 받음");
+            logRoadmapEvent("웹", "OrderFilterStatus 컴포넌트에 현재 설정된 렌즈값 문자열로 렌더링");
             setFilter(initialFilter);
         };
 
         const onFilterUpdated = (updatedFilter: AutoDispatchFilter) => {
+            logRoadmapEvent("웹", "서버로 부터 filter-updated 소켓 이벤트 받음");
+            logRoadmapEvent("웹", "OrderFilterStatus 컴포넌트에 즉각 필터 갱신 및 UI 리렌더링");
             setFilter(updatedFilter);
         };
 
@@ -37,7 +41,7 @@ export function useFilterConfig() {
             setFilter({ ...filter, ...newFilter });
         }
         // 서버로 방출
-        logRoadmapEvent("웹", "필터 설정(첫콜) 및 서버 소켓 전송");
+        logRoadmapEvent("웹", "서버에게 새로 작성한 update-filter 정보 전달");
         socket.emit("update-filter", newFilter);
     };
 

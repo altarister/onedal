@@ -9,6 +9,7 @@ interface Props {
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import sidoDataRaw from '../../mapData/sidoData.json';
 import { socket } from '../../lib/socket';
+import { logRoadmapEvent } from '../../lib/roadmapLogger';
 
 const sidoData = sidoDataRaw as any; // GeoJSON FeatureCollection
 
@@ -612,21 +613,21 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: 
                     return (
                         <div className="mb-4 px-1 flex gap-2 justify-center">
                             <button 
-                                onClick={(e) => { e.stopPropagation(); setProcessingId(`recalc-global`); onRecalculate(activeRoute[activeRoute.length - 1].id, 'RECOMMEND'); }}
+                                onClick={(e) => { e.stopPropagation(); logRoadmapEvent("웹", "PinnedRoute 하단의 네비게이션 옵션(추천/최단/무료) 버튼 클릭"); setProcessingId(`recalc-global`); onRecalculate(activeRoute[activeRoute.length - 1].id, 'RECOMMEND'); }}
                                 disabled={processingId !== null}
                                 className={`flex-1 text-[11px] font-bold py-2.5 rounded border transition-all shadow-sm ${processingId !== null ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'} ${isRecommend ? 'bg-blue-600 text-white border-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.5)]' : 'bg-blue-900/40 text-blue-300 border-blue-500/30 hover:bg-blue-800/60 hover:border-blue-400'}`}
                             >
                                 {processingId === `recalc-global` && !isRecommend ? '검색중...' : '🌟 추천경로'}
                             </button>
                             <button 
-                                onClick={(e) => { e.stopPropagation(); setProcessingId(`recalc-global`); onRecalculate(activeRoute[activeRoute.length - 1].id, 'TIME'); }}
+                                onClick={(e) => { e.stopPropagation(); logRoadmapEvent("웹", "PinnedRoute 하단의 네비게이션 옵션(추천/최단/무료) 버튼 클릭"); setProcessingId(`recalc-global`); onRecalculate(activeRoute[activeRoute.length - 1].id, 'TIME'); }}
                                 disabled={processingId !== null}
                                 className={`flex-1 text-[11px] font-bold py-2.5 rounded border transition-all shadow-sm ${processingId !== null ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'} ${isTime ? 'bg-indigo-600 text-white border-indigo-400 shadow-[0_0_10px_rgba(79,70,229,0.5)]' : 'bg-indigo-900/40 text-indigo-300 border-indigo-500/30 hover:bg-indigo-800/60 hover:border-indigo-400'}`}
                             >
                                 {processingId === `recalc-global` && !isTime ? '검색중...' : '⏳ 최단시간'}
                             </button>
                             <button 
-                                onClick={(e) => { e.stopPropagation(); setProcessingId(`recalc-global`); onRecalculate(activeRoute[activeRoute.length - 1].id, 'DISTANCE'); }}
+                                onClick={(e) => { e.stopPropagation(); logRoadmapEvent("웹", "PinnedRoute 하단의 네비게이션 옵션(추천/최단/무료) 버튼 클릭"); setProcessingId(`recalc-global`); onRecalculate(activeRoute[activeRoute.length - 1].id, 'DISTANCE'); }}
                                 disabled={processingId !== null}
                                 className={`flex-1 text-[11px] font-bold py-2.5 rounded border transition-all shadow-sm ${processingId !== null ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'} ${isDistance ? 'bg-teal-600 text-white border-teal-400 shadow-[0_0_10px_rgba(20,184,166,0.5)]' : 'bg-teal-900/40 text-teal-300 border-teal-500/30 hover:bg-teal-800/60 hover:border-teal-400'}`}
                             >
@@ -828,11 +829,11 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: 
                                     )}
                                     {route.type !== 'MANUAL' && route.status === 'evaluating_detailed' && onDecision && (
                                         <div className="mt-4 flex gap-3">
-                                            <button disabled={processingId === route.id} onClick={(e) => { e.stopPropagation(); console.log(`👆 [사용자 클릭] 프론트에서 '🚨 배차 취소' 버튼 클릭 (ID: ${route.id})`); setProcessingId(route.id); onDecision(route.id, 'CANCEL'); }} className={`flex-1 bg-[#2a131b] text-rose-400 text-sm font-bold py-4 rounded-lg border border-rose-500/30 transition-all shadow-sm ${processingId === route.id ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#3d1a25] active:scale-95'}`}>
+                                            <button disabled={processingId === route.id} onClick={(e) => { e.stopPropagation(); logRoadmapEvent("웹", "PinnedRoute에서 CANCEL(취소) 또는 X 버튼 클릭"); logRoadmapEvent("웹", "서버에게 decision=CANCEL 하달 정보 전달"); setProcessingId(route.id); onDecision(route.id, 'CANCEL'); }} className={`flex-1 bg-[#2a131b] text-rose-400 text-sm font-bold py-4 rounded-lg border border-rose-500/30 transition-all shadow-sm ${processingId === route.id ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#3d1a25] active:scale-95'}`}>
                                                 {processingId === route.id ? '처리 중...' : '방출'}
                                             </button>
                                             {!!route.kakaoTimeExt ? (
-                                                <button disabled={processingId === route.id} onClick={(e) => { e.stopPropagation(); console.log(`👆 [사용자 클릭] 프론트에서 '유지 확정' 버튼 클릭 (ID: ${route.id})`); setProcessingId(route.id); onDecision(route.id, 'KEEP'); }} className={`flex-[2] bg-emerald-500 text-emerald-950 text-base font-black py-4 rounded-lg transition-all ${processingId === route.id ? 'opacity-50 cursor-not-allowed' : 'shadow-[0_0_20px_rgba(16,185,129,0.4)] hover:bg-emerald-400 hover:scale-[1.02] active:scale-95'}`}>
+                                                <button disabled={processingId === route.id} onClick={(e) => { e.stopPropagation(); logRoadmapEvent("웹", "PinnedRoute에서 KEEP(사냥 확정) 녹색 버튼 클릭"); logRoadmapEvent("웹", "서버에게 decision=KEEP 하달 정보 전달"); setProcessingId(route.id); onDecision(route.id, 'KEEP'); }} className={`flex-[2] bg-emerald-500 text-emerald-950 text-base font-black py-4 rounded-lg transition-all ${processingId === route.id ? 'opacity-50 cursor-not-allowed' : 'shadow-[0_0_20px_rgba(16,185,129,0.4)] hover:bg-emerald-400 hover:scale-[1.02] active:scale-95'}`}>
                                                     {processingId === route.id ? '서버와 통신 중...' : '유지 확정'}
                                                 </button>
                                             ) : (

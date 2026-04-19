@@ -20,7 +20,6 @@ enum class ScreenContext(val value: String) {
     POPUP_DROPOFF("POPUP_DROPOFF"),            // 도착지 상세 팝업
     POPUP_MEMO("POPUP_MEMO"),                  // 적요 상세 팝업
     POPUP_ERROR("POPUP_ERROR"),                // 에러/실패 팝업
-    WAITING_SERVER("WAITING_SERVER"),           // 서버 응답 대기 (데스밸리)
     LIST_COMPLETED("LIST_COMPLETED"),          // 완료 리스트 화면
     UNKNOWN("UNKNOWN");                        // 알 수 없는 화면
 }
@@ -131,7 +130,10 @@ data class DispatchConfirmResponse(
 data class ScrapPayload(
     val deviceId: String,
     val data: List<SimplifiedOfficeOrder>,
-    val screenContext: String? = null  // [Safety Mode V3] 현재 화면 상태
+    val screenContext: String? = null,  // [Safety Mode V3] 현재 화면 상태 (물리적 페이지)
+    val isHolding: Boolean = false,     // [Page/Hold 분리] 콜 처리 중 여부
+    val lat: Double? = null,            // [GPS 텔레메트리] 앱폰(차량) 위도
+    val lng: Double? = null             // [GPS 텔레메트리] 앱폰(차량) 경도
 )
 
 // 서버 응답 (Piggyback 통신: 상태, 통계, 제어명령, 최신 필터를 구조화하여 한 번에 태워보냄)
@@ -167,5 +169,20 @@ data class FilterConfig(
     val customCityFilters: List<String> = emptyList(),
     val destinationGroups: Map<String, List<String>> = emptyMap(),
     val customFilters: List<String> = emptyList()
+)
+
+// ────────────────────────────────────────────────
+// 7. 기기 PIN 연동 (POST /api/devices/pair 대응)
+// ────────────────────────────────────────────────
+data class PairDeviceRequest(
+    val pin: String,
+    val deviceId: String,
+    val deviceName: String? = null
+)
+
+data class PairDeviceResponse(
+    val success: Boolean = false,
+    val message: String? = null,
+    val error: String? = null
 )
 

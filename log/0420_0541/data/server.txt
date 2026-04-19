@@ -1,0 +1,875 @@
+(eval):21: parse error near `JAVA_HOME=/opt/homeb...'
+seungwookkim@seungwookui-MacBookPro onedal % cd onedal-web 
+seungwookkim@seungwookui-MacBookPro onedal-web % pnpm dev     
+
+> onedal-web-workspace@ dev /Users/seungwookkim/reps/onedal/onedal-web
+> pnpm run dev:server & pnpm run dev:client
+
+
+> onedal-web-workspace@ dev:server /Users/seungwookkim/reps/onedal/onedal-web
+> pnpm --filter server dev
+
+
+> onedal-web-workspace@ dev:client /Users/seungwookkim/reps/onedal/onedal-web
+> pnpm --filter client dev
+
+
+> server@1.0.0 dev /Users/seungwookkim/reps/onedal/onedal-web/server
+> tsx watch src/index.ts
+
+
+> client@0.0.0 dev /Users/seungwookkim/reps/onedal/onedal-web/client
+> vite
+
+2:47:54 AM [vite] (client) Re-optimizing dependencies because vite config has changed
+
+  VITE v8.0.3  ready in 319 ms
+
+  ➜  Local:   http://localhost:3000/
+  ➜  Network: use --host to expose
+  ➜  press h + enter to show help
+📂 SQLite DB 준비 완료: /Users/seungwookkim/reps/onedal/onedal-web/server/local.db
+[dotenv@17.3.1] injecting env (5) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+✅ 프론트엔드 빌드 폴더를 서빙합니다: /Users/seungwookkim/reps/onedal/onedal-web/client/dist
+🗺️ [GeoService] 전국 자치구/읍면동 폴리곤 로드 성공 (총 1239개 방어구역)
+[ROADMAP 02:47:55.624] [☁️서버] 서버 기동 및 디폴트 필터 셋업 (대기 모드)
+
+🚀 1DAL 서버 (Express + Socket.io) 시작됨
+📡 서버 포트: 4000
+🌐 대시보드는 http://localhost:3000 에서 확인하세요
+
+📡 [HTTP 수신] GET /api/auth/me - IP: ::1
+[Session] 유저 66176c7b-1755-444c-9b65-7ca056e3c303 의 기존 필터 복구 완료
+📡 [HTTP 수신] GET /api/auth/me - IP: ::1
+📡 [HTTP 수신] GET /api/orders - IP: ::1
+📡 [HTTP 수신] GET /api/orders - IP: ::1
+🔌 [소켓 연결] 유저 접속: 알타리(알타리) (66176c7b-1755-444c-9b65-7ca056e3c303)
+[ROADMAP 02:48:01.747] [☁️서버] [Socket] 소켓 연결 및 디폴트 필터 전송 (User: 66176c7b-1755-444c-9b65-7ca056e3c303)
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 0항목 적재 중 [화면: DETAIL_CONFIRMED]
+[ROADMAP 02:48:13.577] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)
+📡 [HTTP 수신] GET /api/config/keywords?app=%EC%9D%B8%EC%84%B1%EC%BD%9C - IP: ::ffff:172.30.1.54
+설정 파일 없음: /Users/seungwookkim/reps/onedal/onedal-web/config/keywords_inseong.json
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 0항목 적재 중 [화면: LIST]
+[ROADMAP 02:48:23.755] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 0항목 적재 중 [화면: UNKNOWN]
+[ROADMAP 02:48:24.902] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 5항목 적재 중 [화면: LIST]
+[ROADMAP 02:48:32.746] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 0항목 적재 중 [화면: LIST]
+[ROADMAP 02:48:38.018] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)
+📡 [HTTP 수신] POST /api/orders/confirm - IP: ::ffff:172.30.1.54
+[ROADMAP 02:48:38.168] [☁️서버] [HTTP 폴링] 응답 /orders/confirm
+📤 [Socket 푸시] order-evaluating (721c7da7-e8fb-45a0-9b60-57b0d8242b41)
+⏱️ [1차 선빵 수신] 경안동 ➡️ 초월읍 (기기: 앱폰-sdk_gpho-160)
+[ROADMAP 02:48:38.172] [☁️서버] [HTTP 폴링] POST /orders/confirm 확정정보 정보 전송 수신
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 0항목 적재 중 [화면: DETAIL_PRE_CONFIRM]
+[ROADMAP 02:48:38.421] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)
+📡 [HTTP 수신] POST /api/orders/detail - IP: ::ffff:172.30.1.54
+[ROADMAP 02:48:39.535] [☁️서버] [HTTP 폴링] POST /orders/detail 데이터 수신
+[ROADMAP 02:48:39.546] [☁️서버] [Socket] 상하차지 송출
+
+======================================================
+[서버-사이드 카카오 연산] 🚀 경기 광주시 경안동 167-1 경안천 체육공원 ➡️ 경기 광주시 초월읍 경충대로 2170 신세계사이먼 광주프리미엄아울렛
+[ROADMAP 02:48:39.554] [☁️서버] 🛡️ [카카오 API 3중 폴백] 괄호제거 ➡️ 주소검색 ➡️ 키워드검색 ➡️ 4어절 절사
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 0항목 적재 중 [화면: POPUP_DROPOFF]
+[ROADMAP 02:48:39.737] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)
+🌍 [Geocoding] 상차지 변환: '경기 광주시 경안동 167-1 경안천 체육공원' -> X:127.252889947198, Y:37.4100225848715
+[GeoResolver] 카카오 좌표 변환 최종 실패: 원본=경기 광주시 초월읍 경충대로 2170 신세계사이먼 광주프리미엄아울렛
+🌍 [Geocoding] 하차지 변환: '경기 광주시 초월읍 경충대로 2170 신세계사이먼 광주프리미엄아울렛' -> 실패(null)
+   - ❌ 지오코딩 실패: X/Y 좌표 변환 불가능
+======================================================
+
+📤 [Socket 푸시] order-evaluated (721c7da7-e8fb-45a0-9b60-57b0d8242b41)
+[ROADMAP 02:48:39.848] [☁️서버] [Socket] 경로 및 시간 정보, 수익률 전송
+🔎 [카카오 연산 완료] 카카오 연산 실패 | Polyline 길이: 0
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 0항목 적재 중 [화면: DETAIL_CONFIRMED]
+[ROADMAP 02:48:39.965] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)
+⚖️ [소켓 Decision] User: 66176c7b-1755-444c-9b65-7ca056e3c303, ID: 721c7da7-e8fb-45a0-9b60-57b0d8242b41, Action: CANCEL
+[ROADMAP 02:48:49.950] [☁️서버] [HTTP 폴링] 응답 /orders/detail 취소 정보 전송
+[ROADMAP 02:48:49.952] [☁️서버] 첫콜 필터로 설정값 업데이트
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 0항목 적재 중 [화면: DETAIL_CONFIRMED]
+[ROADMAP 02:48:50.256] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)
+📡 [HTTP 수신] POST /api/orders/confirm - IP: ::ffff:172.30.1.54
+[ROADMAP 02:48:51.090] [☁️서버] [HTTP 폴링] 응답 /orders/confirm
+📤 [Socket 푸시] order-evaluating (a491b43e-b219-4f48-84e5-239ee42c8555)
+⏱️ [1차 선빵 수신] 경안동 ➡️ 남동구 (기기: 앱폰-sdk_gpho-160)
+[ROADMAP 02:48:51.090] [☁️서버] [HTTP 폴링] POST /orders/confirm 확정정보 정보 전송 수신
+[ROADMAP 02:48:51.090] [☁️서버] 대기 필터로 설정값 업데이트 (isActive: false)
+📤 [Socket 푸시] filter-updated (isActive: false)
+[ROADMAP 02:48:51.090] [☁️서버] [Socket] 확정정보 정보 + 대기 필터 정보 전송
+[ROADMAP 02:48:51.090] [☁️서버] 관제탑 무응답 대비 30초 데스밸리 타이머 기동 (안전망 강화)
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 0항목 적재 중 [화면: DETAIL_PRE_CONFIRM]
+[ROADMAP 02:48:51.327] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)
+📡 [HTTP 수신] POST /api/orders/detail - IP: ::ffff:172.30.1.54
+[ROADMAP 02:48:52.458] [☁️서버] [HTTP 폴링] POST /orders/detail 데이터 수신
+[ROADMAP 02:48:52.460] [☁️서버] [Socket] 상하차지 송출
+
+======================================================
+[서버-사이드 카카오 연산] 🚀 경기 광주시 경안동 167-1 경안천 체육공원 ➡️ 인천 남동구 인하로 484 뉴코아아울렛 인천점
+[ROADMAP 02:48:52.460] [☁️서버] 🛡️ [카카오 API 3중 폴백] 괄호제거 ➡️ 주소검색 ➡️ 키워드검색 ➡️ 4어절 절사
+🌍 [Geocoding] 상차지 변환: '경기 광주시 경안동 167-1 경안천 체육공원' -> X:127.252889947198, Y:37.4100225848715
+🌍 [Geocoding] 하차지 변환: '인천 남동구 인하로 484 뉴코아아울렛 인천점' -> X:126.70071998155683, Y:37.44414477209116
+   - 💡 상태: [첫짐] 단독 주행 연산
+[Kakao Nav API (Solo)] 호출 URL: https://apis-navi.kakaomobility.com/v1/directions?origin=127.29441776104179,37.37668247218943&destination=126.70071998155683,37.44414477209116&waypoints=127.252889947198,37.4100225848715&priority=RECOMMEND&car_type=1
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 0항목 적재 중 [화면: POPUP_DROPOFF]
+[ROADMAP 02:48:52.653] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 0항목 적재 중 [화면: DETAIL_CONFIRMED]
+[ROADMAP 02:48:52.884] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)
+🗺️ [extractPolyline] 섹션(구간) 수: 2
+   - 섹션 1 (127.25266497549042,37.376559198692725 -> 127.29618883433861,37.41017955534316) 추출 라인 좌표수: 172
+   - 섹션 2 (126.70035149784493,37.395099827387256 -> 127.25346140995374,37.444346821291546) 추출 라인 좌표수: 535
+🗺️ [extractPolyline] 카카오 폴리라인 궤적 총 707개의 포인트 추출 성공
+   - ⏱️ 결과: 단독 64.6km, 61분 '콜' (현위치접근: 6.5km, 13분)
+   - 🗺️ 궤적 길이 (Solo): 707
+======================================================
+
+📤 [Socket 푸시] order-evaluated (a491b43e-b219-4f48-84e5-239ee42c8555)
+[ROADMAP 02:48:53.109] [☁️서버] [Socket] 경로 및 시간 정보, 수익률 전송
+🔎 [카카오 연산 완료] 단독 64.6km, 61분 '콜' | Polyline 길이: 707
+⚖️ [소켓 Decision] User: 66176c7b-1755-444c-9b65-7ca056e3c303, ID: a491b43e-b219-4f48-84e5-239ee42c8555, Action: KEEP
+[ROADMAP 02:48:59.450] [☁️서버] [HTTP 폴링] 응답 /orders/detail 유지 정보 전송
+[ROADMAP 02:48:59.451] [☁️서버] 합짐 필터로 설정값 업데이트 (합짐 사냥용)
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 0항목 적재 중 [화면: DETAIL_CONFIRMED]
+[ROADMAP 02:48:59.669] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)
+📡 [HTTP 수신] POST /api/orders/confirm - IP: ::ffff:172.30.1.54
+[ROADMAP 02:49:00.403] [☁️서버] [HTTP 폴링] 응답 /orders/confirm
+📤 [Socket 푸시] order-evaluating (9439da4f-5f97-4183-aa3e-d367d1f0c603)
+⏱️ [1차 선빵 수신] 경안동 ➡️ 경안동 (기기: 앱폰-sdk_gpho-160)
+[ROADMAP 02:49:00.404] [☁️서버] [HTTP 폴링] POST /orders/confirm 확정정보 정보 전송 수신
+[ROADMAP 02:49:00.404] [☁️서버] 대기 필터로 설정값 업데이트 (isActive: false)
+📤 [Socket 푸시] filter-updated (isActive: false)
+[ROADMAP 02:49:00.404] [☁️서버] [Socket] 확정정보 정보 + 대기 필터 정보 전송
+[ROADMAP 02:49:00.404] [☁️서버] 관제탑 무응답 대비 30초 데스밸리 타이머 기동 (안전망 강화)
+📡 [HTTP 수신] POST /api/orders/detail - IP: ::ffff:172.30.1.54
+[ROADMAP 02:49:01.393] [☁️서버] [HTTP 폴링] POST /orders/detail 데이터 수신
+[ROADMAP 02:49:01.394] [☁️서버] [Socket] 상하차지 송출
+
+======================================================
+[서버-사이드 카카오 연산] 🚀 경기 광주시 경안동 493-4 이마트 광주점 ➡️ 경기 광주시 경안동 165-15 농협 경안지점
+[ROADMAP 02:49:01.394] [☁️서버] 🛡️ [카카오 API 3중 폴백] 괄호제거 ➡️ 주소검색 ➡️ 키워드검색 ➡️ 4어절 절사
+🌍 [Geocoding] 상차지 변환: '경기 광주시 경안동 493-4 이마트 광주점' -> X:126.88210921218504, Y:35.1588284814727
+🌍 [Geocoding] 하차지 변환: '경기 광주시 경안동 165-15 농협 경안지점' -> X:127.25501588858974, Y:37.41283198561755
+   - 💡 상태: [합짐] 우회 동선 연산
+   - 기존 본콜: 경기 광주시 경안동 167-1 경안천 체육공원 ➡️ 인천 남동구 인하로 484 뉴코아아울렛 인천점
+   - 추가 경유: 경기 광주시 경안동 493-4 이마트 광주점 ➡️ 경기 광주시 경안동 165-15 농협 경안지점
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 0항목 적재 중 [화면: DETAIL_CONFIRMED]
+[ROADMAP 02:49:01.778] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)
+
+🚙 [Kakao API Request] 스마트 합짐 우회 경로 요청 (다중 경유지 API)
+   - Origin: 127.29441776104179,37.37668247218943 / Dest: 126.70071998155683,37.44414477209116
+   - Waypoints Count: 3
+✅ [Kakao API Response] 폴리라인 길이 예상: (데이터 추출 중)
+🗺️ [extractPolyline] 섹션(구간) 수: 2
+   - 섹션 1 (127.25266497549042,37.376559198692725 -> 127.29618883433861,37.41017955534316) 추출 라인 좌표수: 172
+   - 섹션 2 (126.70035149784493,37.395099827387256 -> 127.25346140995374,37.444346821291546) 추출 라인 좌표수: 535
+🗺️ [extractPolyline] 카카오 폴리라인 궤적 총 707개의 포인트 추출 성공
+🗺️ [extractPolyline] 섹션(구간) 수: 4
+   - 섹션 1 (127.25266497549042,37.376559198692725 -> 127.29618883433861,37.41017955534316) 추출 라인 좌표수: 172
+   - 섹션 2 (126.88187376356579,35.15844563493919 -> 127.25346140995374,37.410610756033265) 추출 라인 좌표수: 2226
+   - 섹션 3 (127.25484961393383,35.15833586274857 -> 127.26122635680831,37.41275636593991) 추출 라인 좌표수: 2257
+   - 섹션 4 (126.70035149784493,37.395099827387256 -> 127.25484961393383,37.444346821291546) 추출 라인 좌표수: 525
+🗺️ [extractPolyline] 카카오 폴리라인 궤적 총 5180개의 포인트 추출 성공
+   - ⚠️ 패널티 결과: +577.5km, +411분 '똥' (현위치접근: 6.5km, 13분)
+   - 🗺️ 궤적 길이 (Detour): 5180
+======================================================
+
+📤 [Socket 푸시] order-evaluated (9439da4f-5f97-4183-aa3e-d367d1f0c603)
+[ROADMAP 02:49:03.791] [☁️서버] [Socket] 경로 및 시간 정보, 수익률 전송
+🔎 [카카오 연산 완료] +577.5km, +411분 '똥' | Polyline 길이: 5180
+⚖️ [소켓 Decision] User: 66176c7b-1755-444c-9b65-7ca056e3c303, ID: 9439da4f-5f97-4183-aa3e-d367d1f0c603, Action: CANCEL
+[ROADMAP 02:49:06.216] [☁️서버] [HTTP 폴링] 응답 /orders/detail 취소 정보 전송
+[ROADMAP 02:49:06.217] [☁️서버] 첫콜 필터로 설정값 업데이트
+[Kakao Nav API (Solo)] 호출 URL: https://apis-navi.kakaomobility.com/v1/directions?origin=127.29441776104179,37.37668247218943&destination=126.70071998155683,37.44414477209116&waypoints=127.252889947198,37.4100225848715&priority=RECOMMEND&car_type=1
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 0항목 적재 중 [화면: DETAIL_CONFIRMED]
+[ROADMAP 02:49:06.443] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)
+🗺️ [extractPolyline] 섹션(구간) 수: 2
+   - 섹션 1 (127.25266497549042,37.376559198692725 -> 127.29618883433861,37.41017955534316) 추출 라인 좌표수: 172
+   - 섹션 2 (126.70035149784493,37.395099827387256 -> 127.25346140995374,37.444346821291546) 추출 라인 좌표수: 535
+🗺️ [extractPolyline] 카카오 폴리라인 궤적 총 707개의 포인트 추출 성공
+🗺️ [사후 재계산 - 첫짐] 현위치 접근: 6537m (774초) / 총 이동: 64592m
+🗺️ [사후 재계산 완료] 취소 반영 후 경로/소요시간 갱신 완료.
+📡 [HTTP 수신] POST /api/orders/confirm - IP: ::ffff:172.30.1.54
+[ROADMAP 02:49:07.206] [☁️서버] [HTTP 폴링] 응답 /orders/confirm
+📤 [Socket 푸시] order-evaluating (55cf03d3-cc5c-42fc-a841-ea5befd32154)
+⏱️ [1차 선빵 수신] 송정동 ➡️ 삼동 (기기: 앱폰-sdk_gpho-160)
+[ROADMAP 02:49:07.207] [☁️서버] [HTTP 폴링] POST /orders/confirm 확정정보 정보 전송 수신
+[ROADMAP 02:49:07.207] [☁️서버] 대기 필터로 설정값 업데이트 (isActive: false)
+📤 [Socket 푸시] filter-updated (isActive: false)
+[ROADMAP 02:49:07.207] [☁️서버] [Socket] 확정정보 정보 + 대기 필터 정보 전송
+[ROADMAP 02:49:07.207] [☁️서버] 관제탑 무응답 대비 30초 데스밸리 타이머 기동 (안전망 강화)
+📡 [HTTP 수신] POST /api/orders/detail - IP: ::ffff:172.30.1.54
+[ROADMAP 02:49:08.013] [☁️서버] [HTTP 폴링] POST /orders/detail 데이터 수신
+[ROADMAP 02:49:08.014] [☁️서버] [Socket] 상하차지 송출
+
+======================================================
+[서버-사이드 카카오 연산] 🚀 경기 광주시 송정동 532-2 광주시립 중앙도서관 ➡️ 경기 의왕시 삼동 철도박물관로 142 철도박물관
+[ROADMAP 02:49:08.014] [☁️서버] 🛡️ [카카오 API 3중 폴백] 괄호제거 ➡️ 주소검색 ➡️ 키워드검색 ➡️ 4어절 절사
+🌍 [Geocoding] 상차지 변환: '경기 광주시 송정동 532-2 광주시립 중앙도서관' -> X:127.253295099213, Y:37.4106894616542
+🌍 [Geocoding] 하차지 변환: '경기 의왕시 삼동 철도박물관로 142 철도박물관' -> X:126.951310978537, Y:37.3140867524318
+   - 💡 상태: [합짐] 우회 동선 연산
+   - 기존 본콜: 경기 광주시 경안동 167-1 경안천 체육공원 ➡️ 인천 남동구 인하로 484 뉴코아아울렛 인천점
+   - 추가 경유: 경기 광주시 송정동 532-2 광주시립 중앙도서관 ➡️ 경기 의왕시 삼동 철도박물관로 142 철도박물관
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 0항목 적재 중 [화면: DETAIL_CONFIRMED]
+[ROADMAP 02:49:08.340] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)
+
+🚙 [Kakao API Request] 스마트 합짐 우회 경로 요청 (다중 경유지 API)
+   - Origin: 127.29441776104179,37.37668247218943 / Dest: 126.70071998155683,37.44414477209116
+   - Waypoints Count: 3
+✅ [Kakao API Response] 폴리라인 길이 예상: (데이터 추출 중)
+🗺️ [extractPolyline] 섹션(구간) 수: 2
+   - 섹션 1 (127.25266497549042,37.376559198692725 -> 127.29618883433861,37.41017955534316) 추출 라인 좌표수: 172
+   - 섹션 2 (126.70035149784493,37.395099827387256 -> 127.25346140995374,37.444346821291546) 추출 라인 좌표수: 535
+🗺️ [extractPolyline] 카카오 폴리라인 궤적 총 707개의 포인트 추출 성공
+🗺️ [extractPolyline] 섹션(구간) 수: 4
+   - 섹션 1 (127.25266497549042,37.376559198692725 -> 127.29618883433861,37.41017955534316) 추출 라인 좌표수: 172
+   - 섹션 2 (127.25183216313654,37.40978702736052 -> 127.25346140995374,37.41100633860775) 추출 라인 좌표수: 18
+   - 섹션 3 (126.95173706706703,37.30326176980379 -> 127.25608766758833,37.428391821968134) 추출 라인 좌표수: 442
+   - 섹션 4 (126.70035149784493,37.31409697523695 -> 126.96034518598195,37.444346821291546) 추출 라인 좌표수: 391
+🗺️ [extractPolyline] 카카오 폴리라인 궤적 총 1023개의 포인트 추출 성공
+   - ⚠️ 패널티 결과: +18.8km, +21분 '콜' (현위치접근: 6.5km, 13분)
+   - 🗺️ 궤적 길이 (Detour): 1023
+======================================================
+
+📤 [Socket 푸시] order-evaluated (55cf03d3-cc5c-42fc-a841-ea5befd32154)
+[ROADMAP 02:49:09.040] [☁️서버] [Socket] 경로 및 시간 정보, 수익률 전송
+🔎 [카카오 연산 완료] +18.8km, +21분 '콜' | Polyline 길이: 1023
+⚖️ [소켓 Decision] User: 66176c7b-1755-444c-9b65-7ca056e3c303, ID: 55cf03d3-cc5c-42fc-a841-ea5befd32154, Action: KEEP
+[ROADMAP 02:49:13.428] [☁️서버] [HTTP 폴링] 응답 /orders/detail 유지 정보 전송
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 0항목 적재 중 [화면: DETAIL_CONFIRMED]
+[ROADMAP 02:49:13.770] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)
+
+🚙 [Kakao API Request] 스마트 합짐 우회 경로 요청 (다중 경유지 API)
+   - Origin: 127.29441776104179,37.37668247218943 / Dest: 126.70071998155683,37.44414477209116
+   - Waypoints Count: 3
+📡 [HTTP 수신] POST /api/orders/confirm - IP: ::ffff:172.30.1.54
+[ROADMAP 02:49:14.463] [☁️서버] [HTTP 폴링] 응답 /orders/confirm
+📤 [Socket 푸시] order-evaluating (52b82944-febd-45e2-8abd-7a348744047d)
+⏱️ [1차 선빵 수신] 목현동 ➡️ 초월읍 (기기: 앱폰-sdk_gpho-160)
+[ROADMAP 02:49:14.463] [☁️서버] [HTTP 폴링] POST /orders/confirm 확정정보 정보 전송 수신
+✅ [Kakao API Response] 폴리라인 길이 예상: (데이터 추출 중)
+🗺️ [extractPolyline] 섹션(구간) 수: 2
+   - 섹션 1 (127.25266497549042,37.376559198692725 -> 127.29618883433861,37.41017955534316) 추출 라인 좌표수: 172
+   - 섹션 2 (126.70035149784493,37.395099827387256 -> 127.25346140995374,37.444346821291546) 추출 라인 좌표수: 535
+🗺️ [extractPolyline] 카카오 폴리라인 궤적 총 707개의 포인트 추출 성공
+🗺️ [extractPolyline] 섹션(구간) 수: 4
+   - 섹션 1 (127.25266497549042,37.376559198692725 -> 127.29618883433861,37.41017955534316) 추출 라인 좌표수: 172
+   - 섹션 2 (127.25183216313654,37.40978702736052 -> 127.25346140995374,37.41100633860775) 추출 라인 좌표수: 18
+   - 섹션 3 (126.95173706706703,37.30326176980379 -> 127.25608766758833,37.428391821968134) 추출 라인 좌표수: 442
+   - 섹션 4 (126.70035149784493,37.31409697523695 -> 126.96034518598195,37.444346821291546) 추출 라인 좌표수: 391
+🗺️ [extractPolyline] 카카오 폴리라인 궤적 총 1023개의 포인트 추출 성공
+[ROADMAP 02:49:14.719] [☁️서버] 합짐 필터로 설정값 업데이트 (합짐 사냥용)
+📡 [HTTP 수신] POST /api/orders/detail - IP: ::ffff:172.30.1.54
+[ROADMAP 02:49:15.307] [☁️서버] [HTTP 폴링] POST /orders/detail 데이터 수신
+[ROADMAP 02:49:15.307] [☁️서버] [Socket] 상하차지 송출
+
+======================================================
+[서버-사이드 카카오 연산] 🚀 경기 광주시 목현동 558 쏘카 광주정비센터 ➡️ 경기 광주시 초월읍 경충대로 2073 초월읍행정복지센터
+[ROADMAP 02:49:15.308] [☁️서버] 🛡️ [카카오 API 3중 폴백] 괄호제거 ➡️ 주소검색 ➡️ 키워드검색 ➡️ 4어절 절사
+🌍 [Geocoding] 상차지 변환: '경기 광주시 목현동 558 쏘카 광주정비센터' -> X:127.204247220314, Y:37.4418813986696
+🌍 [Geocoding] 하차지 변환: '경기 광주시 초월읍 경충대로 2073 초월읍행정복지센터' -> X:127.287960741315, Y:37.3852482375545
+   - 💡 상태: [합짐] 우회 동선 연산
+   - 기존 본콜: 경기 광주시 경안동 167-1 경안천 체육공원 ➡️ 인천 남동구 인하로 484 뉴코아아울렛 인천점
+   - 추가 경유: 경기 광주시 목현동 558 쏘카 광주정비센터 ➡️ 경기 광주시 초월읍 경충대로 2073 초월읍행정복지센터
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 2항목 적재 중 [화면: DETAIL_CONFIRMED]
+[ROADMAP 02:49:15.686] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)
+
+🚙 [Kakao API Request] 스마트 합짐 우회 경로 요청 (다중 경유지 API)
+   - Origin: 127.29441776104179,37.37668247218943 / Dest: 126.70071998155683,37.44414477209116
+   - Waypoints Count: 5
+❌ [Kakao API Error (Detour)] 에러 코드 101: 경유지 주변 탐색불가 (경유지 지점 주변의 도로를 탐색할 수 없음)
+서버-사이드 카카오 연산 에러: Error: 카카오합짐에러: 경유지 주변 탐색불가 (경유지 지점 주변의 도로를 탐색할 수 없음)
+    at calculateDetourRoute (/Users/seungwookkim/reps/onedal/onedal-web/server/src/routes/kakaoUtil.ts:215:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async evaluateNewOrder (/Users/seungwookkim/reps/onedal/onedal-web/server/src/services/dispatchEngine.ts:532:36)
+    at async <anonymous> (/Users/seungwookkim/reps/onedal/onedal-web/server/src/routes/detail.ts:133:9)
+======================================================
+
+📤 [Socket 푸시] order-evaluated (52b82944-febd-45e2-8abd-7a348744047d)
+[ROADMAP 02:49:15.910] [☁️서버] [Socket] 경로 및 시간 정보, 수익률 전송
+🔎 [카카오 연산 완료] 카카오 연산 실패: 카카오합짐에러: 경유지 주변 탐색불가 (경유지 지점 주변의 도로를 탐색할 수 없음) | Polyline 길이: 0
+⚖️ [소켓 Decision] User: 66176c7b-1755-444c-9b65-7ca056e3c303, ID: 52b82944-febd-45e2-8abd-7a348744047d, Action: CANCEL
+[ROADMAP 02:49:20.166] [☁️서버] [HTTP 폴링] 응답 /orders/detail 취소 정보 전송
+[ROADMAP 02:49:20.166] [☁️서버] 첫콜 필터로 설정값 업데이트
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 0항목 적재 중 [화면: DETAIL_CONFIRMED]
+[ROADMAP 02:49:20.392] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)
+
+🚙 [Kakao API Request] 스마트 합짐 우회 경로 요청 (다중 경유지 API)
+   - Origin: 127.29441776104179,37.37668247218943 / Dest: 126.70071998155683,37.44414477209116
+   - Waypoints Count: 3
+✅ [Kakao API Response] 폴리라인 길이 예상: (데이터 추출 중)
+🗺️ [extractPolyline] 섹션(구간) 수: 2
+   - 섹션 1 (127.25266497549042,37.376559198692725 -> 127.29618883433861,37.41017955534316) 추출 라인 좌표수: 172
+   - 섹션 2 (126.70035149784493,37.395099827387256 -> 127.25346140995374,37.444346821291546) 추출 라인 좌표수: 535
+🗺️ [extractPolyline] 카카오 폴리라인 궤적 총 707개의 포인트 추출 성공
+🗺️ [extractPolyline] 섹션(구간) 수: 4
+   - 섹션 1 (127.25266497549042,37.376559198692725 -> 127.29618883433861,37.41017955534316) 추출 라인 좌표수: 172
+   - 섹션 2 (127.25183216313654,37.40978702736052 -> 127.25346140995374,37.41100633860775) 추출 라인 좌표수: 18
+   - 섹션 3 (126.95173706706703,37.30326176980379 -> 127.25608766758833,37.428391821968134) 추출 라인 좌표수: 442
+   - 섹션 4 (126.70035149784493,37.31409697523695 -> 126.96034518598195,37.444346821291546) 추출 라인 좌표수: 391
+🗺️ [extractPolyline] 카카오 폴리라인 궤적 총 1023개의 포인트 추출 성공
+🗺️ [사후 재계산 - 합짐] 현위치 접근: 6537m (773초) / 총 이동: 83420m
+🗺️ [사후 재계산 완료] 취소 반영 후 경로/소요시간 갱신 완료.
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 2항목 적재 중 [화면: LIST]
+[ROADMAP 02:49:21.256] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 1항목 적재 중 [화면: LIST]
+[ROADMAP 02:49:23.131] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)
+📡 [HTTP 수신] POST /api/orders/confirm - IP: ::ffff:172.30.1.54
+[ROADMAP 02:49:28.061] [☁️서버] [HTTP 폴링] 응답 /orders/confirm
+📤 [Socket 푸시] order-evaluating (40243789-5df7-4504-b5b7-441751f50b02)
+⏱️ [1차 선빵 수신] 경안동 ➡️ 삼동 (기기: 앱폰-sdk_gpho-160)
+[ROADMAP 02:49:28.061] [☁️서버] [HTTP 폴링] POST /orders/confirm 확정정보 정보 전송 수신
+[ROADMAP 02:49:28.061] [☁️서버] 대기 필터로 설정값 업데이트 (isActive: false)
+📤 [Socket 푸시] filter-updated (isActive: false)
+[ROADMAP 02:49:28.062] [☁️서버] [Socket] 확정정보 정보 + 대기 필터 정보 전송
+[ROADMAP 02:49:28.062] [☁️서버] 관제탑 무응답 대비 30초 데스밸리 타이머 기동 (안전망 강화)
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 0항목 적재 중 [화면: DETAIL_PRE_CONFIRM]
+[ROADMAP 02:49:28.248] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)
+📡 [HTTP 수신] POST /api/orders/detail - IP: ::ffff:172.30.1.54
+[ROADMAP 02:49:29.201] [☁️서버] [HTTP 폴링] POST /orders/detail 데이터 수신
+[ROADMAP 02:49:29.203] [☁️서버] [Socket] 상하차지 송출
+
+======================================================
+[서버-사이드 카카오 연산] 🚀 경기 광주시 경안동 204-5 홈플러스 광주점 ➡️ 경기 의왕시 삼동 철도박물관로 142 철도박물관
+[ROADMAP 02:49:29.203] [☁️서버] 🛡️ [카카오 API 3중 폴백] 괄호제거 ➡️ 주소검색 ➡️ 키워드검색 ➡️ 4어절 절사
+🌍 [Geocoding] 상차지 변환: '경기 광주시 경안동 204-5 홈플러스 광주점' -> X:126.930393028084, Y:35.1793194599394
+🌍 [Geocoding] 하차지 변환: '경기 의왕시 삼동 철도박물관로 142 철도박물관' -> X:126.951310978537, Y:37.3140867524318
+   - 💡 상태: [합짐] 우회 동선 연산
+   - 기존 본콜: 경기 광주시 경안동 167-1 경안천 체육공원 ➡️ 인천 남동구 인하로 484 뉴코아아울렛 인천점
+   - 추가 경유: 경기 광주시 경안동 204-5 홈플러스 광주점 ➡️ 경기 의왕시 삼동 철도박물관로 142 철도박물관
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 0항목 적재 중 [화면: POPUP_DROPOFF]
+[ROADMAP 02:49:29.404] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 0항목 적재 중 [화면: DETAIL_CONFIRMED]
+[ROADMAP 02:49:29.637] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)
+
+🚙 [Kakao API Request] 스마트 합짐 우회 경로 요청 (다중 경유지 API)
+   - Origin: 127.29441776104179,37.37668247218943 / Dest: 126.70071998155683,37.44414477209116
+   - Waypoints Count: 5
+✅ [Kakao API Response] 폴리라인 길이 예상: (데이터 추출 중)
+🗺️ [extractPolyline] 섹션(구간) 수: 2
+   - 섹션 1 (127.25266497549042,37.376559198692725 -> 127.29618883433861,37.41017955534316) 추출 라인 좌표수: 172
+   - 섹션 2 (126.70035149784493,37.395099827387256 -> 127.25346140995374,37.444346821291546) 추출 라인 좌표수: 535
+🗺️ [extractPolyline] 카카오 폴리라인 궤적 총 707개의 포인트 추출 성공
+🗺️ [extractPolyline] 섹션(구간) 수: 6
+   - 섹션 1 (127.25266497549042,37.376559198692725 -> 127.29618883433861,37.41017955534316) 추출 라인 좌표수: 172
+   - 섹션 2 (127.25183216313654,37.40978702736052 -> 127.25346140995374,37.41100633860775) 추출 라인 좌표수: 18
+   - 섹션 3 (126.92994718139504,35.176466543090555 -> 127.25627970941734,37.41125926797472) 추출 라인 좌표수: 2264
+   - 섹션 4 (126.95173706706703,35.17886069539161 -> 127.18962852562166,37.31409697523695) 추출 라인 좌표수: 1963
+   - 섹션 5 (-9223372036854776000,37.31409697523695 -> 126.95173706706703,37.31409697523695) 추출 라인 좌표수: 2
+   - 섹션 6 (126.70035149784493,37.31409697523695 -> 126.96034518598195,37.444346821291546) 추출 라인 좌표수: 391
+🗺️ [extractPolyline] 카카오 폴리라인 궤적 총 4810개의 포인트 추출 성공
+   - ⚠️ 패널티 결과: +550.4km, +382분 '똥' (현위치접근: 6.5km, 13분)
+   - 🗺️ 궤적 길이 (Detour): 4810
+======================================================
+
+📤 [Socket 푸시] order-evaluated (40243789-5df7-4504-b5b7-441751f50b02)
+[ROADMAP 02:49:31.748] [☁️서버] [Socket] 경로 및 시간 정보, 수익률 전송
+🔎 [카카오 연산 완료] +550.4km, +382분 '똥' | Polyline 길이: 4810
+⚖️ [소켓 Decision] User: 66176c7b-1755-444c-9b65-7ca056e3c303, ID: 40243789-5df7-4504-b5b7-441751f50b02, Action: CANCEL
+[ROADMAP 02:49:38.790] [☁️서버] [HTTP 폴링] 응답 /orders/detail 취소 정보 전송
+[ROADMAP 02:49:38.792] [☁️서버] 첫콜 필터로 설정값 업데이트
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 0항목 적재 중 [화면: DETAIL_CONFIRMED]
+[ROADMAP 02:49:39.071] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)
+
+🚙 [Kakao API Request] 스마트 합짐 우회 경로 요청 (다중 경유지 API)
+   - Origin: 127.29441776104179,37.37668247218943 / Dest: 126.70071998155683,37.44414477209116
+   - Waypoints Count: 3
+✅ [Kakao API Response] 폴리라인 길이 예상: (데이터 추출 중)
+🗺️ [extractPolyline] 섹션(구간) 수: 2
+   - 섹션 1 (127.25266497549042,37.376559198692725 -> 127.29618883433861,37.41017955534316) 추출 라인 좌표수: 172
+   - 섹션 2 (126.70035149784493,37.395099827387256 -> 127.25346140995374,37.444346821291546) 추출 라인 좌표수: 535
+🗺️ [extractPolyline] 카카오 폴리라인 궤적 총 707개의 포인트 추출 성공
+🗺️ [extractPolyline] 섹션(구간) 수: 4
+   - 섹션 1 (127.25266497549042,37.376559198692725 -> 127.29618883433861,37.41017955534316) 추출 라인 좌표수: 172
+   - 섹션 2 (127.25183216313654,37.40978702736052 -> 127.25346140995374,37.41100633860775) 추출 라인 좌표수: 18
+   - 섹션 3 (126.95173706706703,37.30326176980379 -> 127.25608766758833,37.428391821968134) 추출 라인 좌표수: 442
+   - 섹션 4 (126.70035149784493,37.31409697523695 -> 126.96034518598195,37.444346821291546) 추출 라인 좌표수: 391
+🗺️ [extractPolyline] 카카오 폴리라인 궤적 총 1023개의 포인트 추출 성공
+🗺️ [사후 재계산 - 합짐] 현위치 접근: 6537m (773초) / 총 이동: 83420m
+🗺️ [사후 재계산 완료] 취소 반영 후 경로/소요시간 갱신 완료.
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 2항목 적재 중 [화면: LIST]
+[ROADMAP 02:49:39.937] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 1항목 적재 중 [화면: LIST]
+[ROADMAP 02:49:43.146] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 1항목 적재 중 [화면: LIST]
+[ROADMAP 02:49:48.159] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)
+^C2:49:53 AM [tsx] Previous process hasn't exited yet. Force killing...
+2:49:53 AM [tsx] Previous process hasn't exited yet. Force killing...
+/Users/seungwookkim/reps/onedal/onedal-web/client:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  client@0.0.0 dev: `vite`
+Command failed with signal "SIGINT"
+/Users/seungwookkim/reps/onedal/onedal-web/server:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  server@1.0.0 dev: `tsx watch src/index.ts`
+Exit status 130
+ ELIFECYCLE  Command failed.
+ ELIFECYCLE  Command failed with exit code 130.
+ ELIFECYCLE  Command failed.
+
+seungwookkim@seungwookui-MacBookPro onedal-web % pnpm dev
+
+> onedal-web-workspace@ dev /Users/seungwookkim/reps/onedal/onedal-web
+> pnpm run dev:server & pnpm run dev:client
+
+
+> onedal-web-workspace@ dev:server /Users/seungwookkim/reps/onedal/onedal-web
+> pnpm --filter server dev
+
+
+> onedal-web-workspace@ dev:client /Users/seungwookkim/reps/onedal/onedal-web
+> pnpm --filter client dev
+
+
+> server@1.0.0 dev /Users/seungwookkim/reps/onedal/onedal-web/server
+> tsx watch src/index.ts
+
+
+> client@0.0.0 dev /Users/seungwookkim/reps/onedal/onedal-web/client
+> vite
+
+
+  VITE v8.0.3  ready in 430 ms
+
+  ➜  Local:   http://localhost:3000/
+  ➜  Network: use --host to expose
+  ➜  press h + enter to show help
+📂 SQLite DB 준비 완료: /Users/seungwookkim/reps/onedal/onedal-web/server/local.db
+[dotenv@17.3.1] injecting env (5) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+✅ 프론트엔드 빌드 폴더를 서빙합니다: /Users/seungwookkim/reps/onedal/onedal-web/client/dist
+🗺️ [GeoService] 전국 자치구/읍면동 폴리곤 로드 성공 (총 1239개 방어구역)
+[ROADMAP 05:35:54.677] [☁️서버] 서버 기동 및 디폴트 필터 셋업 (대기 모드)
+
+🚀 1DAL 서버 (Express + Socket.io) 시작됨
+📡 서버 포트: 4000
+🌐 대시보드는 http://localhost:3000 에서 확인하세요
+
+❌ [Socket] 토큰 검증 실패: TokenExpiredError: jwt expired
+    at /Users/seungwookkim/reps/onedal/onedal-web/server/node_modules/.pnpm/jsonwebtoken@9.0.3/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/Users/seungwookkim/reps/onedal/onedal-web/server/node_modules/.pnpm/jsonwebtoken@9.0.3/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/Users/seungwookkim/reps/onedal/onedal-web/server/node_modules/.pnpm/jsonwebtoken@9.0.3/node_modules/jsonwebtoken/verify.js:101:10)
+    at Array.<anonymous> (/Users/seungwookkim/reps/onedal/onedal-web/server/src/socket/socketHandlers.ts:27:33)
+    at run (/Users/seungwookkim/reps/onedal/onedal-web/node_modules/.pnpm/socket.io@4.8.3/node_modules/socket.io/dist/namespace.js:133:19)
+    at Namespace.run (/Users/seungwookkim/reps/onedal/onedal-web/node_modules/.pnpm/socket.io@4.8.3/node_modules/socket.io/dist/namespace.js:144:9)
+    at Namespace._add (/Users/seungwookkim/reps/onedal/onedal-web/node_modules/.pnpm/socket.io@4.8.3/node_modules/socket.io/dist/namespace.js:221:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5) {
+  expiredAt: 2026-04-19T18:41:09.000Z
+}
+📡 [HTTP 수신] GET /api/auth/me - IP: ::1
+❌ [AuthMiddleware] 토큰 검증 실패: TokenExpiredError: jwt expired
+    at /Users/seungwookkim/reps/onedal/onedal-web/server/node_modules/.pnpm/jsonwebtoken@9.0.3/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/Users/seungwookkim/reps/onedal/onedal-web/server/node_modules/.pnpm/jsonwebtoken@9.0.3/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/Users/seungwookkim/reps/onedal/onedal-web/server/node_modules/.pnpm/jsonwebtoken@9.0.3/node_modules/jsonwebtoken/verify.js:101:10)
+    at requireAuth (/Users/seungwookkim/reps/onedal/onedal-web/server/src/middlewares/authMiddleware.ts:38:29)
+    at Layer.handleRequest (/Users/seungwookkim/reps/onedal/onedal-web/node_modules/.pnpm/router@2.2.0/node_modules/router/lib/layer.js:152:17)
+    at next (/Users/seungwookkim/reps/onedal/onedal-web/node_modules/.pnpm/router@2.2.0/node_modules/router/lib/route.js:157:13)
+    at Route.dispatch (/Users/seungwookkim/reps/onedal/onedal-web/node_modules/.pnpm/router@2.2.0/node_modules/router/lib/route.js:117:3)
+    at handle (/Users/seungwookkim/reps/onedal/onedal-web/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:435:11)
+    at Layer.handleRequest (/Users/seungwookkim/reps/onedal/onedal-web/node_modules/.pnpm/router@2.2.0/node_modules/router/lib/layer.js:152:17)
+    at /Users/seungwookkim/reps/onedal/onedal-web/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:295:15 {
+  expiredAt: 2026-04-19T18:41:09.000Z
+}
+📡 [HTTP 수신] GET /api/auth/me - IP: ::1
+❌ [AuthMiddleware] 토큰 검증 실패: TokenExpiredError: jwt expired
+    at /Users/seungwookkim/reps/onedal/onedal-web/server/node_modules/.pnpm/jsonwebtoken@9.0.3/node_modules/jsonwebtoken/verify.js:190:21
+    at getSecret (/Users/seungwookkim/reps/onedal/onedal-web/server/node_modules/.pnpm/jsonwebtoken@9.0.3/node_modules/jsonwebtoken/verify.js:97:14)
+    at module.exports [as verify] (/Users/seungwookkim/reps/onedal/onedal-web/server/node_modules/.pnpm/jsonwebtoken@9.0.3/node_modules/jsonwebtoken/verify.js:101:10)
+    at requireAuth (/Users/seungwookkim/reps/onedal/onedal-web/server/src/middlewares/authMiddleware.ts:38:29)
+    at Layer.handleRequest (/Users/seungwookkim/reps/onedal/onedal-web/node_modules/.pnpm/router@2.2.0/node_modules/router/lib/layer.js:152:17)
+    at next (/Users/seungwookkim/reps/onedal/onedal-web/node_modules/.pnpm/router@2.2.0/node_modules/router/lib/route.js:157:13)
+    at Route.dispatch (/Users/seungwookkim/reps/onedal/onedal-web/node_modules/.pnpm/router@2.2.0/node_modules/router/lib/route.js:117:3)
+    at handle (/Users/seungwookkim/reps/onedal/onedal-web/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:435:11)
+    at Layer.handleRequest (/Users/seungwookkim/reps/onedal/onedal-web/node_modules/.pnpm/router@2.2.0/node_modules/router/lib/layer.js:152:17)
+    at /Users/seungwookkim/reps/onedal/onedal-web/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:295:15 {
+  expiredAt: 2026-04-19T18:41:09.000Z
+}
+📡 [HTTP 수신] POST /api/auth/refresh - IP: ::1
+📡 [HTTP 수신] GET /api/auth/me - IP: ::1
+[Session] 유저 66176c7b-1755-444c-9b65-7ca056e3c303 의 기존 필터 복구 완료
+📡 [HTTP 수신] GET /api/auth/me - IP: ::1
+📡 [HTTP 수신] GET /api/orders - IP: ::1
+📡 [HTTP 수신] GET /api/orders - IP: ::1
+🔌 [소켓 연결] 유저 접속: 알타리(알타리) (66176c7b-1755-444c-9b65-7ca056e3c303)
+[ROADMAP 05:35:59.049] [☁️서버] 관제탑 소켓 접속 완료 및 기사의 기본 필터 DB Lazy Load 연산
+[ROADMAP 05:35:59.049] [☁️서버] 관제탑에게 초기 UI 복원용 필터(filter-init) 정보 전달
+[ROADMAP 05:35:59.408] [☁️서버] 방대한 스크랩 배열값을 intel 테이블 DB 저장
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 0항목 적재 중 [화면: LIST]
+[ROADMAP 05:35:59.411] [☁️서버] 앱폰으로 부터 무수한 스크랩(intel) 데이터 및 GPS 요청 받음
+[ROADMAP 05:35:59.411] [☁️서버] 관제탑에게 실시간 마커용 GPS(device-sessions-updated) 정보 전달
+[ROADMAP 05:35:59.411] [☁️서버] 앱폰에게 최신 필터(dispatchEngineArgs) 및 제어 명령 정보 전달
+[ROADMAP 05:36:59.437] [☁️서버] 방대한 스크랩 배열값을 intel 테이블 DB 저장
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 0항목 적재 중 [화면: LIST]
+[ROADMAP 05:36:59.439] [☁️서버] 앱폰으로 부터 무수한 스크랩(intel) 데이터 및 GPS 요청 받음
+[ROADMAP 05:36:59.439] [☁️서버] 관제탑에게 실시간 마커용 GPS(device-sessions-updated) 정보 전달
+[ROADMAP 05:36:59.439] [☁️서버] 앱폰에게 최신 필터(dispatchEngineArgs) 및 제어 명령 정보 전달
+[ROADMAP 05:37:59.464] [☁️서버] 방대한 스크랩 배열값을 intel 테이블 DB 저장
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 0항목 적재 중 [화면: LIST]
+[ROADMAP 05:37:59.467] [☁️서버] 앱폰으로 부터 무수한 스크랩(intel) 데이터 및 GPS 요청 받음
+[ROADMAP 05:37:59.468] [☁️서버] 관제탑에게 실시간 마커용 GPS(device-sessions-updated) 정보 전달
+[ROADMAP 05:37:59.468] [☁️서버] 앱폰에게 최신 필터(dispatchEngineArgs) 및 제어 명령 정보 전달
+[ROADMAP 05:38:59.469] [☁️서버] 방대한 스크랩 배열값을 intel 테이블 DB 저장
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 0항목 적재 중 [화면: LIST]
+[ROADMAP 05:38:59.471] [☁️서버] 앱폰으로 부터 무수한 스크랩(intel) 데이터 및 GPS 요청 받음
+[ROADMAP 05:38:59.471] [☁️서버] 관제탑에게 실시간 마커용 GPS(device-sessions-updated) 정보 전달
+[ROADMAP 05:38:59.471] [☁️서버] 앱폰에게 최신 필터(dispatchEngineArgs) 및 제어 명령 정보 전달
+5:39:00 AM [vite] (client) hmr update /src/index.css, /src/contexts/AuthContext.tsx, /src/pages/Dashboard.tsx, /src/components/dashboard/DeviceControlPanel.tsx, /src/components/dashboard/SettingsModal.tsx
+5:39:00 AM [vite] (client) hmr invalidate /src/contexts/AuthContext.tsx Could not Fast Refresh ("useAuth" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:39:00 AM [vite] (client) page reload src/contexts/AuthContext.tsx
+❌ [소켓 해제] 클라이언트 종료: DrqdR4v-15_iy5HQAAAD
+📡 [HTTP 수신] GET /api/auth/me - IP: ::1
+📡 [HTTP 수신] GET /api/auth/me - IP: ::1
+🔌 [소켓 연결] 유저 접속: 알타리(알타리) (66176c7b-1755-444c-9b65-7ca056e3c303)
+[ROADMAP 05:39:00.834] [☁️서버] 관제탑 소켓 접속 완료 및 기사의 기본 필터 DB Lazy Load 연산
+[ROADMAP 05:39:00.834] [☁️서버] 관제탑에게 초기 UI 복원용 필터(filter-init) 정보 전달
+📡 [HTTP 수신] GET /api/orders - IP: ::1
+📡 [HTTP 수신] GET /api/orders - IP: ::1
+^C5:39:33 AM [tsx] Previous process hasn't exited yet. Force killing...
+/Users/seungwookkim/reps/onedal/onedal-web/client:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  client@0.0.0 dev: `vite`
+Command failed with signal "SIGINT"
+/Users/seungwookkim/reps/onedal/onedal-web/server:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  server@1.0.0 dev: `tsx watch src/index.ts`
+Exit status 130
+ ELIFECYCLE  Command failed.
+ ELIFECYCLE  Command failed with exit code 130.
+ ELIFECYCLE  Command failed.
+
+seungwookkim@seungwookui-MacBookPro onedal-web % pnpm dev
+
+> onedal-web-workspace@ dev /Users/seungwookkim/reps/onedal/onedal-web
+> pnpm run dev:server & pnpm run dev:client
+
+
+> onedal-web-workspace@ dev:server /Users/seungwookkim/reps/onedal/onedal-web
+> pnpm --filter server dev
+
+
+> onedal-web-workspace@ dev:client /Users/seungwookkim/reps/onedal/onedal-web
+> pnpm --filter client dev
+
+
+> server@1.0.0 dev /Users/seungwookkim/reps/onedal/onedal-web/server
+> tsx watch src/index.ts
+
+
+> client@0.0.0 dev /Users/seungwookkim/reps/onedal/onedal-web/client
+> vite
+
+
+  VITE v8.0.3  ready in 194 ms
+
+  ➜  Local:   http://localhost:3000/
+  ➜  Network: use --host to expose
+  ➜  press h + enter to show help
+📂 SQLite DB 준비 완료: /Users/seungwookkim/reps/onedal/onedal-web/server/local.db
+5:39:37 AM [vite] ws proxy error:
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1134:18)
+    at afterConnectMultiple (node:net:1715:7)
+5:39:37 AM [vite] http proxy error: /api/auth/me
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1134:18)
+    at afterConnectMultiple (node:net:1715:7)
+5:39:37 AM [vite] http proxy error: /api/auth/me
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1134:18)
+    at afterConnectMultiple (node:net:1715:7) (x2)
+[dotenv@17.3.1] injecting env (5) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+✅ 프론트엔드 빌드 폴더를 서빙합니다: /Users/seungwookkim/reps/onedal/onedal-web/client/dist
+🗺️ [GeoService] 전국 자치구/읍면동 폴리곤 로드 성공 (총 1239개 방어구역)
+[ROADMAP 05:39:37.837] [☁️서버] 서버 기동 및 디폴트 필터 셋업 (대기 모드)
+
+🚀 1DAL 서버 (Express + Socket.io) 시작됨
+📡 서버 포트: 4000
+🌐 대시보드는 http://localhost:3000 에서 확인하세요
+
+❌ [Socket] 인증 토큰 누락 접속 거부
+📡 [HTTP 수신] POST /api/auth/google - IP: ::1
+[ROADMAP 05:39:43.793] [☁️서버] 관제탑으로 부터 구글 로그인 토큰 검증 요청 받음
+[ROADMAP 05:39:44.135] [☁️서버] email 바탕으로 접속 유저 정보 DB 조회/생성 연산
+🔓 [AUTH] 기존 회원 로그인: 알타리(알타리) (altarister@gmail.com)
+[ROADMAP 05:39:44.210] [☁️서버] 관제탑에게 인증 JWT Token 발급 및 정보 전달
+🔌 [소켓 연결] 유저 접속: 알타리(알타리) (66176c7b-1755-444c-9b65-7ca056e3c303)
+[Session] 유저 66176c7b-1755-444c-9b65-7ca056e3c303 의 기존 필터 복구 완료
+[ROADMAP 05:39:44.322] [☁️서버] 관제탑 소켓 접속 완료 및 기사의 기본 필터 DB Lazy Load 연산
+[ROADMAP 05:39:44.322] [☁️서버] 관제탑에게 초기 UI 복원용 필터(filter-init) 정보 전달
+📡 [HTTP 수신] GET /api/orders - IP: ::1
+📡 [HTTP 수신] GET /api/orders - IP: ::1
+📡 [HTTP 수신] GET /api/config/keywords?app=%EC%9D%B8%EC%84%B1%EC%BD%9C - IP: ::ffff:172.30.1.54
+설정 파일 없음: /Users/seungwookkim/reps/onedal/onedal-web/config/keywords_inseong.json
+[ROADMAP 05:40:00.306] [☁️서버] 방대한 스크랩 배열값을 intel 테이블 DB 저장
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 0항목 적재 중 [화면: LIST]
+[ROADMAP 05:40:00.309] [☁️서버] 앱폰으로 부터 무수한 스크랩(intel) 데이터 및 GPS 요청 받음
+[ROADMAP 05:40:00.309] [☁️서버] 관제탑에게 실시간 마커용 GPS(device-sessions-updated) 정보 전달
+[ROADMAP 05:40:00.309] [☁️서버] 앱폰에게 최신 필터(dispatchEngineArgs) 및 제어 명령 정보 전달
+[ROADMAP 05:40:01.026] [☁️서버] 방대한 스크랩 배열값을 intel 테이블 DB 저장
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 0항목 적재 중 [화면: UNKNOWN]
+[ROADMAP 05:40:01.027] [☁️서버] 앱폰으로 부터 무수한 스크랩(intel) 데이터 및 GPS 요청 받음
+[ROADMAP 05:40:01.027] [☁️서버] 관제탑에게 실시간 마커용 GPS(device-sessions-updated) 정보 전달
+[ROADMAP 05:40:01.027] [☁️서버] 앱폰에게 최신 필터(dispatchEngineArgs) 및 제어 명령 정보 전달
+📡 [HTTP 수신] POST /api/orders/confirm - IP: ::ffff:172.30.1.54
+[ROADMAP 05:40:06.688] [☁️서버] 앱폰에게 상세 정보 스크래핑을 즉시 진행하라고 응답 전달
+[ROADMAP 05:40:06.689] [☁️서버] 콜의 가확정 상태를 메모리에 캐싱 연산
+📤 [Socket 푸시] order-evaluating (5085657b-e64e-47a6-92c1-a2c76c08a865)
+⏱️ [1차 선빵 수신] 경안동 ➡️ 만안구 (기기: 앱폰-sdk_gpho-160)
+[ROADMAP 05:40:06.689] [☁️서버] 앱폰으로 부터 가로챈 '1차 오더 확정' 요청 받음
+[ROADMAP 05:40:06.689] [☁️서버] 관제탑에게 이 콜을 선점했음(order-evaluating) 정보 전달
+[ROADMAP 05:40:06.883] [☁️서버] 방대한 스크랩 배열값을 intel 테이블 DB 저장
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 1항목 적재 중 [화면: DETAIL_PRE_CONFIRM]
+[ROADMAP 05:40:06.884] [☁️서버] 앱폰으로 부터 무수한 스크랩(intel) 데이터 및 GPS 요청 받음
+[ROADMAP 05:40:06.884] [☁️서버] 관제탑에게 실시간 마커용 GPS(device-sessions-updated) 정보 전달
+[ROADMAP 05:40:06.884] [☁️서버] 앱폰에게 최신 필터(dispatchEngineArgs) 및 제어 명령 정보 전달
+📡 [HTTP 수신] POST /api/orders/detail - IP: ::ffff:172.30.1.54
+[ROADMAP 05:40:07.998] [☁️서버] 앱폰으로 부터 무인서핑이 완료된 '2차 오더 상세' 요청 받음
+[ROADMAP 05:40:07.998] [☁️서버] 상하차지 주소 및 적요 텍스트 정제 연산
+[ROADMAP 05:40:08.000] [☁️서버] 관제탑에게 정제된 상세 텍스트(order-detail-received) 정보 전달
+[ROADMAP 05:40:08.000] [☁️서버] 앱폰에게 디테일 데이터 정상 수신 완료 응답 전달
+
+======================================================
+[서버-사이드 카카오 연산] 🚀 경기 광주시 경안동 493-4 이마트 광주점 ➡️ 경기 안양시 만안구 전파로 44 안양우편집중국
+[ROADMAP 05:40:08.002] [☁️서버] 🛡️ 주소 3중 폴백 (괄호제거 ➡️ 주소검색 ➡️ 키워드 ➡️ 절사) 연산
+🌍 [Geocoding] 상차지 변환: '경기 광주시 경안동 493-4 이마트 광주점' -> X:126.88210921218504, Y:35.1588284814727
+🌍 [Geocoding] 하차지 변환: '경기 안양시 만안구 전파로 44 안양우편집중국' -> X:126.937072252008, Y:37.3900908987531
+[ROADMAP 05:40:08.153] [☁️서버] 카카오 지오코딩으로 반환된 출발지/도착지 X/Y 좌표 메모리 갱신 연산
+[ROADMAP 05:40:08.153] [☁️서버] 시간/통행료를 바탕으로 콜의 실수익률(기회비용) 연산
+   - 💡 상태: [첫짐] 단독 주행 연산
+[Kakao Nav API (Solo)] 호출 URL: https://apis-navi.kakaomobility.com/v1/directions?origin=127.29441998740202,37.37652463813448&destination=126.937072252008,37.3900908987531&waypoints=126.88210921218504,35.1588284814727&priority=RECOMMEND&car_type=1
+[ROADMAP 05:40:08.370] [☁️서버] 방대한 스크랩 배열값을 intel 테이블 DB 저장
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 0항목 적재 중 [화면: DETAIL_CONFIRMED]
+[ROADMAP 05:40:08.370] [☁️서버] 앱폰으로 부터 무수한 스크랩(intel) 데이터 및 GPS 요청 받음
+[ROADMAP 05:40:08.370] [☁️서버] 관제탑에게 실시간 마커용 GPS(device-sessions-updated) 정보 전달
+[ROADMAP 05:40:08.370] [☁️서버] 앱폰에게 최신 필터(dispatchEngineArgs) 및 제어 명령 정보 전달
+🗺️ [extractPolyline] 섹션(구간) 수: 2
+   - 섹션 1 (126.88187376356579,35.15844563493919 -> 127.50781446431142,37.37757038290592) 추출 라인 좌표수: 2082
+   - 섹션 2 (126.93708541193726,35.15833586274857 -> 127.18962852562166,37.391949424595985) 추출 라인 좌표수: 1968
+🗺️ [extractPolyline] 카카오 폴리라인 궤적 총 4050개의 포인트 추출 성공
+   - ⏱️ 결과: 단독 577.9km, 422분 '똥' (현위치접근: 293.1km, 209분)
+   - 🗺️ 궤적 길이 (Solo): 4050
+======================================================
+
+[ROADMAP 05:40:09.535] [☁️서버] 경로 폴리라인 및 최종 수익성(콜/꿀/똥) 라벨링 연산
+📤 [Socket 푸시] order-evaluated (5085657b-e64e-47a6-92c1-a2c76c08a865)
+[ROADMAP 05:40:09.539] [☁️서버] 관제탑에게 최종 판독된 오더 정보(order-evaluated) 전달
+🔎 [카카오 연산 완료] 단독 577.9km, 422분 '똥' | Polyline 길이: 4050
+⚖️ [소켓 Decision] User: 66176c7b-1755-444c-9b65-7ca056e3c303, ID: 5085657b-e64e-47a6-92c1-a2c76c08a865, Action: CANCEL
+[ROADMAP 05:40:12.742] [☁️서버] 앱폰에게 Action=Cancel 최종 판결 응답 전달
+[ROADMAP 05:40:12.745] [☁️서버] 관제탑으로 부터 Cancel 결재 요청 받음
+[ROADMAP 05:40:12.745] [☁️서버] 취소된 콜을 메모리 큐에서 삭제 처리 연산
+[ROADMAP 05:40:12.745] [☁️서버] 관제탑에게 콜이 삭제되었음(order-canceled) 정보 전달
+[ROADMAP 05:40:12.745] [☁️서버] 기존 디폴트 설정값으로 필터 복구 연산
+[ROADMAP 05:40:12.745] [☁️서버] 앱폰 및 관제탑에게 원상복구된 필터(filter-updated) 정보 전달
+[ROADMAP 05:40:13.049] [☁️서버] 방대한 스크랩 배열값을 intel 테이블 DB 저장
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 0항목 적재 중 [화면: DETAIL_CONFIRMED]
+[ROADMAP 05:40:13.051] [☁️서버] 앱폰으로 부터 무수한 스크랩(intel) 데이터 및 GPS 요청 받음
+[ROADMAP 05:40:13.051] [☁️서버] 관제탑에게 실시간 마커용 GPS(device-sessions-updated) 정보 전달
+[ROADMAP 05:40:13.051] [☁️서버] 앱폰에게 최신 필터(dispatchEngineArgs) 및 제어 명령 정보 전달
+📡 [HTTP 수신] POST /api/orders/confirm - IP: ::ffff:172.30.1.54
+[ROADMAP 05:40:13.792] [☁️서버] 앱폰에게 상세 정보 스크래핑을 즉시 진행하라고 응답 전달
+[ROADMAP 05:40:13.793] [☁️서버] 콜의 가확정 상태를 메모리에 캐싱 연산
+📤 [Socket 푸시] order-evaluating (78ec901a-c96b-479e-8c94-b10ad34994c4)
+⏱️ [1차 선빵 수신] 초월읍 ➡️ 고덕동 (기기: 앱폰-sdk_gpho-160)
+[ROADMAP 05:40:13.793] [☁️서버] 앱폰으로 부터 가로챈 '1차 오더 확정' 요청 받음
+[ROADMAP 05:40:13.793] [☁️서버] 관제탑에게 이 콜을 선점했음(order-evaluating) 정보 전달
+📤 [Socket 푸시] filter-updated (isActive: false)
+[ROADMAP 05:40:13.793] [☁️서버] 폰의 isHolding=true 기간 동안 다른 콜을 물지 않도록 필터 비활성 정보 전달
+[ROADMAP 05:40:13.793] [☁️서버] 데스밸리 15초 카운트다운 타이머 감시 연산
+[ROADMAP 05:40:13.992] [☁️서버] 방대한 스크랩 배열값을 intel 테이블 DB 저장
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 0항목 적재 중 [화면: DETAIL_PRE_CONFIRM]
+[ROADMAP 05:40:13.992] [☁️서버] 앱폰으로 부터 무수한 스크랩(intel) 데이터 및 GPS 요청 받음
+[ROADMAP 05:40:13.992] [☁️서버] 관제탑에게 실시간 마커용 GPS(device-sessions-updated) 정보 전달
+[ROADMAP 05:40:13.992] [☁️서버] 앱폰에게 최신 필터(dispatchEngineArgs) 및 제어 명령 정보 전달
+📡 [HTTP 수신] POST /api/orders/detail - IP: ::ffff:172.30.1.54
+[ROADMAP 05:40:14.657] [☁️서버] 앱폰으로 부터 무인서핑이 완료된 '2차 오더 상세' 요청 받음
+[ROADMAP 05:40:14.658] [☁️서버] 상하차지 주소 및 적요 텍스트 정제 연산
+[ROADMAP 05:40:14.658] [☁️서버] 관제탑에게 정제된 상세 텍스트(order-detail-received) 정보 전달
+[ROADMAP 05:40:14.658] [☁️서버] 앱폰에게 디테일 데이터 정상 수신 완료 응답 전달
+
+======================================================
+[서버-사이드 카카오 연산] 🚀 경기 광주시 초월읍 경충대로 2073 초월읍행정복지센터 ➡️ 경기 평택시 고덕동 첨단대로 1 삼성전자 평택캠퍼스
+[ROADMAP 05:40:14.658] [☁️서버] 🛡️ 주소 3중 폴백 (괄호제거 ➡️ 주소검색 ➡️ 키워드 ➡️ 절사) 연산
+🌍 [Geocoding] 상차지 변환: '경기 광주시 초월읍 경충대로 2073 초월읍행정복지센터' -> X:127.287960741315, Y:37.3852482375545
+🌍 [Geocoding] 하차지 변환: '경기 평택시 고덕동 첨단대로 1 삼성전자 평택캠퍼스' -> X:127.05679645475973, Y:37.03846289921283
+[ROADMAP 05:40:14.804] [☁️서버] 카카오 지오코딩으로 반환된 출발지/도착지 X/Y 좌표 메모리 갱신 연산
+[ROADMAP 05:40:14.805] [☁️서버] 시간/통행료를 바탕으로 콜의 실수익률(기회비용) 연산
+   - 💡 상태: [첫짐] 단독 주행 연산
+[Kakao Nav API (Solo)] 호출 URL: https://apis-navi.kakaomobility.com/v1/directions?origin=127.29441998740202,37.37652463813448&destination=127.05679645475973,37.03846289921283&waypoints=127.287960741315,37.3852482375545&priority=RECOMMEND&car_type=1
+[ROADMAP 05:40:14.981] [☁️서버] 방대한 스크랩 배열값을 intel 테이블 DB 저장
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 0항목 적재 중 [화면: DETAIL_CONFIRMED]
+[ROADMAP 05:40:14.981] [☁️서버] 앱폰으로 부터 무수한 스크랩(intel) 데이터 및 GPS 요청 받음
+[ROADMAP 05:40:14.981] [☁️서버] 관제탑에게 실시간 마커용 GPS(device-sessions-updated) 정보 전달
+[ROADMAP 05:40:14.981] [☁️서버] 앱폰에게 최신 필터(dispatchEngineArgs) 및 제어 명령 정보 전달
+🗺️ [extractPolyline] 섹션(구간) 수: 2
+   - 섹션 1 (127.28838794679399,37.376559131334794 -> 127.29618883433861,37.3854258015167) 추출 라인 좌표수: 75
+   - 섹션 2 (127.05405185133016,37.039392212341035 -> 127.29243792030857,37.395437801668265) 추출 라인 좌표수: 963
+🗺️ [extractPolyline] 카카오 폴리라인 궤적 총 1038개의 포인트 추출 성공
+   - ⏱️ 결과: 단독 62.3km, 74분 '콜' (현위치접근: 1.7km, 4분)
+   - 🗺️ 궤적 길이 (Solo): 1038
+======================================================
+
+[ROADMAP 05:40:15.462] [☁️서버] 경로 폴리라인 및 최종 수익성(콜/꿀/똥) 라벨링 연산
+📤 [Socket 푸시] order-evaluated (78ec901a-c96b-479e-8c94-b10ad34994c4)
+[ROADMAP 05:40:15.464] [☁️서버] 관제탑에게 최종 판독된 오더 정보(order-evaluated) 전달
+🔎 [카카오 연산 완료] 단독 62.3km, 74분 '콜' | Polyline 길이: 1038
+⚖️ [소켓 Decision] User: 66176c7b-1755-444c-9b65-7ca056e3c303, ID: 78ec901a-c96b-479e-8c94-b10ad34994c4, Action: KEEP
+[ROADMAP 05:40:25.839] [☁️서버] 앱폰에게 Action=Keep 최종 판결 응답 전달
+[ROADMAP 05:40:25.839] [☁️서버] 관제탑으로 부터 Keep 결재 요청 받음
+[ROADMAP 05:40:25.840] [☁️서버] 해당 콜을 '메인콜' (또는 서브콜) 로 승격 및 병합 궤적 생성 연산
+[ROADMAP 05:40:25.840] [☁️서버] 관제탑에게 확정되었음(order-confirmed) 정보 전달
+[ROADMAP 05:40:25.840] [☁️서버] 합짐을 위한 반경/목적지 추천 키워드로 다이나믹 필터 생성 연산
+[ROADMAP 05:40:25.840] [☁️서버] 새로 부여된 합짐 필터(isSharedMode)값 DB 저장
+[ROADMAP 05:40:25.840] [☁️서버] 앱폰 및 관제탑에게 새로운 타겟팅 필터(filter-updated) 정보 전달
+[ROADMAP 05:40:26.055] [☁️서버] 방대한 스크랩 배열값을 intel 테이블 DB 저장
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 0항목 적재 중 [화면: DETAIL_CONFIRMED]
+[ROADMAP 05:40:26.055] [☁️서버] 앱폰으로 부터 무수한 스크랩(intel) 데이터 및 GPS 요청 받음
+[ROADMAP 05:40:26.055] [☁️서버] 관제탑에게 실시간 마커용 GPS(device-sessions-updated) 정보 전달
+[ROADMAP 05:40:26.055] [☁️서버] 앱폰에게 최신 필터(dispatchEngineArgs) 및 제어 명령 정보 전달
+📡 [HTTP 수신] POST /api/orders/confirm - IP: ::ffff:172.30.1.54
+[ROADMAP 05:40:27.105] [☁️서버] 앱폰에게 상세 정보 스크래핑을 즉시 진행하라고 응답 전달
+[ROADMAP 05:40:27.105] [☁️서버] 콜의 가확정 상태를 메모리에 캐싱 연산
+📤 [Socket 푸시] order-evaluating (fd186df6-d757-4f0f-b439-32b12661a7b3)
+⏱️ [1차 선빵 수신] 경안동 ➡️ 포곡읍 (기기: 앱폰-sdk_gpho-160)
+[ROADMAP 05:40:27.105] [☁️서버] 앱폰으로 부터 가로챈 '1차 오더 확정' 요청 받음
+[ROADMAP 05:40:27.105] [☁️서버] 관제탑에게 이 콜을 선점했음(order-evaluating) 정보 전달
+📤 [Socket 푸시] filter-updated (isActive: false)
+[ROADMAP 05:40:27.105] [☁️서버] 폰의 isHolding=true 기간 동안 다른 콜을 물지 않도록 필터 비활성 정보 전달
+[ROADMAP 05:40:27.105] [☁️서버] 데스밸리 15초 카운트다운 타이머 감시 연산
+[ROADMAP 05:40:27.307] [☁️서버] 방대한 스크랩 배열값을 intel 테이블 DB 저장
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 0항목 적재 중 [화면: DETAIL_PRE_CONFIRM]
+[ROADMAP 05:40:27.308] [☁️서버] 앱폰으로 부터 무수한 스크랩(intel) 데이터 및 GPS 요청 받음
+[ROADMAP 05:40:27.308] [☁️서버] 관제탑에게 실시간 마커용 GPS(device-sessions-updated) 정보 전달
+[ROADMAP 05:40:27.308] [☁️서버] 앱폰에게 최신 필터(dispatchEngineArgs) 및 제어 명령 정보 전달
+📡 [HTTP 수신] POST /api/orders/detail - IP: ::ffff:172.30.1.54
+[ROADMAP 05:40:27.972] [☁️서버] 앱폰으로 부터 무인서핑이 완료된 '2차 오더 상세' 요청 받음
+[ROADMAP 05:40:27.972] [☁️서버] 상하차지 주소 및 적요 텍스트 정제 연산
+[ROADMAP 05:40:27.973] [☁️서버] 관제탑에게 정제된 상세 텍스트(order-detail-received) 정보 전달
+[ROADMAP 05:40:27.973] [☁️서버] 앱폰에게 디테일 데이터 정상 수신 완료 응답 전달
+
+======================================================
+[서버-사이드 카카오 연산] 🚀 경기 광주시 경안동 167-1 경안천 체육공원 ➡️ 경기 용인시 처인구 포곡읍 에버랜드로 199
+[ROADMAP 05:40:27.974] [☁️서버] 🛡️ 주소 3중 폴백 (괄호제거 ➡️ 주소검색 ➡️ 키워드 ➡️ 절사) 연산
+🌍 [Geocoding] 상차지 변환: '경기 광주시 경안동 167-1 경안천 체육공원' -> X:127.252889947198, Y:37.4100225848715
+🌍 [Geocoding] 하차지 변환: '경기 용인시 처인구 포곡읍 에버랜드로 199' -> X:127.202128029885, Y:37.294066695953
+[ROADMAP 05:40:28.104] [☁️서버] 카카오 지오코딩으로 반환된 출발지/도착지 X/Y 좌표 메모리 갱신 연산
+[ROADMAP 05:40:28.104] [☁️서버] 기존 직진 시 대비 추가 소모 시간(+15분) 및 거리(+6km) 패널티 산출
+   - 💡 상태: [합짐] 우회 동선 연산
+   - 기존 본콜: 경기 광주시 초월읍 경충대로 2073 초월읍행정복지센터 ➡️ 경기 평택시 고덕동 첨단대로 1 삼성전자 평택캠퍼스
+   - 추가 경유: 경기 광주시 경안동 167-1 경안천 체육공원 ➡️ 경기 용인시 처인구 포곡읍 에버랜드로 199
+[ROADMAP 05:40:28.362] [☁️서버] 방대한 스크랩 배열값을 intel 테이블 DB 저장
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 0항목 적재 중 [화면: DETAIL_CONFIRMED]
+[ROADMAP 05:40:28.363] [☁️서버] 앱폰으로 부터 무수한 스크랩(intel) 데이터 및 GPS 요청 받음
+[ROADMAP 05:40:28.363] [☁️서버] 관제탑에게 실시간 마커용 GPS(device-sessions-updated) 정보 전달
+[ROADMAP 05:40:28.363] [☁️서버] 앱폰에게 최신 필터(dispatchEngineArgs) 및 제어 명령 정보 전달
+
+🚙 [Kakao API Request] 스마트 합짐 우회 경로 요청 (다중 경유지 API)
+   - Origin: 127.29441998740202,37.37652463813448 / Dest: 127.05679645475973,37.03846289921283
+   - Waypoints Count: 3
+✅ [Kakao API Response] 폴리라인 길이 예상: (데이터 추출 중)
+🗺️ [extractPolyline] 섹션(구간) 수: 2
+   - 섹션 1 (127.28838794679399,37.376559131334794 -> 127.29618883433861,37.3854258015167) 추출 라인 좌표수: 75
+   - 섹션 2 (127.05405185133016,37.039392212341035 -> 127.29243792030857,37.395437801668265) 추출 라인 좌표수: 963
+🗺️ [extractPolyline] 카카오 폴리라인 궤적 총 1038개의 포인트 추출 성공
+🗺️ [extractPolyline] 섹션(구간) 수: 4
+   - 섹션 1 (127.28838794679399,37.376559131334794 -> 127.29618883433861,37.3854258015167) 추출 라인 좌표수: 75
+   - 섹션 2 (127.25266497549042,37.38530597075917 -> 127.2894392837215,37.41017955534316) 추출 라인 좌표수: 115
+   - 섹션 3 (127.20332667221128,37.293906189136386 -> 127.25346140995374,37.410610756033265) 추출 라인 좌표수: 401
+   - 섹션 4 (127.05405185133016,37.02279066903831 -> 127.22044243463557,37.297617792072565) 추출 라인 좌표수: 700
+🗺️ [extractPolyline] 카카오 폴리라인 궤적 총 1291개의 포인트 추출 성공
+   - ⚠️ 패널티 결과: +14.9km, +51분 '콜' (현위치접근: 1.7km, 4분)
+   - 🗺️ 궤적 길이 (Detour): 1291
+======================================================
+
+[ROADMAP 05:40:29.937] [☁️서버] 경로 폴리라인 및 최종 수익성(콜/꿀/똥) 라벨링 연산
+📤 [Socket 푸시] order-evaluated (fd186df6-d757-4f0f-b439-32b12661a7b3)
+[ROADMAP 05:40:29.940] [☁️서버] 관제탑에게 최종 판독된 오더 정보(order-evaluated) 전달
+🔎 [카카오 연산 완료] +14.9km, +51분 '콜' | Polyline 길이: 1291
+⚖️ [소켓 Decision] User: 66176c7b-1755-444c-9b65-7ca056e3c303, ID: fd186df6-d757-4f0f-b439-32b12661a7b3, Action: KEEP
+[ROADMAP 05:40:35.334] [☁️서버] 앱폰에게 Action=Keep 최종 판결 응답 전달
+[ROADMAP 05:40:35.335] [☁️서버] 관제탑으로 부터 Keep 결재 요청 받음
+[ROADMAP 05:40:35.634] [☁️서버] 해당 콜을 '메인콜' (또는 서브콜) 로 승격 및 병합 궤적 생성 연산
+[ROADMAP 05:40:35.638] [☁️서버] 방대한 스크랩 배열값을 intel 테이블 DB 저장
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 0항목 적재 중 [화면: DETAIL_CONFIRMED]
+[ROADMAP 05:40:35.639] [☁️서버] 앱폰으로 부터 무수한 스크랩(intel) 데이터 및 GPS 요청 받음
+[ROADMAP 05:40:35.639] [☁️서버] 관제탑에게 실시간 마커용 GPS(device-sessions-updated) 정보 전달
+[ROADMAP 05:40:35.639] [☁️서버] 앱폰에게 최신 필터(dispatchEngineArgs) 및 제어 명령 정보 전달
+
+🚙 [Kakao API Request] 스마트 합짐 우회 경로 요청 (다중 경유지 API)
+   - Origin: 127.29441998740202,37.37652463813448 / Dest: 127.05679645475973,37.03846289921283
+   - Waypoints Count: 3
+[ROADMAP 05:40:36.450] [☁️서버] 방대한 스크랩 배열값을 intel 테이블 DB 저장
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 6항목 적재 중 [화면: LIST]
+[ROADMAP 05:40:36.450] [☁️서버] 앱폰으로 부터 무수한 스크랩(intel) 데이터 및 GPS 요청 받음
+[ROADMAP 05:40:36.451] [☁️서버] 관제탑에게 실시간 마커용 GPS(device-sessions-updated) 정보 전달
+[ROADMAP 05:40:36.451] [☁️서버] 앱폰에게 최신 필터(dispatchEngineArgs) 및 제어 명령 정보 전달
+[ROADMAP 05:40:37.215] [☁️서버] 방대한 스크랩 배열값을 intel 테이블 DB 저장
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 1항목 적재 중 [화면: LIST]
+[ROADMAP 05:40:37.215] [☁️서버] 앱폰으로 부터 무수한 스크랩(intel) 데이터 및 GPS 요청 받음
+[ROADMAP 05:40:37.215] [☁️서버] 관제탑에게 실시간 마커용 GPS(device-sessions-updated) 정보 전달
+[ROADMAP 05:40:37.215] [☁️서버] 앱폰에게 최신 필터(dispatchEngineArgs) 및 제어 명령 정보 전달
+✅ [Kakao API Response] 폴리라인 길이 예상: (데이터 추출 중)
+🗺️ [extractPolyline] 섹션(구간) 수: 2
+   - 섹션 1 (127.28838794679399,37.376559131334794 -> 127.29618883433861,37.3854258015167) 추출 라인 좌표수: 75
+   - 섹션 2 (127.05405185133016,37.039392212341035 -> 127.29243792030857,37.395437801668265) 추출 라인 좌표수: 963
+🗺️ [extractPolyline] 카카오 폴리라인 궤적 총 1038개의 포인트 추출 성공
+🗺️ [extractPolyline] 섹션(구간) 수: 4
+   - 섹션 1 (127.28838794679399,37.376559131334794 -> 127.29618883433861,37.3854258015167) 추출 라인 좌표수: 75
+   - 섹션 2 (127.25266497549042,37.38530597075917 -> 127.2894392837215,37.41017955534316) 추출 라인 좌표수: 115
+   - 섹션 3 (127.20332667221128,37.293906189136386 -> 127.25346140995374,37.410610756033265) 추출 라인 좌표수: 401
+   - 섹션 4 (127.05405185133016,37.039392212341035 -> 127.22251241571216,37.297617792072565) 추출 라인 좌표수: 731
+🗺️ [extractPolyline] 카카오 폴리라인 궤적 총 1322개의 포인트 추출 성공
+[ROADMAP 05:40:37.681] [☁️서버] 관제탑에게 확정되었음(order-confirmed) 정보 전달
+[ROADMAP 05:40:37.682] [☁️서버] 합짐을 위한 반경/목적지 추천 키워드로 다이나믹 필터 생성 연산
+[ROADMAP 05:40:37.682] [☁️서버] 새로 부여된 합짐 필터(isSharedMode)값 DB 저장
+[ROADMAP 05:40:37.682] [☁️서버] 앱폰 및 관제탑에게 새로운 타겟팅 필터(filter-updated) 정보 전달
+[ROADMAP 05:40:42.248] [☁️서버] 방대한 스크랩 배열값을 intel 테이블 DB 저장
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 1항목 적재 중 [화면: LIST]
+[ROADMAP 05:40:42.249] [☁️서버] 앱폰으로 부터 무수한 스크랩(intel) 데이터 및 GPS 요청 받음
+[ROADMAP 05:40:42.250] [☁️서버] 관제탑에게 실시간 마커용 GPS(device-sessions-updated) 정보 전달
+[ROADMAP 05:40:42.250] [☁️서버] 앱폰에게 최신 필터(dispatchEngineArgs) 및 제어 명령 정보 전달
+[ROADMAP 05:40:46.417] [☁️서버] 관제탑으로 부터 경로 재탐색(recalculate-route) 요청 받음
+
+🚙 [Kakao API Request] 스마트 합짐 우회 경로 요청 (다중 경유지 API)
+   - Origin: 127.29441998740202,37.37652463813448 / Dest: 127.05679645475973,37.03846289921283
+   - Waypoints Count: 3
+[ROADMAP 05:40:47.253] [☁️서버] 방대한 스크랩 배열값을 intel 테이블 DB 저장
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 1항목 적재 중 [화면: LIST]
+[ROADMAP 05:40:47.255] [☁️서버] 앱폰으로 부터 무수한 스크랩(intel) 데이터 및 GPS 요청 받음
+[ROADMAP 05:40:47.255] [☁️서버] 관제탑에게 실시간 마커용 GPS(device-sessions-updated) 정보 전달
+[ROADMAP 05:40:47.255] [☁️서버] 앱폰에게 최신 필터(dispatchEngineArgs) 및 제어 명령 정보 전달
+✅ [Kakao API Response] 폴리라인 길이 예상: (데이터 추출 중)
+🗺️ [extractPolyline] 섹션(구간) 수: 2
+   - 섹션 1 (127.28838794679399,37.376559131334794 -> 127.29618883433861,37.3854258015167) 추출 라인 좌표수: 75
+   - 섹션 2 (127.05405185133016,37.039392212341035 -> 127.29243792030857,37.395437801668265) 추출 라인 좌표수: 963
+🗺️ [extractPolyline] 카카오 폴리라인 궤적 총 1038개의 포인트 추출 성공
+🗺️ [extractPolyline] 섹션(구간) 수: 4
+   - 섹션 1 (127.28838794679399,37.376559131334794 -> 127.29618883433861,37.3854258015167) 추출 라인 좌표수: 75
+   - 섹션 2 (127.25266497549042,37.38530597075917 -> 127.2894392837215,37.41017955534316) 추출 라인 좌표수: 115
+   - 섹션 3 (127.20332667221128,37.293906189136386 -> 127.25346140995374,37.410610756033265) 추출 라인 좌표수: 401
+   - 섹션 4 (127.05405185133016,37.039392212341035 -> 127.22251241571216,37.297617792072565) 추출 라인 좌표수: 731
+🗺️ [extractPolyline] 카카오 폴리라인 궤적 총 1322개의 포인트 추출 성공
+[ROADMAP 05:40:48.124] [☁️서버] 재탐색 결과로 폴리라인 및 소요시간 갱신 연산
+[ROADMAP 05:40:48.345] [☁️서버] 관제탑에게 재산출된 노선(order-evaluated) 정보 전달
+[ROADMAP 05:40:52.264] [☁️서버] 방대한 스크랩 배열값을 intel 테이블 DB 저장
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 1항목 적재 중 [화면: LIST]
+[ROADMAP 05:40:52.265] [☁️서버] 앱폰으로 부터 무수한 스크랩(intel) 데이터 및 GPS 요청 받음
+[ROADMAP 05:40:52.266] [☁️서버] 관제탑에게 실시간 마커용 GPS(device-sessions-updated) 정보 전달
+[ROADMAP 05:40:52.266] [☁️서버] 앱폰에게 최신 필터(dispatchEngineArgs) 및 제어 명령 정보 전달
+[ROADMAP 05:40:57.421] [☁️서버] 방대한 스크랩 배열값을 intel 테이블 DB 저장
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 1항목 적재 중 [화면: LIST]
+[ROADMAP 05:40:57.423] [☁️서버] 앱폰으로 부터 무수한 스크랩(intel) 데이터 및 GPS 요청 받음
+[ROADMAP 05:40:57.423] [☁️서버] 관제탑에게 실시간 마커용 GPS(device-sessions-updated) 정보 전달
+[ROADMAP 05:40:57.423] [☁️서버] 앱폰에게 최신 필터(dispatchEngineArgs) 및 제어 명령 정보 전달
+[ROADMAP 05:40:59.592] [☁️서버] 방대한 스크랩 배열값을 intel 테이블 DB 저장
+📊 [스크랩 데이터 수신] User: 66176c7b-1755-444c-9b65-7ca056e3c303 (앱폰-sdk_gpho-160) | 0항목 적재 중 [화면: LIST]
+[ROADMAP 05:40:59.593] [☁️서버] 앱폰으로 부터 무수한 스크랩(intel) 데이터 및 GPS 요청 받음
+[ROADMAP 05:40:59.593] [☁️서버] 관제탑에게 실시간 마커용 GPS(device-sessions-updated) 정보 전달
+[ROADMAP 05:40:59.593] [☁️서버] 앱폰에게 최신 필터(dispatchEngineArgs) 및 제어 명령 정보 전달
+^C5:41:02 AM [tsx] Previous process hasn't exited yet. Force killing...
+5:41:02 AM [tsx] Previous process hasn't exited yet. Force killing...
+/Users/seungwookkim/reps/onedal/onedal-web/client:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  client@0.0.0 dev: `vite`
+Command failed with signal "SIGINT"
+/Users/seungwookkim/reps/onedal/onedal-web/server:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  server@1.0.0 dev: `tsx watch src/index.ts`
+Exit status 130
+ ELIFECYCLE  Command failed.
+ ELIFECYCLE  Command failed with exit code 130.
+ ELIFECYCLE  Command failed.
+
+seungwookkim@seungwookui-MacBookPro onedal-web % 

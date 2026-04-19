@@ -93,6 +93,11 @@ class MainActivity : ComponentActivity() {
                         val sharedPref = context.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
                         var isLiveMode by remember { mutableStateOf(sharedPref.getBoolean("isLiveMode", false)) }
                         
+                        val apiClient = remember { com.onedal.app.api.ApiClient(context) }
+                        var pinInput by remember { mutableStateOf("") }
+                        var pinDeviceName by remember { mutableStateOf("") }
+                        var isPairing by remember { mutableStateOf(false) }
+                        
                         // 기기 ID 표시 (실제 생성은 HijackService 시작 시 ApiClient가 담당)
                         val deviceId = remember {
                             sharedPref.getString("deviceId", null) ?: "(서비스 시작 시 자동 생성됨)"
@@ -173,6 +178,60 @@ class MainActivity : ComponentActivity() {
                         }
                         
                         Spacer(modifier = Modifier.height(32.dp))
+
+                        // --- 📱 기기 연동 (PIN) UI ---
+                        Card(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp),
+                            colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color(0xFFEDE7F6))
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text("🔗 계정 연동 (PIN)", fontWeight = FontWeight.Bold, color = androidx.compose.ui.graphics.Color(0xFF4527A0))
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("관제 웹 대시보드에서 발급받은 6자리 PIN 번호를 입력하세요.", style = MaterialTheme.typography.bodySmall, color = androidx.compose.ui.graphics.Color.DarkGray)
+                                Spacer(modifier = Modifier.height(8.dp))
+                                
+                                androidx.compose.material3.OutlinedTextField(
+                                    value = pinInput,
+                                    onValueChange = { if (it.length <= 6) pinInput = it },
+                                    label = { Text("6자리 PIN 번호") },
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                androidx.compose.material3.OutlinedTextField(
+                                    value = pinDeviceName,
+                                    onValueChange = { pinDeviceName = it },
+                                    label = { Text("기기 별명 (선택)") },
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Button(
+                                    onClick = {
+                                        if (pinInput.length != 6) {
+                                            android.widget.Toast.makeText(context, "PIN 번호 6자리를 모두 입력해주세요.", android.widget.Toast.LENGTH_SHORT).show()
+                                            return@Button
+                                        }
+                                        isPairing = true
+                                        apiClient.pairDevice(pinInput, pinDeviceName) { success, msg ->
+                                            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                                                isPairing = false
+                                                android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show()
+                                                if (success) {
+                                                    pinInput = ""
+                                                }
+                                            }
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled = !isPairing
+                                ) {
+                                    Text(if (isPairing) "연동 중..." else "기기 등록하기")
+                                }
+                            }
+                        }
+                        
+                        Spacer(modifier = Modifier.height(16.dp))
                         
                         // 서버 접속 환경 설정 구간
                         Row(verticalAlignment = Alignment.CenterVertically) {

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { socket } from "../lib/socket";
+import { apiClient } from "../api/apiClient";
 import type { DeviceSession, DeviceModeType } from "@onedal/shared";
 
 export function useDevices() {
@@ -26,20 +27,14 @@ export function useDevices() {
 
     const changeDeviceMode = async (deviceId: string, mode: DeviceModeType) => {
         try {
-            const res = await fetch(`/api/devices/${deviceId}/mode`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ mode })
-            });
-            if (res.ok) {
+            // apiClient(axios)를 사용하여 JWT Bearer 토큰이 자동으로 헤더에 실리도록 함
+            // ⚠️ baseURL이 '/api'이므로 슬래시 없이 상대경로로 작성해야 '/api/devices/...' 로 정확히 라우팅됨
+            const res = await apiClient.post(`devices/${deviceId}/mode`, { mode });
+            if (res.status === 200) {
                 // 즉각적인 UI 피드백을 위해 로컬 상태 선갱신 (낙관적 업데이트)
-                if (mode === "SHUTDOWN") {
-                    setDevices(prev => prev.filter(d => d.deviceId !== deviceId));
-                } else {
-                    setDevices(prev => prev.map(d => 
-                        d.deviceId === deviceId ? { ...d, mode } : d
-                    ));
-                }
+                setDevices(prev => prev.map(d =>
+                    d.deviceId === deviceId ? { ...d, mode } : d
+                ));
             }
         } catch (error) {
             console.error("모드 변경 실패:", error);

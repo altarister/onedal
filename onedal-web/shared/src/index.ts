@@ -189,8 +189,8 @@ export interface DispatchConfirmResponse {
 /**
  * 📱 관제 기기 관리 관련 타입 (Device Telemetry)
  */
-export type DeviceStatusType = "ONLINE" | "OFFLINE_GRACEFUL" | "DISCONNECTED";
-export type DeviceModeType = "AUTO" | "MANUAL" | "SHUTDOWN";
+export type DeviceStatusType = "ONLINE" | "OFFLINE";
+export type DeviceModeType = "AUTO" | "MANUAL";
 
 /**
  * 🛡️ Safety Mode V3: 앱폰 화면 상태 타입
@@ -205,7 +205,6 @@ export type ScreenContextType =
     | 'POPUP_DROPOFF'         // 도착지 상세 팝업
     | 'POPUP_MEMO'            // 적요 상세 팝업
     | 'POPUP_ERROR'           // 에러/실패 팝업 (확정실패, 취소불가 등)
-    | 'WAITING_SERVER'        // 서버 응답 대기 중 (데스밸리)
     | 'UNKNOWN';              // 알 수 없는 화면
 
 /**
@@ -243,10 +242,14 @@ export interface ScrapResponse {
 
 export interface DeviceSession {
     deviceId: string;
+    deviceName?: string;    // 기기 별명 (PIN 페어링 시 등록, 예: "메인폰", "서브폰")
     lastSeen: number;       // 밀리초 타임스탬프
     status: DeviceStatusType;
     mode: DeviceModeType;
-    screenContext?: ScreenContextType;  // [Safety Mode V3] 현재 화면 상태
+    screenContext?: ScreenContextType;  // [Safety Mode V3] 현재 화면 상태 (물리적 페이지)
+    isHolding?: boolean;    // [Page/Hold 분리] 콜 처리 중 여부 (확정 클릭 ~ 리스트 복귀)
+    lat?: number;           // [GPS 텔레메트리] 앱폰(차량) 위도
+    lng?: number;           // [GPS 텔레메트리] 앱폰(차량) 경도
     stats: {
         polled: number;     // 리스트 조회(콜 수집) 누적 횟수
         grabbed: number;    // 성공 횟수

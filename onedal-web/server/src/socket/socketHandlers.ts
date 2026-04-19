@@ -1,6 +1,6 @@
 import { Server, Socket } from "socket.io";
 import jwt from "jsonwebtoken";
-import { getActiveDevicesSnapshot } from "../routes/devices";
+import { getUserDevicesSnapshot } from "../routes/devices";
 import { getRegionsByCity } from "../geoResolver";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import type { AutoDispatchFilter } from "@onedal/shared";
@@ -47,10 +47,11 @@ export function registerSocketHandlers(io: Server) {
             socket.join("admin_room");
         }
 
-        // 접속 시 초기 데이터 전송
-        socket.emit("telemetry-devices", getActiveDevicesSnapshot());
+        // 접속 시 초기 데이터 전송 (유저별 등록 기기 목록 포함)
+        socket.emit("telemetry-devices", getUserDevicesSnapshot(userId));
+        logRoadmapEvent("서버", "관제탑 소켓 접속 완료 및 기사의 기본 필터 DB Lazy Load 연산");
         socket.emit("filter-init", session.activeFilter);
-        logRoadmapEvent("서버", `[Socket] 소켓 연결 및 디폴트 필터 전송 (User: ${userId})`);
+        logRoadmapEvent("서버", "관제탑에게 초기 UI 복원용 필터(filter-init) 정보 전달");
 
         // 프론트의 필터 요구 시
         socket.on("request-filter-init", () => {
@@ -59,7 +60,7 @@ export function registerSocketHandlers(io: Server) {
 
         // 프론트에서 필터 변경 시
         socket.on("update-filter", (newFilter: Partial<AutoDispatchFilter>) => {
-            logRoadmapEvent("서버", `[Socket] 첫콜 필터 세팅 업데이트 (User: ${userId})`);
+            logRoadmapEvent("서버", "관제탑으로 부터 필터 변경(update-filter) 요청 받음 및 파싱 연산");
             
             if (newFilter.destinationCity && newFilter.destinationCity !== session.activeFilter.destinationCity) {
                 const regions = getRegionsByCity(newFilter.destinationCity);
@@ -84,6 +85,7 @@ export function registerSocketHandlers(io: Server) {
             
             // DB에 영구 저장 (비동기 처리)
             try {
+                logRoadmapEvent("서버", "새로 바뀐 필터 상태값 DB 저장");
                 db.prepare(`
                     UPDATE user_filters SET
                         destination_city = ?, destination_radius_km = ?, corridor_radius_km = ?,
@@ -100,6 +102,7 @@ export function registerSocketHandlers(io: Server) {
                 console.error("필터 DB 저장 에러:", e);
             }
 
+            logRoadmapEvent("서버", "관제탑에게 변경 적용된 필터(filter-updated) 정보 전달");
             io.to(userId).emit("filter-updated", session.activeFilter);
         });
 
@@ -126,18 +129,17 @@ export function registerSocketHandlers(io: Server) {
         });
     });
 
-    // 3. 백그라운드 싱크: 접속 중인 모든 활성 세션을 순회하며 각 룸에 배차 상태 분리 전송
+    // 3. 백그라운드 싱크: 접속 중인 모든 활성 세션을 순회하며 각 룸에 배차 상태 및 기기 상태 분리 전송
     setInterval(() => {
-        // 단말기 전체 리스트는 모두에게 브로드캐스트 (MVP 단계 정책)
-        io.emit("telemetry-devices", getActiveDevicesSnapshot());
-        
-        // 각 기사별로 자신의 화면에 뜰 오더 리스트만 전달
         const userIds = getAllActiveUserIds();
         for (const uid of userIds) {
+            // [Q4 소켓 브로드캐스트 분리 완료] 각 기사별로 자신의 등록된 기기 목록(+상태)만 전달
+            io.to(uid).emit("telemetry-devices", getUserDevicesSnapshot(uid));
+            
+            // 각 기사별로 자신의 화면에 뜰 오더 리스트 동기화
             const session = getUserSession(uid);
             const activeOrdersPayload = Array.from(session.pendingOrdersData.values());
             io.to(uid).emit("sync-active-orders", activeOrdersPayload);
         }
-        
     }, 1000);
 }

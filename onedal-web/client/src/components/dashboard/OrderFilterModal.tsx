@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
+import { logRoadmapEvent } from "../../lib/roadmapLogger";
 
 interface OrderFilterModalProps {
     isOpen: boolean;
@@ -56,6 +57,7 @@ export default function OrderFilterModal({ isOpen, onClose }: OrderFilterModalPr
     }
 
     const handleSave = () => {
+        logRoadmapEvent("웹", "설정 모달창 열고 새 필터값 입력 후 '저장' 버튼 클릭");
         updateFilter({
             allowedVehicleTypes: selectedVehicles,
             minFare: minFare ? parseInt(minFare, 10) : filter.minFare,

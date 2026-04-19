@@ -155,4 +155,15 @@ try {
     console.error("user_settings 테이블 마이그레이션 오류:", e);
 }
 
+// ═══════════════════════════════════════
+// [10] user_devices 마이그레이션 (device_id 글로벌 유니크 제약)
+// 하나의 물리 기기(UUID)는 오직 한 명의 기사 계정에만 귀속되도록 강제
+// ═══════════════════════════════════════
+try {
+    // 기존 인덱스가 없을 때만 생성 (CREATE IF NOT EXISTS 미지원이므로 try/catch로 안전 처리)
+    db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_device_id_unique ON user_devices(device_id)`);
+} catch (e) {
+    // 이미 존재하면 무시 (정상)
+}
+
 export default db;

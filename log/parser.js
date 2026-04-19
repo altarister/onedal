@@ -166,7 +166,9 @@ const steps = [
       check: (e) => e.line.includes("카카오 API 3중 폴백") || e.line.includes("3중 폴백") || e.line.includes("상하차지 송출") },
 
     { title: "### 🟢 [STEP 6] 관제탑 결재 (취소 vs 유지)", added: false,
-      check: (e) => e.line.includes("프론트에서 '유지 확정'") || e.line.includes("유지 전달") || e.line.includes("취소 전달") },
+      check: (e) => e.line.includes("프론트에서 '유지 확정'") || e.line.includes("유지 전달") || e.line.includes("취소 전달") ||
+                     e.line.includes("[소켓 Decision]") || e.line.includes("유지 정보 전송") || e.line.includes("취소 정보 전송") ||
+                     e.line.includes("합짐 필터로 설정값 업데이트") || e.line.includes("첫콜 필터로 설정값 업데이트") },
 
     // STEP 7: 합짐 필터 업데이트(KEEP 결정) 이후, 앱이 리스트로 복귀하여 2차 스캔을 시작할 때 트리거
     { title: "### 🚀 [STEP 7] \"합짐\" 2차 선점 (합짐 사냥 돌입 & 우회 동선 연산)", added: false,
@@ -184,17 +186,26 @@ const steps = [
                      e.line.includes("AUTO_CANCEL") },
 ];
 
+let lastEmittedStep = -1;
+
 let md = `# 🗺️ 1DAL 풀 스택 라이프사이클 로그 매핑 리포트 (${targetDirName} Full Data)\n\n---\n\n`;
 
 let prevIsCode = false;
 entries.forEach(e => {
     // Step 헤더 삽입
     for (let i = 0; i < steps.length; i++) {
-        if (!steps[i].added && steps[i].check(e)) {
-            if (prevIsCode) { md += "```\n\n    </details>\n"; prevIsCode = false; }
-            steps[i].added = true;
-            md += "\n" + steps[i].title + "\n";
-            md += "*(시작 기준 시간: " + e.time + ")*\n\n";
+        if (steps[i].check(e)) {
+            // STEP 1 should only be emitted once. For others, emit if it's a new step in the sequence.
+            if (i === 0 && steps[0].added) continue;
+            
+            if (lastEmittedStep !== i) {
+                if (prevIsCode) { md += "```\n\n    </details>\n"; prevIsCode = false; }
+                steps[i].added = true;
+                lastEmittedStep = i;
+                md += "\n" + steps[i].title + "\n";
+                md += "*(시작 기준 시간: " + e.time + ")*\n\n";
+            }
+            break; // 해당 로그가 한 단계에 매칭되면 하위 단계 중복 매칭 방지
         }
     }
 

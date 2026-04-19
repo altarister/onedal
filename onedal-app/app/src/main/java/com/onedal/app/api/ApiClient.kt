@@ -11,6 +11,8 @@ import com.onedal.app.models.EmergencyReport
 import com.onedal.app.models.FilterConfig
 import com.onedal.app.models.ScrapPayload
 import com.onedal.app.models.ScrapResponse
+import com.onedal.app.models.PairDeviceRequest
+import com.onedal.app.models.PairDeviceResponse
 import java.util.concurrent.Executors
 
 /**
@@ -339,6 +341,90 @@ class ApiClient(private val context: Context) {
                 }
             } catch (e: Exception) {
                 AppLogger.e(TAG, "🎯 키워드 다운로드 실패: ${e.message}")
+            } finally {
+                conn?.disconnect()
+            }
+        }
+    }
+
+    /**
+     * 6자리 PIN으로 서버에 기기 연동을 요청합니다 (POST /api/devices/pair)
+     */
+    fun pairDevice(pin: String, deviceName: String?, onResult: (Boolean, String) -> Unit) {
+        telemetryExecutor.submit {
+            var conn: java.net.HttpURLConnection? = null
+            try {
+                val payload = PairDeviceRequest(
+                    pin = pin,
+                    deviceId = getDeviceId(),
+                    deviceName = deviceName?.takeIf { it.isNotBlank() }
+                )
+                val jsonBody = gson.toJson(payload)
+                val targetUrl = getTargetUrl("/api/devices/pair")
+                val url = java.net.URL(targetUrl)
+
+                conn = url.openConnection() as java.net.HttpURLConnection
+                conn.requestMethod = "POST"
+                conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                conn.setRequestProperty("Accept", "application/json")
+                conn.doOutput = true
+                conn.connectTimeout = 5000
+                conn.readTimeout = 5000
+
+                conn.outputStream.use { os ->
+                    os.write(jsonBody.toByteArray(Charsets.UTF_8))
+                }
+
+                val code = conn.responseCode
+                val responseStr = if (code in 200..299) {
+                    conn.inputStream.bufferedReader().readText()
+                } else {
+                    conn.errorStream?.bufferedReader()?.readText() ?: ""
+                }
+
+                val resultObj = try {
+                    gson.fromJson(responseStr, PairDeviceResponse::class.java)
+                } catch (e: Exception) { null }
+
+                if (code in 200..299) {
+                    val msg = resultObj?.message ?: "기기 연동이 완료되었습니다."
+                    onResult(true, msg)
+                } else {
+                    val errMsg = resultObj?.error ?: "연동 실패 ($code)"
+                    onResult(false, errMsg)
+                }
+            } catch (e: Exception) {
+                AppLogger.e(TAG, "🔌 [기기 연동 통신 실패] ${e.message}")
+                onResult(false, "네트워크 오류: ${e.message}")
+            } finally {
+                conn?.disconnect()
+            }
+        }
+    }
+
+    /**
+     * [Option C] 오프라인(퇴근/종료) 비동기 통보
+     * 화면이 꺼지거나 권한이 해제될 때 서버로 즉시 쏘고 종료.
+     * 빠른 종료를 위해 readTimeout을 굉장히 짧게 주어 서버 응답을 기다리지 않습니다.
+     */
+    fun sendOffline() {
+        telemetryExecutor.submit {
+            var conn: java.net.HttpURLConnection? = null
+            try {
+                val targetUrl = getTargetUrl("/api/devices/${getDeviceId()}/offline")
+                val url = java.net.URL(targetUrl)
+
+                conn = url.openConnection() as java.net.HttpURLConnection
+                conn.requestMethod = "POST"
+                conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                conn.connectTimeout = 3000
+                conn.readTimeout = 1000 // 서버 응답을 안기다리고 폭파
+
+                val code = conn.responseCode
+                AppLogger.d(TAG, "🔌 [오프라인 통보] 전송 완료 (코드: $code)")
+            } catch (e: Exception) {
+                // 이 상황에선 에러 로깅 외에는 할 수 있는 게 없음
+                AppLogger.e(TAG, "🔌 [오프라인 통보 실패] ${e.message}")
             } finally {
                 conn?.disconnect()
             }

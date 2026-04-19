@@ -46,6 +46,7 @@ export function useOrderEngine() {
         const onOrderEvaluating = (secured: SecuredOrder) => {
             logRoadmapEvent("웹", `🟢 [웹 수신] order-evaluating | ID: ${secured.id} | 기기: ${secured.capturedDeviceId} | ${secured.dropoff}`, "관제대시보드");
             logRoadmapEvent("웹", `확정페이지 진입 (선빵 수신으로 상세 모드 구동)`, "관제대시보드");
+            logRoadmapEvent("웹", "PinnedRoute 컴포넌트에 빈 레이아웃(평가중) 렌더링 및 하단 결재버튼 전체 딤드(비활성) 처리", "관제대시보드");
             playAlertSound();
 
             setActiveOrders(prev => {
@@ -68,6 +69,7 @@ export function useOrderEngine() {
         // 2단계: 상하차지+적요 수신 (DETAIL 접수) — 경로/적요 섹션 업데이트
         const onOrderDetailReceived = (secured: SecuredOrder) => {
             logRoadmapEvent("웹", `🟡 [웹 수신] order-detail-received | ID: ${secured.id.slice(0, 8)} | ${secured.pickupDetails?.[0]?.addressDetail?.slice(0, 20) || '없음'}`, "관제대시보드");
+            logRoadmapEvent("웹", "PinnedRoute 컴포넌트에 '상하차지 및 적요' 텍스트를 선출력하여 렌더링", "관제대시보드");
             setActiveOrders(prev => {
                 const next = prev.map(o => o.id === secured.id ? secured : o);
                 const found = prev.some(o => o.id === secured.id);
@@ -80,22 +82,35 @@ export function useOrderEngine() {
         const onOrderEvaluated = (secured: SecuredOrder) => {
             logRoadmapEvent("웹", `🔵 [웹 수신] order-evaluated | ID: ${secured.id.slice(0, 8)} | ${secured.kakaoTimeExt || '결과없음'}`, "관제대시보드");
             logRoadmapEvent("웹", "추천 결과 노출, 경로보기버튼 추가 노출 후 판단 (취소 or 닫기) 대기", "관제대시보드");
+            if (secured.kakaoTimeExt?.includes("실패") || secured.kakaoTimeExt?.includes("에러")) {
+                logRoadmapEvent("웹", "UI 상단에 에러 배너 렌더링 및 카카오맵 불가 상태를 PinnedRoute 에 표현", "관제대시보드");
+            } else {
+                logRoadmapEvent("웹", "PinnedRoute 내 캔버스 미니맵 좌표 포커싱 및 카카오 궤적(폴리라인) 드로잉 처리", "관제대시보드");
+                logRoadmapEvent("웹", "예상 시간/수익률을 컴포넌트에 표시하고 결재버튼(KEEP/CANCEL) 즉시 딤드 해제(활성화)", "관제대시보드");
+            }
             playAlertSound();
             setActiveOrders(prev => prev.map(o => o.id === secured.id ? secured : o));
         };
 
         const onOrderConfirmed = (id: string) => {
+            logRoadmapEvent("웹", "PinnedRoute 레이아웃을 합짐/무한 궤도 모드로 격상 렌더링 및 딤드 다시 처리", "관제대시보드");
             setActiveOrders(prev => prev.map(o => o.id === id ? { ...o, status: 'confirmed' } : o));
         };
 
         const onOrderCanceled = (id: string) => {
             logRoadmapEvent("웹", `🔴 [웹 수신] order-canceled | ID: ${id.slice(0, 8)}`, "관제대시보드");
+            logRoadmapEvent("웹", "PinnedRoute 아코디언 컴포넌트를 강제 삭제하고 초기 관제대기 Empty State 화면 렌더링", "관제대시보드");
             setActiveOrders(prev => {
                 const next = prev.filter(o => o.id !== id);
                 console.log(`   ➡️ activeOrders 변경: [${prev.map(o => o.id.slice(0, 8)).join(', ')}] → [${next.map(o => o.id.slice(0, 8)).join(', ')}]`);
                 return next;
             });
             setRejectedCallIds(prev => new Set(prev).add(id));
+        };
+
+        const onDeathvalleyWarning = () => {
+            logRoadmapEvent("웹", "서버로 부터 deathvalley-warning 소켓 경고 이벤트 받음", "관제대시보드");
+            logRoadmapEvent("웹", "상단 비상 알림 배너 팝업 및 타이머 카운트다운 컴포넌트 텍스트 붉은색 렌더링", "관제대시보드");
         };
 
         socket.on("connect", onConnect);
@@ -106,6 +121,7 @@ export function useOrderEngine() {
         socket.on("order-evaluated", onOrderEvaluated);
         socket.on("order-confirmed", onOrderConfirmed);
         socket.on("order-canceled", onOrderCanceled);
+        socket.on("deathvalley-warning", onDeathvalleyWarning);
 
         // ⭐ 1초 하트비트 싱크: 서버의 실제 평가 오더 전체 객체 배열
         // 소켓 이벤트 누락 복구 + 웹 클라이언트 첫 접속/새로고침 시 전체 데이터 복원 기능
@@ -186,6 +202,7 @@ export function useOrderEngine() {
             socket.off("order-evaluated", onOrderEvaluated);
             socket.off("order-confirmed", onOrderConfirmed);
             socket.off("order-canceled", onOrderCanceled);
+            socket.off("deathvalley-warning", onDeathvalleyWarning);
             socket.off("sync-active-orders", onSyncActiveOrders);
         };
     }, [playAlertSound]);

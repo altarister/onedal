@@ -2,6 +2,7 @@ import React from 'react';
 import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate, Navigate } from 'react-router-dom';
+import { logRoadmapEvent } from '../lib/roadmapLogger';
 
 export default function Login() {
   const { loginWithGoogle, isAuthenticated } = useAuth();
@@ -13,6 +14,7 @@ export default function Login() {
 
   const handleSuccess = async (credentialResponse: any) => {
     if (credentialResponse.credential) {
+      logRoadmapEvent("웹", "유저가 구글 로그인 버튼 클릭 ");
       try {
         await loginWithGoogle(credentialResponse.credential);
         navigate('/');

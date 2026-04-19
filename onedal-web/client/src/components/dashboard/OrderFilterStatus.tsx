@@ -27,15 +27,15 @@ export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () =
     const getRegionSummary = () => {
         // 합짐, 첫짐 모두 파싱된 '읍/면/동' 타겟팅 총 개수를 가져옵니다.
         const regionCount = filter.destinationKeywords && filter.destinationKeywords.length > 0
-            ? filter.destinationKeywords.length 
+            ? filter.destinationKeywords.length
             : 0;
 
         if (filter.isSharedMode) {
             // 합짐 모드: 지정된 경로 이탈 반경 + 하차 거점 반경 및 총 타겟팅된 읍/면/동 개수 표시
-            return `회랑 ±${filter.corridorRadiusKm || 10}km (${regionCount}개 지역)`;
+            return `회랑 ±${filter.corridorRadiusKm || 10}km (${regionCount}지역)`;
         }
         // 단독 모드: 지정된 도착 도시 명칭 및 타겟팅된 읍/면/동 개수 표시
-        return `${filter.destinationCity} (${regionCount}개 지역)`;
+        return `${filter.destinationCity} (${regionCount}지역)`;
     };
 
     return (

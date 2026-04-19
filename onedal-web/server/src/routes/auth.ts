@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 import db from "../db";
 import { requireAuth } from "../middlewares/authMiddleware";
 import { getUserSession } from "../state/userSessionStore";
+import { logRoadmapEvent } from "../utils/roadmapLogger";
 
 const router = Router();
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
@@ -24,6 +25,7 @@ router.post("/google", async (req, res) => {
     }
 
     try {
+        logRoadmapEvent("서버", "관제탑으로 부터 구글 로그인 토큰 검증 요청 받음");
         // 1. Google OAuth2 서버에서 토큰 진위 확인 및 유저 정보 추출
         const ticket = await client.verifyIdToken({
             idToken: credential,
@@ -38,6 +40,7 @@ router.post("/google", async (req, res) => {
         const avatar = payload.picture || "";
 
         // 2. DB에 존재하는 유저인지 확인
+        logRoadmapEvent("서버", "email 바탕으로 접속 유저 정보 DB 조회/생성 연산");
         let userRow = db.prepare("SELECT * FROM users WHERE google_id = ?").get(googleId) as any;
 
         if (!userRow) {
@@ -85,6 +88,7 @@ router.post("/google", async (req, res) => {
         `).run(userRow.id, hashedRefreshToken, userAgent || req.headers['user-agent'] || "Unknown", expiresAt);
 
         // 5. 클라이언트에 Access/Refresh Token 및 유저 프로필 응답
+        logRoadmapEvent("서버", "관제탑에게 인증 JWT Token 발급 및 정보 전달");
         return res.json({
             accessToken,
             refreshToken,
@@ -126,8 +130,8 @@ router.post("/refresh", async (req, res) => {
         // 2. 해당 유저가 보유한 '만료되지 않은' 해시화된 토큰 목록을 DB에서 조회
         const userTokens = db.prepare(`
             SELECT * FROM user_tokens 
-            WHERE user_id = ? AND expires_at > datetime('now', 'localtime')
-        `).all(userId) as any[];
+            WHERE user_id = ? AND expires_at > ?
+        `).all(userId, new Date().toISOString()) as any[];
 
         // 3. 제출한 RT와 일치하는 해시값이 테이블 안에 있는지 확인
         let matchedTokenId = null;

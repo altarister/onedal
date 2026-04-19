@@ -121,6 +121,7 @@ export async function recalculateActiveKakaoRoute(userId: string, io: any) {
 
 /** 카카오 경로 재탐색 핸들러 */
 export async function recalculateKakaoRoute(userId: string, orderId: string, priority: string, io: any) {
+    logRoadmapEvent("서버", "관제탑으로 부터 경로 재탐색(recalculate-route) 요청 받음");
     const session = getUserSession(userId);
     const securedOrder = session.pendingOrdersData.get(orderId);
     if (!securedOrder) {
@@ -232,12 +233,14 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
             timeExt = `[${paramLabel}] ${signDist}${result.distDiffKm}km, ${signTime}${result.timeDiffMin}분 ${recommend}`;
         }
         
+        logRoadmapEvent("서버", "재탐색 결과로 폴리라인 및 소요시간 갱신 연산");
         securedOrder.kakaoTimeExt = timeExt;
         
         if (securedOrder.status === 'confirmed' || session.mainCallState?.id === securedOrder.id || session.subCalls.some(c => c.id === securedOrder.id)) {
             syncCorridorFilter(userId, io);
         }
 
+        logRoadmapEvent("서버", "관제탑에게 재산출된 노선(order-evaluated) 정보 전달");
         io.to(userId).emit("order-evaluated", securedOrder);
     } catch (e: any) {
         console.error("재계산 에러:", e);
@@ -313,7 +316,8 @@ export async function handleDecision(userId: string, orderId: string, action: 'K
     if (heldRes && !heldRes.headersSent) {
         session.pendingDetailRequests.delete(orderId);
         const deviceResponse: DispatchConfirmResponse = { deviceId: 'server', action };
-        logRoadmapEvent("서버", `[HTTP 폴링] 응답 /orders/detail ${action === 'KEEP' ? '유지' : '취소'} 정보 전송`);
+        if (action === 'KEEP') logRoadmapEvent("서버", "앱폰에게 Action=Keep 최종 판결 응답 전달");
+        else logRoadmapEvent("서버", "앱폰에게 Action=Cancel 최종 판결 응답 전달");
         heldRes.json(deviceResponse);
     }
 
@@ -322,10 +326,13 @@ export async function handleDecision(userId: string, orderId: string, action: 'K
     });
 
     if (action === 'CANCEL' && io) {
+        logRoadmapEvent("서버", "관제탑으로 부터 Cancel 결재 요청 받음");
+        logRoadmapEvent("서버", "취소된 콜을 메모리 큐에서 삭제 처리 연산");
         session.pendingOrdersData.delete(orderId);
     }
 
     if (action === 'KEEP') {
+        logRoadmapEvent("서버", "관제탑으로 부터 Keep 결재 요청 받음");
         const cachedOrder = session.pendingOrdersData.get(orderId);
         
         if (!cachedOrder) return { success: false, action };
@@ -344,6 +351,7 @@ export async function handleDecision(userId: string, orderId: string, action: 'K
         const isAlreadySub = session.subCalls.some(c => c.id === orderId);
 
         if (!isAlreadyMain && !isAlreadySub && cachedOrder) {
+            logRoadmapEvent("서버", "해당 콜을 '메인콜' (또는 서브콜) 로 승격 및 병합 궤적 생성 연산");
             if (!session.mainCallState) {
                 session.mainCallState = cachedOrder;
             } else {
@@ -391,8 +399,10 @@ export async function handleDecision(userId: string, orderId: string, action: 'K
             }
         }
 
+        logRoadmapEvent("서버", "관제탑에게 확정되었음(order-confirmed) 정보 전달");
         io.to(userId).emit("order-confirmed", orderId);
 
+        logRoadmapEvent("서버", "합짐을 위한 반경/목적지 추천 키워드로 다이나믹 필터 생성 연산");
         session.activeFilter = { 
             ...session.activeFilter,
             isSharedMode: true, 
@@ -400,7 +410,8 @@ export async function handleDecision(userId: string, orderId: string, action: 'K
             destinationKeywords,
             allowedVehicleTypes: ["다마스", "라보", "오토바이"] 
         };
-        logRoadmapEvent("서버", "합짐 필터로 설정값 업데이트 (합짐 사냥용)");
+        logRoadmapEvent("서버", "새로 부여된 합짐 필터(isSharedMode)값 DB 저장");
+        logRoadmapEvent("서버", "앱폰 및 관제탑에게 새로운 타겟팅 필터(filter-updated) 정보 전달");
         io.to(userId).emit("filter-updated", session.activeFilter);
     } else {
         if (session.mainCallState?.id === orderId) {
@@ -412,6 +423,7 @@ export async function handleDecision(userId: string, orderId: string, action: 'K
             }
         }
 
+        logRoadmapEvent("서버", "관제탑에게 콜이 삭제되었음(order-canceled) 정보 전달");
         io.to(userId).emit("order-canceled", orderId);
 
         if (!session.activeFilter.isActive || session.activeFilter.isSharedMode) {
@@ -421,7 +433,8 @@ export async function handleDecision(userId: string, orderId: string, action: 'K
                 resetFilter.allowedVehicleTypes = [];
             }
             session.activeFilter = { ...session.activeFilter, ...resetFilter };
-            logRoadmapEvent("서버", "첫콜 필터로 설정값 업데이트");
+            logRoadmapEvent("서버", "기존 디폴트 설정값으로 필터 복구 연산");
+            logRoadmapEvent("서버", "앱폰 및 관제탑에게 원상복구된 필터(filter-updated) 정보 전달");
             io.to(userId).emit("filter-updated", session.activeFilter);
         }
         session.pendingOrdersData.delete(orderId);
@@ -451,7 +464,7 @@ export async function evaluateNewOrder(userId: string, securedOrder: SecuredOrde
     try {
         const apiKey = process.env.KAKAO_REST_API_KEY;
         if (apiKey) {
-            logRoadmapEvent("서버", "🛡️ [카카오 API 3중 폴백] 괄호제거 ➡️ 주소검색 ➡️ 키워드검색 ➡️ 4어절 절사");
+            logRoadmapEvent("서버", "🛡️ 주소 3중 폴백 (괄호제거 ➡️ 주소검색 ➡️ 키워드 ➡️ 절사) 연산");
 
             // 1.5단계: 지오코딩 (텍스트 주소를 X, Y 좌표로 변환)
             if (!securedOrder.pickupX || !securedOrder.pickupY) {
@@ -473,6 +486,7 @@ export async function evaluateNewOrder(userId: string, securedOrder: SecuredOrde
                 }
             }
 
+            logRoadmapEvent("서버", "카카오 지오코딩으로 반환된 출발지/도착지 X/Y 좌표 메모리 갱신 연산");
             // 좌표 보존
             session.pendingOrdersData.set(securedOrder.id, securedOrder);
 
@@ -481,6 +495,7 @@ export async function evaluateNewOrder(userId: string, securedOrder: SecuredOrde
 
                 if (!session.mainCallState) {
                     // 첫짐: 단독 주행 연산
+                    logRoadmapEvent("서버", "시간/통행료를 바탕으로 콜의 실수익률(기회비용) 연산");
                     console.log(`   - 💡 상태: [첫짐] 단독 주행 연산`);
                     const result = await calculateSoloRoute(
                         apiKey,
@@ -508,6 +523,7 @@ export async function evaluateNewOrder(userId: string, securedOrder: SecuredOrde
 
                 } else if (session.mainCallState.pickupX && session.mainCallState.dropoffY) {
                     // 합짐: 우회 동선 연산
+                    logRoadmapEvent("서버", "기존 직진 시 대비 추가 소모 시간(+15분) 및 거리(+6km) 패널티 산출");
                     console.log(`   - 💡 상태: [합짐] 우회 동선 연산`);
                     console.log(`   - 기존 본콜: ${session.mainCallState.pickup} ➡️ ${session.mainCallState.dropoff}`);
                     console.log(`   - 추가 경유: ${securedOrder.pickup} ➡️ ${securedOrder.dropoff}`);
@@ -575,12 +591,19 @@ export async function evaluateNewOrder(userId: string, securedOrder: SecuredOrde
     }
     console.log(`======================================================\n`);
 
+    logRoadmapEvent("서버", "경로 폴리라인 및 최종 수익성(콜/꿀/똥) 라벨링 연산");
     securedOrder.kakaoTimeExt = timeExt;
 
     if (io) {
         console.log(`📤 [Socket 푸시] order-evaluated (${securedOrder.id})`);
         io.to(userId).emit("order-evaluated", securedOrder);
-        logRoadmapEvent("서버", "[Socket] 경로 및 시간 정보, 수익률 전송");
+        
+        if (timeExt.includes("실패")) {
+            logRoadmapEvent("서버", "관제탑에게 카카오 에러 상태(order-evaluated error) 정보 전달");
+        } else {
+            logRoadmapEvent("서버", "관제탑에게 최종 판독된 오더 정보(order-evaluated) 전달");
+        }
+        
         console.log(`🔎 [카카오 연산 완료] ${timeExt} | Polyline 길이: ${securedOrder.routePolyline?.length || 0}`);
     }
 }
