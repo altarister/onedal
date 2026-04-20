@@ -80,10 +80,13 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, safeRoute, myLoc
         const minY = Math.min(...ys);
         const maxY = Math.max(...ys);
 
-        const paddingX = 40;
-        const paddingY = 40;
-        const drawWidth = width - paddingX * 2;
-        const drawHeight = height - paddingY * 2;
+        const paddingLeft = 70; // 좌측 버튼 여백 (추천, 시간, 거리)
+        const paddingRight = 60; // 우측 버튼 여백 (+, -, 초기화)
+        const paddingTop = 50; 
+        const paddingBottom = 40; 
+
+        const drawWidth = width - (paddingLeft + paddingRight);
+        const drawHeight = height - (paddingTop + paddingBottom);
 
         const rangeX = (maxX - minX) === 0 ? 0.001 : (maxX - minX);
         const rangeY = (maxY - minY) === 0 ? 0.001 : (maxY - minY);
@@ -94,8 +97,8 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, safeRoute, myLoc
         const contentWidth = rangeX * scale;
         const contentHeight = rangeY * scale;
 
-        const offsetX = paddingX + (drawWidth - contentWidth) / 2;
-        const offsetY = paddingY + (drawHeight - contentHeight) / 2;
+        const offsetX = paddingLeft + (drawWidth - contentWidth) / 2;
+        const offsetY = paddingTop + (drawHeight - contentHeight) / 2;
 
         const getScreenPt = (p: { x: number, y: number }) => ({
             cx: (offsetX + (p.x - minX) * scale) * zoomRef.current + panRef.current.x,
@@ -111,7 +114,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, safeRoute, myLoc
             sortedFeatures.forEach((feature: any) => {
                 const isGyeonggiSigungu = feature.properties?.isGyeonggiSigungu;
 
-                ctx.fillStyle = withAlpha(mapColors.sidoFill, 0.15); 
+                ctx.fillStyle = withAlpha(mapColors.sidoFill, 0.15);
                 ctx.strokeStyle = withAlpha(mapColors.sidoStroke, isGyeonggiSigungu ? 0.4 : 0.3);
                 ctx.lineWidth = isGyeonggiSigungu ? 0.5 : 1;
                 const geom = feature.geometry;
@@ -160,7 +163,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, safeRoute, myLoc
             }
         });
         ctx.stroke();
-        ctx.setLineDash([]); 
+        ctx.setLineDash([]);
 
         // 현위치 - 첫 상차지 간 회색 점선 지점에 직선거리(km) 표기
         if (myLocation && validPoints.length > 0) {
@@ -204,7 +207,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, safeRoute, myLoc
             const { cx, cy } = getScreenPt(p);
 
             ctx.beginPath();
-            ctx.arc(cx, cy, 10, 0, 2 * Math.PI); 
+            ctx.arc(cx, cy, 10, 0, 2 * Math.PI);
             ctx.fillStyle = p.type === '상차' ? mapColors.nodePickup : mapColors.nodeDropoff;
 
             if (p.isEvaluating) {
@@ -242,12 +245,12 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, safeRoute, myLoc
 
             ctx.beginPath();
             ctx.arc(cx, cy, pulseRadius, 0, 2 * Math.PI);
-            ctx.fillStyle = withAlpha(mapColors.myLocationPulse, 0.2); 
+            ctx.fillStyle = withAlpha(mapColors.myLocationPulse, 0.2);
             ctx.fill();
 
             ctx.beginPath();
             ctx.arc(cx, cy, 6, 0, 2 * Math.PI);
-            ctx.fillStyle = mapColors.myLocationPulse; 
+            ctx.fillStyle = mapColors.myLocationPulse;
             ctx.strokeStyle = mapColors.myLocationStroke;
             ctx.lineWidth = 1.5;
             ctx.fill();
@@ -314,7 +317,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, safeRoute, myLoc
         panRef.current.y += deltaY;
 
         lastPos.current = { x: clientX, y: clientY };
-        drawMap(); 
+        drawMap();
     };
 
     const handlePointerUp = () => {
@@ -343,7 +346,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, safeRoute, myLoc
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
 
-        const zoomDelta = e.deltaY > 0 ? 0.9 : 1.1; 
+        const zoomDelta = e.deltaY > 0 ? 0.9 : 1.1;
         const newZoom = Math.max(0.5, Math.min(10, zoomRef.current * zoomDelta));
 
         panRef.current.x = x - (x - panRef.current.x) * (newZoom / zoomRef.current);

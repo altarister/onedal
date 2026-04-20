@@ -214,7 +214,7 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: 
                                 {(() => {
                                     const lastRoute = [...safeRoute].reverse().find(r => r.totalDistanceKm != null);
                                     if (!lastRoute || lastRoute.totalDistanceKm == null) return `카카오 연산 에러 혹은 대기중...`;
-                                    return `총 도로 주행거리 ${(Number(lastRoute.totalDistanceKm) || 0).toFixed(1)}km / 예상 소요 ${lastRoute.totalDurationMin || 0}분`;
+                                    return `총 주행거리 ${(Number(lastRoute.totalDistanceKm) || 0).toFixed(1)}km / 예상 ${lastRoute.totalDurationMin || 0}분`;
                                 })()}
                             </span>
                         </div>

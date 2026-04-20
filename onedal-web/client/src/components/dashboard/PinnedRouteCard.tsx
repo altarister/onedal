@@ -72,7 +72,7 @@ export default function PinnedRouteCard({
             {/* 1. 카드 헤더 구역 */}
             <div
                 onClick={() => !isEvaluating && onToggle(route.id)}
-                className={`px-1 py-1 flex justify-between items-center w-full text-sm tracking-tight ${!isEvaluating ? 'cursor-pointer group hover:bg-text-primary/5' : ''}`}
+                className={`px-3 py-3 flex justify-between items-center w-full text-sm tracking-tight ${!isEvaluating ? 'cursor-pointer group hover:bg-text-primary/5' : ''}`}
             >
                 <div className="flex items-center gap-1 truncate text-text-primary flex-1">
                     <span className="text-text-muted font-bold mr-1 text-[11px] bg-bg-base px-1.5 py-0.5 rounded border border-border-card">#{indexNum}</span>
@@ -178,7 +178,7 @@ export default function PinnedRouteCard({
                     )}
 
                     {/* 상세 데이터 영역 */}
-                    <div className="flex flex-col text-text-primary text-[13px] leading-tight bg-bg-base/50 py-2 px-1 font-medium tracking-tight">
+                    <div className="flex flex-col text-text-primary text-[13px] leading-tight bg-bg-base/50 py-2 px-1 mt-3 font-medium tracking-tight">
                         {(() => {
                             const quickName = route.companyName || '-';
                             const phoneMatch = quickName.match(/\d{2,3}-\d{3,4}-\d{4}/);
@@ -196,8 +196,8 @@ export default function PinnedRouteCard({
                             return (
                                 <>
                                     <div className="mb-3 pb-2 border-b border-border-card flex gap-4 text-[11px] text-text-muted">
+                                        <span>시간 : {route.capturedAt ? new Date(route.capturedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) : '-'}</span>
                                         <span>ID : {route.id}</span>
-                                        <span>잡은 시간 : {route.capturedAt ? new Date(route.capturedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) : '-'}</span>
                                     </div>
                                     <div className="mb-2">
                                         <div>퀵사무실 : {quickPhone}</div>
