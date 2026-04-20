@@ -4,7 +4,7 @@ import { socket } from '../../lib/socket';
 import { logRoadmapEvent } from '../../lib/roadmapLogger';
 import PinnedRouteCanvas, { type RoutePoint } from './PinnedRouteCanvas';
 import PinnedRouteCard from './PinnedRouteCard';
-import { getAddressLabel, getDistanceKm } from './routeUtils';
+import { getAddressLabel, getDistanceKm } from '../../lib/routeUtils';
 
 interface Props {
     activeRoute: SecuredOrder[];

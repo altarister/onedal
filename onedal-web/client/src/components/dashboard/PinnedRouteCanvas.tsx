@@ -1,7 +1,7 @@
 import { useRef, useCallback, useEffect } from 'react';
 import type { SecuredOrder } from "@onedal/shared";
 import sidoDataRaw from '../../mapData/sidoData.json';
-import { getDistanceKm } from './routeUtils';
+import { getDistanceKm } from '../../lib/routeUtils';
 
 const sidoData = sidoDataRaw as any; // GeoJSON FeatureCollection
 

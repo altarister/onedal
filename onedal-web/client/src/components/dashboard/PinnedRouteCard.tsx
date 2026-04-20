@@ -1,5 +1,5 @@
 import type { SecuredOrder } from "@onedal/shared";
-import { getAddressLabel, getMinuteDiff } from "./routeUtils";
+import { getAddressLabel, getMinuteDiff } from "../../lib/routeUtils";
 import { logRoadmapEvent } from '../../lib/roadmapLogger';
 
 interface Props {
