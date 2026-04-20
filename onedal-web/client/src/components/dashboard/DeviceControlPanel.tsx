@@ -3,14 +3,14 @@ import type { DeviceSession, ScreenContextType } from "@onedal/shared";
 
 /** ScreenContext → 한국어 라벨 + 색상 매핑 (물리적 화면 상태만 표시, 홀드는 isHolding으로 분리) */
 const SCREEN_LABELS: Record<ScreenContextType, { label: string; color: string }> = {
-    LIST: { label: "신규 콜 리스트", color: "text-emerald-400 bg-emerald-500/15" },
-    DETAIL_PRE_CONFIRM: { label: "상세페이지", color: "text-cyan-400 bg-cyan-500/15" },
-    DETAIL_CONFIRMED: { label: "확정페이지", color: "text-amber-400 bg-amber-500/15" },
-    POPUP_PICKUP: { label: "출발지 팝업", color: "text-blue-400 bg-blue-500/15" },
-    POPUP_DROPOFF: { label: "도착지 팝업", color: "text-blue-400 bg-blue-500/15" },
-    POPUP_MEMO: { label: "적요 팝업", color: "text-violet-400 bg-violet-500/15" },
-    POPUP_ERROR: { label: "취소 불가 팝업", color: "text-red-400 bg-red-500/20 animate-pulse" },
-    UNKNOWN: { label: "알 수 없는 화면", color: "text-red-400 bg-red-500/20 animate-pulse" },
+    LIST: { label: "신규 콜 리스트", color: "text-success bg-success/15" },
+    DETAIL_PRE_CONFIRM: { label: "상세페이지", color: "text-info-alt bg-info-alt/15" },
+    DETAIL_CONFIRMED: { label: "확정페이지", color: "text-warning bg-warning/15" },
+    POPUP_PICKUP: { label: "출발지 팝업", color: "text-info bg-info/15" },
+    POPUP_DROPOFF: { label: "도착지 팝업", color: "text-info bg-info/15" },
+    POPUP_MEMO: { label: "적요 팝업", color: "text-accent bg-accent/15" },
+    POPUP_ERROR: { label: "취소 불가 팝업", color: "text-danger bg-danger/20 animate-pulse" },
+    UNKNOWN: { label: "알 수 없는 화면", color: "text-danger bg-danger/20 animate-pulse" },
 };
 
 function DeviceRow({ device, onModeChange }: { device: DeviceSession; onModeChange: (id: string, mode: "AUTO" | "MANUAL") => void }) {
@@ -22,7 +22,7 @@ function DeviceRow({ device, onModeChange }: { device: DeviceSession; onModeChan
             <div className={`flex flex-col gap-1 ${isDisconnected ? 'opacity-50' : ''}`}>
                 <div className="flex items-center gap-4">
                     <span className="font-bold flex items-center gap-2">
-                        <span className={`font-black text-[10px] px-1.5 rounded ${isDisconnected ? 'bg-red-500/20 text-red-500 animate-pulse' : 'text-emerald-500'}`}>
+                        <span className={`font-black text-[10px] px-1.5 rounded ${isDisconnected ? 'bg-danger/20 text-danger animate-pulse' : 'text-success'}`}>
                             {device.deviceName || device.deviceId.slice(0, 8)}
                         </span>
                         {/* {device.deviceName && (
@@ -35,7 +35,7 @@ function DeviceRow({ device, onModeChange }: { device: DeviceSession; onModeChan
                         )}
                         {/* [Page/Hold 분리] 콜 처리 중 홀드 배지 (화면 배지와 나란히 표시) */}
                         {device.isHolding && (
-                            <div className="text-[10px] text-yellow-400 bg-yellow-500/15 animate-pulse">
+                            <div className="text-[10px] text-warning bg-warning/15 animate-pulse">
                                 🔒 콜 처리 중
                             </div>
                         )}
@@ -53,8 +53,8 @@ function DeviceRow({ device, onModeChange }: { device: DeviceSession; onModeChan
                 <button
                     onClick={() => onModeChange(device.deviceId, device.mode === "AUTO" ? "MANUAL" : "AUTO")}
                     className={`border px-2 py-1 text-xs font-black rounded-md transition-colors ${device.mode === "AUTO"
-                        ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-                        : "bg-amber-500/10 text-amber-500 border-amber-500/30"
+                        ? "bg-success/20 text-success border-success/30"
+                        : "bg-warning/10 text-warning border-warning/30"
                         }`}
                 >
                     {device.mode}
@@ -68,11 +68,11 @@ export default function DeviceControlPanel() {
     const { devices, changeDeviceMode } = useDevices();
 
     return (
-        <section id="telemetry-panel" className="bg-[#111522] border border-slate-800/80 rounded-xl p-3 shadow-lg">
+        <section id="telemetry-panel" className="bg-surface border border-border-card rounded-xl p-3 shadow-lg">
             <div className="flex flex-col">
                 {devices.length === 0 ? (
                     <div className="text-center text-xs text-slate-500 py-4 opacity-80 font-bold tracking-tight">
-                        <span className="text-slate-400 font-semibold mb-1 block opacity-60">연결된 안드로이드 폰이 없습니다.</span>
+                        <span className="text-text-muted font-semibold mb-1 block opacity-60">연결된 안드로이드 폰이 없습니다.</span>
                         우측 상단의 계정 버튼을 클릭하고 폰을 먼저 등록해 주세요.
                     </div>
                 ) : (

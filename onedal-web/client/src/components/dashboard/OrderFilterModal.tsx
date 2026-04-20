@@ -49,8 +49,8 @@ export default function OrderFilterModal({ isOpen, onClose }: OrderFilterModalPr
         return (
             <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
                 <div className="flex flex-col items-center gap-4">
-                    <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                    <span className="text-indigo-400 font-bold animate-pulse">동기화 대기 중...</span>
+                    <div className="w-8 h-8 border-4 border-info border-t-transparent rounded-full animate-spin"></div>
+                    <span className="text-info font-bold animate-pulse">동기화 대기 중...</span>
                 </div>
             </div>
         );
@@ -88,24 +88,24 @@ export default function OrderFilterModal({ isOpen, onClose }: OrderFilterModalPr
     return (
         <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
             <div className="w-full max-w-lg relative bg-[#070b14] border border-slate-700/50 rounded-2xl shadow-2xl p-5 overflow-hidden flex flex-col max-h-[90vh]">
-                <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] bg-indigo-900/20 blur-[100px] rounded-full pointer-events-none" />
-                <div className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] bg-emerald-900/20 blur-[100px] rounded-full pointer-events-none" />
+                <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] bg-info/20 blur-[100px] rounded-full pointer-events-none" />
+                <div className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] bg-success/20 blur-[100px] rounded-full pointer-events-none" />
 
                 {/* 헤더 바 */}
-                <div className="flex items-center justify-between mb-4 pb-3 border-b border-indigo-500/20 relative z-10">
+                <div className="flex items-center justify-between mb-4 pb-3 border-b border-info/20 relative z-10">
                     <div className="flex items-center gap-3">
                         <button
                             onClick={onClose}
-                            className="w-8 h-8 flex border items-center justify-center rounded-full bg-slate-900/80 border-slate-700/50 text-slate-400 hover:text-white hover:border-indigo-400 hover:bg-indigo-900/40 transition-all shadow-lg active:scale-90"
+                            className="w-8 h-8 flex border items-center justify-center rounded-full bg-slate-900/80 border-slate-700/50 text-slate-400 hover:text-white hover:border-info hover:bg-info/20 transition-all shadow-lg active:scale-90"
                         >
                             ✕
                         </button>
                         <div>
-                            <h1 className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 to-emerald-300 tracking-tight">
+                            <h1 className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-info to-success tracking-tight">
                                 통제 필터 설정
                             </h1>
                             <div className="flex items-center gap-2 mt-0.5">
-                                <span className={`text-[10px] px-1.5 py-0.5 rounded font-black ${isSharedMode ? 'bg-orange-500/20 text-orange-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded font-black ${isSharedMode ? 'bg-warning/20 text-warning' : 'bg-success/20 text-success'}`}>
                                     {isSharedMode ? '합짐(Loaded) 모드' : '첫짐(Empty) 모드'}
                                 </span>
                             </div>
@@ -138,7 +138,7 @@ export default function OrderFilterModal({ isOpen, onClose }: OrderFilterModalPr
                                             );
                                         }}
                                         className={`py-2.5 rounded-lg text-sm font-black tracking-tight transition-all active:scale-95 border ${isSelected
-                                            ? 'bg-orange-500/20 border-orange-400/60 text-orange-300 shadow-[0_0_12px_rgba(251,146,60,0.15)]'
+                                            ? 'bg-warning/20 border-warning/60 text-warning shadow-lg'
                                             : 'bg-black/40 border-slate-700/40 text-slate-500 hover:border-slate-600 hover:text-slate-400'
                                             }`}
                                     >
@@ -148,7 +148,7 @@ export default function OrderFilterModal({ isOpen, onClose }: OrderFilterModalPr
                             })}
                         </div>
                         {isSharedMode && (
-                            <p className="text-[10px] text-orange-400 mt-2 font-black text-center bg-orange-900/20 p-1.5 rounded">
+                            <p className="text-[10px] text-warning mt-2 font-black text-center bg-warning/20 p-1.5 rounded">
                                 💡 합짐 모드 진입으로 잔짐 공략을 위해 '1t' 필터 옵션이 기본 해제되었습니다.
                             </p>
                         )}
@@ -157,18 +157,18 @@ export default function OrderFilterModal({ isOpen, onClose }: OrderFilterModalPr
                     {/* 단가 및 거리 필터 (가로 배치) */}
                     <div className="flex gap-4">
                         {/* 하한가 */}
-                        <div className="flex-1 group bg-slate-900/40 backdrop-blur-md p-3 rounded-xl border border-slate-800/60 shadow-lg hover:border-emerald-500/40 transition-colors">
+                        <div className="flex-1 group bg-slate-900/40 backdrop-blur-md p-3 rounded-xl border border-slate-800/60 shadow-lg hover:border-success/40 transition-colors">
                             <label className="text-[11px] font-black text-slate-400 tracking-wider flex items-center gap-1.5 mb-2">
-                                <span className="text-emerald-400">💵</span> 하한가
+                                <span className="text-success">💵</span> 하한가
                             </label>
                             <div className="relative flex items-center mb-1">
                                 <input
                                     type="number"
                                     value={minFare}
                                     onChange={(e) => setMinFare(e.target.value)}
-                                    className="w-full bg-black/60 border border-slate-700/50 rounded-lg p-2.5 pr-10 text-xl text-emerald-300 font-black outline-none focus:bg-emerald-950/20 focus:border-emerald-400/60 transition-all font-mono tracking-tighter shadow-inner"
+                                    className="w-full bg-black/60 border border-slate-700/50 rounded-lg p-2.5 pr-10 text-xl text-success font-black outline-none focus:bg-success/20 focus:border-success/60 transition-all font-mono tracking-tighter shadow-inner"
                                 />
-                                <span className="absolute right-2.5 text-[10px] text-emerald-500/70 font-bold pointer-events-none">원</span>
+                                <span className="absolute right-2.5 text-[10px] text-success/70 font-bold pointer-events-none">원</span>
                             </div>
                         </div>
 

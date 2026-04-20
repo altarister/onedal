@@ -5,8 +5,8 @@ export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () =
 
     if (!filter) {
         return (
-            <section className="flex items-center justify-center rounded-xl px-4 py-3 border shadow-md bg-slate-900 border-slate-800">
-                <span className="text-slate-500 text-sm font-bold">오더 필터 동기화 중...</span>
+            <section className="flex items-center justify-center rounded-xl px-4 py-3 border shadow-md bg-surface border-border-card">
+                <span className="text-sm font-black tracking-tight text-text-primary flex items-center gap-2">오더 필터 동기화 중...</span>
             </section>
         );
     }
@@ -17,9 +17,9 @@ export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () =
     }
 
     const getStatusStyles = (active: boolean, shared: boolean) => {
-        if (!active) return { badge: 'bg-amber-500 text-black px-2 py-0.5 rounded-md border border-amber-400', border: 'bg-amber-950/40 border-amber-500/50 hover:bg-amber-900/50' };
-        if (shared) return { badge: 'bg-purple-600 text-white px-2 py-0.5 rounded-md border border-purple-400', border: 'bg-purple-950/30 border-purple-500/40 hover:bg-purple-900/40' };
-        return { badge: 'bg-blue-600 text-white px-2 py-0.5 rounded-md border border-blue-400', border: 'bg-indigo-950/30 border-indigo-500/30 hover:bg-indigo-900/40' };
+        if (!active) return { badge: 'bg-warning text-white px-2 py-0.5 rounded-md border border-warning', border: 'bg-warning/10 border-warning/50 hover:bg-warning/20' };
+        if (shared) return { badge: 'bg-accent text-white px-2 py-0.5 rounded-md border border-accent', border: 'bg-accent/10 border-accent/40 hover:bg-accent/20' };
+        return { badge: 'bg-info text-white px-2 py-0.5 rounded-md border border-info', border: 'bg-info/10 border-info/30 hover:bg-info/20' };
     };
 
     const styles = getStatusStyles(filter.isActive, filter.isSharedMode);
@@ -44,24 +44,24 @@ export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () =
             onClick={onOpenFilter}
             className={`flex items-center justify-between cursor-pointer rounded-xl px-2 py-1 border shadow-md transition-all active:scale-95 ${styles.border}`}
         >
-            <div className="flex items-center gap-3 text-xs text-white tracking-tight">
+            <div className="flex items-center gap-3 text-xs text-text-primary tracking-tight font-bold">
                 <span className={styles.badge}>
                     {label}
                 </span>
-                <span className="text-emerald-400">{(filter.minFare / 10000).toFixed(1)}</span>
-                <span className="text-slate-600 font-sm">|</span>
-                <span className="text-slate-300">{filter.pickupRadiusKm}km</span>
-                <span className="text-slate-600 font-sm">|</span>
-                <span className="text-indigo-300">{getRegionSummary()}</span>
+                <span className="text-success font-black">{(filter.minFare / 10000).toFixed(1)}</span>
+                <span className="text-text-muted font-sm">|</span>
+                <span className="text-text-primary">{filter.pickupRadiusKm}km</span>
+                <span className="text-text-muted font-sm">|</span>
+                <span className="text-accent">{getRegionSummary()}</span>
                 {filter.allowedVehicleTypes && filter.allowedVehicleTypes.length > 0 ? (
                     <>
-                        <span className="text-slate-600 font-sm">|</span>
-                        <span className="text-orange-300">{filter.allowedVehicleTypes.map(v => v.charAt(0)).join(',')}</span>
+                        <span className="text-text-muted font-sm">|</span>
+                        <span className="text-warning font-black">{filter.allowedVehicleTypes.map(v => v.charAt(0)).join(',')}</span>
                     </>
                 ) : (
                     <>
-                        <span className="text-slate-600 font-sm">|</span>
-                        <span className="text-orange-300/50">전체</span>
+                        <span className="text-text-muted font-sm">|</span>
+                        <span className="text-text-muted">전체</span>
                     </>
                 )}
             </div>

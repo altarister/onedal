@@ -2,6 +2,8 @@ import { useRef, useCallback, useEffect } from 'react';
 import type { SecuredOrder } from "@onedal/shared";
 import sidoDataRaw from '../../mapData/sidoData.json';
 import { getDistanceKm } from '../../lib/routeUtils';
+import { useTheme } from '../../contexts/ThemeContext';
+import { MAP_THEME_COLORS, withAlpha } from '../../styles/themes';
 
 const sidoData = sidoDataRaw as any; // GeoJSON FeatureCollection
 
@@ -22,6 +24,8 @@ interface Props {
 
 export default function PinnedRouteCanvas({ unifiedRoutePoints, safeRoute, myLocation }: Props) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const { theme } = useTheme();
+    const mapColors = MAP_THEME_COLORS[theme];
 
     // 초경량 성능을 위한 퓨어 줌/팬 상태 (React State 대신 Ref 사용으로 60fps 보장)
     const zoomRef = useRef(1);
@@ -60,7 +64,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, safeRoute, myLoc
         if (myLocation) allCoords.push(myLocation);
 
         if (allCoords.length < 2) {
-            ctx.fillStyle = '#64748b';
+            ctx.fillStyle = mapColors.textMuted;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.font = '12px sans-serif';
@@ -106,8 +110,8 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, safeRoute, myLoc
             sortedFeatures.forEach((feature: any) => {
                 const isGyeonggiSigungu = feature.properties?.isGyeonggiSigungu;
 
-                ctx.fillStyle = 'rgba(100, 116, 139, 0.15)'; 
-                ctx.strokeStyle = isGyeonggiSigungu ? 'rgba(100, 116, 139, 0.4)' : 'rgba(100, 116, 139, 0.3)';
+                ctx.fillStyle = withAlpha(mapColors.sidoFill, 0.15); 
+                ctx.strokeStyle = withAlpha(mapColors.sidoStroke, isGyeonggiSigungu ? 0.4 : 0.3);
                 ctx.lineWidth = isGyeonggiSigungu ? 0.5 : 1;
                 const geom = feature.geometry;
                 if (!geom) return;
@@ -133,7 +137,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, safeRoute, myLoc
 
         // 1.5. 기초 연결선 렌더링 (노드들을 잇는 보조 점선 및 직선거리)
         ctx.beginPath();
-        ctx.strokeStyle = 'rgba(100, 116, 139, 0.4)';
+        ctx.strokeStyle = withAlpha(mapColors.sidoStroke, 0.4);
         ctx.lineWidth = 2;
         ctx.setLineDash([4, 6]);
 
@@ -171,17 +175,17 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, safeRoute, myLoc
             ctx.textAlign = 'center';
             const tWidth = ctx.measureText(text).width;
 
-            ctx.fillStyle = 'rgba(15, 20, 35, 0.7)';
+            ctx.fillStyle = withAlpha(theme === 'light' ? mapColors.textBgLight : mapColors.textBgDark, theme === 'light' ? 0.8 : 0.7);
             ctx.fillRect(midX - (tWidth / 2) - 4, midY - 14, tWidth + 8, 18);
 
-            ctx.fillStyle = '#94a3b8'; 
+            ctx.fillStyle = mapColors.stroke; // '#94a3b8' 
             ctx.fillText(text, midX, midY - 1);
         }
 
         // 1. 카카오 실제 도로 궤적(폴리라인) 렌더링
         if (hasPolyline && validPolyline.length > 0) {
             ctx.beginPath();
-            ctx.strokeStyle = '#3b82f6';
+            ctx.strokeStyle = mapColors.routeLine;
             ctx.lineWidth = 3 * zoomRef.current;
             ctx.lineJoin = 'round';
             ctx.lineCap = 'round';
@@ -200,30 +204,30 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, safeRoute, myLoc
 
             ctx.beginPath();
             ctx.arc(cx, cy, 10, 0, 2 * Math.PI); 
-            ctx.fillStyle = p.type === '상차' ? '#10b981' : '#f43f5e';
+            ctx.fillStyle = p.type === '상차' ? mapColors.nodePickup : mapColors.nodeDropoff;
 
             if (p.isEvaluating) {
-                ctx.fillStyle = '#f59e0b';
+                ctx.fillStyle = mapColors.nodeEvaluating;
                 ctx.lineWidth = 2.5;
-                ctx.strokeStyle = '#fde68a';
+                ctx.strokeStyle = mapColors.nodeStrokeEvaluating;
             } else {
                 ctx.lineWidth = 2.5;
-                ctx.strokeStyle = '#0f1423';
+                ctx.strokeStyle = mapColors.nodeStrokeRegular;
             }
             ctx.fill();
             ctx.stroke();
 
-            ctx.fillStyle = '#ffffff';
+            ctx.fillStyle = mapColors.textBody;
             ctx.font = 'bold 11px sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText((i + 1).toString(), cx, cy + 1);
 
             const textWidth = ctx.measureText(p.name).width;
-            ctx.fillStyle = 'rgba(15, 20, 35, 0.45)';
+            ctx.fillStyle = withAlpha(theme === 'light' ? mapColors.textBgLight : mapColors.textBgDark, theme === 'light' ? 0.8 : 0.45);
             ctx.fillRect(cx - (textWidth / 2) - 6, cy + 14, textWidth + 12, 18);
 
-            ctx.fillStyle = p.isEvaluating ? '#fde68a' : '#ffffff';
+            ctx.fillStyle = p.isEvaluating ? mapColors.nodeStrokeEvaluating : mapColors.textBody;
             ctx.textBaseline = 'top';
             ctx.fillText(p.name, cx, cy + 16);
         });
@@ -237,26 +241,26 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, safeRoute, myLoc
 
             ctx.beginPath();
             ctx.arc(cx, cy, pulseRadius, 0, 2 * Math.PI);
-            ctx.fillStyle = 'rgba(56, 189, 248, 0.2)'; 
+            ctx.fillStyle = withAlpha(mapColors.myLocationPulse, 0.2); 
             ctx.fill();
 
             ctx.beginPath();
             ctx.arc(cx, cy, 6, 0, 2 * Math.PI);
-            ctx.fillStyle = '#38bdf8'; 
-            ctx.strokeStyle = '#ffffff';
+            ctx.fillStyle = mapColors.myLocationPulse; 
+            ctx.strokeStyle = mapColors.myLocationStroke;
             ctx.lineWidth = 1.5;
             ctx.fill();
             ctx.stroke();
 
-            ctx.fillStyle = 'rgba(15, 20, 35, 0.45)';
+            ctx.fillStyle = withAlpha(theme === 'light' ? mapColors.textBgLight : mapColors.textBgDark, 0.45);
             ctx.fillRect(cx - 20, cy + 10, 40, 16);
 
-            ctx.fillStyle = '#e0f2fe';
+            ctx.fillStyle = mapColors.myLocationDotText;
             ctx.font = 'bold 11px sans-serif';
             ctx.textAlign = 'center';
             ctx.fillText("현위치", cx, cy + 22);
         }
-    }, [unifiedRoutePoints, safeRoute, myLocation]);
+    }, [unifiedRoutePoints, safeRoute, myLocation, theme, mapColors]);
 
     useEffect(() => {
         drawMap();
@@ -349,7 +353,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, safeRoute, myLoc
     };
 
     return (
-        <div className="relative w-full h-64 bg-slate-100/50 dark:bg-slate-800 cursor-grab active:cursor-grabbing overflow-hidden">
+        <div style={{ backgroundColor: mapColors.fill }} className="relative w-full h-64 cursor-grab active:cursor-grabbing overflow-hidden">
             <canvas
                 ref={canvasRef}
                 className="absolute inset-0 w-full h-full touch-none"

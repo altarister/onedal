@@ -106,7 +106,7 @@ function DevTools() {
         return (
             <button
                 onClick={() => setIsOpen(true)}
-                className="fixed bottom-24 right-4 z-[9999] bg-fuchsia-600 border-2 border-fuchsia-400 text-white rounded-full w-12 h-12 flex items-center justify-center shadow-[0_0_15px_rgba(192,38,211,0.5)] font-black text-xl transition-transform hover:scale-110 opacity-60 hover:opacity-100"
+                className="fixed bottom-24 right-4 z-[9999] bg-accent-alt border-2 border-accent-alt text-white rounded-full w-12 h-12 flex items-center justify-center shadow-lg font-black text-xl transition-transform hover:scale-110 opacity-60 hover:opacity-100"
             >
                 🛠️
             </button>
@@ -114,16 +114,16 @@ function DevTools() {
     }
 
     return (
-        <div className="fixed bottom-24 right-4 z-[9999] w-22 bg-slate-900 border border-fuchsia-500/50 rounded-lg shadow-2xl overflow-hidden backdrop-blur-md">
-            <div className="bg-fuchsia-900/40 border-b border-fuchsia-500/30 px-2 py-1 flex justify-between items-center">
-                <span className="font-bold text-fuchsia-300 text-xs text-center w-full">목업 툴</span>
+        <div className="fixed bottom-24 right-4 z-[9999] w-22 bg-slate-900 border border-accent-alt/50 rounded-lg shadow-2xl overflow-hidden backdrop-blur-md">
+            <div className="bg-accent-alt/20 border-b border-accent-alt/30 px-2 py-1 flex justify-between items-center">
+                <span className="font-bold text-accent-alt text-xs text-center w-full">목업 툴</span>
                 <button onClick={() => setIsOpen(false)} className="text-slate-400 hover:text-white px-1 ml-1 rounded font-bold text-xs">X</button>
             </div>
             <div className="p-2 flex flex-col gap-1.5">
                 <Button
                     size="sm"
                     onClick={spawnBot}
-                    className="w-full h-7 text-xs bg-slate-800 border-dashed border border-fuchsia-500/30 text-fuchsia-400 hover:bg-slate-700 font-bold"
+                    className="w-full h-7 text-xs bg-slate-800 border-dashed border border-accent-alt/30 text-accent-alt hover:bg-slate-700 font-bold"
                 >
                     폰 ({botCount})
                 </Button>
@@ -132,7 +132,7 @@ function DevTools() {
                     size="sm"
                     disabled={botCount === 0}
                     onClick={fireMockOfficeOrder}
-                    className="w-full h-7 text-xs bg-emerald-950/40 border-dashed border border-emerald-500/50 text-emerald-400 hover:bg-emerald-900/60 font-bold"
+                    className="w-full h-7 text-xs bg-success/10 border-dashed border border-success/50 text-success hover:bg-success/20 font-bold"
                 >
                     가상 콜
                 </Button>
@@ -141,7 +141,7 @@ function DevTools() {
                     size="sm"
                     onClick={clearDevices}
                     variant="outline"
-                    className="w-full h-7 text-xs bg-red-950/30 border-dashed border border-red-500/30 text-red-400 hover:bg-red-900/50 hover:text-red-300 font-bold px-0"
+                    className="w-full h-7 text-xs bg-danger/10 border-dashed border border-danger/30 text-danger hover:bg-danger/20 hover:brightness-110 font-bold px-0"
                 >
                     퇴근
                 </Button>
@@ -149,7 +149,7 @@ function DevTools() {
                 {/* API 발송 타겟 (Local / Live) 전환 토글 */}
                 <div
                     onClick={() => setIsLiveMode(!isLiveMode)}
-                    className={`mt-1 flex items-center justify-center py-1 rounded cursor-pointer border text-[10px] font-black transition-all shadow-inner ${isLiveMode ? 'bg-indigo-900/40 border-indigo-500 text-indigo-300' : 'bg-slate-800 border-slate-600 text-slate-400'}`}
+                    className={`mt-1 flex items-center justify-center py-1 rounded cursor-pointer border text-[10px] font-black transition-all shadow-inner ${isLiveMode ? 'bg-info/20 border-info text-info' : 'bg-slate-800 border-slate-600 text-slate-400'}`}
                 >
                     {isLiveMode ? '실서버로 발송' : '내 PC로 발송'}
                 </div>

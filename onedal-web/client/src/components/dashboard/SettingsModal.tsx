@@ -153,14 +153,14 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         <p className="text-sm text-gray-400 mb-2 font-semibold">앱에서 아래 코드를 입력하세요</p>
         <div className="flex gap-2 mb-4">
           {pinCode.split("").map((digit, i) => (
-            <span key={i} className="text-4xl font-black text-violet-400 bg-violet-500/10 border-2 border-violet-500/30 rounded-xl w-14 h-16 flex items-center justify-center">
+            <span key={i} className="text-4xl font-black text-accent bg-accent/10 border-2 border-accent/30 rounded-xl w-14 h-16 flex items-center justify-center">
               {digit}
             </span>
           ))}
         </div>
         <div className="flex items-center gap-2 mb-6">
-          <div className={`w-2 h-2 rounded-full ${pinRemainingSeconds > 30 ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`} />
-          <span className={`text-sm font-bold ${pinRemainingSeconds > 30 ? 'text-emerald-400' : 'text-amber-400'}`}>
+          <div className={`w-2 h-2 rounded-full ${pinRemainingSeconds > 30 ? 'bg-success' : 'bg-warning animate-pulse'}`} />
+          <span className={`text-sm font-bold ${pinRemainingSeconds > 30 ? 'text-success' : 'text-warning'}`}>
             {Math.floor(pinRemainingSeconds / 60)}:{(pinRemainingSeconds % 60).toString().padStart(2, "0")} 남음
           </span>
         </div>
@@ -186,7 +186,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           <button
             onClick={() => setActiveTab("settings")}
             className={`flex-1 py-2 text-sm font-bold rounded-md transition-colors ${
-              activeTab === "settings" ? "bg-violet-600 text-white" : "text-gray-500 hover:text-gray-300"
+              activeTab === "settings" ? "bg-accent text-white" : "text-gray-500 hover:text-gray-300"
             }`}
           >
             기본 설정
@@ -194,7 +194,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           <button
             onClick={() => setActiveTab("devices")}
             className={`flex-1 py-2 text-sm font-bold rounded-md transition-colors ${
-              activeTab === "devices" ? "bg-violet-600 text-white" : "text-gray-500 hover:text-gray-300"
+              activeTab === "devices" ? "bg-accent text-white" : "text-gray-500 hover:text-gray-300"
             }`}
           >
             📱 기기 관리
@@ -214,7 +214,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 <select
                   value={vehicleType}
                   onChange={(e) => setVehicleType(e.target.value)}
-                  className="w-full bg-gray-950 border border-gray-800 text-white text-sm rounded-lg p-3 outline-none focus:border-violet-500 transition-colors"
+                  className="w-full bg-gray-950 border border-gray-800 text-white text-sm rounded-lg p-3 outline-none focus:border-accent transition-colors"
                 >
                   {VEHICLE_OPTIONS.map((opt) => (
                     <option key={opt} value={opt}>{opt}</option>
@@ -227,7 +227,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 <select
                   value={defaultPriority}
                   onChange={(e) => setDefaultPriority(e.target.value)}
-                  className="w-full bg-gray-950 border border-gray-800 text-white text-sm rounded-lg p-3 outline-none focus:border-violet-500 transition-colors"
+                  className="w-full bg-gray-950 border border-gray-800 text-white text-sm rounded-lg p-3 outline-none focus:border-accent transition-colors"
                 >
                   <option value="RECOMMEND">추천 경로 (RECOMMEND)</option>
                   <option value="TIME">최단 시간 (TIME)</option>
@@ -238,7 +238,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               <div className="flex items-center justify-between mt-4">
                 <button
                   onClick={logout}
-                  className="text-sm text-red-500 hover:text-red-400 font-semibold underline underline-offset-2"
+                  className="text-sm text-danger hover:brightness-125 font-semibold underline underline-offset-2"
                 >
                   로그아웃
                 </button>
@@ -251,7 +251,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   </button>
                   <button
                     onClick={handleSaveSettings}
-                    className="px-4 py-2 rounded-lg bg-violet-600 text-white font-bold hover:bg-violet-500 transition-colors"
+                    className="px-4 py-2 rounded-lg bg-accent text-white font-bold hover:bg-violet-500 transition-colors"
                   >
                     저장하기
                   </button>
@@ -285,7 +285,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                             value={editingName}
                             onChange={(e) => setEditingName(e.target.value)}
                             placeholder="기기 별명 입력"
-                            className="flex-1 bg-gray-900 border border-violet-500/50 text-white text-sm rounded px-2 py-1 outline-none"
+                            className="flex-1 bg-gray-900 border border-accent/50 text-white text-sm rounded px-2 py-1 outline-none"
                             autoFocus
                             onKeyDown={(e) => e.key === "Enter" && handleSaveDeviceName(device.device_id)}
                           />
@@ -314,11 +314,11 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                             setEditingDeviceId(device.device_id);
                             setEditingName(device.device_name || "");
                           }}
-                          className="text-[10px] text-violet-400 hover:text-violet-300 font-bold"
+                          className="text-[10px] text-accent hover:brightness-125 font-bold"
                         >별명수정</button>
                         <button
                           onClick={() => handleDeleteDevice(device.device_id)}
-                          className="text-[10px] text-red-500 hover:text-red-400 font-bold"
+                          className="text-[10px] text-danger hover:brightness-125 font-bold"
                         >해제</button>
                       </div>
                     )}
@@ -330,7 +330,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             {/* 새 기기 연동 버튼 */}
             <button
               onClick={handleRequestPin}
-              className="w-full py-3 rounded-lg bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 font-bold text-sm hover:bg-emerald-600/30 transition-colors"
+              className="w-full py-3 rounded-lg bg-emerald-600/20 border border-emerald-500/30 text-success font-bold text-sm hover:bg-emerald-600/30 transition-colors"
             >
               + 새 기기 연동하기
             </button>

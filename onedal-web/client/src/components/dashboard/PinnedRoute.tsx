@@ -151,7 +151,7 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: 
 
     return (
         <section id="confirmed-route" className="animate-in slide-in-from-top-4 fade-in duration-500">
-            <div className={`absolute -top-3 left-4 ${allEvaluating ? 'bg-amber-500' : 'bg-emerald-500'} text-black text-[10px] font-black px-2 py-0.5 rounded-md shadow-lg transition-colors`}>
+            <div className={`absolute -top-3 left-4 ${allEvaluating ? 'bg-warning' : 'bg-success'} text-white text-[10px] font-black px-2 py-0.5 rounded-md shadow-lg transition-colors`}>
                 {allEvaluating ? "🟡 최적의 경로를 찾습니다..." : "🟢 사냥 (배차) 확정"}
             </div>
 
@@ -172,11 +172,11 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: 
                         className="flex-1"
                     >
                         <div className="flex flex-col gap-0.5">
-                            <span className="text-xs text-slate-500 text-left">
+                            <span className="text-xs text-text-muted text-left">
                                 통합 경로 정보
-                                {activeRoute.length > 0 && <span className="ml-1 text-slate-400 font-bold">(총 {activeRoute.length}개 콜)</span>}
+                                {activeRoute.length > 0 && <span className="ml-1 text-text-muted font-bold">(총 {activeRoute.length}개 콜)</span>}
                             </span>
-                            <span className="text-sm text-slate-300 hover:text-blue-400 transition-colors">
+                            <span className="text-sm text-text-primary hover:text-info transition-colors">
                                 {(() => {
                                     const lastRoute = [...safeRoute].reverse().find(r => r.totalDistanceKm != null);
                                     if (!lastRoute || lastRoute.totalDistanceKm == null) return `카카오 연산 에러 혹은 대기중...`;
@@ -207,14 +207,14 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: 
                             <button
                                 onClick={(e) => { e.stopPropagation(); logRoadmapEvent("웹", "PinnedRoute 하단의 네비게이션 옵션(추천/최단/무료) 버튼 클릭"); setProcessingId(`recalc-global`); onRecalculate(activeRoute[activeRoute.length - 1].id, 'RECOMMEND'); }}
                                 disabled={processingId !== null}
-                                className={`flex-1 text-[11px] font-bold py-2.5 rounded border transition-all shadow-sm ${processingId !== null ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'} ${isRecommend ? 'bg-blue-600 text-white border-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.5)]' : 'bg-blue-900/40 text-blue-300 border-blue-500/30 hover:bg-blue-800/60 hover:border-blue-400'}`}
+                                className={`flex-1 text-[11px] font-bold py-2.5 rounded border transition-all shadow-sm ${processingId !== null ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'} ${isRecommend ? 'bg-info/80 text-white border-info shadow-lg' : 'bg-info/10 text-info border-info/30 hover:bg-info/20 hover:border-info'}`}
                             >
                                 {processingId === `recalc-global` && !isRecommend ? '검색중...' : '🌟 추천경로'}
                             </button>
                             <button
                                 onClick={(e) => { e.stopPropagation(); logRoadmapEvent("웹", "PinnedRoute 하단의 네비게이션 옵션(추천/최단/무료) 버튼 클릭"); setProcessingId(`recalc-global`); onRecalculate(activeRoute[activeRoute.length - 1].id, 'TIME'); }}
                                 disabled={processingId !== null}
-                                className={`flex-1 text-[11px] font-bold py-2.5 rounded border transition-all shadow-sm ${processingId !== null ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'} ${isTime ? 'bg-indigo-600 text-white border-indigo-400 shadow-[0_0_10px_rgba(79,70,229,0.5)]' : 'bg-indigo-900/40 text-indigo-300 border-indigo-500/30 hover:bg-indigo-800/60 hover:border-indigo-400'}`}
+                                className={`flex-1 text-[11px] font-bold py-2.5 rounded border transition-all shadow-sm ${processingId !== null ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'} ${isTime ? 'bg-accent/80 text-white border-accent shadow-lg' : 'bg-accent/10 text-accent border-accent/30 hover:bg-accent/20 hover:border-accent'}`}
                             >
                                 {processingId === `recalc-global` && !isTime ? '검색중...' : '⏳ 최단시간'}
                             </button>

@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import SettingsModal from "../dashboard/SettingsModal";
+import { useTheme } from "../../contexts/ThemeContext";
 
 export default function Header({ isConnected }: { isConnected: boolean }) {
     const [time, setTime] = useState<Date>(new Date());
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const { user } = useAuth();
+    const { theme, toggleTheme } = useTheme();
 
     useEffect(() => {
         const timer = setInterval(() => setTime(new Date()), 1000);
@@ -13,16 +15,21 @@ export default function Header({ isConnected }: { isConnected: boolean }) {
     }, []);
     return (
         <>
-            <header className="sticky top-0 z-10 bg-slate-950/80 backdrop-blur-md border-b border-white/10 px-4 py-2">
+            <header className="sticky top-0 z-10 bg-bg-base/80 backdrop-blur-md border-b border-border-card px-4 py-2">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <h1 className="text-xl font-black tracking-tighter bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-                            1DAL
-                        </h1>
+                        <button onClick={toggleTheme} className="flex items-center gap-1.5 focus:outline-none group">
+                            <h1 className="text-xl font-black tracking-tighter bg-gradient-to-r from-success to-info-alt bg-clip-text text-transparent">
+                                1DAL
+                            </h1>
+                            <span className="text-sm opacity-60 group-hover:opacity-100 transition-opacity">
+                                {theme === 'dark' ? '🌙' : '🌞'}
+                            </span>
+                        </button>
                     </div>
                     <div className="flex gap-4 items-center">
-                        <div className="flex items-center gap-2 bg-slate-900 px-3 py-1 rounded-full border border-slate-800">
-                            <span className={`w-2 h-2 rounded-full ${isConnected ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" : "bg-red-500"}`} />
+                        <div className="flex items-center gap-2 bg-surface px-3 py-1 rounded-full border border-border-card">
+                            <span className={`w-2 h-2 rounded-full ${isConnected ? "bg-success shadow-lg" : "bg-danger"}`} />
                             <span className="text-xs font-bold text-slate-400">
                                 {time.toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                             </span>
@@ -38,7 +45,7 @@ export default function Header({ isConnected }: { isConnected: boolean }) {
                                     {user.avatar ? (
                                         <img src={user.avatar} alt="Avatar" className="w-5 h-5 rounded-full" />
                                     ) : (
-                                        <div className="w-5 h-5 rounded-full bg-violet-600 flex items-center justify-center text-[10px] text-white font-bold">
+                                        <div className="w-5 h-5 rounded-full bg-accent flex items-center justify-center text-[10px] text-white font-bold">
                                             {user.name.charAt(0)}
                                         </div>
                                     )}
