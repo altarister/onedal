@@ -42,25 +42,25 @@ export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () =
         <section
             id="filter-status"
             onClick={onOpenFilter}
-            className={`flex items-center justify-between cursor-pointer rounded-xl px-4 py-3 border shadow-md transition-all active:scale-95 ${styles.border}`}
+            className={`flex items-center justify-between cursor-pointer rounded-xl px-2 py-1 border shadow-md transition-all active:scale-95 ${styles.border}`}
         >
-            <div className="flex items-center gap-3 text-sm font-black text-white tracking-tight">
+            <div className="flex items-center gap-3 text-xs text-white tracking-tight">
                 <span className={styles.badge}>
                     {label}
                 </span>
                 <span className="text-emerald-400">{(filter.minFare / 10000).toFixed(1)}</span>
-                <span className="text-slate-600 font-medium">|</span>
+                <span className="text-slate-600 font-sm">|</span>
                 <span className="text-slate-300">{filter.pickupRadiusKm}km</span>
-                <span className="text-slate-600 font-medium">|</span>
+                <span className="text-slate-600 font-sm">|</span>
                 <span className="text-indigo-300">{getRegionSummary()}</span>
                 {filter.allowedVehicleTypes && filter.allowedVehicleTypes.length > 0 ? (
                     <>
-                        <span className="text-slate-600 font-medium">|</span>
-                        <span className="text-orange-300">{filter.allowedVehicleTypes.join(',')}</span>
+                        <span className="text-slate-600 font-sm">|</span>
+                        <span className="text-orange-300">{filter.allowedVehicleTypes.map(v => v.charAt(0)).join(',')}</span>
                     </>
                 ) : (
                     <>
-                        <span className="text-slate-600 font-medium">|</span>
+                        <span className="text-slate-600 font-sm">|</span>
                         <span className="text-orange-300/50">전체</span>
                     </>
                 )}

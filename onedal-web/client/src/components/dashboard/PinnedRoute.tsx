@@ -157,14 +157,14 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: 
 
             <div id="routing-timeline">
                 {/* 캔버스 미니맵 (분리된 컴포넌트) */}
-                <PinnedRouteCanvas 
-                    unifiedRoutePoints={unifiedRoutePoints} 
-                    safeRoute={safeRoute} 
-                    myLocation={myLocation} 
+                <PinnedRouteCanvas
+                    unifiedRoutePoints={unifiedRoutePoints}
+                    safeRoute={safeRoute}
+                    myLocation={myLocation}
                 />
 
                 {/* 통합 맵 정보 브리핑 */}
-                <div className="flex justify-between items-end mb-4 px-1 pb-4 border-b border-slate-700/50 mt-1">
+                <div className="flex justify-between items-end mb-4 px-1 mt-1">
                     <a
                         href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(unifiedRoutePoints[0]?.name || '')}&destination=${encodeURIComponent(unifiedRoutePoints[unifiedRoutePoints.length - 1]?.name || '')}&waypoints=${encodeURIComponent(unifiedRoutePoints.slice(1, -1).map(p => p.name).join('|'))}&travelmode=driving`}
                         target="_blank"
@@ -172,8 +172,8 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: 
                         className="flex-1"
                     >
                         <div className="flex flex-col gap-0.5">
-                            <span className="text-xs font-bold text-slate-500 text-left">통합 경로 정보</span>
-                            <span className="text-[13px] font-black text-slate-300 hover:text-blue-400 transition-colors">
+                            <span className="text-xs text-slate-500 text-left">통합 경로 정보</span>
+                            <span className="text-[13px] text-slate-300 hover:text-blue-400 transition-colors">
                                 {(() => {
                                     const lastRoute = [...safeRoute].reverse().find(r => r.totalDistanceKm != null);
                                     const callCount = activeRoute.length;
