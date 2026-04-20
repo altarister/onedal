@@ -10,6 +10,7 @@ import { DISPATCH_CONFIG } from "../config/dispatchConfig";
 import { getUserSession } from "../state/userSessionStore";
 import { handleDecision, evaluateNewOrder } from "../services/dispatchEngine";
 import db from "../db";
+import { incrementDeviceStats } from "./devices";
 
 const router = Router();
 
@@ -165,6 +166,11 @@ router.post("/", async (req, res) => {
                 Array.from(session.deviceEvaluatingMap.entries()).forEach(([k, v]) => {
                     if (v === payload.order.id) session.deviceEvaluatingMap.delete(k);
                 });
+
+                if (payload.deviceId) {
+                    incrementDeviceStats(payload.deviceId, "canceled");
+                    console.log(`   📈 기기(${payload.deviceId}) 취소 카운트 +1 반영 (reason: TIMEOUT)`);
+                }
 
                 if (io) {
                     io.to(userId).emit("order-canceled", payload.order.id);

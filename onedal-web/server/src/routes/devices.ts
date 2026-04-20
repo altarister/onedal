@@ -91,6 +91,17 @@ export const touchDeviceSession = (deviceId: string, addedPollCount: number = 0,
     return session.mode;
 };
 
+/**
+ * 특정 기기의 수락/취소 통계 카운트를 즉시 1 올립니다.
+ */
+export const incrementDeviceStats = (deviceId: string, type: "grabbed" | "canceled") => {
+    const session = activeDevices.get(deviceId);
+    if (session) {
+        session.stats[type] += 1;
+        activeDevices.set(deviceId, session);
+    }
+};
+
 // ═══════════════════════════════════════
 // [API] POST /api/devices/pin — 관제 웹에서 PIN 발급 요청
 // ═══════════════════════════════════════

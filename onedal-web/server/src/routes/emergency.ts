@@ -22,6 +22,7 @@ import { Router } from "express";
 import type { EmergencyReport } from "@onedal/shared";
 import { getUserSession } from "../state/userSessionStore";
 import db from "../db";
+import { incrementDeviceStats } from "./devices";
 
 const router = Router();
 
@@ -83,6 +84,12 @@ router.post("/", (req, res) => {
         Array.from(session.deviceEvaluatingMap.entries()).forEach(([k, v]) => {
             if (v === targetOrderId) session.deviceEvaluatingMap.delete(k);
         });
+
+        // 📈 취소(알림) 카운트 증가 처리
+        if (deviceId) {
+            incrementDeviceStats(deviceId, "canceled");
+            console.log(`   📈 기기(${deviceId}) 취소 카운트 +1 반영 (reason: ${reason})`);
+        }
 
         if (session.mainCallState && session.mainCallState.id === targetOrderId) {
             session.mainCallState = null;

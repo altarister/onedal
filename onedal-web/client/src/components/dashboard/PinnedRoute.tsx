@@ -161,7 +161,41 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: 
                     unifiedRoutePoints={unifiedRoutePoints}
                     safeRoute={safeRoute}
                     myLocation={myLocation}
-                />
+                >
+                    {/* 좌측 상단 글로벌 상시 경로 재탐색 파이프라인 (맵 캔버스 내재화 플로팅 컨트롤) */}
+                    {activeRoute.length > 0 && onRecalculate && (() => {
+                        const lastExt = activeRoute[activeRoute.length - 1].kakaoTimeExt || '';
+                        const isTime = lastExt.includes('[최단시간]');
+                        const isDistance = lastExt.includes('[최단거리]');
+                        const isRecommend = !isTime && !isDistance; // 기본값은 항상 '추천' 상태 점등
+
+                        return (
+                            <div className="absolute top-3 left-3 flex flex-col space-y-2 z-10 w-8">
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); logRoadmapEvent("웹", "맵뷰 버튼(추천) 좌상단 클릭"); setProcessingId(`recalc-global`); onRecalculate(activeRoute[activeRoute.length - 1].id, 'RECOMMEND'); }}
+                                    disabled={processingId !== null}
+                                    className={`w-8 h-8 flex items-center justify-center rounded-md shadow-lg text-[10px] font-bold backdrop-blur-sm transition-all focus:outline-none ${processingId !== null ? 'opacity-50 cursor-not-allowed' : 'opacity-80 hover:opacity-100 active:scale-95'} ${isRecommend ? 'bg-info/90 text-white border border-info' : 'bg-slate-700/80 hover:bg-slate-600 text-slate-100 border border-slate-500/50'}`}
+                                >
+                                    추천
+                                </button>
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); logRoadmapEvent("웹", "맵뷰 버튼(최단시간) 좌상단 클릭"); setProcessingId(`recalc-global`); onRecalculate(activeRoute[activeRoute.length - 1].id, 'TIME'); }}
+                                    disabled={processingId !== null}
+                                    className={`w-8 h-8 flex items-center justify-center rounded-md shadow-lg text-[10px] font-bold backdrop-blur-sm transition-all focus:outline-none ${processingId !== null ? 'opacity-50 cursor-not-allowed' : 'opacity-80 hover:opacity-100 active:scale-95'} ${isTime ? 'bg-accent/90 text-white border border-accent' : 'bg-slate-700/80 hover:bg-slate-600 text-slate-100 border border-slate-500/50'}`}
+                                >
+                                    시간
+                                </button>
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); logRoadmapEvent("웹", "맵뷰 버튼(최단거리) 좌상단 클릭"); setProcessingId(`recalc-global`); onRecalculate(activeRoute[activeRoute.length - 1].id, 'DISTANCE'); }}
+                                    disabled={processingId !== null}
+                                    className={`w-8 h-8 flex items-center justify-center rounded-md shadow-lg text-[10px] font-bold backdrop-blur-sm transition-all focus:outline-none ${processingId !== null ? 'opacity-50 cursor-not-allowed' : 'opacity-80 hover:opacity-100 active:scale-95'} ${isDistance ? 'bg-teal-600/90 text-white border border-teal-400' : 'bg-slate-700/80 hover:bg-slate-600 text-slate-100 border border-slate-500/50'}`}
+                                >
+                                    거리
+                                </button>
+                            </div>
+                        );
+                    })()}
+                </PinnedRouteCanvas>
 
                 {/* 통합 맵 정보 브리핑 */}
                 <div className="flex justify-between items-end mb-4 px-1 mt-1">
@@ -196,38 +230,7 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: 
                     </div>
                 </div>
 
-                {/* 글로벌 상시 경로 재탐색 파이프라인 */}
-                {activeRoute.length > 0 && onRecalculate && (() => {
-                    const lastExt = activeRoute[activeRoute.length - 1].kakaoTimeExt || '';
-                    const isRecommend = lastExt.includes('[추천]');
-                    const isTime = lastExt.includes('[최단시간]');
-                    const isDistance = lastExt.includes('[최단거리]');
-                    return (
-                        <div className="mb-4 px-1 flex gap-2 justify-center">
-                            <button
-                                onClick={(e) => { e.stopPropagation(); logRoadmapEvent("웹", "PinnedRoute 하단의 네비게이션 옵션(추천/최단/무료) 버튼 클릭"); setProcessingId(`recalc-global`); onRecalculate(activeRoute[activeRoute.length - 1].id, 'RECOMMEND'); }}
-                                disabled={processingId !== null}
-                                className={`flex-1 text-[11px] font-bold py-2.5 rounded border transition-all shadow-sm ${processingId !== null ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'} ${isRecommend ? 'bg-info/80 text-white border-info shadow-lg' : 'bg-info/10 text-info border-info/30 hover:bg-info/20 hover:border-info'}`}
-                            >
-                                {processingId === `recalc-global` && !isRecommend ? '검색중...' : '🌟 추천경로'}
-                            </button>
-                            <button
-                                onClick={(e) => { e.stopPropagation(); logRoadmapEvent("웹", "PinnedRoute 하단의 네비게이션 옵션(추천/최단/무료) 버튼 클릭"); setProcessingId(`recalc-global`); onRecalculate(activeRoute[activeRoute.length - 1].id, 'TIME'); }}
-                                disabled={processingId !== null}
-                                className={`flex-1 text-[11px] font-bold py-2.5 rounded border transition-all shadow-sm ${processingId !== null ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'} ${isTime ? 'bg-accent/80 text-white border-accent shadow-lg' : 'bg-accent/10 text-accent border-accent/30 hover:bg-accent/20 hover:border-accent'}`}
-                            >
-                                {processingId === `recalc-global` && !isTime ? '검색중...' : '⏳ 최단시간'}
-                            </button>
-                            <button
-                                onClick={(e) => { e.stopPropagation(); logRoadmapEvent("웹", "PinnedRoute 하단의 네비게이션 옵션(추천/최단/무료) 버튼 클릭"); setProcessingId(`recalc-global`); onRecalculate(activeRoute[activeRoute.length - 1].id, 'DISTANCE'); }}
-                                disabled={processingId !== null}
-                                className={`flex-1 text-[11px] font-bold py-2.5 rounded border transition-all shadow-sm ${processingId !== null ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'} ${isDistance ? 'bg-teal-600 text-white border-teal-400 shadow-[0_0_10px_rgba(20,184,166,0.5)]' : 'bg-teal-900/40 text-teal-300 border-teal-500/30 hover:bg-teal-800/60 hover:border-teal-400'}`}
-                            >
-                                {processingId === `recalc-global` && !isDistance ? '검색중...' : '📏 최단거리'}
-                            </button>
-                        </div>
-                    );
-                })()}
+
             </div>
 
             {/* 오더 관리 아코디언 리스트 (가장 처음 잡은 본짐이 맨 아래, 최근에 잡은 합짐이 맨 위로 쌓이도록 역순 정렬) */}

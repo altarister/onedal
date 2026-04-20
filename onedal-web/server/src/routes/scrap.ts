@@ -77,6 +77,15 @@ router.post("/", (req, res) => {
         logRoadmapEvent("서버", "관제탑에게 실시간 마커용 GPS(device-sessions-updated) 정보 전달");
         const session = getUserSession(userId);
 
+        // 3.2. [Telemetry Ping] 프론트엔드의 타임아웃 진행바를 위한 실시간 핑 발송
+        if (deviceId) {
+            const evaluatingOrderId = session.deviceEvaluatingMap.get(deviceId);
+            if (evaluatingOrderId) {
+                const io = req.app.get("io");
+                io.emit("telemetry-ping", { orderId: evaluatingOrderId });
+            }
+        }
+
         // 3.5. [Piggyback V2] ACK 처리 및 결재(Decision) 탑재 로직
         let piggybackDecision = undefined;
 

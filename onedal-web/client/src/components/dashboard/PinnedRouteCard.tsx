@@ -1,4 +1,6 @@
+import { useState, useEffect } from 'react';
 import type { SecuredOrder } from "@onedal/shared";
+import { socket } from "../../lib/socket";
 import { getAddressLabel, getMinuteDiff } from "../../lib/routeUtils";
 import { logRoadmapEvent } from '../../lib/roadmapLogger';
 
@@ -29,6 +31,32 @@ export default function PinnedRouteCard({
     const etas = etaMap.get(route.id);
     const visitOrder = visitOrderMap.get(route.id);
 
+    // [텔레메트리 스니펫] 카운터 상태 및 애니메이션 트리거
+    const [telemetryCount, setTelemetryCount] = useState(0);
+    const [isPinging, setIsPinging] = useState(false);
+
+    useEffect(() => {
+        // 평가 중이 아닐 때는 카운터 초기화
+        if (!route.status.includes('evaluating')) {
+            setTelemetryCount(0);
+            return;
+        }
+
+        const handleTelemetryPing = (payload: { orderId: string }) => {
+            if (payload.orderId === route.id) {
+                setTelemetryCount(prev => prev + 1);
+                setIsPinging(true);
+                // 핑 애니메이션을 위해 잠깐 켰다가 끄기
+                setTimeout(() => setIsPinging(false), 300);
+            }
+        };
+
+        socket.on("telemetry-ping", handleTelemetryPing);
+        return () => {
+            socket.off("telemetry-ping", handleTelemetryPing);
+        };
+    }, [route.id, route.status]);
+
     const pLabel = visitOrder?.pickupIdx || '?';
     const dLabel = visitOrder?.dropoffIdx || '?';
 
@@ -44,7 +72,7 @@ export default function PinnedRouteCard({
             {/* 1. 카드 헤더 구역 */}
             <div
                 onClick={() => !isEvaluating && onToggle(route.id)}
-                className={`px-2 py-1 flex justify-between items-center w-full text-sm tracking-tight ${!isEvaluating ? 'cursor-pointer group hover:bg-text-primary/5' : ''}`}
+                className={`px-1 py-1 flex justify-between items-center w-full text-sm tracking-tight ${!isEvaluating ? 'cursor-pointer group hover:bg-text-primary/5' : ''}`}
             >
                 <div className="flex items-center gap-1 truncate text-text-primary flex-1">
                     <span className="text-text-muted font-bold mr-1 text-[11px] bg-bg-base px-1.5 py-0.5 rounded border border-border-card">#{indexNum}</span>
@@ -74,9 +102,83 @@ export default function PinnedRouteCard({
 
             {/* 2. 카드 콘텐츠 */}
             {isExpanded && (
-                <div id="" className="px-4 pb-4 pt-1 text-sm border-t border-border-card bg-surface mt-1">
+                <div id="" className="px-2 pb-4 pt-1 text-sm border-t border-border-card bg-surface mt-1">
+
+                    {route.type !== 'MANUAL' && (route.status === 'evaluating_basic' || route.status === 'evaluating_detailed') && onDecision && (
+                        <>
+                            <div className="mt-1 flex gap-3">
+                                <button disabled={processingId === route.id} onClick={(e) => { e.stopPropagation(); logRoadmapEvent("웹", "PinnedRoute에서 CANCEL(취소) 또는 X 버튼 클릭"); logRoadmapEvent("웹", "서버에게 decision=CANCEL 하달 정보 전달"); setProcessingId(route.id); onDecision(route.id, 'CANCEL'); }} className={`flex-1 bg-danger/10 text-danger text-sm font-bold py-4 rounded-lg border border-danger/30 transition-all shadow-sm ${processingId === route.id ? 'opacity-50 cursor-not-allowed' : 'hover:bg-danger/20 active:scale-95'}`}>
+                                    {processingId === route.id ? '처리 중...' : '방출'}
+                                </button>
+                                {!!route.kakaoTimeExt ? (() => {
+                                    let btnBg = "bg-success";
+                                    let btnTitle = "유지 확정";
+
+                                    const rawRes = route.kakaoTimeExt.replace(/['꿀똥콜🚙💩🍯\[\]추천최단거리시간]/g, "").trim();
+                                    const cleanReason = rawRes || '연산 완료';
+
+                                    if (route.kakaoTimeExt.includes("실패") || route.kakaoTimeExt.includes("에러")) {
+                                        btnBg = "bg-slate-600";
+                                        btnTitle = "분석 실패 (강제 유지)";
+                                    } else if (route.kakaoTimeExt.includes("'꿀'")) {
+                                        btnBg = "bg-blue-600 shadow-blue-500/40";
+                                        btnTitle = "유지 확정 (꿀콜 🍯)";
+                                    } else if (route.kakaoTimeExt.includes("'똥'")) {
+                                        btnBg = "bg-orange-600 shadow-orange-500/40";
+                                        btnTitle = "위험 감수 (똥콜 💩)";
+                                    } else {
+                                        btnBg = "bg-emerald-600 shadow-emerald-500/40";
+                                        btnTitle = "유지 확정 (양호 🚙)";
+                                    }
+
+                                    return (
+                                        <button disabled={processingId === route.id} onClick={(e) => { e.stopPropagation(); logRoadmapEvent("웹", `PinnedRoute에서 KEEP(${btnTitle}) 버튼 클릭`); logRoadmapEvent("웹", "서버에게 decision=KEEP 하달 정보 전달"); setProcessingId(route.id); onDecision(route.id, 'KEEP'); }} className={`flex-[2] ${btnBg} text-white flex flex-col items-center justify-center py-2.5 rounded-lg transition-all ${processingId === route.id ? 'opacity-50 cursor-not-allowed' : 'shadow-lg hover:brightness-110 active:scale-95'} overflow-hidden px-1`}>
+                                            <span className="text-base font-black tracking-tight">{processingId === route.id ? '통신 중...' : btnTitle}</span>
+                                            <span className="text-[11px] font-medium opacity-90 mt-0.5 tracking-tight leading-snug break-all line-clamp-1">{cleanReason}</span>
+                                        </button>
+                                    );
+                                })() : (
+                                    <button disabled className="flex-[2] bg-surface text-text-muted text-base font-black py-4 rounded-lg border border-border-card cursor-not-allowed">
+                                        좌표 분석 중...
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* 텔레메트리 진행 상태 바 (30초 만기) */}
+                            {route.status === 'evaluating_detailed' && (() => {
+                                const isDanger = telemetryCount >= 25;
+                                const isWarning = telemetryCount >= 20 && telemetryCount < 25;
+                                const barColor = isDanger ? 'bg-danger/20' : isWarning ? 'bg-warning/20' : 'bg-success/20';
+                                const dotColor = isDanger ? 'bg-danger' : isWarning ? 'bg-warning' : 'bg-success';
+                                const emptyDot = isDanger ? 'bg-danger/40' : isWarning ? 'bg-warning/40' : 'bg-success/40';
+                                const textColor = isDanger ? 'text-danger' : isWarning ? 'text-warning' : 'text-success';
+
+                                return (
+                                    <div className="mt-2 bg-bg-base/50 rounded-md p-1 border border-border-card shadow-sm relative overflow-hidden">
+                                        <div
+                                            className={`absolute left-0 top-0 bottom-0 ${barColor} transition-all duration-1000 ease-linear`}
+                                            style={{ width: `${Math.min((telemetryCount / 30) * 100, 100)}%` }}
+                                        ></div>
+                                        <div className="flex items-center justify-between relative z-10 px-1 text-xs">
+                                            <div className="flex items-center gap-2.5 font-medium text-text-primary">
+                                                <span className={`relative flex h-2.5 w-2.5`}>
+                                                    <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isPinging ? dotColor : emptyDot}`}></span>
+                                                    <span className={`relative inline-flex rounded-full h-full w-full ${isPinging ? dotColor : emptyDot}`}></span>
+                                                </span>
+                                                폰에서 데이터 수집 및 홀드 중...
+                                            </div>
+                                            <span className={`font-black tracking-tight tabular-nums ${textColor}`}>
+                                                {Math.min(telemetryCount, 30)}/30초
+                                            </span>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+                        </>
+                    )}
+
                     {/* 상세 데이터 영역 */}
-                    <div className="flex flex-col text-text-primary text-[13px] leading-tight bg-bg-base/50 p-4 rounded-lg border border-border-card font-medium tracking-tight">
+                    <div className="flex flex-col text-text-primary text-[13px] leading-tight bg-bg-base/50 py-2 px-1 font-medium tracking-tight">
                         {(() => {
                             const quickName = route.companyName || '-';
                             const phoneMatch = quickName.match(/\d{2,3}-\d{3,4}-\d{4}/);
@@ -118,59 +220,16 @@ export default function PinnedRouteCard({
                         })()}
                     </div>
 
-                    {/* 2차 상세 수신 시뮬레이션 결과 표기 */}
-                    {route.kakaoTimeExt && (
-                        <div className="mt-3 text-[11px] font-bold text-warning bg-warning/10 px-3 py-1.5 rounded flex items-center justify-between border border-warning/30">
-                            <span>카카오 분석 결과</span>
-                            <span>
-                                {route.kakaoTimeExt.replace(/['꿀똥콜🚙💩🍯]/g, "").trim()}
-                                {route.kakaoTimeExt.includes("실패") ? "" : route.kakaoTimeExt.includes("'꿀'") ? " (꿀)" : route.kakaoTimeExt.includes("'똥'") ? " (패널티 주의)" : " (양호)"}
-                            </span>
-                        </div>
-                    )}
-
                     {/* 평가 상태 액션 버튼 */}
                     {route.status === 'confirmed' && onDecision && (
                         <div className="mt-4 flex gap-3">
-                                <button
-                                    disabled={processingId === route.id}
-                                    onClick={(e) => { e.stopPropagation(); setProcessingId(route.id); onDecision(route.id, 'CANCEL'); }}
-                                    className={`w-full bg-danger/10 text-danger text-sm font-bold py-4 rounded-lg border border-danger/30 transition-all shadow-sm ${processingId === route.id ? 'opacity-50 cursor-not-allowed' : 'hover:bg-danger/20 active:scale-[0.98]'}`}
-                                >
+                            <button
+                                disabled={processingId === route.id}
+                                onClick={(e) => { e.stopPropagation(); setProcessingId(route.id); onDecision(route.id, 'CANCEL'); }}
+                                className={`w-full bg-danger/10 text-danger text-sm font-bold py-4 rounded-lg border border-danger/30 transition-all shadow-sm ${processingId === route.id ? 'opacity-50 cursor-not-allowed' : 'hover:bg-danger/20 active:scale-[0.98]'}`}
+                            >
                                 {processingId === route.id ? '처리 중...' : '🚨 확정 배차 취소 (해당 오더 방출)'}
                             </button>
-                        </div>
-                    )}
-
-                    {route.type !== 'MANUAL' && route.status === 'evaluating_basic' && onDecision && (
-                        <div className="mt-4 flex flex-col gap-2">
-                            <div className="text-xs text-warning/80 text-center animate-pulse font-medium">
-                                ⏳ 앱폰이 상세 정보를 긁고 있습니다... 잠시 기다려주세요
-                            </div>
-                            <div className="flex gap-3">
-                                <button disabled={processingId === route.id} onClick={(e) => { e.stopPropagation(); setProcessingId(route.id); onDecision(route.id, 'CANCEL'); }} className={`flex-1 bg-bg-base text-danger text-sm font-bold py-3.5 rounded-lg border border-danger/30 transition-all shadow-sm ${processingId === route.id ? 'opacity-50 cursor-not-allowed' : 'hover:bg-danger/10 active:scale-95'}`}>
-                                    {processingId === route.id ? '처리 중...' : '즉시 포기'}
-                                </button>
-                                <button disabled className="flex-1 bg-surface border-border-card text-text-muted text-sm font-bold py-3.5 rounded-lg border cursor-not-allowed">
-                                    상세 대기중...
-                                </button>
-                            </div>
-                        </div>
-                    )}
-                    {route.type !== 'MANUAL' && route.status === 'evaluating_detailed' && onDecision && (
-                        <div className="mt-4 flex gap-3">
-                            <button disabled={processingId === route.id} onClick={(e) => { e.stopPropagation(); logRoadmapEvent("웹", "PinnedRoute에서 CANCEL(취소) 또는 X 버튼 클릭"); logRoadmapEvent("웹", "서버에게 decision=CANCEL 하달 정보 전달"); setProcessingId(route.id); onDecision(route.id, 'CANCEL'); }} className={`flex-1 bg-danger/10 text-danger text-sm font-bold py-4 rounded-lg border border-danger/30 transition-all shadow-sm ${processingId === route.id ? 'opacity-50 cursor-not-allowed' : 'hover:bg-danger/20 active:scale-95'}`}>
-                                {processingId === route.id ? '처리 중...' : '방출'}
-                            </button>
-                            {!!route.kakaoTimeExt ? (
-                                <button disabled={processingId === route.id} onClick={(e) => { e.stopPropagation(); logRoadmapEvent("웹", "PinnedRoute에서 KEEP(사냥 확정) 녹색 버튼 클릭"); logRoadmapEvent("웹", "서버에게 decision=KEEP 하달 정보 전달"); setProcessingId(route.id); onDecision(route.id, 'KEEP'); }} className={`flex-[2] bg-success text-white text-base font-black py-4 rounded-lg transition-all ${processingId === route.id ? 'opacity-50 cursor-not-allowed' : 'shadow-lg hover:brightness-110 active:scale-95'}`}>
-                                    {processingId === route.id ? '서버와 통신 중...' : '유지 확정'}
-                                </button>
-                            ) : (
-                                <button disabled className="flex-[2] bg-surface text-text-muted text-base font-black py-4 rounded-lg border border-border-card cursor-not-allowed">
-                                    좌표 분석 중...
-                                </button>
-                            )}
                         </div>
                     )}
                 </div>

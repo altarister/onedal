@@ -1,4 +1,4 @@
-import { useRef, useCallback, useEffect } from 'react';
+import React, { useRef, useCallback, useEffect } from 'react';
 import type { SecuredOrder } from "@onedal/shared";
 import sidoDataRaw from '../../mapData/sidoData.json';
 import { getDistanceKm } from '../../lib/routeUtils';
@@ -20,9 +20,10 @@ interface Props {
     unifiedRoutePoints: RoutePoint[];
     safeRoute: SecuredOrder[];
     myLocation: { x: number, y: number } | null;
+    children?: React.ReactNode;
 }
 
-export default function PinnedRouteCanvas({ unifiedRoutePoints, safeRoute, myLocation }: Props) {
+export default function PinnedRouteCanvas({ unifiedRoutePoints, safeRoute, myLocation, children }: Props) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const { theme } = useTheme();
     const mapColors = MAP_THEME_COLORS[theme];
@@ -387,6 +388,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, safeRoute, myLoc
                     초기화
                 </button>
             </div>
+            {children}
         </div>
     );
 }

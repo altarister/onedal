@@ -3,7 +3,6 @@ import { useEffect } from "react";
 import Dashboard from "./pages/Dashboard";
 import Settlement from "./pages/Settlement";
 import Login from "./pages/Login";
-import DevTools from "./components/dev/DevTools";
 import { logRoadmapEvent } from "./lib/roadmapLogger";
 import { useAuth } from "./contexts/AuthContext";
 
@@ -77,8 +76,6 @@ export default function App() {
           } 
         />
       </Routes>
-      {/* 배포 테스트를 위해 임시로 DevTools 강제 활성화 */}
-      <DevTools /> 
     </BrowserRouter>
   );
 }

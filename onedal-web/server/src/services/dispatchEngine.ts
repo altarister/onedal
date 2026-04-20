@@ -7,6 +7,7 @@ import { getCorridorRegions } from "../services/geoService";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { DISPATCH_CONFIG } from "../config/dispatchConfig";
 import db from "../db";
+import { incrementDeviceStats } from "../routes/devices";
 
 function getKakaoRoutingOptions(userId: string) {
     const row = db.prepare("SELECT vehicle_type, default_priority FROM user_settings WHERE user_id = ?").get(userId) as any;
@@ -20,7 +21,10 @@ function getKakaoRoutingOptions(userId: string) {
 /** 기존 평가 중이던 콜을 외부에서 강제 삭제할 때 호출 */
 export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: any) {
     const session = getUserSession(userId);
+    let targetDeviceId: string | undefined;
+
     if (session.pendingOrdersData.has(orderId)) {
+        targetDeviceId = session.pendingOrdersData.get(orderId)?.capturedDeviceId;
         session.pendingOrdersData.delete(orderId);
     }
     // [Option B] 결재 큐 및 데스밸리 타이머 청소
@@ -39,6 +43,11 @@ export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: 
     if (io) {
         console.log(`📤 [Socket 푸시] order-canceled (${orderId}) to ${userId}`);
         io.to(userId).emit("order-canceled", orderId);
+    }
+    
+    if (targetDeviceId) {
+        incrementDeviceStats(targetDeviceId, "canceled");
+        console.log(`   📈 기기(${targetDeviceId}) 취소 카운트 +1 반영 (reason: FORCE_CANCEL)`);
     }
 }
 
@@ -335,10 +344,17 @@ export async function handleDecision(userId: string, orderId: string, action: 'K
     // scrap.ts → deviceEvaluatingMap.get(deviceId) 조회가 성공해야 합니다.
     // 실제 삭제는 scrap.ts의 ACK 처리 블록에서만 수행합니다.
 
+    const targetDeviceId = session.pendingOrdersData.get(orderId)?.capturedDeviceId;
+
     if (action === 'CANCEL' && io) {
         logRoadmapEvent("서버", "관제탑으로 부터 Cancel 결재 요청 받음");
         logRoadmapEvent("서버", "취소된 콜을 메모리 큐에서 삭제 처리 연산");
         session.pendingOrdersData.delete(orderId);
+        
+        if (targetDeviceId) {
+            incrementDeviceStats(targetDeviceId, "canceled");
+            console.log(`   📈 기기(${targetDeviceId}) 취소 카운트 +1 반영 (reason: DECISION_CANCEL)`);
+        }
     }
 
     if (action === 'KEEP') {
