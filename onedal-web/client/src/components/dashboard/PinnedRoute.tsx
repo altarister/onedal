@@ -172,20 +172,21 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: 
                         className="flex-1"
                     >
                         <div className="flex flex-col gap-0.5">
-                            <span className="text-xs text-slate-500 text-left">통합 경로 정보</span>
-                            <span className="text-[13px] text-slate-300 hover:text-blue-400 transition-colors">
+                            <span className="text-xs text-slate-500 text-left">
+                                통합 경로 정보
+                                {activeRoute.length > 0 && <span className="ml-1 text-slate-400 font-bold">(총 {activeRoute.length}개 콜)</span>}
+                            </span>
+                            <span className="text-sm text-slate-300 hover:text-blue-400 transition-colors">
                                 {(() => {
                                     const lastRoute = [...safeRoute].reverse().find(r => r.totalDistanceKm != null);
-                                    const callCount = activeRoute.length;
-                                    const callCountStr = callCount > 0 ? ` (총 ${callCount}개 콜)` : '';
-                                    if (!lastRoute || lastRoute.totalDistanceKm == null) return `카카오 연산 에러 혹은 대기중...${callCountStr}`;
-                                    return `총 도로 주행거리 ${(Number(lastRoute.totalDistanceKm) || 0).toFixed(1)}km / 예상 소요 ${lastRoute.totalDurationMin || 0}분${callCountStr}`;
+                                    if (!lastRoute || lastRoute.totalDistanceKm == null) return `카카오 연산 에러 혹은 대기중...`;
+                                    return `총 도로 주행거리 ${(Number(lastRoute.totalDistanceKm) || 0).toFixed(1)}km / 예상 소요 ${lastRoute.totalDurationMin || 0}분`;
                                 })()}
                             </span>
                         </div>
                     </a>
                     <div className="flex flex-col items-end gap-0.5">
-                        <span className="text-xs font-bold text-slate-500">총 합계 운임</span>
+
                         <span className={`text-xl md:text-2xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r ${allEvaluating ? 'from-amber-400 to-yellow-200' : 'from-emerald-400 to-cyan-400'}`}>
                             {(() => {
                                 const total = activeRoute.reduce((sum, o) => sum + (o.fare || 0), 0);
