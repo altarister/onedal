@@ -119,6 +119,16 @@ class HijackService : AccessibilityService() {
         apiClient.fetchKeywords()
         updateScreenContext(ScreenContext.LIST)
 
+        // [Piggyback V2] 서버(관제탑) 결재 수신 콜백 연결 및 고스트 응답 방어(Ghost Defense)
+        telemetryManager.decisionCallback = { receivedOrderId, action ->
+            if (receivedOrderId.isNotEmpty() && receivedOrderId != currentSessionOrderId) {
+                AppLogger.e(TAG, "👻 [Ghost Defense 발동!] 수신된 ID($receivedOrderId)가 현재 폰에 열려있는 오더 ID($currentSessionOrderId)와 다릅니다! 과거 허깨비 응답을 폐기합니다.")
+            } else {
+                AppLogger.w(TAG, "🛡️ [정상 결재 수신] ID 일치($receivedOrderId). 즉각 폐기/유지 액션을 집행합니다. (Action: $action)")
+                executeDecisionImmediately(action)
+            }
+        }
+
         // 화면 켜짐/꺼짐 이벤트 수신 등록
         val filter = IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_OFF)
@@ -543,10 +553,9 @@ class HijackService : AccessibilityService() {
             val previewStr = accumulatedDetailText.replace("\n", " ").take(150)
             AppLogger.d(TAG, "🌐 [post /detail request] AUTO 모드 판결 요청 텍스트: $previewStr...")
 
-            apiClient.sendDetail(payload) { serverId, action ->
-                AppLogger.d(TAG, "🔄 서버 판결 도착: ID=$serverId, ACTION=$action")
-                executeDecisionImmediately(action)
-            }
+            // Option B (Piggyback V2): sendDetail은 202 응답만 확인하고 곧바로 리턴됨. 
+            // 실제 판결은 Telemetry 1.0초 폴링을 통해 decisionCallback으로 들어오게 됨.
+            apiClient.sendDetail(payload) { _, _ -> /* 구형 롱폴링 콜백 미사용 */ }
         }
     }
 
@@ -586,6 +595,7 @@ class HijackService : AccessibilityService() {
 
         cancelDeathValleyTimer()
         isWaitingForServerDecision = true
+        telemetryManager.isWaitingDecision = true  // [Piggyback V2] 1.0초 단위 강제 무전 타격 시작!
         val timeoutMs = getDeathValleyTimeout()
         AppLogger.w(TAG, "⏳ 데스밸리 타이머 시작: ${timeoutMs / 1000}초 대기...")
 
@@ -603,6 +613,7 @@ class HijackService : AccessibilityService() {
         deathValleyRunnable?.let { mainHandler.removeCallbacks(it) }
         deathValleyRunnable = null
         isWaitingForServerDecision = false
+        telemetryManager.isWaitingDecision = false // [Piggyback V2] 짧은 무전 해제
     }
 
     /** 서버 판결(KEEP/CANCEL) 결과 행동을 실제 화면 액션으로 쏨 */

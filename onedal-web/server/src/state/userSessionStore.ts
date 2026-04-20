@@ -5,7 +5,10 @@ import db from "../db";
 export interface UserSession {
     mainCallState: SecuredOrder | null;
     subCalls: SecuredOrder[];
-    pendingDetailRequests: Map<string, any>;
+    // [Option B] 응답 객체 대신 판결(Decision) 데이터를 저장하는 큐 형식으로 변경
+    pendingDecisions: Map<string, { action: "KEEP" | "CANCEL" | null; evaluatedAt: number }>;
+    // [Option B] 비상벨(emergency) 시 취소할 수 있도록 데스밸리 타이머 저장
+    activeTimers: Map<string, NodeJS.Timeout>;
     pendingOrdersData: Map<string, SecuredOrder>;
     deviceEvaluatingMap: Map<string, string>;
     activeFilter: AutoDispatchFilter;
@@ -18,7 +21,8 @@ function createDefaultSession(): UserSession {
     return {
         mainCallState: null,
         subCalls: [],
-        pendingDetailRequests: new Map<string, any>(),
+        pendingDecisions: new Map<string, { action: "KEEP" | "CANCEL" | null; evaluatedAt: number }>(),
+        activeTimers: new Map<string, NodeJS.Timeout>(),
         pendingOrdersData: new Map<string, SecuredOrder>(),
         deviceEvaluatingMap: new Map<string, string>(),
         activeFilter: {

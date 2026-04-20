@@ -38,8 +38,12 @@ export const requireAuth = (req: Request, res: Response, next: NextFunction): vo
         const decoded = jwt.verify(token, secret) as AuthUser;
         req.user = decoded; // 이후 라우터 로직에서 req.user.id 접근 가능
         next();
-    } catch (err) {
-        console.log("❌ [AuthMiddleware] 토큰 검증 실패:", err);
+    } catch (err: any) {
+        if (err.name === 'TokenExpiredError') {
+            console.log("❌ [AuthMiddleware] 토큰 만료됨 (재발급 필요)");
+        } else {
+            console.log("❌ [AuthMiddleware] 토큰 검증 실패:", err.message || err);
+        }
         // 만료되었거나 서명이 일치하지 않는 경우
         res.status(401).json({ error: "유효하지 않거나 만료된 토큰입니다." });
         return;

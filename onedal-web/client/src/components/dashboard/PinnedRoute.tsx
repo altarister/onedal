@@ -17,10 +17,10 @@ function getDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
     const R = 6371; // km
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
 }
 
@@ -33,15 +33,33 @@ function getMinuteDiff(start?: string, end?: string) {
     return diff;
 }
 
+export function getAddressLabel(addr: string) {
+    if (!addr) return "미상";
+    const parts = addr.split(' ');
+    if (parts.length <= 1) return addr;
+
+    const city = parts[1] || "";
+
+    // 1순위: 동/읍/면 또는 종로3가 같은 '가' 로 끝나는 법정동 탐색
+    const dong = parts.find((p, idx) => idx >= 2 && (p.match(/[동읍면]$/) || p.match(/\d+가$/)));
+    if (dong) return `${city} ${dong}`.trim();
+
+    // 2순위: 1기 신도시처럼 '구' 단위까지만 나오는 경우 
+    const gu = parts.find((p, idx) => idx >= 2 && p.endsWith('구'));
+    if (gu) return `${city} ${gu}`.trim();
+
+    return city;
+}
+
 export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: Props) {
     const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
     const [processingId, setProcessingId] = useState<string | null>(null);
-    
+
     // 서버 통신 완료 시 (상태가 변하거나 삭제될 때) 로딩 상태 즉각 해제
     useEffect(() => {
         setProcessingId(null);
     }, [activeRoute]);
-    
+
     // [개발/테스트용 목업 GPS] 
     // 브라우저에서 GPS 락이 늦게 잡히는 문제를 방지하고, 서버로 현위치를 보내 반경 필터를 테스트하기 위한 가짜 현위치입니다.
     // ※ 실제 라이브 배포 전에는 초기값을 null로 돌려주세요.
@@ -94,12 +112,12 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: 
     };
 
     // 서버와 동일한 동선 최적화(TSP Nearest Neighbor) 로직 적용
-    const rawPickups = safeRoute.map((r) => ({ type: '상차', name: r.pickup.split(' ')[1] || r.pickup, isEvaluating: r.status.includes('evaluating'), x: r.pickupX, y: r.pickupY, routeId: r.id }));
-    const rawDropoffs = safeRoute.map((r) => ({ type: '하차', name: r.dropoff.split(' ')[1] || r.dropoff, isEvaluating: r.status.includes('evaluating'), x: r.dropoffX, y: r.dropoffY, routeId: r.id }));
+    const rawPickups = safeRoute.map((r) => ({ type: '상차', name: getAddressLabel(r.pickup), isEvaluating: r.status.includes('evaluating'), x: r.pickupX, y: r.pickupY, routeId: r.id }));
+    const rawDropoffs = safeRoute.map((r) => ({ type: '하차', name: getAddressLabel(r.dropoff), isEvaluating: r.status.includes('evaluating'), x: r.dropoffX, y: r.dropoffY, routeId: r.id }));
 
     const sortedPickups: typeof rawPickups = [];
     let currentLoc = myLocation || (rawPickups[0] ? { x: rawPickups[0].x!, y: rawPickups[0].y! } : { x: 0, y: 0 });
-    
+
     // 상차지 최적화
     const pPool = [...rawPickups].filter(p => typeof p.x === 'number' && typeof p.y === 'number');
     while (pPool.length > 0) {
@@ -112,7 +130,7 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: 
         sortedPickups.push(best);
         currentLoc = { x: best.x!, y: best.y! };
     }
-    
+
     // 하차지 최적화
     const sortedDropoffs: typeof rawDropoffs = [];
     const dPool = [...rawDropoffs].filter(d => typeof d.x === 'number' && typeof d.y === 'number');
@@ -134,9 +152,9 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: 
         const result = new Map<string, { pickupEta?: string, dropoffEta?: string }>();
         const routeWithEtas = [...safeRoute].reverse().find(r => r.sectionEtas && r.sectionEtas.length > 0);
         if (!routeWithEtas) return result;
-        
+
         const etas = routeWithEtas.sectionEtas!;
-        const offset = myLocation ? 0 : 1; 
+        const offset = myLocation ? 0 : 1;
 
         unifiedRoutePoints.forEach((pt, index) => {
             // 카카오 네비가 중복된 거점(예: 파주시 파주시 파주시)을 하나로 병합하여 
@@ -314,25 +332,25 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: 
         });
         ctx.stroke();
         ctx.setLineDash([]); // 원래대로 점선 해제
-        
+
         // (추가요청) 현위치 - 첫 상차지 간 회색 점선 지점에 직선거리(km) 표기
         if (myLocation && validPoints.length > 0) {
             const startPt = getScreenPt(myLocation);
             const endPt = getScreenPt(validPoints[0]);
             const distKm = getDistanceKm(myLocation.y, myLocation.x, validPoints[0].y, validPoints[0].x);
-            
+
             const midX = Math.round((startPt.cx + endPt.cx) / 2);
             const midY = Math.round((startPt.cy + endPt.cy) / 2);
-            
+
             const text = `직선 ${distKm.toFixed(1)}km`;
             ctx.font = 'bold 11px sans-serif';
             ctx.textAlign = 'center';
             const tWidth = ctx.measureText(text).width;
-            
+
             // 텍스트 가독성을 위한 배경 상자
             ctx.fillStyle = 'rgba(15, 20, 35, 0.7)';
-            ctx.fillRect(midX - (tWidth/2) - 4, midY - 14, tWidth + 8, 18);
-            
+            ctx.fillRect(midX - (tWidth / 2) - 4, midY - 14, tWidth + 8, 18);
+
             ctx.fillStyle = '#94a3b8'; // slate-400
             ctx.fillText(text, midX, midY - 1);
         }
@@ -612,21 +630,21 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: 
                     const isDistance = lastExt.includes('[최단거리]');
                     return (
                         <div className="mb-4 px-1 flex gap-2 justify-center">
-                            <button 
+                            <button
                                 onClick={(e) => { e.stopPropagation(); logRoadmapEvent("웹", "PinnedRoute 하단의 네비게이션 옵션(추천/최단/무료) 버튼 클릭"); setProcessingId(`recalc-global`); onRecalculate(activeRoute[activeRoute.length - 1].id, 'RECOMMEND'); }}
                                 disabled={processingId !== null}
                                 className={`flex-1 text-[11px] font-bold py-2.5 rounded border transition-all shadow-sm ${processingId !== null ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'} ${isRecommend ? 'bg-blue-600 text-white border-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.5)]' : 'bg-blue-900/40 text-blue-300 border-blue-500/30 hover:bg-blue-800/60 hover:border-blue-400'}`}
                             >
                                 {processingId === `recalc-global` && !isRecommend ? '검색중...' : '🌟 추천경로'}
                             </button>
-                            <button 
+                            <button
                                 onClick={(e) => { e.stopPropagation(); logRoadmapEvent("웹", "PinnedRoute 하단의 네비게이션 옵션(추천/최단/무료) 버튼 클릭"); setProcessingId(`recalc-global`); onRecalculate(activeRoute[activeRoute.length - 1].id, 'TIME'); }}
                                 disabled={processingId !== null}
                                 className={`flex-1 text-[11px] font-bold py-2.5 rounded border transition-all shadow-sm ${processingId !== null ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'} ${isTime ? 'bg-indigo-600 text-white border-indigo-400 shadow-[0_0_10px_rgba(79,70,229,0.5)]' : 'bg-indigo-900/40 text-indigo-300 border-indigo-500/30 hover:bg-indigo-800/60 hover:border-indigo-400'}`}
                             >
                                 {processingId === `recalc-global` && !isTime ? '검색중...' : '⏳ 최단시간'}
                             </button>
-                            <button 
+                            <button
                                 onClick={(e) => { e.stopPropagation(); logRoadmapEvent("웹", "PinnedRoute 하단의 네비게이션 옵션(추천/최단/무료) 버튼 클릭"); setProcessingId(`recalc-global`); onRecalculate(activeRoute[activeRoute.length - 1].id, 'DISTANCE'); }}
                                 disabled={processingId !== null}
                                 className={`flex-1 text-[11px] font-bold py-2.5 rounded border transition-all shadow-sm ${processingId !== null ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'} ${isDistance ? 'bg-teal-600 text-white border-teal-400 shadow-[0_0_10px_rgba(20,184,166,0.5)]' : 'bg-teal-900/40 text-teal-300 border-teal-500/30 hover:bg-teal-800/60 hover:border-teal-400'}`}
@@ -679,7 +697,7 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: 
                 </div> */}
             </div>
 
-            {/* 오더 관리 아코디언 리스트 (지도 상의 상차 순서 번호대로 정렬) */}
+            {/* 오더 관리 아코디언 리스트 (가장 처음 잡은 본짐이 맨 아래, 최근에 잡은 합짐이 맨 위로 쌓이도록 역순 정렬) */}
             <div className="space-y-2">
                 {[...activeRoute]
                     .sort((a, b) => {
@@ -689,19 +707,21 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: 
                         if (aEvaluating && !bEvaluating) return -1;
                         if (!aEvaluating && bEvaluating) return 1;
 
-                        const orderA = visitOrderMap.get(a.id)?.pickupIdx || 999;
-                        const orderB = visitOrderMap.get(b.id)?.pickupIdx || 999;
-                        return orderA - orderB;
+                        const timeA = a.capturedAt ? new Date(a.capturedAt).getTime() : 0;
+                        const timeB = b.capturedAt ? new Date(b.capturedAt).getTime() : 0;
+
+                        // 기본적으로 시간 역순 (나중에 잡은게 위로, 먼저 잡은게 아래로)
+                        return timeB - timeA;
                     })
                     .map((route) => {
                         const isEvaluating = route.status.includes('evaluating');
                         const isExpanded = isEvaluating || expandedIds.has(route.id);
                         const etas = etaMap.get(route.id);
                         const visitOrder = visitOrderMap.get(route.id);
-                        
+
                         const pLabel = visitOrder?.pickupIdx || '?';
                         const dLabel = visitOrder?.dropoffIdx || '?';
-                        
+
                         const minuteDiff = getMinuteDiff(etas?.pickupEta, etas?.dropoffEta);
                         const separatorText = minuteDiff !== null ? `-${minuteDiff}분-` : '-';
 
@@ -714,140 +734,144 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: 
                                 {/* 1. 카드 헤더 구역 (최대한 얇고 타이트하게 하나의 Flex Row로 통합) */}
                                 <div
                                     onClick={() => !isEvaluating && toggleExpand(route.id)}
-                                    className={`p-2.5 flex justify-between items-center w-full text-sm font-bold tracking-tight ${!isEvaluating ? 'cursor-pointer group hover:bg-white/5' : ''}`}
+                                    className={`px-2 py-1 flex justify-between items-center w-full text-sm tracking-tight ${!isEvaluating ? 'cursor-pointer group hover:bg-white/5' : ''}`}
                                 >
-                                    <div className="flex items-center gap-1.5 truncate text-slate-300 flex-1">
+                                    <div className="flex items-center gap-1 truncate text-slate-300 flex-1">
                                         <span className={`${isEvaluating ? 'text-amber-400' : 'text-emerald-400'} flex-shrink-0 flex items-center`}>
-                                            {pLabel}. {route.pickup.split(' ')[1] || route.pickup}{etas?.pickupEta && <span className="text-emerald-200 ml-0.5">({etas.pickupEta})</span>}
+                                            {pLabel}. {getAddressLabel(route.pickup)}{etas?.pickupEta && <span className="text-emerald-200 ml-0.5">({etas.pickupEta})</span>}
                                         </span>
-                                        <span className="text-slate-500 font-bold text-[11px] flex-shrink-0 mx-0.5 tracking-tighter">{separatorText}</span>
+                                        <span className="text-slate-500 text-[10px] flex-shrink-0 mx-0.5 tracking-tighter">{separatorText}</span>
                                         <span className={`${isEvaluating ? 'text-amber-400' : 'text-rose-400'} flex-shrink-0`}>
-                                            {dLabel}. {route.dropoff.split(' ')[1] || route.dropoff}{etas?.dropoffEta && <span className="text-rose-200 ml-0.5">({etas.dropoffEta})</span>}
+                                            {dLabel}. {getAddressLabel(route.dropoff)}{etas?.dropoffEta && <span className="text-rose-200 ml-0.5">({etas.dropoffEta})</span>}
                                         </span>
-                                    <span className="ml-3 text-slate-400 font-medium text-[11px] truncate mt-0.5 flex items-center gap-1.5 flex-[2]">
-                                        <span>{route.fare > 0 ? `${(route.fare / 10000).toFixed(1)}만` : '금액미상'}</span>
-                                        <span className="text-slate-600">,</span>
-                                        <span>{route.status.includes('evaluating') ? '계산중' : route.distanceKm ? `${route.distanceKm}Km` : '미상'}</span>
-                                        <span className="text-slate-600">,</span>
-                                        <span>{route.vehicleType?.substring(0, 1) || '차'}</span>
-                                    </span>
+                                        <span className="ml-3 text-slate-400 font-medium text-[10px] truncate mt-0.5 flex items-center gap-1.5 flex-[2]">
+                                            <span>{route.fare > 0 ? `${(route.fare / 10000).toFixed(1)}만` : '금액미상'}</span>
+                                            <span className="text-slate-600">,</span>
+                                            <span>{route.status.includes('evaluating') ? '계산중' : route.distanceKm ? `${route.distanceKm}Km` : '미상'}</span>
+                                            <span className="text-slate-600">,</span>
+                                            <span>{route.vehicleType?.substring(0, 1) || '차'}</span>
+                                        </span>
+                                    </div>
+
+                                    {isEvaluating && (
+                                        <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-sm animate-pulse flex-shrink-0 ml-2 ${route.status === 'evaluating_basic' ? 'bg-rose-950 text-rose-400' : 'bg-amber-950 text-amber-400'}`}>평가중</span>
+                                    )}
+                                    {!isEvaluating && route.type === 'MANUAL' && (
+                                        <span className="text-[10px] font-black px-1.5 py-0.5 rounded-sm bg-blue-900 border border-blue-500/30 text-blue-200 flex-shrink-0 ml-2 shadow-[0_0_10px_rgba(59,130,246,0.2)]">수동 배차</span>
+                                    )}
                                 </div>
 
-                                {isEvaluating && (
-                                    <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-sm animate-pulse flex-shrink-0 ml-2 ${route.status === 'evaluating_basic' ? 'bg-rose-950 text-rose-400' : 'bg-amber-950 text-amber-400'}`}>평가중</span>
-                                )}
-                                {!isEvaluating && route.type === 'MANUAL' && (
-                                    <span className="text-[10px] font-black px-1.5 py-0.5 rounded-sm bg-blue-900 border border-blue-500/30 text-blue-200 flex-shrink-0 ml-2 shadow-[0_0_10px_rgba(59,130,246,0.2)]">수동 배차</span>
-                                )}
-                            </div>
+                                {/* 2. 카드 콘텐츠 (아코디언 펼침 시에만 노출 / 평가중일 땐 강제 노출) */}
+                                {isExpanded && (
+                                    <div id="" className="px-4 pb-4 pt-1 text-sm border-t border-slate-700/50 bg-[#111522] mt-1">
+                                        {/* 상세 데이터 영역 */}
+                                        <div className="flex flex-col text-slate-400 text-[13px] leading-tight bg-black/20 p-4 rounded-lg border border-white/5 font-medium tracking-tight">
+                                            {(() => {
+                                                const quickName = route.companyName || '-';
+                                                const phoneMatch = quickName.match(/\d{2,3}-\d{3,4}-\d{4}/);
+                                                const quickPhone = phoneMatch ? phoneMatch[0] : '-';
+                                                const quickClean = quickName.replace(phoneMatch ? phoneMatch[0] : '', '').trim() || '-';
 
-                            {/* 2. 카드 콘텐츠 (아코디언 펼침 시에만 노출 / 평가중일 땐 강제 노출) */}
-                            {isExpanded && (
-                                <div id="" className="px-4 pb-4 pt-1 text-sm border-t border-slate-700/50 bg-[#111522] mt-1">
-                                    {/* 상세 데이터 영역 */}
-                                    <div className="flex flex-col text-slate-400 text-[13px] leading-tight bg-black/20 p-4 rounded-lg border border-white/5 font-medium tracking-tight">
-                                        {(() => {
-                                            const quickName = route.companyName || '-';
-                                            const phoneMatch = quickName.match(/\d{2,3}-\d{3,4}-\d{4}/);
-                                            const quickPhone = phoneMatch ? phoneMatch[0] : '-';
-                                            const quickClean = quickName.replace(phoneMatch ? phoneMatch[0] : '', '').trim() || '-';
+                                                const pDetail = route.pickupDetails?.[0];
+                                                const pPhone = pDetail?.phone1 || pDetail?.phone2 || '-';
+                                                const pAddr = pDetail?.addressDetail || route.pickup;
 
-                                            const pDetail = route.pickupDetails?.[0];
-                                            const pPhone = pDetail?.phone1 || pDetail?.phone2 || '-';
-                                            const pAddr = pDetail?.addressDetail || route.pickup;
+                                                const dDetail = route.dropoffDetails?.[0];
+                                                const dPhone = dDetail?.phone1 || dDetail?.phone2 || '-';
+                                                const dAddr = dDetail?.addressDetail || route.dropoff;
 
-                                            const dDetail = route.dropoffDetails?.[0];
-                                            const dPhone = dDetail?.phone1 || dDetail?.phone2 || '-';
-                                            const dAddr = dDetail?.addressDetail || route.dropoff;
-
-                                            return (
-                                                <>
-                                                    <div className="mb-2">
-                                                        <div>퀵사무실 : {quickPhone}</div>
-                                                        <div className="ml-[76px]">{quickClean}</div>
-                                                    </div>
-                                                    {/* <div className="mb-2">
+                                                return (
+                                                    <>
+                                                        <div className="mb-3 pb-2 border-b border-white/5 flex gap-4 text-[11px] text-slate-500">
+                                                            <span>ID : {route.id}</span>
+                                                            <span>잡은 시간 : {route.capturedAt ? new Date(route.capturedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) : '-'}</span>
+                                                        </div>
+                                                        <div className="mb-2">
+                                                            <div>퀵사무실 : {quickPhone}</div>
+                                                            <div className="ml-[76px]">{quickClean}</div>
+                                                        </div>
+                                                        {/* <div className="mb-2">
                                                         <div>의뢰지 : {pPhone}</div>
                                                         <div className="ml-[63px]">{pAddr}</div>
                                                     </div> */}
-                                                    <div className="mb-2">
-                                                        <div>상차지 : {pPhone}</div>
-                                                        <div className="ml-[63px]">{pAddr}</div>
-                                                    </div>
-                                                    <div className="mb-3">
-                                                        <div>하차지 : {dPhone}</div>
-                                                        <div className="ml-[63px]">{dAddr}</div>
-                                                    </div>
-                                                    <div className="flex gap-2">
-                                                        <span className="flex-shrink-0">적요 / 물품 :</span>
-                                                        <span className="text-slate-300 font-bold">{route.itemDescription || "상세 정보 없음"}</span>
-                                                    </div>
-                                                </>
-                                            );
-                                        })()}
+                                                        <div className="mb-2">
+                                                            <div>상차지 : {pPhone}</div>
+                                                            <div className="ml-[63px]">{pAddr}</div>
+                                                        </div>
+                                                        <div className="mb-3">
+                                                            <div>하차지 : {dPhone}</div>
+                                                            <div className="ml-[63px]">{dAddr}</div>
+                                                        </div>
+                                                        <div className="flex gap-2">
+                                                            <span className="flex-shrink-0">적요 / 물품 :</span>
+                                                            <span className="text-slate-300 font-bold">{route.itemDescription || "상세 정보 없음"}</span>
+                                                        </div>
+                                                    </>
+                                                );
+                                            })()}
+                                        </div>
+
+                                        {/* 2차 상세 수신 시뮬레이션 결과 표기 (데스밸리 카카오결과) */}
+                                        {route.kakaoTimeExt && (
+                                            <div className="mt-3 text-[11px] font-bold text-amber-200 bg-amber-950/40 px-3 py-1.5 rounded flex items-center justify-between border border-amber-500/20">
+                                                <span>카카오 분석 결과</span>
+                                                <span>
+                                                    {route.kakaoTimeExt.replace(/['꿀똥콜🚙💩🍯]/g, "").trim()}
+                                                    {route.kakaoTimeExt.includes("실패") ? "" : route.kakaoTimeExt.includes("'꿀'") ? " (꿀)" : route.kakaoTimeExt.includes("'똥'") ? " (패널티 주의)" : " (양호)"}
+                                                </span>
+                                            </div>
+                                        )}
+
+
+                                        {/* 평가 상태(데스밸리) 액션 버튼 */}
+                                        {route.status === 'confirmed' && onDecision && (
+                                            <div className="mt-4 flex gap-3">
+                                                <button
+                                                    disabled={processingId === route.id}
+                                                    onClick={(e) => { e.stopPropagation(); setProcessingId(route.id); onDecision(route.id, 'CANCEL'); }}
+                                                    className={`w-full bg-rose-950/40 text-rose-400 text-sm font-bold py-4 rounded-lg border border-rose-500/20 transition-all shadow-sm ${processingId === route.id ? 'opacity-50 cursor-not-allowed' : 'hover:bg-rose-900/60 active:scale-[0.98]'}`}
+                                                >
+                                                    {processingId === route.id ? '처리 중...' : '🚨 확정 배차 취소 (해당 오더 방출)'}
+                                                </button>
+                                            </div>
+                                        )}
+
+                                        {route.type !== 'MANUAL' && route.status === 'evaluating_basic' && onDecision && (
+                                            <div className="mt-4 flex flex-col gap-2">
+                                                <div className="text-xs text-amber-300/70 text-center animate-pulse font-medium">
+                                                    ⏳ 앱폰이 상세 정보를 긁고 있습니다... 잠시 기다려주세요
+                                                </div>
+                                                <div className="flex gap-3">
+                                                    <button disabled={processingId === route.id} onClick={(e) => { e.stopPropagation(); setProcessingId(route.id); onDecision(route.id, 'CANCEL'); }} className={`flex-1 bg-slate-800 text-rose-400 text-sm font-bold py-3.5 rounded-lg border border-rose-500/20 transition-all shadow-sm ${processingId === route.id ? 'opacity-50 cursor-not-allowed' : 'hover:bg-rose-950 active:scale-95'}`}>
+                                                        {processingId === route.id ? '처리 중...' : '즉시 포기'}
+                                                    </button>
+                                                    <button disabled className="flex-1 bg-slate-800 text-slate-500 text-sm font-bold py-3.5 rounded-lg border border-slate-700 cursor-not-allowed">
+                                                        상세 대기중...
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+                                        {route.type !== 'MANUAL' && route.status === 'evaluating_detailed' && onDecision && (
+                                            <div className="mt-4 flex gap-3">
+                                                <button disabled={processingId === route.id} onClick={(e) => { e.stopPropagation(); logRoadmapEvent("웹", "PinnedRoute에서 CANCEL(취소) 또는 X 버튼 클릭"); logRoadmapEvent("웹", "서버에게 decision=CANCEL 하달 정보 전달"); setProcessingId(route.id); onDecision(route.id, 'CANCEL'); }} className={`flex-1 bg-[#2a131b] text-rose-400 text-sm font-bold py-4 rounded-lg border border-rose-500/30 transition-all shadow-sm ${processingId === route.id ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#3d1a25] active:scale-95'}`}>
+                                                    {processingId === route.id ? '처리 중...' : '방출'}
+                                                </button>
+                                                {!!route.kakaoTimeExt ? (
+                                                    <button disabled={processingId === route.id} onClick={(e) => { e.stopPropagation(); logRoadmapEvent("웹", "PinnedRoute에서 KEEP(사냥 확정) 녹색 버튼 클릭"); logRoadmapEvent("웹", "서버에게 decision=KEEP 하달 정보 전달"); setProcessingId(route.id); onDecision(route.id, 'KEEP'); }} className={`flex-[2] bg-emerald-500 text-emerald-950 text-base font-black py-4 rounded-lg transition-all ${processingId === route.id ? 'opacity-50 cursor-not-allowed' : 'shadow-[0_0_20px_rgba(16,185,129,0.4)] hover:bg-emerald-400 hover:scale-[1.02] active:scale-95'}`}>
+                                                        {processingId === route.id ? '서버와 통신 중...' : '유지 확정'}
+                                                    </button>
+                                                ) : (
+                                                    <button disabled className="flex-[2] bg-slate-800 text-slate-500 text-base font-black py-4 rounded-lg border border-slate-700 cursor-not-allowed">
+                                                        좌표 분석 중...
+                                                    </button>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
-
-                                    {/* 2차 상세 수신 시뮬레이션 결과 표기 (데스밸리 카카오결과) */}
-                                    {route.kakaoTimeExt && (
-                                        <div className="mt-3 text-[11px] font-bold text-amber-200 bg-amber-950/40 px-3 py-1.5 rounded flex items-center justify-between border border-amber-500/20">
-                                            <span>카카오 분석 결과</span>
-                                            <span>
-                                                {route.kakaoTimeExt.replace(/['꿀똥콜🚙💩🍯]/g, "").trim()}
-                                                {route.kakaoTimeExt.includes("실패") ? "" : route.kakaoTimeExt.includes("'꿀'") ? " (꿀)" : route.kakaoTimeExt.includes("'똥'") ? " (패널티 주의)" : " (양호)"}
-                                            </span>
-                                        </div>
-                                    )}
-
-
-                                    {/* 평가 상태(데스밸리) 액션 버튼 */}
-                                    {route.status === 'confirmed' && onDecision && (
-                                        <div className="mt-4 flex gap-3">
-                                            <button
-                                                disabled={processingId === route.id}
-                                                onClick={(e) => { e.stopPropagation(); setProcessingId(route.id); onDecision(route.id, 'CANCEL'); }}
-                                                className={`w-full bg-rose-950/40 text-rose-400 text-sm font-bold py-4 rounded-lg border border-rose-500/20 transition-all shadow-sm ${processingId === route.id ? 'opacity-50 cursor-not-allowed' : 'hover:bg-rose-900/60 active:scale-[0.98]'}`}
-                                            >
-                                                {processingId === route.id ? '처리 중...' : '🚨 확정 배차 취소 (해당 오더 방출)'}
-                                            </button>
-                                        </div>
-                                    )}
-
-                                    {route.type !== 'MANUAL' && route.status === 'evaluating_basic' && onDecision && (
-                                        <div className="mt-4 flex flex-col gap-2">
-                                            <div className="text-xs text-amber-300/70 text-center animate-pulse font-medium">
-                                                ⏳ 앱폰이 상세 정보를 긁고 있습니다... 잠시 기다려주세요
-                                            </div>
-                                            <div className="flex gap-3">
-                                                <button disabled={processingId === route.id} onClick={(e) => { e.stopPropagation(); setProcessingId(route.id); onDecision(route.id, 'CANCEL'); }} className={`flex-1 bg-slate-800 text-rose-400 text-sm font-bold py-3.5 rounded-lg border border-rose-500/20 transition-all shadow-sm ${processingId === route.id ? 'opacity-50 cursor-not-allowed' : 'hover:bg-rose-950 active:scale-95'}`}>
-                                                    {processingId === route.id ? '처리 중...' : '즉시 포기'}
-                                                </button>
-                                                <button disabled className="flex-1 bg-slate-800 text-slate-500 text-sm font-bold py-3.5 rounded-lg border border-slate-700 cursor-not-allowed">
-                                                    상세 대기중...
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )}
-                                    {route.type !== 'MANUAL' && route.status === 'evaluating_detailed' && onDecision && (
-                                        <div className="mt-4 flex gap-3">
-                                            <button disabled={processingId === route.id} onClick={(e) => { e.stopPropagation(); logRoadmapEvent("웹", "PinnedRoute에서 CANCEL(취소) 또는 X 버튼 클릭"); logRoadmapEvent("웹", "서버에게 decision=CANCEL 하달 정보 전달"); setProcessingId(route.id); onDecision(route.id, 'CANCEL'); }} className={`flex-1 bg-[#2a131b] text-rose-400 text-sm font-bold py-4 rounded-lg border border-rose-500/30 transition-all shadow-sm ${processingId === route.id ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#3d1a25] active:scale-95'}`}>
-                                                {processingId === route.id ? '처리 중...' : '방출'}
-                                            </button>
-                                            {!!route.kakaoTimeExt ? (
-                                                <button disabled={processingId === route.id} onClick={(e) => { e.stopPropagation(); logRoadmapEvent("웹", "PinnedRoute에서 KEEP(사냥 확정) 녹색 버튼 클릭"); logRoadmapEvent("웹", "서버에게 decision=KEEP 하달 정보 전달"); setProcessingId(route.id); onDecision(route.id, 'KEEP'); }} className={`flex-[2] bg-emerald-500 text-emerald-950 text-base font-black py-4 rounded-lg transition-all ${processingId === route.id ? 'opacity-50 cursor-not-allowed' : 'shadow-[0_0_20px_rgba(16,185,129,0.4)] hover:bg-emerald-400 hover:scale-[1.02] active:scale-95'}`}>
-                                                    {processingId === route.id ? '서버와 통신 중...' : '유지 확정'}
-                                                </button>
-                                            ) : (
-                                                <button disabled className="flex-[2] bg-slate-800 text-slate-500 text-base font-black py-4 rounded-lg border border-slate-700 cursor-not-allowed">
-                                                    좌표 분석 중...
-                                                </button>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    );
-                })}
+                                )}
+                            </div>
+                        );
+                    })}
             </div>
         </section>
     );

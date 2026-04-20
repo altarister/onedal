@@ -116,9 +116,8 @@ router.post("/", async (req, res) => {
             });
             
             if (!isMatch) {
-                console.log(`🚫 [차종 차단] '${vTypeRaw}' 불가`);
-                if (io) io.to(userId).emit("order-canceled", payload.order.id);
-                return res.json({ deviceId: 'server', action: 'CANCEL' });
+                console.log(`⚠️ [차종 차단 우회] '${vTypeRaw}' 차량 (필터 불일치). 앱(UI)에서 거르지 않고 도달했으므로 사용자 수동(Manual) 개입으로 간주하여 강제 킵(KEEP) 합니다.`);
+                securedOrder.type = "MANUAL";
             }
         }
 
@@ -139,10 +138,12 @@ router.post("/", async (req, res) => {
             return res.json({ deviceId: 'server', action: 'ACK' });
         }
 
-        session.pendingDetailRequests.set(payload.order.id, res);
+        // [Option B] 롱폴링 대기를 풀고, 결재 큐에 올려둔 뒤 즉시 202 Accepted 반환
+        session.pendingDecisions.set(payload.order.id, { action: null, evaluatedAt: Date.now() });
+        res.status(202).json({ message: "Accepted. Piggyback evaluation pending" });
 
-        setTimeout(() => {
-            if (session.pendingDetailRequests.has(payload.order.id)) {
+        const warningTimer = setTimeout(() => {
+            if (session.pendingDecisions.has(payload.order.id)) {
                 if (io) {
                     logRoadmapEvent("서버", "관제탑에게 지연 위급 상황(deathvalley-warning) 정보 전달");
                     io.to(userId).emit("deathvalley-warning", {
@@ -157,14 +158,9 @@ router.post("/", async (req, res) => {
             }
         }, DISPATCH_CONFIG.WAITING_WARNING_MS);
 
-        setTimeout(() => {
-            if (session.pendingDetailRequests.has(payload.order.id)) {
-                const heldRes = session.pendingDetailRequests.get(payload.order.id);
-                session.pendingDetailRequests.delete(payload.order.id);
-                if (heldRes && !heldRes.headersSent) {
-                    heldRes.status(408).json({ error: "Server Force Timeout" });
-                }
-
+        const timeoutTimer = setTimeout(() => {
+            if (session.pendingDecisions.has(payload.order.id)) {
+                session.pendingDecisions.delete(payload.order.id);
                 session.pendingOrdersData.delete(payload.order.id);
                 Array.from(session.deviceEvaluatingMap.entries()).forEach(([k, v]) => {
                     if (v === payload.order.id) session.deviceEvaluatingMap.delete(k);
@@ -175,6 +171,10 @@ router.post("/", async (req, res) => {
                 }
             }
         }, DISPATCH_CONFIG.WAITING_TIMEOUT_MS);
+
+        // 비상 시 취소를 위해 타이머들 등록
+        session.activeTimers.set(`warn_${payload.order.id}`, warningTimer);
+        session.activeTimers.set(`timeout_${payload.order.id}`, timeoutTimer);
 
     } catch (error) {
         res.status(500).json({ error: "Fail" });

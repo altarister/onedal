@@ -3,6 +3,26 @@
  * - orders.ts의 DETAILED 블록과 kakao.ts REST 프록시에서 중복되던 로직을 단일화
  */
 
+const REGION_MAP: Record<string, string> = {
+    "서울": "서울", "서울특별시": "서울",
+    "경기": "경기", "경기도": "경기",
+    "인천": "인천", "인천광역시": "인천",
+    "강원": "강원", "강원도": "강원", "강원특별자치도": "강원",
+    "충남": "충남", "충청남도": "충남",
+    "충북": "충북", "충청북도": "충북",
+    "대전": "대전", "대전광역시": "대전",
+    "세종": "세종", "세종특별자치시": "세종",
+    "경북": "경북", "경상북도": "경북",
+    "경남": "경남", "경상남도": "경남",
+    "대구": "대구", "대구광역시": "대구",
+    "부산": "부산", "부산광역시": "부산",
+    "울산": "울산", "울산광역시": "울산",
+    "전북": "전북", "전라북도": "전북", "전북특별자치도": "전북",
+    "전남": "전남", "전라남도": "전남",
+    "광주": "광주", "광주광역시": "광주",
+    "제주": "제주", "제주특별자치도": "제주", "제주도": "제주"
+};
+
 interface RouteResult {
     duration: number;  // 총 소요 초
     distance: number;  // 총 이동거리 미터
@@ -321,6 +341,7 @@ export async function geocodeAddress(apiKey: string, query: string): Promise<{x:
                     if (data.documents && data.documents.length > 0) {
                         return { 
                             index, 
+                            doc: data.documents[0],
                             result: { x: parseFloat(data.documents[0].x), y: parseFloat(data.documents[0].y) } 
                         };
                     }
@@ -331,10 +352,26 @@ export async function geocodeAddress(apiKey: string, query: string): Promise<{x:
 
         const results = await Promise.all(promises);
         
-        // 우선순위(index)가 가장 높은(낮은 숫자) 성공 결과를 채택
+        let expectedRegion: string | null = null;
+        if (words.length > 0 && REGION_MAP[words[0]]) {
+            expectedRegion = REGION_MAP[words[0]];
+        }
+
+        // 우선순위(index)가 가장 높은(낮은 숫자) 성공 결과를 채택하되, 지역 불일치는 스킵
         const validResults = results.filter(r => r !== null).sort((a, b) => a!.index - b!.index);
-        if (validResults.length > 0) {
-            return validResults[0]!.result;
+        
+        for (const res of validResults) {
+            if (expectedRegion) {
+                const addrRegion = res!.doc.address_name ? res!.doc.address_name.split(' ')[0] : '';
+                const roadRegion = (res!.doc.road_address && res!.doc.road_address.address_name) ? res!.doc.road_address.address_name.split(' ')[0] : '';
+
+                // 카카오에서 반환된 주소/도로명주소의 시/도가 기대하는 시/도(expectedRegion)와 다른 경우 예외처리 방어 로직 (예: 경기 -> 전남 광주 오인 방지)
+                if (addrRegion !== expectedRegion && roadRegion !== expectedRegion) {
+                    console.log(`[GeoResolver] 지역 불일치 방어: 쿼리 '${query}', 결과 '${res!.doc.address_name}' -> 스킵 (기대지역: ${expectedRegion})`);
+                    continue; // 다음 우선순위 결과 시도
+                }
+            }
+            return res!.result;
         }
 
         // 모든 시도 실패

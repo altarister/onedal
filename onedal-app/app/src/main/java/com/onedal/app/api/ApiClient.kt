@@ -109,7 +109,9 @@ class ApiClient(private val context: Context) {
     }
 
     /**
-     * 배차 2차 상세(DETAILED) 보고 및 서버 최종 판결(Decision) 대기 (롱폴링)
+     * 배차 2차 상세(DETAILED) 보고 (Option B: 짧은 무전 방식 지원)
+     * 서버는 상세 정보를 큐(Queue)에 넣고 즉시 202 Accepted를 반환함. 
+     * 최종 판결(KEEP/CANCEL)은 이후 Telemetry의 Piggyback으로 수신됨.
      */
     fun sendDetail(payload: DispatchDetailedRequest, onDecisionReceived: (String, String) -> Unit) {
         confirmExecutor.submit {
@@ -126,7 +128,7 @@ class ApiClient(private val context: Context) {
                 conn.setRequestProperty("Accept", "application/json")
                 conn.doOutput = true
                 conn.connectTimeout = 5000
-                conn.readTimeout = 40000 // 서버의 30초 롱폴링 홀드를 견디기 위함
+                conn.readTimeout = 5000 // 서버가 즉시 202를 반환하므로 짧게 설정
 
                 conn.outputStream.use { os ->
                     os.write(jsonBody.toByteArray(Charsets.UTF_8))
@@ -134,18 +136,14 @@ class ApiClient(private val context: Context) {
 
                 val code = conn.responseCode
 
-                if (code == 200) {
+                if (code == 200 || code == 202) {
                     val body = conn.inputStream.bufferedReader().readText()
                     prefs.edit().putString("api_detail_res", body).apply()
-                    AppLogger.d(TAG, "🌐 [post /detail response / $code] $body")
+                    AppLogger.d(TAG, "🌐 [post /detail response / $code] 즉결 접수 완료. Piggyback 대기 시작.")
                     
-                    val res = gson.fromJson(body, DispatchConfirmResponse::class.java)
-                    val actionStr = if (res.action == "KEEP") "유지" else "취소"
-                    AppLogger.roadmap("[HTTP 폴링] 응답 /orders/detail $actionStr 정보 전송")
-                    
-                    // 서버가 내려준 최종 판결 (KEEP or CANCEL) 콜백. 
-                    // 사후 동기화(Post-Dispatch Sync)로 진짜 ID가 내려왔다면 그걸 씁니다.
-                    onDecisionReceived(res.orderId ?: payload.order.id, res.action)
+                    // 성공적으로 큐에 등록되었으므로 여기서 판단 콜백을 부르지 않고, 
+                    // 이후 Telemetry(Scrap) 폴링이 결재를 물어올 때까지 기다립니다.
+
                 } else {
                     val errorBody = try {
                         conn.errorStream?.bufferedReader()?.readText() ?: "Error body empty"
@@ -166,15 +164,24 @@ class ApiClient(private val context: Context) {
     }
 
     /**
-     * 스크랩 버퍼 벌크 전송 (텔레메트리)
-     * @param payload ScrapPayload
+     * 스크랩 버퍼 벌크 전송 (텔레메트리) - Option B (Piggyback V2) 지원
+     * @param payload ScrapPayload 기본 정보
      * @param onModeReceived 서버로부터 모드(AUTO/MANUAL) 수신 시 콜백
+     * @param onDecisionReceived 서버가 결정(KEEP/CANCEL)을 Piggyback으로 보냈을 때 콜백
      */
-    fun sendScrapTelemetry(payload: ScrapPayload, onModeReceived: (String) -> Unit) {
+    fun sendScrapTelemetry(
+        payload: ScrapPayload, 
+        onModeReceived: (String) -> Unit,
+        onDecisionReceived: ((String, String) -> Unit)? = null
+    ) {
         telemetryExecutor.submit {
             var conn: java.net.HttpURLConnection? = null
             try {
-                val jsonBody = gson.toJson(payload)
+                // 발송 직전에 SharedPreferences에서 pendingAckDecisionId를 가져와서 주입
+                val pendingAck = prefs.getString("pendingAckDecisionId", null)
+                val finalPayload = payload.copy(ackDecisionId = pendingAck)
+                
+                val jsonBody = gson.toJson(finalPayload)
                 prefs.edit().putString("api_scrap_req", jsonBody).apply()
                 val targetUrl = getTargetUrl("/api/scrap")
                 val url = java.net.URL(targetUrl)
@@ -218,6 +225,21 @@ class ApiClient(private val context: Context) {
                         .putInt("lastScrapSize", payload.data.size)
                         .putString("lastScrapPreview", if (payload.data.isNotEmpty()) "${payload.data.first().pickup} -> ${payload.data.first().dropoff}" else "-")
                         .apply()
+
+                    // Piggyback 판결(Decision) 분실 방지 (수신 처리)
+                    if (scrapRes.decision != null) {
+                        AppLogger.w(TAG, "⚡ [Piggyback Decision 수신] orderId: ${scrapRes.decision.orderId}, action: ${scrapRes.decision.action}")
+                        // 수신 확인증(ACK) 준비 (다음 번 텔레메트리 때 서버로 전송됨)
+                        prefs.edit().putString("pendingAckDecisionId", scrapRes.decision.orderId).apply()
+                        // 콜백 호출
+                        onDecisionReceived?.invoke(scrapRes.decision.orderId, scrapRes.decision.action)
+                    }
+
+                    // 서버가 pendingAck를 성공적으로 비웠다면 (이 부분은 응답이 성공했으므로 안심하고 로컬에서도 날림)
+                    // (단, 이번 요청에 ackDecisionId를 담아 보낸 경우에만 성공 시 삭해야함)
+                    if (finalPayload.ackDecisionId != null) {
+                        prefs.edit().remove("pendingAckDecisionId").apply()
+                    }
 
                     onModeReceived(scrapRes.deviceControl.mode)
                 } else {

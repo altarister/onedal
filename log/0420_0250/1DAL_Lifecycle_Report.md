@@ -1,1153 +1,359 @@
-# 🗺️ 1DAL 풀 스택 라이프사이클 로그 매핑 리포트 (0420_0250 Full Data)
+# 🗺️ 1DAL 풀 스택 라이프사이클 로그 매핑 리포트 (Server + App + Frontend)
+
+> **기록 시점**: 2026-04-20 13:31~13:32 KST  
+> **세션 폴더**: `0420_0250`  
+> **기기 ID**: `앱폰-sdk_gpho-160`  
+> **유저**: 알타리 (`66176c7b-1755-444c-9b65-7ca056e3c303`)
 
 ---
 
+## 📊 세션 요약
+
+| 항목 | 값 |
+|---|---|
+| 첫짐 (메인콜) | 경안동 → 덕양구 (84,000원, 1t, 예약) |
+| 메인콜 판정 | 단독 70.3km, 75분 **'콜'** → ✅ **KEEP** |
+| 합짐 시도 횟수 | 4회 |
+| 합짐 결과 | 🟢 KEEP 1건 (태전동→송파구) / 🔴 CANCEL 3건 |
+| 데스밸리 발동 | ❌ 미발동 (모든 판결이 30초 이내 정상 도착) |
+| 전체 소요시간 | 약 37초 (13:32:06 ~ 13:32:43) |
+
+---
 
 ### 🟢 [STEP 1] 관제탑 서버 기동 및 필터 동기화
-*(시작 기준 시간: 02:47:55.624)*
 
-- `[ROADMAP 02:47:55.624] [☁️서버] 서버 기동 및 디폴트 필터 셋업 (대기 모드)`
-- `[ROADMAP 02:47:58.521] [🖥️관제웹] 1DAL 웹(관제웹) 로그인됨`
-- `[ROADMAP 02:47:58.522] [🖥️관제웹] 1DAL 웹(관제웹) 로그인됨`
+| 시각 | 플랫폼 | 로그 |
+|---|---|---|
+| 13:31:37.298 | ☁️서버 | `[ROADMAP] 서버 기동 및 디폴트 필터 셋업 (대기 모드)` |
+| 13:31:40.304 | 🖥️관제웹 | `[ROADMAP] 1DAL 웹(관제웹) 로그인됨` |
+| 13:31:42.205 | ☁️서버 | `[ROADMAP] 관제탑 소켓 접속 완료 및 기사의 기본 필터 DB Lazy Load 연산` |
+| 13:31:42.206 | ☁️서버 | `[ROADMAP] 관제탑에게 초기 UI 복원용 필터(filter-init) 정보 전달` |
+| 13:31:42.215 | 🖥️관제웹 | `[ROADMAP] 서버로 부터 filter-init 초기 필터값(isSharedMode, distance 등) 받음` |
+| 13:31:42.215 | 🖥️관제웹 | `[ROADMAP] OrderFilterStatus 컴포넌트에 현재 설정된 렌즈값 문자열로 렌더링` |
+| 13:32:06.017 | 📱앱 | `[ROADMAP] [LIST] 1DAL 앱 실행 및 초기 설정` |
+| 13:32:06.036 | 📱앱 | `[ROADMAP] [UNKNOWN] 앱 기동 전 또는 백그라운드 ➡️ [Current Page: UNKNOWN]` |
+| 13:32:06.039 | 📱앱 | `[ROADMAP] [UNKNOWN] 📍 백그라운드 Telemetry (lat, lng) 획득 엔진 가동!` |
+| 13:32:06.226 | 📱앱 | `[ROADMAP] [LIST] [post /api/scrap request] 👀 화면 변경 감지 발송 deviceId: 앱폰-sdk_gpho-160, (건수: 0)` |
+| 13:32:06.259 | 📱앱 | `[ROADMAP] [LIST] [post /api/scrap response] deviceId: 앱폰-sdk_gpho-160, (건수: 0)` |
+| | 📱앱 | `📋 [필터 동기화 (서버→앱) 적용됨] FilterConfig(allowedVehicleTypes=[1t], isActive=false, isSharedMode=false, pickupRadiusKm=999, minFare=0, maxFare=1000000, ...)` |
+| 13:32:06.974 | ☁️서버 | `[ROADMAP] 방대한 스크랩 배열값을 intel 테이블 DB 저장` |
+| 13:32:06.976 | ☁️서버 | `[ROADMAP] 앱폰으로 부터 무수한 스크랩(intel) 데이터 및 GPS 요청 받음` |
+| 13:32:06.977 | ☁️서버 | `[ROADMAP] 관제탑에게 실시간 마커용 GPS(device-sessions-updated) 정보 전달` |
+| 13:32:06.977 | ☁️서버 | `[ROADMAP] 앱폰에게 최신 필터(dispatchEngineArgs) 및 제어 명령 정보 전달` |
 
-    <details>
-    <summary>🔽 [GPS] 현위치 갱신됨: {x: 127.29441776104179, y: 37.37668247218943}</summary>
+> **🔍 분석**: 서버 기동 후 약 5초 만에 관제웹 로그인, 약 29초 후 앱이 접속. 앱은 `isActive=false` 상태(대기 모드)로 초기 필터를 수신.
 
-    ```json
-    [GPS] 현위치 갱신됨: {x: 127.29441776104179, y: 37.37668247218943}
-    [GPS] 현위치 갱신됨: {x: 127.29441776104179, y: 37.37668247218943}
-    ```
+---
 
-    </details>
-- `[ROADMAP 02:48:01.747] [☁️서버] [Socket] 소켓 연결 및 디폴트 필터 전송 (User: 66176c7b-1755-444c-9b65-7ca056e3c303)`
-- `🚦 [ROADMAP 02:48:10.956] [📱앱] [DETAIL_CONFIRMED] [post /api/scrap request] ⏱️ 타이머 생존신고 발송  deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
-- `🚦 [ROADMAP 02:48:11.025] [📱앱] [DETAIL_CONFIRMED] [post /api/scrap response] deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
+### 🟢 [STEP 2] 첫짐 1차 선점: 단독콜 사냥 (경안동 → 덕양구)
 
-    <details>
-    <summary>🔽 FilterConfig(allowedVehicleTypes=[1t], isActive=false, isSharedMode=false, picku...</summary>
+| 시각 | 플랫폼 | 로그 |
+|---|---|---|
+| 13:32:10.711 | 📱앱 | `[ROADMAP] [LIST] 📡 화면 변경 감지 \| 모드: AUTO` |
+| 13:32:10.743 | 📱앱 | `[ROADMAP] [LIST] 🔍 [타겟 콜 필터 결과] 차종(1t)=✅ 도착지(0중 덕양구)=✅ 요금(0 <= 84000)=✅ 상차지/거리(999 >= 0.2km)=✅ 블랙()=✅` |
+| 13:32:10.743 | 📱앱 | `[ROADMAP] [LIST] 인성앱 콜 리스트 렌더링 ➡️ [Current Page: LIST] 진입` |
+| 13:32:10.743 | 📱앱 | `💥 [AUTO] 꿀콜 조건 통과! 대상 콜 강제 터치 진행!` |
+| 13:32:10.743 | 📱앱 | `📝 [AUTO] 2차 검증 반송(취소)에 대비해 해당 콜 지문 선(先)기록 완료 (해시: 1497815730)` |
+| 13:32:10.745 | 📱앱 | `[ROADMAP] [LIST] 리스트에서 바뀐 text 감지 후 text 추출` |
+| 13:32:10.745 | 📱앱 | `[ROADMAP] [LIST] [인성 Socket] 인성콜에 선택된 콜 정보 전달 (꿀콜 클릭!)` |
+| 13:32:10.797 | 📱앱 | `✅ [가로채기 성공!] 화면 좌표 (X:917.0, Y:759.0) 터치 완료!` |
 
-    ```json
-                                                                                                        FilterConfig(allowedVehicleTypes=[1t], isActive=false, isSharedMode=false, pickupRadiusKm=999, minFare=0, maxFare=1000000, destinationCity=, destinationRadiusKm=10, excludedKeywords=[], destinationKeywords=[], customCityFilters=[], destinationGroups={}, customFilters=[])
-    📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:
-    ```
+> **🔍 분석**: 3개 콜 중 차종(1t) 필터를 통과한 유일한 콜(덕양구 84,000원)을 즉시 선점. 리스트 감지→터치까지 **86ms**.
 
-    </details>
-- `[ROADMAP 02:48:13.577] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)`
-- `🚦 [ROADMAP 02:48:20.962] [📱앱] [LIST] [0초] 인성앱 실행 후 1DAL앱 접근성 권한 on`
-
-    <details>
-    <summary>🔽 🎯 [인성콜] 키워드 사전 다운로드 성공: {"appName":"인성콜","uiNoiseWords":["출발지","도착지","차종","요금",...</summary>
-
-    ```json
-    🎯 [인성콜] 키워드 사전 다운로드 성공: {"appName":"인성콜","uiNoiseWords":["출발지","도착지","차종","요금","설정","닫기","콜상세"],"confirmButtonText":"확정","cancelButtonText":"취소","pickupButtonText":"출발지","dropoffButtonText":"도착지"}
-```
-
-    </details>
-
-### 🟢 [STEP 2] 첫짐 1차 선점 (단독콜 사냥)
-*(시작 기준 시간: 02:48:21.161)*
-
-- `🚦 [ROADMAP 02:48:21.161] [📱앱] [LIST] [post /api/scrap request] 👀 화면 변경 감지 발송  deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
-- `🚦 [ROADMAP 02:48:21.196] [📱앱] [LIST] [post /api/scrap response] deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
-
-    <details>
-    <summary>🔽 FilterConfig(allowedVehicleTypes=[1t], isActive=false, isSharedMode=false, picku...</summary>
-
-    ```json
-                                                                                                        FilterConfig(allowedVehicleTypes=[1t], isActive=false, isSharedMode=false, pickupRadiusKm=999, minFare=0, maxFare=1000000, destinationCity=, destinationRadiusKm=10, excludedKeywords=[], destinationKeywords=[], customCityFilters=[], destinationGroups={}, customFilters=[])
-    📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:
-    ```
-
-    </details>
-- `🚦 [ROADMAP 02:48:22.126] [📱앱] [UNKNOWN] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:48:22.333] [📱앱] [UNKNOWN] [post /api/scrap request] 👀 화면 변경 감지 발송  deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
-- `🚦 [ROADMAP 02:48:22.339] [📱앱] [UNKNOWN] [post /api/scrap response] deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
-
-    <details>
-    <summary>🔽 FilterConfig(allowedVehicleTypes=[1t], isActive=false, isSharedMode=false, picku...</summary>
-
-    ```json
-                                                                                                        FilterConfig(allowedVehicleTypes=[1t], isActive=false, isSharedMode=false, pickupRadiusKm=999, minFare=0, maxFare=1000000, destinationCity=, destinationRadiusKm=10, excludedKeywords=[], destinationKeywords=[], customCityFilters=[], destinationGroups={}, customFilters=[])
-    📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:
-    ```
-
-    </details>
-- `[ROADMAP 02:48:23.755] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)`
-- `🚦 [ROADMAP 02:48:24.337] [📱앱] [UNKNOWN] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:48:24.446] [📱앱] [UNKNOWN] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:48:24.544] [📱앱] [UNKNOWN] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:48:24.644] [📱앱] [UNKNOWN] 📡 화면 변경 감지 | 모드: AUTO`
-- `[ROADMAP 02:48:24.902] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)`
-- `🚦 [ROADMAP 02:48:26.244] [📱앱] [UNKNOWN] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:48:27.296] [📱앱] [UNKNOWN] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:48:27.381] [📱앱] [UNKNOWN] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:48:29.562] [📱앱] [UNKNOWN] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:48:29.814] [📱앱] [LIST] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:48:29.843] [📱앱] [LIST] 🔍 [타겟 콜 필터 결과] 차종(라)=❌ 도착지(0중 부산진구)=✅ 요금(0 <= 450000)=✅ 상차지/거리(999 >= 5.1km)=✅ 블랙()=✅`
-- `🚦 [ROADMAP 02:48:29.845] [📱앱] [LIST] 🔍 [타겟 콜 필터 결과] 차종(오)=❌ 도착지(0중 중랑구)=✅ 요금(0 <= 53000)=✅ 상차지/거리(999 >= 0.2km)=✅ 블랙()=✅`
-- `🚦 [ROADMAP 02:48:29.846] [📱앱] [LIST] 🔍 [타겟 콜 필터 결과] 차종(다)=❌ 도착지(0중 광명동)=✅ 요금(0 <= 77000)=✅ 상차지/거리(999 >= 9.0km)=✅ 블랙()=✅`
-- `🚦 [ROADMAP 02:48:29.849] [📱앱] [LIST] 🔍 [타겟 콜 필터 결과] 차종(오)=❌ 도착지(0중 동안구)=✅ 요금(0 <= 52000)=✅ 상차지/거리(999 >= 13.6km)=✅ 블랙()=✅`
-- `🚦 [ROADMAP 02:48:29.854] [📱앱] [LIST] 🔍 [타겟 콜 필터 결과] 차종(다)=❌ 도착지(0중 금촌동)=✅ 요금(0 <= 99000)=✅ 상차지/거리(999 >= 0.2km)=✅ 블랙()=✅`
-- `🚦 [ROADMAP 02:48:30.160] [📱앱] [LIST] [post /api/scrap request] 👀 화면 변경 감지 발송  deviceId: 앱폰-sdk_gpho-160, (건수: 5)`
-- `🚦 [ROADMAP 02:48:30.187] [📱앱] [LIST] [post /api/scrap response] deviceId: 앱폰-sdk_gpho-160, (건수: 5)`
-
-    <details>
-    <summary>🔽 FilterConfig(allowedVehicleTypes=[1t], isActive=false, isSharedMode=false, picku...</summary>
-
-    ```json
-                                                                                                        FilterConfig(allowedVehicleTypes=[1t], isActive=false, isSharedMode=false, pickupRadiusKm=999, minFare=0, maxFare=1000000, destinationCity=, destinationRadiusKm=10, excludedKeywords=[], destinationKeywords=[], customCityFilters=[], destinationGroups={}, customFilters=[])
-    📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:
-    ```
-
-    </details>
-- `[ROADMAP 02:48:32.746] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)`
-- `🚦 [ROADMAP 02:48:35.241] [📱앱] [LIST] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:48:35.247] [📱앱] [LIST] 🔍 [타겟 콜 필터 결과] 차종(1t)=✅ 도착지(0중 초월읍)=✅ 요금(0 <= 30000)=✅ 상차지/거리(999 >= 0.2km)=✅ 블랙()=✅`
-- `🚦 [ROADMAP 02:48:35.248] [📱앱] [LIST] AccessibilityService로 바뀐 리스트 감지 후 text 추출`
-- `🚦 [ROADMAP 02:48:35.248] [📱앱] [LIST] 리스트에서 바뀐 text 감지 후 text 추출`
-- `🚦 [ROADMAP 02:48:35.253] [📱앱] [LIST] [인성 Socket] 인성콜에 선택된 콜 정보 전달 (꿀콜 클릭!)`
-- `🚦 [ROADMAP 02:48:35.309] [📱앱] 버튼 터치 완료 (가로채기 성공) X:917.0, Y:568.0`
-- `🚦 [ROADMAP 02:48:35.445] [📱앱] [LIST] [post /api/scrap request] 👀 화면 변경 감지 발송  deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
-- `🚦 [ROADMAP 02:48:35.457] [📱앱] [LIST] [post /api/scrap response] deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
-
-    <details>
-    <summary>🔽 FilterConfig(allowedVehicleTypes=[1t], isActive=false, isSharedMode=false, picku...</summary>
-
-    ```json
-                                                                                                        FilterConfig(allowedVehicleTypes=[1t], isActive=false, isSharedMode=false, pickupRadiusKm=999, minFare=0, maxFare=1000000, destinationCity=, destinationRadiusKm=10, excludedKeywords=[], destinationKeywords=[], customCityFilters=[], destinationGroups={}, customFilters=[])
-    📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:
-    ```
-
-    </details>
-- `🚦 [ROADMAP 02:48:35.509] [📱앱] [DETAIL_PRE_CONFIRM] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:48:35.510] [📱앱] [DETAIL_PRE_CONFIRM] 상세페이지 진입`
-- `🚦 [ROADMAP 02:48:35.538] [📱앱] [DETAIL_PRE_CONFIRM] 상세페이지 데이터(확정,적요상세,출발지,도착지) 추출`
-- `🚦 [ROADMAP 02:48:35.539] [📱앱] [DETAIL_PRE_CONFIRM] 추출된 데이터로 한번더 필터링`
-- `🚦 [ROADMAP 02:48:35.541] [📱앱] [LIST] 🔍 [타겟 콜 필터 결과] 차종(1t)=✅ 도착지(0중 초월읍)=✅ 요금(0 <= 30000)=✅ 상차지/거리(999 >= 0.2km)=✅ 블랙()=✅`
+---
 
 ### 🟡 [STEP 3] 1차 확정 통신
-*(시작 기준 시간: 02:48:35.547)*
 
-- `🚦 [ROADMAP 02:48:35.547] [📱앱] [DETAIL_PRE_CONFIRM] 상세페이지에서 '확정' 추출 후 클릭`
-- `🚦 [ROADMAP 02:48:35.550] [📱앱] [DETAIL_PRE_CONFIRM] [인성 Socket] 콜 확정 완료`
-- `🚦 [ROADMAP 02:48:35.556] [📱앱] '확정' 버튼 인식 ➡️ 클릭 시도`
+| 시각 | 플랫폼 | 로그 |
+|---|---|---|
+| 13:32:10.942 | 📱앱 | `[ROADMAP] [DETAIL_PRE_CONFIRM] 📡 화면 변경 감지 \| 모드: AUTO` |
+| 13:32:10.943 | 📱앱 | `[ROADMAP] [DETAIL_PRE_CONFIRM] [Current Page: DETAIL_PRE_CONFIRM] 진입 완료` |
+| 13:32:10.946 | 📱앱 | `[ROADMAP] [DETAIL_PRE_CONFIRM] 상세페이지 텍스트 추출 및 2차 필터(적요 등) 통과 확인` |
+| 13:32:10.946 | 📱앱 | `🔍 [타겟 콜 필터 결과] 차종(1t)=✅ 도착지(0중 덕양구)=✅ 요금(0 <= 84000)=✅ 상차지/거리(999 >= 0.2km)=✅ 블랙()=✅` |
+| 13:32:10.948 | 📱앱 | `📤 [post /confirm request] 서버 전송 내용 -> 모드: AUTO \| 텍스트: rep_map 고양퀵서비스-031-932-7722 전표 상태 : 신규 물품 : 마대 1개 차량 : 1t 탁송료 : 수수료 : 23% 요금 : 84,000(착불) 구분 : 편도 형태 : 예약 적요상세 *카고 입니다. 세금계산서필 15:20 상차. 마스크 카톤 마대 1개 ...` |
+| 13:32:10.948 | 📱앱 | `🚀 [AUTO] 확정 버튼 광클 (배차 시도)` |
+| 13:32:10.968 | 📱앱 | `🌐 [post /confirm response / 200] {"success":true,"message":"1차 수신 완료. 상세 페이지 내용을 긁어서 POST /api/orders/detail 로 보내주세요."}` |
+| 13:32:11.005 | 📱앱 | `✅ [가로채기 성공!] 화면 좌표 (X:161.0, Y:2251.0) 터치 완료!` (확정 버튼) |
+| 13:32:11.687 | ☁️서버 | `[ROADMAP] 앱폰에게 상세 정보 스크래핑을 즉시 진행하라고 응답 전달` |
+| 13:32:11.688 | ☁️서버 | `[ROADMAP] 콜의 가확정 상태를 메모리에 캐싱 연산` |
+| 13:32:11.688 | ☁️서버 | `📤 [Socket 푸시] order-evaluating (5ff82528-b1f2-4026-b1a0-76a6e0927774)` |
+| 13:32:11.688 | ☁️서버 | `⏱️ [1차 선빵 수신] 경안동 ➡️ 덕양구 (기기: 앱폰-sdk_gpho-160)` |
+| 13:32:11.688 | ☁️서버 | `[ROADMAP] 관제탑에게 이 콜을 선점했음(order-evaluating) 정보 전달` |
+| 13:32:11.689 | 🖥️관제웹 | `[ROADMAP] [관제대시보드] 🟢 [웹 수신] order-evaluating \| ID: 5ff82528 \| 기기: 앱폰-sdk_gpho-160 \| 덕양구` |
+| 13:32:11.689 | 🖥️관제웹 | `[ROADMAP] [관제대시보드] 확정페이지 진입 (선빵 수신으로 상세 모드 구동)` |
+| 13:32:11.689 | 🖥️관제웹 | `[ROADMAP] [관제대시보드] PinnedRoute 컴포넌트에 빈 레이아웃(평가중) 렌더링 및 하단 결재버튼 전체 딤드(비활성) 처리` |
 
-    <details>
-    <summary>🔽 🌐 [post /confirm response / 200] {"success":true,"message":"1차 수신 완료. 상세 페이지 내용...</summary>
+> **🔍 분석**: 상세페이지 진입→확정 전송까지 단 **5ms**. 서버 응답 **20ms** 만에 200 OK. 관제웹에서는 즉시 `order-evaluating` 수신하여 상세 모드 진입.
 
-    ```json
-    🌐 [post /confirm response / 200] {"success":true,"message":"1차 수신 완료. 상세 페이지 내용을 긁어서 POST /api/orders/detail 로 보내주세요."}
-    ```
-
-    </details>
-- `🚦 [ROADMAP 02:48:35.794] [📱앱] [HTTP 폴링] 응답 /orders/confirm`
-- `🚦 [ROADMAP 02:48:35.850] [📱앱] [DETAIL_PRE_CONFIRM] [post /api/scrap request] 👀 화면 변경 감지 발송  deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
-- `🚦 [ROADMAP 02:48:35.851] [📱앱] 버튼 터치 완료 (가로채기 성공) X:161.0, Y:2251.0`
-- `🚦 [ROADMAP 02:48:35.860] [📱앱] [DETAIL_PRE_CONFIRM] [post /api/scrap response] deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
-
-    <details>
-    <summary>🔽 FilterConfig(allowedVehicleTypes=[1t], isActive=false, isSharedMode=false, picku...</summary>
-
-    ```json
-                                                                                                        FilterConfig(allowedVehicleTypes=[1t], isActive=false, isSharedMode=false, pickupRadiusKm=999, minFare=0, maxFare=1000000, destinationCity=, destinationRadiusKm=10, excludedKeywords=[], destinationKeywords=[], customCityFilters=[], destinationGroups={}, customFilters=[])
-    📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:
-    ```
-
-    </details>
-- `🚦 [ROADMAP 02:48:36.016] [📱앱] [DETAIL_CONFIRMED] 📡 화면 변경 감지 | 모드: AUTO`
+---
 
 ### 🟢 [STEP 4] 2차 상세 수집: 팝업 자동 서핑
-*(시작 기준 시간: 02:48:36.017)*
-
-- `🚦 [ROADMAP 02:48:36.017] [📱앱] [DETAIL_CONFIRMED] 확정페이지 진입`
-- `🚦 [ROADMAP 02:48:36.018] [📱앱] '적요상세' 버튼 인식 ➡️ 클릭 시도`
-- `🚦 [ROADMAP 02:48:36.019] [📱앱] [DETAIL_CONFIRMED] 확정페이지에서 '적요상세' 추출 후 클릭`
-- `🚦 [ROADMAP 02:48:36.070] [📱앱] 버튼 터치 완료 (가로채기 성공) X:149.0, Y:1153.0`
-- `🚦 [ROADMAP 02:48:36.186] [📱앱] [POPUP_MEMO] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:48:36.187] [📱앱] [POPUP_MEMO] 적요상세페이지에서 '젹요 내용' 추출 및 저장 후 닫기 클릭`
-- `🚦 [ROADMAP 02:48:36.189] [📱앱] '닫기' 버튼 인식 ➡️ 클릭 시도`
-- `🚦 [ROADMAP 02:48:36.254] [📱앱] 버튼 터치 완료 (가로채기 성공) X:540.0, Y:2264.0`
-- `🚦 [ROADMAP 02:48:36.301] [📱앱] [DETAIL_CONFIRMED] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:48:36.302] [📱앱] [DETAIL_CONFIRMED] 확정페이지 진입`
-- `🚦 [ROADMAP 02:48:36.303] [📱앱] [DETAIL_CONFIRMED] 확정페이지에서 '출발지' 추출 후 클릭`
-- `🚦 [ROADMAP 02:48:36.303] [📱앱] '출발지' 버튼 인식 ➡️ 클릭 시도`
-- `🚦 [ROADMAP 02:48:36.359] [📱앱] 버튼 터치 완료 (가로채기 성공) X:539.0, Y:1592.0`
-- `🚦 [ROADMAP 02:48:36.518] [📱앱] [POPUP_PICKUP] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:48:36.519] [📱앱] [POPUP_PICKUP] 출발지페이지 text중 '전화, 위치' 추출 및 저장 후 닫기 클릭`
-- `🚦 [ROADMAP 02:48:36.520] [📱앱] '닫기' 버튼 인식 ➡️ 클릭 시도`
-- `🚦 [ROADMAP 02:48:36.572] [📱앱] 버튼 터치 완료 (가로채기 성공) X:136.0, Y:2264.0`
-- `🚦 [ROADMAP 02:48:36.704] [📱앱] [DETAIL_CONFIRMED] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:48:36.705] [📱앱] [DETAIL_CONFIRMED] 확정페이지 진입`
-- `🚦 [ROADMAP 02:48:36.705] [📱앱] [DETAIL_CONFIRMED] 확정페이지에서 '도착지' 추출 후 클릭`
-- `🚦 [ROADMAP 02:48:36.706] [📱앱] '도착지' 버튼 인식 ➡️ 클릭 시도`
-- `🚦 [ROADMAP 02:48:36.762] [📱앱] 버튼 터치 완료 (가로채기 성공) X:539.0, Y:1742.0`
-- `🚦 [ROADMAP 02:48:36.916] [📱앱] [POPUP_DROPOFF] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:48:36.917] [📱앱] [POPUP_DROPOFF] 도착지페이지 text중 '전화, 위치' 추출 및 저장 후 닫기 클릭`
-- `🚦 [ROADMAP 02:48:36.918] [📱앱] '닫기' 버튼 인식 ➡️ 클릭 시도`
-- `🚦 [ROADMAP 02:48:36.921] [📱앱] [POPUP_DROPOFF] 확정페이지 진입`
-- `🚦 [ROADMAP 02:48:36.981] [📱앱] 버튼 터치 완료 (가로채기 성공) X:136.0, Y:2264.0`
-- `🚦 [ROADMAP 02:48:37.138] [📱앱] [POPUP_DROPOFF] [post /api/scrap request] 👀 화면 변경 감지 발송  deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
-- `🚦 [ROADMAP 02:48:37.177] [📱앱] [POPUP_DROPOFF] [post /api/scrap response] deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
-
-    <details>
-    <summary>🔽 FilterConfig(allowedVehicleTypes=[1t], isActive=false, isSharedMode=false, picku...</summary>
-
-    ```json
-                                                                                                        FilterConfig(allowedVehicleTypes=[1t], isActive=false, isSharedMode=false, pickupRadiusKm=999, minFare=0, maxFare=1000000, destinationCity=, destinationRadiusKm=10, excludedKeywords=[], destinationKeywords=[], customCityFilters=[], destinationGroups={}, customFilters=[])
-    📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:
-    ```
-
-    </details>
-- `🚦 [ROADMAP 02:48:37.396] [📱앱] [DETAIL_CONFIRMED] [post /api/scrap request] 👀 화면 변경 감지 발송  deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
-- `🚦 [ROADMAP 02:48:37.402] [📱앱] [DETAIL_CONFIRMED] [post /api/scrap response] deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
-
-    <details>
-    <summary>🔽 📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:</summary>
-
-    ```json
-    📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:
-                                                                                                        FilterConfig(allowedVehicleTypes=[1t], isActive=false, isSharedMode=false, pickupRadiusKm=999, minFare=0, maxFare=1000000, destinationCity=, destinationRadiusKm=10, excludedKeywords=[], destinationKeywords=[], customCityFilters=[], destinationGroups={}, customFilters=[])
-    ```
-
-    </details>
-- `[ROADMAP 02:48:38.018] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)`
-- `[ROADMAP 02:48:38.168] [☁️서버] [HTTP 폴링] 응답 /orders/confirm`
-- `[ROADMAP 02:48:38.172] [☁️서버] [HTTP 폴링] POST /orders/confirm 확정정보 정보 전송 수신`
-- `[ROADMAP 02:48:38.173] [🖥️관제웹] [관제대시보드] 🟢 [웹 수신] order-evaluating | ID: 721c7da7-e8fb-45a0-9b60-57b0d8242b41 | 기기: 앱폰-sdk_gpho-160 | 초월읍`
-- `[ROADMAP 02:48:38.173] [🖥️관제웹] [관제대시보드] 확정페이지 진입 (선빵 수신으로 상세 모드 구동)`
-- `[ROADMAP 02:48:38.421] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)`
-- `[ROADMAP 02:48:39.535] [☁️서버] [HTTP 폴링] POST /orders/detail 데이터 수신`
-
-### 🟢 [STEP 5] 카카오 연산 3중 폴백 & 자동 회랑 전개
-*(시작 기준 시간: 02:48:39.546)*
-
-- `[ROADMAP 02:48:39.546] [☁️서버] [Socket] 상하차지 송출`
-- `[ROADMAP 02:48:39.548] [🖥️관제웹] [관제대시보드] 🟡 [웹 수신] order-detail-received | ID: 721c7da7 | 경기 광주시 경안동 167-1 경안천`
-- `[ROADMAP 02:48:39.554] [☁️서버] 🛡️ [카카오 API 3중 폴백] 괄호제거 ➡️ 주소검색 ➡️ 키워드검색 ➡️ 4어절 절사`
-- `[ROADMAP 02:48:39.737] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)`
-
-    <details>
-    <summary>🔽 🌍 [Geocoding] 상차지 변환: '경기 광주시 경안동 167-1 경안천 체육공원' -&gt; X:127.252889947198, Y:37.4...</summary>
-
-    ```json
-    🌍 [Geocoding] 상차지 변환: '경기 광주시 경안동 167-1 경안천 체육공원' -> X:127.252889947198, Y:37.4100225848715
-    ```
-
-    </details>
-- `[ROADMAP 02:48:39.848] [☁️서버] [Socket] 경로 및 시간 정보, 수익률 전송`
-
-    <details>
-    <summary>🔽 🔎 [카카오 연산 완료] 카카오 연산 실패 | Polyline 길이: 0</summary>
-
-    ```json
-    🔎 [카카오 연산 완료] 카카오 연산 실패 | Polyline 길이: 0
-    ```
-
-    </details>
-- `[ROADMAP 02:48:39.851] [🖥️관제웹] [관제대시보드] 🔵 [웹 수신] order-evaluated | ID: 721c7da7 | 카카오 연산 실패`
-- `[ROADMAP 02:48:39.852] [🖥️관제웹] [관제대시보드] 추천 결과 노출, 경로보기버튼 추가 노출 후 판단 (취소 or 닫기) 대기`
-- `[ROADMAP 02:48:39.965] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)`
-
-    <details>
-    <summary>🔽 🌐 [post /detail response / 200] {"deviceId":"server","action":"CANCEL"}</summary>
-
-    ```json
-    🌐 [post /detail response / 200] {"deviceId":"server","action":"CANCEL"}
-    ```
-
-    </details>
-- `🚦 [ROADMAP 02:48:47.461] [📱앱] [HTTP 폴링] 응답 /orders/detail 취소 정보 전송`
-- `🚦 [ROADMAP 02:48:47.677] [📱앱] [DETAIL_CONFIRMED] [post /api/scrap request] 👀 화면 변경 감지 발송  deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
-- `🚦 [ROADMAP 02:48:47.695] [📱앱] [DETAIL_CONFIRMED] [post /api/scrap response] deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
-
-    <details>
-    <summary>🔽 FilterConfig(allowedVehicleTypes=[], isActive=true, isSharedMode=false, pickupRa...</summary>
-
-    ```json
-                                                                                                        FilterConfig(allowedVehicleTypes=[], isActive=true, isSharedMode=false, pickupRadiusKm=999, minFare=0, maxFare=1000000, destinationCity=, destinationRadiusKm=10, excludedKeywords=[], destinationKeywords=[], customCityFilters=[], destinationGroups={}, customFilters=[])
-    📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:
-    ```
-
-    </details>
-- `🚦 [ROADMAP 02:48:47.979] [📱앱] '취소' 버튼 인식 ➡️ 클릭 시도`
-- `🚦 [ROADMAP 02:48:47.994] [📱앱] [DETAIL_CONFIRMED] '취소' 클릭 후 인성 Socket 취소 지시`
-- `🚦 [ROADMAP 02:48:48.068] [📱앱] 버튼 터치 완료 (가로채기 성공) X:950.0, Y:478.0`
-- `🚦 [ROADMAP 02:48:48.234] [📱앱] [LIST] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:48:48.244] [📱앱] [LIST] 🔍 [타겟 콜 필터 결과] 차종(오)=✅ 도착지(0중 남동구)=✅ 요금(0 <= 80000)=✅ 상차지/거리(999 >= 0.2km)=✅ 블랙()=✅`
-- `🚦 [ROADMAP 02:48:48.245] [📱앱] [LIST] AccessibilityService로 바뀐 리스트 감지 후 text 추출`
-- `🚦 [ROADMAP 02:48:48.245] [📱앱] [LIST] 리스트에서 바뀐 text 감지 후 text 추출`
-- `🚦 [ROADMAP 02:48:48.246] [📱앱] [LIST] [인성 Socket] 인성콜에 선택된 콜 정보 전달 (꿀콜 클릭!)`
-- `🚦 [ROADMAP 02:48:48.298] [📱앱] 버튼 터치 완료 (가로채기 성공) X:917.0, Y:568.0`
-- `🚦 [ROADMAP 02:48:48.499] [📱앱] [DETAIL_PRE_CONFIRM] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:48:48.500] [📱앱] [DETAIL_PRE_CONFIRM] 상세페이지 진입`
-- `🚦 [ROADMAP 02:48:48.520] [📱앱] [DETAIL_PRE_CONFIRM] 상세페이지 데이터(확정,적요상세,출발지,도착지) 추출`
-- `🚦 [ROADMAP 02:48:48.520] [📱앱] [DETAIL_PRE_CONFIRM] 추출된 데이터로 한번더 필터링`
-- `🚦 [ROADMAP 02:48:48.521] [📱앱] [LIST] 🔍 [타겟 콜 필터 결과] 차종(오)=✅ 도착지(0중 남동구)=✅ 요금(0 <= 80000)=✅ 상차지/거리(999 >= 0.2km)=✅ 블랙()=✅`
-- `🚦 [ROADMAP 02:48:48.521] [📱앱] [DETAIL_PRE_CONFIRM] 상세페이지에서 '확정' 추출 후 클릭`
-- `🚦 [ROADMAP 02:48:48.522] [📱앱] [DETAIL_PRE_CONFIRM] [인성 Socket] 콜 확정 완료`
-- `🚦 [ROADMAP 02:48:48.522] [📱앱] '확정' 버튼 인식 ➡️ 클릭 시도`
-
-    <details>
-    <summary>🔽 🌐 [post /confirm response / 200] {"success":true,"message":"1차 수신 완료. 상세 페이지 내용...</summary>
-
-    ```json
-    🌐 [post /confirm response / 200] {"success":true,"message":"1차 수신 완료. 상세 페이지 내용을 긁어서 POST /api/orders/detail 로 보내주세요."}
-    ```
-
-    </details>
-- `🚦 [ROADMAP 02:48:48.538] [📱앱] [HTTP 폴링] 응답 /orders/confirm`
-- `🚦 [ROADMAP 02:48:48.576] [📱앱] 버튼 터치 완료 (가로채기 성공) X:161.0, Y:2251.0`
-- `🚦 [ROADMAP 02:48:48.744] [📱앱] [DETAIL_PRE_CONFIRM] [post /api/scrap request] 👀 화면 변경 감지 발송  deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
-- `🚦 [ROADMAP 02:48:48.766] [📱앱] [DETAIL_PRE_CONFIRM] [post /api/scrap response] deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
-
-    <details>
-    <summary>🔽 FilterConfig(allowedVehicleTypes=[], isActive=false, isSharedMode=false, pickupR...</summary>
-
-    ```json
-                                                                                                        FilterConfig(allowedVehicleTypes=[], isActive=false, isSharedMode=false, pickupRadiusKm=999, minFare=0, maxFare=1000000, destinationCity=, destinationRadiusKm=10, excludedKeywords=[], destinationKeywords=[], customCityFilters=[], destinationGroups={}, customFilters=[])
-    📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:
-    ```
-
-    </details>
-- `🚦 [ROADMAP 02:48:48.831] [📱앱] [DETAIL_CONFIRMED] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:48:48.831] [📱앱] [DETAIL_CONFIRMED] 확정페이지 진입`
-- `🚦 [ROADMAP 02:48:48.833] [📱앱] '적요상세' 버튼 인식 ➡️ 클릭 시도`
-- `🚦 [ROADMAP 02:48:48.834] [📱앱] [DETAIL_CONFIRMED] 확정페이지에서 '적요상세' 추출 후 클릭`
-- `🚦 [ROADMAP 02:48:48.887] [📱앱] 버튼 터치 완료 (가로채기 성공) X:149.0, Y:1153.0`
-- `🚦 [ROADMAP 02:48:49.138] [📱앱] [POPUP_MEMO] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:48:49.139] [📱앱] [POPUP_MEMO] 적요상세페이지에서 '젹요 내용' 추출 및 저장 후 닫기 클릭`
-- `🚦 [ROADMAP 02:48:49.140] [📱앱] '닫기' 버튼 인식 ➡️ 클릭 시도`
-- `🚦 [ROADMAP 02:48:49.308] [📱앱] [DETAIL_CONFIRMED] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:48:49.309] [📱앱] [DETAIL_CONFIRMED] 확정페이지 진입`
-- `🚦 [ROADMAP 02:48:49.309] [📱앱] [DETAIL_CONFIRMED] 확정페이지에서 '출발지' 추출 후 클릭`
-- `🚦 [ROADMAP 02:48:49.309] [📱앱] '출발지' 버튼 인식 ➡️ 클릭 시도`
-- `🚦 [ROADMAP 02:48:49.314] [📱앱] 버튼 터치 완료 (가로채기 성공) X:540.0, Y:2264.0`
-- `🚦 [ROADMAP 02:48:49.362] [📱앱] 버튼 터치 완료 (가로채기 성공) X:539.0, Y:1592.0`
-- `🚦 [ROADMAP 02:48:49.512] [📱앱] [POPUP_PICKUP] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:48:49.513] [📱앱] [POPUP_PICKUP] 출발지페이지 text중 '전화, 위치' 추출 및 저장 후 닫기 클릭`
-- `🚦 [ROADMAP 02:48:49.513] [📱앱] '닫기' 버튼 인식 ➡️ 클릭 시도`
-- `🚦 [ROADMAP 02:48:49.565] [📱앱] 버튼 터치 완료 (가로채기 성공) X:136.0, Y:2264.0`
-- `🚦 [ROADMAP 02:48:49.695] [📱앱] [DETAIL_CONFIRMED] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:48:49.695] [📱앱] [DETAIL_CONFIRMED] 확정페이지 진입`
-- `🚦 [ROADMAP 02:48:49.696] [📱앱] [DETAIL_CONFIRMED] 확정페이지에서 '도착지' 추출 후 클릭`
-- `🚦 [ROADMAP 02:48:49.696] [📱앱] '도착지' 버튼 인식 ➡️ 클릭 시도`
-- `🚦 [ROADMAP 02:48:49.747] [📱앱] 버튼 터치 완료 (가로채기 성공) X:539.0, Y:1742.0`
-- `🚦 [ROADMAP 02:48:49.877] [📱앱] [POPUP_DROPOFF] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:48:49.878] [📱앱] [POPUP_DROPOFF] 도착지페이지 text중 '전화, 위치' 추출 및 저장 후 닫기 클릭`
-- `🚦 [ROADMAP 02:48:49.879] [📱앱] '닫기' 버튼 인식 ➡️ 클릭 시도`
-- `🚦 [ROADMAP 02:48:49.879] [📱앱] [POPUP_DROPOFF] 확정페이지 진입`
-
-### 🟢 [STEP 6] 관제탑 결재 (취소 vs 유지)
-*(시작 기준 시간: 02:48:49.940)*
-
-- `[ROADMAP 02:48:49.940] [🖥️관제웹] [관제대시보드] [Socket] 취소 전달`
-- `[ROADMAP 02:48:49.950] [☁️서버] [HTTP 폴링] 응답 /orders/detail 취소 정보 전송`
-- `[ROADMAP 02:48:49.952] [☁️서버] 첫콜 필터로 설정값 업데이트`
-- `🚦 [ROADMAP 02:48:49.954] [📱앱] 버튼 터치 완료 (가로채기 성공) X:136.0, Y:2264.0`
-- `[ROADMAP 02:48:49.975] [🖥️관제웹] [관제대시보드] 🔴 [웹 수신] order-canceled | ID: 721c7da7`
-- `🚦 [ROADMAP 02:48:50.082] [📱앱] [POPUP_DROPOFF] [post /api/scrap request] 👀 화면 변경 감지 발송  deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
-- `🚦 [ROADMAP 02:48:50.091] [📱앱] [POPUP_DROPOFF] [post /api/scrap response] deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
-
-    <details>
-    <summary>🔽 FilterConfig(allowedVehicleTypes=[], isActive=false, isSharedMode=false, pickupR...</summary>
-
-    ```json
-                                                                                                        FilterConfig(allowedVehicleTypes=[], isActive=false, isSharedMode=false, pickupRadiusKm=999, minFare=0, maxFare=1000000, destinationCity=, destinationRadiusKm=10, excludedKeywords=[], destinationKeywords=[], customCityFilters=[], destinationGroups={}, customFilters=[])
-    📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:
-    ```
-
-    </details>
-- `[ROADMAP 02:48:50.256] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)`
-- `🚦 [ROADMAP 02:48:50.315] [📱앱] [DETAIL_CONFIRMED] [post /api/scrap request] 👀 화면 변경 감지 발송  deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
-- `🚦 [ROADMAP 02:48:50.321] [📱앱] [DETAIL_CONFIRMED] [post /api/scrap response] deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
-
-    <details>
-    <summary>🔽 FilterConfig(allowedVehicleTypes=[], isActive=false, isSharedMode=false, pickupR...</summary>
-
-    ```json
-                                                                                                        FilterConfig(allowedVehicleTypes=[], isActive=false, isSharedMode=false, pickupRadiusKm=999, minFare=0, maxFare=1000000, destinationCity=, destinationRadiusKm=10, excludedKeywords=[], destinationKeywords=[], customCityFilters=[], destinationGroups={}, customFilters=[])
-    📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:
-    ```
-
-    </details>
-- `[ROADMAP 02:48:51.090] [☁️서버] [HTTP 폴링] 응답 /orders/confirm`
-- `[ROADMAP 02:48:51.090] [☁️서버] [HTTP 폴링] POST /orders/confirm 확정정보 정보 전송 수신`
-- `[ROADMAP 02:48:51.090] [☁️서버] 대기 필터로 설정값 업데이트 (isActive: false)`
-- `[ROADMAP 02:48:51.090] [☁️서버] [Socket] 확정정보 정보 + 대기 필터 정보 전송`
-- `[ROADMAP 02:48:51.090] [☁️서버] 관제탑 무응답 대비 30초 데스밸리 타이머 기동 (안전망 강화)`
-- `[ROADMAP 02:48:51.092] [🖥️관제웹] [관제대시보드] 🟢 [웹 수신] order-evaluating | ID: a491b43e-b219-4f48-84e5-239ee42c8555 | 기기: 앱폰-sdk_gpho-160 | 남동구`
-- `[ROADMAP 02:48:51.093] [🖥️관제웹] [관제대시보드] 확정페이지 진입 (선빵 수신으로 상세 모드 구동)`
-- `[ROADMAP 02:48:51.327] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)`
-- `[ROADMAP 02:48:52.458] [☁️서버] [HTTP 폴링] POST /orders/detail 데이터 수신`
-- `[ROADMAP 02:48:52.460] [☁️서버] [Socket] 상하차지 송출`
-- `[ROADMAP 02:48:52.460] [☁️서버] 🛡️ [카카오 API 3중 폴백] 괄호제거 ➡️ 주소검색 ➡️ 키워드검색 ➡️ 4어절 절사`
-
-    <details>
-    <summary>🔽 🌍 [Geocoding] 상차지 변환: '경기 광주시 경안동 167-1 경안천 체육공원' -&gt; X:127.252889947198, Y:37.4...</summary>
-
-    ```json
-    🌍 [Geocoding] 상차지 변환: '경기 광주시 경안동 167-1 경안천 체육공원' -> X:127.252889947198, Y:37.4100225848715
-    ```
-
-    </details>
-- `[ROADMAP 02:48:52.463] [🖥️관제웹] [관제대시보드] 🟡 [웹 수신] order-detail-received | ID: a491b43e | 경기 광주시 경안동 167-1 경안천`
-
-    <details>
-    <summary>🔽 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.</summary>
-
-    ```json
-    🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-    🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-    ```
-
-    </details>
-- `[ROADMAP 02:48:52.653] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)`
-- `[ROADMAP 02:48:52.884] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)`
-- `[ROADMAP 02:48:53.109] [☁️서버] [Socket] 경로 및 시간 정보, 수익률 전송`
-
-    <details>
-    <summary>🔽 🔎 [카카오 연산 완료] 단독 64.6km, 61분 '콜' | Polyline 길이: 707</summary>
-
-    ```json
-    🔎 [카카오 연산 완료] 단독 64.6km, 61분 '콜' | Polyline 길이: 707
-    ⚖️ [소켓 Decision] User: 66176c7b-1755-444c-9b65-7ca056e3c303, ID: a491b43e-b219-4f48-84e5-239ee42c8555, Action: KEEP
-    ```
-
-    </details>
-- `[ROADMAP 02:48:53.110] [🖥️관제웹] [관제대시보드] 🔵 [웹 수신] order-evaluated | ID: a491b43e | 단독 64.6km, 61분 '콜'`
-- `[ROADMAP 02:48:53.111] [🖥️관제웹] [관제대시보드] 추천 결과 노출, 경로보기버튼 추가 노출 후 판단 (취소 or 닫기) 대기`
-
-    <details>
-    <summary>🔽 👆 [사용자 클릭] 프론트에서 '유지 확정' 버튼 클릭 (ID: a491b43e-b219-4f48-84e5-239ee42c8555)</summary>
-
-    ```json
-    👆 [사용자 클릭] 프론트에서 '유지 확정' 버튼 클릭 (ID: a491b43e-b219-4f48-84e5-239ee42c8555)
-    🌐 [post /detail response / 200] {"deviceId":"server","action":"KEEP"}
-    ```
-
-    </details>
-- `🚦 [ROADMAP 02:48:56.890] [📱앱] [HTTP 폴링] 응답 /orders/detail 유지 정보 전송`
-- `🚦 [ROADMAP 02:48:57.096] [📱앱] [DETAIL_CONFIRMED] [post /api/scrap request] 👀 화면 변경 감지 발송  deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
-- `🚦 [ROADMAP 02:48:57.107] [📱앱] [DETAIL_CONFIRMED] [post /api/scrap response] deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
-
-    <details>
-    <summary>🔽 FilterConfig(allowedVehicleTypes=[다마스, 라보, 오토바이], isActive=true, isSharedMode=tr...</summary>
-
-    ```json
-                                                                                                        FilterConfig(allowedVehicleTypes=[다마스, 라보, 오토바이], isActive=true, isSharedMode=true, pickupRadiusKm=999, minFare=0, maxFare=1000000, destinationCity=, destinationRadiusKm=10, excludedKeywords=[], destinationKeywords=[], customCityFilters=[], destinationGroups={}, customFilters=[])
-    📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:
-    ```
-
-    </details>
-- `🚦 [ROADMAP 02:48:57.401] [📱앱] '닫기' 버튼 인식 ➡️ 클릭 시도`
-- `🚦 [ROADMAP 02:48:57.403] [📱앱] [DETAIL_CONFIRMED] '닫기' 클릭 후 리스트 페이지 복귀 (유지)`
-- `🚦 [ROADMAP 02:48:57.455] [📱앱] 버튼 터치 완료 (가로채기 성공) X:122.0, Y:2251.0`
-- `🚦 [ROADMAP 02:48:57.605] [📱앱] [LIST] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:48:57.620] [📱앱] [LIST] 🔍 [타겟 콜 필터 결과] 차종(다)=✅ 도착지(0중 경안동)=✅ 요금(0 <= 30000)=✅ 상차지/거리(999 >= 0.2km)=✅ 블랙()=✅`
-- `🚦 [ROADMAP 02:48:57.621] [📱앱] [LIST] AccessibilityService로 바뀐 리스트 감지 후 text 추출`
-- `🚦 [ROADMAP 02:48:57.621] [📱앱] [LIST] 리스트에서 바뀐 text 감지 후 text 추출`
-- `🚦 [ROADMAP 02:48:57.622] [📱앱] [LIST] [인성 Socket] 인성콜에 선택된 콜 정보 전달 (꿀콜 클릭!)`
-- `🚦 [ROADMAP 02:48:57.678] [📱앱] 버튼 터치 완료 (가로채기 성공) X:917.0, Y:568.0`
-- `🚦 [ROADMAP 02:48:57.828] [📱앱] [DETAIL_PRE_CONFIRM] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:48:57.828] [📱앱] [DETAIL_PRE_CONFIRM] 상세페이지 진입`
-- `🚦 [ROADMAP 02:48:57.833] [📱앱] [DETAIL_PRE_CONFIRM] 상세페이지 데이터(확정,적요상세,출발지,도착지) 추출`
-- `🚦 [ROADMAP 02:48:57.833] [📱앱] [DETAIL_PRE_CONFIRM] 추출된 데이터로 한번더 필터링`
-- `🚦 [ROADMAP 02:48:57.833] [📱앱] [LIST] 🔍 [타겟 콜 필터 결과] 차종(다)=✅ 도착지(0중 경안동)=✅ 요금(0 <= 30000)=✅ 상차지/거리(999 >= 0.2km)=✅ 블랙()=✅`
-- `🚦 [ROADMAP 02:48:57.834] [📱앱] [DETAIL_PRE_CONFIRM] 상세페이지에서 '확정' 추출 후 클릭`
-- `🚦 [ROADMAP 02:48:57.834] [📱앱] [DETAIL_PRE_CONFIRM] [인성 Socket] 콜 확정 완료`
-- `🚦 [ROADMAP 02:48:57.835] [📱앱] '확정' 버튼 인식 ➡️ 클릭 시도`
-
-    <details>
-    <summary>🔽 🌐 [post /confirm response / 200] {"success":true,"message":"1차 수신 완료. 상세 페이지 내용...</summary>
-
-    ```json
-    🌐 [post /confirm response / 200] {"success":true,"message":"1차 수신 완료. 상세 페이지 내용을 긁어서 POST /api/orders/detail 로 보내주세요."}
-    ```
-
-    </details>
-- `🚦 [ROADMAP 02:48:57.840] [📱앱] [HTTP 폴링] 응답 /orders/confirm`
-- `🚦 [ROADMAP 02:48:57.888] [📱앱] 버튼 터치 완료 (가로채기 성공) X:161.0, Y:2251.0`
-- `🚦 [ROADMAP 02:48:58.023] [📱앱] [DETAIL_CONFIRMED] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:48:58.024] [📱앱] [DETAIL_CONFIRMED] 확정페이지 진입`
-- `🚦 [ROADMAP 02:48:58.024] [📱앱] '적요상세' 버튼 인식 ➡️ 클릭 시도`
-- `🚦 [ROADMAP 02:48:58.025] [📱앱] [DETAIL_CONFIRMED] 확정페이지에서 '적요상세' 추출 후 클릭`
-- `🚦 [ROADMAP 02:48:58.086] [📱앱] 버튼 터치 완료 (가로채기 성공) X:149.0, Y:1153.0`
-- `🚦 [ROADMAP 02:48:58.197] [📱앱] [POPUP_MEMO] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:48:58.198] [📱앱] [POPUP_MEMO] 적요상세페이지에서 '젹요 내용' 추출 및 저장 후 닫기 클릭`
-- `🚦 [ROADMAP 02:48:58.204] [📱앱] '닫기' 버튼 인식 ➡️ 클릭 시도`
-- `🚦 [ROADMAP 02:48:58.262] [📱앱] 버튼 터치 완료 (가로채기 성공) X:540.0, Y:2264.0`
-- `🚦 [ROADMAP 02:48:58.300] [📱앱] [DETAIL_CONFIRMED] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:48:58.301] [📱앱] [DETAIL_CONFIRMED] 확정페이지 진입`
-- `🚦 [ROADMAP 02:48:58.301] [📱앱] [DETAIL_CONFIRMED] 확정페이지에서 '출발지' 추출 후 클릭`
-- `🚦 [ROADMAP 02:48:58.304] [📱앱] '출발지' 버튼 인식 ➡️ 클릭 시도`
-- `🚦 [ROADMAP 02:48:58.357] [📱앱] 버튼 터치 완료 (가로채기 성공) X:539.0, Y:1592.0`
-- `🚦 [ROADMAP 02:48:58.463] [📱앱] [POPUP_PICKUP] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:48:58.464] [📱앱] [POPUP_PICKUP] 출발지페이지 text중 '전화, 위치' 추출 및 저장 후 닫기 클릭`
-- `🚦 [ROADMAP 02:48:58.464] [📱앱] '닫기' 버튼 인식 ➡️ 클릭 시도`
-- `🚦 [ROADMAP 02:48:58.524] [📱앱] 버튼 터치 완료 (가로채기 성공) X:136.0, Y:2264.0`
-- `🚦 [ROADMAP 02:48:58.641] [📱앱] [DETAIL_CONFIRMED] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:48:58.641] [📱앱] [DETAIL_CONFIRMED] 확정페이지 진입`
-- `🚦 [ROADMAP 02:48:58.641] [📱앱] [DETAIL_CONFIRMED] 확정페이지에서 '도착지' 추출 후 클릭`
-- `🚦 [ROADMAP 02:48:58.642] [📱앱] '도착지' 버튼 인식 ➡️ 클릭 시도`
-- `🚦 [ROADMAP 02:48:58.693] [📱앱] 버튼 터치 완료 (가로채기 성공) X:539.0, Y:1742.0`
-- `🚦 [ROADMAP 02:48:58.822] [📱앱] [POPUP_DROPOFF] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:48:58.823] [📱앱] [POPUP_DROPOFF] 도착지페이지 text중 '전화, 위치' 추출 및 저장 후 닫기 클릭`
-- `🚦 [ROADMAP 02:48:58.823] [📱앱] '닫기' 버튼 인식 ➡️ 클릭 시도`
-- `🚦 [ROADMAP 02:48:58.824] [📱앱] [POPUP_DROPOFF] 확정페이지 진입`
-- `🚦 [ROADMAP 02:48:58.875] [📱앱] 버튼 터치 완료 (가로채기 성공) X:136.0, Y:2264.0`
-- `🚦 [ROADMAP 02:48:59.202] [📱앱] [DETAIL_CONFIRMED] [post /api/scrap request] 👀 화면 변경 감지 발송  deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
-- `🚦 [ROADMAP 02:48:59.218] [📱앱] [DETAIL_CONFIRMED] [post /api/scrap response] deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
-
-    <details>
-    <summary>🔽 FilterConfig(allowedVehicleTypes=[다마스, 라보, 오토바이], isActive=false, isSharedMode=t...</summary>
-
-    ```json
-                                                                                                        FilterConfig(allowedVehicleTypes=[다마스, 라보, 오토바이], isActive=false, isSharedMode=true, pickupRadiusKm=999, minFare=0, maxFare=1000000, destinationCity=, destinationRadiusKm=10, excludedKeywords=[], destinationKeywords=[], customCityFilters=[], destinationGroups={}, customFilters=[])
-    📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:
-    ```
-
-    </details>
-- `[ROADMAP 02:48:59.448] [🖥️관제웹] [관제대시보드] [Socket] 유지 전달`
-- `[ROADMAP 02:48:59.450] [☁️서버] [HTTP 폴링] 응답 /orders/detail 유지 정보 전송`
-- `[ROADMAP 02:48:59.451] [☁️서버] 합짐 필터로 설정값 업데이트 (합짐 사냥용)`
-- `[ROADMAP 02:48:59.669] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)`
-- `[ROADMAP 02:49:00.403] [☁️서버] [HTTP 폴링] 응답 /orders/confirm`
-
-### 🚀 [STEP 7] "합짐" 2차 선점 (합짐 사냥 돌입 & 우회 동선 연산)
-*(시작 기준 시간: 02:49:00.404)*
-
-- `[ROADMAP 02:49:00.404] [☁️서버] [HTTP 폴링] POST /orders/confirm 확정정보 정보 전송 수신`
-- `[ROADMAP 02:49:00.404] [☁️서버] 대기 필터로 설정값 업데이트 (isActive: false)`
-- `[ROADMAP 02:49:00.404] [☁️서버] [Socket] 확정정보 정보 + 대기 필터 정보 전송`
-- `[ROADMAP 02:49:00.404] [☁️서버] 관제탑 무응답 대비 30초 데스밸리 타이머 기동 (안전망 강화)`
-- `[ROADMAP 02:49:00.405] [🖥️관제웹] [관제대시보드] 🟢 [웹 수신] order-evaluating | ID: 9439da4f-5f97-4183-aa3e-d367d1f0c603 | 기기: 앱폰-sdk_gpho-160 | 경안동`
-- `[ROADMAP 02:49:00.405] [🖥️관제웹] [관제대시보드] 확정페이지 진입 (선빵 수신으로 상세 모드 구동)`
-- `[ROADMAP 02:49:01.393] [☁️서버] [HTTP 폴링] POST /orders/detail 데이터 수신`
-- `[ROADMAP 02:49:01.394] [☁️서버] [Socket] 상하차지 송출`
-- `[ROADMAP 02:49:01.394] [☁️서버] 🛡️ [카카오 API 3중 폴백] 괄호제거 ➡️ 주소검색 ➡️ 키워드검색 ➡️ 4어절 절사`
-
-    <details>
-    <summary>🔽 🌍 [Geocoding] 상차지 변환: '경기 광주시 경안동 493-4 이마트 광주점' -&gt; X:126.88210921218504, Y:35....</summary>
-
-    ```json
-    🌍 [Geocoding] 상차지 변환: '경기 광주시 경안동 493-4 이마트 광주점' -> X:126.88210921218504, Y:35.1588284814727
-    ```
-
-    </details>
-- `[ROADMAP 02:49:01.395] [🖥️관제웹] [관제대시보드] 🟡 [웹 수신] order-detail-received | ID: 9439da4f | 경기 광주시 경안동 493-4 이마트`
-
-    <details>
-    <summary>🔽 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.</summary>
-
-    ```json
-    🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-    🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-    ```
-
-    </details>
-- `[ROADMAP 02:49:01.778] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)`
-
-    <details>
-    <summary>🔽 - ⚠️ 패널티 결과: +577.5km, +411분 '똥' (현위치접근: 6.5km, 13분)</summary>
-
-    ```json
-       - ⚠️ 패널티 결과: +577.5km, +411분 '똥' (현위치접근: 6.5km, 13분)
-    🌐 [post /detail response / 200] {"deviceId":"server","action":"CANCEL"}
-    ```
-
-    </details>
-- `🚦 [ROADMAP 02:49:03.660] [📱앱] [HTTP 폴링] 응답 /orders/detail 취소 정보 전송`
-- `[ROADMAP 02:49:03.791] [☁️서버] [Socket] 경로 및 시간 정보, 수익률 전송`
-
-    <details>
-    <summary>🔽 🔎 [카카오 연산 완료] +577.5km, +411분 '똥' | Polyline 길이: 5180</summary>
-
-    ```json
-    🔎 [카카오 연산 완료] +577.5km, +411분 '똥' | Polyline 길이: 5180
-    ```
-
-    </details>
-- `[ROADMAP 02:49:03.799] [🖥️관제웹] [관제대시보드] 🔵 [웹 수신] order-evaluated | ID: 9439da4f | +577.5km, +411분 '똥'`
-- `[ROADMAP 02:49:03.803] [🖥️관제웹] [관제대시보드] 추천 결과 노출, 경로보기버튼 추가 노출 후 판단 (취소 or 닫기) 대기`
-- `🚦 [ROADMAP 02:49:03.871] [📱앱] [DETAIL_CONFIRMED] [post /api/scrap request] 👀 화면 변경 감지 발송  deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
-- `🚦 [ROADMAP 02:49:03.881] [📱앱] [DETAIL_CONFIRMED] [post /api/scrap response] deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
-
-    <details>
-    <summary>🔽 FilterConfig(allowedVehicleTypes=[다마스, 라보, 오토바이], isActive=true, isSharedMode=tr...</summary>
-
-    ```json
-                                                                                                        FilterConfig(allowedVehicleTypes=[다마스, 라보, 오토바이], isActive=true, isSharedMode=true, pickupRadiusKm=999, minFare=0, maxFare=1000000, destinationCity=, destinationRadiusKm=10, excludedKeywords=[], destinationKeywords=[], customCityFilters=[], destinationGroups={}, customFilters=[])
-    📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:
-    ```
-
-    </details>
-- `🚦 [ROADMAP 02:49:04.177] [📱앱] '취소' 버튼 인식 ➡️ 클릭 시도`
-- `🚦 [ROADMAP 02:49:04.180] [📱앱] [DETAIL_CONFIRMED] '취소' 클릭 후 인성 Socket 취소 지시`
-- `🚦 [ROADMAP 02:49:04.240] [📱앱] 버튼 터치 완료 (가로채기 성공) X:950.0, Y:478.0`
-- `🚦 [ROADMAP 02:49:04.426] [📱앱] [LIST] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:49:04.430] [📱앱] [LIST] 🔍 [타겟 콜 필터 결과] 차종(다)=✅ 도착지(0중 삼동)=✅ 요금(0 <= 58000)=✅ 상차지/거리(999 >= 1.9km)=✅ 블랙()=✅`
-- `🚦 [ROADMAP 02:49:04.430] [📱앱] [LIST] AccessibilityService로 바뀐 리스트 감지 후 text 추출`
-- `🚦 [ROADMAP 02:49:04.430] [📱앱] [LIST] 리스트에서 바뀐 text 감지 후 text 추출`
-- `🚦 [ROADMAP 02:49:04.431] [📱앱] [LIST] [인성 Socket] 인성콜에 선택된 콜 정보 전달 (꿀콜 클릭!)`
-- `🚦 [ROADMAP 02:49:04.485] [📱앱] 버튼 터치 완료 (가로채기 성공) X:917.0, Y:568.0`
-- `🚦 [ROADMAP 02:49:04.632] [📱앱] [DETAIL_PRE_CONFIRM] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:49:04.632] [📱앱] [DETAIL_PRE_CONFIRM] 상세페이지 진입`
-- `🚦 [ROADMAP 02:49:04.636] [📱앱] [DETAIL_PRE_CONFIRM] 상세페이지 데이터(확정,적요상세,출발지,도착지) 추출`
-- `🚦 [ROADMAP 02:49:04.636] [📱앱] [DETAIL_PRE_CONFIRM] 추출된 데이터로 한번더 필터링`
-- `🚦 [ROADMAP 02:49:04.637] [📱앱] [LIST] 🔍 [타겟 콜 필터 결과] 차종(다)=✅ 도착지(0중 삼동)=✅ 요금(0 <= 58000)=✅ 상차지/거리(999 >= 1.9km)=✅ 블랙()=✅`
-- `🚦 [ROADMAP 02:49:04.637] [📱앱] [DETAIL_PRE_CONFIRM] 상세페이지에서 '확정' 추출 후 클릭`
-- `🚦 [ROADMAP 02:49:04.637] [📱앱] [DETAIL_PRE_CONFIRM] [인성 Socket] 콜 확정 완료`
-- `🚦 [ROADMAP 02:49:04.639] [📱앱] '확정' 버튼 인식 ➡️ 클릭 시도`
-
-    <details>
-    <summary>🔽 🌐 [post /confirm response / 200] {"success":true,"message":"1차 수신 완료. 상세 페이지 내용...</summary>
-
-    ```json
-    🌐 [post /confirm response / 200] {"success":true,"message":"1차 수신 완료. 상세 페이지 내용을 긁어서 POST /api/orders/detail 로 보내주세요."}
-    ```
-
-    </details>
-- `🚦 [ROADMAP 02:49:04.643] [📱앱] [HTTP 폴링] 응답 /orders/confirm`
-- `🚦 [ROADMAP 02:49:04.691] [📱앱] 버튼 터치 완료 (가로채기 성공) X:161.0, Y:2251.0`
-- `🚦 [ROADMAP 02:49:04.826] [📱앱] [DETAIL_CONFIRMED] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:49:04.827] [📱앱] [DETAIL_CONFIRMED] 확정페이지 진입`
-- `🚦 [ROADMAP 02:49:04.827] [📱앱] '적요상세' 버튼 인식 ➡️ 클릭 시도`
-- `🚦 [ROADMAP 02:49:04.828] [📱앱] [DETAIL_CONFIRMED] 확정페이지에서 '적요상세' 추출 후 클릭`
-- `🚦 [ROADMAP 02:49:04.880] [📱앱] 버튼 터치 완료 (가로채기 성공) X:149.0, Y:1153.0`
-- `🚦 [ROADMAP 02:49:04.999] [📱앱] [POPUP_MEMO] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:49:05.000] [📱앱] [POPUP_MEMO] 적요상세페이지에서 '젹요 내용' 추출 및 저장 후 닫기 클릭`
-- `🚦 [ROADMAP 02:49:05.002] [📱앱] '닫기' 버튼 인식 ➡️ 클릭 시도`
-- `🚦 [ROADMAP 02:49:05.055] [📱앱] 버튼 터치 완료 (가로채기 성공) X:540.0, Y:2264.0`
-- `🚦 [ROADMAP 02:49:05.121] [📱앱] [DETAIL_CONFIRMED] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:49:05.122] [📱앱] [DETAIL_CONFIRMED] 확정페이지 진입`
-- `🚦 [ROADMAP 02:49:05.122] [📱앱] [DETAIL_CONFIRMED] 확정페이지에서 '출발지' 추출 후 클릭`
-- `🚦 [ROADMAP 02:49:05.122] [📱앱] '출발지' 버튼 인식 ➡️ 클릭 시도`
-- `🚦 [ROADMAP 02:49:05.174] [📱앱] 버튼 터치 완료 (가로채기 성공) X:539.0, Y:1592.0`
-- `🚦 [ROADMAP 02:49:05.231] [📱앱] [POPUP_PICKUP] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:49:05.232] [📱앱] [POPUP_PICKUP] 출발지페이지 text중 '전화, 위치' 추출 및 저장 후 닫기 클릭`
-- `🚦 [ROADMAP 02:49:05.232] [📱앱] '닫기' 버튼 인식 ➡️ 클릭 시도`
-- `🚦 [ROADMAP 02:49:05.284] [📱앱] 버튼 터치 완료 (가로채기 성공) X:136.0, Y:2264.0`
-- `🚦 [ROADMAP 02:49:05.326] [📱앱] [DETAIL_CONFIRMED] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:49:05.326] [📱앱] [DETAIL_CONFIRMED] 확정페이지 진입`
-- `🚦 [ROADMAP 02:49:05.327] [📱앱] [DETAIL_CONFIRMED] 확정페이지에서 '도착지' 추출 후 클릭`
-- `🚦 [ROADMAP 02:49:05.329] [📱앱] '도착지' 버튼 인식 ➡️ 클릭 시도`
-- `🚦 [ROADMAP 02:49:05.381] [📱앱] 버튼 터치 완료 (가로채기 성공) X:539.0, Y:1742.0`
-- `🚦 [ROADMAP 02:49:05.442] [📱앱] [POPUP_DROPOFF] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:49:05.442] [📱앱] [POPUP_DROPOFF] 도착지페이지 text중 '전화, 위치' 추출 및 저장 후 닫기 클릭`
-- `🚦 [ROADMAP 02:49:05.442] [📱앱] '닫기' 버튼 인식 ➡️ 클릭 시도`
-- `🚦 [ROADMAP 02:49:05.443] [📱앱] [POPUP_DROPOFF] 확정페이지 진입`
-- `🚦 [ROADMAP 02:49:05.494] [📱앱] 버튼 터치 완료 (가로채기 성공) X:136.0, Y:2264.0`
-- `🚦 [ROADMAP 02:49:05.759] [📱앱] [DETAIL_CONFIRMED] [post /api/scrap request] 👀 화면 변경 감지 발송  deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
-- `🚦 [ROADMAP 02:49:05.778] [📱앱] [DETAIL_CONFIRMED] [post /api/scrap response] deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
-
-    <details>
-    <summary>🔽 FilterConfig(allowedVehicleTypes=[다마스, 라보, 오토바이], isActive=false, isSharedMode=t...</summary>
-
-    ```json
-                                                                                                        FilterConfig(allowedVehicleTypes=[다마스, 라보, 오토바이], isActive=false, isSharedMode=true, pickupRadiusKm=999, minFare=0, maxFare=1000000, destinationCity=, destinationRadiusKm=10, excludedKeywords=[], destinationKeywords=[], customCityFilters=[], destinationGroups={}, customFilters=[])
-    📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:
-    ```
-
-    </details>
-- `[ROADMAP 02:49:06.215] [🖥️관제웹] [관제대시보드] [Socket] 취소 전달`
-- `[ROADMAP 02:49:06.216] [☁️서버] [HTTP 폴링] 응답 /orders/detail 취소 정보 전송`
-- `[ROADMAP 02:49:06.217] [☁️서버] 첫콜 필터로 설정값 업데이트`
-- `[ROADMAP 02:49:06.234] [🖥️관제웹] [관제대시보드] 🔴 [웹 수신] order-canceled | ID: 9439da4f`
-
-    <details>
-    <summary>🔽 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.</summary>
-
-    ```json
-    🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-    🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-    ```
-
-    </details>
-- `[ROADMAP 02:49:06.443] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)`
-- `[ROADMAP 02:49:07.206] [☁️서버] [HTTP 폴링] 응답 /orders/confirm`
-- `[ROADMAP 02:49:07.207] [☁️서버] [HTTP 폴링] POST /orders/confirm 확정정보 정보 전송 수신`
-- `[ROADMAP 02:49:07.207] [☁️서버] 대기 필터로 설정값 업데이트 (isActive: false)`
-- `[ROADMAP 02:49:07.207] [☁️서버] [Socket] 확정정보 정보 + 대기 필터 정보 전송`
-- `[ROADMAP 02:49:07.207] [☁️서버] 관제탑 무응답 대비 30초 데스밸리 타이머 기동 (안전망 강화)`
-- `[ROADMAP 02:49:07.208] [🖥️관제웹] [관제대시보드] 🟢 [웹 수신] order-evaluating | ID: 55cf03d3-cc5c-42fc-a841-ea5befd32154 | 기기: 앱폰-sdk_gpho-160 | 삼동`
-- `[ROADMAP 02:49:07.208] [🖥️관제웹] [관제대시보드] 확정페이지 진입 (선빵 수신으로 상세 모드 구동)`
-- `[ROADMAP 02:49:08.013] [☁️서버] [HTTP 폴링] POST /orders/detail 데이터 수신`
-- `[ROADMAP 02:49:08.014] [☁️서버] [Socket] 상하차지 송출`
-- `[ROADMAP 02:49:08.014] [☁️서버] 🛡️ [카카오 API 3중 폴백] 괄호제거 ➡️ 주소검색 ➡️ 키워드검색 ➡️ 4어절 절사`
-
-    <details>
-    <summary>🔽 🌍 [Geocoding] 상차지 변환: '경기 광주시 송정동 532-2 광주시립 중앙도서관' -&gt; X:127.253295099213, Y:37...</summary>
-
-    ```json
-    🌍 [Geocoding] 상차지 변환: '경기 광주시 송정동 532-2 광주시립 중앙도서관' -> X:127.253295099213, Y:37.4106894616542
-    ```
-
-    </details>
-- `[ROADMAP 02:49:08.014] [🖥️관제웹] [관제대시보드] 🟡 [웹 수신] order-detail-received | ID: 55cf03d3 | 경기 광주시 송정동 532-2 광주시`
-
-    <details>
-    <summary>🔽 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.</summary>
-
-    ```json
-    🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-    🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-    ```
-
-    </details>
-- `[ROADMAP 02:49:08.340] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)`
-
-    <details>
-    <summary>🔽 - ⚠️ 패널티 결과: +18.8km, +21분 '콜' (현위치접근: 6.5km, 13분)</summary>
-
-    ```json
-       - ⚠️ 패널티 결과: +18.8km, +21분 '콜' (현위치접근: 6.5km, 13분)
-    ```
-
-    </details>
-- `[ROADMAP 02:49:09.040] [☁️서버] [Socket] 경로 및 시간 정보, 수익률 전송`
-
-    <details>
-    <summary>🔽 🔎 [카카오 연산 완료] +18.8km, +21분 '콜' | Polyline 길이: 1023</summary>
-
-    ```json
-    🔎 [카카오 연산 완료] +18.8km, +21분 '콜' | Polyline 길이: 1023
-    ⚖️ [소켓 Decision] User: 66176c7b-1755-444c-9b65-7ca056e3c303, ID: 55cf03d3-cc5c-42fc-a841-ea5befd32154, Action: KEEP
-    ```
-
-    </details>
-- `[ROADMAP 02:49:09.042] [🖥️관제웹] [관제대시보드] 🔵 [웹 수신] order-evaluated | ID: 55cf03d3 | +18.8km, +21분 '콜'`
-- `[ROADMAP 02:49:09.043] [🖥️관제웹] [관제대시보드] 추천 결과 노출, 경로보기버튼 추가 노출 후 판단 (취소 or 닫기) 대기`
-
-    <details>
-    <summary>🔽 👆 [사용자 클릭] 프론트에서 '유지 확정' 버튼 클릭 (ID: 55cf03d3-cc5c-42fc-a841-ea5befd32154)</summary>
-
-    ```json
-    👆 [사용자 클릭] 프론트에서 '유지 확정' 버튼 클릭 (ID: 55cf03d3-cc5c-42fc-a841-ea5befd32154)
-    🌐 [post /detail response / 200] {"deviceId":"server","action":"KEEP"}
-    ```
-
-    </details>
-- `🚦 [ROADMAP 02:49:10.870] [📱앱] [HTTP 폴링] 응답 /orders/detail 유지 정보 전송`
-- `🚦 [ROADMAP 02:49:11.088] [📱앱] [DETAIL_CONFIRMED] [post /api/scrap request] 👀 화면 변경 감지 발송  deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
-- `🚦 [ROADMAP 02:49:11.215] [📱앱] [DETAIL_CONFIRMED] [post /api/scrap response] deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
-
-    <details>
-    <summary>🔽 📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:</summary>
-
-    ```json
-    📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:
-    FilterConfig(allowedVehicleTypes=[다마스, 라보, 오토바이], isActive=false, isSharedMode=true, pickupRadiusKm=999, minFare=0, maxFare=1000000, destinationCity=, destinationRadiusKm=10, excludedKeywords=[], destinationKeywords=[가정동, 가좌동, 가학동, 간석동, 갈산동, 갈현동, 거모동, 경동, 경안동, 계수동, 고등동, 고잔동, 과림동, 관교동, 관동, 관양동, 괴안동, 구산동, 구월동, 금곡동, 금토동, 남촌동, 내동, 노온사동, 논현동, 답동, 대야동, 도당동, 도림동, 도원동, 도창동, 도촌동, 도화동, 동춘동, 둔전동, 만석동, 만수동, 매화동, 문원동, 문학동, 미산동, 박달동, 방산동, 배곧동, 범박동, 부개동, 부평동, 북성동, 비산동, 사동, 사송동, 산곡동, 삼동, 삼산동, 삼정동, 삼평동, 상대원동, 상동, 서운동, 서창동, 석남동, 석수동, 석운동, 선린동, 선학동, 선화동, 성남동, 소사동, 소사본동, 소하동, 송내동, 송도동, 송림동, 송월동, 송정동, 송학동, 송현동, 수산동, 숭의동, 시흥동, 신림동, 신생동, 신천동, 신포동, 신현동, 신흥동, 심곡동, 심곡본동, 십정동, 쌍령동, 안양동, 안현동, 야탑동, 약대동, 양벌동, 여수동, 역곡동, 역동, 연수동, 옥길동, 옥련동, 용동, 용현동, 운연동, 운중동, 원미동, 원창동, 월곶동, 유동, 율목동, 은행동, 인현동, 일신동, 일직동, 작전동, 장곡동, 장수동, 장지동, 장현동, 전동, 정왕동, 주안동, 중대동, 중동, 중앙동, 직동, 창영동, 청계동, 청라동, 청천동, 청학동, 초월읍, 춘의동, 탄벌동, 태전동, 판교동, 포동, 포일동, 하대원동, 하중동, 학의동, 학익동, 항동, 해안동, 화수동, 화평동, 회덕동, 효성동], customCityFilters=[금천구, 금천, 관악구, 관악, 중구, 중, 동구, 동, 미추홀구, 미추홀, 연수구, 연수, 남동구, 남동, 부평구, 부평, 계양구, 계양, 서구, 서, 성남시 수정구, 성남시 수정, 성남시 중원구, 성남시 중원, 성남시 분당구, 성남시 분당, 안양시 만안구, 안양시 만안, 안양시 동안구, 안양시 동안, 부천시 원미구, 부천시 원미, 부천시 소사구, 부천시 소사, 부천시 오정구, 부천시 오정, 광명시, 광명, 과천시, 과천, 시흥시, 시흥, 의왕시, 의왕, 광주시, 광주, 경기 광주, 경기 광주시, 경광주], destinationGroups={금천구=[시흥동], 관악구=[신림동], 중구=[경동, 관동, 내동, 답동, 도원동, 북성동, 사동, 선린동, 선화동, 송월동, 송학동, 신생동, 신포동, 신흥동, 용동, 유동, 율목동, 인현동, 전동, 중앙동, 항동, 해안동], 동구=[금곡동, 만석동, 송림동, 송현동, 창영동, 화수동, 화평동], 미추홀구=[관교동, 도화동, 문학동, 숭의동, 용현동, 주안동, 학익동], 연수구=[동춘동, 선학동, 송도동, 연수동, 옥련동, 청학동], 남동구=[간석동, 고잔동, 구월동, 남촌동, 논현동, 도림동, 만수동, 서창동, 수산동, 운연동, 장수동], 부평구=[갈산동, 구산동, 부개동, 부평동, 산곡동, 삼산동, 십정동, 일신동, 청천동], 계양구=[서운동, 작전동, 효성동], 서구=[가정동, 가좌동, 석남동, 신현동, 원창동, 청라동], 성남시 수정구=[고등동, 금토동, 둔전동, 사송동, 시흥동], 성남시 중원구=[갈현동, 도촌동, 상대원동, 성남동, 여수동, 하대원동], 성남시 분당구=[삼평동, 석운동, 야탑동, 운중동, 판교동], 안양시 만안구=[박달동, 석수동, 안양동], 안양시 동안구=[관양동, 비산동], 부천시 원미구=[도당동, 상동, 소사동, 심곡동, 약대동, 역곡동, 원미동, 중동, 춘의동], 부천시 소사구=[계수동, 괴안동, 범박동, 소사본동, 송내동, 심곡본동, 옥길동], 부천시 오정구=[삼정동], 광명시=[가학동, 노온사동, 소하동, 일직동], 과천
-    ```
-
-    </details>
-- `🚦 [ROADMAP 02:49:11.396] [📱앱] '닫기' 버튼 인식 ➡️ 클릭 시도`
-- `🚦 [ROADMAP 02:49:11.398] [📱앱] [DETAIL_CONFIRMED] '닫기' 클릭 후 리스트 페이지 복귀 (유지)`
-- `🚦 [ROADMAP 02:49:11.451] [📱앱] 버튼 터치 완료 (가로채기 성공) X:122.0, Y:2251.0`
-- `🚦 [ROADMAP 02:49:11.659] [📱앱] [LIST] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:49:11.668] [📱앱] [LIST] 🔍 [타겟 콜 필터 결과] 차종(라)=✅ 도착지(148중 다산동)=❌ 요금(0 <= 48000)=✅ 상차지/거리(999 >= 0.2km)=✅ 블랙()=✅`
-- `🚦 [ROADMAP 02:49:11.670] [📱앱] [LIST] 🔍 [타겟 콜 필터 결과] 차종(다)=✅ 도착지(148중 교하동)=❌ 요금(0 <= 101000)=✅ 상차지/거리(999 >= 0.2km)=✅ 블랙()=✅`
-- `🚦 [ROADMAP 02:49:11.673] [📱앱] [LIST] 🔍 [타겟 콜 필터 결과] 차종(오)=✅ 도착지(148중 초월읍)=✅ 요금(0 <= 30000)=✅ 상차지/거리(999 >= 4.4km)=✅ 블랙()=✅`
-- `🚦 [ROADMAP 02:49:11.673] [📱앱] [LIST] AccessibilityService로 바뀐 리스트 감지 후 text 추출`
-- `🚦 [ROADMAP 02:49:11.673] [📱앱] [LIST] 리스트에서 바뀐 text 감지 후 text 추출`
-- `🚦 [ROADMAP 02:49:11.674] [📱앱] [LIST] [인성 Socket] 인성콜에 선택된 콜 정보 전달 (꿀콜 클릭!)`
-- `🚦 [ROADMAP 02:49:11.728] [📱앱] 버튼 터치 완료 (가로채기 성공) X:917.0, Y:759.0`
-- `🚦 [ROADMAP 02:49:11.877] [📱앱] [DETAIL_PRE_CONFIRM] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:49:11.878] [📱앱] [DETAIL_PRE_CONFIRM] 상세페이지 진입`
-- `🚦 [ROADMAP 02:49:11.886] [📱앱] [DETAIL_PRE_CONFIRM] 상세페이지 데이터(확정,적요상세,출발지,도착지) 추출`
-- `🚦 [ROADMAP 02:49:11.886] [📱앱] [DETAIL_PRE_CONFIRM] 추출된 데이터로 한번더 필터링`
-- `🚦 [ROADMAP 02:49:11.894] [📱앱] [LIST] 🔍 [타겟 콜 필터 결과] 차종(오)=✅ 도착지(148중 초월읍)=✅ 요금(0 <= 30000)=✅ 상차지/거리(999 >= 4.4km)=✅ 블랙()=✅`
-- `🚦 [ROADMAP 02:49:11.894] [📱앱] [DETAIL_PRE_CONFIRM] 상세페이지에서 '확정' 추출 후 클릭`
-- `🚦 [ROADMAP 02:49:11.895] [📱앱] [DETAIL_PRE_CONFIRM] [인성 Socket] 콜 확정 완료`
-- `🚦 [ROADMAP 02:49:11.895] [📱앱] '확정' 버튼 인식 ➡️ 클릭 시도`
-
-    <details>
-    <summary>🔽 🌐 [post /confirm response / 200] {"success":true,"message":"1차 수신 완료. 상세 페이지 내용...</summary>
-
-    ```json
-    🌐 [post /confirm response / 200] {"success":true,"message":"1차 수신 완료. 상세 페이지 내용을 긁어서 POST /api/orders/detail 로 보내주세요."}
-    ```
-
-    </details>
-- `🚦 [ROADMAP 02:49:11.899] [📱앱] [HTTP 폴링] 응답 /orders/confirm`
-- `🚦 [ROADMAP 02:49:11.950] [📱앱] 버튼 터치 완료 (가로채기 성공) X:161.0, Y:2251.0`
-- `🚦 [ROADMAP 02:49:12.087] [📱앱] [DETAIL_CONFIRMED] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:49:12.087] [📱앱] [DETAIL_CONFIRMED] 확정페이지 진입`
-- `🚦 [ROADMAP 02:49:12.088] [📱앱] '적요상세' 버튼 인식 ➡️ 클릭 시도`
-- `🚦 [ROADMAP 02:49:12.089] [📱앱] [DETAIL_CONFIRMED] 확정페이지에서 '적요상세' 추출 후 클릭`
-- `🚦 [ROADMAP 02:49:12.157] [📱앱] 버튼 터치 완료 (가로채기 성공) X:149.0, Y:1153.0`
-- `🚦 [ROADMAP 02:49:12.276] [📱앱] [POPUP_MEMO] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:49:12.276] [📱앱] [POPUP_MEMO] 적요상세페이지에서 '젹요 내용' 추출 및 저장 후 닫기 클릭`
-- `🚦 [ROADMAP 02:49:12.277] [📱앱] '닫기' 버튼 인식 ➡️ 클릭 시도`
-- `🚦 [ROADMAP 02:49:12.328] [📱앱] 버튼 터치 완료 (가로채기 성공) X:540.0, Y:2264.0`
-- `🚦 [ROADMAP 02:49:12.366] [📱앱] [DETAIL_CONFIRMED] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:49:12.366] [📱앱] [DETAIL_CONFIRMED] 확정페이지 진입`
-- `🚦 [ROADMAP 02:49:12.368] [📱앱] [DETAIL_CONFIRMED] 확정페이지에서 '출발지' 추출 후 클릭`
-- `🚦 [ROADMAP 02:49:12.369] [📱앱] '출발지' 버튼 인식 ➡️ 클릭 시도`
-- `🚦 [ROADMAP 02:49:12.420] [📱앱] 버튼 터치 완료 (가로채기 성공) X:539.0, Y:1592.0`
-- `🚦 [ROADMAP 02:49:12.508] [📱앱] [POPUP_PICKUP] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:49:12.509] [📱앱] [POPUP_PICKUP] 출발지페이지 text중 '전화, 위치' 추출 및 저장 후 닫기 클릭`
-- `🚦 [ROADMAP 02:49:12.509] [📱앱] '닫기' 버튼 인식 ➡️ 클릭 시도`
-- `🚦 [ROADMAP 02:49:12.608] [📱앱] [DETAIL_CONFIRMED] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:49:12.608] [📱앱] [DETAIL_CONFIRMED] 확정페이지 진입`
-- `🚦 [ROADMAP 02:49:12.609] [📱앱] [DETAIL_CONFIRMED] 확정페이지에서 '도착지' 추출 후 클릭`
-- `🚦 [ROADMAP 02:49:12.609] [📱앱] '도착지' 버튼 인식 ➡️ 클릭 시도`
-- `🚦 [ROADMAP 02:49:12.609] [📱앱] 버튼 터치 완료 (가로채기 성공) X:136.0, Y:2264.0`
-- `🚦 [ROADMAP 02:49:12.661] [📱앱] 버튼 터치 완료 (가로채기 성공) X:539.0, Y:1742.0`
-- `🚦 [ROADMAP 02:49:12.736] [📱앱] [POPUP_DROPOFF] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:49:12.736] [📱앱] [POPUP_DROPOFF] 도착지페이지 text중 '전화, 위치' 추출 및 저장 후 닫기 클릭`
-- `🚦 [ROADMAP 02:49:12.737] [📱앱] '닫기' 버튼 인식 ➡️ 클릭 시도`
-- `🚦 [ROADMAP 02:49:12.737] [📱앱] [POPUP_DROPOFF] 확정페이지 진입`
-- `🚦 [ROADMAP 02:49:12.789] [📱앱] 버튼 터치 완료 (가로채기 성공) X:136.0, Y:2264.0`
-- `🚦 [ROADMAP 02:49:13.113] [📱앱] [DETAIL_CONFIRMED] [post /api/scrap request] 👀 화면 변경 감지 발송  deviceId: 앱폰-sdk_gpho-160, (건수: 2)`
-- `🚦 [ROADMAP 02:49:13.128] [📱앱] [DETAIL_CONFIRMED] [post /api/scrap response] deviceId: 앱폰-sdk_gpho-160, (건수: 2)`
-
-    <details>
-    <summary>🔽 📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:</summary>
-
-    ```json
-    📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:
-    FilterConfig(allowedVehicleTypes=[다마스, 라보, 오토바이], isActive=true, isSharedMode=true, pickupRadiusKm=999, minFare=0, maxFare=1000000, destinationCity=, destinationRadiusKm=10, excludedKeywords=[], destinationKeywords=[가정동, 가좌동, 가학동, 간석동, 갈산동, 갈현동, 거모동, 경동, 경안동, 계수동, 고등동, 고잔동, 과림동, 관교동, 관동, 관양동, 괴안동, 구산동, 구월동, 금곡동, 금토동, 남촌동, 내동, 노온사동, 논현동, 답동, 대야동, 도당동, 도림동, 도원동, 도창동, 도촌동, 도화동, 동춘동, 둔전동, 만석동, 만수동, 매화동, 문원동, 문학동, 미산동, 박달동, 방산동, 배곧동, 범박동, 부개동, 부평동, 북성동, 비산동, 사동, 사송동, 산곡동, 삼동, 삼산동, 삼정동, 삼평동, 상대원동, 상동, 서운동, 서창동, 석남동, 석수동, 석운동, 선린동, 선학동, 선화동, 성남동, 소사동, 소사본동, 소하동, 송내동, 송도동, 송림동, 송월동, 송정동, 송학동, 송현동, 수산동, 숭의동, 시흥동, 신림동, 신생동, 신천동, 신포동, 신현동, 신흥동, 심곡동, 심곡본동, 십정동, 쌍령동, 안양동, 안현동, 야탑동, 약대동, 양벌동, 여수동, 역곡동, 역동, 연수동, 옥길동, 옥련동, 용동, 용현동, 운연동, 운중동, 원미동, 원창동, 월곶동, 유동, 율목동, 은행동, 인현동, 일신동, 일직동, 작전동, 장곡동, 장수동, 장지동, 장현동, 전동, 정왕동, 주안동, 중대동, 중동, 중앙동, 직동, 창영동, 청계동, 청라동, 청천동, 청학동, 초월읍, 춘의동, 탄벌동, 태전동, 판교동, 포동, 포일동, 하대원동, 하중동, 학의동, 학익동, 항동, 해안동, 화수동, 화평동, 회덕동, 효성동], customCityFilters=[금천구, 금천, 관악구, 관악, 중구, 중, 동구, 동, 미추홀구, 미추홀, 연수구, 연수, 남동구, 남동, 부평구, 부평, 계양구, 계양, 서구, 서, 성남시 수정구, 성남시 수정, 성남시 중원구, 성남시 중원, 성남시 분당구, 성남시 분당, 안양시 만안구, 안양시 만안, 안양시 동안구, 안양시 동안, 부천시 원미구, 부천시 원미, 부천시 소사구, 부천시 소사, 부천시 오정구, 부천시 오정, 광명시, 광명, 과천시, 과천, 시흥시, 시흥, 의왕시, 의왕, 광주시, 광주, 경기 광주, 경기 광주시, 경광주], destinationGroups={금천구=[시흥동], 관악구=[신림동], 중구=[경동, 관동, 내동, 답동, 도원동, 북성동, 사동, 선린동, 선화동, 송월동, 송학동, 신생동, 신포동, 신흥동, 용동, 유동, 율목동, 인현동, 전동, 중앙동, 항동, 해안동], 동구=[금곡동, 만석동, 송림동, 송현동, 창영동, 화수동, 화평동], 미추홀구=[관교동, 도화동, 문학동, 숭의동, 용현동, 주안동, 학익동], 연수구=[동춘동, 선학동, 송도동, 연수동, 옥련동, 청학동], 남동구=[간석동, 고잔동, 구월동, 남촌동, 논현동, 도림동, 만수동, 서창동, 수산동, 운연동, 장수동], 부평구=[갈산동, 구산동, 부개동, 부평동, 산곡동, 삼산동, 십정동, 일신동, 청천동], 계양구=[서운동, 작전동, 효성동], 서구=[가정동, 가좌동, 석남동, 신현동, 원창동, 청라동], 성남시 수정구=[고등동, 금토동, 둔전동, 사송동, 시흥동], 성남시 중원구=[갈현동, 도촌동, 상대원동, 성남동, 여수동, 하대원동], 성남시 분당구=[삼평동, 석운동, 야탑동, 운중동, 판교동], 안양시 만안구=[박달동, 석수동, 안양동], 안양시 동안구=[관양동, 비산동], 부천시 원미구=[도당동, 상동, 소사동, 심곡동, 약대동, 역곡동, 원미동, 중동, 춘의동], 부천시 소사구=[계수동, 괴안동, 범박동, 소사본동, 송내동, 심곡본동, 옥길동], 부천시 오정구=[삼정동], 광명시=[가학동, 노온사동, 소하동, 일직동], 과천?
-    ```
-
-    </details>
-- `[ROADMAP 02:49:13.426] [🖥️관제웹] [관제대시보드] [Socket] 유지 전달`
-
-    <details>
-    <summary>🔽 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.</summary>
-
-    ```json
-    🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-    🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-    ```
-
-    </details>
-- `[ROADMAP 02:49:13.428] [☁️서버] [HTTP 폴링] 응답 /orders/detail 유지 정보 전송`
-- `[ROADMAP 02:49:13.770] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)`
-- `[ROADMAP 02:49:14.463] [☁️서버] [HTTP 폴링] 응답 /orders/confirm`
-- `[ROADMAP 02:49:14.463] [☁️서버] [HTTP 폴링] POST /orders/confirm 확정정보 정보 전송 수신`
-- `[ROADMAP 02:49:14.464] [🖥️관제웹] [관제대시보드] 🟢 [웹 수신] order-evaluating | ID: 52b82944-febd-45e2-8abd-7a348744047d | 기기: 앱폰-sdk_gpho-160 | 초월읍`
-- `[ROADMAP 02:49:14.464] [🖥️관제웹] [관제대시보드] 확정페이지 진입 (선빵 수신으로 상세 모드 구동)`
-- `[ROADMAP 02:49:14.719] [☁️서버] 합짐 필터로 설정값 업데이트 (합짐 사냥용)`
-- `[ROADMAP 02:49:15.307] [☁️서버] [HTTP 폴링] POST /orders/detail 데이터 수신`
-- `[ROADMAP 02:49:15.307] [☁️서버] [Socket] 상하차지 송출`
-- `[ROADMAP 02:49:15.308] [☁️서버] 🛡️ [카카오 API 3중 폴백] 괄호제거 ➡️ 주소검색 ➡️ 키워드검색 ➡️ 4어절 절사`
-
-    <details>
-    <summary>🔽 🌍 [Geocoding] 상차지 변환: '경기 광주시 목현동 558 쏘카 광주정비센터' -&gt; X:127.204247220314, Y:37.44...</summary>
-
-    ```json
-    🌍 [Geocoding] 상차지 변환: '경기 광주시 목현동 558 쏘카 광주정비센터' -> X:127.204247220314, Y:37.4418813986696
-    ```
-
-    </details>
-- `[ROADMAP 02:49:15.308] [🖥️관제웹] [관제대시보드] 🟡 [웹 수신] order-detail-received | ID: 52b82944 | 경기 광주시 목현동 558 쏘카 광주`
-
-    <details>
-    <summary>🔽 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.</summary>
-
-    ```json
-    🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-    🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-    ```
-
-    </details>
-- `[ROADMAP 02:49:15.686] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)`
-- `[ROADMAP 02:49:15.910] [☁️서버] [Socket] 경로 및 시간 정보, 수익률 전송`
-
-    <details>
-    <summary>🔽 🔎 [카카오 연산 완료] 카카오 연산 실패: 카카오합짐에러: 경유지 주변 탐색불가 (경유지 지점 주변의 도로를 탐색할 수 없음) | Polyl...</summary>
-
-    ```json
-    🔎 [카카오 연산 완료] 카카오 연산 실패: 카카오합짐에러: 경유지 주변 탐색불가 (경유지 지점 주변의 도로를 탐색할 수 없음) | Polyline 길이: 0
-    ```
-
-    </details>
-- `[ROADMAP 02:49:15.911] [🖥️관제웹] [관제대시보드] 🔵 [웹 수신] order-evaluated | ID: 52b82944 | 카카오 연산 실패: 카카오합짐에러: 경유지 주변 탐색불가 (경유지 지점 주변의 도로를 탐색할 수 없음)`
-- `[ROADMAP 02:49:15.911] [🖥️관제웹] [관제대시보드] 추천 결과 노출, 경로보기버튼 추가 노출 후 판단 (취소 or 닫기) 대기`
-
-    <details>
-    <summary>🔽 🌐 [post /detail response / 200] {"deviceId":"server","action":"CANCEL"}</summary>
-
-    ```json
-    🌐 [post /detail response / 200] {"deviceId":"server","action":"CANCEL"}
-    ```
-
-    </details>
-- `🚦 [ROADMAP 02:49:17.606] [📱앱] [HTTP 폴링] 응답 /orders/detail 취소 정보 전송`
-- `🚦 [ROADMAP 02:49:17.820] [📱앱] [DETAIL_CONFIRMED] [post /api/scrap request] 👀 화면 변경 감지 발송  deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
-- `🚦 [ROADMAP 02:49:17.831] [📱앱] [DETAIL_CONFIRMED] [post /api/scrap response] deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
-
-    <details>
-    <summary>🔽 📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:</summary>
-
-    ```json
-    📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:
-    FilterConfig(allowedVehicleTypes=[다마스, 라보, 오토바이], isActive=true, isSharedMode=true, pickupRadiusKm=999, minFare=0, maxFare=1000000, destinationCity=, destinationRadiusKm=10, excludedKeywords=[], destinationKeywords=[가정동, 가좌동, 가학동, 간석동, 갈산동, 갈현동, 거모동, 경동, 경안동, 계수동, 고등동, 고잔동, 과림동, 관교동, 관동, 관양동, 괴안동, 구산동, 구월동, 금곡동, 금토동, 남촌동, 내동, 노온사동, 논현동, 답동, 대야동, 도당동, 도림동, 도원동, 도창동, 도촌동, 도화동, 동춘동, 둔전동, 만석동, 만수동, 매화동, 문원동, 문학동, 미산동, 박달동, 방산동, 배곧동, 범박동, 부개동, 부평동, 북성동, 비산동, 사동, 사송동, 산곡동, 삼동, 삼산동, 삼정동, 삼평동, 상대원동, 상동, 서운동, 서창동, 석남동, 석수동, 석운동, 선린동, 선학동, 선화동, 성남동, 소사동, 소사본동, 소하동, 송내동, 송도동, 송림동, 송월동, 송정동, 송학동, 송현동, 수산동, 숭의동, 시흥동, 신림동, 신생동, 신천동, 신포동, 신현동, 신흥동, 심곡동, 심곡본동, 십정동, 쌍령동, 안양동, 안현동, 야탑동, 약대동, 양벌동, 여수동, 역곡동, 역동, 연수동, 옥길동, 옥련동, 용동, 용현동, 운연동, 운중동, 원미동, 원창동, 월곶동, 유동, 율목동, 은행동, 인현동, 일신동, 일직동, 작전동, 장곡동, 장수동, 장지동, 장현동, 전동, 정왕동, 주안동, 중대동, 중동, 중앙동, 직동, 창영동, 청계동, 청라동, 청천동, 청학동, 초월읍, 춘의동, 탄벌동, 태전동, 판교동, 포동, 포일동, 하대원동, 하중동, 학의동, 학익동, 항동, 해안동, 화수동, 화평동, 회덕동, 효성동], customCityFilters=[금천구, 금천, 관악구, 관악, 중구, 중, 동구, 동, 미추홀구, 미추홀, 연수구, 연수, 남동구, 남동, 부평구, 부평, 계양구, 계양, 서구, 서, 성남시 수정구, 성남시 수정, 성남시 중원구, 성남시 중원, 성남시 분당구, 성남시 분당, 안양시 만안구, 안양시 만안, 안양시 동안구, 안양시 동안, 부천시 원미구, 부천시 원미, 부천시 소사구, 부천시 소사, 부천시 오정구, 부천시 오정, 광명시, 광명, 과천시, 과천, 시흥시, 시흥, 의왕시, 의왕, 광주시, 광주, 경기 광주, 경기 광주시, 경광주], destinationGroups={금천구=[시흥동], 관악구=[신림동], 중구=[경동, 관동, 내동, 답동, 도원동, 북성동, 사동, 선린동, 선화동, 송월동, 송학동, 신생동, 신포동, 신흥동, 용동, 유동, 율목동, 인현동, 전동, 중앙동, 항동, 해안동], 동구=[금곡동, 만석동, 송림동, 송현동, 창영동, 화수동, 화평동], 미추홀구=[관교동, 도화동, 문학동, 숭의동, 용현동, 주안동, 학익동], 연수구=[동춘동, 선학동, 송도동, 연수동, 옥련동, 청학동], 남동구=[간석동, 고잔동, 구월동, 남촌동, 논현동, 도림동, 만수동, 서창동, 수산동, 운연동, 장수동], 부평구=[갈산동, 구산동, 부개동, 부평동, 산곡동, 삼산동, 십정동, 일신동, 청천동], 계양구=[서운동, 작전동, 효성동], 서구=[가정동, 가좌동, 석남동, 신현동, 원창동, 청라동], 성남시 수정구=[고등동, 금토동, 둔전동, 사송동, 시흥동], 성남시 중원구=[갈현동, 도촌동, 상대원동, 성남동, 여수동, 하대원동], 성남시 분당구=[삼평동, 석운동, 야탑동, 운중동, 판교동], 안양시 만안구=[박달동, 석수동, 안양동], 안양시 동안구=[관양동, 비산동], 부천시 원미구=[도당동, 상동, 소사동, 심곡동, 약대동, 역곡동, 원미동, 중동, 춘의동], 부천시 소사구=[계수동, 괴안동, 범박동, 소사본동, 송내동, 심곡본동, 옥길동], 부천시 오정구=[삼정동], 광명시=[가학동, 노온사동, 소하동, 일직동], 과천?
-    ```
-
-    </details>
-- `🚦 [ROADMAP 02:49:18.120] [📱앱] '취소' 버튼 인식 ➡️ 클릭 시도`
-- `🚦 [ROADMAP 02:49:18.124] [📱앱] [DETAIL_CONFIRMED] '취소' 클릭 후 인성 Socket 취소 지시`
-- `🚦 [ROADMAP 02:49:18.194] [📱앱] 버튼 터치 완료 (가로채기 성공) X:950.0, Y:478.0`
-- `🚦 [ROADMAP 02:49:18.376] [📱앱] [LIST] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:49:18.381] [📱앱] [LIST] 🔍 [타겟 콜 필터 결과] 차종(다)=✅ 도착지(148중 송파구)=❌ 요금(0 <= 34000)=✅ 상차지/거리(999 >= 1.9km)=✅ 블랙()=✅`
-- `🚦 [ROADMAP 02:49:18.384] [📱앱] [LIST] 🔍 [타겟 콜 필터 결과] 차종(1t)=❌ 도착지(148중 강남구)=❌ 요금(0 <= 53000)=✅ 상차지/거리(999 >= 9.0km)=✅ 블랙()=✅`
-- `🚦 [ROADMAP 02:49:18.686] [📱앱] [LIST] [post /api/scrap request] 👀 화면 변경 감지 발송  deviceId: 앱폰-sdk_gpho-160, (건수: 2)`
-- `🚦 [ROADMAP 02:49:18.696] [📱앱] [LIST] [post /api/scrap response] deviceId: 앱폰-sdk_gpho-160, (건수: 2)`
-
-    <details>
-    <summary>🔽 📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:</summary>
-
-    ```json
-    📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:
-    FilterConfig(allowedVehicleTypes=[다마스, 라보, 오토바이], isActive=true, isSharedMode=true, pickupRadiusKm=999, minFare=0, maxFare=1000000, destinationCity=, destinationRadiusKm=10, excludedKeywords=[], destinationKeywords=[가정동, 가좌동, 가학동, 간석동, 갈산동, 갈현동, 거모동, 경동, 경안동, 계수동, 고등동, 고잔동, 과림동, 관교동, 관동, 관양동, 괴안동, 구산동, 구월동, 금곡동, 금토동, 남촌동, 내동, 노온사동, 논현동, 답동, 대야동, 도당동, 도림동, 도원동, 도창동, 도촌동, 도화동, 동춘동, 둔전동, 만석동, 만수동, 매화동, 문원동, 문학동, 미산동, 박달동, 방산동, 배곧동, 범박동, 부개동, 부평동, 북성동, 비산동, 사동, 사송동, 산곡동, 삼동, 삼산동, 삼정동, 삼평동, 상대원동, 상동, 서운동, 서창동, 석남동, 석수동, 석운동, 선린동, 선학동, 선화동, 성남동, 소사동, 소사본동, 소하동, 송내동, 송도동, 송림동, 송월동, 송정동, 송학동, 송현동, 수산동, 숭의동, 시흥동, 신림동, 신생동, 신천동, 신포동, 신현동, 신흥동, 심곡동, 심곡본동, 십정동, 쌍령동, 안양동, 안현동, 야탑동, 약대동, 양벌동, 여수동, 역곡동, 역동, 연수동, 옥길동, 옥련동, 용동, 용현동, 운연동, 운중동, 원미동, 원창동, 월곶동, 유동, 율목동, 은행동, 인현동, 일신동, 일직동, 작전동, 장곡동, 장수동, 장지동, 장현동, 전동, 정왕동, 주안동, 중대동, 중동, 중앙동, 직동, 창영동, 청계동, 청라동, 청천동, 청학동, 초월읍, 춘의동, 탄벌동, 태전동, 판교동, 포동, 포일동, 하대원동, 하중동, 학의동, 학익동, 항동, 해안동, 화수동, 화평동, 회덕동, 효성동], customCityFilters=[금천구, 금천, 관악구, 관악, 중구, 중, 동구, 동, 미추홀구, 미추홀, 연수구, 연수, 남동구, 남동, 부평구, 부평, 계양구, 계양, 서구, 서, 성남시 수정구, 성남시 수정, 성남시 중원구, 성남시 중원, 성남시 분당구, 성남시 분당, 안양시 만안구, 안양시 만안, 안양시 동안구, 안양시 동안, 부천시 원미구, 부천시 원미, 부천시 소사구, 부천시 소사, 부천시 오정구, 부천시 오정, 광명시, 광명, 과천시, 과천, 시흥시, 시흥, 의왕시, 의왕, 광주시, 광주, 경기 광주, 경기 광주시, 경광주], destinationGroups={금천구=[시흥동], 관악구=[신림동], 중구=[경동, 관동, 내동, 답동, 도원동, 북성동, 사동, 선린동, 선화동, 송월동, 송학동, 신생동, 신포동, 신흥동, 용동, 유동, 율목동, 인현동, 전동, 중앙동, 항동, 해안동], 동구=[금곡동, 만석동, 송림동, 송현동, 창영동, 화수동, 화평동], 미추홀구=[관교동, 도화동, 문학동, 숭의동, 용현동, 주안동, 학익동], 연수구=[동춘동, 선학동, 송도동, 연수동, 옥련동, 청학동], 남동구=[간석동, 고잔동, 구월동, 남촌동, 논현동, 도림동, 만수동, 서창동, 수산동, 운연동, 장수동], 부평구=[갈산동, 구산동, 부개동, 부평동, 산곡동, 삼산동, 십정동, 일신동, 청천동], 계양구=[서운동, 작전동, 효성동], 서구=[가정동, 가좌동, 석남동, 신현동, 원창동, 청라동], 성남시 수정구=[고등동, 금토동, 둔전동, 사송동, 시흥동], 성남시 중원구=[갈현동, 도촌동, 상대원동, 성남동, 여수동, 하대원동], 성남시 분당구=[삼평동, 석운동, 야탑동, 운중동, 판교동], 안양시 만안구=[박달동, 석수동, 안양동], 안양시 동안구=[관양동, 비산동], 부천시 원미구=[도당동, 상동, 소사동, 심곡동, 약대동, 역곡동, 원미동, 중동, 춘의동], 부천시 소사구=[계수동, 괴안동, 범박동, 소사본동, 송내동, 심곡본동, 옥길동], 부천시 오정구=[삼정동], 광명시=[가학동, 노온사동, 소하동, 일직동], 과천?
-    ```
-
-    </details>
-- `[ROADMAP 02:49:20.164] [🖥️관제웹] [관제대시보드] [Socket] 취소 전달`
-- `[ROADMAP 02:49:20.166] [☁️서버] [HTTP 폴링] 응답 /orders/detail 취소 정보 전송`
-- `[ROADMAP 02:49:20.166] [☁️서버] 첫콜 필터로 설정값 업데이트`
-- `[ROADMAP 02:49:20.178] [🖥️관제웹] [관제대시보드] 🔴 [웹 수신] order-canceled | ID: 52b82944`
-- `🚦 [ROADMAP 02:49:20.249] [📱앱] [LIST] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:49:20.253] [📱앱] [LIST] 🔍 [타겟 콜 필터 결과] 차종(라)=✅ 도착지(148중 서대문구)=❌ 요금(0 <= 56000)=✅ 상차지/거리(999 >= 3.8km)=✅ 블랙()=✅`
-- `[ROADMAP 02:49:20.392] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)`
-- `🚦 [ROADMAP 02:49:20.559] [📱앱] [LIST] [post /api/scrap request] 👀 화면 변경 감지 발송  deviceId: 앱폰-sdk_gpho-160, (건수: 1)`
-- `🚦 [ROADMAP 02:49:20.572] [📱앱] [LIST] [post /api/scrap response] deviceId: 앱폰-sdk_gpho-160, (건수: 1)`
-
-    <details>
-    <summary>🔽 📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:</summary>
-
-    ```json
-    📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:
-    FilterConfig(allowedVehicleTypes=[다마스, 라보, 오토바이], isActive=true, isSharedMode=true, pickupRadiusKm=999, minFare=0, maxFare=1000000, destinationCity=, destinationRadiusKm=10, excludedKeywords=[], destinationKeywords=[가정동, 가좌동, 가학동, 간석동, 갈산동, 갈현동, 거모동, 경동, 경안동, 계수동, 고등동, 고잔동, 과림동, 관교동, 관동, 관양동, 괴안동, 구산동, 구월동, 금곡동, 금토동, 남촌동, 내동, 노온사동, 논현동, 답동, 대야동, 도당동, 도림동, 도원동, 도창동, 도촌동, 도화동, 동춘동, 둔전동, 만석동, 만수동, 매화동, 문원동, 문학동, 미산동, 박달동, 방산동, 배곧동, 범박동, 부개동, 부평동, 북성동, 비산동, 사동, 사송동, 산곡동, 삼동, 삼산동, 삼정동, 삼평동, 상대원동, 상동, 서운동, 서창동, 석남동, 석수동, 석운동, 선린동, 선학동, 선화동, 성남동, 소사동, 소사본동, 소하동, 송내동, 송도동, 송림동, 송월동, 송정동, 송학동, 송현동, 수산동, 숭의동, 시흥동, 신림동, 신생동, 신천동, 신포동, 신현동, 신흥동, 심곡동, 심곡본동, 십정동, 쌍령동, 안양동, 안현동, 야탑동, 약대동, 양벌동, 여수동, 역곡동, 역동, 연수동, 옥길동, 옥련동, 용동, 용현동, 운연동, 운중동, 원미동, 원창동, 월곶동, 유동, 율목동, 은행동, 인현동, 일신동, 일직동, 작전동, 장곡동, 장수동, 장지동, 장현동, 전동, 정왕동, 주안동, 중대동, 중동, 중앙동, 직동, 창영동, 청계동, 청라동, 청천동, 청학동, 초월읍, 춘의동, 탄벌동, 태전동, 판교동, 포동, 포일동, 하대원동, 하중동, 학의동, 학익동, 항동, 해안동, 화수동, 화평동, 회덕동, 효성동], customCityFilters=[금천구, 금천, 관악구, 관악, 중구, 중, 동구, 동, 미추홀구, 미추홀, 연수구, 연수, 남동구, 남동, 부평구, 부평, 계양구, 계양, 서구, 서, 성남시 수정구, 성남시 수정, 성남시 중원구, 성남시 중원, 성남시 분당구, 성남시 분당, 안양시 만안구, 안양시 만안, 안양시 동안구, 안양시 동안, 부천시 원미구, 부천시 원미, 부천시 소사구, 부천시 소사, 부천시 오정구, 부천시 오정, 광명시, 광명, 과천시, 과천, 시흥시, 시흥, 의왕시, 의왕, 광주시, 광주, 경기 광주, 경기 광주시, 경광주], destinationGroups={금천구=[시흥동], 관악구=[신림동], 중구=[경동, 관동, 내동, 답동, 도원동, 북성동, 사동, 선린동, 선화동, 송월동, 송학동, 신생동, 신포동, 신흥동, 용동, 유동, 율목동, 인현동, 전동, 중앙동, 항동, 해안동], 동구=[금곡동, 만석동, 송림동, 송현동, 창영동, 화수동, 화평동], 미추홀구=[관교동, 도화동, 문학동, 숭의동, 용현동, 주안동, 학익동], 연수구=[동춘동, 선학동, 송도동, 연수동, 옥련동, 청학동], 남동구=[간석동, 고잔동, 구월동, 남촌동, 논현동, 도림동, 만수동, 서창동, 수산동, 운연동, 장수동], 부평구=[갈산동, 구산동, 부개동, 부평동, 산곡동, 삼산동, 십정동, 일신동, 청천동], 계양구=[서운동, 작전동, 효성동], 서구=[가정동, 가좌동, 석남동, 신현동, 원창동, 청라동], 성남시 수정구=[고등동, 금토동, 둔전동, 사송동, 시흥동], 성남시 중원구=[갈현동, 도촌동, 상대원동, 성남동, 여수동, 하대원동], 성남시 분당구=[삼평동, 석운동, 야탑동, 운중동, 판교동], 안양시 만안구=[박달동, 석수동, 안양동], 안양시 동안구=[관양동, 비산동], 부천시 원미구=[도당동, 상동, 소사동, 심곡동, 약대동, 역곡동, 원미동, 중동, 춘의동], 부천시 소사구=[계수동, 괴안동, 범박동, 소사본동, 송내동, 심곡본동, 옥길동], 부천시 오정구=[삼정동], 광명시=[가학동, 노온사동, 소하동, 일직동], 과천?
-    ```
-
-    </details>
-- `[ROADMAP 02:49:21.256] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)`
-- `[ROADMAP 02:49:23.131] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)`
-- `🚦 [ROADMAP 02:49:25.257] [📱앱] [LIST] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:49:25.263] [📱앱] [LIST] 🔍 [타겟 콜 필터 결과] 차종(다)=✅ 도착지(148중 삼동)=✅ 요금(0 <= 52000)=✅ 상차지/거리(999 >= 0.2km)=✅ 블랙()=✅`
-- `🚦 [ROADMAP 02:49:25.263] [📱앱] [LIST] AccessibilityService로 바뀐 리스트 감지 후 text 추출`
-- `🚦 [ROADMAP 02:49:25.264] [📱앱] [LIST] 리스트에서 바뀐 text 감지 후 text 추출`
-- `🚦 [ROADMAP 02:49:25.265] [📱앱] [LIST] [인성 Socket] 인성콜에 선택된 콜 정보 전달 (꿀콜 클릭!)`
-- `🚦 [ROADMAP 02:49:25.317] [📱앱] 버튼 터치 완료 (가로채기 성공) X:917.0, Y:568.0`
-- `🚦 [ROADMAP 02:49:25.469] [📱앱] [DETAIL_PRE_CONFIRM] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:49:25.470] [📱앱] [DETAIL_PRE_CONFIRM] 상세페이지 진입`
-- `🚦 [ROADMAP 02:49:25.475] [📱앱] [DETAIL_PRE_CONFIRM] 상세페이지 데이터(확정,적요상세,출발지,도착지) 추출`
-- `🚦 [ROADMAP 02:49:25.475] [📱앱] [DETAIL_PRE_CONFIRM] 추출된 데이터로 한번더 필터링`
-- `🚦 [ROADMAP 02:49:25.476] [📱앱] [LIST] 🔍 [타겟 콜 필터 결과] 차종(다)=✅ 도착지(148중 삼동)=✅ 요금(0 <= 52000)=✅ 상차지/거리(999 >= 0.2km)=✅ 블랙()=✅`
-- `🚦 [ROADMAP 02:49:25.477] [📱앱] [DETAIL_PRE_CONFIRM] 상세페이지에서 '확정' 추출 후 클릭`
-- `🚦 [ROADMAP 02:49:25.477] [📱앱] [DETAIL_PRE_CONFIRM] [인성 Socket] 콜 확정 완료`
-- `🚦 [ROADMAP 02:49:25.477] [📱앱] '확정' 버튼 인식 ➡️ 클릭 시도`
-
-    <details>
-    <summary>🔽 🌐 [post /confirm response / 200] {"success":true,"message":"1차 수신 완료. 상세 페이지 내용...</summary>
-
-    ```json
-    🌐 [post /confirm response / 200] {"success":true,"message":"1차 수신 완료. 상세 페이지 내용을 긁어서 POST /api/orders/detail 로 보내주세요."}
-    ```
-
-    </details>
-- `🚦 [ROADMAP 02:49:25.498] [📱앱] [HTTP 폴링] 응답 /orders/confirm`
-- `🚦 [ROADMAP 02:49:25.530] [📱앱] 버튼 터치 완료 (가로채기 성공) X:161.0, Y:2251.0`
-- `🚦 [ROADMAP 02:49:25.679] [📱앱] [DETAIL_PRE_CONFIRM] [post /api/scrap request] 👀 화면 변경 감지 발송  deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
-- `🚦 [ROADMAP 02:49:25.688] [📱앱] [DETAIL_PRE_CONFIRM] [post /api/scrap response] deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
-
-    <details>
-    <summary>🔽 📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:</summary>
-
-    ```json
-    📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:
-    FilterConfig(allowedVehicleTypes=[다마스, 라보, 오토바이], isActive=false, isSharedMode=true, pickupRadiusKm=999, minFare=0, maxFare=1000000, destinationCity=, destinationRadiusKm=10, excludedKeywords=[], destinationKeywords=[가정동, 가좌동, 가학동, 간석동, 갈산동, 갈현동, 거모동, 경동, 경안동, 계수동, 고등동, 고잔동, 과림동, 관교동, 관동, 관양동, 괴안동, 구산동, 구월동, 금곡동, 금토동, 남촌동, 내동, 노온사동, 논현동, 답동, 대야동, 도당동, 도림동, 도원동, 도창동, 도촌동, 도화동, 동춘동, 둔전동, 만석동, 만수동, 매화동, 문원동, 문학동, 미산동, 박달동, 방산동, 배곧동, 범박동, 부개동, 부평동, 북성동, 비산동, 사동, 사송동, 산곡동, 삼동, 삼산동, 삼정동, 삼평동, 상대원동, 상동, 서운동, 서창동, 석남동, 석수동, 석운동, 선린동, 선학동, 선화동, 성남동, 소사동, 소사본동, 소하동, 송내동, 송도동, 송림동, 송월동, 송정동, 송학동, 송현동, 수산동, 숭의동, 시흥동, 신림동, 신생동, 신천동, 신포동, 신현동, 신흥동, 심곡동, 심곡본동, 십정동, 쌍령동, 안양동, 안현동, 야탑동, 약대동, 양벌동, 여수동, 역곡동, 역동, 연수동, 옥길동, 옥련동, 용동, 용현동, 운연동, 운중동, 원미동, 원창동, 월곶동, 유동, 율목동, 은행동, 인현동, 일신동, 일직동, 작전동, 장곡동, 장수동, 장지동, 장현동, 전동, 정왕동, 주안동, 중대동, 중동, 중앙동, 직동, 창영동, 청계동, 청라동, 청천동, 청학동, 초월읍, 춘의동, 탄벌동, 태전동, 판교동, 포동, 포일동, 하대원동, 하중동, 학의동, 학익동, 항동, 해안동, 화수동, 화평동, 회덕동, 효성동], customCityFilters=[금천구, 금천, 관악구, 관악, 중구, 중, 동구, 동, 미추홀구, 미추홀, 연수구, 연수, 남동구, 남동, 부평구, 부평, 계양구, 계양, 서구, 서, 성남시 수정구, 성남시 수정, 성남시 중원구, 성남시 중원, 성남시 분당구, 성남시 분당, 안양시 만안구, 안양시 만안, 안양시 동안구, 안양시 동안, 부천시 원미구, 부천시 원미, 부천시 소사구, 부천시 소사, 부천시 오정구, 부천시 오정, 광명시, 광명, 과천시, 과천, 시흥시, 시흥, 의왕시, 의왕, 광주시, 광주, 경기 광주, 경기 광주시, 경광주], destinationGroups={금천구=[시흥동], 관악구=[신림동], 중구=[경동, 관동, 내동, 답동, 도원동, 북성동, 사동, 선린동, 선화동, 송월동, 송학동, 신생동, 신포동, 신흥동, 용동, 유동, 율목동, 인현동, 전동, 중앙동, 항동, 해안동], 동구=[금곡동, 만석동, 송림동, 송현동, 창영동, 화수동, 화평동], 미추홀구=[관교동, 도화동, 문학동, 숭의동, 용현동, 주안동, 학익동], 연수구=[동춘동, 선학동, 송도동, 연수동, 옥련동, 청학동], 남동구=[간석동, 고잔동, 구월동, 남촌동, 논현동, 도림동, 만수동, 서창동, 수산동, 운연동, 장수동], 부평구=[갈산동, 구산동, 부개동, 부평동, 산곡동, 삼산동, 십정동, 일신동, 청천동], 계양구=[서운동, 작전동, 효성동], 서구=[가정동, 가좌동, 석남동, 신현동, 원창동, 청라동], 성남시 수정구=[고등동, 금토동, 둔전동, 사송동, 시흥동], 성남시 중원구=[갈현동, 도촌동, 상대원동, 성남동, 여수동, 하대원동], 성남시 분당구=[삼평동, 석운동, 야탑동, 운중동, 판교동], 안양시 만안구=[박달동, 석수동, 안양동], 안양시 동안구=[관양동, 비산동], 부천시 원미구=[도당동, 상동, 소사동, 심곡동, 약대동, 역곡동, 원미동, 중동, 춘의동], 부천시 소사구=[계수동, 괴안동, 범박동, 소사본동, 송내동, 심곡본동, 옥길동], 부천시 오정구=[삼정동], 광명시=[가학동, 노온사동, 소하동, 일직동], 과천
-    ```
-
-    </details>
-- `🚦 [ROADMAP 02:49:25.779] [📱앱] [DETAIL_CONFIRMED] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:49:25.780] [📱앱] [DETAIL_CONFIRMED] 확정페이지 진입`
-- `🚦 [ROADMAP 02:49:25.780] [📱앱] '적요상세' 버튼 인식 ➡️ 클릭 시도`
-- `🚦 [ROADMAP 02:49:25.782] [📱앱] [DETAIL_CONFIRMED] 확정페이지에서 '적요상세' 추출 후 클릭`
-- `🚦 [ROADMAP 02:49:25.832] [📱앱] 버튼 터치 완료 (가로채기 성공) X:149.0, Y:1153.0`
-- `🚦 [ROADMAP 02:49:25.959] [📱앱] [POPUP_MEMO] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:49:25.960] [📱앱] [POPUP_MEMO] 적요상세페이지에서 '젹요 내용' 추출 및 저장 후 닫기 클릭`
-- `🚦 [ROADMAP 02:49:25.960] [📱앱] '닫기' 버튼 인식 ➡️ 클릭 시도`
-- `🚦 [ROADMAP 02:49:26.014] [📱앱] 버튼 터치 완료 (가로채기 성공) X:540.0, Y:2264.0`
-- `🚦 [ROADMAP 02:49:26.065] [📱앱] [DETAIL_CONFIRMED] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:49:26.066] [📱앱] [DETAIL_CONFIRMED] 확정페이지 진입`
-- `🚦 [ROADMAP 02:49:26.066] [📱앱] [DETAIL_CONFIRMED] 확정페이지에서 '출발지' 추출 후 클릭`
-- `🚦 [ROADMAP 02:49:26.066] [📱앱] '출발지' 버튼 인식 ➡️ 클릭 시도`
-- `🚦 [ROADMAP 02:49:26.119] [📱앱] 버튼 터치 완료 (가로채기 성공) X:539.0, Y:1592.0`
-- `🚦 [ROADMAP 02:49:26.197] [📱앱] [POPUP_PICKUP] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:49:26.198] [📱앱] [POPUP_PICKUP] 출발지페이지 text중 '전화, 위치' 추출 및 저장 후 닫기 클릭`
-- `🚦 [ROADMAP 02:49:26.200] [📱앱] '닫기' 버튼 인식 ➡️ 클릭 시도`
-- `🚦 [ROADMAP 02:49:26.254] [📱앱] 버튼 터치 완료 (가로채기 성공) X:136.0, Y:2264.0`
-- `🚦 [ROADMAP 02:49:26.291] [📱앱] [POPUP_PICKUP] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:49:26.391] [📱앱] [DETAIL_CONFIRMED] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:49:26.392] [📱앱] [DETAIL_CONFIRMED] 확정페이지 진입`
-- `🚦 [ROADMAP 02:49:26.392] [📱앱] [DETAIL_CONFIRMED] 확정페이지에서 '도착지' 추출 후 클릭`
-- `🚦 [ROADMAP 02:49:26.393] [📱앱] '도착지' 버튼 인식 ➡️ 클릭 시도`
-- `🚦 [ROADMAP 02:49:26.444] [📱앱] 버튼 터치 완료 (가로채기 성공) X:539.0, Y:1742.0`
-- `🚦 [ROADMAP 02:49:26.626] [📱앱] [POPUP_DROPOFF] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:49:26.627] [📱앱] [POPUP_DROPOFF] 도착지페이지 text중 '전화, 위치' 추출 및 저장 후 닫기 클릭`
-- `🚦 [ROADMAP 02:49:26.628] [📱앱] '닫기' 버튼 인식 ➡️ 클릭 시도`
-- `🚦 [ROADMAP 02:49:26.629] [📱앱] [POPUP_DROPOFF] 확정페이지 진입`
-- `🚦 [ROADMAP 02:49:26.722] [📱앱] 버튼 터치 완료 (가로채기 성공) X:136.0, Y:2264.0`
-- `🚦 [ROADMAP 02:49:26.828] [📱앱] [POPUP_DROPOFF] [post /api/scrap request] 👀 화면 변경 감지 발송  deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
-- `🚦 [ROADMAP 02:49:26.853] [📱앱] [POPUP_DROPOFF] [post /api/scrap response] deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
-
-    <details>
-    <summary>🔽 📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:</summary>
-
-    ```json
-    📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:
-    FilterConfig(allowedVehicleTypes=[다마스, 라보, 오토바이], isActive=false, isSharedMode=true, pickupRadiusKm=999, minFare=0, maxFare=1000000, destinationCity=, destinationRadiusKm=10, excludedKeywords=[], destinationKeywords=[가정동, 가좌동, 가학동, 간석동, 갈산동, 갈현동, 거모동, 경동, 경안동, 계수동, 고등동, 고잔동, 과림동, 관교동, 관동, 관양동, 괴안동, 구산동, 구월동, 금곡동, 금토동, 남촌동, 내동, 노온사동, 논현동, 답동, 대야동, 도당동, 도림동, 도원동, 도창동, 도촌동, 도화동, 동춘동, 둔전동, 만석동, 만수동, 매화동, 문원동, 문학동, 미산동, 박달동, 방산동, 배곧동, 범박동, 부개동, 부평동, 북성동, 비산동, 사동, 사송동, 산곡동, 삼동, 삼산동, 삼정동, 삼평동, 상대원동, 상동, 서운동, 서창동, 석남동, 석수동, 석운동, 선린동, 선학동, 선화동, 성남동, 소사동, 소사본동, 소하동, 송내동, 송도동, 송림동, 송월동, 송정동, 송학동, 송현동, 수산동, 숭의동, 시흥동, 신림동, 신생동, 신천동, 신포동, 신현동, 신흥동, 심곡동, 심곡본동, 십정동, 쌍령동, 안양동, 안현동, 야탑동, 약대동, 양벌동, 여수동, 역곡동, 역동, 연수동, 옥길동, 옥련동, 용동, 용현동, 운연동, 운중동, 원미동, 원창동, 월곶동, 유동, 율목동, 은행동, 인현동, 일신동, 일직동, 작전동, 장곡동, 장수동, 장지동, 장현동, 전동, 정왕동, 주안동, 중대동, 중동, 중앙동, 직동, 창영동, 청계동, 청라동, 청천동, 청학동, 초월읍, 춘의동, 탄벌동, 태전동, 판교동, 포동, 포일동, 하대원동, 하중동, 학의동, 학익동, 항동, 해안동, 화수동, 화평동, 회덕동, 효성동], customCityFilters=[금천구, 금천, 관악구, 관악, 중구, 중, 동구, 동, 미추홀구, 미추홀, 연수구, 연수, 남동구, 남동, 부평구, 부평, 계양구, 계양, 서구, 서, 성남시 수정구, 성남시 수정, 성남시 중원구, 성남시 중원, 성남시 분당구, 성남시 분당, 안양시 만안구, 안양시 만안, 안양시 동안구, 안양시 동안, 부천시 원미구, 부천시 원미, 부천시 소사구, 부천시 소사, 부천시 오정구, 부천시 오정, 광명시, 광명, 과천시, 과천, 시흥시, 시흥, 의왕시, 의왕, 광주시, 광주, 경기 광주, 경기 광주시, 경광주], destinationGroups={금천구=[시흥동], 관악구=[신림동], 중구=[경동, 관동, 내동, 답동, 도원동, 북성동, 사동, 선린동, 선화동, 송월동, 송학동, 신생동, 신포동, 신흥동, 용동, 유동, 율목동, 인현동, 전동, 중앙동, 항동, 해안동], 동구=[금곡동, 만석동, 송림동, 송현동, 창영동, 화수동, 화평동], 미추홀구=[관교동, 도화동, 문학동, 숭의동, 용현동, 주안동, 학익동], 연수구=[동춘동, 선학동, 송도동, 연수동, 옥련동, 청학동], 남동구=[간석동, 고잔동, 구월동, 남촌동, 논현동, 도림동, 만수동, 서창동, 수산동, 운연동, 장수동], 부평구=[갈산동, 구산동, 부개동, 부평동, 산곡동, 삼산동, 십정동, 일신동, 청천동], 계양구=[서운동, 작전동, 효성동], 서구=[가정동, 가좌동, 석남동, 신현동, 원창동, 청라동], 성남시 수정구=[고등동, 금토동, 둔전동, 사송동, 시흥동], 성남시 중원구=[갈현동, 도촌동, 상대원동, 성남동, 여수동, 하대원동], 성남시 분당구=[삼평동, 석운동, 야탑동, 운중동, 판교동], 안양시 만안구=[박달동, 석수동, 안양동], 안양시 동안구=[관양동, 비산동], 부천시 원미구=[도당동, 상동, 소사동, 심곡동, 약대동, 역곡동, 원미동, 중동, 춘의동], 부천시 소사구=[계수동, 괴안동, 범박동, 소사본동, 송내동, 심곡본동, 옥길동], 부천시 오정구=[삼정동], 광명시=[가학동, 노온사동, 소하동, 일직동], 과천
-    ```
-
-    </details>
-- `🚦 [ROADMAP 02:49:27.066] [📱앱] [DETAIL_CONFIRMED] [post /api/scrap request] 👀 화면 변경 감지 발송  deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
-- `🚦 [ROADMAP 02:49:27.082] [📱앱] [DETAIL_CONFIRMED] [post /api/scrap response] deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
-
-    <details>
-    <summary>🔽 📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:</summary>
-
-    ```json
-    📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:
-    FilterConfig(allowedVehicleTypes=[다마스, 라보, 오토바이], isActive=false, isSharedMode=true, pickupRadiusKm=999, minFare=0, maxFare=1000000, destinationCity=, destinationRadiusKm=10, excludedKeywords=[], destinationKeywords=[가정동, 가좌동, 가학동, 간석동, 갈산동, 갈현동, 거모동, 경동, 경안동, 계수동, 고등동, 고잔동, 과림동, 관교동, 관동, 관양동, 괴안동, 구산동, 구월동, 금곡동, 금토동, 남촌동, 내동, 노온사동, 논현동, 답동, 대야동, 도당동, 도림동, 도원동, 도창동, 도촌동, 도화동, 동춘동, 둔전동, 만석동, 만수동, 매화동, 문원동, 문학동, 미산동, 박달동, 방산동, 배곧동, 범박동, 부개동, 부평동, 북성동, 비산동, 사동, 사송동, 산곡동, 삼동, 삼산동, 삼정동, 삼평동, 상대원동, 상동, 서운동, 서창동, 석남동, 석수동, 석운동, 선린동, 선학동, 선화동, 성남동, 소사동, 소사본동, 소하동, 송내동, 송도동, 송림동, 송월동, 송정동, 송학동, 송현동, 수산동, 숭의동, 시흥동, 신림동, 신생동, 신천동, 신포동, 신현동, 신흥동, 심곡동, 심곡본동, 십정동, 쌍령동, 안양동, 안현동, 야탑동, 약대동, 양벌동, 여수동, 역곡동, 역동, 연수동, 옥길동, 옥련동, 용동, 용현동, 운연동, 운중동, 원미동, 원창동, 월곶동, 유동, 율목동, 은행동, 인현동, 일신동, 일직동, 작전동, 장곡동, 장수동, 장지동, 장현동, 전동, 정왕동, 주안동, 중대동, 중동, 중앙동, 직동, 창영동, 청계동, 청라동, 청천동, 청학동, 초월읍, 춘의동, 탄벌동, 태전동, 판교동, 포동, 포일동, 하대원동, 하중동, 학의동, 학익동, 항동, 해안동, 화수동, 화평동, 회덕동, 효성동], customCityFilters=[금천구, 금천, 관악구, 관악, 중구, 중, 동구, 동, 미추홀구, 미추홀, 연수구, 연수, 남동구, 남동, 부평구, 부평, 계양구, 계양, 서구, 서, 성남시 수정구, 성남시 수정, 성남시 중원구, 성남시 중원, 성남시 분당구, 성남시 분당, 안양시 만안구, 안양시 만안, 안양시 동안구, 안양시 동안, 부천시 원미구, 부천시 원미, 부천시 소사구, 부천시 소사, 부천시 오정구, 부천시 오정, 광명시, 광명, 과천시, 과천, 시흥시, 시흥, 의왕시, 의왕, 광주시, 광주, 경기 광주, 경기 광주시, 경광주], destinationGroups={금천구=[시흥동], 관악구=[신림동], 중구=[경동, 관동, 내동, 답동, 도원동, 북성동, 사동, 선린동, 선화동, 송월동, 송학동, 신생동, 신포동, 신흥동, 용동, 유동, 율목동, 인현동, 전동, 중앙동, 항동, 해안동], 동구=[금곡동, 만석동, 송림동, 송현동, 창영동, 화수동, 화평동], 미추홀구=[관교동, 도화동, 문학동, 숭의동, 용현동, 주안동, 학익동], 연수구=[동춘동, 선학동, 송도동, 연수동, 옥련동, 청학동], 남동구=[간석동, 고잔동, 구월동, 남촌동, 논현동, 도림동, 만수동, 서창동, 수산동, 운연동, 장수동], 부평구=[갈산동, 구산동, 부개동, 부평동, 산곡동, 삼산동, 십정동, 일신동, 청천동], 계양구=[서운동, 작전동, 효성동], 서구=[가정동, 가좌동, 석남동, 신현동, 원창동, 청라동], 성남시 수정구=[고등동, 금토동, 둔전동, 사송동, 시흥동], 성남시 중원구=[갈현동, 도촌동, 상대원동, 성남동, 여수동, 하대원동], 성남시 분당구=[삼평동, 석운동, 야탑동, 운중동, 판교동], 안양시 만안구=[박달동, 석수동, 안양동], 안양시 동안구=[관양동, 비산동], 부천시 원미구=[도당동, 상동, 소사동, 심곡동, 약대동, 역곡동, 원미동, 중동, 춘의동], 부천시 소사구=[계수동, 괴안동, 범박동, 소사본동, 송내동, 심곡본동, 옥길동], 부천시 오정구=[삼정동], 광명시=[가학동, 노온사동, 소하동, 일직동], 과천
-    ```
-
-    </details>
-- `[ROADMAP 02:49:28.061] [☁️서버] [HTTP 폴링] 응답 /orders/confirm`
-- `[ROADMAP 02:49:28.061] [☁️서버] [HTTP 폴링] POST /orders/confirm 확정정보 정보 전송 수신`
-- `[ROADMAP 02:49:28.061] [☁️서버] 대기 필터로 설정값 업데이트 (isActive: false)`
-- `[ROADMAP 02:49:28.062] [☁️서버] [Socket] 확정정보 정보 + 대기 필터 정보 전송`
-- `[ROADMAP 02:49:28.062] [☁️서버] 관제탑 무응답 대비 30초 데스밸리 타이머 기동 (안전망 강화)`
-- `[ROADMAP 02:49:28.062] [🖥️관제웹] [관제대시보드] 🟢 [웹 수신] order-evaluating | ID: 40243789-5df7-4504-b5b7-441751f50b02 | 기기: 앱폰-sdk_gpho-160 | 삼동`
-- `[ROADMAP 02:49:28.062] [🖥️관제웹] [관제대시보드] 확정페이지 진입 (선빵 수신으로 상세 모드 구동)`
-- `[ROADMAP 02:49:28.248] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)`
-- `[ROADMAP 02:49:29.201] [☁️서버] [HTTP 폴링] POST /orders/detail 데이터 수신`
-- `[ROADMAP 02:49:29.203] [☁️서버] [Socket] 상하차지 송출`
-- `[ROADMAP 02:49:29.203] [☁️서버] 🛡️ [카카오 API 3중 폴백] 괄호제거 ➡️ 주소검색 ➡️ 키워드검색 ➡️ 4어절 절사`
-
-    <details>
-    <summary>🔽 🌍 [Geocoding] 상차지 변환: '경기 광주시 경안동 204-5 홈플러스 광주점' -&gt; X:126.930393028084, Y:35.1...</summary>
-
-    ```json
-    🌍 [Geocoding] 상차지 변환: '경기 광주시 경안동 204-5 홈플러스 광주점' -> X:126.930393028084, Y:35.1793194599394
-    ```
-
-    </details>
-- `[ROADMAP 02:49:29.204] [🖥️관제웹] [관제대시보드] 🟡 [웹 수신] order-detail-received | ID: 40243789 | 경기 광주시 경안동 204-5 홈플러`
-
-    <details>
-    <summary>🔽 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.</summary>
-
-    ```json
-    🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-    🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-    ```
-
-    </details>
-- `[ROADMAP 02:49:29.404] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)`
-- `[ROADMAP 02:49:29.637] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)`
-
-    <details>
-    <summary>🔽 - ⚠️ 패널티 결과: +550.4km, +382분 '똥' (현위치접근: 6.5km, 13분)</summary>
-
-    ```json
-       - ⚠️ 패널티 결과: +550.4km, +382분 '똥' (현위치접근: 6.5km, 13분)
-    ```
-
-    </details>
-- `[ROADMAP 02:49:31.748] [☁️서버] [Socket] 경로 및 시간 정보, 수익률 전송`
-
-    <details>
-    <summary>🔽 🔎 [카카오 연산 완료] +550.4km, +382분 '똥' | Polyline 길이: 4810</summary>
-
-    ```json
-    🔎 [카카오 연산 완료] +550.4km, +382분 '똥' | Polyline 길이: 4810
-    ```
-
-    </details>
-- `[ROADMAP 02:49:31.756] [🖥️관제웹] [관제대시보드] 🔵 [웹 수신] order-evaluated | ID: 40243789 | +550.4km, +382분 '똥'`
-- `[ROADMAP 02:49:31.758] [🖥️관제웹] [관제대시보드] 추천 결과 노출, 경로보기버튼 추가 노출 후 판단 (취소 or 닫기) 대기`
-
-    <details>
-    <summary>🔽 🌐 [post /detail response / 200] {"deviceId":"server","action":"CANCEL"}</summary>
-
-    ```json
-    🌐 [post /detail response / 200] {"deviceId":"server","action":"CANCEL"}
-    ```
-
-    </details>
-- `🚦 [ROADMAP 02:49:36.273] [📱앱] [HTTP 폴링] 응답 /orders/detail 취소 정보 전송`
-- `🚦 [ROADMAP 02:49:36.496] [📱앱] [DETAIL_CONFIRMED] [post /api/scrap request] 👀 화면 변경 감지 발송  deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
-- `🚦 [ROADMAP 02:49:36.510] [📱앱] [DETAIL_CONFIRMED] [post /api/scrap response] deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
-
-    <details>
-    <summary>🔽 📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:</summary>
-
-    ```json
-    📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:
-    FilterConfig(allowedVehicleTypes=[다마스, 라보, 오토바이], isActive=true, isSharedMode=true, pickupRadiusKm=999, minFare=0, maxFare=1000000, destinationCity=, destinationRadiusKm=10, excludedKeywords=[], destinationKeywords=[가정동, 가좌동, 가학동, 간석동, 갈산동, 갈현동, 거모동, 경동, 경안동, 계수동, 고등동, 고잔동, 과림동, 관교동, 관동, 관양동, 괴안동, 구산동, 구월동, 금곡동, 금토동, 남촌동, 내동, 노온사동, 논현동, 답동, 대야동, 도당동, 도림동, 도원동, 도창동, 도촌동, 도화동, 동춘동, 둔전동, 만석동, 만수동, 매화동, 문원동, 문학동, 미산동, 박달동, 방산동, 배곧동, 범박동, 부개동, 부평동, 북성동, 비산동, 사동, 사송동, 산곡동, 삼동, 삼산동, 삼정동, 삼평동, 상대원동, 상동, 서운동, 서창동, 석남동, 석수동, 석운동, 선린동, 선학동, 선화동, 성남동, 소사동, 소사본동, 소하동, 송내동, 송도동, 송림동, 송월동, 송정동, 송학동, 송현동, 수산동, 숭의동, 시흥동, 신림동, 신생동, 신천동, 신포동, 신현동, 신흥동, 심곡동, 심곡본동, 십정동, 쌍령동, 안양동, 안현동, 야탑동, 약대동, 양벌동, 여수동, 역곡동, 역동, 연수동, 옥길동, 옥련동, 용동, 용현동, 운연동, 운중동, 원미동, 원창동, 월곶동, 유동, 율목동, 은행동, 인현동, 일신동, 일직동, 작전동, 장곡동, 장수동, 장지동, 장현동, 전동, 정왕동, 주안동, 중대동, 중동, 중앙동, 직동, 창영동, 청계동, 청라동, 청천동, 청학동, 초월읍, 춘의동, 탄벌동, 태전동, 판교동, 포동, 포일동, 하대원동, 하중동, 학의동, 학익동, 항동, 해안동, 화수동, 화평동, 회덕동, 효성동], customCityFilters=[금천구, 금천, 관악구, 관악, 중구, 중, 동구, 동, 미추홀구, 미추홀, 연수구, 연수, 남동구, 남동, 부평구, 부평, 계양구, 계양, 서구, 서, 성남시 수정구, 성남시 수정, 성남시 중원구, 성남시 중원, 성남시 분당구, 성남시 분당, 안양시 만안구, 안양시 만안, 안양시 동안구, 안양시 동안, 부천시 원미구, 부천시 원미, 부천시 소사구, 부천시 소사, 부천시 오정구, 부천시 오정, 광명시, 광명, 과천시, 과천, 시흥시, 시흥, 의왕시, 의왕, 광주시, 광주, 경기 광주, 경기 광주시, 경광주], destinationGroups={금천구=[시흥동], 관악구=[신림동], 중구=[경동, 관동, 내동, 답동, 도원동, 북성동, 사동, 선린동, 선화동, 송월동, 송학동, 신생동, 신포동, 신흥동, 용동, 유동, 율목동, 인현동, 전동, 중앙동, 항동, 해안동], 동구=[금곡동, 만석동, 송림동, 송현동, 창영동, 화수동, 화평동], 미추홀구=[관교동, 도화동, 문학동, 숭의동, 용현동, 주안동, 학익동], 연수구=[동춘동, 선학동, 송도동, 연수동, 옥련동, 청학동], 남동구=[간석동, 고잔동, 구월동, 남촌동, 논현동, 도림동, 만수동, 서창동, 수산동, 운연동, 장수동], 부평구=[갈산동, 구산동, 부개동, 부평동, 산곡동, 삼산동, 십정동, 일신동, 청천동], 계양구=[서운동, 작전동, 효성동], 서구=[가정동, 가좌동, 석남동, 신현동, 원창동, 청라동], 성남시 수정구=[고등동, 금토동, 둔전동, 사송동, 시흥동], 성남시 중원구=[갈현동, 도촌동, 상대원동, 성남동, 여수동, 하대원동], 성남시 분당구=[삼평동, 석운동, 야탑동, 운중동, 판교동], 안양시 만안구=[박달동, 석수동, 안양동], 안양시 동안구=[관양동, 비산동], 부천시 원미구=[도당동, 상동, 소사동, 심곡동, 약대동, 역곡동, 원미동, 중동, 춘의동], 부천시 소사구=[계수동, 괴안동, 범박동, 소사본동, 송내동, 심곡본동, 옥길동], 부천시 오정구=[삼정동], 광명시=[가학동, 노온사동, 소하동, 일직동], 과천?
-    ```
-
-    </details>
-- `🚦 [ROADMAP 02:49:36.793] [📱앱] '취소' 버튼 인식 ➡️ 클릭 시도`
-- `🚦 [ROADMAP 02:49:36.796] [📱앱] [DETAIL_CONFIRMED] '취소' 클릭 후 인성 Socket 취소 지시`
-- `🚦 [ROADMAP 02:49:36.848] [📱앱] 버튼 터치 완료 (가로채기 성공) X:950.0, Y:478.0`
-- `🚦 [ROADMAP 02:49:37.054] [📱앱] [LIST] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:49:37.060] [📱앱] [LIST] 🔍 [타겟 콜 필터 결과] 차종(다)=✅ 도착지(148중 강남구)=❌ 요금(0 <= 50000)=✅ 상차지/거리(999 >= 0.2km)=✅ 블랙()=✅`
-- `🚦 [ROADMAP 02:49:37.062] [📱앱] [LIST] 🔍 [타겟 콜 필터 결과] 차종(라)=✅ 도착지(148중 유성구)=❌ 요금(0 <= 188000)=✅ 상차지/거리(999 >= 0.2km)=✅ 블랙()=✅`
-- `🚦 [ROADMAP 02:49:37.365] [📱앱] [LIST] [post /api/scrap request] 👀 화면 변경 감지 발송  deviceId: 앱폰-sdk_gpho-160, (건수: 2)`
-- `🚦 [ROADMAP 02:49:37.376] [📱앱] [LIST] [post /api/scrap response] deviceId: 앱폰-sdk_gpho-160, (건수: 2)`
-
-    <details>
-    <summary>🔽 📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:</summary>
-
-    ```json
-    📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:
-    FilterConfig(allowedVehicleTypes=[다마스, 라보, 오토바이], isActive=true, isSharedMode=true, pickupRadiusKm=999, minFare=0, maxFare=1000000, destinationCity=, destinationRadiusKm=10, excludedKeywords=[], destinationKeywords=[가정동, 가좌동, 가학동, 간석동, 갈산동, 갈현동, 거모동, 경동, 경안동, 계수동, 고등동, 고잔동, 과림동, 관교동, 관동, 관양동, 괴안동, 구산동, 구월동, 금곡동, 금토동, 남촌동, 내동, 노온사동, 논현동, 답동, 대야동, 도당동, 도림동, 도원동, 도창동, 도촌동, 도화동, 동춘동, 둔전동, 만석동, 만수동, 매화동, 문원동, 문학동, 미산동, 박달동, 방산동, 배곧동, 범박동, 부개동, 부평동, 북성동, 비산동, 사동, 사송동, 산곡동, 삼동, 삼산동, 삼정동, 삼평동, 상대원동, 상동, 서운동, 서창동, 석남동, 석수동, 석운동, 선린동, 선학동, 선화동, 성남동, 소사동, 소사본동, 소하동, 송내동, 송도동, 송림동, 송월동, 송정동, 송학동, 송현동, 수산동, 숭의동, 시흥동, 신림동, 신생동, 신천동, 신포동, 신현동, 신흥동, 심곡동, 심곡본동, 십정동, 쌍령동, 안양동, 안현동, 야탑동, 약대동, 양벌동, 여수동, 역곡동, 역동, 연수동, 옥길동, 옥련동, 용동, 용현동, 운연동, 운중동, 원미동, 원창동, 월곶동, 유동, 율목동, 은행동, 인현동, 일신동, 일직동, 작전동, 장곡동, 장수동, 장지동, 장현동, 전동, 정왕동, 주안동, 중대동, 중동, 중앙동, 직동, 창영동, 청계동, 청라동, 청천동, 청학동, 초월읍, 춘의동, 탄벌동, 태전동, 판교동, 포동, 포일동, 하대원동, 하중동, 학의동, 학익동, 항동, 해안동, 화수동, 화평동, 회덕동, 효성동], customCityFilters=[금천구, 금천, 관악구, 관악, 중구, 중, 동구, 동, 미추홀구, 미추홀, 연수구, 연수, 남동구, 남동, 부평구, 부평, 계양구, 계양, 서구, 서, 성남시 수정구, 성남시 수정, 성남시 중원구, 성남시 중원, 성남시 분당구, 성남시 분당, 안양시 만안구, 안양시 만안, 안양시 동안구, 안양시 동안, 부천시 원미구, 부천시 원미, 부천시 소사구, 부천시 소사, 부천시 오정구, 부천시 오정, 광명시, 광명, 과천시, 과천, 시흥시, 시흥, 의왕시, 의왕, 광주시, 광주, 경기 광주, 경기 광주시, 경광주], destinationGroups={금천구=[시흥동], 관악구=[신림동], 중구=[경동, 관동, 내동, 답동, 도원동, 북성동, 사동, 선린동, 선화동, 송월동, 송학동, 신생동, 신포동, 신흥동, 용동, 유동, 율목동, 인현동, 전동, 중앙동, 항동, 해안동], 동구=[금곡동, 만석동, 송림동, 송현동, 창영동, 화수동, 화평동], 미추홀구=[관교동, 도화동, 문학동, 숭의동, 용현동, 주안동, 학익동], 연수구=[동춘동, 선학동, 송도동, 연수동, 옥련동, 청학동], 남동구=[간석동, 고잔동, 구월동, 남촌동, 논현동, 도림동, 만수동, 서창동, 수산동, 운연동, 장수동], 부평구=[갈산동, 구산동, 부개동, 부평동, 산곡동, 삼산동, 십정동, 일신동, 청천동], 계양구=[서운동, 작전동, 효성동], 서구=[가정동, 가좌동, 석남동, 신현동, 원창동, 청라동], 성남시 수정구=[고등동, 금토동, 둔전동, 사송동, 시흥동], 성남시 중원구=[갈현동, 도촌동, 상대원동, 성남동, 여수동, 하대원동], 성남시 분당구=[삼평동, 석운동, 야탑동, 운중동, 판교동], 안양시 만안구=[박달동, 석수동, 안양동], 안양시 동안구=[관양동, 비산동], 부천시 원미구=[도당동, 상동, 소사동, 심곡동, 약대동, 역곡동, 원미동, 중동, 춘의동], 부천시 소사구=[계수동, 괴안동, 범박동, 소사본동, 송내동, 심곡본동, 옥길동], 부천시 오정구=[삼정동], 광명시=[가학동, 노온사동, 소하동, 일직동], 과천?
-    ```
-
-    </details>
-- `[ROADMAP 02:49:38.789] [🖥️관제웹] [관제대시보드] [Socket] 취소 전달`
-- `[ROADMAP 02:49:38.790] [☁️서버] [HTTP 폴링] 응답 /orders/detail 취소 정보 전송`
-- `[ROADMAP 02:49:38.792] [☁️서버] 첫콜 필터로 설정값 업데이트`
-- `[ROADMAP 02:49:38.832] [🖥️관제웹] [관제대시보드] 🔴 [웹 수신] order-canceled | ID: 40243789`
-- `[ROADMAP 02:49:39.071] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)`
-- `[ROADMAP 02:49:39.937] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)`
-- `🚦 [ROADMAP 02:49:40.262] [📱앱] [LIST] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:49:40.265] [📱앱] [LIST] 🔍 [타겟 콜 필터 결과] 차종(1t)=❌ 도착지(148중 문발동)=❌ 요금(0 <= 101000)=✅ 상차지/거리(999 >= 0.2km)=✅ 블랙()=✅`
-- `🚦 [ROADMAP 02:49:40.571] [📱앱] [LIST] [post /api/scrap request] 👀 화면 변경 감지 발송  deviceId: 앱폰-sdk_gpho-160, (건수: 1)`
-- `🚦 [ROADMAP 02:49:40.588] [📱앱] [LIST] [post /api/scrap response] deviceId: 앱폰-sdk_gpho-160, (건수: 1)`
-
-    <details>
-    <summary>🔽 📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:</summary>
-
-    ```json
-    📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:
-    FilterConfig(allowedVehicleTypes=[다마스, 라보, 오토바이], isActive=true, isSharedMode=true, pickupRadiusKm=999, minFare=0, maxFare=1000000, destinationCity=, destinationRadiusKm=10, excludedKeywords=[], destinationKeywords=[가정동, 가좌동, 가학동, 간석동, 갈산동, 갈현동, 거모동, 경동, 경안동, 계수동, 고등동, 고잔동, 과림동, 관교동, 관동, 관양동, 괴안동, 구산동, 구월동, 금곡동, 금토동, 남촌동, 내동, 노온사동, 논현동, 답동, 대야동, 도당동, 도림동, 도원동, 도창동, 도촌동, 도화동, 동춘동, 둔전동, 만석동, 만수동, 매화동, 문원동, 문학동, 미산동, 박달동, 방산동, 배곧동, 범박동, 부개동, 부평동, 북성동, 비산동, 사동, 사송동, 산곡동, 삼동, 삼산동, 삼정동, 삼평동, 상대원동, 상동, 서운동, 서창동, 석남동, 석수동, 석운동, 선린동, 선학동, 선화동, 성남동, 소사동, 소사본동, 소하동, 송내동, 송도동, 송림동, 송월동, 송정동, 송학동, 송현동, 수산동, 숭의동, 시흥동, 신림동, 신생동, 신천동, 신포동, 신현동, 신흥동, 심곡동, 심곡본동, 십정동, 쌍령동, 안양동, 안현동, 야탑동, 약대동, 양벌동, 여수동, 역곡동, 역동, 연수동, 옥길동, 옥련동, 용동, 용현동, 운연동, 운중동, 원미동, 원창동, 월곶동, 유동, 율목동, 은행동, 인현동, 일신동, 일직동, 작전동, 장곡동, 장수동, 장지동, 장현동, 전동, 정왕동, 주안동, 중대동, 중동, 중앙동, 직동, 창영동, 청계동, 청라동, 청천동, 청학동, 초월읍, 춘의동, 탄벌동, 태전동, 판교동, 포동, 포일동, 하대원동, 하중동, 학의동, 학익동, 항동, 해안동, 화수동, 화평동, 회덕동, 효성동], customCityFilters=[금천구, 금천, 관악구, 관악, 중구, 중, 동구, 동, 미추홀구, 미추홀, 연수구, 연수, 남동구, 남동, 부평구, 부평, 계양구, 계양, 서구, 서, 성남시 수정구, 성남시 수정, 성남시 중원구, 성남시 중원, 성남시 분당구, 성남시 분당, 안양시 만안구, 안양시 만안, 안양시 동안구, 안양시 동안, 부천시 원미구, 부천시 원미, 부천시 소사구, 부천시 소사, 부천시 오정구, 부천시 오정, 광명시, 광명, 과천시, 과천, 시흥시, 시흥, 의왕시, 의왕, 광주시, 광주, 경기 광주, 경기 광주시, 경광주], destinationGroups={금천구=[시흥동], 관악구=[신림동], 중구=[경동, 관동, 내동, 답동, 도원동, 북성동, 사동, 선린동, 선화동, 송월동, 송학동, 신생동, 신포동, 신흥동, 용동, 유동, 율목동, 인현동, 전동, 중앙동, 항동, 해안동], 동구=[금곡동, 만석동, 송림동, 송현동, 창영동, 화수동, 화평동], 미추홀구=[관교동, 도화동, 문학동, 숭의동, 용현동, 주안동, 학익동], 연수구=[동춘동, 선학동, 송도동, 연수동, 옥련동, 청학동], 남동구=[간석동, 고잔동, 구월동, 남촌동, 논현동, 도림동, 만수동, 서창동, 수산동, 운연동, 장수동], 부평구=[갈산동, 구산동, 부개동, 부평동, 산곡동, 삼산동, 십정동, 일신동, 청천동], 계양구=[서운동, 작전동, 효성동], 서구=[가정동, 가좌동, 석남동, 신현동, 원창동, 청라동], 성남시 수정구=[고등동, 금토동, 둔전동, 사송동, 시흥동], 성남시 중원구=[갈현동, 도촌동, 상대원동, 성남동, 여수동, 하대원동], 성남시 분당구=[삼평동, 석운동, 야탑동, 운중동, 판교동], 안양시 만안구=[박달동, 석수동, 안양동], 안양시 동안구=[관양동, 비산동], 부천시 원미구=[도당동, 상동, 소사동, 심곡동, 약대동, 역곡동, 원미동, 중동, 춘의동], 부천시 소사구=[계수동, 괴안동, 범박동, 소사본동, 송내동, 심곡본동, 옥길동], 부천시 오정구=[삼정동], 광명시=[가학동, 노온사동, 소하동, 일직동], 과천?
-    ```
-
-    </details>
-- `[ROADMAP 02:49:43.146] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)`
-- `🚦 [ROADMAP 02:49:45.268] [📱앱] [LIST] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:49:45.280] [📱앱] [LIST] 🔍 [타겟 콜 필터 결과] 차종(라)=✅ 도착지(148중 송파구)=❌ 요금(0 <= 34000)=✅ 상차지/거리(999 >= 0.2km)=✅ 블랙()=✅`
-- `🚦 [ROADMAP 02:49:45.585] [📱앱] [LIST] [post /api/scrap request] 👀 화면 변경 감지 발송  deviceId: 앱폰-sdk_gpho-160, (건수: 1)`
-- `🚦 [ROADMAP 02:49:45.598] [📱앱] [LIST] [post /api/scrap response] deviceId: 앱폰-sdk_gpho-160, (건수: 1)`
-
-    <details>
-    <summary>🔽 📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:</summary>
-
-    ```json
-    📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:
-    FilterConfig(allowedVehicleTypes=[다마스, 라보, 오토바이], isActive=true, isSharedMode=true, pickupRadiusKm=999, minFare=0, maxFare=1000000, destinationCity=, destinationRadiusKm=10, excludedKeywords=[], destinationKeywords=[가정동, 가좌동, 가학동, 간석동, 갈산동, 갈현동, 거모동, 경동, 경안동, 계수동, 고등동, 고잔동, 과림동, 관교동, 관동, 관양동, 괴안동, 구산동, 구월동, 금곡동, 금토동, 남촌동, 내동, 노온사동, 논현동, 답동, 대야동, 도당동, 도림동, 도원동, 도창동, 도촌동, 도화동, 동춘동, 둔전동, 만석동, 만수동, 매화동, 문원동, 문학동, 미산동, 박달동, 방산동, 배곧동, 범박동, 부개동, 부평동, 북성동, 비산동, 사동, 사송동, 산곡동, 삼동, 삼산동, 삼정동, 삼평동, 상대원동, 상동, 서운동, 서창동, 석남동, 석수동, 석운동, 선린동, 선학동, 선화동, 성남동, 소사동, 소사본동, 소하동, 송내동, 송도동, 송림동, 송월동, 송정동, 송학동, 송현동, 수산동, 숭의동, 시흥동, 신림동, 신생동, 신천동, 신포동, 신현동, 신흥동, 심곡동, 심곡본동, 십정동, 쌍령동, 안양동, 안현동, 야탑동, 약대동, 양벌동, 여수동, 역곡동, 역동, 연수동, 옥길동, 옥련동, 용동, 용현동, 운연동, 운중동, 원미동, 원창동, 월곶동, 유동, 율목동, 은행동, 인현동, 일신동, 일직동, 작전동, 장곡동, 장수동, 장지동, 장현동, 전동, 정왕동, 주안동, 중대동, 중동, 중앙동, 직동, 창영동, 청계동, 청라동, 청천동, 청학동, 초월읍, 춘의동, 탄벌동, 태전동, 판교동, 포동, 포일동, 하대원동, 하중동, 학의동, 학익동, 항동, 해안동, 화수동, 화평동, 회덕동, 효성동], customCityFilters=[금천구, 금천, 관악구, 관악, 중구, 중, 동구, 동, 미추홀구, 미추홀, 연수구, 연수, 남동구, 남동, 부평구, 부평, 계양구, 계양, 서구, 서, 성남시 수정구, 성남시 수정, 성남시 중원구, 성남시 중원, 성남시 분당구, 성남시 분당, 안양시 만안구, 안양시 만안, 안양시 동안구, 안양시 동안, 부천시 원미구, 부천시 원미, 부천시 소사구, 부천시 소사, 부천시 오정구, 부천시 오정, 광명시, 광명, 과천시, 과천, 시흥시, 시흥, 의왕시, 의왕, 광주시, 광주, 경기 광주, 경기 광주시, 경광주], destinationGroups={금천구=[시흥동], 관악구=[신림동], 중구=[경동, 관동, 내동, 답동, 도원동, 북성동, 사동, 선린동, 선화동, 송월동, 송학동, 신생동, 신포동, 신흥동, 용동, 유동, 율목동, 인현동, 전동, 중앙동, 항동, 해안동], 동구=[금곡동, 만석동, 송림동, 송현동, 창영동, 화수동, 화평동], 미추홀구=[관교동, 도화동, 문학동, 숭의동, 용현동, 주안동, 학익동], 연수구=[동춘동, 선학동, 송도동, 연수동, 옥련동, 청학동], 남동구=[간석동, 고잔동, 구월동, 남촌동, 논현동, 도림동, 만수동, 서창동, 수산동, 운연동, 장수동], 부평구=[갈산동, 구산동, 부개동, 부평동, 산곡동, 삼산동, 십정동, 일신동, 청천동], 계양구=[서운동, 작전동, 효성동], 서구=[가정동, 가좌동, 석남동, 신현동, 원창동, 청라동], 성남시 수정구=[고등동, 금토동, 둔전동, 사송동, 시흥동], 성남시 중원구=[갈현동, 도촌동, 상대원동, 성남동, 여수동, 하대원동], 성남시 분당구=[삼평동, 석운동, 야탑동, 운중동, 판교동], 안양시 만안구=[박달동, 석수동, 안양동], 안양시 동안구=[관양동, 비산동], 부천시 원미구=[도당동, 상동, 소사동, 심곡동, 약대동, 역곡동, 원미동, 중동, 춘의동], 부천시 소사구=[계수동, 괴안동, 범박동, 소사본동, 송내동, 심곡본동, 옥길동], 부천시 오정구=[삼정동], 광명시=[가학동, 노온사동, 소하동, 일직동], 과천?
-    ```
-
-    </details>
-- `[ROADMAP 02:49:48.159] [☁️서버] [HTTP 폴링] POST /api/scrap (User: 66176c7b-1755-444c-9b65-7ca056e3c303)`
-- `🚦 [ROADMAP 02:49:50.280] [📱앱] [LIST] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:49:50.284] [📱앱] [LIST] 🔍 [타겟 콜 필터 결과] 차종(1t)=❌ 도착지(148중 야당동)=❌ 요금(0 <= 96000)=✅ 상차지/거리(999 >= 11.9km)=✅ 블랙()=✅`
-- `🚦 [ROADMAP 02:49:50.591] [📱앱] [LIST] [post /api/scrap request] 👀 화면 변경 감지 발송  deviceId: 앱폰-sdk_gpho-160, (건수: 1)`
-- `🚦 [ROADMAP 02:49:53.862] [📱앱] [LIST] 📡 화면 변경 감지 | 모드: AUTO`
-- `🚦 [ROADMAP 02:49:54.066] [📱앱] [LIST] [post /api/scrap request] 👀 화면 변경 감지 발송  deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
-- `🚦 [ROADMAP 02:50:54.077] [📱앱] [LIST] [post /api/scrap request] ⏱️ 타이머 생존신고 발송  deviceId: 앱폰-sdk_gpho-160, (건수: 0)`
+
+| 시각 | 플랫폼 | 로그 |
+|---|---|---|
+| 13:32:11.251 | 📱앱 | `[ROADMAP] [DETAIL_CONFIRMED] 📡 화면 변경 감지 \| 모드: AUTO` |
+| 13:32:11.252 | 📱앱 | `[ROADMAP] [DETAIL_CONFIRMED] [Current Page: DETAIL_CONFIRMED] 진입 완료` |
+| 13:32:11.252 | 📱앱 | `[ROADMAP] [DETAIL_CONFIRMED] 🔒 isHolding = true 설정 (이후 화면 요동쳐도 락 유지)` |
+| 13:32:11.252 | 📱앱 | `[ROADMAP] [DETAIL_CONFIRMED] 🏄‍♂️ 무인 서핑 가동 (State Machine: IDLE)` |
+| **적요상세** | | |
+| 13:32:11.253 | 📱앱 | `🏄‍♂️ [자동 팝업 서핑] 확정 화면 진입 확인! 적요상세 팝업 호출 시도` |
+| 13:32:11.305 | 📱앱 | `✅ [가로채기 성공!] 화면 좌표 (X:149.0, Y:1153.0) 터치 완료!` |
+| 13:32:11.437 | 📱앱 | `[ROADMAP] [POPUP_MEMO] 📡 화면 변경 감지 \| 모드: AUTO` |
+| 13:32:11.438 | 📱앱 | `📝 적요 스크래핑 성공! 닫기 버튼 누름` |
+| 13:32:11.491 | 📱앱 | `✅ [가로채기 성공!] 화면 좌표 (X:540.0, Y:2264.0) 터치 완료!` (닫기) |
+| **출발지** | | |
+| 13:32:11.524 | 📱앱 | `🏄‍♂️ [자동 팝업 서핑] 적요 정보 확인 완료. 출발지 정보 확인을 위해 자동 클릭 시도` |
+| 13:32:11.579 | 📱앱 | `✅ [가로채기 성공!] 화면 좌표 (X:539.0, Y:1592.0) 터치 완료!` |
+| 13:32:11.652 | 📱앱 | `[ROADMAP] [POPUP_PICKUP] 📡 화면 변경 감지 \| 모드: AUTO` |
+| 13:32:11.653 | 📱앱 | `📝 출발지 스크래핑 성공! 닫기 버튼 누름` |
+| 13:32:11.706 | 📱앱 | `✅ [가로채기 성공!] 화면 좌표 (X:136.0, Y:2264.0) 터치 완료!` (닫기) |
+| **도착지** | | |
+| 13:32:11.732 | 📱앱 | `🏄‍♂️ [자동 팝업 서핑] 출발지 확인 완료. 도착지 정보 확인을 위해 자동 클릭 시도` |
+| 13:32:11.799 | 📱앱 | `✅ [가로채기 성공!] 화면 좌표 (X:539.0, Y:1742.0) 터치 완료!` |
+| 13:32:11.856 | 📱앱 | `[ROADMAP] [POPUP_DROPOFF] 📡 화면 변경 감지 \| 모드: AUTO` |
+| 13:32:11.856 | 📱앱 | `📝 도착지 스크래핑 성공! 닫기 누름 및 전체 내용 /detail 로 발송` |
+| 13:32:11.859 | 📱앱 | `[ROADMAP] [POPUP_DROPOFF] [Current Page: DETAIL_CONFIRMED] 무인 서핑 종료 (State Machine: DONE)` |
+| 13:32:11.859 | 📱앱 | `⏳ 데스밸리 타이머 시작: 30초 대기...` |
+| 13:32:11.860 | 📱앱 | `🌐 [post /detail request] AUTO 모드 판결 요청 텍스트: rep_map 고양퀵서비스-031-932-7722 전표 상태 : 신규 물품 : 마대 1개 취소 차량 : 1t 탁송료 : 0 수수료 : 23% 요금 : 84,000(착불)...` |
+| 13:32:12.458 | 📱앱 | `🌐 [post /detail response / 202] 즉결 접수 완료. Piggyback 대기 시작.` |
+| 13:32:12.588 | ☁️서버 | `[ROADMAP] 앱폰으로 부터 무인서핑이 완료된 '2차 오더 상세' 요청 받음` |
+| 13:32:12.588 | ☁️서버 | `[ROADMAP] 상하차지 주소 및 적요 텍스트 정제 연산` |
+| 13:32:12.591 | ☁️서버 | `[ROADMAP] 관제탑에게 정제된 상세 텍스트(order-detail-received) 정보 전달` |
+| 13:32:12.592 | 🖥️관제웹 | `[ROADMAP] [관제대시보드] 🟡 [웹 수신] order-detail-received \| ID: 5ff82528 \| 경기 광주시 경안동 167-1 경안천` |
+| 13:32:12.592 | 🖥️관제웹 | `[ROADMAP] [관제대시보드] PinnedRoute 컴포넌트에 '상하차지 및 적요' 텍스트를 선출력하여 렌더링` |
+
+> **🔍 분석**: 무인 서핑 3연속 팝업(적요→출발지→도착지) 총 소요시간 **607ms**. State Machine: IDLE → DONE 완벽 천이.
+
+---
+
+### 🟢 [STEP 5] 카카오 연산 3중 폴백 & 자동 회랑 전개 (단독콜)
+
+| 시각 | 플랫폼 | 로그 |
+|---|---|---|
+| 13:32:12.595 | ☁️서버 | `[서버-사이드 카카오 연산] 🚀 경기 광주시 경안동 167-1 경안천 체육공원 ➡️ 경기 고양시 덕양구 고양대로 1955 스타필드 고양` |
+| 13:32:12.595 | ☁️서버 | `[ROADMAP] 🛡️ 주소 3중 폴백 (괄호제거 ➡️ 주소검색 ➡️ 키워드 ➡️ 절사) 연산` |
+| 13:32:12.797 | ☁️서버 | `🌍 [Geocoding] 상차지 변환: '경기 광주시 경안동 167-1 경안천 체육공원' -> X:127.2528, Y:37.4100` |
+| 13:32:12.797 | ☁️서버 | `🌍 [Geocoding] 하차지 변환: '경기 고양시 덕양구 고양대로 1955 스타필드 고양' -> X:126.8947, Y:37.6469` |
+| 13:32:12.797 | ☁️서버 | `[ROADMAP] 카카오 지오코딩으로 반환된 출발지/도착지 X/Y 좌표 메모리 갱신 연산` |
+| 13:32:12.797 | ☁️서버 | `[ROADMAP] 시간/통행료를 바탕으로 콜의 실수익률(기회비용) 연산` |
+| | ☁️서버 | `💡 상태: [첫짐] 단독 주행 연산` |
+| 13:32:13.174 | ☁️서버 | `[ROADMAP] 경로 폴리라인 및 최종 수익성(콜/꿀/똥) 라벨링 연산` |
+| | ☁️서버 | `⏱️ 결과: 단독 70.3km, 75분 '콜' (현위치접근: 6.5km, 15분)` |
+| | ☁️서버 | `🗺️ 궤적 길이 (Solo): 696` |
+| 13:32:13.176 | ☁️서버 | `📤 [Socket 푸시] order-evaluated (5ff82528-b1f2-4026-b1a0-76a6e0927774)` |
+| 13:32:13.176 | ☁️서버 | `🔎 [카카오 연산 완료] 단독 70.3km, 75분 '콜' \| Polyline 길이: 696` |
+| 13:32:13.179 | 🖥️관제웹 | `[ROADMAP] [관제대시보드] 🔵 [웹 수신] order-evaluated \| ID: 5ff82528 \| 단독 70.3km, 75분 '콜'` |
+| 13:32:13.180 | 🖥️관제웹 | `[ROADMAP] [관제대시보드] 추천 결과 노출, 경로보기버튼 추가 노출 후 판단 (취소 or 닫기) 대기` |
+| 13:32:13.180 | 🖥️관제웹 | `[ROADMAP] [관제대시보드] PinnedRoute 내 캔버스 미니맵 좌표 포커싱 및 카카오 궤적(폴리라인) 드로잉 처리` |
+| 13:32:13.180 | 🖥️관제웹 | `[ROADMAP] [관제대시보드] 예상 시간/수익률을 컴포넌트에 표시하고 결재버튼(KEEP/CANCEL) 즉시 딤드 해제(활성화)` |
+
+> **🔍 분석**: 지오코딩 **202ms**, 경로 연산 **377ms**, 총 카카오 파이프라인 **579ms**. 70.3km/75분 **'콜'** 등급으로 판정.
+
+---
+
+### 🟢 [STEP 6] 관제탑 결재: ✅ KEEP (첫짐 확정)
+
+| 시각 | 플랫폼 | 로그 |
+|---|---|---|
+| 13:32:16.711 | 🖥️관제웹 | `[ROADMAP] PinnedRoute에서 KEEP(사냥 확정) 녹색 버튼 클릭` |
+| 13:32:16.711 | 🖥️관제웹 | `[ROADMAP] 서버에게 decision=KEEP 하달 정보 전달` |
+| 13:32:16.711 | 🖥️관제웹 | `[ROADMAP] [관제대시보드] [Socket] 유지 전달` |
+| 13:32:16.714 | ☁️서버 | `⚖️ [소켓 Decision] User: 66176c7b, ID: 5ff82528, Action: KEEP` |
+| 13:32:16.714 | ☁️서버 | `[ROADMAP] 앱폰에게 Action=Keep 최종 판결 Piggyback 등록` |
+| 13:32:16.714 | ☁️서버 | `📦 [Piggyback V2] 관제탑 판결(KEEP)을 큐에 기록. 다음 텔레메트리에 태워 보냅니다. (orderId: 5ff82528)` |
+| 13:32:16.715 | ☁️서버 | `[ROADMAP] 해당 콜을 '메인콜' (또는 서브콜) 로 승격 및 병합 궤적 생성 연산` |
+| 13:32:16.715 | ☁️서버 | `[ROADMAP] 합짐을 위한 반경/목적지 추천 키워드로 다이나믹 필터 생성 연산` |
+| 13:32:16.715 | ☁️서버 | `[ROADMAP] 새로 부여된 합짐 필터(isSharedMode)값 DB 저장` |
+| 13:32:16.715 | ☁️서버 | `[ROADMAP] 앱폰 및 관제탑에게 새로운 타겟팅 필터(filter-updated) 정보 전달` |
+| 13:32:16.723 | 🖥️관제웹 | `[ROADMAP] [관제대시보드] PinnedRoute 레이아웃을 합짐/무한 궤도 모드로 격상 렌더링 및 딤드 다시 처리` |
+| 13:32:16.222 | 📱앱 | `⚡ [Piggyback Decision 수신] orderId: 5ff82528, action: KEEP` |
+| 13:32:16.222 | 📱앱 | `🛡️ [정상 결재 수신] ID 일치(5ff82528). 즉각 폐기/유지 액션을 집행합니다. (Action: KEEP)` |
+| 13:32:16.222 | 📱앱 | `⚡ 판결 집행: 행동=KEEP, 누를버튼=닫기 (버튼클릭을 시작합니다), 500ms 지연` |
+| | 📱앱 | `📋 [필터 동기화] FilterConfig(allowedVehicleTypes=[다마스, 라보, 오토바이], isActive=true, isSharedMode=true, ...)` |
+| 13:32:16.743 | 📱앱 | `[ROADMAP] [DETAIL_CONFIRMED] [Current Page: LIST] 로 복귀 렌더링 완료` |
+| 13:32:16.795 | 📱앱 | `✅ [가로채기 성공!] 화면 좌표 (X:122.0, Y:2251.0) 터치 완료!` (닫기 버튼) |
+| 13:32:16.744 | 📱앱 | `[ROADMAP] [DETAIL_CONFIRMED] 🔓 isHolding = false 락 해제. 다음 타겟을 향한 새로운 "합짐 사냥" 감시 돌입` |
+| 13:32:16.744 | 📱앱 | `[ROADMAP] [DETAIL_CONFIRMED] 🔄 [새로운 타겟(합짐) 사냥을 위해 PHASE 2 로 무한 루프 회귀] 🔄` |
+| 13:32:16.930 | ☁️서버 | `📦 [Piggyback V2] 텔레메트리 편에 결재(KEEP)를 태워 보냅니다! (orderId: 5ff82528)` |
+| 13:32:17.155 | ☁️서버 | `🧹 [Piggyback V2] 기사님 폰에서 5ff82528 판결 수신 확인(ACK)! 안전하게 큐에서 삭제합니다.` |
+
+> **🔍 분석**: 관제탑에서 약 **3.5초** 후 KEEP 결정. 합짐 필터 즉시 적용 — 차종이 `[다마스, 라보, 오토바이]` + `isSharedMode=true`로 변환됨. Piggyback V2 프로토콜 ACK 정상 완료.
+
+---
+
+### 🚀 [STEP 7] "합짐" 레이더망 가동 — 2차콜 다중경유 낚아채기
+
+#### 🔴 [STEP 7-A] 합짐 시도 #1: 분당구 → 구로구 | 54,000원 오토바이 | 결과: **CANCEL (똥)**
+
+| 시각 | 플랫폼 | 로그 |
+|---|---|---|
+| 13:32:16.955 | 📱앱 | `[ROADMAP] [LIST] 📡 화면 변경 감지 \| 모드: AUTO` |
+| 13:32:16.959 | 📱앱 | `🔍 [타겟 콜 필터 결과] 차종(오)=✅ 도착지(0중 구로구)=✅ 요금(0 <= 54000)=✅ 상차지/거리(999 >= 8.5km)=✅ 블랙()=✅` |
+| 13:32:16.960 | 📱앱 | `💥 [AUTO] 꿀콜 조건 통과! 대상 콜 강제 터치 진행!` |
+| 13:32:17.014 | 📱앱 | `✅ [가로채기 성공!] 화면 좌표 (X:917.0, Y:568.0) 터치 완료!` |
+| 13:32:17.143 | 📱앱 | `🚀 [AUTO] 확정 버튼 광클 (배차 시도)` |
+| 13:32:17.143 | 📱앱 | `📤 [post /confirm request] ...물품 : 박스 1개 차량 : 오...요금 : 54,000(신용)...형태 : 보통...` |
+| 13:32:17.868 | ☁️서버 | `⏱️ [1차 선빵 수신] 분당구 ➡️ 구로구 (기기: 앱폰-sdk_gpho-160)` |
+| 13:32:17.868 | ☁️서버 | `📤 [Socket 푸시] order-evaluating (e182e187)` |
+| | | *(무인 서핑: 적요→출발지→도착지 완료)* |
+| 13:32:18.775 | ☁️서버 | `[ROADMAP] 앱폰으로 부터 무인서핑이 완료된 '2차 오더 상세' 요청 받음` |
+| 13:32:18.776 | ☁️서버 | `[서버-사이드 카카오 연산] 🚀 경기 성남시 분당구 정자일로 95 네이버 1784 ➡️ 서울 구로구 경인로 662 디큐브시티` |
+| 13:32:18.895 | ☁️서버 | `💡 상태: [합짐] 우회 동선 연산` |
+| | ☁️서버 | `기존 본콜: 경기 광주시 경안동 167-1 경안천 체육공원 ➡️ 경기 고양시 덕양구 고양대로 1955 스타필드 고양` |
+| | ☁️서버 | `추가 경유: 경기 성남시 분당구 정자일로 95 네이버 1784 ➡️ 서울 구로구 경인로 662 디큐브시티` |
+| | ☁️서버 | `🚙 Waypoints Count: 3` |
+| 13:32:20.341 | ☁️서버 | `⚠️ 패널티 결과: **+16.9km, +69분 '똥'** (현위치접근: 6.5km, 15분)` |
+| 13:32:20.342 | ☁️서버 | `📤 [Socket 푸시] order-evaluated (e182e187)` |
+| 13:32:20.342 | ☁️서버 | `🔎 [카카오 연산 완료] +16.9km, +69분 '똥' \| Polyline 길이: 1265` |
+| 13:32:24.047 | ☁️서버 | `⚖️ [소켓 Decision] ID: e182e187, Action: CANCEL` |
+| 13:32:24.047 | ☁️서버 | `📦 [Piggyback V2] 관제탑 판결(CANCEL)을 큐에 기록.` |
+| 13:32:24.047 | ☁️서버 | `[ROADMAP] 취소된 콜을 메모리 큐에서 삭제 처리 연산` |
+| 13:32:24.047 | ☁️서버 | `[ROADMAP] 기존 디폴트 설정값으로 필터 복구 연산` |
+| 13:32:23.479 | 📱앱 | `⚡ [Piggyback Decision 수신] orderId: e182e187, action: CANCEL` |
+| 13:32:23.993 | 📱앱 | `'취소' 버튼 인식 ➡️ 클릭 시도` |
+| 13:32:24.047 | 📱앱 | `✅ [가로채기 성공!] 화면 좌표 (X:950.0, Y:478.0) 터치 완료!` (취소) |
+| 13:32:23.995 | 📱앱 | `🔄 [원래 하던 모드(유지된 필터)로 PHASE 2 무한 루프 회귀] 🔄` |
+
+> **❌ 사유**: 분당→구로 우회 시 +69분 추가 소요. 본콜 직진 대비 비효율적이므로 '똥' 판정 → CANCEL.
+
+---
+
+#### 🔴 [STEP 7-B] 합짐 시도 #2: 분당구 → 송내동 | 67,000원 오토바이 | 결과: **CANCEL (똥)**
+
+| 시각 | 플랫폼 | 로그 |
+|---|---|---|
+| 13:32:24.210 | 📱앱 | `🔍 [타겟 콜 필터 결과] 차종(오)=✅ 도착지(0중 송내동)=✅ 요금(0 <= 67000)=✅ 상차지/거리(999 >= 8.5km)=✅ 블랙()=✅` |
+| 13:32:24.265 | 📱앱 | `✅ [가로채기 성공!] 화면 좌표 (X:917.0, Y:568.0) 터치 완료!` |
+| 13:32:24.402 | 📱앱 | `🚀 [AUTO] 확정 버튼 광클 (배차 시도)` |
+| 13:32:25.131 | ☁️서버 | `⏱️ [1차 선빵 수신] 분당구 ➡️ 송내동` |
+| 13:32:25.963 | ☁️서버 | `[서버-사이드 카카오 연산] 🚀 경기 성남시 분당구 판교역로 146 현대백화점 판교점 ➡️ 경기 부천시 송내동 부일로 232 송내역` |
+| 13:32:27.634 | ☁️서버 | `💡 상태: [합짐] 우회 동선 연산` |
+| | ☁️서버 | `🚙 Waypoints Count: 3` |
+| 13:32:28.686 | ☁️서버 | `⚠️ 패널티 결과: **+34.1km, +46분 '똥'** (현위치접근: 6.5km, 15분)` |
+| 13:32:28.688 | ☁️서버 | `🔎 [카카오 연산 완료] +34.1km, +46분 '똥' \| Polyline 길이: 1166` |
+| 13:32:31.493 | ☁️서버 | `⚖️ [소켓 Decision] ID: 5515b641, Action: CANCEL` |
+| 13:32:31.559 | 📱앱 | `⚡ [Piggyback Decision 수신] orderId: 5515b641, action: CANCEL` |
+| 13:32:32.062 | 📱앱 | `'취소' 버튼 인식 ➡️ 클릭 시도` |
+| 13:32:32.063 | 📱앱 | `🔄 [원래 하던 모드(유지된 필터)로 PHASE 2 무한 루프 회귀] 🔄` |
+
+> **❌ 사유**: 분당→송내(부천) 우회 시 +34.1km, +46분. 경기 서남쪽으로 크게 벗어나므로 '똥' → CANCEL.
+
+---
+
+#### 🟢 [STEP 7-C] 합짐 시도 #3: 태전동 → 송파구 | 33,000원 오토바이 | 결과: **✅ KEEP (콜)**
+
+| 시각 | 플랫폼 | 로그 |
+|---|---|---|
+| 13:32:32.259 | 📱앱 | `🔍 [타겟 콜 필터 결과] 차종(오)=✅ 도착지(0중 송파구)=✅ 요금(0 <= 33000)=✅ 상차지/거리(999 >= 3.8km)=✅ 블랙()=✅` |
+| 13:32:32.312 | 📱앱 | `✅ [가로채기 성공!] 화면 좌표 (X:917.0, Y:664.0) 터치 완료!` |
+| 13:32:32.444 | 📱앱 | `🚀 [AUTO] 확정 버튼 광클 (배차 시도)` |
+| 13:32:33.170 | ☁️서버 | `⏱️ [1차 선빵 수신] 태전동 ➡️ 송파구` |
+| 13:32:33.997 | ☁️서버 | `[서버-사이드 카카오 연산] 🚀 경기 광주시 태전동 409-1 광주태전우체국 ➡️ 서울 송파구 충민로 66 가든파이브` |
+| 13:32:34.147 | ☁️서버 | `💡 상태: [합짐] 우회 동선 연산` |
+| | ☁️서버 | `기존 본콜: 경안동 체육공원 ➡️ 덕양구 스타필드 고양` |
+| | ☁️서버 | `추가 경유: 태전동 광주태전우체국 ➡️ 송파구 가든파이브` |
+| | ☁️서버 | `🚙 Waypoints Count: 3` |
+| 13:32:35.393 | ☁️서버 | `⚠️ 패널티 결과: **+15.8km, +34분 '콜'** (현위치접근: 6.5km, 15분)` |
+| 13:32:35.395 | ☁️서버 | `🔎 [카카오 연산 완료] +15.8km, +34분 '콜' \| Polyline 길이: 1050` |
+| 13:32:37.908 | ☁️서버 | `⚖️ [소켓 Decision] ID: 2fa61308, Action: KEEP` |
+| 13:32:37.909 | ☁️서버 | `[ROADMAP] 관제탑으로 부터 Keep 결재 요청 받음` |
+| 13:32:38.254 | ☁️서버 | `[ROADMAP] 해당 콜을 '메인콜' (또는 서브콜) 로 승격 및 병합 궤적 생성 연산` |
+| 13:32:37.592 | 📱앱 | `⚡ [Piggyback Decision 수신] orderId: 2fa61308, action: KEEP` |
+| 13:32:37.592 | 📱앱 | `⚡ 판결 집행: 행동=KEEP, 누를버튼=닫기 (버튼클릭을 시작합니다), 500ms 지연` |
+| | 📱앱 | `📋 [필터 동기화] FilterConfig(allowedVehicleTypes=[다마스, 라보, 오토바이], isActive=true, isSharedMode=true, destinationKeywords=[가능동...효자동 총 153개], customCityFilters=[종로구...양주 총 46개])` |
+| 13:32:38.159 | 📱앱 | `✅ [가로채기 성공!] 화면 좌표 (X:122.0, Y:2251.0) 터치 완료!` (닫기) |
+| 13:32:38.106 | 📱앱 | `🔓 isHolding = false 락 해제. 다음 타겟을 향한 새로운 "합짐 사냥" 감시 돌입` |
+| 13:32:38.107 | 📱앱 | `🔄 [새로운 타겟(합짐) 사냥을 위해 PHASE 2 로 무한 루프 회귀] 🔄` |
+| 13:32:38.524 | ☁️서버 | `🧹 [Piggyback V2] 기사님 폰에서 2fa61308 판결 수신 확인(ACK)! 안전하게 큐에서 삭제합니다.` |
+
+> **✅ 사유**: 태전동→송파구 경유는 본콜 경로에서 크게 벗어나지 않아 +15.8km/+34분으로 **'콜'** 등급 확보. 합짐 승인 후 필터에 153개 `destinationKeywords` + 46개 `customCityFilters`가 적용되어 더 정밀한 3차 합짐 필터링 돌입.
+
+---
+
+#### 🔴 [STEP 7-D] 합짐 시도 #4: 송정동 → 남한산성면 | 30,000원 오토바이 | 결과: **CANCEL (똥)**
+
+| 시각 | 플랫폼 | 로그 |
+|---|---|---|
+| 13:32:38.333 | 📱앱 | `🔍 [타겟 콜 필터 결과] 차종(오)=✅ 도착지(153중 남한산성면)=✅ 요금(0 <= 30000)=✅ 상차지/거리(999 >= 1.9km)=✅ 블랙()=✅` |
+| 13:32:38.386 | 📱앱 | `✅ [가로채기 성공!] 화면 좌표 (X:917.0, Y:568.0) 터치 완료!` |
+| 13:32:38.517 | 📱앱 | `[ROADMAP] [DETAIL_PRE_CONFIRM] 상세페이지 텍스트 추출 및 2차 필터(적요 등) 통과 확인` |
+| | 📱앱 | `🔍 [2차 상세 필터] 시/도 통과=true, 최종결과=true \| 대상문자열: 도착지[착]남한산성면` |
+| 13:32:38.524 | 📱앱 | `🚀 [AUTO] 확정 버튼 광클 (배차 시도)` |
+| 13:32:39.254 | ☁️서버 | `⏱️ [1차 선빵 수신] 송정동 ➡️ 남한산성면` |
+| 13:32:40.052 | ☁️서버 | `[서버-사이드 카카오 연산] 🚀 경기 광주시 송정동 532-2 광주시립 중앙도서관 ➡️ 경기 광주시 남한산성면 남한산성로 731 남한산성` |
+| 13:32:40.170 | ☁️서버 | `💡 상태: [합짐] 우회 동선 연산` |
+| | ☁️서버 | `기존 본콜 + 서브콜 + 추가 경유 (5중 경유지)` |
+| | ☁️서버 | `🚙 Waypoints Count: 5` |
+| 13:32:41.392 | ☁️서버 | `⚠️ 패널티 결과: **+25.2km, +69분 '똥'** (현위치접근: 6.5km, 15분)` |
+| 13:32:41.394 | ☁️서버 | `🔎 [카카오 연산 완료] +25.2km, +69분 '똥' \| Polyline 길이: 1479` |
+| 13:32:43.307 | ☁️서버 | `⚖️ [소켓 Decision] ID: 0b9d973b, Action: CANCEL` |
+| 13:32:42.660 | 📱앱 | `⚡ [Piggyback Decision 수신] orderId: 0b9d973b, action: CANCEL` |
+| 13:32:43.165 | 📱앱 | `'취소' 버튼 인식 ➡️ 클릭 시도` |
+| 13:32:43.230 | 📱앱 | `✅ [가로채기 성공!] 화면 좌표 (X:950.0, Y:478.0) 터치 완료!` (취소) |
+| 13:32:43.169 | 📱앱 | `🔄 [원래 하던 모드(유지된 필터)로 PHASE 2 무한 루프 회귀] 🔄` |
+
+> **❌ 사유**: 이미 3중 경유(본콜 + 서브콜) 상태에서 남한산성면 추가 시 5중 경유지가 됨. +25.2km/+69분으로 '똥' → CANCEL. Waypoints가 5개로 증가하면서 연산 복잡도 상승 (Polyline 1479개).
+
+---
+
+### 🏁 [STEP 7-END] 합짐 사냥 지속 감시 (필터 불통과)
+
+| 시각 | 플랫폼 | 로그 |
+|---|---|---|
+| 13:32:43.388 | 📱앱 | `🔍 [타겟 콜 필터 결과] 차종(오)=✅ 도착지(153중 파주읍)=**❌** 요금(0 <= 104000)=✅` |
+| 13:32:43.391 | 📱앱 | `🔍 [타겟 콜 필터 결과] 차종(오)=✅ 도착지(153중 중구)=**❌** 요금(0 <= 97000)=✅` |
+| 13:32:43.392 | 📱앱 | `🔍 [타겟 콜 필터 결과] 차종(오)=✅ 도착지(153중 기흥구)=**❌** 요금(0 <= 39000)=✅` |
+| 13:32:46.179 | 📱앱 | `🔍 [타겟 콜 필터 결과] 차종(1t)=**❌** 도착지(153중 강남구)=**❌** 요금(0 <= 47000)=✅` |
+
+> **🔍 분석**: 4차 시도 CANCEL 이후 합짐 필터(153개 동네 키워드)에 해당하지 않는 콜들만 리스트에 등장하여 모두 필터 ❌ 불통과. 시스템은 계속 LIST 감시 모드로 대기.
+
+---
+
+### 🚨 [STEP 8] 관제탑 무응답 & 데스밸리 방어기동
+
+> **이번 세션에서는 발동하지 않았습니다.** 모든 관제탑 판결이 30초 데스밸리 타임아웃 이내에 정상 도착하였습니다.
+
+---
+
+## 📈 종합 성과 분석
+
+### 🗺️ 확정된 운행 경로
+
+```
+[현위치] 경기 광주시 (37.3766, 127.2944)
+    │ 6.5km, 15분
+    ▼
+[메인콜 상차] 경기 광주시 경안동 167-1 경안천 체육공원
+    │
+    ├─[서브콜 상차] 경기 광주시 태전동 409-1 광주태전우체국
+    │
+    ├─[서브콜 하차] 서울 송파구 충민로 66 가든파이브
+    │
+    ▼
+[메인콜 하차] 경기 고양시 덕양구 고양대로 1955 스타필드 고양
+```
+
+### 📊 합짐 판정 결과표
+
+| # | 출발지 | 도착지 | 요금 | 우회거리 | 우회시간 | 등급 | 판정 |
+|---|---|---|---|---|---|---|---|
+| 1 | 분당구 정자일로 95 (네이버1784) | 구로구 경인로 662 (디큐브시티) | 54,000 | +16.9km | +69분 | 💩 똥 | ❌ CANCEL |
+| 2 | 분당구 판교역로 146 (현대백화점) | 부천시 송내동 부일로 232 (송내역) | 67,000 | +34.1km | +46분 | 💩 똥 | ❌ CANCEL |
+| 3 | 광주시 태전동 409-1 (태전우체국) | 송파구 충민로 66 (가든파이브) | 33,000 | +15.8km | +34분 | 📦 콜 | ✅ KEEP |
+| 4 | 광주시 송정동 532-2 (중앙도서관) | 남한산성면 남한산성로 731 (남한산성) | 30,000 | +25.2km | +69분 | 💩 똥 | ❌ CANCEL |
+
+### ⏱️ 시스템 퍼포먼스
+
+| 지표 | 값 |
+|---|---|
+| 리스트 감지→터치 (Step 2) | 86ms |
+| 상세진입→확정 (Step 3) | 5ms |
+| 무인서핑 3팝업 완료 (Step 4) | 607ms |
+| 카카오 파이프라인 (Step 5) | 579ms |
+| Piggyback ACK 라운드트립 | ~1초 |
+| 합짐 1사이클 (선점→판결→복귀) | 약 6~8초 |
+| 전체 세션 (기동→마지막 터치) | 약 37초 |
+
+---
+
+> **📝 리포트 생성 완료** — 2026-04-20 | 대상 폴더: `0420_0250`

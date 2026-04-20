@@ -11,7 +11,7 @@
  *   - APP_CRASH: 앱 비정상 종료 후 재시작
  * 
  * 서버 처리:
- *   1. pendingDetailRequests에서 해당 orderId 삭제 (롱폴링 해제)
+ *   1. pendingDecisions 큐에서 해당 orderId 삭제 및 데스밸리 타이머(activeTimers) 해제
  *   2. pendingOrdersData에서 해당 orderId 삭제
  *   3. mainCallState가 해당 orderId면 null로 초기화 + 필터 '첫짐'으로 복원
  *   4. 관제탑에 emergency-alert emit
@@ -59,14 +59,18 @@ router.post("/", (req, res) => {
 
         const io = req.app.get("io");
 
-        if (session.pendingDetailRequests.has(targetOrderId)) {
-            const heldRes = session.pendingDetailRequests.get(targetOrderId);
-            session.pendingDetailRequests.delete(targetOrderId);
-            if (heldRes && !heldRes.headersSent) {
-                heldRes.status(408).json({ error: "Emergency Timeout Cleaned" });
-            }
-            console.log(`   ✅ 롱폴링 파이프 무음 해제 완료`);
+        if (session.pendingDecisions.has(targetOrderId)) {
+            session.pendingDecisions.delete(targetOrderId);
+            console.log(`   ✅ 결재 큐(pendingDecisions) 삭제 완료`);
         }
+
+        const warnTimer = session.activeTimers.get(`warn_${targetOrderId}`);
+        const timeoutTimer = session.activeTimers.get(`timeout_${targetOrderId}`);
+        if (warnTimer) clearTimeout(warnTimer);
+        if (timeoutTimer) clearTimeout(timeoutTimer);
+        session.activeTimers.delete(`warn_${targetOrderId}`);
+        session.activeTimers.delete(`timeout_${targetOrderId}`);
+        console.log(`   ✅ 롱폴링 대응 데스밸리 타이머 무음 해제 완료`);
 
         if (session.pendingOrdersData.has(targetOrderId)) {
             session.pendingOrdersData.delete(targetOrderId);

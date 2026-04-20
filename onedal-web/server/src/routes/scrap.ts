@@ -11,13 +11,14 @@ const router = Router();
 // POST: 탈락 콜 빅데이터 수신 (오답노트용) 및 하트비트
 router.post("/", (req, res) => {
     try {
-        const { data, deviceId, screenContext, isHolding, lat, lng } = req.body as {
+        const { data, deviceId, screenContext, isHolding, lat, lng, ackDecisionId } = req.body as {
             data: SimplifiedOfficeOrder[],
             deviceId?: string,
             screenContext?: ScreenContextType,  // [Safety Mode V3] 앱폰 화면 상태 (물리적 페이지)
             isHolding?: boolean,                // [Page/Hold 분리] 콜 처리 중 여부
             lat?: number,                       // [GPS 텔레메트리] 앱폰 위도
-            lng?: number                        // [GPS 텔레메트리] 앱폰 경도
+            lng?: number,                       // [GPS 텔레메트리] 앱폰 경도
+            ackDecisionId?: string              // [Piggyback V2] 앱이 수신 확인한 오더 ID
         };
 
         if (!data || !Array.isArray(data)) {
@@ -76,9 +77,51 @@ router.post("/", (req, res) => {
         logRoadmapEvent("서버", "관제탑에게 실시간 마커용 GPS(device-sessions-updated) 정보 전달");
         const session = getUserSession(userId);
 
+        // 3.5. [Piggyback V2] ACK 처리 및 결재(Decision) 탑재 로직
+        let piggybackDecision = undefined;
+
+        if (deviceId) {
+            // 앱이 "저번 결재 무사히 받았습니다" (ACK) 라고 보고하면, 큐와 타이머에서 깨끗이 지워줍니다.
+            if (ackDecisionId && session.pendingDecisions.has(ackDecisionId)) {
+                // 타이머 청소
+                const warnTimer = session.activeTimers.get(`warn_${ackDecisionId}`);
+                const timeoutTimer = session.activeTimers.get(`timeout_${ackDecisionId}`);
+                if (warnTimer) clearTimeout(warnTimer);
+                if (timeoutTimer) clearTimeout(timeoutTimer);
+                session.activeTimers.delete(`warn_${ackDecisionId}`);
+                session.activeTimers.delete(`timeout_${ackDecisionId}`);
+
+                // 큐에서 제거
+                session.pendingDecisions.delete(ackDecisionId);
+
+                // deviceEvaluatingMap 정리 (이 매핑은 Piggyback 전달 완료 후 여기서 삭제)
+                Array.from(session.deviceEvaluatingMap.entries()).forEach(([k, v]) => {
+                    if (v === ackDecisionId) session.deviceEvaluatingMap.delete(k);
+                });
+
+                console.log(`🧹 [Piggyback V2] 기사님 폰에서 ${ackDecisionId} 판결 수신 확인(ACK)! 안전하게 큐에서 삭제합니다.`);
+            }
+
+            // 현재 이 기사님이 확정(Confirm)을 누르고 결재를 기다리는 콜이 있는지 찾습니다.
+            const evaluatingOrderId = session.deviceEvaluatingMap.get(deviceId);
+            if (evaluatingOrderId) {
+                // 관제탑이 결재를 내렸는지(KEEP/CANCEL) 큐를 뒤져봅니다.
+                const decisionData = session.pendingDecisions.get(evaluatingOrderId);
+                if (decisionData && decisionData.action !== null) {
+                    // 관제탑 결재가 떨어졌습니다! Piggyback으로 태워서 보냅니다.
+                    piggybackDecision = {
+                        orderId: evaluatingOrderId,
+                        action: decisionData.action // "KEEP" or "CANCEL"
+                    };
+                    console.log(`📦 [Piggyback V2] 텔레메트리 편에 결재(${decisionData.action})를 태워 보냅니다! (orderId: ${evaluatingOrderId})`);
+                }
+            }
+        }
+
         logRoadmapEvent("서버", "앱폰에게 최신 필터(dispatchEngineArgs) 및 제어 명령 정보 전달");
         // 4. 응답 (해당 유저의 필터값 및 제어 명령 송신)
         res.json({
+            success: true,
             apiStatus: {
                 success: true,
                 totalItems: totalScrap
@@ -86,7 +129,8 @@ router.post("/", (req, res) => {
             deviceControl: {
                 mode: deviceMode
             },
-            dispatchEngineArgs: session.activeFilter
+            dispatchEngineArgs: session.activeFilter,
+            decision: piggybackDecision
         });
     } catch (error) {
         console.error("Scrap POST 에러:", error);

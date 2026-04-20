@@ -67,7 +67,7 @@ router.post("/google", async (req, res) => {
         const accessToken = jwt.sign(
             { id: userRow.id, email: userRow.email, name: userRow.name, role: userRow.role },
             secret,
-            { expiresIn: "1h" }
+            { expiresIn: "30d" }
         );
 
         // 4. 14일짜리 Refresh Token 발급 및 DB 저장 (다중 기기 동시 지원 방식)
@@ -152,7 +152,7 @@ router.post("/refresh", async (req, res) => {
         const newAccessToken = jwt.sign(
             { id: userRow.id, email: userRow.email, name: userRow.name, role: userRow.role },
             secret,
-            { expiresIn: "1h" }
+            { expiresIn: "30d" }
         );
 
         return res.json({ accessToken: newAccessToken });

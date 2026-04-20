@@ -21,6 +21,7 @@ class TelemetryManager(
     companion object {
         private const val TAG = "1DAL_TELEMETRY"
         private const val HEARTBEAT_INTERVAL_MS = 60000L // 60초 (빈 통신)
+        private const val FAST_POLLING_MS = 1000L // 1.0초 (관제탑 결재 대기 시 короткий 폴링)
         private const val DEBOUNCE_MS = 300L // 콜 수집 후 모아쏘기 위한 디바운스 대기시간
     }
 
@@ -35,6 +36,17 @@ class TelemetryManager(
     // [Page/Hold 분리] 콜 처리 중 여부 (확정 클릭 ~ 리스트 복귀)
     @Volatile
     var isHolding: Boolean = false
+
+    // [Piggyback V2] 관제탑 결재 대기 여부 (1.0초 단위 Short Polling 발동 조건)
+    var isWaitingDecision: Boolean = false
+        set(value) {
+            val changed = field != value
+            field = value
+            if (changed) resetHeartbeatTimer()
+        }
+
+    // [Piggyback V2] 결재 수신 콜백
+    var decisionCallback: ((String, String) -> Unit)? = null
 
     // 하트비트용 (주기적)
     private val heartbeatRunnable = object : Runnable {
@@ -160,10 +172,15 @@ class TelemetryManager(
         }
         */
 
-        apiClient.sendScrapTelemetry(payload) { mode ->
-            currentMode = mode
-            AppLogger.d(TAG, "📥 [서버 수신] $triggerStr 완료 (수신된 모드: $mode)")
-        }
+        // [Piggyback V2] ackDecisionId는 ApiClient 내부에서 결합하므로 여기서는 전달 생략 
+        apiClient.sendScrapTelemetry(
+            payload = payload,
+            onModeReceived = { mode ->
+                currentMode = mode
+                AppLogger.d(TAG, "📥 [서버 수신] $triggerStr 완료 (수신된 모드: $mode)")
+            },
+            onDecisionReceived = decisionCallback
+        )
 
         // 통신을 방금 했으므로, 다음 하트비트 시점을 20초 뒤로 연기함
         resetHeartbeatTimer()
@@ -172,7 +189,8 @@ class TelemetryManager(
     private fun resetHeartbeatTimer() {
         handler.removeCallbacks(heartbeatRunnable)
         if (isRunning) {
-            handler.postDelayed(heartbeatRunnable, HEARTBEAT_INTERVAL_MS)
+            val interval = if (isWaitingDecision) FAST_POLLING_MS else HEARTBEAT_INTERVAL_MS
+            handler.postDelayed(heartbeatRunnable, interval)
         }
     }
 }

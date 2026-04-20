@@ -1,5 +1,5 @@
 import { mapVehicleToKakaoCarType } from "@onedal/shared";
-import type { DispatchConfirmResponse, SecuredOrder, AutoDispatchFilter } from "@onedal/shared";
+import type { SecuredOrder, AutoDispatchFilter } from "@onedal/shared";
 import { geocodeAddress, calculateSoloRoute, calculateDetourRoute } from "../routes/kakaoUtil";
 import { getUserSession } from "../state/userSessionStore";
 import { optimizeWaypoints } from "../utils/routeOptimizer";
@@ -23,13 +23,16 @@ export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: 
     if (session.pendingOrdersData.has(orderId)) {
         session.pendingOrdersData.delete(orderId);
     }
-    if (session.pendingDetailRequests.has(orderId)) {
-        const heldRes = session.pendingDetailRequests.get(orderId);
-        session.pendingDetailRequests.delete(orderId);
-        if (heldRes && !heldRes.headersSent) {
-            heldRes.status(408).json({ error: "Background Force Cleaned" });
-        }
+    // [Option B] 결재 큐 및 데스밸리 타이머 청소
+    if (session.pendingDecisions.has(orderId)) {
+        session.pendingDecisions.delete(orderId);
     }
+    const warnTimer = session.activeTimers.get(`warn_${orderId}`);
+    const timeoutTimer = session.activeTimers.get(`timeout_${orderId}`);
+    if (warnTimer) clearTimeout(warnTimer);
+    if (timeoutTimer) clearTimeout(timeoutTimer);
+    session.activeTimers.delete(`warn_${orderId}`);
+    session.activeTimers.delete(`timeout_${orderId}`);
     Array.from(session.deviceEvaluatingMap.entries()).forEach(([k, v]) => {
         if (v === orderId) session.deviceEvaluatingMap.delete(k);
     });
@@ -311,19 +314,26 @@ export const syncCorridorFilter = (userId: string, io: any) => {
 /** 관제사 최종 판정 처리 */
 export async function handleDecision(userId: string, orderId: string, action: 'KEEP' | 'CANCEL', io: any) {
     const session = getUserSession(userId);
-    const heldRes = session.pendingDetailRequests.get(orderId);
 
-    if (heldRes && !heldRes.headersSent) {
-        session.pendingDetailRequests.delete(orderId);
-        const deviceResponse: DispatchConfirmResponse = { deviceId: 'server', action };
-        if (action === 'KEEP') logRoadmapEvent("서버", "앱폰에게 Action=Keep 최종 판결 응답 전달");
-        else logRoadmapEvent("서버", "앱폰에게 Action=Cancel 최종 판결 응답 전달");
-        heldRes.json(deviceResponse);
+    // [Option B] Piggyback 결재 기록: pendingDecisions에 action을 기록하면
+    // 다음 1.0초 텔레메트리(/scrap) 응답에 이 결재가 태워져서 앱으로 전달됩니다.
+    if (session.pendingDecisions.has(orderId)) {
+        const decisionData = session.pendingDecisions.get(orderId)!;
+        decisionData.action = action;
+        if (action === 'KEEP') logRoadmapEvent("서버", "앱폰에게 Action=Keep 최종 판결 Piggyback 등록");
+        else logRoadmapEvent("서버", "앱폰에게 Action=Cancel 최종 판결 Piggyback 등록");
+        console.log(`📦 [Piggyback V2] 관제탑 판결(${action})을 큐에 기록. 다음 텔레메트리에 태워 보냅니다. (orderId: ${orderId})`);
+    } else {
+        // pendingDecisions에 없는 경우 (이미 타임아웃으로 삭제되었거나, MANUAL 건)
+        if (action === 'KEEP') logRoadmapEvent("서버", "앱폰에게 Action=Keep 최종 판결 응답 전달 (즉시)");
+        else logRoadmapEvent("서버", "앱폰에게 Action=Cancel 최종 판결 응답 전달 (즉시)");
+        console.log(`⚠️ [Piggyback V2] pendingDecisions에 ${orderId}가 없습니다. (MANUAL 건이거나 이미 타임아웃 처리됨)`);
     }
 
-    Array.from(session.deviceEvaluatingMap.entries()).forEach(([k, v]) => {
-        if (v === orderId) session.deviceEvaluatingMap.delete(k);
-    });
+    // [Piggyback V2] deviceEvaluatingMap은 여기서 절대 삭제하지 않습니다!
+    // KEEP이든 CANCEL이든 앱이 다음 /scrap 폴링으로 decision을 가져가야 하므로
+    // scrap.ts → deviceEvaluatingMap.get(deviceId) 조회가 성공해야 합니다.
+    // 실제 삭제는 scrap.ts의 ACK 처리 블록에서만 수행합니다.
 
     if (action === 'CANCEL' && io) {
         logRoadmapEvent("서버", "관제탑으로 부터 Cancel 결재 요청 받음");

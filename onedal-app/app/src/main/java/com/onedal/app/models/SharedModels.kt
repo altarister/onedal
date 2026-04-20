@@ -133,14 +133,22 @@ data class ScrapPayload(
     val screenContext: String? = null,  // [Safety Mode V3] 현재 화면 상태 (물리적 페이지)
     val isHolding: Boolean = false,     // [Page/Hold 분리] 콜 처리 중 여부
     val lat: Double? = null,            // [GPS 텔레메트리] 앱폰(차량) 위도
-    val lng: Double? = null             // [GPS 텔레메트리] 앱폰(차량) 경도
+    val lng: Double? = null,            // [GPS 텔레메트리] 앱폰(차량) 경도
+    val ackDecisionId: String? = null   // [Piggyback] 수신 확인 응답용 ID
 )
 
 // 서버 응답 (Piggyback 통신: 상태, 통계, 제어명령, 최신 필터를 구조화하여 한 번에 태워보냄)
 data class ScrapResponse(
+    val success: Boolean,
     val apiStatus: ApiStatus,
     val deviceControl: DeviceControl,
-    val dispatchEngineArgs: Map<String, Any>? = null
+    val dispatchEngineArgs: FilterConfig?,
+    val decision: DecisionPayload? = null
+)
+
+data class DecisionPayload(
+    val orderId: String,
+    val action: String
 )
 
 data class ApiStatus(
