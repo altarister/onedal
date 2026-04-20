@@ -23,15 +23,13 @@ export function getAddressLabel(addr: string) {
     const parts = addr.split(' ');
     if (parts.length <= 1) return addr;
 
-    const city = parts[1] || "";
-
     // 1순위: 동/읍/면 또는 종로3가 같은 '가' 로 끝나는 법정동 탐색
-    const dong = parts.find((p, idx) => idx >= 2 && (p.match(/[동읍면]$/) || p.match(/\d+가$/)));
-    if (dong) return `${city} ${dong}`.trim();
+    const dong = parts.find((p, idx) => idx >= 1 && (p.match(/[동읍면]$/) || p.match(/\d+가$/)));
+    if (dong) return dong;
 
     // 2순위: 1기 신도시처럼 '구' 단위까지만 나오는 경우 
-    const gu = parts.find((p, idx) => idx >= 2 && p.endsWith('구'));
-    if (gu) return `${city} ${gu}`.trim();
+    const gu = parts.find((p, idx) => idx >= 1 && p.endsWith('구'));
+    if (gu) return gu;
 
-    return city;
+    return parts[1] || parts[0];
 }

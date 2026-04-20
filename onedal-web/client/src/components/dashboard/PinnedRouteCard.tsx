@@ -47,7 +47,7 @@ export default function PinnedRouteCard({
                 className={`px-2 py-1 flex justify-between items-center w-full text-sm tracking-tight ${!isEvaluating ? 'cursor-pointer group hover:bg-white/5' : ''}`}
             >
                 <div className="flex items-center gap-1 truncate text-slate-300 flex-1">
-                    <span className="text-slate-500 font-bold mr-1 text-[11px] bg-slate-800 px-1.5 py-0.5 rounded-md">#{indexNum}</span>
+                    <span className="text-slate-500 font-bold mr-1 text-[11px] bg-slate-800/80 px-1.5 py-0.5 rounded">#{indexNum}</span>
                     <span className={`${isEvaluating ? 'text-amber-400' : 'text-emerald-400'} flex-shrink-0 flex items-center`}>
                         {pLabel}. {getAddressLabel(route.pickup)}{etas?.pickupEta && <span className="text-emerald-200 ml-0.5">({etas.pickupEta})</span>}
                     </span>
