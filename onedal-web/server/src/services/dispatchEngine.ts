@@ -1,6 +1,7 @@
 import { mapVehicleToKakaoCarType } from "@onedal/shared";
 import type { SecuredOrder, AutoDispatchFilter } from "@onedal/shared";
 import { geocodeAddress, calculateSoloRoute, calculateDetourRoute } from "../routes/kakaoUtil";
+import { fetchRealWorldRoute } from "../routes/osrmUtil";
 import { getUserSession } from "../state/userSessionStore";
 import { optimizeWaypoints } from "../utils/routeOptimizer";
 import { getCorridorRegions } from "../services/geoService";
@@ -541,6 +542,8 @@ export async function evaluateNewOrder(userId: string, securedOrder: SecuredOrde
                     securedOrder.routePolyline = result.polyline;
                     securedOrder.totalDistanceKm = parseFloat(distKm);
                     securedOrder.totalDurationMin = durationMin;
+                    securedOrder.kakaoSoloDistanceKm = parseFloat(distKm);
+                    securedOrder.kakaoSoloDurationMin = durationMin;
 
                     const appDist = result.approachDistance ? (result.approachDistance/1000).toFixed(1) : '?';
                     const appTime = result.approachDuration ? Math.round(result.approachDuration/60) : '?';
@@ -553,6 +556,30 @@ export async function evaluateNewOrder(userId: string, securedOrder: SecuredOrde
                     console.log(`   - 💡 상태: [합짐] 우회 동선 연산`);
                     console.log(`   - 기존 본콜: ${session.mainCallState.pickup} ➡️ ${session.mainCallState.dropoff}`);
                     console.log(`   - 추가 경유: ${securedOrder.pickup} ➡️ ${securedOrder.dropoff}`);
+
+                    // 단일 콜 값 (추가 API 호출 방지 및 쿼터 절약을 위해 안드로이드에서 파싱한 거리값 재활용)
+                    // (앱에서 '거리: 52.9' 처럼 파싱된 distanceKm이 이미 존재합니다.)
+                    securedOrder.kakaoSoloDistanceKm = securedOrder.distanceKm || 0;
+                    // 소요시간은 대략 도심 평균(시속 본콜 환산 기준)으로 유추하거나, 제외할 수 있습니다. 
+                    // 여기서는 1km당 1.5분(40km/h) 정도로 러프하게 유추합니다.
+                    securedOrder.kakaoSoloDurationMin = securedOrder.distanceKm ? Math.round(securedOrder.distanceKm * 1.5) : 0;
+
+                    // OSRM 무료 엔진 호출을 활용한 단독 주행 연산 (UI 표출 우선 순위값 확보용)
+                    try {
+                        const osrmResult = await fetchRealWorldRoute([
+                            { name: 'pickup', centroid: [securedOrder.pickupX, securedOrder.pickupY!] },
+                            { name: 'dropoff', centroid: [securedOrder.dropoffX!, securedOrder.dropoffY!] }
+                        ]);
+                        if (osrmResult) {
+                            securedOrder.osrmSoloDistanceKm = osrmResult.totalDistanceKm;
+                            securedOrder.osrmSoloDurationMin = Math.round(osrmResult.durationSeconds / 60);
+                        } else {
+                            securedOrder.osrmError = "경로결과 없음";
+                        }
+                    } catch (osrmError: any) {
+                        console.warn("OSRM 단독 경로 연산 실패 (방어 로직 발동)", osrmError.message);
+                        securedOrder.osrmError = osrmError.message || "통신오류/타임아웃";
+                    }
 
                     const allPickups = [
                         { x: session.mainCallState.pickupX!, y: session.mainCallState.pickupY! },

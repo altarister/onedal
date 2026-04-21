@@ -205,16 +205,15 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: 
                         rel="noopener noreferrer"
                         className="flex-1"
                     >
-                        <div className="flex flex-col gap-0.5">
+                        <div className="flex flex-col gap-0.5 pt-3">
                             <span className="text-xs text-text-muted text-left">
-                                통합 경로 정보
-                                {activeRoute.length > 0 && <span className="ml-1 text-text-muted font-bold">(총 {activeRoute.length}개 콜)</span>}
+                                {activeRoute.length > 0 && <span className="ml-1 text-text-muted font-bold">총 {activeRoute.length}개 경로 정보</span>}
                             </span>
                             <span className="text-sm text-text-primary hover:text-info transition-colors">
                                 {(() => {
                                     const lastRoute = [...safeRoute].reverse().find(r => r.totalDistanceKm != null);
                                     if (!lastRoute || lastRoute.totalDistanceKm == null) return `카카오 연산 에러 혹은 대기중...`;
-                                    return `총 주행거리 ${(Number(lastRoute.totalDistanceKm) || 0).toFixed(1)}km / 예상 ${lastRoute.totalDurationMin || 0}분`;
+                                    return `주행거리 ${(Number(lastRoute.totalDistanceKm) || 0).toFixed(1)}km / 예상 ${lastRoute.totalDurationMin || 0}분`;
                                 })()}
                             </span>
                         </div>

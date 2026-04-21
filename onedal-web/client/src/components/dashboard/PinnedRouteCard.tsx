@@ -180,6 +180,35 @@ export default function PinnedRouteCard({
                     {/* 상세 데이터 영역 */}
                     <div className="flex flex-col text-text-primary text-[13px] leading-tight bg-bg-base/50 py-2 px-1 mt-3 font-medium tracking-tight">
                         {(() => {
+                            const extractMemoDetails = (rawText?: string) => {
+                                if (!rawText) return undefined;
+                                let extracted = "";
+
+                                // 1. 물품 추출
+                                const itemMatch = rawText.match(/물품\s*[:]?\s*(.*?)\s*(?:차량|취소|탁송료|요금|수수료)\s*:/);
+                                if (itemMatch && itemMatch[1]) {
+                                    extracted += `[${itemMatch[1].trim()}] `;
+                                }
+
+                                // 2. 적요 추출 (팝업 상세본 최우선, 없으면 프리뷰 뒷단)
+                                if (rawText.includes("[적요상세/정보]")) {
+                                    const parts = rawText.split("[적요상세/정보]");
+                                    if (parts[1]) {
+                                        let block = parts[1].split("\n[")[0].replace("적요 내용", "").replace("닫기", "").trim();
+                                        block = block.replace(/\n/g, " ").replace(/\s{2,}/g, " ").trim();
+                                        if (block.length > 0) extracted += block;
+                                    }
+                                } else if (rawText.includes("적요상세 ")) {
+                                    const parts = rawText.split("적요상세 ");
+                                    if (parts[1]) {
+                                        extracted += parts[1].trim();
+                                    }
+                                }
+
+                                return extracted.trim() || undefined;
+                            };
+
+                            const detailMemo = route.itemDescription || extractMemoDetails(route.rawText) || "상세 정보 없음 (파싱 대기 중)";
                             const quickName = route.companyName || '-';
                             const phoneMatch = quickName.match(/\d{2,3}-\d{3,4}-\d{4}/);
                             const quickPhone = phoneMatch ? phoneMatch[0] : '-';
@@ -199,6 +228,21 @@ export default function PinnedRouteCard({
                                         <span>시간 : {route.capturedAt ? new Date(route.capturedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) : '-'}</span>
                                         <span>ID : {route.id}</span>
                                     </div>
+                                    <div className="mb-2 w-full flex">
+                                        <div className="flex-shrink-0 w-[76px]">단일 경로 : </div>
+                                        <div className="flex-1 break-keep pr-2 leading-tight">
+                                            {route.osrmSoloDistanceKm ? (
+                                                <span className="text-blue-600 dark:text-blue-400 font-bold">
+                                                    단독 시 {Number(route.osrmSoloDistanceKm).toFixed(1)}km / 예상 {route.osrmSoloDurationMin || 0}분 <span className="text-[10px] opacity-80 font-normal">(OSRM기준)</span>
+                                                </span>
+                                            ) : route.kakaoSoloDistanceKm ? (
+                                                <span className={`${route.osrmError ? 'text-text-primary' : 'text-blue-600 dark:text-blue-400 font-bold'}`}>
+                                                    단독 시 {Number(route.kakaoSoloDistanceKm).toFixed(1)}km / 예상 {route.kakaoSoloDurationMin || 0}분
+                                                    {route.osrmError && <span className="text-[10px] text-danger ml-1 font-normal inline-block">(⚠️ 에러: {route.osrmError})</span>}
+                                                </span>
+                                            ) : '궤적 연산 대기 중...'}
+                                        </div>
+                                    </div>
                                     <div className="mb-2">
                                         <div>퀵사무실 : {quickPhone}</div>
                                         <div className="ml-[76px]">{quickClean}</div>
@@ -213,7 +257,47 @@ export default function PinnedRouteCard({
                                     </div>
                                     <div className="flex gap-2">
                                         <span className="flex-shrink-0">적요 / 물품 :</span>
-                                        <span className="text-text-primary font-bold">{route.itemDescription || "상세 정보 없음"}</span>
+                                        <span className="text-text-primary font-bold line-clamp-3 leading-snug break-keep">{detailMemo}</span>
+                                    </div>
+
+                                    {/* 💡 사용자 디버깅/분석용 구조화 데이터 영역 (조건식 설계용) */}
+                                    <div className="mt-4 flex flex-col text-[10px] text-gray-300 gap-1 border-t border-gray-700 pt-2 font-mono">
+                                        <div className="text-text-muted mb-1 font-bold">📋 1DAL 데이터 필드 구조 (복사&수정용)</div>
+
+                                        <div className="flex bg-black/20 p-1 rounded">
+                                            <span className="w-16 flex-shrink-0 text-text-muted">차종/결제 :</span>
+                                            <span className="text-gray-400 break-all">{route.vehicleType || '-'} / {route.paymentType || '-'} / {route.billingType || '-'}</span>
+                                        </div>
+                                        <div className="flex bg-black/20 p-1 rounded">
+                                            <span className="w-16 flex-shrink-0 text-text-muted">요금 :</span>
+                                            <span className="text-gray-400 break-all">{route.fare ? route.fare.toLocaleString() + '원' : '-'}</span>
+                                        </div>
+                                        <div className="flex bg-black/20 p-1 rounded">
+                                            <span className="w-16 flex-shrink-0 text-text-muted">상차지 :</span>
+                                            <span className="text-gray-400 break-all">
+                                                {route.pickup}
+                                            </span>
+                                        </div>
+                                        <div className="flex bg-black/20 p-1 rounded">
+                                            <span className="w-16 flex-shrink-0 text-text-muted">하차지 :</span>
+                                            <span className="text-gray-400 break-all">
+                                                {route.dropoff}
+                                            </span>
+                                        </div>
+                                        <div className="flex bg-black/20 p-1 rounded">
+                                            <span className="w-16 flex-shrink-0 text-text-muted">화주/사무실:</span>
+                                            <span className="text-gray-400 break-all">{route.companyName || '-'}</span>
+                                        </div>
+                                        <div className="flex bg-black/20 p-1 rounded">
+                                            <span className="w-16 flex-shrink-0 text-text-muted">1DAL 연산:</span>
+                                            <span className="text-gray-400 break-all">
+                                                카카오 [{route.kakaoSoloDistanceKm?.toFixed(1) || '-'}km, {route.kakaoSoloDurationMin || '-'}분] / OSRM [{route.osrmSoloDistanceKm?.toFixed(1) || '-'}km, {route.osrmSoloDurationMin || '-'}분]
+                                            </span>
+                                        </div>
+                                        <div className="flex bg-black/20 p-1 rounded mt-1">
+                                            <span className="w-16 flex-shrink-0 text-text-muted">원본텍스트:</span>
+                                            <span className="text-green-400 break-all whitespace-normal leading-snug">{route.rawText || '-'}</span>
+                                        </div>
                                     </div>
                                 </>
                             );

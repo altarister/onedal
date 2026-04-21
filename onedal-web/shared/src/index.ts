@@ -83,6 +83,11 @@ export interface SecuredOrder extends OfficeOrder {
     routePolyline?: Array<{ x: number; y: number }>;  // [신규] 카카오 실제 궤적 좌표들
     totalDistanceKm?: number;         // [추가] 통합 연산된 전체 총 주행 거리
     totalDurationMin?: number;        // [추가] 통합 연산된 전체 총 주행 시간
+    kakaoSoloDistanceKm?: number;     // [추가] 카카오가 연산한 해당 콜만의 '단독' 주행 거리
+    kakaoSoloDurationMin?: number;    // [추가] 카카오가 연산한 해당 콜만의 '단독' 소요 시간
+    osrmSoloDistanceKm?: number;      // [추가] OSRM이 연산한 해당 콜만의 '단독' 주행 거리
+    osrmSoloDurationMin?: number;     // [추가] OSRM이 연산한 해당 콜만의 '단독' 소요 시간
+    osrmError?: string;               // [추가] OSRM 연산 실패 시 에러 메세지 노출용
     sectionEtas?: string[];           // [신규] 카카오 궤적 연산 기반 각 경유지 도착 예상 시간 배열
     pickupEta?: string;               // [신규] 카카오 궤적 연산 기반 상차지 예상 도착 시간 (예: "14:30")
     dropoffEta?: string;              // [신규] 카카오 궤적 연산 기반 하차지 예상 도착 시간 (예: "15:20")

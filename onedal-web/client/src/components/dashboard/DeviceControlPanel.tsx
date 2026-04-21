@@ -13,7 +13,7 @@ const EMERGENCY_LABELS: Record<string, string> = {
 
 /** ScreenContext → 한국어 라벨 + 색상 매핑 (물리적 화면 상태만 표시, 홀드는 isHolding으로 분리) */
 const SCREEN_LABELS: Record<ScreenContextType, { label: string; color: string }> = {
-    LIST: { label: "신규 콜 리스트", color: "text-success bg-success/15" },
+    LIST: { label: "콜 리스트", color: "text-success bg-success/15" },
     DETAIL_PRE_CONFIRM: { label: "상세페이지", color: "text-info-alt bg-info-alt/15" },
     DETAIL_CONFIRMED: { label: "확정페이지", color: "text-warning bg-warning/15" },
     POPUP_PICKUP: { label: "출발지 팝업", color: "text-info bg-info/15" },
@@ -23,15 +23,15 @@ const SCREEN_LABELS: Record<ScreenContextType, { label: string; color: string }>
     UNKNOWN: { label: "알 수 없는 화면", color: "text-danger bg-danger/20 animate-pulse" },
 };
 
-function DeviceRow({ 
-    device, 
+function DeviceRow({
+    device,
     onModeChange,
     deviceAlerts,
     deviceWarnings,
     onDismissAlert,
     onDismissWarning
-}: { 
-    device: DeviceSession; 
+}: {
+    device: DeviceSession;
     onModeChange: (id: string, mode: "AUTO" | "MANUAL") => void;
     deviceAlerts: EmergencyAlert[];
     deviceWarnings: DeathValleyWarning[];
@@ -46,7 +46,7 @@ function DeviceRow({
 
     return (
         <div className="flex flex-col border-b border-white/5 last:border-0 py-1">
-            <div className="flex items-center justify-between hover:bg-slate-800/20 px-2 transition-colors py-1">
+            <div className="flex items-center justify-between hover:bg-slate-800/20  transition-colors">
                 <div className={`flex flex-col gap-1 ${isDisconnected ? 'opacity-50' : ''}`}>
                     <div className="flex items-center gap-4">
                         <span className="font-bold flex items-center gap-2">
@@ -56,12 +56,6 @@ function DeviceRow({
                             {screenInfo && (
                                 <div className={`text-[10px]  ${screenInfo.color}`}>
                                     {screenInfo.label}
-                                </div>
-                            )}
-                            {/* [Page/Hold 분리] 콜 처리 중 홀드 배지 (화면 배지와 나란히 표시) */}
-                            {device.isHolding && (
-                                <div className="text-[10px] text-warning bg-warning/15 animate-pulse">
-                                    🔒 콜 처리 중
                                 </div>
                             )}
                         </span>
@@ -81,6 +75,10 @@ function DeviceRow({
                             }`}
                     >
                         {device.mode}
+                        {/* [Page/Hold 분리] 콜 처리 중 홀드 배지 (화면 배지와 나란히 표시) */}
+                        {device.isHolding && (
+                            <span> 처리 중</span>
+                        )}
                     </button>
                 </div>
             </div>
@@ -126,7 +124,7 @@ export default function DeviceControlPanel() {
     const { alerts, warnings, dismissAlert, dismissWarning } = useEmergencyAlerts();
 
     return (
-        <section id="telemetry-panel" className="bg-surface border border-border-card rounded-xl p-3 shadow-lg mb-2">
+        <section id="telemetry-panel" className="bg-surface border border-border-card rounded-xl p-1 shadow-lg mb-2">
             <div className="flex flex-col">
                 {devices.length === 0 ? (
                     <div className="text-center text-xs text-slate-500 py-4 opacity-80 font-bold tracking-tight">
