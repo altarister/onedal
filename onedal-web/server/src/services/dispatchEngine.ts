@@ -1,6 +1,6 @@
 import { mapVehicleToKakaoCarType } from "@onedal/shared";
 import type { SecuredOrder, AutoDispatchFilter } from "@onedal/shared";
-import { geocodeAddress, calculateSoloRoute, calculateDetourRoute } from "../routes/kakaoUtil";
+import { geocodeAddress, calculateSoloRoute, calculateDetourRoute, compareDirections } from "./kakaoService";
 import { fetchRealWorldRoute } from "../routes/osrmUtil";
 import { getUserSession } from "../state/userSessionStore";
 import { optimizeWaypoints } from "../utils/routeOptimizer";
@@ -61,7 +61,7 @@ export async function recalculateActiveKakaoRoute(userId: string, io: any) {
 
     if (session.mainCallState) {
         try {
-            const apiKey = process.env.KAKAO_REST_API_KEY || "";
+            const apiKey = process.env.KAKAO_REST_API_KEY || ""; // 존재 여부 체크용 (실제 키는 kakaoService 모듈 스코프)
             if (!apiKey) return;
 
             const routingOptions = getKakaoRoutingOptions(userId);
@@ -69,7 +69,6 @@ export async function recalculateActiveKakaoRoute(userId: string, io: any) {
             if (session.subCalls.length === 0) {
                 // 단독 오더로 복귀
                 const res = await calculateSoloRoute(
-                    apiKey,
                     session.mainCallState.pickupX!, session.mainCallState.pickupY!,
                     session.mainCallState.dropoffX!, session.mainCallState.dropoffY!,
                     session.driverLocation,
@@ -101,7 +100,6 @@ export async function recalculateActiveKakaoRoute(userId: string, io: any) {
                 const waypoints = [...sortedPickups, ...sortedDropoffs];
 
                 const result = await calculateDetourRoute(
-                    apiKey,
                     session.mainCallState.dropoffX!, session.mainCallState.dropoffY!, 
                     session.mainCallState.pickupX!, session.mainCallState.pickupY!,   
                     mergedDest.x, mergedDest.y,                       
@@ -142,7 +140,7 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
         return { success: false, msg: "오더 소멸됨" };
     }
     
-    const apiKey = process.env.KAKAO_REST_API_KEY;
+    const apiKey = process.env.KAKAO_REST_API_KEY; // 존재 여부 체크용
     if (!apiKey) return { success: false, msg: "API KEY 부재" };
     
     try {
@@ -157,7 +155,6 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
         
         if (!isDetour) {
             const result = await calculateSoloRoute(
-                apiKey,
                 securedOrder.pickupX!, securedOrder.pickupY!,
                 securedOrder.dropoffX!, securedOrder.dropoffY!,
                 session.driverLocation,
@@ -212,7 +209,6 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
             }
             
             const result = await calculateDetourRoute(
-                apiKey,
                 firstDestX, firstDestY,
                 firstPickX, firstPickY,
                 mergedDest.x, mergedDest.y,
@@ -384,8 +380,8 @@ export async function handleDecision(userId: string, orderId: string, action: 'K
             } else {
                 session.subCalls.push(cachedOrder);
                 try {
-                    const apiKey = process.env.KAKAO_REST_API_KEY;
-                    if (apiKey) {
+                    const hasApiKey = !!process.env.KAKAO_REST_API_KEY;
+                    if (hasApiKey) {
                         const allPickups = [
                             { x: session.mainCallState.pickupX!, y: session.mainCallState.pickupY! },
                             ...session.subCalls.map(c => ({ x: c.pickupX!, y: c.pickupY! }))
@@ -404,7 +400,6 @@ export async function handleDecision(userId: string, orderId: string, action: 'K
                         const routingOptions = getKakaoRoutingOptions(userId);
                         
                         const calcResult = await calculateDetourRoute(
-                            apiKey,
                             session.mainCallState.dropoffX!, session.mainCallState.dropoffY!,
                             session.mainCallState.pickupX!, session.mainCallState.pickupY!,
                             mergedDest.x, mergedDest.y,
@@ -491,8 +486,8 @@ export async function evaluateNewOrder(userId: string, securedOrder: SecuredOrde
     console.log(`[서버-사이드 카카오 연산] 🚀 ${securedOrder.pickup} ➡️ ${securedOrder.dropoff}`);
 
     try {
-        const apiKey = process.env.KAKAO_REST_API_KEY;
-        if (apiKey) {
+        const hasApiKey = !!process.env.KAKAO_REST_API_KEY;
+        if (hasApiKey) {
             // ━━━ Stage 1: 형상 필터 검증 (Non-Short-Circuit — 여기서 return 하지 않음) ━━━
             const filter = session.activeFilter;
 
@@ -555,7 +550,7 @@ export async function evaluateNewOrder(userId: string, securedOrder: SecuredOrde
             // 1.5단계: 지오코딩 (텍스트 주소를 X, Y 좌표로 변환)
             if (!securedOrder.pickupX || !securedOrder.pickupY) {
                 const bestPickupQuery = securedOrder.pickupDetails?.[0]?.addressDetail || securedOrder.pickup;
-                const pCoord = await geocodeAddress(apiKey, bestPickupQuery);
+                const pCoord = await geocodeAddress(bestPickupQuery);
                 console.log(`🌍 [Geocoding] 상차지 변환: '${bestPickupQuery}' -> ${pCoord ? `X:${pCoord.x}, Y:${pCoord.y}` : '실패(null)'}`);
                 if (pCoord) {
                     securedOrder.pickupX = pCoord.x;
@@ -564,7 +559,7 @@ export async function evaluateNewOrder(userId: string, securedOrder: SecuredOrde
             }
             if (!securedOrder.dropoffX || !securedOrder.dropoffY) {
                 const bestDropoffQuery = securedOrder.dropoffDetails?.[0]?.addressDetail || securedOrder.dropoff;
-                const dCoord = await geocodeAddress(apiKey, bestDropoffQuery);
+                const dCoord = await geocodeAddress(bestDropoffQuery);
                 console.log(`🌍 [Geocoding] 하차지 변환: '${bestDropoffQuery}' -> ${dCoord ? `X:${dCoord.x}, Y:${dCoord.y}` : '실패(null)'}`);
                 if (dCoord) {
                     securedOrder.dropoffX = dCoord.x;
@@ -584,7 +579,6 @@ export async function evaluateNewOrder(userId: string, securedOrder: SecuredOrde
                     logRoadmapEvent("서버", "시간/통행료를 바탕으로 콜의 실수익률(기회비용) 연산");
                     console.log(`   - 💡 상태: [첫짐] 단독 주행 연산`);
                     const result = await calculateSoloRoute(
-                        apiKey,
                         securedOrder.pickupX, securedOrder.pickupY!,
                         securedOrder.dropoffX!, securedOrder.dropoffY,
                         session.driverLocation,
@@ -667,7 +661,6 @@ export async function evaluateNewOrder(userId: string, securedOrder: SecuredOrde
                     const waypoints = [...sortedPickups, ...sortedDropoffs];
 
                     const result = await calculateDetourRoute(
-                        apiKey,
                         session.mainCallState.dropoffX!, session.mainCallState.dropoffY!,
                         session.mainCallState.pickupX!, session.mainCallState.pickupY!,
                         mergedDest.x, mergedDest.y,

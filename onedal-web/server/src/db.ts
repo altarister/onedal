@@ -123,6 +123,21 @@ db.exec(`
 `);
 
 // ═══════════════════════════════════════
+// [8] 카카오 지오코딩 영구 캐시 (장소 사전)
+// 용도: API 비용 절감 + 미래 운행일지/장소 평점 데이터 기반
+// ═══════════════════════════════════════
+db.exec(`
+    CREATE TABLE IF NOT EXISTS geocode_cache (
+        query      TEXT PRIMARY KEY,
+        x          REAL NOT NULL,
+        y          REAL NOT NULL,
+        hit_count  INTEGER DEFAULT 1,
+        created_at TEXT DEFAULT (datetime('now', 'localtime')),
+        last_used  TEXT DEFAULT (datetime('now', 'localtime'))
+    )
+`);
+
+// ═══════════════════════════════════════
 // [8] intel 테이블 마이그레이션 (소유권 부여)
 // ═══════════════════════════════════════
 try {
