@@ -16,15 +16,37 @@ export function useOrderEngine() {
     const subCalls = activeOrders.length > 1 ? activeOrders.slice(1) : [];
 
     // 신규 콜(평가 중)이 존재하는지 모니터링하여 루프 알림음을 제어합니다.
+    // UX 개선: 똥콜이거나 에러난 콜은 알림음을 울리지 않고, '양호' 이상의 연산 결과가 나왔을 때만 울리게 합니다.
     useEffect(() => {
-        const hasEvaluating = activeOrders.some(order => order.status?.includes('evaluating'));
-        if (hasEvaluating) {
+        const hasGoodCall = activeOrders.some(order => {
+            // 1. 관제 대기 중(평가 상태)이 아니면 무시
+            if (!order.status?.includes('evaluating')) return false;
+            
+            // 2. 카카오 연산 결과가 없으면(기다리는 중) 무시 (이 구간 동안 약 1~2초 침묵 발생)
+            if (!order.kakaoTimeExt) return false;
+            
+            // 3. 똥콜, 실패, 에러면 무시
+            if (order.kakaoTimeExt.includes("'똥'") || 
+                order.kakaoTimeExt.includes("실패") || 
+                order.kakaoTimeExt.includes("에러")) {
+                return false;
+            }
+            
+            // 4. 연산 완료 + 양호/꿀콜이면 true (벨 울림)
+            return true;
+        });
+
+        if (hasGoodCall) {
             soundManager.playCallRinging();
         } else {
             soundManager.stopCallRinging();
         }
-        return () => soundManager.stopCallRinging(); // 언마운트 시 알림음 잔류 방지
     }, [activeOrders]);
+
+    // 컴포넌트 언마운트 시 알림음 잔류 방지 (activeOrders 의존성에서 분리)
+    useEffect(() => {
+        return () => soundManager.stopCallRinging();
+    }, []);
 
     useEffect(() => {
         fetch("/api/orders").then((res) => res.json()).then((data) => setOrders(data.orders || [])).catch(() => { });

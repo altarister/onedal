@@ -26,7 +26,7 @@ export interface DeathValleyWarning {
  * emergency-alert: 앱폰이 POST /emergency로 보고한 비상 상황
  * deathvalley-warning: 서버 30초 타임아웃 시 관제탑 경고
  */
-export function useEmergencyAlerts() {
+export function useSystemAlerts() {
     const [alerts, setAlerts] = useState<EmergencyAlert[]>([]);
     const [warnings, setWarnings] = useState<DeathValleyWarning[]>([]);
 

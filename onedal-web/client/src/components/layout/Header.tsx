@@ -2,12 +2,14 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import SettingsModal from "../dashboard/SettingsModal";
 import { useTheme } from "../../contexts/ThemeContext";
+import { useSoundManager } from "../../hooks/useSoundManager";
 
 export default function Header({ isConnected }: { isConnected: boolean }) {
     const [time, setTime] = useState<Date>(new Date());
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const { user } = useAuth();
     const { theme, toggleTheme } = useTheme();
+    const { isRinging, stopAll } = useSoundManager();
 
     useEffect(() => {
         const timer = setInterval(() => setTime(new Date()), 1000);
@@ -28,7 +30,17 @@ export default function Header({ isConnected }: { isConnected: boolean }) {
                         </button>
                     </div>
                     <div className="flex gap-4 items-center">
+                        {isRinging && (
+                            <button
+                                onClick={stopAll}
+                                className="flex items-center gap-1.5 px-2 py-0.5 mr-1 bg-danger/20 hover:bg-danger/30 text-danger rounded-md border border-danger/30 transition-all animate-pulse"
+                                title="알림 소리 끄기"
+                            >
+                                <span className="text-[10px] font-black uppercase tracking-tighter">STOP SOUND</span>
+                            </button>
+                        )}
                         <div className="flex items-center gap-2 bg-surface px-3 py-1 rounded-full border border-border-card">
+
                             <span className={`w-2 h-2 rounded-full ${isConnected ? "bg-success shadow-lg" : "bg-danger"}`} />
                             <span className="text-xs font-bold text-slate-400">
                                 {time.toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}

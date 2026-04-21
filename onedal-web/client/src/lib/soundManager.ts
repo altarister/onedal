@@ -1,11 +1,17 @@
 import callSoundPath from '../assets/sound/call.mp3';
+import beepSoundPath from '../assets/sound/99C850485CDEB1111A.mp3';
+import emergencySoundPath from '../assets/sound/emergency.mp3';
 
 class SoundManager {
-    private audioCtx: AudioContext | null = null;
     private callAudio: HTMLAudioElement;
+    private beepAudio: HTMLAudioElement;
+    private emergencyAudio: HTMLAudioElement;
 
     // 현재 플레이 상태 추적을 통해 불필요한 DOM 에러 방지
     private isRinging: boolean = false;
+
+    // 상태 변경 구독을 위한 리스너
+    private listeners: Set<() => void> = new Set();
 
     // 볼륨 설정 (0.0 ~ 1.0)
     private volume: number = 0.5;
@@ -13,13 +19,22 @@ class SoundManager {
     constructor() {
         this.callAudio = new Audio(callSoundPath);
         this.callAudio.loop = true;
+        this.beepAudio = new Audio(beepSoundPath);
+        this.emergencyAudio = new Audio(emergencySoundPath);
 
         // 저장된 볼륨 설정 불러오기
         const savedVolume = localStorage.getItem('onedal_sound_volume');
         if (savedVolume !== null) {
-            this.volume = parseFloat(savedVolume);
-            this.callAudio.volume = this.volume;
+            const parsed = parseFloat(savedVolume);
+            if (!isNaN(parsed) && parsed >= 0 && parsed <= 1) {
+                this.volume = parsed;
+            }
         }
+        
+        // 볼륨 일괄 적용
+        this.callAudio.volume = this.volume;
+        this.beepAudio.volume = this.volume;
+        this.emergencyAudio.volume = this.volume;
     }
 
     /**
@@ -28,6 +43,8 @@ class SoundManager {
     public setVolume(value: number) {
         this.volume = Math.max(0, Math.min(1, value));
         this.callAudio.volume = this.volume;
+        this.beepAudio.volume = this.volume;
+        this.emergencyAudio.volume = this.volume;
         localStorage.setItem('onedal_sound_volume', this.volume.toString());
     }
 
@@ -39,24 +56,25 @@ class SoundManager {
     }
 
     /**
-     * 브라우저 정책(오토플레이 방지)에 대응하기 위해
-     * 최초 오디오 발생 시점에 Context를 안전하게 초기화/Resume 하는 헬퍼 메서드
+     * 현재 벨이 울리고 있는지 여부 반환
      */
-    private async ensureAudioContext(): Promise<AudioContext | null> {
-        try {
-            if (!this.audioCtx) {
-                // @ts-ignore : 구형 사파리 대응
-                const Ctx = window.AudioContext || window.webkitAudioContext;
-                this.audioCtx = new Ctx();
-            }
-            if (this.audioCtx.state === 'suspended') {
-                await this.audioCtx.resume();
-            }
-            return this.audioCtx;
-        } catch (e) {
-            console.warn("AudioContext 초기화 불가:", e);
-            return null;
-        }
+    public getIsRinging(): boolean {
+        return this.isRinging;
+    }
+
+    /**
+     * 상태 변경 알림 구독
+     */
+    public subscribe(listener: () => void) {
+        this.listeners.add(listener);
+        return () => this.listeners.delete(listener);
+    }
+
+    /**
+     * 모든 구독자에게 상태 변경 알림
+     */
+    private notify() {
+        this.listeners.forEach(l => l());
     }
 
     /**
@@ -71,13 +89,16 @@ class SoundManager {
         if (playPromise !== undefined) {
             playPromise.then(() => {
                 this.isRinging = true;
+                this.notify();
                 console.log("[SoundManager] 🎵 콜 알림음 재생 시작");
             }).catch((error) => {
                 this.isRinging = false;
+                this.notify();
                 console.warn("[SoundManager] 알림음 재생 차단됨 (브라우저 정책/상호작용 필요):", error);
             });
         } else {
             this.isRinging = true;
+            this.notify();
         }
     }
 
@@ -90,36 +111,27 @@ class SoundManager {
         this.callAudio.pause();
         this.callAudio.currentTime = 0;
         this.isRinging = false;
+        this.notify();
         console.log("[SoundManager] 🔇 콜 알림음 정지");
+    }
+
+    /**
+     * 모든 활성 루프 사운드 중단 (사용자 인지/Dismiss)
+     */
+    public stopAll() {
+        this.stopCallRinging();
+        // 필요시 다른 루프 사운드(비상 알람 루프 등)도 여기서 중단
     }
 
     /**
      * 2. 오더 상태 변경 (선빵 수신, 카카오 연산 완료 등) 시 울리는 짧은 비프음
      */
     public async playBeep() {
-        const ctx = await this.ensureAudioContext();
-        if (!ctx) return;
-
         try {
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            
-            osc.type = "sine";
-            osc.frequency.value = 880; // A5 톤
-            
-            gain.gain.setValueAtTime(0, ctx.currentTime);
-            gain.gain.linearRampToValueAtTime(0.1 * this.volume, ctx.currentTime + 0.05);
-            gain.gain.exponentialRampToValueAtTime(Math.max(0.001, 0.001 * this.volume), ctx.currentTime + 0.3);
-            gain.gain.setValueAtTime(0, ctx.currentTime + 0.34); // 클릭 노이즈 방지
-            
-            osc.start(ctx.currentTime);
-            osc.stop(ctx.currentTime + 0.35);
-            osc.onended = () => { osc.disconnect(); gain.disconnect(); };
+            this.beepAudio.currentTime = 0;
+            await this.beepAudio.play();
         } catch (e) {
-            console.error("[SoundManager] 오류: 비프음 발생 실패", e);
+            console.error("[SoundManager] 오류: 비프음 재생 실패", e);
         }
     }
 
@@ -127,27 +139,11 @@ class SoundManager {
      * 3. 데스밸리/비상 알림 시 울리는 경고 사이렌
      */
     public async playEmergencyAlarm() {
-        const ctx = await this.ensureAudioContext();
-        if (!ctx) return;
-
         try {
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            
-            osc.type = "sawtooth";
-            gain.gain.value = 0.4 * this.volume;
-
-            // WebAudio 스케줄링으로 정밀 제어 (setTimeout 제거)
-            osc.frequency.setValueAtTime(440, ctx.currentTime);       // 0~200ms: 낮은 음
-            osc.frequency.setValueAtTime(880, ctx.currentTime + 0.2); // 200~400ms: 높은 음
-            
-            osc.start(ctx.currentTime);
-            osc.stop(ctx.currentTime + 0.4);
-            osc.onended = () => { osc.disconnect(); gain.disconnect(); };
+            this.emergencyAudio.currentTime = 0;
+            await this.emergencyAudio.play();
         } catch (e) {
-            console.error("[SoundManager] 오류: 비상 알림음 발생 실패", e);
+            console.error("[SoundManager] 오류: 비상 알림음 재생 실패", e);
         }
     }
 }

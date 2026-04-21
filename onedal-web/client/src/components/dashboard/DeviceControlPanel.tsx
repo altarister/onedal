@@ -1,7 +1,8 @@
 import { useDevices } from "../../hooks/useDevices";
 import type { DeviceSession, ScreenContextType } from "@onedal/shared";
-import { useEmergencyAlerts } from "../../hooks/useEmergencyAlerts";
-import type { EmergencyAlert, DeathValleyWarning } from "../../hooks/useEmergencyAlerts";
+import { useSystemAlerts } from "../../hooks/useSystemAlerts";
+import type { EmergencyAlert, DeathValleyWarning } from "../../hooks/useSystemAlerts";
+
 
 const EMERGENCY_LABELS: Record<string, string> = {
     AUTO_CANCEL: "⏱️ 자동취소 실행됨",
@@ -120,8 +121,8 @@ function DeviceRow({
 }
 
 export default function DeviceControlPanel() {
+    const { alerts, warnings, dismissAlert, dismissWarning } = useSystemAlerts();
     const { devices, changeDeviceMode } = useDevices();
-    const { alerts, warnings, dismissAlert, dismissWarning } = useEmergencyAlerts();
 
     return (
         <section id="telemetry-panel" className="bg-surface border border-border-card rounded-xl p-1 shadow-lg mb-2">
