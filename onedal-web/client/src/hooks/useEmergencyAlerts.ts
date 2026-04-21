@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { socket } from "../lib/socket";
+import { soundManager } from "../lib/soundManager";
 
 export interface EmergencyAlert {
     deviceId: string;
@@ -29,24 +30,6 @@ export function useEmergencyAlerts() {
     const [alerts, setAlerts] = useState<EmergencyAlert[]>([]);
     const [warnings, setWarnings] = useState<DeathValleyWarning[]>([]);
 
-    const playAlarmSound = useCallback(() => {
-        try {
-            const ctx = new AudioContext();
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.frequency.value = 440; // 낮은 음 — 위험 알림용
-            osc.type = "sawtooth";
-            gain.gain.value = 0.4;
-            osc.start();
-            setTimeout(() => {
-                osc.frequency.value = 880;
-                setTimeout(() => { osc.stop(); ctx.close(); }, 200);
-            }, 200);
-        } catch { /* 무음 폴백 */ }
-    }, []);
-
     const dismissAlert = useCallback((timestamp: string) => {
         setAlerts(prev => prev.filter(a => a.timestamp !== timestamp));
     }, []);
@@ -59,7 +42,7 @@ export function useEmergencyAlerts() {
         const handleEmergency = (alert: EmergencyAlert) => {
             console.log("🚨 [Emergency Alert]", alert);
             setAlerts(prev => [alert, ...prev].slice(0, 10)); // 최대 10개 유지
-            playAlarmSound();
+            soundManager.playEmergencyAlarm();
         };
 
         const handleDeathValley = (warning: DeathValleyWarning) => {
@@ -87,7 +70,7 @@ export function useEmergencyAlerts() {
             socket.off("order-canceled", handleOrderCleared);
             socket.off("order-confirmed", handleOrderCleared);
         };
-    }, [playAlarmSound]);
+    }, []);
 
     return { alerts, warnings, dismissAlert, dismissWarning };
 }

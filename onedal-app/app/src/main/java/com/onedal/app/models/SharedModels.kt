@@ -98,7 +98,7 @@ data class DetailedOfficeOrder(
     val detailMemo: String? = null,      // 적요상세 원문
     val paymentType: String? = null,     // "신용", "착불", "선불" 등
     val billingType: String? = null,     // "계산서", "인수증", "무과세"
-    val vehicleType: String? = null,     // "다마스", "1톤카고" 등
+    val vehicleType: String? = null,     // "다마스", "1t카고" 등
     val itemDescription: String? = null, // "박스 2개", "마대 1개" 등
     val companyName: String? = null,     // 화주 상호
     val pickupTime: String? = null       // 픽업 예약 시간

@@ -107,8 +107,13 @@ export default function PinnedRouteCard({
                     {route.type !== 'MANUAL' && (route.status === 'evaluating_basic' || route.status === 'evaluating_detailed') && onDecision && (
                         <>
                             <div className="mt-1 flex gap-3">
-                                <button disabled={processingId === route.id} onClick={(e) => { e.stopPropagation(); logRoadmapEvent("웹", "PinnedRoute에서 CANCEL(취소) 또는 X 버튼 클릭"); logRoadmapEvent("웹", "서버에게 decision=CANCEL 하달 정보 전달"); setProcessingId(route.id); onDecision(route.id, 'CANCEL'); }} className={`flex-1 bg-danger/10 text-danger text-sm font-bold py-4 rounded-lg border border-danger/30 transition-all shadow-sm ${processingId === route.id ? 'opacity-50 cursor-not-allowed' : 'hover:bg-danger/20 active:scale-95'}`}>
-                                    {processingId === route.id ? '처리 중...' : '방출'}
+                                <button disabled={processingId === route.id} onClick={(e) => { e.stopPropagation(); logRoadmapEvent("웹", "PinnedRoute에서 CANCEL(취소) 또는 X 버튼 클릭"); logRoadmapEvent("웹", "서버에게 decision=CANCEL 하달 정보 전달"); setProcessingId(route.id); onDecision(route.id, 'CANCEL'); }} className={`flex-1 bg-danger/10 text-danger text-sm font-bold py-2.5 rounded-lg border border-danger/30 transition-all shadow-sm ${processingId === route.id ? 'opacity-50 cursor-not-allowed' : 'hover:bg-danger/20 active:scale-95'} flex flex-col items-center justify-center overflow-hidden px-1`}>
+                                    <span className="text-base font-black tracking-tight">{processingId === route.id ? '처리 중...' : '방출'}</span>
+                                    {!processingId && route.rejectionReasons && route.rejectionReasons.length > 0 && (
+                                        <span className="text-[10px] font-medium opacity-80 mt-0.5 tracking-tight leading-snug break-all line-clamp-2">
+                                            ❌ {route.rejectionReasons.join(', ')}
+                                        </span>
+                                    )}
                                 </button>
                                 {!!route.kakaoTimeExt ? (() => {
                                     let btnBg = "bg-success";
@@ -119,22 +124,27 @@ export default function PinnedRouteCard({
 
                                     if (route.kakaoTimeExt.includes("실패") || route.kakaoTimeExt.includes("에러")) {
                                         btnBg = "bg-slate-600";
-                                        btnTitle = "분석 실패 (강제 유지)";
+                                        // btnTitle = "분석 실패 (강제 유지)";
                                     } else if (route.kakaoTimeExt.includes("'꿀'")) {
                                         btnBg = "bg-blue-600 shadow-blue-500/40";
-                                        btnTitle = "유지 확정 (꿀콜 🍯)";
+                                        // btnTitle = "유지 확정 (꿀콜 🍯)";
                                     } else if (route.kakaoTimeExt.includes("'똥'")) {
                                         btnBg = "bg-orange-600 shadow-orange-500/40";
-                                        btnTitle = "위험 감수 (똥콜 💩)";
+                                        // btnTitle = "위험 감수 (똥콜 💩)";
                                     } else {
                                         btnBg = "bg-emerald-600 shadow-emerald-500/40";
-                                        btnTitle = "유지 확정 (양호 🚙)";
+                                        // btnTitle = "유지 확정 (양호 🚙)";
                                     }
 
                                     return (
                                         <button disabled={processingId === route.id} onClick={(e) => { e.stopPropagation(); logRoadmapEvent("웹", `PinnedRoute에서 KEEP(${btnTitle}) 버튼 클릭`); logRoadmapEvent("웹", "서버에게 decision=KEEP 하달 정보 전달"); setProcessingId(route.id); onDecision(route.id, 'KEEP'); }} className={`flex-[2] ${btnBg} text-white flex flex-col items-center justify-center py-2.5 rounded-lg transition-all ${processingId === route.id ? 'opacity-50 cursor-not-allowed' : 'shadow-lg hover:brightness-110 active:scale-95'} overflow-hidden px-1`}>
-                                            <span className="text-base font-black tracking-tight">{processingId === route.id ? '통신 중...' : btnTitle}</span>
+                                            {/* <span className="text-base font-black tracking-tight">{processingId === route.id ? '통신 중...' : btnTitle}</span> */}
                                             <span className="text-[11px] font-medium opacity-90 mt-0.5 tracking-tight leading-snug break-all line-clamp-1">{cleanReason}</span>
+                                            {route.approvalReasons && route.approvalReasons.length > 0 && (
+                                                <span className="text-[10px] font-medium opacity-80 mt-0.5 tracking-tight leading-snug break-all line-clamp-2">
+                                                    ✅ {route.approvalReasons.join(', ')}
+                                                </span>
+                                            )}
                                         </button>
                                     );
                                 })() : (
@@ -267,6 +277,9 @@ export default function PinnedRouteCard({
                                                 { label: 'kakaoSoloDurationMin', val: route.kakaoSoloDurationMin },
                                                 { label: 'osrmSoloDistanceKm', val: route.osrmSoloDistanceKm },
                                                 { label: 'osrmSoloDurationMin', val: route.osrmSoloDurationMin },
+                                                { label: 'isRejected', val: route.isRejected },
+                                                { label: 'rejectionReasons', val: route.rejectionReasons?.join(', ') },
+                                                { label: 'approvalReasons', val: route.approvalReasons?.join(', ') },
                                                 // { label: 'rawText', val: route.rawText }
                                             ].map((item, idx) => (
                                                 <div key={idx} className="flex bg-black/20 p-1 rounded">

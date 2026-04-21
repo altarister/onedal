@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { socket } from "../lib/socket";
 import type { SimplifiedOfficeOrder, SecuredOrder } from "@onedal/shared";
 import { logRoadmapEvent } from "../lib/roadmapLogger";
+import { soundManager } from "../lib/soundManager";
 
 export function useOrderEngine() {
     const [orders, setOrders] = useState<SimplifiedOfficeOrder[]>([]);
@@ -14,14 +15,16 @@ export function useOrderEngine() {
     const mainCall = activeOrders.length > 0 ? activeOrders[0] : null;
     const subCalls = activeOrders.length > 1 ? activeOrders.slice(1) : [];
 
-    const playAlertSound = useCallback(() => {
-        try {
-            const audio = new Audio("/sounds/new-call.mp3");
-            audio.play().catch(e => console.log("오디오 재생 실패 (상호작용 전):", e));
-        } catch (e) {
-            console.error(e);
+    // 신규 콜(평가 중)이 존재하는지 모니터링하여 루프 알림음을 제어합니다.
+    useEffect(() => {
+        const hasEvaluating = activeOrders.some(order => order.status?.includes('evaluating'));
+        if (hasEvaluating) {
+            soundManager.playCallRinging();
+        } else {
+            soundManager.stopCallRinging();
         }
-    }, []);
+        return () => soundManager.stopCallRinging(); // 언마운트 시 알림음 잔류 방지
+    }, [activeOrders]);
 
     useEffect(() => {
         fetch("/api/orders").then((res) => res.json()).then((data) => setOrders(data.orders || [])).catch(() => { });
@@ -39,7 +42,7 @@ export function useOrderEngine() {
         const onDisconnect = () => setIsConnected(false);
         const onNewOrder = (newOrder: SimplifiedOfficeOrder) => {
             setOrders((prev) => [...prev, newOrder]);
-            playAlertSound();
+            soundManager.playBeep();
         };
 
         // 1단계: 1차 선빵 수신 (BASIC) — 닫기/취소 버튼 노출
@@ -47,7 +50,7 @@ export function useOrderEngine() {
             logRoadmapEvent("웹", `🟢 [웹 수신] order-evaluating | ID: ${secured.id} | 기기: ${secured.capturedDeviceId} | ${secured.dropoff}`, "관제대시보드");
             logRoadmapEvent("웹", `확정페이지 진입 (선빵 수신으로 상세 모드 구동)`, "관제대시보드");
             logRoadmapEvent("웹", "PinnedRoute 컴포넌트에 빈 레이아웃(평가중) 렌더링 및 하단 결재버튼 전체 딤드(비활성) 처리", "관제대시보드");
-            playAlertSound();
+            soundManager.playBeep();
 
             setActiveOrders(prev => {
                 // ⭐ 같은 기기에서 새 콜이 들어오면 그 기기의 모든 이전 카드를 무조건 제거하되,
@@ -88,7 +91,7 @@ export function useOrderEngine() {
                 logRoadmapEvent("웹", "PinnedRoute 내 캔버스 미니맵 좌표 포커싱 및 카카오 궤적(폴리라인) 드로잉 처리", "관제대시보드");
                 logRoadmapEvent("웹", "예상 시간/수익률을 컴포넌트에 표시하고 결재버튼(KEEP/CANCEL) 즉시 딤드 해제(활성화)", "관제대시보드");
             }
-            playAlertSound();
+            soundManager.playBeep();
             setActiveOrders(prev => prev.map(o => o.id === secured.id ? secured : o));
         };
 
@@ -205,7 +208,7 @@ export function useOrderEngine() {
             socket.off("deathvalley-warning", onDeathvalleyWarning);
             socket.off("sync-active-orders", onSyncActiveOrders);
         };
-    }, [playAlertSound]);
+    }, []);
 
     const handleDecision = useCallback((id: string, action: 'KEEP' | 'CANCEL') => {
         // 다이어그램 Line 84~99: 관제탑 → 서버 [Socket] 취소/유지 전달

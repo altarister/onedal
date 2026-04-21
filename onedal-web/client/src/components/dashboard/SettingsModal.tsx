@@ -3,6 +3,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { apiClient } from "../../api/apiClient";
 import { socket } from "../../lib/socket";
 import { VEHICLE_OPTIONS } from "@onedal/shared";
+import { soundManager } from "../../lib/soundManager";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -15,11 +16,12 @@ interface RegisteredDevice {
   registered_at: string;
 }
 
-type TabType = "settings" | "devices";
+type TabType = "settings" | "dispatch" | "devices";
 
 export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const { logout } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>("settings");
+  const [volume, setVolume] = useState(50); // 0-100
 
   // ═══ 기본 설정 탭 상태 ═══
   const [vehicleType, setVehicleType] = useState<string>("1t");
@@ -39,8 +41,11 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
   useEffect(() => {
     if (isOpen) {
-      if (activeTab === "settings") loadSettings();
+      if (activeTab === "dispatch") loadSettings();
       if (activeTab === "devices") loadRegisteredDevices();
+      if (activeTab === "settings") {
+        setVolume(Math.round(soundManager.getVolume() * 100));
+      }
     }
   }, [isOpen, activeTab]);
 
@@ -130,6 +135,15 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     }
   };
 
+  const handleVolumeChange = (v: number) => {
+    setVolume(v);
+    soundManager.setVolume(v / 100);
+  };
+
+  const handleTestSound = () => {
+    soundManager.playBeep();
+  };
+
   const handleSaveDeviceName = async (deviceId: string) => {
     try {
       await apiClient.put(`/devices/${deviceId}/name`, { deviceName: editingName });
@@ -185,24 +199,75 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         <div className="flex gap-1 mb-5 bg-gray-950 p-1 rounded-lg">
           <button
             onClick={() => setActiveTab("settings")}
-            className={`flex-1 py-2 text-sm font-bold rounded-md transition-colors ${
-              activeTab === "settings" ? "bg-accent text-white" : "text-gray-500 hover:text-gray-300"
-            }`}
+            className={`flex-1 py-2 text-sm font-bold rounded-md transition-colors ${activeTab === "settings" ? "bg-accent text-white" : "text-gray-500 hover:text-gray-300"
+              }`}
           >
             기본 설정
           </button>
           <button
-            onClick={() => setActiveTab("devices")}
-            className={`flex-1 py-2 text-sm font-bold rounded-md transition-colors ${
-              activeTab === "devices" ? "bg-accent text-white" : "text-gray-500 hover:text-gray-300"
-            }`}
+            onClick={() => setActiveTab("dispatch")}
+            className={`flex-1 py-2 text-sm font-bold rounded-md transition-colors ${activeTab === "dispatch" ? "bg-accent text-white" : "text-gray-500 hover:text-gray-300"
+              }`}
           >
-            📱 기기 관리
+            배차 설정
+          </button>
+          <button
+            onClick={() => setActiveTab("devices")}
+            className={`flex-1 py-2 text-sm font-bold rounded-md transition-colors ${activeTab === "devices" ? "bg-accent text-white" : "text-gray-500 hover:text-gray-300"
+              }`}
+          >
+            기기 설정
           </button>
         </div>
 
         {/* ═══ 기본 설정 탭 ═══ */}
         {activeTab === "settings" && (
+          <div className="flex flex-col gap-6">
+            <div>
+              <div className="flex justify-between items-center mb-3">
+                <label className="text-sm font-semibold text-gray-400">시스템 알림 볼륨</label>
+                <span className="text-xs font-mono text-accent bg-accent/10 px-2 py-0.5 rounded">{volume}%</span>
+              </div>
+              <div className="flex items-center gap-4">
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={volume}
+                  onChange={(e) => handleVolumeChange(parseInt(e.target.value))}
+                  className="flex-1 h-1.5 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-accent"
+                />
+                <button
+                  onClick={handleTestSound}
+                  className="px-3 py-1.5 rounded-lg bg-gray-800 text-gray-300 text-xs font-bold hover:bg-gray-700 hover:text-white transition-all border border-gray-700"
+                >
+                  🔊 테스트
+                </button>
+              </div>
+              <p className="mt-2 text-[11px] text-gray-500 italic">* 콜 알림, 비프음, 사이렌 볼륨에 공통 적용됩니다.</p>
+            </div>
+
+            <div className="h-px bg-gray-800/50 w-full" />
+
+            <div className="flex items-center justify-between">
+              <button
+                onClick={logout}
+                className="text-sm text-danger hover:brightness-125 font-semibold underline underline-offset-2"
+              >
+                로그아웃
+              </button>
+              <button
+                onClick={onClose}
+                className="px-6 py-2 rounded-lg bg-gray-800 text-gray-300 font-semibold hover:bg-gray-700 transition-colors"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ═══ 배차 설정 탭 ═══ */}
+        {activeTab === "dispatch" && (
           isLoading ? (
             <div className="flex justify-center py-10">
               <div className="w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
@@ -235,27 +300,19 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 </select>
               </div>
 
-              <div className="flex items-center justify-between mt-4">
+              <div className="flex justify-end gap-3 mt-4">
                 <button
-                  onClick={logout}
-                  className="text-sm text-danger hover:brightness-125 font-semibold underline underline-offset-2"
+                  onClick={onClose}
+                  className="px-4 py-2 rounded-lg bg-gray-800 text-gray-300 font-semibold hover:bg-gray-700 transition-colors"
                 >
-                  로그아웃
+                  취소
                 </button>
-                <div className="flex gap-3">
-                  <button
-                    onClick={onClose}
-                    className="px-4 py-2 rounded-lg bg-gray-800 text-gray-300 font-semibold hover:bg-gray-700 transition-colors"
-                  >
-                    취소
-                  </button>
-                  <button
-                    onClick={handleSaveSettings}
-                    className="px-4 py-2 rounded-lg bg-accent text-white font-bold hover:bg-violet-500 transition-colors"
-                  >
-                    저장하기
-                  </button>
-                </div>
+                <button
+                  onClick={handleSaveSettings}
+                  className="px-4 py-2 rounded-lg bg-accent text-white font-bold hover:bg-violet-500 transition-colors"
+                >
+                  설정 저장
+                </button>
               </div>
             </div>
           )

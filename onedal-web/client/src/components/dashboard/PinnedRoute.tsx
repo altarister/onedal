@@ -5,7 +5,6 @@ import { logRoadmapEvent } from '../../lib/roadmapLogger';
 import PinnedRouteCanvas, { type RoutePoint } from './PinnedRouteCanvas';
 import PinnedRouteCard from './PinnedRouteCard';
 import { getAddressLabel, getDistanceKm } from '../../lib/routeUtils';
-
 interface Props {
     activeRoute: SecuredOrder[];
     onDecision?: (id: string, action: 'KEEP' | 'CANCEL') => void;
@@ -15,7 +14,6 @@ interface Props {
 export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: Props) {
     const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
     const [processingId, setProcessingId] = useState<string | null>(null);
-
     // 서버 통신 완료 시 (상태가 변하거나 삭제될 때) 로딩 상태 즉각 해제
     useEffect(() => {
         setProcessingId(null);

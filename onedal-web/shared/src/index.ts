@@ -111,6 +111,9 @@ export interface SecuredOrder extends OfficeOrder {
     pickupEta?: string;               // [신규] 카카오 궤적 연산 기반 상차지 예상 도착 시간 (예: "14:30")
     dropoffEta?: string;              // [신규] 카카오 궤적 연산 기반 하차지 예상 도착 시간 (예: "15:20")
     settlement?: SettlementInfo;      // [추가] 정산 및 미수금 관리 트래킹 (운행일지용)
+    isRejected?: boolean;             // [신규] 서버 종합 평가 결과: 똥콜 판정 여부 (true/false)
+    rejectionReasons?: string[];      // [신규] 모든 탈락/패널티 사유 배열 (예: ["차종(다마스) 불일치", "우회시간 +74분 초과"])
+    approvalReasons?: string[];       // [신규] 모든 장점/긍정 사유 배열 (예: ["꿀콜 🍯", "운행시간 양호", "요금 적정"])
 }
 
 // [신규] 운행일지 정산 및 미수금 추적을 위한 구조체

@@ -476,6 +476,8 @@ export async function handleDecision(userId: string, orderId: string, action: 'K
 export async function evaluateNewOrder(userId: string, securedOrder: SecuredOrder, io: any) {
     const session = getUserSession(userId);
     let timeExt = "카카오 연산 실패";
+    const reasons: string[] = [];  // 🔍 모든 단점/패널티 사유를 여기에 수집 (Non-Short-Circuit)
+    const pros: string[] = [];     // ✅ 모든 장점/긍정 사유를 여기에 수집
 
     // "미상" 타이틀 덮어쓰기: 정밀 주소가 있으면 교체
     if (securedOrder.pickupDetails?.[0]?.addressDetail) {
@@ -491,6 +493,63 @@ export async function evaluateNewOrder(userId: string, securedOrder: SecuredOrde
     try {
         const apiKey = process.env.KAKAO_REST_API_KEY;
         if (apiKey) {
+            // ━━━ Stage 1: 형상 필터 검증 (Non-Short-Circuit — 여기서 return 하지 않음) ━━━
+            const filter = session.activeFilter;
+
+            // 1) 차종 검사
+            if (filter.allowedVehicleTypes.length > 0 && securedOrder.vehicleType) {
+                if (!filter.allowedVehicleTypes.includes(securedOrder.vehicleType)) {
+                    reasons.push(`차종(${securedOrder.vehicleType}) 불일치`);
+                } else {
+                    pros.push(`차종(${securedOrder.vehicleType}) 일치`);
+                }
+            }
+
+            // 2) 최소 운임 검사
+            if (filter.minFare > 0 && securedOrder.fare > 0) {
+                if (securedOrder.fare < filter.minFare) {
+                    reasons.push(`요금(${(securedOrder.fare/10000).toFixed(1)}만) 미달`);
+                } else {
+                    pros.push(`요금(${(securedOrder.fare/10000).toFixed(1)}만) 적정`);
+                }
+            }
+
+            // 3) 최대 운임 검사
+            if (filter.maxFare > 0 && filter.maxFare < 1000000 && securedOrder.fare > 0) {
+                if (securedOrder.fare > filter.maxFare) {
+                    reasons.push(`요금(${(securedOrder.fare/10000).toFixed(1)}만) 초과`);
+                }
+            }
+
+            // 4) 제외 키워드 검사 (착불, 수거, 까대기 등)
+            if (filter.excludedKeywords.length > 0) {
+                const rawText = `${securedOrder.pickup} ${securedOrder.dropoff} ${securedOrder.detailMemo || ''} ${securedOrder.rawText || ''}`;
+                let hasExcluded = false;
+                for (const kw of filter.excludedKeywords) {
+                    if (kw && rawText.includes(kw)) {
+                        reasons.push(`제외키워드(${kw}) 감지`);
+                        hasExcluded = true;
+                    }
+                }
+                if (!hasExcluded) {
+                    pros.push(`제외키워드 없음`);
+                }
+            }
+
+            // 5) 도착지 키워드 검사 (합짐 모드일 때)
+            if (filter.isSharedMode && filter.destinationKeywords.length > 0) {
+                const dropoffText = securedOrder.dropoff || '';
+                const matched = filter.destinationKeywords.some(kw => dropoffText.includes(kw));
+                if (!matched) {
+                    reasons.push(`도착지(${dropoffText.substring(0, 10)}) 회랑 이탈`);
+                } else {
+                    pros.push(`도착지 회랑 적중`);
+                }
+            }
+
+            console.log(`   - 🔍 [Stage 1] 형상 필터 검증 완료: ${reasons.length === 0 ? '✅ 통과' : `❌ ${reasons.join(', ')}`}`);
+            // ━━━ Stage 1 끝 — return 하지 않고 Stage 2(지오코딩+카카오)로 계속 진행 ━━━
+
             logRoadmapEvent("서버", "🛡️ 주소 3중 폴백 (괄호제거 ➡️ 주소검색 ➡️ 키워드 ➡️ 절사) 연산");
 
             // 1.5단계: 지오코딩 (텍스트 주소를 X, Y 좌표로 변환)
@@ -537,6 +596,15 @@ export async function evaluateNewOrder(userId: string, securedOrder: SecuredOrde
                     let recommend = "'콜'";
                     if (durationMin <= DISPATCH_CONFIG.SOLO_HONEY_TIME_MAX) recommend = "'꿀'";
                     else if (durationMin >= DISPATCH_CONFIG.SOLO_SHIT_TIME_MIN) recommend = "'똥'";
+
+                    // Stage 2: 카카오 Solo 경로 — 장/단점 양면 수집
+                    if (durationMin >= DISPATCH_CONFIG.SOLO_SHIT_TIME_MIN) {
+                        reasons.push(`운행시간(${durationMin}분) 초과`);
+                    } else if (durationMin <= DISPATCH_CONFIG.SOLO_HONEY_TIME_MAX) {
+                        pros.push(`운행시간(${durationMin}분) 양호 🍯`);
+                    } else {
+                        pros.push(`운행시간(${durationMin}분) 보통`);
+                    }
 
                     timeExt = `단독 ${distKm}km, ${durationMin}분 ${recommend}`;
                     securedOrder.routePolyline = result.polyline;
@@ -614,6 +682,22 @@ export async function evaluateNewOrder(userId: string, securedOrder: SecuredOrde
                     if (result.timeDiffMin <= DISPATCH_CONFIG.DETOUR_HONEY_TIME_MAX && distDiff <= DISPATCH_CONFIG.DETOUR_HONEY_DIST_MAX) recommend = "'꿀'";
                     else if (result.timeDiffMin >= DISPATCH_CONFIG.DETOUR_SHIT_TIME_MIN || distDiff >= DISPATCH_CONFIG.DETOUR_SHIT_DIST_MIN) recommend = "'똥'";
 
+                    // Stage 2: 카카오 Detour 경로 — 장/단점 양면 수집 (시간/거리 각각 독립 체크)
+                    if (result.timeDiffMin >= DISPATCH_CONFIG.DETOUR_SHIT_TIME_MIN) {
+                        reasons.push(`우회시간(+${result.timeDiffMin}분) 초과`);
+                    } else if (result.timeDiffMin <= DISPATCH_CONFIG.DETOUR_HONEY_TIME_MAX) {
+                        pros.push(`우회시간(+${result.timeDiffMin}분) 양호 🍯`);
+                    } else {
+                        pros.push(`우회시간(+${result.timeDiffMin}분) 보통`);
+                    }
+                    if (distDiff >= DISPATCH_CONFIG.DETOUR_SHIT_DIST_MIN) {
+                        reasons.push(`우회거리(+${result.distDiffKm}km) 초과`);
+                    } else if (distDiff <= DISPATCH_CONFIG.DETOUR_HONEY_DIST_MAX) {
+                        pros.push(`우회거리(+${result.distDiffKm}km) 양호 🍯`);
+                    } else {
+                        pros.push(`우회거리(+${result.distDiffKm}km) 보통`);
+                    }
+
                     const signDist = distDiff > 0 ? "+" : "";
                     const signTime = result.timeDiffMin > 0 ? "+" : "";
 
@@ -628,24 +712,40 @@ export async function evaluateNewOrder(userId: string, securedOrder: SecuredOrde
                     console.log(`   - ⚠️ 패널티 결과: ${timeExt} (현위치접근: ${appDist}km, ${appTime}분)`);
                     console.log(`   - 🗺️ 궤적 길이 (Detour): ${securedOrder.routePolyline?.length || '없음'}`);
                 } else {
+                    reasons.push(`본콜 좌표 누락`);
                     console.log(`   - ❌ 본콜은 있으나 좌표값이 누락됨.`);
                 }
             } else {
+                reasons.push(`지오코딩 실패(좌표 변환 불가)`);
                 console.log(`   - ❌ 지오코딩 실패: X/Y 좌표 변환 불가능`);
             }
         } else {
+            reasons.push(`API KEY 부재`);
             console.log(`   - ❌ KAKAO_REST_API_KEY 서버 환경 변수 누락`);
         }
     } catch (error: any) {
         console.error("서버-사이드 카카오 연산 에러:", error);
-        if (error.message) {
-            timeExt = `카카오 연산 실패: ${error.message}`;
-        }
+        const errMsg = error.message || '알 수 없는 오류';
+        timeExt = `카카오 연산 실패: ${errMsg}`;
+        reasons.push(`카카오 연산 실패(${errMsg})`);
     }
     console.log(`======================================================\n`);
 
     logRoadmapEvent("서버", "경로 폴리라인 및 최종 수익성(콜/꿀/똥) 라벨링 연산");
     securedOrder.kakaoTimeExt = timeExt;
+
+    // 🔍 종합 평가 결과 주입 (Stage 1 + Stage 2 사유 통합)
+    securedOrder.rejectionReasons = reasons;
+    securedOrder.approvalReasons = pros;
+    securedOrder.isRejected = reasons.length > 0;
+    if (reasons.length > 0) {
+        console.log(`   - 💩 [종합 평가] 똥콜 판정 (${reasons.length}건): ${reasons.join(' | ')}`);
+    } else {
+        console.log(`   - ✅ [종합 평가] 필터/경로 모두 통과`);
+    }
+    if (pros.length > 0) {
+        console.log(`   - 👍 [장점 수집] (${pros.length}건): ${pros.join(' | ')}`);
+    }
 
     if (io) {
         console.log(`📤 [Socket 푸시] order-evaluated (${securedOrder.id})`);
