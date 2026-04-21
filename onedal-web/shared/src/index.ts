@@ -53,19 +53,38 @@ export interface SimplifiedOfficeOrder {
 }
 // 2. [상세 페이지] 배차 확정 후, 들어가서 스크래핑해올 구체적 데이터
 export interface DetailedOfficeOrder {
+    // 1. 배차사(퀵사무실) 정보 (상세화면 최상단)
+    dispatcherName?: string;          // 배차 사무실 상호 (예: "고양퀵서비스")
+    dispatcherPhone?: string;         // 배차 사무실 연락처 (예: "031-932-7722")
+    
+    // 2. 문서/전표 기본 정보
+    receiptStatus?: string;           // 전표 상태 (예: "신규", "수정", "취소")
+    itemDescription?: string;         // 물품 요약 (예: "소형 가전", "박스 2개")
+    vehicleType?: string;             // 차량 종류 (예: "1t", "다마스")
+    
+    // 3. 요금 상세 스펙
+    commissionRate?: string;          // 수수료율 (예: "23%", "10%", "*%")
+    tollFare?: string;                // 탁송료/통행료 별도 기재 항목
+    paymentType?: PaymentType;        // 신용, 착불 등 결제수단
+    billingType?: BillingType;        // 세금계산서, 인수증 발급 형태
+    
+    // 4. 운행 조건 스펙
+    tripType?: string;                // 배송 구분 (예: "편도", "왕복")
+    orderForm?: string;               // 배송 형태 (예: "보통", "급송")
+    detailMemo?: string;              // 적요 상세 (원문 전체)
+    
+    // 5. 위치 정보
     pickups?: LocationPoint[];        // 다중/상세 상차지
     dropoffs?: LocationPoint[];       // 다중/상세 하차지
-    pickupDetails?: LocationDetailInfo[];  // [추가] 출발지 상세 정보 목록 (팝업 파싱)
-    dropoffDetails?: LocationDetailInfo[]; // [추가] 도착지 상세 정보 목록 (팝업 파싱)
+    pickupDetails?: LocationDetailInfo[];  // 출발지 상세 정보 (팝업 파싱)
+    dropoffDetails?: LocationDetailInfo[]; // 도착지 상세 정보 (팝업 파싱)
     distanceKm?: number;              // 운행 거리(km)
+    
+    // 6. 메타 데이터 및 호환성 필드
     isMock?: boolean;                 // 목업 콜 여부
     isShared?: boolean;               // 합짐(혼적) 여부
     isExpress?: boolean;              // 급송(독차) 여부
-    paymentType?: PaymentType;        // 신용, 착불 등 결제수단
-    billingType?: BillingType;        // 세금계산서, 인수증 발급 형태
-    vehicleType?: string;             // 차량 종류 (다마스, 1톤카고 등)
-    itemDescription?: string;         // 화물 요약 (예: "박스 2개")
-    companyName?: string;             // 화주 상호/이름
+    companyName?: string;             // 화주 상호/이름 (과거 호환 유지 목적)
     pickupTime?: string;              // 픽업 예약 시간 지정
 }
 

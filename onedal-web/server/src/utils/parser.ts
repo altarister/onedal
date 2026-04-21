@@ -159,3 +159,73 @@ export function parseMockupVehicleType(rawText: string): string | undefined {
     
     return undefined;
 }
+
+/**
+ * [Dumb Client / Smart Server]
+ * 원본 텍스트(rawText)로부터 세부 메타데이터를 정규식으로 추출합니다.
+ */
+export function parseDetailedRawText(rawText: string): any {
+    if (!rawText) return {};
+
+    const result: any = {};
+    const lines = rawText.split('\n').map(l => l.trim());
+
+    // 1. 배차사 / 연락처
+    result.dispatcherName = extractField(lines, "배차사") || extractField(lines, "화주명") || extractField(lines, "화주");
+    result.dispatcherPhone = extractField(lines, "배차화물전화") || extractField(lines, "화물전화") || extractField(lines, "배차전화");
+    
+    // 2. 상태/형태
+    result.receiptStatus = extractField(lines, "상태") || extractField(lines, "접수");
+    result.tripType = extractField(lines, "운송구분") || extractField(lines, "운행구분") || extractField(lines, "왕복여부") || "편도";
+    result.orderForm = extractField(lines, "오더형태") || "일반";
+
+    // 3. 결제 관련
+    result.paymentType = extractField(lines, "결제방법") || extractField(lines, "지불") || extractField(lines, "결제");
+    result.billingType = extractField(lines, "계산서") || extractField(lines, "영수증");
+    result.commissionRate = extractField(lines, "수수료") || extractField(lines, "수수료율");
+    result.tollFare = extractField(lines, "탁송료") || extractField(lines, "경유비");
+
+    // 4. 차종 및 화물 상세
+    result.vehicleType = extractField(lines, "차종") || extractField(lines, "요청차종");
+    result.itemDescription = extractField(lines, "물품") || extractField(lines, "품목") || extractField(lines, "화물명");
+    
+    // 5. 픽업 시간
+    result.pickupTime = extractField(lines, "상차일시") || extractField(lines, "상차시간") || extractField(lines, "출발시간");
+
+    // 6. 적요 (상세 메모)
+    // 팝업 상세본 "[적요상세/정보]"가 있으면 최우선으로 파싱
+    if (rawText.includes("[적요상세/정보]")) {
+        const parts = rawText.split("[적요상세/정보]")[1];
+        if (parts) {
+            // 안드로이드 접근성 노드는 화면 전체를 다시 가져오므로, 
+            // 팝업 안의 진짜 내용만 발라내려면 '적요 내용'과 '닫기' 사이의 텍스트만 추출해야 함.
+            const match = parts.split("\n[")[0].match(/적요 내용\s*([\s\S]*?)\s*닫기/);
+            if (match && match[1]) {
+                let block = match[1].replace(/\n/g, " ").replace(/\s{2,}/g, " ").trim();
+                if (block.length > 0) result.detailMemo = block;
+            }
+        }
+    } 
+    
+    if (!result.detailMemo && rawText.includes("적요상세 ")) {
+        const parts = rawText.split("적요상세 ")[1];
+        if (parts) {
+            result.detailMemo = parts.trim();
+        }
+    }
+    
+    // 팝업 상세본이 없으면 본문 프리뷰 텍스트에서 추출 (다음 팝업 태그 [ 가 나오기 전까지만)
+    if (!result.detailMemo) {
+        const memoIndex = lines.findIndex(l => l.startsWith("적요") || l.startsWith("특기사항") || l.startsWith("기타사항"));
+        if (memoIndex !== -1) {
+            let endIndex = lines.findIndex((l, idx) => idx > memoIndex && l.startsWith("["));
+            if (endIndex === -1) endIndex = lines.length;
+            
+            const memoContent = lines.slice(memoIndex, endIndex).join('\n').replace(/^(적요|특기사항|기타사항)\s*[:]?\s*/, "").trim();
+            result.detailMemo = memoContent || undefined;
+        }
+    }
+
+    return result;
+}
+

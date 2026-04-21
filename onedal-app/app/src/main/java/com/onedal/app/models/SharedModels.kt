@@ -88,6 +88,14 @@ data class DetailedOfficeOrder(
     val pickupDistance: Double? = null,
     // 상세 추가 필드
     val distanceKm: Double? = null,
+    val dispatcherName: String? = null,  // 배차사 이름
+    val dispatcherPhone: String? = null, // 배차사 연락처
+    val receiptStatus: String? = null,   // 신규/수정
+    val commissionRate: String? = null,  // 수수료 (23%)
+    val tollFare: String? = null,        // 탁송료
+    val tripType: String? = null,        // 편도/왕복
+    val orderForm: String? = null,       // 급송/일반
+    val detailMemo: String? = null,      // 적요상세 원문
     val paymentType: String? = null,     // "신용", "착불", "선불" 등
     val billingType: String? = null,     // "계산서", "인수증", "무과세"
     val vehicleType: String? = null,     // "다마스", "1톤카고" 등

@@ -202,7 +202,7 @@ router.get("/registered", requireAuth, (req, res) => {
 router.delete("/:deviceId", requireAuth, (req, res) => {
     try {
         const userId = req.user!.id;
-        const { deviceId } = req.params;
+        const deviceId = req.params.deviceId as string;
 
         const result = db.prepare(
             "DELETE FROM user_devices WHERE user_id = ? AND device_id = ?"
@@ -229,7 +229,7 @@ router.delete("/:deviceId", requireAuth, (req, res) => {
 router.put("/:deviceId/name", requireAuth, (req, res) => {
     try {
         const userId = req.user!.id;
-        const { deviceId } = req.params;
+        const deviceId = req.params.deviceId as string;
         const { deviceName } = req.body as { deviceName: string };
 
         const result = db.prepare(
@@ -259,7 +259,7 @@ router.put("/:deviceId/name", requireAuth, (req, res) => {
  */
 router.post("/:deviceId/offline", (req, res) => {
     try {
-        const { deviceId } = req.params;
+        const deviceId = req.params.deviceId as string;
         const session = activeDevices.get(deviceId);
         if (session) {
             // 메모리 세션을 즉시 OFFLINE 및 수동 모드로 변경
@@ -280,7 +280,7 @@ router.post("/:deviceId/offline", (req, res) => {
  */
 router.post("/:deviceId/mode", requireAuth, (req, res) => {
     try {
-        const { deviceId } = req.params;
+        const deviceId = req.params.deviceId as string;
         const { mode } = req.body as { mode: DeviceModeType };
 
         if (mode !== "AUTO" && mode !== "MANUAL") {

@@ -20,7 +20,6 @@ import filtersRouter from "./routes/filters";
 import { initGeoService } from "./services/geoService";
 import { logRoadmapEvent } from "./utils/roadmapLogger";
 import { registerSocketHandlers } from "./socket/socketHandlers";
-import { Server as SocketIOServer } from "socket.io";
 
 dotenv.config({ path: path.join(__dirname, "../.env") });
 
