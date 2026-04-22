@@ -22,6 +22,34 @@ export default function OrderFilterModal({ isOpen, onClose }: OrderFilterModalPr
     // 배열 확인용 아코디언 상태
     const [isAccordionOpen, setIsAccordionOpen] = useState(false);
 
+    // [신규] 지역 미리보기용 상태
+    const [previewRegions, setPreviewRegions] = useState<Record<string, string[]> | null>(null);
+    const [previewCount, setPreviewCount] = useState<number>(0);
+
+    // 지역이 변경될 때마다 디바운스 처리 후 미리보기 API 호출
+    useEffect(() => {
+        const currentCity = filter?.destinationCity || "";
+        if (targetCity && targetCity !== currentCity) {
+            const timer = setTimeout(() => {
+                fetch(`/api/settings/preview-regions?city=${encodeURIComponent(targetCity)}`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.groupedRegions) {
+                        setPreviewRegions(data.groupedRegions);
+                        setPreviewCount(data.totalCount);
+                    }
+                })
+                .catch(err => console.error("Preview fetch err:", err));
+            }, 400); // 400ms 디바운스
+            return () => clearTimeout(timer);
+        } else {
+            setPreviewRegions(null);
+            setPreviewCount(0);
+        }
+    }, [targetCity, filter?.destinationCity]);
+
     const VEHICLE_OPTIONS = ['1t', '다마스', '라보', '오토바이'] as const;
 
     useEffect(() => {
@@ -114,177 +142,155 @@ export default function OrderFilterModal({ isOpen, onClose }: OrderFilterModalPr
                 </div>
 
                 <div className="space-y-4 overflow-y-auto pr-1 pb-2 custom-scrollbar relative z-10">
-                    {/* 차종 멀티셀렉터 */}
+                    {/* ==========================================
+                        섹션 1. 공통 기본 설정
+                    ========================================== */}
                     <div className="bg-slate-900/40 backdrop-blur-md p-4 rounded-xl border border-slate-800/60 shadow-lg">
-                        <div className="flex items-center gap-1.5 mb-3">
-                            <span className="text-sm">🚛</span>
-                            <h2 className="text-[12px] font-black text-white tracking-widest">차종 필터</h2>
-                            <span className="text-[9px] text-slate-500 ml-auto font-mono">
-                                {selectedVehicles.length === 0 ? '전체 허용' : `${selectedVehicles.length}개 선택`}
-                            </span>
+                        <div className="flex items-center gap-1.5 mb-4 pb-2 border-b border-slate-700/50">
+                            <span className="text-sm">⚙️</span>
+                            <h2 className="text-[12px] font-black text-white tracking-widest">공통 기본 설정</h2>
                         </div>
-                        <div className="grid grid-cols-4 gap-2">
-                            {VEHICLE_OPTIONS.map((v) => {
-                                const isSelected = selectedVehicles.includes(v);
-                                return (
-                                    <button
-                                        key={v}
-                                        type="button"
-                                        onClick={() => {
-                                            setSelectedVehicles(prev =>
-                                                prev.includes(v)
-                                                    ? prev.filter(x => x !== v)
-                                                    : [...prev, v]
-                                            );
-                                        }}
-                                        className={`py-2.5 rounded-lg text-sm font-black tracking-tight transition-all active:scale-95 border ${isSelected
-                                            ? 'bg-warning/20 border-warning/60 text-warning shadow-lg'
-                                            : 'bg-black/40 border-slate-700/40 text-slate-500 hover:border-slate-600 hover:text-slate-400'
-                                            }`}
-                                    >
-                                        {v}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                        {isSharedMode && (
-                            <p className="text-[10px] text-warning mt-2 font-black text-center bg-warning/20 p-1.5 rounded">
-                                💡 합짐 모드 진입으로 잔짐 공략을 위해 '1t' 필터 옵션이 기본 해제되었습니다.
-                            </p>
-                        )}
-                    </div>
 
-                    {/* 단가 및 거리 필터 (가로 배치) */}
-                    <div className="flex gap-4">
-                        {/* 하한가 */}
-                        <div className="flex-1 group bg-slate-900/40 backdrop-blur-md p-3 rounded-xl border border-slate-800/60 shadow-lg hover:border-success/40 transition-colors">
-                            <label className="text-[11px] font-black text-slate-400 tracking-wider flex items-center gap-1.5 mb-2">
-                                <span className="text-success">💵</span> 하한가
-                            </label>
-                            <div className="relative flex items-center mb-1">
+                        {/* 차종 멀티셀렉터 */}
+                        <div className="mb-4">
+                            <div className="flex items-center gap-1.5 mb-2">
+                                <label className="text-[11px] font-bold text-slate-400">허용 차종</label>
+                                <span className="text-[9px] text-slate-500 ml-auto font-mono">
+                                    {selectedVehicles.length === 0 ? '전체 허용' : `${selectedVehicles.length}개 선택`}
+                                </span>
+                            </div>
+                            <div className="grid grid-cols-4 gap-2">
+                                {VEHICLE_OPTIONS.map((v) => {
+                                    const isSelected = selectedVehicles.includes(v);
+                                    return (
+                                        <button
+                                            key={v}
+                                            type="button"
+                                            onClick={() => {
+                                                setSelectedVehicles(prev =>
+                                                    prev.includes(v)
+                                                        ? prev.filter(x => x !== v)
+                                                        : [...prev, v]
+                                                );
+                                            }}
+                                            className={`py-2.5 rounded-lg text-sm font-black tracking-tight transition-all active:scale-95 border ${isSelected
+                                                ? 'bg-success/20 border-success/60 text-success shadow-lg'
+                                                : 'bg-black/40 border-slate-700/40 text-slate-500 hover:border-slate-600 hover:text-slate-400'
+                                                }`}
+                                        >
+                                            {v}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            <p className="text-[10px] text-slate-500 mt-2 text-center bg-black/30 p-1.5 rounded">
+                                💡 합짐(LOADING) 상태 진입 시, 1t 등 상위 차종은 자동으로 제외 처리됩니다.
+                            </p>
+                        </div>
+
+                        {/* 하한가 & 블랙리스트 */}
+                        <div className="flex gap-3">
+                            <div className="flex-[0.4]">
+                                <label className="text-[11px] font-bold text-slate-400 flex items-center gap-1 mb-1.5">
+                                    <span className="text-success">💵</span> 하한가
+                                </label>
+                                <div className="relative flex items-center">
+                                    <input
+                                        type="number"
+                                        value={minFare}
+                                        onChange={(e) => setMinFare(e.target.value)}
+                                        className="w-full bg-black/60 border border-slate-700/50 rounded-lg p-2.5 pr-8 text-[15px] text-success font-black outline-none focus:border-success/60 transition-all font-mono shadow-inner"
+                                    />
+                                    <span className="absolute right-2.5 text-[10px] text-success/70 font-bold pointer-events-none">원</span>
+                                </div>
+                            </div>
+                            <div className="flex-[0.6]">
+                                <label className="text-[11px] font-bold text-red-400/80 flex items-center gap-1 mb-1.5">
+                                    <span className="text-red-500">🚫</span> 제외 키워드
+                                </label>
                                 <input
-                                    type="number"
-                                    value={minFare}
-                                    onChange={(e) => setMinFare(e.target.value)}
-                                    className="w-full bg-black/60 border border-slate-700/50 rounded-lg p-2.5 pr-10 text-xl text-success font-black outline-none focus:bg-success/20 focus:border-success/60 transition-all font-mono tracking-tighter shadow-inner"
+                                    type="text"
+                                    value={blacklist}
+                                    onChange={(e) => handleBlacklistChange(e as any)}
+                                    placeholder="단어 쉼표(,) 구분"
+                                    className="w-full bg-black/60 border border-red-900/50 rounded-lg p-2.5 text-xs text-red-300 font-medium outline-none focus:border-red-500/60 transition-all shadow-inner"
                                 />
-                                <span className="absolute right-2.5 text-[10px] text-success/70 font-bold pointer-events-none">원</span>
                             </div>
                         </div>
+                    </div>
 
-                        {/* 상차 거리: 첫짐 모드일 때만 표시 */}
-                        {!isSharedMode && (
-                            <div className="flex-1 group bg-slate-900/40 backdrop-blur-md p-3 rounded-xl border border-slate-800/60 shadow-lg hover:border-indigo-500/40 transition-colors">
-                                <label className="text-[11px] font-black text-slate-400 tracking-wider flex items-center gap-1.5 mb-2">
-                                    <span className="text-indigo-400">📍</span> 상차 반경
-                                </label>
-                                <div className="relative flex items-center mb-1">
+                    {/* ==========================================
+                        섹션 2. 첫짐(단독) 탐색 설정
+                    ========================================== */}
+                    <div className="bg-gradient-to-br from-slate-900/60 to-[#0e1424]/80 backdrop-blur-md p-4 rounded-xl border border-indigo-500/30 shadow-lg relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 rounded-full blur-xl pointer-events-none"></div>
+                        <div className="flex items-center gap-1.5 mb-3 pb-2 border-b border-indigo-500/30">
+                            <span className="text-sm">🎯</span>
+                            <h2 className="text-[12px] font-black text-indigo-200 tracking-widest">첫짐(단독) 탐색 설정</h2>
+                        </div>
+
+                        <div className="flex gap-3 mb-3">
+                            <div className="flex-[0.4]">
+                                <label className="block text-[10px] font-bold text-slate-400 mb-1.5 pl-1">도착 희망 시/도</label>
+                                <select
+                                    value={targetCity}
+                                    onChange={(e) => setTargetCity(e.target.value)}
+                                    className="w-full bg-black/50 border border-slate-600/40 rounded-lg p-2.5 text-[14px] text-indigo-300 font-bold outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400/50 transition-all shadow-inner appearance-none"
+                                >
+                                    <option value="용인시">용인시</option>
+                                    <option value="수원시">수원시</option>
+                                    <option value="성남시">성남시</option>
+                                    <option value="화성시">화성시</option>
+                                    <option value="광주시">광주시</option>
+                                    <option value="평택시">평택시</option>
+                                    <option value="파주시">파주시</option>
+                                </select>
+                            </div>
+                            <div className="flex-[0.3]">
+                                <label className="block text-[10px] font-bold text-slate-400 mb-1.5 pl-1">상차 반경</label>
+                                <div className="relative flex items-center">
                                     <input
                                         type="number"
                                         value={pickupRadius}
                                         onChange={(e) => setPickupRadius(e.target.value)}
-                                        className="w-full bg-black/60 border border-slate-700/50 rounded-lg p-2.5 pr-10 text-xl text-white font-bold outline-none focus:bg-indigo-950/20 focus:border-indigo-400/60 transition-all shadow-inner"
+                                        className="w-full bg-black/50 border border-slate-600/40 rounded-lg p-2.5 pr-8 text-[14px] text-white font-bold outline-none focus:border-indigo-400 transition-all shadow-inner text-center"
                                     />
-                                    <span className="absolute right-2.5 text-[10px] text-slate-500 font-bold pointer-events-none">KM</span>
+                                    <span className="absolute right-2 text-slate-500 font-black pointer-events-none text-[9px]">KM</span>
                                 </div>
                             </div>
-                        )}
-                        {isSharedMode && (
-                            <div className="flex-1 group bg-slate-900/20 backdrop-blur-md p-3 rounded-xl border border-slate-800/30 shadow-inner flex flex-col justify-center items-center text-center">
-                                <span className="text-xl mb-1 opacity-50">🛣️</span>
-                                <span className="text-[10px] font-black text-slate-500">상차 반경 비활성화됨</span>
-                                <span className="text-[9px] text-slate-600 mt-0.5">가는 길(회랑)에서 탐색합니다</span>
+                            <div className="flex-[0.3]">
+                                <label className="block text-[10px] font-bold text-slate-400 mb-1.5 pl-1">도착 반경</label>
+                                <div className="relative flex items-center">
+                                    <input
+                                        type="number"
+                                        value={targetRadius}
+                                        onChange={(e) => setTargetRadius(e.target.value)}
+                                        className="w-full bg-black/50 border border-slate-600/40 rounded-lg p-2.5 pr-8 text-[14px] text-indigo-300 font-bold outline-none focus:border-indigo-400 transition-all shadow-inner text-center"
+                                    />
+                                    <span className="absolute right-2 text-indigo-600/70 font-black pointer-events-none text-[9px]">KM</span>
+                                </div>
                             </div>
-                        )}
-                    </div>
-
-                    {/* 전략 필터 구역 - 합짐 vs 첫짐 분기 */}
-                    <div className="bg-gradient-to-br from-slate-900/60 to-[#0e1424]/80 backdrop-blur-md p-4 rounded-xl border border-slate-700/50 shadow-lg">
-                        <div className="flex items-center gap-1.5 mb-3 pb-2 border-b border-slate-700/50">
-                            <span className="text-sm">🎯</span>
-                            <h2 className="text-[12px] font-black text-white tracking-widest">
-                                {isSharedMode ? '합짐 우선순위 파이프라인' : '첫콜 목적지 설정'}
-                            </h2>
-                        </div>
-
-                        <div className="flex gap-4">
-                            {!isSharedMode ? (
-                                // 첫짐 모드 UI
-                                <>
-                                    <div className="flex-1">
-                                        <label className="block text-[10px] font-bold text-slate-400 mb-1.5 pl-1">도착 희망 시/도</label>
-                                        <select
-                                            value={targetCity}
-                                            onChange={(e) => setTargetCity(e.target.value)}
-                                            className="w-full bg-black/50 border border-slate-600/40 rounded-lg p-2.5 text-[15px] text-indigo-300 font-bold outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400/50 transition-all shadow-inner appearance-none"
-                                        >
-                                            <option value="용인시">용인시</option>
-                                            <option value="수원시">수원시</option>
-                                            <option value="성남시">성남시</option>
-                                            <option value="화성시">화성시</option>
-                                            <option value="광주시">광주시</option>
-                                            <option value="평택시">평택시</option>
-                                            <option value="파주시">파주시</option>
-                                        </select>
-                                    </div>
-                                    <div className="flex-1">
-                                        <label className="block text-[10px] font-bold text-slate-400 mb-1.5 pl-1">목적지 주변 반경</label>
-                                        <div className="relative flex items-center">
-                                            <input
-                                                type="number"
-                                                value={targetRadius}
-                                                onChange={(e) => setTargetRadius(e.target.value)}
-                                                className="w-full bg-black/50 border border-slate-600/40 rounded-lg p-2.5 text-[15px] text-indigo-300 font-bold outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400/50 transition-all shadow-inner"
-                                            />
-                                            <span className="absolute right-2.5 text-indigo-600 font-black pointer-events-none text-[10px]">KM</span>
-                                        </div>
-                                    </div>
-                                </>
-                            ) : (
-                                // 합짐 모드 UI
-                                <>
-                                    <div className="flex-1">
-                                        <label className="block text-[10px] font-bold text-slate-400 mb-1.5 pl-1 text-center">경로 이탈 (회랑) 반경</label>
-                                        <div className="relative flex items-center">
-                                            <input
-                                                type="number"
-                                                value={corridorRadius}
-                                                onChange={(e) => setCorridorRadius(e.target.value)}
-                                                className="w-full bg-black/50 border border-orange-500/30 rounded-lg p-2.5 text-[15px] text-orange-300 font-bold outline-none focus:border-orange-400 text-center transition-all shadow-inner"
-                                            />
-                                            <span className="absolute right-2.5 text-orange-600/50 font-black pointer-events-none text-[10px]">KM</span>
-                                        </div>
-                                    </div>
-                                    <div className="flex-[0.2] flex items-center justify-center text-slate-600 text-xl font-light pt-4">+</div>
-                                    <div className="flex-1">
-                                        <label className="block text-[10px] font-bold text-slate-400 mb-1.5 pl-1 text-center">하차 거점 주변 반경</label>
-                                        <div className="relative flex items-center">
-                                            <input
-                                                type="number"
-                                                value={targetRadius}
-                                                onChange={(e) => setTargetRadius(e.target.value)}
-                                                className="w-full bg-black/50 border border-indigo-500/30 rounded-lg p-2.5 text-[15px] text-indigo-300 font-bold outline-none focus:border-indigo-400 text-center transition-all shadow-inner"
-                                            />
-                                            <span className="absolute right-2.5 text-indigo-600/50 font-black pointer-events-none text-[10px]">KM</span>
-                                        </div>
-                                    </div>
-                                </>
-                            )}
                         </div>
 
                         {/* 아코디언 컴포넌트: 장전된 필터 키워드 검증 */}
-                        <div className="mt-4 pt-4 border-t border-slate-700/50">
+                        <div className="mt-2 pt-2 border-t border-indigo-500/20">
                             <button
                                 onClick={() => setIsAccordionOpen(!isAccordionOpen)}
                                 className="w-full flex items-center justify-between p-2 rounded bg-indigo-950/30 hover:bg-indigo-900/40 transition-colors group"
                             >
                                 <div className="flex items-center gap-2">
-                                    <span className="text-[12px] font-medium text-slate-300 group-hover:text-white transition-colors">
+                                    <span className="text-[11px] font-medium text-slate-300 group-hover:text-white transition-colors">
                                         현재 장전된 지역 목록 검증
                                     </span>
-                                    <span className="bg-indigo-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-[0_0_10px_rgba(99,102,241,0.5)]">
-                                        {destKeywordsLimit.length}개
-                                    </span>
+                                    {targetCity !== (filter.destinationCity || "") ? (
+                                        <span className="bg-amber-500/80 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-[0_0_10px_rgba(245,158,11,0.5)] transition-all">
+                                            변경 예정 {previewCount > 0 ? `(${previewCount}개)` : '...'}
+                                        </span>
+                                    ) : (
+                                        <span className="bg-indigo-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-[0_0_10px_rgba(99,102,241,0.5)]">
+                                            {destKeywordsLimit.length}개
+                                        </span>
+                                    )}
                                 </div>
                                 <span className={`text-slate-400 text-sm transition-transform duration-300 ${isAccordionOpen ? 'rotate-180' : ''}`}>
                                     ▼
@@ -292,8 +298,36 @@ export default function OrderFilterModal({ isOpen, onClose }: OrderFilterModalPr
                             </button>
 
                             {isAccordionOpen && (
-                                <div className="mt-2 p-3 bg-black/50 rounded-lg border border-indigo-500/20 max-h-48 overflow-y-auto custom-scrollbar">
-                                    {filter.destinationGroups && Object.keys(filter.destinationGroups).length > 0 ? (
+                                <div className="mt-2 p-3 bg-black/50 rounded-lg border border-indigo-500/20 max-h-40 overflow-y-auto custom-scrollbar">
+                                    {targetCity !== (filter.destinationCity || "") ? (
+                                        previewRegions && Object.keys(previewRegions).length > 0 ? (
+                                            <div className="flex flex-col gap-3">
+                                                {Object.entries(previewRegions).map(([parentName, dongs]) => (
+                                                    <div key={parentName} className="flex flex-col gap-1 opacity-90">
+                                                        <span className="text-[12px] font-bold text-amber-400 border-b border-amber-500/50 pb-1 mb-1 flex items-center justify-between">
+                                                            <span>{parentName} <span className="text-amber-500/70 text-[10px] font-normal">({dongs.length})</span></span>
+                                                            <span className="text-[9px] bg-amber-500/20 px-1.5 py-0.5 rounded-sm">미리보기</span>
+                                                        </span>
+                                                        <div className="flex flex-wrap gap-1.5">
+                                                            {dongs.map(kw => (
+                                                                <span key={kw} className="text-[11px] text-amber-100 bg-amber-900/40 px-1.5 py-0.5 rounded border border-amber-500/30">
+                                                                    {kw}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                                <button onClick={handleSave} className="mt-2 w-full py-2 bg-amber-500/20 text-amber-300 text-xs font-bold rounded-lg border border-amber-500/50 hover:bg-amber-500/40 transition-colors cursor-pointer">
+                                                    이 설정으로 즉시 적용하기
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col items-center justify-center py-6 text-center">
+                                                <div className="w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mb-3"></div>
+                                                <span className="text-amber-400 text-xs font-bold mb-1">'{targetCity}' 지역을 불러오는 중...</span>
+                                            </div>
+                                        )
+                                    ) : filter.destinationGroups && Object.keys(filter.destinationGroups).length > 0 ? (
                                         <div className="flex flex-col gap-3">
                                             {Object.entries(filter.destinationGroups).map(([parentName, dongs]) => (
                                                 <div key={parentName} className="flex flex-col gap-1">
@@ -326,23 +360,41 @@ export default function OrderFilterModal({ isOpen, onClose }: OrderFilterModalPr
                         </div>
                     </div>
 
-                    {/* 블랙리스트 키워드 */}
-                    <div className="group bg-[#150a0a]/50 backdrop-blur-md p-4 rounded-xl border border-red-900/30 shadow-lg hover:border-red-500/40 transition-colors">
-                        <label className="text-[11px] font-black text-red-400/80 tracking-wider flex items-center gap-1.5 mb-2">
-                            <span className="text-red-500">🚫</span> 블랙리스트
-                        </label>
-                        <textarea
-                            value={blacklist}
-                            onChange={handleBlacklistChange}
-                            placeholder="단어 쉼표(,) 구분"
-                            className="w-full h-12 bg-black/60 border border-red-900/50 rounded-lg p-2 text-xs text-red-300 font-medium outline-none focus:bg-red-950/20 focus:border-red-500/60 transition-all resize-none shadow-inner leading-relaxed"
-                        />
+                    {/* ==========================================
+                        섹션 3. 합짐(가는길) 탐색 설정
+                    ========================================== */}
+                    <div className="bg-gradient-to-br from-slate-900/60 to-[#0e1424]/80 backdrop-blur-md p-4 rounded-xl border border-warning/30 shadow-lg relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-warning/10 rounded-full blur-xl pointer-events-none"></div>
+                        <div className="flex items-center gap-1.5 mb-3 pb-2 border-b border-warning/30">
+                            <span className="text-sm">🛣️</span>
+                            <h2 className="text-[12px] font-black text-warning tracking-widest">합짐(회랑) 탐색 설정</h2>
+                        </div>
+                        
+                        <div className="flex items-end gap-3">
+                            <div className="flex-[0.4]">
+                                <label className="block text-[10px] font-bold text-slate-400 mb-1.5 pl-1 text-center">적재 중 추가 탐색 허용 반경</label>
+                                <div className="relative flex items-center">
+                                    <input
+                                        type="number"
+                                        value={corridorRadius}
+                                        onChange={(e) => setCorridorRadius(e.target.value)}
+                                        className="w-full bg-black/50 border border-warning/30 rounded-lg p-2.5 text-[15px] text-warning font-bold outline-none focus:border-warning/60 transition-all shadow-inner text-center"
+                                    />
+                                    <span className="absolute right-2.5 text-warning/50 font-black pointer-events-none text-[10px]">KM</span>
+                                </div>
+                            </div>
+                            <div className="flex-[0.6] pb-1">
+                                <p className="text-[10px] text-slate-500 leading-tight border-l-2 border-warning/30 pl-2">
+                                    첫 짐을 잡은 후 <span className="text-warning font-bold">적재하러 가는 길</span>에 추가 콜 탐색을 허용할 최대 우회(회랑) 반경입니다.
+                                </p>
+                            </div>
+                        </div>
                     </div>
 
                     {/* 저장 버튼 */}
                     <button
                         onClick={handleSave}
-                        className="relative w-full h-14 mt-2 group overflow-hidden rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 p-[1px] shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:shadow-[0_0_30px_rgba(16,185,129,0.4)] transition-all active:scale-[0.98] outline-none"
+                        className="relative w-full h-14 mt-2 group overflow-hidden rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 p-[1px] shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:shadow-[0_0_30px_rgba(16,185,129,0.4)] transition-all active:scale-[0.98] outline-none flex-shrink-0"
                     >
                         <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 to-teal-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                         <div className="relative flex h-full w-full items-center justify-center bg-slate-950/20 backdrop-blur-md rounded-[11px]">
@@ -352,7 +404,7 @@ export default function OrderFilterModal({ isOpen, onClose }: OrderFilterModalPr
                             </span>
                         </div>
                     </button>
-                    <p className="text-[9px] text-slate-500 text-center mb-2">저장된 값은 기사님의 의지로 간주되어 안전하게 보호됩니다.</p>
+                    <p className="text-[9px] text-slate-500 text-center flex-shrink-0">저장된 값은 한 번만 설정하면 첫짐/합짐 상황에 맞춰 자동으로 100% 반영됩니다.</p>
                 </div>
             </div>
         </div>

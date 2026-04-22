@@ -21,6 +21,7 @@
 import { Router } from "express";
 import type { EmergencyReport } from "@onedal/shared";
 import { getUserSession } from "../state/userSessionStore";
+import { applyFilter } from "../state/filterManager";
 import db from "../db";
 import { incrementDeviceStats } from "./devices";
 
@@ -93,8 +94,7 @@ router.post("/", (req, res) => {
 
         if (session.mainCallState && session.mainCallState.id === targetOrderId) {
             session.mainCallState = null;
-            session.activeFilter = { ...session.activeFilter, isSharedMode: false, isActive: true };
-            if (io) io.to(userId).emit("filter-updated", session.activeFilter);
+            applyFilter(userId, { isSharedMode: false, isActive: true, loadState: 'EMPTY' }, io);
             console.log(`   ✅ 본콜 초기화 + 필터 '첫짐' 복원 완료`);
         }
 

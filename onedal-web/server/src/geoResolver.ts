@@ -50,3 +50,26 @@ export function getRegionsByCity(cityName: string): string[] {
     console.log(`🗺️ [GeoResolver] "${cityName}" → ${unique.length}개 읍면동 조회됨`);
     return unique;
 }
+
+/**
+ * 도시명에 속한 읍/면/동을 '구' 단위(SIG_KOR_NM)로 그룹핑하여 반환합니다.
+ */
+export function getGroupedRegionsByCity(cityName: string): Record<string, string[]> {
+    const data = loadGeoData();
+    const groups: Record<string, Set<string>> = {};
+    
+    data.features.forEach(f => {
+        const sig = f.properties?.SIG_KOR_NM;
+        const emd = f.properties?.EMD_KOR_NM;
+        if (sig && emd && sig.includes(cityName)) {
+            if (!groups[sig]) groups[sig] = new Set();
+            groups[sig].add(emd);
+        }
+    });
+
+    const result: Record<string, string[]> = {};
+    for (const [sig, set] of Object.entries(groups)) {
+        result[sig] = Array.from(set).sort();
+    }
+    return result;
+}

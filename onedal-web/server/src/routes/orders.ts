@@ -16,6 +16,7 @@ import type { SimplifiedOfficeOrder, DispatchConfirmRequest, SecuredOrder } from
 import db from "../db";
 import { getUserSession } from "../state/userSessionStore";
 import { forceCancelEvaluatingOrder, handleDecision } from "../services/dispatchEngine";
+import { applyFilter } from "../state/filterManager";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 
 const router = Router();
@@ -155,9 +156,8 @@ router.post("/confirm", (req, res) => {
             logRoadmapEvent("서버", "관제탑에게 이 콜을 선점했음(order-evaluating) 정보 전달");
 
             if (session.activeFilter.isActive) {
-                session.activeFilter = { ...session.activeFilter, isActive: false };
+                applyFilter(userId, { isActive: false }, io);
                 console.log(`📤 [Socket 푸시] filter-updated (isActive: false)`);
-                io.to(userId).emit("filter-updated", session.activeFilter);
                 logRoadmapEvent("서버", "폰의 isHolding=true 기간 동안 다른 콜을 물지 않도록 필터 비활성 정보 전달");
                 
                 logRoadmapEvent("서버", "데스밸리 15초 카운트다운 타이머 감시 연산");

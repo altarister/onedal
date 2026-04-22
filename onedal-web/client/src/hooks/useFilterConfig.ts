@@ -20,8 +20,14 @@ export function useFilterConfig() {
             setFilter(updatedFilter);
         };
 
+        const onConnect = () => {
+            logRoadmapEvent("웹", "서버 소켓 연결/재연결됨 → 최신 필터 상태 요청");
+            socket.emit("request-filter-init");
+        };
+
         socket.on("filter-init", onFilterInit);
         socket.on("filter-updated", onFilterUpdated);
+        socket.on("connect", onConnect);
 
         // 컴포넌트가 마운트될 때 (이미 소켓이 최초 연결을 끝낸 뒤일 수 있으므로) 서버에 최신 상태를 명시적으로 달라고 요청합니다.
         socket.emit("request-filter-init");
@@ -31,6 +37,7 @@ export function useFilterConfig() {
         return () => {
             socket.off("filter-init", onFilterInit);
             socket.off("filter-updated", onFilterUpdated);
+            socket.off("connect", onConnect);
         };
     }, []);
 

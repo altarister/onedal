@@ -13,7 +13,11 @@ export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () =
 
     let label = '대기';
     if (filter.isActive) {
-        label = filter.isSharedMode ? '합짐' : '단독';
+        const state = filter.loadState || 'EMPTY';
+        if (state === 'LOADING') label = '적재중';
+        else if (state === 'DRIVING') label = '운행중';
+        else if (state === 'ARRIVED') label = '도착';
+        else label = filter.isSharedMode ? '합짐' : '사냥중';
     }
 
     const getStatusStyles = (active: boolean, shared: boolean) => {

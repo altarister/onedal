@@ -1,8 +1,9 @@
-import { mapVehicleToKakaoCarType } from "@onedal/shared";
-import type { SecuredOrder, AutoDispatchFilter } from "@onedal/shared";
+import { mapVehicleToKakaoCarType, getSharedModeVehicleTypes } from "@onedal/shared";
+import type { SecuredOrder, AutoDispatchFilter, PricingConfig } from "@onedal/shared";
 import { geocodeAddress, calculateSoloRoute, calculateDetourRoute, compareDirections } from "./kakaoService";
 import { fetchRealWorldRoute } from "../routes/osrmUtil";
 import { getUserSession } from "../state/userSessionStore";
+import { applyFilter } from "../state/filterManager";
 import { optimizeWaypoints } from "../utils/routeOptimizer";
 import { getCorridorRegions } from "../services/geoService";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
@@ -15,8 +16,54 @@ function getKakaoRoutingOptions(userId: string) {
     const vehicleTypeStr = row?.vehicle_type || '1t';
     return {
         carType: mapVehicleToKakaoCarType(vehicleTypeStr),
-        defaultPriority: row?.default_priority || "RECOMMEND"
+        defaultPriority: row?.default_priority || "RECOMMEND",
+        vehicleType: vehicleTypeStr
     };
+}
+
+/** 
+ * DB에서 기사의 요율 설정(차종별 단가, 수수료율, 할인율)을 로드합니다.
+ * 서버 전용 데이터이므로 앱으로 전송되지 않습니다.
+ */
+function loadPricingConfig(userId: string): PricingConfig {
+    const row = db.prepare("SELECT vehicle_rates, agency_fee_percent, max_discount_percent FROM user_filters WHERE user_id = ?").get(userId) as any;
+    const defaultRates: Record<string, number> = {
+        "오토바이": 700, "다마스": 800, "라보": 900, "승용차": 900,
+        "1t": 1000, "1.4t": 1100, "2.5t": 1200, "3.5t": 1300,
+        "5t": 1500, "11t": 2000, "25t": 2500, "특수화물": 3000
+    };
+    return {
+        vehicleRates: row?.vehicle_rates ? JSON.parse(row.vehicle_rates) : defaultRates,
+        agencyFeePercent: row?.agency_fee_percent ?? 23,
+        maxDiscountPercent: row?.max_discount_percent ?? 10
+    };
+}
+
+/**
+ * 다이내믹 요율 계산 엔진
+ * 
+ * 적정 금액 = 거리(km) × 차종 단가 × (1 - 수수료율)
+ * 수용 하한선 = 적정 금액 × (1 - 최대할인율)
+ * 
+ * @returns 적정 금액, 수용 하한선, 꿀콜/적정/미달 판정
+ */
+export function calculateDynamicFare(
+    distanceKm: number,
+    orderVehicleType: string | undefined,
+    fallbackVehicleType: string,
+    pricing: PricingConfig
+): { fairPrice: number; minAcceptable: number; verdict: 'HONEY' | 'FAIR' | 'UNDERPAID' } {
+    const vehicleKey = orderVehicleType && pricing.vehicleRates[orderVehicleType]
+        ? orderVehicleType
+        : fallbackVehicleType;
+    const ratePerKm = pricing.vehicleRates[vehicleKey] || 1000;
+    const feeMultiplier = 1 - (pricing.agencyFeePercent / 100);
+    const discountMultiplier = 1 - (pricing.maxDiscountPercent / 100);
+
+    const fairPrice = Math.round(distanceKm * ratePerKm * feeMultiplier);
+    const minAcceptable = Math.round(fairPrice * discountMultiplier);
+
+    return { fairPrice, minAcceptable, verdict: 'FAIR' }; // verdict는 호출부에서 실제 금액과 비교하여 결정
 }
 
 /** 기존 평가 중이던 콜을 외부에서 강제 삭제할 때 호출 */
@@ -425,16 +472,51 @@ export async function handleDecision(userId: string, orderId: string, action: 'K
         io.to(userId).emit("order-confirmed", orderId);
 
         logRoadmapEvent("서버", "합짐을 위한 반경/목적지 추천 키워드로 다이나믹 필터 생성 연산");
-        session.activeFilter = { 
-            ...session.activeFilter,
-            isSharedMode: true, 
-            isActive: true, 
-            destinationKeywords,
-            allowedVehicleTypes: ["다마스", "라보", "오토바이"] 
-        };
-        logRoadmapEvent("서버", "새로 부여된 합짐 필터(isSharedMode)값 DB 저장");
+
+        // ━━━ 3단계 State Machine 적용 ━━━
+        const currentLoadState = session.activeFilter.loadState || 'EMPTY';
+        
+        // 합짐 차종: 첫 짐 오더의 차종을 기준으로 남은 적재 가능 차종 추론
+        const routingOpts = getKakaoRoutingOptions(userId);
+        const firstLoadVehicle = cachedOrder.vehicleType || routingOpts.vehicleType; // 차종 불명 시 기사 차종 Fallback
+        const sharedVehicleTypes = getSharedModeVehicleTypes(firstLoadVehicle);
+
+        if (currentLoadState === 'EMPTY') {
+            // 첫짐 → LOADING: 회랑 10km, 상차반경 무제한(999), 적재 중 추가콜 탐색
+            applyFilter(userId, {
+                isSharedMode: true,
+                isActive: true,
+                loadState: 'LOADING',
+                corridorRadiusKm: 10,
+                pickupRadiusKm: 999, // 합짐 시 상차반경 무시 (가는 길에 있으면 OK)
+                destinationKeywords,
+                allowedVehicleTypes: sharedVehicleTypes,
+            }, io, false); // persistToDB=false (세션 전용, DB 저장 X)
+            console.log(`🔄 [State Machine] EMPTY → LOADING (첫짐: ${firstLoadVehicle}, 합짐 허용: [${sharedVehicleTypes.join(',')}], pickupRadius=999)`);
+        } else if (currentLoadState === 'LOADING') {
+            // 적재 중 → DRIVING: 회랑 0km, 가는길 콜만
+            applyFilter(userId, {
+                isSharedMode: true,
+                isActive: true,
+                loadState: 'DRIVING',
+                corridorRadiusKm: 0,
+                pickupRadiusKm: 999,
+                destinationKeywords,
+                allowedVehicleTypes: sharedVehicleTypes,
+            }, io, false); // persistToDB=false
+            console.log(`🔄 [State Machine] LOADING → DRIVING (회랑 0km, 가는길 콜만)`);
+        } else {
+            // DRIVING 중에도 추가 KEEP 가능 (가는길 콜)
+            applyFilter(userId, {
+                isSharedMode: true,
+                isActive: true,
+                destinationKeywords,
+                allowedVehicleTypes: sharedVehicleTypes,
+            }, io, false); // persistToDB=false
+            console.log(`🔄 [State Machine] DRIVING 유지 (가는길 추가 콜 KEEP)`);
+        }
+        logRoadmapEvent("서버", "새로 부여된 합짐 필터(isSharedMode)값 메모리 세션 갱신");
         logRoadmapEvent("서버", "앱폰 및 관제탑에게 새로운 타겟팅 필터(filter-updated) 정보 전달");
-        io.to(userId).emit("filter-updated", session.activeFilter);
     } else {
         if (session.mainCallState?.id === orderId) {
             session.mainCallState = null;
@@ -450,14 +532,20 @@ export async function handleDecision(userId: string, orderId: string, action: 'K
 
         if (!session.activeFilter.isActive || session.activeFilter.isSharedMode) {
             const resetFilter: Partial<AutoDispatchFilter> = { isActive: true };
+            
             if (!session.mainCallState && session.subCalls.length === 0) {
+                // 잡은 콜이 하나도 안 남았을 경우 → 완전히 초기화 (EMPTY)
                 resetFilter.isSharedMode = false;
                 resetFilter.allowedVehicleTypes = [];
+                resetFilter.loadState = 'EMPTY';
+                logRoadmapEvent("서버", "모든 콜이 취소되어 필터를 완전 초기화(EMPTY)합니다.");
+            } else {
+                // 본콜이 남아있는 경우 → 현재 상태(LOADING/DRIVING)를 그대로 유지하고 탐색만 재개
+                logRoadmapEvent("서버", `본콜이 유지 중이므로 현재 상태(${session.activeFilter.loadState})를 유지하며 탐색을 재개합니다.`);
             }
-            session.activeFilter = { ...session.activeFilter, ...resetFilter };
-            logRoadmapEvent("서버", "기존 디폴트 설정값으로 필터 복구 연산");
-            logRoadmapEvent("서버", "앱폰 및 관제탑에게 원상복구된 필터(filter-updated) 정보 전달");
-            io.to(userId).emit("filter-updated", session.activeFilter);
+
+            applyFilter(userId, resetFilter, io);
+            logRoadmapEvent("서버", "앱폰 및 관제탑에게 탐색 재개(filter-updated) 정보 전달");
         }
         session.pendingOrdersData.delete(orderId);
         
@@ -500,12 +588,13 @@ export async function evaluateNewOrder(userId: string, securedOrder: SecuredOrde
                 }
             }
 
-            // 2) 최소 운임 검사
-            if (filter.minFare > 0 && securedOrder.fare > 0) {
+            // 2) 첫짐 절대 하한가 검사 (EMPTY 상태일 때만)
+            if (filter.loadState === 'EMPTY' && filter.minFare > 0 && securedOrder.fare > 0) {
                 if (securedOrder.fare < filter.minFare) {
-                    reasons.push(`요금(${(securedOrder.fare/10000).toFixed(1)}만) 미달`);
+                    reasons.push(`첫짐 절대하한가 미달 (${filter.minFare.toLocaleString()}원)`);
+                    console.log(`   - 💸 [첫짐 하한가] 똥콜 — 실제 ${securedOrder.fare.toLocaleString()}원 < 절대하한 ${filter.minFare.toLocaleString()}원`);
                 } else {
-                    pros.push(`요금(${(securedOrder.fare/10000).toFixed(1)}만) 적정`);
+                    pros.push(`첫짐 절대하한가 통과`);
                 }
             }
 
@@ -727,7 +816,35 @@ export async function evaluateNewOrder(userId: string, securedOrder: SecuredOrde
     logRoadmapEvent("서버", "경로 폴리라인 및 최종 수익성(콜/꿀/똥) 라벨링 연산");
     securedOrder.kakaoTimeExt = timeExt;
 
-    // 🔍 종합 평가 결과 주입 (Stage 1 + Stage 2 사유 통합)
+    // 💰 다이내믹 요율 계산 (Stage 3: 수익성 판정)
+    if (securedOrder.kakaoSoloDistanceKm && securedOrder.fare) {
+        try {
+            const pricing = loadPricingConfig(userId);
+            const routingOpts = getKakaoRoutingOptions(userId);
+            const fareResult = calculateDynamicFare(
+                securedOrder.kakaoSoloDistanceKm,
+                securedOrder.vehicleType || undefined,
+                routingOpts.vehicleType,
+                pricing
+            );
+
+            const actualFare = securedOrder.fare;
+            if (actualFare < fareResult.minAcceptable) {
+                const diff = actualFare - fareResult.minAcceptable;
+                reasons.push(`요율 미달 (적정: ${fareResult.fairPrice.toLocaleString()}원, 하한: ${fareResult.minAcceptable.toLocaleString()}원, 실제: ${actualFare.toLocaleString()}원, ${diff.toLocaleString()}원)`);
+                console.log(`   - 💸 [요율 판정] 똥콜 — 실제 ${actualFare.toLocaleString()}원 < 하한 ${fareResult.minAcceptable.toLocaleString()}원`);
+            } else if (actualFare >= fareResult.fairPrice) {
+                pros.push(`꿀콜 🍯 (적정 ${fareResult.fairPrice.toLocaleString()}원 이상)`);
+                console.log(`   - 🍯 [요율 판정] 꿀콜 — 실제 ${actualFare.toLocaleString()}원 ≥ 적정 ${fareResult.fairPrice.toLocaleString()}원`);
+            } else {
+                console.log(`   - ✅ [요율 판정] 적정 범위 — 실제 ${actualFare.toLocaleString()}원 (하한 ${fareResult.minAcceptable.toLocaleString()} ~ 적정 ${fareResult.fairPrice.toLocaleString()})`);
+            }
+        } catch (e) {
+            console.error(`   - ⚠️ [요율 판정] 계산 실패:`, e);
+        }
+    }
+
+    // 🔍 종합 평가 결과 주입 (Stage 1 + Stage 2 + Stage 3 사유 통합)
     securedOrder.rejectionReasons = reasons;
     securedOrder.approvalReasons = pros;
     securedOrder.isRejected = reasons.length > 0;

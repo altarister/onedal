@@ -2,6 +2,8 @@ import { Router } from "express";
 import type { SimplifiedOfficeOrder, ScreenContextType } from "@onedal/shared";
 import db from "../db";
 import { getUserSession } from "../state/userSessionStore";
+import { applyFilter } from "../state/filterManager";
+import { trimCorridorByProgress } from "../services/geoService";
 import { touchDeviceSession } from "./devices";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { dbQueue } from "../utils/dbQueue";
@@ -125,6 +127,13 @@ router.post("/", (req, res) => {
                     console.log(`📦 [Piggyback V2] 텔레메트리 편에 결재(${decisionData.action})를 태워 보냅니다! (orderId: ${evaluatingOrderId})`);
                 }
             }
+        }
+
+        // 앱폰의 GPS 데이터는 관제웹이 마스터이므로, 여기서는 더 이상 Trim 연산을 수행하지 않음.
+        // 다만 앱폰이 보내온 위치를 교차 검증용으로 로깅하거나, 필요시 보조 저장하는 용도로만 남김.
+        if (lat && lng) {
+            // 나중에 관제웹 GPS와 비교를 위해 임시 저장
+            (session as any).appLocation = { x: lng, y: lat };
         }
 
         logRoadmapEvent("서버", "앱폰에게 최신 필터(dispatchEngineArgs) 및 제어 명령 정보 전달");

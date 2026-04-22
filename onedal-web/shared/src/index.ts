@@ -127,10 +127,13 @@ export interface SettlementInfo {
 }
 
 // 자동배차 설정 인터페이스 (전역 설정 동기화용)
+export type LoadState = 'EMPTY' | 'LOADING' | 'DRIVING' | 'ARRIVED';
+
 export interface AutoDispatchFilter {
     allowedVehicleTypes: string[];   // 허용 차종 배열 (예: ["1t","다마스"]) — 빈 배열이면 모든 차종 허용
     isActive: boolean;              // 필터링(매크로) 활성화 여부
     isSharedMode: boolean;          // 첫짐/합짐 분기 (true면 합짐 회랑, false면 첫짐 수동)
+    loadState: LoadState;           // 적재 상태 (EMPTY: 공차, LOADING: 적재중(10km회랑), DRIVING: 운행중(0km회랑), ARRIVED: 도착)
     pickupRadiusKm: number;         // 내위치 반경 상차지 탐색(km)
     minFare: number;                // 최소 운임 (하한선)
     maxFare: number;                // 최대 운임 (디폴트 100만)
@@ -143,6 +146,13 @@ export interface AutoDispatchFilter {
     customFilters: string[];        // 특수 기호 등 하단 빠른 설정 텍스트 (ex: "^^,@", "김포,인천...")
     corridorRadiusKm?: number;      // (합짐 모드) 경로 주변 이탈 허용 반경 (기본값 10km)
     userOverrides?: boolean;        // 기사가 팝업에서 수동으로 필터(destinationKeywords 등)를 조작했는지 여부(서버 덮어쓰기 방지용)
+}
+
+// 서버 전용: 다이내믹 요율 계산 엔진 파라미터 (앱으로 전송하지 않음)
+export interface PricingConfig {
+    vehicleRates: Record<string, number>;  // 차종별 km당 적정 단가 (예: { "1t": 1000, "다마스": 800 })
+    agencyFeePercent: number;              // 퀵사(사무실) 수수료율 (예: 23)
+    maxDiscountPercent: number;            // 기사 수용 가능 최대 할인율 (예: 10)
 }
 
 // 스마트 회랑 전용 데이터 구조 (PinnedRoute 등 프론트엔드 UI용)

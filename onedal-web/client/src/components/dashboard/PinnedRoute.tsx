@@ -5,6 +5,9 @@ import { logRoadmapEvent } from '../../lib/roadmapLogger';
 import PinnedRouteCanvas, { type RoutePoint } from './PinnedRouteCanvas';
 import PinnedRouteCard from './PinnedRouteCard';
 import { getAddressLabel, getDistanceKm } from '../../lib/routeUtils';
+import { useFilterConfig } from '../../hooks/useFilterConfig';
+import { useMasterGps } from '../../hooks/useMasterGps';
+
 interface Props {
     activeRoute: SecuredOrder[];
     onDecision?: (id: string, action: 'KEEP' | 'CANCEL') => void;
@@ -14,40 +17,39 @@ interface Props {
 export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: Props) {
     const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
     const [processingId, setProcessingId] = useState<string | null>(null);
+    const { filter, updateFilter } = useFilterConfig();
     // 서버 통신 완료 시 (상태가 변하거나 삭제될 때) 로딩 상태 즉각 해제
     useEffect(() => {
         setProcessingId(null);
     }, [activeRoute]);
 
-    // [개발/테스트용 목업 GPS] 
-    // 브라우저에서 GPS 락이 늦게 잡히는 문제를 방지하고, 서버로 현위치를 보내 반경 필터를 테스트하기 위한 가짜 현위치입니다.
-    // ※ 실제 라이브 배포 전에는 초기값을 null로 돌려주세요.
+    // [주행 시뮬레이터 테스트 모드]
+    const [isTestMode, setIsTestMode] = useState(false);
+    
+    // 현재 활성 폴리라인 (마지막으로 합짐된 궤적 우선)
+    const activePolyline = useMemo(() => {
+        if (!activeRoute || activeRoute.length === 0) return null;
+        for (let i = activeRoute.length - 1; i >= 0; i--) {
+            if (activeRoute[i].routePolyline && activeRoute[i].routePolyline.length > 0) {
+                return activeRoute[i].routePolyline;
+            }
+        }
+        return null;
+    }, [activeRoute]);
+
+    const isDriving = filter?.loadState === 'DRIVING';
+
+    // 📡 마스터 GPS 엔진 연결 (Real / Mock 자동 스위칭)
+    const { currentGps } = useMasterGps(isTestMode, isDriving, activePolyline);
+
+    // 하위 지도 캔버스에 렌더링하기 위한 로컬 상태 (초기 위치는 테스트용 판교 근처)
     const [myLocation, setMyLocation] = useState<{ x: number, y: number } | null>({ x: 127.29441569159479, y: 37.376544054495625 });
 
-    // 내 GPS 위치 추적 (백그라운드 지속 관찰)
     useEffect(() => {
-        if (!navigator.geolocation) return;
-
-        // 모바일 웹뷰(WebView) 특성상 최초 GPS 락을 잡는 데 오래 걸릴 수 있으므로 
-        const watchId = navigator.geolocation.watchPosition(
-            (pos) => {
-                const newLoc = { x: pos.coords.longitude, y: pos.coords.latitude };
-                console.log("[GPS] 현위치 갱신됨:", newLoc);
-                setMyLocation(newLoc);
-            },
-            (err) => console.warn("GPS 추적 실패:", err),
-            { enableHighAccuracy: false, maximumAge: 10000, timeout: 30000 }
-        );
-
-        return () => navigator.geolocation.clearWatch(watchId);
-    }, []);
-
-    // 서버로 현위치 동기화
-    useEffect(() => {
-        if (myLocation) {
-            socket.emit("update-my-location", myLocation);
+        if (currentGps) {
+            setMyLocation({ x: currentGps.lng, y: currentGps.lat });
         }
-    }, [myLocation]);
+    }, [currentGps]);
 
     const safeRoute = activeRoute || [];
     const allEvaluating = safeRoute.some(r => r.status === 'evaluating_basic' || r.status === 'evaluating_detailed');
@@ -227,6 +229,31 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: 
                     </div>
                 </div>
 
+                {/* 🚀 출발 버튼: 상시 노출 (테스트 편의성) */}
+                <div className="px-1 mb-2 space-y-2">
+                    {/* 🧪 테스트 모드 토글 */}
+                    <div className="flex items-center justify-end px-1 gap-2">
+                        <span className="text-xs text-text-muted font-semibold tracking-wide">🧪 목업 시뮬레이터</span>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                            <input 
+                                type="checkbox" 
+                                className="sr-only peer" 
+                                checked={isTestMode}
+                                onChange={(e) => setIsTestMode(e.target.checked)}
+                            />
+                            <div className="w-9 h-5 bg-surface-hover peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-500"></div>
+                        </label>
+                    </div>
+                    <button
+                        onClick={() => {
+                            logRoadmapEvent("웹", `출발 버튼 클릭 → LOADING→DRIVING 전환 (시뮬레이션: ${isTestMode})`);
+                            updateFilter({ loadState: 'DRIVING', corridorRadiusKm: 0 });
+                        }}
+                        className="w-full h-12 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 text-white font-black text-sm tracking-widest shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] transition-all active:scale-[0.98]"
+                    >
+                        🚀 출발 (가는길 콜만 잡기)
+                    </button>
+                </div>
 
             </div>
 

@@ -26,7 +26,19 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   // ═══ 기본 설정 탭 상태 ═══
   const [vehicleType, setVehicleType] = useState<string>("1t");
   const [defaultPriority, setDefaultPriority] = useState<string>("RECOMMEND");
+  const [homeAddress, setHomeAddress] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
+
+  // ═══ 요율/필터 설정 탭 상태 ═══
+  const [vehicleRates, setVehicleRates] = useState<Record<string, number>>({});
+  const [agencyFeePercent, setAgencyFeePercent] = useState(23);
+  const [maxDiscountPercent, setMaxDiscountPercent] = useState(10);
+  const [minFare, setMinFare] = useState(0);
+  const [maxFare, setMaxFare] = useState(1000000);
+  const [pickupRadiusKm, setPickupRadiusKm] = useState(999);
+  const [excludedKeywords, setExcludedKeywords] = useState<string[]>([]);
+  const [newKeyword, setNewKeyword] = useState("");
+  const [isPricingLoading, setIsPricingLoading] = useState(false);
 
   // ═══ 기기 관리 탭 상태 ═══
   const [registeredDevices, setRegisteredDevices] = useState<RegisteredDevice[]>([]);
@@ -41,11 +53,12 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
   useEffect(() => {
     if (isOpen) {
-      if (activeTab === "dispatch") loadSettings();
-      if (activeTab === "devices") loadRegisteredDevices();
+      if (activeTab === "dispatch") { loadPricing(); }
       if (activeTab === "settings") {
+        loadSettings();
         setVolume(Math.round(soundManager.getVolume() * 100));
       }
+      if (activeTab === "devices") loadRegisteredDevices();
     }
   }, [isOpen, activeTab]);
 
@@ -79,6 +92,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       const { data } = await apiClient.get('/settings');
       setVehicleType(data.vehicleType || "1t");
       setDefaultPriority(data.defaultPriority || 'RECOMMEND');
+      setHomeAddress(data.homeAddress || "");
     } catch (e) {
       console.error("Failed to load settings:", e);
     } finally {
@@ -89,13 +103,49 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const handleSaveSettings = async () => {
     try {
       setIsLoading(true);
-      await apiClient.put('/settings', { vehicleType, defaultPriority });
+      await apiClient.put('/settings', { vehicleType, defaultPriority, homeAddress });
       onClose();
     } catch (e) {
       console.error("Failed to save settings:", e);
       alert("설정 저장에 실패했습니다.");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // ═══ 요율/필터 설정 로직 ═══
+  const loadPricing = async () => {
+    try {
+      setIsPricingLoading(true);
+      const { data } = await apiClient.get('/settings/pricing');
+      setVehicleRates(data.vehicleRates || {});
+      setAgencyFeePercent(data.agencyFeePercent ?? 23);
+      setMaxDiscountPercent(data.maxDiscountPercent ?? 10);
+      setMinFare(data.minFare || 0);
+      setMaxFare(data.maxFare || 1000000);
+      setPickupRadiusKm(data.pickupRadiusKm || 999);
+      setExcludedKeywords(data.excludedKeywords || []);
+    } catch (e) {
+      console.error("Failed to load pricing:", e);
+    } finally {
+      setIsPricingLoading(false);
+    }
+  };
+
+  const handleSavePricing = async () => {
+    try {
+      setIsPricingLoading(true);
+      await apiClient.put('/settings/pricing', {
+        vehicleRates, agencyFeePercent, maxDiscountPercent, excludedKeywords, minFare, maxFare, pickupRadiusKm
+      });
+      // 차종, 경로 등 기본 설정도 동시 저장
+      await apiClient.put('/settings', { vehicleType, defaultPriority, homeAddress });
+      onClose();
+    } catch (e) {
+      console.error("Failed to save pricing:", e);
+      alert("요율 설정 저장에 실패했습니다.");
+    } finally {
+      setIsPricingLoading(false);
     }
   };
 
@@ -209,7 +259,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             className={`flex-1 py-2 text-sm font-bold rounded-md transition-colors ${activeTab === "dispatch" ? "bg-accent text-white" : "text-gray-500 hover:text-gray-300"
               }`}
           >
-            배차 설정
+            요율/필터
           </button>
           <button
             onClick={() => setActiveTab("devices")}
@@ -222,7 +272,55 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
         {/* ═══ 기본 설정 탭 ═══ */}
         {activeTab === "settings" && (
-          <div className="flex flex-col gap-6">
+          isLoading ? (
+            <div className="flex justify-center py-10">
+              <div className="w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          ) : (
+          <div className="flex flex-col gap-5">
+            {/* 내 차량 종류 */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-400 mb-2">🚛 내 차량 종류</label>
+              <select
+                value={vehicleType}
+                onChange={(e) => setVehicleType(e.target.value)}
+                className="w-full bg-gray-950 border border-gray-800 text-white text-sm rounded-lg p-3 outline-none focus:border-accent transition-colors"
+              >
+                {VEHICLE_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* 카카오 경로 + 집 주소 */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">경로 탐색 옵션</label>
+                <select
+                  value={defaultPriority}
+                  onChange={(e) => setDefaultPriority(e.target.value)}
+                  className="w-full bg-gray-950 border border-gray-800 text-white text-xs rounded-lg p-2.5 outline-none focus:border-accent transition-colors"
+                >
+                  <option value="RECOMMEND">추천</option>
+                  <option value="TIME">최단시간</option>
+                  <option value="DISTANCE">최단거리</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">🏠 집 주소</label>
+                <input
+                  type="text"
+                  value={homeAddress}
+                  onChange={(e) => setHomeAddress(e.target.value)}
+                  placeholder="경기 광주시 오포읍..."
+                  className="w-full bg-gray-950 border border-gray-800 text-white text-xs rounded-lg p-2.5 outline-none focus:border-violet-500 transition-colors"
+                />
+              </div>
+            </div>
+
+            <div className="h-px bg-gray-800/50 w-full" />
+
+            {/* 시스템 알림 볼륨 */}
             <div>
               <div className="flex justify-between items-center mb-3">
                 <label className="text-sm font-semibold text-gray-400">시스템 알림 볼륨</label>
@@ -244,7 +342,6 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   🔊 테스트
                 </button>
               </div>
-              <p className="mt-2 text-[11px] text-gray-500 italic">* 콜 알림, 비프음, 사이렌 볼륨에 공통 적용됩니다.</p>
             </div>
 
             <div className="h-px bg-gray-800/50 w-full" />
@@ -256,51 +353,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               >
                 로그아웃
               </button>
-              <button
-                onClick={onClose}
-                className="px-6 py-2 rounded-lg bg-gray-800 text-gray-300 font-semibold hover:bg-gray-700 transition-colors"
-              >
-                닫기
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ═══ 배차 설정 탭 ═══ */}
-        {activeTab === "dispatch" && (
-          isLoading ? (
-            <div className="flex justify-center py-10">
-              <div className="w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-5">
-              <div>
-                <label className="block text-sm font-semibold text-gray-400 mb-2">내 차량 종류 (배차 탐색 기준)</label>
-                <select
-                  value={vehicleType}
-                  onChange={(e) => setVehicleType(e.target.value)}
-                  className="w-full bg-gray-950 border border-gray-800 text-white text-sm rounded-lg p-3 outline-none focus:border-accent transition-colors"
-                >
-                  {VEHICLE_OPTIONS.map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-400 mb-2">기본 경로 탐색 옵션</label>
-                <select
-                  value={defaultPriority}
-                  onChange={(e) => setDefaultPriority(e.target.value)}
-                  className="w-full bg-gray-950 border border-gray-800 text-white text-sm rounded-lg p-3 outline-none focus:border-accent transition-colors"
-                >
-                  <option value="RECOMMEND">추천 경로 (RECOMMEND)</option>
-                  <option value="TIME">최단 시간 (TIME)</option>
-                  <option value="DISTANCE">최단 거리 (DISTANCE)</option>
-                </select>
-              </div>
-
-              <div className="flex justify-end gap-3 mt-4">
+              <div className="flex gap-3">
                 <button
                   onClick={onClose}
                   className="px-4 py-2 rounded-lg bg-gray-800 text-gray-300 font-semibold hover:bg-gray-700 transition-colors"
@@ -309,6 +362,155 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 </button>
                 <button
                   onClick={handleSaveSettings}
+                  className="px-4 py-2 rounded-lg bg-accent text-white font-bold hover:bg-violet-500 transition-colors"
+                >
+                  저장
+                </button>
+              </div>
+            </div>
+          </div>
+          )
+        )}
+
+        {/* ═══ 요율/필터 설정 탭 ═══ */}
+        {activeTab === "dispatch" && (
+          isPricingLoading || isLoading ? (
+            <div className="flex justify-center py-10">
+              <div className="w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4 max-h-[60vh] overflow-y-auto pr-1">
+
+              {/* 차종별 km당 단가 입력기 */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-400 mb-2">💰 차종별 km당 적정 단가 (원)</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {VEHICLE_OPTIONS.map((vType) => (
+                    <div key={vType} className="flex items-center gap-1">
+                      <span className="text-[11px] text-gray-500 w-12 shrink-0 text-right">{vType}</span>
+                      <input
+                        type="number"
+                        value={vehicleRates[vType] || ''}
+                        onChange={(e) => setVehicleRates(prev => ({ ...prev, [vType]: Number(e.target.value) || 0 }))}
+                        className="w-full bg-gray-950 border border-gray-800 text-white text-xs rounded px-2 py-1.5 outline-none focus:border-accent transition-colors text-right"
+                        placeholder="0"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 수수료 & 할인율 */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1">📊 퀵사 수수료율 (%)</label>
+                  <input
+                    type="number"
+                    value={agencyFeePercent}
+                    onChange={(e) => setAgencyFeePercent(Number(e.target.value) || 0)}
+                    className="w-full bg-gray-950 border border-gray-800 text-white text-sm rounded-lg p-2.5 outline-none focus:border-accent transition-colors text-center font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1">🔻 최대 할인율 (%)</label>
+                  <input
+                    type="number"
+                    value={maxDiscountPercent}
+                    onChange={(e) => setMaxDiscountPercent(Number(e.target.value) || 0)}
+                    className="w-full bg-gray-950 border border-gray-800 text-white text-sm rounded-lg p-2.5 outline-none focus:border-accent transition-colors text-center font-bold"
+                  />
+                </div>
+              </div>
+              <p className="text-[10px] text-gray-600 -mt-2">
+                예) 1t 100km 콜 → 적정: {((vehicleRates['1t'] || 1000) * 100 * (1 - agencyFeePercent / 100)).toLocaleString()}원, 
+                하한: {((vehicleRates['1t'] || 1000) * 100 * (1 - agencyFeePercent / 100) * (1 - maxDiscountPercent / 100)).toLocaleString()}원
+              </p>
+
+              <div className="h-px bg-gray-800/50 w-full" />
+
+              {/* 하한가 & 상한가 */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1">⬇️ 첫짐 절대 하한가 (원)</label>
+                  <input
+                    type="number"
+                    value={minFare || ''}
+                    onChange={(e) => setMinFare(Number(e.target.value) || 0)}
+                    placeholder="예: 30000"
+                    className="w-full bg-gray-950 border border-gray-800 text-white text-sm rounded-lg p-2.5 outline-none focus:border-accent transition-colors font-bold"
+                  />
+                  <p className="mt-1 text-[10px] text-gray-600">
+                    * 첫 콜을 잡을 때 무조건 이 금액 이상만 잡습니다. (합짐 모드에서는 무시됨)
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1">⬆️ 절대 상한가 (원)</label>
+                  <input
+                    type="number"
+                    value={maxFare || ''}
+                    onChange={(e) => setMaxFare(Number(e.target.value) || 0)}
+                    placeholder="예: 1000000"
+                    className="w-full bg-gray-950 border border-gray-800 text-white text-sm rounded-lg p-2.5 outline-none focus:border-accent transition-colors font-bold"
+                  />
+                  <p className="mt-1 text-[10px] text-gray-600">
+                    * 최대 운임 상한선 (기본값: 1,000,000원)
+                  </p>
+                </div>
+              </div>
+              
+              <div className="mt-3">
+                <label className="block text-xs font-semibold text-gray-500 mb-1">🎯 상차 반경 (km)</label>
+                <input
+                  type="number"
+                  value={pickupRadiusKm || ''}
+                  onChange={(e) => setPickupRadiusKm(Number(e.target.value) || 0)}
+                  placeholder="예: 10"
+                  className="w-full bg-gray-950 border border-gray-800 text-white text-sm rounded-lg p-2.5 outline-none focus:border-accent transition-colors font-bold"
+                />
+                <p className="mt-1 text-[10px] text-gray-600">
+                  * 내 위치 기준 상차지 제한 거리 (기본값: 999km 무제한)
+                </p>
+              </div>
+
+              <div className="h-px bg-gray-800/50 w-full" />
+
+              {/* 블랙리스트 */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-400 mb-2">🚫 블랙리스트 키워드</label>
+                <div className="flex flex-wrap gap-1.5 mb-2 min-h-[28px]">
+                  {excludedKeywords.map((kw, i) => (
+                    <span key={i} className="inline-flex items-center gap-1 bg-red-950/50 border border-red-800/30 text-red-400 text-[11px] font-bold px-2 py-0.5 rounded-full">
+                      {kw}
+                      <button onClick={() => setExcludedKeywords(prev => prev.filter((_, idx) => idx !== i))} className="hover:text-red-200">×</button>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newKeyword}
+                    onChange={(e) => setNewKeyword(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && newKeyword.trim()) {
+                        setExcludedKeywords(prev => [...prev, newKeyword.trim()]);
+                        setNewKeyword('');
+                      }
+                    }}
+                    placeholder="제외할 키워드 입력 후 Enter"
+                    className="flex-1 bg-gray-950 border border-gray-800 text-white text-xs rounded-lg px-3 py-2 outline-none focus:border-red-500 transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 mt-2">
+                <button
+                  onClick={onClose}
+                  className="px-4 py-2 rounded-lg bg-gray-800 text-gray-300 font-semibold hover:bg-gray-700 transition-colors"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={handleSavePricing}
                   className="px-4 py-2 rounded-lg bg-accent text-white font-bold hover:bg-violet-500 transition-colors"
                 >
                   설정 저장

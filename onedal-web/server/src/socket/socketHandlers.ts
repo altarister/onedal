@@ -6,6 +6,8 @@ import { logRoadmapEvent } from "../utils/roadmapLogger";
 import type { AutoDispatchFilter } from "@onedal/shared";
 import { getUserSession, getAllActiveUserIds } from "../state/userSessionStore";
 import { recalculateCorridorFilter, handleDecision, recalculateKakaoRoute } from "../services/dispatchEngine";
+import { applyFilter } from "../state/filterManager";
+import { processDriverMovement } from "../services/geoService";
 import db from "../db";
 
 
@@ -70,7 +72,7 @@ export function registerSocketHandlers(io: Server) {
             const isCorridorChanged = newFilter.corridorRadiusKm !== undefined && newFilter.corridorRadiusKm !== session.activeFilter.corridorRadiusKm;
             const isTargetChanged = newFilter.destinationRadiusKm !== undefined && newFilter.destinationRadiusKm !== session.activeFilter.destinationRadiusKm;
             
-            if (isCorridorChanged || isTargetChanged) {
+            if ((isCorridorChanged || isTargetChanged) && session.activeFilter.isSharedMode) {
                 const cRadius = newFilter.corridorRadiusKm ?? session.activeFilter.corridorRadiusKm ?? 1;
                 const dRadius = newFilter.destinationRadiusKm ?? session.activeFilter.destinationRadiusKm ?? 10;
                 
@@ -81,34 +83,20 @@ export function registerSocketHandlers(io: Server) {
                 }
             }
             
-            session.activeFilter = { ...session.activeFilter, ...newFilter };
-            
-            // DB에 영구 저장 (비동기 처리)
-            try {
-                logRoadmapEvent("서버", "새로 바뀐 필터 상태값 DB 저장");
-                db.prepare(`
-                    UPDATE user_filters SET
-                        destination_city = ?, destination_radius_km = ?, corridor_radius_km = ?,
-                        allowed_vehicle_types = ?, min_fare = ?, max_fare = ?, pickup_radius_km = ?,
-                        excluded_keywords = ?, destination_keywords = ?, is_active = ?, is_shared_mode = ?
-                    WHERE user_id = ?
-                `).run(
-                    session.activeFilter.destinationCity || "", session.activeFilter.destinationRadiusKm || 10, session.activeFilter.corridorRadiusKm || 1,
-                    JSON.stringify(session.activeFilter.allowedVehicleTypes || []), session.activeFilter.minFare || 0, session.activeFilter.maxFare || 1000000, session.activeFilter.pickupRadiusKm || 999,
-                    JSON.stringify(session.activeFilter.excludedKeywords || []), JSON.stringify(session.activeFilter.destinationKeywords || []), session.activeFilter.isActive ? 1 : 0, session.activeFilter.isSharedMode ? 1 : 0,
-                    userId
-                );
-            } catch(e) {
-                console.error("필터 DB 저장 에러:", e);
-            }
-
-            logRoadmapEvent("서버", "관제탑에게 변경 적용된 필터(filter-updated) 정보 전달");
-            io.to(userId).emit("filter-updated", session.activeFilter);
+            logRoadmapEvent("서버", "관제탑에게 변경 적용된 일회성 필터(filter-updated) 정보 전달");
+            applyFilter(userId, newFilter, io, false); // persistToDB = false (메모리만 변경, DB는 건드리지 않음)
         });
 
-        // 프론트에서 현재 위치 전송 시 (지도 등 활용)
+        // 프론트에서 현재 위치 전송 시 (지도 등 활용 및 Master GPS 용도)
         socket.on("update-my-location", (loc: { x: number, y: number }) => {
             session.driverLocation = loc;
+        });
+
+        // ━━━ [관제웹 Master GPS 수신부] ━━━
+        socket.on("dashboard-gps-update", (loc: { lat: number, lng: number }) => {
+            processDriverMovement(userId, loc.lat, loc.lng, session, (uid, filterUpdate) => {
+                applyFilter(uid, filterUpdate, io, false); // 일회성 운행 상태이므로 DB 저장 안함
+            });
         });
 
         // 배차 심사 수락/거절
@@ -122,6 +110,65 @@ export function registerSocketHandlers(io: Server) {
         socket.on("recalculate-route", async ({ orderId, priority }: { orderId: string, priority: string }) => {
             const result = await recalculateKakaoRoute(userId, orderId, priority, io);
             socket.emit("recalculate-route-ack", result);
+        });
+
+        // 🏠 귀가콜: 현재 위치 → 집 주소로 가상 오더 생성 + 회랑 자동 세팅
+        socket.on("create-home-return", async () => {
+            try {
+                const settings = db.prepare("SELECT home_address, home_x, home_y FROM user_settings WHERE user_id = ?").get(userId) as any;
+                if (!settings || !settings.home_address) {
+                    socket.emit("home-return-error", { message: "집 주소가 설정되지 않았습니다. 설정에서 먼저 등록해주세요." });
+                    return;
+                }
+                if (!settings.home_x || !settings.home_y) {
+                    socket.emit("home-return-error", { message: "집 주소의 좌표가 없습니다. 설정에서 다시 등록해주세요." });
+                    return;
+                }
+
+                const currentLoc = session.driverLocation;
+                const pickupX = currentLoc?.x || settings.home_x;
+                const pickupY = currentLoc?.y || settings.home_y;
+
+                const homeOrder = {
+                    id: `home-${Date.now()}`,
+                    type: 'MANUAL' as const,
+                    pickup: '현재 위치',
+                    dropoff: settings.home_address,
+                    fare: 0,
+                    pickupX, pickupY,
+                    dropoffX: settings.home_x,
+                    dropoffY: settings.home_y,
+                    status: 'confirmed' as const,
+                    capturedDeviceId: 'control-tower',
+                    capturedAt: new Date().toISOString(),
+                    timestamp: new Date().toISOString(),
+                };
+
+                // 기존 상태 초기화
+                session.mainCallState = homeOrder as any;
+                session.subCalls = [];
+
+                // 카카오 경로 연산 (evaluateNewOrder 호출)
+                const { evaluateNewOrder } = await import("../services/dispatchEngine");
+                await evaluateNewOrder(userId, homeOrder as any, io);
+
+                // LOADING + 회랑 10km 생성
+                const { syncCorridorFilter } = await import("../services/dispatchEngine");
+                applyFilter(userId, {
+                    loadState: 'LOADING',
+                    isSharedMode: true,
+                    isActive: true,
+                    corridorRadiusKm: 10,
+                }, io);
+                syncCorridorFilter(userId, io);
+
+                console.log(`🏠 [귀가콜] 가상 오더 생성 완료: ${settings.home_address}`);
+                io.to(userId).emit("order-confirmed", homeOrder.id);
+                socket.emit("home-return-ack", { success: true, orderId: homeOrder.id });
+            } catch (e: any) {
+                console.error("🏠 [귀가콜] 에러:", e);
+                socket.emit("home-return-error", { message: e.message || "귀가콜 생성 실패" });
+            }
         });
 
         socket.on("disconnect", () => {

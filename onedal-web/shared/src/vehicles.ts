@@ -49,3 +49,20 @@ export function mapVehicleToKakaoCarType(vehicle: string): number {
             return 1; // 1종 소형화물 (디폴트)
     }
 }
+
+/**
+ * 합짐 모드 시 허용 차종 자동 추론
+ * 
+ * 첫 짐의 차종을 기반으로 "남은 적재 공간에 실을 수 있는 차종" 목록을 반환합니다.
+ * 예: 첫 짐이 1t → 다마스, 라보, 오토바이급만 추가 적재 가능
+ * 예: 첫 짐이 라보 → 라보, 다마스, 오토바이급만 추가 적재 가능
+ * 
+ * VEHICLE_OPTIONS 배열이 작은 차 → 큰 차 순서이므로, 
+ * 첫 짐 차종의 인덱스보다 작거나 같은 차종들만 반환합니다.
+ */
+export function getSharedModeVehicleTypes(firstLoadVehicle: string): string[] {
+    const idx = VEHICLE_OPTIONS.indexOf(firstLoadVehicle as any);
+    if (idx === -1) return [...VEHICLE_OPTIONS]; // 알 수 없는 차종이면 전체 허용
+    // 첫 짐과 같거나 작은 차종만 합짐 대상 (배열 앞쪽이 작은 차)
+    return VEHICLE_OPTIONS.slice(0, idx + 1) as unknown as string[];
+}

@@ -27,7 +27,8 @@ function createDefaultSession(): UserSession {
         deviceEvaluatingMap: new Map<string, string>(),
         activeFilter: {
             isActive: false,
-            isSharedMode: false
+            isSharedMode: false,
+            loadState: 'EMPTY'
         } as AutoDispatchFilter,
         driverLocation: null
     };
@@ -48,6 +49,7 @@ export function getUserSession(userId: string): UserSession {
                 session.activeFilter = {
                     isActive: Boolean(filterRow.is_active),
                     isSharedMode: Boolean(filterRow.is_shared_mode),
+                    loadState: filterRow.load_state || 'EMPTY',
                     destinationCity: filterRow.destination_city || "",
                     destinationRadiusKm: filterRow.destination_radius_km || 10,
                     corridorRadiusKm: filterRow.corridor_radius_km || 1,
@@ -58,7 +60,10 @@ export function getUserSession(userId: string): UserSession {
                     excludedKeywords: JSON.parse(filterRow.excluded_keywords || '[]'),
                     destinationKeywords: JSON.parse(filterRow.destination_keywords || '[]')
                 } as AutoDispatchFilter;
-                console.log(`[Session] 유저 ${userId} 의 기존 필터 복구 완료`);
+                // 세션 복구 시 운행 상태는 항상 초기화 (어제의 LOADING/DRIVING이 오늘 살아나는 것을 방지)
+                session.activeFilter.loadState = 'EMPTY';
+                session.activeFilter.isSharedMode = false;
+                console.log(`[Session] 유저 ${userId} 의 기존 필터 복구 완료 (loadState=EMPTY로 초기화)`);
             } else {
                 // Initialize default filter using user's vehicle_type
                 const fallbackVehicle = settingsRow?.vehicle_type || '1t';

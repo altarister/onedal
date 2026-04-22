@@ -181,4 +181,73 @@ try {
     // 이미 존재하면 무시 (정상)
 }
 
+// ═══════════════════════════════════════
+// [11] user_filters 마이그레이션 (load_state 적재 상태 추가)
+// ═══════════════════════════════════════
+try {
+    const tableInfo = db.prepare("PRAGMA table_info(user_filters)").all() as any[];
+    const hasLoadState = tableInfo.some(col => col.name === 'load_state');
+    if (!hasLoadState) {
+        db.exec(`ALTER TABLE user_filters ADD COLUMN load_state TEXT DEFAULT 'EMPTY';`);
+        console.log("🛠️ user_filters 테이블 마이그레이션 완료 (load_state 컬럼 추가)");
+    }
+} catch (e) {
+    console.error("user_filters load_state 마이그레이션 오류:", e);
+}
+
+// ═══════════════════════════════════════
+// [12] user_settings 마이그레이션 (귀가콜용 집 주소)
+// ═══════════════════════════════════════
+try {
+    const tableInfo = db.prepare("PRAGMA table_info(user_settings)").all() as any[];
+    const hasHomeAddress = tableInfo.some(col => col.name === 'home_address');
+    if (!hasHomeAddress) {
+        db.exec(`
+            ALTER TABLE user_settings ADD COLUMN home_address TEXT DEFAULT '';
+            ALTER TABLE user_settings ADD COLUMN home_x REAL DEFAULT 0;
+            ALTER TABLE user_settings ADD COLUMN home_y REAL DEFAULT 0;
+        `);
+        console.log("🛠️ user_settings 테이블 마이그레이션 완료 (home_address, home_x, home_y 컬럼 추가)");
+    }
+} catch (e) {
+    console.error("user_settings home_address 마이그레이션 오류:", e);
+}
+
+// ═══════════════════════════════════════
+// [13] user_filters 마이그레이션 (다이내믹 요율 계산 엔진 파라미터)
+// ═══════════════════════════════════════
+try {
+    const tableInfo = db.prepare("PRAGMA table_info(user_filters)").all() as any[];
+    const hasVehicleRates = tableInfo.some(col => col.name === 'vehicle_rates');
+    if (!hasVehicleRates) {
+        const defaultRates = JSON.stringify({
+            "오토바이": 700, "다마스": 800, "라보": 900, "승용차": 900,
+            "1t": 1000, "1.4t": 1100, "2.5t": 1200, "3.5t": 1300,
+            "5t": 1500, "11t": 2000, "25t": 2500, "특수화물": 3000
+        });
+        db.exec(`
+            ALTER TABLE user_filters ADD COLUMN vehicle_rates TEXT DEFAULT '${defaultRates}';
+            ALTER TABLE user_filters ADD COLUMN agency_fee_percent REAL DEFAULT 23.0;
+            ALTER TABLE user_filters ADD COLUMN max_discount_percent REAL DEFAULT 10.0;
+        `);
+        console.log("🛠️ user_filters 테이블 마이그레이션 완료 (vehicle_rates, agency_fee_percent, max_discount_percent 컬럼 추가)");
+    }
+} catch (e) {
+    console.error("user_filters 요율 마이그레이션 오류:", e);
+}
+
+// ═══════════════════════════════════════
+// [14] user_settings 마이그레이션 (알림 볼륨)
+// ═══════════════════════════════════════
+try {
+    const tableInfo = db.prepare("PRAGMA table_info(user_settings)").all() as any[];
+    const hasAlarmVolume = tableInfo.some(col => col.name === 'alarm_volume');
+    if (!hasAlarmVolume) {
+        db.exec(`ALTER TABLE user_settings ADD COLUMN alarm_volume INTEGER DEFAULT 50;`);
+        console.log("🛠️ user_settings 테이블 마이그레이션 완료 (alarm_volume 컬럼 추가)");
+    }
+} catch (e) {
+    console.error("user_settings alarm_volume 마이그레이션 오류:", e);
+}
+
 export default db;

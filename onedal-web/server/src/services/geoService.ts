@@ -142,3 +142,129 @@ export function getCorridorRegions(polyline: Array<{x: number; y: number}>, corr
         customCityFilters: Array.from(customCitySet)
     };
 }
+
+/**
+ * GPS 진행도에 따라 이미 지나간 구간의 키워드를 자동 제거합니다.
+ * 
+ * 1. 현재 GPS에서 폴리라인 위 가장 가까운 점을 찾고
+ * 2. 그 점 이후의 폴리라인만 남겨서
+ * 3. 남은 폴리라인으로 회랑을 재계산합니다.
+ * 
+ * @returns null이면 재계산 불필요 (이미 거의 도착 등)
+ */
+export function trimCorridorByProgress(
+    fullPolyline: Array<{x: number; y: number}>,
+    currentGPS: {x: number; y: number},
+    corridorRadiusKm: number,
+    destinationRadiusKm?: number
+) {
+    if (!fullPolyline || fullPolyline.length < 2) return null;
+
+    try {
+        // 1. 현재 GPS에서 폴리라인 위 가장 가까운 점 찾기
+        const lineCoords = fullPolyline.map(p => [p.x, p.y]);
+        const line = turf.lineString(lineCoords);
+        const point = turf.point([currentGPS.x, currentGPS.y]);
+        const snapped = turf.nearestPointOnLine(line, point);
+
+        // 2. 가까운 점 이후의 폴리라인만 남기기
+        const idx = snapped.properties?.index || 0;
+        const remainingPolyline = fullPolyline.slice(idx);
+
+        if (remainingPolyline.length < 2) return null; // 거의 도착
+
+        // 3. 남은 폴리라인으로 회랑 재계산
+        const result = getCorridorRegions(remainingPolyline, corridorRadiusKm, destinationRadiusKm);
+        if (result) {
+            console.log(`🔄 [GPS Trim] 폴리라인 ${fullPolyline.length}점 → ${remainingPolyline.length}점, 키워드 ${result.flat.length}개`);
+        }
+        return result;
+    } catch (e) {
+        console.error("🔄 [GPS Trim] 에러:", e);
+        return null;
+    }
+}
+
+// ═══ GPS 헬퍼 함수 ═══
+
+/** Haversine 공식으로 두 GPS 좌표 간 거리(km) 계산 */
+export function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/** 현재 활성 경로의 폴리라인 추출 (합짐 경로 우선, 없으면 본콜) */
+export function getActivePolyline(session: any): Array<{x: number; y: number}> | null {
+    // 서브콜의 마지막 폴리라인(합짐 경로)이 있으면 우선
+    if (session.subCalls?.length > 0) {
+        const lastSub = session.subCalls[session.subCalls.length - 1];
+        if (lastSub.routePolyline) return lastSub.routePolyline;
+    }
+    // 없으면 본콜 폴리라인
+    if (session.mainCallState?.routePolyline) return session.mainCallState.routePolyline;
+    return null;
+}
+
+/** 마지막 하차지 좌표 추출 */
+export function getLastDropoffCoord(session: any): {x: number; y: number} | null {
+    // 서브콜이 있으면 마지막 서브콜의 하차지
+    if (session.subCalls?.length > 0) {
+        const lastSub = session.subCalls[session.subCalls.length - 1];
+        if (lastSub.dropoffX && lastSub.dropoffY) return { x: lastSub.dropoffX, y: lastSub.dropoffY };
+    }
+    // 없으면 본콜의 하차지
+    if (session.mainCallState?.dropoffX && session.mainCallState?.dropoffY) {
+        return { x: session.mainCallState.dropoffX, y: session.mainCallState.dropoffY };
+    }
+    return null;
+}
+
+/** 
+ * [마스터 GPS 처리] 관제웹에서 보내온 실시간 GPS(또는 시뮬레이션 GPS)를 기반으로
+ * 1. 현재 세션의 위치를 업데이트
+ * 2. 2km 이상 이동 시 회랑(Corridor Trim) 동적 축소 계산 및 필터 갱신
+ * 3. 마지막 하차지 500m 이내 도착 시 ARRIVED 상태로 전환
+ */
+export function processDriverMovement(userId: string, lat: number, lng: number, session: any, applyFilterCb: (uid: string, filter: any) => void) {
+    if (!lat || !lng) return;
+    
+    const currentGPS = { x: lng, y: lat }; // 카카오 좌표계 (x=경도, y=위도)
+
+    // 마스터 GPS 위치를 세션에 저장 (지도 렌더링 및 카카오 길찾기 Origin으로 사용됨)
+    session.driverLocation = currentGPS;
+    session.dashboardLocation = currentGPS;
+
+    if (session.activeFilter.loadState === 'DRIVING') {
+        // [1] Corridor Trim: 2km 이상 이동 시에만 트리거 (CPU 보호)
+        const lastTrim = (session as any).lastTrimGPS as { x: number; y: number } | undefined;
+        const dist = lastTrim ? haversineKm(lastTrim.y, lastTrim.x, lat, lng) : Infinity;
+
+        if (dist > 2) { // 2km 이상 이동
+            const polyline = getActivePolyline(session);
+            if (polyline && polyline.length >= 2) {
+                const trimmed = trimCorridorByProgress(
+                    polyline, currentGPS,
+                    session.activeFilter.corridorRadiusKm || 0,
+                    session.activeFilter.destinationRadiusKm
+                );
+                if (trimmed) {
+                    applyFilterCb(userId, { destinationKeywords: trimmed.flat });
+                    console.log(`🔄 [GPS Trim] ${dist.toFixed(1)}km 이동 → 키워드 ${trimmed.flat.length}개로 축소`);
+                }
+                (session as any).lastTrimGPS = currentGPS;
+            }
+        }
+
+        // [2] 도착 감지: 마지막 하차지 500m 이내 도달 시
+        const lastDropoff = getLastDropoffCoord(session);
+        if (lastDropoff && haversineKm(lat, lng, lastDropoff.y, lastDropoff.x) < 0.5) {
+            applyFilterCb(userId, { loadState: 'ARRIVED' });
+            console.log(`🏁 [도착 감지] 하차지 500m 이내 도달`);
+            // 도착 알림은 socketHandlers 쪽에서 io.to().emit()으로 발송하도록 콜백 체계 활용 (또는 applyFilterCb 안에서 이벤트 발생 가능)
+        }
+    }
+}
+

@@ -5,7 +5,8 @@ import OrderFilterStatus from "../components/dashboard/OrderFilterStatus";
 import OrderFilterModal from "../components/dashboard/OrderFilterModal";
 import PinnedRoute from "../components/dashboard/PinnedRoute";
 import DrillDownModal from "../components/dashboard/DrillDownModal";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { socket } from "../lib/socket";
 
 import { useOrderEngine } from "../hooks/useOrderEngine";
 import { useKakaoRouting } from "../hooks/useKakaoRouting";
@@ -14,6 +15,7 @@ import { useKakaoRouting } from "../hooks/useKakaoRouting";
 
 export default function Dashboard() {
     const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+    const [homeReturnLoading, setHomeReturnLoading] = useState(false);
 
     const {
         orders,
@@ -37,6 +39,34 @@ export default function Dashboard() {
     // 카카오 자동 시뮬레이션 엔진 훅
     const { simulationResults } = useKakaoRouting(pendingOrders, mainCall);
 
+    // 귀가콜 응답 핸들러
+    useEffect(() => {
+        const onAck = () => setHomeReturnLoading(false);
+        const onError = (data: { message: string }) => {
+            setHomeReturnLoading(false);
+            alert(data.message);
+        };
+        const onAutoArrived = (data: { message: string }) => {
+            if (confirm(data.message + "\n\n배달 완료 처리하시겠습니까?")) {
+                // 사용자 확인 → 이미 서버에서 ARRIVED로 전환됨
+                console.log("🏁 사용자 도착 확인");
+            }
+        };
+        socket.on("home-return-ack", onAck);
+        socket.on("home-return-error", onError);
+        socket.on("auto-arrived", onAutoArrived);
+        return () => {
+            socket.off("home-return-ack", onAck);
+            socket.off("home-return-error", onError);
+            socket.off("auto-arrived", onAutoArrived);
+        };
+    }, []);
+
+    const handleHomeReturn = () => {
+        setHomeReturnLoading(true);
+        socket.emit("create-home-return");
+    };
+
     return (
         <main className="min-h-screen font-sans pb-32">
 
@@ -56,12 +86,19 @@ export default function Dashboard() {
 
                 {/* 📡 관제 대기 중 (Empty State) */}
                 {activeRoute.length === 0 && (
-                    <div className="flex-1 mt-12 py-16 flex flex-col items-center justify-center border-2 border-dashed border-border-card bg-surface rounded-3xl mx-2 transition-all">
+                    <div className="flex-1 mt-12 py-12 flex flex-col items-center justify-center border-2 border-dashed border-border-card bg-surface rounded-3xl mx-2 transition-all">
                         <h3 className="text-lg font-black text-text-primary mb-2 tracking-wider mt-4">실시간 자동 사냥 중</h3>
-                        <p className="text-text-muted text-xs text-center leading-relaxed">
+                        <p className="text-text-muted text-xs text-center leading-relaxed mb-6">
                             연동된 기기들이 인성 서버를 스캔하고 있습니다<br />
                             조건에 맞는 꿀콜을 낚아채면 즉시 보고합니다
                         </p>
+                        <button
+                            onClick={handleHomeReturn}
+                            disabled={homeReturnLoading}
+                            className={`px-6 py-3 rounded-xl bg-gradient-to-r from-violet-500 to-purple-400 text-white font-black text-sm tracking-wider shadow-[0_0_20px_rgba(139,92,246,0.3)] hover:shadow-[0_0_30px_rgba(139,92,246,0.5)] transition-all active:scale-[0.98] ${homeReturnLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                            {homeReturnLoading ? '⏳ 경로 계산 중...' : '🏠 귀가콜 시작'}
+                        </button>
                     </div>
                 )}
             </div>
