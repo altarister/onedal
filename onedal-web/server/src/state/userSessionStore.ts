@@ -65,9 +65,10 @@ export function getUserSession(userId: string): UserSession {
                 session.activeFilter.isSharedMode = false;
                 console.log(`[Session] 유저 ${userId} 의 기존 필터 복구 완료 (loadState=EMPTY로 초기화)`);
             } else {
-                // Initialize default filter using user's vehicle_type
+                // Initialize default filter using user's vehicle_type and all smaller vehicles
                 const fallbackVehicle = settingsRow?.vehicle_type || '1t';
-                session.activeFilter.allowedVehicleTypes = [fallbackVehicle];
+                const { getSharedModeVehicleTypes } = require('@onedal/shared');
+                session.activeFilter.allowedVehicleTypes = getSharedModeVehicleTypes(fallbackVehicle);
                 
                 // Save this initial default to DB silently
                 db.prepare(`

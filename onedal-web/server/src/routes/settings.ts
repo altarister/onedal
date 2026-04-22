@@ -99,6 +99,20 @@ router.put("/", requireAuth, async (req, res) => {
             }
         }
 
+        // 차량 종류 변경 시 현재 상태가 EMPTY라면 필터 허용 차종 자동 갱신
+        if (payload.vehicleType) {
+            const { getUserSession } = require('../state/userSessionStore');
+            const session = getUserSession(userId);
+            if (!session.activeFilter.loadState || session.activeFilter.loadState === 'EMPTY') {
+                const { getSharedModeVehicleTypes } = require('@onedal/shared');
+                applyFilter(userId, { allowedVehicleTypes: getSharedModeVehicleTypes(payload.vehicleType) }, req.app.get("io"));
+                console.log(`🚛 [차량 변경] 기본 필터 차종을 ${payload.vehicleType} 기준 하위 차종으로 자동 갱신했습니다.`);
+            }
+        }
+
+        // 클라이언트(내 차 패널 등)가 실시간으로 갱신될 수 있도록 소켓 이벤트 발송
+        req.app.get("io").to(userId).emit("settings-updated", payload);
+
         res.json({ success: true, message: "Settings updated successfully" });
     } catch (e) {
         console.error("Settings PUT 에러:", e);

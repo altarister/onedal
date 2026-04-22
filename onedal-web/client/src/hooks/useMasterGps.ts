@@ -30,6 +30,7 @@ export function useMasterGps(
             const loc = { lat: mockGps.y, lng: mockGps.x };
             setCurrentGps(loc);
             socket.emit("dashboard-gps-update", loc);
+            window.dispatchEvent(new CustomEvent("local-gps-update", { detail: loc }));
         }
     }, [mockGps, isTestMode]);
 
@@ -50,6 +51,7 @@ export function useMasterGps(
                         console.log(`📍 [Master GPS - Real] 실제 위치 이동: 위도 ${loc.lat}, 경도 ${loc.lng}`);
                         setCurrentGps(loc);
                         socket.emit("dashboard-gps-update", loc);
+                        window.dispatchEvent(new CustomEvent("local-gps-update", { detail: loc }));
                     }
                 },
                 (error) => console.error("Geolocation 에러:", error),

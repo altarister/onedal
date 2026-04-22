@@ -3,6 +3,7 @@ import Header from "../components/layout/Header";
 import DeviceControlPanel from "../components/dashboard/DeviceControlPanel";
 import OrderFilterStatus from "../components/dashboard/OrderFilterStatus";
 import OrderFilterModal from "../components/dashboard/OrderFilterModal";
+import VehicleStatusPanel from "../components/dashboard/VehicleStatusPanel";
 import PinnedRoute from "../components/dashboard/PinnedRoute";
 import DrillDownModal from "../components/dashboard/DrillDownModal";
 import { useState, useEffect } from "react";
@@ -80,6 +81,9 @@ export default function Dashboard() {
 
                 {/* ⚙️ 오더 필터 한 줄 현황판 (클릭 시 설정 모달 띄움) */}
                 <OrderFilterStatus onOpenFilter={() => setIsFilterModalOpen(true)} />
+
+                {/* 🚚 내 차 정보 및 적재/이동 상태 패널 */}
+                <VehicleStatusPanel />
 
                 {/* 🏆 배차 확정 콜 (및 데스밸리 연산 구역) */}
                 <PinnedRoute activeRoute={activeRoute} onDecision={handleDecision} onRecalculate={handleRecalculate} />

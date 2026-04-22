@@ -536,7 +536,8 @@ export async function handleDecision(userId: string, orderId: string, action: 'K
             if (!session.mainCallState && session.subCalls.length === 0) {
                 // 잡은 콜이 하나도 안 남았을 경우 → 완전히 초기화 (EMPTY)
                 resetFilter.isSharedMode = false;
-                resetFilter.allowedVehicleTypes = [];
+                const routingOpts = getKakaoRoutingOptions(userId);
+                resetFilter.allowedVehicleTypes = getSharedModeVehicleTypes(routingOpts.vehicleType || '1t');
                 resetFilter.loadState = 'EMPTY';
                 logRoadmapEvent("서버", "모든 콜이 취소되어 필터를 완전 초기화(EMPTY)합니다.");
             } else {

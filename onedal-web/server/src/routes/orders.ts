@@ -128,8 +128,12 @@ router.post("/confirm", (req, res) => {
         const previousEvaluatingId = session.deviceEvaluatingMap.get(payload.deviceId);
 
         if (previousEvaluatingId && previousEvaluatingId !== payload.order.id && previousEvaluatingId !== "unknown") {
-            console.log(`🧹 [자동 정리] 새 콜 진입 감지! 기존 평가 중이던 콜(${previousEvaluatingId}) 백그라운드 강제 취소`);
-            forceCancelEvaluatingOrder(userId, previousEvaluatingId, io);
+            const prevOrder = session.pendingOrdersData.get(previousEvaluatingId);
+            // 이미 'confirmed'(KEEP)된 콜은 새 콜 진입 시에도 삭제하지 않음 (다중 배차 유지)
+            if (!prevOrder || prevOrder.status !== 'confirmed') {
+                console.log(`🧹 [자동 정리] 새 콜 진입 감지! 기존 평가 중이던 콜(${previousEvaluatingId}) 백그라운드 강제 취소`);
+                forceCancelEvaluatingOrder(userId, previousEvaluatingId, io);
+            }
         }
 
         if (payload.order.id && payload.order.id !== "unknown") {

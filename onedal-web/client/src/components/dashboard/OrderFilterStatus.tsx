@@ -10,14 +10,14 @@ export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () =
             </section>
         );
     }
-
-    let label = '대기';
+    // export type LoadState = 'EMPTY' | 'LOADING' | 'DRIVING' | 'ARRIVED';
+    let label = '스캔 일시정지';
     if (filter.isActive) {
         const state = filter.loadState || 'EMPTY';
-        if (state === 'LOADING') label = '적재중';
-        else if (state === 'DRIVING') label = '운행중';
-        else if (state === 'ARRIVED') label = '도착';
-        else label = filter.isSharedMode ? '합짐' : '사냥중';
+        if (state === 'LOADING') label = '합짐 탐색중';
+        else if (state === 'DRIVING') label = '경로상 탐색중';
+        else if (state === 'ARRIVED') label = '스캔 대기 (도착)';
+        else label = '첫짐 탐색중';
     }
 
     const getStatusStyles = (active: boolean, shared: boolean) => {

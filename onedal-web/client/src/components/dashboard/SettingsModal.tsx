@@ -243,7 +243,18 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       <div className="relative bg-gray-900 border border-gray-800 p-6 rounded-2xl w-full max-w-md shadow-2xl">
         {renderPinOverlay()}
 
-        <h2 className="text-xl font-bold text-white mb-4">사용자 설정</h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-white">사용자 설정</h2>
+          <button
+            onClick={() => {
+              logout();
+              onClose();
+            }}
+            className="text-xs font-bold text-red-400 hover:text-red-300 bg-red-950/30 hover:bg-red-900/40 px-3 py-1.5 rounded-lg border border-red-900/50 transition-all"
+          >
+            로그아웃
+          </button>
+        </div>
 
         {/* 탭 네비게이션 */}
         <div className="flex gap-1 mb-5 bg-gray-950 p-1 rounded-lg">
@@ -277,83 +288,74 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               <div className="w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
             </div>
           ) : (
-          <div className="flex flex-col gap-5">
-            {/* 내 차량 종류 */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-400 mb-2">🚛 내 차량 종류</label>
-              <select
-                value={vehicleType}
-                onChange={(e) => setVehicleType(e.target.value)}
-                className="w-full bg-gray-950 border border-gray-800 text-white text-sm rounded-lg p-3 outline-none focus:border-accent transition-colors"
-              >
-                {VEHICLE_OPTIONS.map((opt) => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* 카카오 경로 + 집 주소 */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-5">
+              {/* 내 차량 종류 */}
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">경로 탐색 옵션</label>
+                <label className="block text-sm font-semibold text-gray-400 mb-2">🚛 내 차량 종류</label>
                 <select
-                  value={defaultPriority}
-                  onChange={(e) => setDefaultPriority(e.target.value)}
-                  className="w-full bg-gray-950 border border-gray-800 text-white text-xs rounded-lg p-2.5 outline-none focus:border-accent transition-colors"
+                  value={vehicleType}
+                  onChange={(e) => setVehicleType(e.target.value)}
+                  className="w-full bg-gray-950 border border-gray-800 text-white text-sm rounded-lg p-3 outline-none focus:border-accent transition-colors"
                 >
-                  <option value="RECOMMEND">추천</option>
-                  <option value="TIME">최단시간</option>
-                  <option value="DISTANCE">최단거리</option>
+                  {VEHICLE_OPTIONS.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
                 </select>
               </div>
+
+              {/* 카카오 경로 + 집 주소 */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1">경로 탐색 옵션</label>
+                  <select
+                    value={defaultPriority}
+                    onChange={(e) => setDefaultPriority(e.target.value)}
+                    className="w-full bg-gray-950 border border-gray-800 text-white text-xs rounded-lg p-2.5 outline-none focus:border-accent transition-colors"
+                  >
+                    <option value="RECOMMEND">추천</option>
+                    <option value="TIME">최단시간</option>
+                    <option value="DISTANCE">최단거리</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1">🏠 집 주소</label>
+                  <input
+                    type="text"
+                    value={homeAddress}
+                    onChange={(e) => setHomeAddress(e.target.value)}
+                    placeholder="경기 광주시 오포읍..."
+                    className="w-full bg-gray-950 border border-gray-800 text-white text-xs rounded-lg p-2.5 outline-none focus:border-violet-500 transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div className="h-px bg-gray-800/50 w-full" />
+
+              {/* 시스템 알림 볼륨 */}
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">🏠 집 주소</label>
-                <input
-                  type="text"
-                  value={homeAddress}
-                  onChange={(e) => setHomeAddress(e.target.value)}
-                  placeholder="경기 광주시 오포읍..."
-                  className="w-full bg-gray-950 border border-gray-800 text-white text-xs rounded-lg p-2.5 outline-none focus:border-violet-500 transition-colors"
-                />
+                <div className="flex justify-between items-center mb-3">
+                  <label className="text-sm font-semibold text-gray-400">시스템 알림 볼륨</label>
+                  <span className="text-xs font-mono text-accent bg-accent/10 px-2 py-0.5 rounded">{volume}%</span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={volume}
+                    onChange={(e) => handleVolumeChange(parseInt(e.target.value))}
+                    className="flex-1 h-1.5 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-accent"
+                  />
+                  <button
+                    onClick={handleTestSound}
+                    className="px-3 py-1.5 rounded-lg bg-gray-800 text-gray-300 text-xs font-bold hover:bg-gray-700 hover:text-white transition-all border border-gray-700"
+                  >
+                    🔊 테스트
+                  </button>
+                </div>
               </div>
-            </div>
 
-            <div className="h-px bg-gray-800/50 w-full" />
-
-            {/* 시스템 알림 볼륨 */}
-            <div>
-              <div className="flex justify-between items-center mb-3">
-                <label className="text-sm font-semibold text-gray-400">시스템 알림 볼륨</label>
-                <span className="text-xs font-mono text-accent bg-accent/10 px-2 py-0.5 rounded">{volume}%</span>
-              </div>
-              <div className="flex items-center gap-4">
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={volume}
-                  onChange={(e) => handleVolumeChange(parseInt(e.target.value))}
-                  className="flex-1 h-1.5 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-accent"
-                />
-                <button
-                  onClick={handleTestSound}
-                  className="px-3 py-1.5 rounded-lg bg-gray-800 text-gray-300 text-xs font-bold hover:bg-gray-700 hover:text-white transition-all border border-gray-700"
-                >
-                  🔊 테스트
-                </button>
-              </div>
-            </div>
-
-            <div className="h-px bg-gray-800/50 w-full" />
-
-            <div className="flex items-center justify-between">
-              <button
-                onClick={logout}
-                className="text-sm text-danger hover:brightness-125 font-semibold underline underline-offset-2"
-              >
-                로그아웃
-              </button>
-              <div className="flex gap-3">
+              <div className="flex justify-end gap-3 mt-2">
                 <button
                   onClick={onClose}
                   className="px-4 py-2 rounded-lg bg-gray-800 text-gray-300 font-semibold hover:bg-gray-700 transition-colors"
@@ -364,11 +366,10 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   onClick={handleSaveSettings}
                   className="px-4 py-2 rounded-lg bg-accent text-white font-bold hover:bg-violet-500 transition-colors"
                 >
-                  저장
+                  설정 저장
                 </button>
               </div>
             </div>
-          </div>
           )
         )}
 
@@ -422,7 +423,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 </div>
               </div>
               <p className="text-[10px] text-gray-600 -mt-2">
-                예) 1t 100km 콜 → 적정: {((vehicleRates['1t'] || 1000) * 100 * (1 - agencyFeePercent / 100)).toLocaleString()}원, 
+                예) 1t 100km 콜 → 적정: {((vehicleRates['1t'] || 1000) * 100 * (1 - agencyFeePercent / 100)).toLocaleString()}원,
                 하한: {((vehicleRates['1t'] || 1000) * 100 * (1 - agencyFeePercent / 100) * (1 - maxDiscountPercent / 100)).toLocaleString()}원
               </p>
 
@@ -457,7 +458,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   </p>
                 </div>
               </div>
-              
+
               <div className="mt-3">
                 <label className="block text-xs font-semibold text-gray-500 mb-1">🎯 상차 반경 (km)</label>
                 <input

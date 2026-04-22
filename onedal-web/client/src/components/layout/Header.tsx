@@ -29,21 +29,21 @@ export default function Header({ isConnected }: { isConnected: boolean }) {
                             </span>
                         </button>
                     </div>
-                    <div className="flex gap-4 items-center">
+                    <div className="flex gap-2 items-center">
                         {isRinging && (
                             <button
                                 onClick={stopAll}
-                                className="flex items-center gap-1.5 px-2 py-0.5 mr-1 bg-danger/20 hover:bg-danger/30 text-danger rounded-md border border-danger/30 transition-all animate-pulse"
+                                className="flex items-center gap-1.5 px-2 py-0.5 bg-danger/20 hover:bg-danger/30 text-danger rounded-md border border-danger/30 transition-all animate-pulse"
                                 title="알림 소리 끄기"
                             >
                                 <span className="text-[10px] font-black uppercase tracking-tighter">STOP SOUND</span>
                             </button>
                         )}
-                        <div className="flex items-center gap-2 bg-surface px-3 py-1 rounded-full border border-border-card">
-
+                        <div className="flex items-center gap-2 bg-surface px-2 py-1 rounded-full border border-border-card">
                             <span className={`w-2 h-2 rounded-full ${isConnected ? "bg-success shadow-lg" : "bg-danger"}`} />
                             <span className="text-xs font-bold text-slate-400">
-                                {time.toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                {isConnected ? (time.toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })) : "연결끊김"}
+                                {/* {time.toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })} */}
                             </span>
                         </div>
 
@@ -53,7 +53,6 @@ export default function Header({ isConnected }: { isConnected: boolean }) {
                                     onClick={() => setIsSettingsOpen(true)}
                                     className="text-xs text-slate-400 hover:text-white font-semibold transition-colors"
                                 >
-
                                     {user.avatar ? (
                                         <img src={user.avatar} alt="Avatar" className="w-5 h-5 rounded-full" />
                                     ) : (
