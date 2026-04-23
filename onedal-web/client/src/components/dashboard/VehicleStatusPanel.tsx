@@ -10,21 +10,21 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number) {
     const R = 6371; // km
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
 }
 
 export default function VehicleStatusPanel() {
     const { filter } = useFilterConfig();
     const { mainCall, subCalls } = useOrderEngine();
-    
+
     // GPS 속도 계산을 위한 상태
     const [currentSpeed, setCurrentSpeed] = useState<number>(0);
     const lastGpsRef = useRef<{ lat: number; lng: number; time: number } | null>(null);
-    const [currentGps, setCurrentGps] = useState<{lat: number, lng: number} | null>(null);
+    const [currentGps, setCurrentGps] = useState<{ lat: number, lng: number } | null>(null);
 
     // 내 차량 정보 (DB 연동)
     const [dbVehicleType, setDbVehicleType] = useState<string>('1t');
@@ -58,10 +58,10 @@ export default function VehicleStatusPanel() {
         const onGpsUpdate = (e: Event) => {
             const customEvent = e as CustomEvent<{ lat: number, lng: number }>;
             const loc = customEvent.detail;
-            
+
             const now = Date.now();
             setCurrentGps(loc);
-            
+
             if (lastGpsRef.current) {
                 const distKm = haversineKm(lastGpsRef.current.lat, lastGpsRef.current.lng, loc.lat, loc.lng);
                 const timeHours = (now - lastGpsRef.current.time) / (1000 * 60 * 60);
@@ -149,32 +149,24 @@ export default function VehicleStatusPanel() {
     };
 
     return (
-        <section className="flex items-center justify-between rounded-xl px-4 py-3 border shadow-md bg-slate-900 border-slate-700 mt-2 mx-2">
-            <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center border border-slate-700 shadow-inner">
-                    <span className="text-xl">🚛</span>
-                </div>
-                <div className="flex flex-col">
-                    <div className="flex items-center gap-2">
-                        <span className="text-xs font-black text-slate-300 bg-slate-800 px-1.5 py-0.5 rounded">내 차</span>
-                        <span className="text-sm font-black text-white">{myVehicle}</span>
-                    </div>
-                    <div className="text-xs mt-0.5">
-                        {renderLoadStatus()}
-                    </div>
+        <section className="flex items-center justify-between rounded-xl px-2 py-1 border shadow-md bg-slate-900 border-slate-700 mt-2">
+            <div className="flex items-center gap-2">
+                <span className="text-sm font-black text-white">{myVehicle}</span>
+                <div className="text-xs mt-0.5">
+                    {renderLoadStatus()}
                 </div>
             </div>
-            
+
             <div className="flex flex-col items-end gap-1">
-                <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${isMoving ? 'bg-info/20 border-info/40 text-info-alt' : 'bg-slate-800 border-slate-700 text-slate-400'}`}>
+                <div className={`flex items-center gap-1 px-2 py-1 rounded-full border ${isMoving ? 'bg-info/20 border-info/40 text-info-alt' : 'bg-slate-800 border-slate-700 text-slate-400'}`}>
                     <span className={`w-2 h-2 rounded-full ${isMoving ? 'bg-info animate-pulse' : 'bg-slate-500'}`}></span>
                     <span className="text-[11px] font-black tracking-wider">
                         {isMoving ? '이동 중' : '정차 중'}
                     </span>
+                    {isMoving && (
+                        <span className="text-[10px] font-mono text-info/70">{Math.round(currentSpeed)} km/h</span>
+                    )}
                 </div>
-                {isMoving && (
-                    <span className="text-[10px] font-mono text-info/70">{Math.round(currentSpeed)} km/h</span>
-                )}
             </div>
         </section>
     );

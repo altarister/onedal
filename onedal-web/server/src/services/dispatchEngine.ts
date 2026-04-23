@@ -351,15 +351,11 @@ export const syncCorridorFilter = (userId: string, io: any) => {
         const regions = getCorridorRegions(polylineToUse, cRadius, dRadius);
         
         if (regions && regions.flat.length > 0) {
-            session.activeFilter = { 
-                ...session.activeFilter,
+            applyFilter(userId, {
                 destinationKeywords: regions.flat,
                 destinationGroups: regions.grouped,
                 customCityFilters: regions.customCityFilters
-            };
-            if (io) {
-                io.to(userId).emit("filter-updated", session.activeFilter);
-            }
+            }, io, false);
         }
     }
 };

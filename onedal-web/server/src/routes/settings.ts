@@ -11,11 +11,21 @@ const router = Router();
 router.get("/", requireAuth, (req, res) => {
     try {
         const userId = req.user!.id;
-        let row = db.prepare("SELECT * FROM user_settings WHERE user_id = ?").get(userId) as any;
+        let row = db.prepare(`
+            SELECT s.*, f.destination_city, f.destination_radius_km, f.corridor_radius_km 
+            FROM user_settings s 
+            LEFT JOIN user_filters f ON s.user_id = f.user_id 
+            WHERE s.user_id = ?
+        `).get(userId) as any;
         
         if (!row) {
             db.prepare("INSERT INTO user_settings (user_id) VALUES (?)").run(userId);
-            row = db.prepare("SELECT * FROM user_settings WHERE user_id = ?").get(userId) as any;
+            row = db.prepare(`
+                SELECT s.*, f.destination_city, f.destination_radius_km, f.corridor_radius_km 
+                FROM user_settings s 
+                LEFT JOIN user_filters f ON s.user_id = f.user_id 
+                WHERE s.user_id = ?
+            `).get(userId) as any;
         }
 
         res.json({
@@ -28,6 +38,9 @@ router.get("/", requireAuth, (req, res) => {
             avoidToll: !!row.avoid_toll,
             homeAddress: row.home_address || '',
             alarmVolume: row.alarm_volume ?? 50,
+            destinationCity: row.destination_city || '',
+            destinationRadiusKm: row.destination_radius_km,
+            corridorRadiusKm: row.corridor_radius_km,
         });
     } catch (e) {
         console.error("Settings GET 에러:", e);
@@ -108,6 +121,16 @@ router.put("/", requireAuth, async (req, res) => {
                 applyFilter(userId, { allowedVehicleTypes: getSharedModeVehicleTypes(payload.vehicleType) }, req.app.get("io"));
                 console.log(`🚛 [차량 변경] 기본 필터 차종을 ${payload.vehicleType} 기준 하위 차종으로 자동 갱신했습니다.`);
             }
+        }
+
+        // 내 노선 설정 (user_filters) 동시 업데이트
+        const filterChanges: any = {};
+        if (payload.destinationCity !== undefined) filterChanges.destinationCity = payload.destinationCity;
+        if (payload.destinationRadiusKm !== undefined) filterChanges.destinationRadiusKm = payload.destinationRadiusKm;
+        if (payload.corridorRadiusKm !== undefined) filterChanges.corridorRadiusKm = payload.corridorRadiusKm;
+
+        if (Object.keys(filterChanges).length > 0) {
+            applyFilter(userId, filterChanges, req.app.get("io"), true);
         }
 
         // 클라이언트(내 차 패널 등)가 실시간으로 갱신될 수 있도록 소켓 이벤트 발송

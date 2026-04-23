@@ -11,6 +11,8 @@ export interface UserSession {
     activeTimers: Map<string, NodeJS.Timeout>;
     pendingOrdersData: Map<string, SecuredOrder>;
     deviceEvaluatingMap: Map<string, string>;
+    baseFilter: AutoDispatchFilter;
+    runtimeOverrides: Partial<AutoDispatchFilter>;
     activeFilter: AutoDispatchFilter;
     driverLocation: { x: number; y: number } | null;
 }
@@ -25,11 +27,13 @@ function createDefaultSession(): UserSession {
         activeTimers: new Map<string, NodeJS.Timeout>(),
         pendingOrdersData: new Map<string, SecuredOrder>(),
         deviceEvaluatingMap: new Map<string, string>(),
-        activeFilter: {
+        baseFilter: {} as AutoDispatchFilter,
+        runtimeOverrides: {
             isActive: false,
             isSharedMode: false,
             loadState: 'EMPTY'
-        } as AutoDispatchFilter,
+        },
+        activeFilter: {} as AutoDispatchFilter,
         driverLocation: null
     };
 }
@@ -45,11 +49,8 @@ export function getUserSession(userId: string): UserSession {
             const settingsRow = db.prepare("SELECT vehicle_type FROM user_settings WHERE user_id = ?").get(userId) as any;
             
             if (filterRow) {
-                // Restore saved filter
-                session.activeFilter = {
-                    isActive: Boolean(filterRow.is_active),
-                    isSharedMode: Boolean(filterRow.is_shared_mode),
-                    loadState: filterRow.load_state || 'EMPTY',
+                // Restore saved filter into baseFilter
+                session.baseFilter = {
                     destinationCity: filterRow.destination_city || "",
                     destinationRadiusKm: filterRow.destination_radius_km || 10,
                     corridorRadiusKm: filterRow.corridor_radius_km || 1,
@@ -60,15 +61,34 @@ export function getUserSession(userId: string): UserSession {
                     excludedKeywords: JSON.parse(filterRow.excluded_keywords || '[]'),
                     destinationKeywords: JSON.parse(filterRow.destination_keywords || '[]')
                 } as AutoDispatchFilter;
-                // 세션 복구 시 운행 상태는 항상 초기화 (어제의 LOADING/DRIVING이 오늘 살아나는 것을 방지)
-                session.activeFilter.loadState = 'EMPTY';
-                session.activeFilter.isSharedMode = false;
+
+                // 세션 복구 시 런타임 상태는 항상 초기화 (어제의 LOADING/DRIVING이 오늘 살아나는 것을 방지)
+                session.runtimeOverrides = {
+                    isActive: Boolean(filterRow.is_active), // 활성화 여부는 저장된 값 유지
+                    isSharedMode: false,
+                    loadState: 'EMPTY'
+                };
+                
+                // activeFilter 최초 계산
+                session.activeFilter = { ...session.baseFilter, ...session.runtimeOverrides };
+                
                 console.log(`[Session] 유저 ${userId} 의 기존 필터 복구 완료 (loadState=EMPTY로 초기화)`);
             } else {
                 // Initialize default filter using user's vehicle_type and all smaller vehicles
                 const fallbackVehicle = settingsRow?.vehicle_type || '1t';
                 const { getSharedModeVehicleTypes } = require('@onedal/shared');
-                session.activeFilter.allowedVehicleTypes = getSharedModeVehicleTypes(fallbackVehicle);
+                
+                session.baseFilter = {
+                    allowedVehicleTypes: getSharedModeVehicleTypes(fallbackVehicle)
+                } as AutoDispatchFilter;
+                
+                session.runtimeOverrides = {
+                    isActive: false,
+                    isSharedMode: false,
+                    loadState: 'EMPTY'
+                };
+                
+                session.activeFilter = { ...session.baseFilter, ...session.runtimeOverrides };
                 
                 // Save this initial default to DB silently
                 db.prepare(`

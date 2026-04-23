@@ -4,20 +4,21 @@ import type { AutoDispatchFilter } from "@onedal/shared";
 import { logRoadmapEvent } from "../lib/roadmapLogger";
 
 export function useFilterConfig() {
-    const [filter, setFilter] = useState<AutoDispatchFilter | null>(null);
+    const [filter, setFilter] = useState<AutoDispatchFilter | null>(null); // activeFilter
+    const [baseFilter, setBaseFilter] = useState<AutoDispatchFilter | null>(null);
 
     useEffect(() => {
         // 소켓 이벤트 핸들러 구독
-        const onFilterInit = (initialFilter: AutoDispatchFilter) => {
+        const onFilterInit = (payload: { activeFilter: AutoDispatchFilter, baseFilter: AutoDispatchFilter }) => {
             logRoadmapEvent("웹", "서버로 부터 filter-init 초기 필터값(isSharedMode, distance 등) 받음");
-            logRoadmapEvent("웹", "OrderFilterStatus 컴포넌트에 현재 설정된 렌즈값 문자열로 렌더링");
-            setFilter(initialFilter);
+            setFilter(payload.activeFilter);
+            setBaseFilter(payload.baseFilter);
         };
 
-        const onFilterUpdated = (updatedFilter: AutoDispatchFilter) => {
+        const onFilterUpdated = (payload: { activeFilter: AutoDispatchFilter, baseFilter: AutoDispatchFilter }) => {
             logRoadmapEvent("웹", "서버로 부터 filter-updated 소켓 이벤트 받음");
-            logRoadmapEvent("웹", "OrderFilterStatus 컴포넌트에 즉각 필터 갱신 및 UI 리렌더링");
-            setFilter(updatedFilter);
+            setFilter(payload.activeFilter);
+            setBaseFilter(payload.baseFilter);
         };
 
         const onConnect = () => {
@@ -43,14 +44,17 @@ export function useFilterConfig() {
 
     // 프론트엔드에서 필터값을 임의로 즉시 업데이트 후 서버로 전송 (Optimisitc UI)
     const updateFilter = (newFilter: Partial<AutoDispatchFilter>) => {
-        // 로컬 상태 선반영
+        // 로컬 상태 선반영 (주로 baseFilter를 기반으로 모달이 동작하므로 base와 active 둘 다에 반영)
         if (filter) {
             setFilter({ ...filter, ...newFilter });
+        }
+        if (baseFilter) {
+            setBaseFilter({ ...baseFilter, ...newFilter });
         }
         // 서버로 방출
         logRoadmapEvent("웹", "서버에게 새로 작성한 update-filter 정보 전달");
         socket.emit("update-filter", newFilter);
     };
 
-    return { filter, updateFilter };
+    return { filter, baseFilter, updateFilter };
 }

@@ -52,12 +52,20 @@ export function registerSocketHandlers(io: Server) {
         // 접속 시 초기 데이터 전송 (유저별 등록 기기 목록 포함)
         socket.emit("telemetry-devices", getUserDevicesSnapshot(userId));
         logRoadmapEvent("서버", "관제탑 소켓 접속 완료 및 기사의 기본 필터 DB Lazy Load 연산");
-        socket.emit("filter-init", session.activeFilter);
+        
+        socket.emit("filter-init", {
+            activeFilter: session.activeFilter,
+            baseFilter: session.baseFilter
+        });
         logRoadmapEvent("서버", "관제탑에게 초기 UI 복원용 필터(filter-init) 정보 전달");
 
-        // 프론트의 필터 요구 시
         socket.on("request-filter-init", () => {
-            socket.emit("filter-init", session.activeFilter);
+            logRoadmapEvent("서버", "관제탑으로 부터 초기 필터(request-filter-init) 요청 받음");
+            logRoadmapEvent("서버", "관제탑에게 초기 UI 복원용 필터(filter-init) 정보 전달");
+            socket.emit("filter-init", {
+                activeFilter: session.activeFilter,
+                baseFilter: session.baseFilter
+            });
         });
 
         // 프론트에서 필터 변경 시
@@ -83,8 +91,8 @@ export function registerSocketHandlers(io: Server) {
                 }
             }
             
-            logRoadmapEvent("서버", "관제탑에게 변경 적용된 일회성 필터(filter-updated) 정보 전달");
-            applyFilter(userId, newFilter, io, false); // persistToDB = false (메모리만 변경, DB는 건드리지 않음)
+            logRoadmapEvent("서버", "관제탑에게 변경 적용된 필터(filter-updated) 정보 전달 및 DB 영구 저장");
+            applyFilter(userId, newFilter, io, true); // persistToDB = true (모달에서 수정한 값은 DB 영구 저장)
         });
 
         // 프론트에서 현재 위치 전송 시 (지도 등 활용 및 Master GPS 용도)
@@ -159,7 +167,7 @@ export function registerSocketHandlers(io: Server) {
                     isSharedMode: true,
                     isActive: true,
                     corridorRadiusKm: 10,
-                }, io);
+                }, io, false); // persistToDB = false (일회성 운행 조작)
                 syncCorridorFilter(userId, io);
 
                 console.log(`🏠 [귀가콜] 가상 오더 생성 완료: ${settings.home_address}`);

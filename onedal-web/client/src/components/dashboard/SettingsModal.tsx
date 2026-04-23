@@ -27,6 +27,9 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [vehicleType, setVehicleType] = useState<string>("1t");
   const [defaultPriority, setDefaultPriority] = useState<string>("RECOMMEND");
   const [homeAddress, setHomeAddress] = useState<string>("");
+  const [destinationCity, setDestinationCity] = useState<string>("");
+  const [destinationRadiusKm, setDestinationRadiusKm] = useState<string>("");
+  const [corridorRadiusKm, setCorridorRadiusKm] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
 
   // ═══ 요율/필터 설정 탭 상태 ═══
@@ -93,6 +96,9 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       setVehicleType(data.vehicleType || "1t");
       setDefaultPriority(data.defaultPriority || 'RECOMMEND');
       setHomeAddress(data.homeAddress || "");
+      setDestinationCity(data.destinationCity || "");
+      setDestinationRadiusKm(data.destinationRadiusKm?.toString() || "");
+      setCorridorRadiusKm(data.corridorRadiusKm?.toString() || "");
     } catch (e) {
       console.error("Failed to load settings:", e);
     } finally {
@@ -103,7 +109,14 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const handleSaveSettings = async () => {
     try {
       setIsLoading(true);
-      await apiClient.put('/settings', { vehicleType, defaultPriority, homeAddress });
+      await apiClient.put('/settings', { 
+        vehicleType, 
+        defaultPriority, 
+        homeAddress,
+        destinationCity,
+        destinationRadiusKm: destinationRadiusKm ? parseInt(destinationRadiusKm, 10) : undefined,
+        corridorRadiusKm: corridorRadiusKm ? parseInt(corridorRadiusKm, 10) : undefined
+      });
       onClose();
     } catch (e) {
       console.error("Failed to save settings:", e);
@@ -139,7 +152,14 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         vehicleRates, agencyFeePercent, maxDiscountPercent, excludedKeywords, minFare, maxFare, pickupRadiusKm
       });
       // 차종, 경로 등 기본 설정도 동시 저장
-      await apiClient.put('/settings', { vehicleType, defaultPriority, homeAddress });
+      await apiClient.put('/settings', { 
+        vehicleType, 
+        defaultPriority, 
+        homeAddress,
+        destinationCity,
+        destinationRadiusKm: destinationRadiusKm ? parseInt(destinationRadiusKm as string, 10) : undefined,
+        corridorRadiusKm: corridorRadiusKm ? parseInt(corridorRadiusKm as string, 10) : undefined
+      });
       onClose();
     } catch (e) {
       console.error("Failed to save pricing:", e);
@@ -291,7 +311,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             <div className="flex flex-col gap-5">
               {/* 내 차량 종류 */}
               <div>
-                <label className="block text-sm font-semibold text-gray-400 mb-2">🚛 내 차량 종류</label>
+                <label className="block text-sm font-semibold text-gray-400 mb-2">내 차량 종류</label>
                 <select
                   value={vehicleType}
                   onChange={(e) => setVehicleType(e.target.value)}
@@ -502,8 +522,49 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   />
                 </div>
               </div>
+              <div className="h-px bg-gray-800/50 w-full mt-3 mb-2" />
 
-              <div className="flex justify-end gap-3 mt-2">
+              {/* 내 노선 기본 설정 */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-400 mb-2">📍 내 노선 기본 설정</label>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 mb-1">도착 희망 시/도</label>
+                    <input
+                      type="text"
+                      value={destinationCity}
+                      onChange={(e) => setDestinationCity(e.target.value)}
+                      placeholder="예: 경기"
+                      className="w-full bg-gray-950 border border-gray-800 text-white text-sm rounded-lg p-2.5 outline-none focus:border-accent transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 mb-1">도착 반경 (km)</label>
+                    <input
+                      type="number"
+                      value={destinationRadiusKm}
+                      onChange={(e) => setDestinationRadiusKm(e.target.value)}
+                      placeholder="기본 10km"
+                      className="w-full bg-gray-950 border border-gray-800 text-white text-sm rounded-lg p-2.5 outline-none focus:border-accent transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 mb-1">우회 허용 반경 (km)</label>
+                    <input
+                      type="number"
+                      value={corridorRadiusKm}
+                      onChange={(e) => setCorridorRadiusKm(e.target.value)}
+                      placeholder="기본 1km"
+                      className="w-full bg-gray-950 border border-gray-800 text-white text-sm rounded-lg p-2.5 outline-none focus:border-accent transition-colors"
+                    />
+                  </div>
+                </div>
+                <p className="mt-1 text-[10px] text-gray-600">
+                  * 관제탑 필터 모달의 기본값으로 동작하며, DB에 영구 저장됩니다.
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-3 mt-4">
                 <button
                   onClick={onClose}
                   className="px-4 py-2 rounded-lg bg-gray-800 text-gray-300 font-semibold hover:bg-gray-700 transition-colors"
