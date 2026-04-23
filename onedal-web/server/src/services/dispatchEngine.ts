@@ -532,8 +532,6 @@ export async function handleDecision(userId: string, orderId: string, action: 'K
             if (!session.mainCallState && session.subCalls.length === 0) {
                 // 잡은 콜이 하나도 안 남았을 경우 → 완전히 초기화 (EMPTY)
                 resetFilter.isSharedMode = false;
-                const routingOpts = getKakaoRoutingOptions(userId);
-                resetFilter.allowedVehicleTypes = getSharedModeVehicleTypes(routingOpts.vehicleType || '1t');
                 resetFilter.loadState = 'EMPTY';
                 logRoadmapEvent("서버", "모든 콜이 취소되어 필터를 완전 초기화(EMPTY)합니다.");
             } else {
@@ -541,7 +539,7 @@ export async function handleDecision(userId: string, orderId: string, action: 'K
                 logRoadmapEvent("서버", `본콜이 유지 중이므로 현재 상태(${session.activeFilter.loadState})를 유지하며 탐색을 재개합니다.`);
             }
 
-            applyFilter(userId, resetFilter, io);
+            applyFilter(userId, resetFilter, io, false);
             logRoadmapEvent("서버", "앱폰 및 관제탑에게 탐색 재개(filter-updated) 정보 전달");
         }
         session.pendingOrdersData.delete(orderId);

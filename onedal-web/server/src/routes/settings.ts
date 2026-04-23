@@ -12,16 +12,16 @@ router.get("/", requireAuth, (req, res) => {
     try {
         const userId = req.user!.id;
         let row = db.prepare(`
-            SELECT s.*, f.destination_city, f.destination_radius_km, f.corridor_radius_km 
+            SELECT s.*, f.destination_city, f.destination_radius_km, f.corridor_radius_km, f.is_active 
             FROM user_settings s 
             LEFT JOIN user_filters f ON s.user_id = f.user_id 
             WHERE s.user_id = ?
         `).get(userId) as any;
-        
+
         if (!row) {
             db.prepare("INSERT INTO user_settings (user_id) VALUES (?)").run(userId);
             row = db.prepare(`
-                SELECT s.*, f.destination_city, f.destination_radius_km, f.corridor_radius_km 
+                SELECT s.*, f.destination_city, f.destination_radius_km, f.corridor_radius_km, f.is_active 
                 FROM user_settings s 
                 LEFT JOIN user_filters f ON s.user_id = f.user_id 
                 WHERE s.user_id = ?
@@ -41,6 +41,7 @@ router.get("/", requireAuth, (req, res) => {
             destinationCity: row.destination_city || '',
             destinationRadiusKm: row.destination_radius_km,
             corridorRadiusKm: row.corridor_radius_km,
+            isActive: Boolean(row.is_active),
         });
     } catch (e) {
         console.error("Settings GET 에러:", e);
@@ -67,7 +68,7 @@ router.put("/", requireAuth, async (req, res) => {
                 alarm_volume = COALESCE(@alarmVolume, alarm_volume)
             WHERE user_id = @userId
         `);
-        
+
         const result = updateStmt.run({
             userId,
             carType: payload.carType ?? null,
@@ -112,22 +113,13 @@ router.put("/", requireAuth, async (req, res) => {
             }
         }
 
-        // 차량 종류 변경 시 현재 상태가 EMPTY라면 필터 허용 차종 자동 갱신
-        if (payload.vehicleType) {
-            const { getUserSession } = require('../state/userSessionStore');
-            const session = getUserSession(userId);
-            if (!session.activeFilter.loadState || session.activeFilter.loadState === 'EMPTY') {
-                const { getSharedModeVehicleTypes } = require('@onedal/shared');
-                applyFilter(userId, { allowedVehicleTypes: getSharedModeVehicleTypes(payload.vehicleType) }, req.app.get("io"));
-                console.log(`🚛 [차량 변경] 기본 필터 차종을 ${payload.vehicleType} 기준 하위 차종으로 자동 갱신했습니다.`);
-            }
-        }
 
         // 내 노선 설정 (user_filters) 동시 업데이트
         const filterChanges: any = {};
         if (payload.destinationCity !== undefined) filterChanges.destinationCity = payload.destinationCity;
         if (payload.destinationRadiusKm !== undefined) filterChanges.destinationRadiusKm = payload.destinationRadiusKm;
         if (payload.corridorRadiusKm !== undefined) filterChanges.corridorRadiusKm = payload.corridorRadiusKm;
+        if (payload.isActive !== undefined) filterChanges.isActive = payload.isActive;
 
         if (Object.keys(filterChanges).length > 0) {
             applyFilter(userId, filterChanges, req.app.get("io"), true);
@@ -150,9 +142,9 @@ router.get("/preview-regions", requireAuth, (req, res) => {
         if (!city) {
             return res.status(400).json({ error: "도시명(city) 파라미터가 필요합니다." });
         }
-        
+
         const groupedRegions = getGroupedRegionsByCity(city);
-        
+
         // 총 키워드 수 계산
         let totalCount = 0;
         for (const dongs of Object.values(groupedRegions)) {
@@ -236,7 +228,7 @@ router.put("/pricing", requireAuth, (req, res) => {
         if (maxFare !== undefined) filterChanges.maxFare = maxFare;
         if (pickupRadiusKm !== undefined) filterChanges.pickupRadiusKm = pickupRadiusKm;
         if (excludedKeywords !== undefined) filterChanges.excludedKeywords = excludedKeywords;
-        
+
         if (Object.keys(filterChanges).length > 0) {
             applyFilter(userId, filterChanges, req.app.get("io"), true);
         }

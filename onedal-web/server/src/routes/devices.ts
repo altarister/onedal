@@ -31,18 +31,21 @@ function lookupDeviceName(deviceId: string): string | undefined {
  * App에서 화면이 변경되거나 주기적으로 스크랩 데이터를 전송할 때 세션 갱신
  * @returns 현재 기기의 관제 모드 (AUTO | MANUAL)
  */
-export const touchDeviceSession = (deviceId: string, addedPollCount: number = 0, screenContext?: ScreenContextType, io?: any, isHolding?: boolean, lat?: number, lng?: number): DeviceModeType => {
+export const touchDeviceSession = (deviceId: string, userId: string, addedPollCount: number = 0, screenContext?: ScreenContextType, io?: any, isHolding?: boolean, lat?: number, lng?: number): DeviceModeType => {
     let session = activeDevices.get(deviceId);
 
     if (!session) {
         // 최초 세션 생성 시에만 DB에서 deviceName을 1회 조회 (이후 메모리 캐싱)
         const deviceName = lookupDeviceName(deviceId);
+        const userSession = getUserSession(userId);
+        const defaultMode = userSession.activeFilter?.isActive ? "AUTO" : "MANUAL";
+        
         session = {
             deviceId,
             deviceName,
             lastSeen: Date.now(),
             status: "ONLINE",
-            mode: "AUTO", // 최초 접속 시 무조건 안전모드(수동) 진입
+            mode: defaultMode,
             screenContext: screenContext || 'UNKNOWN',
             isHolding: isHolding ?? false,
             lat,
@@ -369,12 +372,15 @@ export const getUserDevicesSnapshot = (userId: string): DeviceSession[] => {
             result.push(activeItem);
         } else {
             // 완전 비활성 상태인 등록 기기도 UI 표시용으로 내려줌
+            const userSession = getUserSession(userId);
+            const defaultMode = userSession.activeFilter?.isActive ? "AUTO" : "MANUAL";
+            
             result.push({
                 deviceId: r.device_id,
                 deviceName: r.device_name,
                 lastSeen: 0,
                 status: "OFFLINE",
-                mode: "MANUAL",
+                mode: defaultMode,
                 screenContext: "UNKNOWN",
                 stats: { polled: 0, grabbed: 0, canceled: 0 }
             });

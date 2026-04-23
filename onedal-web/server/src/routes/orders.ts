@@ -161,7 +161,7 @@ router.post("/confirm", (req, res) => {
             logRoadmapEvent("서버", "관제탑에게 이 콜을 선점했음(order-evaluating) 정보 전달");
 
             if (session.activeFilter.isActive) {
-                applyFilter(userId, { isActive: false }, io);
+                applyFilter(userId, { isActive: false }, io, false);
                 console.log(`📤 [Socket 푸시] filter-updated (isActive: false)`);
                 logRoadmapEvent("서버", "폰의 isHolding=true 기간 동안 다른 콜을 물지 않도록 필터 비활성 정보 전달");
                 

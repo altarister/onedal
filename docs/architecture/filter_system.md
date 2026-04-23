@@ -388,3 +388,173 @@ DB에 저장되어 서버 재시작 후에도 유지됩니다.
 | 2026-04-21 | 3단계 State Machine (EMPTY→LOADING→DRIVING) 구현 |
 | 2026-04-21 | SettingsModal 3탭 구조 + 차종별 단가표 UI 완성 |
 | 2026-04-21 | DB 마이그레이션: vehicle_rates, agency_fee_percent, max_discount_percent, alarm_volume |
+
+
+## 나중에 문서에 추가할 내용들
+
+# 1DAL 필터 시스템 수정 계획 및 생명주기 완벽 정리
+
+## 🗣️ 사장님의 멘탈 모델 vs 현재 코드의 꼬임 분석 (요청하신 풀이 설명)
+
+사장님께서 말씀하신 다음 흐름이 정말 직관적이고 이상적인 접근입니다:
+> *"DB에서 필터값 가져와서 baseFilter에 두고... 그걸 모아 activeFilter로 만들어 엡/웹에 보여주다가... 설정 팝업에서 수정/저장하면 activeFilter에 오버라이드하고... 중간에 합짐이 되면 우회 탐색값 만들어 배열에 넣어주고... 끝나면 그냥 메모리에서 날려버리면 끝나는거 아냐?"*
+
+
+> *"'db에서 user_filters 필터값 가져와서 baseFilter에 깊은 복사 해서 두고 그 값을 이용해서 
+들어 있는 시/도 값으로 읍/면/동도 만들고  허용 차종도 만들어서 그값을 모아   activeFilter 로 만들어 넣고 그걸 엡과 웹에 서 보여주고 필터로 보여 주다가. 통제 필터 설정 팝업을 열면 activeFilter 를 runTimeOverrides에다 깊은 복사 해서 그 값으로 팝업에 각 앨리먼드 들에 각각 넣어 주고 그걸 수정하고 저장 하면 그걸 다시 activeFilter에 오버 라이드 해주면 되는거 아냐? 
+중간에 합짐이 되면 activeFilter에 읍/면/동값을 경로와 우회 탐색값으로 다시 만들어 배열에 넣어 주면 되는거 같은데.. 그리고 로그아웃 하거나 끝나면 그냥 메모리에서 날려버리면 끝나는거 아냐?'"*
+
+**네, 사장님 생각이 100% 맞습니다!** 하지만 **현재 서버 코드가 사장님의 생각과 다르게 짜여 있어서 버그가 터지고 있습니다.**
+사장님의 흐름대로 풀어서, **'현재 어떻게 꼬여있는지(AS-IS)'**와 **'어떻게 고칠 것인지(TO-BE)'**를 설명해 드릴게요.
+
+### 1. 필터 초기화 단계의 꼬임
+- **사장님 생각**: DB(`user_filters`)에서 가져온 값을 `baseFilter`에 넣는다. (사장님이 `db.ts`에서 보신 것처럼 `is_active`도 DB 컬럼이므로 당연히 `baseFilter`로 들어가야 함!)
+- **현재 코드(버그)**: DB에서 필터를 가져올 때, 엉뚱하게 `isActive`만 쏙 빼서 임시 바구니인 `runtimeOverrides`에 먼저 넣어버립니다! 여기서부터 꼬였습니다.
+
+### 2. 설정 변경 시의 꼬임 (State Shadowing)
+- **사장님 생각**: 설정을 수정하고 저장하면 필터에 오버라이드 한다.
+- **현재 코드**: 관제탑 대시보드에서 스위치를 켜거나 설정창에서 값을 저장하면, 서버는 "이건 영구 저장이다!" 하고 **DB에 업데이트 쿼리(stmtUpdateFilter.run)를 때리고 원본인 `baseFilter`를 바꿉니다.** (내일 출근해도 유지되어야 하니까 이건 정상입니다.)
+- **문제 발생**: 그런데 아까 1번에서 `isActive`를 임시 바구니(`runtimeOverrides`)에 잘못 넣어놨죠? `activeFilter`를 만들 때 `baseFilter` + `runtimeOverrides` 순서로 합치는데, **임시 바구니에 들어있던 옛날 `isActive` 값이 새롭게 DB에 저장한 `baseFilter` 값을 가려버립니다(덮어씀).** 이것이 제가 "오답"이라고 지적한 섀도잉 현상입니다!
+
+### 3. 콜 취소(종료) 시의 꼬임 (DB 덮어쓰기)
+- **사장님 생각**: 중간에 합짐이 되면 임시로 읍면동 배열을 넣고, 끝나면 쿨하게 메모리에서 날려버리면 끝난다.
+- **현재 코드(버그)**: 합짐이 되면 읍면동 배열을 임시 바구니(`runtimeOverrides`)에 넣는 것까진 잘 작동합니다. **그런데 콜이 끝나서 메모리를 날려버릴 때 사고가 터집니다.** 
+  디스패치 엔진이 갑자기 *"차종 배열도 하위 차종 전체(다마스, 라보 등)로 강제 세팅해서 DB(baseFilter)에 영구 저장해버리자!"* 라며 `applyFilter`를 기본값(`persistToDB=true`)으로 실행해버립니다. 이 때문에 사장님이 팝업에서 세팅해둔 고유 차종이 DB에서 영구 삭제됩니다.
+
+### 💡 최종 결론 (수정 방향)
+사장님의 머릿속에 있는 그 완벽하고 직관적인 흐름대로 코드를 돌려놓는 것이 제 계획입니다!
+1. `isActive`는 엄연히 DB 컬럼에 있으니, 헷갈리게 임시 객체에 넣지 말고 당당하게 원본(`baseFilter`)에 넣는다!
+2. 설정창이나 스위치를 조작하면 DB와 `baseFilter`만 깔끔하게 바꾼다. (임시 객체가 원본을 가리지 못하게 청소 로직을 넣는다).
+3. 합짐 중에는 임시 객체(`runtimeOverrides`)만 쓰고, 끝나면 쿨하게 비워버린다. **(절대 이때 DB에 차종을 맘대로 덮어쓰지 못하게 코드를 삭제한다).**
+
+*(아래는 위 설명을 바탕으로 한 상세 코드 수정 계획입니다)*
+
+---
+
+사장님께서 질문하신 내용들이 현재 1DAL 시스템 아키텍처의 핵심을 정확히 관통하고 있습니다! 특히 "isActive가 필터 조건들과 같은 객체에 묶여서 꼬이는 것 같다"는 말씀은 정확한 통찰입니다. 
+
+질문하신 내용들을 바탕으로 **필터의 정체와 생명주기**를 사장님의 눈높이(시니어 레벨)에 맞춰 완벽하게 정리해 드리고, 이를 바탕으로 기존 수정 계획을 다시 제안합니다.
+
+---
+
+## 💡 Q&A: 필터의 정체와 멘탈 모델 교정
+
+### Q1. `isActive` (자동사냥 스위치)는 최초에 어디서 정의되나요?
+`server/src/db.ts`의 `user_filters` 테이블 생성문을 보면 `is_active BOOLEAN DEFAULT 0` 컬럼이 존재합니다. 
+관제탑에서 켠 "Full Auto(자동 사냥)" 스위치의 온/오프 상태는 **DB에 영구 저장**됩니다. 서버가 꺼졌다 켜져도 어제 스위치를 켜고 퇴근했으면 오늘 켜져 있어야 하니까요.
+
+### Q2. `baseFilter`의 스키마가 어떻게 되나요?
+`@onedal/shared/src/index.ts`에 정의된 `AutoDispatchFilter` 인터페이스입니다.
+```typescript
+export interface AutoDispatchFilter {
+    isActive: boolean;              // "Full Auto" 스위치 온/오프 (DB 저장됨)
+    allowedVehicleTypes: string[];  // 허용 차종 배열 (예: ["1t","다마스"])
+    isSharedMode: boolean;          // 합짐 모드 여부
+    loadState: LoadState;           // 상태 ('EMPTY', 'LOADING', 'DRIVING')
+    pickupRadiusKm: number;         // 상차지 탐색 반경(km)
+    minFare: number;                // 최소 운임 하한선
+    destinationCity: string;        // 하차 목표 메인 지역
+    corridorRadiusKm?: number;      // (합짐 모드) 우회 이탈 허용 반경
+    // ... 등등
+}
+```
+
+### Q3. `persistToDB` 변수는 뭐할 때 쓰는 건가요?
+서버의 **메모리(RAM)만 바꿀 것인가, 아니면 SQLite DB 파일까지 써서 "영구 저장"할 것인가**를 결정하는 스위치입니다.
+- `persistToDB = true`: 톱니바퀴 설정창에서 차종을 바꾸거나 하한가를 바꿀 때. 내일 출근해도 유지되어야 하니 DB에 씁니다.
+- `persistToDB = false`: 앱이 콜을 잡아서 자동으로 '합짐(LOADING) 모드'로 변신할 때. 이건 콜이 끝나면 다시 '첫짐(EMPTY)'으로 리셋되어야 하니 메모리만 잠깐 바꿉니다.
+
+### Q4. `runtimeOverrides` (임시 덮어쓰기 객체)는 설정 팝업창을 위한 건가요?
+**아닙니다! 이 부분이 사장님의 멘탈 모델과 코드가 달랐던 지점입니다.**
+팝업창의 상태는 React 프론트엔드가 자체적으로 들고 있습니다. 서버의 `runtimeOverrides`는 **"상황에 따른 시스템의 자동 강제 개입(오버라이드)"**을 위한 바구니입니다.
+
+1. 사장님이 설정창에서 `회랑반경=1km`로 설정해서 DB에 저장했습니다 (`baseFilter`).
+2. 앱이 첫 짐을 딱 잡았습니다! 서버가 판단합니다. **"어? 적재 중이네. 다음 합짐을 구해야 하니까 일시적으로 회랑 반경을 10km로 확 늘려!"**
+3. 이때 DB의 `baseFilter`를 10km로 바꿔버리면 내일 출근할 때 10km로 시작해버립니다. 
+4. 그래서 DB는 냅두고, `runtimeOverrides` 바구니에 `{ corridorRadiusKm: 10, isSharedMode: true }`를 슬쩍 밀어 넣습니다 (`persistToDB=false`).
+5. `activeFilter`는 이 둘을 짬뽕하여 최종 **10km**를 만들어 앱으로 쏩니다.
+6. 목적지에 도착해 콜이 다 끝났습니다(`EMPTY`). 서버는 `runtimeOverrides` 바구니를 메모리에서 싹 비워버립니다. 그러면 다시 사장님이 세팅한 원본 `baseFilter`의 1km가 부활합니다!
+
+### Q5. 그럼 `applyFilter`는 언제 쓰는 건가요? 필터의 생명주기 총정리!
+
+시스템에는 오직 **1개의 필터(`AutoDispatchFilter`)** 스키마만 존재하며, 그것이 3개의 그릇을 거쳐 흘러갑니다.
+
+| 그릇 이름 | 성격 | 생명 주기 (Lifecycle) | 업데이트 주체 (`applyFilter` 호출자) |
+| :--- | :--- | :--- | :--- |
+| **`baseFilter`** | **원본 (DB)** | 기사가 회원가입할 때 생성 ➡️ 설정창에서 수정할 때 업데이트 ➡️ 영원히 보존 | `SettingsModal.tsx`에서 저장 버튼 클릭 시 (`persistToDB=true`) |
+| **`runtimeOverrides`** | **시스템 임시 덮어쓰기** | 콜을 잡아서 상태가 변할 때(EMPTY ➡️ LOADING ➡️ DRIVING) 시스템이 강제로 값을 주입 ➡️ 콜이 모두 종료되어 EMPTY로 돌아가면 메모리에서 **삭제됨 (비워짐)** | `dispatchEngine.ts`가 콜 상태 변화를 감지할 때 (`persistToDB=false`) |
+| **`activeFilter`** | **최종 짬뽕 결과물** | 위의 두 그릇이 병합된 결과물. 매초마다 소켓을 타고 안드로이드 앱으로 날아가서 **0.01초 광클의 기준점**이 됨 | 위 두 그릇 중 하나라도 변하면 즉시 새로 합성되어 생성됨 |
+
+---
+
+## 🚨 발견된 치명적 오류와 수정 계획 (Code Review)
+
+사장님의 말씀대로 `isActive`(자동사냥 스위치)가 위 필터들과 한 몸으로 묶여있어서 꼬인 것이 맞습니다. 또한 `runtimeOverrides`를 오용하고 있는 코드 찌꺼기를 지우는 것이 이번 계획의 핵심입니다!
+
+### 1. `isActive` (Full Auto) 상태 섀도잉 및 로드 오류
+**문제**: 서버가 처음 켜질 때 DB에서 `isActive`를 읽어서 `baseFilter`가 아닌 `runtimeOverrides`에 박아넣고 있습니다. 사장님 말씀대로 **"그냥 이 코드를 지워버리고 원본에 넣으면"** 해결됩니다.
+
+**[🔍 코드 증명 및 수정 계획]**
+- `server/src/state/userSessionStore.ts` (67번째 줄)
+```typescript
+// [AS-IS: 오답]
+session.runtimeOverrides = {
+    isActive: Boolean(filterRow.is_active), // 🚨 임시 객체에 넣어버림! 지워야 할 코드!
+    // ...
+};
+
+// [TO-BE: 수정 계획]
+session.baseFilter = {
+    ...
+    isActive: Boolean(filterRow.is_active), // ✅ 원본(baseFilter)으로 이사!
+};
+session.runtimeOverrides = { loadState: 'EMPTY', isSharedMode: false }; // 깔끔하게 비움
+```
+
+### 2. 필터 저장 시 찌꺼기 미청소 (Shadowing 발생 원인)
+**문제**: 관제탑에서 [자동사냥] 스위치를 끄면 `applyFilter({isActive: false}, true)`가 호출되어 `baseFilter`는 업데이트됩니다. 하지만 `runtimeOverrides`에 예전에 쓰던 찌꺼기 값이 남아있으면 JavaScript 특성상 옛날 값이 새 값을 가려버립니다.
+
+**[🔍 코드 증명 및 수정 계획]**
+- `server/src/state/filterManager.ts` (87번째 줄)
+```typescript
+// [AS-IS: 오답]
+if (persistToDB) {
+    session.baseFilter = { ...session.baseFilter, ...changes };
+    stmtUpdateFilter.run( ..., session.runtimeOverrides.isActive ? 1 : 0 ); // 🚨 잘못된 임시 값을 DB에 저장!
+}
+
+// [TO-BE: 수정 계획]
+if (persistToDB) {
+    session.baseFilter = { ...session.baseFilter, ...changes };
+    // ✅ 임시 바구니(runtimeOverrides)에 겹치는 키가 있으면 찌꺼기 청소(delete)
+    for (const key of Object.keys(changes)) {
+        if (key in session.runtimeOverrides) delete (session.runtimeOverrides as any)[key];
+    }
+    stmtUpdateFilter.run( ..., session.baseFilter.isActive ? 1 : 0 ); // ✅ 올바른 원본 값을 DB에 저장!
+}
+```
+
+### 3. 차종 필터 DB 강제 덮어쓰기 (Data Loss)
+**문제**: 기사가 콜을 취소해서 `EMPTY` 모드로 돌아갈 때, 디스패치 엔진이 "어? 초기화됐네? 차종 필터를 하위 차종 전체로 세팅해야지!" 하고 배열을 만든 뒤 **기본값(`persistToDB=true`)으로 DB에 엎어쳐버립니다.** 사장님이 설정해둔 고유 차종이 날아갑니다.
+
+**[🔍 코드 증명 및 수정 계획]**
+- `server/src/services/dispatchEngine.ts` (536번째 줄 부근)
+```typescript
+// [AS-IS: 오답]
+if (!session.mainCallState && session.subCalls.length === 0) {
+    resetFilter.allowedVehicleTypes = getSharedModeVehicleTypes(...); // 🚨 하위 차종 배열 강제 생성
+    resetFilter.loadState = 'EMPTY';
+}
+applyFilter(userId, resetFilter, io); // 🚨 persistToDB=true 로 동작하여 DB에 덮어씀!
+
+// [TO-BE: 수정 계획]
+if (!session.mainCallState && session.subCalls.length === 0) {
+    resetFilter.loadState = 'EMPTY';
+    // ✅ 강제 배열 생성 코드 삭제! (런타임 오버라이드가 비워지면 알아서 baseFilter의 내 차종으로 복구됨)
+}
+applyFilter(userId, resetFilter, io, false); // ✅ DB 오염 방지를 위해 명시적으로 false 주입
+```
+
+---
+**사장님, 설명해 드린 이 필터의 생명주기와 멘탈 모델이 맞으신가요?** 
+맞으시다면 이 계획대로 세 군데의 코드를 즉각 칼질(수정)하여 꼬여있는 필터 시스템을 견고하게 풀어내겠습니다!

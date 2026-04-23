@@ -30,6 +30,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [destinationCity, setDestinationCity] = useState<string>("");
   const [destinationRadiusKm, setDestinationRadiusKm] = useState<string>("");
   const [corridorRadiusKm, setCorridorRadiusKm] = useState<string>("");
+  const [isActive, setIsActive] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(false);
 
   // ═══ 요율/필터 설정 탭 상태 ═══
@@ -99,6 +100,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       setDestinationCity(data.destinationCity || "");
       setDestinationRadiusKm(data.destinationRadiusKm?.toString() || "");
       setCorridorRadiusKm(data.corridorRadiusKm?.toString() || "");
+      setIsActive(data.isActive || false);
     } catch (e) {
       console.error("Failed to load settings:", e);
     } finally {
@@ -115,7 +117,8 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         homeAddress,
         destinationCity,
         destinationRadiusKm: destinationRadiusKm ? parseInt(destinationRadiusKm, 10) : undefined,
-        corridorRadiusKm: corridorRadiusKm ? parseInt(corridorRadiusKm, 10) : undefined
+        corridorRadiusKm: corridorRadiusKm ? parseInt(corridorRadiusKm, 10) : undefined,
+        isActive
       });
       onClose();
     } catch (e) {
@@ -158,7 +161,8 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         homeAddress,
         destinationCity,
         destinationRadiusKm: destinationRadiusKm ? parseInt(destinationRadiusKm as string, 10) : undefined,
-        corridorRadiusKm: corridorRadiusKm ? parseInt(corridorRadiusKm as string, 10) : undefined
+        corridorRadiusKm: corridorRadiusKm ? parseInt(corridorRadiusKm as string, 10) : undefined,
+        isActive
       });
       onClose();
     } catch (e) {
@@ -233,7 +237,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const renderPinOverlay = () => {
     if (!pinCode) return null;
     return (
-      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-gray-950/95 rounded-2xl">
+      <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-gray-950/95 backdrop-blur-sm rounded-2xl">
         <p className="text-sm text-gray-400 mb-2 font-semibold">앱에서 아래 코드를 입력하세요</p>
         <div className="flex gap-2 mb-4">
           {pinCode.split("").map((digit, i) => (
@@ -309,6 +313,23 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             </div>
           ) : (
             <div className="flex flex-col gap-5">
+              {/* 무인 서핑 모드 (Auto) */}
+              <div className="flex justify-between items-center bg-gray-950 p-3 rounded-lg border border-gray-800">
+                <div>
+                  <h3 className="text-sm font-bold text-white">🚀 무인 서핑 모드 (Full Auto)</h3>
+                  <p className="text-[10px] text-gray-500 mt-1">이 모드를 켜면 꿀콜을 자동으로 낚아채고 평가합니다.</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="sr-only peer"
+                    checked={isActive}
+                    onChange={(e) => setIsActive(e.target.checked)}
+                  />
+                  <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
+                </label>
+              </div>
+
               {/* 내 차량 종류 */}
               <div>
                 <label className="block text-sm font-semibold text-gray-400 mb-2">내 차량 종류</label>

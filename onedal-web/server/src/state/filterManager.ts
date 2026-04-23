@@ -8,14 +8,16 @@
 import db from "../db";
 import { getUserSession } from "./userSessionStore";
 import type { AutoDispatchFilter } from "@onedal/shared";
+import { getSharedModeVehicleTypes } from "@onedal/shared";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
+import { getRegionsByCity } from "../geoResolver";
 
 // ━━━ Prepared Statement 캐싱 (모듈 로드 시 1회만 실행) ━━━
 const stmtUpdateFilter = db.prepare(`
     UPDATE user_filters SET
         destination_city = ?, destination_radius_km = ?, corridor_radius_km = ?,
-        allowed_vehicle_types = ?, min_fare = ?, max_fare = ?, pickup_radius_km = ?,
-        excluded_keywords = ?, destination_keywords = ?, is_active = ?, is_shared_mode = ?,
+        min_fare = ?, max_fare = ?, pickup_radius_km = ?,
+        excluded_keywords = ?, is_active = ?, is_shared_mode = ?,
         load_state = ?
     WHERE user_id = ?
 `);
@@ -44,22 +46,27 @@ export function applyFilter(
     if (persistToDB) {
         // DB 저장(원본 설정 변경)인 경우 baseFilter 업데이트
         session.baseFilter = { ...session.baseFilter, ...changes };
-        
+
+        // 런타임에 찌꺼기로 남은 값들 청소 (Shadowing 방지)
+        for (const key of Object.keys(changes)) {
+            if (key in session.runtimeOverrides) {
+                delete (session.runtimeOverrides as any)[key];
+            }
+        }
+
         try {
             const b = session.baseFilter;
-            
+
             stmtInsertFilter.run(userId);
             stmtUpdateFilter.run(
                 b.destinationCity ?? "",
                 b.destinationRadiusKm,
                 b.corridorRadiusKm,
-                JSON.stringify(b.allowedVehicleTypes ?? []),
                 b.minFare,
                 b.maxFare,
                 b.pickupRadiusKm,
                 JSON.stringify(b.excludedKeywords || []),
-                JSON.stringify(b.destinationKeywords || []),
-                session.runtimeOverrides.isActive ? 1 : 0,
+                b.isActive ? 1 : 0,
                 0, // isSharedMode는 DB에 영구저장 안함
                 'EMPTY', // loadState는 DB에 항상 EMPTY로 저장
                 userId
@@ -74,11 +81,14 @@ export function applyFilter(
 
     // [중요] 상태가 완전히 초기화(EMPTY)될 때 기존의 임시 조작값(회랑 10 등)을 날려버림
     const nextLoadState = changes.loadState ?? session.runtimeOverrides.loadState ?? session.baseFilter.loadState;
-    
+
     if (nextLoadState === 'EMPTY') {
-        // isActive 상태만 유지하고 나머지 런타임 조작값(회랑 등)은 모두 파기
-        const currentActive = session.runtimeOverrides.isActive;
-        session.runtimeOverrides = { isActive: currentActive, loadState: 'EMPTY' };
+        // 런타임 조작값 파기하되, isActive 상태(자동/수동)는 유지
+        const currentIsActive = session.runtimeOverrides.isActive;
+        session.runtimeOverrides = { loadState: 'EMPTY' };
+        if (currentIsActive !== undefined) {
+            session.runtimeOverrides.isActive = currentIsActive;
+        }
         session.baseFilter.loadState = 'EMPTY';
         session.baseFilter.isSharedMode = false;
     }
@@ -88,6 +98,17 @@ export function applyFilter(
         ...session.baseFilter,
         ...session.runtimeOverrides
     };
+
+    // 4. 파생 데이터 동적 생성 (사용자가 일회성 팝업으로 오버라이드하지 않은 경우에만)
+    if (!session.runtimeOverrides.destinationKeywords && session.activeFilter.destinationCity) {
+        session.activeFilter.destinationKeywords = getRegionsByCity(session.activeFilter.destinationCity);
+    } else if (!session.runtimeOverrides.destinationKeywords && !session.activeFilter.destinationCity) {
+        session.activeFilter.destinationKeywords = [];
+    }
+    
+    if (!session.runtimeOverrides.allowedVehicleTypes) {
+        session.activeFilter.allowedVehicleTypes = getSharedModeVehicleTypes(session.userVehicleType || '1t');
+    }
 
     let schemaLogStr = "{\n";
     for (const key of Object.keys(session.activeFilter)) {
