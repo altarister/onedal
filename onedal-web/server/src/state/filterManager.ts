@@ -55,7 +55,7 @@ export function applyFilter(
                 JSON.stringify(b.allowedVehicleTypes || []),
                 b.minFare || 0,
                 b.maxFare || 1000000,
-                b.pickupRadiusKm || 999,
+                b.pickupRadiusKm || 10,
                 JSON.stringify(b.excludedKeywords || []),
                 JSON.stringify(b.destinationKeywords || []),
                 session.runtimeOverrides.isActive ? 1 : 0,
@@ -71,11 +71,11 @@ export function applyFilter(
         session.runtimeOverrides = { ...session.runtimeOverrides, ...changes };
     }
 
-    // [중요] 상태가 완전히 초기화(EMPTY)될 때 기존의 임시 조작값(999 등)을 날려버림
+    // [중요] 상태가 완전히 초기화(EMPTY)될 때 기존의 임시 조작값(회랑 10 등)을 날려버림
     const nextLoadState = changes.loadState ?? session.runtimeOverrides.loadState ?? session.baseFilter.loadState;
     
     if (nextLoadState === 'EMPTY') {
-        // isActive 상태만 유지하고 나머지 런타임 조작값(999, 회랑 10 등)은 모두 파기
+        // isActive 상태만 유지하고 나머지 런타임 조작값(회랑 등)은 모두 파기
         const currentActive = session.runtimeOverrides.isActive;
         session.runtimeOverrides = { isActive: currentActive, loadState: 'EMPTY' };
         session.baseFilter.loadState = 'EMPTY';

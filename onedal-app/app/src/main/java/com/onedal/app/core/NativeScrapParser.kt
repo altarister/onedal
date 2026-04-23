@@ -60,7 +60,7 @@ class NativeScrapParser(private val context: Context) : IScrapParser {
                 allowedVehicleTypes = parseJsonArray(json, "allowedVehicleTypes"),
                 isActive = json.optBoolean("isActive", true),
                 isSharedMode = json.optBoolean("isSharedMode", false),
-                pickupRadiusKm = json.optInt("pickupRadiusKm", 999),
+                pickupRadiusKm = json.optInt("pickupRadiusKm", 10),
                 minFare = json.optInt("minFare", 0),
                 maxFare = json.optInt("maxFare", 1000000),
                 destinationCity = json.optString("destinationCity", ""),
@@ -261,8 +261,12 @@ class NativeScrapParser(private val context: Context) : IScrapParser {
         val fareMatch = order.fare >= filter.minFare
 
         // ── 조건 3: 상차지 거리 ──
+        // 합짐 모드(isSharedMode)에서는 상차지 반경 제한을 무시합니다.
+        // 합짐은 가는 길 위의 콜을 잡는 것이므로 거리가 아닌 경로(회랑) 기준으로 판단됩니다.
         val distanceMatch = if (order.pickupDistance == null) {
             true
+        } else if (filter.isSharedMode) {
+            true // 합짐 모드: 상차 반경 무시 (회랑 필터가 대신 판단)
         } else {
             order.pickupDistance <= filter.pickupRadiusKm
         }
@@ -285,7 +289,7 @@ class NativeScrapParser(private val context: Context) : IScrapParser {
             AppLogger.roadmap("🔍 [타겟 콜 필터 결과] 차종(${order.vehicleType ?: "미상"})=${if(vehicleMatch) "✅" else "❌"} " +
                         "도착지(${filter.destinationKeywords.size}중 ${order.dropoff})=${if(regionMatch) "✅" else "❌"} " +
                         "요금(${filter.minFare} <= ${order.fare})=${if(fareMatch) "✅" else "❌"} " +
-                        "상차지/거리(${filter.pickupRadiusKm} >= ${order.pickupDistance ?: "미상"}km)=${if(distanceMatch) "✅" else "❌"} " +
+                        "상차지/거리(${if(filter.isSharedMode) "합짐무시" else "${filter.pickupRadiusKm}km"} >= ${order.pickupDistance ?: "미상"}km)=${if(distanceMatch) "✅" else "❌"} " +
                         "블랙()=${if(blacklistClear) "✅" else "❌"}", "LIST")
         }
 

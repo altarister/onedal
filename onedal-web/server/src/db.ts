@@ -84,7 +84,7 @@ db.exec(`
         allowed_vehicle_types TEXT DEFAULT '["다마스","라보","오토바이"]',
         min_fare INTEGER DEFAULT 0,
         max_fare INTEGER DEFAULT 1000000,
-        pickup_radius_km REAL DEFAULT 999,
+        pickup_radius_km REAL DEFAULT 10,
         excluded_keywords TEXT DEFAULT '[]',
         destination_keywords TEXT DEFAULT '[]',
         is_active BOOLEAN DEFAULT 0,

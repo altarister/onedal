@@ -27,7 +27,7 @@ router.get("/", requireAuth, (req, res) => {
             allowedVehicleTypes: JSON.parse(row.allowed_vehicle_types || '[]'),
             minFare: row.min_fare || 0,
             maxFare: row.max_fare || 1000000,
-            pickupRadiusKm: row.pickup_radius_km || 999,
+            pickupRadiusKm: row.pickup_radius_km || 10,
             excludedKeywords: JSON.parse(row.excluded_keywords || '[]'),
             destinationKeywords: JSON.parse(row.destination_keywords || '[]')
         });

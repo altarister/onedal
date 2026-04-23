@@ -38,7 +38,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [maxDiscountPercent, setMaxDiscountPercent] = useState(10);
   const [minFare, setMinFare] = useState(0);
   const [maxFare, setMaxFare] = useState(1000000);
-  const [pickupRadiusKm, setPickupRadiusKm] = useState(999);
+  const [pickupRadiusKm, setPickupRadiusKm] = useState(10);
   const [excludedKeywords, setExcludedKeywords] = useState<string[]>([]);
   const [newKeyword, setNewKeyword] = useState("");
   const [isPricingLoading, setIsPricingLoading] = useState(false);
@@ -136,7 +136,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       setMaxDiscountPercent(data.maxDiscountPercent ?? 10);
       setMinFare(data.minFare || 0);
       setMaxFare(data.maxFare || 1000000);
-      setPickupRadiusKm(data.pickupRadiusKm || 999);
+      setPickupRadiusKm(data.pickupRadiusKm || 10);
       setExcludedKeywords(data.excludedKeywords || []);
     } catch (e) {
       console.error("Failed to load pricing:", e);
@@ -489,7 +489,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   className="w-full bg-gray-950 border border-gray-800 text-white text-sm rounded-lg p-2.5 outline-none focus:border-accent transition-colors font-bold"
                 />
                 <p className="mt-1 text-[10px] text-gray-600">
-                  * 내 위치 기준 상차지 제한 거리 (기본값: 999km 무제한)
+                  * 내 위치 기준 상차지 제한 거리 (기본값: 10km)
                 </p>
               </div>
 

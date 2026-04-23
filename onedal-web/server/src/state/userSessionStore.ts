@@ -57,7 +57,7 @@ export function getUserSession(userId: string): UserSession {
                     allowedVehicleTypes: JSON.parse(filterRow.allowed_vehicle_types || '[]'),
                     minFare: filterRow.min_fare || 0,
                     maxFare: filterRow.max_fare || 1000000,
-                    pickupRadiusKm: filterRow.pickup_radius_km || 999,
+                    pickupRadiusKm: filterRow.pickup_radius_km || 10,
                     excludedKeywords: JSON.parse(filterRow.excluded_keywords || '[]'),
                     destinationKeywords: JSON.parse(filterRow.destination_keywords || '[]')
                 } as AutoDispatchFilter;

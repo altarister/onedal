@@ -195,7 +195,7 @@ router.get("/pricing", requireAuth, (req, res) => {
             excludedKeywords: row?.excluded_keywords ? JSON.parse(row.excluded_keywords) : [],
             minFare: row?.min_fare || 0,
             maxFare: row?.max_fare || 1000000,
-            pickupRadiusKm: row?.pickup_radius_km || 999,
+            pickupRadiusKm: row?.pickup_radius_km || 10,
         });
     } catch (e) {
         console.error("Pricing GET 에러:", e);

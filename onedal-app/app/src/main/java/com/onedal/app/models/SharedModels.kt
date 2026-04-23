@@ -175,7 +175,7 @@ data class FilterConfig(
     val allowedVehicleTypes: List<String> = emptyList(),  // 빈 배열 = 모든 차종
     val isActive: Boolean = true,
     val isSharedMode: Boolean = false,
-    val pickupRadiusKm: Int = 999,
+    val pickupRadiusKm: Int = 10,
     val minFare: Int = 0,
     val maxFare: Int = 1000000,
     val destinationCity: String = "",

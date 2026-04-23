@@ -478,25 +478,25 @@ export async function handleDecision(userId: string, orderId: string, action: 'K
         const sharedVehicleTypes = getSharedModeVehicleTypes(firstLoadVehicle);
 
         if (currentLoadState === 'EMPTY') {
-            // 첫짐 → LOADING: 회랑 10km, 상차반경 무제한(999), 적재 중 추가콜 탐색
+            // 첫짐 → LOADING: 회랑 10km, 적재 중 추가콜 탐색
+            // 상차반경은 앱이 isSharedMode=true를 보고 자체 무시함 (데이터 변조 불필요)
             applyFilter(userId, {
                 isSharedMode: true,
                 isActive: true,
                 loadState: 'LOADING',
                 corridorRadiusKm: 10,
-                pickupRadiusKm: 999, // 합짐 시 상차반경 무시 (가는 길에 있으면 OK)
                 destinationKeywords,
                 allowedVehicleTypes: sharedVehicleTypes,
             }, io, false); // persistToDB=false (세션 전용, DB 저장 X)
-            console.log(`🔄 [State Machine] EMPTY → LOADING (첫짐: ${firstLoadVehicle}, 합짐 허용: [${sharedVehicleTypes.join(',')}], pickupRadius=999)`);
+            console.log(`🔄 [State Machine] EMPTY → LOADING (첫짐: ${firstLoadVehicle}, 합짐 허용: [${sharedVehicleTypes.join(',')}])`);
         } else if (currentLoadState === 'LOADING') {
             // 적재 중 → DRIVING: 회랑 0km, 가는길 콜만
+            // 상차반경은 앱이 isSharedMode=true를 보고 자체 무시함
             applyFilter(userId, {
                 isSharedMode: true,
                 isActive: true,
                 loadState: 'DRIVING',
                 corridorRadiusKm: 0,
-                pickupRadiusKm: 999,
                 destinationKeywords,
                 allowedVehicleTypes: sharedVehicleTypes,
             }, io, false); // persistToDB=false
