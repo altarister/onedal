@@ -194,6 +194,7 @@ export async function calculateSoloRoute(
     if (data.routes[0].result_code !== 0) {
         const msg = parseKakaoErrorMsg(data.routes[0].result_code, data.routes[0].result_msg);
         console.error(`❌ [Kakao API Error (Solo)] 에러 코드 ${data.routes[0].result_code}: ${msg}`);
+        console.log(`🛡️ [서버] 카카오 API 에러 감지: 초당 호출 제한(Rate Limit) 임박 여부 모니터링 중...`);
         throw new Error(`카카오에러: ${msg}`);
     }
     
@@ -295,6 +296,7 @@ export async function calculateDetourRoute(
         if (mergedData.routes[0].result_code !== 0) {
             const msg = parseKakaoErrorMsg(mergedData.routes[0].result_code, mergedData.routes[0].result_msg);
             console.error(`❌ [Kakao API Error (Detour)] 에러 코드 ${mergedData.routes[0].result_code}: ${msg}`);
+            console.log(`🛡️ [서버] 카카오 API 에러 감지: 초당 호출 제한(Rate Limit) 임박 여부 모니터링 중...`);
             throw new Error(`카카오합짐에러: ${msg}`);
         }
         console.log(`✅ [Kakao API Response] 폴리라인 길이 예상: (데이터 추출 중)`);

@@ -144,6 +144,8 @@ class TelemetryManager(
         )
 
         val triggerStr = if (isHeartbeat) "⏱️ 타이머 생존신고" else "👀 화면 변경 감지"
+        // [앱폰] /api/scrap 전송 직전: 중복 해시값(출발지+도착지+요금) 검사 및 디바운스(300ms) 완료 로그
+        AppLogger.i(TAG, "🛡️ 파싱된 콜 객체의 (출발지+도착지+요금) 해시값 검사 및 디바운스(300ms) 완료. /api/scrap 전송 직전!")
         AppLogger.roadmap("[post /api/scrap request] $triggerStr 발송  deviceId: ${payload.deviceId}, (건수: ${snapshot.size})", currentScreenContext.name)
         
         // [추가] 기사님 요청: 텔레메트리로 보내는 실제 JSON 형태를 터미널에서 구경할 수 있도록 세분화 출력

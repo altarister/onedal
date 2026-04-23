@@ -175,6 +175,7 @@ data class FilterConfig(
     val allowedVehicleTypes: List<String> = emptyList(),  // 빈 배열 = 모든 차종
     val isActive: Boolean = true,
     val isSharedMode: Boolean = false,
+    // ── 이하 기본값은 서버 미응답 시 최후 안전망 (정상 흐름에서는 서버가 항상 전송) ──
     val pickupRadiusKm: Int = 10,
     val minFare: Int = 0,
     val maxFare: Int = 1000000,

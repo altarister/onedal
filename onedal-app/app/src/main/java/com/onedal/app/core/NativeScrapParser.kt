@@ -56,6 +56,7 @@ class NativeScrapParser(private val context: Context) : IScrapParser {
             val jsonStr = prefs.getString("activeFilter", null) ?: return FilterConfig()
             val json = JSONObject(jsonStr)
 
+            // 각 optXxx 의 두 번째 인자는 서버 미응답 시 최후 안전망 (정상 흐름에서는 서버가 항상 전송)
             FilterConfig(
                 allowedVehicleTypes = parseJsonArray(json, "allowedVehicleTypes"),
                 isActive = json.optBoolean("isActive", true),

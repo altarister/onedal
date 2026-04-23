@@ -36,9 +36,9 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [vehicleRates, setVehicleRates] = useState<Record<string, number>>({});
   const [agencyFeePercent, setAgencyFeePercent] = useState(23);
   const [maxDiscountPercent, setMaxDiscountPercent] = useState(10);
-  const [minFare, setMinFare] = useState(0);
-  const [maxFare, setMaxFare] = useState(1000000);
-  const [pickupRadiusKm, setPickupRadiusKm] = useState(10);
+  const [minFare, setMinFare] = useState<number | undefined>();
+  const [maxFare, setMaxFare] = useState<number | undefined>();
+  const [pickupRadiusKm, setPickupRadiusKm] = useState<number | undefined>();
   const [excludedKeywords, setExcludedKeywords] = useState<string[]>([]);
   const [newKeyword, setNewKeyword] = useState("");
   const [isPricingLoading, setIsPricingLoading] = useState(false);
@@ -134,9 +134,9 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       setVehicleRates(data.vehicleRates || {});
       setAgencyFeePercent(data.agencyFeePercent ?? 23);
       setMaxDiscountPercent(data.maxDiscountPercent ?? 10);
-      setMinFare(data.minFare || 0);
-      setMaxFare(data.maxFare || 1000000);
-      setPickupRadiusKm(data.pickupRadiusKm || 10);
+      setMinFare(data.minFare);
+      setMaxFare(data.maxFare);
+      setPickupRadiusKm(data.pickupRadiusKm);
       setExcludedKeywords(data.excludedKeywords || []);
     } catch (e) {
       console.error("Failed to load pricing:", e);

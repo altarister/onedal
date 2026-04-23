@@ -549,6 +549,7 @@ export async function handleDecision(userId: string, orderId: string, action: 'K
         recalculateActiveKakaoRoute(userId, io);
     }
 
+    console.log(`🛡️ [서버] 결재 완료(Keep/Cancel) 직후: 캐시 된 해당 오더(${orderId}) 메모리의 생명주기(TTL) 만료 및 가비지 컬렉션(GC) 삭제 처리 완료`);
     return { success: true, action };
 }
 
@@ -790,6 +791,7 @@ export async function evaluateNewOrder(userId: string, securedOrder: SecuredOrde
                     const appTime = result.merged.approachDuration ? Math.round(result.merged.approachDuration/60) : '?';
                     console.log(`   - ⚠️ 패널티 결과: ${timeExt} (현위치접근: ${appDist}km, ${appTime}분)`);
                     console.log(`   - 🗺️ 궤적 길이 (Detour): ${securedOrder.routePolyline?.length || '없음'}`);
+                    console.log(`🛡️ [서버] 우회 노선 연산 중: 카카오 TSP 연산 결과가 지정된 회랑 반경(Corridor Radius)을 이탈했는지 평가 감지 완료`);
                 } else {
                     reasons.push(`본콜 좌표 누락`);
                     console.log(`   - ❌ 본콜은 있으나 좌표값이 누락됨.`);

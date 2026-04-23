@@ -49,13 +49,13 @@ export function applyFilter(
             
             stmtInsertFilter.run(userId);
             stmtUpdateFilter.run(
-                b.destinationCity || "",
-                b.destinationRadiusKm || 10,
-                b.corridorRadiusKm || 1,
-                JSON.stringify(b.allowedVehicleTypes || []),
-                b.minFare || 0,
-                b.maxFare || 1000000,
-                b.pickupRadiusKm || 10,
+                b.destinationCity ?? "",
+                b.destinationRadiusKm,
+                b.corridorRadiusKm,
+                JSON.stringify(b.allowedVehicleTypes ?? []),
+                b.minFare,
+                b.maxFare,
+                b.pickupRadiusKm,
                 JSON.stringify(b.excludedKeywords || []),
                 JSON.stringify(b.destinationKeywords || []),
                 session.runtimeOverrides.isActive ? 1 : 0,

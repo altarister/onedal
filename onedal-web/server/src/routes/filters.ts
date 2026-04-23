@@ -20,14 +20,14 @@ router.get("/", requireAuth, (req, res) => {
         res.json({
             isActive: Boolean(row.is_active),
             isSharedMode: Boolean(row.is_shared_mode),
-            loadState: row.load_state || 'EMPTY',
-            destinationCity: row.destination_city || "",
-            destinationRadiusKm: row.destination_radius_km || 10,
-            corridorRadiusKm: row.corridor_radius_km || 1,
+            loadState: row.load_state ?? 'EMPTY',
+            destinationCity: row.destination_city ?? "",
+            destinationRadiusKm: row.destination_radius_km,
+            corridorRadiusKm: row.corridor_radius_km,
             allowedVehicleTypes: JSON.parse(row.allowed_vehicle_types || '[]'),
-            minFare: row.min_fare || 0,
-            maxFare: row.max_fare || 1000000,
-            pickupRadiusKm: row.pickup_radius_km || 10,
+            minFare: row.min_fare,
+            maxFare: row.max_fare,
+            pickupRadiusKm: row.pickup_radius_km,
             excludedKeywords: JSON.parse(row.excluded_keywords || '[]'),
             destinationKeywords: JSON.parse(row.destination_keywords || '[]')
         });

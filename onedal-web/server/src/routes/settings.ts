@@ -193,9 +193,9 @@ router.get("/pricing", requireAuth, (req, res) => {
             agencyFeePercent: row?.agency_fee_percent ?? 23,
             maxDiscountPercent: row?.max_discount_percent ?? 10,
             excludedKeywords: row?.excluded_keywords ? JSON.parse(row.excluded_keywords) : [],
-            minFare: row?.min_fare || 0,
-            maxFare: row?.max_fare || 1000000,
-            pickupRadiusKm: row?.pickup_radius_km || 10,
+            minFare: row?.min_fare ?? 0,
+            maxFare: row?.max_fare ?? 1000000,
+            pickupRadiusKm: row?.pickup_radius_km ?? 10,
         });
     } catch (e) {
         console.error("Pricing GET 에러:", e);

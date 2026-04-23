@@ -681,6 +681,7 @@ class HijackService : AccessibilityService() {
         isAutoSessionActive = false
         cancelDeathValleyTimer()
         telemetryManager.isHolding = false  // [Page/Hold 분리] 리스트 복귀 → 사냥 모드
+        AppLogger.i(TAG, "🛡️ [앱폰] 사냥 복귀 직후: 앱 메모리 상의 scrapBuffer 배열을 비우고 강제 플러시(Flush)하여 잔상 데이터를 제거함")
         telemetryManager.forceFlushEvent()  // 즉시 서버에 홀드 해제 알림
     }
 

@@ -51,13 +51,13 @@ export function getUserSession(userId: string): UserSession {
             if (filterRow) {
                 // Restore saved filter into baseFilter
                 session.baseFilter = {
-                    destinationCity: filterRow.destination_city || "",
-                    destinationRadiusKm: filterRow.destination_radius_km || 10,
-                    corridorRadiusKm: filterRow.corridor_radius_km || 1,
+                    destinationCity: filterRow.destination_city ?? "",
+                    destinationRadiusKm: filterRow.destination_radius_km,
+                    corridorRadiusKm: filterRow.corridor_radius_km,
                     allowedVehicleTypes: JSON.parse(filterRow.allowed_vehicle_types || '[]'),
-                    minFare: filterRow.min_fare || 0,
-                    maxFare: filterRow.max_fare || 1000000,
-                    pickupRadiusKm: filterRow.pickup_radius_km || 10,
+                    minFare: filterRow.min_fare,
+                    maxFare: filterRow.max_fare,
+                    pickupRadiusKm: filterRow.pickup_radius_km,
                     excludedKeywords: JSON.parse(filterRow.excluded_keywords || '[]'),
                     destinationKeywords: JSON.parse(filterRow.destination_keywords || '[]')
                 } as AutoDispatchFilter;

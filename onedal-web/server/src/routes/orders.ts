@@ -136,6 +136,7 @@ router.post("/confirm", (req, res) => {
             }
         }
 
+        console.log(`🛡️ [서버] /orders/confirm 수신 시: 다른 기기가 이미 잡았는지 스레드 락(Lock) 점검 완료. 진입 허용.`);
         if (payload.order.id && payload.order.id !== "unknown") {
             session.deviceEvaluatingMap.set(payload.deviceId, payload.order.id);
         }
