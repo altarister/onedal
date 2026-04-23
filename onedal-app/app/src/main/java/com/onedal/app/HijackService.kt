@@ -350,20 +350,32 @@ class HijackService : AccessibilityService() {
         val isTarget = scrapParser.shouldClick(finalOrder)
 
         if (!isAutoSessionActive || isTarget) {
-            // [수동 클릭] 이거나 [AUTO이면서 2차 필터 통과] -> 서버 보고
+            // ✅ [Phase 2] 매크로가 실제로 클릭한 경우만 AUTO, 나머지는 전부 MANUAL
+            val actualMatchType = if (isAutoSessionActive) "AUTO" else "MANUAL"
             val request = DispatchBasicRequest(
                 step = "BASIC",
                 deviceId = apiClient.getDeviceId(),
                 order = finalOrder,
                 capturedAt = finalOrder.timestamp,
-                matchType = telemetryManager.currentMode
+                matchType = actualMatchType
             )
 
             apiClient.sendConfirm(request)
-            AppLogger.d(TAG, "📤 [post /confirm request] 서버 전송 내용 -> 모드: ${telemetryManager.currentMode} | 텍스트: ${rawScreenStr.take(150)}...")
+            AppLogger.d(TAG, "📤 [post /confirm request] 서버 전송 내용 -> 모드: $actualMatchType (스위치: ${telemetryManager.currentMode}, 매크로클릭: $isAutoSessionActive) | 텍스트: ${rawScreenStr.take(150)}...")
             isDetailScrapSent = true
             telemetryManager.isHolding = true  // [Page/Hold 분리] 확정 클릭 → 콜 처리 중
             telemetryManager.forceFlushEvent()  // 즉시 서버에 홀드 상태 알림
+
+            // ✅ [Phase 2] 수동 클릭이지만 스위치가 AUTO면, 서버가 결재를 보낼 수 있으므로
+            // 일시적으로 고속 폴링(1초) 활성화 (10초 후 자동 해제)
+            if (!isAutoSessionActive && telemetryManager.currentMode == "AUTO") {
+                AppLogger.d(TAG, "⚡ [Phase 2] 수동 클릭 + AUTO 스위치 감지. 임시 고속 폴링 10초 활성화")
+                telemetryManager.isWaitingDecision = true
+                mainHandler.postDelayed({
+                    telemetryManager.isWaitingDecision = false
+                    AppLogger.d(TAG, "⚡ [Phase 2] 임시 고속 폴링 10초 만료. 해제.")
+                }, 10000)
+            }
             
             // ⚡ AUTO 모드 확정 버튼 광클 (자동 사냥 중일 때만)
             if (isAutoSessionActive) {

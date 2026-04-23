@@ -2,7 +2,8 @@ import { useDevices } from "../../hooks/useDevices";
 import type { DeviceSession, ScreenContextType } from "@onedal/shared";
 import { useSystemAlerts } from "../../hooks/useSystemAlerts";
 import type { EmergencyAlert, DeathValleyWarning } from "../../hooks/useSystemAlerts";
-
+import { useFilterConfig } from "../../hooks/useFilterConfig";
+import type { AutoDispatchFilter } from "@onedal/shared";
 
 const EMERGENCY_LABELS: Record<string, string> = {
     AUTO_CANCEL: "⏱️ 자동취소 실행됨",
@@ -30,7 +31,8 @@ function DeviceRow({
     deviceAlerts,
     deviceWarnings,
     onDismissAlert,
-    onDismissWarning
+    onDismissWarning,
+    currentFilter
 }: {
     device: DeviceSession;
     onModeChange: (id: string, mode: "AUTO" | "MANUAL") => void;
@@ -38,9 +40,34 @@ function DeviceRow({
     deviceWarnings: DeathValleyWarning[];
     onDismissAlert: (timestamp: string) => void;
     onDismissWarning: (orderId: string) => void;
+    currentFilter: AutoDispatchFilter | null;
 }) {
     const isDisconnected = device.status === "OFFLINE";
     const screenInfo = device.screenContext ? SCREEN_LABELS[device.screenContext] : null;
+
+    let filterLabel = '일시정지';
+    let filterColor = 'bg-slate-500/20 text-slate-400 border-slate-500/30';
+    if (currentFilter) {
+        if (!currentFilter.isActive) {
+            filterLabel = '스캔 정지';
+            filterColor = 'bg-warning/20 text-warning border-warning/30';
+        } else {
+            const state = currentFilter.loadState || 'EMPTY';
+            if (state === 'LOADING') {
+                filterLabel = '합짐 탐색';
+                filterColor = 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30';
+            } else if (state === 'DRIVING') {
+                filterLabel = '경로 탐색';
+                filterColor = 'bg-accent/20 text-accent border-accent/30';
+            } else if (state === 'ARRIVED') {
+                filterLabel = '도착 대기';
+                filterColor = 'bg-slate-500/20 text-slate-400 border-slate-500/30';
+            } else {
+                filterLabel = '첫짐 탐색';
+                filterColor = 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
+            }
+        }
+    }
 
     // 알아서 잘 취소된 루틴 알림은 무시하고 오직 배차실 개입 등 치명적 알림만 선별
     const criticalAlerts = deviceAlerts.filter(a => a.reason !== 'AUTO_CANCEL' && a.reason !== 'BUTTON_NOT_FOUND');
@@ -60,7 +87,13 @@ function DeviceRow({
                                 </div>
                             )}
                         </span>
-                        <div className="flex items-center gap-1 text-xs text-slate-400 font-medium">
+                        {/* [추가] 현재 적용된 필터 상태 표시 (온라인일 때만 최신 동기화로 간주) */}
+                        {!isDisconnected && currentFilter && (
+                            <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded shadow-sm flex items-center gap-1 border ${filterColor}`}>
+                                {filterLabel}
+                            </span>
+                        )}
+                        <div className="flex items-center gap-1 text-xs text-slate-400 font-medium ml-auto">
                             <span>수집: {device.stats.polled}</span>
                             <span>수락: {device.stats.grabbed}</span>
                             <span>취소: {device.stats.canceled}</span>
@@ -123,6 +156,7 @@ function DeviceRow({
 export default function DeviceControlPanel() {
     const { alerts, warnings, dismissAlert, dismissWarning } = useSystemAlerts();
     const { devices, changeDeviceMode } = useDevices();
+    const { filter } = useFilterConfig();
 
     return (
         <section id="telemetry-panel" className="bg-surface border border-border-card rounded-xl p-1 shadow-lg mb-2">
@@ -142,6 +176,7 @@ export default function DeviceControlPanel() {
                             deviceWarnings={warnings.filter(w => w.deviceId === device.deviceId)}
                             onDismissAlert={dismissAlert}
                             onDismissWarning={dismissWarning}
+                            currentFilter={filter}
                         />
                     ))
                 )}

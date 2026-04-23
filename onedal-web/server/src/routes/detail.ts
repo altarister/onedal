@@ -136,6 +136,19 @@ router.post("/", async (req, res) => {
         }
 
         logRoadmapEvent("서버", "앱폰에게 디테일 데이터 정상 수신 완료 응답 전달");
+
+        // ✅ [Phase 3] 서버 독자 판단: "이 콜이 정말 AUTO가 맞는가?"
+        // AUTO 매크로는 /confirm → /detail 사이에 반드시 1~3초의 서핑 시간이 존재.
+        // 6초 이상이면 매크로가 아닌 사람이 천천히 누른 것으로 재분류.
+        const confirmTimestamp = session.pendingOrdersData.get(securedOrder.id)?.capturedAt;
+        if (confirmTimestamp && securedOrder.type !== "MANUAL") {
+            const gapMs = Date.now() - new Date(confirmTimestamp).getTime();
+            if (gapMs > 6000) {
+                console.log(`🔍 [Phase 3 서버 판단] /confirm → /detail 간격 ${gapMs}ms (>6초). 수동 클릭으로 재분류.`);
+                securedOrder.type = "MANUAL";
+            }
+        }
+
         // ━━━ Service 계층에 카카오 경로 연산 위임 (evaluateNewOrder) ━━━
         // 지오코딩 + 단독/합짐 경로 연산 + 꿀/콜/똥 판정 + order-evaluated emit
         await evaluateNewOrder(userId, securedOrder, io);
@@ -166,7 +179,16 @@ router.post("/", async (req, res) => {
         }, DISPATCH_CONFIG.WAITING_WARNING_MS);
 
         const timeoutTimer = setTimeout(() => {
-            if (session.pendingDecisions.has(payload.order.id)) {
+            const decision = session.pendingDecisions.get(payload.order.id);
+            if (decision) {
+                // ✅ [Phase 1 방어] KEEP 결재가 이미 내려진 콜은 절대 취소하지 않는다
+                if (decision.action === 'KEEP') {
+                    session.pendingDecisions.delete(payload.order.id);
+                    console.log(`🛡️ [Phase 1 방어] 콜(${payload.order.id})은 KEEP 결재 완료 상태. 앱 ACK 미수신이지만 콜 유지.`);
+                    return; // 취소하지 않고 리턴
+                }
+
+                // KEEP이 아닌 경우(미결재/CANCEL)만 기존 로직대로 취소
                 session.pendingDecisions.delete(payload.order.id);
                 session.pendingOrdersData.delete(payload.order.id);
                 Array.from(session.deviceEvaluatingMap.entries()).forEach(([k, v]) => {

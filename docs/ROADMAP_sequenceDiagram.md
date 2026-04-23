@@ -199,9 +199,9 @@ sequenceDiagram
     rect rgb(60, 20, 20)
     Note over 관제탑, 앱폰: [PHASE 4] 판결 하달에 따른 1DAL 앱의 즉각 행동 및 사냥망 복귀
     
-    %% 데스밸리 방어기동 (이중 보안망)
-    Note over 서버, 앱폰: ⏳ [데스밸리 이중 방어망] (서버측 15초 경고 ➡️ 앱측 30초 강제취소)
-    Note over 서버: 데스밸리 15초 카운트다운 타이머 감시 연산
+    %% 데스밸리 방어기동 (→ 상세는 safety_mode_architecture.md "데스밸리 SSOT" 참조)
+    Note over 서버, 앱폰: ⏳ [데스밸리 3중 방어망] (서버측 30초 경고 + 35초 타임아웃 ➡️ 앱측 30초 강제취소)
+    Note over 서버: 데스밸리 30초 카운트다운 타이머 감시 연산
     Note over 서버: 관제탑에게 지연 위급 상황(deathvalley-warning) 정보 전달
     서버->>관제탑: 33-1. (요청 후 15초 경과 시) [Socket] deathvalley-warning (관제 지연 경고 팝업)
     Note over 관제탑: 서버로 부터 deathvalley-warning 소켓 경고 이벤트 받음
