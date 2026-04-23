@@ -1,5 +1,6 @@
 import { AutoDispatchFilter, SecuredOrder } from "@onedal/shared";
 import db from "../db";
+import { logRoadmapEvent } from "../utils/roadmapLogger";
 
 // 1명의 기사가 가지는 '모든' 상태 캡슐화
 export interface UserSession {
@@ -72,7 +73,7 @@ export function getUserSession(userId: string): UserSession {
                 // activeFilter 최초 계산
                 session.activeFilter = { ...session.baseFilter, ...session.runtimeOverrides };
                 
-                console.log(`[Session] 유저 ${userId} 의 기존 필터 복구 완료 (loadState=EMPTY로 초기화)`);
+                logRoadmapEvent("서버", `[Session DB Load] 유저 ${userId} 복구된 원본 필터(Raw DB): \n` + JSON.stringify(filterRow, null, 2));
             } else {
                 // Initialize default filter using user's vehicle_type and all smaller vehicles
                 const fallbackVehicle = settingsRow?.vehicle_type || '1t';

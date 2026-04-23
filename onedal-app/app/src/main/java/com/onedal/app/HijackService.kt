@@ -324,14 +324,14 @@ class HijackService : AccessibilityService() {
             // MANUAL 클릭인데 캐시 매칭에 성공한 경우 (원본 데이터 재활용)
             matchedOrder.copy(
                 id = currentSessionOrderId.ifEmpty { "MANUAL-${System.currentTimeMillis()}" },
-                type = "${telemetryManager.currentMode}_CLICK",
+                type = "MANUAL_CLICK",
                 rawText = rawScreenStr
             )
         } else {
             // 캐시 매칭 모두 실패 시 (임시 폴백 - 오파싱 가능성 있음)
             tempOrder.copy(
                 id = currentSessionOrderId.ifEmpty { "MANUAL-${System.currentTimeMillis()}" },
-                type = "${telemetryManager.currentMode}_CLICK",
+                type = "MANUAL_CLICK",
                 pickup = tempOrder.pickup.takeIf { it.isNotBlank() && it != "미상" } ?: "수집중(상세확인필요)",
                 dropoff = tempOrder.dropoff.takeIf { it.isNotBlank() && it != "미상" } ?: "수집중(상세확인필요)",
                 timestamp = nowTimestamp(),
@@ -556,14 +556,15 @@ class HijackService : AccessibilityService() {
                     rawText = accumulatedDetailText
                 ),
                 capturedAt = order.timestamp,
-                matchType = telemetryManager.currentMode
+                matchType = if (isAutoSessionActive) "AUTO" else "MANUAL"
             )
 
             // 서버 응답("KEEP", "CANCEL") 대기를 위한 데스밸리 타이머 가동
             startDeathValleyTimer()
 
+            val actualMatchType = if (isAutoSessionActive) "AUTO" else "MANUAL"
             val previewStr = accumulatedDetailText.replace("\n", " ").take(150)
-            AppLogger.d(TAG, "🌐 [post /detail request] AUTO 모드 판결 요청 텍스트: $previewStr...")
+            AppLogger.d(TAG, "🌐 [post /detail request] $actualMatchType 모드 판결 요청 텍스트: $previewStr...")
 
             // Option B (Piggyback V2): sendDetail은 202 응답만 확인하고 곧바로 리턴됨. 
             // 실제 판결은 Telemetry 1.0초 폴링을 통해 decisionCallback으로 들어오게 됨.

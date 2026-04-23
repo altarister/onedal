@@ -60,9 +60,9 @@ export function registerSocketHandlers(io: Server) {
         logRoadmapEvent("서버", "관제탑에게 초기 UI 복원용 필터(filter-init) 정보 전달");
 
         socket.on("request-filter-init", () => {
-            logRoadmapEvent("서버", "관제탑으로 부터 초기 필터(request-filter-init) 요청 받음");
-            logRoadmapEvent("서버", "관제탑에게 초기 UI 복원용 필터(filter-init) 정보 전달");
-            socket.emit("filter-init", {
+            console.log(`📡 [웹 수신] request-filter-init (초기 필터 동기화 요청) - userId: ${userId}`);
+            const session = getUserSession(userId);
+            socket.emit("filter-init", { 
                 activeFilter: session.activeFilter,
                 baseFilter: session.baseFilter
             });

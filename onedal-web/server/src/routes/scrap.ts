@@ -29,25 +29,25 @@ router.post("/", (req, res) => {
 
         // 1. 기기 등록 여부 검증 (하드 락: 미등록 기기는 즉시 차단)
         if (!deviceId) {
-            return res.status(401).json({ 
-                error: "MISSING_DEVICE_ID", 
-                message: "deviceId가 누락되었습니다. 앱에서 기기 식별자를 전송해주세요." 
+            return res.status(401).json({
+                error: "MISSING_DEVICE_ID",
+                message: "deviceId가 누락되었습니다. 앱에서 기기 식별자를 전송해주세요."
             });
         }
 
         let userId = "ADMIN_USER";
         const deviceRow = db.prepare("SELECT user_id FROM user_devices WHERE device_id = ?").get(deviceId) as { user_id: string } | undefined;
         if (!deviceRow) {
-            return res.status(401).json({ 
-                error: "UNREGISTERED_DEVICE", 
-                message: "이 기기는 등록되지 않았습니다. 관제 웹에서 PIN 연동을 먼저 진행해주세요." 
+            return res.status(401).json({
+                error: "UNREGISTERED_DEVICE",
+                message: "이 기기는 등록되지 않았습니다. 관제 웹에서 PIN 연동을 먼저 진행해주세요."
             });
         }
         userId = deviceRow.user_id;
 
         const timestamp = new Date().toISOString();
-        
-        logRoadmapEvent("서버", "방대한 스크랩 배열값을 intel 테이블 DB 저장");
+
+        // logRoadmapEvent("서버", "방대한 스크랩 배열값을 intel 테이블 DB 저장");
         // 2. 비동기 Write Queue를 통해 밀려들어오는 데이터를 오류 없이 INSERT
         data.forEach(item => {
             dbQueue.runAsync(
@@ -66,10 +66,10 @@ router.post("/", (req, res) => {
         const countStmt = db.prepare("SELECT COUNT(*) as count FROM intel");
         const totalScrap = (countStmt.get() as { count: number })?.count || 0;
 
-        console.log(`📊 [스크랩 데이터 수신] User: ${userId} (${deviceId}) | ${data.length}항목 적재 중${screenContext ? ` [화면: ${screenContext}]` : ''}`);
-        console.log(`🛡️ [서버] /api/scrap 수신 직후: 서버단 2차 해시 검증 및 무효 콜 필터링 통과 완료`);
-        logRoadmapEvent("서버", "앱폰으로 부터 무수한 스크랩(intel) 데이터 및 GPS 요청 받음");
-        
+        logRoadmapEvent("서버", ` [/api/scrap 수신] User: ${userId} (${deviceId}) | ${data.length}항목 적재 중${screenContext ? ` [화면: ${screenContext}]` : ''}`);
+        // console.log(`🛡️ [서버] /api/scrap 수신 직후: 서버단 2차 해시 검증 및 무효 콜 필터링 통과 완료`);
+        // logRoadmapEvent("서버", "앱폰으로 부터 무수한 스크랩(intel) 데이터 및 GPS 요청 받음");
+
         // 3. 디바이스 생존 신고 및 화면 상태 동기화
         let deviceMode = "MANUAL";
         if (deviceId) {
@@ -77,7 +77,7 @@ router.post("/", (req, res) => {
             deviceMode = touchDeviceSession(deviceId, data.length, screenContext, io, isHolding, lat, lng);
         }
 
-        logRoadmapEvent("서버", "관제탑에게 실시간 마커용 GPS(device-sessions-updated) 정보 전달");
+        // logRoadmapEvent("서버", "관제탑에게 실시간 마커용 GPS(device-sessions-updated) 정보 전달");
         const session = getUserSession(userId);
 
         // 3.2. [Telemetry Ping] 프론트엔드의 타임아웃 진행바를 위한 실시간 핑 발송
@@ -137,7 +137,7 @@ router.post("/", (req, res) => {
             (session as any).appLocation = { x: lng, y: lat };
         }
 
-        logRoadmapEvent("서버", "앱폰에게 최신 필터(dispatchEngineArgs) 및 제어 명령 정보 전달");
+        // logRoadmapEvent("서버", "앱폰에게 최신 필터(dispatchEngineArgs) 및 제어 명령 정보 전달");
         // 4. 응답 (해당 유저의 필터값 및 제어 명령 송신)
         res.json({
             success: true,

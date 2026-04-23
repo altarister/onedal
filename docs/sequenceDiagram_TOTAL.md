@@ -100,9 +100,9 @@ sequenceDiagram
     Note over 서버: 앱폰에게 상세 정보 스크래핑을 즉시 진행하라고 응답 전달
     서버-->>앱폰: 21. [HTTP] 200 OK 응답 (수신 완료)
     Note over 서버: 폰의 isHolding=true 기간 동안 다른 콜을 물지 않도록 필터 비활성 정보 전달
-    서버-->>앱폰: 21-1. [Socket] filter-updated (isActive: false 대기 모드용 빈 필터 발송)
     
-    Note over 앱폰: 🏄‍♂️ 무인 서핑 가동 (State Machine: IDLE)
+    %% 서버-->>앱폰: 21-1. [Socket] filter-updated (isActive: false 대기 모드용 빈 필터 발송)
+    %% Note over 앱폰: 🏄‍♂️ 무인 서핑 가동 (State Machine: IDLE)
     
     %% 적요상세 스텝
     Note over 앱폰: [Current Page: DETAIL_CONFIRMED] 확정페이지 체류 및 팝업버튼 트리거 대기

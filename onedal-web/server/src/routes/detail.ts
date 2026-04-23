@@ -111,22 +111,6 @@ router.post("/", async (req, res) => {
             }
         }
 
-        if (securedOrder.type !== "MANUAL" && session.activeFilter.allowedVehicleTypes && session.activeFilter.allowedVehicleTypes.length > 0) {
-            const vTypeRaw = securedOrder.vehicleType || "";
-            const isMatch = session.activeFilter.allowedVehicleTypes.some(allowed => {
-                const normRaw = vTypeRaw.toLowerCase();
-                if (allowed === '1t') return normRaw.includes('1') || normRaw.includes('t') || normRaw.includes('톤');
-                if (allowed === '다마스') return normRaw.includes('다');
-                if (allowed === '라보') return normRaw.includes('라');
-                if (allowed === '오토바이') return normRaw.includes('오');
-                return normRaw.includes(allowed);
-            });
-
-            if (!isMatch) {
-                console.log(`⚠️ [차종 차단 우회] '${vTypeRaw}' 차량 (필터 불일치). 앱(UI)에서 거르지 않고 도달했으므로 사용자 수동(Manual) 개입으로 간주하여 강제 킵(KEEP) 합니다.`);
-                securedOrder.type = "MANUAL";
-            }
-        }
 
         session.pendingOrdersData.set(payload.order.id, securedOrder);
 
@@ -137,23 +121,21 @@ router.post("/", async (req, res) => {
 
         logRoadmapEvent("서버", "앱폰에게 디테일 데이터 정상 수신 완료 응답 전달");
 
-        // ✅ [Phase 3] 서버 독자 판단: "이 콜이 정말 AUTO가 맞는가?"
-        // AUTO 매크로는 /confirm → /detail 사이에 반드시 1~3초의 서핑 시간이 존재.
-        // 6초 이상이면 매크로가 아닌 사람이 천천히 누른 것으로 재분류.
-        const confirmTimestamp = session.pendingOrdersData.get(securedOrder.id)?.capturedAt;
-        if (confirmTimestamp && securedOrder.type !== "MANUAL") {
-            const gapMs = Date.now() - new Date(confirmTimestamp).getTime();
-            if (gapMs > 6000) {
-                console.log(`🔍 [Phase 3 서버 판단] /confirm → /detail 간격 ${gapMs}ms (>6초). 수동 클릭으로 재분류.`);
-                securedOrder.type = "MANUAL";
-            }
-        }
+        // ✅ [Two-Track] 앱이 보내는 matchType(AUTO/MANUAL)을 100% 신뢰.
+        // 서버는 독자적으로 type을 재분류하지 않음. (SSOT: 앱의 isAutoSessionActive)
 
         // ━━━ Service 계층에 카카오 경로 연산 위임 (evaluateNewOrder) ━━━
         // 지오코딩 + 단독/합짐 경로 연산 + 꿀/콜/똥 판정 + order-evaluated emit
         await evaluateNewOrder(userId, securedOrder, io);
 
-        if (securedOrder.type === "MANUAL") {
+        const isManual = securedOrder.type?.includes("MANUAL") || payload.matchType === "MANUAL";
+        if (isManual) {
+            console.log(`✋ [Two-Track MANUAL] 기사님 수동 클릭 콜. 즉시 KEEP 처리. (type=${securedOrder.type}, matchType=${payload.matchType})`);
+            
+            // [Fix] Android 앱이 Piggyback을 통해서만 KEEP 응답을 소화하므로, 
+            // 수동 배차 건도 pendingDecisions 큐에 KEEP 상태로 등록해줍니다.
+            session.pendingDecisions.set(payload.order.id, { action: 'KEEP', evaluatedAt: Date.now() });
+
             await handleDecision(userId, securedOrder.id, "KEEP", io);
             return res.json({ deviceId: 'server', action: 'ACK' });
         }

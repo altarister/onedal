@@ -8,6 +8,7 @@
 import db from "../db";
 import { getUserSession } from "./userSessionStore";
 import type { AutoDispatchFilter } from "@onedal/shared";
+import { logRoadmapEvent } from "../utils/roadmapLogger";
 
 // ━━━ Prepared Statement 캐싱 (모듈 로드 시 1회만 실행) ━━━
 const stmtUpdateFilter = db.prepare(`
@@ -87,6 +88,15 @@ export function applyFilter(
         ...session.baseFilter,
         ...session.runtimeOverrides
     };
+
+    let schemaLogStr = "{\n";
+    for (const key of Object.keys(session.activeFilter)) {
+        const val = (session.activeFilter as any)[key];
+        schemaLogStr += `  "${key}": ${JSON.stringify(val)},\n`;
+    }
+    schemaLogStr += "}";
+
+    logRoadmapEvent("서버", `[FilterManager] 필터 변경 발생! (DB저장여부: ${persistToDB})\n - 변경 요청된 값: ${JSON.stringify(changes)}\n - 반영 후 최종 동작 필터(activeFilter):\n` + schemaLogStr);
 
     // 4. 소켓 브로드캐스트 (관제탑 + 앱폰 동기화)
     if (io) {

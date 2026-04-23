@@ -81,7 +81,7 @@ export const touchDeviceSession = (deviceId: string, addedPollCount: number = 0,
         const stuckOrderId = userSession.deviceEvaluatingMap.get(deviceId);
         if (stuckOrderId) {
             const stuckOrder = userSession.pendingOrdersData.get(stuckOrderId);
-            if (stuckOrder && stuckOrder.type !== "MANUAL") {
+            if (stuckOrder && !stuckOrder.type?.startsWith("MANUAL")) {
                 console.log(`🚀 [화면 이탈 감지] 기기(${deviceId})가 리스트 화면으로 이탈함! 대기 중이던 AUTO 롱폴링 파이프 강제 파괴.`);
                 forceCancelEvaluatingOrder(userId, stuckOrderId, io);
             }
