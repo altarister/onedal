@@ -44,8 +44,11 @@ sequenceDiagram
     Note over 앱폰: 앱 기동 전 또는 백그라운드 ➡️ [Current Page: UNKNOWN]
     앱폰->>앱폰: 안드로이드 환경설정 진입하여 '1DAL 접근성 서비스' 활성화 (HijackService 기동)
     Note over 앱폰: 📍 백그라운드 Telemetry (lat, lng) 획득 엔진 가동!
+    
+    Note over 앱폰: 🛡️ 파싱된 콜 객체의 (출발지+도착지+요금) 해시값 생성 및 중복 캐시 비교 (디바운스 300ms)
     앱폰->>서버: 11. [HTTP] POST /api/scrap Req (isHolding+GPS 및 방대한 탈락 콜 배열)
     Note over 서버: 앱폰으로 부터 무수한 스크랩(intel) 데이터 및 GPS 요청 받음
+    Note over 서버: 🛡️ /api/scrap 수신 시 서버단 중복 해시 제거 및 유효 콜 필터링 연산
     Note over 서버: 방대한 스크랩 배열값을 intel 테이블 DB 저장
     서버->>DB: 11-1. [비동기 Queue] 수천 개의 탈락 콜(intel 테이블) 빅데이터 오답노트 적재
     Note over 서버: 관제탑에게 실시간 마커용 GPS(device-sessions-updated) 정보 전달
@@ -88,7 +91,8 @@ sequenceDiagram
     Note over 앱폰: 🔒 isHolding = true 설정 (이후 화면 요동쳐도 락 유지)
     앱폰->>서버: 19. [HTTP] POST /orders/confirm Req (확정 데이터 전송)
     Note over 서버: 앱폰으로 부터 가로챈 '1차 오더 확정' 요청 받음
-    Note over 서버: 콜의 가확정 상태를 메모리에 캐싱 연산
+    Note over 서버: 🛡️ /orders/confirm 수신 시 동일 기기/타 기기 중복 선점 여부 Lock 체크
+    Note over 서버: 콜의 가확정 상태를 메모리에 캐싱 연산 (pendingOrdersData)
     Note over 서버: 관제탑에게 이 콜을 선점했음(order-evaluating) 정보 전달
     서버->>관제탑: 20. [Socket] order-evaluating (대시보드 [🔒 콜 처리 중] 배지 점등)
     Note over 관제탑: 서버로 부터 order-evaluating(가확정) 이벤트 받음
@@ -158,6 +162,7 @@ sequenceDiagram
     else 1DAL 앱이 '합짐콜 모드'일 때 ➡️ 합짐 패널티 우회 연산
         서버->>카카오: 27-1. 기존 콜 궤적 사이에 새 합짐지(경유지)를 끼워넣어 다중 TSP 연산
         카카오-->>서버: 28-1. 우회 노선 결과 반환
+        Note over 서버: 🛡️ 우회 노선 산출 시, 기존 회랑 반경(corridor_radius) 이탈 여부 확인
         Note over 서버: 기존 직진 시 대비 추가 소모 시간(+15분) 및 거리(+6km) 패널티 산출
     end
     
@@ -181,6 +186,7 @@ sequenceDiagram
             서버->>관제탑: 33. [Socket] order-evaluated (렌더링 갱신)
         end
     else 카카오 API 탐색 에러 발생 시
+        Note over 서버: 🛡️ 카카오 API Rate Limit(초당 호출 제한) 임박 여부 모니터링 연산
         Note over 서버: 관제탑에게 카카오 에러 상태(order-evaluated error) 정보 전달
         서버->>관제탑: 29-1. [Socket] order-evaluated (에러 메시지 및 판독 불가 알람)
         Note over 관제탑: UI 상단에 에러 배너 렌더링 및 카카오맵 불가 상태를 PinnedRoute 에 표현
@@ -221,6 +227,7 @@ sequenceDiagram
         앱폰->>인성DB: 37. [UI 클릭] 즉각 '취소' 버튼 터치 송신
         인성DB-->>앱폰: [인성 Socket] 취소 정보 서버처리 후 리스트 페이지 응답
         Note over 앱폰: [Current Page: LIST] 로 복귀 렌더링 완료
+        Note over 앱폰: 🛡️ [Current Page: LIST] 복귀 후 앱 내부의 scrapBuffer 초기화 및 강제 플러시
         Note over 서버: 기존 디폴트 설정값으로 필터 복구 연산
         Note over 서버: 앱폰 및 관제탑에게 원상복구된 필터(filter-updated) 정보 전달
         서버-->>앱폰: 37-1. [Socket] filter-updated (기존 단독/합짐 렌즈 복원)
@@ -233,6 +240,7 @@ sequenceDiagram
         관제탑->>서버: 35. [Socket] decision=KEEP 판결 하달
         Note over 서버: 관제탑으로 부터 Keep 결재 요청 받음
         Note over 서버: 해당 콜을 '메인콜' (또는 서브콜) 로 승격 및 병합 궤적 생성 연산
+        Note over 서버: 🛡️ 결재 완료 후 해당 오더 객체의 생명주기(TTL) 만료 처리 및 캐시 삭제
         Note over 서버: 관제탑에게 확정되었음(order-confirmed) 정보 전달
         서버->>관제탑: 35-2. [Socket] order-confirmed (대시보드를 '합짐 모드'로 격상 고정)
         Note over 관제탑: 서버로 부터 order-confirmed 소켓 이벤트 받음
@@ -243,6 +251,7 @@ sequenceDiagram
         앱폰->>인성DB: 37. [UI 클릭] 즉각 '닫기' 버튼 터치 송신
         인성DB-->>앱폰: [인성 Socket] 상세화면 닫힘 및 리스트 페이지 응답
         Note over 앱폰: [Current Page: LIST] 로 복귀 렌더링 완료
+        Note over 앱폰: 🛡️ [Current Page: LIST] 복귀 후 앱 내부의 scrapBuffer 초기화 및 강제 플러시
         Note over 서버: 합짐을 위한 반경/목적지 추천 키워드로 다이나믹 필터 생성 연산
         Note over 서버: 새로 부여된 합짐 필터(isSharedMode)값 DB 저장
         Note over 서버: 앱폰 및 관제탑에게 새로운 타겟팅 필터(filter-updated) 정보 전달
