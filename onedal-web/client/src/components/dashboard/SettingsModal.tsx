@@ -34,6 +34,9 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [vehicleType, setVehicleType] = useState<string>("1t");
   const [defaultPriority, setDefaultPriority] = useState<string>("RECOMMEND");
   const [homeAddress, setHomeAddress] = useState<string>("");
+  const [homeCoords, setHomeCoords] = useState<{ x: number; y: number } | null>(null);
+  const [isGeocodingLoading, setIsGeocodingLoading] = useState(false);
+  const [geocodeError, setGeocodeError] = useState<string | null>(null);
   const [destinationCity, setDestinationCity] = useState<string>("");
   const [destinationRadiusKm, setDestinationRadiusKm] = useState<string>("");
   const [corridorRadiusKm, setCorridorRadiusKm] = useState<string>("");
@@ -117,6 +120,8 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       setVehicleType(data.vehicleType || "1t");
       setDefaultPriority(data.defaultPriority || 'RECOMMEND');
       setHomeAddress(data.homeAddress || "");
+      setHomeCoords(null);
+      setGeocodeError(null);
       setDestinationCity(data.destinationCity || "");
       setDestinationRadiusKm(data.destinationRadiusKm?.toString() || "");
       setCorridorRadiusKm(data.corridorRadiusKm?.toString() || "");
@@ -128,6 +133,22 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     }
   };
 
+  const handleVerifyAddress = async () => {
+    if (!homeAddress.trim()) return;
+    try {
+      setIsGeocodingLoading(true);
+      setGeocodeError(null);
+      const { data } = await apiClient.get(`/settings/geocode?address=${encodeURIComponent(homeAddress.trim())}`);
+      setHomeCoords({ x: data.x, y: data.y });
+      console.log(`📍 주소 검증 성공: (${data.x}, ${data.y})`);
+    } catch (e: any) {
+      setHomeCoords(null);
+      setGeocodeError(e?.response?.data?.error || "주소 검증에 실패했습니다.");
+    } finally {
+      setIsGeocodingLoading(false);
+    }
+  };
+
   const handleSaveSettings = async () => {
     try {
       setIsLoading(true);
@@ -135,6 +156,8 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         vehicleType, 
         defaultPriority, 
         homeAddress,
+        homeX: homeCoords?.x,
+        homeY: homeCoords?.y,
         destinationCity,
         destinationRadiusKm: destinationRadiusKm ? parseInt(destinationRadiusKm, 10) : undefined,
         corridorRadiusKm: corridorRadiusKm ? parseInt(corridorRadiusKm, 10) : undefined,
@@ -341,13 +364,31 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-muted-foreground">🏠 집 주소</label>
-                    <Input
-                      type="text"
-                      value={homeAddress}
-                      onChange={(e) => setHomeAddress(e.target.value)}
-                      placeholder="경기 광주시 오포읍..."
-                      className="h-9"
-                    />
+                    <div className="flex gap-1.5">
+                      <Input
+                        type="text"
+                        value={homeAddress}
+                        onChange={(e) => { setHomeAddress(e.target.value); setHomeCoords(null); setGeocodeError(null); }}
+                        placeholder="경기 광주시 오포읍..."
+                        className="h-9 flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleVerifyAddress}
+                        disabled={isGeocodingLoading || !homeAddress.trim()}
+                        className="h-9 px-2 text-[11px] shrink-0 whitespace-nowrap"
+                      >
+                        {isGeocodingLoading ? '⏳' : '📍 위치 확인'}
+                      </Button>
+                    </div>
+                    {homeCoords && (
+                      <p className="text-[10px] text-emerald-500 font-semibold">✅ 좌표 확인 완료 ({homeCoords.x.toFixed(5)}, {homeCoords.y.toFixed(5)})</p>
+                    )}
+                    {geocodeError && (
+                      <p className="text-[10px] text-destructive font-semibold">❌ {geocodeError}</p>
+                    )}
                   </div>
                 </div>
 

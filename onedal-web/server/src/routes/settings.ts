@@ -51,6 +51,29 @@ router.get("/", requireAuth, (req, res) => {
     }
 });
 
+// 주소 → 좌표 검증 API (저장 전 미리보기용)
+router.get("/geocode", requireAuth, async (req, res) => {
+    try {
+        const address = req.query.address as string;
+        if (!address || address.trim().length < 2) {
+            res.status(400).json({ error: "주소를 입력해주세요." });
+            return;
+        }
+
+        const coords = await geocodeAddress(address.trim());
+        if (!coords || !coords.x || !coords.y) {
+            res.status(404).json({ error: "주소를 찾을 수 없습니다. 정확한 주소를 입력해주세요." });
+            return;
+        }
+
+        console.log(`📍 [주소 검증] ${address} → (${coords.x}, ${coords.y})`);
+        res.json({ x: coords.x, y: coords.y, address: address.trim() });
+    } catch (e) {
+        console.error("주소 검증 에러:", e);
+        res.status(500).json({ error: "주소 검색에 실패했습니다. 잠시 후 다시 시도해주세요." });
+    }
+});
+
 // 사용자의 설정 변경
 router.put("/", requireAuth, async (req, res) => {
     try {
@@ -102,16 +125,30 @@ router.put("/", requireAuth, async (req, res) => {
 
         // homeAddress 지오코딩 + 별도 저장
         if (payload.homeAddress !== undefined) {
-            try {
-                const coords = await geocodeAddress(payload.homeAddress);
+            // 프론트에서 미리 검증된 좌표가 함께 왔으면 카카오 API 재호출 없이 바로 저장
+            if (payload.homeX && payload.homeY && payload.homeX !== 0 && payload.homeY !== 0) {
                 db.prepare(`UPDATE user_settings SET home_address = ?, home_x = ?, home_y = ? WHERE user_id = ?`)
-                    .run(payload.homeAddress, coords?.x || 0, coords?.y || 0, userId);
-                console.log(`🏠 [집 주소 저장] ${payload.homeAddress} → (${coords?.x}, ${coords?.y})`);
-            } catch (e) {
-                console.error("🏠 집 주소 지오코딩 실패:", e);
-                // 좌표 없이 주소만 저장
-                db.prepare(`UPDATE user_settings SET home_address = ? WHERE user_id = ?`)
-                    .run(payload.homeAddress, userId);
+                    .run(payload.homeAddress, payload.homeX, payload.homeY, userId);
+                console.log(`🏠 [집 주소 저장] ${payload.homeAddress} → (${payload.homeX}, ${payload.homeY}) [미리검증 좌표 사용]`);
+            } else {
+                // 하위 호환: 좌표 없이 주소만 온 경우 서버에서 지오코딩 시도
+                try {
+                    const coords = await geocodeAddress(payload.homeAddress);
+                    if (coords?.x && coords?.y) {
+                        db.prepare(`UPDATE user_settings SET home_address = ?, home_x = ?, home_y = ? WHERE user_id = ?`)
+                            .run(payload.homeAddress, coords.x, coords.y, userId);
+                        console.log(`🏠 [집 주소 저장] ${payload.homeAddress} → (${coords.x}, ${coords.y}) [서버 지오코딩]`);
+                    } else {
+                        console.error("🏠 집 주소 지오코딩 실패: 좌표를 찾을 수 없음");
+                        // 좌표 변환 실패 시 주소만이라도 저장 (기존 좌표 유지)
+                        db.prepare(`UPDATE user_settings SET home_address = ? WHERE user_id = ?`)
+                            .run(payload.homeAddress, userId);
+                    }
+                } catch (e) {
+                    console.error("🏠 집 주소 지오코딩 실패:", e);
+                    db.prepare(`UPDATE user_settings SET home_address = ? WHERE user_id = ?`)
+                        .run(payload.homeAddress, userId);
+                }
             }
         }
 
