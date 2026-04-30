@@ -1,13 +1,15 @@
 import { useFilterConfig } from "../../hooks/useFilterConfig";
+import { Card } from "../ui/card";
+import { Badge } from "../ui/badge";
 
 export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () => void }) {
     const { filter } = useFilterConfig();
 
     if (!filter) {
         return (
-            <section className="flex items-center justify-center rounded-xl px-4 py-3 border shadow-md bg-surface border-border-card">
-                <span className="text-sm font-black tracking-tight text-text-primary flex items-center gap-2">오더 필터 동기화 중...</span>
-            </section>
+            <Card className="flex items-center justify-center rounded-xl px-4 py-3 shadow-sm bg-card border-border">
+                <span className="text-sm font-black tracking-tight text-foreground flex items-center gap-2">오더 필터 동기화 중...</span>
+            </Card>
         );
     }
     // export type LoadState = 'EMPTY' | 'LOADING' | 'DRIVING' | 'ARRIVED';
@@ -21,9 +23,9 @@ export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () =
     }
 
     const getStatusStyles = (active: boolean, shared: boolean) => {
-        if (!active) return { badge: 'bg-warning text-white px-2 py-0.5 rounded-md border border-warning', border: 'bg-warning/10 border-warning/50 hover:bg-warning/20' };
-        if (shared) return { badge: 'bg-accent text-white px-2 py-0.5 rounded-md border border-accent', border: 'bg-accent/10 border-accent/40 hover:bg-accent/20' };
-        return { badge: 'bg-info text-white px-2 py-0.5 rounded-md border border-info', border: 'bg-info/10 border-info/30 hover:bg-info/20' };
+        if (!active) return { badge: 'bg-amber-500/90 text-white border-amber-500', border: 'bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/20' };
+        if (shared) return { badge: 'bg-purple-500/90 text-white border-purple-500', border: 'bg-purple-500/10 border-purple-500/30 hover:bg-purple-500/20' };
+        return { badge: 'bg-blue-500/90 text-white border-blue-500', border: 'bg-blue-500/10 border-blue-500/30 hover:bg-blue-500/20' };
     };
 
     const styles = getStatusStyles(filter.isActive, filter.isSharedMode);
@@ -43,35 +45,35 @@ export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () =
     };
 
     return (
-        <section
+        <Card
             id="filter-status"
             onClick={onOpenFilter}
-            className={`flex items-center justify-between cursor-pointer rounded-xl px-2 py-1 border shadow-md transition-all active:scale-95 ${styles.border}`}
+            className={`flex items-center justify-between cursor-pointer rounded-xl px-3 py-2 shadow-sm transition-all active:scale-95 ${styles.border}`}
         >
-            <div className="flex items-center gap-3 text-xs text-text-primary tracking-tight font-bold">
-                <span className={styles.badge}>
+            <div className="flex items-center gap-3 text-xs text-foreground tracking-tight font-bold">
+                <Badge variant="outline" className={`${styles.badge} shadow-sm px-2 py-0.5`}>
                     {label}
-                </span>
-                <span className="text-success font-black">{(filter.minFare / 10000).toFixed(1)}</span>
-                <span className="text-text-muted font-sm">|</span>
-                <span className="text-text-primary">{filter.pickupRadiusKm}km</span>
-                <span className="text-text-muted font-sm">|</span>
-                <span className="text-accent">{getRegionSummary()}</span>
+                </Badge>
+                <span className="text-emerald-500 font-black">{(filter.minFare / 10000).toFixed(1)}</span>
+                <span className="text-muted-foreground font-sm">|</span>
+                <span className="text-foreground">{filter.pickupRadiusKm}km</span>
+                <span className="text-muted-foreground font-sm">|</span>
+                <span className="text-purple-500">{getRegionSummary()}</span>
                 {filter.allowedVehicleTypes && filter.allowedVehicleTypes.length > 0 ? (
                     <>
-                        <span className="text-text-muted font-sm">|</span>
-                        <span className="text-warning font-black">{filter.allowedVehicleTypes.map(v => v.charAt(0)).join(',')}</span>
+                        <span className="text-muted-foreground font-sm">|</span>
+                        <span className="text-amber-500 font-black">{filter.allowedVehicleTypes.map(v => v.charAt(0)).join(',')}</span>
                     </>
                 ) : (
                     <>
-                        <span className="text-text-muted font-sm">|</span>
-                        <span className="text-text-muted">전체</span>
+                        <span className="text-muted-foreground font-sm">|</span>
+                        <span className="text-muted-foreground">전체</span>
                     </>
                 )}
             </div>
-            <div className={`text-lg sm:text-xl`}>
+            <div className={`text-lg sm:text-xl opacity-80 hover:opacity-100 transition-opacity`}>
                 ⚙️
             </div>
-        </section>
+        </Card>
     );
 }

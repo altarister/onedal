@@ -1,0 +1,880 @@
+socket.ts:9 WebSocket connection to 'ws://localhost:3000/socket.io/?EIO=4&transport=websocket' failed: 
+createSocket @ socket__io-client.js?v=fe549e81:979
+doOpen @ socket__io-client.js?v=fe549e81:907
+open @ socket__io-client.js?v=fe549e81:481
+_open @ socket__io-client.js?v=fe549e81:1266
+SocketWithoutUpgrade @ socket__io-client.js?v=fe549e81:1228
+SocketWithUpgrade @ socket__io-client.js?v=fe549e81:1562
+Socket$1 @ socket__io-client.js?v=fe549e81:1692
+open @ socket__io-client.js?v=fe549e81:3608
+Manager @ socket__io-client.js?v=fe549e81:3551
+lookup @ socket__io-client.js?v=fe549e81:3847
+(anonymous) @ socket.ts:9Understand this error
+AuthContext.tsx:36  GET http://localhost:3000/api/auth/me 502 (Bad Gateway)
+dispatchXhrRequest @ axios.js?v=fe549e81:2042
+xhr @ axios.js?v=fe549e81:1952
+dispatchRequest @ axios.js?v=fe549e81:2417
+Promise.then
+_request @ axios.js?v=fe549e81:2620
+request @ axios.js?v=fe549e81:2537
+Axios$1.<computed> @ axios.js?v=fe549e81:2657
+wrap @ axios.js?v=fe549e81:12
+checkAuth @ AuthContext.tsx:36
+(anonymous) @ AuthContext.tsx:29
+react_stack_bottom_frame @ react-dom_client.js?v=fe549e81:12904
+runWithFiberInDEV @ react-dom_client.js?v=fe549e81:851
+commitHookEffectListMount @ react-dom_client.js?v=fe549e81:6617
+commitHookPassiveMountEffects @ react-dom_client.js?v=fe549e81:6652
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7618
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7627
+flushPassiveEffects @ react-dom_client.js?v=fe549e81:8808
+(anonymous) @ react-dom_client.js?v=fe549e81:8562
+performWorkUntilDeadline @ react-dom_client.js?v=fe549e81:36
+<AuthProvider>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=fe549e81:193
+(anonymous) @ main.tsx:15Understand this error
+installHook.js:1 Auth check failed: AxiosError: Request failed with status code 502
+    at settle (axios.js?v=fe549e81:1655:14)
+    at XMLHttpRequest.onloadend (axios.js?v=fe549e81:1972:4)
+overrideMethod @ installHook.js:1
+checkAuth @ AuthContext.tsx:40
+await in checkAuth
+(anonymous) @ AuthContext.tsx:29
+react_stack_bottom_frame @ react-dom_client.js?v=fe549e81:12904
+runWithFiberInDEV @ react-dom_client.js?v=fe549e81:851
+commitHookEffectListMount @ react-dom_client.js?v=fe549e81:6617
+commitHookPassiveMountEffects @ react-dom_client.js?v=fe549e81:6652
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7618
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7627
+flushPassiveEffects @ react-dom_client.js?v=fe549e81:8808
+(anonymous) @ react-dom_client.js?v=fe549e81:8562
+performWorkUntilDeadline @ react-dom_client.js?v=fe549e81:36
+<AuthProvider>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=fe549e81:193
+(anonymous) @ main.tsx:15Understand this error
+AuthContext.tsx:36  GET http://localhost:3000/api/auth/me 502 (Bad Gateway)
+dispatchXhrRequest @ axios.js?v=fe549e81:2042
+xhr @ axios.js?v=fe549e81:1952
+dispatchRequest @ axios.js?v=fe549e81:2417
+Promise.then
+_request @ axios.js?v=fe549e81:2620
+request @ axios.js?v=fe549e81:2537
+Axios$1.<computed> @ axios.js?v=fe549e81:2657
+wrap @ axios.js?v=fe549e81:12
+checkAuth @ AuthContext.tsx:36
+(anonymous) @ AuthContext.tsx:29
+react_stack_bottom_frame @ react-dom_client.js?v=fe549e81:12904
+runWithFiberInDEV @ react-dom_client.js?v=fe549e81:851
+commitHookEffectListMount @ react-dom_client.js?v=fe549e81:6617
+commitHookPassiveMountEffects @ react-dom_client.js?v=fe549e81:6652
+reconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7701
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7688
+reconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7713
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7688
+reconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7700
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7688
+reconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7713
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7688
+reconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7700
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7688
+reconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7713
+doubleInvokeEffectsOnFiber @ react-dom_client.js?v=fe549e81:8924
+runWithFiberInDEV @ react-dom_client.js?v=fe549e81:851
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+commitDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8932
+flushPassiveEffects @ react-dom_client.js?v=fe549e81:8809
+(anonymous) @ react-dom_client.js?v=fe549e81:8562
+performWorkUntilDeadline @ react-dom_client.js?v=fe549e81:36
+<AuthProvider>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=fe549e81:193
+(anonymous) @ main.tsx:15Understand this error
+installHook.js:1 Auth check failed: AxiosError: Request failed with status code 502
+    at settle (axios.js?v=fe549e81:1655:14)
+    at XMLHttpRequest.onloadend (axios.js?v=fe549e81:1972:4)
+overrideMethod @ installHook.js:1
+checkAuth @ AuthContext.tsx:40
+await in checkAuth
+(anonymous) @ AuthContext.tsx:29
+react_stack_bottom_frame @ react-dom_client.js?v=fe549e81:12904
+runWithFiberInDEV @ react-dom_client.js?v=fe549e81:851
+commitHookEffectListMount @ react-dom_client.js?v=fe549e81:6617
+commitHookPassiveMountEffects @ react-dom_client.js?v=fe549e81:6652
+reconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7701
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7688
+reconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7713
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7688
+reconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7700
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7688
+reconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7713
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7688
+reconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7700
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7688
+reconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7713
+doubleInvokeEffectsOnFiber @ react-dom_client.js?v=fe549e81:8924
+runWithFiberInDEV @ react-dom_client.js?v=fe549e81:851
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+commitDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8932
+flushPassiveEffects @ react-dom_client.js?v=fe549e81:8809
+(anonymous) @ react-dom_client.js?v=fe549e81:8562
+performWorkUntilDeadline @ react-dom_client.js?v=fe549e81:36
+<AuthProvider>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=fe549e81:193
+(anonymous) @ main.tsx:15Understand this error
+installHook.js:1 [GSI_LOGGER]: google.accounts.id.initialize() is called multiple times. This could cause unexpected behavior and only the last initialized instance will be used.
+overrideMethod @ installHook.js:1
+_.G @ client:85
+Qs @ client:295
+(anonymous) @ @react-oauth_google.js?v=fe549e81:78
+react_stack_bottom_frame @ react-dom_client.js?v=fe549e81:12904
+runWithFiberInDEV @ react-dom_client.js?v=fe549e81:851
+commitHookEffectListMount @ react-dom_client.js?v=fe549e81:6617
+commitHookPassiveMountEffects @ react-dom_client.js?v=fe549e81:6652
+reconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7701
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7688
+reconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7713
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7688
+reconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7713
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7688
+reconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7713
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7688
+reconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7700
+doubleInvokeEffectsOnFiber @ react-dom_client.js?v=fe549e81:8924
+runWithFiberInDEV @ react-dom_client.js?v=fe549e81:851
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+commitDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8932
+flushPassiveEffects @ react-dom_client.js?v=fe549e81:8809
+(anonymous) @ react-dom_client.js?v=fe549e81:8562
+performWorkUntilDeadline @ react-dom_client.js?v=fe549e81:36
+<GoogleLogin>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=fe549e81:193
+Login @ Login.tsx:41
+react_stack_bottom_frame @ react-dom_client.js?v=fe549e81:12868
+renderWithHooksAgain @ react-dom_client.js?v=fe549e81:4268
+renderWithHooks @ react-dom_client.js?v=fe549e81:4219
+updateFunctionComponent @ react-dom_client.js?v=fe549e81:5569
+beginWork @ react-dom_client.js?v=fe549e81:6140
+runWithFiberInDEV @ react-dom_client.js?v=fe549e81:851
+performUnitOfWork @ react-dom_client.js?v=fe549e81:8429
+workLoopConcurrentByScheduler @ react-dom_client.js?v=fe549e81:8425
+renderRootConcurrent @ react-dom_client.js?v=fe549e81:8408
+performWorkOnRoot @ react-dom_client.js?v=fe549e81:7957
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=fe549e81:9059
+performWorkUntilDeadline @ react-dom_client.js?v=fe549e81:36
+<Login>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=fe549e81:193
+App @ App.tsx:69
+react_stack_bottom_frame @ react-dom_client.js?v=fe549e81:12868
+renderWithHooksAgain @ react-dom_client.js?v=fe549e81:4268
+renderWithHooks @ react-dom_client.js?v=fe549e81:4219
+updateFunctionComponent @ react-dom_client.js?v=fe549e81:5569
+beginWork @ react-dom_client.js?v=fe549e81:6140
+runWithFiberInDEV @ react-dom_client.js?v=fe549e81:851
+performUnitOfWork @ react-dom_client.js?v=fe549e81:8429
+workLoopSync @ react-dom_client.js?v=fe549e81:8325
+renderRootSync @ react-dom_client.js?v=fe549e81:8309
+performWorkOnRoot @ react-dom_client.js?v=fe549e81:7957
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=fe549e81:9059
+performWorkUntilDeadline @ react-dom_client.js?v=fe549e81:36
+<App>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=fe549e81:193
+(anonymous) @ main.tsx:16Understand this warning
+client:190  GET https://accounts.google.com/gsi/status?client_id=491249434050-q3s6t64s55iijaiegd9u5ovrfnri2dt6.apps.googleusercontent.com&cas=iyeuMg1V3Kvfxq%2FuJRtxHwWtKljV7Vm7ylQhYAbUib8&bs=YiP9WyBAU996YrHogmRz8LSW3B%2FOEVLp6DDh762Laf8 403 (Forbidden)
+_.l.send @ client:190
+_.Ik @ client:193
+Sr @ client:276
+Nu @ client:374
+Mu @ client:351
+_.Au.wa @ client:347
+Ms.wa @ client:391
+Rs @ client:296
+(anonymous) @ @react-oauth_google.js?v=fe549e81:105
+react_stack_bottom_frame @ react-dom_client.js?v=fe549e81:12904
+runWithFiberInDEV @ react-dom_client.js?v=fe549e81:851
+commitHookEffectListMount @ react-dom_client.js?v=fe549e81:6617
+commitHookPassiveMountEffects @ react-dom_client.js?v=fe549e81:6652
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7618
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7627
+flushPassiveEffects @ react-dom_client.js?v=fe549e81:8808
+(anonymous) @ react-dom_client.js?v=fe549e81:8562
+performWorkUntilDeadline @ react-dom_client.js?v=fe549e81:36
+<GoogleLogin>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=fe549e81:193
+Login @ Login.tsx:41
+react_stack_bottom_frame @ react-dom_client.js?v=fe549e81:12868
+renderWithHooksAgain @ react-dom_client.js?v=fe549e81:4268
+renderWithHooks @ react-dom_client.js?v=fe549e81:4219
+updateFunctionComponent @ react-dom_client.js?v=fe549e81:5569
+beginWork @ react-dom_client.js?v=fe549e81:6140
+runWithFiberInDEV @ react-dom_client.js?v=fe549e81:851
+performUnitOfWork @ react-dom_client.js?v=fe549e81:8429
+workLoopConcurrentByScheduler @ react-dom_client.js?v=fe549e81:8425
+renderRootConcurrent @ react-dom_client.js?v=fe549e81:8408
+performWorkOnRoot @ react-dom_client.js?v=fe549e81:7957
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=fe549e81:9059
+performWorkUntilDeadline @ react-dom_client.js?v=fe549e81:36
+<Login>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=fe549e81:193
+App @ App.tsx:69
+react_stack_bottom_frame @ react-dom_client.js?v=fe549e81:12868
+renderWithHooksAgain @ react-dom_client.js?v=fe549e81:4268
+renderWithHooks @ react-dom_client.js?v=fe549e81:4219
+updateFunctionComponent @ react-dom_client.js?v=fe549e81:5569
+beginWork @ react-dom_client.js?v=fe549e81:6140
+runWithFiberInDEV @ react-dom_client.js?v=fe549e81:851
+performUnitOfWork @ react-dom_client.js?v=fe549e81:8429
+workLoopSync @ react-dom_client.js?v=fe549e81:8325
+renderRootSync @ react-dom_client.js?v=fe549e81:8309
+performWorkOnRoot @ react-dom_client.js?v=fe549e81:7957
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=fe549e81:9059
+performWorkUntilDeadline @ react-dom_client.js?v=fe549e81:36
+<App>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=fe549e81:193
+(anonymous) @ main.tsx:16Understand this error
+client:190  GET https://accounts.google.com/gsi/status?client_id=491249434050-q3s6t64s55iijaiegd9u5ovrfnri2dt6.apps.googleusercontent.com&cas=1GQTIdLqGUeZ95mQI5PYIMOW9XkGo66NUBHormXV73E&bs=YiP9WyBAU996YrHogmRz8LSW3B%2FOEVLp6DDh762Laf8 403 (Forbidden)
+_.l.send @ client:190
+_.Ik @ client:193
+Sr @ client:276
+Nu @ client:374
+Mu @ client:351
+_.Au.wa @ client:347
+Ms.wa @ client:391
+Rs @ client:296
+(anonymous) @ @react-oauth_google.js?v=fe549e81:105
+react_stack_bottom_frame @ react-dom_client.js?v=fe549e81:12904
+runWithFiberInDEV @ react-dom_client.js?v=fe549e81:851
+commitHookEffectListMount @ react-dom_client.js?v=fe549e81:6617
+commitHookPassiveMountEffects @ react-dom_client.js?v=fe549e81:6652
+reconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7701
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7688
+reconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7713
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7688
+reconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7713
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7688
+reconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7713
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7688
+reconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7700
+doubleInvokeEffectsOnFiber @ react-dom_client.js?v=fe549e81:8924
+runWithFiberInDEV @ react-dom_client.js?v=fe549e81:851
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+commitDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8932
+flushPassiveEffects @ react-dom_client.js?v=fe549e81:8809
+(anonymous) @ react-dom_client.js?v=fe549e81:8562
+performWorkUntilDeadline @ react-dom_client.js?v=fe549e81:36
+<GoogleLogin>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=fe549e81:193
+Login @ Login.tsx:41
+react_stack_bottom_frame @ react-dom_client.js?v=fe549e81:12868
+renderWithHooksAgain @ react-dom_client.js?v=fe549e81:4268
+renderWithHooks @ react-dom_client.js?v=fe549e81:4219
+updateFunctionComponent @ react-dom_client.js?v=fe549e81:5569
+beginWork @ react-dom_client.js?v=fe549e81:6140
+runWithFiberInDEV @ react-dom_client.js?v=fe549e81:851
+performUnitOfWork @ react-dom_client.js?v=fe549e81:8429
+workLoopConcurrentByScheduler @ react-dom_client.js?v=fe549e81:8425
+renderRootConcurrent @ react-dom_client.js?v=fe549e81:8408
+performWorkOnRoot @ react-dom_client.js?v=fe549e81:7957
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=fe549e81:9059
+performWorkUntilDeadline @ react-dom_client.js?v=fe549e81:36
+<Login>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=fe549e81:193
+App @ App.tsx:69
+react_stack_bottom_frame @ react-dom_client.js?v=fe549e81:12868
+renderWithHooksAgain @ react-dom_client.js?v=fe549e81:4268
+renderWithHooks @ react-dom_client.js?v=fe549e81:4219
+updateFunctionComponent @ react-dom_client.js?v=fe549e81:5569
+beginWork @ react-dom_client.js?v=fe549e81:6140
+runWithFiberInDEV @ react-dom_client.js?v=fe549e81:851
+performUnitOfWork @ react-dom_client.js?v=fe549e81:8429
+workLoopSync @ react-dom_client.js?v=fe549e81:8325
+renderRootSync @ react-dom_client.js?v=fe549e81:8309
+performWorkOnRoot @ react-dom_client.js?v=fe549e81:7957
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=fe549e81:9059
+performWorkUntilDeadline @ react-dom_client.js?v=fe549e81:36
+<App>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=fe549e81:193
+(anonymous) @ main.tsx:16Understand this error
+:3000/login:1 Only one navigator.credentials.get request may be outstanding at one time.Understand this error
+installHook.js:1 [GSI_LOGGER]: FedCM get() rejects with NotAllowedError: Only one navigator.credentials.get request may be outstanding at one time.
+overrideMethod @ installHook.js:1
+_.H @ client:86
+_.Au.la @ client:344
+la @ client:346
+(anonymous) @ client:304
+Promise.then
+At @ client:304
+Ct @ client:307
+Dt @ client:307
+Lu @ client:345
+(anonymous) @ client:351
+(anonymous) @ client:374
+(anonymous) @ client:276
+Zf @ client:130
+_.l.dispatchEvent @ client:129
+xk @ client:183
+Bk @ client:186
+_.l.pe @ client:191
+_.l.gd @ client:191
+XMLHttpRequest.send
+_.l.send @ client:190
+_.Ik @ client:193
+Sr @ client:276
+Nu @ client:374
+Mu @ client:351
+_.Au.wa @ client:347
+Ms.wa @ client:391
+Rs @ client:296
+(anonymous) @ @react-oauth_google.js?v=fe549e81:105
+react_stack_bottom_frame @ react-dom_client.js?v=fe549e81:12904
+runWithFiberInDEV @ react-dom_client.js?v=fe549e81:851
+commitHookEffectListMount @ react-dom_client.js?v=fe549e81:6617
+commitHookPassiveMountEffects @ react-dom_client.js?v=fe549e81:6652
+reconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7701
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7688
+reconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7713
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7688
+reconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7713
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7688
+reconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7713
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7688
+reconnectPassiveEffects @ react-dom_client.js?v=fe549e81:7700
+doubleInvokeEffectsOnFiber @ react-dom_client.js?v=fe549e81:8924
+runWithFiberInDEV @ react-dom_client.js?v=fe549e81:851
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8917
+commitDoubleInvokeEffectsInDEV @ react-dom_client.js?v=fe549e81:8932
+flushPassiveEffects @ react-dom_client.js?v=fe549e81:8809
+(anonymous) @ react-dom_client.js?v=fe549e81:8562
+performWorkUntilDeadline @ react-dom_client.js?v=fe549e81:36
+<GoogleLogin>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=fe549e81:193
+Login @ Login.tsx:41
+react_stack_bottom_frame @ react-dom_client.js?v=fe549e81:12868
+renderWithHooksAgain @ react-dom_client.js?v=fe549e81:4268
+renderWithHooks @ react-dom_client.js?v=fe549e81:4219
+updateFunctionComponent @ react-dom_client.js?v=fe549e81:5569
+beginWork @ react-dom_client.js?v=fe549e81:6140
+runWithFiberInDEV @ react-dom_client.js?v=fe549e81:851
+performUnitOfWork @ react-dom_client.js?v=fe549e81:8429
+workLoopConcurrentByScheduler @ react-dom_client.js?v=fe549e81:8425
+renderRootConcurrent @ react-dom_client.js?v=fe549e81:8408
+performWorkOnRoot @ react-dom_client.js?v=fe549e81:7957
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=fe549e81:9059
+performWorkUntilDeadline @ react-dom_client.js?v=fe549e81:36
+<Login>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=fe549e81:193
+App @ App.tsx:69
+react_stack_bottom_frame @ react-dom_client.js?v=fe549e81:12868
+renderWithHooksAgain @ react-dom_client.js?v=fe549e81:4268
+renderWithHooks @ react-dom_client.js?v=fe549e81:4219
+updateFunctionComponent @ react-dom_client.js?v=fe549e81:5569
+beginWork @ react-dom_client.js?v=fe549e81:6140
+runWithFiberInDEV @ react-dom_client.js?v=fe549e81:851
+performUnitOfWork @ react-dom_client.js?v=fe549e81:8429
+workLoopSync @ react-dom_client.js?v=fe549e81:8325
+renderRootSync @ react-dom_client.js?v=fe549e81:8309
+performWorkOnRoot @ react-dom_client.js?v=fe549e81:7957
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=fe549e81:9059
+performWorkUntilDeadline @ react-dom_client.js?v=fe549e81:36
+<App>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=fe549e81:193
+(anonymous) @ main.tsx:16Understand this error
+accounts.google.com/gsi/button?type=standard&theme=filled_black&size=large&text=undefined&shape=undefined&logo_alignment=undefined&width=undefined&locale=undefined&click_listener=undefined&is_fedcm_supported=true&client_id=491249434050-q3s6t64s55iijaiegd9u5ovrfnri2dt6.apps.googleusercontent.com&iframe_id=gsi_315139_713&cas=1GQTIdLqGUeZ95mQI5PYIMOW9XkGo66NUBHormXV73E:1  Failed to load resource: the server responded with a status of 403 ()Understand this error
+m=credential_button_library:86 [GSI_LOGGER]: The given origin is not allowed for the given client ID.
+_.H @ m=credential_button_library:86
+_.dh @ m=credential_button_library:156
+(anonymous) @ m=credential_button_library:316
+(anonymous) @ button?type=standard&theme=filled_black&size=large&text=undefined&shape=undefined&logo_alignment=undefined&width=undefined&locale=undefined&click_listener=undefined&is_fedcm_supported=true&client_id=491249434050-q3s6t64s55iijaiegd9u5ovrfnri2dt6.apps.googleusercontent.com&iframe_id=gsi_315139_713&cas=1GQTIdLqGUeZ95mQI5PYIMOW9XkGo66NUBHormXV73E:1Understand this error
+:3000/login:1 The request has been aborted.Understand this error
+installHook.js:1 [GSI_LOGGER]: FedCM get() rejects with AbortError: signal is aborted without reason
+overrideMethod @ installHook.js:1
+_.H @ client:86
+_.Au.la @ client:344
+la @ client:346
+(anonymous) @ client:304
+Promise.then
+At @ client:304
+Ct @ client:307
+Dt @ client:307
+Lu @ client:345
+(anonymous) @ client:351
+(anonymous) @ client:374
+(anonymous) @ client:276
+Zf @ client:130
+_.l.dispatchEvent @ client:129
+xk @ client:183
+Bk @ client:186
+_.l.pe @ client:191
+_.l.gd @ client:191
+XMLHttpRequest.send
+_.l.send @ client:190
+_.Ik @ client:193
+Sr @ client:276
+Nu @ client:374
+Mu @ client:351
+_.Au.wa @ client:347
+Ms.wa @ client:391
+Rs @ client:296
+(anonymous) @ @react-oauth_google.js?v=fe549e81:105
+react_stack_bottom_frame @ react-dom_client.js?v=fe549e81:12904
+runWithFiberInDEV @ react-dom_client.js?v=fe549e81:851
+commitHookEffectListMount @ react-dom_client.js?v=fe549e81:6617
+commitHookPassiveMountEffects @ react-dom_client.js?v=fe549e81:6652
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7618
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=fe549e81:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=fe549e81:7627
+flushPassiveEffects @ react-dom_client.js?v=fe549e81:8808
+(anonymous) @ react-dom_client.js?v=fe549e81:8562
+performWorkUntilDeadline @ react-dom_client.js?v=fe549e81:36
+<GoogleLogin>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=fe549e81:193
+Login @ Login.tsx:41
+react_stack_bottom_frame @ react-dom_client.js?v=fe549e81:12868
+renderWithHooksAgain @ react-dom_client.js?v=fe549e81:4268
+renderWithHooks @ react-dom_client.js?v=fe549e81:4219
+updateFunctionComponent @ react-dom_client.js?v=fe549e81:5569
+beginWork @ react-dom_client.js?v=fe549e81:6140
+runWithFiberInDEV @ react-dom_client.js?v=fe549e81:851
+performUnitOfWork @ react-dom_client.js?v=fe549e81:8429
+workLoopConcurrentByScheduler @ react-dom_client.js?v=fe549e81:8425
+renderRootConcurrent @ react-dom_client.js?v=fe549e81:8408
+performWorkOnRoot @ react-dom_client.js?v=fe549e81:7957
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=fe549e81:9059
+performWorkUntilDeadline @ react-dom_client.js?v=fe549e81:36
+<Login>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=fe549e81:193
+App @ App.tsx:69
+react_stack_bottom_frame @ react-dom_client.js?v=fe549e81:12868
+renderWithHooksAgain @ react-dom_client.js?v=fe549e81:4268
+renderWithHooks @ react-dom_client.js?v=fe549e81:4219
+updateFunctionComponent @ react-dom_client.js?v=fe549e81:5569
+beginWork @ react-dom_client.js?v=fe549e81:6140
+runWithFiberInDEV @ react-dom_client.js?v=fe549e81:851
+performUnitOfWork @ react-dom_client.js?v=fe549e81:8429
+workLoopSync @ react-dom_client.js?v=fe549e81:8325
+renderRootSync @ react-dom_client.js?v=fe549e81:8309
+performWorkOnRoot @ react-dom_client.js?v=fe549e81:7957
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=fe549e81:9059
+performWorkUntilDeadline @ react-dom_client.js?v=fe549e81:36
+<App>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=fe549e81:193
+(anonymous) @ main.tsx:16Understand this error
+client:379 Cross-Origin-Opener-Policy policy would block the window.postMessage call.
+Cu @ client:379
+(anonymous) @ client:338
+Vf @ client:128
+b @ client:125Understand this error
+client:379 Cross-Origin-Opener-Policy policy would block the window.postMessage call.
+Cu @ client:379
+(anonymous) @ client:338
+Vf @ client:128
+b @ client:125Understand this error
+roadmapLogger.ts:11 [ROADMAP 04:25:24.107] [🖥️관제웹] 유저가 구글 로그인 버튼 클릭 
+roadmapLogger.ts:11 [ROADMAP 04:25:24.109] [🖥️관제웹] 서버에게 구글 인증(id_token) 정보 전달
+roadmapLogger.ts:11 [ROADMAP 04:25:24.722] [🖥️관제웹] 1DAL 웹(관제웹) 로그인됨
+installHook.js:1 [ROADMAP 04:25:24.724] [🖥️관제웹] 1DAL 웹(관제웹) 로그인됨
+roadmapLogger.ts:11 [ROADMAP 04:25:24.727] [🖥️관제웹] 서버로 부터 filter-init 초기 필터값(isSharedMode, distance 등) 받음
+4roadmapLogger.ts:11 [ROADMAP 04:25:24.728] [🖥️관제웹] 서버로 부터 filter-init 초기 필터값(isSharedMode, distance 등) 받음
+roadmapLogger.ts:11 [ROADMAP 04:25:24.759] [🖥️관제웹] 서버로 부터 filter-init 초기 필터값(isSharedMode, distance 등) 받음
+4roadmapLogger.ts:11 [ROADMAP 04:25:24.760] [🖥️관제웹] 서버로 부터 filter-init 초기 필터값(isSharedMode, distance 등) 받음
+3roadmapLogger.ts:11 [ROADMAP 04:25:24.769] [🖥️관제웹] 서버로 부터 filter-init 초기 필터값(isSharedMode, distance 등) 받음
+14roadmapLogger.ts:11 [ROADMAP 04:25:24.770] [🖥️관제웹] 서버로 부터 filter-init 초기 필터값(isSharedMode, distance 등) 받음
+8roadmapLogger.ts:11 [ROADMAP 04:25:24.771] [🖥️관제웹] 서버로 부터 filter-init 초기 필터값(isSharedMode, distance 등) 받음
+8roadmapLogger.ts:11 [ROADMAP 04:25:24.772] [🖥️관제웹] 서버로 부터 filter-init 초기 필터값(isSharedMode, distance 등) 받음
+8roadmapLogger.ts:11 [ROADMAP 04:25:24.773] [🖥️관제웹] 서버로 부터 filter-init 초기 필터값(isSharedMode, distance 등) 받음
+4roadmapLogger.ts:11 [ROADMAP 04:25:24.774] [🖥️관제웹] 서버로 부터 filter-init 초기 필터값(isSharedMode, distance 등) 받음
+roadmapLogger.ts:11 [ROADMAP 04:26:00.784] [🖥️관제웹] [관제대시보드] 🟢 [웹 수신] order-evaluating | ID: 9fe0bea0-a856-4a06-86ab-bacd33769c2e | 기기: 앱폰-sdk_gpho-160 | 상록구
+roadmapLogger.ts:11 [ROADMAP 04:26:00.785] [🖥️관제웹] [관제대시보드] 확정페이지 진입 (선빵 수신으로 상세 모드 구동)
+roadmapLogger.ts:11 [ROADMAP 04:26:00.786] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 빈 레이아웃(평가중) 렌더링 및 하단 결재버튼 전체 딤드(비활성) 처리
+useOrderEngine.ts:87    ➡️ activeOrders 변경: [] → [9fe0bea0]
+roadmapLogger.ts:11 [ROADMAP 04:26:00.790] [🖥️관제웹] [관제대시보드] 🟢 [웹 수신] order-evaluating | ID: 9fe0bea0-a856-4a06-86ab-bacd33769c2e | 기기: 앱폰-sdk_gpho-160 | 상록구
+roadmapLogger.ts:11 [ROADMAP 04:26:00.791] [🖥️관제웹] [관제대시보드] 확정페이지 진입 (선빵 수신으로 상세 모드 구동)
+roadmapLogger.ts:11 [ROADMAP 04:26:00.791] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 빈 레이아웃(평가중) 렌더링 및 하단 결재버튼 전체 딤드(비활성) 처리
+useOrderEngine.ts:87    ➡️ activeOrders 변경: [] → [9fe0bea0]
+useOrderEngine.ts:87    ➡️ activeOrders 변경: [] → [9fe0bea0]
+useOrderEngine.ts:87    ➡️ activeOrders 변경: [] → [9fe0bea0]
+5roadmapLogger.ts:11 [ROADMAP 04:26:00.898] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
+roadmapLogger.ts:11 [ROADMAP 04:26:02.183] [🖥️관제웹] [관제대시보드] 🟡 [웹 수신] order-detail-received | ID: 9fe0bea0 | 경기 광주시 오포읍 오포로 538-2
+roadmapLogger.ts:11 [ROADMAP 04:26:02.183] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 '상하차지 및 적요' 텍스트를 선출력하여 렌더링
+roadmapLogger.ts:11 [ROADMAP 04:26:02.183] [🖥️관제웹] [관제대시보드] 🟡 [웹 수신] order-detail-received | ID: 9fe0bea0 | 경기 광주시 오포읍 오포로 538-2
+roadmapLogger.ts:11 [ROADMAP 04:26:02.183] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 '상하차지 및 적요' 텍스트를 선출력하여 렌더링
+roadmapLogger.ts:11 [ROADMAP 04:26:02.353] [🖥️관제웹] [관제대시보드] 🔵 [웹 수신] order-evaluated | ID: 9fe0bea0 | 카카오 연산 실패
+roadmapLogger.ts:11 [ROADMAP 04:26:02.353] [🖥️관제웹] [관제대시보드] 추천 결과 노출, 경로보기버튼 추가 노출 후 판단 (취소 or 닫기) 대기
+roadmapLogger.ts:11 [ROADMAP 04:26:02.353] [🖥️관제웹] [관제대시보드] UI 상단에 에러 배너 렌더링 및 카카오맵 불가 상태를 PinnedRoute 에 표현
+roadmapLogger.ts:11 [ROADMAP 04:26:02.353] [🖥️관제웹] [관제대시보드] 🔵 [웹 수신] order-evaluated | ID: 9fe0bea0 | 카카오 연산 실패
+roadmapLogger.ts:11 [ROADMAP 04:26:02.353] [🖥️관제웹] [관제대시보드] 추천 결과 노출, 경로보기버튼 추가 노출 후 판단 (취소 or 닫기) 대기
+roadmapLogger.ts:11 [ROADMAP 04:26:02.353] [🖥️관제웹] [관제대시보드] UI 상단에 에러 배너 렌더링 및 카카오맵 불가 상태를 PinnedRoute 에 표현
+roadmapLogger.ts:11 [ROADMAP 04:26:08.492] [🖥️관제웹] PinnedRoute에서 CANCEL(취소) 또는 X 버튼 클릭
+roadmapLogger.ts:11 [ROADMAP 04:26:08.492] [🖥️관제웹] 서버에게 decision=CANCEL 하달 정보 전달
+roadmapLogger.ts:11 [ROADMAP 04:26:08.492] [🖥️관제웹] [관제대시보드] [Socket] 취소 전달
+roadmapLogger.ts:11 [ROADMAP 04:26:08.516] [🖥️관제웹] [관제대시보드] 🔴 [웹 수신] order-canceled | ID: 9fe0bea0
+roadmapLogger.ts:11 [ROADMAP 04:26:08.516] [🖥️관제웹] [관제대시보드] PinnedRoute 아코디언 컴포넌트를 강제 삭제하고 초기 관제대기 Empty State 화면 렌더링
+useOrderEngine.ts:130    ➡️ activeOrders 변경: [9fe0bea0] → []
+roadmapLogger.ts:11 [ROADMAP 04:26:08.516] [🖥️관제웹] [관제대시보드] 🔴 [웹 수신] order-canceled | ID: 9fe0bea0
+roadmapLogger.ts:11 [ROADMAP 04:26:08.516] [🖥️관제웹] [관제대시보드] PinnedRoute 아코디언 컴포넌트를 강제 삭제하고 초기 관제대기 Empty State 화면 렌더링
+useOrderEngine.ts:130    ➡️ activeOrders 변경: [9fe0bea0] → []
+useOrderEngine.ts:130    ➡️ activeOrders 변경: [9fe0bea0] → []
+useOrderEngine.ts:130    ➡️ activeOrders 변경: [9fe0bea0] → []
+roadmapLogger.ts:11 [ROADMAP 04:26:08.527] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
+4roadmapLogger.ts:11 [ROADMAP 04:26:08.528] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
+roadmapLogger.ts:11 [ROADMAP 04:26:09.536] [🖥️관제웹] [관제대시보드] 🟢 [웹 수신] order-evaluating | ID: 8df06067-8447-4be0-b4da-6df7e6c7ceec | 기기: 앱폰-sdk_gpho-160 | 남한산성면
+roadmapLogger.ts:11 [ROADMAP 04:26:09.536] [🖥️관제웹] [관제대시보드] 확정페이지 진입 (선빵 수신으로 상세 모드 구동)
+roadmapLogger.ts:11 [ROADMAP 04:26:09.536] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 빈 레이아웃(평가중) 렌더링 및 하단 결재버튼 전체 딤드(비활성) 처리
+useOrderEngine.ts:87    ➡️ activeOrders 변경: [] → [8df06067]
+roadmapLogger.ts:11 [ROADMAP 04:26:09.537] [🖥️관제웹] [관제대시보드] 🟢 [웹 수신] order-evaluating | ID: 8df06067-8447-4be0-b4da-6df7e6c7ceec | 기기: 앱폰-sdk_gpho-160 | 남한산성면
+roadmapLogger.ts:11 [ROADMAP 04:26:09.537] [🖥️관제웹] [관제대시보드] 확정페이지 진입 (선빵 수신으로 상세 모드 구동)
+roadmapLogger.ts:11 [ROADMAP 04:26:09.537] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 빈 레이아웃(평가중) 렌더링 및 하단 결재버튼 전체 딤드(비활성) 처리
+useOrderEngine.ts:87    ➡️ activeOrders 변경: [] → [8df06067]
+useOrderEngine.ts:87    ➡️ activeOrders 변경: [] → [8df06067]
+useOrderEngine.ts:87    ➡️ activeOrders 변경: [] → [8df06067]
+roadmapLogger.ts:11 [ROADMAP 04:26:10.351] [🖥️관제웹] [관제대시보드] 🟡 [웹 수신] order-detail-received | ID: 8df06067 | 경기 광주시 오포읍 오포로 538-2
+roadmapLogger.ts:11 [ROADMAP 04:26:10.352] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 '상하차지 및 적요' 텍스트를 선출력하여 렌더링
+roadmapLogger.ts:11 [ROADMAP 04:26:10.352] [🖥️관제웹] [관제대시보드] 🟡 [웹 수신] order-detail-received | ID: 8df06067 | 경기 광주시 오포읍 오포로 538-2
+roadmapLogger.ts:11 [ROADMAP 04:26:10.352] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 '상하차지 및 적요' 텍스트를 선출력하여 렌더링
+roadmapLogger.ts:11 [ROADMAP 04:26:10.499] [🖥️관제웹] [관제대시보드] 🔵 [웹 수신] order-evaluated | ID: 8df06067 | 카카오 연산 실패
+roadmapLogger.ts:11 [ROADMAP 04:26:10.499] [🖥️관제웹] [관제대시보드] 추천 결과 노출, 경로보기버튼 추가 노출 후 판단 (취소 or 닫기) 대기
+roadmapLogger.ts:11 [ROADMAP 04:26:10.499] [🖥️관제웹] [관제대시보드] UI 상단에 에러 배너 렌더링 및 카카오맵 불가 상태를 PinnedRoute 에 표현
+roadmapLogger.ts:11 [ROADMAP 04:26:10.499] [🖥️관제웹] [관제대시보드] 🔵 [웹 수신] order-evaluated | ID: 8df06067 | 카카오 연산 실패
+roadmapLogger.ts:11 [ROADMAP 04:26:10.499] [🖥️관제웹] [관제대시보드] 추천 결과 노출, 경로보기버튼 추가 노출 후 판단 (취소 or 닫기) 대기
+roadmapLogger.ts:11 [ROADMAP 04:26:10.499] [🖥️관제웹] [관제대시보드] UI 상단에 에러 배너 렌더링 및 카카오맵 불가 상태를 PinnedRoute 에 표현
+roadmapLogger.ts:11 [ROADMAP 04:26:16.156] [🖥️관제웹] PinnedRoute에서 CANCEL(취소) 또는 X 버튼 클릭
+roadmapLogger.ts:11 [ROADMAP 04:26:16.157] [🖥️관제웹] 서버에게 decision=CANCEL 하달 정보 전달
+roadmapLogger.ts:11 [ROADMAP 04:26:16.157] [🖥️관제웹] [관제대시보드] [Socket] 취소 전달
+roadmapLogger.ts:11 [ROADMAP 04:26:16.191] [🖥️관제웹] [관제대시보드] 🔴 [웹 수신] order-canceled | ID: 8df06067
+roadmapLogger.ts:11 [ROADMAP 04:26:16.191] [🖥️관제웹] [관제대시보드] PinnedRoute 아코디언 컴포넌트를 강제 삭제하고 초기 관제대기 Empty State 화면 렌더링
+useOrderEngine.ts:130    ➡️ activeOrders 변경: [8df06067] → []
+roadmapLogger.ts:11 [ROADMAP 04:26:16.191] [🖥️관제웹] [관제대시보드] 🔴 [웹 수신] order-canceled | ID: 8df06067
+roadmapLogger.ts:11 [ROADMAP 04:26:16.191] [🖥️관제웹] [관제대시보드] PinnedRoute 아코디언 컴포넌트를 강제 삭제하고 초기 관제대기 Empty State 화면 렌더링
+useOrderEngine.ts:130    ➡️ activeOrders 변경: [8df06067] → []
+useOrderEngine.ts:130    ➡️ activeOrders 변경: [8df06067] → []
+useOrderEngine.ts:130    ➡️ activeOrders 변경: [8df06067] → []
+3roadmapLogger.ts:11 [ROADMAP 04:26:16.204] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
+2roadmapLogger.ts:11 [ROADMAP 04:26:16.205] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
+roadmapLogger.ts:11 [ROADMAP 04:26:17.703] [🖥️관제웹] [관제대시보드] 🟢 [웹 수신] order-evaluating | ID: 46156450-9d80-453c-bbe2-bc98442081f0 | 기기: 앱폰-sdk_gpho-160 | 송정동
+roadmapLogger.ts:11 [ROADMAP 04:26:17.703] [🖥️관제웹] [관제대시보드] 확정페이지 진입 (선빵 수신으로 상세 모드 구동)
+roadmapLogger.ts:11 [ROADMAP 04:26:17.703] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 빈 레이아웃(평가중) 렌더링 및 하단 결재버튼 전체 딤드(비활성) 처리
+useOrderEngine.ts:87    ➡️ activeOrders 변경: [] → [46156450]
+roadmapLogger.ts:11 [ROADMAP 04:26:17.704] [🖥️관제웹] [관제대시보드] 🟢 [웹 수신] order-evaluating | ID: 46156450-9d80-453c-bbe2-bc98442081f0 | 기기: 앱폰-sdk_gpho-160 | 송정동
+roadmapLogger.ts:11 [ROADMAP 04:26:17.705] [🖥️관제웹] [관제대시보드] 확정페이지 진입 (선빵 수신으로 상세 모드 구동)
+roadmapLogger.ts:11 [ROADMAP 04:26:17.705] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 빈 레이아웃(평가중) 렌더링 및 하단 결재버튼 전체 딤드(비활성) 처리
+useOrderEngine.ts:87    ➡️ activeOrders 변경: [] → [46156450]
+useOrderEngine.ts:87    ➡️ activeOrders 변경: [] → [46156450]
+useOrderEngine.ts:87    ➡️ activeOrders 변경: [] → [46156450]
+roadmapLogger.ts:11 [ROADMAP 04:26:18.701] [🖥️관제웹] [관제대시보드] 🟡 [웹 수신] order-detail-received | ID: 46156450 | 경기 광주시 목현동 558 쏘카 광주
+roadmapLogger.ts:11 [ROADMAP 04:26:18.702] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 '상하차지 및 적요' 텍스트를 선출력하여 렌더링
+roadmapLogger.ts:11 [ROADMAP 04:26:18.702] [🖥️관제웹] [관제대시보드] 🟡 [웹 수신] order-detail-received | ID: 46156450 | 경기 광주시 목현동 558 쏘카 광주
+roadmapLogger.ts:11 [ROADMAP 04:26:18.702] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 '상하차지 및 적요' 텍스트를 선출력하여 렌더링
+roadmapLogger.ts:11 [ROADMAP 04:26:18.920] [🖥️관제웹] [관제대시보드] 🔵 [웹 수신] order-evaluated | ID: 46156450 | 카카오 연산 실패: 카카오에러: 시작지점 탐색불가 (시작 지점 주변의 도로를 탐색할 수 없음)
+roadmapLogger.ts:11 [ROADMAP 04:26:18.920] [🖥️관제웹] [관제대시보드] 추천 결과 노출, 경로보기버튼 추가 노출 후 판단 (취소 or 닫기) 대기
+roadmapLogger.ts:11 [ROADMAP 04:26:18.920] [🖥️관제웹] [관제대시보드] UI 상단에 에러 배너 렌더링 및 카카오맵 불가 상태를 PinnedRoute 에 표현
+roadmapLogger.ts:11 [ROADMAP 04:26:18.920] [🖥️관제웹] [관제대시보드] 🔵 [웹 수신] order-evaluated | ID: 46156450 | 카카오 연산 실패: 카카오에러: 시작지점 탐색불가 (시작 지점 주변의 도로를 탐색할 수 없음)
+roadmapLogger.ts:11 [ROADMAP 04:26:18.920] [🖥️관제웹] [관제대시보드] 추천 결과 노출, 경로보기버튼 추가 노출 후 판단 (취소 or 닫기) 대기
+roadmapLogger.ts:11 [ROADMAP 04:26:18.920] [🖥️관제웹] [관제대시보드] UI 상단에 에러 배너 렌더링 및 카카오맵 불가 상태를 PinnedRoute 에 표현
+roadmapLogger.ts:11 [ROADMAP 04:26:30.141] [🖥️관제웹] PinnedRoute에서 CANCEL(취소) 또는 X 버튼 클릭
+roadmapLogger.ts:11 [ROADMAP 04:26:30.142] [🖥️관제웹] 서버에게 decision=CANCEL 하달 정보 전달
+roadmapLogger.ts:11 [ROADMAP 04:26:30.142] [🖥️관제웹] [관제대시보드] [Socket] 취소 전달
+roadmapLogger.ts:11 [ROADMAP 04:26:30.184] [🖥️관제웹] [관제대시보드] 🔴 [웹 수신] order-canceled | ID: 46156450
+roadmapLogger.ts:11 [ROADMAP 04:26:30.184] [🖥️관제웹] [관제대시보드] PinnedRoute 아코디언 컴포넌트를 강제 삭제하고 초기 관제대기 Empty State 화면 렌더링
+useOrderEngine.ts:130    ➡️ activeOrders 변경: [46156450] → []
+roadmapLogger.ts:11 [ROADMAP 04:26:30.184] [🖥️관제웹] [관제대시보드] 🔴 [웹 수신] order-canceled | ID: 46156450
+roadmapLogger.ts:11 [ROADMAP 04:26:30.184] [🖥️관제웹] [관제대시보드] PinnedRoute 아코디언 컴포넌트를 강제 삭제하고 초기 관제대기 Empty State 화면 렌더링
+useOrderEngine.ts:130    ➡️ activeOrders 변경: [46156450] → []
+useOrderEngine.ts:130    ➡️ activeOrders 변경: [46156450] → []
+useOrderEngine.ts:130    ➡️ activeOrders 변경: [46156450] → []
+5roadmapLogger.ts:11 [ROADMAP 04:26:30.197] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
+roadmapLogger.ts:11 [ROADMAP 04:26:31.144] [🖥️관제웹] [관제대시보드] 🟢 [웹 수신] order-evaluating | ID: 8daa61f0-9a52-4dd9-9360-39a415c026f4 | 기기: 앱폰-sdk_gpho-160 | 분당구
+roadmapLogger.ts:11 [ROADMAP 04:26:31.145] [🖥️관제웹] [관제대시보드] 확정페이지 진입 (선빵 수신으로 상세 모드 구동)
+roadmapLogger.ts:11 [ROADMAP 04:26:31.145] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 빈 레이아웃(평가중) 렌더링 및 하단 결재버튼 전체 딤드(비활성) 처리
+useOrderEngine.ts:87    ➡️ activeOrders 변경: [] → [8daa61f0]
+roadmapLogger.ts:11 [ROADMAP 04:26:31.146] [🖥️관제웹] [관제대시보드] 🟢 [웹 수신] order-evaluating | ID: 8daa61f0-9a52-4dd9-9360-39a415c026f4 | 기기: 앱폰-sdk_gpho-160 | 분당구
+roadmapLogger.ts:11 [ROADMAP 04:26:31.146] [🖥️관제웹] [관제대시보드] 확정페이지 진입 (선빵 수신으로 상세 모드 구동)
+roadmapLogger.ts:11 [ROADMAP 04:26:31.146] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 빈 레이아웃(평가중) 렌더링 및 하단 결재버튼 전체 딤드(비활성) 처리
+useOrderEngine.ts:87    ➡️ activeOrders 변경: [] → [8daa61f0]
+useOrderEngine.ts:87    ➡️ activeOrders 변경: [] → [8daa61f0]
+useOrderEngine.ts:87    ➡️ activeOrders 변경: [] → [8daa61f0]
+roadmapLogger.ts:11 [ROADMAP 04:26:31.956] [🖥️관제웹] [관제대시보드] 🟡 [웹 수신] order-detail-received | ID: 8daa61f0 | 경기 광주시 경안동 167-1 경안천
+roadmapLogger.ts:11 [ROADMAP 04:26:31.956] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 '상하차지 및 적요' 텍스트를 선출력하여 렌더링
+roadmapLogger.ts:11 [ROADMAP 04:26:31.956] [🖥️관제웹] [관제대시보드] 🟡 [웹 수신] order-detail-received | ID: 8daa61f0 | 경기 광주시 경안동 167-1 경안천
+roadmapLogger.ts:11 [ROADMAP 04:26:31.956] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 '상하차지 및 적요' 텍스트를 선출력하여 렌더링
+roadmapLogger.ts:11 [ROADMAP 04:26:32.160] [🖥️관제웹] [관제대시보드] 🔵 [웹 수신] order-evaluated | ID: 8daa61f0 | 단독 19.6km, 25분 '꿀'
+roadmapLogger.ts:11 [ROADMAP 04:26:32.160] [🖥️관제웹] [관제대시보드] 추천 결과 노출, 경로보기버튼 추가 노출 후 판단 (취소 or 닫기) 대기
+roadmapLogger.ts:11 [ROADMAP 04:26:32.160] [🖥️관제웹] [관제대시보드] PinnedRoute 내 캔버스 미니맵 좌표 포커싱 및 카카오 궤적(폴리라인) 드로잉 처리
+roadmapLogger.ts:11 [ROADMAP 04:26:32.161] [🖥️관제웹] [관제대시보드] 예상 시간/수익률을 컴포넌트에 표시하고 결재버튼(KEEP/CANCEL) 즉시 딤드 해제(활성화)
+roadmapLogger.ts:11 [ROADMAP 04:26:32.161] [🖥️관제웹] [관제대시보드] 🔵 [웹 수신] order-evaluated | ID: 8daa61f0 | 단독 19.6km, 25분 '꿀'
+roadmapLogger.ts:11 [ROADMAP 04:26:32.161] [🖥️관제웹] [관제대시보드] 추천 결과 노출, 경로보기버튼 추가 노출 후 판단 (취소 or 닫기) 대기
+roadmapLogger.ts:11 [ROADMAP 04:26:32.161] [🖥️관제웹] [관제대시보드] PinnedRoute 내 캔버스 미니맵 좌표 포커싱 및 카카오 궤적(폴리라인) 드로잉 처리
+roadmapLogger.ts:11 [ROADMAP 04:26:32.161] [🖥️관제웹] [관제대시보드] 예상 시간/수익률을 컴포넌트에 표시하고 결재버튼(KEEP/CANCEL) 즉시 딤드 해제(활성화)
+2soundManager.ts:93 [SoundManager] 🎵 콜 알림음 재생 시작
+roadmapLogger.ts:11 [ROADMAP 04:26:39.468] [🖥️관제웹] PinnedRoute에서 KEEP(유지 확정) 버튼 클릭
+roadmapLogger.ts:11 [ROADMAP 04:26:39.468] [🖥️관제웹] 서버에게 decision=KEEP 하달 정보 전달
+roadmapLogger.ts:11 [ROADMAP 04:26:39.469] [🖥️관제웹] [관제대시보드] [Socket] 유지 전달
+roadmapLogger.ts:11 [ROADMAP 04:26:39.502] [🖥️관제웹] [관제대시보드] PinnedRoute 레이아웃을 합짐/무한 궤도 모드로 격상 렌더링 및 딤드 다시 처리
+roadmapLogger.ts:11 [ROADMAP 04:26:39.503] [🖥️관제웹] [관제대시보드] PinnedRoute 레이아웃을 합짐/무한 궤도 모드로 격상 렌더링 및 딤드 다시 처리
+3roadmapLogger.ts:11 [ROADMAP 04:26:39.522] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
+2roadmapLogger.ts:11 [ROADMAP 04:26:39.523] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
+soundManager.ts:115 [SoundManager] 🔇 콜 알림음 정지
+roadmapLogger.ts:11 [ROADMAP 04:26:41.268] [🖥️관제웹] [관제대시보드] 🟢 [웹 수신] order-evaluating | ID: 55ef98aa-f143-43d6-95de-55dc7ff69445 | 기기: 앱폰-sdk_gpho-160 | 마포구
+roadmapLogger.ts:11 [ROADMAP 04:26:41.268] [🖥️관제웹] [관제대시보드] 확정페이지 진입 (선빵 수신으로 상세 모드 구동)
+roadmapLogger.ts:11 [ROADMAP 04:26:41.268] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 빈 레이아웃(평가중) 렌더링 및 하단 결재버튼 전체 딤드(비활성) 처리
+useOrderEngine.ts:87    ➡️ activeOrders 변경: [8daa61f0] → [8daa61f0, 55ef98aa]
+roadmapLogger.ts:11 [ROADMAP 04:26:41.269] [🖥️관제웹] [관제대시보드] 🟢 [웹 수신] order-evaluating | ID: 55ef98aa-f143-43d6-95de-55dc7ff69445 | 기기: 앱폰-sdk_gpho-160 | 마포구
+roadmapLogger.ts:11 [ROADMAP 04:26:41.269] [🖥️관제웹] [관제대시보드] 확정페이지 진입 (선빵 수신으로 상세 모드 구동)
+roadmapLogger.ts:11 [ROADMAP 04:26:41.269] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 빈 레이아웃(평가중) 렌더링 및 하단 결재버튼 전체 딤드(비활성) 처리
+useOrderEngine.ts:87    ➡️ activeOrders 변경: [8daa61f0] → [8daa61f0, 55ef98aa]
+useOrderEngine.ts:87    ➡️ activeOrders 변경: [8daa61f0] → [8daa61f0, 55ef98aa]
+useOrderEngine.ts:87    ➡️ activeOrders 변경: [8daa61f0] → [8daa61f0, 55ef98aa]
+3roadmapLogger.ts:11 [ROADMAP 04:26:41.309] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
+2roadmapLogger.ts:11 [ROADMAP 04:26:41.310] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
+roadmapLogger.ts:11 [ROADMAP 04:26:42.080] [🖥️관제웹] [관제대시보드] 🟡 [웹 수신] order-detail-received | ID: 55ef98aa | 경기 광주시 퇴촌면 경충대로 1520
+roadmapLogger.ts:11 [ROADMAP 04:26:42.080] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 '상하차지 및 적요' 텍스트를 선출력하여 렌더링
+roadmapLogger.ts:11 [ROADMAP 04:26:42.080] [🖥️관제웹] [관제대시보드] 🟡 [웹 수신] order-detail-received | ID: 55ef98aa | 경기 광주시 퇴촌면 경충대로 1520
+roadmapLogger.ts:11 [ROADMAP 04:26:42.080] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 '상하차지 및 적요' 텍스트를 선출력하여 렌더링
+useOrderEngine.ts:161 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
+useOrderEngine.ts:206 🔍 [하트비트 상세 원인 추적]
+ - [UPDATE] ID: 55ef98aa 변경점 -> 'dropoff': "마포구" ➡️ "서울 마포구 성암로 267 MBC" | 'pickup': "퇴촌면" ➡️ "경기 광주시 퇴촌면 경충대로 1520 농협하나로마트" | 'pickupX': undefined ➡️ 127.30956060028 | 'pickupY': undefined ➡️ 37.4700439327621 | 'dropoffX': undefined ➡️ 126.890988995582 | 'dropoffY': undefined ➡️ 37.5811234199086 | 'kakaoSoloDistanceKm': undefined ➡️ 9 | 'kakaoSoloDurationMin': undefined ➡️ 14
+useOrderEngine.ts:161 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
+useOrderEngine.ts:206 🔍 [하트비트 상세 원인 추적]
+ - [UPDATE] ID: 55ef98aa 변경점 -> 'dropoff': "마포구" ➡️ "서울 마포구 성암로 267 MBC" | 'pickup': "퇴촌면" ➡️ "경기 광주시 퇴촌면 경충대로 1520 농협하나로마트" | 'pickupX': undefined ➡️ 127.30956060028 | 'pickupY': undefined ➡️ 37.4700439327621 | 'dropoffX': undefined ➡️ 126.890988995582 | 'dropoffY': undefined ➡️ 37.5811234199086 | 'kakaoSoloDistanceKm': undefined ➡️ 9 | 'kakaoSoloDurationMin': undefined ➡️ 14
+useOrderEngine.ts:161 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
+useOrderEngine.ts:206 🔍 [하트비트 상세 원인 추적]
+ - [UPDATE] ID: 55ef98aa 변경점 -> 'dropoff': "마포구" ➡️ "서울 마포구 성암로 267 MBC" | 'pickup': "퇴촌면" ➡️ "경기 광주시 퇴촌면 경충대로 1520 농협하나로마트" | 'pickupX': undefined ➡️ 127.30956060028 | 'pickupY': undefined ➡️ 37.4700439327621 | 'dropoffX': undefined ➡️ 126.890988995582 | 'dropoffY': undefined ➡️ 37.5811234199086 | 'kakaoSoloDistanceKm': undefined ➡️ 9 | 'kakaoSoloDurationMin': undefined ➡️ 14
+useOrderEngine.ts:161 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
+useOrderEngine.ts:206 🔍 [하트비트 상세 원인 추적]
+ - [UPDATE] ID: 55ef98aa 변경점 -> 'dropoff': "마포구" ➡️ "서울 마포구 성암로 267 MBC" | 'pickup': "퇴촌면" ➡️ "경기 광주시 퇴촌면 경충대로 1520 농협하나로마트" | 'pickupX': undefined ➡️ 127.30956060028 | 'pickupY': undefined ➡️ 37.4700439327621 | 'dropoffX': undefined ➡️ 126.890988995582 | 'dropoffY': undefined ➡️ 37.5811234199086 | 'kakaoSoloDistanceKm': undefined ➡️ 9 | 'kakaoSoloDurationMin': undefined ➡️ 14
+useOrderEngine.ts:161 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
+useOrderEngine.ts:206 🔍 [하트비트 상세 원인 추적]
+ - [UPDATE] ID: 55ef98aa 변경점 -> 'osrmSoloDistanceKm': undefined ➡️ 50.064800000000005 | 'osrmSoloDurationMin': undefined ➡️ 50
+useOrderEngine.ts:161 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
+useOrderEngine.ts:206 🔍 [하트비트 상세 원인 추적]
+ - [UPDATE] ID: 55ef98aa 변경점 -> 'osrmSoloDistanceKm': undefined ➡️ 50.064800000000005 | 'osrmSoloDurationMin': undefined ➡️ 50
+useOrderEngine.ts:161 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
+useOrderEngine.ts:206 🔍 [하트비트 상세 원인 추적]
+ - [UPDATE] ID: 55ef98aa 변경점 -> 'osrmSoloDistanceKm': undefined ➡️ 50.064800000000005 | 'osrmSoloDurationMin': undefined ➡️ 50
+useOrderEngine.ts:161 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
+useOrderEngine.ts:206 🔍 [하트비트 상세 원인 추적]
+ - [UPDATE] ID: 55ef98aa 변경점 -> 'osrmSoloDistanceKm': undefined ➡️ 50.064800000000005 | 'osrmSoloDurationMin': undefined ➡️ 50
+roadmapLogger.ts:11 [ROADMAP 04:26:44.882] [🖥️관제웹] [관제대시보드] 🔵 [웹 수신] order-evaluated | ID: 55ef98aa | +58.4km, +65분 '똥'
+roadmapLogger.ts:11 [ROADMAP 04:26:44.883] [🖥️관제웹] [관제대시보드] 추천 결과 노출, 경로보기버튼 추가 노출 후 판단 (취소 or 닫기) 대기
+roadmapLogger.ts:11 [ROADMAP 04:26:44.883] [🖥️관제웹] [관제대시보드] PinnedRoute 내 캔버스 미니맵 좌표 포커싱 및 카카오 궤적(폴리라인) 드로잉 처리
+roadmapLogger.ts:11 [ROADMAP 04:26:44.883] [🖥️관제웹] [관제대시보드] 예상 시간/수익률을 컴포넌트에 표시하고 결재버튼(KEEP/CANCEL) 즉시 딤드 해제(활성화)
+roadmapLogger.ts:11 [ROADMAP 04:26:44.884] [🖥️관제웹] [관제대시보드] 🔵 [웹 수신] order-evaluated | ID: 55ef98aa | +58.4km, +65분 '똥'
+roadmapLogger.ts:11 [ROADMAP 04:26:44.884] [🖥️관제웹] [관제대시보드] 추천 결과 노출, 경로보기버튼 추가 노출 후 판단 (취소 or 닫기) 대기
+roadmapLogger.ts:11 [ROADMAP 04:26:44.884] [🖥️관제웹] [관제대시보드] PinnedRoute 내 캔버스 미니맵 좌표 포커싱 및 카카오 궤적(폴리라인) 드로잉 처리
+roadmapLogger.ts:11 [ROADMAP 04:26:44.884] [🖥️관제웹] [관제대시보드] 예상 시간/수익률을 컴포넌트에 표시하고 결재버튼(KEEP/CANCEL) 즉시 딤드 해제(활성화)
+roadmapLogger.ts:11 [ROADMAP 04:26:51.559] [🖥️관제웹] PinnedRoute에서 KEEP(유지 확정) 버튼 클릭
+roadmapLogger.ts:11 [ROADMAP 04:26:51.560] [🖥️관제웹] 서버에게 decision=KEEP 하달 정보 전달
+roadmapLogger.ts:11 [ROADMAP 04:26:51.560] [🖥️관제웹] [관제대시보드] [Socket] 유지 전달
+useOrderEngine.ts:161 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
+useOrderEngine.ts:206 🔍 [하트비트 상세 원인 추적]
+ - [UPDATE] ID: 55ef98aa 변경점 -> 'status': "evaluating_detailed" ➡️ "confirmed"
+useOrderEngine.ts:161 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
+useOrderEngine.ts:206 🔍 [하트비트 상세 원인 추적]
+ - [UPDATE] ID: 55ef98aa 변경점 -> 'status': "evaluating_detailed" ➡️ "confirmed"
+useOrderEngine.ts:161 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
+useOrderEngine.ts:206 🔍 [하트비트 상세 원인 추적]
+ - [UPDATE] ID: 55ef98aa 변경점 -> 'status': "evaluating_detailed" ➡️ "confirmed"
+useOrderEngine.ts:161 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
+useOrderEngine.ts:206 🔍 [하트비트 상세 원인 추적]
+ - [UPDATE] ID: 55ef98aa 변경점 -> 'status': "evaluating_detailed" ➡️ "confirmed"
+2roadmapLogger.ts:11 [ROADMAP 04:26:52.369] [🖥️관제웹] [관제대시보드] PinnedRoute 레이아웃을 합짐/무한 궤도 모드로 격상 렌더링 및 딤드 다시 처리
+5roadmapLogger.ts:11 [ROADMAP 04:26:52.384] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
+useMasterGps.ts:51 📍 [Master GPS - Real] 실제 위치 이동: 위도 37.37665620160138, 경도 127.29438371196399
+5roadmapLogger.ts:11 [ROADMAP 04:26:52.748] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
+roadmapLogger.ts:11 [ROADMAP 04:26:58.425] [🖥️관제웹] [관제대시보드] 🟢 [웹 수신] order-evaluating | ID: AUTO-1776972418297 | 기기: 앱폰-sdk_gpho-160 | 신규
+roadmapLogger.ts:11 [ROADMAP 04:26:58.425] [🖥️관제웹] [관제대시보드] 확정페이지 진입 (선빵 수신으로 상세 모드 구동)
+roadmapLogger.ts:11 [ROADMAP 04:26:58.425] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 빈 레이아웃(평가중) 렌더링 및 하단 결재버튼 전체 딤드(비활성) 처리
+useOrderEngine.ts:87    ➡️ activeOrders 변경: [8daa61f0, 55ef98aa] → [8daa61f0, 55ef98aa, AUTO-177]
+roadmapLogger.ts:11 [ROADMAP 04:26:58.426] [🖥️관제웹] [관제대시보드] 🟢 [웹 수신] order-evaluating | ID: AUTO-1776972418297 | 기기: 앱폰-sdk_gpho-160 | 신규
+roadmapLogger.ts:11 [ROADMAP 04:26:58.426] [🖥️관제웹] [관제대시보드] 확정페이지 진입 (선빵 수신으로 상세 모드 구동)
+roadmapLogger.ts:11 [ROADMAP 04:26:58.426] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 빈 레이아웃(평가중) 렌더링 및 하단 결재버튼 전체 딤드(비활성) 처리
+useOrderEngine.ts:87    ➡️ activeOrders 변경: [8daa61f0, 55ef98aa] → [8daa61f0, 55ef98aa, AUTO-177]
+useOrderEngine.ts:87    ➡️ activeOrders 변경: [8daa61f0, 55ef98aa] → [8daa61f0, 55ef98aa, AUTO-177]
+useOrderEngine.ts:87    ➡️ activeOrders 변경: [8daa61f0, 55ef98aa] → [8daa61f0, 55ef98aa, AUTO-177]
+4roadmapLogger.ts:11 [ROADMAP 04:26:58.511] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
+roadmapLogger.ts:11 [ROADMAP 04:26:58.512] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
+roadmapLogger.ts:11 [ROADMAP 04:27:02.673] [🖥️관제웹] [관제대시보드] 🟡 [웹 수신] order-detail-received | ID: AUTO-177 | 경기 광주시 곤지암읍 경충대로 727
+roadmapLogger.ts:11 [ROADMAP 04:27:02.673] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 '상하차지 및 적요' 텍스트를 선출력하여 렌더링
+roadmapLogger.ts:11 [ROADMAP 04:27:02.673] [🖥️관제웹] [관제대시보드] 🟡 [웹 수신] order-detail-received | ID: AUTO-177 | 경기 광주시 곤지암읍 경충대로 727
+roadmapLogger.ts:11 [ROADMAP 04:27:02.673] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 '상하차지 및 적요' 텍스트를 선출력하여 렌더링
+useOrderEngine.ts:161 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
+useOrderEngine.ts:206 🔍 [하트비트 상세 원인 추적]
+ - [UPDATE] ID: AUTO-177 변경점 -> 'dropoff': "신규" ➡️ "서울 마포구 성암로 267 MBC" | 'pickup': "전표" ➡️ "경기 광주시 곤지암읍 경충대로 727 곤지암도자공원" | 'pickupX': undefined ➡️ 127.334785879899 | 'pickupY': undefined ➡️ 37.3502833175492 | 'dropoffX': undefined ➡️ 126.890988995582 | 'dropoffY': undefined ➡️ 37.5811234199086 | 'kakaoSoloDistanceKm': undefined ➡️ 12.3 | 'kakaoSoloDurationMin': undefined ➡️ 18
+useOrderEngine.ts:161 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
+useOrderEngine.ts:206 🔍 [하트비트 상세 원인 추적]
+ - [UPDATE] ID: AUTO-177 변경점 -> 'dropoff': "신규" ➡️ "서울 마포구 성암로 267 MBC" | 'pickup': "전표" ➡️ "경기 광주시 곤지암읍 경충대로 727 곤지암도자공원" | 'pickupX': undefined ➡️ 127.334785879899 | 'pickupY': undefined ➡️ 37.3502833175492 | 'dropoffX': undefined ➡️ 126.890988995582 | 'dropoffY': undefined ➡️ 37.5811234199086 | 'kakaoSoloDistanceKm': undefined ➡️ 12.3 | 'kakaoSoloDurationMin': undefined ➡️ 18
+useOrderEngine.ts:161 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
+useOrderEngine.ts:206 🔍 [하트비트 상세 원인 추적]
+ - [UPDATE] ID: AUTO-177 변경점 -> 'dropoff': "신규" ➡️ "서울 마포구 성암로 267 MBC" | 'pickup': "전표" ➡️ "경기 광주시 곤지암읍 경충대로 727 곤지암도자공원" | 'pickupX': undefined ➡️ 127.334785879899 | 'pickupY': undefined ➡️ 37.3502833175492 | 'dropoffX': undefined ➡️ 126.890988995582 | 'dropoffY': undefined ➡️ 37.5811234199086 | 'kakaoSoloDistanceKm': undefined ➡️ 12.3 | 'kakaoSoloDurationMin': undefined ➡️ 18
+useOrderEngine.ts:161 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
+useOrderEngine.ts:206 🔍 [하트비트 상세 원인 추적]
+ - [UPDATE] ID: AUTO-177 변경점 -> 'dropoff': "신규" ➡️ "서울 마포구 성암로 267 MBC" | 'pickup': "전표" ➡️ "경기 광주시 곤지암읍 경충대로 727 곤지암도자공원" | 'pickupX': undefined ➡️ 127.334785879899 | 'pickupY': undefined ➡️ 37.3502833175492 | 'dropoffX': undefined ➡️ 126.890988995582 | 'dropoffY': undefined ➡️ 37.5811234199086 | 'kakaoSoloDistanceKm': undefined ➡️ 12.3 | 'kakaoSoloDurationMin': undefined ➡️ 18
+useOrderEngine.ts:161 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
+useOrderEngine.ts:206 🔍 [하트비트 상세 원인 추적]
+ - [UPDATE] ID: AUTO-177 변경점 -> 'osrmSoloDistanceKm': undefined ➡️ 59.4832 | 'osrmSoloDurationMin': undefined ➡️ 55
+useOrderEngine.ts:161 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
+useOrderEngine.ts:206 🔍 [하트비트 상세 원인 추적]
+ - [UPDATE] ID: AUTO-177 변경점 -> 'osrmSoloDistanceKm': undefined ➡️ 59.4832 | 'osrmSoloDurationMin': undefined ➡️ 55
+useOrderEngine.ts:161 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
+useOrderEngine.ts:206 🔍 [하트비트 상세 원인 추적]
+ - [UPDATE] ID: AUTO-177 변경점 -> 'osrmSoloDistanceKm': undefined ➡️ 59.4832 | 'osrmSoloDurationMin': undefined ➡️ 55
+useOrderEngine.ts:161 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
+useOrderEngine.ts:206 🔍 [하트비트 상세 원인 추적]
+ - [UPDATE] ID: AUTO-177 변경점 -> 'osrmSoloDistanceKm': undefined ➡️ 59.4832 | 'osrmSoloDurationMin': undefined ➡️ 55
+roadmapLogger.ts:11 [ROADMAP 04:27:04.855] [🖥️관제웹] [관제대시보드] 🔵 [웹 수신] order-evaluated | ID: AUTO-177 | +67.8km, +85분 '똥'
+roadmapLogger.ts:11 [ROADMAP 04:27:04.856] [🖥️관제웹] [관제대시보드] 추천 결과 노출, 경로보기버튼 추가 노출 후 판단 (취소 or 닫기) 대기
+roadmapLogger.ts:11 [ROADMAP 04:27:04.856] [🖥️관제웹] [관제대시보드] PinnedRoute 내 캔버스 미니맵 좌표 포커싱 및 카카오 궤적(폴리라인) 드로잉 처리
+roadmapLogger.ts:11 [ROADMAP 04:27:04.856] [🖥️관제웹] [관제대시보드] 예상 시간/수익률을 컴포넌트에 표시하고 결재버튼(KEEP/CANCEL) 즉시 딤드 해제(활성화)
+roadmapLogger.ts:11 [ROADMAP 04:27:04.856] [🖥️관제웹] [관제대시보드] 🔵 [웹 수신] order-evaluated | ID: AUTO-177 | +67.8km, +85분 '똥'
+roadmapLogger.ts:11 [ROADMAP 04:27:04.857] [🖥️관제웹] [관제대시보드] 추천 결과 노출, 경로보기버튼 추가 노출 후 판단 (취소 or 닫기) 대기
+roadmapLogger.ts:11 [ROADMAP 04:27:04.857] [🖥️관제웹] [관제대시보드] PinnedRoute 내 캔버스 미니맵 좌표 포커싱 및 카카오 궤적(폴리라인) 드로잉 처리
+roadmapLogger.ts:11 [ROADMAP 04:27:04.857] [🖥️관제웹] [관제대시보드] 예상 시간/수익률을 컴포넌트에 표시하고 결재버튼(KEEP/CANCEL) 즉시 딤드 해제(활성화)
+2roadmapLogger.ts:11 [ROADMAP 04:27:05.658] [🖥️관제웹] [관제대시보드] PinnedRoute 레이아웃을 합짐/무한 궤도 모드로 격상 렌더링 및 딤드 다시 처리
+roadmapLogger.ts:11 [ROADMAP 04:27:05.678] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
+4roadmapLogger.ts:11 [ROADMAP 04:27:05.679] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
+useOrderEngine.ts:161 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
+useOrderEngine.ts:206 🔍 [하트비트 상세 원인 추적]
+ - [UPDATE] ID: AUTO-177 변경점 -> 'routePolyline': [{"x":127.29438831837598,"y":37.3765589966157},{"x":127.29516686274668,"y":37.37661770429824},{"x":127.29525701888362,"y":37.376636263343485},{"x":127.2952792628723,"y":37.37667243947414},{"x":127.29527909427061,"y":37.37669046026264},{"x":127.2952898790767,"y":37.3767445899032},{"x":127.29527825125986,"y":37.37678056420432},{"x":127.29524387357502,"y":37.37683442473539},{"x":127.29520949584055,"y":37.376888285255475},{"x":127.29516214109867,"y":37.377122286347706},{"x":127.29514933270839,"y":37.37728440613715},{"x":127.29512649836015,"y":37.377311302735855},{"x":127.2950924576201,"y":37.377329121642916},{"x":127.294809515278,"y":37.377399522079955},{"x":127.29475297736693,"y":37.377408195850116},{"x":127.29421136103988,"y":37.37736892134296},{"x":127.29418861076701,"y":37.37738680736545},{"x":127.2941532187689,"y":37.377548792253236},{"x":127.2941532187689,"y":37.377548792253236},{"x":127.29475145877268,"y":37.37757038290592},{"x":127.29475145877268,"y":37.37757038290592},{"x":127.29488779109332,"y":37.37748108683639},{"x":127.29537430365562,"y":37.37737585563768},{"x":127.29544213218139,"y":37.37736724883126},{"x":127.2955553763209,"y":37.377331879814925},{"x":127.29564612322292,"y":37.377287365813594},{"x":127.29572557933048,"y":37.377242784507736},{"x":127.29582770094397,"y":37.377189327203226},{"x":127.29582770094397,"y":37.377189327203226},{"x":127.29585104040945,"y":37.37710836809764},{"x":127.29588651277109,"y":37.37693737225512},{"x":127.29593361247369,"y":37.376730402027675},{"x":127.29604963430639,"y":37.37639768945837},{"x":127.29611923006377,"y":37.37619986392746},{"x":127.2962115748284,"y":37.375984151924634},{"x":127.29629203934826,"y":37.37583144544231},{"x":127.29639550526895,"y":37.37563382124561},{"x":127.29647563241572,"y":37.375517156215},{"x":127.2965442164616,"y":37.3754274551687},{"x":127.29665863501475,"y":37.37526593946429},{"x":127.29680709240978,"y":37.37508660422792},{"x":127.29690988312854,"y":37.3749610627323},{"x":127.29695554909402,"y":37.37490726879251},{"x":127.29718337353673,"y":37.374692361218},{"x":127.29741111263745,"y":37.374486463585264},{"x":127.29763859845708,"y":37.37430759670156},{"x":127.29786591522917,"y":37.37414675017017},{"x":127.29802490204986,"y":37.37404857397551},{"x":127.2980817729116,"y":37.37400385699158},{"x":127.2981498499582,"y":37.37396821738138},{"x":127.29828617172463,"y":37.37387891723209},{"x":127.29869505120658,"y":37.37362002621912},{"x":127.29930840707974,"y":37.37322718177051},{"x":127.29945618380157,"y":37.37311992630357},{"x":127.29964937165728,"y":37.37298590684152},{"x":127.30014898033855,"y":37.37268249340464},{"x":127.3006373786855,"y":37.37237000063226},{"x":127.30090992663115,"y":37.372200404682225},{"x":127.30113731367416,"y":37.372030541257345},{"x":127.3012736284109,"y":37.37194123756357},{"x":127.30216150249232,"y":37.37116253046278},{"x":127.30250303254827,"y":37.37085817411689},{"x":127.302628387429,"y":37.37073276055843},{"x":127.30293571112732,"y":37.37046424487628},{"x":127.30325457226425,"y":37.370168763607566},{"x":127.30333426632752,"y":37.370097145754755},{"x":127.30342541647666,"y":37.37000757349409},{"x":127.30347099146971,"y":37.369962787336114},{"x":127.30360771612291,"y":37.36982842875142},{"x":127.3039720630895,"y":37.369497169646614},{"x":127.30459764542137,"y":37.36899623822635},{"x":127.30508633388212,"y":37.36864768475774},{"x":127.30514319647831,"y":37.368602964253654},{"x":127.30694915416994,"y":37.367424119074144},{"x":127.30783534368096,"y":37.36681656588233},{"x":127.30840310950478,"y":37.366459450259136},{"x":127.31006097150214,"y":37.365414854519955},{"x":127.31099226784761,"y":37.364807540357916},{"x":127.31106041290398,"y":37.364762882673155},{"x":127.31138951880449,"y":37.36457556969892},{"x":127.31174177674127,"y":37.36432531404768},{"x":127.31222999080725,"y":37.36402178238117},{"x":127.31237773112763,"y":37.36391451023613},{"x":127.31300214350269,"y":37.36353066868871},{"x":127.31330882614627,"y":37.3633251982045},{"x":127.31380905445337,"y":37.36294063132101},{"x":127.31386582554194,"y":37.362904916936216},{"x":127.31394541981365,"y":37.362842302118786},{"x":127.3140250139531,"y":37.362779687245784},{"x":127.31405920769983,"y":37.36274384183165},{"x":127.31412743108577,"y":37.362690171875684},{"x":127.3141729132891,"y":37.36265439188237},{"x":127.31469718455234,"y":37.362107763850794},{"x":127.31529016084255,"y":37.36145339997795},{"x":127.31585989591106,"y":37.36087098604765},{"x":127.31633833576826,"y":37.360396172848525},{"x":127.31656532563333,"y":37.36026232056},{"x":127.31673579214011,"y":37.36013715228381},{"x":127.31696302549739,"y":37.359976267828046},{"x":127.31744047351359,"y":37.35960957552362},{"x":127.31953804590302,"y":37.35859441378086},{"x":127.32063776891914,"y":37.35806908947887},{"x":127.32350613702182,"y":37.35668883239378},{"x":127.32492282605835,"y":37.356057148771484},{"x":127.32510415345466,"y":37.355977
+useOrderEngine.ts:161 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
+useOrderEngine.ts:206 🔍 [하트비트 상세 원인 추적]

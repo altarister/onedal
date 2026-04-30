@@ -4,6 +4,8 @@ import { useFilterConfig } from "../../hooks/useFilterConfig";
 import { useOrderEngine } from "../../hooks/useOrderEngine";
 import type { SecuredOrder } from "@onedal/shared";
 import { apiClient } from "../../api/apiClient";
+import { Card } from "../ui/card";
+import { Badge } from "../ui/badge";
 
 // 하버사인 거리 계산 (km)
 function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number) {
@@ -24,7 +26,7 @@ export default function VehicleStatusPanel() {
     // GPS 속도 계산을 위한 상태
     const [currentSpeed, setCurrentSpeed] = useState<number>(0);
     const lastGpsRef = useRef<{ lat: number; lng: number; time: number } | null>(null);
-    const [currentGps, setCurrentGps] = useState<{ lat: number, lng: number } | null>(null);
+
 
     // 내 차량 정보 (DB 연동)
     const [dbVehicleType, setDbVehicleType] = useState<string>('1t');
@@ -60,7 +62,7 @@ export default function VehicleStatusPanel() {
             const loc = customEvent.detail;
 
             const now = Date.now();
-            setCurrentGps(loc);
+
 
             if (lastGpsRef.current) {
                 const distKm = haversineKm(lastGpsRef.current.lat, lastGpsRef.current.lng, loc.lat, loc.lng);
@@ -126,7 +128,7 @@ export default function VehicleStatusPanel() {
 
     const renderLoadStatus = () => {
         if (totalCount === 0) {
-            return <span className="text-slate-400">예약 0건</span>;
+            return <span className="text-muted-foreground">예약 0건</span>;
         }
 
         const formatItems = (items: SecuredOrder[], prefix: string) => {
@@ -139,35 +141,35 @@ export default function VehicleStatusPanel() {
         const loadedStr = formatItems(loadedItems, '상차');
 
         if (reservedStr && loadedStr) {
-            return <span className="text-warning font-bold">{loadedStr}, {reservedStr}</span>;
+            return <span className="text-amber-500 font-bold">{loadedStr}, {reservedStr}</span>;
         } else if (loadedStr) {
-            return <span className="text-success font-bold">{loadedStr}</span>;
+            return <span className="text-emerald-500 font-bold">{loadedStr}</span>;
         } else if (reservedStr) {
-            return <span className="text-info font-bold">{reservedStr}</span>;
+            return <span className="text-blue-500 font-bold">{reservedStr}</span>;
         }
         return null;
     };
 
     return (
-        <section className="flex items-center justify-between rounded-xl px-2 py-1 border shadow-md bg-slate-900 border-slate-700 mt-2">
+        <Card className="flex items-center justify-between px-3 py-2 mt-2 shadow-sm border-border bg-card">
             <div className="flex items-center gap-2">
-                <span className="text-sm font-black text-white">{myVehicle}</span>
+                <span className="text-sm font-black text-foreground">{myVehicle}</span>
                 <div className="text-xs mt-0.5">
                     {renderLoadStatus()}
                 </div>
             </div>
 
             <div className="flex flex-col items-end gap-1">
-                <div className={`flex items-center gap-1 px-2 py-1 rounded-full border ${isMoving ? 'bg-info/20 border-info/40 text-info-alt' : 'bg-slate-800 border-slate-700 text-slate-400'}`}>
-                    <span className={`w-2 h-2 rounded-full ${isMoving ? 'bg-info animate-pulse' : 'bg-slate-500'}`}></span>
+                <Badge variant="outline" className={`gap-1.5 px-2 py-0.5 rounded-full ${isMoving ? 'border-cyan-500/30 bg-cyan-500/10 text-cyan-500' : 'border-border bg-muted text-muted-foreground'}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${isMoving ? 'bg-cyan-500 animate-pulse' : 'bg-muted-foreground'}`}></span>
                     <span className="text-[11px] font-black tracking-wider">
                         {isMoving ? '이동 중' : '정차 중'}
                     </span>
                     {isMoving && (
-                        <span className="text-[10px] font-mono text-info/70">{Math.round(currentSpeed)} km/h</span>
+                        <span className="text-[10px] font-mono text-cyan-500/70 ml-1">{Math.round(currentSpeed)} km/h</span>
                     )}
-                </div>
+                </Badge>
             </div>
-        </section>
+        </Card>
     );
 }

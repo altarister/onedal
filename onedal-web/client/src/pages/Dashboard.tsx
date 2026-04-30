@@ -90,9 +90,9 @@ export default function Dashboard() {
 
                 {/* 📡 관제 대기 중 (Empty State) */}
                 {activeRoute.length === 0 && (
-                    <div className="flex-1 mt-12 py-12 flex flex-col items-center justify-center border-2 border-dashed border-border-card bg-surface rounded-3xl mx-2 transition-all">
-                        <h3 className="text-lg font-black text-text-primary mb-2 tracking-wider mt-4">실시간 자동 사냥 중</h3>
-                        <p className="text-text-muted text-xs text-center leading-relaxed mb-6">
+                    <div className="flex-1 mt-12 py-12 flex flex-col items-center justify-center border-2 border-dashed border-border bg-muted/30 rounded-3xl mx-2 transition-all">
+                        <h3 className="text-lg font-black text-foreground mb-2 tracking-wider mt-4">실시간 자동 사냥 중</h3>
+                        <p className="text-muted-foreground text-xs text-center leading-relaxed mb-6">
                             연동된 기기들이 인성 서버를 스캔하고 있습니다<br />
                             조건에 맞는 꿀콜을 낚아채면 즉시 보고합니다
                         </p>

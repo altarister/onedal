@@ -5,6 +5,10 @@ import type { EmergencyAlert, DeathValleyWarning } from "../../hooks/useSystemAl
 import { useFilterConfig } from "../../hooks/useFilterConfig";
 import type { AutoDispatchFilter } from "@onedal/shared";
 
+import { Card, CardContent } from "../ui/card";
+import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
+
 const EMERGENCY_LABELS: Record<string, string> = {
     AUTO_CANCEL: "⏱️ 자동취소 실행됨",
     CANCEL_EXPIRED: "🔴 취소 불가 팝업! 배차실 직접 취소 요망!",
@@ -15,14 +19,14 @@ const EMERGENCY_LABELS: Record<string, string> = {
 
 /** ScreenContext → 한국어 라벨 + 색상 매핑 (물리적 화면 상태만 표시, 홀드는 isHolding으로 분리) */
 const SCREEN_LABELS: Record<ScreenContextType, { label: string; color: string }> = {
-    LIST: { label: "콜 리스트", color: "text-success bg-success/15" },
-    DETAIL_PRE_CONFIRM: { label: "상세페이지", color: "text-info-alt bg-info-alt/15" },
-    DETAIL_CONFIRMED: { label: "확정페이지", color: "text-warning bg-warning/15" },
-    POPUP_PICKUP: { label: "출발지 팝업", color: "text-info bg-info/15" },
-    POPUP_DROPOFF: { label: "도착지 팝업", color: "text-info bg-info/15" },
-    POPUP_MEMO: { label: "적요 팝업", color: "text-accent bg-accent/15" },
-    POPUP_ERROR: { label: "취소 불가 팝업", color: "text-danger bg-danger/20 animate-pulse" },
-    UNKNOWN: { label: "알 수 없는 화면", color: "text-danger bg-danger/20 animate-pulse" },
+    LIST: { label: "콜 리스트", color: "text-emerald-500 bg-emerald-500/15 border-emerald-500/20" },
+    DETAIL_PRE_CONFIRM: { label: "상세페이지", color: "text-blue-400 bg-blue-400/15 border-blue-400/20" },
+    DETAIL_CONFIRMED: { label: "확정페이지", color: "text-amber-500 bg-amber-500/15 border-amber-500/20" },
+    POPUP_PICKUP: { label: "출발지 팝업", color: "text-blue-500 bg-blue-500/15 border-blue-500/20" },
+    POPUP_DROPOFF: { label: "도착지 팝업", color: "text-blue-500 bg-blue-500/15 border-blue-500/20" },
+    POPUP_MEMO: { label: "적요 팝업", color: "text-purple-500 bg-purple-500/15 border-purple-500/20" },
+    POPUP_ERROR: { label: "취소 불가 팝업", color: "text-rose-500 bg-rose-500/20 animate-pulse border-rose-500/30" },
+    UNKNOWN: { label: "알 수 없는 화면", color: "text-rose-500 bg-rose-500/20 animate-pulse border-rose-500/30" },
 };
 
 function DeviceRow({
@@ -46,11 +50,11 @@ function DeviceRow({
     const screenInfo = device.screenContext ? SCREEN_LABELS[device.screenContext] : null;
 
     let filterLabel = '일시정지';
-    let filterColor = 'bg-slate-500/20 text-slate-400 border-slate-500/30';
+    let filterColor = 'bg-muted text-muted-foreground border-border';
     if (currentFilter) {
         if (!currentFilter.isActive) {
             filterLabel = '스캔 정지';
-            filterColor = 'bg-warning/20 text-warning border-warning/30';
+            filterColor = 'bg-amber-500/20 text-amber-500 border-amber-500/30';
         } else {
             const state = currentFilter.loadState || 'EMPTY';
             if (state === 'LOADING') {
@@ -58,13 +62,13 @@ function DeviceRow({
                 filterColor = 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30';
             } else if (state === 'DRIVING') {
                 filterLabel = '경로 탐색';
-                filterColor = 'bg-accent/20 text-accent border-accent/30';
+                filterColor = 'bg-purple-500/20 text-purple-400 border-purple-500/30';
             } else if (state === 'ARRIVED') {
                 filterLabel = '도착 대기';
-                filterColor = 'bg-slate-500/20 text-slate-400 border-slate-500/30';
+                filterColor = 'bg-muted text-muted-foreground border-border';
             } else {
                 filterLabel = '첫짐 탐색';
-                filterColor = 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
+                filterColor = 'bg-emerald-500/20 text-emerald-500 border-emerald-500/30';
             }
         }
     }
@@ -73,27 +77,27 @@ function DeviceRow({
     const criticalAlerts = deviceAlerts.filter(a => a.reason !== 'AUTO_CANCEL' && a.reason !== 'BUTTON_NOT_FOUND');
 
     return (
-        <div className="flex flex-col border-b border-white/5 last:border-0 py-1">
-            <div className="flex items-center justify-between hover:bg-slate-800/20  transition-colors">
+        <div className="flex flex-col border-b border-border last:border-0 py-2 px-1">
+            <div className="flex items-center justify-between hover:bg-muted/30 transition-colors rounded p-1">
                 <div className={`flex flex-col gap-1 ${isDisconnected ? 'opacity-50' : ''}`}>
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3">
                         <span className="font-bold flex items-center gap-2">
-                            <span className={`font-black text-[10px] px-1.5 rounded ${isDisconnected ? 'bg-danger/20 text-danger animate-pulse' : 'text-success'}`}>
+                            <span className={`font-black text-[10px] px-1.5 rounded ${isDisconnected ? 'bg-rose-500/20 text-rose-500 animate-pulse' : 'text-emerald-500'}`}>
                                 {device.deviceName || device.deviceId.slice(0, 8)}
                             </span>
                             {screenInfo && (
-                                <div className={`text-[10px]  ${screenInfo.color}`}>
+                                <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${screenInfo.color}`}>
                                     {screenInfo.label}
-                                </div>
+                                </Badge>
                             )}
                         </span>
                         {/* [추가] 현재 적용된 필터 상태 표시 (온라인일 때만 최신 동기화로 간주) */}
                         {!isDisconnected && currentFilter && (
-                            <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded shadow-sm flex items-center gap-1 border ${filterColor}`}>
+                            <Badge variant="outline" className={`text-[10px] font-extrabold px-1.5 py-0 rounded shadow-sm flex items-center gap-1 border ${filterColor}`}>
                                 {filterLabel}
-                            </span>
+                            </Badge>
                         )}
-                        <div className="flex items-center gap-1 text-xs text-slate-400 font-medium ml-auto">
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium ml-auto">
                             <span>수집: {device.stats.polled}</span>
                             <span>수락: {device.stats.grabbed}</span>
                             <span>취소: {device.stats.canceled}</span>
@@ -101,50 +105,52 @@ function DeviceRow({
                     </div>
                 </div>
                 <div className="flex flex-col items-end gap-1">
-                    <button
+                    <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => onModeChange(device.deviceId, device.mode === "AUTO" ? "MANUAL" : "AUTO")}
-                        className={`border px-2 py-1 text-xs font-black rounded-md transition-colors ${device.mode === "AUTO"
-                            ? "bg-success/20 text-success border-success/30"
-                            : "bg-warning/10 text-warning border-warning/30"
+                        className={`h-7 px-2 text-xs font-black transition-colors ${device.mode === "AUTO"
+                            ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/20"
+                            : "bg-amber-500/10 text-amber-500 border-amber-500/30 hover:bg-amber-500/20"
                             }`}
                     >
                         {device.mode}
                         {/* [Page/Hold 분리] 콜 처리 중 홀드 배지 (화면 배지와 나란히 표시) */}
                         {device.isHolding && (
-                            <span> 처리 중</span>
+                            <span className="ml-1">처리 중</span>
                         )}
-                    </button>
+                    </Button>
                 </div>
             </div>
 
             {/* 🚨 개별 폰 비상/경고 알림 렌더링 (사람 개입 필요한 경우만 노출) */}
             {(criticalAlerts.length > 0 || deviceWarnings.length > 0) && (
-                <div className="px-2 pt-1 pb-1.5 flex flex-col gap-1.5">
+                <div className="px-2 pt-2 pb-1 flex flex-col gap-1.5">
                     {criticalAlerts.map(alert => (
-                        <div key={alert.timestamp} className="bg-red-500/15 border border-red-500/40 rounded flex items-center justify-between px-2 py-1 animate-pulse">
+                        <div key={alert.timestamp} className="bg-rose-500/10 border border-rose-500/30 rounded flex items-center justify-between px-2 py-1.5 animate-pulse">
                             <div className="flex flex-col gap-0.5 overflow-hidden pr-2">
-                                <span className="text-red-400 font-extrabold text-[11px] tracking-tight truncate">
+                                <span className="text-rose-500 font-extrabold text-[11px] tracking-tight truncate">
                                     🚨 {EMERGENCY_LABELS[alert.reason] || alert.reason}
                                 </span>
                                 {alert.screenText && (
-                                    <span className="text-red-300/70 truncate text-[10px] font-medium min-w-0 tracking-tight">
+                                    <span className="text-rose-400/70 truncate text-[10px] font-medium min-w-0 tracking-tight">
                                         화면텍스트: {alert.screenText}
                                     </span>
                                 )}
                             </div>
-                            <button onClick={() => onDismissAlert(alert.timestamp)} className="text-red-400 hover:text-red-200 font-black px-2 py-1 rounded bg-red-500/10 hover:bg-red-500/30 border border-red-500/20 active:scale-95 transition-all text-xs whitespace-nowrap flex-shrink-0 shadow-sm">
+                            <Button size="sm" variant="destructive" onClick={() => onDismissAlert(alert.timestamp)} className="h-6 text-xs px-2 shadow-sm">
                                 확인
-                            </button>
+                            </Button>
                         </div>
                     ))}
                     {deviceWarnings.map(w => (
-                        <div key={w.orderId} className="bg-amber-500/10 border border-amber-500/30 rounded flex items-center justify-between px-2 py-1">
-                            <span className="text-amber-400 font-extrabold text-[11px] tracking-tight truncate flex-1 pr-2">
+                        <div key={w.orderId} className="bg-amber-500/10 border border-amber-500/30 rounded flex items-center justify-between px-2 py-1.5">
+                            <span className="text-amber-500 font-extrabold text-[11px] tracking-tight truncate flex-1 pr-2">
                                 ⚠️ {w.message}
                             </span>
-                            <button onClick={() => onDismissWarning(w.orderId)} className="text-amber-400 hover:text-amber-200 font-black px-2 py-1 rounded bg-amber-500/10 hover:bg-amber-500/30 border border-amber-500/20 active:scale-95 transition-all text-xs whitespace-nowrap flex-shrink-0 shadow-sm">
+                            <Button size="sm" variant="outline" onClick={() => onDismissWarning(w.orderId)} className="h-6 text-xs px-2 border-amber-500/30 text-amber-500 hover:bg-amber-500/20 shadow-sm">
                                 확인
-                            </button>
+                            </Button>
                         </div>
                     ))}
                 </div>
@@ -159,28 +165,30 @@ export default function DeviceControlPanel() {
     const { filter } = useFilterConfig();
 
     return (
-        <section id="telemetry-panel" className="bg-surface border border-border-card rounded-xl p-1 shadow-lg mb-2">
-            <div className="flex flex-col">
-                {devices.length === 0 ? (
-                    <div className="text-center text-xs text-slate-500 py-4 opacity-80 font-bold tracking-tight">
-                        <span className="text-text-muted font-semibold mb-1 block opacity-60">연결된 안드로이드 폰이 없습니다.</span>
-                        우측 상단의 계정 버튼을 클릭하고 폰을 먼저 등록해 주세요.
-                    </div>
-                ) : (
-                    devices.map(device => (
-                        <DeviceRow
-                            key={device.deviceId}
-                            device={device}
-                            onModeChange={changeDeviceMode}
-                            deviceAlerts={alerts.filter(a => a.deviceId === device.deviceId)}
-                            deviceWarnings={warnings.filter(w => w.deviceId === device.deviceId)}
-                            onDismissAlert={dismissAlert}
-                            onDismissWarning={dismissWarning}
-                            currentFilter={filter}
-                        />
-                    ))
-                )}
-            </div>
-        </section>
+        <Card className="mb-2 shadow-sm border-border">
+            <CardContent className="p-2">
+                <div className="flex flex-col">
+                    {devices.length === 0 ? (
+                        <div className="text-center text-xs text-muted-foreground py-4 opacity-80 font-bold tracking-tight">
+                            <span className="font-semibold mb-1 block opacity-60">연결된 안드로이드 폰이 없습니다.</span>
+                            우측 상단의 계정 버튼을 클릭하고 폰을 먼저 등록해 주세요.
+                        </div>
+                    ) : (
+                        devices.map(device => (
+                            <DeviceRow
+                                key={device.deviceId}
+                                device={device}
+                                onModeChange={changeDeviceMode}
+                                deviceAlerts={alerts.filter(a => a.deviceId === device.deviceId)}
+                                deviceWarnings={warnings.filter(w => w.deviceId === device.deviceId)}
+                                onDismissAlert={dismissAlert}
+                                onDismissWarning={dismissWarning}
+                                currentFilter={filter}
+                            />
+                        ))
+                    )}
+                </div>
+            </CardContent>
+        </Card>
     );
 }

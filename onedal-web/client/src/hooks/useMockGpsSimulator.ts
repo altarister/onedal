@@ -25,7 +25,7 @@ export function useMockGpsSimulator({
 }: MockGpsSimulatorProps) {
     const [mockLocation, setMockLocation] = useState<{ x: number; y: number } | null>(null);
     const indexRef = useRef(0);
-    const intervalRef = useRef<NodeJS.Timeout | null>(null);
+    const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const routeRef = useRef(routePolyline);
 
     // 경로가 변경되면 새 경로를 저장하고, 길이가 다르면 인덱스 초기화

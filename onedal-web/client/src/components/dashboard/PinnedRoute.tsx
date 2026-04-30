@@ -1,6 +1,6 @@
 import type { SecuredOrder } from "@onedal/shared";
 import { useState, useEffect, useMemo } from 'react';
-import { socket } from '../../lib/socket';
+// removed socket
 import { logRoadmapEvent } from '../../lib/roadmapLogger';
 import PinnedRouteCanvas, { type RoutePoint } from './PinnedRouteCanvas';
 import PinnedRouteCard from './PinnedRouteCard';
@@ -30,8 +30,9 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: 
     const activePolyline = useMemo(() => {
         if (!activeRoute || activeRoute.length === 0) return null;
         for (let i = activeRoute.length - 1; i >= 0; i--) {
-            if (activeRoute[i].routePolyline && activeRoute[i].routePolyline.length > 0) {
-                return activeRoute[i].routePolyline;
+            const r = activeRoute[i];
+            if (r && r.routePolyline && r.routePolyline.length > 0) {
+                return r.routePolyline;
             }
         }
         return null;
@@ -40,7 +41,7 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: 
     const isDriving = filter?.loadState === 'DRIVING';
 
     // 📡 마스터 GPS 엔진 연결 (Real / Mock 자동 스위칭)
-    const { currentGps } = useMasterGps(isTestMode, isDriving, activePolyline);
+    const { currentGps } = useMasterGps(isTestMode, isDriving, activePolyline || null);
 
     // 하위 지도 캔버스에 렌더링하기 위한 로컬 상태 (초기 위치는 테스트용 판교 근처)
     const [myLocation, setMyLocation] = useState<{ x: number, y: number } | null>({ x: 127.29441569159479, y: 37.376544054495625 });

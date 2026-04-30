@@ -28,9 +28,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         const root = document.documentElement;
         // 기존 테마 클래스 제거
-        root.classList.remove('theme-light', 'theme-dark');
+        root.classList.remove('light', 'dark', 'theme-light', 'theme-dark');
         // 신규 테마 클래스 추가
-        root.classList.add(`theme-${theme}`);
+        root.classList.add(theme);
     }, [theme]);
 
     return (

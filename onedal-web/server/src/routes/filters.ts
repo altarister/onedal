@@ -1,35 +1,30 @@
 import { Router } from "express";
-import db from "../db";
 import { requireAuth } from "../middlewares/authMiddleware";
 import { getUserSession } from "../state/userSessionStore";
 import { applyFilter } from "../state/filterManager";
 
 const router = Router();
 
-// 사용자의 필터 조회 (DB에서)
+// 사용자의 필터 조회 (메모리 activeFilter에서 — 동적 파생 배열 포함)
 router.get("/", requireAuth, (req, res) => {
     try {
         const userId = req.user!.id;
-        let row = db.prepare("SELECT * FROM user_filters WHERE user_id = ?").get(userId) as any;
-        
-        if (!row) {
-            db.prepare("INSERT INTO user_filters (user_id) VALUES (?)").run(userId);
-            row = db.prepare("SELECT * FROM user_filters WHERE user_id = ?").get(userId) as any;
-        }
+        const session = getUserSession(userId);
+        const f = session.activeFilter;
 
         res.json({
-            isActive: Boolean(row.is_active),
-            isSharedMode: Boolean(row.is_shared_mode),
-            loadState: row.load_state ?? 'EMPTY',
-            destinationCity: row.destination_city ?? "",
-            destinationRadiusKm: row.destination_radius_km,
-            corridorRadiusKm: row.corridor_radius_km,
-            allowedVehicleTypes: JSON.parse(row.allowed_vehicle_types || '[]'),
-            minFare: row.min_fare,
-            maxFare: row.max_fare,
-            pickupRadiusKm: row.pickup_radius_km,
-            excludedKeywords: JSON.parse(row.excluded_keywords || '[]'),
-            destinationKeywords: JSON.parse(row.destination_keywords || '[]')
+            isActive: f.isActive ?? false,
+            isSharedMode: f.isSharedMode ?? false,
+            loadState: f.loadState ?? 'EMPTY',
+            destinationCity: f.destinationCity ?? "",
+            destinationRadiusKm: f.destinationRadiusKm ?? 0,
+            corridorRadiusKm: f.corridorRadiusKm ?? 0,
+            allowedVehicleTypes: f.allowedVehicleTypes ?? [],
+            minFare: f.minFare ?? 0,
+            maxFare: f.maxFare ?? 1000000,
+            pickupRadiusKm: f.pickupRadiusKm ?? 10,
+            excludedKeywords: f.excludedKeywords ?? [],
+            destinationKeywords: f.destinationKeywords ?? []
         });
     } catch (e) {
         console.error("Filters GET 에러:", e);

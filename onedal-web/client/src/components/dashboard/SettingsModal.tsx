@@ -5,6 +5,13 @@ import { socket } from "../../lib/socket";
 import { VEHICLE_OPTIONS } from "@onedal/shared";
 import { soundManager } from "../../lib/soundManager";
 
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import { Switch } from "../ui/switch";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+// removed Select
+
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -55,6 +62,19 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [pinExpiresAt, setPinExpiresAt] = useState<number>(0);
   const [pinRemainingSeconds, setPinRemainingSeconds] = useState(0);
 
+  // ═══ 기기 관리 로직 ═══
+  const loadRegisteredDevices = useCallback(async () => {
+    try {
+      setIsDevicesLoading(true);
+      const { data } = await apiClient.get('/devices/registered');
+      setRegisteredDevices(data.devices || []);
+    } catch (e) {
+      console.error("Failed to load devices:", e);
+    } finally {
+      setIsDevicesLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (isOpen) {
       if (activeTab === "dispatch") { loadPricing(); }
@@ -87,7 +107,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     };
     socket.on("device-paired", onDevicePaired);
     return () => { socket.off("device-paired", onDevicePaired); };
-  }, []);
+  }, [loadRegisteredDevices]);
 
   // ═══ 기본 설정 로직 ═══
   const loadSettings = async () => {
@@ -174,17 +194,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   };
 
   // ═══ 기기 관리 로직 ═══
-  const loadRegisteredDevices = useCallback(async () => {
-    try {
-      setIsDevicesLoading(true);
-      const { data } = await apiClient.get('/devices/registered');
-      setRegisteredDevices(data.devices || []);
-    } catch (e) {
-      console.error("Failed to load devices:", e);
-    } finally {
-      setIsDevicesLoading(false);
-    }
-  }, []);
+
 
   const handleRequestPin = async () => {
     try {
@@ -231,304 +241,238 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     }
   };
 
-  if (!isOpen) return null;
-
   // ═══ PIN 발급 팝업 (overlay) ═══
   const renderPinOverlay = () => {
     if (!pinCode) return null;
     return (
-      <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-gray-950/95 backdrop-blur-sm rounded-2xl">
-        <p className="text-sm text-gray-400 mb-2 font-semibold">앱에서 아래 코드를 입력하세요</p>
+      <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/95 backdrop-blur-sm rounded-lg">
+        <p className="text-sm text-muted-foreground mb-2 font-semibold">앱에서 아래 코드를 입력하세요</p>
         <div className="flex gap-2 mb-4">
           {pinCode.split("").map((digit, i) => (
-            <span key={i} className="text-4xl font-black text-accent bg-accent/10 border-2 border-accent/30 rounded-xl w-14 h-16 flex items-center justify-center">
+            <span key={i} className="text-4xl font-black text-primary bg-primary/10 border-2 border-primary/30 rounded-xl w-14 h-16 flex items-center justify-center">
               {digit}
             </span>
           ))}
         </div>
         <div className="flex items-center gap-2 mb-6">
-          <div className={`w-2 h-2 rounded-full ${pinRemainingSeconds > 30 ? 'bg-success' : 'bg-warning animate-pulse'}`} />
-          <span className={`text-sm font-bold ${pinRemainingSeconds > 30 ? 'text-success' : 'text-warning'}`}>
+          <div className={`w-2 h-2 rounded-full ${pinRemainingSeconds > 30 ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`} />
+          <span className={`text-sm font-bold ${pinRemainingSeconds > 30 ? 'text-emerald-500' : 'text-amber-500'}`}>
             {Math.floor(pinRemainingSeconds / 60)}:{(pinRemainingSeconds % 60).toString().padStart(2, "0")} 남음
           </span>
         </div>
-        <button
-          onClick={() => setPinCode(null)}
-          className="px-4 py-2 rounded-lg bg-gray-800 text-gray-400 text-sm font-semibold hover:bg-gray-700 transition-colors"
-        >
+        <Button variant="secondary" onClick={() => setPinCode(null)}>
           취소
-        </button>
+        </Button>
       </div>
     );
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="relative bg-gray-900 border border-gray-800 p-6 rounded-2xl w-full max-w-md shadow-2xl">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-md bg-card border-border text-card-foreground">
+        <DialogHeader className="mb-2">
+          <DialogTitle className="flex justify-between items-center text-xl font-bold">
+            사용자 설정
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => {
+                logout();
+                onClose();
+              }}
+            >
+              로그아웃
+            </Button>
+          </DialogTitle>
+        </DialogHeader>
+
         {renderPinOverlay()}
 
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-white">사용자 설정</h2>
-          <button
-            onClick={() => {
-              logout();
-              onClose();
-            }}
-            className="text-xs font-bold text-red-400 hover:text-red-300 bg-red-950/30 hover:bg-red-900/40 px-3 py-1.5 rounded-lg border border-red-900/50 transition-all"
-          >
-            로그아웃
-          </button>
-        </div>
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabType)} className="w-full">
+          <TabsList className="grid w-full grid-cols-3 mb-4">
+            <TabsTrigger value="settings">기본 설정</TabsTrigger>
+            <TabsTrigger value="dispatch">요율/필터</TabsTrigger>
+            <TabsTrigger value="devices">기기 설정</TabsTrigger>
+          </TabsList>
 
-        {/* 탭 네비게이션 */}
-        <div className="flex gap-1 mb-5 bg-gray-950 p-1 rounded-lg">
-          <button
-            onClick={() => setActiveTab("settings")}
-            className={`flex-1 py-2 text-sm font-bold rounded-md transition-colors ${activeTab === "settings" ? "bg-accent text-white" : "text-gray-500 hover:text-gray-300"
-              }`}
-          >
-            기본 설정
-          </button>
-          <button
-            onClick={() => setActiveTab("dispatch")}
-            className={`flex-1 py-2 text-sm font-bold rounded-md transition-colors ${activeTab === "dispatch" ? "bg-accent text-white" : "text-gray-500 hover:text-gray-300"
-              }`}
-          >
-            요율/필터
-          </button>
-          <button
-            onClick={() => setActiveTab("devices")}
-            className={`flex-1 py-2 text-sm font-bold rounded-md transition-colors ${activeTab === "devices" ? "bg-accent text-white" : "text-gray-500 hover:text-gray-300"
-              }`}
-          >
-            기기 설정
-          </button>
-        </div>
-
-        {/* ═══ 기본 설정 탭 ═══ */}
-        {activeTab === "settings" && (
-          isLoading ? (
-            <div className="flex justify-center py-10">
-              <div className="w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-5">
-              {/* 무인 서핑 모드 (Auto) */}
-              <div className="flex justify-between items-center bg-gray-950 p-3 rounded-lg border border-gray-800">
-                <div>
-                  <h3 className="text-sm font-bold text-white">🚀 무인 서핑 모드 (Full Auto)</h3>
-                  <p className="text-[10px] text-gray-500 mt-1">이 모드를 켜면 꿀콜을 자동으로 낚아채고 평가합니다.</p>
+          <TabsContent value="settings" className="space-y-4 outline-none">
+            {isLoading ? (
+              <div className="flex justify-center py-10">
+                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-4">
+                {/* 무인 서핑 모드 */}
+                <div className="flex items-center justify-between rounded-lg border p-3">
+                  <div className="space-y-0.5">
+                    <h3 className="text-sm font-bold">🚀 무인 서핑 모드 (Full Auto)</h3>
+                    <p className="text-[10px] text-muted-foreground">이 모드를 켜면 꿀콜을 자동으로 낚아채고 평가합니다.</p>
+                  </div>
+                  <Switch checked={isActive} onCheckedChange={setIsActive} />
                 </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="sr-only peer"
-                    checked={isActive}
-                    onChange={(e) => setIsActive(e.target.checked)}
-                  />
-                  <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
-                </label>
-              </div>
 
-              {/* 내 차량 종류 */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-400 mb-2">내 차량 종류</label>
-                <select
-                  value={vehicleType}
-                  onChange={(e) => setVehicleType(e.target.value)}
-                  className="w-full bg-gray-950 border border-gray-800 text-white text-sm rounded-lg p-3 outline-none focus:border-accent transition-colors"
-                >
-                  {VEHICLE_OPTIONS.map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* 카카오 경로 + 집 주소 */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 mb-1">경로 탐색 옵션</label>
+                {/* 내 차량 종류 */}
+                <div className="space-y-1.5">
+                  <label className="text-sm font-semibold text-muted-foreground">내 차량 종류</label>
                   <select
-                    value={defaultPriority}
-                    onChange={(e) => setDefaultPriority(e.target.value)}
-                    className="w-full bg-gray-950 border border-gray-800 text-white text-xs rounded-lg p-2.5 outline-none focus:border-accent transition-colors"
+                    value={vehicleType}
+                    onChange={(e) => setVehicleType(e.target.value)}
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                   >
-                    <option value="RECOMMEND">추천</option>
-                    <option value="TIME">최단시간</option>
-                    <option value="DISTANCE">최단거리</option>
+                    {VEHICLE_OPTIONS.map((opt) => (
+                      <option key={opt} value={opt} className="bg-background">{opt}</option>
+                    ))}
                   </select>
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 mb-1">🏠 집 주소</label>
-                  <input
-                    type="text"
-                    value={homeAddress}
-                    onChange={(e) => setHomeAddress(e.target.value)}
-                    placeholder="경기 광주시 오포읍..."
-                    className="w-full bg-gray-950 border border-gray-800 text-white text-xs rounded-lg p-2.5 outline-none focus:border-violet-500 transition-colors"
-                  />
+
+                {/* 경로/집 */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-muted-foreground">경로 탐색 옵션</label>
+                    <select
+                      value={defaultPriority}
+                      onChange={(e) => setDefaultPriority(e.target.value)}
+                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    >
+                      <option value="RECOMMEND" className="bg-background">추천</option>
+                      <option value="TIME" className="bg-background">최단시간</option>
+                      <option value="DISTANCE" className="bg-background">최단거리</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-muted-foreground">🏠 집 주소</label>
+                    <Input
+                      type="text"
+                      value={homeAddress}
+                      onChange={(e) => setHomeAddress(e.target.value)}
+                      placeholder="경기 광주시 오포읍..."
+                      className="h-9"
+                    />
+                  </div>
+                </div>
+
+                {/* 볼륨 */}
+                <div className="space-y-2 pt-2 border-t">
+                  <div className="flex justify-between items-center">
+                    <label className="text-sm font-semibold text-muted-foreground">시스템 알림 볼륨</label>
+                    <span className="text-xs font-mono text-primary bg-primary/10 px-2 py-0.5 rounded">{volume}%</span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={volume}
+                      onChange={(e) => handleVolumeChange(parseInt(e.target.value))}
+                      className="flex-1 h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
+                    />
+                    <Button variant="outline" size="sm" onClick={handleTestSound}>🔊 테스트</Button>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 mt-2">
+                  <Button variant="ghost" onClick={onClose}>취소</Button>
+                  <Button onClick={handleSaveSettings}>설정 저장</Button>
                 </div>
               </div>
+            )}
+          </TabsContent>
 
-              <div className="h-px bg-gray-800/50 w-full" />
-
-              {/* 시스템 알림 볼륨 */}
-              <div>
-                <div className="flex justify-between items-center mb-3">
-                  <label className="text-sm font-semibold text-gray-400">시스템 알림 볼륨</label>
-                  <span className="text-xs font-mono text-accent bg-accent/10 px-2 py-0.5 rounded">{volume}%</span>
-                </div>
-                <div className="flex items-center gap-4">
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={volume}
-                    onChange={(e) => handleVolumeChange(parseInt(e.target.value))}
-                    className="flex-1 h-1.5 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-accent"
-                  />
-                  <button
-                    onClick={handleTestSound}
-                    className="px-3 py-1.5 rounded-lg bg-gray-800 text-gray-300 text-xs font-bold hover:bg-gray-700 hover:text-white transition-all border border-gray-700"
-                  >
-                    🔊 테스트
-                  </button>
-                </div>
+          <TabsContent value="dispatch" className="space-y-4 outline-none max-h-[60vh] overflow-y-auto pr-1">
+            {isPricingLoading || isLoading ? (
+              <div className="flex justify-center py-10">
+                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
               </div>
-
-              <div className="flex justify-end gap-3 mt-2">
-                <button
-                  onClick={onClose}
-                  className="px-4 py-2 rounded-lg bg-gray-800 text-gray-300 font-semibold hover:bg-gray-700 transition-colors"
-                >
-                  취소
-                </button>
-                <button
-                  onClick={handleSaveSettings}
-                  className="px-4 py-2 rounded-lg bg-accent text-white font-bold hover:bg-violet-500 transition-colors"
-                >
-                  설정 저장
-                </button>
-              </div>
-            </div>
-          )
-        )}
-
-        {/* ═══ 요율/필터 설정 탭 ═══ */}
-        {activeTab === "dispatch" && (
-          isPricingLoading || isLoading ? (
-            <div className="flex justify-center py-10">
-              <div className="w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-4 max-h-[60vh] overflow-y-auto pr-1">
-
-              {/* 차종별 km당 단가 입력기 */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-400 mb-2">💰 차종별 km당 적정 단가 (원)</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {VEHICLE_OPTIONS.map((vType) => (
-                    <div key={vType} className="flex items-center gap-1">
-                      <span className="text-[11px] text-gray-500 w-12 shrink-0 text-right">{vType}</span>
-                      <input
-                        type="number"
-                        value={vehicleRates[vType] || ''}
-                        onChange={(e) => setVehicleRates(prev => ({ ...prev, [vType]: Number(e.target.value) || 0 }))}
-                        className="w-full bg-gray-950 border border-gray-800 text-white text-xs rounded px-2 py-1.5 outline-none focus:border-accent transition-colors text-right"
-                        placeholder="0"
-                      />
-                    </div>
-                  ))}
+            ) : (
+              <div className="flex flex-col gap-4">
+                {/* 차종별 단가 */}
+                <div className="space-y-1.5">
+                  <label className="text-sm font-semibold text-muted-foreground">💰 차종별 km당 적정 단가 (원)</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {VEHICLE_OPTIONS.map((vType) => (
+                      <div key={vType} className="flex items-center gap-1">
+                        <span className="text-[11px] text-muted-foreground w-12 shrink-0 text-right">{vType}</span>
+                        <Input
+                          type="number"
+                          value={vehicleRates[vType] || ''}
+                          onChange={(e) => setVehicleRates(prev => ({ ...prev, [vType]: Number(e.target.value) || 0 }))}
+                          className="h-8 text-right"
+                          placeholder="0"
+                        />
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              {/* 수수료 & 할인율 */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 mb-1">📊 퀵사 수수료율 (%)</label>
-                  <input
+                {/* 수수료 & 할인율 */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-muted-foreground">📊 퀵사 수수료율 (%)</label>
+                    <Input
+                      type="number"
+                      value={agencyFeePercent}
+                      onChange={(e) => setAgencyFeePercent(Number(e.target.value) || 0)}
+                      className="h-9 text-center font-bold"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-muted-foreground">🔻 최대 할인율 (%)</label>
+                    <Input
+                      type="number"
+                      value={maxDiscountPercent}
+                      onChange={(e) => setMaxDiscountPercent(Number(e.target.value) || 0)}
+                      className="h-9 text-center font-bold"
+                    />
+                  </div>
+                </div>
+
+                {/* 하한가 & 상한가 */}
+                <div className="grid grid-cols-2 gap-3 pt-2 border-t">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-muted-foreground">⬇️ 첫짐 절대 하한가 (원)</label>
+                    <Input
+                      type="number"
+                      value={minFare || ''}
+                      onChange={(e) => setMinFare(Number(e.target.value) || 0)}
+                      placeholder="30000"
+                      className="h-9 font-bold"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-muted-foreground">⬆️ 절대 상한가 (원)</label>
+                    <Input
+                      type="number"
+                      value={maxFare || ''}
+                      onChange={(e) => setMaxFare(Number(e.target.value) || 0)}
+                      placeholder="1000000"
+                      className="h-9 font-bold"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground">🎯 상차 반경 (km)</label>
+                  <Input
                     type="number"
-                    value={agencyFeePercent}
-                    onChange={(e) => setAgencyFeePercent(Number(e.target.value) || 0)}
-                    className="w-full bg-gray-950 border border-gray-800 text-white text-sm rounded-lg p-2.5 outline-none focus:border-accent transition-colors text-center font-bold"
+                    value={pickupRadiusKm || ''}
+                    onChange={(e) => setPickupRadiusKm(Number(e.target.value) || 0)}
+                    placeholder="10"
+                    className="h-9 font-bold"
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 mb-1">🔻 최대 할인율 (%)</label>
-                  <input
-                    type="number"
-                    value={maxDiscountPercent}
-                    onChange={(e) => setMaxDiscountPercent(Number(e.target.value) || 0)}
-                    className="w-full bg-gray-950 border border-gray-800 text-white text-sm rounded-lg p-2.5 outline-none focus:border-accent transition-colors text-center font-bold"
-                  />
-                </div>
-              </div>
-              <p className="text-[10px] text-gray-600 -mt-2">
-                예) 1t 100km 콜 → 적정: {((vehicleRates['1t'] || 1000) * 100 * (1 - agencyFeePercent / 100)).toLocaleString()}원,
-                하한: {((vehicleRates['1t'] || 1000) * 100 * (1 - agencyFeePercent / 100) * (1 - maxDiscountPercent / 100)).toLocaleString()}원
-              </p>
 
-              <div className="h-px bg-gray-800/50 w-full" />
-
-              {/* 하한가 & 상한가 */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 mb-1">⬇️ 첫짐 절대 하한가 (원)</label>
-                  <input
-                    type="number"
-                    value={minFare || ''}
-                    onChange={(e) => setMinFare(Number(e.target.value) || 0)}
-                    placeholder="예: 30000"
-                    className="w-full bg-gray-950 border border-gray-800 text-white text-sm rounded-lg p-2.5 outline-none focus:border-accent transition-colors font-bold"
-                  />
-                  <p className="mt-1 text-[10px] text-gray-600">
-                    * 첫 콜을 잡을 때 무조건 이 금액 이상만 잡습니다. (합짐 모드에서는 무시됨)
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 mb-1">⬆️ 절대 상한가 (원)</label>
-                  <input
-                    type="number"
-                    value={maxFare || ''}
-                    onChange={(e) => setMaxFare(Number(e.target.value) || 0)}
-                    placeholder="예: 1000000"
-                    className="w-full bg-gray-950 border border-gray-800 text-white text-sm rounded-lg p-2.5 outline-none focus:border-accent transition-colors font-bold"
-                  />
-                  <p className="mt-1 text-[10px] text-gray-600">
-                    * 최대 운임 상한선 (기본값: 1,000,000원)
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-3">
-                <label className="block text-xs font-semibold text-gray-500 mb-1">🎯 상차 반경 (km)</label>
-                <input
-                  type="number"
-                  value={pickupRadiusKm || ''}
-                  onChange={(e) => setPickupRadiusKm(Number(e.target.value) || 0)}
-                  placeholder="예: 10"
-                  className="w-full bg-gray-950 border border-gray-800 text-white text-sm rounded-lg p-2.5 outline-none focus:border-accent transition-colors font-bold"
-                />
-                <p className="mt-1 text-[10px] text-gray-600">
-                  * 내 위치 기준 상차지 제한 거리 (기본값: 10km)
-                </p>
-              </div>
-
-              <div className="h-px bg-gray-800/50 w-full" />
-
-              {/* 블랙리스트 */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-400 mb-2">🚫 블랙리스트 키워드</label>
-                <div className="flex flex-wrap gap-1.5 mb-2 min-h-[28px]">
-                  {excludedKeywords.map((kw, i) => (
-                    <span key={i} className="inline-flex items-center gap-1 bg-red-950/50 border border-red-800/30 text-red-400 text-[11px] font-bold px-2 py-0.5 rounded-full">
-                      {kw}
-                      <button onClick={() => setExcludedKeywords(prev => prev.filter((_, idx) => idx !== i))} className="hover:text-red-200">×</button>
-                    </span>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <input
+                {/* 블랙리스트 */}
+                <div className="space-y-1.5 pt-2 border-t">
+                  <label className="text-sm font-semibold text-muted-foreground">🚫 블랙리스트 키워드</label>
+                  <div className="flex flex-wrap gap-1.5 mb-2 min-h-[28px]">
+                    {excludedKeywords.map((kw, i) => (
+                      <span key={i} className="inline-flex items-center gap-1 bg-destructive/10 text-destructive text-[11px] font-bold px-2 py-0.5 rounded-full border border-destructive/20">
+                        {kw}
+                        <button onClick={() => setExcludedKeywords(prev => prev.filter((_, idx) => idx !== i))} className="hover:opacity-70">×</button>
+                      </span>
+                    ))}
+                  </div>
+                  <Input
                     type="text"
                     value={newKeyword}
                     onChange={(e) => setNewKeyword(e.target.value)}
@@ -539,129 +483,100 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       }
                     }}
                     placeholder="제외할 키워드 입력 후 Enter"
-                    className="flex-1 bg-gray-950 border border-gray-800 text-white text-xs rounded-lg px-3 py-2 outline-none focus:border-red-500 transition-colors"
+                    className="h-9"
                   />
                 </div>
-              </div>
-              <div className="h-px bg-gray-800/50 w-full mt-3 mb-2" />
 
-              {/* 내 노선 기본 설정 */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-400 mb-2">📍 내 노선 기본 설정</label>
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-500 mb-1">도착 희망 시/도</label>
-                    <input
-                      type="text"
-                      value={destinationCity}
-                      onChange={(e) => setDestinationCity(e.target.value)}
-                      placeholder="예: 경기"
-                      className="w-full bg-gray-950 border border-gray-800 text-white text-sm rounded-lg p-2.5 outline-none focus:border-accent transition-colors"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-500 mb-1">도착 반경 (km)</label>
-                    <input
-                      type="number"
-                      value={destinationRadiusKm}
-                      onChange={(e) => setDestinationRadiusKm(e.target.value)}
-                      placeholder="기본 10km"
-                      className="w-full bg-gray-950 border border-gray-800 text-white text-sm rounded-lg p-2.5 outline-none focus:border-accent transition-colors"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-500 mb-1">우회 허용 반경 (km)</label>
-                    <input
-                      type="number"
-                      value={corridorRadiusKm}
-                      onChange={(e) => setCorridorRadiusKm(e.target.value)}
-                      placeholder="기본 1km"
-                      className="w-full bg-gray-950 border border-gray-800 text-white text-sm rounded-lg p-2.5 outline-none focus:border-accent transition-colors"
-                    />
+                {/* 기본 노선 */}
+                <div className="space-y-1.5 pt-2 border-t">
+                  <label className="text-sm font-semibold text-muted-foreground">📍 내 노선 기본 설정</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-semibold text-muted-foreground">도착 시/도</label>
+                      <Input
+                        type="text"
+                        value={destinationCity}
+                        onChange={(e) => setDestinationCity(e.target.value)}
+                        placeholder="경기"
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-semibold text-muted-foreground">도착 반경(km)</label>
+                      <Input
+                        type="number"
+                        value={destinationRadiusKm}
+                        onChange={(e) => setDestinationRadiusKm(e.target.value)}
+                        placeholder="10"
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-semibold text-muted-foreground">우회 허용(km)</label>
+                      <Input
+                        type="number"
+                        value={corridorRadiusKm}
+                        onChange={(e) => setCorridorRadiusKm(e.target.value)}
+                        placeholder="1"
+                        className="h-8 text-xs"
+                      />
+                    </div>
                   </div>
                 </div>
-                <p className="mt-1 text-[10px] text-gray-600">
-                  * 관제탑 필터 모달의 기본값으로 동작하며, DB에 영구 저장됩니다.
-                </p>
-              </div>
 
-              <div className="flex justify-end gap-3 mt-4">
-                <button
-                  onClick={onClose}
-                  className="px-4 py-2 rounded-lg bg-gray-800 text-gray-300 font-semibold hover:bg-gray-700 transition-colors"
-                >
-                  취소
-                </button>
-                <button
-                  onClick={handleSavePricing}
-                  className="px-4 py-2 rounded-lg bg-accent text-white font-bold hover:bg-violet-500 transition-colors"
-                >
-                  설정 저장
-                </button>
+                <div className="flex justify-end gap-2 mt-2">
+                  <Button variant="ghost" onClick={onClose}>취소</Button>
+                  <Button onClick={handleSavePricing}>설정 저장</Button>
+                </div>
               </div>
-            </div>
-          )
-        )}
+            )}
+          </TabsContent>
 
-        {/* ═══ 기기 관리 탭 ═══ */}
-        {activeTab === "devices" && (
-          <div className="flex flex-col gap-4">
+          <TabsContent value="devices" className="space-y-4 outline-none">
             {isDevicesLoading ? (
               <div className="flex justify-center py-10">
-                <div className="w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
+                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
               </div>
             ) : registeredDevices.length === 0 ? (
               <div className="text-center py-8">
-                <p className="text-gray-500 text-sm mb-1">등록된 기기가 없습니다</p>
-                <p className="text-gray-600 text-xs">아래 버튼으로 안드로이드 앱폰을 연동해주세요</p>
+                <p className="text-muted-foreground text-sm mb-1">등록된 기기가 없습니다</p>
+                <p className="text-muted-foreground/70 text-xs">아래 버튼으로 안드로이드 앱폰을 연동해주세요</p>
               </div>
             ) : (
               <div className="flex flex-col gap-2 max-h-48 overflow-y-auto">
                 {registeredDevices.map((device) => (
-                  <div key={device.device_id} className="flex items-center justify-between bg-gray-950 p-3 rounded-lg border border-gray-800">
+                  <div key={device.device_id} className="flex items-center justify-between bg-muted/30 p-3 rounded-lg border border-border">
                     <div className="flex flex-col gap-1 min-w-0 flex-1">
                       {editingDeviceId === device.device_id ? (
                         <div className="flex gap-2">
-                          <input
+                          <Input
                             type="text"
                             value={editingName}
                             onChange={(e) => setEditingName(e.target.value)}
                             placeholder="기기 별명 입력"
-                            className="flex-1 bg-gray-900 border border-accent/50 text-white text-sm rounded px-2 py-1 outline-none"
+                            className="h-7 text-xs flex-1"
                             autoFocus
                             onKeyDown={(e) => e.key === "Enter" && handleSaveDeviceName(device.device_id)}
                           />
-                          <button
-                            onClick={() => handleSaveDeviceName(device.device_id)}
-                            className="text-xs text-violet-400 font-bold hover:text-violet-300"
-                          >확인</button>
-                          <button
-                            onClick={() => setEditingDeviceId(null)}
-                            className="text-xs text-gray-500 font-bold hover:text-gray-400"
-                          >취소</button>
+                          <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={() => handleSaveDeviceName(device.device_id)}>확인</Button>
+                          <Button size="sm" variant="ghost" className="h-7 text-[10px]" onClick={() => setEditingDeviceId(null)}>취소</Button>
                         </div>
                       ) : (
                         <>
-                          <span className="text-sm font-bold text-white truncate">
+                          <span className="text-sm font-bold truncate">
                             {device.device_name || device.device_id.slice(0, 12) + "…"}
                           </span>
-                          <span className="text-[10px] text-gray-600 font-mono truncate">{device.device_id.slice(0, 16)}…</span>
+                          <span className="text-[10px] text-muted-foreground font-mono truncate">{device.device_id.slice(0, 16)}…</span>
                         </>
                       )}
                     </div>
                     {editingDeviceId !== device.device_id && (
-                      <div className="flex items-center gap-2 ml-2 shrink-0">
-                        <button
-                          onClick={() => {
+                      <div className="flex items-center gap-1 ml-2 shrink-0">
+                        <Button size="sm" variant="ghost" className="h-7 text-[10px]" onClick={() => {
                             setEditingDeviceId(device.device_id);
                             setEditingName(device.device_name || "");
-                          }}
-                          className="text-[10px] text-accent hover:brightness-125 font-bold"
-                        >별명수정</button>
-                        <button
-                          onClick={() => handleDeleteDevice(device.device_id)}
-                          className="text-[10px] text-danger hover:brightness-125 font-bold"
-                        >해제</button>
+                        }}>별명수정</Button>
+                        <Button size="sm" variant="destructive" className="h-7 text-[10px]" onClick={() => handleDeleteDevice(device.device_id)}>해제</Button>
                       </div>
                     )}
                   </div>
@@ -669,25 +584,20 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               </div>
             )}
 
-            {/* 새 기기 연동 버튼 */}
-            <button
+            <Button
+              variant="outline"
+              className="w-full h-12 border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10"
               onClick={handleRequestPin}
-              className="w-full py-3 rounded-lg bg-emerald-600/20 border border-emerald-500/30 text-success font-bold text-sm hover:bg-emerald-600/30 transition-colors"
             >
               + 새 기기 연동하기
-            </button>
+            </Button>
 
             <div className="flex justify-end mt-2">
-              <button
-                onClick={onClose}
-                className="px-4 py-2 rounded-lg bg-gray-800 text-gray-300 font-semibold hover:bg-gray-700 transition-colors"
-              >
-                닫기
-              </button>
+              <Button variant="ghost" onClick={onClose}>닫기</Button>
             </div>
-          </div>
-        )}
-      </div>
-    </div>
+          </TabsContent>
+        </Tabs>
+      </DialogContent>
+    </Dialog>
   );
 }
