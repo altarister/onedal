@@ -130,7 +130,7 @@ export function registerSocketHandlers(io: Server) {
         });
 
         // 🏠 귀가콜: 현재 위치 → 집 주소로 가상 오더 생성 + 회랑 자동 세팅
-        socket.on("create-home-return", async () => {
+        socket.on("create-home-return", async (data?: { corridorRadiusKm?: number, destinationRadiusKm?: number }) => {
             try {
                 const settings = db.prepare("SELECT home_address, home_x, home_y, vehicle_type FROM user_settings WHERE user_id = ?").get(userId) as any;
                 if (!settings || !settings.home_address) {
@@ -179,17 +179,20 @@ export function registerSocketHandlers(io: Server) {
                 session.mainCallState = homeOrder as any;
                 session.subCalls = [];
 
-                // 카카오 경로 연산 (evaluateNewOrder 호출)
+                // 카카오 경로 연산 (evaluateNewOrder 호출 시 목적지 반경도 고려될 수 있음)
                 const { evaluateNewOrder } = await import("../services/dispatchEngine");
                 await evaluateNewOrder(userId, homeOrder as any, io);
 
-                // LOADING + 회랑 10km 생성
+                // 프론트에서 넘어온 우회 반경 적용 (없으면 10km 하드코딩 호환유지)
+                const targetCorridor = data?.corridorRadiusKm ?? 10;
+                
+                // LOADING + 회랑 생성
                 const { syncCorridorFilter } = await import("../services/dispatchEngine");
                 applyFilter(userId, {
                     loadState: 'LOADING',
                     isSharedMode: true,
                     isActive: true,
-                    corridorRadiusKm: 10,
+                    corridorRadiusKm: targetCorridor,
                 }, io, false); // persistToDB = false (일회성 운행 조작)
                 syncCorridorFilter(userId, io);
 

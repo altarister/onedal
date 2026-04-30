@@ -13,9 +13,11 @@ interface OrderFilterModalProps {
     isOpen: boolean;
     onClose: () => void;
     hasHomeReturnActive?: boolean;
+    isTestMode: boolean;
+    setIsTestMode: (val: boolean) => void;
 }
 
-export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive = false }: OrderFilterModalProps) {
+export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive = false, isTestMode, setIsTestMode }: OrderFilterModalProps) {
     const { filter, updateFilter } = useFilterConfig();
 
     // 이 페이지는 폼 역할이므로 로컬 state로 관리 후 저장 시 소켓 발송
@@ -37,8 +39,6 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
     // 귀가콜 로딩 상태
     const [homeReturnLoading, setHomeReturnLoading] = useState(false);
 
-    // 목업 시뮬레이터 토글 (PinnedRoute에서 이관)
-    const [isTestMode, setIsTestMode] = useState(false);
     const [isPreviewLoading, setIsPreviewLoading] = useState(false);
 
     // 첫짐 섹션: 미리보기 버튼 클릭 시 호출
@@ -440,43 +440,57 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                         </label>
                     </div>
 
-                    {/* 사냥 모드 통제 버튼 영역 */}
-                    <div className="pt-2 space-y-2">
-                        {/* 메인 액션: 현재 조건으로 사냥 (기존 적용 버튼) */}
-                        <Button
-                            onClick={handleSave}
-                            className="w-full h-12 relative group overflow-hidden rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 text-white font-black text-[15px] shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:shadow-[0_0_30px_rgba(16,185,129,0.4)] transition-all"
-                        >
-                            <span className="relative z-10 drop-shadow-md tracking-widest">🟢 현재 조건으로 사냥</span>
-                            <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 to-teal-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                        </Button>
+                    {/* 사냥 모드 통제 버튼 영역 (1열 3버튼 구조) */}
+                    <div className="pt-2">
+                        <div className="grid grid-cols-3 gap-2">
+                            {/* 메인 액션: 현재 조건으로 사냥 (기존 적용 버튼) */}
+                            <Button
+                                onClick={handleSave}
+                                className="h-11 relative group overflow-hidden rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 text-white font-black text-[13px] shadow-[0_0_15px_rgba(16,185,129,0.2)] hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all px-1"
+                            >
+                                <span className="relative z-10 drop-shadow-md tracking-wider">🟢 필터 갱신</span>
+                                <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 to-teal-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                            </Button>
 
-                        {/* 하단 2버튼: 출발 + 귀가콜 */}
-                        <div className="flex gap-2">
+                            {/* 강제 출발 */}
                             <Button
                                 onClick={() => {
                                     logRoadmapEvent("웹", `출발 버튼 클릭 → LOADING→DRIVING 전환 (시뮬레이션: ${isTestMode})`);
                                     updateFilter({ loadState: 'DRIVING', corridorRadiusKm: 0 });
                                     onClose();
                                 }}
-                                className="flex-1 h-11 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-black text-[13px] shadow-[0_0_15px_rgba(99,102,241,0.2)] hover:shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-all"
+                                className="h-11 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-black text-[13px] shadow-[0_0_15px_rgba(99,102,241,0.2)] hover:shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-all px-1"
                             >
-                                🚀 출발 (합짐)
+                                🚀 강제 출발
                             </Button>
+
+                            {/* 귀가콜 시작 */}
                             <Button
                                 onClick={() => {
-                                    logRoadmapEvent("웹", "귀가콜 시작 버튼 클릭");
+                                    logRoadmapEvent("웹", "귀가콜 시작 버튼 클릭 (필터 선반영)");
                                     setHomeReturnLoading(true);
-                                    socket.emit("create-home-return");
+                                    
+                                    // 1. 현재 모달에 있는 우회 반경과 도착 반경을 수집
+                                    const parsedCorridor = corridorRadius.trim() === "" ? 10 : parseFloat(corridorRadius);
+                                    const parsedTarget = targetRadius.trim() === "" ? 0 : parseFloat(targetRadius);
+                                    
+                                    // 2. 서버에 로컬 상태를 선 반영 (updateFilter와 유사한 저장 플로우)
+                                    handleSave(); 
+
+                                    // 3. 우회/도착 반경을 직접 파라미터로 넘기며 귀가콜 트리거
+                                    socket.emit("create-home-return", {
+                                        corridorRadiusKm: parsedCorridor,
+                                        destinationRadiusKm: parsedTarget
+                                    });
                                 }}
                                 disabled={homeReturnLoading || hasHomeReturnActive}
-                                className={`flex-1 h-11 rounded-xl bg-gradient-to-r from-violet-500 to-purple-400 text-white font-black text-[13px] shadow-[0_0_15px_rgba(139,92,246,0.2)] hover:shadow-[0_0_20px_rgba(139,92,246,0.4)] transition-all ${homeReturnLoading || hasHomeReturnActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                className={`h-11 rounded-xl bg-gradient-to-r from-violet-500 to-purple-400 text-white font-black text-[13px] shadow-[0_0_15px_rgba(139,92,246,0.2)] hover:shadow-[0_0_20px_rgba(139,92,246,0.4)] transition-all px-1 ${homeReturnLoading || hasHomeReturnActive ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
-                                {homeReturnLoading ? '⏳ 경로 계산 중...' : hasHomeReturnActive ? '🏠 귀가 진행중' : '🏠 귀가콜 시작'}
+                                {homeReturnLoading ? '⏳ 계산중' : hasHomeReturnActive ? '🏠 진행중' : '🏠 귀가 시작'}
                             </Button>
                         </div>
 
-                        <p className="text-[10px] text-slate-500 text-center mt-1">이 값은 현재 진행 중인 콜 탐색에만 적용됩니다. 영구 설정은 톱니바퀴(⚙️)에서 변경하세요.</p>
+                        <p className="text-[10px] text-slate-500 text-center mt-2">이 값은 현재 진행 중인 콜 탐색에만 적용됩니다. 영구 설정은 톱니바퀴(⚙️)에서 변경하세요.</p>
                     </div>
                 </div>
             </DialogContent>

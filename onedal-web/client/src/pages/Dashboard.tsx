@@ -16,6 +16,7 @@ import { useKakaoRouting } from "../hooks/useKakaoRouting";
 
 export default function Dashboard() {
     const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+    const [isTestMode, setIsTestMode] = useState(false);
 
     const {
         orders,
@@ -30,6 +31,7 @@ export default function Dashboard() {
     } = useOrderEngine();
 
     const activeRoute = [mainCall, ...subCalls].filter(Boolean) as SecuredOrder[];
+    const hasHomeReturnActive = activeRoute.some(o => o.receiptStatus === '귀가' || o.id?.startsWith('home-'));
 
     // 대기열 콜 필터링
     const pendingOrders = orders.filter(
@@ -70,7 +72,12 @@ export default function Dashboard() {
                 <VehicleStatusPanel />
 
                 {/* 🏆 배차 확정 콜 (및 데스밸리 연산 구역) */}
-                <PinnedRoute activeRoute={activeRoute} onDecision={handleDecision} onRecalculate={handleRecalculate} />
+                <PinnedRoute 
+                    activeRoute={activeRoute} 
+                    isTestMode={isTestMode}
+                    onDecision={handleDecision} 
+                    onRecalculate={handleRecalculate} 
+                />
             </div>
 
             <DrillDownModal
@@ -86,7 +93,9 @@ export default function Dashboard() {
             <OrderFilterModal
                 isOpen={isFilterModalOpen}
                 onClose={() => setIsFilterModalOpen(false)}
-                hasHomeReturnActive={activeRoute.some(o => o.receiptStatus === '귀가' || o.id?.startsWith('home-'))}
+                hasHomeReturnActive={hasHomeReturnActive}
+                isTestMode={isTestMode}
+                setIsTestMode={setIsTestMode}
             />
 
         </main>

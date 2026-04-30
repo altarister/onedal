@@ -10,11 +10,12 @@ import { useMasterGps } from '../../hooks/useMasterGps';
 
 interface Props {
     activeRoute: SecuredOrder[];
+    isTestMode: boolean;
     onDecision?: (id: string, action: 'KEEP' | 'CANCEL') => void;
     onRecalculate?: (id: string, priority: string) => void;
 }
 
-export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: Props) {
+export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRecalculate }: Props) {
     const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
     const [processingId, setProcessingId] = useState<string | null>(null);
     const { filter } = useFilterConfig();
@@ -22,9 +23,6 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: 
     useEffect(() => {
         setProcessingId(null);
     }, [activeRoute]);
-
-    // [주행 시뮬레이터 테스트 모드]
-    const [isTestMode, setIsTestMode] = useState(false);
 
     // 현재 활성 폴리라인 (마지막으로 합짐된 궤적 우선)
     const activePolyline = useMemo(() => {
@@ -233,20 +231,6 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: 
                         </div>
                     </div>
                 )}
-                {/* 🧪 테스트 모드 토글 (GPS 시뮬레이터는 지도 컴포넌트에 종속) */}
-                <div className="flex items-center justify-end px-2 py-1 gap-2">
-                    <span className="text-[10px] text-muted-foreground font-semibold tracking-wide">🧪 GPS 시뮬레이터</span>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                            type="checkbox"
-                            className="sr-only peer"
-                            checked={isTestMode}
-                            onChange={(e) => setIsTestMode(e.target.checked)}
-                        />
-                        <div className="w-7 h-4 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-purple-500"></div>
-                    </label>
-                </div>
-
             </div>
 
             {/* 오더 관리 아코디언 리스트 (가장 처음 잡은 본짐이 맨 아래, 최근에 잡은 합짐이 맨 위로 쌓이도록 역순 정렬) */}
