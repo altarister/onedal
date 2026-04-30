@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
 import { logRoadmapEvent } from "../../lib/roadmapLogger";
 import { VEHICLE_OPTIONS } from "@onedal/shared";
+import { socket } from "../../lib/socket";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Button } from "../ui/button";
@@ -31,6 +32,12 @@ export default function OrderFilterModal({ isOpen, onClose }: OrderFilterModalPr
     // [신규] 지역 미리보기용 상태
     const [previewRegions, setPreviewRegions] = useState<Record<string, string[]> | null>(null);
     const [previewCount, setPreviewCount] = useState<number>(0);
+
+    // 귀가콜 로딩 상태
+    const [homeReturnLoading, setHomeReturnLoading] = useState(false);
+
+    // 목업 시뮬레이터 토글 (PinnedRoute에서 이관)
+    const [isTestMode, setIsTestMode] = useState(false);
     const [isPreviewLoading, setIsPreviewLoading] = useState(false);
 
     // 첫짐 섹션: 미리보기 버튼 클릭 시 호출
@@ -86,6 +93,24 @@ export default function OrderFilterModal({ isOpen, onClose }: OrderFilterModalPr
         }
         setIsAccordionOpen(false);
     }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // 귀가콜 소켓 이벤트 리스너
+    useEffect(() => {
+        const onAck = () => {
+            setHomeReturnLoading(false);
+            onClose();
+        };
+        const onError = (data: { message: string }) => {
+            setHomeReturnLoading(false);
+            alert(data.message);
+        };
+        socket.on("home-return-ack", onAck);
+        socket.on("home-return-error", onError);
+        return () => {
+            socket.off("home-return-ack", onAck);
+            socket.off("home-return-error", onError);
+        };
+    }, [onClose]);
 
     if (!isOpen) return null;
 
@@ -400,16 +425,57 @@ export default function OrderFilterModal({ isOpen, onClose }: OrderFilterModalPr
                         )}
                     </div>
 
-                    {/* 저장 버튼 */}
-                    <div className="pt-2">
+                    {/* 🧪 목업 시뮬레이터 토글 */}
+                    <div className="flex items-center justify-between px-1 py-2 border-t border-slate-700/40">
+                        <span className="text-[11px] text-slate-400 font-semibold tracking-wide">🧪 목업 시뮬레이터 (테스트 GPS)</span>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                                type="checkbox"
+                                className="sr-only peer"
+                                checked={isTestMode}
+                                onChange={(e) => setIsTestMode(e.target.checked)}
+                            />
+                            <div className="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-500"></div>
+                        </label>
+                    </div>
+
+                    {/* 사냥 모드 통제 버튼 영역 */}
+                    <div className="pt-2 space-y-2">
+                        {/* 메인 액션: 현재 조건으로 사냥 (기존 적용 버튼) */}
                         <Button
                             onClick={handleSave}
                             className="w-full h-12 relative group overflow-hidden rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 text-white font-black text-[15px] shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:shadow-[0_0_30px_rgba(16,185,129,0.4)] transition-all"
                         >
-                            <span className="relative z-10 drop-shadow-md tracking-widest">적용</span>
+                            <span className="relative z-10 drop-shadow-md tracking-widest">🟢 현재 조건으로 사냥</span>
                             <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 to-teal-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                         </Button>
-                        <p className="text-[10px] text-slate-500 text-center mt-2">이 값은 현재 진행 중인 콜 탐색에만 적용됩니다. 영구 설정은 톱니바퀴(⚙️)에서 변경하세요.</p>
+
+                        {/* 하단 2버튼: 출발 + 귀가콜 */}
+                        <div className="flex gap-2">
+                            <Button
+                                onClick={() => {
+                                    logRoadmapEvent("웹", `출발 버튼 클릭 → LOADING→DRIVING 전환 (시뮬레이션: ${isTestMode})`);
+                                    updateFilter({ loadState: 'DRIVING', corridorRadiusKm: 0 });
+                                    onClose();
+                                }}
+                                className="flex-1 h-11 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-black text-[13px] shadow-[0_0_15px_rgba(99,102,241,0.2)] hover:shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-all"
+                            >
+                                🚀 출발 (합짐)
+                            </Button>
+                            <Button
+                                onClick={() => {
+                                    logRoadmapEvent("웹", "귀가콜 시작 버튼 클릭");
+                                    setHomeReturnLoading(true);
+                                    socket.emit("create-home-return");
+                                }}
+                                disabled={homeReturnLoading}
+                                className={`flex-1 h-11 rounded-xl bg-gradient-to-r from-violet-500 to-purple-400 text-white font-black text-[13px] shadow-[0_0_15px_rgba(139,92,246,0.2)] hover:shadow-[0_0_20px_rgba(139,92,246,0.4)] transition-all ${homeReturnLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                                {homeReturnLoading ? '⏳ 경로 계산 중...' : '🏠 귀가콜 시작'}
+                            </Button>
+                        </div>
+
+                        <p className="text-[10px] text-slate-500 text-center mt-1">이 값은 현재 진행 중인 콜 탐색에만 적용됩니다. 영구 설정은 톱니바퀴(⚙️)에서 변경하세요.</p>
                     </div>
                 </div>
             </DialogContent>

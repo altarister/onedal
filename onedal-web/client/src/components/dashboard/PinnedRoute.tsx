@@ -12,14 +12,12 @@ interface Props {
     activeRoute: SecuredOrder[];
     onDecision?: (id: string, action: 'KEEP' | 'CANCEL') => void;
     onRecalculate?: (id: string, priority: string) => void;
-    onHomeReturn?: () => void;
-    homeReturnLoading?: boolean;
 }
 
-export default function PinnedRoute({ activeRoute, onDecision, onRecalculate, onHomeReturn, homeReturnLoading }: Props) {
+export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: Props) {
     const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
     const [processingId, setProcessingId] = useState<string | null>(null);
-    const { filter, updateFilter } = useFilterConfig();
+    const { filter } = useFilterConfig();
     // 서버 통신 완료 시 (상태가 변하거나 삭제될 때) 로딩 상태 즉각 해제
     useEffect(() => {
         setProcessingId(null);
@@ -27,7 +25,7 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate, on
 
     // [주행 시뮬레이터 테스트 모드]
     const [isTestMode, setIsTestMode] = useState(false);
-    
+
     // 현재 활성 폴리라인 (마지막으로 합짐된 궤적 우선)
     const activePolyline = useMemo(() => {
         if (!activeRoute || activeRoute.length === 0) return null;
@@ -167,22 +165,6 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate, on
                     safeRoute={safeRoute}
                     myLocation={myLocation}
                 >
-                    {safeRoute.length === 0 && (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-[2px] z-10 transition-all pointer-events-none">
-                            <h3 className="text-lg font-black text-white mb-2 tracking-wider drop-shadow-md">실시간 자동 사냥 중</h3>
-                            <p className="text-white/90 text-xs text-center leading-relaxed mb-6 drop-shadow-md">
-                                연동된 기기들이 서버를 스캔하고 있습니다<br />
-                                꿀콜을 낚아채면 경로가 즉시 표시됩니다
-                            </p>
-                            <button
-                                onClick={(e) => { e.stopPropagation(); onHomeReturn?.(); }}
-                                disabled={homeReturnLoading}
-                                className={`pointer-events-auto px-6 py-3 rounded-xl bg-gradient-to-r from-violet-500 to-purple-400 text-white font-black text-sm tracking-wider shadow-[0_0_20px_rgba(139,92,246,0.5)] hover:shadow-[0_0_30px_rgba(139,92,246,0.7)] transition-all active:scale-[0.98] ${homeReturnLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            >
-                                {homeReturnLoading ? '⏳ 경로 계산 중...' : '🏠 귀가콜 시작'}
-                            </button>
-                        </div>
-                    )}
                     {/* 좌측 상단 글로벌 상시 경로 재탐색 파이프라인 (맵 캔버스 내재화 플로팅 컨트롤) */}
                     {activeRoute.length > 0 && onRecalculate && (() => {
                         const lastExt = activeRoute[activeRoute.length - 1].kakaoTimeExt || '';
@@ -221,61 +203,48 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate, on
                 {/* 통합 맵 정보 브리핑 */}
                 {safeRoute.length > 0 && (
                     <div className="flex justify-between items-end mb-1 px-1 mt-1">
-                    <a
-                        href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(unifiedRoutePoints[0]?.name || '')}&destination=${encodeURIComponent(unifiedRoutePoints[unifiedRoutePoints.length - 1]?.name || '')}&waypoints=${encodeURIComponent(unifiedRoutePoints.slice(1, -1).map(p => p.name).join('|'))}&travelmode=driving`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex-1"
-                    >
-                        <div className="flex flex-col gap-0.5 pt-1">
-                            <span className="text-xs text-muted-foreground text-left">
-                                {activeRoute.length > 0 && <span className="ml-1 text-muted-foreground font-bold">총 {activeRoute.length}개 경로 정보</span>}
-                            </span>
-                            <span className="text-sm text-text-primary hover:text-info transition-colors">
+                        <a
+                            href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(unifiedRoutePoints[0]?.name || '')}&destination=${encodeURIComponent(unifiedRoutePoints[unifiedRoutePoints.length - 1]?.name || '')}&waypoints=${encodeURIComponent(unifiedRoutePoints.slice(1, -1).map(p => p.name).join('|'))}&travelmode=driving`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-1"
+                        >
+                            <div className="flex flex-col gap-0.5 pt-1">
+                                <span className="text-xs text-muted-foreground text-left">
+                                    {activeRoute.length > 0 && <span className="ml-1 text-muted-foreground font-bold">총 {activeRoute.length}개 경로 정보</span>}
+                                </span>
+                                <span className="text-sm text-text-primary hover:text-info transition-colors">
+                                    {(() => {
+                                        const lastRoute = [...safeRoute].reverse().find(r => r.totalDistanceKm != null);
+                                        if (!lastRoute || lastRoute.totalDistanceKm == null) return `카카오 연산 에러 혹은 대기중...`;
+                                        return `주행거리 ${(Number(lastRoute.totalDistanceKm) || 0).toFixed(1)}km / 예상 ${lastRoute.totalDurationMin || 0}분`;
+                                    })()}
+                                </span>
+                            </div>
+                        </a>
+                        <div className="flex flex-col items-end gap-0.5">
+
+                            <span className={`text-xl md:text-2xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r ${allEvaluating ? 'from-amber-400 to-yellow-200' : 'from-emerald-400 to-cyan-400'}`}>
                                 {(() => {
-                                    const lastRoute = [...safeRoute].reverse().find(r => r.totalDistanceKm != null);
-                                    if (!lastRoute || lastRoute.totalDistanceKm == null) return `카카오 연산 에러 혹은 대기중...`;
-                                    return `주행거리 ${(Number(lastRoute.totalDistanceKm) || 0).toFixed(1)}km / 예상 ${lastRoute.totalDurationMin || 0}분`;
+                                    const total = activeRoute.reduce((sum, o) => sum + (o.fare || 0), 0);
+                                    return total > 0 ? `${total.toLocaleString()} 원` : '미상 (테스트콜)';
                                 })()}
                             </span>
                         </div>
-                    </a>
-                    <div className="flex flex-col items-end gap-0.5">
-
-                        <span className={`text-xl md:text-2xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r ${allEvaluating ? 'from-amber-400 to-yellow-200' : 'from-emerald-400 to-cyan-400'}`}>
-                            {(() => {
-                                const total = activeRoute.reduce((sum, o) => sum + (o.fare || 0), 0);
-                                return total > 0 ? `${total.toLocaleString()} 원` : '미상 (테스트콜)';
-                            })()}
-                        </span>
                     </div>
-                </div>
                 )}
-
-                {/* 🚀 출발 버튼: 상시 노출 (테스트 편의성) */}
-                <div className="px-1 mb-1 space-y-1">
-                    {/* 🧪 테스트 모드 토글 */}
-                    <div className="flex items-center justify-end px-1 gap-2">
-                        <span className="text-[10px] text-muted-foreground font-semibold tracking-wide">🧪 목업 시뮬레이터</span>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                            <input 
-                                type="checkbox" 
-                                className="sr-only peer" 
-                                checked={isTestMode}
-                                onChange={(e) => setIsTestMode(e.target.checked)}
-                            />
-                            <div className="w-7 h-4 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-purple-500"></div>
-                        </label>
-                    </div>
-                    <button
-                        onClick={() => {
-                            logRoadmapEvent("웹", `출발 버튼 클릭 → LOADING→DRIVING 전환 (시뮬레이션: ${isTestMode})`);
-                            updateFilter({ loadState: 'DRIVING', corridorRadiusKm: 0 });
-                        }}
-                        className="w-full h-10 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-400 text-white font-black text-sm tracking-widest shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:shadow-[0_0_20px_rgba(16,185,129,0.5)] transition-all active:scale-[0.98]"
-                    >
-                        🚀 출발 (가는길 콜만 잡기)
-                    </button>
+                {/* 🧪 테스트 모드 토글 (GPS 시뮬레이터는 지도 컴포넌트에 종속) */}
+                <div className="flex items-center justify-end px-2 py-1 gap-2">
+                    <span className="text-[10px] text-muted-foreground font-semibold tracking-wide">🧪 GPS 시뮬레이터</span>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                            type="checkbox"
+                            className="sr-only peer"
+                            checked={isTestMode}
+                            onChange={(e) => setIsTestMode(e.target.checked)}
+                        />
+                        <div className="w-7 h-4 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-purple-500"></div>
+                    </label>
                 </div>
 
             </div>
@@ -283,40 +252,40 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate, on
             {/* 오더 관리 아코디언 리스트 (가장 처음 잡은 본짐이 맨 아래, 최근에 잡은 합짐이 맨 위로 쌓이도록 역순 정렬) */}
             {safeRoute.length > 0 && (
                 <div className="space-y-2">
-                {[...activeRoute]
-                    .sort((a, b) => {
-                        const aEvaluating = a.status.includes('evaluating');
-                        const bEvaluating = b.status.includes('evaluating');
-                        // 평가중인 콜은 항상 맨 위에
-                        if (aEvaluating && !bEvaluating) return -1;
-                        if (!aEvaluating && bEvaluating) return 1;
+                    {[...activeRoute]
+                        .sort((a, b) => {
+                            const aEvaluating = a.status.includes('evaluating');
+                            const bEvaluating = b.status.includes('evaluating');
+                            // 평가중인 콜은 항상 맨 위에
+                            if (aEvaluating && !bEvaluating) return -1;
+                            if (!aEvaluating && bEvaluating) return 1;
 
-                        const timeA = a.capturedAt ? new Date(a.capturedAt).getTime() : 0;
-                        const timeB = b.capturedAt ? new Date(b.capturedAt).getTime() : 0;
+                            const timeA = a.capturedAt ? new Date(a.capturedAt).getTime() : 0;
+                            const timeB = b.capturedAt ? new Date(b.capturedAt).getTime() : 0;
 
-                        // 기본적으로 시간 역순 (나중에 잡은게 위로, 먼저 잡은게 아래로)
-                        return timeB - timeA;
-                    })
-                    .map((route) => {
-                        const isEvaluating = route.status.includes('evaluating');
-                        const isExpanded = isEvaluating || expandedIds.has(route.id);
-                        const indexNum = chronologicalIds.indexOf(route.id) + 1;
+                            // 기본적으로 시간 역순 (나중에 잡은게 위로, 먼저 잡은게 아래로)
+                            return timeB - timeA;
+                        })
+                        .map((route) => {
+                            const isEvaluating = route.status.includes('evaluating');
+                            const isExpanded = isEvaluating || expandedIds.has(route.id);
+                            const indexNum = chronologicalIds.indexOf(route.id) + 1;
 
-                        return (
-                            <PinnedRouteCard
-                                key={route.id}
-                                route={route}
-                                isExpanded={isExpanded}
-                                onToggle={toggleExpand}
-                                onDecision={onDecision}
-                                processingId={processingId}
-                                setProcessingId={setProcessingId}
-                                etaMap={etaMap}
-                                visitOrderMap={visitOrderMap}
-                                indexNum={indexNum}
-                            />
-                        );
-                    })}
+                            return (
+                                <PinnedRouteCard
+                                    key={route.id}
+                                    route={route}
+                                    isExpanded={isExpanded}
+                                    onToggle={toggleExpand}
+                                    onDecision={onDecision}
+                                    processingId={processingId}
+                                    setProcessingId={setProcessingId}
+                                    etaMap={etaMap}
+                                    visitOrderMap={visitOrderMap}
+                                    indexNum={indexNum}
+                                />
+                            );
+                        })}
                 </div>
             )}
         </section>

@@ -16,7 +16,6 @@ import { useKakaoRouting } from "../hooks/useKakaoRouting";
 
 export default function Dashboard() {
     const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
-    const [homeReturnLoading, setHomeReturnLoading] = useState(false);
 
     const {
         orders,
@@ -40,33 +39,18 @@ export default function Dashboard() {
     // 카카오 자동 시뮬레이션 엔진 훅
     const { simulationResults } = useKakaoRouting(pendingOrders, mainCall);
 
-    // 귀가콜 응답 핸들러
+    // 귀가콜 자동 도착 알림 핸들러
     useEffect(() => {
-        const onAck = () => setHomeReturnLoading(false);
-        const onError = (data: { message: string }) => {
-            setHomeReturnLoading(false);
-            alert(data.message);
-        };
         const onAutoArrived = (data: { message: string }) => {
             if (confirm(data.message + "\n\n배달 완료 처리하시겠습니까?")) {
-                // 사용자 확인 → 이미 서버에서 ARRIVED로 전환됨
                 console.log("🏁 사용자 도착 확인");
             }
         };
-        socket.on("home-return-ack", onAck);
-        socket.on("home-return-error", onError);
         socket.on("auto-arrived", onAutoArrived);
         return () => {
-            socket.off("home-return-ack", onAck);
-            socket.off("home-return-error", onError);
             socket.off("auto-arrived", onAutoArrived);
         };
     }, []);
-
-    const handleHomeReturn = () => {
-        setHomeReturnLoading(true);
-        socket.emit("create-home-return");
-    };
 
     return (
         <main className="min-h-screen font-sans pb-32">
@@ -86,7 +70,7 @@ export default function Dashboard() {
                 <VehicleStatusPanel />
 
                 {/* 🏆 배차 확정 콜 (및 데스밸리 연산 구역) */}
-                <PinnedRoute activeRoute={activeRoute} onDecision={handleDecision} onRecalculate={handleRecalculate} onHomeReturn={handleHomeReturn} homeReturnLoading={homeReturnLoading} />
+                <PinnedRoute activeRoute={activeRoute} onDecision={handleDecision} onRecalculate={handleRecalculate} />
             </div>
 
             <DrillDownModal
