@@ -5,6 +5,7 @@ import { geocodeAddress } from "../services/kakaoService";
 import { getGroupedRegionsByCity } from "../geoResolver";
 import { applyFilter } from "../state/filterManager";
 import { recalculateCorridorFilter } from "../services/dispatchEngine";
+import { getCityRegionsWithRadius } from "../services/geoService";
 
 const router = Router();
 
@@ -140,11 +141,13 @@ router.put("/", requireAuth, async (req, res) => {
 router.get("/preview-regions", requireAuth, (req, res) => {
     try {
         const city = req.query.city as string;
+        const destinationRadiusKm = req.query.destinationRadiusKm ? parseFloat(req.query.destinationRadiusKm as string) : 0;
+        
         if (!city) {
             return res.status(400).json({ error: "도시명(city) 파라미터가 필요합니다." });
         }
 
-        const groupedRegions = getGroupedRegionsByCity(city);
+        const { grouped: groupedRegions } = getCityRegionsWithRadius(city, destinationRadiusKm);
 
         // 총 키워드 수 계산
         let totalCount = 0;

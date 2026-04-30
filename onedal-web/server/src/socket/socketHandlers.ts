@@ -7,7 +7,7 @@ import type { AutoDispatchFilter } from "@onedal/shared";
 import { getUserSession, getAllActiveUserIds } from "../state/userSessionStore";
 import { recalculateCorridorFilter, handleDecision, recalculateKakaoRoute } from "../services/dispatchEngine";
 import { applyFilter } from "../state/filterManager";
-import { processDriverMovement } from "../services/geoService";
+import { processDriverMovement, getCityRegionsWithRadius } from "../services/geoService";
 import db from "../db";
 
 
@@ -72,15 +72,24 @@ export function registerSocketHandlers(io: Server) {
         socket.on("update-filter", (newFilter: Partial<AutoDispatchFilter>) => {
             logRoadmapEvent("서버", "관제탑으로 부터 필터 변경(update-filter) 요청 받음 및 파싱 연산");
             
-            if (newFilter.destinationCity && newFilter.destinationCity !== session.activeFilter.destinationCity) {
-                const regions = getRegionsByCity(newFilter.destinationCity);
-                newFilter.destinationKeywords = regions;
+            const isCityChanged = newFilter.destinationCity !== undefined && newFilter.destinationCity !== session.activeFilter.destinationCity;
+            const isTargetChanged = newFilter.destinationRadiusKm !== undefined && newFilter.destinationRadiusKm !== session.activeFilter.destinationRadiusKm;
+            const isCorridorChanged = newFilter.corridorRadiusKm !== undefined && newFilter.corridorRadiusKm !== session.activeFilter.corridorRadiusKm;
+            
+            // 첫짐 모드: 도시명 또는 도착 반경 변경 시
+            if (!session.activeFilter.isSharedMode && (isCityChanged || isTargetChanged)) {
+                const targetCity = newFilter.destinationCity ?? session.activeFilter.destinationCity ?? "";
+                const targetRadius = newFilter.destinationRadiusKm ?? session.activeFilter.destinationRadiusKm ?? 0;
+                
+                if (targetCity) {
+                    const { flat, grouped } = getCityRegionsWithRadius(targetCity, targetRadius);
+                    newFilter.destinationKeywords = flat;
+                    newFilter.destinationGroups = grouped;
+                }
             }
             
-            const isCorridorChanged = newFilter.corridorRadiusKm !== undefined && newFilter.corridorRadiusKm !== session.activeFilter.corridorRadiusKm;
-            const isTargetChanged = newFilter.destinationRadiusKm !== undefined && newFilter.destinationRadiusKm !== session.activeFilter.destinationRadiusKm;
-            
-            if ((isCorridorChanged || isTargetChanged) && session.activeFilter.isSharedMode) {
+            // 합짐 모드: 회랑 반경 또는 도착 반경 변경 시
+            if (session.activeFilter.isSharedMode && (isCorridorChanged || isTargetChanged)) {
                 const cRadius = newFilter.corridorRadiusKm ?? session.activeFilter.corridorRadiusKm ?? 1;
                 const dRadius = newFilter.destinationRadiusKm ?? session.activeFilter.destinationRadiusKm ?? 10;
                 

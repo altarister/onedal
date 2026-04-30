@@ -144,6 +144,110 @@ export function getCorridorRegions(polyline: Array<{x: number; y: number}>, corr
 }
 
 /**
+ * [첫짐 전용] 선택한 도시의 모든 읍/면/동 외곽을 radiusKm만큼 확장한 후,
+ * 그 확장된 테두리 안에 1픽셀이라도 걸치는 전국 인근 읍/면/동을 전부 수집합니다.
+ * (BBox 고속 필터링 + Set 중복제거 적용)
+ */
+export function getCityRegionsWithRadius(cityName: string, radiusKm: number): { flat: string[], grouped: Record<string, string[]> } {
+    if (!mergedMapFeatureCollection || !mergedMapFeatureCollection.features) {
+        return { flat: [], grouped: {} };
+    }
+
+    // 1. 타겟 도시(cityName)에 속한 읍/면/동 피처 모두 찾기
+    const cityFeatures = mergedMapFeatureCollection.features.filter((f: any) => 
+        f.properties?.SIG_KOR_NM?.includes(cityName)
+    );
+
+    if (cityFeatures.length === 0) {
+        return { flat: [], grouped: {} };
+    }
+
+    // 반경 확장이 필요 없는 경우 (0km), 타겟 도시의 지역만 바로 반환
+    if (!radiusKm || radiusKm <= 0) {
+        const flatSet = new Set<string>();
+        const grouped: Record<string, Set<string>> = {};
+        for (const f of cityFeatures) {
+            const regionName = f.properties?.EMD_KOR_NM;
+            const parentName = f.properties?.SIG_KOR_NM || "기타 지역";
+            if (regionName) {
+                flatSet.add(regionName);
+                if (!grouped[parentName]) grouped[parentName] = new Set<string>();
+                grouped[parentName].add(regionName);
+            }
+        }
+        
+        const resultGroups: Record<string, string[]> = {};
+        for (const [p, s] of Object.entries(grouped)) resultGroups[p] = Array.from(s).sort();
+        
+        return { flat: Array.from(flatSet).sort(), grouped: resultGroups };
+    }
+
+    // 2. 타겟 도시의 각 읍/면/동을 개별적으로 Buffer 확장
+    const bufferedPolygons: any[] = [];
+    for (const cf of cityFeatures) {
+        try {
+            const bp = turf.buffer(cf, radiusKm, { units: 'kilometers' });
+            if (bp) {
+                bp.bbox = turf.bbox(bp); // 확장된 폴리곤의 BBox 선계산
+                bufferedPolygons.push(bp);
+            }
+        } catch (e) {
+            continue; // 에러난 피처 무시
+        }
+    }
+
+    // 3. 전체 지도에서 BBox + Intersect 검사
+    const flatSet = new Set<string>();
+    const grouped: Record<string, Set<string>> = {};
+
+    for (const feature of mergedMapFeatureCollection.features) {
+        const regionName = feature.properties?.EMD_KOR_NM;
+        const parentName = feature.properties?.SIG_KOR_NM || "기타 지역";
+        if (!regionName) continue;
+
+        // 원본 도시의 폴리곤이면 볼 필요 없이 무조건 포함
+        if (parentName.includes(cityName)) {
+            flatSet.add(regionName);
+            if (!grouped[parentName]) grouped[parentName] = new Set<string>();
+            grouped[parentName].add(regionName);
+            continue;
+        }
+
+        // 4. BBox 검사 후 Intersect 검사 (O(N*M)이지만 N이 크고 M이 작아 매우 빠름)
+        let isMatched = false;
+        if (feature.bbox) {
+            const fb = feature.bbox;
+            for (const bp of bufferedPolygons) {
+                const bb = bp.bbox;
+                if (!bb) continue;
+                // BBox 충돌 검사 (빠른 제외)
+                if (bb[0] > fb[2] || bb[2] < fb[0] || bb[1] > fb[3] || bb[3] < fb[1]) {
+                    continue;
+                }
+                // BBox 충돌 시 정밀 교차 검사
+                try {
+                    if (turf.booleanIntersects(bp, feature.geometry)) {
+                        isMatched = true;
+                        break; // 하나라도 교차하면 이 지역은 편입됨
+                    }
+                } catch(e) { }
+            }
+        }
+
+        if (isMatched) {
+            flatSet.add(regionName);
+            if (!grouped[parentName]) grouped[parentName] = new Set<string>();
+            grouped[parentName].add(regionName);
+        }
+    }
+
+    const resultGroups: Record<string, string[]> = {};
+    for (const [p, s] of Object.entries(grouped)) resultGroups[p] = Array.from(s).sort();
+
+    return { flat: Array.from(flatSet).sort(), grouped: resultGroups };
+}
+
+/**
  * GPS 진행도에 따라 이미 지나간 구간의 키워드를 자동 제거합니다.
  * 
  * 1. 현재 GPS에서 폴리라인 위 가장 가까운 점을 찾고

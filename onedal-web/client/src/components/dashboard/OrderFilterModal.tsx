@@ -37,7 +37,8 @@ export default function OrderFilterModal({ isOpen, onClose }: OrderFilterModalPr
     const handlePreviewRegions = () => {
         if (!targetCity) return;
         setIsPreviewLoading(true);
-        fetch(`/api/settings/preview-regions?city=${encodeURIComponent(targetCity)}`, {
+        const radius = targetRadius || '0';
+        fetch(`/api/settings/preview-regions?city=${encodeURIComponent(targetCity)}&destinationRadiusKm=${radius}`, {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
         })
         .then(r => r.json())

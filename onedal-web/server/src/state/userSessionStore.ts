@@ -72,11 +72,14 @@ export function getUserSession(userId: string): UserSession {
                 };
 
                 // activeFilter 최초 계산은 filterManager.ts의 모듈을 재사용하지 못하므로 여기서 수동 초기화 (순환 참조 방지)
-                const { getRegionsByCity } = require('../geoResolver');
+                const { getCityRegionsWithRadius } = require('../services/geoService');
                 const { getSharedModeVehicleTypes } = require('@onedal/shared');
                 
                 session.activeFilter = { ...session.baseFilter, ...session.runtimeOverrides };
-                session.activeFilter.destinationKeywords = getRegionsByCity(session.activeFilter.destinationCity || '');
+                const city = session.activeFilter.destinationCity || '';
+                const radius = session.activeFilter.destinationRadiusKm || 0;
+                const { flat } = getCityRegionsWithRadius(city, radius);
+                session.activeFilter.destinationKeywords = flat;
                 session.activeFilter.allowedVehicleTypes = getSharedModeVehicleTypes(userVehicleType);
 
                 logRoadmapEvent("서버", `[Session DB Load] 유저 ${userId} 복구된 원본 필터(Raw DB): \n` + JSON.stringify(filterRow, null, 2));
