@@ -12,9 +12,10 @@ import { Badge } from "../ui/badge";
 interface OrderFilterModalProps {
     isOpen: boolean;
     onClose: () => void;
+    hasHomeReturnActive?: boolean;
 }
 
-export default function OrderFilterModal({ isOpen, onClose }: OrderFilterModalProps) {
+export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive = false }: OrderFilterModalProps) {
     const { filter, updateFilter } = useFilterConfig();
 
     // 이 페이지는 폼 역할이므로 로컬 state로 관리 후 저장 시 소켓 발송
@@ -468,10 +469,10 @@ export default function OrderFilterModal({ isOpen, onClose }: OrderFilterModalPr
                                     setHomeReturnLoading(true);
                                     socket.emit("create-home-return");
                                 }}
-                                disabled={homeReturnLoading}
-                                className={`flex-1 h-11 rounded-xl bg-gradient-to-r from-violet-500 to-purple-400 text-white font-black text-[13px] shadow-[0_0_15px_rgba(139,92,246,0.2)] hover:shadow-[0_0_20px_rgba(139,92,246,0.4)] transition-all ${homeReturnLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                disabled={homeReturnLoading || hasHomeReturnActive}
+                                className={`flex-1 h-11 rounded-xl bg-gradient-to-r from-violet-500 to-purple-400 text-white font-black text-[13px] shadow-[0_0_15px_rgba(139,92,246,0.2)] hover:shadow-[0_0_20px_rgba(139,92,246,0.4)] transition-all ${homeReturnLoading || hasHomeReturnActive ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
-                                {homeReturnLoading ? '⏳ 경로 계산 중...' : '🏠 귀가콜 시작'}
+                                {homeReturnLoading ? '⏳ 경로 계산 중...' : hasHomeReturnActive ? '🏠 귀가 진행중' : '🏠 귀가콜 시작'}
                             </Button>
                         </div>
 

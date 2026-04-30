@@ -86,6 +86,7 @@ export default function Dashboard() {
             <OrderFilterModal
                 isOpen={isFilterModalOpen}
                 onClose={() => setIsFilterModalOpen(false)}
+                hasHomeReturnActive={activeRoute.some(o => o.receiptStatus === '귀가' || o.id?.startsWith('home-'))}
             />
 
         </main>
