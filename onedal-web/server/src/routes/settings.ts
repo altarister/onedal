@@ -4,6 +4,7 @@ import { requireAuth } from "../middlewares/authMiddleware";
 import { geocodeAddress } from "../services/kakaoService";
 import { getGroupedRegionsByCity } from "../geoResolver";
 import { applyFilter } from "../state/filterManager";
+import { recalculateCorridorFilter } from "../services/dispatchEngine";
 
 const router = Router();
 
@@ -158,6 +159,30 @@ router.get("/preview-regions", requireAuth, (req, res) => {
         });
     } catch (e) {
         console.error("Preview Regions 에러:", e);
+        res.status(500).json({ error: "서버 오류 발생" });
+    }
+});
+
+// 합짐 모드: 회랑 반경 변경 시 지역 목록 프리뷰
+router.get("/preview-corridor", requireAuth, (req, res) => {
+    try {
+        const userId = req.user!.id;
+        const corridorRadiusKm = parseFloat(req.query.corridorRadiusKm as string) || 10;
+        const destinationRadiusKm = req.query.destinationRadiusKm
+            ? parseFloat(req.query.destinationRadiusKm as string)
+            : undefined;
+
+        const result = recalculateCorridorFilter(userId, corridorRadiusKm, destinationRadiusKm);
+        if (result) {
+            res.json({
+                totalCount: result.destinationKeywords.length,
+                groupedRegions: result.destinationGroups
+            });
+        } else {
+            res.json({ totalCount: 0, groupedRegions: {} });
+        }
+    } catch (e) {
+        console.error("Preview Corridor 에러:", e);
         res.status(500).json({ error: "서버 오류 발생" });
     }
 });

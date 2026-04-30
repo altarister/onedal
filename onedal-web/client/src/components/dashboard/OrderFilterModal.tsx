@@ -56,6 +56,32 @@ export default function OrderFilterModal({ isOpen, onClose }: OrderFilterModalPr
         }
     }, [targetCity, filter?.destinationCity]);
 
+    // 합짐 모드: 회랑 반경 또는 도착 반경 변경 시 회랑 지역 프리뷰
+    useEffect(() => {
+        if (!filter?.isSharedMode || !isOpen) return;
+        const currentCorridor = filter?.corridorRadiusKm?.toString() || "";
+        const currentTargetR = filter?.destinationRadiusKm?.toString() || "";
+        if (corridorRadius && (corridorRadius !== currentCorridor || targetRadius !== currentTargetR)) {
+            const timer = setTimeout(() => {
+                const params = new URLSearchParams({ corridorRadiusKm: corridorRadius });
+                if (targetRadius) params.set('destinationRadiusKm', targetRadius);
+                fetch(`/api/settings/preview-corridor?${params.toString()}`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
+                })
+                .then(r => r.json())
+                .then(data => {
+                    setPreviewRegions(data.groupedRegions || {});
+                    setPreviewCount(data.totalCount || 0);
+                })
+                .catch(err => console.error("Corridor preview err:", err));
+            }, 400);
+            return () => clearTimeout(timer);
+        } else if (filter?.isSharedMode) {
+            setPreviewRegions(null);
+            setPreviewCount(0);
+        }
+    }, [corridorRadius, targetRadius, isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+
     // 모달이 열리는 순간에만 activeFilter 스냅샷으로 폼을 초기화
     // filter 의존성을 제거하여, 모달이 열린 동안 서버 업데이트에 의해 폼이 리셋되는 것을 방지
     useEffect(() => {
@@ -130,9 +156,9 @@ export default function OrderFilterModal({ isOpen, onClose }: OrderFilterModalPr
 
                 <DialogHeader className="border-b border-blue-500/20 pb-2 relative z-10 flex flex-row items-center justify-between">
                     <DialogTitle className="flex flex-col gap-1">
-                        <span className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 tracking-tight">
+                        {/* <span className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 tracking-tight">
                             통제 필터 설정
-                        </span>
+                        </span> */}
                         <div className="flex items-center gap-2">
                             <Badge variant="outline" className={isSharedMode ? 'bg-amber-500/20 text-amber-500 border-amber-500/30' : 'bg-emerald-500/20 text-emerald-500 border-emerald-500/30'}>
                                 {isSharedMode ? '합짐(Loaded) 모드' : '첫짐(Empty) 모드'}
@@ -252,93 +278,6 @@ export default function OrderFilterModal({ isOpen, onClose }: OrderFilterModalPr
                                 </div>
                             </div>
                         </div>
-
-                        {/* 아코디언 컴포넌트: 장전된 필터 키워드 검증 */}
-                        <div className="pt-2 border-t border-indigo-500/20">
-                            <button
-                                onClick={() => setIsAccordionOpen(!isAccordionOpen)}
-                                className="w-full flex items-center justify-between p-2 rounded-md bg-indigo-950/30 hover:bg-indigo-900/40 transition-colors group"
-                            >
-                                <div className="flex items-center gap-2">
-                                    <span className="text-[11px] font-medium text-slate-300 group-hover:text-white transition-colors">
-                                        현재 장전된 지역 목록 검증
-                                    </span>
-                                    {targetCity !== (filter.destinationCity || "") ? (
-                                        <Badge variant="secondary" className="bg-amber-500/80 text-white shadow-[0_0_10px_rgba(245,158,11,0.5)]">
-                                            변경 예정 {previewCount > 0 ? `(${previewCount}개)` : '...'}
-                                        </Badge>
-                                    ) : (
-                                        <Badge className="bg-indigo-500 text-white shadow-[0_0_10px_rgba(99,102,241,0.5)]">
-                                            {destKeywordsLimit.length}개
-                                        </Badge>
-                                    )}
-                                </div>
-                                <span className={`text-slate-400 text-sm transition-transform duration-300 ${isAccordionOpen ? 'rotate-180' : ''}`}>
-                                    ▼
-                                </span>
-                            </button>
-
-                            {isAccordionOpen && (
-                                <div className="mt-2 p-2 bg-black/50 rounded-lg border border-indigo-500/20 max-h-32 overflow-y-auto custom-scrollbar">
-                                    {targetCity !== (filter.destinationCity || "") ? (
-                                        previewRegions && Object.keys(previewRegions).length > 0 ? (
-                                            <div className="flex flex-col gap-3">
-                                                {Object.entries(previewRegions).map(([parentName, dongs]) => (
-                                                    <div key={parentName} className="flex flex-col gap-1 opacity-90">
-                                                        <span className="text-xs font-bold text-amber-400 border-b border-amber-500/50 pb-1 flex items-center justify-between">
-                                                            <span>{parentName} <span className="text-amber-500/70 text-[10px] font-normal">({dongs.length})</span></span>
-                                                            <Badge variant="outline" className="text-[9px] bg-amber-500/20 border-amber-500/30">미리보기</Badge>
-                                                        </span>
-                                                        <div className="flex flex-wrap gap-1">
-                                                            {dongs.map(kw => (
-                                                                <span key={kw} className="text-[10px] text-amber-100 bg-amber-900/40 px-1.5 py-0.5 rounded border border-amber-500/30">
-                                                                    {kw}
-                                                                </span>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                                <Button onClick={handleSave} size="sm" className="mt-2 bg-amber-500/20 text-amber-300 border border-amber-500/50 hover:bg-amber-500/40">
-                                                    이 설정으로 즉시 적용하기
-                                                </Button>
-                                            </div>
-                                        ) : (
-                                            <div className="flex flex-col items-center justify-center py-6 text-center">
-                                                <div className="w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mb-3"></div>
-                                                <span className="text-amber-400 text-xs font-bold mb-1">'{targetCity}' 지역을 불러오는 중...</span>
-                                            </div>
-                                        )
-                                    ) : filter.destinationGroups && Object.keys(filter.destinationGroups).length > 0 ? (
-                                        <div className="flex flex-col gap-3">
-                                            {Object.entries(filter.destinationGroups).map(([parentName, dongs]) => (
-                                                <div key={parentName} className="flex flex-col gap-1">
-                                                    <span className="text-xs font-bold text-indigo-300 border-b border-indigo-500/50 pb-1">
-                                                        {parentName} <span className="text-slate-500 text-[10px] font-normal">({dongs.length})</span>
-                                                    </span>
-                                                    <div className="flex flex-wrap gap-1">
-                                                        {dongs.map(kw => (
-                                                            <span key={kw} className="text-[10px] text-indigo-100 bg-indigo-900/40 px-1.5 py-0.5 rounded border border-indigo-500/30">
-                                                                {kw}
-                                                            </span>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ) : destKeywordsLimit.length > 0 ? (
-                                        <div className="flex flex-wrap gap-1">
-                                            {destKeywordsLimit.map(kw => (
-                                                <span key={kw} className="text-[10px] text-indigo-200 bg-indigo-900/40 px-1.5 py-0.5 rounded border border-indigo-500/30">
-                                                    {kw}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <p className="text-xs text-slate-500 text-center py-2">수집된 지역이 없습니다.</p>
-                                    )}
-                                </div>
-                            )}
-                        </div>
                     </div>
 
                     <div className="bg-slate-900/60 backdrop-blur-md p-3 rounded-xl border border-amber-500/30 shadow-lg relative overflow-hidden">
@@ -363,17 +302,93 @@ export default function OrderFilterModal({ isOpen, onClose }: OrderFilterModalPr
                         </div>
                     </div>
 
+                    {/* 독립 섹션: 현재 타겟팅 지역 목록 검증 (첫짐/합짐 공통) */}
+                    <div className="bg-slate-900/60 backdrop-blur-md p-3 rounded-xl border border-slate-500/20 shadow-lg">
+                        <button
+                            onClick={() => setIsAccordionOpen(!isAccordionOpen)}
+                            className="w-full flex items-center justify-between p-2 rounded-md bg-slate-800/50 hover:bg-slate-700/50 transition-colors group"
+                        >
+                            <div className="flex items-center gap-2">
+                                <span className="text-[11px] font-medium text-slate-300 group-hover:text-white transition-colors">
+                                    {isSharedMode ? `🛣️ 회랑 타겟팅 지역 (±${corridorRadius || '?'}km)` : `📍 도착 타겟팅 지역 (${targetCity})`}
+                                </span>
+                                {previewRegions && previewCount > 0 ? (
+                                    <Badge variant="secondary" className="bg-amber-500/80 text-white shadow-[0_0_10px_rgba(245,158,11,0.5)]">
+                                        변경 예정 ({previewCount}개)
+                                    </Badge>
+                                ) : (
+                                    <Badge className={isSharedMode ? 'bg-purple-500 text-white shadow-[0_0_10px_rgba(168,85,247,0.5)]' : 'bg-indigo-500 text-white shadow-[0_0_10px_rgba(99,102,241,0.5)]'}>
+                                        {destKeywordsLimit.length}개
+                                    </Badge>
+                                )}
+                            </div>
+                            <span className={`text-slate-400 text-sm transition-transform duration-300 ${isAccordionOpen ? 'rotate-180' : ''}`}>
+                                ▼
+                            </span>
+                        </button>
+
+                        {isAccordionOpen && (
+                            <div className="mt-2 p-2 bg-black/50 rounded-lg border border-slate-500/20 max-h-32 overflow-y-auto custom-scrollbar">
+                                {previewRegions && Object.keys(previewRegions).length > 0 ? (
+                                    <div className="flex flex-col gap-3">
+                                        {Object.entries(previewRegions).map(([parentName, dongs]) => (
+                                            <div key={parentName} className="flex flex-col gap-1 opacity-90">
+                                                <span className="text-xs font-bold text-amber-400 border-b border-amber-500/50 pb-1 flex items-center justify-between">
+                                                    <span>{parentName} <span className="text-amber-500/70 text-[10px] font-normal">({dongs.length})</span></span>
+                                                    <Badge variant="outline" className="text-[9px] bg-amber-500/20 border-amber-500/30">미리보기</Badge>
+                                                </span>
+                                                <div className="flex flex-wrap gap-1">
+                                                    {dongs.map(kw => (
+                                                        <span key={kw} className="text-[10px] text-amber-100 bg-amber-900/40 px-1.5 py-0.5 rounded border border-amber-500/30">
+                                                            {kw}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : filter.destinationGroups && Object.keys(filter.destinationGroups).length > 0 ? (
+                                    <div className="flex flex-col gap-3">
+                                        {Object.entries(filter.destinationGroups).map(([parentName, dongs]) => (
+                                            <div key={parentName} className="flex flex-col gap-1">
+                                                <span className={`text-xs font-bold border-b pb-1 ${isSharedMode ? 'text-purple-300 border-purple-500/50' : 'text-indigo-300 border-indigo-500/50'}`}>
+                                                    {parentName} <span className="text-slate-500 text-[10px] font-normal">({dongs.length})</span>
+                                                </span>
+                                                <div className="flex flex-wrap gap-1">
+                                                    {dongs.map(kw => (
+                                                        <span key={kw} className={`text-[10px] px-1.5 py-0.5 rounded border ${isSharedMode ? 'text-purple-100 bg-purple-900/40 border-purple-500/30' : 'text-indigo-100 bg-indigo-900/40 border-indigo-500/30'}`}>
+                                                            {kw}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : destKeywordsLimit.length > 0 ? (
+                                    <div className="flex flex-wrap gap-1">
+                                        {destKeywordsLimit.map(kw => (
+                                            <span key={kw} className={`text-[10px] px-1.5 py-0.5 rounded border ${isSharedMode ? 'text-purple-200 bg-purple-900/40 border-purple-500/30' : 'text-indigo-200 bg-indigo-900/40 border-indigo-500/30'}`}>
+                                                {kw}
+                                            </span>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-xs text-slate-500 text-center py-2">수집된 지역이 없습니다.</p>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
                     {/* 저장 버튼 */}
                     <div className="pt-2">
                         <Button
                             onClick={handleSave}
                             className="w-full h-12 relative group overflow-hidden rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 text-white font-black text-[15px] shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:shadow-[0_0_30px_rgba(16,185,129,0.4)] transition-all"
                         >
-                            <span className="mr-1.5 text-lg relative z-10">💫</span>
-                            <span className="relative z-10 drop-shadow-md tracking-widest">즉시 동기화 적용</span>
+                            <span className="relative z-10 drop-shadow-md tracking-widest">적용</span>
                             <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 to-teal-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                         </Button>
-                        <p className="text-[10px] text-slate-500 text-center mt-2">저장된 값은 한 번만 설정하면 첫짐/합짐 상황에 맞춰 자동으로 100% 반영됩니다.</p>
+                        <p className="text-[10px] text-slate-500 text-center mt-2">이 값은 현재 진행 중인 콜 탐색에만 적용됩니다. 영구 설정은 톱니바퀴(⚙️)에서 변경하세요.</p>
                     </div>
                 </div>
             </DialogContent>
