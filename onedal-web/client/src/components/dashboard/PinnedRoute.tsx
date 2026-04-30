@@ -12,9 +12,11 @@ interface Props {
     activeRoute: SecuredOrder[];
     onDecision?: (id: string, action: 'KEEP' | 'CANCEL') => void;
     onRecalculate?: (id: string, priority: string) => void;
+    onHomeReturn?: () => void;
+    homeReturnLoading?: boolean;
 }
 
-export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: Props) {
+export default function PinnedRoute({ activeRoute, onDecision, onRecalculate, onHomeReturn, homeReturnLoading }: Props) {
     const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
     const [processingId, setProcessingId] = useState<string | null>(null);
     const { filter, updateFilter } = useFilterConfig();
@@ -148,13 +150,15 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: 
             .map(r => r.id);
     }, [safeRoute]);
 
-    if (!safeRoute || safeRoute.length === 0) return null;
+    // if (!safeRoute || safeRoute.length === 0) return null; // 삭제됨: 라우트가 없어도 맵은 항상 표시
 
     return (
         <section id="confirmed-route" className="animate-in slide-in-from-top-4 fade-in duration-500">
-            <div className={`absolute -top-3 left-4 ${allEvaluating ? 'bg-warning' : 'bg-success'} text-white text-[10px] font-black px-2 py-0.5 rounded-md shadow-lg transition-colors`}>
-                {allEvaluating ? "🟡 최적의 경로를 찾습니다..." : "🟢 사냥 (배차) 확정"}
-            </div>
+            {safeRoute.length > 0 && (
+                <div className={`absolute -top-3 left-4 ${allEvaluating ? 'bg-warning' : 'bg-success'} text-white text-[10px] font-black px-2 py-0.5 rounded-md shadow-lg transition-colors z-20`}>
+                    {allEvaluating ? "🟡 최적의 경로를 찾습니다..." : "🟢 사냥 (배차) 확정"}
+                </div>
+            )}
 
             <div id="routing-timeline">
                 {/* 캔버스 미니맵 (분리된 컴포넌트) */}
@@ -163,6 +167,22 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: 
                     safeRoute={safeRoute}
                     myLocation={myLocation}
                 >
+                    {safeRoute.length === 0 && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-[2px] z-10 transition-all pointer-events-none">
+                            <h3 className="text-lg font-black text-white mb-2 tracking-wider drop-shadow-md">실시간 자동 사냥 중</h3>
+                            <p className="text-white/90 text-xs text-center leading-relaxed mb-6 drop-shadow-md">
+                                연동된 기기들이 서버를 스캔하고 있습니다<br />
+                                꿀콜을 낚아채면 경로가 즉시 표시됩니다
+                            </p>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onHomeReturn?.(); }}
+                                disabled={homeReturnLoading}
+                                className={`pointer-events-auto px-6 py-3 rounded-xl bg-gradient-to-r from-violet-500 to-purple-400 text-white font-black text-sm tracking-wider shadow-[0_0_20px_rgba(139,92,246,0.5)] hover:shadow-[0_0_30px_rgba(139,92,246,0.7)] transition-all active:scale-[0.98] ${homeReturnLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                                {homeReturnLoading ? '⏳ 경로 계산 중...' : '🏠 귀가콜 시작'}
+                            </button>
+                        </div>
+                    )}
                     {/* 좌측 상단 글로벌 상시 경로 재탐색 파이프라인 (맵 캔버스 내재화 플로팅 컨트롤) */}
                     {activeRoute.length > 0 && onRecalculate && (() => {
                         const lastExt = activeRoute[activeRoute.length - 1].kakaoTimeExt || '';
@@ -199,7 +219,8 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: 
                 </PinnedRouteCanvas>
 
                 {/* 통합 맵 정보 브리핑 */}
-                <div className="flex justify-between items-end mb-1 px-1 mt-1">
+                {safeRoute.length > 0 && (
+                    <div className="flex justify-between items-end mb-1 px-1 mt-1">
                     <a
                         href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(unifiedRoutePoints[0]?.name || '')}&destination=${encodeURIComponent(unifiedRoutePoints[unifiedRoutePoints.length - 1]?.name || '')}&waypoints=${encodeURIComponent(unifiedRoutePoints.slice(1, -1).map(p => p.name).join('|'))}&travelmode=driving`}
                         target="_blank"
@@ -229,6 +250,7 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: 
                         </span>
                     </div>
                 </div>
+                )}
 
                 {/* 🚀 출발 버튼: 상시 노출 (테스트 편의성) */}
                 <div className="px-1 mb-1 space-y-1">
@@ -259,7 +281,8 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: 
             </div>
 
             {/* 오더 관리 아코디언 리스트 (가장 처음 잡은 본짐이 맨 아래, 최근에 잡은 합짐이 맨 위로 쌓이도록 역순 정렬) */}
-            <div className="space-y-2">
+            {safeRoute.length > 0 && (
+                <div className="space-y-2">
                 {[...activeRoute]
                     .sort((a, b) => {
                         const aEvaluating = a.status.includes('evaluating');
@@ -294,7 +317,8 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: 
                             />
                         );
                     })}
-            </div>
+                </div>
+            )}
         </section>
     );
 }

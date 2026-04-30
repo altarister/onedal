@@ -86,25 +86,7 @@ export default function Dashboard() {
                 <VehicleStatusPanel />
 
                 {/* 🏆 배차 확정 콜 (및 데스밸리 연산 구역) */}
-                <PinnedRoute activeRoute={activeRoute} onDecision={handleDecision} onRecalculate={handleRecalculate} />
-
-                {/* 📡 관제 대기 중 (Empty State) */}
-                {activeRoute.length === 0 && (
-                    <div className="flex-1 mt-12 py-12 flex flex-col items-center justify-center border-2 border-dashed border-border bg-muted/30 rounded-3xl mx-2 transition-all">
-                        <h3 className="text-lg font-black text-foreground mb-2 tracking-wider mt-4">실시간 자동 사냥 중</h3>
-                        <p className="text-muted-foreground text-xs text-center leading-relaxed mb-6">
-                            연동된 기기들이 인성 서버를 스캔하고 있습니다<br />
-                            조건에 맞는 꿀콜을 낚아채면 즉시 보고합니다
-                        </p>
-                        <button
-                            onClick={handleHomeReturn}
-                            disabled={homeReturnLoading}
-                            className={`px-6 py-3 rounded-xl bg-gradient-to-r from-violet-500 to-purple-400 text-white font-black text-sm tracking-wider shadow-[0_0_20px_rgba(139,92,246,0.3)] hover:shadow-[0_0_30px_rgba(139,92,246,0.5)] transition-all active:scale-[0.98] ${homeReturnLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        >
-                            {homeReturnLoading ? '⏳ 경로 계산 중...' : '🏠 귀가콜 시작'}
-                        </button>
-                    </div>
-                )}
+                <PinnedRoute activeRoute={activeRoute} onDecision={handleDecision} onRecalculate={handleRecalculate} onHomeReturn={handleHomeReturn} homeReturnLoading={homeReturnLoading} />
             </div>
 
             <DrillDownModal

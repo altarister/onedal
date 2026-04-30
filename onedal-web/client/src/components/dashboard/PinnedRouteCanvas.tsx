@@ -64,12 +64,12 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, safeRoute, myLoc
         const allCoords = [...validPoints, ...validPolyline] as { x: number, y: number }[];
         if (myLocation) allCoords.push(myLocation);
 
-        if (allCoords.length < 2) {
+        if (allCoords.length === 0) {
             ctx.fillStyle = mapColors.textMuted;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.font = '12px sans-serif';
-            ctx.fillText("좌표 데이터가 부족하여 지도를 그릴 수 없습니다.", width / 2, height / 2);
+            ctx.fillText("위치 데이터를 기다리는 중...", width / 2, height / 2);
             return;
         }
 
@@ -88,8 +88,12 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, safeRoute, myLoc
         const drawWidth = width - (paddingLeft + paddingRight);
         const drawHeight = height - (paddingTop + paddingBottom);
 
-        const rangeX = (maxX - minX) === 0 ? 0.001 : (maxX - minX);
-        const rangeY = (maxY - minY) === 0 ? 0.001 : (maxY - minY);
+        let rangeX = maxX - minX;
+        let rangeY = maxY - minY;
+
+        // 좌표가 1개뿐이거나 모든 좌표가 동일한 경우 기본 줌 레벨 (약 20km 반경)
+        if (rangeX < 0.01) rangeX = 0.2;
+        if (rangeY < 0.01) rangeY = 0.2;
 
         // 비율 잠금 (Isotropic Scaling)
         const scale = Math.min(drawWidth / rangeX, drawHeight / rangeY);
