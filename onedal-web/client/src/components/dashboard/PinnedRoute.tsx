@@ -227,7 +227,7 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: 
                             <span className={`text-xl md:text-2xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r ${allEvaluating ? 'from-amber-400 to-yellow-200' : 'from-emerald-400 to-cyan-400'}`}>
                                 {(() => {
                                     const total = activeRoute.reduce((sum, o) => sum + (o.fare || 0), 0);
-                                    return total > 0 ? `${total.toLocaleString()} 원` : '미상 (테스트콜)';
+                                    return `${total.toLocaleString()} 원`;
                                 })()}
                             </span>
                         </div>
