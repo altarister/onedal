@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
 import { logRoadmapEvent } from "../../lib/roadmapLogger";
+import { VEHICLE_OPTIONS } from "@onedal/shared";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Button } from "../ui/button";
@@ -55,27 +56,22 @@ export default function OrderFilterModal({ isOpen, onClose }: OrderFilterModalPr
         }
     }, [targetCity, filter?.destinationCity]);
 
-    const VEHICLE_OPTIONS = ['1t', '다마스', '라보', '오토바이'] as const;
-
+    // 모달이 열리는 순간에만 activeFilter 스냅샷으로 폼을 초기화
+    // filter 의존성을 제거하여, 모달이 열린 동안 서버 업데이트에 의해 폼이 리셋되는 것을 방지
     useEffect(() => {
         if (isOpen && filter) {
-            console.log("📥 [OrderFilterModal] 모달 열림 - 현재 들어온 서버 원본 필터값(baseFilter):", JSON.parse(JSON.stringify(filter)));
+            console.log("📥 [OrderFilterModal] 모달 열림 - 현재 activeFilter 스냅샷:", JSON.parse(JSON.stringify(filter)));
             setMinFare(filter.minFare?.toString() || "");
             setPickupRadius(filter.pickupRadiusKm?.toString() || "");
             setTargetCity(filter.destinationCity || "");
             setTargetRadius(filter.destinationRadiusKm?.toString() || "");
-            setCorridorRadius(filter.corridorRadiusKm?.toString() || "10");
+            setCorridorRadius(filter.corridorRadiusKm?.toString() || "");
             setBlacklist(filter.excludedKeywords ? filter.excludedKeywords.join(',') : "");
-
-            // 첫짐/합짐 모드 변환에 따른 차종 자동 필터링 (합짐 시 1t 제외)
-            let initialVehicles = filter.allowedVehicleTypes || [];
-            if (filter.isSharedMode) {
-                initialVehicles = initialVehicles.filter(v => v !== '1t');
-            }
-            setSelectedVehicles(initialVehicles);
+            // 서버가 계산한 activeFilter.allowedVehicleTypes를 있는 그대로 신뢰 (프론트에서 가공하지 않음)
+            setSelectedVehicles(filter.allowedVehicleTypes || []);
         }
-        setIsAccordionOpen(false); // 열릴때마다 아코디언 닫기
-    }, [isOpen, filter]);
+        setIsAccordionOpen(false);
+    }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
     if (!isOpen) return null;
 
