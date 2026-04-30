@@ -324,7 +324,7 @@ export default function PinnedRouteCard({
                                 variant="destructive"
                                 disabled={processingId === route.id}
                                 onClick={(e: React.MouseEvent) => { e.stopPropagation(); setProcessingId(route.id); onDecision(route.id, 'CANCEL'); }}
-                                className="w-full py-6 text-sm font-bold shadow-sm"
+                                className="w-full py-3 text-sm font-bold shadow-sm"
                             >
                                 {processingId === route.id ? '처리 중...' : '🚨 확정 배차 취소 (해당 오더 방출)'}
                             </Button>

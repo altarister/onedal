@@ -199,16 +199,16 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: 
                 </PinnedRouteCanvas>
 
                 {/* 통합 맵 정보 브리핑 */}
-                <div className="flex justify-between items-end mb-4 px-1 mt-1">
+                <div className="flex justify-between items-end mb-1 px-1 mt-1">
                     <a
                         href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(unifiedRoutePoints[0]?.name || '')}&destination=${encodeURIComponent(unifiedRoutePoints[unifiedRoutePoints.length - 1]?.name || '')}&waypoints=${encodeURIComponent(unifiedRoutePoints.slice(1, -1).map(p => p.name).join('|'))}&travelmode=driving`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex-1"
                     >
-                        <div className="flex flex-col gap-0.5 pt-3">
-                            <span className="text-xs text-text-muted text-left">
-                                {activeRoute.length > 0 && <span className="ml-1 text-text-muted font-bold">총 {activeRoute.length}개 경로 정보</span>}
+                        <div className="flex flex-col gap-0.5 pt-1">
+                            <span className="text-xs text-muted-foreground text-left">
+                                {activeRoute.length > 0 && <span className="ml-1 text-muted-foreground font-bold">총 {activeRoute.length}개 경로 정보</span>}
                             </span>
                             <span className="text-sm text-text-primary hover:text-info transition-colors">
                                 {(() => {
@@ -231,10 +231,10 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: 
                 </div>
 
                 {/* 🚀 출발 버튼: 상시 노출 (테스트 편의성) */}
-                <div className="px-1 mb-2 space-y-2">
+                <div className="px-1 mb-1 space-y-1">
                     {/* 🧪 테스트 모드 토글 */}
                     <div className="flex items-center justify-end px-1 gap-2">
-                        <span className="text-xs text-text-muted font-semibold tracking-wide">🧪 목업 시뮬레이터</span>
+                        <span className="text-[10px] text-muted-foreground font-semibold tracking-wide">🧪 목업 시뮬레이터</span>
                         <label className="relative inline-flex items-center cursor-pointer">
                             <input 
                                 type="checkbox" 
@@ -242,7 +242,7 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: 
                                 checked={isTestMode}
                                 onChange={(e) => setIsTestMode(e.target.checked)}
                             />
-                            <div className="w-9 h-5 bg-surface-hover peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-500"></div>
+                            <div className="w-7 h-4 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-purple-500"></div>
                         </label>
                     </div>
                     <button
@@ -250,7 +250,7 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate }: 
                             logRoadmapEvent("웹", `출발 버튼 클릭 → LOADING→DRIVING 전환 (시뮬레이션: ${isTestMode})`);
                             updateFilter({ loadState: 'DRIVING', corridorRadiusKm: 0 });
                         }}
-                        className="w-full h-12 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 text-white font-black text-sm tracking-widest shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] transition-all active:scale-[0.98]"
+                        className="w-full h-10 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-400 text-white font-black text-sm tracking-widest shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:shadow-[0_0_20px_rgba(16,185,129,0.5)] transition-all active:scale-[0.98]"
                     >
                         🚀 출발 (가는길 콜만 잡기)
                     </button>

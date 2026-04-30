@@ -77,48 +77,40 @@ function DeviceRow({
     const criticalAlerts = deviceAlerts.filter(a => a.reason !== 'AUTO_CANCEL' && a.reason !== 'BUTTON_NOT_FOUND');
 
     return (
-        <div className="flex flex-col border-b border-border last:border-0 py-2 px-1">
-            <div className="flex items-center justify-between hover:bg-muted/30 transition-colors rounded p-1">
-                <div className={`flex flex-col gap-1 ${isDisconnected ? 'opacity-50' : ''}`}>
-                    <div className="flex items-center gap-3">
-                        <span className="font-bold flex items-center gap-2">
-                            <span className={`font-black text-[10px] px-1.5 rounded ${isDisconnected ? 'bg-rose-500/20 text-rose-500 animate-pulse' : 'text-emerald-500'}`}>
-                                {device.deviceName || device.deviceId.slice(0, 8)}
-                            </span>
-                            {screenInfo && (
-                                <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${screenInfo.color}`}>
-                                    {screenInfo.label}
-                                </Badge>
-                            )}
-                        </span>
-                        {/* [추가] 현재 적용된 필터 상태 표시 (온라인일 때만 최신 동기화로 간주) */}
-                        {!isDisconnected && currentFilter && (
-                            <Badge variant="outline" className={`text-[10px] font-extrabold px-1.5 py-0 rounded shadow-sm flex items-center gap-1 border ${filterColor}`}>
-                                {filterLabel}
-                            </Badge>
-                        )}
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium ml-auto">
-                            <span>수집: {device.stats.polled}</span>
-                            <span>수락: {device.stats.grabbed}</span>
-                            <span>취소: {device.stats.canceled}</span>
-                        </div>
+        <div className="flex flex-col border-b border-border last:border-0 py-1 px-1">
+            <div className="flex items-center justify-between hover:bg-muted/30 transition-colors rounded px-1">
+                <div className={`flex items-center gap-2 flex-1 min-w-0 ${isDisconnected ? 'opacity-50' : ''}`}>
+                    <span className={`font-black text-[10px] px-1.5 rounded truncate shrink-0 ${isDisconnected ? 'bg-rose-500/20 text-rose-500 animate-pulse' : 'text-emerald-500'}`}>
+                        {device.deviceName || device.deviceId.slice(0, 8)}
+                    </span>
+                    {screenInfo && (
+                        <Badge variant="outline" className={`text-[10px] px-1.5 py-0 shrink-0 ${screenInfo.color}`}>
+                            {screenInfo.label}
+                        </Badge>
+                    )}
+                    {!isDisconnected && currentFilter && (
+                        <Badge variant="outline" className={`text-[10px] font-extrabold px-1.5 py-0 rounded shadow-sm shrink-0 border ${filterColor}`}>
+                            {filterLabel}
+                        </Badge>
+                    )}
+                    <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground font-medium ml-1 truncate">
+                        <span>수집:{device.stats.polled}</span>
+                        <span>수락:{device.stats.grabbed}</span>
+                        <span>취소:{device.stats.canceled}</span>
                     </div>
                 </div>
-                <div className="flex flex-col items-end gap-1">
+                <div className="shrink-0 ml-2">
                     <Button
                         variant="outline"
                         size="sm"
                         onClick={() => onModeChange(device.deviceId, device.mode === "AUTO" ? "MANUAL" : "AUTO")}
-                        className={`h-7 px-2 text-xs font-black transition-colors ${device.mode === "AUTO"
+                        className={`h-6 px-2 text-[10px] font-black transition-colors ${device.mode === "AUTO"
                             ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/20"
                             : "bg-amber-500/10 text-amber-500 border-amber-500/30 hover:bg-amber-500/20"
                             }`}
                     >
                         {device.mode}
-                        {/* [Page/Hold 분리] 콜 처리 중 홀드 배지 (화면 배지와 나란히 표시) */}
-                        {device.isHolding && (
-                            <span className="ml-1">처리 중</span>
-                        )}
+                        {device.isHolding && <span className="ml-1">처리중</span>}
                     </Button>
                 </div>
             </div>
@@ -165,8 +157,8 @@ export default function DeviceControlPanel() {
     const { filter } = useFilterConfig();
 
     return (
-        <Card className="mb-2 shadow-sm border-border">
-            <CardContent className="p-2">
+        <Card className="shadow-sm border-border">
+            <CardContent className="p-1">
                 <div className="flex flex-col">
                     {devices.length === 0 ? (
                         <div className="text-center text-xs text-muted-foreground py-4 opacity-80 font-bold tracking-tight">

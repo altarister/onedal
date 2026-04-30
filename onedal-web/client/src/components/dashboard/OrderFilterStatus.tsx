@@ -48,7 +48,7 @@ export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () =
         <Card
             id="filter-status"
             onClick={onOpenFilter}
-            className={`flex items-center justify-between cursor-pointer rounded-xl px-3 py-2 shadow-sm transition-all active:scale-95 ${styles.border}`}
+            className={`flex items-center justify-between cursor-pointer rounded-lg px-2 py-1 shadow-sm transition-all active:scale-95 ${styles.border}`}
         >
             <div className="flex items-center gap-3 text-xs text-foreground tracking-tight font-bold">
                 <Badge variant="outline" className={`${styles.badge} shadow-sm px-2 py-0.5`}>

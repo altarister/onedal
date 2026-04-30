@@ -74,7 +74,7 @@ export default function Dashboard() {
             {/* 📍 공통 헤더 컴포넌트 */}
             <Header isConnected={isConnected} />
 
-            <div className="p-2 space-y-2 max-w-2xl mx-auto">
+            <div className="p-1.5 space-y-1 max-w-2xl mx-auto">
 
                 {/* 🎛️ 앱폰 제어 패널 */}
                 <DeviceControlPanel />
