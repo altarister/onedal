@@ -31,59 +31,44 @@ export default function OrderFilterModal({ isOpen, onClose }: OrderFilterModalPr
     // [신규] 지역 미리보기용 상태
     const [previewRegions, setPreviewRegions] = useState<Record<string, string[]> | null>(null);
     const [previewCount, setPreviewCount] = useState<number>(0);
+    const [isPreviewLoading, setIsPreviewLoading] = useState(false);
 
-    // 지역이 변경될 때마다 디바운스 처리 후 미리보기 API 호출
-    useEffect(() => {
-        const currentCity = filter?.destinationCity || "";
-        if (targetCity && targetCity !== currentCity) {
-            const timer = setTimeout(() => {
-                fetch(`/api/settings/preview-regions?city=${encodeURIComponent(targetCity)}`, {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
-                })
-                    .then(r => r.json())
-                    .then(data => {
-                        if (data.groupedRegions) {
-                            setPreviewRegions(data.groupedRegions);
-                            setPreviewCount(data.totalCount);
-                        }
-                    })
-                    .catch(err => console.error("Preview fetch err:", err));
-            }, 400); // 400ms 디바운스
-            return () => clearTimeout(timer);
-        } else {
-            setPreviewRegions(null);
-            setPreviewCount(0);
-        }
-    }, [targetCity, filter?.destinationCity]);
+    // 첫짐 섹션: 미리보기 버튼 클릭 시 호출
+    const handlePreviewRegions = () => {
+        if (!targetCity) return;
+        setIsPreviewLoading(true);
+        fetch(`/api/settings/preview-regions?city=${encodeURIComponent(targetCity)}`, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
+        })
+        .then(r => r.json())
+        .then(data => {
+            setPreviewRegions(data.groupedRegions || {});
+            setPreviewCount(data.totalCount || 0);
+            setIsAccordionOpen(true); // 미리보기 결과를 바로 보여줌
+        })
+        .catch(err => console.error("Preview fetch err:", err))
+        .finally(() => setIsPreviewLoading(false));
+    };
 
-    // 합짐 모드: 회랑 반경 또는 도착 반경 변경 시 회랑 지역 프리뷰
-    useEffect(() => {
-        if (!filter?.isSharedMode || !isOpen) return;
-        const currentCorridor = filter?.corridorRadiusKm?.toString() || "";
-        const currentTargetR = filter?.destinationRadiusKm?.toString() || "";
-        if (corridorRadius && (corridorRadius !== currentCorridor || targetRadius !== currentTargetR)) {
-            const timer = setTimeout(() => {
-                const params = new URLSearchParams({ corridorRadiusKm: corridorRadius });
-                if (targetRadius) params.set('destinationRadiusKm', targetRadius);
-                fetch(`/api/settings/preview-corridor?${params.toString()}`, {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
-                })
-                .then(r => r.json())
-                .then(data => {
-                    setPreviewRegions(data.groupedRegions || {});
-                    setPreviewCount(data.totalCount || 0);
-                })
-                .catch(err => console.error("Corridor preview err:", err));
-            }, 400);
-            return () => clearTimeout(timer);
-        } else if (filter?.isSharedMode) {
-            setPreviewRegions(null);
-            setPreviewCount(0);
-        }
-    }, [corridorRadius, targetRadius, isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+    // 합짐 섹션: 미리보기 버튼 클릭 시 호출
+    const handlePreviewCorridor = () => {
+        setIsPreviewLoading(true);
+        const params = new URLSearchParams({ corridorRadiusKm: corridorRadius || '10' });
+        if (targetRadius) params.set('destinationRadiusKm', targetRadius);
+        fetch(`/api/settings/preview-corridor?${params.toString()}`, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
+        })
+        .then(r => r.json())
+        .then(data => {
+            setPreviewRegions(data.groupedRegions || {});
+            setPreviewCount(data.totalCount || 0);
+            setIsAccordionOpen(true); // 미리보기 결과를 바로 보여줌
+        })
+        .catch(err => console.error("Corridor preview err:", err))
+        .finally(() => setIsPreviewLoading(false));
+    };
 
     // 모달이 열리는 순간에만 activeFilter 스냅샷으로 폼을 초기화
-    // filter 의존성을 제거하여, 모달이 열린 동안 서버 업데이트에 의해 폼이 리셋되는 것을 방지
     useEffect(() => {
         if (isOpen && filter) {
             console.log("📥 [OrderFilterModal] 모달 열림 - 현재 activeFilter 스냅샷:", JSON.parse(JSON.stringify(filter)));
@@ -93,8 +78,10 @@ export default function OrderFilterModal({ isOpen, onClose }: OrderFilterModalPr
             setTargetRadius(filter.destinationRadiusKm?.toString() || "");
             setCorridorRadius(filter.corridorRadiusKm?.toString() || "");
             setBlacklist(filter.excludedKeywords ? filter.excludedKeywords.join(',') : "");
-            // 서버가 계산한 activeFilter.allowedVehicleTypes를 있는 그대로 신뢰 (프론트에서 가공하지 않음)
             setSelectedVehicles(filter.allowedVehicleTypes || []);
+            // 프리뷰 상태 초기화
+            setPreviewRegions(null);
+            setPreviewCount(0);
         }
         setIsAccordionOpen(false);
     }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -235,72 +222,105 @@ export default function OrderFilterModal({ isOpen, onClose }: OrderFilterModalPr
                         </div>
                     </div>
 
-                    <div className="bg-slate-900/60 backdrop-blur-md p-3 rounded-xl border border-indigo-500/30 shadow-lg relative overflow-hidden">
-                        <div className="flex gap-2 mb-3">
-                            <div className="flex-[0.4] space-y-1">
-                                <label className="block text-[10px] font-bold text-slate-400 pl-1">도착 희망 시/도</label>
-                                <select
-                                    value={targetCity}
-                                    onChange={(e) => setTargetCity(e.target.value)}
-                                    className="w-full h-9 bg-black/50 border border-slate-600/40 rounded-md px-2 text-[13px] text-indigo-300 font-bold outline-none focus:border-indigo-400 shadow-inner appearance-none"
-                                >
-                                    <option value="용인시">용인시</option>
-                                    <option value="수원시">수원시</option>
-                                    <option value="성남시">성남시</option>
-                                    <option value="화성시">화성시</option>
-                                    <option value="광주시">광주시</option>
-                                    <option value="평택시">평택시</option>
-                                    <option value="파주시">파주시</option>
-                                </select>
-                            </div>
-                            <div className="flex-[0.3] space-y-1">
-                                <label className="block text-[10px] font-bold text-slate-400 pl-1">상차 반경</label>
-                                <div className="relative">
-                                    <Input
-                                        type="number"
-                                        value={pickupRadius}
-                                        onChange={(e) => setPickupRadius(e.target.value)}
-                                        className="bg-black/50 border-slate-600/40 pr-8 text-white font-bold h-9 text-center"
-                                    />
-                                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 font-black pointer-events-none text-[9px]">KM</span>
+                    {/* 모드별 조건부 렌더링: 첫짐 또는 합짐 전용 섹션 */}
+                    {!isSharedMode ? (
+                        /* ── 첫짐(EMPTY) 모드 섹션 ── */
+                        <div className="bg-slate-900/60 backdrop-blur-md p-3 rounded-xl border border-indigo-500/30 shadow-lg relative overflow-hidden">
+                            <div className="flex gap-2 mb-2">
+                                <div className="flex-[0.4] space-y-1">
+                                    <label className="block text-[10px] font-bold text-slate-400 pl-1">도착 희망 시/도</label>
+                                    <select
+                                        value={targetCity}
+                                        onChange={(e) => setTargetCity(e.target.value)}
+                                        className="w-full h-9 bg-black/50 border border-slate-600/40 rounded-md px-2 text-[13px] text-indigo-300 font-bold outline-none focus:border-indigo-400 shadow-inner appearance-none"
+                                    >
+                                        <option value="용인시">용인시</option>
+                                        <option value="수원시">수원시</option>
+                                        <option value="성남시">성남시</option>
+                                        <option value="화성시">화성시</option>
+                                        <option value="광주시">광주시</option>
+                                        <option value="평택시">평택시</option>
+                                        <option value="파주시">파주시</option>
+                                    </select>
+                                </div>
+                                <div className="flex-[0.3] space-y-1">
+                                    <label className="block text-[10px] font-bold text-slate-400 pl-1">상차 반경</label>
+                                    <div className="relative">
+                                        <Input
+                                            type="number"
+                                            value={pickupRadius}
+                                            onChange={(e) => setPickupRadius(e.target.value)}
+                                            className="bg-black/50 border-slate-600/40 pr-8 text-white font-bold h-9 text-center"
+                                        />
+                                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 font-black pointer-events-none text-[9px]">KM</span>
+                                    </div>
+                                </div>
+                                <div className="flex-[0.3] space-y-1">
+                                    <label className="block text-[10px] font-bold text-slate-400 pl-1">도착 반경</label>
+                                    <div className="relative">
+                                        <Input
+                                            type="number"
+                                            value={targetRadius}
+                                            onChange={(e) => setTargetRadius(e.target.value)}
+                                            className="bg-black/50 border-slate-600/40 pr-8 text-indigo-300 font-bold h-9 text-center"
+                                        />
+                                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-indigo-600/70 font-black pointer-events-none text-[9px]">KM</span>
+                                    </div>
                                 </div>
                             </div>
-                            <div className="flex-[0.3] space-y-1">
-                                <label className="block text-[10px] font-bold text-slate-400 pl-1">도착 반경</label>
-                                <div className="relative">
-                                    <Input
-                                        type="number"
-                                        value={targetRadius}
-                                        onChange={(e) => setTargetRadius(e.target.value)}
-                                        className="bg-black/50 border-slate-600/40 pr-8 text-indigo-300 font-bold h-9 text-center"
-                                    />
-                                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-indigo-600/70 font-black pointer-events-none text-[9px]">KM</span>
-                                </div>
-                            </div>
+                            <Button
+                                onClick={handlePreviewRegions}
+                                disabled={isPreviewLoading}
+                                size="sm"
+                                className="w-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 hover:bg-indigo-500/30 h-8 text-xs font-bold"
+                            >
+                                {isPreviewLoading ? '연산 중...' : '🔍 지역 미리보기'}
+                            </Button>
                         </div>
-                    </div>
-
-                    <div className="bg-slate-900/60 backdrop-blur-md p-3 rounded-xl border border-amber-500/30 shadow-lg relative overflow-hidden">
-                        <div className="flex items-center gap-3">
-                            <div className="flex-[0.4] space-y-1">
-                                <label className="block text-[10px] font-bold text-slate-400 text-center">우회 탐색 허용 반경</label>
-                                <div className="relative">
-                                    <Input
-                                        type="number"
-                                        value={corridorRadius}
-                                        onChange={(e) => setCorridorRadius(e.target.value)}
-                                        className="bg-black/50 border-amber-500/30 text-amber-500 font-bold h-9 text-center shadow-inner"
-                                    />
-                                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-amber-500/50 font-black pointer-events-none text-[10px]">KM</span>
+                    ) : (
+                        /* ── 합짐(SHARED) 모드 섹션 ── */
+                        <div className="bg-slate-900/60 backdrop-blur-md p-3 rounded-xl border border-amber-500/30 shadow-lg relative overflow-hidden">
+                            <div className="flex items-center gap-3 mb-2">
+                                <div className="flex-[0.4] space-y-1">
+                                    <label className="block text-[10px] font-bold text-slate-400 text-center">우회 탐색 허용 반경</label>
+                                    <div className="relative">
+                                        <Input
+                                            type="number"
+                                            value={corridorRadius}
+                                            onChange={(e) => setCorridorRadius(e.target.value)}
+                                            className="bg-black/50 border-amber-500/30 text-amber-500 font-bold h-9 text-center shadow-inner"
+                                        />
+                                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-amber-500/50 font-black pointer-events-none text-[10px]">KM</span>
+                                    </div>
+                                </div>
+                                <div className="flex-[0.3] space-y-1">
+                                    <label className="block text-[10px] font-bold text-slate-400 text-center">도착 반경</label>
+                                    <div className="relative">
+                                        <Input
+                                            type="number"
+                                            value={targetRadius}
+                                            onChange={(e) => setTargetRadius(e.target.value)}
+                                            className="bg-black/50 border-amber-500/30 pr-8 text-amber-300 font-bold h-9 text-center"
+                                        />
+                                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-amber-500/50 font-black pointer-events-none text-[9px]">KM</span>
+                                    </div>
+                                </div>
+                                <div className="flex-[0.3]">
+                                    <p className="text-[9px] text-slate-400 leading-tight border-l-2 border-amber-500/30 pl-2 py-1">
+                                        경로상 추가 콜 탐색을 허용할 최대 우회 반경
+                                    </p>
                                 </div>
                             </div>
-                            <div className="flex-[0.6]">
-                                <p className="text-[10px] text-slate-400 leading-tight border-l-2 border-amber-500/30 pl-3 py-1">
-                                    첫 짐을 잡은 후 <span className="text-amber-500 font-bold">적재하러 가는 길</span>에 추가 콜 탐색을 허용할 최대 우회(회랑) 반경입니다.
-                                </p>
-                            </div>
+                            <Button
+                                onClick={handlePreviewCorridor}
+                                disabled={isPreviewLoading}
+                                size="sm"
+                                className="w-full bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 h-8 text-xs font-bold"
+                            >
+                                {isPreviewLoading ? '연산 중...' : '🔍 회랑 지역 미리보기'}
+                            </Button>
                         </div>
-                    </div>
+                    )}
 
                     {/* 독립 섹션: 현재 타겟팅 지역 목록 검증 (첫짐/합짐 공통) */}
                     <div className="bg-slate-900/60 backdrop-blur-md p-3 rounded-xl border border-slate-500/20 shadow-lg">
