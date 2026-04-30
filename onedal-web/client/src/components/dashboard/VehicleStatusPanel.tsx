@@ -151,7 +151,7 @@ export default function VehicleStatusPanel() {
     };
 
     return (
-        <Card className="flex items-center justify-between px-2 py-1 shadow-sm border-border bg-card rounded-lg">
+        <Card className="flex flex-row items-center justify-between px-2 py-1 shadow-sm border-border bg-card rounded-lg">
             <div className="flex items-center gap-2">
                 <span className="text-sm font-black text-foreground">{myVehicle}</span>
                 <div className="text-xs mt-0.5">

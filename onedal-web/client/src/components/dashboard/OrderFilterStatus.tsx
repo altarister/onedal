@@ -7,7 +7,7 @@ export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () =
 
     if (!filter) {
         return (
-            <Card className="flex items-center justify-center rounded-xl px-4 py-3 shadow-sm bg-card border-border">
+            <Card className="flex flex-row items-center justify-center rounded-xl px-4 py-3 shadow-sm bg-card border-border">
                 <span className="text-sm font-black tracking-tight text-foreground flex items-center gap-2">오더 필터 동기화 중...</span>
             </Card>
         );
@@ -48,7 +48,7 @@ export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () =
         <Card
             id="filter-status"
             onClick={onOpenFilter}
-            className={`flex items-center justify-between cursor-pointer rounded-lg px-2 py-1 shadow-sm transition-all active:scale-95 ${styles.border}`}
+            className={`flex flex-row items-center justify-between cursor-pointer rounded-lg px-2 py-1 shadow-sm transition-all active:scale-95 ${styles.border}`}
         >
             <div className="flex items-center gap-3 text-xs text-foreground tracking-tight font-bold">
                 <Badge variant="outline" className={`${styles.badge} shadow-sm px-2 py-0.5`}>
@@ -71,9 +71,9 @@ export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () =
                     </>
                 )}
             </div>
-            <div className={`text-lg sm:text-xl opacity-80 hover:opacity-100 transition-opacity`}>
+            {/* <div className={`text-lg sm:text-xl opacity-80 hover:opacity-100 transition-opacity`}>
                 ⚙️
-            </div>
+            </div> */}
         </Card>
     );
 }
