@@ -17,6 +17,7 @@ import db from "../db";
 import { getUserSession } from "../state/userSessionStore";
 import { forceCancelEvaluatingOrder, handleDecision } from "../services/dispatchEngine";
 import { applyFilter } from "../state/filterManager";
+import { requireAuth } from "../middlewares/authMiddleware";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 
 const router = Router();
@@ -34,21 +35,23 @@ router.post("/", (req, res) => {
             return res.status(400).json({ error: "필수 데이터(pickup, dropoff)가 누락되었습니다" });
         }
 
-        type DbOrderRow = SimplifiedOfficeOrder & { status: string };
+        type DbOrderRow = SimplifiedOfficeOrder & { status: string; captured_at?: string };
 
+        const now = new Date().toISOString();
         const newOrder: DbOrderRow = {
             id: crypto.randomUUID(),
             type: type || "NEW_ORDER",
             pickup,
             dropoff,
             fare: fare || 0,
-            timestamp: timestamp || new Date().toISOString(),
+            timestamp: timestamp || now,
             status: "pending",
+            captured_at: payload.capturedAt || now,
         };
 
         // DB에 저장
         const stmt = db.prepare(
-            "INSERT INTO orders (id, type, pickup, dropoff, fare, timestamp, status) VALUES (?, ?, ?, ?, ?, ?, ?)"
+            "INSERT INTO orders (id, type, pickup, dropoff, fare, timestamp, status, captured_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
         );
         stmt.run(
             newOrder.id,
@@ -57,7 +60,8 @@ router.post("/", (req, res) => {
             newOrder.dropoff,
             newOrder.fare,
             newOrder.timestamp,
-            newOrder.status
+            newOrder.status,
+            newOrder.captured_at
         );
 
         // Socket.io로 즉시 발송
@@ -85,13 +89,26 @@ router.post("/", (req, res) => {
 });
 
 // GET: 대시보드 새로고침 시 기존 콜 목록 전달
-router.get("/", (req, res) => {
+router.get("/", requireAuth, (req, res) => {
     try {
-        const stmt = db.prepare("SELECT * FROM orders ORDER BY timestamp ASC");
-        type DbOrderRow = SimplifiedOfficeOrder & { status: string };
-        const rows = stmt.all() as DbOrderRow[];
+        const userId = req.user?.id;
+        if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
-        res.json({ orders: rows });
+        // 오늘 날짜(자정 이후)의 확정 및 완료 오더만 가져옴
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+
+        const stmt = db.prepare("SELECT * FROM orders WHERE user_id = ? AND status IN ('confirmed', 'completed') AND timestamp >= ? ORDER BY timestamp ASC");
+        type DbOrderRow = SimplifiedOfficeOrder & { status: string; captured_at?: string };
+        const rows = stmt.all(userId, todayStart.toISOString()) as DbOrderRow[];
+
+        // DB 컬럼명(captured_at)을 프론트엔드 필드명(capturedAt)으로 매핑
+        const mapped = rows.map(row => ({
+            ...row,
+            capturedAt: row.captured_at || row.timestamp,
+        }));
+
+        res.json({ orders: mapped });
     } catch (error) {
         console.error("Orders GET 에러:", error);
         res.status(500).json({ error: "서버 오류 발생" });

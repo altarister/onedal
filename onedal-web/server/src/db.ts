@@ -124,6 +124,21 @@ db.exec(`
     )
 `);
 
+// orders 테이블에 user_id 컬럼이 있는지 확인 후 없으면 추가 (마이그레이션)
+const orderTableInfo = db.prepare("PRAGMA table_info(orders)").all() as Array<{ name: string }>;
+const hasUserIdInOrders = orderTableInfo.some(col => col.name === 'user_id');
+if (!hasUserIdInOrders) {
+    db.exec("ALTER TABLE orders ADD COLUMN user_id TEXT");
+    console.log("🛠️ [DB Migration] orders 테이블에 user_id 컬럼 추가 완료");
+}
+
+// orders 테이블에 captured_at 컬럼이 있는지 확인 후 없으면 추가 (마이그레이션)
+const hasCapturedAtInOrders = orderTableInfo.some(col => col.name === 'captured_at');
+if (!hasCapturedAtInOrders) {
+    db.exec("ALTER TABLE orders ADD COLUMN captured_at TEXT");
+    console.log("🛠️ [DB Migration] orders 테이블에 captured_at 컬럼 추가 완료");
+}
+
 // ═══════════════════════════════════════
 // [7] (기존 레거시) 스캐너가 버린 데이터
 // ═══════════════════════════════════════

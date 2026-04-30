@@ -94,7 +94,7 @@ export interface OfficeOrder extends SimplifiedOfficeOrder, DetailedOfficeOrder 
 
 // 4. [우리 서버 데이터] 최종적으로 내 소유권이 부여되고 관제가 이뤄지는 확정 오더
 export interface SecuredOrder extends OfficeOrder {
-    status: 'evaluating_basic' | 'evaluating_detailed' | 'confirmed' | 'canceled'; // 1차 평가 여부 추가
+    status: 'evaluating_basic' | 'evaluating_detailed' | 'confirmed' | 'canceled' | 'completed';
     capturedDeviceId: string;         // 이 오더를 물어온 기기 (앱폰 1호기)
     capturedAt: string;               // 낚아챈 실제 타임스탬프
     kakaoCalculatedFare?: number;     // 서버 연산 기반 가성비 단가 (미래 확장성)

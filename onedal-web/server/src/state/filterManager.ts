@@ -85,10 +85,16 @@ export function applyFilter(
     if (nextLoadState === 'EMPTY') {
         // 런타임 조작값 파기하되, isActive 상태(자동/수동)는 유지
         const currentIsActive = session.runtimeOverrides.isActive;
+        const explicitKeywords = changes.destinationKeywords;  // 이번에 명시적으로 요청된 투트랙 키워드 등
+        const explicitCity = changes.destinationCity;          // 이번에 명시적으로 요청된 커스텀 라벨
+
         session.runtimeOverrides = { loadState: 'EMPTY' };
         if (currentIsActive !== undefined) {
             session.runtimeOverrides.isActive = currentIsActive;
         }
+        if (explicitKeywords) session.runtimeOverrides.destinationKeywords = explicitKeywords;
+        if (explicitCity) session.runtimeOverrides.destinationCity = explicitCity;
+
         session.baseFilter.loadState = 'EMPTY';
         session.baseFilter.isSharedMode = false;
     }

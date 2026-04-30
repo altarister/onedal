@@ -102,74 +102,80 @@ export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: 
 /** 취소/방출 등 메모리 변동 발생 시, 오더가 남아있다면 카카오 경로를 백그라운드에서 재탐색하여 폴리라인 및 소요시간을 복원합니다. */
 export async function recalculateActiveKakaoRoute(userId: string, io: any) {
     const session = getUserSession(userId);
-    if (!session.mainCallState && session.subCalls.length > 0) {
-        session.mainCallState = session.subCalls.shift() || null;
-    }
+    
+    // 완료되지 않은 활성 콜만 추출 (On-the-fly 필터링)
+    const activeCalls = [session.mainCallState, ...session.subCalls].filter(c => c && c.status !== 'completed') as SecuredOrder[];
+    
+    if (activeCalls.length === 0) return; // 경로를 계산할 활성 콜이 없음
 
-    if (session.mainCallState) {
-        try {
-            const apiKey = process.env.KAKAO_REST_API_KEY || ""; // 존재 여부 체크용 (실제 키는 kakaoService 모듈 스코프)
-            if (!apiKey) return;
+    const activeMain = activeCalls[0];
+    const activeSubs = activeCalls.slice(1);
 
-            const routingOptions = getKakaoRoutingOptions(userId);
+    try {
+        const apiKey = process.env.KAKAO_REST_API_KEY || ""; 
+        if (!apiKey) return;
 
-            if (session.subCalls.length === 0) {
-                // 단독 오더로 복귀
-                const res = await calculateSoloRoute(
-                    session.mainCallState.pickupX!, session.mainCallState.pickupY!,
-                    session.mainCallState.dropoffX!, session.mainCallState.dropoffY!,
-                    session.driverLocation,
-                    routingOptions.defaultPriority,
-                    routingOptions.carType
-                );
-                session.mainCallState.routePolyline = res.polyline;
-                session.mainCallState.totalDistanceKm = Math.round(res.distance / 1000);
-                session.mainCallState.totalDurationMin = Math.round(res.duration / 60);
+        const routingOptions = getKakaoRoutingOptions(userId);
 
-                if (res.approachDistance && res.approachDuration) {
-                    console.log(`🗺️ [사후 재계산 - 첫짐] 현위치 접근: ${res.approachDistance}m (${res.approachDuration}초) / 총 이동: ${res.distance}m`);
-                }
-            } else {
-                // 스마트 라우팅 (경유지 최적화 - TSP)
-                const allPickups = [
-                    { x: session.mainCallState.pickupX!, y: session.mainCallState.pickupY! },
-                    ...session.subCalls.map(c => ({ x: c.pickupX!, y: c.pickupY! }))
-                ];
-                const allDropoffs = [
-                    { x: session.mainCallState.dropoffX!, y: session.mainCallState.dropoffY! },
-                    ...session.subCalls.map(c => ({ x: c.dropoffX!, y: c.dropoffY! }))
-                ];
+        if (activeSubs.length === 0) {
+            // 단독 오더 라우팅
+            const res = await calculateSoloRoute(
+                activeMain.pickupX!, activeMain.pickupY!,
+                activeMain.dropoffX!, activeMain.dropoffY!,
+                session.driverLocation,
+                routingOptions.defaultPriority,
+                routingOptions.carType
+            );
+            activeMain.routePolyline = res.polyline;
+            activeMain.totalDistanceKm = Math.round(res.distance / 1000);
+            activeMain.totalDurationMin = Math.round(res.duration / 60);
 
-                const startLoc = session.driverLocation || allPickups[0];
-                const { sortedPickups, sortedDropoffs } = optimizeWaypoints(startLoc, allPickups, allDropoffs);
-                
-                const mergedDest = sortedDropoffs.pop()!;
-                const waypoints = [...sortedPickups, ...sortedDropoffs];
-
-                const result = await calculateDetourRoute(
-                    session.mainCallState.dropoffX!, session.mainCallState.dropoffY!, 
-                    session.mainCallState.pickupX!, session.mainCallState.pickupY!,   
-                    mergedDest.x, mergedDest.y,                       
-                    waypoints,
-                    session.driverLocation,
-                    routingOptions.defaultPriority,
-                    routingOptions.carType
-                );
-                
-                const lastSub = session.subCalls[session.subCalls.length - 1]; 
-                lastSub.routePolyline = result.merged.polyline;
-                lastSub.totalDistanceKm = result.merged.distance / 1000;
-                lastSub.totalDurationMin = Math.round(result.merged.duration / 60);
-                
-                if (result.merged.approachDistance && result.merged.approachDuration) {
-                     console.log(`🗺️ [사후 재계산 - 합짐] 현위치 접근: ${result.merged.approachDistance}m (${result.merged.approachDuration}초) / 총 이동: ${result.merged.distance}m`);
-                }
+            if (res.approachDistance && res.approachDuration) {
+                console.log(`🗺️ [사후 재계산 - 첫짐] 현위치 접근: ${res.approachDistance}m (${res.approachDuration}초) / 총 이동: ${res.distance}m`);
             }
-            console.log(`🗺️ [사후 재계산 완료] 취소 반영 후 경로/소요시간 갱신 완료.`);
-        } catch (error) {
-            console.log(`⚠️ [사후 재계산 실패] 경로 연산 중 예외 발생:`, error);
+        } else {
+            // 다중 오더 라우팅 (TSP)
+            const allPickups = [
+                { x: activeMain.pickupX!, y: activeMain.pickupY! },
+                ...activeSubs.map(c => ({ x: c.pickupX!, y: c.pickupY! }))
+            ];
+            const allDropoffs = [
+                { x: activeMain.dropoffX!, y: activeMain.dropoffY! },
+                ...activeSubs.map(c => ({ x: c.dropoffX!, y: c.dropoffY! }))
+            ];
+
+            const startLoc = session.driverLocation || allPickups[0];
+            const { sortedPickups, sortedDropoffs } = optimizeWaypoints(startLoc, allPickups, allDropoffs);
+            
+            const mergedDest = sortedDropoffs.pop()!;
+            const waypoints = [...sortedPickups, ...sortedDropoffs];
+
+            const result = await calculateDetourRoute(
+                activeMain.dropoffX!, activeMain.dropoffY!, 
+                activeMain.pickupX!, activeMain.pickupY!,   
+                mergedDest.x, mergedDest.y,                       
+                waypoints,
+                session.driverLocation,
+                routingOptions.defaultPriority,
+                routingOptions.carType
+            );
+            
+            const lastSub = activeSubs[activeSubs.length - 1]; 
+            lastSub.routePolyline = result.merged.polyline;
+            lastSub.totalDistanceKm = result.merged.distance / 1000;
+            lastSub.totalDurationMin = Math.round(result.merged.duration / 60);
+            
+            if (result.merged.approachDistance && result.merged.approachDuration) {
+                 console.log(`🗺️ [사후 재계산 - 합짐] 현위치 접근: ${result.merged.approachDistance}m (${result.merged.approachDuration}초) / 총 이동: ${result.merged.distance}m`);
+            }
         }
+        console.log(`🗺️ [사후 재계산 완료] 취소 반영 후 경로/소요시간 갱신 완료.`);
+    } catch (error) {
+        console.log(`⚠️ [사후 재계산 실패] 경로 연산 중 예외 발생:`, error);
     }
+    
+    // [핵심 보강] 갱신된 새 폴리라인을 바탕으로 타겟팅 키워드(회랑) 다시 추출!
+    syncCorridorFilter(userId, io);
     
     if (io) {
         const payload = Array.from(session.pendingOrdersData.values());
@@ -403,12 +409,6 @@ export async function handleDecision(userId: string, orderId: string, action: 'K
         
         if (!cachedOrder) return { success: false, action };
 
-        let destinationKeywords = session.activeFilter.destinationKeywords;
-
-        if (cachedOrder && cachedOrder.routePolyline) {
-            syncCorridorFilter(userId, null);
-            destinationKeywords = session.activeFilter.destinationKeywords;
-        }
         if (cachedOrder) {
             cachedOrder.status = 'confirmed';
         }
@@ -425,43 +425,80 @@ export async function handleDecision(userId: string, orderId: string, action: 'K
                 try {
                     const hasApiKey = !!process.env.KAKAO_REST_API_KEY;
                     if (hasApiKey) {
-                        const allPickups = [
-                            { x: session.mainCallState.pickupX!, y: session.mainCallState.pickupY! },
-                            ...session.subCalls.map(c => ({ x: c.pickupX!, y: c.pickupY! }))
-                        ];
-                        const allDropoffs = [
-                            { x: session.mainCallState.dropoffX!, y: session.mainCallState.dropoffY! },
-                            ...session.subCalls.map(c => ({ x: c.dropoffX!, y: c.dropoffY! }))
-                        ];
-                        
-                        const startLoc = allPickups[0]; 
-                        const { sortedPickups, sortedDropoffs } = optimizeWaypoints(startLoc, allPickups, allDropoffs);
-                        
-                        const mergedDest = sortedDropoffs.pop()!;
-                        const waypoints = [...sortedPickups, ...sortedDropoffs];
-                        
-                        const routingOptions = getKakaoRoutingOptions(userId);
-                        
-                        const calcResult = await calculateDetourRoute(
-                            session.mainCallState.dropoffX!, session.mainCallState.dropoffY!,
-                            session.mainCallState.pickupX!, session.mainCallState.pickupY!,
-                            mergedDest.x, mergedDest.y,
-                            waypoints,
-                            session.driverLocation,
-                            routingOptions.defaultPriority,
-                            routingOptions.carType
-                        );
-                        
-                        const lastSub = session.subCalls[session.subCalls.length - 1];
-                        lastSub.routePolyline = calcResult.merged.polyline;
-                        lastSub.totalDistanceKm = calcResult.merged.distance / 1000;
-                        lastSub.totalDurationMin = Math.round(calcResult.merged.duration / 60);
-                        lastSub.sectionEtas = calcResult.merged.sectionEtas;
+                        const activeCalls = [session.mainCallState, ...session.subCalls].filter(c => c && c.status !== 'completed') as SecuredOrder[];
+                        if (activeCalls.length > 0) {
+                            const activeMain = activeCalls[0];
+                            const activeSubs = activeCalls.slice(1);
+
+                            const allPickups = [
+                                { x: activeMain.pickupX!, y: activeMain.pickupY! },
+                                ...activeSubs.map(c => ({ x: c.pickupX!, y: c.pickupY! }))
+                            ];
+                            const allDropoffs = [
+                                { x: activeMain.dropoffX!, y: activeMain.dropoffY! },
+                                ...activeSubs.map(c => ({ x: c.dropoffX!, y: c.dropoffY! }))
+                            ];
+                            
+                            const startLoc = allPickups[0]; 
+                            const { sortedPickups, sortedDropoffs } = optimizeWaypoints(startLoc, allPickups, allDropoffs);
+                            
+                            const mergedDest = sortedDropoffs.pop()!;
+                            const waypoints = [...sortedPickups, ...sortedDropoffs];
+                            
+                            const routingOptions = getKakaoRoutingOptions(userId);
+                            
+                            const calcResult = await calculateDetourRoute(
+                                activeMain.dropoffX!, activeMain.dropoffY!,
+                                activeMain.pickupX!, activeMain.pickupY!,
+                                mergedDest.x, mergedDest.y,
+                                waypoints,
+                                session.driverLocation,
+                                routingOptions.defaultPriority,
+                                routingOptions.carType
+                            );
+                            
+                            const lastSub = session.subCalls[session.subCalls.length - 1];
+                            lastSub.routePolyline = calcResult.merged.polyline;
+                            lastSub.totalDistanceKm = calcResult.merged.distance / 1000;
+                            lastSub.totalDurationMin = Math.round(calcResult.merged.duration / 60);
+                            lastSub.sectionEtas = calcResult.merged.sectionEtas;
+                        }
                     }
                 } catch(e) {
                     console.error('🗺️ [사후 병합 궤적 생성 실패]', e);
                 }
             }
+        }
+
+        // ✅ mainCallState/subCalls 할당 완료 후 회랑 재계산 (경로 기반 키워드 갱신)
+        let destinationKeywords = session.activeFilter.destinationKeywords;
+        if (cachedOrder && cachedOrder.routePolyline) {
+            syncCorridorFilter(userId, io);
+            destinationKeywords = session.activeFilter.destinationKeywords;
+            console.log(`🗺️ [회랑 갱신] KEEP 후 destinationKeywords ${destinationKeywords.length}개로 재계산 완료`);
+        }
+
+        // DB에 영구 저장 (status: confirmed)
+        try {
+            const stmt = db.prepare(`
+                INSERT INTO orders (id, type, pickup, dropoff, fare, timestamp, status, user_id, captured_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET status = 'confirmed', user_id = excluded.user_id, captured_at = excluded.captured_at
+            `);
+            stmt.run(
+                securedOrder.id,
+                securedOrder.type || "NEW_ORDER",
+                securedOrder.pickup,
+                securedOrder.dropoff,
+                securedOrder.fare || 0,
+                securedOrder.timestamp || new Date().toISOString(),
+                "confirmed",
+                userId,
+                securedOrder.capturedAt || new Date().toISOString()
+            );
+            console.log(`💾 [DB 저장 완료] ${securedOrder.id} - confirmed (capturedAt: ${securedOrder.capturedAt})`);
+        } catch (dbErr) {
+            console.error("DB 저장 에러:", dbErr);
         }
 
         logRoadmapEvent("서버", "관제탑에게 확정되었음(order-confirmed) 정보 전달");

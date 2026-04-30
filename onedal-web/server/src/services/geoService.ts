@@ -372,3 +372,27 @@ export function processDriverMovement(userId: string, lat: number, lng: number, 
     }
 }
 
+/**
+ * [역지오코딩] 좌표(위도, 경도)를 받아서 해당 위치의 시/군/구 이름을 반환합니다.
+ * 전국 읍면동 폴리곤(merged_map.geojson)과 point-in-polygon으로 대조합니다.
+ * @returns 시/군/구 이름 (예: "파주시") 또는 null
+ */
+export function reverseGeocodeToRegion(lat: number, lng: number): string | null {
+    if (!mergedMapFeatureCollection || !mergedMapFeatureCollection.features) return null;
+    
+    const point = turf.point([lng, lat]); // GeoJSON: [경도, 위도]
+
+    for (const feature of mergedMapFeatureCollection.features) {
+        // BBox 1차 필터 (고속)
+        if (feature.bbox) {
+            const [minLng, minLat, maxLng, maxLat] = feature.bbox;
+            if (lng < minLng || lng > maxLng || lat < minLat || lat > maxLat) continue;
+        }
+        // Point-in-Polygon 정밀 검사
+        if (turf.booleanPointInPolygon(point, feature as any)) {
+            const sigName = (feature.properties as any)?.SIG_KOR_NM;
+            if (sigName) return sigName;
+        }
+    }
+    return null;
+}

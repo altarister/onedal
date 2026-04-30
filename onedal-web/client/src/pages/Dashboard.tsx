@@ -30,7 +30,15 @@ export default function Dashboard() {
         handleRecalculate,
     } = useOrderEngine();
 
-    const activeRoute = [mainCall, ...subCalls].filter(Boolean) as SecuredOrder[];
+    const dbConfirmedOrCompleted = orders.filter(o => o.status === 'confirmed' || o.status === 'completed');
+    const memoryActive = [mainCall, ...subCalls].filter(Boolean) as SecuredOrder[];
+    
+    // ID 기반 병합 (메모리 데이터 우선, 순서 유지)
+    const activeRouteMap = new Map();
+    dbConfirmedOrCompleted.forEach(o => activeRouteMap.set(o.id, o));
+    memoryActive.forEach(o => activeRouteMap.set(o.id, { ...activeRouteMap.get(o.id), ...o })); 
+    
+    const activeRoute = Array.from(activeRouteMap.values()) as SecuredOrder[];
     const hasHomeReturnActive = activeRoute.some(o => o.receiptStatus === '귀가' || o.id?.startsWith('home-'));
 
     // 대기열 콜 필터링

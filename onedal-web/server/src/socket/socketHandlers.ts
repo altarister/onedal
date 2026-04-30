@@ -129,6 +129,124 @@ export function registerSocketHandlers(io: Server) {
             socket.emit("recalculate-route-ack", result);
         });
 
+        // ━━━ [운행 완료 처리] ━━━
+        socket.on("dispatch-complete", async (data: { orderId: string }) => {
+            if (!data || !data.orderId) return;
+            const session = getUserSession(userId);
+            let updated = false;
+
+            if (session.mainCallState && session.mainCallState.id === data.orderId) {
+                session.mainCallState.status = 'completed';
+                updated = true;
+            } else {
+                const subCall = session.subCalls.find(c => c.id === data.orderId);
+                if (subCall) {
+                    subCall.status = 'completed';
+                    updated = true;
+                }
+            }
+
+            if (updated) {
+                // DB 영구 업데이트
+                try {
+                    const stmt = db.prepare("UPDATE orders SET status = 'completed' WHERE id = ? AND user_id = ?");
+                    stmt.run(data.orderId, userId);
+                    console.log(`✅ [운행 완료] ${data.orderId} - DB 업데이트 완료`);
+                } catch (e) {
+                    console.error("DB 업데이트 에러:", e);
+                }
+
+                // 경로 재계산 (완료된 짐 제외한 On-the-fly 라우팅)
+                const { recalculateActiveKakaoRoute } = await import("../services/dispatchEngine");
+                await recalculateActiveKakaoRoute(userId, io);
+                
+                io.to(userId).emit("filter-updated", {
+                    activeFilter: session.activeFilter,
+                    baseFilter: session.baseFilter
+                });
+            }
+        });
+
+        // 🎯 투-트랙 사냥: 기존 콜 전부 완료 처리 → 필터를 EMPTY 리셋 → 집 + 현 위치 동시 스캔
+        socket.on("start-two-track", async () => {
+            try {
+                const session = getUserSession(userId);
+                console.log(`🎯 [투-트랙] 사냥 모드 전환 시작 (userId: ${userId})`);
+
+                // 1. 기존 활성 콜 전부 completed 처리 (메모리 + DB)
+                const allCalls = [session.mainCallState, ...session.subCalls].filter(c => c && c.status !== 'completed');
+                for (const call of allCalls) {
+                    if (!call) continue;
+                    call.status = 'completed';
+                    try {
+                        db.prepare("UPDATE orders SET status = 'completed' WHERE id = ? AND user_id = ?").run(call.id, userId);
+                        console.log(`   ✅ [투-트랙] 기존 콜 완료 처리: ${call.id} (${call.pickup} → ${call.dropoff})`);
+                    } catch (e) {
+                        console.error(`   ⚠️ [투-트랙] DB 업데이트 실패:`, e);
+                    }
+                }
+
+                // 2. 세션 메모리 초기화
+                session.mainCallState = null;
+                session.subCalls = [];
+
+                // 3. 집 주소에서 키워드 추출
+                const settings = db.prepare("SELECT home_address FROM user_settings WHERE user_id = ?").get(userId) as any;
+                const homeKeywords: string[] = [];
+                if (settings?.home_address) {
+                    // "경기도 광주시 초월읍 ..." → "광주시", "초월읍" 등 추출
+                    const parts = settings.home_address.split(/\s+/);
+                    for (const p of parts) {
+                        if (p.endsWith('시') || p.endsWith('군') || p.endsWith('구') || p.endsWith('읍') || p.endsWith('면') || p.endsWith('동')) {
+                            homeKeywords.push(p);
+                        }
+                    }
+                }
+
+                // 4. 현재 위치 주변 키워드 추출 (기존 필터의 destinationCity 활용)
+                const currentKeywords: string[] = [];
+                if (session.activeFilter.destinationCity) {
+                    currentKeywords.push(session.activeFilter.destinationCity);
+                }
+                // 현재 위치의 도시명도 추가 (geoService에서 역지오코딩)
+                if (session.driverLocation) {
+                    const { reverseGeocodeToRegion } = await import("../services/geoService");
+                    const region = reverseGeocodeToRegion(session.driverLocation.y, session.driverLocation.x);
+                    if (region) {
+                        currentKeywords.push(region);
+                    }
+                }
+
+                // 5. 필터 리셋: EMPTY 모드 + 동시 키워드 투입
+                const mergedKeywords = [...new Set([...homeKeywords, ...currentKeywords])];
+                applyFilter(userId, {
+                    isSharedMode: false,
+                    isActive: true,
+                    loadState: 'EMPTY',
+                    destinationCity: '🎯 투-트랙 탐색',
+                    destinationKeywords: mergedKeywords,
+                    corridorRadiusKm: 0,
+                }, io, false);
+
+                console.log(`🎯 [투-트랙] 필터 전환 완료 → 키워드: [${mergedKeywords.join(', ')}]`);
+                
+                // 6. 프론트엔드 동기화
+                io.to(userId).emit("filter-updated", {
+                    activeFilter: session.activeFilter,
+                    baseFilter: session.baseFilter
+                });
+
+                // 7. 프론트엔드에 활성 콜 리스트 갱신 전달
+                const payload = Array.from(session.pendingOrdersData.values());
+                io.to(userId).emit("sync-active-orders", payload);
+
+                socket.emit("two-track-ack", { success: true, keywords: mergedKeywords });
+            } catch (e: any) {
+                console.error("🎯 [투-트랙] 에러:", e);
+                socket.emit("two-track-ack", { success: false, message: e.message || "투-트랙 전환 실패" });
+            }
+        });
+
         // 🏠 귀가콜: 현재 위치 → 집 주소로 가상 오더 생성 + 회랑 자동 세팅
         socket.on("create-home-return", async (data?: { corridorRadiusKm?: number, destinationRadiusKm?: number }) => {
             try {
@@ -175,9 +293,15 @@ export function registerSocketHandlers(io: Server) {
                     tollFare: '0',
                 };
 
-                // 기존 상태 초기화
-                session.mainCallState = homeOrder as any;
-                session.subCalls = [];
+                // 기존 활성 콜 확인 (On-the-fly 필터)
+                const activeCalls = [session.mainCallState, ...session.subCalls].filter(c => c && c.status !== 'completed');
+                
+                if (activeCalls.length === 0) {
+                    session.mainCallState = homeOrder as any;
+                    session.subCalls = [];
+                } else {
+                    session.subCalls.push(homeOrder as any);
+                }
 
                 // 카카오 경로 연산 (evaluateNewOrder 호출 시 목적지 반경도 고려될 수 있음)
                 const { evaluateNewOrder } = await import("../services/dispatchEngine");

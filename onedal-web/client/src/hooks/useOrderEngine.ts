@@ -49,7 +49,10 @@ export function useOrderEngine() {
     }, []);
 
     useEffect(() => {
-        fetch("/api/orders").then((res) => res.json()).then((data) => setOrders(data.orders || [])).catch(() => { });
+        const token = localStorage.getItem('access_token');
+        fetch("/api/orders", {
+            headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        }).then((res) => res.json()).then((data) => setOrders(data.orders || [])).catch(() => { });
 
         if (socket.connected) {
             setIsConnected(true);

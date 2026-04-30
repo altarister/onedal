@@ -3,6 +3,16 @@ import { socket } from "../lib/socket";
 import type { AutoDispatchFilter } from "@onedal/shared";
 import { logRoadmapEvent } from "../lib/roadmapLogger";
 
+let lastFilterInitRequestTime = 0;
+
+function requestFilterInitSafe() {
+    const now = Date.now();
+    if (now - lastFilterInitRequestTime > 1000) {
+        lastFilterInitRequestTime = now;
+        socket.emit("request-filter-init");
+    }
+}
+
 export function useFilterConfig() {
     const [filter, setFilter] = useState<AutoDispatchFilter | null>(null); // activeFilter
     const [baseFilter, setBaseFilter] = useState<AutoDispatchFilter | null>(null);
@@ -23,7 +33,7 @@ export function useFilterConfig() {
 
         const onConnect = () => {
             logRoadmapEvent("웹", "서버 소켓 연결/재연결됨 → 최신 필터 상태 요청");
-            socket.emit("request-filter-init");
+            requestFilterInitSafe();
         };
 
         socket.on("filter-init", onFilterInit);
@@ -31,10 +41,8 @@ export function useFilterConfig() {
         socket.on("connect", onConnect);
 
         // 컴포넌트가 마운트될 때 (이미 소켓이 최초 연결을 끝낸 뒤일 수 있으므로) 서버에 최신 상태를 명시적으로 달라고 요청합니다.
-        socket.emit("request-filter-init");
+        requestFilterInitSafe();
 
-        // 만약 이미 소켓이 연결되어 있고 서버에서 init을 보낸 후라면
-        // 다시 받기 위해 emit을 활용할 수도 있지만, 우선 접속 시 보내주므로 대기
         return () => {
             socket.off("filter-init", onFilterInit);
             socket.off("filter-updated", onFilterUpdated);

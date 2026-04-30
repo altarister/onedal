@@ -130,6 +130,7 @@ router.post("/", async (req, res) => {
 
         const isManual = securedOrder.type?.includes("MANUAL") || payload.matchType === "MANUAL";
         if (isManual) {
+            securedOrder.type = 'MANUAL';  // 프론트엔드 배지 표시를 위해 명시적 설정
             console.log(`✋ [Two-Track MANUAL] 기사님 수동 클릭 콜. 즉시 KEEP 처리. (type=${securedOrder.type}, matchType=${payload.matchType})`);
             
             // [Fix] Android 앱이 Piggyback을 통해서만 KEEP 응답을 소화하므로, 

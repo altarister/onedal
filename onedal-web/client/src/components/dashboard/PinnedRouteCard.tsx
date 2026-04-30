@@ -68,7 +68,7 @@ export default function PinnedRouteCard({
     const separatorText = minuteDiff !== null ? `-${minuteDiff}분-` : '-';
 
     return (
-        <Card className={`flex flex-col relative overflow-hidden transition-all duration-300 shadow-md ${isEvaluating ? 'ring-1 ring-amber-500/50' : 'hover:border-border-hover'} bg-card text-card-foreground border-border`}>
+        <Card className={`flex flex-col relative overflow-hidden transition-all duration-300 shadow-md ${isEvaluating ? 'ring-1 ring-amber-500/50' : 'hover:border-border-hover'} bg-card text-card-foreground border-border ${route.status === 'completed' ? 'opacity-50 grayscale' : ''}`}>
             {route.status === 'evaluating_detailed' && (
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-500/5 to-transparent -translate-x-full animate-[shimmer_2s_infinite] pointer-events-none" />
             )}
@@ -79,7 +79,11 @@ export default function PinnedRouteCard({
                 className={`px-3 py-3 flex justify-between items-center w-full text-sm tracking-tight ${!isEvaluating ? 'cursor-pointer group hover:bg-muted/30' : ''}`}
             >
                 <div className="flex items-center gap-1 truncate flex-1">
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 rounded font-bold mr-1 text-muted-foreground border-border bg-background">#{indexNum}</Badge>
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 rounded font-bold mr-1 text-muted-foreground border-border bg-background">
+                        {route.capturedAt
+                            ? new Date(route.capturedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })
+                            : '-'}
+                    </Badge>
                     <span className={`${isEvaluating ? 'text-amber-500' : 'text-emerald-500'} flex-shrink-0 flex items-center font-bold`}>
                         {pLabel}. {getAddressLabel(route.pickup)}{etas?.pickupEta && <span className="text-emerald-500/80 ml-0.5 font-normal">({etas.pickupEta})</span>}
                     </span>
@@ -99,8 +103,11 @@ export default function PinnedRouteCard({
                 {isEvaluating && (
                     <Badge className={`text-[10px] font-black px-1.5 py-0 animate-pulse flex-shrink-0 ml-2 rounded ${route.status === 'evaluating_basic' ? 'bg-rose-500/20 text-rose-500 hover:bg-rose-500/20' : 'bg-amber-500/20 text-amber-500 hover:bg-amber-500/20'}`}>평가중</Badge>
                 )}
-                {!isEvaluating && route.type === 'MANUAL' && (
+                {!isEvaluating && route.type === 'MANUAL' && route.status !== 'completed' && (
                     <Badge variant="outline" className="text-[10px] font-black px-1.5 py-0 bg-blue-500/10 border-blue-500/30 text-blue-400 flex-shrink-0 ml-2 shadow-sm rounded">수동 배차</Badge>
+                )}
+                {route.status === 'completed' && (
+                    <Badge variant="outline" className="text-[10px] font-black px-1.5 py-0 bg-slate-500/10 border-slate-500/30 text-slate-500 flex-shrink-0 ml-2 shadow-sm rounded">운행 완료</Badge>
                 )}
             </div>
 
@@ -321,12 +328,25 @@ export default function PinnedRouteCard({
                     {route.status === 'confirmed' && onDecision && (
                         <div className="mt-4 flex gap-3">
                             <Button
+                                variant="outline"
+                                disabled={processingId === route.id}
+                                onClick={(e: React.MouseEvent) => {
+                                    e.stopPropagation();
+                                    setProcessingId(route.id);
+                                    socket.emit("dispatch-complete", { orderId: route.id });
+                                    setTimeout(() => setProcessingId(null), 1000);
+                                }}
+                                className="flex-1 py-3 text-sm font-bold bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 border-emerald-500/50"
+                            >
+                                {processingId === route.id ? '완료 처리 중...' : '✅ 운행 완료'}
+                            </Button>
+                            <Button
                                 variant="destructive"
                                 disabled={processingId === route.id}
                                 onClick={(e: React.MouseEvent) => { e.stopPropagation(); setProcessingId(route.id); onDecision(route.id, 'CANCEL'); }}
-                                className="w-full py-3 text-sm font-bold shadow-sm"
+                                className="flex-1 py-3 text-sm font-bold shadow-sm"
                             >
-                                {processingId === route.id ? '처리 중...' : '🚨 확정 배차 취소 (해당 오더 방출)'}
+                                {processingId === route.id ? '취소 중...' : '🚨 배차 방출'}
                             </Button>
                         </div>
                     )}

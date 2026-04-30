@@ -440,13 +440,13 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                         </label>
                     </div>
 
-                    {/* 사냥 모드 통제 버튼 영역 (1열 3버튼 구조) */}
+                    {/* 사냥 모드 통제 버튼 영역 (1열 4버튼 구조) */}
                     <div className="pt-2">
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-4 gap-1.5">
                             {/* 메인 액션: 현재 조건으로 사냥 (기존 적용 버튼) */}
                             <Button
                                 onClick={handleSave}
-                                className="h-11 relative group overflow-hidden rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 text-white font-black text-[13px] shadow-[0_0_15px_rgba(16,185,129,0.2)] hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all px-1"
+                                className="h-11 relative group overflow-hidden rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 text-white font-black text-[11px] shadow-[0_0_15px_rgba(16,185,129,0.2)] hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all px-1"
                             >
                                 <span className="relative z-10 drop-shadow-md tracking-wider">🟢 필터 갱신</span>
                                 <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 to-teal-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -459,9 +459,9 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                     updateFilter({ loadState: 'DRIVING', corridorRadiusKm: 0 });
                                     onClose();
                                 }}
-                                className="h-11 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-black text-[13px] shadow-[0_0_15px_rgba(99,102,241,0.2)] hover:shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-all px-1"
+                                className="h-11 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-black text-[11px] shadow-[0_0_15px_rgba(99,102,241,0.2)] hover:shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-all px-1"
                             >
-                                🚀 강제 출발
+                                🚀 출발
                             </Button>
 
                             {/* 귀가콜 시작 */}
@@ -484,9 +484,21 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                     });
                                 }}
                                 disabled={homeReturnLoading || hasHomeReturnActive}
-                                className={`h-11 rounded-xl bg-gradient-to-r from-violet-500 to-purple-400 text-white font-black text-[13px] shadow-[0_0_15px_rgba(139,92,246,0.2)] hover:shadow-[0_0_20px_rgba(139,92,246,0.4)] transition-all px-1 ${homeReturnLoading || hasHomeReturnActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                className={`h-11 rounded-xl bg-gradient-to-r from-violet-500 to-purple-400 text-white font-black text-[11px] shadow-[0_0_15px_rgba(139,92,246,0.2)] hover:shadow-[0_0_20px_rgba(139,92,246,0.4)] transition-all px-1 ${homeReturnLoading || hasHomeReturnActive ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
-                                {homeReturnLoading ? '⏳ 계산중' : hasHomeReturnActive ? '🏠 진행중' : '🏠 귀가 시작'}
+                                {homeReturnLoading ? '⏳ 계산중' : hasHomeReturnActive ? '🏠 진행중' : '🏠 귀가'}
+                            </Button>
+
+                            {/* 투-트랙 사냥: 집 방향 콜 + 현지 잔잔바리 동시 스캔 */}
+                            <Button
+                                onClick={() => {
+                                    logRoadmapEvent("웹", "투-트랙 사냥 버튼 클릭 → 집 + 현재 지역 동시 스캔 모드 전환");
+                                    socket.emit("start-two-track");
+                                    onClose();
+                                }}
+                                className="h-11 rounded-xl bg-gradient-to-r from-amber-500 to-orange-400 text-white font-black text-[11px] shadow-[0_0_15px_rgba(245,158,11,0.2)] hover:shadow-[0_0_20px_rgba(245,158,11,0.4)] transition-all px-1"
+                            >
+                                🎯 투-트랙
                             </Button>
                         </div>
 
