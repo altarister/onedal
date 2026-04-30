@@ -13,7 +13,7 @@ interface OrderFilterModalProps {
 }
 
 export default function OrderFilterModal({ isOpen, onClose }: OrderFilterModalProps) {
-    const { baseFilter: filter, updateFilter } = useFilterConfig();
+    const { filter, updateFilter } = useFilterConfig();
 
     // 이 페이지는 폼 역할이므로 로컬 state로 관리 후 저장 시 소켓 발송
     const [minFare, setMinFare] = useState<string>("");

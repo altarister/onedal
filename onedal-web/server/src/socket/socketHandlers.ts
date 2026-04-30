@@ -91,8 +91,8 @@ export function registerSocketHandlers(io: Server) {
                 }
             }
             
-            logRoadmapEvent("서버", "관제탑에게 변경 적용된 필터(filter-updated) 정보 전달 및 DB 영구 저장");
-            applyFilter(userId, newFilter, io, true); // persistToDB = true (모달에서 수정한 값은 DB 영구 저장)
+            logRoadmapEvent("서버", "관제탑에게 변경 적용된 필터(filter-updated) 정보 전달 (메모리만, DB 저장 안함)");
+            applyFilter(userId, newFilter, io, false); // persistToDB = false (필터 모달 변경은 일회성 runtimeOverrides)
         });
 
         // 프론트에서 현재 위치 전송 시 (지도 등 활용 및 Master GPS 용도)
