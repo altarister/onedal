@@ -132,13 +132,13 @@ export function registerSocketHandlers(io: Server) {
         // 🏠 귀가콜: 현재 위치 → 집 주소로 가상 오더 생성 + 회랑 자동 세팅
         socket.on("create-home-return", async () => {
             try {
-                const settings = db.prepare("SELECT home_address, home_x, home_y FROM user_settings WHERE user_id = ?").get(userId) as any;
+                const settings = db.prepare("SELECT home_address, home_x, home_y, vehicle_type FROM user_settings WHERE user_id = ?").get(userId) as any;
                 if (!settings || !settings.home_address) {
                     socket.emit("home-return-error", { message: "집 주소가 설정되지 않았습니다. 설정에서 먼저 등록해주세요." });
                     return;
                 }
                 if (!settings.home_x || !settings.home_y) {
-                    socket.emit("home-return-error", { message: "집 주소의 좌표가 없습니다. 설정에서 다시 등록해주세요." });
+                    socket.emit("home-return-error", { message: "집 주소의 좌표가 없습니다. 설정에서 📍위치 확인 후 다시 저장해주세요." });
                     return;
                 }
 
@@ -159,6 +159,20 @@ export function registerSocketHandlers(io: Server) {
                     capturedDeviceId: 'control-tower',
                     capturedAt: new Date().toISOString(),
                     timestamp: new Date().toISOString(),
+                    // 미리 알 수 있는 정보 채우기
+                    vehicleType: settings.vehicle_type || '1t',
+                    receiptStatus: '귀가',
+                    itemDescription: '귀가 운행',
+                    tripType: '편도',
+                    orderForm: '보통',
+                    paymentType: '선불' as const,
+                    billingType: '무과세' as const,
+                    companyName: '자가 운행',
+                    dispatcherName: '관제탑 (자동생성)',
+                    isMock: false,
+                    isShared: false,
+                    commissionRate: '0%',
+                    tollFare: '0',
                 };
 
                 // 기존 상태 초기화
