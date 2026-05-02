@@ -4,7 +4,8 @@
     "scripts": {
         "dev:server": "pnpm --filter server dev",
         "dev:client": "pnpm --filter client dev",
-        "dev": "pnpm run dev:server & pnpm run dev:client"
+        "dev:logbook": "pnpm --filter logbook dev",
+        "dev": "pnpm run dev:server & pnpm run dev:client & pnpm run dev:logbook"
     },
     "pnpm": {
         "onlyBuiltDependencies": [

@@ -16,6 +16,8 @@ import configRouter from "./routes/config";
 import authRouter from "./routes/auth";
 import settingsRouter from "./routes/settings";
 import filtersRouter from "./routes/filters";
+import logbookAnalyticsRouter from "./routes/logbook/analytics";
+import logbookPlacesRouter from "./routes/logbook/places";
 
 import { initGeoService } from "./services/geoService";
 import { logRoadmapEvent } from "./utils/roadmapLogger";
@@ -60,6 +62,10 @@ app.use("/api/config", configRouter); // 타겟 앱 키워드 연동
 app.use("/api/auth", authRouter); // OAuth 로그인/인증 라우터
 app.use("/api/settings", settingsRouter); // 개인화 설정 라우터
 app.use("/api/filters", filtersRouter); // 콜 사냥용 필터 라우터
+
+// ── BFF: Logbook (운행일지 대시보드 전용) ──
+app.use("/api/logbook/analytics", logbookAnalyticsRouter);
+app.use("/api/logbook/places", logbookPlacesRouter);
 
 
 // 소켓 연결 이벤트 핸들링 (Step 4 분리 완료)
