@@ -490,13 +490,20 @@ export async function handleDecision(userId: string, orderId: string, action: 'K
 
         // DB에 영구 저장 (status: confirmed) 및 places/orderStops 기록 (v5 스키마)
         try {
-            // 1. orders 등록
+            // isShared: 세션의 합짐 모드 여부로 판단
+            const isShared = session.activeFilter.isSharedMode ? 1 : 0;
+            // isExpress: 파서가 추출한 orderForm이 "급송"이면 true
+            const isExpress = (cachedOrder.orderForm === '급송') ? 1 : 0;
+
+            // 1. orders 등록 (v5 전체 컬럼)
             const stmtOrder = db.prepare(`
                 INSERT INTO orders (
-                    id, type, pickup, dropoff, fare, timestamp, status, userId, capturedAt,
-                    vehicleType, distanceKm, totalDistanceKm, totalDurationMin, kakaoSoloDistanceKm, kakaoSoloDurationMin, kakaoTimeExt
+                    id, type, pickup, dropoff, fare, timestamp, status, userId, capturedAt, capturedDeviceId,
+                    vehicleType, distanceKm, totalDistanceKm, totalDurationMin, kakaoSoloDistanceKm, kakaoSoloDurationMin, kakaoTimeExt,
+                    paymentType, billingType, commissionRate, tollFare, tripType, orderForm, itemDescription, detailMemo,
+                    dispatcherName, dispatcherPhone, isShared, isExpress
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET 
                     status = 'confirmed', 
                     userId = excluded.userId, 
@@ -512,38 +519,69 @@ export async function handleDecision(userId: string, orderId: string, action: 'K
                 "confirmed",
                 userId,
                 cachedOrder.capturedAt || new Date().toISOString(),
+                cachedOrder.capturedDeviceId || null,
                 cachedOrder.vehicleType || null,
                 cachedOrder.distanceKm || null,
                 cachedOrder.totalDistanceKm || null,
                 cachedOrder.totalDurationMin || null,
                 cachedOrder.kakaoSoloDistanceKm || null,
                 cachedOrder.kakaoSoloDurationMin || null,
-                cachedOrder.kakaoTimeExt || null
+                cachedOrder.kakaoTimeExt || null,
+                cachedOrder.paymentType || null,
+                cachedOrder.billingType || null,
+                cachedOrder.commissionRate || null,
+                cachedOrder.tollFare || null,
+                cachedOrder.tripType || null,
+                cachedOrder.orderForm || null,
+                cachedOrder.itemDescription || null,
+                cachedOrder.detailMemo || null,
+                cachedOrder.dispatcherName || null,
+                cachedOrder.dispatcherPhone || null,
+                isShared,
+                isExpress
             );
 
             // 2. places UPSERT 및 orderStops 추가 (상차지)
             const pickupName = normalizePlaceName(cachedOrder.pickupDetails?.[0]?.customerName || "미상");
             const pickupAddress = cachedOrder.pickupDetails?.[0]?.addressDetail || cachedOrder.pickup;
+            const pickupRegion = cachedOrder.pickupDetails?.[0]?.region || cachedOrder.pickup.split(' ').slice(0, 2).join(' ') || "미상";
             const stmtPlace = db.prepare(`
-                INSERT INTO places (addressDetail, customerName, region, visitCount, lastVisitedAt)
-                VALUES (?, ?, ?, 1, datetime('now','localtime'))
+                INSERT INTO places (addressDetail, customerName, region, x, y, phone1, visitCount, lastVisitedAt)
+                VALUES (?, ?, ?, ?, ?, ?, 1, datetime('now','localtime'))
                 ON CONFLICT(addressDetail, customerName)
                 DO UPDATE SET
                     visitCount = visitCount + 1,
-                    lastVisitedAt = datetime('now','localtime')
+                    lastVisitedAt = datetime('now','localtime'),
+                    x = COALESCE(excluded.x, x),
+                    y = COALESCE(excluded.y, y),
+                    phone1 = COALESCE(excluded.phone1, phone1),
+                    region = COALESCE(excluded.region, region)
                 RETURNING id
             `);
-            const pPlace = stmtPlace.get(pickupAddress, pickupName, "미상") as { id: number };
+            const pPlace = stmtPlace.get(
+                pickupAddress, pickupName, pickupRegion,
+                cachedOrder.pickupX || null, cachedOrder.pickupY || null,
+                cachedOrder.pickupDetails?.[0]?.phone1 || null
+            ) as { id: number };
             if (pPlace) {
-                db.prepare(`INSERT INTO orderStops (orderId, placeId, stopType, customerNameSnapshot) VALUES (?, ?, 'pickup', ?)`).run(cachedOrder.id, pPlace.id, pickupName);
+                db.prepare(`INSERT INTO orderStops (orderId, placeId, stopType, customerNameSnapshot, phoneSnapshot) VALUES (?, ?, 'pickup', ?, ?)`).run(
+                    cachedOrder.id, pPlace.id, pickupName, cachedOrder.pickupDetails?.[0]?.phone1 || null
+                );
             }
 
             // 3. places UPSERT 및 orderStops 추가 (하차지)
             const dropoffName = normalizePlaceName(cachedOrder.dropoffDetails?.[0]?.customerName || "미상");
             const dropoffAddress = cachedOrder.dropoffDetails?.[0]?.addressDetail || cachedOrder.dropoff;
-            const dPlace = stmtPlace.get(dropoffAddress, dropoffName, "미상") as { id: number };
+            const dropoffRegion = cachedOrder.dropoffDetails?.[0]?.region || cachedOrder.dropoff.split(' ').slice(0, 2).join(' ') || "미상";
+            const dPlace = stmtPlace.get(
+                dropoffAddress, dropoffName, dropoffRegion,
+                cachedOrder.dropoffX || null, cachedOrder.dropoffY || null,
+                cachedOrder.dropoffDetails?.[0]?.phone1 || null
+            ) as { id: number };
             if (dPlace) {
-                db.prepare(`INSERT INTO orderStops (orderId, placeId, stopType, customerNameSnapshot) VALUES (?, ?, 'dropoff', ?)`).run(cachedOrder.id, dPlace.id, dropoffName);
+                db.prepare(`INSERT INTO orderStops (orderId, placeId, stopType, customerNameSnapshot, phoneSnapshot) VALUES (?, ?, 'dropoff', ?, ?)`).run(
+                    cachedOrder.id, dPlace.id, dropoffName, cachedOrder.dropoffDetails?.[0]?.phone1 || null
+                );
             }
 
             console.log(`💾 [DB 저장 완료] ${cachedOrder.id} - confirmed (v5 장소/경유지 기록 완료)`);

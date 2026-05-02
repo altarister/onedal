@@ -35,7 +35,7 @@ router.post("/", (req, res) => {
             return res.status(400).json({ error: "필수 데이터(pickup, dropoff)가 누락되었습니다" });
         }
 
-        type DbOrderRow = SimplifiedOfficeOrder & { status: string; captured_at?: string };
+        type DbOrderRow = SimplifiedOfficeOrder & { status: string; capturedAt?: string };
 
         const now = new Date().toISOString();
         const newOrder: DbOrderRow = {

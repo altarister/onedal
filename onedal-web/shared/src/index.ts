@@ -7,7 +7,7 @@ export const EVENT_TYPES = {
 export type EventType = typeof EVENT_TYPES[keyof typeof EVENT_TYPES];
 export type PaymentType = '신용' | '선불' | '착불' | '카드' | '현금';
 export type BillingType = '계산서' | '인수증' | '무과세';
-export type OrderStatus = 'pending' | 'confirmed' | 'completed' | 'canceled';
+export type OrderStatus = 'pending' | 'evaluating_basic' | 'evaluating_detailed' | 'confirmed' | 'completed' | 'canceled';
 
 // 나중에 상세 주소나 위경도가 필요할 때를 대비한 하위 객체
 export interface LocationPoint {
