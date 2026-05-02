@@ -46,12 +46,12 @@ router.post("/", (req, res) => {
             fare: fare || 0,
             timestamp: timestamp || now,
             status: "pending",
-            captured_at: payload.capturedAt || now,
+            capturedAt: req.body.capturedAt || now,
         };
 
         // DB에 저장
         const stmt = db.prepare(
-            "INSERT INTO orders (id, type, pickup, dropoff, fare, timestamp, status, captured_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+            "INSERT INTO orders (id, type, pickup, dropoff, fare, timestamp, status, capturedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
         );
         stmt.run(
             newOrder.id,
@@ -61,7 +61,7 @@ router.post("/", (req, res) => {
             newOrder.fare,
             newOrder.timestamp,
             newOrder.status,
-            newOrder.captured_at
+            newOrder.capturedAt
         );
 
         // Socket.io로 즉시 발송
@@ -98,17 +98,10 @@ router.get("/", requireAuth, (req, res) => {
         const todayStart = new Date();
         todayStart.setHours(0, 0, 0, 0);
 
-        const stmt = db.prepare("SELECT * FROM orders WHERE user_id = ? AND status IN ('confirmed', 'completed') AND timestamp >= ? ORDER BY timestamp ASC");
-        type DbOrderRow = SimplifiedOfficeOrder & { status: string; captured_at?: string };
-        const rows = stmt.all(userId, todayStart.toISOString()) as DbOrderRow[];
+        const stmt = db.prepare("SELECT * FROM orders WHERE userId = ? AND status IN ('confirmed', 'completed') AND timestamp >= ? ORDER BY timestamp ASC");
+        const rows = stmt.all(userId, todayStart.toISOString());
 
-        // DB 컬럼명(captured_at)을 프론트엔드 필드명(capturedAt)으로 매핑
-        const mapped = rows.map(row => ({
-            ...row,
-            capturedAt: row.captured_at || row.timestamp,
-        }));
-
-        res.json({ orders: mapped });
+        res.json({ orders: rows });
     } catch (error) {
         console.error("Orders GET 에러:", error);
         res.status(500).json({ error: "서버 오류 발생" });

@@ -149,9 +149,9 @@ export function registerSocketHandlers(io: Server) {
             if (updated) {
                 // DB 영구 업데이트
                 try {
-                    const stmt = db.prepare("UPDATE orders SET status = 'completed' WHERE id = ? AND user_id = ?");
+                    const stmt = db.prepare("UPDATE orders SET status = 'completed', completedAt = datetime('now', 'localtime') WHERE id = ? AND userId = ?");
                     stmt.run(data.orderId, userId);
-                    console.log(`✅ [운행 완료] ${data.orderId} - DB 업데이트 완료`);
+                    console.log(`✅ [운행 완료] ${data.orderId} - DB 업데이트 완료 (completedAt 갱신)`);
                 } catch (e) {
                     console.error("DB 업데이트 에러:", e);
                 }
@@ -183,7 +183,7 @@ export function registerSocketHandlers(io: Server) {
                     if (!call) continue;
                     call.status = 'completed';
                     try {
-                        db.prepare("UPDATE orders SET status = 'completed' WHERE id = ? AND user_id = ?").run(call.id, userId);
+                        db.prepare("UPDATE orders SET status = 'completed', completedAt = datetime('now', 'localtime') WHERE id = ? AND userId = ?").run(call.id, userId);
                         console.log(`   ✅ [투-트랙] 기존 콜 완료 처리: ${call.id} (${call.pickup} → ${call.dropoff})`);
                     } catch (e) {
                         console.error(`   ⚠️ [투-트랙] DB 업데이트 실패:`, e);
