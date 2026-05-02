@@ -36,12 +36,29 @@ export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () =
             ? filter.destinationKeywords.length
             : 0;
 
-        if (filter.isSharedMode) {
-            // 합짐 모드: 지정된 경로 이탈 반경 + 하차 거점 반경 및 총 타겟팅된 읍/면/동 개수 표시
-            return `회랑 ±${filter.corridorRadiusKm || 10}km (${regionCount}지역)`;
+        let guSummary = '';
+        if (filter.destinationGroups && Object.keys(filter.destinationGroups).length > 0) {
+            const guKeys = Object.keys(filter.destinationGroups);
+            if (guKeys.length <= 2) {
+                guSummary = guKeys.join(', ');
+            } else {
+                guSummary = `${guKeys[0]}, ${guKeys[1]} 등 ${guKeys.length}개 구`;
+            }
         }
+
+        if (filter.isSharedMode) {
+            // 합짐 모드: 구(district) 요약 정보가 있으면 우선 표시
+            if (guSummary) {
+                return `±${filter.corridorRadiusKm ?? 10}km | ${guSummary} (${regionCount}동)`;
+            }
+            return `±${filter.corridorRadiusKm ?? 10}km | ${regionCount}개 동`;
+        }
+        
         // 단독 모드: 지정된 도착 도시 명칭 및 타겟팅된 읍/면/동 개수 표시
-        return `${filter.destinationCity} (${regionCount}지역)`;
+        if (guSummary) {
+            return `${filter.destinationCity} | ${guSummary} (${regionCount}동)`;
+        }
+        return `${filter.destinationCity} (${regionCount}동)`;
     };
 
     return (

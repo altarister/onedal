@@ -24,17 +24,20 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
         setProcessingId(null);
     }, [activeRoute]);
 
-    // 현재 활성 폴리라인 (마지막으로 합짐된 궤적 우선)
+    // 지도 렌더링용: 완료된 콜 제외한 현재 진행 중인 오더만 추출
+    const liveRoute = useMemo(() => (activeRoute || []).filter(r => r.status !== 'completed'), [activeRoute]);
+
+    // 현재 활성 폴리라인 (진행 중인 오더에서만 추출, 완료된 stale 궤적 무시)
     const activePolyline = useMemo(() => {
-        if (!activeRoute || activeRoute.length === 0) return null;
-        for (let i = activeRoute.length - 1; i >= 0; i--) {
-            const r = activeRoute[i];
+        if (liveRoute.length === 0) return null;
+        for (let i = liveRoute.length - 1; i >= 0; i--) {
+            const r = liveRoute[i];
             if (r && r.routePolyline && r.routePolyline.length > 0) {
                 return r.routePolyline;
             }
         }
         return null;
-    }, [activeRoute]);
+    }, [liveRoute]);
 
     const isDriving = filter?.loadState === 'DRIVING';
 
@@ -62,9 +65,9 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
         });
     };
 
-    // 서버와 동일한 동선 최적화(TSP Nearest Neighbor) 로직 적용
-    const rawPickups = safeRoute.map((r) => ({ type: '상차', name: getAddressLabel(r.pickup), isEvaluating: r.status.includes('evaluating'), x: r.pickupX, y: r.pickupY, routeId: r.id }));
-    const rawDropoffs = safeRoute.map((r) => ({ type: '하차', name: getAddressLabel(r.dropoff), isEvaluating: r.status.includes('evaluating'), x: r.dropoffX, y: r.dropoffY, routeId: r.id }));
+    // 서버와 동일한 동선 최적화(TSP Nearest Neighbor) 로직 적용 — 완료된 콜은 지도 핀에서 제외
+    const rawPickups = liveRoute.map((r) => ({ type: '상차', name: getAddressLabel(r.pickup), isEvaluating: r.status.includes('evaluating'), x: r.pickupX, y: r.pickupY, routeId: r.id }));
+    const rawDropoffs = liveRoute.map((r) => ({ type: '하차', name: getAddressLabel(r.dropoff), isEvaluating: r.status.includes('evaluating'), x: r.dropoffX, y: r.dropoffY, routeId: r.id }));
 
     const sortedPickups: typeof rawPickups = [];
     let currentLoc = myLocation || (rawPickups[0] ? { x: rawPickups[0].x!, y: rawPickups[0].y! } : { x: 0, y: 0 });
@@ -209,11 +212,11 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
                         >
                             <div className="flex flex-col gap-0.5 pt-1">
                                 <span className="text-xs text-muted-foreground text-left">
-                                    {activeRoute.length > 0 && <span className="ml-1 text-muted-foreground font-bold">총 {activeRoute.length}개 경로 정보</span>}
+                                    {activeRoute.length > 0 && <span className="ml-1 text-muted-foreground font-bold">총 {activeRoute.length}개 경로 정보{liveRoute.length < activeRoute.length ? ` (${activeRoute.length - liveRoute.length}건 완료)` : ''}</span>}
                                 </span>
                                 <span className="text-sm text-text-primary hover:text-info transition-colors">
                                     {(() => {
-                                        const lastRoute = [...safeRoute].reverse().find(r => r.totalDistanceKm != null);
+                                        const lastRoute = [...liveRoute].reverse().find(r => r.totalDistanceKm != null);
                                         if (!lastRoute || lastRoute.totalDistanceKm == null) return `카카오 연산 에러 혹은 대기중...`;
                                         return `주행거리 ${(Number(lastRoute.totalDistanceKm) || 0).toFixed(1)}km / 예상 ${lastRoute.totalDurationMin || 0}분`;
                                     })()}

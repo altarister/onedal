@@ -207,7 +207,8 @@ router.get("/preview-regions", requireAuth, (req, res) => {
 router.get("/preview-corridor", requireAuth, (req, res) => {
     try {
         const userId = req.user!.id;
-        const corridorRadiusKm = parseFloat(req.query.corridorRadiusKm as string) || 10;
+        const parsedCorridor = parseFloat(req.query.corridorRadiusKm as string);
+        const corridorRadiusKm = isNaN(parsedCorridor) ? 10 : parsedCorridor;
         const destinationRadiusKm = req.query.destinationRadiusKm
             ? parseFloat(req.query.destinationRadiusKm as string)
             : undefined;

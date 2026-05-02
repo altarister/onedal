@@ -156,6 +156,10 @@ export function registerSocketHandlers(io: Server) {
                     console.error("DB 업데이트 에러:", e);
                 }
 
+                // [수정됨] 완료된 오더를 하트비트 싱크 풀(pendingOrdersData)에서 강제 삭제하지 않습니다.
+                // 프론트엔드의 PinnedRoute에서 status === 'completed'인 카드를 회색으로 렌더링하도록 유지해야 합니다.
+                // stale polyline 이슈는 dispatchEngine 내부의 activeCalls 필터링 로직으로 이미 해결되었습니다.
+
                 // 경로 재계산 (완료된 짐 제외한 On-the-fly 라우팅)
                 const { recalculateActiveKakaoRoute } = await import("../services/dispatchEngine");
                 await recalculateActiveKakaoRoute(userId, io);

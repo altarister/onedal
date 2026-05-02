@@ -334,6 +334,7 @@ export default function PinnedRouteCard({
                                     e.stopPropagation();
                                     setProcessingId(route.id);
                                     socket.emit("dispatch-complete", { orderId: route.id });
+                                    onToggle(route.id); // 아코디언 닫기
                                     setTimeout(() => setProcessingId(null), 1000);
                                 }}
                                 className="flex-1 py-3 text-sm font-bold bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 border-emerald-500/50"

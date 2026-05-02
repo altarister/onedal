@@ -62,7 +62,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
     // 합짐 섹션: 미리보기 버튼 클릭 시 호출
     const handlePreviewCorridor = () => {
         setIsPreviewLoading(true);
-        const params = new URLSearchParams({ corridorRadiusKm: corridorRadius || '10' });
+        const params = new URLSearchParams({ corridorRadiusKm: corridorRadius !== '' ? corridorRadius : '10' });
         if (targetRadius) params.set('destinationRadiusKm', targetRadius);
         fetch(`/api/settings/preview-corridor?${params.toString()}`, {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
@@ -357,7 +357,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                         >
                             <div className="flex items-center gap-2">
                                 <span className="text-[11px] font-medium text-slate-300 group-hover:text-white transition-colors">
-                                    {isSharedMode ? `🛣️ 회랑 타겟팅 지역 (±${corridorRadius || '?'}km)` : `📍 도착 타겟팅 지역 (${targetCity})`}
+                                    {isSharedMode ? `🛣️ 회랑 타겟팅 지역 (±${corridorRadius !== '' ? corridorRadius : '?'}km)` : `📍 도착 타겟팅 지역 (${targetCity})`}
                                 </span>
                                 {previewRegions && previewCount > 0 ? (
                                     <Badge variant="secondary" className="bg-amber-500/80 text-white shadow-[0_0_10px_rgba(245,158,11,0.5)]">

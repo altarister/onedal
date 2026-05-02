@@ -245,7 +245,7 @@ class MainActivity : ComponentActivity() {
                         
                         // 실기기 접속을 위한 로컬 IP 입력 필드
                         if (!isLiveMode) {
-                            var customIp by remember { mutableStateOf(sharedPref.getString("localPcIp", "172.30.1.54") ?: "172.30.1.54") }
+                            var customIp by remember { mutableStateOf(sharedPref.getString("localPcIp", "172.30.1.89") ?: "172.30.1.89") }
                             Spacer(modifier = Modifier.height(8.dp))
                             androidx.compose.material3.OutlinedTextField(
                                 value = customIp,
@@ -253,7 +253,7 @@ class MainActivity : ComponentActivity() {
                                     customIp = newValue
                                     sharedPref.edit().putString("localPcIp", newValue).apply()
                                 },
-                                label = { Text("개발용 PC IP (기본 172.30.1.54)") },
+                                label = { Text("개발용 PC IP (기본 172.30.1.89)") },
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp)
                             )
@@ -325,7 +325,7 @@ class MainActivity : ComponentActivity() {
                         Spacer(modifier = Modifier.height(16.dp))
                         
                         Button(onClick = {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("http://172.30.1.54:5173/inseong"))
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("http://172.30.1.89:5173/inseong"))
                             context.startActivity(intent)
                         }) {
                             Text("테스트 가상 콜 화면 열기")
