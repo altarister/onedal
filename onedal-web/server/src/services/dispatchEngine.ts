@@ -11,6 +11,15 @@ import { DISPATCH_CONFIG } from "../config/dispatchConfig";
 import db from "../db";
 import { incrementDeviceStats } from "../routes/devices";
 
+/**
+ * 장소명 정규화 (공백 및 주식회사 텍스트 제거)
+ * 예: "주식회사 레드 캠프" -> "레드캠프"
+ */
+export const normalizePlaceName = (name?: string) => {
+    if (!name) return "미상";
+    return name.replace(/\(주\)|주식회사|\s/g, '').trim();
+};
+
 function getKakaoRoutingOptions(userId: string) {
     const row = db.prepare("SELECT vehicle_type, default_priority FROM user_settings WHERE user_id = ?").get(userId) as any;
     const vehicleTypeStr = row?.vehicle_type || '1t';
@@ -479,14 +488,21 @@ export async function handleDecision(userId: string, orderId: string, action: 'K
             console.log(`🗺️ [회랑 갱신] KEEP 후 destinationKeywords ${destinationKeywords.length}개로 재계산 완료`);
         }
 
-        // DB에 영구 저장 (status: confirmed)
+        // DB에 영구 저장 (status: confirmed) 및 places/orderStops 기록 (v5 스키마)
         try {
-            const stmt = db.prepare(`
-                INSERT INTO orders (id, type, pickup, dropoff, fare, timestamp, status, user_id, captured_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(id) DO UPDATE SET status = 'confirmed', user_id = excluded.user_id, captured_at = excluded.captured_at
+            // 1. orders 등록
+            const stmtOrder = db.prepare(`
+                INSERT INTO orders (
+                    id, type, pickup, dropoff, fare, timestamp, status, userId, capturedAt,
+                    vehicleType, distanceKm, totalDistanceKm, totalDurationMin, kakaoSoloDistanceKm, kakaoSoloDurationMin, kakaoTimeExt
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET 
+                    status = 'confirmed', 
+                    userId = excluded.userId, 
+                    capturedAt = excluded.capturedAt
             `);
-            stmt.run(
+            stmtOrder.run(
                 cachedOrder.id,
                 cachedOrder.type || "NEW_ORDER",
                 cachedOrder.pickup,
@@ -495,9 +511,42 @@ export async function handleDecision(userId: string, orderId: string, action: 'K
                 cachedOrder.timestamp || new Date().toISOString(),
                 "confirmed",
                 userId,
-                cachedOrder.capturedAt || new Date().toISOString()
+                cachedOrder.capturedAt || new Date().toISOString(),
+                cachedOrder.vehicleType || null,
+                cachedOrder.distanceKm || null,
+                cachedOrder.totalDistanceKm || null,
+                cachedOrder.totalDurationMin || null,
+                cachedOrder.kakaoSoloDistanceKm || null,
+                cachedOrder.kakaoSoloDurationMin || null,
+                cachedOrder.kakaoTimeExt || null
             );
-            console.log(`💾 [DB 저장 완료] ${cachedOrder.id} - confirmed (capturedAt: ${cachedOrder.capturedAt})`);
+
+            // 2. places UPSERT 및 orderStops 추가 (상차지)
+            const pickupName = normalizePlaceName(cachedOrder.pickupDetails?.[0]?.customerName || "미상");
+            const pickupAddress = cachedOrder.pickupDetails?.[0]?.addressDetail || cachedOrder.pickup;
+            const stmtPlace = db.prepare(`
+                INSERT INTO places (addressDetail, customerName, region, visitCount, lastVisitedAt)
+                VALUES (?, ?, ?, 1, datetime('now','localtime'))
+                ON CONFLICT(addressDetail, customerName)
+                DO UPDATE SET
+                    visitCount = visitCount + 1,
+                    lastVisitedAt = datetime('now','localtime')
+                RETURNING id
+            `);
+            const pPlace = stmtPlace.get(pickupAddress, pickupName, "미상") as { id: number };
+            if (pPlace) {
+                db.prepare(`INSERT INTO orderStops (orderId, placeId, stopType, customerNameSnapshot) VALUES (?, ?, 'pickup', ?)`).run(cachedOrder.id, pPlace.id, pickupName);
+            }
+
+            // 3. places UPSERT 및 orderStops 추가 (하차지)
+            const dropoffName = normalizePlaceName(cachedOrder.dropoffDetails?.[0]?.customerName || "미상");
+            const dropoffAddress = cachedOrder.dropoffDetails?.[0]?.addressDetail || cachedOrder.dropoff;
+            const dPlace = stmtPlace.get(dropoffAddress, dropoffName, "미상") as { id: number };
+            if (dPlace) {
+                db.prepare(`INSERT INTO orderStops (orderId, placeId, stopType, customerNameSnapshot) VALUES (?, ?, 'dropoff', ?)`).run(cachedOrder.id, dPlace.id, dropoffName);
+            }
+
+            console.log(`💾 [DB 저장 완료] ${cachedOrder.id} - confirmed (v5 장소/경유지 기록 완료)`);
         } catch (dbErr) {
             console.error("DB 저장 에러:", dbErr);
         }

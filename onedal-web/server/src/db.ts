@@ -110,34 +110,101 @@ db.exec(`
 `);
 
 // ═══════════════════════════════════════
-// [6] (기존 레거시) 스캐너가 잡은 본콜
+// [6] (v5) 스캐너가 잡은 본콜 및 장소 마스터, 배차 경유지
 // ═══════════════════════════════════════
+// v5 마이그레이션: 기존 orders 테이블은 형식이 맞지 않으므로 과감히 삭제 후 재성성
+try {
+    const tableInfo = db.prepare("PRAGMA table_info(orders)").all() as Array<{ name: string }>;
+    if (tableInfo.length > 0 && !tableInfo.some(col => col.name === 'userId')) {
+        db.exec("DROP TABLE IF EXISTS orders");
+        console.log("🛠️ [DB Migration] 레거시 orders 테이블 삭제 완료 (v5 적용)");
+    }
+} catch (e) {
+    // 무시
+}
+
 db.exec(`
     CREATE TABLE IF NOT EXISTS orders (
-        id TEXT PRIMARY KEY,
-        type TEXT NOT NULL,
-        pickup TEXT NOT NULL,
-        dropoff TEXT NOT NULL,
-        fare INTEGER DEFAULT 0,
-        timestamp TEXT NOT NULL,
-        status TEXT DEFAULT 'pending'
-    )
+        id                    TEXT PRIMARY KEY,
+        type                  TEXT NOT NULL DEFAULT 'NEW_ORDER',
+        status                TEXT NOT NULL DEFAULT 'pending',
+        userId                TEXT REFERENCES users(id),
+        capturedDeviceId      TEXT,
+        capturedAt            TEXT,
+        timestamp             TEXT NOT NULL,
+        pickup                TEXT NOT NULL,
+        dropoff               TEXT NOT NULL,
+        fare                  INTEGER DEFAULT 0,
+        vehicleType           TEXT,
+        paymentType           TEXT,
+        billingType           TEXT,
+        commissionRate        TEXT,
+        tollFare              TEXT,
+        tripType              TEXT,
+        orderForm             TEXT,
+        itemDescription       TEXT,
+        detailMemo            TEXT,
+        dispatcherName        TEXT,
+        dispatcherPhone       TEXT,
+        distanceKm            REAL,
+        totalDistanceKm       REAL,
+        totalDurationMin      INTEGER,
+        kakaoSoloDistanceKm   REAL,
+        kakaoSoloDurationMin  INTEGER,
+        kakaoTimeExt          TEXT,
+        settlementStatus      TEXT DEFAULT '미정산',
+        unpaidAmount          INTEGER DEFAULT 0,
+        payerName             TEXT,
+        payerPhone            TEXT,
+        dueDate               TEXT,
+        settlementMemo        TEXT,
+        settledAt             TEXT,
+        isShared              BOOLEAN DEFAULT 0,
+        isExpress             BOOLEAN DEFAULT 0,
+        postTime              TEXT,
+        scheduleText          TEXT,
+        createdAt             TEXT DEFAULT (datetime('now', 'localtime')),
+        completedAt           TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_orders_dashboard ON orders(userId, status, completedAt);
+
+    CREATE TABLE IF NOT EXISTS places (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        address         TEXT,
+        x               REAL,
+        y               REAL,
+        region          TEXT,
+        addressDetail   TEXT NOT NULL,
+        customerName    TEXT,
+        department      TEXT,
+        contactName     TEXT,
+        phone1          TEXT,
+        phone2          TEXT,
+        mileage         INTEGER DEFAULT 0,
+        rating          REAL DEFAULT 3.0,
+        blacklistMemo   TEXT,
+        visitCount      INTEGER DEFAULT 0,
+        createdAt       TEXT DEFAULT (datetime('now', 'localtime')),
+        lastVisitedAt   TEXT,
+        UNIQUE(addressDetail, customerName)
+    );
+    CREATE INDEX IF NOT EXISTS idx_places_region ON places(region);
+    CREATE INDEX IF NOT EXISTS idx_places_rating ON places(rating);
+
+    CREATE TABLE IF NOT EXISTS orderStops (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        orderId         TEXT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+        placeId         INTEGER NOT NULL REFERENCES places(id),
+        stopType        TEXT NOT NULL CHECK(stopType IN ('pickup', 'dropoff')),
+        stopOrder       INTEGER DEFAULT 0,
+        customerNameSnapshot TEXT,
+        phoneSnapshot        TEXT,
+        requestedTime   TEXT,
+        memo            TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_orderStops_orderId ON orderStops(orderId);
+    CREATE INDEX IF NOT EXISTS idx_orderStops_placeId ON orderStops(placeId);
 `);
-
-// orders 테이블에 user_id 컬럼이 있는지 확인 후 없으면 추가 (마이그레이션)
-const orderTableInfo = db.prepare("PRAGMA table_info(orders)").all() as Array<{ name: string }>;
-const hasUserIdInOrders = orderTableInfo.some(col => col.name === 'user_id');
-if (!hasUserIdInOrders) {
-    db.exec("ALTER TABLE orders ADD COLUMN user_id TEXT");
-    console.log("🛠️ [DB Migration] orders 테이블에 user_id 컬럼 추가 완료");
-}
-
-// orders 테이블에 captured_at 컬럼이 있는지 확인 후 없으면 추가 (마이그레이션)
-const hasCapturedAtInOrders = orderTableInfo.some(col => col.name === 'captured_at');
-if (!hasCapturedAtInOrders) {
-    db.exec("ALTER TABLE orders ADD COLUMN captured_at TEXT");
-    console.log("🛠️ [DB Migration] orders 테이블에 captured_at 컬럼 추가 완료");
-}
 
 // ═══════════════════════════════════════
 // [7] (기존 레거시) 스캐너가 버린 데이터
