@@ -94,7 +94,7 @@ router.post("/", (req, res) => {
 
         if (session.mainCallState && session.mainCallState.id === targetOrderId) {
             session.mainCallState = null;
-            updateActiveFilter(userId, { isSharedMode: false, isActive: true, loadState: 'EMPTY', driverAction: 'WAITING', dispatchPhase: 'STANDBY' }, io);
+            updateActiveFilter(userId, { isSharedMode: false, isActive: true, driverAction: 'WAITING', dispatchPhase: 'STANDBY' }, io);
             console.log(`   ✅ 본콜 초기화 + 필터 '첫짐' 복원 완료`);
         }
 

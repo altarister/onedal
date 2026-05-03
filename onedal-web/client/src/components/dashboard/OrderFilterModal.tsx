@@ -18,7 +18,7 @@ interface OrderFilterModalProps {
 }
 
 export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive = false, isTestMode, setIsTestMode }: OrderFilterModalProps) {
-    const { filter, updateFilter } = useFilterConfig();
+    const { filter, baseFilter, updateFilter } = useFilterConfig();
 
     // 이 페이지는 폼 역할이므로 로컬 state로 관리 후 저장 시 소켓 발송
     const [minFare, setMinFare] = useState<string>("");
@@ -94,6 +94,23 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
         }
         setIsAccordionOpen(false);
     }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // "기본 설정 불러오기" — DB에 저장된 baseFilter 값으로 폼 필드를 채움
+    const handleLoadBaseFilter = () => {
+        if (!baseFilter) return;
+        console.log("🔄 [OrderFilterModal] 기본 설정 불러오기 클릭 - baseFilter:", JSON.parse(JSON.stringify(baseFilter)));
+        setMinFare(baseFilter.minFare?.toString() || "");
+        setPickupRadius(baseFilter.pickupRadiusKm?.toString() || "");
+        setTargetCity(baseFilter.destinationCity || "");
+        setTargetRadius(baseFilter.destinationRadiusKm?.toString() || "");
+        setCorridorRadius(baseFilter.corridorRadiusKm?.toString() || "");
+        setBlacklist(baseFilter.excludedKeywords ? baseFilter.excludedKeywords.join(',') : "");
+        setSelectedVehicles(baseFilter.allowedVehicleTypes || []);
+        // 프리뷰 초기화
+        setPreviewRegions(null);
+        setPreviewCount(0);
+        setIsAccordionOpen(false);
+    };
 
     // 귀가콜 소켓 이벤트 리스너
     useEffect(() => {
@@ -295,14 +312,6 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                     </div>
                                 </div>
                             </div>
-                            <Button
-                                onClick={handlePreviewRegions}
-                                disabled={isPreviewLoading}
-                                size="sm"
-                                className="w-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 hover:bg-indigo-500/30 h-8 text-xs font-bold"
-                            >
-                                {isPreviewLoading ? '연산 중...' : '🔍 지역 미리보기'}
-                            </Button>
                         </div>
                     ) : (
                         /* ── 합짐(SHARED) 모드 섹션 ── */
@@ -338,26 +347,18 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                     </p>
                                 </div>
                             </div>
-                            <Button
-                                onClick={handlePreviewCorridor}
-                                disabled={isPreviewLoading}
-                                size="sm"
-                                className="w-full bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 h-8 text-xs font-bold"
-                            >
-                                {isPreviewLoading ? '연산 중...' : '🔍 회랑 지역 미리보기'}
-                            </Button>
                         </div>
                     )}
 
-                    {/* 독립 섹션: 현재 타겟팅 지역 목록 검증 (첫짐/합짐 공통) */}
-                    <div className="bg-slate-900/60 backdrop-blur-md p-3 rounded-xl border border-slate-500/20 shadow-lg">
-                        <button
-                            onClick={() => setIsAccordionOpen(!isAccordionOpen)}
-                            className="w-full flex items-center justify-between p-2 rounded-md bg-slate-800/50 hover:bg-slate-700/50 transition-colors group"
-                        >
-                            <div className="flex items-center gap-2">
+                    {/* 독립 섹션: 현재 타겟팅 지역 목록 검증 및 미리보기 통합 UI */}
+                    <div className="bg-slate-900/60 backdrop-blur-md p-2 rounded-xl border border-slate-500/20 shadow-lg mt-1">
+                        <div className="w-full flex items-center justify-between p-1.5 rounded-md bg-slate-800/50 transition-colors">
+                            <div 
+                                className="flex items-center gap-2 flex-1 cursor-pointer group"
+                                onClick={() => setIsAccordionOpen(!isAccordionOpen)}
+                            >
                                 <span className="text-[11px] font-medium text-slate-300 group-hover:text-white transition-colors">
-                                    {isSharedMode ? `🛣️ 회랑 타겟팅 지역 (±${corridorRadius !== '' ? corridorRadius : '?'}km)` : `📍 도착 타겟팅 지역 (${targetCity})`}
+                                    {isSharedMode ? `🛣️ 회랑 지역 (±${corridorRadius !== '' ? corridorRadius : '?'}km)` : `📍 도착 지역 (${targetCity})`}
                                 </span>
                                 {previewRegions && previewCount > 0 ? (
                                     <Badge variant="secondary" className="bg-amber-500/80 text-white shadow-[0_0_10px_rgba(245,158,11,0.5)]">
@@ -369,10 +370,28 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                     </Badge>
                                 )}
                             </div>
-                            <span className={`text-slate-400 text-sm transition-transform duration-300 ${isAccordionOpen ? 'rotate-180' : ''}`}>
-                                ▼
-                            </span>
-                        </button>
+                            
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (isSharedMode) handlePreviewCorridor();
+                                        else handlePreviewRegions();
+                                    }}
+                                    disabled={isPreviewLoading}
+                                    size="sm"
+                                    className={`h-6 text-[10px] px-2 py-0 font-bold ${isSharedMode ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/40 border border-amber-500/50' : 'bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/40 border border-indigo-500/50'}`}
+                                >
+                                    {isPreviewLoading ? '연산 중...' : '🔍 미리보기'}
+                                </Button>
+                                <span 
+                                    className={`text-slate-400 text-sm cursor-pointer px-1 transition-transform duration-300 ${isAccordionOpen ? 'rotate-180' : ''}`}
+                                    onClick={() => setIsAccordionOpen(!isAccordionOpen)}
+                                >
+                                    ▼
+                                </span>
+                            </div>
+                        </div>
 
                         {isAccordionOpen && (
                             <div className="mt-2 p-2 bg-black/50 rounded-lg border border-slate-500/20 max-h-32 overflow-y-auto custom-scrollbar">
@@ -440,23 +459,32 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                         </label>
                     </div>
 
-                    {/* 사냥 모드 통제 버튼 영역 (1열 4버튼 구조) */}
+                    {/* 사냥 모드 통제 버튼 영역 (1열 5버튼 구조) */}
                     <div className="pt-2">
-                        <div className="grid grid-cols-4 gap-1.5">
+                        <div className="grid grid-cols-5 gap-1.5">
+                            {/* 기본 설정 불러오기: DB(baseFilter) 값으로 폼 초기화 */}
+                            <Button
+                                onClick={handleLoadBaseFilter}
+                                disabled={!baseFilter}
+                                className="h-11 rounded-xl bg-gradient-to-r from-slate-600 to-slate-500 text-white font-black text-[11px] shadow-[0_0_10px_rgba(100,116,139,0.2)] hover:shadow-[0_0_15px_rgba(100,116,139,0.4)] transition-all px-1"
+                            >
+                                🔄 초기화
+                            </Button>
+
                             {/* 메인 액션: 현재 조건으로 사냥 (기존 적용 버튼) */}
                             <Button
                                 onClick={handleSave}
                                 className="h-11 relative group overflow-hidden rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 text-white font-black text-[11px] shadow-[0_0_15px_rgba(16,185,129,0.2)] hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all px-1"
                             >
-                                <span className="relative z-10 drop-shadow-md tracking-wider">🟢 필터 갱신</span>
+                                <span className="relative z-10 drop-shadow-md tracking-wider">🟢 갱신</span>
                                 <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 to-teal-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                             </Button>
 
                             {/* 강제 출발 */}
                             <Button
                                 onClick={() => {
-                                    logRoadmapEvent("웹", `출발 버튼 클릭 → LOADING→DRIVING 전환 (시뮬레이션: ${isTestMode})`);
-                                    updateFilter({ loadState: 'DRIVING', corridorRadiusKm: 0 });
+                                    logRoadmapEvent("웹", `출발 버튼 클릭 → GATHERING→DELIVERING 전환 (시뮬레이션: ${isTestMode})`);
+                                    updateFilter({ driverAction: 'DRIVING', corridorRadiusKm: 0 });
                                     onClose();
                                 }}
                                 className="h-11 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-black text-[11px] shadow-[0_0_15px_rgba(99,102,241,0.2)] hover:shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-all px-1"
@@ -502,7 +530,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                             </Button>
                         </div>
 
-                        <p className="text-[10px] text-slate-500 text-center mt-2">이 값은 현재 진행 중인 콜 탐색에만 적용됩니다. 영구 설정은 톱니바퀴(⚙️)에서 변경하세요.</p>
+                        <p className="text-[10px] text-slate-500 text-center mt-2">이 값은 현재 진행 중인 콜 탐색에만 적용됩니다. 🔄초기화를 누르면 톱니바퀴(⚙️) 설정값을 불러옵니다.</p>
                     </div>
                 </div>
             </DialogContent>

@@ -219,7 +219,6 @@ export interface AutoDispatchFilter {
     isSharedMode: boolean;          // 첫짐/합짐 분기 (true면 합짐 회랑, false면 첫짐 수동)
     driverAction: DriverAction;     // [V2] 기사 행동 상태 (WAITING, DRIVING, LOADING, UNLOADING, RESTING)
     dispatchPhase: DispatchPhase;   // [V2] 사냥 전략 단계 (STANDBY, GATHERING, DELIVERING) — 파생값
-    loadState: LoadState;           // [하위 호환] 기존 앱/프론트에서 참조. TODO: 점진적 제거 예정
     pickupRadiusKm: number;         // 내위치 반경 상차지 탐색(km)
     minFare: number;                // 최소 운임 (하한선)
     maxFare: number;                // 최대 운임 (디폴트 100만)

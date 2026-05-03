@@ -39,7 +39,7 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
         return null;
     }, [liveRoute]);
 
-    const isDriving = filter?.loadState === 'DRIVING';
+    const isDriving = filter?.dispatchPhase === 'DELIVERING';
 
     // 📡 마스터 GPS 엔진 연결 (Real / Mock 자동 스위칭)
     const { currentGps } = useMasterGps(isTestMode, isDriving, activePolyline || null);

@@ -227,7 +227,7 @@ export function registerSocketHandlers(io: Server) {
                 updateActiveFilter(userId, {
                     isSharedMode: false,
                     isActive: true,
-                    loadState: 'EMPTY',
+                    // loadState 제거됨
                     driverAction: 'WAITING',      // [V2] 투-트랙 시작 → 대기 상태
                     dispatchPhase: 'STANDBY',     // [V2] 첫짐 탐색
                     destinationCity: '🎯 투-트랙 탐색',
@@ -320,7 +320,7 @@ export function registerSocketHandlers(io: Server) {
                 // LOADING + 회랑 생성
                 const { syncCorridorFilter } = await import("../services/dispatchEngine");
                 updateActiveFilter(userId, {
-                    loadState: 'LOADING',
+                    // loadState 제거됨
                     dispatchPhase: 'GATHERING',   // [V2] 합짐 탐색 단계
                     isSharedMode: true,
                     isActive: true,

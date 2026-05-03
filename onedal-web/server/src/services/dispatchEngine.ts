@@ -599,33 +599,33 @@ export async function handleDecision(userId: string, orderId: string, action: 'K
         logRoadmapEvent("서버", "합짐을 위한 반경/목적지 추천 키워드로 다이나믹 필터 생성 연산");
 
         // ━━━ 3단계 State Machine 적용 ━━━
-        const currentLoadState = session.activeFilter.loadState || 'EMPTY';
+        const currentPhase = session.activeFilter.dispatchPhase || 'STANDBY';
 
         // 합짐 차종: 첫 짐 오더의 차종을 기준으로 남은 적재 가능 차종 추론
         const routingOpts = getKakaoRoutingOptions(userId);
         const firstLoadVehicle = cachedOrder.vehicleType || routingOpts.vehicleType; // 차종 불명 시 기사 차종 Fallback
         const sharedVehicleTypes = getSharedModeVehicleTypes(firstLoadVehicle);
 
-        if (currentLoadState === 'EMPTY') {
-            // 첫짐 → LOADING(GATHERING): 기사님의 DB설정값(corridorRadiusKm)을 그대로 사용
+        if (currentPhase === 'STANDBY') {
+            // 첫짐 → GATHERING: 기사님의 DB설정값(corridorRadiusKm)을 그대로 사용
             // 상차반경은 앱이 isSharedMode=true를 보고 자체 무시함 (데이터 변조 불필요)
             updateActiveFilter(userId, {
                 isSharedMode: true,
                 isActive: true,
-                loadState: 'LOADING',
+                // loadState 삭제됨
                 dispatchPhase: 'GATHERING',   // [V2] 합짐 탐색 단계
                 // corridorRadiusKm: 삭제 — 기사님의 activeFilter 원본값(5km)을 그대로 유지
                 destinationKeywords,
                 allowedVehicleTypes: sharedVehicleTypes,
             }, io);
             console.log(`🔄 [State Machine] EMPTY → GATHERING (첫짐: ${firstLoadVehicle}, 합짐 허용: [${sharedVehicleTypes.join(',')}])`);
-        } else if (currentLoadState === 'LOADING') {
-            // [V2 수정] 2번째 콜을 잡아도 LOADING(GATHERING) 유지 — 기사님이 "🚀 출발" 누르기 전까지 자동 DRIVING 전환 안 함
+        } else if (currentPhase === 'GATHERING') {
+            // [V2 수정] 2번째 콜을 잡아도 GATHERING 유지 — 기사님이 "🚀 출발" 누르기 전까지 자동 DRIVING 전환 안 함
             // corridorRadiusKm도 그대로 유지 (기사님의 설정값 5km)
             updateActiveFilter(userId, {
                 isSharedMode: true,
                 isActive: true,
-                // loadState: 'LOADING' 유지 (변경하지 않음)
+                // loadState는 더이상 사용하지 않음
                 // dispatchPhase: 'GATHERING' 유지 (변경하지 않음)
                 destinationKeywords,
                 allowedVehicleTypes: sharedVehicleTypes,
@@ -662,11 +662,12 @@ export async function handleDecision(userId: string, orderId: string, action: 'K
             if (!session.mainCallState && session.subCalls.length === 0) {
                 // 잡은 콜이 하나도 안 남았을 경우 → 완전히 초기화 (EMPTY)
                 resetFilter.isSharedMode = false;
-                resetFilter.loadState = 'EMPTY';
-                logRoadmapEvent("서버", "모든 콜이 취소되어 필터를 완전 초기화(EMPTY)합니다.");
+                resetFilter.dispatchPhase = 'STANDBY';
+                resetFilter.driverAction = 'WAITING';
+                logRoadmapEvent("서버", "모든 콜이 취소되어 필터를 완전 초기화(STANDBY)합니다.");
             } else {
                 // 본콜이 남아있는 경우 → 현재 상태(LOADING/DRIVING)를 그대로 유지하고 탐색만 재개
-                logRoadmapEvent("서버", `본콜이 유지 중이므로 현재 상태(${session.activeFilter.loadState})를 유지하며 탐색을 재개합니다.`);
+                logRoadmapEvent("서버", `본콜이 유지 중이므로 현재 상태(${session.activeFilter.dispatchPhase})를 유지하며 탐색을 재개합니다.`);
             }
 
             updateActiveFilter(userId, resetFilter, io);
@@ -715,7 +716,7 @@ export async function evaluateNewOrder(userId: string, securedOrder: SecuredOrde
             }
 
             // 2) 첫짐 절대 하한가 검사 (EMPTY 상태일 때만)
-            if (filter.loadState === 'EMPTY' && filter.minFare > 0 && securedOrder.fare > 0) {
+            if (filter.dispatchPhase === 'STANDBY' && filter.minFare > 0 && securedOrder.fare > 0) {
                 if (securedOrder.fare < filter.minFare) {
                     reasons.push(`첫짐 절대하한가 미달 (${filter.minFare.toLocaleString()}원)`);
                     console.log(`   - 💸 [첫짐 하한가] 똥콜 — 실제 ${securedOrder.fare.toLocaleString()}원 < 절대하한 ${filter.minFare.toLocaleString()}원`);

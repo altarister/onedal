@@ -12,14 +12,16 @@ export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () =
             </Card>
         );
     }
-    // export type LoadState = 'EMPTY' | 'LOADING' | 'DRIVING' | 'ARRIVED';
+    // [V2] DispatchPhase 기반 상태 라벨링
     let label = '스캔 일시정지';
     if (filter.isActive) {
-        const state = filter.loadState || 'EMPTY';
-        if (state === 'LOADING') label = '합짐 탐색중';
-        else if (state === 'DRIVING') label = '경로상 탐색중';
-        else if (state === 'ARRIVED') label = '스캔 대기 (도착)';
-        else label = '첫짐 탐색중';
+        const phase = filter.dispatchPhase || 'STANDBY';
+        const action = filter.driverAction || 'WAITING';
+
+        if (action === 'UNLOADING') label = '하차 대기 (도착)';
+        else if (phase === 'GATHERING') label = '합짐 탐색중';
+        else if (phase === 'DELIVERING') label = '경로상 탐색중';
+        else label = '첫짐 탐색중'; // STANDBY
     }
 
     const getStatusStyles = (active: boolean, shared: boolean) => {
@@ -72,8 +74,12 @@ export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () =
                     {label}
                 </Badge>
                 <span className="text-emerald-500 font-black">{(filter.minFare / 10000).toFixed(1)}</span>
-                <span className="text-muted-foreground font-sm">|</span>
-                <span className="text-foreground">{filter.pickupRadiusKm}km</span>
+                {!filter.isSharedMode && (
+                    <>
+                        <span className="text-muted-foreground font-sm">|</span>
+                        <span className="text-foreground">{filter.pickupRadiusKm}km</span>
+                    </>
+                )}
                 <span className="text-muted-foreground font-sm">|</span>
                 <span className="text-purple-500">{getRegionSummary()}</span>
                 {filter.allowedVehicleTypes && filter.allowedVehicleTypes.length > 0 ? (

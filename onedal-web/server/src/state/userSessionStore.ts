@@ -10,10 +10,8 @@ const SERVICE_DEFAULT_FILTER: Partial<AutoDispatchFilter> = {
     destinationRadiusKm: 10,  // 도착반경 10km
     corridorRadiusKm: 5,      // 우회반경 5km
     destinationCity: "파주",
-    excludedKeywords: [],
     isActive: false,
     isSharedMode: false,
-    loadState: 'EMPTY',
     driverAction: 'WAITING',      // [V2] 기사 행동 상태 기본값
     dispatchPhase: 'STANDBY',     // [V2] 사냥 전략 기본값
 };
@@ -88,7 +86,6 @@ export function getUserSession(userId: string): UserSession {
                 session.activeFilter = {
                     ...session.baseFilter,
                     isSharedMode: false,
-                    loadState: 'EMPTY',
                     driverAction: 'WAITING',      // [V2] 세션 복구 시 항상 대기 상태
                     dispatchPhase: 'STANDBY',     // [V2] 세션 복구 시 항상 첫짐 탐색
                 };
@@ -108,7 +105,6 @@ export function getUserSession(userId: string): UserSession {
                 session.activeFilter = {
                     ...SERVICE_DEFAULT_FILTER,
                     isSharedMode: false,
-                    loadState: 'EMPTY',
                     driverAction: 'WAITING',      // [V2]
                     dispatchPhase: 'STANDBY',     // [V2]
                 } as AutoDispatchFilter;

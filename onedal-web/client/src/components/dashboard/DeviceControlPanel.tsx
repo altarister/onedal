@@ -56,18 +56,20 @@ function DeviceRow({
             filterLabel = '스캔 정지';
             filterColor = 'bg-amber-500/20 text-amber-500 border-amber-500/30';
         } else {
-            const state = currentFilter.loadState || 'EMPTY';
-            if (state === 'LOADING') {
+            const phase = currentFilter.dispatchPhase || 'STANDBY';
+            const action = currentFilter.driverAction || 'WAITING';
+
+            if (action === 'UNLOADING') {
+                filterLabel = '하차 대기';
+                filterColor = 'bg-muted text-muted-foreground border-border';
+            } else if (phase === 'GATHERING') {
                 filterLabel = '합짐 탐색';
                 filterColor = 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30';
-            } else if (state === 'DRIVING') {
+            } else if (phase === 'DELIVERING') {
                 filterLabel = '경로 탐색';
                 filterColor = 'bg-purple-500/20 text-purple-400 border-purple-500/30';
-            } else if (state === 'ARRIVED') {
-                filterLabel = '도착 대기';
-                filterColor = 'bg-muted text-muted-foreground border-border';
             } else {
-                filterLabel = '첫짐 탐색';
+                filterLabel = '첫짐 탐색'; // STANDBY
                 filterColor = 'bg-emerald-500/20 text-emerald-500 border-emerald-500/30';
             }
         }

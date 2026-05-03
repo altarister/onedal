@@ -15,7 +15,7 @@ router.get("/", requireAuth, (req, res) => {
         res.json({
             isActive: f.isActive ?? false,
             isSharedMode: f.isSharedMode ?? false,
-            loadState: f.loadState ?? 'EMPTY',
+            // loadState 삭제됨
             driverAction: f.driverAction ?? 'WAITING',       // [V2]
             dispatchPhase: f.dispatchPhase ?? 'STANDBY',     // [V2]
             destinationCity: f.destinationCity ?? "",

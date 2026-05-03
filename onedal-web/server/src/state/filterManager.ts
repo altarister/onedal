@@ -150,11 +150,11 @@ export function updateActiveFilter(
 ): AutoDispatchFilter {
     const session = getUserSession(userId);
 
-    // [중요] EMPTY 전환 감지: 다른 상태(LOADING/DRIVING)에서 EMPTY로 복귀할 때
+    // [중요] STANDBY 전환 감지: 다른 상태(GATHERING/DELIVERING)에서 STANDBY로 복귀할 때
     // 합짐 사이클에서 사용된 임시 값들(회랑, 차종 제한 등)을 baseFilter 기준으로 리셋
-    const previousLoadState = session.activeFilter?.loadState ?? 'EMPTY';
-    const nextLoadState = changes.loadState ?? previousLoadState;
-    const isTransitionToEmpty = previousLoadState !== 'EMPTY' && nextLoadState === 'EMPTY';
+    const previousPhase = session.activeFilter?.dispatchPhase ?? 'STANDBY';
+    const nextPhase = changes.dispatchPhase ?? previousPhase;
+    const isTransitionToEmpty = previousPhase !== 'STANDBY' && nextPhase === 'STANDBY';
 
     if (isTransitionToEmpty) {
         // 합짐 사이클 종료 → activeFilter를 baseFilter 기준으로 리셋하되, isActive는 유지
@@ -163,13 +163,12 @@ export function updateActiveFilter(
             ...session.baseFilter,
             isActive: currentIsActive,
             isSharedMode: false,
-            loadState: 'EMPTY',
             driverAction: 'WAITING',      // [V2] 합짐 사이클 종료 → 대기 상태
             dispatchPhase: 'STANDBY',     // [V2] 합짐 사이클 종료 → 첫짐 탐색
         };
         // 리셋 후 파생 데이터 재계산
         recalculateDerivedFields(session, {});
-        console.log(`[FilterManager] EMPTY 상태로 복귀: activeFilter를 baseFilter 기준으로 리셋했습니다.`);
+        console.log(`[FilterManager] STANDBY 상태로 복귀: activeFilter를 baseFilter 기준으로 리셋했습니다.`);
     } else {
         // 일반 변경: activeFilter에 직접 덮어쓰기
         session.activeFilter = { ...session.activeFilter, ...changes };
