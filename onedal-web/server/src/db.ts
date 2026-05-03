@@ -89,19 +89,43 @@ const defaultRates = JSON.stringify({
     "5t": 1500, "11t": 2000, "25t": 2500, "특수화물": 3000
 });
 
+// v5 마이그레이션: 기본값(3만 원, 반경 10km 등) 적용을 위해 기존 0으로 설정된 테이블 드롭
+try {
+    const tableInfo = db.prepare("PRAGMA table_info(user_filters)").all() as Array<{ name: string, dflt_value: any }>;
+    const minFareCol = tableInfo.find(col => col.name === 'min_fare');
+    if (minFareCol && String(minFareCol.dflt_value) === '0') {
+        db.exec("DROP TABLE IF EXISTS user_filters");
+        console.log("🛠️ [DB Migration] user_filters 테이블 초기값 30000 변경을 위해 재생성 완료");
+    }
+} catch (e) {
+    // 무시
+}
+
+// v6 마이그레이션: driver_action 컬럼 추가 (도메인 모델 V2)
+try {
+    const tableInfo = db.prepare("PRAGMA table_info(user_filters)").all() as Array<{ name: string }>;
+    if (tableInfo.length > 0 && !tableInfo.some(col => col.name === 'driver_action')) {
+        db.exec("ALTER TABLE user_filters ADD COLUMN driver_action TEXT DEFAULT 'WAITING'");
+        console.log("🛠️ [DB Migration V6] user_filters에 driver_action 컬럼 추가 완료");
+    }
+} catch (e) {
+    // 무시 (테이블이 아직 없는 경우 CREATE TABLE에서 생성됨)
+}
+
 db.exec(`
     CREATE TABLE IF NOT EXISTS user_filters (
         user_id TEXT PRIMARY KEY,
-        destination_city TEXT DEFAULT '',
-        destination_radius_km INTEGER DEFAULT 0,
-        corridor_radius_km INTEGER DEFAULT 0,
-        min_fare INTEGER DEFAULT 0,
-        max_fare INTEGER DEFAULT 0,
-        pickup_radius_km REAL DEFAULT 0,
+        destination_city TEXT DEFAULT '파주',
+        destination_radius_km INTEGER DEFAULT 10,
+        corridor_radius_km INTEGER DEFAULT 5,
+        min_fare INTEGER DEFAULT 30000,
+        max_fare INTEGER DEFAULT 1000000,
+        pickup_radius_km REAL DEFAULT 10,
         excluded_keywords TEXT DEFAULT '[]',
         is_active BOOLEAN DEFAULT 0,
         is_shared_mode BOOLEAN DEFAULT 0,
         load_state TEXT DEFAULT 'EMPTY',
+        driver_action TEXT DEFAULT 'WAITING',
         vehicle_rates TEXT DEFAULT '${defaultRates}',
         agency_fee_percent REAL DEFAULT 23.0,
         max_discount_percent REAL DEFAULT 10.0,

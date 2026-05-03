@@ -9,6 +9,33 @@ export type PaymentType = '신용' | '선불' | '착불' | '카드' | '현금';
 export type BillingType = '계산서' | '인수증' | '무과세';
 export type OrderStatus = 'pending' | 'evaluating_basic' | 'evaluating_detailed' | 'confirmed' | 'completed' | 'canceled';
 
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// [계층 1] 기사 행동 상태 — 기사님이 직접 버튼을 눌러 전환
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+export type DriverAction =
+    | 'WAITING'      // 콜 대기중 (주차 상태에서 앱 보며 콜 고르는 중)
+    | 'DRIVING'      // 운전중 (상차지든 하차지든 어딘가로 이동 중)
+    | 'LOADING'      // 상차중 (픽업지에서 물건 싣는 중)
+    | 'UNLOADING'    // 하차중 (하차지에서 물건 내리는 중)
+    | 'RESTING';     // 휴식중 (밥, 화장실, 일시정지)
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// [계층 2-A] 심사 중 오더 상태 (서버 메모리 전용, 아직 내 퀵이 아님)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+export type PendingOrderPhase = 'SCREENING' | 'AWAITING_DECISION';
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// [계층 2-B] 확정 오더 상태 (내가 책임지고 수행해야 하는 퀵)
+// 업계 표준 3단계: 배차확정 → 상차완료(서명) → 하차완료(서명)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+export type MyOrderStatus = 'CONFIRMED' | 'PICKED_UP' | 'DELIVERED';
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// [계층 3] 사냥 전략 단계 — DriverAction + 확정 콜 수에서 파생
+// DB에 저장하지 않음. 순수 계산(Pure Function)으로만 도출.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+export type DispatchPhase = 'STANDBY' | 'GATHERING' | 'DELIVERING';
+
 // 나중에 상세 주소나 위경도가 필요할 때를 대비한 하위 객체
 export interface LocationPoint {
     code?: string;
@@ -92,28 +119,84 @@ export interface DetailedOfficeOrder {
 // 3. [오더 풀스팩] 배차 확정 후, 들어가서 스크래핑해올 구체적 데이터
 export interface OfficeOrder extends SimplifiedOfficeOrder, DetailedOfficeOrder { }
 
-// 4. [우리 서버 데이터] 최종적으로 내 소유권이 부여되고 관제가 이뤄지는 확정 오더
-export interface SecuredOrder extends OfficeOrder {
-    status: 'evaluating_basic' | 'evaluating_detailed' | 'confirmed' | 'canceled' | 'completed';
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// [계층 2-A] 심사 중 오더 — 서버 메모리 전용 (아직 내 퀵이 아님)
+// 앱이 긁어와서 서버가 꿀/똥콜 판별 중인 임시 데이터
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+export interface PendingOrder extends OfficeOrder {
+    phase: PendingOrderPhase;         // SCREENING(서버 연산 중) | AWAITING_DECISION(관제탑 결재 대기)
     capturedDeviceId: string;         // 이 오더를 물어온 기기 (앱폰 1호기)
     capturedAt: string;               // 낚아챈 실제 타임스탬프
-    kakaoCalculatedFare?: number;     // 서버 연산 기반 가성비 단가 (미래 확장성)
+    kakaoCalculatedFare?: number;     // 서버 연산 기반 가성비 단가
     kakaoTimeExt?: string;            // 카카오 연산 결과: 예상 소요 시간 텍스트
-    routePolyline?: Array<{ x: number; y: number }>;  // [신규] 카카오 실제 궤적 좌표들
-    totalDistanceKm?: number;         // [추가] 통합 연산된 전체 총 주행 거리
-    totalDurationMin?: number;        // [추가] 통합 연산된 전체 총 주행 시간
-    kakaoSoloDistanceKm?: number;     // [추가] 카카오가 연산한 해당 콜만의 '단독' 주행 거리
-    kakaoSoloDurationMin?: number;    // [추가] 카카오가 연산한 해당 콜만의 '단독' 소요 시간
-    osrmSoloDistanceKm?: number;      // [추가] OSRM이 연산한 해당 콜만의 '단독' 주행 거리
-    osrmSoloDurationMin?: number;     // [추가] OSRM이 연산한 해당 콜만의 '단독' 소요 시간
-    osrmError?: string;               // [추가] OSRM 연산 실패 시 에러 메세지 노출용
-    sectionEtas?: string[];           // [신규] 카카오 궤적 연산 기반 각 경유지 도착 예상 시간 배열
-    pickupEta?: string;               // [신규] 카카오 궤적 연산 기반 상차지 예상 도착 시간 (예: "14:30")
-    dropoffEta?: string;              // [신규] 카카오 궤적 연산 기반 하차지 예상 도착 시간 (예: "15:20")
-    settlement?: SettlementInfo;      // [추가] 정산 및 미수금 관리 트래킹 (운행일지용)
-    isRejected?: boolean;             // [신규] 서버 종합 평가 결과: 똥콜 판정 여부 (true/false)
-    rejectionReasons?: string[];      // [신규] 모든 탈락/패널티 사유 배열 (예: ["차종(다마스) 불일치", "우회시간 +74분 초과"])
-    approvalReasons?: string[];       // [신규] 모든 장점/긍정 사유 배열 (예: ["꿀콜 🍯", "운행시간 양호", "요금 적정"])
+    routePolyline?: Array<{ x: number; y: number }>;  // 카카오 실제 궤적 좌표들
+    totalDistanceKm?: number;         // 통합 연산된 전체 총 주행 거리
+    totalDurationMin?: number;        // 통합 연산된 전체 총 주행 시간
+    kakaoSoloDistanceKm?: number;     // 카카오가 연산한 해당 콜만의 '단독' 주행 거리
+    kakaoSoloDurationMin?: number;    // 카카오가 연산한 해당 콜만의 '단독' 소요 시간
+    osrmSoloDistanceKm?: number;      // OSRM이 연산한 해당 콜만의 '단독' 주행 거리
+    osrmSoloDurationMin?: number;     // OSRM이 연산한 해당 콜만의 '단독' 소요 시간
+    osrmError?: string;               // OSRM 연산 실패 시 에러 메세지 노출용
+    sectionEtas?: string[];           // 카카오 궤적 연산 기반 각 경유지 도착 예상 시간 배열
+    pickupEta?: string;               // 카카오 궤적 연산 기반 상차지 예상 도착 시간
+    dropoffEta?: string;              // 카카오 궤적 연산 기반 하차지 예상 도착 시간
+    isRejected?: boolean;             // 서버 종합 평가 결과: 똥콜 판정 여부
+    rejectionReasons?: string[];      // 모든 탈락/패널티 사유 배열
+    approvalReasons?: string[];       // 모든 장점/긍정 사유 배열
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// [계층 2-B] 확정 오더 (내 퀵) — 기사가 KEEP하여 내 소유가 된 오더
+// 업계 표준: 배차확정(CONFIRMED) → 상차완료(PICKED_UP) → 하차완료(DELIVERED)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+export interface MyOrder extends OfficeOrder {
+    status: MyOrderStatus;            // CONFIRMED | PICKED_UP | DELIVERED
+    capturedDeviceId: string;         // 이 오더를 물어온 기기 (앱폰 1호기)
+    capturedAt: string;               // 낚아챈 실제 타임스탬프
+    kakaoCalculatedFare?: number;     // 서버 연산 기반 가성비 단가
+    kakaoTimeExt?: string;            // 카카오 연산 결과: 예상 소요 시간 텍스트
+    routePolyline?: Array<{ x: number; y: number }>;  // 카카오 실제 궤적 좌표들
+    totalDistanceKm?: number;         // 통합 연산된 전체 총 주행 거리
+    totalDurationMin?: number;        // 통합 연산된 전체 총 주행 시간
+    kakaoSoloDistanceKm?: number;     // 카카오가 연산한 해당 콜만의 '단독' 주행 거리
+    kakaoSoloDurationMin?: number;    // 카카오가 연산한 해당 콜만의 '단독' 소요 시간
+    osrmSoloDistanceKm?: number;      // OSRM이 연산한 해당 콜만의 '단독' 주행 거리
+    osrmSoloDurationMin?: number;     // OSRM이 연산한 해당 콜만의 '단독' 소요 시간
+    osrmError?: string;               // OSRM 연산 실패 시 에러 메세지 노출용
+    sectionEtas?: string[];           // 카카오 궤적 연산 기반 각 경유지 도착 예상 시간 배열
+    pickupEta?: string;               // 카카오 궤적 연산 기반 상차지 예상 도착 시간
+    dropoffEta?: string;              // 카카오 궤적 연산 기반 하차지 예상 도착 시간
+    settlement?: SettlementInfo;      // 정산 및 미수금 관리 트래킹 (운행일지용)
+    isRejected?: boolean;             // 서버 종합 평가 결과: 똥콜 판정 여부
+    rejectionReasons?: string[];      // 모든 탈락/패널티 사유 배열
+    approvalReasons?: string[];       // 모든 장점/긍정 사유 배열
+}
+
+// [하위 호환] 기존 코드에서 SecuredOrder를 참조하는 곳이 많으므로 통합 interface 유지
+// PendingOrder의 phase와 MyOrder의 status를 모두 옵셔널로 가지고 있어 기존 코드가 깨지지 않음
+// TODO: 점진적으로 PendingOrder/MyOrder로 마이그레이션 후 삭제 예정
+export interface SecuredOrder extends OfficeOrder {
+    status: 'evaluating_basic' | 'evaluating_detailed' | 'confirmed' | 'canceled' | 'completed' | MyOrderStatus;
+    phase?: PendingOrderPhase;        // PendingOrder 전용 (심사 중 오더에서만 사용)
+    capturedDeviceId: string;
+    capturedAt: string;
+    kakaoCalculatedFare?: number;
+    kakaoTimeExt?: string;
+    routePolyline?: Array<{ x: number; y: number }>;
+    totalDistanceKm?: number;
+    totalDurationMin?: number;
+    kakaoSoloDistanceKm?: number;
+    kakaoSoloDurationMin?: number;
+    osrmSoloDistanceKm?: number;
+    osrmSoloDurationMin?: number;
+    osrmError?: string;
+    sectionEtas?: string[];
+    pickupEta?: string;
+    dropoffEta?: string;
+    settlement?: SettlementInfo;
+    isRejected?: boolean;
+    rejectionReasons?: string[];
+    approvalReasons?: string[];
 }
 
 // [신규] 운행일지 정산 및 미수금 추적을 위한 구조체
@@ -127,13 +210,16 @@ export interface SettlementInfo {
 }
 
 // 자동배차 설정 인터페이스 (전역 설정 동기화용)
+// [하위 호환] 기존 코드가 LoadState를 아직 참조할 수 있으므로 alias 유지
 export type LoadState = 'EMPTY' | 'LOADING' | 'DRIVING' | 'ARRIVED';
 
 export interface AutoDispatchFilter {
     allowedVehicleTypes: string[];   // 허용 차종 배열 (예: ["1t","다마스"]) — 빈 배열이면 모든 차종 허용
     isActive: boolean;              // 필터링(매크로) 활성화 여부
     isSharedMode: boolean;          // 첫짐/합짐 분기 (true면 합짐 회랑, false면 첫짐 수동)
-    loadState: LoadState;           // 적재 상태 (EMPTY: 공차, LOADING: 적재중(10km회랑), DRIVING: 운행중(0km회랑), ARRIVED: 도착)
+    driverAction: DriverAction;     // [V2] 기사 행동 상태 (WAITING, DRIVING, LOADING, UNLOADING, RESTING)
+    dispatchPhase: DispatchPhase;   // [V2] 사냥 전략 단계 (STANDBY, GATHERING, DELIVERING) — 파생값
+    loadState: LoadState;           // [하위 호환] 기존 앱/프론트에서 참조. TODO: 점진적 제거 예정
     pickupRadiusKm: number;         // 내위치 반경 상차지 탐색(km)
     minFare: number;                // 최소 운임 (하한선)
     maxFare: number;                // 최대 운임 (디폴트 100만)
@@ -144,8 +230,35 @@ export interface AutoDispatchFilter {
     destinationGroups?: Record<string, string[]>; // (UI용) 시/구 단위로 그룹핑된 읍면동 목록
     customCityFilters: string[];    // (UI용) 시/구 단위로 그룹핑된 읍면동 목록
     customFilters: string[];        // 특수 기호 등 하단 빠른 설정 텍스트 (ex: "^^,@", "김포,인천...")
-    corridorRadiusKm?: number;      // (합짐 모드) 경로 주변 이탈 허용 반경 (기본값 10km)
+    corridorRadiusKm?: number;      // (합짐 모드) 경로 주변 이탈 허용 반경 (기본값 5km, DB설정값)
     userOverrides?: boolean;        // 기사가 팝업에서 수동으로 필터(destinationKeywords 등)를 조작했는지 여부(서버 덮어쓰기 방지용)
+}
+
+/**
+ * [계층 3] 사냥 전략 파생 함수 (Pure Function)
+ * DriverAction(기사 행동) + 확정 오더 수를 조합하여 DispatchPhase를 자동 계산합니다.
+ * DB에 저장하지 않으며, 하드코딩(0km, 10km)을 원천 차단합니다.
+ */
+export function deriveDispatchPhase(
+    driverAction: DriverAction,
+    confirmedOrderCount: number
+): DispatchPhase {
+    if (confirmedOrderCount === 0) return 'STANDBY';
+    if (driverAction === 'DRIVING') return 'DELIVERING';
+    return 'GATHERING';
+}
+
+/**
+ * [계층 3] DispatchPhase에 따라 실제 적용할 우회 반경을 결정합니다.
+ * DELIVERING(운전중) 상태일 때만 0km를 강제하고, 그 외에는 기사님의 원본 설정값을 그대로 사용합니다.
+ * 이 함수를 통해서만 corridorRadiusKm를 결정하므로 하드코딩이 원천 차단됩니다.
+ */
+export function getEffectiveCorridorRadius(
+    phase: DispatchPhase,
+    baseCorridorRadiusKm: number
+): number {
+    if (phase === 'DELIVERING') return 0;
+    return baseCorridorRadiusKm;
 }
 
 // 서버 전용: 다이내믹 요율 계산 엔진 파라미터 (앱으로 전송하지 않음)

@@ -3,7 +3,7 @@ import type { SecuredOrder, AutoDispatchFilter, PricingConfig } from "@onedal/sh
 import { geocodeAddress, calculateSoloRoute, calculateDetourRoute, compareDirections } from "./kakaoService";
 import { fetchRealWorldRoute } from "../routes/osrmUtil";
 import { getUserSession } from "../state/userSessionStore";
-import { applyFilter } from "../state/filterManager";
+import { updateActiveFilter } from "../state/filterManager";
 import { optimizeWaypoints } from "../utils/routeOptimizer";
 import { getCorridorRegions } from "../services/geoService";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
@@ -367,11 +367,11 @@ export const syncCorridorFilter = (userId: string, io: any) => {
         const regions = getCorridorRegions(polylineToUse, cRadius, dRadius);
 
         if (regions && regions.flat.length > 0) {
-            applyFilter(userId, {
+            updateActiveFilter(userId, {
                 destinationKeywords: regions.flat,
                 destinationGroups: regions.grouped,
                 customCityFilters: regions.customCityFilters
-            }, io, false);
+            }, io);
         }
     }
 };
@@ -603,38 +603,39 @@ export async function handleDecision(userId: string, orderId: string, action: 'K
         const sharedVehicleTypes = getSharedModeVehicleTypes(firstLoadVehicle);
 
         if (currentLoadState === 'EMPTY') {
-            // 첫짐 → LOADING: 회랑 10km, 적재 중 추가콜 탐색
+            // 첫짐 → LOADING(GATHERING): 기사님의 DB설정값(corridorRadiusKm)을 그대로 사용
             // 상차반경은 앱이 isSharedMode=true를 보고 자체 무시함 (데이터 변조 불필요)
-            applyFilter(userId, {
+            updateActiveFilter(userId, {
                 isSharedMode: true,
                 isActive: true,
                 loadState: 'LOADING',
-                corridorRadiusKm: 10,
+                dispatchPhase: 'GATHERING',   // [V2] 합짐 탐색 단계
+                // corridorRadiusKm: 삭제 — 기사님의 activeFilter 원본값(5km)을 그대로 유지
                 destinationKeywords,
                 allowedVehicleTypes: sharedVehicleTypes,
-            }, io, false); // persistToDB=false (세션 전용, DB 저장 X)
-            console.log(`🔄 [State Machine] EMPTY → LOADING (첫짐: ${firstLoadVehicle}, 합짐 허용: [${sharedVehicleTypes.join(',')}])`);
+            }, io);
+            console.log(`🔄 [State Machine] EMPTY → GATHERING (첫짐: ${firstLoadVehicle}, 합짐 허용: [${sharedVehicleTypes.join(',')}])`);
         } else if (currentLoadState === 'LOADING') {
-            // 적재 중 → DRIVING: 회랑 0km, 가는길 콜만
-            // 상차반경은 앱이 isSharedMode=true를 보고 자체 무시함
-            applyFilter(userId, {
+            // [V2 수정] 2번째 콜을 잡아도 LOADING(GATHERING) 유지 — 기사님이 "🚀 출발" 누르기 전까지 자동 DRIVING 전환 안 함
+            // corridorRadiusKm도 그대로 유지 (기사님의 설정값 5km)
+            updateActiveFilter(userId, {
                 isSharedMode: true,
                 isActive: true,
-                loadState: 'DRIVING',
-                corridorRadiusKm: 0,
+                // loadState: 'LOADING' 유지 (변경하지 않음)
+                // dispatchPhase: 'GATHERING' 유지 (변경하지 않음)
                 destinationKeywords,
                 allowedVehicleTypes: sharedVehicleTypes,
-            }, io, false); // persistToDB=false
-            console.log(`🔄 [State Machine] LOADING → DRIVING (회랑 0km, 가는길 콜만)`);
+            }, io);
+            console.log(`🔄 [State Machine] GATHERING 유지 (추가 콜 KEEP, 기사 수동 출발 대기)`);
         } else {
-            // DRIVING 중에도 추가 KEEP 가능 (가는길 콜)
-            applyFilter(userId, {
+            // DRIVING(DELIVERING) 중에도 추가 KEEP 가능 (가는길 콜)
+            updateActiveFilter(userId, {
                 isSharedMode: true,
                 isActive: true,
                 destinationKeywords,
                 allowedVehicleTypes: sharedVehicleTypes,
-            }, io, false); // persistToDB=false
-            console.log(`🔄 [State Machine] DRIVING 유지 (가는길 추가 콜 KEEP)`);
+            }, io);
+            console.log(`🔄 [State Machine] DELIVERING 유지 (가는길 추가 콜 KEEP)`);
         }
         logRoadmapEvent("서버", "새로 부여된 합짐 필터(isSharedMode)값 메모리 세션 갱신");
         logRoadmapEvent("서버", "앱폰 및 관제탑에게 새로운 타겟팅 필터(filter-updated) 정보 전달");
@@ -664,7 +665,7 @@ export async function handleDecision(userId: string, orderId: string, action: 'K
                 logRoadmapEvent("서버", `본콜이 유지 중이므로 현재 상태(${session.activeFilter.loadState})를 유지하며 탐색을 재개합니다.`);
             }
 
-            applyFilter(userId, resetFilter, io, false);
+            updateActiveFilter(userId, resetFilter, io);
             logRoadmapEvent("서버", "앱폰 및 관제탑에게 탐색 재개(filter-updated) 정보 전달");
         }
         session.pendingOrdersData.delete(orderId);
