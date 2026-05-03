@@ -86,7 +86,7 @@ export function getCorridorRegions(polyline: Array<{x: number; y: number}>, corr
     for (const feature of mergedMapFeatureCollection.features) {
         const props = feature.properties || {};
         const regionName = props.EMD_KOR_NM;
-        const parentName = props.SIG_KOR_NM || "기타 지역";
+        const parentName = props.intel?.parentName || props.SIG_KOR_NM || "기타 지역";
         
         if (!regionName) continue;
 
@@ -154,9 +154,10 @@ export function getCityRegionsWithRadius(cityName: string, radiusKm: number): { 
     }
 
     // 1. 타겟 도시(cityName)에 속한 읍/면/동 피처 모두 찾기
-    const cityFeatures = mergedMapFeatureCollection.features.filter((f: any) => 
-        f.properties?.SIG_KOR_NM?.includes(cityName)
-    );
+    const cityFeatures = mergedMapFeatureCollection.features.filter((f: any) => {
+        const pName = f.properties?.intel?.parentName || f.properties?.SIG_KOR_NM || "";
+        return pName.includes(cityName);
+    });
 
     if (cityFeatures.length === 0) {
         return { flat: [], grouped: {} };
@@ -168,7 +169,7 @@ export function getCityRegionsWithRadius(cityName: string, radiusKm: number): { 
         const grouped: Record<string, Set<string>> = {};
         for (const f of cityFeatures) {
             const regionName = f.properties?.EMD_KOR_NM;
-            const parentName = f.properties?.SIG_KOR_NM || "기타 지역";
+            const parentName = f.properties?.intel?.parentName || f.properties?.SIG_KOR_NM || "기타 지역";
             if (regionName) {
                 flatSet.add(regionName);
                 if (!grouped[parentName]) grouped[parentName] = new Set<string>();
@@ -202,7 +203,7 @@ export function getCityRegionsWithRadius(cityName: string, radiusKm: number): { 
 
     for (const feature of mergedMapFeatureCollection.features) {
         const regionName = feature.properties?.EMD_KOR_NM;
-        const parentName = feature.properties?.SIG_KOR_NM || "기타 지역";
+        const parentName = feature.properties?.intel?.parentName || feature.properties?.SIG_KOR_NM || "기타 지역";
         if (!regionName) continue;
 
         // 원본 도시의 폴리곤이면 볼 필요 없이 무조건 포함
@@ -394,7 +395,7 @@ export function reverseGeocodeToRegion(lat: number, lng: number): string | null 
         }
         // Point-in-Polygon 정밀 검사
         if (turf.booleanPointInPolygon(point, feature as any)) {
-            const sigName = (feature.properties as any)?.SIG_KOR_NM;
+            const sigName = (feature.properties as any)?.intel?.parentName || (feature.properties as any)?.SIG_KOR_NM;
             if (sigName) return sigName;
         }
     }
