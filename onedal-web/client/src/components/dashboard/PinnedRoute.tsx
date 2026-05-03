@@ -54,7 +54,7 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
     }, [currentGps]);
 
     const safeRoute = activeRoute || [];
-    const allEvaluating = safeRoute.some(r => r.status === 'evaluating_basic' || r.status === 'evaluating_detailed');
+    const allEvaluating = safeRoute.some(r => r.status === 'evaluating_basic' || r.status === 'evaluating_detailed' || !!r.phase);
 
     const toggleExpand = (id: string) => {
         setExpandedIds(prev => {
@@ -66,8 +66,8 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
     };
 
     // 서버와 동일한 동선 최적화(TSP Nearest Neighbor) 로직 적용 — 완료된 콜은 지도 핀에서 제외
-    const rawPickups = liveRoute.map((r) => ({ type: '상차', name: getAddressLabel(r.pickup), isEvaluating: r.status.includes('evaluating'), x: r.pickupX, y: r.pickupY, routeId: r.id }));
-    const rawDropoffs = liveRoute.map((r) => ({ type: '하차', name: getAddressLabel(r.dropoff), isEvaluating: r.status.includes('evaluating'), x: r.dropoffX, y: r.dropoffY, routeId: r.id }));
+    const rawPickups = liveRoute.map((r) => ({ type: '상차', name: getAddressLabel(r.pickup), isEvaluating: !!r.phase || !!r.status?.includes('evaluating'), x: r.pickupX, y: r.pickupY, routeId: r.id }));
+    const rawDropoffs = liveRoute.map((r) => ({ type: '하차', name: getAddressLabel(r.dropoff), isEvaluating: !!r.phase || !!r.status?.includes('evaluating'), x: r.dropoffX, y: r.dropoffY, routeId: r.id }));
 
     const sortedPickups: typeof rawPickups = [];
     let currentLoc = myLocation || (rawPickups[0] ? { x: rawPickups[0].x!, y: rawPickups[0].y! } : { x: 0, y: 0 });
