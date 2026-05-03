@@ -28,7 +28,7 @@ export type PendingOrderPhase = 'SCREENING' | 'AWAITING_DECISION';
 // [계층 2-B] 확정 오더 상태 (내가 책임지고 수행해야 하는 퀵)
 // 업계 표준 3단계: 배차확정 → 상차완료(서명) → 하차완료(서명)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-export type MyOrderStatus = 'CONFIRMED' | 'PICKED_UP' | 'DELIVERED';
+export type MyOrderStatus = 'CONFIRMED' | 'PICKED_UP' | 'DELIVERED' | 'completed';  // completed는 하위 호환용, 점진적으로 DELIVERED로 교체 예정
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // [계층 3] 사냥 전략 단계 — DriverAction + 확정 콜 수에서 파생

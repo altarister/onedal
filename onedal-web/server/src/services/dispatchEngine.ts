@@ -1,5 +1,5 @@
 import { mapVehicleToKakaoCarType, getSharedModeVehicleTypes } from "@onedal/shared";
-import type { SecuredOrder, AutoDispatchFilter, PricingConfig } from "@onedal/shared";
+import type { SecuredOrder, AutoDispatchFilter, PricingConfig, PendingOrder, MyOrder } from "@onedal/shared";
 import { geocodeAddress, calculateSoloRoute, calculateDetourRoute, compareDirections } from "./kakaoService";
 import { fetchRealWorldRoute } from "../routes/osrmUtil";
 import { getUserSession } from "../state/userSessionStore";
@@ -113,7 +113,7 @@ export async function recalculateActiveKakaoRoute(userId: string, io: any) {
     const session = getUserSession(userId);
 
     // 완료되지 않은 활성 콜만 추출 (On-the-fly 필터링)
-    const activeCalls = [session.mainCallState, ...session.subCalls].filter(c => c && c.status !== 'completed') as SecuredOrder[];
+    const activeCalls = [session.mainCallState, ...session.subCalls].filter(c => c && c.status !== 'completed') as MyOrder[];
 
     if (activeCalls.length === 0) return; // 경로를 계산할 활성 콜이 없음
 
@@ -210,7 +210,7 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
         let isDetour = false;
 
         const currentOrders = Array.from(session.pendingOrdersData.values());
-        let previousOrders = currentOrders.filter(o => o.id !== orderId && o.status === 'confirmed');
+        let previousOrders = [session.mainCallState, ...session.subCalls].filter(o => o && o.id !== orderId && o.status !== 'completed') as MyOrder[];
         if (previousOrders.length > 0) isDetour = true;
 
         const routingOptions = getKakaoRoutingOptions(userId);
@@ -307,7 +307,7 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
         logRoadmapEvent("서버", "재탐색 결과로 폴리라인 및 소요시간 갱신 연산");
         securedOrder.kakaoTimeExt = timeExt;
 
-        if (securedOrder.status === 'confirmed' || session.mainCallState?.id === securedOrder.id || session.subCalls.some(c => c.id === securedOrder.id)) {
+        if (session.mainCallState?.id === securedOrder.id || session.subCalls.some(c => c.id === securedOrder.id)) {
             syncCorridorFilter(userId, io);
         }
 
@@ -419,23 +419,27 @@ export async function handleDecision(userId: string, orderId: string, action: 'K
 
         if (!cachedOrder) return { success: false, action };
 
-        if (cachedOrder) {
-            cachedOrder.status = 'confirmed';
-        }
+        // [V2 핵심] PendingOrder → MyOrder 승격 (심사 완료 → 내 퀵 확정)
+        const confirmedOrder: MyOrder = {
+            ...cachedOrder,
+            status: 'CONFIRMED',
+        };
+        // phase는 PendingOrder 전용이므로 제거
+        delete (confirmedOrder as any).phase;
 
         const isAlreadyMain = session.mainCallState?.id === orderId;
         const isAlreadySub = session.subCalls.some(c => c.id === orderId);
 
-        if (!isAlreadyMain && !isAlreadySub && cachedOrder) {
+        if (!isAlreadyMain && !isAlreadySub) {
             logRoadmapEvent("서버", "해당 콜을 '메인콜' (또는 서브콜) 로 승격 및 병합 궤적 생성 연산");
             if (!session.mainCallState) {
-                session.mainCallState = cachedOrder;
+                session.mainCallState = confirmedOrder;
             } else {
-                session.subCalls.push(cachedOrder);
+                session.subCalls.push(confirmedOrder);
                 try {
                     const hasApiKey = !!process.env.KAKAO_REST_API_KEY;
                     if (hasApiKey) {
-                        const activeCalls = [session.mainCallState, ...session.subCalls].filter(c => c && c.status !== 'completed') as SecuredOrder[];
+                        const activeCalls = [session.mainCallState, ...session.subCalls].filter(c => c && c.status !== 'completed') as MyOrder[];
                         if (activeCalls.length > 0) {
                             const activeMain = activeCalls[0];
                             const activeSubs = activeCalls.slice(1);
@@ -678,7 +682,7 @@ export async function handleDecision(userId: string, orderId: string, action: 'K
 }
 
 /** [필수#1] 최초 오더 평가: 지오코딩 + 카카오 경로 연산 + 꿀/콜/똥 판정 (detail.ts에서 추출) */
-export async function evaluateNewOrder(userId: string, securedOrder: SecuredOrder, io: any) {
+export async function evaluateNewOrder(userId: string, securedOrder: SecuredOrder | PendingOrder, io: any) {
     const session = getUserSession(userId);
     let timeExt = "카카오 연산 실패";
     const reasons: string[] = [];  // 🔍 모든 단점/패널티 사유를 여기에 수집 (Non-Short-Circuit)
@@ -780,7 +784,7 @@ export async function evaluateNewOrder(userId: string, securedOrder: SecuredOrde
 
             logRoadmapEvent("서버", "카카오 지오코딩으로 반환된 출발지/도착지 X/Y 좌표 메모리 갱신 연산");
             // 좌표 보존
-            session.pendingOrdersData.set(securedOrder.id, securedOrder);
+            session.pendingOrdersData.set(securedOrder.id, securedOrder as PendingOrder);
 
             if (securedOrder.pickupX && securedOrder.dropoffY) {
                 const routingOptions = getKakaoRoutingOptions(userId);

@@ -3,7 +3,7 @@
  */
 
 import { Router } from "express";
-import type { DispatchConfirmRequest, SecuredOrder } from "@onedal/shared";
+import type { DispatchConfirmRequest, PendingOrder, SecuredOrder } from "@onedal/shared";
 import { parseLocationDetails, parseMockupFare, parseMockupDistance, parseMockupVehicleType, parseDetailedRawText } from "../utils/parser";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { DISPATCH_CONFIG } from "../config/dispatchConfig";
@@ -41,49 +41,49 @@ router.post("/", async (req, res) => {
 
         payload.order.id = realOrderId;
 
-        let securedOrder: SecuredOrder = {
+        let pendingOrder: PendingOrder = {
             ...payload.order,
-            status: 'evaluating_detailed',
+            phase: 'AWAITING_DECISION',
             capturedDeviceId: payload.deviceId,
             capturedAt: payload.capturedAt || new Date().toISOString()
         };
 
         logRoadmapEvent("서버", "상하차지 주소 및 적요 텍스트 정제 연산");
-        const rawText = securedOrder.rawText;
+        const rawText = pendingOrder.rawText;
         if (rawText) {
             // [Dumb Client / Smart Server]
             // 앱이 보내준 통짜 rawText를 서버의 파서가 완전히 해부하여 속성을 채움
             const parsedDetails = parseDetailedRawText(rawText);
-            securedOrder = { ...securedOrder, ...parsedDetails };
+            pendingOrder = { ...pendingOrder, ...parsedDetails };
 
-            securedOrder.pickupDetails = parseLocationDetails(rawText, "[출발지상세]");
-            securedOrder.dropoffDetails = parseLocationDetails(rawText, "[도착지상세]");
+            pendingOrder.pickupDetails = parseLocationDetails(rawText, "[출발지상세]");
+            pendingOrder.dropoffDetails = parseLocationDetails(rawText, "[도착지상세]");
 
-            if (!securedOrder.fare || securedOrder.fare <= 0) {
-                securedOrder.fare = parseMockupFare(rawText) || 0;
+            if (!pendingOrder.fare || pendingOrder.fare <= 0) {
+                pendingOrder.fare = parseMockupFare(rawText) || 0;
             }
-            if (!securedOrder.distanceKm) {
-                securedOrder.distanceKm = parseMockupDistance(rawText) || 0;
+            if (!pendingOrder.distanceKm) {
+                pendingOrder.distanceKm = parseMockupDistance(rawText) || 0;
             }
-            if (!securedOrder.vehicleType) {
-                securedOrder.vehicleType = parseMockupVehicleType(rawText) || "";
+            if (!pendingOrder.vehicleType) {
+                pendingOrder.vehicleType = parseMockupVehicleType(rawText) || "";
             }
         }
 
-        const checkMatch = (existingOrder: SecuredOrder) => {
+        const checkMatch = (existingOrder: SecuredOrder | PendingOrder) => {
             const phone1 = existingOrder.pickupDetails?.[0]?.phone1;
-            const phone2 = securedOrder.pickupDetails?.[0]?.phone1;
+            const phone2 = pendingOrder.pickupDetails?.[0]?.phone1;
             const isPhoneMatch = (phone1 === phone2) && !!phone1;
 
-            const isPickupAddressMatch = existingOrder.pickup === securedOrder.pickup;
-            const isDropoffAddressMatch = existingOrder.dropoff === securedOrder.dropoff;
-            const isFareMatch = existingOrder.fare > 0 && existingOrder.fare === securedOrder.fare;
+            const isPickupAddressMatch = existingOrder.pickup === pendingOrder.pickup;
+            const isDropoffAddressMatch = existingOrder.dropoff === pendingOrder.dropoff;
+            const isFareMatch = existingOrder.fare > 0 && existingOrder.fare === pendingOrder.fare;
 
             const p1Addr = existingOrder.pickupDetails?.[0]?.addressDetail;
-            const p2Addr = securedOrder.pickupDetails?.[0]?.addressDetail;
+            const p2Addr = pendingOrder.pickupDetails?.[0]?.addressDetail;
             const isExactAddrMatch = !!p1Addr && !!p2Addr && p1Addr === p2Addr;
 
-            if (existingOrder.id === securedOrder.id) return true;
+            if (existingOrder.id === pendingOrder.id) return true;
             if (isPhoneMatch && isPickupAddressMatch && isDropoffAddressMatch && isFareMatch) return true;
             if (isFareMatch && isPickupAddressMatch && isDropoffAddressMatch && isExactAddrMatch) return true;
             return false;
@@ -112,10 +112,10 @@ router.post("/", async (req, res) => {
         }
 
 
-        session.pendingOrdersData.set(payload.order.id, securedOrder);
+        session.pendingOrdersData.set(payload.order.id, pendingOrder);
 
         if (io) {
-            io.to(userId).emit("order-detail-received", securedOrder);
+            io.to(userId).emit("order-detail-received", pendingOrder);
             logRoadmapEvent("서버", "관제탑에게 정제된 상세 텍스트(order-detail-received) 정보 전달");
         }
 
@@ -126,18 +126,18 @@ router.post("/", async (req, res) => {
 
         // ━━━ Service 계층에 카카오 경로 연산 위임 (evaluateNewOrder) ━━━
         // 지오코딩 + 단독/합짐 경로 연산 + 꿀/콜/똥 판정 + order-evaluated emit
-        await evaluateNewOrder(userId, securedOrder, io);
+        await evaluateNewOrder(userId, pendingOrder, io);
 
-        const isManual = securedOrder.type?.includes("MANUAL") || payload.matchType === "MANUAL";
+        const isManual = pendingOrder.type?.includes("MANUAL") || payload.matchType === "MANUAL";
         if (isManual) {
-            securedOrder.type = 'MANUAL';  // 프론트엔드 배지 표시를 위해 명시적 설정
-            console.log(`✋ [Two-Track MANUAL] 기사님 수동 클릭 콜. 즉시 KEEP 처리. (type=${securedOrder.type}, matchType=${payload.matchType})`);
+            pendingOrder.type = 'MANUAL';  // 프론트엔드 배지 표시를 위해 명시적 설정
+            console.log(`✋ [Two-Track MANUAL] 기사님 수동 클릭 콜. 즉시 KEEP 처리. (type=${pendingOrder.type}, matchType=${payload.matchType})`);
             
             // [Fix] Android 앱이 Piggyback을 통해서만 KEEP 응답을 소화하므로, 
             // 수동 배차 건도 pendingDecisions 큐에 KEEP 상태로 등록해줍니다.
             session.pendingDecisions.set(payload.order.id, { action: 'KEEP', evaluatedAt: Date.now() });
 
-            await handleDecision(userId, securedOrder.id, "KEEP", io);
+            await handleDecision(userId, pendingOrder.id, "KEEP", io);
             return res.json({ deviceId: 'server', action: 'ACK' });
         }
 
@@ -152,8 +152,8 @@ router.post("/", async (req, res) => {
                     io.to(userId).emit("deathvalley-warning", {
                         orderId: payload.order.id,
                         deviceId: payload.deviceId,
-                        pickup: securedOrder.pickup,
-                        dropoff: securedOrder.dropoff,
+                        pickup: pendingOrder.pickup,
+                        dropoff: pendingOrder.dropoff,
                         message: "⚠️ 30초 데스밸리!",
                         timestamp: new Date().toISOString(),
                     });

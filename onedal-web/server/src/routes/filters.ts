@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { requireAuth } from "../middlewares/authMiddleware";
 import { getUserSession } from "../state/userSessionStore";
-import { applyFilter } from "../state/filterManager";
+import { updateActiveFilter } from "../state/filterManager";
 
 const router = Router();
 
@@ -16,6 +16,8 @@ router.get("/", requireAuth, (req, res) => {
             isActive: f.isActive ?? false,
             isSharedMode: f.isSharedMode ?? false,
             loadState: f.loadState ?? 'EMPTY',
+            driverAction: f.driverAction ?? 'WAITING',       // [V2]
+            dispatchPhase: f.dispatchPhase ?? 'STANDBY',     // [V2]
             destinationCity: f.destinationCity ?? "",
             destinationRadiusKm: f.destinationRadiusKm ?? 0,
             corridorRadiusKm: f.corridorRadiusKm ?? 0,
@@ -37,7 +39,7 @@ router.put("/", requireAuth, (req, res) => {
     try {
         const userId = req.user!.id;
         const io = req.app.get("io");
-        const result = applyFilter(userId, req.body, io);
+        const result = updateActiveFilter(userId, req.body, io);
         res.json({ success: true, message: "Filters updated successfully", filter: result });
     } catch (e) {
         console.error("Filters PUT 에러:", e);

@@ -21,7 +21,7 @@
 import { Router } from "express";
 import type { EmergencyReport } from "@onedal/shared";
 import { getUserSession } from "../state/userSessionStore";
-import { applyFilter } from "../state/filterManager";
+import { updateActiveFilter } from "../state/filterManager";
 import db from "../db";
 import { incrementDeviceStats } from "./devices";
 
@@ -51,7 +51,7 @@ router.post("/", (req, res) => {
 
         if (!targetOrderId || targetOrderId === "unknown") {
             for (const [id, order] of session.pendingOrdersData.entries()) {
-                if (order.capturedDeviceId === deviceId && order.status !== 'confirmed') {
+                if (order.capturedDeviceId === deviceId) {
                     targetOrderId = id;
                     console.log(`   🔍 잃어버린 orderId 역추적 성공: ${targetOrderId}`);
                     break;
@@ -94,7 +94,7 @@ router.post("/", (req, res) => {
 
         if (session.mainCallState && session.mainCallState.id === targetOrderId) {
             session.mainCallState = null;
-            applyFilter(userId, { isSharedMode: false, isActive: true, loadState: 'EMPTY' }, io, false);
+            updateActiveFilter(userId, { isSharedMode: false, isActive: true, loadState: 'EMPTY', driverAction: 'WAITING', dispatchPhase: 'STANDBY' }, io);
             console.log(`   ✅ 본콜 초기화 + 필터 '첫짐' 복원 완료`);
         }
 

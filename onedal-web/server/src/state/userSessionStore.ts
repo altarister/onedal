@@ -20,13 +20,13 @@ const SERVICE_DEFAULT_FILTER: Partial<AutoDispatchFilter> = {
 
 // 1명의 기사가 가지는 '모든' 상태 캡슐화
 export interface UserSession {
-    mainCallState: SecuredOrder | null;
-    subCalls: SecuredOrder[];
+    mainCallState: MyOrder | null;          // [계층 2-B] 확정된 본콜 (내 퀵)
+    subCalls: MyOrder[];                    // [계층 2-B] 확정된 합짐 콜들 (내 퀵)
     // [Option B] 응답 객체 대신 판결(Decision) 데이터를 저장하는 큐 형식으로 변경
     pendingDecisions: Map<string, { action: "KEEP" | "CANCEL" | null; evaluatedAt: number }>;
     // [Option B] 비상벨(emergency) 시 취소할 수 있도록 데스밸리 타이머 저장
     activeTimers: Map<string, NodeJS.Timeout>;
-    pendingOrdersData: Map<string, SecuredOrder>;
+    pendingOrdersData: Map<string, PendingOrder>;  // [계층 2-A] 심사 중 오더 (아직 내 퀵이 아님)
     deviceEvaluatingMap: Map<string, string>;
     baseFilter: AutoDispatchFilter;
     activeFilter: AutoDispatchFilter;
@@ -42,7 +42,7 @@ function createDefaultSession(): UserSession {
         subCalls: [],
         pendingDecisions: new Map<string, { action: "KEEP" | "CANCEL" | null; evaluatedAt: number }>(),
         activeTimers: new Map<string, NodeJS.Timeout>(),
-        pendingOrdersData: new Map<string, SecuredOrder>(),
+        pendingOrdersData: new Map<string, PendingOrder>(),
         deviceEvaluatingMap: new Map<string, string>(),
         baseFilter: { ...SERVICE_DEFAULT_FILTER } as AutoDispatchFilter,
         activeFilter: { ...SERVICE_DEFAULT_FILTER } as AutoDispatchFilter,

@@ -6,7 +6,7 @@ import { logRoadmapEvent } from "../utils/roadmapLogger";
 import type { AutoDispatchFilter } from "@onedal/shared";
 import { getUserSession, getAllActiveUserIds } from "../state/userSessionStore";
 import { recalculateCorridorFilter, handleDecision, recalculateKakaoRoute } from "../services/dispatchEngine";
-import { applyFilter } from "../state/filterManager";
+import { updateActiveFilter } from "../state/filterManager";
 import { processDriverMovement, getCityRegionsWithRadius } from "../services/geoService";
 import db from "../db";
 
@@ -57,7 +57,7 @@ export function registerSocketHandlers(io: Server) {
             activeFilter: session.activeFilter,
             baseFilter: session.baseFilter
         });
-        logRoadmapEvent("서버", "관제탑에게 초기 UI 복원용 필터(filter-init) 정보 전달");
+        logRoadmapEvent("서버", `관제탑에게 초기 UI 복원용 필터(filter-init) 정보 전달\n - activeFilter(현재사냥): minFare=${session.activeFilter.minFare}\n - baseFilter(기본설정): minFare=${session.baseFilter.minFare}`);
 
         socket.on("request-filter-init", () => {
             console.log(`📡 [웹 수신] request-filter-init (초기 필터 동기화 요청) - userId: ${userId}`);
@@ -66,11 +66,12 @@ export function registerSocketHandlers(io: Server) {
                 activeFilter: session.activeFilter,
                 baseFilter: session.baseFilter
             });
+            logRoadmapEvent("서버", `관제탑 요청으로 필터(filter-init) 정보 재전달\n - activeFilter(현재사냥): minFare=${session.activeFilter.minFare}\n - baseFilter(기본설정): minFare=${session.baseFilter.minFare}`);
         });
 
         // 프론트에서 필터 변경 시
         socket.on("update-filter", (newFilter: Partial<AutoDispatchFilter>) => {
-            logRoadmapEvent("서버", "관제탑으로 부터 필터 변경(update-filter) 요청 받음 및 파싱 연산");
+            logRoadmapEvent("서버", `관제탑으로 부터 필터 변경(update-filter) 요청 받음. 수신 데이터: ${JSON.stringify(newFilter)}`);
             
             const isCityChanged = newFilter.destinationCity !== undefined && newFilter.destinationCity !== session.activeFilter.destinationCity;
             const isTargetChanged = newFilter.destinationRadiusKm !== undefined && newFilter.destinationRadiusKm !== session.activeFilter.destinationRadiusKm;
@@ -101,7 +102,7 @@ export function registerSocketHandlers(io: Server) {
             }
             
             logRoadmapEvent("서버", "관제탑에게 변경 적용된 필터(filter-updated) 정보 전달 (메모리만, DB 저장 안함)");
-            applyFilter(userId, newFilter, io, false); // persistToDB = false (필터 모달 변경은 일회성 runtimeOverrides)
+            updateActiveFilter(userId, newFilter, io);
         });
 
         // 프론트에서 현재 위치 전송 시 (지도 등 활용 및 Master GPS 용도)
@@ -112,7 +113,7 @@ export function registerSocketHandlers(io: Server) {
         // ━━━ [관제웹 Master GPS 수신부] ━━━
         socket.on("dashboard-gps-update", (loc: { lat: number, lng: number }) => {
             processDriverMovement(userId, loc.lat, loc.lng, session, (uid, filterUpdate) => {
-                applyFilter(uid, filterUpdate, io, false); // 일회성 운행 상태이므로 DB 저장 안함
+                updateActiveFilter(uid, filterUpdate, io);
             });
         });
 
@@ -223,14 +224,16 @@ export function registerSocketHandlers(io: Server) {
 
                 // 5. 필터 리셋: EMPTY 모드 + 동시 키워드 투입
                 const mergedKeywords = [...new Set([...homeKeywords, ...currentKeywords])];
-                applyFilter(userId, {
+                updateActiveFilter(userId, {
                     isSharedMode: false,
                     isActive: true,
                     loadState: 'EMPTY',
+                    driverAction: 'WAITING',      // [V2] 투-트랙 시작 → 대기 상태
+                    dispatchPhase: 'STANDBY',     // [V2] 첫짐 탐색
                     destinationCity: '🎯 투-트랙 탐색',
                     destinationKeywords: mergedKeywords,
                     corridorRadiusKm: 0,
-                }, io, false);
+                }, io);
 
                 console.log(`🎯 [투-트랙] 필터 전환 완료 → 키워드: [${mergedKeywords.join(', ')}]`);
                 
@@ -316,12 +319,13 @@ export function registerSocketHandlers(io: Server) {
                 
                 // LOADING + 회랑 생성
                 const { syncCorridorFilter } = await import("../services/dispatchEngine");
-                applyFilter(userId, {
+                updateActiveFilter(userId, {
                     loadState: 'LOADING',
+                    dispatchPhase: 'GATHERING',   // [V2] 합짐 탐색 단계
                     isSharedMode: true,
                     isActive: true,
                     corridorRadiusKm: targetCorridor,
-                }, io, false); // persistToDB = false (일회성 운행 조작)
+                }, io);
                 syncCorridorFilter(userId, io);
 
                 console.log(`🏠 [귀가콜] 가상 오더 생성 완료: ${settings.home_address}`);

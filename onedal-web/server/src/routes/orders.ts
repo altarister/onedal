@@ -12,11 +12,11 @@
 
 import { Router } from "express";
 import crypto from "crypto";
-import type { SimplifiedOfficeOrder, DispatchConfirmRequest, SecuredOrder } from "@onedal/shared";
+import type { SimplifiedOfficeOrder, DispatchConfirmRequest, PendingOrder } from "@onedal/shared";
 import db from "../db";
 import { getUserSession } from "../state/userSessionStore";
 import { forceCancelEvaluatingOrder, handleDecision } from "../services/dispatchEngine";
-import { applyFilter } from "../state/filterManager";
+import { updateActiveFilter } from "../state/filterManager";
 import { requireAuth } from "../middlewares/authMiddleware";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 
@@ -138,9 +138,9 @@ router.post("/confirm", (req, res) => {
         const previousEvaluatingId = session.deviceEvaluatingMap.get(payload.deviceId);
 
         if (previousEvaluatingId && previousEvaluatingId !== payload.order.id && previousEvaluatingId !== "unknown") {
-            const prevOrder = session.pendingOrdersData.get(previousEvaluatingId);
-            // 이미 'confirmed'(KEEP)된 콜은 새 콜 진입 시에도 삭제하지 않음 (다중 배차 유지)
-            if (!prevOrder || prevOrder.status !== 'confirmed') {
+            const prevDecision = session.pendingDecisions.get(previousEvaluatingId);
+            // 이미 KEEP 결재가 내려진 콜은 새 콜 진입 시에도 삭제하지 않음 (다중 배차 유지)
+            if (!prevDecision || prevDecision.action !== 'KEEP') {
                 console.log(`🧹 [자동 정리] 새 콜 진입 감지! 기존 평가 중이던 콜(${previousEvaluatingId}) 백그라운드 강제 취소`);
                 forceCancelEvaluatingOrder(userId, previousEvaluatingId, io);
             }
@@ -151,36 +151,36 @@ router.post("/confirm", (req, res) => {
             session.deviceEvaluatingMap.set(payload.deviceId, payload.order.id);
         }
 
-        const securedOrder: SecuredOrder = {
+        const pendingOrder: PendingOrder = {
             ...payload.order,
-            status: 'evaluating_basic',
+            phase: 'SCREENING',
             capturedDeviceId: payload.deviceId,
             capturedAt: payload.capturedAt || new Date().toISOString()
         };
 
-        if (securedOrder.id && securedOrder.id !== "unknown") {
+        if (pendingOrder.id && pendingOrder.id !== "unknown") {
             logRoadmapEvent("서버", "콜의 가확정 상태를 메모리에 캐싱 연산");
-            session.pendingOrdersData.set(securedOrder.id, securedOrder);
+            session.pendingOrdersData.set(pendingOrder.id, pendingOrder);
         }
 
         if (io) {
-            console.log(`📤 [Socket 푸시] order-evaluating (${securedOrder.id})`);
-            io.to(userId).emit("order-evaluating", securedOrder);
-            console.log(`⏱️ [1차 선빵 수신] ${securedOrder.pickup} ➡️ ${securedOrder.dropoff} (기기: ${payload.deviceId})`);
+            console.log(`📤 [Socket 푸시] order-evaluating (${pendingOrder.id})`);
+            io.to(userId).emit("order-evaluating", pendingOrder);
+            console.log(`⏱️ [1차 선빵 수신] ${pendingOrder.pickup} ➡️ ${pendingOrder.dropoff} (기기: ${payload.deviceId})`);
             logRoadmapEvent("서버", "앱폰으로 부터 가로챈 '1차 오더 확정' 요청 받음");
             logRoadmapEvent("서버", "관제탑에게 이 콜을 선점했음(order-evaluating) 정보 전달");
 
             if (session.activeFilter.isActive) {
-                applyFilter(userId, { isActive: false }, io, false);
+                updateActiveFilter(userId, { isActive: false }, io);
                 console.log(`📤 [Socket 푸시] filter-updated (isActive: false)`);
                 logRoadmapEvent("서버", "폰의 isHolding=true 기간 동안 다른 콜을 물지 않도록 필터 비활성 정보 전달");
                 
                 logRoadmapEvent("서버", "데스밸리 15초 카운트다운 타이머 감시 연산");
                 setTimeout(() => {
-                    const cached = session.pendingOrdersData.get(securedOrder.id);
-                    if (cached && cached.status === 'evaluating_basic') {
-                         console.log(`💀 [서버 데스밸리 타이머] 30초 경과 강제 취소 (ID: ${securedOrder.id}).`);
-                         handleDecision(userId, securedOrder.id, "CANCEL", io);
+                    const cached = session.pendingOrdersData.get(pendingOrder.id);
+                    if (cached && cached.phase === 'SCREENING') {
+                         console.log(`💀 [서버 데스밸리 타이머] 30초 경과 강제 취소 (ID: ${pendingOrder.id}).`);
+                         handleDecision(userId, pendingOrder.id, "CANCEL", io);
                     }
                 }, 30000);
             }

@@ -341,7 +341,9 @@ export function processDriverMovement(userId: string, lat: number, lng: number, 
     session.driverLocation = currentGPS;
     session.dashboardLocation = currentGPS;
 
-    if (session.activeFilter.loadState === 'DRIVING') {
+    // [V2] dispatchPhase 기반으로 체크 (하위 호환: loadState도 함께 참조)
+    const isDelivering = session.activeFilter.dispatchPhase === 'DELIVERING' || session.activeFilter.loadState === 'DRIVING';
+    if (isDelivering) {
         // [1] Corridor Trim: 2km 이상 이동 시에만 트리거 (CPU 보호)
         const lastTrim = (session as any).lastTrimGPS as { x: number; y: number } | undefined;
         const dist = lastTrim ? haversineKm(lastTrim.y, lastTrim.x, lat, lng) : Infinity;
@@ -365,7 +367,10 @@ export function processDriverMovement(userId: string, lat: number, lng: number, 
         // [2] 도착 감지: 마지막 하차지 500m 이내 도달 시
         const lastDropoff = getLastDropoffCoord(session);
         if (lastDropoff && haversineKm(lat, lng, lastDropoff.y, lastDropoff.x) < 0.5) {
-            applyFilterCb(userId, { loadState: 'ARRIVED' });
+            applyFilterCb(userId, { 
+                loadState: 'ARRIVED',
+                driverAction: 'UNLOADING',    // [V2] 하차 중으로 자동 전환
+            });
             console.log(`🏁 [도착 감지] 하차지 500m 이내 도달`);
             // 도착 알림은 socketHandlers 쪽에서 io.to().emit()으로 발송하도록 콜백 체계 활용 (또는 applyFilterCb 안에서 이벤트 발생 가능)
         }
