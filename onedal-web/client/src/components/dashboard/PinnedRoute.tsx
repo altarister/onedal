@@ -241,8 +241,8 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
                 <div className="space-y-2">
                     {[...activeRoute]
                         .sort((a, b) => {
-                            const aEvaluating = a.status.includes('evaluating');
-                            const bEvaluating = b.status.includes('evaluating');
+                            const aEvaluating = !!a.phase || !!a.status?.includes('evaluating');
+                            const bEvaluating = !!b.phase || !!b.status?.includes('evaluating');
                             // 평가중인 콜은 항상 맨 위에
                             if (aEvaluating && !bEvaluating) return -1;
                             if (!aEvaluating && bEvaluating) return 1;
@@ -254,7 +254,7 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
                             return timeB - timeA;
                         })
                         .map((route) => {
-                            const isEvaluating = route.status.includes('evaluating');
+                            const isEvaluating = !!route.phase || !!route.status?.includes('evaluating');
                             const isExpanded = isEvaluating || expandedIds.has(route.id);
                             const indexNum = chronologicalIds.indexOf(route.id) + 1;
 
