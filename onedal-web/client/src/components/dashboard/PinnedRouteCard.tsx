@@ -31,7 +31,7 @@ export default function PinnedRouteCard({
     visitOrderMap,
     indexNum
 }: Props) {
-    const isEvaluating = route.status.includes('evaluating');
+    const isEvaluating = !!route.phase || !!route.status?.includes('evaluating');
     const etas = etaMap.get(route.id);
     const visitOrder = visitOrderMap.get(route.id);
 
@@ -41,7 +41,7 @@ export default function PinnedRouteCard({
 
     useEffect(() => {
         // 평가 중이 아닐 때는 카운터 초기화
-        if (!route.status.includes('evaluating')) {
+        if (!route.phase && !route.status?.includes('evaluating')) {
             setTelemetryCount(0);
             return;
         }
@@ -59,7 +59,7 @@ export default function PinnedRouteCard({
         return () => {
             socket.off("telemetry-ping", handleTelemetryPing);
         };
-    }, [route.id, route.status]);
+    }, [route.id, route.status, route.phase]);
 
     const pLabel = visitOrder?.pickupIdx || '?';
     const dLabel = visitOrder?.dropoffIdx || '?';
@@ -69,7 +69,7 @@ export default function PinnedRouteCard({
 
     return (
         <Card className={`flex flex-col relative overflow-hidden transition-all duration-300 shadow-md ${isEvaluating ? 'ring-1 ring-amber-500/50' : 'hover:border-border-hover'} bg-card text-card-foreground border-border ${route.status === 'completed' ? 'opacity-50 grayscale' : ''}`}>
-            {route.status === 'evaluating_detailed' && (
+            {(route.status === 'evaluating_detailed' || route.phase === 'AWAITING_DECISION') && (
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-500/5 to-transparent -translate-x-full animate-[shimmer_2s_infinite] pointer-events-none" />
             )}
 
@@ -94,14 +94,14 @@ export default function PinnedRouteCard({
                     <span className="ml-3 font-medium text-[10px] truncate mt-0.5 flex items-center gap-1 flex-[2]">
                         <span>{route.fare > 0 ? `${(route.fare / 10000).toFixed(1)}만` : '금액미상'}</span>
                         <span className="text-muted-foreground">,</span>
-                        <span>{route.status.includes('evaluating') ? '계산중' : route.distanceKm ? `${route.distanceKm}Km` : '미상'}</span>
+                        <span>{!!route.phase || route.status?.includes('evaluating') ? '계산중' : route.distanceKm ? `${route.distanceKm}Km` : '미상'}</span>
                         <span className="text-muted-foreground">,</span>
                         <span>{route.vehicleType?.substring(0, 1) || '차'}</span>
                     </span>
                 </div>
 
                 {isEvaluating && (
-                    <Badge className={`text-[10px] font-black px-1.5 py-0 animate-pulse flex-shrink-0 ml-2 rounded ${route.status === 'evaluating_basic' ? 'bg-rose-500/20 text-rose-500 hover:bg-rose-500/20' : 'bg-amber-500/20 text-amber-500 hover:bg-amber-500/20'}`}>평가중</Badge>
+                    <Badge className={`text-[10px] font-black px-1.5 py-0 animate-pulse flex-shrink-0 ml-2 rounded ${route.status === 'evaluating_basic' || route.phase === 'SCREENING' ? 'bg-rose-500/20 text-rose-500 hover:bg-rose-500/20' : 'bg-amber-500/20 text-amber-500 hover:bg-amber-500/20'}`}>평가중</Badge>
                 )}
                 {!isEvaluating && route.type === 'MANUAL' && route.status !== 'completed' && (
                     <Badge variant="outline" className="text-[10px] font-black px-1.5 py-0 bg-blue-500/10 border-blue-500/30 text-blue-400 flex-shrink-0 ml-2 shadow-sm rounded">수동 배차</Badge>
@@ -115,7 +115,7 @@ export default function PinnedRouteCard({
             {isExpanded && (
                 <div className="px-3 pb-4 pt-2 text-sm border-t border-border bg-card">
 
-                    {route.type !== 'MANUAL' && (route.status === 'evaluating_basic' || route.status === 'evaluating_detailed') && onDecision && (
+                    {route.type !== 'MANUAL' && (!!route.phase || route.status === 'evaluating_basic' || route.status === 'evaluating_detailed') && onDecision && (
                         <>
                             <div className="mt-1 flex gap-3">
                                 <Button 
@@ -168,7 +168,7 @@ export default function PinnedRouteCard({
                             </div>
 
                             {/* 텔레메트리 진행 상태 바 (30초 만기) */}
-                            {route.status === 'evaluating_detailed' && (() => {
+                            {(route.status === 'evaluating_detailed' || route.phase === 'AWAITING_DECISION') && (() => {
                                 const isDanger = telemetryCount >= 25;
                                 const isWarning = telemetryCount >= 20 && telemetryCount < 25;
                                 const barColor = isDanger ? 'bg-rose-500/20' : isWarning ? 'bg-amber-500/20' : 'bg-emerald-500/20';

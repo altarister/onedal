@@ -20,7 +20,7 @@ export function useOrderEngine() {
     useEffect(() => {
         const hasGoodCall = activeOrders.some(order => {
             // 1. 관제 대기 중(평가 상태)이 아니면 무시
-            if (!order.status?.includes('evaluating')) return false;
+            if (!order.phase && !order.status?.includes('evaluating')) return false;
             
             // 2. 카카오 연산 결과가 없으면(기다리는 중) 무시 (이 구간 동안 약 1~2초 침묵 발생)
             if (!order.kakaoTimeExt) return false;
