@@ -30,6 +30,7 @@ export interface UserSession {
     activeFilter: AutoDispatchFilter;
     driverLocation: { x: number; y: number } | null;
     userVehicleType: string; // user_settings의 내 차종 (동적 허용 차종 생성용)
+    isRestored: boolean;     // [방안 1] 서버 재시작 복구 로직 1회 실행 여부 플래그
 }
 
 const sessions = new Map<string, UserSession>();
@@ -45,7 +46,8 @@ function createDefaultSession(): UserSession {
         baseFilter: { ...SERVICE_DEFAULT_FILTER } as AutoDispatchFilter,
         activeFilter: { ...SERVICE_DEFAULT_FILTER } as AutoDispatchFilter,
         driverLocation: null,
-        userVehicleType: '1t'
+        userVehicleType: '1t',
+        isRestored: false
     };
 }
 

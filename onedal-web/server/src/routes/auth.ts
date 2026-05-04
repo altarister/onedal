@@ -5,7 +5,7 @@ import bcrypt from "bcrypt";
 import { v4 as uuidv4 } from "uuid";
 import db from "../db";
 import { requireAuth } from "../middlewares/authMiddleware";
-import { getUserSession } from "../state/userSessionStore";
+import { getUserSession, clearUserSession } from "../state/userSessionStore";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 
 const router = Router();
@@ -182,6 +182,8 @@ router.post("/logout", requireAuth, (req, res) => {
             if (bcrypt.compareSync(refreshToken, t.refresh_token)) {
                 db.prepare(`DELETE FROM user_tokens WHERE id = ?`).run(t.id);
                 console.log(`🚪 [AUTH] 기기 로그아웃 처리 완료 (User: ${userId})`);
+                // [신규] 완전히 로그아웃 처리되었으므로 메모리 세션도 함께 파기하여 다음 로그인 시 DB에서 프레시하게 불러오도록 함
+                clearUserSession(userId);
                 break;
             }
         }

@@ -5,7 +5,7 @@ import { getRegionsByCity } from "../geoResolver";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import type { AutoDispatchFilter } from "@onedal/shared";
 import { getUserSession, getAllActiveUserIds } from "../state/userSessionStore";
-import { recalculateCorridorFilter, handleDecision, recalculateKakaoRoute } from "../services/dispatchEngine";
+import { recalculateCorridorFilter, handleDecision, recalculateKakaoRoute, restoreAndRecalculateSession } from "../services/dispatchEngine";
 import { updateActiveFilter } from "../state/filterManager";
 import { processDriverMovement, getCityRegionsWithRadius } from "../services/geoService";
 import db from "../db";
@@ -42,6 +42,11 @@ export function registerSocketHandlers(io: Server) {
         console.log(`🔌 [소켓 연결] 유저 접속: ${socket.data.user.name} (${userId})`);
 
         const session = getUserSession(userId);
+
+        // [방안 1] 서버 재시작으로 메모리가 비워졌다면 DB에서 복구하고 카카오 궤적 1회 재생성
+        if (!session.isRestored) {
+            restoreAndRecalculateSession(userId, io);
+        }
 
         // 방 참여 (개별 유저 룸)
         socket.join(userId);

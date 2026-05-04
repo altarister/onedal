@@ -2,7 +2,7 @@ import { Router } from "express";
 import type { SimplifiedOfficeOrder, ScreenContextType } from "@onedal/shared";
 import db from "../db";
 import { getUserSession } from "../state/userSessionStore";
-import { applyFilter } from "../state/filterManager";
+
 import { trimCorridorByProgress } from "../services/geoService";
 import { touchDeviceSession } from "./devices";
 import { logRoadmapEvent } from "../utils/roadmapLogger";

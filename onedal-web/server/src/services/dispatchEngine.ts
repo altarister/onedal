@@ -422,10 +422,13 @@ export async function handleDecision(userId: string, orderId: string, action: 'K
         // [V2 핵심] PendingOrder → MyOrder 승격 (심사 완료 → 내 퀵 확정)
         const confirmedOrder: MyOrder = {
             ...cachedOrder,
-            status: 'CONFIRMED',
+            status: 'confirmed',
         };
         // phase는 PendingOrder 전용이므로 제거
         delete (confirmedOrder as any).phase;
+
+        // ⭐ 핵심 수정: 승격된 객체를 하트비트 메모리맵에 덮어씌워서 롤백 현상 방지
+        session.pendingOrdersData.set(orderId, confirmedOrder as any);
 
         const isAlreadyMain = session.mainCallState?.id === orderId;
         const isAlreadySub = session.subCalls.some(c => c.id === orderId);
@@ -996,5 +999,137 @@ export async function evaluateNewOrder(userId: string, securedOrder: SecuredOrde
         }
 
         console.log(`🔎 [카카오 연산 완료] ${timeExt} | Polyline 길이: ${securedOrder.routePolyline?.length || 0}`);
+    }
+}
+
+/**
+ * [방안 1] 서버 재시작 시 DB에서 콜을 불러와 1회성 카카오 궤적 복구 연산
+ */
+export async function restoreAndRecalculateSession(userId: string, io: any) {
+    const session = getUserSession(userId);
+    if (session.isRestored) return; // 이미 복구했으면 스킵
+    session.isRestored = true;
+
+    try {
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+
+        // 1. orders와 places 테이블을 조인하여 오늘 확정(confirmed)된 콜과 X, Y 좌표를 불러옵니다.
+        const rows = db.prepare(`
+            SELECT o.*, 
+                   pPlace.x as pickupX, pPlace.y as pickupY,
+                   dPlace.x as dropoffX, dPlace.y as dropoffY
+            FROM orders o
+            LEFT JOIN orderStops pStop ON pStop.orderId = o.id AND pStop.stopType = 'pickup'
+            LEFT JOIN places pPlace ON pStop.placeId = pPlace.id
+            LEFT JOIN orderStops dStop ON dStop.orderId = o.id AND dStop.stopType = 'dropoff'
+            LEFT JOIN places dPlace ON dStop.placeId = dPlace.id
+            WHERE o.userId = ? AND o.status = 'confirmed' AND o.timestamp >= ?
+            ORDER BY o.timestamp ASC
+        `).all(userId, todayStart.toISOString()) as any[];
+
+        if (rows.length === 0) return;
+
+        logRoadmapEvent("서버", `[Session DB Load] 서버 재시작으로 인한 궤적(Polyline) 복구 연산 시작. 대상 콜: ${rows.length}개`);
+
+        // 2. session 메모리 재구성
+        for (const row of rows) {
+            const order: MyOrder = {
+                id: row.id,
+                type: row.type,
+                pickup: row.pickup,
+                dropoff: row.dropoff,
+                fare: row.fare,
+                timestamp: row.timestamp,
+                status: row.status,
+                capturedAt: row.capturedAt,
+                capturedDeviceId: row.capturedDeviceId,
+                vehicleType: row.vehicleType,
+                distanceKm: row.distanceKm,
+                totalDistanceKm: row.totalDistanceKm,
+                totalDurationMin: row.totalDurationMin,
+                kakaoSoloDistanceKm: row.kakaoSoloDistanceKm,
+                kakaoSoloDurationMin: row.kakaoSoloDurationMin,
+                kakaoTimeExt: row.kakaoTimeExt,
+                pickupX: row.pickupX,
+                pickupY: row.pickupY,
+                dropoffX: row.dropoffX,
+                dropoffY: row.dropoffY,
+                isShared: !!row.isShared,
+                isExpress: !!row.isExpress,
+                orderForm: row.orderForm,
+                detailMemo: row.detailMemo
+            };
+            session.pendingOrdersData.set(order.id, order as any);
+        }
+
+        const activeCalls = Array.from(session.pendingOrdersData.values()) as MyOrder[];
+        session.mainCallState = activeCalls[0];
+        session.subCalls = activeCalls.slice(1);
+
+        const routingOptions = getKakaoRoutingOptions(userId);
+
+        // 3. 본콜 카카오 궤적 1회 복구
+        if (session.mainCallState && session.mainCallState.pickupX && session.mainCallState.dropoffX) {
+            try {
+                const res = await calculateSoloRoute(
+                    session.mainCallState.pickupX, session.mainCallState.pickupY!,
+                    session.mainCallState.dropoffX, session.mainCallState.dropoffY!,
+                    session.driverLocation,
+                    routingOptions.defaultPriority,
+                    routingOptions.carType
+                );
+                session.mainCallState.routePolyline = res.polyline;
+                session.mainCallState.sectionEtas = res.sectionEtas;
+            } catch(e) {
+                console.error('🗺️ [본콜 복구 연산 실패]', e);
+            }
+        }
+
+        // 4. 합짐(서브콜) 카카오 궤적 1회 복구
+        if (session.subCalls.length > 0 && session.mainCallState) {
+            try {
+                const activeMain = session.mainCallState;
+                const activeSubs = session.subCalls;
+                const allPickups = [
+                    { x: activeMain.pickupX!, y: activeMain.pickupY! },
+                    ...activeSubs.map(c => ({ x: c.pickupX!, y: c.pickupY! }))
+                ];
+                const allDropoffs = [
+                    { x: activeMain.dropoffX!, y: activeMain.dropoffY! },
+                    ...activeSubs.map(c => ({ x: c.dropoffX!, y: c.dropoffY! }))
+                ];
+                const startLoc = allPickups[0];
+                const { sortedPickups, sortedDropoffs } = optimizeWaypoints(startLoc, allPickups, allDropoffs);
+                const mergedDest = sortedDropoffs.pop()!;
+                const waypoints = [...sortedPickups, ...sortedDropoffs];
+
+                const calcResult = await calculateDetourRoute(
+                    activeMain.dropoffX!, activeMain.dropoffY!,
+                    activeMain.pickupX!, activeMain.pickupY!,
+                    mergedDest.x, mergedDest.y,
+                    waypoints,
+                    session.driverLocation,
+                    routingOptions.defaultPriority,
+                    routingOptions.carType
+                );
+
+                const lastSub = session.subCalls[session.subCalls.length - 1];
+                lastSub.routePolyline = calcResult.merged.polyline;
+                lastSub.sectionEtas = calcResult.merged.sectionEtas;
+            } catch(e) {
+                console.error('🗺️ [합짐 복구 연산 실패]', e);
+            }
+        }
+
+        logRoadmapEvent("서버", `[Session DB Load] 궤적 복구 연산 완료. 클라이언트로 sync-active-orders 강제 전송`);
+        
+        // 5. 프론트엔드로 복구된 궤적 즉시 전송
+        if (io) {
+            io.to(userId).emit("sync-active-orders", Array.from(session.pendingOrdersData.values()));
+        }
+
+    } catch (err) {
+        console.error('🚨 [restoreAndRecalculateSession] 오류 발생:', err);
     }
 }

@@ -1,7 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { socket } from "../../lib/socket";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
-import { useOrderEngine } from "../../hooks/useOrderEngine";
 import type { SecuredOrder } from "@onedal/shared";
 import { apiClient } from "../../api/apiClient";
 import { Card } from "../ui/card";
@@ -19,9 +18,8 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number) {
     return R * c;
 }
 
-export default function VehicleStatusPanel() {
+export default function VehicleStatusPanel({ mainCall, subCalls }: { mainCall: SecuredOrder | null, subCalls: SecuredOrder[] }) {
     const { filter } = useFilterConfig();
-    const { mainCall, subCalls } = useOrderEngine();
 
     // GPS 속도 계산을 위한 상태
     const [currentSpeed, setCurrentSpeed] = useState<number>(0);

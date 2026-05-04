@@ -48,6 +48,31 @@ class HijackService : AccessibilityService() {
         private const val MAX_TEXT_NODE_HEIGHT_PX = 400
         internal const val FARE_RANGE_MIN = 10.0
         internal const val FARE_RANGE_MAX = 9999.0
+
+        // 🚨 [동명이동 방어] 전국에 2개 이상의 시/구에 존재하는 읍면동 (빌드 시 고정)
+        // 이 동네가 리스트 하차지에 보이면 광클(선빵)하지 않고, 상세 진입 후 customCityFilters로 2차 검증
+        val CAUTION_DONGS = setOf(
+            // 6개 지역 중복
+            "금곡동",
+            // 5개 지역 중복
+            "중동",
+            // 4개 지역 중복
+            "갈현동", "장지동",
+            // 3개 지역 중복
+            "평동", "송정동", "능동", "장안동", "구산동", "신촌동", "창전동", "목동",
+            "오류동", "항동", "오금동", "심곡동", "신흥동", "중앙동", "대장동", "화정동",
+            // 2개 지역 중복 (배송 빈도 높은 핵심 동네)
+            "효자동", "송현동", "남창동", "주교동", "방산동", "도원동", "군자동", "용두동",
+            "창동", "신사동", "도화동", "신정동", "동교동", "합정동", "시흥동", "도림동",
+            "신길동", "내곡동", "신원동", "논현동", "신천동", "고덕동", "중산동", "용현동",
+            "청학동", "고잔동", "산곡동", "갈산동", "장기동", "백석동", "신현동", "가좌동",
+            "마전동", "당하동", "원당동", "정자동", "탑동", "영동", "고등동", "성남동",
+            "은행동", "고산동", "소사동", "상동", "송내동", "옥길동", "신장동", "세교동",
+            "광암동", "안흥동", "부곡동", "당정동", "청계동", "중리동",
+            "연희동", "하중동", "율현동", "사동", "내동", "계수동", "이동", "삼동", "신동",
+            "하동", "우만동", "교동", "낙원동", "계동", "연지동", "이화동", "숭인동",
+            "송월동", "옥천동", "영천동"
+        )
     }
 
     // ── 4대 엔진 ──
@@ -83,6 +108,8 @@ class HijackService : AccessibilityService() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private var deathValleyRunnable: Runnable? = null
     private var isWaitingForServerDecision = false // 서버 판결 대기 중
+    // 🚨 [동명이동 방어] null=일반, "VERIFY"=팝업 열었고 결과 대기, "ACCEPT"=합격, "CANCEL"=불합격
+    private var cautionAction: String? = null
 
     // [Safety Mode V3] SharedPreference에서 데스밸리 타이머 값 읽기
     private fun getDeathValleyTimeout(): Long {
@@ -264,6 +291,8 @@ class HijackService : AccessibilityService() {
                     AppLogger.d(TAG, "📝 [AUTO] 2차 검증 반송(취소)에 대비해 해당 콜 지문 선(先)기록 완료 (해시: $orderHash)")
                     processedOrderHashes.add(orderHash)
                     
+
+                    
                     AppLogger.roadmap("리스트에서 바뀐 text 감지 후 text 추출", telemetryManager.currentScreenContext.name)
                     touchManager.performSimulatedTouch(fareNode.node)
                     AppLogger.roadmap("[인성 Socket] 인성콜에 선택된 콜 정보 전달 (꿀콜 클릭!)", telemetryManager.currentScreenContext.name)
@@ -377,12 +406,61 @@ class HijackService : AccessibilityService() {
                 }, 10000)
             }
             
-            // ⚡ AUTO 모드 확정 버튼 광클 (자동 사냥 중일 때만)
+            // ⚡ AUTO 모드 확정 버튼 처리 (자동 사냥 중일 때만)
             if (isAutoSessionActive) {
-                AppLogger.d(TAG, "🚀 [AUTO] 확정 버튼 광클 (배차 시도)")
-                AppLogger.roadmap("상세페이지에서 '확정' 추출 후 클릭", telemetryManager.currentScreenContext.name)
-                AppLogger.roadmap("[인성 Socket] 콜 확정 완료", telemetryManager.currentScreenContext.name)
-                touchManager.findAndClickByText(rootNode, "확정", isStartsWith = true)
+                // ── [3단계 팝업에서 돌아온 경우] ──
+                when (cautionAction) {
+                    "ACCEPT" -> {
+                        cautionAction = null
+                        AppLogger.d(TAG, "✅ [3단계 통과] 진짜 우리 동네! 확정 클릭!")
+                        AppLogger.roadmap("상세페이지에서 '확정' 추출 후 클릭 (동명이동 3단계 검증 통과)", telemetryManager.currentScreenContext.name)
+                        AppLogger.roadmap("[인성 Socket] 콜 확정 완료", telemetryManager.currentScreenContext.name)
+                        touchManager.findAndClickByText(rootNode, "확정", isStartsWith = true)
+                    }
+                    "CANCEL" -> {
+                        cautionAction = null
+                        AppLogger.w(TAG, "❌ [3단계 적발] 동명이동! 패널티 없이 취소!")
+                        AppLogger.roadmap("상세페이지에서 '취소' 추출 후 클릭 (동명이동 3단계 적발)", telemetryManager.currentScreenContext.name)
+                        if (!touchManager.findAndClickByText(rootNode, "취소", isStartsWith = true)) {
+                            touchManager.performBack()
+                        }
+                        AppLogger.roadmap("리스트 페이지 진입 (동명이동 회피 성공)", telemetryManager.currentScreenContext.name)
+                        resetSessionState()
+                        return
+                    }
+                    else -> {
+                        // ── [최초 진입] 도착지가 동명이동 주의 동네인지 확인 ──
+                        val dropoffWords = finalOrder.dropoff.split("\\s+".toRegex())
+                        val isCautionDong = CAUTION_DONGS.any { dong -> dropoffWords.any { it == dong } }
+
+                        if (isCautionDong) {
+                            // [2단계] 화면에 상위 지역이 이미 보이는지 확인
+                            val cityFilters = loadCityFilters()
+                            val screenStr = screenTexts.joinToString(" ")
+                            val hasCityOnScreen = cityFilters.any { screenStr.contains(it, ignoreCase = true) }
+
+                            if (hasCityOnScreen) {
+                                // 2단계 통과! 화면에 "부천시"가 이미 적혀있음 → 즉시 확정
+                                AppLogger.d(TAG, "✅ [2단계 통과] 화면에서 상위 지역 확인! 즉시 확정!")
+                                AppLogger.roadmap("상세페이지에서 '확정' 추출 후 클릭 (동명이동 2단계 통과)", telemetryManager.currentScreenContext.name)
+                                AppLogger.roadmap("[인성 Socket] 콜 확정 완료", telemetryManager.currentScreenContext.name)
+                                touchManager.findAndClickByText(rootNode, "확정", isStartsWith = true)
+                            } else {
+                                // 2단계 보류 → 3단계(팝업) 돌입!
+                                AppLogger.w(TAG, "⚠️ [3단계 돌입] 화면에 상위 지역 없음! 도착지 팝업 호출!")
+                                cautionAction = "VERIFY"
+                                touchManager.findAndClickByText(rootNode, "도착지", isStartsWith = true)
+                                return
+                            }
+                        } else {
+                            // 일반 콜: 기존처럼 즉시 광클 (선빵필승)
+                            AppLogger.d(TAG, "🚀 [AUTO] 확정 버튼 광클 (배차 시도)")
+                            AppLogger.roadmap("상세페이지에서 '확정' 추출 후 클릭", telemetryManager.currentScreenContext.name)
+                            AppLogger.roadmap("[인성 Socket] 콜 확정 완료", telemetryManager.currentScreenContext.name)
+                            touchManager.findAndClickByText(rootNode, "확정", isStartsWith = true)
+                        }
+                    }
+                }
             }
         } else {
             // [AUTO 모드이면서 2차 필터 실패] -> 서버 보고 생략하고 즉시 취소 버튼 회피 기동
@@ -522,9 +600,34 @@ class HijackService : AccessibilityService() {
     // ════════════════════════════════════════════════════════════════
 
     private fun handleDropoffPopup(rootNode: AccessibilityNodeInfo, screenTexts: List<String>) {
-        if (surfingState != SurfingState.WAITING_FOR_DROPOFF_POPUP) return
-
         val multilineScreenStr = screenTexts.joinToString("\n")
+
+        // ═══════════════════════════════════════════════════════════
+        // 🚨 [확정 전 3단계 검증] 도착지 팝업에서 상위 지역 대조
+        // ═══════════════════════════════════════════════════════════
+        if (cautionAction == "VERIFY") {
+            if (!multilineScreenStr.contains("전화1")) {
+                AppLogger.d(TAG, "거짓 이벤트 무시: 아직 도착지 팝업 데이터 로딩 안됨")
+                return
+            }
+            AppLogger.w(TAG, "⚠️ [3단계 검증] 확정 전 도착지 팝업에서 상위 지역 대조 시작!")
+            val cityFilters = loadCityFilters()
+            val isCityMatch = cityFilters.any { multilineScreenStr.contains(it, ignoreCase = true) }
+
+            if (isCityMatch) {
+                AppLogger.d(TAG, "✅ [3단계 통과] 진짜 우리 동네 확인!")
+                cautionAction = "ACCEPT"
+            } else {
+                AppLogger.w(TAG, "❌ [3단계 적발] 동명이동!")
+                cautionAction = "CANCEL"
+            }
+            touchManager.findAndClickByText(rootNode, "닫기", isStartsWith = true)
+            return  // 서버 전송 안 함. 상세 화면 복귀 대기.
+        }
+        // ═══════════════════════════════════════════════════════════
+
+        // [기존 코드] 확정 후 서핑 모드
+        if (surfingState != SurfingState.WAITING_FOR_DROPOFF_POPUP) return
 
         // 팝업 데이터 로딩 검증
         if (!multilineScreenStr.contains("전화1")) {
@@ -692,6 +795,7 @@ class HijackService : AccessibilityService() {
         lastDetailOrder = null
         currentSessionOrderId = ""
         isAutoSessionActive = false
+        cautionAction = null  // 🚨 동명이동 방어 상태 초기화
         cancelDeathValleyTimer()
         telemetryManager.isHolding = false  // [Page/Hold 분리] 리스트 복귀 → 사냥 모드
         AppLogger.i(TAG, "🛡️ [앱폰] 사냥 복귀 직후: 앱 메모리 상의 scrapBuffer 배열을 비우고 강제 플러시(Flush)하여 잔상 데이터를 제거함")
@@ -711,6 +815,17 @@ class HijackService : AccessibilityService() {
         val resid = rawScreenStr.contains("출발지 상세") || rawScreenStr.contains("도착지 상세")
         if (resid) AppLogger.roadmap("✋ [Race Condition 방어] 출발지/도착지 팝업 닫힘 애니메이션 잔상 대기", telemetryManager.currentScreenContext.name)
         return resid
+    }
+
+    /** 🚨 [동명이동 방어] SharedPreferences에서 customCityFilters(상위 지역 키워드) 로드 */
+    private fun loadCityFilters(): List<String> {
+        val prefs = getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
+        val jsonStr = prefs.getString("activeFilter", null) ?: return emptyList()
+        return try {
+            val json = org.json.JSONObject(jsonStr)
+            val arr = json.optJSONArray("customCityFilters") ?: return emptyList()
+            (0 until arr.length()).map { arr.getString(it) }
+        } catch (e: Exception) { emptyList() }
     }
 
     /** 현재 ISO 타임스탬프 생성 */
@@ -740,6 +855,9 @@ class HijackService : AccessibilityService() {
     /** 핑거프린트용 경량 수집 (텍스트만) */
     private fun gatherNodeTexts(node: AccessibilityNodeInfo?, out: MutableList<String>) {
         if (node == null) return
+        // 🚨 자기 자신의 앱(오버레이 UI) 텍스트 수집 원천 차단 (텍스트 오염/무한루프 주범)
+        if (node.packageName?.toString() == "com.onedal.app") return
+
         node.text?.toString()?.trim()?.takeIf { it.isNotEmpty() }?.let { out.add(it) }
         node.contentDescription?.toString()?.trim()?.takeIf { it.isNotEmpty() }?.let { out.add(it) }
         for (i in 0 until node.childCount) gatherNodeTexts(node.getChild(i), out)
@@ -748,6 +866,9 @@ class HijackService : AccessibilityService() {
     /** 파싱용 좌표 포함 수집 (거대 컨테이너 제외) */
     private fun extractAllTextNodes(node: AccessibilityNodeInfo?, out: MutableList<ScreenTextNode>) {
         if (node == null) return
+        // 🚨 자기 자신의 앱(오버레이 UI) 텍스트 수집 원천 차단
+        if (node.packageName?.toString() == "com.onedal.app") return
+
         val text = node.text?.toString()?.trim() ?: node.contentDescription?.toString()?.trim()
         if (!text.isNullOrEmpty()) {
             val rect = Rect()

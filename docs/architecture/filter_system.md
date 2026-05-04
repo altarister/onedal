@@ -151,39 +151,32 @@ erDiagram
 
 ---
 
-## 4. 필터 계층 구조
+## 4. 필터 계층 구조 (완전 격리 모델)
 
-필터는 3개 계층으로 분리되어 원본 데이터의 무결성을 보장합니다.
+과거에는 `runtimeOverrides`를 매번 합성하는 방식이었으나, 잦은 동기화 버그와 복잡도를 제거하기 위해 **완전 격리(Complete Isolation) 아키텍처**로 개편되었습니다.
 
 ```
 ┌─────────────────────────────────────────────┐
 │  activeFilter (앱/프론트가 실제로 보는 값)       │
-│  = baseFilter + runtimeOverrides            │
+│  - 현재 사냥에 직접 쓰이는 1등 시민 객체        │
+│  - 돋보기(OrderFilterModal), 관제탑 시스템 조작  │
 ├─────────────────────────────────────────────┤
-│  runtimeOverrides (휘발성 — 세션 중 임시 조작)   │
-│  예: isSharedMode=true, corridorRadiusKm=10  │
-│  → applyFilter(persistToDB=false)           │
-├─────────────────────────────────────────────┤
-│  baseFilter (영구 — DB에서 로드한 원본 설정)     │
-│  예: pickupRadiusKm=10, minFare=30000       │
-│  → applyFilter(persistToDB=true)            │
+│  baseFilter (영구 설정 - DB 원본)              │
+│  - 내일 출근할 때 적용될 "나의 기본 세팅"       │
+│  - 톱니바퀴(SettingsModal)에서만 조작           │
 └─────────────────────────────────────────────┘
 ```
 
-### applyFilter() — 모든 필터 변경의 단일 진입점
+**핵심 원칙**: 영구 설정(톱니바퀴)을 바꿔도 현재 진행 중인 사냥(`activeFilter`)에는 1도 영향을 주지 않습니다. 두 필터는 로그인 시 1회 복사된 이후 완전히 남남으로 동작합니다.
 
-**파일**: `server/src/state/filterManager.ts`
+### filterManager.ts — 역할의 명확한 분리
 
-```typescript
-applyFilter(userId, changes, io, persistToDB?)
-```
+| 함수 | 역할 | 누가 호출 | DB 접근 | activeFilter 수정 |
+|---|---|---|---|---|
+| `saveBaseFilter()` | 영구 설정 저장 | SettingsModal(톱니바퀴) | ✅ DB 저장 | ❌ 안 건드림 |
+| `updateActiveFilter()` | 현재 사냥 수정 | OrderFilterModal(돋보기), State Machine | ❌ 안 건드림 | ✅ 직접 수정 |
 
-| 매개변수 | 설명 |
-|---------|------|
-| `persistToDB=true` | baseFilter 업데이트 + DB 저장 + 소켓 emit (SettingsModal 등 영구 설정) |
-| `persistToDB=false` | runtimeOverrides 업데이트 + 소켓 emit (합짐 전환 등 일회성 조작) |
-
-**EMPTY 초기화 시 자동 청소**: `loadState`가 `EMPTY`로 전환되면, `runtimeOverrides`에서 `isActive`만 남기고 나머지(회랑, 합짐 모드 등)를 전부 파기합니다.
+**EMPTY 초기화 시 자동 청소**: 합짐(LOADING/DRIVING) 사이클이 끝나고 `EMPTY`로 전환되는 순간에만, `activeFilter`를 `baseFilter` 기준으로 깨끗하게 덮어써서(Reset) 다음 사냥을 준비합니다.
 
 ---
 

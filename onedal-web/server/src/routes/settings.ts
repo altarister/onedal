@@ -3,7 +3,8 @@ import db from "../db";
 import { requireAuth } from "../middlewares/authMiddleware";
 import { geocodeAddress } from "../services/kakaoService";
 import { getGroupedRegionsByCity } from "../geoResolver";
-import { applyFilter } from "../state/filterManager";
+import { saveBaseFilter } from "../state/filterManager";
+import { getUserSession } from "../state/userSessionStore";
 import { recalculateCorridorFilter } from "../services/dispatchEngine";
 import { getCityRegionsWithRadius } from "../services/geoService";
 
@@ -13,6 +14,10 @@ const router = Router();
 router.get("/", requireAuth, (req, res) => {
     try {
         const userId = req.user!.id;
+        
+        // [중요] 조회 전에 세션을 먼저 가져와서, 신규 유저인 경우 DB에 권장 기본값을 강제 생성하게 함
+        getUserSession(userId);
+
         let row = db.prepare(`
             SELECT s.*, f.destination_city, f.destination_radius_km, f.corridor_radius_km, f.is_active 
             FROM user_settings s 
@@ -161,7 +166,7 @@ router.put("/", requireAuth, async (req, res) => {
         if (payload.isActive !== undefined) filterChanges.isActive = payload.isActive;
 
         if (Object.keys(filterChanges).length > 0) {
-            applyFilter(userId, filterChanges, req.app.get("io"), true);
+            saveBaseFilter(userId, filterChanges, req.app.get("io"));
         }
 
         // 클라이언트(내 차 패널 등)가 실시간으로 갱신될 수 있도록 소켓 이벤트 발송
@@ -236,6 +241,10 @@ router.get("/preview-corridor", requireAuth, (req, res) => {
 router.get("/pricing", requireAuth, (req, res) => {
     try {
         const userId = req.user!.id;
+        
+        // [중요] 조회 전에 세션을 먼저 가져와서, 신규 유저인 경우 DB에 권장 기본값(3만/100만/10km)을 강제 생성하게 함
+        getUserSession(userId);
+
         const row = db.prepare(
             "SELECT vehicle_rates, agency_fee_percent, max_discount_percent, excluded_keywords, min_fare, max_fare, pickup_radius_km FROM user_filters WHERE user_id = ?"
         ).get(userId) as any;
@@ -296,7 +305,7 @@ router.put("/pricing", requireAuth, (req, res) => {
         if (excludedKeywords !== undefined) filterChanges.excludedKeywords = excludedKeywords;
 
         if (Object.keys(filterChanges).length > 0) {
-            applyFilter(userId, filterChanges, req.app.get("io"), true);
+            saveBaseFilter(userId, filterChanges, req.app.get("io"));
         }
 
         console.log(`💰 [요율 설정 저장] userId: ${userId}, 수수료: ${agencyFeePercent}%, 할인: ${maxDiscountPercent}%`);
