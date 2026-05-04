@@ -122,7 +122,8 @@ router.post("/", async (req, res) => {
 
         // ━━━ Service 계층에 카카오 경로 연산 위임 (evaluateNewOrder) ━━━
         // 지오코딩 + 단독/합짐 경로 연산 + 꿀/콜/똥 판정 + order-evaluated emit
-        await evaluateNewOrder(userId, pendingOrder, io);
+        const targetApp = (payload as any).targetApp || 'insung';
+        await evaluateNewOrder(userId, pendingOrder, io, targetApp);
 
         const isManual = pendingOrder.type?.includes("MANUAL") || payload.matchType === "MANUAL";
         if (isManual) {

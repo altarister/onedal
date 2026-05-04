@@ -10,6 +10,12 @@ import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { DISPATCH_CONFIG } from "../config/dispatchConfig";
 import db from "../db";
 import { incrementDeviceStats } from "../routes/devices";
+import { OrderRepository } from "../repositories/OrderRepository";
+import { PlaceRepository } from "../repositories/PlaceRepository";
+import { SettingsRepository } from "../repositories/SettingsRepository";
+import { PricingEngine } from "../core/engine/PricingEngine";
+import { OrderEvaluator } from "../core/engine/OrderEvaluator";
+import { StateMachine } from "../core/engine/StateMachine";
 
 // ━━━ 헬퍼: 살아있는 내 퀵만 필터링 ━━━
 // 사장님 아이디어: "하나의 배열에 두고 상태값만 바꾸고 필터를 적용하면 된다"
@@ -27,60 +33,7 @@ export const normalizePlaceName = (name?: string) => {
     return name.replace(/\(주\)|주식회사|\s/g, '').trim();
 };
 
-function getKakaoRoutingOptions(userId: string) {
-    const row = db.prepare("SELECT vehicle_type, default_priority FROM user_settings WHERE user_id = ?").get(userId) as any;
-    const vehicleTypeStr = row?.vehicle_type || '1t';
-    return {
-        carType: mapVehicleToKakaoCarType(vehicleTypeStr),
-        defaultPriority: row?.default_priority || "RECOMMEND",
-        vehicleType: vehicleTypeStr
-    };
-}
 
-/** 
- * DB에서 기사의 요율 설정(차종별 단가, 수수료율, 할인율)을 로드합니다.
- * 서버 전용 데이터이므로 앱으로 전송되지 않습니다.
- */
-function loadPricingConfig(userId: string): PricingConfig {
-    const row = db.prepare("SELECT vehicle_rates, agency_fee_percent, max_discount_percent FROM user_filters WHERE user_id = ?").get(userId) as any;
-    const defaultRates: Record<string, number> = {
-        "오토바이": 700, "다마스": 800, "라보": 900, "승용차": 900,
-        "1t": 1000, "1.4t": 1100, "2.5t": 1200, "3.5t": 1300,
-        "5t": 1500, "11t": 2000, "25t": 2500, "특수화물": 3000
-    };
-    return {
-        vehicleRates: row?.vehicle_rates ? JSON.parse(row.vehicle_rates) : defaultRates,
-        agencyFeePercent: row?.agency_fee_percent ?? 23,
-        maxDiscountPercent: row?.max_discount_percent ?? 10
-    };
-}
-
-/**
- * 다이내믹 요율 계산 엔진
- * 
- * 적정 금액 = 거리(km) × 차종 단가 × (1 - 수수료율)
- * 수용 하한선 = 적정 금액 × (1 - 최대할인율)
- * 
- * @returns 적정 금액, 수용 하한선, 꿀콜/적정/미달 판정
- */
-export function calculateDynamicFare(
-    distanceKm: number,
-    orderVehicleType: string | undefined,
-    fallbackVehicleType: string,
-    pricing: PricingConfig
-): { fairPrice: number; minAcceptable: number; verdict: 'HONEY' | 'FAIR' | 'UNDERPAID' } {
-    const vehicleKey = orderVehicleType && pricing.vehicleRates[orderVehicleType]
-        ? orderVehicleType
-        : fallbackVehicleType;
-    const ratePerKm = pricing.vehicleRates[vehicleKey] || 1000;
-    const feeMultiplier = 1 - (pricing.agencyFeePercent / 100);
-    const discountMultiplier = 1 - (pricing.maxDiscountPercent / 100);
-
-    const fairPrice = Math.round(distanceKm * ratePerKm * feeMultiplier);
-    const minAcceptable = Math.round(fairPrice * discountMultiplier);
-
-    return { fairPrice, minAcceptable, verdict: 'FAIR' }; // verdict는 호출부에서 실제 금액과 비교하여 결정
-}
 
 /** 기존 평가 중이던 콜을 외부에서 강제 삭제할 때 호출 */
 export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: any) {
@@ -131,7 +84,7 @@ export async function recalculateActiveKakaoRoute(userId: string, io: any) {
         const apiKey = process.env.KAKAO_REST_API_KEY || "";
         if (!apiKey) return;
 
-        const routingOptions = getKakaoRoutingOptions(userId);
+        const routingOptions = SettingsRepository.getKakaoRoutingOptions(userId);
 
         if (activeSubs.length === 0) {
             // 단독 오더 라우팅
@@ -220,7 +173,7 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
         let previousOrders = getActiveCalls(session).filter(o => o.id !== orderId);
         if (previousOrders.length > 0) isDetour = true;
 
-        const routingOptions = getKakaoRoutingOptions(userId);
+        const routingOptions = SettingsRepository.getKakaoRoutingOptions(userId);
 
         if (!isDetour) {
             const result = await calculateSoloRoute(
@@ -465,7 +418,7 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
                             const mergedDest = sortedDropoffs.pop()!;
                             const waypoints = [...sortedPickups, ...sortedDropoffs];
 
-                            const routingOptions = getKakaoRoutingOptions(userId);
+                            const routingOptions = SettingsRepository.getKakaoRoutingOptions(userId);
 
                             const calcResult = await calculateDetourRoute(
                                 activeMain.dropoffX!, activeMain.dropoffY!,
@@ -506,76 +459,21 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
             const isExpress = (cachedOrder.orderForm === '급송') ? 1 : 0;
 
             // 1. orders 등록 (v5 전체 컬럼)
-            const stmtOrder = db.prepare(`
-                INSERT INTO orders (
-                    id, type, pickup, dropoff, fare, timestamp, status, userId, capturedAt, capturedDeviceId,
-                    vehicleType, distanceKm, totalDistanceKm, totalDurationMin, kakaoSoloDistanceKm, kakaoSoloDurationMin, kakaoTimeExt,
-                    paymentType, billingType, commissionRate, tollFare, tripType, orderForm, itemDescription, detailMemo,
-                    dispatcherName, dispatcherPhone, isShared, isExpress
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(id) DO UPDATE SET 
-                    status = 'ORDER_CONFIRMED', 
-                    userId = excluded.userId, 
-                    capturedAt = excluded.capturedAt
-            `);
-            stmtOrder.run(
-                cachedOrder.id,
-                cachedOrder.type || "NEW_ORDER",
-                cachedOrder.pickup,
-                cachedOrder.dropoff,
-                cachedOrder.fare || 0,
-                cachedOrder.timestamp || new Date().toISOString(),
-                "confirmed",
-                userId,
-                cachedOrder.capturedAt || new Date().toISOString(),
-                cachedOrder.capturedDeviceId || null,
-                cachedOrder.vehicleType || null,
-                cachedOrder.distanceKm || null,
-                cachedOrder.totalDistanceKm || null,
-                cachedOrder.totalDurationMin || null,
-                cachedOrder.kakaoSoloDistanceKm || null,
-                cachedOrder.kakaoSoloDurationMin || null,
-                cachedOrder.kakaoTimeExt || null,
-                cachedOrder.paymentType || null,
-                cachedOrder.billingType || null,
-                cachedOrder.commissionRate || null,
-                cachedOrder.tollFare || null,
-                cachedOrder.tripType || null,
-                cachedOrder.orderForm || null,
-                cachedOrder.itemDescription || null,
-                cachedOrder.detailMemo || null,
-                cachedOrder.dispatcherName || null,
-                cachedOrder.dispatcherPhone || null,
-                isShared,
-                isExpress
-            );
+            OrderRepository.upsertOrder(cachedOrder, userId, isShared, isExpress);
 
             // 2. places UPSERT 및 orderStops 추가 (상차지)
             const pickupName = normalizePlaceName(cachedOrder.pickupDetails?.[0]?.customerName || "미상");
             const pickupAddress = cachedOrder.pickupDetails?.[0]?.addressDetail || cachedOrder.pickup;
             const pickupRegion = cachedOrder.pickupDetails?.[0]?.region || cachedOrder.pickup.split(' ').slice(0, 2).join(' ') || "미상";
-            const stmtPlace = db.prepare(`
-                INSERT INTO places (addressDetail, customerName, region, x, y, phone1, visitCount, lastVisitedAt)
-                VALUES (?, ?, ?, ?, ?, ?, 1, datetime('now','localtime'))
-                ON CONFLICT(addressDetail, customerName)
-                DO UPDATE SET
-                    visitCount = visitCount + 1,
-                    lastVisitedAt = datetime('now','localtime'),
-                    x = COALESCE(excluded.x, x),
-                    y = COALESCE(excluded.y, y),
-                    phone1 = COALESCE(excluded.phone1, phone1),
-                    region = COALESCE(excluded.region, region)
-                RETURNING id
-            `);
-            const pPlace = stmtPlace.get(
+            
+            const pPlaceId = PlaceRepository.upsertPlace(
                 pickupAddress, pickupName, pickupRegion,
                 cachedOrder.pickupX || null, cachedOrder.pickupY || null,
                 cachedOrder.pickupDetails?.[0]?.phone1 || null
-            ) as { id: number };
-            if (pPlace) {
-                db.prepare(`INSERT INTO orderStops (orderId, placeId, stopType, customerNameSnapshot, phoneSnapshot) VALUES (?, ?, 'pickup', ?, ?)`).run(
-                    cachedOrder.id, pPlace.id, pickupName, cachedOrder.pickupDetails?.[0]?.phone1 || null
+            );
+            if (pPlaceId) {
+                OrderRepository.insertOrderStop(
+                    cachedOrder.id, pPlaceId, 'pickup', pickupName, cachedOrder.pickupDetails?.[0]?.phone1 || null
                 );
             }
 
@@ -583,14 +481,15 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
             const dropoffName = normalizePlaceName(cachedOrder.dropoffDetails?.[0]?.customerName || "미상");
             const dropoffAddress = cachedOrder.dropoffDetails?.[0]?.addressDetail || cachedOrder.dropoff;
             const dropoffRegion = cachedOrder.dropoffDetails?.[0]?.region || cachedOrder.dropoff.split(' ').slice(0, 2).join(' ') || "미상";
-            const dPlace = stmtPlace.get(
+            
+            const dPlaceId = PlaceRepository.upsertPlace(
                 dropoffAddress, dropoffName, dropoffRegion,
                 cachedOrder.dropoffX || null, cachedOrder.dropoffY || null,
                 cachedOrder.dropoffDetails?.[0]?.phone1 || null
-            ) as { id: number };
-            if (dPlace) {
-                db.prepare(`INSERT INTO orderStops (orderId, placeId, stopType, customerNameSnapshot, phoneSnapshot) VALUES (?, ?, 'dropoff', ?, ?)`).run(
-                    cachedOrder.id, dPlace.id, dropoffName, cachedOrder.dropoffDetails?.[0]?.phone1 || null
+            );
+            if (dPlaceId) {
+                OrderRepository.insertOrderStop(
+                    cachedOrder.id, dPlaceId, 'dropoff', dropoffName, cachedOrder.dropoffDetails?.[0]?.phone1 || null
                 );
             }
 
@@ -605,47 +504,15 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
         logRoadmapEvent("서버", "합짐을 위한 반경/목적지 추천 키워드로 다이나믹 필터 생성 연산");
 
         // ━━━ 3단계 State Machine 적용 ━━━
-        const currentPhase = session.activeFilter.dispatchPhase || 'STANDBY';
-
         // 합짐 차종: 첫 짐 오더의 차종을 기준으로 남은 적재 가능 차종 추론
-        const routingOpts = getKakaoRoutingOptions(userId);
+        const routingOpts = SettingsRepository.getKakaoRoutingOptions(userId);
         const firstLoadVehicle = cachedOrder.vehicleType || routingOpts.vehicleType; // 차종 불명 시 기사 차종 Fallback
         const sharedVehicleTypes = getSharedModeVehicleTypes(firstLoadVehicle);
 
-        if (currentPhase === 'STANDBY') {
-            // 첫짐 → GATHERING: 기사님의 DB설정값(corridorRadiusKm)을 그대로 사용
-            // 상차반경은 앱이 isSharedMode=true를 보고 자체 무시함 (데이터 변조 불필요)
-            updateActiveFilter(userId, {
-                isSharedMode: true,
-                isActive: true,
-                // loadState 삭제됨
-                dispatchPhase: 'GATHERING',   // [V2] 합짐 탐색 단계
-                // corridorRadiusKm: 삭제 — 기사님의 activeFilter 원본값(5km)을 그대로 유지
-                destinationKeywords,
-                allowedVehicleTypes: sharedVehicleTypes,
-            }, io);
-            console.log(`🔄 [State Machine] EMPTY → GATHERING (첫짐: ${firstLoadVehicle}, 합짐 허용: [${sharedVehicleTypes.join(',')}])`);
-        } else if (currentPhase === 'GATHERING') {
-            // [V2 수정] 2번째 콜을 잡아도 GATHERING 유지 — 기사님이 "🚀 출발" 누르기 전까지 자동 DRIVING 전환 안 함
-            // corridorRadiusKm도 그대로 유지 (기사님의 설정값 5km)
-            updateActiveFilter(userId, {
-                isSharedMode: true,
-                isActive: true,
-                // loadState는 더이상 사용하지 않음
-                // dispatchPhase: 'GATHERING' 유지 (변경하지 않음)
-                destinationKeywords,
-                allowedVehicleTypes: sharedVehicleTypes,
-            }, io);
-            console.log(`🔄 [State Machine] GATHERING 유지 (추가 콜 KEEP, 기사 수동 출발 대기)`);
-        } else {
-            // DRIVING(DELIVERING) 중에도 추가 KEEP 가능 (가는길 콜)
-            updateActiveFilter(userId, {
-                isSharedMode: true,
-                isActive: true,
-                destinationKeywords,
-                allowedVehicleTypes: sharedVehicleTypes,
-            }, io);
-            console.log(`🔄 [State Machine] DELIVERING 유지 (가는길 추가 콜 KEEP)`);
+        const transition = StateMachine.advanceOnKeep(session, cachedOrder, destinationKeywords, sharedVehicleTypes);
+        if (transition.changed && transition.newFilter) {
+            updateActiveFilter(userId, transition.newFilter, io);
+            console.log(`🔄 [State Machine] ${transition.reason}`);
         }
         logRoadmapEvent("서버", "새로 부여된 합짐 필터(isSharedMode)값 메모리 세션 갱신");
         logRoadmapEvent("서버", "앱폰 및 관제탑에게 새로운 타겟팅 필터(filter-updated) 정보 전달");
@@ -663,8 +530,7 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
             existingOrder.status = status;
             try {
                 // 수동 거절(ORDER_CANCELED)일지라도 DB에 저장하도록 함
-                const stmt = db.prepare("UPDATE orders SET status = ? WHERE id = ? AND userId = ?");
-                stmt.run(status, orderId, userId);
+                OrderRepository.updateOrderStatus(orderId, userId, status);
                 console.log(`✅ [상태 동기화] ${orderId} - DB 업데이트 완료 (상태: ${status})`);
             } catch (e) {
                 console.error("DB 업데이트 에러:", e);
@@ -681,25 +547,16 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
             io.to(userId).emit("order-canceled", { id: orderId, status, isManual: true });
         }
 
-        if (!session.activeFilter.isActive || session.activeFilter.isSharedMode) {
-            const resetFilter: Partial<AutoDispatchFilter> = { isActive: true };
-
-            const activeCalls = getActiveCalls(session);
-            if (activeCalls.length === 0) {
-                // 잡은 콜이 하나도 안 남았을 경우 → 완전히 초기화 (EMPTY)
-                resetFilter.isSharedMode = false;
-                resetFilter.dispatchPhase = 'STANDBY';
-                resetFilter.driverAction = 'WAITING';
-                logRoadmapEvent("서버", "모든 콜이 취소되어 필터를 완전 초기화(STANDBY)합니다.");
-            } else {
-                // 본콜이 남아있는 경우 → 현재 상태(LOADING/DRIVING)를 그대로 유지하고 탐색만 재개
-                logRoadmapEvent("서버", `본콜이 유지 중이므로 현재 상태(${session.activeFilter.dispatchPhase})를 유지하며 탐색을 재개합니다.`);
-            }
-
+        const activeCalls = getActiveCalls(session);
+        const transition = StateMachine.rollbackOnCancel(session, activeCalls.length);
+        
+        if (transition.changed && transition.newFilter) {
             if (io) {
-                updateActiveFilter(userId, resetFilter, io);
+                updateActiveFilter(userId, transition.newFilter, io);
+                logRoadmapEvent("서버", transition.reason || "상태 변경");
                 logRoadmapEvent("서버", "앱폰 및 관제탑에게 탐색 재개(filter-updated) 정보 전달");
             }
+            console.log(`🔄 [State Machine] ${transition.reason}`);
         }
 
         await recalculateActiveKakaoRoute(userId, io);
@@ -710,328 +567,9 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
 }
 
 /** [필수#1] 최초 오더 평가: 지오코딩 + 카카오 경로 연산 + 꿀/콜/똥 판정 (detail.ts에서 추출) */
-export async function evaluateNewOrder(userId: string, securedOrder: SecuredOrder | PendingOrder, io: any) {
-    const session = getUserSession(userId);
-    let timeExt = "카카오 연산 실패";
-    const reasons: string[] = [];  // 🔍 모든 단점/패널티 사유를 여기에 수집 (Non-Short-Circuit)
-    const pros: string[] = [];     // ✅ 모든 장점/긍정 사유를 여기에 수집
-
-    // "미상" 타이틀 덮어쓰기: 정밀 주소가 있으면 교체
-    if (securedOrder.pickupDetails?.[0]?.addressDetail) {
-        securedOrder.pickup = securedOrder.pickupDetails[0].addressDetail;
-    }
-    if (securedOrder.dropoffDetails?.[0]?.addressDetail) {
-        securedOrder.dropoff = securedOrder.dropoffDetails[0].addressDetail;
-    }
-
-    console.log(`\n======================================================`);
-    console.log(`[서버-사이드 카카오 연산] 🚀 ${securedOrder.pickup} ➡️ ${securedOrder.dropoff}`);
-
-    try {
-        const hasApiKey = !!process.env.KAKAO_REST_API_KEY;
-        if (hasApiKey) {
-            // ━━━ Stage 1: 형상 필터 검증 (Non-Short-Circuit — 여기서 return 하지 않음) ━━━
-            const filter = session.activeFilter;
-
-            // 1) 차종 검사
-            if (filter.allowedVehicleTypes.length > 0 && securedOrder.vehicleType) {
-                if (!filter.allowedVehicleTypes.includes(securedOrder.vehicleType)) {
-                    reasons.push(`차종(${securedOrder.vehicleType}) 불일치`);
-                } else {
-                    pros.push(`차종(${securedOrder.vehicleType}) 일치`);
-                }
-            }
-
-            // 2) 첫짐 절대 하한가 검사 (EMPTY 상태일 때만)
-            if (filter.dispatchPhase === 'STANDBY' && filter.minFare > 0 && securedOrder.fare > 0) {
-                if (securedOrder.fare < filter.minFare) {
-                    reasons.push(`첫짐 절대하한가 미달 (${filter.minFare.toLocaleString()}원)`);
-                    console.log(`   - 💸 [첫짐 하한가] 똥콜 — 실제 ${securedOrder.fare.toLocaleString()}원 < 절대하한 ${filter.minFare.toLocaleString()}원`);
-                } else {
-                    pros.push(`첫짐 절대하한가 통과`);
-                }
-            }
-
-            // 3) 최대 운임 검사
-            if (filter.maxFare > 0 && filter.maxFare < 1000000 && securedOrder.fare > 0) {
-                if (securedOrder.fare > filter.maxFare) {
-                    reasons.push(`요금(${(securedOrder.fare / 10000).toFixed(1)}만) 초과`);
-                }
-            }
-
-            // 4) 제외 키워드 검사 (착불, 수거, 까대기 등)
-            if (filter.excludedKeywords.length > 0) {
-                const rawText = `${securedOrder.pickup} ${securedOrder.dropoff} ${securedOrder.detailMemo || ''} ${securedOrder.rawText || ''}`;
-                let hasExcluded = false;
-                for (const kw of filter.excludedKeywords) {
-                    if (kw && rawText.includes(kw)) {
-                        reasons.push(`제외키워드(${kw}) 감지`);
-                        hasExcluded = true;
-                    }
-                }
-                if (!hasExcluded) {
-                    pros.push(`제외키워드 없음`);
-                }
-            }
-
-            // 5) 도착지 키워드 검사 (합짐 모드일 때)
-            if (filter.isSharedMode && filter.destinationKeywords.length > 0) {
-                const dropoffText = securedOrder.dropoff || '';
-                const matched = filter.destinationKeywords.some(kw => dropoffText.includes(kw));
-                if (!matched) {
-                    reasons.push(`도착지(${dropoffText.substring(0, 10)}) 회랑 이탈`);
-                } else {
-                    pros.push(`도착지 회랑 적중`);
-                }
-            }
-
-            console.log(`   - 🔍 [Stage 1] 형상 필터 검증 완료: ${reasons.length === 0 ? '✅ 통과' : `❌ ${reasons.join(', ')}`}`);
-            // ━━━ Stage 1 끝 — return 하지 않고 Stage 2(지오코딩+카카오)로 계속 진행 ━━━
-
-            logRoadmapEvent("서버", "🛡️ 주소 3중 폴백 (괄호제거 ➡️ 주소검색 ➡️ 키워드 ➡️ 절사) 연산");
-
-            // 1.5단계: 지오코딩 (텍스트 주소를 X, Y 좌표로 변환)
-            if (!securedOrder.pickupX || !securedOrder.pickupY) {
-                const bestPickupQuery = securedOrder.pickupDetails?.[0]?.addressDetail || securedOrder.pickup;
-                const pCoord = await geocodeAddress(bestPickupQuery);
-                console.log(`🌍 [Geocoding] 상차지 변환: '${bestPickupQuery}' -> ${pCoord ? `X:${pCoord.x}, Y:${pCoord.y}` : '실패(null)'}`);
-                if (pCoord) {
-                    securedOrder.pickupX = pCoord.x;
-                    securedOrder.pickupY = pCoord.y;
-                }
-            }
-            if (!securedOrder.dropoffX || !securedOrder.dropoffY) {
-                const bestDropoffQuery = securedOrder.dropoffDetails?.[0]?.addressDetail || securedOrder.dropoff;
-                const dCoord = await geocodeAddress(bestDropoffQuery);
-                console.log(`🌍 [Geocoding] 하차지 변환: '${bestDropoffQuery}' -> ${dCoord ? `X:${dCoord.x}, Y:${dCoord.y}` : '실패(null)'}`);
-                if (dCoord) {
-                    securedOrder.dropoffX = dCoord.x;
-                    securedOrder.dropoffY = dCoord.y;
-                }
-            }
-
-            logRoadmapEvent("서버", "카카오 지오코딩으로 반환된 출발지/도착지 X/Y 좌표 메모리 갱신 연산");
-            // 좌표 보존
-            session.pendingOrdersData.set(securedOrder.id, securedOrder as PendingOrder);
-
-            if (securedOrder.pickupX && securedOrder.dropoffY) {
-                const routingOptions = getKakaoRoutingOptions(userId);
-
-                const activeCalls = getActiveCalls(session);
-                const activeMain = activeCalls[0];
-                const activeSubs = activeCalls.slice(1);
-
-                if (!activeMain) {
-                    // 첫짐: 단독 주행 연산
-                    logRoadmapEvent("서버", "시간/통행료를 바탕으로 콜의 실수익률(기회비용) 연산");
-                    console.log(`   - 💡 상태: [첫짐] 단독 주행 연산`);
-                    const result = await calculateSoloRoute(
-                        securedOrder.pickupX, securedOrder.pickupY!,
-                        securedOrder.dropoffX!, securedOrder.dropoffY,
-                        session.driverLocation,
-                        routingOptions.defaultPriority,
-                        routingOptions.carType
-                    );
-                    const durationMin = Math.round(result.duration / 60);
-                    const distKm = (result.distance / 1000).toFixed(1);
-                    let recommend = "'콜'";
-                    if (durationMin <= DISPATCH_CONFIG.SOLO_HONEY_TIME_MAX) recommend = "'꿀'";
-                    else if (durationMin >= DISPATCH_CONFIG.SOLO_SHIT_TIME_MIN) recommend = "'똥'";
-
-                    // Stage 2: 카카오 Solo 경로 — 장/단점 양면 수집
-                    if (durationMin >= DISPATCH_CONFIG.SOLO_SHIT_TIME_MIN) {
-                        reasons.push(`운행시간(${durationMin}분) 초과`);
-                    } else if (durationMin <= DISPATCH_CONFIG.SOLO_HONEY_TIME_MAX) {
-                        pros.push(`운행시간(${durationMin}분) 양호 🍯`);
-                    } else {
-                        pros.push(`운행시간(${durationMin}분) 보통`);
-                    }
-
-                    timeExt = `단독 ${distKm}km, ${durationMin}분 ${recommend}`;
-                    securedOrder.routePolyline = result.polyline;
-                    securedOrder.totalDistanceKm = parseFloat(distKm);
-                    securedOrder.totalDurationMin = durationMin;
-                    securedOrder.kakaoSoloDistanceKm = parseFloat(distKm);
-                    securedOrder.kakaoSoloDurationMin = durationMin;
-
-                    const appDist = result.approachDistance ? (result.approachDistance / 1000).toFixed(1) : '?';
-                    const appTime = result.approachDuration ? Math.round(result.approachDuration / 60) : '?';
-                    console.log(`   - ⏱️ 결과: ${timeExt} (현위치접근: ${appDist}km, ${appTime}분)`);
-                    console.log(`   - 🗺️ 궤적 길이 (Solo): ${securedOrder.routePolyline?.length || '없음'}`);
-
-                } else if (activeMain.pickupX && activeMain.dropoffY) {
-                    // 합짐: 우회 동선 연산
-                    logRoadmapEvent("서버", "기존 직진 시 대비 추가 소모 시간(+15분) 및 거리(+6km) 패널티 산출");
-                    console.log(`   - 💡 상태: [합짐] 우회 동선 연산`);
-                    console.log(`   - 기존 본콜: ${activeMain.pickup} ➡️ ${activeMain.dropoff}`);
-                    console.log(`   - 추가 경유: ${securedOrder.pickup} ➡️ ${securedOrder.dropoff}`);
-
-                    // 단일 콜 값 (추가 API 호출 방지 및 쿼터 절약을 위해 안드로이드에서 파싱한 거리값 재활용)
-                    // (앱에서 '거리: 52.9' 처럼 파싱된 distanceKm이 이미 존재합니다.)
-                    securedOrder.kakaoSoloDistanceKm = securedOrder.distanceKm || 0;
-                    // 소요시간은 대략 도심 평균(시속 본콜 환산 기준)으로 유추하거나, 제외할 수 있습니다. 
-                    // 여기서는 1km당 1.5분(40km/h) 정도로 러프하게 유추합니다.
-                    securedOrder.kakaoSoloDurationMin = securedOrder.distanceKm ? Math.round(securedOrder.distanceKm * 1.5) : 0;
-
-                    // OSRM 무료 엔진 호출을 활용한 단독 주행 연산 (UI 표출 우선 순위값 확보용)
-                    try {
-                        const osrmResult = await fetchRealWorldRoute([
-                            { name: 'pickup', centroid: [securedOrder.pickupX, securedOrder.pickupY!] },
-                            { name: 'dropoff', centroid: [securedOrder.dropoffX!, securedOrder.dropoffY!] }
-                        ]);
-                        if (osrmResult) {
-                            securedOrder.osrmSoloDistanceKm = osrmResult.totalDistanceKm;
-                            securedOrder.osrmSoloDurationMin = Math.round(osrmResult.durationSeconds / 60);
-                        } else {
-                            securedOrder.osrmError = "경로결과 없음";
-                        }
-                    } catch (osrmError: any) {
-                        console.warn("OSRM 단독 경로 연산 실패 (방어 로직 발동)", osrmError.message);
-                        securedOrder.osrmError = osrmError.message || "통신오류/타임아웃";
-                    }
-
-                    const allPickups = [
-                        { x: activeMain.pickupX!, y: activeMain.pickupY! },
-                        ...activeSubs.map(c => ({ x: c.pickupX!, y: c.pickupY! })),
-                        { x: securedOrder.pickupX, y: securedOrder.pickupY! }
-                    ];
-                    const allDropoffs = [
-                        { x: activeMain.dropoffX!, y: activeMain.dropoffY! },
-                        ...activeSubs.map(c => ({ x: c.dropoffX!, y: c.dropoffY! })),
-                        { x: securedOrder.dropoffX!, y: securedOrder.dropoffY }
-                    ];
-
-                    const startLoc = session.driverLocation || allPickups[0];
-                    const { sortedPickups, sortedDropoffs } = optimizeWaypoints(startLoc, allPickups, allDropoffs);
-
-                    const mergedDest = sortedDropoffs.pop()!;
-                    const waypoints = [...sortedPickups, ...sortedDropoffs];
-
-                    const result = await calculateDetourRoute(
-                        activeMain.dropoffX!, activeMain.dropoffY!,
-                        activeMain.pickupX!, activeMain.pickupY!,
-                        mergedDest.x, mergedDest.y,
-                        waypoints,
-                        session.driverLocation,
-                        routingOptions.defaultPriority,
-                        routingOptions.carType
-                    );
-
-                    let recommend = "'콜'";
-                    const distDiff = parseFloat(result.distDiffKm);
-                    if (result.timeDiffMin <= DISPATCH_CONFIG.DETOUR_HONEY_TIME_MAX && distDiff <= DISPATCH_CONFIG.DETOUR_HONEY_DIST_MAX) recommend = "'꿀'";
-                    else if (result.timeDiffMin >= DISPATCH_CONFIG.DETOUR_SHIT_TIME_MIN || distDiff >= DISPATCH_CONFIG.DETOUR_SHIT_DIST_MIN) recommend = "'똥'";
-
-                    // Stage 2: 카카오 Detour 경로 — 장/단점 양면 수집 (시간/거리 각각 독립 체크)
-                    if (result.timeDiffMin >= DISPATCH_CONFIG.DETOUR_SHIT_TIME_MIN) {
-                        reasons.push(`우회시간(+${result.timeDiffMin}분) 초과`);
-                    } else if (result.timeDiffMin <= DISPATCH_CONFIG.DETOUR_HONEY_TIME_MAX) {
-                        pros.push(`우회시간(+${result.timeDiffMin}분) 양호 🍯`);
-                    } else {
-                        pros.push(`우회시간(+${result.timeDiffMin}분) 보통`);
-                    }
-                    if (distDiff >= DISPATCH_CONFIG.DETOUR_SHIT_DIST_MIN) {
-                        reasons.push(`우회거리(+${result.distDiffKm}km) 초과`);
-                    } else if (distDiff <= DISPATCH_CONFIG.DETOUR_HONEY_DIST_MAX) {
-                        pros.push(`우회거리(+${result.distDiffKm}km) 양호 🍯`);
-                    } else {
-                        pros.push(`우회거리(+${result.distDiffKm}km) 보통`);
-                    }
-
-                    const signDist = distDiff > 0 ? "+" : "";
-                    const signTime = result.timeDiffMin > 0 ? "+" : "";
-
-                    timeExt = `${signDist}${result.distDiffKm}km, ${signTime}${result.timeDiffMin}분 ${recommend}`;
-                    securedOrder.routePolyline = result.merged.polyline;
-                    securedOrder.totalDistanceKm = result.merged.distance / 1000;
-                    securedOrder.totalDurationMin = Math.round(result.merged.duration / 60);
-                    securedOrder.sectionEtas = result.merged.sectionEtas;
-
-                    const appDist = result.merged.approachDistance ? (result.merged.approachDistance / 1000).toFixed(1) : '?';
-                    const appTime = result.merged.approachDuration ? Math.round(result.merged.approachDuration / 60) : '?';
-                    console.log(`   - ⚠️ 패널티 결과: ${timeExt} (현위치접근: ${appDist}km, ${appTime}분)`);
-                    console.log(`   - 🗺️ 궤적 길이 (Detour): ${securedOrder.routePolyline?.length || '없음'}`);
-                    console.log(`🛡️ [서버] 우회 노선 연산 중: 카카오 TSP 연산 결과가 지정된 회랑 반경(Corridor Radius)을 이탈했는지 평가 감지 완료`);
-                } else {
-                    reasons.push(`본콜 좌표 누락`);
-                    console.log(`   - ❌ 본콜은 있으나 좌표값이 누락됨.`);
-                }
-            } else {
-                reasons.push(`지오코딩 실패(좌표 변환 불가)`);
-                console.log(`   - ❌ 지오코딩 실패: X/Y 좌표 변환 불가능`);
-            }
-        } else {
-            reasons.push(`API KEY 부재`);
-            console.log(`   - ❌ KAKAO_REST_API_KEY 서버 환경 변수 누락`);
-        }
-    } catch (error: any) {
-        console.error("서버-사이드 카카오 연산 에러:", error);
-        const errMsg = error.message || '알 수 없는 오류';
-        timeExt = `카카오 연산 실패: ${errMsg}`;
-        reasons.push(`카카오 연산 실패(${errMsg})`);
-    }
-    console.log(`======================================================\n`);
-
-    logRoadmapEvent("서버", "경로 폴리라인 및 최종 수익성(콜/꿀/똥) 라벨링 연산");
-    securedOrder.kakaoTimeExt = timeExt;
-
-    // 💰 다이내믹 요율 계산 (Stage 3: 수익성 판정)
-    if (securedOrder.kakaoSoloDistanceKm && securedOrder.fare) {
-        try {
-            const pricing = loadPricingConfig(userId);
-            const routingOpts = getKakaoRoutingOptions(userId);
-            const fareResult = calculateDynamicFare(
-                securedOrder.kakaoSoloDistanceKm,
-                securedOrder.vehicleType || undefined,
-                routingOpts.vehicleType,
-                pricing
-            );
-
-            const actualFare = securedOrder.fare;
-            if (actualFare < fareResult.minAcceptable) {
-                const diff = actualFare - fareResult.minAcceptable;
-                reasons.push(`요율 미달 (적정: ${fareResult.fairPrice.toLocaleString()}원, 하한: ${fareResult.minAcceptable.toLocaleString()}원, 실제: ${actualFare.toLocaleString()}원, ${diff.toLocaleString()}원)`);
-                console.log(`   - 💸 [요율 판정] 똥콜 — 실제 ${actualFare.toLocaleString()}원 < 하한 ${fareResult.minAcceptable.toLocaleString()}원`);
-            } else if (actualFare >= fareResult.fairPrice) {
-                pros.push(`꿀콜 🍯 (적정 ${fareResult.fairPrice.toLocaleString()}원 이상)`);
-                console.log(`   - 🍯 [요율 판정] 꿀콜 — 실제 ${actualFare.toLocaleString()}원 ≥ 적정 ${fareResult.fairPrice.toLocaleString()}원`);
-            } else {
-                console.log(`   - ✅ [요율 판정] 적정 범위 — 실제 ${actualFare.toLocaleString()}원 (하한 ${fareResult.minAcceptable.toLocaleString()} ~ 적정 ${fareResult.fairPrice.toLocaleString()})`);
-            }
-        } catch (e) {
-            console.error(`   - ⚠️ [요율 판정] 계산 실패:`, e);
-        }
-    }
-
-    // 🔍 종합 평가 결과 주입 (Stage 1 + Stage 2 + Stage 3 사유 통합)
-    securedOrder.rejectionReasons = reasons;
-    securedOrder.approvalReasons = pros;
-    securedOrder.isRejected = reasons.length > 0;
-    if (reasons.length > 0) {
-        console.log(`   - 💩 [종합 평가] 똥콜 판정 (${reasons.length}건): ${reasons.join(' | ')}`);
-    } else {
-        console.log(`   - ✅ [종합 평가] 필터/경로 모두 통과`);
-    }
-    if (pros.length > 0) {
-        console.log(`   - 👍 [장점 수집] (${pros.length}건): ${pros.join(' | ')}`);
-    }
-
-    // [Fix] 서버 연산이 끝났으므로, 메모리의 상태를 '관제탑 결재 대기(데스밸리)' 상태로 승급시킵니다.
-    // DB 업데이트는 I/O 낭비이므로 진행하지 않으며, 오직 메모리(session.pendingOrdersData)만 변경합니다.
-    securedOrder.status = 'ORDER_AWAITING_DECISION';
-
-    if (io) {
-        console.log(`📤 [Socket 푸시] order-evaluated (${securedOrder.id}) - 상태 승급: ORDER_AWAITING_DECISION`);
-        io.to(userId).emit("order-evaluated", securedOrder);
-
-        if (timeExt.includes("실패")) {
-            logRoadmapEvent("서버", "관제탑에게 카카오 에러 상태(order-evaluated error) 정보 전달");
-        } else {
-            logRoadmapEvent("서버", "관제탑에게 최종 판독된 오더 정보(order-evaluated) 전달");
-        }
-
-        console.log(`🔎 [카카오 연산 완료] ${timeExt} | Polyline 길이: ${securedOrder.routePolyline?.length || 0}`);
-    }
+export async function evaluateNewOrder(userId: string, securedOrder: SecuredOrder | PendingOrder, io: any, targetApp: string = 'insung') {
+    const evaluator = new OrderEvaluator(targetApp);
+    await evaluator.evaluate(userId, securedOrder, io);
 }
 
 /**
@@ -1099,7 +637,7 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
         session.myOrders = allLoaded;
 
         // 카카오 궤적 복원 연산 시에는 진행 중인(취소/방출/완료가 아닌) 콜만 필터링하여 사용
-        const routingOptions = getKakaoRoutingOptions(userId);
+        const routingOptions = SettingsRepository.getKakaoRoutingOptions(userId);
         const activeCalls = getActiveCalls(session);
         const activeMain = activeCalls[0];
         const activeSubs = activeCalls.slice(1);

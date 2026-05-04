@@ -7,6 +7,7 @@ import { trimCorridorByProgress } from "../services/geoService";
 import { touchDeviceSession } from "./devices";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { dbQueue } from "../utils/dbQueue";
+import { PluginFactory } from "../core/plugins/PluginFactory";
 
 const router = Router();
 
@@ -47,6 +48,9 @@ router.post("/", (req, res) => {
 
         const timestamp = new Date().toISOString();
 
+        const targetApp = (req.body as any).targetApp || 'insung';
+        const plugin = PluginFactory.getPlugin(targetApp);
+
         // logRoadmapEvent("서버", "방대한 스크랩 배열값을 intel 테이블 DB 저장");
         // 2. 비동기 Write Queue를 통해 밀려들어오는 데이터를 오류 없이 INSERT
         data.forEach(item => {
@@ -55,8 +59,8 @@ router.post("/", (req, res) => {
                 userId === "ADMIN_USER" ? null : userId,
                 deviceId || null,
                 "INTEL_BULK",
-                item.pickup,
-                item.dropoff,
+                plugin.normalizeAddress(item.pickup),
+                plugin.normalizeAddress(item.dropoff),
                 item.fare || 0,
                 timestamp
             );
