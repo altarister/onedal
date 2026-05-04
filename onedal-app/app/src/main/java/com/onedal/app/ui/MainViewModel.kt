@@ -4,10 +4,10 @@ import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import com.onedal.app.HijackService
 import com.onedal.app.isAccessibilityServiceEnabled
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.json.JSONObject
@@ -18,7 +18,9 @@ import org.json.JSONObject
  * 1초마다 SharedPreferences를 읽어 UI 상태를 갱신합니다.
  * Composable에서 직접 SharedPreferences를 접근하지 않도록 분리합니다.
  */
-class MainViewModel : ViewModel() {
+class MainViewModel {
+
+    private val scope = CoroutineScope(Dispatchers.Main)
 
     // ── 접근성 서비스 상태 ──
     var isServiceActive by mutableStateOf(false)
@@ -66,7 +68,7 @@ class MainViewModel : ViewModel() {
         targetApp = prefs.getString("targetApp", "인성콜") ?: "인성콜"
         deathValleyTimeout = prefs.getLong("deathValleyTimeout", 30000L)
 
-        viewModelScope.launch {
+        scope.launch {
             while (true) {
                 isServiceActive = isAccessibilityServiceEnabled(context, HijackService::class.java)
                 activeFilterJson = prefs.getString("activeFilter", "{}") ?: "{}"

@@ -19,7 +19,6 @@ import androidx.compose.ui.unit.dp
 import android.content.Context
 import android.content.ComponentName
 import android.text.TextUtils
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.onedal.app.ui.MainViewModel
 import com.onedal.app.ui.DashboardScreen
 import com.onedal.app.ui.SettingsScreen
@@ -63,7 +62,7 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val context = LocalContext.current
-                    val vm: MainViewModel = viewModel()
+                    val vm = remember { MainViewModel() }
 
                     // 폴링 시작 (1회만)
                     LaunchedEffect(Unit) {
