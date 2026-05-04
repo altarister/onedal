@@ -13,6 +13,8 @@ import com.onedal.app.core.ScreenKeywords
 import com.onedal.app.core.engine.ScreenDetector
 import com.onedal.app.core.engine.SessionManager
 import com.onedal.app.core.engine.PopupSurfingMachine
+import com.onedal.app.core.engine.DeathValleyTimer
+import com.onedal.app.core.engine.CautionDongVerifier
 import com.onedal.app.core.TelemetryManager
 import com.onedal.app.models.DetailedOfficeOrder
 import com.onedal.app.models.DispatchBasicRequest
@@ -52,30 +54,7 @@ class HijackService : AccessibilityService() {
         internal const val FARE_RANGE_MIN = 10.0
         internal const val FARE_RANGE_MAX = 9999.0
 
-        // 🚨 [동명이동 방어] 전국에 2개 이상의 시/구에 존재하는 읍면동 (빌드 시 고정)
-        // 이 동네가 리스트 하차지에 보이면 광클(선빵)하지 않고, 상세 진입 후 customCityFilters로 2차 검증
-        val CAUTION_DONGS = setOf(
-            // 6개 지역 중복
-            "금곡동",
-            // 5개 지역 중복
-            "중동",
-            // 4개 지역 중복
-            "갈현동", "장지동",
-            // 3개 지역 중복
-            "평동", "송정동", "능동", "장안동", "구산동", "신촌동", "창전동", "목동",
-            "오류동", "항동", "오금동", "심곡동", "신흥동", "중앙동", "대장동", "화정동",
-            // 2개 지역 중복 (배송 빈도 높은 핵심 동네)
-            "효자동", "송현동", "남창동", "주교동", "방산동", "도원동", "군자동", "용두동",
-            "창동", "신사동", "도화동", "신정동", "동교동", "합정동", "시흥동", "도림동",
-            "신길동", "내곡동", "신원동", "논현동", "신천동", "고덕동", "중산동", "용현동",
-            "청학동", "고잔동", "산곡동", "갈산동", "장기동", "백석동", "신현동", "가좌동",
-            "마전동", "당하동", "원당동", "정자동", "탑동", "영동", "고등동", "성남동",
-            "은행동", "고산동", "소사동", "상동", "송내동", "옥길동", "신장동", "세교동",
-            "광암동", "안흥동", "부곡동", "당정동", "청계동", "중리동",
-            "연희동", "하중동", "율현동", "사동", "내동", "계수동", "이동", "삼동", "신동",
-            "하동", "우만동", "교동", "낙원동", "계동", "연지동", "이화동", "숭인동",
-            "송월동", "옥천동", "영천동"
-        )
+        // 🚨 [동명이동 방어] CAUTION_DONGS는 CautionDongVerifier.CAUTION_DONGS로 이동
     }
 
     // ── 4대 엔진 ──
@@ -97,7 +76,8 @@ class HijackService : AccessibilityService() {
 
     // ── AUTO 모드 타이머 ──
     private val mainHandler = Handler(Looper.getMainLooper())
-    private var deathValleyRunnable: Runnable? = null
+    private val deathValleyTimer = DeathValleyTimer()
+    private lateinit var cautionVerifier: CautionDongVerifier
 
     // [Safety Mode V3] SharedPreference에서 데스밸리 타이머 값 읽기
     private fun getDeathValleyTimeout(): Long {
@@ -130,6 +110,7 @@ class HijackService : AccessibilityService() {
         scrapParser = ScrapParser(this)
         touchManager = AutoTouchManager(this)
         surfingMachine = PopupSurfingMachine(touchManager)
+        cautionVerifier = CautionDongVerifier(this)
 
         telemetryManager.start()
         apiClient.fetchKeywords()
@@ -420,11 +401,11 @@ class HijackService : AccessibilityService() {
                     else -> {
                         // ── [최초 진입] 도착지가 동명이동 주의 동네인지 확인 ──
                         val dropoffWords = finalOrder.dropoff.split("\\s+".toRegex())
-                        val isCautionDong = CAUTION_DONGS.any { dong -> dropoffWords.any { it == dong } }
+                        val isCautionDong = CautionDongVerifier.CAUTION_DONGS.any { dong -> dropoffWords.any { it == dong } }
 
                         if (isCautionDong) {
                             // [2단계] 화면에 상위 지역이 이미 보이는지 확인
-                            val cityFilters = loadCityFilters()
+                            val cityFilters = cautionVerifier.loadCityFilters()
                             val screenStr = screenTexts.joinToString(" ")
                             val hasCityOnScreen = cityFilters.any { screenStr.contains(it, ignoreCase = true) }
 
@@ -531,8 +512,8 @@ class HijackService : AccessibilityService() {
                 return
             }
             AppLogger.w(TAG, "⚠️ [3단계 검증] 확정 전 도착지 팝업에서 상위 지역 대조 시작!")
-            val cityFilters = loadCityFilters()
-            val isCityMatch = cityFilters.any { multilineScreenStr.contains(it, ignoreCase = true) }
+            val cityFilters = cautionVerifier.loadCityFilters()
+            val isCityMatch = cautionVerifier.verifyCityMatch(multilineScreenStr, cityFilters)
 
             if (isCityMatch) {
                 AppLogger.d(TAG, "✅ [3단계 통과] 진짜 우리 동네 확인!")
@@ -602,28 +583,15 @@ class HijackService : AccessibilityService() {
 
     /** 서버 응답 대기용 데스밸리 타이머 시작 (응답 없으면 자동 취소) */
     private fun startDeathValleyTimer() {
-        if (!session.isAutoActive) return // MANUAL 이면 서버가 취소권한 없음
-
-        cancelDeathValleyTimer()
-        session.isWaitingForDecision = true
         telemetryManager.isWaitingDecision = true  // [Piggyback V2] 1.0초 단위 강제 무전 타격 시작!
-        val timeoutMs = getDeathValleyTimeout()
-        AppLogger.w(TAG, "⏳ 데스밸리 타이머 시작: ${timeoutMs / 1000}초 대기...")
-
-        deathValleyRunnable = Runnable {
-            if (session.isWaitingForDecision) {
-                AppLogger.e(TAG, "🚨 데스밸리 타임아웃! 기사님 보호를 위해 강제 배차 취소 집행!")
-                sendEmergencyReport(EmergencyReason.AUTO_CANCEL, "데스밸리 응답 없음 강제취소")
-                executeDecisionImmediately("CANCEL")
-            }
+        deathValleyTimer.start(getDeathValleyTimeout(), session) {
+            sendEmergencyReport(EmergencyReason.AUTO_CANCEL, "데스밸리 응답 없음 강제취소")
+            executeDecisionImmediately("CANCEL")
         }
-        mainHandler.postDelayed(deathValleyRunnable!!, timeoutMs)
     }
 
     private fun cancelDeathValleyTimer() {
-        deathValleyRunnable?.let { mainHandler.removeCallbacks(it) }
-        deathValleyRunnable = null
-        session.isWaitingForDecision = false
+        deathValleyTimer.cancel(session)
         telemetryManager.isWaitingDecision = false // [Piggyback V2] 짧은 무전 해제
     }
 
@@ -704,16 +672,8 @@ class HijackService : AccessibilityService() {
         return resid
     }
 
-    /** 🚨 [동명이동 방어] SharedPreferences에서 customCityFilters(상위 지역 키워드) 로드 */
-    private fun loadCityFilters(): List<String> {
-        val prefs = getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
-        val jsonStr = prefs.getString("activeFilter", null) ?: return emptyList()
-        return try {
-            val json = org.json.JSONObject(jsonStr)
-            val arr = json.optJSONArray("customCityFilters") ?: return emptyList()
-            (0 until arr.length()).map { arr.getString(it) }
-        } catch (e: Exception) { emptyList() }
-    }
+    /** 동명이동 검증용 시티필터 로드 (코드 위임) */
+    private fun loadCityFilters(): List<String> = cautionVerifier.loadCityFilters()
 
     /** 현재 ISO 타임스탬프 생성 */
     private fun nowTimestamp(): String {
