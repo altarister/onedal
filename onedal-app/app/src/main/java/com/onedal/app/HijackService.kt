@@ -10,6 +10,7 @@ import com.onedal.app.core.AppKeywords
 import com.onedal.app.core.AutoTouchManager
 import com.onedal.app.core.ScrapParser
 import com.onedal.app.core.ScreenKeywords
+import com.onedal.app.core.engine.ScreenDetector
 import com.onedal.app.core.TelemetryManager
 import com.onedal.app.models.DetailedOfficeOrder
 import com.onedal.app.models.DispatchBasicRequest
@@ -83,6 +84,7 @@ class HijackService : AccessibilityService() {
 
     // ── 설정 ──
     private var keywords: ScreenKeywords = AppKeywords.INSUNG
+    private val screenDetector = ScreenDetector()
     private var lastScreenFingerprint = 0
     private val processedOrderHashes = mutableSetOf<Int>()
     private var isDetailScrapSent = false
@@ -209,7 +211,7 @@ class HijackService : AccessibilityService() {
         val rawScreenStr = screenTexts.joinToString(" ")
 
         // 로딩 화면 → 무시
-        if (keywords.loadingKeywords.any { rawScreenStr.contains(it) }) { rootNode.recycle(); return }
+        if (screenDetector.isLoading(rawScreenStr, keywords)) { rootNode.recycle(); return }
 
         // 화면 종류 판별 및 서버(텔레메트리) 즉각 동기화
         val detected = detectScreenContext(rawScreenStr)
@@ -679,19 +681,8 @@ class HijackService : AccessibilityService() {
     //  화면 판별 엔진 (키워드 사전 기반)
     // ════════════════════════════════════════════════════════════════
 
-    private fun detectScreenContext(text: String): ScreenContext = when {
-        keywords.errorKeywords.any { text.contains(it) }    -> ScreenContext.POPUP_ERROR
-        keywords.pickupKeywords.any { text.contains(it) }   -> ScreenContext.POPUP_PICKUP
-        keywords.dropoffKeywords.any { text.contains(it) }  -> ScreenContext.POPUP_DROPOFF
-        // 적요 팝업: "적요 상세"(띄어쓰기) + "적요 내용" → 확정화면("적요상세" 붙여쓰기)과 구분
-        keywords.memoKeywords.all { text.contains(it) }     -> ScreenContext.POPUP_MEMO
-        keywords.detailKeywords.all { text.contains(it) }   -> if (keywords.confirmKeywords.any { text.contains(it) })
-                                                                    ScreenContext.DETAIL_PRE_CONFIRM
-                                                                else ScreenContext.DETAIL_CONFIRMED
-        keywords.listRequired.all { text.contains(it) }     -> ScreenContext.LIST
-        keywords.completedListRequired.all { text.contains(it) } -> ScreenContext.LIST_COMPLETED
-        else -> ScreenContext.UNKNOWN
-    }
+    private fun detectScreenContext(text: String): ScreenContext =
+        screenDetector.detect(text, keywords)
 
     private fun updateScreenContext(context: ScreenContext) {
         if (telemetryManager.currentScreenContext != context) {
@@ -812,7 +803,7 @@ class HijackService : AccessibilityService() {
 
     /** 팝업 잔상이 화면에 남아있는지 검사 */
     private fun isPopupResidue(rawScreenStr: String): Boolean {
-        val resid = rawScreenStr.contains("출발지 상세") || rawScreenStr.contains("도착지 상세")
+        val resid = screenDetector.isPopupResidue(rawScreenStr)
         if (resid) AppLogger.roadmap("✋ [Race Condition 방어] 출발지/도착지 팝업 닫힘 애니메이션 잔상 대기", telemetryManager.currentScreenContext.name)
         return resid
     }
