@@ -54,18 +54,18 @@
   - *현재 `HijackService.kt`에 전투 경험으로 하드코딩됨*
 
 ### 🟢 P2 — 있으면 품질 향상
-- `[ ]` **UI_WIREFRAMES.md** — 화면 와이어프레임/목업
+- `[x]` **UI_WIREFRAMES.md** — 화면 와이어프레임/목업 ✅
   - 대시보드 탭 레이아웃
   - 설정 탭 레이아웃
   - 각 상태별 화면 스케치 (접근성 ON/OFF, 서버 연결/끊김 등)
 
-- `[ ]` **PLUGIN_INTERFACE_SPEC.md** — 플러그인 인터페이스 코드 수준 명세
+- `[x]` **PLUGIN_INTERFACE_SPEC.md** — 플러그인 인터페이스 코드 수준 명세 ✅
   - `BaseScrapParser` 인터페이스 메서드 시그니처 및 반환값 정의
   - `BaseAutomationEngine` 인터페이스 정의
   - `EngineRouter` 앱 패키지 감지 → 엔진 스위칭 로직
   - 플러그인별 키워드 사전(`ScreenKeywords`) 등록 방법
 
-- `[ ]` **TESTING_STRATEGY.md** — 테스트 전략
+- `[x]` **TESTING_STRATEGY.md** — 테스트 전략 ✅
   - 단위 테스트 범위 (Parser, Filter 로직 등)
   - 통합 테스트 (서버 Mock 연동)
   - 수동 E2E 검증 체크리스트
