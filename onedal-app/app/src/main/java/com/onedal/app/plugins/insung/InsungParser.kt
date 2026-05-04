@@ -1,7 +1,9 @@
-package com.onedal.app.core
+package com.onedal.app.plugins.insung
 
 import android.content.Context
 import com.onedal.app.core.AppLogger
+import com.onedal.app.core.IScrapParser
+import com.onedal.app.core.LocationTextAnalyzer
 import com.google.gson.Gson
 import com.onedal.app.models.FilterConfig
 import com.onedal.app.models.SimplifiedOfficeOrder
@@ -18,7 +20,7 @@ import java.util.UUID
  * 서버에서 내려준 4대 필터 조건(도착지/요금/블랙리스트/거리)에
  * 부합하는지 종합 판정하는 두뇌 엔진입니다.
  */
-class NativeScrapParser(private val context: Context) : IScrapParser {
+class InsungParser(private val context: Context) : IScrapParser {
 
     companion object {
         private const val TAG = "1DAL_PARSER"
@@ -205,9 +207,15 @@ class NativeScrapParser(private val context: Context) : IScrapParser {
      */
     override fun shouldClick(order: SimplifiedOfficeOrder): Boolean {
         val filter = loadCurrentFilter()
+        
+        // ── 조건 0: 전체 필터 활성화 여부 (스캔 정지 상태면 무조건 클릭 안함) ──
+        if (!filter.isActive) {
+            return false
+        }
+
         val rawText = order.rawText ?: ""
 
-        // ── 조건 0: 차종 매칭 (빈 배열이면 전체 허용) ──
+        // ── 조건 1: 차종 매칭 (빈 배열이면 전체 허용) ──
         val vehicleMatch = if (filter.allowedVehicleTypes.isEmpty()) {
             true
         } else {
@@ -284,14 +292,13 @@ class NativeScrapParser(private val context: Context) : IScrapParser {
         // ── 로그 출력 (디버깅용) ──
         val isValidOrder = order.fare > 0 || order.pickup != "미상" || order.dropoff != "미상"
         if (isValidOrder) {
-            // AppLogger.d(TAG, "📋 [필터값] 차종=${filter.allowedVehicleTypes}, 하한요금=${filter.minFare}, 반경=${filter.pickupRadiusKm}km, 블랙=${filter.excludedKeywords}, 지역=${filter.destinationKeywords.size}")
-            val scheduleLog = if (order.scheduleText != null) "[수식어:${order.scheduleText}] " else ""
+            val screenCtxLog = if (isDetailPreConfirmStage) "DETAIL" else "LIST"
             
             AppLogger.roadmap("🔍 [타겟 콜 필터 결과] 차종(${order.vehicleType ?: "미상"})=${if(vehicleMatch) "✅" else "❌"} " +
                         "도착지(${filter.destinationKeywords.size}중 ${order.dropoff})=${if(regionMatch) "✅" else "❌"} " +
                         "요금(${filter.minFare} <= ${order.fare})=${if(fareMatch) "✅" else "❌"} " +
                         "상차지/거리(${if(filter.isSharedMode) "합짐무시" else "${filter.pickupRadiusKm}km"} >= ${order.pickupDistance ?: "미상"}km)=${if(distanceMatch) "✅" else "❌"} " +
-                        "블랙()=${if(blacklistClear) "✅" else "❌"}", "LIST")
+                        "블랙()=${if(blacklistClear) "✅" else "❌"}", screenCtxLog)
         }
 
         val result = vehicleMatch && regionMatch && fareMatch && distanceMatch && blacklistClear

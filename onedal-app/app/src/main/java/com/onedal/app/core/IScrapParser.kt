@@ -7,8 +7,7 @@ import com.onedal.app.models.SimplifiedOfficeOrder
  * 4대 필터 조건 판정을 수행하는 인터페이스입니다.
  *
  * 구현체:
- *   - NativeScrapParser: 진짜 배차 앱 (인성콜, 24시 등) 전용
- *   - MockWebScrapParser: 웹뷰 가짜 콜 테스트 전용 (사금 채취식 정규식)
+ *   - InsungParser: 진짜 배차 앱 (인성콜) 전용
  */
 interface IScrapParser {
 

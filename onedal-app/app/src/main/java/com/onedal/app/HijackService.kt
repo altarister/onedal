@@ -6,7 +6,8 @@ import com.onedal.app.core.AppLogger
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import com.onedal.app.api.ApiClient
-import com.onedal.app.core.AppKeywords
+import com.onedal.app.plugins.hwamul24.Hwamul24Keywords
+import com.onedal.app.plugins.insung.InsungKeywords
 import com.onedal.app.core.AutoTouchManager
 import com.onedal.app.core.ScrapParser
 import com.onedal.app.core.ScreenKeywords
@@ -64,10 +65,11 @@ class HijackService : AccessibilityService() {
     private lateinit var touchManager: AutoTouchManager
 
     // ── 설정 ──
-    private var keywords: ScreenKeywords = AppKeywords.INSUNG
+    private lateinit var keywords: ScreenKeywords
     private val screenDetector = ScreenDetector()
     private var lastScreenFingerprint = 0
     private val processedOrderHashes = mutableSetOf<Int>()
+    private var currentTargetApp = "insung"
 
     // ── 세션 상태 (SessionManager로 통합) ──
     private val session = SessionManager()
@@ -89,9 +91,11 @@ class HijackService : AccessibilityService() {
     private val screenOffReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == Intent.ACTION_SCREEN_OFF) {
+                AppLogger.roadmap("📵 화면 꺼짐 감지 → 서버로 퇴근(OFFLINE) 보고", "OFFLINE")
                 AppLogger.w(TAG, "📵 [Screen Off 감지] 기사님 퇴근 또는 화면 꺼짐! 즉시 서버로 오프라인 통보!")
                 apiClient.sendOffline()
             } else if (intent?.action == Intent.ACTION_SCREEN_ON) {
+                AppLogger.roadmap("💡 화면 켜짐 감지 → 서버로 출근(ONLINE) 보고", "ONLINE")
                 AppLogger.w(TAG, "💡 [Screen On 감지] 화면 켜짐! 즉시 서버로 생존 신고(ONLINE)!")
                 telemetryManager.forceHeartbeat()
             }
@@ -105,9 +109,22 @@ class HijackService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
 
+        val prefs = getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
+        val targetApp = prefs.getString("targetApp", "인성콜") ?: "인성콜"
+        currentTargetApp = if (targetApp == "24시") "hwamul24" else "insung"
+
+        keywords = if (targetApp == "24시") {
+            Hwamul24Keywords.TWENTYFOUR
+        } else {
+            InsungKeywords.INSUNG
+        }
+
         apiClient = ApiClient(this)
         telemetryManager = TelemetryManager(apiClient, this)  // [GPS 텔레메트리] context 전달하여 위치 조회 가능하도록
-        scrapParser = ScrapParser(this)
+        scrapParser = ScrapParser(this, targetApp)
+        
+        AppLogger.i(TAG, "🎯 타겟 앱 설정 완료: $targetApp")
+
         touchManager = AutoTouchManager(this)
         surfingMachine = PopupSurfingMachine(touchManager)
         cautionVerifier = CautionDongVerifier(this)
@@ -133,9 +150,7 @@ class HijackService : AccessibilityService() {
         }
         registerReceiver(screenOffReceiver, filter)
 
-        AppLogger.roadmap("[Current Page: MainActivity] 1DAL 앱 실행 및 초기 설정", telemetryManager.currentScreenContext.name)
-        AppLogger.roadmap("앱 기동 전 또는 백그라운드 ➡️ [Current Page: UNKNOWN]", "UNKNOWN")
-        AppLogger.roadmap("📍 백그라운드 Telemetry (lat, lng) 획득 엔진 가동!", "UNKNOWN")
+        AppLogger.roadmap("🟢 1DAL 서비스 가동 완료 (접근성 권한 승인, Telemetry·GPS 엔진 가동)", "STARTUP")
         AppLogger.i(TAG, "✅ 1DAL Service Connected!")
         AppLogger.i(TAG, "  📡 ApiClient  (기기ID: ${apiClient.getDeviceId()})")
         AppLogger.i(TAG, "  📤 Telemetry  (생존신고 시작)")
@@ -148,6 +163,7 @@ class HijackService : AccessibilityService() {
         telemetryManager.stop()
         cancelDeathValleyTimer()
         apiClient.sendOffline() // 접근성 권한 해제 시 오프라인 통보
+        AppLogger.roadmap("⚠️ 1DAL 서비스 일시 중지 (접근성 권한 해제)", "INTERRUPT")
         AppLogger.w(TAG, "⚠️ 1DAL Service Interrupted! (접근성 권한 일시 중지)")
     }
 
@@ -158,6 +174,7 @@ class HijackService : AccessibilityService() {
         cancelDeathValleyTimer()
         apiClient.sendOffline() // 앱 종료 시 오프라인 통보
         apiClient.shutdown()
+        AppLogger.roadmap("🛑 1DAL 서비스 완전 종료 (앱 파괴)", "SHUTDOWN")
         AppLogger.w(TAG, "🛑 1DAL Service Destroyed! (완전 종료)")
     }
 
@@ -200,10 +217,7 @@ class HijackService : AccessibilityService() {
         }
 
         AppLogger.d(TAG, "-------------------------------")
-        AppLogger.roadmap("📡 화면 변경 감지 | 모드: ${telemetryManager.currentMode}", telemetryManager.currentScreenContext.name)
-        // AppLogger.roadmap("새로운 화면 진입 판별: ${detected.value}", telemetryManager.currentScreenContext.name)
-        // AppLogger.d(TAG, "📡 화면 변경 감지 | 화면: ${detected.value} | 모드: ${telemetryManager.currentMode}")
-        // AppLogger.d(TAG, "🔍 [디버그] ${rawScreenStr.take(200)}")
+        AppLogger.roadmap("📡 화면 변경 감지 | 화면: ${detected.value} | 모드: ${telemetryManager.currentMode}", telemetryManager.currentScreenContext.name)
 
         // 화면별 핸들러 라우팅
         when (detected) {
@@ -252,9 +266,7 @@ class HijackService : AccessibilityService() {
             // 🌟 [AUTO 실행] 사냥 중이지 않고 AUTO 모드일 때만 실제 클릭 동작 수행
             if (!session.isAutoActive && telemetryManager.currentMode == "AUTO") {
                 if (isTarget) {
-                    AppLogger.roadmap("인성앱 콜 리스트 렌더링 ➡️ [Current Page: LIST] 진입", telemetryManager.currentScreenContext.name)
-                    AppLogger.roadmap("안드로이드 자체 메모리에 필터 캐싱 완료 및 대기", telemetryManager.currentScreenContext.name)
-                    AppLogger.roadmap("[Current Page: LIST] 상태 유지 및 1차(단독/합짐) 리스트 필터 통과 확인", telemetryManager.currentScreenContext.name)
+                    AppLogger.roadmap("🎯 [Current Page: LIST] 1차 필터 통과 → AUTO 타겟 발견, 강제 터치 진행", telemetryManager.currentScreenContext.name)
                     AppLogger.d(TAG, "💥 [AUTO] 꿀콜 조건 통과! 대상 콜 강제 터치 진행!")
                     
                     // 🚀 [지뢰 탐지기] 2차 똥콜 판명 후 리스트로 튕겨나왔을 때 또 누르는 것을 방지하기 위해 터치 직전에 지문 선(先)등재!
@@ -356,11 +368,12 @@ class HijackService : AccessibilityService() {
                 deviceId = apiClient.getDeviceId(),
                 order = finalOrder,
                 capturedAt = finalOrder.timestamp,
-                matchType = actualMatchType
+                matchType = actualMatchType,
+                targetApp = currentTargetApp
             )
 
             apiClient.sendConfirm(request)
-            AppLogger.d(TAG, "📤 [post /confirm request] 서버 전송 내용 -> 모드: $actualMatchType (스위치: ${telemetryManager.currentMode}, 매크로클릭: $session.isAutoActive) | 텍스트: ${rawScreenStr.take(150)}...")
+            AppLogger.d(TAG, "📤 [post /confirm request] 서버 전송 내용 -> 모드: $actualMatchType (스위치: ${telemetryManager.currentMode}, 매크로클릭: ${session.isAutoActive}) | 텍스트: ${rawScreenStr.take(150)}...")
             session.isDetailScrapSent = true
             telemetryManager.isHolding = true  // [Page/Hold 분리] 확정 클릭 → 콜 처리 중
             telemetryManager.forceFlushEvent()  // 즉시 서버에 홀드 상태 알림
@@ -458,10 +471,8 @@ class HijackService : AccessibilityService() {
 
         // 확정 화면에 처음 진입했을 때 서핑 시작! (적요상세 → 출발지 → 도착지 순서)
         if (session.surfingState == SessionManager.SurfingState.IDLE) {
-            AppLogger.roadmap("[Current Page: DETAIL_CONFIRMED] 진입 완료", telemetryManager.currentScreenContext.name)
-            AppLogger.roadmap("🔒 isHolding = true 설정 (이후 화면 요동쳐도 락 유지)", telemetryManager.currentScreenContext.name)
-            AppLogger.roadmap("🏄‍♂️ 무인 서핑 가동 (State Machine: IDLE)", telemetryManager.currentScreenContext.name)
-            AppLogger.roadmap("[Current Page: DETAIL_CONFIRMED] 확정페이지 체류 및 팝업버튼 트리거 대기", telemetryManager.currentScreenContext.name)
+            AppLogger.roadmap("🔒 [Current Page: DETAIL_CONFIRMED] 진입, isHolding=true 설정", telemetryManager.currentScreenContext.name)
+            AppLogger.roadmap("🏄‍♂️ 무인 서핑 가동 (State Machine: IDLE → 팝업버튼 트리거 대기)", telemetryManager.currentScreenContext.name)
             ensureSessionId()
             
             if (session.lastDetailOrder == null) {
@@ -546,7 +557,8 @@ class HijackService : AccessibilityService() {
                     rawText = session.accumulatedDetailText
                 ),
                 capturedAt = order.timestamp,
-                matchType = if (session.isAutoActive) "AUTO" else "MANUAL"
+                matchType = if (session.isAutoActive) "AUTO" else "MANUAL",
+                targetApp = currentTargetApp
             )
 
             // 서버 응답("KEEP", "CANCEL") 대기를 위한 데스밸리 타이머 가동
@@ -601,6 +613,7 @@ class HijackService : AccessibilityService() {
         if (!session.isAutoActive) return // 이미 풀렸으면 스킵
 
         val targetBtnStr = if (decision == "KEEP") "닫기" else "취소"
+        AppLogger.roadmap("🛡️ 관제탑 판결 수신 (Action: $decision) → '$targetBtnStr' 버튼 클릭 집행 개시", telemetryManager.currentScreenContext.name)
         AppLogger.d(TAG, "⚡ 판결 집행: 행동=$decision, 누를버튼=$targetBtnStr (버튼클릭을 시작합니다), 500ms 지연")
         
         mainHandler.postDelayed({
@@ -611,17 +624,11 @@ class HijackService : AccessibilityService() {
             }
             if (touchManager.findAndClickByText(rootNode, targetBtnStr, isStartsWith = false)) {
                 if (decision == "KEEP") {
-                    AppLogger.roadmap("[Current Page: DETAIL_CONFIRMED] 체류 상태 확인", telemetryManager.currentScreenContext.name)
-                    AppLogger.roadmap("[Current Page: LIST] 로 복귀 렌더링 완료", telemetryManager.currentScreenContext.name)
-                    AppLogger.roadmap("🔓 isHolding = false 락 해제. 다음 타겟을 향한 새로운 \"합짐 사냥\" 감시 돌입", telemetryManager.currentScreenContext.name)
-                    AppLogger.roadmap("🔄 [새로운 타겟(합짐) 사냥을 위해 PHASE 2 로 무한 루프 회귀] 🔄", telemetryManager.currentScreenContext.name)
+                    AppLogger.roadmap("✅ 판결 KEEP 집행 완료 → [Current Page: LIST] 복귀, 락 해제, 합짐 사냥 루프 회귀", telemetryManager.currentScreenContext.name)
                 } else {
-                    AppLogger.roadmap("[Current Page: DETAIL_CONFIRMED] 체류 상태 확인", telemetryManager.currentScreenContext.name)
-                    AppLogger.roadmap("[Current Page: LIST] 로 복귀 렌더링 완료", telemetryManager.currentScreenContext.name)
-                    AppLogger.roadmap("🔓 isHolding = false 락 해제 완료", telemetryManager.currentScreenContext.name)
-                    AppLogger.roadmap("🔄 [원래 하던 모드(유지된 필터)로 PHASE 2 무한 루프 회귀] 🔄", telemetryManager.currentScreenContext.name)
+                    AppLogger.roadmap("❌ 판결 CANCEL 집행 완료 → [Current Page: LIST] 복귀, 락 해제, 기존 모드 루프 회귀", telemetryManager.currentScreenContext.name)
                 }
-                AppLogger.d(TAG, "🎉 행동 완료! 타겟(\$targetBtnStr) 명중.")
+                AppLogger.d(TAG, "🎉 행동 완료! 타겟($targetBtnStr) 명중.")
             } else {
                 AppLogger.e(TAG, "❌ 대상 버튼($targetBtnStr)을 찾을 수 없음.")
                 sendEmergencyReport(EmergencyReason.BUTTON_NOT_FOUND, "판결 $decision 의 대상 $targetBtnStr 버튼 누락")
@@ -641,7 +648,8 @@ class HijackService : AccessibilityService() {
             reason = reason.value,
             screenContext = telemetryManager.currentScreenContext.value,
             screenText = extraText,
-            timestamp = nowTimestamp()
+            timestamp = nowTimestamp(),
+            targetApp = currentTargetApp
         )
         apiClient.sendEmergency(report)
     }
@@ -671,9 +679,6 @@ class HijackService : AccessibilityService() {
         if (resid) AppLogger.roadmap("✋ [Race Condition 방어] 출발지/도착지 팝업 닫힘 애니메이션 잔상 대기", telemetryManager.currentScreenContext.name)
         return resid
     }
-
-    /** 동명이동 검증용 시티필터 로드 (코드 위임) */
-    private fun loadCityFilters(): List<String> = cautionVerifier.loadCityFilters()
 
     /** 현재 ISO 타임스탬프 생성 */
     private fun nowTimestamp(): String {

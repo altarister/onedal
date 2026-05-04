@@ -44,7 +44,8 @@ data class EmergencyReport(
     val reason: String,
     val screenContext: String,
     val screenText: String,
-    val timestamp: String
+    val timestamp: String,
+    val targetApp: String = "insung"
 )
 
 // ────────────────────────────────────────────────
@@ -112,7 +113,8 @@ data class DispatchBasicRequest(
     val deviceId: String,
     val order: SimplifiedOfficeOrder,
     val capturedAt: String,
-    val matchType: String = "AUTO"
+    val matchType: String = "AUTO",
+    val targetApp: String = "insung"
 )
 
 data class DispatchDetailedRequest(
@@ -120,7 +122,8 @@ data class DispatchDetailedRequest(
     val deviceId: String,
     val order: DetailedOfficeOrder,
     val capturedAt: String,
-    val matchType: String = "AUTO"
+    val matchType: String = "AUTO",
+    val targetApp: String = "insung"
 )
 
 // ────────────────────────────────────────────────
@@ -142,7 +145,8 @@ data class ScrapPayload(
     val isHolding: Boolean = false,     // [Page/Hold 분리] 콜 처리 중 여부
     val lat: Double? = null,            // [GPS 텔레메트리] 앱폰(차량) 위도
     val lng: Double? = null,            // [GPS 텔레메트리] 앱폰(차량) 경도
-    val ackDecisionId: String? = null   // [Piggyback] 수신 확인 응답용 ID
+    val ackDecisionId: String? = null,  // [Piggyback] 수신 확인 응답용 ID
+    val targetApp: String = "insung"    // 타겟 앱 (insung, hwamul24 등)
 )
 
 // 서버 응답 (Piggyback 통신: 상태, 통계, 제어명령, 최신 필터를 구조화하여 한 번에 태워보냄)

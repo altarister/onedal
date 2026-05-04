@@ -82,6 +82,7 @@ class SessionManager {
         isWaitingForDecision = false
         cautionAction = null
         onReset?.invoke()
+        AppLogger.roadmap("🔄 세션 및 사냥 상태 완전 초기화 (새로운 타겟 대기)", "SESSION")
         AppLogger.i(TAG, "🔄 세션 상태 완전 초기화")
     }
 

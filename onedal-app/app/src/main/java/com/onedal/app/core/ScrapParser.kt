@@ -1,37 +1,25 @@
 package com.onedal.app.core
 
 import android.content.Context
-import com.onedal.app.core.AppLogger
 import com.onedal.app.models.SimplifiedOfficeOrder
+import com.onedal.app.plugins.hwamul24.Hwamul24Parser
+import com.onedal.app.plugins.insung.InsungParser
 
 /**
- * 파서 팩토리 겸 위임자(Delegator).
+ * 파서 위임자(Delegator) 및 라우터.
  *
- * HijackService 등 기존 코드에서 `ScrapParser(context)`로 생성하던 방식을
- * 건드리지 않고, 내부적으로 올바른 파서 구현체에 위임합니다.
- *
- * 기본값: NativeScrapParser (진짜 배차 앱용)
- * 테스트: MockWebScrapParser (웹뷰 가짜 콜용)
+ * 타겟 앱 이름("인성콜", "24시" 등)에 따라 적절한 파서 플러그인으로 처리를 위임합니다.
  */
-class ScrapParser(private val context: Context) : IScrapParser {
+class ScrapParser(private val context: Context, targetApp: String) : IScrapParser {
 
     companion object {
         private const val TAG = "1DAL_PARSER"
     }
 
-    // 기본값은 네이티브 파서. switchToMock() / switchToNative() 로 교체 가능.
-    private var delegate: IScrapParser = NativeScrapParser(context)
-
-    /** 웹뷰 테스트 모드로 전환 */
-    fun switchToMock() {
-        AppLogger.i(TAG, "🧪 파서 전환: MockWebScrapParser (테스트 모드)")
-        delegate = MockWebScrapParser(context)
-    }
-
-    /** 네이티브 앱 모드로 복귀 */
-    fun switchToNative() {
-        AppLogger.i(TAG, "🏭 파서 전환: NativeScrapParser (프로덕션 모드)")
-        delegate = NativeScrapParser(context)
+    private val delegate: IScrapParser = when (targetApp) {
+        "24시" -> Hwamul24Parser(context)
+        "인성콜" -> InsungParser(context)
+        else -> InsungParser(context) // 기본값
     }
 
     /** 현재 어떤 파서를 쓰고 있는지 확인 */

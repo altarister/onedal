@@ -134,13 +134,18 @@ class TelemetryManager(
             // 위치 권한 없으면 무시 (lat/lng = null로 전송)
         }
 
+        val prefs = context?.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
+        val targetApp = prefs?.getString("targetApp", "인성콜") ?: "인성콜"
+        val appCode = if (targetApp == "24시") "hwamul24" else "insung"
+
         val payload = ScrapPayload(
             deviceId = apiClient.getDeviceId(),
             data = snapshot,
             screenContext = currentScreenContext.value,  // [Safety Mode V3] 화면 상태 (물리적 페이지)
             isHolding = isHolding,                       // [Page/Hold 분리] 콜 처리 중 여부
             lat = lat,                                   // [GPS 텔레메트리] 앱폰 위도
-            lng = lng                                    // [GPS 텔레메트리] 앱폰 경도
+            lng = lng,                                   // [GPS 텔레메트리] 앱폰 경도
+            targetApp = appCode
         )
 
         val triggerStr = if (isHeartbeat) "⏱️ 타이머 생존신고" else "👀 화면 변경 감지"
@@ -148,31 +153,8 @@ class TelemetryManager(
         AppLogger.i(TAG, "🛡️ 파싱된 콜 객체의 (출발지+도착지+요금) 해시값 검사 및 디바운스(300ms) 완료. /api/scrap 전송 직전!")
         AppLogger.roadmap("[post /api/scrap request] $triggerStr 발송  deviceId: ${payload.deviceId}, (건수: ${snapshot.size})", currentScreenContext.name)
         
-        // [추가] 기사님 요청: 텔레메트리로 보내는 실제 JSON 형태를 터미널에서 구경할 수 있도록 세분화 출력
-        val previewData = if (snapshot.isEmpty()) "[]" else "[ ${snapshot.size}개의 콜... ]"
-        // AppLogger.d(TAG, "📦 [전송 페이로드] { \"deviceId\": \"${payload.deviceId}\", \"screenContext\": \"${payload.screenContext}\", \"data\": $previewData }")
-
-        // AppLogger.d(TAG, "📦 [전송 페이로드] { deviceId: ${payload.deviceId}, screenContext: ${payload.screenContext}, data: $previewData }")
-        /**
-        if (snapshot.isNotEmpty()) {
-            snapshot.forEachIndexed { index, order ->
-                val entries = mutableListOf<String>()
-                entries.add("  \"dropoff\": \"${order.dropoff}\"")
-                entries.add("  \"fare\": ${order.fare}")
-                entries.add("  \"id\": \"${order.id}\"")
-                entries.add("  \"pickup\": \"${order.pickup}\"")
-                if (order.pickupDistance != null) entries.add("  \"pickupDistance\": ${order.pickupDistance}")
-                if (order.postTime != null) entries.add("  \"postTime\": \"${order.postTime}\"")
-                if (order.rawText != null) entries.add("  \"rawText\": \"${order.rawText}\"")
-                entries.add("  \"timestamp\": \"${order.timestamp}\"")
-                entries.add("  \"type\": \"${order.type}\"")
-                if (order.vehicleType != null) entries.add("  \"vehicleType\": \"${order.vehicleType}\"")
-
-                val jsonLikeStr = "{\n${entries.joinToString(",\n")}\n}"
-                AppLogger.d(TAG, "   └─ [data][$index] 상세 정보:\n$jsonLikeStr")
-            }
-        }
-        */
+        // 페이로드 상세는 AppLogger.v (Verbose) 레벨로 확인 가능 (SHOW_VERBOSE_LOGS=true 시)
+        AppLogger.v(TAG, "📦 [전송 페이로드] deviceId=${payload.deviceId}, screen=${payload.screenContext}, holding=${payload.isHolding}, 콜=${snapshot.size}건")
 
         // [Piggyback V2] ackDecisionId는 ApiClient 내부에서 결합하므로 여기서는 전달 생략 
         apiClient.sendScrapTelemetry(
