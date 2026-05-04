@@ -180,6 +180,16 @@ fun SettingsScreen(viewModel: MainViewModel) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        // ── 테스트 가상 콜 화면 열기 ──
+        Button(onClick = {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("http://172.30.1.89:5173/inseong"))
+            context.startActivity(intent)
+        }) {
+            Text("테스트 가상 콜 화면 열기")
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         // ── 접근성 설정 열기 ──
         Button(onClick = {
             val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
