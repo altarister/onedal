@@ -7,7 +7,25 @@ export const EVENT_TYPES = {
 export type EventType = typeof EVENT_TYPES[keyof typeof EVENT_TYPES];
 export type PaymentType = '신용' | '선불' | '착불' | '카드' | '현금';
 export type BillingType = '계산서' | '인수증' | '무과세';
-export type OrderStatus = 'pending' | 'evaluating_basic' | 'evaluating_detailed' | 'confirmed' | 'completed' | 'canceled';
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 콜(Order) 통합 라이프사이클 상태 (DB 영구 저장 + 메모리 관리)
+// 모든 상태값에 ORDER_ 접두사를 붙여 다른 도메인 상태와 즉각 구분
+// 2단계(ORDER_SECURED_EVALUATING)부터 사용자 의지로 버리면 모두 패널티
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+export type OrderStatus =
+    // --- [심사 및 결재 단계] ---
+    | 'ORDER_PRE_SECURED'          // (패널티 X) 상세화면에서 검토 중 (확정 버튼 누르기 전)
+    | 'ORDER_SECURED_EVALUATING'   // (패널티 O) 확정 화면 진입, 내 콜로 등록됨, 서버 연산 중
+    | 'ORDER_AWAITING_DECISION'    // (패널티 O) 관제탑 결재 대기 (데스밸리)
+    // --- [확정 이후 단계] ---
+    | 'ORDER_CONFIRMED'            // (패널티 O) 관제탑 승인 (내 퀵)
+    | 'ORDER_PICKED_UP'            // (패널티 O) 상차 완료 (픽업지에서 서명)
+    | 'ORDER_DELIVERED'            // (패널티 O) 하차 완료 (수취인 서명)
+    | 'ORDER_COMPLETED'            // (패널티 O) 운행 완료 (정상 종료)
+    // --- [취소 및 방출 단계] ---
+    | 'ORDER_RELEASED'             // (패널티 O) 배차 방출 (확정 후 내가 포기)
+    | 'ORDER_CANCELED'             // (패널티 O) 배차 거절 (내가 능동 거절)
+    | 'ORDER_FORCE_CANCELED';      // (패널티 X) 수동태 취소 (사무실/화주가 강제 취소)
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // [계층 1] 기사 행동 상태 — 기사님이 직접 버튼을 눌러 전환
@@ -19,16 +37,16 @@ export type DriverAction =
     | 'UNLOADING'    // 하차중 (하차지에서 물건 내리는 중)
     | 'RESTING';     // 휴식중 (밥, 화장실, 일시정지)
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// [계층 2-A] 심사 중 오더 상태 (서버 메모리 전용, 아직 내 퀵이 아님)
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-export type PendingOrderPhase = 'SCREENING' | 'AWAITING_DECISION';
+// [폐기됨] PendingOrderPhase는 OrderStatus에 통합되었습니다.
+// 'SCREENING' → 'ORDER_PRE_SECURED', 'AWAITING_DECISION' → 'ORDER_AWAITING_DECISION'
+// 하위 호환을 위해 alias만 유지
+export type PendingOrderPhase = 'ORDER_PRE_SECURED' | 'ORDER_AWAITING_DECISION';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // [계층 2-B] 확정 오더 상태 (내가 책임지고 수행해야 하는 퀵)
 // 업계 표준 3단계: 배차확정 → 상차완료(서명) → 하차완료(서명)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-export type MyOrderStatus = 'CONFIRMED' | 'PICKED_UP' | 'DELIVERED' | 'completed';  // completed는 하위 호환용, 점진적으로 DELIVERED로 교체 예정
+export type MyOrderStatus = 'ORDER_CONFIRMED' | 'ORDER_PICKED_UP' | 'ORDER_DELIVERED' | 'ORDER_COMPLETED' | 'ORDER_RELEASED' | 'ORDER_CANCELED' | 'ORDER_FORCE_CANCELED';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // [계층 3] 사냥 전략 단계 — DriverAction + 확정 콜 수에서 파생
@@ -124,7 +142,7 @@ export interface OfficeOrder extends SimplifiedOfficeOrder, DetailedOfficeOrder 
 // 앱이 긁어와서 서버가 꿀/똥콜 판별 중인 임시 데이터
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 export interface PendingOrder extends OfficeOrder {
-    phase: PendingOrderPhase;         // SCREENING(서버 연산 중) | AWAITING_DECISION(관제탑 결재 대기)
+    status: OrderStatus;                  // ORDER_PRE_SECURED | ORDER_SECURED_EVALUATING | ORDER_AWAITING_DECISION
     capturedDeviceId: string;         // 이 오더를 물어온 기기 (앱폰 1호기)
     capturedAt: string;               // 낚아챈 실제 타임스탬프
     kakaoCalculatedFare?: number;     // 서버 연산 기반 가성비 단가
@@ -150,7 +168,7 @@ export interface PendingOrder extends OfficeOrder {
 // 업계 표준: 배차확정(CONFIRMED) → 상차완료(PICKED_UP) → 하차완료(DELIVERED)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 export interface MyOrder extends OfficeOrder {
-    status: MyOrderStatus;            // CONFIRMED | PICKED_UP | DELIVERED
+    status: MyOrderStatus;            // ORDER_CONFIRMED | ORDER_PICKED_UP | ORDER_DELIVERED
     capturedDeviceId: string;         // 이 오더를 물어온 기기 (앱폰 1호기)
     capturedAt: string;               // 낚아챈 실제 타임스탬프
     kakaoCalculatedFare?: number;     // 서버 연산 기반 가성비 단가
@@ -172,12 +190,10 @@ export interface MyOrder extends OfficeOrder {
     approvalReasons?: string[];       // 모든 장점/긍정 사유 배열
 }
 
-// [하위 호환] 기존 코드에서 SecuredOrder를 참조하는 곳이 많으므로 통합 interface 유지
-// PendingOrder의 phase와 MyOrder의 status를 모두 옵셔널로 가지고 있어 기존 코드가 깨지지 않음
-// TODO: 점진적으로 PendingOrder/MyOrder로 마이그레이션 후 삭제 예정
+// [통합] SecuredOrder — PendingOrder와 MyOrder를 모두 아우르는 통합 인터페이스
+// 프론트엔드(useOrderEngine, PinnedRouteCard)에서 심사 중 + 확정된 오더를 하나의 배열로 관리
 export interface SecuredOrder extends OfficeOrder {
-    status: 'evaluating_basic' | 'evaluating_detailed' | 'confirmed' | 'canceled' | 'completed' | MyOrderStatus;
-    phase?: PendingOrderPhase;        // PendingOrder 전용 (심사 중 오더에서만 사용)
+    status: OrderStatus;                  // 단일 통합 라이프사이클 상태
     capturedDeviceId: string;
     capturedAt: string;
     kakaoCalculatedFare?: number;

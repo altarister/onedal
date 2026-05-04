@@ -17,6 +17,7 @@ import { useKakaoRouting } from "../hooks/useKakaoRouting";
 export default function Dashboard() {
     const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
     const [isTestMode, setIsTestMode] = useState(false);
+    const [viewFilter, setViewFilter] = useState<'ACTIVE' | 'COMPLETED' | 'CANCELED' | 'ALL'>('ACTIVE');
 
     const {
         orders,
@@ -30,7 +31,7 @@ export default function Dashboard() {
         handleRecalculate,
     } = useOrderEngine();
 
-    const dbConfirmedOrCompleted = orders.filter(o => o.status === 'confirmed' || o.status === 'completed');
+    const dbConfirmedOrCompleted = orders.filter(o => ['ORDER_CONFIRMED', 'ORDER_COMPLETED', 'ORDER_RELEASED', 'ORDER_CANCELED', 'ORDER_FORCE_CANCELED'].includes((o as any).status || ''));
     const memoryActive = [mainCall, ...subCalls].filter(Boolean) as SecuredOrder[];
     
     // ID 기반 병합 (메모리 데이터 우선, 순서 유지)
@@ -85,6 +86,8 @@ export default function Dashboard() {
                     isTestMode={isTestMode}
                     onDecision={handleDecision} 
                     onRecalculate={handleRecalculate} 
+                    viewFilter={viewFilter}
+                    setViewFilter={setViewFilter}
                 />
             </div>
 

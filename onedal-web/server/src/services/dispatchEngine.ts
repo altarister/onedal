@@ -11,6 +11,13 @@ import { DISPATCH_CONFIG } from "../config/dispatchConfig";
 import db from "../db";
 import { incrementDeviceStats } from "../routes/devices";
 
+// ━━━ 헬퍼: 살아있는 내 퀵만 필터링 ━━━
+// 사장님 아이디어: "하나의 배열에 두고 상태값만 바꾸고 필터를 적용하면 된다"
+const TERMINAL_STATUSES = new Set(['ORDER_COMPLETED', 'ORDER_RELEASED', 'ORDER_CANCELED', 'ORDER_FORCE_CANCELED']);
+function getActiveCalls(session: { myOrders: MyOrder[] }): MyOrder[] {
+    return session.myOrders.filter(c => !TERMINAL_STATUSES.has(c.status));
+}
+
 /**
  * 장소명 정규화 (공백 및 주식회사 텍스트 제거)
  * 예: "주식회사 레드 캠프" -> "레드캠프"
@@ -99,7 +106,7 @@ export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: 
     });
     if (io) {
         console.log(`📤 [Socket 푸시] order-canceled (${orderId}) to ${userId}`);
-        io.to(userId).emit("order-canceled", orderId);
+        io.to(userId).emit("order-canceled", { id: orderId, status: 'ORDER_CANCELED' });
     }
 
     if (targetDeviceId) {
@@ -113,7 +120,7 @@ export async function recalculateActiveKakaoRoute(userId: string, io: any) {
     const session = getUserSession(userId);
 
     // 완료되지 않은 활성 콜만 추출 (On-the-fly 필터링)
-    const activeCalls = [session.mainCallState, ...session.subCalls].filter(c => c && c.status !== 'completed') as MyOrder[];
+    const activeCalls = getActiveCalls(session);
 
     if (activeCalls.length === 0) return; // 경로를 계산할 활성 콜이 없음
 
@@ -210,7 +217,7 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
         let isDetour = false;
 
         const currentOrders = Array.from(session.pendingOrdersData.values());
-        let previousOrders = [session.mainCallState, ...session.subCalls].filter(o => o && o.id !== orderId && o.status !== 'completed') as MyOrder[];
+        let previousOrders = getActiveCalls(session).filter(o => o.id !== orderId);
         if (previousOrders.length > 0) isDetour = true;
 
         const routingOptions = getKakaoRoutingOptions(userId);
@@ -237,16 +244,13 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
             const allPickups: { x: number; y: number }[] = [];
             const allDropoffs: { x: number; y: number }[] = [];
 
-            if (session.mainCallState) {
-                allPickups.push({ x: session.mainCallState.pickupX!, y: session.mainCallState.pickupY! });
-                allDropoffs.push({ x: session.mainCallState.dropoffX!, y: session.mainCallState.dropoffY! });
-            }
-            session.subCalls.forEach(c => {
+            const existingActive = getActiveCalls(session);
+            existingActive.forEach(c => {
                 if (c.pickupX && c.pickupY) allPickups.push({ x: c.pickupX, y: c.pickupY });
                 if (c.dropoffX && c.dropoffY) allDropoffs.push({ x: c.dropoffX, y: c.dropoffY });
             });
 
-            const isIncluded = session.mainCallState?.id === securedOrder.id || session.subCalls.some(c => c.id === securedOrder.id);
+            const isIncluded = existingActive.some(c => c.id === securedOrder.id);
             if (!isIncluded && securedOrder.pickupX && securedOrder.pickupY && securedOrder.dropoffX && securedOrder.dropoffY) {
                 allPickups.push({ x: securedOrder.pickupX, y: securedOrder.pickupY });
                 allDropoffs.push({ x: securedOrder.dropoffX, y: securedOrder.dropoffY });
@@ -263,11 +267,12 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
             let firstDestX = allDropoffs[0].x;
             let firstDestY = allDropoffs[0].y;
 
-            if (session.mainCallState) {
-                firstPickX = session.mainCallState.pickupX!;
-                firstPickY = session.mainCallState.pickupY!;
-                firstDestX = session.mainCallState.dropoffX!;
-                firstDestY = session.mainCallState.dropoffY!;
+            const activeMain = existingActive[0];
+            if (activeMain) {
+                firstPickX = activeMain.pickupX!;
+                firstPickY = activeMain.pickupY!;
+                firstDestX = activeMain.dropoffX!;
+                firstDestY = activeMain.dropoffY!;
             }
 
             const result = await calculateDetourRoute(
@@ -307,7 +312,7 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
         logRoadmapEvent("서버", "재탐색 결과로 폴리라인 및 소요시간 갱신 연산");
         securedOrder.kakaoTimeExt = timeExt;
 
-        if (session.mainCallState?.id === securedOrder.id || session.subCalls.some(c => c.id === securedOrder.id)) {
+        if (getActiveCalls(session).some(c => c.id === securedOrder.id)) {
             syncCorridorFilter(userId, io);
         }
 
@@ -325,17 +330,22 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
 }
 
 export const resetMainCallState = (userId: string) => {
+    // V2: myOrders에서 제거할 필요 없음. 상태 필터링으로 관리.
+    // 이 함수는 하위 호환성을 위해 유지합니다.
     const session = getUserSession(userId);
-    session.mainCallState = null;
+    // 남아있는 활성 콜이 없다면 myOrders에서 종료된 콜 정리
+    const activeCalls = getActiveCalls(session);
+    if (activeCalls.length === 0) {
+        session.myOrders = session.myOrders.filter(c => !TERMINAL_STATUSES.has(c.status));
+    }
 };
 
 export const recalculateCorridorFilter = (userId: string, corridorRadiusKm: number, destinationRadiusKm?: number) => {
     const session = getUserSession(userId);
     let polylineToUse = null;
-    if (session.subCalls.length > 0) {
-        polylineToUse = session.subCalls[session.subCalls.length - 1].routePolyline;
-    } else if (session.mainCallState) {
-        polylineToUse = session.mainCallState.routePolyline;
+    const activeCalls = getActiveCalls(session);
+    if (activeCalls.length > 0) {
+        polylineToUse = activeCalls[activeCalls.length - 1].routePolyline;
     }
 
     if (polylineToUse && polylineToUse.length > 0) {
@@ -356,7 +366,7 @@ export const syncCorridorFilter = (userId: string, io: any) => {
     let polylineToUse = null;
 
     // 완료되지 않은 활성 콜만 추출하여 최신 폴리라인을 가져옵니다.
-    const activeCalls = [session.mainCallState, ...session.subCalls].filter(c => c && c.status !== 'completed');
+    const activeCalls = getActiveCalls(session);
     if (activeCalls.length > 0) {
         polylineToUse = activeCalls[activeCalls.length - 1]?.routePolyline;
     }
@@ -377,20 +387,23 @@ export const syncCorridorFilter = (userId: string, io: any) => {
 };
 
 /** 관제사 최종 판정 처리 */
-export async function handleDecision(userId: string, orderId: string, action: 'KEEP' | 'CANCEL', io: any) {
+export async function handleDecision(userId: string, orderId: string, status: 'ORDER_CONFIRMED' | 'ORDER_CANCELED' | 'ORDER_RELEASED' | 'ORDER_FORCE_CANCELED', io: any) {
     const session = getUserSession(userId);
+
+    const isKeep = status === 'ORDER_CONFIRMED';
+    const piggybackAction = isKeep ? 'KEEP' : 'CANCEL';
 
     // [Option B] Piggyback 결재 기록: pendingDecisions에 action을 기록하면
     // 다음 1.0초 텔레메트리(/scrap) 응답에 이 결재가 태워져서 앱으로 전달됩니다.
     if (session.pendingDecisions.has(orderId)) {
         const decisionData = session.pendingDecisions.get(orderId)!;
-        decisionData.action = action;
-        if (action === 'KEEP') logRoadmapEvent("서버", "앱폰에게 Action=Keep 최종 판결 Piggyback 등록");
+        decisionData.action = piggybackAction;
+        if (isKeep) logRoadmapEvent("서버", "앱폰에게 Action=Keep 최종 판결 Piggyback 등록");
         else logRoadmapEvent("서버", "앱폰에게 Action=Cancel 최종 판결 Piggyback 등록");
-        console.log(`📦 [Piggyback V2] 관제탑 판결(${action})을 큐에 기록. 다음 텔레메트리에 태워 보냅니다. (orderId: ${orderId})`);
+        console.log(`📦 [Piggyback V2] 관제탑 판결(${piggybackAction})을 큐에 기록. 다음 텔레메트리에 태워 보냅니다. (orderId: ${orderId})`);
     } else {
         // pendingDecisions에 없는 경우 (이미 타임아웃으로 삭제되었거나, MANUAL 건)
-        if (action === 'KEEP') logRoadmapEvent("서버", "앱폰에게 Action=Keep 최종 판결 응답 전달 (즉시)");
+        if (isKeep) logRoadmapEvent("서버", "앱폰에게 Action=Keep 최종 판결 응답 전달 (즉시)");
         else logRoadmapEvent("서버", "앱폰에게 Action=Cancel 최종 판결 응답 전달 (즉시)");
         console.log(`⚠️ [Piggyback V2] pendingDecisions에 ${orderId}가 없습니다. (MANUAL 건이거나 이미 타임아웃 처리됨)`);
     }
@@ -402,27 +415,18 @@ export async function handleDecision(userId: string, orderId: string, action: 'K
 
     const targetDeviceId = session.pendingOrdersData.get(orderId)?.capturedDeviceId;
 
-    if (action === 'CANCEL' && io) {
-        logRoadmapEvent("서버", "관제탑으로 부터 Cancel 결재 요청 받음");
-        logRoadmapEvent("서버", "취소된 콜을 메모리 큐에서 삭제 처리 연산");
-        session.pendingOrdersData.delete(orderId);
+    // 삭제됨: 중복된 !isKeep 로직은 하단의 else 블록으로 통합되었습니다.
 
-        if (targetDeviceId) {
-            incrementDeviceStats(targetDeviceId, "canceled");
-            console.log(`   📈 기기(${targetDeviceId}) 취소 카운트 +1 반영 (reason: DECISION_CANCEL)`);
-        }
-    }
-
-    if (action === 'KEEP') {
+    if (isKeep) {
         logRoadmapEvent("서버", "관제탑으로 부터 Keep 결재 요청 받음");
         const cachedOrder = session.pendingOrdersData.get(orderId);
 
-        if (!cachedOrder) return { success: false, action };
+        if (!cachedOrder) return { success: false, action: status };
 
         // [V2 핵심] PendingOrder → MyOrder 승격 (심사 완료 → 내 퀵 확정)
         const confirmedOrder: MyOrder = {
             ...cachedOrder,
-            status: 'confirmed',
+            status: 'ORDER_CONFIRMED',
         };
         // phase는 PendingOrder 전용이므로 제거
         delete (confirmedOrder as any).phase;
@@ -430,22 +434,21 @@ export async function handleDecision(userId: string, orderId: string, action: 'K
         // ⭐ 핵심 수정: 승격된 객체를 하트비트 메모리맵에 덮어씌워서 롤백 현상 방지
         session.pendingOrdersData.set(orderId, confirmedOrder as any);
 
-        const isAlreadyMain = session.mainCallState?.id === orderId;
-        const isAlreadySub = session.subCalls.some(c => c.id === orderId);
+        const isAlreadyIncluded = session.myOrders.some(c => c.id === orderId);
 
-        if (!isAlreadyMain && !isAlreadySub) {
-            logRoadmapEvent("서버", "해당 콜을 '메인콜' (또는 서브콜) 로 승격 및 병합 궤적 생성 연산");
-            if (!session.mainCallState) {
-                session.mainCallState = confirmedOrder;
-            } else {
-                session.subCalls.push(confirmedOrder);
-                try {
-                    const hasApiKey = !!process.env.KAKAO_REST_API_KEY;
-                    if (hasApiKey) {
-                        const activeCalls = [session.mainCallState, ...session.subCalls].filter(c => c && c.status !== 'completed') as MyOrder[];
-                        if (activeCalls.length > 0) {
-                            const activeMain = activeCalls[0];
-                            const activeSubs = activeCalls.slice(1);
+        if (!isAlreadyIncluded) {
+            logRoadmapEvent("서버", "해당 콜을 '내 퀵(myOrders)' 배열에 추가 및 병합 궤적 생성 연산");
+            session.myOrders.push(confirmedOrder);
+            
+            try {
+                const hasApiKey = !!process.env.KAKAO_REST_API_KEY;
+                if (hasApiKey) {
+                    const activeCalls = getActiveCalls(session);
+                    if (activeCalls.length > 0) {
+                        const activeMain = activeCalls[0];
+                        const activeSubs = activeCalls.slice(1);
+                        
+                        if (activeSubs.length > 0) {
 
                             const allPickups = [
                                 { x: activeMain.pickupX!, y: activeMain.pickupY! },
@@ -474,16 +477,16 @@ export async function handleDecision(userId: string, orderId: string, action: 'K
                                 routingOptions.carType
                             );
 
-                            const lastSub = session.subCalls[session.subCalls.length - 1];
+                            const lastSub = session.myOrders[session.myOrders.length - 1];
                             lastSub.routePolyline = calcResult.merged.polyline;
                             lastSub.totalDistanceKm = calcResult.merged.distance / 1000;
                             lastSub.totalDurationMin = Math.round(calcResult.merged.duration / 60);
                             lastSub.sectionEtas = calcResult.merged.sectionEtas;
                         }
                     }
-                } catch (e) {
-                    console.error('🗺️ [사후 병합 궤적 생성 실패]', e);
                 }
+            } catch (e) {
+                console.error('🗺️ [사후 병합 궤적 생성 실패]', e);
             }
         }
 
@@ -512,7 +515,7 @@ export async function handleDecision(userId: string, orderId: string, action: 'K
                 )
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET 
-                    status = 'confirmed', 
+                    status = 'ORDER_CONFIRMED', 
                     userId = excluded.userId, 
                     capturedAt = excluded.capturedAt
             `);
@@ -647,22 +650,42 @@ export async function handleDecision(userId: string, orderId: string, action: 'K
         logRoadmapEvent("서버", "새로 부여된 합짐 필터(isSharedMode)값 메모리 세션 갱신");
         logRoadmapEvent("서버", "앱폰 및 관제탑에게 새로운 타겟팅 필터(filter-updated) 정보 전달");
     } else {
-        if (session.mainCallState?.id === orderId) {
-            session.mainCallState = null;
-        } else {
-            const subIndex = session.subCalls.findIndex(c => c.id === orderId);
-            if (subIndex > -1) {
-                session.subCalls.splice(subIndex, 1);
+        logRoadmapEvent("서버", `관제탑으로 부터 수동 취소/방출(${status}) 요청 받음`);
+        
+        // 메모리에서 완전히 지우지 않고 상태값만 갱신하여 프론트엔드 취소/방출 탭에 보존
+        const cachedOrder = session.pendingOrdersData.get(orderId);
+        if (cachedOrder) {
+            cachedOrder.status = status;
+        }
+
+        const existingOrder = session.myOrders.find(c => c.id === orderId);
+        if (existingOrder) {
+            existingOrder.status = status;
+            try {
+                // 수동 거절(ORDER_CANCELED)일지라도 DB에 저장하도록 함
+                const stmt = db.prepare("UPDATE orders SET status = ? WHERE id = ? AND userId = ?");
+                stmt.run(status, orderId, userId);
+                console.log(`✅ [상태 동기화] ${orderId} - DB 업데이트 완료 (상태: ${status})`);
+            } catch (e) {
+                console.error("DB 업데이트 에러:", e);
             }
         }
 
-        logRoadmapEvent("서버", "관제탑에게 콜이 삭제되었음(order-canceled) 정보 전달");
-        io.to(userId).emit("order-canceled", orderId);
+        if (targetDeviceId) {
+            incrementDeviceStats(targetDeviceId, "canceled");
+            console.log(`   📈 기기(${targetDeviceId}) 취소 카운트 +1 반영 (reason: DECISION_CANCEL)`);
+        }
+
+        if (io) {
+            logRoadmapEvent("서버", "관제탑에게 콜이 삭제되었음(order-canceled) 정보 전달");
+            io.to(userId).emit("order-canceled", { id: orderId, status, isManual: true });
+        }
 
         if (!session.activeFilter.isActive || session.activeFilter.isSharedMode) {
             const resetFilter: Partial<AutoDispatchFilter> = { isActive: true };
 
-            if (!session.mainCallState && session.subCalls.length === 0) {
+            const activeCalls = getActiveCalls(session);
+            if (activeCalls.length === 0) {
                 // 잡은 콜이 하나도 안 남았을 경우 → 완전히 초기화 (EMPTY)
                 resetFilter.isSharedMode = false;
                 resetFilter.dispatchPhase = 'STANDBY';
@@ -673,16 +696,17 @@ export async function handleDecision(userId: string, orderId: string, action: 'K
                 logRoadmapEvent("서버", `본콜이 유지 중이므로 현재 상태(${session.activeFilter.dispatchPhase})를 유지하며 탐색을 재개합니다.`);
             }
 
-            updateActiveFilter(userId, resetFilter, io);
-            logRoadmapEvent("서버", "앱폰 및 관제탑에게 탐색 재개(filter-updated) 정보 전달");
+            if (io) {
+                updateActiveFilter(userId, resetFilter, io);
+                logRoadmapEvent("서버", "앱폰 및 관제탑에게 탐색 재개(filter-updated) 정보 전달");
+            }
         }
-        session.pendingOrdersData.delete(orderId);
 
-        recalculateActiveKakaoRoute(userId, io);
+        await recalculateActiveKakaoRoute(userId, io);
     }
 
     console.log(`🛡️ [서버] 결재 완료(Keep/Cancel) 직후: 캐시 된 해당 오더(${orderId}) 메모리의 생명주기(TTL) 만료 및 가비지 컬렉션(GC) 삭제 처리 완료`);
-    return { success: true, action };
+    return { success: true, action: status };
 }
 
 /** [필수#1] 최초 오더 평가: 지오코딩 + 카카오 경로 연산 + 꿀/콜/똥 판정 (detail.ts에서 추출) */
@@ -793,7 +817,11 @@ export async function evaluateNewOrder(userId: string, securedOrder: SecuredOrde
             if (securedOrder.pickupX && securedOrder.dropoffY) {
                 const routingOptions = getKakaoRoutingOptions(userId);
 
-                if (!session.mainCallState) {
+                const activeCalls = getActiveCalls(session);
+                const activeMain = activeCalls[0];
+                const activeSubs = activeCalls.slice(1);
+
+                if (!activeMain) {
                     // 첫짐: 단독 주행 연산
                     logRoadmapEvent("서버", "시간/통행료를 바탕으로 콜의 실수익률(기회비용) 연산");
                     console.log(`   - 💡 상태: [첫짐] 단독 주행 연산`);
@@ -831,11 +859,11 @@ export async function evaluateNewOrder(userId: string, securedOrder: SecuredOrde
                     console.log(`   - ⏱️ 결과: ${timeExt} (현위치접근: ${appDist}km, ${appTime}분)`);
                     console.log(`   - 🗺️ 궤적 길이 (Solo): ${securedOrder.routePolyline?.length || '없음'}`);
 
-                } else if (session.mainCallState.pickupX && session.mainCallState.dropoffY) {
+                } else if (activeMain.pickupX && activeMain.dropoffY) {
                     // 합짐: 우회 동선 연산
                     logRoadmapEvent("서버", "기존 직진 시 대비 추가 소모 시간(+15분) 및 거리(+6km) 패널티 산출");
                     console.log(`   - 💡 상태: [합짐] 우회 동선 연산`);
-                    console.log(`   - 기존 본콜: ${session.mainCallState.pickup} ➡️ ${session.mainCallState.dropoff}`);
+                    console.log(`   - 기존 본콜: ${activeMain.pickup} ➡️ ${activeMain.dropoff}`);
                     console.log(`   - 추가 경유: ${securedOrder.pickup} ➡️ ${securedOrder.dropoff}`);
 
                     // 단일 콜 값 (추가 API 호출 방지 및 쿼터 절약을 위해 안드로이드에서 파싱한 거리값 재활용)
@@ -863,13 +891,13 @@ export async function evaluateNewOrder(userId: string, securedOrder: SecuredOrde
                     }
 
                     const allPickups = [
-                        { x: session.mainCallState.pickupX!, y: session.mainCallState.pickupY! },
-                        ...session.subCalls.map(c => ({ x: c.pickupX!, y: c.pickupY! })),
+                        { x: activeMain.pickupX!, y: activeMain.pickupY! },
+                        ...activeSubs.map(c => ({ x: c.pickupX!, y: c.pickupY! })),
                         { x: securedOrder.pickupX, y: securedOrder.pickupY! }
                     ];
                     const allDropoffs = [
-                        { x: session.mainCallState.dropoffX!, y: session.mainCallState.dropoffY! },
-                        ...session.subCalls.map(c => ({ x: c.dropoffX!, y: c.dropoffY! })),
+                        { x: activeMain.dropoffX!, y: activeMain.dropoffY! },
+                        ...activeSubs.map(c => ({ x: c.dropoffX!, y: c.dropoffY! })),
                         { x: securedOrder.dropoffX!, y: securedOrder.dropoffY }
                     ];
 
@@ -880,8 +908,8 @@ export async function evaluateNewOrder(userId: string, securedOrder: SecuredOrde
                     const waypoints = [...sortedPickups, ...sortedDropoffs];
 
                     const result = await calculateDetourRoute(
-                        session.mainCallState.dropoffX!, session.mainCallState.dropoffY!,
-                        session.mainCallState.pickupX!, session.mainCallState.pickupY!,
+                        activeMain.dropoffX!, activeMain.dropoffY!,
+                        activeMain.pickupX!, activeMain.pickupY!,
                         mergedDest.x, mergedDest.y,
                         waypoints,
                         session.driverLocation,
@@ -988,8 +1016,12 @@ export async function evaluateNewOrder(userId: string, securedOrder: SecuredOrde
         console.log(`   - 👍 [장점 수집] (${pros.length}건): ${pros.join(' | ')}`);
     }
 
+    // [Fix] 서버 연산이 끝났으므로, 메모리의 상태를 '관제탑 결재 대기(데스밸리)' 상태로 승급시킵니다.
+    // DB 업데이트는 I/O 낭비이므로 진행하지 않으며, 오직 메모리(session.pendingOrdersData)만 변경합니다.
+    securedOrder.status = 'ORDER_AWAITING_DECISION';
+
     if (io) {
-        console.log(`📤 [Socket 푸시] order-evaluated (${securedOrder.id})`);
+        console.log(`📤 [Socket 푸시] order-evaluated (${securedOrder.id}) - 상태 승급: ORDER_AWAITING_DECISION`);
         io.to(userId).emit("order-evaluated", securedOrder);
 
         if (timeExt.includes("실패")) {
@@ -1024,7 +1056,7 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
             LEFT JOIN places pPlace ON pStop.placeId = pPlace.id
             LEFT JOIN orderStops dStop ON dStop.orderId = o.id AND dStop.stopType = 'dropoff'
             LEFT JOIN places dPlace ON dStop.placeId = dPlace.id
-            WHERE o.userId = ? AND o.status = 'confirmed' AND o.timestamp >= ?
+            WHERE o.userId = ? AND o.status IN ('ORDER_CONFIRMED', 'ORDER_COMPLETED', 'ORDER_RELEASED', 'ORDER_CANCELED', 'ORDER_FORCE_CANCELED') AND o.timestamp >= ?
             ORDER BY o.timestamp ASC
         `).all(userId, todayStart.toISOString()) as any[];
 
@@ -1063,34 +1095,35 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
             session.pendingOrdersData.set(order.id, order as any);
         }
 
-        const activeCalls = Array.from(session.pendingOrdersData.values()) as MyOrder[];
-        session.mainCallState = activeCalls[0];
-        session.subCalls = activeCalls.slice(1);
+        const allLoaded = Array.from(session.pendingOrdersData.values()) as MyOrder[];
+        session.myOrders = allLoaded;
 
+        // 카카오 궤적 복원 연산 시에는 진행 중인(취소/방출/완료가 아닌) 콜만 필터링하여 사용
         const routingOptions = getKakaoRoutingOptions(userId);
+        const activeCalls = getActiveCalls(session);
+        const activeMain = activeCalls[0];
+        const activeSubs = activeCalls.slice(1);
 
         // 3. 본콜 카카오 궤적 1회 복구
-        if (session.mainCallState && session.mainCallState.pickupX && session.mainCallState.dropoffX) {
+        if (activeMain && activeMain.pickupX && activeMain.dropoffX) {
             try {
                 const res = await calculateSoloRoute(
-                    session.mainCallState.pickupX, session.mainCallState.pickupY!,
-                    session.mainCallState.dropoffX, session.mainCallState.dropoffY!,
+                    activeMain.pickupX, activeMain.pickupY!,
+                    activeMain.dropoffX, activeMain.dropoffY!,
                     session.driverLocation,
                     routingOptions.defaultPriority,
                     routingOptions.carType
                 );
-                session.mainCallState.routePolyline = res.polyline;
-                session.mainCallState.sectionEtas = res.sectionEtas;
+                activeMain.routePolyline = res.polyline;
+                activeMain.sectionEtas = res.sectionEtas;
             } catch(e) {
                 console.error('🗺️ [본콜 복구 연산 실패]', e);
             }
         }
 
         // 4. 합짐(서브콜) 카카오 궤적 1회 복구
-        if (session.subCalls.length > 0 && session.mainCallState) {
+        if (activeSubs.length > 0 && activeMain) {
             try {
-                const activeMain = session.mainCallState;
-                const activeSubs = session.subCalls;
                 const allPickups = [
                     { x: activeMain.pickupX!, y: activeMain.pickupY! },
                     ...activeSubs.map(c => ({ x: c.pickupX!, y: c.pickupY! }))
@@ -1114,7 +1147,7 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
                     routingOptions.carType
                 );
 
-                const lastSub = session.subCalls[session.subCalls.length - 1];
+                const lastSub = session.myOrders[session.myOrders.length - 1];
                 lastSub.routePolyline = calcResult.merged.polyline;
                 lastSub.sectionEtas = calcResult.merged.sectionEtas;
             } catch(e) {

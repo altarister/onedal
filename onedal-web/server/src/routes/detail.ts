@@ -43,7 +43,7 @@ router.post("/", async (req, res) => {
 
         let pendingOrder: PendingOrder = {
             ...payload.order,
-            phase: 'AWAITING_DECISION',
+            status: 'ORDER_SECURED_EVALUATING' as any,
             capturedDeviceId: payload.deviceId,
             capturedAt: payload.capturedAt || new Date().toISOString()
         };
@@ -90,12 +90,8 @@ router.post("/", async (req, res) => {
         }
 
         let matchedId: string | null = null;
-        if (session.mainCallState && checkMatch(session.mainCallState)) {
-            matchedId = session.mainCallState.id;
-        } else {
-            const subMatch = session.subCalls.find(checkMatch);
-            if (subMatch) matchedId = subMatch.id;
-        }
+        const existingMatch = session.myOrders.find(checkMatch);
+        if (existingMatch) matchedId = existingMatch.id;
 
         if (matchedId) {
             console.log(`🔄 [동기화] 기존 확정 콜(ID: ${matchedId})의 재열람 인지. 진짜 ID 반환.`);
@@ -106,7 +102,7 @@ router.post("/", async (req, res) => {
         for (const order of session.pendingOrdersData.values()) {
             if (order.capturedDeviceId !== payload.deviceId) {
                 console.log(`🔒 [Lock] ${order.capturedDeviceId} 기기가 이미 평가중.`);
-                if (io) io.to(userId).emit("order-canceled", payload.order.id);
+                if (io) io.to(userId).emit("order-canceled", { id: payload.order.id, status: 'ORDER_CANCELED' });
                 return res.json({ deviceId: 'server', action: 'CANCEL' });
             }
         }
@@ -137,7 +133,7 @@ router.post("/", async (req, res) => {
             // 수동 배차 건도 pendingDecisions 큐에 KEEP 상태로 등록해줍니다.
             session.pendingDecisions.set(payload.order.id, { action: 'KEEP', evaluatedAt: Date.now() });
 
-            await handleDecision(userId, pendingOrder.id, "KEEP", io);
+            await handleDecision(userId, pendingOrder.id, "ORDER_CONFIRMED", io);
             return res.json({ deviceId: 'server', action: 'ACK' });
         }
 
@@ -184,7 +180,7 @@ router.post("/", async (req, res) => {
                 }
 
                 if (io) {
-                    io.to(userId).emit("order-canceled", payload.order.id);
+                    io.to(userId).emit("order-canceled", { id: payload.order.id, status: 'ORDER_CANCELED' });
                 }
             }
         }, DISPATCH_CONFIG.WAITING_TIMEOUT_MS);

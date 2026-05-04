@@ -13,7 +13,7 @@ export default function Settlement() {
     }, []);
 
     const totalCalls = orders.length;
-    const confirmedCalls = orders.filter((o) => o.status === "confirmed").length;
+    const confirmedCalls = orders.filter((o) => o.status === "ORDER_CONFIRMED").length;
 
     return (
         <main className="p-4">
@@ -46,7 +46,7 @@ export default function Settlement() {
                     {[...orders].reverse().map((order) => {
                         const date = new Date(order.timestamp);
                         const timeStr = `${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
-                        const isConfirmed = order.status === "confirmed";
+                        const isConfirmed = order.status === "ORDER_CONFIRMED";
 
                         return (
                             <div

@@ -151,7 +151,7 @@ db.exec(`
     CREATE TABLE IF NOT EXISTS orders (
         id                    TEXT PRIMARY KEY,
         type                  TEXT NOT NULL DEFAULT 'NEW_ORDER',
-        status                TEXT NOT NULL DEFAULT 'pending',
+        status                TEXT NOT NULL DEFAULT 'ORDER_PRE_SECURED',
         userId                TEXT REFERENCES users(id),
         capturedDeviceId      TEXT,
         capturedAt            TEXT,
@@ -230,6 +230,25 @@ db.exec(`
     CREATE INDEX IF NOT EXISTS idx_orderStops_placeId ON orderStops(placeId);
 `);
 
+// ═══════════════════════════════════════
+// [6.5] ORDER_ 라이프사이클 마이그레이션 (V7)
+// 기존 소문자 레거시 status 값을 새 ORDER_XXX 규격으로 일괄 변환
+// ═══════════════════════════════════════
+try {
+    const legacyCheck = db.prepare("SELECT COUNT(*) as cnt FROM orders WHERE status IN ('pending', 'confirmed', 'completed', 'canceled', 'evaluating_basic', 'evaluating_detailed')").get() as { cnt: number };
+    if (legacyCheck && legacyCheck.cnt > 0) {
+        db.exec(`
+            UPDATE orders SET status = 'ORDER_CONFIRMED'           WHERE status = 'confirmed';
+            UPDATE orders SET status = 'ORDER_COMPLETED'           WHERE status = 'completed';
+            UPDATE orders SET status = 'ORDER_CANCELED'            WHERE status = 'canceled';
+            UPDATE orders SET status = 'ORDER_PRE_SECURED'         WHERE status IN ('pending', 'evaluating_basic');
+            UPDATE orders SET status = 'ORDER_SECURED_EVALUATING'  WHERE status = 'evaluating_detailed';
+        `);
+        console.log(`🛠️ [DB Migration V7] 레거시 status 값 ${legacyCheck.cnt}건을 ORDER_XXX 규격으로 일괄 변환 완료`);
+    }
+} catch (e) {
+    // 마이그레이션 실패 시 무시 (테이블이 아직 없는 경우 등)
+}
 // ═══════════════════════════════════════
 // [7] (기존 레거시) 스캐너가 버린 데이터
 // ═══════════════════════════════════════

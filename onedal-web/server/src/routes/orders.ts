@@ -12,7 +12,7 @@
 
 import { Router } from "express";
 import crypto from "crypto";
-import type { SimplifiedOfficeOrder, DispatchConfirmRequest, PendingOrder } from "@onedal/shared";
+import type { SimplifiedOfficeOrder, DispatchConfirmRequest, PendingOrder, OrderStatus } from "@onedal/shared";
 import db from "../db";
 import { getUserSession } from "../state/userSessionStore";
 import { forceCancelEvaluatingOrder, handleDecision } from "../services/dispatchEngine";
@@ -45,7 +45,7 @@ router.post("/", (req, res) => {
             dropoff,
             fare: fare || 0,
             timestamp: timestamp || now,
-            status: "pending",
+            status: "ORDER_PRE_SECURED",
             capturedAt: req.body.capturedAt || now,
         };
 
@@ -98,7 +98,7 @@ router.get("/", requireAuth, (req, res) => {
         const todayStart = new Date();
         todayStart.setHours(0, 0, 0, 0);
 
-        const stmt = db.prepare("SELECT * FROM orders WHERE userId = ? AND status IN ('confirmed', 'completed') AND timestamp >= ? ORDER BY timestamp ASC");
+        const stmt = db.prepare("SELECT * FROM orders WHERE userId = ? AND status IN ('ORDER_CONFIRMED', 'ORDER_COMPLETED') AND timestamp >= ? ORDER BY timestamp ASC");
         const rows = stmt.all(userId, todayStart.toISOString());
 
         res.json({ orders: rows });
@@ -153,7 +153,7 @@ router.post("/confirm", (req, res) => {
 
         const pendingOrder: PendingOrder = {
             ...payload.order,
-            phase: 'SCREENING',
+            status: 'ORDER_PRE_SECURED' as OrderStatus,
             capturedDeviceId: payload.deviceId,
             capturedAt: payload.capturedAt || new Date().toISOString()
         };
@@ -178,9 +178,9 @@ router.post("/confirm", (req, res) => {
                 logRoadmapEvent("서버", "데스밸리 15초 카운트다운 타이머 감시 연산");
                 setTimeout(() => {
                     const cached = session.pendingOrdersData.get(pendingOrder.id);
-                    if (cached && cached.phase === 'SCREENING') {
-                         console.log(`💀 [서버 데스밸리 타이머] 30초 경과 강제 취소 (ID: ${pendingOrder.id}).`);
-                         handleDecision(userId, pendingOrder.id, "CANCEL", io);
+                    if (cached && ['ORDER_PRE_SECURED', 'ORDER_SECURED_EVALUATING', 'ORDER_AWAITING_DECISION'].includes(cached.status)) {
+                         console.log(`💀 [서버 데스밸리 타이머] 30초 경과 강제 취소 (ID: ${pendingOrder.id}). 현재 상태: ${cached.status}`);
+                         handleDecision(userId, pendingOrder.id, "ORDER_CANCELED", io);
                     }
                 }, 30000);
             }
@@ -211,7 +211,8 @@ router.post("/decision", async (req, res) => {
         }
         const userId = deviceRow.user_id;
         
-        const result = await handleDecision(userId, payload.orderId, payload.action, io);
+        const mappedStatus = payload.action === 'KEEP' ? 'ORDER_CONFIRMED' : 'ORDER_CANCELED';
+        const result = await handleDecision(userId, payload.orderId, mappedStatus, io);
         res.json(result);
     } catch (error) {
         console.error("Decision POST 에러:", error);

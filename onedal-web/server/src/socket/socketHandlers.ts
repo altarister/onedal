@@ -123,8 +123,8 @@ export function registerSocketHandlers(io: Server) {
         });
 
         // 배차 심사 수락/거절
-        socket.on("decision", async ({ orderId, action }: { orderId: string, action: 'KEEP' | 'CANCEL' }) => {
-            console.log(`⚖️ [소켓 Decision] User: ${userId}, ID: ${orderId}, Action: ${action}`);
+        socket.on("decision", async ({ orderId, action }: { orderId: string, action: 'ORDER_CONFIRMED' | 'ORDER_CANCELED' | 'ORDER_RELEASED' | 'ORDER_FORCE_CANCELED' }) => {
+            console.log(`⚖️ [소켓 Decision] User: ${userId}, ID: ${orderId}, Status Action: ${action}`);
             const result = await handleDecision(userId, orderId, action, io);
             socket.emit("decision-ack", result);
         });
@@ -141,21 +141,16 @@ export function registerSocketHandlers(io: Server) {
             const session = getUserSession(userId);
             let updated = false;
 
-            if (session.mainCallState && session.mainCallState.id === data.orderId) {
-                session.mainCallState.status = 'completed';
+            const existingOrder = session.myOrders.find(c => c.id === data.orderId);
+            if (existingOrder) {
+                existingOrder.status = 'ORDER_COMPLETED';
                 updated = true;
-            } else {
-                const subCall = session.subCalls.find(c => c.id === data.orderId);
-                if (subCall) {
-                    subCall.status = 'completed';
-                    updated = true;
-                }
             }
 
             if (updated) {
                 // DB 영구 업데이트
                 try {
-                    const stmt = db.prepare("UPDATE orders SET status = 'completed', completedAt = datetime('now', 'localtime') WHERE id = ? AND userId = ?");
+                    const stmt = db.prepare("UPDATE orders SET status = 'ORDER_COMPLETED', completedAt = datetime('now', 'localtime') WHERE id = ? AND userId = ?");
                     stmt.run(data.orderId, userId);
                     console.log(`✅ [운행 완료] ${data.orderId} - DB 업데이트 완료 (completedAt 갱신)`);
                 } catch (e) {
@@ -163,7 +158,7 @@ export function registerSocketHandlers(io: Server) {
                 }
 
                 // [수정됨] 완료된 오더를 하트비트 싱크 풀(pendingOrdersData)에서 강제 삭제하지 않습니다.
-                // 프론트엔드의 PinnedRoute에서 status === 'completed'인 카드를 회색으로 렌더링하도록 유지해야 합니다.
+                // 프론트엔드의 PinnedRoute에서 status === 'ORDER_COMPLETED'인 카드를 필터링으로 처리합니다.
                 // stale polyline 이슈는 dispatchEngine 내부의 activeCalls 필터링 로직으로 이미 해결되었습니다.
 
                 // 경로 재계산 (완료된 짐 제외한 On-the-fly 라우팅)
@@ -184,21 +179,25 @@ export function registerSocketHandlers(io: Server) {
                 console.log(`🎯 [투-트랙] 사냥 모드 전환 시작 (userId: ${userId})`);
 
                 // 1. 기존 활성 콜 전부 completed 처리 (메모리 + DB)
-                const allCalls = [session.mainCallState, ...session.subCalls].filter(c => c && c.status !== 'completed');
+                // TERMINAL_STATUSES 중복 정의를 피하기 위해 풀어서 명시
+                const allCalls = session.myOrders.filter(c => 
+                    c.status !== 'ORDER_COMPLETED' && 
+                    c.status !== 'ORDER_RELEASED' && 
+                    c.status !== 'ORDER_CANCELED' && 
+                    c.status !== 'ORDER_FORCE_CANCELED'
+                );
                 for (const call of allCalls) {
                     if (!call) continue;
-                    call.status = 'completed';
+                    call.status = 'ORDER_COMPLETED';
                     try {
-                        db.prepare("UPDATE orders SET status = 'completed', completedAt = datetime('now', 'localtime') WHERE id = ? AND userId = ?").run(call.id, userId);
+                        db.prepare("UPDATE orders SET status = 'ORDER_COMPLETED', completedAt = datetime('now', 'localtime') WHERE id = ? AND userId = ?").run(call.id, userId);
                         console.log(`   ✅ [투-트랙] 기존 콜 완료 처리: ${call.id} (${call.pickup} → ${call.dropoff})`);
                     } catch (e) {
                         console.error(`   ⚠️ [투-트랙] DB 업데이트 실패:`, e);
                     }
                 }
 
-                // 2. 세션 메모리 초기화
-                session.mainCallState = null;
-                session.subCalls = [];
+                // 2. 세션 메모리 초기화 (v2: myOrders는 상태 필터링 기반이므로 별도 초기화 불필요)
 
                 // 3. 집 주소에서 키워드 추출
                 const settings = db.prepare("SELECT home_address FROM user_settings WHERE user_id = ?").get(userId) as any;
@@ -285,7 +284,7 @@ export function registerSocketHandlers(io: Server) {
                     pickupX, pickupY,
                     dropoffX: settings.home_x,
                     dropoffY: settings.home_y,
-                    status: 'confirmed' as const,
+                    status: 'ORDER_CONFIRMED' as const,
                     capturedDeviceId: 'control-tower',
                     capturedAt: new Date().toISOString(),
                     timestamp: new Date().toISOString(),
@@ -305,15 +304,8 @@ export function registerSocketHandlers(io: Server) {
                     tollFare: '0',
                 };
 
-                // 기존 활성 콜 확인 (On-the-fly 필터)
-                const activeCalls = [session.mainCallState, ...session.subCalls].filter(c => c && c.status !== 'completed');
-                
-                if (activeCalls.length === 0) {
-                    session.mainCallState = homeOrder as any;
-                    session.subCalls = [];
-                } else {
-                    session.subCalls.push(homeOrder as any);
-                }
+                // 기존 활성 콜 확인 및 추가 (On-the-fly 필터는 evaluateNewOrder 등에서 알아서 처리)
+                session.myOrders.push(homeOrder as any);
 
                 // 카카오 경로 연산 (evaluateNewOrder 호출 시 목적지 반경도 고려될 수 있음)
                 const { evaluateNewOrder } = await import("../services/dispatchEngine");

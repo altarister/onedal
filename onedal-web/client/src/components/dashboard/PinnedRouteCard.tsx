@@ -12,7 +12,7 @@ interface Props {
     route: SecuredOrder;
     isExpanded: boolean;
     onToggle: (id: string) => void;
-    onDecision?: (id: string, action: 'KEEP' | 'CANCEL') => void;
+    onDecision?: (id: string, action: 'ORDER_CONFIRMED' | 'ORDER_CANCELED' | 'ORDER_RELEASED' | 'ORDER_FORCE_CANCELED') => void;
     processingId: string | null;
     setProcessingId: (id: string | null) => void;
     etaMap: Map<string, { pickupEta?: string, dropoffEta?: string }>;
@@ -28,10 +28,9 @@ export default function PinnedRouteCard({
     processingId,
     setProcessingId,
     etaMap,
-    visitOrderMap,
-    indexNum
+    visitOrderMap
 }: Props) {
-    const isEvaluating = !!route.phase || !!route.status?.includes('evaluating');
+    const isEvaluating = route.status === 'ORDER_PRE_SECURED' || route.status === 'ORDER_SECURED_EVALUATING' || route.status === 'ORDER_AWAITING_DECISION';
     const etas = etaMap.get(route.id);
     const visitOrder = visitOrderMap.get(route.id);
 
@@ -41,7 +40,7 @@ export default function PinnedRouteCard({
 
     useEffect(() => {
         // 평가 중이 아닐 때는 카운터 초기화
-        if (!route.phase && !route.status?.includes('evaluating')) {
+        if (route.status !== 'ORDER_PRE_SECURED' && route.status !== 'ORDER_SECURED_EVALUATING' && route.status !== 'ORDER_AWAITING_DECISION') {
             setTelemetryCount(0);
             return;
         }
@@ -59,7 +58,7 @@ export default function PinnedRouteCard({
         return () => {
             socket.off("telemetry-ping", handleTelemetryPing);
         };
-    }, [route.id, route.status, route.phase]);
+    }, [route.id, route.status]);
 
     const pLabel = visitOrder?.pickupIdx || '?';
     const dLabel = visitOrder?.dropoffIdx || '?';
@@ -68,8 +67,8 @@ export default function PinnedRouteCard({
     const separatorText = minuteDiff !== null ? `-${minuteDiff}분-` : '-';
 
     return (
-        <Card className={`flex flex-col relative overflow-hidden transition-all duration-300 shadow-md ${isEvaluating ? 'ring-1 ring-amber-500/50' : 'hover:border-border-hover'} bg-card text-card-foreground border-border ${route.status === 'completed' ? 'opacity-50 grayscale' : ''}`}>
-            {(route.status === 'evaluating_detailed' || route.phase === 'AWAITING_DECISION') && (
+        <Card className={`flex flex-col relative overflow-hidden transition-all duration-300 shadow-md ${isEvaluating ? 'ring-1 ring-amber-500/50' : 'hover:border-border-hover'} bg-card text-card-foreground border-border ${['ORDER_COMPLETED', 'ORDER_RELEASED', 'ORDER_CANCELED', 'ORDER_FORCE_CANCELED'].includes(route.status || '') ? 'opacity-50 grayscale' : ''}`}>
+            {(route.status === 'ORDER_SECURED_EVALUATING' || route.status === 'ORDER_AWAITING_DECISION') && (
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-500/5 to-transparent -translate-x-full animate-[shimmer_2s_infinite] pointer-events-none" />
             )}
 
@@ -94,20 +93,29 @@ export default function PinnedRouteCard({
                     <span className="ml-3 font-medium text-[10px] truncate mt-0.5 flex items-center gap-1 flex-[2]">
                         <span>{route.fare > 0 ? `${(route.fare / 10000).toFixed(1)}만` : '금액미상'}</span>
                         <span className="text-muted-foreground">,</span>
-                        <span>{!!route.phase || route.status?.includes('evaluating') ? '계산중' : route.distanceKm ? `${route.distanceKm}Km` : '미상'}</span>
+                        <span>{isEvaluating ? '계산중' : route.distanceKm ? `${route.distanceKm}Km` : '미상'}</span>
                         <span className="text-muted-foreground">,</span>
                         <span>{route.vehicleType?.substring(0, 1) || '차'}</span>
                     </span>
                 </div>
 
                 {isEvaluating && (
-                    <Badge className={`text-[10px] font-black px-1.5 py-0 animate-pulse flex-shrink-0 ml-2 rounded ${route.status === 'evaluating_basic' || route.phase === 'SCREENING' ? 'bg-rose-500/20 text-rose-500 hover:bg-rose-500/20' : 'bg-amber-500/20 text-amber-500 hover:bg-amber-500/20'}`}>평가중</Badge>
+                    <Badge className={`text-[10px] font-black px-1.5 py-0 animate-pulse flex-shrink-0 ml-2 rounded ${route.status === 'ORDER_PRE_SECURED' ? 'bg-rose-500/20 text-rose-500 hover:bg-rose-500/20' : 'bg-amber-500/20 text-amber-500 hover:bg-amber-500/20'}`}>평가중</Badge>
                 )}
-                {!isEvaluating && route.type === 'MANUAL' && route.status !== 'completed' && (
+                {!isEvaluating && route.type === 'MANUAL' && route.status !== 'ORDER_COMPLETED' && (
                     <Badge variant="outline" className="text-[10px] font-black px-1.5 py-0 bg-blue-500/10 border-blue-500/30 text-blue-400 flex-shrink-0 ml-2 shadow-sm rounded">수동 배차</Badge>
                 )}
-                {route.status === 'completed' && (
+                {route.status === 'ORDER_COMPLETED' && (
                     <Badge variant="outline" className="text-[10px] font-black px-1.5 py-0 bg-slate-500/10 border-slate-500/30 text-slate-500 flex-shrink-0 ml-2 shadow-sm rounded">운행 완료</Badge>
+                )}
+                {['ORDER_RELEASED'].includes(route.status || '') && (
+                    <Badge variant="outline" className="text-[10px] font-black px-1.5 py-0 bg-orange-500/10 border-orange-500/30 text-orange-500 flex-shrink-0 ml-2 shadow-sm rounded">방출됨</Badge>
+                )}
+                {['ORDER_CANCELED'].includes(route.status || '') && (
+                    <Badge variant="outline" className="text-[10px] font-black px-1.5 py-0 bg-red-500/10 border-red-500/30 text-red-500 flex-shrink-0 ml-2 shadow-sm rounded">거절됨</Badge>
+                )}
+                {['ORDER_FORCE_CANCELED'].includes(route.status || '') && (
+                    <Badge variant="outline" className="text-[10px] font-black px-1.5 py-0 bg-rose-700/10 border-rose-700/30 text-rose-700 flex-shrink-0 ml-2 shadow-sm rounded">사무실 취소</Badge>
                 )}
             </div>
 
@@ -115,16 +123,16 @@ export default function PinnedRouteCard({
             {isExpanded && (
                 <div className="px-3 pb-4 pt-2 text-sm border-t border-border bg-card">
 
-                    {route.type !== 'MANUAL' && (!!route.phase || route.status === 'evaluating_basic' || route.status === 'evaluating_detailed') && onDecision && (
+                    {route.type !== 'MANUAL' && isEvaluating && onDecision && (
                         <>
                             <div className="mt-1 flex gap-3">
                                 <Button 
                                     variant="destructive"
                                     disabled={processingId === route.id} 
-                                    onClick={(e: React.MouseEvent) => { e.stopPropagation(); logRoadmapEvent("웹", "PinnedRoute에서 CANCEL(취소) 또는 X 버튼 클릭"); logRoadmapEvent("웹", "서버에게 decision=CANCEL 하달 정보 전달"); setProcessingId(route.id); onDecision(route.id, 'CANCEL'); }} 
+                                    onClick={(e: React.MouseEvent) => { e.stopPropagation(); logRoadmapEvent("웹", "PinnedRoute에서 CANCEL(취소) 또는 X 버튼 클릭"); logRoadmapEvent("웹", "서버에게 decision=CANCEL 하달 정보 전달"); setProcessingId(route.id); onDecision(route.id, 'ORDER_CANCELED'); }} 
                                     className={`flex-1 h-auto py-2.5 flex-col items-center justify-center overflow-hidden px-1 ${processingId === route.id ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 >
-                                    <span className="text-base font-black tracking-tight">{processingId === route.id ? '처리 중...' : '방출'}</span>
+                                    <span className="text-base font-black tracking-tight">{processingId === route.id ? '처리 중...' : '거절 (취소)'}</span>
                                     {!processingId && route.rejectionReasons && route.rejectionReasons.length > 0 && (
                                         <span className="text-[10px] font-medium opacity-90 mt-0.5 tracking-tight leading-snug break-all line-clamp-2">
                                             ❌ {route.rejectionReasons.join(', ')}
@@ -149,7 +157,7 @@ export default function PinnedRouteCard({
                                     return (
                                         <Button 
                                             disabled={processingId === route.id} 
-                                            onClick={(e: React.MouseEvent) => { e.stopPropagation(); logRoadmapEvent("웹", `PinnedRoute에서 KEEP(${btnTitle}) 버튼 클릭`); logRoadmapEvent("웹", "서버에게 decision=KEEP 하달 정보 전달"); setProcessingId(route.id); onDecision(route.id, 'KEEP'); }} 
+                                            onClick={(e: React.MouseEvent) => { e.stopPropagation(); logRoadmapEvent("웹", `PinnedRoute에서 KEEP(${btnTitle}) 버튼 클릭`); logRoadmapEvent("웹", "서버에게 decision=KEEP 하달 정보 전달"); setProcessingId(route.id); onDecision(route.id, 'ORDER_CONFIRMED'); }} 
                                             className={`flex-[2] h-auto py-2.5 text-white flex-col items-center justify-center transition-all ${btnBg} ${processingId === route.id ? 'opacity-50 cursor-not-allowed' : ''} overflow-hidden px-1`}
                                         >
                                             <span className="text-[11px] font-medium opacity-100 tracking-tight leading-snug break-all line-clamp-1">{cleanReason}</span>
@@ -168,7 +176,7 @@ export default function PinnedRouteCard({
                             </div>
 
                             {/* 텔레메트리 진행 상태 바 (30초 만기) */}
-                            {(route.status === 'evaluating_detailed' || route.phase === 'AWAITING_DECISION') && (() => {
+                            {(route.status === 'ORDER_SECURED_EVALUATING' || route.status === 'ORDER_AWAITING_DECISION') && (() => {
                                 const isDanger = telemetryCount >= 25;
                                 const isWarning = telemetryCount >= 20 && telemetryCount < 25;
                                 const barColor = isDanger ? 'bg-rose-500/20' : isWarning ? 'bg-amber-500/20' : 'bg-emerald-500/20';
@@ -325,7 +333,7 @@ export default function PinnedRouteCard({
                     </div>
 
                     {/* 평가 상태 액션 버튼 */}
-                    {route.status === 'confirmed' && onDecision && (
+                    {route.status === 'ORDER_CONFIRMED' && onDecision && (
                         <div className="mt-4 flex gap-3">
                             <Button
                                 variant="outline"
@@ -341,14 +349,24 @@ export default function PinnedRouteCard({
                             >
                                 {processingId === route.id ? '완료 처리 중...' : '✅ 운행 완료'}
                             </Button>
-                            <Button
-                                variant="destructive"
-                                disabled={processingId === route.id}
-                                onClick={(e: React.MouseEvent) => { e.stopPropagation(); setProcessingId(route.id); onDecision(route.id, 'CANCEL'); }}
-                                className="flex-1 py-3 text-sm font-bold shadow-sm"
-                            >
-                                {processingId === route.id ? '취소 중...' : '🚨 배차 방출'}
-                            </Button>
+                            <div className="flex-1 flex gap-2">
+                                <Button
+                                    variant="outline"
+                                    disabled={processingId === route.id}
+                                    onClick={(e: React.MouseEvent) => { e.stopPropagation(); setProcessingId(route.id); onDecision(route.id, 'ORDER_RELEASED'); }}
+                                    className="flex-1 py-3 text-sm font-bold bg-orange-50 hover:bg-orange-100 text-orange-600 border-orange-200"
+                                >
+                                    🙋‍♂️ 배차 방출
+                                </Button>
+                                <Button
+                                    variant="destructive"
+                                    disabled={processingId === route.id}
+                                    onClick={(e: React.MouseEvent) => { e.stopPropagation(); setProcessingId(route.id); onDecision(route.id, 'ORDER_FORCE_CANCELED'); }}
+                                    className="flex-1 py-3 text-sm font-bold shadow-sm"
+                                >
+                                    🏢 사무실 취소
+                                </Button>
+                            </div>
                         </div>
                     )}
                 </div>

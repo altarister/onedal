@@ -58,7 +58,7 @@ type DriverAction =
 앱이 긁어와서 서버가 꿀/똥콜을 판별 중인 임시 데이터. 기사가 KEEP/CANCEL 누르기 전.
 ```typescript
 interface PendingOrder extends OfficeOrder {
-  status: OrderStatus;  // ORDER_PRE_SECURED | ORDER_SECURED_EVALUATING | ORDER_AWAITING_DECISION
+  phase: 'SCREENING' | 'AWAITING_DECISION';  // 서버 연산 중 | 관제탑 결재 대기
   capturedDeviceId: string;
   capturedAt: string;
   // ... 카카오 연산 결과, 꿀/똥콜 판정 등
@@ -69,9 +69,9 @@ interface PendingOrder extends OfficeOrder {
 기사가 확정(KEEP)해서 **내가 책임지고 수행해야 하는 퀵**. 업계 표준 3단계를 그대로 반영:
 ```typescript
 type MyOrderStatus = 
-  | 'ORDER_CONFIRMED'   // 배차 확정 (아직 상차지로 안 감)
-  | 'ORDER_PICKED_UP'   // 상차 완료 (물건 실음, 서명/사진 촬영)
-  | 'ORDER_DELIVERED'   // 하차 완료 (물건 내림, 수취인 서명)
+  | 'CONFIRMED'   // 배차 확정 (아직 상차지로 안 감)
+  | 'PICKED_UP'   // 상차 완료 (물건 실음, 서명/사진 촬영)
+  | 'DELIVERED'   // 하차 완료 (물건 내림, 수취인 서명)
 ```
 
 **`canceled`를 뺀 이유**: "내 확정 퀵"에 `canceled`가 들어가는 건 말이 안 됩니다. 취소된 오더는 `MyOrder` 배열에서 아예 빠지고, 별도의 취소 이력 로그로 관리합니다.

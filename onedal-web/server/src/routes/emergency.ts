@@ -27,7 +27,7 @@ import { incrementDeviceStats } from "./devices";
 
 const router = Router();
 
-router.post("/", (req, res) => {
+router.post("/", async (req, res) => {
     try {
         const report = req.body as EmergencyReport;
         const { deviceId, orderId, reason, screenContext, screenText, timestamp } = report;
@@ -92,10 +92,25 @@ router.post("/", (req, res) => {
             console.log(`   📈 기기(${deviceId}) 취소 카운트 +1 반영 (reason: ${reason})`);
         }
 
-        if (session.mainCallState && session.mainCallState.id === targetOrderId) {
-            session.mainCallState = null;
-            updateActiveFilter(userId, { isSharedMode: false, isActive: true, driverAction: 'WAITING', dispatchPhase: 'STANDBY' }, io);
-            console.log(`   ✅ 본콜 초기화 + 필터 '첫짐' 복원 완료`);
+        const existingOrder = session.myOrders.find(c => c.id === targetOrderId);
+        if (existingOrder) {
+            existingOrder.status = 'ORDER_FORCE_CANCELED';
+            try {
+                const stmt = db.prepare("UPDATE orders SET status = 'ORDER_FORCE_CANCELED' WHERE id = ? AND userId = ?");
+                stmt.run(targetOrderId, userId);
+            } catch (e) {
+                console.error("Emergency DB 업데이트 에러:", e);
+            }
+            
+            const activeCalls = session.myOrders.filter(c => !['ORDER_COMPLETED', 'ORDER_RELEASED', 'ORDER_CANCELED', 'ORDER_FORCE_CANCELED'].includes(c.status));
+            if (activeCalls.length === 0) {
+                updateActiveFilter(userId, { isSharedMode: false, isActive: true, driverAction: 'WAITING', dispatchPhase: 'STANDBY' }, io);
+                console.log(`   ✅ 본콜 초기화 + 필터 '첫짐' 복원 완료`);
+            } else {
+                const { recalculateActiveKakaoRoute } = await import("../services/dispatchEngine");
+                await recalculateActiveKakaoRoute(userId, io);
+                console.log(`   ✅ 남은 활성 콜 경로 재계산 완료`);
+            }
         }
 
         if (io) {
@@ -112,7 +127,7 @@ router.post("/", (req, res) => {
 
         if (io) {
             console.log(`📤 [Socket 푸시] order-canceled (${targetOrderId})`);
-            io.to(userId).emit("order-canceled", targetOrderId);
+            io.to(userId).emit("order-canceled", { id: targetOrderId, status: 'ORDER_FORCE_CANCELED' });
         }
 
         console.log(`🚨🚨🚨 [EMERGENCY] 처리 완료 🚨🚨🚨\n`);

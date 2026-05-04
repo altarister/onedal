@@ -36,7 +36,7 @@ export function getSummaryMetrics(userId: string): SummaryMetrics {
             COUNT(*)                          AS orderCount
         FROM orders
         WHERE userId = ?
-          AND status IN ('confirmed', 'completed')
+          AND status IN ('ORDER_CONFIRMED', 'ORDER_COMPLETED')
           AND capturedAt LIKE ?
     `).get(userId, `${todayStr}%`) as { revenue: number; distanceKm: number; orderCount: number };
 
@@ -48,7 +48,7 @@ export function getSummaryMetrics(userId: string): SummaryMetrics {
             COUNT(*)                          AS orderCount
         FROM orders
         WHERE userId = ?
-          AND status IN ('confirmed', 'completed')
+          AND status IN ('ORDER_CONFIRMED', 'ORDER_COMPLETED')
           AND capturedAt LIKE ?
     `).get(userId, `${monthStr}%`) as { revenue: number; distanceKm: number; orderCount: number };
 

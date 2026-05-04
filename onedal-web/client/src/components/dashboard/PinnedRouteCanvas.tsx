@@ -55,8 +55,9 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, safeRoute, myLoc
 
         const validPoints = unifiedRoutePoints.filter(p => typeof p.x === 'number' && typeof p.y === 'number') as (RoutePoint & { x: number, y: number })[];
 
-        // 가장 최신의 상태 중 궤적 정보가 계산 완료된 오더 확보
-        const lastValidOrderWithPolyline = [...safeRoute].reverse().find(r => r.routePolyline && r.routePolyline.length > 0);
+        // 가장 최신의 진행 중인 상태 중 궤적 정보가 계산 완료된 오더 확보 (완료/취소된 오더 제외)
+        const liveRoute = safeRoute.filter(r => r.status !== 'ORDER_COMPLETED' && r.status !== 'ORDER_RELEASED' && r.status !== 'ORDER_CANCELED' && r.status !== 'ORDER_FORCE_CANCELED');
+        const lastValidOrderWithPolyline = [...liveRoute].reverse().find(r => r.routePolyline && r.routePolyline.length > 0);
         const currentPolyline = lastValidOrderWithPolyline?.routePolyline || [];
         const hasPolyline = currentPolyline.length > 0;
 

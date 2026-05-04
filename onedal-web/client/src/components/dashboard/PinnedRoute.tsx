@@ -11,11 +11,13 @@ import { useMasterGps } from '../../hooks/useMasterGps';
 interface Props {
     activeRoute: SecuredOrder[];
     isTestMode: boolean;
-    onDecision?: (id: string, action: 'KEEP' | 'CANCEL') => void;
+    onDecision?: (id: string, action: 'ORDER_CONFIRMED' | 'ORDER_CANCELED' | 'ORDER_RELEASED' | 'ORDER_FORCE_CANCELED') => void;
     onRecalculate?: (id: string, priority: string) => void;
+    viewFilter: 'ACTIVE' | 'COMPLETED' | 'CANCELED' | 'ALL';
+    setViewFilter: (filter: 'ACTIVE' | 'COMPLETED' | 'CANCELED' | 'ALL') => void;
 }
 
-export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRecalculate }: Props) {
+export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRecalculate, viewFilter, setViewFilter }: Props) {
     const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
     const [processingId, setProcessingId] = useState<string | null>(null);
     const { filter } = useFilterConfig();
@@ -25,7 +27,7 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
     }, [activeRoute]);
 
     // 지도 렌더링용: 완료된 콜 제외한 현재 진행 중인 오더만 추출
-    const liveRoute = useMemo(() => (activeRoute || []).filter(r => r.status !== 'completed'), [activeRoute]);
+    const liveRoute = useMemo(() => (activeRoute || []).filter(r => r.status !== 'ORDER_COMPLETED' && r.status !== 'ORDER_RELEASED' && r.status !== 'ORDER_CANCELED' && r.status !== 'ORDER_FORCE_CANCELED'), [activeRoute]);
 
     // 현재 활성 폴리라인 (진행 중인 오더에서만 추출, 완료된 stale 궤적 무시)
     const activePolyline = useMemo(() => {
@@ -54,7 +56,7 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
     }, [currentGps]);
 
     const safeRoute = activeRoute || [];
-    const allEvaluating = safeRoute.some(r => r.status === 'evaluating_basic' || r.status === 'evaluating_detailed' || !!r.phase);
+    const allEvaluating = safeRoute.some(r => r.status === 'ORDER_PRE_SECURED' || r.status === 'ORDER_SECURED_EVALUATING' || r.status === 'ORDER_AWAITING_DECISION');
 
     const toggleExpand = (id: string) => {
         setExpandedIds(prev => {
@@ -66,8 +68,8 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
     };
 
     // 서버와 동일한 동선 최적화(TSP Nearest Neighbor) 로직 적용 — 완료된 콜은 지도 핀에서 제외
-    const rawPickups = liveRoute.map((r) => ({ type: '상차', name: getAddressLabel(r.pickup), isEvaluating: !!r.phase || !!r.status?.includes('evaluating'), x: r.pickupX, y: r.pickupY, routeId: r.id }));
-    const rawDropoffs = liveRoute.map((r) => ({ type: '하차', name: getAddressLabel(r.dropoff), isEvaluating: !!r.phase || !!r.status?.includes('evaluating'), x: r.dropoffX, y: r.dropoffY, routeId: r.id }));
+    const rawPickups = liveRoute.map((r) => ({ type: '상차', name: getAddressLabel(r.pickup), isEvaluating: r.status === 'ORDER_PRE_SECURED' || r.status === 'ORDER_SECURED_EVALUATING' || r.status === 'ORDER_AWAITING_DECISION', x: r.pickupX, y: r.pickupY, routeId: r.id }));
+    const rawDropoffs = liveRoute.map((r) => ({ type: '하차', name: getAddressLabel(r.dropoff), isEvaluating: r.status === 'ORDER_PRE_SECURED' || r.status === 'ORDER_SECURED_EVALUATING' || r.status === 'ORDER_AWAITING_DECISION', x: r.dropoffX, y: r.dropoffY, routeId: r.id }));
 
     const sortedPickups: typeof rawPickups = [];
     let currentLoc = myLocation || (rawPickups[0] ? { x: rawPickups[0].x!, y: rawPickups[0].y! } : { x: 0, y: 0 });
@@ -236,13 +238,55 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
                 )}
             </div>
 
+            {/* 뷰 필터 탭 (진행 중 / 완료됨 / 취소됨) */}
+            {safeRoute.length > 0 && (
+                <div className="flex bg-muted/50 p-1 rounded-lg mb-2">
+                    <button
+                        onClick={() => setViewFilter('ACTIVE')}
+                        className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-colors ${viewFilter === 'ACTIVE' ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                    >
+                        진행 중 ({liveRoute.length})
+                    </button>
+                    <button
+                        onClick={() => setViewFilter('COMPLETED')}
+                        className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-colors ${viewFilter === 'COMPLETED' ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                    >
+                        완료됨 ({safeRoute.filter(r => r.status === 'ORDER_COMPLETED').length})
+                    </button>
+                    <button
+                        onClick={() => setViewFilter('CANCELED')}
+                        className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-colors ${viewFilter === 'CANCELED' ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                    >
+                        취소/방출 ({safeRoute.filter(r => r.status === 'ORDER_RELEASED' || r.status === 'ORDER_CANCELED' || r.status === 'ORDER_FORCE_CANCELED').length})
+                    </button>
+                    <button
+                        onClick={() => setViewFilter('ALL')}
+                        className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-colors ${viewFilter === 'ALL' ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                    >
+                        전체 ({safeRoute.length})
+                    </button>
+                </div>
+            )}
+
             {/* 오더 관리 아코디언 리스트 (가장 처음 잡은 본짐이 맨 아래, 최근에 잡은 합짐이 맨 위로 쌓이도록 역순 정렬) */}
             {safeRoute.length > 0 && (
                 <div className="space-y-2">
                     {[...activeRoute]
+                        .filter(route => {
+                            if (viewFilter === 'ACTIVE') {
+                                return route.status !== 'ORDER_COMPLETED' && route.status !== 'ORDER_RELEASED' && route.status !== 'ORDER_CANCELED' && route.status !== 'ORDER_FORCE_CANCELED';
+                            }
+                            if (viewFilter === 'COMPLETED') {
+                                return route.status === 'ORDER_COMPLETED';
+                            }
+                            if (viewFilter === 'CANCELED') {
+                                return route.status === 'ORDER_RELEASED' || route.status === 'ORDER_CANCELED' || route.status === 'ORDER_FORCE_CANCELED';
+                            }
+                            return true; // ALL
+                        })
                         .sort((a, b) => {
-                            const aEvaluating = !!a.phase || !!a.status?.includes('evaluating');
-                            const bEvaluating = !!b.phase || !!b.status?.includes('evaluating');
+                            const aEvaluating = a.status === 'ORDER_PRE_SECURED' || a.status === 'ORDER_SECURED_EVALUATING' || a.status === 'ORDER_AWAITING_DECISION';
+                            const bEvaluating = b.status === 'ORDER_PRE_SECURED' || b.status === 'ORDER_SECURED_EVALUATING' || b.status === 'ORDER_AWAITING_DECISION';
                             // 평가중인 콜은 항상 맨 위에
                             if (aEvaluating && !bEvaluating) return -1;
                             if (!aEvaluating && bEvaluating) return 1;
@@ -254,7 +298,7 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
                             return timeB - timeA;
                         })
                         .map((route) => {
-                            const isEvaluating = !!route.phase || !!route.status?.includes('evaluating');
+                            const isEvaluating = route.status === 'ORDER_PRE_SECURED' || route.status === 'ORDER_SECURED_EVALUATING' || route.status === 'ORDER_AWAITING_DECISION';
                             const isExpanded = isEvaluating || expandedIds.has(route.id);
                             const indexNum = chronologicalIds.indexOf(route.id) + 1;
 

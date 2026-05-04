@@ -20,7 +20,7 @@ export function useOrderEngine() {
     useEffect(() => {
         const hasGoodCall = activeOrders.some(order => {
             // 1. 관제 대기 중(평가 상태)이 아니면 무시
-            if (!order.phase && !order.status?.includes('evaluating')) return false;
+            if (!order.status?.startsWith('ORDER_PRE_SECURED') && !order.status?.startsWith('ORDER_SECURED')) return false;
             
             // 2. 카카오 연산 결과가 없으면(기다리는 중) 무시 (이 구간 동안 약 1~2초 침묵 발생)
             if (!order.kakaoTimeExt) return false;
@@ -83,7 +83,7 @@ export function useOrderEngine() {
                 // (상태 진실 공급원은 서버이므로, 임의 삭제를 방지해야 시스템 엉킴이 발생하지 않음)
                 const cleaned = prev.filter(order =>
                     order.capturedDeviceId !== secured.capturedDeviceId ||
-                    order.status === 'confirmed' ||
+                    ['ORDER_CONFIRMED', 'ORDER_COMPLETED', 'ORDER_RELEASED', 'ORDER_CANCELED', 'ORDER_FORCE_CANCELED'].includes(order.status) ||
                     order.id === secured.id
                 );
                 const next = [...cleaned, secured];
@@ -122,18 +122,29 @@ export function useOrderEngine() {
 
         const onOrderConfirmed = (id: string) => {
             logRoadmapEvent("웹", "PinnedRoute 레이아웃을 합짐/무한 궤도 모드로 격상 렌더링 및 딤드 다시 처리", "관제대시보드");
-            setActiveOrders(prev => prev.map(o => o.id === id ? { ...o, status: 'confirmed' } : o));
+            setActiveOrders(prev => prev.map(o => o.id === id ? { ...o, status: 'ORDER_CONFIRMED' } : o));
         };
 
-        const onOrderCanceled = (id: string) => {
-            logRoadmapEvent("웹", `🔴 [웹 수신] order-canceled | ID: ${id.slice(0, 8)}`, "관제대시보드");
-            logRoadmapEvent("웹", "PinnedRoute 아코디언 컴포넌트를 강제 삭제하고 초기 관제대기 Empty State 화면 렌더링", "관제대시보드");
-            setActiveOrders(prev => {
-                const next = prev.filter(o => o.id !== id);
-                console.log(`   ➡️ activeOrders 변경: [${prev.map(o => o.id.slice(0, 8)).join(', ')}] → [${next.map(o => o.id.slice(0, 8)).join(', ')}]`);
-                return next;
-            });
+        const onOrderCanceled = (payload: { id: string, status: SecuredOrder['status'], isManual?: boolean }) => {
+            const { id, status, isManual } = payload;
+            logRoadmapEvent("웹", `🔴 [웹 수신] order-canceled | ID: ${id.slice(0, 8)} | 상태: ${status} | 수동여부: ${isManual}`, "관제대시보드");
+            
+            if (isManual) {
+                // 수동 액션인 경우 삭제하지 않고 상태값만 변경하여 '취소/방출' 탭에 표시되도록 함
+                logRoadmapEvent("웹", "오더 상태를 취소/방출로 변경하여 탭을 이동시킵니다", "관제대시보드");
+                setActiveOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
+            } else {
+                // 시스템에 의한 자동 삭제인 경우 완전히 지움
+                logRoadmapEvent("웹", "PinnedRoute 아코디언 컴포넌트를 강제 삭제하고 초기 관제대기 Empty State 화면 렌더링", "관제대시보드");
+                setActiveOrders(prev => {
+                    const next = prev.filter(o => o.id !== id);
+                    console.log(`   ➡️ activeOrders 변경: [${prev.map(o => o.id.slice(0, 8)).join(', ')}] → [${next.map(o => o.id.slice(0, 8)).join(', ')}]`);
+                    return next;
+                });
+            }
+            
             setRejectedCallIds(prev => new Set(prev).add(id));
+            setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
         };
 
         const onDeathvalleyWarning = () => {
@@ -235,9 +246,9 @@ export function useOrderEngine() {
         };
     }, []);
 
-    const handleDecision = useCallback((id: string, action: 'KEEP' | 'CANCEL') => {
+    const handleDecision = useCallback((id: string, action: 'ORDER_CONFIRMED' | 'ORDER_CANCELED' | 'ORDER_RELEASED' | 'ORDER_FORCE_CANCELED') => {
         // 다이어그램 Line 84~99: 관제탑 → 서버 [Socket] 취소/유지 전달
-        logRoadmapEvent("웹", `[Socket] ${action === 'KEEP' ? '유지' : '취소'} 전달`, "관제대시보드");
+        logRoadmapEvent("웹", `[Socket] ${action === 'ORDER_CONFIRMED' ? '유지' : '취소'} 전달`, "관제대시보드");
         socket.emit("decision", { orderId: id, action });
     }, []);
 
