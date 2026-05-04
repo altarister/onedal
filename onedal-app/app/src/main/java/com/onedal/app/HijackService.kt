@@ -12,6 +12,7 @@ import com.onedal.app.core.ScrapParser
 import com.onedal.app.core.ScreenKeywords
 import com.onedal.app.core.engine.ScreenDetector
 import com.onedal.app.core.engine.SessionManager
+import com.onedal.app.core.engine.PopupSurfingMachine
 import com.onedal.app.core.TelemetryManager
 import com.onedal.app.models.DetailedOfficeOrder
 import com.onedal.app.models.DispatchBasicRequest
@@ -91,6 +92,7 @@ class HijackService : AccessibilityService() {
 
     // ── 세션 상태 (SessionManager로 통합) ──
     private val session = SessionManager()
+    private lateinit var surfingMachine: PopupSurfingMachine
     private val recentListOrders = mutableListOf<SimplifiedOfficeOrder>()
 
     // ── AUTO 모드 타이머 ──
@@ -127,6 +129,7 @@ class HijackService : AccessibilityService() {
         telemetryManager = TelemetryManager(apiClient, this)  // [GPS 텔레메트리] context 전달하여 위치 조회 가능하도록
         scrapParser = ScrapParser(this)
         touchManager = AutoTouchManager(this)
+        surfingMachine = PopupSurfingMachine(touchManager)
 
         telemetryManager.start()
         apiClient.fetchKeywords()
@@ -480,55 +483,19 @@ class HijackService : AccessibilityService() {
             AppLogger.roadmap("[Current Page: DETAIL_CONFIRMED] 확정페이지 체류 및 팝업버튼 트리거 대기", telemetryManager.currentScreenContext.name)
             ensureSessionId()
             
-            // session.lastDetailOrder는 PRE_CONFIRM에서 안전하게 매칭/세팅되었으므로 재파싱하지 않음
             if (session.lastDetailOrder == null) {
                 session.lastDetailOrder = buildOrderFromScreen(screenTexts)
             }
             
-            session.accumulatedDetailText = screenTexts.joinToString("\n") + "\n"
-
-            AppLogger.d(TAG, "🏄‍♂️ [자동 팝업 서핑] 확정 화면 진입 확인! 적요상세 팝업 호출 시도")
-            if (touchManager.findAndClickByText(rootNode, "적요상세", isStartsWith = true)) {
-                AppLogger.roadmap("확정페이지에서 '적요상세' 추출 후 클릭", telemetryManager.currentScreenContext.name)
-                AppLogger.i(TAG, "📋 [SEQ 81] 적요상세 버튼 클릭 → 적요 정보 요청")
-                session.surfingState = SessionManager.SurfingState.WAITING_FOR_MEMO_POPUP
-            } else if (touchManager.findAndClickByText(rootNode, "출발지", isStartsWith = true) ||
-                       touchManager.findAndClickByText(rootNode, "상차", isStartsWith = true)) {
-                AppLogger.w(TAG, "⚠️ 적요상세 버튼을 찾을 수 없습니다. 곧바로 출발지 서핑으로 넘어갑니다.")
-                AppLogger.i(TAG, "📋 [SEQ 82] 출발지/상차 클릭 → 출발지 정보 요청")
-                session.surfingState = SessionManager.SurfingState.WAITING_FOR_PICKUP_POPUP
-            } else {
-                AppLogger.w(TAG, "⚠️ [서핑 대기] 팝업 호출 버튼(적요상세/출발지)을 찾지 못했습니다. (대기)")
-                return // 다음 UI 업데이트 이벤트를 기다림
-            }
+            surfingMachine.startSurfing(rootNode, session, screenTexts)
         }
-        
         // 서핑 중: 적요상세 팝업에서 돌아온 후 출발지 누르기
         else if (session.surfingState == SessionManager.SurfingState.WAITING_FOR_PICKUP_POPUP) {
-            AppLogger.roadmap("[Current Page: DETAIL_CONFIRMED] 확정페이지 복귀 확인 (잔상 회피 완료)", telemetryManager.currentScreenContext.name)
-            AppLogger.d(TAG, "🏄‍♂️ [자동 팝업 서핑] 적요 정보 확인 완료. 출발지 정보 확인을 위해 자동 클릭 시도")
-            AppLogger.roadmap("확정페이지에서 '출발지' 추출 후 클릭", telemetryManager.currentScreenContext.name)
-            if (touchManager.findAndClickByText(rootNode, "출발지", isStartsWith = true) ||
-                touchManager.findAndClickByText(rootNode, "상차", isStartsWith = true)) {
-                // 클릭 성공 시
-            } else {
-                AppLogger.w(TAG, "⚠️ [서핑 대기] 출발지/상차 버튼을 찾지 못했습니다.")
-                return
-            }
+            surfingMachine.clickPickup(rootNode)
         }
-
         // 서핑 중: 출발지 팝업에서 돌아온 후 도착지 누르기
         else if (session.surfingState == SessionManager.SurfingState.WAITING_FOR_DROPOFF_POPUP) {
-            AppLogger.roadmap("[Current Page: DETAIL_CONFIRMED] 확정페이지 복귀 확인 (잔상 회피 완료)", telemetryManager.currentScreenContext.name)
-            AppLogger.d(TAG, "🏄‍♂️ [자동 팝업 서핑] 출발지 확인 완료. 도착지 정보 확인을 위해 자동 클릭 시도")
-            AppLogger.roadmap("확정페이지에서 '도착지' 추출 후 클릭", telemetryManager.currentScreenContext.name)
-            if (touchManager.findAndClickByText(rootNode, "도착지", isStartsWith = true) ||
-                touchManager.findAndClickByText(rootNode, "하차", isStartsWith = true)) {
-                // 클릭 성공 시 별도 처리 없음 (다음 팝업 이벤트를 기다림)
-            } else {
-                AppLogger.w(TAG, "⚠️ [서핑 대기] 팝업은 닫혔으나 도착지/하차 버튼을 찾지 못했습니다. (대기)")
-                return
-            }
+            surfingMachine.clickDropoff(rootNode)
         }
     }
 
@@ -537,24 +504,7 @@ class HijackService : AccessibilityService() {
     // ════════════════════════════════════════════════════════════════
 
     private fun handleMemoPopup(rootNode: AccessibilityNodeInfo, screenTexts: List<String>) {
-        if (session.surfingState != SessionManager.SurfingState.WAITING_FOR_MEMO_POPUP) return
-
-        val multilineScreenStr = screenTexts.joinToString("\n")
-
-        // 팝업 데이터 로딩 검증: "적요 내용" 헤더가 보여야 로딩 완료
-        if (!multilineScreenStr.contains("적요 내용")) {
-            AppLogger.d(TAG, "거짓 이벤트 무시: 아직 적요상세 팝업 데이터 로딩 안됨")
-            return
-        }
-
-        session.accumulatedDetailText += "[적요상세/정보]\n$multilineScreenStr\n"
-        AppLogger.d(TAG, "📝 적요 스크래핑 성공! 닫기 버튼 누름")
-        AppLogger.i(TAG, "📋 [SEQ 81-82] 적요상세 추출 완료 → 닫기")
-
-        AppLogger.roadmap("[Current Page: POPUP_MEMO] 진입 완료 (\"적요 내용\" 텍스트 매칭 확인)", telemetryManager.currentScreenContext.name)
-        AppLogger.roadmap("적요상세 데이터 추출 및 메모리에 누적 저장", telemetryManager.currentScreenContext.name)
-        touchManager.findAndClickByText(rootNode, "닫기", isStartsWith = true)
-        session.surfingState = SessionManager.SurfingState.WAITING_FOR_PICKUP_POPUP
+        surfingMachine.handleMemoPopup(rootNode, session, screenTexts)
     }
 
     // ════════════════════════════════════════════════════════════════
@@ -562,23 +512,7 @@ class HijackService : AccessibilityService() {
     // ════════════════════════════════════════════════════════════════
 
     private fun handlePickupPopup(rootNode: AccessibilityNodeInfo, screenTexts: List<String>) {
-        if (session.surfingState != SessionManager.SurfingState.WAITING_FOR_PICKUP_POPUP) return
-
-        val multilineScreenStr = screenTexts.joinToString("\n")
-
-        // 팝업 데이터 로딩 검증: "전화1"이 화면에 뜰 때까지 대기
-        if (!multilineScreenStr.contains("전화1") && !multilineScreenStr.contains("도착지 상세")) {
-            AppLogger.d(TAG, "거짓 이벤트 무시: 아직 출발지 팝업 데이터 로딩 안됨")
-            return
-        }
-
-        session.accumulatedDetailText += "[출발지상세]\n$multilineScreenStr\n"
-        AppLogger.d(TAG, "📝 출발지 스크래핑 성공! 닫기 버튼 누름")
-
-        AppLogger.roadmap("[Current Page: POPUP_PICKUP] 진입 완료 (\"전화1\" 텍스트 매칭 확인)", telemetryManager.currentScreenContext.name)
-        AppLogger.roadmap("출발지 데이터 추출 및 메모리에 누적 저장", telemetryManager.currentScreenContext.name)
-        touchManager.findAndClickByText(rootNode, "닫기", isStartsWith = true)
-        session.surfingState = SessionManager.SurfingState.WAITING_FOR_DROPOFF_POPUP
+        surfingMachine.handlePickupPopup(rootNode, session, screenTexts)
     }
 
     // ════════════════════════════════════════════════════════════════
@@ -612,23 +546,9 @@ class HijackService : AccessibilityService() {
         }
         // ═══════════════════════════════════════════════════════════
 
-        // [기존 코드] 확정 후 서핑 모드
-        if (session.surfingState != SessionManager.SurfingState.WAITING_FOR_DROPOFF_POPUP) return
-
-        // 팝업 데이터 로딩 검증
-        if (!multilineScreenStr.contains("전화1")) {
-            AppLogger.d(TAG, "거짓 이벤트 무시: 아직 도착지 팝업 데이터 로딩 안됨")
-            return
-        }
-
-        session.accumulatedDetailText += "[도착지상세]\n$multilineScreenStr\n"
-        AppLogger.d(TAG, "📝 도착지 스크래핑 성공! 닫기 누름 및 전체 내용 /detail 로 발송")
-
-        AppLogger.roadmap("[Current Page: POPUP_DROPOFF] 진입 완료 (\"전화1\" 텍스트 매칭 확인)", telemetryManager.currentScreenContext.name)
-        AppLogger.roadmap("도착지 데이터 추출 및 메모리에 누적 저장", telemetryManager.currentScreenContext.name)
-        touchManager.findAndClickByText(rootNode, "닫기", isStartsWith = true)
-        session.surfingState = SessionManager.SurfingState.DONE
-        AppLogger.roadmap("[Current Page: DETAIL_CONFIRMED] 무인 서핑 종료 (State Machine: DONE)", telemetryManager.currentScreenContext.name)
+        // 서핑 모드: 도착지 텍스트 수집 → /detail 전송
+        val surfingDone = surfingMachine.handleDropoffPopup(rootNode, session, screenTexts)
+        if (!surfingDone) return
 
         // /detail 서버 전송 (팝업 수집 완료)
         session.lastDetailOrder?.let { order ->
