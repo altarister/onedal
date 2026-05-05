@@ -1,0 +1,180 @@
+@import "tailwindcss";
+
+@plugin "tailwindcss-animate";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* 1DAL Seamless Design Tokens */
+  --color-bg-base: var(--theme-bg-base);
+  --color-surface: var(--theme-surface);
+  --color-surface-alt: var(--theme-surface-alt);
+  --color-surface-hover: var(--theme-surface-hover);
+  --color-border-card: var(--theme-border-card);
+  --color-border-hover: var(--theme-border-hover);
+  --color-text-primary: var(--theme-text-primary);
+  --color-text-muted: var(--theme-text-muted);
+
+  --color-success: var(--theme-success);
+  --color-warning: var(--theme-warning);
+  --color-danger: var(--theme-danger);
+  --color-info: var(--theme-info);
+  --color-info-alt: var(--theme-info-alt);
+  --color-accent-alt: var(--theme-accent-alt);
+
+  --color-glow-warning: var(--theme-glow-warning);
+  --color-glow-primary: var(--theme-glow-primary);
+  --shadow-soft: var(--theme-shadow-soft);
+}
+
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentColor);
+  }
+}
+
+:root {
+  --background: oklch(0.97 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --radius: 0.625rem;
+
+  /* ── 1DAL Seamless Design Tokens — Light Mode ── */
+  --theme-bg-base: #F3F4F6;       /* Gray-100: 앱 전체 바탕 */
+  --theme-surface: #FFFFFF;        /* 카드/패널 바탕 */
+  --theme-surface-alt: #F3F4F6;    /* 버튼/구분 요소 */
+  --theme-surface-hover: #E5E7EB;  /* 호버 상태 */
+  --theme-border-card: rgba(0, 0, 0, 0.04);
+  --theme-border-hover: rgba(0, 0, 0, 0.08);
+  --theme-text-primary: #111827;   /* Gray-900 */
+  --theme-text-muted: #6B7280;     /* Gray-500 */
+
+  /* 시맨틱 상태 색상 */
+  --theme-success: #10B981;        /* Emerald-500 */
+  --theme-warning: #F59E0B;        /* Amber-500 */
+  --theme-danger: #EF4444;         /* Red-500 */
+  --theme-info: #3B82F6;           /* Blue-500 (Primary Action) */
+  --theme-info-alt: #6366F1;       /* Indigo-500 (첫짐 모드) */
+  --theme-accent: #8B5CF6;         /* Violet-500 */
+  --theme-accent-alt: #A855F7;     /* Purple-500 */
+
+  /* 유틸리티 */
+  --theme-glow-warning: rgba(245, 158, 11, 0.15);
+  --theme-glow-primary: rgba(59, 130, 246, 0.20);
+  --theme-shadow-soft: 0 4px 20px -2px rgba(0, 0, 0, 0.03), 0 0 0 1px rgba(0, 0, 0, 0.02);
+}
+
+.dark {
+  --background: oklch(0.13 0.005 285);
+  --foreground: oklch(0.93 0 0);
+  --card: oklch(0.17 0.005 285);
+  --card-foreground: oklch(0.93 0 0);
+  --popover: oklch(0.17 0.005 285);
+  --popover-foreground: oklch(0.93 0 0);
+  --primary: oklch(0.93 0 0);
+  --primary-foreground: oklch(0.17 0.005 285);
+  --secondary: oklch(0.24 0.005 285);
+  --secondary-foreground: oklch(0.93 0 0);
+  --muted: oklch(0.24 0.005 285);
+  --muted-foreground: oklch(0.65 0 0);
+  --accent: oklch(0.24 0.005 285);
+  --accent-foreground: oklch(0.93 0 0);
+  --destructive: oklch(0.396 0.141 25.723);
+  --destructive-foreground: oklch(0.637 0.237 25.331);
+  --border: oklch(0.24 0.005 285);
+  --input: oklch(0.24 0.005 285);
+  --ring: oklch(0.40 0 0);
+
+  /* ── 1DAL Seamless Design Tokens — Dark Mode ── */
+  --theme-bg-base: #030712;        /* Gray-950: 앱 전체 바탕 */
+  --theme-surface: #111827;        /* Gray-900: 카드/패널 바탕 */
+  --theme-surface-alt: #1F2937;    /* Gray-800: 버튼/구분 요소 */
+  --theme-surface-hover: #374151;  /* Gray-700: 호버 상태 */
+  --theme-border-card: rgba(255, 255, 255, 0.06);
+  --theme-border-hover: rgba(255, 255, 255, 0.10);
+  --theme-text-primary: #F3F4F6;   /* Gray-100 */
+  --theme-text-muted: #9CA3AF;     /* Gray-400 */
+
+  /* 시맨틱 상태 색상 (다크에서 밝기 조정) */
+  --theme-success: #34D399;        /* Emerald-400 */
+  --theme-warning: #FBBF24;        /* Amber-400 */
+  --theme-danger: #F87171;         /* Red-400 */
+  --theme-info: #60A5FA;           /* Blue-400 */
+  --theme-info-alt: #818CF8;       /* Indigo-400 */
+  --theme-accent: #A78BFA;         /* Violet-400 */
+  --theme-accent-alt: #C084FC;     /* Purple-400 */
+
+  /* 유틸리티 (다크 모드 그림자) */
+  --theme-glow-warning: rgba(245, 158, 11, 0.12);
+  --theme-glow-primary: rgba(96, 165, 250, 0.15);
+  --theme-shadow-soft: 0 4px 20px -2px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
