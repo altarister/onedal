@@ -16,13 +16,8 @@ import { SettingsRepository } from "../repositories/SettingsRepository";
 import { PricingEngine } from "../core/engine/PricingEngine";
 import { OrderEvaluator } from "../core/engine/OrderEvaluator";
 import { StateMachine } from "../core/engine/StateMachine";
-
-// ━━━ 헬퍼: 살아있는 내 퀵만 필터링 ━━━
-// 사장님 아이디어: "하나의 배열에 두고 상태값만 바꾸고 필터를 적용하면 된다"
-const TERMINAL_STATUSES = new Set(['ORDER_COMPLETED', 'ORDER_RELEASED', 'ORDER_CANCELED', 'ORDER_FORCE_CANCELED']);
-function getActiveCalls(session: { myOrders: MyOrder[] }): MyOrder[] {
-    return session.myOrders.filter(c => !TERMINAL_STATUSES.has(c.status));
-}
+import { TERMINAL_STATUSES } from "../core/constants";
+import { getActiveCalls } from "../core/helpers";
 
 /**
  * 장소명 정규화 (공백 및 주식회사 텍스트 제거)
@@ -702,5 +697,185 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
 
     } catch (err) {
         console.error('🚨 [restoreAndRecalculateSession] 오류 발생:', err);
+    }
+}
+
+// ━━━ [socketHandlers 인라인 로직 추출] ━━━
+// 아래 함수들은 socketHandlers.ts의 소켓 이벤트 핸들러에 85줄+ 인라인되어 있던 
+// 비즈니스 로직을 함수로 추출한 것입니다.
+
+/**
+ * 운행 완료 처리: 메모리 상태 변경 + DB 영구화 + 경로 재계산
+ */
+export async function completeOrder(userId: string, orderId: string, io: any): Promise<boolean> {
+    const session = getUserSession(userId);
+    const existingOrder = session.myOrders.find(c => c.id === orderId);
+    if (!existingOrder) return false;
+
+    existingOrder.status = 'ORDER_COMPLETED';
+
+    try {
+        db.prepare("UPDATE orders SET status = 'ORDER_COMPLETED', completedAt = datetime('now', 'localtime') WHERE id = ? AND userId = ?").run(orderId, userId);
+        console.log(`✅ [운행 완료] ${orderId} - DB 업데이트 완료 (completedAt 갱신)`);
+    } catch (e) {
+        console.error("DB 업데이트 에러:", e);
+    }
+
+    // 경로 재계산 (완료된 짐 제외한 On-the-fly 라우팅)
+    await recalculateActiveKakaoRoute(userId, io);
+
+    io.to(userId).emit("filter-updated", {
+        activeFilter: session.activeFilter,
+        baseFilter: session.baseFilter
+    });
+
+    return true;
+}
+
+/**
+ * 투-트랙 사냥 모드: 기존 콜 전부 완료 → 필터 STANDBY 리셋 → 집+현위치 동시 스캔
+ */
+export async function startTwoTrack(userId: string, io: any): Promise<{ success: boolean; keywords: string[]; message?: string }> {
+    try {
+        const session = getUserSession(userId);
+        console.log(`🎯 [투-트랙] 사냥 모드 전환 시작 (userId: ${userId})`);
+
+        // 1. 기존 활성 콜 전부 completed 처리 (메모리 + DB)
+        const allCalls = getActiveCalls(session);
+        for (const call of allCalls) {
+            if (!call) continue;
+            call.status = 'ORDER_COMPLETED';
+            try {
+                db.prepare("UPDATE orders SET status = 'ORDER_COMPLETED', completedAt = datetime('now', 'localtime') WHERE id = ? AND userId = ?").run(call.id, userId);
+                console.log(`   ✅ [투-트랙] 기존 콜 완료 처리: ${call.id} (${call.pickup} → ${call.dropoff})`);
+            } catch (e) {
+                console.error(`   ⚠️ [투-트랙] DB 업데이트 실패:`, e);
+            }
+        }
+
+        // 2. 집 주소에서 키워드 추출
+        const settings = db.prepare("SELECT home_address FROM user_settings WHERE user_id = ?").get(userId) as any;
+        const homeKeywords: string[] = [];
+        if (settings?.home_address) {
+            const parts = settings.home_address.split(/\s+/);
+            for (const p of parts) {
+                if (p.endsWith('시') || p.endsWith('군') || p.endsWith('구') || p.endsWith('읍') || p.endsWith('면') || p.endsWith('동')) {
+                    homeKeywords.push(p);
+                }
+            }
+        }
+
+        // 3. 현재 위치 주변 키워드 추출
+        const currentKeywords: string[] = [];
+        if (session.activeFilter.destinationCity) {
+            currentKeywords.push(session.activeFilter.destinationCity);
+        }
+        if (session.driverLocation) {
+            const { reverseGeocodeToRegion } = require("./geoService");
+            const region = reverseGeocodeToRegion(session.driverLocation.y, session.driverLocation.x);
+            if (region) {
+                currentKeywords.push(region);
+            }
+        }
+
+        // 4. 필터 리셋: STANDBY 모드 + 동시 키워드 투입
+        const mergedKeywords = [...new Set([...homeKeywords, ...currentKeywords])];
+        updateActiveFilter(userId, {
+            isSharedMode: false,
+            isActive: true,
+            driverAction: 'WAITING',
+            dispatchPhase: 'STANDBY',
+            destinationCity: '🎯 투-트랙 탐색',
+            destinationKeywords: mergedKeywords,
+            corridorRadiusKm: 0,
+        }, io);
+
+        console.log(`🎯 [투-트랙] 필터 전환 완료 → 키워드: [${mergedKeywords.join(', ')}]`);
+
+        // 5. 프론트엔드 동기화
+        io.to(userId).emit("filter-updated", {
+            activeFilter: session.activeFilter,
+            baseFilter: session.baseFilter
+        });
+        const payload = Array.from(session.pendingOrdersData.values());
+        io.to(userId).emit("sync-active-orders", payload);
+
+        return { success: true, keywords: mergedKeywords };
+    } catch (e: any) {
+        console.error("🎯 [투-트랙] 에러:", e);
+        return { success: false, keywords: [], message: e.message || "투-트랙 전환 실패" };
+    }
+}
+
+/**
+ * 귀가콜 생성: 현재 위치 → 집 주소로 가상 오더 생성 + 회랑 자동 세팅
+ */
+export async function createHomeReturn(
+    userId: string, 
+    io: any, 
+    options?: { corridorRadiusKm?: number; destinationRadiusKm?: number }
+): Promise<{ success: boolean; orderId?: string; message?: string }> {
+    try {
+        const session = getUserSession(userId);
+        const settings = db.prepare("SELECT home_address, home_x, home_y, vehicle_type FROM user_settings WHERE user_id = ?").get(userId) as any;
+
+        if (!settings || !settings.home_address) {
+            return { success: false, message: "집 주소가 설정되지 않았습니다. 설정에서 먼저 등록해주세요." };
+        }
+        if (!settings.home_x || !settings.home_y) {
+            return { success: false, message: "집 주소의 좌표가 없습니다. 설정에서 📍위치 확인 후 다시 저장해주세요." };
+        }
+
+        const currentLoc = session.driverLocation;
+        const pickupX = currentLoc?.x || settings.home_x;
+        const pickupY = currentLoc?.y || settings.home_y;
+
+        const homeOrder = {
+            id: `home-${Date.now()}`,
+            type: 'MANUAL' as const,
+            pickup: '현재 위치',
+            dropoff: settings.home_address,
+            fare: 0,
+            pickupX, pickupY,
+            dropoffX: settings.home_x,
+            dropoffY: settings.home_y,
+            status: 'ORDER_CONFIRMED' as const,
+            capturedDeviceId: 'control-tower',
+            capturedAt: new Date().toISOString(),
+            timestamp: new Date().toISOString(),
+            vehicleType: settings.vehicle_type || '1t',
+            receiptStatus: '귀가',
+            itemDescription: '귀가 운행',
+            tripType: '편도',
+            orderForm: '보통',
+            paymentType: '선불' as const,
+            billingType: '무과세' as const,
+            companyName: '자가 운행',
+            dispatcherName: '관제탑 (자동생성)',
+            isMock: false,
+            isShared: false,
+            commissionRate: '0%',
+            tollFare: '0',
+        };
+
+        session.myOrders.push(homeOrder as any);
+        await evaluateNewOrder(userId, homeOrder as any, io);
+
+        const targetCorridor = options?.corridorRadiusKm ?? 10;
+        updateActiveFilter(userId, {
+            dispatchPhase: 'GATHERING',
+            isSharedMode: true,
+            isActive: true,
+            corridorRadiusKm: targetCorridor,
+        }, io);
+        syncCorridorFilter(userId, io);
+
+        console.log(`🏠 [귀가콜] 가상 오더 생성 완료: ${settings.home_address}`);
+        io.to(userId).emit("order-confirmed", homeOrder.id);
+
+        return { success: true, orderId: homeOrder.id };
+    } catch (e: any) {
+        console.error("🏠 [귀가콜] 에러:", e);
+        return { success: false, message: e.message || "귀가콜 생성 실패" };
     }
 }

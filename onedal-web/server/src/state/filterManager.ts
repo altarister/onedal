@@ -182,20 +182,3 @@ export function updateActiveFilter(
     return session.activeFilter;
 }
 
-// ━━━ 하위 호환 ━━━
-// 기존 applyFilter()를 호출하는 코드가 남아있을 경우를 위한 브릿지 (추후 삭제 예정)
-/** @deprecated saveBaseFilter() 또는 updateActiveFilter()를 사용하세요. */
-export function applyFilter(
-    userId: string,
-    changes: Partial<AutoDispatchFilter>,
-    io?: any,
-    persistToDB: boolean = true
-): AutoDispatchFilter {
-    if (persistToDB) {
-        saveBaseFilter(userId, changes);
-        // 하위 호환: 기존처럼 activeFilter도 반환해야 하므로 세션에서 가져옴
-        return getUserSession(userId).activeFilter;
-    } else {
-        return updateActiveFilter(userId, changes, io);
-    }
-}

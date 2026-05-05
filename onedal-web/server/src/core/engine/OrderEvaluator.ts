@@ -8,20 +8,13 @@ import { SettingsRepository } from "../../repositories/SettingsRepository";
 import { PricingEngine } from "./PricingEngine";
 import { IAppPlugin } from "../plugins/IAppPlugin";
 import { PluginFactory } from "../plugins/PluginFactory";
+import { getActiveCalls } from "../helpers";
 
 export class OrderEvaluator {
     private plugin: IAppPlugin;
 
     constructor(targetApp: string = 'insung') {
         this.plugin = PluginFactory.getPlugin(targetApp);
-    }
-
-    /**
-     * 헬퍼: 살아있는 콜만 필터링 (완료, 취소 등 제외)
-     */
-    private getActiveCalls(session: any): MyOrder[] {
-        const TERMINAL_STATUSES = new Set(['ORDER_COMPLETED', 'ORDER_RELEASED', 'ORDER_CANCELED', 'ORDER_FORCE_CANCELED']);
-        return session.myOrders.filter((c: MyOrder) => !TERMINAL_STATUSES.has(c.status));
     }
 
     /**
@@ -78,7 +71,7 @@ export class OrderEvaluator {
                 // 카카오 라우팅 연산
                 if (securedOrder.pickupX && securedOrder.dropoffY) {
                     const routingOptions = SettingsRepository.getKakaoRoutingOptions(userId);
-                    const activeCalls = this.getActiveCalls(session);
+                    const activeCalls = getActiveCalls(session);
                     const activeMain = activeCalls[0];
                     const activeSubs = activeCalls.slice(1);
                     

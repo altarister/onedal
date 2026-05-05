@@ -1,394 +1,1543 @@
-roadmapLogger.ts:11 [ROADMAP 23:18:02.181] [🖥️관제웹] 1DAL 웹(관제웹) 로그인됨
-installHook.js:1 [ROADMAP 23:18:02.186] [🖥️관제웹] 1DAL 웹(관제웹) 로그인됨
-5roadmapLogger.ts:11 [ROADMAP 23:18:02.230] [🖥️관제웹] 서버 소켓 연결/재연결됨 → 최신 필터 상태 요청
-6roadmapLogger.ts:11 [ROADMAP 23:18:02.983] [🖥️관제웹] 서버로 부터 filter-init 초기 필터값(isSharedMode, distance 등) 받음
-4roadmapLogger.ts:11 [ROADMAP 23:18:02.984] [🖥️관제웹] 서버로 부터 filter-init 초기 필터값(isSharedMode, distance 등) 받음
-roadmapLogger.ts:11 [ROADMAP 23:18:18.580] [🖥️관제웹] [관제대시보드] 🟢 [웹 수신] order-evaluating | ID: 2a280e5d-e33f-46f4-abc1-d2b139207b71 | 기기: 앱폰-sdk_gpho-160 | 문발동
-roadmapLogger.ts:11 [ROADMAP 23:18:18.581] [🖥️관제웹] [관제대시보드] 확정페이지 진입 (선빵 수신으로 상세 모드 구동)
-roadmapLogger.ts:11 [ROADMAP 23:18:18.581] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 빈 레이아웃(평가중) 렌더링 및 하단 결재버튼 전체 딤드(비활성) 처리
-useOrderEngine.ts:90    ➡️ activeOrders 변경: [] → [2a280e5d]
-useOrderEngine.ts:90    ➡️ activeOrders 변경: [] → [2a280e5d]
-roadmapLogger.ts:11 [ROADMAP 23:18:19.613] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
-4roadmapLogger.ts:11 [ROADMAP 23:18:19.614] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
-roadmapLogger.ts:11 [ROADMAP 23:18:19.943] [🖥️관제웹] [관제대시보드] 🟡 [웹 수신] order-detail-received | ID: 2a280e5d | 경기 광주시 초월읍 경충대로 2697
-roadmapLogger.ts:11 [ROADMAP 23:18:19.943] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 '상하차지 및 적요' 텍스트를 선출력하여 렌더링
+roadmapLogger.ts:11 [ROADMAP 20:29:58.037] [🖥️관제웹] 유저가 구글 로그인 버튼 클릭 
+roadmapLogger.ts:11 [ROADMAP 20:29:58.038] [🖥️관제웹] 서버에게 구글 인증(id_token) 정보 전달
+roadmapLogger.ts:11 [ROADMAP 20:29:58.189] [🖥️관제웹] 1DAL 웹(관제웹) 로그인됨
+installHook.js:1 [ROADMAP 20:29:58.191] [🖥️관제웹] 1DAL 웹(관제웹) 로그인됨
+5roadmapLogger.ts:11 [ROADMAP 20:29:58.205] [🖥️관제웹] 서버 소켓 연결/재연결됨 → 최신 필터 상태 요청
+5roadmapLogger.ts:11 [ROADMAP 20:29:59.068] [🖥️관제웹] 서버로 부터 filter-init 초기 필터값(isSharedMode, distance 등) 받음
+5roadmapLogger.ts:11 [ROADMAP 20:29:59.075] [🖥️관제웹] 서버로 부터 filter-init 초기 필터값(isSharedMode, distance 등) 받음
+OrderFilterModal.tsx:83 📥 [OrderFilterModal] 모달 열림 - 현재 activeFilter 스냅샷: {destinationCity: '파주', destinationRadiusKm: 10, corridorRadiusKm: 5, minFare: 20000, maxFare: 1000000, …}
+installHook.js:1 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+overrideMethod @ installHook.js:1
+(anonymous) @ radix-ui.js?v=4f2226b0:2924
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12904
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+commitHookEffectListMount @ react-dom_client.js?v=4f2226b0:6617
+commitHookPassiveMountEffects @ react-dom_client.js?v=4f2226b0:6652
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7618
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7627
+flushPassiveEffects @ react-dom_client.js?v=4f2226b0:8808
+flushPendingEffects @ react-dom_client.js?v=4f2226b0:8769
+flushSpawnedWork @ react-dom_client.js?v=4f2226b0:8747
+commitRoot @ react-dom_client.js?v=4f2226b0:8585
+commitRootWhenReady @ react-dom_client.js?v=4f2226b0:8079
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:8051
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078
+<DescriptionWarning$1>
+exports.jsx @ react_jsx-runtime.js?v=4f2226b0:193
+(anonymous) @ radix-ui.js?v=4f2226b0:2856
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12868
+renderWithHooksAgain @ react-dom_client.js?v=4f2226b0:4268
+renderWithHooks @ react-dom_client.js?v=4f2226b0:4219
+updateForwardRef @ react-dom_client.js?v=4f2226b0:5396
+beginWork @ react-dom_client.js?v=4f2226b0:6204
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+performUnitOfWork @ react-dom_client.js?v=4f2226b0:8429
+workLoopSync @ react-dom_client.js?v=4f2226b0:8325
+renderRootSync @ react-dom_client.js?v=4f2226b0:8309
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:7957
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078
+<ForwardRef>
+exports.jsx @ react_jsx-runtime.js?v=4f2226b0:193
+(anonymous) @ radix-ui.js?v=4f2226b0:2787
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12868
+renderWithHooksAgain @ react-dom_client.js?v=4f2226b0:4268
+renderWithHooks @ react-dom_client.js?v=4f2226b0:4219
+updateForwardRef @ react-dom_client.js?v=4f2226b0:5396
+beginWork @ react-dom_client.js?v=4f2226b0:6204
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+performUnitOfWork @ react-dom_client.js?v=4f2226b0:8429
+workLoopSync @ react-dom_client.js?v=4f2226b0:8325
+renderRootSync @ react-dom_client.js?v=4f2226b0:8309
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:7957
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078
+<ForwardRef>
+exports.jsx @ react_jsx-runtime.js?v=4f2226b0:193
+DialogContent @ radix-ui.js?v=4f2226b0:2769
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12868
+renderWithHooksAgain @ react-dom_client.js?v=4f2226b0:4268
+renderWithHooks @ react-dom_client.js?v=4f2226b0:4219
+updateForwardRef @ react-dom_client.js?v=4f2226b0:5396
+beginWork @ react-dom_client.js?v=4f2226b0:6204
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+performUnitOfWork @ react-dom_client.js?v=4f2226b0:8429
+workLoopSync @ react-dom_client.js?v=4f2226b0:8325
+renderRootSync @ react-dom_client.js?v=4f2226b0:8309
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:7957
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078
+<DialogContent>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=4f2226b0:193
+DialogContent @ dialog.tsx:59
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12868
+renderWithHooksAgain @ react-dom_client.js?v=4f2226b0:4268
+renderWithHooks @ react-dom_client.js?v=4f2226b0:4219
+updateFunctionComponent @ react-dom_client.js?v=4f2226b0:5569
+beginWork @ react-dom_client.js?v=4f2226b0:6140
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+performUnitOfWork @ react-dom_client.js?v=4f2226b0:8429
+workLoopSync @ react-dom_client.js?v=4f2226b0:8325
+renderRootSync @ react-dom_client.js?v=4f2226b0:8309
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:7957
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078
+<DialogContent>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=4f2226b0:193
+(anonymous) @ OrderFilterModal.tsx:184
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12868
+renderWithHooksAgain @ react-dom_client.js?v=4f2226b0:4268
+renderWithHooks @ react-dom_client.js?v=4f2226b0:4219
+updateFunctionComponent @ react-dom_client.js?v=4f2226b0:5569
+beginWork @ react-dom_client.js?v=4f2226b0:6140
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+performUnitOfWork @ react-dom_client.js?v=4f2226b0:8429
+workLoopSync @ react-dom_client.js?v=4f2226b0:8325
+renderRootSync @ react-dom_client.js?v=4f2226b0:8309
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:7957
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078Understand this warning
+installHook.js:1 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+overrideMethod @ installHook.js:1
+(anonymous) @ radix-ui.js?v=4f2226b0:2924
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12904
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+commitHookEffectListMount @ react-dom_client.js?v=4f2226b0:6617
+commitHookPassiveMountEffects @ react-dom_client.js?v=4f2226b0:6652
+reconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7701
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7688
+reconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7713
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7688
+reconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7700
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7688
+reconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7700
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7688
+reconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7700
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7688
+reconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7700
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7688
+reconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7700
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7688
+reconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7700
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7688
+reconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7700
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7688
+reconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7713
+doubleInvokeEffectsOnFiber @ react-dom_client.js?v=4f2226b0:8924
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+commitDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8932
+flushPassiveEffects @ react-dom_client.js?v=4f2226b0:8809
+flushPendingEffects @ react-dom_client.js?v=4f2226b0:8769
+flushSpawnedWork @ react-dom_client.js?v=4f2226b0:8747
+commitRoot @ react-dom_client.js?v=4f2226b0:8585
+commitRootWhenReady @ react-dom_client.js?v=4f2226b0:8079
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:8051
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078
+<DescriptionWarning$1>
+exports.jsx @ react_jsx-runtime.js?v=4f2226b0:193
+(anonymous) @ radix-ui.js?v=4f2226b0:2856
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12868
+renderWithHooksAgain @ react-dom_client.js?v=4f2226b0:4268
+renderWithHooks @ react-dom_client.js?v=4f2226b0:4219
+updateForwardRef @ react-dom_client.js?v=4f2226b0:5396
+beginWork @ react-dom_client.js?v=4f2226b0:6204
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+performUnitOfWork @ react-dom_client.js?v=4f2226b0:8429
+workLoopSync @ react-dom_client.js?v=4f2226b0:8325
+renderRootSync @ react-dom_client.js?v=4f2226b0:8309
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:7957
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078
+<ForwardRef>
+exports.jsx @ react_jsx-runtime.js?v=4f2226b0:193
+(anonymous) @ radix-ui.js?v=4f2226b0:2787
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12868
+renderWithHooksAgain @ react-dom_client.js?v=4f2226b0:4268
+renderWithHooks @ react-dom_client.js?v=4f2226b0:4219
+updateForwardRef @ react-dom_client.js?v=4f2226b0:5396
+beginWork @ react-dom_client.js?v=4f2226b0:6204
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+performUnitOfWork @ react-dom_client.js?v=4f2226b0:8429
+workLoopSync @ react-dom_client.js?v=4f2226b0:8325
+renderRootSync @ react-dom_client.js?v=4f2226b0:8309
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:7957
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078
+<ForwardRef>
+exports.jsx @ react_jsx-runtime.js?v=4f2226b0:193
+DialogContent @ radix-ui.js?v=4f2226b0:2769
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12868
+renderWithHooksAgain @ react-dom_client.js?v=4f2226b0:4268
+renderWithHooks @ react-dom_client.js?v=4f2226b0:4219
+updateForwardRef @ react-dom_client.js?v=4f2226b0:5396
+beginWork @ react-dom_client.js?v=4f2226b0:6204
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+performUnitOfWork @ react-dom_client.js?v=4f2226b0:8429
+workLoopSync @ react-dom_client.js?v=4f2226b0:8325
+renderRootSync @ react-dom_client.js?v=4f2226b0:8309
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:7957
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078
+<DialogContent>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=4f2226b0:193
+DialogContent @ dialog.tsx:59
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12868
+renderWithHooksAgain @ react-dom_client.js?v=4f2226b0:4268
+renderWithHooks @ react-dom_client.js?v=4f2226b0:4219
+updateFunctionComponent @ react-dom_client.js?v=4f2226b0:5569
+beginWork @ react-dom_client.js?v=4f2226b0:6140
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+performUnitOfWork @ react-dom_client.js?v=4f2226b0:8429
+workLoopSync @ react-dom_client.js?v=4f2226b0:8325
+renderRootSync @ react-dom_client.js?v=4f2226b0:8309
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:7957
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078
+<DialogContent>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=4f2226b0:193
+(anonymous) @ OrderFilterModal.tsx:184
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12868
+renderWithHooksAgain @ react-dom_client.js?v=4f2226b0:4268
+renderWithHooks @ react-dom_client.js?v=4f2226b0:4219
+updateFunctionComponent @ react-dom_client.js?v=4f2226b0:5569
+beginWork @ react-dom_client.js?v=4f2226b0:6140
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+performUnitOfWork @ react-dom_client.js?v=4f2226b0:8429
+workLoopSync @ react-dom_client.js?v=4f2226b0:8325
+renderRootSync @ react-dom_client.js?v=4f2226b0:8309
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:7957
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078Understand this warning
+roadmapLogger.ts:11 [ROADMAP 20:30:52.857] [🖥️관제웹] 설정 모달창 열고 새 필터값 입력 후 '저장' 버튼 클릭
+OrderFilterModal.tsx:162 📤 [OrderFilterModal] '즉시 동기화 적용' 클릭 - 서버로 전송되는 새 필터값: {allowedVehicleTypes: Array(5), minFare: 20000, pickupRadiusKm: 10, destinationCity: '파주', destinationRadiusKm: 5, …}
+roadmapLogger.ts:11 [ROADMAP 20:30:52.859] [🖥️관제웹] 서버에게 새로 작성한 update-filter 정보 전달
+5roadmapLogger.ts:11 [ROADMAP 20:30:53.864] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
+roadmapLogger.ts:11 [ROADMAP 20:33:57.093] [🖥️관제웹] [관제대시보드] 🟢 [웹 수신] order-evaluating | ID: 3b5ea20d-7f39-4ee6-bad7-22b7a6fe1d30 | 기기: 앱폰-sdk_gpho-160 | 월롱면
+roadmapLogger.ts:11 [ROADMAP 20:33:57.094] [🖥️관제웹] [관제대시보드] 확정페이지 진입 (선빵 수신으로 상세 모드 구동)
+roadmapLogger.ts:11 [ROADMAP 20:33:57.094] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 빈 레이아웃(평가중) 렌더링 및 하단 결재버튼 전체 딤드(비활성) 처리
+useOrderEngine.ts:90    ➡️ activeOrders 변경: [] → [3b5ea20d]
+useOrderEngine.ts:90    ➡️ activeOrders 변경: [] → [3b5ea20d]
+roadmapLogger.ts:11 [ROADMAP 20:33:58.368] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
+4roadmapLogger.ts:11 [ROADMAP 20:33:58.369] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
+roadmapLogger.ts:11 [ROADMAP 20:33:58.396] [🖥️관제웹] [관제대시보드] 🟡 [웹 수신] order-detail-received | ID: 3b5ea20d | 경기 광주시 경안동 493-4 이마트
+roadmapLogger.ts:11 [ROADMAP 20:33:58.396] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 '상하차지 및 적요' 텍스트를 선출력하여 렌더링
+roadmapLogger.ts:11 [ROADMAP 20:33:59.304] [🖥️관제웹] [관제대시보드] 🔵 [웹 수신] order-evaluated | ID: 3b5ea20d | 추천거리 87km, 소요 71분
+roadmapLogger.ts:11 [ROADMAP 20:33:59.305] [🖥️관제웹] [관제대시보드] 추천 결과 노출, 경로보기버튼 추가 노출 후 판단 (취소 or 닫기) 대기
+roadmapLogger.ts:11 [ROADMAP 20:33:59.305] [🖥️관제웹] [관제대시보드] PinnedRoute 내 캔버스 미니맵 좌표 포커싱 및 카카오 궤적(폴리라인) 드로잉 처리
+roadmapLogger.ts:11 [ROADMAP 20:33:59.305] [🖥️관제웹] [관제대시보드] 예상 시간/수익률을 컴포넌트에 표시하고 결재버튼(KEEP/CANCEL) 즉시 딤드 해제(활성화)
+roadmapLogger.ts:11 [ROADMAP 20:34:01.365] [🖥️관제웹] PinnedRoute에서 KEEP(유지 확정) 버튼 클릭
+roadmapLogger.ts:11 [ROADMAP 20:34:01.365] [🖥️관제웹] 서버에게 decision=KEEP 하달 정보 전달
+roadmapLogger.ts:11 [ROADMAP 20:34:01.366] [🖥️관제웹] [관제대시보드] [Socket] 유지 전달
+roadmapLogger.ts:11 [ROADMAP 20:34:01.990] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
+4roadmapLogger.ts:11 [ROADMAP 20:34:01.991] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
+roadmapLogger.ts:11 [ROADMAP 20:34:02.017] [🖥️관제웹] [관제대시보드] PinnedRoute 레이아웃을 합짐/무한 궤도 모드로 격상 렌더링 및 딤드 다시 처리
+5roadmapLogger.ts:11 [ROADMAP 20:34:02.017] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
+roadmapLogger.ts:11 [ROADMAP 20:34:06.939] [🖥️관제웹] [관제대시보드] 🟢 [웹 수신] order-evaluating | ID: e9f04a11-88bd-466e-ba58-7e18c767e58e | 기기: 앱폰-sdk_gpho-160 | 탄현면
+roadmapLogger.ts:11 [ROADMAP 20:34:06.940] [🖥️관제웹] [관제대시보드] 확정페이지 진입 (선빵 수신으로 상세 모드 구동)
+roadmapLogger.ts:11 [ROADMAP 20:34:06.940] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 빈 레이아웃(평가중) 렌더링 및 하단 결재버튼 전체 딤드(비활성) 처리
+useOrderEngine.ts:90    ➡️ activeOrders 변경: [3b5ea20d] → [3b5ea20d, e9f04a11]
+useOrderEngine.ts:90    ➡️ activeOrders 변경: [3b5ea20d] → [3b5ea20d, e9f04a11]
+roadmapLogger.ts:11 [ROADMAP 20:34:08.047] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
+4roadmapLogger.ts:11 [ROADMAP 20:34:08.048] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
+roadmapLogger.ts:11 [ROADMAP 20:34:08.122] [🖥️관제웹] [관제대시보드] 🟡 [웹 수신] order-detail-received | ID: e9f04a11 | 경기 광주시 경안동 167-1 경안천
+roadmapLogger.ts:11 [ROADMAP 20:34:08.122] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 '상하차지 및 적요' 텍스트를 선출력하여 렌더링
 useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
 useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - [UPDATE] ID: 2a280e5d 변경점 -> 'dropoff': "문발동" ➡️ "경기 파주시 문발동 회동길 330" | 'pickup': "초월읍" ➡️ "경기 광주시 초월읍 경충대로 2697 한국도자재단" | 'pickupX': undefined ➡️ 127.325471158862 | 'pickupY': undefined ➡️ 37.3511625827086 | 'dropoffX': undefined ➡️ 126.69157556998158 | 'dropoffY': undefined ➡️ 37.71558069996063
+ - [UPDATE] ID: e9f04a11 변경점 -> 'dropoff': "탄현면" ➡️ "경기 파주시 탄현면 헤이리마을길 70 헤이리 예술마을" | 'pickup': "경안동" ➡️ "경기 광주시 경안동 167-1 경안천 체육공원" | 'pickupX': undefined ➡️ 127.252889947198 | 'pickupY': undefined ➡️ 37.4100225848715 | 'dropoffX': undefined ➡️ 126.69930440147027 | 'dropoffY': undefined ➡️ 37.788040908736896
 useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
 useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - [UPDATE] ID: 2a280e5d 변경점 -> 'dropoff': "문발동" ➡️ "경기 파주시 문발동 회동길 330" | 'pickup': "초월읍" ➡️ "경기 광주시 초월읍 경충대로 2697 한국도자재단" | 'pickupX': undefined ➡️ 127.325471158862 | 'pickupY': undefined ➡️ 37.3511625827086 | 'dropoffX': undefined ➡️ 126.69157556998158 | 'dropoffY': undefined ➡️ 37.71558069996063
-roadmapLogger.ts:11 [ROADMAP 23:18:20.846] [🖥️관제웹] [관제대시보드] 🔵 [웹 수신] order-evaluated | ID: 2a280e5d | 단독 83.7km, 78분 '콜'
-roadmapLogger.ts:11 [ROADMAP 23:18:20.847] [🖥️관제웹] [관제대시보드] 추천 결과 노출, 경로보기버튼 추가 노출 후 판단 (취소 or 닫기) 대기
-roadmapLogger.ts:11 [ROADMAP 23:18:20.847] [🖥️관제웹] [관제대시보드] PinnedRoute 내 캔버스 미니맵 좌표 포커싱 및 카카오 궤적(폴리라인) 드로잉 처리
-roadmapLogger.ts:11 [ROADMAP 23:18:20.847] [🖥️관제웹] [관제대시보드] 예상 시간/수익률을 컴포넌트에 표시하고 결재버튼(KEEP/CANCEL) 즉시 딤드 해제(활성화)
-roadmapLogger.ts:11 [ROADMAP 23:18:22.750] [🖥️관제웹] PinnedRoute에서 KEEP(유지 확정) 버튼 클릭
-roadmapLogger.ts:11 [ROADMAP 23:18:22.750] [🖥️관제웹] 서버에게 decision=KEEP 하달 정보 전달
-roadmapLogger.ts:11 [ROADMAP 23:18:22.750] [🖥️관제웹] [관제대시보드] [Socket] 유지 전달
-5roadmapLogger.ts:11 [ROADMAP 23:18:23.292] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
-roadmapLogger.ts:11 [ROADMAP 23:18:23.313] [🖥️관제웹] [관제대시보드] PinnedRoute 레이아웃을 합짐/무한 궤도 모드로 격상 렌더링 및 딤드 다시 처리
-5roadmapLogger.ts:11 [ROADMAP 23:18:23.341] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
-roadmapLogger.ts:11 [ROADMAP 23:18:26.688] [🖥️관제웹] 맵뷰 버튼(최단시간) 좌상단 클릭
-roadmapLogger.ts:11 [ROADMAP 23:18:26.688] [🖥️관제웹] [관제대시보드] [Socket] 카카오 TIME 탐색 옵션으로 재계산 요청
-roadmapLogger.ts:11 [ROADMAP 23:18:27.939] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
-4roadmapLogger.ts:11 [ROADMAP 23:18:27.940] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
-roadmapLogger.ts:11 [ROADMAP 23:18:27.950] [🖥️관제웹] [관제대시보드] 🔵 [웹 수신] order-evaluated | ID: 2a280e5d | [최단시간] 재탐색 완료
-roadmapLogger.ts:11 [ROADMAP 23:18:27.951] [🖥️관제웹] [관제대시보드] 추천 결과 노출, 경로보기버튼 추가 노출 후 판단 (취소 or 닫기) 대기
-roadmapLogger.ts:11 [ROADMAP 23:18:27.951] [🖥️관제웹] [관제대시보드] PinnedRoute 내 캔버스 미니맵 좌표 포커싱 및 카카오 궤적(폴리라인) 드로잉 처리
-roadmapLogger.ts:11 [ROADMAP 23:18:27.951] [🖥️관제웹] [관제대시보드] 예상 시간/수익률을 컴포넌트에 표시하고 결재버튼(KEEP/CANCEL) 즉시 딤드 해제(활성화)
-roadmapLogger.ts:11 [ROADMAP 23:18:32.845] [🖥️관제웹] 맵뷰 버튼(최단거리) 좌상단 클릭
-roadmapLogger.ts:11 [ROADMAP 23:18:32.846] [🖥️관제웹] [관제대시보드] [Socket] 카카오 DISTANCE 탐색 옵션으로 재계산 요청
-roadmapLogger.ts:11 [ROADMAP 23:18:34.035] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
-4roadmapLogger.ts:11 [ROADMAP 23:18:34.036] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
-roadmapLogger.ts:11 [ROADMAP 23:18:34.052] [🖥️관제웹] [관제대시보드] 🔵 [웹 수신] order-evaluated | ID: 2a280e5d | [최단거리] 재탐색 완료
-roadmapLogger.ts:11 [ROADMAP 23:18:34.053] [🖥️관제웹] [관제대시보드] 추천 결과 노출, 경로보기버튼 추가 노출 후 판단 (취소 or 닫기) 대기
-roadmapLogger.ts:11 [ROADMAP 23:18:34.053] [🖥️관제웹] [관제대시보드] PinnedRoute 내 캔버스 미니맵 좌표 포커싱 및 카카오 궤적(폴리라인) 드로잉 처리
-roadmapLogger.ts:11 [ROADMAP 23:18:34.053] [🖥️관제웹] [관제대시보드] 예상 시간/수익률을 컴포넌트에 표시하고 결재버튼(KEEP/CANCEL) 즉시 딤드 해제(활성화)
-roadmapLogger.ts:11 [ROADMAP 23:18:35.576] [🖥️관제웹] 맵뷰 버튼(최단시간) 좌상단 클릭
-roadmapLogger.ts:11 [ROADMAP 23:18:35.576] [🖥️관제웹] [관제대시보드] [Socket] 카카오 TIME 탐색 옵션으로 재계산 요청
-roadmapLogger.ts:11 [ROADMAP 23:18:36.768] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
-4roadmapLogger.ts:11 [ROADMAP 23:18:36.769] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
-roadmapLogger.ts:11 [ROADMAP 23:18:36.783] [🖥️관제웹] [관제대시보드] 🔵 [웹 수신] order-evaluated | ID: 2a280e5d | [최단시간] 재탐색 완료
-roadmapLogger.ts:11 [ROADMAP 23:18:36.783] [🖥️관제웹] [관제대시보드] 추천 결과 노출, 경로보기버튼 추가 노출 후 판단 (취소 or 닫기) 대기
-roadmapLogger.ts:11 [ROADMAP 23:18:36.783] [🖥️관제웹] [관제대시보드] PinnedRoute 내 캔버스 미니맵 좌표 포커싱 및 카카오 궤적(폴리라인) 드로잉 처리
-roadmapLogger.ts:11 [ROADMAP 23:18:36.783] [🖥️관제웹] [관제대시보드] 예상 시간/수익률을 컴포넌트에 표시하고 결재버튼(KEEP/CANCEL) 즉시 딤드 해제(활성화)
-roadmapLogger.ts:11 [ROADMAP 23:18:39.032] [🖥️관제웹] [관제대시보드] 🟢 [웹 수신] order-evaluating | ID: ccf81166-3e80-4eff-8d7b-8f1d7c585ea7 | 기기: 앱폰-sdk_gpho-160 | 막계동
-roadmapLogger.ts:11 [ROADMAP 23:18:39.032] [🖥️관제웹] [관제대시보드] 확정페이지 진입 (선빵 수신으로 상세 모드 구동)
-roadmapLogger.ts:11 [ROADMAP 23:18:39.033] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 빈 레이아웃(평가중) 렌더링 및 하단 결재버튼 전체 딤드(비활성) 처리
-useOrderEngine.ts:90    ➡️ activeOrders 변경: [2a280e5d] → [2a280e5d, ccf81166]
-useOrderEngine.ts:90    ➡️ activeOrders 변경: [2a280e5d] → [2a280e5d, ccf81166]
-2roadmapLogger.ts:11 [ROADMAP 23:18:39.903] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
-3roadmapLogger.ts:11 [ROADMAP 23:18:39.904] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
-roadmapLogger.ts:11 [ROADMAP 23:18:40.025] [🖥️관제웹] [관제대시보드] 🟡 [웹 수신] order-detail-received | ID: ccf81166 | 경기 용인시 처인구 포곡읍 에버랜드로
-roadmapLogger.ts:11 [ROADMAP 23:18:40.026] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 '상하차지 및 적요' 텍스트를 선출력하여 렌더링
+ - [UPDATE] ID: e9f04a11 변경점 -> 'dropoff': "탄현면" ➡️ "경기 파주시 탄현면 헤이리마을길 70 헤이리 예술마을" | 'pickup': "경안동" ➡️ "경기 광주시 경안동 167-1 경안천 체육공원" | 'pickupX': undefined ➡️ 127.252889947198 | 'pickupY': undefined ➡️ 37.4100225848715 | 'dropoffX': undefined ➡️ 126.69930440147027 | 'dropoffY': undefined ➡️ 37.788040908736896
+roadmapLogger.ts:11 [ROADMAP 20:34:09.661] [🖥️관제웹] [관제대시보드] 🔵 [웹 수신] order-evaluated | ID: e9f04a11 | +10.8km, +24분 '꿀'
+roadmapLogger.ts:11 [ROADMAP 20:34:09.661] [🖥️관제웹] [관제대시보드] 추천 결과 노출, 경로보기버튼 추가 노출 후 판단 (취소 or 닫기) 대기
+roadmapLogger.ts:11 [ROADMAP 20:34:09.661] [🖥️관제웹] [관제대시보드] PinnedRoute 내 캔버스 미니맵 좌표 포커싱 및 카카오 궤적(폴리라인) 드로잉 처리
+roadmapLogger.ts:11 [ROADMAP 20:34:09.661] [🖥️관제웹] [관제대시보드] 예상 시간/수익률을 컴포넌트에 표시하고 결재버튼(KEEP/CANCEL) 즉시 딤드 해제(활성화)
+roadmapLogger.ts:11 [ROADMAP 20:34:12.420] [🖥️관제웹] PinnedRoute에서 KEEP(유지 확정) 버튼 클릭
+roadmapLogger.ts:11 [ROADMAP 20:34:12.420] [🖥️관제웹] 서버에게 decision=KEEP 하달 정보 전달
+roadmapLogger.ts:11 [ROADMAP 20:34:12.420] [🖥️관제웹] [관제대시보드] [Socket] 유지 전달
 useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
 useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - [UPDATE] ID: ccf81166 변경점 -> 'dropoff': "막계동" ➡️ "경기 과천시 막계동 대공원광장로 102 서울대공원" | 'pickup': "포곡읍" ➡️ "경기 용인시 처인구 포곡읍 에버랜드로 199" | 'pickupX': undefined ➡️ 127.202128029885 | 'pickupY': undefined ➡️ 37.294066695953 | 'dropoffX': undefined ➡️ 127.01389757579 | 'dropoffY': undefined ➡️ 37.4364522885613 | 'kakaoSoloDistanceKm': undefined ➡️ 13.6 | 'kakaoSoloDurationMin': undefined ➡️ 20
+ - [UPDATE] ID: e9f04a11 변경점 -> 'status': "ORDER_AWAITING_DECISION" ➡️ "ORDER_CONFIRMED"
 useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
 useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - [UPDATE] ID: ccf81166 변경점 -> 'dropoff': "막계동" ➡️ "경기 과천시 막계동 대공원광장로 102 서울대공원" | 'pickup': "포곡읍" ➡️ "경기 용인시 처인구 포곡읍 에버랜드로 199" | 'pickupX': undefined ➡️ 127.202128029885 | 'pickupY': undefined ➡️ 37.294066695953 | 'dropoffX': undefined ➡️ 127.01389757579 | 'dropoffY': undefined ➡️ 37.4364522885613 | 'kakaoSoloDistanceKm': undefined ➡️ 13.6 | 'kakaoSoloDurationMin': undefined ➡️ 20
+ - [UPDATE] ID: e9f04a11 변경점 -> 'status': "ORDER_AWAITING_DECISION" ➡️ "ORDER_CONFIRMED"
+4roadmapLogger.ts:11 [ROADMAP 20:34:14.644] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
+roadmapLogger.ts:11 [ROADMAP 20:34:14.645] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
+roadmapLogger.ts:11 [ROADMAP 20:34:14.659] [🖥️관제웹] [관제대시보드] PinnedRoute 레이아웃을 합짐/무한 궤도 모드로 격상 렌더링 및 딤드 다시 처리
+5roadmapLogger.ts:11 [ROADMAP 20:34:14.678] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
 useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
 useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - [UPDATE] ID: ccf81166 변경점 -> 'osrmSoloDistanceKm': undefined ➡️ 36.270900000000005 | 'osrmSoloDurationMin': undefined ➡️ 37
+ - [UPDATE] ID: e9f04a11 변경점 -> 'sectionEtas': ["20:37","21:48","22:08"] ➡️ ["20:37","21:48","22:09"]
 useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
 useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - [UPDATE] ID: ccf81166 변경점 -> 'osrmSoloDistanceKm': undefined ➡️ 36.270900000000005 | 'osrmSoloDurationMin': undefined ➡️ 37
-roadmapLogger.ts:11 [ROADMAP 23:18:44.173] [🖥️관제웹] [관제대시보드] 🔵 [웹 수신] order-evaluated | ID: ccf81166 | +39.9km, +43분 '똥'
-roadmapLogger.ts:11 [ROADMAP 23:18:44.174] [🖥️관제웹] [관제대시보드] 추천 결과 노출, 경로보기버튼 추가 노출 후 판단 (취소 or 닫기) 대기
-roadmapLogger.ts:11 [ROADMAP 23:18:44.174] [🖥️관제웹] [관제대시보드] PinnedRoute 내 캔버스 미니맵 좌표 포커싱 및 카카오 궤적(폴리라인) 드로잉 처리
-roadmapLogger.ts:11 [ROADMAP 23:18:44.175] [🖥️관제웹] [관제대시보드] 예상 시간/수익률을 컴포넌트에 표시하고 결재버튼(KEEP/CANCEL) 즉시 딤드 해제(활성화)
-roadmapLogger.ts:11 [ROADMAP 23:18:45.789] [🖥️관제웹] PinnedRoute에서 CANCEL(취소) 또는 X 버튼 클릭
-roadmapLogger.ts:11 [ROADMAP 23:18:45.789] [🖥️관제웹] 서버에게 decision=CANCEL 하달 정보 전달
-roadmapLogger.ts:11 [ROADMAP 23:18:45.789] [🖥️관제웹] [관제대시보드] [Socket] 취소 전달
-roadmapLogger.ts:11 [ROADMAP 23:18:45.817] [🖥️관제웹] [관제대시보드] 🔴 [웹 수신] order-canceled | ID: ccf81166 | 상태: ORDER_CANCELED | 수동여부: true
-roadmapLogger.ts:11 [ROADMAP 23:18:45.817] [🖥️관제웹] [관제대시보드] 오더 상태를 취소/방출로 변경하여 탭을 이동시킵니다
-5roadmapLogger.ts:11 [ROADMAP 23:18:46.471] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
-5roadmapLogger.ts:11 [ROADMAP 23:18:47.453] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
+ - [UPDATE] ID: e9f04a11 변경점 -> 'sectionEtas': ["20:37","21:48","22:08"] ➡️ ["20:37","21:48","22:09"]
+OrderFilterModal.tsx:83 📥 [OrderFilterModal] 모달 열림 - 현재 activeFilter 스냅샷: {destinationCity: '파주', destinationRadiusKm: 5, corridorRadiusKm: 5, minFare: 20000, maxFare: 1000000, …}
+installHook.js:1 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+overrideMethod @ installHook.js:1
+(anonymous) @ radix-ui.js?v=4f2226b0:2924
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12904
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+commitHookEffectListMount @ react-dom_client.js?v=4f2226b0:6617
+commitHookPassiveMountEffects @ react-dom_client.js?v=4f2226b0:6652
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7618
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7627
+flushPassiveEffects @ react-dom_client.js?v=4f2226b0:8808
+flushPendingEffects @ react-dom_client.js?v=4f2226b0:8769
+flushSpawnedWork @ react-dom_client.js?v=4f2226b0:8747
+commitRoot @ react-dom_client.js?v=4f2226b0:8585
+commitRootWhenReady @ react-dom_client.js?v=4f2226b0:8079
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:8051
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078
+<DescriptionWarning$1>
+exports.jsx @ react_jsx-runtime.js?v=4f2226b0:193
+(anonymous) @ radix-ui.js?v=4f2226b0:2856
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12868
+renderWithHooksAgain @ react-dom_client.js?v=4f2226b0:4268
+renderWithHooks @ react-dom_client.js?v=4f2226b0:4219
+updateForwardRef @ react-dom_client.js?v=4f2226b0:5396
+beginWork @ react-dom_client.js?v=4f2226b0:6204
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+performUnitOfWork @ react-dom_client.js?v=4f2226b0:8429
+workLoopSync @ react-dom_client.js?v=4f2226b0:8325
+renderRootSync @ react-dom_client.js?v=4f2226b0:8309
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:7957
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078
+<ForwardRef>
+exports.jsx @ react_jsx-runtime.js?v=4f2226b0:193
+(anonymous) @ radix-ui.js?v=4f2226b0:2787
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12868
+renderWithHooksAgain @ react-dom_client.js?v=4f2226b0:4268
+renderWithHooks @ react-dom_client.js?v=4f2226b0:4219
+updateForwardRef @ react-dom_client.js?v=4f2226b0:5396
+beginWork @ react-dom_client.js?v=4f2226b0:6204
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+performUnitOfWork @ react-dom_client.js?v=4f2226b0:8429
+workLoopSync @ react-dom_client.js?v=4f2226b0:8325
+renderRootSync @ react-dom_client.js?v=4f2226b0:8309
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:7957
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078
+<ForwardRef>
+exports.jsx @ react_jsx-runtime.js?v=4f2226b0:193
+DialogContent @ radix-ui.js?v=4f2226b0:2769
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12868
+renderWithHooksAgain @ react-dom_client.js?v=4f2226b0:4268
+renderWithHooks @ react-dom_client.js?v=4f2226b0:4219
+updateForwardRef @ react-dom_client.js?v=4f2226b0:5396
+beginWork @ react-dom_client.js?v=4f2226b0:6204
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+performUnitOfWork @ react-dom_client.js?v=4f2226b0:8429
+workLoopSync @ react-dom_client.js?v=4f2226b0:8325
+renderRootSync @ react-dom_client.js?v=4f2226b0:8309
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:7957
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078
+<DialogContent>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=4f2226b0:193
+DialogContent @ dialog.tsx:59
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12868
+renderWithHooksAgain @ react-dom_client.js?v=4f2226b0:4268
+renderWithHooks @ react-dom_client.js?v=4f2226b0:4219
+updateFunctionComponent @ react-dom_client.js?v=4f2226b0:5569
+beginWork @ react-dom_client.js?v=4f2226b0:6140
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+performUnitOfWork @ react-dom_client.js?v=4f2226b0:8429
+workLoopSync @ react-dom_client.js?v=4f2226b0:8325
+renderRootSync @ react-dom_client.js?v=4f2226b0:8309
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:7957
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078
+<DialogContent>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=4f2226b0:193
+(anonymous) @ OrderFilterModal.tsx:184
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12868
+renderWithHooksAgain @ react-dom_client.js?v=4f2226b0:4268
+renderWithHooks @ react-dom_client.js?v=4f2226b0:4219
+updateFunctionComponent @ react-dom_client.js?v=4f2226b0:5569
+beginWork @ react-dom_client.js?v=4f2226b0:6140
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+performUnitOfWork @ react-dom_client.js?v=4f2226b0:8429
+workLoopSync @ react-dom_client.js?v=4f2226b0:8325
+renderRootSync @ react-dom_client.js?v=4f2226b0:8309
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:7957
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078Understand this warning
+installHook.js:1 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+overrideMethod @ installHook.js:1
+(anonymous) @ radix-ui.js?v=4f2226b0:2924
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12904
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+commitHookEffectListMount @ react-dom_client.js?v=4f2226b0:6617
+commitHookPassiveMountEffects @ react-dom_client.js?v=4f2226b0:6652
+reconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7701
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7688
+reconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7713
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7688
+reconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7700
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7688
+reconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7700
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7688
+reconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7700
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7688
+reconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7700
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7688
+reconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7700
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7688
+reconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7700
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7688
+reconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7700
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7688
+reconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7713
+doubleInvokeEffectsOnFiber @ react-dom_client.js?v=4f2226b0:8924
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+commitDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8932
+flushPassiveEffects @ react-dom_client.js?v=4f2226b0:8809
+flushPendingEffects @ react-dom_client.js?v=4f2226b0:8769
+flushSpawnedWork @ react-dom_client.js?v=4f2226b0:8747
+commitRoot @ react-dom_client.js?v=4f2226b0:8585
+commitRootWhenReady @ react-dom_client.js?v=4f2226b0:8079
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:8051
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078
+<DescriptionWarning$1>
+exports.jsx @ react_jsx-runtime.js?v=4f2226b0:193
+(anonymous) @ radix-ui.js?v=4f2226b0:2856
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12868
+renderWithHooksAgain @ react-dom_client.js?v=4f2226b0:4268
+renderWithHooks @ react-dom_client.js?v=4f2226b0:4219
+updateForwardRef @ react-dom_client.js?v=4f2226b0:5396
+beginWork @ react-dom_client.js?v=4f2226b0:6204
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+performUnitOfWork @ react-dom_client.js?v=4f2226b0:8429
+workLoopSync @ react-dom_client.js?v=4f2226b0:8325
+renderRootSync @ react-dom_client.js?v=4f2226b0:8309
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:7957
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078
+<ForwardRef>
+exports.jsx @ react_jsx-runtime.js?v=4f2226b0:193
+(anonymous) @ radix-ui.js?v=4f2226b0:2787
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12868
+renderWithHooksAgain @ react-dom_client.js?v=4f2226b0:4268
+renderWithHooks @ react-dom_client.js?v=4f2226b0:4219
+updateForwardRef @ react-dom_client.js?v=4f2226b0:5396
+beginWork @ react-dom_client.js?v=4f2226b0:6204
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+performUnitOfWork @ react-dom_client.js?v=4f2226b0:8429
+workLoopSync @ react-dom_client.js?v=4f2226b0:8325
+renderRootSync @ react-dom_client.js?v=4f2226b0:8309
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:7957
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078
+<ForwardRef>
+exports.jsx @ react_jsx-runtime.js?v=4f2226b0:193
+DialogContent @ radix-ui.js?v=4f2226b0:2769
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12868
+renderWithHooksAgain @ react-dom_client.js?v=4f2226b0:4268
+renderWithHooks @ react-dom_client.js?v=4f2226b0:4219
+updateForwardRef @ react-dom_client.js?v=4f2226b0:5396
+beginWork @ react-dom_client.js?v=4f2226b0:6204
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+performUnitOfWork @ react-dom_client.js?v=4f2226b0:8429
+workLoopSync @ react-dom_client.js?v=4f2226b0:8325
+renderRootSync @ react-dom_client.js?v=4f2226b0:8309
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:7957
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078
+<DialogContent>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=4f2226b0:193
+DialogContent @ dialog.tsx:59
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12868
+renderWithHooksAgain @ react-dom_client.js?v=4f2226b0:4268
+renderWithHooks @ react-dom_client.js?v=4f2226b0:4219
+updateFunctionComponent @ react-dom_client.js?v=4f2226b0:5569
+beginWork @ react-dom_client.js?v=4f2226b0:6140
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+performUnitOfWork @ react-dom_client.js?v=4f2226b0:8429
+workLoopSync @ react-dom_client.js?v=4f2226b0:8325
+renderRootSync @ react-dom_client.js?v=4f2226b0:8309
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:7957
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078
+<DialogContent>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=4f2226b0:193
+(anonymous) @ OrderFilterModal.tsx:184
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12868
+renderWithHooksAgain @ react-dom_client.js?v=4f2226b0:4268
+renderWithHooks @ react-dom_client.js?v=4f2226b0:4219
+updateFunctionComponent @ react-dom_client.js?v=4f2226b0:5569
+beginWork @ react-dom_client.js?v=4f2226b0:6140
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+performUnitOfWork @ react-dom_client.js?v=4f2226b0:8429
+workLoopSync @ react-dom_client.js?v=4f2226b0:8325
+renderRootSync @ react-dom_client.js?v=4f2226b0:8309
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:7957
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078Understand this warning
+roadmapLogger.ts:11 [ROADMAP 20:34:40.264] [🖥️관제웹] [관제대시보드] 🟢 [웹 수신] order-evaluating | ID: AUTO-1777980879457 | 기기: 앱폰-sdk_gpho-160 | 신규
+roadmapLogger.ts:11 [ROADMAP 20:34:40.264] [🖥️관제웹] [관제대시보드] 확정페이지 진입 (선빵 수신으로 상세 모드 구동)
+roadmapLogger.ts:11 [ROADMAP 20:34:40.265] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 빈 레이아웃(평가중) 렌더링 및 하단 결재버튼 전체 딤드(비활성) 처리
+useOrderEngine.ts:90    ➡️ activeOrders 변경: [3b5ea20d, e9f04a11] → [3b5ea20d, e9f04a11, AUTO-177]
+useOrderEngine.ts:90    ➡️ activeOrders 변경: [3b5ea20d, e9f04a11] → [3b5ea20d, e9f04a11, AUTO-177]
+roadmapLogger.ts:11 [ROADMAP 20:34:41.334] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
+4roadmapLogger.ts:11 [ROADMAP 20:34:41.335] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
+roadmapLogger.ts:11 [ROADMAP 20:34:44.404] [🖥️관제웹] [관제대시보드] 🟡 [웹 수신] order-detail-received | ID: AUTO-177 | 경기 광주시 초월읍 경충대로 2170
+roadmapLogger.ts:11 [ROADMAP 20:34:44.404] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 '상하차지 및 적요' 텍스트를 선출력하여 렌더링
+roadmapLogger.ts:11 [ROADMAP 20:34:44.570] [🖥️관제웹] [관제대시보드] 🔵 [웹 수신] order-evaluated | ID: AUTO-177 | 카카오 연산 실패
+roadmapLogger.ts:11 [ROADMAP 20:34:44.571] [🖥️관제웹] [관제대시보드] 추천 결과 노출, 경로보기버튼 추가 노출 후 판단 (취소 or 닫기) 대기
+roadmapLogger.ts:11 [ROADMAP 20:34:44.571] [🖥️관제웹] [관제대시보드] UI 상단에 에러 배너 렌더링 및 카카오맵 불가 상태를 PinnedRoute 에 표현
 useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
 useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - [UPDATE] ID: 2a280e5d 변경점 -> 'routePolyline': [{"x":127.32557508020969,"y":37.351285067532054},{"x":127.32540497092371,"y":37.351374207114944},{"x":127.32526864128666,"y":37.35147255007102},{"x":127.32517665242874,"y":37.35166125530823},{"x":127.3251648815843,"y":37.3517152538586},{"x":127.3251648815843,"y":37.3517152538586},{"x":127.32525445127328,"y":37.351796863320025},{"x":127.32536578877577,"y":37.35196870634497},{"x":127.32594538029268,"y":37.35279200657071},{"x":127.3260577679653,"y":37.35284671258753},{"x":127.32623828112726,"y":37.35285675178499},{"x":127.32673668418911,"y":37.35266134851764},{"x":127.3271561557525,"y":37.35245648327051},{"x":127.3271561557525,"y":37.35245648327051},{"x":127.32748452511696,"y":37.352341208141794},{"x":127.3274847662502,"y":37.35231417666378},{"x":127.32757554468365,"y":37.3522606269994},{"x":127.32760948610984,"y":37.35225180897313},{"x":127.32764334716967,"y":37.35225200143011},{"x":127.32767712787526,"y":37.35226120437056},{"x":127.3276883345435,"y":37.35227027901067},{"x":127.32769946086248,"y":37.352288364142865},{"x":127.32772179386573,"y":37.35231552391099},{"x":127.32772147246791,"y":37.35235156588338},{"x":127.32772123141918,"y":37.352378597362545},{"x":127.32766431408511,"y":37.35243233958905},{"x":127.32766431408511,"y":37.35243233958905},{"x":127.32796577121118,"y":37.352803501436746},{"x":127.32817781728407,"y":37.353075034327254},{"x":127.32894716601383,"y":37.354142692950276},{"x":127.32894716601383,"y":37.354142692950276},{"x":127.32794922419527,"y":37.354659662663394},{"x":127.32775637449477,"y":37.354766698256334},{"x":127.32740493771686,"y":37.35493590857195},{"x":127.32714420107125,"y":37.355060579038806},{"x":127.32613518900413,"y":37.35555043746604},{"x":127.32585195368614,"y":37.35566596594402},{"x":127.3255230835997,"y":37.355835299211336},{"x":127.32546648458394,"y":37.355852998373756},{"x":127.32526201815556,"y":37.35599600738186},{"x":127.3240261781323,"y":37.3566016958472},{"x":127.32294931809206,"y":37.35710015000933},{"x":127.32294931809206,"y":37.35710015000933},{"x":127.32282393877685,"y":37.35723459643065},{"x":127.32216568381965,"y":37.35762730768335},{"x":127.32196112529789,"y":37.35777932130766},{"x":127.32184654453391,"y":37.35796789419156},{"x":127.32183306778326,"y":37.35821111225864},{"x":127.32187748979175,"y":37.358292465363675},{"x":127.32197818940476,"y":37.35839216291255},{"x":127.32207921345064,"y":37.35845581848389},{"x":127.3223605207704,"y":37.35855655062473},{"x":127.3226315125972,"y":37.35854909177618},{"x":127.32280164142479,"y":37.35845995648189},{"x":127.32298338151082,"y":37.358334843642176},{"x":127.32307465593874,"y":37.358227234737434},{"x":127.32314335432852,"y":37.358119496582574},{"x":127.32317802708587,"y":37.35802958558515},{"x":127.3232018164276,"y":37.35789455761236},{"x":127.32319198489743,"y":37.35773230445605},{"x":127.32309403573329,"y":37.35732625171754},{"x":127.32288531496924,"y":37.356685280408435},{"x":127.32273157833491,"y":37.35620682043811},{"x":127.322698929947,"y":37.356071469388894},{"x":127.32242516367089,"y":37.355132763614236},{"x":127.32242516367089,"y":37.355132763614236},{"x":127.32200750548434,"y":37.35387784942994},{"x":127.32200750548434,"y":37.35387784942994},{"x":127.32162576605279,"y":37.35365038733089},{"x":127.3213893834188,"y":37.35357694399383},{"x":127.3211185716805,"y":37.353566379220716},{"x":127.32082429267713,"y":37.353654799485774},{"x":127.32060829274663,"y":37.35382476710402},{"x":127.32024149497747,"y":37.35444441505082},{"x":127.32012585870292,"y":37.35475012256249},{"x":127.32004497776195,"y":37.354956909358634},{"x":127.31932815391771,"y":37.35683607340424},{"x":127.31891056168163,"y":37.358077179177386},{"x":127.31875803723845,"y":37.358716077348596},{"x":127.31859503667336,"y":37.35926480555051},{"x":127.31855938029587,"y":37.35946284070803},{"x":127.31816804395547,"y":37.36154211109854},{"x":127.31795066399181,"y":37.363108759656946},{"x":127.31757158646815,"y":37.36632347380992},{"x":127.3175104074796,"y":37.366845754361634},{"x":127.31636239669392,"y":37.37640871633835},{"x":127.31627796434968,"y":37.37700294813927},{"x":127.31619140374067,"y":37.37783145105529},{"x":127.31523788876638,"y":37.385836623295326},{"x":127.31498173852161,"y":37.38792566657241},{"x":127.31492175149214,"y":37.3883127873142},{"x":127.31488680844157,"y":37.38842972643505},{"x":127.31471077930968,"y":37.38915858843167},{"x":127.31442132807443,"y":37.38994085787956},{"x":127.3133040809269,"y":37.3923312705536},{"x":127.3120028564049,"y":37.395072025375086},{"x":127.31157601823317,"y":37.3960517267092},{"x":127.31120670916613,"y":37.39691462005392},{"x":127.31090622674262,"y":37.39766077185226},{"x":127.31051357112011,"y":37.39860462451722},{"x":127.31022478178285,"y":37.399305788146954},{"x":127.30987802905472,"y":37.40016880831757},{"x":127.30924279093243,"y":37.401696946492294},{"x":127.30859548687192,"y":37.40330610796757},{"x":127.30811092239074,"y":37.4044
+ - [UPDATE] ID: AUTO-177 변경점 -> 'type': "MANUAL_CLICK" ➡️ "MANUAL" | 'status': "ORDER_AWAITING_DECISION" ➡️ "ORDER_CONFIRMED"
 useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
 useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - [UPDATE] ID: 2a280e5d 변경점 -> 'routePolyline': [{"x":127.32557508020969,"y":37.351285067532054},{"x":127.32540497092371,"y":37.351374207114944},{"x":127.32526864128666,"y":37.35147255007102},{"x":127.32517665242874,"y":37.35166125530823},{"x":127.3251648815843,"y":37.3517152538586},{"x":127.3251648815843,"y":37.3517152538586},{"x":127.32525445127328,"y":37.351796863320025},{"x":127.32536578877577,"y":37.35196870634497},{"x":127.32594538029268,"y":37.35279200657071},{"x":127.3260577679653,"y":37.35284671258753},{"x":127.32623828112726,"y":37.35285675178499},{"x":127.32673668418911,"y":37.35266134851764},{"x":127.3271561557525,"y":37.35245648327051},{"x":127.3271561557525,"y":37.35245648327051},{"x":127.32748452511696,"y":37.352341208141794},{"x":127.3274847662502,"y":37.35231417666378},{"x":127.32757554468365,"y":37.3522606269994},{"x":127.32760948610984,"y":37.35225180897313},{"x":127.32764334716967,"y":37.35225200143011},{"x":127.32767712787526,"y":37.35226120437056},{"x":127.3276883345435,"y":37.35227027901067},{"x":127.32769946086248,"y":37.352288364142865},{"x":127.32772179386573,"y":37.35231552391099},{"x":127.32772147246791,"y":37.35235156588338},{"x":127.32772123141918,"y":37.352378597362545},{"x":127.32766431408511,"y":37.35243233958905},{"x":127.32766431408511,"y":37.35243233958905},{"x":127.32796577121118,"y":37.352803501436746},{"x":127.32817781728407,"y":37.353075034327254},{"x":127.32894716601383,"y":37.354142692950276},{"x":127.32894716601383,"y":37.354142692950276},{"x":127.32794922419527,"y":37.354659662663394},{"x":127.32775637449477,"y":37.354766698256334},{"x":127.32740493771686,"y":37.35493590857195},{"x":127.32714420107125,"y":37.355060579038806},{"x":127.32613518900413,"y":37.35555043746604},{"x":127.32585195368614,"y":37.35566596594402},{"x":127.3255230835997,"y":37.355835299211336},{"x":127.32546648458394,"y":37.355852998373756},{"x":127.32526201815556,"y":37.35599600738186},{"x":127.3240261781323,"y":37.3566016958472},{"x":127.32294931809206,"y":37.35710015000933},{"x":127.32294931809206,"y":37.35710015000933},{"x":127.32282393877685,"y":37.35723459643065},{"x":127.32216568381965,"y":37.35762730768335},{"x":127.32196112529789,"y":37.35777932130766},{"x":127.32184654453391,"y":37.35796789419156},{"x":127.32183306778326,"y":37.35821111225864},{"x":127.32187748979175,"y":37.358292465363675},{"x":127.32197818940476,"y":37.35839216291255},{"x":127.32207921345064,"y":37.35845581848389},{"x":127.3223605207704,"y":37.35855655062473},{"x":127.3226315125972,"y":37.35854909177618},{"x":127.32280164142479,"y":37.35845995648189},{"x":127.32298338151082,"y":37.358334843642176},{"x":127.32307465593874,"y":37.358227234737434},{"x":127.32314335432852,"y":37.358119496582574},{"x":127.32317802708587,"y":37.35802958558515},{"x":127.3232018164276,"y":37.35789455761236},{"x":127.32319198489743,"y":37.35773230445605},{"x":127.32309403573329,"y":37.35732625171754},{"x":127.32288531496924,"y":37.356685280408435},{"x":127.32273157833491,"y":37.35620682043811},{"x":127.322698929947,"y":37.356071469388894},{"x":127.32242516367089,"y":37.355132763614236},{"x":127.32242516367089,"y":37.355132763614236},{"x":127.32200750548434,"y":37.35387784942994},{"x":127.32200750548434,"y":37.35387784942994},{"x":127.32162576605279,"y":37.35365038733089},{"x":127.3213893834188,"y":37.35357694399383},{"x":127.3211185716805,"y":37.353566379220716},{"x":127.32082429267713,"y":37.353654799485774},{"x":127.32060829274663,"y":37.35382476710402},{"x":127.32024149497747,"y":37.35444441505082},{"x":127.32012585870292,"y":37.35475012256249},{"x":127.32004497776195,"y":37.354956909358634},{"x":127.31932815391771,"y":37.35683607340424},{"x":127.31891056168163,"y":37.358077179177386},{"x":127.31875803723845,"y":37.358716077348596},{"x":127.31859503667336,"y":37.35926480555051},{"x":127.31855938029587,"y":37.35946284070803},{"x":127.31816804395547,"y":37.36154211109854},{"x":127.31795066399181,"y":37.363108759656946},{"x":127.31757158646815,"y":37.36632347380992},{"x":127.3175104074796,"y":37.366845754361634},{"x":127.31636239669392,"y":37.37640871633835},{"x":127.31627796434968,"y":37.37700294813927},{"x":127.31619140374067,"y":37.37783145105529},{"x":127.31523788876638,"y":37.385836623295326},{"x":127.31498173852161,"y":37.38792566657241},{"x":127.31492175149214,"y":37.3883127873142},{"x":127.31488680844157,"y":37.38842972643505},{"x":127.31471077930968,"y":37.38915858843167},{"x":127.31442132807443,"y":37.38994085787956},{"x":127.3133040809269,"y":37.3923312705536},{"x":127.3120028564049,"y":37.395072025375086},{"x":127.31157601823317,"y":37.3960517267092},{"x":127.31120670916613,"y":37.39691462005392},{"x":127.31090622674262,"y":37.39766077185226},{"x":127.31051357112011,"y":37.39860462451722},{"x":127.31022478178285,"y":37.399305788146954},{"x":127.30987802905472,"y":37.40016880831757},{"x":127.30924279093243,"y":37.401696946492294},{"x":127.30859548687192,"y":37.40330610796757},{"x":127.30811092239074,"y":37.4044
-roadmapLogger.ts:11 [ROADMAP 23:18:49.021] [🖥️관제웹] [관제대시보드] 🟢 [웹 수신] order-evaluating | ID: 8502684a-ffaa-4f0f-8023-cb974485287f | 기기: 앱폰-sdk_gpho-160 | 곤지암읍
-roadmapLogger.ts:11 [ROADMAP 23:18:49.021] [🖥️관제웹] [관제대시보드] 확정페이지 진입 (선빵 수신으로 상세 모드 구동)
-roadmapLogger.ts:11 [ROADMAP 23:18:49.022] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 빈 레이아웃(평가중) 렌더링 및 하단 결재버튼 전체 딤드(비활성) 처리
-useOrderEngine.ts:90    ➡️ activeOrders 변경: [2a280e5d, ccf81166] → [2a280e5d, 8502684a]
-useOrderEngine.ts:90    ➡️ activeOrders 변경: [2a280e5d, ccf81166] → [2a280e5d, 8502684a]
-roadmapLogger.ts:11 [ROADMAP 23:18:50.039] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
-4roadmapLogger.ts:11 [ROADMAP 23:18:50.040] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
+ - [UPDATE] ID: AUTO-177 변경점 -> 'type': "MANUAL_CLICK" ➡️ "MANUAL" | 'status': "ORDER_AWAITING_DECISION" ➡️ "ORDER_CONFIRMED"
+roadmapLogger.ts:11 [ROADMAP 20:34:46.601] [🖥️관제웹] [관제대시보드] PinnedRoute 레이아웃을 합짐/무한 궤도 모드로 격상 렌더링 및 딤드 다시 처리
+roadmapLogger.ts:11 [ROADMAP 20:34:46.637] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
+4roadmapLogger.ts:11 [ROADMAP 20:34:46.638] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
 useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
 useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - 배열 길이 다름: 웹(2개) vs 서버(3개)
- - [NEW] ID: ccf81166 서버에서 새로 추가됨
+ - [UPDATE] ID: AUTO-177 변경점 -> 'routePolyline': undefined ➡️ [{"x":127.25804776147139,"y":37.41034355669392},{"x":127.25829020936152,"y":37.409813439126864},{"x":127.25829020936152,"y":37.409813439126864},{"x":127.25789522308416,"y":37.40977491729338},{"x":127.25720735575582,"y":37.40965345705368},{"x":127.25685773072576,"y":37.40959719507661},{"x":127.25674504333197,"y":37.40956945425777},{"x":127.25658761945436,"y":37.40949637791861},{"x":127.25611650784155,"y":37.409160014196914},{"x":127.25553324962523,"y":37.40874184506936},{"x":127.25532015481657,"y":37.40858731905251},{"x":127.25480396287612,"y":37.4082416553333},{"x":127.25450113425191,"y":37.40802348644884},{"x":127.25431054465919,"y":37.40787811133856},{"x":127.25431054465919,"y":37.40787811133856},{"x":127.25409343506173,"y":37.40812904503217},{"x":127.2538306961876,"y":37.40842474448909},{"x":127.25308809594537,"y":37.409267073266996},{"x":127.25287106770092,"y":37.40950899431004},{"x":127.25266497549042,"y":37.40978702736052},{"x":127.25266497549042,"y":37.40978702736052},{"x":127.25281119008653,"y":37.4098510272432},{"x":127.25295677863858,"y":37.409978098757456},{"x":127.25295677863858,"y":37.409978098757456},{"x":127.25329269218092,"y":37.41027757791061},{"x":127.25336010771146,"y":37.41031404695531},{"x":127.25346140995374,"y":37.4103507299331},{"x":127.25346140995374,"y":37.4103507299331},{"x":127.25336010771146,"y":37.41031404695531},{"x":127.25329269218092,"y":37.41027757791061},{"x":127.25281119008653,"y":37.4098510272432},{"x":127.25266497549042,"y":37.40978702736052},{"x":127.25266497549042,"y":37.40978702736052},{"x":127.25201468419002,"y":37.41043169442924},{"x":127.25193454015252,"y":37.41053931724831},{"x":127.25190038463569,"y":37.41056613360532},{"x":127.25183216313654,"y":37.410610756033265},{"x":127.25183216313654,"y":37.410610756033265},{"x":127.25177030828647,"y":37.411151013914555},{"x":127.25170934873917,"y":37.41160116917002},{"x":127.25169733599111,"y":37.41167317970553},{"x":127.25168523359004,"y":37.41175420049196},{"x":127.25165995311474,"y":37.41202436509111},{"x":127.25156402877262,"y":37.41258242871483},{"x":127.2515513881777,"y":37.412717510981125},{"x":127.25151463159304,"y":37.413005624489145},{"x":127.2514784126596,"y":37.41323967646575},{"x":127.25141753912904,"y":37.41368082112471},{"x":127.25136930606416,"y":37.413986883504634},{"x":127.25134348550006,"y":37.41431110940573},{"x":127.25131829246432,"y":37.414572263544265},{"x":127.2512826102049,"y":37.41475225389734},{"x":127.25123572122958,"y":37.41492316244328},{"x":127.2511669571383,"y":37.415021845890735},{"x":127.25097267786633,"y":37.415245885569156},{"x":127.25076539584647,"y":37.415641047984614},{"x":127.25061674808694,"y":37.41582032214538},{"x":127.25045698280485,"y":37.41598150399998},{"x":127.25025176175048,"y":37.416169429813756},{"x":127.24966989202792,"y":37.41674243034497},{"x":127.24953316530764,"y":37.41685870306501},{"x":127.249316553068,"y":37.417055565707855},{"x":127.24823527607589,"y":37.41785966795295},{"x":127.24823527607589,"y":37.41785966795295},{"x":127.24903374057062,"y":37.418225174939025},{"x":127.24930360276323,"y":37.41835304015266},{"x":127.24941603062933,"y":37.41840781885172},{"x":127.25020329979736,"y":37.41876423606886},{"x":127.25082184165139,"y":37.419047492474846},{"x":127.2514963346063,"y":37.41938516476353},{"x":127.25204656717928,"y":37.41972204711918},{"x":127.25242788703844,"y":37.42000379406878},{"x":127.25280840405964,"y":37.42036663198744},{"x":127.25327715438006,"y":37.42094628540483},{"x":127.25355493225322,"y":37.42141660160314},{"x":127.25366548993836,"y":37.42166059140106},{"x":127.25368772674969,"y":37.42169677500905},{"x":127.25416153368367,"y":37.42290721316543},{"x":127.25449205981317,"y":37.42375631361944},{"x":127.25498830910857,"y":37.42498491129213},{"x":127.25562671968864,"y":37.426691974371664},{"x":127.25574805449429,"y":37.426990094731025},{"x":127.25575899578784,"y":37.42702620681365},{"x":127.25581423751358,"y":37.4271527057817},{"x":127.25583629858245,"y":37.42720690945672},{"x":127.2559464260567,"y":37.42749594824338},{"x":127.25610139045088,"y":37.42782131227338},{"x":127.25631133213983,"y":37.4283002055384},{"x":127.25636657569905,"y":37.42842670424123},{"x":127.256477865349,"y":37.428598609433},{"x":127.25673362857351,"y":37.42901471452368},{"x":127.25687872601378,"y":37.429195842690866},{"x":127.25705852077358,"y":37.42929609157874},{"x":127.25758474091786,"y":37.42978598065767},{"x":127.25773064255297,"y":37.42988601565506},{"x":127.25793250348971,"y":37.430040466548505},{"x":127.2579774307593,"y":37.430067780960215},{"x":127.25997579609793,"y":37.43137786274324},{"x":127.26027891108357,"y":37.43157799744386},{"x":127.26039110078713,"y":37.43165979660253},{"x":127.26069404079216,"y":37.431877950734254},{"x":127.261355800671,"y":37.432377681418984},{"x":127.26193653036098,"y":37.433075139955335},{"x":127.2623585529792,"y":37.43382567009245},{"x":127.26252423818791,"y
 useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
 useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - 배열 길이 다름: 웹(2개) vs 서버(3개)
- - [NEW] ID: ccf81166 서버에서 새로 추가됨
-roadmapLogger.ts:11 [ROADMAP 23:18:50.434] [🖥️관제웹] [관제대시보드] 🟡 [웹 수신] order-detail-received | ID: 8502684a | 경기 광주시 경안동 167-1 경안천
-roadmapLogger.ts:11 [ROADMAP 23:18:50.434] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 '상하차지 및 적요' 텍스트를 선출력하여 렌더링
+ - [UPDATE] ID: AUTO-177 변경점 -> 'routePolyline': undefined ➡️ [{"x":127.25804776147139,"y":37.41034355669392},{"x":127.25829020936152,"y":37.409813439126864},{"x":127.25829020936152,"y":37.409813439126864},{"x":127.25789522308416,"y":37.40977491729338},{"x":127.25720735575582,"y":37.40965345705368},{"x":127.25685773072576,"y":37.40959719507661},{"x":127.25674504333197,"y":37.40956945425777},{"x":127.25658761945436,"y":37.40949637791861},{"x":127.25611650784155,"y":37.409160014196914},{"x":127.25553324962523,"y":37.40874184506936},{"x":127.25532015481657,"y":37.40858731905251},{"x":127.25480396287612,"y":37.4082416553333},{"x":127.25450113425191,"y":37.40802348644884},{"x":127.25431054465919,"y":37.40787811133856},{"x":127.25431054465919,"y":37.40787811133856},{"x":127.25409343506173,"y":37.40812904503217},{"x":127.2538306961876,"y":37.40842474448909},{"x":127.25308809594537,"y":37.409267073266996},{"x":127.25287106770092,"y":37.40950899431004},{"x":127.25266497549042,"y":37.40978702736052},{"x":127.25266497549042,"y":37.40978702736052},{"x":127.25281119008653,"y":37.4098510272432},{"x":127.25295677863858,"y":37.409978098757456},{"x":127.25295677863858,"y":37.409978098757456},{"x":127.25329269218092,"y":37.41027757791061},{"x":127.25336010771146,"y":37.41031404695531},{"x":127.25346140995374,"y":37.4103507299331},{"x":127.25346140995374,"y":37.4103507299331},{"x":127.25336010771146,"y":37.41031404695531},{"x":127.25329269218092,"y":37.41027757791061},{"x":127.25281119008653,"y":37.4098510272432},{"x":127.25266497549042,"y":37.40978702736052},{"x":127.25266497549042,"y":37.40978702736052},{"x":127.25201468419002,"y":37.41043169442924},{"x":127.25193454015252,"y":37.41053931724831},{"x":127.25190038463569,"y":37.41056613360532},{"x":127.25183216313654,"y":37.410610756033265},{"x":127.25183216313654,"y":37.410610756033265},{"x":127.25177030828647,"y":37.411151013914555},{"x":127.25170934873917,"y":37.41160116917002},{"x":127.25169733599111,"y":37.41167317970553},{"x":127.25168523359004,"y":37.41175420049196},{"x":127.25165995311474,"y":37.41202436509111},{"x":127.25156402877262,"y":37.41258242871483},{"x":127.2515513881777,"y":37.412717510981125},{"x":127.25151463159304,"y":37.413005624489145},{"x":127.2514784126596,"y":37.41323967646575},{"x":127.25141753912904,"y":37.41368082112471},{"x":127.25136930606416,"y":37.413986883504634},{"x":127.25134348550006,"y":37.41431110940573},{"x":127.25131829246432,"y":37.414572263544265},{"x":127.2512826102049,"y":37.41475225389734},{"x":127.25123572122958,"y":37.41492316244328},{"x":127.2511669571383,"y":37.415021845890735},{"x":127.25097267786633,"y":37.415245885569156},{"x":127.25076539584647,"y":37.415641047984614},{"x":127.25061674808694,"y":37.41582032214538},{"x":127.25045698280485,"y":37.41598150399998},{"x":127.25025176175048,"y":37.416169429813756},{"x":127.24966989202792,"y":37.41674243034497},{"x":127.24953316530764,"y":37.41685870306501},{"x":127.249316553068,"y":37.417055565707855},{"x":127.24823527607589,"y":37.41785966795295},{"x":127.24823527607589,"y":37.41785966795295},{"x":127.24903374057062,"y":37.418225174939025},{"x":127.24930360276323,"y":37.41835304015266},{"x":127.24941603062933,"y":37.41840781885172},{"x":127.25020329979736,"y":37.41876423606886},{"x":127.25082184165139,"y":37.419047492474846},{"x":127.2514963346063,"y":37.41938516476353},{"x":127.25204656717928,"y":37.41972204711918},{"x":127.25242788703844,"y":37.42000379406878},{"x":127.25280840405964,"y":37.42036663198744},{"x":127.25327715438006,"y":37.42094628540483},{"x":127.25355493225322,"y":37.42141660160314},{"x":127.25366548993836,"y":37.42166059140106},{"x":127.25368772674969,"y":37.42169677500905},{"x":127.25416153368367,"y":37.42290721316543},{"x":127.25449205981317,"y":37.42375631361944},{"x":127.25498830910857,"y":37.42498491129213},{"x":127.25562671968864,"y":37.426691974371664},{"x":127.25574805449429,"y":37.426990094731025},{"x":127.25575899578784,"y":37.42702620681365},{"x":127.25581423751358,"y":37.4271527057817},{"x":127.25583629858245,"y":37.42720690945672},{"x":127.2559464260567,"y":37.42749594824338},{"x":127.25610139045088,"y":37.42782131227338},{"x":127.25631133213983,"y":37.4283002055384},{"x":127.25636657569905,"y":37.42842670424123},{"x":127.256477865349,"y":37.428598609433},{"x":127.25673362857351,"y":37.42901471452368},{"x":127.25687872601378,"y":37.429195842690866},{"x":127.25705852077358,"y":37.42929609157874},{"x":127.25758474091786,"y":37.42978598065767},{"x":127.25773064255297,"y":37.42988601565506},{"x":127.25793250348971,"y":37.430040466548505},{"x":127.2579774307593,"y":37.430067780960215},{"x":127.25997579609793,"y":37.43137786274324},{"x":127.26027891108357,"y":37.43157799744386},{"x":127.26039110078713,"y":37.43165979660253},{"x":127.26069404079216,"y":37.431877950734254},{"x":127.261355800671,"y":37.432377681418984},{"x":127.26193653036098,"y":37.433075139955335},{"x":127.2623585529792,"y":37.43382567009245},{"x":127.26252423818791,"y
+roadmapLogger.ts:11 [ROADMAP 20:34:59.678] [🖥️관제웹] [관제대시보드] [Socket] 취소 전달
+roadmapLogger.ts:11 [ROADMAP 20:34:59.726] [🖥️관제웹] [관제대시보드] 🔴 [웹 수신] order-canceled | ID: AUTO-177 | 상태: ORDER_RELEASED | 수동여부: true
+roadmapLogger.ts:11 [ROADMAP 20:34:59.726] [🖥️관제웹] [관제대시보드] 오더 상태를 취소/방출로 변경하여 탭을 이동시킵니다
+roadmapLogger.ts:11 [ROADMAP 20:35:00.621] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
+4roadmapLogger.ts:11 [ROADMAP 20:35:00.622] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
+roadmapLogger.ts:11 [ROADMAP 20:35:02.779] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
+2roadmapLogger.ts:11 [ROADMAP 20:35:02.780] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
+2roadmapLogger.ts:11 [ROADMAP 20:35:02.781] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
+OrderFilterModal.tsx:83 📥 [OrderFilterModal] 모달 열림 - 현재 activeFilter 스냅샷: {destinationCity: '파주', destinationRadiusKm: 5, corridorRadiusKm: 5, minFare: 20000, maxFare: 1000000, …}
+installHook.js:1 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+overrideMethod @ installHook.js:1
+(anonymous) @ radix-ui.js?v=4f2226b0:2924
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12904
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+commitHookEffectListMount @ react-dom_client.js?v=4f2226b0:6617
+commitHookPassiveMountEffects @ react-dom_client.js?v=4f2226b0:6652
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7618
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7627
+flushPassiveEffects @ react-dom_client.js?v=4f2226b0:8808
+flushPendingEffects @ react-dom_client.js?v=4f2226b0:8769
+flushSpawnedWork @ react-dom_client.js?v=4f2226b0:8747
+commitRoot @ react-dom_client.js?v=4f2226b0:8585
+commitRootWhenReady @ react-dom_client.js?v=4f2226b0:8079
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:8051
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078
+<DescriptionWarning$1>
+exports.jsx @ react_jsx-runtime.js?v=4f2226b0:193
+(anonymous) @ radix-ui.js?v=4f2226b0:2856
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12868
+renderWithHooksAgain @ react-dom_client.js?v=4f2226b0:4268
+renderWithHooks @ react-dom_client.js?v=4f2226b0:4219
+updateForwardRef @ react-dom_client.js?v=4f2226b0:5396
+beginWork @ react-dom_client.js?v=4f2226b0:6204
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+performUnitOfWork @ react-dom_client.js?v=4f2226b0:8429
+workLoopSync @ react-dom_client.js?v=4f2226b0:8325
+renderRootSync @ react-dom_client.js?v=4f2226b0:8309
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:7957
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078
+<ForwardRef>
+exports.jsx @ react_jsx-runtime.js?v=4f2226b0:193
+(anonymous) @ radix-ui.js?v=4f2226b0:2787
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12868
+renderWithHooksAgain @ react-dom_client.js?v=4f2226b0:4268
+renderWithHooks @ react-dom_client.js?v=4f2226b0:4219
+updateForwardRef @ react-dom_client.js?v=4f2226b0:5396
+beginWork @ react-dom_client.js?v=4f2226b0:6204
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+performUnitOfWork @ react-dom_client.js?v=4f2226b0:8429
+workLoopSync @ react-dom_client.js?v=4f2226b0:8325
+renderRootSync @ react-dom_client.js?v=4f2226b0:8309
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:7957
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078
+<ForwardRef>
+exports.jsx @ react_jsx-runtime.js?v=4f2226b0:193
+DialogContent @ radix-ui.js?v=4f2226b0:2769
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12868
+renderWithHooksAgain @ react-dom_client.js?v=4f2226b0:4268
+renderWithHooks @ react-dom_client.js?v=4f2226b0:4219
+updateForwardRef @ react-dom_client.js?v=4f2226b0:5396
+beginWork @ react-dom_client.js?v=4f2226b0:6204
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+performUnitOfWork @ react-dom_client.js?v=4f2226b0:8429
+workLoopSync @ react-dom_client.js?v=4f2226b0:8325
+renderRootSync @ react-dom_client.js?v=4f2226b0:8309
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:7957
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078
+<DialogContent>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=4f2226b0:193
+DialogContent @ dialog.tsx:59
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12868
+renderWithHooksAgain @ react-dom_client.js?v=4f2226b0:4268
+renderWithHooks @ react-dom_client.js?v=4f2226b0:4219
+updateFunctionComponent @ react-dom_client.js?v=4f2226b0:5569
+beginWork @ react-dom_client.js?v=4f2226b0:6140
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+performUnitOfWork @ react-dom_client.js?v=4f2226b0:8429
+workLoopSync @ react-dom_client.js?v=4f2226b0:8325
+renderRootSync @ react-dom_client.js?v=4f2226b0:8309
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:7957
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078
+<DialogContent>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=4f2226b0:193
+(anonymous) @ OrderFilterModal.tsx:184
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12868
+renderWithHooksAgain @ react-dom_client.js?v=4f2226b0:4268
+renderWithHooks @ react-dom_client.js?v=4f2226b0:4219
+updateFunctionComponent @ react-dom_client.js?v=4f2226b0:5569
+beginWork @ react-dom_client.js?v=4f2226b0:6140
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+performUnitOfWork @ react-dom_client.js?v=4f2226b0:8429
+workLoopSync @ react-dom_client.js?v=4f2226b0:8325
+renderRootSync @ react-dom_client.js?v=4f2226b0:8309
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:7957
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078Understand this warning
+installHook.js:1 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+overrideMethod @ installHook.js:1
+(anonymous) @ radix-ui.js?v=4f2226b0:2924
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12904
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+commitHookEffectListMount @ react-dom_client.js?v=4f2226b0:6617
+commitHookPassiveMountEffects @ react-dom_client.js?v=4f2226b0:6652
+reconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7701
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7688
+reconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7713
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7688
+reconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7700
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7688
+reconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7700
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7688
+reconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7700
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7688
+reconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7700
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7688
+reconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7700
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7688
+reconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7700
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7688
+reconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7700
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7688
+reconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7713
+doubleInvokeEffectsOnFiber @ react-dom_client.js?v=4f2226b0:8924
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+commitDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8932
+flushPassiveEffects @ react-dom_client.js?v=4f2226b0:8809
+flushPendingEffects @ react-dom_client.js?v=4f2226b0:8769
+flushSpawnedWork @ react-dom_client.js?v=4f2226b0:8747
+commitRoot @ react-dom_client.js?v=4f2226b0:8585
+commitRootWhenReady @ react-dom_client.js?v=4f2226b0:8079
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:8051
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078
+<DescriptionWarning$1>
+exports.jsx @ react_jsx-runtime.js?v=4f2226b0:193
+(anonymous) @ radix-ui.js?v=4f2226b0:2856
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12868
+renderWithHooksAgain @ react-dom_client.js?v=4f2226b0:4268
+renderWithHooks @ react-dom_client.js?v=4f2226b0:4219
+updateForwardRef @ react-dom_client.js?v=4f2226b0:5396
+beginWork @ react-dom_client.js?v=4f2226b0:6204
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+performUnitOfWork @ react-dom_client.js?v=4f2226b0:8429
+workLoopSync @ react-dom_client.js?v=4f2226b0:8325
+renderRootSync @ react-dom_client.js?v=4f2226b0:8309
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:7957
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078
+<ForwardRef>
+exports.jsx @ react_jsx-runtime.js?v=4f2226b0:193
+(anonymous) @ radix-ui.js?v=4f2226b0:2787
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12868
+renderWithHooksAgain @ react-dom_client.js?v=4f2226b0:4268
+renderWithHooks @ react-dom_client.js?v=4f2226b0:4219
+updateForwardRef @ react-dom_client.js?v=4f2226b0:5396
+beginWork @ react-dom_client.js?v=4f2226b0:6204
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+performUnitOfWork @ react-dom_client.js?v=4f2226b0:8429
+workLoopSync @ react-dom_client.js?v=4f2226b0:8325
+renderRootSync @ react-dom_client.js?v=4f2226b0:8309
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:7957
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078
+<ForwardRef>
+exports.jsx @ react_jsx-runtime.js?v=4f2226b0:193
+DialogContent @ radix-ui.js?v=4f2226b0:2769
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12868
+renderWithHooksAgain @ react-dom_client.js?v=4f2226b0:4268
+renderWithHooks @ react-dom_client.js?v=4f2226b0:4219
+updateForwardRef @ react-dom_client.js?v=4f2226b0:5396
+beginWork @ react-dom_client.js?v=4f2226b0:6204
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+performUnitOfWork @ react-dom_client.js?v=4f2226b0:8429
+workLoopSync @ react-dom_client.js?v=4f2226b0:8325
+renderRootSync @ react-dom_client.js?v=4f2226b0:8309
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:7957
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078
+<DialogContent>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=4f2226b0:193
+DialogContent @ dialog.tsx:59
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12868
+renderWithHooksAgain @ react-dom_client.js?v=4f2226b0:4268
+renderWithHooks @ react-dom_client.js?v=4f2226b0:4219
+updateFunctionComponent @ react-dom_client.js?v=4f2226b0:5569
+beginWork @ react-dom_client.js?v=4f2226b0:6140
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+performUnitOfWork @ react-dom_client.js?v=4f2226b0:8429
+workLoopSync @ react-dom_client.js?v=4f2226b0:8325
+renderRootSync @ react-dom_client.js?v=4f2226b0:8309
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:7957
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078
+<DialogContent>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=4f2226b0:193
+(anonymous) @ OrderFilterModal.tsx:184
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12868
+renderWithHooksAgain @ react-dom_client.js?v=4f2226b0:4268
+renderWithHooks @ react-dom_client.js?v=4f2226b0:4219
+updateFunctionComponent @ react-dom_client.js?v=4f2226b0:5569
+beginWork @ react-dom_client.js?v=4f2226b0:6140
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+performUnitOfWork @ react-dom_client.js?v=4f2226b0:8429
+workLoopSync @ react-dom_client.js?v=4f2226b0:8325
+renderRootSync @ react-dom_client.js?v=4f2226b0:8309
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:7957
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078Understand this warning
+roadmapLogger.ts:11 [ROADMAP 20:35:28.307] [🖥️관제웹] 출발 버튼 클릭 → GATHERING→DELIVERING 전환 (시뮬레이션: true)
+roadmapLogger.ts:11 [ROADMAP 20:35:28.308] [🖥️관제웹] 서버에게 새로 작성한 update-filter 정보 전달
+5roadmapLogger.ts:11 [ROADMAP 20:35:29.414] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
+OrderFilterModal.tsx:83 📥 [OrderFilterModal] 모달 열림 - 현재 activeFilter 스냅샷: {destinationCity: '파주', destinationRadiusKm: 5, corridorRadiusKm: 0, minFare: 20000, maxFare: 1000000, …}
+installHook.js:1 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+overrideMethod @ installHook.js:1
+(anonymous) @ radix-ui.js?v=4f2226b0:2924
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12904
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+commitHookEffectListMount @ react-dom_client.js?v=4f2226b0:6617
+commitHookPassiveMountEffects @ react-dom_client.js?v=4f2226b0:6652
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7618
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7617
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7672
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=4f2226b0:7606
+commitPassiveMountOnFiber @ react-dom_client.js?v=4f2226b0:7627
+flushPassiveEffects @ react-dom_client.js?v=4f2226b0:8808
+flushPendingEffects @ react-dom_client.js?v=4f2226b0:8769
+flushSpawnedWork @ react-dom_client.js?v=4f2226b0:8747
+commitRoot @ react-dom_client.js?v=4f2226b0:8585
+commitRootWhenReady @ react-dom_client.js?v=4f2226b0:8079
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:8051
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078
+<DescriptionWarning$1>
+exports.jsx @ react_jsx-runtime.js?v=4f2226b0:193
+(anonymous) @ radix-ui.js?v=4f2226b0:2856
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12868
+renderWithHooksAgain @ react-dom_client.js?v=4f2226b0:4268
+renderWithHooks @ react-dom_client.js?v=4f2226b0:4219
+updateForwardRef @ react-dom_client.js?v=4f2226b0:5396
+beginWork @ react-dom_client.js?v=4f2226b0:6204
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+performUnitOfWork @ react-dom_client.js?v=4f2226b0:8429
+workLoopSync @ react-dom_client.js?v=4f2226b0:8325
+renderRootSync @ react-dom_client.js?v=4f2226b0:8309
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:7957
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078
+<ForwardRef>
+exports.jsx @ react_jsx-runtime.js?v=4f2226b0:193
+(anonymous) @ radix-ui.js?v=4f2226b0:2787
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12868
+renderWithHooksAgain @ react-dom_client.js?v=4f2226b0:4268
+renderWithHooks @ react-dom_client.js?v=4f2226b0:4219
+updateForwardRef @ react-dom_client.js?v=4f2226b0:5396
+beginWork @ react-dom_client.js?v=4f2226b0:6204
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+performUnitOfWork @ react-dom_client.js?v=4f2226b0:8429
+workLoopSync @ react-dom_client.js?v=4f2226b0:8325
+renderRootSync @ react-dom_client.js?v=4f2226b0:8309
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:7957
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078
+<ForwardRef>
+exports.jsx @ react_jsx-runtime.js?v=4f2226b0:193
+DialogContent @ radix-ui.js?v=4f2226b0:2769
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12868
+renderWithHooksAgain @ react-dom_client.js?v=4f2226b0:4268
+renderWithHooks @ react-dom_client.js?v=4f2226b0:4219
+updateForwardRef @ react-dom_client.js?v=4f2226b0:5396
+beginWork @ react-dom_client.js?v=4f2226b0:6204
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+performUnitOfWork @ react-dom_client.js?v=4f2226b0:8429
+workLoopSync @ react-dom_client.js?v=4f2226b0:8325
+renderRootSync @ react-dom_client.js?v=4f2226b0:8309
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:7957
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078
+<DialogContent>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=4f2226b0:193
+DialogContent @ dialog.tsx:59
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12868
+renderWithHooksAgain @ react-dom_client.js?v=4f2226b0:4268
+renderWithHooks @ react-dom_client.js?v=4f2226b0:4219
+updateFunctionComponent @ react-dom_client.js?v=4f2226b0:5569
+beginWork @ react-dom_client.js?v=4f2226b0:6140
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+performUnitOfWork @ react-dom_client.js?v=4f2226b0:8429
+workLoopSync @ react-dom_client.js?v=4f2226b0:8325
+renderRootSync @ react-dom_client.js?v=4f2226b0:8309
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:7957
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078
+<DialogContent>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=4f2226b0:193
+(anonymous) @ OrderFilterModal.tsx:184
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12868
+renderWithHooksAgain @ react-dom_client.js?v=4f2226b0:4268
+renderWithHooks @ react-dom_client.js?v=4f2226b0:4219
+updateFunctionComponent @ react-dom_client.js?v=4f2226b0:5569
+beginWork @ react-dom_client.js?v=4f2226b0:6140
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+performUnitOfWork @ react-dom_client.js?v=4f2226b0:8429
+workLoopSync @ react-dom_client.js?v=4f2226b0:8325
+renderRootSync @ react-dom_client.js?v=4f2226b0:8309
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:7957
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078Understand this warning
+installHook.js:1 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+overrideMethod @ installHook.js:1
+(anonymous) @ radix-ui.js?v=4f2226b0:2924
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12904
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+commitHookEffectListMount @ react-dom_client.js?v=4f2226b0:6617
+commitHookPassiveMountEffects @ react-dom_client.js?v=4f2226b0:6652
+reconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7701
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7688
+reconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7713
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7688
+reconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7700
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7688
+reconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7700
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7688
+reconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7700
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7688
+reconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7700
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7688
+reconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7700
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7688
+reconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7700
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7688
+reconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7700
+recursivelyTraverseReconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7688
+reconnectPassiveEffects @ react-dom_client.js?v=4f2226b0:7713
+doubleInvokeEffectsOnFiber @ react-dom_client.js?v=4f2226b0:8924
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8917
+commitDoubleInvokeEffectsInDEV @ react-dom_client.js?v=4f2226b0:8932
+flushPassiveEffects @ react-dom_client.js?v=4f2226b0:8809
+flushPendingEffects @ react-dom_client.js?v=4f2226b0:8769
+flushSpawnedWork @ react-dom_client.js?v=4f2226b0:8747
+commitRoot @ react-dom_client.js?v=4f2226b0:8585
+commitRootWhenReady @ react-dom_client.js?v=4f2226b0:8079
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:8051
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078
+<DescriptionWarning$1>
+exports.jsx @ react_jsx-runtime.js?v=4f2226b0:193
+(anonymous) @ radix-ui.js?v=4f2226b0:2856
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12868
+renderWithHooksAgain @ react-dom_client.js?v=4f2226b0:4268
+renderWithHooks @ react-dom_client.js?v=4f2226b0:4219
+updateForwardRef @ react-dom_client.js?v=4f2226b0:5396
+beginWork @ react-dom_client.js?v=4f2226b0:6204
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+performUnitOfWork @ react-dom_client.js?v=4f2226b0:8429
+workLoopSync @ react-dom_client.js?v=4f2226b0:8325
+renderRootSync @ react-dom_client.js?v=4f2226b0:8309
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:7957
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078
+<ForwardRef>
+exports.jsx @ react_jsx-runtime.js?v=4f2226b0:193
+(anonymous) @ radix-ui.js?v=4f2226b0:2787
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12868
+renderWithHooksAgain @ react-dom_client.js?v=4f2226b0:4268
+renderWithHooks @ react-dom_client.js?v=4f2226b0:4219
+updateForwardRef @ react-dom_client.js?v=4f2226b0:5396
+beginWork @ react-dom_client.js?v=4f2226b0:6204
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+performUnitOfWork @ react-dom_client.js?v=4f2226b0:8429
+workLoopSync @ react-dom_client.js?v=4f2226b0:8325
+renderRootSync @ react-dom_client.js?v=4f2226b0:8309
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:7957
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078
+<ForwardRef>
+exports.jsx @ react_jsx-runtime.js?v=4f2226b0:193
+DialogContent @ radix-ui.js?v=4f2226b0:2769
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12868
+renderWithHooksAgain @ react-dom_client.js?v=4f2226b0:4268
+renderWithHooks @ react-dom_client.js?v=4f2226b0:4219
+updateForwardRef @ react-dom_client.js?v=4f2226b0:5396
+beginWork @ react-dom_client.js?v=4f2226b0:6204
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+performUnitOfWork @ react-dom_client.js?v=4f2226b0:8429
+workLoopSync @ react-dom_client.js?v=4f2226b0:8325
+renderRootSync @ react-dom_client.js?v=4f2226b0:8309
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:7957
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078
+<DialogContent>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=4f2226b0:193
+DialogContent @ dialog.tsx:59
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12868
+renderWithHooksAgain @ react-dom_client.js?v=4f2226b0:4268
+renderWithHooks @ react-dom_client.js?v=4f2226b0:4219
+updateFunctionComponent @ react-dom_client.js?v=4f2226b0:5569
+beginWork @ react-dom_client.js?v=4f2226b0:6140
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+performUnitOfWork @ react-dom_client.js?v=4f2226b0:8429
+workLoopSync @ react-dom_client.js?v=4f2226b0:8325
+renderRootSync @ react-dom_client.js?v=4f2226b0:8309
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:7957
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078
+<DialogContent>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=4f2226b0:193
+(anonymous) @ OrderFilterModal.tsx:184
+react_stack_bottom_frame @ react-dom_client.js?v=4f2226b0:12868
+renderWithHooksAgain @ react-dom_client.js?v=4f2226b0:4268
+renderWithHooks @ react-dom_client.js?v=4f2226b0:4219
+updateFunctionComponent @ react-dom_client.js?v=4f2226b0:5569
+beginWork @ react-dom_client.js?v=4f2226b0:6140
+runWithFiberInDEV @ react-dom_client.js?v=4f2226b0:851
+performUnitOfWork @ react-dom_client.js?v=4f2226b0:8429
+workLoopSync @ react-dom_client.js?v=4f2226b0:8325
+renderRootSync @ react-dom_client.js?v=4f2226b0:8309
+performWorkOnRoot @ react-dom_client.js?v=4f2226b0:7957
+performSyncWorkOnRoot @ react-dom_client.js?v=4f2226b0:9067
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=4f2226b0:8984
+processRootScheduleInMicrotask @ react-dom_client.js?v=4f2226b0:9005
+(anonymous) @ react-dom_client.js?v=4f2226b0:9078Understand this warning
+roadmapLogger.ts:11 [ROADMAP 20:35:41.136] [🖥️관제웹] 출발 버튼 클릭 → GATHERING→DELIVERING 전환 (시뮬레이션: true)
+roadmapLogger.ts:11 [ROADMAP 20:35:41.136] [🖥️관제웹] 서버에게 새로 작성한 update-filter 정보 전달
+5roadmapLogger.ts:11 [ROADMAP 20:35:42.128] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
 useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
 useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - [UPDATE] ID: 8502684a 변경점 -> 'dropoff': "곤지암읍" ➡️ "경기 광주시 곤지암읍 경충대로 727 곤지암도자공원" | 'pickup': "경안동" ➡️ "경기 광주시 경안동 167-1 경안천 체육공원" | 'pickupX': undefined ➡️ 127.252889947198 | 'pickupY': undefined ➡️ 37.4100225848715 | 'dropoffX': undefined ➡️ 127.334785879899 | 'dropoffY': undefined ➡️ 37.3502833175492 | 'kakaoSoloDistanceKm': undefined ➡️ 0.2 | 'kakaoSoloDurationMin': undefined ➡️ 0
+ - [UPDATE] ID: 3b5ea20d 변경점 -> 'status': "ORDER_CONFIRMED" ➡️ "ORDER_COMPLETED"
 useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
 useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - [UPDATE] ID: 8502684a 변경점 -> 'dropoff': "곤지암읍" ➡️ "경기 광주시 곤지암읍 경충대로 727 곤지암도자공원" | 'pickup': "경안동" ➡️ "경기 광주시 경안동 167-1 경안천 체육공원" | 'pickupX': undefined ➡️ 127.252889947198 | 'pickupY': undefined ➡️ 37.4100225848715 | 'dropoffX': undefined ➡️ 127.334785879899 | 'dropoffY': undefined ➡️ 37.3502833175492 | 'kakaoSoloDistanceKm': undefined ➡️ 0.2 | 'kakaoSoloDurationMin': undefined ➡️ 0
+ - [UPDATE] ID: 3b5ea20d 변경점 -> 'status': "ORDER_CONFIRMED" ➡️ "ORDER_COMPLETED"
+2roadmapLogger.ts:11 [ROADMAP 20:35:49.431] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
+3roadmapLogger.ts:11 [ROADMAP 20:35:49.432] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
 useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
 useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - [UPDATE] ID: 8502684a 변경점 -> 'osrmSoloDistanceKm': undefined ➡️ 11.2744 | 'osrmSoloDurationMin': undefined ➡️ 14
+ - [UPDATE] ID: e9f04a11 변경점 -> 'routePolyline': [{"x":127.25804776147139,"y":37.41034355669392},{"x":127.25829020936152,"y":37.409813439126864},{"x":127.25829020936152,"y":37.409813439126864},{"x":127.25789522308416,"y":37.40977491729338},{"x":127.25720735575582,"y":37.40965345705368},{"x":127.25685773072576,"y":37.40959719507661},{"x":127.25674504333197,"y":37.40956945425777},{"x":127.25658761945436,"y":37.40949637791861},{"x":127.25611650784155,"y":37.409160014196914},{"x":127.25553324962523,"y":37.40874184506936},{"x":127.25532015481657,"y":37.40858731905251},{"x":127.25480396287612,"y":37.4082416553333},{"x":127.25450113425191,"y":37.40802348644884},{"x":127.25431054465919,"y":37.40787811133856},{"x":127.25431054465919,"y":37.40787811133856},{"x":127.25409343506173,"y":37.40812904503217},{"x":127.2538306961876,"y":37.40842474448909},{"x":127.25308809594537,"y":37.409267073266996},{"x":127.25287106770092,"y":37.40950899431004},{"x":127.25266497549042,"y":37.40978702736052},{"x":127.25266497549042,"y":37.40978702736052},{"x":127.25281119008653,"y":37.4098510272432},{"x":127.25295677863858,"y":37.409978098757456},{"x":127.25295677863858,"y":37.409978098757456},{"x":127.25329269218092,"y":37.41027757791061},{"x":127.25336010771146,"y":37.41031404695531},{"x":127.25346140995374,"y":37.4103507299331},{"x":127.25346140995374,"y":37.4103507299331},{"x":127.25336010771146,"y":37.41031404695531},{"x":127.25329269218092,"y":37.41027757791061},{"x":127.25281119008653,"y":37.4098510272432},{"x":127.25266497549042,"y":37.40978702736052},{"x":127.25266497549042,"y":37.40978702736052},{"x":127.25201468419002,"y":37.41043169442924},{"x":127.25193454015252,"y":37.41053931724831},{"x":127.25190038463569,"y":37.41056613360532},{"x":127.25183216313654,"y":37.410610756033265},{"x":127.25183216313654,"y":37.410610756033265},{"x":127.25177030828647,"y":37.411151013914555},{"x":127.25170934873917,"y":37.41160116917002},{"x":127.25169733599111,"y":37.41167317970553},{"x":127.25168523359004,"y":37.41175420049196},{"x":127.25165995311474,"y":37.41202436509111},{"x":127.25156402877262,"y":37.41258242871483},{"x":127.2515513881777,"y":37.412717510981125},{"x":127.25151463159304,"y":37.413005624489145},{"x":127.2514784126596,"y":37.41323967646575},{"x":127.25141753912904,"y":37.41368082112471},{"x":127.25136930606416,"y":37.413986883504634},{"x":127.25134348550006,"y":37.41431110940573},{"x":127.25131829246432,"y":37.414572263544265},{"x":127.2512826102049,"y":37.41475225389734},{"x":127.25123572122958,"y":37.41492316244328},{"x":127.2511669571383,"y":37.415021845890735},{"x":127.25097267786633,"y":37.415245885569156},{"x":127.25076539584647,"y":37.415641047984614},{"x":127.25061674808694,"y":37.41582032214538},{"x":127.25045698280485,"y":37.41598150399998},{"x":127.25025176175048,"y":37.416169429813756},{"x":127.24966989202792,"y":37.41674243034497},{"x":127.24953316530764,"y":37.41685870306501},{"x":127.249316553068,"y":37.417055565707855},{"x":127.24823527607589,"y":37.41785966795295},{"x":127.24823527607589,"y":37.41785966795295},{"x":127.24903374057062,"y":37.418225174939025},{"x":127.24930360276323,"y":37.41835304015266},{"x":127.24941603062933,"y":37.41840781885172},{"x":127.25020329979736,"y":37.41876423606886},{"x":127.25082184165139,"y":37.419047492474846},{"x":127.2514963346063,"y":37.41938516476353},{"x":127.25204656717928,"y":37.41972204711918},{"x":127.25242788703844,"y":37.42000379406878},{"x":127.25280840405964,"y":37.42036663198744},{"x":127.25327715438006,"y":37.42094628540483},{"x":127.25355493225322,"y":37.42141660160314},{"x":127.25366548993836,"y":37.42166059140106},{"x":127.25368772674969,"y":37.42169677500905},{"x":127.25416153368367,"y":37.42290721316543},{"x":127.25449205981317,"y":37.42375631361944},{"x":127.25498830910857,"y":37.42498491129213},{"x":127.25562671968864,"y":37.426691974371664},{"x":127.25574805449429,"y":37.426990094731025},{"x":127.25575899578784,"y":37.42702620681365},{"x":127.25581423751358,"y":37.4271527057817},{"x":127.25583629858245,"y":37.42720690945672},{"x":127.2559464260567,"y":37.42749594824338},{"x":127.25610139045088,"y":37.42782131227338},{"x":127.25631133213983,"y":37.4283002055384},{"x":127.25636657569905,"y":37.42842670424123},{"x":127.256477865349,"y":37.428598609433},{"x":127.25673362857351,"y":37.42901471452368},{"x":127.25687872601378,"y":37.429195842690866},{"x":127.25705852077358,"y":37.42929609157874},{"x":127.25758474091786,"y":37.42978598065767},{"x":127.25773064255297,"y":37.42988601565506},{"x":127.25793250348971,"y":37.430040466548505},{"x":127.2579774307593,"y":37.430067780960215},{"x":127.25997579609793,"y":37.43137786274324},{"x":127.26027891108357,"y":37.43157799744386},{"x":127.26039110078713,"y":37.43165979660253},{"x":127.26069404079216,"y":37.431877950734254},{"x":127.261355800671,"y":37.432377681418984},{"x":127.26193653036098,"y":37.433075139955335},{"x":127.2623585529792,"y":37.43382567009245},{"x":127.26252423818791,"y":37.43421416
+5roadmapLogger.ts:11 [ROADMAP 20:35:49.452] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
 useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
 useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - [UPDATE] ID: 8502684a 변경점 -> 'osrmSoloDistanceKm': undefined ➡️ 11.2744 | 'osrmSoloDurationMin': undefined ➡️ 14
-roadmapLogger.ts:11 [ROADMAP 23:18:52.882] [🖥️관제웹] [관제대시보드] 🔵 [웹 수신] order-evaluated | ID: 8502684a | +23.1km, +37분 '콜'
-roadmapLogger.ts:11 [ROADMAP 23:18:52.883] [🖥️관제웹] [관제대시보드] 추천 결과 노출, 경로보기버튼 추가 노출 후 판단 (취소 or 닫기) 대기
-roadmapLogger.ts:11 [ROADMAP 23:18:52.883] [🖥️관제웹] [관제대시보드] PinnedRoute 내 캔버스 미니맵 좌표 포커싱 및 카카오 궤적(폴리라인) 드로잉 처리
-roadmapLogger.ts:11 [ROADMAP 23:18:52.883] [🖥️관제웹] [관제대시보드] 예상 시간/수익률을 컴포넌트에 표시하고 결재버튼(KEEP/CANCEL) 즉시 딤드 해제(활성화)
-roadmapLogger.ts:11 [ROADMAP 23:18:57.041] [🖥️관제웹] PinnedRoute에서 CANCEL(취소) 또는 X 버튼 클릭
-roadmapLogger.ts:11 [ROADMAP 23:18:57.041] [🖥️관제웹] 서버에게 decision=CANCEL 하달 정보 전달
-roadmapLogger.ts:11 [ROADMAP 23:18:57.041] [🖥️관제웹] [관제대시보드] [Socket] 취소 전달
-roadmapLogger.ts:11 [ROADMAP 23:18:57.073] [🖥️관제웹] [관제대시보드] 🔴 [웹 수신] order-canceled | ID: 8502684a | 상태: ORDER_CANCELED | 수동여부: true
-roadmapLogger.ts:11 [ROADMAP 23:18:57.073] [🖥️관제웹] [관제대시보드] 오더 상태를 취소/방출로 변경하여 탭을 이동시킵니다
-roadmapLogger.ts:11 [ROADMAP 23:18:57.757] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
-4roadmapLogger.ts:11 [ROADMAP 23:18:57.758] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
-roadmapLogger.ts:11 [ROADMAP 23:18:58.764] [🖥️관제웹] 맵뷰 버튼(최단시간) 좌상단 클릭
-roadmapLogger.ts:11 [ROADMAP 23:18:58.764] [🖥️관제웹] [관제대시보드] [Socket] 카카오 TIME 탐색 옵션으로 재계산 요청
-roadmapLogger.ts:11 [ROADMAP 23:18:58.903] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
-4roadmapLogger.ts:11 [ROADMAP 23:18:58.904] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
-roadmapLogger.ts:11 [ROADMAP 23:18:59.004] [🖥️관제웹] [관제대시보드] 🟢 [웹 수신] order-evaluating | ID: b7625919-db70-4f45-818f-1868f3f2bf99 | 기기: 앱폰-sdk_gpho-160 | 일산동구
-roadmapLogger.ts:11 [ROADMAP 23:18:59.004] [🖥️관제웹] [관제대시보드] 확정페이지 진입 (선빵 수신으로 상세 모드 구동)
-roadmapLogger.ts:11 [ROADMAP 23:18:59.004] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 빈 레이아웃(평가중) 렌더링 및 하단 결재버튼 전체 딤드(비활성) 처리
-useOrderEngine.ts:90    ➡️ activeOrders 변경: [2a280e5d, ccf81166, 8502684a] → [2a280e5d, b7625919]
-useOrderEngine.ts:90    ➡️ activeOrders 변경: [2a280e5d, ccf81166, 8502684a] → [2a280e5d, b7625919]
-roadmapLogger.ts:11 [ROADMAP 23:18:59.678] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
-4roadmapLogger.ts:11 [ROADMAP 23:18:59.679] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
-useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - 배열 길이 다름: 웹(2개) vs 서버(4개)
- - [NEW] ID: ccf81166 서버에서 새로 추가됨
- - [NEW] ID: 8502684a 서버에서 새로 추가됨
-useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - 배열 길이 다름: 웹(2개) vs 서버(4개)
- - [NEW] ID: ccf81166 서버에서 새로 추가됨
- - [NEW] ID: 8502684a 서버에서 새로 추가됨
-roadmapLogger.ts:11 [ROADMAP 23:19:00.069] [🖥️관제웹] [관제대시보드] 🟡 [웹 수신] order-detail-received | ID: b7625919 | 경기 성남시 분당구 황새울로 360번
-roadmapLogger.ts:11 [ROADMAP 23:19:00.069] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 '상하차지 및 적요' 텍스트를 선출력하여 렌더링
-roadmapLogger.ts:11 [ROADMAP 23:19:00.428] [🖥️관제웹] [관제대시보드] 🔵 [웹 수신] order-evaluated | ID: 8502684a | [최단시간] +30.6km, +40분 💩 (패널티 🚨)
-roadmapLogger.ts:11 [ROADMAP 23:19:00.429] [🖥️관제웹] [관제대시보드] 추천 결과 노출, 경로보기버튼 추가 노출 후 판단 (취소 or 닫기) 대기
-roadmapLogger.ts:11 [ROADMAP 23:19:00.429] [🖥️관제웹] [관제대시보드] PinnedRoute 내 캔버스 미니맵 좌표 포커싱 및 카카오 궤적(폴리라인) 드로잉 처리
-roadmapLogger.ts:11 [ROADMAP 23:19:00.429] [🖥️관제웹] [관제대시보드] 예상 시간/수익률을 컴포넌트에 표시하고 결재버튼(KEEP/CANCEL) 즉시 딤드 해제(활성화)
-useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - [UPDATE] ID: b7625919 변경점 -> 'dropoff': "일산동구" ➡️ "경기 고양시 일산동구 정발산로 24 웨스턴돔" | 'pickup': "분당구" ➡️ "경기 성남시 분당구 황새울로 360번길 42 AK플라자" | 'pickupX': undefined ➡️ 127.122703082975 | 'pickupY': undefined ➡️ 37.3851022326251 | 'dropoffX': undefined ➡️ 126.772038816453 | 'dropoffY': undefined ➡️ 37.6558964094856 | 'kakaoSoloDistanceKm': undefined ➡️ 8.5 | 'kakaoSoloDurationMin': undefined ➡️ 13
-useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - [UPDATE] ID: b7625919 변경점 -> 'dropoff': "일산동구" ➡️ "경기 고양시 일산동구 정발산로 24 웨스턴돔" | 'pickup': "분당구" ➡️ "경기 성남시 분당구 황새울로 360번길 42 AK플라자" | 'pickupX': undefined ➡️ 127.122703082975 | 'pickupY': undefined ➡️ 37.3851022326251 | 'dropoffX': undefined ➡️ 126.772038816453 | 'dropoffY': undefined ➡️ 37.6558964094856 | 'kakaoSoloDistanceKm': undefined ➡️ 8.5 | 'kakaoSoloDurationMin': undefined ➡️ 13
-useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - [UPDATE] ID: b7625919 변경점 -> 'osrmSoloDistanceKm': undefined ➡️ 51.3765 | 'osrmSoloDurationMin': undefined ➡️ 49
-useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - [UPDATE] ID: b7625919 변경점 -> 'osrmSoloDistanceKm': undefined ➡️ 51.3765 | 'osrmSoloDurationMin': undefined ➡️ 49
-roadmapLogger.ts:11 [ROADMAP 23:19:02.592] [🖥️관제웹] 맵뷰 버튼(최단시간) 좌상단 클릭
-roadmapLogger.ts:11 [ROADMAP 23:19:02.592] [🖥️관제웹] [관제대시보드] [Socket] 카카오 TIME 탐색 옵션으로 재계산 요청
-roadmapLogger.ts:11 [ROADMAP 23:19:02.794] [🖥️관제웹] [관제대시보드] 🔵 [웹 수신] order-evaluated | ID: b7625919 | +7.8km, +24분 '꿀'
-roadmapLogger.ts:11 [ROADMAP 23:19:02.794] [🖥️관제웹] [관제대시보드] 추천 결과 노출, 경로보기버튼 추가 노출 후 판단 (취소 or 닫기) 대기
-roadmapLogger.ts:11 [ROADMAP 23:19:02.794] [🖥️관제웹] [관제대시보드] PinnedRoute 내 캔버스 미니맵 좌표 포커싱 및 카카오 궤적(폴리라인) 드로잉 처리
-roadmapLogger.ts:11 [ROADMAP 23:19:02.794] [🖥️관제웹] [관제대시보드] 예상 시간/수익률을 컴포넌트에 표시하고 결재버튼(KEEP/CANCEL) 즉시 딤드 해제(활성화)
-roadmapLogger.ts:11 [ROADMAP 23:19:03.963] [🖥️관제웹] [관제대시보드] 🔵 [웹 수신] order-evaluated | ID: b7625919 | [최단시간] -5.1km, +32분 💩 (패널티 🚨)
-roadmapLogger.ts:11 [ROADMAP 23:19:03.964] [🖥️관제웹] [관제대시보드] 추천 결과 노출, 경로보기버튼 추가 노출 후 판단 (취소 or 닫기) 대기
-roadmapLogger.ts:11 [ROADMAP 23:19:03.964] [🖥️관제웹] [관제대시보드] PinnedRoute 내 캔버스 미니맵 좌표 포커싱 및 카카오 궤적(폴리라인) 드로잉 처리
-roadmapLogger.ts:11 [ROADMAP 23:19:03.964] [🖥️관제웹] [관제대시보드] 예상 시간/수익률을 컴포넌트에 표시하고 결재버튼(KEEP/CANCEL) 즉시 딤드 해제(활성화)
-roadmapLogger.ts:11 [ROADMAP 23:19:06.210] [🖥️관제웹] PinnedRoute에서 CANCEL(취소) 또는 X 버튼 클릭
-roadmapLogger.ts:11 [ROADMAP 23:19:06.210] [🖥️관제웹] 서버에게 decision=CANCEL 하달 정보 전달
-roadmapLogger.ts:11 [ROADMAP 23:19:06.210] [🖥️관제웹] [관제대시보드] [Socket] 취소 전달
-roadmapLogger.ts:11 [ROADMAP 23:19:06.242] [🖥️관제웹] [관제대시보드] 🔴 [웹 수신] order-canceled | ID: b7625919 | 상태: ORDER_CANCELED | 수동여부: true
-roadmapLogger.ts:11 [ROADMAP 23:19:06.242] [🖥️관제웹] [관제대시보드] 오더 상태를 취소/방출로 변경하여 탭을 이동시킵니다
-5roadmapLogger.ts:11 [ROADMAP 23:19:06.959] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
-roadmapLogger.ts:11 [ROADMAP 23:19:08.034] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
-4roadmapLogger.ts:11 [ROADMAP 23:19:08.035] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
-useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - [UPDATE] ID: 2a280e5d 변경점 -> 'totalDurationMin': 78 ➡️ 76
-useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - [UPDATE] ID: 2a280e5d 변경점 -> 'totalDurationMin': 78 ➡️ 76
-roadmapLogger.ts:11 [ROADMAP 23:19:12.088] [🖥️관제웹] 맵뷰 버튼(최단시간) 좌상단 클릭
-roadmapLogger.ts:11 [ROADMAP 23:19:12.088] [🖥️관제웹] [관제대시보드] [Socket] 카카오 TIME 탐색 옵션으로 재계산 요청
-roadmapLogger.ts:11 [ROADMAP 23:19:13.409] [🖥️관제웹] [관제대시보드] 🔵 [웹 수신] order-evaluated | ID: b7625919 | [최단시간] -5.1km, +32분 💩 (패널티 🚨)
-roadmapLogger.ts:11 [ROADMAP 23:19:13.410] [🖥️관제웹] [관제대시보드] 추천 결과 노출, 경로보기버튼 추가 노출 후 판단 (취소 or 닫기) 대기
-roadmapLogger.ts:11 [ROADMAP 23:19:13.410] [🖥️관제웹] [관제대시보드] PinnedRoute 내 캔버스 미니맵 좌표 포커싱 및 카카오 궤적(폴리라인) 드로잉 처리
-roadmapLogger.ts:11 [ROADMAP 23:19:13.410] [🖥️관제웹] [관제대시보드] 예상 시간/수익률을 컴포넌트에 표시하고 결재버튼(KEEP/CANCEL) 즉시 딤드 해제(활성화)
-roadmapLogger.ts:11 [ROADMAP 23:19:14.209] [🖥️관제웹] 맵뷰 버튼(최단거리) 좌상단 클릭
-roadmapLogger.ts:11 [ROADMAP 23:19:14.209] [🖥️관제웹] [관제대시보드] [Socket] 카카오 DISTANCE 탐색 옵션으로 재계산 요청
-roadmapLogger.ts:11 [ROADMAP 23:19:14.251] [🖥️관제웹] [관제대시보드] 🟢 [웹 수신] order-evaluating | ID: 6b1eee05-4ab8-47d9-bbf7-ae7d87be172c | 기기: 앱폰-sdk_gpho-160 | 일산동구
-roadmapLogger.ts:11 [ROADMAP 23:19:14.251] [🖥️관제웹] [관제대시보드] 확정페이지 진입 (선빵 수신으로 상세 모드 구동)
-roadmapLogger.ts:11 [ROADMAP 23:19:14.251] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 빈 레이아웃(평가중) 렌더링 및 하단 결재버튼 전체 딤드(비활성) 처리
-useOrderEngine.ts:90    ➡️ activeOrders 변경: [2a280e5d, ccf81166, 8502684a, b7625919] → [2a280e5d, 6b1eee05]
-useOrderEngine.ts:90    ➡️ activeOrders 변경: [2a280e5d, ccf81166, 8502684a, b7625919] → [2a280e5d, 6b1eee05]
-roadmapLogger.ts:11 [ROADMAP 23:19:15.061] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
-4roadmapLogger.ts:11 [ROADMAP 23:19:15.062] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
-useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - 배열 길이 다름: 웹(2개) vs 서버(5개)
- - [NEW] ID: ccf81166 서버에서 새로 추가됨
- - [NEW] ID: 8502684a 서버에서 새로 추가됨
- - [NEW] ID: b7625919 서버에서 새로 추가됨
-useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - 배열 길이 다름: 웹(2개) vs 서버(5개)
- - [NEW] ID: ccf81166 서버에서 새로 추가됨
- - [NEW] ID: 8502684a 서버에서 새로 추가됨
- - [NEW] ID: b7625919 서버에서 새로 추가됨
-roadmapLogger.ts:11 [ROADMAP 23:19:15.254] [🖥️관제웹] [관제대시보드] 🟡 [웹 수신] order-detail-received | ID: 6b1eee05 | 경기 광주시 경안동 167-1 경안천
-roadmapLogger.ts:11 [ROADMAP 23:19:15.254] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 '상하차지 및 적요' 텍스트를 선출력하여 렌더링
-roadmapLogger.ts:11 [ROADMAP 23:19:15.652] [🖥️관제웹] [관제대시보드] 🔵 [웹 수신] order-evaluated | ID: b7625919 | [최단거리] +7.6km, +5분 🚙 (양호)
-roadmapLogger.ts:11 [ROADMAP 23:19:15.654] [🖥️관제웹] [관제대시보드] 추천 결과 노출, 경로보기버튼 추가 노출 후 판단 (취소 or 닫기) 대기
-roadmapLogger.ts:11 [ROADMAP 23:19:15.654] [🖥️관제웹] [관제대시보드] PinnedRoute 내 캔버스 미니맵 좌표 포커싱 및 카카오 궤적(폴리라인) 드로잉 처리
-roadmapLogger.ts:11 [ROADMAP 23:19:15.654] [🖥️관제웹] [관제대시보드] 예상 시간/수익률을 컴포넌트에 표시하고 결재버튼(KEEP/CANCEL) 즉시 딤드 해제(활성화)
-useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - [UPDATE] ID: 6b1eee05 변경점 -> 'dropoff': "일산동구" ➡️ "경기 고양시 일산동구 정발산로 24 웨스턴돔" | 'pickup': "경안동" ➡️ "경기 광주시 경안동 167-1 경안천 체육공원" | 'pickupX': undefined ➡️ 127.252889947198 | 'pickupY': undefined ➡️ 37.4100225848715 | 'dropoffX': undefined ➡️ 126.772038816453 | 'dropoffY': undefined ➡️ 37.6558964094856 | 'kakaoSoloDistanceKm': undefined ➡️ 0.2 | 'kakaoSoloDurationMin': undefined ➡️ 0
-useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - [UPDATE] ID: 6b1eee05 변경점 -> 'dropoff': "일산동구" ➡️ "경기 고양시 일산동구 정발산로 24 웨스턴돔" | 'pickup': "경안동" ➡️ "경기 광주시 경안동 167-1 경안천 체육공원" | 'pickupX': undefined ➡️ 127.252889947198 | 'pickupY': undefined ➡️ 37.4100225848715 | 'dropoffX': undefined ➡️ 126.772038816453 | 'dropoffY': undefined ➡️ 37.6558964094856 | 'kakaoSoloDistanceKm': undefined ➡️ 0.2 | 'kakaoSoloDurationMin': undefined ➡️ 0
-useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - [UPDATE] ID: 6b1eee05 변경점 -> 'osrmSoloDistanceKm': undefined ➡️ 72.8545 | 'osrmSoloDurationMin': undefined ➡️ 60
-useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - [UPDATE] ID: 6b1eee05 변경점 -> 'osrmSoloDistanceKm': undefined ➡️ 72.8545 | 'osrmSoloDurationMin': undefined ➡️ 60
-roadmapLogger.ts:11 [ROADMAP 23:19:17.919] [🖥️관제웹] [관제대시보드] 🔵 [웹 수신] order-evaluated | ID: 6b1eee05 | +7.4km, +24분 '꿀'
-roadmapLogger.ts:11 [ROADMAP 23:19:17.920] [🖥️관제웹] [관제대시보드] 추천 결과 노출, 경로보기버튼 추가 노출 후 판단 (취소 or 닫기) 대기
-roadmapLogger.ts:11 [ROADMAP 23:19:17.920] [🖥️관제웹] [관제대시보드] PinnedRoute 내 캔버스 미니맵 좌표 포커싱 및 카카오 궤적(폴리라인) 드로잉 처리
-roadmapLogger.ts:11 [ROADMAP 23:19:17.920] [🖥️관제웹] [관제대시보드] 예상 시간/수익률을 컴포넌트에 표시하고 결재버튼(KEEP/CANCEL) 즉시 딤드 해제(활성화)
-roadmapLogger.ts:11 [ROADMAP 23:19:20.071] [🖥️관제웹] 맵뷰 버튼(최단시간) 좌상단 클릭
-roadmapLogger.ts:11 [ROADMAP 23:19:20.072] [🖥️관제웹] [관제대시보드] [Socket] 카카오 TIME 탐색 옵션으로 재계산 요청
-roadmapLogger.ts:11 [ROADMAP 23:19:21.503] [🖥️관제웹] [관제대시보드] 🔵 [웹 수신] order-evaluated | ID: 6b1eee05 | [최단시간] +6.9km, +28분 🚙 (양호)
-roadmapLogger.ts:11 [ROADMAP 23:19:21.504] [🖥️관제웹] [관제대시보드] 추천 결과 노출, 경로보기버튼 추가 노출 후 판단 (취소 or 닫기) 대기
-roadmapLogger.ts:11 [ROADMAP 23:19:21.504] [🖥️관제웹] [관제대시보드] PinnedRoute 내 캔버스 미니맵 좌표 포커싱 및 카카오 궤적(폴리라인) 드로잉 처리
-roadmapLogger.ts:11 [ROADMAP 23:19:21.504] [🖥️관제웹] [관제대시보드] 예상 시간/수익률을 컴포넌트에 표시하고 결재버튼(KEEP/CANCEL) 즉시 딤드 해제(활성화)
-roadmapLogger.ts:11 [ROADMAP 23:19:25.243] [🖥️관제웹] PinnedRoute에서 KEEP(유지 확정) 버튼 클릭
-roadmapLogger.ts:11 [ROADMAP 23:19:25.243] [🖥️관제웹] 서버에게 decision=KEEP 하달 정보 전달
-roadmapLogger.ts:11 [ROADMAP 23:19:25.243] [🖥️관제웹] [관제대시보드] [Socket] 유지 전달
-useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - [UPDATE] ID: 6b1eee05 변경점 -> 'status': "ORDER_AWAITING_DECISION" ➡️ "ORDER_CONFIRMED"
-useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - [UPDATE] ID: 6b1eee05 변경점 -> 'status': "ORDER_AWAITING_DECISION" ➡️ "ORDER_CONFIRMED"
-roadmapLogger.ts:11 [ROADMAP 23:19:26.660] [🖥️관제웹] [관제대시보드] 🟢 [웹 수신] order-evaluating | ID: 2c950b8a-46f8-4e73-8d7c-690c1f7d5b20 | 기기: 앱폰-sdk_gpho-160 | 문발동
-roadmapLogger.ts:11 [ROADMAP 23:19:26.660] [🖥️관제웹] [관제대시보드] 확정페이지 진입 (선빵 수신으로 상세 모드 구동)
-roadmapLogger.ts:11 [ROADMAP 23:19:26.660] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 빈 레이아웃(평가중) 렌더링 및 하단 결재버튼 전체 딤드(비활성) 처리
-useOrderEngine.ts:90    ➡️ activeOrders 변경: [2a280e5d, ccf81166, 8502684a, b7625919, 6b1eee05] → [2a280e5d, 6b1eee05, 2c950b8a]
-useOrderEngine.ts:90    ➡️ activeOrders 변경: [2a280e5d, ccf81166, 8502684a, b7625919, 6b1eee05] → [2a280e5d, 6b1eee05, 2c950b8a]
-4roadmapLogger.ts:11 [ROADMAP 23:19:27.222] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
-roadmapLogger.ts:11 [ROADMAP 23:19:27.223] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
-roadmapLogger.ts:11 [ROADMAP 23:19:27.242] [🖥️관제웹] [관제대시보드] PinnedRoute 레이아웃을 합짐/무한 궤도 모드로 격상 렌더링 및 딤드 다시 처리
-5roadmapLogger.ts:11 [ROADMAP 23:19:27.279] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
-useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - 배열 길이 다름: 웹(3개) vs 서버(6개)
- - [NEW] ID: ccf81166 서버에서 새로 추가됨
- - [NEW] ID: 8502684a 서버에서 새로 추가됨
- - [NEW] ID: b7625919 서버에서 새로 추가됨
- - [UPDATE] ID: 6b1eee05 변경점 -> 'routePolyline': [{"x":127.32557508020969,"y":37.351285067532054},{"x":127.32540497092371,"y":37.351374207114944},{"x":127.32526864128666,"y":37.35147255007102},{"x":127.32517665242874,"y":37.35166125530823},{"x":127.3251648815843,"y":37.3517152538586},{"x":127.3251648815843,"y":37.3517152538586},{"x":127.32525445127328,"y":37.351796863320025},{"x":127.32536578877577,"y":37.35196870634497},{"x":127.32594538029268,"y":37.35279200657071},{"x":127.3260577679653,"y":37.35284671258753},{"x":127.32623828112726,"y":37.35285675178499},{"x":127.32673668418911,"y":37.35266134851764},{"x":127.3271561557525,"y":37.35245648327051},{"x":127.3271561557525,"y":37.35245648327051},{"x":127.32748452511696,"y":37.352341208141794},{"x":127.3274847662502,"y":37.35231417666378},{"x":127.32757554468365,"y":37.3522606269994},{"x":127.32760948610984,"y":37.35225180897313},{"x":127.32764334716967,"y":37.35225200143011},{"x":127.32767712787526,"y":37.35226120437056},{"x":127.3276883345435,"y":37.35227027901067},{"x":127.32769946086248,"y":37.352288364142865},{"x":127.32772179386573,"y":37.35231552391099},{"x":127.32772147246791,"y":37.35235156588338},{"x":127.32772123141918,"y":37.352378597362545},{"x":127.32766431408511,"y":37.35243233958905},{"x":127.32766431408511,"y":37.35243233958905},{"x":127.32796577121118,"y":37.352803501436746},{"x":127.32817781728407,"y":37.353075034327254},{"x":127.32894716601383,"y":37.354142692950276},{"x":127.32894716601383,"y":37.354142692950276},{"x":127.32794922419527,"y":37.354659662663394},{"x":127.32775637449477,"y":37.354766698256334},{"x":127.32740493771686,"y":37.35493590857195},{"x":127.32714420107125,"y":37.355060579038806},{"x":127.32613518900413,"y":37.35555043746604},{"x":127.32585195368614,"y":37.35566596594402},{"x":127.3255230835997,"y":37.355835299211336},{"x":127.32546648458394,"y":37.355852998373756},{"x":127.32526201815556,"y":37.35599600738186},{"x":127.3240261781323,"y":37.3566016958472},{"x":127.32294931809206,"y":37.35710015000933},{"x":127.31963866145358,"y":37.358703123757905},{"x":127.31921905346073,"y":37.35891697205138},{"x":127.31739352580313,"y":37.359807545150495},{"x":127.31696302549739,"y":37.359976267828046},{"x":127.31673579214011,"y":37.36013715228381},{"x":127.31656532563333,"y":37.36026232056},{"x":127.31633833576826,"y":37.360396172848525},{"x":127.31585989591106,"y":37.36087098604765},{"x":127.31529016084255,"y":37.36145339997795},{"x":127.31469718455234,"y":37.362107763850794},{"x":127.3141729132891,"y":37.36265439188237},{"x":127.31412743108577,"y":37.362690171875684},{"x":127.31405920769983,"y":37.36274384183165},{"x":127.3140250139531,"y":37.362779687245784},{"x":127.31394541981365,"y":37.362842302118786},{"x":127.31386582554194,"y":37.362904916936216},{"x":127.31380905445337,"y":37.36294063132101},{"x":127.31330882614627,"y":37.3633251982045},{"x":127.31300214350269,"y":37.36353066868871},{"x":127.31237773112763,"y":37.36391451023613},{"x":127.31222999080725,"y":37.36402178238117},{"x":127.31174177674127,"y":37.36432531404768},{"x":127.31138951880449,"y":37.36457556969892},{"x":127.31106041290398,"y":37.364762882673155},{"x":127.31099226784761,"y":37.364807540357916},{"x":127.31006097150214,"y":37.365414854519955},{"x":127.30840310950478,"y":37.366459450259136},{"x":127.30783534368096,"y":37.36681656588233},{"x":127.30694915416994,"y":37.367424119074144},{"x":127.30514319647831,"y":37.368602964253654},{"x":127.30508633388212,"y":37.36864768475774},{"x":127.30459764542137,"y":37.36899623822635},{"x":127.3039720630895,"y":37.369497169646614},{"x":127.30360771612291,"y":37.36982842875142},{"x":127.30347099146971,"y":37.369962787336114},{"x":127.30342541647666,"y":37.37000757349409},{"x":127.30333426632752,"y":37.370097145754755},{"x":127.30325457226425,"y":37.370168763607566},{"x":127.30293571112732,"y":37.37046424487628},{"x":127.302628387429,"y":37.37073276055843},{"x":127.30250303254827,"y":37.37085817411689},{"x":127.30216150249232,"y":37.37116253046278},{"x":127.3012736284109,"y":37.37194123756357},{"x":127.30113731367416,"y":37.372030541257345},{"x":127.30090992663115,"y":37.372200404682225},{"x":127.3006373786855,"y":37.37237000063226},{"x":127.30014898033855,"y":37.37268249340464},{"x":127.29964937165728,"y":37.37298590684152},{"x":127.29945618380157,"y":37.37311992630357},{"x":127.29930840707974,"y":37.37322718177051},{"x":127.29869505120658,"y":37.37362002621912},{"x":127.29828617172463,"y":37.37387891723209},{"x":127.2981498499582,"y":37.37396821738138},{"x":127.2980817729116,"y":37.37400385699158},{"x":127.29802490204986,"y":37.37404857397551},{"x":127.29786591522917,"y":37.37414675017017},{"x":127.29763859845708,"y":37.37430759670156},{"x":127.29741111263745,"y":37.374486463585264},{"x":127.29718337353673,"y":37.374692361218},{"x":127.29695554909402,"y":37.3749072687925
-useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - 배열 길이 다름: 웹(3개) vs 서버(6개)
- - [NEW] ID: ccf81166 서버에서 새로 추가됨
- - [NEW] ID: 8502684a 서버에서 새로 추가됨
- - [NEW] ID: b7625919 서버에서 새로 추가됨
- - [UPDATE] ID: 6b1eee05 변경점 -> 'routePolyline': [{"x":127.32557508020969,"y":37.351285067532054},{"x":127.32540497092371,"y":37.351374207114944},{"x":127.32526864128666,"y":37.35147255007102},{"x":127.32517665242874,"y":37.35166125530823},{"x":127.3251648815843,"y":37.3517152538586},{"x":127.3251648815843,"y":37.3517152538586},{"x":127.32525445127328,"y":37.351796863320025},{"x":127.32536578877577,"y":37.35196870634497},{"x":127.32594538029268,"y":37.35279200657071},{"x":127.3260577679653,"y":37.35284671258753},{"x":127.32623828112726,"y":37.35285675178499},{"x":127.32673668418911,"y":37.35266134851764},{"x":127.3271561557525,"y":37.35245648327051},{"x":127.3271561557525,"y":37.35245648327051},{"x":127.32748452511696,"y":37.352341208141794},{"x":127.3274847662502,"y":37.35231417666378},{"x":127.32757554468365,"y":37.3522606269994},{"x":127.32760948610984,"y":37.35225180897313},{"x":127.32764334716967,"y":37.35225200143011},{"x":127.32767712787526,"y":37.35226120437056},{"x":127.3276883345435,"y":37.35227027901067},{"x":127.32769946086248,"y":37.352288364142865},{"x":127.32772179386573,"y":37.35231552391099},{"x":127.32772147246791,"y":37.35235156588338},{"x":127.32772123141918,"y":37.352378597362545},{"x":127.32766431408511,"y":37.35243233958905},{"x":127.32766431408511,"y":37.35243233958905},{"x":127.32796577121118,"y":37.352803501436746},{"x":127.32817781728407,"y":37.353075034327254},{"x":127.32894716601383,"y":37.354142692950276},{"x":127.32894716601383,"y":37.354142692950276},{"x":127.32794922419527,"y":37.354659662663394},{"x":127.32775637449477,"y":37.354766698256334},{"x":127.32740493771686,"y":37.35493590857195},{"x":127.32714420107125,"y":37.355060579038806},{"x":127.32613518900413,"y":37.35555043746604},{"x":127.32585195368614,"y":37.35566596594402},{"x":127.3255230835997,"y":37.355835299211336},{"x":127.32546648458394,"y":37.355852998373756},{"x":127.32526201815556,"y":37.35599600738186},{"x":127.3240261781323,"y":37.3566016958472},{"x":127.32294931809206,"y":37.35710015000933},{"x":127.31963866145358,"y":37.358703123757905},{"x":127.31921905346073,"y":37.35891697205138},{"x":127.31739352580313,"y":37.359807545150495},{"x":127.31696302549739,"y":37.359976267828046},{"x":127.31673579214011,"y":37.36013715228381},{"x":127.31656532563333,"y":37.36026232056},{"x":127.31633833576826,"y":37.360396172848525},{"x":127.31585989591106,"y":37.36087098604765},{"x":127.31529016084255,"y":37.36145339997795},{"x":127.31469718455234,"y":37.362107763850794},{"x":127.3141729132891,"y":37.36265439188237},{"x":127.31412743108577,"y":37.362690171875684},{"x":127.31405920769983,"y":37.36274384183165},{"x":127.3140250139531,"y":37.362779687245784},{"x":127.31394541981365,"y":37.362842302118786},{"x":127.31386582554194,"y":37.362904916936216},{"x":127.31380905445337,"y":37.36294063132101},{"x":127.31330882614627,"y":37.3633251982045},{"x":127.31300214350269,"y":37.36353066868871},{"x":127.31237773112763,"y":37.36391451023613},{"x":127.31222999080725,"y":37.36402178238117},{"x":127.31174177674127,"y":37.36432531404768},{"x":127.31138951880449,"y":37.36457556969892},{"x":127.31106041290398,"y":37.364762882673155},{"x":127.31099226784761,"y":37.364807540357916},{"x":127.31006097150214,"y":37.365414854519955},{"x":127.30840310950478,"y":37.366459450259136},{"x":127.30783534368096,"y":37.36681656588233},{"x":127.30694915416994,"y":37.367424119074144},{"x":127.30514319647831,"y":37.368602964253654},{"x":127.30508633388212,"y":37.36864768475774},{"x":127.30459764542137,"y":37.36899623822635},{"x":127.3039720630895,"y":37.369497169646614},{"x":127.30360771612291,"y":37.36982842875142},{"x":127.30347099146971,"y":37.369962787336114},{"x":127.30342541647666,"y":37.37000757349409},{"x":127.30333426632752,"y":37.370097145754755},{"x":127.30325457226425,"y":37.370168763607566},{"x":127.30293571112732,"y":37.37046424487628},{"x":127.302628387429,"y":37.37073276055843},{"x":127.30250303254827,"y":37.37085817411689},{"x":127.30216150249232,"y":37.37116253046278},{"x":127.3012736284109,"y":37.37194123756357},{"x":127.30113731367416,"y":37.372030541257345},{"x":127.30090992663115,"y":37.372200404682225},{"x":127.3006373786855,"y":37.37237000063226},{"x":127.30014898033855,"y":37.37268249340464},{"x":127.29964937165728,"y":37.37298590684152},{"x":127.29945618380157,"y":37.37311992630357},{"x":127.29930840707974,"y":37.37322718177051},{"x":127.29869505120658,"y":37.37362002621912},{"x":127.29828617172463,"y":37.37387891723209},{"x":127.2981498499582,"y":37.37396821738138},{"x":127.2980817729116,"y":37.37400385699158},{"x":127.29802490204986,"y":37.37404857397551},{"x":127.29786591522917,"y":37.37414675017017},{"x":127.29763859845708,"y":37.37430759670156},{"x":127.29741111263745,"y":37.374486463585264},{"x":127.29718337353673,"y":37.374692361218},{"x":127.29695554909402,"y":37.3749072687925
-roadmapLogger.ts:11 [ROADMAP 23:19:27.658] [🖥️관제웹] [관제대시보드] 🟡 [웹 수신] order-detail-received | ID: 2c950b8a | 경기 광주시 남종면 팔당로 29 팔당
-roadmapLogger.ts:11 [ROADMAP 23:19:27.658] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 '상하차지 및 적요' 텍스트를 선출력하여 렌더링
-useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - [UPDATE] ID: 2c950b8a 변경점 -> 'dropoff': "문발동" ➡️ "경기 파주시 문발동 문발로 90 롯데프리미엄아울렛 파주" | 'pickup': "남종면" ➡️ "경기 광주시 남종면 팔당로 29 팔당댐 관리사무소" | 'pickupX': undefined ➡️ 127.316377876799 | 'pickupY': undefined ➡️ 37.5436449064665 | 'dropoffX': undefined ➡️ 126.69264255226548 | 'dropoffY': undefined ➡️ 37.718115211026245 | 'kakaoSoloDistanceKm': undefined ➡️ 11.9 | 'kakaoSoloDurationMin': undefined ➡️ 18
-useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - [UPDATE] ID: 2c950b8a 변경점 -> 'dropoff': "문발동" ➡️ "경기 파주시 문발동 문발로 90 롯데프리미엄아울렛 파주" | 'pickup': "남종면" ➡️ "경기 광주시 남종면 팔당로 29 팔당댐 관리사무소" | 'pickupX': undefined ➡️ 127.316377876799 | 'pickupY': undefined ➡️ 37.5436449064665 | 'dropoffX': undefined ➡️ 126.69264255226548 | 'dropoffY': undefined ➡️ 37.718115211026245 | 'kakaoSoloDistanceKm': undefined ➡️ 11.9 | 'kakaoSoloDurationMin': undefined ➡️ 18
-useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - [UPDATE] ID: 2c950b8a 변경점 -> 'osrmSoloDistanceKm': undefined ➡️ 77.2256 | 'osrmSoloDurationMin': undefined ➡️ 74
-useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - [UPDATE] ID: 2c950b8a 변경점 -> 'osrmSoloDistanceKm': undefined ➡️ 77.2256 | 'osrmSoloDurationMin': undefined ➡️ 74
-roadmapLogger.ts:11 [ROADMAP 23:19:30.409] [🖥️관제웹] [관제대시보드] 🔵 [웹 수신] order-evaluated | ID: 2c950b8a | +43.3km, +53분 '똥'
-roadmapLogger.ts:11 [ROADMAP 23:19:30.410] [🖥️관제웹] [관제대시보드] 추천 결과 노출, 경로보기버튼 추가 노출 후 판단 (취소 or 닫기) 대기
-roadmapLogger.ts:11 [ROADMAP 23:19:30.410] [🖥️관제웹] [관제대시보드] PinnedRoute 내 캔버스 미니맵 좌표 포커싱 및 카카오 궤적(폴리라인) 드로잉 처리
-roadmapLogger.ts:11 [ROADMAP 23:19:30.410] [🖥️관제웹] [관제대시보드] 예상 시간/수익률을 컴포넌트에 표시하고 결재버튼(KEEP/CANCEL) 즉시 딤드 해제(활성화)
-roadmapLogger.ts:11 [ROADMAP 23:19:36.208] [🖥️관제웹] PinnedRoute에서 CANCEL(취소) 또는 X 버튼 클릭
-roadmapLogger.ts:11 [ROADMAP 23:19:36.209] [🖥️관제웹] 서버에게 decision=CANCEL 하달 정보 전달
-roadmapLogger.ts:11 [ROADMAP 23:19:36.209] [🖥️관제웹] [관제대시보드] [Socket] 취소 전달
-roadmapLogger.ts:11 [ROADMAP 23:19:36.242] [🖥️관제웹] [관제대시보드] 🔴 [웹 수신] order-canceled | ID: 2c950b8a | 상태: ORDER_CANCELED | 수동여부: true
-roadmapLogger.ts:11 [ROADMAP 23:19:36.242] [🖥️관제웹] [관제대시보드] 오더 상태를 취소/방출로 변경하여 탭을 이동시킵니다
-5roadmapLogger.ts:11 [ROADMAP 23:19:37.131] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
-roadmapLogger.ts:11 [ROADMAP 23:19:38.608] [🖥️관제웹] 맵뷰 버튼(최단시간) 좌상단 클릭
-roadmapLogger.ts:11 [ROADMAP 23:19:38.609] [🖥️관제웹] [관제대시보드] [Socket] 카카오 TIME 탐색 옵션으로 재계산 요청
-5roadmapLogger.ts:11 [ROADMAP 23:19:39.247] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
-roadmapLogger.ts:11 [ROADMAP 23:19:40.867] [🖥️관제웹] [관제대시보드] 🔵 [웹 수신] order-evaluated | ID: 2c950b8a | [최단시간] +35.3km, +61분 💩 (패널티 🚨)
-roadmapLogger.ts:11 [ROADMAP 23:19:40.869] [🖥️관제웹] [관제대시보드] 추천 결과 노출, 경로보기버튼 추가 노출 후 판단 (취소 or 닫기) 대기
-roadmapLogger.ts:11 [ROADMAP 23:19:40.869] [🖥️관제웹] [관제대시보드] PinnedRoute 내 캔버스 미니맵 좌표 포커싱 및 카카오 궤적(폴리라인) 드로잉 처리
-roadmapLogger.ts:11 [ROADMAP 23:19:40.869] [🖥️관제웹] [관제대시보드] 예상 시간/수익률을 컴포넌트에 표시하고 결재버튼(KEEP/CANCEL) 즉시 딤드 해제(활성화)
-roadmapLogger.ts:11 [ROADMAP 23:19:44.045] [🖥️관제웹] [관제대시보드] 🟢 [웹 수신] order-evaluating | ID: bfd80958-929e-4297-b8a7-749057edfd6e | 기기: 앱폰-sdk_gpho-160 | 금촌동
-roadmapLogger.ts:11 [ROADMAP 23:19:44.045] [🖥️관제웹] [관제대시보드] 확정페이지 진입 (선빵 수신으로 상세 모드 구동)
-roadmapLogger.ts:11 [ROADMAP 23:19:44.046] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 빈 레이아웃(평가중) 렌더링 및 하단 결재버튼 전체 딤드(비활성) 처리
-useOrderEngine.ts:90    ➡️ activeOrders 변경: [2a280e5d, ccf81166, 8502684a, b7625919, 6b1eee05, 2c950b8a] → [2a280e5d, 6b1eee05, bfd80958]
-useOrderEngine.ts:90    ➡️ activeOrders 변경: [2a280e5d, ccf81166, 8502684a, b7625919, 6b1eee05, 2c950b8a] → [2a280e5d, 6b1eee05, bfd80958]
-roadmapLogger.ts:11 [ROADMAP 23:19:44.943] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
-4roadmapLogger.ts:11 [ROADMAP 23:19:44.944] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
-useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - 배열 길이 다름: 웹(3개) vs 서버(7개)
- - [NEW] ID: ccf81166 서버에서 새로 추가됨
- - [NEW] ID: 8502684a 서버에서 새로 추가됨
- - [NEW] ID: b7625919 서버에서 새로 추가됨
- - [NEW] ID: 2c950b8a 서버에서 새로 추가됨
-useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - 배열 길이 다름: 웹(3개) vs 서버(7개)
- - [NEW] ID: ccf81166 서버에서 새로 추가됨
- - [NEW] ID: 8502684a 서버에서 새로 추가됨
- - [NEW] ID: b7625919 서버에서 새로 추가됨
- - [NEW] ID: 2c950b8a 서버에서 새로 추가됨
-roadmapLogger.ts:11 [ROADMAP 23:19:45.240] [🖥️관제웹] [관제대시보드] 🟡 [웹 수신] order-detail-received | ID: bfd80958 | 경기 광주시 초월읍 경충대로 2697
-roadmapLogger.ts:11 [ROADMAP 23:19:45.241] [🖥️관제웹] [관제대시보드] PinnedRoute 컴포넌트에 '상하차지 및 적요' 텍스트를 선출력하여 렌더링
-useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - [UPDATE] ID: bfd80958 변경점 -> 'dropoff': "금촌동" ➡️ "경기 파주시 금촌동 768-2 농협 금촌지점" | 'pickup': "초월읍" ➡️ "경기 광주시 초월읍 경충대로 2697 한국도자재단" | 'pickupX': undefined ➡️ 127.325471158862 | 'pickupY': undefined ➡️ 37.3511625827086 | 'dropoffX': undefined ➡️ 126.77784164063 | 'dropoffY': undefined ➡️ 37.7605231854904 | 'kakaoSoloDistanceKm': undefined ➡️ 5.1 | 'kakaoSoloDurationMin': undefined ➡️ 8
-useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - [UPDATE] ID: bfd80958 변경점 -> 'dropoff': "금촌동" ➡️ "경기 파주시 금촌동 768-2 농협 금촌지점" | 'pickup': "초월읍" ➡️ "경기 광주시 초월읍 경충대로 2697 한국도자재단" | 'pickupX': undefined ➡️ 127.325471158862 | 'pickupY': undefined ➡️ 37.3511625827086 | 'dropoffX': undefined ➡️ 126.77784164063 | 'dropoffY': undefined ➡️ 37.7605231854904 | 'kakaoSoloDistanceKm': undefined ➡️ 5.1 | 'kakaoSoloDurationMin': undefined ➡️ 8
-useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - [UPDATE] ID: bfd80958 변경점 -> 'osrmSoloDistanceKm': undefined ➡️ 84.6462 | 'osrmSoloDurationMin': undefined ➡️ 67
-useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - [UPDATE] ID: bfd80958 변경점 -> 'osrmSoloDistanceKm': undefined ➡️ 84.6462 | 'osrmSoloDurationMin': undefined ➡️ 67
-roadmapLogger.ts:11 [ROADMAP 23:19:47.949] [🖥️관제웹] [관제대시보드] 🔵 [웹 수신] order-evaluated | ID: bfd80958 | +19.2km, +44분 '콜'
-roadmapLogger.ts:11 [ROADMAP 23:19:47.950] [🖥️관제웹] [관제대시보드] 추천 결과 노출, 경로보기버튼 추가 노출 후 판단 (취소 or 닫기) 대기
-roadmapLogger.ts:11 [ROADMAP 23:19:47.950] [🖥️관제웹] [관제대시보드] PinnedRoute 내 캔버스 미니맵 좌표 포커싱 및 카카오 궤적(폴리라인) 드로잉 처리
-roadmapLogger.ts:11 [ROADMAP 23:19:47.950] [🖥️관제웹] [관제대시보드] 예상 시간/수익률을 컴포넌트에 표시하고 결재버튼(KEEP/CANCEL) 즉시 딤드 해제(활성화)
-roadmapLogger.ts:11 [ROADMAP 23:19:51.597] [🖥️관제웹] PinnedRoute에서 KEEP(유지 확정) 버튼 클릭
-roadmapLogger.ts:11 [ROADMAP 23:19:51.598] [🖥️관제웹] 서버에게 decision=KEEP 하달 정보 전달
-roadmapLogger.ts:11 [ROADMAP 23:19:51.598] [🖥️관제웹] [관제대시보드] [Socket] 유지 전달
-useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - [UPDATE] ID: bfd80958 변경점 -> 'status': "ORDER_AWAITING_DECISION" ➡️ "ORDER_CONFIRMED"
-useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - [UPDATE] ID: bfd80958 변경점 -> 'status': "ORDER_AWAITING_DECISION" ➡️ "ORDER_CONFIRMED"
-4roadmapLogger.ts:11 [ROADMAP 23:19:53.711] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
-roadmapLogger.ts:11 [ROADMAP 23:19:53.712] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
-roadmapLogger.ts:11 [ROADMAP 23:19:53.731] [🖥️관제웹] [관제대시보드] PinnedRoute 레이아웃을 합짐/무한 궤도 모드로 격상 렌더링 및 딤드 다시 처리
-5roadmapLogger.ts:11 [ROADMAP 23:19:53.760] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
-useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - [UPDATE] ID: bfd80958 변경점 -> 'sectionEtas': ["23:19","23:40","00:43","01:00","01:19"] ➡️ ["23:19","23:40","00:44","01:00","01:19"]
-useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - [UPDATE] ID: bfd80958 변경점 -> 'sectionEtas': ["23:19","23:40","00:43","01:00","01:19"] ➡️ ["23:19","23:40","00:44","01:00","01:19"]
-roadmapLogger.ts:11 [ROADMAP 23:19:58.334] [🖥️관제웹] [관제대시보드] [Socket] 취소 전달
-roadmapLogger.ts:11 [ROADMAP 23:19:58.367] [🖥️관제웹] [관제대시보드] 🔴 [웹 수신] order-canceled | ID: 6b1eee05 | 상태: ORDER_RELEASED | 수동여부: true
-roadmapLogger.ts:11 [ROADMAP 23:19:58.367] [🖥️관제웹] [관제대시보드] 오더 상태를 취소/방출로 변경하여 탭을 이동시킵니다
-5roadmapLogger.ts:11 [ROADMAP 23:19:59.089] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
-roadmapLogger.ts:11 [ROADMAP 23:20:00.707] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
-2roadmapLogger.ts:11 [ROADMAP 23:20:00.708] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
-2roadmapLogger.ts:11 [ROADMAP 23:20:00.709] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
-useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - [UPDATE] ID: bfd80958 변경점 -> 'routePolyline': [{"x":127.32557508020969,"y":37.351285067532054},{"x":127.32557508020969,"y":37.351285067532054},{"x":127.32557508020969,"y":37.351285067532054},{"x":127.32540497092371,"y":37.351374207114944},{"x":127.32526864128666,"y":37.35147255007102},{"x":127.32517665242874,"y":37.35166125530823},{"x":127.3251648815843,"y":37.3517152538586},{"x":127.3251648815843,"y":37.3517152538586},{"x":127.32525445127328,"y":37.351796863320025},{"x":127.32536578877577,"y":37.35196870634497},{"x":127.32594538029268,"y":37.35279200657071},{"x":127.3260577679653,"y":37.35284671258753},{"x":127.32623828112726,"y":37.35285675178499},{"x":127.32673668418911,"y":37.35266134851764},{"x":127.3271561557525,"y":37.35245648327051},{"x":127.3271561557525,"y":37.35245648327051},{"x":127.32748452511696,"y":37.352341208141794},{"x":127.3274847662502,"y":37.35231417666378},{"x":127.32757554468365,"y":37.3522606269994},{"x":127.32760948610984,"y":37.35225180897313},{"x":127.32764334716967,"y":37.35225200143011},{"x":127.32767712787526,"y":37.35226120437056},{"x":127.3276883345435,"y":37.35227027901067},{"x":127.32769946086248,"y":37.352288364142865},{"x":127.32772179386573,"y":37.35231552391099},{"x":127.32772147246791,"y":37.35235156588338},{"x":127.32772123141918,"y":37.352378597362545},{"x":127.32766431408511,"y":37.35243233958905},{"x":127.32766431408511,"y":37.35243233958905},{"x":127.32796577121118,"y":37.352803501436746},{"x":127.32817781728407,"y":37.353075034327254},{"x":127.32894716601383,"y":37.354142692950276},{"x":127.32894716601383,"y":37.354142692950276},{"x":127.32794922419527,"y":37.354659662663394},{"x":127.32775637449477,"y":37.354766698256334},{"x":127.32740493771686,"y":37.35493590857195},{"x":127.32714420107125,"y":37.355060579038806},{"x":127.32613518900413,"y":37.35555043746604},{"x":127.32585195368614,"y":37.35566596594402},{"x":127.3255230835997,"y":37.355835299211336},{"x":127.32546648458394,"y":37.355852998373756},{"x":127.32526201815556,"y":37.35599600738186},{"x":127.3240261781323,"y":37.3566016958472},{"x":127.32294931809206,"y":37.35710015000933},{"x":127.31963866145358,"y":37.358703123757905},{"x":127.31921905346073,"y":37.35891697205138},{"x":127.31739352580313,"y":37.359807545150495},{"x":127.31696302549739,"y":37.359976267828046},{"x":127.31673579214011,"y":37.36013715228381},{"x":127.31656532563333,"y":37.36026232056},{"x":127.31633833576826,"y":37.360396172848525},{"x":127.31585989591106,"y":37.36087098604765},{"x":127.31529016084255,"y":37.36145339997795},{"x":127.31469718455234,"y":37.362107763850794},{"x":127.3141729132891,"y":37.36265439188237},{"x":127.31412743108577,"y":37.362690171875684},{"x":127.31405920769983,"y":37.36274384183165},{"x":127.3140250139531,"y":37.362779687245784},{"x":127.31394541981365,"y":37.362842302118786},{"x":127.31386582554194,"y":37.362904916936216},{"x":127.31380905445337,"y":37.36294063132101},{"x":127.31330882614627,"y":37.3633251982045},{"x":127.31300214350269,"y":37.36353066868871},{"x":127.31237773112763,"y":37.36391451023613},{"x":127.31222999080725,"y":37.36402178238117},{"x":127.31174177674127,"y":37.36432531404768},{"x":127.31138951880449,"y":37.36457556969892},{"x":127.31106041290398,"y":37.364762882673155},{"x":127.31099226784761,"y":37.364807540357916},{"x":127.31006097150214,"y":37.365414854519955},{"x":127.30840310950478,"y":37.366459450259136},{"x":127.30783534368096,"y":37.36681656588233},{"x":127.30694915416994,"y":37.367424119074144},{"x":127.30514319647831,"y":37.368602964253654},{"x":127.30508633388212,"y":37.36864768475774},{"x":127.30459764542137,"y":37.36899623822635},{"x":127.3039720630895,"y":37.369497169646614},{"x":127.30360771612291,"y":37.36982842875142},{"x":127.30347099146971,"y":37.369962787336114},{"x":127.30342541647666,"y":37.37000757349409},{"x":127.30333426632752,"y":37.370097145754755},{"x":127.30325457226425,"y":37.370168763607566},{"x":127.30293571112732,"y":37.37046424487628},{"x":127.302628387429,"y":37.37073276055843},{"x":127.30250303254827,"y":37.37085817411689},{"x":127.30216150249232,"y":37.37116253046278},{"x":127.3012736284109,"y":37.37194123756357},{"x":127.30113731367416,"y":37.372030541257345},{"x":127.30090992663115,"y":37.372200404682225},{"x":127.3006373786855,"y":37.37237000063226},{"x":127.30014898033855,"y":37.37268249340464},{"x":127.29964937165728,"y":37.37298590684152},{"x":127.29945618380157,"y":37.37311992630357},{"x":127.29930840707974,"y":37.37322718177051},{"x":127.29869505120658,"y":37.37362002621912},{"x":127.29828617172463,"y":37.37387891723209},{"x":127.2981498499582,"y":37.37396821738138},{"x":127.2980817729116,"y":37.37400385699158},{"x":127.29802490204986,"y":37.37404857397551},{"x":127.29786591522917,"y":37.37414675017017},{"x":127.29763859845708,"y":37.37430759670156},{"x":127.29741111263745,"y":37.374486463585264},{"x":127.29718337353673,"y":37.374692361218},{"x":127.29695554909402,"y":37.37490726879251},{"x":127.29690988312854,"y":37.3
-useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - [UPDATE] ID: bfd80958 변경점 -> 'routePolyline': [{"x":127.32557508020969,"y":37.351285067532054},{"x":127.32557508020969,"y":37.351285067532054},{"x":127.32557508020969,"y":37.351285067532054},{"x":127.32540497092371,"y":37.351374207114944},{"x":127.32526864128666,"y":37.35147255007102},{"x":127.32517665242874,"y":37.35166125530823},{"x":127.3251648815843,"y":37.3517152538586},{"x":127.3251648815843,"y":37.3517152538586},{"x":127.32525445127328,"y":37.351796863320025},{"x":127.32536578877577,"y":37.35196870634497},{"x":127.32594538029268,"y":37.35279200657071},{"x":127.3260577679653,"y":37.35284671258753},{"x":127.32623828112726,"y":37.35285675178499},{"x":127.32673668418911,"y":37.35266134851764},{"x":127.3271561557525,"y":37.35245648327051},{"x":127.3271561557525,"y":37.35245648327051},{"x":127.32748452511696,"y":37.352341208141794},{"x":127.3274847662502,"y":37.35231417666378},{"x":127.32757554468365,"y":37.3522606269994},{"x":127.32760948610984,"y":37.35225180897313},{"x":127.32764334716967,"y":37.35225200143011},{"x":127.32767712787526,"y":37.35226120437056},{"x":127.3276883345435,"y":37.35227027901067},{"x":127.32769946086248,"y":37.352288364142865},{"x":127.32772179386573,"y":37.35231552391099},{"x":127.32772147246791,"y":37.35235156588338},{"x":127.32772123141918,"y":37.352378597362545},{"x":127.32766431408511,"y":37.35243233958905},{"x":127.32766431408511,"y":37.35243233958905},{"x":127.32796577121118,"y":37.352803501436746},{"x":127.32817781728407,"y":37.353075034327254},{"x":127.32894716601383,"y":37.354142692950276},{"x":127.32894716601383,"y":37.354142692950276},{"x":127.32794922419527,"y":37.354659662663394},{"x":127.32775637449477,"y":37.354766698256334},{"x":127.32740493771686,"y":37.35493590857195},{"x":127.32714420107125,"y":37.355060579038806},{"x":127.32613518900413,"y":37.35555043746604},{"x":127.32585195368614,"y":37.35566596594402},{"x":127.3255230835997,"y":37.355835299211336},{"x":127.32546648458394,"y":37.355852998373756},{"x":127.32526201815556,"y":37.35599600738186},{"x":127.3240261781323,"y":37.3566016958472},{"x":127.32294931809206,"y":37.35710015000933},{"x":127.31963866145358,"y":37.358703123757905},{"x":127.31921905346073,"y":37.35891697205138},{"x":127.31739352580313,"y":37.359807545150495},{"x":127.31696302549739,"y":37.359976267828046},{"x":127.31673579214011,"y":37.36013715228381},{"x":127.31656532563333,"y":37.36026232056},{"x":127.31633833576826,"y":37.360396172848525},{"x":127.31585989591106,"y":37.36087098604765},{"x":127.31529016084255,"y":37.36145339997795},{"x":127.31469718455234,"y":37.362107763850794},{"x":127.3141729132891,"y":37.36265439188237},{"x":127.31412743108577,"y":37.362690171875684},{"x":127.31405920769983,"y":37.36274384183165},{"x":127.3140250139531,"y":37.362779687245784},{"x":127.31394541981365,"y":37.362842302118786},{"x":127.31386582554194,"y":37.362904916936216},{"x":127.31380905445337,"y":37.36294063132101},{"x":127.31330882614627,"y":37.3633251982045},{"x":127.31300214350269,"y":37.36353066868871},{"x":127.31237773112763,"y":37.36391451023613},{"x":127.31222999080725,"y":37.36402178238117},{"x":127.31174177674127,"y":37.36432531404768},{"x":127.31138951880449,"y":37.36457556969892},{"x":127.31106041290398,"y":37.364762882673155},{"x":127.31099226784761,"y":37.364807540357916},{"x":127.31006097150214,"y":37.365414854519955},{"x":127.30840310950478,"y":37.366459450259136},{"x":127.30783534368096,"y":37.36681656588233},{"x":127.30694915416994,"y":37.367424119074144},{"x":127.30514319647831,"y":37.368602964253654},{"x":127.30508633388212,"y":37.36864768475774},{"x":127.30459764542137,"y":37.36899623822635},{"x":127.3039720630895,"y":37.369497169646614},{"x":127.30360771612291,"y":37.36982842875142},{"x":127.30347099146971,"y":37.369962787336114},{"x":127.30342541647666,"y":37.37000757349409},{"x":127.30333426632752,"y":37.370097145754755},{"x":127.30325457226425,"y":37.370168763607566},{"x":127.30293571112732,"y":37.37046424487628},{"x":127.302628387429,"y":37.37073276055843},{"x":127.30250303254827,"y":37.37085817411689},{"x":127.30216150249232,"y":37.37116253046278},{"x":127.3012736284109,"y":37.37194123756357},{"x":127.30113731367416,"y":37.372030541257345},{"x":127.30090992663115,"y":37.372200404682225},{"x":127.3006373786855,"y":37.37237000063226},{"x":127.30014898033855,"y":37.37268249340464},{"x":127.29964937165728,"y":37.37298590684152},{"x":127.29945618380157,"y":37.37311992630357},{"x":127.29930840707974,"y":37.37322718177051},{"x":127.29869505120658,"y":37.37362002621912},{"x":127.29828617172463,"y":37.37387891723209},{"x":127.2981498499582,"y":37.37396821738138},{"x":127.2980817729116,"y":37.37400385699158},{"x":127.29802490204986,"y":37.37404857397551},{"x":127.29786591522917,"y":37.37414675017017},{"x":127.29763859845708,"y":37.37430759670156},{"x":127.29741111263745,"y":37.374486463585264},{"x":127.29718337353673,"y":37.374692361218},{"x":127.29695554909402,"y":37.37490726879251},{"x":127.29690988312854,"y":37.3
-useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - [UPDATE] ID: bfd80958 변경점 -> 'status': "ORDER_CONFIRMED" ➡️ "ORDER_COMPLETED"
-useOrderEngine.ts:175 🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.
-useOrderEngine.ts:220 🔍 [하트비트 상세 원인 추적]
- - [UPDATE] ID: bfd80958 변경점 -> 'status': "ORDER_CONFIRMED" ➡️ "ORDER_COMPLETED"
-roadmapLogger.ts:11 [ROADMAP 23:20:09.970] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
-4roadmapLogger.ts:11 [ROADMAP 23:20:09.971] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
-3roadmapLogger.ts:11 [ROADMAP 23:20:09.996] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
-2roadmapLogger.ts:11 [ROADMAP 23:20:09.997] [🖥️관제웹] 서버로 부터 filter-updated 소켓 이벤트 받음
+ - [UPDATE] ID: e9f04a11 변경점 -> 'routePolyline': [{"x":127.25804776147139,"y":37.41034355669392},{"x":127.25829020936152,"y":37.409813439126864},{"x":127.25829020936152,"y":37.409813439126864},{"x":127.25789522308416,"y":37.40977491729338},{"x":127.25720735575582,"y":37.40965345705368},{"x":127.25685773072576,"y":37.40959719507661},{"x":127.25674504333197,"y":37.40956945425777},{"x":127.25658761945436,"y":37.40949637791861},{"x":127.25611650784155,"y":37.409160014196914},{"x":127.25553324962523,"y":37.40874184506936},{"x":127.25532015481657,"y":37.40858731905251},{"x":127.25480396287612,"y":37.4082416553333},{"x":127.25450113425191,"y":37.40802348644884},{"x":127.25431054465919,"y":37.40787811133856},{"x":127.25431054465919,"y":37.40787811133856},{"x":127.25409343506173,"y":37.40812904503217},{"x":127.2538306961876,"y":37.40842474448909},{"x":127.25308809594537,"y":37.409267073266996},{"x":127.25287106770092,"y":37.40950899431004},{"x":127.25266497549042,"y":37.40978702736052},{"x":127.25266497549042,"y":37.40978702736052},{"x":127.25281119008653,"y":37.4098510272432},{"x":127.25295677863858,"y":37.409978098757456},{"x":127.25295677863858,"y":37.409978098757456},{"x":127.25329269218092,"y":37.41027757791061},{"x":127.25336010771146,"y":37.41031404695531},{"x":127.25346140995374,"y":37.4103507299331},{"x":127.25346140995374,"y":37.4103507299331},{"x":127.25336010771146,"y":37.41031404695531},{"x":127.25329269218092,"y":37.41027757791061},{"x":127.25281119008653,"y":37.4098510272432},{"x":127.25266497549042,"y":37.40978702736052},{"x":127.25266497549042,"y":37.40978702736052},{"x":127.25201468419002,"y":37.41043169442924},{"x":127.25193454015252,"y":37.41053931724831},{"x":127.25190038463569,"y":37.41056613360532},{"x":127.25183216313654,"y":37.410610756033265},{"x":127.25183216313654,"y":37.410610756033265},{"x":127.25177030828647,"y":37.411151013914555},{"x":127.25170934873917,"y":37.41160116917002},{"x":127.25169733599111,"y":37.41167317970553},{"x":127.25168523359004,"y":37.41175420049196},{"x":127.25165995311474,"y":37.41202436509111},{"x":127.25156402877262,"y":37.41258242871483},{"x":127.2515513881777,"y":37.412717510981125},{"x":127.25151463159304,"y":37.413005624489145},{"x":127.2514784126596,"y":37.41323967646575},{"x":127.25141753912904,"y":37.41368082112471},{"x":127.25136930606416,"y":37.413986883504634},{"x":127.25134348550006,"y":37.41431110940573},{"x":127.25131829246432,"y":37.414572263544265},{"x":127.2512826102049,"y":37.41475225389734},{"x":127.25123572122958,"y":37.41492316244328},{"x":127.2511669571383,"y":37.415021845890735},{"x":127.25097267786633,"y":37.415245885569156},{"x":127.25076539584647,"y":37.415641047984614},{"x":127.25061674808694,"y":37.41582032214538},{"x":127.25045698280485,"y":37.41598150399998},{"x":127.25025176175048,"y":37.416169429813756},{"x":127.24966989202792,"y":37.41674243034497},{"x":127.24953316530764,"y":37.41685870306501},{"x":127.249316553068,"y":37.417055565707855},{"x":127.24823527607589,"y":37.41785966795295},{"x":127.24823527607589,"y":37.41785966795295},{"x":127.24903374057062,"y":37.418225174939025},{"x":127.24930360276323,"y":37.41835304015266},{"x":127.24941603062933,"y":37.41840781885172},{"x":127.25020329979736,"y":37.41876423606886},{"x":127.25082184165139,"y":37.419047492474846},{"x":127.2514963346063,"y":37.41938516476353},{"x":127.25204656717928,"y":37.41972204711918},{"x":127.25242788703844,"y":37.42000379406878},{"x":127.25280840405964,"y":37.42036663198744},{"x":127.25327715438006,"y":37.42094628540483},{"x":127.25355493225322,"y":37.42141660160314},{"x":127.25366548993836,"y":37.42166059140106},{"x":127.25368772674969,"y":37.42169677500905},{"x":127.25416153368367,"y":37.42290721316543},{"x":127.25449205981317,"y":37.42375631361944},{"x":127.25498830910857,"y":37.42498491129213},{"x":127.25562671968864,"y":37.426691974371664},{"x":127.25574805449429,"y":37.426990094731025},{"x":127.25575899578784,"y":37.42702620681365},{"x":127.25581423751358,"y":37.4271527057817},{"x":127.25583629858245,"y":37.42720690945672},{"x":127.2559464260567,"y":37.42749594824338},{"x":127.25610139045088,"y":37.42782131227338},{"x":127.25631133213983,"y":37.4283002055384},{"x":127.25636657569905,"y":37.42842670424123},{"x":127.256477865349,"y":37.428598609433},{"x":127.25673362857351,"y":37.42901471452368},{"x":127.25687872601378,"y":37.429195842690866},{"x":127.25705852077358,"y":37.42929609157874},{"x":127.25758474091786,"y":37.42978598065767},{"x":127.25773064255297,"y":37.42988601565506},{"x":127.25793250348971,"y":37.430040466548505},{"x":127.2579774307593,"y":37.430067780960215},{"x":127.25997579609793,"y":37.43137786274324},{"x":127.26027891108357,"y":37.43157799744386},{"x":127.26039110078713,"y":37.43165979660253},{"x":127.26069404079216,"y":37.431877950734254},{"x":127.261355800671,"y":37.432377681418984},{"x":127.26193653036098,"y":37.433075139955335},{"x":127.2623585529792,"y":37.43382567009245},{"x":127.26252423818791,"y":37.43421416
+client:969 [vite] server connection lost. Polling for restart...
+socket__io-client.js?v=4f2226b0:979 WebSocket connection to 'ws://localhost:3000/socket.io/?EIO=4&transport=websocket' failed: 
