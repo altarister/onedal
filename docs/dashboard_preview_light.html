@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>1DAL UI Preview (Light Theme)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Pretendard 폰트 적용 */
+    @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+    body { font-family: 'Pretendard', sans-serif; }
+    
+    /* 하단 시트 스타일 */
+    .bottom-sheet {
+      box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
+      border-radius: 24px 24px 0 0;
+    }
+    
+    /* 맵 플레이스홀더 패턴 */
+    .map-pattern {
+      background-color: #E5E7EB;
+      background-image: linear-gradient(#D1D5DB 1px, transparent 1px), linear-gradient(90deg, #D1D5DB 1px, transparent 1px);
+      background-size: 20px 20px;
+    }
+    
+    /* 심사중 맥동 애니메이션 */
+    .pulse-amber {
+      animation: pulse-border 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    @keyframes pulse-border {
+      0%, 100% { border-color: rgba(245, 158, 11, 0.3); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.1); }
+      50% { border-color: rgba(245, 158, 11, 1); box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.2); }
+    }
+  </style>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#3B82F6', // Blue 500
+            success: '#10B981', // Emerald 500
+            warning: '#F59E0B', // Amber 500
+            danger: '#EF4444',  // Red 500
+            brand: '#6366F1',   // Indigo 500
+            surface: '#FFFFFF',
+            background: '#F3F4F6' // Gray 100
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-gray-200 text-gray-900 min-h-screen flex justify-center overflow-x-hidden">
+
+  <!-- 모바일 화면 사이즈 래퍼 -->
+  <div class="w-full max-w-[400px] bg-background min-h-screen relative shadow-2xl flex flex-col overflow-hidden">
+    
+    <!-- 전체 배경으로 깔리는 지도 영역 -->
+    <div class="absolute inset-0 map-pattern z-0 flex items-center justify-center flex-col pt-20">
+        <span class="text-gray-500 font-bold bg-white/80 px-4 py-2 rounded-full backdrop-blur-sm shadow-sm mb-2">📍 실시간 지도 영역</span>
+        
+        <!-- 가짜 경로선 -->
+        <svg class="absolute inset-0 w-full h-[60%]" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <path d="M 30 70 Q 50 40, 40 30 T 70 20" stroke="#3B82F6" stroke-width="2.5" fill="none" class="opacity-80"></path>
+            <!-- 핀 -->
+            <circle cx="30" cy="70" r="3" fill="#3B82F6" stroke="#fff" stroke-width="1"></circle>
+            <circle cx="70" cy="20" r="3" fill="#EF4444" stroke="#fff" stroke-width="1"></circle>
+        </svg>
+    </div>
+
+    <!-- 1. Header (Floating) -->
+    <header class="relative z-10 px-4 pt-12 pb-2 flex justify-between items-center bg-gradient-to-b from-white/90 to-transparent">
+      <div class="flex items-center gap-2">
+        <h1 class="text-3xl font-black text-gray-900 tracking-tighter">1DAL</h1>
+      </div>
+      <div class="flex items-center gap-3 bg-white px-3 py-1.5 rounded-full shadow-sm border border-gray-100">
+        <div class="w-2 h-2 rounded-full bg-success animate-pulse"></div>
+        <span class="text-sm font-mono font-bold text-gray-700">22:19</span>
+        <div class="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-[10px] font-bold text-gray-600">기사</div>
+      </div>
+    </header>
+
+    <!-- 2. 상단 플로팅 패널들 (지도 위에 떠있는 형태) -->
+    <div class="relative z-10 px-4 flex flex-col gap-3 mt-2">
+        
+        <!-- 필터 요약 패널 (클릭 시 모달) -->
+        <button class="bg-white rounded-2xl p-3 shadow-[0_4px_12px_rgba(0,0,0,0.05)] border border-gray-100 flex items-center justify-between active:scale-[0.98] transition-transform text-left w-full">
+            <div class="flex items-center gap-3">
+                <div class="bg-brand/10 text-brand px-2.5 py-1 rounded-lg text-xs font-bold">합짐 모드</div>
+                <div class="flex flex-col">
+                    <span class="font-black text-gray-900 text-lg leading-tight">2.0만 <span class="text-[11px] text-gray-500 font-normal">이상</span></span>
+                    <span class="text-xs text-gray-500 font-medium">파주 (±10km) | 1t, 다, 라</span>
+                </div>
+            </div>
+            <div class="w-8 h-8 bg-gray-50 rounded-full flex items-center justify-center text-gray-400">⚙️</div>
+        </button>
+
+        <!-- 디바이스 및 차량 패널 -->
+        <div class="flex gap-2">
+            <!-- 디바이스 상태 -->
+            <div class="flex-1 bg-white rounded-2xl p-2.5 shadow-[0_4px_12px_rgba(0,0,0,0.05)] border border-gray-100 flex items-center gap-2">
+                <div class="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center font-black text-gray-600 text-xs">1</div>
+                <div class="flex flex-col">
+                    <span class="text-[10px] text-primary font-bold">탐색 활성화</span>
+                    <span class="text-[11px] font-mono text-gray-500">수집:15</span>
+                </div>
+                <div class="ml-auto bg-primary/10 text-primary px-2 py-1 rounded text-[10px] font-black">AUTO</div>
+            </div>
+            <!-- 차량 상태 -->
+            <div class="flex-1 bg-white rounded-2xl p-2.5 shadow-[0_4px_12px_rgba(0,0,0,0.05)] border border-gray-100 flex flex-col justify-center">
+                <div class="flex items-center justify-between mb-0.5">
+                    <span class="text-xs font-bold text-gray-900">1t 트럭</span>
+                    <div class="w-1.5 h-1.5 rounded-full bg-success"></div>
+                </div>
+                <span class="text-[11px] text-gray-500 font-medium">적재 3건 • 정차중</span>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 스페이서 (지도가 보이도록) -->
+    <div class="flex-1 min-h-[150px]"></div>
+
+    <!-- 3. Bottom Sheet (경로 및 콜 리스트) -->
+    <div class="relative z-20 bg-surface bottom-sheet flex flex-col mt-auto h-[60%] border-t border-gray-100">
+        <!-- 바텀시트 핸들 -->
+        <div class="w-full flex justify-center pt-3 pb-1">
+            <div class="w-12 h-1.5 bg-gray-200 rounded-full"></div>
+        </div>
+
+        <div class="px-5 pt-2 pb-4 flex-1 overflow-y-auto custom-scrollbar">
+            
+            <!-- 헤더 및 요약 -->
+            <div class="flex items-end justify-between mb-4 mt-1">
+                <div>
+                    <h2 class="text-xl font-black text-gray-900">경로 현황</h2>
+                    <p class="text-xs text-gray-500 font-medium mt-0.5">거리 97.7km / 예상 95분</p>
+                </div>
+                <div class="text-right">
+                    <span class="text-2xl font-black text-primary tracking-tight">272,000<span class="text-sm font-bold text-gray-500 ml-0.5">원</span></span>
+                </div>
+            </div>
+
+            <!-- 상태 필터 탭 -->
+            <div class="flex gap-2 mb-4 bg-gray-50 p-1 rounded-xl">
+                <button class="flex-1 py-1.5 text-[11px] font-bold bg-white text-gray-900 shadow-sm rounded-lg">대기 (1)</button>
+                <button class="flex-1 py-1.5 text-[11px] font-bold text-gray-500 hover:text-gray-700">확정 (1)</button>
+                <button class="flex-1 py-1.5 text-[11px] font-bold text-gray-500 hover:text-gray-700">전체 (3)</button>
+            </div>
+
+            <!-- 오더 카드 리스트 -->
+            <div class="flex flex-col gap-3 pb-24">
+                
+                <!-- 카드 A (심사중 / 데스밸리 상태 - 앰버 테두리 애니메이션 적용) -->
+                <article class="bg-white rounded-2xl p-3.5 border-2 border-warning/30 shadow-sm pulse-amber">
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="bg-warning/10 text-warning px-2 py-0.5 text-[10px] font-black rounded-md uppercase tracking-wider">심사 대기중</span>
+                        <span class="text-[11px] font-mono font-medium text-gray-400">접수 05:34</span>
+                    </div>
+                    
+                    <div class="flex items-stretch gap-3 mb-3">
+                        <!-- 타임라인 인디케이터 -->
+                        <div class="flex flex-col items-center pt-1">
+                            <div class="w-2.5 h-2.5 rounded-full bg-primary ring-4 ring-primary/20"></div>
+                            <div class="w-px h-8 bg-gray-200 my-1"></div>
+                            <div class="w-2.5 h-2.5 rounded-full bg-danger ring-4 ring-danger/20"></div>
+                        </div>
+                        
+                        <!-- 주소 정보 -->
+                        <div class="flex flex-col flex-1 justify-between py-0.5">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <span class="text-[10px] font-bold text-primary mb-0.5 block">상차지</span>
+                                    <span class="text-sm font-bold text-gray-900 leading-none">경기 광주 경안동</span>
+                                </div>
+                                <span class="text-xs font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">12:10 픽업</span>
+                            </div>
+                            
+                            <div class="flex justify-between items-end mt-4">
+                                <div>
+                                    <span class="text-[10px] font-bold text-danger mb-0.5 block">하차지</span>
+                                    <span class="text-sm font-bold text-gray-900 leading-none">경기 파주 탄현면</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-between items-center pt-3 border-t border-gray-100 border-dashed">
+                        <div class="flex gap-1.5">
+                            <span class="text-[10px] font-bold text-gray-500 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">0.2km</span>
+                            <span class="text-[10px] font-bold text-gray-500 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">다마스</span>
+                        </div>
+                        <span class="text-lg font-black text-gray-900">112,000<span class="text-[10px] font-bold text-gray-500 ml-0.5">원</span></span>
+                    </div>
+
+                    <!-- 액션 버튼 (심사중일 때만 노출) -->
+                    <div class="flex gap-2 mt-3 pt-3 border-t border-gray-100">
+                        <button class="flex-[0.3] py-2.5 bg-gray-100 text-gray-600 rounded-xl text-xs font-bold hover:bg-gray-200 transition-colors">방출</button>
+                        <button class="flex-[0.7] py-2.5 bg-primary text-white rounded-xl text-xs font-bold shadow-md shadow-primary/30 hover:bg-blue-600 transition-colors">이 콜 잡기</button>
+                    </div>
+                </article>
+
+                <!-- 카드 B (확정/진행중 상태 - 깔끔한 기본 스타일) -->
+                <article class="bg-white rounded-2xl p-3.5 border border-gray-100 shadow-[0_2px_8px_rgba(0,0,0,0.04)] opacity-70">
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="bg-success/10 text-success px-2 py-0.5 text-[10px] font-black rounded-md uppercase tracking-wider">확정됨</span>
+                        <span class="text-[11px] font-mono font-medium text-gray-400">12:10</span>
+                    </div>
+                    
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-sm font-bold text-gray-900">정자동</span>
+                        <span class="text-gray-300">→</span>
+                        <span class="text-sm font-bold text-gray-900">역삼동</span>
+                    </div>
+                    
+                    <div class="flex justify-between items-center pt-2 mt-1">
+                        <span class="text-xs font-medium text-gray-500">15km · 1t</span>
+                        <span class="text-base font-black text-gray-900">65,000원</span>
+                    </div>
+                </article>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Bottom Nav (Fixed) -->
+    <nav class="absolute bottom-0 w-full bg-white/90 backdrop-blur-md border-t border-gray-100 flex pb-safe z-30">
+      <button class="flex-1 pt-3 pb-5 flex flex-col items-center justify-center gap-1 group relative">
+        <div class="absolute top-0 w-8 h-1 bg-primary rounded-b-lg"></div>
+        <span class="text-[10px] font-black text-primary transition-transform">실시간 관제</span>
+      </button>
+      <button class="flex-1 pt-3 pb-5 flex flex-col items-center justify-center gap-1 group">
+        <span class="text-[10px] font-black text-gray-400 group-hover:text-gray-600 transition-colors">수익 정산</span>
+      </button>
+      <button class="flex-1 pt-3 pb-5 flex flex-col items-center justify-center gap-1 group">
+        <span class="text-[10px] font-black text-gray-400 group-hover:text-gray-600 transition-colors">내 정보</span>
+      </button>
+    </nav>
+  </div>
+</body>
+</html>

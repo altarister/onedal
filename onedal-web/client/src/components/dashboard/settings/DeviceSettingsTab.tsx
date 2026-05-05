@@ -102,7 +102,7 @@ export default function DeviceSettingsTab({ onClose }: Props) {
   if (pinCode) {
     return (
       <div className="flex flex-col items-center justify-center py-8">
-        <p className="text-sm text-muted-foreground mb-2 font-semibold">앱에서 아래 코드를 입력하세요</p>
+        <p className="text-sm text-text-muted mb-2 font-semibold">앱에서 아래 코드를 입력하세요</p>
         <div className="flex gap-2 mb-4">
           {pinCode.split("").map((digit, i) => (
             <span key={i} className="text-4xl font-black text-primary bg-primary/10 border-2 border-primary/30 rounded-xl w-14 h-16 flex items-center justify-center">
@@ -111,8 +111,8 @@ export default function DeviceSettingsTab({ onClose }: Props) {
           ))}
         </div>
         <div className="flex items-center gap-2 mb-6">
-          <div className={`w-2 h-2 rounded-full ${pinRemainingSeconds > 30 ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`} />
-          <span className={`text-sm font-bold ${pinRemainingSeconds > 30 ? 'text-emerald-500' : 'text-amber-500'}`}>
+          <div className={`w-2 h-2 rounded-full ${pinRemainingSeconds > 30 ? 'bg-success' : 'bg-warning animate-pulse'}`} />
+          <span className={`text-sm font-bold ${pinRemainingSeconds > 30 ? 'text-success' : 'text-warning'}`}>
             {Math.floor(pinRemainingSeconds / 60)}:{(pinRemainingSeconds % 60).toString().padStart(2, "0")} 남음
           </span>
         </div>
@@ -133,13 +133,13 @@ export default function DeviceSettingsTab({ onClose }: Props) {
     <div className="space-y-4">
       {registeredDevices.length === 0 ? (
         <div className="text-center py-8">
-          <p className="text-muted-foreground text-sm mb-1">등록된 기기가 없습니다</p>
-          <p className="text-muted-foreground/70 text-xs">아래 버튼으로 안드로이드 앱폰을 연동해주세요</p>
+          <p className="text-text-muted text-sm mb-1">등록된 기기가 없습니다</p>
+          <p className="text-text-muted/70 text-xs">아래 버튼으로 안드로이드 앱폰을 연동해주세요</p>
         </div>
       ) : (
         <div className="flex flex-col gap-2 max-h-48 overflow-y-auto">
           {registeredDevices.map((device) => (
-            <div key={device.device_id} className="flex items-center justify-between bg-muted/30 p-3 rounded-lg border border-border">
+            <div key={device.device_id} className="flex items-center justify-between bg-surface-alt/30 p-3 rounded-lg border border-border">
               <div className="flex flex-col gap-1 min-w-0 flex-1">
                 {editingDeviceId === device.device_id ? (
                   <div className="flex gap-2">
@@ -152,7 +152,7 @@ export default function DeviceSettingsTab({ onClose }: Props) {
                 ) : (
                   <>
                     <span className="text-sm font-bold truncate">{device.device_name || device.device_id.slice(0, 12) + "…"}</span>
-                    <span className="text-[10px] text-muted-foreground font-mono truncate">{device.device_id.slice(0, 16)}…</span>
+                    <span className="text-[10px] text-text-muted font-mono truncate">{device.device_id.slice(0, 16)}…</span>
                   </>
                 )}
               </div>
@@ -167,7 +167,7 @@ export default function DeviceSettingsTab({ onClose }: Props) {
         </div>
       )}
 
-      <Button variant="outline" className="w-full h-12 border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10" onClick={handleRequestPin}>
+      <Button variant="outline" className="w-full h-12 border-success/30 text-success hover:bg-success/10" onClick={handleRequestPin}>
         + 새 기기 연동하기
       </Button>
 

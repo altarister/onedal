@@ -11,8 +11,8 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center text-gray-500">
-        <div className="w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+      <div className="min-h-screen bg-bg-base flex flex-col items-center justify-center text-text-muted">
+        <div className="w-8 h-8 border-4 border-info border-t-transparent rounded-full animate-spin mb-4"></div>
         <p>인증 정보를 확인 중입니다...</p>
       </div>
     );
@@ -42,19 +42,21 @@ function AppLayout() {
       </Routes>
 
       {/* 하단 네비게이션 */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-gray-900/95 backdrop-blur border-t border-gray-800 flex z-50">
+      <nav className="fixed bottom-0 left-0 right-0 bg-surface/95 backdrop-blur-xl flex z-50 rounded-t-2xl shadow-[0_-4px_30px_rgba(0,0,0,0.08)]">
         <Link
           to="/"
-          className={`flex-1 py-4 text-center font-bold text-sm transition-colors ${location.pathname === "/" ? "text-violet-400" : "text-gray-500"
+          className={`flex-1 pt-3.5 pb-5 text-center font-black text-sm transition-colors relative ${location.pathname === "/" ? "text-info" : "text-text-muted"
             }`}
         >
+          {location.pathname === "/" && <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-info rounded-b-full" />}
           실시간
         </Link>
         <Link
           to="/settlement"
-          className={`flex-1 py-4 text-center font-bold text-sm transition-colors ${location.pathname === "/settlement" ? "text-violet-400" : "text-gray-500"
+          className={`flex-1 pt-3.5 pb-5 text-center font-black text-sm transition-colors relative ${location.pathname === "/settlement" ? "text-info" : "text-text-muted"
             }`}
         >
+          {location.pathname === "/settlement" && <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-info rounded-b-full" />}
           정산
         </Link>
       </nav>

@@ -5,7 +5,7 @@ import { useTheme } from "../../contexts/ThemeContext";
 import { useSoundManager } from "../../hooks/useSoundManager";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Button } from "../ui/button";
-import { Badge } from "../ui/badge";
+
 
 export default function Header({ isConnected }: { isConnected: boolean }) {
     const [time, setTime] = useState<Date>(new Date());
@@ -20,16 +20,13 @@ export default function Header({ isConnected }: { isConnected: boolean }) {
     }, []);
     return (
         <>
-            <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-border px-4 py-2">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <button onClick={toggleTheme} className="flex items-center gap-1.5 focus:outline-none group">
-                            <h1 className="text-xl font-black tracking-tighter bg-gradient-to-r from-emerald-500 to-cyan-500 bg-clip-text text-transparent">
+            <header className="sticky top-0 z-10 bg-bg-base/95 backdrop-blur-sm border-b border-border-card px-4 py-2.5">
+                <div className="flex items-center justify-between max-w-2xl mx-auto">
+                    <div className="flex items-center gap-2">
+                        <button onClick={toggleTheme} className="focus:outline-none active:scale-95 transition-transform">
+                            <h1 className="text-2xl font-black tracking-tighter text-text-primary">
                                 1DAL
                             </h1>
-                            <span className="text-sm opacity-60 group-hover:opacity-100 transition-opacity">
-                                {theme === 'dark' ? '🌙' : '🌞'}
-                            </span>
                         </button>
                     </div>
                     <div className="flex gap-2 items-center">
@@ -44,29 +41,25 @@ export default function Header({ isConnected }: { isConnected: boolean }) {
                                 STOP SOUND
                             </Button>
                         )}
-                        <Badge variant="outline" className={`gap-1.5 px-2 py-0.5 rounded-full ${isConnected ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-500" : "border-rose-500/30 bg-rose-500/10 text-rose-500"}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${isConnected ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" : "bg-rose-500"}`} />
-                            <span className="font-bold font-mono">
+                        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full shadow-soft ${isConnected ? "bg-surface" : "bg-danger/10"}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${isConnected ? "bg-success animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.4)]" : "bg-danger"}`} />
+                            <span className="text-xs font-mono font-bold text-text-muted tracking-wide">
                                 {isConnected ? (time.toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })) : "연결끊김"}
                             </span>
-                        </Badge>
+                        </div>
 
                         {user && (
-                            <div className="flex items-center gap-2">
-                                <button
-                                    onClick={() => setIsSettingsOpen(true)}
-                                    className="focus:outline-none hover:opacity-80 transition-opacity"
-                                >
-                                    <Avatar className="w-7 h-7 border border-border">
-                                        <AvatarImage src={user.avatar || undefined} alt={user.name} />
-                                        <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
-                                            {user.name.charAt(0)}
-                                        </AvatarFallback>
-                                    </Avatar>
-                                </button>
-
-                                <span className="text-xs font-bold text-muted-foreground hidden sm:inline">{user.name}</span>
-                            </div>
+                            <button
+                                onClick={() => setIsSettingsOpen(true)}
+                                className="focus:outline-none hover:opacity-80 transition-opacity active:scale-95"
+                            >
+                                <Avatar className="w-7 h-7 border border-border-card">
+                                    <AvatarImage src={user.avatar || undefined} alt={user.name} />
+                                    <AvatarFallback className="bg-info text-white text-xs font-bold">
+                                        {user.name.charAt(0)}
+                                    </AvatarFallback>
+                                </Avatar>
+                            </button>
                         )}
                     </div>
                 </div>

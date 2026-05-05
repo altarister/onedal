@@ -98,14 +98,20 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
     // if (!safeRoute || safeRoute.length === 0) return null; // 삭제됨: 라우트가 없어도 맵은 항상 표시
 
     return (
-        <section id="confirmed-route" className="animate-in slide-in-from-top-4 fade-in duration-500">
+        <section id="confirmed-route" className="flex flex-col">
             {safeRoute.length > 0 && (
-                <div className={`absolute -top-3 left-4 ${allEvaluating ? 'bg-warning' : 'bg-success'} text-white text-[10px] font-black px-2 py-0.5 rounded-md shadow-lg transition-colors z-20`}>
-                    {allEvaluating ? "🟡 최적의 경로를 찾습니다..." : "🟢 사냥 (배차) 확정"}
+                <div className="flex justify-between items-center px-4 py-2 border-b border-border-card">
+                    <h2 className="text-[13px] font-bold text-text-primary flex items-center gap-1.5">
+                        <span className={`w-1.5 h-1.5 rounded-full ${allEvaluating ? 'bg-warning animate-pulse' : 'bg-success'}`} />
+                        {allEvaluating ? "최적 경로 탐색 중" : "진행 중인 경로"}
+                    </h2>
+                    <span className="text-[11px] font-bold text-text-muted">
+                        {activeRoute[0]?.vehicleType || '1t'} 트럭 • 적재 {liveRoute.length}건
+                    </span>
                 </div>
             )}
 
-            <div id="routing-timeline">
+            <div id="routing-timeline" className="border-b border-border-card">
                 {/* 캔버스 미니맵 (분리된 컴포넌트) */}
                 <PinnedRouteCanvas
                     unifiedRoutePoints={unifiedRoutePoints}
@@ -124,21 +130,21 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
                                 <button
                                     onClick={(e) => { e.stopPropagation(); logRoadmapEvent("웹", "맵뷰 버튼(추천) 좌상단 클릭"); setProcessingId(`recalc-global`); onRecalculate(activeRoute[activeRoute.length - 1].id, 'RECOMMEND'); }}
                                     disabled={processingId !== null}
-                                    className={`w-8 h-8 flex items-center justify-center rounded-md shadow-lg text-[10px] font-bold backdrop-blur-sm transition-all focus:outline-none ${processingId !== null ? 'opacity-50 cursor-not-allowed' : 'opacity-80 hover:opacity-100 active:scale-95'} ${isRecommend ? 'bg-info/90 text-white border border-info' : 'bg-slate-700/80 hover:bg-slate-600 text-slate-100 border border-slate-500/50'}`}
+                                    className={`w-8 h-8 flex items-center justify-center rounded-md shadow-lg text-[10px] font-bold backdrop-blur-sm transition-all focus:outline-none ${processingId !== null ? 'opacity-50 cursor-not-allowed' : 'opacity-80 hover:opacity-100 active:scale-95'} ${isRecommend ? 'bg-info/90 text-white border border-info' : 'bg-surface-alt/80 hover:bg-surface-hover text-text-primary border border-border'}`}
                                 >
                                     추천
                                 </button>
                                 <button
                                     onClick={(e) => { e.stopPropagation(); logRoadmapEvent("웹", "맵뷰 버튼(최단시간) 좌상단 클릭"); setProcessingId(`recalc-global`); onRecalculate(activeRoute[activeRoute.length - 1].id, 'TIME'); }}
                                     disabled={processingId !== null}
-                                    className={`w-8 h-8 flex items-center justify-center rounded-md shadow-lg text-[10px] font-bold backdrop-blur-sm transition-all focus:outline-none ${processingId !== null ? 'opacity-50 cursor-not-allowed' : 'opacity-80 hover:opacity-100 active:scale-95'} ${isTime ? 'bg-accent/90 text-white border border-accent' : 'bg-slate-700/80 hover:bg-slate-600 text-slate-100 border border-slate-500/50'}`}
+                                    className={`w-8 h-8 flex items-center justify-center rounded-md shadow-lg text-[10px] font-bold backdrop-blur-sm transition-all focus:outline-none ${processingId !== null ? 'opacity-50 cursor-not-allowed' : 'opacity-80 hover:opacity-100 active:scale-95'} ${isTime ? 'bg-accent/90 text-white border border-accent' : 'bg-surface-alt/80 hover:bg-surface-hover text-text-primary border border-border'}`}
                                 >
                                     시간
                                 </button>
                                 <button
                                     onClick={(e) => { e.stopPropagation(); logRoadmapEvent("웹", "맵뷰 버튼(최단거리) 좌상단 클릭"); setProcessingId(`recalc-global`); onRecalculate(activeRoute[activeRoute.length - 1].id, 'DISTANCE'); }}
                                     disabled={processingId !== null}
-                                    className={`w-8 h-8 flex items-center justify-center rounded-md shadow-lg text-[10px] font-bold backdrop-blur-sm transition-all focus:outline-none ${processingId !== null ? 'opacity-50 cursor-not-allowed' : 'opacity-80 hover:opacity-100 active:scale-95'} ${isDistance ? 'bg-teal-600/90 text-white border border-teal-400' : 'bg-slate-700/80 hover:bg-slate-600 text-slate-100 border border-slate-500/50'}`}
+                                    className={`w-8 h-8 flex items-center justify-center rounded-md shadow-lg text-[10px] font-bold backdrop-blur-sm transition-all focus:outline-none ${processingId !== null ? 'opacity-50 cursor-not-allowed' : 'opacity-80 hover:opacity-100 active:scale-95'} ${isDistance ? 'bg-success/90 text-white border border-success' : 'bg-surface-alt/80 hover:bg-surface-hover text-text-primary border border-border'}`}
                                 >
                                     거리
                                 </button>
@@ -147,18 +153,17 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
                     })()}
                 </PinnedRouteCanvas>
 
-                {/* 통합 맵 정보 브리핑 */}
                 {safeRoute.length > 0 && (
-                    <div className="flex justify-between items-end mb-1 px-1 mt-1">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-border-card">
                         <a
                             href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(unifiedRoutePoints[0]?.name || '')}&destination=${encodeURIComponent(unifiedRoutePoints[unifiedRoutePoints.length - 1]?.name || '')}&waypoints=${encodeURIComponent(unifiedRoutePoints.slice(1, -1).map(p => p.name).join('|'))}&travelmode=driving`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex-1"
                         >
-                            <div className="flex flex-col gap-0.5 pt-1">
-                                <span className="text-xs text-muted-foreground text-left">
-                                    {activeRoute.length > 0 && <span className="ml-1 text-muted-foreground font-bold">총 {activeRoute.length}개 경로 정보{liveRoute.length < activeRoute.length ? ` (${activeRoute.length - liveRoute.length}건 완료)` : ''}</span>}
+                            <div className="flex flex-col">
+                                <span className="text-xs text-text-muted">
+                                    {activeRoute.length > 0 && <span className="text-text-muted font-bold">총 {activeRoute.length}개 경로 정보{liveRoute.length < activeRoute.length ? ` (${activeRoute.length - liveRoute.length}건 완료)` : ''}</span>}
                                 </span>
                                 <span className="text-sm text-text-primary hover:text-info transition-colors">
                                     {(() => {
@@ -169,52 +174,50 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
                                 </span>
                             </div>
                         </a>
-                        <div className="flex flex-col items-end gap-0.5">
-
-                            <span className={`text-xl md:text-2xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r ${allEvaluating ? 'from-amber-400 to-yellow-200' : 'from-emerald-400 to-cyan-400'}`}>
-                                {(() => {
-                                    const total = activeRoute.reduce((sum, o) => sum + (o.fare || 0), 0);
-                                    return `${total.toLocaleString()} 원`;
-                                })()}
-                            </span>
-                        </div>
+                        <span className="text-xl font-black text-info tracking-tight">
+                            {(() => {
+                                const total = activeRoute.reduce((sum, o) => sum + (o.fare || 0), 0);
+                                return `${total.toLocaleString()}`;
+                            })()}
+                            <span className="text-xs font-bold text-text-muted ml-0.5">원</span>
+                        </span>
                     </div>
                 )}
             </div>
 
             {/* 뷰 필터 탭 (진행 중 / 완료됨 / 취소됨) */}
             {safeRoute.length > 0 && (
-                <div className="flex bg-muted/50 p-1 rounded-lg mb-2">
+                <div className="flex border-b border-border-card">
                     <button
                         onClick={() => setViewFilter('ACTIVE')}
-                        className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-colors ${viewFilter === 'ACTIVE' ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                        className={`flex-1 py-2 text-xs font-bold transition-colors ${viewFilter === 'ACTIVE' ? 'text-text-primary border-b-2 border-info' : 'text-text-muted hover:text-text-primary'}`}
                     >
                         진행 중 ({liveRoute.length})
                     </button>
                     <button
                         onClick={() => setViewFilter('COMPLETED')}
-                        className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-colors ${viewFilter === 'COMPLETED' ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                        className={`flex-1 py-2 text-xs font-bold transition-colors ${viewFilter === 'COMPLETED' ? 'text-text-primary border-b-2 border-info' : 'text-text-muted hover:text-text-primary'}`}
                     >
                         완료됨 ({safeRoute.filter(r => r.status === 'ORDER_COMPLETED').length})
                     </button>
                     <button
                         onClick={() => setViewFilter('CANCELED')}
-                        className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-colors ${viewFilter === 'CANCELED' ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                        className={`flex-1 py-2 text-xs font-bold transition-colors ${viewFilter === 'CANCELED' ? 'text-text-primary border-b-2 border-info' : 'text-text-muted hover:text-text-primary'}`}
                     >
                         취소/방출 ({safeRoute.filter(r => r.status === 'ORDER_RELEASED' || r.status === 'ORDER_CANCELED' || r.status === 'ORDER_FORCE_CANCELED').length})
                     </button>
                     <button
                         onClick={() => setViewFilter('ALL')}
-                        className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-colors ${viewFilter === 'ALL' ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                        className={`flex-1 py-2 text-xs font-bold transition-colors ${viewFilter === 'ALL' ? 'text-text-primary border-b-2 border-info' : 'text-text-muted hover:text-text-primary'}`}
                     >
                         전체 ({safeRoute.length})
                     </button>
                 </div>
             )}
 
-            {/* 오더 관리 아코디언 리스트 (가장 처음 잡은 본짐이 맨 아래, 최근에 잡은 합짐이 맨 위로 쌓이도록 역순 정렬) */}
+            {/* 오더 관리 아코디언 리스트 */}
             {safeRoute.length > 0 && (
-                <div className="space-y-2">
+                <div className="flex flex-col">
                     {[...activeRoute]
                         .filter(route => {
                             if (viewFilter === 'ACTIVE') {

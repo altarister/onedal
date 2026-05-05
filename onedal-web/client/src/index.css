@@ -40,9 +40,10 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 
-  /* 1DAL Custom Colors */
+  /* 1DAL Seamless Design Tokens */
   --color-bg-base: var(--theme-bg-base);
   --color-surface: var(--theme-surface);
+  --color-surface-alt: var(--theme-surface-alt);
   --color-surface-hover: var(--theme-surface-hover);
   --color-border-card: var(--theme-border-card);
   --color-border-hover: var(--theme-border-hover);
@@ -55,6 +56,10 @@
   --color-info: var(--theme-info);
   --color-info-alt: var(--theme-info-alt);
   --color-accent-alt: var(--theme-accent-alt);
+
+  --color-glow-warning: var(--theme-glow-warning);
+  --color-glow-primary: var(--theme-glow-primary);
+  --shadow-soft: var(--theme-shadow-soft);
 }
 
 @layer base {
@@ -68,7 +73,7 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
+  --background: oklch(0.97 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
@@ -87,63 +92,77 @@
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
-  --radius: 0.5rem;
+  --radius: 0.625rem;
 
-  /* 1DAL Legacy Custom Themes - Light Mode */
-  --theme-bg-base: #f8fafc;
-  --theme-surface: #ffffff;
-  --theme-surface-hover: #f1f5f9;
-  --theme-border-card: #e2e8f0;
-  --theme-border-hover: #cbd5e1;
-  --theme-text-primary: #1e293b;
-  --theme-text-muted: #64748b;
+  /* ── 1DAL Seamless Design Tokens — Light Mode ── */
+  --theme-bg-base: #F3F4F6;       /* Gray-100: 앱 전체 바탕 */
+  --theme-surface: #FFFFFF;        /* 카드/패널 바탕 */
+  --theme-surface-alt: #F3F4F6;    /* 버튼/구분 요소 */
+  --theme-surface-hover: #E5E7EB;  /* 호버 상태 */
+  --theme-border-card: rgba(0, 0, 0, 0.04);
+  --theme-border-hover: rgba(0, 0, 0, 0.08);
+  --theme-text-primary: #111827;   /* Gray-900 */
+  --theme-text-muted: #6B7280;     /* Gray-500 */
 
-  --theme-success: #059669;
-  --theme-warning: #d97706;
-  --theme-danger: #e11d48;
-  --theme-info: #2563eb;
-  --theme-info-alt: #0891b2;
-  --theme-accent: #7c3aed;
-  --theme-accent-alt: #c026d3;
+  /* 시맨틱 상태 색상 */
+  --theme-success: #10B981;        /* Emerald-500 */
+  --theme-warning: #F59E0B;        /* Amber-500 */
+  --theme-danger: #EF4444;         /* Red-500 */
+  --theme-info: #3B82F6;           /* Blue-500 (Primary Action) */
+  --theme-info-alt: #6366F1;       /* Indigo-500 (첫짐 모드) */
+  --theme-accent: #8B5CF6;         /* Violet-500 */
+  --theme-accent-alt: #A855F7;     /* Purple-500 */
+
+  /* 유틸리티 */
+  --theme-glow-warning: rgba(245, 158, 11, 0.15);
+  --theme-glow-primary: rgba(59, 130, 246, 0.20);
+  --theme-shadow-soft: 0 4px 20px -2px rgba(0, 0, 0, 0.03), 0 0 0 1px rgba(0, 0, 0, 0.02);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.145 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  --background: oklch(0.13 0.005 285);
+  --foreground: oklch(0.93 0 0);
+  --card: oklch(0.17 0.005 285);
+  --card-foreground: oklch(0.93 0 0);
+  --popover: oklch(0.17 0.005 285);
+  --popover-foreground: oklch(0.93 0 0);
+  --primary: oklch(0.93 0 0);
+  --primary-foreground: oklch(0.17 0.005 285);
+  --secondary: oklch(0.24 0.005 285);
+  --secondary-foreground: oklch(0.93 0 0);
+  --muted: oklch(0.24 0.005 285);
+  --muted-foreground: oklch(0.65 0 0);
+  --accent: oklch(0.24 0.005 285);
+  --accent-foreground: oklch(0.93 0 0);
   --destructive: oklch(0.396 0.141 25.723);
   --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.269 0 0);
-  --input: oklch(0.269 0 0);
-  --ring: oklch(0.439 0 0);
+  --border: oklch(0.24 0.005 285);
+  --input: oklch(0.24 0.005 285);
+  --ring: oklch(0.40 0 0);
 
-  /* 1DAL Legacy Custom Themes - Dark Mode */
-  --theme-bg-base: #030712;
-  --theme-surface: #111522;
-  --theme-surface-hover: #1e293b;
-  --theme-border-card: rgba(51, 65, 85, 0.6);
-  --theme-border-hover: rgba(71, 85, 105, 0.8);
-  --theme-text-primary: #cbd5e1;
-  --theme-text-muted: #94a3b8;
+  /* ── 1DAL Seamless Design Tokens — Dark Mode ── */
+  --theme-bg-base: #030712;        /* Gray-950: 앱 전체 바탕 */
+  --theme-surface: #111827;        /* Gray-900: 카드/패널 바탕 */
+  --theme-surface-alt: #1F2937;    /* Gray-800: 버튼/구분 요소 */
+  --theme-surface-hover: #374151;  /* Gray-700: 호버 상태 */
+  --theme-border-card: rgba(255, 255, 255, 0.06);
+  --theme-border-hover: rgba(255, 255, 255, 0.10);
+  --theme-text-primary: #F3F4F6;   /* Gray-100 */
+  --theme-text-muted: #9CA3AF;     /* Gray-400 */
 
-  --theme-success: #34d399;
-  --theme-warning: #fbbf24;
-  --theme-danger: #fb7185;
-  --theme-info: #60a5fa;
-  --theme-info-alt: #22d3ee;
-  --theme-accent: #a78bfa;
-  --theme-accent-alt: #e879f9;
+  /* 시맨틱 상태 색상 (다크에서 밝기 조정) */
+  --theme-success: #34D399;        /* Emerald-400 */
+  --theme-warning: #FBBF24;        /* Amber-400 */
+  --theme-danger: #F87171;         /* Red-400 */
+  --theme-info: #60A5FA;           /* Blue-400 */
+  --theme-info-alt: #818CF8;       /* Indigo-400 */
+  --theme-accent: #A78BFA;         /* Violet-400 */
+  --theme-accent-alt: #C084FC;     /* Purple-400 */
+
+  /* 유틸리티 (다크 모드 그림자) */
+  --theme-glow-warning: rgba(245, 158, 11, 0.12);
+  --theme-glow-primary: rgba(96, 165, 250, 0.15);
+  --theme-shadow-soft: 0 4px 20px -2px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.04);
 }
 
 @layer base {

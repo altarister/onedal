@@ -103,21 +103,21 @@ export default function GeneralSettingsTab({ onClose }: Props) {
       <div className="flex items-center justify-between rounded-lg border p-3">
         <div className="space-y-0.5">
           <h3 className="text-sm font-bold">🚀 무인 서핑 모드 (Full Auto)</h3>
-          <p className="text-[10px] text-muted-foreground">이 모드를 켜면 꿀콜을 자동으로 낚아채고 평가합니다.</p>
+          <p className="text-[10px] text-text-muted">이 모드를 켜면 꿀콜을 자동으로 낚아채고 평가합니다.</p>
         </div>
         <Switch checked={isActive} onCheckedChange={setIsActive} />
       </div>
 
       {/* 내 차량 종류 */}
       <div className="space-y-1.5">
-        <label className="text-sm font-semibold text-muted-foreground">내 차량 종류</label>
+        <label className="text-sm font-semibold text-text-muted">내 차량 종류</label>
         <select
           value={vehicleType}
           onChange={(e) => setVehicleType(e.target.value)}
           className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         >
           {VEHICLE_OPTIONS.map((opt) => (
-            <option key={opt} value={opt} className="bg-background">{opt}</option>
+            <option key={opt} value={opt} className="bg-surface-alt">{opt}</option>
           ))}
         </select>
       </div>
@@ -125,19 +125,19 @@ export default function GeneralSettingsTab({ onClose }: Props) {
       {/* 경로/집 */}
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-muted-foreground">경로 탐색 옵션</label>
+          <label className="text-xs font-semibold text-text-muted">경로 탐색 옵션</label>
           <select
             value={defaultPriority}
             onChange={(e) => setDefaultPriority(e.target.value)}
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
-            <option value="RECOMMEND" className="bg-background">추천</option>
-            <option value="TIME" className="bg-background">최단시간</option>
-            <option value="DISTANCE" className="bg-background">최단거리</option>
+            <option value="RECOMMEND" className="bg-surface-alt">추천</option>
+            <option value="TIME" className="bg-surface-alt">최단시간</option>
+            <option value="DISTANCE" className="bg-surface-alt">최단거리</option>
           </select>
         </div>
         <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-muted-foreground">🏠 집 주소</label>
+          <label className="text-xs font-semibold text-text-muted">🏠 집 주소</label>
           <div className="flex gap-1.5">
             <Input
               type="text"
@@ -158,7 +158,7 @@ export default function GeneralSettingsTab({ onClose }: Props) {
             </Button>
           </div>
           {homeCoords && (
-            <p className="text-[10px] text-emerald-500 font-semibold">✅ 좌표 확인 완료 ({homeCoords.x.toFixed(5)}, {homeCoords.y.toFixed(5)})</p>
+            <p className="text-[10px] text-success font-semibold">✅ 좌표 확인 완료 ({homeCoords.x.toFixed(5)}, {homeCoords.y.toFixed(5)})</p>
           )}
           {geocodeError && (
             <p className="text-[10px] text-destructive font-semibold">❌ {geocodeError}</p>
@@ -169,7 +169,7 @@ export default function GeneralSettingsTab({ onClose }: Props) {
       {/* 볼륨 */}
       <div className="space-y-2 pt-2 border-t">
         <div className="flex justify-between items-center">
-          <label className="text-sm font-semibold text-muted-foreground">시스템 알림 볼륨</label>
+          <label className="text-sm font-semibold text-text-muted">시스템 알림 볼륨</label>
           <span className="text-xs font-mono text-primary bg-primary/10 px-2 py-0.5 rounded">{volume}%</span>
         </div>
         <div className="flex items-center gap-4">
@@ -177,7 +177,7 @@ export default function GeneralSettingsTab({ onClose }: Props) {
             type="range" min="0" max="100"
             value={volume}
             onChange={(e) => handleVolumeChange(parseInt(e.target.value))}
-            className="flex-1 h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
+            className="flex-1 h-1.5 bg-surface-alt rounded-lg appearance-none cursor-pointer accent-primary"
           />
           <Button variant="outline" size="sm" onClick={() => soundManager.playBeep()}>🔊 테스트</Button>
         </div>

@@ -84,11 +84,11 @@ export default function PricingSettingsTab({ onClose }: Props) {
     <div className="flex flex-col gap-4">
       {/* 차종별 단가 */}
       <div className="space-y-1.5">
-        <label className="text-sm font-semibold text-muted-foreground">💰 차종별 km당 적정 단가 (원)</label>
+        <label className="text-sm font-semibold text-text-muted">💰 차종별 km당 적정 단가 (원)</label>
         <div className="grid grid-cols-3 gap-2">
           {VEHICLE_OPTIONS.map((vType) => (
             <div key={vType} className="flex items-center gap-1">
-              <span className="text-[11px] text-muted-foreground w-12 shrink-0 text-right">{vType}</span>
+              <span className="text-[11px] text-text-muted w-12 shrink-0 text-right">{vType}</span>
               <Input
                 type="number"
                 value={vehicleRates[vType] || ''}
@@ -104,11 +104,11 @@ export default function PricingSettingsTab({ onClose }: Props) {
       {/* 수수료 & 할인율 */}
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-muted-foreground">📊 퀵사 수수료율 (%)</label>
+          <label className="text-xs font-semibold text-text-muted">📊 퀵사 수수료율 (%)</label>
           <Input type="number" value={agencyFeePercent} onChange={(e) => setAgencyFeePercent(Number(e.target.value) || 0)} className="h-9 text-center font-bold" />
         </div>
         <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-muted-foreground">🔻 최대 할인율 (%)</label>
+          <label className="text-xs font-semibold text-text-muted">🔻 최대 할인율 (%)</label>
           <Input type="number" value={maxDiscountPercent} onChange={(e) => setMaxDiscountPercent(Number(e.target.value) || 0)} className="h-9 text-center font-bold" />
         </div>
       </div>
@@ -116,23 +116,23 @@ export default function PricingSettingsTab({ onClose }: Props) {
       {/* 하한가 & 상한가 */}
       <div className="grid grid-cols-2 gap-3 pt-2 border-t">
         <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-muted-foreground">⬇️ 첫짐 절대 하한가 (원)</label>
+          <label className="text-xs font-semibold text-text-muted">⬇️ 첫짐 절대 하한가 (원)</label>
           <Input type="number" value={minFare || ''} onChange={(e) => setMinFare(Number(e.target.value) || 0)} placeholder="30000" className="h-9 font-bold" />
         </div>
         <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-muted-foreground">⬆️ 절대 상한가 (원)</label>
+          <label className="text-xs font-semibold text-text-muted">⬆️ 절대 상한가 (원)</label>
           <Input type="number" value={maxFare || ''} onChange={(e) => setMaxFare(Number(e.target.value) || 0)} placeholder="1000000" className="h-9 font-bold" />
         </div>
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs font-semibold text-muted-foreground">🎯 상차 반경 (km)</label>
+        <label className="text-xs font-semibold text-text-muted">🎯 상차 반경 (km)</label>
         <Input type="number" value={pickupRadiusKm || ''} onChange={(e) => setPickupRadiusKm(Number(e.target.value) || 0)} placeholder="10" className="h-9 font-bold" />
       </div>
 
       {/* 블랙리스트 */}
       <div className="space-y-1.5 pt-2 border-t">
-        <label className="text-sm font-semibold text-muted-foreground">🚫 블랙리스트 키워드</label>
+        <label className="text-sm font-semibold text-text-muted">🚫 블랙리스트 키워드</label>
         <div className="flex flex-wrap gap-1.5 mb-2 min-h-[28px]">
           {excludedKeywords.map((kw, i) => (
             <span key={i} className="inline-flex items-center gap-1 bg-destructive/10 text-destructive text-[11px] font-bold px-2 py-0.5 rounded-full border border-destructive/20">
@@ -155,18 +155,18 @@ export default function PricingSettingsTab({ onClose }: Props) {
 
       {/* 기본 노선 */}
       <div className="space-y-1.5 pt-2 border-t">
-        <label className="text-sm font-semibold text-muted-foreground">📍 내 노선 기본 설정</label>
+        <label className="text-sm font-semibold text-text-muted">📍 내 노선 기본 설정</label>
         <div className="grid grid-cols-3 gap-2">
           <div className="space-y-1.5">
-            <label className="text-[10px] font-semibold text-muted-foreground">도착 시/도</label>
+            <label className="text-[10px] font-semibold text-text-muted">도착 시/도</label>
             <Input type="text" value={destinationCity} onChange={(e) => setDestinationCity(e.target.value)} placeholder="경기" className="h-8 text-xs" />
           </div>
           <div className="space-y-1.5">
-            <label className="text-[10px] font-semibold text-muted-foreground">도착 반경(km)</label>
+            <label className="text-[10px] font-semibold text-text-muted">도착 반경(km)</label>
             <Input type="number" value={destinationRadiusKm} onChange={(e) => setDestinationRadiusKm(e.target.value)} placeholder="10" className="h-8 text-xs" />
           </div>
           <div className="space-y-1.5">
-            <label className="text-[10px] font-semibold text-muted-foreground">우회 허용(km)</label>
+            <label className="text-[10px] font-semibold text-text-muted">우회 허용(km)</label>
             <Input type="number" value={corridorRadiusKm} onChange={(e) => setCorridorRadiusKm(e.target.value)} placeholder="1" className="h-8 text-xs" />
           </div>
         </div>

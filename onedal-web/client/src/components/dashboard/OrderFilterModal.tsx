@@ -180,17 +180,17 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="sm:max-w-lg bg-[#070b14] border-slate-700/50 shadow-2xl p-4 overflow-hidden flex flex-col gap-3">
-                <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] bg-blue-500/10 blur-[100px] rounded-full pointer-events-none" />
-                <div className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] bg-emerald-500/10 blur-[100px] rounded-full pointer-events-none" />
+            <DialogContent className="sm:max-w-lg bg-bg-base border-border shadow-2xl p-4 overflow-hidden flex flex-col gap-3">
+                <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] bg-info/10 blur-[100px] rounded-full pointer-events-none" />
+                <div className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] bg-success/10 blur-[100px] rounded-full pointer-events-none" />
 
-                <DialogHeader className="border-b border-blue-500/20 pb-2 relative z-10 flex flex-row items-center justify-between">
+                <DialogHeader className="border-b border-info/20 pb-2 relative z-10 flex flex-row items-center justify-between">
                     <DialogTitle className="flex flex-col gap-1">
                         {/* <span className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 tracking-tight">
                             통제 필터 설정
                         </span> */}
                         <div className="flex items-center gap-2">
-                            <Badge variant="outline" className={isSharedMode ? 'bg-amber-500/20 text-amber-500 border-amber-500/30' : 'bg-emerald-500/20 text-emerald-500 border-emerald-500/30'}>
+                            <Badge variant="outline" className={isSharedMode ? 'bg-warning/20 text-warning border-warning/30' : 'bg-success/20 text-success border-success/30'}>
                                 {isSharedMode ? '합짐(Loaded) 모드' : '첫짐(Empty) 모드'}
                             </Badge>
                         </div>
@@ -202,8 +202,8 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                         {/* 차종 멀티셀렉터 */}
                         <div className="mb-3">
                             <div className="flex items-center gap-1.5 mb-1.5">
-                                <label className="text-xs font-bold text-slate-400">허용 차종</label>
-                                <span className="text-[10px] text-slate-500 ml-auto font-mono">
+                                <label className="text-xs font-bold text-text-muted">허용 차종</label>
+                                <span className="text-[10px] text-text-muted ml-auto font-mono">
                                     {selectedVehicles.length === 0 ? '전체 허용' : `${selectedVehicles.length}개 선택`}
                                 </span>
                             </div>
@@ -223,8 +223,8 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                                 );
                                             }}
                                             className={`h-9 font-black tracking-tight transition-all ${isSelected
-                                                ? 'bg-emerald-500/20 border-emerald-500/60 text-emerald-400 hover:bg-emerald-500/30 shadow-lg'
-                                                : 'bg-black/40 border-slate-700/40 text-slate-500 hover:text-slate-300'
+                                                ? 'bg-success/20 border-success/60 text-success hover:bg-success/30 shadow-lg'
+                                                : 'bg-surface-alt/40 border-border text-text-muted hover:text-text-primary'
                                                 }`}
                                         >
                                             {v}
@@ -232,34 +232,34 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                     );
                                 })}
                             </div>
-                            <p className="text-[10px] text-slate-500 mt-2 text-center bg-muted/50 p-1.5 rounded-md">
+                            <p className="text-[10px] text-text-muted mt-2 text-center bg-surface-alt/50 p-1.5 rounded-md">
                                 💡 합짐(LOADING) 상태 진입 시, 1t 등 상위 차종은 자동으로 제외 처리됩니다.
                             </p>
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1.5">
-                                <label className="text-xs font-bold text-slate-400 flex items-center gap-1">하한가</label>
+                                <label className="text-xs font-bold text-text-muted flex items-center gap-1">하한가</label>
                                 <div className="relative">
                                     <Input
                                         type="number"
                                         value={minFare}
                                         onChange={(e) => setMinFare(e.target.value)}
-                                        className="bg-black/60 border-slate-700/50 pr-8 text-emerald-400 font-black font-mono shadow-inner h-10"
+                                        className="bg-surface-alt/60 border-border pr-8 text-success font-black font-mono shadow-inner h-10"
                                     />
-                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-emerald-500/70 font-bold pointer-events-none">원</span>
+                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-success/70 font-bold pointer-events-none">원</span>
                                 </div>
                             </div>
                             <div className="space-y-1.5">
-                                <label className="text-xs font-bold text-red-400/80 flex items-center gap-1">
-                                    <span className="text-red-500 text-[10px]">🚫</span> 제외 키워드
+                                <label className="text-xs font-bold text-danger/80 flex items-center gap-1">
+                                    <span className="text-danger text-[10px]">🚫</span> 제외 키워드
                                 </label>
                                 <Input
                                     type="text"
                                     value={blacklist}
                                     onChange={handleBlacklistChange}
                                     placeholder="단어 쉼표(,) 구분"
-                                    className="bg-black/60 border-red-900/50 text-red-300 font-medium focus-visible:ring-red-500/50 shadow-inner h-10"
+                                    className="bg-surface-alt/60 border-danger/30 text-danger font-medium focus-visible:ring-danger/50 shadow-inner h-10"
                                 />
                             </div>
                         </div>
@@ -268,14 +268,14 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                     {/* 모드별 조건부 렌더링: 첫짐 또는 합짐 전용 섹션 */}
                     {!isSharedMode ? (
                         /* ── 첫짐(EMPTY) 모드 섹션 ── */
-                        <div className="bg-slate-900/60 backdrop-blur-md p-3 rounded-xl border border-indigo-500/30 shadow-lg relative overflow-hidden">
+                        <div className="bg-surface/60 backdrop-blur-md p-3 rounded-xl border border-info-alt/30 shadow-lg relative overflow-hidden">
                             <div className="flex gap-2 mb-2">
                                 <div className="flex-[0.4] space-y-1">
-                                    <label className="block text-[10px] font-bold text-slate-400 pl-1">도착 희망 시/도</label>
+                                    <label className="block text-[10px] font-bold text-text-muted pl-1">도착 희망 시/도</label>
                                     <select
                                         value={targetCity}
                                         onChange={(e) => setTargetCity(e.target.value)}
-                                        className="w-full h-9 bg-black/50 border border-slate-600/40 rounded-md px-2 text-[13px] text-indigo-300 font-bold outline-none focus:border-indigo-400 shadow-inner appearance-none"
+                                        className="w-full h-9 bg-surface-alt/50 border border-border rounded-md px-2 text-[13px] text-info-alt font-bold outline-none focus:border-info-alt shadow-inner appearance-none"
                                     >
                                         <option value="용인시">용인시</option>
                                         <option value="수원시">수원시</option>
@@ -287,61 +287,61 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                     </select>
                                 </div>
                                 <div className="flex-[0.3] space-y-1">
-                                    <label className="block text-[10px] font-bold text-slate-400 pl-1">상차 반경</label>
+                                    <label className="block text-[10px] font-bold text-text-muted pl-1">상차 반경</label>
                                     <div className="relative">
                                         <Input
                                             type="number"
                                             value={pickupRadius}
                                             onChange={(e) => setPickupRadius(e.target.value)}
-                                            className="bg-black/50 border-slate-600/40 pr-8 text-white font-bold h-9 text-center"
+                                            className="bg-surface-alt/50 border-border pr-8 text-text-primary font-bold h-9 text-center"
                                         />
-                                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 font-black pointer-events-none text-[9px]">KM</span>
+                                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted font-black pointer-events-none text-[9px]">KM</span>
                                     </div>
                                 </div>
                                 <div className="flex-[0.3] space-y-1">
-                                    <label className="block text-[10px] font-bold text-slate-400 pl-1">도착 반경</label>
+                                    <label className="block text-[10px] font-bold text-text-muted pl-1">도착 반경</label>
                                     <div className="relative">
                                         <Input
                                             type="number"
                                             value={targetRadius}
                                             onChange={(e) => setTargetRadius(e.target.value)}
-                                            className="bg-black/50 border-slate-600/40 pr-8 text-indigo-300 font-bold h-9 text-center"
+                                            className="bg-surface-alt/50 border-border pr-8 text-info-alt font-bold h-9 text-center"
                                         />
-                                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-indigo-600/70 font-black pointer-events-none text-[9px]">KM</span>
+                                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-info-alt/70 font-black pointer-events-none text-[9px]">KM</span>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     ) : (
                         /* ── 합짐(SHARED) 모드 섹션 ── */
-                        <div className="bg-slate-900/60 backdrop-blur-md p-3 rounded-xl border border-amber-500/30 shadow-lg relative overflow-hidden">
+                        <div className="bg-surface/60 backdrop-blur-md p-3 rounded-xl border border-warning/30 shadow-lg relative overflow-hidden">
                             <div className="flex items-center gap-3 mb-2">
                                 <div className="flex-[0.4] space-y-1">
-                                    <label className="block text-[10px] font-bold text-slate-400 text-center">우회 탐색 허용 반경</label>
+                                    <label className="block text-[10px] font-bold text-text-muted text-center">우회 탐색 허용 반경</label>
                                     <div className="relative">
                                         <Input
                                             type="number"
                                             value={corridorRadius}
                                             onChange={(e) => setCorridorRadius(e.target.value)}
-                                            className="bg-black/50 border-amber-500/30 text-amber-500 font-bold h-9 text-center shadow-inner"
+                                            className="bg-surface-alt/50 border-warning/30 text-warning font-bold h-9 text-center shadow-inner"
                                         />
-                                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-amber-500/50 font-black pointer-events-none text-[10px]">KM</span>
+                                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-warning/50 font-black pointer-events-none text-[10px]">KM</span>
                                     </div>
                                 </div>
                                 <div className="flex-[0.3] space-y-1">
-                                    <label className="block text-[10px] font-bold text-slate-400 text-center">도착 반경</label>
+                                    <label className="block text-[10px] font-bold text-text-muted text-center">도착 반경</label>
                                     <div className="relative">
                                         <Input
                                             type="number"
                                             value={targetRadius}
                                             onChange={(e) => setTargetRadius(e.target.value)}
-                                            className="bg-black/50 border-amber-500/30 pr-8 text-amber-300 font-bold h-9 text-center"
+                                            className="bg-surface-alt/50 border-warning/30 pr-8 text-warning font-bold h-9 text-center"
                                         />
-                                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-amber-500/50 font-black pointer-events-none text-[9px]">KM</span>
+                                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-warning/50 font-black pointer-events-none text-[9px]">KM</span>
                                     </div>
                                 </div>
                                 <div className="flex-[0.3]">
-                                    <p className="text-[9px] text-slate-400 leading-tight border-l-2 border-amber-500/30 pl-2 py-1">
+                                    <p className="text-[9px] text-text-muted leading-tight border-l-2 border-warning/30 pl-2 py-1">
                                         경로상 추가 콜 탐색을 허용할 최대 우회 반경
                                     </p>
                                 </div>
@@ -350,21 +350,21 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                     )}
 
                     {/* 독립 섹션: 현재 타겟팅 지역 목록 검증 및 미리보기 통합 UI */}
-                    <div className="bg-slate-900/60 backdrop-blur-md p-2 rounded-xl border border-slate-500/20 shadow-lg mt-1">
-                        <div className="w-full flex items-center justify-between p-1.5 rounded-md bg-slate-800/50 transition-colors">
+                    <div className="bg-surface/60 backdrop-blur-md p-2 rounded-xl border border-border shadow-lg mt-1">
+                        <div className="w-full flex items-center justify-between p-1.5 rounded-md bg-surface-alt/50 transition-colors">
                             <div 
                                 className="flex items-center gap-2 flex-1 cursor-pointer group"
                                 onClick={() => setIsAccordionOpen(!isAccordionOpen)}
                             >
-                                <span className="text-[11px] font-medium text-slate-300 group-hover:text-white transition-colors">
+                                <span className="text-[11px] font-medium text-text-muted group-hover:text-text-primary transition-colors">
                                     {isSharedMode ? `🛣️ 회랑 지역 (±${corridorRadius !== '' ? corridorRadius : '?'}km)` : `📍 도착 지역 (${targetCity})`}
                                 </span>
                                 {previewRegions && previewCount > 0 ? (
-                                    <Badge variant="secondary" className="bg-amber-500/80 text-white shadow-[0_0_10px_rgba(245,158,11,0.5)]">
+                                    <Badge variant="secondary" className="bg-warning/80 text-white shadow-[0_0_10px_var(--theme-glow-warning)]">
                                         변경 예정 ({previewCount}개)
                                     </Badge>
                                 ) : (
-                                    <Badge className={isSharedMode ? 'bg-purple-500 text-white shadow-[0_0_10px_rgba(168,85,247,0.5)]' : 'bg-indigo-500 text-white shadow-[0_0_10px_rgba(99,102,241,0.5)]'}>
+                                    <Badge className={isSharedMode ? 'bg-accent-alt text-white shadow-[0_0_10px_var(--theme-glow-primary)]' : 'bg-info-alt text-white shadow-[0_0_10px_var(--theme-glow-primary)]'}>
                                         {destKeywordsLimit.length}개
                                     </Badge>
                                 )}
@@ -379,12 +379,12 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                     }}
                                     disabled={isPreviewLoading}
                                     size="sm"
-                                    className={`h-6 text-[10px] px-2 py-0 font-bold ${isSharedMode ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/40 border border-amber-500/50' : 'bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/40 border border-indigo-500/50'}`}
+                                    className={`h-6 text-[10px] px-2 py-0 font-bold ${isSharedMode ? 'bg-warning/20 text-warning hover:bg-warning/40 border border-warning/50' : 'bg-info-alt/20 text-info-alt hover:bg-info-alt/40 border border-info-alt/50'}`}
                                 >
                                     {isPreviewLoading ? '연산 중...' : '🔍 미리보기'}
                                 </Button>
                                 <span 
-                                    className={`text-slate-400 text-sm cursor-pointer px-1 transition-transform duration-300 ${isAccordionOpen ? 'rotate-180' : ''}`}
+                                    className={`text-text-muted text-sm cursor-pointer px-1 transition-transform duration-300 ${isAccordionOpen ? 'rotate-180' : ''}`}
                                     onClick={() => setIsAccordionOpen(!isAccordionOpen)}
                                 >
                                     ▼
@@ -393,18 +393,18 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                         </div>
 
                         {isAccordionOpen && (
-                            <div className="mt-2 p-2 bg-black/50 rounded-lg border border-slate-500/20 max-h-32 overflow-y-auto custom-scrollbar">
+                            <div className="mt-2 p-2 bg-surface-alt/50 rounded-lg border border-border max-h-32 overflow-y-auto custom-scrollbar">
                                 {previewRegions && Object.keys(previewRegions).length > 0 ? (
                                     <div className="flex flex-col gap-3">
                                         {Object.entries(previewRegions).map(([parentName, dongs]) => (
                                             <div key={parentName} className="flex flex-col gap-1 opacity-90">
-                                                <span className="text-xs font-bold text-amber-400 border-b border-amber-500/50 pb-1 flex items-center justify-between">
-                                                    <span>{parentName} <span className="text-amber-500/70 text-[10px] font-normal">({dongs.length})</span></span>
-                                                    <Badge variant="outline" className="text-[9px] bg-amber-500/20 border-amber-500/30">미리보기</Badge>
+                                                <span className="text-xs font-bold text-warning border-b border-warning/50 pb-1 flex items-center justify-between">
+                                                    <span>{parentName} <span className="text-warning/70 text-[10px] font-normal">({dongs.length})</span></span>
+                                                    <Badge variant="outline" className="text-[9px] bg-warning/20 border-warning/30">미리보기</Badge>
                                                 </span>
                                                 <div className="flex flex-wrap gap-1">
                                                     {dongs.map(kw => (
-                                                        <span key={kw} className="text-[10px] text-amber-100 bg-amber-900/40 px-1.5 py-0.5 rounded border border-amber-500/30">
+                                                        <span key={kw} className="text-[10px] text-warning bg-warning/10 px-1.5 py-0.5 rounded border border-warning/30">
                                                             {kw}
                                                         </span>
                                                     ))}
@@ -416,12 +416,12 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                     <div className="flex flex-col gap-3">
                                         {Object.entries(filter.destinationGroups).map(([parentName, dongs]) => (
                                             <div key={parentName} className="flex flex-col gap-1">
-                                                <span className={`text-xs font-bold border-b pb-1 ${isSharedMode ? 'text-purple-300 border-purple-500/50' : 'text-indigo-300 border-indigo-500/50'}`}>
-                                                    {parentName} <span className="text-slate-500 text-[10px] font-normal">({dongs.length})</span>
+                                                <span className={`text-xs font-bold border-b pb-1 ${isSharedMode ? 'text-accent-alt border-accent-alt/50' : 'text-info-alt border-info-alt/50'}`}>
+                                                    {parentName} <span className="text-text-muted text-[10px] font-normal">({dongs.length})</span>
                                                 </span>
                                                 <div className="flex flex-wrap gap-1">
                                                     {dongs.map(kw => (
-                                                        <span key={kw} className={`text-[10px] px-1.5 py-0.5 rounded border ${isSharedMode ? 'text-purple-100 bg-purple-900/40 border-purple-500/30' : 'text-indigo-100 bg-indigo-900/40 border-indigo-500/30'}`}>
+                                                        <span key={kw} className={`text-[10px] px-1.5 py-0.5 rounded border ${isSharedMode ? 'text-accent-alt bg-accent-alt/10 border-accent-alt/30' : 'text-info-alt bg-info-alt/10 border-info-alt/30'}`}>
                                                             {kw}
                                                         </span>
                                                     ))}
@@ -432,21 +432,21 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                 ) : destKeywordsLimit.length > 0 ? (
                                     <div className="flex flex-wrap gap-1">
                                         {destKeywordsLimit.map(kw => (
-                                            <span key={kw} className={`text-[10px] px-1.5 py-0.5 rounded border ${isSharedMode ? 'text-purple-200 bg-purple-900/40 border-purple-500/30' : 'text-indigo-200 bg-indigo-900/40 border-indigo-500/30'}`}>
+                                            <span key={kw} className={`text-[10px] px-1.5 py-0.5 rounded border ${isSharedMode ? 'text-accent-alt bg-accent-alt/10 border-accent-alt/30' : 'text-info-alt bg-info-alt/10 border-info-alt/30'}`}>
                                                 {kw}
                                             </span>
                                         ))}
                                     </div>
                                 ) : (
-                                    <p className="text-xs text-slate-500 text-center py-2">수집된 지역이 없습니다.</p>
+                                    <p className="text-xs text-text-muted text-center py-2">수집된 지역이 없습니다.</p>
                                 )}
                             </div>
                         )}
                     </div>
 
                     {/* 🧪 목업 시뮬레이터 토글 */}
-                    <div className="flex items-center justify-between px-1 py-2 border-t border-slate-700/40">
-                        <span className="text-[11px] text-slate-400 font-semibold tracking-wide">🧪 목업 시뮬레이터 (테스트 GPS)</span>
+                    <div className="flex items-center justify-between px-1 py-2 border-t border-border">
+                        <span className="text-[11px] text-text-muted font-semibold tracking-wide">🧪 목업 시뮬레이터 (테스트 GPS)</span>
                         <label className="relative inline-flex items-center cursor-pointer">
                             <input
                                 type="checkbox"
@@ -454,7 +454,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                 checked={isTestMode}
                                 onChange={(e) => setIsTestMode(e.target.checked)}
                             />
-                            <div className="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-500"></div>
+                            <div className="w-9 h-5 bg-surface-alt peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-accent-alt"></div>
                         </label>
                     </div>
 
@@ -465,7 +465,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                             <Button
                                 onClick={handleLoadBaseFilter}
                                 disabled={!baseFilter}
-                                className="h-11 rounded-xl bg-gradient-to-r from-slate-600 to-slate-500 text-white font-black text-[11px] shadow-[0_0_10px_rgba(100,116,139,0.2)] hover:shadow-[0_0_15px_rgba(100,116,139,0.4)] transition-all px-1"
+                                className="h-11 rounded-xl bg-gradient-to-r from-surface-alt to-surface-hover text-text-primary font-black text-[11px] shadow-soft hover:shadow-md transition-all px-1"
                             >
                                 🔄 초기화
                             </Button>
@@ -473,10 +473,10 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                             {/* 메인 액션: 현재 조건으로 사냥 (기존 적용 버튼) */}
                             <Button
                                 onClick={handleSave}
-                                className="h-11 relative group overflow-hidden rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 text-white font-black text-[11px] shadow-[0_0_15px_rgba(16,185,129,0.2)] hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all px-1"
+                                className="h-11 relative group overflow-hidden rounded-xl bg-gradient-to-r from-success to-success/70 text-white font-black text-[11px] shadow-[0_0_15px_var(--theme-glow-primary)] hover:shadow-[0_0_20px_var(--theme-glow-primary)] transition-all px-1"
                             >
                                 <span className="relative z-10 drop-shadow-md tracking-wider">🟢 갱신</span>
-                                <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 to-teal-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                <div className="absolute inset-0 bg-gradient-to-r from-success/90 to-success/60 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                             </Button>
 
                             {/* 강제 출발 */}
@@ -486,7 +486,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                     updateFilter({ driverAction: 'DRIVING', corridorRadiusKm: 0 });
                                     onClose();
                                 }}
-                                className="h-11 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-black text-[11px] shadow-[0_0_15px_rgba(99,102,241,0.2)] hover:shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-all px-1"
+                                className="h-11 rounded-xl bg-gradient-to-r from-info to-info-alt text-white font-black text-[11px] shadow-[0_0_15px_var(--theme-glow-primary)] hover:shadow-[0_0_20px_var(--theme-glow-primary)] transition-all px-1"
                             >
                                 🚀 출발
                             </Button>
@@ -511,7 +511,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                     });
                                 }}
                                 disabled={homeReturnLoading || hasHomeReturnActive}
-                                className={`h-11 rounded-xl bg-gradient-to-r from-violet-500 to-purple-400 text-white font-black text-[11px] shadow-[0_0_15px_rgba(139,92,246,0.2)] hover:shadow-[0_0_20px_rgba(139,92,246,0.4)] transition-all px-1 ${homeReturnLoading || hasHomeReturnActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                className={`h-11 rounded-xl bg-gradient-to-r from-accent-alt to-accent-alt/70 text-white font-black text-[11px] shadow-[0_0_15px_var(--theme-glow-primary)] hover:shadow-[0_0_20px_var(--theme-glow-primary)] transition-all px-1 ${homeReturnLoading || hasHomeReturnActive ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
                                 {homeReturnLoading ? '⏳ 계산중' : hasHomeReturnActive ? '🏠 진행중' : '🏠 귀가'}
                             </Button>
@@ -523,13 +523,13 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                     socket.emit("start-two-track");
                                     onClose();
                                 }}
-                                className="h-11 rounded-xl bg-gradient-to-r from-amber-500 to-orange-400 text-white font-black text-[11px] shadow-[0_0_15px_rgba(245,158,11,0.2)] hover:shadow-[0_0_20px_rgba(245,158,11,0.4)] transition-all px-1"
+                                className="h-11 rounded-xl bg-gradient-to-r from-warning to-warning/70 text-white font-black text-[11px] shadow-[0_0_15px_var(--theme-glow-warning)] hover:shadow-[0_0_20px_var(--theme-glow-warning)] transition-all px-1"
                             >
                                 🎯 투-트랙
                             </Button>
                         </div>
 
-                        <p className="text-[10px] text-slate-500 text-center mt-2">이 값은 현재 진행 중인 콜 탐색에만 적용됩니다. 🔄초기화를 누르면 톱니바퀴(⚙️) 설정값을 불러옵니다.</p>
+                        <p className="text-[10px] text-text-muted text-center mt-2">이 값은 현재 진행 중인 콜 탐색에만 적용됩니다. 🔄초기화를 누르면 톱니바퀴(⚙️) 설정값을 불러옵니다.</p>
                     </div>
                 </div>
             </DialogContent>

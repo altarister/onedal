@@ -22,7 +22,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md bg-card border-border text-card-foreground">
+      <DialogContent className="sm:max-w-md bg-surface border-border-card text-text-primary">
         <DialogHeader className="mb-2">
           <DialogTitle className="flex justify-between items-center text-xl font-bold">
             사용자 설정

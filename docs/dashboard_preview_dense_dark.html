@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>1DAL UI Preview (High Density - Dark Theme)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+    body { font-family: 'Pretendard', sans-serif; background-color: #030712; }
+    
+    /* 맵 플레이스홀더 패턴 (다크) */
+    .map-placeholder {
+      background-color: #111827; /* gray-900 */
+      background-image: linear-gradient(#1F2937 1px, transparent 1px), linear-gradient(90deg, #1F2937 1px, transparent 1px);
+      background-size: 16px 16px;
+    }
+  </style>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#3B82F6', // Blue 500
+            success: '#10B981', // Emerald 500
+            warning: '#F59E0B', // Amber 500
+            danger: '#EF4444',  // Red 500
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="text-gray-100 min-h-screen flex justify-center overflow-x-hidden pb-20">
+
+  <!-- 모바일 화면 사이즈 래퍼 -->
+  <div class="w-full max-w-[400px] bg-gray-950 min-h-screen relative shadow-2xl flex flex-col border-x border-gray-800">
+    
+    <!-- 1. Header (Minimal) -->
+    <header class="sticky top-0 z-50 bg-gray-950/95 backdrop-blur-sm border-b border-gray-800 px-4 py-3 flex justify-between items-center">
+      <div class="flex items-center gap-2">
+        <h1 class="text-xl font-black text-white tracking-tighter">1DAL</h1>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-1.5">
+          <div class="w-2 h-2 rounded-full bg-success animate-pulse"></div>
+          <span class="text-sm font-mono font-bold text-gray-400">22:19:23</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="flex flex-col">
+
+      <!-- 2. Device & Filter Status (리스트 형태, 테두리 없이 언더라인으로만 구분) -->
+      <section class="border-b border-gray-800 flex flex-col">
+        <!-- 디바이스 상태 -->
+        <div class="flex items-center justify-between px-4 py-2 border-b border-gray-800/50 bg-gray-900/50">
+            <div class="flex items-center gap-2">
+                <span class="w-5 h-5 rounded-md bg-gray-800 flex items-center justify-center font-bold text-gray-400 text-xs">1</span>
+                <span class="text-[11px] font-bold text-primary">탐색 활성화</span>
+                <span class="text-[10px] font-mono text-gray-500 ml-1">수집:15</span>
+            </div>
+            <button class="bg-primary text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-sm shadow-primary/20">AUTO</button>
+        </div>
+
+        <!-- 필터 요약 -->
+        <div class="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-gray-900 transition-colors">
+            <div class="flex items-center gap-3 flex-1">
+                <span class="bg-primary/20 text-blue-400 px-2 py-1 rounded text-[10px] font-bold whitespace-nowrap">합짐 모드</span>
+                <div class="flex flex-col leading-tight overflow-hidden">
+                    <span class="font-black text-white text-sm">2.0만 이상 <span class="text-[11px] text-gray-500 font-normal">| 1t, 다, 라</span></span>
+                    <span class="text-[11px] text-gray-400 font-medium truncate mt-0.5">파주, 서울 (±10km)</span>
+                </div>
+            </div>
+            <span class="text-gray-600 text-sm ml-2">⚙️</span>
+        </div>
+      </section>
+
+      <!-- 3. Map Section (배경이 아닌 하나의 블록으로 삽입) -->
+      <section class="px-4 py-3 border-b border-gray-800">
+        <div class="flex justify-between items-center mb-2">
+            <h2 class="text-[13px] font-bold text-gray-100">진행 중인 경로</h2>
+            <span class="text-[11px] font-bold text-gray-400">1t 트럭 • 적재 3건</span>
+        </div>
+        
+        <div class="w-full h-[140px] rounded-xl map-placeholder relative overflow-hidden border border-gray-700 shadow-inner">
+            <svg class="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                <path d="M 20 60 Q 40 40, 50 50 T 80 30" stroke="#3B82F6" stroke-width="2.5" fill="none"></path>
+                <!-- 픽업 핀 -->
+                <circle cx="20" cy="60" r="3" fill="#3B82F6" stroke="#111827" stroke-width="1.5"></circle>
+                <!-- 배송 핀 -->
+                <circle cx="80" cy="30" r="3" fill="#EF4444" stroke="#111827" stroke-width="1.5"></circle>
+            </svg>
+            <div class="absolute bottom-2 right-2 bg-gray-900/90 backdrop-blur-sm px-2 py-1 rounded-md shadow-sm border border-gray-700">
+                <span class="text-[10px] font-bold text-gray-300">97.7km / 95분</span>
+            </div>
+        </div>
+      </section>
+
+      <!-- 4. Schedule & Order List -->
+      <section class="flex flex-col">
+        <!-- 리스트 헤더 -->
+        <div class="flex items-center justify-between px-4 py-3 bg-gray-950 sticky top-[48px] z-40 border-b border-gray-800">
+            <h2 class="text-lg font-black text-white">경로 현황 <span class="text-sm font-bold text-gray-500 ml-1">3건</span></h2>
+            <span class="text-xl font-black text-primary tracking-tight">272,000<span class="text-[11px] text-gray-500 font-bold ml-0.5">원</span></span>
+        </div>
+
+        <!-- 오더 리스트 (플랫한 리스트 형태, 카드 아님) -->
+        <div class="flex flex-col">
+
+            <!-- 리스트 아이템 A: 심사중 -->
+            <article class="flex flex-col px-4 py-3.5 border-b border-gray-800 bg-warning/10">
+                <div class="flex justify-between items-center mb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] font-black text-warning bg-warning/20 px-1.5 py-0.5 rounded border border-warning/30">심사 대기중</span>
+                        <span class="text-[10px] font-mono text-gray-400">접수 05:34</span>
+                    </div>
+                    <span class="text-base font-black text-white">112,000<span class="text-[10px] font-bold text-gray-500 ml-0.5">원</span></span>
+                </div>
+                
+                <div class="flex items-stretch gap-3">
+                    <!-- 타임라인 라인 -->
+                    <div class="flex flex-col items-center mt-1">
+                        <div class="w-2.5 h-2.5 rounded-full bg-primary ring-2 ring-primary/20"></div>
+                        <div class="w-px h-7 bg-gray-700 my-0.5"></div>
+                        <div class="w-2.5 h-2.5 rounded-full bg-danger ring-2 ring-danger/20"></div>
+                    </div>
+                    
+                    <!-- 주소 텍스트 -->
+                    <div class="flex flex-col flex-1 justify-between">
+                        <div class="flex justify-between items-start">
+                            <span class="text-[13px] font-bold text-gray-100 leading-tight">경기 광주 경안동</span>
+                            <span class="text-[10px] font-bold text-gray-400 bg-gray-800 px-1.5 py-0.5 rounded">12:10 픽업</span>
+                        </div>
+                        <div class="flex justify-between items-end mt-3">
+                            <span class="text-[13px] font-bold text-gray-100 leading-tight">경기 파주 탄현면</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 부가 정보 및 액션 버튼 -->
+                <div class="flex justify-between items-center mt-3 pt-3 border-t border-gray-800/50 border-dashed">
+                    <div class="flex gap-1.5">
+                        <span class="text-[10px] font-medium text-gray-500">0.2km</span>
+                        <span class="text-[10px] text-gray-700">|</span>
+                        <span class="text-[10px] font-medium text-gray-500">다마스</span>
+                    </div>
+                    <div class="flex gap-2">
+                        <button class="px-3 py-1.5 bg-gray-800 text-gray-300 rounded text-[11px] font-bold hover:bg-gray-700 transition-colors border border-gray-700">방출</button>
+                        <button class="px-4 py-1.5 bg-primary text-white rounded text-[11px] font-bold shadow-md shadow-primary/20 hover:bg-blue-600 transition-colors">이 콜 잡기</button>
+                    </div>
+                </div>
+            </article>
+
+            <!-- 리스트 아이템 B: 확정됨 -->
+            <article class="flex flex-col px-4 py-3.5 border-b border-gray-800 hover:bg-gray-900/50 transition-colors">
+                <div class="flex justify-between items-center mb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] font-black text-success bg-success/20 px-1.5 py-0.5 rounded border border-success/30">확정됨</span>
+                        <span class="text-[10px] font-mono text-gray-500">12:10</span>
+                    </div>
+                    <span class="text-base font-black text-white">65,000<span class="text-[10px] font-bold text-gray-500 ml-0.5">원</span></span>
+                </div>
+                
+                <div class="flex items-stretch gap-3 opacity-90">
+                    <div class="flex flex-col items-center mt-1">
+                        <div class="w-2 h-2 rounded-full bg-gray-600"></div>
+                        <div class="w-px h-6 bg-gray-700 my-0.5"></div>
+                        <div class="w-2 h-2 rounded-full bg-gray-600"></div>
+                    </div>
+                    
+                    <div class="flex flex-col flex-1 justify-between">
+                        <div class="flex justify-between items-start">
+                            <span class="text-[13px] font-bold text-gray-200 leading-tight">경기 성남 정자동</span>
+                        </div>
+                        <div class="flex justify-between items-end mt-2">
+                            <span class="text-[13px] font-bold text-gray-200 leading-tight">서울 강남 역삼동</span>
+                        </div>
+                    </div>
+                </div>
+            </article>
+
+        </div>
+      </section>
+
+    </main>
+
+    <!-- 5. Bottom Nav (Fixed) -->
+    <nav class="fixed bottom-0 w-full max-w-[400px] bg-gray-950 border-t border-gray-800 flex pb-safe z-50">
+      <button class="flex-1 pt-3 pb-5 flex flex-col items-center justify-center gap-1 group relative">
+        <div class="absolute top-0 w-full h-0.5 bg-primary"></div>
+        <span class="text-[10px] font-black text-primary">실시간 관제</span>
+      </button>
+      <button class="flex-1 pt-3 pb-5 flex flex-col items-center justify-center gap-1 group">
+        <span class="text-[10px] font-black text-gray-500 group-hover:text-gray-300 transition-colors">수익 정산</span>
+      </button>
+      <button class="flex-1 pt-3 pb-5 flex flex-col items-center justify-center gap-1 group">
+        <span class="text-[10px] font-black text-gray-500 group-hover:text-gray-300 transition-colors">설정</span>
+      </button>
+    </nav>
+  </div>
+</body>
+</html>

@@ -65,12 +65,12 @@ export default function Dashboard() {
     }, []);
 
     return (
-        <main className="min-h-screen font-sans pb-32">
+        <main className="min-h-screen bg-bg-base font-sans pb-24">
 
             {/* 📍 공통 헤더 컴포넌트 */}
             <Header isConnected={isConnected} />
 
-            <div className="p-1.5 space-y-1 max-w-2xl mx-auto">
+            <div className="flex flex-col max-w-2xl mx-auto">
 
                 {/* 🎛️ 앱폰 제어 패널 */}
                 <DeviceControlPanel />

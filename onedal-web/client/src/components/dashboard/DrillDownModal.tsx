@@ -24,45 +24,45 @@ export default function DrillDownModal({
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="sm:max-w-md bg-card border-border text-card-foreground">
+            <DialogContent className="sm:max-w-md bg-surface border-border-card text-text-primary">
                 <DialogHeader>
                     <DialogTitle>{mainCall ? "합짐 우회율 검수" : "단독 배차 검수"}</DialogTitle>
                 </DialogHeader>
 
                 <div className="space-y-4 mb-6">
                     <div>
-                        <p className="text-xs font-bold text-muted-foreground mb-1">상차지</p>
+                        <p className="text-xs font-bold text-text-muted mb-1">상차지</p>
                         <p className="text-lg font-black">{selectedOrder.pickup}</p>
                     </div>
                     <div>
-                        <p className="text-xs font-bold text-muted-foreground mb-1">하차지</p>
+                        <p className="text-xs font-bold text-text-muted mb-1">하차지</p>
                         <p className="text-lg font-black">{selectedOrder.dropoff}</p>
                     </div>
                     <div>
-                        <p className="text-xl font-black text-emerald-500">{selectedOrder.fare.toLocaleString()}원</p>
+                        <p className="text-xl font-black text-success">{selectedOrder.fare.toLocaleString()}원</p>
                     </div>
                 </div>
                 
                 {/* 카카오 연동 시뮬레이션 결과창 */}
-                <div className={`bg-muted/40 rounded-2xl p-4 border mb-4 transition-all ${activeOrderSim?.isGood ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-border'}`}>
+                <div className={`bg-surface-alt/40 rounded-2xl p-4 border mb-4 transition-all ${activeOrderSim?.isGood ? 'border-success/30 bg-success/10' : 'border-border'}`}>
                     <div className="text-sm font-medium">
                         {!activeOrderSim || activeOrderSim.isLoading ? (
-                            <p className="animate-pulse flex items-center gap-2 text-muted-foreground">
-                                <span className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></span>
+                            <p className="animate-pulse flex items-center gap-2 text-text-muted">
+                                <span className="w-4 h-4 border-2 border-success border-t-transparent rounded-full animate-spin"></span>
                                 {mainCall ? "카카오 우회 경로 분석 중..." : "단독 동선 계산 중..."}
                             </p>
                         ) : (
                             <div className="space-y-1">
-                                <p className={activeOrderSim.isGood ? "text-emerald-500 font-bold" : "text-amber-500 font-bold"}>
+                                <p className={activeOrderSim.isGood ? "text-success font-bold" : "text-warning font-bold"}>
                                     {activeOrderSim.timeExt}
                                 </p>
-                                <p className="text-muted-foreground text-xs mt-1">{activeOrderSim.distExt}</p>
+                                <p className="text-text-muted text-xs mt-1">{activeOrderSim.distExt}</p>
                             </div>
                         )}
                     </div>
                 </div>
                 
-                <div className="bg-amber-500/10 text-amber-500/80 text-xs p-3 rounded-xl border border-amber-500/30">
+                <div className="bg-warning/10 text-warning/80 text-xs p-3 rounded-xl border border-warning/30">
                     적요: 박스 두 개, 기사님 도착 20분 전 연락 필, 지게차 상차
                 </div>
 
@@ -77,7 +77,7 @@ export default function DrillDownModal({
                     </Button>
                     <Button 
                         size="lg" 
-                        className="flex-[2] text-lg font-black bg-emerald-600 hover:bg-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.3)]" 
+                        className="flex-[2] text-lg font-black bg-success hover:bg-success/80 text-white shadow-[0_0_15px_var(--theme-glow-primary)]" 
                         disabled={activeOrderSim?.isLoading}
                         onClick={() => onAccept(selectedOrder)}
                     >

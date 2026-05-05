@@ -1,5 +1,5 @@
 import { useFilterConfig } from "../../hooks/useFilterConfig";
-import { Card } from "../ui/card";
+
 import { Badge } from "../ui/badge";
 
 export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () => void }) {
@@ -7,9 +7,9 @@ export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () =
 
     if (!filter) {
         return (
-            <Card className="flex flex-row items-center justify-center rounded-xl px-4 py-3 shadow-sm bg-card border-border">
-                <span className="text-sm font-black tracking-tight text-foreground flex items-center gap-2">오더 필터 동기화 중...</span>
-            </Card>
+            <div className="flex flex-row items-center justify-center px-4 py-3">
+                <span className="text-sm font-black tracking-tight text-text-primary flex items-center gap-2">오더 필터 동기화 중...</span>
+            </div>
         );
     }
     // [V2] DispatchPhase 기반 상태 라벨링
@@ -25,9 +25,9 @@ export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () =
     }
 
     const getStatusStyles = (active: boolean, shared: boolean) => {
-        if (!active) return { badge: 'bg-amber-500/90 text-white border-amber-500', border: 'bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/20' };
-        if (shared) return { badge: 'bg-purple-500/90 text-white border-purple-500', border: 'bg-purple-500/10 border-purple-500/30 hover:bg-purple-500/20' };
-        return { badge: 'bg-blue-500/90 text-white border-blue-500', border: 'bg-blue-500/10 border-blue-500/30 hover:bg-blue-500/20' };
+        if (!active) return { badge: 'bg-warning/90 text-white border-warning', border: 'bg-warning/10 border-warning/30 hover:bg-warning/20' };
+        if (shared) return { badge: 'bg-accent-alt/90 text-white border-accent-alt', border: 'bg-accent-alt/10 border-accent-alt/30 hover:bg-accent-alt/20' };
+        return { badge: 'bg-info/90 text-white border-info', border: 'bg-info/10 border-info/30 hover:bg-info/20' };
     };
 
     const styles = getStatusStyles(filter.isActive, filter.isSharedMode);
@@ -64,39 +64,33 @@ export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () =
     };
 
     return (
-        <Card
+        <div
             id="filter-status"
             onClick={onOpenFilter}
-            className={`flex flex-row items-center justify-between cursor-pointer rounded-lg px-2 py-1 shadow-sm transition-all active:scale-95 ${styles.border}`}
+            className="flex items-center justify-between cursor-pointer px-4 py-3 transition-all active:scale-[0.98] hover:bg-surface-hover/50 border-b border-border-card"
         >
-            <div className="flex items-center gap-3 text-xs text-foreground tracking-tight font-bold">
-                <Badge variant="outline" className={`${styles.badge} shadow-sm px-2 py-0.5`}>
+            <div className="flex items-center gap-3 flex-1">
+                <Badge variant="outline" className={`${styles.badge} shadow-sm px-2 py-1 whitespace-nowrap`}>
                     {label}
                 </Badge>
-                <span className="text-emerald-500 font-black">{(filter.minFare / 10000).toFixed(1)}</span>
-                {!filter.isSharedMode && (
-                    <>
-                        <span className="text-muted-foreground font-sm">|</span>
-                        <span className="text-foreground">{filter.pickupRadiusKm}km</span>
-                    </>
-                )}
-                <span className="text-muted-foreground font-sm">|</span>
-                <span className="text-purple-500">{getRegionSummary()}</span>
-                {filter.allowedVehicleTypes && filter.allowedVehicleTypes.length > 0 ? (
-                    <>
-                        <span className="text-muted-foreground font-sm">|</span>
-                        <span className="text-amber-500 font-black">{filter.allowedVehicleTypes.map(v => v.charAt(0)).join(',')}</span>
-                    </>
-                ) : (
-                    <>
-                        <span className="text-muted-foreground font-sm">|</span>
-                        <span className="text-muted-foreground">전체</span>
-                    </>
-                )}
+                <div className="flex flex-col leading-tight overflow-hidden">
+                    <span className="font-black text-text-primary text-sm">
+                        {(filter.minFare / 10000).toFixed(1)}만 이상
+                        {!filter.isSharedMode && (
+                            <span className="text-[11px] text-text-muted font-normal ml-1">| {filter.pickupRadiusKm}km</span>
+                        )}
+                        {filter.allowedVehicleTypes && filter.allowedVehicleTypes.length > 0 ? (
+                            <span className="text-[11px] text-text-muted font-normal ml-1">| {filter.allowedVehicleTypes.join(', ')}</span>
+                        ) : (
+                            <span className="text-[11px] text-text-muted font-normal ml-1">| 전체</span>
+                        )}
+                    </span>
+                    <span className="text-[11px] text-text-muted font-medium truncate mt-0.5">
+                        {getRegionSummary()}
+                    </span>
+                </div>
             </div>
-            {/* <div className={`text-lg sm:text-xl opacity-80 hover:opacity-100 transition-opacity`}>
-                ⚙️
-            </div> */}
-        </Card>
+            <span className="text-text-muted text-sm ml-2">⚙️</span>
+        </div>
     );
 }

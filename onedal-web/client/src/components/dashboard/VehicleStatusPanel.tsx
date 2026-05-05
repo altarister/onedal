@@ -4,7 +4,7 @@ import { useFilterConfig } from "../../hooks/useFilterConfig";
 import type { SecuredOrder } from "@onedal/shared";
 import { apiClient } from "../../api/apiClient";
 import { getDistanceKm } from "../../lib/routeUtils";
-import { Card } from "../ui/card";
+
 import { Badge } from "../ui/badge";
 
 export default function VehicleStatusPanel({ mainCall, subCalls }: { mainCall: SecuredOrder | null, subCalls: SecuredOrder[] }) {
@@ -115,7 +115,7 @@ export default function VehicleStatusPanel({ mainCall, subCalls }: { mainCall: S
 
     const renderLoadStatus = () => {
         if (totalCount === 0) {
-            return <span className="text-muted-foreground">예약 0건</span>;
+            return <span className="text-text-muted">예약 0건</span>;
         }
 
         const formatItems = (items: SecuredOrder[], prefix: string) => {
@@ -128,35 +128,35 @@ export default function VehicleStatusPanel({ mainCall, subCalls }: { mainCall: S
         const loadedStr = formatItems(loadedItems, '상차');
 
         if (reservedStr && loadedStr) {
-            return <span className="text-amber-500 font-bold">{loadedStr}, {reservedStr}</span>;
+            return <span className="text-warning font-bold">{loadedStr}, {reservedStr}</span>;
         } else if (loadedStr) {
-            return <span className="text-emerald-500 font-bold">{loadedStr}</span>;
+            return <span className="text-success font-bold">{loadedStr}</span>;
         } else if (reservedStr) {
-            return <span className="text-blue-500 font-bold">{reservedStr}</span>;
+            return <span className="text-info font-bold">{reservedStr}</span>;
         }
         return null;
     };
 
     return (
-        <Card className="flex flex-row items-center justify-between px-2 py-1 shadow-sm border-border bg-card rounded-lg">
+        <div className="flex flex-row items-center justify-between px-4 py-2 border-b border-border-card">
             <div className="flex items-center gap-2">
-                <span className="text-sm font-black text-foreground">{myVehicle}</span>
+                <span className="text-sm font-black text-text-primary">{myVehicle}</span>
                 <div className="text-xs mt-0.5">
                     {renderLoadStatus()}
                 </div>
             </div>
 
             <div className="flex flex-col items-end gap-1">
-                <Badge variant="outline" className={`gap-1.5 px-2 py-0.5 rounded-full ${isMoving ? 'border-cyan-500/30 bg-cyan-500/10 text-cyan-500' : 'border-border bg-muted text-muted-foreground'}`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${isMoving ? 'bg-cyan-500 animate-pulse' : 'bg-muted-foreground'}`}></span>
+                <Badge variant="outline" className={`gap-1.5 px-2 py-0.5 rounded-full ${isMoving ? 'border-info/30 bg-info/10 text-info' : 'border-border bg-surface-alt text-text-muted'}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${isMoving ? 'bg-info animate-pulse' : 'bg-text-muted'}`}></span>
                     <span className="text-[11px] font-black tracking-wider">
                         {isMoving ? '이동 중' : '정차 중'}
                     </span>
                     {isMoving && (
-                        <span className="text-[10px] font-mono text-cyan-500/70 ml-1">{Math.round(currentSpeed)} km/h</span>
+                        <span className="text-[10px] font-mono text-info/70 ml-1">{Math.round(currentSpeed)} km/h</span>
                     )}
                 </Badge>
             </div>
-        </Card>
+        </div>
     );
 }

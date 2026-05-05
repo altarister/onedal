@@ -380,19 +380,19 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, safeRoute, myLoc
             <div className="absolute top-3 right-3 flex flex-col space-y-2 z-10">
                 <button
                     onClick={() => handleZoomClick(1.2)}
-                    className="w-8 h-8 flex items-center justify-center bg-slate-700/80 hover:bg-slate-600 rounded-md shadow-lg text-slate-100 border border-slate-500 backdrop-blur-sm font-black opacity-80 hover:opacity-100 transition-all"
+                    className="w-8 h-8 flex items-center justify-center bg-surface-alt/80 hover:bg-surface-hover rounded-md shadow-lg text-text-primary border border-border backdrop-blur-sm font-black opacity-80 hover:opacity-100 transition-all"
                 >
                     +
                 </button>
                 <button
                     onClick={() => handleZoomClick(0.8)}
-                    className="w-8 h-8 flex items-center justify-center bg-slate-700/80 hover:bg-slate-600 rounded-md shadow-lg text-slate-100 border border-slate-500 backdrop-blur-sm font-black opacity-80 hover:opacity-100 transition-all"
+                    className="w-8 h-8 flex items-center justify-center bg-surface-alt/80 hover:bg-surface-hover rounded-md shadow-lg text-text-primary border border-border backdrop-blur-sm font-black opacity-80 hover:opacity-100 transition-all"
                 >
                     -
                 </button>
                 <button
                     onClick={() => { zoomRef.current = 1; panRef.current = { x: 0, y: 0 }; drawMap(); }}
-                    className="w-8 h-8 flex items-center justify-center bg-slate-700/80 hover:bg-slate-600 rounded-md shadow-lg text-slate-100 border border-slate-500 backdrop-blur-sm text-[10px] font-bold opacity-80 hover:opacity-100 transition-all"
+                    className="w-8 h-8 flex items-center justify-center bg-surface-alt/80 hover:bg-surface-hover rounded-md shadow-lg text-text-primary border border-border backdrop-blur-sm text-[10px] font-bold opacity-80 hover:opacity-100 transition-all"
                 >
                     초기화
                 </button>
