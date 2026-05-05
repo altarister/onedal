@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">1DAL</string>
+    <string name="title_activity_main">1DAL</string>
+    <string name="package_name">kr.co.onedal.dashboard</string>
+    <string name="custom_url_scheme">kr.co.onedal.dashboard</string>
+</resources>

@@ -11,7 +11,7 @@ export default function Header({ isConnected }: { isConnected: boolean }) {
     const [time, setTime] = useState<Date>(new Date());
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const { user } = useAuth();
-    const { theme, toggleTheme } = useTheme();
+    const { toggleTheme } = useTheme();
     const { isRinging, stopAll } = useSoundManager();
 
     useEffect(() => {
