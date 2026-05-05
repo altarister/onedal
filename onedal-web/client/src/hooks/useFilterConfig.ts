@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { socket } from "../lib/socket";
 import type { AutoDispatchFilter } from "@onedal/shared";
 import { logRoadmapEvent } from "../lib/roadmapLogger";
+import { useFilterStore } from "../stores/filterStore";
 
 let lastFilterInitRequestTime = 0;
 
@@ -14,21 +15,18 @@ function requestFilterInitSafe() {
 }
 
 export function useFilterConfig() {
-    const [filter, setFilter] = useState<AutoDispatchFilter | null>(null); // activeFilter
-    const [baseFilter, setBaseFilter] = useState<AutoDispatchFilter | null>(null);
+    const { filter, baseFilter, setBothFilters, setFilter, setBaseFilter } = useFilterStore();
 
     useEffect(() => {
         // 소켓 이벤트 핸들러 구독
         const onFilterInit = (payload: { activeFilter: AutoDispatchFilter, baseFilter: AutoDispatchFilter }) => {
             logRoadmapEvent("웹", "서버로 부터 filter-init 초기 필터값(isSharedMode, distance 등) 받음");
-            setFilter(payload.activeFilter);
-            setBaseFilter(payload.baseFilter);
+            setBothFilters(payload.activeFilter, payload.baseFilter);
         };
 
         const onFilterUpdated = (payload: { activeFilter: AutoDispatchFilter, baseFilter: AutoDispatchFilter }) => {
             logRoadmapEvent("웹", "서버로 부터 filter-updated 소켓 이벤트 받음");
-            setFilter(payload.activeFilter);
-            setBaseFilter(payload.baseFilter);
+            setBothFilters(payload.activeFilter, payload.baseFilter);
         };
 
         const onConnect = () => {
@@ -48,7 +46,7 @@ export function useFilterConfig() {
             socket.off("filter-updated", onFilterUpdated);
             socket.off("connect", onConnect);
         };
-    }, []);
+    }, [setBothFilters]);
 
     // 프론트엔드에서 필터값을 임의로 즉시 업데이트 후 서버로 전송 (Optimisitc UI)
     const updateFilter = (newFilter: Partial<AutoDispatchFilter>) => {

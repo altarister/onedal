@@ -1,10 +1,12 @@
+import { isEvaluating, isTerminal } from "@onedal/shared";
 import type { SecuredOrder } from "@onedal/shared";
 import { useState, useEffect, useMemo } from 'react';
 // removed socket
 import { logRoadmapEvent } from '../../lib/roadmapLogger';
 import PinnedRouteCanvas, { type RoutePoint } from './PinnedRouteCanvas';
 import PinnedRouteCard from './PinnedRouteCard';
-import { getAddressLabel, getDistanceKm } from '../../lib/routeUtils';
+import { getAddressLabel } from '../../lib/routeUtils';
+import { optimizeRouteOrder, buildEtaMap, buildVisitOrderMap } from '../../lib/routeOptimizer';
 import { useFilterConfig } from '../../hooks/useFilterConfig';
 import { useMasterGps } from '../../hooks/useMasterGps';
 
@@ -27,7 +29,7 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
     }, [activeRoute]);
 
     // 지도 렌더링용: 완료된 콜 제외한 현재 진행 중인 오더만 추출
-    const liveRoute = useMemo(() => (activeRoute || []).filter(r => r.status !== 'ORDER_COMPLETED' && r.status !== 'ORDER_RELEASED' && r.status !== 'ORDER_CANCELED' && r.status !== 'ORDER_FORCE_CANCELED'), [activeRoute]);
+    const liveRoute = useMemo(() => (activeRoute || []).filter(r => !isTerminal(r.status)), [activeRoute]);
 
     // 현재 활성 폴리라인 (진행 중인 오더에서만 추출, 완료된 stale 궤적 무시)
     const activePolyline = useMemo(() => {
@@ -56,7 +58,7 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
     }, [currentGps]);
 
     const safeRoute = activeRoute || [];
-    const allEvaluating = safeRoute.some(r => r.status === 'ORDER_PRE_SECURED' || r.status === 'ORDER_SECURED_EVALUATING' || r.status === 'ORDER_AWAITING_DECISION');
+    const allEvaluating = safeRoute.some(r => isEvaluating(r.status));
 
     const toggleExpand = (id: string) => {
         setExpandedIds(prev => {
@@ -68,78 +70,20 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
     };
 
     // 서버와 동일한 동선 최적화(TSP Nearest Neighbor) 로직 적용 — 완료된 콜은 지도 핀에서 제외
-    const rawPickups = liveRoute.map((r) => ({ type: '상차', name: getAddressLabel(r.pickup), isEvaluating: r.status === 'ORDER_PRE_SECURED' || r.status === 'ORDER_SECURED_EVALUATING' || r.status === 'ORDER_AWAITING_DECISION', x: r.pickupX, y: r.pickupY, routeId: r.id }));
-    const rawDropoffs = liveRoute.map((r) => ({ type: '하차', name: getAddressLabel(r.dropoff), isEvaluating: r.status === 'ORDER_PRE_SECURED' || r.status === 'ORDER_SECURED_EVALUATING' || r.status === 'ORDER_AWAITING_DECISION', x: r.dropoffX, y: r.dropoffY, routeId: r.id }));
+    const rawPickups = liveRoute.map((r) => ({ type: '상차', name: getAddressLabel(r.pickup), isEvaluating: isEvaluating(r.status), x: r.pickupX, y: r.pickupY, routeId: r.id }));
+    const rawDropoffs = liveRoute.map((r) => ({ type: '하차', name: getAddressLabel(r.dropoff), isEvaluating: isEvaluating(r.status), x: r.dropoffX, y: r.dropoffY, routeId: r.id }));
 
-    const sortedPickups: typeof rawPickups = [];
-    let currentLoc = myLocation || (rawPickups[0] ? { x: rawPickups[0].x!, y: rawPickups[0].y! } : { x: 0, y: 0 });
-
-    // 상차지 최적화
-    const pPool = [...rawPickups].filter(p => typeof p.x === 'number' && typeof p.y === 'number');
-    while (pPool.length > 0) {
-        let bestIdx = 0; let minD = Infinity;
-        pPool.forEach((p, idx) => {
-            const d = getDistanceKm(currentLoc.y, currentLoc.x, p.y!, p.x!);
-            if (d < minD) { minD = d; bestIdx = idx; }
-        });
-        const best = pPool.splice(bestIdx, 1)[0];
-        sortedPickups.push(best);
-        currentLoc = { x: best.x!, y: best.y! };
-    }
-
-    // 하차지 최적화
-    const sortedDropoffs: typeof rawDropoffs = [];
-    const dPool = [...rawDropoffs].filter(d => typeof d.x === 'number' && typeof d.y === 'number');
-    while (dPool.length > 0) {
-        let bestIdx = 0; let minD = Infinity;
-        dPool.forEach((p, idx) => {
-            const d = getDistanceKm(currentLoc.y, currentLoc.x, p.y!, p.x!);
-            if (d < minD) { minD = d; bestIdx = idx; }
-        });
-        const best = dPool.splice(bestIdx, 1)[0];
-        sortedDropoffs.push(best);
-        currentLoc = { x: best.x!, y: best.y! };
-    }
-
-    const unifiedRoutePoints: RoutePoint[] = [...sortedPickups, ...sortedDropoffs];
+    const unifiedRoutePoints: RoutePoint[] = optimizeRouteOrder(rawPickups, rawDropoffs, myLocation);
 
     // 각 콜별 상하차 예상 시간(ETA) 매핑
     const etaMap = useMemo(() => {
-        const result = new Map<string, { pickupEta?: string, dropoffEta?: string }>();
         const routeWithEtas = [...safeRoute].reverse().find(r => r.sectionEtas && r.sectionEtas.length > 0);
-        if (!routeWithEtas) return result;
-
-        const etas = routeWithEtas.sectionEtas!;
-        const offset = myLocation ? 0 : 1;
-
-        unifiedRoutePoints.forEach((pt, index) => {
-            // 카카오 네비가 중복된 거점(예: 파주시 파주시 파주시)을 하나로 병합하여 
-            // etas 배열 길이가 예상보다 짧을 경우, 가장 마지막에 도착한 ETA를 복사해서 공유합니다.
-            const eta = etas[index + offset] || etas[etas.length - 1] || "?";
-            if (!pt.routeId) return;
-            const existing = result.get(pt.routeId) || {};
-            if (pt.type === '상차') result.set(pt.routeId, { ...existing, pickupEta: eta });
-            else result.set(pt.routeId, { ...existing, dropoffEta: eta });
-        });
-        return result;
+        if (!routeWithEtas) return new Map<string, { pickupEta?: string; dropoffEta?: string }>();
+        return buildEtaMap(unifiedRoutePoints, routeWithEtas.sectionEtas!, !!myLocation);
     }, [unifiedRoutePoints, safeRoute, myLocation]);
 
     // 지도 상의 방문 순번(1, 2, 3...)을 콜(주문) ID별 상/하차지로 매핑
-    const visitOrderMap = useMemo(() => {
-        const result = new Map<string, { pickupIdx: number, dropoffIdx: number }>();
-        // unifiedRoutePoints는 [현위치(옵션), P1, P2... D1, D2...]로 구성됨
-        unifiedRoutePoints.forEach((pt, idx) => {
-            if (!pt.routeId) return;
-            const existing = result.get(pt.routeId) || { pickupIdx: 0, dropoffIdx: 0 };
-            if (pt.type === '상차') {
-                existing.pickupIdx = idx + 1;
-            } else {
-                existing.dropoffIdx = idx + 1;
-            }
-            result.set(pt.routeId, existing);
-        });
-        return result;
-    }, [unifiedRoutePoints]);
+    const visitOrderMap = useMemo(() => buildVisitOrderMap(unifiedRoutePoints), [unifiedRoutePoints]);
 
     const chronologicalIds = useMemo(() => {
         return [...safeRoute]
@@ -274,7 +218,7 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
                     {[...activeRoute]
                         .filter(route => {
                             if (viewFilter === 'ACTIVE') {
-                                return route.status !== 'ORDER_COMPLETED' && route.status !== 'ORDER_RELEASED' && route.status !== 'ORDER_CANCELED' && route.status !== 'ORDER_FORCE_CANCELED';
+                                return !isTerminal(route.status);
                             }
                             if (viewFilter === 'COMPLETED') {
                                 return route.status === 'ORDER_COMPLETED';
@@ -285,11 +229,11 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
                             return true; // ALL
                         })
                         .sort((a, b) => {
-                            const aEvaluating = a.status === 'ORDER_PRE_SECURED' || a.status === 'ORDER_SECURED_EVALUATING' || a.status === 'ORDER_AWAITING_DECISION';
-                            const bEvaluating = b.status === 'ORDER_PRE_SECURED' || b.status === 'ORDER_SECURED_EVALUATING' || b.status === 'ORDER_AWAITING_DECISION';
+                            const aEval = isEvaluating(a.status);
+                            const bEval = isEvaluating(b.status);
                             // 평가중인 콜은 항상 맨 위에
-                            if (aEvaluating && !bEvaluating) return -1;
-                            if (!aEvaluating && bEvaluating) return 1;
+                            if (aEval && !bEval) return -1;
+                            if (!aEval && bEval) return 1;
 
                             const timeA = a.capturedAt ? new Date(a.capturedAt).getTime() : 0;
                             const timeB = b.capturedAt ? new Date(b.capturedAt).getTime() : 0;
@@ -298,8 +242,8 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
                             return timeB - timeA;
                         })
                         .map((route) => {
-                            const isEvaluating = route.status === 'ORDER_PRE_SECURED' || route.status === 'ORDER_SECURED_EVALUATING' || route.status === 'ORDER_AWAITING_DECISION';
-                            const isExpanded = isEvaluating || expandedIds.has(route.id);
+                            const routeEval = isEvaluating(route.status);
+                            const isExpanded = routeEval || expandedIds.has(route.id);
                             const indexNum = chronologicalIds.indexOf(route.id) + 1;
 
                             return (

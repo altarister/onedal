@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { socket } from "../lib/socket";
 import type { SimplifiedOfficeOrder, SecuredOrder } from "@onedal/shared";
+import { isEvaluating, isTerminal } from "@onedal/shared";
 import { logRoadmapEvent } from "../lib/roadmapLogger";
 import { soundManager } from "../lib/soundManager";
 
@@ -20,7 +21,7 @@ export function useOrderEngine() {
     useEffect(() => {
         const hasGoodCall = activeOrders.some(order => {
             // 1. 관제 대기 중(평가 상태)이 아니면 무시
-            if (!order.status?.startsWith('ORDER_PRE_SECURED') && !order.status?.startsWith('ORDER_SECURED')) return false;
+            if (!isEvaluating(order.status)) return false;
             
             // 2. 카카오 연산 결과가 없으면(기다리는 중) 무시 (이 구간 동안 약 1~2초 침묵 발생)
             if (!order.kakaoTimeExt) return false;
@@ -83,7 +84,7 @@ export function useOrderEngine() {
                 // (상태 진실 공급원은 서버이므로, 임의 삭제를 방지해야 시스템 엉킴이 발생하지 않음)
                 const cleaned = prev.filter(order =>
                     order.capturedDeviceId !== secured.capturedDeviceId ||
-                    ['ORDER_CONFIRMED', 'ORDER_COMPLETED', 'ORDER_RELEASED', 'ORDER_CANCELED', 'ORDER_FORCE_CANCELED'].includes(order.status) ||
+                    isTerminal(order.status) || order.status === 'ORDER_CONFIRMED' ||
                     order.id === secured.id
                 );
                 const next = [...cleaned, secured];

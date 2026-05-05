@@ -1,10 +1,11 @@
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { socket } from "../lib/socket";
 import { apiClient } from "../api/apiClient";
 import type { DeviceSession, DeviceModeType } from "@onedal/shared";
+import { useDeviceStore } from "../stores/deviceStore";
 
 export function useDevices() {
-    const [devices, setDevices] = useState<DeviceSession[]>([]);
+    const { devices, setDevices, updateDevice } = useDeviceStore();
     const prevDataRef = useRef<string>("");
 
     useEffect(() => {
@@ -23,7 +24,7 @@ export function useDevices() {
         return () => {
             socket.off("telemetry-devices", onTelemetry);
         };
-    }, []);
+    }, [setDevices]);
 
     const changeDeviceMode = async (deviceId: string, mode: DeviceModeType) => {
         try {
@@ -32,9 +33,7 @@ export function useDevices() {
             const res = await apiClient.post(`devices/${deviceId}/mode`, { mode });
             if (res.status === 200) {
                 // 즉각적인 UI 피드백을 위해 로컬 상태 선갱신 (낙관적 업데이트)
-                setDevices(prev => prev.map(d =>
-                    d.deviceId === deviceId ? { ...d, mode } : d
-                ));
+                updateDevice(deviceId, { mode });
             }
         } catch (error) {
             console.error("모드 변경 실패:", error);

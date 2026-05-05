@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { isEvaluating, isTerminal } from "@onedal/shared";
 import type { SecuredOrder } from "@onedal/shared";
 import { socket } from "../../lib/socket";
 import { getAddressLabel, getMinuteDiff } from "../../lib/routeUtils";
@@ -30,7 +31,7 @@ export default function PinnedRouteCard({
     etaMap,
     visitOrderMap
 }: Props) {
-    const isEvaluating = route.status === 'ORDER_PRE_SECURED' || route.status === 'ORDER_SECURED_EVALUATING' || route.status === 'ORDER_AWAITING_DECISION';
+    const evaluating = isEvaluating(route.status);
     const etas = etaMap.get(route.id);
     const visitOrder = visitOrderMap.get(route.id);
 
@@ -40,7 +41,7 @@ export default function PinnedRouteCard({
 
     useEffect(() => {
         // 평가 중이 아닐 때는 카운터 초기화
-        if (route.status !== 'ORDER_PRE_SECURED' && route.status !== 'ORDER_SECURED_EVALUATING' && route.status !== 'ORDER_AWAITING_DECISION') {
+        if (!isEvaluating(route.status)) {
             setTelemetryCount(0);
             return;
         }
@@ -67,15 +68,15 @@ export default function PinnedRouteCard({
     const separatorText = minuteDiff !== null ? `-${minuteDiff}분-` : '-';
 
     return (
-        <Card className={`flex flex-col relative overflow-hidden transition-all duration-300 shadow-md ${isEvaluating ? 'ring-1 ring-amber-500/50' : 'hover:border-border-hover'} bg-card text-card-foreground border-border ${['ORDER_COMPLETED', 'ORDER_RELEASED', 'ORDER_CANCELED', 'ORDER_FORCE_CANCELED'].includes(route.status || '') ? 'opacity-50 grayscale' : ''}`}>
+        <Card className={`flex flex-col relative overflow-hidden transition-all duration-300 shadow-md ${evaluating ? 'ring-1 ring-amber-500/50' : 'hover:border-border-hover'} bg-card text-card-foreground border-border ${isTerminal(route.status) ? 'opacity-50 grayscale' : ''}`}>
             {(route.status === 'ORDER_SECURED_EVALUATING' || route.status === 'ORDER_AWAITING_DECISION') && (
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-500/5 to-transparent -translate-x-full animate-[shimmer_2s_infinite] pointer-events-none" />
             )}
 
             {/* 1. 카드 헤더 구역 */}
             <div
-                onClick={() => !isEvaluating && onToggle(route.id)}
-                className={`px-3 py-3 flex justify-between items-center w-full text-sm tracking-tight ${!isEvaluating ? 'cursor-pointer group hover:bg-muted/30' : ''}`}
+                onClick={() => !evaluating && onToggle(route.id)}
+                className={`px-3 py-3 flex justify-between items-center w-full text-sm tracking-tight ${!evaluating ? 'cursor-pointer group hover:bg-muted/30' : ''}`}
             >
                 <div className="flex items-center gap-1 truncate flex-1">
                     <Badge variant="outline" className="text-[10px] px-1.5 py-0 rounded font-bold mr-1 text-muted-foreground border-border bg-background">
@@ -83,26 +84,26 @@ export default function PinnedRouteCard({
                             ? new Date(route.capturedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })
                             : '-'}
                     </Badge>
-                    <span className={`${isEvaluating ? 'text-amber-500' : 'text-emerald-500'} flex-shrink-0 flex items-center font-bold`}>
+                    <span className={`${evaluating ? 'text-amber-500' : 'text-emerald-500'} flex-shrink-0 flex items-center font-bold`}>
                         {pLabel}. {getAddressLabel(route.pickup)}{etas?.pickupEta && <span className="text-emerald-500/80 ml-0.5 font-normal">({etas.pickupEta})</span>}
                     </span>
                     <span className="text-muted-foreground text-[10px] flex-shrink-0 mx-0.5 tracking-tighter">{separatorText}</span>
-                    <span className={`${isEvaluating ? 'text-amber-500' : 'text-rose-500'} flex-shrink-0 font-bold`}>
+                    <span className={`${evaluating ? 'text-amber-500' : 'text-rose-500'} flex-shrink-0 font-bold`}>
                         {dLabel}. {getAddressLabel(route.dropoff)}{etas?.dropoffEta && <span className="text-rose-500/80 ml-0.5 font-normal">({etas.dropoffEta})</span>}
                     </span>
                     <span className="ml-3 font-medium text-[10px] truncate mt-0.5 flex items-center gap-1 flex-[2]">
                         <span>{route.fare > 0 ? `${(route.fare / 10000).toFixed(1)}만` : '금액미상'}</span>
                         <span className="text-muted-foreground">,</span>
-                        <span>{isEvaluating ? '계산중' : route.distanceKm ? `${route.distanceKm}Km` : '미상'}</span>
+                        <span>{evaluating ? '계산중' : route.distanceKm ? `${route.distanceKm}Km` : '미상'}</span>
                         <span className="text-muted-foreground">,</span>
                         <span>{route.vehicleType?.substring(0, 1) || '차'}</span>
                     </span>
                 </div>
 
-                {isEvaluating && (
+                {evaluating && (
                     <Badge className={`text-[10px] font-black px-1.5 py-0 animate-pulse flex-shrink-0 ml-2 rounded ${route.status === 'ORDER_PRE_SECURED' ? 'bg-rose-500/20 text-rose-500 hover:bg-rose-500/20' : 'bg-amber-500/20 text-amber-500 hover:bg-amber-500/20'}`}>평가중</Badge>
                 )}
-                {!isEvaluating && route.type === 'MANUAL' && route.status !== 'ORDER_COMPLETED' && (
+                {!evaluating && route.type === 'MANUAL' && route.status !== 'ORDER_COMPLETED' && (
                     <Badge variant="outline" className="text-[10px] font-black px-1.5 py-0 bg-blue-500/10 border-blue-500/30 text-blue-400 flex-shrink-0 ml-2 shadow-sm rounded">수동 배차</Badge>
                 )}
                 {route.status === 'ORDER_COMPLETED' && (
@@ -123,7 +124,7 @@ export default function PinnedRouteCard({
             {isExpanded && (
                 <div className="px-3 pb-4 pt-2 text-sm border-t border-border bg-card">
 
-                    {route.type !== 'MANUAL' && isEvaluating && onDecision && (
+                    {route.type !== 'MANUAL' && evaluating && onDecision && (
                         <>
                             <div className="mt-1 flex gap-3">
                                 <Button 

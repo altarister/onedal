@@ -1,4 +1,5 @@
 import type { SecuredOrder } from "@onedal/shared";
+import { isTerminal } from "@onedal/shared";
 import Header from "../components/layout/Header";
 import DeviceControlPanel from "../components/dashboard/DeviceControlPanel";
 import OrderFilterStatus from "../components/dashboard/OrderFilterStatus";
@@ -31,7 +32,7 @@ export default function Dashboard() {
         handleRecalculate,
     } = useOrderEngine();
 
-    const dbConfirmedOrCompleted = orders.filter(o => ['ORDER_CONFIRMED', 'ORDER_COMPLETED', 'ORDER_RELEASED', 'ORDER_CANCELED', 'ORDER_FORCE_CANCELED'].includes((o as any).status || ''));
+    const dbConfirmedOrCompleted = orders.filter(o => isTerminal((o as any).status) || (o as any).status === 'ORDER_CONFIRMED');
     const memoryActive = [mainCall, ...subCalls].filter(Boolean) as SecuredOrder[];
     
     // ID 기반 병합 (메모리 데이터 우선, 순서 유지)

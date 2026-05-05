@@ -28,6 +28,36 @@ export type OrderStatus =
     | 'ORDER_FORCE_CANCELED';      // (패널티 X) 수동태 취소 (사무실/화주가 강제 취소)
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// [런타임 상수] 상태 그룹 배열 + 헬퍼 함수
+// 클라이언트/서버 양쪽에서 하드코딩 없이 import하여 사용
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/** 평가/심사 중 상태 (아직 확정되지 않음) */
+export const EVALUATING_STATUSES: readonly OrderStatus[] = [
+    'ORDER_PRE_SECURED',
+    'ORDER_SECURED_EVALUATING',
+    'ORDER_AWAITING_DECISION',
+] as const;
+
+/** 종결 상태 (더 이상 상태 전이 없음) */
+export const TERMINAL_STATUSES: readonly OrderStatus[] = [
+    'ORDER_COMPLETED',
+    'ORDER_RELEASED',
+    'ORDER_CANCELED',
+    'ORDER_FORCE_CANCELED',
+] as const;
+
+/** 주어진 상태가 평가/심사 중인지 판별 */
+export function isEvaluating(status?: string): boolean {
+    return EVALUATING_STATUSES.includes(status as OrderStatus);
+}
+
+/** 주어진 상태가 종결 상태인지 판별 */
+export function isTerminal(status?: string): boolean {
+    return TERMINAL_STATUSES.includes(status as OrderStatus);
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // [계층 1] 기사 행동 상태 — 기사님이 직접 버튼을 눌러 전환
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 export type DriverAction =

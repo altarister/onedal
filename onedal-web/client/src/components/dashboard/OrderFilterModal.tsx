@@ -3,6 +3,7 @@ import { useFilterConfig } from "../../hooks/useFilterConfig";
 import { logRoadmapEvent } from "../../lib/roadmapLogger";
 import { VEHICLE_OPTIONS } from "@onedal/shared";
 import { socket } from "../../lib/socket";
+import { apiClient } from "../../api/apiClient";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Button } from "../ui/button";
@@ -42,39 +43,37 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
     const [isPreviewLoading, setIsPreviewLoading] = useState(false);
 
     // 첫짐 섹션: 미리보기 버튼 클릭 시 호출
-    const handlePreviewRegions = () => {
+    const handlePreviewRegions = async () => {
         if (!targetCity) return;
         setIsPreviewLoading(true);
         const radius = targetRadius || '0';
-        fetch(`/api/settings/preview-regions?city=${encodeURIComponent(targetCity)}&destinationRadiusKm=${radius}`, {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
-        })
-        .then(r => r.json())
-        .then(data => {
+        try {
+            const { data } = await apiClient.get(`/settings/preview-regions?city=${encodeURIComponent(targetCity)}&destinationRadiusKm=${radius}`);
             setPreviewRegions(data.groupedRegions || {});
             setPreviewCount(data.totalCount || 0);
-            setIsAccordionOpen(true); // 미리보기 결과를 바로 보여줌
-        })
-        .catch(err => console.error("Preview fetch err:", err))
-        .finally(() => setIsPreviewLoading(false));
+            setIsAccordionOpen(true);
+        } catch (err) {
+            console.error("Preview fetch err:", err);
+        } finally {
+            setIsPreviewLoading(false);
+        }
     };
 
     // 합짐 섹션: 미리보기 버튼 클릭 시 호출
-    const handlePreviewCorridor = () => {
+    const handlePreviewCorridor = async () => {
         setIsPreviewLoading(true);
         const params = new URLSearchParams({ corridorRadiusKm: corridorRadius !== '' ? corridorRadius : '10' });
         if (targetRadius) params.set('destinationRadiusKm', targetRadius);
-        fetch(`/api/settings/preview-corridor?${params.toString()}`, {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
-        })
-        .then(r => r.json())
-        .then(data => {
+        try {
+            const { data } = await apiClient.get(`/settings/preview-corridor?${params.toString()}`);
             setPreviewRegions(data.groupedRegions || {});
             setPreviewCount(data.totalCount || 0);
-            setIsAccordionOpen(true); // 미리보기 결과를 바로 보여줌
-        })
-        .catch(err => console.error("Corridor preview err:", err))
-        .finally(() => setIsPreviewLoading(false));
+            setIsAccordionOpen(true);
+        } catch (err) {
+            console.error("Corridor preview err:", err);
+        } finally {
+            setIsPreviewLoading(false);
+        }
     };
 
     // 모달이 열리는 순간에만 activeFilter 스냅샷으로 폼을 초기화

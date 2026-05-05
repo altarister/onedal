@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
 import type { SecuredOrder } from "@onedal/shared";
+import { apiClient } from "../api/apiClient";
 
 export default function Settlement() {
     const [orders, setOrders] = useState<SecuredOrder[]>([]);
 
     useEffect(() => {
         // API에서 기존 데이터 가져오기
-        fetch("/api/orders")
-            .then((res) => res.json())
-            .then((data) => setOrders(data.orders || []))
+        apiClient.get('/orders')
+            .then((res) => setOrders(res.data.orders || []))
             .catch(() => { });
     }, []);
 
