@@ -5,6 +5,8 @@ import Settlement from "./pages/Settlement";
 import Login from "./pages/Login";
 import { logRoadmapEvent } from "./lib/roadmapLogger";
 import { useAuth } from "./contexts/AuthContext";
+import { useNativeLocation } from "./hooks/useNativeLocation";
+import { useGpsTelemetry } from "./hooks/useGpsTelemetry";
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -28,6 +30,11 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 // Navigation Wrapper
 function AppLayout() {
   const location = useLocation();
+
+  // 네이티브 GPS 추적 시작 (앱: 고정밀 GPS, 브라우저: navigator.geolocation 폴백)
+  useNativeLocation();
+  // GPS 좌표 변경 시 서버에 소켓으로 텔레메트리 전송
+  useGpsTelemetry();
 
   useEffect(() => {
     logRoadmapEvent("웹", "1DAL 웹(관제웹) 로그인됨");
