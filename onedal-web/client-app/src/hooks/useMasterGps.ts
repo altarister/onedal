@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { socket } from '../lib/socket';
 import { useMockGpsSimulator } from './useMockGpsSimulator';
+import { useLocationStore } from '../stores/useLocationStore';
 
 interface PolylinePoint {
     x: number;
@@ -16,6 +17,14 @@ export function useMasterGps(
     activePolyline: PolylinePoint[] | null
 ) {
     const [currentGps, setCurrentGps] = useState<{ lat: number; lng: number } | null>(null);
+    const { lat: nativeLat, lng: nativeLng } = useLocationStore();
+
+    // 0. Zustand 네이티브 GPS 스토어 값이 갱신되면 currentGps에 동기화 (네이티브 앱 모드)
+    useEffect(() => {
+        if (!isTestMode && nativeLat !== null && nativeLng !== null) {
+            setCurrentGps({ lat: nativeLat, lng: nativeLng });
+        }
+    }, [nativeLat, nativeLng, isTestMode]);
 
     // 1. Mock 시뮬레이터 훅 연결 (isActive가 true일 때만 가동됨)
     const mockGps = useMockGpsSimulator({

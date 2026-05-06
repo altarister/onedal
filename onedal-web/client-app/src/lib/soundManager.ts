@@ -1,6 +1,7 @@
 import callSoundPath from '../assets/sound/call.mp3';
 import beepSoundPath from '../assets/sound/99C850485CDEB1111A.mp3';
 import emergencySoundPath from '../assets/sound/emergency.mp3';
+import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 
 class SoundManager {
     private callAudio: HTMLAudioElement;
@@ -83,6 +84,9 @@ class SoundManager {
     public playCallRinging() {
         if (this.isRinging) return;
         
+        // 네이티브 진동 피드백 (신규 콜 수신 시 강력한 진동)
+        Haptics.notification({ type: NotificationType.Warning }).catch(() => {});
+        
         // 브라우저 정책 상 사용자가 문서와 상호작용하기 전에 play() 호출 시 NotAllowedError 가 발생할 수 있음
         const playPromise = this.callAudio.play();
         
@@ -128,6 +132,8 @@ class SoundManager {
      */
     public async playBeep() {
         try {
+            // 네이티브 경미한 진동 (상태 변경 알림)
+            Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
             this.beepAudio.currentTime = 0;
             await this.beepAudio.play();
         } catch (e) {
@@ -140,6 +146,8 @@ class SoundManager {
      */
     public async playEmergencyAlarm() {
         try {
+            // 네이티브 강력한 진동 (데스밸리/비상 상황)
+            Haptics.notification({ type: NotificationType.Error }).catch(() => {});
             this.emergencyAudio.currentTime = 0;
             await this.emergencyAudio.play();
         } catch (e) {
