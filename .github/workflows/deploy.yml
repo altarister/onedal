@@ -42,7 +42,7 @@ jobs:
             fi
             
             echo "🔌 [1.6/4] 포트포워딩 복구 (재부팅 대비)"
-            sudo iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 80 -j REDIRECT --to-port 4000 || true
+            sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 4000 || true
             
             echo "📦 [2/4] 핵심 패키지 재설치 (SQLite C++ 빌드 포함)"
             export NVM_DIR="$HOME/.nvm"
