@@ -200,6 +200,9 @@ class HijackService : AccessibilityService() {
 
         // 화면 종류 판별 및 서버(텔레메트리) 즉각 동기화
         val detected = detectScreenContext(rawScreenStr)
+        if (detected == ScreenContext.UNKNOWN) {
+            AppLogger.w(TAG, "🔎 [UNKNOWN 화면 진단] 읽힌 텍스트(${rawScreenStr.length}자): ${rawScreenStr.take(300)}")
+        }
         updateScreenContext(detected)
 
         // 수동/자동 복귀 감지: 기사님이 수동으로 이전화면(닫기, 취소 등) 이동 시 락 해제

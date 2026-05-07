@@ -21,3 +21,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "OneDal"
 include(":app")
+include(":simulator-app")

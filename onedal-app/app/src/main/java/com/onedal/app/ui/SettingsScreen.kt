@@ -182,7 +182,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
 
         // ── 테스트 가상 콜 화면 열기 ──
         Button(onClick = {
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("http://172.30.1.89:5173/inseong"))
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://map.altari.com/inseong"))
             context.startActivity(intent)
         }) {
             Text("테스트 가상 콜 화면 열기")
