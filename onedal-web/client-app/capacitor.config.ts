@@ -11,6 +11,10 @@ const config: CapacitorConfig = {
     // allowMixedContent: true,
   },
 
+  server: {
+    cleartext: true, // 로컬 HTTP 서버(172.30.x.x) 접근 허용
+  },
+
   plugins: {
     // 화면 꺼짐 방지 (운전 중 대시보드 항상 켜짐)
     KeepAwake: {

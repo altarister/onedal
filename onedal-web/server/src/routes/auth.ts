@@ -212,4 +212,69 @@ router.get("/me", requireAuth, (req, res) => {
     }
 });
 
+// ============================================
+// 5. POST /api/auth/bypass : 개발/테스트용 우회 로그인 (구글 연동 불가 기기용)
+// ============================================
+router.post("/bypass", async (req, res) => {
+    try {
+        logRoadmapEvent("서버", "관제탑 개발자 로컬 우회 로그인 요청 받음");
+        // DB에 있는 첫 번째 유저를 무조건 가져옴 (개발자 테스트용)
+        let userRow = db.prepare("SELECT * FROM users LIMIT 1").get() as any;
+        
+        // 유저가 한 명도 없다면, 개발/테스트용 임시 계정을 강제 생성합니다.
+        if (!userRow) {
+            console.log("⚠️ DB에 유저가 없어 임시 개발자 계정을 생성합니다.");
+            const newId = uuidv4();
+            db.prepare(`
+                INSERT INTO users (id, google_id, email, name, avatar, role)
+                VALUES (?, ?, ?, ?, ?, 'ADMIN')
+            `).run(newId, "bypass_google_id", "dev@onedal.local", "개발자(우회)", "");
+            
+            db.prepare(`INSERT INTO user_settings (user_id) VALUES (?)`).run(newId);
+            db.prepare(`INSERT INTO user_filters (user_id) VALUES (?)`).run(newId);
+            
+            userRow = db.prepare("SELECT * FROM users WHERE id = ?").get(newId) as any;
+        }
+
+        const secret = process.env.JWT_SECRET || "fallback_secret";
+        const accessToken = jwt.sign(
+            { id: userRow.id, email: userRow.email, name: userRow.name, role: userRow.role },
+            secret,
+            { expiresIn: "30d" }
+        );
+
+        const refreshSecret = process.env.JWT_REFRESH_SECRET || "fallback_rt_secret";
+        const refreshToken = jwt.sign(
+            { sub: userRow.id, type: "refresh" },
+            refreshSecret,
+            { expiresIn: "14d" }
+        );
+
+        const hashedRefreshToken = bcrypt.hashSync(refreshToken, 10);
+        const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+
+        db.prepare(`
+            INSERT INTO user_tokens (user_id, refresh_token, user_agent, expires_at)
+            VALUES (?, ?, ?, ?)
+        `).run(userRow.id, hashedRefreshToken, "Bypass-Agent", expiresAt);
+
+        console.log(`🔓 [AUTH] 로컬 우회 로그인: ${userRow.name} (${userRow.email})`);
+        
+        return res.json({
+            accessToken,
+            refreshToken,
+            user: {
+                id: userRow.id,
+                email: userRow.email,
+                name: userRow.name,
+                avatar: userRow.avatar,
+                role: userRow.role
+            }
+        });
+    } catch (err) {
+        console.error("우회 로그인 처리 오류:", err);
+        return res.status(500).json({ error: "우회 로그인 처리 중 오류 발생" });
+    }
+});
+
 export default router;

@@ -87,7 +87,7 @@ if (fs.existsSync(clientBuildPath)) {
 
 const PORT = process.env.PORT || 4000;
 
-httpServer.listen(PORT, () => {
+httpServer.listen(PORT as number, "0.0.0.0", () => {
     initGeoService();
     // hydrateSessionsFromDB(); // 서버 기동 시 일괄 복구 로직 폐기 완료 (userSessionStore에서 Lazy Load로 대체)
     logRoadmapEvent("서버", "서버 기동 및 디폴트 필터 셋업 (대기 모드)");

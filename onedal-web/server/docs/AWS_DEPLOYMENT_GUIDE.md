@@ -113,3 +113,48 @@ git push
 
 > [!TIP]
 > 이제 안드로이드 스캐너 앱(`HijackService.kt` 144번째 줄 부근) 통신 URL을 `http://10.0.2.2:4000/api/orders` 에서 `https://1dal.altari.com/api/orders` 로 단 한 줄 수정하고 앱을 업데이트하시면 끝입니다! 드디어 전 세계 어디서든 휴대폰 스캐너와 관제 화면이 실시간 통신하게 됩니다.
+
+---
+
+## 🛠 단계 6. AWS 실서버 관리 꿀팁 (DB 확인, 로그 보기, 초기화)
+
+서버가 라이브로 돌아가기 시작하면, 주기적으로 서버 내부를 들여다보거나 쌓인 테스트 데이터를 초기화해야 할 때가 있습니다. 맥북의 터미널과 VS Code를 이용해 가장 빠르고 편하게 서버를 관리하는 방법입니다.
+
+### 1. VS Code로 접속해서 실데이터(DB) 엑셀처럼 보기
+AWS 서버 내부에 있는 SQLite 데이터베이스(`data.db`)를 맥북 로컬 파일처럼 쉽게 열어보고 수정할 수 있습니다.
+
+1. VS Code 확장 프로그램에서 **`Remote - SSH`** (Microsoft)와 **`SQLite Viewer`** (Florian Klampfer)를 설치합니다.
+2. 터미널을 열고 `chmod 400 ~/Desktop/키이름.pem` 을 쳐서 키 파일에 보안을 겁니다. (경로는 실제 키 위치)
+3. VS Code 좌측 하단의 파란색 `><` 모양을 누르고 `Connect to Host` -> `Configure SSH Hosts` 클릭.
+4. 열린 설정 파일 맨 아래에 다음 내용을 적어 저장합니다.
+   ```text
+   Host onedal-live
+       HostName [AWS서버 퍼블릭IP]
+       User ubuntu
+       IdentityFile /Users/본인맥북이름/Desktop/키이름.pem
+   ```
+5. 다시 좌측 하단 `><` 누르고 목록에 뜬 **`onedal-live`** 로 접속합니다.
+6. 파란색 **[Open Folder]** 버튼을 누르고 화면 상단 주소창에 정확한 서버 경로인 **`/home/ubuntu/onedal/onedal/onedal-web/server/`** 를 입력 후 엔터를 칩니다.
+7. 좌측 파일 목록에서 `data.db` 파일을 클릭하면, 실시간 운영 데이터를 눈으로 확인하고 수정할 수 있습니다!
+
+### 2. AWS 실시간 서버 로그(에러 기록) 보기
+서버가 뻗었거나 통신 에러가 날 때, 터미널에서 즉시 에러 로그를 확인할 수 있습니다.
+
+1. 맥북 터미널에서 AWS 서버로 접속합니다. (`ssh -i "키.pem" ubuntu@AWS아이피`)
+2. 터미널 창에 딱 한 줄 치시면 됩니다.
+   ```bash
+   # 🟢 현재부터 찍히는 실시간 로그를 계속 띄워보기
+   pm2 logs
+   
+   # 🟡 과거에 찍혔던 로그 100줄만 모아서 보기
+   pm2 logs --lines 100
+   ```
+3. 끄고 싶을 때는 로컬에서 하던 것처럼 `Ctrl + C`를 누르면 됩니다. (로그 화면만 꺼지며 서버는 무중단으로 계속 돌아갑니다.)
+
+### 3. 쌓여있는 테스트 DB 완전 백지화하기 (초기화)
+라이브 오픈 전, 그동안 이것저것 테스트하며 더러워진 데이터를 싹 날리고 깨끗하게 출발하는 방법입니다.
+
+1. 위 1번의 VS Code(Remote-SSH)로 접속하거나, 2번의 터미널 SSH로 서버에 접속합니다.
+2. **`/home/ubuntu/onedal/onedal/onedal-web/server/`** 경로로 이동합니다.
+3. 그곳에 있는 **`data.db`** (또는 `local.db`) 파일을 **삭제(Delete)** 합니다.
+4. 파일이 지워진 상태에서 서버를 재시작(`pm2 restart all`) 하거나, 깃허브 코드를 Push 하면 서버가 켜질 때 알아서 깨끗한 새 `data.db`를 만들어 냅니다!

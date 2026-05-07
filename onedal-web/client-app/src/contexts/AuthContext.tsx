@@ -16,6 +16,7 @@ interface AuthContextType {
     isAuthenticated: boolean;
     isLoading: boolean;
     loginWithGoogle: (credential: string) => Promise<void>;
+    loginBypass: () => Promise<void>;
     logout: () => Promise<void>;
 }
 
@@ -61,6 +62,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
+    const loginBypass = async () => {
+        try {
+            logRoadmapEvent("웹", "우회 로그인(Bypass) 요청 전달");
+            const { data } = await apiClient.post("/auth/bypass");
+            localStorage.setItem("access_token", data.accessToken);
+            localStorage.setItem("refresh_token", data.refreshToken);
+            setUser(data.user);
+            socket.disconnect(); // 기존 연결 끊고
+            socket.connect();    // 새 토큰으로 확실하게 재접속
+        } catch (error) {
+            console.error("Bypass Login failed:", error);
+            throw error;
+        }
+    };
+
     const logout = async () => {
         try {
             const refreshToken = localStorage.getItem("refresh_token");
@@ -82,6 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             isAuthenticated: !!user,
             isLoading,
             loginWithGoogle,
+            loginBypass,
             logout
         }}>
             {children}
