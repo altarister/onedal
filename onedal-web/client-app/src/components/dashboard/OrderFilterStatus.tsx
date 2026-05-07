@@ -13,7 +13,7 @@ export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () =
         );
     }
     // [V2] DispatchPhase 기반 상태 라벨링
-    let label = '스캔 일시정지';
+    let label = '수동 대기';
     if (filter.isActive) {
         const phase = filter.dispatchPhase || 'STANDBY';
         const action = filter.driverAction || 'WAITING';

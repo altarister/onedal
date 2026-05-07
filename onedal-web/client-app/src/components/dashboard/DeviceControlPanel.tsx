@@ -49,12 +49,12 @@ function DeviceRow({
     const isDisconnected = device.status === "OFFLINE";
     const screenInfo = device.screenContext ? SCREEN_LABELS[device.screenContext] : null;
 
-    let filterLabel = '일시정지';
+    let filterLabel = '동기화 중';
     let filterColor = 'bg-surface-alt text-text-muted border-border';
     if (currentFilter) {
         if (!currentFilter.isActive) {
-            filterLabel = '스캔 정지';
-            filterColor = 'bg-warning/20 text-warning border-warning/30';
+            filterLabel = '수동 대기';
+            filterColor = 'bg-surface-alt text-text-muted border-border';
         } else {
             const phase = currentFilter.dispatchPhase || 'STANDBY';
             const action = currentFilter.driverAction || 'WAITING';

@@ -316,6 +316,13 @@ router.post("/:deviceId/mode", requireAuth, (req, res) => {
         session.mode = mode;
         activeDevices.set(deviceId, session);
 
+        // [핵심] AUTO ↔ MANUAL 전환 시 filter.isActive 원자적 연동
+        const userId = req.user!.id;
+        const { updateActiveFilter } = require("../state/filterManager");
+        const io = req.app.get("io");
+        updateActiveFilter(userId, { isActive: mode === "AUTO" }, io);
+        console.log(`⚙️ [모드 전환] 기기(${deviceId}) → ${mode} | filter.isActive → ${mode === "AUTO"}`);
+
         res.json({ success: true, mode });
     } catch (error) {
         res.status(500).json({ error: "서버 에러" });
