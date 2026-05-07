@@ -127,8 +127,8 @@ class ApiClient(private val context: Context) {
                 conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
                 conn.setRequestProperty("Accept", "application/json")
                 conn.doOutput = true
-                conn.connectTimeout = 5000
-                conn.readTimeout = 5000 // 서버가 즉시 202를 반환하므로 짧게 설정
+                conn.connectTimeout = 15000 // 에뮬레이터→Cloudflare→EC2 경로 RTT+TLS 오버헤드 고려
+                conn.readTimeout = 15000 // 서버는 즉시 202 반환하지만 네트워크 지연 대비 여유 확보
 
                 conn.outputStream.use { os ->
                     os.write(jsonBody.toByteArray(Charsets.UTF_8))
