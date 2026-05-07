@@ -6,6 +6,7 @@ import { generatePin, consumePin } from "../state/pairingStore";
 import { requireAuth } from "../middlewares/authMiddleware";
 import db from "../db";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
+import { updateActiveFilter } from "../state/filterManager";
 
 const router = Router();
 
@@ -318,7 +319,6 @@ router.post("/:deviceId/mode", requireAuth, (req, res) => {
 
         // [핵심] AUTO ↔ MANUAL 전환 시 filter.isActive 원자적 연동
         const userId = req.user!.id;
-        const { updateActiveFilter } = require("../state/filterManager");
         const io = req.app.get("io");
         updateActiveFilter(userId, { isActive: mode === "AUTO" }, io);
         console.log(`⚙️ [모드 전환] 기기(${deviceId}) → ${mode} | filter.isActive → ${mode === "AUTO"}`);
