@@ -99,9 +99,11 @@ router.post("/", async (req, res) => {
         }
 
         const io = req.app.get("io");
+        // 진행 중인 오더(평가중/판결대기)만 Lock 대상. 확정/취소된 과거 오더는 제외
+        const activeStatuses = ['ORDER_EVALUATING', 'ORDER_AWAITING_DECISION'];
         for (const order of session.pendingOrdersData.values()) {
-            if (order.capturedDeviceId !== payload.deviceId) {
-                console.log(`🔒 [Lock] ${order.capturedDeviceId} 기기가 이미 평가중.`);
+            if (activeStatuses.includes(order.status) && order.capturedDeviceId !== payload.deviceId) {
+                console.log(`🔒 [Lock] ${order.capturedDeviceId} 기기가 이미 평가중. (status: ${order.status})`);
                 if (io) io.to(userId).emit("order-canceled", { id: payload.order.id, status: 'ORDER_CANCELED' });
                 return res.json({ deviceId: 'server', action: 'CANCEL' });
             }
