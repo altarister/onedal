@@ -7,7 +7,7 @@
         android:allowBackup="false"
         android:label="인성콜 시뮬레이터"
         android:supportsRtl="true"
-        android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
+        android:theme="@android:style/Theme.NoTitleBar"
         android:usesCleartextTraffic="true">
 
         <activity

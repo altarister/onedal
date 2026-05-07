@@ -33,11 +33,17 @@ class MainActivity : Activity() {
             // JavaScript 활성화 (시뮬레이터 동작에 필수)
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
-            settings.loadWithOverviewMode = true
-            settings.useWideViewPort = true
+
+            // 모바일 브라우저처럼 표시 (상단/하단 메뉴가 잘리지 않도록)
+            settings.loadWithOverviewMode = false
+            settings.useWideViewPort = false
 
             // 접근성 노드 노출을 위한 설정
             settings.setSupportZoom(false)
+            settings.textZoom = 100
+
+            // 모바일 User-Agent 강제 (데스크탑 모드 방지)
+            settings.userAgentString = settings.userAgentString.replace("; wv", "")
 
             // 외부 브라우저로 이탈 방지
             webViewClient = WebViewClient()

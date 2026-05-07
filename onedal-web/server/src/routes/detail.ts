@@ -119,28 +119,29 @@ router.post("/", async (req, res) => {
 
         // ✅ [Two-Track] 앱이 보내는 matchType(AUTO/MANUAL)을 100% 신뢰.
         // 서버는 독자적으로 type을 재분류하지 않음. (SSOT: 앱의 isAutoSessionActive)
-
-        // ━━━ Service 계층에 카카오 경로 연산 위임 (evaluateNewOrder) ━━━
-        // 지오코딩 + 단독/합짐 경로 연산 + 꿀/콜/똥 판정 + order-evaluated emit
-        const targetApp = (payload as any).targetApp || 'insung';
-        await evaluateNewOrder(userId, pendingOrder, io, targetApp);
-
         const isManual = pendingOrder.type?.includes("MANUAL") || payload.matchType === "MANUAL";
+        const targetApp = (payload as any).targetApp || 'insung';
+
         if (isManual) {
             pendingOrder.type = 'MANUAL';  // 프론트엔드 배지 표시를 위해 명시적 설정
             console.log(`✋ [Two-Track MANUAL] 기사님 수동 클릭 콜. 즉시 KEEP 처리. (type=${pendingOrder.type}, matchType=${payload.matchType})`);
             
-            // [Fix] Android 앱이 Piggyback을 통해서만 KEEP 응답을 소화하므로, 
-            // 수동 배차 건도 pendingDecisions 큐에 KEEP 상태로 등록해줍니다.
             session.pendingDecisions.set(payload.order.id, { action: 'KEEP', evaluatedAt: Date.now() });
+            res.json({ deviceId: 'server', action: 'ACK' }); // 🚀 즉시 응답
 
-            await handleDecision(userId, pendingOrder.id, "ORDER_CONFIRMED", io);
-            return res.json({ deviceId: 'server', action: 'ACK' });
+            // 백그라운드 평가 & 확정
+            evaluateNewOrder(userId, pendingOrder, io, targetApp).then(() => {
+                return handleDecision(userId, pendingOrder.id, "ORDER_CONFIRMED", io);
+            }).catch(console.error);
+            return;
         }
 
         // [Option B] 롱폴링 대기를 풀고, 결재 큐에 올려둔 뒤 즉시 202 Accepted 반환
         session.pendingDecisions.set(payload.order.id, { action: null, evaluatedAt: Date.now() });
-        res.status(202).json({ message: "Accepted. Piggyback evaluation pending" });
+        res.status(202).json({ message: "Accepted. Piggyback evaluation pending" }); // 🚀 즉시 응답
+
+        // 백그라운드로 평가 진행 (카카오 API 지연 방어)
+        evaluateNewOrder(userId, pendingOrder, io, targetApp).catch(console.error);
 
         const warningTimer = setTimeout(() => {
             if (session.pendingDecisions.has(payload.order.id)) {
