@@ -41,7 +41,7 @@ jobs:
             
             echo "🔨 [3/4] 클라이언트 프론트엔드 빌드"
             # 프론트엔드 빌드 (정적 파일 생성)
-            cd client && pnpm build && cd ..
+            cd client-app && pnpm build && cd ..
             
             # 백엔드는 tsx로 실행되므로 빌드 생략
             

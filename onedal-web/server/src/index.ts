@@ -72,7 +72,7 @@ app.use("/api/logbook/places", logbookPlacesRouter);
 registerSocketHandlers(io);
 
 // React 프론트엔드 정적 파일 서빙 (프로덕션 배포용)
-const clientBuildPath = path.join(__dirname, '../../client/dist');
+const clientBuildPath = path.join(__dirname, '../../client-app/dist');
 if (fs.existsSync(clientBuildPath)) {
     console.log(`✅ 프론트엔드 빌드 폴더를 서빙합니다: ${clientBuildPath}`);
     app.use(express.static(clientBuildPath));
