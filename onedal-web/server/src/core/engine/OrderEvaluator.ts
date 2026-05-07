@@ -48,19 +48,23 @@ export class OrderEvaluator {
             if (hasApiKey) {
                 logRoadmapEvent("서버", "🛡️ 주소 3중 폴백 (괄호제거 ➡️ 주소검색 ➡️ 키워드 ➡️ 절사) 연산");
 
-                // 지오코딩 (상차지)
-                if (!securedOrder.pickupX || !securedOrder.pickupY) {
-                    const pCoord = await geocodeAddress(securedOrder.pickup);
+                // 지오코딩 (상차지 + 하차지 병렬 실행)
+                const needPickup = !securedOrder.pickupX || !securedOrder.pickupY;
+                const needDropoff = !securedOrder.dropoffX || !securedOrder.dropoffY;
+
+                const [pCoord, dCoord] = await Promise.all([
+                    needPickup ? geocodeAddress(securedOrder.pickup) : Promise.resolve(null),
+                    needDropoff ? geocodeAddress(securedOrder.dropoff) : Promise.resolve(null),
+                ]);
+
+                if (needPickup) {
                     console.log(`🌍 [Geocoding] 상차지 변환: '${securedOrder.pickup}' -> ${pCoord ? `X:${pCoord.x}, Y:${pCoord.y}` : '실패(null)'}`);
                     if (pCoord) {
                         securedOrder.pickupX = pCoord.x;
                         securedOrder.pickupY = pCoord.y;
                     }
                 }
-
-                // 지오코딩 (하차지)
-                if (!securedOrder.dropoffX || !securedOrder.dropoffY) {
-                    const dCoord = await geocodeAddress(securedOrder.dropoff);
+                if (needDropoff) {
                     console.log(`🌍 [Geocoding] 하차지 변환: '${securedOrder.dropoff}' -> ${dCoord ? `X:${dCoord.x}, Y:${dCoord.y}` : '실패(null)'}`);
                     if (dCoord) {
                         securedOrder.dropoffX = dCoord.x;
