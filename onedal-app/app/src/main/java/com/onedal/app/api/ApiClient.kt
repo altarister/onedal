@@ -18,6 +18,11 @@ import java.util.concurrent.Executors
 /**
  * 1DAL 앱 네트워크 계층 담당자 (API Client)
  * HTTP 연결 설정, Gson 직렬화, 로컬/라이브 URL 스위칭 로직을 전담합니다.
+ *
+ * [Executor 분리 전략]
+ * - dispatchExecutor (2스레드): confirm + detail + decision — 배차 라이프사이클 전용
+ * - emergencyExecutor (전용 1스레드): emergency — 어떤 상황에서도 즉시 실행
+ * - telemetryExecutor (1스레드): scrap + keywords + pair + offline — 텔레메트리/설정
  */
 class ApiClient(private val context: Context) {
 
@@ -26,8 +31,14 @@ class ApiClient(private val context: Context) {
     }
 
     private val gson = Gson()
-    // Confirm(최대 35초 대기)과 Telemetry(3초 주기)가 서로를 차단하지 않도록 스레드풀 분리
-    private val confirmExecutor = Executors.newSingleThreadExecutor()
+
+    /** 배차 라이프사이클 전용 (confirm/detail/decision) — 2스레드로 병렬 가능 */
+    private val dispatchExecutor = Executors.newFixedThreadPool(2)
+
+    /** 비상 전용 — 절대 다른 작업에 의해 블로킹되지 않음 */
+    private val emergencyExecutor = Executors.newSingleThreadExecutor()
+
+    /** 텔레메트리/설정 전용 */
     private val telemetryExecutor = Executors.newSingleThreadExecutor()
 
     private val prefs by lazy {
@@ -61,49 +72,98 @@ class ApiClient(private val context: Context) {
     }
 
     /**
-     * 배차 확정(Confirm) / BASIC 보고 전송
+     * [공통] 크리티컬 API용 HTTP 실행기 — 1회 자동 재시도 포함
+     * 1차 실패 시 500ms 대기 후 재시도. 2차도 실패하면 최종 실패(null) 반환.
+     *
+     * @param targetUrl 대상 URL
+     * @param jsonBody JSON 직렬화된 요청 본문
+     * @param apiName ROADMAP 로그용 API 이름 (예: "/confirm", "/detail")
+     * @param timeoutMs connect + read 타임아웃 (ms)
+     * @param maxRetries 최대 시도 횟수 (기본 2 = 1차 + 재시도 1회)
+     * @return Pair(HTTP코드, 응답본문) 또는 null(모든 시도 실패)
      */
-    fun sendConfirm(payload: DispatchBasicRequest) {
-        confirmExecutor.submit {
+    private fun executeWithRetry(
+        targetUrl: String,
+        jsonBody: String,
+        apiName: String,
+        timeoutMs: Int = 10000,
+        maxRetries: Int = 2
+    ): Pair<Int, String>? {
+        for (attempt in 1..maxRetries) {
+            val startMs = System.currentTimeMillis()
             var conn: java.net.HttpURLConnection? = null
             try {
-                val jsonBody = gson.toJson(payload)
-                prefs.edit().putString("api_confirm_req", jsonBody).apply()
-                val targetUrl = getTargetUrl("/api/orders/confirm")
-                val url = java.net.URL(targetUrl)
+                AppLogger.roadmap("[HTTP 전송] POST $apiName 시작 (시도 $attempt/$maxRetries)", "NETWORK")
 
-                conn = url.openConnection() as java.net.HttpURLConnection
+                conn = java.net.URL(targetUrl).openConnection() as java.net.HttpURLConnection
                 conn.requestMethod = "POST"
                 conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
                 conn.setRequestProperty("Accept", "application/json")
                 conn.doOutput = true
-                conn.connectTimeout = 5000
-                conn.readTimeout = 5000 // 1차 선점(BASIC)은 즉시 응답이므로 짧은 타임아웃
+                conn.connectTimeout = timeoutMs
+                conn.readTimeout = timeoutMs
 
                 conn.outputStream.use { os ->
                     os.write(jsonBody.toByteArray(Charsets.UTF_8))
                 }
 
                 val code = conn.responseCode
-
-                if (code == 200) {
-                    val body = conn.inputStream.bufferedReader().readText()
-                    prefs.edit().putString("api_confirm_res", body).apply()
-                    AppLogger.d(TAG, "🌐 [post /confirm response / $code] $body")
-                    AppLogger.roadmap("[HTTP 폴링] 응답 /orders/confirm")
-                    // 추후 4단계 취소 로직(CANCEL) 연동 지점
+                val body = if (code in 200..299) {
+                    conn.inputStream.bufferedReader().readText()
                 } else {
-                    val errorBody = try {
-                        conn.errorStream?.bufferedReader()?.readText() ?: "Error body empty"
-                    } catch (e: Exception) {
-                        "Cannot read error body: ${e.message}"
+                    conn.errorStream?.bufferedReader()?.readText() ?: "Error body empty"
+                }
+
+                val elapsedMs = System.currentTimeMillis() - startMs
+                AppLogger.roadmap(
+                    "[HTTP 응답] POST $apiName 완료 (${elapsedMs}ms, HTTP $code, 시도 $attempt/$maxRetries)",
+                    "NETWORK"
+                )
+                return Pair(code, body)
+
+            } catch (e: Exception) {
+                val elapsedMs = System.currentTimeMillis() - startMs
+                AppLogger.roadmap(
+                    "[HTTP 실패] POST $apiName (${elapsedMs}ms, 시도 $attempt/$maxRetries) " +
+                            "사유: ${e.javaClass.simpleName} - ${e.message}",
+                    "NETWORK"
+                )
+                if (attempt < maxRetries) {
+                    Thread.sleep(500) // 500ms 대기 후 재시도
+                }
+            } finally {
+                conn?.disconnect()
+            }
+        }
+        return null // 모든 시도 실패
+    }
+
+    /**
+     * 배차 확정(Confirm) / BASIC 보고 전송
+     */
+    fun sendConfirm(payload: DispatchBasicRequest) {
+        dispatchExecutor.submit {
+            try {
+                val jsonBody = gson.toJson(payload)
+                prefs.edit().putString("api_confirm_req", jsonBody).apply()
+                val targetUrl = getTargetUrl("/api/orders/confirm")
+
+                val result = executeWithRetry(targetUrl, jsonBody, "/confirm", timeoutMs = 10000)
+
+                if (result != null) {
+                    val (code, body) = result
+                    if (code == 200) {
+                        prefs.edit().putString("api_confirm_res", body).apply()
+                        AppLogger.d(TAG, "🌐 [post /confirm response / $code] $body")
+                        AppLogger.roadmap("[HTTP 폴링] 응답 /orders/confirm")
+                    } else {
+                        AppLogger.e(TAG, "❌ [post /confirm response / $code] $body")
                     }
-                    AppLogger.e(TAG, "❌ [post /confirm response / $code] $errorBody")
+                } else {
+                    AppLogger.e(TAG, "❌ [Confirm 전송 실패] 재시도 포함 모든 시도 실패")
                 }
             } catch (e: Exception) {
                 AppLogger.e(TAG, "❌ [Confirm 전송 실패] ${e.message}")
-            } finally {
-                conn?.disconnect()
             }
         }
     }
@@ -114,51 +174,33 @@ class ApiClient(private val context: Context) {
      * 최종 판결(KEEP/CANCEL)은 이후 Telemetry의 Piggyback으로 수신됨.
      */
     fun sendDetail(payload: DispatchDetailedRequest, onDecisionReceived: (String, String) -> Unit) {
-        confirmExecutor.submit {
-            var conn: java.net.HttpURLConnection? = null
+        dispatchExecutor.submit {
             try {
                 val jsonBody = gson.toJson(payload)
                 prefs.edit().putString("api_detail_req", jsonBody).apply()
                 val targetUrl = getTargetUrl("/api/orders/detail")
-                val url = java.net.URL(targetUrl)
 
-                conn = url.openConnection() as java.net.HttpURLConnection
-                conn.requestMethod = "POST"
-                conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
-                conn.setRequestProperty("Accept", "application/json")
-                conn.doOutput = true
-                conn.connectTimeout = 15000 // 에뮬레이터→Cloudflare→EC2 경로 RTT+TLS 오버헤드 고려
-                conn.readTimeout = 15000 // 서버는 즉시 202 반환하지만 네트워크 지연 대비 여유 확보
+                val result = executeWithRetry(targetUrl, jsonBody, "/detail", timeoutMs = 15000)
 
-                conn.outputStream.use { os ->
-                    os.write(jsonBody.toByteArray(Charsets.UTF_8))
-                }
-
-                val code = conn.responseCode
-
-                if (code == 200 || code == 202) {
-                    val body = conn.inputStream.bufferedReader().readText()
-                    prefs.edit().putString("api_detail_res", body).apply()
-                    AppLogger.d(TAG, "🌐 [post /detail response / $code] 즉결 접수 완료. Piggyback 대기 시작.")
-                    
-                    // 성공적으로 큐에 등록되었으므로 여기서 판단 콜백을 부르지 않고, 
-                    // 이후 Telemetry(Scrap) 폴링이 결재를 물어올 때까지 기다립니다.
-
-                } else {
-                    val errorBody = try {
-                        conn.errorStream?.bufferedReader()?.readText() ?: "Error body empty"
-                    } catch (e: Exception) {
-                        "Cannot read error body: ${e.message}"
+                if (result != null) {
+                    val (code, body) = result
+                    if (code == 200 || code == 202) {
+                        prefs.edit().putString("api_detail_res", body).apply()
+                        AppLogger.d(TAG, "🌐 [post /detail response / $code] 즉결 접수 완료. Piggyback 대기 시작.")
+                        // 성공적으로 큐에 등록되었으므로 여기서 판단 콜백을 부르지 않고, 
+                        // 이후 Telemetry(Scrap) 폴링이 결재를 물어올 때까지 기다립니다.
+                    } else {
+                        AppLogger.e(TAG, "❌ [post /detail response / $code] $body")
+                        // 타임아웃 등의 이유로 실패 시 CANCEL로 간주하여 뱉기
+                        onDecisionReceived(payload.order.id, "CANCEL")
                     }
-                    AppLogger.e(TAG, "❌ [post /detail response / $code] $errorBody")
-                    // 타임아웃 등의 이유로 실패 시 CANCEL로 간주하여 뱉기
+                } else {
+                    AppLogger.e(TAG, "❌ [Detail 전송 실패] 재시도 포함 모든 시도 실패")
                     onDecisionReceived(payload.order.id, "CANCEL")
                 }
             } catch (e: Exception) {
                 AppLogger.e(TAG, "❌ [Detail 전송 실패] ${e.message}")
                 onDecisionReceived(payload.order.id, "CANCEL")
-            } finally {
-                conn?.disconnect()
             }
         }
     }
@@ -176,6 +218,7 @@ class ApiClient(private val context: Context) {
     ) {
         telemetryExecutor.submit {
             var conn: java.net.HttpURLConnection? = null
+            val startMs = System.currentTimeMillis()
             try {
                 // 발송 직전에 SharedPreferences에서 pendingAckDecisionId를 가져와서 주입
                 val pendingAck = prefs.getString("pendingAckDecisionId", null)
@@ -246,6 +289,11 @@ class ApiClient(private val context: Context) {
                     AppLogger.w(TAG, "📡 [텔레메트리] 서버 에러 응답: $code")
                 }
             } catch (e: Exception) {
+                val elapsedMs = System.currentTimeMillis() - startMs
+                AppLogger.roadmap(
+                    "[HTTP 실패] POST /scrap (${elapsedMs}ms) 사유: ${e.javaClass.simpleName} - ${e.message}",
+                    "NETWORK"
+                )
                 AppLogger.e(TAG, "📡 [텔레메트리 통신 실패] ${e.message}")
             } finally {
                 conn?.disconnect()
@@ -258,41 +306,32 @@ class ApiClient(private val context: Context) {
      * [Safety Mode V3] 비상 보고 전송 (POST /api/emergency)
      * 자동취소 실행, 취소불가 팝업, 알 수 없는 화면 등 이상 상황 시 서버에 즉시 보고.
      * 서버는 이 신호를 받고 해당 오더의 메모리를 초기화합니다.
+     *
+     * ⚠️ emergencyExecutor 전용 — 다른 작업에 의해 절대 블로킹되지 않음
      */
     fun sendEmergency(report: EmergencyReport) {
-        confirmExecutor.submit {
-            var conn: java.net.HttpURLConnection? = null
+        emergencyExecutor.submit {
             try {
                 val jsonBody = gson.toJson(report)
                 AppLogger.w(TAG, "🚨 [EMERGENCY 전송] reason=${report.reason}, orderId=${report.orderId}")
                 prefs.edit().putString("api_emergency_req", jsonBody).apply()
                 val targetUrl = getTargetUrl("/api/emergency")
-                val url = java.net.URL(targetUrl)
 
-                conn = url.openConnection() as java.net.HttpURLConnection
-                conn.requestMethod = "POST"
-                conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
-                conn.setRequestProperty("Accept", "application/json")
-                conn.doOutput = true
-                conn.connectTimeout = 5000
-                conn.readTimeout = 5000
+                val result = executeWithRetry(targetUrl, jsonBody, "/emergency", timeoutMs = 10000)
 
-                conn.outputStream.use { os ->
-                    os.write(jsonBody.toByteArray(Charsets.UTF_8))
-                }
-
-                val code = conn.responseCode
-                if (code == 200) {
-                    val body = conn.inputStream.bufferedReader().readText()
-                    prefs.edit().putString("api_emergency_res", body).apply()
-                    AppLogger.w(TAG, "🚨 [EMERGENCY 응답] $body")
+                if (result != null) {
+                    val (code, body) = result
+                    if (code == 200) {
+                        prefs.edit().putString("api_emergency_res", body).apply()
+                        AppLogger.w(TAG, "🚨 [EMERGENCY 응답] $body")
+                    } else {
+                        AppLogger.e(TAG, "🚨 [EMERGENCY 서버 에러] HTTP $code")
+                    }
                 } else {
-                    AppLogger.e(TAG, "🚨 [EMERGENCY 서버 에러] HTTP $code")
+                    AppLogger.e(TAG, "🚨 [EMERGENCY 전송 실패] 재시도 포함 모든 시도 실패")
                 }
             } catch (e: Exception) {
                 AppLogger.e(TAG, "🚨 [EMERGENCY 전송 실패] ${e.message}")
-            } finally {
-                conn?.disconnect()
             }
         }
     }
@@ -302,38 +341,27 @@ class ApiClient(private val context: Context) {
      * 앱 내에서 닫기/취소 등 최종 승인(KEEP/CANCEL)을 서버로 직통 통보합니다.
      */
     fun sendDecision(orderId: String, action: String) {
-        confirmExecutor.submit {
-            var conn: java.net.HttpURLConnection? = null
+        dispatchExecutor.submit {
             try {
                 // 웹 대시보드와 동일한 규격: { orderId, action }
                 val jsonBody = """{"orderId":"$orderId", "action":"$action"}"""
                 AppLogger.d(TAG, "📲 [Decision 전송] orderId=${orderId}, action=${action}")
                 val targetUrl = getTargetUrl("/api/orders/decision")
-                val url = java.net.URL(targetUrl)
 
-                conn = url.openConnection() as java.net.HttpURLConnection
-                conn.requestMethod = "POST"
-                conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
-                conn.setRequestProperty("Accept", "application/json")
-                conn.doOutput = true
-                conn.connectTimeout = 5000
-                conn.readTimeout = 5000
+                val result = executeWithRetry(targetUrl, jsonBody, "/decision", timeoutMs = 10000)
 
-                conn.outputStream.use { os ->
-                    os.write(jsonBody.toByteArray(Charsets.UTF_8))
-                }
-
-                val code = conn.responseCode
-                if (code == 200) {
-                    val body = conn.inputStream.bufferedReader().readText()
-                    AppLogger.d(TAG, "📲 [Decision 응답] $body")
+                if (result != null) {
+                    val (code, body) = result
+                    if (code == 200) {
+                        AppLogger.d(TAG, "📲 [Decision 응답] $body")
+                    } else {
+                        AppLogger.e(TAG, "📲 [Decision 서버 에러] HTTP $code")
+                    }
                 } else {
-                    AppLogger.e(TAG, "📲 [Decision 서버 에러] HTTP $code")
+                    AppLogger.e(TAG, "📲 [Decision 전송 실패] 재시도 포함 모든 시도 실패")
                 }
             } catch (e: Exception) {
                 AppLogger.e(TAG, "📲 [Decision 전송 실패] ${e.message}")
-            } finally {
-                conn?.disconnect()
             }
         }
     }
@@ -350,8 +378,8 @@ class ApiClient(private val context: Context) {
                 conn = url.openConnection() as java.net.HttpURLConnection
                 conn.requestMethod = "GET"
                 conn.setRequestProperty("Accept", "application/json")
-                conn.connectTimeout = 5000
-                conn.readTimeout = 5000
+                conn.connectTimeout = 10000
+                conn.readTimeout = 10000
 
                 val code = conn.responseCode
                 if (code == 200) {
@@ -390,8 +418,8 @@ class ApiClient(private val context: Context) {
                 conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
                 conn.setRequestProperty("Accept", "application/json")
                 conn.doOutput = true
-                conn.connectTimeout = 5000
-                conn.readTimeout = 5000
+                conn.connectTimeout = 10000
+                conn.readTimeout = 10000
 
                 conn.outputStream.use { os ->
                     os.write(jsonBody.toByteArray(Charsets.UTF_8))
@@ -454,7 +482,8 @@ class ApiClient(private val context: Context) {
     }
 
     fun shutdown() {
-        confirmExecutor.shutdown()
+        dispatchExecutor.shutdown()
+        emergencyExecutor.shutdown()
         telemetryExecutor.shutdown()
     }
 }

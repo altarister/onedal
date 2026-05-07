@@ -99,14 +99,14 @@ router.post("/", async (req, res) => {
         }
 
         const io = req.app.get("io");
-        // 진행 중인 오더(평가중/판결대기)만 Lock 대상. 확정/취소된 과거 오더는 제외
+        // 멀티 스캔폰 대비: 해당 orderId에 대해서만 기기 충돌 체크
+        // (폰A의 콜이 폰B의 다른 콜을 차단하지 않도록 격리)
         const activeStatuses = ['ORDER_EVALUATING', 'ORDER_AWAITING_DECISION'];
-        for (const order of session.pendingOrdersData.values()) {
-            if (activeStatuses.includes(order.status) && order.capturedDeviceId !== payload.deviceId) {
-                console.log(`🔒 [Lock] ${order.capturedDeviceId} 기기가 이미 평가중. (status: ${order.status})`);
-                if (io) io.to(userId).emit("order-canceled", { id: payload.order.id, status: 'ORDER_CANCELED' });
-                return res.json({ deviceId: 'server', action: 'CANCEL' });
-            }
+        const targetOrder = session.pendingOrdersData.get(payload.order.id);
+        if (targetOrder && activeStatuses.includes(targetOrder.status) && targetOrder.capturedDeviceId !== payload.deviceId) {
+            console.log(`🔒 [Lock] ${targetOrder.capturedDeviceId} 기기가 이미 이 콜(${payload.order.id})을 평가중. 요청 기기: ${payload.deviceId}`);
+            if (io) io.to(userId).emit("order-canceled", { id: payload.order.id, status: 'ORDER_CANCELED' });
+            return res.json({ deviceId: 'server', action: 'CANCEL' });
         }
 
 
