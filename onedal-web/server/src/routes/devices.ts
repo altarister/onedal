@@ -317,11 +317,18 @@ router.post("/:deviceId/mode", requireAuth, (req, res) => {
         session.mode = mode;
         activeDevices.set(deviceId, session);
 
-        // [핵심] AUTO ↔ MANUAL 전환 시 filter.isActive 원자적 연동
+        // [다중 폰 안전] 이 유저의 소유 기기 중 AUTO인 폰이 1대라도 있으면 isActive=true 유지 (자동 파생)
+        // 다른 유저의 기기 상태가 간섭하지 않도록 userDeviceIds로 필터링 (Cross-user leakage 방지)
         const userId = req.user!.id;
         const io = req.app.get("io");
-        updateActiveFilter(userId, { isActive: mode === "AUTO" }, io);
-        console.log(`⚙️ [모드 전환] 기기(${deviceId}) → ${mode} | filter.isActive → ${mode === "AUTO"}`);
+        
+        const userDeviceIds = db.prepare("SELECT device_id FROM user_devices WHERE user_id = ?").all(userId).map((r: any) => r.device_id);
+        const hasAnyAutoDevice = Array.from(activeDevices.values()).some(d => 
+            userDeviceIds.includes(d.deviceId) && d.mode === "AUTO"
+        );
+        
+        updateActiveFilter(userId, { isActive: hasAnyAutoDevice }, io);
+        console.log(`⚙️ [모드 전환] 기기(${deviceId}) → ${mode} | 유저(${userId}) AUTO 기기 존재: ${hasAnyAutoDevice} → filter.isActive → ${hasAnyAutoDevice}`);
 
         res.json({ success: true, mode });
     } catch (error) {

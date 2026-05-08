@@ -52,10 +52,13 @@ function DeviceRow({
     let filterLabel = '동기화 중';
     let filterColor = 'bg-surface-alt text-text-muted border-border';
     if (currentFilter) {
-        if (!currentFilter.isActive) {
+        // 🚨 전역 isActive가 아닌, 이 기기 자체의 mode를 1순위로 검사합니다!
+        // isActive = "작전 활성화" (유저별), device.mode = "사격 허가" (폰별)
+        if (device.mode === "MANUAL") {
             filterLabel = '수동 대기';
             filterColor = 'bg-surface-alt text-text-muted border-border';
         } else {
+            // 기기가 AUTO 모드일 때만 전역 사냥 페이즈를 따라갑니다.
             const phase = currentFilter.dispatchPhase || 'STANDBY';
             const action = currentFilter.driverAction || 'WAITING';
 
@@ -69,7 +72,7 @@ function DeviceRow({
                 filterLabel = '경로 탐색';
                 filterColor = 'bg-accent-alt/20 text-accent-alt border-accent-alt/30';
             } else {
-                filterLabel = '첫짐 탐색'; // STANDBY
+                filterLabel = '첫짐 탐색';
                 filterColor = 'bg-success/20 text-success border-success/30';
             }
         }
