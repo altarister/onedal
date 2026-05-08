@@ -51,19 +51,32 @@ function logActiveFilter(session: ReturnType<typeof getUserSession>, actionType:
 
 // ━━━ 내부 유틸: 파생 데이터(destinationKeywords, allowedVehicleTypes) 재계산 ━━━
 function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, changes: Partial<AutoDispatchFilter>) {
-    // destinationKeywords: 명시적으로 전달된 경우에만 사용, 아니면 도시명으로 자동 생성
-    if (!changes.destinationKeywords && session.activeFilter.destinationCity) {
+    // [최적화] 지리 연산(getCityRegionsWithRadius)은 CPU 집약적(~7초)이므로,
+    // destinationCity 또는 destinationRadiusKm가 실제로 변경된 경우에만 재계산.
+    // isActive, minFare 등 단순 상태 변경 시에는 기존 캐시된 키워드를 그대로 재사용.
+    const needsGeoRecalc =
+        'destinationCity' in changes ||
+        'destinationRadiusKm' in changes ||
+        (!session.activeFilter.destinationKeywords || session.activeFilter.destinationKeywords.length === 0);
+
+    if (changes.destinationKeywords) {
+        // 명시적으로 키워드가 전달된 경우 (합짐 회랑 계산 결과 등) → 그대로 사용
+    } else if (session.activeFilter.destinationCity && needsGeoRecalc) {
+        // 도시명/반경이 변경되었거나 키워드가 아직 계산되지 않은 경우에만 무거운 연산 수행
         const city = session.activeFilter.destinationCity;
         const radius = session.activeFilter.destinationRadiusKm || 0;
+        console.log(`🗺️ [FilterManager] 지리 연산 트리거 (city=${city}, radius=${radius}km)`);
         const { flat, grouped } = getCityRegionsWithRadius(city, radius);
         session.activeFilter.destinationKeywords = flat;
         session.activeFilter.destinationGroups = grouped;
-    } else if (!changes.destinationKeywords && !session.activeFilter.destinationCity) {
+    } else if (!session.activeFilter.destinationCity) {
         session.activeFilter.destinationKeywords = [];
         session.activeFilter.destinationGroups = {};
     }
+    // else: 도시/반경 변경 없음 → 기존 캐시된 destinationKeywords 유지 (이벤트 루프 보호)
 
     // allowedVehicleTypes: 명시적으로 전달된 경우에만 사용, 아니면 기사 차종으로 자동 생성
+    // (이 연산은 경량이므로 매번 실행해도 무방)
     if (!changes.allowedVehicleTypes) {
         session.activeFilter.allowedVehicleTypes = getSharedModeVehicleTypes(session.userVehicleType || '1t');
     }

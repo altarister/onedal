@@ -285,7 +285,8 @@
 
 | 스레드풀 | 담당 API | 이유 |
 |----------|----------|------|
-| `confirmExecutor` | `/confirm`, `/detail`, `/emergency`, `/decision` | 콜 처리 통신 (응답 대기 가능) |
+| `dispatchExecutor` | `/confirm`, `/detail`, `/decision` | 배차 핵심 통신 (서버 연산 대기 가능) |
+| `emergencyExecutor` | `/emergency` | 비상 보고 전용 (다른 작업에 의해 절대 블로킹되지 않음) |
 | `telemetryExecutor` | `/scrap`, `/devices/pair`, `/config/keywords`, `/offline` | 주기적 텔레메트리 (빈번한 호출) |
 
 ---
@@ -296,7 +297,22 @@
 |------|---|
 | Content-Type | `application/json; charset=utf-8` |
 | Accept | `application/json` |
-| connectTimeout | 5,000ms (모든 엔드포인트) |
-| readTimeout | 5,000ms (기본), 1,000ms (`/offline`만) |
 | HTTP 라이브러리 | `java.net.HttpURLConnection` (Retrofit 미사용) |
 | JSON 직렬화 | Gson |
+
+### 타임아웃 정책 (통신 성격별 분류)
+
+| 엔드포인트 | connectTimeout | readTimeout | 비고 |
+|-----------|---------------|------------|------|
+| `/scrap` | 5,000ms | 5,000ms | 1초 주기 텔레메트리. 빠른 실패 필수 |
+| `/confirm`, `/detail` | 10,000ms | 15,000ms | `executeWithRetry` 사용. 모바일 네트워크 불안정 대비 |
+| `/emergency` | 10,000ms | 10,000ms | `executeWithRetry` 사용. 비상 전용 스레드 |
+| `/decision` | 10,000ms | 10,000ms | `executeWithRetry` 사용 |
+| `/devices/pair`, `/config/keywords` | 10,000ms | 10,000ms | 설정 동기화 |
+| `/offline` | 5,000ms | 1,000ms | 오프라인 상태 통보 (즉시 응답 기대) |
+
+> **⚠️ 타임아웃을 60초(1분)로 설정하지 않는 이유:**  
+> 앱의 데스밸리 타이머(30초)와 서버의 강제 취소 타이머(35초)가 존재하므로,  
+> 60초 대기는 좀비 커넥션을 생성할 뿐 실익이 없습니다.  
+> 15초 내 응답이 없으면 Fail-Fast 후 비상 처리로 전환하는 것이 기사님 페널티를 방어하는 최선입니다.
+
