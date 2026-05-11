@@ -72,6 +72,22 @@ CREATE TABLE orderStops (
 );
 ```
 
+### 1.4 `geocode_cache` 테이블 (지오코딩 L1/L2 영구 캐시)
+카카오 지오코딩 API 호출 비용 절감 및 속도 개선을 위한 좌표 정보 캐시 테이블입니다. **(Task 4)**
+
+```sql
+CREATE TABLE geocode_cache (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    rawQuery TEXT UNIQUE NOT NULL,       -- 검색 원본 문자열
+    parentName TEXT,                     -- 상위 행정구역명 (intel 매핑용)
+    x REAL NOT NULL,
+    y REAL NOT NULL,
+    hitCount INTEGER DEFAULT 1,
+    createdAt TEXT,
+    lastHitAt TEXT
+);
+```
+
 ---
 
 ## 2. 휘발성 인메모리 스토어 (`UserSessionStore.ts`)
@@ -158,4 +174,21 @@ export interface PendingOrder extends SecuredOrder {
     detourTimePenaltyMin?: number;
     detourDistPenaltyKm?: number;
 }
+```
+
+### 2.4 프론트엔드 V2 상태 모델 호환성 100% 보완 (Task 27)
+백엔드에 `ORDER_CONFIRMED`, `ORDER_CANCELED` 등 V2 상태(`status`) 모델이 도입됨에 따라, 클라이언트(프론트엔드) 측에서 구 버전 및 V2 데이터 간의 호환성을 보장하기 위해 다음과 같은 타입 가드 및 옵셔널 체이닝 방어 로직이 전면 적용되었습니다.
+
+```typescript
+// 클라이언트 측 호환성 방어 로직 (예시)
+const isOrderCompleted = (status?: string) => {
+    // 옵셔널 체이닝 및 V1/V2 하위 호환성 체크
+    if (!status) return false;
+    return status.includes('completed') || status.includes('ORDER_COMPLETED');
+};
+
+const isActiveOrder = (status?: string) => {
+    if (!status) return true; // 기본적으로 살아있는 콜로 간주
+    return !status.includes('canceled') && !status.includes('ORDER_CANCELED');
+};
 ```

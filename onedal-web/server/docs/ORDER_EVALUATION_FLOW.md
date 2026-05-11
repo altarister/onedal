@@ -60,7 +60,8 @@ evaluate(
 - 제외 키워드 + 플러그인 커스텀 룰 (`plugin.evaluateCustomRules()`)
 - 도착지 회랑 이탈 여부 (합짐 모드일 때만)
 
-### Stage 2: 카카오 라우팅
+### Stage 2: 카카오 라우팅 및 지오코딩 병렬 처리 (Task 13)
+지연 시간을 최소화하기 위해 상차지와 하차지의 카카오 지오코딩 API를 `Promise.all`로 병렬 호출하여 안드로이드 앱의 15초 Timeout을 방어합니다.
 - **단독** (`activeCalls.length === 0`): `calculateSoloRoute()` → 소요 시간 기준 꿀/똥 판정
 - **합짐** (`activeCalls.length > 0`): `optimizeWaypoints()` → `calculateDetourRoute()` → 우회 시간/거리 패널티 판정
 
@@ -84,3 +85,16 @@ evaluate(
 | `isRejected: boolean` | `rejectionReasons.length > 0`이면 `true` |
 | `kakaoTimeExt: string` | UI 표시용 문자열 (예: `+5km, +15분 '콜'`) |
 | `status` | `ORDER_AWAITING_DECISION` 으로 승격 |
+
+---
+
+## 6. 비동기 최적화 및 멀티폰 동시성 제어 (Concurrency & Lock)
+
+대규모 배차 트래픽과 멀티폰(여러 대의 기기) 환경에서 안전하게 오더를 선점하기 위해 다음과 같은 동시성 제어가 적용되어 있습니다. **(Task 14)**
+
+### 6.1 멀티폰 Lock 격리 및 스레드 분리
+- 여러 대의 폰이 동일한 오더를 동시에 사냥(Scraping -> Detail Request)할 때 발생하는 DB 데드락 및 메모리 오염을 방지하기 위해, 오더 ID 기반의 전용 Lock을 획득합니다.
+- 이미 확정(CONFIRMED)되거나 취소(CANCELED)된 과거 오더는 Lock 체크에서 조기 예외 처리되어 불필요한 네트워크 대기를 방지합니다.
+
+### 6.2 ApiClient 자동 재시도 및 Executor 
+- 외부 배차 서버(인성, 화물24 등)와의 통신 시 네트워크 불안정을 극복하기 위해 `ApiClient` 내부에 자동 재시도(Retry) 로직과 전용 `Executor`가 할당되어 병목을 해소합니다.

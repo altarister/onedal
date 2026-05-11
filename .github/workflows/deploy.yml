@@ -58,9 +58,11 @@ jobs:
             # 백엔드는 tsx로 실행되므로 빌드 생략
             
             echo "🔄 [4/4] PM2 서버 재시작 (무중단 갱신)"
-            # 구버전 Next.js 엔진 강제 삭제
-            pm2 delete all || true
-            pm2 start ecosystem.config.cjs --env production
+            pm2 reload ecosystem.config.cjs --env production || {
+                echo "⚠️ reload 실패 → 전체 재시작 (최초 배포 시)"
+                pm2 delete all || true
+                pm2 start ecosystem.config.cjs --env production
+            }
             pm2 save
             
             echo "✅ 배포 완료!"

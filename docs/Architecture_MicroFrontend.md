@@ -67,24 +67,34 @@ onedal-web/
 
 ---
 
-## 5. 단계별 실행 계획 (Phase)
+## 5. 클라이언트 모듈화 리팩토링 및 실행 계획 (Phase 0~5) (Task 24)
 
-### Phase 1: 백엔드 통합 & v5 스키마 반영 (가장 시급함)
+이전 모놀리식 구조의 관제탑 웹(`client-app`)을 점진적으로 모듈화하고 최종적으로 네이티브/마이크로프론트엔드로 분리하는 6단계 마이그레이션 전략입니다.
+
+### Phase 0: Seamless UI 플랫 레이아웃 리뉴얼 (Task 23)
+- **디자인 시스템**: 기존의 복잡한 Box Shadow 기반 디자인을 버리고, TailwindCSS 기반의 Flat & Border(1px) 레이아웃으로 전면 개편했습니다.
+- **테마 시스템**: `bg-surface`, `text-text-primary` 등 시맨틱 CSS 변수를 도입하여 주/야간(다크모드) 테마 스위칭 및 야간 운행 시인성을 극대화했습니다.
+- **목적**: 컴포넌트 간 경계선을 명확히 하여 향후 모듈 분리(Widget화) 시 CSS 충돌을 방지합니다.
+
+### Phase 1: 백엔드 통합 & v5 스키마 반영
 1. `server/src/db.ts`에 v5(장부용) 스키마 반영.
 2. `server`에 하이브리드 인증(Token + Cookie) 구조 기반 마련.
-3. 기존 웹 관제탑(`client`)은 당분간 현행 유지 (모바일 전환 전까지 사용).
+3. 기존 웹 관제탑(`client`)의 컴포넌트들을 역할별(Dashboard, Filter, Map) 디렉토리로 물리적 분리.
 
 ### Phase 2: Logbook (운행일지 웹) 스캐폴딩
-1. `pnpm create vite logbook` 으로 웹 대시보드 생성.
+1. `pnpm create vite logbook` 으로 독립 웹 대시보드 생성.
 2. `Dashboard_PRD.md` 에 맞춰 요약 카드, 매출 추이 차트, 엑셀 다운로드 구현.
-3. `logbook.onedal.com` 으로 배포하여 기존 관제탑 웹(`client`)과 듀얼 모니터로 쓰도록 환경 구성.
+3. `logbook.onedal.com` 으로 배포하여 기존 관제탑 웹(`client`)과 듀얼 모니터 환경 구성.
 
-### Phase 3: 모바일 관제탑 (React Native) 전환
+### Phase 3: Map View 독립 모듈화 (React App)
+1. 카카오맵 렌더링 영역만을 독립된 React App 패키지로 분리 배포 (AWS S3 + Cloudflare).
+2. 안드로이드 앱의 WebView에서 해당 URL을 직접 호출하게 하여, 앱 빌드 사이즈를 줄이고 UI 무중단 배포 체계 확보.
+
+### Phase 4: 모바일 관제탑 (React Native) 전환
 1. `pnpm create expo-app mobile-app` 으로 모바일 프로젝트 생성.
-2. 기존 `client`의 로직(오더 경합, 필터)을 `mobile-app`으로 이식.
-3. **핵심**: `expo-location`을 활용한 백그라운드 GPS 위치 전송 로직 구현.
-4. 개발 완료 후 기존 `client` 웹 패키지는 폐기(Deprecate).
+2. 앱의 화면 판별/스위치 제어 등 네이티브 로직 이식 및 `expo-location` 적용.
+3. 완성 후 레거시 `client` 웹 패키지 폐기.
 
-### Phase 4: 어드민 (Admin 웹) 확장
-1. 모든 기사의 GPS 실시간 관제 지도 화면 구현.
-2. 전체 기사 정산/미수금 통합 관리 보드 구현.
+### Phase 5: 어드민 (Admin 웹) 확장
+1. 전체 기사 정산/미수금 통합 관리 보드 구현.
+2. 모든 기사의 GPS 실시간 관제 지도 대시보드 확장.

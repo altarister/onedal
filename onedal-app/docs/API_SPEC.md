@@ -305,7 +305,7 @@
 | 엔드포인트 | connectTimeout | readTimeout | 비고 |
 |-----------|---------------|------------|------|
 | `/scrap` | 5,000ms | 5,000ms | 1초 주기 텔레메트리. 빠른 실패 필수 |
-| `/confirm`, `/detail` | 10,000ms | 15,000ms | `executeWithRetry` 사용. 모바일 네트워크 불안정 대비 |
+| `/confirm`, `/detail` | **15,000ms** | **15,000ms** | `executeWithRetry` 사용. 모바일 네트워크 불안정 대비 (Task 14) |
 | `/emergency` | 10,000ms | 10,000ms | `executeWithRetry` 사용. 비상 전용 스레드 |
 | `/decision` | 10,000ms | 10,000ms | `executeWithRetry` 사용 |
 | `/devices/pair`, `/config/keywords` | 10,000ms | 10,000ms | 설정 동기화 |

@@ -13,6 +13,8 @@ object InsungKeywords {
         dropoffKeywords = listOf("도착지 상세", "하차지 상세"),
         memoKeywords = listOf("적요 상세", "적요 내용"), // 팝업 타이틀"적요 상세"(띄어쓰기) + 본문 헤더"적요 내용" → 확정화면("적요상세" 붙여쓰기)과 구분
         errorKeywords = listOf("취소할 수 없", "시간이 지나", "실패"),
-        loadingKeywords = listOf("오더 조회", "기다려 주십")
+        loadingKeywords = listOf("오더 조회", "기다려 주십"),
+        appLabel = "인성콜",
+        cancelKeyword = "취소"
     )
 }

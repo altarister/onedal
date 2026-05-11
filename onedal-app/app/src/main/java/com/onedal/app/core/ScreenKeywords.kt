@@ -32,6 +32,12 @@ data class ScreenKeywords(
     val errorKeywords: List<String>,
 
     /** 로딩 화면 (감지 시 무시) */
-    val loadingKeywords: List<String>
+    val loadingKeywords: List<String>,
+
+    /** 앱 이름 라벨 (로깅용) */
+    val appLabel: String = "배차앱",
+
+    /** 취소/돌아가기 버튼 키워드 */
+    val cancelKeyword: String = "취소"
 )
 

@@ -57,6 +57,11 @@ interface BaseScrapParser {
 }
 ```
 
+### 1.1 팝업 적요(`detailMemo`) 정밀 파싱 스펙 (Task 10)
+팝업 서핑 시 수집된 텍스트 중, 실제 운행에 유의미한 적요만을 파싱하기 위해 `parseDetailed` 내부에서 정규식을 활용하여 정밀 추출을 수행합니다.
+- **추출 규칙**: `"적요 내용: (.*)"` 형태로 본문을 추출하며 불필요한 공백과 개행 문자를 모두 Trim 처리합니다.
+- **활용처**: 파싱된 `detailMemo`는 백엔드의 `PricingEngine`에 전달되어 추가 요금 패널티 판단(예: 수거, 착불) 및 프론트엔드 UI의 주요 표출 데이터로 활용됩니다.
+
 ### 인성콜 구현체 위치
 `com.onedal.app.plugins.insung.InsungParser : BaseScrapParser`
 

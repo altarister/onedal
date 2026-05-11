@@ -215,6 +215,25 @@ CREATE INDEX IF NOT EXISTS idx_orderStops_orderId ON orderStops(orderId);
 CREATE INDEX IF NOT EXISTS idx_orderStops_placeId ON orderStops(placeId);
 ```
 
+### 4.4 `geocode_cache` (지오코딩 L1/L2 영구 캐시)
+
+카카오 지오코딩 API의 통신 비용을 대폭 절감하고 서버 응답 성능을 극대화하기 위해, 원본 주소와 정제된 좌표 정보를 영구적으로 저장하는 캐시 테이블입니다. **(Task 4)**
+
+```sql
+CREATE TABLE IF NOT EXISTS geocode_cache (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    rawQuery        TEXT UNIQUE NOT NULL,      -- 검색에 사용된 원본 주소 문자열 (예: "경기 분당구 정자일로 95")
+    parentName      TEXT,                      -- 상위 행정구역명 (L2 캐시 및 행정구역 지능화 매핑용)
+    x               REAL NOT NULL,             -- 카카오 경도
+    y               REAL NOT NULL,             -- 카카오 위도
+    hitCount        INTEGER DEFAULT 1,         -- 이 주소가 검색된 횟수 (L1/L2 힛업 통계용)
+    createdAt       TEXT DEFAULT (datetime('now', 'localtime')),
+    lastHitAt       TEXT DEFAULT (datetime('now', 'localtime'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_geocode_cache_query ON geocode_cache(rawQuery);
+```
+
 ---
 
 ## 5. 다인용 시나리오 설명

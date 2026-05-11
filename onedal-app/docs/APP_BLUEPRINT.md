@@ -71,35 +71,63 @@ flowchart LR
 
 ---
 
-## 🏗️ 3. 구조적 개발 방향: 다중 플랫폼 추상화 (Plugin Architecture)
+## 🏗️ 3. Native 100% 아키텍처 및 9대 핵심 모듈 (Task 6)
 
-### 3-1. 물리적 디렉토리 구조 (패키지 분리)
-```text
-com.onedal.app/
-├── core/
-│   ├── engine/       # ⚙️ 엔진 코어 (Base 인터페이스)
-│   │   ├── BaseScrapParser.kt
-│   │   ├── BaseAutomationEngine.kt
-│   │   └── EngineRouter.kt (활성 타겟 앱 스위칭)
-│   └── network/      # API 통신 및 Telemetry
-├── plugins/          # 🧩 개별 앱 플러그인 공간
-│   ├── insung/       # 인성콜 전용 (3단계 팝업 서핑 등)
-│   ├── cargo24/      # 화물24시 전용 (예정)
-│   └── onecall/      # 원콜 전용 (예정)
-└── ui/
-    ├── dashboard/    # 상태 대시보드 화면
-    └── settings/     # 환경 설정 화면
+기존의 통짜 서비스(`HijackService`) 스파게티 코드를 청산하고, **Model-View-Presenter (MVP)** 패턴을 도입하여 9개의 독립적인 핵심 모듈로 역할을 완벽하게 분리했습니다.
+
+### 3.1 핵심 모듈 다이어그램
+
+```mermaid
+graph TD
+    subgraph "UI Layer (View)"
+        M[MainActivity] --> S[SettingsScreen]
+        M --> D[DashboardScreen]
+        S -.->|볼륨 조절| SM[SoundManager]
+    end
+
+    subgraph "Presentation Layer"
+        VM[MainViewModel] --> |상태 바인딩| M
+    end
+
+    subgraph "Service Layer (Accessibility)"
+        HS[HijackService] --> SD[ScreenDetector]
+        HS --> PM[PopupSurfingMachine]
+        HS --> CV[CautionDongVerifier]
+    end
+
+    subgraph "Core Modules (Model & Logic)"
+        SD -->|화면 감지| IP[InsungParser]
+        PM -->|팝업 서핑| API[ApiClient]
+        CV -->|동명이동 검증| API
+        
+        DT[DeathValleyTimer] -.->|리프레시 유도| HS
+        SM[SoundManager] -.->|상황별 사운드 재생| HS
+        SM -.->|재생| IP
+        SM -.->|재생| PM
+    end
+
+    classDef ui fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef logic fill:#fff3e0,stroke:#e65100,stroke-width:2px;
+    class M,S,D ui;
+    class SD,PM,CV,IP,DT,SM,API logic;
 ```
 
-### 3-2. 플러그인 추상화 전략
-- **`BaseScrapParser`**: 화면 텍스트 노드를 표준 `SimplifiedOfficeOrder`로 파싱하는 인터페이스.
-- **`BaseAutomationEngine`**: 타겟 앱별 터치 자동화 (인성: 3단계 팝업, 24시: 단일 리스트 등).
-- **`EngineRouter`**: 현재 활성 앱의 Package Name을 감지하여 해당 플러그인 엔진으로 라우팅.
+### 3.2 9대 핵심 모듈 명세
+
+1. **ScreenDetector**: 현재 화면(노드)이 메인 리스트인지, 배차 팝업인지, 상세 팝업인지 감지합니다.
+2. **SessionManager**: 서버와의 세션(Online/Offline) 및 소켓 연결을 총괄합니다.
+3. **PopupSurfingMachine**: 오더를 낚아채기 위해 3단계 팝업(목록 -> 배차 팝업 -> 상세 팝업)을 자동으로 서핑하고 클릭하는 터치 매크로입니다.
+4. **CautionDongVerifier**: 1차 필터를 통과한 "동 이름만 있는 주소"의 동명이동 여부를 3단계 팝업에서 최종 검증합니다.
+5. **DeathValleyTimer (Task 9)**: 오더 리스트가 텅 비어 화면이 멈추는 데스밸리(Death Valley) 현상을 방지하기 위해, 일정 시간 오더가 없으면 빈 공간을 터치해 화면 갱신을 유도합니다.
+6. **SoundManager (Task 11)**: 배차 성공, 실패, 똥콜, 확정 등 상황별 사운드를 스마트하게 분리 재생하며, `SettingsScreen` UI와 연동되어 볼륨 조절을 지원합니다.
+7. **InsungParser**: 화면 텍스트 노드를 표준 `PendingOrder`로 파싱합니다.
+8. **ApiClient**: 서버와의 REST API 통신(오더 심사 요청, 텔레메트리 전송)을 담당합니다.
+9. **LocationTracker**: 백그라운드 GPS 트래킹 파이프라인.
 
 ---
 
-## 🚀 4. 리팩토링 진행 단계 (Phases)
+## 🌐 4. 시뮬레이터 환경 및 WebView 래퍼 제약 사항 (Task 21)
 
-1. **Phase 1: 아키텍처 및 코어 물리 분리** — `core`와 `plugins/insung` 패키지 생성, 인터페이스 기반 분해.
-2. **Phase 2: UI 껍데기 및 MVVM 세팅** — 2탭(상태/설정) 구조 생성, ViewModel 도입.
-3. **Phase 3: 관제 서버 통신 모듈 연동 및 테스트** — EngineRouter 통해 새 엔진 동작 검증.
+A24 실기기를 대체하거나 보완하기 위한 시뮬레이터(PC 환경)에서 동작하는 래퍼(Wrapper) 앱에 대한 제약 사항입니다.
+
+- **풀스크린 및 메뉴바 개선**: 시뮬레이터의 안드로이드 시스템 UI(상단바, 하단 네비게이션바)에 의해 앱 하단의 주요 메뉴가 가려지는 현상이 있었습니다. 이를 방지하기 위해 래퍼 앱 수준에서 풀스크린 모드를 해제하고, 시뮬레이터 전체 메뉴가 노출되도록 `WindowInsets` 여백을 강제 할당하여 UI 겹침 버그를 해결했습니다.

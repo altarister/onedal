@@ -27,5 +27,11 @@ class ScrapParser(private val context: Context, targetApp: String) : IScrapParse
 
     override fun parse(texts: List<String>): SimplifiedOfficeOrder = delegate.parse(texts)
     override fun shouldClick(order: SimplifiedOfficeOrder): Boolean = delegate.shouldClick(order)
-    override fun parsePickupDistance(rawText: String): Double? = delegate.parsePickupDistance(rawText)
+    override fun parsePickupDistance(rawText: String): Double? {
+        return delegate.parsePickupDistance(rawText)
+    }
+
+    override fun groupListNodes(allNodes: List<ScreenTextNode>): List<Pair<ScreenTextNode, List<String>>> {
+        return delegate.groupListNodes(allNodes)
+    }
 }

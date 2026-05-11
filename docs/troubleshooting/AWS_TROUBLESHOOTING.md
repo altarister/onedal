@@ -67,3 +67,23 @@ cd /Users/seungwookkim/reps/onedal
 *   **원인**: 소스코드나 로직 결함이 아닌, 실제 **[Kakao Developers 콘솔]** 상에서 해당 REST API Key를 품고 있는 앱의 **'카카오맵(Local API)' 제품 권한 스위치가 꺼져 있어(Disabled)** 발생한 시스템적 호출 거부.
 *   **조치**: 카카오 데브 콘솔 접속 ➡️ `[내 애플리케이션]` ➡️ 좌측 하단 스크롤 ➡️ `[제품 설정]` - `[카카오맵]` 접속 ➡️ **사용 설정 스위치 `[ON]`** 전환.
 *   **결과**: 스위치를 켜자마자 서버 재부팅 없이 즉각적으로 카카오 좌표 변환이 뚫리면서, 단독 주행 예상 거리/시간 연산 파이프라인이 정상 작동함.
+
+---
+
+## 🛠️ [추가] AWS EC2 시스템 및 환경 변수 튜닝 (Task 20, 30)
+
+### 1. EC2 스왑 메모리 및 iptables 튜닝 (Task 20)
+1DAL 관제탑이 구동되는 프리티어(t2.micro) EC2 인스턴스는 물리 RAM이 1GB로 매우 부족하여, Node.js V8 엔진의 힙 아웃오브메모리(OOM)가 발생할 수 있습니다.
+- **스왑 메모리 2GB 확보**: `/swapfile`을 생성하여 디스크 용량을 가상 메모리로 활용, Node.js 프로세스의 강제 종료를 방어합니다.
+  ```bash
+  sudo fallocate -l 2G /swapfile
+  sudo chmod 600 /swapfile
+  sudo mkswap /swapfile
+  sudo swapon /swapfile
+  ```
+- **iptables 튜닝 유지**: 80번 포트로 들어오는 트래픽을 Nginx 없이 직접 PM2(4000번 포트)로 우회시키는 리눅스 커널 규칙(`iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-ports 4000`)이 서버 재부팅 시 초기화되지 않도록 `iptables-persistent` 패키지로 고정해야 합니다.
+
+### 2. 클라이언트 `EC2_HOST` 환경 변수 동적 바인딩 (Task 30)
+앱과 서버가 통신할 때 IP 하드코딩을 방지하기 위해 환경 변수를 활용합니다.
+- VITE 빌드 시 클라이언트 코드에 주입되는 `VITE_API_BASE_URL`을 `.env`의 `EC2_HOST` 변수와 매핑하여 동적으로 바인딩합니다.
+- 서버 IP가 변경(예: EC2 재시작으로 인한 유동 IP 변경)되더라도, 클라이언트 코드를 일일이 수정할 필요 없이 PM2 생태계 파일(`ecosystem.config.cjs`)과 `.env`만 수정하고 재빌드하여 신속하게 대응할 수 있습니다.

@@ -11,6 +11,7 @@ import com.onedal.app.plugins.insung.InsungKeywords
 import com.onedal.app.core.AutoTouchManager
 import com.onedal.app.core.ScrapParser
 import com.onedal.app.core.ScreenKeywords
+import com.onedal.app.core.ScreenTextNode
 import com.onedal.app.core.engine.ScreenDetector
 import com.onedal.app.core.engine.SessionManager
 import com.onedal.app.core.engine.PopupSurfingMachine
@@ -247,16 +248,12 @@ class HijackService : AccessibilityService() {
         val allNodes = mutableListOf<ScreenTextNode>()
         extractAllTextNodes(rootNode, allNodes)
 
-        // 1) 요금처럼 생긴 숫자를 먼저 찾기
-        val fareNodes = allNodes.filter { it.isFareCandidate() }
+        // 앱별 앵커 노드 감지 및 텍스트 그룹화 로직을 파서(ScrapParser)로 위임
+        val groupedNodes = scrapParser.groupListNodes(allNodes)
 
-        // 2) 각 요금 노드의 같은 가로줄(Row) 텍스트를 한 세트로 묶어 파싱
-        for (fareNode in fareNodes) {
-            val rowNodes = allNodes.filter {
-                it.rect.top < fareNode.rect.bottom && it.rect.bottom > fareNode.rect.top
-            }
-            val rowTexts = rowNodes.map { it.text }
-            val order = scrapParser.parse(rowTexts)
+        // 각 요금 노드 기준으로 텍스트 세트를 묶어 파싱
+        for ((fareNode, cardTexts) in groupedNodes) {
+            val order = scrapParser.parse(cardTexts)
 
             if (order.fare == 0) continue  // 파싱 실패 → 스킵
 
@@ -276,11 +273,10 @@ class HijackService : AccessibilityService() {
                     AppLogger.d(TAG, "📝 [AUTO] 2차 검증 반송(취소)에 대비해 해당 콜 지문 선(先)기록 완료 (해시: $orderHash)")
                     processedOrderHashes.add(orderHash)
                     
-
-                    
+                    val appLabel = keywords.appLabel
                     AppLogger.roadmap("리스트에서 바뀐 text 감지 후 text 추출", telemetryManager.currentScreenContext.name)
                     touchManager.performSimulatedTouch(fareNode.node)
-                    AppLogger.roadmap("[인성 Socket] 인성콜에 선택된 콜 정보 전달 (꿀콜 클릭!)", telemetryManager.currentScreenContext.name)
+                    AppLogger.roadmap("[$appLabel] 선택된 콜 정보 전달 (꿀콜 클릭!)", telemetryManager.currentScreenContext.name)
                     
                     session.isAutoActive = true // 사냥 시작!
                     session.setOrderId(order.id)
@@ -394,20 +390,25 @@ class HijackService : AccessibilityService() {
             
             // ⚡ AUTO 모드 확정 버튼 처리 (자동 사냥 중일 때만)
             if (session.isAutoActive) {
+                // 앱별 확정/취소 버튼 텍스트 가져오기
+                val confirmBtnTexts = keywords.confirmKeywords
+                val cancelBtnText = keywords.cancelKeyword
+                val appLabel = keywords.appLabel
+
                 // ── [3단계 팝업에서 돌아온 경우] ──
                 when (session.cautionAction) {
                     "ACCEPT" -> {
                         session.cautionAction = null
                         AppLogger.d(TAG, "✅ [3단계 통과] 진짜 우리 동네! 확정 클릭!")
-                        AppLogger.roadmap("상세페이지에서 '확정' 추출 후 클릭 (동명이동 3단계 검증 통과)", telemetryManager.currentScreenContext.name)
-                        AppLogger.roadmap("[인성 Socket] 콜 확정 완료", telemetryManager.currentScreenContext.name)
-                        touchManager.findAndClickByText(rootNode, "확정", isStartsWith = true)
+                        AppLogger.roadmap("상세페이지에서 확정 버튼 클릭 (동명이동 3단계 검증 통과)", telemetryManager.currentScreenContext.name)
+                        AppLogger.roadmap("[$appLabel] 콜 확정 완료", telemetryManager.currentScreenContext.name)
+                        clickFirstMatchingButton(rootNode, confirmBtnTexts)
                     }
                     "CANCEL" -> {
                         session.cautionAction = null
                         AppLogger.w(TAG, "❌ [3단계 적발] 동명이동! 패널티 없이 취소!")
-                        AppLogger.roadmap("상세페이지에서 '취소' 추출 후 클릭 (동명이동 3단계 적발)", telemetryManager.currentScreenContext.name)
-                        if (!touchManager.findAndClickByText(rootNode, "취소", isStartsWith = true)) {
+                        AppLogger.roadmap("상세페이지에서 '$cancelBtnText' 클릭 (동명이동 3단계 적발)", telemetryManager.currentScreenContext.name)
+                        if (!touchManager.findAndClickByText(rootNode, cancelBtnText, isStartsWith = true)) {
                             touchManager.performBack()
                         }
                         AppLogger.roadmap("리스트 페이지 진입 (동명이동 회피 성공)", telemetryManager.currentScreenContext.name)
@@ -426,11 +427,11 @@ class HijackService : AccessibilityService() {
                             val hasCityOnScreen = cityFilters.any { screenStr.contains(it, ignoreCase = true) }
 
                             if (hasCityOnScreen) {
-                                // 2단계 통과! 화면에 "부천시"가 이미 적혀있음 → 즉시 확정
+                                // 2단계 통과! 화면에 상위 지역이 이미 적혀있음 → 즉시 확정
                                 AppLogger.d(TAG, "✅ [2단계 통과] 화면에서 상위 지역 확인! 즉시 확정!")
-                                AppLogger.roadmap("상세페이지에서 '확정' 추출 후 클릭 (동명이동 2단계 통과)", telemetryManager.currentScreenContext.name)
-                                AppLogger.roadmap("[인성 Socket] 콜 확정 완료", telemetryManager.currentScreenContext.name)
-                                touchManager.findAndClickByText(rootNode, "확정", isStartsWith = true)
+                                AppLogger.roadmap("상세페이지에서 확정 버튼 클릭 (동명이동 2단계 통과)", telemetryManager.currentScreenContext.name)
+                                AppLogger.roadmap("[$appLabel] 콜 확정 완료", telemetryManager.currentScreenContext.name)
+                                clickFirstMatchingButton(rootNode, confirmBtnTexts)
                             } else {
                                 // 2단계 보류 → 3단계(팝업) 돌입!
                                 AppLogger.w(TAG, "⚠️ [3단계 돌입] 화면에 상위 지역 없음! 도착지 팝업 호출!")
@@ -441,9 +442,9 @@ class HijackService : AccessibilityService() {
                         } else {
                             // 일반 콜: 기존처럼 즉시 광클 (선빵필승)
                             AppLogger.d(TAG, "🚀 [AUTO] 확정 버튼 광클 (배차 시도)")
-                            AppLogger.roadmap("상세페이지에서 '확정' 추출 후 클릭", telemetryManager.currentScreenContext.name)
-                            AppLogger.roadmap("[인성 Socket] 콜 확정 완료", telemetryManager.currentScreenContext.name)
-                            touchManager.findAndClickByText(rootNode, "확정", isStartsWith = true)
+                            AppLogger.roadmap("상세페이지에서 확정 버튼 클릭", telemetryManager.currentScreenContext.name)
+                            AppLogger.roadmap("[$appLabel] 콜 확정 완료", telemetryManager.currentScreenContext.name)
+                            clickFirstMatchingButton(rootNode, confirmBtnTexts)
                         }
                     }
                 }
@@ -451,10 +452,11 @@ class HijackService : AccessibilityService() {
         } else {
             // [AUTO 모드이면서 2차 필터 실패] -> 서버 보고 생략하고 즉시 취소 버튼 회피 기동
             session.isDetailScrapSent = true // 다음 사이클 스킵을 위해 마킹
-            AppLogger.d(TAG, "⚠️ [2차 필터 실패] 상세 정보를 확인한 결과 똥콜(블랙리스트 등)로 판명됨. '취소' 회피 기동!")
+            val cancelBtnForReject = keywords.cancelKeyword
+            AppLogger.d(TAG, "⚠️ [2차 필터 실패] 상세 정보를 확인한 결과 똥콜(블랙리스트 등)로 판명됨. '$cancelBtnForReject' 회피 기동!")
             
-            AppLogger.roadmap("상세페이지에서 '취소' 추출 후 클릭", telemetryManager.currentScreenContext.name)
-            if (!touchManager.findAndClickByText(rootNode, "취소", isStartsWith = true)) {
+            AppLogger.roadmap("상세페이지에서 '$cancelBtnForReject' 추출 후 클릭", telemetryManager.currentScreenContext.name)
+            if (!touchManager.findAndClickByText(rootNode, cancelBtnForReject, isStartsWith = true)) {
                 touchManager.performBack()
             }
             
@@ -683,6 +685,22 @@ class HijackService : AccessibilityService() {
         return resid
     }
 
+    /**
+     * 앱별 확정 버튼 텍스트 리스트 중 첫 번째로 발견되는 버튼을 클릭합니다.
+     * 화물24시: "배차신청" → "전화걸기" 순으로 시도
+     * 인성콜: "확정" 하나만 시도
+     */
+    private fun clickFirstMatchingButton(rootNode: AccessibilityNodeInfo, buttonTexts: List<String>): Boolean {
+        for (btnText in buttonTexts) {
+            if (touchManager.findAndClickByText(rootNode, btnText, isStartsWith = true)) {
+                AppLogger.d(TAG, "✅ 버튼 '$btnText' 클릭 성공!")
+                return true
+            }
+        }
+        AppLogger.e(TAG, "❌ 확정 버튼을 찾을 수 없음: ${buttonTexts.joinToString(", ")}")
+        return false
+    }
+
     /** 현재 ISO 타임스탬프 생성 */
     private fun nowTimestamp(): String {
         return SimpleDateFormat(ISO_TIMESTAMP_FORMAT, Locale.getDefault()).format(Date())
@@ -734,18 +752,4 @@ class HijackService : AccessibilityService() {
     }
 }
 
-// ════════════════════════════════════════════════════════════════
-//  데이터 모델
-// ════════════════════════════════════════════════════════════════
 
-/** 화면에서 추출된 텍스트 한 칸 (좌표 + 노드 참조 포함) */
-data class ScreenTextNode(
-    val text: String,
-    val node: AccessibilityNodeInfo,
-    val rect: Rect
-) {
-    /** 이 텍스트가 차종(Row의 기준축)인지 판별 (예: "오", "다", "라", "1t" 등) */
-    fun isFareCandidate(): Boolean {
-        return text.matches(Regex("^(오|다|라|1t|1\\.4|2\\.5t?|3\\.5t?|5t|11t|14t|18t|25t)$"))
-    }
-}

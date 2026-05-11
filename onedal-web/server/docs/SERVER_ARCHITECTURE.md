@@ -1,12 +1,16 @@
-# 🏛️ 1DAL 백엔드 서버 아키텍처 명세 (Node.js)
+# 🏛️ 1DAL 백엔드 서버 아키텍처 명세 (Node.js / ESM)
 
-본 문서는 리팩토링된 1DAL 백엔드 서버의 전체 구조와 핵심 파이프라인, 그리고 폴더 스펙을 정의합니다. `dispatchEngine.ts` (God Object) 해체 이후 새롭게 정립된 **단일 책임 원칙(SRP)** 및 **플러그인 아키텍처**를 기반으로 작성되었습니다.
+본 문서는 리팩토링된 1DAL 백엔드 서버의 전체 구조와 핵심 파이프라인, 그리고 폴더 스펙을 정의합니다. `dispatchEngine.ts` (God Object) 해체 이후 새롭게 정립된 **단일 책임 원칙(SRP)** 및 **도메인/유스케이스/플러그인 3계층 아키텍처(V2)**를 기반으로 작성되었습니다.
+
+> [!NOTE]
+> **ES Module (ESM) 완벽 전환 (Task 22)**
+> 최신 백엔드 코드는 레거시 `require()` 문법을 모두 걷어내고, 100% 최신 `import/export` 기반의 ESM(ES Module) 시스템으로 마이그레이션되었습니다.
 
 ---
 
-## 1. 전체 시스템 아키텍처 개요
+## 1. 전체 시스템 아키텍처 개요 (V2 3계층 설계)
 
-안드로이드 앱에서 수집된 스크래핑 데이터는 라우터를 거쳐 백엔드 핵심 엔진인 `OrderEvaluator`로 전달됩니다. 평가는 **플러그인, 요율 엔진, 라우팅 알고리즘**의 도움을 받아 처리되며, 최종 결과는 `StateMachine`을 통해 세션 상태에 반영된 후 피기백(Piggyback) 프로토콜로 앱에 반환됩니다.
+안드로이드 앱에서 수집된 스크래핑 데이터는 라우터를 거쳐 백엔드 핵심 엔진인 `OrderEvaluator`로 전달됩니다. 평가는 **플러그인(다중 앱 지원), 도메인 로직(요율 연산), 유스케이스(라우팅 알고리즘)**의 3계층으로 철저히 분리되어 처리되며, 최종 결과는 `StateMachine`을 통해 세션 상태에 반영된 후 피기백(Piggyback) 프로토콜로 앱에 반환됩니다.
 
 ```mermaid
 graph TD
@@ -14,15 +18,15 @@ graph TD
         A[스크래핑 데이터 발송] -->|POST /api/scrap| B(routes/scrap.ts)
     end
 
-    subgraph "Backend Core Pipeline"
-        B -->|1. 데이터 전달| C{OrderEvaluator<br/>(콜 심사 엔진)}
+    subgraph "Backend Core Pipeline (V2 3-Tier Architecture)"
+        B -->|1. 데이터 전달| C{OrderEvaluator<br/>(콜 심사 유스케이스)}
         
         C -->|2. 앱별 규칙 호출| P[plugins/IAppPlugin]
         P -.-> P1(InsungPlugin)
         P -.-> P2(Hwamul24Plugin)
 
         C -->|3. 거리/소요시간 연산| S1(kakaoService / osrmUtil)
-        C -->|4. 동적 요율 연산| S2(PricingEngine)
+        C -->|4. 동적 요율 도메인 연산| S2(PricingEngine)
 
         C -->|5. 종합 결과 반환| D[StateMachine<br/>(상태 관리 엔진)]
     end
@@ -54,13 +58,13 @@ graph TD
 
 ```text
 server/src/
-├── core/                        # 백엔드 핵심 비즈니스 로직
+├── core/                        # 백엔드 핵심 비즈니스 로직 (Domain & UseCase)
 │   ├── engine/                  # 분리된 도메인 엔진 (순수 로직)
 │   │   ├── OrderEvaluator.ts    # 필터 검증 -> 카카오 연산 -> 꿀/똥 판독 파이프라인
 │   │   ├── PricingEngine.ts     # 차종별 단가, 수수료, 마진율 계산기
 │   │   ├── StateMachine.ts      # 합짐 페이즈(STANDBY -> GATHERING) 전이 및 메모리 관리
 │   │   └── RouteManager.ts      # 서버 재시작 시 궤적 복구 및 경로 재탐색 총괄
-│   └── plugins/                 # 다중 앱 지원을 위한 어댑터 패턴 적용
+│   └── plugins/                 # 다중 앱 지원을 위한 플러그인 계층 (Plugin Layer)
 │       ├── IAppPlugin.ts        # 인터페이스 명세
 │       ├── insung/              # 인성콜 전용 정규화 및 필터 규칙
 │       └── hwamul24/            # 화물24 전용 정규화 및 필터 규칙
@@ -119,3 +123,23 @@ server/src/
 4. 소켓 통신: React 프론트엔드로 `order-evaluated` 이벤트 푸시
 5. 관제사 개입: React 프론트엔드에서 결재(KEEP/CANCEL) 시 `StateMachine`에 판단 등록
 6. 피기백 반환: 이어지는 다음 `POST /api/scrap`의 HTTP `200 OK` 응답 본문에 관제사 판단을 실어서(Piggyback) 앱으로 반환
+
+---
+
+## 5. 서버 생명주기 및 상태 복구 (Recovery)
+
+서버가 예기치 않게 종료되거나 재시작되더라도, 기존에 평가 중이거나 진행 중이던 오더의 상태를 안전하게 복원합니다. **(Task 5)**
+
+- **궤적 및 상태 복구 로직**: `RouteManager` 및 부트스트랩 스크립트는 서버 시작 시 데이터베이스에서 `isActive=true` 상태의 오더를 조회하여 메모리(`StateMachine`)에 복원합니다. 이를 통해 OSRM 라우팅 궤적과 앱 통신 상태가 매끄럽게 이어집니다.
+
+---
+
+## 6. 성능 최적화 및 안정성 보장
+
+1DAL 백엔드는 초당 수백 건의 실시간 위치 연산을 견디기 위해 다음과 같은 방어 로직을 적용했습니다.
+
+- **Event Loop 7초 블로킹 원천 차단 (Task 12)**:
+  `filterManager` 내부의 폴리곤 교차 연산(`recalculateDerivedFields`)은 CPU 자원을 대량 소모합니다. 필터 반경(Radius)이나 기준 위치가 변하지 않았을 때는 연산을 스킵하는 **가드 클로즈(Guard Clause) 캐싱 기법**을 도입하여, Node.js의 싱글 스레드 Event Loop가 7초 이상 블로킹되는 치명적 버그를 원천 차단했습니다.
+
+- **웹훅(Webhook) 중복 호출 방어 (Task 29)**:
+  서버 재시작 시 상태를 복구(Recovery)하는 과정에서 기존 오더 상태가 재평가되며 React 클라이언트로 수십 개의 소켓 웹훅 이벤트가 폭주하는 현상이 있었습니다. 이를 막기 위해 이벤트 브로드캐스트 캐싱을 도입하여 중복 호출을 최적화했습니다.

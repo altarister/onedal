@@ -340,4 +340,20 @@ class InsungParser(private val context: Context) : IScrapParser {
 
         return null
     }
+
+    // ════════════════════════════════════════════════════════════════
+    //  groupListNodes(): 인성콜 Row 기반 노드 그룹화
+    // ════════════════════════════════════════════════════════════════
+    
+    override fun groupListNodes(allNodes: List<ScreenTextNode>): List<Pair<ScreenTextNode, List<String>>> {
+        val fareRegex = Regex("^(오|다|라|1t|1\\.4|2\\.5t?|3\\.5t?|5t|11t|14t|18t|25t)$")
+        val fareNodes = allNodes.filter { it.text.matches(fareRegex) }
+        
+        return fareNodes.map { fareNode ->
+            val rowNodes = allNodes.filter {
+                it.rect.top < fareNode.rect.bottom && it.rect.bottom > fareNode.rect.top
+            }
+            Pair(fareNode, rowNodes.map { it.text })
+        }
+    }
 }
