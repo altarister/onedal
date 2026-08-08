@@ -336,36 +336,6 @@ class ApiClient(private val context: Context) {
         }
     }
 
-    /**
-     * 수동 배차 결정 전송 (POST /api/orders/decision)
-     * 앱 내에서 닫기/취소 등 최종 승인(KEEP/CANCEL)을 서버로 직통 통보합니다.
-     */
-    fun sendDecision(orderId: String, action: String) {
-        dispatchExecutor.submit {
-            try {
-                // 웹 대시보드와 동일한 규격: { orderId, action }
-                val jsonBody = """{"orderId":"$orderId", "action":"$action"}"""
-                AppLogger.d(TAG, "📲 [Decision 전송] orderId=${orderId}, action=${action}")
-                val targetUrl = getTargetUrl("/api/orders/decision")
-
-                val result = executeWithRetry(targetUrl, jsonBody, "/decision", timeoutMs = 10000)
-
-                if (result != null) {
-                    val (code, body) = result
-                    if (code == 200) {
-                        AppLogger.d(TAG, "📲 [Decision 응답] $body")
-                    } else {
-                        AppLogger.e(TAG, "📲 [Decision 서버 에러] HTTP $code")
-                    }
-                } else {
-                    AppLogger.e(TAG, "📲 [Decision 전송 실패] 재시도 포함 모든 시도 실패")
-                }
-            } catch (e: Exception) {
-                AppLogger.e(TAG, "📲 [Decision 전송 실패] ${e.message}")
-            }
-        }
-    }
-
     fun fetchKeywords() {
         telemetryExecutor.submit {
             var conn: java.net.HttpURLConnection? = null

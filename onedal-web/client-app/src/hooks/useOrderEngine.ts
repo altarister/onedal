@@ -66,10 +66,8 @@ export function useOrderEngine() {
             setActiveOrders([]);
         };
         const onDisconnect = () => setIsConnected(false);
-        const onNewOrder = (newOrder: SimplifiedOfficeOrder) => {
-            setOrders((prev) => [...prev, newOrder]);
-            soundManager.playBeep();
-        };
+        // ※ `new-order` 리스너 제거됨 (Phase 0): 유일한 발신처였던 레거시 `POST /api/orders`가
+        //    삭제되어 이 이벤트는 더 이상 발생하지 않습니다.
 
         // 1단계: 1차 선빵 수신 (BASIC) — 닫기/취소 버튼 노출
         const onOrderEvaluating = (secured: SecuredOrder) => {
@@ -155,7 +153,6 @@ export function useOrderEngine() {
 
         socket.on("connect", onConnect);
         socket.on("disconnect", onDisconnect);
-        socket.on("new-order", onNewOrder);
         socket.on("order-evaluating", onOrderEvaluating);
         socket.on("order-detail-received", onOrderDetailReceived);
         socket.on("order-evaluated", onOrderEvaluated);
@@ -236,7 +233,6 @@ export function useOrderEngine() {
         return () => {
             socket.off("connect", onConnect);
             socket.off("disconnect", onDisconnect);
-            socket.off("new-order", onNewOrder);
             socket.off("order-evaluating", onOrderEvaluating);
             socket.off("order-detail-received", onOrderDetailReceived);
             socket.off("order-evaluated", onOrderEvaluated);

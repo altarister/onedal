@@ -26,12 +26,10 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            buildConfigField("String", "SERVER_URL", "\"https://1dal.altari.com/api/orders\"")
-        }
-        debug {
-            buildConfigField("String", "SERVER_URL", "\"https://1dal.altari.com/api/orders\"")
         }
     }
+    // 서버 URL은 BuildConfig가 아니라 SharedPreferences(isLiveMode / localPcIp)가 결정합니다.
+    // → ApiClient.getTargetUrl() 참조
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11

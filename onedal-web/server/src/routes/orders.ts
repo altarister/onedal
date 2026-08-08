@@ -1,18 +1,19 @@
 /**
  * /api/orders 라우터
- * 
+ *
  * 다이어그램 대응:
- * - POST /api/orders       : 레거시 콜 수신 (유지)
  * - GET  /api/orders       : 대시보드 새로고침 시 기존 콜 목록
  * - POST /api/orders/confirm : 1차 선빵(BASIC) — 즉시 응답
- * 
+ * - POST /api/orders/decision: 앱 직통 결재 (KEEP/CANCEL)
+ *
  * ※ DETAILED(2차 상세보고)는 /api/orders/detail (detail.ts) 로 분리됨
  * ※ decision(관제사 판정)은 Socket.io 이벤트 `decision`으로 이관됨 (index.ts)
+ * ※ 레거시 `POST /api/orders`(무인증·userId 없이 INSERT·전역 브로드캐스트)는
+ *    소비처 0건 확인 후 제거됨 (Phase 0)
  */
 
 import { Router } from "express";
-import crypto from "crypto";
-import type { SimplifiedOfficeOrder, DispatchConfirmRequest, PendingOrder, OrderStatus } from "@onedal/shared";
+import type { DispatchConfirmRequest, PendingOrder, OrderStatus } from "@onedal/shared";
 import db from "../db";
 import { getUserSession } from "../state/userSessionStore";
 import { forceCancelEvaluatingOrder, handleDecision } from "../services/dispatchEngine";
@@ -21,72 +22,6 @@ import { requireAuth } from "../middlewares/authMiddleware";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 
 const router = Router();
-
-// POST: 스캐너에서 콜 수신 (레거시 호환용)
-router.post("/", (req, res) => {
-    try {
-        if (!req.body) {
-            return res.status(400).json({ error: "잘못된 JSON 페이로드 형식입니다." });
-        }
-        
-        const { type, pickup, dropoff, fare, timestamp } = req.body as SimplifiedOfficeOrder;
-
-        if (!pickup || !dropoff) {
-            return res.status(400).json({ error: "필수 데이터(pickup, dropoff)가 누락되었습니다" });
-        }
-
-        type DbOrderRow = SimplifiedOfficeOrder & { status: string; capturedAt?: string };
-
-        const now = new Date().toISOString();
-        const newOrder: DbOrderRow = {
-            id: crypto.randomUUID(),
-            type: type || "NEW_ORDER",
-            pickup,
-            dropoff,
-            fare: fare || 0,
-            timestamp: timestamp || now,
-            status: "ORDER_PRE_SECURED",
-            capturedAt: req.body.capturedAt || now,
-        };
-
-        // DB에 저장
-        const stmt = db.prepare(
-            "INSERT INTO orders (id, type, pickup, dropoff, fare, timestamp, status, capturedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
-        );
-        stmt.run(
-            newOrder.id,
-            newOrder.type,
-            newOrder.pickup,
-            newOrder.dropoff,
-            newOrder.fare,
-            newOrder.timestamp,
-            newOrder.status,
-            newOrder.capturedAt
-        );
-
-        // Socket.io로 즉시 발송
-        const io = req.app.get("io");
-        if (io) {
-            io.emit("new-order", newOrder);
-            console.log(`🆕 [새 콜 수신 + 소켓 전송] ${pickup} ➡️ ${dropoff} (${fare}원)`);
-        } else {
-            console.log(`🆕 [새 콜 수신] ${pickup} ➡️ ${dropoff} (${fare}원) (소켓 전송 실패)`);
-        }
-
-        // 서버에 저장된 총 콜 수 반환
-        const countStmt = db.prepare("SELECT COUNT(*) as count FROM orders");
-        const totalOrders = (countStmt.get() as { count: number })?.count || 0;
-
-        res.json({
-            success: true,
-            order: newOrder,
-            totalOrders,
-        });
-    } catch (error) {
-        console.error("Orders POST 에러:", error);
-        res.status(500).json({ error: "서버 오류 발생" });
-    }
-});
 
 // GET: 대시보드 새로고침 시 기존 콜 목록 전달
 router.get("/", requireAuth, (req, res) => {

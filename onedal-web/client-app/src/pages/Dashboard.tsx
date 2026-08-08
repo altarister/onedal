@@ -52,6 +52,9 @@ export default function Dashboard() {
     const { simulationResults } = useKakaoRouting(pendingOrders, mainCall);
 
     // 귀가콜 자동 도착 알림 핸들러
+    // 🚨 TODO(미구현) — Phase 4에서 서버 구현 예정
+    // 서버에 `auto-arrived` emit이 0건이라 이 핸들러는 현재 절대 호출되지 않습니다.
+    // (geoService.processDriverMovement의 도착 감지 자체가 죽어 있음 — getLastDropoffCoord 참조)
     useEffect(() => {
         const onAutoArrived = (data: { message: string }) => {
             if (confirm(data.message + "\n\n배달 완료 처리하시겠습니까?")) {

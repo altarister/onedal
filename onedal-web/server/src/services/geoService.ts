@@ -301,7 +301,16 @@ export function haversineKm(lat1: number, lng1: number, lat2: number, lng2: numb
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-/** 현재 활성 경로의 폴리라인 추출 (합짐 경로 우선, 없으면 본콜) */
+/**
+ * 현재 활성 경로의 폴리라인 추출 (합짐 경로 우선, 없으면 본콜)
+ *
+ * 🚨 TODO(미구현) — Phase 4에서 복구 예정
+ * `session.subCalls` / `session.mainCallState`는 V2 리팩터링에서 `myOrders` 단일 배열로
+ * 통합되며 삭제된 필드입니다. 따라서 이 함수는 **항상 null을 반환**하고,
+ * 그 결과 processDriverMovement()의 회랑 트림(Corridor Trim)이 한 번도 실행되지 않습니다.
+ * 수정 시 `getActiveCalls(session)` 기반으로 재작성할 것.
+ * ⚠️ 되살리면 2km마다 getCorridorRegions(CPU ~7초)가 돌므로 반드시 성능 측정 후 플래그 적용.
+ */
 export function getActivePolyline(session: any): Array<{x: number; y: number}> | null {
     // 서브콜의 마지막 폴리라인(합짐 경로)이 있으면 우선
     if (session.subCalls?.length > 0) {
@@ -313,7 +322,13 @@ export function getActivePolyline(session: any): Array<{x: number; y: number}> |
     return null;
 }
 
-/** 마지막 하차지 좌표 추출 */
+/**
+ * 마지막 하차지 좌표 추출
+ *
+ * 🚨 TODO(미구현) — Phase 4에서 복구 예정
+ * getActivePolyline과 동일하게 삭제된 필드(`subCalls`/`mainCallState`)를 참조하므로
+ * **항상 null을 반환**합니다. 하차지 500m 도착 감지가 동작하지 않는 원인입니다.
+ */
 export function getLastDropoffCoord(session: any): {x: number; y: number} | null {
     // 서브콜이 있으면 마지막 서브콜의 하차지
     if (session.subCalls?.length > 0) {
