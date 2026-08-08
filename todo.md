@@ -250,6 +250,34 @@
   - 🔜 **A3 (미착수, Phase 3)**: 필터 해시 비교 → 안 바뀌었으면 `dispatchEngineArgs` 생략.
     평상시 13,458B → ~500B (−96%). 앱·서버 동시 배포 필요
 
+### 🆕 W. 서버 재시작 후 필터가 실제 적재 상태와 어긋남 ✅ 2026-08-09 수정 완료 🔴
+- [x] 재시작 시 `userSessionStore`가 `activeFilter`를 무조건 STANDBY/`isSharedMode=false`로 리셋하는데,
+  `restoreAndRecalculateSession`은 **myOrders와 궤적만 복구하고 필터는 손대지 않았다.**
+  - 실측(2026-08-09): DB에 진행 중 3건(광주→파주)인데 필터는 `STANDBY / isSharedMode=false / isActive=true`
+  - **위험 3가지**
+    1. `OrderEvaluator`는 `isSharedMode`일 때만 도착지 회랑을 검사 → **경로 이탈 콜도 통과**
+       (앱 1차 필터가 "파주행"만 거르므로 인천·수원에서 상차하는 파주행 콜을 잡을 수 있음)
+    2. `dispatchPhase==='STANDBY'`라 **첫짐 절대하한가(minFare)가 잘못 적용** (놓치는 쪽이라 덜 위험)
+    3. 남은 적재 공간 무시 — 이번엔 실린 3건이 전부 오토바이(0점)라 우연히 맞았지만,
+       **라보 2건이었다면 만재인데도 1t 콜을 잡으러 갔을 것**
+  - 이슈 R(`isShared` 플래그 어긋남)도 같은 뿌리
+  - ✅ **수정**: `restoreAndRecalculateSession` 끝에서 복구된 데이터로부터 상태를 **파생**
+    ```
+    dispatchPhase       = deriveDispatchPhase(driverAction, activeCalls.length)
+    isSharedMode        = true (활성 콜이 있을 때)
+    allowedVehicleTypes = getRemainingCapacityTypes(myVehicle, 실린 차종들)
+    destinationKeywords = syncCorridorFilter()  ← 복구된 폴리라인 기준 회랑 재계산
+    ```
+    - `shared`에 이미 있던 `deriveDispatchPhase`(사용처 0건)를 드디어 연결
+    - **상태를 저장했다 되살리는 대신 데이터에서 매번 파생** — 파생값은 어긋날 수 없다
+    - 복구 쿼리가 오늘 것만 가져오므로 "어제 상태가 살아남" 우려는 근거 없음 (주석 정정)
+  - ✅ **관제탑 배너**: `session-restored` 소켓 이벤트 → Dashboard 상단 알림.
+    이미 배달했는데 완료 처리를 안 한 건이 있으면 서버가 계속 "적재 중"으로 믿으므로
+    완료 처리를 유도한다
+  - ✅ 단위 테스트 7개 추가 (`tests/shared/dispatchPhase.test.ts`) — 이슈 W 재현 방어 포함
+  - 판단: 복구 시 사냥을 멈추지 않는다. 필터가 맞으면 위험 자체가 사라지고,
+    멈추면 기사가 배너를 못 볼 때 조용히 사냥이 정지해 콜을 놓친다
+
 ### 🆕 V. 컴파일 타임 상수 인라인으로 버전 마커가 거짓말을 함 ✅ 2026-08-09 수정 완료
 - [x] `BuildConfig.VERSION_NAME`은 `static final String` 컴파일 타임 상수라 **호출부에 값이 인라인**된다.
   `versionName`만 바꾸고 호출부 소스가 그대로면 `compileDebugKotlin`이 up-to-date로 판정되어
@@ -410,3 +438,4 @@
 | 2026-08-09 | — | `tsx watch` 간헐적 미감지 발견(U). 서버 수동 재시작 필요 | 📌 기록 |
 | 2026-08-09 | — | 버전 마커가 컴파일 타임 상수 인라인 때문에 옛 값을 표시(V). `AppInfo`로 런타임 조회 전환 후 해결 | ✅ |
 | 2026-08-09 | — | 실기기에 v1.2-capacity+logdiet(build 3) 설치·검증 완료. 화면과 dumpsys 일치 확인 | ✅ |
+| 2026-08-09 | 3 | **W 수정** — 재시작 복구 시 배차 상태를 데이터에서 파생(단계·합짐·차종·회랑) + 관제탑 배너. 테스트 7개 추가(총 39개) | ✅ 코드 |

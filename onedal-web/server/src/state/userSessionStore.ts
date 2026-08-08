@@ -79,7 +79,14 @@ export function getUserSession(userId: string): UserSession {
                 } as AutoDispatchFilter;
 
                 // [완전 격리] activeFilter = baseFilter의 독립 복사본 (로그인 시 1회만)
-                // 세션 복구 시 런타임 상태는 항상 첫짐(EMPTY) (어제의 LOADING/DRIVING이 오늘 살아나는 것을 방지)
+                //
+                // 여기서는 일단 첫짐(STANDBY)으로 시작한다. 이 시점에는 아직 myOrders가
+                // 비어 있어 실제 적재 상태를 알 수 없기 때문이다.
+                // 진행 중인 콜이 있으면 이후 restoreAndRecalculateSession()이 DB에서
+                // 콜을 복구한 뒤 dispatchPhase / isSharedMode / allowedVehicleTypes /
+                // 회랑 키워드를 **데이터로부터 다시 파생**시켜 덮어쓴다. (이슈 W)
+                // 그 연결이 없던 동안, 진행 중인 콜이 3건 있어도 필터는 첫짐인 채로
+                // 사냥이 돌아 경로를 벗어난 콜을 잡을 수 있는 상태였다.
                 const { getCityRegionsWithRadius } = require('../services/geoService');
                 const { getEligibleVehicleTypes } = require('@onedal/shared');
                 

@@ -19,6 +19,8 @@ export default function Dashboard() {
     const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
     const [isTestMode, setIsTestMode] = useState(false);
     const [viewFilter, setViewFilter] = useState<'ACTIVE' | 'COMPLETED' | 'CANCELED' | 'ALL'>('ACTIVE');
+    // [이슈 W] 서버 재시작으로 진행 중 콜이 복구됐을 때 표시할 배너
+    const [restoredInfo, setRestoredInfo] = useState<{ restoredCount: number; dispatchPhase: string } | null>(null);
 
     const {
         orders,
@@ -67,6 +69,20 @@ export default function Dashboard() {
         };
     }, []);
 
+    // [이슈 W] 서버 재시작 복구 알림
+    // 서버는 DB의 진행 중 콜로부터 배차 상태(합짐/차종/회랑)를 다시 파생시킨다.
+    // 다만 이미 배달했는데 완료 처리를 안 한 건이 있으면 서버는 계속 "적재 중"으로 믿고
+    // 합짐 필터를 좁게 유지하므로, 기사님이 완료 처리를 하도록 알려야 한다.
+    useEffect(() => {
+        const onSessionRestored = (data: { restoredCount: number; dispatchPhase: string }) => {
+            setRestoredInfo(data);
+        };
+        socket.on("session-restored", onSessionRestored);
+        return () => {
+            socket.off("session-restored", onSessionRestored);
+        };
+    }, []);
+
     return (
         <main className="min-h-screen bg-bg-base font-sans pb-24">
 
@@ -74,6 +90,29 @@ export default function Dashboard() {
             <Header isConnected={isConnected} />
 
             <div className="flex flex-col max-w-2xl mx-auto">
+
+                {/* 🔄 서버 재시작 복구 알림 */}
+                {restoredInfo && (
+                    <div className="mx-3 mt-3 rounded-xl border border-warning/40 bg-warning/10 px-4 py-3 flex items-start gap-3">
+                        <span className="text-lg leading-none mt-0.5">🔄</span>
+                        <div className="flex-1 text-sm">
+                            <p className="font-bold text-text-primary">
+                                서버 재시작으로 진행 중이던 콜 {restoredInfo.restoredCount}건을 복구했습니다.
+                            </p>
+                            <p className="text-text-muted mt-0.5">
+                                적재 상태({restoredInfo.dispatchPhase}) 기준으로 합짐 필터를 다시 계산했습니다.
+                                이미 완료하신 건이 있다면 <b>완료 처리</b>해 주세요. 그래야 남은 적재 공간이 정확해집니다.
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => setRestoredInfo(null)}
+                            className="text-text-muted hover:text-text-primary text-xs font-bold px-2 py-1"
+                            aria-label="알림 닫기"
+                        >
+                            닫기
+                        </button>
+                    </div>
+                )}
 
                 {/* 🎛️ 앱폰 제어 패널 */}
                 <DeviceControlPanel />

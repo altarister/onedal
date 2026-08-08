@@ -1,4 +1,4 @@
-import { mapVehicleToKakaoCarType, getRemainingCapacityTypes } from "@onedal/shared";
+import { mapVehicleToKakaoCarType, getRemainingCapacityTypes, deriveDispatchPhase } from "@onedal/shared";
 import type { SecuredOrder, AutoDispatchFilter, PricingConfig, PendingOrder, MyOrder } from "@onedal/shared";
 import { geocodeAddress, calculateSoloRoute, calculateDetourRoute, compareDirections } from "./kakaoService";
 import { fetchRealWorldRoute } from "../routes/osrmUtil";
@@ -691,8 +691,54 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
         }
 
         logRoadmapEvent("서버", `[Session DB Load] 궤적 복구 연산 완료. 클라이언트로 sync-active-orders 강제 전송`);
-        
-        // 5. 프론트엔드로 복구된 궤적 즉시 전송
+
+        // 5. [이슈 W] 복구된 데이터로부터 배차 상태를 다시 "파생"시킨다.
+        //
+        // 이전에는 myOrders와 궤적만 복구하고 activeFilter는 손대지 않아,
+        // 진행 중인 콜이 3건 있는데도 필터는 STANDBY(첫짐) / isSharedMode=false 인
+        // 상태로 사냥이 계속되었다. 그 결과
+        //   - OrderEvaluator가 도착지 회랑 검사를 건너뛰어 경로 이탈 콜도 통과
+        //   - 첫짐 절대하한가(minFare)가 잘못 적용
+        //   - 남은 적재 공간을 무시한 차종 허용 (라보 2건 만재여도 1t 콜을 잡으러 감)
+        //   - KEEP 시 isShared=0 으로 기록되어 통계 왜곡 (이슈 R)
+        //
+        // 상태를 따로 저장했다가 되살리는 대신 **데이터에서 매번 파생**시킨다.
+        // 저장된 상태는 실제와 어긋날 수 있지만 파생값은 어긋날 수 없다.
+        // (복구 쿼리가 오늘 것만 가져오므로 어제 상태가 살아날 우려도 없다)
+        const restoredActive = getActiveCalls(session);
+        if (restoredActive.length > 0) {
+            const myVehicle = SettingsRepository.getKakaoRoutingOptions(userId).vehicleType || '1t';
+            const loadedVehicles = restoredActive.map(c => c.vehicleType || myVehicle);
+            const phase = deriveDispatchPhase(session.activeFilter.driverAction ?? 'WAITING', restoredActive.length);
+
+            updateActiveFilter(userId, {
+                dispatchPhase: phase,
+                isSharedMode: true,
+                allowedVehicleTypes: getRemainingCapacityTypes(myVehicle, loadedVehicles),
+            }, io);
+
+            // 복구된 폴리라인 기준으로 회랑 키워드도 다시 뽑는다
+            // (baseFilter의 destinationCity 기준 키워드가 남아 있으면 엉뚱한 방향 콜을 잡는다)
+            syncCorridorFilter(userId, io);
+
+            const f = session.activeFilter;
+            console.log(`🔄 [상태 복구] 진행 중 ${restoredActive.length}건 → phase=${phase}, 합짐=ON, ` +
+                `추가 가능 차종=[${(f.allowedVehicleTypes || []).join(', ')}], 회랑 키워드=${(f.destinationKeywords || []).length}개`);
+            logRoadmapEvent("서버", `[Session DB Load] 진행 중 ${restoredActive.length}건 기준으로 배차 상태 재구성 (${phase}/합짐)`);
+
+            // 관제탑에 복구 사실을 알린다.
+            // 이미 배달했는데 완료 처리를 안 한 건이 있으면 서버는 계속 "적재 중"으로 믿고
+            // 합짐 필터를 좁게 유지하므로, 기사님이 완료 처리를 하도록 유도해야 한다.
+            if (io) {
+                io.to(userId).emit("session-restored", {
+                    restoredCount: restoredActive.length,
+                    dispatchPhase: phase,
+                    orderIds: restoredActive.map(c => c.id),
+                });
+            }
+        }
+
+        // 6. 프론트엔드로 복구된 궤적 즉시 전송
         if (io) {
             io.to(userId).emit("sync-active-orders", Array.from(session.pendingOrdersData.values()));
         }
