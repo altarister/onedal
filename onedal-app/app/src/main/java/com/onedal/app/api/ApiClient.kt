@@ -250,11 +250,28 @@ class ApiClient(private val context: Context) {
                     
                     if (scrapRes.dispatchEngineArgs != null) {
                         val filterJson = gson.toJson(scrapRes.dispatchEngineArgs)
+                        val prevFilterJson = prefs.getString("activeFilter", null)
                         prefs.edit().putString("activeFilter", filterJson).apply()
-                        
+
                         // 서버가 이제 Array로 내려주므로 Gson 파싱(역직렬화) 시 에러(IllegalStateException)가 전혀 발생하지 않음
                         val updatedFilter = gson.fromJson(filterJson, FilterConfig::class.java)
-                        AppLogger.d(TAG, "📋 [필터 동기화 (서버→앱) 적용됨] 맵핑된 필터 전체 스키마:\n$updatedFilter")
+
+                        // [Phase 3 / 이슈 A2] 로그 다이어트
+                        // 기존에는 필터 전체 스키마(키워드 400여 개 포함, ~10KB)를 매 응답마다 d 레벨로 찍었다.
+                        // 데스밸리 대기 중엔 1초 폴링이라 초당 10KB가 쌓여 logcat 버퍼 한계에 걸려
+                        // 문자열이 잘리고, 정작 봐야 할 로그가 묻혔다.
+                        // → 평소에는 요약 한 줄, 필터가 실제로 바뀐 순간에만 전체를 v 레벨로 남긴다.
+                        AppLogger.d(
+                            TAG,
+                            "📋 [필터 동기화] 차종 ${updatedFilter.allowedVehicleTypes.size}종 " +
+                                    "| 키워드 ${updatedFilter.destinationKeywords.size}개 " +
+                                    "| isActive=${updatedFilter.isActive} " +
+                                    "| ${if (updatedFilter.isSharedMode) "합짐" else "첫짐"} " +
+                                    "| minFare=${updatedFilter.minFare}"
+                        )
+                        if (prevFilterJson != filterJson) {
+                            AppLogger.v(TAG, "📋 [필터 변경 감지] 전체 스키마:\n$updatedFilter")
+                        }
                     }
                     
                     prefs.edit().putString("apiStatus", gson.toJson(scrapRes.apiStatus)).apply()

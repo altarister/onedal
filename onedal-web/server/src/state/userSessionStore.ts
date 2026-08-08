@@ -81,7 +81,7 @@ export function getUserSession(userId: string): UserSession {
                 // [완전 격리] activeFilter = baseFilter의 독립 복사본 (로그인 시 1회만)
                 // 세션 복구 시 런타임 상태는 항상 첫짐(EMPTY) (어제의 LOADING/DRIVING이 오늘 살아나는 것을 방지)
                 const { getCityRegionsWithRadius } = require('../services/geoService');
-                const { getSharedModeVehicleTypes } = require('@onedal/shared');
+                const { getEligibleVehicleTypes } = require('@onedal/shared');
                 
                 session.activeFilter = {
                     ...session.baseFilter,
@@ -94,12 +94,12 @@ export function getUserSession(userId: string): UserSession {
                 const { flat, grouped } = getCityRegionsWithRadius(city, radius);
                 session.activeFilter.destinationKeywords = flat;
                 session.activeFilter.destinationGroups = grouped;
-                session.activeFilter.allowedVehicleTypes = getSharedModeVehicleTypes(userVehicleType);
+                session.activeFilter.allowedVehicleTypes = getEligibleVehicleTypes(userVehicleType);
 
                 logRoadmapEvent("서버", `[Session DB Load] 유저 ${userId} 복구된 원본 필터(Raw DB): \n` + JSON.stringify(filterRow, null, 2));
             } else {
                 // 신규 유저: 서비스 권장 기본값으로 초기화
-                const { getSharedModeVehicleTypes } = require('@onedal/shared');
+                const { getEligibleVehicleTypes } = require('@onedal/shared');
 
                 session.baseFilter = { ...SERVICE_DEFAULT_FILTER } as AutoDispatchFilter;
                 session.activeFilter = {
@@ -109,7 +109,7 @@ export function getUserSession(userId: string): UserSession {
                     dispatchPhase: 'STANDBY',     // [V2]
                 } as AutoDispatchFilter;
                 session.activeFilter.destinationKeywords = [];
-                session.activeFilter.allowedVehicleTypes = getSharedModeVehicleTypes(userVehicleType);
+                session.activeFilter.allowedVehicleTypes = getEligibleVehicleTypes(userVehicleType);
 
                 // 서비스 권장 기본값을 DB에도 저장 (빈 껍데기가 아닌 의미 있는 초기값)
                 db.prepare(`

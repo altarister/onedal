@@ -1,4 +1,4 @@
-import { mapVehicleToKakaoCarType, getSharedModeVehicleTypes } from "@onedal/shared";
+import { mapVehicleToKakaoCarType, getRemainingCapacityTypes } from "@onedal/shared";
 import type { SecuredOrder, AutoDispatchFilter, PricingConfig, PendingOrder, MyOrder } from "@onedal/shared";
 import { geocodeAddress, calculateSoloRoute, calculateDetourRoute, compareDirections } from "./kakaoService";
 import { fetchRealWorldRoute } from "../routes/osrmUtil";
@@ -490,10 +490,19 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
         logRoadmapEvent("서버", "합짐을 위한 반경/목적지 추천 키워드로 다이나믹 필터 생성 연산");
 
         // ━━━ 3단계 State Machine 적용 ━━━
-        // 합짐 차종: 첫 짐 오더의 차종을 기준으로 남은 적재 가능 차종 추론
+        // 합짐 차종: [내 차 용량 − 확정된 콜 전부의 용량]으로 남은 적재 가능 차종을 추론한다.
+        //
+        // [Phase 3 / 이슈 S] 이전에는 getSharedModeVehicleTypes(첫 짐 차종) 하나만 보고
+        // "첫 짐 이하 등급"을 반환했다. 그 결과 오토바이급(가장 작은) 콜을 잡으면
+        // 허용 차종이 [오토바이] 하나로 줄어 합짐 사냥이 사실상 정지했다.
+        // 짐이 작을수록 공간이 더 남는데 범위가 좁아지는 역설이었다.
+        // 이제 내 차 용량에서 실제 적재분을 빼서 계산한다.
         const routingOpts = SettingsRepository.getKakaoRoutingOptions(userId);
-        const firstLoadVehicle = cachedOrder.vehicleType || routingOpts.vehicleType; // 차종 불명 시 기사 차종 Fallback
-        const sharedVehicleTypes = getSharedModeVehicleTypes(firstLoadVehicle);
+        const myVehicle = routingOpts.vehicleType || '1t';
+        // 방금 push한 confirmedOrder 포함, 현재 적재 중인 활성 콜 전부
+        const loadedVehicles = getActiveCalls(session).map(c => c.vehicleType || myVehicle);
+        const sharedVehicleTypes = getRemainingCapacityTypes(myVehicle, loadedVehicles);
+        console.log(`🚚 [적재 용량] 내 차: ${myVehicle} | 실은 짐: [${loadedVehicles.join(', ')}] → 추가 가능 차종: [${sharedVehicleTypes.join(', ')}]`);
 
         const transition = StateMachine.advanceOnKeep(session, cachedOrder, destinationKeywords, sharedVehicleTypes);
         if (transition.changed && transition.newFilter) {

@@ -14,7 +14,7 @@
 import db from "../db";
 import { getUserSession } from "./userSessionStore";
 import type { AutoDispatchFilter } from "@onedal/shared";
-import { getSharedModeVehicleTypes } from "@onedal/shared";
+import { getEligibleVehicleTypes } from "@onedal/shared";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { getCityRegionsWithRadius } from "../services/geoService";
 
@@ -78,7 +78,7 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
     // allowedVehicleTypes: 명시적으로 전달된 경우에만 사용, 아니면 기사 차종으로 자동 생성
     // (이 연산은 경량이므로 매번 실행해도 무방)
     if (!changes.allowedVehicleTypes) {
-        session.activeFilter.allowedVehicleTypes = getSharedModeVehicleTypes(session.userVehicleType || '1t');
+        session.activeFilter.allowedVehicleTypes = getEligibleVehicleTypes(session.userVehicleType || '1t');
     }
 }
 

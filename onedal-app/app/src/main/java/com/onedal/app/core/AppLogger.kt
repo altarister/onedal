@@ -1,13 +1,16 @@
 package com.onedal.app.core
 
 import android.util.Log
+import com.onedal.app.BuildConfig
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 object AppLogger {
-    // 💡 나중에 필요하시면 이 값을 false로 바꾸면 스팸 데이터 로그(v)가 한방에 사라집니다!
-    private const val SHOW_VERBOSE_LOGS = true 
+    // [Phase 3 / 이슈 A2] 디버그 빌드에서만 스팸성 v 로그를 남긴다.
+    // release APK에서는 자동으로 꺼져 배터리·성능 손해가 없다.
+    // (디버그 중에도 조용히 보고 싶으면 이 값을 false로 고정하면 된다)
+    private val SHOW_VERBOSE_LOGS = BuildConfig.DEBUG
 
     /**
      * 기본 디버그 로그 (Log.d 대체용)

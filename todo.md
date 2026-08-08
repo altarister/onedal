@@ -198,8 +198,8 @@
   - 신규 콜(`f134859d`, 분당구→탄현면) KEEP → **`status = ORDER_CONFIRMED`로 직접 기록됨** ✅
   - 이 사이클은 **합짐(Detour)** 이라 F+로 통일한 419행 코드도 실제 실행됨 (Waypoints 2, 궤적 883pt, ACK 정상)
 
-### 🆕 S. 첫 짐이 작을수록 합짐 사냥 범위가 좁아짐 (역설) — 2026-08-09 실기기 로그에서 발견 🔴
-- [ ] `shared/src/vehicles.ts:63` `getSharedModeVehicleTypes(v)` = `VEHICLE_OPTIONS.slice(0, idx+1)`
+### 🆕 S. 첫 짐이 작을수록 합짐 사냥 범위가 좁아짐 (역설) ✅ 2026-08-09 수정 완료
+- [x] `shared/src/vehicles.ts:63` `getSharedModeVehicleTypes(v)` = `VEHICLE_OPTIONS.slice(0, idx+1)`
   - `VEHICLE_OPTIONS`가 [오토바이, 다마스, 라보, 승용차, 1t, ...] 작은→큰 순이라
     **첫 짐이 `오토바이`면 `[오토바이]` 하나만 반환** → 합짐 사냥이 사실상 정지
   - 실측 로그: KEEP 전 `[오토바이, 다마스, 라보, 승용차, 1t]` → KEEP 후 **`[오토바이]`**
@@ -211,15 +211,54 @@
     |---|---|---|---|
     | `filterManager.ts:81`, `userSessionStore.ts:97,112` | 내 차종 | "내 차로 잡을 수 있는 콜 등급" | ✅ |
     | `dispatchEngine.ts:496` | 첫 짐 차종 | "남은 적재 공간" 의도 | ❌ |
-  - 수정 방향: 합짐용은 별도 함수로 분리하고 `내 차 용량 − 실은 짐` 기준으로 계산
-    (예: `getRemainingCapacityTypes(myVehicle, loadedVehicles[])`)
+  - **왜 두 의미로 쓰였나 (git 이력 추적)**
+    | 날짜 | 커밋 | 사건 |
+    |---|---|---|
+    | 4/22 | `963a8b5` | 함수 탄생. 파라미터명 `firstLoadVehicle`, 유일한 호출처는 dispatchEngine(합짐용) |
+    | 4/24 | `8b3e877` | filterManager가 같은 함수를 `userVehicleType`(내 차종)으로 재사용 |
+    - 이름이 인자의 의미를 안 담음(`getSharedModeVehicleTypes(x)`의 x가 뭔지 알 수 없음)
+    - 두 의미 모두 `string`이라 컴파일러가 못 잡음
+    - 우연히 둘 다 그럴듯한 결과를 냄
+    - **근본적으로 함수 입력이 부족했음** — 남은 공간은 `내 차 용량 − Σ실은 짐`인데
+      시그니처에 내 차 용량이 아예 없었다
 
-### 🆕 T. 필터 전체를 매 scrap 응답마다 로그 출력 (앱)
-- [ ] `ApiClient.kt` `AppLogger.d(TAG, "📋 [필터 동기화...] ...\n$updatedFilter")`
+  - ✅ **수정 (2026-08-09)** — 기사님 실측 규칙 반영
+    ```
+    적재 점수 (1t 트럭 = 30점): 1t×1 = 라보×2 = 다마스×3 = 승용차×5
+      오토바이 0(조수석, 상한없음) · 승용차 6 · 다마스 10 · 라보 15 · 1t 30 · 이후 톤당 30
+    ```
+    - `VEHICLE_CAPACITY` 명시 점수표 도입 → `VEHICLE_OPTIONS` 배열 순서 의존 제거
+      (⚠️ 배열은 UI용이며 승용차가 다마스보다 뒤에 있어 실제 용량 순서와 다름)
+    - `normalizeVehicleType()` — 앱 파서 축약코드(오/다/라) 보정
+    - **`getEligibleVehicleTypes(myVehicle)`** — 빈차 기준 수행 가능 등급 (filterManager, userSessionStore)
+    - **`getRemainingCapacityTypes(myVehicle, loadedVehicles[])`** — 합짐 잔여 공간 기준 (dispatchEngine)
+      인자 개수가 달라 **오용 시 컴파일 에러**
+    - dispatchEngine이 첫 짐 하나가 아니라 **`getActiveCalls()` 전부를 합산**하도록 변경
+    - 단위 테스트 24개 추가 (`tests/shared/vehicles.test.ts`) — 이슈 S 재현 방어 케이스 포함
+
+### 🆕 T. 필터 전체를 매 scrap 응답마다 로그 출력 (앱) ✅ 2026-08-09 수정 완료
+- [x] `ApiClient.kt` `AppLogger.d(TAG, "📋 [필터 동기화...] ...\n$updatedFilter")`
   - `destinationKeywords` 180개 + `destinationGroups` 전체를 매 응답마다 출력.
     데스밸리 대기 중엔 1초 폴링이라 초당 수 KB. logcat 4KB 한계에 걸려 `…�`로 잘림
   - 운전 중 배터리·성능 손해 + 정작 봐야 할 로그가 묻힘
-  - 수정: 요약만 출력(`키워드 180개, isActive=true, 차종 5종`) 또는 `AppLogger.v`로 강등
+  - ✅ **A2 수정**: 평소엔 요약 한 줄(`차종 N종 | 키워드 N개 | isActive | 첫짐/합짐 | minFare`),
+    필터가 실제로 바뀐 순간에만 전체를 `v` 레벨로. `AppLogger.SHOW_VERBOSE_LOGS`를
+    `BuildConfig.DEBUG`에 연동해 release 빌드에선 자동 off
+  - ✅ **A1 수정 (서버 페이로드)**: `/api/scrap` 응답에서 `destinationGroups` 제외.
+    앱의 `loadCurrentFilter()`가 파싱조차 하지 않는데 응답의 27%(약 3.6KB)를 차지하고 있었음.
+    관제탑은 소켓(`filter-updated`)으로 별도 수신하므로 무영향
+  - 🔜 **A3 (미착수, Phase 3)**: 필터 해시 비교 → 안 바뀌었으면 `dispatchEngineArgs` 생략.
+    평상시 13,458B → ~500B (−96%). 앱·서버 동시 배포 필요
+
+### 🆕 U. `tsx watch`가 파일 변경을 놓침 (로컬 개발 신뢰성)
+- [ ] `pnpm dev`의 `tsx watch src/index.ts`가 소스 수정을 감지하지 못하는 경우가 반복됨
+  - 2026-08-08 `OrderRepository.ts` 수정 → 미감지 (수동 재시작 필요)
+  - 2026-08-09 `scrap.ts` 수정 → 미감지 (서버 8/8 11:43 기동, 파일 8/9 01:01 수정)
+  - 그 사이 8/8 `index.ts` 수정은 정상 감지 → **간헐적**
+  - 증상이 위험한 이유: 고친 줄 알고 검증했는데 옛 코드가 돌고 있어 결론을 잘못 내리게 됨
+    (앱 APK 버전 혼동과 동일한 종류의 문제)
+  - 대응안: `tsx watch --clear-screen=false`로 재기동 로그를 명확히 하거나,
+    서버 기동 시 부팅 시각을 로그에 찍고 `/api/health`로 노출해 확인 가능하게 하기
 
 ### 🆕 R. `isShared` 플래그가 실제 합짐 여부와 어긋남 (Phase 2 검증 중 발견, 별건)
 - [ ] `dispatchEngine.handleDecision`의 `const isShared = session.activeFilter.isSharedMode ? 1 : 0`
@@ -354,3 +393,6 @@
 | 2026-08-09 | — | 앱 버전 마커 도입(`v1.1-phase1.5`, versionCode 2). 대시보드 상단 + 기동 로그에 표시 → 설치 버전 혼동 방지 | ✅ |
 | 2026-08-09 | — | 실기기에 신규 APK 설치 완료(versionCode 1→2). ⚠️ 업데이트로 접근성 권한이 꺼지므로 재승인 필요 | ✅ |
 | 2026-08-09 | — | 실기기 로그 분석에서 발견: 차종 축소 역설(S), 필터 로그 폭탄(T) | 📌 기록 |
+| 2026-08-09 | 3 | **S 수정** — 적재 용량 점수제 도입, 함수 2개로 분리, 활성 콜 전체 합산. 단위 테스트 24개 추가(총 32개 통과) | ✅ 코드 |
+| 2026-08-09 | 3 | **A1+A2 수정** — scrap 응답에서 destinationGroups 제외, 앱 로그 요약화, verbose를 BuildConfig.DEBUG 연동 | ✅ 코드 |
+| 2026-08-09 | — | `tsx watch` 간헐적 미감지 발견(U). 서버 수동 재시작 필요 | 📌 기록 |

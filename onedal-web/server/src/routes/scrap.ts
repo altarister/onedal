@@ -141,6 +141,13 @@ router.post("/", (req, res) => {
             (session as any).appLocation = { x: lng, y: lat };
         }
 
+        // [Phase 3 / 이슈 A1] 앱 전송 페이로드 다이어트
+        // destinationGroups는 관제탑 UI가 "지역별 묶음"을 보여주기 위한 데이터로,
+        // 앱의 InsungParser.loadCurrentFilter()는 이 키를 파싱조차 하지 않는다.
+        // 그런데 응답의 27%(약 3.6KB)를 차지하며 매 하트비트마다 재전송되고 있었다.
+        // 관제탑은 소켓(filter-updated)으로 별도 수신하므로 여기서 빼도 영향이 없다.
+        const { destinationGroups, ...appFilter } = session.activeFilter as any;
+
         // logRoadmapEvent("서버", "앱폰에게 최신 필터(dispatchEngineArgs) 및 제어 명령 정보 전달");
         // 4. 응답 (해당 유저의 필터값 및 제어 명령 송신)
         res.json({
@@ -152,7 +159,7 @@ router.post("/", (req, res) => {
             deviceControl: {
                 mode: deviceMode
             },
-            dispatchEngineArgs: session.activeFilter,
+            dispatchEngineArgs: appFilter,
             decision: piggybackDecision
         });
     } catch (error) {
