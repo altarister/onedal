@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.onedal.app.BuildConfig
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -39,6 +40,15 @@ fun DashboardScreen(viewModel: MainViewModel) {
                 color = if (viewModel.isServiceActive) Color(0xFF2E7D32) else Color(0xFFC62828)
             )
         }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        // ── 빌드 버전 (어떤 APK가 설치돼 있는지 눈으로 확인용) ──
+        Text(
+            text = "📦 v${BuildConfig.VERSION_NAME} (build ${BuildConfig.VERSION_CODE})",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
 
         Spacer(modifier = Modifier.height(16.dp))
 

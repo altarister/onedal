@@ -198,6 +198,29 @@
   - 신규 콜(`f134859d`, 분당구→탄현면) KEEP → **`status = ORDER_CONFIRMED`로 직접 기록됨** ✅
   - 이 사이클은 **합짐(Detour)** 이라 F+로 통일한 419행 코드도 실제 실행됨 (Waypoints 2, 궤적 883pt, ACK 정상)
 
+### 🆕 S. 첫 짐이 작을수록 합짐 사냥 범위가 좁아짐 (역설) — 2026-08-09 실기기 로그에서 발견 🔴
+- [ ] `shared/src/vehicles.ts:63` `getSharedModeVehicleTypes(v)` = `VEHICLE_OPTIONS.slice(0, idx+1)`
+  - `VEHICLE_OPTIONS`가 [오토바이, 다마스, 라보, 승용차, 1t, ...] 작은→큰 순이라
+    **첫 짐이 `오토바이`면 `[오토바이]` 하나만 반환** → 합짐 사냥이 사실상 정지
+  - 실측 로그: KEEP 전 `[오토바이, 다마스, 라보, 승용차, 1t]` → KEEP 후 **`[오토바이]`**
+    (잡은 콜 `93695ca1`의 vehicleType = 오토바이)
+  - **논리가 뒤집힘**: 1t 트럭에 오토바이급 짐을 실었으면 공간이 가장 많이 남은 상태인데
+    오히려 범위가 가장 좁아진다
+  - **근본 원인 — 같은 함수를 두 곳에서 다른 의미로 사용**
+    | 호출처 | 인자 | 의미 | 판정 |
+    |---|---|---|---|
+    | `filterManager.ts:81`, `userSessionStore.ts:97,112` | 내 차종 | "내 차로 잡을 수 있는 콜 등급" | ✅ |
+    | `dispatchEngine.ts:496` | 첫 짐 차종 | "남은 적재 공간" 의도 | ❌ |
+  - 수정 방향: 합짐용은 별도 함수로 분리하고 `내 차 용량 − 실은 짐` 기준으로 계산
+    (예: `getRemainingCapacityTypes(myVehicle, loadedVehicles[])`)
+
+### 🆕 T. 필터 전체를 매 scrap 응답마다 로그 출력 (앱)
+- [ ] `ApiClient.kt` `AppLogger.d(TAG, "📋 [필터 동기화...] ...\n$updatedFilter")`
+  - `destinationKeywords` 180개 + `destinationGroups` 전체를 매 응답마다 출력.
+    데스밸리 대기 중엔 1초 폴링이라 초당 수 KB. logcat 4KB 한계에 걸려 `…�`로 잘림
+  - 운전 중 배터리·성능 손해 + 정작 봐야 할 로그가 묻힘
+  - 수정: 요약만 출력(`키워드 180개, isActive=true, 차종 5종`) 또는 `AppLogger.v`로 강등
+
 ### 🆕 R. `isShared` 플래그가 실제 합짐 여부와 어긋남 (Phase 2 검증 중 발견, 별건)
 - [ ] `dispatchEngine.handleDecision`의 `const isShared = session.activeFilter.isSharedMode ? 1 : 0`
   - 서버 재시작 시 `userSessionStore.ts:88`이 `isSharedMode: false`로 리셋하므로,
@@ -327,3 +350,7 @@
 | 2026-08-08 | 2 | D+F 수정. 실기기로 `status=confirmed` 버그 실물 재현 → 수정 → 재검증(궤적 복구·신규 INSERT·합짐 사이클) 전부 통과 | ✅ 완료 |
 | 2026-08-08 | — | Phase 2 검증 중 발견: `isShared` 플래그가 실제 합짐 여부와 어긋남(R) | 📌 기록 |
 | 2026-08-08 | 1.5 | 풀오토 자동 해제 수정(모드 보존/복원 + 데드맨 150초 + scrap 재시도) & P·Q 수정. tsc·jest·curl 통과 | ✅ 코드 |
+| 2026-08-09 | — | **main이 컴파일 불가 상태였음 발견** — `3837f07`이 InsungParser의 ScreenTextNode import를 누락. 1줄 수정 후 `assembleDebug` 성공 | ✅ |
+| 2026-08-09 | — | 앱 버전 마커 도입(`v1.1-phase1.5`, versionCode 2). 대시보드 상단 + 기동 로그에 표시 → 설치 버전 혼동 방지 | ✅ |
+| 2026-08-09 | — | 실기기에 신규 APK 설치 완료(versionCode 1→2). ⚠️ 업데이트로 접근성 권한이 꺼지므로 재승인 필요 | ✅ |
+| 2026-08-09 | — | 실기기 로그 분석에서 발견: 차종 축소 역설(S), 필터 로그 폭탄(T) | 📌 기록 |

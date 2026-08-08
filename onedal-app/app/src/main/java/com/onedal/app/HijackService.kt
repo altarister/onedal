@@ -153,6 +153,8 @@ class HijackService : AccessibilityService() {
 
         AppLogger.roadmap("🟢 1DAL 서비스 가동 완료 (접근성 권한 승인, Telemetry·GPS 엔진 가동)", "STARTUP")
         AppLogger.i(TAG, "✅ 1DAL Service Connected!")
+        // 어떤 빌드가 실제로 돌고 있는지 로그로 못박아 둔다 (설치 버전 혼동 방지)
+        AppLogger.i(TAG, "  📦 BUILD      v${BuildConfig.VERSION_NAME} (versionCode ${BuildConfig.VERSION_CODE})")
         AppLogger.i(TAG, "  📡 ApiClient  (기기ID: ${apiClient.getDeviceId()})")
         AppLogger.i(TAG, "  📤 Telemetry  (생존신고 시작)")
         AppLogger.i(TAG, "  🔍 Parser     (${scrapParser.currentParserName()})")
