@@ -16,7 +16,6 @@ import { SettingsRepository } from "../repositories/SettingsRepository";
 import { PricingEngine } from "../core/engine/PricingEngine";
 import { OrderEvaluator } from "../core/engine/OrderEvaluator";
 import { StateMachine } from "../core/engine/StateMachine";
-import { TERMINAL_STATUSES } from "../core/constants";
 import { getActiveCalls } from "../core/helpers";
 
 /**
@@ -277,17 +276,6 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
     return { success: true };
 }
 
-export const resetMainCallState = (userId: string) => {
-    // V2: myOrders에서 제거할 필요 없음. 상태 필터링으로 관리.
-    // 이 함수는 하위 호환성을 위해 유지합니다.
-    const session = getUserSession(userId);
-    // 남아있는 활성 콜이 없다면 myOrders에서 종료된 콜 정리
-    const activeCalls = getActiveCalls(session);
-    if (activeCalls.length === 0) {
-        session.myOrders = session.myOrders.filter(c => !TERMINAL_STATUSES.has(c.status));
-    }
-};
-
 export const recalculateCorridorFilter = (userId: string, corridorRadiusKm: number, destinationRadiusKm?: number) => {
     const session = getUserSession(userId);
     let polylineToUse = null;
@@ -425,7 +413,10 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
                                 routingOptions.carType
                             );
 
-                            const lastSub = session.myOrders[session.myOrders.length - 1];
+                            // [Phase 2] 위 restoreAndRecalculateSession과 동일한 형태로 통일.
+                            // (여기서는 방금 push한 confirmedOrder가 곧 마지막 활성 콜이라 결과는 동일하나,
+                            //  같은 패턴이 두 곳에 있으면 한쪽만 고치는 실수가 반복되므로 맞춰둔다)
+                            const lastSub = activeSubs[activeSubs.length - 1];
                             lastSub.routePolyline = calcResult.merged.polyline;
                             lastSub.totalDistanceKm = calcResult.merged.distance / 1000;
                             lastSub.totalDurationMin = Math.round(calcResult.merged.duration / 60);
@@ -680,7 +671,9 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
                     routingOptions.carType
                 );
 
-                const lastSub = session.myOrders[session.myOrders.length - 1];
+                // [Phase 2] myOrders에는 ORDER_CANCELED/RELEASED 등 종료된 콜도 함께 로드되므로
+                // 마지막 원소가 취소된 콜일 수 있음. 반드시 활성 콜 기준으로 잡아야 한다.
+                const lastSub = activeSubs[activeSubs.length - 1];
                 lastSub.routePolyline = calcResult.merged.polyline;
                 lastSub.sectionEtas = calcResult.merged.sectionEtas;
             } catch(e) {

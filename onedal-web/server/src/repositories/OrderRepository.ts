@@ -27,7 +27,10 @@ export class OrderRepository {
             cachedOrder.dropoff,
             cachedOrder.fare || 0,
             cachedOrder.timestamp || new Date().toISOString(),
-            "confirmed",
+            // [Phase 2] 레거시 소문자 'confirmed'로 저장되어 GET /api/orders 와
+            // restoreAndRecalculateSession 의 status IN ('ORDER_CONFIRMED',...) 조회에서
+            // 누락되던 버그 수정. ON CONFLICT 절과도 값이 일치하게 됨.
+            "ORDER_CONFIRMED",
             userId,
             cachedOrder.capturedAt || new Date().toISOString(),
             cachedOrder.capturedDeviceId || null,
