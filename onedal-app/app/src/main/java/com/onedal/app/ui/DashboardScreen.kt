@@ -9,7 +9,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.onedal.app.BuildConfig
+import androidx.compose.ui.platform.LocalContext
+import com.onedal.app.core.AppInfo
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -45,7 +46,7 @@ fun DashboardScreen(viewModel: MainViewModel) {
 
         // ── 빌드 버전 (어떤 APK가 설치돼 있는지 눈으로 확인용) ──
         Text(
-            text = "📦 v${BuildConfig.VERSION_NAME} (build ${BuildConfig.VERSION_CODE})",
+            text = "📦 ${AppInfo.versionLabel(LocalContext.current)}",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

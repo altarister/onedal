@@ -250,6 +250,18 @@
   - 🔜 **A3 (미착수, Phase 3)**: 필터 해시 비교 → 안 바뀌었으면 `dispatchEngineArgs` 생략.
     평상시 13,458B → ~500B (−96%). 앱·서버 동시 배포 필요
 
+### 🆕 V. 컴파일 타임 상수 인라인으로 버전 마커가 거짓말을 함 ✅ 2026-08-09 수정 완료
+- [x] `BuildConfig.VERSION_NAME`은 `static final String` 컴파일 타임 상수라 **호출부에 값이 인라인**된다.
+  `versionName`만 바꾸고 호출부 소스가 그대로면 `compileDebugKotlin`이 up-to-date로 판정되어
+  APK에 옛 문자열이 남는다.
+  - 실측: DEX 안에 `1.2-capacity+logdiet` 1개(BuildConfig 클래스)와
+    `1.1-phase1.5` 2개(DashboardScreen·HijackService 인라인)가 **동시에 존재**
+  - 증상: `adb dumpsys`는 1.2인데 앱 화면은 1.1 → 설치 여부를 판단할 수 없게 됨
+    (버전 혼동을 없애려고 만든 마커가 스스로 혼동의 원인이 됨)
+  - ✅ 수정: `core/AppInfo.kt` 신설. `PackageManager.getPackageInfo()`로 **런타임 조회**.
+    매니페스트를 읽으므로 `adb dumpsys` 결과와 항상 일치하며 인라인 영향을 받지 않는다.
+  - 교훈: 빌드 산출물을 식별하는 값은 컴파일 타임 상수로 쓰지 말 것
+
 ### 🆕 U. `tsx watch`가 파일 변경을 놓침 (로컬 개발 신뢰성)
 - [ ] `pnpm dev`의 `tsx watch src/index.ts`가 소스 수정을 감지하지 못하는 경우가 반복됨
   - 2026-08-08 `OrderRepository.ts` 수정 → 미감지 (수동 재시작 필요)
@@ -396,3 +408,5 @@
 | 2026-08-09 | 3 | **S 수정** — 적재 용량 점수제 도입, 함수 2개로 분리, 활성 콜 전체 합산. 단위 테스트 24개 추가(총 32개 통과) | ✅ 코드 |
 | 2026-08-09 | 3 | **A1+A2 수정** — scrap 응답에서 destinationGroups 제외, 앱 로그 요약화, verbose를 BuildConfig.DEBUG 연동 | ✅ 코드 |
 | 2026-08-09 | — | `tsx watch` 간헐적 미감지 발견(U). 서버 수동 재시작 필요 | 📌 기록 |
+| 2026-08-09 | — | 버전 마커가 컴파일 타임 상수 인라인 때문에 옛 값을 표시(V). `AppInfo`로 런타임 조회 전환 후 해결 | ✅ |
+| 2026-08-09 | — | 실기기에 v1.2-capacity+logdiet(build 3) 설치·검증 완료. 화면과 dumpsys 일치 확인 | ✅ |
