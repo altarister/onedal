@@ -4,6 +4,7 @@ import android.content.Context
 import com.onedal.app.core.AppLogger
 import com.onedal.app.core.IScrapParser
 import com.onedal.app.core.LocationTextAnalyzer
+import com.onedal.app.core.ScreenTextNode
 import com.google.gson.Gson
 import com.onedal.app.models.FilterConfig
 import com.onedal.app.models.SimplifiedOfficeOrder
