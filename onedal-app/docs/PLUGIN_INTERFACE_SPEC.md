@@ -1,220 +1,184 @@
-# 🧩 1DAL 플러그인 인터페이스 코드 수준 명세서
+# 🧩 1DAL 플러그인 인터페이스 명세
 
-> **문서 상태**: v1.0  
-> **작성일**: 2026-05-05  
-> **목적**: 다중 플랫폼(인성콜, 화물24시 등)을 지원하기 위한 플러그인 인터페이스 시그니처 정의
+> **문서 상태**: v2.0 — **2026-08-09 실제 소스에서 추출해 재작성**
+> **목적**: 다중 배차앱(인성콜, 화물24시 등)을 지원하기 위한 확장 지점 정의
+
+> [!IMPORTANT]
+> **v1.0 문서의 인터페이스는 실재하지 않았습니다.**
+> `BaseScrapParser`, `BaseAutomationEngine`, `extractOrdersFromList()`, `parseDetailed()` —
+> 모두 코드에 없는 것이었고, 이 문서를 보고 플러그인을 만들면 **컴파일조차 되지 않았습니다.**
+> 아래는 전부 실제 소스에서 그대로 옮긴 것입니다.
 
 ---
 
-## 1. BaseScrapParser — 화면 텍스트 파싱 인터페이스
+## 1. 앱 측 파서 — `IScrapParser`
 
-화면에서 수집한 텍스트 리스트를 받아 표준화된 `SimplifiedOfficeOrder`로 변환하는 파서입니다.
+**패키지**: `com.onedal.app.core` (v1.0 문서의 `core.engine`이 아닙니다)
 
 ```kotlin
-package com.onedal.app.core.engine
+package com.onedal.app.core
 
 import com.onedal.app.models.SimplifiedOfficeOrder
-import com.onedal.app.ScreenTextNode
 
-/**
- * 각 타겟 앱(인성콜, 24시 등)별로 이 인터페이스를 구현합니다.
- * HijackService는 이 인터페이스만 알면 되고, 구현체에 대해서는 모릅니다.
- */
-interface BaseScrapParser {
+interface IScrapParser {
 
-    /**
-     * 화면의 텍스트 리스트를 파싱하여 콜 오더로 변환
-     * @param screenTexts 화면에서 수집된 원시 텍스트 배열
-     * @return 파싱된 오더 (파싱 실패 시 pickup/dropoff가 "미상"인 빈 오더 반환)
-     */
-    fun parse(screenTexts: List<String>): SimplifiedOfficeOrder
+    /** 텍스트 리스트를 파싱하여 SimplifiedOfficeOrder 객체로 변환 */
+    fun parse(texts: List<String>): SimplifiedOfficeOrder
 
-    /**
-     * 콜 리스트에서 개별 콜들을 분리 추출 (리스트 화면 전용)
-     * @param textNodes 좌표 포함 텍스트 노드 배열
-     * @return 콜 단위로 분리된 (오더, fareNode) 쌍 리스트
-     */
-    fun extractOrdersFromList(textNodes: List<ScreenTextNode>): List<Pair<SimplifiedOfficeOrder, ScreenTextNode>>
-
-    /**
-     * AUTO 필터 판정: 이 콜을 클릭(사냥)할 가치가 있는지
-     * @param order 파싱된 오더
-     * @return true면 클릭, false면 패스
-     */
+    /** 파싱된 오더가 4대 필터 조건을 모두 만족하는지 판정 */
     fun shouldClick(order: SimplifiedOfficeOrder): Boolean
 
+    /** rawText에서 상차지 직선거리(숫자)만 파싱 */
+    fun parsePickupDistance(rawText: String): Double?
+
     /**
-     * 상세 화면(DETAIL_CONFIRMED)에서 팝업 서핑으로 수집한 텍스트를 
-     * DetailedOfficeOrder로 변환
-     * @param baseOrder 1차 파싱된 기본 오더
-     * @param accumulatedText 팝업에서 수집한 텍스트 (적요 + 출발지 + 도착지)
-     * @return 상세 정보가 채워진 DetailedOfficeOrder
+     * 리스트 화면의 전체 텍스트 노드들을 콜(Card/Row) 단위로 묶는다.
+     * @return (요금 노드 = 클릭 대상, 그 콜을 구성하는 전체 텍스트) 쌍의 리스트
      */
-    fun parseDetailed(
-        baseOrder: SimplifiedOfficeOrder, 
-        accumulatedText: String
-    ): com.onedal.app.models.DetailedOfficeOrder
+    fun groupListNodes(allNodes: List<ScreenTextNode>): List<Pair<ScreenTextNode, List<String>>>
 }
 ```
 
-### 1.1 팝업 적요(`detailMemo`) 정밀 파싱 스펙 (Task 10)
-팝업 서핑 시 수집된 텍스트 중, 실제 운행에 유의미한 적요만을 파싱하기 위해 `parseDetailed` 내부에서 정규식을 활용하여 정밀 추출을 수행합니다.
-- **추출 규칙**: `"적요 내용: (.*)"` 형태로 본문을 추출하며 불필요한 공백과 개행 문자를 모두 Trim 처리합니다.
-- **활용처**: 파싱된 `detailMemo`는 백엔드의 `PricingEngine`에 전달되어 추가 요금 패널티 판단(예: 수거, 착불) 및 프론트엔드 UI의 주요 표출 데이터로 활용됩니다.
+> v1.0 문서와 다른 점
+> - 이름: `BaseScrapParser` → **`IScrapParser`**
+> - `extractOrdersFromList(nodes): List<Pair<Order, Node>>` → **`groupListNodes(nodes): List<Pair<Node, List<String>>>`**
+>   (이름·반환 타입·Pair 순서가 모두 다릅니다)
+> - `parseDetailed()` — **없습니다.** 상세 파싱은 **서버**의 `utils/parser.ts`가 합니다
+> - `parsePickupDistance()` — 실재하는데 v1.0 문서엔 없었습니다
 
-### 인성콜 구현체 위치
-`com.onedal.app.plugins.insung.InsungParser : BaseScrapParser`
+**구현체**: `plugins/insung/InsungParser.kt`, `plugins/hwamul24/Hwamul24Parser.kt`
+**라우터**: `core/ScrapParser.kt` — `targetApp` 문자열로 위임 대상을 고릅니다
+
+```kotlin
+private val delegate: IScrapParser = when (targetApp) {
+    "24시"  -> Hwamul24Parser(context)
+    "인성콜" -> InsungParser(context)
+    else    -> InsungParser(context)
+}
+```
 
 ---
 
-## 2. BaseAutomationEngine — 화면 자동 제어 인터페이스
+## 2. 화면 판별 — `ScreenKeywords`
 
-타겟 앱의 화면을 제어(터치, 뒤로가기, 팝업 열기/닫기)하는 매커니즘입니다.
+자동화 엔진을 인터페이스로 추상화하는 대신, **키워드 사전을 데이터로 주입**하는 방식입니다.
+(`BaseAutomationEngine` 같은 인터페이스는 존재하지 않습니다)
 
 ```kotlin
-package com.onedal.app.core.engine
+data class ScreenKeywords(
+    val listRequired: List<String>,          // 신규 리스트 (all 일치)
+    val completedListRequired: List<String>, // 완료 리스트 (all)
+    val detailKeywords: List<String>,        // 상세 페이지 (all)
+    val confirmKeywords: List<String>,       // 있으면 "배차 전" (any)
+    val pickupKeywords: List<String>,        // 출발지 팝업 (any)
+    val dropoffKeywords: List<String>,       // 도착지 팝업 (any)
+    val memoKeywords: List<String>,          // 적요 팝업 (all)
+    val errorKeywords: List<String>,         // 에러 팝업 (any)
+    val loadingKeywords: List<String>,       // 로딩 (any, 감지 시 무시)
+    val appLabel: String = "배차앱",
+    val cancelKeyword: String = "취소"
+)
+```
 
-import android.view.accessibility.AccessibilityNodeInfo
+`ScreenDetector.detect()`가 **고정된 우선순위**로 판별합니다.
 
-/**
- * 각 타겟 앱별 화면 조작 방법이 다르므로 이를 추상화합니다.
- * 예: 인성콜은 3단계 팝업 서핑, 화물24시는 단일 페이지 스크롤
- */
-interface BaseAutomationEngine {
+```
+1 errorKeywords    (any)
+2 pickupKeywords   (any)
+3 dropoffKeywords  (any)
+4 memoKeywords     (all)
+5 detailKeywords   (all)  → confirmKeywords 유무로 PRE_CONFIRM / CONFIRMED 구분
+6 listRequired     (all)
+7 completedListRequired (all)
+8 UNKNOWN
+```
 
-    /**
-     * 리스트 화면에서 특정 콜을 클릭 (AUTO 광클)
-     * @param rootNode 최상위 화면 노드
-     * @param targetFareNode 클릭할 요금 노드 (좌표 기준점)
-     * @return 터치 성공 여부
-     */
-    fun clickOrderInList(rootNode: AccessibilityNodeInfo, targetFareNode: ScreenTextNode): Boolean
+> 🔴 **알려진 한계 — 화물24시가 동작하지 않는 원인**
+> 이 우선순위가 앱마다 고정입니다. 화물24시는 **상세 화면에 "상차지"가 나오는데**
+> 그 단어가 우선순위 2(`pickupKeywords`)에 들어 있어, 상세 화면이 `POPUP_PICKUP`으로 판별됩니다.
+> 우선순위 5까지 내려가지 못해 `DETAIL_PRE_CONFIRM`이 절대 발생하지 않고,
+> 결과적으로 배차신청 버튼을 누르는 핸들러가 한 번도 실행되지 않습니다.
+> → 우선순위를 `ScreenKeywords`에 데이터로 포함시키거나 앱별 `ScreenDetector`가 필요합니다. todo.md Phase 5
 
-    /**
-     * 상세 화면에서 "확정" 버튼 클릭
-     * @return 성공 여부
-     */
-    fun clickConfirmButton(rootNode: AccessibilityNodeInfo): Boolean
+---
 
-    /**
-     * 상세 화면에서 "취소" 버튼 클릭 (2차 필터 실패 또는 데스밸리 취소)
-     * @return 성공 여부
-     */
-    fun clickCancelButton(rootNode: AccessibilityNodeInfo): Boolean
+## 3. 터치 실행 — `AutoTouchManager` (구상 클래스)
 
-    /**
-     * 팝업 서핑 시작 — 앱별로 서핑 순서와 방법이 다를 수 있음
-     * @return 서핑 시작 성공 여부
-     */
-    fun startPopupSurfing(rootNode: AccessibilityNodeInfo): Boolean
-
-    /**
-     * 현재 열린 팝업 닫기
-     * @return 닫기 성공 여부
-     */
-    fun closeCurrentPopup(rootNode: AccessibilityNodeInfo): Boolean
-
-    /**
-     * 시스템 뒤로가기 수행
-     */
+```kotlin
+class AutoTouchManager(service: AccessibilityService) {
+    fun performSimulatedTouch(node: AccessibilityNodeInfo): Boolean
+    fun findAndClickByText(rootNode: AccessibilityNodeInfo?, targetText: String,
+                           isStartsWith: Boolean = false): Boolean
     fun performBack(): Boolean
 }
 ```
 
-### 인성콜 구현체 위치
-`com.onedal.app.plugins.insung.InsungAutomationEngine : BaseAutomationEngine`
+## 4. 팝업 서핑 — `PopupSurfingMachine` (구상 클래스)
+
+```kotlin
+class PopupSurfingMachine(touchManager: AutoTouchManager) {
+    fun startSurfing(rootNode, session, screenTexts)
+    fun clickPickup(rootNode)
+    fun clickDropoff(rootNode)
+    fun handleMemoPopup(rootNode, session, screenTexts)
+    fun handlePickupPopup(rootNode, session, screenTexts)
+    fun handleDropoffPopup(rootNode, session, screenTexts): Boolean
+}
+```
+상태는 `SessionManager.SurfingState`가 들고 있습니다:
+`IDLE → WAITING_FOR_MEMO_POPUP → WAITING_FOR_PICKUP_POPUP → WAITING_FOR_DROPOFF_POPUP → DONE`
+
+> 🔴 이 두 클래스는 인터페이스가 아니며, `HijackService`가 인성콜 전용 문자열
+> (`"닫기"`, `"취소"`, `"전화1"`, `"도착지"`)을 직접 넘깁니다. 앱별 분기가 없습니다.
 
 ---
 
-## 3. ScreenKeywords 등록 체계
+## 5. 서버 측 플러그인 — `IAppPlugin`
 
-각 플러그인은 자신의 화면 판별 키워드를 `AppKeywords` 오브젝트에 등록합니다.
+**패키지**: `server/src/core/plugins/IAppPlugin.ts`
 
-```kotlin
-// 현재 구조 (이미 구현됨):
-object AppKeywords {
-    val INSUNG = ScreenKeywords(
-        listRequired = listOf("신규", "빠른설정"),
-        detailKeywords = listOf("적요상세", "요금"),
-        // ... 나머지 키워드
-    )
+```typescript
+export interface IAppPlugin {
+    readonly appId: string;
 
-    val TWENTYFOUR = ScreenKeywords(
-        // 화물24시 전용 키워드 (TODO: 실제 앱 분석 후 채움)
-        listRequired = listOf("TODO"),
-        // ...
-    )
+    /** 앱마다 다른 주소 표기를 카카오 API가 인식할 형태로 정규화 */
+    normalizeAddress(rawAddress: string): string;
+
+    /** DB(places)에 저장할 장소명 정규화 */
+    normalizePlaceName(rawName: string): string;
+
+    /** 수수료 선공제 여부 등 앱별 요율 보정 */
+    applyPricingExceptions(actualFare: number, fairPrice: number, minAcceptable: number): AdjustedPricing;
+
+    /** 앱 고유 블랙리스트·특수 룰 검사. 반환값은 거절 사유 배열 */
+    evaluateCustomRules(rawText: string): string[];
 }
 ```
 
-### 새 플러그인 추가 절차
+`PluginFactory.getPlugin(targetApp)`이 `'hwamul24'` / `'insung'`(기본)으로 분기합니다.
+`targetApp`은 앱이 `/api/scrap`, `/api/orders/confirm`, `/api/orders/detail` 페이로드에 실어 보냅니다.
 
-1. `plugins/{앱이름}/` 패키지 생성
-2. `{앱이름}Parser.kt` — `BaseScrapParser` 구현
-3. `{앱이름}AutomationEngine.kt` — `BaseAutomationEngine` 구현
-4. `AppKeywords`에 `{앱이름} = ScreenKeywords(...)` 추가
-5. `EngineRouter`에 패키지명 → 플러그인 매핑 추가
+**구현 차이 예시**
+
+| | InsungPlugin | Hwamul24Plugin |
+|---|---|---|
+| `normalizeAddress` | 끝의 `(건물명)` 제거 | 콤마 뒤 상세주소 절단 |
+| `normalizePlaceName` | `(주)`·`주식회사`·공백 제거 | 대괄호 `[...]` 제거 |
+| `applyPricingExceptions` | 보정 없음 | ×1.15 (수수료 선공제 가정) |
+
+> ⚠️ `dispatchEngine.ts`에 `normalizePlaceName`이 별도로 구현되어 있고 플러그인의 것을 쓰지 않습니다.
+> 일원화 필요. → todo.md Phase 3(J)
 
 ---
 
-## 4. EngineRouter — 플러그인 라우터
+## 6. 새 배차앱 추가 절차
 
-현재 최상단 앱의 패키지명을 감지하여 적절한 플러그인 엔진을 반환합니다.
-
-```kotlin
-package com.onedal.app.core.engine
-
-/**
- * 활성화된 타겟 앱에 따라 올바른 Parser + AutomationEngine을 라우팅합니다.
- */
-class EngineRouter(private val enabledApps: Set<String>) {
-
-    // 패키지명 → 플러그인 매핑 레지스트리
-    private val registry = mapOf(
-        "com.insung.app" to PluginBundle(
-            parser = InsungParser(),
-            engine = InsungAutomationEngine(),
-            keywords = AppKeywords.INSUNG
-        ),
-        "com.cargo24.app" to PluginBundle(
-            parser = Cargo24Parser(),
-            engine = Cargo24AutomationEngine(),
-            keywords = AppKeywords.TWENTYFOUR
-        )
-    )
-
-    /**
-     * 현재 포그라운드 앱 패키지명으로 적절한 플러그인을 반환
-     * @param packageName 현재 화면의 패키지명
-     * @return 매칭된 플러그인 번들 (없으면 null → 스캔 중단)
-     */
-    fun resolve(packageName: String): PluginBundle? {
-        if (packageName !in enabledApps) return null  // 비활성화된 앱은 무시
-        return registry[packageName]
-    }
-}
-
-data class PluginBundle(
-    val parser: BaseScrapParser,
-    val engine: BaseAutomationEngine,
-    val keywords: ScreenKeywords
-)
-```
-
----
-
-## 5. HijackService 내부 사용 예시 (리팩토링 후)
-
-```kotlin
-// 현재: scrapParser.parse(screenTexts)
-// 리팩토링 후:
-
-val plugin = engineRouter.resolve(event.packageName.toString()) ?: return
-val order = plugin.parser.parse(screenTexts)
-
-if (plugin.parser.shouldClick(order)) {
-    plugin.engine.clickOrderInList(rootNode, fareNode)
-}
-```
-
-`HijackService`는 더 이상 인성콜/화물24시를 구분하지 않습니다. `EngineRouter`가 적절한 플러그인을 꽂아주면 동일한 흐름으로 처리됩니다.
+1. `app/plugins/{app}/{App}Parser.kt` — `IScrapParser` 구현
+2. `app/plugins/{app}/{App}Keywords.kt` — `ScreenKeywords` 정의
+   - ⚠️ 판별 우선순위 충돌을 반드시 검토할 것 (§2의 화물24시 사례)
+3. `core/ScrapParser.kt`의 `when`에 분기 추가
+4. `server/core/plugins/{app}/{App}Plugin.ts` — `IAppPlugin` 구현
+5. `PluginFactory.getPlugin()`에 `case` 추가
+6. `server/config/keywords_{app}.json` — UI 노이즈 단어 사전
+7. ⚠️ **현재는 이것만으로 부족합니다.** `HijackService`의 인성콜 하드코딩 4곳을
+   `keywords.*`로 이관해야 판결 집행까지 동작합니다. → todo.md Phase 5

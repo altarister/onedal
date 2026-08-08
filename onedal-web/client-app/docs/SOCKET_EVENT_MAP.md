@@ -1,7 +1,7 @@
 # 📡 1DAL 관제웹 — Socket Event Map
 
-> **문서 상태**: v1  
-> **작성일**: 2026-05-05  
+> **문서 상태**: v2 — 2026-08-09 코드 재대조 후 정정  
+> **작성일**: 2026-05-05 / 개정 2026-08-09  
 > **목적**: 클라이언트가 소켓으로 주고받는 모든 이벤트를 한 눈에 파악합니다. 서버 `API_SPEC.md`와 쌍을 이룹니다.
 
 ---
@@ -33,13 +33,14 @@
 
 | 이벤트명 | Payload | 설명 | 소리 |
 |---------|---------|------|------|
-| `new-order` | `SimplifiedOfficeOrder` | 앱폰이 새 콜을 긁어서 서버에 전송 → 서버가 관제웹에 통보 | 🔔 `playCallRinging()` |
-| `order-evaluating` | `{ id, status }` | 서버가 꿀/똥콜 평가 시작 (ORDER_SECURED_EVALUATING) | 🔊 `playBeep()` |
+| ~~`new-order`~~ | — | **제거됨(2026-08-09)**. 유일한 발신처였던 레거시 `POST /api/orders`가 삭제되어 리스너도 함께 제거 | — |
+| `order-evaluating` | **`PendingOrder` 전체 객체** | 앱이 콜을 가확정 → 관제탑에 카드 생성 | 🔊 `playBeep()` |
 | `order-detail-received` | `PendingOrder` | 앱폰이 상세 페이지 파싱 완료 → 서버가 상세 정보 전달 | - |
 | `order-evaluated` | `SecuredOrder` | 서버의 카카오/OSRM 경로 연산 완료 (kakaoTimeExt 포함) | 🔊 `playBeep()` |
 | `order-confirmed` | `string (orderId)` | 관제탑(사용자)이 KEEP 결정 → 서버가 확정 처리 | - |
-| `order-canceled` | `string (orderId)` | 거절/방출/강제취소 처리 완료 | - |
-| `sync-active-orders` | `SecuredOrder[]` | 서버의 전체 activeRoute 동기화 (주기적 + 상태 변경 시) | - |
+| `order-canceled` | **`{ id, status, isManual }`** | 거절/방출/강제취소. `isManual=true`면 삭제하지 않고 상태만 바꿔 '취소/방출' 탭에 남긴다 | - |
+| `sync-active-orders` | `SecuredOrder[]` | **1초 주기**로 활성 오더 전체 배열 전송. 소켓 이벤트 유실 자동 치유용 | - |
+| `session-restored` | `{ restoredCount, dispatchPhase, orderIds }` | 서버 재시작 후 진행 중 콜 복구 알림 → Dashboard 상단 배너 | - |
 
 ### 필터 동기화 (`useFilterConfig.ts`)
 
@@ -60,13 +61,16 @@
 | 이벤트명 | Payload | 설명 | 소리 |
 |---------|---------|------|------|
 | `emergency-alert` | `EmergencyAlert` | 앱폰 비상 보고 (취소불가 팝업 등) | 🚨 `playEmergencyAlarm()` |
-| `deathvalley-warning` | `DeathValleyWarning` | 30초 타임아웃 경고 | - |
+| `deathvalley-warning` | `DeathValleyWarning` | 30초 경과 경고 (`WAITING_WARNING_MS`) | - |
+
+### ⚠️ 서버가 emit하지만 클라 리스너가 없는 이벤트
+`decision-ack` · `recalculate-route-ack` · `two-track-ack` — 응답을 보내지만 아무도 받지 않습니다.
 
 ### 기기 관리 (`SettingsModal.tsx`)
 
 | 이벤트명 | Payload | 설명 |
 |---------|---------|------|
-| `device-paired` | (없음) | PIN 입력 완료 → 기기 목록 새로고침 |
+| `device-paired` | **`{ deviceId, deviceName }`** | PIN 입력 완료 → 기기 목록 새로고침 |
 | `settings-updated` | 설정 객체 | 설정 변경 시 실시간 동기화 |
 
 ### 기타 (`OrderFilterModal.tsx`, `Dashboard.tsx`)
@@ -75,7 +79,7 @@
 |---------|---------|------|
 | `home-return-ack` | `{ orderId }` | 귀가콜 생성 성공 응답 |
 | `home-return-error` | `{ error }` | 귀가콜 생성 실패 응답 |
-| `auto-arrived` | `{ orderId }` | GPS 기반 자동 도착 감지 |
+| `auto-arrived` | `{ message }` | ⚠️ **미구현.** 클라 리스너는 있으나 **서버에 emit이 0건**. `geoService`의 도착 감지 자체가 죽어 있음(todo.md Phase 4) |
 
 ---
 
@@ -88,8 +92,8 @@
 | `decision` | `{ orderId, action }` | `useOrderEngine.handleDecision()` | 오더 결재 (KEEP/CANCEL/RELEASE/FORCE_CANCEL) |
 | `recalculate-route` | `{ orderId, priority }` | `useOrderEngine.handleRecalculate()` | 경로 재탐색 (추천/시간/거리) |
 | `dispatch-complete` | `{ orderId }` | `PinnedRouteCard` 완료 버튼 | 운행 완료 처리 |
-| `dashboard-gps-update` | `{ lat, lng }` | `useMasterGps` | 관제웹 GPS 위치 전송 (Real/Mock) |
-| `create-home-return` | `{ homeAddress, homeX, homeY }` | `OrderFilterModal` 귀가콜 버튼 | 귀가 경로 생성 요청 |
+| `dashboard-gps-update` | `{ lat, lng, accuracy?, timestamp? }` | ⚠️ **발신처 2곳** — `useGpsTelemetry`(50m/10s 스로틀, App 전역) + `useMasterGps`(스로틀 없음, PinnedRoute). 중복 발신 상태. todo.md Phase 3(L) |
+| `create-home-return` | **`{ corridorRadiusKm?, destinationRadiusKm? }`** | `OrderFilterModal` 귀가콜 버튼 | 집 주소는 서버가 `user_settings`에서 읽는다 |
 | `start-two-track` | (없음) | `OrderFilterModal` 투트랙 버튼 | 투트랙 모드 시작 |
 
 ---

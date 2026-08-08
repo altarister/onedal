@@ -1,64 +1,168 @@
-# 📱 1DAL Android App - Clean Architecture Guide
+# 📱 1DAL 안드로이드 앱 아키텍처
 
-본 문서는 `onedal-app`의 구조적 역할과 책임을 정의합니다.
-초기 버전(MVP)에서 `HijackService.kt` 하나의 파일에 모든 기능이 존재하여 코드 결합도가 극단적으로 높아지는 (God Object) 이슈를 겪었고, 이를 해소하기 위해 **9대 핵심 모듈 (MVP 패턴)** 및 엄격한 계층 구조로 리팩터링 되었습니다.
+> **문서 상태**: v2.0 — **2026-08-09 코드 전수 대조 후 재작성**
+> **작성 원칙**: 코드에 실제로 들어간 것만 적는다. 계획은 [todo.md](../../todo.md)에 적는다.
 
-## 🚀 기술 스택 및 경량화 (Task 26)
+> [!IMPORTANT]
+> **v1.0 문서는 사실이 아닌 내용을 다수 포함하고 있었습니다.**
+> "Compose 의존성 완벽 제거", "Coroutines 기반", `LocationTracker`,
+> `FusedLocationProviderClient`, `ACCESS_BACKGROUND_LOCATION` 권한,
+> "TelemetryManager 3초 하트비트" — **전부 사실이 아니었습니다.**
+> 아래 내용은 전부 실제 파일·라인과 대조했습니다.
 
-- **100% Native XML View 기반**: 초기 실험적으로 도입되었던 무거운 `lifecycle-viewmodel-compose` 등 Jetpack Compose 관련 의존성을 완벽히 걷어내고, 100% Native XML View 기반의 MVVM 아키텍처로 회귀하여 앱 용량 경량화와 렌더링 속도를 극대화했습니다.
-- **순수 Kotlin & Coroutines**: 모든 비동기 처리와 네트워크 타임아웃 관리는 Coroutines 기반으로 작성되었습니다.
+---
 
-## 패키지 및 모듈 설계도
+## 1. 런타임 사실 (Facts)
+
+| 항목 | 실제 값 |
+|---|---|
+| UI | **Jetpack Compose** (제거되지 않았습니다. `kotlin.compose` 플러그인 + `compose-bom` + `material3` 사용 중) |
+| 비동기 | **`Executors` + `Handler(Looper)`**. Coroutines는 쓰지 않습니다 |
+| 네트워크 | `java.net.HttpURLConnection` (OkHttp/Retrofit 아님) + Gson |
+| 핵심 엔진 | `AccessibilityService` — 화면 노드 읽기 + 제스처 터치 |
+| minSdk / targetSdk | 26 / 35 |
+| 선언 권한 | `INTERNET`, `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` — **이 2개뿐** |
+| 위치 권한 | ❌ **선언 안 됨** (`ACCESS_FINE_LOCATION` 없음) |
+| 하트비트 | **60초** (`HEARTBEAT_INTERVAL_MS`). 판결 대기 중엔 1초 고속 폴링 |
+| 총 소스 | 25개 파일 / 약 3,840줄 |
+| 테스트 | **0개** (`test/`·`androidTest/` 디렉터리 자체가 없음) |
+
+> ⚠️ **위치 권한 미선언의 결과**: `TelemetryManager`가 `getLastKnownLocation()`을 호출하지만
+> `SecurityException`이 발생하고 catch로 삼켜져 **`lat`/`lng`가 항상 `null`로 전송**됩니다.
+> 앱 GPS 텔레메트리는 코드는 있으나 동작하지 않습니다. → todo.md Phase 4
+
+---
+
+## 2. 실제 패키지 구조
 
 ```text
 com.onedal.app
-├── MainActivity.kt        // (UI 레벨) 권한 설정 안내 및 서버 타겟 변경 등 상태 관리
-├── HijackService.kt       // (관제탑 레벨) 화면 이벤트를 수신하여 아래 매니저들을 차례대로 호출
+├── MainActivity.kt              (113줄) 2탭 UI 진입점
+├── HijackService.kt             (757줄) ⚠️ 최대 파일. 접근성 이벤트 라우터
 │
-├── api/                   // [네트워크 계층]
-│   └── ApiClient.kt       // /scrap 및 /orders 통신, SharedPreferences 로컬/라이브 판별
+├── api/
+│   └── ApiClient.kt             (473줄) HTTP + Executor 3분리
 │
-├── core/                  // [비즈니스 로직 계층]
-│   ├── AutoTouchManager.kt // 화면 좌표 수집 및 시스템 접근성 권한을 이용한 화면 자동 터치 매크로
-│   ├── ScrapParser.kt      // "요금:" 등의 문자열을 파싱하여 객체(SimplifiedOrder)로 만들어 주는 로직 체인
-│   └── TelemetryManager.kt // 3초 심장 박동(Heartbeat) 타이머 루프 및 버퍼 전송 스케줄러 관리
+├── core/
+│   ├── AppInfo.kt               ⭐ PackageManager 런타임 버전 조회
+│   ├── AppLogger.kt             d/i/w/e/v + roadmap. v는 BuildConfig.DEBUG에 연동
+│   ├── TelemetryManager.kt      하트비트 + 디바운스 + 피기백 수신
+│   ├── ScrapParser.kt           targetApp → 플러그인 위임 라우터
+│   ├── IScrapParser.kt          파서 인터페이스 (실제 이름)
+│   ├── ScreenKeywords.kt        화면 판별 키워드 사전 자료구조
+│   ├── ScreenTextNode.kt        텍스트 + 좌표 + 노드 참조
+│   ├── AutoTouchManager.kt      제스처 터치 / 텍스트 검색 클릭
+│   ├── LocationTextAnalyzer.kt  주소 텍스트 분석
+│   └── engine/
+│       ├── ScreenDetector.kt        키워드 사전 기반 화면 판별
+│       ├── SessionManager.kt        콜 1건 처리 세션 상태 9종
+│       ├── PopupSurfingMachine.kt   IDLE→MEMO→PICKUP→DROPOFF→DONE
+│       ├── DeathValleyTimer.kt      서버 무응답 시 자동 취소
+│       └── CautionDongVerifier.kt   동명이동 3단계 검증 (동네 100여 개)
 │
-└── models/                // [데이터 계층]
-    └── SharedModels.kt    // 웹 (shared/src/index.ts) 규격과 1:1 대응되는 Data Classes
+├── plugins/
+│   ├── insung/    InsungParser.kt (360줄) + InsungKeywords.kt
+│   └── hwamul24/  Hwamul24Parser.kt (347줄) + Hwamul24Keywords.kt
+│
+├── models/SharedModels.kt       서버 @onedal/shared 와 대응하는 DTO
+└── ui/                          Compose 화면
+    ├── MainViewModel.kt · DashboardScreen.kt · SettingsScreen.kt
 ```
 
-## 계층별 책임
+> **존재하지 않는 것** (v1.0 문서가 언급했던 것): `LocationTracker`
 
-### 1. `HijackService` (Orchestrator)
-**가장 단순하게 유지해야 하는 핵심 파일**입니다.
-이 클래스 내부에는 네트워크 통신 템플릿, 파싱 if-else 문, 타이머 로직이 들어가서는 안 됩니다. 
-오직 이벤트를 수신받고 `parser.parse()` -> `api.send()` -> `touch.perform()` 등 **지시만 내리는 구조**를 유지해야 합니다. 
+---
 
-### 2. `api.ApiClient` (통신망)
-`java.net.HttpURLConnection`과 백그라운드 Thread 풀이 숨어있습니다.
-Gson 직렬화를 포함하여 타임아웃, 예외 처리(Try-Catch)를 이곳 한곳에서 모두 관리합니다.
-새로운 서버 API 엔드포인트가 추가되면 이 모듈에 함수 하나만 만들고, `HijackService`가 그것을 호출하도록 하면 됩니다.
+## 3. 계층별 책임
 
-### 3. `core.ScrapParser` (디코더 두뇌)
-인성앱과 같은 물류 앱 화면에 표시된 비구조화 문자열(List<String>)에서 규칙(휴리스틱 알고리즘)을 찾아
-우리가 다룰 수 있는 DTO(`SimplifiedOrder`)로 규격화합니다. 
-추후 3단계 "상세 페이지 파싱" 작업 시 새로운 `parseDetailed(...)` 함수를 만들어 이곳에 추가해야 합니다.
+### `HijackService` — 이벤트 라우터
+`TYPE_WINDOW_CONTENT_CHANGED`를 받아 → 핑거프린트로 중복 스킵 → `ScreenDetector`로 화면 판별 →
+화면별 핸들러로 분기합니다. **판단은 서버가 하고 앱은 눈과 손 역할만** 한다는 것이 설계 원칙입니다.
 
-### 4. `core.TelemetryManager` (생체 리듬 / Heartbeat)
-데드맨 스위치 생존 신고용 스케줄러입니다. 1DAL 서버 시스템이 `기기가 살아있는지`를 바로 이 클래스가 올리는 3초 주기 `Ping(Scrap)`을 통해 감지합니다.
+```
+LIST                → 콜 스캔 → 4대 필터 통과 시 광클
+DETAIL_PRE_CONFIRM  → /confirm 전송 + 확정 버튼 클릭
+DETAIL_CONFIRMED    → 팝업 서핑 시작
+POPUP_MEMO/PICKUP/DROPOFF → 텍스트 수집 → 마지막에 /detail 전송
+```
 
-### 5. `core.AutoTouchManager` (안드로이드 팔/다리)
-스크린 터치가 필요할 때 X, Y 좌표를 계산하고 물리적으로 강제 터치 이벤트를 쏩니다.
-추후 취소 버튼 터치("CANCEL" 응답 수신 시) 등 새로운 물리 매크로 동작이 필요할 때 확장할 포인트입니다.
+> ⚠️ 원래 의도는 "지시만 내리는 얇은 오케스트레이터"였으나 현재 757줄이며
+> 인성콜 전용 문자열(`"닫기"`, `"취소"`, `"전화1"`, `"도착지"`)이 하드코딩되어 있습니다.
+> 이 때문에 화물24시에서는 판결 집행이 실패합니다. → todo.md Phase 5
 
-## 📍 백그라운드 GPS 트래킹 파이프라인 (Task 7)
+### `ApiClient` — Executor 3분리
+실전에서 나온 설계입니다. 비상 통신이 배차 통신에 절대 블로킹되지 않습니다.
 
-폰 화면이 꺼지거나 타겟 앱(인성콜 등)이 백그라운드로 내려가더라도 기사의 실시간 위치를 서버(관제탑)와 동기화하기 위한 파이프라인입니다.
+| Executor | 스레드 | 담당 |
+|---|---|---|
+| `dispatchExecutor` | 2 | `/confirm`, `/detail` |
+| `emergencyExecutor` | 1 (전용) | `/emergency` |
+| `telemetryExecutor` | 1 | `/scrap`, `/config/keywords`, `/devices/*` |
 
-1. **LocationTracker**: 안드로이드의 `FusedLocationProviderClient`를 사용하여 배터리를 최적화하면서도 고정밀 위치를 수집합니다.
-2. **Foreground Service 기반 접근**: 백그라운드 실행 제약을 우회하기 위해 1DAL 접근성 서비스가 켜져 있는 동안 백그라운드 위치 정보 접근 권한(`ACCESS_BACKGROUND_LOCATION`)을 유지합니다.
-3. **Telemetry 실시간 동기화**: 수집된 X, Y 좌표는 `SessionManager`(또는 `TelemetryManager`)의 1.0초 단위 Heartbeat 페이로드에 탑재되어 서버(`POST /api/scrap`)로 실시간 전송됩니다.
+`executeWithRetry()`가 1회 자동 재시도를 담당하며 **`/scrap`을 포함한 모든 호출**이 사용합니다.
+(`/scrap`은 2026-08-09에 추가 — 생존신고가 1회 실패하면 서버 데드맨이 오작동했습니다)
 
-## 확장 및 유지보수 규칙
-1. **사이드 이펙트 방지**: HTTP 코드가 터치 코드에 영향을 미쳐서는 안 됩니다. 반드시 `HijackService`를 경유해서만 두 기능이 조합됩니다.
-2. **동기화 주의**: 멀티스레드 환경에서 동작하는 콜백 구조이므로 항상 `synchronized` 블록이나 Coroutines `Mutex`를 통하여 Thread-Safety를 준수해야 합니다.
+### `TelemetryManager` — 전송 스케줄러
+
+| 트리거 | 주기 |
+|---|---|
+| 하트비트 (버퍼 비어도 전송) | **60초** |
+| 콜 수집 후 | 300ms 디바운스 |
+| 화면 상태 변경 | 200ms 디바운스 |
+| 판결 대기 중 (`isWaitingDecision`) | **1초 고속 폴링** |
+
+> ⚠️ KDoc과 기동 로그에 "20초"라 적힌 곳이 남아 있습니다. 실제는 60초입니다. → todo.md
+
+### 서버 URL 결정 — `ApiClient.getTargetUrl()`
+`BuildConfig`가 아니라 **SharedPreferences**가 결정합니다.
+
+```
+isLiveMode = true  → https://1dal.altari.com{endpoint}
+isLiveMode = false → http://{localPcIp}{endpoint}     기본 172.30.1.89:4000
+```
+설정 탭의 스위치로 전환합니다. 실기기 로컬 테스트 시 **포트까지 입력**해야 합니다
+(UI 기본값에 포트가 빠져 있어 그대로 두면 80포트로 붙으려다 실패합니다).
+
+---
+
+## 4. 빌드 버전 식별 (이슈 V)
+
+폰에 어떤 APK가 깔려 있는지 확인할 수단이 필요합니다. 앱 대시보드 상단과 기동 로그에 표시됩니다.
+
+```
+📦 v1.2-capacity+logdiet (build 3)
+```
+
+> ⚠️ **`BuildConfig.VERSION_NAME`을 쓰면 안 됩니다.**
+> 컴파일 타임 상수라 호출부에 값이 인라인됩니다. `versionName`만 바꾸고 호출부 소스가 그대로면
+> `compileDebugKotlin`이 up-to-date로 판정되어 **APK에 옛 문자열이 남습니다.**
+> 실제로 DEX 안에 신·구 버전이 동시에 존재해, 화면은 1.1인데 `adb dumpsys`는 1.2인 상황이 있었습니다.
+> → `core/AppInfo.kt`가 `PackageManager`로 **런타임 조회**합니다. 매니페스트를 읽으므로
+> `adb dumpsys package` 결과와 항상 일치합니다.
+
+## 5. 빌드·설치
+
+Android Studio 내장 JDK(JBR 21)를 쓰면 별도 JDK 설치가 필요 없습니다.
+
+```bash
+cd onedal-app
+export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
+./gradlew :app:compileDebugKotlin    # 컴파일만
+./gradlew :app:assembleDebug         # APK
+
+~/Library/Android/sdk/platform-tools/adb install -r \
+  app/build/outputs/apk/debug/app-debug.apk
+```
+
+**설치 후 반드시 확인**
+1. **접근성 권한** — 앱 업데이트 시 안드로이드가 자동으로 끕니다. 대시보드 배지가 🔴이면 재승인
+2. **서버 모드** — 로컬 테스트면 스위치 OFF + `PC IP:4000`
+3. **PIN 페어링** — `-r` 설치면 유지됩니다. 완전 삭제 후 설치하면 `deviceId`가 새로 생성되어 재페어링 필요
+
+## 6. 확장 규칙
+
+1. **사이드 이펙트 방지** — HTTP 코드가 터치 코드에 직접 관여하지 않습니다. `HijackService`를 경유합니다
+2. **Thread-Safety** — `scrapBuffer`는 `synchronized`, 공유 플래그는 `@Volatile`
+3. **새 배차앱 추가** — `plugins/` 아래에 Parser + Keywords를 만들고 `ScrapParser`의 `when`에 추가.
+   단, 현재는 `HijackService`의 하드코딩 때문에 그것만으로는 부족합니다 (todo.md Phase 5)
+4. **로그** — 대량 덤프는 `AppLogger.v`. release 빌드에서 자동으로 꺼집니다

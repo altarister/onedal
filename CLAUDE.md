@@ -24,14 +24,35 @@
 | 서버 타입 체크 | `cd onedal-web/server && npx tsc --noEmit` |
 | 서버 테스트 | `cd onedal-web/server && npx jest` |
 | 클라 타입 체크 | `cd onedal-web/client-app && npx tsc -b` |
-| 앱 빌드 | `cd onedal-app && ./gradlew assembleDebug` |
+| 앱 빌드 | `cd onedal-app && ./gradlew assembleDebug` (JDK: `export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"`) |
+| 앱 컴파일만 | `cd onedal-app && ./gradlew :app:compileDebugKotlin` |
+| **서버 정체 확인** | `curl -s localhost:4000/api/health \| python3 -m json.tool` |
 
 로컬 개발 시 DB는 `server/local.db`(실서버는 `data.db`)로 자동 분리됨.
 `client-app/.env`에 `VITE_API_URL`이 있으면 Vite 프록시가 깨지므로 로컬에서는 비워둘 것.
 
 ## 커밋 전 필수
 
-`tsc --noEmit`(server + client) 와 `npx jest`가 통과해야 커밋한다. 실패 시 커밋 금지.
+`tsc --noEmit`(server) · `tsc -b`(client) · `npx jest` · **`./gradlew :app:compileDebugKotlin`**(앱 코드를 고쳤다면)
+이 전부 통과해야 커밋한다. 실패 시 커밋 금지.
+
+> 앱 컴파일이 필수인 이유: 2026-08-09에 `main`이 컴파일조차 안 되는 상태였다는 걸
+> 뒤늦게 발견했다(`InsungParser`의 import 누락). 서버는 tsc로 매번 확인하는데
+> 앱은 검증 수단이 없어 아무도 몰랐다.
+
+## "무엇이 실제로 돌고 있는가" 확인 (중요)
+
+이 프로젝트에서 반복적으로 시간을 잡아먹은 문제다. 고쳤다고 생각했는데 옛 코드가 돌고 있어
+잘못된 결론을 내리는 일이 하루에 여러 번 있었다. 검증 전에 항상 확인할 것.
+
+| 대상 | 확인 방법 | 어긋났을 때 |
+|---|---|---|
+| 서버 | `curl localhost:4000/api/health` → `bootedAt`, `git.commit` | `tsx watch`가 변경을 놓친 것. `Ctrl+C` 후 `pnpm dev` |
+| 앱 | 대시보드 상단 `📦 v...` 또는 `adb shell dumpsys package com.onedal.app \| grep versionName` | `adb install -r` 재설치 |
+| 관제웹 | `localhost:3000`으로 접속 | `localhost:4000`은 옛 `dist/` 빌드가 뜬다 |
+
+⚠️ 빌드를 식별하는 값에 **컴파일 타임 상수(`BuildConfig.VERSION_NAME`)를 쓰지 말 것.**
+호출부에 인라인되어 재컴파일이 생략되면 옛 값이 남는다. 런타임 조회(`AppInfo`)를 쓴다.
 
 ## 도메인 용어
 
@@ -54,10 +75,14 @@
 `onedal-app/docs/API_SPEC.md` · `onedal-web/server/docs/DISPATCH_STATE_MACHINE.md` ·
 `onedal-web/server/docs/ENV_CONFIG_SPEC.md` · `onedal-web/client-app/docs/STATE_MANAGEMENT.md`
 
-**❌ 코드와 다름 (Phase 0.5에서 재작성 예정)**
-- `onedal-web/server/docs/SERVER_ARCHITECTURE.md` — "ESM 전환 완료"(실제 CommonJS), `RouteManager.ts`·`routes/confirm.ts` 없음, 파이프라인 기술 오류
-- `onedal-app/docs/ANDROID_ARCHITECTURE.md` — "Compose 제거 완료"(실제 사용 중), `LocationTracker`·`FusedLocationProviderClient` 없음, 하트비트 "3초"(실제 60초)
-- `onedal-app/docs/PLUGIN_INTERFACE_SPEC.md` — `BaseScrapParser`/`BaseAutomationEngine` 인터페이스가 실재하지 않음 (실제는 `IScrapParser`)
+**✅ 2026-08-09 재작성 완료 (이제 신뢰 가능)**
+- `onedal-web/server/docs/SERVER_ARCHITECTURE.md` (v4.0)
+- `onedal-app/docs/ANDROID_ARCHITECTURE.md` (v2.0)
+- `onedal-app/docs/PLUGIN_INTERFACE_SPEC.md` (v2.0)
+- `onedal-web/server/docs/API_SPEC.md` (v3.1) · `onedal-web/client-app/docs/SOCKET_EVENT_MAP.md` (v2)
+
+> 세 문서는 계획을 완료로 기술해 존재하지 않는 파일·인터페이스를 안내하고 있었다.
+> 재작성본에는 각 문서 상단에 **"무엇이 사실이 아니었는지"** 를 남겨 같은 실수를 방지한다.
 
 **🔄 진행 중인 정비 계획: [todo.md](todo.md)** — 작업 시작 전 반드시 확인
 
@@ -67,7 +92,8 @@
 - 기사님 운행 시간(주간)에 서버를 배포하지 않는다
 - `server/src/db.ts`의 조건부 `DROP TABLE` 마이그레이션 패턴을 새로 추가하지 않는다 (부팅 경로에서 데이터가 날아감)
 - 파일·폴더 삭제 또는 이동 전에 반드시 확인을 받는다
-- 코드에 들어가지 않은 것을 문서에 "완료"로 쓰지 않는다 (이미 두 번 발생한 문제)
+- 코드에 들어가지 않은 것을 문서에 "완료"로 쓰지 않는다 (이미 세 번 발생한 문제).
+  계획은 `todo.md`에, 구현된 것만 아키텍처 문서에 쓴다
 
 ## 작업 스타일
 
