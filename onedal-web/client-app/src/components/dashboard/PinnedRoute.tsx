@@ -159,17 +159,34 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
                             href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(unifiedRoutePoints[0]?.name || '')}&destination=${encodeURIComponent(unifiedRoutePoints[unifiedRoutePoints.length - 1]?.name || '')}&waypoints=${encodeURIComponent(unifiedRoutePoints.slice(1, -1).map(p => p.name).join('|'))}&travelmode=driving`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex-1"
+                            // 진행 중 경로가 없으면 origin/destination이 비어 깨진 구글맵 링크가 되므로 클릭을 막는다
+                            className={`flex-1 ${unifiedRoutePoints.length === 0 ? 'pointer-events-none' : ''}`}
                         >
                             <div className="flex flex-col">
                                 <span className="text-xs text-text-muted">
-                                    {activeRoute.length > 0 && <span className="text-text-muted font-bold">총 {activeRoute.length}개 경로 정보{liveRoute.length < activeRoute.length ? ` (${activeRoute.length - liveRoute.length}건 완료)` : ''}</span>}
+                                    {activeRoute.length > 0 && (
+                                        <span className="text-text-muted font-bold">
+                                            총 {activeRoute.length}개 경로 정보
+                                            {/* 종료된 건에는 완료뿐 아니라 취소·방출도 포함되므로 "완료"라 쓰면 부정확하다 */}
+                                            {liveRoute.length < activeRoute.length ? ` (${activeRoute.length - liveRoute.length}건 종료)` : ''}
+                                        </span>
+                                    )}
                                 </span>
                                 <span className="text-sm text-text-primary hover:text-info transition-colors">
                                     {(() => {
                                         const lastRoute = [...liveRoute].reverse().find(r => r.totalDistanceKm != null);
-                                        if (!lastRoute || lastRoute.totalDistanceKm == null) return `카카오 연산 에러 혹은 대기중...`;
-                                        return `주행거리 ${(Number(lastRoute.totalDistanceKm) || 0).toFixed(1)}km / 예상 ${lastRoute.totalDurationMin || 0}분`;
+                                        if (lastRoute?.totalDistanceKm != null) {
+                                            return `주행거리 ${(Number(lastRoute.totalDistanceKm) || 0).toFixed(1)}km / 예상 ${lastRoute.totalDurationMin || 0}분`;
+                                        }
+                                        // 아래 세 가지는 완전히 다른 상황인데 예전에는 모두
+                                        // "카카오 연산 에러 혹은 대기중..." 하나로 표시되어
+                                        // 정상 상태(진행 중 0건)를 에러로 오인하게 만들었다.
+                                        if (liveRoute.length === 0) return `진행 중인 경로 없음 · 새 콜 대기 중`;
+                                        const hasFailure = liveRoute.some(r =>
+                                            r.kakaoTimeExt?.includes('실패') || r.kakaoTimeExt?.includes('에러')
+                                        );
+                                        if (hasFailure) return `카카오 경로 연산 실패`;
+                                        return `카카오 경로 연산 중...`;
                                     })()}
                                 </span>
                             </div>
