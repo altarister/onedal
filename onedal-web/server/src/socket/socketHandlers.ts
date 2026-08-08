@@ -1,5 +1,6 @@
 import { Server, Socket } from "socket.io";
 import jwt from "jsonwebtoken";
+import { jwtSecret } from "../config/env";
 import { getUserDevicesSnapshot } from "../routes/devices";
 import { getRegionsByCity } from "../geoResolver";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
@@ -25,8 +26,7 @@ export function registerSocketHandlers(io: Server) {
         }
         
         try {
-            const secret = process.env.JWT_SECRET || "fallback_secret";
-            const decoded = jwt.verify(token, secret) as any;
+            const decoded = jwt.verify(token, jwtSecret()) as any;
             socket.data.user = decoded; // { id, email, name, role }
             next();
         } catch (err) {

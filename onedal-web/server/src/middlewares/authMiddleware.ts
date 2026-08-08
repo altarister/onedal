@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
+import { jwtSecret } from "../config/env";
 
 
 
@@ -34,8 +35,7 @@ export const requireAuth = (req: Request, res: Response, next: NextFunction): vo
     const token = authHeader.split(" ")[1];
 
     try {
-        const secret = process.env.JWT_SECRET || "fallback_secret";
-        const decoded = jwt.verify(token, secret) as AuthUser;
+        const decoded = jwt.verify(token, jwtSecret()) as AuthUser;
         req.user = decoded; // 이후 라우터 로직에서 req.user.id 접근 가능
         next();
     } catch (err: any) {

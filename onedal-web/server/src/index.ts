@@ -20,12 +20,17 @@ import filtersRouter from "./routes/filters";
 import logbookAnalyticsRouter from "./routes/logbook/analytics";
 import logbookPlacesRouter from "./routes/logbook/places";
 import healthRouter, { logServerIdentity } from "./routes/health";
+import { validateEnv } from "./config/env";
 
 import { initGeoService } from "./services/geoService";
 import { logRoadmapEvent } from "./utils/roadmapLogger";
 import { registerSocketHandlers } from "./socket/socketHandlers";
 
 dotenv.config({ path: path.join(__dirname, "../.env") });
+
+// [Phase 1 / 이슈 B] 필수 환경 변수 검증. 반드시 dotenv.config() 이후에 호출한다.
+// 없으면 여기서 부팅을 중단한다 (조용히 fallback 문자열로 동작하는 것을 막는다).
+validateEnv();
 
 const app = express();
 const httpServer = createServer(app);

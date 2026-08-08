@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { OAuth2Client } from "google-auth-library";
 import jwt from "jsonwebtoken";
+import { jwtSecret, jwtRefreshSecret } from "../config/env";
 import bcrypt from "bcrypt";
 import { v4 as uuidv4 } from "uuid";
 import db from "../db";
@@ -63,7 +64,7 @@ router.post("/google", async (req, res) => {
         }
 
         // 3. 1시간짜리 Access Token 발급
-        const secret = process.env.JWT_SECRET || "fallback_secret";
+        const secret = jwtSecret();
         const accessToken = jwt.sign(
             { id: userRow.id, email: userRow.email, name: userRow.name, role: userRow.role },
             secret,
@@ -71,7 +72,7 @@ router.post("/google", async (req, res) => {
         );
 
         // 4. 14일짜리 Refresh Token 발급 및 DB 저장 (다중 기기 동시 지원 방식)
-        const refreshSecret = process.env.JWT_REFRESH_SECRET || "fallback_rt_secret";
+        const refreshSecret = jwtRefreshSecret();
         const refreshToken = jwt.sign(
             { sub: userRow.id, type: "refresh" },
             refreshSecret,
@@ -119,7 +120,7 @@ router.post("/refresh", async (req, res) => {
 
     try {
         // 1. RT 조작/만료 여부 1차 검증
-        const refreshSecret = process.env.JWT_REFRESH_SECRET || "fallback_rt_secret";
+        const refreshSecret = jwtRefreshSecret();
         const decoded = jwt.verify(refreshToken, refreshSecret) as { sub: string, type: string };
         if (decoded.type !== "refresh") {
             return res.status(403).json({ error: "유효하지 않은 토큰 유형입니다." });
@@ -147,7 +148,7 @@ router.post("/refresh", async (req, res) => {
         }
 
         // 4. 조회가 완료되었으므로 새 Access Token 발급 후 반환 (Silent Refresh)
-        const secret = process.env.JWT_SECRET || "fallback_secret";
+        const secret = jwtSecret();
         const userRow = db.prepare("SELECT * FROM users WHERE id = ?").get(userId) as any;
         const newAccessToken = jwt.sign(
             { id: userRow.id, email: userRow.email, name: userRow.name, role: userRow.role },
@@ -236,14 +237,14 @@ router.post("/bypass", async (req, res) => {
             userRow = db.prepare("SELECT * FROM users WHERE id = ?").get(newId) as any;
         }
 
-        const secret = process.env.JWT_SECRET || "fallback_secret";
+        const secret = jwtSecret();
         const accessToken = jwt.sign(
             { id: userRow.id, email: userRow.email, name: userRow.name, role: userRow.role },
             secret,
             { expiresIn: "30d" }
         );
 
-        const refreshSecret = process.env.JWT_REFRESH_SECRET || "fallback_rt_secret";
+        const refreshSecret = jwtRefreshSecret();
         const refreshToken = jwt.sign(
             { sub: userRow.id, type: "refresh" },
             refreshSecret,

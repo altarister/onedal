@@ -96,14 +96,23 @@
 
 ---
 
-## Phase 1 — 보안 🔒
-> **예상**: 반나절 / **위험도**: 중 (배포 순서 엄수)
-> **배포**: 🌙 **새벽. 웹 전원 재로그인 발생 공지 필요**
+## Phase 1 — 보안 🔒  B·C 완료 (2026-08-09) / A 보류
+> **배포**: 새벽 작업 **불필요**로 확정 — EC2에 시크릿이 이미 있어 재로그인이 발생하지 않음
 
-- [ ] **사전 확인 (코드 수정 전)**
-  - [ ] EC2 `.env`에 `JWT_SECRET` / `JWT_REFRESH_SECRET` 실제 존재 여부
-  - [ ] 실기기 안드로이드 앱에서 **구글 로그인이 되는지** ← A(bypass) 처리 방향이 여기서 갈림
-- [ ] **A. `POST /api/auth/bypass` 게이트** — `server/src/routes/auth.ts:218`
+- [x] **사전 확인** — 2026-08-09 SSH 실측 (IP `13.222.63.17`)
+  - [x] EC2 `.env`: `JWT_SECRET` ✅ `JWT_REFRESH_SECRET` ✅ **둘 다 설정돼 있음**
+        → B의 가장 큰 위험(전원 로그아웃)이 사라짐
+  - [x] bypass 사용 이력: **프로덕션에서 2회 사용됨**. 구글 로그인 로그는 **0회**
+        → `capacitor.config.ts`에 `server.url`이 없어 WebView origin이 `https://localhost`이고,
+          Google이 임베디드 WebView 로그인을 차단하므로 **bypass가 유일한 입구**임이 확정
+  - [x] 배포된 프로덕션 코드: `3837f07` (2026-05-11) · PM2 online · 재시작 3회 · 90일 무중단
+  - [x] `data.db` 168KB (intel 부담 없음 → H 이슈 시급도 하향)
+- [ ] **A. `POST /api/auth/bypass` 게이트** — `server/src/routes/auth.ts:218` 🔴 **보류 (2026-08-09 사용자 결정)**
+  - 🔬 실측: 프로덕션 pm2 로그에 `🔓 [AUTH] 로컬 우회 로그인` **2회**, 구글 로그인 **0회**
+    → 관제웹 앱의 유일한 로그인 경로. **삭제하면 폰에서 접속 불가**
+  - 대안 3가지: ⓐ `ALLOW_BYPASS_LOGIN` 환경변수 + 공유 시크릿(즉시 가능) /
+    ⓑ `capacitor.config.ts`에 `server.url` 지정 → origin이 실도메인이 되어 구글 로그인 가능해질 수 있음(근본) /
+    ⓒ 관제웹도 PIN 로그인
   - 현재 인증·환경 가드 **전무**. `curl` 한 방이면 DB 첫 유저(=ADMIN) 권한 30일 토큰 발급
   - `client-app/src/pages/Login.tsx:14`가 3초 뒤 무조건 버튼 노출 → **프로덕션에서도 보임**
   - ⚠️ 사이드 이펙트: Capacitor WebView는 origin이 `https://localhost`라 구글 OAuth가 자주 실패 → **네이티브 앱의 주 로그인 수단일 가능성**
@@ -112,10 +121,18 @@
   - `process.env.JWT_SECRET || "fallback_secret"` → 부팅 시 없으면 `process.exit(1)`
   - ⚠️ **배포 순서 엄수**: ①`.env` 확인 → ②시크릿 주입 → ③가드 코드 배포. 순서 틀리면 **부팅 실패 = 전면 장애**
   - ⚠️ 현재 프로덕션이 `fallback_secret`으로 돌고 있었다면 **발급된 토큰 전부 무효화 → 웹 전원 로그아웃** (앱폰은 deviceId 기반이라 무영향)
-- [ ] **C-1. `GET /api/scrap` 삭제** — `server/src/routes/scrap.ts:165`
-  - 무인증 + `WHERE user_id` 없음 → **전 기사 콜 정보 500건 노출**
-  - ✅ 확인 완료: client-app · logbook 전체 grep 결과 **소비처 0건**
-- [ ] **C-2. 전역 브로드캐스트 → 유저 룸** — `scrap.ts:92` `io.emit("telemetry-ping")` → `io.to(userId)`
+- [x] **B. JWT 시크릿 폴백 제거** ✅ 2026-08-09
+  - `config/env.ts` 신설 — `validateEnv()`가 부팅 시 필수 변수를 검사하고 없으면 `process.exit(1)`
+  - `jwtSecret()` / `jwtRefreshSecret()` 런타임 getter로 8곳 전부 교체
+    (`authMiddleware` 1 · `socketHandlers` 1 · `auth.ts` 6). `fallback_secret` 잔존 0건
+  - ⚠️ `validateEnv()`는 `dotenv.config()` **이후**에 호출해야 함 —
+    CommonJS는 import가 먼저 실행되므로 모듈 로드 시점에 `process.env`를 읽으면 undefined
+  - 🔬 검증: `JWT_SECRET=""`로 기동 시도 → **종료 코드 1 + 안내 메시지 출력** 확인
+- [x] **C-1. `GET /api/scrap` 삭제** ✅ 2026-08-09
+  - 🔬 프로덕션 실측: 토큰 없이 `HTTP 200` · **콜 327건(68KB)** 반환.
+    `pickup`/`dropoff`/`fare`/`user_id`/`device_id` 전부 포함
+  - 소비처 0건 확인 후 삭제 → 로컬 검증 `404 application/json`
+- [x] **C-2. 전역 브로드캐스트 → 유저 룸** ✅ `scrap.ts` `telemetry-ping` → `io.to(userId)`
 - [ ] **`.github/1dal.pem`을 레포 밖(`~/.ssh/`)으로 이동**
   - ✅ 확인: `*.pem` gitignore됨 + `git log --diff-filter=A -- '*.pem'` 이력 없음 → **유출 안 됨**
   - 다만 gitignore 한 줄이 사라지면 즉시 유출. `deploy-auto.sh`의 `PEM_KEY` 경로도 함께 수정
@@ -306,6 +323,18 @@
     매니페스트를 읽으므로 `adb dumpsys` 결과와 항상 일치하며 인라인 영향을 받지 않는다.
   - 교훈: 빌드 산출물을 식별하는 값은 컴파일 타임 상수로 쓰지 말 것
 
+### 🆕 Y. 배포 인프라 문제 (2026-08-09 발견) 🔴
+- [ ] **EC2 퍼블릭 IP가 바뀌었는데 스크립트가 옛 IP를 보고 있음**
+  - `deploy-auto.sh:7` `EC2_IP="44.222.73.86"` → **22/80/4000 전부 도달 불가 (죽은 IP)**
+  - 실제 IP는 **`13.222.63.17`** (Cloudflare DNS 패널에서 확인)
+  - `LOCAL_DEVELOPMENT_GUIDE.md`가 "긴급 시 이걸 쓰라"고 안내하는 수동 배포 경로가 **동작하지 않음**
+  - GitHub Actions는 `secrets.EC2_HOST`를 쓰므로 그쪽은 별개 (Secrets는 읽을 수 없어 확인 불가)
+- [ ] **Elastic IP 미할당** — EC2를 중지·재시작할 때마다 IP가 바뀌어
+  `deploy-auto.sh`와 GitHub Secrets가 동시에 깨진다. 탄력적 IP를 붙이면 재발하지 않으며
+  인스턴스에 연결된 상태에서는 무료
+- [ ] **`deploy.sh`(구버전 폴백)도 깨져 있음** — `cd client`인데 실제 폴더는 `client-app`
+- [ ] IP를 `.env`나 환경변수로 빼서 하드코딩 제거
+
 ### 🆕 U. `tsx watch`가 파일 변경을 놓침 (로컬 개발 신뢰성) ✅ 2026-08-09 완화
 - [x] `pnpm dev`의 `tsx watch src/index.ts`가 소스 수정을 감지하지 못하는 경우가 반복됨
   - 2026-08-08 `OrderRepository.ts` 수정 → 미감지 (수동 재시작 필요)
@@ -462,3 +491,7 @@
 | 2026-08-09 | 3 | **W 수정** — 재시작 복구 시 배차 상태를 데이터에서 파생(단계·합짐·차종·회랑) + 관제탑 배너. 테스트 7개 추가(총 39개) | ✅ 코드 |
 | 2026-08-09 | — | **실기기 실전 검증**: S(적재 용량) 검산 일치 — 오토바이×3+다마스×2=20점, 남은 10점 → [오토바이·승용차·다마스], 1t 콜이 정확히 걸러짐. W(GATHERING·합짐·회랑442) 확인. A1 −47%(13,458→7,147B, 동일 조건). A2·P·V 동작 확인 | ✅ |
 | 2026-08-09 | — | **X 수정** — 콜 전부 취소 시 정상 상태를 "카카오 연산 에러"로 표시하던 문구 분리 | ✅ 코드 |
+| 2026-08-09 | U·R | `/api/health` 신설(부팅시각·git 커밋) + `isShared` 판정 데이터 파생 | ✅ |
+| 2026-08-09 | 0.5 | 거짓 아키텍처 문서 3건 재작성 + API/소켓 명세 정정 + CLAUDE.md 갱신 | ✅ |
+| 2026-08-09 | — | **프로덕션 SSH 실측** — IP가 `44.222.73.86`→`13.222.63.17`로 바뀌어 있었음(Y). EC2 `.env` 시크릿 정상, bypass 2회 사용·구글 로그인 0회 확인 | ✅ |
+| 2026-08-09 | 1 | **B·C-1·C-2 완료** — JWT 폴백 제거+부팅 가드, 무인증 `GET /api/scrap`(실측 327건 노출) 삭제, 전역 emit 제거. A(bypass)는 보류 | ✅ 코드 |

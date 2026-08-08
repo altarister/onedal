@@ -89,7 +89,9 @@ router.post("/", (req, res) => {
             const evaluatingOrderId = session.deviceEvaluatingMap.get(deviceId);
             if (evaluatingOrderId) {
                 const io = req.app.get("io");
-                io.emit("telemetry-ping", { orderId: evaluatingOrderId });
+                // [Phase 1 / 이슈 C-2] io.emit 은 접속한 모든 유저에게 방송된다.
+                // 다른 기사의 orderId 가 남의 화면으로 새어나가므로 유저 룸으로 한정한다.
+                io.to(userId).emit("telemetry-ping", { orderId: evaluatingOrderId });
             }
         }
 
@@ -168,18 +170,13 @@ router.post("/", (req, res) => {
     }
 });
 
-// GET: 스크랩 데이터 조회 (TODO: 차후 어드민/개인용 분리 필요)
-router.get("/", (req, res) => {
-    try {
-        const stmt = db.prepare("SELECT * FROM intel ORDER BY timestamp DESC LIMIT 500"); // 성능상 500개 제한
-        const scrapData = stmt.all() as SimplifiedOfficeOrder[];
-
-        res.json({ scrapData, total: scrapData.length });
-    } catch (error) {
-        console.error("Scrap GET 에러:", error);
-        res.status(500).json({ error: "서버 오류 발생" });
-    }
-});
+// [Phase 1 / 이슈 C-1] GET /api/scrap 제거
+//
+// 무인증 + WHERE user_id 없이 intel 테이블 500건을 그대로 반환하고 있었다.
+// 2026-08-09 프로덕션 실측: 토큰 없이 HTTP 200 으로 콜 327건(68KB)이 응답됐고
+// pickup / dropoff / fare / user_id / device_id 가 모두 포함되어 있었다.
+// 지금은 사용자가 1명이라 노출 범위가 좁지만, 기사가 늘면 전원 데이터가 나간다.
+// client-app · logbook 전수 grep 결과 소비처 0건임을 확인하고 삭제했다.
 
 export default router;
 
