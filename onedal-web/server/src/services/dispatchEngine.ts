@@ -439,8 +439,17 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
 
         // DB에 영구 저장 (status: confirmed) 및 places/orderStops 기록 (v5 스키마)
         try {
-            // isShared: 세션의 합짐 모드 여부로 판단
-            const isShared = session.activeFilter.isSharedMode ? 1 : 0;
+            // [이슈 R] isShared는 "필터가 합짐 모드였는가"가 아니라
+            // "이 콜을 잡을 때 이미 실린 짐이 있었는가"로 판정한다.
+            //
+            // 이전에는 session.activeFilter.isSharedMode를 그대로 썼는데,
+            // 필터 상태는 서버 재시작 등으로 실제와 어긋날 수 있어(이슈 W)
+            // 명백한 합짐 콜이 isShared=0으로 기록되는 일이 있었다.
+            // (실측: Waypoints 2개로 우회 연산까지 했는데 DB에는 단독으로 남음)
+            //
+            // 이 시점에는 confirmedOrder가 이미 myOrders에 push된 뒤이므로,
+            // 활성 콜이 2건 이상이면 앞선 짐이 있었다는 뜻 = 합짐이다.
+            const isShared = getActiveCalls(session).length > 1 ? 1 : 0;
             // isExpress: 파서가 추출한 orderForm이 "급송"이면 true
             const isExpress = (cachedOrder.orderForm === '급송') ? 1 : 0;
 

@@ -19,6 +19,7 @@ import settingsRouter from "./routes/settings";
 import filtersRouter from "./routes/filters";
 import logbookAnalyticsRouter from "./routes/logbook/analytics";
 import logbookPlacesRouter from "./routes/logbook/places";
+import healthRouter, { logServerIdentity } from "./routes/health";
 
 import { initGeoService } from "./services/geoService";
 import { logRoadmapEvent } from "./utils/roadmapLogger";
@@ -53,6 +54,9 @@ app.use((req, res, next) => {
 });
 
 // API 라우터 등록
+// [이슈 U] 지금 도는 서버가 어떤 코드인지 밖에서 확인 (부팅 시각·커밋 해시)
+app.use("/api/health", healthRouter);
+
 app.use("/api/orders", ordersRouter);
 app.use("/api/orders/detail", detailRouter);
 app.use("/api/scrap", scrapRouter);
@@ -99,6 +103,7 @@ const PORT = process.env.PORT || 4000;
 
 httpServer.listen(PORT as number, "0.0.0.0", () => {
     initGeoService();
+    logServerIdentity();
     // hydrateSessionsFromDB(); // 서버 기동 시 일괄 복구 로직 폐기 완료 (userSessionStore에서 Lazy Load로 대체)
     logRoadmapEvent("서버", "서버 기동 및 디폴트 필터 셋업 (대기 모드)");
     console.log(`\n🚀 1DAL 서버 (Express + Socket.io) 시작됨`);

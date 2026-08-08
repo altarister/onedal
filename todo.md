@@ -306,23 +306,28 @@
     매니페스트를 읽으므로 `adb dumpsys` 결과와 항상 일치하며 인라인 영향을 받지 않는다.
   - 교훈: 빌드 산출물을 식별하는 값은 컴파일 타임 상수로 쓰지 말 것
 
-### 🆕 U. `tsx watch`가 파일 변경을 놓침 (로컬 개발 신뢰성)
-- [ ] `pnpm dev`의 `tsx watch src/index.ts`가 소스 수정을 감지하지 못하는 경우가 반복됨
+### 🆕 U. `tsx watch`가 파일 변경을 놓침 (로컬 개발 신뢰성) ✅ 2026-08-09 완화
+- [x] `pnpm dev`의 `tsx watch src/index.ts`가 소스 수정을 감지하지 못하는 경우가 반복됨
   - 2026-08-08 `OrderRepository.ts` 수정 → 미감지 (수동 재시작 필요)
   - 2026-08-09 `scrap.ts` 수정 → 미감지 (서버 8/8 11:43 기동, 파일 8/9 01:01 수정)
   - 그 사이 8/8 `index.ts` 수정은 정상 감지 → **간헐적**
   - 증상이 위험한 이유: 고친 줄 알고 검증했는데 옛 코드가 돌고 있어 결론을 잘못 내리게 됨
     (앱 APK 버전 혼동과 동일한 종류의 문제)
-  - 대응안: `tsx watch --clear-screen=false`로 재기동 로그를 명확히 하거나,
-    서버 기동 시 부팅 시각을 로그에 찍고 `/api/health`로 노출해 확인 가능하게 하기
+  - ✅ **대응**: `GET /api/health` 신설 — 부팅 시각·업타임·git 커밋/브랜치·DB 파일·NODE_ENV 노출.
+    기동 로그에도 `🧾 [BUILD] commit xxx (branch) · 부팅 시각` 한 줄 출력.
+    **소스를 고쳤는데 `bootedAt`이 그대로면 재기동이 안 된 것**이므로 curl 한 번으로 판별된다.
+    (앱의 versionName 마커와 동일한 목적 — 시스템이 자기 정체를 스스로 말하게 만든다)
+  - ⚠️ 근본 원인(tsx watch 자체의 미감지)은 미해결. 감지 실패 시 수동 재시작 필요
 
-### 🆕 R. `isShared` 플래그가 실제 합짐 여부와 어긋남 (Phase 2 검증 중 발견, 별건)
-- [ ] `dispatchEngine.handleDecision`의 `const isShared = session.activeFilter.isSharedMode ? 1 : 0`
+### 🆕 R. `isShared` 플래그가 실제 합짐 여부와 어긋남 ✅ 2026-08-09 수정 완료
+- [x] `dispatchEngine.handleDecision`의 `const isShared = session.activeFilter.isSharedMode ? 1 : 0`
   - 서버 재시작 시 `userSessionStore.ts:88`이 `isSharedMode: false`로 리셋하므로,
     복구된 세션에서 잡은 합짐 콜은 Detour 연산을 하고도 DB에 `isShared=0`으로 기록됨
   - 실측: `f134859d`는 `Waypoints Count: 2`로 우회 연산했으나 `isShared=0`
-  - 수정 방향: 필터 모드가 아니라 **`getActiveCalls(session).length > 0`**(= 실제 Detour 여부)로 판정
-  - 영향: 운행일지·통계에서 합짐 건수가 실제보다 적게 집계됨
+  - ✅ **수정**: 필터 모드가 아니라 **`getActiveCalls(session).length > 1`** 로 판정.
+    이 시점엔 confirmedOrder가 이미 push된 뒤라, 활성 콜이 2건 이상이면 앞선 짐이 있었다는 뜻이다.
+    W와 같은 원칙 — 상태가 아니라 데이터에서 파생시킨다.
+  - 영향(수정 전): 운행일지·통계에서 합짐 건수가 실제보다 적게 집계됐음
 - ⚠️ **사이드 이펙트**: `Dashboard.tsx:35` `dbConfirmedOrCompleted`가 채워지며 **완료/취소 탭에 과거 콜이 갑자기 나타남**. id 기반 Map 병합이라 중복은 없지만 화면이 달라 보임 — 정상 동작
 
 ---
