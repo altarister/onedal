@@ -141,14 +141,29 @@
   1회 실패 → 다음 전송까지 120초 → 데드맨 초과 → devices.ts:355  mode="MANUAL" 강제 → 복구 안 됨
 ```
 
-- [ ] **① 서버: 모드 복원** — `server/src/routes/devices.ts` `touchDeviceSession()`
-  - OFFLINE→ONLINE 복귀 시 사용자가 마지막에 지정한 모드를 복원
-  - `sendOffline()`이 `status`만 내리고 `mode`는 건드리지 않도록 분리
-- [ ] **② 앱: 하트비트 주기 단축** — `TelemetryManager.kt:22` `HEARTBEAT_INTERVAL_MS` 60000 → **25000**
-- [ ] **③ 앱: scrap에도 재시도 적용** — `ApiClient.kt:214` `sendScrapTelemetry`에 `executeWithRetry` 사용
-- [ ] **④ 앱: 스테일 주석 정리** — TelemetryManager KDoc/로그의 "20초 주기" → 실제 값으로
-- [ ] **검증**: 실기기에서 (a)비행기모드 30초 후 해제 (b)화면 껐다 켜기 → **AUTO가 유지되는지**
-- ⚠️ **사이드 이펙트**: 하트비트 25초면 `/api/scrap` 트래픽 **2.4배** → 아래 Phase 3의 **H(intel COUNT 풀스캔)가 2.4배 악화**. → **H를 이 Phase에 함께 넣거나, H 배포 후에 ②를 적용할 것**
+> **🔬 2026-08-08 실측으로 진단 수정**
+> 경로①(화면 꺼짐)은 **자동 복구된다**. `/offline`이 `lastSeen=0`으로 만들면 세션 삭제 조건
+> (`> DEADMAN×12`)에 즉시 걸려 세션이 통째로 지워지고, 다음 하트비트에 재생성되기 때문.
+> curl로 확인함(오프라인 마킹 직후 `mode: AUTO`).
+> **영구 고착은 경로②뿐**이다. 데드맨은 `lastSeen`을 0으로 만들지 않고 `mode`만 바꾸며,
+> 통신이 재개되면 `lastSeen`이 계속 갱신되어 세션 삭제 조건에 영영 걸리지 않는다.
+
+- [x] **① 서버: 사용자 지정 모드 보존/복원** — `devices.ts`
+  - `deviceModePreference` 맵 신설: 관제탑에서 명시 지정한 모드만 담으며 통신 상태에 영향받지 않음
+  - `POST /:deviceId/mode` → preference 기록 / `DELETE /:deviceId` → preference 삭제
+  - `touchDeviceSession`: OFFLINE→ONLINE 복귀 시 preference로 **모드 복원** (핵심)
+  - 세션 신규 생성·비활성 기기 폴백도 `resolveDefaultMode()`(preference 우선)로 통일
+- [x] **② 서버: 데드맨 판정 여유 확대** — `devices.ts` `DEADMAN_TIMEOUT_MS` **70초 → 150초**
+  - 앱 하트비트 60초 대비 여유가 10초뿐이라 1회 전송 실패(다음까지 120초)로 오작동했음
+  - `sendOffline()`과 데드맨 모두 **`mode`를 MANUAL로 강제하던 로직 제거**, `status`만 변경
+  - 트레이드오프: 기기 사망 감지가 70초 → 150초로 느려짐 (관제탑에 status가 표시되므로 허용)
+- [x] **③ 앱: scrap에도 재시도 적용** — `ApiClient.kt` `sendScrapTelemetry`에 `executeWithRetry` 사용
+  - 기존엔 confirm/detail/emergency만 재시도가 있고 생존신고인 scrap만 맨 요청이었음
+- [x] ~~**④ 앱: 하트비트 60→25초**~~ — **철회.** ②로 여유가 확보되어 불필요.
+  적용했다면 `/api/scrap` 트래픽이 2.4배가 되어 미수정 상태인 **H(intel COUNT 풀스캔)** 를 악화시켰을 것
+- [x] **검증 (코드)**: `tsc --noEmit` ✅ / `jest` 8/8 ✅
+- [ ] **검증 (실기기)**: 비행기모드 **90초** 후 해제 → 관제탑에서 AUTO가 유지되는지
+- [ ] ⚠️ **안드로이드 빌드 미검증** — 이 맥에 JDK 없음. `sendScrapTelemetry` 구조를 바꿨으므로 실기기 빌드 확인 필요
 
 ---
 
@@ -216,16 +231,16 @@
   - `updateFilter`가 `baseFilter`까지 낙관적 갱신하는데 서버 `update-filter` 핸들러는 `activeFilter`만 변경 → 1초 안에 원복(깜빡임). `setBaseFilter` 호출 제거
 - [ ] **O. raw fetch → apiClient** — `client-app/src/hooks/useOrderEngine.ts:53`
   - 401 자동 refresh를 못 타고 `.catch(() => {})`로 조용히 실패
-- [ ] **🆕 P. keywords 설정 파일 경로 오류** — `server/src/routes/config.ts:14`
+- [x] **🆕 P. keywords 설정 파일 경로 오류** — `server/src/routes/config.ts:14` ✅ 2026-08-08 수정
   - `path.join(__dirname, "../../../config")` → `server/src/routes`에서 3단계 올라가 `onedal-web/config`를 봄
   - 실제 파일은 `server/config/keywords_inseong.json`. **`../../config`로 수정** (dist 빌드 시에도 동일하게 맞음)
   - 현재는 else 분기의 기본값으로 폴백 + `targetAppKeywords`를 읽는 코드가 없어 **무해**하지만, 매 앱 기동 시 에러 로그를 뱉음
-  - 2026-08-08 로컬 테스트 중 발견
-- [ ] **🆕 Q. 없는 API가 404 대신 HTML 200을 반환** — `server/src/index.ts:82`
+  - 2026-08-08 로컬 테스트 중 발견 → 같은 날 `../../config`로 수정. curl 검증 시 실제 파일 반환 확인
+- [x] **🆕 Q. 없는 API가 404 대신 HTML 200을 반환** — `server/src/index.ts` ✅ 2026-08-08 수정
   - SPA 폴백(`app.use((req,res) => sendFile(index.html))`)이 `/api/*` 미매칭 요청까지 잡아 `text/html` 200을 돌려줌
   - 앱(Gson)이 HTML을 파싱하려다 예외 → 실패 원인을 알 수 없게 됨
-  - 수정: SPA 폴백 앞에 `app.use("/api", (req,res) => res.status(404).json({error:"NOT_FOUND"}))` 추가
-  - 2026-08-08 로컬 테스트 중 발견
+  - 수정: SPA 폴백 앞에 `app.use("/api", ...)` 404 JSON 가드 추가
+  - curl 검증: `POST /api/이런거없음` → `{"error":"NOT_FOUND"}` 404 application/json ✅
 - [ ] **Ghost Defense 수정** — `app/HijackService.kt:140`
   - `"$session.currentOrderId"` → `"${session.currentOrderId}"` (현재 `SessionManager` 객체 toString이 찍혀 **방어 발동 시 원인 추적 불가**)
   - `receivedOrderId`가 빈 문자열일 때 검증 없이 통과하는 조건 보완
@@ -311,3 +326,4 @@
 | 2026-08-08 | — | 테스트 중 발견: 시뮬레이터 `map.altari.com/inseong` **404**(다른 프로젝트가 배포됨) / keywords 경로 버그(P) / API 404가 HTML 200(Q) | 📌 기록 |
 | 2026-08-08 | 2 | D+F 수정. 실기기로 `status=confirmed` 버그 실물 재현 → 수정 → 재검증(궤적 복구·신규 INSERT·합짐 사이클) 전부 통과 | ✅ 완료 |
 | 2026-08-08 | — | Phase 2 검증 중 발견: `isShared` 플래그가 실제 합짐 여부와 어긋남(R) | 📌 기록 |
+| 2026-08-08 | 1.5 | 풀오토 자동 해제 수정(모드 보존/복원 + 데드맨 150초 + scrap 재시도) & P·Q 수정. tsc·jest·curl 통과 | ✅ 코드 |

@@ -69,6 +69,15 @@ app.use("/api/logbook/analytics", logbookAnalyticsRouter);
 app.use("/api/logbook/places", logbookPlacesRouter);
 
 
+// [Phase 1.5] 정의되지 않은 /api/* 요청은 여기서 404 JSON으로 끊는다.
+// 아래 SPA 폴백보다 반드시 먼저 등록되어야 한다.
+// 이 가드가 없으면 오타난 엔드포인트나 삭제된 라우트가 index.html(text/html, 200)을 반환해
+// 앱(Gson)이 HTML을 파싱하려다 예외를 내고, 실패 원인을 추적할 수 없게 된다.
+app.use("/api", (req, res) => {
+    console.warn(`⚠️ [404] 정의되지 않은 API 경로: ${req.method} ${req.originalUrl}`);
+    res.status(404).json({ error: "NOT_FOUND", message: `정의되지 않은 API 경로입니다: ${req.method} ${req.originalUrl}` });
+});
+
 // 소켓 연결 이벤트 핸들링 (Step 4 분리 완료)
 registerSocketHandlers(io);
 

@@ -217,33 +217,31 @@ class ApiClient(private val context: Context) {
         onDecisionReceived: ((String, String) -> Unit)? = null
     ) {
         telemetryExecutor.submit {
-            var conn: java.net.HttpURLConnection? = null
             val startMs = System.currentTimeMillis()
             try {
                 // 발송 직전에 SharedPreferences에서 pendingAckDecisionId를 가져와서 주입
                 val pendingAck = prefs.getString("pendingAckDecisionId", null)
                 val finalPayload = payload.copy(ackDecisionId = pendingAck)
-                
+
                 val jsonBody = gson.toJson(finalPayload)
                 prefs.edit().putString("api_scrap_req", jsonBody).apply()
                 val targetUrl = getTargetUrl("/api/scrap")
-                val url = java.net.URL(targetUrl)
 
-                conn = url.openConnection() as java.net.HttpURLConnection
-                conn.requestMethod = "POST"
-                conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
-                conn.setRequestProperty("Accept", "application/json")
-                conn.doOutput = true
-                conn.connectTimeout = 5000
-                conn.readTimeout = 5000
+                // [Phase 1.5] 생존신고(scrap)에도 1회 자동 재시도를 적용합니다.
+                // 기존에는 confirm/detail/emergency만 재시도가 있고 scrap은 맨 요청이라,
+                // 터널·기지국 전환으로 1회만 실패해도 다음 하트비트까지 120초 공백이 생겨
+                // 서버 데드맨이 오작동(기기를 죽은 것으로 판정)하는 원인이 되었습니다.
+                val result = executeWithRetry(targetUrl, jsonBody, "/scrap", timeoutMs = 5000)
 
-                conn.outputStream.use { os ->
-                    os.write(jsonBody.toByteArray(Charsets.UTF_8))
+                if (result == null) {
+                    val elapsedMs = System.currentTimeMillis() - startMs
+                    AppLogger.roadmap("[HTTP 실패] POST /scrap (${elapsedMs}ms) 재시도 포함 모든 시도 실패", "NETWORK")
+                    AppLogger.e(TAG, "📡 [텔레메트리 통신 실패] 재시도 포함 모든 시도 실패")
+                    return@submit
                 }
 
-                val code = conn.responseCode
+                val (code, body) = result
                 if (code == 200) {
-                    val body = conn.inputStream.bufferedReader().readText()
                     prefs.edit().putString("api_scrap_res", body).apply()
                     val scrapRes = gson.fromJson(body, ScrapResponse::class.java)
                     
@@ -295,9 +293,8 @@ class ApiClient(private val context: Context) {
                     "NETWORK"
                 )
                 AppLogger.e(TAG, "📡 [텔레메트리 통신 실패] ${e.message}")
-            } finally {
-                conn?.disconnect()
             }
+            // 커넥션 정리는 executeWithRetry 내부의 finally에서 수행합니다.
         }
     }
 

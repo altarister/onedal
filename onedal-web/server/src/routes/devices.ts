@@ -13,8 +13,31 @@ const router = Router();
 // 메모리 내부 세션 저장소 (앱폰 -> 서버 핑 유지용)
 const activeDevices = new Map<string, DeviceSession>();
 
-// 데드맨 스위치 감지 주기 (안드로이드 하트비트가 60초이므로, 여유를 두어 70초로 설정)
-const DEADMAN_TIMEOUT_MS = 70000;
+/**
+ * [Phase 1.5] 관제탑에서 사용자가 명시적으로 지정한 모드(AUTO/MANUAL).
+ *
+ * activeDevices의 session.mode는 통신 두절/오프라인 보고로 인해 덮어써지지만,
+ * 이 맵은 "기사님의 의도"만 담으며 그런 이벤트에 영향받지 않습니다.
+ * 기기가 다시 온라인이 되거나 세션이 재생성될 때 이 값으로 복원합니다.
+ */
+const deviceModePreference = new Map<string, DeviceModeType>();
+
+/** 기기의 기본 모드 결정: 사용자가 지정한 값 > 필터 활성 여부 기반 추론 */
+function resolveDefaultMode(deviceId: string, userId: string): DeviceModeType {
+    const preferred = deviceModePreference.get(deviceId);
+    if (preferred) return preferred;
+    return getUserSession(userId).activeFilter?.isActive ? "AUTO" : "MANUAL";
+}
+
+/**
+ * 데드맨 스위치 감지 주기.
+ *
+ * [Phase 1.5] 70초 → 150초로 상향.
+ * 앱 하트비트가 60초 주기(TelemetryManager.HEARTBEAT_INTERVAL_MS)인데 70초는 여유가 10초뿐이라,
+ * 터널·기지국 전환 등으로 전송이 1회만 실패해도(다음 전송까지 120초) 데드맨이 오작동했습니다.
+ * 하트비트 주기를 줄이면 /api/scrap 트래픽이 배로 늘어나므로, 대신 판정 여유를 늘렸습니다.
+ */
+const DEADMAN_TIMEOUT_MS = 150000;
 
 // ═══════════════════════════════════════
 // 유틸: deviceId로 DB에서 deviceName 1회 조회 (캐싱 목적)
@@ -38,9 +61,8 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
     if (!session) {
         // 최초 세션 생성 시에만 DB에서 deviceName을 1회 조회 (이후 메모리 캐싱)
         const deviceName = lookupDeviceName(deviceId);
-        const userSession = getUserSession(userId);
-        const defaultMode = userSession.activeFilter?.isActive ? "AUTO" : "MANUAL";
-        
+        const defaultMode = resolveDefaultMode(deviceId, userId);
+
         session = {
             deviceId,
             deviceName,
@@ -54,6 +76,18 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
             stats: { polled: addedPollCount, grabbed: 0, canceled: 0 }
         };
     } else {
+        // [Phase 1.5] OFFLINE → ONLINE 복귀 시 사용자가 지정했던 모드를 되살립니다.
+        // 이 복원이 없으면, 통신이 70초(구 데드맨) 두절된 뒤 한 번 MANUAL로 떨어진 기기가
+        // 통신 재개 후에도 계속 MANUAL에 머물러 "풀오토가 자꾸 풀리는" 현상이 발생했습니다.
+        // (lastSeen이 계속 갱신되므로 세션 삭제 조건에도 영영 걸리지 않았습니다)
+        if (session.status === "OFFLINE") {
+            const restored = resolveDefaultMode(deviceId, userId);
+            if (session.mode !== restored) {
+                console.log(`🔄 [모드 복원] 기기(${deviceId}) 온라인 복귀 → ${session.mode} → ${restored}`);
+            }
+            session.mode = restored;
+        }
+
         session.lastSeen = Date.now();
         session.status = "ONLINE"; // 데이터가 왔으므로 다시 활성화
         session.stats.polled += addedPollCount;
@@ -218,6 +252,7 @@ router.delete("/:deviceId", requireAuth, (req, res) => {
 
         // 메모리에서도 제거
         activeDevices.delete(deviceId);
+        deviceModePreference.delete(deviceId);
 
         console.log(`🗑️ [기기 해제] User: ${userId} → Device: ${deviceId} 연동 해제 완료`);
         res.json({ success: true });
@@ -266,9 +301,10 @@ router.post("/:deviceId/offline", (req, res) => {
         const deviceId = req.params.deviceId as string;
         const session = activeDevices.get(deviceId);
         if (session) {
-            // 메모리 세션을 즉시 OFFLINE 및 수동 모드로 변경
+            // 메모리 세션을 즉시 OFFLINE 처리.
+            // [Phase 1.5] mode는 건드리지 않습니다. 화면이 꺼졌다고 기사님의 AUTO 의도가
+            // 사라진 것은 아니며, 복귀 시 touchDeviceSession이 다시 복원합니다.
             session.status = "OFFLINE";
-            session.mode = "MANUAL";
             session.lastSeen = 0; // 데드맨 스위치 완전 침묵 처리
             console.log(`📵 [즉각 오프라인 마킹] 기기(${deviceId})가 자체 보고를 통해 오프라인 전환 완료`);
         }
@@ -292,6 +328,11 @@ router.post("/:deviceId/mode", requireAuth, (req, res) => {
         }
 
         let session = activeDevices.get(deviceId);
+
+        // [Phase 1.5] 사용자의 명시적 선택을 기록해 둡니다.
+        // 통신 두절이나 오프라인 보고로 session.mode가 덮어써지더라도,
+        // 복귀 시 이 값으로 되돌립니다.
+        deviceModePreference.set(deviceId, mode);
 
         if (!session) {
             // 서버 재시작 직후 하트비트가 아직 안 왔을 수도 있음.
@@ -351,11 +392,13 @@ export const getActiveDevicesSnapshot = (): DeviceSession[] => {
             return;
         }
 
-        // 데드맨 스위치: 25초 이상 핑이 없으면 통신 단절(OFFLINE) 표기 및 락
+        // 데드맨 스위치: 일정 시간 핑이 없으면 통신 단절(OFFLINE) 표기
+        // [Phase 1.5] mode를 MANUAL로 강제하던 로직 제거.
+        // 통신이 끊긴 기기는 어차피 콜을 못 잡으므로 모드를 바꿀 실익이 없는 반면,
+        // 한 번 MANUAL로 떨어지면 복귀 후에도 되돌아오지 않아 사냥이 멈추는 부작용만 컸습니다.
+        // 관제탑 UI에는 status(OFFLINE)가 별도로 표시되므로 식별에도 문제가 없습니다.
         if (now - session.lastSeen > DEADMAN_TIMEOUT_MS) {
             session.status = "OFFLINE";
-            // 자동 오더 캡처를 막기 위해 관제 모드도 수동(락)으로 강제 변환
-            session.mode = "MANUAL";
         }
 
         result.push(session);
@@ -386,15 +429,12 @@ export const getUserDevicesSnapshot = (userId: string): DeviceSession[] => {
             result.push(activeItem);
         } else {
             // 완전 비활성 상태인 등록 기기도 UI 표시용으로 내려줌
-            const userSession = getUserSession(userId);
-            const defaultMode = userSession.activeFilter?.isActive ? "AUTO" : "MANUAL";
-            
             result.push({
                 deviceId: r.device_id,
                 deviceName: r.device_name,
                 lastSeen: 0,
                 status: "OFFLINE",
-                mode: defaultMode,
+                mode: resolveDefaultMode(r.device_id, userId),
                 screenContext: "UNKNOWN",
                 stats: { polled: 0, grabbed: 0, canceled: 0 }
             });
