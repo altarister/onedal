@@ -285,9 +285,7 @@ export default function PinnedRouteCard({
                                         contactName={pDetail?.contactName || pDetail?.customerName}
                                         phones={phonesOf(pDetail)} reports={cargoReports}
                                         memoTexts={[route.itemDescription, route.detailMemo, pDetail?.memo]}
-                                        etaMinutes={route.approachDurationMin ?? 0}
-                                        approachMinutes={route.approachDurationMin ?? null}
-                                        lineHaulMinutes={route.kakaoSoloDurationMin ?? null}
+                                        driveMinutes={route.approachDurationMin ?? 0}
                                     />
                                     <StopCallSheet
                                         orderId={route.id} stopType="dropoff" label="하차지"
@@ -295,9 +293,7 @@ export default function PinnedRouteCard({
                                         contactName={dDetail?.contactName || dDetail?.customerName}
                                         phones={phonesOf(dDetail)} reports={cargoReports}
                                         memoTexts={[route.itemDescription, route.detailMemo, dDetail?.memo]}
-                                        etaMinutes={route.totalDurationMin || route.kakaoSoloDurationMin || 0}
-                                        approachMinutes={route.approachDurationMin ?? null}
-                                        lineHaulMinutes={route.kakaoSoloDurationMin ?? null}
+                                        driveMinutes={route.kakaoSoloDurationMin ?? route.totalDurationMin ?? 0}
                                     />
 
                                     {/* ── 1단: 적요 — 통화 전에 읽어야 하는 유일한 텍스트 ── */}
@@ -392,64 +388,26 @@ export default function PinnedRouteCard({
                         })()}
                     </div>
 
-                    {/* [Phase 8.2/8.3] 운행 진행 버튼 — 도착과 완료를 나눠 받는다
-                        기사님: "실제로 도착 버튼과 상차 완료 버튼을 누른 시간을 넣어 주어
-                        저장해 주면 예상 시간과 오차를 확인할 수 있을 듯하다."
-                        도착~완료 사이가 곧 실제 상하차 소요 시간이라, 우리가 쓰는 추정 계수
-                        (지게차 19분 / 수작업 60분)를 현장 실측으로 검증할 수 있다. */}
-                    {(route.status === 'ORDER_CONFIRMED' || route.status === 'ORDER_PICKED_UP') && (() => {
-                        const done = new Set(milestoneLog.map(m => m.milestone));
-                        const isLoaded = route.status === 'ORDER_PICKED_UP';
-                        // 예상 시각: 상차지는 approach, 하차지는 approach + 단독 주행
-                        const predict = (min: number) => new Date(Date.now() + min * 60_000).toISOString();
-                        const approach = route.approachDurationMin ?? 0;
-                        const haul = route.kakaoSoloDurationMin ?? 0;
-
-                        const send = (milestone: string, predictedAt?: string) => {
-                            setProcessingId(route.id);
-                            logRoadmapEvent("웹", `${milestone} 보고 전송`);
-                            socket.emit("report-milestone", { orderId: route.id, milestone, predictedAt });
-                            setTimeout(() => setProcessingId(null), 1000);
-                        };
-
-                        const btn = (key: string, label: string, predictedAt: string | undefined, tone: string) => (
-                            <button key={key}
-                                disabled={processingId === route.id || done.has(key)}
-                                onClick={(e: React.MouseEvent) => { e.stopPropagation(); send(key, predictedAt); }}
-                                className={`flex-1 py-3 rounded-md text-[13px] font-black border transition-colors ${
-                                    done.has(key) ? 'bg-text-muted/10 text-text-muted border-border' : tone
-                                }`}>
-                                {done.has(key) ? `✓ ${label}` : label}
-                            </button>
-                        );
-
-                        return (
-                            <div className="mt-4 flex flex-col gap-2">
-                                <div className="flex gap-2">
-                                    {!isLoaded && btn('ARRIVED_PICKUP', '📍 상차지 도착', predict(approach), 'bg-info/10 text-info border-info/40')}
-                                    {!isLoaded && btn('PICKED_UP', '📦 상차 완료', undefined, 'bg-info/15 text-info border-info/50')}
-                                    {isLoaded && btn('ARRIVED_DROPOFF', '📍 하차지 도착', predict(haul), 'bg-info/10 text-info border-info/40')}
-                                    {isLoaded && btn('DELIVERED', '🏁 하차 완료', undefined, 'bg-success/12 text-success border-success/50')}
-                                </div>
-                                {milestoneLog.length > 0 && (
-                                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-text-muted px-0.5">
-                                        {milestoneLog.map(m => (
-                                            <span key={m.milestone}>
-                                                {MILESTONE_LABEL[m.milestone as keyof typeof MILESTONE_LABEL]} {m.occurredAt?.slice(11, 16)}
-                                                {(() => {
-                                                    const err = timingError(m.predictedAt, m.occurredAt);
-                                                    if (err === null) return null;
-                                                    return <b className={err > 5 ? 'text-danger ml-1' : 'text-success ml-1'}>
-                                                        {err > 0 ? `+${err}분` : err < 0 ? `${err}분` : '정시'}
-                                                    </b>;
-                                                })()}
-                                            </span>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })()}
+                    {/* [Phase 8.4] 상차/하차 완료 버튼은 **정거장 카드의 현장확인 탭**으로 옮겼다.
+                        기사님: "현장확인 탭에 상차 완료, 상차 취소 두 개의 버튼을 넣는 것이 좋겠다."
+                        현장에 도착해 물건을 확인한 그 자리에서 누르는 것이 자연스럽다.
+                        여기에는 이력만 남긴다. */}
+                    {milestoneLog.length > 0 && (
+                        <div className="mt-3 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-text-muted">
+                            {milestoneLog.map(m => (
+                                <span key={m.milestone}>
+                                    {MILESTONE_LABEL[m.milestone as keyof typeof MILESTONE_LABEL]} {m.occurredAt?.slice(11, 16)}
+                                    {(() => {
+                                        const err = timingError(m.predictedAt, m.occurredAt);
+                                        if (err === null) return null;
+                                        return <b className={err > 5 ? 'text-danger ml-1' : 'text-success ml-1'}>
+                                            {err > 0 ? `+${err}분` : err < 0 ? `${err}분` : '정시'}
+                                        </b>;
+                                    })()}
+                                </span>
+                            ))}
+                        </div>
+                    )}
 
                     {/* 방출 / 사무실 취소 */}
                     {(route.status === 'ORDER_CONFIRMED' || route.status === 'ORDER_PICKED_UP') && onDecision && (

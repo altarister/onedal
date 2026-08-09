@@ -241,6 +241,24 @@ export function registerSocketHandlers(io: Server) {
             socket.emit("cargo-mismatch-resolved", { orderId: data.orderId, action: data.action });
         });
 
+        /**
+         * [Phase 8.4] 현장에서 상차를 포기한다.
+         *
+         * 신고와 실물이 다르거나, 물건 상태가 나쁘거나, 상차가 불가능한 경우다.
+         * 방출(ORDER_RELEASED)과 같지만 **그 장소에 이유를 남긴다** —
+         * 같은 곳에서 또 겪을 확률이 높기 때문이다.
+         */
+        safeOn(socket, "cancel-at-stop", async (data: { orderId: string, stopType: 'pickup' | 'dropoff', reason?: string }) => {
+            const when = new Date().toISOString().slice(0, 10);
+            const line = `${when} 현장 취소${data.reason ? ` — ${data.reason}` : ''}`;
+            const placeId = PlaceRepository.findPlaceIdByStop(data.orderId, data.stopType);
+            if (placeId) PlaceRepository.appendPlaceMemo(placeId, line);
+
+            console.log(`✕ [현장 취소] ${data.orderId.slice(0, 8)} ${data.stopType} — ${line}`);
+            logRoadmapEvent("서버", `현장에서 상차 취소 (${data.reason || '사유 미기재'})`);
+            await handleDecision(userId, data.orderId, 'ORDER_RELEASED', io);
+        });
+
         safeOn(socket, "dispatch-complete", async (data: { orderId: string }) => {
             if (!data || !data.orderId) return;
             await completeOrder(userId, data.orderId, io);

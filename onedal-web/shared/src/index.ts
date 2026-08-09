@@ -626,4 +626,3 @@ export * from './vehicles';
 export * from './cargoHints';
 export * from './cargoTags';
 export * from './cargoUnits';
-export * from './callScript';
