@@ -80,7 +80,6 @@ export default function StopCallSheet({
     const actual = reports.find(r => r.stopType === stopType && r.kind === 'ACTUAL');
     const isCall = tab === 'DECLARED';
     const saved = isCall ? declared : actual;
-    const ghost = !isCall ? declared : undefined;   // 현장 탭에서 통화값을 밑그림으로
     const pickupReport = reports.find(r => r.stopType === 'pickup' && r.kind === 'ACTUAL')
                       || reports.find(r => r.stopType === 'pickup');
 
@@ -91,11 +90,12 @@ export default function StopCallSheet({
     const [tags, setTags] = useState<string[]>([]);
     const [deadlineAt, setDeadlineAt] = useState<string | undefined>();
 
-    const eff = {
-        unit: unit ?? (ghost?.unit as CargoUnit | undefined),
-        quantity: qty ?? ghost?.quantity,
-        handling: handling ?? ghost?.handling,
-    };
+    // 🔴 폼 값은 **오직 state** 다. 예전에는 현장 입력이 통화값을 fallback 으로 참조해서
+    //    "안 건드린 항목"이 통화 기록을 가리키는 셈이었다. 두 기록이 얽혀 비교가 안 된다.
+    //    기사님: "통화 내용 저장된 것을 **깊은 복사**해서 현장에서 사용해야 한다.
+    //             각각 따로 저장되어야 한다. 그래야 비교 가능하다."
+    //    → 현장 줄을 열 때 통화값을 복사해 넣고, 그 뒤로는 완전히 독립이다.
+    const eff = { unit, quantity: qty, handling };
     const points = isPickup ? cargoPoints(eff) : unitPoints(pickupReport?.unit, pickupReport?.quantity);
     const dwell = dwellMinutes(eff.handling, points);
     const fixedMinutes = driveMinutes + dwell;
@@ -108,17 +108,20 @@ export default function StopCallSheet({
         if (hints.tags?.length) setTags(prev => Array.from(new Set([...prev, ...hints.tags!])));
     };
 
+    /** 저장된 기록을 폼으로 **깊은 복사**한다. 배열도 새로 만들어 원본과 공유하지 않는다 */
     const loadInto = (src?: CargoReport) => {
         setUnit(src?.unit as CargoUnit | undefined);
         setQty(src?.quantity);
         setHandling(src?.handling);
-        setTags(src?.tags || []);
+        setTags(src?.tags ? [...src.tags] : []);
         setMemo(src?.memo || '');
         setDeadlineAt(src?.deadlineAt);
     };
 
     const openTab = (k: CargoReportKind) => {
         if (tab === k) { setTab(null); setEditing(false); return; }
+        // 현장 기록이 아직 없으면 **통화 내용을 복사해서** 시작한다.
+        // (복사이므로 여기서 고쳐도 통화 기록은 그대로 남는다 — 그래야 대조가 된다)
         const src = k === 'DECLARED' ? declared : (actual || declared);
         loadInto(src);
         setTab(k);
@@ -184,7 +187,7 @@ export default function StopCallSheet({
                     <Row title="단위">
                         {units.map(u => (
                             <button key={u} onClick={() => { setUnit(u); setQty(undefined); }}
-                                className={chip(eff.unit === u, unit === undefined && ghost?.unit === u)}>{u}</button>
+                                className={chip(eff.unit === u)}>{u}</button>
                         ))}
                         {!showMoreUnits && (
                             <button onClick={() => setShowMoreUnits(true)}
@@ -195,7 +198,7 @@ export default function StopCallSheet({
                         <Row title="수량">
                             {(CARGO_UNIT_QUANTITIES[eff.unit] || [1, 2, 3]).map(q => (
                                 <button key={q} onClick={() => setQty(q)}
-                                    className={chip(eff.quantity === q, qty === undefined && ghost?.quantity === q)}>{q}</button>
+                                    className={chip(eff.quantity === q)}>{q}</button>
                             ))}
                         </Row>
                     )}
@@ -205,7 +208,7 @@ export default function StopCallSheet({
             <Row title="방법">
                 {HANDLING_METHODS.map(h => (
                     <button key={h} onClick={() => setHandling(h)}
-                        className={chip(eff.handling === h, handling === undefined && ghost?.handling === h)}>
+                        className={chip(eff.handling === h)}>
                         {h}<span className="ml-1 text-[10px] font-normal opacity-70">{dwellMinutes(h, points)}분</span>
                     </button>
                 ))}

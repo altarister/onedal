@@ -10,6 +10,60 @@ db.pragma("journal_mode = WAL");
 
 console.log(`📂 SQLite DB 준비 완료: ${dbPath}`);
 
+// ═══════════════════════════════════════════════════════════════
+// [2026-08-10] 스키마 진화 — CREATE TABLE IF NOT EXISTS 의 함정
+//
+// 🔴 `CREATE TABLE IF NOT EXISTS` 는 **이미 있는 테이블에 컬럼을 추가하지 않는다.**
+//    그래서 스키마에 컬럼을 적어 넣어도 기존 DB 에는 반영되지 않고,
+//    INSERT 가 `no such column: unit` 으로 조용히 실패했다.
+//    (기사님 관제탑에서 "통화 종료 · 저장"을 눌러도 아무 일이 없던 원인)
+//
+//    CHECK 제약은 더 나쁘다. ALTER 로 못 바꾸는데, 허용값이 늘면(마일스톤 2개 → 4개)
+//    옛 테이블은 새 값을 영영 거부한다. 게다가 그 목록은 `@onedal/shared` 의
+//    MILESTONES / MILESTONE_SOURCES 와 **두 번째 진실 공급원**이 된다 (이슈 JJ 와 같은 함정).
+//    → enum 성 컬럼의 CHECK 를 걷어내고 검증은 애플리케이션 한 곳에서만 한다.
+// ═══════════════════════════════════════════════════════════════
+
+/** 빠진 컬럼만 덧붙인다. **데이터를 건드리지 않는 순수 추가 연산**이다 */
+function ensureColumns(table: string, columns: Record<string, string>) {
+    const exists = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(table);
+    if (!exists) return;
+    const have = new Set((db.prepare(`PRAGMA table_info(${table})`).all() as any[]).map(c => c.name));
+    for (const [col, type] of Object.entries(columns)) {
+        if (have.has(col)) continue;
+        db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${type}`);
+        console.log(`🔧 [스키마] ${table}.${col} 컬럼 추가`);
+    }
+}
+
+/**
+ * 굳어버린 CHECK 제약을 걷어낸다. **행을 먼저 복사한 뒤에만** 옛 테이블을 지운다.
+ * (CLAUDE.md 가 금지한 "조건부 DROP TABLE" 은 데이터가 날아가는 패턴이다.
+ *  여기는 복사 → 교체 순서라 한 건도 잃지 않는다. 트랜잭션으로 묶는다)
+ */
+function dropStaleCheck(table: string, createSql: string, indexSql: string[]) {
+    const row = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name=?").get(table) as { sql?: string } | undefined;
+    if (!row?.sql || !row.sql.includes('CHECK(')) return;
+
+    const cols = (db.prepare(`PRAGMA table_info(${table})`).all() as any[]).map(c => c.name).join(', ');
+    const before = (db.prepare(`SELECT COUNT(*) c FROM ${table}`).get() as any).c;
+
+    db.transaction(() => {
+        db.exec(createSql.replace(table, `${table}__new`));
+        db.exec(`INSERT INTO ${table}__new (${cols}) SELECT ${cols} FROM ${table}`);
+        db.exec(`DROP TABLE ${table}`);
+        db.exec(`ALTER TABLE ${table}__new RENAME TO ${table}`);
+        for (const ix of indexSql) db.exec(ix);
+    })();
+
+    const after = (db.prepare(`SELECT COUNT(*) c FROM ${table}`).get() as any).c;
+    console.log(`🔧 [스키마] ${table} CHECK 제약 제거 (${before}건 → ${after}건 보존)`);
+}
+
+
+
+
+
 // ═══════════════════════════════════════
 // [1] 사용자 테이블
 // ═══════════════════════════════════════
@@ -219,7 +273,7 @@ db.exec(`
         id              INTEGER PRIMARY KEY AUTOINCREMENT,
         orderId         TEXT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
         placeId         INTEGER NOT NULL REFERENCES places(id),
-        stopType        TEXT NOT NULL CHECK(stopType IN ('pickup', 'dropoff')),
+        stopType        TEXT NOT NULL,
         stopOrder       INTEGER DEFAULT 0,
         customerNameSnapshot TEXT,
         phoneSnapshot        TEXT,
@@ -242,8 +296,8 @@ db.exec(`
         id              INTEGER PRIMARY KEY AUTOINCREMENT,
         orderId         TEXT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
         userId          TEXT NOT NULL,
-        milestone       TEXT NOT NULL CHECK(milestone IN ('ARRIVED_PICKUP', 'PICKED_UP', 'ARRIVED_DROPOFF', 'DELIVERED')),
-        source          TEXT NOT NULL CHECK(source IN ('AUTO_SCRAPE', 'APP_BUTTON', 'MANUAL_WEB')),
+        milestone       TEXT NOT NULL,   -- MILESTONES (@onedal/shared)
+        source          TEXT NOT NULL,   -- MILESTONE_SOURCES (@onedal/shared)
         occurredAt      TEXT NOT NULL,   -- 실제로 일어난 시각 (버튼을 누른 때)
         predictedAt     TEXT,            -- 그때 우리가 예상했던 시각 — 오차 계산용
         recordedAt      TEXT NOT NULL,   -- 서버가 받은 시각
@@ -264,8 +318,8 @@ db.exec(`
         id          INTEGER PRIMARY KEY AUTOINCREMENT,
         orderId     TEXT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
         userId      TEXT NOT NULL,
-        stopType    TEXT NOT NULL CHECK(stopType IN ('pickup', 'dropoff')),
-        kind        TEXT NOT NULL CHECK(kind IN ('DECLARED', 'ACTUAL')),
+        stopType    TEXT NOT NULL,   -- 'pickup' | 'dropoff'
+        kind        TEXT NOT NULL,   -- 'DECLARED'(통화) | 'ACTUAL'(현장)
         unit        TEXT,        -- 파레트 | 라면박스 | 소 | 중 | 대 | 초과
         sizeClass   TEXT,        -- (구) 소 | 중 | 대 | 초과 — unit 으로 대체됨
         quantity    INTEGER,     -- 개수
@@ -279,6 +333,27 @@ db.exec(`
     );
     CREATE INDEX IF NOT EXISTS idx_cargo_orderId ON stop_cargo_reports(orderId);
 `);
+
+// ── 스키마 진화: 테이블이 모두 만들어진 **뒤에** 돌아야 한다 ──
+dropStaleCheck('order_milestones', `
+    CREATE TABLE order_milestones (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        orderId         TEXT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+        userId          TEXT NOT NULL,
+        milestone       TEXT NOT NULL,
+        source          TEXT NOT NULL,
+        occurredAt      TEXT NOT NULL,
+        predictedAt     TEXT,
+        recordedAt      TEXT NOT NULL,
+        UNIQUE(orderId, milestone)
+    )`, [
+    `CREATE INDEX IF NOT EXISTS idx_milestones_orderId ON order_milestones(orderId)`,
+    `CREATE INDEX IF NOT EXISTS idx_milestones_user_time ON order_milestones(userId, occurredAt)`,
+]);
+
+ensureColumns('order_milestones', { predictedAt: 'TEXT' });
+ensureColumns('stop_cargo_reports', { unit: 'TEXT', deadlineAt: 'TEXT', tags: 'TEXT' });
+
 
 // ═══════════════════════════════════════
 // [6.5] ORDER_ 라이프사이클 마이그레이션 (V7)
