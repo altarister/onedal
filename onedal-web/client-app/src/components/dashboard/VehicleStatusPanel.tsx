@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { socket } from "../../lib/socket";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
 import type { SecuredOrder } from "@onedal/shared";
+import { isTerminal } from "@onedal/shared";
 import { apiClient } from "../../api/apiClient";
 import { getDistanceKm } from "../../lib/routeUtils";
 
@@ -9,6 +10,16 @@ import { Badge } from "../ui/badge";
 
 export default function VehicleStatusPanel({ mainCall, subCalls }: { mainCall: SecuredOrder | null, subCalls: SecuredOrder[] }) {
     const { filter } = useFilterConfig();
+
+    // 지금 실제로 트럭에 걸려 있는 콜만 추린다.
+    //
+    // mainCall / subCalls 는 서버의 sync-active-orders 를 그대로 받은 것으로,
+    // '취소/방출' 탭 표시를 위해 **종료된 콜(취소·방출·완료)이 의도적으로 포함**되어 있다.
+    // 이걸 거르지 않아 "예약 7건 (오토바이, 오토바이, ... 라보)" 처럼
+    // 이미 취소한 콜까지 적재 중인 것으로 표시되고 있었다.
+    // PinnedRoute 는 liveRoute 로 걸러내는데 이 컴포넌트만 빠져 있었다. (2026-08-09 수정)
+    const liveCalls = ([mainCall, ...subCalls].filter(Boolean) as SecuredOrder[])
+        .filter(o => !isTerminal(o.status));
 
     // GPS 속도 계산을 위한 상태
     const [currentSpeed, setCurrentSpeed] = useState<number>(0);
@@ -63,7 +74,9 @@ export default function VehicleStatusPanel({ mainCall, subCalls }: { mainCall: S
             lastGpsRef.current = { ...loc, time: now };
 
             // 상차지 근접 체크 (500m 이내)
-            const activeRoute = [mainCall, ...subCalls].filter(Boolean) as SecuredOrder[];
+            // 취소·방출·완료된 콜은 제외한다. 그렇지 않으면 이미 취소한 콜의 상차지를
+            // 지나가기만 해도 "상차 완료"로 기록된다.
+            const activeRoute = liveCalls;
             setPickedUpSet(prev => {
                 let changed = false;
                 const newSet = new Set(prev);
@@ -84,11 +97,12 @@ export default function VehicleStatusPanel({ mainCall, subCalls }: { mainCall: S
         return () => {
             window.removeEventListener("local-gps-update", onGpsUpdate);
         };
-    }, [mainCall, subCalls]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [liveCalls.map(c => c.id).join(',')]);
 
     // 콜이 취소/완료되어 activeRoute에서 사라지면 pickedUpSet에서도 정리
     useEffect(() => {
-        const activeIds = new Set([mainCall?.id, ...subCalls.map(s => s.id)].filter(Boolean) as string[]);
+        const activeIds = new Set(liveCalls.map(c => c.id).filter(Boolean) as string[]);
         setPickedUpSet(prev => {
             let changed = false;
             const next = new Set(prev);
@@ -100,15 +114,15 @@ export default function VehicleStatusPanel({ mainCall, subCalls }: { mainCall: S
             }
             return changed ? next : prev;
         });
-    }, [mainCall, subCalls]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [liveCalls.map(c => c.id).join(',')]);
 
     const isMoving = currentSpeed > 5;
-    const activeRoute = [mainCall, ...subCalls].filter(Boolean) as SecuredOrder[];
-    const totalCount = activeRoute.length;
+    const totalCount = liveCalls.length;
 
     // 예약 건 vs 상차 건 분류
-    const reservedItems = activeRoute.filter(o => o.id && !pickedUpSet.has(o.id));
-    const loadedItems = activeRoute.filter(o => o.id && pickedUpSet.has(o.id));
+    const reservedItems = liveCalls.filter(o => o.id && !pickedUpSet.has(o.id));
+    const loadedItems = liveCalls.filter(o => o.id && pickedUpSet.has(o.id));
 
     // 내 차량 (DB 설정 우선, 없으면 필터 설정)
     const myVehicle = dbVehicleType || filter?.allowedVehicleTypes?.[0] || '1t';

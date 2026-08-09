@@ -38,7 +38,11 @@ export default function Dashboard() {
     memoryActive.forEach(o => activeRouteMap.set(o.id, { ...activeRouteMap.get(o.id), ...o })); 
     
     const activeRoute = Array.from(activeRouteMap.values()) as SecuredOrder[];
-    const hasHomeReturnActive = activeRoute.some(o => o.receiptStatus === '귀가' || o.id?.startsWith('home-'));
+    // 취소·방출·완료된 귀가콜은 "진행 중"이 아니다.
+    // 걸러내지 않으면 한 번 귀가콜을 만들었다 취소한 뒤로 다시 만들 수 없게 된다.
+    const hasHomeReturnActive = activeRoute.some(
+        o => !isTerminal(o.status) && (o.receiptStatus === '귀가' || o.id?.startsWith('home-'))
+    );
 
     // ※ 대기열 시뮬레이션(useKakaoRouting + DrillDownModal)은 2026-08-09 제거했다.
     //    "잡기 전에 카카오로 미리 계산해 보여주는" 기능이었으나
