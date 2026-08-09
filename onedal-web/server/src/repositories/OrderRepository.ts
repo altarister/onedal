@@ -1,5 +1,6 @@
 import db from "../db";
 import { MyOrder, PendingOrder, SecuredOrder } from "@onedal/shared";
+import type { CargoReport } from "@onedal/shared";
 
 export class OrderRepository {
     /**
@@ -63,6 +64,31 @@ export class OrderRepository {
             cachedOrder.scheduleText || null,
             cachedOrder.postTime || null
         );
+    }
+
+    /**
+     * [Phase 8.4] 정거장별 화물 신고를 저장합니다.
+     * 같은 (오더, 정거장, 종류)는 덮어쓴다 — 통화를 다시 걸어 정정하는 일이 흔하다.
+     */
+    public static upsertCargoReport(orderId: string, userId: string, r: CargoReport) {
+        db.prepare(`
+            INSERT INTO stop_cargo_reports (orderId, userId, stopType, kind, sizeClass, quantity, handling, promisedAt, memo, recordedAt)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(orderId, stopType, kind) DO UPDATE SET
+                sizeClass = excluded.sizeClass,
+                quantity = excluded.quantity,
+                handling = excluded.handling,
+                promisedAt = excluded.promisedAt,
+                memo = excluded.memo,
+                recordedAt = excluded.recordedAt
+        `).run(orderId, userId, r.stopType, r.kind, r.sizeClass || null, r.quantity ?? null,
+               r.handling || null, r.promisedAt || null, r.memo || null, new Date().toISOString());
+    }
+
+    /** 한 오더의 모든 화물 신고 (상차/하차 × 신고값/실측값) */
+    public static getCargoReports(orderId: string): CargoReport[] {
+        return db.prepare(`SELECT stopType, kind, sizeClass, quantity, handling, promisedAt, memo
+                           FROM stop_cargo_reports WHERE orderId = ?`).all(orderId) as CargoReport[];
     }
 
     /**

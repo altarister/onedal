@@ -4,7 +4,9 @@ import { jwtSecret } from "../config/env";
 import { getUserDevicesSnapshot } from "../routes/devices";
 import { getRegionsByCity } from "../geoResolver";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
-import type { AutoDispatchFilter, Milestone } from "@onedal/shared";
+import type { AutoDispatchFilter, Milestone, CargoReport } from "@onedal/shared";
+import { cargoMismatchRatio } from "@onedal/shared";
+import { OrderRepository } from "../repositories/OrderRepository";
 import { getUserSession, getAllActiveUserIds } from "../state/userSessionStore";
 import { recalculateCorridorFilter, handleDecision, recalculateKakaoRoute, bootstrapUserSession, completeOrder, reportMilestone, startTwoTrack, createHomeReturn } from "../services/dispatchEngine";
 import { updateActiveFilter } from "../state/filterManager";
@@ -154,6 +156,33 @@ export function registerSocketHandlers(io: Server) {
             logRoadmapEvent("서버", `관제탑으로부터 ${data.milestone === 'PICKED_UP' ? '상차' : '하차'} 보고 수신`);
             const result = await reportMilestone(userId, data.orderId, data.milestone, 'MANUAL_WEB', io, data.occurredAt);
             socket.emit("milestone-result", { orderId: data.orderId, ...result });
+        });
+
+        // [Phase 8.4] 통화 결과 / 현장 확인 기록
+        socket.on("save-cargo-report", (data: { orderId: string } & CargoReport) => {
+            const { orderId, ...report } = data;
+            OrderRepository.upsertCargoReport(orderId, userId, report);
+
+            const all = OrderRepository.getCargoReports(orderId);
+            const pick = (st: string, k: string) => all.find(r => r.stopType === st && r.kind === k);
+            const ratio = cargoMismatchRatio(pick(report.stopType, 'DECLARED'), pick(report.stopType, 'ACTUAL'));
+
+            const label = report.stopType === 'pickup' ? '상차지' : '하차지';
+            const kindLabel = report.kind === 'DECLARED' ? '통화 신고' : '현장 실측';
+            console.log(`📞 [${label} ${kindLabel}] ${report.sizeClass || '-'} × ${report.quantity ?? '-'} · ${report.handling || '-'}`);
+
+            // 신고와 실측이 크게 어긋나면 그대로 진행하면 안 된다.
+            // 퀵사무실에 확인해 수행 여부를 다시 정할 수 있게 관제탑에 띄운다.
+            if (ratio !== null && (ratio >= 1.5 || ratio <= 0.5)) {
+                console.warn(`⚠️ [신고 불일치] ${label} — 실측이 신고의 ${ratio.toFixed(1)}배`);
+                io.to(userId).emit("cargo-mismatch", { orderId, stopType: report.stopType, ratio });
+            }
+
+            socket.emit("cargo-report-saved", { orderId, reports: all });
+        });
+
+        socket.on("request-cargo-reports", (data: { orderId: string }) => {
+            socket.emit("cargo-report-saved", { orderId: data.orderId, reports: OrderRepository.getCargoReports(data.orderId) });
         });
 
         socket.on("dispatch-complete", async (data: { orderId: string }) => {

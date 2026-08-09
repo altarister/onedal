@@ -7,6 +7,8 @@ import { logRoadmapEvent } from '../../lib/roadmapLogger';
 
 
 import { Badge } from "../ui/badge";
+import StopCallSheet from './StopCallSheet';
+import type { CargoReport } from "@onedal/shared";
 import { Button } from "../ui/button";
 
 interface Props {
@@ -38,6 +40,19 @@ export default function PinnedRouteCard({
     // [텔레메트리 스니펫] 카운터 상태 및 애니메이션 트리거
     const [telemetryCount, setTelemetryCount] = useState(0);
     const [isPinging, setIsPinging] = useState(false);
+
+    // [Phase 8.4] 통화/현장 기록. 아코디언을 **열 때만** 불러온다 —
+    // 카드가 여러 장이라 전부 미리 받으면 1초 동기화마다 낭비가 된다.
+    const [cargoReports, setCargoReports] = useState<CargoReport[]>([]);
+    useEffect(() => {
+        if (!isExpanded) return;
+        const onSaved = (d: { orderId: string; reports: CargoReport[] }) => {
+            if (d.orderId === route.id) setCargoReports(d.reports || []);
+        };
+        socket.on("cargo-report-saved", onSaved);
+        socket.emit("request-cargo-reports", { orderId: route.id });
+        return () => { socket.off("cargo-report-saved", onSaved); };
+    }, [isExpanded, route.id]);
 
     useEffect(() => {
         // 평가 중이 아닐 때는 카운터 초기화
@@ -217,125 +232,143 @@ export default function PinnedRouteCard({
                         </>
                     )}
 
-                    {/* 상세 데이터 영역 */}
-                    <div className="flex flex-col text-[13px] leading-tight bg-surface-alt/20 py-2 px-2 mt-3 font-medium tracking-tight rounded-md border border-border/50">
+                    {/* ══════════════════════════════════════════════════════════
+                        상세 영역 — 정보 3단 분리 (Phase 8.4)
+
+                        아코디언이 열리는 순간은 거의 항상 "이 콜에 대해 지금 뭔가 하려는 순간"이고,
+                        그건 대개 **전화를 거는 것**이다. 그래서 우선순위를 이렇게 잡는다.
+
+                        1단 (항상 보임) — 지금 행동에 필요한 것
+                            · 상차지 / 하차지 카드: 담당자 · 주소 · 전화(탭 한 번) · 통화 기록
+                            · 적요/물품  ← 통화 전에 읽어야 하는 유일한 텍스트
+                            · 착불이면 경고  ← 놓치면 돈을 못 받는다
+                        2단 (한 줄 요약) — 판단에 참고하는 것
+                            · 단독 경로 / 요금·수수료 / 퀵사무실
+                        3단 (접힘, 기본 숨김) — 문제가 생겼을 때만
+                            · 판정 근거(꿀/똥 사유) · 원본 필드 덤프
+
+                        예전에는 30개 필드를 전부 나열해 1·2·3단이 섞여 있었다.
+                        전화번호가 디버그 덤프 사이에 파묻혀 있어 걸려면 스크롤해야 했다.
+                       ══════════════════════════════════════════════════════════ */}
+                    <div className="flex flex-col gap-2 text-[13px] leading-tight mt-3">
                         {(() => {
-                            const itemAndMemo = [route.itemDescription, route.detailMemo].filter(Boolean).join(" / ");
-                            const detailMemo = itemAndMemo || "상세 정보 없음 (파싱 대기 중)";
-
-                            const quickName = route.companyName || '-';
-                            const phoneMatch = quickName.match(/\d{2,3}-\d{3,4}-\d{4}/);
-                            const quickPhone = phoneMatch ? phoneMatch[0] : '-';
-                            const quickClean = quickName.replace(phoneMatch ? phoneMatch[0] : '', '').trim() || '-';
-
                             const pDetail = route.pickupDetails?.[0];
-                            const pPhone = pDetail?.phone1 || pDetail?.phone2 || '-';
-                            const pAddr = pDetail?.addressDetail || route.pickup;
-
                             const dDetail = route.dropoffDetails?.[0];
-                            const dPhone = dDetail?.phone1 || dDetail?.phone2 || '-';
-                            const dAddr = dDetail?.addressDetail || route.dropoff;
+                            const phonesOf = (d?: typeof pDetail) =>
+                                [d?.phone1, d?.phone2].filter((v): v is string => !!v && v !== '*');
+
+                            const quickName = route.companyName || '';
+                            const quickPhone = quickName.match(/\d{2,3}-\d{3,4}-\d{4}/)?.[0] || route.dispatcherPhone || '';
+                            const quickClean = quickName.replace(quickPhone, '').trim() || route.dispatcherName || '퀵사무실';
+
+                            const itemAndMemo = [route.itemDescription, route.detailMemo].filter(Boolean).join(' / ');
+                            const soloKm = route.osrmSoloDistanceKm ?? route.kakaoSoloDistanceKm;
+                            const soloMin = route.osrmSoloDistanceKm ? route.osrmSoloDurationMin : route.kakaoSoloDurationMin;
+                            const isCod = route.paymentType === '착불';
 
                             return (
                                 <>
-                                    <div className="mb-3 pb-2 border-b border-border flex gap-4 text-[11px] text-text-muted">
-                                        <span>시간 : {route.capturedAt ? new Date(route.capturedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) : '-'}</span>
-                                        <span>ID : {route.id}</span>
-                                    </div>
-                                    <div className="mb-2 w-full flex">
-                                        <div className="flex-shrink-0 w-[76px] text-text-muted">단일 경로 : </div>
-                                        <div className="flex-1 break-keep pr-2 leading-tight">
-                                            {route.osrmSoloDistanceKm ? (
-                                                <span className="text-info font-bold">
-                                                    단독 시 {Number(route.osrmSoloDistanceKm).toFixed(1)}km / 예상 {route.osrmSoloDurationMin || 0}분 <span className="text-[10px] opacity-80 font-normal text-text-muted">(OSRM기준)</span>
-                                                </span>
-                                            ) : route.kakaoSoloDistanceKm ? (
-                                                <span className={`${route.osrmError ? '' : 'text-info font-bold'}`}>
-                                                    단독 시 {Number(route.kakaoSoloDistanceKm).toFixed(1)}km / 예상 {route.kakaoSoloDurationMin || 0}분
-                                                    {route.osrmError && <span className="text-[10px] text-danger ml-1 font-normal inline-block">(⚠️ 에러: {route.osrmError})</span>}
-                                                </span>
-                                            ) : '궤적 연산 대기 중...'}
-                                        </div>
-                                    </div>
-                                    <div className="mb-2 flex">
-                                        <div className="flex-shrink-0 w-[76px] text-text-muted">퀵사무실 : </div>
-                                        <div className="flex-1">
-                                            <div>{quickPhone}</div>
-                                            <div className="text-xs">{quickClean}</div>
-                                        </div>
-                                    </div>
-                                    <div className="mb-2 flex">
-                                        <div className="flex-shrink-0 w-[76px] text-text-muted">상차지 : </div>
-                                        <div className="flex-1">
-                                            <div>{pPhone}</div>
-                                            <div className="text-xs">{pAddr}</div>
-                                        </div>
-                                    </div>
-                                    <div className="mb-3 flex">
-                                        <div className="flex-shrink-0 w-[76px] text-text-muted">하차지 : </div>
-                                        <div className="flex-1">
-                                            <div>{dPhone}</div>
-                                            <div className="text-xs">{dAddr}</div>
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-2 bg-surface-alt/40 p-2 rounded">
-                                        <span className="flex-shrink-0 text-text-muted">적요/물품:</span>
-                                        <span className="font-bold line-clamp-3 leading-snug break-keep">{detailMemo}</span>
+                                    {/* ── 1단: 정거장 (전화 + 통화 기록) ── */}
+                                    <StopCallSheet
+                                        orderId={route.id} stopType="pickup" label="상차지"
+                                        address={pDetail?.addressDetail || route.pickup}
+                                        contactName={pDetail?.contactName || pDetail?.customerName}
+                                        phones={phonesOf(pDetail)} reports={cargoReports}
+                                    />
+                                    <StopCallSheet
+                                        orderId={route.id} stopType="dropoff" label="하차지"
+                                        address={dDetail?.addressDetail || route.dropoff}
+                                        contactName={dDetail?.contactName || dDetail?.customerName}
+                                        phones={phonesOf(dDetail)} reports={cargoReports}
+                                    />
+
+                                    {/* ── 1단: 적요 — 통화 전에 읽어야 하는 유일한 텍스트 ── */}
+                                    <div className="flex gap-2 bg-surface-alt/40 p-2 rounded-md">
+                                        <span className="flex-shrink-0 text-[11px] font-bold text-text-muted pt-0.5">적요</span>
+                                        <span className="font-bold leading-snug break-keep text-[12px]">
+                                            {itemAndMemo || <span className="text-text-muted font-normal">상세 정보 없음 (파싱 대기 중)</span>}
+                                        </span>
                                     </div>
 
-                                    {/* 💡 사용자 디버깅/분석용 구조화 데이터 영역 (조건식 설계용) */}
-                                    <div className="mt-4 flex flex-col text-[10px] gap-1 border-t border-border pt-3 font-mono">
-                                        <div className="text-text-muted mb-1 font-bold">📋 1DAL 데이터 필드 구조 (모든 키값 복사&수정용)</div>
+                                    {/* ── 1단: 착불 경고 — 현금을 직접 받아야 한다 ── */}
+                                    {isCod && (
+                                        <div className="flex items-center gap-2 bg-warning/12 border border-warning/40 rounded-md px-2 py-2">
+                                            <span>💵</span>
+                                            <span className="text-[12px] font-bold text-warning">
+                                                착불 — 하차 시 <b>{route.fare?.toLocaleString()}원</b> 직접 수령
+                                            </span>
+                                        </div>
+                                    )}
 
-                                        <div className="max-h-64 overflow-y-auto pr-1 flex flex-col gap-1 select-text">
-                                            {[
-                                                { label: 'id', val: route.id },
-                                                { label: 'type', val: route.type },
-                                                { label: 'receiptStatus', val: route.receiptStatus },
-                                                { label: 'itemDescription', val: route.itemDescription },
-                                                { label: 'vehicleType', val: route.vehicleType },
-                                                { label: 'commissionRate', val: route.commissionRate },
-                                                { label: 'tollFare', val: route.tollFare },
-                                                { label: 'paymentType', val: route.paymentType },
-                                                { label: 'billingType', val: route.billingType },
-                                                { label: 'tripType', val: route.tripType },
-                                                { label: 'orderForm', val: route.orderForm },
-                                                { label: 'distanceKm', val: route.distanceKm },
-                                                { label: 'dispatcherName', val: route.dispatcherName },
-                                                { label: 'dispatcherPhone', val: route.dispatcherPhone },
-                                                { label: 'companyName', val: route.companyName },
-                                                { label: 'pickup', val: route.pickup },
-                                                { label: 'dropoff', val: route.dropoff },
-                                                { label: 'fare', val: route.fare },
-                                                { label: 'timestamp', val: route.timestamp },
-                                                { label: 'postTime', val: route.postTime },
-                                                { label: 'scheduleText', val: route.scheduleText },
-                                                { label: 'pickupTime', val: route.pickupTime },
-                                                { label: 'detailMemo', val: route.detailMemo },
-                                                { label: 'kakaoSoloDistanceKm', val: route.kakaoSoloDistanceKm },
-                                                { label: 'kakaoSoloDurationMin', val: route.kakaoSoloDurationMin },
-                                                { label: 'osrmSoloDistanceKm', val: route.osrmSoloDistanceKm },
-                                                { label: 'osrmSoloDurationMin', val: route.osrmSoloDurationMin },
-                                                { label: 'isRejected', val: route.isRejected },
-                                                { label: 'rejectionReasons', val: route.rejectionReasons?.join(', ') },
-                                                { label: 'approvalReasons', val: route.approvalReasons?.join(', ') },
-                                            ].map((item, idx) => (
-                                                <div key={idx} className="flex bg-surface-alt/40 p-1 rounded">
-                                                    <span className="w-[120px] flex-shrink-0 text-text-muted font-bold select-all">route.{item.label} :</span>
-                                                    <span className={`${item.label === 'detailMemo' ? 'text-success whitespace-normal' : 'text-text-muted truncate'} flex-1`}>{item.val?.toString() || '-'}</span>
+                                    {/* ── 2단: 한 줄 요약 ── */}
+                                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-text-muted px-0.5">
+                                        <span>단독 {soloKm ? `${Number(soloKm).toFixed(1)}km / ${soloMin || 0}분` : '연산 중'}</span>
+                                        <span>·</span>
+                                        <span>{route.fare?.toLocaleString()}원{route.paymentType ? `(${route.paymentType})` : ''}</span>
+                                        {route.commissionRate && <><span>·</span><span>수수료 {route.commissionRate}</span></>}
+                                        {route.scheduleText && <><span>·</span><span className="text-warning font-bold">🕒 {route.scheduleText}</span></>}
+                                        {quickPhone && (
+                                            <>
+                                                <span>·</span>
+                                                <a href={`tel:${quickPhone.replace(/[^0-9+]/g, '')}`} onClick={e => e.stopPropagation()}
+                                                   className="text-info font-bold underline underline-offset-2">
+                                                    🏢 {quickClean}
+                                                </a>
+                                            </>
+                                        )}
+                                    </div>
+
+                                    {/* ── 3단: 접힘 ── */}
+                                    <details className="group" onClick={e => e.stopPropagation()}>
+                                        <summary className="cursor-pointer list-none text-[11px] font-bold text-text-muted py-1 select-none">
+                                            <span className="group-open:hidden">▸ 판정 근거 · 원본 데이터</span>
+                                            <span className="hidden group-open:inline">▾ 판정 근거 · 원본 데이터</span>
+                                        </summary>
+
+                                        {(route.approvalReasons?.length || route.rejectionReasons?.length) ? (
+                                            <div className="flex flex-col gap-1 mb-2 mt-1">
+                                                {route.approvalReasons?.map((r, i) => (
+                                                    <div key={`a${i}`} className="text-[11px] text-success">👍 {r}</div>
+                                                ))}
+                                                {route.rejectionReasons?.map((r, i) => (
+                                                    <div key={`r${i}`} className="text-[11px] text-danger">💩 {r}</div>
+                                                ))}
+                                            </div>
+                                        ) : null}
+
+                                        <div className="max-h-56 overflow-y-auto pr-1 flex flex-col gap-1 select-text font-mono">
+                                            {Object.entries({
+                                                id: route.id, type: route.type, status: route.status,
+                                                receiptStatus: route.receiptStatus, itemDescription: route.itemDescription,
+                                                vehicleType: route.vehicleType, commissionRate: route.commissionRate,
+                                                tollFare: route.tollFare, paymentType: route.paymentType,
+                                                billingType: route.billingType, tripType: route.tripType,
+                                                orderForm: route.orderForm, distanceKm: route.distanceKm,
+                                                dispatcherName: route.dispatcherName, dispatcherPhone: route.dispatcherPhone,
+                                                companyName: route.companyName, pickup: route.pickup, dropoff: route.dropoff,
+                                                fare: route.fare, timestamp: route.timestamp, postTime: route.postTime,
+                                                scheduleText: route.scheduleText, pickupTime: route.pickupTime,
+                                                detailMemo: route.detailMemo,
+                                                kakaoSoloDistanceKm: route.kakaoSoloDistanceKm,
+                                                kakaoSoloDurationMin: route.kakaoSoloDurationMin,
+                                                osrmSoloDistanceKm: route.osrmSoloDistanceKm,
+                                                osrmSoloDurationMin: route.osrmSoloDurationMin,
+                                            }).map(([k, v]) => (
+                                                <div key={k} className="flex bg-surface-alt/40 p-1 rounded text-[10px]">
+                                                    <span className="w-[120px] flex-shrink-0 text-text-muted font-bold select-all">route.{k} :</span>
+                                                    <span className="text-text-muted truncate flex-1">{v?.toString() || '-'}</span>
                                                 </div>
                                             ))}
-
-                                            <div className="flex flex-col bg-surface-alt/40 p-1 rounded mt-1">
+                                            <div className="flex flex-col bg-surface-alt/40 p-1 rounded text-[10px]">
                                                 <span className="text-text-muted font-bold mb-1 select-all">route.pickupDetails :</span>
                                                 <span className="text-text-muted break-all whitespace-pre-wrap leading-snug">{JSON.stringify(route.pickupDetails, null, 2) || '-'}</span>
                                             </div>
-                                            <div className="flex flex-col bg-surface-alt/40 p-1 rounded mt-1">
+                                            <div className="flex flex-col bg-surface-alt/40 p-1 rounded text-[10px]">
                                                 <span className="text-text-muted font-bold mb-1 select-all">route.dropoffDetails :</span>
                                                 <span className="text-text-muted break-all whitespace-pre-wrap leading-snug">{JSON.stringify(route.dropoffDetails, null, 2) || '-'}</span>
                                             </div>
                                         </div>
-                                    </div>
+                                    </details>
                                 </>
                             );
                         })()}

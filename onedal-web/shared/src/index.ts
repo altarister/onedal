@@ -91,6 +91,55 @@ export const MILESTONE_TO_STATUS: Record<Milestone, OrderStatus> = {
  * **하차한 뒤에 상차 보고가 늦게 도착해도 상태를 되돌리지 않는다.**
  * 자동 감지와 수동 클릭이 뒤섞이면 순서가 역전될 수 있기 때문이다.
  */
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// [Phase 8.4] 화물 신고 — 통화로 들은 값(DECLARED) vs 현장 실측(ACTUAL)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * 짐 크기. kg 가 아니라 **적재 점수** 축으로 받는다.
+ * 기사님 확인값: 1t = 30점 기준으로 소=2 / 중=5 / 대=10 / 초과=30.
+ * 통화 중에 한 손으로 탭 한 번에 고를 수 있어야 하므로 네 단계로 끊었다.
+ */
+export const CARGO_SIZES = ['소', '중', '대', '초과'] as const;
+export type CargoSize = typeof CARGO_SIZES[number];
+
+export const CARGO_SIZE_POINTS: Record<CargoSize, number> = {
+    '소': 2, '중': 5, '대': 10, '초과': 30,
+};
+
+/** 상하차 방법 — 소요 시간과 직결된다 (수작업이면 대기가 길어져 합짐 계획이 틀어진다) */
+export const HANDLING_METHODS = ['지게차', '수작업', '호이스트'] as const;
+export type HandlingMethod = typeof HANDLING_METHODS[number];
+
+export type CargoReportKind = 'DECLARED' | 'ACTUAL';
+
+export interface CargoReport {
+    stopType: 'pickup' | 'dropoff';
+    kind: CargoReportKind;
+    sizeClass?: CargoSize;
+    quantity?: number;
+    handling?: HandlingMethod;
+    promisedAt?: string;
+    memo?: string;
+}
+
+/** 신고된 짐이 차지하는 적재 점수 */
+export function cargoPoints(r: Pick<CargoReport, 'sizeClass' | 'quantity'>): number {
+    if (!r.sizeClass) return 0;
+    return CARGO_SIZE_POINTS[r.sizeClass] * (r.quantity || 1);
+}
+
+/**
+ * 신고값과 실측값이 얼마나 어긋났는지.
+ * 1.5배 이상이면 합짐 계획이 깨진다 — 퀵사무실에 확인해야 하는 수준이다.
+ */
+export function cargoMismatchRatio(declared?: CargoReport | null, actual?: CargoReport | null): number | null {
+    if (!declared?.sizeClass || !actual?.sizeClass) return null;
+    const d = cargoPoints(declared);
+    if (d === 0) return null;
+    return cargoPoints(actual) / d;
+}
+
 export function canReportMilestone(status: string | undefined, milestone: Milestone): boolean {
     if (milestone === 'PICKED_UP') return status === 'ORDER_CONFIRMED';
     return status === 'ORDER_CONFIRMED' || status === 'ORDER_PICKED_UP';

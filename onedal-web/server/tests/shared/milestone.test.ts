@@ -5,6 +5,8 @@ import {
     canReportMilestone,
     isTerminal,
     TERMINAL_STATUSES,
+    cargoPoints,
+    cargoMismatchRatio,
 } from '@onedal/shared';
 
 /**
@@ -82,5 +84,41 @@ describe('🔴 하차 = 종결 → 적재 공간 회복', () => {
 
     it('확정(ORDER_CONFIRMED)도 종결이 아니다 — 자리를 잡아둔 상태', () => {
         expect(isTerminal('ORDER_CONFIRMED')).toBe(false);
+    });
+});
+
+describe('화물 신고 — 신고값 vs 실측값 (Phase 8.4)', () => {
+    it('짐 점수는 차종 점수와 같은 축을 쓴다 (1t = 30점)', () => {
+        // kg 를 묻지 않는 이유: 판정이 점수 축으로 돌아가므로 "칸을 몇 개 먹는가"만 알면 된다
+        expect(cargoPoints({ sizeClass: '소', quantity: 1 })).toBe(2);
+        expect(cargoPoints({ sizeClass: '중', quantity: 2 })).toBe(10);
+        expect(cargoPoints({ sizeClass: '대', quantity: 3 })).toBe(30);   // 1t 만재
+        expect(cargoPoints({ sizeClass: '초과', quantity: 1 })).toBe(30);
+    });
+
+    it('개수를 안 적으면 1개로 본다', () => {
+        expect(cargoPoints({ sizeClass: '중' })).toBe(5);
+    });
+
+    it('크기를 모르면 0점 — 없는 값을 추측하지 않는다', () => {
+        expect(cargoPoints({})).toBe(0);
+    });
+
+    it('🚨 신고와 실측이 어긋난 배수를 계산한다', () => {
+        // "박스 1개"라더니 실제로 파렛트 3개 → 15배. 그대로 실으면 합짐 계획이 깨진다
+        const declared = { stopType: 'pickup' as const, kind: 'DECLARED' as const, sizeClass: '소' as const, quantity: 1 };
+        const actual = { stopType: 'pickup' as const, kind: 'ACTUAL' as const, sizeClass: '대' as const, quantity: 3 };
+        expect(cargoMismatchRatio(declared, actual)).toBe(15);
+    });
+
+    it('신고대로면 1배', () => {
+        const r = { stopType: 'pickup' as const, sizeClass: '중' as const, quantity: 2 };
+        expect(cargoMismatchRatio({ ...r, kind: 'DECLARED' }, { ...r, kind: 'ACTUAL' })).toBe(1);
+    });
+
+    it('한쪽만 있으면 비교하지 않는다 (null)', () => {
+        const d = { stopType: 'pickup' as const, kind: 'DECLARED' as const, sizeClass: '중' as const, quantity: 1 };
+        expect(cargoMismatchRatio(d, null)).toBeNull();
+        expect(cargoMismatchRatio(null, d)).toBeNull();
     });
 });

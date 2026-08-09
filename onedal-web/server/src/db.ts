@@ -250,6 +250,30 @@ db.exec(`
     );
     CREATE INDEX IF NOT EXISTS idx_milestones_orderId ON order_milestones(orderId);
     CREATE INDEX IF NOT EXISTS idx_milestones_user_time ON order_milestones(userId, occurredAt);
+
+    -- [Phase 8.4] 정거장별 화물 정보. **같은 항목을 두 번 기록한다.**
+    --   kind='DECLARED' 통화로 들은 값 (상차 전)  — 합짐 판단의 '예측'
+    --   kind='ACTUAL'   현장에서 확인한 값        — 잔여 공간의 '확정'
+    -- 둘의 차이가 곧 의사결정 근거다. 신고 "박스 1개"인데 실제 "파렛트 3개"면
+    -- 퀵사무실에 전화해 수행 여부를 다시 정해야 한다.
+    --
+    -- 크기·개수는 kg 가 아니라 **적재 점수(1t=30점)** 축으로 받는다.
+    -- 통화 중에 한 손으로 3초 안에 입력해야 하므로 숫자 타이핑을 요구하지 않는다.
+    CREATE TABLE IF NOT EXISTS stop_cargo_reports (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        orderId     TEXT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+        userId      TEXT NOT NULL,
+        stopType    TEXT NOT NULL CHECK(stopType IN ('pickup', 'dropoff')),
+        kind        TEXT NOT NULL CHECK(kind IN ('DECLARED', 'ACTUAL')),
+        sizeClass   TEXT,        -- 소 | 중 | 대 | 초과
+        quantity    INTEGER,     -- 개수
+        handling    TEXT,        -- 지게차 | 수작업 | 호이스트
+        promisedAt  TEXT,        -- 약속 시각 (원문 그대로도 보존)
+        memo        TEXT,
+        recordedAt  TEXT NOT NULL,
+        UNIQUE(orderId, stopType, kind)
+    );
+    CREATE INDEX IF NOT EXISTS idx_cargo_orderId ON stop_cargo_reports(orderId);
 `);
 
 // ═══════════════════════════════════════
