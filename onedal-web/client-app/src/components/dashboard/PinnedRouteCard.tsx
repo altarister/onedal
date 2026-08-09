@@ -286,6 +286,8 @@ export default function PinnedRouteCard({
                                         phones={phonesOf(pDetail)} reports={cargoReports}
                                         memoTexts={[route.itemDescription, route.detailMemo, pDetail?.memo]}
                                         driveMinutes={route.approachDurationMin ?? 0}
+                                        orderStatus={route.status}
+                                        arrivedAt={milestoneLog.find(m => m.milestone === 'ARRIVED_PICKUP')?.occurredAt}
                                     />
                                     <StopCallSheet
                                         orderId={route.id} stopType="dropoff" label="하차지"
@@ -294,6 +296,8 @@ export default function PinnedRouteCard({
                                         phones={phonesOf(dDetail)} reports={cargoReports}
                                         memoTexts={[route.itemDescription, route.detailMemo, dDetail?.memo]}
                                         driveMinutes={route.kakaoSoloDurationMin ?? route.totalDurationMin ?? 0}
+                                        orderStatus={route.status}
+                                        arrivedAt={milestoneLog.find(m => m.milestone === 'ARRIVED_DROPOFF')?.occurredAt}
                                     />
 
                                     {/* ── 1단: 적요 — 통화 전에 읽어야 하는 유일한 텍스트 ── */}
