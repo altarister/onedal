@@ -1,4 +1,8 @@
-import { CARGO_SIZES, HANDLING_METHODS } from './index';
+// ⚠️ **타입만** 가져온다. 값(CARGO_SIZES 등)을 import 하면 순환 참조가 된다 —
+//    index.ts 가 이 파일을 re-export 하므로, 모듈 초기화 시점에
+//    `ReferenceError: Cannot access 'CARGO_SIZES' before initialization` 로 **서버가 부팅조차 못 한다.**
+//    타입 import 는 컴파일 후 사라지므로 안전하다.
+//    (2026-08-10: tsc·jest 는 통과했는데 tsx 런타임에서만 터졌다. 스모크가 잡았다)
 import type { CargoSize, HandlingMethod } from './index';
 
 /**
@@ -81,6 +85,3 @@ export function parseCargoHints(...texts: (string | undefined | null)[]): CargoH
 export function hasCargoHints(h: CargoHints): boolean {
     return !!(h.sizeClass || h.quantity != null || h.handling || h.promisedAt);
 }
-
-// 사용하지 않는 import 로 보이지 않게 (규격 상수와 같은 축임을 명시)
-void CARGO_SIZES; void HANDLING_METHODS;

@@ -1,5 +1,8 @@
 import { useState } from 'react';
-import { CARGO_SIZES, HANDLING_METHODS, cargoPoints, parseCargoHints, hasCargoHints } from '@onedal/shared';
+import {
+    CARGO_SIZES, HANDLING_METHODS, cargoPoints, parseCargoHints, hasCargoHints,
+    CARGO_TAGS, CARGO_TAG_META, describeSlack, computeSlackMinutes,
+} from '@onedal/shared';
 import type { CargoReport, CargoSize, HandlingMethod, CargoReportKind } from '@onedal/shared';
 import { socket } from '../../lib/socket';
 
@@ -19,6 +22,23 @@ import { socket } from '../../lib/socket';
  */
 
 const QUANTITIES = [1, 2, 3, 5, 10];
+
+/**
+ * 마감 시각도 **키보드 없이** 넣는다.
+ * 기사님 예시가 "2시에 잡았는데 5시까지" 였다 — 절대 시각보다 **몇 시간 뒤**가 자연스럽다.
+ */
+const DEADLINE_PRESETS: Array<[string, number]> = [
+    ['+1시간', 60], ['+2시간', 120], ['+3시간', 180], ['+5시간', 300], ['오늘 중', -1],
+];
+
+function presetToIso(minutes: number): string {
+    const d = new Date();
+    if (minutes < 0) { d.setHours(23, 59, 0, 0); return d.toISOString(); }
+    return new Date(d.getTime() + minutes * 60000).toISOString();
+}
+
+const hhmm = (iso?: string) =>
+    iso ? new Date(iso).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }) : '';
 
 interface Props {
     orderId: string;
@@ -52,6 +72,8 @@ export default function StopCallSheet({
     const [qty, setQty] = useState<number | undefined>(saved?.quantity);
     const [handling, setHandling] = useState<HandlingMethod | undefined>(saved?.handling);
     const [memo, setMemo] = useState(saved?.memo || '');
+    const [tags, setTags] = useState<string[]>(saved?.tags || []);
+    const [deadlineAt, setDeadlineAt] = useState<string | undefined>(saved?.deadlineAt);
 
     const eff = {
         sizeClass: size ?? ghost?.sizeClass,
@@ -75,6 +97,8 @@ export default function StopCallSheet({
             sizeClass: eff.sizeClass, quantity: eff.quantity, handling: eff.handling,
             // 적요에서 읽은 상차 약속 시각. 시간창 경로 최적화(8.7)의 입력이 된다
             promisedAt: saved?.promisedAt || hints.promisedAt,
+            deadlineAt,
+            tags: tags.length ? tags : undefined,
             memo: memo || undefined,
         });
         setOpen(false);
@@ -181,6 +205,52 @@ export default function StopCallSheet({
                                 className={chip(eff.handling === h, handling === undefined && ghost?.handling === h)}>{h}</button>
                         ))}
                     </Row>
+
+                    {/* 화물 성질 — 취급 방법과 시간 민감도를 결정한다.
+                        위험물 + 식료품처럼 함께 실을 수 없는 조합은 서버가 판정에서 걸러낸다. */}
+                    <Row title="성질">
+                        {CARGO_TAGS.map(t => {
+                            const on = tags.includes(t);
+                            return (
+                                <button key={t}
+                                    onClick={() => setTags(prev => on ? prev.filter(x => x !== t) : [...prev, t])}
+                                    title={CARGO_TAG_META[t].hint}
+                                    className={`px-2 py-1.5 rounded-md text-[11px] font-bold border transition-colors ${
+                                        on ? 'bg-info text-white border-info' : 'bg-surface-alt/40 text-text-primary border-border'
+                                    }`}>
+                                    {CARGO_TAG_META[t].icon} {t}
+                                </button>
+                            );
+                        })}
+                    </Row>
+
+                    {/* 🔴 마감 시각 — 이게 있어야 합짐 우회를 몇 분까지 허용할지 계산할 수 있다.
+                        기사님: "2시에 잡았는데 5시까지는 와야 한다" */}
+                    <Row title="마감">
+                        {DEADLINE_PRESETS.map(([label, mins]) => {
+                            const iso = presetToIso(mins);
+                            const on = deadlineAt && Math.abs(new Date(deadlineAt).getTime() - new Date(iso).getTime()) < 90_000;
+                            return (
+                                <button key={label} onClick={() => setDeadlineAt(on ? undefined : iso)}
+                                    className={chip(!!on)}>{label}</button>
+                            );
+                        })}
+                    </Row>
+
+                    {deadlineAt && (() => {
+                        // 남은 주행 시간을 모르면 0으로 본다 — 여기서는 "마감까지 몇 분"이 핵심이다
+                        const slack = computeSlackMinutes(deadlineAt, 0, Date.now());
+                        const d = describeSlack(slack);
+                        return (
+                            <div className={`text-[11px] font-bold px-2 py-1.5 rounded-md ${
+                                d.level === 'tight' ? 'bg-danger/12 text-danger'
+                                : d.level === 'ample' ? 'bg-success/12 text-success'
+                                : 'bg-info/10 text-info'
+                            }`}>
+                                🕒 {hhmm(deadlineAt)}까지 · {d.text}
+                            </div>
+                        );
+                    })()}
 
                     <input
                         value={memo}

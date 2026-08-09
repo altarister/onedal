@@ -120,7 +120,16 @@ export interface CargoReport {
     sizeClass?: CargoSize;
     quantity?: number;
     handling?: HandlingMethod;
+    /** 약속·예정 시각 (적요의 `12:42상차` 등에서 자동 추출) */
     promisedAt?: string;
+    /**
+     * **마감 시각** — "늦어도 언제까지". 약속 시각과 다르다.
+     * 기사님 예시: 14:00 에 잡았고 "5시까지는 와야 한다" → 17:00.
+     * 이 값이 있어야 합짐 우회를 몇 분까지 허용할지 계산할 수 있다.
+     */
+    deadlineAt?: string;
+    /** 화물 성질 (식료품·냉장·파손주의 등). 시간 민감도와 동승 가능 여부를 결정 */
+    tags?: string[];
     memo?: string;
 }
 
@@ -560,3 +569,4 @@ export interface DeviceSession {
 
 export * from './vehicles';
 export * from './cargoHints';
+export * from './cargoTags';

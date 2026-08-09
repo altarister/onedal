@@ -1,8 +1,10 @@
 /**
  * 공통 헬퍼 함수 — 전체 서버에서 한 곳에서만 정의합니다.
  */
-import { isTerminal, cargoPoints, VEHICLE_CAPACITY, normalizeVehicleType } from '@onedal/shared';
+import { isTerminal, cargoPoints, VEHICLE_CAPACITY, normalizeVehicleType,
+         computeSlackMinutes, allowedDetourMinutes, findTagConflicts } from '@onedal/shared';
 import type { MyOrder, CargoReport, CapacityConfidence } from '@onedal/shared';
+import { OrderRepository } from '../repositories/OrderRepository';
 
 /**
  * 종료되지 않은(활성) 콜만 필터링합니다.
@@ -54,4 +56,52 @@ export function computeLoadedPoints(
     const confidence: CapacityConfidence =
         anyEstimated ? 'ESTIMATED' : anyDeclaredOnly ? 'DECLARED' : 'CONFIRMED';
     return { points, confidence };
+}
+
+/**
+ * [Phase 8.4] 지금 실린 짐들의 마감을 지키면서 **추가로 우회할 수 있는 시간**(분).
+ *
+ * 하나라도 지각하면 안 되므로 **가장 촉박한 짐 기준**이다.
+ * 마감을 아는 짐이 없으면 `null` — 호출부가 기존 고정 상수로 폴백한다.
+ * (모르는 것을 "여유가 많다"고 가정하면 지각한다)
+ */
+export function computeAllowedDetour(
+    userId: string,
+    session: { myOrders: MyOrder[] },
+    nowMs: number = Date.now(),
+): number | null {
+    const slacks = getActiveCalls(session).map(call => {
+        const reports = OrderRepository.getCargoReports(call.id);
+        // 마감은 하차 기준이다. 하차 마감이 없으면 상차 마감이라도 본다
+        const drop = reports.find(r => r.stopType === 'dropoff' && r.deadlineAt);
+        const pick = reports.find(r => r.stopType === 'pickup' && r.deadlineAt);
+        const deadline = drop?.deadlineAt || pick?.deadlineAt;
+        return computeSlackMinutes(deadline, call.totalDurationMin || 0, nowMs);
+    });
+    return allowedDetourMinutes(slacks);
+}
+
+/** 실린 화물과 새 콜이 함께 실을 수 없는 조합인지 (위험물 + 식료품 등) */
+export function findLoadConflicts(
+    userId: string,
+    session: { myOrders: MyOrder[] },
+    incomingOrderId: string,
+): Array<[string, string]> {
+    const incomingTags = OrderRepository.getCargoReports(incomingOrderId)
+        .flatMap(r => r.tags || []);
+    if (incomingTags.length === 0) return [];
+
+    const loadedTags = getActiveCalls(session)
+        .filter(c => c.id !== incomingOrderId)
+        .flatMap(c => OrderRepository.getCargoReports(c.id).flatMap(r => r.tags || []));
+    if (loadedTags.length === 0) return [];
+
+    // 중복 제거해서 같은 경고가 여러 번 뜨지 않게
+    const seen = new Set<string>();
+    return findTagConflicts(loadedTags, incomingTags).filter(([a, b]) => {
+        const k = `${a}|${b}`;
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+    });
 }

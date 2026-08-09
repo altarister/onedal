@@ -72,23 +72,27 @@ export class OrderRepository {
      */
     public static upsertCargoReport(orderId: string, userId: string, r: CargoReport) {
         db.prepare(`
-            INSERT INTO stop_cargo_reports (orderId, userId, stopType, kind, sizeClass, quantity, handling, promisedAt, memo, recordedAt)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO stop_cargo_reports (orderId, userId, stopType, kind, sizeClass, quantity, handling, promisedAt, deadlineAt, tags, memo, recordedAt)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(orderId, stopType, kind) DO UPDATE SET
                 sizeClass = excluded.sizeClass,
                 quantity = excluded.quantity,
                 handling = excluded.handling,
                 promisedAt = excluded.promisedAt,
+                deadlineAt = excluded.deadlineAt,
+                tags = excluded.tags,
                 memo = excluded.memo,
                 recordedAt = excluded.recordedAt
         `).run(orderId, userId, r.stopType, r.kind, r.sizeClass || null, r.quantity ?? null,
-               r.handling || null, r.promisedAt || null, r.memo || null, new Date().toISOString());
+               r.handling || null, r.promisedAt || null, r.deadlineAt || null,
+               r.tags?.length ? JSON.stringify(r.tags) : null, r.memo || null, new Date().toISOString());
     }
 
     /** 한 오더의 모든 화물 신고 (상차/하차 × 신고값/실측값) */
     public static getCargoReports(orderId: string): CargoReport[] {
-        return db.prepare(`SELECT stopType, kind, sizeClass, quantity, handling, promisedAt, memo
-                           FROM stop_cargo_reports WHERE orderId = ?`).all(orderId) as CargoReport[];
+        const rows = db.prepare(`SELECT stopType, kind, sizeClass, quantity, handling, promisedAt, deadlineAt, tags, memo
+                                 FROM stop_cargo_reports WHERE orderId = ?`).all(orderId) as any[];
+        return rows.map(r => ({ ...r, tags: r.tags ? JSON.parse(r.tags) : undefined })) as CargoReport[];
     }
 
     /**

@@ -1,5 +1,6 @@
 import { PendingOrder, SecuredOrder, MyOrder } from "@onedal/shared";
 import { getUserSession } from "../../state/userSessionStore";
+import { computeAllowedDetour, findLoadConflicts } from "../helpers";
 import { geocodeAddress, calculateSoloRoute, calculateDetourRoute } from "../../services/kakaoService";
 import { optimizeWaypoints } from "../../utils/routeOptimizer";
 import { logRoadmapEvent } from "../../utils/roadmapLogger";
@@ -135,15 +136,40 @@ export class OrderEvaluator {
 
                         let recommend = "'콜'";
                         const distDiff = parseFloat(result.distDiffKm);
-                        if (result.timeDiffMin <= DISPATCH_CONFIG.DETOUR_HONEY_TIME_MAX && distDiff <= DISPATCH_CONFIG.DETOUR_HONEY_DIST_MAX) recommend = "'꿀'";
-                        else if (result.timeDiffMin >= DISPATCH_CONFIG.DETOUR_SHIT_TIME_MIN || distDiff >= DISPATCH_CONFIG.DETOUR_SHIT_DIST_MIN) recommend = "'똥'";
 
-                        if (result.timeDiffMin >= DISPATCH_CONFIG.DETOUR_SHIT_TIME_MIN) {
-                            reasons.push(`우회시간(+${result.timeDiffMin}분) 초과`);
-                        } else if (result.timeDiffMin <= DISPATCH_CONFIG.DETOUR_HONEY_TIME_MAX) {
-                            pros.push(`우회시간(+${result.timeDiffMin}분) 양호 🍯`);
+                        // [Phase 8.4] 🔴 우회 허용치를 **실린 짐의 마감 시각**에서 구한다.
+                        //
+                        // 예전에는 DISPATCH_CONFIG 의 고정 상수(30분/60분)만 봤다.
+                        // 그래서 마감이 20분 뒤인 짐을 싣고도 50분 우회를 '보통'이라 통과시키고,
+                        // 여유가 3시간인데도 70분 우회를 '똥'이라 걸러 **잡을 수 있는 합짐을 놓쳤다.**
+                        //
+                        // 기사님: "오후 2시에 콜을 잡았는데 5시까지는 와야 한다든지 하는 정보가
+                        //          있어야 할 것 같아. 그래야 합짐을 잡을 수 있을 듯."
+                        //
+                        // 마감을 아는 짐이 하나도 없으면 null → 기존 상수로 폴백한다.
+                        const slackLimit = computeAllowedDetour(userId, session);
+                        const shitTime = slackLimit ?? DISPATCH_CONFIG.DETOUR_SHIT_TIME_MIN;
+                        const honeyTime = slackLimit !== null
+                            ? Math.max(0, Math.floor(slackLimit / 2))   // 여유의 절반 안이면 꿀
+                            : DISPATCH_CONFIG.DETOUR_HONEY_TIME_MAX;
+
+                        if (result.timeDiffMin <= honeyTime && distDiff <= DISPATCH_CONFIG.DETOUR_HONEY_DIST_MAX) recommend = "'꿀'";
+                        else if (result.timeDiffMin >= shitTime || distDiff >= DISPATCH_CONFIG.DETOUR_SHIT_DIST_MIN) recommend = "'똥'";
+
+                        const basis = slackLimit !== null ? `마감 여유 ${slackLimit}분 기준` : '기본 기준';
+                        if (result.timeDiffMin >= shitTime) {
+                            reasons.push(`우회시간(+${result.timeDiffMin}분) 초과 — ${basis}`);
+                        } else if (result.timeDiffMin <= honeyTime) {
+                            pros.push(`우회시간(+${result.timeDiffMin}분) 양호 🍯 (${basis})`);
                         } else {
-                            pros.push(`우회시간(+${result.timeDiffMin}분) 보통`);
+                            pros.push(`우회시간(+${result.timeDiffMin}분) 보통 (${basis})`);
+                        }
+
+                        // 함께 실을 수 없는 화물인지 (위험물 + 식료품 등)
+                        const conflicts = findLoadConflicts(userId, session, securedOrder.id);
+                        for (const [a, b] of conflicts) {
+                            reasons.push(`동승 불가: 실린 화물(${a}) + 이 화물(${b})`);
+                            recommend = "'똥'";
                         }
 
                         if (distDiff >= DISPATCH_CONFIG.DETOUR_SHIT_DIST_MIN) {

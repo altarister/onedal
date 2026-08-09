@@ -268,7 +268,9 @@ db.exec(`
         sizeClass   TEXT,        -- 소 | 중 | 대 | 초과
         quantity    INTEGER,     -- 개수
         handling    TEXT,        -- 지게차 | 수작업 | 호이스트
-        promisedAt  TEXT,        -- 약속 시각 (원문 그대로도 보존)
+        promisedAt  TEXT,        -- 약속·예정 시각 (적요의 12:42상차 등)
+        deadlineAt  TEXT,        -- 마감 시각 (늦어도 언제까지). 합짐 우회 허용치를 정한다
+        tags        TEXT,        -- 화물 성질 JSON 배열 (식료품·냉장·파손주의 등)
         memo        TEXT,
         recordedAt  TEXT NOT NULL,
         UNIQUE(orderId, stopType, kind)
