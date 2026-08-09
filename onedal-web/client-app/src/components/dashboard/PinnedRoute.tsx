@@ -171,9 +171,12 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
                                 <span className="text-xs text-text-muted">
                                     {activeRoute.length > 0 && (
                                         <span className="text-text-muted font-bold">
-                                            총 {activeRoute.length}개 경로 정보
+                                            {/* 앞자리는 "지금 실려 있는 짐"이어야 한다.
+                                                예전에는 `총 7개 경로 정보 (5건 종료)`처럼 종료 건까지 합한 수가
+                                                먼저 보여서, 실제로는 2건만 수행 중인데 7건짜리 운행으로 읽혔다. */}
+                                            진행 중 {liveRoute.length}건
                                             {/* 종료된 건에는 완료뿐 아니라 취소·방출도 포함되므로 "완료"라 쓰면 부정확하다 */}
-                                            {liveRoute.length < activeRoute.length ? ` (${activeRoute.length - liveRoute.length}건 종료)` : ''}
+                                            {liveRoute.length < activeRoute.length ? ` · 종료 ${activeRoute.length - liveRoute.length}건` : ''}
                                         </span>
                                     )}
                                 </span>
@@ -196,13 +199,18 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
                                 </span>
                             </div>
                         </a>
-                        <span className="text-xl font-black text-info tracking-tight">
-                            {(() => {
-                                const total = activeRoute.reduce((sum, o) => sum + (o.fare || 0), 0);
-                                return `${total.toLocaleString()}`;
-                            })()}
-                            <span className="text-xs font-bold text-text-muted ml-0.5">원</span>
-                        </span>
+                        {/* 이 요약줄은 바로 옆의 주행거리·예상시간과 한 몸이다.
+                            그 둘은 liveRoute(진행 중)만으로 계산하는데 운임만 activeRoute 전체를
+                            더하고 있어서, 취소·방출한 콜의 운임까지 합산됐다.
+                            실측: 진행 중 2건인데 종료 5건까지 더해 510,000원으로 표시됨.
+                            취소한 콜은 한 푼도 받지 못하므로 명백한 과다 표시다. */}
+                        <div className="flex flex-col items-end leading-none">
+                            <span className="text-xl font-black text-info tracking-tight">
+                                {liveRoute.reduce((sum, o) => sum + (o.fare || 0), 0).toLocaleString()}
+                                <span className="text-xs font-bold text-text-muted ml-0.5">원</span>
+                            </span>
+                            <span className="text-[10px] text-text-muted mt-1">진행 중 운임</span>
+                        </div>
                     </div>
                 )}
             </div>

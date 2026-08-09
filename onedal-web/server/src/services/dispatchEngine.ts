@@ -90,7 +90,9 @@ export async function recalculateActiveKakaoRoute(userId: string, io: any) {
                 routingOptions.carType
             );
             activeMain.routePolyline = res.polyline;
-            activeMain.totalDistanceKm = Math.round(res.distance / 1000);
+            // 합짐 경로(아래 TSP 분기)는 소수점을 유지하는데 여기만 Math.round 로 정수화하고 있었다.
+            // 관제탑은 두 값을 같은 자리(`104.7km`)에 표시하므로, 단독일 때만 `105.0km`로 보였다.
+            activeMain.totalDistanceKm = parseFloat((res.distance / 1000).toFixed(1));
             activeMain.totalDurationMin = Math.round(res.duration / 60);
 
             if (res.approachDistance && res.approachDuration) {
