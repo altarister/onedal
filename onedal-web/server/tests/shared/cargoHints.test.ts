@@ -31,18 +31,29 @@ describe('parseCargoHints — 적요에서 통화 시트 미리 채우기', () =
         expect(parseCargoHints('마대 1개').handling).toBeUndefined();
     });
 
-    it('🔴 크기는 확실할 때만 — "박스"는 크기를 알려주지 않는다', () => {
-        // 박스는 손바닥만 할 수도 냉장고만 할 수도 있다. 추측하면 적재 판정이 틀어진다
-        expect(parseCargoHints('박스 1개').sizeClass).toBeUndefined();
-        expect(parseCargoHints('마대 1개').sizeClass).toBeUndefined();
-        expect(parseCargoHints('소형 가전').sizeClass).toBeUndefined();
-        // 확실한 것만
-        expect(parseCargoHints('서류봉투').sizeClass).toBe('소');
-        expect(parseCargoHints('파렛트 2개').sizeClass).toBe('대');
+    it('적요의 낱말을 단위로 그대로 읽는다', () => {
+        // 단위를 기사님이 쓰는 말로 두니 추측할 것이 없어졌다.
+        // 예전에는 "마대"를 소·중·대 중 무엇으로 볼지 알 수 없어 포기했다.
+        expect(parseCargoHints('마대 1개').unit).toBe('마대');
+        expect(parseCargoHints('박스 1개').unit).toBe('라면박스');
+        expect(parseCargoHints('서류봉투').unit).toBe('서류봉투');
+        expect(parseCargoHints('파렛트 2개').unit).toBe('파레트');
+        expect(parseCargoHints('쇼핑백 2개').unit).toBe('쇼핑백');
+        expect(parseCargoHints('소형 가전').unit).toBe('가전');
+    });
+
+    it('더 구체적인 낱말이 먼저 잡힌다', () => {
+        // "서류봉투"가 "봉투"보다, "톤백"이 "백"보다 우선
+        expect(parseCargoHints('서류봉투 3개').unit).toBe('서류봉투');
+        expect(parseCargoHints('톤백 1개').unit).toBe('톤백');
+    });
+
+    it('아는 낱말이 없으면 단위도 undefined — 지어내지 않는다', () => {
+        expect(parseCargoHints('명세서폐기').unit).toBeUndefined();
     });
 
     it('여러 필드를 합쳐 근거 문구를 만든다', () => {
-        expect(parseCargoHints('1시상차 6박스 카트가지고').summary).toBe('6개 · 수작업 · 01:00 상차');
+        expect(parseCargoHints('1시상차 6박스 카트가지고').summary).toBe('라면박스 · 6개 · 수작업 · 01:00 상차');
     });
 
     it('물품명과 적요를 함께 넘길 수 있다', () => {

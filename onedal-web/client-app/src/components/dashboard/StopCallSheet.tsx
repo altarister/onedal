@@ -84,6 +84,7 @@ export default function StopCallSheet({
 
     const hints = parseCargoHints(...(memoTexts || []));
     const applyHints = () => {
+        if (hints.unit) setUnit(hints.unit);
         if (hints.quantity != null) setQty(hints.quantity);
         if (hints.handling) setHandling(hints.handling);
     };

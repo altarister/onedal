@@ -55,18 +55,19 @@ describe('allowedDetourMinutes — 가장 촉박한 짐이 기준', () => {
 });
 
 describe('화물 성질', () => {
-    it('🔴 위험물과 식료품은 함께 실을 수 없다', () => {
-        expect(findTagConflicts(['위험물'], ['식료품'])).toEqual([['위험물', '식료품']]);
-        expect(findTagConflicts(['냉장'], ['위험물'])).toEqual([['냉장', '위험물']]);
+    it('🔴 위험물과 먹는 것은 함께 실을 수 없다', () => {
+        expect(findTagConflicts(['위험물'], ['농산물'])).toEqual([['위험물', '농산물']]);
+        expect(findTagConflicts(['수산물'], ['위험물'])).toEqual([['수산물', '위험물']]);
     });
 
     it('문제없는 조합은 빈 배열', () => {
-        expect(findTagConflicts(['식료품', '냉장'], ['파손주의'])).toEqual([]);
+        expect(findTagConflicts(['농산물', '수산물'], ['파손주의'])).toEqual([]);
         expect(findTagConflicts([], ['위험물'])).toEqual([]);
     });
 
-    it('시간에 민감한 화물을 구분한다', () => {
-        expect(isTimeSensitive(['냉동'])).toBe(true);
+    it('시간에 민감한 화물을 구분한다 — 늦으면 신선도가 떨어진다', () => {
+        expect(isTimeSensitive(['농산물'])).toBe(true);
+        expect(isTimeSensitive(['수산물'])).toBe(true);
         expect(isTimeSensitive(['생물'])).toBe(true);
         expect(isTimeSensitive(['파손주의'])).toBe(false);
         expect(isTimeSensitive([])).toBe(false);
@@ -122,6 +123,13 @@ describe('상하차 소요 시간 — 경로 시간에 더해야 하는 값', ()
 describe('단위 — 기사님이 통화에서 실제로 쓰는 말', () => {
     it('1t 트럭에 파레트 2개면 만재 (30점)', () => {
         expect(unitPoints('파레트', 2)).toBe(30);
+        expect(unitPoints('톤백', 1)).toBe(30);
+    });
+
+    it('마대·쇼핑백·서류봉투는 실제 적요에 나오는 단위 그대로다', () => {
+        expect(unitPoints('마대', 5)).toBe(5);
+        expect(unitPoints('쇼핑백', 2)).toBeCloseTo(0.2);
+        expect(unitPoints('서류봉투', 1)).toBeCloseTo(0.02);  // 공간을 거의 안 먹는다
     });
 
     it('라면박스는 120개가 1t', () => {
@@ -130,7 +138,7 @@ describe('단위 — 기사님이 통화에서 실제로 쓰는 말', () => {
     });
 
     it('모르는 단위는 0점 — 없는 값을 지어내지 않는다', () => {
-        expect(unitPoints('냉장고', 1)).toBe(0);
+        expect(unitPoints('컨테이너', 1)).toBe(0);
         expect(unitPoints(undefined, 3)).toBe(0);
     });
 });

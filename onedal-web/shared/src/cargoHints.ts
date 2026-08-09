@@ -3,7 +3,8 @@
 //    `ReferenceError: Cannot access 'CARGO_SIZES' before initialization` 로 **서버가 부팅조차 못 한다.**
 //    타입 import 는 컴파일 후 사라지므로 안전하다.
 //    (2026-08-10: tsc·jest 는 통과했는데 tsx 런타임에서만 터졌다. 스모크가 잡았다)
-import type { CargoSize, HandlingMethod } from './index';
+import type { HandlingMethod } from './index';
+import type { CargoUnit } from './cargoUnits';
 
 /**
  * [Phase 8.4] 적요·물품 텍스트에서 통화 시트를 **미리 채울 힌트**를 뽑는다.
@@ -21,7 +22,8 @@ import type { CargoSize, HandlingMethod } from './index';
  */
 
 export interface CargoHints {
-    sizeClass?: CargoSize;
+    /** 적요에 적힌 단위 그대로 (마대·박스·서류봉투 …) */
+    unit?: CargoUnit;
     quantity?: number;
     handling?: HandlingMethod;
     /** 상차 약속 시각 `HH:MM` */
@@ -30,10 +32,22 @@ export interface CargoHints {
     summary: string;
 }
 
-/** 크기를 **확실히 알 수 있는** 낱말만 매핑한다. "박스"는 크기를 알려주지 않는다 */
-const SIZE_WORDS: Array<[RegExp, CargoSize]> = [
-    [/서류\s*봉투|봉투|서류/, '소'],
-    [/파렛트|팔레트|파레트|파렛|팔렛/, '대'],
+/**
+ * 적요의 낱말 → 적재 단위.
+ *
+ * 단위를 **기사님이 쓰는 말** 그대로 두니 매핑이 자연스러워졌다.
+ * 예전에는 "마대"를 소·중·대 중 무엇으로 볼지 알 수 없어 포기했는데,
+ * 이제는 `마대`가 곧 단위다 — 추측할 것이 없다.
+ * 순서가 중요하다: `서류봉투`가 `봉투`보다 먼저, `라면박스`가 `박스`보다 먼저.
+ */
+const UNIT_WORDS: Array<[RegExp, CargoUnit]> = [
+    [/톤\s*백|톤마대|톤\s*마대/, '톤백'],
+    [/파렛트|팔레트|파레트|파렛|팔렛/, '파레트'],
+    [/서류\s*봉투|봉투|서류/, '서류봉투'],
+    [/쇼핑백/, '쇼핑백'],
+    [/마대/, '마대'],
+    [/가전|냉장고|세탁기|TV|티비/, '가전'],
+    [/박스|카톤|BOX|box/, '라면박스'],
 ];
 
 const HANDLING_WORDS: Array<[RegExp, HandlingMethod]> = [
@@ -48,14 +62,14 @@ export function parseCargoHints(...texts: (string | undefined | null)[]): CargoH
     if (!text) return hints;
 
     // 개수 — "1개", "6박스", "2쇼핑백"
-    const qty = text.match(/(\d+)\s*(개|박스|파렛트|팔레트|마대|쇼핑백|짝|롤|통|EA|ea)/);
+    const qty = text.match(/(\d+)\s*(개|박스|파렛트|팔레트|마대|쇼핑백|톤백|짝|롤|통|EA|ea)/);
     if (qty) {
         const n = parseInt(qty[1], 10);
         if (n > 0 && n <= 999) hints.quantity = n;
     }
 
-    for (const [re, size] of SIZE_WORDS) {
-        if (re.test(text)) { hints.sizeClass = size; break; }
+    for (const [re, u] of UNIT_WORDS) {
+        if (re.test(text)) { hints.unit = u; break; }
     }
     for (const [re, method] of HANDLING_WORDS) {
         if (re.test(text)) { hints.handling = method; break; }
@@ -72,7 +86,7 @@ export function parseCargoHints(...texts: (string | undefined | null)[]): CargoH
     }
 
     hints.summary = [
-        hints.sizeClass,
+        hints.unit,
         hints.quantity != null ? `${hints.quantity}개` : null,
         hints.handling,
         hints.promisedAt ? `${hints.promisedAt} 상차` : null,
@@ -83,5 +97,5 @@ export function parseCargoHints(...texts: (string | undefined | null)[]): CargoH
 
 /** 힌트에 쓸 만한 값이 하나라도 있는가 */
 export function hasCargoHints(h: CargoHints): boolean {
-    return !!(h.sizeClass || h.quantity != null || h.handling || h.promisedAt);
+    return !!(h.unit || h.quantity != null || h.handling || h.promisedAt);
 }
