@@ -299,6 +299,8 @@ export interface PendingOrder extends OfficeOrder {
     totalDurationMin?: number;        // 통합 연산된 전체 총 주행 시간
     kakaoSoloDistanceKm?: number;     // 카카오가 연산한 해당 콜만의 '단독' 주행 거리
     kakaoSoloDurationMin?: number;    // 카카오가 연산한 해당 콜만의 '단독' 소요 시간
+    /** 현위치 → 상차지 소요 시간(분). 통화 대본의 "여기서 N분 걸립니다"가 이 값이다 */
+    approachDurationMin?: number;
     osrmSoloDistanceKm?: number;      // OSRM이 연산한 해당 콜만의 '단독' 주행 거리
     osrmSoloDurationMin?: number;     // OSRM이 연산한 해당 콜만의 '단독' 소요 시간
     osrmError?: string;               // OSRM 연산 실패 시 에러 메세지 노출용
@@ -325,6 +327,8 @@ export interface MyOrder extends OfficeOrder {
     totalDurationMin?: number;        // 통합 연산된 전체 총 주행 시간
     kakaoSoloDistanceKm?: number;     // 카카오가 연산한 해당 콜만의 '단독' 주행 거리
     kakaoSoloDurationMin?: number;    // 카카오가 연산한 해당 콜만의 '단독' 소요 시간
+    /** 현위치 → 상차지 소요 시간(분). 통화 대본의 "여기서 N분 걸립니다"가 이 값이다 */
+    approachDurationMin?: number;
     osrmSoloDistanceKm?: number;      // OSRM이 연산한 해당 콜만의 '단독' 주행 거리
     osrmSoloDurationMin?: number;     // OSRM이 연산한 해당 콜만의 '단독' 소요 시간
     osrmError?: string;               // OSRM 연산 실패 시 에러 메세지 노출용
@@ -350,6 +354,7 @@ export interface SecuredOrder extends OfficeOrder {
     totalDurationMin?: number;
     kakaoSoloDistanceKm?: number;
     kakaoSoloDurationMin?: number;
+    approachDurationMin?: number;
     osrmSoloDistanceKm?: number;
     osrmSoloDurationMin?: number;
     osrmError?: string;
@@ -580,3 +585,4 @@ export * from './vehicles';
 export * from './cargoHints';
 export * from './cargoTags';
 export * from './cargoUnits';
+export * from './callScript';

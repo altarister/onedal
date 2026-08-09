@@ -4,6 +4,7 @@ import {
     CARGO_TAGS, CARGO_TAG_META, describeSlack, computeSlackMinutes,
     CARGO_UNIT_QUANTITIES, PICKUP_PRIMARY_UNITS, PICKUP_SECONDARY_UNITS,
     buildHourSlots, dwellMinutes, unitPoints,
+    buildCallScript, BUFFER_PRESETS, DEFAULT_BUFFER_MINUTES,
 } from '@onedal/shared';
 import type { CargoReport, HandlingMethod, CargoReportKind, CargoUnit } from '@onedal/shared';
 import { socket } from '../../lib/socket';
@@ -43,6 +44,10 @@ interface Props {
     memoTexts?: (string | undefined)[];
     /** 이 정거장까지 예상 주행 시간(분). 도착 못 하는 시각을 흐리게 하는 데 쓴다 */
     etaMinutes?: number;
+    /** 현위치 → 상차지 이동 시간(분). 상차지 대본의 "여기서 N분 걸립니다" */
+    approachMinutes?: number | null;
+    /** 상차지 → 하차지 이동 시간(분). 하차지 대본에 쓴다 */
+    lineHaulMinutes?: number | null;
     defaultKind?: CargoReportKind;
 }
 
@@ -51,7 +56,7 @@ const hhmm = (iso?: string) =>
 
 export default function StopCallSheet({
     orderId, stopType, label, address, contactName, phones, reports,
-    memoTexts, etaMinutes = 0, defaultKind = 'DECLARED',
+    memoTexts, etaMinutes = 0, approachMinutes, lineHaulMinutes, defaultKind = 'DECLARED',
 }: Props) {
     const isPickup = stopType === 'pickup';
     const [open, setOpen] = useState(false);
@@ -72,6 +77,8 @@ export default function StopCallSheet({
     const [memo, setMemo] = useState(saved?.memo || '');
     const [tags, setTags] = useState<string[]>(saved?.tags || []);
     const [deadlineAt, setDeadlineAt] = useState<string | undefined>(saved?.deadlineAt);
+    const [buffer, setBuffer] = useState<number>(DEFAULT_BUFFER_MINUTES);
+    const [showAdjust, setShowAdjust] = useState(false);
 
     const eff = {
         unit: unit ?? (ghost?.unit as CargoUnit | undefined),
@@ -87,6 +94,7 @@ export default function StopCallSheet({
         if (hints.unit) setUnit(hints.unit);
         if (hints.quantity != null) setQty(hints.quantity);
         if (hints.handling) setHandling(hints.handling);
+        if (hints.tags?.length) setTags(prev => Array.from(new Set([...prev, ...hints.tags!])));
     };
 
     const save = () => {
@@ -101,6 +109,24 @@ export default function StopCallSheet({
             memo: memo || undefined,
         });
         setOpen(false);
+    };
+
+    // 상차 약속이 이미 잡혔으면 하차 대본은 그 시각에서 출발한다
+    const pickupPromise = reports.find(r => r.stopType === 'pickup' && r.deadlineAt)?.deadlineAt;
+    const script = buildCallScript({
+        stopType,
+        nowMs: Date.now(),
+        approachMinutes,
+        lineHaulMinutes,
+        pickupDwell: dwellMinutes(pickupReport?.handling, points),
+        bufferMinutes: buffer,
+        pickupDoneAtMs: !isPickup && pickupPromise ? new Date(pickupPromise).getTime() : null,
+    });
+
+    /** 담당자가 "네" 하면 대본에서 말한 시각을 그대로 약속으로 확정한다 */
+    const acceptProposal = () => {
+        setDeadlineAt(new Date(script.proposedMs).toISOString());
+        setShowAdjust(false);
     };
 
     const chip = (active: boolean, dim = false) =>
@@ -199,16 +225,60 @@ export default function StopCallSheet({
                         </>
                     )}
 
-                    {/* ── 시각: "몇 시까지 오시면 되요" ── */}
-                    <Row title={isPickup ? '상차' : '도착'}>
-                        {hourSlots.map(sl => (
-                            <button key={sl.iso} onClick={() => setDeadlineAt(deadlineAt === sl.iso ? undefined : sl.iso)}
-                                className={chip(deadlineAt === sl.iso, sl.beforeEta)}
-                                title={sl.beforeEta ? '예상 도착보다 이릅니다' : ''}>
-                                {sl.label}
-                            </button>
-                        ))}
-                    </Row>
+                    {/* ══ 통화 대본 — 이걸 그대로 읽는다 ══
+                        시스템이 이미 아는 값(이동 시간·상차 소요)을 기사님이 머릿속으로
+                        더하고 있을 이유가 없다. 문장으로 만들어 준다. */}
+                    <div className="rounded-md border border-info/40 bg-info/8 p-2.5">
+                        <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-[10px] font-black text-info">📞 이렇게 말하세요</span>
+                            <div className="flex gap-1 items-center">
+                                <span className="text-[10px] text-text-muted">여유</span>
+                                {BUFFER_PRESETS.map(b => (
+                                    <button key={b} onClick={() => setBuffer(b)}
+                                        className={`px-1.5 py-0.5 rounded text-[10px] font-bold border ${
+                                            buffer === b ? 'bg-info text-white border-info' : 'bg-transparent text-text-muted border-border'
+                                        }`}>{b}</button>
+                                ))}
+                            </div>
+                        </div>
+                        <p className="text-[14px] leading-relaxed text-text-primary font-bold break-keep select-text">
+                            {script.text}
+                        </p>
+                        <div className="text-[10px] text-text-muted mt-1.5">
+                            {script.steps.map(st => `${st.label} ${st.minutes}분`).join(' + ')}
+                        </div>
+                    </div>
+
+                    {/* 담당자 답변 — 탭 한 번 */}
+                    <div className="flex gap-1.5">
+                        <button onClick={acceptProposal}
+                            className={`flex-1 py-3 rounded-md text-[13px] font-black border ${
+                                deadlineAt && Math.abs(new Date(deadlineAt).getTime() - script.proposedMs) < 60_000
+                                    ? 'bg-success text-white border-success'
+                                    : 'bg-success/12 text-success border-success/40'
+                            }`}>
+                            👍 네, 오세요
+                        </button>
+                        <button onClick={() => setShowAdjust(v => !v)}
+                            className={`flex-1 py-3 rounded-md text-[13px] font-black border ${
+                                showAdjust ? 'bg-warning text-white border-warning' : 'bg-warning/12 text-warning border-warning/40'
+                            }`}>
+                            🕒 다른 시각
+                        </button>
+                    </div>
+
+                    {/* 담당자가 다른 시각을 부르면 그때만 펼친다 */}
+                    {showAdjust && (
+                        <Row title={isPickup ? '상차' : '도착'}>
+                            {hourSlots.map(sl => (
+                                <button key={sl.iso} onClick={() => setDeadlineAt(deadlineAt === sl.iso ? undefined : sl.iso)}
+                                    className={chip(deadlineAt === sl.iso, sl.beforeEta)}
+                                    title={sl.beforeEta ? '예상 도착보다 이릅니다' : ''}>
+                                    {sl.label}
+                                </button>
+                            ))}
+                        </Row>
+                    )}
 
                     {/* ── 상하차 방법: 소요 시간이 버튼에 바로 보인다 ── */}
                     <Row title="방법">

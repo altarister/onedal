@@ -5,6 +5,7 @@
 //    (2026-08-10: tsc·jest 는 통과했는데 tsx 런타임에서만 터졌다. 스모크가 잡았다)
 import type { HandlingMethod } from './index';
 import type { CargoUnit } from './cargoUnits';
+import type { CargoTag } from './cargoTags';
 
 /**
  * [Phase 8.4] 적요·물품 텍스트에서 통화 시트를 **미리 채울 힌트**를 뽑는다.
@@ -28,6 +29,8 @@ export interface CargoHints {
     handling?: HandlingMethod;
     /** 상차 약속 시각 `HH:MM` */
     promisedAt?: string;
+    /** 적요에서 읽어낸 화물 성질 */
+    tags?: CargoTag[];
     /** 화면에 그대로 보여줄 근거 문구 (예: "1개 · 12:42 상차") */
     summary: string;
 }
@@ -46,8 +49,22 @@ const UNIT_WORDS: Array<[RegExp, CargoUnit]> = [
     [/서류\s*봉투|봉투|서류/, '서류봉투'],
     [/쇼핑백/, '쇼핑백'],
     [/마대/, '마대'],
-    [/가전|냉장고|세탁기|TV|티비/, '가전'],
     [/박스|카톤|BOX|box/, '라면박스'],
+];
+
+/**
+ * 성질은 낱말이 명시적으로 있을 때만 붙인다.
+ * `가전` 은 단위가 아니라 성질이다 — 냉장고와 전기면도기가 같은 부피일 리 없다.
+ */
+const TAG_WORDS: Array<[RegExp, CargoTag]> = [
+    [/가전|냉장고|세탁기|에어컨|TV|티비|모니터/, '가전'],
+    [/농산물|야채|채소|과일|농산/, '농산물'],
+    [/수산물|생선|활어|해산물|수산/, '수산물'],
+    [/살아\s*있|생물/, '생물'],
+    [/파손|깨지|유리|취급\s*주의|조심/, '파손주의'],
+    [/위험물|인화|가스|화학/, '위험물'],
+    [/귀중품|고가|귀금속/, '귀중품'],
+    [/중량물|무거|중량/, '중량물'],
 ];
 
 const HANDLING_WORDS: Array<[RegExp, HandlingMethod]> = [
@@ -75,6 +92,9 @@ export function parseCargoHints(...texts: (string | undefined | null)[]): CargoH
         if (re.test(text)) { hints.handling = method; break; }
     }
 
+    const tags = TAG_WORDS.filter(([re]) => re.test(text)).map(([, t]) => t);
+    if (tags.length) hints.tags = tags;
+
     // 상차 약속 시각. 인성 적요는 `12:42상차` 형태가 매우 일관적이다.
     // `1시상차` 같은 축약형도 함께 받는다.
     const hhmm = text.match(/(\d{1,2})\s*:\s*(\d{2})\s*상차/);
@@ -86,6 +106,7 @@ export function parseCargoHints(...texts: (string | undefined | null)[]): CargoH
     }
 
     hints.summary = [
+        hints.tags?.join('·'),
         hints.unit,
         hints.quantity != null ? `${hints.quantity}개` : null,
         hints.handling,
@@ -97,5 +118,5 @@ export function parseCargoHints(...texts: (string | undefined | null)[]): CargoH
 
 /** 힌트에 쓸 만한 값이 하나라도 있는가 */
 export function hasCargoHints(h: CargoHints): boolean {
-    return !!(h.unit || h.quantity != null || h.handling || h.promisedAt);
+    return !!(h.unit || h.quantity != null || h.handling || h.promisedAt || h.tags?.length);
 }

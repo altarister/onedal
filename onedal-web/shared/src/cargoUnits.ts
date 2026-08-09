@@ -23,15 +23,15 @@
  *
  * 점수는 `1t = 30점` 축 (`VEHICLE_CAPACITY` 와 같다).
  */
+// '가전' 은 단위가 아니라 **성질**이다 (cargoTags). 냉장고와 전기면도기가 같은 부피일 리 없다.
 export const CARGO_UNITS = [
-    '파레트', '라면박스', '마대', '톤백', '가전', '쇼핑백', '서류봉투',
+    '파레트', '라면박스', '마대', '톤백', '쇼핑백', '서류봉투',
 ] as const;
 export type CargoUnit = typeof CARGO_UNITS[number];
 
 export const CARGO_UNIT_POINTS: Record<CargoUnit, number> = {
     '톤백': 30,      // 1톤짜리 대형 마대 하나면 1t 만재
     '파레트': 15,    // 1t 트럭에 2개면 만재 — 실무 감각
-    '가전': 5,       // 소형 가전 기준
     '마대': 1,       // 라면박스 4개 정도의 부피
     '라면박스': 0.25,// 120개가 1t
     '쇼핑백': 0.1,
@@ -44,14 +44,13 @@ export const CARGO_UNIT_QUANTITIES: Record<CargoUnit, number[]> = {
     '라면박스': [5, 10, 20, 40, 60],
     '마대': [1, 2, 3, 5, 10],
     '톤백': [1, 2],
-    '가전': [1, 2, 3],
     '쇼핑백': [1, 2, 3, 5],
     '서류봉투': [1, 2, 3],
 };
 
 /** 상차지 통화에서 먼저 보여줄 단위 (1t 기사 기준 — 가장 자주 나온다) */
 export const PICKUP_PRIMARY_UNITS: CargoUnit[] = ['파레트', '라면박스', '마대'];
-export const PICKUP_SECONDARY_UNITS: CargoUnit[] = ['톤백', '가전', '쇼핑백', '서류봉투'];
+export const PICKUP_SECONDARY_UNITS: CargoUnit[] = ['톤백', '쇼핑백', '서류봉투'];
 
 export function unitPoints(unit?: string | null, quantity?: number | null): number {
     if (!unit) return 0;

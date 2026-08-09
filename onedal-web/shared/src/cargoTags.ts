@@ -15,7 +15,7 @@
 
 /** 화물 성질. 취급 방법과 시간 민감도를 결정한다 */
 export const CARGO_TAGS = [
-    '농산물', '수산물', '생물', '파손주의', '위험물', '귀중품', '중량물',
+    '농산물', '수산물', '생물', '가전', '파손주의', '위험물', '귀중품', '중량물',
 ] as const;
 export type CargoTag = typeof CARGO_TAGS[number];
 
@@ -32,6 +32,7 @@ export const CARGO_TAG_META: Record<CargoTag, CargoTagMeta> = {
     '농산물': { icon: '🥬', timeSensitive: true, conflictsWith: ['위험물'], hint: '지연 시 신선도 저하' },
     '수산물': { icon: '🐟', timeSensitive: true, conflictsWith: ['위험물'], hint: '지연 시 신선도 저하 · 누수 주의' },
     '생물': { icon: '🦞', timeSensitive: true, conflictsWith: ['위험물'], hint: '살아 있는 화물 — 최우선' },
+    '가전': { icon: '🔌', timeSensitive: false, hint: '충격·눕힘 주의 · 부피는 단위로 따로 받는다' },
     '파손주의': { icon: '🥚', timeSensitive: false, hint: '급제동·적재 순서 주의' },
     '위험물': { icon: '☣️', timeSensitive: false, conflictsWith: ['농산물', '수산물', '생물'] },
     '귀중품': { icon: '💎', timeSensitive: false, hint: '차량 이탈 금지' },

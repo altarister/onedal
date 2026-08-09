@@ -38,6 +38,8 @@ export interface RouteResult {
     distance: number;      // meters
     duration: number;      // seconds
     sectionEtas?: any;
+    /** 현위치 → 첫 상차지 소요 시간(초). 카카오가 주는데 예전에는 로그만 찍고 버렸다 */
+    approachDuration?: number;
 }
 
 /**
@@ -56,6 +58,8 @@ export function applyRoute(holder: RouteHolder, r: RouteResult): void {
     holder.totalDistanceKm = toKm(r.distance);
     holder.totalDurationMin = toMin(r.duration);
     if (r.sectionEtas) holder.sectionEtas = r.sectionEtas;
+    // 통화 대본의 "여기서 N분 걸립니다" — 예전에는 계산해 놓고 로그만 찍고 버렸다
+    if (r.approachDuration) holder.approachDurationMin = toMin(r.approachDuration);
 }
 
 /** 좌표가 상·하차 **둘 다** 있는 콜만 경유지로 쓴다 */
