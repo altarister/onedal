@@ -1,6 +1,7 @@
 import {
     findTagConflicts, isTimeSensitive,
     computeSlackMinutes, allowedDetourMinutes, describeSlack,
+    dwellMinutes, computeStopTiming, unitPoints, buildHourSlots, DWELL_UNKNOWN_MINUTES,
 } from '@onedal/shared';
 
 /**
@@ -84,5 +85,67 @@ describe('describeSlack — 기사님이 읽을 말로', () => {
         const d = describeSlack(slack as number | null);
         expect(d.text).toBe(text);
         expect(d.level).toBe(level);
+    });
+});
+
+describe('상하차 소요 시간 — 경로 시간에 더해야 하는 값', () => {
+    it('수작업은 지게차보다 훨씬 오래 걸린다', () => {
+        // 파레트 2개(30점)
+        expect(dwellMinutes('지게차', 30)).toBe(19);
+        expect(dwellMinutes('수작업', 30)).toBe(60);
+    });
+
+    it('짐이 적으면 방법 차이도 줄어든다', () => {
+        expect(dwellMinutes('지게차', 2)).toBe(11);
+        expect(dwellMinutes('수작업', 2)).toBe(18);
+    });
+
+    it('🔴 방법을 모르면 낙관하지 않는다 — 기본 20분', () => {
+        expect(dwellMinutes(undefined, 30)).toBe(DWELL_UNKNOWN_MINUTES);
+        expect(dwellMinutes(null, 30)).toBe(DWELL_UNKNOWN_MINUTES);
+    });
+
+    it('상차 + 하차 두 번을 모두 센다', () => {
+        const t = computeStopTiming({ handling: '수작업', unit: '파레트', quantity: 2 }, { handling: '지게차' });
+        expect(t.pickupDwell).toBe(60);
+        expect(t.dropoffDwell).toBe(19);
+        expect(t.totalDwell).toBe(79);   // 주행 시간에 이만큼이 더 붙는다
+    });
+
+    it('하차 방법을 안 물었으면 상차와 같다고 본다', () => {
+        const t = computeStopTiming({ handling: '지게차', unit: '파레트', quantity: 1 }, undefined);
+        expect(t.pickupDwell).toBe(t.dropoffDwell);
+        expect(t.hasUnknown).toBe(false);
+    });
+});
+
+describe('단위 — 기사님이 통화에서 실제로 쓰는 말', () => {
+    it('1t 트럭에 파레트 2개면 만재 (30점)', () => {
+        expect(unitPoints('파레트', 2)).toBe(30);
+    });
+
+    it('라면박스는 120개가 1t', () => {
+        expect(unitPoints('라면박스', 120)).toBe(30);
+        expect(unitPoints('라면박스', 40)).toBe(10);
+    });
+
+    it('모르는 단위는 0점 — 없는 값을 지어내지 않는다', () => {
+        expect(unitPoints('냉장고', 1)).toBe(0);
+        expect(unitPoints(undefined, 3)).toBe(0);
+    });
+});
+
+describe('시각 버튼 — "몇 시까지 오시면 되요"', () => {
+    it('다음 정시부터 차례로 만든다', () => {
+        const at1423 = new Date('2026-08-10T14:23:00+09:00').getTime();
+        const slots = buildHourSlots(at1423, 0, 5);
+        expect(slots.map(s => s.label)).toEqual(['15시', '16시', '17시', '18시', '19시']);
+    });
+
+    it('🔴 도착 예상보다 이른 시각은 표시해 준다 (고르면 지각 확정)', () => {
+        const at1423 = new Date('2026-08-10T14:23:00+09:00').getTime();
+        // 주행 100분이면 16:03 도착 → 15시·16시는 불가능
+        const slots = buildHourSlots(at1423, 100, 5);
+        expect(slots.filter(s => s.beforeEta).map(s => s.label)).toEqual(['15시', '16시']);
     });
 });

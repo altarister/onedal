@@ -1,3 +1,4 @@
+import { unitPoints } from './cargoUnits';
 import type { CapacityConfidence } from './vehicles';
 export const EVENT_TYPES = {
     NEW_ORDER: "NEW_ORDER" as const,
@@ -117,6 +118,12 @@ export type CargoReportKind = 'DECLARED' | 'ACTUAL';
 export interface CargoReport {
     stopType: 'pickup' | 'dropoff';
     kind: CargoReportKind;
+    /**
+     * 적재 단위. 기사님이 통화에서 실제로 쓰는 말이다 — 1t 기준 파레트가 기본,
+     * 소량이면 라면박스. 추상적인 소·중·대보다 부피를 유추하기 쉽다.
+     */
+    unit?: string;
+    /** @deprecated `unit` 으로 대체. 기존 데이터 호환용 */
     sizeClass?: CargoSize;
     quantity?: number;
     handling?: HandlingMethod;
@@ -134,7 +141,9 @@ export interface CargoReport {
 }
 
 /** 신고된 짐이 차지하는 적재 점수 */
-export function cargoPoints(r: Pick<CargoReport, 'sizeClass' | 'quantity'>): number {
+export function cargoPoints(r: Pick<CargoReport, 'unit' | 'sizeClass' | 'quantity'>): number {
+    // 새 단위(파레트/라면박스/소·중·대)를 우선 쓰고, 없으면 예전 sizeClass 로 폴백
+    if (r.unit) return unitPoints(r.unit, r.quantity);
     if (!r.sizeClass) return 0;
     return CARGO_SIZE_POINTS[r.sizeClass] * (r.quantity || 1);
 }
@@ -570,3 +579,4 @@ export interface DeviceSession {
 export * from './vehicles';
 export * from './cargoHints';
 export * from './cargoTags';
+export * from './cargoUnits';

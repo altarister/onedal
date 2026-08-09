@@ -1,6 +1,6 @@
 import { PendingOrder, SecuredOrder, MyOrder } from "@onedal/shared";
 import { getUserSession } from "../../state/userSessionStore";
-import { computeAllowedDetour, findLoadConflicts } from "../helpers";
+import { computeAllowedDetour, findLoadConflicts, totalDetourCost } from "../helpers";
 import { geocodeAddress, calculateSoloRoute, calculateDetourRoute } from "../../services/kakaoService";
 import { optimizeWaypoints } from "../../utils/routeOptimizer";
 import { logRoadmapEvent } from "../../utils/roadmapLogger";
@@ -153,16 +153,23 @@ export class OrderEvaluator {
                             ? Math.max(0, Math.floor(slackLimit / 2))   // 여유의 절반 안이면 꿀
                             : DISPATCH_CONFIG.DETOUR_HONEY_TIME_MAX;
 
-                        if (result.timeDiffMin <= honeyTime && distDiff <= DISPATCH_CONFIG.DETOUR_HONEY_DIST_MAX) recommend = "'꿀'";
-                        else if (result.timeDiffMin >= shitTime || distDiff >= DISPATCH_CONFIG.DETOUR_SHIT_DIST_MIN) recommend = "'똥'";
+                        // 🔴 카카오의 timeDiffMin 은 **주행 delta 뿐**이다.
+                        //    이 콜을 잡으면 상차·하차를 한 번씩 더 해야 하고, 수작업이면
+                        //    거기서만 40~60분이 붙는다. 그걸 빼고 판정하면 무조건 낙관하게 된다.
+                        const cost = totalDetourCost(result.timeDiffMin, securedOrder.id);
+
+                        if (cost.total <= honeyTime && distDiff <= DISPATCH_CONFIG.DETOUR_HONEY_DIST_MAX) recommend = "'꿀'";
+                        else if (cost.total >= shitTime || distDiff >= DISPATCH_CONFIG.DETOUR_SHIT_DIST_MIN) recommend = "'똥'";
 
                         const basis = slackLimit !== null ? `마감 여유 ${slackLimit}분 기준` : '기본 기준';
-                        if (result.timeDiffMin >= shitTime) {
-                            reasons.push(`우회시간(+${result.timeDiffMin}분) 초과 — ${basis}`);
-                        } else if (result.timeDiffMin <= honeyTime) {
-                            pros.push(`우회시간(+${result.timeDiffMin}분) 양호 🍯 (${basis})`);
+                        const breakdown = `주행 +${result.timeDiffMin}분 + 상하차 ${cost.dwell}분`
+                            + (cost.hasUnknown ? ' (상하차 방법 미확인)' : '');
+                        if (cost.total >= shitTime) {
+                            reasons.push(`총 추가시간(+${cost.total}분) 초과 — ${breakdown} · ${basis}`);
+                        } else if (cost.total <= honeyTime) {
+                            pros.push(`총 추가시간(+${cost.total}분) 양호 🍯 — ${breakdown} · ${basis}`);
                         } else {
-                            pros.push(`우회시간(+${result.timeDiffMin}분) 보통 (${basis})`);
+                            pros.push(`총 추가시간(+${cost.total}분) 보통 — ${breakdown} · ${basis}`);
                         }
 
                         // 함께 실을 수 없는 화물인지 (위험물 + 식료품 등)

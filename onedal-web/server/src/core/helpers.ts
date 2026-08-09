@@ -2,7 +2,8 @@
  * 공통 헬퍼 함수 — 전체 서버에서 한 곳에서만 정의합니다.
  */
 import { isTerminal, cargoPoints, VEHICLE_CAPACITY, normalizeVehicleType,
-         computeSlackMinutes, allowedDetourMinutes, findTagConflicts } from '@onedal/shared';
+         computeSlackMinutes, allowedDetourMinutes, findTagConflicts,
+         computeStopTiming } from '@onedal/shared';
 import type { MyOrder, CargoReport, CapacityConfidence } from '@onedal/shared';
 import { OrderRepository } from '../repositories/OrderRepository';
 
@@ -76,9 +77,45 @@ export function computeAllowedDetour(
         const drop = reports.find(r => r.stopType === 'dropoff' && r.deadlineAt);
         const pick = reports.find(r => r.stopType === 'pickup' && r.deadlineAt);
         const deadline = drop?.deadlineAt || pick?.deadlineAt;
-        return computeSlackMinutes(deadline, call.totalDurationMin || 0, nowMs);
+
+        // 🔴 주행 시간만 세면 안 된다. 수작업 상하차 두 번이면 한 시간이 그냥 사라진다.
+        //    그걸 빼먹으면 "여유 60분"이라 판단하고 우회했다가 지각한다.
+        const timing = getStopTiming(call.id);
+        return computeSlackMinutes(deadline, (call.totalDurationMin || 0) + timing.totalDwell, nowMs);
     });
     return allowedDetourMinutes(slacks);
+}
+
+/** 한 콜의 상·하차 정차 시간 (신고된 단위·수량·방법 기준) */
+export function getStopTiming(orderId: string) {
+    const reports = OrderRepository.getCargoReports(orderId);
+    const pick = reports.find(r => r.stopType === 'pickup' && r.kind === 'ACTUAL')
+              || reports.find(r => r.stopType === 'pickup');
+    const drop = reports.find(r => r.stopType === 'dropoff' && r.kind === 'ACTUAL')
+              || reports.find(r => r.stopType === 'dropoff');
+    return computeStopTiming(
+        pick ? { handling: pick.handling, unit: pick.unit, quantity: pick.quantity } : undefined,
+        drop ? { handling: drop.handling } : undefined,
+    );
+}
+
+/**
+ * 이 콜을 합짐으로 추가할 때 **실제로 늘어나는 시간**(분).
+ *
+ * 카카오가 주는 `timeDiffMin` 은 **주행 delta 뿐**이다.
+ * 상차·하차를 한 번씩 더 하게 되므로 그 정차 시간을 반드시 더해야 한다.
+ * 수작업 화물이면 여기서만 40~60분이 붙는다.
+ */
+export function totalDetourCost(driveDiffMin: number, incomingOrderId: string): {
+    total: number; drive: number; dwell: number; hasUnknown: boolean;
+} {
+    const t = getStopTiming(incomingOrderId);
+    return {
+        total: Math.round(driveDiffMin + t.totalDwell),
+        drive: driveDiffMin,
+        dwell: t.totalDwell,
+        hasUnknown: t.hasUnknown,
+    };
 }
 
 /** 실린 화물과 새 콜이 함께 실을 수 없는 조합인지 (위험물 + 식료품 등) */

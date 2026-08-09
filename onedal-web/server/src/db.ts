@@ -265,7 +265,8 @@ db.exec(`
         userId      TEXT NOT NULL,
         stopType    TEXT NOT NULL CHECK(stopType IN ('pickup', 'dropoff')),
         kind        TEXT NOT NULL CHECK(kind IN ('DECLARED', 'ACTUAL')),
-        sizeClass   TEXT,        -- 소 | 중 | 대 | 초과
+        unit        TEXT,        -- 파레트 | 라면박스 | 소 | 중 | 대 | 초과
+        sizeClass   TEXT,        -- (구) 소 | 중 | 대 | 초과 — unit 으로 대체됨
         quantity    INTEGER,     -- 개수
         handling    TEXT,        -- 지게차 | 수작업 | 호이스트
         promisedAt  TEXT,        -- 약속·예정 시각 (적요의 12:42상차 등)
