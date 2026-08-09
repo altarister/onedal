@@ -1,4 +1,4 @@
-import { AutoDispatchFilter, SecuredOrder, PendingOrder, MyOrder } from "@onedal/shared";
+import { AutoDispatchFilter, SecuredOrder, PendingOrder, MyOrder, getEligibleVehicleTypes } from "@onedal/shared";
 import db from "../db";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 
@@ -95,8 +95,6 @@ export function getUserSession(userId: string): UserSession {
                 // 회랑 키워드를 **데이터로부터 다시 파생**시켜 덮어쓴다. (이슈 W)
                 // 그 연결이 없던 동안, 진행 중인 콜이 3건 있어도 필터는 첫짐인 채로
                 // 사냥이 돌아 경로를 벗어난 콜을 잡을 수 있는 상태였다.
-                const { getEligibleVehicleTypes } = require('@onedal/shared');
-
                 session.activeFilter = {
                     ...session.baseFilter,
                     isSharedMode: false,
@@ -105,7 +103,7 @@ export function getUserSession(userId: string): UserSession {
                 };
                 // [Phase 6] 여기서 무거운 지리 연산(getCityRegionsWithRadius, CPU 집약)을 하지 않는다.
                 // 이 함수는 소켓 연결 시점에 **동기로** 호출되므로 이벤트 루프를 막을 수 있었다.
-                // 키워드는 부트스트랩 ⑤단계(rebuildCorridor)에서 한 번만 계산한다.
+                // 키워드는 부트스트랩 ⑤단계(rebuildDestinationKeywords)에서 한 번만 계산한다.
                 session.activeFilter.destinationKeywords = [];
                 session.activeFilter.destinationGroups = {};
                 session.activeFilter.allowedVehicleTypes = getEligibleVehicleTypes(userVehicleType);
@@ -113,8 +111,6 @@ export function getUserSession(userId: string): UserSession {
                 logRoadmapEvent("서버", `[Session DB Load] 유저 ${userId} 복구된 원본 필터(Raw DB): \n` + JSON.stringify(filterRow, null, 2));
             } else {
                 // 신규 유저: 서비스 권장 기본값으로 초기화
-                const { getEligibleVehicleTypes } = require('@onedal/shared');
-
                 session.baseFilter = { ...SERVICE_DEFAULT_FILTER } as AutoDispatchFilter;
                 session.activeFilter = {
                     ...SERVICE_DEFAULT_FILTER,

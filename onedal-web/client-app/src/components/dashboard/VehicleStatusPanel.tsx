@@ -2,24 +2,17 @@ import { useEffect, useState, useRef } from "react";
 import { socket } from "../../lib/socket";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
 import type { SecuredOrder } from "@onedal/shared";
-import { isTerminal } from "@onedal/shared";
 import { apiClient } from "../../api/apiClient";
 import { getDistanceKm } from "../../lib/routeUtils";
 
 import { Badge } from "../ui/badge";
 
-export default function VehicleStatusPanel({ mainCall, subCalls }: { mainCall: SecuredOrder | null, subCalls: SecuredOrder[] }) {
+// 이 패널은 "지금 트럭에 뭐가 실려 있나"만 그린다.
+// 예전에는 mainCall/subCalls(종료된 콜 포함)를 받아 스스로 걸렀는데, 그 필터를
+// 빠뜨려 "예약 7건 (오토바이, 오토바이, ... 라보)" 처럼 취소한 콜까지 적재 중으로
+// 표시됐다. 이제 애초에 살아 있는 콜만 받는다 — 거를 것이 없으면 잊을 수도 없다.
+export default function VehicleStatusPanel({ liveCalls }: { liveCalls: SecuredOrder[] }) {
     const { filter } = useFilterConfig();
-
-    // 지금 실제로 트럭에 걸려 있는 콜만 추린다.
-    //
-    // mainCall / subCalls 는 서버의 sync-active-orders 를 그대로 받은 것으로,
-    // '취소/방출' 탭 표시를 위해 **종료된 콜(취소·방출·완료)이 의도적으로 포함**되어 있다.
-    // 이걸 거르지 않아 "예약 7건 (오토바이, 오토바이, ... 라보)" 처럼
-    // 이미 취소한 콜까지 적재 중인 것으로 표시되고 있었다.
-    // PinnedRoute 는 liveRoute 로 걸러내는데 이 컴포넌트만 빠져 있었다. (2026-08-09 수정)
-    const liveCalls = ([mainCall, ...subCalls].filter(Boolean) as SecuredOrder[])
-        .filter(o => !isTerminal(o.status));
 
     // GPS 속도 계산을 위한 상태
     const [currentSpeed, setCurrentSpeed] = useState<number>(0);

@@ -25,6 +25,7 @@ export default function Dashboard() {
         isConnected,
         mainCall,
         subCalls,
+        liveCalls,
         handleDecision,
         handleRecalculate,
     } = useOrderEngine();
@@ -120,7 +121,7 @@ export default function Dashboard() {
                 <OrderFilterStatus onOpenFilter={() => setIsFilterModalOpen(true)} />
 
                 {/* 🚚 내 차 정보 및 적재/이동 상태 패널 */}
-                <VehicleStatusPanel mainCall={mainCall} subCalls={subCalls} />
+                <VehicleStatusPanel liveCalls={liveCalls} />
 
                 {/* 🏆 배차 확정 콜 (및 데스밸리 연산 구역) */}
                 <PinnedRoute 

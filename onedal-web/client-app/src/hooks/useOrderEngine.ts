@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { socket } from "../lib/socket";
 import type { SimplifiedOfficeOrder, SecuredOrder } from "@onedal/shared";
 import { isEvaluating, isTerminal } from "@onedal/shared";
@@ -13,6 +13,18 @@ export function useOrderEngine() {
     // 파생 상태 (기존 컴포넌트 호환성 유지)
     const mainCall = activeOrders.length > 0 ? activeOrders[0] : null;
     const subCalls = activeOrders.length > 1 ? activeOrders.slice(1) : [];
+
+    // 🚚 지금 실제로 트럭에 실려 있는 콜. **여기가 유일한 판정처다.**
+    //
+    // 서버의 sync-active-orders 는 '취소/방출' 탭 표시를 위해 종료된 콜까지
+    // 한 배열에 담아 보낸다. 그래서 소비하는 쪽마다 isTerminal 을 기억해야 했고,
+    // 2026-08-09 하루에만 세 번 그걸 잊어서 버그가 났다.
+    //   AA 적재 7건으로 표시 · BB 취소된 콜을 재탐색 · DD 취소분까지 운임 합산
+    // "기억해야 하는 규칙"을 "고를 수 없는 구조"로 바꾼다.
+    const liveCalls = useMemo(
+        () => activeOrders.filter(o => !isTerminal(o.status)),
+        [activeOrders]
+    );
 
     // 신규 콜(평가 중)이 존재하는지 모니터링하여 루프 알림음을 제어합니다.
     // UX 개선: 똥콜이거나 에러난 콜은 알림음을 울리지 않고, '양호' 이상의 연산 결과가 나왔을 때만 울리게 합니다.
@@ -255,6 +267,7 @@ export function useOrderEngine() {
         isConnected,
         mainCall,
         subCalls,
+        liveCalls,
         handleDecision,
         handleRecalculate,
     };

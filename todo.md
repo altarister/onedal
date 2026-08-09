@@ -414,6 +414,45 @@
 - [x] **거리 정밀도 불일치**: 사후 재계산의 단독 분기만 `Math.round(distance/1000)`로 정수화해
   합짐은 `104.7km`, 단독은 `105.0km`로 표시됐다 → `parseFloat(toFixed(1))`로 통일
 
+### 🆕 EE. 중간 점검 — 오늘 수정하며 생긴 임기응변 정리 ✅ 2026-08-09
+> 기사님 지시로 오늘 작업분을 다시 훑었다. 고치는 과정에서 스스로 만든 땜빵 5종을 걷어냈다.
+
+**1. 합짐 경로 조립 코드가 4벌 복사돼 있었다** → `services/routeComposer.ts` 신설
+- `handleDecision(KEEP)` · `recalculateActiveKakaoRoute(취소 후)` · `recalculateKakaoRoute(재탐색)` ·
+  `restoreAndRecalculateSession(재시작 복구)` 가 **똑같은 20여 줄을 각자** 들고 있었다
+- 복사본이라 조금씩 어긋났고, **그 어긋남이 그대로 오늘의 버그였다**
+  - 결과 기록처가 제각각(`securedOrder` / `activeSubs[last]` / `existingActive[last]`) → 이슈 BB-③
+  - 거리 단위가 제각각(`Math.round` / 나눗셈 그대로 / `toFixed`) → 이슈 DD
+  - TSP 시작점이 제각각(`driverLocation` 쓰는 곳 2 / 안 쓰는 곳 2) → 같은 콜인데 경유지 순서가 달라짐
+  - 좌표 없는 콜을 거르는 곳과 안 거르는 곳 (`{x: undefined}` 가 경유지로 들어갈 수 있었음)
+- 이제 규약은 세 함수뿐: `composeMergedRoute()` / `pickRouteHolder()` / `applyRoute()` + `toKm()` `toMin()`
+- `dispatchEngine.ts` **182줄 삭제 / 86줄 추가 (순 -96줄)**
+
+**2. 부트스트랩이 "시퀀스"가 아니라 "옛 모놀리스 + 땜빵"이었다**
+- 주석에는 ①~⑥이라 써놓고 실제로는 `restoreAndRecalculateSession()` 한 방 + ⑤ 보강 패치였다.
+  `rows.length === 0`이면 그 모놀리스가 조기 return 해서 신규 유저는 통째로 건너뛰고,
+  그걸 메우려고 밖에 패치를 덧댄 구조 — **내가 고치겠다던 "각자 일을 한다"와 같은 모양**
+- → `rebuildDestinationKeywords(userId, io)` 로 분리. 활성 콜 유무 갈래가 **여기 한 곳**에만 있다
+- `restoreAndRecalculateSession` 안의 `syncCorridorFilter` 중복 호출도 제거 (같은 지리 연산 2회)
+
+**3. 🔴 마지막 콜을 취소하면 회랑 키워드가 그대로 남아 있었다** (리팩터링 중 발견한 실제 버그)
+- `recalculateActiveKakaoRoute`가 `activeCalls.length === 0`이면 **곧바로 return** 해서
+  `syncCorridorFilter`까지 가지 못했다 → 첫짐 모드로 돌아왔는데도 **끝난 경로 주변만 사냥**
+- → 조기 return 전에 `rebuildDestinationKeywords()` 호출
+
+**4. 인라인 `require()` 4건 제거** — ESM import 파일 안에 CommonJS `require`가 섞여 있었다
+  (`geoService` 2건, `@onedal/shared` 2건). 순환 참조 때문이 아니라 그냥 급하게 쓴 것 — 상단 import로 정리
+
+**5. 클라: `isTerminal` 필터를 "기억해야 하는 규칙" → "고를 수 없는 구조"로**
+- 오늘 같은 버그가 세 번(AA 적재 건수 · BB 재탐색 대상 · DD 운임 합계) 났고 전부
+  *"종료된 콜이 섞인 배열을 필터 없이 썼다"* 였다
+- → `useOrderEngine`이 `liveCalls`를 유일한 판정처로 제공.
+  `VehicleStatusPanel`은 계약 자체를 `{ liveCalls }`로 바꿔 **종료된 콜을 애초에 받지 않는다**
+- ⚠️ 남은 근본 원인은 서버 `sync-active-orders`가 진행/종료를 한 배열로 보내는 것 (todo I+M)
+
+- **검증**: server tsc · jest 39 · client tsc 통과. 4001 포트 스모크 재실행 —
+  `filter-init` 1회 `+912ms`, `🗺️ [키워드 재구성] 첫짐 모드 — '파주' 기준 140개` (동작 동일)
+
 ### ⚠️ 남은 땜빵 (정직하게 기록)
 - [ ] **데드맨 150초는 숫자 조정일 뿐** — 근본은 앱 하트비트 주기와 서버 판정 주기 사이에 계약이 없는 것.
       앱이 `/scrap`에 자기 주기를 실어 보내고 서버가 그 배수로 판정해야 한다
@@ -602,3 +641,4 @@
 | 2026-08-09 | 1 | **B·C-1·C-2 완료** — JWT 폴백 제거+부팅 가드, 무인증 `GET /api/scrap`(실측 327건 노출) 삭제, 전역 emit 제거. A(bypass)는 보류 | ✅ 코드 |
 | 2026-08-09 | — | **BB 경로 재탐색 5건 수정** + **CC 부트스트랩 순서 통일**(`bootstrapUserSession` 신설, `isBootstrapping` 게이트 3곳, 키워드 생성처 4→1, filter-init 중복 제거). 4001 포트 스모크로 실측 검증 | ✅ |
 | 2026-08-09 | — | **DD** 경로 요약줄 운임이 취소·방출 콜까지 합산하던 버그 수정(510,000원 과다 표시) + 거리 정밀도 통일 | ✅ |
+| 2026-08-09 | — | **EE 중간 점검** — 임기응변 5종 정리(`routeComposer` 신설로 4벌 중복 제거 · 부트스트랩 땜빵 해체 · 인라인 require 4건 · 클라 `liveCalls` 단일화) + 리팩터링 중 발견한 회랑 미복귀 버그 수정. dispatchEngine 순 -96줄 | ✅ |

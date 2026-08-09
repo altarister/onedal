@@ -4,8 +4,8 @@ import { geocodeAddress, calculateSoloRoute, calculateDetourRoute, compareDirect
 import { fetchRealWorldRoute } from "../routes/osrmUtil";
 import { getUserSession } from "../state/userSessionStore";
 import { updateActiveFilter } from "../state/filterManager";
-import { optimizeWaypoints } from "../utils/routeOptimizer";
-import { getCorridorRegions } from "../services/geoService";
+import { getCorridorRegions, getCityRegionsWithRadius, reverseGeocodeToRegion } from "../services/geoService";
+import { composeMergedRoute, applyRoute, pickRouteHolder, toKm, toMin } from "./routeComposer";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { DISPATCH_CONFIG } from "../config/dispatchConfig";
 import db from "../db";
@@ -69,7 +69,12 @@ export async function recalculateActiveKakaoRoute(userId: string, io: any) {
     // 완료되지 않은 활성 콜만 추출 (On-the-fly 필터링)
     const activeCalls = getActiveCalls(session);
 
-    if (activeCalls.length === 0) return; // 경로를 계산할 활성 콜이 없음
+    if (activeCalls.length === 0) {
+        // 마지막 콜을 취소·완료해 첫짐 모드로 돌아왔다. 회랑 키워드를 그대로 두면
+        // 이미 끝난 경로 주변만 계속 사냥하게 되므로 도시 기준으로 되돌린다.
+        rebuildDestinationKeywords(userId, io);
+        return;
+    }
 
     const activeMain = activeCalls[0];
     const activeSubs = activeCalls.slice(1);
@@ -89,46 +94,22 @@ export async function recalculateActiveKakaoRoute(userId: string, io: any) {
                 routingOptions.defaultPriority,
                 routingOptions.carType
             );
-            activeMain.routePolyline = res.polyline;
-            // 합짐 경로(아래 TSP 분기)는 소수점을 유지하는데 여기만 Math.round 로 정수화하고 있었다.
-            // 관제탑은 두 값을 같은 자리(`104.7km`)에 표시하므로, 단독일 때만 `105.0km`로 보였다.
-            activeMain.totalDistanceKm = parseFloat((res.distance / 1000).toFixed(1));
-            activeMain.totalDurationMin = Math.round(res.duration / 60);
+            applyRoute(activeMain, res);
 
             if (res.approachDistance && res.approachDuration) {
                 console.log(`🗺️ [사후 재계산 - 첫짐] 현위치 접근: ${res.approachDistance}m (${res.approachDuration}초) / 총 이동: ${res.distance}m`);
             }
         } else {
-            // 다중 오더 라우팅 (TSP)
-            const allPickups = [
-                { x: activeMain.pickupX!, y: activeMain.pickupY! },
-                ...activeSubs.map(c => ({ x: c.pickupX!, y: c.pickupY! }))
-            ];
-            const allDropoffs = [
-                { x: activeMain.dropoffX!, y: activeMain.dropoffY! },
-                ...activeSubs.map(c => ({ x: c.dropoffX!, y: c.dropoffY! }))
-            ];
+            // 다중 오더 라우팅 (TSP) — 조립 규약은 routeComposer 한 곳에만 있다
+            const result = await composeMergedRoute({
+                calls: activeCalls,
+                driverLocation: session.driverLocation,
+                priority: routingOptions.defaultPriority,
+                carType: routingOptions.carType,
+            });
+            if (!result) return;
 
-            const startLoc = session.driverLocation || allPickups[0];
-            const { sortedPickups, sortedDropoffs } = optimizeWaypoints(startLoc, allPickups, allDropoffs);
-
-            const mergedDest = sortedDropoffs.pop()!;
-            const waypoints = [...sortedPickups, ...sortedDropoffs];
-
-            const result = await calculateDetourRoute(
-                activeMain.dropoffX!, activeMain.dropoffY!,
-                activeMain.pickupX!, activeMain.pickupY!,
-                mergedDest.x, mergedDest.y,
-                waypoints,
-                session.driverLocation,
-                routingOptions.defaultPriority,
-                routingOptions.carType
-            );
-
-            const lastSub = activeSubs[activeSubs.length - 1];
-            lastSub.routePolyline = result.merged.polyline;
-            lastSub.totalDistanceKm = result.merged.distance / 1000;
-            lastSub.totalDurationMin = Math.round(result.merged.duration / 60);
+            applyRoute(pickRouteHolder(activeCalls, activeMain), result.merged);
 
             if (result.merged.approachDistance && result.merged.approachDuration) {
                 console.log(`🗺️ [사후 재계산 - 합짐] 현위치 접근: ${result.merged.approachDistance}m (${result.merged.approachDuration}초) / 총 이동: ${result.merged.distance}m`);
@@ -186,8 +167,8 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
             if (priority === "TIME") paramLabel = "최단시간";
             if (priority === "DISTANCE") paramLabel = "최단거리";
 
-            const soloKm = parseFloat((result.distance / 1000).toFixed(1));
-            const soloMin = Math.round(result.duration / 60);
+            const soloKm = toKm(result.distance);
+            const soloMin = toMin(result.duration);
 
             // [재탐색 ②] 예전에는 "[최단시간] 재탐색 완료" 만 표시해, 눌러도 무엇이 달라졌는지
             // 알 수 없었다. 합짐일 때만 수치가 나오고 단독일 때는 없었다.
@@ -198,64 +179,19 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
             securedOrder.totalDistanceKm = soloKm;
             securedOrder.totalDurationMin = soloMin;
         } else {
-            const allPickups: { x: number; y: number }[] = [];
-            const allDropoffs: { x: number; y: number }[] = [];
-
             const existingActive = getActiveCalls(session);
-            existingActive.forEach(c => {
-                if (c.pickupX && c.pickupY) allPickups.push({ x: c.pickupX, y: c.pickupY });
-                if (c.dropoffX && c.dropoffY) allDropoffs.push({ x: c.dropoffX, y: c.dropoffY });
+            const result = await composeMergedRoute({
+                calls: existingActive,
+                extra: securedOrder,
+                driverLocation: session.driverLocation,
+                priority: priority || routingOptions.defaultPriority,
+                carType: routingOptions.carType,
             });
+            if (!result) return { success: false, msg: "좌표가 있는 활성 콜이 없음" };
 
-            const isIncluded = existingActive.some(c => c.id === securedOrder.id);
-            if (!isIncluded && securedOrder.pickupX && securedOrder.pickupY && securedOrder.dropoffX && securedOrder.dropoffY) {
-                allPickups.push({ x: securedOrder.pickupX, y: securedOrder.pickupY });
-                allDropoffs.push({ x: securedOrder.dropoffX, y: securedOrder.dropoffY });
-            }
-
-            const startLoc = session.driverLocation || allPickups[0];
-            const { sortedPickups, sortedDropoffs } = optimizeWaypoints(startLoc, allPickups, allDropoffs);
-
-            const mergedDest = sortedDropoffs.pop()!;
-            const waypoints = [...sortedPickups, ...sortedDropoffs];
-
-            let firstPickX = allPickups[0].x;
-            let firstPickY = allPickups[0].y;
-            let firstDestX = allDropoffs[0].x;
-            let firstDestY = allDropoffs[0].y;
-
-            const activeMain = existingActive[0];
-            if (activeMain) {
-                firstPickX = activeMain.pickupX!;
-                firstPickY = activeMain.pickupY!;
-                firstDestX = activeMain.dropoffX!;
-                firstDestY = activeMain.dropoffY!;
-            }
-
-            const result = await calculateDetourRoute(
-                firstDestX, firstDestY,
-                firstPickX, firstPickY,
-                mergedDest.x, mergedDest.y,
-                waypoints,
-                session.driverLocation,
-                priority || routingOptions.defaultPriority,
-                routingOptions.carType
-            );
-
-            // [재탐색 ③] 병합 궤적은 "마지막 활성 콜"에 싣는다.
-            // handleDecision · recalculateActiveKakaoRoute 가 모두 이 규약을 쓰는데
-            // 여기만 재탐색 대상(securedOrder)에 쓰고 있어, 대상이 마지막 활성 콜이
-            // 아닐 경우 궤적이 엉뚱한 콜에 붙었다. (Phase 2의 이슈 F 와 같은 패턴)
-            const routeHolder = existingActive.length > 0
-                ? existingActive[existingActive.length - 1]
-                : securedOrder;
-
-            // [재탐색 ⑤] 거리 정밀도를 단독 경로와 동일하게 소수 1자리로 통일.
-            // 예전에는 단독 98.9km / 합짐 99km 로 표기가 튀었다.
-            routeHolder.routePolyline = result.merged.polyline;
-            routeHolder.totalDistanceKm = parseFloat((result.merged.distance / 1000).toFixed(1));
-            routeHolder.totalDurationMin = Math.round(result.merged.duration / 60);
-            routeHolder.sectionEtas = result.merged.sectionEtas;
+            // 병합 궤적은 "마지막 활성 콜"에 싣는다 (routeComposer 규약).
+            const routeHolder = pickRouteHolder(existingActive, securedOrder);
+            applyRoute(routeHolder, result.merged);
             mergedRouteHolder = routeHolder;
 
             let signDist = Number(result.distDiffKm) > 0 ? "+" : "";
@@ -410,42 +346,16 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
                         const activeSubs = activeCalls.slice(1);
                         
                         if (activeSubs.length > 0) {
-
-                            const allPickups = [
-                                { x: activeMain.pickupX!, y: activeMain.pickupY! },
-                                ...activeSubs.map(c => ({ x: c.pickupX!, y: c.pickupY! }))
-                            ];
-                            const allDropoffs = [
-                                { x: activeMain.dropoffX!, y: activeMain.dropoffY! },
-                                ...activeSubs.map(c => ({ x: c.dropoffX!, y: c.dropoffY! }))
-                            ];
-
-                            const startLoc = allPickups[0];
-                            const { sortedPickups, sortedDropoffs } = optimizeWaypoints(startLoc, allPickups, allDropoffs);
-
-                            const mergedDest = sortedDropoffs.pop()!;
-                            const waypoints = [...sortedPickups, ...sortedDropoffs];
-
                             const routingOptions = SettingsRepository.getKakaoRoutingOptions(userId);
-
-                            const calcResult = await calculateDetourRoute(
-                                activeMain.dropoffX!, activeMain.dropoffY!,
-                                activeMain.pickupX!, activeMain.pickupY!,
-                                mergedDest.x, mergedDest.y,
-                                waypoints,
-                                session.driverLocation,
-                                routingOptions.defaultPriority,
-                                routingOptions.carType
-                            );
-
-                            // [Phase 2] 위 restoreAndRecalculateSession과 동일한 형태로 통일.
-                            // (여기서는 방금 push한 confirmedOrder가 곧 마지막 활성 콜이라 결과는 동일하나,
-                            //  같은 패턴이 두 곳에 있으면 한쪽만 고치는 실수가 반복되므로 맞춰둔다)
-                            const lastSub = activeSubs[activeSubs.length - 1];
-                            lastSub.routePolyline = calcResult.merged.polyline;
-                            lastSub.totalDistanceKm = calcResult.merged.distance / 1000;
-                            lastSub.totalDurationMin = Math.round(calcResult.merged.duration / 60);
-                            lastSub.sectionEtas = calcResult.merged.sectionEtas;
+                            const calcResult = await composeMergedRoute({
+                                calls: activeCalls,
+                                driverLocation: session.driverLocation,
+                                priority: routingOptions.defaultPriority,
+                                carType: routingOptions.carType,
+                            });
+                            if (calcResult) {
+                                applyRoute(pickRouteHolder(activeCalls, activeMain), calcResult.merged);
+                            }
                         }
                     }
                 }
@@ -637,21 +547,8 @@ export async function bootstrapUserSession(userId: string, io: any): Promise<voi
     logRoadmapEvent("서버", "[Bootstrap] 시작 — 필터 확정 전까지 앱폰 사냥 일시 정지");
 
     try {
-        await restoreAndRecalculateSession(userId, io);   // ②③④⑤ (내부에서 순서대로 수행)
-
-        // ⑤ 보강: 활성 콜이 없으면 회랑이 아니라 destinationCity 기준으로 키워드를 만든다.
-        //         (userSessionStore 에서 무거운 지리 연산을 걷어냈으므로 여기서 한 번만 한다)
-        if (getActiveCalls(session).length === 0) {
-            const city = session.activeFilter.destinationCity || '';
-            if (city) {
-                const { getCityRegionsWithRadius } = require('./geoService');
-                const radius = session.activeFilter.destinationRadiusKm || 0;
-                const { flat, grouped } = getCityRegionsWithRadius(city, radius);
-                session.activeFilter.destinationKeywords = flat;
-                session.activeFilter.destinationGroups = grouped;
-                console.log(`🗺️ [Bootstrap ⑤] 첫짐 모드 — '${city}' 기준 키워드 ${flat.length}개 산출`);
-            }
-        }
+        await restoreAndRecalculateSession(userId, io);   // ②③④ (DB 로드 → 카카오 노선 → 상태 파생)
+        rebuildDestinationKeywords(userId, io);           // ⑤ (활성 콜 유무로 회랑/도시 분기)
     } catch (err) {
         console.error("🚨 [Bootstrap] 실패:", err);
     } finally {
@@ -670,6 +567,39 @@ export async function bootstrapUserSession(userId: string, io: any): Promise<voi
             baseFilter: session.baseFilter,
         });
     }
+}
+
+/**
+ * **`destinationKeywords` 를 만드는 유일한 함수.**
+ *
+ * 예전에는 이 값을 네 군데(userSessionStore 세션 생성 / 부트스트랩 / syncCorridorFilter /
+ * 필터 변경)가 각자 만들었고, 그래서 "지금 어느 지역을 사냥 중인가"에 대한 답이
+ * 호출 순서에 따라 달라졌다. 이제 갈래는 여기 하나뿐이다.
+ *
+ *   활성 콜 있음 → 주행 경로 주변 회랑 (syncCorridorFilter)
+ *   활성 콜 없음 → 기사님이 설정한 destinationCity + 반경
+ *
+ * 특히 **마지막 콜을 취소해 활성 0건이 됐을 때**가 중요하다. 예전에는
+ * recalculateActiveKakaoRoute 가 `activeCalls.length === 0`이면 곧바로 return 해서
+ * 회랑 키워드가 그대로 남았고, 첫짐 모드로 돌아왔는데도 옛 경로 주변만 사냥했다.
+ */
+export function rebuildDestinationKeywords(userId: string, io: any): void {
+    const session = getUserSession(userId);
+
+    if (getActiveCalls(session).length > 0) {
+        syncCorridorFilter(userId, io);
+        return;
+    }
+
+    const city = session.activeFilter.destinationCity || '';
+    if (!city) {
+        updateActiveFilter(userId, { destinationKeywords: [], destinationGroups: {} }, io);
+        return;
+    }
+
+    const { flat, grouped } = getCityRegionsWithRadius(city, session.activeFilter.destinationRadiusKm || 0);
+    updateActiveFilter(userId, { destinationKeywords: flat, destinationGroups: grouped }, io);
+    console.log(`🗺️ [키워드 재구성] 첫짐 모드 — '${city}' 기준 ${flat.length}개`);
 }
 
 /**
@@ -763,34 +693,14 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
         // 4. 합짐(서브콜) 카카오 궤적 1회 복구
         if (activeSubs.length > 0 && activeMain) {
             try {
-                const allPickups = [
-                    { x: activeMain.pickupX!, y: activeMain.pickupY! },
-                    ...activeSubs.map(c => ({ x: c.pickupX!, y: c.pickupY! }))
-                ];
-                const allDropoffs = [
-                    { x: activeMain.dropoffX!, y: activeMain.dropoffY! },
-                    ...activeSubs.map(c => ({ x: c.dropoffX!, y: c.dropoffY! }))
-                ];
-                const startLoc = allPickups[0];
-                const { sortedPickups, sortedDropoffs } = optimizeWaypoints(startLoc, allPickups, allDropoffs);
-                const mergedDest = sortedDropoffs.pop()!;
-                const waypoints = [...sortedPickups, ...sortedDropoffs];
-
-                const calcResult = await calculateDetourRoute(
-                    activeMain.dropoffX!, activeMain.dropoffY!,
-                    activeMain.pickupX!, activeMain.pickupY!,
-                    mergedDest.x, mergedDest.y,
-                    waypoints,
-                    session.driverLocation,
-                    routingOptions.defaultPriority,
-                    routingOptions.carType
-                );
-
-                // [Phase 2] myOrders에는 ORDER_CANCELED/RELEASED 등 종료된 콜도 함께 로드되므로
-                // 마지막 원소가 취소된 콜일 수 있음. 반드시 활성 콜 기준으로 잡아야 한다.
-                const lastSub = activeSubs[activeSubs.length - 1];
-                lastSub.routePolyline = calcResult.merged.polyline;
-                lastSub.sectionEtas = calcResult.merged.sectionEtas;
+                const calcResult = await composeMergedRoute({
+                    calls: activeCalls,
+                    driverLocation: session.driverLocation,
+                    priority: routingOptions.defaultPriority,
+                    carType: routingOptions.carType,
+                });
+                // myOrders 에는 종료된 콜도 함께 로드되므로 반드시 활성 콜 기준으로 잡아야 한다.
+                if (calcResult) applyRoute(pickRouteHolder(activeCalls, activeMain), calcResult.merged);
             } catch(e) {
                 console.error('🗺️ [합짐 복구 연산 실패]', e);
             }
@@ -823,9 +733,8 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
                 allowedVehicleTypes: getRemainingCapacityTypes(myVehicle, loadedVehicles),
             }, io);
 
-            // 복구된 폴리라인 기준으로 회랑 키워드도 다시 뽑는다
-            // (baseFilter의 destinationCity 기준 키워드가 남아 있으면 엉뚱한 방향 콜을 잡는다)
-            syncCorridorFilter(userId, io);
+            // 회랑 키워드는 부트스트랩 ⑤(rebuildDestinationKeywords)가 일괄 처리한다.
+            // 여기서 또 계산하면 같은 지리 연산을 두 번 돌린다.
 
             const f = session.activeFilter;
             console.log(`🔄 [상태 복구] 진행 중 ${restoredActive.length}건 → phase=${phase}, 합짐=ON, ` +
@@ -925,7 +834,6 @@ export async function startTwoTrack(userId: string, io: any): Promise<{ success:
             currentKeywords.push(session.activeFilter.destinationCity);
         }
         if (session.driverLocation) {
-            const { reverseGeocodeToRegion } = require("./geoService");
             const region = reverseGeocodeToRegion(session.driverLocation.y, session.driverLocation.x);
             if (region) {
                 currentKeywords.push(region);
