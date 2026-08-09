@@ -559,3 +559,4 @@ export interface DeviceSession {
 
 
 export * from './vehicles';
+export * from './cargoHints';

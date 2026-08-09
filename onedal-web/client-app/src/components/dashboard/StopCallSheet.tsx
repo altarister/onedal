@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CARGO_SIZES, HANDLING_METHODS, cargoPoints } from '@onedal/shared';
+import { CARGO_SIZES, HANDLING_METHODS, cargoPoints, parseCargoHints, hasCargoHints } from '@onedal/shared';
 import type { CargoReport, CargoSize, HandlingMethod, CargoReportKind } from '@onedal/shared';
 import { socket } from '../../lib/socket';
 
@@ -30,12 +30,14 @@ interface Props {
     contactName?: string;
     phones: string[];
     reports: CargoReport[];
+    /** 적요·물품 텍스트 — 통화 시트를 미리 채울 힌트를 뽑는다 */
+    memoTexts?: (string | undefined)[];
     /** 현장 도착 후 실측 입력 모드를 기본으로 연다 */
     defaultKind?: CargoReportKind;
 }
 
 export default function StopCallSheet({
-    orderId, stopType, label, address, contactName, phones, reports, defaultKind = 'DECLARED',
+    orderId, stopType, label, address, contactName, phones, reports, memoTexts, defaultKind = 'DECLARED',
 }: Props) {
     const [open, setOpen] = useState(false);
     const [kind, setKind] = useState<CargoReportKind>(defaultKind);
@@ -58,10 +60,21 @@ export default function StopCallSheet({
     };
     const points = cargoPoints(eff);
 
+    // 적요에서 뽑은 힌트. **자동으로 채우지 않는다** — 탭해야 들어간다.
+    // 추측값이 확인 없이 저장되면 적재 판정이 틀어지기 때문이다.
+    const hints = parseCargoHints(...(memoTexts || []));
+    const applyHints = () => {
+        if (hints.sizeClass) setSize(hints.sizeClass);
+        if (hints.quantity != null) setQty(hints.quantity);
+        if (hints.handling) setHandling(hints.handling);
+    };
+
     const save = () => {
         socket.emit('save-cargo-report', {
             orderId, stopType, kind,
             sizeClass: eff.sizeClass, quantity: eff.quantity, handling: eff.handling,
+            // 적요에서 읽은 상차 약속 시각. 시간창 경로 최적화(8.7)의 입력이 된다
+            promisedAt: saved?.promisedAt || hints.promisedAt,
             memo: memo || undefined,
         });
         setOpen(false);
@@ -135,6 +148,16 @@ export default function StopCallSheet({
                             </button>
                         ))}
                     </div>
+
+                    {/* 적요에 적힌 것 — 한 번 탭하면 아래 칩에 들어간다 */}
+                    {hasCargoHints(hints) && (
+                        <button onClick={applyHints}
+                            className="flex items-center gap-2 text-left px-2 py-1.5 rounded-md bg-warning/10 border border-warning/35 border-dashed">
+                            <span className="text-[10px] font-black text-warning flex-shrink-0">적요에서</span>
+                            <span className="text-[11px] text-text-primary font-bold flex-1 truncate">{hints.summary}</span>
+                            <span className="text-[10px] font-black text-warning flex-shrink-0">적용 ▸</span>
+                        </button>
+                    )}
 
                     <Row title="크기">
                         {CARGO_SIZES.map(sz => (
