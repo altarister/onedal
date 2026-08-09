@@ -9,23 +9,27 @@ import type { CargoReport, HandlingMethod, CargoReportKind, CargoUnit } from '@o
 import { socket } from '../../lib/socket';
 
 /**
- * [Phase 8.4] 정거장 카드 — 통화 정보 / 현장 정보
+ * [Phase 8.4] 정거장 카드 — 통화 / 현장
  *
- * ══ 화면에서 발견된 문제 (2026-08-10 기사님 스크린샷) ══
+ * ══ 핵심 원칙: **열지 않아도 결정 내용이 보인다** ══
  *
- *   ① *"상차지 섹션에서 지금 상태를 알 수 없어. 통화를 한 건지 상차를 한 건지 취소를 한 건지"*
- *      → 헤더에 **진행 배지**를 단다. 접힌 채로도 어디까지 왔는지 보인다
- *   ② *"통화를 눌러 통화를 다 했다면 정보를 미리 보여줄 수 있을 것 같아"*
- *      → 탭을 열면 **저장된 내용부터** 보여준다. 고칠 때만 `수정` 을 누른다
- *   ③ *"통화, 현장확인 버튼이 너무 크다"*
- *      → 큰 버튼 두 개를 **작은 텍스트 탭**으로 바꿨다. 아코디언이 이미 길다
- *   ④ *"현장 확인으로 돌아왔을 때는 통화된 내용을 미리보기로 넣어 주고 수정이 가능하도록.
- *         그럼 탭을 바꿔 가면서 거짓말한 내용을 확인할 수 있으니까"*
- *      → 현장 탭 맨 위에 통화 내용을 고정으로 띄우고, 폼에는 통화값을 밑그림으로 깐다
- *   ⑤ *"도착 버튼과 상차 완료 버튼이 있어야 시간을 기록할 수 있다"*
- *      → 현장 탭 하단에 `📍 도착` `📦 상차 완료` `✕ 상차 취소`
+ * 기사님: *"통화를 했음에도 불구하고 어떤 내용이 결정되었는지 탭을 열지 않고는 알 수가 없어."*
  *
- * ══ 통화 탭의 설계 기준 ══
+ * 그래서 탭을 없앴다. 대신 **요약 줄 두 개가 항상 떠 있고, 그 줄이 곧 열기 버튼**이다.
+ *
+ *     📞 통화  파레트 2개 · 지게차 · 17시까지 · 여유 113분        ▸
+ *     👁 현장  파레트 3개 · 수작업 · ⚠️ 통화의 1.5배              ▸
+ *
+ * 한쪽을 펼쳐도 다른 쪽 요약은 그대로 남는다 —
+ * 기사님이 *"탭을 바꿔 가면서 거짓말한 내용을 확인"* 하려던 것이 **바꾸지 않고도** 된다.
+ *
+ * 그 밖에 스크린샷 피드백으로 고친 것
+ *   · 헤더 **진행 배지** (`📞 통화완료` `📍 도착 15:12` `👁 현장확인` `📦 상차완료`)
+ *   · 큰 버튼 두 개 제거 — 아코디언이 이미 길다. 전화번호도 헤더 우측 작은 버튼으로
+ *   · 펼치면 **저장된 내용부터**. 고칠 때만 `수정`
+ *   · 현장 줄에 `📍 도착` `📦 상차 완료` `✕ 상차 취소` — 시각을 남기는 버튼
+ *
+ * ══ 통화 입력의 설계 기준 ══
  *   여유 = 마감시각 − (지금 + 이동 + 상하차)
  *            ↑ 협상 가능        ↑ 어쩔 수 없음
  *   기사님이 움직일 수 있는 레버는 마감 시각 하나뿐이라, 시각 버튼마다 여유를 붙였다.
@@ -146,6 +150,23 @@ export default function StopCallSheet({
     const units = showMoreUnits ? [...PICKUP_PRIMARY_UNITS, ...PICKUP_SECONDARY_UNITS] : PICKUP_PRIMARY_UNITS;
     const hourSlots = buildHourSlots(Date.now(), fixedMinutes, 5);
 
+    // ── 접힌 채로 보여줄 요약. 여기 없는 값은 기사님에게 "없는 값"이다 ──
+    const savedDwell = dwellMinutes(declared?.handling ?? undefined, points);
+    const declaredSlack = computeSlackMinutes(declared?.deadlineAt, driveMinutes + savedDwell, Date.now());
+    const declaredSummary = declared
+        ? [summarize(declared), declaredSlack !== null && `여유 ${Math.max(0, declaredSlack)}분`]
+            .filter(Boolean).join(' · ')
+        : '아직 통화 전 — 눌러서 입력';
+
+    const declaredPts = unitPoints(declared?.unit, declared?.quantity);
+    const actualPts = unitPoints(actual?.unit, actual?.quantity);
+    const mismatchRatio = declaredPts && actualPts && Math.abs(actualPts / declaredPts - 1) >= 0.01
+        ? actualPts / declaredPts : null;
+    const actualSummary = actual
+        ? [summarize(actual), mismatchRatio !== null && `⚠️ 통화의 ${mismatchRatio.toFixed(1)}배`]
+            .filter(Boolean).join(' · ')
+        : '아직 확인 전 — 눌러서 기록';
+
     // ── 진행 배지: 접힌 채로도 "지금 어느 단계인가"가 보여야 한다 ──
     const doneLoad = isPickup
         ? (orderStatus === 'ORDER_PICKED_UP' || orderStatus === 'ORDER_DELIVERED')
@@ -244,26 +265,21 @@ export default function StopCallSheet({
                 <div className="text-[11px] text-text-muted mt-1">연락처 없음 — 퀵사무실로 확인하세요</div>
             )}
 
-            {/* 작은 텍스트 탭 — 큰 버튼 두 개를 대체한다 */}
-            <div className="flex items-center gap-4 mt-2 border-b border-border" onClick={e => e.stopPropagation()}>
-                {([['DECLARED', '통화 정보'], ['ACTUAL', '현장 정보']] as const).map(([k, name]) => {
-                    const on = tab === k;
-                    const has = k === 'DECLARED' ? !!declared : !!actual;
-                    return (
-                        <button key={k} onClick={() => openTab(k)}
-                            className={`pb-1.5 -mb-px text-[12px] font-bold border-b-2 transition-colors ${
-                                on ? 'border-info text-info'
-                                : has ? 'border-transparent text-text-primary' : 'border-transparent text-text-muted'
-                            }`}>
-                            {name}{has ? ' ✓' : ''}
-                        </button>
-                    );
-                })}
-            </div>
-
-            {/* ══════════ 통화 정보 ══════════ */}
-            {isCall && (
-                <div className="pt-2.5 flex flex-col gap-2.5" onClick={e => e.stopPropagation()}>
+            {/* ══ 두 줄 요약 — **열지 않아도 결정 내용이 보인다** ══
+                기사님: *"통화를 했음에도 불구하고 어떤 내용이 결정되었는지
+                탭을 열지 않고는 알 수가 없어."*
+                → 탭을 없앴다. 줄 자체가 내용이자 열기 버튼이다.
+                  한쪽을 펼쳐도 다른 쪽 요약은 그대로 보이므로 대조가 된다. */}
+            <div className="mt-2 flex flex-col gap-1" onClick={e => e.stopPropagation()}>
+                <SummaryLine
+                    icon="📞" title="통화"
+                    summary={declaredSummary}
+                    empty={!declared}
+                    open={isCall}
+                    onClick={() => openTab('DECLARED')}
+                />
+                {isCall && (
+                <div className="pt-2 pb-1 pl-5 flex flex-col gap-2.5">
                     {!editing && declared ? (
                         <Preview text={summarize(declared)} memo={declared.memo} onEdit={() => { loadInto(declared); setEditing(true); }} />
                     ) : (
@@ -331,17 +347,18 @@ export default function StopCallSheet({
                         </>
                     )}
                 </div>
-            )}
+                )}
 
-            {/* ══════════ 현장 정보 ══════════ */}
-            {tab === 'ACTUAL' && (
-                <div className="pt-2.5 flex flex-col gap-2.5" onClick={e => e.stopPropagation()}>
-                    {/* 탭을 바꿔 가며 대조할 수 있게 통화 내용을 고정으로 띄운다 */}
-                    <div className="rounded-md border border-border bg-surface-alt/30 px-2 py-1.5">
-                        <span className="text-[10px] font-black text-text-muted mr-1.5">📞 통화</span>
-                        <span className="text-[12px] font-bold text-text-primary">{summarize(declared) || '통화 기록 없음'}</span>
-                    </div>
-
+                <SummaryLine
+                    icon="👁" title="현장"
+                    summary={actualSummary}
+                    empty={!actual}
+                    open={tab === 'ACTUAL'}
+                    onClick={() => openTab('ACTUAL')}
+                    warn={mismatchRatio !== null}
+                />
+                {tab === 'ACTUAL' && (
+                <div className="pt-2 pb-1 pl-5 flex flex-col gap-2.5">
                     {!editing && actual ? (
                         <Preview text={summarize(actual)} memo={actual.memo} onEdit={() => { loadInto(actual); setEditing(true); }} />
                     ) : (
@@ -400,8 +417,37 @@ export default function StopCallSheet({
                         </div>
                     )}
                 </div>
-            )}
+                )}
+            </div>
         </div>
+    );
+}
+
+/**
+ * 요약 줄 — 이 줄 하나로 "무엇이 정해졌는지"를 알 수 있어야 한다.
+ * 접힌 채로 보이는 유일한 정보이므로, 여기서 빠진 값은 기사님에게 없는 값이다.
+ */
+function SummaryLine({ icon, title, summary, empty, open, onClick, warn }: {
+    icon: string; title: string; summary: string; empty: boolean;
+    open: boolean; onClick: () => void; warn?: boolean;
+}) {
+    return (
+        <button onClick={onClick}
+            className={`w-full flex items-center gap-2 text-left px-2 py-2 rounded-md border transition-colors ${
+                open ? 'bg-info/10 border-info/45'
+                : warn ? 'bg-danger/8 border-danger/35'
+                : empty ? 'bg-transparent border-border border-dashed'
+                : 'bg-surface-alt/40 border-border'
+            }`}>
+            <span className="text-[11px] shrink-0">{icon}</span>
+            <span className="text-[10px] font-black text-text-muted shrink-0 w-6">{title}</span>
+            <span className={`flex-1 min-w-0 text-[12px] font-bold break-keep ${
+                empty ? 'text-text-muted/70 font-normal' : 'text-text-primary'
+            }`}>
+                {summary}
+            </span>
+            <span className="text-[10px] text-text-muted shrink-0">{open ? '▾' : '▸'}</span>
+        </button>
     );
 }
 
