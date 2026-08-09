@@ -30,6 +30,13 @@ export interface UserSession {
     driverLocation: { x: number; y: number } | null;
     userVehicleType: string; // user_settings의 내 차종 (동적 허용 차종 생성용)
     isRestored: boolean;     // [방안 1] 서버 재시작 복구 로직 1회 실행 여부 플래그
+    /**
+     * [Phase 6] 부트스트랩(데이터 로드 → 노선 산출 → 상태 파생 → 회랑 도출) 진행 중 여부.
+     * true 인 동안에는 activeFilter 가 아직 미완성이므로 앱폰에 사냥을 시키지 않는다.
+     * (예전에는 복구가 끝나기 전 1~3초 동안 "첫짐 필터(회랑 없음)"가 앱에 나가
+     *  경로를 벗어난 콜을 잡을 수 있었다)
+     */
+    isBootstrapping: boolean;
 }
 
 const sessions = new Map<string, UserSession>();
@@ -45,7 +52,8 @@ function createDefaultSession(): UserSession {
         activeFilter: { ...SERVICE_DEFAULT_FILTER } as AutoDispatchFilter,
         driverLocation: null,
         userVehicleType: '1t',
-        isRestored: false
+        isRestored: false,
+        isBootstrapping: false
     };
 }
 
@@ -87,20 +95,19 @@ export function getUserSession(userId: string): UserSession {
                 // 회랑 키워드를 **데이터로부터 다시 파생**시켜 덮어쓴다. (이슈 W)
                 // 그 연결이 없던 동안, 진행 중인 콜이 3건 있어도 필터는 첫짐인 채로
                 // 사냥이 돌아 경로를 벗어난 콜을 잡을 수 있는 상태였다.
-                const { getCityRegionsWithRadius } = require('../services/geoService');
                 const { getEligibleVehicleTypes } = require('@onedal/shared');
-                
+
                 session.activeFilter = {
                     ...session.baseFilter,
                     isSharedMode: false,
                     driverAction: 'WAITING',      // [V2] 세션 복구 시 항상 대기 상태
                     dispatchPhase: 'STANDBY',     // [V2] 세션 복구 시 항상 첫짐 탐색
                 };
-                const city = session.activeFilter.destinationCity || '';
-                const radius = session.activeFilter.destinationRadiusKm || 0;
-                const { flat, grouped } = getCityRegionsWithRadius(city, radius);
-                session.activeFilter.destinationKeywords = flat;
-                session.activeFilter.destinationGroups = grouped;
+                // [Phase 6] 여기서 무거운 지리 연산(getCityRegionsWithRadius, CPU 집약)을 하지 않는다.
+                // 이 함수는 소켓 연결 시점에 **동기로** 호출되므로 이벤트 루프를 막을 수 있었다.
+                // 키워드는 부트스트랩 ⑤단계(rebuildCorridor)에서 한 번만 계산한다.
+                session.activeFilter.destinationKeywords = [];
+                session.activeFilter.destinationGroups = {};
                 session.activeFilter.allowedVehicleTypes = getEligibleVehicleTypes(userVehicleType);
 
                 logRoadmapEvent("서버", `[Session DB Load] 유저 ${userId} 복구된 원본 필터(Raw DB): \n` + JSON.stringify(filterRow, null, 2));

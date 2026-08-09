@@ -110,8 +110,24 @@ export interface DetourResult {
 }
 
 // ━━━━━━━━━━ [헬퍼 함수] ━━━━━━━━━━
+/**
+ * [재탐색 ④] 카카오가 간혹 깨진 좌표를 섞어 보낸다.
+ * 실제로 응답의 section.bound.min_x 에 Long.MIN_VALUE(-9223372036854775808)가 온 사례가 있었다.
+ * 같은 값이 road.vertexes 에 들어오면 관제탑 캔버스가 Math.min(...xs) 로 스케일을 잡으므로
+ * **지도 전체가 점 하나로 찌그러진다.** (캔버스는 isNaN 만 거르고 범위는 보지 않는다)
+ * 한반도 범위를 벗어난 좌표는 폴리라인 단계에서 버린다.
+ */
+const KOREA_BOUNDS = { minX: 123, maxX: 133, minY: 32, maxY: 40 };
+function isValidKoreaCoord(x: unknown, y: unknown): boolean {
+    return typeof x === "number" && typeof y === "number"
+        && Number.isFinite(x) && Number.isFinite(y)
+        && x >= KOREA_BOUNDS.minX && x <= KOREA_BOUNDS.maxX
+        && y >= KOREA_BOUNDS.minY && y <= KOREA_BOUNDS.maxY;
+}
+
 function extractPolyline(routes?: any[]): Array<{x: number; y: number}> {
     const polyline: Array<{x: number; y: number}> = [];
+    let droppedCount = 0;
     if (!routes || !routes[0] || !routes[0].sections) {
         console.log(`🗺️ [extractPolyline] routes/sections 배열이 없습니다. 카카오가 넘겨준 원본 배열:`, JSON.stringify(routes));
         return polyline;
@@ -126,14 +142,17 @@ function extractPolyline(routes?: any[]): Array<{x: number; y: number}> {
             if (!road.vertexes) continue;
             // vertexes is [x1, y1, x2, y2, ...] flat array
             for (let i = 0; i < road.vertexes.length; i += 2) {
-                polyline.push({
-                    x: road.vertexes[i],
-                    y: road.vertexes[i+1]
-                });
+                const x = road.vertexes[i];
+                const y = road.vertexes[i + 1];
+                if (!isValidKoreaCoord(x, y)) { droppedCount++; continue; }
+                polyline.push({ x, y });
                 sectionPoints++;
             }
         }
         console.log(`   - 섹션 ${sIdx + 1} (${section.bound?.min_x || '?'},${section.bound?.min_y || '?'} -> ${section.bound?.max_x || '?'},${section.bound?.max_y || '?'}) 추출 라인 좌표수: ${sectionPoints}`);
+    }
+    if (droppedCount > 0) {
+        console.warn(`⚠️ [extractPolyline] 한반도 범위를 벗어난 좌표 ${droppedCount}개 폐기 (카카오 응답 오염). 지도 스케일 붕괴 방지.`);
     }
     console.log(`🗺️ [extractPolyline] 카카오 폴리라인 궤적 총 ${polyline.length}개의 포인트 추출 성공`);
     return polyline;

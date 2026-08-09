@@ -150,6 +150,15 @@ router.post("/", (req, res) => {
         // 관제탑은 소켓(filter-updated)으로 별도 수신하므로 여기서 빼도 영향이 없다.
         const { destinationGroups, ...appFilter } = session.activeFilter as any;
 
+        // [Phase 6] 부트스트랩이 끝나기 전에는 사냥을 시키지 않는다.
+        // 이 구간(1~3초)의 activeFilter 는 아직 회랑도 적재 차종도 반영되지 않은 미완성 상태라,
+        // 그대로 내보내면 경로를 벗어난 콜을 잡을 수 있다.
+        // 잘못된 필터로 잡는 것보다 잠깐 멈추는 편이 안전하다.
+        if (session.isBootstrapping) {
+            appFilter.isActive = false;
+            console.log(`⏳ [부트스트랩 중] ${deviceId} 에게 isActive=false 로 응답 (필터 준비 중)`);
+        }
+
         // logRoadmapEvent("서버", "앱폰에게 최신 필터(dispatchEngineArgs) 및 제어 명령 정보 전달");
         // 4. 응답 (해당 유저의 필터값 및 제어 명령 송신)
         res.json({

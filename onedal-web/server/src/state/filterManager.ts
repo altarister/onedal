@@ -84,6 +84,12 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
 
 // ━━━ 내부 유틸: 소켓 브로드캐스트 ━━━
 function broadcastFilter(userId: string, session: ReturnType<typeof getUserSession>, io?: any) {
+    // [Phase 6] 부트스트랩 중에는 중간 상태를 내보내지 않는다.
+    // 복구 과정에서 updateActiveFilter 가 여러 번(상태 파생 → 회랑 재계산) 호출되는데,
+    // 그때마다 filter-updated 를 쏘면 관제탑이 첫짐 → 합짐으로 깜빡인다.
+    // 확정된 필터는 부트스트랩 끝에서 filter-init 으로 한 번만 나간다.
+    if (session.isBootstrapping) return;
+
     if (io) {
         io.to(userId).emit("filter-updated", {
             activeFilter: session.activeFilter,

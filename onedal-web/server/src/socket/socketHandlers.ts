@@ -6,7 +6,7 @@ import { getRegionsByCity } from "../geoResolver";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import type { AutoDispatchFilter } from "@onedal/shared";
 import { getUserSession, getAllActiveUserIds } from "../state/userSessionStore";
-import { recalculateCorridorFilter, handleDecision, recalculateKakaoRoute, restoreAndRecalculateSession, completeOrder, startTwoTrack, createHomeReturn } from "../services/dispatchEngine";
+import { recalculateCorridorFilter, handleDecision, recalculateKakaoRoute, bootstrapUserSession, completeOrder, startTwoTrack, createHomeReturn } from "../services/dispatchEngine";
 import { updateActiveFilter } from "../state/filterManager";
 import { processDriverMovement, getCityRegionsWithRadius } from "../services/geoService";
 
@@ -43,12 +43,7 @@ export function registerSocketHandlers(io: Server) {
 
         const session = getUserSession(userId);
 
-        // [방안 1] 서버 재시작으로 메모리가 비워졌다면 DB에서 복구하고 카카오 궤적 1회 재생성
-        if (!session.isRestored) {
-            restoreAndRecalculateSession(userId, io);
-        }
-
-        // 방 참여 (개별 유저 룸)
+        // 방 참여 (개별 유저 룸) — 부트스트랩이 emit 하기 전에 반드시 먼저 들어가 있어야 한다
         socket.join(userId);
         if (role === "ADMIN") {
             socket.join("admin_room");
@@ -56,17 +51,33 @@ export function registerSocketHandlers(io: Server) {
 
         // 접속 시 초기 데이터 전송 (유저별 등록 기기 목록 포함)
         socket.emit("telemetry-devices", getUserDevicesSnapshot(userId));
-        logRoadmapEvent("서버", "관제탑 소켓 접속 완료 및 기사의 기본 필터 DB Lazy Load 연산");
-        
-        socket.emit("filter-init", {
-            activeFilter: session.activeFilter,
-            baseFilter: session.baseFilter
-        });
-        logRoadmapEvent("서버", `관제탑에게 초기 UI 복원용 필터(filter-init) 정보 전달\n - activeFilter(현재사냥): minFare=${session.activeFilter.minFare}\n - baseFilter(기본설정): minFare=${session.baseFilter.minFare}`);
+
+        // [Phase 6] 필터는 부트스트랩이 끝난 뒤 **완성본으로 한 번만** 보낸다.
+        //
+        // 예전에는 여기서 곧바로 filter-init 을 쐈는데, 그 시점의 activeFilter 는
+        // 아직 복구 전(첫짐·회랑 없음)이라 관제탑이 첫짐 → 합짐으로 깜빡였고
+        // 앱폰도 그 사이 잘못된 필터를 가져갔다.
+        if (!session.isRestored) {
+            // 첫 접속: 부트스트랩이 완료 시점에 filter-init 을 룸으로 emit 한다
+            logRoadmapEvent("서버", "관제탑 소켓 접속 — 부트스트랩 시작 (필터는 확정 후 1회 전송)");
+            bootstrapUserSession(userId, io);
+        } else {
+            // 이미 부트스트랩이 끝난 세션(단순 새로고침·재연결)은 현재 확정 필터를 즉시 전달
+            socket.emit("filter-init", {
+                activeFilter: session.activeFilter,
+                baseFilter: session.baseFilter
+            });
+            logRoadmapEvent("서버", `관제탑에게 확정 필터(filter-init) 전달 — minFare=${session.activeFilter.minFare}`);
+        }
 
         socket.on("request-filter-init", () => {
             console.log(`📡 [웹 수신] request-filter-init (초기 필터 동기화 요청) - userId: ${userId}`);
             const session = getUserSession(userId);
+            // [Phase 6] 아직 확정 전이면 응답하지 않는다. 부트스트랩이 끝나면서 filter-init 이 나간다.
+            if (session.isBootstrapping) {
+                console.log(`⏳ [부트스트랩 중] filter-init 응답 보류 — 확정 후 자동 전송됩니다`);
+                return;
+            }
             socket.emit("filter-init", { 
                 activeFilter: session.activeFilter,
                 baseFilter: session.baseFilter

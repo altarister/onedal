@@ -29,22 +29,24 @@ export function useFilterConfig() {
             setBothFilters(payload.activeFilter, payload.baseFilter);
         };
 
-        const onConnect = () => {
-            logRoadmapEvent("웹", "서버 소켓 연결/재연결됨 → 최신 필터 상태 요청");
-            requestFilterInitSafe();
-        };
-
         socket.on("filter-init", onFilterInit);
         socket.on("filter-updated", onFilterUpdated);
-        socket.on("connect", onConnect);
 
-        // 컴포넌트가 마운트될 때 (이미 소켓이 최초 연결을 끝낸 뒤일 수 있으므로) 서버에 최신 상태를 명시적으로 달라고 요청합니다.
-        requestFilterInitSafe();
+        // [Phase 6] 접속 시 요청(request-filter-init)은 더 이상 하지 않는다.
+        //
+        // 서버가 소켓 접속마다 filter-init 을 **먼저 밀어주므로**, 여기서 또 요청하면
+        // 똑같은 페이로드(키워드 140개 포함)가 두 번 오간다. 실제로 측정해 보니
+        // connect 직후 37ms 안에 filter-init 이 2회 도착했다.
+        //
+        // 다만 이 훅이 소켓 연결 이후에 마운트되면 그 push 를 놓치므로,
+        // 아직 필터가 비어 있을 때만 한 번 요청한다.
+        if (!useFilterStore.getState().filter) {
+            requestFilterInitSafe();
+        }
 
         return () => {
             socket.off("filter-init", onFilterInit);
             socket.off("filter-updated", onFilterUpdated);
-            socket.off("connect", onConnect);
         };
     }, [setBothFilters]);
 

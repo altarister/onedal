@@ -162,9 +162,11 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
     try {
         let timeExt = "카카오 연산 실패";
         let isDetour = false;
+        /** 합짐 병합 궤적을 실제로 기록한 콜 (securedOrder 와 다를 수 있어 별도 emit 필요) */
+        let mergedRouteHolder: MyOrder | PendingOrder | null = null;
 
-        const currentOrders = Array.from(session.pendingOrdersData.values());
-        let previousOrders = getActiveCalls(session).filter(o => o.id !== orderId);
+        // 재탐색 대상 외에 다른 활성 콜이 있으면 합짐(Detour) 연산이다
+        const previousOrders = getActiveCalls(session).filter(o => o.id !== orderId);
         if (previousOrders.length > 0) isDetour = true;
 
         const routingOptions = SettingsRepository.getKakaoRoutingOptions(userId);
@@ -182,11 +184,17 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
             if (priority === "TIME") paramLabel = "최단시간";
             if (priority === "DISTANCE") paramLabel = "최단거리";
 
-            timeExt = `[${paramLabel}] 재탐색 완료`;
+            const soloKm = parseFloat((result.distance / 1000).toFixed(1));
+            const soloMin = Math.round(result.duration / 60);
+
+            // [재탐색 ②] 예전에는 "[최단시간] 재탐색 완료" 만 표시해, 눌러도 무엇이 달라졌는지
+            // 알 수 없었다. 합짐일 때만 수치가 나오고 단독일 때는 없었다.
+            // 재탐색은 "어느 쪽이 유리한가"를 보려고 누르는 것이므로 결과 수치가 필수다.
+            timeExt = `[${paramLabel}] ${soloKm}km, ${soloMin}분`;
 
             securedOrder.routePolyline = result.polyline;
-            securedOrder.totalDistanceKm = parseFloat((result.distance / 1000).toFixed(1));
-            securedOrder.totalDurationMin = Math.round(result.duration / 60);
+            securedOrder.totalDistanceKm = soloKm;
+            securedOrder.totalDurationMin = soloMin;
         } else {
             const allPickups: { x: number; y: number }[] = [];
             const allDropoffs: { x: number; y: number }[] = [];
@@ -232,10 +240,21 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
                 routingOptions.carType
             );
 
-            securedOrder.routePolyline = result.merged.polyline;
-            securedOrder.totalDistanceKm = Math.round(result.merged.distance / 1000);
-            securedOrder.totalDurationMin = Math.round(result.merged.duration / 60);
-            securedOrder.sectionEtas = result.merged.sectionEtas;
+            // [재탐색 ③] 병합 궤적은 "마지막 활성 콜"에 싣는다.
+            // handleDecision · recalculateActiveKakaoRoute 가 모두 이 규약을 쓰는데
+            // 여기만 재탐색 대상(securedOrder)에 쓰고 있어, 대상이 마지막 활성 콜이
+            // 아닐 경우 궤적이 엉뚱한 콜에 붙었다. (Phase 2의 이슈 F 와 같은 패턴)
+            const routeHolder = existingActive.length > 0
+                ? existingActive[existingActive.length - 1]
+                : securedOrder;
+
+            // [재탐색 ⑤] 거리 정밀도를 단독 경로와 동일하게 소수 1자리로 통일.
+            // 예전에는 단독 98.9km / 합짐 99km 로 표기가 튀었다.
+            routeHolder.routePolyline = result.merged.polyline;
+            routeHolder.totalDistanceKm = parseFloat((result.merged.distance / 1000).toFixed(1));
+            routeHolder.totalDurationMin = Math.round(result.merged.duration / 60);
+            routeHolder.sectionEtas = result.merged.sectionEtas;
+            mergedRouteHolder = routeHolder;
 
             let signDist = Number(result.distDiffKm) > 0 ? "+" : "";
             let signTime = Number(result.timeDiffMin) > 0 ? "+" : "";
@@ -265,6 +284,10 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
 
         logRoadmapEvent("서버", "관제탑에게 재산출된 노선(order-evaluated) 정보 전달");
         io.to(userId).emit("order-evaluated", securedOrder);
+        // 병합 궤적을 다른 콜에 실었다면 그쪽도 즉시 알려야 지도가 1초(sync 주기)를 기다리지 않는다
+        if (mergedRouteHolder && mergedRouteHolder.id !== securedOrder.id) {
+            io.to(userId).emit("order-evaluated", mergedRouteHolder);
+        }
     } catch (e: any) {
         console.error("재계산 에러:", e);
         if (e.message) {
@@ -585,7 +608,71 @@ export async function evaluateNewOrder(userId: string, securedOrder: SecuredOrde
 }
 
 /**
+ * [Phase 6] 로그인·소켓 접속 시 실행되는 **단일 부트스트랩 시퀀스**.
+ *
+ * 예전에는 이 과정이 세 군데로 흩어져 각자 다른 시점에 돌았다.
+ *   getUserSession(동기·DB로드+지리연산) / restoreAndRecalculateSession(비동기) / syncCorridorFilter
+ * 소켓 핸들러가 복구를 await 하지 않고 곧바로 filter-init 을 쏘는 바람에
+ *   ① 앱폰이 1~3초간 "첫짐 필터(회랑 없음)"를 받아 경로 이탈 콜을 잡을 수 있었고
+ *   ② 관제탑은 첫짐 → 합짐으로 깜빡였으며
+ *   ③ destinationKeywords 를 4곳이 각자 만들어 진실 공급원이 없었다.
+ *
+ * 이제 아래 순서를 한 함수가 책임진다. **⑥ 이전에는 앱폰에 사냥을 시키지 않는다.**
+ *
+ *   ① 세션 확보    DB에서 baseFilter 로드 (지리 연산 없음)
+ *   ② 데이터 로드   오늘의 활성 콜 복구 → myOrders
+ *   ③ 노선 산출    카카오 Solo / Detour+TSP → routePolyline
+ *   ④ 상태 파생    dispatchPhase · allowedVehicleTypes · isSharedMode
+ *   ⑤ 회랑 도출    폴리라인 기준(활성 콜 있음) 또는 destinationCity 기준(없음)
+ *   ⑥ 필터 확정    activeFilter 완성 → 관제탑 filter-init 1회 + 앱폰 사냥 재개
+ */
+export async function bootstrapUserSession(userId: string, io: any): Promise<void> {
+    const session = getUserSession(userId);          // ① (지리 연산 없이 baseFilter 만)
+    if (session.isRestored || session.isBootstrapping) return;
+
+    session.isBootstrapping = true;                  // 이 순간부터 앱폰은 isActive=false 를 받는다
+    const t0 = Date.now();
+    logRoadmapEvent("서버", "[Bootstrap] 시작 — 필터 확정 전까지 앱폰 사냥 일시 정지");
+
+    try {
+        await restoreAndRecalculateSession(userId, io);   // ②③④⑤ (내부에서 순서대로 수행)
+
+        // ⑤ 보강: 활성 콜이 없으면 회랑이 아니라 destinationCity 기준으로 키워드를 만든다.
+        //         (userSessionStore 에서 무거운 지리 연산을 걷어냈으므로 여기서 한 번만 한다)
+        if (getActiveCalls(session).length === 0) {
+            const city = session.activeFilter.destinationCity || '';
+            if (city) {
+                const { getCityRegionsWithRadius } = require('./geoService');
+                const radius = session.activeFilter.destinationRadiusKm || 0;
+                const { flat, grouped } = getCityRegionsWithRadius(city, radius);
+                session.activeFilter.destinationKeywords = flat;
+                session.activeFilter.destinationGroups = grouped;
+                console.log(`🗺️ [Bootstrap ⑤] 첫짐 모드 — '${city}' 기준 키워드 ${flat.length}개 산출`);
+            }
+        }
+    } catch (err) {
+        console.error("🚨 [Bootstrap] 실패:", err);
+    } finally {
+        // ⑥ 성공하든 실패하든 반드시 잠금을 푼다. 여기서 막히면 사냥이 영영 멈춘다.
+        session.isBootstrapping = false;
+    }
+
+    const f = session.activeFilter;
+    console.log(`✅ [Bootstrap 완료] ${Date.now() - t0}ms | phase=${f.dispatchPhase} 합짐=${f.isSharedMode} ` +
+        `차종=${(f.allowedVehicleTypes || []).length}종 키워드=${(f.destinationKeywords || []).length}개`);
+    logRoadmapEvent("서버", `[Bootstrap] 완료 (${Date.now() - t0}ms) — 관제탑에 확정 필터 1회 전송, 앱폰 사냥 재개`);
+
+    if (io) {
+        io.to(userId).emit("filter-init", {
+            activeFilter: session.activeFilter,
+            baseFilter: session.baseFilter,
+        });
+    }
+}
+
+/**
  * [방안 1] 서버 재시작 시 DB에서 콜을 불러와 1회성 카카오 궤적 복구 연산
+ * ⚠️ 직접 호출하지 말 것 — bootstrapUserSession() 을 통해서만 실행된다.
  */
 export async function restoreAndRecalculateSession(userId: string, io: any) {
     const session = getUserSession(userId);

@@ -119,8 +119,13 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
                     myLocation={myLocation}
                 >
                     {/* 좌측 상단 글로벌 상시 경로 재탐색 파이프라인 (맵 캔버스 내재화 플로팅 컨트롤) */}
-                    {activeRoute.length > 0 && onRecalculate && (() => {
-                        const lastExt = activeRoute[activeRoute.length - 1].kakaoTimeExt || '';
+                    {liveRoute.length > 0 && onRecalculate && (() => {
+                        // [재탐색 ①] 대상은 반드시 "종료되지 않은 마지막 콜"이어야 한다.
+                        // activeRoute 에는 '취소/방출' 탭 표시용으로 종료된 콜이 포함되어 있어,
+                        // 마지막 원소가 취소된 콜이면 취소한 콜의 경로를 재탐색하게 된다.
+                        // (카카오 API 비용만 쓰고 화면은 그대로. 버튼 하이라이트도 옛 결과 기준이 됨)
+                        const recalcTarget = liveRoute[liveRoute.length - 1];
+                        const lastExt = recalcTarget.kakaoTimeExt || '';
                         const isTime = lastExt.includes('[최단시간]');
                         const isDistance = lastExt.includes('[최단거리]');
                         const isRecommend = !isTime && !isDistance; // 기본값은 항상 '추천' 상태 점등
@@ -128,21 +133,21 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
                         return (
                             <div className="absolute top-3 left-3 flex flex-col space-y-2 z-10 w-8">
                                 <button
-                                    onClick={(e) => { e.stopPropagation(); logRoadmapEvent("웹", "맵뷰 버튼(추천) 좌상단 클릭"); setProcessingId(`recalc-global`); onRecalculate(activeRoute[activeRoute.length - 1].id, 'RECOMMEND'); }}
+                                    onClick={(e) => { e.stopPropagation(); logRoadmapEvent("웹", "맵뷰 버튼(추천) 좌상단 클릭"); setProcessingId(`recalc-global`); onRecalculate(recalcTarget.id, 'RECOMMEND'); }}
                                     disabled={processingId !== null}
                                     className={`w-8 h-8 flex items-center justify-center rounded-md shadow-lg text-[10px] font-bold backdrop-blur-sm transition-all focus:outline-none ${processingId !== null ? 'opacity-50 cursor-not-allowed' : 'opacity-80 hover:opacity-100 active:scale-95'} ${isRecommend ? 'bg-info/90 text-white border border-info' : 'bg-surface-alt/80 hover:bg-surface-hover text-text-primary border border-border'}`}
                                 >
                                     추천
                                 </button>
                                 <button
-                                    onClick={(e) => { e.stopPropagation(); logRoadmapEvent("웹", "맵뷰 버튼(최단시간) 좌상단 클릭"); setProcessingId(`recalc-global`); onRecalculate(activeRoute[activeRoute.length - 1].id, 'TIME'); }}
+                                    onClick={(e) => { e.stopPropagation(); logRoadmapEvent("웹", "맵뷰 버튼(최단시간) 좌상단 클릭"); setProcessingId(`recalc-global`); onRecalculate(recalcTarget.id, 'TIME'); }}
                                     disabled={processingId !== null}
                                     className={`w-8 h-8 flex items-center justify-center rounded-md shadow-lg text-[10px] font-bold backdrop-blur-sm transition-all focus:outline-none ${processingId !== null ? 'opacity-50 cursor-not-allowed' : 'opacity-80 hover:opacity-100 active:scale-95'} ${isTime ? 'bg-accent/90 text-white border border-accent' : 'bg-surface-alt/80 hover:bg-surface-hover text-text-primary border border-border'}`}
                                 >
                                     시간
                                 </button>
                                 <button
-                                    onClick={(e) => { e.stopPropagation(); logRoadmapEvent("웹", "맵뷰 버튼(최단거리) 좌상단 클릭"); setProcessingId(`recalc-global`); onRecalculate(activeRoute[activeRoute.length - 1].id, 'DISTANCE'); }}
+                                    onClick={(e) => { e.stopPropagation(); logRoadmapEvent("웹", "맵뷰 버튼(최단거리) 좌상단 클릭"); setProcessingId(`recalc-global`); onRecalculate(recalcTarget.id, 'DISTANCE'); }}
                                     disabled={processingId !== null}
                                     className={`w-8 h-8 flex items-center justify-center rounded-md shadow-lg text-[10px] font-bold backdrop-blur-sm transition-all focus:outline-none ${processingId !== null ? 'opacity-50 cursor-not-allowed' : 'opacity-80 hover:opacity-100 active:scale-95'} ${isDistance ? 'bg-success/90 text-white border border-success' : 'bg-surface-alt/80 hover:bg-surface-hover text-text-primary border border-border'}`}
                                 >
