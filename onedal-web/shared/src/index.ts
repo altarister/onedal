@@ -47,11 +47,54 @@ export const EVALUATING_STATUSES: readonly OrderStatus[] = [
 
 /** 종결 상태 (더 이상 상태 전이 없음) */
 export const TERMINAL_STATUSES: readonly OrderStatus[] = [
+    // [Phase 8.3] 하차 보고(ORDER_DELIVERED)가 곧 배송 종료다.
+    //
+    // 예전에는 이 값이 정의만 되어 있고 아무도 쓰지 않아, 하차한 뒤에도 서버가 그 짐을
+    // 계속 "적재 중"으로 세었다. 잔여 용량이 회복되지 않아 합짐 필터가 좁은 채로 남고
+    // **다음 짐을 못 잡았다.** 여기에 넣는 것만으로 getActiveCalls() 가 제외해 주므로
+    // 적재 계산·경로 계산·화면 표시가 한꺼번에 정상화된다.
+    'ORDER_DELIVERED',
     'ORDER_COMPLETED',
     'ORDER_RELEASED',
     'ORDER_CANCELED',
     'ORDER_FORCE_CANCELED',
 ] as const;
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// [Phase 8.2] 운행 마일스톤 — 확정과 종료 사이의 실제 업무 단계
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/** 상차 보고 / 하차 보고. 배차망이 요구하는 필수 업무이므로 반드시 발생한다 */
+export const MILESTONES = ['PICKED_UP', 'DELIVERED'] as const;
+export type Milestone = typeof MILESTONES[number];
+
+/**
+ * 마일스톤이 들어온 경로. **셋 다 같은 함수로 수렴시킨다.**
+ *   AUTO_SCRAPE — 앱이 배차망 화면 변화를 감지 (인성앱 상세의 `상태 : 배송` 텍스트)
+ *   APP_BUTTON  — 앱에서 기사님이 직접
+ *   MANUAL_WEB  — 관제탑에서 기사님이 직접
+ * 나중에 자동 감지 정확도를 측정할 유일한 근거이므로 반드시 기록한다.
+ */
+export const MILESTONE_SOURCES = ['AUTO_SCRAPE', 'APP_BUTTON', 'MANUAL_WEB'] as const;
+export type MilestoneSource = typeof MILESTONE_SOURCES[number];
+
+/** 마일스톤 → 그 보고가 성립했을 때의 오더 상태 */
+export const MILESTONE_TO_STATUS: Record<Milestone, OrderStatus> = {
+    PICKED_UP: 'ORDER_PICKED_UP',
+    DELIVERED: 'ORDER_DELIVERED',
+};
+
+/**
+ * 이 오더에서 지금 보고할 수 있는 마일스톤.
+ *
+ * 순서를 강제한다 — 상차 없이 하차가 먼저 올 수는 있어도(기사님이 상차 보고를 건너뜀),
+ * **하차한 뒤에 상차 보고가 늦게 도착해도 상태를 되돌리지 않는다.**
+ * 자동 감지와 수동 클릭이 뒤섞이면 순서가 역전될 수 있기 때문이다.
+ */
+export function canReportMilestone(status: string | undefined, milestone: Milestone): boolean {
+    if (milestone === 'PICKED_UP') return status === 'ORDER_CONFIRMED';
+    return status === 'ORDER_CONFIRMED' || status === 'ORDER_PICKED_UP';
+}
 
 /** 주어진 상태가 평가/심사 중인지 판별 */
 export function isEvaluating(status?: string): boolean {

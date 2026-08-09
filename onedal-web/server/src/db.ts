@@ -228,6 +228,28 @@ db.exec(`
     );
     CREATE INDEX IF NOT EXISTS idx_orderStops_orderId ON orderStops(orderId);
     CREATE INDEX IF NOT EXISTS idx_orderStops_placeId ON orderStops(placeId);
+
+    -- [Phase 8.2] 운행 마일스톤(상차/하차 보고) 이력
+    --
+    -- 같은 보고가 여러 경로로 들어온다. 앱이 화면 변화를 감지(AUTO_SCRAPE)한 직후
+    -- 기사님이 관제탑에서도 누르면(MANUAL_WEB) 두 번 들어온다.
+    -- UNIQUE(orderId, milestone) 로 **DB 레벨에서 멱등성을 보장**한다.
+    -- 애플리케이션 체크만 두면 동시 요청에서 뚫린다.
+    --
+    -- occurredAt 은 "실제로 일어난 시각", recordedAt 은 "서버가 받은 시각"이다.
+    -- 통신이 끊겼다 복구되면 둘이 크게 벌어지므로 분리해서 남긴다.
+    CREATE TABLE IF NOT EXISTS order_milestones (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        orderId         TEXT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+        userId          TEXT NOT NULL,
+        milestone       TEXT NOT NULL CHECK(milestone IN ('PICKED_UP', 'DELIVERED')),
+        source          TEXT NOT NULL CHECK(source IN ('AUTO_SCRAPE', 'APP_BUTTON', 'MANUAL_WEB')),
+        occurredAt      TEXT NOT NULL,
+        recordedAt      TEXT NOT NULL,
+        UNIQUE(orderId, milestone)
+    );
+    CREATE INDEX IF NOT EXISTS idx_milestones_orderId ON order_milestones(orderId);
+    CREATE INDEX IF NOT EXISTS idx_milestones_user_time ON order_milestones(userId, occurredAt);
 `);
 
 // ═══════════════════════════════════════

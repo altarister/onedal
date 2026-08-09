@@ -4,9 +4,9 @@ import { jwtSecret } from "../config/env";
 import { getUserDevicesSnapshot } from "../routes/devices";
 import { getRegionsByCity } from "../geoResolver";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
-import type { AutoDispatchFilter } from "@onedal/shared";
+import type { AutoDispatchFilter, Milestone } from "@onedal/shared";
 import { getUserSession, getAllActiveUserIds } from "../state/userSessionStore";
-import { recalculateCorridorFilter, handleDecision, recalculateKakaoRoute, bootstrapUserSession, completeOrder, startTwoTrack, createHomeReturn } from "../services/dispatchEngine";
+import { recalculateCorridorFilter, handleDecision, recalculateKakaoRoute, bootstrapUserSession, completeOrder, reportMilestone, startTwoTrack, createHomeReturn } from "../services/dispatchEngine";
 import { updateActiveFilter } from "../state/filterManager";
 import { processDriverMovement, getCityRegionsWithRadius } from "../services/geoService";
 
@@ -147,6 +147,15 @@ export function registerSocketHandlers(io: Server) {
         });
 
         // ━━━ [운행 완료 처리] ━━━
+        // [Phase 8.2] 관제탑에서 누르는 상차/하차 보고.
+        // 앱의 화면 자동 감지(AUTO_SCRAPE)가 붙어도 이 핸들러는 그대로 두면 된다 —
+        // 진입점만 늘어날 뿐 본체(reportMilestone)는 하나이기 때문이다.
+        socket.on("report-milestone", async (data: { orderId: string, milestone: Milestone, occurredAt?: string }) => {
+            logRoadmapEvent("서버", `관제탑으로부터 ${data.milestone === 'PICKED_UP' ? '상차' : '하차'} 보고 수신`);
+            const result = await reportMilestone(userId, data.orderId, data.milestone, 'MANUAL_WEB', io, data.occurredAt);
+            socket.emit("milestone-result", { orderId: data.orderId, ...result });
+        });
+
         socket.on("dispatch-complete", async (data: { orderId: string }) => {
             if (!data || !data.orderId) return;
             await completeOrder(userId, data.orderId, io);

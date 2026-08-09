@@ -106,6 +106,14 @@ export default function PinnedRouteCard({
                 {!evaluating && route.type === 'MANUAL' && route.status !== 'ORDER_COMPLETED' && (
                     <Badge variant="outline" className="text-[10px] font-black px-1.5 py-0 bg-info/10 border-info/30 text-info flex-shrink-0 ml-2 shadow-sm rounded">수동 배차</Badge>
                 )}
+                {/* [Phase 8.3] 확정과 종료 사이의 진행 단계를 배지로 드러낸다.
+                    예전에는 확정/완료 두 상태뿐이라 "지금 상차했나 아직인가"를 화면에서 알 수 없었다. */}
+                {route.status === 'ORDER_PICKED_UP' && (
+                    <Badge variant="outline" className="text-[10px] font-black px-1.5 py-0 bg-info/10 border-info/30 text-info flex-shrink-0 ml-2 shadow-sm rounded">📦 상차 완료</Badge>
+                )}
+                {route.status === 'ORDER_DELIVERED' && (
+                    <Badge variant="outline" className="text-[10px] font-black px-1.5 py-0 bg-success/10 border-success/30 text-success flex-shrink-0 ml-2 shadow-sm rounded">🏁 하차 완료</Badge>
+                )}
                 {route.status === 'ORDER_COMPLETED' && (
                     <Badge variant="outline" className="text-[10px] font-black px-1.5 py-0 bg-text-muted/10 border-text-muted/30 text-text-muted flex-shrink-0 ml-2 shadow-sm rounded">운행 완료</Badge>
                 )}
@@ -333,23 +341,52 @@ export default function PinnedRouteCard({
                         })()}
                     </div>
 
-                    {/* 평가 상태 액션 버튼 */}
-                    {route.status === 'ORDER_CONFIRMED' && onDecision && (
+                    {/* [Phase 8.2] 상차 / 하차 보고
+                        확정과 완료 사이의 실제 업무 단계다. 예전에는 '운행 완료' 버튼 하나뿐이라
+                        하차해도 서버가 계속 "적재 중"으로 믿었고, 잔여 용량이 회복되지 않아
+                        합짐 필터가 좁은 채로 남아 다음 짐을 못 잡았다.
+                        인성앱의 [출발지][서명] / [도착지][서명] 에 대응한다. */}
+                    {(route.status === 'ORDER_CONFIRMED' || route.status === 'ORDER_PICKED_UP') && (
                         <div className="mt-4 flex gap-3">
+                            <Button
+                                variant="outline"
+                                disabled={processingId === route.id || route.status === 'ORDER_PICKED_UP'}
+                                onClick={(e: React.MouseEvent) => {
+                                    e.stopPropagation();
+                                    setProcessingId(route.id);
+                                    logRoadmapEvent("웹", "상차 보고(PICKED_UP) 전송");
+                                    socket.emit("report-milestone", { orderId: route.id, milestone: 'PICKED_UP' });
+                                    setTimeout(() => setProcessingId(null), 1000);
+                                }}
+                                className={`flex-1 py-3 text-sm font-bold border-info/50 ${
+                                    route.status === 'ORDER_PICKED_UP'
+                                        ? 'bg-info/20 text-info opacity-70'
+                                        : 'bg-info/10 text-info hover:bg-info/20'
+                                }`}
+                            >
+                                {route.status === 'ORDER_PICKED_UP' ? '📦 상차 완료됨' : '📦 상차 보고'}
+                            </Button>
                             <Button
                                 variant="outline"
                                 disabled={processingId === route.id}
                                 onClick={(e: React.MouseEvent) => {
                                     e.stopPropagation();
                                     setProcessingId(route.id);
-                                    socket.emit("dispatch-complete", { orderId: route.id });
+                                    logRoadmapEvent("웹", "하차 보고(DELIVERED) 전송 — 적재 공간 회복");
+                                    socket.emit("report-milestone", { orderId: route.id, milestone: 'DELIVERED' });
                                     onToggle(route.id); // 아코디언 닫기
                                     setTimeout(() => setProcessingId(null), 1000);
                                 }}
                                 className="flex-1 py-3 text-sm font-bold bg-success/10 text-success hover:bg-success/20 border-success/50"
                             >
-                                {processingId === route.id ? '완료 처리 중...' : '✅ 운행 완료'}
+                                {processingId === route.id ? '처리 중...' : '🏁 하차 보고'}
                             </Button>
+                        </div>
+                    )}
+
+                    {/* 방출 / 사무실 취소 */}
+                    {(route.status === 'ORDER_CONFIRMED' || route.status === 'ORDER_PICKED_UP') && onDecision && (
+                        <div className="mt-3 flex gap-3">
                             <div className="flex-1 flex gap-2">
                                 <Button
                                     variant="outline"

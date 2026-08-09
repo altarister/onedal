@@ -228,7 +228,7 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
                         onClick={() => setViewFilter('COMPLETED')}
                         className={`flex-1 py-2 text-xs font-bold transition-colors ${viewFilter === 'COMPLETED' ? 'text-text-primary border-b-2 border-info' : 'text-text-muted hover:text-text-primary'}`}
                     >
-                        완료됨 ({safeRoute.filter(r => r.status === 'ORDER_COMPLETED').length})
+                        완료됨 ({safeRoute.filter(r => r.status === 'ORDER_DELIVERED' || r.status === 'ORDER_COMPLETED').length})
                     </button>
                     <button
                         onClick={() => setViewFilter('CANCELED')}
@@ -254,7 +254,8 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
                                 return !isTerminal(route.status);
                             }
                             if (viewFilter === 'COMPLETED') {
-                                return route.status === 'ORDER_COMPLETED';
+                                // 하차 보고(ORDER_DELIVERED)가 곧 배송 완료다 (Phase 8.3)
+                                return route.status === 'ORDER_DELIVERED' || route.status === 'ORDER_COMPLETED';
                             }
                             if (viewFilter === 'CANCELED') {
                                 return route.status === 'ORDER_RELEASED' || route.status === 'ORDER_CANCELED' || route.status === 'ORDER_FORCE_CANCELED';

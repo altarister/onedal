@@ -1,5 +1,7 @@
-import { mapVehicleToKakaoCarType, getRemainingCapacityTypes, deriveDispatchPhase, normalizeVehicleType } from "@onedal/shared";
-import type { SecuredOrder, AutoDispatchFilter, PricingConfig, PendingOrder, MyOrder } from "@onedal/shared";
+import { mapVehicleToKakaoCarType, getRemainingCapacityTypes, deriveDispatchPhase, normalizeVehicleType,
+         MILESTONE_TO_STATUS, canReportMilestone } from "@onedal/shared";
+import type { SecuredOrder, AutoDispatchFilter, PricingConfig, PendingOrder, MyOrder,
+              Milestone, MilestoneSource } from "@onedal/shared";
 import { geocodeAddress, calculateSoloRoute, calculateDetourRoute, compareDirections } from "./kakaoService";
 import { fetchRealWorldRoute } from "../routes/osrmUtil";
 import { getUserSession } from "../state/userSessionStore";
@@ -767,8 +769,112 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
 // 아래 함수들은 socketHandlers.ts의 소켓 이벤트 핸들러에 85줄+ 인라인되어 있던 
 // 비즈니스 로직을 함수로 추출한 것입니다.
 
+export interface MilestoneResult {
+    success: boolean;
+    /** 이미 같은 마일스톤이 기록돼 있어 아무것도 하지 않음 (오류가 아니다) */
+    duplicated?: boolean;
+    reason?: string;
+    status?: string;
+}
+
+/**
+ * [Phase 8.2] 상차/하차 보고를 받는 **유일한 진입점**.
+ *
+ * 기사님 말: *"화면 분석해서 자동으로 하든, 내가 직접 누르든, 앱으로부터 받든
+ * 이벤트를 받게 될 것이다."* — 진입점이 셋이다.
+ * 오늘 EE에서 배운 것: **갈래가 셋이면 셋이 어긋난다. 진입점만 셋, 본체는 하나.**
+ *
+ * 이 함수가 책임지는 것
+ *   ① 멱등성   같은 보고가 자동 감지 + 수동 클릭으로 두 번 와도 한 번만 반영
+ *   ② 역행 방지 하차한 뒤 상차 보고가 늦게 도착해도 상태를 되돌리지 않는다
+ *   ③ 상태 전이 ORDER_CONFIRMED → ORDER_PICKED_UP → ORDER_DELIVERED
+ *   ④ 적재 회복 DELIVERED 는 종결 상태이므로 getActiveCalls()에서 빠지고,
+ *              경로 재계산이 잔여 용량과 회랑을 다시 넓혀 준다
+ *   ⑤ 출처 기록 나중에 자동 감지 정확도를 측정할 유일한 근거
+ */
+export async function reportMilestone(
+    userId: string,
+    orderId: string,
+    milestone: Milestone,
+    source: MilestoneSource,
+    io: any,
+    occurredAt?: string,
+): Promise<MilestoneResult> {
+    const session = getUserSession(userId);
+    const order = session.myOrders.find(c => c.id === orderId);
+    if (!order) {
+        console.warn(`⚠️ [마일스톤] ${milestone} — 오더 ${orderId} 를 찾을 수 없음`);
+        return { success: false, reason: "ORDER_NOT_FOUND" };
+    }
+
+    // ② 역행 방지. 이미 하차한 콜에 상차 보고가 늦게 도착하는 경우가 실제로 생긴다
+    //    (앱이 통신 끊겼다 복구되며 밀린 이벤트를 몰아서 보낼 때)
+    if (!canReportMilestone(order.status, milestone)) {
+        // "이미 보고함"과 "순서가 안 맞음"은 기사님에게 다른 뜻이다.
+        // 앞은 정상(버튼 두 번 누름), 뒤는 뭔가 어긋났다는 신호이므로 구분해서 돌려준다.
+        const already = order.status === MILESTONE_TO_STATUS[milestone];
+        const reason = already ? "ALREADY_REPORTED" : "OUT_OF_ORDER";
+        console.log(`↩️ [마일스톤] ${milestone} 무시 (${reason}) — 현재 상태 ${order.status}`);
+        return { success: true, duplicated: true, reason, status: order.status };
+    }
+
+    const nowIso = new Date().toISOString();
+    // ① 멱등성은 DB UNIQUE 로 보장한다. 애플리케이션 체크만 두면 동시 요청에서 뚫린다
+    const insert = db.prepare(`
+        INSERT OR IGNORE INTO order_milestones (orderId, userId, milestone, source, occurredAt, recordedAt)
+        VALUES (?, ?, ?, ?, ?, ?)
+    `).run(orderId, userId, milestone, source, occurredAt || nowIso, nowIso);
+
+    if (insert.changes === 0) {
+        console.log(`🔁 [마일스톤] ${milestone} (${source}) 중복 — ${orderId} 는 이미 기록됨`);
+        return { success: true, duplicated: true, status: order.status };
+    }
+
+    // ③ 상태 전이
+    const nextStatus = MILESTONE_TO_STATUS[milestone];
+    order.status = nextStatus as any;
+    const cached = session.pendingOrdersData.get(orderId);
+    if (cached) cached.status = nextStatus as any;
+
+    try {
+        if (milestone === 'DELIVERED') {
+            db.prepare(`UPDATE orders SET status = ?, completedAt = ? WHERE id = ? AND userId = ?`)
+              .run(nextStatus, occurredAt || nowIso, orderId, userId);
+        } else {
+            db.prepare(`UPDATE orders SET status = ? WHERE id = ? AND userId = ?`)
+              .run(nextStatus, orderId, userId);
+        }
+    } catch (e) {
+        console.error(`🚨 [마일스톤] DB 갱신 실패:`, e);
+    }
+
+    const label = milestone === 'PICKED_UP' ? '상차' : '하차';
+    console.log(`📦 [${label} 보고] ${orderId.slice(0, 8)} (${source}) → ${nextStatus}`);
+    logRoadmapEvent("서버", `[마일스톤] ${label} 보고 수신 (${source}) — ${nextStatus} 로 전이`);
+
+    // ④ 하차하면 그 짐은 더 이상 실려 있지 않다. 경로·잔여 용량·회랑을 다시 계산한다.
+    //    (recalculateActiveKakaoRoute 는 활성 콜이 0건이면 회랑도 첫짐 모드로 되돌린다)
+    if (milestone === 'DELIVERED') {
+        const remaining = getActiveCalls(session);
+        await recalculateActiveKakaoRoute(userId, io);
+        console.log(`🚚 [적재 회복] 하차 완료 → 남은 활성 콜 ${remaining.length}건 기준으로 필터 재계산`);
+    }
+
+    if (io) {
+        io.to(userId).emit("sync-active-orders", Array.from(session.pendingOrdersData.values()));
+        io.to(userId).emit("filter-updated", {
+            activeFilter: session.activeFilter,
+            baseFilter: session.baseFilter,
+        });
+    }
+
+    return { success: true, status: nextStatus };
+}
+
 /**
  * 운행 완료 처리: 메모리 상태 변경 + DB 영구화 + 경로 재계산
+ * ⚠️ 하차 보고(reportMilestone DELIVERED)와 별개인 **수동 종료** 경로다.
+ *    마일스톤을 건너뛰고 바로 닫고 싶을 때만 쓴다.
  */
 export async function completeOrder(userId: string, orderId: string, io: any): Promise<boolean> {
     const session = getUserSession(userId);

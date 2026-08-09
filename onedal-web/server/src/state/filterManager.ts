@@ -12,9 +12,10 @@
  */
 
 import db from "../db";
+import { getActiveCalls } from "../core/helpers";
 import { getUserSession } from "./userSessionStore";
 import type { AutoDispatchFilter } from "@onedal/shared";
-import { getEligibleVehicleTypes } from "@onedal/shared";
+import { getEligibleVehicleTypes, getRemainingCapacityTypes } from "@onedal/shared";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { getCityRegionsWithRadius } from "../services/geoService";
 
@@ -75,10 +76,24 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
     }
     // else: 도시/반경 변경 없음 → 기존 캐시된 destinationKeywords 유지 (이벤트 루프 보호)
 
-    // allowedVehicleTypes: 명시적으로 전달된 경우에만 사용, 아니면 기사 차종으로 자동 생성
-    // (이 연산은 경량이므로 매번 실행해도 무방)
+    // 🔴 allowedVehicleTypes — 예전에는 명시적으로 안 넘기면 **첫짐 목록으로 리셋**했다.
+    //
+    //     if (!changes.allowedVehicleTypes)
+    //         = getEligibleVehicleTypes(내 차종)   ← 만재든 아니든 전 차종 허용
+    //
+    // 그래서 합짐 도중 회랑이 갱신될 때마다(syncCorridorFilter 는 키워드만 넘긴다)
+    // **적재 용량 제한이 조용히 풀렸다.** 라보 2개를 싣고도 1t 콜을 잡으러 가는 상태가 된다.
+    // 실측: 상태 복구가 [오토바이, 다마스, 승용차] 로 좁혀 놓은 직후 회랑 갱신 한 번에
+    //       5종 전체로 되돌아갔다 (2026-08-10 스모크).
+    //
+    // 이슈 W·S 에서 세운 원칙과 같다 — **상태를 저장하지 말고 데이터에서 파생시킨다.**
+    // 지금 실려 있는 짐이 진실이므로 거기서 매번 다시 구한다.
     if (!changes.allowedVehicleTypes) {
-        session.activeFilter.allowedVehicleTypes = getEligibleVehicleTypes(session.userVehicleType || '1t');
+        const myVehicle = session.userVehicleType || '1t';
+        const loaded = getActiveCalls(session);
+        session.activeFilter.allowedVehicleTypes = loaded.length > 0
+            ? getRemainingCapacityTypes(myVehicle, loaded.map(c => c.vehicleType || myVehicle))
+            : getEligibleVehicleTypes(myVehicle);
     }
 }
 
