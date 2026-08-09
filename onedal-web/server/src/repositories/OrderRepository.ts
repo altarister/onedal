@@ -11,13 +11,20 @@ export class OrderRepository {
                 id, type, pickup, dropoff, fare, timestamp, status, userId, capturedAt, capturedDeviceId,
                 vehicleType, distanceKm, totalDistanceKm, totalDurationMin, kakaoSoloDistanceKm, kakaoSoloDurationMin, kakaoTimeExt,
                 paymentType, billingType, commissionRate, tollFare, tripType, orderForm, itemDescription, detailMemo,
-                dispatcherName, dispatcherPhone, isShared, isExpress
+                dispatcherName, dispatcherPhone, isShared, isExpress,
+                -- [2026-08-10] 앱은 예전부터 보내고 DB에도 컬럼이 있는데 이 목록에만 빠져 있어
+                -- 16건 전부 저장되지 않고 있었다. scheduleText 는 "낼09시/급송" 같은
+                -- 예약 표기의 원문이라, 이게 없으면 시간창 경로 최적화의 입력 자체가 없다.
+                scheduleText, postTime
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET 
                 status = 'ORDER_CONFIRMED', 
                 userId = excluded.userId, 
-                capturedAt = excluded.capturedAt
+                capturedAt = excluded.capturedAt,
+                -- 재확정 시 값이 비어 들어와도 기존 값을 지우지 않는다 (PlaceRepository 와 같은 규약)
+                scheduleText = COALESCE(excluded.scheduleText, scheduleText),
+                postTime = COALESCE(excluded.postTime, postTime)
         `);
         
         stmtOrder.run(
@@ -52,7 +59,9 @@ export class OrderRepository {
             cachedOrder.dispatcherName || null,
             cachedOrder.dispatcherPhone || null,
             isShared,
-            isExpress
+            isExpress,
+            cachedOrder.scheduleText || null,
+            cachedOrder.postTime || null
         );
     }
 

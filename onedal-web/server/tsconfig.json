@@ -7,6 +7,10 @@
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
+    // tests/ 는 include(src/**/*) 밖이라 @types/jest 가 자동으로 잡히지 않는다.
+    // 기존 테스트 두 개는 파일 상단 `// @ts-nocheck` 로 덮어 두었는데,
+    // 그러면 테스트 코드 자체의 타입 오류를 영영 못 본다. 여기서 명시적으로 로드한다.
+    "types": ["node", "jest"],
   },
   "include": ["src/**/*"]
 }

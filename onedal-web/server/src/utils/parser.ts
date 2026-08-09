@@ -1,4 +1,5 @@
-import type { LocationDetailInfo } from "@onedal/shared";
+import type { LocationDetailInfo, PaymentType } from "@onedal/shared";
+import { PAYMENT_TYPES } from "@onedal/shared";
 
 /**
  * 텍스트 블록 안에서 특정 키워드(예: "상호/이름", "위치", "전화1")로 시작하는 줄을 찾아
@@ -59,21 +60,41 @@ export function parseLocationDetails(rawText: string, searchTag: "[출발지상�
 }
 
 /**
- * [목업 지원 전용] 수동 배차/테스트 환경에서
- * 안드로이드 기기 스크래퍼(NativeScrapParser)가 부재할 경우, 
- * 서버가 대신 원시 텍스트에서 요금을 분석하여 값을 리턴합니다.
+ * 원시 텍스트에서 요금을 읽는다.
+ *
+ * ⚠️ 이름은 "Mockup"이지만 **목업 전용이 아니다.** `detail.ts`에서 앱이 요금을 못 긁었을 때
+ *    (`fare <= 0`) 실제로 호출되는 폴백 경로다. 앱의 리스트 파서는 차종코드 옆 만 단위
+ *    축약값("라 2.2")을 읽도록 만들어져 있어, 확정 상세 화면("요금 : 40,000(신용)")에서는
+ *    요금을 못 잡고 0을 보낸다. 그때 이 함수가 판정의 유일한 근거가 된다.
+ *
+ * 표기가 세 종류라 "이 숫자가 원 단위인가 축약형인가"를 판별해야 한다.
+ *   ① 쉼표 있음  `40,000`  → **원 단위 확정**. 축약형은 쉼표를 쓰지 않는다
+ *   ② 접미사/소수 `4.5만` `42.5` → 축약형
+ *   ③ 맨 정수    `45` `45000` → 크기로 판별 (1000 미만이면 축약형)
  */
 export function parseMockupFare(rawText: string): number | undefined {
     if (!rawText) return undefined;
 
-    // 1. 명시적 요금 포맷 (예: "요금: 45000", "금액 4.5만")
-    const fareMatch = rawText.match(/(?:요금|금액)\s*[:]?\s*(\d+(?:\.\d+)?)(만|천)?/);
+    // 1. 명시적 요금 포맷 (예: "요금 : 40,000(신용)", "요금: 45000", "금액 4.5만")
+    //    쉼표를 포함해서 잡는다. 예전에는 `\d+`가 쉼표에서 멈춰 "40,000"을 40으로 읽었다.
+    const fareMatch = rawText.match(/(?:요금|금액)\s*[:]?\s*([\d,]+(?:\.\d+)?)\s*(만|천)?/);
     if (fareMatch) {
-        const val = parseFloat(fareMatch[1]);
+        const hadComma = fareMatch[1].includes(",");
+        const val = parseFloat(fareMatch[1].replace(/,/g, ""));
+        if (!Number.isFinite(val)) return undefined;
+
         if (fareMatch[2] === "만") return val * 10000;
         if (fareMatch[2] === "천") return val * 1000;
-        if (val >= 10 && val <= 9999) return val * 1000; // 인성콜 축약형
-        return val; // 실제 45000 형식
+
+        // 쉼표는 "원 단위로 쓴 금액"이라는 확실한 신호다 (40,000 → 40000원)
+        if (hadComma) return val;
+
+        // 🔴 예전 규칙은 `val >= 10 && val <= 9999` 이면 축약형으로 보고 ×1000 했다.
+        //    그래서 "요금 : 8000"(8천원 똥콜)이 **800만원 초꿀콜**로 판정되어
+        //    하한가 필터를 그대로 통과했다. 1000원 미만일 때만 축약형으로 본다
+        //    (800원짜리 퀵은 존재하지 않으므로 800은 80만원 축약으로 읽는 게 맞다).
+        if (val < 1000) return val * 1000;
+        return val;
     }
 
     // 2. 정확한 4~5자리 정수 (최소 1만원 이상)
@@ -180,7 +201,13 @@ export function parseDetailedRawText(rawText: string): any {
     result.orderForm = extractField(lines, "오더형태") || "일반";
 
     // 3. 결제 관련
-    result.paymentType = extractField(lines, "결제방법") || extractField(lines, "지불") || extractField(lines, "결제");
+    // 결제방법은 **독립 필드가 아니라 요금 값의 괄호 안**에 있다 (`요금 : 40,000(신용)`).
+    // 예전에는 존재하지 않는 "결제방법" 필드명을 찾고 있어 실측 16건이 전부 null 이었다.
+    // 괄호 안 자유 텍스트("협의" 등)를 결제수단으로 오인하지 않도록 알려진 값만 채택한다.
+    const payInFare = rawText.match(/(?:요금|금액)\s*[:]?\s*[\d,.]+\s*\(([^)]+)\)/);
+    const payCandidate = payInFare?.[1]?.trim();
+    result.paymentType = (PAYMENT_TYPES.includes(payCandidate as PaymentType) ? payCandidate : undefined)
+        || extractField(lines, "결제방법") || extractField(lines, "지불") || extractField(lines, "결제");
     result.billingType = extractField(lines, "계산서") || extractField(lines, "영수증");
     result.commissionRate = extractField(lines, "수수료") || extractField(lines, "수수료율");
     result.tollFare = extractField(lines, "탁송료") || extractField(lines, "경유비");
