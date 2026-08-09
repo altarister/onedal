@@ -79,6 +79,7 @@ export default function StopCallSheet({
     const [deadlineAt, setDeadlineAt] = useState<string | undefined>(saved?.deadlineAt);
     const [buffer, setBuffer] = useState<number>(DEFAULT_BUFFER_MINUTES);
     const [showAdjust, setShowAdjust] = useState(false);
+    const isDeclaredMode = kind === 'DECLARED';
 
     const eff = {
         unit: unit ?? (ghost?.unit as CargoUnit | undefined),
@@ -225,6 +226,11 @@ export default function StopCallSheet({
                         </>
                     )}
 
+                    {/* ══ 통화 대본 — 통화 모드에서만 ══
+                        기사님: "현장 확인 탭에서는 전화 멘트가 필요 없고
+                        통화 내용과 결과가 같은지만 확인하면 된다."
+                        현장에서는 이미 눈앞에 물건이 있다. 읽을 문장이 필요 없다. ══ */}
+                    {isDeclaredMode && (<>
                     {/* ══ 통화 대본 — 이걸 그대로 읽는다 ══
                         시스템이 이미 아는 값(이동 시간·상차 소요)을 기사님이 머릿속으로
                         더하고 있을 이유가 없다. 문장으로 만들어 준다. */}
@@ -267,8 +273,36 @@ export default function StopCallSheet({
                         </button>
                     </div>
 
+                    </>)}
+
+                    {/* ══ 현장 확인 모드: 통화 내용과 대조만 ══ */}
+                    {!isDeclaredMode && declared && (
+                        <div className="rounded-md border border-border bg-surface-alt/30 p-2.5">
+                            <div className="text-[10px] font-black text-text-muted mb-1.5">📞 통화로 들은 내용</div>
+                            <div className="text-[13px] font-bold text-text-primary">
+                                {[
+                                    declared.unit && `${declared.unit}${declared.quantity ? ` ${declared.quantity}개` : ''}`,
+                                    declared.handling,
+                                    declared.tags?.join('·'),
+                                    declared.deadlineAt && `${hhmm(declared.deadlineAt)}까지`,
+                                ].filter(Boolean).join(' · ') || '기록 없음'}
+                            </div>
+                            {declared.memo && <div className="text-[11px] text-text-muted mt-1">{declared.memo}</div>}
+                            {(() => {
+                                const declaredPts = unitPoints(declared.unit, declared.quantity);
+                                if (!declaredPts || !points || declaredPts === points) return null;
+                                const ratio = points / declaredPts;
+                                return (
+                                    <div className="mt-2 text-[12px] font-black text-danger">
+                                        ⚠️ 실제가 신고의 {ratio.toFixed(1)}배 — 사무실 확인이 필요할 수 있습니다
+                                    </div>
+                                );
+                            })()}
+                        </div>
+                    )}
+
                     {/* 담당자가 다른 시각을 부르면 그때만 펼친다 */}
-                    {showAdjust && (
+                    {showAdjust && isDeclaredMode && (
                         <Row title={isPickup ? '상차' : '도착'}>
                             {hourSlots.map(sl => (
                                 <button key={sl.iso} onClick={() => setDeadlineAt(deadlineAt === sl.iso ? undefined : sl.iso)}

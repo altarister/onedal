@@ -242,10 +242,11 @@ db.exec(`
         id              INTEGER PRIMARY KEY AUTOINCREMENT,
         orderId         TEXT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
         userId          TEXT NOT NULL,
-        milestone       TEXT NOT NULL CHECK(milestone IN ('PICKED_UP', 'DELIVERED')),
+        milestone       TEXT NOT NULL CHECK(milestone IN ('ARRIVED_PICKUP', 'PICKED_UP', 'ARRIVED_DROPOFF', 'DELIVERED')),
         source          TEXT NOT NULL CHECK(source IN ('AUTO_SCRAPE', 'APP_BUTTON', 'MANUAL_WEB')),
-        occurredAt      TEXT NOT NULL,
-        recordedAt      TEXT NOT NULL,
+        occurredAt      TEXT NOT NULL,   -- 실제로 일어난 시각 (버튼을 누른 때)
+        predictedAt     TEXT,            -- 그때 우리가 예상했던 시각 — 오차 계산용
+        recordedAt      TEXT NOT NULL,   -- 서버가 받은 시각
         UNIQUE(orderId, milestone)
     );
     CREATE INDEX IF NOT EXISTS idx_milestones_orderId ON order_milestones(orderId);

@@ -9,6 +9,7 @@ import { logRoadmapEvent } from '../../lib/roadmapLogger';
 import { Badge } from "../ui/badge";
 import StopCallSheet from './StopCallSheet';
 import type { CargoReport } from "@onedal/shared";
+import { MILESTONE_LABEL, timingError } from "@onedal/shared";
 import { Button } from "../ui/button";
 
 interface Props {
@@ -44,14 +45,23 @@ export default function PinnedRouteCard({
     // [Phase 8.4] 통화/현장 기록. 아코디언을 **열 때만** 불러온다 —
     // 카드가 여러 장이라 전부 미리 받으면 1초 동기화마다 낭비가 된다.
     const [cargoReports, setCargoReports] = useState<CargoReport[]>([]);
+    const [milestoneLog, setMilestoneLog] = useState<Array<{ milestone: string; occurredAt: string; predictedAt?: string }>>([]);
     useEffect(() => {
         if (!isExpanded) return;
         const onSaved = (d: { orderId: string; reports: CargoReport[] }) => {
             if (d.orderId === route.id) setCargoReports(d.reports || []);
         };
+        const onMilestones = (d: { orderId: string; milestones: any[] }) => {
+            if (d.orderId === route.id) setMilestoneLog(d.milestones || []);
+        };
         socket.on("cargo-report-saved", onSaved);
+        socket.on("milestone-log", onMilestones);
         socket.emit("request-cargo-reports", { orderId: route.id });
-        return () => { socket.off("cargo-report-saved", onSaved); };
+        socket.emit("request-milestones", { orderId: route.id });
+        return () => {
+            socket.off("cargo-report-saved", onSaved);
+            socket.off("milestone-log", onMilestones);
+        };
     }, [isExpanded, route.id]);
 
     useEffect(() => {
@@ -382,48 +392,64 @@ export default function PinnedRouteCard({
                         })()}
                     </div>
 
-                    {/* [Phase 8.2] 상차 / 하차 보고
-                        확정과 완료 사이의 실제 업무 단계다. 예전에는 '운행 완료' 버튼 하나뿐이라
-                        하차해도 서버가 계속 "적재 중"으로 믿었고, 잔여 용량이 회복되지 않아
-                        합짐 필터가 좁은 채로 남아 다음 짐을 못 잡았다.
-                        인성앱의 [출발지][서명] / [도착지][서명] 에 대응한다. */}
-                    {(route.status === 'ORDER_CONFIRMED' || route.status === 'ORDER_PICKED_UP') && (
-                        <div className="mt-4 flex gap-3">
-                            <Button
-                                variant="outline"
-                                disabled={processingId === route.id || route.status === 'ORDER_PICKED_UP'}
-                                onClick={(e: React.MouseEvent) => {
-                                    e.stopPropagation();
-                                    setProcessingId(route.id);
-                                    logRoadmapEvent("웹", "상차 보고(PICKED_UP) 전송");
-                                    socket.emit("report-milestone", { orderId: route.id, milestone: 'PICKED_UP' });
-                                    setTimeout(() => setProcessingId(null), 1000);
-                                }}
-                                className={`flex-1 py-3 text-sm font-bold border-info/50 ${
-                                    route.status === 'ORDER_PICKED_UP'
-                                        ? 'bg-info/20 text-info opacity-70'
-                                        : 'bg-info/10 text-info hover:bg-info/20'
-                                }`}
-                            >
-                                {route.status === 'ORDER_PICKED_UP' ? '📦 상차 완료됨' : '📦 상차 보고'}
-                            </Button>
-                            <Button
-                                variant="outline"
-                                disabled={processingId === route.id}
-                                onClick={(e: React.MouseEvent) => {
-                                    e.stopPropagation();
-                                    setProcessingId(route.id);
-                                    logRoadmapEvent("웹", "하차 보고(DELIVERED) 전송 — 적재 공간 회복");
-                                    socket.emit("report-milestone", { orderId: route.id, milestone: 'DELIVERED' });
-                                    onToggle(route.id); // 아코디언 닫기
-                                    setTimeout(() => setProcessingId(null), 1000);
-                                }}
-                                className="flex-1 py-3 text-sm font-bold bg-success/10 text-success hover:bg-success/20 border-success/50"
-                            >
-                                {processingId === route.id ? '처리 중...' : '🏁 하차 보고'}
-                            </Button>
-                        </div>
-                    )}
+                    {/* [Phase 8.2/8.3] 운행 진행 버튼 — 도착과 완료를 나눠 받는다
+                        기사님: "실제로 도착 버튼과 상차 완료 버튼을 누른 시간을 넣어 주어
+                        저장해 주면 예상 시간과 오차를 확인할 수 있을 듯하다."
+                        도착~완료 사이가 곧 실제 상하차 소요 시간이라, 우리가 쓰는 추정 계수
+                        (지게차 19분 / 수작업 60분)를 현장 실측으로 검증할 수 있다. */}
+                    {(route.status === 'ORDER_CONFIRMED' || route.status === 'ORDER_PICKED_UP') && (() => {
+                        const done = new Set(milestoneLog.map(m => m.milestone));
+                        const isLoaded = route.status === 'ORDER_PICKED_UP';
+                        // 예상 시각: 상차지는 approach, 하차지는 approach + 단독 주행
+                        const predict = (min: number) => new Date(Date.now() + min * 60_000).toISOString();
+                        const approach = route.approachDurationMin ?? 0;
+                        const haul = route.kakaoSoloDurationMin ?? 0;
+
+                        const send = (milestone: string, predictedAt?: string) => {
+                            setProcessingId(route.id);
+                            logRoadmapEvent("웹", `${milestone} 보고 전송`);
+                            socket.emit("report-milestone", { orderId: route.id, milestone, predictedAt });
+                            setTimeout(() => setProcessingId(null), 1000);
+                        };
+
+                        const btn = (key: string, label: string, predictedAt: string | undefined, tone: string) => (
+                            <button key={key}
+                                disabled={processingId === route.id || done.has(key)}
+                                onClick={(e: React.MouseEvent) => { e.stopPropagation(); send(key, predictedAt); }}
+                                className={`flex-1 py-3 rounded-md text-[13px] font-black border transition-colors ${
+                                    done.has(key) ? 'bg-text-muted/10 text-text-muted border-border' : tone
+                                }`}>
+                                {done.has(key) ? `✓ ${label}` : label}
+                            </button>
+                        );
+
+                        return (
+                            <div className="mt-4 flex flex-col gap-2">
+                                <div className="flex gap-2">
+                                    {!isLoaded && btn('ARRIVED_PICKUP', '📍 상차지 도착', predict(approach), 'bg-info/10 text-info border-info/40')}
+                                    {!isLoaded && btn('PICKED_UP', '📦 상차 완료', undefined, 'bg-info/15 text-info border-info/50')}
+                                    {isLoaded && btn('ARRIVED_DROPOFF', '📍 하차지 도착', predict(haul), 'bg-info/10 text-info border-info/40')}
+                                    {isLoaded && btn('DELIVERED', '🏁 하차 완료', undefined, 'bg-success/12 text-success border-success/50')}
+                                </div>
+                                {milestoneLog.length > 0 && (
+                                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-text-muted px-0.5">
+                                        {milestoneLog.map(m => (
+                                            <span key={m.milestone}>
+                                                {MILESTONE_LABEL[m.milestone as keyof typeof MILESTONE_LABEL]} {m.occurredAt?.slice(11, 16)}
+                                                {(() => {
+                                                    const err = timingError(m.predictedAt, m.occurredAt);
+                                                    if (err === null) return null;
+                                                    return <b className={err > 5 ? 'text-danger ml-1' : 'text-success ml-1'}>
+                                                        {err > 0 ? `+${err}분` : err < 0 ? `${err}분` : '정시'}
+                                                    </b>;
+                                                })()}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })()}
 
                     {/* 방출 / 사무실 취소 */}
                     {(route.status === 'ORDER_CONFIRMED' || route.status === 'ORDER_PICKED_UP') && onDecision && (

@@ -66,8 +66,17 @@ export const TERMINAL_STATUSES: readonly OrderStatus[] = [
 // [Phase 8.2] 운행 마일스톤 — 확정과 종료 사이의 실제 업무 단계
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-/** 상차 보고 / 하차 보고. 배차망이 요구하는 필수 업무이므로 반드시 발생한다 */
-export const MILESTONES = ['PICKED_UP', 'DELIVERED'] as const;
+/**
+ * 운행 마일스톤 4단계.
+ *
+ * 기사님: *"실제로 도착 버튼과 상차 완료 버튼을 누른 시간을 넣어 주어 저장해 주면
+ * **예상 시간과 오차를 확인**할 수 있을 듯하다."*
+ *
+ * 🎯 그래서 도착을 따로 받는다. 도착과 완료 사이가 곧 **실제 상하차 소요 시간**이라,
+ *    `dwellMinutes()` 의 추정치(지게차 19분 / 수작업 60분)를 **실측으로 검증**할 수 있다.
+ *    지금 그 값은 내가 정한 계수일 뿐이다. 기사님 현장에서 맞는지는 재봐야 안다.
+ */
+export const MILESTONES = ['ARRIVED_PICKUP', 'PICKED_UP', 'ARRIVED_DROPOFF', 'DELIVERED'] as const;
 export type Milestone = typeof MILESTONES[number];
 
 /**
@@ -81,9 +90,23 @@ export const MILESTONE_SOURCES = ['AUTO_SCRAPE', 'APP_BUTTON', 'MANUAL_WEB'] as 
 export type MilestoneSource = typeof MILESTONE_SOURCES[number];
 
 /** 마일스톤 → 그 보고가 성립했을 때의 오더 상태 */
-export const MILESTONE_TO_STATUS: Record<Milestone, OrderStatus> = {
+/**
+ * 마일스톤 → 오더 상태.
+ * 도착(ARRIVED_*)은 **상태를 바꾸지 않는다** — 도착했다고 짐이 실린 것은 아니다.
+ * 시각만 기록해 두고 오차 계산에 쓴다.
+ */
+export const MILESTONE_TO_STATUS: Record<Milestone, OrderStatus | null> = {
+    ARRIVED_PICKUP: null,
     PICKED_UP: 'ORDER_PICKED_UP',
+    ARRIVED_DROPOFF: null,
     DELIVERED: 'ORDER_DELIVERED',
+};
+
+export const MILESTONE_LABEL: Record<Milestone, string> = {
+    ARRIVED_PICKUP: '상차지 도착',
+    PICKED_UP: '상차 완료',
+    ARRIVED_DROPOFF: '하차지 도착',
+    DELIVERED: '하차 완료',
 };
 
 /**
@@ -160,8 +183,26 @@ export function cargoMismatchRatio(declared?: CargoReport | null, actual?: Cargo
 }
 
 export function canReportMilestone(status: string | undefined, milestone: Milestone): boolean {
-    if (milestone === 'PICKED_UP') return status === 'ORDER_CONFIRMED';
-    return status === 'ORDER_CONFIRMED' || status === 'ORDER_PICKED_UP';
+    switch (milestone) {
+        // 도착은 상태를 바꾸지 않으므로 아직 안 끝난 콜이면 언제든 받는다
+        case 'ARRIVED_PICKUP':  return status === 'ORDER_CONFIRMED';
+        case 'PICKED_UP':       return status === 'ORDER_CONFIRMED';
+        case 'ARRIVED_DROPOFF': return status === 'ORDER_CONFIRMED' || status === 'ORDER_PICKED_UP';
+        case 'DELIVERED':       return status === 'ORDER_CONFIRMED' || status === 'ORDER_PICKED_UP';
+        default: return false;
+    }
+}
+
+/**
+ * 예상과 실제의 오차(분). 양수면 늦은 것.
+ * 이 값이 쌓이면 `dwellMinutes()` 계수와 카카오 ETA 를 현장에 맞게 교정할 수 있다.
+ */
+export function timingError(predictedAt?: string | null, occurredAt?: string | null): number | null {
+    if (!predictedAt || !occurredAt) return null;
+    const p = new Date(predictedAt).getTime();
+    const o = new Date(occurredAt).getTime();
+    if (!Number.isFinite(p) || !Number.isFinite(o)) return null;
+    return Math.round((o - p) / 60000);
 }
 
 /** 주어진 상태가 평가/심사 중인지 판별 */

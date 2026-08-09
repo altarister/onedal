@@ -96,6 +96,12 @@ export class OrderRepository {
         return rows.map(r => ({ ...r, tags: r.tags ? JSON.parse(r.tags) : undefined })) as CargoReport[];
     }
 
+    /** 한 오더의 마일스톤 이력 (예상 대비 오차 확인용) */
+    public static getMilestones(orderId: string) {
+        return db.prepare(`SELECT milestone, occurredAt, predictedAt, source
+                           FROM order_milestones WHERE orderId = ? ORDER BY occurredAt`).all(orderId);
+    }
+
     /**
      * 수동 취소 등 상태값을 변경합니다.
      */

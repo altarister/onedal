@@ -7,6 +7,7 @@ import {
     TERMINAL_STATUSES,
     cargoPoints,
     cargoMismatchRatio,
+    timingError,
 } from '@onedal/shared';
 
 /**
@@ -18,8 +19,16 @@ import {
  * 진입점이 셋이므로 순서 역전과 중복이 반드시 생긴다. 규칙을 여기서 못박는다.
  */
 describe('마일스톤 규격', () => {
-    it('마일스톤은 상차/하차 둘뿐이다', () => {
-        expect(MILESTONES).toEqual(['PICKED_UP', 'DELIVERED']);
+    it('도착과 완료를 나눠 4단계로 받는다', () => {
+        // 기사님: "실제로 도착 버튼과 상차 완료 버튼을 누른 시간을 넣어 주어 저장해 주면
+        //          예상 시간과 오차를 확인할 수 있을 듯하다."
+        // 도착과 완료 사이가 곧 실제 상하차 소요 시간이라, dwellMinutes() 추정 계수를 검증할 수 있다.
+        expect(MILESTONES).toEqual(['ARRIVED_PICKUP', 'PICKED_UP', 'ARRIVED_DROPOFF', 'DELIVERED']);
+    });
+
+    it('도착은 상태를 바꾸지 않는다 — 도착했다고 짐이 실린 것은 아니다', () => {
+        expect(MILESTONE_TO_STATUS.ARRIVED_PICKUP).toBeNull();
+        expect(MILESTONE_TO_STATUS.ARRIVED_DROPOFF).toBeNull();
     });
 
     it('진입 경로 셋을 모두 구분해 기록한다 (자동 감지 정확도 측정 근거)', () => {
@@ -35,6 +44,12 @@ describe('마일스톤 규격', () => {
 describe('canReportMilestone — 상태 전이 규칙', () => {
     it('확정된 콜만 상차 보고할 수 있다', () => {
         expect(canReportMilestone('ORDER_CONFIRMED', 'PICKED_UP')).toBe(true);
+        expect(canReportMilestone('ORDER_CONFIRMED', 'ARRIVED_PICKUP')).toBe(true);
+    });
+
+    it('상차한 뒤에는 하차지 도착을 받는다', () => {
+        expect(canReportMilestone('ORDER_PICKED_UP', 'ARRIVED_DROPOFF')).toBe(true);
+        expect(canReportMilestone('ORDER_PICKED_UP', 'ARRIVED_PICKUP')).toBe(false);
     });
 
     it('평가 중인 콜은 상차 보고할 수 없다', () => {
@@ -120,5 +135,19 @@ describe('화물 신고 — 신고값 vs 실측값 (Phase 8.4)', () => {
         const d = { stopType: 'pickup' as const, kind: 'DECLARED' as const, sizeClass: '중' as const, quantity: 1 };
         expect(cargoMismatchRatio(d, null)).toBeNull();
         expect(cargoMismatchRatio(null, d)).toBeNull();
+    });
+});
+
+describe('timingError — 예상 대비 오차', () => {
+    it('늦으면 양수, 빠르면 음수', () => {
+        const 예상 = '2026-08-10T15:00:00+09:00';
+        expect(timingError(예상, '2026-08-10T15:12:00+09:00')).toBe(12);
+        expect(timingError(예상, '2026-08-10T14:50:00+09:00')).toBe(-10);
+        expect(timingError(예상, 예상)).toBe(0);
+    });
+
+    it('한쪽이라도 없으면 재지 않는다', () => {
+        expect(timingError(null, '2026-08-10T15:00:00+09:00')).toBeNull();
+        expect(timingError('2026-08-10T15:00:00+09:00', undefined)).toBeNull();
     });
 });

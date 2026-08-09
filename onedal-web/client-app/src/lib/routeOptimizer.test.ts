@@ -51,20 +51,23 @@ describe('buildEtaMap', () => {
             { type: '하차', name: 'D1', isEvaluating: false, routeId: 'o1' },
         ];
         const etas = ['10:00', '10:30'];
-        const result = buildEtaMap(points, etas, true);
+        const result = buildEtaMap(points, etas);
         expect(result.get('o1')).toEqual({ pickupEta: '10:00', dropoffEta: '10:30' });
     });
 
-    it('ETA 배열이 부족하면 마지막 ETA로 폴백', () => {
+    it('🔴 ETA 배열이 부족하면 비워 둔다 (예전에는 마지막 값을 재사용했다)', () => {
+        // 예전 폴백은 상차·하차를 같은 시각으로 만들어 사이 구간이 `-0분-` 이 됐다.
+        // 8.5km 를 0분에 간다는 뜻이라, 틀린 시각을 보여주느니 비워 두는 편이 낫다.
         const points: RoutePoint[] = [
             { type: '상차', name: 'P1', isEvaluating: false, routeId: 'o1' },
             { type: '상차', name: 'P2', isEvaluating: false, routeId: 'o2' },
             { type: '하차', name: 'D1', isEvaluating: false, routeId: 'o1' },
         ];
         const etas = ['10:00']; // 하나만 있음
-        const result = buildEtaMap(points, etas, true);
-        // 세 포인트 모두 같은 ETA로 폴백
-        expect(result.get('o2')?.pickupEta).toBe('10:00');
+        const result = buildEtaMap(points, etas);
+        expect(result.get('o1')?.pickupEta).toBe('10:00');
+        expect(result.get('o2')).toBeUndefined();      // 없는 값을 지어내지 않는다
+        expect(result.get('o1')?.dropoffEta).toBeUndefined();
     });
 });
 

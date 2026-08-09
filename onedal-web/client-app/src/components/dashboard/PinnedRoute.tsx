@@ -79,8 +79,8 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
     const etaMap = useMemo(() => {
         const routeWithEtas = [...safeRoute].reverse().find(r => r.sectionEtas && r.sectionEtas.length > 0);
         if (!routeWithEtas) return new Map<string, { pickupEta?: string; dropoffEta?: string }>();
-        return buildEtaMap(unifiedRoutePoints, routeWithEtas.sectionEtas!, !!myLocation);
-    }, [unifiedRoutePoints, safeRoute, myLocation]);
+        return buildEtaMap(unifiedRoutePoints, routeWithEtas.sectionEtas!);
+    }, [unifiedRoutePoints, safeRoute]);
 
     // 지도 상의 방문 순번(1, 2, 3...)을 콜(주문) ID별 상/하차지로 매핑
     const visitOrderMap = useMemo(() => buildVisitOrderMap(unifiedRoutePoints), [unifiedRoutePoints]);

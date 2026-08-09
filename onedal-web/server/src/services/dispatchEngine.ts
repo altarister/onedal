@@ -1,5 +1,5 @@
 import { mapVehicleToKakaoCarType, getRemainingCapacityTypes, deriveDispatchPhase, normalizeVehicleType,
-         MILESTONE_TO_STATUS, canReportMilestone } from "@onedal/shared";
+         MILESTONE_TO_STATUS, MILESTONE_LABEL, canReportMilestone, timingError } from "@onedal/shared";
 import type { SecuredOrder, AutoDispatchFilter, PricingConfig, PendingOrder, MyOrder,
               Milestone, MilestoneSource } from "@onedal/shared";
 import { geocodeAddress, calculateSoloRoute, calculateDetourRoute, compareDirections } from "./kakaoService";
@@ -799,6 +799,8 @@ export async function reportMilestone(
     source: MilestoneSource,
     io: any,
     occurredAt?: string,
+    /** 이 시점에 우리가 예상했던 시각. 오차를 재기 위해 함께 저장한다 */
+    predictedAt?: string,
 ): Promise<MilestoneResult> {
     const session = getUserSession(userId);
     const order = session.myOrders.find(c => c.id === orderId);
@@ -812,7 +814,7 @@ export async function reportMilestone(
     if (!canReportMilestone(order.status, milestone)) {
         // "이미 보고함"과 "순서가 안 맞음"은 기사님에게 다른 뜻이다.
         // 앞은 정상(버튼 두 번 누름), 뒤는 뭔가 어긋났다는 신호이므로 구분해서 돌려준다.
-        const already = order.status === MILESTONE_TO_STATUS[milestone];
+        const already = !!MILESTONE_TO_STATUS[milestone] && order.status === MILESTONE_TO_STATUS[milestone];
         const reason = already ? "ALREADY_REPORTED" : "OUT_OF_ORDER";
         console.log(`↩️ [마일스톤] ${milestone} 무시 (${reason}) — 현재 상태 ${order.status}`);
         return { success: true, duplicated: true, reason, status: order.status };
@@ -821,36 +823,40 @@ export async function reportMilestone(
     const nowIso = new Date().toISOString();
     // ① 멱등성은 DB UNIQUE 로 보장한다. 애플리케이션 체크만 두면 동시 요청에서 뚫린다
     const insert = db.prepare(`
-        INSERT OR IGNORE INTO order_milestones (orderId, userId, milestone, source, occurredAt, recordedAt)
-        VALUES (?, ?, ?, ?, ?, ?)
-    `).run(orderId, userId, milestone, source, occurredAt || nowIso, nowIso);
+        INSERT OR IGNORE INTO order_milestones (orderId, userId, milestone, source, occurredAt, predictedAt, recordedAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(orderId, userId, milestone, source, occurredAt || nowIso, predictedAt || null, nowIso);
 
     if (insert.changes === 0) {
         console.log(`🔁 [마일스톤] ${milestone} (${source}) 중복 — ${orderId} 는 이미 기록됨`);
         return { success: true, duplicated: true, status: order.status };
     }
 
-    // ③ 상태 전이
+    // ③ 상태 전이. 도착(ARRIVED_*)은 상태를 바꾸지 않는다 — 도착했다고 짐이 실린 건 아니다
     const nextStatus = MILESTONE_TO_STATUS[milestone];
-    order.status = nextStatus as any;
-    const cached = session.pendingOrdersData.get(orderId);
-    if (cached) cached.status = nextStatus as any;
+    if (nextStatus) {
+        order.status = nextStatus as any;
+        const cached = session.pendingOrdersData.get(orderId);
+        if (cached) cached.status = nextStatus as any;
 
-    try {
-        if (milestone === 'DELIVERED') {
-            db.prepare(`UPDATE orders SET status = ?, completedAt = ? WHERE id = ? AND userId = ?`)
-              .run(nextStatus, occurredAt || nowIso, orderId, userId);
-        } else {
-            db.prepare(`UPDATE orders SET status = ? WHERE id = ? AND userId = ?`)
-              .run(nextStatus, orderId, userId);
+        try {
+            if (milestone === 'DELIVERED') {
+                db.prepare(`UPDATE orders SET status = ?, completedAt = ? WHERE id = ? AND userId = ?`)
+                  .run(nextStatus, occurredAt || nowIso, orderId, userId);
+            } else {
+                db.prepare(`UPDATE orders SET status = ? WHERE id = ? AND userId = ?`)
+                  .run(nextStatus, orderId, userId);
+            }
+        } catch (e) {
+            console.error(`🚨 [마일스톤] DB 갱신 실패:`, e);
         }
-    } catch (e) {
-        console.error(`🚨 [마일스톤] DB 갱신 실패:`, e);
     }
 
-    const label = milestone === 'PICKED_UP' ? '상차' : '하차';
-    console.log(`📦 [${label} 보고] ${orderId.slice(0, 8)} (${source}) → ${nextStatus}`);
-    logRoadmapEvent("서버", `[마일스톤] ${label} 보고 수신 (${source}) — ${nextStatus} 로 전이`);
+    // 예상과 실제의 오차를 남긴다. 쌓이면 상하차 소요 계수와 카카오 ETA 를 교정할 수 있다
+    const err = timingError(predictedAt, occurredAt || nowIso);
+    const errText = err === null ? '' : ` | 예상 대비 ${err > 0 ? `+${err}분 지연` : err < 0 ? `${-err}분 빠름` : '정시'}`;
+    console.log(`📦 [${MILESTONE_LABEL[milestone]}] ${orderId.slice(0, 8)} (${source})${nextStatus ? ` → ${nextStatus}` : ''}${errText}`);
+    logRoadmapEvent("서버", `[마일스톤] ${MILESTONE_LABEL[milestone]} 수신 (${source})${errText}`);
 
     // ④ 하차하면 그 짐은 더 이상 실려 있지 않다. 경로·잔여 용량·회랑을 다시 계산한다.
     //    (recalculateActiveKakaoRoute 는 활성 콜이 0건이면 회랑도 첫짐 모드로 되돌린다)
@@ -868,7 +874,7 @@ export async function reportMilestone(
         });
     }
 
-    return { success: true, status: nextStatus };
+    return { success: true, status: nextStatus ?? order.status };
 }
 
 /**
