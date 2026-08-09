@@ -1,4 +1,4 @@
-import { mapVehicleToKakaoCarType, getRemainingCapacityTypes, deriveDispatchPhase } from "@onedal/shared";
+import { mapVehicleToKakaoCarType, getRemainingCapacityTypes, deriveDispatchPhase, normalizeVehicleType } from "@onedal/shared";
 import type { SecuredOrder, AutoDispatchFilter, PricingConfig, PendingOrder, MyOrder } from "@onedal/shared";
 import { geocodeAddress, calculateSoloRoute, calculateDetourRoute, compareDirections } from "./kakaoService";
 import { fetchRealWorldRoute } from "../routes/osrmUtil";
@@ -512,6 +512,14 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
         const loadedVehicles = getActiveCalls(session).map(c => c.vehicleType || myVehicle);
         const sharedVehicleTypes = getRemainingCapacityTypes(myVehicle, loadedVehicles);
         console.log(`🚚 [적재 용량] 내 차: ${myVehicle} | 실은 짐: [${loadedVehicles.join(', ')}] → 추가 가능 차종: [${sharedVehicleTypes.join(', ')}]`);
+
+        // [자체 리뷰 C] 차종을 인식하지 못하면 보수적으로 "내 차를 가득 채운 것"으로 계산한다.
+        // 안전한 방향이지만 그만큼 합짐 사냥 범위가 좁아지므로, 조용히 넘어가면 안 된다.
+        // 파싱 실패율이 높다면 파서를 고쳐야 하므로 눈에 띄게 남긴다.
+        const unknownVehicles = loadedVehicles.filter(v => !normalizeVehicleType(v));
+        if (unknownVehicles.length > 0) {
+            console.warn(`⚠️ [적재 용량] 차종 인식 실패 ${unknownVehicles.length}건 [${unknownVehicles.join(', ')}] → 만재로 간주(보수적). 합짐 범위가 실제보다 좁아집니다.`);
+        }
 
         const transition = StateMachine.advanceOnKeep(session, cachedOrder, destinationKeywords, sharedVehicleTypes);
         if (transition.changed && transition.newFilter) {

@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { execSync } from "child_process";
+import { requireAuth } from "../middlewares/authMiddleware";
 
 const router = Router();
 
@@ -37,14 +38,30 @@ export function logServerIdentity() {
     console.log(`🧾 [BUILD] commit ${GIT_INFO.commit} (${GIT_INFO.branch}) · 부팅 ${BOOTED_AT.toLocaleString("ko-KR")}`);
 }
 
-// GET /api/health — 인증 불필요 (민감 정보 없음, 상태 확인 전용)
+function uptime() {
+    const sec = Math.floor((Date.now() - BOOTED_AT.getTime()) / 1000);
+    return { uptimeSec: sec, uptimeText: `${Math.floor(sec / 3600)}시간 ${Math.floor((sec % 3600) / 60)}분` };
+}
+
+/**
+ * GET /api/health — 무인증. **최소 정보만** 노출한다.
+ *
+ * 처음에는 git 커밋·브랜치·NODE_ENV·DB 파일명·Node 버전까지 무인증으로 열어뒀는데,
+ * 같은 날 무인증 `GET /api/scrap`를 "정찰 정보 노출"이라며 삭제해 놓고
+ * 정작 새 노출을 추가한 셈이라 자기모순이었다. (2026-08-09 자체 리뷰에서 발견)
+ *
+ * "재기동됐는가"를 판별하는 데는 bootedAt 하나면 충분하므로 나머지는 인증 뒤로 옮겼다.
+ */
 router.get("/", (_req, res) => {
-    const uptimeSec = Math.floor((Date.now() - BOOTED_AT.getTime()) / 1000);
+    res.json({ ok: true, bootedAt: BOOTED_AT.toISOString(), ...uptime() });
+});
+
+/** GET /api/health/detail — 로그인 필요. 배포 진단용 상세 정보 */
+router.get("/detail", requireAuth, (_req, res) => {
     res.json({
         ok: true,
         bootedAt: BOOTED_AT.toISOString(),
-        uptimeSec,
-        uptimeText: `${Math.floor(uptimeSec / 3600)}시간 ${Math.floor((uptimeSec % 3600) / 60)}분`,
+        ...uptime(),
         git: GIT_INFO,
         env: process.env.NODE_ENV || "development",
         dbFile: process.env.DB_FILE || "local.db",

@@ -189,6 +189,20 @@ export function updateActiveFilter(
         recalculateDerivedFields(session, changes);
     }
 
+    // [자체 리뷰 B-③] isSharedMode 는 dispatchPhase 에서 파생되는 값이다.
+    // (STANDBY = 첫짐 = 단독,  GATHERING/DELIVERING = 합짐)
+    // 두 값을 따로 세팅해 오다 보니 서버 재시작 시 서로 어긋나는 사고(이슈 W)가 났다.
+    // W 에서는 두 값을 손으로 맞춰놓기만 했을 뿐 어긋날 수 있는 구조는 그대로였으므로,
+    // 여기 단일 진입점에서 불변식을 강제해 divergence 자체를 불가능하게 만든다.
+    //
+    // 필드 자체를 없애는 게 이상적이지만, 앱의 InsungParser 가 이 키를 파싱하고 있어
+    // 페이로드 계약을 깨뜨리므로 값만 파생시킨다.
+    const derivedShared = (session.activeFilter.dispatchPhase ?? 'STANDBY') !== 'STANDBY';
+    if (session.activeFilter.isSharedMode !== derivedShared) {
+        console.log(`🔗 [불변식] isSharedMode ${session.activeFilter.isSharedMode} → ${derivedShared} (dispatchPhase=${session.activeFilter.dispatchPhase})`);
+        session.activeFilter.isSharedMode = derivedShared;
+    }
+
     logActiveFilter(session, "실시간 변경(activeFilter)", changes);
     broadcastFilter(userId, session, io);
 

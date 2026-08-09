@@ -6,12 +6,10 @@ import OrderFilterStatus from "../components/dashboard/OrderFilterStatus";
 import OrderFilterModal from "../components/dashboard/OrderFilterModal";
 import VehicleStatusPanel from "../components/dashboard/VehicleStatusPanel";
 import PinnedRoute from "../components/dashboard/PinnedRoute";
-import DrillDownModal from "../components/dashboard/DrillDownModal";
 import { useState, useEffect } from "react";
 import { socket } from "../lib/socket";
 
 import { useOrderEngine } from "../hooks/useOrderEngine";
-import { useKakaoRouting } from "../hooks/useKakaoRouting";
 
 
 
@@ -27,9 +25,6 @@ export default function Dashboard() {
         isConnected,
         mainCall,
         subCalls,
-        rejectedCallIds,
-        selectedOrder,
-        setSelectedOrder,
         handleDecision,
         handleRecalculate,
     } = useOrderEngine();
@@ -45,13 +40,13 @@ export default function Dashboard() {
     const activeRoute = Array.from(activeRouteMap.values()) as SecuredOrder[];
     const hasHomeReturnActive = activeRoute.some(o => o.receiptStatus === '귀가' || o.id?.startsWith('home-'));
 
-    // 대기열 콜 필터링
-    const pendingOrders = orders.filter(
-        (o) => o.id && !rejectedCallIds.has(o.id) && o.id !== mainCall?.id && !subCalls.some((s) => s.id === o.id)
-    ).reverse();
-
-    // 카카오 자동 시뮬레이션 엔진 훅
-    const { simulationResults } = useKakaoRouting(pendingOrders, mainCall);
+    // ※ 대기열 시뮬레이션(useKakaoRouting + DrillDownModal)은 2026-08-09 제거했다.
+    //    "잡기 전에 카카오로 미리 계산해 보여주는" 기능이었으나
+    //    ① 모달을 여는 코드가 애초에 없었고 ② 입력(pendingOrders)이 구조적으로 항상 비었으며
+    //    ③ 적요는 하드코딩 더미, ④ 수락 버튼은 안내 alert 라 한 번도 동작한 적이 없었다.
+    //    무엇보다 PRD의 선빵필승(광클 → 데스밸리 30초 검수) 설계와 상충한다.
+    //    같은 정보는 order-evaluated 의 꿀/똥 판정이 더 정확하게 제공한다.
+    //    서버 라우트 /api/kakao/directions/compare 는 범용이라 남겨두었다.
 
     // 귀가콜 자동 도착 알림 핸들러
     // 🚨 TODO(미구현) — Phase 4에서 서버 구현 예정
@@ -133,15 +128,6 @@ export default function Dashboard() {
                     setViewFilter={setViewFilter}
                 />
             </div>
-
-            <DrillDownModal
-                selectedOrder={selectedOrder!}
-                activeOrderSim={selectedOrder && selectedOrder.id ? simulationResults[selectedOrder.id] : undefined}
-                mainCall={mainCall}
-                onClose={() => setSelectedOrder(null)}
-                onReject={() => setSelectedOrder(null)}
-                onAccept={() => alert("웹 관제탑에서는 수동 배차를 지원하지 않습니다 (앱에서 자동 확정 됨)")}
-            />
 
             {/* 필터 설정 모달 */}
             <OrderFilterModal

@@ -9,8 +9,6 @@ export function useOrderEngine() {
     const [orders, setOrders] = useState<SimplifiedOfficeOrder[]>([]);
     const [isConnected, setIsConnected] = useState(socket.connected);
     const [activeOrders, setActiveOrders] = useState<SecuredOrder[]>([]);
-    const [rejectedCallIds, setRejectedCallIds] = useState<Set<string>>(new Set());
-    const [selectedOrder, setSelectedOrder] = useState<SimplifiedOfficeOrder | SecuredOrder | null>(null);
 
     // 파생 상태 (기존 컴포넌트 호환성 유지)
     const mainCall = activeOrders.length > 0 ? activeOrders[0] : null;
@@ -90,7 +88,6 @@ export function useOrderEngine() {
                 return next;
             });
 
-            setSelectedOrder(null);
         };
 
         // 2단계: 상하차지+적요 수신 (DETAIL 접수) — 경로/적요 섹션 업데이트
@@ -142,7 +139,6 @@ export function useOrderEngine() {
                 });
             }
             
-            setRejectedCallIds(prev => new Set(prev).add(id));
             setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
         };
 
@@ -259,9 +255,6 @@ export function useOrderEngine() {
         isConnected,
         mainCall,
         subCalls,
-        rejectedCallIds,
-        selectedOrder,
-        setSelectedOrder,
         handleDecision,
         handleRecalculate,
     };
