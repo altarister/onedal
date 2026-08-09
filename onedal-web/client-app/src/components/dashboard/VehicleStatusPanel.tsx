@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { socket } from "../../lib/socket";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
 import type { SecuredOrder } from "@onedal/shared";
+import { CAPACITY_CONFIDENCE_LABEL } from "@onedal/shared";
 import { apiClient } from "../../api/apiClient";
 import { getDistanceKm } from "../../lib/routeUtils";
 
@@ -148,8 +149,20 @@ export default function VehicleStatusPanel({ liveCalls }: { liveCalls: SecuredOr
         <div className="flex flex-row items-center justify-between px-4 py-2 border-b border-border-card">
             <div className="flex items-center gap-2">
                 <span className="text-sm font-black text-text-primary">{myVehicle}</span>
-                <div className="text-xs mt-0.5">
+                <div className="text-xs mt-0.5 flex items-center gap-1.5">
                     {renderLoadStatus()}
+                    {/* [Phase 8.4] 잔여 적재량을 얼마나 믿을 수 있는지 드러낸다.
+                        '추정'은 차종만 보고 계산한 값이라 현장에서 안 들어갈 수 있다.
+                        기사님이 그 위험을 알고 합짐을 잡아야 한다. */}
+                    {liveCalls.length > 0 && filter?.capacityConfidence && (
+                        <span className={`text-[10px] font-black px-1.5 py-0.5 rounded ${
+                            filter.capacityConfidence === 'CONFIRMED' ? 'bg-success/15 text-success'
+                            : filter.capacityConfidence === 'DECLARED' ? 'bg-info/15 text-info'
+                            : 'bg-warning/15 text-warning'
+                        }`}>
+                            {CAPACITY_CONFIDENCE_LABEL[filter.capacityConfidence]}
+                        </span>
+                    )}
                 </div>
             </div>
 

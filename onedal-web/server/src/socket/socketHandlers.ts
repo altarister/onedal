@@ -7,6 +7,7 @@ import { logRoadmapEvent } from "../utils/roadmapLogger";
 import type { AutoDispatchFilter, Milestone, CargoReport } from "@onedal/shared";
 import { cargoMismatchRatio } from "@onedal/shared";
 import { OrderRepository } from "../repositories/OrderRepository";
+import { PlaceRepository } from "../repositories/PlaceRepository";
 import { getUserSession, getAllActiveUserIds } from "../state/userSessionStore";
 import { recalculateCorridorFilter, handleDecision, recalculateKakaoRoute, bootstrapUserSession, completeOrder, reportMilestone, startTwoTrack, createHomeReturn } from "../services/dispatchEngine";
 import { updateActiveFilter } from "../state/filterManager";
@@ -14,6 +15,27 @@ import { processDriverMovement, getCityRegionsWithRadius } from "../services/geo
 
 
 
+
+/**
+ * 소켓 핸들러에서 던진 예외가 **서버 프로세스를 죽이지 않게** 감싼다.
+ *
+ * Socket.IO 는 리스너의 예외를 잡아주지 않는다. 그래서 DB 제약 위반 한 번에
+ * `SqliteError` 가 uncaught 로 올라가 **서버 전체가 종료됐다.**
+ * (2026-08-10 스모크에서 stop_cargo_reports 의 FK 위반으로 실제 발생)
+ *
+ * 기사님 운행 중에 이런 일이 나면 사냥이 통째로 멈춘다.
+ * 한 오더의 입력이 실패하는 것과 서버가 죽는 것은 전혀 다른 무게다.
+ */
+function safeOn(socket: Socket, event: string, handler: (...args: any[]) => any) {
+    socket.on(event, async (...args: any[]) => {
+        try {
+            await handler(...args);
+        } catch (err: any) {
+            console.error(`🚨 [소켓 핸들러 실패] ${event}:`, err?.message || err);
+            socket.emit("handler-error", { event, message: err?.message || "처리 중 오류가 발생했습니다" });
+        }
+    });
+}
 
 export function registerSocketHandlers(io: Server) {
 
@@ -88,7 +110,7 @@ export function registerSocketHandlers(io: Server) {
         });
 
         // 프론트에서 필터 변경 시
-        socket.on("update-filter", (newFilter: Partial<AutoDispatchFilter>) => {
+        safeOn(socket, "update-filter", (newFilter: Partial<AutoDispatchFilter>) => {
             logRoadmapEvent("서버", `관제탑으로 부터 필터 변경(update-filter) 요청 받음. 수신 데이터: ${JSON.stringify(newFilter)}`);
             
             const isCityChanged = newFilter.destinationCity !== undefined && newFilter.destinationCity !== session.activeFilter.destinationCity;
@@ -136,14 +158,14 @@ export function registerSocketHandlers(io: Server) {
         });
 
         // 배차 심사 수락/거절
-        socket.on("decision", async ({ orderId, action }: { orderId: string, action: 'ORDER_CONFIRMED' | 'ORDER_CANCELED' | 'ORDER_RELEASED' | 'ORDER_FORCE_CANCELED' }) => {
+        safeOn(socket, "decision", async ({ orderId, action }: { orderId: string, action: 'ORDER_CONFIRMED' | 'ORDER_CANCELED' | 'ORDER_RELEASED' | 'ORDER_FORCE_CANCELED' }) => {
             console.log(`⚖️ [소켓 Decision] User: ${userId}, ID: ${orderId}, Status Action: ${action}`);
             const result = await handleDecision(userId, orderId, action, io);
             socket.emit("decision-ack", result);
         });
 
         // 카카오 경로 재탐색
-        socket.on("recalculate-route", async ({ orderId, priority }: { orderId: string, priority: string }) => {
+        safeOn(socket, "recalculate-route", async ({ orderId, priority }: { orderId: string, priority: string }) => {
             const result = await recalculateKakaoRoute(userId, orderId, priority, io);
             socket.emit("recalculate-route-ack", result);
         });
@@ -152,15 +174,16 @@ export function registerSocketHandlers(io: Server) {
         // [Phase 8.2] 관제탑에서 누르는 상차/하차 보고.
         // 앱의 화면 자동 감지(AUTO_SCRAPE)가 붙어도 이 핸들러는 그대로 두면 된다 —
         // 진입점만 늘어날 뿐 본체(reportMilestone)는 하나이기 때문이다.
-        socket.on("report-milestone", async (data: { orderId: string, milestone: Milestone, occurredAt?: string }) => {
+        safeOn(socket, "report-milestone", async (data: { orderId: string, milestone: Milestone, occurredAt?: string }) => {
             logRoadmapEvent("서버", `관제탑으로부터 ${data.milestone === 'PICKED_UP' ? '상차' : '하차'} 보고 수신`);
             const result = await reportMilestone(userId, data.orderId, data.milestone, 'MANUAL_WEB', io, data.occurredAt);
             socket.emit("milestone-result", { orderId: data.orderId, ...result });
         });
 
         // [Phase 8.4] 통화 결과 / 현장 확인 기록
-        socket.on("save-cargo-report", (data: { orderId: string } & CargoReport) => {
+        safeOn(socket, "save-cargo-report", (data: { orderId: string } & CargoReport) => {
             const { orderId, ...report } = data;
+            if (!orderId) throw new Error("orderId 누락");
             OrderRepository.upsertCargoReport(orderId, userId, report);
 
             const all = OrderRepository.getCargoReports(orderId);
@@ -181,23 +204,51 @@ export function registerSocketHandlers(io: Server) {
             socket.emit("cargo-report-saved", { orderId, reports: all });
         });
 
-        socket.on("request-cargo-reports", (data: { orderId: string }) => {
+        safeOn(socket, "request-cargo-reports", (data: { orderId: string }) => {
             socket.emit("cargo-report-saved", { orderId: data.orderId, reports: OrderRepository.getCargoReports(data.orderId) });
         });
 
-        socket.on("dispatch-complete", async (data: { orderId: string }) => {
+        /**
+         * [Phase 8.4] 신고 불일치를 어떻게 할지 결정.
+         *
+         * 기사님: *"거짓된 통화로 확인되면 퀵사무실과 통화하여 이 콜의 수행 여부를
+         * 결정할 수 있어야 함."* — 전화는 관제탑에서 tel: 로 걸고,
+         * 통화 뒤의 판단(계속/방출)을 여기로 보낸다.
+         *
+         * 어느 쪽을 고르든 **그 장소에 기록을 남긴다.** 신고가 틀린 곳은 다음에도 틀린다.
+         */
+        safeOn(socket, "resolve-cargo-mismatch", async (data: {
+            orderId: string, stopType: 'pickup' | 'dropoff', ratio: number, action: 'CONTINUE' | 'RELEASE'
+        }) => {
+            const when = new Date().toISOString().slice(0, 10);
+            const verdict = data.action === 'RELEASE' ? '방출' : '수행';
+            const line = `${when} 신고 불일치 ${data.ratio.toFixed(1)}배 → ${verdict}`;
+
+            const placeId = PlaceRepository.findPlaceIdByStop(data.orderId, data.stopType);
+            if (placeId) PlaceRepository.appendPlaceMemo(placeId, line);
+
+            console.log(`⚖️ [불일치 판단] ${data.orderId.slice(0, 8)} ${data.stopType} — ${line}`);
+            logRoadmapEvent("서버", `신고 불일치 판단: ${verdict} (${data.ratio.toFixed(1)}배)`);
+
+            if (data.action === 'RELEASE') {
+                await handleDecision(userId, data.orderId, 'ORDER_RELEASED', io);
+            }
+            socket.emit("cargo-mismatch-resolved", { orderId: data.orderId, action: data.action });
+        });
+
+        safeOn(socket, "dispatch-complete", async (data: { orderId: string }) => {
             if (!data || !data.orderId) return;
             await completeOrder(userId, data.orderId, io);
         });
 
         // 🎯 투-트랙 사냥: 기존 콜 전부 완료 → 필터 STANDBY 리셋 → 집+현위치 동시 스캔
-        socket.on("start-two-track", async () => {
+        safeOn(socket, "start-two-track", async () => {
             const result = await startTwoTrack(userId, io);
             socket.emit("two-track-ack", result);
         });
 
         // 🏠 귀가콜: 현재 위치 → 집 주소로 가상 오더 생성 + 회랑 자동 세팅
-        socket.on("create-home-return", async (data?: { corridorRadiusKm?: number, destinationRadiusKm?: number }) => {
+        safeOn(socket, "create-home-return", async (data?: { corridorRadiusKm?: number, destinationRadiusKm?: number }) => {
             const result = await createHomeReturn(userId, io, data);
             if (result.success) {
                 socket.emit("home-return-ack", { success: true, orderId: result.orderId });

@@ -1,4 +1,5 @@
 import { AutoDispatchFilter, SecuredOrder, PendingOrder, MyOrder, getEligibleVehicleTypes } from "@onedal/shared";
+import type { CapacityConfidence } from "@onedal/shared";
 import db from "../db";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 
@@ -37,6 +38,8 @@ export interface UserSession {
      *  경로를 벗어난 콜을 잡을 수 있었다)
      */
     isBootstrapping: boolean;
+    /** [Phase 8.4] 지금 잔여 적재량을 얼마나 믿을 수 있는가 (추정/신고/확정) */
+    capacityConfidence: CapacityConfidence;
 }
 
 const sessions = new Map<string, UserSession>();
@@ -52,6 +55,7 @@ function createDefaultSession(): UserSession {
         activeFilter: { ...SERVICE_DEFAULT_FILTER } as AutoDispatchFilter,
         driverLocation: null,
         userVehicleType: '1t',
+        capacityConfidence: 'ESTIMATED',
         isRestored: false,
         isBootstrapping: false
     };

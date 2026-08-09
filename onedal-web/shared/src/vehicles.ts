@@ -136,8 +136,25 @@ export function getEligibleVehicleTypes(myVehicle: string): string[] {
  * @param loadedVehicles  현재 적재 중인(확정된) 콜들의 차종 배열
  */
 export function getRemainingCapacityTypes(myVehicle: string, loadedVehicles: string[]): string[] {
-    const myCap = capacityOf(myVehicle, '1t');
     const usedCap = loadedVehicles.reduce((sum, v) => sum + capacityOf(v, myVehicle), 0);
+    return typesFittingIn(myVehicle, usedCap);
+}
+
+/**
+ * 적재 점수를 **직접** 넘겨 남은 공간에 들어갈 차종을 구한다.
+ *
+ * `getRemainingCapacityTypes` 는 차종만 보고 "1t 콜이면 30점을 다 먹는다"고 **추정**한다.
+ * 하지만 1t 콜이라도 실제 짐이 박스 1개면 2점밖에 안 먹는다.
+ * 통화나 현장 확인으로 실제 짐 양을 알게 되면 이 함수로 정확하게 계산한다.
+ * → 만재로 오인해서 놓치던 합짐 기회가 열린다.
+ */
+export function getRemainingCapacityTypesByPoints(myVehicle: string, usedPoints: number): string[] {
+    return typesFittingIn(myVehicle, usedPoints);
+}
+
+/** 내 차 용량에서 usedCap 을 뺀 나머지에 들어갈 차종 목록 */
+function typesFittingIn(myVehicle: string, usedCap: number): string[] {
+    const myCap = capacityOf(myVehicle, '1t');
     const remaining = Math.max(0, myCap - usedCap);
 
     return VEHICLE_OPTIONS.filter(v => {
@@ -146,3 +163,12 @@ export function getRemainingCapacityTypes(myVehicle: string, loadedVehicles: str
         return cap <= remaining && cap <= myCap;
     });
 }
+
+/** 적재 점수의 확신도 — 관제탑에 그대로 표시해 기사님이 위험을 알 수 있게 한다 */
+export type CapacityConfidence = 'ESTIMATED' | 'DECLARED' | 'CONFIRMED';
+
+export const CAPACITY_CONFIDENCE_LABEL: Record<CapacityConfidence, string> = {
+    ESTIMATED: '추정',   // 차종만 보고 계산 — 현장에서 안 들어갈 수 있다
+    DECLARED: '신고',    // 통화로 들은 짐 양
+    CONFIRMED: '확정',   // 현장에서 눈으로 확인
+};

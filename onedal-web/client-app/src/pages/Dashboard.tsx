@@ -6,6 +6,7 @@ import OrderFilterStatus from "../components/dashboard/OrderFilterStatus";
 import OrderFilterModal from "../components/dashboard/OrderFilterModal";
 import VehicleStatusPanel from "../components/dashboard/VehicleStatusPanel";
 import PinnedRoute from "../components/dashboard/PinnedRoute";
+import CargoMismatchBanner from "../components/dashboard/CargoMismatchBanner";
 import { useState, useEffect } from "react";
 import { socket } from "../lib/socket";
 
@@ -113,6 +114,9 @@ export default function Dashboard() {
                         </button>
                     </div>
                 )}
+
+                {/* 🚨 신고 불일치 — 경고에서 사무실 전화·수행 판단까지 한 카드에서 */}
+                <CargoMismatchBanner orders={activeRoute} />
 
                 {/* 🎛️ 앱폰 제어 패널 */}
                 <DeviceControlPanel />

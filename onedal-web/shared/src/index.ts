@@ -1,3 +1,4 @@
+import type { CapacityConfidence } from './vehicles';
 export const EVENT_TYPES = {
     NEW_ORDER: "NEW_ORDER" as const,
     INTEL_BULK: "INTEL_BULK" as const,
@@ -358,6 +359,11 @@ export interface SettlementInfo {
 export type LoadState = 'EMPTY' | 'LOADING' | 'DRIVING' | 'ARRIVED';
 
 export interface AutoDispatchFilter {
+    /**
+     * [Phase 8.4] 지금 잔여 적재량을 얼마나 믿을 수 있는가.
+     * 관제탑에 그대로 표시한다 — '추정' 상태에서 잡은 합짐은 현장에서 안 들어갈 수 있다.
+     */
+    capacityConfidence?: CapacityConfidence;
     allowedVehicleTypes: string[];   // 허용 차종 배열 (예: ["1t","다마스"]) — 빈 배열이면 모든 차종 허용
     isActive: boolean;              // 필터링(매크로) 활성화 여부
     isSharedMode: boolean;          // 첫짐/합짐 분기 (true면 합짐 회랑, false면 첫짐 수동)

@@ -12,10 +12,11 @@
  */
 
 import db from "../db";
-import { getActiveCalls } from "../core/helpers";
+import { getActiveCalls, computeLoadedPoints } from "../core/helpers";
+import { OrderRepository } from "../repositories/OrderRepository";
 import { getUserSession } from "./userSessionStore";
 import type { AutoDispatchFilter } from "@onedal/shared";
-import { getEligibleVehicleTypes, getRemainingCapacityTypes } from "@onedal/shared";
+import { getEligibleVehicleTypes, getRemainingCapacityTypesByPoints } from "@onedal/shared";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { getCityRegionsWithRadius } from "../services/geoService";
 
@@ -91,9 +92,21 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
     if (!changes.allowedVehicleTypes) {
         const myVehicle = session.userVehicleType || '1t';
         const loaded = getActiveCalls(session);
-        session.activeFilter.allowedVehicleTypes = loaded.length > 0
-            ? getRemainingCapacityTypes(myVehicle, loaded.map(c => c.vehicleType || myVehicle))
-            : getEligibleVehicleTypes(myVehicle);
+
+        if (loaded.length === 0) {
+            session.activeFilter.allowedVehicleTypes = getEligibleVehicleTypes(myVehicle);
+            session.capacityConfidence = 'CONFIRMED';   // 빈 차는 확실하다
+            session.activeFilter.capacityConfidence = 'CONFIRMED';
+        } else {
+            // [Phase 8.4] 통화·현장에서 실제 짐 양을 알면 그걸 쓴다.
+            // 차종만 보면 "1t 콜 = 30점 만재"로 추정하는데, 실제로 박스 1개면 2점이다.
+            // 그 차이만큼 **놓치던 합짐 기회**가 열린다.
+            const reports = new Map(loaded.map(c => [c.id, OrderRepository.getCargoReports(c.id)]));
+            const { points, confidence } = computeLoadedPoints(loaded, myVehicle, reports);
+            session.activeFilter.allowedVehicleTypes = getRemainingCapacityTypesByPoints(myVehicle, points);
+            session.capacityConfidence = confidence;
+            session.activeFilter.capacityConfidence = confidence;
+        }
     }
 }
 
