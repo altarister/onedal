@@ -288,7 +288,7 @@ export default function StopCallSheet({
                 탭을 열지 않고는 알 수가 없어."*
                 → 탭을 없앴다. 줄 자체가 내용이자 열기 버튼이다.
                   한쪽을 펼쳐도 다른 쪽 요약은 그대로 보이므로 대조가 된다. */}
-            <div className="mt-2 flex flex-col gap-1" onClick={e => e.stopPropagation()}>
+            <div className="mt-2 flex flex-col gap-2" onClick={e => e.stopPropagation()}>
                 <SummaryLine
                     icon="📞" title="통화"
                     summary={declaredSummary}
@@ -455,12 +455,14 @@ function SummaryLine({ icon, title, summary, memo, empty, open, onClick, warn }:
     open: boolean; onClick: () => void; warn?: boolean;
 }) {
     return (
+        // 두 줄이 붙어 있어 눌러야 할 줄을 잘못 누르기 쉬웠다 (기사님 지적).
+        // 세로 여백을 늘리고 왼쪽에 색띠를 둬서 손가락이 어디에 닿는지 눈으로 구분되게 한다.
         <button onClick={onClick}
-            className={`w-full flex items-center gap-2 text-left px-2 py-2 rounded-md border transition-colors ${
-                open ? 'bg-info/10 border-info/45'
-                : warn ? 'bg-danger/8 border-danger/35'
-                : empty ? 'bg-transparent border-border border-dashed'
-                : 'bg-surface-alt/40 border-border'
+            className={`w-full flex items-center gap-2 text-left pl-2 pr-2 py-3 rounded-md border-2 border-l-4 transition-colors ${
+                open ? 'bg-info/10 border-info/45 border-l-info'
+                : warn ? 'bg-danger/8 border-danger/35 border-l-danger'
+                : empty ? 'bg-transparent border-border/60 border-dashed border-l-border'
+                : 'bg-surface-alt/40 border-border border-l-success/70'
             }`}>
             <span className="text-[11px] shrink-0">{icon}</span>
             <span className="text-[10px] font-black text-text-muted shrink-0 w-6">{title}</span>

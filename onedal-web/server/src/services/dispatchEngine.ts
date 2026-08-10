@@ -18,7 +18,7 @@ import { SettingsRepository } from "../repositories/SettingsRepository";
 import { PricingEngine } from "../core/engine/PricingEngine";
 import { OrderEvaluator } from "../core/engine/OrderEvaluator";
 import { StateMachine } from "../core/engine/StateMachine";
-import { getActiveCalls, buildOrderSync } from "../core/helpers";
+import { getActiveCalls, buildOrderSync, setOrderStatus } from "../core/helpers";
 
 /**
  * 장소명 정규화 (공백 및 주식회사 텍스트 제거)
@@ -467,14 +467,11 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
         logRoadmapEvent("서버", `관제탑으로 부터 수동 취소/방출(${status}) 요청 받음`);
         
         // 메모리에서 완전히 지우지 않고 상태값만 갱신하여 프론트엔드 취소/방출 탭에 보존
-        const cachedOrder = session.pendingOrdersData.get(orderId);
-        if (cachedOrder) {
-            cachedOrder.status = status;
-        }
+        // (두 메모리를 함께 갱신 — 여기는 원래 둘 다 쓰고 있었지만 규약으로 통일한다)
+        setOrderStatus(session, orderId, status);
 
         const existingOrder = session.myOrders.find(c => c.id === orderId);
         if (existingOrder) {
-            existingOrder.status = status;
             try {
                 // 수동 거절(ORDER_CANCELED)일지라도 DB에 저장하도록 함
                 OrderRepository.updateOrderStatus(orderId, userId, status);
@@ -833,9 +830,7 @@ export async function reportMilestone(
     // ③ 상태 전이. 도착(ARRIVED_*)은 상태를 바꾸지 않는다 — 도착했다고 짐이 실린 건 아니다
     const nextStatus = MILESTONE_TO_STATUS[milestone];
     if (nextStatus) {
-        order.status = nextStatus as any;
-        const cached = session.pendingOrdersData.get(orderId);
-        if (cached) cached.status = nextStatus as any;
+        setOrderStatus(session, orderId, nextStatus);
 
         try {
             if (milestone === 'DELIVERED') {
@@ -885,7 +880,8 @@ export async function completeOrder(userId: string, orderId: string, io: any): P
     const existingOrder = session.myOrders.find(c => c.id === orderId);
     if (!existingOrder) return false;
 
-    existingOrder.status = 'ORDER_COMPLETED';
+    // 두 메모리를 함께 갱신한다 — 예전에는 myOrders 만 바꿔 관제탑에 낡은 상태가 갔다
+    setOrderStatus(session, orderId, 'ORDER_COMPLETED');
 
     try {
         db.prepare("UPDATE orders SET status = 'ORDER_COMPLETED', completedAt = datetime('now', 'localtime') WHERE id = ? AND userId = ?").run(orderId, userId);
@@ -917,7 +913,7 @@ export async function startTwoTrack(userId: string, io: any): Promise<{ success:
         const allCalls = getActiveCalls(session);
         for (const call of allCalls) {
             if (!call) continue;
-            call.status = 'ORDER_COMPLETED';
+            setOrderStatus(session, call.id, 'ORDER_COMPLETED');
             try {
                 db.prepare("UPDATE orders SET status = 'ORDER_COMPLETED', completedAt = datetime('now', 'localtime') WHERE id = ? AND userId = ?").run(call.id, userId);
                 console.log(`   ✅ [투-트랙] 기존 콜 완료 처리: ${call.id} (${call.pickup} → ${call.dropoff})`);

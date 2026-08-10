@@ -1,4 +1,4 @@
-import { buildOrderSync, getActiveCalls } from '../../src/core/helpers';
+import { buildOrderSync, getActiveCalls, setOrderStatus } from '../../src/core/helpers';
 
 /**
  * [2026-08-10] 관제탑 페이로드는 **진행/종료를 나눠서** 보낸다.
@@ -46,5 +46,50 @@ describe('buildOrderSync — 진행/종료 분리', () => {
 
     it('빈 세션도 안전하다', () => {
         expect(buildOrderSync(makeSession([]))).toEqual({ active: [], terminated: [] });
+    });
+});
+
+describe('🔴 setOrderStatus — 두 메모리를 함께 갱신한다', () => {
+    // 세션은 같은 콜을 myOrders 와 pendingOrdersData 두 곳에 들고 있다.
+    // completeOrder / startTwoTrack 이 myOrders 만 갱신해서, 판정은 종료됐는데
+    // 관제탑에는 낡은 상태가 갔다 — "하차 완료했는데 카드에 상차 완료로 남아 있음".
+    function dualSession() {
+        const o: any = { id: 'x', status: 'ORDER_PICKED_UP' };
+        // 같은 콜이지만 **다른 객체**인 경우가 실제로 있다 (복구 경로 등)
+        const cached: any = { id: 'x', status: 'ORDER_PICKED_UP' };
+        return { myOrders: [o], pendingOrdersData: new Map([['x', cached]]), o, cached };
+    }
+
+    it('두 곳 모두 바뀐다 (서로 다른 객체여도)', () => {
+        const s = dualSession();
+        expect(setOrderStatus(s as any, 'x', 'ORDER_DELIVERED')).toBe(true);
+        expect(s.o.status).toBe('ORDER_DELIVERED');
+        expect(s.cached.status).toBe('ORDER_DELIVERED');
+    });
+
+    it('갱신 후 관제탑 페이로드가 종료 쪽으로 간다', () => {
+        const s = dualSession();
+        setOrderStatus(s as any, 'x', 'ORDER_DELIVERED');
+        const { active, terminated } = buildOrderSync(s as any);
+        expect(active).toHaveLength(0);
+        expect(terminated).toHaveLength(1);
+    });
+
+    it('🔴 한쪽만 낡아 있어도 myOrders 가 이긴다 (판정과 화면이 갈라지지 않는다)', () => {
+        const s = dualSession();
+        s.myOrders[0].status = 'ORDER_DELIVERED';   // 옛 코드처럼 한쪽만 바꿔 본다
+        const { active, terminated } = buildOrderSync(s as any);
+        expect(active).toHaveLength(0);
+        expect(terminated[0].status).toBe('ORDER_DELIVERED');
+    });
+
+    it('없는 오더면 false', () => {
+        const s = dualSession();
+        expect(setOrderStatus(s as any, '없음', 'ORDER_DELIVERED')).toBe(false);
+    });
+
+    it('평가 중 콜(pendingOrdersData 에만 있음)도 페이로드에 포함된다', () => {
+        const s = { myOrders: [], pendingOrdersData: new Map([['e', { id: 'e', status: 'ORDER_AWAITING_DECISION' }]]) };
+        expect(buildOrderSync(s as any).active).toHaveLength(1);
     });
 });

@@ -396,6 +396,47 @@ export default function PinnedRouteCard({
                         기사님: "현장확인 탭에 상차 완료, 상차 취소 두 개의 버튼을 넣는 것이 좋겠다."
                         현장에 도착해 물건을 확인한 그 자리에서 누르는 것이 자연스럽다.
                         여기에는 이력만 남긴다. */}
+                    {/* [2026-08-10] 콜 하나의 진행 6단계.
+                        기사님: "상차지 통화 → 하차지 통화 → 상차지 현장 도착 → 상차지 현장 상차완료
+                        → 하차지 현장 도착 → 하차지 현장 하차완료. 모두 완료하면 콜이 완료되어야 한다."
+                        통화 두 단계는 **선택**이다 — *"적요가 충분히 디테일하다면 전화는 패스하고
+                        바로 이동할 수 있다."* 그래서 건너뛴 것은 회색 점선으로, 막는 게 아니라 표시만 한다. */}
+                    {(() => {
+                        const done = new Set(milestoneLog.map(m => m.milestone));
+                        const has = (st: string, k: string) => cargoReports.some(r => r.stopType === st && r.kind === k);
+                        const steps: Array<[string, boolean, boolean]> = [
+                            ['상차 통화', has('pickup', 'DECLARED'), true],
+                            ['하차 통화', has('dropoff', 'DECLARED'), true],
+                            ['상차 도착', done.has('ARRIVED_PICKUP'), false],
+                            ['상차 완료', done.has('PICKED_UP'), false],
+                            ['하차 도착', done.has('ARRIVED_DROPOFF'), false],
+                            ['하차 완료', done.has('DELIVERED'), false],
+                        ];
+                        const required = steps.filter(([, , optional]) => !optional);
+                        const allDone = required.every(([, ok]) => ok);
+                        return (
+                            <div className="mt-3 flex flex-wrap items-center gap-1">
+                                {steps.map(([label, ok, optional], i) => (
+                                    <span key={label} className="flex items-center gap-1">
+                                        {i > 0 && <span className="text-[9px] text-text-muted/50">›</span>}
+                                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                                            ok ? 'bg-success/15 text-success'
+                                            : optional ? 'border border-dashed border-border text-text-muted/70'
+                                            : 'bg-surface-alt/50 text-text-muted'
+                                        }`}>
+                                            {ok ? '✓ ' : ''}{label}{!ok && optional ? ' (선택)' : ''}
+                                        </span>
+                                    </span>
+                                ))}
+                                {allDone && (
+                                    <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-success text-white ml-1">
+                                        운행 완료
+                                    </span>
+                                )}
+                            </div>
+                        );
+                    })()}
+
                     {milestoneLog.length > 0 && (
                         <div className="mt-3 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-text-muted">
                             {milestoneLog.map(m => (

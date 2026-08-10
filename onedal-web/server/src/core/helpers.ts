@@ -157,9 +157,42 @@ export function findLoadConflicts(
  *    (예전에는 네 군데가 각자 `Array.from(...)` 을 했다)
  */
 export function buildOrderSync(session: { myOrders: MyOrder[]; pendingOrdersData: Map<string, any> }) {
-    const all = Array.from(session.pendingOrdersData.values());
+    // 🔴 세션은 같은 콜을 **두 곳**에 들고 있다.
+    //    pendingOrdersData — 평가 중 + 확정된 콜의 캐시
+    //    myOrders          — 확정된 내 콜 (모든 판정 로직이 이걸 본다)
+    //
+    //    예전에는 이 함수가 pendingOrdersData 만 읽었다. 그런데 `completeOrder` 와
+    //    `startTwoTrack` 은 myOrders 만 갱신한다 → **관제탑에 낡은 상태가 갔다.**
+    //    (하차 완료했는데 카드에 "상차 완료"로 남아 있던 원인)
+    //
+    //    확정된 콜은 myOrders 가 진실이므로 나중에 덮어쓴다.
+    const merged = new Map<string, any>();
+    for (const o of session.pendingOrdersData.values()) merged.set(o.id, o);
+    for (const o of session.myOrders) merged.set(o.id, o);
+
+    const all = Array.from(merged.values());
     return {
         active: all.filter(o => !isTerminal(o.status)),
         terminated: all.filter(o => isTerminal(o.status)),
     };
+}
+
+/**
+ * 오더 상태를 바꾼다. **두 메모리를 반드시 함께** 갱신한다.
+ *
+ * 직접 `order.status = ...` 로 쓰면 한쪽만 바뀌고, 그 순간부터
+ * "판정은 종료됐는데 화면은 진행 중"인 상태가 된다.
+ * 상태를 바꾸는 곳은 이 함수 하나만 쓴다.
+ */
+export function setOrderStatus(
+    session: { myOrders: MyOrder[]; pendingOrdersData: Map<string, any> },
+    orderId: string,
+    status: string,
+): boolean {
+    let found = false;
+    const inMy = session.myOrders.find(o => o.id === orderId);
+    if (inMy) { inMy.status = status as any; found = true; }
+    const cached = session.pendingOrdersData.get(orderId);
+    if (cached) { cached.status = status; found = true; }
+    return found;
 }
