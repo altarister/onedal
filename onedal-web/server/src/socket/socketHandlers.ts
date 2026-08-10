@@ -206,6 +206,15 @@ export function registerSocketHandlers(io: Server) {
             socket.emit("cargo-report-saved", { orderId, reports: all });
         });
 
+        // 카드 헤더에서 약속 시각만 바꾼다. 짐 정보는 건드리지 않는다
+        safeOn(socket, "set-stop-deadline", (data: { orderId: string, stopType: 'pickup' | 'dropoff', deadlineAt: string | null }) => {
+            if (!data.orderId) throw new Error("orderId 누락");
+            OrderRepository.setStopDeadline(data.orderId, userId, data.stopType, data.deadlineAt);
+            const label = data.stopType === 'pickup' ? '상차' : '하차';
+            console.log(`🕒 [${label} 약속 시각] ${data.orderId.slice(0, 8)} → ${data.deadlineAt?.slice(11, 16) ?? '해제'}`);
+            socket.emit("cargo-report-saved", { orderId: data.orderId, reports: OrderRepository.getCargoReports(data.orderId) });
+        });
+
         safeOn(socket, "request-milestones", (data: { orderId: string }) => {
             socket.emit("milestone-log", { orderId: data.orderId, milestones: OrderRepository.getMilestones(data.orderId) });
         });

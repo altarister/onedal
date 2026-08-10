@@ -9,7 +9,7 @@ import { logRoadmapEvent } from '../../lib/roadmapLogger';
 import { Badge } from "../ui/badge";
 import StopCallSheet from './StopCallSheet';
 import type { CargoReport } from "@onedal/shared";
-import { MILESTONE_LABEL, timingError } from "@onedal/shared";
+import { MILESTONE_LABEL, timingError, buildHourSlots } from "@onedal/shared";
 import { Button } from "../ui/button";
 
 interface Props {
@@ -43,11 +43,12 @@ export default function PinnedRouteCard({
     const [isPinging, setIsPinging] = useState(false);
 
     // [Phase 8.4] 통화/현장 기록. 아코디언을 **열 때만** 불러온다 —
-    // 카드가 여러 장이라 전부 미리 받으면 1초 동기화마다 낭비가 된다.
+    // 🔴 예전에는 아코디언을 열 때만 불러왔는데, 이제 **헤더에도** 약속 시각을 띄우므로
+    //    접힌 상태에서도 필요하다. 다만 종료된 콜은 더 바뀔 일이 없으니 건너뛴다.
     const [cargoReports, setCargoReports] = useState<CargoReport[]>([]);
     const [milestoneLog, setMilestoneLog] = useState<Array<{ milestone: string; occurredAt: string; predictedAt?: string }>>([]);
     useEffect(() => {
-        if (!isExpanded) return;
+        if (isTerminal(route.status) && !isExpanded) return;
         const onSaved = (d: { orderId: string; reports: CargoReport[] }) => {
             if (d.orderId === route.id) setCargoReports(d.reports || []);
         };
@@ -62,7 +63,7 @@ export default function PinnedRouteCard({
             socket.off("cargo-report-saved", onSaved);
             socket.off("milestone-log", onMilestones);
         };
-    }, [isExpanded, route.id]);
+    }, [isExpanded, route.id, route.status]);
 
     useEffect(() => {
         // 평가 중이 아닐 때는 카운터 초기화
@@ -111,10 +112,14 @@ export default function PinnedRouteCard({
                     </Badge>
                     <span className={`${evaluating ? 'text-warning' : 'text-success'} flex-shrink-0 flex items-center font-bold`}>
                         {pLabel}. {getAddressLabel(route.pickup)}{etas?.pickupEta && <span className="text-success/80 ml-0.5 font-normal">({etas.pickupEta})</span>}
+                        <DeadlineChip orderId={route.id} stopType="pickup" eta={etas?.pickupEta}
+                            deadlineAt={cargoReports.find(r => r.stopType === 'pickup' && r.deadlineAt)?.deadlineAt} />
                     </span>
                     <span className="text-text-muted text-[10px] flex-shrink-0 mx-0.5 tracking-tighter">{separatorText}</span>
                     <span className={`${evaluating ? 'text-warning' : 'text-danger'} flex-shrink-0 font-bold`}>
                         {dLabel}. {getAddressLabel(route.dropoff)}{etas?.dropoffEta && <span className="text-danger/80 ml-0.5 font-normal">({etas.dropoffEta})</span>}
+                        <DeadlineChip orderId={route.id} stopType="dropoff" eta={etas?.dropoffEta}
+                            deadlineAt={cargoReports.find(r => r.stopType === 'dropoff' && r.deadlineAt)?.deadlineAt} />
                     </span>
                     <span className="ml-3 font-medium text-[10px] truncate mt-0.5 flex items-center gap-1 flex-[2]">
                         <span>{route.fare > 0 ? `${(route.fare / 10000).toFixed(1)}만` : '금액미상'}</span>
@@ -480,5 +485,63 @@ export default function PinnedRouteCard({
                 </div>
             )}
         </div>
+    );
+}
+
+/**
+ * 약속 시각 칩 — 헤더에서 바로 보고, 바로 고친다.
+ *
+ * 기사님: *"여기에 상차시간, 하차시간을 추가하고 시간을 변경해 보여줄 수 있을까?"*
+ *
+ * 헤더에는 원래 **예상 도착(ETA)** 만 있었다. 그런데 정작 중요한 건
+ * **"약속한 시각까지 갈 수 있나"** 다. 둘을 나란히 두면 한눈에 판단된다.
+ *   `(21:43 → 22시)`  ETA 21:43, 약속 22시 → 여유 있음 (초록)
+ *   `(21:43 → 21시)`  약속보다 늦게 도착 → 지각 (빨강)
+ *
+ * 시각만 바꾸는 **좁은 경로**(`set-stop-deadline`)를 쓴다.
+ * 전체 저장(`save-cargo-report`)으로 하면 넘기지 않은 짐 정보가 전부 날아간다.
+ */
+function DeadlineChip({ orderId, stopType, eta, deadlineAt }: {
+    orderId: string; stopType: 'pickup' | 'dropoff'; eta?: string; deadlineAt?: string;
+}) {
+    const [open, setOpen] = useState(false);
+    const late = (() => {
+        if (!eta || !deadlineAt) return false;
+        const d = new Date(deadlineAt);
+        const [h, m] = eta.split(':').map(Number);
+        const etaMs = new Date(d); etaMs.setHours(h, m, 0, 0);
+        return etaMs.getTime() > d.getTime();
+    })();
+
+    const label = deadlineAt
+        ? `${new Date(deadlineAt).getHours()}시`
+        : '약속?';
+
+    return (
+        <span className="relative inline-flex" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setOpen(v => !v)}
+                className={`ml-0.5 px-1 rounded text-[10px] font-bold border ${
+                    !deadlineAt ? 'border-dashed border-border text-text-muted/70'
+                    : late ? 'border-danger/50 bg-danger/15 text-danger'
+                    : 'border-success/40 bg-success/12 text-success'
+                }`}>
+                {late ? '⚠️ ' : ''}{label}
+            </button>
+            {open && (
+                <span className="absolute z-20 top-6 left-0 flex gap-1 bg-surface-alt border border-border rounded-md p-1 shadow-lg">
+                    {buildHourSlots(Date.now(), 0, 6).map(sl => (
+                        <button key={sl.iso}
+                            onClick={() => { socket.emit('set-stop-deadline', { orderId, stopType, deadlineAt: sl.iso }); setOpen(false); }}
+                            className="px-1.5 py-1 rounded text-[11px] font-bold text-text-primary hover:bg-info hover:text-white">
+                            {sl.label}
+                        </button>
+                    ))}
+                    <button onClick={() => { socket.emit('set-stop-deadline', { orderId, stopType, deadlineAt: null }); setOpen(false); }}
+                        className="px-1.5 py-1 rounded text-[11px] font-bold text-text-muted hover:bg-danger hover:text-white">
+                        해제
+                    </button>
+                </span>
+            )}
+        </span>
     );
 }

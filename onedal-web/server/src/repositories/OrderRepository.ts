@@ -96,6 +96,25 @@ export class OrderRepository {
         return rows.map(r => ({ ...r, tags: r.tags ? JSON.parse(r.tags) : undefined })) as CargoReport[];
     }
 
+    /**
+     * 약속 시각만 고친다.
+     *
+     * ⚠️ `upsertCargoReport` 로 하면 안 된다 — 그건 `ON CONFLICT DO UPDATE SET unit = excluded.unit, …`
+     *    이라서 **넘기지 않은 필드가 전부 null 로 덮인다.** 시각 하나 고치려다 짐 정보를 날린다.
+     *    계약이 좁으면 실수할 자리가 없다.
+     */
+    public static setStopDeadline(orderId: string, userId: string, stopType: string, deadlineAt: string | null) {
+        const r = db.prepare(`UPDATE stop_cargo_reports SET deadlineAt = ?, recordedAt = ?
+                              WHERE orderId = ? AND userId = ? AND stopType = ?`)
+                    .run(deadlineAt, new Date().toISOString(), orderId, userId, stopType);
+        // 통화 기록이 아직 없으면(적요만 보고 바로 출발) 최소 행을 만들어 둔다
+        if (r.changes === 0) {
+            db.prepare(`INSERT INTO stop_cargo_reports (orderId, userId, stopType, kind, deadlineAt, recordedAt)
+                        VALUES (?, ?, ?, 'DECLARED', ?, ?)`)
+              .run(orderId, userId, stopType, deadlineAt, new Date().toISOString());
+        }
+    }
+
     /** 한 오더의 마일스톤 이력 (예상 대비 오차 확인용) */
     public static getMilestones(orderId: string) {
         return db.prepare(`SELECT milestone, occurredAt, predictedAt, source
