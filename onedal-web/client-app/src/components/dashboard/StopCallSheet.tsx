@@ -45,8 +45,8 @@ interface Props {
     phones: string[];
     reports: CargoReport[];
     memoTexts?: (string | undefined)[];
-    /** 이 정거장까지 남은 주행 시간(분) */
-    driveMinutes?: number;
+    /** 이 정거장까지 남은 주행 시간(분). `null` 이면 아직 모른다 (현위치 미확인 등) */
+    driveMinutes?: number | null;
     /** 오더 상태 — 상차/하차 완료 배지에 쓴다 */
     orderStatus?: string;
     /** 이 정거장에 도착한 시각 (기록됐다면) */
@@ -69,7 +69,7 @@ function summarize(r?: CargoReport): string {
 
 export default function StopCallSheet({
     orderId, stopType, label, address, contactName, phones, reports,
-    memoTexts, driveMinutes = 0, orderStatus, arrivedAt,
+    memoTexts, driveMinutes, orderStatus, arrivedAt,
 }: Props) {
     const isPickup = stopType === 'pickup';
     const [tab, setTab] = useState<CargoReportKind | null>(null);   // null = 접힘
@@ -98,7 +98,9 @@ export default function StopCallSheet({
     const eff = { unit, quantity: qty, handling };
     const points = isPickup ? cargoPoints(eff) : unitPoints(pickupReport?.unit, pickupReport?.quantity);
     const dwell = dwellMinutes(eff.handling, points);
-    const fixedMinutes = driveMinutes + dwell;
+    // 주행 시간을 모르면 여유를 계산할 수 없다. 0 으로 때우면 "여유가 많다"고 거짓말하게 된다
+    const driveKnown = driveMinutes != null && driveMinutes > 0;
+    const fixedMinutes = (driveMinutes ?? 0) + dwell;
 
     const hints = parseCargoHints(...(memoTexts || []));
     const applyHints = () => {
@@ -155,7 +157,10 @@ export default function StopCallSheet({
 
     // ── 접힌 채로 보여줄 요약. 여기 없는 값은 기사님에게 "없는 값"이다 ──
     const savedDwell = dwellMinutes(declared?.handling ?? undefined, points);
-    const declaredSlack = computeSlackMinutes(declared?.deadlineAt, driveMinutes + savedDwell, Date.now());
+    // 주행 시간을 모르면 여유도 모른다 — 0 으로 때우면 요약이 거짓말을 한다
+    const declaredSlack = driveKnown
+        ? computeSlackMinutes(declared?.deadlineAt, driveMinutes! + savedDwell, Date.now())
+        : null;
     const declaredSummary = declared
         ? [summarize(declared), declaredSlack !== null && `여유 ${Math.max(0, declaredSlack)}분`]
             .filter(Boolean).join(' · ')
@@ -288,12 +293,20 @@ export default function StopCallSheet({
                     ) : (
                         <>
                             {/* 어쩔 수 없는 시간을 먼저 못박는다 */}
-                            <div className="text-[11px] text-text-muted">
-                                주행 <b className="text-text-primary tabular-nums">{driveMinutes}</b>분
-                                {' + '}{isPickup ? '상차' : '하차'} <b className="text-text-primary tabular-nums">{dwell}</b>분
-                                {' = '}<b className="text-text-primary tabular-nums">{fixedMinutes}</b>분
-                                <span className="opacity-70"> · 도착 {hhmm(new Date(Date.now() + fixedMinutes * 60_000).toISOString())} 예상</span>
-                            </div>
+                            {driveKnown ? (
+                                <div className="text-[11px] text-text-muted">
+                                    주행 <b className="text-text-primary tabular-nums">{driveMinutes}</b>분
+                                    {' + '}{isPickup ? '상차' : '하차'} <b className="text-text-primary tabular-nums">{dwell}</b>분
+                                    {' = '}<b className="text-text-primary tabular-nums">{fixedMinutes}</b>분
+                                    <span className="opacity-70"> · 도착 {hhmm(new Date(Date.now() + fixedMinutes * 60_000).toISOString())} 예상</span>
+                                </div>
+                            ) : (
+                                /* 없는 숫자를 0 으로 때우면 "여유가 많다"고 거짓말하게 된다 */
+                                <div className="text-[11px] text-warning bg-warning/10 border border-warning/35 rounded-md px-2 py-1.5">
+                                    ⚠️ {isPickup ? '현위치 → 상차지' : '상차지 → 하차지'} 주행 시간을 아직 모릅니다 —
+                                    여유 계산은 {isPickup ? '상차' : '하차'} {dwell}분만 반영했습니다
+                                </div>
+                            )}
 
                             {/* 🎯 여유가 곧 합짐 여력 */}
                             <div>
@@ -390,7 +403,7 @@ export default function StopCallSheet({
                             disabled={!!arrivedAt}
                             onClick={() => socket.emit('report-milestone', {
                                 orderId, milestone: isPickup ? 'ARRIVED_PICKUP' : 'ARRIVED_DROPOFF',
-                                predictedAt: new Date(Date.now() + driveMinutes * 60_000).toISOString(),
+                                predictedAt: driveKnown ? new Date(Date.now() + driveMinutes! * 60_000).toISOString() : undefined,
                             })}
                             className={`flex-1 py-2.5 rounded-md text-[13px] font-black border ${
                                 arrivedAt ? 'bg-text-muted/10 text-text-muted border-border'

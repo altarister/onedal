@@ -7,6 +7,7 @@ import { logRoadmapEvent } from "../../utils/roadmapLogger";
 import { DISPATCH_CONFIG } from "../../config/dispatchConfig";
 import { SettingsRepository } from "../../repositories/SettingsRepository";
 import { PricingEngine } from "./PricingEngine";
+import { applySoloRoute } from "../../services/routeComposer";
 import { IAppPlugin } from "../plugins/IAppPlugin";
 import { PluginFactory } from "../plugins/PluginFactory";
 import { getActiveCalls } from "../helpers";
@@ -97,12 +98,13 @@ export class OrderEvaluator {
                             reasons.push(`운행시간(${Math.round(result.duration/60)}분) 초과`);
                         }
                         
-                        timeExt = `추천거리 ${Math.round(result.distance / 1000)}km, 소요 ${Math.round(result.duration / 60)}분`;
-                        securedOrder.routePolyline = result.polyline;
-                        securedOrder.kakaoSoloDistanceKm = parseFloat((result.distance / 1000).toFixed(1));
-                        securedOrder.kakaoSoloDurationMin = Math.round(result.duration / 60);
-                        securedOrder.totalDistanceKm = securedOrder.kakaoSoloDistanceKm;
-                        securedOrder.totalDurationMin = securedOrder.kakaoSoloDurationMin;
+                        // 🔴 예전에는 여기서 손으로 필드를 채웠다. routeComposer 의 규약을 안 타서
+                        //    **접근 구간(현위치 → 상차지)이 통째로 버려지고** 있었다.
+                        //    콜을 잡는 이 경로가 주 경로인데, 여기만 규약 밖에 있었던 것이다.
+                        //    (EE 리팩터링에서 composeMergedRoute 를 쓰는 곳만 통일하고 여기를 놓쳤다)
+                        applySoloRoute(securedOrder, result);
+                        timeExt = `추천거리 ${securedOrder.kakaoSoloDistanceKm}km, 소요 ${securedOrder.kakaoSoloDurationMin}분`
+                            + (securedOrder.approachDurationMin ? ` (상차지까지 ${securedOrder.approachDurationMin}분)` : '');
 
                         console.log(`   - 🗺️ 궤적 길이 (Solo): ${securedOrder.routePolyline?.length || '없음'}`);
                     } else {

@@ -7,7 +7,7 @@ import { fetchRealWorldRoute } from "../routes/osrmUtil";
 import { getUserSession } from "../state/userSessionStore";
 import { updateActiveFilter } from "../state/filterManager";
 import { getCorridorRegions, getCityRegionsWithRadius, reverseGeocodeToRegion } from "../services/geoService";
-import { composeMergedRoute, applyRoute, pickRouteHolder, toKm, toMin } from "./routeComposer";
+import { composeMergedRoute, applyRoute, applySoloRoute, pickRouteHolder, toKm, toMin } from "./routeComposer";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { DISPATCH_CONFIG } from "../config/dispatchConfig";
 import db from "../db";
@@ -96,7 +96,7 @@ export async function recalculateActiveKakaoRoute(userId: string, io: any) {
                 routingOptions.defaultPriority,
                 routingOptions.carType
             );
-            applyRoute(activeMain, res);
+            applySoloRoute(activeMain, res);
 
             if (res.approachDistance && res.approachDuration) {
                 console.log(`🗺️ [사후 재계산 - 첫짐] 현위치 접근: ${res.approachDistance}m (${res.approachDuration}초) / 총 이동: ${res.distance}m`);
@@ -169,17 +169,15 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
             if (priority === "TIME") paramLabel = "최단시간";
             if (priority === "DISTANCE") paramLabel = "최단거리";
 
-            const soloKm = toKm(result.distance);
-            const soloMin = toMin(result.duration);
+            // routeComposer 규약으로 기록한다. 손으로 채우면 접근 구간이 또 버려진다
+            // (이 파일에만 같은 기록 로직이 여섯 벌 있었다 — OrderEvaluator 포함)
+            applySoloRoute(securedOrder, result);
 
             // [재탐색 ②] 예전에는 "[최단시간] 재탐색 완료" 만 표시해, 눌러도 무엇이 달라졌는지
             // 알 수 없었다. 합짐일 때만 수치가 나오고 단독일 때는 없었다.
             // 재탐색은 "어느 쪽이 유리한가"를 보려고 누르는 것이므로 결과 수치가 필수다.
-            timeExt = `[${paramLabel}] ${soloKm}km, ${soloMin}분`;
-
-            securedOrder.routePolyline = result.polyline;
-            securedOrder.totalDistanceKm = soloKm;
-            securedOrder.totalDurationMin = soloMin;
+            timeExt = `[${paramLabel}] ${securedOrder.kakaoSoloDistanceKm}km, ${securedOrder.kakaoSoloDurationMin}분`
+                + (securedOrder.approachDurationMin ? ` (상차지까지 ${securedOrder.approachDurationMin}분)` : '');
         } else {
             const existingActive = getActiveCalls(session);
             const result = await composeMergedRoute({

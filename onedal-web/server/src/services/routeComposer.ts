@@ -40,6 +40,8 @@ export interface RouteResult {
     sectionEtas?: any;
     /** 현위치 → 첫 상차지 소요 시간(초). 카카오가 주는데 예전에는 로그만 찍고 버렸다 */
     approachDuration?: number;
+    /** 현위치 → 첫 상차지 거리(미터) */
+    approachDistance?: number;
 }
 
 /**
@@ -50,6 +52,36 @@ export interface RouteResult {
  */
 export function pickRouteHolder<T extends RouteHolder>(activeCalls: T[], fallback: T): T {
     return activeCalls.length > 0 ? activeCalls[activeCalls.length - 1] : fallback;
+}
+
+/**
+ * 단독 경로 결과를 기록한다. **접근 구간(현위치 → 상차지)을 분리해서** 남긴다.
+ *
+ * 🔴 카카오는 현위치를 origin 으로 주면 `summary.distance` 에 **접근 구간까지 포함한 총합**을 준다.
+ *    그걸 그대로 `kakaoSoloDistanceKm`("해당 콜만의 단독 주행 거리")에 넣고 있었다.
+ *    "단독"이라면서 상차지까지 가는 거리가 섞여 있던 셈이다.
+ *    (실측 화면: `단독 74.1km` — 적요의 `상차지 → 하차지 53.3KM` 와 안 맞았다)
+ *
+ * 이제 셋을 구분한다.
+ *   totalDistanceKm / totalDurationMin — 기사님이 실제로 달리는 전체 (접근 포함)
+ *   kakaoSolo*                          — 상차지 → 하차지 구간만
+ *   approachDurationMin                 — 현위치 → 상차지
+ */
+export function applySoloRoute(holder: RouteHolder, r: RouteResult): void {
+    const approachSec = r.approachDuration ?? 0;
+    const approachM = r.approachDistance ?? 0;
+
+    holder.routePolyline = r.polyline;
+    holder.totalDistanceKm = toKm(r.distance);
+    holder.totalDurationMin = toMin(r.duration);
+    if (r.sectionEtas) holder.sectionEtas = r.sectionEtas;
+
+    holder.kakaoSoloDistanceKm = toKm(Math.max(0, r.distance - approachM));
+    holder.kakaoSoloDurationMin = toMin(Math.max(0, r.duration - approachSec));
+
+    // 접근 구간은 현위치를 알 때만 나온다. 모르면 값을 만들지 않는다 —
+    // 관제탑이 "현위치 확인 안 됨"이라고 정직하게 말할 수 있어야 한다
+    holder.approachDurationMin = approachSec > 0 ? toMin(approachSec) : undefined;
 }
 
 /** 경로 연산 결과를 콜에 기록한다. 어떤 필드를 쓰는지도 여기서만 정한다. */

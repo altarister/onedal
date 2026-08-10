@@ -285,7 +285,7 @@ export default function PinnedRouteCard({
                                         contactName={pDetail?.contactName || pDetail?.customerName}
                                         phones={phonesOf(pDetail)} reports={cargoReports}
                                         memoTexts={[route.itemDescription, route.detailMemo, pDetail?.memo]}
-                                        driveMinutes={route.approachDurationMin ?? 0}
+                                        driveMinutes={route.approachDurationMin ?? null}
                                         orderStatus={route.status}
                                         arrivedAt={milestoneLog.find(m => m.milestone === 'ARRIVED_PICKUP')?.occurredAt}
                                     />
@@ -295,7 +295,7 @@ export default function PinnedRouteCard({
                                         contactName={dDetail?.contactName || dDetail?.customerName}
                                         phones={phonesOf(dDetail)} reports={cargoReports}
                                         memoTexts={[route.itemDescription, route.detailMemo, dDetail?.memo]}
-                                        driveMinutes={route.kakaoSoloDurationMin ?? route.totalDurationMin ?? 0}
+                                        driveMinutes={route.kakaoSoloDurationMin ?? null}
                                         orderStatus={route.status}
                                         arrivedAt={milestoneLog.find(m => m.milestone === 'ARRIVED_DROPOFF')?.occurredAt}
                                     />
