@@ -24,10 +24,20 @@ import { telHref } from '../../lib/routeUtils';
  * 한쪽을 펼쳐도 다른 쪽 요약은 그대로 남는다 —
  * 기사님이 *"탭을 바꿔 가면서 거짓말한 내용을 확인"* 하려던 것이 **바꾸지 않고도** 된다.
  *
+ * ══ 저장 후 흐름 ══
+ *
+ * 기사님: *"통화 정보를 저장하고 나면 같은 내용이 반복되고 수정 버튼을 눌러야 이전 화면으로
+ * 돌아가는데, **정보 중복이고 불필요한 액션을 요구하는 것 같다.**"*
+ *
+ *   (전) 줄 클릭 → 저장된 내용 미리보기(요약 줄과 같은 내용) → `수정` 클릭 → 폼   ← 2번 클릭
+ *   (후) 줄 클릭 → **바로 폼**(값이 채워진 채로) → 저장 → **접힘**                ← 1번 클릭
+ *
+ * 요약 줄이 이미 미리보기다. 안에서 또 보여줄 이유가 없다.
+ * 요약에 안 들어가는 메모는 **요약 줄 둘째 줄**에 붙여 펼치지 않아도 잃는 정보가 없게 했다.
+ *
  * 그 밖에 스크린샷 피드백으로 고친 것
  *   · 헤더 **진행 배지** (`📞 통화완료` `📍 도착 15:12` `👁 현장확인` `📦 상차완료`)
  *   · 큰 버튼 두 개 제거 — 아코디언이 이미 길다. 전화번호도 헤더 우측 작은 버튼으로
- *   · 펼치면 **저장된 내용부터**. 고칠 때만 `수정`
  *   · 현장 줄에 `📍 도착` `📦 상차 완료` `✕ 상차 취소` — 시각을 남기는 버튼
  *
  * ══ 통화 입력의 설계 기준 ══
@@ -74,7 +84,6 @@ export default function StopCallSheet({
 }: Props) {
     const isPickup = stopType === 'pickup';
     const [tab, setTab] = useState<CargoReportKind | null>(null);   // null = 접힘
-    const [editing, setEditing] = useState(false);
     const [showMoreUnits, setShowMoreUnits] = useState(false);
 
     const declared = reports.find(r => r.stopType === stopType && r.kind === 'DECLARED');
@@ -122,14 +131,12 @@ export default function StopCallSheet({
     };
 
     const openTab = (k: CargoReportKind) => {
-        if (tab === k) { setTab(null); setEditing(false); return; }
+        if (tab === k) { setTab(null); return; }
         // 현장 기록이 아직 없으면 **통화 내용을 복사해서** 시작한다.
         // (복사이므로 여기서 고쳐도 통화 기록은 그대로 남는다 — 그래야 대조가 된다)
         const src = k === 'DECLARED' ? declared : (actual || declared);
         loadInto(src);
         setTab(k);
-        // 저장된 게 없으면 바로 입력 모드로 — 한 번 더 누르게 하지 않는다
-        setEditing(!(k === 'DECLARED' ? declared : actual));
     };
 
     const save = (kind: CargoReportKind) => {
@@ -143,7 +150,9 @@ export default function StopCallSheet({
             tags: isPickup && tags.length ? tags : undefined,
             memo: memo || undefined,
         });
-        setEditing(false);
+        // 저장하면 접는다. 결과는 바로 위 요약 줄에 반영된다 —
+        // 같은 내용을 안에서 또 보여줄 이유가 없다
+        setTab(null);
     };
 
     const chip = (active: boolean, dim = false) =>
@@ -283,16 +292,19 @@ export default function StopCallSheet({
                 <SummaryLine
                     icon="📞" title="통화"
                     summary={declaredSummary}
+                    memo={declared?.memo}
                     empty={!declared}
                     open={isCall}
                     onClick={() => openTab('DECLARED')}
                 />
                 {isCall && (
                 <div className="pt-2 pb-1 pl-5 flex flex-col gap-2.5">
-                    {!editing && declared ? (
-                        <Preview text={summarize(declared)} memo={declared.memo} onEdit={() => { loadInto(declared); setEditing(true); }} />
-                    ) : (
-                        <>
+                    {/* 🔴 저장된 내용을 여기서 또 보여주지 않는다 (2026-08-10).
+                        요약 줄이 **바로 위에** 같은 내용을 이미 띄우고 있어서 중복이었고,
+                        고치려면 `수정` 을 한 번 더 눌러야 했다.
+                        기사님: *"정보 중복이고 불필요한 액션을 요구하는 것 같다."*
+                        → 줄을 누르면 **바로 입력 폼**이 열린다. 저장하면 접히고 요약 줄이 갱신된다. */}
+                    <>
                             {/* 어쩔 수 없는 시간을 먼저 못박는다 */}
                             {driveKnown ? (
                                 <div className="text-[11px] text-text-muted">
@@ -361,14 +373,14 @@ export default function StopCallSheet({
                                 className="w-full py-2.5 rounded-md bg-info text-white text-[13px] font-black active:scale-[0.99] transition-transform">
                                 통화 종료 · 저장
                             </button>
-                        </>
-                    )}
+                    </>
                 </div>
                 )}
 
                 <SummaryLine
                     icon="👁" title="현장"
                     summary={actualSummary}
+                    memo={actual?.memo}
                     empty={!actual}
                     open={tab === 'ACTUAL'}
                     onClick={() => openTab('ACTUAL')}
@@ -376,17 +388,11 @@ export default function StopCallSheet({
                 />
                 {tab === 'ACTUAL' && (
                 <div className="pt-2 pb-1 pl-5 flex flex-col gap-2.5">
-                    {!editing && actual ? (
-                        <Preview text={summarize(actual)} memo={actual.memo} onEdit={() => { loadInto(actual); setEditing(true); }} />
-                    ) : (
-                        <>
-                            {cargoForm}
-                            <button onClick={() => save('ACTUAL')}
-                                className="w-full py-2.5 rounded-md bg-surface-alt/60 border border-border text-text-primary text-[13px] font-black">
-                                현장 내용 저장
-                            </button>
-                        </>
-                    )}
+                    {cargoForm}
+                    <button onClick={() => save('ACTUAL')}
+                        className="w-full py-2.5 rounded-md bg-surface-alt/60 border border-border text-text-primary text-[13px] font-black">
+                        현장 내용 저장
+                    </button>
 
                     {(() => {
                         const dPts = unitPoints(declared?.unit, declared?.quantity);
@@ -444,8 +450,8 @@ export default function StopCallSheet({
  * 요약 줄 — 이 줄 하나로 "무엇이 정해졌는지"를 알 수 있어야 한다.
  * 접힌 채로 보이는 유일한 정보이므로, 여기서 빠진 값은 기사님에게 없는 값이다.
  */
-function SummaryLine({ icon, title, summary, empty, open, onClick, warn }: {
-    icon: string; title: string; summary: string; empty: boolean;
+function SummaryLine({ icon, title, summary, memo, empty, open, onClick, warn }: {
+    icon: string; title: string; summary: string; memo?: string; empty: boolean;
     open: boolean; onClick: () => void; warn?: boolean;
 }) {
     return (
@@ -458,29 +464,17 @@ function SummaryLine({ icon, title, summary, empty, open, onClick, warn }: {
             }`}>
             <span className="text-[11px] shrink-0">{icon}</span>
             <span className="text-[10px] font-black text-text-muted shrink-0 w-6">{title}</span>
-            <span className={`flex-1 min-w-0 text-[12px] font-bold break-keep ${
-                empty ? 'text-text-muted/70 font-normal' : 'text-text-primary'
-            }`}>
-                {summary}
+            <span className="flex-1 min-w-0">
+                <span className={`block text-[12px] font-bold break-keep ${
+                    empty ? 'text-text-muted/70 font-normal' : 'text-text-primary'
+                }`}>
+                    {summary}
+                </span>
+                {/* 메모는 요약에 안 들어가므로 여기서 보여준다 — 펼치지 않아도 잃는 정보가 없어야 한다 */}
+                {memo && <span className="block text-[11px] text-text-muted break-keep mt-0.5">{memo}</span>}
             </span>
             <span className="text-[10px] text-text-muted shrink-0">{open ? '▾' : '▸'}</span>
         </button>
-    );
-}
-
-/** 저장된 내용 미리보기 — 탭을 열면 입력 폼이 아니라 이게 먼저 나온다 */
-function Preview({ text, memo, onEdit }: { text: string; memo?: string; onEdit: () => void }) {
-    return (
-        <div className="flex items-start gap-2">
-            <div className="flex-1 min-w-0">
-                <div className="text-[13px] font-bold text-text-primary break-keep">{text || '기록 없음'}</div>
-                {memo && <div className="text-[11px] text-text-muted mt-0.5 break-keep">{memo}</div>}
-            </div>
-            <button onClick={onEdit}
-                className="shrink-0 px-3 py-1.5 rounded-md border border-border text-[11px] font-bold text-text-primary bg-surface-alt/50">
-                수정
-            </button>
-        </div>
     );
 }
 
