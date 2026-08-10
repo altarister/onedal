@@ -33,3 +33,20 @@ export function getAddressLabel(addr: string) {
 
     return parts[1] || parts[0];
 }
+
+/**
+ * 전화 걸기 링크. 같은 정규식이 네 곳에 복사돼 있었다 (2026-08-10 전수조사).
+ * 하이픈·공백·괄호를 걷어내되 국제번호 `+` 는 남긴다.
+ */
+export function telHref(phone?: string | null): string | undefined {
+    if (!phone) return undefined;
+    const digits = phone.replace(/[^0-9+]/g, '');
+    return digits ? `tel:${digits}` : undefined;
+}
+
+/** 시:분 (24시간). 세 곳에 복사돼 있던 포맷 */
+export function hhmm(iso?: string | null): string {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? '' : d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
+}

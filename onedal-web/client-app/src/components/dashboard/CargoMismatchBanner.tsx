@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { socket } from '../../lib/socket';
+import { telHref } from '../../lib/routeUtils';
 import type { SecuredOrder } from '@onedal/shared';
 
 /**
@@ -74,7 +75,7 @@ export default function CargoMismatchBanner({ orders }: { orders: SecuredOrder[]
 
                         <div className="flex gap-2 mt-2.5">
                             {quickPhone && (
-                                <a href={`tel:${quickPhone.replace(/[^0-9+]/g, '')}`}
+                                <a href={telHref(quickPhone)}
                                    className="flex-1 text-center py-2.5 rounded-md bg-info/15 border border-info/40 text-info text-[12px] font-black">
                                     🏢 사무실 {quickPhone}
                                 </a>

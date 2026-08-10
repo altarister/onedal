@@ -1,5 +1,6 @@
 import { Router } from "express";
 import db from "../db";
+import { updateActiveFilter } from "../state/filterManager";
 import { requireAuth } from "../middlewares/authMiddleware";
 import { geocodeAddress } from "../services/kakaoService";
 import { getGroupedRegionsByCity } from "../geoResolver";
@@ -171,6 +172,39 @@ router.put("/", requireAuth, async (req, res) => {
 
         // 클라이언트(내 차 패널 등)가 실시간으로 갱신될 수 있도록 소켓 이벤트 발송
         req.app.get("io").to(userId).emit("settings-updated", payload);
+
+        // 🔴 [2026-08-10 전수조사] 예전에는 DB 만 쓰고 끝났다.
+
+        // 세션의 userVehicleType 은 로그인 시 한 번만 읽으므로, 차종을 바꿔도
+
+        // **필터는 옛 차종으로 계산**하고 있었다. 반면 카카오 경로는
+
+        // SettingsRepository 가 DB 를 매번 읽어 **새 차종**을 썼다 —
+
+        // 같은 순간에 두 값이 달랐던 것이다.
+
+        // 그리고 관제탑은 `settings-updated` 를 듣고 있는데 **아무도 보내지 않았다.**
+
+        const io = req.app.get("io");
+        if (payload.vehicleType) {
+            const session = getUserSession(userId);
+
+            if (session.userVehicleType !== payload.vehicleType) {
+
+                console.log(`🚚 [설정 변경] 차종 ${session.userVehicleType} → ${payload.vehicleType} — 필터 재파생`);
+
+                session.userVehicleType = payload.vehicleType;
+
+                // allowedVehicleTypes 는 filterManager 가 차종·적재 상태에서 다시 파생시킨다
+
+                updateActiveFilter(userId, {}, io);
+
+            }
+
+        }
+
+        io?.to(userId).emit("settings-updated", payload);
+
 
         res.json({ success: true, message: "Settings updated successfully" });
     } catch (e) {

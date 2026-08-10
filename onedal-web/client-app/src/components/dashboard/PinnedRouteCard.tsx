@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { isEvaluating, isTerminal } from "@onedal/shared";
 import type { SecuredOrder } from "@onedal/shared";
 import { socket } from "../../lib/socket";
-import { getAddressLabel, getMinuteDiff } from "../../lib/routeUtils";
+import { getAddressLabel, getMinuteDiff , telHref } from "../../lib/routeUtils";
 import { logRoadmapEvent } from '../../lib/roadmapLogger';
 
 
@@ -328,7 +328,7 @@ export default function PinnedRouteCard({
                                         {quickPhone && (
                                             <>
                                                 <span>·</span>
-                                                <a href={`tel:${quickPhone.replace(/[^0-9+]/g, '')}`} onClick={e => e.stopPropagation()}
+                                                <a href={telHref(quickPhone)} onClick={e => e.stopPropagation()}
                                                    className="text-info font-bold underline underline-offset-2">
                                                     🏢 {quickClean}
                                                 </a>

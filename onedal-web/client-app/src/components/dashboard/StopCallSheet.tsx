@@ -7,6 +7,7 @@ import {
 } from '@onedal/shared';
 import type { CargoReport, HandlingMethod, CargoReportKind, CargoUnit } from '@onedal/shared';
 import { socket } from '../../lib/socket';
+import { telHref } from '../../lib/routeUtils';
 
 /**
  * [Phase 8.4] 정거장 카드 — 통화 / 현장
@@ -257,14 +258,14 @@ export default function StopCallSheet({
                     <div className="text-[12px] text-text-primary leading-snug mt-0.5 break-keep">{address}</div>
                 </div>
                 {phones.length > 0 && (
-                    <a href={`tel:${phones[0].replace(/[^0-9+]/g, '')}`} onClick={e => e.stopPropagation()}
+                    <a href={telHref(phones[0])} onClick={e => e.stopPropagation()}
                         className="shrink-0 flex items-center gap-1 px-3 py-2 rounded-md bg-success/12 border border-success/40 text-success text-[12px] font-black tabular-nums active:scale-[0.98] transition-transform">
                         📞 {phones[0]}
                     </a>
                 )}
             </div>
             {phones.length > 1 && (
-                <a href={`tel:${phones[1].replace(/[^0-9+]/g, '')}`} onClick={e => e.stopPropagation()}
+                <a href={telHref(phones[1])} onClick={e => e.stopPropagation()}
                     className="inline-block mt-1 text-[11px] font-bold text-success/80 underline underline-offset-2">
                     📞 {phones[1]} (보조)
                 </a>

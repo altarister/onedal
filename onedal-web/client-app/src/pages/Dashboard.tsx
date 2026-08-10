@@ -7,6 +7,7 @@ import OrderFilterModal from "../components/dashboard/OrderFilterModal";
 import VehicleStatusPanel from "../components/dashboard/VehicleStatusPanel";
 import PinnedRoute from "../components/dashboard/PinnedRoute";
 import CargoMismatchBanner from "../components/dashboard/CargoMismatchBanner";
+import { useServerErrors } from "../hooks/useServerErrors";
 import { useState, useEffect } from "react";
 import { socket } from "../lib/socket";
 
@@ -20,6 +21,9 @@ export default function Dashboard() {
     const [viewFilter, setViewFilter] = useState<'ACTIVE' | 'COMPLETED' | 'CANCELED' | 'ALL'>('ACTIVE');
     // [이슈 W] 서버 재시작으로 진행 중 콜이 복구됐을 때 표시할 배너
     const [restoredInfo, setRestoredInfo] = useState<{ restoredCount: number; dispatchPhase: string } | null>(null);
+
+    // 서버가 보내는 오류를 화면에 띄운다 — 조용한 실패를 없앤다
+    const { errors: serverErrors, dismiss: dismissError } = useServerErrors();
 
     const {
         orders,
@@ -114,6 +118,19 @@ export default function Dashboard() {
                         </button>
                     </div>
                 )}
+
+                {/* 🚨 서버 오류 — 예전에는 서버만 알고 기사님은 몰랐다 */}
+                {serverErrors.map(e => (
+                    <div key={e.at} className="mx-3 mt-3 rounded-xl border border-danger/45 bg-danger/10 px-4 py-3 flex items-start gap-3">
+                        <span className="text-lg leading-none mt-0.5">🚨</span>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-text-primary">처리에 실패했습니다</p>
+                            <p className="text-xs text-text-muted mt-0.5 break-all">{e.event} — {e.message}</p>
+                        </div>
+                        <button onClick={() => dismissError(e.at)}
+                            className="text-text-muted hover:text-text-primary text-xs font-bold px-2 py-1">닫기</button>
+                    </div>
+                ))}
 
                 {/* 🚨 신고 불일치 — 경고에서 사무실 전화·수행 판단까지 한 카드에서 */}
                 <CargoMismatchBanner orders={activeRoute} />
