@@ -16,7 +16,7 @@ import { getActiveCalls, computeLoadedPoints } from "../core/helpers";
 import { OrderRepository } from "../repositories/OrderRepository";
 import { getUserSession } from "./userSessionStore";
 import type { AutoDispatchFilter } from "@onedal/shared";
-import { getEligibleVehicleTypes, getRemainingCapacityTypesByPoints } from "@onedal/shared";
+import { getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase } from "@onedal/shared";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { getCityRegionsWithRadius } from "../services/geoService";
 
@@ -231,9 +231,34 @@ export function updateActiveFilter(
     //
     // 필드 자체를 없애는 게 이상적이지만, 앱의 InsungParser 가 이 키를 파싱하고 있어
     // 페이로드 계약을 깨뜨리므로 값만 파생시킨다.
-    const derivedShared = (session.activeFilter.dispatchPhase ?? 'STANDBY') !== 'STANDBY';
+    //
+    // 🔴 2026-08-10: 그런데 **뿌리가 여전히 저장된 값**이었다.
+    //    isSharedMode 는 dispatchPhase 에서 파생시켜 놨는데, 정작 dispatchPhase 자체는
+    //    누군가 명시적으로 바꿔줘야 하는 저장 상태였다.
+    //    STANDBY 로 되돌리는 코드는 **취소 경로(StateMachine.rollbackOnCancel)에만** 있고
+    //    **완료 경로에는 없었다.** 그래서 마지막 콜을 하차 완료해도
+    //    `GATHERING` 이 남아 관제탑이 계속 "합짐 탐색중"이라 표시했다.
+    //    (기사님: *"콜을 완료했는데 필터가 합짐 탐색중이야"*)
+    //
+    //    → dispatchPhase 도 **데이터에서 파생**시킨다. 지금 실린 콜 수가 진실이다.
+    //      기존 전이(advanceOnKeep / rollbackOnCancel)와 결과가 같으므로 동작은 그대로다.
+    const activeCount = getActiveCalls(session).length;
+
+    // 실은 짐이 없으면 '운행 중'일 수 없다. 값이 남아 있으면 다음 판정이 DELIVERING 으로 새어 나간다
+    if (activeCount === 0 && session.activeFilter.driverAction === 'DRIVING') {
+        console.log(`🔗 [불변식] driverAction DRIVING → WAITING (활성 콜 0건)`);
+        session.activeFilter.driverAction = 'WAITING';
+    }
+
+    const derivedPhase = deriveDispatchPhase(session.activeFilter.driverAction ?? 'WAITING', activeCount);
+    if (session.activeFilter.dispatchPhase !== derivedPhase) {
+        console.log(`🔗 [불변식] dispatchPhase ${session.activeFilter.dispatchPhase} → ${derivedPhase} (활성 콜 ${activeCount}건)`);
+        session.activeFilter.dispatchPhase = derivedPhase;
+    }
+
+    const derivedShared = derivedPhase !== 'STANDBY';
     if (session.activeFilter.isSharedMode !== derivedShared) {
-        console.log(`🔗 [불변식] isSharedMode ${session.activeFilter.isSharedMode} → ${derivedShared} (dispatchPhase=${session.activeFilter.dispatchPhase})`);
+        console.log(`🔗 [불변식] isSharedMode ${session.activeFilter.isSharedMode} → ${derivedShared} (dispatchPhase=${derivedPhase})`);
         session.activeFilter.isSharedMode = derivedShared;
     }
 

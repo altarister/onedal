@@ -51,3 +51,18 @@ describe('🔴 이슈 W 재현 방어 — 재시작 후 진행 중 3건이 있�
         expect(deriveDispatchPhase('WAITING', 0)).toBe('STANDBY');
     });
 });
+
+describe('🔴 완료 경로에서도 STANDBY 로 돌아와야 한다 (2026-08-10)', () => {
+    // 기사님: "콜을 완료했는데 필터가 합짐 탐색중이야."
+    // dispatchPhase 를 STANDBY 로 되돌리는 코드가 취소 경로에만 있고 완료 경로에는 없었다.
+    // 이제 filterManager 가 활성 콜 수에서 매번 파생시키므로 경로와 무관하게 정합이 유지된다.
+    it('활성 콜이 0이면 무조건 STANDBY — 어떤 경로로 0이 됐든', () => {
+        expect(deriveDispatchPhase('WAITING', 0)).toBe('STANDBY');
+        expect(deriveDispatchPhase('DRIVING', 0)).toBe('STANDBY');
+    });
+
+    it('한 건이라도 남아 있으면 합짐 상태를 유지한다', () => {
+        expect(deriveDispatchPhase('WAITING', 1)).toBe('GATHERING');
+        expect(deriveDispatchPhase('DRIVING', 1)).toBe('DELIVERING');
+    });
+});
