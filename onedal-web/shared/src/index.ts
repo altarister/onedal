@@ -626,3 +626,12 @@ export * from './vehicles';
 export * from './cargoHints';
 export * from './cargoTags';
 export * from './cargoUnits';
+
+/**
+ * 관제탑으로 보내는 오더 스냅샷.
+ * **진행 중과 종료된 것을 나눠서** 보낸다 — 한 배열로 보내면 받는 쪽이 거르기를 잊는다.
+ */
+export interface OrderSyncPayload {
+    active: SecuredOrder[];
+    terminated: SecuredOrder[];
+}

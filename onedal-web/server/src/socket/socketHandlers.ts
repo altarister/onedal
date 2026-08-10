@@ -9,6 +9,7 @@ import { cargoMismatchRatio } from "@onedal/shared";
 import { OrderRepository } from "../repositories/OrderRepository";
 import { PlaceRepository } from "../repositories/PlaceRepository";
 import { getUserSession, getAllActiveUserIds } from "../state/userSessionStore";
+import { buildOrderSync } from "../core/helpers";
 import { recalculateCorridorFilter, handleDecision, recalculateKakaoRoute, bootstrapUserSession, completeOrder, reportMilestone, startTwoTrack, createHomeReturn } from "../services/dispatchEngine";
 import { updateActiveFilter } from "../state/filterManager";
 import { processDriverMovement, getCityRegionsWithRadius } from "../services/geoService";
@@ -294,8 +295,7 @@ export function registerSocketHandlers(io: Server) {
             
             // 각 기사별로 자신의 화면에 뜰 오더 리스트 동기화
             const session = getUserSession(uid);
-            const activeOrdersPayload = Array.from(session.pendingOrdersData.values());
-            io.to(uid).emit("sync-active-orders", activeOrdersPayload);
+            io.to(uid).emit("sync-active-orders", buildOrderSync(session));
         }
     }, 1000);
 }

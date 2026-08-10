@@ -1,16 +1,17 @@
 {
-    "name": "onedal-web-workspace",
-    "private": true,
-    "scripts": {
-        "dev:server": "pnpm --filter server dev",
-        "dev:client": "pnpm --filter client-app dev",
-        "dev:logbook": "pnpm --filter logbook dev",
-        "dev": "pnpm run dev:server & pnpm run dev:client & pnpm run dev:logbook"
-    },
-    "pnpm": {
-        "onlyBuiltDependencies": [
-            "better-sqlite3",
-            "esbuild"
-        ]
-    }
+  "name": "onedal-web-workspace",
+  "private": true,
+  "scripts": {
+    "dev:server": "pnpm --filter server dev",
+    "dev:client": "pnpm --filter client-app dev",
+    "dev:logbook": "pnpm --filter logbook dev",
+    "dev": "pnpm run dev:server & pnpm run dev:client & pnpm run dev:logbook",
+    "audit:socket": "node scripts/audit-socket-contract.mjs"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "esbuild"
+    ]
+  }
 }

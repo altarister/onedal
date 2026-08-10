@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { socket } from "../lib/socket";
-import type { SimplifiedOfficeOrder, SecuredOrder } from "@onedal/shared";
+import type { SimplifiedOfficeOrder, SecuredOrder, OrderSyncPayload } from "@onedal/shared";
 import { isEvaluating, isTerminal } from "@onedal/shared";
 import { logRoadmapEvent } from "../lib/roadmapLogger";
 import { soundManager } from "../lib/soundManager";
@@ -9,6 +9,11 @@ export function useOrderEngine() {
     const [orders, setOrders] = useState<SimplifiedOfficeOrder[]>([]);
     const [isConnected, setIsConnected] = useState(socket.connected);
     const [activeOrders, setActiveOrders] = useState<SecuredOrder[]>([]);
+    /**
+     * 종료된 콜 (취소·방출·완료·하차). 서버가 **따로** 보내준다.
+     * 관제탑의 완료/취소 탭 표시용 — 적재·경로 계산에는 절대 쓰지 않는다.
+     */
+    const [terminatedOrders, setTerminatedOrders] = useState<SecuredOrder[]>([]);
 
     // 파생 상태 (기존 컴포넌트 호환성 유지)
     const mainCall = activeOrders.length > 0 ? activeOrders[0] : null;
@@ -21,6 +26,8 @@ export function useOrderEngine() {
     // 2026-08-09 하루에만 세 번 그걸 잊어서 버그가 났다.
     //   AA 적재 7건으로 표시 · BB 취소된 콜을 재탐색 · DD 취소분까지 운임 합산
     // "기억해야 하는 규칙"을 "고를 수 없는 구조"로 바꾼다.
+    // 서버가 이미 걸러서 보내지만(buildOrderSync), 낙관적 UI 가 만든 임시 항목이
+    // 섞일 수 있으므로 한 겹 더 둔다. 비용이 없고 계약이 깨져도 안전하다.
     const liveCalls = useMemo(
         () => activeOrders.filter(o => !isTerminal(o.status)),
         [activeOrders]
@@ -170,7 +177,26 @@ export function useOrderEngine() {
 
         // ⭐ 1초 하트비트 싱크: 서버의 실제 평가 오더 전체 객체 배열
         // 소켓 이벤트 누락 복구 + 웹 클라이언트 첫 접속/새로고침 시 전체 데이터 복원 기능
-        const onSyncActiveOrders = (serverActiveOrders: SecuredOrder[]) => {
+        const onSyncActiveOrders = (payload: OrderSyncPayload | SecuredOrder[]) => {
+            // 🔴 서버가 진행/종료를 **나눠서** 보낸다 (2026-08-10).
+            //    예전에는 한 배열로 와서 받는 쪽마다 isTerminal 을 기억해야 했고,
+            //    잊으면 조용히 틀렸다 (AA 적재 건수 · BB 재탐색 대상 · DD 운임 합계).
+            //    이제 나뉘어 오므로 **잊을 수가 없다.**
+            //
+            //    배열로 오면 옛 서버가 돌고 있다는 뜻이다. 조용히 넘기지 않고 경고한다 —
+            //    이 프로젝트에서 tsx watch 가 변경을 놓치는 일이 반복됐다.
+            if (Array.isArray(payload)) {
+                console.warn('⚠️ [계약 불일치] sync-active-orders 가 배열로 왔습니다. '
+                    + '서버가 옛 코드입니다 — 재기동하세요. 종료된 콜이 진행 중으로 섞여 보일 수 있습니다.');
+                setTerminatedOrders(payload.filter(o => isTerminal(o.status)));
+                payload = { active: payload.filter(o => !isTerminal(o.status)), terminated: [] };
+            }
+            const serverActiveOrders = payload.active || [];
+            setTerminatedOrders(prevT => {
+                const next = payload.terminated || [];
+                return JSON.stringify(prevT) === JSON.stringify(next) ? prevT : next;
+            });
+
             setActiveOrders(prev => {
                 // 배열 내역(ID, 상태, 카카오결과 등) 전체를 비교하여 하나라도 다르면 무조건 덮어쓰기
                 // 소켓 통신(Vite 프록시) 불안정으로 이벤트가 누락되더라도 1초 안에 100% 자동 치유됨!
@@ -268,6 +294,7 @@ export function useOrderEngine() {
         mainCall,
         subCalls,
         liveCalls,
+        terminatedOrders,
         handleDecision,
         handleRecalculate,
     };

@@ -142,3 +142,24 @@ export function findLoadConflicts(
         return true;
     });
 }
+
+/**
+ * [2026-08-10] 관제탑으로 보낼 오더 스냅샷. **진행 중과 종료된 것을 나눠서** 보낸다.
+ *
+ * 🔴 예전에는 `Array.from(pendingOrdersData.values())` 를 통째로 보냈다.
+ *    한 배열에 진행 중 콜과 취소·완료된 콜이 섞여 있어서, **받는 쪽마다 `isTerminal` 을
+ *    기억해야** 했다. 잊으면 조용히 틀린다 — 2026-08-10 하루에만 세 번 났다.
+ *      AA 적재 7건으로 표시 · BB 취소한 콜을 재탐색 · DD 취소분까지 운임 합산
+ *
+ *    "기억해야 하는 규칙"을 "고를 수 없는 구조"로 바꾼다. 나눠서 보내면 잊을 수가 없다.
+ *
+ * ⚠️ 페이로드를 만드는 곳은 **여기 하나뿐**이어야 한다.
+ *    (예전에는 네 군데가 각자 `Array.from(...)` 을 했다)
+ */
+export function buildOrderSync(session: { myOrders: MyOrder[]; pendingOrdersData: Map<string, any> }) {
+    const all = Array.from(session.pendingOrdersData.values());
+    return {
+        active: all.filter(o => !isTerminal(o.status)),
+        terminated: all.filter(o => isTerminal(o.status)),
+    };
+}

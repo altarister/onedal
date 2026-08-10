@@ -28,22 +28,25 @@ export default function Dashboard() {
     const {
         orders,
         isConnected,
-        mainCall,
-        subCalls,
         liveCalls,
+        terminatedOrders,
         handleDecision,
         handleRecalculate,
     } = useOrderEngine();
 
-    const dbConfirmedOrCompleted = orders.filter(o => isTerminal((o as any).status) || (o as any).status === 'ORDER_CONFIRMED');
-    const memoryActive = [mainCall, ...subCalls].filter(Boolean) as SecuredOrder[];
-    
-    // ID 기반 병합 (메모리 데이터 우선, 순서 유지)
-    const activeRouteMap = new Map();
-    dbConfirmedOrCompleted.forEach(o => activeRouteMap.set(o.id, o));
-    memoryActive.forEach(o => activeRouteMap.set(o.id, { ...activeRouteMap.get(o.id), ...o })); 
-    
-    const activeRoute = Array.from(activeRouteMap.values()) as SecuredOrder[];
+    // [2026-08-10] 서버가 진행/종료를 **나눠서** 보낸다. 예전에는 한 배열로 와서
+    // 받는 쪽마다 isTerminal 을 기억해야 했고, 잊으면 조용히 틀렸다 (AA·BB·DD).
+    //
+    // PinnedRoute 는 탭(진행중/완료/취소) 때문에 둘 다 필요하므로 여기서만 합친다.
+    // 합치는 곳이 한 곳뿐이면 "어느 배열을 써야 하지?"를 고민할 자리가 없어진다.
+    const activeRouteMap = new Map<string, SecuredOrder>();
+    // 오늘의 DB 이력(새로고침 직후 소켓보다 먼저 도착) → 서버 종료분 → 진행분 순으로 덮어쓴다
+    orders.filter(o => isTerminal((o as any).status) || (o as any).status === 'ORDER_CONFIRMED')
+        .forEach(o => activeRouteMap.set((o as any).id, o as any));
+    terminatedOrders.forEach(o => activeRouteMap.set(o.id, { ...activeRouteMap.get(o.id), ...o }));
+    liveCalls.forEach(o => activeRouteMap.set(o.id, { ...activeRouteMap.get(o.id), ...o }));
+
+    const activeRoute = Array.from(activeRouteMap.values());
     // 취소·방출·완료된 귀가콜은 "진행 중"이 아니다.
     // 걸러내지 않으면 한 번 귀가콜을 만들었다 취소한 뒤로 다시 만들 수 없게 된다.
     const hasHomeReturnActive = activeRoute.some(

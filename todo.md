@@ -1185,14 +1185,55 @@
 | `isEvaluating` | 9곳 | 🟡 단순 술어 호출이라 중복 아님 |
 | 차종 기본값 `'1t'` | 2곳 | 🔜 서버가 항상 내려주므로 폴백 제거 검토 |
 
-### 📌 남은 구조적 위험 (다음에 볼 것)
+### 🆕 UU. 구조적 위험 3건 정리 ✅ 2026-08-10
 
-- [ ] **ack 이벤트 4종을 아무도 안 듣는다** — 서버는 처리 결과를 돌려주는데 화면은 낙관적으로만 그린다.
-      실패하면 화면과 서버가 갈라진다 (지금은 1초 `sync-active-orders` 가 덮어써서 가려짐)
-- [ ] **`PinnedRouteCanvas` 가 `safeRoute` 를 받아 스스로 `isTerminal` 필터** — 부모가 이미 `liveRoute` 를 갖고 있다.
-      계약을 좁히면(살아 있는 것만 전달) 실수할 여지가 사라진다
-- [ ] **`sync-active-orders` 가 진행/종료를 한 배열로 보낸다** (todo I+M).
-      오늘 AA·BB·DD 세 버그의 공통 발원지. 페이로드를 `{active, terminated}` 로 쪼개는 것이 근본 해결
+**① 🔴 `sync-active-orders` 를 진행/종료로 분리** — 오늘 세 버그(AA·BB·DD)의 공통 발원지
+
+- [x] 예전에는 `Array.from(pendingOrdersData.values())` 를 통째로 보냈다.
+      한 배열에 진행 중과 종료된 콜이 섞여 있어 **받는 쪽마다 `isTerminal` 을 기억해야** 했다
+- [x] `buildOrderSync(session)` 신설 — 페이로드를 만드는 곳이 **한 곳뿐**이다
+      (예전에는 네 군데가 각자 `Array.from(...)` 했다)
+- [x] 관제웹은 `{ active, terminated }` 를 받는다. **거를 일이 없으니 잊을 수도 없다**
+- [x] 배열이 오면 **옛 서버라고 경고**한다 — 이 프로젝트에서 `tsx watch` 가 변경을 놓치는 일이 반복됐다.
+      조용히 처리하면 또 "왜 안 되지"를 반복하게 된다
+- [x] `Dashboard` 의 병합도 **한 곳으로** — DB 이력 → 종료분 → 진행분 순서로 덮어쓴다
+- [x] 회귀 테스트 6개
+
+**② `PinnedRouteCanvas` 계약 축소**
+
+- [x] `safeRoute`(전체)를 받아 스스로 `isTerminal` 필터하던 것을 **`liveRoute`(진행 중만)** 로 좁혔다
+- [x] 부모가 이미 `liveRoute` 를 갖고 있었다. **계약을 좁히면 거르기를 잊을 자리가 없어진다**
+      (`VehicleStatusPanel` 에 했던 것과 같은 처방)
+
+**③ ack 4종 수신**
+
+- [x] `decision-ack` · `recalculate-route-ack` · `two-track-ack` · `milestone-result` —
+      서버는 결과를 돌려주는데 **아무도 듣지 않았다.** 실패하면 1초 sync 가 되돌려
+      *"눌렀는데 되돌아갔다"* 로만 보이고 이유는 아무도 몰랐다
+- [x] `useServerErrors` 가 함께 듣고 `success === false` 면 배너를 띄운다
+      (`duplicated` 는 오류가 아니므로 제외 — 같은 보고를 두 번 누른 정상 상황)
+- [x] 실측: `🚨 recalculate-route-ack — 오더 소멸됨` / `🚨 milestone-result — ORDER_NOT_FOUND`
+
+### 🆕 VV. 계약 검사를 스크립트로 고정 ✅ 2026-08-10
+
+> 손으로 대조하면 또 빠뜨린다. 오늘 이 검사로 실제 두 개를 찾았다.
+
+- [x] `scripts/audit-socket-contract.mjs` — 서버 emit ↔ 관제웹 on 을 기계적으로 대조.
+      `pnpm audit:socket` · 계약이 끊겨 있으면 **exit 1**
+- [x] 루프 등록(`ACK_EVENTS.map(ev => socket.on(ev, …))`)과 `io?.to(…)` 도 인식한다 —
+      못 잡으면 **없는 문제를 있다고 보고**해서 신뢰를 잃는다
+- [x] socket.io 내장(`connect`/`disconnect`)과 **알고도 비워둔 것**(`auto-arrived`)은 구분해서 표시
+- [x] `CLAUDE.md` 커밋 전 검사에 추가. 함께 적어둔 것:
+      **`shared`·DB 스키마를 고쳤으면 스모크로 부팅까지 확인**
+      (`tsc`·`jest` 는 통과하는데 런타임에서만 터지는 두 부류 — 순환 참조, `no such column`.
+       빈 DB 가 아니라 **기존 DB 사본**으로 해야 드러난다)
+
+**최종 검산**
+```
+pnpm audit:socket  → 서버만 보냄 없음 · 관제웹만 보냄 없음 · 죽은 구독 없음(🟡 auto-arrived 만 알려진 미구현)
+server tsc ✅   jest 134 ✅   client tsc ✅   vitest 17 ✅
+실측: 하차 완료 → active 2→1, terminated 1→2 로 정확히 이동
+```
 
 ### ⚠️ 스피커폰 통화 중 입력 — 실기기 확인 필요 🔜
 
@@ -1877,3 +1918,4 @@ Phase 8.2가 그 이벤트를 자동으로 받는다.
 | 2026-08-10 | — | **PP** 콜 완료 후에도 '합짐 탐색중'이 안 풀리던 버그 — `dispatchPhase` 를 저장 상태에서 **활성 콜 수 파생**으로 전환. 어제 만든 불변식의 뿌리가 stale 했다 | ✅ |
 | 2026-08-10 | — | **QQ** 현위치→상차지 구간이 통째로 버려지던 문제 — `OrderEvaluator`/재탐색이 기록 규약 밖의 복사본이었다. `applySoloRoute` 로 총·단독·접근 3분리. '단독 74.1km'에 접근 거리가 섞여 있던 것도 함께 수정 | ✅ |
 | 2026-08-10 | — | **관제웹 전수 조사** — 소켓 계약 대조로 **RR**(서버 오류를 아무도 안 들음) · **SS**(차종 변경이 필터에 반영 안 됨) 발견·수정, **TT** 파생 중복 정리. 남은 구조적 위험 3건 기록 | ✅ |
+| 2026-08-10 | — | **UU** 구조적 위험 3건 수정(`sync-active-orders` 진행/종료 분리 · Canvas 계약 축소 · ack 4종 수신) + **VV** 계약 검사 스크립트(`pnpm audit:socket`)로 고정. 테스트 134+17 | ✅ |

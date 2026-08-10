@@ -36,6 +36,16 @@
 `tsc --noEmit`(server) · `tsc -b`(client) · `npx jest` · **`./gradlew :app:compileDebugKotlin`**(앱 코드를 고쳤다면)
 이 전부 통과해야 커밋한다. 실패 시 커밋 금지.
 
+**소켓 이벤트를 추가·변경했다면** `cd onedal-web && pnpm audit:socket` 도 함께.
+서버 emit ↔ 관제웹 on 을 대조해 한쪽만 고친 것을 잡는다.
+(2026-08-10 이 검사로 `handler-error` 미수신, `settings-updated` 미발신을 찾았다)
+
+**`shared/` 나 DB 스키마를 고쳤다면 스모크로 부팅까지 확인한다.**
+`tsc`·`jest` 는 통과하는데 런타임에서만 터지는 두 부류가 있다.
+  · `shared` 순환 참조 → `ReferenceError: Cannot access '…' before initialization` (부팅 불가)
+  · `CREATE TABLE IF NOT EXISTS` 는 **기존 테이블에 컬럼을 추가하지 않는다** → `no such column`
+    ⚠️ 빈 DB 가 아니라 **기존 DB 사본**으로 확인해야 드러난다
+
 > 앱 컴파일이 필수인 이유: 2026-08-09에 `main`이 컴파일조차 안 되는 상태였다는 걸
 > 뒤늦게 발견했다(`InsungParser`의 import 누락). 서버는 tsc로 매번 확인하는데
 > 앱은 검증 수단이 없어 아무도 몰랐다.

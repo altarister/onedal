@@ -115,7 +115,7 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
                 {/* 캔버스 미니맵 (분리된 컴포넌트) */}
                 <PinnedRouteCanvas
                     unifiedRoutePoints={unifiedRoutePoints}
-                    safeRoute={safeRoute}
+                    liveRoute={liveRoute}
                     myLocation={myLocation}
                 >
                     {/* 좌측 상단 글로벌 상시 경로 재탐색 파이프라인 (맵 캔버스 내재화 플로팅 컨트롤) */}

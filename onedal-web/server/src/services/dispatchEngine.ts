@@ -18,7 +18,7 @@ import { SettingsRepository } from "../repositories/SettingsRepository";
 import { PricingEngine } from "../core/engine/PricingEngine";
 import { OrderEvaluator } from "../core/engine/OrderEvaluator";
 import { StateMachine } from "../core/engine/StateMachine";
-import { getActiveCalls } from "../core/helpers";
+import { getActiveCalls, buildOrderSync } from "../core/helpers";
 
 /**
  * 장소명 정규화 (공백 및 주식회사 텍스트 제거)
@@ -127,7 +127,7 @@ export async function recalculateActiveKakaoRoute(userId: string, io: any) {
 
     if (io) {
         const payload = Array.from(session.pendingOrdersData.values());
-        io.to(userId).emit("sync-active-orders", payload);
+        io.to(userId).emit("sync-active-orders", buildOrderSync(session));
     }
 }
 
@@ -755,7 +755,7 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
 
         // 6. 프론트엔드로 복구된 궤적 즉시 전송
         if (io) {
-            io.to(userId).emit("sync-active-orders", Array.from(session.pendingOrdersData.values()));
+            io.to(userId).emit("sync-active-orders", buildOrderSync(session));
         }
 
     } catch (err) {
@@ -865,7 +865,7 @@ export async function reportMilestone(
     }
 
     if (io) {
-        io.to(userId).emit("sync-active-orders", Array.from(session.pendingOrdersData.values()));
+        io.to(userId).emit("sync-active-orders", buildOrderSync(session));
         io.to(userId).emit("filter-updated", {
             activeFilter: session.activeFilter,
             baseFilter: session.baseFilter,
@@ -970,7 +970,7 @@ export async function startTwoTrack(userId: string, io: any): Promise<{ success:
             baseFilter: session.baseFilter
         });
         const payload = Array.from(session.pendingOrdersData.values());
-        io.to(userId).emit("sync-active-orders", payload);
+        io.to(userId).emit("sync-active-orders", buildOrderSync(session));
 
         return { success: true, keywords: mergedKeywords };
     } catch (e: any) {

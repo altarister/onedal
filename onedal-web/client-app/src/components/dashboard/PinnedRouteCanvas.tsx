@@ -1,6 +1,5 @@
 import React, { useRef, useCallback, useEffect } from 'react';
 import type { SecuredOrder } from "@onedal/shared";
-import { isTerminal } from "@onedal/shared";
 import sidoDataRaw from '../../mapData/sidoData.json';
 import { getDistanceKm } from '../../lib/routeUtils';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -19,12 +18,14 @@ export interface RoutePoint {
 
 interface Props {
     unifiedRoutePoints: RoutePoint[];
-    safeRoute: SecuredOrder[];
+    /** **진행 중인 콜만** 넘긴다. 종료된 콜을 여기서 거르지 않는다 —
+     *  계약을 좁히면 거르기를 잊을 자리가 없어진다 (2026-08-10 전수조사) */
+    liveRoute: SecuredOrder[];
     myLocation: { x: number, y: number } | null;
     children?: React.ReactNode;
 }
 
-export default function PinnedRouteCanvas({ unifiedRoutePoints, safeRoute, myLocation, children }: Props) {
+export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLocation, children }: Props) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const { theme } = useTheme();
     const mapColors = MAP_THEME_COLORS[theme];
@@ -56,8 +57,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, safeRoute, myLoc
 
         const validPoints = unifiedRoutePoints.filter(p => typeof p.x === 'number' && typeof p.y === 'number') as (RoutePoint & { x: number, y: number })[];
 
-        // 가장 최신의 진행 중인 상태 중 궤적 정보가 계산 완료된 오더 확보 (완료/취소된 오더 제외)
-        const liveRoute = safeRoute.filter(r => !isTerminal(r.status));
+        // 진행 중인 콜만 받으므로 여기서 거를 것이 없다
         const lastValidOrderWithPolyline = [...liveRoute].reverse().find(r => r.routePolyline && r.routePolyline.length > 0);
         const currentPolyline = lastValidOrderWithPolyline?.routePolyline || [];
         const hasPolyline = currentPolyline.length > 0;
@@ -270,7 +270,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, safeRoute, myLoc
             ctx.textAlign = 'center';
             ctx.fillText("현위치", cx, cy + 22);
         }
-    }, [unifiedRoutePoints, safeRoute, myLocation, theme, mapColors]);
+    }, [unifiedRoutePoints, liveRoute, myLocation, theme, mapColors]);
 
     useEffect(() => {
         drawMap();
