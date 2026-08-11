@@ -1,5 +1,6 @@
 import { mapVehicleToKakaoCarType, getRemainingCapacityTypes, deriveDispatchPhase, normalizeVehicleType,
-         MILESTONE_TO_STATUS, MILESTONE_LABEL, canReportMilestone, timingError } from "@onedal/shared";
+         MILESTONE_TO_STATUS, MILESTONE_LABEL, canReportMilestone, timingError,
+         RESTORABLE_STATUSES } from "@onedal/shared";
 import type { SecuredOrder, AutoDispatchFilter, PricingConfig, PendingOrder, MyOrder,
               Milestone, MilestoneSource } from "@onedal/shared";
 import { geocodeAddress, calculateSoloRoute, calculateDetourRoute, compareDirections } from "./kakaoService";
@@ -612,9 +613,15 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
         const todayStart = new Date();
         todayStart.setHours(0, 0, 0, 0);
 
-        // 1. orders와 places 테이블을 조인하여 오늘 확정(confirmed)된 콜과 X, Y 좌표를 불러옵니다.
+        // 1. orders와 places 테이블을 조인하여 복구 대상 콜과 X, Y 좌표를 불러옵니다.
+        //
+        // 🔴 상태 목록을 여기 손으로 적지 않는다 (2026-08-11).
+        //    예전에는 5개를 나열해 뒀는데 Phase 8.3 이 만든 ORDER_PICKED_UP · ORDER_DELIVERED
+        //    가 빠져서 **짐을 실은 채 새로고침하면 콜이 사라졌다.**
+        //    이제 shared 의 RESTORABLE_STATUSES 한 곳에서만 정한다.
+        const statusPlaceholders = RESTORABLE_STATUSES.map(() => '?').join(', ');
         const rows = db.prepare(`
-            SELECT o.*, 
+            SELECT o.*,
                    pPlace.x as pickupX, pPlace.y as pickupY,
                    dPlace.x as dropoffX, dPlace.y as dropoffY
             FROM orders o
@@ -622,9 +629,9 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
             LEFT JOIN places pPlace ON pStop.placeId = pPlace.id
             LEFT JOIN orderStops dStop ON dStop.orderId = o.id AND dStop.stopType = 'dropoff'
             LEFT JOIN places dPlace ON dStop.placeId = dPlace.id
-            WHERE o.userId = ? AND o.status IN ('ORDER_CONFIRMED', 'ORDER_COMPLETED', 'ORDER_RELEASED', 'ORDER_CANCELED', 'ORDER_FORCE_CANCELED') AND o.timestamp >= ?
+            WHERE o.userId = ? AND o.status IN (${statusPlaceholders}) AND o.timestamp >= ?
             ORDER BY o.timestamp ASC
-        `).all(userId, todayStart.toISOString()) as any[];
+        `).all(userId, ...RESTORABLE_STATUSES, todayStart.toISOString()) as any[];
 
         if (rows.length === 0) return;
 

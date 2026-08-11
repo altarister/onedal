@@ -14,6 +14,7 @@
 
 import { Router } from "express";
 import type { DispatchConfirmRequest, PendingOrder, OrderStatus } from "@onedal/shared";
+import { RESTORABLE_STATUSES } from "@onedal/shared";
 import db from "../db";
 import { getUserSession } from "../state/userSessionStore";
 import { forceCancelEvaluatingOrder, handleDecision } from "../services/dispatchEngine";
@@ -29,12 +30,20 @@ router.get("/", requireAuth, (req, res) => {
         const userId = req.user?.id;
         if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
-        // 오늘 날짜(자정 이후)의 확정 및 완료 오더만 가져옴
+        // 오늘 날짜(자정 이후)의 복구 대상 오더를 가져옴
+        //
+        // 🔴 상태를 손으로 나열하지 않는다 (2026-08-11).
+        //    예전엔 ('ORDER_CONFIRMED','ORDER_COMPLETED') 뿐이라
+        //    **상차한 콜(ORDER_PICKED_UP)과 하차한 콜(ORDER_DELIVERED)이 빠졌다.**
+        //    새로고침하면 진행 중이던 콜과 완료됨 탭이 통째로 비었다.
         const todayStart = new Date();
         todayStart.setHours(0, 0, 0, 0);
 
-        const stmt = db.prepare("SELECT * FROM orders WHERE userId = ? AND status IN ('ORDER_CONFIRMED', 'ORDER_COMPLETED') AND timestamp >= ? ORDER BY timestamp ASC");
-        const rows = stmt.all(userId, todayStart.toISOString());
+        const statusPlaceholders = RESTORABLE_STATUSES.map(() => '?').join(', ');
+        const stmt = db.prepare(
+            `SELECT * FROM orders WHERE userId = ? AND status IN (${statusPlaceholders}) AND timestamp >= ? ORDER BY timestamp ASC`
+        );
+        const rows = stmt.all(userId, ...RESTORABLE_STATUSES, todayStart.toISOString());
 
         res.json({ orders: rows });
     } catch (error) {

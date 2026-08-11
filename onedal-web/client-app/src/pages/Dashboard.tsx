@@ -1,5 +1,5 @@
-import type { SecuredOrder } from "@onedal/shared";
 import { isTerminal } from "@onedal/shared";
+import { mergeOrderViews } from "../lib/orderMerge";
 import Header from "../components/layout/Header";
 import DeviceControlPanel from "../components/dashboard/DeviceControlPanel";
 import OrderFilterStatus from "../components/dashboard/OrderFilterStatus";
@@ -39,14 +39,12 @@ export default function Dashboard() {
     //
     // PinnedRoute 는 탭(진행중/완료/취소) 때문에 둘 다 필요하므로 여기서만 합친다.
     // 합치는 곳이 한 곳뿐이면 "어느 배열을 써야 하지?"를 고민할 자리가 없어진다.
-    const activeRouteMap = new Map<string, SecuredOrder>();
-    // 오늘의 DB 이력(새로고침 직후 소켓보다 먼저 도착) → 서버 종료분 → 진행분 순으로 덮어쓴다
-    orders.filter(o => isTerminal((o as any).status) || (o as any).status === 'ORDER_CONFIRMED')
-        .forEach(o => activeRouteMap.set((o as any).id, o as any));
-    terminatedOrders.forEach(o => activeRouteMap.set(o.id, { ...activeRouteMap.get(o.id), ...o }));
-    liveCalls.forEach(o => activeRouteMap.set(o.id, { ...activeRouteMap.get(o.id), ...o }));
-
-    const activeRoute = Array.from(activeRouteMap.values());
+    //
+    // 🔴 2026-08-11 — 여기 인라인으로 있던 이력 필터가
+    //    `isTerminal(s) || s === 'ORDER_CONFIRMED'` 라 **ORDER_PICKED_UP 을 버렸다.**
+    //    서버의 복구 쿼리 두 곳과 합쳐 같은 목록이 세 군데 손으로 적혀 있었다.
+    //    `mergeOrderViews` 로 뽑아 한 곳에서 정하고, 렌더 없이 테스트한다.
+    const activeRoute = mergeOrderViews(orders as any, terminatedOrders, liveCalls);
     // 취소·방출·완료된 귀가콜은 "진행 중"이 아니다.
     // 걸러내지 않으면 한 번 귀가콜을 만들었다 취소한 뒤로 다시 만들 수 없게 된다.
     const hasHomeReturnActive = activeRoute.some(

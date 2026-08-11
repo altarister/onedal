@@ -47,6 +47,26 @@ export const EVALUATING_STATUSES: readonly OrderStatus[] = [
     'ORDER_AWAITING_DECISION',
 ] as const;
 
+/**
+ * 모든 주문 상태 — **런타임 배열**.
+ *
+ * 타입(`OrderStatus`)만으로는 런타임에 순회할 수 없어서, 상태 목록이 필요한 곳마다
+ * 손으로 다시 나열해 왔다. 그러다 갈라졌다 (아래 `RESTORABLE_STATUSES` 주석 참고).
+ * 새 상태를 추가하면 **여기에만** 추가한다.
+ */
+export const ALL_ORDER_STATUSES: readonly OrderStatus[] = [
+    'ORDER_PRE_SECURED',
+    'ORDER_SECURED_EVALUATING',
+    'ORDER_AWAITING_DECISION',
+    'ORDER_CONFIRMED',
+    'ORDER_PICKED_UP',
+    'ORDER_DELIVERED',
+    'ORDER_COMPLETED',
+    'ORDER_RELEASED',
+    'ORDER_CANCELED',
+    'ORDER_FORCE_CANCELED',
+] as const;
+
 /** 종결 상태 (더 이상 상태 전이 없음) */
 export const TERMINAL_STATUSES: readonly OrderStatus[] = [
     // [Phase 8.3] 하차 보고(ORDER_DELIVERED)가 곧 배송 종료다.
@@ -61,6 +81,25 @@ export const TERMINAL_STATUSES: readonly OrderStatus[] = [
     'ORDER_CANCELED',
     'ORDER_FORCE_CANCELED',
 ] as const;
+
+/**
+ * 서버 재시작·재접속 시 **DB 에서 세션으로 되살려야 하는** 상태.
+ *
+ * 🔴 2026-08-11 — 이 목록이 세 군데에 손으로 적혀 있었고 서로 갈라져 있었다.
+ *    Phase 8.3 이 `ORDER_PICKED_UP` · `ORDER_DELIVERED` 를 만들면서
+ *    복구 쿼리에 추가하는 걸 빠뜨렸고, 그 결과
+ *    **짐을 실은 채 새로고침하면 콜이 화면에서 통째로 사라졌다.**
+ *    서버는 빈 차로 착각해 1t 콜까지 잡으러 갔고, 하차 보고할 화면도 없어졌다.
+ *
+ * 그래서 나열하지 않고 **파생시킨다.** 평가 중(데스밸리 이전)은 메모리에만
+ * 존재하므로 복구 대상이 아니고, 그 외에는 전부 복구한다 —
+ * 진행 중이면 조작해야 하고, 종결이면 목록(완료됨·취소/방출)에 보여야 한다.
+ *
+ * 새 상태를 추가하면 `ALL_ORDER_STATUSES` 에만 넣으면 되고,
+ * 어느 쪽인지 정하지 않으면 `orderStatus.test.ts` 가 실패한다.
+ */
+export const RESTORABLE_STATUSES: readonly OrderStatus[] =
+    ALL_ORDER_STATUSES.filter(s => !EVALUATING_STATUSES.includes(s));
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // [Phase 8.2] 운행 마일스톤 — 확정과 종료 사이의 실제 업무 단계
