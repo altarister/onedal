@@ -352,7 +352,9 @@ dropStaleCheck('order_milestones', `
 ]);
 
 ensureColumns('order_milestones', { predictedAt: 'TEXT' });
-ensureColumns('stop_cargo_reports', { unit: 'TEXT', deadlineAt: 'TEXT', tags: 'TEXT' });
+ensureColumns('stop_cargo_reports', { unit: 'TEXT', deadlineAt: 'TEXT', tags: 'TEXT',
+    // 상차지 통화에서 함께 들은 하차지 도착 예정 (하차지 기록으로 저장하면 단계를 건너뛰게 된다)
+    onwardDeadlineAt: 'TEXT' });
 
 
 // ═══════════════════════════════════════

@@ -465,14 +465,16 @@ export default function PinnedRouteCard({
                                         );
                                     })()}
 
-                                    {/* 통화는 선택이다 — 적요가 충분하면 건너뛴다. 막지 않고 표시만 한다 */}
+                                    {/* 통화는 선택이다 — 적요가 충분하거나 상차지에서 이미 들었으면 건너뛴다.
+                                        기사님: *"통화 완료와 통화 스킵 이렇게 선택권이 있으면 될 것 같아."*
+                                        [통화 완료] 바로 아래에 짝으로 둔다. 막지 않고 고르게만 한다. */}
                                     {shownStep?.optional && (
                                         <button
                                             type="button"
                                             onClick={(e) => { e.stopPropagation(); setSkippedTo(shownIndex + 1); setViewIndex(null); }}
-                                            className="w-full py-2.5 rounded-md border border-border border-dashed text-[12px] font-bold text-text-muted"
+                                            className="w-full py-2.5 -mt-1 rounded-lg border border-border border-dashed text-[13px] font-bold text-text-muted"
                                         >
-                                            적요로 충분함 · 통화 없이 진행
+                                            통화 스킵
                                         </button>
                                     )}
 

@@ -119,6 +119,8 @@ export default function StopCallSheet({
     const [showTags, setShowTags] = useState(false);
     /** 적요에서 미리 채운 값인가 — 어디서 온 값인지 숨기지 않는다 */
     const [prefilledFromMemo, setPrefilledFromMemo] = useState(false);
+    /** 하차지 시각을 상차지 통화에서 미리 들어 둔 값으로 채웠는가 */
+    const [fromPickupCall, setFromPickupCall] = useState(false);
     /** [T8] 착불 수령 상태 — 서버가 진실이다. 화면이 저장했다고 믿지 않는다 */
     const [codSettled, setCodSettled] = useState<string | undefined>();
 
@@ -183,6 +185,11 @@ export default function StopCallSheet({
      * 적요는 부정확할 수 있으므로 어디서 온 값인지는 화면에 남긴다.
      */
     const loadInto = (src?: CargoReport) => {
+        // 하차지 통화인데 아직 시각을 안 정했다면, **상차지 통화에서 들은 값**을 미리 넣는다
+        const onward = !isPickup && !src?.deadlineAt
+            ? reports.find(r => r.stopType === 'pickup' && r.kind === 'DECLARED')?.onwardDeadlineAt
+            : undefined;
+        setFromPickupCall(!!onward);
         const h = parseCargoHints(...(memoTexts || []));
         const prefilled = !src?.unit && !src?.handling && hasCargoHints(h);
         setPrefilledFromMemo(prefilled);
@@ -194,7 +201,7 @@ export default function StopCallSheet({
             setHandling(h.handling);
             setTags(h.tags ? [...h.tags] : []);
             setMemo(src?.memo || '');
-            setDeadlineAt(src?.deadlineAt);
+            setDeadlineAt(src?.deadlineAt ?? onward);
             return;
         }
         setUnit(src?.unit as CargoUnit | undefined);
@@ -207,7 +214,8 @@ export default function StopCallSheet({
         setHandling(src?.handling);
         setTags(src?.tags ? [...src.tags] : []);
         setMemo(src?.memo || '');
-        setDeadlineAt(src?.deadlineAt);
+        setDeadlineAt(src?.deadlineAt ?? onward);
+        setOnwardDeadlineAt(src?.onwardDeadlineAt);
     };
 
 // 단계 카드는 줄을 누르지 않으므로 loadInto 가 안 불린다 — 여기서 한 번 채운다
@@ -235,21 +243,15 @@ export default function StopCallSheet({
             handling: eff.handling,
             promisedAt: saved?.promisedAt || hints.promisedAt,
             deadlineAt,
+            // 🔴 하차지 시각은 **하차지 기록으로 저장하지 않는다.** 저장하면
+            //    deriveCallStep 이 "하차지 통화를 했다"고 보고 그 단계를 건너뛴다.
+            //    기사님: *"내 의도는 시퀀스로 되어 있는데 두 개를 한 번에 가는 건 기준이 흔들리는 것 같아."*
+            //    상차지 통화에서 **들은 값**일 뿐이므로 여기 담아 두고,
+            //    하차지 통화 단계에서 미리 채워 준다. 통화 여부는 기사님이 정한다.
+            onwardDeadlineAt: isPickup && kind === 'DECLARED' ? onwardDeadlineAt : undefined,
             tags: isPickup && tags.length ? tags : undefined,
             memo: memo || undefined,
         });
-        // 상차지 통화에서 하차지 시각까지 정했다면 **하차지 기록도 함께** 남긴다.
-        // 그러면 deriveCallStep 이 `called('dropoff')` 를 보고 하차지 통화 단계를 건너뛴다.
-        // 하차 방법은 따로 묻지 않는다 — computeStopTiming 이 상차 방법으로 폴백한다
-        // (지게차로 실었으면 대개 지게차로 내린다).
-        if (isPickup && kind === 'DECLARED' && onwardDeadlineAt) {
-            socket.emit('save-cargo-report', {
-                orderId, stopType: 'dropoff', kind: 'DECLARED',
-                deadlineAt: onwardDeadlineAt,
-                memo: '상차지 통화에서 함께 확인',
-            });
-        }
-
         // 저장하면 접는다. 결과는 바로 위 요약 줄에 반영된다.
         // 단, 단계 카드(A안)에서는 이 정거장이 화면의 전부이므로 열어 둔다 —
         // 접으면 화면이 비어 무엇을 했는지 알 수 없다
@@ -533,6 +535,13 @@ export default function StopCallSheet({
                                 </div>
                             </div>
 
+                            {!isPickup && fromPickupCall && (
+                                <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-info/10 border border-info/35 border-dashed">
+                                    <span className="text-[10px] font-black text-info shrink-0">상차지 통화에서 들음</span>
+                                    <span className="text-[11px] text-text-muted flex-1">시각을 미리 채웠습니다 — 다시 확인하거나 그대로 두세요</span>
+                                </div>
+                            )}
+
                             {isPickup && prefilledFromMemo && (
                                 <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-warning/10 border border-warning/35 border-dashed">
                                     <span className="text-[10px] font-black text-warning shrink-0">적요에서 미리 채움</span>
@@ -584,8 +593,8 @@ export default function StopCallSheet({
                                         </div>
                                         <div className="text-[10px] text-text-muted">
                                             {onwardDeadlineAt
-                                                ? `저장하면 하차지 통화를 건너뛰고 바로 출발합니다`
-                                                : `안 정하면 하차지에 따로 전화합니다`}
+                                                ? '다음 단계(하차지 통화)에 미리 채워 둡니다 — 통화할지는 그때 정하세요'
+                                                : '정해 두면 다음 단계에 미리 채워 둡니다'}
                                         </div>
                                     </div>
                                 );
@@ -606,12 +615,14 @@ export default function StopCallSheet({
                                 );
                             })()}
 
-                            {/* 단계 모드에서는 이것이 **주 버튼**이다 — 저장이 곧 다음 단계로 넘어가는 것 */}
+                            {/* 단계 모드에서는 이것이 **주 버튼**이다 — 저장이 곧 다음 단계로 넘어가는 것.
+                                기사님: *"통화 완료와 통화 스킵 이렇게 선택권이 있으면 될 것 같아."*
+                                짝이 되는 [통화 스킵] 은 바로 아래에 카드가 붙인다. */}
                             <button onClick={() => save('DECLARED')}
                                 className={`w-full rounded-lg bg-info text-white font-black active:scale-[0.99] transition-transform ${
                                     stepMode ? 'py-3.5 text-[15px]' : 'py-2.5 text-[13px]'
                                 }`}>
-                                {stepMode ? '통화 끝 · 다음' : '통화 종료 · 저장'}
+                                {stepMode ? '통화 완료' : '통화 종료 · 저장'}
                             </button>
                     </>
                 </div>
