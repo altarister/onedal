@@ -450,6 +450,9 @@ export default function PinnedRouteCard({
                                                 memoTexts={[route.itemDescription, route.detailMemo, d?.memo]}
                                                 driveMinutes={lead.driveMinutes}
                                                 driveKm={lead.driveKm}
+                                                /* 상차지 통화에서 하차지까지 한 번에 정할 수 있게 다음 구간을 넘긴다 */
+                                                onwardMinutes={isPickupStop ? soloMin : null}
+                                                onwardKm={isPickupStop && soloKm != null ? Number(soloKm) : null}
                                                 leadMinutes={lead.leadMinutes}
                                                 leadLabel={lead.leadLabel}
                                                 orderStatus={route.status}

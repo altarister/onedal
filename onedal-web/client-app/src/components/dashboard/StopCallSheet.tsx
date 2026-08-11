@@ -75,6 +75,16 @@ interface Props {
     leadLabel?: string | null;
     /** 같은 구간의 거리(km) — 통화에서 "몇 km고 몇 분" 이라고 말한다 */
     driveKm?: number | null;
+    /**
+     * [2026-08-12] 이 정거장에서 **다음 정거장까지** 주행(분/km).
+     *
+     * 기사님: *"상차지에서 상차하고 출발 시간까지 알게 되면 다시 상차지에 하차지 정보까지 물을 수 있어.
+     * '하차지까지 몇 km 몇 분 걸릴 것 같은데 x:xx까지 가면 될까요?' 하고 물어본다면
+     * **하차지는 통화하지 않아도 출발할 수 있을 듯.**"*
+     * (상차지 담당자가 하차지 사정을 대략 안다 — 기사님 확인)
+     */
+    onwardMinutes?: number | null;
+    onwardKm?: number | null;
     /** [T8] 착불이면 받을 금액(원). 하차 완료 **직전**에 수령 여부를 남긴다 */
     codAmount?: number | null;
 }
@@ -96,7 +106,7 @@ function summarize(r?: CargoReport): string {
 export default function StopCallSheet({
     orderId, stopType, label, address, contactName, phones, reports,
     memoTexts, driveMinutes, orderStatus, arrivedAt, forceOpen, stepLabel,
-    leadMinutes = 0, leadLabel, driveKm, codAmount,
+    leadMinutes = 0, leadLabel, driveKm, onwardMinutes, onwardKm, codAmount,
 }: Props) {
     const isPickup = stopType === 'pickup';
     /** 단계 카드(A안)가 몰아주는 모드 — 이 시트가 화면의 전부다. 요약 줄을 띄우지 않는다 */
@@ -138,6 +148,8 @@ export default function StopCallSheet({
     const [memo, setMemo] = useState('');
     const [tags, setTags] = useState<string[]>([]);
     const [deadlineAt, setDeadlineAt] = useState<string | undefined>();
+    /** 상차지 통화에서 **함께 정한** 하차지 도착 시각 */
+    const [onwardDeadlineAt, setOnwardDeadlineAt] = useState<string | undefined>();
 
     // 🔴 폼 값은 **오직 state** 다. 예전에는 현장 입력이 통화값을 fallback 으로 참조해서
     //    "안 건드린 항목"이 통화 기록을 가리키는 셈이었다. 두 기록이 얽혀 비교가 안 된다.
@@ -146,6 +158,8 @@ export default function StopCallSheet({
     //    → 현장 줄을 열 때 통화값을 복사해 넣고, 그 뒤로는 완전히 독립이다.
     const eff = { unit, quantity: qty, handling };
     const points = isPickup ? cargoPoints(eff) : unitPoints(pickupReport?.unit, pickupReport?.quantity);
+    /** 이 정거장의 상하차 소요 — 도착 시각에는 안 들어가지만 **다음 정거장** 계산에는 필요하다 */
+    const dwell = dwellMinutes(eff.handling, points);
     // 주행 시간을 모르면 여유를 계산할 수 없다. 0 으로 때우면 "여유가 많다"고 거짓말하게 된다
     const driveKnown = driveMinutes != null && driveMinutes > 0;
     /**
@@ -224,6 +238,18 @@ export default function StopCallSheet({
             tags: isPickup && tags.length ? tags : undefined,
             memo: memo || undefined,
         });
+        // 상차지 통화에서 하차지 시각까지 정했다면 **하차지 기록도 함께** 남긴다.
+        // 그러면 deriveCallStep 이 `called('dropoff')` 를 보고 하차지 통화 단계를 건너뛴다.
+        // 하차 방법은 따로 묻지 않는다 — computeStopTiming 이 상차 방법으로 폴백한다
+        // (지게차로 실었으면 대개 지게차로 내린다).
+        if (isPickup && kind === 'DECLARED' && onwardDeadlineAt) {
+            socket.emit('save-cargo-report', {
+                orderId, stopType: 'dropoff', kind: 'DECLARED',
+                deadlineAt: onwardDeadlineAt,
+                memo: '상차지 통화에서 함께 확인',
+            });
+        }
+
         // 저장하면 접는다. 결과는 바로 위 요약 줄에 반영된다.
         // 단, 단계 카드(A안)에서는 이 정거장이 화면의 전부이므로 열어 둔다 —
         // 접으면 화면이 비어 무엇을 했는지 알 수 없다
@@ -516,6 +542,54 @@ export default function StopCallSheet({
                             )}
 
                             {cargoForm}
+
+                            {/* ══ 이어서 하차지까지 한 통화로 ══
+                                기사님: *"상차하고 출발 시간까지 알게 되면 다시 상차지에 하차지 정보까지
+                                물을 수 있어. '하차지까지 몇 km 몇 분 걸릴 것 같은데 x:xx까지 가면 될까요?'
+                                하고 물어본다면 **하차지는 통화하지 않아도 출발할 수 있을 듯.**"*
+
+                                상차 시각을 정해야 하차 도착을 셀 수 있으므로, **정하고 나면 비로소 나타난다.**
+                                접어 두지 않는다 — 통화가 그 순서로 흘러가기 때문이다.
+                                하차지 담당자·연락처는 콜을 잡을 때 이미 들어오므로(28/28 확인)
+                                건너뛰어도 잃는 정보가 없다. */}
+                            {isPickup && deadlineAt && onwardMinutes != null && onwardMinutes > 0 && (() => {
+                                const loadDoneMs = new Date(deadlineAt).getTime() + dwell * 60_000;
+                                const arriveMs = loadDoneMs + onwardMinutes * 60_000;
+                                const slots = buildArrivalSlots(loadDoneMs, onwardMinutes, 4);
+                                return (
+                                    <div className="rounded-md border border-info/35 bg-info/[0.06] px-2.5 py-2 flex flex-col gap-1.5">
+                                        <div className="text-[11px] font-black text-info">이어서 — 하차지도 지금 정하기</div>
+                                        <div className="text-[12px] text-text-primary">
+                                            {hhmm(deadlineAt)} 상차 도착 <span className="text-text-muted">+ 상차 {dwell}분</span>
+                                            {' = '}<b className="tabular-nums">{hhmm(new Date(loadDoneMs).toISOString())}</b> 출발
+                                            <div className="mt-0.5">
+                                                상차지 → 하차지
+                                                {onwardKm != null && <> <b className="tabular-nums">{onwardKm.toFixed(1)}</b>km</>}
+                                                {' · '}<b className="tabular-nums">{onwardMinutes}</b>분
+                                                {' → '}<b className="text-info tabular-nums">{hhmm(new Date(arriveMs).toISOString())}</b> 도착
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-1.5 flex-wrap">
+                                            {slots.map(sl => {
+                                                const on = onwardDeadlineAt === sl.iso;
+                                                return (
+                                                    <button key={sl.iso}
+                                                        onClick={() => setOnwardDeadlineAt(on ? undefined : sl.iso)}
+                                                        className={`px-3 py-2 rounded-md border text-[14px] font-black tabular-nums ${
+                                                            on ? 'bg-info text-white border-info'
+                                                               : 'bg-surface-alt/50 text-text-primary border-border'
+                                                        }`}>{sl.label}</button>
+                                                );
+                                            })}
+                                        </div>
+                                        <div className="text-[10px] text-text-muted">
+                                            {onwardDeadlineAt
+                                                ? `저장하면 하차지 통화를 건너뛰고 바로 출발합니다`
+                                                : `안 정하면 하차지에 따로 전화합니다`}
+                                        </div>
+                                    </div>
+                                );
+                            })()}
 
                             {deadlineAt && (() => {
                                 const spare = Math.max(0, Math.round((new Date(deadlineAt).getTime() - Date.now()) / 60000) - arrivalMinutes);
