@@ -36,6 +36,11 @@
 `tsc --noEmit`(server) · `tsc -b`(client) · `npx jest` · **`./gradlew :app:compileDebugKotlin`**(앱 코드를 고쳤다면)
 이 전부 통과해야 커밋한다. 실패 시 커밋 금지.
 
+**콜 흐름(상태·복구·적재·정산)을 건드렸다면** `cd onedal-web && pnpm scenario`.
+실제 서버를 띄워 콜 생애를 끝까지 돌린다. 2026-08-11 에 배포하면 안 되는 결함 6건이
+`tsc`·`jest`·`vite build`·`audit:socket` 을 **전부 통과한 채로** 숨어 있었고
+이걸 돌려서만 나왔다 (상차한 콜이 새로고침에 사라짐 · 짐 신고 무시 · 불일치 경고 미발생 · 착불 미기록).
+
 **소켓 이벤트를 추가·변경했다면** `cd onedal-web && pnpm audit:socket` 도 함께.
 서버 emit ↔ 관제웹 on 을 대조해 한쪽만 고친 것을 잡는다.
 (2026-08-10 이 검사로 `handler-error` 미수신, `settings-updated` 미발신을 찾았다)
