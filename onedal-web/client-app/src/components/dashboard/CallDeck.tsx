@@ -29,12 +29,15 @@ export default function CallDeck({ orders, renderCard, records }: Props) {
     const trackRef = useRef<HTMLDivElement>(null);
 
     /**
-     * 🔴 2026-08-12 — 보고 있는 카드를 **인덱스가 아니라 orderId 로** 기억한다.
+     * 보고 있는 카드를 **인덱스가 아니라 orderId 로** 기억한다.
      *
-     * 목록 정렬이 `평가중 먼저 → 최신순` 이라 **새 콜은 항상 맨 앞에 끼어든다.**
-     * 인덱스로 기억하면 보던 카드가 0번에서 1번으로 밀리는데 덱은 계속 "0번"을 보여준다.
-     * 즉 **자동 이동을 넣지 않아도 카드가 저절로 바뀌었다.**
-     * 통화 중에 화면이 다른 콜로 넘어가면 엉뚱한 카드의 칩을 누르게 된다.
+     * 🔴 2026-08-12 — 예전 정렬이 `평가중 먼저 → 최신순` 이라 새 콜이 맨 앞에 끼어들었고,
+     *    인덱스로 기억하니 보던 카드가 0번에서 1번으로 밀려도 덱은 계속 "0번"을 보여줬다.
+     *    **통화 중에 카드가 저절로 바뀌었다.**
+     *
+     *    지금은 정렬을 시간순으로 고정해서(PinnedRoute) 순서 자체가 안 흔들린다.
+     *    그래도 id 로 기억하는 것은 유지한다 — 콜이 끝나 중간에서 빠질 때
+     *    인덱스는 여전히 어긋나고, 그때 어느 카드를 보고 있었는지는 id 만 안다.
      */
     const [curId, setCurId] = useState<string | null>(null);
     const idx = orders.findIndex(o => o.id === curId);
@@ -46,12 +49,21 @@ export default function CallDeck({ orders, renderCard, records }: Props) {
         el.scrollTo({ left: i * el.clientWidth, behavior: smooth ? 'smooth' : 'auto' });
     };
 
+    /** 명시적 이동 — 요약 줄 클릭과 자동 이동만 쓴다. 사용자의 스와이프는 절대 여기 안 온다 */
     const goTo = (i: number) => {
         const next = Math.max(0, Math.min(orders.length - 1, i));
         scrollToIndex(next);
         setCurId(orders[next]?.id ?? null);
     };
 
+    /**
+     * 스와이프하면 **어느 카드를 보고 있는지만** 갱신한다. 스크롤은 건드리지 않는다.
+     *
+     * 🔴 2026-08-12 — 여기서 갱신한 값을 보고 `useEffect([idx])` 가 곧바로 하드 스크롤을 걸었다.
+     *    손가락이 미는 중에 코드가 같은 축을 잡아채니 관성과 스냅이 죽었다.
+     *    (기사님: *"스와이프 오작동한다"*) 그 effect 를 없앴다 —
+     *    **스크롤을 옮기는 것은 명시적 이동과 목록 변경뿐이다.**
+     */
     const onScroll = () => {
         const el = trackRef.current;
         if (!el || !el.clientWidth) return;
@@ -60,17 +72,32 @@ export default function CallDeck({ orders, renderCard, records }: Props) {
         if (id && id !== curId) setCurId(id);
     };
 
-    // 보던 콜이 사라지거나(하차 완료·방출) 아직 아무것도 안 골랐으면 첫 콜로 맞춘다
+    /**
+     * 목록 자체가 바뀌었을 때만 위치를 다시 맞춘다 (콜이 끝나 빠지는 경우 등).
+     *
+     * 순서는 시간순으로 고정이라 새 콜은 뒤에 붙기만 하고 기존 위치는 안 밀린다.
+     * 그래서 여기가 하는 일은 사실상 **보던 콜이 사라졌을 때 복구**뿐이다.
+     */
+    const idsKey = orders.map(o => o.id).join(',');
+    const prevKey = useRef<string | null>(null);
     useEffect(() => {
+        if (prevKey.current === idsKey) return;
+        prevKey.current = idsKey;
         if (orders.length === 0) return;
-        if (!curId || !orders.some(o => o.id === curId)) setCurId(orders[0].id);
-    }, [orders, curId]);
 
-    // 정렬이 바뀌어 보던 카드의 위치가 달라졌으면 **스크롤을 따라 옮긴다.**
-    // 안 옮기면 화면은 옛 자리에 남아 다른 콜을 보여준다.
-    useEffect(() => {
-        if (idx >= 0) scrollToIndex(idx, false);
-    }, [idx]);
+        const i = orders.findIndex(o => o.id === curId);
+        if (i < 0) {
+            // 보던 콜이 끝났다 — 가장 최근 콜로 (뒤에 붙으므로 마지막이 최신이다)
+            const last = orders.length - 1;
+            setCurId(orders[last].id);
+            scrollToIndex(last, false);
+        } else {
+            // 위치가 달라졌을 때만 따라 옮긴다. 같으면 손대지 않는다
+            const el = trackRef.current;
+            const at = el && el.clientWidth ? Math.round(el.scrollLeft / el.clientWidth) : i;
+            if (at !== i) scrollToIndex(i, false);
+        }
+    }, [idsKey, orders, curId]);
 
     /**
      * 새로 들어온 **평가중(데스밸리) 콜로 자동 이동**한다.
@@ -88,7 +115,10 @@ export default function CallDeck({ orders, renderCard, records }: Props) {
         const target = pickAutoFocus(seenIds.current, orders);
         seenIds.current ??= new Set();
         orders.forEach(o => seenIds.current!.add(o.id));
-        if (target) setCurId(target);
+        if (!target) return;
+        // `[idx]` effect 를 없앴으므로 스크롤도 여기서 직접 옮긴다
+        const i = orders.findIndex(o => o.id === target);
+        if (i >= 0) { setCurId(target); scrollToIndex(i); }
     }, [orders]);
 
     if (orders.length === 0) return null;
@@ -169,7 +199,10 @@ export default function CallDeck({ orders, renderCard, records }: Props) {
                 ref={trackRef}
                 onScroll={onScroll}
                 className="flex overflow-x-auto snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-                style={{ overscrollBehaviorX: 'contain', scrollBehavior: 'smooth' }}
+                /* 🔴 scrollBehavior:'smooth' 를 CSS 로 걸면 `behavior:'auto'` 가 무시되어
+                   위치 복구까지 애니메이션이 되고, 스와이프 중이면 그게 손가락과 부딪힌다.
+                   부드러움이 필요한 곳(명시적 이동)에서만 옵션으로 준다. */
+                style={{ overscrollBehaviorX: 'contain' }}
             >
                 {orders.map(o => (
                     <div key={o.id} className="shrink-0 w-full snap-center">

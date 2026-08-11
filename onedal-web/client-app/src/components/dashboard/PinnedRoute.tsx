@@ -7,6 +7,7 @@ import PinnedRouteCanvas, { type RoutePoint } from './PinnedRouteCanvas';
 import PinnedRouteCard from './PinnedRouteCard';
 import CallDeck from './CallDeck';
 import { useCallProgress, EMPTY_RECORDS } from '../../hooks/useCallProgress';
+import { deckOrder } from '../../lib/deckFocus';
 import { getAddressLabel } from '../../lib/routeUtils';
 import { optimizeRouteOrder, buildEtaMap, buildVisitOrderMap } from '../../lib/routeOptimizer';
 import { useFilterConfig } from '../../hooks/useFilterConfig';
@@ -270,14 +271,9 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
             {viewFilter === 'ACTIVE' && liveRoute.length > 0 && (
                 <CallDeck
                     records={callRecords}
-                    orders={[...liveRoute].sort((a, b) => {
-                        // 평가 중(데스밸리)인 콜은 항상 먼저 — 30초 안에 결재해야 한다
-                        const ae = isEvaluating(a.status), be = isEvaluating(b.status);
-                        if (ae !== be) return ae ? -1 : 1;
-                        const ta = a.capturedAt ? new Date(a.capturedAt).getTime() : 0;
-                        const tb = b.capturedAt ? new Date(b.capturedAt).getTime() : 0;
-                        return tb - ta;
-                    })}
+                    /* 순서는 잡은 시간순으로 고정한다 — 새 콜은 뒤에 붙기만 해서
+                       기존 위치가 안 밀린다. 근거는 deckOrder() 주석 참고 */
+                    orders={deckOrder(liveRoute)}
                     renderCard={(route) => (
                         <PinnedRouteCard
                             route={route}
