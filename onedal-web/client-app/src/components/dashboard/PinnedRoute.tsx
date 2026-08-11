@@ -1,10 +1,11 @@
 import { isEvaluating, isTerminal } from "@onedal/shared";
 import type { SecuredOrder } from "@onedal/shared";
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 // removed socket
 import { logRoadmapEvent } from '../../lib/roadmapLogger';
 import PinnedRouteCanvas, { type RoutePoint } from './PinnedRouteCanvas';
 import PinnedRouteCard from './PinnedRouteCard';
+import CallDeck from './CallDeck';
 import { getAddressLabel } from '../../lib/routeUtils';
 import { optimizeRouteOrder, buildEtaMap, buildVisitOrderMap } from '../../lib/routeOptimizer';
 import { useFilterConfig } from '../../hooks/useFilterConfig';
@@ -21,6 +22,9 @@ interface Props {
 
 export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRecalculate, viewFilter, setViewFilter }: Props) {
     const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+    /** 콜을 다루기 시작하면 탭 바를 화면 맨 위로 끌어올린다 */
+    const tabBarRef = useRef<HTMLDivElement>(null);
+    const scrollToCalls = () => tabBarRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     const [processingId, setProcessingId] = useState<string | null>(null);
     const { filter } = useFilterConfig();
     // 서버 통신 완료 시 (상태가 변하거나 삭제될 때) 로딩 상태 즉각 해제
@@ -215,29 +219,39 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
                 )}
             </div>
 
-            {/* 뷰 필터 탭 (진행 중 / 완료됨 / 취소됨) */}
+            {/* [Phase 8.5] 뷰 필터 탭 — **화면 맨 위에 붙는다**
+                기사님: "콜을 선택하면 자동으로 스크롤하여 진행중·완료·취소/방출·전체가
+                스크롤 탑으로 이동하면 훨씬 수월할 듯하다."
+
+                ⚠️ Header 가 이미 `sticky top-0` 이므로 `top-0` 으로 두면 **헤더 밑에 파묻힌다.**
+                   Header 가 내보내는 `--header-h` 만큼 내려 붙인다 (하드코딩하면 폰트·세이프에어리어에서 깨짐).
+                   scroll-margin-top 도 같은 값이어야 자동 스크롤이 헤더에 가리지 않는다. */}
             {safeRoute.length > 0 && (
-                <div className="flex border-b border-border-card">
+                <div
+                    ref={tabBarRef}
+                    className="flex border-b border-border-card sticky z-[9] bg-bg-base/95 backdrop-blur-sm"
+                    style={{ top: 'var(--header-h, 0px)', scrollMarginTop: 'var(--header-h, 0px)' }}
+                >
                     <button
-                        onClick={() => setViewFilter('ACTIVE')}
+                        onClick={() => { setViewFilter('ACTIVE'); scrollToCalls(); }}
                         className={`flex-1 py-2 text-xs font-bold transition-colors ${viewFilter === 'ACTIVE' ? 'text-text-primary border-b-2 border-info' : 'text-text-muted hover:text-text-primary'}`}
                     >
                         진행 중 ({liveRoute.length})
                     </button>
                     <button
-                        onClick={() => setViewFilter('COMPLETED')}
+                        onClick={() => { setViewFilter('COMPLETED'); scrollToCalls(); }}
                         className={`flex-1 py-2 text-xs font-bold transition-colors ${viewFilter === 'COMPLETED' ? 'text-text-primary border-b-2 border-info' : 'text-text-muted hover:text-text-primary'}`}
                     >
                         완료됨 ({safeRoute.filter(r => r.status === 'ORDER_DELIVERED' || r.status === 'ORDER_COMPLETED').length})
                     </button>
                     <button
-                        onClick={() => setViewFilter('CANCELED')}
+                        onClick={() => { setViewFilter('CANCELED'); scrollToCalls(); }}
                         className={`flex-1 py-2 text-xs font-bold transition-colors ${viewFilter === 'CANCELED' ? 'text-text-primary border-b-2 border-info' : 'text-text-muted hover:text-text-primary'}`}
                     >
                         취소/방출 ({safeRoute.filter(r => r.status === 'ORDER_RELEASED' || r.status === 'ORDER_CANCELED' || r.status === 'ORDER_FORCE_CANCELED').length})
                     </button>
                     <button
-                        onClick={() => setViewFilter('ALL')}
+                        onClick={() => { setViewFilter('ALL'); scrollToCalls(); }}
                         className={`flex-1 py-2 text-xs font-bold transition-colors ${viewFilter === 'ALL' ? 'text-text-primary border-b-2 border-info' : 'text-text-muted hover:text-text-primary'}`}
                     >
                         전체 ({safeRoute.length})
@@ -245,14 +259,47 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
                 </div>
             )}
 
-            {/* 오더 관리 아코디언 리스트 */}
-            {safeRoute.length > 0 && (
+            {/* [Phase 8.5] '진행 중' 탭만 덱으로 바꾼다.
+                완료됨·취소/방출·전체는 **조작이 아니라 조회**용이므로 기존 리스트를 그대로 둔다.
+                분기가 한 군데뿐이라, 문제가 생기면 이 조건 하나만 되돌리면 옛 화면으로 복귀한다. */}
+            {viewFilter === 'ACTIVE' && liveRoute.length > 0 && (
+                <CallDeck
+                    orders={[...liveRoute].sort((a, b) => {
+                        // 평가 중(데스밸리)인 콜은 항상 먼저 — 30초 안에 결재해야 한다
+                        const ae = isEvaluating(a.status), be = isEvaluating(b.status);
+                        if (ae !== be) return ae ? -1 : 1;
+                        const ta = a.capturedAt ? new Date(a.capturedAt).getTime() : 0;
+                        const tb = b.capturedAt ? new Date(b.capturedAt).getTime() : 0;
+                        return tb - ta;
+                    })}
+                    renderCard={(route) => (
+                        <PinnedRouteCard
+                            route={route}
+                            isExpanded
+                            onToggle={toggleExpand}
+                            onDecision={onDecision}
+                            processingId={processingId}
+                            setProcessingId={setProcessingId}
+                            etaMap={etaMap}
+                            visitOrderMap={visitOrderMap}
+                            indexNum={chronologicalIds.indexOf(route.id) + 1}
+                        />
+                    )}
+                />
+            )}
+            {viewFilter === 'ACTIVE' && liveRoute.length === 0 && safeRoute.length > 0 && (
+                <div className="mx-4 my-6 py-8 px-4 text-center border border-dashed border-border rounded-xl text-text-muted text-[13px]">
+                    진행 중인 콜이 없습니다
+                    <div className="text-[11px] mt-1 opacity-80">첫짐 필터로 돌아가 새 콜을 기다립니다</div>
+                </div>
+            )}
+
+            {/* 오더 관리 아코디언 리스트 (완료됨 · 취소/방출 · 전체) */}
+            {viewFilter !== 'ACTIVE' && safeRoute.length > 0 && (
                 <div className="flex flex-col">
                     {[...activeRoute]
                         .filter(route => {
-                            if (viewFilter === 'ACTIVE') {
-                                return !isTerminal(route.status);
-                            }
+                            // ACTIVE 는 위 덱이 담당하므로 여기 오지 않는다
                             if (viewFilter === 'COMPLETED') {
                                 // 하차 보고(ORDER_DELIVERED)가 곧 배송 완료다 (Phase 8.3)
                                 return route.status === 'ORDER_DELIVERED' || route.status === 'ORDER_COMPLETED';

@@ -9,7 +9,7 @@ import { logRoadmapEvent } from '../../lib/roadmapLogger';
 import { Badge } from "../ui/badge";
 import StopCallSheet from './StopCallSheet';
 import type { CargoReport } from "@onedal/shared";
-import { MILESTONE_LABEL, timingError, buildHourSlots } from "@onedal/shared";
+import { MILESTONE_LABEL, timingError, buildHourSlots, deriveCallStep, canRewindTo, CALL_STEPS } from "@onedal/shared";
 import { Button } from "../ui/button";
 
 interface Props {
@@ -47,6 +47,31 @@ export default function PinnedRouteCard({
     //    접힌 상태에서도 필요하다. 다만 종료된 콜은 더 바뀔 일이 없으니 건너뛴다.
     const [cargoReports, setCargoReports] = useState<CargoReport[]>([]);
     const [milestoneLog, setMilestoneLog] = useState<Array<{ milestone: string; occurredAt: string; predictedAt?: string }>>([]);
+
+    /**
+     * [Phase 8.5] 진행 단계는 **저장하지 않고 파생**한다 (`deriveCallStep`).
+     * 저장해 두면 새로고침·재접속·스와이프에서 어긋난다 — 2026-08-10 여섯 번 겪은 실수다.
+     *
+     * 로컬로 두는 것은 딱 둘.
+     *   skippedTo — "통화를 건너뛰었다"는 서버에 남길 값이 아니다 (안 한 일을 기록하면 데이터가 오염된다)
+     *   viewIndex — 지난 단계를 되돌아볼 때만. 새 기록이 들어오면 자동으로 따라간다
+     */
+    const [skippedTo, setSkippedTo] = useState(0);
+    const [viewIndex, setViewIndex] = useState<number | null>(null);
+    /**
+     * 되돌릴 수 없는 동작(방출·사무실 취소)을 누른 뒤 잠근다.
+     * `processingId` 는 PinnedRoute 가 매 렌더 초기화해서(1초 동기화) 방어가 되지 않는다.
+     */
+    const [locked, setLocked] = useState(false);
+
+    const progress = deriveCallStep(milestoneLog, cargoReports, skippedTo);
+    // 되돌아보는 중이면 그 단계를, 아니면 파생된 현재 단계를 보여준다
+    const shownIndex = viewIndex ?? progress.index;
+    const shownStep = CALL_STEPS[shownIndex] ?? null;
+
+    // 새 기록이 들어와 단계가 앞으로 가면 되돌아보기를 자동 해제한다 —
+    // 도착을 눌렀는데 화면이 옛 단계에 머물러 있으면 무엇이 반영됐는지 알 수 없다
+    useEffect(() => { setViewIndex(null); }, [progress.index]);
     useEffect(() => {
         if (isTerminal(route.status) && !isExpanded) return;
         const onSaved = (d: { orderId: string; reports: CargoReport[] }) => {
@@ -283,27 +308,43 @@ export default function PinnedRouteCard({
 
                             return (
                                 <>
-                                    {/* ── 1단: 정거장 (전화 + 통화 기록) ── */}
-                                    <StopCallSheet
-                                        orderId={route.id} stopType="pickup" label="상차지"
-                                        address={pDetail?.addressDetail || route.pickup}
-                                        contactName={pDetail?.contactName || pDetail?.customerName}
-                                        phones={phonesOf(pDetail)} reports={cargoReports}
-                                        memoTexts={[route.itemDescription, route.detailMemo, pDetail?.memo]}
-                                        driveMinutes={route.approachDurationMin ?? null}
-                                        orderStatus={route.status}
-                                        arrivedAt={milestoneLog.find(m => m.milestone === 'ARRIVED_PICKUP')?.occurredAt}
-                                    />
-                                    <StopCallSheet
-                                        orderId={route.id} stopType="dropoff" label="하차지"
-                                        address={dDetail?.addressDetail || route.dropoff}
-                                        contactName={dDetail?.contactName || dDetail?.customerName}
-                                        phones={phonesOf(dDetail)} reports={cargoReports}
-                                        memoTexts={[route.itemDescription, route.detailMemo, dDetail?.memo]}
-                                        driveMinutes={route.kakaoSoloDurationMin ?? null}
-                                        orderStatus={route.status}
-                                        arrivedAt={milestoneLog.find(m => m.milestone === 'ARRIVED_DROPOFF')?.occurredAt}
-                                    />
+                                    {/* ── [Phase 8.5 · A안] 지금 할 일 하나만 ──
+                                        여섯 단계를 동시에 펼치면 폰 한 화면에 안 들어간다.
+                                        현재 단계의 정거장만 띄우고 나머지는 위 진행 점으로 압축한다. */}
+                                    {shownStep && (() => {
+                                        const isPickupStop = shownStep.stop === 'pickup';
+                                        const d = isPickupStop ? pDetail : dDetail;
+                                        return (
+                                            <StopCallSheet
+                                                key={shownStep.id}
+                                                orderId={route.id}
+                                                stopType={isPickupStop ? 'pickup' : 'dropoff'}
+                                                label={isPickupStop ? '상차지' : '하차지'}
+                                                address={d?.addressDetail || (isPickupStop ? route.pickup : route.dropoff)}
+                                                contactName={d?.contactName || d?.customerName}
+                                                phones={phonesOf(d)}
+                                                reports={cargoReports}
+                                                memoTexts={[route.itemDescription, route.detailMemo, d?.memo]}
+                                                driveMinutes={(isPickupStop ? route.approachDurationMin : route.kakaoSoloDurationMin) ?? null}
+                                                orderStatus={route.status}
+                                                arrivedAt={milestoneLog.find(m =>
+                                                    m.milestone === (isPickupStop ? 'ARRIVED_PICKUP' : 'ARRIVED_DROPOFF'))?.occurredAt}
+                                                forceOpen={shownStep.id.startsWith('CALL_') ? 'DECLARED' : 'ACTUAL'}
+                                                stepLabel={shownStep.label}
+                                            />
+                                        );
+                                    })()}
+
+                                    {/* 통화는 선택이다 — 적요가 충분하면 건너뛴다. 막지 않고 표시만 한다 */}
+                                    {shownStep?.optional && (
+                                        <button
+                                            type="button"
+                                            onClick={(e) => { e.stopPropagation(); setSkippedTo(shownIndex + 1); setViewIndex(null); }}
+                                            className="w-full py-2.5 rounded-md border border-border border-dashed text-[12px] font-bold text-text-muted"
+                                        >
+                                            적요로 충분함 · 통화 없이 진행
+                                        </button>
+                                    )}
 
                                     {/* ── 1단: 적요 — 통화 전에 읽어야 하는 유일한 텍스트 ── */}
                                     <div className="flex gap-2 bg-surface-alt/40 p-2 rounded-md">
@@ -401,46 +442,46 @@ export default function PinnedRouteCard({
                         기사님: "현장확인 탭에 상차 완료, 상차 취소 두 개의 버튼을 넣는 것이 좋겠다."
                         현장에 도착해 물건을 확인한 그 자리에서 누르는 것이 자연스럽다.
                         여기에는 이력만 남긴다. */}
-                    {/* [2026-08-10] 콜 하나의 진행 6단계.
-                        기사님: "상차지 통화 → 하차지 통화 → 상차지 현장 도착 → 상차지 현장 상차완료
-                        → 하차지 현장 도착 → 하차지 현장 하차완료. 모두 완료하면 콜이 완료되어야 한다."
-                        통화 두 단계는 **선택**이다 — *"적요가 충분히 디테일하다면 전화는 패스하고
-                        바로 이동할 수 있다."* 그래서 건너뛴 것은 회색 점선으로, 막는 게 아니라 표시만 한다. */}
-                    {(() => {
-                        const done = new Set(milestoneLog.map(m => m.milestone));
-                        const has = (st: string, k: string) => cargoReports.some(r => r.stopType === st && r.kind === k);
-                        const steps: Array<[string, boolean, boolean]> = [
-                            ['상차 통화', has('pickup', 'DECLARED'), true],
-                            ['하차 통화', has('dropoff', 'DECLARED'), true],
-                            ['상차 도착', done.has('ARRIVED_PICKUP'), false],
-                            ['상차 완료', done.has('PICKED_UP'), false],
-                            ['하차 도착', done.has('ARRIVED_DROPOFF'), false],
-                            ['하차 완료', done.has('DELIVERED'), false],
-                        ];
-                        const required = steps.filter(([, , optional]) => !optional);
-                        const allDone = required.every(([, ok]) => ok);
-                        return (
-                            <div className="mt-3 flex flex-wrap items-center gap-1">
-                                {steps.map(([label, ok, optional], i) => (
-                                    <span key={label} className="flex items-center gap-1">
-                                        {i > 0 && <span className="text-[9px] text-text-muted/50">›</span>}
-                                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                                            ok ? 'bg-success/15 text-success'
-                                            : optional ? 'border border-dashed border-border text-text-muted/70'
-                                            : 'bg-surface-alt/50 text-text-muted'
-                                        }`}>
-                                            {ok ? '✓ ' : ''}{label}{!ok && optional ? ' (선택)' : ''}
-                                        </span>
-                                    </span>
-                                ))}
-                                {allDone && (
-                                    <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-success text-white ml-1">
-                                        운행 완료
-                                    </span>
-                                )}
-                            </div>
-                        );
-                    })()}
+                    {/* [Phase 8.5] 진행 6단계 — 점을 눌러 지난 단계로 되돌아간다.
+                        끝난 단계만 눌린다. 아직 오지 않은 단계로 건너뛰면 기록이 뒤엉킨다. */}
+                    <div className="mt-3">
+                        <div className="flex items-center gap-1">
+                            {CALL_STEPS.map((st, i) => {
+                                const passed = i < progress.index;
+                                const isNow = i === shownIndex;
+                                return (
+                                    <button
+                                        key={st.id}
+                                        type="button"
+                                        title={st.label}
+                                        disabled={!canRewindTo(progress, i)}
+                                        onClick={(e) => { e.stopPropagation(); setViewIndex(i); }}
+                                        className="flex-1 pt-1.5 pb-1 disabled:cursor-default"
+                                    >
+                                        <span className={`block h-1 rounded-full ${
+                                            isNow ? 'bg-info'
+                                            : progress.done[i] ? 'bg-success'
+                                            : passed ? 'bg-success/35'
+                                            : st.optional ? 'bg-transparent ring-1 ring-inset ring-border'
+                                            : 'bg-surface-hover'
+                                        }`} />
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        <div className="flex items-center gap-2 text-[10px] font-bold">
+                            {progress.allDone
+                                ? <span className="text-success">운행 완료 · 6단계를 모두 마쳤습니다</span>
+                                : <span className="text-info">{shownStep?.label} 차례</span>}
+                            {viewIndex !== null && !progress.allDone && (
+                                <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); setViewIndex(null); }}
+                                    className="text-text-muted underline underline-offset-2"
+                                >되돌아보는 중 · 현재 단계로</button>
+                            )}
+                        </div>
+                    </div>
 
                     {milestoneLog.length > 0 && (
                         <div className="mt-3 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-text-muted">
@@ -459,28 +500,47 @@ export default function PinnedRouteCard({
                         </div>
                     )}
 
-                    {/* 방출 / 사무실 취소 */}
+                    {/* [Phase 8.5] 방출 · 사무실 취소는 **접어 둔다**.
+                        기사님: "특수한 상황에 클릭해야 할 듯."
+                        주 버튼(도착·완료)과 같은 자리에 두면 잘못 눌러 콜을 잃는다.
+                        ⚠️ decision 은 서버에서 멱등이 아니므로 누른 즉시 잠근다 —
+                           processingId 는 1초 동기화마다 풀려 방어가 되지 않는다. */}
                     {(route.status === 'ORDER_CONFIRMED' || route.status === 'ORDER_PICKED_UP') && onDecision && (
-                        <div className="mt-3 flex gap-3">
-                            <div className="flex-1 flex gap-2">
+                        <details className="mt-3 group" onClick={(e) => e.stopPropagation()}>
+                            <summary className="list-none cursor-pointer text-[11px] font-bold text-text-muted py-1.5 select-none">
+                                <span className="group-open:hidden">⋯ 이 콜 처리 (방출 · 사무실 취소)</span>
+                                <span className="hidden group-open:inline">× 닫기</span>
+                            </summary>
+                            <div className="flex gap-2 pt-1">
                                 <Button
                                     variant="outline"
-                                    disabled={processingId === route.id}
-                                    onClick={(e: React.MouseEvent) => { e.stopPropagation(); setProcessingId(route.id); onDecision(route.id, 'ORDER_RELEASED'); }}
+                                    disabled={locked}
+                                    onClick={(e: React.MouseEvent) => {
+                                        e.stopPropagation();
+                                        setLocked(true); setProcessingId(route.id);
+                                        onDecision(route.id, 'ORDER_RELEASED');
+                                    }}
                                     className="flex-1 py-3 text-sm font-bold bg-warning/10 hover:bg-warning/20 text-warning border-warning/30"
                                 >
                                     🙋‍♂️ 배차 방출
                                 </Button>
                                 <Button
                                     variant="destructive"
-                                    disabled={processingId === route.id}
-                                    onClick={(e: React.MouseEvent) => { e.stopPropagation(); setProcessingId(route.id); onDecision(route.id, 'ORDER_FORCE_CANCELED'); }}
+                                    disabled={locked}
+                                    onClick={(e: React.MouseEvent) => {
+                                        e.stopPropagation();
+                                        setLocked(true); setProcessingId(route.id);
+                                        onDecision(route.id, 'ORDER_FORCE_CANCELED');
+                                    }}
                                     className="flex-1 py-3 text-sm font-bold shadow-sm"
                                 >
                                     🏢 사무실 취소
                                 </Button>
                             </div>
-                        </div>
+                            <div className="text-[10px] text-text-muted mt-1.5">
+                                되돌릴 수 없습니다. 방출은 그 장소에 사유가 기록됩니다.
+                            </div>
+                        </details>
                     )}
                 </div>
             )}

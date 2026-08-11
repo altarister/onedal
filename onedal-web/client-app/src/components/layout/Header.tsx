@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import SettingsModal from "../dashboard/SettingsModal";
 import { useTheme } from "../../contexts/ThemeContext";
@@ -18,9 +18,28 @@ export default function Header({ isConnected }: { isConnected: boolean }) {
         const timer = setInterval(() => setTime(new Date()), 1000);
         return () => clearInterval(timer);
     }, []);
+
+    /**
+     * [Phase 8.5] 헤더 높이를 `--header-h` 로 내보낸다.
+     *
+     * 헤더가 `sticky top-0` 이라, 아래에 또 sticky 를 붙이면 **헤더 밑으로 파묻힌다.**
+     * 콜 탭 바가 `top: var(--header-h)` 로 걸리려면 실제 높이가 필요하다.
+     * 하드코딩하면 폰트 크기·세이프에어리어·알림 버튼 유무로 어긋난다.
+     */
+    const headerRef = useRef<HTMLElement>(null);
+    useEffect(() => {
+        const el = headerRef.current;
+        if (!el) return;
+        const apply = () => document.documentElement.style.setProperty('--header-h', `${el.offsetHeight}px`);
+        apply();
+        const ro = new ResizeObserver(apply);
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, []);
+
     return (
         <>
-            <header className="sticky top-0 z-10 bg-bg-base/95 backdrop-blur-sm border-b border-border-card px-4 py-2.5">
+            <header ref={headerRef} className="sticky top-0 z-20 bg-bg-base/95 backdrop-blur-sm border-b border-border-card px-4 py-2.5">
                 <div className="flex items-center justify-between max-w-2xl mx-auto">
                     <div className="flex items-center gap-2">
                         <button onClick={toggleTheme} className="focus:outline-none active:scale-95 transition-transform">

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
     HANDLING_METHODS, cargoPoints, parseCargoHints, hasCargoHints,
     CARGO_TAGS, CARGO_TAG_META, describeSlack, computeSlackMinutes,
@@ -62,6 +62,10 @@ interface Props {
     orderStatus?: string;
     /** 이 정거장에 도착한 시각 (기록됐다면) */
     arrivedAt?: string;
+    /** [Phase 8.5] 단계 카드가 지정하는 열림 상태. 지정되면 줄을 누를 필요가 없다 */
+    forceOpen?: CargoReportKind;
+    /** 단계 이름 (헤더에 표시) */
+    stepLabel?: string;
 }
 
 const hhmm = (iso?: string) =>
@@ -80,11 +84,13 @@ function summarize(r?: CargoReport): string {
 
 export default function StopCallSheet({
     orderId, stopType, label, address, contactName, phones, reports,
-    memoTexts, driveMinutes, orderStatus, arrivedAt,
+    memoTexts, driveMinutes, orderStatus, arrivedAt, forceOpen, stepLabel,
 }: Props) {
     const isPickup = stopType === 'pickup';
-    const [tab, setTab] = useState<CargoReportKind | null>(null);   // null = 접힘
+    const [tab, setTab] = useState<CargoReportKind | null>(forceOpen ?? null);   // null = 접힘
     const [showMoreUnits, setShowMoreUnits] = useState(false);
+    // 단계가 바뀌면 그 단계에 맞는 줄을 연다 (A안: 줄을 누르는 탭을 없앤다)
+    useEffect(() => { if (forceOpen) setTab(forceOpen); }, [forceOpen]);
 
     const declared = reports.find(r => r.stopType === stopType && r.kind === 'DECLARED');
     const actual = reports.find(r => r.stopType === stopType && r.kind === 'ACTUAL');
@@ -150,9 +156,10 @@ export default function StopCallSheet({
             tags: isPickup && tags.length ? tags : undefined,
             memo: memo || undefined,
         });
-        // 저장하면 접는다. 결과는 바로 위 요약 줄에 반영된다 —
-        // 같은 내용을 안에서 또 보여줄 이유가 없다
-        setTab(null);
+        // 저장하면 접는다. 결과는 바로 위 요약 줄에 반영된다.
+        // 단, 단계 카드(A안)에서는 이 정거장이 화면의 전부이므로 열어 둔다 —
+        // 접으면 화면이 비어 무엇을 했는지 알 수 없다
+        setTab(forceOpen ?? null);
     };
 
     const chip = (active: boolean, dim = false) =>
@@ -259,6 +266,7 @@ export default function StopCallSheet({
                 <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="text-[11px] font-black text-text-muted">{label}</span>
+                        {stepLabel && <span className="text-[11px] font-black text-info">{stepLabel}</span>}
                         {contactName && <span className="text-[11px] text-text-primary font-bold">{contactName}</span>}
                         {badges.map(([txt, cls]) => (
                             <span key={txt} className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${cls}`}>{txt}</span>
