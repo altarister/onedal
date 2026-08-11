@@ -120,13 +120,13 @@ describe('단계 정의', () => {
  */
 describe('remainingToStop — 지금부터 이 정거장까지', () => {
     const base = {
-        approachMinutes: 12, soloMinutes: 75, pickupDwellMinutes: 15,
+        approachMinutes: 12, approachKm: 9, soloMinutes: 75, soloKm: 68, pickupDwellMinutes: 15,
         arrivedPickup: false, pickedUp: false, arrivedDropoff: false,
     };
 
     it('상차지 · 아직 안 감 → 접근 주행만', () => {
         const r = remainingToStop({ ...base, stop: 'pickup' });
-        expect(r).toEqual({ driveMinutes: 12, leadMinutes: 0, leadLabel: null });
+        expect(r).toEqual({ driveMinutes: 12, driveKm: 9, leadMinutes: 0, leadLabel: null });
     });
 
     it('상차지 · 도착함 → 더 갈 곳이 없다', () => {
@@ -136,22 +136,28 @@ describe('remainingToStop — 지금부터 이 정거장까지', () => {
 
     it('🔴 하차지 · 아직 상차지에도 안 감 → 접근 + 주행, 그리고 상차 시간이 남는다', () => {
         const r = remainingToStop({ ...base, stop: 'dropoff' });
-        expect(r).toEqual({ driveMinutes: 87, leadMinutes: 15, leadLabel: '상차' });
+        expect(r).toEqual({ driveMinutes: 87, driveKm: 77, leadMinutes: 15, leadLabel: '상차' });
     });
 
     it('하차지 · 상차지 도착만 함 → 접근은 끝났고 상차 시간은 남았다', () => {
         const r = remainingToStop({ ...base, stop: 'dropoff', arrivedPickup: true });
-        expect(r).toEqual({ driveMinutes: 75, leadMinutes: 15, leadLabel: '상차' });
+        expect(r).toEqual({ driveMinutes: 75, driveKm: 68, leadMinutes: 15, leadLabel: '상차' });
     });
 
     it('하차지 · 상차 완료 → 남은 건 주행뿐', () => {
         const r = remainingToStop({ ...base, stop: 'dropoff', arrivedPickup: true, pickedUp: true });
-        expect(r).toEqual({ driveMinutes: 75, leadMinutes: 0, leadLabel: null });
+        expect(r).toEqual({ driveMinutes: 75, driveKm: 68, leadMinutes: 0, leadLabel: null });
     });
 
     it('하차지 · 도착함 → 0', () => {
         const r = remainingToStop({ ...base, stop: 'dropoff', pickedUp: true, arrivedDropoff: true });
         expect(r.driveMinutes).toBe(0);
+    });
+
+    it('거리도 같은 규칙으로 합쳐진다 — 통화에서 "몇 km 몇 분" 을 그대로 읽는다', () => {
+        // 아직 상차지에도 안 갔다면 하차지까지는 접근 + 단독을 더한 거리다
+        expect(remainingToStop({ ...base, stop: 'dropoff' }).driveKm).toBe(77);
+        expect(remainingToStop({ ...base, stop: 'pickup' }).driveKm).toBe(9);
     });
 
     it('🔴 모르는 구간이 있으면 0 으로 때우지 않고 null 을 준다', () => {

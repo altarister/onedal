@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
     HANDLING_METHODS, cargoPoints, parseCargoHints, hasCargoHints,
-    CARGO_TAGS, CARGO_TAG_META, describeSlack, computeSlackMinutes,
+    CARGO_TAGS, CARGO_TAG_META, computeSlackMinutes,
     CARGO_UNITS, CARGO_UNIT_QUANTITY_INPUT,
-    buildHourSlots, dwellMinutes, unitPoints,
+    buildArrivalSlots, dwellMinutes, unitPoints,
 } from '@onedal/shared';
 import type { CargoReport, HandlingMethod, CargoReportKind, CargoUnit } from '@onedal/shared';
 import { socket } from '../../lib/socket';
@@ -73,6 +73,8 @@ interface Props {
     leadMinutes?: number;
     /** 그 시간이 무엇인지 (`상차` 등) */
     leadLabel?: string | null;
+    /** 같은 구간의 거리(km) — 통화에서 "몇 km고 몇 분" 이라고 말한다 */
+    driveKm?: number | null;
     /** [T8] 착불이면 받을 금액(원). 하차 완료 **직전**에 수령 여부를 남긴다 */
     codAmount?: number | null;
 }
@@ -94,7 +96,7 @@ function summarize(r?: CargoReport): string {
 export default function StopCallSheet({
     orderId, stopType, label, address, contactName, phones, reports,
     memoTexts, driveMinutes, orderStatus, arrivedAt, forceOpen, stepLabel,
-    leadMinutes = 0, leadLabel, codAmount,
+    leadMinutes = 0, leadLabel, driveKm, codAmount,
 }: Props) {
     const isPickup = stopType === 'pickup';
     /** 단계 카드(A안)가 몰아주는 모드 — 이 시트가 화면의 전부다. 요약 줄을 띄우지 않는다 */
@@ -105,6 +107,8 @@ export default function StopCallSheet({
     const [ones, setOnes] = useState<number | null>(null);
     /** 기사님: *"성질 선택은 특수한 상황에서만 필요할 듯."* → 기본 접힘 */
     const [showTags, setShowTags] = useState(false);
+    /** 적요에서 미리 채운 값인가 — 어디서 온 값인지 숨기지 않는다 */
+    const [prefilledFromMemo, setPrefilledFromMemo] = useState(false);
     /** [T8] 착불 수령 상태 — 서버가 진실이다. 화면이 저장했다고 믿지 않는다 */
     const [codSettled, setCodSettled] = useState<string | undefined>();
 
@@ -119,6 +123,7 @@ export default function StopCallSheet({
     }, [orderId, codAmount]);
     // 단계가 바뀌면 그 단계에 맞는 줄을 연다 (A안: 줄을 누르는 탭을 없앤다)
     useEffect(() => { if (forceOpen) setTab(forceOpen); }, [forceOpen]);
+
 
     const declared = reports.find(r => r.stopType === stopType && r.kind === 'DECLARED');
     const actual = reports.find(r => r.stopType === stopType && r.kind === 'ACTUAL');
@@ -141,22 +146,43 @@ export default function StopCallSheet({
     //    → 현장 줄을 열 때 통화값을 복사해 넣고, 그 뒤로는 완전히 독립이다.
     const eff = { unit, quantity: qty, handling };
     const points = isPickup ? cargoPoints(eff) : unitPoints(pickupReport?.unit, pickupReport?.quantity);
-    const dwell = dwellMinutes(eff.handling, points);
     // 주행 시간을 모르면 여유를 계산할 수 없다. 0 으로 때우면 "여유가 많다"고 거짓말하게 된다
     const driveKnown = driveMinutes != null && driveMinutes > 0;
-    // 🔴 앞 정거장에서 쓸 시간(상차 등)을 빠뜨리면 도착 예상이 실제보다 이르게 나온다
-    const fixedMinutes = (driveMinutes ?? 0) + leadMinutes + dwell;
+    /**
+     * **도착까지** 걸리는 시간. 🔴 이 정거장의 상하차 정차(dwell)는 넣지 않는다.
+     *
+     * 기사님: *"상차지와 통화하고 내용을 기입하는 영역인데 상차 20분을 추가하고 있어.
+     * 그건 상차지랑 통화할 때 **불필요한 정보**야."* — 맞다. 상차 20분은 **도착한 뒤**의 일이고,
+     * 통화에서 정하는 것은 *"몇 시까지 **가면** 되나요"* 다.
+     *
+     * 앞 정거장의 작업(`leadMinutes`, 예: 하차지 통화 시점의 상차 20분)은 도착 **전**이므로 넣는다.
+     */
+    const arrivalMinutes = (driveMinutes ?? 0) + leadMinutes;
 
     const hints = parseCargoHints(...(memoTexts || []));
-    const applyHints = () => {
-        if (hints.unit) setUnit(hints.unit);
-        if (hints.quantity != null) setQty(hints.quantity);
-        if (hints.handling) setHandling(hints.handling);
-        if (hints.tags?.length) setTags(prev => Array.from(new Set([...prev, ...hints.tags!])));
-    };
-
-    /** 저장된 기록을 폼으로 **깊은 복사**한다. 배열도 새로 만들어 원본과 공유하지 않는다 */
+    /**
+     * 저장된 기록을 폼으로 **깊은 복사**한다. 배열도 새로 만들어 원본과 공유하지 않는다.
+     *
+     * [2026-08-12] 저장된 값이 없으면 **적요에서 미리 채운다.**
+     * 기사님: *"적요 내용을 클릭하는 것이 아니고 축약한 것을 **미리 클릭해 주는 것**이 더 좋을 것 같아."*
+     * 맞다 — 통화하면서 버튼을 찾아 누를 시간이 없다. 채워 두고 **틀린 것만 고치는** 편이 빠르다.
+     * 적요는 부정확할 수 있으므로 어디서 온 값인지는 화면에 남긴다.
+     */
     const loadInto = (src?: CargoReport) => {
+        const h = parseCargoHints(...(memoTexts || []));
+        const prefilled = !src?.unit && !src?.handling && hasCargoHints(h);
+        setPrefilledFromMemo(prefilled);
+        if (prefilled) {
+            setUnit(h.unit);
+            setQty(h.quantity);
+            setTens(Math.floor((h.quantity ?? 0) / 10) * 10);
+            setOnes(h.quantity ? h.quantity % 10 : null);
+            setHandling(h.handling);
+            setTags(h.tags ? [...h.tags] : []);
+            setMemo(src?.memo || '');
+            setDeadlineAt(src?.deadlineAt);
+            return;
+        }
         setUnit(src?.unit as CargoUnit | undefined);
         setQty(src?.quantity);
         // 저장된 수량을 십·일 자리로 되돌려 놓는다. 안 하면 23개를 불러왔는데
@@ -169,6 +195,14 @@ export default function StopCallSheet({
         setMemo(src?.memo || '');
         setDeadlineAt(src?.deadlineAt);
     };
+
+// 단계 카드는 줄을 누르지 않으므로 loadInto 가 안 불린다 — 여기서 한 번 채운다
+    const seeded = useRef(false);
+    useEffect(() => {
+        if (!forceOpen || seeded.current) return;
+        seeded.current = true;
+        loadInto(forceOpen === 'DECLARED' ? declared : (actual || declared));
+    }, [forceOpen, declared, actual]);
 
     const openTab = (k: CargoReportKind) => {
         if (tab === k) { setTab(null); return; }
@@ -214,13 +248,12 @@ export default function StopCallSheet({
         const sum = t + (o ?? 0);
         setQty(sum > 0 ? sum : undefined);
     };
-    const hourSlots = buildHourSlots(Date.now(), fixedMinutes, 5);
+    const hourSlots = buildArrivalSlots(Date.now(), arrivalMinutes, 5);
 
     // ── 접힌 채로 보여줄 요약. 여기 없는 값은 기사님에게 "없는 값"이다 ──
-    const savedDwell = dwellMinutes(declared?.handling ?? undefined, points);
     // 주행 시간을 모르면 여유도 모른다 — 0 으로 때우면 요약이 거짓말을 한다
     const declaredSlack = driveKnown
-        ? computeSlackMinutes(declared?.deadlineAt, driveMinutes! + leadMinutes + savedDwell, Date.now())
+        ? computeSlackMinutes(declared?.deadlineAt, driveMinutes! + leadMinutes, Date.now())
         : null;
     const declaredSummary = declared
         ? [summarize(declared), declaredSlack !== null && `여유 ${Math.max(0, declaredSlack)}분`]
@@ -429,72 +462,73 @@ export default function StopCallSheet({
                         기사님: *"정보 중복이고 불필요한 액션을 요구하는 것 같다."*
                         → 줄을 누르면 **바로 입력 폼**이 열린다. 저장하면 접히고 요약 줄이 갱신된다. */}
                     <>
-                            {/* 어쩔 수 없는 시간을 먼저 못박는다 */}
+                            {/* 통화에서 그대로 읽을 수 있는 한 줄.
+                                기사님: *"거기까지 가는데 몇 km고 28분 걸려 08:39에 도착해야 하는데…"* */}
                             {driveKnown ? (
-                                <div className="text-[11px] text-text-muted">
-                                    주행 <b className="text-text-primary tabular-nums">{driveMinutes}</b>분
-                                    {/* 앞 정거장에서 쓸 시간을 **항으로 드러낸다** — 합계에만 넣으면 왜 늘었는지 알 수 없다 */}
+                                <div className="text-[12px] text-text-primary">
+                                    {isPickup ? '현위치 → 상차지' : '상차지 → 하차지'}
+                                    {driveKm != null && <> <b className="tabular-nums">{driveKm.toFixed(1)}</b>km</>}
+                                    {' · '}<b className="tabular-nums">{driveMinutes}</b>분
+                                    {/* 앞 정거장 작업은 도착 **전**이라 항으로 드러낸다 (하차지 통화의 상차 20분) */}
                                     {leadMinutes > 0 && leadLabel && (
-                                        <>{' + '}{leadLabel} <b className="text-text-primary tabular-nums">{leadMinutes}</b>분</>
+                                        <span className="text-text-muted"> (+ {leadLabel} {leadMinutes}분)</span>
                                     )}
-                                    {' + '}{isPickup ? '상차' : '하차'} <b className="text-text-primary tabular-nums">{dwell}</b>분
-                                    {' = '}<b className="text-text-primary tabular-nums">{fixedMinutes}</b>분
-                                    <span className="opacity-70"> · 도착 {hhmm(new Date(Date.now() + fixedMinutes * 60_000).toISOString())} 예상</span>
+                                    <div className="text-[13px] font-black text-info mt-0.5 tabular-nums">
+                                        지금 출발하면 {hhmm(new Date(Date.now() + arrivalMinutes * 60_000).toISOString())} 도착
+                                    </div>
                                 </div>
                             ) : (
                                 /* 없는 숫자를 0 으로 때우면 "여유가 많다"고 거짓말하게 된다 */
                                 <div className="text-[11px] text-warning bg-warning/10 border border-warning/35 rounded-md px-2 py-1.5">
                                     ⚠️ {isPickup ? '현위치 → 상차지' : '하차지까지'} 주행 시간을 아직 모릅니다 —
-                                    여유 계산은 {leadMinutes > 0 && leadLabel ? `${leadLabel} ${leadMinutes}분 + ` : ''}
-                                    {isPickup ? '상차' : '하차'} {dwell}분만 반영했습니다
+                                    도착 시각을 계산할 수 없습니다
                                 </div>
                             )}
 
-                            {/* 🎯 여유가 곧 합짐 여력 */}
+                            {/* 🎯 30분 단위 — 첫 칸이 곧 '지금 출발'이고, 한 칸이 30분의 합짐 시간이다.
+                                기사님: *"9:39에 가도 될까요? 그럼 한 시간 동안 합짐을 잡을 수 있으니까."*
+                                버튼마다 `여유 N분` 을 쓰지 않는다 — 몇 번째 칸인가가 곧 여유다. */}
                             <div>
                                 <div className="text-[11px] font-bold text-text-muted mb-1">몇 시까지 가면 되나요?</div>
                                 <div className="flex gap-1.5 flex-wrap">
-                                    {hourSlots.map(sl => {
-                                        const slack = sl.minutesFromNow - fixedMinutes;
+                                    {hourSlots.map((sl, i) => {
                                         const on = deadlineAt === sl.iso;
                                         return (
                                             <button key={sl.iso} onClick={() => setDeadlineAt(on ? undefined : sl.iso)}
-                                                className={`flex flex-col items-center px-2.5 py-1 rounded-md border transition-colors ${
+                                                className={`px-3 py-2 rounded-md border text-[14px] font-black tabular-nums transition-colors ${
                                                     on ? 'bg-info text-white border-info'
-                                                    : sl.beforeEta ? 'bg-surface-alt/30 text-text-muted/60 border-border border-dashed'
+                                                    : i === 0 ? 'bg-surface-alt/50 text-text-muted border-border border-dashed'
                                                     : 'bg-surface-alt/50 text-text-primary border-border'
                                                 }`}>
-                                                <span className="text-[14px] font-black">{sl.label}</span>
-                                                <span className={`text-[10px] font-bold ${
-                                                    on ? 'text-white/80' : slack < 0 ? 'text-danger' : slack < 30 ? 'text-warning' : 'text-success'
-                                                }`}>
-                                                    {slack < 0 ? '지각' : `여유 ${slack}분`}
-                                                </span>
+                                                {sl.label}
                                             </button>
                                         );
                                     })}
                                 </div>
-                                <div className="text-[10px] text-text-muted mt-1">여유가 클수록 합짐 여력이 커집니다</div>
                             </div>
 
-                            {isPickup && hasCargoHints(hints) && (
-                                <button onClick={applyHints}
-                                    className="flex items-center gap-2 text-left px-2 py-1.5 rounded-md bg-warning/10 border border-warning/35 border-dashed">
-                                    <span className="text-[10px] font-black text-warning shrink-0">적요에서</span>
-                                    <span className="text-[11px] text-text-primary font-bold flex-1 truncate">{hints.summary}</span>
-                                    <span className="text-[10px] font-black text-warning shrink-0">적용 ▸</span>
-                                </button>
+                            {isPickup && prefilledFromMemo && (
+                                <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-warning/10 border border-warning/35 border-dashed">
+                                    <span className="text-[10px] font-black text-warning shrink-0">적요에서 미리 채움</span>
+                                    <span className="text-[11px] text-text-muted flex-1 truncate">{hints.summary}</span>
+                                    <span className="text-[10px] text-text-muted shrink-0">틀리면 고치세요</span>
+                                </div>
                             )}
 
                             {cargoForm}
 
                             {deadlineAt && (() => {
-                                const d = describeSlack(computeSlackMinutes(deadlineAt, fixedMinutes, Date.now()));
+                                const spare = Math.max(0, Math.round((new Date(deadlineAt).getTime() - Date.now()) / 60000) - arrivalMinutes);
                                 return (
                                     <div className={`text-[12px] font-bold px-2 py-2 rounded-md ${
-                                        d.level === 'tight' ? 'bg-danger/12 text-danger'
-                                        : d.level === 'ample' ? 'bg-success/12 text-success' : 'bg-info/10 text-info'
-                                    }`}>🕒 {hhmm(deadlineAt)}까지 · {d.text}</div>
+                                        spare >= 60 ? 'bg-success/12 text-success'
+                                        : spare >= 30 ? 'bg-info/10 text-info' : 'bg-warning/12 text-warning'
+                                    }`}>
+                                        🕒 {hhmm(deadlineAt)}까지 가겠다고 말하세요
+                                        {spare > 0
+                                            ? <> · 그 사이 <b>{spare >= 60 ? `${Math.floor(spare / 60)}시간 ${spare % 60 || ''}${spare % 60 ? '분' : ''}` : `${spare}분`}</b> 합짐을 잡을 수 있습니다</>
+                                            : <> · 바로 출발해야 합니다</>}
+                                    </div>
                                 );
                             })()}
 

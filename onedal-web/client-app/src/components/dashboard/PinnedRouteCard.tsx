@@ -422,10 +422,16 @@ export default function PinnedRouteCard({
                                     {shownStep && (() => {
                                         const isPickupStop = shownStep.stop === 'pickup';
                                         const d = isPickupStop ? pDetail : dDetail;
+                                        // 접근 거리는 따로 저장하지 않는다 — 총거리에서 단독 구간을 빼면 나온다
+                                        const approachKm = route.totalDistanceKm != null && soloKm != null
+                                            ? Math.max(0, Number(route.totalDistanceKm) - Number(soloKm))
+                                            : null;
                                         const lead = remainingToStop({
                                             stop: isPickupStop ? 'pickup' : 'dropoff',
                                             approachMinutes: route.approachDurationMin,
+                                            approachKm,
                                             soloMinutes: soloMin,
+                                            soloKm: soloKm != null ? Number(soloKm) : null,
                                             pickupDwellMinutes: pickupDwell,
                                             arrivedPickup: hasMs('ARRIVED_PICKUP'),
                                             pickedUp: hasMs('PICKED_UP'),
@@ -443,6 +449,7 @@ export default function PinnedRouteCard({
                                                 reports={cargoReports}
                                                 memoTexts={[route.itemDescription, route.detailMemo, d?.memo]}
                                                 driveMinutes={lead.driveMinutes}
+                                                driveKm={lead.driveKm}
                                                 leadMinutes={lead.leadMinutes}
                                                 leadLabel={lead.leadLabel}
                                                 orderStatus={route.status}

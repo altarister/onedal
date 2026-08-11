@@ -2,7 +2,7 @@ import {
     findTagConflicts, isTimeSensitive,
     computeSlackMinutes, allowedDetourMinutes, describeSlack,
     dwellMinutes, computeStopTiming, unitPoints, buildHourSlots, DWELL_UNKNOWN_MINUTES,
-    CARGO_UNITS, CARGO_UNIT_QUANTITY_INPUT, HANDLING_METHODS,
+    CARGO_UNITS, CARGO_UNIT_QUANTITY_INPUT, HANDLING_METHODS, buildArrivalSlots,
 } from '@onedal/shared';
 
 /**
@@ -216,5 +216,42 @@ describe('검수 방법 (2026-08-12)', () => {
 
     it('네 가지가 모두 선택지에 있다', () => {
         expect([...HANDLING_METHODS]).toEqual(['지게차', '수작업', '호이스트', '검수']);
+    });
+});
+
+/**
+ * [2026-08-12] 도착 시각을 30분 단위로 협상한다.
+ *
+ * 기사님이 실제로 하는 통화:
+ *   "28분 걸려 08:39에 도착하는데, 일을 마무리하고 가야 해서 9:39에 가도 될까요?"
+ *   → 승낙되면 그 한 시간이 통째로 합짐 시간
+ *   "빨리 오셔야 해요" → "그럼 9:09까지 갈게요"
+ */
+describe('buildArrivalSlots — 30분 단위 도착 협상', () => {
+    const NOW = new Date('2026-08-12T08:11:00+09:00').getTime();
+
+    it('첫 칸은 가장 이른 도착 시각 그대로다 (여유 0)', () => {
+        const s = buildArrivalSlots(NOW, 28, 5);
+        expect(s[0].label).toBe('08:39');
+        expect(s[0].minutesFromNow).toBe(28);
+    });
+
+    it('그 뒤로 30분씩 늘어난다 — 한 칸이 곧 30분의 합짐 시간', () => {
+        expect(buildArrivalSlots(NOW, 28, 5).map(x => x.label))
+            .toEqual(['08:39', '09:09', '09:39', '10:09', '10:39']);
+    });
+
+    it('🔴 지각 칸이 없다 — 가장 이른 도착에서 출발하므로 못 지킬 시각을 고를 수 없다', () => {
+        expect(buildArrivalSlots(NOW, 28, 5).every(x => !x.beforeEta)).toBe(true);
+    });
+
+    it('주행이 길면 그만큼 뒤에서 시작한다', () => {
+        expect(buildArrivalSlots(NOW, 124, 3).map(x => x.label))
+            .toEqual(['10:15', '10:45', '11:15']);
+    });
+
+    it('간격을 바꿀 수 있다', () => {
+        expect(buildArrivalSlots(NOW, 0, 3, 60).map(x => x.label))
+            .toEqual(['08:11', '09:11', '10:11']);
     });
 });

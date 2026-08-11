@@ -131,6 +131,8 @@ export function canRewindTo(progress: CallProgress, target: number): boolean {
 export interface StopLead {
     /** 이 정거장까지 남은 **주행** 시간(분). 한 구간이라도 모르면 `null` — 0 으로 때우지 않는다 */
     driveMinutes: number | null;
+    /** 같은 구간의 거리(km). 통화에서 *"몇 km고 몇 분 걸려"* 라고 말한다 */
+    driveKm: number | null;
     /** 주행 말고 앞에서 이미 써야 하는 시간(분). 예: 상차 작업 */
     leadMinutes: number;
     /** 그 시간이 무엇인지. 없으면 `null` */
@@ -141,8 +143,10 @@ export function remainingToStop(p: {
     stop: 'pickup' | 'dropoff';
     /** 현위치 → 상차지 */
     approachMinutes?: number | null;
+    approachKm?: number | null;
     /** 상차지 → 하차지 */
     soloMinutes?: number | null;
+    soloKm?: number | null;
     /** 상차 작업에 걸리는 시간 */
     pickupDwellMinutes: number;
     arrivedPickup: boolean;
@@ -151,27 +155,28 @@ export function remainingToStop(p: {
 }): StopLead {
     const none = { leadMinutes: 0, leadLabel: null };
     const at = (v?: number | null) => (v != null && v > 0 ? v : null);
+    const sum = (a: number | null, b: number | null) => (a != null && b != null ? a + b : null);
 
     if (p.stop === 'pickup') {
         // 이미 상차지에 서 있으면 더 갈 곳이 없다
         return p.arrivedPickup
-            ? { driveMinutes: 0, ...none }
-            : { driveMinutes: at(p.approachMinutes), ...none };
+            ? { driveMinutes: 0, driveKm: 0, ...none }
+            : { driveMinutes: at(p.approachMinutes), driveKm: at(p.approachKm), ...none };
     }
 
-    if (p.arrivedDropoff) return { driveMinutes: 0, ...none };
+    if (p.arrivedDropoff) return { driveMinutes: 0, driveKm: 0, ...none };
     // 상차를 마쳤으면 남은 건 하차지까지 주행뿐이다
-    if (p.pickedUp) return { driveMinutes: at(p.soloMinutes), ...none };
+    if (p.pickedUp) return { driveMinutes: at(p.soloMinutes), driveKm: at(p.soloKm), ...none };
 
-    const solo = at(p.soloMinutes);
+    const solo = at(p.soloMinutes), soloK = at(p.soloKm);
     // 상차지에 도착은 했지만 아직 싣지 않았다 — 상차 시간이 남아 있다
     if (p.arrivedPickup) {
-        return { driveMinutes: solo, leadMinutes: p.pickupDwellMinutes, leadLabel: '상차' };
+        return { driveMinutes: solo, driveKm: soloK, leadMinutes: p.pickupDwellMinutes, leadLabel: '상차' };
     }
     // 아직 상차지에도 못 갔다 — 접근 주행 + 상차 + 하차지까지 주행이 전부 남았다
-    const approach = at(p.approachMinutes);
     return {
-        driveMinutes: approach != null && solo != null ? approach + solo : null,
+        driveMinutes: sum(at(p.approachMinutes), solo),
+        driveKm: sum(at(p.approachKm), soloK),
         leadMinutes: p.pickupDwellMinutes,
         leadLabel: '상차',
     };

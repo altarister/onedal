@@ -185,6 +185,40 @@ export interface HourSlot {
     beforeEta: boolean;
 }
 
+/**
+ * [2026-08-12] 도착 예상 시각부터 **30분 간격**으로 고를 수 있게 한다.
+ *
+ * 기사님이 실제로 하는 통화:
+ *   *"거기까지 가는데 28분 걸려서 **08:39에 도착**하는데, 여기 일을 마무리하고 가야 해서
+ *     **9:39에 가도 될까요?**"* → 승낙되면 그 한 시간이 통째로 **합짐 시간**이 된다.
+ *   *"아니 빨리 오셔야 해요"* → *"그럼 **9:09**까지 갈게요"* → 30분 여유.
+ *
+ * 그래서 첫 칸은 **가장 이른 도착 시각 그대로**(여유 0)이고, 그 뒤로 30분씩 늘어난다.
+ * 정시(1시간) 단위로는 이 협상이 안 된다 — 30분을 깎는 대화가 실제로 오간다.
+ *
+ * ⚠️ 버튼에 `여유 N분` 을 따로 쓰지 않는다. 기사님: *"여유 x분은 화면에서 지워도 될 듯."*
+ *    첫 칸이 곧 여유 0 이므로 **몇 번째 칸인가가 곧 여유**다. 숫자를 두 벌 두면 읽는 데 시간이 든다.
+ *
+ * @param minMinutes 지금부터 가장 이른 도착까지 걸리는 시간(분) — **주행만.**
+ *                   상하차 정차는 도착 **이후**의 일이라 여기 들어가면 안 된다.
+ */
+export function buildArrivalSlots(nowMs: number, minMinutes: number, count = 5, stepMin = 30): HourSlot[] {
+    const slots: HourSlot[] = [];
+    const base = nowMs + minMinutes * 60_000;
+
+    for (let i = 0; i < count; i++) {
+        const t = new Date(base + i * stepMin * 60_000);
+        t.setSeconds(0, 0);
+        slots.push({
+            iso: t.toISOString(),
+            label: `${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`,
+            minutesFromNow: Math.round((t.getTime() - nowMs) / 60000),
+            beforeEta: false,        // 가장 이른 도착에서 출발하므로 지각 칸이 없다
+        });
+    }
+    return slots;
+}
+
 export function buildHourSlots(nowMs: number, etaMinutes = 0, count = 5): HourSlot[] {
     const slots: HourSlot[] = [];
     const start = new Date(nowMs);
