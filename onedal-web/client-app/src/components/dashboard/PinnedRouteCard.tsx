@@ -9,7 +9,8 @@ import { logRoadmapEvent } from '../../lib/roadmapLogger';
 import { Badge } from "../ui/badge";
 import StopCallSheet from './StopCallSheet';
 import type { CargoReport } from "@onedal/shared";
-import { MILESTONE_LABEL, timingError, buildHourSlots, deriveCallStep, canRewindTo, CALL_STEPS } from "@onedal/shared";
+import { MILESTONE_LABEL, timingError, buildHourSlots, deriveCallStep, canRewindTo, CALL_STEPS,
+         remainingToStop, dwellMinutes, unitPoints } from "@onedal/shared";
 import { Button } from "../ui/button";
 
 interface Props {
@@ -22,6 +23,11 @@ interface Props {
     etaMap: Map<string, { pickupEta?: string, dropoffEta?: string }>;
     visitOrderMap: Map<string, { pickupIdx: number, dropoffIdx: number }>;
     indexNum: number;
+    /**
+     * `deck` — 진행 중 탭의 스와이프 덱. **폰 한 화면**이 목표라 헤더를 경로 한 줄로 줄인다.
+     * `list` — 완료됨·취소/방출·전체. 조회용이라 포착시각·방문순서·ETA 를 그대로 둔다.
+     */
+    variant?: 'deck' | 'list';
 }
 
 export default function PinnedRouteCard({
@@ -32,8 +38,10 @@ export default function PinnedRouteCard({
     processingId,
     setProcessingId,
     etaMap,
-    visitOrderMap
+    visitOrderMap,
+    variant = 'list',
 }: Props) {
+    const isDeck = variant === 'deck';
     const evaluating = isEvaluating(route.status);
     const etas = etaMap.get(route.id);
     const visitOrder = visitOrderMap.get(route.id);
@@ -118,13 +126,63 @@ export default function PinnedRouteCard({
     const minuteDiff = getMinuteDiff(etas?.pickupEta, etas?.dropoffEta);
     const separatorText = minuteDiff !== null ? `-${minuteDiff}분-` : '-';
 
+    const soloKm = route.osrmSoloDistanceKm ?? route.kakaoSoloDistanceKm;
+    const soloMin = route.osrmSoloDistanceKm ? route.osrmSoloDurationMin : route.kakaoSoloDurationMin;
+
+    /**
+     * 🔴 이 정거장까지 **지금부터** 얼마나 걸리는가 (2026-08-11 수정).
+     *
+     * 예전에는 하차지 단계에서 `kakaoSoloDurationMin`(상차지 → 하차지)만 넘겼다.
+     * 아직 상차지에 가지도 않았는데 접근 주행과 상차 작업이 통째로 빠져서
+     * 도착 예상이 이르게 나오고 `지각` 판정이 낙관적이었다 —
+     * 그 화면을 보고 약속하면 **못 지킬 시각을 약속하게 된다.**
+     *
+     * 어디까지 왔는지는 마일스톤에서 파생한다. 화면이 직접 고르지 않는다.
+     */
+    const hasMs = (m: string) => milestoneLog.some(x => x.milestone === m);
+    const pickupDeclared = cargoReports.find(r => r.stopType === 'pickup' && r.kind === 'DECLARED');
+    const pickupActual = cargoReports.find(r => r.stopType === 'pickup' && r.kind === 'ACTUAL');
+    // 현장에서 실측한 값이 있으면 그것이 진실이다 — 통화 내용은 아직 추정이다
+    const pickupCargo = pickupActual ?? pickupDeclared;
+    const pickupDwell = dwellMinutes(pickupCargo?.handling, unitPoints(pickupCargo?.unit, pickupCargo?.quantity));
+
     return (
         <div className={`flex flex-col relative overflow-hidden transition-all duration-300 ${evaluating ? 'bg-warning/10' : 'hover:bg-surface-hover/50'} border-b border-border-card ${isTerminal(route.status) ? 'opacity-50 grayscale' : ''}`}>
             {(route.status === 'ORDER_SECURED_EVALUATING' || route.status === 'ORDER_AWAITING_DECISION') && (
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-warning/5 to-transparent -translate-x-full animate-[shimmer_2s_infinite] pointer-events-none" />
             )}
 
-            {/* 1. 카드 헤더 구역 */}
+            {/* 1-a. 덱 헤더 — 폰 한 화면이 목표다.
+                리스트 헤더(포착시각·방문순서·ETA·약속칩 2개·구간 분)는 폰에서 한 줄에 안 들어가
+                줄바꿈으로 세 줄을 먹었다. 덱에서는 **경로와 돈**만 남기고 나머지는 아래 한 줄로 내린다.
+                약속 시각은 '지금 할 일' 안에서 고르므로 헤더에 칩을 둘 이유가 없다. */}
+            {isDeck && (
+                <div className="px-4 pt-3 pb-1.5 flex flex-col gap-0.5">
+                    <div className="flex items-baseline gap-1.5">
+                        <span className="text-[15px] font-black text-text-primary tracking-tight truncate">
+                            {getAddressLabel(route.pickup)}
+                            <span className="text-text-muted font-normal mx-1">→</span>
+                            {getAddressLabel(route.dropoff)}
+                        </span>
+                        <span className="ml-auto text-[15px] font-black tabular-nums shrink-0">
+                            {route.fare > 0 ? `${(route.fare / 10000).toFixed(1)}만` : '금액미상'}
+                        </span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-2 text-[11px] text-text-muted tabular-nums">
+                        <span>{evaluating ? '계산중' : soloKm ? `${Number(soloKm).toFixed(1)}km` : '거리미상'}</span>
+                        <span>·</span>
+                        <span>{soloMin ? `${soloMin}분` : '시간미상'}</span>
+                        <span>·</span>
+                        <span>{route.vehicleType || '차종미상'}</span>
+                        {route.commissionRate && <><span>·</span><span>수수료 {route.commissionRate}</span></>}
+                        {route.scheduleText && <span className="text-warning font-bold">🕒 {route.scheduleText}</span>}
+                        {evaluating && <span className="ml-auto text-warning font-black animate-pulse">평가중</span>}
+                    </div>
+                </div>
+            )}
+
+            {/* 1-b. 리스트 헤더 (조회용 — 정보를 줄이지 않는다) */}
+            {!isDeck && (
             <div
                 onClick={() => !evaluating && onToggle(route.id)}
                 className={`px-4 py-3 flex justify-between items-center w-full text-sm tracking-tight ${!evaluating ? 'cursor-pointer group hover:bg-surface-hover/30' : ''}`}
@@ -182,6 +240,7 @@ export default function PinnedRouteCard({
                     <Badge variant="outline" className="text-[10px] font-black px-1.5 py-0 bg-danger/10 border-danger/30 text-danger flex-shrink-0 ml-2 shadow-sm rounded">사무실 취소</Badge>
                 )}
             </div>
+            )}
 
             {/* 2. 카드 콘텐츠 */}
             {isExpanded && (
@@ -272,179 +331,14 @@ export default function PinnedRouteCard({
                         </>
                     )}
 
-                    {/* ══════════════════════════════════════════════════════════
-                        상세 영역 — 정보 3단 분리 (Phase 8.4)
 
-                        아코디언이 열리는 순간은 거의 항상 "이 콜에 대해 지금 뭔가 하려는 순간"이고,
-                        그건 대개 **전화를 거는 것**이다. 그래서 우선순위를 이렇게 잡는다.
-
-                        1단 (항상 보임) — 지금 행동에 필요한 것
-                            · 상차지 / 하차지 카드: 담당자 · 주소 · 전화(탭 한 번) · 통화 기록
-                            · 적요/물품  ← 통화 전에 읽어야 하는 유일한 텍스트
-                            · 착불이면 경고  ← 놓치면 돈을 못 받는다
-                        2단 (한 줄 요약) — 판단에 참고하는 것
-                            · 단독 경로 / 요금·수수료 / 퀵사무실
-                        3단 (접힘, 기본 숨김) — 문제가 생겼을 때만
-                            · 판정 근거(꿀/똥 사유) · 원본 필드 덤프
-
-                        예전에는 30개 필드를 전부 나열해 1·2·3단이 섞여 있었다.
-                        전화번호가 디버그 덤프 사이에 파묻혀 있어 걸려면 스크롤해야 했다.
-                       ══════════════════════════════════════════════════════════ */}
-                    <div className="flex flex-col gap-2 text-[13px] leading-tight mt-3">
-                        {(() => {
-                            const pDetail = route.pickupDetails?.[0];
-                            const dDetail = route.dropoffDetails?.[0];
-                            const phonesOf = (d?: typeof pDetail) =>
-                                [d?.phone1, d?.phone2].filter((v): v is string => !!v && v !== '*');
-
-                            const quickName = route.companyName || '';
-                            const quickPhone = quickName.match(/\d{2,3}-\d{3,4}-\d{4}/)?.[0] || route.dispatcherPhone || '';
-                            const quickClean = quickName.replace(quickPhone, '').trim() || route.dispatcherName || '퀵사무실';
-
-                            const itemAndMemo = [route.itemDescription, route.detailMemo].filter(Boolean).join(' / ');
-                            const soloKm = route.osrmSoloDistanceKm ?? route.kakaoSoloDistanceKm;
-                            const soloMin = route.osrmSoloDistanceKm ? route.osrmSoloDurationMin : route.kakaoSoloDurationMin;
-                            const isCod = route.paymentType === '착불';
-
-                            return (
-                                <>
-                                    {/* ── [Phase 8.5 · A안] 지금 할 일 하나만 ──
-                                        여섯 단계를 동시에 펼치면 폰 한 화면에 안 들어간다.
-                                        현재 단계의 정거장만 띄우고 나머지는 위 진행 점으로 압축한다. */}
-                                    {shownStep && (() => {
-                                        const isPickupStop = shownStep.stop === 'pickup';
-                                        const d = isPickupStop ? pDetail : dDetail;
-                                        return (
-                                            <StopCallSheet
-                                                key={shownStep.id}
-                                                orderId={route.id}
-                                                stopType={isPickupStop ? 'pickup' : 'dropoff'}
-                                                label={isPickupStop ? '상차지' : '하차지'}
-                                                address={d?.addressDetail || (isPickupStop ? route.pickup : route.dropoff)}
-                                                contactName={d?.contactName || d?.customerName}
-                                                phones={phonesOf(d)}
-                                                reports={cargoReports}
-                                                memoTexts={[route.itemDescription, route.detailMemo, d?.memo]}
-                                                driveMinutes={(isPickupStop ? route.approachDurationMin : route.kakaoSoloDurationMin) ?? null}
-                                                orderStatus={route.status}
-                                                arrivedAt={milestoneLog.find(m =>
-                                                    m.milestone === (isPickupStop ? 'ARRIVED_PICKUP' : 'ARRIVED_DROPOFF'))?.occurredAt}
-                                                forceOpen={shownStep.id.startsWith('CALL_') ? 'DECLARED' : 'ACTUAL'}
-                                                stepLabel={shownStep.label}
-                                            />
-                                        );
-                                    })()}
-
-                                    {/* 통화는 선택이다 — 적요가 충분하면 건너뛴다. 막지 않고 표시만 한다 */}
-                                    {shownStep?.optional && (
-                                        <button
-                                            type="button"
-                                            onClick={(e) => { e.stopPropagation(); setSkippedTo(shownIndex + 1); setViewIndex(null); }}
-                                            className="w-full py-2.5 rounded-md border border-border border-dashed text-[12px] font-bold text-text-muted"
-                                        >
-                                            적요로 충분함 · 통화 없이 진행
-                                        </button>
-                                    )}
-
-                                    {/* ── 1단: 적요 — 통화 전에 읽어야 하는 유일한 텍스트 ── */}
-                                    <div className="flex gap-2 bg-surface-alt/40 p-2 rounded-md">
-                                        <span className="flex-shrink-0 text-[11px] font-bold text-text-muted pt-0.5">적요</span>
-                                        <span className="font-bold leading-snug break-keep text-[12px]">
-                                            {itemAndMemo || <span className="text-text-muted font-normal">상세 정보 없음 (파싱 대기 중)</span>}
-                                        </span>
-                                    </div>
-
-                                    {/* ── 1단: 착불 경고 — 현금을 직접 받아야 한다 ── */}
-                                    {isCod && (
-                                        <div className="flex items-center gap-2 bg-warning/12 border border-warning/40 rounded-md px-2 py-2">
-                                            <span>💵</span>
-                                            <span className="text-[12px] font-bold text-warning">
-                                                착불 — 하차 시 <b>{route.fare?.toLocaleString()}원</b> 직접 수령
-                                            </span>
-                                        </div>
-                                    )}
-
-                                    {/* ── 2단: 한 줄 요약 ── */}
-                                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-text-muted px-0.5">
-                                        <span>단독 {soloKm ? `${Number(soloKm).toFixed(1)}km / ${soloMin || 0}분` : '연산 중'}</span>
-                                        <span>·</span>
-                                        <span>{route.fare?.toLocaleString()}원{route.paymentType ? `(${route.paymentType})` : ''}</span>
-                                        {route.commissionRate && <><span>·</span><span>수수료 {route.commissionRate}</span></>}
-                                        {route.scheduleText && <><span>·</span><span className="text-warning font-bold">🕒 {route.scheduleText}</span></>}
-                                        {quickPhone && (
-                                            <>
-                                                <span>·</span>
-                                                <a href={telHref(quickPhone)} onClick={e => e.stopPropagation()}
-                                                   className="text-info font-bold underline underline-offset-2">
-                                                    🏢 {quickClean}
-                                                </a>
-                                            </>
-                                        )}
-                                    </div>
-
-                                    {/* ── 3단: 접힘 ── */}
-                                    <details className="group" onClick={e => e.stopPropagation()}>
-                                        <summary className="cursor-pointer list-none text-[11px] font-bold text-text-muted py-1 select-none">
-                                            <span className="group-open:hidden">▸ 판정 근거 · 원본 데이터</span>
-                                            <span className="hidden group-open:inline">▾ 판정 근거 · 원본 데이터</span>
-                                        </summary>
-
-                                        {(route.approvalReasons?.length || route.rejectionReasons?.length) ? (
-                                            <div className="flex flex-col gap-1 mb-2 mt-1">
-                                                {route.approvalReasons?.map((r, i) => (
-                                                    <div key={`a${i}`} className="text-[11px] text-success">👍 {r}</div>
-                                                ))}
-                                                {route.rejectionReasons?.map((r, i) => (
-                                                    <div key={`r${i}`} className="text-[11px] text-danger">💩 {r}</div>
-                                                ))}
-                                            </div>
-                                        ) : null}
-
-                                        <div className="max-h-56 overflow-y-auto pr-1 flex flex-col gap-1 select-text font-mono">
-                                            {Object.entries({
-                                                id: route.id, type: route.type, status: route.status,
-                                                receiptStatus: route.receiptStatus, itemDescription: route.itemDescription,
-                                                vehicleType: route.vehicleType, commissionRate: route.commissionRate,
-                                                tollFare: route.tollFare, paymentType: route.paymentType,
-                                                billingType: route.billingType, tripType: route.tripType,
-                                                orderForm: route.orderForm, distanceKm: route.distanceKm,
-                                                dispatcherName: route.dispatcherName, dispatcherPhone: route.dispatcherPhone,
-                                                companyName: route.companyName, pickup: route.pickup, dropoff: route.dropoff,
-                                                fare: route.fare, timestamp: route.timestamp, postTime: route.postTime,
-                                                scheduleText: route.scheduleText, pickupTime: route.pickupTime,
-                                                detailMemo: route.detailMemo,
-                                                kakaoSoloDistanceKm: route.kakaoSoloDistanceKm,
-                                                kakaoSoloDurationMin: route.kakaoSoloDurationMin,
-                                                osrmSoloDistanceKm: route.osrmSoloDistanceKm,
-                                                osrmSoloDurationMin: route.osrmSoloDurationMin,
-                                            }).map(([k, v]) => (
-                                                <div key={k} className="flex bg-surface-alt/40 p-1 rounded text-[10px]">
-                                                    <span className="w-[120px] flex-shrink-0 text-text-muted font-bold select-all">route.{k} :</span>
-                                                    <span className="text-text-muted truncate flex-1">{v?.toString() || '-'}</span>
-                                                </div>
-                                            ))}
-                                            <div className="flex flex-col bg-surface-alt/40 p-1 rounded text-[10px]">
-                                                <span className="text-text-muted font-bold mb-1 select-all">route.pickupDetails :</span>
-                                                <span className="text-text-muted break-all whitespace-pre-wrap leading-snug">{JSON.stringify(route.pickupDetails, null, 2) || '-'}</span>
-                                            </div>
-                                            <div className="flex flex-col bg-surface-alt/40 p-1 rounded text-[10px]">
-                                                <span className="text-text-muted font-bold mb-1 select-all">route.dropoffDetails :</span>
-                                                <span className="text-text-muted break-all whitespace-pre-wrap leading-snug">{JSON.stringify(route.dropoffDetails, null, 2) || '-'}</span>
-                                            </div>
-                                        </div>
-                                    </details>
-                                </>
-                            );
-                        })()}
-                    </div>
-
-                    {/* [Phase 8.4] 상차/하차 완료 버튼은 **정거장 카드의 현장확인 탭**으로 옮겼다.
-                        기사님: "현장확인 탭에 상차 완료, 상차 취소 두 개의 버튼을 넣는 것이 좋겠다."
-                        현장에 도착해 물건을 확인한 그 자리에서 누르는 것이 자연스럽다.
-                        여기에는 이력만 남긴다. */}
                     {/* [Phase 8.5] 진행 6단계 — 점을 눌러 지난 단계로 되돌아간다.
-                        끝난 단계만 눌린다. 아직 오지 않은 단계로 건너뛰면 기록이 뒤엉킨다. */}
-                    <div className="mt-3">
+                        끝난 단계만 눌린다. 아직 오지 않은 단계로 건너뛰면 기록이 뒤엉킨다.
+
+                        🔴 이 블록이 카드 **맨 아래**에 있었다 (2026-08-11).
+                        시안(`buildCard`)은 헤더 안에 뒀는데 구현에서는 적요·요금·판정 근거를
+                        전부 지나야 닿았다. 되돌아가기 수단인데 스크롤해야 보였다. */}
+                    <div className="mt-2">
                         <div className="flex items-center gap-1">
                             {CALL_STEPS.map((st, i) => {
                                 const passed = i < progress.index;
@@ -483,22 +377,202 @@ export default function PinnedRouteCard({
                         </div>
                     </div>
 
-                    {milestoneLog.length > 0 && (
-                        <div className="mt-3 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-text-muted">
-                            {milestoneLog.map(m => (
-                                <span key={m.milestone}>
-                                    {MILESTONE_LABEL[m.milestone as keyof typeof MILESTONE_LABEL]} {m.occurredAt?.slice(11, 16)}
-                                    {(() => {
-                                        const err = timingError(m.predictedAt, m.occurredAt);
-                                        if (err === null) return null;
-                                        return <b className={err > 5 ? 'text-danger ml-1' : 'text-success ml-1'}>
-                                            {err > 0 ? `+${err}분` : err < 0 ? `${err}분` : '정시'}
-                                        </b>;
+                    {/* ══════════════════════════════════════════════════════════
+                        상세 영역 — **읽는 순서 = 화면 순서** (2026-08-11 재배치)
+
+                        시안(`buildCard`)의 조립 순서를 그대로 따른다.
+                        기사님이 실제로 하는 일이 이 순서이기 때문이다 —
+                        적요를 읽고 → 전화를 걸고 → 다음 단계로 넘어간다.
+
+                          ① 적요 · 착불 경고   ← 통화 전에 읽어야 하는 것
+                          ② 지금 할 일         ← 현재 단계의 정거장 하나만 (강조)
+                          ③ 건너뛰기 · 퀵사무실 ← ②에 바로 붙는 보조 행동
+                          ④ 접힘               ← 단독 경로·요금·마일스톤·판정 근거·원본 덤프
+
+                        🔴 예전에는 ②가 맨 위, ①이 그 아래였고 ④의 내용 절반이
+                           본문에 펼쳐져 있었다. 폰에서 세로 16덩이가 되어
+                           "한 화면에 들어온다"는 목표가 깨졌다.
+                       ══════════════════════════════════════════════════════════ */}
+                    <div className="flex flex-col gap-2 text-[13px] leading-tight mt-3">
+                        {(() => {
+                            const pDetail = route.pickupDetails?.[0];
+                            const dDetail = route.dropoffDetails?.[0];
+                            const phonesOf = (d?: typeof pDetail) =>
+                                [d?.phone1, d?.phone2].filter((v): v is string => !!v && v !== '*');
+
+                            const quickName = route.companyName || '';
+                            const quickPhone = quickName.match(/\d{2,3}-\d{3,4}-\d{4}/)?.[0] || route.dispatcherPhone || '';
+                            const quickClean = quickName.replace(quickPhone, '').trim() || route.dispatcherName || '퀵사무실';
+
+                            const itemAndMemo = [route.itemDescription, route.detailMemo].filter(Boolean).join(' / ');
+                            const isCod = route.paymentType === '착불';
+
+                            return (
+                                <>
+                                    {/* ── 적요 — 통화 전에 읽어야 하는 유일한 텍스트 ──
+                                        🔴 '지금 할 일' **아래**에 있었다 (2026-08-11).
+                                        적요를 읽고 전화를 거는 순서인데 화면은 반대였다.
+                                        시안(`buildCard`)도 적요를 지금 할 일 위에 뒀다. */}
+                                    <div className="flex gap-2 bg-surface-alt/40 p-2 rounded-md">
+                                        <span className="flex-shrink-0 text-[11px] font-bold text-text-muted pt-0.5">적요</span>
+                                        <span className="font-bold leading-snug break-keep text-[12px]">
+                                            {itemAndMemo || <span className="text-text-muted font-normal">상세 정보 없음 (파싱 대기 중)</span>}
+                                        </span>
+                                    </div>
+
+                                    {/* 착불 경고 — 놓치면 현금을 못 받는다 */}
+                                    {isCod && (
+                                        <div className="flex items-center gap-2 bg-warning/12 border border-warning/40 rounded-md px-2 py-2">
+                                            <span>💵</span>
+                                            <span className="text-[12px] font-bold text-warning">
+                                                착불 — 하차 시 <b>{route.fare?.toLocaleString()}원</b> 직접 수령
+                                            </span>
+                                        </div>
+                                    )}
+
+                                    {/* ── [Phase 8.5 · A안] 지금 할 일 하나만 ──
+                                        여섯 단계를 동시에 펼치면 폰 한 화면에 안 들어간다.
+                                        현재 단계의 정거장만 띄우고 나머지는 위 진행 점으로 압축한다. */}
+                                    {shownStep && (() => {
+                                        const isPickupStop = shownStep.stop === 'pickup';
+                                        const d = isPickupStop ? pDetail : dDetail;
+                                        const lead = remainingToStop({
+                                            stop: isPickupStop ? 'pickup' : 'dropoff',
+                                            approachMinutes: route.approachDurationMin,
+                                            soloMinutes: soloMin,
+                                            pickupDwellMinutes: pickupDwell,
+                                            arrivedPickup: hasMs('ARRIVED_PICKUP'),
+                                            pickedUp: hasMs('PICKED_UP'),
+                                            arrivedDropoff: hasMs('ARRIVED_DROPOFF'),
+                                        });
+                                        return (
+                                            <StopCallSheet
+                                                key={shownStep.id}
+                                                orderId={route.id}
+                                                stopType={isPickupStop ? 'pickup' : 'dropoff'}
+                                                label={isPickupStop ? '상차지' : '하차지'}
+                                                address={d?.addressDetail || (isPickupStop ? route.pickup : route.dropoff)}
+                                                contactName={d?.contactName || d?.customerName}
+                                                phones={phonesOf(d)}
+                                                reports={cargoReports}
+                                                memoTexts={[route.itemDescription, route.detailMemo, d?.memo]}
+                                                driveMinutes={lead.driveMinutes}
+                                                leadMinutes={lead.leadMinutes}
+                                                leadLabel={lead.leadLabel}
+                                                orderStatus={route.status}
+                                                arrivedAt={milestoneLog.find(m =>
+                                                    m.milestone === (isPickupStop ? 'ARRIVED_PICKUP' : 'ARRIVED_DROPOFF'))?.occurredAt}
+                                                forceOpen={shownStep.id.startsWith('CALL_') ? 'DECLARED' : 'ACTUAL'}
+                                                stepLabel={shownStep.label}
+                                            />
+                                        );
                                     })()}
-                                </span>
-                            ))}
-                        </div>
-                    )}
+
+                                    {/* 통화는 선택이다 — 적요가 충분하면 건너뛴다. 막지 않고 표시만 한다 */}
+                                    {shownStep?.optional && (
+                                        <button
+                                            type="button"
+                                            onClick={(e) => { e.stopPropagation(); setSkippedTo(shownIndex + 1); setViewIndex(null); }}
+                                            className="w-full py-2.5 rounded-md border border-border border-dashed text-[12px] font-bold text-text-muted"
+                                        >
+                                            적요로 충분함 · 통화 없이 진행
+                                        </button>
+                                    )}
+
+                                    {/* 🏢 퀵사무실 — 신고와 실제가 다를 때 여기로 건다. 한 줄만 남긴다 */}
+                                    {quickPhone && (
+                                        <a href={telHref(quickPhone)} onClick={e => e.stopPropagation()}
+                                           className="text-[11px] text-info font-bold underline underline-offset-2 px-0.5">
+                                            🏢 {quickClean} {quickPhone}
+                                        </a>
+                                    )}
+
+                                    {/* ── 접힘 — 문제가 생겼을 때만 ──
+                                        🔴 단독 경로·요금·수수료 한 줄이 카드 본문에 떠 있었다 (2026-08-11).
+                                        덱 헤더가 이미 같은 값을 띄우므로 중복이고, 세로만 잡아먹었다.
+                                        판단에 참고하는 값이지 **지금 할 일**이 아니라 여기로 내린다. */}
+                                    <details className="group" onClick={e => e.stopPropagation()}>
+                                        <summary className="cursor-pointer list-none text-[11px] font-bold text-text-muted py-1 select-none">
+                                            <span className="group-open:hidden">▸ 판정 근거 · 원본 데이터</span>
+                                            <span className="hidden group-open:inline">▾ 판정 근거 · 원본 데이터</span>
+                                        </summary>
+
+                                        <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-text-muted px-0.5 mt-1 mb-2">
+                                            <span>단독 {soloKm ? `${Number(soloKm).toFixed(1)}km / ${soloMin || 0}분` : '연산 중'}</span>
+                                            <span>·</span>
+                                            <span>{route.fare?.toLocaleString()}원{route.paymentType ? `(${route.paymentType})` : ''}</span>
+                                            {route.commissionRate && <><span>·</span><span>수수료 {route.commissionRate}</span></>}
+                                            {route.scheduleText && <><span>·</span><span className="text-warning font-bold">🕒 {route.scheduleText}</span></>}
+                                        </div>
+
+                                        {/* 마일스톤 이력 — 진행 점이 이미 "어디까지 왔나"를 보여주므로
+                                            **실제 시각과 예상 오차**가 궁금할 때만 편다 */}
+                                        {milestoneLog.length > 0 && (
+                                            <div className="mb-2 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-text-muted">
+                                                {milestoneLog.map(m => (
+                                                    <span key={m.milestone}>
+                                                        {MILESTONE_LABEL[m.milestone as keyof typeof MILESTONE_LABEL]} {m.occurredAt?.slice(11, 16)}
+                                                        {(() => {
+                                                            const err = timingError(m.predictedAt, m.occurredAt);
+                                                            if (err === null) return null;
+                                                            return <b className={err > 5 ? 'text-danger ml-1' : 'text-success ml-1'}>
+                                                                {err > 0 ? `+${err}분` : err < 0 ? `${err}분` : '정시'}
+                                                            </b>;
+                                                        })()}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {(route.approvalReasons?.length || route.rejectionReasons?.length) ? (
+                                            <div className="flex flex-col gap-1 mb-2 mt-1">
+                                                {route.approvalReasons?.map((r, i) => (
+                                                    <div key={`a${i}`} className="text-[11px] text-success">👍 {r}</div>
+                                                ))}
+                                                {route.rejectionReasons?.map((r, i) => (
+                                                    <div key={`r${i}`} className="text-[11px] text-danger">💩 {r}</div>
+                                                ))}
+                                            </div>
+                                        ) : null}
+
+                                        <div className="max-h-56 overflow-y-auto pr-1 flex flex-col gap-1 select-text font-mono">
+                                            {Object.entries({
+                                                id: route.id, type: route.type, status: route.status,
+                                                receiptStatus: route.receiptStatus, itemDescription: route.itemDescription,
+                                                vehicleType: route.vehicleType, commissionRate: route.commissionRate,
+                                                tollFare: route.tollFare, paymentType: route.paymentType,
+                                                billingType: route.billingType, tripType: route.tripType,
+                                                orderForm: route.orderForm, distanceKm: route.distanceKm,
+                                                dispatcherName: route.dispatcherName, dispatcherPhone: route.dispatcherPhone,
+                                                companyName: route.companyName, pickup: route.pickup, dropoff: route.dropoff,
+                                                fare: route.fare, timestamp: route.timestamp, postTime: route.postTime,
+                                                scheduleText: route.scheduleText, pickupTime: route.pickupTime,
+                                                detailMemo: route.detailMemo,
+                                                approachDurationMin: route.approachDurationMin,
+                                                kakaoSoloDistanceKm: route.kakaoSoloDistanceKm,
+                                                kakaoSoloDurationMin: route.kakaoSoloDurationMin,
+                                                osrmSoloDistanceKm: route.osrmSoloDistanceKm,
+                                                osrmSoloDurationMin: route.osrmSoloDurationMin,
+                                            }).map(([k, v]) => (
+                                                <div key={k} className="flex bg-surface-alt/40 p-1 rounded text-[10px]">
+                                                    <span className="w-[120px] flex-shrink-0 text-text-muted font-bold select-all">route.{k} :</span>
+                                                    <span className="text-text-muted truncate flex-1">{v?.toString() || '-'}</span>
+                                                </div>
+                                            ))}
+                                            <div className="flex flex-col bg-surface-alt/40 p-1 rounded text-[10px]">
+                                                <span className="text-text-muted font-bold mb-1 select-all">route.pickupDetails :</span>
+                                                <span className="text-text-muted break-all whitespace-pre-wrap leading-snug">{JSON.stringify(route.pickupDetails, null, 2) || '-'}</span>
+                                            </div>
+                                            <div className="flex flex-col bg-surface-alt/40 p-1 rounded text-[10px]">
+                                                <span className="text-text-muted font-bold mb-1 select-all">route.dropoffDetails :</span>
+                                                <span className="text-text-muted break-all whitespace-pre-wrap leading-snug">{JSON.stringify(route.dropoffDetails, null, 2) || '-'}</span>
+                                            </div>
+                                        </div>
+                                    </details>
+                                </>
+                            );
+                        })()}
+                    </div>
 
                     {/* [Phase 8.5] 방출 · 사무실 취소는 **접어 둔다**.
                         기사님: "특수한 상황에 클릭해야 할 듯."

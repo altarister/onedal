@@ -283,6 +283,7 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
                             etaMap={etaMap}
                             visitOrderMap={visitOrderMap}
                             indexNum={chronologicalIds.indexOf(route.id) + 1}
+                            variant="deck"
                         />
                     )}
                 />

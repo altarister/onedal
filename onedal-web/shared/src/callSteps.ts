@@ -111,6 +111,72 @@ export function canRewindTo(progress: CallProgress, target: number): boolean {
     return target >= 0 && target < progress.index;
 }
 
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 이 정거장까지 **지금부터** 얼마나 걸리는가
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * 🔴 2026-08-11 발견한 버그를 막는 함수다.
+ *
+ * 하차지 통화 화면이 `상차지 → 하차지` 주행 시간만 쓰고 있었다.
+ * 아직 상차지에 가지도 않았는데 **현위치 → 상차지 이동과 상차 작업이 통째로 빠져서**,
+ * 도착 예상이 실제보다 이르게 나오고 `지각` 판정도 낙관적이었다.
+ * 그 화면을 보고 약속하면 **기사님이 못 지킬 시각을 약속하게 된다.**
+ *
+ * 기사님이 정하신 하차지 통화 문구가 애초에 이 구조였다 —
+ * *"**상차를 몇 시까지 완료하면** 이동하는데 얼마가 걸리고 하차지까지 얼마나 걸릴 예정이다."*
+ *
+ * 그래서 남은 시간을 **어디까지 왔는지(마일스톤)로 파생**시킨다. 화면이 직접 고르지 않는다.
+ */
+export interface StopLead {
+    /** 이 정거장까지 남은 **주행** 시간(분). 한 구간이라도 모르면 `null` — 0 으로 때우지 않는다 */
+    driveMinutes: number | null;
+    /** 주행 말고 앞에서 이미 써야 하는 시간(분). 예: 상차 작업 */
+    leadMinutes: number;
+    /** 그 시간이 무엇인지. 없으면 `null` */
+    leadLabel: string | null;
+}
+
+export function remainingToStop(p: {
+    stop: 'pickup' | 'dropoff';
+    /** 현위치 → 상차지 */
+    approachMinutes?: number | null;
+    /** 상차지 → 하차지 */
+    soloMinutes?: number | null;
+    /** 상차 작업에 걸리는 시간 */
+    pickupDwellMinutes: number;
+    arrivedPickup: boolean;
+    pickedUp: boolean;
+    arrivedDropoff: boolean;
+}): StopLead {
+    const none = { leadMinutes: 0, leadLabel: null };
+    const at = (v?: number | null) => (v != null && v > 0 ? v : null);
+
+    if (p.stop === 'pickup') {
+        // 이미 상차지에 서 있으면 더 갈 곳이 없다
+        return p.arrivedPickup
+            ? { driveMinutes: 0, ...none }
+            : { driveMinutes: at(p.approachMinutes), ...none };
+    }
+
+    if (p.arrivedDropoff) return { driveMinutes: 0, ...none };
+    // 상차를 마쳤으면 남은 건 하차지까지 주행뿐이다
+    if (p.pickedUp) return { driveMinutes: at(p.soloMinutes), ...none };
+
+    const solo = at(p.soloMinutes);
+    // 상차지에 도착은 했지만 아직 싣지 않았다 — 상차 시간이 남아 있다
+    if (p.arrivedPickup) {
+        return { driveMinutes: solo, leadMinutes: p.pickupDwellMinutes, leadLabel: '상차' };
+    }
+    // 아직 상차지에도 못 갔다 — 접근 주행 + 상차 + 하차지까지 주행이 전부 남았다
+    const approach = at(p.approachMinutes);
+    return {
+        driveMinutes: approach != null && solo != null ? approach + solo : null,
+        leadMinutes: p.pickupDwellMinutes,
+        leadLabel: '상차',
+    };
+}
+
 /** 이 단계를 마쳤다고 서버에 보고할 마일스톤 (통화 단계는 마일스톤이 없다) */
 export const STEP_MILESTONE: Partial<Record<CallStepId, string>> = {
     ARRIVE_PICKUP: 'ARRIVED_PICKUP',

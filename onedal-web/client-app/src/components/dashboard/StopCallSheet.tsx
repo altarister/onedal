@@ -66,6 +66,13 @@ interface Props {
     forceOpen?: CargoReportKind;
     /** 단계 이름 (헤더에 표시) */
     stepLabel?: string;
+    /**
+     * 주행 말고 **앞에서 이미 써야 하는** 시간(분) — 예: 하차지 통화 시점의 상차 작업.
+     * 🔴 이걸 빼먹어서 도착 예상이 실제보다 이르게 나왔다 (2026-08-11). `remainingToStop` 참고.
+     */
+    leadMinutes?: number;
+    /** 그 시간이 무엇인지 (`상차` 등) */
+    leadLabel?: string | null;
 }
 
 const hhmm = (iso?: string) =>
@@ -85,10 +92,15 @@ function summarize(r?: CargoReport): string {
 export default function StopCallSheet({
     orderId, stopType, label, address, contactName, phones, reports,
     memoTexts, driveMinutes, orderStatus, arrivedAt, forceOpen, stepLabel,
+    leadMinutes = 0, leadLabel,
 }: Props) {
     const isPickup = stopType === 'pickup';
+    /** 단계 카드(A안)가 몰아주는 모드 — 이 시트가 화면의 전부다. 요약 줄을 띄우지 않는다 */
+    const stepMode = !!forceOpen;
     const [tab, setTab] = useState<CargoReportKind | null>(forceOpen ?? null);   // null = 접힘
     const [showMoreUnits, setShowMoreUnits] = useState(false);
+    /** 기사님: *"성질 선택은 특수한 상황에서만 필요할 듯."* → 기본 접힘 */
+    const [showTags, setShowTags] = useState(false);
     // 단계가 바뀌면 그 단계에 맞는 줄을 연다 (A안: 줄을 누르는 탭을 없앤다)
     useEffect(() => { if (forceOpen) setTab(forceOpen); }, [forceOpen]);
 
@@ -116,7 +128,8 @@ export default function StopCallSheet({
     const dwell = dwellMinutes(eff.handling, points);
     // 주행 시간을 모르면 여유를 계산할 수 없다. 0 으로 때우면 "여유가 많다"고 거짓말하게 된다
     const driveKnown = driveMinutes != null && driveMinutes > 0;
-    const fixedMinutes = (driveMinutes ?? 0) + dwell;
+    // 🔴 앞 정거장에서 쓸 시간(상차 등)을 빠뜨리면 도착 예상이 실제보다 이르게 나온다
+    const fixedMinutes = (driveMinutes ?? 0) + leadMinutes + dwell;
 
     const hints = parseCargoHints(...(memoTexts || []));
     const applyHints = () => {
@@ -176,7 +189,7 @@ export default function StopCallSheet({
     const savedDwell = dwellMinutes(declared?.handling ?? undefined, points);
     // 주행 시간을 모르면 여유도 모른다 — 0 으로 때우면 요약이 거짓말을 한다
     const declaredSlack = driveKnown
-        ? computeSlackMinutes(declared?.deadlineAt, driveMinutes! + savedDwell, Date.now())
+        ? computeSlackMinutes(declared?.deadlineAt, driveMinutes! + leadMinutes + savedDwell, Date.now())
         : null;
     const declaredSummary = declared
         ? [summarize(declared), declaredSlack !== null && `여유 ${Math.max(0, declaredSlack)}분`]
@@ -236,7 +249,16 @@ export default function StopCallSheet({
                 ))}
             </Row>
 
-            {isPickup && (
+            {/* 기사님: *"성질 선택은 특수한 상황에서만 필요할 듯."*
+                8개 칩이 늘 펼쳐져 있으면 폰 한 화면을 그만큼 잡아먹는다.
+                이미 고른 게 있으면 접지 않는다 — 접어서 숨기면 무엇을 골랐는지 알 수 없다. */}
+            {isPickup && !showTags && tags.length === 0 && (
+                <button onClick={() => setShowTags(true)}
+                    className="w-full py-2 rounded-md border border-border border-dashed text-[11px] font-bold text-text-muted">
+                    + 성질 (농산물 · 파손주의 · 위험물 …)
+                </button>
+            )}
+            {isPickup && (showTags || tags.length > 0) && (
                 <Row title="성질">
                     {CARGO_TAGS.map(t => {
                         const on = tags.includes(t);
@@ -260,13 +282,22 @@ export default function StopCallSheet({
     );
 
     return (
-        <div className="rounded-md border border-border bg-surface-alt/20 p-2.5">
+        // 단계 모드에서는 **이것이 지금 할 일**이라는 게 한눈에 보여야 한다.
+        // 프로토타입 `.task.hl` — 왼쪽 색띠 + info 배경. 적요·요금과 무게가 같으면 눈이 헤맨다.
+        <div className={stepMode
+            ? 'rounded-md border border-info/35 border-l-4 border-l-info bg-info/[0.07] p-2.5'
+            : 'rounded-md border border-border bg-surface-alt/20 p-2.5'}>
             {/* 헤더 — 라벨 · 담당자 · 진행 배지 */}
             <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
+                    {stepMode && <div className="text-[10px] font-black tracking-[0.08em] text-text-muted">지금 할 일</div>}
                     <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-[11px] font-black text-text-muted">{label}</span>
-                        {stepLabel && <span className="text-[11px] font-black text-info">{stepLabel}</span>}
+                        {/* 🔴 `하차지` + `하차지 통화` 를 나란히 찍고 있었다 — 단계 이름이 이미 정거장을 담는다 */}
+                        <span className={stepMode
+                            ? 'text-[16px] font-black text-text-primary tracking-tight'
+                            : 'text-[11px] font-black text-text-muted'}>
+                            {stepLabel || label}
+                        </span>
                         {contactName && <span className="text-[11px] text-text-primary font-bold">{contactName}</span>}
                         {badges.map(([txt, cls]) => (
                             <span key={txt} className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${cls}`}>{txt}</span>
@@ -297,14 +328,33 @@ export default function StopCallSheet({
                 → 탭을 없앴다. 줄 자체가 내용이자 열기 버튼이다.
                   한쪽을 펼쳐도 다른 쪽 요약은 그대로 보이므로 대조가 된다. */}
             <div className="mt-2 flex flex-col gap-2" onClick={e => e.stopPropagation()}>
-                <SummaryLine
-                    icon="📞" title="통화"
-                    summary={declaredSummary}
-                    memo={declared?.memo}
-                    empty={!declared}
-                    open={isCall}
-                    onClick={() => openTab('DECLARED')}
-                />
+                {/* 🔴 단계 카드(A안)에서는 요약 줄을 띄우지 않는다 (2026-08-11).
+                    단계가 곧 "통화"인데 그 위에 `아직 통화 전 — 눌러서 입력` 줄이 남아 있어
+                    **이미 열려 있는 폼 위에서 누르라고 거짓말**을 하고 있었다.
+                    13차에 없앤 중복이 `forceOpen` 을 얹으면서 되살아난 것이다.
+
+                    다만 현장 단계에서는 통화 내용이 **대조용으로** 필요하다 —
+                    기사님: *"탭을 바꿔 가면서 거짓말한 내용을 확인."* → 읽기 전용 한 줄로 남긴다. */}
+                {stepMode && forceOpen === 'ACTUAL' && declared && (
+                    <div className="flex gap-2 items-start rounded-md bg-surface-alt/40 border border-border px-2 py-1.5">
+                        <span className="text-[10px] font-black text-text-muted shrink-0 pt-0.5">📞 통화</span>
+                        <span className="text-[11px] font-bold text-text-primary break-keep flex-1">
+                            {declaredSummary}
+                            {declared.memo && <span className="block font-normal text-text-muted">{declared.memo}</span>}
+                        </span>
+                    </div>
+                )}
+
+                {!stepMode && (
+                    <SummaryLine
+                        icon="📞" title="통화"
+                        summary={declaredSummary}
+                        memo={declared?.memo}
+                        empty={!declared}
+                        open={isCall}
+                        onClick={() => openTab('DECLARED')}
+                    />
+                )}
                 {isCall && (
                 <div className="pt-2 pb-1 pl-5 flex flex-col gap-2.5">
                     {/* 🔴 저장된 내용을 여기서 또 보여주지 않는다 (2026-08-10).
@@ -317,6 +367,10 @@ export default function StopCallSheet({
                             {driveKnown ? (
                                 <div className="text-[11px] text-text-muted">
                                     주행 <b className="text-text-primary tabular-nums">{driveMinutes}</b>분
+                                    {/* 앞 정거장에서 쓸 시간을 **항으로 드러낸다** — 합계에만 넣으면 왜 늘었는지 알 수 없다 */}
+                                    {leadMinutes > 0 && leadLabel && (
+                                        <>{' + '}{leadLabel} <b className="text-text-primary tabular-nums">{leadMinutes}</b>분</>
+                                    )}
                                     {' + '}{isPickup ? '상차' : '하차'} <b className="text-text-primary tabular-nums">{dwell}</b>분
                                     {' = '}<b className="text-text-primary tabular-nums">{fixedMinutes}</b>분
                                     <span className="opacity-70"> · 도착 {hhmm(new Date(Date.now() + fixedMinutes * 60_000).toISOString())} 예상</span>
@@ -324,8 +378,9 @@ export default function StopCallSheet({
                             ) : (
                                 /* 없는 숫자를 0 으로 때우면 "여유가 많다"고 거짓말하게 된다 */
                                 <div className="text-[11px] text-warning bg-warning/10 border border-warning/35 rounded-md px-2 py-1.5">
-                                    ⚠️ {isPickup ? '현위치 → 상차지' : '상차지 → 하차지'} 주행 시간을 아직 모릅니다 —
-                                    여유 계산은 {isPickup ? '상차' : '하차'} {dwell}분만 반영했습니다
+                                    ⚠️ {isPickup ? '현위치 → 상차지' : '하차지까지'} 주행 시간을 아직 모릅니다 —
+                                    여유 계산은 {leadMinutes > 0 && leadLabel ? `${leadLabel} ${leadMinutes}분 + ` : ''}
+                                    {isPickup ? '상차' : '하차'} {dwell}분만 반영했습니다
                                 </div>
                             )}
 
@@ -377,23 +432,28 @@ export default function StopCallSheet({
                                 );
                             })()}
 
+                            {/* 단계 모드에서는 이것이 **주 버튼**이다 — 저장이 곧 다음 단계로 넘어가는 것 */}
                             <button onClick={() => save('DECLARED')}
-                                className="w-full py-2.5 rounded-md bg-info text-white text-[13px] font-black active:scale-[0.99] transition-transform">
-                                통화 종료 · 저장
+                                className={`w-full rounded-lg bg-info text-white font-black active:scale-[0.99] transition-transform ${
+                                    stepMode ? 'py-3.5 text-[15px]' : 'py-2.5 text-[13px]'
+                                }`}>
+                                {stepMode ? '통화 끝 · 다음' : '통화 종료 · 저장'}
                             </button>
                     </>
                 </div>
                 )}
 
-                <SummaryLine
-                    icon="👁" title="현장"
-                    summary={actualSummary}
-                    memo={actual?.memo}
-                    empty={!actual}
-                    open={tab === 'ACTUAL'}
-                    onClick={() => openTab('ACTUAL')}
-                    warn={mismatchRatio !== null}
-                />
+                {!stepMode && (
+                    <SummaryLine
+                        icon="👁" title="현장"
+                        summary={actualSummary}
+                        memo={actual?.memo}
+                        empty={!actual}
+                        open={tab === 'ACTUAL'}
+                        onClick={() => openTab('ACTUAL')}
+                        warn={mismatchRatio !== null}
+                    />
+                )}
                 {tab === 'ACTUAL' && (
                 <div className="pt-2 pb-1 pl-5 flex flex-col gap-2.5">
                     {cargoForm}
