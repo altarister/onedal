@@ -177,7 +177,7 @@ export default function CallDeck({ orders, renderCard, records }: Props) {
                 🔴 2026-08-12 — 예전엔 2건부터 나타났다. 기사님: *"첫 콜이 들어올 때 상태 영역이
                 없다가 합짐이 생기면 2줄로 노출된다. 콜이 들어오면 디폴트로 표시되어야 할 것 같다."*
                 영역이 생겼다 없어지면 화면이 튀고, 무엇보다 **첫 콜에서도 지금 뭘 해야 하는지**를
-                같은 자리에서 봐야 한다. 1건일 때는 경로를 빼서 카드 헤더와 겹치지 않게 한다. */}
+                같은 자리에서 봐야 한다. **1건이든 2건이든 줄의 생김새는 같다.** */}
             {orders.length > 0 && (
                 <div className="flex flex-col gap-1 px-3 pt-2 pb-1">
                     {orders.map((o, i) => {
@@ -185,7 +185,6 @@ export default function CallDeck({ orders, renderCard, records }: Props) {
                         const p = deriveCallStep(r.milestones, r.reports);
                         const isCur = i === cur;
                         const isCallStep = !!p.current?.id.startsWith('CALL_');
-                        const multi = orders.length > 1;
                         return (
                             <button
                                 key={o.id}
@@ -196,25 +195,26 @@ export default function CallDeck({ orders, renderCard, records }: Props) {
                                     isCur ? 'bg-info/10 border-info/45' : 'bg-surface-alt/30 border-border/60'
                                 }`}
                             >
-                                {/* 1건이면 번호도 경로도 필요 없다 — 바로 아래 카드 헤더가 이미 말한다 */}
-                                {multi && (
-                                    <>
-                                        <span className={`text-[11px] font-black shrink-0 tabular-nums ${
-                                            isCur ? 'text-info' : 'text-text-muted'
-                                        }`}>{i + 1}</span>
-                                        <span className="text-[11px] font-bold text-text-primary truncate min-w-0 flex-1">
-                                            {getAddressLabel(o.pickup)}
-                                            <span className="text-text-muted font-normal mx-0.5">→</span>
-                                            {getAddressLabel(o.dropoff)}
-                                        </span>
-                                    </>
-                                )}
-                                {!multi && <span className="text-[10px] font-black text-text-muted shrink-0">진행</span>}
+                                {/* 🔴 2026-08-12 — 1건일 때 번호와 경로를 뺐다가 되돌렸다.
+                                    "카드 헤더가 이미 경로를 말하니 중복"이라 봤는데, 기사님:
+                                    *"진행과 하차지 통화로만 나오고 있는데 **어떤 콜이었는지 알 수 있는**
+                                      이전 버전이 그 부분은 더 좋은 것 같아."*
+                                    맞다. 이 줄은 **어느 콜인지 고르는 자리**라 이름이 없으면 고를 수가 없다.
+                                    그리고 1건과 2건의 생김새가 다르면, 합짐이 붙는 순간 화면이 또 바뀐다 —
+                                    영역을 항상 띄우기로 한 이유(화면이 튀지 않게)와 같은 이야기다. */}
+                                <span className={`text-[11px] font-black shrink-0 tabular-nums ${
+                                    isCur ? 'text-info' : 'text-text-muted'
+                                }`}>{i + 1}</span>
+                                <span className="text-[11px] font-bold text-text-primary truncate min-w-0 flex-1">
+                                    {getAddressLabel(o.pickup)}
+                                    <span className="text-text-muted font-normal mx-0.5">→</span>
+                                    {getAddressLabel(o.dropoff)}
+                                </span>
 
                                 {/* 6단계를 한눈에 — 카드 안 진행 점과 같은 규칙 */}
-                                <span className={`flex gap-0.5 ${multi ? 'shrink-0' : 'flex-1'}`} aria-hidden>
+                                <span className="flex gap-0.5 shrink-0" aria-hidden>
                                     {CALL_STEPS.map((st, k) => (
-                                        <span key={st.id} className={`block h-1 rounded-full ${multi ? 'w-2.5' : 'flex-1'} ${
+                                        <span key={st.id} className={`block h-1 w-2.5 rounded-full ${
                                             k === p.index ? 'bg-info'
                                             : p.done[k] ? 'bg-success'
                                             : k < p.index ? 'bg-success/35'
