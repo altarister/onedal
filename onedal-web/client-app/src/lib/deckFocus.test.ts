@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { pickAutoFocus, deckOrder } from './deckFocus';
+import { pickAutoFocus, deckOrder, scrollSettle } from './deckFocus';
 import type { OrderStatus } from '@onedal/shared';
 
 const o = (id: string, status: string) => ({ id, status: status as OrderStatus });
@@ -90,5 +90,31 @@ describe('deckOrder — 덱에 카드를 놓는 순서', () => {
     it('시각이 없으면 맨 앞으로 (0 으로 취급) — 순서가 흔들리지만 않으면 된다', () => {
         const out = deckOrder([c('a', '2026-08-12T08:00:00Z'), { id: 'x', status: 'ORDER_CONFIRMED' } as any]);
         expect(out[0].id).toBe('x');
+    });
+});
+
+/**
+ * 🔴 요약 줄을 누르면 하이라이트가 이전으로 되돌아갔다 다시 오는 버그의 판단부.
+ * 부드러운 스크롤 도중의 중간 위치를 "사용자가 스와이프했다"로 오인한 것이 원인이었다.
+ */
+describe('scrollSettle — 스크롤 이벤트로 위치를 갱신할 것인가', () => {
+    it('미는 중이 아니면 갱신한다 (사용자의 스와이프)', () => {
+        expect(scrollSettle(null, 0)).toBe('update');
+        expect(scrollSettle(null, 3)).toBe('update');
+    });
+
+    it('🔴 미는 도중의 중간 위치는 무시한다 — 이게 없어서 하이라이트가 되돌아갔다', () => {
+        // 0번에서 2번으로 미는 중, 애니메이션 초반엔 아직 0 으로 반올림된다
+        expect(scrollSettle(2, 0)).toBe('ignore');
+        expect(scrollSettle(2, 1)).toBe('ignore');
+    });
+
+    it('목표에 닿으면 잠금을 푼다', () => {
+        expect(scrollSettle(2, 2)).toBe('arrived');
+    });
+
+    it('0번으로 미는 중에도 같은 규칙', () => {
+        expect(scrollSettle(0, 1)).toBe('ignore');
+        expect(scrollSettle(0, 0)).toBe('arrived');
     });
 });

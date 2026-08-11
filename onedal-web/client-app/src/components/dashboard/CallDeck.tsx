@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { SecuredOrder } from '@onedal/shared';
 import { deriveCallStep, CALL_STEPS } from '@onedal/shared';
-import { pickAutoFocus } from '../../lib/deckFocus';
+import { pickAutoFocus, scrollSettle } from '../../lib/deckFocus';
 import { getAddressLabel } from '../../lib/routeUtils';
 import type { CallRecords } from '../../hooks/useCallProgress';
 import { EMPTY_RECORDS } from '../../hooks/useCallProgress';
@@ -43,10 +43,44 @@ export default function CallDeck({ orders, renderCard, records }: Props) {
     const idx = orders.findIndex(o => o.id === curId);
     const cur = idx >= 0 ? idx : 0;
 
+    /**
+     * 프로그램이 스크롤을 미는 중인 목표 인덱스.
+     *
+     * 🔴 2026-08-12 — 이게 없어서 **요약 줄을 누르면 하이라이트가 왔다갔다** 했다.
+     *    줄을 누르면 `setCurId(목표)` 로 하이라이트가 먼저 옮겨가는데,
+     *    이어지는 부드러운 스크롤 **도중에** `onScroll` 이 계속 발동한다.
+     *    애니메이션 초반의 `scrollLeft` 는 아직 출발지 쪽이라
+     *    `Math.round(scrollLeft / width)` 가 **이전 인덱스**를 내놓고,
+     *    그 값으로 `curId` 를 되돌려 버렸다. (기사님: *"이전으로 왔다갔다"*)
+     *
+     *    미는 동안에는 위치를 갱신하지 않고, 목표에 닿으면 잠금을 푼다.
+     */
+    const pendingIdx = useRef<number | null>(null);
+    const pendingTimer = useRef<number | null>(null);
+
+    const releasePending = () => {
+        pendingIdx.current = null;
+        if (pendingTimer.current !== null) {
+            clearTimeout(pendingTimer.current);
+            pendingTimer.current = null;
+        }
+    };
+    useEffect(() => releasePending, []);
+
     const scrollToIndex = (i: number, smooth = true) => {
         const el = trackRef.current;
         if (!el || !el.clientWidth) return;
+        const already = Math.round(el.scrollLeft / el.clientWidth) === i;
         el.scrollTo({ left: i * el.clientWidth, behavior: smooth ? 'smooth' : 'auto' });
+
+        // 즉시 이동이거나 이미 그 자리면 잠글 이유가 없다 (잠그면 풀 계기가 없다)
+        if (!smooth || already) { releasePending(); return; }
+
+        pendingIdx.current = i;
+        if (pendingTimer.current !== null) clearTimeout(pendingTimer.current);
+        // 애니메이션이 목표에 딱 안 떨어질 수 있다. 잠금이 영원히 남아 스와이프가
+        // 먹통이 되는 일이 없도록 반드시 풀어 준다
+        pendingTimer.current = window.setTimeout(releasePending, 900);
     };
 
     /** 명시적 이동 — 요약 줄 클릭과 자동 이동만 쓴다. 사용자의 스와이프는 절대 여기 안 온다 */
@@ -68,6 +102,12 @@ export default function CallDeck({ orders, renderCard, records }: Props) {
         const el = trackRef.current;
         if (!el || !el.clientWidth) return;
         const i = Math.round(el.scrollLeft / el.clientWidth);
+
+        // 프로그램이 미는 중이면 하이라이트를 흔들지 않는다 — 도착했을 때만 잠금을 푼다
+        const verdict = scrollSettle(pendingIdx.current, i);
+        if (verdict === 'arrived') { releasePending(); return; }
+        if (verdict === 'ignore') return;
+
         const id = orders[i]?.id;
         if (id && id !== curId) setCurId(id);
     };
@@ -198,6 +238,11 @@ export default function CallDeck({ orders, renderCard, records }: Props) {
             <div
                 ref={trackRef}
                 onScroll={onScroll}
+                /* 손가락이 닿는 순간 프로그램 이동을 포기한다.
+                   안 그러면 애니메이션이 끝날 때까지(최대 0.9초) 스와이프가 먹힌다 —
+                   손이 항상 코드보다 우선이다 */
+                onPointerDown={releasePending}
+                onTouchStart={releasePending}
                 className="flex overflow-x-auto snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                 /* 🔴 scrollBehavior:'smooth' 를 CSS 로 걸면 `behavior:'auto'` 가 무시되어
                    위치 복구까지 애니메이션이 되고, 스와이프 중이면 그게 손가락과 부딪힌다.

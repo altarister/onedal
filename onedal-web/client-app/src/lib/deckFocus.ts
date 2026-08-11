@@ -47,3 +47,24 @@ export function deckOrder<T extends { capturedAt?: string }>(orders: T[]): T[] {
     const at = (o: T) => (o.capturedAt ? new Date(o.capturedAt).getTime() : 0);
     return [...orders].sort((a, b) => at(a) - at(b));
 }
+
+/**
+ * 스크롤 이벤트가 왔을 때 **보고 있는 카드를 갱신할 것인가.**
+ *
+ * 🔴 2026-08-12 — 이 판단이 없어서 **요약 줄을 누르면 하이라이트가 왔다갔다** 했다.
+ *    줄을 누르면 하이라이트가 목표로 먼저 옮겨가는데, 이어지는 부드러운 스크롤
+ *    **도중에** `onScroll` 이 계속 발동한다. 애니메이션 초반의 `scrollLeft` 는
+ *    아직 출발지 쪽이라 반올림하면 **이전 인덱스**가 나오고, 그 값이 하이라이트를 되돌렸다.
+ *    (기사님: *"상태 바를 클릭하면 이전으로 왔다갔다 하는 버그가 있다"*)
+ *
+ * @param pending 프로그램이 미는 중인 목표 인덱스. 미는 중이 아니면 `null`
+ * @param at      지금 스크롤 위치에서 반올림한 인덱스
+ *
+ *   `update`  — 사용자가 스와이프한 것이다. 갱신한다
+ *   `arrived` — 밀던 것이 목표에 닿았다. 잠금만 푼다 (하이라이트는 이미 목표에 있다)
+ *   `ignore`  — 아직 가는 중이다. **건드리지 않는다**
+ */
+export function scrollSettle(pending: number | null, at: number): 'update' | 'arrived' | 'ignore' {
+    if (pending === null) return 'update';
+    return at === pending ? 'arrived' : 'ignore';
+}
