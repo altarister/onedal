@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import {
     HANDLING_METHODS, cargoPoints, parseCargoHints, hasCargoHints,
     CARGO_TAGS, CARGO_TAG_META, describeSlack, computeSlackMinutes,
-    CARGO_UNIT_QUANTITIES, PICKUP_PRIMARY_UNITS, PICKUP_SECONDARY_UNITS,
+    CARGO_UNITS, CARGO_UNIT_QUANTITY_INPUT,
     buildHourSlots, dwellMinutes, unitPoints,
 } from '@onedal/shared';
 import type { CargoReport, HandlingMethod, CargoReportKind, CargoUnit } from '@onedal/shared';
@@ -100,7 +100,9 @@ export default function StopCallSheet({
     /** 단계 카드(A안)가 몰아주는 모드 — 이 시트가 화면의 전부다. 요약 줄을 띄우지 않는다 */
     const stepMode = !!forceOpen;
     const [tab, setTab] = useState<CargoReportKind | null>(forceOpen ?? null);   // null = 접힘
-    const [showMoreUnits, setShowMoreUnits] = useState(false);
+    /** 십·일의 자리를 각각 기억한다. 수량은 둘의 합이다 */
+    const [tens, setTens] = useState(0);
+    const [ones, setOnes] = useState<number | null>(null);
     /** 기사님: *"성질 선택은 특수한 상황에서만 필요할 듯."* → 기본 접힘 */
     const [showTags, setShowTags] = useState(false);
     /** [T8] 착불 수령 상태 — 서버가 진실이다. 화면이 저장했다고 믿지 않는다 */
@@ -157,6 +159,11 @@ export default function StopCallSheet({
     const loadInto = (src?: CargoReport) => {
         setUnit(src?.unit as CargoUnit | undefined);
         setQty(src?.quantity);
+        // 저장된 수량을 십·일 자리로 되돌려 놓는다. 안 하면 23개를 불러왔는데
+        // 버튼은 아무것도 안 눌린 것처럼 보이고, 일의 자리를 누르는 순간 값이 뒤집힌다
+        const q = src?.quantity ?? 0;
+        setTens(Math.floor(q / 10) * 10);
+        setOnes(q > 0 ? q % 10 : null);
         setHandling(src?.handling);
         setTags(src?.tags ? [...src.tags] : []);
         setMemo(src?.memo || '');
@@ -196,7 +203,17 @@ export default function StopCallSheet({
             : 'bg-surface-alt/50 text-text-primary border-border active:bg-surface-hover'
         }`;
 
-    const units = showMoreUnits ? [...PICKUP_PRIMARY_UNITS, ...PICKUP_SECONDARY_UNITS] : PICKUP_PRIMARY_UNITS;
+    const units = CARGO_UNITS;
+    // 옛 데이터(톤백·쇼핑백)를 고른 기록이면 그 칩도 함께 띄운다
+    const legacyUnit = eff.unit && !CARGO_UNITS.includes(eff.unit as any) ? eff.unit : null;
+    const quantityInput = CARGO_UNIT_QUANTITY_INPUT[eff.unit as CargoUnit] ?? { mode: 'preset' as const, options: [1, 2, 3] };
+
+    /** 십·일을 눌러 수량을 만든다. 0 은 "안 정함"으로 본다 (0개짜리 짐은 없다) */
+    const setDigits = (t: number, o: number | null) => {
+        setTens(t); setOnes(o);
+        const sum = t + (o ?? 0);
+        setQty(sum > 0 ? sum : undefined);
+    };
     const hourSlots = buildHourSlots(Date.now(), fixedMinutes, 5);
 
     // ── 접힌 채로 보여줄 요약. 여기 없는 값은 기사님에게 "없는 값"이다 ──
@@ -233,23 +250,58 @@ export default function StopCallSheet({
         <>
             {isPickup && (
                 <>
+                    {/* [2026-08-12] 다섯 개를 한 번에 보여준다 — '기타 ▸' 더보기를 없앴다.
+                        옛 데이터(톤백·쇼핑백)가 들어오면 그 칩을 하나 더 붙여 준다.
+                        선택지에서 뺐다고 화면에서 지워 버리면 무엇을 골랐었는지 알 수 없다. */}
                     <Row title="단위">
                         {units.map(u => (
                             <button key={u} onClick={() => { setUnit(u); setQty(undefined); }}
                                 className={chip(eff.unit === u)}>{u}</button>
                         ))}
-                        {!showMoreUnits && (
-                            <button onClick={() => setShowMoreUnits(true)}
-                                className="px-2.5 py-2 rounded-md text-[13px] font-bold border border-border border-dashed text-text-muted">기타 ▸</button>
+                        {legacyUnit && (
+                            <button onClick={() => { setUnit(legacyUnit); setQty(undefined); }}
+                                className={chip(true)}>{legacyUnit}<span className="ml-1 text-[10px] opacity-70">옛 기록</span></button>
                         )}
                     </Row>
-                    {eff.unit && (
+
+                    {/* 수량 — 파레트는 3개까지, 나머지는 십·일의 자리를 각각 눌러 더한다.
+                        기사님: *"라면박스, 마대 등 나머지는 10단위 1단위로 두 번 클릭으로."*
+                        라면박스는 수십 개가 예사라 프리셋으로는 못 맞춘다. */}
+                    {eff.unit && quantityInput.mode === 'preset' && (
                         <Row title="수량">
-                            {(CARGO_UNIT_QUANTITIES[eff.unit] || [1, 2, 3]).map(q => (
+                            {quantityInput.options.map(q => (
                                 <button key={q} onClick={() => setQty(q)}
                                     className={chip(eff.quantity === q)}>{q}</button>
                             ))}
                         </Row>
+                    )}
+                    {eff.unit && quantityInput.mode === 'digits' && (
+                        <div className="flex flex-col gap-1">
+                            <Row title="수량">
+                                {quantityInput.tens.map(t => (
+                                    <button key={`t${t}`} onClick={() => setDigits(t, ones)}
+                                        className={chip(tens === t)}>{t}</button>
+                                ))}
+                            </Row>
+                            <Row title="">
+                                {quantityInput.ones.map(o => (
+                                    <button key={`o${o}`} onClick={() => setDigits(tens, o)}
+                                        className={`px-2 py-1.5 rounded-md text-[13px] font-bold border ${
+                                            ones === o ? 'bg-info text-white border-info'
+                                                       : 'bg-surface-alt/50 text-text-primary border-border'
+                                        }`}>{o}</button>
+                                ))}
+                            </Row>
+                            {eff.quantity != null && (
+                                <div className="text-[11px] font-bold text-info pl-10">= {eff.quantity}개</div>
+                            )}
+                        </div>
+                    )}
+                    {eff.unit && quantityInput.mode === 'none' && (
+                        <div className="text-[11px] text-text-muted bg-surface-alt/40 rounded-md px-2 py-1.5">
+                            부피를 환산할 수 없어 <b className="text-text-primary">차종 기준으로 보수 추정</b>합니다.
+                            무엇인지 아래 메모에 적어 두면 다음에 같은 곳에서 도움이 됩니다.
+                        </div>
                     )}
                 </>
             )}

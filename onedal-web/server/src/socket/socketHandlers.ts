@@ -149,10 +149,12 @@ export function registerSocketHandlers(io: Server) {
         // 프론트에서 현재 위치 전송 시 (지도 등 활용 및 Master GPS 용도)
         socket.on("update-my-location", (loc: { x: number, y: number }) => {
             session.driverLocation = loc;
+            session.driverLocationIsFallback = false;   // 진짜 GPS 가 임시 출발지를 이긴다
         });
 
         // ━━━ [관제웹 Master GPS 수신부] ━━━
         socket.on("dashboard-gps-update", (loc: { lat: number, lng: number }) => {
+            session.driverLocationIsFallback = false;   // 진짜 GPS 가 임시 출발지를 이긴다
             processDriverMovement(userId, loc.lat, loc.lng, session, (uid, filterUpdate) => {
                 updateActiveFilter(uid, filterUpdate, io);
             });

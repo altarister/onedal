@@ -2,6 +2,7 @@ import {
     findTagConflicts, isTimeSensitive,
     computeSlackMinutes, allowedDetourMinutes, describeSlack,
     dwellMinutes, computeStopTiming, unitPoints, buildHourSlots, DWELL_UNKNOWN_MINUTES,
+    CARGO_UNITS, CARGO_UNIT_QUANTITY_INPUT, HANDLING_METHODS,
 } from '@onedal/shared';
 
 /**
@@ -155,5 +156,65 @@ describe('시각 버튼 — "몇 시까지 오시면 되요"', () => {
         // 주행 100분이면 16:03 도착 → 15시·16시는 불가능
         const slots = buildHourSlots(at1423, 100, 5);
         expect(slots.filter(s => s.beforeEta).map(s => s.label)).toEqual(['15시', '16시']);
+    });
+});
+
+/**
+ * [2026-08-12] 기사님 결정 — 톤백·쇼핑백을 선택지에서 빼고 `기타` 를 넣었다.
+ * 방법에 `검수`(90분)를 더했다.
+ *
+ * 🔴 선택지에서 뺀 것과 **읽을 수 있는 것**은 다르다.
+ *    local.db 에 톤백 3건·쇼핑백 2건이 실재하고 적요 파서도 그 낱말을 읽는다.
+ *    점수표에서 지우면 그 콜들의 부피가 0 이 되어 차종 추정으로 떨어진다.
+ */
+describe('단위 개편 (2026-08-12)', () => {
+    it('선택지는 다섯 개다 — 톤백·쇼핑백은 빠지고 기타가 들어왔다', () => {
+        expect([...CARGO_UNITS]).toEqual(['파레트', '라면박스', '마대', '서류봉투', '기타']);
+    });
+
+    it('🔴 옛 단위도 계속 읽힌다 — 기존 DB 행의 부피를 잃지 않는다', () => {
+        expect(unitPoints('톤백', 1)).toBe(30);
+        expect(unitPoints('쇼핑백', 2)).toBeCloseTo(0.2);
+    });
+
+    it('기타는 0점 — "안 실었다"가 아니라 "환산할 수 없다"는 표시다', () => {
+        // 0 이면 적재 계산이 차종 기준 보수 추정으로 떨어진다. 그게 정직한 값이다
+        expect(unitPoints('기타', 3)).toBe(0);
+    });
+
+    it('파레트는 3개까지만 고른다 (1t 에 2개면 만재)', () => {
+        const q = CARGO_UNIT_QUANTITY_INPUT['파레트'];
+        expect(q.mode).toBe('preset');
+        if (q.mode === 'preset') expect(q.options).toEqual([1, 2, 3]);
+    });
+
+    it('라면박스·마대·서류봉투는 십·일의 자리로 받는다 (수십 개가 예사다)', () => {
+        for (const u of ['라면박스', '마대', '서류봉투'] as const) {
+            expect(CARGO_UNIT_QUANTITY_INPUT[u].mode).toBe('digits');
+        }
+    });
+
+    it('기타는 수량을 세지 않는다 — 부피를 모르는데 개수만 세면 뜻이 없다', () => {
+        expect(CARGO_UNIT_QUANTITY_INPUT['기타'].mode).toBe('none');
+    });
+});
+
+describe('검수 방법 (2026-08-12)', () => {
+    it('검수는 90분이다 (기사님 지시)', () => {
+        expect(dwellMinutes('검수', 0)).toBe(90);
+    });
+
+    it('🔴 수량이 아무리 많아도 90분 고정 — per-point 를 비워 두면 폴백이 1분씩 붙는다', () => {
+        expect(dwellMinutes('검수', 30)).toBe(90);   // 파레트 2개
+        expect(dwellMinutes('검수', 120)).toBe(90);  // 라면박스 480개
+    });
+
+    it('다른 방법은 그대로다', () => {
+        expect(dwellMinutes('지게차', 30)).toBe(19);
+        expect(dwellMinutes('수작업', 30)).toBe(60);
+    });
+
+    it('네 가지가 모두 선택지에 있다', () => {
+        expect([...HANDLING_METHODS]).toEqual(['지게차', '수작업', '호이스트', '검수']);
     });
 });

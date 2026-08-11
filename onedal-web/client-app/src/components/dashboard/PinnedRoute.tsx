@@ -58,8 +58,21 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
     // 📡 마스터 GPS 엔진 연결 (Real / Mock 자동 스위칭)
     const { currentGps } = useMasterGps(isTestMode, isDriving, activePolyline || null);
 
-    // 하위 지도 캔버스에 렌더링하기 위한 로컬 상태 (초기 위치는 테스트용 판교 근처)
-    const [myLocation, setMyLocation] = useState<{ x: number, y: number } | null>({ x: 127.29441569159479, y: 37.376544054495625 });
+    /**
+     * ⚠️⚠️ 임시 — GPS 가 살아나면 `null` 로 되돌린다 ⚠️⚠️
+     *
+     * 브라우저 GPS 가 안 잡혀 현위치를 모르면 지도도 TSP 순서도 기준점이 없다.
+     * 그래서 **서버와 같은 대체 출발지**를 쓴다 (`server/src/services/fallbackOrigin.ts`).
+     *   경기도 광주시 초월읍 경충대로 1127번길 15 동광뷰엘 104동 601호
+     *   → 카카오 지오코딩 결과 127.294001, 37.377178 (2026-08-12 확인)
+     *
+     * 서버는 주소를 지오코딩해서 쓰고 여기는 그 결과를 상수로 둔다 —
+     * 관제웹에서 카카오 키를 노출할 수 없기 때문이다. **두 값은 같은 지점이어야 한다.**
+     * GPS 가 들어오면 아래 useEffect 가 곧바로 덮어쓴다.
+     */
+    const [myLocation, setMyLocation] = useState<{ x: number, y: number } | null>(
+        { x: 127.294001101745, y: 37.3771779756748 }
+    );
 
     useEffect(() => {
         if (currentGps) {

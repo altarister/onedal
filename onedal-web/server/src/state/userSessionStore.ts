@@ -29,6 +29,12 @@ export interface UserSession {
     baseFilter: AutoDispatchFilter;
     activeFilter: AutoDispatchFilter;
     driverLocation: { x: number; y: number } | null;
+    /**
+     * ⚠️ 임시 — `driverLocation` 이 **GPS 가 아니라 대체 주소**에서 온 값인가.
+     * 화면이 "임시 출발지 기준"이라고 말할 수 있어야 한다. GPS 가 들어오면 false 로 돌아간다.
+     * (`services/fallbackOrigin.ts` — GPS 복구 시 통째로 삭제)
+     */
+    driverLocationIsFallback: boolean;
     userVehicleType: string; // user_settings의 내 차종 (동적 허용 차종 생성용)
     isRestored: boolean;     // [방안 1] 서버 재시작 복구 로직 1회 실행 여부 플래그
     /**
@@ -54,6 +60,7 @@ function createDefaultSession(): UserSession {
         baseFilter: { ...SERVICE_DEFAULT_FILTER } as AutoDispatchFilter,
         activeFilter: { ...SERVICE_DEFAULT_FILTER } as AutoDispatchFilter,
         driverLocation: null,
+        driverLocationIsFallback: false,
         userVehicleType: '1t',
         capacityConfidence: 'ESTIMATED',
         isRestored: false,

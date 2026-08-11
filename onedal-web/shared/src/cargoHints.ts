@@ -68,9 +68,12 @@ const TAG_WORDS: Array<[RegExp, CargoTag]> = [
 ];
 
 const HANDLING_WORDS: Array<[RegExp, HandlingMethod]> = [
+    // 검수를 먼저 본다 — "지게차 검수"처럼 함께 적히면 90분짜리가 진실이다
+    [/검수|검품|검수후|입고검사/, '검수'],
     [/지게차|호크리프트|포크리프트/, '지게차'],
     [/호이스트|크레인|카고크레인/, '호이스트'],
-    [/카트|수레|대차|손수레|하이바|직접\s*운반/, '수작업'],
+    // '수작업' 이라는 낱말 자체가 빠져 있었다 (2026-08-12 발견)
+    [/수작업|카트|수레|대차|손수레|하이바|직접\s*운반/, '수작업'],
 ];
 
 export function parseCargoHints(...texts: (string | undefined | null)[]): CargoHints {

@@ -5,6 +5,7 @@ import { mapVehicleToKakaoCarType, getRemainingCapacityTypes, deriveDispatchPhas
 import type { SecuredOrder, AutoDispatchFilter, PricingConfig, PendingOrder, MyOrder,
               Milestone, MilestoneSource } from "@onedal/shared";
 import { geocodeAddress, calculateSoloRoute, calculateDetourRoute, compareDirections } from "./kakaoService";
+import { getFallbackOrigin, FALLBACK_ORIGIN_ADDRESS } from "./fallbackOrigin";
 import { fetchRealWorldRoute } from "../routes/osrmUtil";
 import { getUserSession } from "../state/userSessionStore";
 import { updateActiveFilter } from "../state/filterManager";
@@ -546,6 +547,19 @@ export async function bootstrapUserSession(userId: string, io: any): Promise<voi
     logRoadmapEvent("서버", "[Bootstrap] 시작 — 필터 확정 전까지 앱폰 사냥 일시 정지");
 
     try {
+        // ⚠️ 임시 — 브라우저 GPS 가 안 잡히면 접근 구간(현위치 → 상차지)을 계산할 수 없어
+        //    통화에서 "몇 시까지 갈 수 있다"를 말할 수가 없다. 대체 출발지로 메운다.
+        //    **GPS 가 들어오면 그 값이 언제나 이긴다** (dashboard-gps-update).
+        //    GPS 가 복구되면 services/fallbackOrigin.ts 와 함께 이 블록을 지운다.
+        if (!session.driverLocation) {
+            const fb = await getFallbackOrigin();
+            if (fb) {
+                session.driverLocation = fb;
+                session.driverLocationIsFallback = true;
+                console.log(`📍 [임시 출발지 적용] GPS 미수신 — ${FALLBACK_ORIGIN_ADDRESS} 기준으로 경로를 계산합니다`);
+            }
+        }
+
         await restoreAndRecalculateSession(userId, io);   // ②③④ (DB 로드 → 카카오 노선 → 상태 파생)
         rebuildDestinationKeywords(userId, io);           // ⑤ (활성 콜 유무로 회랑/도시 분기)
     } catch (err) {

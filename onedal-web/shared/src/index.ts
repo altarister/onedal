@@ -205,7 +205,13 @@ export const CARGO_SIZE_POINTS: Record<CargoSize, number> = {
 };
 
 /** 상하차 방법 — 소요 시간과 직결된다 (수작업이면 대기가 길어져 합짐 계획이 틀어진다) */
-export const HANDLING_METHODS = ['지게차', '수작업', '호이스트'] as const;
+/**
+ * 상하차 방법. 정차 시간이 여기서 갈린다 (`dwellMinutes`).
+ *
+ * [2026-08-12] 기사님 요청으로 `검수` 추가 — **90분 고정**.
+ * 물건을 하나하나 확인받는 자리라 수량과 무관하게 오래 걸린다는 판단이다.
+ */
+export const HANDLING_METHODS = ['지게차', '수작업', '호이스트', '검수'] as const;
 export type HandlingMethod = typeof HANDLING_METHODS[number];
 
 export type CargoReportKind = 'DECLARED' | 'ACTUAL';
