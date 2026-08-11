@@ -194,7 +194,8 @@ export function registerSocketHandlers(io: Server) {
 
             const label = report.stopType === 'pickup' ? '상차지' : '하차지';
             const kindLabel = report.kind === 'DECLARED' ? '통화 신고' : '현장 실측';
-            console.log(`📞 [${label} ${kindLabel}] ${report.sizeClass || '-'} × ${report.quantity ?? '-'} · ${report.handling || '-'}`);
+            // 옛 `sizeClass` 를 찍고 있어 화면이 보내는 값과 무관하게 늘 '-' 였다
+            console.log(`📞 [${label} ${kindLabel}] ${report.unit || report.sizeClass || '-'} × ${report.quantity ?? '-'} · ${report.handling || '-'}`);
 
             // 신고와 실측이 크게 어긋나면 그대로 진행하면 안 된다.
             // 퀵사무실에 확인해 수행 여부를 다시 정할 수 있게 관제탑에 띄운다.
@@ -204,6 +205,15 @@ export function registerSocketHandlers(io: Server) {
             }
 
             socket.emit("cargo-report-saved", { orderId, reports: all });
+
+            // 🔴 2026-08-11 — 여기서 필터를 다시 파생시키지 않아, 짐 양을 신고해도
+            //    잔여 용량(allowedVehicleTypes)이 **다음 이벤트가 올 때까지 그대로**였다.
+            //    적재 계산을 고쳐도(T2) 이 호출이 없으면 화면에 반영되지 않는다.
+            //
+            //    무겁지 않다 — recalculateDerivedFields 의 needsGeoRecalc 가드 때문에
+            //    `{}` 로는 지리 연산이 돌지 않고, broadcastFilter 는 관제웹 소켓으로만 나간다.
+            //    앱은 POST /api/scrap 응답 꼬리에서 필터를 끌어가므로 폰으로 밀려가지 않는다.
+            updateActiveFilter(userId, {}, io);
         });
 
         // 카드 헤더에서 약속 시각만 바꾼다. 짐 정보는 건드리지 않는다

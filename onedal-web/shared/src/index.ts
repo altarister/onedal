@@ -215,10 +215,24 @@ export function cargoPoints(r: Pick<CargoReport, 'unit' | 'sizeClass' | 'quantit
  * 1.5배 이상이면 합짐 계획이 깨진다 — 퀵사무실에 확인해야 하는 수준이다.
  */
 export function cargoMismatchRatio(declared?: CargoReport | null, actual?: CargoReport | null): number | null {
-    if (!declared?.sizeClass || !actual?.sizeClass) return null;
+    // 🔴 2026-08-11 — 관문이 `!declared?.sizeClass || !actual?.sizeClass` 였다.
+    //    `sizeClass` 는 단위를 파레트·라면박스로 바꾸기 전의 옛 필드이고
+    //    화면은 `unit` 만 보낸다. 그래서 **불일치 경고가 한 번도 뜬 적이 없다.**
+    //    통화 파레트 2개 → 현장 5개(2.5배)여도 조용했고,
+    //    CargoMismatchBanner · resolve-cargo-mismatch 가 통째로 도달 불가능한 코드였다.
+    //
+    //    관문을 필드가 아니라 **점수**로 건다 (cargoPoints 가 unit·sizeClass 를 모두 처리한다).
+    //
+    // ⚠️ 하차지는 여전히 null 이 나오고, **그게 맞다.**
+    //    기사님 설계상 부피는 상차지에서만 묻는다 —
+    //    "하차지 통화 시 물건의 크기와 부피 성질은 이미 파악된 상태이고 시간과 방법만 관심사."
+    //    하차지 신고에는 unit·quantity 가 없으므로 비교가 성립하지 않는다.
+    //    이걸 버그로 보고 하차지에도 부피를 받게 만들지 말 것.
+    if (!declared || !actual) return null;
     const d = cargoPoints(declared);
-    if (d === 0) return null;
-    return cargoPoints(actual) / d;
+    const a = cargoPoints(actual);
+    if (d === 0 || a === 0) return null;
+    return a / d;
 }
 
 export function canReportMilestone(status: string | undefined, milestone: Milestone): boolean {

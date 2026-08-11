@@ -45,8 +45,19 @@ export function computeLoadedPoints(
         const declared = reports.find(r => r.stopType === 'pickup' && r.kind === 'DECLARED');
         const chosen = actual || declared;
 
-        if (chosen?.sizeClass) {
-            points += cargoPoints(chosen);
+        // 🔴 2026-08-11 — 여기 관문이 `chosen?.sizeClass` 였다.
+        //    `sizeClass`(소·중·대)는 단위를 파레트·라면박스로 바꾸기 **전의 옛 필드**이고
+        //    화면(StopCallSheet)은 `unit` 만 보낸다. 그래서 이 관문이 영원히 닫혀
+        //    **기사님이 신고한 짐 양을 통째로 무시하고** 늘 차종 추정으로 떨어졌다.
+        //    합짐 2건이면 만재로 추정해 허용 차종이 [오토바이] 하나만 남았다 —
+        //    Phase 8.4 가 "놓치던 합짐 기회를 연다"고 한 것의 정확히 반대다.
+        //
+        //    관문을 **필드가 아니라 점수로** 건다. cargoPoints 는 이미 unit 을 우선 보고
+        //    옛 sizeClass 로 폴백하므로, 단위 체계를 또 바꿔도 여기는 안 깨진다.
+        const reported = chosen ? cargoPoints(chosen) : 0;
+
+        if (reported > 0) {
+            points += reported;
             if (!actual) anyDeclaredOnly = true;
         } else {
             points += VEHICLE_CAPACITY[normalizeVehicleType(c.vehicleType || myVehicle) || myVehicle] ?? 0;
