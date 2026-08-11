@@ -750,8 +750,7 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
                 //    2026-08-10 에 같은 실수(QQ)를 OrderEvaluator·재탐색에서 고치면서
                 //    기록 규약을 `applySoloRoute` 한 곳으로 모았는데, **복구 경로만 빠져 있었다.**
                 //    손으로 쓰지 않는다.
-                applySoloRoute(activeMain, res);
-                activeMain.sectionEtas = res.sectionEtas;
+                applySoloRoute(activeMain, res);   // sectionEtas 도 여기서 함께 기록된다
 
                 if (res.approachDuration) {
                     console.log(`🗺️ [복구 - 접근 구간] ${session.driverLocationIsFallback ? '임시 출발지' : '현위치'} → 상차지 ` +
