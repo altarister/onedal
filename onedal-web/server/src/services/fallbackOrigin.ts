@@ -24,28 +24,45 @@ import { geocodeAddress } from './kakaoService';
  * 3. 좌표를 손으로 박지 않는다 — 주소만 두고 **카카오로 한 번 지오코딩**해서 캐시한다.
  *    내가 찍은 좌표는 검증할 방법이 없다.
  */
-export const FALLBACK_ORIGIN_ADDRESS =
-    '경기도 광주시 초월읍 경충대로 1127번길 15 동광뷰엘 104동 601호';
-
-let cached: { x: number; y: number } | null = null;
-let tried = false;
+export const FALLBACK_ORIGIN_ADDRESS = '경기 광주시 초월읍 경충대로1127번길 15';
 
 /**
- * 임시 출발지 좌표. 첫 호출에서만 지오코딩하고 그 뒤로는 캐시를 쓴다.
- * 실패하면 `null` — **0,0 같은 가짜 좌표를 만들지 않는다.**
+ * 기사님이 구글 지도로 확인해 준 좌표 (2026-08-12).
+ *   https://www.google.co.kr/maps/place/경기도+광주시+초월읍+경충대로1127번길+15
+ *   → `!3d37.3766872!4d127.2944428`
+ *
+ * 카카오 지오코딩도 `127.294001, 37.377178` 로 거의 같은 점을 준다(약 50m 차이).
+ * **둘이 일치한다는 것을 확인했으므로** 상수로 박아 둔다 —
+ * 부팅 때마다 API 를 두드릴 이유가 없고, 키가 없거나 카카오가 죽어도 계산이 멈추지 않는다.
+ */
+const VERIFIED_COORD = { x: 127.2944428, y: 37.3766872 } as const;
+
+/** 카카오 지오코딩이 이 반경(도) 밖 값을 주면 주소가 바뀐 것이다 — 조용히 쓰지 않는다 */
+const COORD_DRIFT_TOLERANCE = 0.01;   // 약 1km
+
+let cached: { x: number; y: number } | null = null;
+
+/**
+ * 임시 출발지 좌표.
+ *
+ * 확인된 상수를 즉시 돌려주고, **뒤에서 한 번 카카오로 대조**한다.
+ * 어긋나면 경고만 남기고 상수를 계속 쓴다 (운행 중에 출발지가 말없이 바뀌면 더 나쁘다).
  */
 export async function getFallbackOrigin(): Promise<{ x: number; y: number } | null> {
     if (cached) return cached;
-    if (tried) return null;      // 한 번 실패했으면 매 요청마다 카카오를 두드리지 않는다
-    tried = true;
+    cached = { ...VERIFIED_COORD };
+    console.log(`📍 [임시 출발지] GPS 미수신 — ${FALLBACK_ORIGIN_ADDRESS} (${cached.x}, ${cached.y}) 기준으로 계산합니다`);
 
-    const coord = await geocodeAddress(FALLBACK_ORIGIN_ADDRESS);
-    if (!coord) {
-        console.warn(`⚠️ [임시 출발지] 지오코딩 실패 — 접근 구간은 계속 '모름'으로 둡니다: ${FALLBACK_ORIGIN_ADDRESS}`);
-        return null;
-    }
-    cached = coord;
-    console.log(`📍 [임시 출발지] GPS 미수신 시 사용할 좌표 확보: ${FALLBACK_ORIGIN_ADDRESS} → ${coord.x}, ${coord.y}`);
+    // 대조는 결과를 기다리지 않는다. 실패해도 계산은 그대로 진행된다
+    geocodeAddress(FALLBACK_ORIGIN_ADDRESS).then(c => {
+        if (!c) { console.warn('⚠️ [임시 출발지] 카카오 대조 실패 — 확인된 상수를 계속 씁니다'); return; }
+        const drift = Math.max(Math.abs(c.x - VERIFIED_COORD.x), Math.abs(c.y - VERIFIED_COORD.y));
+        if (drift > COORD_DRIFT_TOLERANCE) {
+            console.warn(`⚠️ [임시 출발지] 카카오 좌표가 확인값과 ${drift.toFixed(4)}도 차이납니다 ` +
+                `(카카오 ${c.x},${c.y} / 확인 ${VERIFIED_COORD.x},${VERIFIED_COORD.y}) — 주소를 다시 확인하세요`);
+        }
+    }).catch(() => {});
+
     return cached;
 }
 

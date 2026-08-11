@@ -741,8 +741,22 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
                     routingOptions.defaultPriority,
                     routingOptions.carType
                 );
-                activeMain.routePolyline = res.polyline;
+                // 🔴 2026-08-12 — 여기가 **폴리라인과 ETA 두 개만 손으로** 쓰고 있었다.
+                //    카카오에는 현위치를 넣어 제대로 물어보고(origin=...) 답도 받아 놓고서
+                //    `approachDuration` · `kakaoSolo*` · `totalDistanceKm` 를 통째로 버렸다.
+                //    그래서 **재접속하면 접근 구간이 늘 '모름'** 이었다 —
+                //    통화에서 "몇 시까지 갈 수 있다"를 말할 수가 없었던 직접 원인이다.
+                //
+                //    2026-08-10 에 같은 실수(QQ)를 OrderEvaluator·재탐색에서 고치면서
+                //    기록 규약을 `applySoloRoute` 한 곳으로 모았는데, **복구 경로만 빠져 있었다.**
+                //    손으로 쓰지 않는다.
+                applySoloRoute(activeMain, res);
                 activeMain.sectionEtas = res.sectionEtas;
+
+                if (res.approachDuration) {
+                    console.log(`🗺️ [복구 - 접근 구간] ${session.driverLocationIsFallback ? '임시 출발지' : '현위치'} → 상차지 ` +
+                        `${toKm(res.approachDistance || 0)}km / ${toMin(res.approachDuration)}분`);
+                }
             } catch(e) {
                 console.error('🗺️ [본콜 복구 연산 실패]', e);
             }
