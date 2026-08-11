@@ -8,7 +8,7 @@ import { logRoadmapEvent } from '../../lib/roadmapLogger';
 
 import { Badge } from "../ui/badge";
 import StopCallSheet from './StopCallSheet';
-import type { CargoReport } from "@onedal/shared";
+import type { CallRecords } from "../../hooks/useCallProgress";
 import { MILESTONE_LABEL, timingError, buildHourSlots, deriveCallStep, canRewindTo, CALL_STEPS,
          remainingToStop, dwellMinutes, unitPoints } from "@onedal/shared";
 import { Button } from "../ui/button";
@@ -23,6 +23,8 @@ interface Props {
     etaMap: Map<string, { pickupEta?: string, dropoffEta?: string }>;
     visitOrderMap: Map<string, { pickupIdx: number, dropoffIdx: number }>;
     indexNum: number;
+    /** 이 콜의 서버 기록 (통화·현장 신고 + 마일스톤). 위에서 한 번에 받아 내려준다 */
+    records: CallRecords;
     /**
      * `deck` — 진행 중 탭의 스와이프 덱. **폰 한 화면**이 목표라 헤더를 경로 한 줄로 줄인다.
      * `list` — 완료됨·취소/방출·전체. 조회용이라 포착시각·방문순서·ETA 를 그대로 둔다.
@@ -39,6 +41,7 @@ export default function PinnedRouteCard({
     setProcessingId,
     etaMap,
     visitOrderMap,
+    records,
     variant = 'list',
 }: Props) {
     const isDeck = variant === 'deck';
@@ -50,11 +53,12 @@ export default function PinnedRouteCard({
     const [telemetryCount, setTelemetryCount] = useState(0);
     const [isPinging, setIsPinging] = useState(false);
 
-    // [Phase 8.4] 통화/현장 기록. 아코디언을 **열 때만** 불러온다 —
-    // 🔴 예전에는 아코디언을 열 때만 불러왔는데, 이제 **헤더에도** 약속 시각을 띄우므로
-    //    접힌 상태에서도 필요하다. 다만 종료된 콜은 더 바뀔 일이 없으니 건너뛴다.
-    const [cargoReports, setCargoReports] = useState<CargoReport[]>([]);
-    const [milestoneLog, setMilestoneLog] = useState<Array<{ milestone: string; occurredAt: string; predictedAt?: string }>>([]);
+    // [2026-08-12] 통화/현장 기록은 **카드가 직접 불러오지 않는다.**
+    //
+    // 기사님: *"2개 있다면 각각 어디까지 진행되고 있는지 모두 스와이핑해야만 보인다."*
+    // 카드가 자기 것만 따로 불러오면 **화면 밖 카드의 진행 상황을 아무도 모른다.**
+    // 그래서 `useCallProgress` 로 위에서 한 번에 받아 요약 줄과 카드가 같은 값을 본다.
+    const { reports: cargoReports, milestones: milestoneLog } = records;
 
     /**
      * [Phase 8.5] 진행 단계는 **저장하지 않고 파생**한다 (`deriveCallStep`).
@@ -80,24 +84,6 @@ export default function PinnedRouteCard({
     // 새 기록이 들어와 단계가 앞으로 가면 되돌아보기를 자동 해제한다 —
     // 도착을 눌렀는데 화면이 옛 단계에 머물러 있으면 무엇이 반영됐는지 알 수 없다
     useEffect(() => { setViewIndex(null); }, [progress.index]);
-    useEffect(() => {
-        if (isTerminal(route.status) && !isExpanded) return;
-        const onSaved = (d: { orderId: string; reports: CargoReport[] }) => {
-            if (d.orderId === route.id) setCargoReports(d.reports || []);
-        };
-        const onMilestones = (d: { orderId: string; milestones: any[] }) => {
-            if (d.orderId === route.id) setMilestoneLog(d.milestones || []);
-        };
-        socket.on("cargo-report-saved", onSaved);
-        socket.on("milestone-log", onMilestones);
-        socket.emit("request-cargo-reports", { orderId: route.id });
-        socket.emit("request-milestones", { orderId: route.id });
-        return () => {
-            socket.off("cargo-report-saved", onSaved);
-            socket.off("milestone-log", onMilestones);
-        };
-    }, [isExpanded, route.id, route.status]);
-
     useEffect(() => {
         // 평가 중이 아닐 때는 카운터 초기화
         if (!isEvaluating(route.status)) {

@@ -6,6 +6,7 @@ import { logRoadmapEvent } from '../../lib/roadmapLogger';
 import PinnedRouteCanvas, { type RoutePoint } from './PinnedRouteCanvas';
 import PinnedRouteCard from './PinnedRouteCard';
 import CallDeck from './CallDeck';
+import { useCallProgress, EMPTY_RECORDS } from '../../hooks/useCallProgress';
 import { getAddressLabel } from '../../lib/routeUtils';
 import { optimizeRouteOrder, buildEtaMap, buildVisitOrderMap } from '../../lib/routeOptimizer';
 import { useFilterConfig } from '../../hooks/useFilterConfig';
@@ -21,6 +22,10 @@ interface Props {
 }
 
 export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRecalculate, viewFilter, setViewFilter }: Props) {
+    // [2026-08-12] 콜별 기록을 **여기서 한 번에** 받는다.
+    // 카드가 각자 불러오면 화면 밖 카드의 진행 상황을 알 수 없어
+    // 덱 위에 요약 줄을 띄울 수가 없었다 (기사님 지적).
+    const callRecords = useCallProgress(activeRoute.map(o => o.id));
     const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
     /** 콜을 다루기 시작하면 탭 바를 화면 맨 위로 끌어올린다 */
     const tabBarRef = useRef<HTMLDivElement>(null);
@@ -264,6 +269,7 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
                 분기가 한 군데뿐이라, 문제가 생기면 이 조건 하나만 되돌리면 옛 화면으로 복귀한다. */}
             {viewFilter === 'ACTIVE' && liveRoute.length > 0 && (
                 <CallDeck
+                    records={callRecords}
                     orders={[...liveRoute].sort((a, b) => {
                         // 평가 중(데스밸리)인 콜은 항상 먼저 — 30초 안에 결재해야 한다
                         const ae = isEvaluating(a.status), be = isEvaluating(b.status);
@@ -283,6 +289,7 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
                             etaMap={etaMap}
                             visitOrderMap={visitOrderMap}
                             indexNum={chronologicalIds.indexOf(route.id) + 1}
+                            records={callRecords.get(route.id) ?? EMPTY_RECORDS}
                             variant="deck"
                         />
                     )}
@@ -340,6 +347,7 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
                                     etaMap={etaMap}
                                     visitOrderMap={visitOrderMap}
                                     indexNum={indexNum}
+                                    records={callRecords.get(route.id) ?? EMPTY_RECORDS}
                                 />
                             );
                         })}
