@@ -115,6 +115,36 @@ export class OrderRepository {
         }
     }
 
+    /**
+     * [Phase 8 · T8] 착불 현금을 현장에서 받았는가.
+     *
+     * 🔴 2026-08-11 — `settlementStatus` · `unpaidAmount` 는 컬럼도 있고
+     *    운행일지 미수금 화면도 있는데 **쓰는 경로가 어디에도 없었다.**
+     *    기사님이 현금을 받아도 기록이 안 남아 미수금 화면이 늘 비어 있었다.
+     *
+     * 기사님: *"착불현금은 완료 누르기 전에 내가 받을꺼야."*
+     * 그래서 하차 완료를 누르기 **직전**에 이 값을 남긴다.
+     *
+     * 미수(`받음=false`)면 금액을 그대로 미수금으로 올린다 — 0 으로 덮지 않는다.
+     */
+    public static setCodCollected(orderId: string, userId: string, received: boolean, amount: number) {
+        db.prepare(`UPDATE orders
+                    SET settlementStatus = ?, unpaidAmount = ?, settledAt = ?
+                    WHERE id = ? AND userId = ?`)
+          .run(
+              received ? '수령' : '미수금',
+              received ? 0 : (amount || 0),
+              received ? new Date().toISOString() : null,
+              orderId, userId,
+          );
+    }
+
+    /** 한 오더의 정산 상태 (착불 수령 여부 표시용) */
+    public static getSettlement(orderId: string): { settlementStatus?: string; unpaidAmount?: number; settledAt?: string } {
+        return (db.prepare(`SELECT settlementStatus, unpaidAmount, settledAt FROM orders WHERE id = ?`)
+                  .get(orderId) as any) || {};
+    }
+
     /** 한 오더의 마일스톤 이력 (예상 대비 오차 확인용) */
     public static getMilestones(orderId: string) {
         return db.prepare(`SELECT milestone, occurredAt, predictedAt, source

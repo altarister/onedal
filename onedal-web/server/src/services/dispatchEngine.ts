@@ -698,6 +698,8 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
                 pickupY: row.pickupY,
                 dropoffX: row.dropoffX,
                 dropoffY: row.dropoffY,
+                // [T8] 착불 여부가 복구에서 빠져 있었다 — 재접속 직후 착불 표시가 사라진다
+                paymentType: row.paymentType,
                 isShared: !!row.isShared,
                 isExpress: !!row.isExpress,
                 orderForm: row.orderForm,
@@ -906,6 +908,25 @@ export async function reportMilestone(
     // ④ 하차하면 그 짐은 더 이상 실려 있지 않다. 경로·잔여 용량·회랑을 다시 계산한다.
     //    (recalculateActiveKakaoRoute 는 활성 콜이 0건이면 회랑도 첫짐 모드로 되돌린다)
     if (milestone === 'DELIVERED') {
+        // [T8] 착불인데 수령 여부를 안 고르고 완료했다면 **미수금으로 잡는다.**
+        //
+        // 기사님은 완료를 누르기 전에 현금을 받는다. 그래도 안 고르고 누를 수 있는데,
+        // 그때 0 원으로 조용히 넘기면 **받지도 못한 돈이 정산된 것처럼 사라진다.**
+        // 현장을 막지 않으면서(버튼을 강제하지 않는다) 기록만 안전한 쪽으로 남긴다.
+        try {
+            const row = db.prepare(`SELECT paymentType, fare, settlementStatus FROM orders WHERE id = ? AND userId = ?`)
+                          .get(orderId, userId) as any;
+            if (row?.paymentType === '착불' && (!row.settlementStatus || row.settlementStatus === '미정산')) {
+                OrderRepository.setCodCollected(orderId, userId, false, row.fare ?? 0);
+                console.warn(`💵 [착불 미확인] ${orderId.slice(0, 8)} — 수령 여부를 고르지 않고 하차 완료. ${(row.fare ?? 0).toLocaleString()}원을 미수금으로 잡습니다`);
+                io?.to(userId).emit("settlement-updated", {
+                    orderId, ...OrderRepository.getSettlement(orderId), autoMarked: true,
+                });
+            }
+        } catch (e) {
+            console.error(`🚨 [착불 확인 실패]`, e);
+        }
+
         const remaining = getActiveCalls(session);
         await recalculateActiveKakaoRoute(userId, io);
         console.log(`🚚 [적재 회복] 하차 완료 → 남은 활성 콜 ${remaining.length}건 기준으로 필터 재계산`);

@@ -464,6 +464,7 @@ export default function PinnedRouteCard({
                                                     m.milestone === (isPickupStop ? 'ARRIVED_PICKUP' : 'ARRIVED_DROPOFF'))?.occurredAt}
                                                 forceOpen={shownStep.id.startsWith('CALL_') ? 'DECLARED' : 'ACTUAL'}
                                                 stepLabel={shownStep.label}
+                                                codAmount={isCod ? route.fare : null}
                                             />
                                         );
                                     })()}

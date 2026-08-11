@@ -73,6 +73,8 @@ interface Props {
     leadMinutes?: number;
     /** 그 시간이 무엇인지 (`상차` 등) */
     leadLabel?: string | null;
+    /** [T8] 착불이면 받을 금액(원). 하차 완료 **직전**에 수령 여부를 남긴다 */
+    codAmount?: number | null;
 }
 
 const hhmm = (iso?: string) =>
@@ -92,7 +94,7 @@ function summarize(r?: CargoReport): string {
 export default function StopCallSheet({
     orderId, stopType, label, address, contactName, phones, reports,
     memoTexts, driveMinutes, orderStatus, arrivedAt, forceOpen, stepLabel,
-    leadMinutes = 0, leadLabel,
+    leadMinutes = 0, leadLabel, codAmount,
 }: Props) {
     const isPickup = stopType === 'pickup';
     /** 단계 카드(A안)가 몰아주는 모드 — 이 시트가 화면의 전부다. 요약 줄을 띄우지 않는다 */
@@ -101,6 +103,18 @@ export default function StopCallSheet({
     const [showMoreUnits, setShowMoreUnits] = useState(false);
     /** 기사님: *"성질 선택은 특수한 상황에서만 필요할 듯."* → 기본 접힘 */
     const [showTags, setShowTags] = useState(false);
+    /** [T8] 착불 수령 상태 — 서버가 진실이다. 화면이 저장했다고 믿지 않는다 */
+    const [codSettled, setCodSettled] = useState<string | undefined>();
+
+    useEffect(() => {
+        if (codAmount == null || codAmount <= 0) return;
+        const onSettlement = (d: { orderId: string; settlementStatus?: string }) => {
+            if (d.orderId === orderId) setCodSettled(d.settlementStatus);
+        };
+        socket.on('settlement-updated', onSettlement);
+        socket.emit('request-settlement', { orderId });
+        return () => { socket.off('settlement-updated', onSettlement); };
+    }, [orderId, codAmount]);
     // 단계가 바뀌면 그 단계에 맞는 줄을 연다 (A안: 줄을 누르는 탭을 없앤다)
     useEffect(() => { if (forceOpen) setTab(forceOpen); }, [forceOpen]);
 
@@ -471,6 +485,43 @@ export default function StopCallSheet({
                             </div>
                         );
                     })()}
+
+                    {/* [T8] 착불 현금 — **하차 완료 버튼 바로 위**.
+                        기사님: *"착불현금은 완료 누르기 전에 내가 받을꺼야."*
+                        완료됨 탭으로 미루면 그때는 이미 현장을 떠난 뒤다.
+                        🔴 예전에는 이 기록 수단이 아예 없어 미수금 화면이 늘 비어 있었다. */}
+                    {!isPickup && codAmount != null && codAmount > 0 && (
+                        <div className="rounded-md border border-warning/45 bg-warning/10 px-2.5 py-2">
+                            <div className="text-[12px] font-black text-warning">
+                                💵 착불 {codAmount.toLocaleString()}원 — 지금 받으세요
+                            </div>
+                            <div className="flex gap-2 mt-2">
+                                <button
+                                    onClick={() => socket.emit('cod-collected', { orderId, received: true })}
+                                    className={`flex-1 py-2.5 rounded-md text-[13px] font-black border ${
+                                        codSettled === '수령'
+                                            ? 'bg-success text-white border-success'
+                                            : 'bg-success/12 text-success border-success/45'
+                                    }`}>
+                                    {codSettled === '수령' ? '✓ 받았음' : '받았음'}
+                                </button>
+                                <button
+                                    onClick={() => socket.emit('cod-collected', { orderId, received: false })}
+                                    className={`flex-1 py-2.5 rounded-md text-[13px] font-black border ${
+                                        codSettled === '미수금'
+                                            ? 'bg-danger text-white border-danger'
+                                            : 'bg-danger/10 text-danger border-danger/40'
+                                    }`}>
+                                    {codSettled === '미수금' ? '✓ 미수' : '못 받음 · 미수'}
+                                </button>
+                            </div>
+                            {!codSettled && (
+                                <div className="text-[10px] text-text-muted mt-1.5">
+                                    고르지 않고 완료하면 <b>미수금</b>으로 기록됩니다 — 받은 돈이 사라지지 않게
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     {/* ⑤ 시간을 남기는 버튼들 */}
                     <div className="flex gap-2">

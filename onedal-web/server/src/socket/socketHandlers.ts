@@ -216,6 +216,41 @@ export function registerSocketHandlers(io: Server) {
             updateActiveFilter(userId, {}, io);
         });
 
+        /**
+         * [T8] 착불 현금을 현장에서 받았는가.
+         *
+         * 기사님: *"착불현금은 완료 누르기 전에 내가 받을꺼야."*
+         * 하차 완료를 누르기 **직전**에 관제웹이 보낸다.
+         *
+         * 🔴 이 경로가 없어서 `unpaidAmount`·`settlementStatus` 를 쓰는 코드가
+         *    프로젝트 전체에 하나도 없었다. 운행일지 미수금 화면은 늘 비어 있었다.
+         */
+        safeOn(socket, "cod-collected", (data: { orderId: string, received: boolean, amount?: number }) => {
+            if (!data.orderId) throw new Error("orderId 누락");
+
+            const session = getUserSession(userId);
+            const order = session.myOrders.find(o => o.id === data.orderId)
+                       ?? session.pendingOrdersData.get(data.orderId);
+            // 금액은 서버가 아는 운임을 쓴다 — 화면이 보낸 값을 그대로 믿지 않는다
+            const amount = order?.fare ?? data.amount ?? 0;
+
+            OrderRepository.setCodCollected(data.orderId, userId, data.received, amount);
+            console.log(`💵 [착불 ${data.received ? '수령' : '미수'}] ${data.orderId.slice(0, 8)} ${amount.toLocaleString()}원`);
+            logRoadmapEvent("서버", `[착불] ${data.received ? '현장 수령' : '미수금 등록'} ${amount}원`);
+
+            io.to(userId).emit("settlement-updated", {
+                orderId: data.orderId,
+                ...OrderRepository.getSettlement(data.orderId),
+            });
+        });
+
+        safeOn(socket, "request-settlement", (data: { orderId: string }) => {
+            socket.emit("settlement-updated", {
+                orderId: data.orderId,
+                ...OrderRepository.getSettlement(data.orderId),
+            });
+        });
+
         // 카드 헤더에서 약속 시각만 바꾼다. 짐 정보는 건드리지 않는다
         safeOn(socket, "set-stop-deadline", (data: { orderId: string, stopType: 'pickup' | 'dropoff', deadlineAt: string | null }) => {
             if (!data.orderId) throw new Error("orderId 누락");
