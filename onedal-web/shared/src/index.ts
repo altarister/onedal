@@ -101,6 +101,39 @@ export const TERMINAL_STATUSES: readonly OrderStatus[] = [
 export const RESTORABLE_STATUSES: readonly OrderStatus[] =
     ALL_ORDER_STATUSES.filter(s => !EVALUATING_STATUSES.includes(s));
 
+/** 확정됐지만 아직 안 끝난 상태 — 화면에서 **조작해야 하는** 콜 */
+export const IN_PROGRESS_STATUSES: readonly OrderStatus[] =
+    RESTORABLE_STATUSES.filter(s => !TERMINAL_STATUSES.includes(s));
+
+/**
+ * [임시 · Phase 7(영업일) 도입 시 삭제] 미완료 콜을 며칠까지 되살릴 것인가.
+ *
+ * 기사님 결정(2026-08-11): **3일.**
+ *
+ * 복구 쿼리가 `timestamp >= 오늘 자정` 이라 **전날 상차한 콜이 사라졌다.**
+ * 전날 상차해서 다음날 배송하는 운행이 통째로 깨진다.
+ * 영업일 경계를 제대로 정하는 건 Phase 7 의 일이고 시각 표준 통일(7.5)이 선행이라,
+ * 그때까지 **미완료 콜만** 날짜 무관으로 되살린다. 종결 콜은 지금처럼 오늘 것만.
+ *
+ * 무기한으로 두면 몇 달 전 미완료 콜이 되살아나므로 상한을 둔다.
+ */
+export const UNFINISHED_RESTORE_DAYS = 3;
+
+/**
+ * 복구 시간 창 두 개. 서버의 두 쿼리가 같은 값을 쓰도록 여기서만 만든다.
+ *
+ * ⚠️ 기준 필드는 `orders.timestamp` 다. 정확해서가 아니라 **기존 동작을 바꾸지 않기 위해서**다
+ *    (`capturedAt` 과 섞어 쓰면 Phase 7.5 가 정리할 시각 포맷 문제를 새로 만든다).
+ */
+export function restoreWindow(nowMs: number): { todayStartIso: string; unfinishedSinceIso: string } {
+    const todayStart = new Date(nowMs);
+    todayStart.setHours(0, 0, 0, 0);
+    return {
+        todayStartIso: todayStart.toISOString(),
+        unfinishedSinceIso: new Date(nowMs - UNFINISHED_RESTORE_DAYS * 86_400_000).toISOString(),
+    };
+}
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // [Phase 8.2] 운행 마일스톤 — 확정과 종료 사이의 실제 업무 단계
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

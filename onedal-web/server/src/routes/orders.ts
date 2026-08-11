@@ -14,7 +14,7 @@
 
 import { Router } from "express";
 import type { DispatchConfirmRequest, PendingOrder, OrderStatus } from "@onedal/shared";
-import { RESTORABLE_STATUSES } from "@onedal/shared";
+import { RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, restoreWindow } from "@onedal/shared";
 import db from "../db";
 import { getUserSession } from "../state/userSessionStore";
 import { forceCancelEvaluatingOrder, handleDecision } from "../services/dispatchEngine";
@@ -36,14 +36,25 @@ router.get("/", requireAuth, (req, res) => {
         //    예전엔 ('ORDER_CONFIRMED','ORDER_COMPLETED') 뿐이라
         //    **상차한 콜(ORDER_PICKED_UP)과 하차한 콜(ORDER_DELIVERED)이 빠졌다.**
         //    새로고침하면 진행 중이던 콜과 완료됨 탭이 통째로 비었다.
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
+        // [임시 · Phase 7 도입 시 삭제] 미완료 콜은 날짜 무관(3일 상한).
+        // 복구 쿼리(restoreAndRecalculateSession)와 **같은 창**을 써야 한다 —
+        // 어긋나면 소켓에는 있는데 HTTP 에는 없는 콜이 생겨 새로고침마다 깜빡인다.
+        const { todayStartIso, unfinishedSinceIso } = restoreWindow(Date.now());
 
         const statusPlaceholders = RESTORABLE_STATUSES.map(() => '?').join(', ');
+        const progressPlaceholders = IN_PROGRESS_STATUSES.map(() => '?').join(', ');
         const stmt = db.prepare(
-            `SELECT * FROM orders WHERE userId = ? AND status IN (${statusPlaceholders}) AND timestamp >= ? ORDER BY timestamp ASC`
+            `SELECT * FROM orders
+             WHERE userId = ? AND status IN (${statusPlaceholders})
+               AND ( timestamp >= ?
+                     OR (status IN (${progressPlaceholders}) AND timestamp >= ?) )
+             ORDER BY timestamp ASC`
         );
-        const rows = stmt.all(userId, ...RESTORABLE_STATUSES, todayStart.toISOString());
+        const rows = stmt.all(
+            userId, ...RESTORABLE_STATUSES,
+            todayStartIso,
+            ...IN_PROGRESS_STATUSES, unfinishedSinceIso,
+        );
 
         res.json({ orders: rows });
     } catch (error) {

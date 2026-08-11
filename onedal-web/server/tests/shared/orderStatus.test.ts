@@ -1,6 +1,7 @@
 import {
     ALL_ORDER_STATUSES, EVALUATING_STATUSES, TERMINAL_STATUSES, RESTORABLE_STATUSES,
     isEvaluating, isTerminal,
+    IN_PROGRESS_STATUSES, UNFINISHED_RESTORE_DAYS, restoreWindow,
 } from '@onedal/shared';
 
 /**
@@ -51,5 +52,49 @@ describe('상태 목록은 단일 출처에서 파생된다', () => {
 
     it('ALL_ORDER_STATUSES 에 중복이 없다', () => {
         expect(new Set(ALL_ORDER_STATUSES).size).toBe(ALL_ORDER_STATUSES.length);
+    });
+});
+
+/**
+ * [T5 · 임시 안전판] 미완료 콜은 날짜와 무관하게 되살린다 (3일 상한).
+ *
+ * 🔴 복구 쿼리가 `timestamp >= 오늘 자정` 이라 **전날 상차한 콜이 사라졌다.**
+ *    전날 상차 → 다음날 배송하는 운행이 통째로 깨진다.
+ *    Phase 7(영업일)이 들어오면 이 블록은 삭제된다.
+ */
+describe('복구 시간 창', () => {
+    // 2026-08-11 14:00 KST 기준으로 고정해서 잰다
+    const NOW = new Date('2026-08-11T05:00:00.000Z').getTime();
+
+    it('진행 중 상태는 확정과 상차 완료 둘뿐이다', () => {
+        expect([...IN_PROGRESS_STATUSES].sort())
+            .toEqual(['ORDER_CONFIRMED', 'ORDER_PICKED_UP']);
+    });
+
+    it('진행 중 상태에 종결이 섞이지 않는다 — 섞이면 끝난 콜이 되살아난다', () => {
+        for (const s of IN_PROGRESS_STATUSES) expect(isTerminal(s)).toBe(false);
+    });
+
+    it('미완료 창이 오늘 창보다 넓다', () => {
+        const w = restoreWindow(NOW);
+        expect(new Date(w.unfinishedSinceIso).getTime())
+            .toBeLessThan(new Date(w.todayStartIso).getTime());
+    });
+
+    it('🔴 어제 상차한 콜이 미완료 창에 들어온다 (이번에 고친 것)', () => {
+        const w = restoreWindow(NOW);
+        const yesterday = new Date(NOW - 20 * 3600_000).toISOString();   // 20시간 전
+        expect(yesterday >= w.todayStartIso).toBe(false);          // 오늘 창에는 안 들어온다
+        expect(yesterday >= w.unfinishedSinceIso).toBe(true);      // 미완료 창에는 들어온다
+    });
+
+    it('상한(3일)을 넘긴 콜은 어느 창에도 안 들어온다 — 그래서 경고를 띄운다', () => {
+        const w = restoreWindow(NOW);
+        const old = new Date(NOW - (UNFINISHED_RESTORE_DAYS + 1) * 86_400_000).toISOString();
+        expect(old >= w.unfinishedSinceIso).toBe(false);
+    });
+
+    it('상한은 정확히 3일이다 (기사님 결정 2026-08-11)', () => {
+        expect(UNFINISHED_RESTORE_DAYS).toBe(3);
     });
 });

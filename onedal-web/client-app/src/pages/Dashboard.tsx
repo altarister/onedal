@@ -21,6 +21,11 @@ export default function Dashboard() {
     const [viewFilter, setViewFilter] = useState<'ACTIVE' | 'COMPLETED' | 'CANCELED' | 'ALL'>('ACTIVE');
     // [이슈 W] 서버 재시작으로 진행 중 콜이 복구됐을 때 표시할 배너
     const [restoredInfo, setRestoredInfo] = useState<{ restoredCount: number; dispatchPhase: string } | null>(null);
+    // [T5] 3일이 지나 복구에서 빠진 미완료 콜 — **조용히 사라지게 두지 않는다**
+    const [staleDropped, setStaleDropped] = useState<{
+        count: number; days: number;
+        orders: { id: string; status: string; pickup: string; dropoff: string; daysAgo: number }[];
+    } | null>(null);
 
     // 서버가 보내는 오류를 화면에 띄운다 — 조용한 실패를 없앤다
     const { errors: serverErrors, dismiss: dismissError } = useServerErrors();
@@ -89,6 +94,15 @@ export default function Dashboard() {
         };
     }, []);
 
+    // [T5] 상한을 넘겨 화면에서 빠진 미완료 콜을 알린다.
+    // 기사님이 **모르는 채로 콜을 잃는 것**이 2026-08-11 사고의 본질이었다.
+    // 상한을 두면서 같은 실패 방식을 새로 만들 수는 없다.
+    useEffect(() => {
+        const onStale = (d: typeof staleDropped) => setStaleDropped(d);
+        socket.on("stale-orders-dropped", onStale);
+        return () => { socket.off("stale-orders-dropped", onStale); };
+    }, []);
+
     return (
         <main className="min-h-screen bg-bg-base font-sans pb-24">
 
@@ -117,6 +131,34 @@ export default function Dashboard() {
                         >
                             닫기
                         </button>
+                    </div>
+                )}
+
+                {/* ⏳ [T5] 상한을 넘겨 화면에서 빠진 미완료 콜 — 조용한 소실을 만들지 않는다 */}
+                {staleDropped && staleDropped.count > 0 && (
+                    <div className="mx-3 mt-3 rounded-xl border border-warning/45 bg-warning/10 px-4 py-3 flex items-start gap-3">
+                        <span className="text-lg leading-none mt-0.5">⏳</span>
+                        <div className="flex-1 min-w-0 text-sm">
+                            <p className="font-bold text-text-primary">
+                                {staleDropped.days}일이 지난 미완료 콜 {staleDropped.count}건이 화면에서 빠졌습니다
+                            </p>
+                            <p className="text-text-muted text-xs mt-0.5">
+                                끝내지 않은 콜이 남아 있다면 사무실에 확인해 주세요. 적재·합짐 계산에는 반영되지 않습니다.
+                            </p>
+                            <ul className="mt-1.5 flex flex-col gap-0.5">
+                                {staleDropped.orders.slice(0, 5).map(o => (
+                                    <li key={o.id} className="text-[11px] text-text-muted break-keep">
+                                        · {o.pickup} → {o.dropoff}
+                                        <span className="opacity-70"> ({o.daysAgo}일 전 · {o.status === 'ORDER_PICKED_UP' ? '상차 완료' : '확정'})</span>
+                                    </li>
+                                ))}
+                                {staleDropped.orders.length > 5 && (
+                                    <li className="text-[11px] text-text-muted">· 외 {staleDropped.orders.length - 5}건</li>
+                                )}
+                            </ul>
+                        </div>
+                        <button onClick={() => setStaleDropped(null)}
+                            className="text-text-muted hover:text-text-primary text-xs font-bold px-2 py-1">닫기</button>
                     </div>
                 )}
 

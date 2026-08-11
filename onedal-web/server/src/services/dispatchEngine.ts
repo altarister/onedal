@@ -1,6 +1,7 @@
 import { mapVehicleToKakaoCarType, getRemainingCapacityTypes, deriveDispatchPhase, normalizeVehicleType,
          MILESTONE_TO_STATUS, MILESTONE_LABEL, canReportMilestone, timingError,
-         RESTORABLE_STATUSES } from "@onedal/shared";
+         RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, UNFINISHED_RESTORE_DAYS,
+         restoreWindow } from "@onedal/shared";
 import type { SecuredOrder, AutoDispatchFilter, PricingConfig, PendingOrder, MyOrder,
               Milestone, MilestoneSource } from "@onedal/shared";
 import { geocodeAddress, calculateSoloRoute, calculateDetourRoute, compareDirections } from "./kakaoService";
@@ -610,8 +611,7 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
     session.isRestored = true;
 
     try {
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
+        const { todayStartIso, unfinishedSinceIso } = restoreWindow(Date.now());
 
         // 1. orders와 places 테이블을 조인하여 복구 대상 콜과 X, Y 좌표를 불러옵니다.
         //
@@ -619,7 +619,13 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
         //    예전에는 5개를 나열해 뒀는데 Phase 8.3 이 만든 ORDER_PICKED_UP · ORDER_DELIVERED
         //    가 빠져서 **짐을 실은 채 새로고침하면 콜이 사라졌다.**
         //    이제 shared 의 RESTORABLE_STATUSES 한 곳에서만 정한다.
+        //
+        // [임시 · Phase 7 도입 시 삭제] 미완료 콜은 날짜 무관(3일 상한)으로 되살린다.
+        //    `timestamp >= 오늘 자정` 만 쓰면 **전날 상차한 콜이 사라져서**
+        //    전날 상차 → 다음날 배송하는 운행이 통째로 깨진다.
+        //    종결 콜은 지금처럼 오늘 것만 — 목록이 무한정 길어질 이유가 없다.
         const statusPlaceholders = RESTORABLE_STATUSES.map(() => '?').join(', ');
+        const progressPlaceholders = IN_PROGRESS_STATUSES.map(() => '?').join(', ');
         const rows = db.prepare(`
             SELECT o.*,
                    pPlace.x as pickupX, pPlace.y as pickupY,
@@ -629,9 +635,41 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
             LEFT JOIN places pPlace ON pStop.placeId = pPlace.id
             LEFT JOIN orderStops dStop ON dStop.orderId = o.id AND dStop.stopType = 'dropoff'
             LEFT JOIN places dPlace ON dStop.placeId = dPlace.id
-            WHERE o.userId = ? AND o.status IN (${statusPlaceholders}) AND o.timestamp >= ?
+            WHERE o.userId = ? AND o.status IN (${statusPlaceholders})
+              AND ( o.timestamp >= ?
+                    OR (o.status IN (${progressPlaceholders}) AND o.timestamp >= ?) )
             ORDER BY o.timestamp ASC
-        `).all(userId, ...RESTORABLE_STATUSES, todayStart.toISOString()) as any[];
+        `).all(
+            userId, ...RESTORABLE_STATUSES,
+            todayStartIso,
+            ...IN_PROGRESS_STATUSES, unfinishedSinceIso,
+        ) as any[];
+
+        // 🔴 상한을 넘겨 **빠진** 미완료 콜은 조용히 사라지게 두지 않는다.
+        //    기사님이 모르는 채로 콜을 잃는 것이 2026-08-11 사고의 본질이었다.
+        //    같은 실패 방식을 상한 하나 두면서 새로 만들 수는 없다.
+        const dropped = db.prepare(`
+            SELECT id, status, pickup, dropoff, timestamp FROM orders
+            WHERE userId = ? AND status IN (${progressPlaceholders}) AND timestamp < ?
+            ORDER BY timestamp DESC LIMIT 20
+        `).all(userId, ...IN_PROGRESS_STATUSES, unfinishedSinceIso) as any[];
+
+        if (dropped.length > 0) {
+            const daysAgo = (t: string) =>
+                Math.floor((Date.now() - new Date(t).getTime()) / 86_400_000);
+            console.warn(
+                `⚠️ [복구 제외] ${UNFINISHED_RESTORE_DAYS}일이 지난 미완료 콜 ${dropped.length}건이 화면에서 빠집니다:\n` +
+                dropped.map(o => `   · ${o.id.slice(0, 8)} ${o.status} ${o.pickup}→${o.dropoff} (${daysAgo(o.timestamp)}일 전)`).join('\n')
+            );
+            io?.to(userId).emit("stale-orders-dropped", {
+                count: dropped.length,
+                days: UNFINISHED_RESTORE_DAYS,
+                orders: dropped.map(o => ({
+                    id: o.id, status: o.status, pickup: o.pickup, dropoff: o.dropoff,
+                    daysAgo: daysAgo(o.timestamp),
+                })),
+            });
+        }
 
         if (rows.length === 0) return;
 
@@ -724,7 +762,14 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
         //
         // 상태를 따로 저장했다가 되살리는 대신 **데이터에서 매번 파생**시킨다.
         // 저장된 상태는 실제와 어긋날 수 있지만 파생값은 어긋날 수 없다.
-        // (복구 쿼리가 오늘 것만 가져오므로 어제 상태가 살아날 우려도 없다)
+        //
+        // ⚠️ 2026-08-11 — 여기 원래 "(복구 쿼리가 오늘 것만 가져오므로 어제 상태가
+        //    살아날 우려도 없다)" 고 적혀 있었다. **T5 로 그 전제가 깨졌다** —
+        //    미완료 콜은 이제 3일까지 되살아난다.
+        //    그래도 안전한 이유는 전제가 아니라 **파생**이다: 아래 상태는 전부
+        //    `getActiveCalls(session)` 에서 매번 다시 구하므로, 며칠 전 콜이 섞여 들어와도
+        //    "지금 실려 있는 콜"이 진실인 것은 변하지 않는다.
+        //    (전제에 기대는 코드가 더 있는지 확인했고 이 블록이 유일했다)
         const restoredActive = getActiveCalls(session);
         if (restoredActive.length > 0) {
             const myVehicle = SettingsRepository.getKakaoRoutingOptions(userId).vehicleType || '1t';
