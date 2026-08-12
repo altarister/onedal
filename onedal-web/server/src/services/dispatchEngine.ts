@@ -547,7 +547,7 @@ export async function bootstrapUserSession(userId: string, io: any): Promise<voi
     logRoadmapEvent("서버", "[Bootstrap] 시작 — 필터 확정 전까지 앱폰 사냥 일시 정지");
 
     try {
-        // ⚠️ 임시 — 브라우저 GPS 가 안 잡히면 접근 구간(현위치 → 상차지)을 계산할 수 없어
+        // ⚠️ TEMP(gps-fallback) — 브라우저 GPS 가 안 잡히면 접근 구간(현위치 → 상차지)을 계산할 수 없어
         //    통화에서 "몇 시까지 갈 수 있다"를 말할 수가 없다. 대체 출발지로 메운다.
         //    **GPS 가 들어오면 그 값이 언제나 이긴다** (dashboard-gps-update).
         //    GPS 가 복구되면 services/fallbackOrigin.ts 와 함께 이 블록을 지운다.

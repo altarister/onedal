@@ -9,8 +9,8 @@ import { logRoadmapEvent } from '../../lib/roadmapLogger';
 import { Badge } from "../ui/badge";
 import StopCallSheet from './StopCallSheet';
 import type { CallRecords } from "../../hooks/useCallProgress";
-import { MILESTONE_LABEL, timingError, buildHourSlots, deriveCallStep, canRewindTo, CALL_STEPS,
-         remainingToStop, dwellMinutes, unitPoints } from "@onedal/shared";
+import { MILESTONE_LABEL, timingError, buildArrivalSlots, deriveCallStep, canRewindTo, CALL_STEPS,
+         deriveCallTiming } from "@onedal/shared";
 import { Button } from "../ui/button";
 
 interface Props {
@@ -112,25 +112,16 @@ export default function PinnedRouteCard({
     const minuteDiff = getMinuteDiff(etas?.pickupEta, etas?.dropoffEta);
     const separatorText = minuteDiff !== null ? `-${minuteDiff}분-` : '-';
 
-    const soloKm = route.osrmSoloDistanceKm ?? route.kakaoSoloDistanceKm;
-    const soloMin = route.osrmSoloDistanceKm ? route.osrmSoloDurationMin : route.kakaoSoloDurationMin;
-
     /**
-     * 🔴 이 정거장까지 **지금부터** 얼마나 걸리는가 (2026-08-11 수정).
+     * 시간 파생은 **여기 한 번**뿐이다 (`deriveCallTiming`).
      *
-     * 예전에는 하차지 단계에서 `kakaoSoloDurationMin`(상차지 → 하차지)만 넘겼다.
-     * 아직 상차지에 가지도 않았는데 접근 주행과 상차 작업이 통째로 빠져서
-     * 도착 예상이 이르게 나오고 `지각` 판정이 낙관적이었다 —
-     * 그 화면을 보고 약속하면 **못 지킬 시각을 약속하게 된다.**
-     *
-     * 어디까지 왔는지는 마일스톤에서 파생한다. 화면이 직접 고르지 않는다.
+     * 🔴 2026-08-12 — 예전에는 단독 구간 선택·접근 거리·상차 정차를 이 파일과
+     *    `DepartureCountdown` 이 **각자 계산**했다. 한쪽만 고치면 두 화면이
+     *    다른 시각을 말한다. 파생값을 만들었으면 그 입력도 한 곳에서 만든다.
      */
-    const hasMs = (m: string) => milestoneLog.some(x => x.milestone === m);
-    const pickupDeclared = cargoReports.find(r => r.stopType === 'pickup' && r.kind === 'DECLARED');
-    const pickupActual = cargoReports.find(r => r.stopType === 'pickup' && r.kind === 'ACTUAL');
-    // 현장에서 실측한 값이 있으면 그것이 진실이다 — 통화 내용은 아직 추정이다
-    const pickupCargo = pickupActual ?? pickupDeclared;
-    const pickupDwell = dwellMinutes(pickupCargo?.handling, unitPoints(pickupCargo?.unit, pickupCargo?.quantity));
+    const timing = deriveCallTiming(route, cargoReports, milestoneLog, Date.now());
+    const soloKm = timing.soloKm;
+    const soloMin = timing.soloMinutes;
 
     return (
         <div className={`flex flex-col relative overflow-hidden transition-all duration-300 ${evaluating ? 'bg-warning/10' : 'hover:bg-surface-hover/50'} border-b border-border-card ${isTerminal(route.status) ? 'opacity-50 grayscale' : ''}`}>
@@ -422,21 +413,7 @@ export default function PinnedRouteCard({
                                     {shownStep && (() => {
                                         const isPickupStop = shownStep.stop === 'pickup';
                                         const d = isPickupStop ? pDetail : dDetail;
-                                        // 접근 거리는 따로 저장하지 않는다 — 총거리에서 단독 구간을 빼면 나온다
-                                        const approachKm = route.totalDistanceKm != null && soloKm != null
-                                            ? Math.max(0, Number(route.totalDistanceKm) - Number(soloKm))
-                                            : null;
-                                        const lead = remainingToStop({
-                                            stop: isPickupStop ? 'pickup' : 'dropoff',
-                                            approachMinutes: route.approachDurationMin,
-                                            approachKm,
-                                            soloMinutes: soloMin,
-                                            soloKm: soloKm != null ? Number(soloKm) : null,
-                                            pickupDwellMinutes: pickupDwell,
-                                            arrivedPickup: hasMs('ARRIVED_PICKUP'),
-                                            pickedUp: hasMs('PICKED_UP'),
-                                            arrivedDropoff: hasMs('ARRIVED_DROPOFF'),
-                                        });
+                                        const lead = isPickupStop ? timing.toPickup : timing.toDropoff;
                                         return (
                                             <StopCallSheet
                                                 key={shownStep.id}
@@ -452,7 +429,7 @@ export default function PinnedRouteCard({
                                                 driveKm={lead.driveKm}
                                                 /* 상차지 통화에서 하차지까지 한 번에 정할 수 있게 다음 구간을 넘긴다 */
                                                 onwardMinutes={isPickupStop ? soloMin : null}
-                                                onwardKm={isPickupStop && soloKm != null ? Number(soloKm) : null}
+                                                onwardKm={isPickupStop ? timing.soloKm : null}
                                                 leadMinutes={lead.leadMinutes}
                                                 leadLabel={lead.leadLabel}
                                                 orderStatus={route.status}
@@ -673,7 +650,7 @@ function DeadlineChip({ orderId, stopType, eta, deadlineAt }: {
             </button>
             {open && (
                 <span className="absolute z-20 top-6 left-0 flex gap-1 bg-surface-alt border border-border rounded-md p-1 shadow-lg">
-                    {buildHourSlots(Date.now(), 0, 6).map(sl => (
+                    {buildArrivalSlots(Date.now(), 0, 6).map(sl => (
                         <button key={sl.iso}
                             onClick={() => { socket.emit('set-stop-deadline', { orderId, stopType, deadlineAt: sl.iso }); setOpen(false); }}
                             className="px-1.5 py-1 rounded text-[11px] font-bold text-text-primary hover:bg-info hover:text-white">

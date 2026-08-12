@@ -60,7 +60,7 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
     const { currentGps } = useMasterGps(isTestMode, isDriving, activePolyline || null);
 
     /**
-     * ⚠️⚠️ 임시 — GPS 가 살아나면 `null` 로 되돌린다 ⚠️⚠️
+     * ⚠️ TEMP(gps-fallback) — GPS 가 살아나면 `null` 로 되돌린다
      *
      * 브라우저 GPS 가 안 잡혀 현위치를 모르면 지도도 TSP 순서도 기준점이 없다.
      * 그래서 **서버와 같은 대체 출발지**를 쓴다 (`server/src/services/fallbackOrigin.ts`).

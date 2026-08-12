@@ -767,4 +767,4 @@ export interface OrderSyncPayload {
     terminated: SecuredOrder[];
 }
 export * from './callSteps';
-export * from './deadlines';
+export * from './timing';

@@ -1,7 +1,8 @@
 import { geocodeAddress } from './kakaoService';
 
 /**
- * ⚠️⚠️ 임시 코드 — GPS 가 살아나면 통째로 지운다 ⚠️⚠️
+ * ⚠️ TEMP(gps-fallback) — GPS 가 살아나면 통째로 지운다.
+ *    같은 태그로 `grep -rn "TEMP(gps-fallback)"` 하면 지울 곳이 전부 나온다.
  *
  * 기사님: *"일단 시간을 이야기하려면 얼마나 걸리는지 카카오로 정확히 알아야 하는데
  * **브라우저상 GPS 가 작동하지 못해서** 알 수가 없는 상황이다. 이럴 때는 출발지로

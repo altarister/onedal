@@ -1,9 +1,5 @@
 import { useEffect, useState } from 'react';
-import {
-    deriveCallStep, remainingToStop, dwellMinutes, unitPoints,
-    defaultDropoffDeadline, derivePickupDeadline, departureDeadline,
-    minutesUntil, formatCountdown,
-} from '@onedal/shared';
+import { deriveCallStep, deriveCallTiming, minutesUntil, formatCountdown } from '@onedal/shared';
 import type { SecuredOrder } from '@onedal/shared';
 import type { CallRecords } from '../../hooks/useCallProgress';
 import { EMPTY_RECORDS } from '../../hooks/useCallProgress';
@@ -35,55 +31,24 @@ export default function DepartureCountdown({ orders, records }: Props) {
         return () => clearInterval(t);
     }, []);
 
-    /** 아직 상차하지 않은 콜 중 **가장 먼저 나가야 하는** 것을 찾는다 */
-    let soonest: { at: string; order: SecuredOrder; estimated: boolean } | null = null;
+    /**
+     * 아직 상차하지 않은 콜 중 **가장 먼저 나가야 하는** 것.
+     *
+     * 시간 파생은 `deriveCallTiming` 한 곳에서만 한다 — 예전에는 여기서
+     * `PinnedRouteCard` 와 같은 계산(단독 구간 선택·접근 거리·상차 정차)을 복제했다.
+     * 한쪽만 고치면 카운트다운과 통화 화면이 **다른 시각**을 말한다.
+     */
+    let soonest: { at: string; estimated: boolean } | null = null;
 
     for (const o of orders) {
         const r = records.get(o.id) ?? EMPTY_RECORDS;
-        const p = deriveCallStep(r.milestones, r.reports);
         // 이미 상차했으면 출발을 기다릴 이유가 없다 (그 콜은 우회 예산 쪽이다)
-        if (p.index >= 4) continue;
+        if (deriveCallStep(r.milestones, r.reports).index >= 4) continue;
 
-        const has = (m: string) => r.milestones.some(x => x.milestone === m);
-        const soloKm = o.osrmSoloDistanceKm ?? o.kakaoSoloDistanceKm;
-        const soloMin = o.osrmSoloDistanceKm ? o.osrmSoloDurationMin : o.kakaoSoloDurationMin;
-        const pickupCargo = r.reports.find(x => x.stopType === 'pickup' && x.kind === 'ACTUAL')
-                         ?? r.reports.find(x => x.stopType === 'pickup' && x.kind === 'DECLARED');
-        const pickupDwell = dwellMinutes(pickupCargo?.handling, unitPoints(pickupCargo?.unit, pickupCargo?.quantity));
-
-        const lead = remainingToStop({
-            stop: 'pickup',
-            approachMinutes: o.approachDurationMin,
-            approachKm: o.totalDistanceKm != null && soloKm != null
-                ? Math.max(0, Number(o.totalDistanceKm) - Number(soloKm)) : null,
-            soloMinutes: soloMin,
-            soloKm: soloKm != null ? Number(soloKm) : null,
-            pickupDwellMinutes: pickupDwell,
-            arrivedPickup: has('ARRIVED_PICKUP'),
-            pickedUp: has('PICKED_UP'),
-            arrivedDropoff: has('ARRIVED_DROPOFF'),
-        });
-        if (lead.driveMinutes == null) continue;   // 현위치를 모르면 셀 수 없다
-
-        // 통화로 정한 상차 마감이 있으면 그것이 진실이다
-        const declaredPickup = r.reports.find(x => x.stopType === 'pickup' && x.kind === 'DECLARED')?.deadlineAt;
-
-        let pickupDeadline = declaredPickup ?? null;
-        let estimated = false;
-        if (!pickupDeadline) {
-            // 두 원칙으로 역산한다 — 통화 전에도 대기 예산이 있어야 사냥을 판단할 수 있다
-            const dropDeclared = r.reports.find(x => x.stopType === 'dropoff' && x.kind === 'DECLARED')?.deadlineAt;
-            const dropoffDwell = dwellMinutes(pickupCargo?.handling, unitPoints(pickupCargo?.unit, pickupCargo?.quantity));
-            const dropDeadline = dropDeclared
-                ?? defaultDropoffDeadline(now, lead.driveMinutes + pickupDwell + (soloMin ?? 0));
-            pickupDeadline = derivePickupDeadline(dropDeadline, soloMin, dropoffDwell);
-            estimated = true;
-        }
-
-        const dep = departureDeadline(pickupDeadline, lead.driveMinutes);
-        if (!dep) continue;
-        if (!soonest || new Date(dep).getTime() < new Date(soonest.at).getTime()) {
-            soonest = { at: dep, order: o, estimated };
+        const t = deriveCallTiming(o, r.reports, r.milestones, now);
+        if (!t.departureAt) continue;
+        if (!soonest || new Date(t.departureAt).getTime() < new Date(soonest.at).getTime()) {
+            soonest = { at: t.departureAt, estimated: t.deadlineEstimated };
         }
     }
 

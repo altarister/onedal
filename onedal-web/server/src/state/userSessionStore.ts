@@ -30,7 +30,7 @@ export interface UserSession {
     activeFilter: AutoDispatchFilter;
     driverLocation: { x: number; y: number } | null;
     /**
-     * ⚠️ 임시 — `driverLocation` 이 **GPS 가 아니라 대체 주소**에서 온 값인가.
+     * ⚠️ TEMP(gps-fallback) — `driverLocation` 이 **GPS 가 아니라 대체 주소**에서 온 값인가.
      * 화면이 "임시 출발지 기준"이라고 말할 수 있어야 한다. GPS 가 들어오면 false 로 돌아간다.
      * (`services/fallbackOrigin.ts` — GPS 복구 시 통째로 삭제)
      */
