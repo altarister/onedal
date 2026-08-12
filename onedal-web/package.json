@@ -7,7 +7,8 @@
     "dev:logbook": "pnpm --filter logbook dev",
     "dev": "pnpm run dev:server & pnpm run dev:client & pnpm run dev:logbook",
     "audit:socket": "node scripts/audit-socket-contract.mjs",
-    "scenario": "node scripts/scenario.mjs"
+    "scenario": "node scripts/scenario.mjs",
+    "e2e:app": "node scripts/appLoop.mjs"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
