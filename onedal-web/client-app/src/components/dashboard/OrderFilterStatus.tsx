@@ -73,6 +73,16 @@ export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () =
                 <Badge variant="outline" className={`${styles.badge} shadow-sm px-2 py-1 whitespace-nowrap`}>
                     {label}
                 </Badge>
+                {/* 🔒 기사님이 손으로 고친 필터는 자동 갱신이 덮어쓰지 않는다.
+                    그 사실을 화면에 남긴다 — 안 그러면 "왜 회랑이 안 바뀌지?" 를 알 수 없다.
+                    (사냥 사이클이 끝나 첫짐으로 돌아가면 자동으로 풀린다) */}
+                {filter.userOverrides && (
+                    <Badge variant="outline"
+                        title="손으로 고친 필터라 경로가 바뀌어도 자동 갱신되지 않습니다. 첫짐으로 돌아가면 풀립니다"
+                        className="bg-warning/12 border-warning/45 text-warning px-1.5 py-0.5 text-[10px] font-black whitespace-nowrap">
+                        🔒 수동 고정
+                    </Badge>
+                )}
                 <div className="flex flex-col leading-tight overflow-hidden">
                     <span className="font-black text-text-primary text-sm">
                         {(filter.minFare / 10000).toFixed(1)}만 이상

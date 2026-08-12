@@ -1,7 +1,7 @@
 import { mapVehicleToKakaoCarType, getRemainingCapacityTypes, deriveDispatchPhase, normalizeVehicleType,
          MILESTONE_TO_STATUS, MILESTONE_LABEL, canReportMilestone, timingError,
          RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, UNFINISHED_RESTORE_DAYS, deriveStatusFromMilestones,
-         restoreWindow } from "@onedal/shared";
+         restoreWindow, getEffectiveCorridorRadius, DEFAULT_CORRIDOR_RADIUS_KM } from "@onedal/shared";
 import type { SecuredOrder, AutoDispatchFilter, PricingConfig, PendingOrder, MyOrder,
               Milestone, MilestoneSource } from "@onedal/shared";
 import { geocodeAddress, calculateSoloRoute, calculateDetourRoute, compareDirections } from "./kakaoService";
@@ -271,8 +271,33 @@ export const syncCorridorFilter = (userId: string, io: any) => {
         polylineToUse = activeCalls[activeCalls.length - 1]?.routePolyline;
     }
 
+    /**
+     * 🔴 2026-08-12 — 기사님이 손으로 고친 필터를 자동 갱신이 덮어쓰고 있었다.
+     *
+     * 관제웹은 수동 조작 때 `userOverrides: true` 를 보내는데 **서버가 한 번도 안 읽었다.**
+     * 타입 주석에 "서버 덮어쓰기 방지용"이라 적혀 있는데 방지가 안 됐다 —
+     * 회랑을 손으로 좁혀 놔도 다음 경로 갱신 한 번에 되돌아갔다.
+     *
+     * 조용히 넘어가지 않는다. 고정됐다는 사실을 로그와 화면에 남긴다.
+     * (사냥 사이클이 끝나 STANDBY 로 돌아가면 baseFilter 로 리셋되며 자동 해제된다)
+     */
+    if (session.activeFilter.userOverrides) {
+        console.log(`🔒 [회랑 고정] 기사님이 손으로 고친 필터라 자동 갱신을 건너뜁니다 ` +
+            `(키워드 ${(session.activeFilter.destinationKeywords || []).length}개 유지)`);
+        return;
+    }
+
     if (polylineToUse && polylineToUse.length > 0) {
-        const cRadius = session.activeFilter.corridorRadiusKm ?? 10;
+        /**
+         * 🔴 `getEffectiveCorridorRadius` 는 정의만 되어 있고 **호출하는 곳이 없었다.**
+         *    "이 함수를 통해서만 corridorRadiusKm 를 결정하므로 하드코딩이 원천 차단됩니다"
+         *    라는 주석이 붙어 있었는데, 정작 여기서 `?? 10` 을 직접 쓰고 있었다.
+         *    그래서 **운행 중(DELIVERING)에도 회랑이 안 좁혀졌다** — 우회 금지가 안 걸린 것이다.
+         */
+        const cRadius = getEffectiveCorridorRadius(
+            session.activeFilter.dispatchPhase ?? 'STANDBY',
+            session.activeFilter.corridorRadiusKm ?? DEFAULT_CORRIDOR_RADIUS_KM,
+        );
         const dRadius = session.activeFilter.destinationRadiusKm;
         const regions = getCorridorRegions(polylineToUse, cRadius, dRadius);
 

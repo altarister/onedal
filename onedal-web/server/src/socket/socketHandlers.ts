@@ -5,7 +5,7 @@ import { getUserDevicesSnapshot } from "../routes/devices";
 import { getRegionsByCity } from "../geoResolver";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import type { AutoDispatchFilter, Milestone, CargoReport } from "@onedal/shared";
-import { cargoMismatchRatio } from "@onedal/shared";
+import { cargoMismatchRatio, DEFAULT_CORRIDOR_RADIUS_KM } from "@onedal/shared";
 import { OrderRepository } from "../repositories/OrderRepository";
 import { PlaceRepository } from "../repositories/PlaceRepository";
 import { getUserSession, getAllActiveUserIds } from "../state/userSessionStore";
@@ -132,7 +132,7 @@ export function registerSocketHandlers(io: Server) {
             
             // 합짐 모드: 회랑 반경 또는 도착 반경 변경 시
             if (session.activeFilter.isSharedMode && (isCorridorChanged || isTargetChanged)) {
-                const cRadius = newFilter.corridorRadiusKm ?? session.activeFilter.corridorRadiusKm ?? 1;
+                const cRadius = newFilter.corridorRadiusKm ?? session.activeFilter.corridorRadiusKm ?? DEFAULT_CORRIDOR_RADIUS_KM;
                 const dRadius = newFilter.destinationRadiusKm ?? session.activeFilter.destinationRadiusKm ?? 10;
                 
                 const newRegions = recalculateCorridorFilter(userId, cRadius, dRadius);

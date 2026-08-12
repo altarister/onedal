@@ -597,6 +597,18 @@ export function deriveDispatchPhase(
  * DELIVERING(운전중) 상태일 때만 0km를 강제하고, 그 외에는 기사님의 원본 설정값을 그대로 사용합니다.
  * 이 함수를 통해서만 corridorRadiusKm를 결정하므로 하드코딩이 원천 차단됩니다.
  */
+/**
+ * 우회 반경 기본값. **한 곳에서만 정한다.**
+ *
+ * 🔴 2026-08-12 — 같은 기본값이 네 갈래로 갈라져 있었다.
+ *      dispatchEngine  `?? 10`   (회랑 계산에 실제로 쓰이던 값)
+ *      socketHandlers  `?? 1`
+ *      routes/filters  `?? 0`
+ *      DB · 세션 기본값 5
+ *    어느 값이 진짜인지 코드로는 알 수 없었다. DB 기본값(5)에 맞춘다.
+ */
+export const DEFAULT_CORRIDOR_RADIUS_KM = 5;
+
 export function getEffectiveCorridorRadius(
     phase: DispatchPhase,
     baseCorridorRadiusKm: number
