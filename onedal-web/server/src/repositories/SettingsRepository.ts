@@ -23,6 +23,25 @@ export class SettingsRepository {
     /**
      * 카카오 길찾기를 위한 사용자 디폴트 설정(차종 우선순위 등)을 로드합니다.
      */
+    /**
+     * 기사님 집 좌표 (사용자 설정의 '내 주소').
+     *
+     * [2026-08-12] GPS 대체 출발지로 쓴다. 예전에는 주소와 좌표를 코드에 박아 둔
+     * 임시 파일(`services/fallbackOrigin.ts`)이 있었는데, 기사님이 이미 설정 화면에서
+     * 같은 주소를 입력해 지오코딩까지 마쳐 둔 상태였다.
+     * **이미 있는 값을 두고 상수를 새로 만들 이유가 없다** — 이사하면 설정만 바꾸면 된다.
+     *
+     * 좌표가 없으면 `null`. 0,0 같은 가짜 좌표를 만들지 않는다.
+     */
+    public static getHomeLocation(userId: string): { x: number; y: number; address: string } | null {
+        const row = db.prepare(
+            `SELECT home_address, home_x, home_y FROM user_settings WHERE user_id = ?`
+        ).get(userId) as { home_address?: string; home_x?: number; home_y?: number } | undefined;
+
+        if (!row?.home_x || !row?.home_y) return null;
+        return { x: row.home_x, y: row.home_y, address: row.home_address || '내 주소' };
+    }
+
     public static getKakaoRoutingOptions(userId: string) {
         const row = db.prepare("SELECT vehicle_type, default_priority FROM user_settings WHERE user_id = ?").get(userId) as any;
         const vehicleTypeStr = row?.vehicle_type || '1t';

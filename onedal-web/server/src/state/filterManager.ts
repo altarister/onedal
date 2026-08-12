@@ -204,18 +204,40 @@ export function updateActiveFilter(
     const isTransitionToEmpty = previousPhase !== 'STANDBY' && nextPhase === 'STANDBY';
 
     if (isTransitionToEmpty) {
-        // 합짐 사이클 종료 → activeFilter를 baseFilter 기준으로 리셋하되, isActive는 유지
-        const currentIsActive = session.activeFilter.isActive;
+        /**
+         * 🔴 2026-08-12 — 여기서 `{...session.baseFilter}` 로 **통째로** 덮어쓰고 있었다.
+         *
+         * 바로 위 주석은 *"합짐 사이클에서 사용된 임시 값들(회랑, 차종 제한 등)을 리셋"* 이라고
+         * 적혀 있는데, 실제로는 **기사님이 오늘 정한 사냥 설정까지 전부** 되돌렸다 —
+         * 목적지 도시·최저 운임·상차 반경·블랙리스트.
+         *
+         * 기사님 의도: *"출근할 때 오늘 콜이 많이 나올 만한 곳으로 필터를 바꾸고,
+         * 복귀콜이나 그런 것 하면 그 값으로 돌아오게."*
+         * 그런데 코드는 **콜 하나 끝낼 때마다** 돌아갔다. 하루에 대여섯 번씩
+         * "오늘은 용인 쪽으로" 가 사라진 것이다.
+         *
+         * 그래서 되돌리는 것은 **합짐 사이클이 만든 파생값**뿐이다.
+         * 오늘 필터(baseFilter → activeFilter) 는 **영업일이 바뀔 때** 되돌아간다.
+         *
+         * 나머지 파생값(allowedVehicleTypes · isSharedMode · dispatchPhase)은
+         * 아래 불변식 블록이 활성 콜 수에서 매번 다시 구하므로 여기서 손대지 않는다.
+         */
         session.activeFilter = {
-            ...session.baseFilter,
-            isActive: currentIsActive,
+            ...session.activeFilter,
+            // 회랑은 이 사이클의 경로에서 나온 값이다 — 경로가 끝났으니 지운다.
+            // 비워 두면 recalculateDerivedFields 가 **오늘의** destinationCity 로 다시 만든다
+            destinationKeywords: [],
+            destinationGroups: {},
+            customCityFilters: [],
+            // 수동 고정도 사이클과 함께 풀린다 (다음 사냥은 자동 회랑으로 시작)
+            userOverrides: false,
             isSharedMode: false,
-            driverAction: 'WAITING',      // [V2] 합짐 사이클 종료 → 대기 상태
-            dispatchPhase: 'STANDBY',     // [V2] 합짐 사이클 종료 → 첫짐 탐색
+            driverAction: 'WAITING',
+            dispatchPhase: 'STANDBY',
         };
-        // 리셋 후 파생 데이터 재계산
         recalculateDerivedFields(session, {});
-        console.log(`[FilterManager] STANDBY 상태로 복귀: activeFilter를 baseFilter 기준으로 리셋했습니다.`);
+        console.log(`[FilterManager] STANDBY 복귀: 합짐 파생값만 되돌림 ` +
+            `(오늘 필터 유지 — 도착 ${session.activeFilter.destinationCity}, 최저 ${session.activeFilter.minFare}원)`);
     } else {
         // 일반 변경: activeFilter에 직접 덮어쓰기
         session.activeFilter = { ...session.activeFilter, ...changes };

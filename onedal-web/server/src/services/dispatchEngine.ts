@@ -5,7 +5,6 @@ import { mapVehicleToKakaoCarType, getRemainingCapacityTypes, deriveDispatchPhas
 import type { SecuredOrder, AutoDispatchFilter, PricingConfig, PendingOrder, MyOrder,
               Milestone, MilestoneSource } from "@onedal/shared";
 import { geocodeAddress, calculateSoloRoute, calculateDetourRoute, compareDirections } from "./kakaoService";
-import { getFallbackOrigin, FALLBACK_ORIGIN_ADDRESS } from "./fallbackOrigin";
 import { fetchRealWorldRoute } from "../routes/osrmUtil";
 import { getUserSession } from "../state/userSessionStore";
 import { updateActiveFilter } from "../state/filterManager";
@@ -572,16 +571,26 @@ export async function bootstrapUserSession(userId: string, io: any): Promise<voi
     logRoadmapEvent("서버", "[Bootstrap] 시작 — 필터 확정 전까지 앱폰 사냥 일시 정지");
 
     try {
-        // ⚠️ TEMP(gps-fallback) — 브라우저 GPS 가 안 잡히면 접근 구간(현위치 → 상차지)을 계산할 수 없어
-        //    통화에서 "몇 시까지 갈 수 있다"를 말할 수가 없다. 대체 출발지로 메운다.
-        //    **GPS 가 들어오면 그 값이 언제나 이긴다** (dashboard-gps-update).
-        //    GPS 가 복구되면 services/fallbackOrigin.ts 와 함께 이 블록을 지운다.
+        /**
+         * 브라우저 GPS 가 안 잡히면 접근 구간(현위치 → 상차지)을 계산할 수 없어
+         * 통화에서 "몇 시까지 갈 수 있다"를 말할 수가 없다.
+         * 그럴 때 **사용자 설정의 '내 주소'** 로 메운다.
+         *
+         * [2026-08-12] 예전에는 주소·좌표를 코드에 박은 임시 파일을 썼는데,
+         * 기사님이 이미 설정에 같은 주소를 지오코딩까지 해서 넣어 둔 상태였다.
+         * 있는 값을 쓰면 임시 코드가 필요 없고, 이사하면 설정만 바꾸면 된다.
+         *
+         * **GPS 가 들어오면 그 값이 언제나 이긴다** (dashboard-gps-update).
+         * 추정으로 계산했다는 사실은 `driverLocationIsFallback` 으로 숨기지 않는다.
+         */
         if (!session.driverLocation) {
-            const fb = await getFallbackOrigin();
-            if (fb) {
-                session.driverLocation = fb;
+            const home = SettingsRepository.getHomeLocation(userId);
+            if (home) {
+                session.driverLocation = { x: home.x, y: home.y };
                 session.driverLocationIsFallback = true;
-                console.log(`📍 [임시 출발지 적용] GPS 미수신 — ${FALLBACK_ORIGIN_ADDRESS} 기준으로 경로를 계산합니다`);
+                console.log(`📍 [출발지 대체] GPS 미수신 — 내 주소(${home.address}) 기준으로 경로를 계산합니다`);
+            } else {
+                console.warn(`⚠️ [출발지 없음] GPS 도 내 주소도 없습니다 — 접근 구간을 계산할 수 없습니다 (설정에서 내 주소를 넣어 주세요)`);
             }
         }
 
@@ -1199,7 +1208,7 @@ export async function createHomeReturn(
         session.myOrders.push(homeOrder as any);
         await evaluateNewOrder(userId, homeOrder as any, io);
 
-        const targetCorridor = options?.corridorRadiusKm ?? 10;
+        const targetCorridor = options?.corridorRadiusKm ?? DEFAULT_CORRIDOR_RADIUS_KM;
         updateActiveFilter(userId, {
             dispatchPhase: 'GATHERING',
             isSharedMode: true,

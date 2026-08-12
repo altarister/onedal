@@ -30,9 +30,9 @@ export interface UserSession {
     activeFilter: AutoDispatchFilter;
     driverLocation: { x: number; y: number } | null;
     /**
-     * ⚠️ TEMP(gps-fallback) — `driverLocation` 이 **GPS 가 아니라 대체 주소**에서 온 값인가.
-     * 화면이 "임시 출발지 기준"이라고 말할 수 있어야 한다. GPS 가 들어오면 false 로 돌아간다.
-     * (`services/fallbackOrigin.ts` — GPS 복구 시 통째로 삭제)
+     * `driverLocation` 이 **GPS 가 아니라 설정의 '내 주소'** 에서 온 값인가.
+     * 화면이 "내 주소 기준"이라고 말할 수 있어야 한다 — 추정으로 계산했다는 사실을 숨기지 않는다.
+     * GPS 가 들어오면 false 로 돌아간다 (진짜 위치가 언제나 이긴다).
      */
     driverLocationIsFallback: boolean;
     userVehicleType: string; // user_settings의 내 차종 (동적 허용 차종 생성용)

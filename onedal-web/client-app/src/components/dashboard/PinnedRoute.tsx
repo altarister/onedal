@@ -9,6 +9,7 @@ import CallDeck from './CallDeck';
 import DepartureCountdown from './DepartureCountdown';
 import { useCallProgress, EMPTY_RECORDS } from '../../hooks/useCallProgress';
 import { deckOrder } from '../../lib/deckFocus';
+import { apiClient } from '../../api/apiClient';
 import { getAddressLabel } from '../../lib/routeUtils';
 import { optimizeRouteOrder, buildEtaMap, buildVisitOrderMap } from '../../lib/routeOptimizer';
 import { useFilterConfig } from '../../hooks/useFilterConfig';
@@ -60,20 +61,27 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
     const { currentGps } = useMasterGps(isTestMode, isDriving, activePolyline || null);
 
     /**
-     * ⚠️ TEMP(gps-fallback) — GPS 가 살아나면 `null` 로 되돌린다
+     * 지도와 TSP 의 출발점. GPS 가 잡히면 아래 useEffect 가 곧바로 덮어쓴다.
      *
-     * 브라우저 GPS 가 안 잡혀 현위치를 모르면 지도도 TSP 순서도 기준점이 없다.
-     * 그래서 **서버와 같은 대체 출발지**를 쓴다 (`server/src/services/fallbackOrigin.ts`).
-     *   경기 광주시 초월읍 경충대로1127번길 15
-     *   → 127.2944428, 37.3766872 (기사님이 구글 지도로 확인, 2026-08-12)
-     *
-     * 서버는 주소를 지오코딩해서 쓰고 여기는 그 결과를 상수로 둔다 —
-     * 관제웹에서 카카오 키를 노출할 수 없기 때문이다. **두 값은 같은 지점이어야 한다.**
-     * GPS 가 들어오면 아래 useEffect 가 곧바로 덮어쓴다.
+     * [2026-08-12] GPS 가 안 잡히는 동안에는 **사용자 설정의 '내 주소'** 를 쓴다.
+     * 예전에는 좌표를 여기 박아 뒀는데(주석엔 "판교"라 적혀 있었지만 실은 집 주소였다),
+     * 기사님이 이미 설정에 넣어 둔 값이 있으므로 그것을 읽는다. 이사하면 설정만 바꾸면 된다.
+     * 서버도 같은 값을 쓴다 (`SettingsRepository.getHomeLocation`).
      */
-    const [myLocation, setMyLocation] = useState<{ x: number, y: number } | null>(
-        { x: 127.2944428, y: 37.3766872 }
-    );
+    const [myLocation, setMyLocation] = useState<{ x: number, y: number } | null>(null);
+
+    useEffect(() => {
+        let alive = true;
+        apiClient.get('/settings')
+            .then(({ data }: { data: { homeX?: number; homeY?: number } }) => {
+                const x = data?.homeX, y = data?.homeY;
+                if (!alive || x == null || y == null) return;
+                // GPS 가 이미 들어왔으면 건드리지 않는다 — 진짜 위치가 언제나 이긴다
+                setMyLocation(prev => prev ?? { x, y });
+            })
+            .catch(() => {});
+        return () => { alive = false; };
+    }, []);
 
     useEffect(() => {
         if (currentGps) {

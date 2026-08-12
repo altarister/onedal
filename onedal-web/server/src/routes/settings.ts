@@ -45,6 +45,10 @@ router.get("/", requireAuth, (req, res) => {
             defaultPriority: row.default_priority,
             avoidToll: !!row.avoid_toll,
             homeAddress: row.home_address || '',
+            // [2026-08-12] 좌표도 함께 내린다 — GPS 가 없을 때 관제웹 지도·TSP 의 출발점으로 쓴다.
+            // 예전에는 관제웹이 좌표를 코드에 박아 두고 있었다 (주석엔 "판교"라 적혀 있었는데 실은 집 주소였다)
+            homeX: row.home_x || null,
+            homeY: row.home_y || null,
             alarmVolume: row.alarm_volume ?? 50,
             destinationCity: row.destination_city || '',
             destinationRadiusKm: row.destination_radius_km,
