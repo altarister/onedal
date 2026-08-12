@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { apiClient } from "../../../api/apiClient";
+import { useCityOptions, resolveCity } from "../../../lib/cityOptions";
 import { VEHICLE_OPTIONS } from "@onedal/shared";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
@@ -21,6 +22,16 @@ export default function PricingSettingsTab({ onClose }: Props) {
   const [destinationRadiusKm, setDestinationRadiusKm] = useState<string>("");
   const [corridorRadiusKm, setCorridorRadiusKm] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
+
+  const cityGroups = useCityOptions();
+  const knownCities = cityGroups.flatMap(g => g.cities);
+  // 옛 저장값(`파주`)을 정식 이름(`파주시`)으로 끌어올린다 — 못 찾으면 그대로 둔다
+  useEffect(() => {
+    if (!destinationCity || !cityGroups.length) return;
+    if (knownCities.includes(destinationCity)) return;
+    const resolved = resolveCity(destinationCity, cityGroups);
+    if (resolved) setDestinationCity(resolved);
+  }, [cityGroups, destinationCity]);
 
   useEffect(() => {
     loadPricing();
@@ -158,8 +169,25 @@ export default function PricingSettingsTab({ onClose }: Props) {
         <label className="text-sm font-semibold text-text-muted">📍 내 노선 기본 설정</label>
         <div className="grid grid-cols-3 gap-2">
           <div className="space-y-1.5">
-            <label className="text-[10px] font-semibold text-text-muted">도착 시/도</label>
-            <Input type="text" value={destinationCity} onChange={(e) => setDestinationCity(e.target.value)} placeholder="경기" className="h-8 text-xs" />
+            <label className="text-[10px] font-semibold text-text-muted">도착 시/군</label>
+            {/* 자유 입력이었을 때 `파주` 가 저장됐고, 필터 모달의 고정 목록(`파주시`)과
+                맞지 않아 화면이 엉뚱한 도시를 보여줬다. 두 화면이 같은 목록을 쓴다 */}
+            <select
+              value={destinationCity}
+              onChange={(e) => setDestinationCity(e.target.value)}
+              className="flex h-8 w-full rounded-md border border-input bg-transparent px-2 text-xs shadow-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              {!knownCities.includes(destinationCity) && (
+                <option value={destinationCity} className="bg-surface-alt">
+                  {destinationCity ? `⚠️ ${destinationCity} (목록에 없음)` : '— 선택 —'}
+                </option>
+              )}
+              {cityGroups.map(g => (
+                <optgroup key={g.sido} label={g.sido}>
+                  {g.cities.map(c => <option key={c} value={c} className="bg-surface-alt">{c}</option>)}
+                </optgroup>
+              ))}
+            </select>
           </div>
           <div className="space-y-1.5">
             <label className="text-[10px] font-semibold text-text-muted">도착 반경(km)</label>

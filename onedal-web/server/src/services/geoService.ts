@@ -416,3 +416,47 @@ export function reverseGeocodeToRegion(lat: number, lng: number): string | null 
     }
     return null;
 }
+
+/**
+ * 도착 목표로 고를 수 있는 **시/군 목록**을 지도 데이터에서 만든다.
+ *
+ * 🔴 2026-08-12 — 예전에는 관제웹이 7개를 손으로 적어 두고 있었다.
+ *    기사님: *"7개를 임의로 내가 넣어 둔 거 같아. 시나 혹은 도 정도의 범위로 가져와야 할 듯."*
+ *
+ *    게다가 저장값(`파주`)과 선택지(`파주시`)가 안 맞아 브라우저가 조용히 **첫 항목**을 보여줬다.
+ *    화면은 `용인시`인데 실제 필터는 파주였다 — 화면이 거짓말을 한 것이다.
+ *    (서버 검색은 `includes` 라 `파주` 로도 잘 돌아서 아무도 몰랐다)
+ *
+ * ══ 어떤 단위로 묶는가 ══
+ *
+ * 지도 데이터의 `parentName` 은 표기가 세 갈래다.
+ *   `서울 강남구` · `인천 중구` · `파주시` · `수원시 권선구`
+ * 기사님이 고르는 단위는 **시**다. 그래서
+ *   서울·인천 → 광역시 하나로 (`서울` 이면 25개 구 전부)
+ *   경기       → 시/군 단위로 (`수원시` 면 4개 구 전부)
+ * 이렇게 묶으면 `getCityRegionsWithRadius` 의 `includes` 검색과 그대로 맞물린다.
+ */
+export function getSelectableCities(): { sido: string; cities: string[] }[] {
+    if (!mergedMapFeatureCollection?.features) return [];
+
+    const bySido = new Map<string, Set<string>>();
+    for (const f of mergedMapFeatureCollection.features) {
+        const parent = (f.properties as any)?.intel?.parentName as string | undefined;
+        if (!parent) continue;
+
+        const head = parent.split(' ')[0];
+        // 광역시는 그 자체가 하나의 선택지다 (구까지 나누면 25개가 쏟아진다)
+        const isMetro = head === '서울' || head === '인천';
+        const sido = isMetro ? head : '경기';
+        const city = isMetro ? head : head;   // 경기는 head 가 이미 시/군 이름이다
+
+        if (!bySido.has(sido)) bySido.set(sido, new Set());
+        bySido.get(sido)!.add(city);
+    }
+
+    // 광역시 먼저, 그 다음 경기 (가나다순)
+    const order = ['서울', '인천', '경기'];
+    return order
+        .filter(s => bySido.has(s))
+        .map(sido => ({ sido, cities: Array.from(bySido.get(sido)!).sort((a, b) => a.localeCompare(b, 'ko')) }));
+}

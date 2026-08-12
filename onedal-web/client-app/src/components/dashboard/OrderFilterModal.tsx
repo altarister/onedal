@@ -4,6 +4,7 @@ import { logRoadmapEvent } from "../../lib/roadmapLogger";
 import { VEHICLE_OPTIONS } from "@onedal/shared";
 import { socket } from "../../lib/socket";
 import { apiClient } from "../../api/apiClient";
+import { useCityOptions, resolveCity } from "../../lib/cityOptions";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Button } from "../ui/button";
@@ -29,6 +30,21 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
     const [corridorRadius, setCorridorRadius] = useState<string>("");
     const [blacklist, setBlacklist] = useState<string>("");
     const [selectedVehicles, setSelectedVehicles] = useState<string[]>([]);
+
+    /**
+     * 고를 수 있는 시/군 목록 — 지도 데이터에서 받는다.
+     * 예전에는 여기에 7개를 손으로 적어 뒀고, 저장값 `파주` 가 그 중 무엇과도 안 맞아
+     * 브라우저가 첫 항목 `용인시` 를 그렸다. 화면이 필터를 잘못 말한 것이다.
+     */
+    const cityGroups = useCityOptions();
+    const knownCities = cityGroups.flatMap(g => g.cities);
+    /** 목록에 없는 저장값(옛 `파주`)을 정식 이름으로 끌어올린다 — 못 찾으면 건드리지 않는다 */
+    useEffect(() => {
+        if (!targetCity || !cityGroups.length) return;
+        if (knownCities.includes(targetCity)) return;
+        const resolved = resolveCity(targetCity, cityGroups);
+        if (resolved) setTargetCity(resolved);
+    }, [cityGroups, targetCity]);
 
     // 배열 확인용 아코디언 상태
     const [isAccordionOpen, setIsAccordionOpen] = useState(false);
@@ -277,13 +293,20 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                         onChange={(e) => setTargetCity(e.target.value)}
                                         className="w-full h-9 bg-surface-alt/50 border border-border rounded-md px-2 text-[13px] text-info-alt font-bold outline-none focus:border-info-alt shadow-inner appearance-none"
                                     >
-                                        <option value="용인시">용인시</option>
-                                        <option value="수원시">수원시</option>
-                                        <option value="성남시">성남시</option>
-                                        <option value="화성시">화성시</option>
-                                        <option value="광주시">광주시</option>
-                                        <option value="평택시">평택시</option>
-                                        <option value="파주시">파주시</option>
+                                        {/* 아직 안 골랐거나, 목록에 없는 값이 저장돼 있을 때.
+                                            여기서 다른 도시를 대신 보여주면 화면이 필터를 잘못 말하게 된다 */}
+                                        {!knownCities.includes(targetCity) && (
+                                            <option value={targetCity}>
+                                                {targetCity ? `⚠️ ${targetCity} (목록에 없음)` : '— 선택 —'}
+                                            </option>
+                                        )}
+                                        {cityGroups.map(g => (
+                                            <optgroup key={g.sido} label={g.sido}>
+                                                {g.cities.map(c => (
+                                                    <option key={c} value={c}>{c}</option>
+                                                ))}
+                                            </optgroup>
+                                        ))}
                                     </select>
                                 </div>
                                 <div className="flex-[0.3] space-y-1">

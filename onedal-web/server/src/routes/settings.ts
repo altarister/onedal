@@ -7,7 +7,7 @@ import { getGroupedRegionsByCity } from "../geoResolver";
 import { saveBaseFilter } from "../state/filterManager";
 import { getUserSession } from "../state/userSessionStore";
 import { recalculateCorridorFilter } from "../services/dispatchEngine";
-import { getCityRegionsWithRadius } from "../services/geoService";
+import { getCityRegionsWithRadius, getSelectableCities } from "../services/geoService";
 
 const router = Router();
 
@@ -214,6 +214,29 @@ router.put("/", requireAuth, async (req, res) => {
     } catch (e) {
         console.error("Settings PUT 에러:", e);
         res.status(500).json({ error: "서버 오류발생" });
+    }
+});
+
+/**
+ * 도착 목표로 **고를 수 있는 시/군 목록**.
+ *
+ * 🔴 2026-08-12 — 이 API 가 없어서 두 화면이 각자 다른 방식으로 도시를 받고 있었다.
+ *    · 설정 > 요금 : 자유 입력 → `파주` 가 저장됨
+ *    · 필터 모달   : 손으로 적은 7개 목록 → `파주시` 만 있음
+ *    저장값이 목록에 없으니 브라우저가 조용히 **첫 항목(용인시)** 을 보여줬고,
+ *    기사님은 필터가 용인인 줄 알고 계셨다. 서버는 `includes` 검색이라 파주로 잘 돌고 있었다.
+ *
+ *    → 두 화면이 **같은 목록**을 쓰게 한다. 목록의 출처는 지도 데이터 하나뿐이다.
+ *
+ * ⚠️ 지금 지도 데이터는 **수도권(서울·인천·경기)** 만 있다. 그 밖은 아직 고를 수 없다 —
+ *    없는 지역을 목록에 넣으면 0개짜리 필터가 되어 사냥이 조용히 멈춘다.
+ */
+router.get("/cities", requireAuth, (_req, res) => {
+    try {
+        res.json({ groups: getSelectableCities() });
+    } catch (e) {
+        console.error("Cities 에러:", e);
+        res.status(500).json({ error: "서버 오류 발생" });
     }
 });
 

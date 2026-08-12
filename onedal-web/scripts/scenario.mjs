@@ -29,7 +29,7 @@
  *     이벤트 이름은 `pnpm audit:socket` 이 뽑는 목록과 대조할 것.
  *   · 서버가 실제로 재시작됐는지 확인할 것. `bootedAt` 을 매번 찍는다.
  */
-import { spawn } from 'node:child_process';
+import { spawn, execSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { existsSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
@@ -101,6 +101,26 @@ async function seed() {
 
 // ─────────────────────────── 서버 ───────────────────────────
 async function boot() {
+    /**
+     * 🔴 먼저 포트를 비운다.
+     *
+     * 앞선 실행이 비정상 종료하면 옛 서버가 4012 에 남는다. 그러면 아래 폴링이
+     * **그 서버에 붙어** 시드하지도 않은 DB 로 검사가 돌고, 21건 중 10건이 실패한다.
+     * 세 번 당했다 (2026-08-11 두 번, 08-12 한 번). 매번 제품이 깨진 줄 알고 뒤졌다.
+     *
+     * `pkill -f "PORT=4012"` 는 **안 잡힌다** — 환경변수는 명령줄에 안 보인다.
+     * 포트를 직접 쥔 프로세스를 죽여야 한다.
+     */
+    try {
+        const pids = execSync(`lsof -ti :${PORT} || true`, { encoding: 'utf8' }).trim();
+        if (pids) {
+            console.log(`🧹 ${PORT} 포트를 쥐고 있던 옛 프로세스를 정리합니다 (${pids.split('\n').join(', ')})`);
+            execSync(`kill -9 ${pids.split('\n').join(' ')}`);
+            await wait(1000);
+        }
+    } catch { /* lsof 가 없는 환경이면 그냥 진행한다 */ }
+
+    const bootAfter = Date.now();
     const p = spawn('npx', ['tsx', 'src/index.ts'], {
         cwd: SERVER, env: { ...process.env, DB_FILE: DB, PORT: String(PORT) }, stdio: 'ignore',
     });
@@ -110,9 +130,19 @@ async function boot() {
             const r = await fetch(`http://localhost:${PORT}/api/health`);
             const h = await r.json();
             // 무엇이 실제로 돌고 있는지 매번 확인한다 — 옛 서버를 붙잡고 오진한 적이 있다
+            if (new Date(h.bootedAt).getTime() < bootAfter) {
+                p.kill('SIGKILL');
+                throw new Error(
+                    `🔴 ${PORT} 에 옛 서버가 응답합니다 (bootedAt=${h.bootedAt}). ` +
+                    `이 결과는 믿을 수 없습니다 — 검사를 중단합니다.`
+                );
+            }
             console.log(`🚀 서버 기동 · bootedAt=${h.bootedAt}\n`);
             return p;
-        } catch { /* 아직 */ }
+        } catch (e) {
+            if (String(e.message).startsWith('🔴')) throw e;
+            /* 아직 */
+        }
     }
     p.kill('SIGKILL');
     throw new Error('서버가 40초 안에 뜨지 않았습니다');
