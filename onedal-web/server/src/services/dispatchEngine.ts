@@ -1,6 +1,6 @@
 import { mapVehicleToKakaoCarType, getRemainingCapacityTypes, deriveDispatchPhase, normalizeVehicleType,
          MILESTONE_TO_STATUS, MILESTONE_LABEL, canReportMilestone, timingError,
-         RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, UNFINISHED_RESTORE_DAYS,
+         RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, UNFINISHED_RESTORE_DAYS, deriveStatusFromMilestones,
          restoreWindow } from "@onedal/shared";
 import type { SecuredOrder, AutoDispatchFilter, PricingConfig, PendingOrder, MyOrder,
               Milestone, MilestoneSource } from "@onedal/shared";
@@ -868,6 +868,41 @@ export interface MilestoneResult {
  *              경로 재계산이 잔여 용량과 회랑을 다시 넓혀 준다
  *   ⑤ 출처 기록 나중에 자동 감지 정확도를 측정할 유일한 근거
  */
+/**
+ * 잘못 누른 마일스톤을 되돌린다.
+ *
+ * 상태를 손으로 되돌리지 않는다 — 지우고 나서 **남은 마일스톤으로 다시 파생**시킨다.
+ * (`deriveStatusFromMilestones`) 취소 경로마다 목표 상태를 정하면 그 규칙들이 갈라진다.
+ */
+export async function undoMilestone(userId: string, orderId: string, milestone: Milestone, io: any) {
+    const session = getUserSession(userId);
+    const removed = OrderRepository.deleteMilestone(orderId, userId, milestone);
+    if (!removed) return { success: false, reason: 'NOT_FOUND' as const };
+
+    const rest = OrderRepository.getMilestones(orderId) as { milestone: string }[];
+    const status = deriveStatusFromMilestones(rest);
+
+    setOrderStatus(session, orderId, status);
+    try {
+        db.prepare(`UPDATE orders SET status = ?, completedAt = CASE WHEN ? = 'ORDER_DELIVERED' THEN completedAt ELSE NULL END
+                    WHERE id = ? AND userId = ?`).run(status, status, orderId, userId);
+    } catch (e) {
+        console.error('🚨 [마일스톤 취소] DB 갱신 실패:', e);
+    }
+
+    console.log(`↩️ [마일스톤 취소] ${MILESTONE_LABEL[milestone]} 삭제 → 남은 기록 기준 ${status}`);
+    logRoadmapEvent("서버", `[마일스톤 취소] ${MILESTONE_LABEL[milestone]}`);
+
+    // 되돌린 것도 저장이다 — 같은 규칙으로 전파한다
+    await recalculateActiveKakaoRoute(userId, io);
+    updateActiveFilter(userId, {}, io);
+    if (io) {
+        io.to(userId).emit("sync-active-orders", buildOrderSync(session));
+        io.to(userId).emit("milestone-log", { orderId, milestones: OrderRepository.getMilestones(orderId) });
+    }
+    return { success: true, status };
+}
+
 export async function reportMilestone(
     userId: string,
     orderId: string,
@@ -959,12 +994,22 @@ export async function reportMilestone(
         console.log(`🚚 [적재 회복] 하차 완료 → 남은 활성 콜 ${remaining.length}건 기준으로 필터 재계산`);
     }
 
+    /**
+     * 🔴 2026-08-12 — 여기서 `filter-updated` 를 쏘긴 했는데 **필터를 다시 파생시키지는 않았다.**
+     *    그래서 옛 값을 그대로 다시 보내고 있었다.
+     *
+     *    기사님이 세운 기준: *"각 단계별로 값이 저장되면 거기에 따른 필터나
+     *    관련 값들이 수정되어 전파되어야 한다."*
+     *    통화·현장 저장(`save-cargo-report`)은 T4 에서 재파생을 걸었는데
+     *    **마일스톤 4종은 DELIVERED 만** 재계산되고 나머지 셋은 빠져 있었다.
+     *    단계마다 규칙이 다르면 어느 단계에서 무엇이 갱신되는지 아무도 못 외운다.
+     *
+     *    `updateActiveFilter` 가 불변식 재파생과 broadcast 를 함께 하므로 손으로 emit 하지 않는다.
+     */
+    updateActiveFilter(userId, {}, io);
+
     if (io) {
         io.to(userId).emit("sync-active-orders", buildOrderSync(session));
-        io.to(userId).emit("filter-updated", {
-            activeFilter: session.activeFilter,
-            baseFilter: session.baseFilter,
-        });
     }
 
     return { success: true, status: nextStatus ?? order.status };

@@ -1,4 +1,4 @@
-import { deriveCallStep, canRewindTo, remainingToStop, CALL_STEPS, CALL_STEP_COUNT, STEP_MILESTONE } from '@onedal/shared';
+import { deriveCallStep, canRewindTo, remainingToStop, deriveStatusFromMilestones, CALL_STEPS, CALL_STEP_COUNT, STEP_MILESTONE } from '@onedal/shared';
 import type { CargoReport } from '@onedal/shared';
 
 /**
@@ -171,5 +171,58 @@ describe('remainingToStop — 지금부터 이 정거장까지', () => {
     it('구간을 몰라도 상차 시간은 그대로 남는다 — 아는 것까지는 반영한다', () => {
         const r = remainingToStop({ ...base, stop: 'dropoff', approachMinutes: null });
         expect(r.leadMinutes).toBe(15);
+    });
+});
+
+/**
+ * [2026-08-12] 건너뛰기를 서버에 남긴다 (`kind: 'SKIPPED'`).
+ *
+ * 기사님 기준: *"완료 전까지는 페이지별로 기억하고 있어야 하고 수정이 가능해야 한다."*
+ * 예전엔 화면 로컬(`skippedTo`)이라 **새로고침하면 통화 단계가 되살아났다.**
+ * 건너뛰기는 안 한 일이 아니라 **기사님이 내린 결정**이므로 기록할 값이다.
+ */
+describe('통화 건너뛰기도 증거다', () => {
+    const skip = (stop: 'pickup' | 'dropoff'): CargoReport =>
+        ({ stopType: stop, kind: 'SKIPPED' }) as CargoReport;
+
+    it('🔴 상차지 통화를 건너뛰면 하차지 통화 단계로 간다 (새로고침해도 유지)', () => {
+        expect(deriveCallStep([], [skip('pickup')]).index).toBe(1);
+    });
+
+    it('둘 다 건너뛰면 상차지 도착 단계로 간다', () => {
+        expect(deriveCallStep([], [skip('pickup'), skip('dropoff')]).index).toBe(2);
+    });
+
+    it('건너뛴 칸은 done 이 아니다 — 지나갔지만 내용이 없다는 것이 구분되어야 한다', () => {
+        const p = deriveCallStep([], [skip('pickup')]);
+        expect(p.index).toBe(1);
+        expect(p.done[0]).toBe(false);
+    });
+
+    it('통화한 칸은 done 이다', () => {
+        const p = deriveCallStep([], [call('pickup')]);
+        expect(p.done[0]).toBe(true);
+    });
+
+    it('마일스톤이 더 앞서 있으면 그쪽이 이긴다', () => {
+        expect(deriveCallStep(ms('PICKED_UP'), [skip('pickup')]).index).toBe(4);
+    });
+});
+
+describe('deriveStatusFromMilestones — 지우고 나서 다시 구한다', () => {
+    it('하차 완료가 남아 있으면 ORDER_DELIVERED', () => {
+        expect(deriveStatusFromMilestones(ms('PICKED_UP', 'DELIVERED'))).toBe('ORDER_DELIVERED');
+    });
+
+    it('🔴 하차 완료를 지우면 상차 완료로 되돌아간다 (손으로 정하지 않는다)', () => {
+        expect(deriveStatusFromMilestones(ms('ARRIVED_PICKUP', 'PICKED_UP'))).toBe('ORDER_PICKED_UP');
+    });
+
+    it('상차 완료까지 지우면 확정 상태로 되돌아간다', () => {
+        expect(deriveStatusFromMilestones(ms('ARRIVED_PICKUP'))).toBe('ORDER_CONFIRMED');
+    });
+
+    it('아무것도 없으면 확정 상태', () => {
+        expect(deriveStatusFromMilestones([])).toBe('ORDER_CONFIRMED');
     });
 });

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import {
     HANDLING_METHODS, cargoPoints, parseCargoHints, hasCargoHints,
-    CARGO_TAGS, CARGO_TAG_META, computeSlackMinutes,
+    CARGO_TAGS, CARGO_TAG_META, DEFAULT_CARGO_TAG, computeSlackMinutes,
     CARGO_UNITS, CARGO_UNIT_QUANTITY_INPUT,
     buildArrivalSlots, dwellMinutes, unitPoints,
 } from '@onedal/shared';
@@ -115,8 +115,6 @@ export default function StopCallSheet({
     /** 십·일의 자리를 각각 기억한다. 수량은 둘의 합이다 */
     const [tens, setTens] = useState(0);
     const [ones, setOnes] = useState<number | null>(null);
-    /** 기사님: *"성질 선택은 특수한 상황에서만 필요할 듯."* → 기본 접힘 */
-    const [showTags, setShowTags] = useState(false);
     /** 적요에서 미리 채운 값인가 — 어디서 온 값인지 숨기지 않는다 */
     const [prefilledFromMemo, setPrefilledFromMemo] = useState(false);
     /** 하차지 시각을 상차지 통화에서 미리 들어 둔 값으로 채웠는가 */
@@ -199,7 +197,7 @@ export default function StopCallSheet({
             setTens(Math.floor((h.quantity ?? 0) / 10) * 10);
             setOnes(h.quantity ? h.quantity % 10 : null);
             setHandling(h.handling);
-            setTags(h.tags ? [...h.tags] : []);
+            setTags(h.tags?.length ? [...h.tags] : [DEFAULT_CARGO_TAG]);
             setMemo(src?.memo || '');
             setDeadlineAt(src?.deadlineAt ?? onward);
             return;
@@ -212,7 +210,8 @@ export default function StopCallSheet({
         setTens(Math.floor(q / 10) * 10);
         setOnes(q > 0 ? q % 10 : null);
         setHandling(src?.handling);
-        setTags(src?.tags ? [...src.tags] : []);
+        // 성질을 한 번도 안 고른 기록이면 기본값을 넣는다 — 빈 값과 '특별할 것 없음'은 다르다
+        setTags(src?.tags?.length ? [...src.tags] : [DEFAULT_CARGO_TAG]);
         setMemo(src?.memo || '');
         setDeadlineAt(src?.deadlineAt ?? onward);
         setOnwardDeadlineAt(src?.onwardDeadlineAt);
@@ -376,16 +375,11 @@ export default function StopCallSheet({
                 ))}
             </Row>
 
-            {/* 기사님: *"성질 선택은 특수한 상황에서만 필요할 듯."*
-                8개 칩이 늘 펼쳐져 있으면 폰 한 화면을 그만큼 잡아먹는다.
-                이미 고른 게 있으면 접지 않는다 — 접어서 숨기면 무엇을 골랐는지 알 수 없다. */}
-            {isPickup && !showTags && tags.length === 0 && (
-                <button onClick={() => setShowTags(true)}
-                    className="w-full py-2 rounded-md border border-border border-dashed text-[11px] font-bold text-text-muted">
-                    + 성질 (농산물 · 파손주의 · 위험물 …)
-                </button>
-            )}
-            {isPickup && (showTags || tags.length > 0) && (
+            {/* [2026-08-12] 기사님 결정 — 성질을 **항상 펼쳐 둔다.**
+                예전엔 "특수한 상황에서만"이라 접었는데, `일반화물` 이 기본으로 들어가면서
+                **누르지 않아도 이미 답이 정해져 있는** 줄이 되었다.
+                접어 두면 그 기본값이 보이지 않아 오히려 확인이 안 된다. */}
+            {isPickup && (
                 <Row title="성질">
                     {CARGO_TAGS.map(t => {
                         const on = tags.includes(t);
@@ -696,26 +690,41 @@ export default function StopCallSheet({
 
                     {/* ⑤ 시간을 남기는 버튼들 */}
                     <div className="flex gap-2">
+                        {/* 🔴 2026-08-12 — 눌러 놓고 되돌릴 수가 없었다.
+                            기사님 기준: *"단계별로 DB 에 저장하고 … **수정이 가능해야 한다**."*
+                            잘못 눌러도 시각 기록이 영영 틀어진 채 남았다.
+                            이미 누른 버튼은 **취소 버튼**이 된다 (한 번 더 묻는다). */}
                         <button
-                            disabled={!!arrivedAt}
-                            onClick={() => socket.emit('report-milestone', {
-                                orderId, milestone: isPickup ? 'ARRIVED_PICKUP' : 'ARRIVED_DROPOFF',
-                                predictedAt: driveKnown ? new Date(Date.now() + driveMinutes! * 60_000).toISOString() : undefined,
-                            })}
+                            onClick={() => {
+                                const m = isPickup ? 'ARRIVED_PICKUP' : 'ARRIVED_DROPOFF';
+                                if (!arrivedAt) {
+                                    socket.emit('report-milestone', {
+                                        orderId, milestone: m,
+                                        predictedAt: driveKnown ? new Date(Date.now() + driveMinutes! * 60_000).toISOString() : undefined,
+                                    });
+                                } else if (confirm(`도착 기록(${hhmm(arrivedAt)})을 취소할까요?`)) {
+                                    socket.emit('undo-milestone', { orderId, milestone: m });
+                                }
+                            }}
                             className={`flex-1 py-2.5 rounded-md text-[13px] font-black border ${
                                 arrivedAt ? 'bg-text-muted/10 text-text-muted border-border'
                                 : 'bg-warning/12 text-warning border-warning/45'
                             }`}>
-                            {arrivedAt ? `✓ 도착 ${hhmm(arrivedAt)}` : '📍 도착'}
+                            {arrivedAt ? `✓ 도착 ${hhmm(arrivedAt)} · 취소` : '📍 도착'}
                         </button>
                         <button
-                            disabled={doneLoad}
-                            onClick={() => { save('ACTUAL'); socket.emit('report-milestone', { orderId, milestone: isPickup ? 'PICKED_UP' : 'DELIVERED' }); }}
+                            onClick={() => {
+                                const m = isPickup ? 'PICKED_UP' : 'DELIVERED';
+                                if (!doneLoad) { save('ACTUAL'); socket.emit('report-milestone', { orderId, milestone: m }); }
+                                else if (confirm(`${isPickup ? '상차' : '하차'} 완료 기록을 취소할까요?`)) {
+                                    socket.emit('undo-milestone', { orderId, milestone: m });
+                                }
+                            }}
                             className={`flex-1 py-2.5 rounded-md text-[13px] font-black border ${
                                 doneLoad ? 'bg-text-muted/10 text-text-muted border-border'
                                 : 'bg-success text-white border-success'
                             }`}>
-                            {doneLoad ? (isPickup ? '✓ 상차완료' : '✓ 하차완료') : (isPickup ? '📦 상차 완료' : '🏁 하차 완료')}
+                            {doneLoad ? (isPickup ? '✓ 상차완료 · 취소' : '✓ 하차완료 · 취소') : (isPickup ? '📦 상차 완료' : '🏁 하차 완료')}
                         </button>
                         {isPickup && !doneLoad && (
                             <button onClick={() => socket.emit('cancel-at-stop', { orderId, stopType, reason: memo || '현장 상차 불가' })}

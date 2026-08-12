@@ -39,9 +39,10 @@ describe('parseCargoHints — 적요에서 통화 시트 미리 채우기', () =
         expect(parseCargoHints('서류봉투').unit).toBe('서류봉투');
         expect(parseCargoHints('파렛트 2개').unit).toBe('파레트');
         expect(parseCargoHints('쇼핑백 2개').unit).toBe('쇼핑백');
-        // '가전' 은 단위가 아니라 성질이다 — 냉장고와 전기면도기가 같은 부피일 리 없다
+        // '가전' 은 단위가 아니다 — 냉장고와 전기면도기가 같은 부피일 리 없다.
+        // 2026-08-12 에 성질에서도 뺐다 (부피도 취급도 제각각이라 묶이지 않는다).
         expect(parseCargoHints('소형 가전').unit).toBeUndefined();
-        expect(parseCargoHints('소형 가전').tags).toEqual(['가전']);
+        expect(parseCargoHints('소형 가전').tags).toBeUndefined();
     });
 
     it('더 구체적인 낱말이 먼저 잡힌다', () => {
@@ -56,7 +57,7 @@ describe('parseCargoHints — 적요에서 통화 시트 미리 채우기', () =
 
     it('여러 필드를 합쳐 근거 문구를 만든다', () => {
         expect(parseCargoHints('1시상차 6박스 카트가지고').summary).toBe('라면박스 · 6개 · 수작업 · 01:00 상차');
-        expect(parseCargoHints('냉장고 1개 파손주의').summary).toBe('가전·파손주의 · 1개');
+        expect(parseCargoHints('냉장고 1개 파손주의').summary).toBe('파손주의 · 1개');
     });
 
     it('물품명과 적요를 함께 넘길 수 있다', () => {

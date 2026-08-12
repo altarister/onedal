@@ -58,8 +58,10 @@ interface MilestoneRow { milestone: string }
  */
 function evidenceIndex(milestones: MilestoneRow[], reports: CargoReport[]): number {
     const has = (m: string) => milestones.some(x => x.milestone === m);
+    // 통화를 했든(DECLARED) 건너뛰기로 했든(SKIPPED) **그 단계는 지나간 것**이다.
+    // 건너뛰기도 서버에 남으므로 새로고침해도 되살아나지 않는다 (2026-08-12).
     const called = (stop: 'pickup' | 'dropoff') =>
-        reports.some(r => r.stopType === stop && r.kind === 'DECLARED');
+        reports.some(r => r.stopType === stop && (r.kind === 'DECLARED' || r.kind === 'SKIPPED'));
 
     if (has('DELIVERED')) return 6;
     if (has('ARRIVED_DROPOFF')) return 5;
@@ -79,6 +81,8 @@ export function deriveCallStep(
     skippedTo = 0,
 ): CallProgress {
     const has = (m: string) => milestones.some(x => x.milestone === m);
+    // `done` 은 **통화를 실제로 한** 단계만 초록으로 칠한다 —
+    // 건너뛴 칸은 지나갔지만 내용이 없다는 것을 화면에서 구분할 수 있어야 한다
     const called = (stop: 'pickup' | 'dropoff') =>
         reports.some(r => r.stopType === stop && r.kind === 'DECLARED');
 

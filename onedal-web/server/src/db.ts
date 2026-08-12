@@ -352,6 +352,39 @@ dropStaleCheck('order_milestones', `
 ]);
 
 ensureColumns('order_milestones', { predictedAt: 'TEXT' });
+/**
+ * 🔴 2026-08-12 — 옛 DB 의 `stop_cargo_reports` 에 CHECK 제약이 굳어 있었다.
+ *
+ *     kind TEXT NOT NULL CHECK(kind IN ('DECLARED', 'ACTUAL'))
+ *
+ * 파일 위쪽 주석이 경고해 둔 바로 그 함정인데, `order_milestones` 에만 걸고
+ * 이 테이블은 빠뜨렸다. 그래서 `kind: 'SKIPPED'`(통화 건너뛰기)를 저장하려는 순간
+ * **`CHECK constraint failed` 로 조용히 실패**했다 (safeOn 이 잡아 서버는 살았다).
+ *
+ * 허용값 목록이 `@onedal/shared` 의 `CargoReportKind` 와 **두 번째 진실 공급원**이 된다.
+ * 검증은 애플리케이션 한 곳에서만 한다.
+ */
+dropStaleCheck('stop_cargo_reports', `
+    CREATE TABLE stop_cargo_reports (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        orderId     TEXT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+        userId      TEXT NOT NULL,
+        stopType    TEXT NOT NULL,   -- 'pickup' | 'dropoff'
+        kind        TEXT NOT NULL,   -- 'DECLARED'(통화) | 'ACTUAL'(현장) | 'SKIPPED'(통화 건너뜀)
+        unit        TEXT,
+        sizeClass   TEXT,
+        quantity    INTEGER,
+        handling    TEXT,
+        promisedAt  TEXT,
+        deadlineAt  TEXT,
+        onwardDeadlineAt TEXT,
+        tags        TEXT,
+        memo        TEXT,
+        recordedAt  TEXT NOT NULL,
+        UNIQUE(orderId, stopType, kind)
+    )
+`, [`CREATE INDEX IF NOT EXISTS idx_cargo_orderId ON stop_cargo_reports(orderId)`]);
+
 ensureColumns('stop_cargo_reports', { unit: 'TEXT', deadlineAt: 'TEXT', tags: 'TEXT',
     // 상차지 통화에서 함께 들은 하차지 도착 예정 (하차지 기록으로 저장하면 단계를 건너뛰게 된다)
     onwardDeadlineAt: 'TEXT' });

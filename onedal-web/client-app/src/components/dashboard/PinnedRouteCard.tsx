@@ -471,7 +471,18 @@ export default function PinnedRouteCard({
                                     {shownStep?.optional && (
                                         <button
                                             type="button"
-                                            onClick={(e) => { e.stopPropagation(); setSkippedTo(shownIndex + 1); setViewIndex(null); }}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                // 건너뛰기도 **결정**이다 — 서버에 남겨야 새로고침해도 안 되살아난다
+                                                socket.emit('save-cargo-report', {
+                                                    orderId: route.id,
+                                                    stopType: shownStep.stop,
+                                                    kind: 'SKIPPED',
+                                                    memo: '통화 없이 진행',
+                                                });
+                                                setSkippedTo(shownIndex + 1);   // 서버 응답 전까지의 낙관적 표시
+                                                setViewIndex(null);
+                                            }}
                                             className="w-full py-2.5 -mt-1 rounded-lg border border-border border-dashed text-[13px] font-bold text-text-muted"
                                         >
                                             통화 스킵

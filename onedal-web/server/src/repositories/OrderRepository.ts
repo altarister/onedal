@@ -146,6 +146,18 @@ export class OrderRepository {
                   .get(orderId) as any) || {};
     }
 
+    /**
+     * 잘못 누른 마일스톤을 지운다.
+     *
+     * 기사님 기준: *"단계별로 DB 에 저장하고 … 수정이 가능해야 한다."*
+     * 도착을 잘못 눌러도 되돌릴 방법이 없었다 — 시각 기록이 영영 틀어진 채 남는다.
+     */
+    public static deleteMilestone(orderId: string, userId: string, milestone: string): boolean {
+        const r = db.prepare(`DELETE FROM order_milestones WHERE orderId = ? AND userId = ? AND milestone = ?`)
+                    .run(orderId, userId, milestone);
+        return r.changes > 0;
+    }
+
     /** 한 오더의 마일스톤 이력 (예상 대비 오차 확인용) */
     public static getMilestones(orderId: string) {
         return db.prepare(`SELECT milestone, occurredAt, predictedAt, source

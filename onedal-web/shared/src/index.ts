@@ -174,6 +174,21 @@ export const MILESTONE_TO_STATUS: Record<Milestone, OrderStatus | null> = {
     DELIVERED: 'ORDER_DELIVERED',
 };
 
+/**
+ * 남아 있는 마일스톤으로 **오더 상태를 파생**한다.
+ *
+ * 기사님 기준: *"단계별로 DB 에 저장하고 … **수정이 가능해야 한다**."*
+ * 잘못 누른 마일스톤을 지울 때 상태를 손으로 되돌리면(예: DELIVERED 취소 → CONFIRMED)
+ * 어느 상태로 갈지를 취소 경로마다 다시 정해야 하고, 그러다 갈라진다.
+ * 지우고 나서 **남은 것으로 다시 구하면** 갈라질 자리가 없다.
+ */
+export function deriveStatusFromMilestones(milestones: { milestone: string }[]): OrderStatus {
+    const has = (m: string) => milestones.some(x => x.milestone === m);
+    if (has('DELIVERED')) return 'ORDER_DELIVERED';
+    if (has('PICKED_UP')) return 'ORDER_PICKED_UP';
+    return 'ORDER_CONFIRMED';
+}
+
 export const MILESTONE_LABEL: Record<Milestone, string> = {
     ARRIVED_PICKUP: '상차지 도착',
     PICKED_UP: '상차 완료',
@@ -214,7 +229,18 @@ export const CARGO_SIZE_POINTS: Record<CargoSize, number> = {
 export const HANDLING_METHODS = ['지게차', '수작업', '호이스트', '검수'] as const;
 export type HandlingMethod = typeof HANDLING_METHODS[number];
 
-export type CargoReportKind = 'DECLARED' | 'ACTUAL';
+/**
+ * 정거장 기록의 종류.
+ *
+ * [2026-08-12] `SKIPPED` 추가 — **통화를 건너뛰기로 한 결정**.
+ *
+ * 기사님 기준: *"완료 전까지는 페이지별로 기억하고 있어야 하고 수정이 가능해야 한다."*
+ * 예전엔 건너뛰기가 화면 로컬(`skippedTo`)이라 **새로고침하면 되살아났다.**
+ * "안 한 일을 기록하지 않는다"는 원칙과 충돌하지 않는다 —
+ * 건너뛰기는 안 한 일이 아니라 **기사님이 내린 결정**이고, 시각과 함께 남길 값이다.
+ * (나중에 "적요만 보고 갔다가 문제가 생긴" 경우를 되짚을 수 있다)
+ */
+export type CargoReportKind = 'DECLARED' | 'ACTUAL' | 'SKIPPED';
 
 export interface CargoReport {
     stopType: 'pickup' | 'dropoff';

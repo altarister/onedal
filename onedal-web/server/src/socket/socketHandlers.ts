@@ -10,7 +10,7 @@ import { OrderRepository } from "../repositories/OrderRepository";
 import { PlaceRepository } from "../repositories/PlaceRepository";
 import { getUserSession, getAllActiveUserIds } from "../state/userSessionStore";
 import { buildOrderSync } from "../core/helpers";
-import { recalculateCorridorFilter, handleDecision, recalculateKakaoRoute, bootstrapUserSession, completeOrder, reportMilestone, startTwoTrack, createHomeReturn } from "../services/dispatchEngine";
+import { recalculateCorridorFilter, handleDecision, recalculateKakaoRoute, bootstrapUserSession, completeOrder, reportMilestone, undoMilestone, startTwoTrack, createHomeReturn } from "../services/dispatchEngine";
 import { updateActiveFilter } from "../state/filterManager";
 import { processDriverMovement, getCityRegionsWithRadius } from "../services/geoService";
 
@@ -180,6 +180,17 @@ export function registerSocketHandlers(io: Server) {
         safeOn(socket, "report-milestone", async (data: { orderId: string, milestone: Milestone, occurredAt?: string, predictedAt?: string }) => {
             logRoadmapEvent("서버", `관제탑으로부터 ${data.milestone} 보고 수신`);
             const result = await reportMilestone(userId, data.orderId, data.milestone, 'MANUAL_WEB', io, data.occurredAt, data.predictedAt);
+            socket.emit("milestone-result", { orderId: data.orderId, ...result });
+            socket.emit("milestone-log", { orderId: data.orderId, milestones: OrderRepository.getMilestones(data.orderId) });
+        });
+
+        /**
+         * 잘못 누른 마일스톤 되돌리기.
+         * 기사님 기준: *"단계별로 DB 에 저장하고 … 수정이 가능해야 한다."*
+         */
+        safeOn(socket, "undo-milestone", async (data: { orderId: string, milestone: Milestone }) => {
+            if (!data.orderId || !data.milestone) throw new Error("orderId 또는 milestone 누락");
+            const result = await undoMilestone(userId, data.orderId, data.milestone, io);
             socket.emit("milestone-result", { orderId: data.orderId, ...result });
             socket.emit("milestone-log", { orderId: data.orderId, milestones: OrderRepository.getMilestones(data.orderId) });
         });
