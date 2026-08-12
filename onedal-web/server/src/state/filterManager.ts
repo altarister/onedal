@@ -68,12 +68,22 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
         const city = session.activeFilter.destinationCity;
         const radius = session.activeFilter.destinationRadiusKm || 0;
         console.log(`🗺️ [FilterManager] 지리 연산 트리거 (city=${city}, radius=${radius}km)`);
-        const { flat, grouped } = getCityRegionsWithRadius(city, radius);
+        const { flat, grouped, customCityFilters } = getCityRegionsWithRadius(city, radius);
         session.activeFilter.destinationKeywords = flat;
         session.activeFilter.destinationGroups = grouped;
+        /**
+         * 🔴 2026-08-12 — 첫짐에도 **시 별칭**을 실어 보낸다.
+         *
+         * 예전에는 여기서 안 채워서 앱의 2단계 필터(`시 + 동` 교차 확인)가
+         * `customCityFilters.isNotEmpty()` 조건에 걸려 **아예 돌지 않았다.**
+         * 동 이름만 보고 판정했고, 수도권 안에만 같은 이름의 동이 97개 있다 —
+         * 파주 필터에 서울 서대문구 `신촌동` 콜이 그대로 통과했다.
+         */
+        session.activeFilter.customCityFilters = customCityFilters;
     } else if (!session.activeFilter.destinationCity) {
         session.activeFilter.destinationKeywords = [];
         session.activeFilter.destinationGroups = {};
+        session.activeFilter.customCityFilters = [];
     }
     // else: 도시/반경 변경 없음 → 기존 캐시된 destinationKeywords 유지 (이벤트 루프 보호)
 

@@ -316,11 +316,35 @@ importers:
       '@onedal/shared':
         specifier: workspace:*
         version: link:../shared
+      '@turf/bbox':
+        specifier: 7.3.4
+        version: 7.3.4
       '@turf/boolean-intersects':
-        specifier: ^7.3.4
+        specifier: 7.3.4
+        version: 7.3.4
+      '@turf/boolean-point-in-polygon':
+        specifier: 7.3.4
+        version: 7.3.4
+      '@turf/buffer':
+        specifier: 7.3.4
+        version: 7.3.4
+      '@turf/centroid':
+        specifier: 7.3.4
+        version: 7.3.4
+      '@turf/helpers':
+        specifier: 7.3.4
+        version: 7.3.4
+      '@turf/nearest-point-on-line':
+        specifier: 7.3.4
+        version: 7.3.4
+      '@turf/simplify':
+        specifier: 7.3.4
         version: 7.3.4
       '@turf/turf':
         specifier: ^7.3.4
+        version: 7.3.4
+      '@turf/union':
+        specifier: 7.3.4
         version: 7.3.4
       bcrypt:
         specifier: ^6.0.0

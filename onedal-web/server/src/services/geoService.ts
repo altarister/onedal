@@ -1,6 +1,26 @@
 import fs from 'fs';
 import path from 'path';
-import * as turf from '@turf/turf';
+/**
+ * 배럴(`@turf/turf`) 대신 **쓰는 것만** 가져온다.
+ *
+ * 배럴은 클러스터링·보간 등 이 프로젝트가 안 쓰는 모듈까지 전부 끌고 오는데,
+ * 그 중 하나가 node_modules 안에 TypeScript 원본을 담고 있어 **jest 가 파싱 단계에서 죽었다.**
+ * (`tsx`·`tsc` 는 멀쩡히 도는데 jest 만 못 읽어서 지리 테스트를 못 쓰고 있었다)
+ */
+import bbox from '@turf/bbox';
+import booleanIntersects from '@turf/boolean-intersects';
+import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
+import buffer from '@turf/buffer';
+import centroid from '@turf/centroid';
+import nearestPointOnLine from '@turf/nearest-point-on-line';
+import simplify from '@turf/simplify';
+import union from '@turf/union';
+import { featureCollection, lineString, point } from '@turf/helpers';
+
+const turf = {
+    bbox, booleanIntersects, booleanPointInPolygon, buffer, centroid,
+    featureCollection, lineString, nearestPointOnLine, point, simplify, union,
+};
 import type { FeatureCollection, Polygon, MultiPolygon, Feature } from 'geojson';
 
 let mergedMapFeatureCollection: FeatureCollection<Polygon | MultiPolygon> & { features: Array<Feature<Polygon | MultiPolygon> & { bbox?: number[] }> } | null = null;
@@ -14,6 +34,21 @@ export function initGeoService() {
             // [최적화] 서버 로딩 시점에 전국 읍면동 폴리곤의 Bounding Box를 미리 계산하여 메모리에 저장
             parsed.features.forEach((f: any) => {
                 f.bbox = turf.bbox(f);
+                // 중심점도 여기서 한 번만 구한다. 요청마다 1239개를 다시 계산하면
+                // 그것만으로 100ms 가 나간다 (2026-08-12 실측)
+                f.centroid = turf.centroid(f);
+                /**
+                 * 버퍼링용 **간소화 사본** (약 200m 오차).
+                 *
+                 * `turf.buffer` 는 꼭짓점 수에 비례해 비싸고, **반경이 작을수록 더 비싸다** —
+                 * 작은 버퍼는 원본의 해안선 같은 디테일을 그대로 물고 나오기 때문이다.
+                 * 실측: `용인 1km` 42개 동 버퍼링에 **1415ms**, 10km 는 530ms.
+                 *
+                 * 필터의 최소 단위가 읍/면/동이라 200m 오차는 결과를 바꾸지 않는다.
+                 * 간소화 후: 같은 연산이 **13ms** 다 (100배). 회랑 계산이 이미 쓰던 수법이다.
+                 */
+                try { f.simplified = turf.simplify(f, { tolerance: 0.002, highQuality: false }); }
+                catch { f.simplified = f; }
             });
             mergedMapFeatureCollection = parsed;
             console.log(`🗺️ [GeoService] 전국 자치구/읍면동 폴리곤 로드 성공 (총 ${parsed.features?.length || 0}개 방어구역)`);
@@ -23,6 +58,37 @@ export function initGeoService() {
     } catch (e) {
         console.error(`🗺️ [GeoService] GeoJSON 지도 데이터 로드 실패 (mapData/merged_map.geojson 확인 요망):`, e);
     }
+}
+
+/**
+ * 시/구 이름 하나에서 **앱이 도착지 텍스트에서 찾아볼 별칭들**을 만든다.
+ *
+ * 앱의 2단계 필터는 "시가 맞고 **동도** 맞아야 통과"로 판정한다
+ * (`InsungParser.kt` 의 `hasCityAlias && hasDongMatch`).
+ * 배차망이 `파주시` 로 쓸지 `파주` 로 쓸지 모르니 둘 다 넣는다.
+ *
+ * 🔴 예전에는 이 로직이 `getCorridorRegions`(합짐) 안에만 있었다.
+ *    그래서 **첫짐 모드에서는 `customCityFilters` 가 빈 배열**이었고,
+ *    앱의 2단계 필터가 `isNotEmpty()` 조건에 걸려 아예 돌지 않았다 —
+ *    동 이름 하나만 보고 판정한 것이다.
+ *
+ *    수도권 안에만 **같은 이름의 동이 97개** 있다. 그래서 파주 필터에
+ *    `신촌동`(서울 서대문구 · 성남 수정구에도 있다) · `당하동`(인천 서구) ·
+ *    `군내면`(포천시) 콜이 그대로 통과했다. 회랑 밖인데 꿀콜로 보인 것이다.
+ */
+export function cityAliases(parentName: string): string[] {
+    const out = new Set<string>([parentName]);
+
+    // 예: 광주시 → 광주, 송파구 → 송파
+    if (/[시군구]$/.test(parentName)) out.add(parentName.slice(0, -1));
+
+    // 특수 룰: 광주광역시와 헷갈리지 않도록 경기 광주는 앞에 도를 붙인 표기도 받는다
+    if (parentName === '광주시') {
+        out.add('경기 광주');
+        out.add('경기 광주시');
+        out.add('경광주');
+    }
+    return Array.from(out);
 }
 
 /**
@@ -118,22 +184,7 @@ export function getCorridorRegions(polyline: Array<{x: number; y: number}>, corr
 
     for (const [parent, set] of Object.entries(groupedRegions)) {
         resultGroups[parent] = Array.from(set).sort();
-        
-        // 🚀 자동 약어 생성 엔진: 앱의 2단계 필터링(customCityFilters)에 사용될 지역명 폭탄 생성
-        customCitySet.add(parent);
-        
-        // 예: 광주시 -> 광주, 송파구 -> 송파
-        if (parent.endsWith('구') || parent.endsWith('시') || parent.endsWith('군')) {
-            const shortName = parent.slice(0, -1);
-            customCitySet.add(shortName);
-            
-            // 특수 룰: 경기 광주시 -> '경기 광주시', '경기 광주', '경광주'
-            if (parent === '광주시') {
-                customCitySet.add('경기 광주');
-                customCitySet.add('경기 광주시');
-                customCitySet.add('경광주');
-            }
-        }
+        for (const alias of cityAliases(parent)) customCitySet.add(alias);
     }
 
     return {
@@ -143,14 +194,32 @@ export function getCorridorRegions(polyline: Array<{x: number; y: number}>, corr
     };
 }
 
+/** 필터가 앱에 실어 보내는 지역 정보 한 벌 — 동 목록 · 시별 묶음 · 시 별칭 */
+export interface CityRegions {
+    flat: string[];
+    grouped: Record<string, string[]>;
+    customCityFilters: string[];
+}
+
+/** 시별 묶음에서 별칭을 뽑아 붙인다 — 합짐(회랑)과 첫짐이 **같은 규칙**을 쓰게 하는 지점 */
+function withAliases(flat: string[], grouped: Record<string, string[]>): CityRegions {
+    const aliases = new Set<string>();
+    for (const parent of Object.keys(grouped)) {
+        for (const a of cityAliases(parent)) aliases.add(a);
+    }
+    return { flat, grouped, customCityFilters: Array.from(aliases) };
+}
+
 /**
- * [첫짐 전용] 선택한 도시의 모든 읍/면/동 외곽을 radiusKm만큼 확장한 후,
- * 그 확장된 테두리 안에 1픽셀이라도 걸치는 전국 인근 읍/면/동을 전부 수집합니다.
+ * [첫짐 전용] 선택한 도시의 읍/면/동을 radiusKm 만큼 확장하고,
+ * 그 안에 **중심점이 들어오는** 전국 읍/면/동을 수집합니다.
  * (BBox 고속 필터링 + Set 중복제거 적용)
+ *
+ * ⚠️ 예전에는 "1픽셀이라도 걸치면" 이었다. 아래 판정부의 주석 참고.
  */
-export function getCityRegionsWithRadius(cityName: string, radiusKm: number): { flat: string[], grouped: Record<string, string[]> } {
+export function getCityRegionsWithRadius(cityName: string, radiusKm: number): CityRegions {
     if (!mergedMapFeatureCollection || !mergedMapFeatureCollection.features) {
-        return { flat: [], grouped: {} };
+        return { flat: [], grouped: {}, customCityFilters: [] };
     }
 
     // 1. 타겟 도시(cityName)에 속한 읍/면/동 피처 모두 찾기
@@ -160,7 +229,7 @@ export function getCityRegionsWithRadius(cityName: string, radiusKm: number): { 
     });
 
     if (cityFeatures.length === 0) {
-        return { flat: [], grouped: {} };
+        return { flat: [], grouped: {}, customCityFilters: [] };
     }
 
     // 반경 확장이 필요 없는 경우 (0km), 타겟 도시의 지역만 바로 반환
@@ -180,14 +249,15 @@ export function getCityRegionsWithRadius(cityName: string, radiusKm: number): { 
         const resultGroups: Record<string, string[]> = {};
         for (const [p, s] of Object.entries(grouped)) resultGroups[p] = Array.from(s).sort();
         
-        return { flat: Array.from(flatSet).sort(), grouped: resultGroups };
+        return withAliases(Array.from(flatSet).sort(), resultGroups);
     }
 
     // 2. 타겟 도시의 각 읍/면/동을 개별적으로 Buffer 확장
     const bufferedPolygons: any[] = [];
     for (const cf of cityFeatures) {
         try {
-            const bp = turf.buffer(cf, radiusKm, { units: 'kilometers' });
+            // 간소화 사본으로 버퍼링한다 (부팅 때 만들어 둔 것 — 위 initGeoService 주석 참고)
+            const bp = turf.buffer((cf as any).simplified || cf, radiusKm, { units: 'kilometers' });
             if (bp) {
                 bp.bbox = turf.bbox(bp); // 확장된 폴리곤의 BBox 선계산
                 bufferedPolygons.push(bp);
@@ -197,7 +267,25 @@ export function getCityRegionsWithRadius(cityName: string, radiusKm: number): { 
         }
     }
 
-    // 3. 전체 지도에서 BBox + Intersect 검사
+    /**
+     * 확장 영역 **전체를 감싸는 사각형** 하나. 대부분의 동은 이것 하나로 떨어져 나가
+     * 아래 폴리곤별 검사를 아예 안 탄다.
+     *
+     * 반경이 **작을수록** 이게 중요하다. 버퍼가 작으면 결과 폴리곤이 원본의 복잡한
+     * 꼭짓점을 그대로 물고 있어 점-포함 판정이 비싸다 —
+     * 실측에서 `용인 1km`(993ms)가 `용인 10km`(405ms)보다 느렸던 이유다.
+     */
+    let outerBbox: number[] | null = null;
+    for (const bp of bufferedPolygons) {
+        const b = bp.bbox as number[] | undefined;
+        if (!b) continue;
+        outerBbox = outerBbox
+            ? [Math.min(outerBbox[0], b[0]), Math.min(outerBbox[1], b[1]),
+               Math.max(outerBbox[2], b[2]), Math.max(outerBbox[3], b[3])]
+            : [...b];
+    }
+
+    // 3. 전체 지도에서 BBox + 중심점 포함 검사
     const flatSet = new Set<string>();
     const grouped: Record<string, Set<string>> = {};
 
@@ -214,22 +302,46 @@ export function getCityRegionsWithRadius(cityName: string, radiusKm: number): { 
             continue;
         }
 
-        // 4. BBox 검사 후 Intersect 검사 (O(N*M)이지만 N이 크고 M이 작아 매우 빠름)
+        // 4. 이 동의 **중심점**이 확장 영역 안에 있는가
+        const centroid = (feature as any).centroid;
+        if (!centroid) continue;
+        const [cx, cy] = centroid.geometry.coordinates as [number, number];
+
+        // 바깥 사각형 한 번으로 대부분을 떨어뜨린다
+        if (outerBbox && (cx < outerBbox[0] || cx > outerBbox[2] || cy < outerBbox[1] || cy > outerBbox[3])) continue;
+
         let isMatched = false;
-        if (feature.bbox) {
-            const fb = feature.bbox;
+        {
             for (const bp of bufferedPolygons) {
                 const bb = bp.bbox;
                 if (!bb) continue;
-                // BBox 충돌 검사 (빠른 제외)
-                if (bb[0] > fb[2] || bb[2] < fb[0] || bb[1] > fb[3] || bb[3] < fb[1]) {
+                // 폴리곤별 BBox 로 한 번 더 거른다 (중심점 기준)
+                if (cx < bb[0] || cx > bb[2] || cy < bb[1] || cy > bb[3]) {
                     continue;
                 }
-                // BBox 충돌 시 정밀 교차 검사
+                /**
+                 * 🔴 2026-08-12 — **`booleanIntersects` 에서 중심점 판정으로 바꿨다.**
+                 *
+                 * 예전에는 동이 반경에 **손톱만큼만 닿아도** 통째로 편입됐다.
+                 * 동 하나가 수 km 라, 반경 10km 라고 해 놓고 훨씬 바깥 동네가 들어왔다.
+                 *
+                 * 실측 (2026-08-12):
+                 *   용인  1km   84개 → **56개**
+                 *   용인 10km  299개 → 266개
+                 *   파주 10km  140개 → 122개
+                 *
+                 * "반경 10km" 는 **10km 안에 있는** 동네라는 뜻이지
+                 * **10km 선에 닿는** 동네라는 뜻이 아니다. 기사님이 필터를 못 믿게 된
+                 * 이유의 하나다 — 숫자를 줄여도 목록이 기대만큼 안 줄었다.
+                 *
+                 * (참고: 도시 경계를 union 한 뒤 한 번만 버퍼링해 보는 것도 재 봤는데
+                 *  결과가 **완전히 동일**하고 5배 느렸다. buffer 는 union 에 분배되므로
+                 *  당연한 결과였다 — 부풀림의 원인은 버퍼 방식이 아니라 이 판정이었다)
+                 */
                 try {
-                    if (turf.booleanIntersects(bp, feature.geometry)) {
+                    if (turf.booleanPointInPolygon(centroid, bp)) {
                         isMatched = true;
-                        break; // 하나라도 교차하면 이 지역은 편입됨
+                        break;
                     }
                 } catch(e) { }
             }
@@ -245,7 +357,7 @@ export function getCityRegionsWithRadius(cityName: string, radiusKm: number): { 
     const resultGroups: Record<string, string[]> = {};
     for (const [p, s] of Object.entries(grouped)) resultGroups[p] = Array.from(s).sort();
 
-    return { flat: Array.from(flatSet).sort(), grouped: resultGroups };
+    return withAliases(Array.from(flatSet).sort(), resultGroups);
 }
 
 /**
