@@ -8,7 +8,7 @@ import { parseLocationDetails, parseMockupFare, parseMockupDistance, parseMockup
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { DISPATCH_CONFIG } from "../config/dispatchConfig";
 import { getUserSession } from "../state/userSessionStore";
-import { handleDecision, evaluateNewOrder } from "../services/dispatchEngine";
+import { handleDecision, evaluateNewOrder, forceCancelEvaluatingOrder } from "../services/dispatchEngine";
 import db from "../db";
 import { incrementDeviceStats } from "./devices";
 
@@ -119,22 +119,114 @@ router.post("/", async (req, res) => {
 
         logRoadmapEvent("서버", "앱폰에게 디테일 데이터 정상 수신 완료 응답 전달");
 
-        // ✅ [Two-Track] 앱이 보내는 matchType(AUTO/MANUAL)을 100% 신뢰.
-        // 서버는 독자적으로 type을 재분류하지 않음. (SSOT: 앱의 isAutoSessionActive)
+        /**
+         * [Two-Track] 누가 골랐는가 — 앱의 `matchType` 이 진실 공급원이다.
+         *   AUTO   = 매크로가 클릭 → 데스밸리로 서버가 재심사
+         *   MANUAL = 기사님이 직접 → 서버는 심사하지 않고 접수만 (기사님 의지 존중)
+         *
+         * ⚠️ **"100% 신뢰"라고 쓰여 있었지만 그건 사실이 아니었다.**
+         *    앱의 `isAutoActive` 는 화면 전이 경합으로 뒤집힐 수 있고, 2026-08-12 에 실제로
+         *    뒤집혔다 (자동 터치 직후 LIST 오탐 → 세션 리셋 → AUTO 가 MANUAL 로 보고됨).
+         *    앱 쪽 원인은 `HijackService` 의 복귀 판정에서 고쳤지만, **서버가 이 값 하나에
+         *    전체 흐름을 맡기는 구조는 그대로다.** 그래서 아래 두 겹을 덧댔다:
+         *      · [P3] 서버가 못 읽은 값(요금·주소)은 조용히 넘기지 않고 화면에 띄운다
+         *      · [C′] 평가가 실패해도 확정은 진행한다 (실패가 콜을 유령으로 만들지 않게)
+         */
         const isManual = pendingOrder.type?.includes("MANUAL") || payload.matchType === "MANUAL";
         const targetApp = (payload as any).targetApp || 'insung';
 
         if (isManual) {
             pendingOrder.type = 'MANUAL';  // 프론트엔드 배지 표시를 위해 명시적 설정
             console.log(`✋ [Two-Track MANUAL] 기사님 수동 클릭 콜. 즉시 KEEP 처리. (type=${pendingOrder.type}, matchType=${payload.matchType})`);
-            
+
+            /**
+             * 🔴 [P3] **서버가 못 읽은 것을 숨기지 않는다.**
+             *
+             * 과거 계획서(`docs_backup/implementation_plan copy 2.md`)가 남긴 미완의 3단계다.
+             * 그 문서는 이렇게 경고했다:
+             *   *"클라이언트가 보내는 matchType 값 하나에 서버의 전체 배차 흐름이 좌우되는
+             *     구조 자체가 취약합니다. **클라이언트는 언제든 거짓말할 수 있고**"*
+             * Phase 1·2 만 하고 3 을 "선택적 강화"로 미뤘는데, 지금 코드에는 그 반대 주석
+             * (*"앱이 보내는 matchType 을 100% 신뢰"*)이 원칙처럼 박혀 있다.
+             * 그리고 2026-08-12 에 앱이 거짓말했다 — 악의가 아니라 화면 전이 경합 때문에.
+             *
+             * ⚠️ 다만 이걸 **관문으로 만들지 않는다.** 기사님이 정한 규칙이 있다:
+             *    *"수동으로 잡은 콜은 무조건 콜이 들어 오는 거고."*
+             *    서버가 못 읽었다고 기사님이 실제로 잡은 콜을 막으면 안 된다.
+             *
+             * → 콜은 그대로 확정한다. 대신 **못 읽었다는 사실을 그대로 남기고 화면에 띄운다.**
+             *   요금 0 짜리가 조용히 장부에 들어가면 정산도 운행일지도 틀어지는데,
+             *   조용하기 때문에 몇 주 뒤에나 발견된다.
+             */
+            const unreadable: string[] = [];
+            if (!pendingOrder.fare || pendingOrder.fare <= 0) unreadable.push('요금');
+            if (!pendingOrder.pickup || pendingOrder.pickup === '미상') unreadable.push('상차지');
+            if (!pendingOrder.dropoff || pendingOrder.dropoff === '미상') unreadable.push('하차지');
+
+            if (unreadable.length > 0) {
+                const what = unreadable.join('·');
+                console.warn(`🔍 [P3 무결성] 수동 콜(${pendingOrder.id}) — ${what} 를 읽지 못했습니다. ` +
+                    `확정은 진행하되 관제탑에 표시합니다. (rawText ${pendingOrder.rawText?.length ?? 0}자)`);
+                pendingOrder.rejectionReasons = [
+                    ...(pendingOrder.rejectionReasons || []),
+                    `${what} 를 읽지 못했습니다 — 관제탑에서 직접 채워 주세요`,
+                ];
+                if (io) io.to(userId).emit("handler-error", {
+                    event: 'manual-unreadable',
+                    message: `수동 콜의 ${what} 를 읽지 못했습니다. 콜은 잡았지만 값을 확인해 주세요.`,
+                });
+            }
+
             session.pendingDecisions.set(payload.order.id, { action: 'KEEP', evaluatedAt: Date.now() });
             res.json({ deviceId: 'server', action: 'ACK' }); // 🚀 즉시 응답
 
-            // 백그라운드 평가 & 확정
-            evaluateNewOrder(userId, pendingOrder, io, targetApp).then(() => {
-                return handleDecision(userId, pendingOrder.id, "ORDER_CONFIRMED", io);
-            }).catch(console.error);
+            /**
+             * 🔴 2026-08-13 — **평가 실패가 확정을 막지 않게 한다.**
+             *
+             * 예전에는 이랬다:
+             *     evaluateNewOrder(...).then(() => handleDecision(..., "ORDER_CONFIRMED")).catch(console.error)
+             *
+             * 평가는 **정보 수집**(경로·요율)이고 확정은 **기사님의 의지**다. 그런데 `.then` 이라
+             * 정보 수집이 실패하면 의지가 실행되지 않았다. 순서가 거꾸로다.
+             *
+             * 그 결과 2026-08-12 에 유령이 남았다. 주소가 없는 콜이라 평가가 실패 →
+             * `handleDecision` 이 안 돎 → **DB 에도 안 들어가고 메모리에서도 안 빠졌다.**
+             * MANUAL 은 데스밸리 타이머도(아래 코드가 이 분기에서 `return` 한다)
+             * LIST 이탈 정리도(`devices.ts` 가 MANUAL 을 일부러 제외한다) 없어서
+             * **치울 사람이 아무도 없었다.** 관제웹에만 영원히 남았다.
+             *
+             * ⚠️ 여기서 콜을 **지우면 안 된다.** MANUAL 무심사는 설계다 —
+             *    기사님이 손으로 잡은 콜을 서버가 마음대로 버리면 안 된다
+             *    (`SCREEN_STATE_MACHINE.md`: *"기사님이 직접 확정/취소 선택"*).
+             *    카카오가 잠깐 죽었다고 실제로 들고 있는 짐을 지우는 건 더 나쁜 사고다.
+             *    → 지우지 말고 **확정까지 밀어붙이고, 실패했다는 사실을 화면에 남긴다.**
+             */
+            evaluateNewOrder(userId, pendingOrder, io, targetApp)
+                .catch((err) => {
+                    const msg = err?.message || String(err);
+                    console.error(`⚠️ [MANUAL 평가 실패] ${pendingOrder.id} — 확정은 그대로 진행합니다:`, msg);
+                    // 없는 숫자를 지어내지 않는다. 실패했다는 것을 그대로 표시한다
+                    pendingOrder.kakaoTimeExt = `평가 실패 (${msg})`;
+                    pendingOrder.rejectionReasons = [
+                        ...(pendingOrder.rejectionReasons || []),
+                        '서버 평가 실패 — 경로·요율을 계산하지 못했습니다',
+                    ];
+                    if (io) io.to(userId).emit("order-evaluated", pendingOrder);
+                })
+                .then(() => handleDecision(userId, pendingOrder.id, "ORDER_CONFIRMED", io))
+                .catch((err) => {
+                    /**
+                     * 확정까지 실패하면 이 콜은 **DB 에 없다.** 그런데 관제웹은 이미 카드를
+                     * 그려 놨다 — 화면이 거짓말을 하는 상태다. 여기가 마지막 출구이므로
+                     * 여기서만 청소한다. 조용히 두면 그것이 유령이 된다.
+                     */
+                    console.error(`🚨 [MANUAL 확정 실패] ${pendingOrder.id}:`, err?.message || err);
+                    forceCancelEvaluatingOrder(userId, pendingOrder.id, io);
+                    if (io) io.to(userId).emit("handler-error", {
+                        event: 'manual-confirm',
+                        message: `수동 콜(${pendingOrder.pickup} → ${pendingOrder.dropoff}) 확정에 실패했습니다. 배차망에서 직접 확인해 주세요.`,
+                    });
+                });
             return;
         }
 

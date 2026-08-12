@@ -206,12 +206,43 @@ class HijackService : AccessibilityService() {
         if (detected == ScreenContext.UNKNOWN) {
             AppLogger.w(TAG, "🔎 [UNKNOWN 화면 진단] 읽힌 텍스트(${rawScreenStr.length}자): ${rawScreenStr.take(300)}")
         }
+        // ⚠️ 아래 복귀 판정이 **직전 화면**을 봐야 하므로 갱신 전에 붙잡아 둔다
+        val previous = telemetryManager.currentScreenContext
         updateScreenContext(detected)
 
-        // 수동/자동 복귀 감지: 기사님이 수동으로 이전화면(닫기, 취소 등) 이동 시 락 해제
-        if (detected == ScreenContext.LIST || detected == ScreenContext.LIST_COMPLETED || rawScreenStr.contains("대기 중인 오더가 없")) {
+        /**
+         * 수동/자동 복귀 감지: 기사님이 닫기·취소·뒤로가기로 리스트에 돌아오면 락을 푼다.
+         *
+         * 🔴 2026-08-13 — 예전에는 **"지금 화면이 LIST 냐"** 만 봤다. 그래서
+         *    자동 터치 **직후**(상세가 아직 안 그려져 화면이 여전히 LIST)에도 걸려
+         *    `resetSessionState()` 가 `isAutoActive` 를 꺼 버렸다.
+         *
+         *    실측 (05:16:18, 0.3초 사이):
+         *      .397  💥 [AUTO] 꿀콜 조건 통과! 강제 터치 진행!     ← isAutoActive = true
+         *      .704  [복귀 감지] LIST 화면으로 이탈 감지됨          ← 아직 LIST · 오탐
+         *      .705  🔄 세션 상태 완전 초기화                      ← isAutoActive = false
+         *      19.06 모드: MANUAL (매크로클릭: false)              ← AUTO 인데 MANUAL 로 보고
+         *
+         *    그 한 글자가 서버의 배차 흐름을 통째로 바꾼다. MANUAL 은 데스밸리 없이
+         *    즉시 확정되고, 앱이 리스트로 이탈해도 서버가 안 치운다(일부러 그렇게 설계됐다 —
+         *    기사님이 손으로 잡은 콜을 서버가 버리면 안 되므로). 그래서 유령이 남았다.
+         *
+         * 문서(`SCREEN_STATE_MACHINE.md`)의 상태 기계가 정답을 갖고 있었다.
+         *      LIST               --> DETAIL_PRE_CONFIRM : 콜 클릭
+         *      DETAIL_PRE_CONFIRM --> LIST               : 취소 · 뒤로가기
+         * 리셋이 필요한 건 **두 번째 전이**다. 즉 "지금 LIST" 가 아니라 **"LIST 로 돌아왔다"**.
+         * 그래서 직전 화면이 리스트가 아니었을 때만 복귀로 친다.
+         *
+         * (타이머로 유예를 주는 방법도 있지만, 몇 밀리초를 줘야 하는지에 근거가 없다.
+         *  화면 전이는 이미 상태로 표현돼 있으므로 그걸 쓴다)
+         */
+        val isListScreen = detected == ScreenContext.LIST ||
+                           detected == ScreenContext.LIST_COMPLETED ||
+                           rawScreenStr.contains("대기 중인 오더가 없")
+        val wasListScreen = previous == ScreenContext.LIST || previous == ScreenContext.LIST_COMPLETED
+        if (isListScreen && !wasListScreen) {
             if (session.hasActiveSession()) {
-                AppLogger.d(TAG, "[복귀 감지] ${detected.name} 화면으로 이탈 감지됨. 세션 및 데스밸리 락 완전 해제")
+                AppLogger.d(TAG, "[복귀 감지] ${previous.name} → ${detected.name} 복귀. 세션 및 데스밸리 락 완전 해제")
                 resetSessionState()
             }
         }

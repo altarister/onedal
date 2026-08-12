@@ -18,7 +18,7 @@ import { getUserSession } from "./userSessionStore";
 import type { AutoDispatchFilter } from "@onedal/shared";
 import { getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter } from "@onedal/shared";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
-import { getCityRegionsWithRadius } from "../services/geoService";
+import { getCityRegionsWithRadius, cityAliases } from "../services/geoService";
 
 // ━━━ Prepared Statement 캐싱 (모듈 로드 시 1회만 실행) ━━━
 const stmtUpdateFilter = db.prepare(`
@@ -62,7 +62,30 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
         (!session.activeFilter.destinationKeywords || session.activeFilter.destinationKeywords.length === 0);
 
     if (changes.destinationKeywords) {
-        // 명시적으로 키워드가 전달된 경우 (합짐 회랑 계산 결과 등) → 그대로 사용
+        /**
+         * 명시적으로 키워드가 전달된 경우 (합짐 회랑 · 투트랙 등) → 키워드는 그대로 쓴다.
+         *
+         * 🔴 2026-08-12 — 다만 **시 별칭은 같이 안 오면 반드시 다시 만든다.**
+         *
+         * 첫짐에도 별칭을 싣기 시작하면서 생긴 구멍이다. 예전에는 첫짐 별칭이 늘 비어 있어
+         * 앱의 2단계 필터가 아예 안 돌았으므로 옛 값이 남아도 무해했다. 이제는 아니다.
+         *
+         * `startTwoTrack` 은 `destinationKeywords` 만 넘긴다. 그러면 스프레드(`...changes`)가
+         * `customCityFilters` 를 안 건드려 **직전 회랑의 별칭이 그대로 남는다.**
+         * 앱은 "시가 맞고 동도 맞아야 통과"로 판정하므로, 엉뚱한 시 목록을 들고 있으면
+         * 멀쩡한 투트랙 콜을 전부 걸러낸다 — 조용히, 이유도 안 남기고.
+         *
+         * 별칭을 못 만들면 **비운다.** 옛 값을 남기느니 2단계 필터가 안 도는 편이 낫다
+         * (동 이름만 보는 것 = 예전 동작). 있지도 않은 근거로 거르는 것이 더 나쁘다.
+         */
+        if (!changes.customCityFilters) {
+            const groups = changes.destinationGroups ?? {};
+            const aliases = new Set<string>();
+            for (const parent of Object.keys(groups)) {
+                for (const a of cityAliases(parent)) aliases.add(a);
+            }
+            session.activeFilter.customCityFilters = Array.from(aliases);
+        }
     } else if (session.activeFilter.destinationCity && needsGeoRecalc) {
         // 도시명/반경이 변경되었거나 키워드가 아직 계산되지 않은 경우에만 무거운 연산 수행
         const city = session.activeFilter.destinationCity;
