@@ -267,8 +267,14 @@ class InsungParser(private val context: Context) : IScrapParser {
             matchResult
         } else {
             // [1차 리스트 필터] 기존 구조 유지 (dropoff만 검사, rawText는 출발지도 포함되므로 사용 금지)
+            // 🔴 2026-08-12 — 예전에는 키워드가 비면 `true`(전부 통과)였다.
+            //    도착지 조건이 없는 상태는 "아무 데나 좋다"가 아니라
+            //    **"필터가 아직 안 만들어졌다"** 는 뜻이다 (회랑 실패 · 목적지 미설정).
+            //    통과시키면 isActive 는 켜진 채 도착지 제한만 사라진다.
+            //    서버도 같은 방향으로 열려 있어 두 겹이 동시에 무력화됐다.
             val matchResult = if (filter.destinationKeywords.isEmpty()) {
-                true
+                AppLogger.d(TAG, "🚦 [사냥 보류] 도착지 키워드가 비어 있습니다 — 서버가 필터를 아직 못 만들었습니다")
+                false
             } else {
                 filter.destinationKeywords.any { region ->
                     order.dropoff.contains(region, ignoreCase = true)

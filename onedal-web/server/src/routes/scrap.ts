@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { filterHuntBlocker } from "@onedal/shared";
 import type { SimplifiedOfficeOrder, ScreenContextType } from "@onedal/shared";
 import db from "../db";
 import { getUserSession } from "../state/userSessionStore";
@@ -183,6 +184,19 @@ router.post("/", (req, res) => {
             appFilter.isActive = false;
             console.log(`🚦 [사냥 대기] ${deviceId} — 관제탑이 아직 접속하지 않았습니다. ` +
                 `오늘 필터가 확정되기 전에는 사냥하지 않습니다 (관제웹을 열어 주세요)`);
+        }
+
+        /**
+         * 🔴 도착지가 정의되지 않은 필터로는 사냥하지 않는다.
+         *
+         * 이건 "제한 없음"이 아니라 **"필터가 고장났음"** 이다 —
+         * 빈 키워드를 그대로 내보내면 앱이 `isEmpty() → true` 로 읽어
+         * **모든 도착지를 통과**시킨다 (`filterHuntBlocker` 주석 참고).
+         */
+        const blocker = filterHuntBlocker(session.activeFilter);
+        if (blocker) {
+            appFilter.isActive = false;
+            console.log(`🚦 [사냥 보류] ${deviceId} — ${blocker}`);
         }
 
         // logRoadmapEvent("서버", "앱폰에게 최신 필터(dispatchEngineArgs) 및 제어 명령 정보 전달");

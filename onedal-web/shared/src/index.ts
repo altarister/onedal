@@ -579,6 +579,38 @@ export interface AutoDispatchFilter {
 }
 
 /**
+ * **이 필터로 사냥해도 되는가.**
+ *
+ * 🔴 2026-08-12 — 빈 필터가 "제한 없음"으로 읽히고 있었다.
+ *
+ *    앱 (`InsungParser.kt`):
+ *        if (filter.destinationKeywords.isEmpty()) true   // ← 아무 데나 통과
+ *    서버 (`OrderEvaluator`):
+ *        if (isSharedMode && destinationKeywords.length > 0) { ...검사... }
+ *
+ *    **두 겹이 같은 방향으로 열려 있었다.** 회랑 계산이 0개를 내거나(경로 실패)
+ *    목적지 도시가 비면, `isActive` 는 켜진 채 도착지 조건만 사라진다.
+ *    필터가 느슨해지는 게 아니라 **없어지는** 것이다.
+ *
+ *    도착지가 정의되지 않은 상태는 "제한 없음"이 아니라 **"필터가 고장났음"** 이다.
+ *    앱 기본값을 안전 방향으로 돌린 것(v1.3)과 같은 판단이다 —
+ *    안 잡는 것과 잡고 나서 버리는 것은 전혀 다르다.
+ *
+ * @returns 사냥해도 되면 `null`, 안 되면 **왜 안 되는지** (그대로 로그·화면에 쓴다)
+ */
+export function filterHuntBlocker(filter: AutoDispatchFilter): string | null {
+    if (filter.isSharedMode) {
+        // 합짐은 경로에서 회랑이 나와야 성립한다. 회랑이 없으면 "가는 길"이 없는 것이다
+        if (!filter.destinationKeywords?.length) return '회랑이 아직 안 잡혔습니다';
+        return null;
+    }
+    // 첫짐은 도착 목표가 있어야 성립한다
+    if (!filter.destinationCity) return '도착 희망 지역이 비어 있습니다';
+    if (!filter.destinationKeywords?.length) return `${filter.destinationCity} 에서 지역을 못 찾았습니다`;
+    return null;
+}
+
+/**
  * **오늘 필터를 기본 설정으로 되돌린다.**
  *
  * 두 자리에서 쓴다. 규칙이 갈라지지 않게 여기 한 곳에만 둔다.

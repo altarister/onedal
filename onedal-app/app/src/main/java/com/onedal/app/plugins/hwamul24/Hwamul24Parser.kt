@@ -247,8 +247,19 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
         }
 
         // ── 조건 2: 도착지 매칭 ──
+        //
+        // 🔴 2026-08-12 — 예전에는 키워드가 비면 `true`(전부 통과)였다.
+        //    도착지 조건이 없는 상태는 "아무 데나 좋다"가 아니라
+        //    **"필터가 아직 안 만들어졌다"** 는 뜻이다. 서버가 회랑을 못 구했거나
+        //    목적지 도시가 비었을 때 그렇게 된다.
+        //
+        //    그대로 통과시키면 `isActive` 는 켜진 채 **도착지 제한만 사라진다.**
+        //    필터가 느슨해지는 게 아니라 없어지는 것이다.
+        //    서버도 같은 방향으로 열려 있어서 두 겹이 동시에 무력화됐다.
+        //    (서버: `filterHuntBlocker` · `OrderEvaluator` 5번 항목)
         val regionMatch = if (filter.destinationKeywords.isEmpty()) {
-            true
+            AppLogger.d(TAG, "🚦 [사냥 보류] 도착지 키워드가 비어 있습니다 — 서버가 필터를 아직 못 만들었습니다")
+            false
         } else {
             filter.destinationKeywords.any { region ->
                 order.dropoff.contains(region, ignoreCase = true)
