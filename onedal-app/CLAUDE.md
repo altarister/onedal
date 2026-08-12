@@ -1,57 +1,55 @@
 # onedal-app — 안드로이드 스캐너
 
 배차앱 화면을 읽고(AccessibilityService) 조건에 맞는 콜을 자동 터치한다.
-루트 [CLAUDE.md](../CLAUDE.md) 의 규칙이 먼저다. 여기에는 **이 앱 안에서만 참인 것**만 둔다.
+루트 [CLAUDE.md](../CLAUDE.md) 가 먼저다 — **명령·커밋 게이트·경계를 넘는 규칙은 거기 있다.**
+여기에는 **이 앱 안에서만 참인 것**만 둔다.
 
 ## 이건 버그가 아니라 규칙이다
 
 - **앱은 "눈과 손(Dumb Client)"이고 판단은 서버가 한다.**
   앱의 필터는 *"명백한 쓰레기만 빠르게 거르기"* 용이다. 수익성 판정을 앱으로 옮기지 않는다
-  (출처: `docs/architecture/safety_mode_architecture.md`)
 
-- **이전 오더 사이클이 완전히 끝날 때까지 새 오더를 잡지 않는다.**
+- **한 번에 하나만 "평가"한다.**
+  확정 클릭 ~ 판결 수신까지가 한 사이클이고, 그게 끝나기 전에 다음 콜의 상세로 들어가지 않는다.
+  ⚠️ **여러 콜을 "보유"하는 것과는 다르다** — 합짐(`GATHERING`)은 애초에 여러 콜을 싣는 것이고,
+  서버도 `orders.ts` 에서 *"이미 KEEP 된 콜은 새 콜 진입 시에도 삭제하지 않음(다중 배차 유지)"*
+  로 그걸 보장한다. 사이클 하나 = 콜 하나이지, 보유 콜 하나가 아니다
 
 - **30초 데스밸리 타이머는 최후의 안전장치다. 절대 제거하지 않는다.**
   서버·네트워크가 전부 죽어도 기사님을 보호하는 유일한 수단이다
-
-- **화면 판별 기준 텍스트를 앱에 하드코딩하지 않는다.**
-  서버의 `config/inseong.json` 에서 받아 온다. 배차망이 UI를 바꾸면 앱 재배포 없이 대응해야 한다
-
-- **`isHolding` 의 뜻**: 리스트 화면 = `false`(콜 수집 가능) / 확정 클릭 후 = `true`(처리 중).
-  `/api/scrap` 의 본래 목적이 **리스트에서 버려지는 콜을 수집하는 것**이라 이 구분이 필요하다
 
 - **`matchType` 은 실제 클릭 주체를 반영한다** — UI 스위치가 아니라 `session.isAutoActive`.
   이 값 하나가 서버의 배차 흐름 전체(즉결 확정 vs 30초 데스밸리)를 가른다.
   🔴 2026-08-12 에 자동 터치 직후 `LIST` 오탐으로 세션이 리셋되어 AUTO 가 MANUAL 로 보고됐다.
   화면 복귀 판정은 **"지금 LIST 냐"가 아니라 "LIST 로 돌아왔느냐"** 여야 한다 (직전 화면을 본다)
 
+- **`isHolding` 의 뜻**: 리스트 화면 = `false`(콜 수집 가능) / 확정 클릭 후 = `true`(처리 중).
+  `/api/scrap` 의 본래 목적이 **리스트에서 버려지는 콜을 수집하는 것**이라 이 구분이 필요하다
+
 ## 함정
 
 - ⚠️ **빌드를 식별하는 값에 컴파일 타임 상수(`BuildConfig.VERSION_NAME`)를 쓰지 말 것.**
   호출부에 인라인되어 재컴파일이 생략되면 옛 값이 남는다. 런타임 조회(`AppInfo`)를 쓴다
 
+- **화면 판별·노이즈 단어는 서버에서 받아 온다** — `GET /api/config/keywords?app=insung`
+  (서버 파일: `server/config/keywords_inseong.json` · `keywords_24.json`).
+  배차망이 UI를 바꿔도 앱 재배포 없이 대응하려는 설계다.
+  ⚠️ 다만 **파서에 하드코딩 폴백이 남아 있다** (`InsungParser` 의 `setOf("거리","출발지",…)`).
+  통신 실패 시를 위한 것이므로 "하드코딩이 아예 없다"고 전제하지 말 것
+
 - **웹뷰(Chrome) 기반 화면은 텍스트가 압축되어 올라온다.** 새 배차망을 붙일 때
-  `docs/architecture/android_scraping_characteristics.md` 를 먼저 읽을 것
+  `docs/architecture/android_scraping_characteristics.md`(레포 루트의 `/docs`)를 먼저 읽을 것
 
 - **필터 기본값은 안전한 방향으로.** 서버 미응답 시에만 쓰이는 오프라인 안전망이다
   (`isActive=false`, `minFare=30000`). `true`/`0` 으로 두면 서버가 죽었을 때 아무 콜이나 잡는다
 
-## 명령
+## 신뢰할 수 있는 문서 (2026-08-07 · 08-09 대조)
 
-| 목적 | 명령 |
+| 문서 | |
 |---|---|
-| 컴파일만 | `./gradlew :app:compileDebugKotlin` |
-| 빌드 | `./gradlew assembleDebug` |
-| 설치 | `adb install -r app/build/outputs/apk/debug/app-debug.apk` |
-| 도는 버전 확인 | `adb shell dumpsys package com.onedal.app \| grep versionName` |
+| `docs/EDGE_CASES.md` | 방어 로직 10/10 일치 — **이 레포 최고 품질** |
+| `docs/SHARED_PREFERENCES_SPEC.md` · `docs/SCREEN_STATE_MACHINE.md` · `docs/API_SPEC.md` | 코드와 일치 |
+| `docs/ANDROID_ARCHITECTURE.md` (v2.0) · `docs/PLUGIN_INTERFACE_SPEC.md` (v2.0) | 2026-08-09 재작성 |
 
-JDK: `export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"`
-
-**앱 코드를 고쳤다면 `./gradlew :app:compileDebugKotlin` 이 통과해야 커밋한다.**
-2026-08-09 에 `main` 이 컴파일조차 안 되는 상태였던 걸 뒤늦게 발견했다.
-
-## 신뢰할 수 있는 문서
-
-`docs/EDGE_CASES.md` (이 레포 최고 품질) · `docs/SHARED_PREFERENCES_SPEC.md` ·
-`docs/SCREEN_STATE_MACHINE.md` · `docs/API_SPEC.md` · `docs/ANDROID_ARCHITECTURE.md` (v2.0) ·
-`docs/PLUGIN_INTERFACE_SPEC.md` (v2.0)
+> 재작성 전 두 문서는 계획을 완료로 기술해 **존재하지 않는 파일·인터페이스**를 안내했다.
+> 재작성본 상단에 "무엇이 사실이 아니었는지"가 남아 있다.

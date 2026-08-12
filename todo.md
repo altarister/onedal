@@ -6,6 +6,31 @@
 
 ---
 
+## 🔧 이중 타이머 경쟁 — `orders.ts` 의 30초 타이머가 취소 불가 (미수정)
+
+2026-08-13 CLAUDE.md 규칙(*"타이머는 ID 를 저장해 취소 가능하게"*)과 코드를 대조하다 나왔다.
+
+`docs_backup/troubleshooting/Dispatch_synchronization_failure.md` 가 **결함 #3 "이중 타이머 경쟁"**
+· **결함 #4 "타이머 좀비"** 로 이미 지목했던 것이다. 그때 `detail.ts` 쪽은 `activeTimers` 로
+옮겨졌는데 **`orders.ts` 는 안 옮겨졌다.**
+
+```js
+// onedal-web/server/src/routes/orders.ts:134
+setTimeout(() => { ... handleDecision(userId, id, "ORDER_CANCELED", io); }, 30000);
+//  ↑ activeTimers 에 안 들어간다 → 콜이 사라져도 못 끈다
+```
+
+`detail.ts` 의 35초 타이머와 **같은 콜을 경쟁적으로 정리**한다. 지금은 상태 검사
+(`ORDER_PRE_SECURED|SECURED_EVALUATING|AWAITING_DECISION` 일 때만 취소)가 막고 있어
+사고로 이어지진 않았지만, 실행 순서가 보장되지 않는 구조는 그대로다.
+
+- [ ] `orders.ts` 타이머를 `session.activeTimers` 에 등록 (`confirm_${orderId}`)
+- [ ] `forceCancelEvaluatingOrder` / `handleDecision` 에서 함께 `clearTimeout`
+- [ ] 두 타이머의 역할을 하나로 합칠 수 있는지 검토 (지금은 30초·35초가 겹친다)
+- [ ] 🔵 곁가지: `orders.ts:133` 로그가 *"데스밸리 **15초** 카운트다운"* 인데 실제는 30초다
+
+---
+
 ## 📌 Phase 3 — 서버가 앱의 `matchType` 을 맹신하지 않는다 (미구현)
 
 `docs/architecture/safety_mode_architecture.md` 가 **이미 구현된 것처럼** 적어 두고 있었다

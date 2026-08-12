@@ -18,7 +18,9 @@
 
 > **규칙은 두 층에 있다.** 이 문서의 [이건 버그가 아니라 규칙이다](#이건-버그가-아니라-규칙이다--고치기-전에-읽을-것) 는
 > **앱 경계를 넘는 것**만 담는다. 앱 안에서만 참인 것은 각 폴더의 `CLAUDE.md` 에 있다 —
-> [onedal-app](onedal-app/CLAUDE.md) · [server](onedal-web/server/CLAUDE.md) · [client-app](onedal-web/client-app/CLAUDE.md)
+> [onedal-app](onedal-app/CLAUDE.md) · [server](onedal-web/server/CLAUDE.md) ·
+> [client-app](onedal-web/client-app/CLAUDE.md) · [shared](onedal-web/shared/CLAUDE.md) ·
+> [onedal-web](onedal-web/CLAUDE.md)(검증 스크립트)
 
 ## 명령
 
@@ -40,20 +42,14 @@
 `tsc --noEmit`(server) · `tsc -b`(client) · `npx jest` · **`./gradlew :app:compileDebugKotlin`**(앱 코드를 고쳤다면)
 이 전부 통과해야 커밋한다. 실패 시 커밋 금지.
 
-**콜 흐름(상태·복구·적재·정산)을 건드렸다면** `cd onedal-web && pnpm scenario`.
-실제 서버를 띄워 콜 생애를 끝까지 돌린다. 2026-08-11 에 배포하면 안 되는 결함 6건이
-`tsc`·`jest`·`vite build`·`audit:socket` 을 **전부 통과한 채로** 숨어 있었고
-이걸 돌려서만 나왔다 (상차한 콜이 새로고침에 사라짐 · 짐 신고 무시 · 불일치 경고 미발생 · 착불 미기록).
+무엇을 건드렸느냐에 따라 하나씩 더 붙는다.
+**각 검사가 무엇을 잡는지와 실행 함정은 [onedal-web/CLAUDE.md](onedal-web/CLAUDE.md) 에 있다.**
 
-**소켓 이벤트를 추가·변경했다면** `cd onedal-web && pnpm audit:socket` 도 함께.
-서버 emit ↔ 관제웹 on 을 대조해 한쪽만 고친 것을 잡는다.
-(2026-08-10 이 검사로 `handler-error` 미수신, `settings-updated` 미발신을 찾았다)
-
-**`shared/` 나 DB 스키마를 고쳤다면 스모크로 부팅까지 확인한다.**
-`tsc`·`jest` 는 통과하는데 런타임에서만 터지는 두 부류가 있다.
-  · `shared` 순환 참조 → `ReferenceError: Cannot access '…' before initialization` (부팅 불가)
-  · `CREATE TABLE IF NOT EXISTS` 는 **기존 테이블에 컬럼을 추가하지 않는다** → `no such column`
-    ⚠️ 빈 DB 가 아니라 **기존 DB 사본**으로 확인해야 드러난다
+| 건드린 것 | 추가로 돌릴 것 |
+|---|---|
+| 콜 흐름 (상태·복구·적재·정산) | `cd onedal-web && pnpm scenario` |
+| 소켓 이벤트 | `cd onedal-web && pnpm audit:socket` |
+| `shared/` · DB 스키마 | **기존 DB 사본**으로 부팅 스모크 (빈 DB 는 문제를 숨긴다) |
 
 > 앱 컴파일이 필수인 이유: 2026-08-09에 `main`이 컴파일조차 안 되는 상태였다는 걸
 > 뒤늦게 발견했다(`InsungParser`의 import 누락). 서버는 tsc로 매번 확인하는데
@@ -84,22 +80,15 @@
 
 ## 문서 신뢰도 ⚠️ 중요
 
-2026-08-07 전수 대조 결과. **코드와 다른 문서를 근거로 작업하지 말 것.**
+**코드와 다른 문서를 근거로 작업하지 말 것.** 이 레포의 문서는 계획을 완료로 기술한 적이
+여러 번 있다 — 없는 방어를 믿고 판단하면 그 전제가 통째로 틀린다.
 
-**✅ 코드와 일치 (신뢰 가능)**
-`onedal-app/docs/EDGE_CASES.md` (방어 로직 10/10 일치 — 이 레포 최고 품질) ·
-`onedal-app/docs/SHARED_PREFERENCES_SPEC.md` · `onedal-app/docs/SCREEN_STATE_MACHINE.md` ·
-`onedal-app/docs/API_SPEC.md` · `onedal-web/server/docs/DISPATCH_STATE_MACHINE.md` ·
-`onedal-web/server/docs/ENV_CONFIG_SPEC.md` · `onedal-web/client-app/docs/STATE_MANAGEMENT.md`
+**어느 문서를 믿어도 되는지는 각 앱의 `CLAUDE.md` 에 있다** (그 폴더에서 일할 때 읽힌다).
+여기에 또 적으면 목록이 두 벌이 되고, 신뢰도가 바뀔 때 한쪽만 고쳐진다.
 
-**✅ 2026-08-09 재작성 완료 (이제 신뢰 가능)**
-- `onedal-web/server/docs/SERVER_ARCHITECTURE.md` (v4.0)
-- `onedal-app/docs/ANDROID_ARCHITECTURE.md` (v2.0)
-- `onedal-app/docs/PLUGIN_INTERFACE_SPEC.md` (v2.0)
-- `onedal-web/server/docs/API_SPEC.md` (v3.1) · `onedal-web/client-app/docs/SOCKET_EVENT_MAP.md` (v2)
-
-> 세 문서는 계획을 완료로 기술해 존재하지 않는 파일·인터페이스를 안내하고 있었다.
-> 재작성본에는 각 문서 상단에 **"무엇이 사실이 아니었는지"** 를 남겨 같은 실수를 방지한다.
+`/docs` 최상위(`architecture/` 포함)는 **검증된 적이 없다.** 원칙은 대체로 유효하지만
+구현 서술은 낡은 것이 섞여 있으므로, 쓰기 전에 코드와 대조할 것.
+(예: `filter_system.md` 맨 위에 어디가 옛 구조인지 대조표를 붙여 뒀다)
 
 **🔄 진행 중인 정비 계획: [todo.md](todo.md)** — 작업 시작 전 반드시 확인
 
@@ -123,12 +112,18 @@
 - 서버는 앱이 **ACK 할 때까지 판결을 지우지 않는다** (한 번 보내고 지우면 유실 시 영구 유실)
 - 판결에는 **orderId 를 반드시 싣고** 앱이 대조한다 (오더A 응답이 오더B에 적용되던 사고)
 - 타이머는 **ID 를 저장해 취소 가능하게** 한다 (좀비 타이머)
+  > ⚠️ `orders.ts` 의 30초 타이머는 **아직 안 지킨다.** `detail.ts` 35초와 같은 콜을 경쟁적으로
+  > 정리한다(원 문서의 "결함 #3 이중 타이머 경쟁"). 고칠 것은 [todo.md](todo.md) 에
 - HTTP 를 **물고 기다리지 않는다** — 즉시 응답 + 피기백
 
 **③ 상태를 저장하지 말고 데이터에서 파생시킨다**
 - **파생값을 만들었으면 그 입력도 한 곳에서 만든다** (같은 사고 3회: 회랑 4벌·상태목록 3벌·시별칭)
 - 어제 상태가 오늘 되살아나지 않는다 (영업일 전환)
-- **기본값의 단일 출처는 DB.** 서버·관제웹은 자체 폴백을 갖지 않는다. 앱만 오프라인 안전망
+- **기본값의 원천은 DB 다.** 코드에 흩어진 `?? 리터럴` 폴백은 **잔재이며 늘리지 않는다**
+  > 2026-04-23 에 "폴백 제거 → DB 중앙화"를 했다고 기록돼 있으나 **코드는 되돌아와 있다**
+  > (`settings.ts` `?? 10` · `dispatchEngine.ts` `?? DEFAULT_CORRIDOR_RADIUS_KM` 등).
+  > 그러니 남은 폴백을 "규칙 위반"이라며 지우지 말 것 — 지금은 그게 동작의 일부다.
+  > **앱의 기본값은 예외다** — 서버 미응답 시를 위한 오프라인 안전망이라 의도적으로 둔다
 
 **④ 데이터를 변조해서 동작을 바꾸지 않는다**
 - 합짐이라고 상차반경을 `999km` 로 덮어쓰지 않는다 — **룰로 건너뛴다**
