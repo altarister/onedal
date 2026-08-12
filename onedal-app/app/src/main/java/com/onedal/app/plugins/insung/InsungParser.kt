@@ -62,10 +62,10 @@ class InsungParser(private val context: Context) : IScrapParser {
             // 각 optXxx 의 두 번째 인자는 서버 미응답 시 최후 안전망 (정상 흐름에서는 서버가 항상 전송)
             FilterConfig(
                 allowedVehicleTypes = parseJsonArray(json, "allowedVehicleTypes"),
-                isActive = json.optBoolean("isActive", true),
+                isActive = json.optBoolean("isActive", false),   // 키가 없으면 멈춘다 (안전 방향)
                 isSharedMode = json.optBoolean("isSharedMode", false),
                 pickupRadiusKm = json.optInt("pickupRadiusKm", 10),
-                minFare = json.optInt("minFare", 0),
+                minFare = json.optInt("minFare", 30000),         // 서버 기본값과 동일
                 maxFare = json.optInt("maxFare", 1000000),
                 destinationCity = json.optString("destinationCity", ""),
                 destinationRadiusKm = json.optInt("destinationRadiusKm", 10),
@@ -278,8 +278,18 @@ class InsungParser(private val context: Context) : IScrapParser {
             matchResult
         }
 
-        // ── 조건 2: 요금 하한선 ──
-        val fareMatch = order.fare >= filter.minFare
+        // ── 조건 2: 요금 하한선 + 상한선 ──
+        //
+        // 🔴 2026-08-12 — 상한(maxFare)을 **서버만** 보고 있었다.
+        //    앱은 파싱만 하고 판정에 안 써서, 상한을 50만으로 잡아도 100만짜리를 잡았다.
+        //    서버가 데스밸리에서 "똥콜"이라 걸러내지만 그때는 **이미 패널티 구간**이다.
+        //    안 잡는 것과 잡고 나서 버리는 것은 전혀 다르다.
+        //
+        // 규칙은 서버(OrderEvaluator)와 **똑같이** 맞춘다:
+        //   0 < maxFare < 1,000,000 일 때만 적용한다. 100만은 "상한 없음"의 뜻이다.
+        val hasFareCeiling = filter.maxFare in 1..999_999
+        val fareMatch = order.fare >= filter.minFare &&
+                        (!hasFareCeiling || order.fare <= filter.maxFare)
 
         // ── 조건 3: 상차지 거리 ──
         // 합짐 모드(isSharedMode)에서는 상차지 반경 제한을 무시합니다.
@@ -308,7 +318,7 @@ class InsungParser(private val context: Context) : IScrapParser {
             
             AppLogger.roadmap("🔍 [타겟 콜 필터 결과] 차종(${order.vehicleType ?: "미상"})=${if(vehicleMatch) "✅" else "❌"} " +
                         "도착지(${filter.destinationKeywords.size}중 ${order.dropoff})=${if(regionMatch) "✅" else "❌"} " +
-                        "요금(${filter.minFare} <= ${order.fare})=${if(fareMatch) "✅" else "❌"} " +
+                        "요금(${filter.minFare} <= ${order.fare}${if (hasFareCeiling) " <= ${filter.maxFare}" else ""})=${if(fareMatch) "✅" else "❌"} " +
                         "상차지/거리(${if(filter.isSharedMode) "합짐무시" else "${filter.pickupRadiusKm}km"} >= ${order.pickupDistance ?: "미상"}km)=${if(distanceMatch) "✅" else "❌"} " +
                         "블랙()=${if(blacklistClear) "✅" else "❌"}", screenCtxLog)
         }
