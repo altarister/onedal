@@ -6,6 +6,7 @@ import { logRoadmapEvent } from '../../lib/roadmapLogger';
 import PinnedRouteCanvas, { type RoutePoint } from './PinnedRouteCanvas';
 import PinnedRouteCard from './PinnedRouteCard';
 import CallDeck from './CallDeck';
+import DepartureCountdown from './DepartureCountdown';
 import { useCallProgress, EMPTY_RECORDS } from '../../hooks/useCallProgress';
 import { deckOrder } from '../../lib/deckFocus';
 import { getAddressLabel } from '../../lib/routeUtils';
@@ -281,6 +282,12 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
             {/* [Phase 8.5] '진행 중' 탭만 덱으로 바꾼다.
                 완료됨·취소/방출·전체는 **조작이 아니라 조회**용이므로 기존 리스트를 그대로 둔다.
                 분기가 한 군데뿐이라, 문제가 생기면 이 조건 하나만 되돌리면 옛 화면으로 복귀한다. */}
+            {/* 최소 출발 시각 카운트다운 — 그 남은 시간이 곧 **대기 예산**이다.
+                기사님: *"첫 콜을 잡았다면 최소 출발 시간이 카운트다운하면 좋을 듯하다."* */}
+            {viewFilter === 'ACTIVE' && liveRoute.length > 0 && (
+                <DepartureCountdown orders={liveRoute} records={callRecords} />
+            )}
+
             {viewFilter === 'ACTIVE' && liveRoute.length > 0 && (
                 <CallDeck
                     records={callRecords}
