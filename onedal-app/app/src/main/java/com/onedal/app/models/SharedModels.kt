@@ -204,7 +204,6 @@ data class FilterConfig(
     val destinationKeywords: List<String> = emptyList(),
     val customCityFilters: List<String> = emptyList(),
     val destinationGroups: Map<String, List<String>> = emptyMap(),
-    val customFilters: List<String> = emptyList()
 )
 
 // ────────────────────────────────────────────────

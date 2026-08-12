@@ -160,8 +160,18 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
         );
     }
 
-    const handleSave = () => {
-        logRoadmapEvent("웹", "설정 모달창 열고 새 필터값 입력 후 '저장' 버튼 클릭");
+    /**
+     * @param saveAsDefault **"앞으로 계속"** — 평소 설정까지 바꾼다. 기본은 오늘만이다.
+     *
+     * 기사님이 이 화면의 의도를 이렇게 설명하셨다:
+     *   *"디폴트 값을 저장해 두고 … 오늘 콜이 많이 나올 만한 곳으로 필터를 바꾸고,
+     *     복귀콜이나 그런 것 하면 그 값으로 돌아오게 하려는 의도였다."*
+     *
+     * 의도대로 만들어져 있었는데 **화면이 그 구분을 안 보여줬다.**
+     * 그래서 "왜 내일 또 원래대로냐"를 알 수 없었다.
+     */
+    const handleSave = (saveAsDefault = false) => {
+        logRoadmapEvent("웹", `필터 저장 (${saveAsDefault ? '앞으로 계속' : '오늘만'})`);
 
         const newFilterToSave = {
             allowedVehicleTypes: selectedVehicles,
@@ -174,9 +184,9 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
             userOverrides: true // 기사가 수동 개입했음을 마킹
         };
 
-        console.log("📤 [OrderFilterModal] '즉시 동기화 적용' 클릭 - 서버로 전송되는 새 필터값:", JSON.parse(JSON.stringify(newFilterToSave)));
+        console.log("📤 [OrderFilterModal] 필터 저장 - 서버로 전송:", JSON.parse(JSON.stringify(newFilterToSave)), { saveAsDefault });
 
-        updateFilter(newFilterToSave);
+        updateFilter(newFilterToSave, saveAsDefault);
         onClose();
     };
 
@@ -205,11 +215,20 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                         {/* <span className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 tracking-tight">
                             통제 필터 설정
                         </span> */}
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                             <Badge variant="outline" className={isSharedMode ? 'bg-warning/20 text-warning border-warning/30' : 'bg-success/20 text-success border-success/30'}>
                                 {isSharedMode ? '합짐(Loaded) 모드' : '첫짐(Empty) 모드'}
                             </Badge>
+                            {/* 어느 필터를 고치는 화면인지 말해 준다. 이게 없어서
+                                설정 화면과 구분이 안 됐다 (파주/용인 혼선의 절반) */}
+                            <Badge variant="outline" className="bg-info/15 text-info border-info/30">
+                                오늘 사냥
+                            </Badge>
                         </div>
+                        <span className="text-[10px] font-normal text-text-muted break-keep">
+                            여기서 바꾼 값은 <b>오늘만</b> 쓰고 자정에 평소 설정으로 돌아갑니다.
+                            평소 값까지 바꾸려면 <b>[계속]</b> 으로 저장하세요.
+                        </span>
                     </DialogTitle>
                 </DialogHeader>
 
@@ -483,7 +502,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
 
                     {/* 사냥 모드 통제 버튼 영역 (1열 5버튼 구조) */}
                     <div className="pt-2">
-                        <div className="grid grid-cols-5 gap-1.5">
+                        <div className="grid grid-cols-6 gap-1.5">
                             {/* 기본 설정 불러오기: DB(baseFilter) 값으로 폼 초기화 */}
                             <Button
                                 onClick={handleLoadBaseFilter}
@@ -493,13 +512,27 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                 🔄 초기화
                             </Button>
 
-                            {/* 메인 액션: 현재 조건으로 사냥 (기존 적용 버튼) */}
+                            {/* 메인 액션: 오늘만 이 조건으로 사냥 (자정에 평소 설정으로 복귀) */}
                             <Button
-                                onClick={handleSave}
+                                onClick={() => handleSave(false)}
+                                title="오늘만 이 조건으로 사냥합니다 (자정에 평소 설정으로 돌아갑니다)"
                                 className="h-11 relative group overflow-hidden rounded-xl bg-gradient-to-r from-success to-success/70 text-white font-black text-[11px] shadow-[0_0_15px_var(--theme-glow-primary)] hover:shadow-[0_0_20px_var(--theme-glow-primary)] transition-all px-1"
                             >
-                                <span className="relative z-10 drop-shadow-md tracking-wider">🟢 갱신</span>
+                                <span className="relative z-10 drop-shadow-md tracking-wider">🟢 오늘만</span>
                                 <div className="absolute inset-0 bg-gradient-to-r from-success/90 to-success/60 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                            </Button>
+
+                            {/* 평소 설정까지 바꾼다 — 되돌아올 기준점 자체를 옮기는 것이라 확인을 받는다 */}
+                            <Button
+                                onClick={() => {
+                                    if (confirm('평소 설정까지 바꿉니다.\n\n앞으로 매일 아침 이 조건으로 시작하고, 복귀콜 뒤에도 여기로 돌아옵니다.\n계속할까요?')) {
+                                        handleSave(true);
+                                    }
+                                }}
+                                title="평소 설정까지 바꿉니다 (내일 아침에도 이 조건으로 시작)"
+                                className="h-11 rounded-xl bg-gradient-to-r from-info-alt to-info-alt/70 text-white font-black text-[11px] shadow-soft hover:shadow-md transition-all px-1"
+                            >
+                                📌 계속
                             </Button>
 
                             {/* 강제 출발 */}

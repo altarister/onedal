@@ -567,13 +567,17 @@ export interface AutoDispatchFilter {
     pickupRadiusKm: number;         // 내위치 반경 상차지 탐색(km)
     minFare: number;                // 최소 운임 (하한선)
     maxFare: number;                // 최대 운임 (디폴트 100만)
-    destinationCity: string;        // 하차 목표 메인 지역 (시/군/자치구) / 합짐 시에는 UI 축약 문구로 오버로딩
+    /**
+     * 하차 목표 메인 지역 (시/군/자치구).
+     * ⚠️ 앱은 이 값을 **판정에 쓰지 않는다** — 서버가 읍/면/동으로 펼쳐
+     *    `destinationKeywords` 로 보내기 때문이다. (`destinationRadiusKm` 도 같다)
+     */
+    destinationCity: string;
     destinationRadiusKm: number;    // 하차 목표 주위 탐색 반경 (km)
     excludedKeywords: string[];     // 제외 단어 배열 (예: ["착불", "수거", "까대기"])
     destinationKeywords: string[];  // (내부망) 앱 파싱용 읍/면/동 50개 키워드 배열
     destinationGroups?: Record<string, string[]>; // (UI용) 시/구 단위로 그룹핑된 읍면동 목록
     customCityFilters: string[];    // (UI용) 시/구 단위로 그룹핑된 읍면동 목록
-    customFilters: string[];        // 특수 기호 등 하단 빠른 설정 텍스트 (ex: "^^,@", "김포,인천...")
     corridorRadiusKm?: number;      // (합짐 모드) 경로 주변 이탈 허용 반경 (기본값 5km, DB설정값)
     userOverrides?: boolean;        // 기사가 팝업에서 수동으로 필터(destinationKeywords 등)를 조작했는지 여부(서버 덮어쓰기 방지용)
 }

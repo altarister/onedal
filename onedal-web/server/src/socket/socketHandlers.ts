@@ -11,7 +11,7 @@ import { PlaceRepository } from "../repositories/PlaceRepository";
 import { getUserSession, getAllActiveUserIds } from "../state/userSessionStore";
 import { buildOrderSync } from "../core/helpers";
 import { recalculateCorridorFilter, handleDecision, recalculateKakaoRoute, bootstrapUserSession, completeOrder, reportMilestone, undoMilestone, startTwoTrack, createHomeReturn } from "../services/dispatchEngine";
-import { updateActiveFilter, ensureBusinessDay } from "../state/filterManager";
+import { updateActiveFilter, ensureBusinessDay, saveBaseFilter } from "../state/filterManager";
 import { processDriverMovement, getCityRegionsWithRadius } from "../services/geoService";
 
 
@@ -118,22 +118,24 @@ export function registerSocketHandlers(io: Server) {
         safeOn(socket, "update-filter", (newFilter: Partial<AutoDispatchFilter>) => {
             logRoadmapEvent("서버", `관제탑으로 부터 필터 변경(update-filter) 요청 받음. 수신 데이터: ${JSON.stringify(newFilter)}`);
             
-            const isCityChanged = newFilter.destinationCity !== undefined && newFilter.destinationCity !== session.activeFilter.destinationCity;
             const isTargetChanged = newFilter.destinationRadiusKm !== undefined && newFilter.destinationRadiusKm !== session.activeFilter.destinationRadiusKm;
             const isCorridorChanged = newFilter.corridorRadiusKm !== undefined && newFilter.corridorRadiusKm !== session.activeFilter.corridorRadiusKm;
-            
-            // 첫짐 모드: 도시명 또는 도착 반경 변경 시
-            if (!session.activeFilter.isSharedMode && (isCityChanged || isTargetChanged)) {
-                const targetCity = newFilter.destinationCity ?? session.activeFilter.destinationCity ?? "";
-                const targetRadius = newFilter.destinationRadiusKm ?? session.activeFilter.destinationRadiusKm ?? 0;
-                
-                if (targetCity) {
-                    const { flat, grouped } = getCityRegionsWithRadius(targetCity, targetRadius);
-                    newFilter.destinationKeywords = flat;
-                    newFilter.destinationGroups = grouped;
-                }
-            }
-            
+
+            /**
+             * 🔴 2026-08-12 — **첫짐 지리 연산을 여기서 지웠다.**
+             *
+             * 예전에는 여기서 `getCityRegionsWithRadius` 를 직접 부르고
+             * `destinationKeywords` · `destinationGroups` 만 채워 넘겼다.
+             *
+             * 그러면 `recalculateDerivedFields` 는 `changes.destinationKeywords` 가
+             * 이미 있으니 **자기 계산을 건너뛴다** — 그래서 `customCityFilters`(시 별칭)가
+             * 영영 안 채워졌다. 관제웹으로 필터를 바꾸는 순간 동명이인 방어가 풀린 것이다.
+             *
+             * 같은 파생값을 두 곳에서 만들면 **한쪽만 고쳐진다.** 입력만 넘기고
+             * 파생은 `filterManager` 한 곳에 맡긴다 (`destinationCity`/`destinationRadiusKm`
+             * 가 changes 에 있으면 거기서 알아서 다시 계산한다).
+             */
+
             // 합짐 모드: 회랑 반경 또는 도착 반경 변경 시
             if (session.activeFilter.isSharedMode && (isCorridorChanged || isTargetChanged)) {
                 const cRadius = newFilter.corridorRadiusKm ?? session.activeFilter.corridorRadiusKm ?? DEFAULT_CORRIDOR_RADIUS_KM;
@@ -141,13 +143,35 @@ export function registerSocketHandlers(io: Server) {
                 
                 const newRegions = recalculateCorridorFilter(userId, cRadius, dRadius);
                 if (newRegions) {
+                    // 셋을 **한 벌로** 넘긴다. 예전에는 앞의 둘만 넘겨서 시 별칭이 빠졌고,
+                    // 앱의 2단계 필터(시 + 동 교차 확인)가 조용히 꺼졌다
                     newFilter.destinationKeywords = newRegions.destinationKeywords;
                     newFilter.destinationGroups = newRegions.destinationGroups;
+                    newFilter.customCityFilters = newRegions.customCityFilters;
                 }
             }
             
-            logRoadmapEvent("서버", "관제탑에게 변경 적용된 필터(filter-updated) 정보 전달 (메모리만, DB 저장 안함)");
-            updateActiveFilter(userId, newFilter, io);
+            /**
+             * `saveAsDefault` — **"앞으로 계속"** 을 고르셨을 때만 평소 설정까지 바꾼다.
+             *
+             * 기사님이 이 화면의 의도를 이렇게 설명하셨다:
+             *   *"사용자 설정에서 디폴트 값을 저장해 두고 … 운행중을 시작하기 전
+             *     오늘 콜이 많이 나올 만한 곳으로 필터 값을 바꾸고, 복귀콜이나 그런 것 하면
+             *     그 값으로 돌아오게 하려는 의도였다."*
+             *
+             * 그래서 기본은 **오늘만**이다 (activeFilter, 자정에 되돌아간다).
+             * 다만 화면에 그 구분이 없어서 "왜 내일 또 원래대로냐"를 알 수 없었다.
+             * 이제 관제웹이 어느 쪽인지 **명시적으로 말한다.**
+             */
+            const { saveAsDefault, ...filterChanges } = newFilter as Partial<AutoDispatchFilter> & { saveAsDefault?: boolean };
+
+            if (saveAsDefault) {
+                logRoadmapEvent("서버", "관제탑이 '앞으로 계속' 로 저장 요청 — baseFilter(평소 설정)까지 갱신");
+                saveBaseFilter(userId, filterChanges, io);
+            } else {
+                logRoadmapEvent("서버", "관제탑에게 변경 적용된 필터(filter-updated) 정보 전달 (오늘만 — DB 저장 안함)");
+            }
+            updateActiveFilter(userId, filterChanges, io);
         });
 
         // 프론트에서 현재 위치 전송 시 (지도 등 활용 및 Master GPS 용도)

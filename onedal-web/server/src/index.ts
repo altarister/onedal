@@ -16,7 +16,6 @@ import devicesRouter from "./routes/devices";
 import configRouter from "./routes/config";
 import authRouter from "./routes/auth";
 import settingsRouter from "./routes/settings";
-import filtersRouter from "./routes/filters";
 import logbookAnalyticsRouter from "./routes/logbook/analytics";
 import logbookPlacesRouter from "./routes/logbook/places";
 import healthRouter, { logServerIdentity } from "./routes/health";
@@ -71,7 +70,10 @@ app.use("/api/emergency", emergencyRouter);  // [Safety Mode V3] 앱폰 비상 �
 app.use("/api/config", configRouter); // 타겟 앱 키워드 연동
 app.use("/api/auth", authRouter); // OAuth 로그인/인증 라우터
 app.use("/api/settings", settingsRouter); // 개인화 설정 라우터
-app.use("/api/filters", filtersRouter); // 콜 사냥용 필터 라우터
+// [2026-08-12] GET/PUT /api/filters 제거 — 관제웹·앱·운행일지 전수 grep 결과 **호출부 0건**.
+//   PUT 은 소켓 `update-filter` 와 똑같이 updateActiveFilter 를 부르는 두 번째 입구였고,
+//   GET 은 필터 필드를 손으로 다시 나열해 새 필드(customCityFilters 등)가 빠진 채 굳어 있었다.
+//   입구가 둘이면 한쪽만 고쳐진다.
 
 // ── BFF: Logbook (운행일지 대시보드 전용) ──
 app.use("/api/logbook/analytics", logbookAnalyticsRouter);

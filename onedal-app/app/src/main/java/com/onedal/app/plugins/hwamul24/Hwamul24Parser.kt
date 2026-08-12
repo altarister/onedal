@@ -63,8 +63,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
                 destinationRadiusKm = json.optInt("destinationRadiusKm", 10),
                 excludedKeywords = parseJsonArray(json, "excludedKeywords"),
                 destinationKeywords = parseJsonArray(json, "destinationKeywords"),
-                customCityFilters = parseJsonArray(json, "customCityFilters"),
-                customFilters = parseJsonArray(json, "customFilters")
+                customCityFilters = parseJsonArray(json, "customCityFilters")
             )
         } catch (e: Exception) {
             AppLogger.e(TAG, "❌ 필터 JSON 파싱 실패: ${e.message}")

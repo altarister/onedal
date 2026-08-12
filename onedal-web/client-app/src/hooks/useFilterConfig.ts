@@ -50,18 +50,29 @@ export function useFilterConfig() {
         };
     }, [setBothFilters]);
 
-    // 프론트엔드에서 필터값을 임의로 즉시 업데이트 후 서버로 전송 (Optimisitc UI)
-    const updateFilter = (newFilter: Partial<AutoDispatchFilter>) => {
-        // 로컬 상태 선반영 (주로 baseFilter를 기반으로 모달이 동작하므로 base와 active 둘 다에 반영)
+    /**
+     * 필터를 바꾼다 (Optimistic UI).
+     *
+     * @param saveAsDefault **"앞으로 계속"** — 평소 설정(baseFilter)까지 바꾼다.
+     *   기본은 **오늘만**이다. 자정에 평소 설정으로 되돌아간다.
+     *
+     * 🔴 2026-08-12 — 예전에는 `saveAsDefault` 없이 **항상 baseFilter 에도 반영**했다.
+     *    서버는 activeFilter 만 바꾸는데 화면만 둘 다 바꾼 것이다.
+     *    그래서 새로고침하면 baseFilter 가 원래 값으로 돌아왔고,
+     *    두 필터가 같은 것처럼 보이다가 갑자기 달라졌다.
+     *    (기사님: *"사용자 설정에는 파주가 선택되어 있고 새로고침하고 필터 열어 보면 용인"*)
+     */
+    const updateFilter = (newFilter: Partial<AutoDispatchFilter>, saveAsDefault = false) => {
+        // 오늘 사냥은 언제나 바뀐다
         if (filter) {
             setFilter({ ...filter, ...newFilter });
         }
-        if (baseFilter) {
+        // 평소 설정은 그렇게 하겠다고 했을 때만 바뀐다 — 서버 동작과 화면을 맞춘다
+        if (saveAsDefault && baseFilter) {
             setBaseFilter({ ...baseFilter, ...newFilter });
         }
-        // 서버로 방출
-        logRoadmapEvent("웹", "서버에게 새로 작성한 update-filter 정보 전달");
-        socket.emit("update-filter", newFilter);
+        logRoadmapEvent("웹", `서버에게 update-filter 전달 (${saveAsDefault ? '앞으로 계속' : '오늘만'})`);
+        socket.emit("update-filter", saveAsDefault ? { ...newFilter, saveAsDefault: true } : newFilter);
     };
 
     return { filter, baseFilter, updateFilter };

@@ -167,6 +167,12 @@ export default function PricingSettingsTab({ onClose }: Props) {
       {/* 기본 노선 */}
       <div className="space-y-1.5 pt-2 border-t">
         <label className="text-sm font-semibold text-text-muted">📍 내 노선 기본 설정</label>
+        {/* 관제탑의 돋보기 필터와 **다른 값**이다. 화면에 그 구분이 없어서
+            "설정에는 파주인데 필터를 열면 용인" 이 되었다 */}
+        <p className="text-[10px] text-text-muted break-keep">
+          <b>매일 아침 여기서 시작</b>합니다. 오늘만 다르게 사냥하려면 관제탑의 🔍 필터에서 바꾸세요 —
+          그 값은 자정에 여기로 돌아옵니다.
+        </p>
         <div className="grid grid-cols-3 gap-2">
           <div className="space-y-1.5">
             <label className="text-[10px] font-semibold text-text-muted">도착 시/군</label>
