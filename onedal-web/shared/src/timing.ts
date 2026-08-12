@@ -174,6 +174,21 @@ export function describeSlack(slack: number | null): { text: string; level: 'non
     return { text: `여유 ${h}시간 ${slack % 60}분 — 합짐 여력 있음`, level: 'ample' };
 }
 
+/**
+ * **영업일 경계 — 자정.** 기사님 결정(2026-08-12): *"그냥 하차시간을 기준으로 24시를 기준으로."*
+ *
+ * ⚠️ 아래 `BUSINESS_DAY_END_HOUR`(17시) 와 헷갈리면 안 된다. 둘은 다른 것이다.
+ *     17시  — **일과 종료**. "이 시각까지 갖다 준다"는 배송 마감 상한
+ *     자정  — **영업일 경계**. 어제와 오늘을 가르는 선. 오늘 필터가 되돌아가는 시점
+ *
+ * 로컬 날짜 문자열(`2026-08-12`)로 다룬다. 시각 비교보다 날짜 비교가 실수할 자리가 적다.
+ */
+export function businessDayKey(ms: number): string {
+    const d = new Date(ms);
+    const p = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
 /** 원칙 1 — 일과 종료. 기사님 결정(2026-08-12): **17시** */
 export const BUSINESS_DAY_END_HOUR = 17;
 

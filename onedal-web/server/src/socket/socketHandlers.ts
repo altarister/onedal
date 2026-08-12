@@ -11,7 +11,7 @@ import { PlaceRepository } from "../repositories/PlaceRepository";
 import { getUserSession, getAllActiveUserIds } from "../state/userSessionStore";
 import { buildOrderSync } from "../core/helpers";
 import { recalculateCorridorFilter, handleDecision, recalculateKakaoRoute, bootstrapUserSession, completeOrder, reportMilestone, undoMilestone, startTwoTrack, createHomeReturn } from "../services/dispatchEngine";
-import { updateActiveFilter } from "../state/filterManager";
+import { updateActiveFilter, ensureBusinessDay } from "../state/filterManager";
 import { processDriverMovement, getCityRegionsWithRadius } from "../services/geoService";
 
 
@@ -70,6 +70,10 @@ export function registerSocketHandlers(io: Server) {
 
         // 방 참여 (개별 유저 룸) — 부트스트랩이 emit 하기 전에 반드시 먼저 들어가 있어야 한다
         socket.join(userId);
+
+        // 날이 바뀌었으면 오늘 필터를 기본 설정으로 되돌린다.
+        // 🔴 부트스트랩보다 **먼저** 해야 한다 — 부트스트랩이 이 필터를 읽어 회랑을 만든다
+        ensureBusinessDay(userId, io);
         if (role === "ADMIN") {
             socket.join("admin_room");
         }

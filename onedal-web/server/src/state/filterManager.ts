@@ -16,7 +16,7 @@ import { getActiveCalls, computeLoadedPoints } from "../core/helpers";
 import { OrderRepository } from "../repositories/OrderRepository";
 import { getUserSession } from "./userSessionStore";
 import type { AutoDispatchFilter } from "@onedal/shared";
-import { getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase } from "@onedal/shared";
+import { getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter } from "@onedal/shared";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { getCityRegionsWithRadius } from "../services/geoService";
 
@@ -290,3 +290,39 @@ export function updateActiveFilter(
     return session.activeFilter;
 }
 
+
+/**
+ * **영업일이 바뀌었으면 오늘 필터를 기본 설정으로 되돌린다.**
+ *
+ * 기사님이 설명한 흐름 그대로다.
+ *   *"사용자 설정에서 디폴트 값을 저장해 두고 세션이 바뀌거나 담날이 되거나 하면
+ *     디폴트 값을 가져오고, 운행 시작 전 오늘 콜이 많이 나올 만한 곳으로 필터에 값을 바꾸고…"*
+ *   *"아침에 출근시 필터 설정 없으면 그냥 디폴트 값으로 콜을 잡는 거고."*
+ *
+ * 경계는 **자정**이다 (기사님 결정 2026-08-12).
+ * `isActive` 는 끄지 않는다 — 아침에는 기본 설정 그대로 사냥을 시작하는 것이 맞다고 하셨다.
+ *
+ * ⚠️ 타이머를 두지 않는다. 접속·스크랩처럼 **세션을 건드리는 순간**에 확인한다.
+ *    타이머는 서버가 자는 사이를 못 잡고, 프로세스가 죽으면 사라진다.
+ *
+ * @returns 되돌렸으면 true
+ */
+export function ensureBusinessDay(userId: string, io?: any): boolean {
+    const session = getUserSession(userId);
+    const today = businessDayKey(Date.now());
+    if (session.businessDay === today) return false;
+
+    const yesterday = session.businessDay;
+    session.businessDay = today;
+
+    // 되돌리는 규칙은 shared 한 곳에만 있다 (세션 생성 때도 같은 규칙을 쓴다)
+    session.activeFilter = resetToBaseFilter(session.baseFilter);
+
+    console.log(`🌅 [영업일 전환] ${yesterday} → ${today} · 오늘 필터를 기본 설정으로 되돌립니다 ` +
+        `(도착 ${session.baseFilter.destinationCity}, 최저 ${session.baseFilter.minFare}원)`);
+    logRoadmapEvent("서버", `[영업일 전환] ${yesterday} → ${today} — activeFilter 를 baseFilter 로 리셋`);
+
+    // 파생 재계산 + 관제탑 전파
+    updateActiveFilter(userId, {}, io);
+    return true;
+}

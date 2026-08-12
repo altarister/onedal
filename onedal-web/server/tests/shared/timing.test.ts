@@ -1,7 +1,7 @@
 import {
     BUSINESS_DAY_END_HOUR, DEFAULT_DELIVERY_SLACK_MINUTES,
     businessDayEnd, defaultDropoffDeadline, derivePickupDeadline, buildArrivalSlots,
-    departureDeadline, minutesUntil, formatCountdown, deriveCallTiming,
+    departureDeadline, minutesUntil, formatCountdown, deriveCallTiming, businessDayKey, resetToBaseFilter,
 } from '@onedal/shared';
 
 /**
@@ -225,5 +225,81 @@ describe('deriveCallTiming — 시간 파생의 유일한 지점', () => {
         expect(t.toPickup.driveMinutes).toBeNull();
         expect(t.departureAt).toBeNull();
         expect(t.waitMinutes).toBeNull();
+    });
+});
+
+/**
+ * 영업일 경계 — 기사님 결정(2026-08-12): *"그냥 하차시간을 기준으로 24시를 기준으로."*
+ *
+ * ⚠️ 일과 종료(17시)와 다른 것이다.
+ *    17시 = "이 시각까지 갖다 준다" (배송 마감 상한)
+ *    자정 = 어제와 오늘을 가르는 선 (오늘 필터가 되돌아가는 시점)
+ */
+describe('영업일 경계는 자정이다', () => {
+    const at = (d: number, h: number, m = 0) =>
+        new Date(`2026-08-${String(d).padStart(2,'0')}T${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00+09:00`).getTime();
+
+    it('같은 날은 같은 키', () => {
+        expect(businessDayKey(at(12, 6))).toBe(businessDayKey(at(12, 23, 59)));
+    });
+
+    it('🔴 자정을 넘기면 다른 날 — 여기서 오늘 필터가 되돌아간다', () => {
+        expect(businessDayKey(at(12, 23, 59))).not.toBe(businessDayKey(at(13, 0, 1)));
+    });
+
+    it('17시(일과 종료)로는 날이 바뀌지 않는다 — 둘은 다른 개념이다', () => {
+        expect(businessDayKey(at(12, 16))).toBe(businessDayKey(at(12, 18)));
+    });
+
+    it('로컬 날짜 문자열이다', () => {
+        expect(businessDayKey(at(12, 9))).toBe('2026-08-12');
+        expect(businessDayKey(at(3, 9))).toBe('2026-08-03');
+    });
+});
+
+/**
+ * 아침에 오늘 필터가 무엇으로 돌아가는가.
+ *
+ * 기사님: *"세션이 바뀌거나 담날이 되거나 하면 디폴트 값을 가져오고,
+ * 운행 시작 전 오늘 콜이 많이 나올 만한 곳으로 필터에 값을 바꾸고…"*
+ */
+describe('resetToBaseFilter — 오늘 필터를 기본 설정으로', () => {
+    const base = {
+        destinationCity: '파주', destinationRadiusKm: 10, minFare: 30000, maxFare: 1000000,
+        pickupRadiusKm: 10, corridorRadiusKm: 5, excludedKeywords: ['착불'],
+        allowedVehicleTypes: ['1t'], isActive: true, isSharedMode: false,
+        driverAction: 'WAITING', dispatchPhase: 'STANDBY',
+        destinationKeywords: [], customCityFilters: [], customFilters: [],
+    } as any;
+
+    it('기사님이 정한 기본 설정을 그대로 가져온다', () => {
+        const r = resetToBaseFilter(base);
+        expect(r.destinationCity).toBe('파주');
+        expect(r.minFare).toBe(30000);
+        expect(r.pickupRadiusKm).toBe(10);
+        expect(r.excludedKeywords).toEqual(['착불']);
+    });
+
+    it('🔴 어제 경로에서 나온 회랑은 비운다 — 그 지역으로 오늘 사냥하면 안 된다', () => {
+        const r = resetToBaseFilter({ ...base, destinationKeywords: ['어제동'], customCityFilters: ['어제시'] });
+        expect(r.destinationKeywords).toEqual([]);
+        expect(r.customCityFilters).toEqual([]);
+        expect(r.destinationGroups).toEqual({});
+    });
+
+    it('수동 고정도 풀린다 — 새 하루는 자동 회랑으로 시작한다', () => {
+        expect(resetToBaseFilter({ ...base, userOverrides: true }).userOverrides).toBe(false);
+    });
+
+    it('🔴 사냥은 끄지 않는다 — 아침에 기본 설정 그대로 잡는 것이 의도다', () => {
+        expect(resetToBaseFilter({ ...base, isActive: true }).isActive).toBe(true);
+        // 기본 설정에서 꺼 뒀으면 꺼진 채로 시작한다 (기본 설정을 따를 뿐 강제하지 않는다)
+        expect(resetToBaseFilter({ ...base, isActive: false }).isActive).toBe(false);
+    });
+
+    it('원본을 건드리지 않는다', () => {
+        const src = { ...base, userOverrides: true };
+        resetToBaseFilter(src);
+        expect(src.userOverrides).toBe(true);
     });
 });

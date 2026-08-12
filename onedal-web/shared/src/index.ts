@@ -579,6 +579,31 @@ export interface AutoDispatchFilter {
 }
 
 /**
+ * **오늘 필터를 기본 설정으로 되돌린다.**
+ *
+ * 두 자리에서 쓴다. 규칙이 갈라지지 않게 여기 한 곳에만 둔다.
+ *   · 영업일 전환 (자정을 넘겼다)               — `ensureBusinessDay`
+ *   · 세션 생성 (서버 재시작·첫 접속)
+ *
+ * 되돌리지 **않는** 것은 없다 — 오늘 정한 것은 전부 기본값으로 간다.
+ * 다만 회랑 파생값은 기본 설정에도 없는 값이라 명시적으로 비운다.
+ * 비워 두면 `recalculateDerivedFields` 가 **오늘의** 목적지 도시로 다시 만든다.
+ * (어제 경로에서 나온 지역으로 오늘 사냥하면 안 된다)
+ *
+ * ⚠️ `isActive` 는 기본 설정 값을 그대로 따른다. 끄지 않는다 —
+ *    기사님: *"아침에 출근시 필터 설정 없으면 그냥 디폴트 값으로 콜을 잡는 거고."*
+ */
+export function resetToBaseFilter(base: AutoDispatchFilter): AutoDispatchFilter {
+    return {
+        ...base,
+        destinationKeywords: [],
+        destinationGroups: {},
+        customCityFilters: [],
+        userOverrides: false,
+    };
+}
+
+/**
  * [계층 3] 사냥 전략 파생 함수 (Pure Function)
  * DriverAction(기사 행동) + 확정 오더 수를 조합하여 DispatchPhase를 자동 계산합니다.
  * DB에 저장하지 않으며, 하드코딩(0km, 10km)을 원천 차단합니다.

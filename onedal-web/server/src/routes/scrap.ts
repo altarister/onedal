@@ -2,6 +2,7 @@ import { Router } from "express";
 import type { SimplifiedOfficeOrder, ScreenContextType } from "@onedal/shared";
 import db from "../db";
 import { getUserSession } from "../state/userSessionStore";
+import { ensureBusinessDay } from "../state/filterManager";
 
 import { trimCorridorByProgress } from "../services/geoService";
 import { touchDeviceSession } from "./devices";
@@ -83,6 +84,10 @@ router.post("/", (req, res) => {
 
         // logRoadmapEvent("서버", "관제탑에게 실시간 마커용 GPS(device-sessions-updated) 정보 전달");
         const session = getUserSession(userId);
+
+        // 날이 바뀌었으면 오늘 필터를 기본 설정으로 되돌린다.
+        // 관제탑보다 앱이 먼저 켜질 수 있으므로 여기에도 둔다 (같은 함수라 두 번 돌아도 무해하다).
+        ensureBusinessDay(userId, req.app.get("io"));
 
         // 3.2. [Telemetry Ping] 프론트엔드의 타임아웃 진행바를 위한 실시간 핑 발송
         if (deviceId) {

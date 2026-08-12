@@ -1,4 +1,4 @@
-import { AutoDispatchFilter, SecuredOrder, PendingOrder, MyOrder, getEligibleVehicleTypes } from "@onedal/shared";
+import { AutoDispatchFilter, SecuredOrder, PendingOrder, MyOrder, getEligibleVehicleTypes, businessDayKey } from "@onedal/shared";
 import type { CapacityConfidence } from "@onedal/shared";
 import db from "../db";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
@@ -38,6 +38,11 @@ export interface UserSession {
     userVehicleType: string; // user_settings의 내 차종 (동적 허용 차종 생성용)
     isRestored: boolean;     // [방안 1] 서버 재시작 복구 로직 1회 실행 여부 플래그
     /**
+     * 이 세션이 마지막으로 활동한 **영업일** (`YYYY-MM-DD`, 자정 경계).
+     * 날짜가 넘어가면 오늘 필터를 기본 설정으로 되돌린다 (`ensureBusinessDay`).
+     */
+    businessDay: string;
+    /**
      * [Phase 6] 부트스트랩(데이터 로드 → 노선 산출 → 상태 파생 → 회랑 도출) 진행 중 여부.
      * true 인 동안에는 activeFilter 가 아직 미완성이므로 앱폰에 사냥을 시키지 않는다.
      * (예전에는 복구가 끝나기 전 1~3초 동안 "첫짐 필터(회랑 없음)"가 앱에 나가
@@ -63,6 +68,7 @@ function createDefaultSession(): UserSession {
         driverLocationIsFallback: false,
         userVehicleType: '1t',
         capacityConfidence: 'ESTIMATED',
+        businessDay: businessDayKey(Date.now()),
         isRestored: false,
         isBootstrapping: false
     };
