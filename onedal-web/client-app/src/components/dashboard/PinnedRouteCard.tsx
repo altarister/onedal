@@ -240,18 +240,48 @@ export default function PinnedRouteCard({
                                     )}
                                 </Button>
                                 {!!route.kakaoTimeExt ? (() => {
+                                    /**
+                                     * 판정을 **색으로** 읽는다. 기사님은 30초 안에 결정해야 하므로
+                                     * 글자를 읽기 전에 색이 먼저 말해 줘야 한다. (2026-08-13 기사님 확정)
+                                     *
+                                     *   🔵 파랑   꿀콜        잡아라
+                                     *   🟢 초록   보통        —
+                                     *   🟡 노랑   똥콜        별로다
+                                     *   🔴 빨강   연산 실패    **잡지 마라**
+                                     *
+                                     * 🔴 실패가 빨강인 이유: 예전에는 회색(무해해 보임)이었다.
+                                     *    나쁜 걸 아는 것보다 **아무것도 모르는 게 더 위험하다** —
+                                     *    경로도 요율도 못 구한 콜은 판단 근거 자체가 없다.
+                                     */
                                     let btnBg = "bg-success hover:bg-success/80";
                                     let btnTitle = "유지 확정";
+                                    let verdict = "";
 
-                                    const rawRes = route.kakaoTimeExt.replace(/['꿀똥콜🚙💩🍯\[\]추천최단거리시간]/g, "").trim();
-                                    const cleanReason = rawRes || '연산 완료';
+                                    /**
+                                     * ⚠️ 예전 정규식은 `[...꿀똥콜추천최단거리시간]` 처럼 **낱글자 집합**이라
+                                     *    문장 어디에 있든 그 글자를 지웠다. 그래서
+                                     *    `총 추가시간(+116분) 초과` → `총 가(+116분) 초과` 로 뭉개졌다.
+                                     *    지울 것은 판정 표식뿐이므로 **낱말 단위**로 제거한다.
+                                     */
+                                    const cleanReason = route.kakaoTimeExt
+                                        .replace(/'(꿀|똥|콜)'/g, '')
+                                        .replace(/\[(추천|최단거리|최단시간)\]/g, '')
+                                        .replace(/[🚙💩🍯]/g, '')
+                                        .replace(/\s{2,}/g, ' ')
+                                        .trim() || '연산 완료';
 
                                     if (route.kakaoTimeExt.includes("실패") || route.kakaoTimeExt.includes("에러")) {
-                                        btnBg = "bg-surface-alt hover:bg-surface-hover";
+                                        btnBg = "bg-danger hover:bg-danger/80 shadow-[0_0_15px_var(--theme-glow-warning)]";
+                                        btnTitle = "판단 불가";
+                                        verdict = "🔴 잡지 마세요 — 경로·요율을 계산하지 못했습니다";
                                     } else if (route.kakaoTimeExt.includes("'꿀'")) {
                                         btnBg = "bg-info hover:bg-info/80 shadow-[0_0_15px_var(--theme-glow-primary)]";
+                                        verdict = "🍯 꿀콜";
                                     } else if (route.kakaoTimeExt.includes("'똥'")) {
                                         btnBg = "bg-warning hover:bg-warning/80 shadow-[0_0_15px_var(--theme-glow-warning)]";
+                                        verdict = "💩 별로입니다";
+                                    } else {
+                                        verdict = "보통";
                                     }
 
                                     return (
@@ -260,9 +290,13 @@ export default function PinnedRouteCard({
                                             onClick={(e: React.MouseEvent) => { e.stopPropagation(); logRoadmapEvent("웹", `PinnedRoute에서 KEEP(${btnTitle}) 버튼 클릭`); logRoadmapEvent("웹", "서버에게 decision=KEEP 하달 정보 전달"); setProcessingId(route.id); onDecision(route.id, 'ORDER_CONFIRMED'); }} 
                                             className={`flex-[2] h-auto py-2.5 text-white flex-col items-center justify-center transition-all ${btnBg} ${processingId === route.id ? 'opacity-50 cursor-not-allowed' : ''} overflow-hidden px-1`}
                                         >
-                                            <span className="text-[11px] font-medium opacity-100 tracking-tight leading-snug break-all line-clamp-1">{cleanReason}</span>
+                                            {/* 판정을 먼저 — 색과 같은 말을 글로도 한 번 더 */}
+                                            <span className="text-[13px] font-black tracking-tight leading-tight">{verdict}</span>
+                                            {/* 근거는 두 줄까지. 한 줄로 자르면 `총 추가시간(+116분) 초과` 의
+                                                핵심 숫자가 잘려 30초 안에 판단할 수 없다 */}
+                                            <span className="text-[10px] font-medium opacity-95 mt-0.5 tracking-tight leading-snug break-keep line-clamp-2">{cleanReason}</span>
                                             {route.approvalReasons && route.approvalReasons.length > 0 && (
-                                                <span className="text-[10px] font-medium opacity-90 mt-0.5 tracking-tight leading-snug break-all line-clamp-2">
+                                                <span className="text-[10px] font-medium opacity-90 mt-0.5 tracking-tight leading-snug break-keep line-clamp-2">
                                                     ✅ {route.approvalReasons.join(', ')}
                                                 </span>
                                             )}
