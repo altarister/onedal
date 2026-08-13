@@ -624,17 +624,6 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                 {homeReturnLoading ? '⏳ 계산중' : hasHomeReturnActive ? '🏠 진행중' : '🏠 귀가'}
                             </Button>
 
-                            {/* 투-트랙 사냥: 집 방향 콜 + 현지 잔잔바리 동시 스캔 */}
-                            <Button
-                                onClick={() => {
-                                    logRoadmapEvent("웹", "투-트랙 사냥 버튼 클릭 → 집 + 현재 지역 동시 스캔 모드 전환");
-                                    socket.emit("start-two-track");
-                                    onClose();
-                                }}
-                                className="h-11 rounded-xl bg-gradient-to-r from-warning to-warning/70 text-white font-black text-[11px] shadow-[0_0_15px_var(--theme-glow-warning)] hover:shadow-[0_0_20px_var(--theme-glow-warning)] transition-all px-1"
-                            >
-                                🎯 투-트랙
-                            </Button>
                         </div>
 
                         <p className="text-[10px] text-text-muted text-center mt-2">이 값은 현재 진행 중인 콜 탐색에만 적용됩니다. 🔄초기화를 누르면 톱니바퀴(⚙️) 설정값을 불러옵니다.</p>

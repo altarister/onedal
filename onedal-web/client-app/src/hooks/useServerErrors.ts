@@ -33,7 +33,7 @@ export function useServerErrors() {
          * 화면은 낙관적으로만 그리고, 실패하면 1초 `sync-active-orders` 가 되돌려
          * "눌렀는데 되돌아갔다"로만 보였다. 왜 실패했는지는 아무도 몰랐다.
          */
-        const ACK_EVENTS = ['decision-ack', 'recalculate-route-ack', 'two-track-ack', 'milestone-result'] as const;
+        const ACK_EVENTS = ['decision-ack', 'recalculate-route-ack', 'hunt-phase-ack', 'milestone-result'] as const;
         const ackHandlers = ACK_EVENTS.map(ev => {
             const h = (r: { success?: boolean; msg?: string; reason?: string; duplicated?: boolean }) => {
                 if (r?.success === false) {

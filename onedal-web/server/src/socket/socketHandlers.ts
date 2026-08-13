@@ -4,13 +4,13 @@ import { jwtSecret } from "../config/env";
 import { getUserDevicesSnapshot } from "../routes/devices";
 import { getRegionsByCity } from "../geoResolver";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
-import type { AutoDispatchFilter, Milestone, CargoReport } from "@onedal/shared";
+import type { AutoDispatchFilter, Milestone, CargoReport, HuntPhase } from "@onedal/shared";
 import { cargoMismatchRatio, DEFAULT_CORRIDOR_RADIUS_KM } from "@onedal/shared";
 import { OrderRepository } from "../repositories/OrderRepository";
 import { PlaceRepository } from "../repositories/PlaceRepository";
 import { getUserSession, getAllActiveUserIds } from "../state/userSessionStore";
 import { buildOrderSync } from "../core/helpers";
-import { recalculateCorridorFilter, handleDecision, recalculateKakaoRoute, bootstrapUserSession, completeOrder, reportMilestone, undoMilestone, startTwoTrack, createHomeReturn } from "../services/dispatchEngine";
+import { recalculateCorridorFilter, handleDecision, recalculateKakaoRoute, bootstrapUserSession, completeOrder, reportMilestone, undoMilestone, setHuntPhase, createHomeReturn } from "../services/dispatchEngine";
 import { updateActiveFilter, ensureBusinessDay, saveBaseFilter } from "../state/filterManager";
 import { processDriverMovement, getCityRegionsWithRadius } from "../services/geoService";
 
@@ -360,10 +360,16 @@ export function registerSocketHandlers(io: Server) {
             await completeOrder(userId, data.orderId, io);
         });
 
-        // 🎯 투-트랙 사냥: 기존 콜 전부 완료 → 필터 STANDBY 리셋 → 집+현위치 동시 스캔
-        safeOn(socket, "start-two-track", async () => {
-            const result = await startTwoTrack(userId, io);
-            socket.emit("two-track-ack", result);
+        /**
+         * 🧭 국면 전환 — 요약줄 스와이프 (DEST → LOCAL → HOME).
+         *
+         * 옛 `start-two-track` 을 대체한다. 그 핸들러는 전환하면서 **활성 콜을 전부
+         * 완료 처리**했다 — 기사님: *"콜은 무조건 배달을 해서 완료되어야 한다."*
+         * 이 핸들러는 **필터만** 바꾼다.
+         */
+        safeOn(socket, "set-hunt-phase", async (data: { phase: HuntPhase }) => {
+            const result = await setHuntPhase(userId, data?.phase ?? 'DEST', io);
+            socket.emit("hunt-phase-ack", result);
         });
 
         // 🏠 귀가콜: 현재 위치 → 집 주소로 가상 오더 생성 + 회랑 자동 세팅

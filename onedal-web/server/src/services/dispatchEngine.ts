@@ -1,9 +1,10 @@
 import { mapVehicleToKakaoCarType, getRemainingCapacityTypes, deriveDispatchPhase, normalizeVehicleType,
          MILESTONE_TO_STATUS, MILESTONE_LABEL, canReportMilestone, timingError,
          RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, UNFINISHED_RESTORE_DAYS, deriveStatusFromMilestones,
-         restoreWindow, getEffectiveCorridorRadius, DEFAULT_CORRIDOR_RADIUS_KM } from "@onedal/shared";
+         restoreWindow, getEffectiveCorridorRadius, DEFAULT_CORRIDOR_RADIUS_KM,
+         HUNT_PHASE_LABEL } from "@onedal/shared";
 import type { SecuredOrder, AutoDispatchFilter, PricingConfig, PendingOrder, MyOrder,
-              Milestone, MilestoneSource } from "@onedal/shared";
+              Milestone, MilestoneSource, HuntPhase } from "@onedal/shared";
 import { geocodeAddress, calculateSoloRoute, calculateDetourRoute, compareDirections } from "./kakaoService";
 import { fetchRealWorldRoute } from "../routes/osrmUtil";
 import { getUserSession } from "../state/userSessionStore";
@@ -1081,76 +1082,91 @@ export async function completeOrder(userId: string, orderId: string, io: any): P
 }
 
 /**
- * 투-트랙 사냥 모드: 기존 콜 전부 완료 → 필터 STANDBY 리셋 → 집+현위치 동시 스캔
+ * **국면 전환** — 기사님이 요약줄을 스와이프해서 지금 무엇을 사냥할지 고른다.
+ *
+ *   DEST(목적지행) → LOCAL(이 동네에서 찾기) → HOME(복귀행)
+ *
+ * 🔴 2026-08-13 — 이 함수가 `startTwoTrack` 을 대체한다.
+ *
+ *    옛 함수는 전환하면서 **활성 콜을 전부 `ORDER_COMPLETED` 로 만들었다.**
+ *    기사님: *"투트랙은 활성콜을 완료처리하는 것이 아니고 지금 상황에 맞는 콜을
+ *    필터에 넣어야 한다는 거지. **콜은 무조건 배달을 해서 완료되어야 한다.**"*
+ *    짐을 싣고 가는 중에 눌렀다면 배달하지도 않은 콜이 완료로 기록됐다 —
+ *    정산도 운행일지도 통째로 틀어진다.
+ *
+ *    또 `destinationCity` 에 `'🎯 투-트랙 탐색'` 이라는 **없는 도시 이름**을 넣었다.
+ *    그 값을 읽는 모든 곳(지리 연산·화면 표시)이 함께 속는다.
+ *
+ * **이 함수는 필터만 바꾼다. 콜 상태는 건드리지 않는다.**
+ * 적재 상태에서 파생되는 값(`dispatchPhase`·`isSharedMode`·허용 차종)도 건드리지 않는다 —
+ * `updateActiveFilter` 가 활성 콜에서 매번 다시 구한다.
  */
-export async function startTwoTrack(userId: string, io: any): Promise<{ success: boolean; keywords: string[]; message?: string }> {
+export async function setHuntPhase(
+    userId: string,
+    phase: HuntPhase,
+    io: any
+): Promise<{ success: boolean; phase: HuntPhase; city?: string; message?: string }> {
     try {
         const session = getUserSession(userId);
-        console.log(`🎯 [투-트랙] 사냥 모드 전환 시작 (userId: ${userId})`);
+        console.log(`🧭 [국면 전환] ${session.activeFilter.huntPhase ?? 'DEST'} → ${phase} (userId: ${userId})`);
 
-        // 1. 기존 활성 콜 전부 completed 처리 (메모리 + DB)
-        const allCalls = getActiveCalls(session);
-        for (const call of allCalls) {
-            if (!call) continue;
-            setOrderStatus(session, call.id, 'ORDER_COMPLETED');
-            try {
-                db.prepare("UPDATE orders SET status = 'ORDER_COMPLETED', completedAt = datetime('now', 'localtime') WHERE id = ? AND userId = ?").run(call.id, userId);
-                console.log(`   ✅ [투-트랙] 기존 콜 완료 처리: ${call.id} (${call.pickup} → ${call.dropoff})`);
-            } catch (e) {
-                console.error(`   ⚠️ [투-트랙] DB 업데이트 실패:`, e);
+        /** 국면마다 "어디로 가는 콜을 찾는가"만 다르다 */
+        let city: string | null = null;
+        let radiusKm = session.baseFilter.destinationRadiusKm ?? 10;
+
+        if (phase === 'DEST') {
+            // 오늘 정한 목적지로 돌아간다 (평소 설정이 아니라 **오늘** 필터의 목적지)
+            city = session.baseFilter.destinationCity || null;
+        } else if (phase === 'LOCAL') {
+            /**
+             * 이 동네 = **지금 있는 곳의 시**. 반경 0 — 그 시 안에서 끝나는 콜만.
+             * 기사님: *"관내콜은 거리로 하지 말자. 그냥 상차지와 하차지가 같은 시도에 있으면."*
+             *
+             * 기점은 GPS 다. 없으면 전환할 수 없다 — **없는 위치를 지어내지 않는다.**
+             */
+            if (!session.driverLocation) {
+                return { success: false, phase, message: '현재 위치를 아직 못 잡았습니다. 잠시 후 다시 시도해 주세요' };
+            }
+            city = reverseGeocodeToRegion(session.driverLocation.y, session.driverLocation.x);
+            radiusKm = 0;
+            if (!city) {
+                return { success: false, phase, message: '지금 위치가 어느 시인지 알 수 없습니다' };
+            }
+        } else {
+            /**
+             * 복귀행 = **집이 있는 시**. 집 주소는 설정에 있다.
+             * 기점(짐이 남았으면 마지막 하차지 / 다 내렸으면 현위치)은 회랑이 알아서 잡는다 —
+             * 여기서는 "어디로 가는가"만 정한다.
+             */
+            const settings = db.prepare("SELECT home_address FROM user_settings WHERE user_id = ?").get(userId) as any;
+            if (!settings?.home_address) {
+                return { success: false, phase, message: '설정에 집 주소가 없습니다' };
+            }
+            // 주소에서 시/군 조각을 뽑는다 (예: "경기 광주시 초월읍 ..." → "광주시")
+            city = settings.home_address.split(/\s+/).find((p: string) => p.endsWith('시') || p.endsWith('군')) ?? null;
+            if (!city) {
+                return { success: false, phase, message: `집 주소에서 시/군을 찾지 못했습니다 (${settings.home_address})` };
             }
         }
 
-        // 2. 집 주소에서 키워드 추출
-        const settings = db.prepare("SELECT home_address FROM user_settings WHERE user_id = ?").get(userId) as any;
-        const homeKeywords: string[] = [];
-        if (settings?.home_address) {
-            const parts = settings.home_address.split(/\s+/);
-            for (const p of parts) {
-                if (p.endsWith('시') || p.endsWith('군') || p.endsWith('구') || p.endsWith('읍') || p.endsWith('면') || p.endsWith('동')) {
-                    homeKeywords.push(p);
-                }
-            }
-        }
-
-        // 3. 현재 위치 주변 키워드 추출
-        const currentKeywords: string[] = [];
-        if (session.activeFilter.destinationCity) {
-            currentKeywords.push(session.activeFilter.destinationCity);
-        }
-        if (session.driverLocation) {
-            const region = reverseGeocodeToRegion(session.driverLocation.y, session.driverLocation.x);
-            if (region) {
-                currentKeywords.push(region);
-            }
-        }
-
-        // 4. 필터 리셋: STANDBY 모드 + 동시 키워드 투입
-        const mergedKeywords = [...new Set([...homeKeywords, ...currentKeywords])];
+        /**
+         * 입력만 넘긴다 — 키워드·별칭 같은 파생값은 `filterManager` 가 만든다.
+         * (여기서 직접 채우면 `recalculateDerivedFields` 가 자기 계산을 건너뛰어
+         *  `customCityFilters` 가 안 채워진다 — 2026-08-12 에 실제로 그랬다)
+         */
         updateActiveFilter(userId, {
-            isSharedMode: false,
+            huntPhase: phase,
+            destinationCity: city!,
+            destinationRadiusKm: radiusKm,
             isActive: true,
-            driverAction: 'WAITING',
-            dispatchPhase: 'STANDBY',
-            destinationCity: '🎯 투-트랙 탐색',
-            destinationKeywords: mergedKeywords,
-            corridorRadiusKm: 0,
         }, io);
 
-        console.log(`🎯 [투-트랙] 필터 전환 완료 → 키워드: [${mergedKeywords.join(', ')}]`);
+        console.log(`🧭 [국면 전환] 완료 → ${HUNT_PHASE_LABEL[phase]} · 목적 ${city} (반경 ${radiusKm}km) · 콜 ${getActiveCalls(session).length}건 그대로`);
 
-        // 5. 프론트엔드 동기화
-        io.to(userId).emit("filter-updated", {
-            activeFilter: session.activeFilter,
-            baseFilter: session.baseFilter
-        });
-        const payload = Array.from(session.pendingOrdersData.values());
-        io.to(userId).emit("sync-active-orders", buildOrderSync(session));
-
-        return { success: true, keywords: mergedKeywords };
+        return { success: true, phase, city: city! };
     } catch (e: any) {
-        console.error("🎯 [투-트랙] 에러:", e);
-        return { success: false, keywords: [], message: e.message || "투-트랙 전환 실패" };
+        console.error("🧭 [국면 전환] 에러:", e);
+        return { success: false, phase, message: e.message || "국면 전환 실패" };
     }
 }
 

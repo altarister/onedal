@@ -597,7 +597,35 @@ export interface AutoDispatchFilter {
     eyelinePct?: number;
     /** 사용 중인 적재 칸 (내 1t 트럭 = 5칸). 명목값이며 통화 확인 시 갱신 */
     slotsUsed?: number;
+    /** 지금 어느 국면을 사냥하는가 — 기사님이 요약줄 스와이프로 고른다 (기본 DEST) */
+    huntPhase?: HuntPhase;
 }
+
+/**
+ * **하루의 국면** — 기사님이 요약줄을 스와이프해서 고른다.
+ *
+ *   DEST(목적지행) → LOCAL(이 동네에서 찾기) → HOME(복귀행)
+ *
+ * 스와이프 순서가 하루의 흐름과 같다: 목적지로 가다가, 거의 도착하면 그 동네 콜을 잡고,
+ * 다 내리면 집 방향으로. (docs/필터_재설계_명세.md §4-1)
+ *
+ * ⚠️ `DispatchPhase`(STANDBY/GATHERING/DELIVERING)와 **다른 것**이다.
+ *    · `DispatchPhase` — 지금 짐이 얼마나 실렸나. **데이터에서 파생**된다 (기사님이 못 고른다)
+ *    · `HuntPhase`     — 어느 방향을 사냥하나. **기사님이 고른다**
+ *    둘은 직교한다: "복귀행이면서 합짐 수집 중"이 정상적인 상태다.
+ *
+ * 🔴 국면 전환은 **필터만 바꾼다. 콜 상태는 절대 건드리지 않는다.**
+ *    옛 `startTwoTrack` 은 전환하면서 활성 콜을 전부 `ORDER_COMPLETED` 로 만들었다 —
+ *    기사님: *"콜은 무조건 배달을 해서 완료되어야 한다."* 배달하지 않은 콜이
+ *    완료로 기록되면 정산·운행일지가 통째로 틀어진다.
+ */
+export type HuntPhase = 'DEST' | 'LOCAL' | 'HOME';
+
+export const HUNT_PHASE_LABEL: Record<HuntPhase, string> = {
+    DEST: '목적지행',
+    LOCAL: '이 동네에서 찾기',
+    HOME: '복귀행',
+};
 
 /**
  * **이 필터로 사냥해도 되는가.**
