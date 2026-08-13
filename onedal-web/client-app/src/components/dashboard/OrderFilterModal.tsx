@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
 import { logRoadmapEvent } from "../../lib/roadmapLogger";
-import { VEHICLE_OPTIONS } from "@onedal/shared";
+import { VEHICLE_OPTIONS, NET_RATE_PER_KM, VEHICLE_SLOTS, TRUCK_CAPACITY_SLOTS } from "@onedal/shared";
 import { socket } from "../../lib/socket";
 import { apiClient } from "../../api/apiClient";
 import { useCityOptions, resolveCity } from "../../lib/cityOptions";
@@ -10,6 +10,21 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Badge } from "../ui/badge";
+
+/**
+ * 눈높이 단계 — 시세 대비 허용 할인 %.
+ * "전부"(100)는 금액 무관 통과. 합짐·관내·복귀는 순증 매출이라 여기까지 내려간다.
+ */
+const EYELINE_STEPS = [
+    { value: 0,   label: '시세' },
+    { value: 10,  label: '-10%' },
+    { value: 20,  label: '-20%' },
+    { value: 30,  label: '-30%' },
+    { value: 100, label: '전부' },
+] as const;
+
+/** 하한표에 보여줄 차종 — 내 차(1t)로 수행 가능한 등급만, 칸이 작은 순 */
+const RATE_TABLE_ORDER = ['오토바이', '다마스', '승용차', '라보', '1t'];
 
 interface OrderFilterModalProps {
     isOpen: boolean;
@@ -23,7 +38,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
     const { filter, baseFilter, updateFilter } = useFilterConfig();
 
     // 이 페이지는 폼 역할이므로 로컬 state로 관리 후 저장 시 소켓 발송
-    const [minFare, setMinFare] = useState<string>("");
+    const [eyeline, setEyeline] = useState<number>(10);   // 눈높이(%) — 하한가 입력을 대체
     const [pickupRadius, setPickupRadius] = useState<string>("");
     const [targetCity, setTargetCity] = useState<string>("");
     const [targetRadius, setTargetRadius] = useState<string>("");
@@ -96,7 +111,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
     useEffect(() => {
         if (isOpen && filter) {
             console.log("📥 [OrderFilterModal] 모달 열림 - 현재 activeFilter 스냅샷:", JSON.parse(JSON.stringify(filter)));
-            setMinFare(filter.minFare?.toString() || "");
+            setEyeline(filter.eyelinePct ?? 10);
             setPickupRadius(filter.pickupRadiusKm?.toString() || "");
             setTargetCity(filter.destinationCity || "");
             setTargetRadius(filter.destinationRadiusKm?.toString() || "");
@@ -114,7 +129,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
     const handleLoadBaseFilter = () => {
         if (!baseFilter) return;
         console.log("🔄 [OrderFilterModal] 기본 설정 불러오기 클릭 - baseFilter:", JSON.parse(JSON.stringify(baseFilter)));
-        setMinFare(baseFilter.minFare?.toString() || "");
+        setEyeline(baseFilter.eyelinePct ?? 10);
         setPickupRadius(baseFilter.pickupRadiusKm?.toString() || "");
         setTargetCity(baseFilter.destinationCity || "");
         setTargetRadius(baseFilter.destinationRadiusKm?.toString() || "");
@@ -175,7 +190,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
 
         const newFilterToSave = {
             allowedVehicleTypes: selectedVehicles,
-            minFare: minFare ? parseInt(minFare, 10) : filter.minFare,
+            eyelinePct: eyeline,   // 단가표(ratePerKm)는 서버가 이 값에서 파생시킨다 — 두 곳에서 만들지 않는다
             pickupRadiusKm: pickupRadius ? parseInt(pickupRadius, 10) : filter.pickupRadiusKm,
             destinationCity: targetCity || filter.destinationCity,
             destinationRadiusKm: targetRadius ? parseInt(targetRadius, 10) : filter.destinationRadiusKm,
@@ -272,20 +287,57 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                             </p>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-bold text-text-muted flex items-center gap-1">하한가</label>
-                                <div className="relative">
-                                    <Input
-                                        type="number"
-                                        value={minFare}
-                                        onChange={(e) => setMinFare(e.target.value)}
-                                        className="bg-surface-alt/60 border-border pr-8 text-success font-black font-mono shadow-inner h-10"
-                                    />
-                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-success/70 font-bold pointer-events-none">원</span>
-                                </div>
+                        {/* ── 눈높이 — 시세 대비 허용 할인 (docs/필터_재설계_명세.md §2) ──
+                            금액을 입력하지 않는다. 차종별 하한 단가는 눈높이에서 파생된다.
+                            기사님: "처음에는 시세로 찾고, 콜이 없으면 여기 와서 조금씩 낮춘다" */}
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-text-muted flex items-center gap-1">
+                                눈높이 <span className="font-normal text-text-muted/70">— 시세 대비 허용 할인</span>
+                            </label>
+                            <div className="grid grid-cols-5 gap-1.5">
+                                {EYELINE_STEPS.map(step => {
+                                    const on = eyeline === step.value;
+                                    return (
+                                        <Button
+                                            key={step.value}
+                                            type="button"
+                                            variant="outline"
+                                            onClick={() => setEyeline(step.value)}
+                                            className={`h-9 text-xs font-black ${on
+                                                ? 'bg-info/20 border-info text-info'
+                                                : 'bg-surface-alt/60 border-border text-text-muted'}`}
+                                        >
+                                            {step.label}
+                                        </Button>
+                                    );
+                                })}
                             </div>
-                            <div className="space-y-1.5">
+                            {/* 차종별 하한 단가 — 자동 계산, 읽기 전용 */}
+                            <div className="bg-surface-alt/50 rounded-md px-3 py-2 space-y-1">
+                                {RATE_TABLE_ORDER.map(v => {
+                                    const floor = Math.round((NET_RATE_PER_KM[v] ?? 0) * Math.max(0, 1 - eyeline / 100));
+                                    return (
+                                        <div key={v} className="flex items-center justify-between text-[11px]">
+                                            <span className="text-text-muted font-bold">
+                                                {v}
+                                                <span className="text-text-muted/60 font-normal ml-1">
+                                                    시세 {NET_RATE_PER_KM[v]}원/km · {VEHICLE_SLOTS[v]}/{TRUCK_CAPACITY_SLOTS}칸
+                                                </span>
+                                            </span>
+                                            <span className="font-mono font-black text-success">
+                                                {eyeline >= 100 ? '전부' : `≥ ${floor.toLocaleString()}원/km`}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                                <p className="text-[10px] text-text-muted/70 pt-1 border-t border-border/50">
+                                    통과 = 요금 ≥ 배송거리 × 단가
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5 col-span-2">
                                 <label className="text-xs font-bold text-danger/80 flex items-center gap-1">
                                     <span className="text-danger text-[10px]">🚫</span> 제외 키워드
                                 </label>

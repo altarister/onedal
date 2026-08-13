@@ -16,7 +16,7 @@ import { getActiveCalls, computeLoadedPoints } from "../core/helpers";
 import { OrderRepository } from "../repositories/OrderRepository";
 import { getUserSession } from "./userSessionStore";
 import type { AutoDispatchFilter } from "@onedal/shared";
-import { getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter } from "@onedal/shared";
+import { getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS } from "@onedal/shared";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { getCityRegionsWithRadius, cityAliases } from "../services/geoService";
 
@@ -26,7 +26,7 @@ const stmtUpdateFilter = db.prepare(`
         destination_city = ?, destination_radius_km = ?, corridor_radius_km = ?,
         min_fare = ?, max_fare = ?, pickup_radius_km = ?,
         excluded_keywords = ?, is_active = ?, is_shared_mode = ?,
-        load_state = ?
+        load_state = ?, eyeline_pct = ?
     WHERE user_id = ?
 `);
 
@@ -53,6 +53,17 @@ function logActiveFilter(session: ReturnType<typeof getUserSession>, actionType:
 
 // ━━━ 내부 유틸: 파생 데이터(destinationKeywords, allowedVehicleTypes) 재계산 ━━━
 function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, changes: Partial<AutoDispatchFilter>) {
+    /**
+     * 차종별 하한 단가표는 **눈높이에서만 파생된다** (docs/필터_재설계_명세.md §2).
+     *
+     * 관제웹은 `eyelinePct` 하나만 보내고 표는 만들지 않는다 — 같은 표를 두 곳에서
+     * 만들면 한쪽만 고쳐진다(회랑 4벌·상태목록 3벌과 같은 사고). 원천은 DB 의
+     * `eyeline_pct` 이고, 여기가 그것을 표로 펼치는 유일한 자리다.
+     */
+    if ('eyelinePct' in changes) {
+        session.activeFilter.ratePerKm = rateFloorsFrom(changes.eyelinePct ?? 10);
+    }
+
     // [최적화] 지리 연산(getCityRegionsWithRadius)은 CPU 집약적(~7초)이므로,
     // destinationCity 또는 destinationRadiusKm가 실제로 변경된 경우에만 재계산.
     // isActive, minFare 등 단순 상태 변경 시에는 기존 캐시된 키워드를 그대로 재사용.
@@ -130,6 +141,7 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
             session.activeFilter.allowedVehicleTypes = getEligibleVehicleTypes(myVehicle);
             session.capacityConfidence = 'CONFIRMED';   // 빈 차는 확실하다
             session.activeFilter.capacityConfidence = 'CONFIRMED';
+            session.activeFilter.slotsUsed = 0;
         } else {
             // [Phase 8.4] 통화·현장에서 실제 짐 양을 알면 그걸 쓴다.
             // 차종만 보면 "1t 콜 = 30점 만재"로 추정하는데, 실제로 박스 1개면 2점이다.
@@ -139,6 +151,18 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
             session.activeFilter.allowedVehicleTypes = getRemainingCapacityTypesByPoints(myVehicle, points);
             session.capacityConfidence = confidence;
             session.activeFilter.capacityConfidence = confidence;
+
+            /**
+             * 관제탑 표시용 **칸** — 같은 적재 점수를 칸 단위로 환산한 것뿐이다.
+             * (1칸 = 7.5점 · docs/필터_재설계_명세.md §2-2)
+             *
+             * 별도로 세지 않는 이유: 차종으로 다시 세면 통화로 확인한 실제 짐 양이
+             * 반영되지 않아 **화면과 판정이 다른 말을 한다.** 판정이 쓰는 점수에서 파생시킨다.
+             */
+            session.activeFilter.slotsUsed = Math.min(
+                TRUCK_CAPACITY_SLOTS,
+                Math.round((points / 7.5) * 10) / 10
+            );
         }
     }
 }
@@ -193,6 +217,7 @@ export function saveBaseFilter(
             b.isActive ? 1 : 0,
             0, // isSharedMode는 DB에 영구저장 안함
             'EMPTY', // loadState는 DB에 항상 EMPTY로 저장
+            b.eyelinePct ?? 10,   // 눈높이 — 원천은 DB. ratePerKm 는 여기서 파생되므로 저장하지 않는다
             userId
         );
     } catch (e) {

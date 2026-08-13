@@ -1,4 +1,5 @@
 import { useFilterConfig } from "../../hooks/useFilterConfig";
+import { TRUCK_CAPACITY_SLOTS } from "@onedal/shared";
 
 import { Badge } from "../ui/badge";
 
@@ -31,6 +32,13 @@ export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () =
     };
 
     const styles = getStatusStyles(filter.isActive, filter.isSharedMode);
+
+    // ── 단가 판정 모델 표시값 (docs/필터_재설계_명세.md) ──
+    // 서버가 내려준 파생값을 그대로 쓴다. 여기서 다시 계산하지 않는다.
+    const eyeline = filter.eyelinePct ?? 10;
+    const eyelineLabel = eyeline >= 100 ? '전부' : (eyeline === 0 ? '시세' : `-${eyeline}%`);
+    const oneTonRate = filter.ratePerKm?.['1t'] ?? 0;
+    const slotsUsed = filter.slotsUsed ?? 0;
 
     const getRegionSummary = () => {
         // 합짐, 첫짐 모두 파싱된 '읍/면/동' 타겟팅 총 개수를 가져옵니다.
@@ -84,19 +92,21 @@ export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () =
                     </Badge>
                 )}
                 <div className="flex flex-col leading-tight overflow-hidden">
+                    {/* ── 순서를 고정한다 (docs/필터_재설계_명세.md §4-1) ──
+                        ① 💰 금액(눈높이·단가)  ② 📍 지역  ③ 📦 적재
+                        기사님: "아래 줄에 노출되는 값이 일정한 순서로 나오면 좋겠다" */}
                     <span className="font-black text-text-primary text-sm">
-                        {(filter.minFare / 10000).toFixed(1)}만 이상
+                        💰 {eyelineLabel}
+                        <span className="text-[11px] text-text-muted font-normal ml-1">
+                            (1t ≥ {oneTonRate.toLocaleString()}원/km)
+                        </span>
                         {!filter.isSharedMode && (
-                            <span className="text-[11px] text-text-muted font-normal ml-1">| {filter.pickupRadiusKm}km</span>
-                        )}
-                        {filter.allowedVehicleTypes && filter.allowedVehicleTypes.length > 0 ? (
-                            <span className="text-[11px] text-text-muted font-normal ml-1">| {filter.allowedVehicleTypes.join(', ')}</span>
-                        ) : (
-                            <span className="text-[11px] text-text-muted font-normal ml-1">| 전체</span>
+                            <span className="text-[11px] text-text-muted font-normal ml-1">| 상차 {filter.pickupRadiusKm}km</span>
                         )}
                     </span>
                     <span className="text-[11px] text-text-muted font-medium truncate mt-0.5">
-                        {getRegionSummary()}
+                        📍 {getRegionSummary()}
+                        <span className="ml-2">📦 {slotsUsed}/{TRUCK_CAPACITY_SLOTS}칸</span>
                     </span>
                 </div>
             </div>
