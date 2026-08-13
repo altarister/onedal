@@ -778,18 +778,27 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                         )}
                     </div>
 
-                    {/* 🧪 목업 시뮬레이터 토글 */}
-                    <div className="flex items-center justify-between px-1 py-2 border-t border-border">
-                        <span className="text-[11px] text-text-muted font-semibold tracking-wide">🧪 목업 시뮬레이터 (테스트 GPS)</span>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                            <input
-                                type="checkbox"
-                                className="sr-only peer"
-                                checked={isTestMode}
-                                onChange={(e) => setIsTestMode(e.target.checked)}
-                            />
-                            <div className="w-9 h-5 bg-surface-alt peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-accent-alt"></div>
-                        </label>
+                    {/* 🧪 GPS 출처 — **평소엔 건드릴 일이 없다.**
+                        출발을 누르면 실 GPS 가 있으면 실 GPS 로, 없으면(권한 거부·실내·기기 없음)
+                        자동으로 시뮬레이터가 이어 달린다. 이 스위치는 **실 GPS 가 있어도**
+                        시뮬레이터로 달리게 하는 강제 스위치다 */}
+                    <div className="px-1 py-2 border-t border-border">
+                        <div className="flex items-center justify-between">
+                            <span className="text-[11px] text-text-muted font-semibold">🧪 시뮬레이터로 강제 주행</span>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    className="sr-only peer"
+                                    checked={isTestMode}
+                                    onChange={(e) => setIsTestMode(e.target.checked)}
+                                />
+                                <div className="w-9 h-5 bg-surface-alt peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-accent-alt"></div>
+                            </label>
+                        </div>
+                        <p className="text-[9.5px] text-text-muted/70 mt-1 leading-relaxed">
+                            끄면 <b className="text-text-primary">실 GPS 가 있으면 실 GPS</b>, 없으면 시뮬레이터가 자동으로 이어 달립니다.
+                            어느 쪽이든 <b className="text-text-primary">서버가 가는 길은 같습니다</b> — 시뮬레이터로 확인한 것이 실제 운행에서도 그대로입니다.
+                        </p>
                     </div>
 
                     {/* 사냥 모드 통제 버튼 영역 (1열 5버튼 구조) */}

@@ -11,7 +11,7 @@ import { PlaceRepository } from "../repositories/PlaceRepository";
 import { getUserSession, getAllActiveUserIds } from "../state/userSessionStore";
 import { buildOrderSync } from "../core/helpers";
 import { recalculateCorridorFilter, handleDecision, recalculateKakaoRoute, bootstrapUserSession, completeOrder, reportMilestone, undoMilestone, setHuntPhase, createHomeReturn } from "../services/dispatchEngine";
-import { updateActiveFilter, ensureBusinessDay, saveBaseFilter, savePhaseSettings } from "../state/filterManager";
+import { updateActiveFilter, ensureBusinessDay, saveBaseFilter, savePhaseSettings, trimTraveled } from "../state/filterManager";
 import { processDriverMovement, getCityRegionsWithRadius } from "../services/geoService";
 
 
@@ -203,9 +203,11 @@ export function registerSocketHandlers(io: Server) {
         // ━━━ [관제웹 Master GPS 수신부] ━━━
         socket.on("dashboard-gps-update", (loc: { lat: number, lng: number }) => {
             session.driverLocationIsFallback = false;   // 진짜 GPS 가 임시 출발지를 이긴다
-            processDriverMovement(userId, loc.lat, loc.lng, session, (uid, filterUpdate) => {
-                updateActiveFilter(uid, filterUpdate, io);
-            });
+            processDriverMovement(userId, loc.lat, loc.lng, session,
+                (uid, filterUpdate) => updateActiveFilter(uid, filterUpdate, io),
+                // 지나온 구간 제거는 전용 통로 — 파생 재계산을 거치지 않는다
+                (uid) => trimTraveled(uid, io),
+            );
         });
 
         // 배차 심사 수락/거절

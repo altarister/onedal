@@ -190,6 +190,22 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
 }
 
 /**
+ * [GPS 전용] 지나온 구간을 빼고, 바뀌었으면 관제탑에 알린다.
+ *
+ * 🔴 **파생 재계산을 거치지 않는다.** `updateActiveFilter(userId, {})` 로 트리거하면
+ *    그 안의 *"도착 도시가 비어 있으면 키워드를 지운다"* 가지에 걸려, 도시를 안 고른 채
+ *    운행할 때 **0.5km 마다 회랑이 통째로 지워진다.** 빈 필터는 "제한 없음"이 아니라
+ *    고장이라 사냥이 조용히 멈춘다.
+ *
+ *    지나온 구간 제거는 허용 차종·적재 칸을 다시 셀 이유가 없다. 필요한 건 숫자 비교뿐이다.
+ */
+export function trimTraveled(userId: string, io?: any): void {
+    const session = getUserSession(userId);
+    if (!applyTraveledTrim(session)) return;
+    broadcastFilter(userId, session, io);
+}
+
+/**
  * 회랑을 새로 그렸으면 **진행도도 같이 기억한다.**
  *
  * 🔴 키워드와 진행도는 **같은 입력에서 같이 나온 한 벌**이다. 한쪽만 갱신하면

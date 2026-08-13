@@ -489,7 +489,22 @@ export function getLastDropoffCoord(session: any): {x: number; y: number} | null
  * 2. 2km 이상 이동 시 회랑(Corridor Trim) 동적 축소 계산 및 필터 갱신
  * 3. 마지막 하차지 500m 이내 도착 시 ARRIVED 상태로 전환
  */
-export function processDriverMovement(userId: string, lat: number, lng: number, session: any, applyFilterCb: (uid: string, filter: any) => void) {
+export function processDriverMovement(
+    userId: string,
+    lat: number,
+    lng: number,
+    session: any,
+    applyFilterCb: (uid: string, filter: any) => void,
+    /**
+     * 지나온 구간을 뺄 때 부른다 — **필터 변경 경로와 통로를 나눈다.**
+     *
+     * 🔴 처음에는 `applyFilterCb(userId, {})` 로 파생 재계산을 트리거했는데, 그 안에
+     *    *"도착 도시가 비어 있으면 키워드를 지운다"* 는 가지가 있다. 도시를 안 고른 채
+     *    운행하면 **0.5km 마다 회랑이 통째로 지워진다** — 빈 필터는 고장이라 사냥이 멈춘다.
+     *    지나온 구간 제거는 파생을 다시 돌 이유가 없다. 전용 통로로 간다 (더 싸기도 하다).
+     */
+    trimTraveledCb?: (uid: string) => void,
+) {
     if (!lat || !lng) return;
     
     const currentGPS = { x: lng, y: lat }; // 카카오 좌표계 (x=경도, y=위도)
@@ -513,13 +528,14 @@ export function processDriverMovement(userId: string, lat: number, lng: number, 
          *
          *    실제 제거는 `filterManager.applyTraveledTrim` 한 곳에서만 한다
          *    (동 목록·시 묶음·별칭을 **한 벌로** 줄여야 하므로). 여기서는 방아쇠만 당긴다.
+         *    ⚠️ 필터 변경(`applyFilterCb`)과 **다른 통로**다 — 이유는 인자 주석에 있다.
          */
         const lastTrim = (session as any).lastTrimGPS as { x: number; y: number } | undefined;
         const dist = lastTrim ? haversineKm(lastTrim.y, lastTrim.x, lat, lng) : Infinity;
 
-        if (dist > 0.5 && getActivePolyline(session)) {
+        if (dist > 0.5 && trimTraveledCb && getActivePolyline(session)) {
             (session as any).lastTrimGPS = currentGPS;
-            applyFilterCb(userId, {});   // 파생 재계산 → 그 끝에서 지나온 구간이 빠진다
+            trimTraveledCb(userId);
         }
 
         // [2] 도착 감지: 마지막 하차지 500m 이내 도달 시
