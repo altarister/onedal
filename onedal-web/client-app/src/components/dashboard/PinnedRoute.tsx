@@ -34,7 +34,7 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
     const tabBarRef = useRef<HTMLDivElement>(null);
     const scrollToCalls = () => tabBarRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     const [processingId, setProcessingId] = useState<string | null>(null);
-    const { filter } = useFilterConfig();
+    const { filter, updateFilter } = useFilterConfig();
     // 서버 통신 완료 시 (상태가 변하거나 삭제될 때) 로딩 상태 즉각 해제
     useEffect(() => {
         setProcessingId(null);
@@ -188,6 +188,27 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
                             </div>
                         );
                     })()}
+
+                    {/* ── 🚀 지금 출발 — 지도 좌하단 플로팅 (docs/필터_재설계_명세.md §4-1) ──
+                        기사님: *"지금 출발 버튼은 관제웹 지도 영역 좌하단에 버튼으로 들어가면 될 듯하다."*
+
+                        설정이 아니라 **운행 조작**이라 필터 팝업이 아니라 여기 있어야 한다 —
+                        팝업을 열어야 누를 수 있으면 안 된다. "출발하셨나요?" 알림에 답하는 자리와 같은 곳.
+
+                        짐을 잡았고 아직 출발 전일 때만 보인다. 누르면 경유를 0으로 끊고
+                        운행 중으로 넘어간다 — 운전 중에 새 경로를 짜는 부담을 없앤다. */}
+                    {filter && filter.driverAction !== 'DRIVING' && liveRoute.length > 0 && (
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                logRoadmapEvent("웹", "지도 좌하단 🚀 지금 출발 클릭 → 경유 0 · 운행 중 전환");
+                                updateFilter({ driverAction: 'DRIVING', corridorRadiusKm: 0 });
+                            }}
+                            className="absolute bottom-3 left-3 z-10 px-3.5 py-2 rounded-xl bg-gradient-to-r from-info to-info-alt text-white font-black text-[12px] shadow-[0_0_15px_var(--theme-glow-primary)] hover:shadow-[0_0_20px_var(--theme-glow-primary)] active:scale-95 transition-all"
+                        >
+                            🚀 지금 출발
+                        </button>
+                    )}
                 </PinnedRouteCanvas>
 
                 {safeRoute.length > 0 && (

@@ -587,17 +587,8 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                 📌 계속
                             </Button>
 
-                            {/* 강제 출발 */}
-                            <Button
-                                onClick={() => {
-                                    logRoadmapEvent("웹", `출발 버튼 클릭 → GATHERING→DELIVERING 전환 (시뮬레이션: ${isTestMode})`);
-                                    updateFilter({ driverAction: 'DRIVING', corridorRadiusKm: 0 });
-                                    onClose();
-                                }}
-                                className="h-11 rounded-xl bg-gradient-to-r from-info to-info-alt text-white font-black text-[11px] shadow-[0_0_15px_var(--theme-glow-primary)] hover:shadow-[0_0_20px_var(--theme-glow-primary)] transition-all px-1"
-                            >
-                                🚀 출발
-                            </Button>
+                            {/* 🚀 출발은 지도 좌하단 플로팅 버튼으로 옮겼다 (PinnedRoute).
+                                설정이 아니라 운행 조작이라, 팝업을 열어야 누를 수 있으면 안 된다. */}
 
                             {/* 귀가콜 시작 */}
                             <Button
