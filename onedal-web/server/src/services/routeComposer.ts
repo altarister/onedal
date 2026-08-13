@@ -120,29 +120,55 @@ export interface ComposeMergedRouteParams {
 export async function composeMergedRoute(params: ComposeMergedRouteParams) {
     const { calls, extra, driverLocation, priority, carType } = params;
 
-    const pairs = calls.map(toCoordPair).filter(Boolean) as { pickup: Coord; dropoff: Coord }[];
+    /**
+     * 🔴 2026-08-13 — **이미 상차한 콜의 상차지는 경유지에서 뺀다.**
+     *
+     * 예전에는 활성 콜이면 무조건 상차·하차를 **둘 다** 경유지에 넣었다.
+     * `ORDER_PICKED_UP`(짐을 이미 실은 콜)의 상차지까지 남아서,
+     * **이미 다녀온 곳을 다시 가는 경로**가 나왔다. 거리와 시간이 부풀고,
+     * 그 값으로 우회 예산을 재니 합짐 판정이 통째로 틀어진다.
+     *
+     * 기사님이 정리한 원칙과 같은 줄기다 — **KEEP 은 예약이고 상차가 적재다.**
+     * 짐을 실었으면 그 콜에 남은 일은 **하차뿐**이다.
+     */
+    const pairs: { pickup: Coord | null; dropoff: Coord }[] = [];
+    let skippedPickups = 0;
+    for (const c of calls) {
+        const p = toCoordPair(c);
+        if (!p) continue;
+        const alreadyLoaded = c.status === 'ORDER_PICKED_UP';
+        if (alreadyLoaded) skippedPickups++;
+        pairs.push({ pickup: alreadyLoaded ? null : p.pickup, dropoff: p.dropoff });
+    }
 
     if (extra && !calls.some(c => c.id === extra.id)) {
         const extraPair = toCoordPair(extra);
-        if (extraPair) pairs.push(extraPair);
+        if (extraPair) pairs.push(extraPair);   // 후보 콜은 아직 안 실었으므로 상차지를 남긴다
     }
     if (pairs.length === 0) return null;
+    if (skippedPickups > 0) {
+        console.log(`🛣️ [경로] 이미 상차한 콜 ${skippedPickups}건의 상차지를 경유지에서 제외 (다녀온 곳을 다시 가지 않는다)`);
+    }
 
-    const allPickups = pairs.map(p => p.pickup);
+    const allPickups = pairs.map(p => p.pickup).filter(Boolean) as Coord[];
     const allDropoffs = pairs.map(p => p.dropoff);
 
     // TSP 시작점: 기사님 현위치를 알면 거기서부터 최적화한다.
     // 예전에는 4곳 중 2곳만 driverLocation을 쓰고 나머지는 첫 상차지를 썼는데,
     // 같은 콜 조합인데도 어디서 호출했느냐에 따라 경유지 순서가 달라졌다.
-    const startLoc = driverLocation || allPickups[0];
+    //
+    // ⚠️ 짐을 다 싣고 하차만 남았으면 `allPickups` 가 **비어 있다**. 그때는 첫 하차지에서 시작한다.
+    //    (GPS 가 없고 상차지도 없는데 `allPickups[0]` 을 쓰면 undefined 가 그대로 흘러간다)
+    const startLoc = driverLocation || allPickups[0] || allDropoffs[0];
     const { sortedPickups, sortedDropoffs } = optimizeWaypoints(startLoc, allPickups, allDropoffs);
 
     const mergedDest = sortedDropoffs.pop()!;
     const waypoints = [...sortedPickups, ...sortedDropoffs];
 
     // 출발 기준은 본콜(calls[0]). 본콜 좌표가 없으면 첫 유효 좌표로 대체한다.
+    // ⚠️ 상차지가 하나도 안 남았을 수 있으므로(전부 적재 완료) 하차지로도 폴백한다.
     const mainPair = calls.length > 0 ? toCoordPair(calls[0]) : null;
-    const origin = mainPair ?? { pickup: allPickups[0], dropoff: allDropoffs[0] };
+    const origin = mainPair ?? { pickup: allPickups[0] ?? allDropoffs[0], dropoff: allDropoffs[0] };
 
     return calculateDetourRoute(
         origin.dropoff.x, origin.dropoff.y,
