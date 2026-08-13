@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
 import { logRoadmapEvent } from "../../lib/roadmapLogger";
-import { NET_RATE_PER_KM, VEHICLE_SLOTS, TRUCK_CAPACITY_SLOTS } from "@onedal/shared";
+import { NET_RATE_PER_KM, VEHICLE_SLOTS, TRUCK_CAPACITY_SLOTS, CAPACITY_CONFIDENCE_LABEL } from "@onedal/shared";
 import { socket } from "../../lib/socket";
 import { apiClient } from "../../api/apiClient";
 import { useCityOptions, resolveCity } from "../../lib/cityOptions";
@@ -57,6 +57,14 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
     // 이 페이지는 폼 역할이므로 로컬 state로 관리 후 저장 시 소켓 발송
     const [eyeline, setEyeline] = useState<number>(10);   // 눈높이(%) — 하한가 입력을 대체
     const [tab, setTab] = useState<TabKey>('first');
+    /**
+     * 저장 안 한 변경이 **어느 탭에** 있는지. (v6 설명 ② — 기사님 확정)
+     *
+     * 저장 버튼은 전역이라, 합짐 탭을 보면서 눌러도 첫짐 설정까지 같이 저장된다.
+     * 그 사실을 **누르기 전에** 알 수 있어야 한다 — 탭에 노란 점, 버튼에 "N곳 변경".
+     */
+    const [dirtyTabs, setDirtyTabs] = useState<Set<TabKey>>(new Set());
+    const markDirty = (t: TabKey) => setDirtyTabs(prev => prev.has(t) ? prev : new Set(prev).add(t));
     const [pickupRadius, setPickupRadius] = useState<string>("");
     const [targetCity, setTargetCity] = useState<string>("");
     const [targetRadius, setTargetRadius] = useState<string>("");
@@ -139,6 +147,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
             setTargetRadius(filter.destinationRadiusKm?.toString() || "");
             setCorridorRadius(filter.corridorRadiusKm?.toString() || "");
             setBlacklist(filter.excludedKeywords ? filter.excludedKeywords.join(',') : "");
+            setDirtyTabs(new Set());
             // 프리뷰 상태 초기화
             setPreviewRegions(null);
             setPreviewCount(0);
@@ -156,6 +165,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
         setTargetRadius(baseFilter.destinationRadiusKm?.toString() || "");
         setCorridorRadius(baseFilter.corridorRadiusKm?.toString() || "");
         setBlacklist(baseFilter.excludedKeywords ? baseFilter.excludedKeywords.join(',') : "");
+        setDirtyTabs(new Set());
         // 프리뷰 초기화
         setPreviewRegions(null);
         setPreviewCount(0);
@@ -233,6 +243,12 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
     };
 
     const isSharedMode = filter.isSharedMode;
+
+    // ── 적재 칸 (서버 파생값을 그대로 쓴다) ──
+    const slotsUsed = Math.round(filter.slotsUsed ?? 0);
+    const remainSlots = Math.max(0, TRUCK_CAPACITY_SLOTS - slotsUsed);
+    /** 하한표 예시 금액용 거리 — 지금 탭이 보는 대표 거리 */
+    const exampleKm = tab === 'local' ? 15 : (parseInt(targetRadius, 10) || 0) + 50;
     const destKeywordsLimit = filter.destinationKeywords || [];
 
     const handleBlacklistChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -285,7 +301,8 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                     ? 'bg-surface border border-border text-text-primary'
                                     : 'text-text-muted hover:bg-surface-hover/50'}`}
                             >
-                                {isNow && <span className="absolute top-1 right-1.5 w-1.5 h-1.5 rounded-full bg-success shadow-[0_0_6px_var(--theme-glow-primary)]" />}
+                                {isNow && <span title="지금 이 국면" className="absolute top-1 right-1.5 w-1.5 h-1.5 rounded-full bg-success shadow-[0_0_6px_var(--theme-glow-primary)]" />}
+                                {dirtyTabs.has(t.key) && <span title="저장 안 한 변경이 있습니다" className="absolute top-1 left-1.5 w-1.5 h-1.5 rounded-full bg-warning" />}
                                 {t.label}
                             </button>
                         );
@@ -294,22 +311,59 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
 
                 <div className="space-y-3 overflow-y-auto pr-1 pb-1 custom-scrollbar relative z-10">
                     <div>
+                        {/* ── 적재 칸 — 내 트럭 5칸 중 얼마나 찼나 (명세 §2-2) ──
+                            서버가 내려준 slotsUsed(적재 점수 ÷ 7.5)를 그대로 쓴다. 여기서 다시 세지 않는다 —
+                            차종으로 다시 세면 통화로 확인한 실제 짐 양이 화면에 반영되지 않는다. */}
+                        <div className="bg-surface-alt/50 rounded-md px-3 py-2 mb-3">
+                            <div className="flex items-center justify-between mb-1.5">
+                                <span className="text-[11px] font-bold text-text-muted">
+                                    📦 적재 <span className="font-mono text-text-primary">{slotsUsed}/{TRUCK_CAPACITY_SLOTS}칸</span>
+                                    <span className="text-text-muted/60 font-normal ml-1">· 남은 {remainSlots}칸</span>
+                                </span>
+                                {filter.capacityConfidence && (
+                                    <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${
+                                        filter.capacityConfidence === 'CONFIRMED' ? 'bg-success/15 text-success'
+                                        : filter.capacityConfidence === 'DECLARED' ? 'bg-info/15 text-info'
+                                        : 'bg-warning/15 text-warning'}`}>
+                                        {CAPACITY_CONFIDENCE_LABEL[filter.capacityConfidence]}
+                                    </span>
+                                )}
+                            </div>
+                            <div className="flex gap-1">
+                                {Array.from({ length: TRUCK_CAPACITY_SLOTS }).map((_, i) => (
+                                    <span key={i} className={`flex-1 h-2.5 rounded-sm ${i < slotsUsed ? 'bg-info/60' : 'bg-surface-hover'}`} />
+                                ))}
+                            </div>
+                            {filter.capacityConfidence === 'ESTIMATED' && slotsUsed > 0 && (
+                                <p className="text-[10px] text-warning/80 mt-1.5">
+                                    차종만 보고 <b>만재로 추정</b>한 값입니다 — <b>통화로 실제 짐을 확인</b>하면 자리가 더 나옵니다
+                                </p>
+                            )}
+                        </div>
+
                         {/* ── 눈높이 — 시세 대비 허용 할인 (docs/필터_재설계_명세.md §2) ──
                             금액을 입력하지 않는다. 차종별 하한 단가는 눈높이에서 파생된다.
                             기사님: "처음에는 시세로 찾고, 콜이 없으면 여기 와서 조금씩 낮춘다" */}
                         <div className="space-y-1.5">
                             <label className="text-xs font-bold text-text-muted flex items-center gap-1">
-                                눈높이 <span className="font-normal text-text-muted/70">— 시세 대비 허용 할인</span>
+                                눈높이
+                                <span className="font-normal text-text-muted/70">
+                                    — {tab === 'first' ? '첫짐은 기준을 세우니 시세 근처에서'
+                                     : tab === 'merge' ? '합짐은 순증 매출이라 “전부”까지'
+                                     : tab === 'drive' ? '운행 중은 합짐 기준을 그대로'
+                                     : tab === 'local' ? '관내는 짧아도 순증 매출은 같다'
+                                     : '빈 차로 돌아가는 것보다 뭐든 싣는 게 이득'}
+                                </span>
                             </label>
-                            <div className="grid grid-cols-5 gap-1.5">
-                                {EYELINE_STEPS.map(step => {
+                            <div className={`grid gap-1.5 ${tab === 'first' ? 'grid-cols-4' : 'grid-cols-5'}`}>
+                                {EYELINE_STEPS.filter(st => !(tab === 'first' && st.value >= 100)).map(step => {
                                     const on = eyeline === step.value;
                                     return (
                                         <Button
                                             key={step.value}
                                             type="button"
                                             variant="outline"
-                                            onClick={() => setEyeline(step.value)}
+                                            onClick={() => { setEyeline(step.value); markDirty(tab); }}
                                             className={`h-9 text-xs font-black ${on
                                                 ? 'bg-info/20 border-info text-info'
                                                 : 'bg-surface-alt/60 border-border text-text-muted'}`}
@@ -319,20 +373,29 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                     );
                                 })}
                             </div>
-                            {/* 차종별 하한 단가 — 자동 계산, 읽기 전용 */}
+                            {/* 차종별 하한 단가 — 자동 계산, 읽기 전용.
+                                남은 칸에 안 들어가는 차종은 흐리게 (잡아도 못 싣는다) */}
                             <div className="bg-surface-alt/50 rounded-md px-3 py-2 space-y-1">
                                 {RATE_TABLE_ORDER.map(v => {
                                     const floor = Math.round((NET_RATE_PER_KM[v] ?? 0) * Math.max(0, 1 - eyeline / 100));
+                                    const slot = VEHICLE_SLOTS[v] ?? 0;
+                                    const fits = slot <= remainSlots;
                                     return (
-                                        <div key={v} className="flex items-center justify-between text-[11px]">
+                                        <div key={v} className={`flex items-center justify-between text-[11px] ${fits ? '' : 'opacity-35'}`}>
                                             <span className="text-text-muted font-bold">
                                                 {v}
                                                 <span className="text-text-muted/60 font-normal ml-1">
-                                                    시세 {NET_RATE_PER_KM[v]}원/km · {VEHICLE_SLOTS[v]}/{TRUCK_CAPACITY_SLOTS}칸
+                                                    시세 {NET_RATE_PER_KM[v]}원/km · {slot}칸
                                                 </span>
                                             </span>
-                                            <span className="font-mono font-black text-success">
-                                                {eyeline >= 100 ? '전부' : `≥ ${floor.toLocaleString()}원/km`}
+                                            <span className="font-mono font-black text-success whitespace-nowrap">
+                                                {!fits ? <span className="text-text-muted font-normal">칸 부족</span>
+                                                 : eyeline >= 100 ? '전부'
+                                                 : <>≥ {floor.toLocaleString()}원/km
+                                                     <span className="text-text-muted/60 font-normal ml-1.5">
+                                                        {exampleKm}km면 {(floor * exampleKm).toLocaleString()}
+                                                     </span>
+                                                   </>}
                                             </span>
                                         </div>
                                     );
@@ -352,7 +415,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                 <Input
                                     type="text"
                                     value={blacklist}
-                                    onChange={handleBlacklistChange}
+                                    onChange={(e) => { handleBlacklistChange(e); markDirty(tab); }}
                                     placeholder="단어 쉼표(,) 구분"
                                     className="bg-surface-alt/60 border-danger/30 text-danger font-medium focus-visible:ring-danger/50 shadow-inner h-10"
                                 />
@@ -369,7 +432,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                     <label className="block text-[10px] font-bold text-text-muted pl-1">도착 희망 시/도</label>
                                     <select
                                         value={targetCity}
-                                        onChange={(e) => setTargetCity(e.target.value)}
+                                        onChange={(e) => { setTargetCity(e.target.value); markDirty('first'); }}
                                         className="w-full h-9 bg-surface-alt/50 border border-border rounded-md px-2 text-[13px] text-info-alt font-bold outline-none focus:border-info-alt shadow-inner appearance-none"
                                     >
                                         {/* 아직 안 골랐거나, 목록에 없는 값이 저장돼 있을 때.
@@ -394,7 +457,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                         <Input
                                             type="number"
                                             value={pickupRadius}
-                                            onChange={(e) => setPickupRadius(e.target.value)}
+                                            onChange={(e) => { setPickupRadius(e.target.value); markDirty('first'); }}
                                             className="bg-surface-alt/50 border-border pr-8 text-text-primary font-bold h-9 text-center"
                                         />
                                         <span className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted font-black pointer-events-none text-[9px]">KM</span>
@@ -406,7 +469,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                         <Input
                                             type="number"
                                             value={targetRadius}
-                                            onChange={(e) => setTargetRadius(e.target.value)}
+                                            onChange={(e) => { setTargetRadius(e.target.value); markDirty(tab); }}
                                             className="bg-surface-alt/50 border-border pr-8 text-info-alt font-bold h-9 text-center"
                                         />
                                         <span className="absolute right-2 top-1/2 -translate-y-1/2 text-info-alt/70 font-black pointer-events-none text-[9px]">KM</span>
@@ -424,7 +487,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                         <Input
                                             type="number"
                                             value={corridorRadius}
-                                            onChange={(e) => setCorridorRadius(e.target.value)}
+                                            onChange={(e) => { setCorridorRadius(e.target.value); markDirty('merge'); }}
                                             className="bg-surface-alt/50 border-warning/30 text-warning font-bold h-9 text-center shadow-inner"
                                         />
                                         <span className="absolute right-2 top-1/2 -translate-y-1/2 text-warning/50 font-black pointer-events-none text-[10px]">KM</span>
@@ -436,7 +499,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                         <Input
                                             type="number"
                                             value={targetRadius}
-                                            onChange={(e) => setTargetRadius(e.target.value)}
+                                            onChange={(e) => { setTargetRadius(e.target.value); markDirty(tab); }}
                                             className="bg-surface-alt/50 border-warning/30 pr-8 text-warning font-bold h-9 text-center"
                                         />
                                         <span className="absolute right-2 top-1/2 -translate-y-1/2 text-warning/50 font-black pointer-events-none text-[9px]">KM</span>
@@ -654,7 +717,12 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                 title="오늘만 이 조건으로 사냥합니다 (자정에 평소 설정으로 돌아갑니다)"
                                 className="h-11 relative group overflow-hidden rounded-xl bg-gradient-to-r from-success to-success/70 text-white font-black text-[11px] shadow-[0_0_15px_var(--theme-glow-primary)] hover:shadow-[0_0_20px_var(--theme-glow-primary)] transition-all px-1"
                             >
-                                <span className="relative z-10 drop-shadow-md tracking-wider">🟢 오늘만</span>
+                                <span className="relative z-10 drop-shadow-md tracking-wider flex flex-col leading-tight">
+                                    🟢 오늘만
+                                    <span className="text-[8px] font-bold opacity-80">
+                                        {dirtyTabs.size > 0 ? `${dirtyTabs.size}곳 변경` : '변경 없음'}
+                                    </span>
+                                </span>
                                 <div className="absolute inset-0 bg-gradient-to-r from-success/90 to-success/60 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                             </Button>
 
