@@ -47,6 +47,45 @@ class InsungParser(private val context: Context) : IScrapParser {
     }
 
     /**
+     * 화면에서 읽은 축약 차종(오·다·라·1t…)에 해당하는 단가를 단가표에서 찾습니다.
+     *
+     * 앱 파서는 인성 화면의 축약 코드를 그대로 뽑는데(`"라"`, `"다"`), 단가표 키는
+     * 정식 차종명(`"라보"`, `"다마스"`)이다. 조건 1(차종 매칭)이 쓰는 것과 **같은 규칙**으로
+     * 맞춘다 — 두 곳이 갈라지면 "차종은 통과인데 단가는 못 찾는" 상태가 된다.
+     *
+     * @return 단가(원/km). 매칭 실패 시 null → 호출부가 단가 판정을 건너뛴다
+     */
+    private fun resolveRate(rates: Map<String, Int>, parsedVehicle: String): Int? {
+        if (rates.isEmpty()) return null
+        val p = parsedVehicle.lowercase(Locale.getDefault())
+        for ((key, rate) in rates) {
+            val matched = when (key.lowercase(Locale.getDefault())) {
+                "1t" -> p.contains("1") || p.contains("t") || p.contains("톤")
+                "다마스" -> p.contains("다")
+                "라보" -> p.contains("라")
+                "오토바이" -> p.contains("오") || p.contains("바")
+                "승용차" -> p.contains("승")
+                else -> p.contains(key.lowercase(Locale.getDefault())) || key.lowercase(Locale.getDefault()).contains(p)
+            }
+            if (matched) return rate
+        }
+        return null
+    }
+
+    /**
+     * `{"1t": 693, "다마스": 554, ...}` 형태의 차종별 단가를 파싱합니다.
+     * 키가 없으면 빈 맵 — 호출부가 minFare 판정으로 되돌아간다 (구서버 호환).
+     */
+    private fun parseRateMap(json: JSONObject, key: String): Map<String, Int> {
+        return try {
+            val obj = json.optJSONObject(key) ?: return emptyMap()
+            val out = mutableMapOf<String, Int>()
+            obj.keys().forEach { k -> out[k] = obj.optInt(k, 0) }
+            out
+        } catch (e: Exception) { emptyMap() }
+    }
+
+    /**
      * 콤마 구분 문자열을 List<String>으로 파싱하는 헬퍼
      */
     private fun parseCommaSeparated(json: JSONObject, key: String): List<String> {
@@ -71,7 +110,8 @@ class InsungParser(private val context: Context) : IScrapParser {
                 destinationRadiusKm = json.optInt("destinationRadiusKm", 10),
                 excludedKeywords = parseJsonArray(json, "excludedKeywords"),
                 destinationKeywords = parseJsonArray(json, "destinationKeywords"),
-                customCityFilters = parseJsonArray(json, "customCityFilters")
+                customCityFilters = parseJsonArray(json, "customCityFilters"),
+                ratePerKm = parseRateMap(json, "ratePerKm")   // 없으면 빈 맵 → minFare 판정 (구서버 호환)
             )
         } catch (e: Exception) {
             AppLogger.e(TAG, "❌ 필터 JSON 파싱 실패: ${e.message}")
@@ -197,7 +237,11 @@ class InsungParser(private val context: Context) : IScrapParser {
             scheduleText = scheduleText,
             vehicleType = vehicleType,
             rawText = rawJoined,
-            pickupDistance = distances.getOrNull(0)
+            pickupDistance = distances.getOrNull(0),
+            // 🔴 2026-08-13 — 두 번째 값(배송거리)을 **버리지 않고 보존**한다.
+            //    단가 판정(fare ≥ 배송거리 × 단가)의 입력이다. 없으면 null →
+            //    판정을 건너뛰고 통과시킨다 (앱은 일단 잡아와라, 서버가 정확히 잰다).
+            deliveryDistance = distances.getOrNull(1)
         )
     }
 
@@ -293,8 +337,39 @@ class InsungParser(private val context: Context) : IScrapParser {
         // 규칙은 서버(OrderEvaluator)와 **똑같이** 맞춘다:
         //   0 < maxFare < 1,000,000 일 때만 적용한다. 100만은 "상한 없음"의 뜻이다.
         val hasFareCeiling = filter.maxFare in 1..999_999
-        val fareMatch = order.fare >= filter.minFare &&
-                        (!hasFareCeiling || order.fare <= filter.maxFare)
+
+        /**
+         * 🔴 2026-08-13 — **단가 판정** (docs/필터_재설계_명세.md)
+         *
+         * 기사님: *"합짐은 경로 중 우회되는 짧은 구간이 들어올 수 있다.
+         * 그래서 여기는 단가가 들어가야 할 것 같은데."*
+         *
+         * 고정 금액 하한(minFare) 하나로는 구간 길이가 제각각인 콜을 잴 수 없다.
+         * 분당→영등포 30km 짜리와 광주→파주 100km 짜리에 같은 2만원을 걸면
+         * 한쪽은 똥콜이 통과하고 한쪽은 꿀콜이 걸러진다.
+         *
+         *   통과 = 요금 ≥ 배송거리 × 단가(차종)
+         *
+         * 서버가 눈높이를 이미 반영한 단가표를 피기백으로 내려 준다 — 앱은 곱셈만 한다.
+         *
+         * **폴백은 한 갈래 — 셋 중 하나라도 없으면 기존 `minFare` 판정으로 되돌아간다.**
+         *   단가표가 없거나(구서버·미응답) · 차종을 못 읽었거나 · 배송거리를 못 읽은 경우.
+         *   통과시켜 버리지 않는 이유는, 그러면 리스트 전체가 들어와 데스밸리가 밀리기 때문이다.
+         *   `minFare` 는 최소한의 문턱으로 남기고 정확한 판정은 서버가 한다.
+         *
+         * 눈높이가 "전부"면 서버가 단가를 0 으로 내려 보낸다 → `fare >= 거리 × 0` 은 항상 참.
+         * 즉 "금액 무관 통과"가 별도 분기 없이 같은 식으로 표현된다.
+         */
+        val rateFloor = order.vehicleType?.let { vt -> resolveRate(filter.ratePerKm, vt) }
+        val useRateModel = filter.ratePerKm.isNotEmpty() && rateFloor != null && order.deliveryDistance != null
+
+        val fareMatch = if (useRateModel) {
+            order.fare >= order.deliveryDistance!! * rateFloor!! &&
+                (!hasFareCeiling || order.fare <= filter.maxFare)
+        } else {
+            order.fare >= filter.minFare &&
+                (!hasFareCeiling || order.fare <= filter.maxFare)
+        }
 
         // ── 조건 3: 상차지 거리 ──
         // 합짐 모드(isSharedMode)에서는 상차지 반경 제한을 무시합니다.
@@ -323,7 +398,10 @@ class InsungParser(private val context: Context) : IScrapParser {
             
             AppLogger.roadmap("🔍 [타겟 콜 필터 결과] 차종(${order.vehicleType ?: "미상"})=${if(vehicleMatch) "✅" else "❌"} " +
                         "도착지(${filter.destinationKeywords.size}중 ${order.dropoff})=${if(regionMatch) "✅" else "❌"} " +
-                        "요금(${filter.minFare} <= ${order.fare}${if (hasFareCeiling) " <= ${filter.maxFare}" else ""})=${if(fareMatch) "✅" else "❌"} " +
+                        (if (useRateModel)
+                            "요금/단가(${order.deliveryDistance}km × ${rateFloor}원 = ${((order.deliveryDistance ?: 0.0) * (rateFloor ?: 0)).toInt()} <= ${order.fare})=${if(fareMatch) "✅" else "❌"} "
+                         else
+                            "요금(${filter.minFare} <= ${order.fare}${if (hasFareCeiling) " <= ${filter.maxFare}" else ""})=${if(fareMatch) "✅" else "❌"} ") +
                         "상차지/거리(${if(filter.isSharedMode) "합짐무시" else "${filter.pickupRadiusKm}km"} >= ${order.pickupDistance ?: "미상"}km)=${if(distanceMatch) "✅" else "❌"} " +
                         "블랙()=${if(blacklistClear) "✅" else "❌"}", screenCtxLog)
         }

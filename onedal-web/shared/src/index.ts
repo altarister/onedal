@@ -414,6 +414,13 @@ export interface SimplifiedOfficeOrder {
     dropoffX?: number;
     dropoffY?: number;
     pickupDistance?: number;          // 상차지까지의 남은 직선 거리 (km)
+    /**
+     * 배송거리 (상차지 → 하차지, km). 리스트 최좌측 두 숫자 중 **두 번째** 값.
+     * 앱의 단가 판정(`fare ≥ deliveryDistance × ratePerKm[차종]`) 입력이며,
+     * 서버는 판정 근거를 로그에 남길 때 쓴다 (실제 판정은 카카오 도로거리로 다시 잰다).
+     * 🔍 이 값이 직선거리인지 도로거리인지는 실콜 대조 대기 중 (docs/필터_재설계_명세.md §6)
+     */
+    deliveryDistance?: number;
 }
 // 2. [상세 페이지] 배차 확정 후, 들어가서 스크래핑해올 구체적 데이터
 export interface DetailedOfficeOrder {

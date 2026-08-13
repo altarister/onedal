@@ -66,7 +66,13 @@ data class SimplifiedOfficeOrder(
     val pickupY: Double? = null,
     val dropoffX: Double? = null,
     val dropoffY: Double? = null,
-    val pickupDistance: Double? = null
+    val pickupDistance: Double? = null,
+    /**
+     * 배송거리(상차지 → 하차지, km). 리스트 최좌측 두 숫자 중 **두 번째** 값.
+     * 단가 판정(fare ≥ deliveryDistance × ratePerKm[차종])의 입력 —
+     * 예전에는 파싱하고 버렸다 (2026-08-13 필터 재설계에서 보존).
+     */
+    val deliveryDistance: Double? = null
 )
 
 // ────────────────────────────────────────────────
@@ -198,6 +204,12 @@ data class FilterConfig(
     /** 서버 기본값과 동일. 0 으로 두면 하한이 사라져 아무 콜이나 잡는다 */
     val minFare: Int = 30000,
     val maxFare: Int = 1000000,
+    /**
+     * 차종별 하한 단가(원/km) — 단가 판정 모델 (docs/필터_재설계_명세.md).
+     * 판정: fare ≥ deliveryDistance × ratePerKm[차종]
+     * 비어 있으면(서버가 구버전이거나 미응답) minFare 판정으로 동작한다 — 오프라인 안전망.
+     */
+    val ratePerKm: Map<String, Int> = emptyMap(),
     val destinationCity: String = "",
     val destinationRadiusKm: Int = 10,
     val excludedKeywords: List<String> = emptyList(),
