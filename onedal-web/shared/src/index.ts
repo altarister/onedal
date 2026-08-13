@@ -873,6 +873,7 @@ export interface DeviceSession {
 
 export * from './vehicles';
 export * from './pricing';
+export * from './phases';
 export * from './cargoHints';
 export * from './cargoTags';
 export * from './cargoUnits';
