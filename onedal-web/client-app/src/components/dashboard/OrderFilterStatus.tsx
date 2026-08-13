@@ -5,7 +5,6 @@ import type { HuntPhase } from "@onedal/shared";
 import { socket } from "../../lib/socket";
 import { logRoadmapEvent } from "../../lib/roadmapLogger";
 
-import { Badge } from "../ui/badge";
 
 /**
  * 요약줄 — 관제탑에 늘 보이는 한 칸. (docs/필터_재설계_명세.md §4-1)
@@ -29,8 +28,13 @@ const PHASE_STYLE: Record<HuntPhase, { icon: string; accent: string }> = {
 
 /** 스와이프로 인정하는 최소 이동 폭 — 이 아래는 탭(설정 열기)으로 본다 */
 const TAP_THRESHOLD_PX = 6;
-/** 국면이 넘어가려면 카드 폭의 이만큼은 밀어야 한다 (스치기만 해선 안 바뀐다) */
-const SNAP_RATIO = 0.35;
+/**
+ * 국면이 넘어가려면 이만큼은 밀어야 한다 (스치기만 해선 안 바뀐다).
+ *
+ * 폭 비율만 쓰면 **넓은 화면에서 너무 멀다** — 관제웹을 데스크톱으로 열면 요약줄이
+ * 800px 이라 280px 를 끌어야 했다. 둘 중 **작은 쪽**을 쓴다.
+ */
+const snapThreshold = (w: number) => Math.min(w * 0.35, 90);
 
 export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () => void }) {
     const { filter } = useFilterConfig();
@@ -63,13 +67,6 @@ export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () =
         else label = '첫짐 탐색중'; // STANDBY
     }
 
-    const getStatusStyles = (active: boolean, shared: boolean) => {
-        if (!active) return { badge: 'bg-warning/90 text-white border-warning' };
-        if (shared) return { badge: 'bg-accent-alt/90 text-white border-accent-alt' };
-        return { badge: 'bg-info/90 text-white border-info' };
-    };
-    const styles = getStatusStyles(filter.isActive, filter.isSharedMode);
-
     // ── 단가 판정 모델 표시값 ── 서버가 내려준 파생값을 그대로 쓴다
     const eyeline = filter.eyelinePct ?? 10;
     const eyelineLabel = eyeline >= 100 ? '전부' : (eyeline === 0 ? '시세' : `-${eyeline}%`);
@@ -94,7 +91,15 @@ export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () =
         setTimeout(() => setToast(null), 1800);
     };
 
-    // ── 드래그: 6px 미만이면 탭(설정 열기), 35% 이상이면 국면 전환 ──
+    /** 지금 밀고 있는 방향의 다음 국면 (임계를 넘었을 때만 — 넘기 전엔 힌트를 안 준다) */
+    const pendingPhase = (() => {
+        const w = wrapRef.current?.offsetWidth ?? 1;
+        if (Math.abs(dragDx) <= snapThreshold(w)) return null;
+        const i = phaseIdx + (dragDx < 0 ? 1 : -1);
+        return i >= 0 && i < PHASES.length && i !== phaseIdx ? PHASES[i] : null;
+    })();
+
+    // ── 드래그: 6px 미만이면 탭(설정 열기), 임계를 넘으면 국면 전환 ──
     const onDown = (e: React.PointerEvent) => {
         dragRef.current = { startX: e.clientX, dx: 0 };
         (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
@@ -113,7 +118,7 @@ export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () =
         const w = wrapRef.current?.offsetWidth ?? 1;
         if (Math.abs(d.dx) < TAP_THRESHOLD_PX) {
             onOpenFilter();                      // 탭 — 설정 열기
-        } else if (Math.abs(d.dx) > w * SNAP_RATIO) {
+        } else if (Math.abs(d.dx) > snapThreshold(w)) {
             const next = PHASES[Math.max(0, Math.min(PHASES.length - 1, phaseIdx + (d.dx < 0 ? 1 : -1)))];
             goPhase(next);
         }
@@ -131,23 +136,21 @@ export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () =
             style={{ transform: `translateX(${dragDx * 0.3}px)`, touchAction: 'pan-y' }}
             className="relative flex items-center justify-between cursor-grab active:cursor-grabbing select-none px-4 py-3 transition-transform hover:bg-surface-hover/50 border-b border-border-card"
         >
-            <div className="flex items-center gap-3 flex-1 min-w-0">
-                <Badge variant="outline" className={`${styles.badge} shadow-sm px-2 py-1 whitespace-nowrap`}>
-                    {label}
-                </Badge>
-                {/* 🔒 기사님이 손으로 고친 필터는 자동 갱신이 덮어쓰지 않는다.
-                    그 사실을 화면에 남긴다 — 안 그러면 "왜 회랑이 안 바뀌지?" 를 알 수 없다. */}
-                {filter.userOverrides && (
-                    <Badge variant="outline"
-                        title="손으로 고친 필터라 경로가 바뀌어도 자동 갱신되지 않습니다. 첫짐으로 돌아가면 풀립니다"
-                        className="bg-warning/12 border-warning/45 text-warning px-1.5 py-0.5 text-[10px] font-black whitespace-nowrap">
-                        🔒 수동 고정
-                    </Badge>
-                )}
-                <div className="flex flex-col leading-tight overflow-hidden min-w-0">
-                    {/* 제목줄 — 필터를 사람 말로 + 국면 뱃지 */}
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+                <div className="flex flex-col leading-tight overflow-hidden min-w-0 flex-1">
+                    {/* 제목줄 — 필터를 사람 말로. 단계·상태는 **뒤에** 작게 붙는다.
+                        예전에는 큰 뱃지 둘이 앞을 막아 제목이 잘렸다 ("여기서 반경 1km → 파주시 1...") */}
                     <span className={`text-[12px] font-black truncate ${style.accent}`}>
                         {style.icon} {headline()}
+                        <span className="ml-1.5 text-[9.5px] font-bold text-text-muted align-middle whitespace-nowrap">
+                            {label}
+                        </span>
+                        {/* 🔒 손으로 고친 필터는 자동 갱신이 덮어쓰지 않는다 —
+                            그 사실을 남기되 자리는 안 먹는다 (아이콘 하나) */}
+                        {filter.userOverrides && (
+                            <span title="손으로 고친 필터라 경로가 바뀌어도 자동 갱신되지 않습니다. 첫짐으로 돌아가면 풀립니다"
+                                className="ml-1 text-[10px] text-warning align-middle">🔒</span>
+                        )}
                     </span>
                     {/* ── 순서를 고정한다 (명세 §4-1) ──
                         ① 💰 금액(눈높이·단가)  ② 📍 지역  ③ 📦 적재
@@ -167,12 +170,22 @@ export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () =
             <div className="flex items-center gap-2 ml-2">
                 <div className="flex gap-1">
                     {PHASES.map((p, i) => (
-                        <span key={p} title={HUNT_PHASE_LABEL[p]}
-                            className={`w-1.5 h-1.5 rounded-full ${i === phaseIdx ? 'bg-info' : 'bg-border-card'}`} />
+                        <button key={p} title={`${HUNT_PHASE_LABEL[p]} 로 전환`}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onClick={(e) => { e.stopPropagation(); goPhase(p); }}
+                            className={`w-2 h-2 rounded-full transition-colors ${i === phaseIdx ? 'bg-info' : 'bg-border-card hover:bg-text-muted'}`} />
                     ))}
                 </div>
                 <span className="text-text-muted text-sm">⚙️</span>
             </div>
+
+            {pendingPhase && (
+                <span className="absolute inset-y-0 right-0 z-10 flex items-center pr-4 pointer-events-none">
+                    <span className="text-[11px] font-black px-2 py-1 rounded-md bg-info/20 border border-info/50 text-info whitespace-nowrap">
+                        놓으면 → {HUNT_PHASE_LABEL[pendingPhase]}
+                    </span>
+                </span>
+            )}
 
             {toast && (
                 <span className="absolute right-3 -bottom-1 z-10 text-[10px] font-black px-2 py-0.5 rounded-md bg-accent/15 border border-accent/40 text-accent">
