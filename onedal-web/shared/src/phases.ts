@@ -94,11 +94,16 @@ export type PhaseSettingsMap = Record<PhaseKey, PhaseSettings>;
 // ─────────────────────────────────────────────────────────────
 
 /**
- * `input`  기사님이 입력한다 — 저장한다
- * `auto`   런타임 파생 (경로·GPS·집 주소) — **저장하지 않는다**
- * `hidden` 그 국면 판정에 쓰지 않는다 — 화면에 안 보인다
+ * `input`     기사님이 입력한다 — 저장한다
+ * `override`  **자동이 기본인데 손으로 덮을 수 있다.** 비워 두면 자동 파생값을 쓴다
+ * `auto`      런타임 파생 (경로·GPS·집 주소) — **저장하지 않는다.** 화면엔 보이되 못 고친다
+ * `hidden`    그 국면 판정에 쓰지 않는다 — 화면에 안 보인다
+ *
+ * 🔴 `override` 는 2026-08-14 에 늘렸다. 목업의 관내 **기준 지역** 이 그 모양이다 —
+ *    기본은 "최종 하차지 (파주시)" 인데 다른 시를 고를 수도 있다.
+ *    셋(입력/자동/숨김)만으로는 "자동인데 덮을 수 있다"를 표현할 자리가 없었다.
  */
-export type FieldMode = 'input' | 'auto' | 'hidden';
+export type FieldMode = 'input' | 'override' | 'auto' | 'hidden';
 
 /**
  * 🔴 **이 표가 유일한 원천이다.**
@@ -108,21 +113,44 @@ export type FieldMode = 'input' | 'auto' | 'hidden';
  * (회랑 4벌 · 상태목록 3벌 · 단가표 2벌).
  */
 export const PHASE_FIELDS: Record<PhaseKey, Record<keyof PhaseSettings, FieldMode>> = {
-    first: { destinationCity: 'input', pickupRadiusKm: 'input',  detourAllowKm: 'hidden', dropoffRadiusKm: 'input',  discountPct: 'input' },
-    merge: { destinationCity: 'auto',  pickupRadiusKm: 'hidden', detourAllowKm: 'input',  dropoffRadiusKm: 'input',  discountPct: 'input' },
-    drive: { destinationCity: 'auto',  pickupRadiusKm: 'hidden', detourAllowKm: 'input',  dropoffRadiusKm: 'hidden', discountPct: 'input' },
-    local: { destinationCity: 'auto',  pickupRadiusKm: 'hidden', detourAllowKm: 'hidden', dropoffRadiusKm: 'input',  discountPct: 'input' },
-    home:  { destinationCity: 'auto',  pickupRadiusKm: 'input',  detourAllowKm: 'hidden', dropoffRadiusKm: 'input',  discountPct: 'input' },
+    first: { destinationCity: 'input',    pickupRadiusKm: 'input',  detourAllowKm: 'hidden', dropoffRadiusKm: 'input',  discountPct: 'input' },
+    merge: { destinationCity: 'hidden',   pickupRadiusKm: 'hidden', detourAllowKm: 'input',  dropoffRadiusKm: 'input',  discountPct: 'input' },
+    drive: { destinationCity: 'hidden',   pickupRadiusKm: 'hidden', detourAllowKm: 'input',  dropoffRadiusKm: 'hidden', discountPct: 'input' },
+    local: { destinationCity: 'override', pickupRadiusKm: 'hidden', detourAllowKm: 'hidden', dropoffRadiusKm: 'hidden', discountPct: 'input' },
+    home:  { destinationCity: 'auto',     pickupRadiusKm: 'hidden', detourAllowKm: 'input',  dropoffRadiusKm: 'hidden', discountPct: 'input' },
 };
 
-/** 화면 라벨 — 한 곳에서만 정한다 */
+/**
+ * 화면 라벨 — 기본값. **v6 목업 표기를 그대로 쓴다** (기사님 2026-08-14:
+ * *"목업에 만들어둔 명칭도 그대로 사용해"*).
+ */
 export const PHASE_FIELD_LABEL: Record<keyof PhaseSettings, string> = {
-    destinationCity: '도착 도시',
-    pickupRadiusKm: '상차지 반경',
-    detourAllowKm: '경유 허용',
-    dropoffRadiusKm: '하차지 반경',
-    discountPct: '단가 할인율',
+    destinationCity: '도착 목표',
+    pickupRadiusKm: '상차 반경',
+    detourAllowKm: '우회 허용',
+    dropoffRadiusKm: '하차지 주변',
+    discountPct: '눈높이',
 };
+
+/**
+ * 🔴 **같은 칸이라도 국면마다 부르는 이름이 다르다.**
+ *
+ * 목업을 그대로 읽으면 이렇다 — 첫짐의 하차지 반경은 *"도착 반경"*, 합짐에서는
+ * *"하차지 주변"* 이다. 같은 숫자지만 기사님이 그 국면에서 실제로 쓰는 말이 다르다.
+ * 억지로 한 이름으로 통일하면 둘 중 한 국면에서는 어색한 말이 된다.
+ *
+ * 여기 없는 칸은 위 `PHASE_FIELD_LABEL` 을 쓴다. **표는 여전히 한 곳뿐이다.**
+ */
+export const PHASE_FIELD_LABEL_OVERRIDE: Partial<Record<PhaseKey, Partial<Record<keyof PhaseSettings, string>>>> = {
+    first: { destinationCity: '도착 목표', dropoffRadiusKm: '도착 반경' },
+    local: { destinationCity: '기준 지역' },
+    home:  { destinationCity: '집 주소' },
+};
+
+/** 그 국면에서 이 칸을 뭐라고 부르는가 */
+export function fieldLabel(phase: PhaseKey, key: keyof PhaseSettings): string {
+    return PHASE_FIELD_LABEL_OVERRIDE[phase]?.[key] ?? PHASE_FIELD_LABEL[key];
+}
 
 /** `auto` 필드가 **무엇에서** 나오는지 — 화면이 "왜 못 고치는지" 말할 수 있어야 한다 */
 export const PHASE_AUTO_SOURCE: Record<PhaseKey, string> = {
@@ -142,11 +170,12 @@ export const PHASE_AUTO_SOURCE: Record<PhaseKey, string> = {
  * `hidden` 칸도 값은 채워 둔다 (타입이 하나이므로). 그 국면에서 안 쓸 뿐이다.
  */
 export const DEFAULT_PHASE_SETTINGS: PhaseSettingsMap = {
-    first: { destinationCity: '', pickupRadiusKm: 10, detourAllowKm: 5, dropoffRadiusKm: 10, discountPct: 10 },
-    merge: { destinationCity: '', pickupRadiusKm: 10, detourAllowKm: 5, dropoffRadiusKm: 3,  discountPct: 10 },
-    drive: { destinationCity: '', pickupRadiusKm: 10, detourAllowKm: 0, dropoffRadiusKm: 3,  discountPct: 10 },
-    local: { destinationCity: '', pickupRadiusKm: 10, detourAllowKm: 0, dropoffRadiusKm: 0,  discountPct: 20 },
-    home:  { destinationCity: '', pickupRadiusKm: 10, detourAllowKm: 5, dropoffRadiusKm: 10, discountPct: 10 },
+    first: { destinationCity: '', pickupRadiusKm: 10, detourAllowKm: 5,  dropoffRadiusKm: 10, discountPct: 10 },
+    merge: { destinationCity: '', pickupRadiusKm: 10, detourAllowKm: 5,  dropoffRadiusKm: 3,  discountPct: 10 },
+    drive: { destinationCity: '', pickupRadiusKm: 10, detourAllowKm: 0,  dropoffRadiusKm: 3,  discountPct: 10 },
+    local: { destinationCity: '', pickupRadiusKm: 10, detourAllowKm: 0,  dropoffRadiusKm: 0,  discountPct: 20 },
+    // 복귀 우회 10 — 목업 값. 집으로 가는 길은 멀어서 주울 여지가 크다
+    home:  { destinationCity: '', pickupRadiusKm: 10, detourAllowKm: 10, dropoffRadiusKm: 10, discountPct: 10 },
 };
 
 /** 저장된 JSON 이 비었거나 일부만 있어도 온전한 맵을 만든다 (필드 누락 방어) */
@@ -197,7 +226,13 @@ export function applyPhaseToFilter(phase: PhaseKey, s: PhaseSettings): FlatPhase
         destinationRadiusKm: s.dropoffRadiusKm,
         eyelinePct: s.discountPct,
     };
-    if (PHASE_FIELDS[phase].destinationCity === 'input') {
+    /**
+     * `input` 은 늘 내보낸다. `override` 는 **덮어썼을 때만** 내보낸다 —
+     * 비어 있으면 "자동을 쓰겠다"는 뜻이라, 서버가 GPS 로 정한 시를 지우면 안 된다.
+     * `auto` 는 절대 내보내지 않는다 (저장된 빈 문자열이 파생값을 덮는다).
+     */
+    const cityMode = PHASE_FIELDS[phase].destinationCity;
+    if (cityMode === 'input' || (cityMode === 'override' && s.destinationCity)) {
         patch.destinationCity = s.destinationCity;
     }
     return patch;

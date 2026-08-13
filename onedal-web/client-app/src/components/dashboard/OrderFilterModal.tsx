@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
 import { logRoadmapEvent } from "../../lib/roadmapLogger";
 import { NET_RATE_PER_KM, VEHICLE_SLOTS, TRUCK_CAPACITY_SLOTS, CAPACITY_CONFIDENCE_LABEL,
-         PHASE_KEYS, PHASE_LABEL, PHASE_FIELDS, PHASE_FIELD_LABEL, PHASE_AUTO_SOURCE,
+         PHASE_KEYS, PHASE_LABEL, PHASE_FIELDS, fieldLabel, PHASE_AUTO_SOURCE,
          DEFAULT_PHASE_SETTINGS, resolvePhaseKey } from "@onedal/shared";
 import type { PhaseKey, PhaseSettings } from "@onedal/shared";
 import { socket } from "../../lib/socket";
@@ -40,21 +40,51 @@ const RATE_TABLE_ORDER = ['오토바이', '다마스', '승용차', '라보', '1
 const TABS = PHASE_KEYS;
 
 /** 탭별 강조색 — Tailwind 가 스캔할 수 있게 **완성된 클래스 문자열**로 적는다 */
-const TAB_STYLE: Record<PhaseKey, { box: string; text: string; input: string }> = {
-    first: { box: 'border-info-alt/30',   text: 'text-info-alt',   input: 'border-border' },
-    merge: { box: 'border-warning/30',    text: 'text-warning',    input: 'border-warning/30' },
-    drive: { box: 'border-info/30',       text: 'text-info',       input: 'border-info/30' },
-    local: { box: 'border-accent-alt/30', text: 'text-accent-alt', input: 'border-accent-alt/30' },
-    home:  { box: 'border-accent/30',     text: 'text-accent',     input: 'border-accent/30' },
+const TAB_STYLE: Record<PhaseKey, { box: string; text: string; input: string; chip: string }> = {
+    first: { box: 'border-info-alt/30',   text: 'text-info-alt',   input: 'border-border',           chip: 'bg-info-alt/10 text-info-alt' },
+    merge: { box: 'border-warning/30',    text: 'text-warning',    input: 'border-warning/30',       chip: 'bg-warning/10 text-warning' },
+    drive: { box: 'border-info/30',       text: 'text-info',       input: 'border-info/30',          chip: 'bg-info/10 text-info' },
+    local: { box: 'border-accent-alt/30', text: 'text-accent-alt', input: 'border-accent-alt/30',    chip: 'bg-accent-alt/10 text-accent-alt' },
+    home:  { box: 'border-accent/30',     text: 'text-accent',     input: 'border-accent/30',        chip: 'bg-accent/10 text-accent' },
 };
 
-/** 탭이 무엇을 하는 국면인지 — 한 줄 */
-const TAB_HINT: Record<PhaseKey, string> = {
-    first: '🚚 오늘 기준을 세우는 첫 콜',
-    merge: '📦 잡은 경로에 얹는 추가 콜',
-    drive: '🛣️ 가는 길 위의 콜만',
-    local: '🏘️ 이 동네 안에서 끝나는 콜',
-    home:  '🏠 집 방향으로 주워 담기',
+/**
+ * 섹션 제목과 오른쪽 힌트 — **v6 목업 문구 그대로.**
+ * 기사님: *"목업에 만들어둔 명칭도 그대로 사용해."*
+ */
+const SECTION: Record<PhaseKey, { title: string; hint: string }> = {
+    first: { title: '어디로 갈까',            hint: '빈 차로 첫 짐을 찾을 때' },
+    merge: { title: '얼마나 돌아갈까',        hint: '짐을 싣고 다음 짐을 찾을 때' },
+    drive: { title: '가는 길만',              hint: '우회를 끊는다' },
+    local: { title: '같은 시 안에서 끝나는 콜', hint: '복귀 전 시간 때우기' },
+    home:  { title: '집 방향',                hint: '최종 하차지 → 집' },
+};
+
+/** 눈높이 줄의 설명 — 목업 문구 그대로 (운행 중은 목업에 없어 기존 문구 유지) */
+const DIAL_LABEL: Record<PhaseKey, string> = {
+    first: '눈높이 — 시세 대비 허용 할인',
+    merge: '눈높이 — 합짐은 “전부”까지 내려간다',
+    drive: '눈높이 — 이미 가는 길이라 “전부”까지 내려간다',
+    local: '눈높이 — 관내도 같은 판정식',
+    home:  '눈높이 — 복귀도 같은 판정식',
+};
+
+/** 지역 카드 문구 — 목업 그대로. 국면마다 "무엇의 목록인가"가 다르다 */
+const REGION_CARD: Record<PhaseKey, { unit: string; note: string }> = {
+    first: { unit: '개 동이 걸립니다',  note: '도착 도시 주변' },
+    merge: { unit: '개 동 · 경로 주변', note: '지금 실린 짐의 경로에서\n자동으로 다시 계산됩니다' },
+    drive: { unit: '개 동 · 경로 주변', note: '지나온 구간은 빠집니다' },
+    local: { unit: '개 동 · 이 시 안',  note: '상차지와 하차지가\n모두 이 안이어야 통과' },
+    home:  { unit: '시작하면 계산됩니다', note: '짐이 남았으면 마지막 하차지부터\n다 내렸으면 현재 위치부터' },
+};
+
+/** 하한표 제목 — 목업 문구 그대로 */
+const FLOOR_TITLE: Record<PhaseKey, string> = {
+    first: '첫짐 하한 — 단가 기준 (합짐과 같은 식)',
+    merge: '합짐 하한 — 단가 기준 (콜마다 거리가 다르니까)',
+    drive: '운행 중 하한 — 단가 기준',
+    local: '관내 하한 — 단가 기준',
+    home:  '복귀 하한 — 단가 기준',
 };
 
 /** 국면 설정을 폼에서 다루는 모양 — **문자열**이다 (입력 중 빈 칸을 허용하려면 숫자로는 안 된다) */
@@ -172,6 +202,15 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
 
     // 귀가콜 로딩 상태
     const [homeReturnLoading, setHomeReturnLoading] = useState(false);
+
+    /** 복귀 탭이 보여 주는 집 주소 — 원천은 ⚙️ 설정이다. 여기서 고치지 않는다 */
+    const [homeAddress, setHomeAddress] = useState<string>("");
+    useEffect(() => {
+        if (!isOpen) return;
+        apiClient.get('/settings')
+            .then(({ data }) => setHomeAddress(data.homeAddress || ""))
+            .catch(() => setHomeAddress(""));   // 못 읽으면 "자동 · 설정의 집 주소" 로 남는다
+    }, [isOpen]);
 
     const [isPreviewLoading, setIsPreviewLoading] = useState(false);
 
@@ -338,6 +377,9 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
         ? cur.destinationCity
         : (filter.destinationCity || '');
 
+    /** 화면에 그릴 지역 그룹 — 미리보기를 눌렀으면 그 결과, 아니면 지금 걸린 것 */
+    const regionGroups = Object.entries(previewRegions ?? filter.destinationGroups ?? {});
+
     /** 지금 탭의 눈높이(단가 할인율) — 국면마다 따로 기억한다 */
     const eyeline = parseFloat(cur.discountPct);
 
@@ -373,6 +415,19 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                         )}
                     </DialogTitle>
                 </DialogHeader>
+
+                {/* 🔴 제외 단어는 **탭 위**다 (v6 목업). 다섯 탭 공통인 값이 탭 **안**에 있으면
+                    "이 탭에만 적용되나?" 를 화면이 잘못 말한다 — 실제로는 전부에 걸린다 */}
+                <div className="flex items-center gap-2 relative z-10">
+                    <label className="text-[10px] font-black text-danger whitespace-nowrap">제외 단어</label>
+                    <Input
+                        type="text"
+                        value={blacklist}
+                        onChange={handleBlacklistChange}
+                        placeholder="착불, 수거"
+                        className="flex-1 bg-surface-alt/60 border-danger/30 text-danger font-medium focus-visible:ring-danger/50 shadow-inner h-9"
+                    />
+                </div>
 
                 {/* 탭 다섯 — 하루의 다섯 국면. 지금 어디인지는 초록 점으로만 */}
                 <div className="grid grid-cols-5 gap-1 bg-surface-alt/40 p-1 rounded-lg border border-border relative z-10">
@@ -431,16 +486,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                             금액을 입력하지 않는다. 차종별 하한 단가는 눈높이에서 파생된다.
                             기사님: "처음에는 시세로 찾고, 콜이 없으면 여기 와서 조금씩 낮춘다" */}
                         <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-text-muted flex items-center gap-1">
-                                눈높이
-                                <span className="font-normal text-text-muted/70">
-                                    — {tab === 'first' ? '첫짐은 기준을 세우니 시세 근처에서'
-                                     : tab === 'merge' ? '합짐은 순증 매출이라 “전부”까지'
-                                     : tab === 'drive' ? '운행 중은 합짐 기준을 그대로'
-                                     : tab === 'local' ? '관내는 짧아도 순증 매출은 같다'
-                                     : '빈 차로 돌아가는 것보다 뭐든 싣는 게 이득'}
-                                </span>
-                            </label>
+                            <label className="text-xs font-bold text-text-muted">{DIAL_LABEL[tab]}</label>
                             <div className={`grid gap-1.5 ${tab === 'first' ? 'grid-cols-4' : 'grid-cols-5'}`}>
                                 {EYELINE_STEPS.filter(st => !(tab === 'first' && st.value >= 100)).map(step => {
                                     const on = eyeline === step.value;
@@ -462,6 +508,10 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                             {/* 차종별 하한 단가 — 자동 계산, 읽기 전용.
                                 남은 칸에 안 들어가는 차종은 흐리게 (잡아도 못 싣는다) */}
                             <div className="bg-surface-alt/50 rounded-md px-3 py-2 space-y-1">
+                                <div className="flex items-start justify-between gap-2 pb-1 mb-1 border-b border-border/50">
+                                    <span className="text-[11px] font-black text-text-primary">{FLOOR_TITLE[tab]}</span>
+                                    <span className="text-[9px] text-text-muted/70 text-right whitespace-nowrap">통과 = 요금 ≥ 배송거리 × 단가</span>
+                                </div>
                                 {RATE_TABLE_ORDER.map(v => {
                                     const floor = Math.round((NET_RATE_PER_KM[v] ?? 0) * Math.max(0, 1 - eyeline / 100));
                                     const slot = VEHICLE_SLOTS[v] ?? 0;
@@ -471,7 +521,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                             <span className="text-text-muted font-bold">
                                                 {v}
                                                 <span className="text-text-muted/60 font-normal ml-1">
-                                                    시세 {NET_RATE_PER_KM[v]}원/km · {slot}칸
+                                                    시세 {NET_RATE_PER_KM[v]}원/km · {slot}/{TRUCK_CAPACITY_SLOTS}칸
                                                 </span>
                                             </span>
                                             <span className="font-mono font-black text-success whitespace-nowrap">
@@ -486,27 +536,9 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                         </div>
                                     );
                                 })}
-                                <p className="text-[10px] text-text-muted/70 pt-1 border-t border-border/50">
-                                    통과 = 요금 ≥ 배송거리 × 단가
-                                </p>
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1.5 col-span-2">
-                                <label className="text-xs font-bold text-danger/80 flex items-center gap-1">
-                                    <span className="text-danger text-[10px]">🚫</span> 제외 키워드
-                                    <span className="font-normal text-text-muted/60 ml-1">— 다섯 탭 공통</span>
-                                </label>
-                                <Input
-                                    type="text"
-                                    value={blacklist}
-                                    onChange={(e) => { handleBlacklistChange(e); markDirty(tab); }}
-                                    placeholder="단어 쉼표(,) 구분"
-                                    className="bg-surface-alt/60 border-danger/30 text-danger font-medium focus-visible:ring-danger/50 shadow-inner h-10"
-                                />
-                            </div>
-                        </div>
                     </div>
 
                     {/* ── 국면 설정 — **무엇을 보여줄지는 PHASE_FIELDS 가 정한다** (§2-4) ──
@@ -514,11 +546,12 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                         기사님: *"모든 탭마다 키를 가지고 있고 탭마다 디스플레이만 달리해서 숨기고 노출."*
                         🔴 여기에 탭별 if 를 다시 쓰지 말 것 — 표가 유일한 원천이다 */}
                     <div className={`bg-surface/60 backdrop-blur-md p-3 rounded-xl border ${TAB_STYLE[tab].box} shadow-lg space-y-2.5`}>
-                        <div className="flex items-center justify-between">
-                            <span className={`text-[12px] font-black ${TAB_STYLE[tab].text}`}>{TAB_HINT[tab]}</span>
-                            {tab === activePhase
-                                ? <span className="text-[9px] font-black text-success">● 지금 이 국면</span>
-                                : <span className="text-[9px] font-bold text-text-muted/70">이 국면이 되면 적용됩니다</span>}
+                        <div className="flex items-start justify-between gap-2">
+                            <span className={`text-[12px] font-black ${TAB_STYLE[tab].text}`}>{SECTION[tab].title}</span>
+                            <span className="text-[10px] text-text-muted/70 text-right leading-tight">
+                                {SECTION[tab].hint}
+                                {tab !== activePhase && <><br /><span className="text-[9px]">이 국면이 되면 적용됩니다</span></>}
+                            </span>
                         </div>
 
                         <div className="grid grid-cols-3 gap-2">
@@ -526,14 +559,38 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                 const mode = shown[f];
                                 if (mode === 'hidden') return null;
 
-                                /* 자동 칸 — 왜 못 고치는지를 화면이 말한다 (빈 칸으로 두면 고장으로 보인다) */
+                                /* 자동 칸 — 왜 못 고치는지를 화면이 말한다 (빈 칸으로 두면 고장으로 보인다).
+                                   복귀의 집 주소처럼 **실제 값이 있으면 그 값을 보여 준다** */
                                 if (mode === 'auto') {
+                                    const shownValue = f === 'destinationCity' && tab === 'home' ? homeAddress : '';
                                     return (
-                                        <div key={f} className="space-y-1">
-                                            <label className="block text-[10px] font-bold text-text-muted pl-1">{PHASE_FIELD_LABEL[f]}</label>
-                                            <div className="h-9 flex items-center justify-center px-1 rounded-md bg-surface-alt/30 border border-dashed border-border text-[9px] text-text-muted/80 text-center leading-tight">
-                                                자동 · {PHASE_AUTO_SOURCE[tab]}
+                                        <div key={f} className="space-y-1 col-span-2">
+                                            <label className="block text-[10px] font-bold text-text-muted pl-1">{fieldLabel(tab, f)}</label>
+                                            <div className="h-9 flex items-center px-2 rounded-md bg-surface-alt/30 border border-dashed border-border text-[10px] text-text-muted/80 truncate">
+                                                {shownValue || `자동 · ${PHASE_AUTO_SOURCE[tab]}`}
                                             </div>
+                                        </div>
+                                    );
+                                }
+
+                                /* 덮어쓰기 칸 — 자동이 기본인데 다른 시를 고를 수 있다 (관내 기준 지역) */
+                                if (mode === 'override') {
+                                    return (
+                                        <div key={f} className="space-y-1 col-span-2">
+                                            <label className="block text-[10px] font-bold text-text-muted pl-1">{fieldLabel(tab, f)}</label>
+                                            <select
+                                                value={cur.destinationCity}
+                                                onChange={(e) => setField('destinationCity', e.target.value)}
+                                                className={`w-full h-9 bg-surface-alt/50 border ${TAB_STYLE[tab].input} rounded-md px-2 text-[12px] ${TAB_STYLE[tab].text} font-bold outline-none shadow-inner appearance-none`}
+                                            >
+                                                {/* 빈 값 = 자동. 서버가 GPS·최종 하차지에서 정한 시를 그대로 쓴다 */}
+                                                <option value="">{filter.destinationCity ? `자동 (${filter.destinationCity})` : '자동'}</option>
+                                                {cityGroups.map(g => (
+                                                    <optgroup key={g.sido} label={g.sido}>
+                                                        {g.cities.map(c => <option key={c} value={c}>{c}</option>)}
+                                                    </optgroup>
+                                                ))}
+                                            </select>
                                         </div>
                                     );
                                 }
@@ -541,7 +598,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                 if (f === 'destinationCity') {
                                     return (
                                         <div key={f} className="space-y-1">
-                                            <label className="block text-[10px] font-bold text-text-muted pl-1">{PHASE_FIELD_LABEL[f]}</label>
+                                            <label className="block text-[10px] font-bold text-text-muted pl-1">{fieldLabel(tab, f)}</label>
                                             <select
                                                 value={cur.destinationCity}
                                                 onChange={(e) => setField('destinationCity', e.target.value)}
@@ -568,7 +625,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
 
                                 return (
                                     <div key={f} className="space-y-1">
-                                        <label className="block text-[10px] font-bold text-text-muted pl-1">{PHASE_FIELD_LABEL[f]}</label>
+                                        <label className="block text-[10px] font-bold text-text-muted pl-1">{fieldLabel(tab, f)}</label>
                                         <div className="relative">
                                             <Input
                                                 type="number"
@@ -592,7 +649,33 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                             </p>
                         )}
 
-                        {/* 탭마다 다른 것은 **행동**뿐이다 — 값 입력은 위의 표가 다 그린다 */}
+                        {/**
+                         * 🔴 **팝업 안에 국면 전환 버튼을 두지 않는다** (명세 §4-2 · 2026-08-14).
+                         *
+                         * 여기 `🏘️ 이 동네에서 찾기로 전환` · `🏠 복귀행으로 전환` 이 있었다. 뺀 이유 셋:
+                         *
+                         *   ① 명세가 이미 "팝업에서 삭제 → 메인으로" 라고 정해 뒀다. 내가 어겼다
+                         *   ② 같은 조작인데 **한쪽만 확인창이 뜬다.** 요약줄 버튼에는 confirm 이 있고
+                         *      여기엔 없었다. 기사님이 *"필터가 쉽게 바뀌면 오작동"* 이라며 넣기로 한
+                         *      확인 절차를 이 버튼이 우회했다
+                         *   ③ 🔴 **저장 안 한 값을 조용히 버렸다.** 전환 버튼이 `onClose()` 를 부르므로,
+                         *      관내 반경을 5 로 고치고 전환을 누르면 5 는 사라지고 서버는 **옛 저장값**으로
+                         *      전환한다. 화면에 보이던 숫자와 실제 사냥 기준이 달라진다.
+                         *      국면별 저장(§2-4)이 들어오면서 새로 생긴 해악이다
+                         *
+                         * 국면 전환은 **요약줄 버튼 3개 + confirm** 하나뿐이다 (`OrderFilterStatus`).
+                         */}
+                        {tab === 'drive' && (
+                            <div className="space-y-1">
+                                <label className="block text-[10px] font-bold text-text-muted pl-1">지나온 구간</label>
+                                {/* 목업은 여기가 선택(자동 제외/유지)이지만 서버에는 **자동 제외뿐이다.**
+                                    고를 수 없는 것을 고르는 것처럼 그리면 화면이 거짓말을 한다 */}
+                                <div className="h-9 flex items-center px-2 rounded-md bg-surface-alt/30 border border-dashed border-border text-[10px] text-text-muted/80">
+                                    자동으로 제외 — GPS 가 지난 구간은 회랑에서 빠집니다
+                                </div>
+                            </div>
+                        )}
+
                         {tab === 'drive' && (
                             <p className="text-[10px] text-text-muted/70">
                                 🚀 출발은 <b className="text-text-primary">지도 좌하단 버튼</b>에 있습니다 (운전 중에 팝업을 열지 않도록).
@@ -600,154 +683,98 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                         )}
 
                         {tab === 'local' && (
-                            <>
-                                <p className="text-[10px] text-text-muted leading-relaxed">
-                                    상차지와 하차지가 <b className="text-text-primary">모두 같은 시</b>여야 통과합니다.
-                                </p>
-                                <Button
-                                    onClick={() => {
-                                        logRoadmapEvent("웹", "필터 팝업 → 관내 국면으로 전환");
-                                        socket.emit("set-hunt-phase", { phase: 'LOCAL' });
-                                        onClose();
-                                    }}
-                                    className="w-full h-10 rounded-xl bg-gradient-to-r from-accent-alt to-accent-alt/70 text-white font-black text-[11px]"
-                                >
-                                    🏘️ 이 동네에서 찾기로 전환
-                                </Button>
-                            </>
+                            <p className="text-[10px] text-text-muted leading-relaxed">
+                                상차지와 하차지가 <b className="text-text-primary">모두 같은 시</b>여야 통과합니다.
+                                <br />🏘️ 전환은 <b className="text-text-primary">요약줄 버튼</b>에 있습니다.
+                            </p>
                         )}
 
                         {tab === 'home' && (
                             <>
                                 <p className="text-[10px] text-text-muted leading-relaxed">
                                     기점은 <b className="text-text-primary">짐이 남았으면 마지막 하차지</b>, 다 내렸으면 <b className="text-text-primary">현재 위치</b>입니다.
+                                    <br />🏠 전환은 <b className="text-text-primary">요약줄 버튼</b>에 있습니다.
                                 </p>
-                                <div className="grid grid-cols-2 gap-2">
-                                    <Button
-                                        onClick={() => {
-                                            logRoadmapEvent("웹", "필터 팝업 → 복귀 국면으로 전환");
-                                            socket.emit("set-hunt-phase", { phase: 'HOME' });
-                                            onClose();
-                                        }}
-                                        className="h-10 rounded-xl bg-gradient-to-r from-accent to-accent/70 text-white font-black text-[11px]"
-                                    >
-                                        🏠 복귀행으로 전환
-                                    </Button>
-                                    {/* 귀가콜은 국면 전환과 **다른 기능**이다 — 집까지 가는 가상 오더를 만든다 */}
-                                    <Button
-                                        onClick={() => {
-                                            logRoadmapEvent("웹", "귀가콜 시작 버튼 클릭 (복귀 국면 값으로)");
-                                            setHomeReturnLoading(true);
-                                            const home = toSettings(forms.home, phaseSettings?.home ?? DEFAULT_PHASE_SETTINGS.home);
-                                            socket.emit("create-home-return", {
-                                                corridorRadiusKm: home.detourAllowKm,
-                                                destinationRadiusKm: home.dropoffRadiusKm
-                                            });
-                                        }}
-                                        disabled={homeReturnLoading || hasHomeReturnActive}
-                                        className={`h-10 rounded-xl bg-gradient-to-r from-accent-alt to-accent-alt/70 text-white font-black text-[11px] ${homeReturnLoading || hasHomeReturnActive ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                    >
-                                        {homeReturnLoading ? '⏳ 계산중' : hasHomeReturnActive ? '🏠 진행중' : '🏠 귀가콜 만들기'}
-                                    </Button>
-                                </div>
+                                {/* 귀가콜은 국면 전환이 **아니다** — 집까지 가는 가상 오더를 만든다.
+                                    지금 이것 말고 부르는 곳이 없어서 남겨 뒀다 (§4-2 삭제 목록에도 없다) */}
+                                <Button
+                                    onClick={() => {
+                                        logRoadmapEvent("웹", "귀가콜 시작 버튼 클릭 (복귀 국면 값으로)");
+                                        setHomeReturnLoading(true);
+                                        const home = toSettings(forms.home, phaseSettings?.home ?? DEFAULT_PHASE_SETTINGS.home);
+                                        socket.emit("create-home-return", {
+                                            corridorRadiusKm: home.detourAllowKm,
+                                            destinationRadiusKm: home.dropoffRadiusKm
+                                        });
+                                    }}
+                                    disabled={homeReturnLoading || hasHomeReturnActive}
+                                    className={`w-full h-10 rounded-xl bg-gradient-to-r from-accent-alt to-accent-alt/70 text-white font-black text-[11px] ${homeReturnLoading || hasHomeReturnActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                >
+                                    {homeReturnLoading ? '⏳ 계산중' : hasHomeReturnActive ? '🏠 진행중' : '🏠 귀가콜 만들기'}
+                                </Button>
                             </>
                         )}
                     </div>
 
-                    {/* 독립 섹션: 현재 타겟팅 지역 목록 검증 및 미리보기 통합 UI */}
-                    <div className="bg-surface/60 backdrop-blur-md p-2 rounded-xl border border-border shadow-lg mt-1">
-                        <div className="w-full flex items-center justify-between p-1.5 rounded-md bg-surface-alt/50 transition-colors">
-                            <div 
-                                className="flex items-center gap-2 flex-1 cursor-pointer group"
-                                onClick={() => setIsAccordionOpen(!isAccordionOpen)}
-                            >
-                                <span className="text-[11px] font-medium text-text-muted group-hover:text-text-primary transition-colors">
-                                    {previewByCorridor
-                                        ? `🛣️ 회랑 지역 (경유 +${cur.detourAllowKm !== '' ? cur.detourAllowKm : '?'}km)`
-                                        : `📍 도착 지역 (${previewCity || '자동'})`}
+                    {/* ── 지역 카드 — **접지 않는다** (v6 목업).
+                        예전에는 아코디언에 접혀 있어서 반경을 바꿔도 **뭐가 걸리는지 안 보였다.**
+                        숫자가 바로 보여야 "10km 가 많은지 적은지"를 판단할 수 있다. */}
+                    <div className={`rounded-xl border p-3 ${TAB_STYLE[tab].box} bg-surface/60`}>
+                        <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                                <span className={`text-[19px] font-black font-mono ${TAB_STYLE[tab].text}`}>
+                                    {previewCount > 0 ? previewCount : (tab === 'home' ? '—' : destKeywordsLimit.length)}
                                 </span>
-                                {previewRegions && previewCount > 0 ? (
-                                    <Badge variant="secondary" className="bg-warning/80 text-white shadow-[0_0_10px_var(--theme-glow-warning)]">
-                                        변경 예정 ({previewCount}개)
-                                    </Badge>
-                                ) : (
-                                    <Badge className={isSharedMode ? 'bg-accent-alt text-white shadow-[0_0_10px_var(--theme-glow-primary)]' : 'bg-info-alt text-white shadow-[0_0_10px_var(--theme-glow-primary)]'}>
-                                        {destKeywordsLimit.length}개
-                                    </Badge>
-                                )}
+                                <span className="text-[11px] font-bold text-text-muted ml-1">
+                                    {tab === 'local' && previewCity
+                                        ? `개 동 · ${previewCity} 안`
+                                        : REGION_CARD[tab].unit}
+                                </span>
                             </div>
-                            
-                            <div className="flex items-center gap-2">
-                                <Button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (previewByCorridor) handlePreviewCorridor();
-                                        else handlePreviewRegions(previewCity);
-                                    }}
-                                    disabled={isPreviewLoading || (!previewByCorridor && !previewCity)}
-                                    size="sm"
-                                    className={`h-6 text-[10px] px-2 py-0 font-bold ${isSharedMode ? 'bg-warning/20 text-warning hover:bg-warning/40 border border-warning/50' : 'bg-info-alt/20 text-info-alt hover:bg-info-alt/40 border border-info-alt/50'}`}
-                                >
-                                    {isPreviewLoading ? '연산 중...' : '🔍 미리보기'}
-                                </Button>
-                                <span 
-                                    className={`text-text-muted text-sm cursor-pointer px-1 transition-transform duration-300 ${isAccordionOpen ? 'rotate-180' : ''}`}
-                                    onClick={() => setIsAccordionOpen(!isAccordionOpen)}
-                                >
-                                    ▼
-                                </span>
+                            <div className="text-[10px] text-text-muted text-right leading-snug shrink-0 whitespace-pre-line">
+                                {REGION_CARD[tab].note}
                             </div>
                         </div>
 
-                        {isAccordionOpen && (
-                            <div className="mt-2 p-2 bg-surface-alt/50 rounded-lg border border-border max-h-32 overflow-y-auto custom-scrollbar">
-                                {previewRegions && Object.keys(previewRegions).length > 0 ? (
-                                    <div className="flex flex-col gap-3">
-                                        {Object.entries(previewRegions).map(([parentName, dongs]) => (
-                                            <div key={parentName} className="flex flex-col gap-1 opacity-90">
-                                                <span className="text-xs font-bold text-warning border-b border-warning/50 pb-1 flex items-center justify-between">
-                                                    <span>{parentName} <span className="text-warning/70 text-[10px] font-normal">({dongs.length})</span></span>
-                                                    <Badge variant="outline" className="text-[9px] bg-warning/20 border-warning/30">미리보기</Badge>
-                                                </span>
-                                                <div className="flex flex-wrap gap-1">
-                                                    {dongs.map(kw => (
-                                                        <span key={kw} className="text-[10px] text-warning bg-warning/10 px-1.5 py-0.5 rounded border border-warning/30">
-                                                            {kw}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                ) : filter.destinationGroups && Object.keys(filter.destinationGroups).length > 0 ? (
-                                    <div className="flex flex-col gap-3">
-                                        {Object.entries(filter.destinationGroups).map(([parentName, dongs]) => (
-                                            <div key={parentName} className="flex flex-col gap-1">
-                                                <span className={`text-xs font-bold border-b pb-1 ${isSharedMode ? 'text-accent-alt border-accent-alt/50' : 'text-info-alt border-info-alt/50'}`}>
-                                                    {parentName} <span className="text-text-muted text-[10px] font-normal">({dongs.length})</span>
-                                                </span>
-                                                <div className="flex flex-wrap gap-1">
-                                                    {dongs.map(kw => (
-                                                        <span key={kw} className={`text-[10px] px-1.5 py-0.5 rounded border ${isSharedMode ? 'text-accent-alt bg-accent-alt/10 border-accent-alt/30' : 'text-info-alt bg-info-alt/10 border-info-alt/30'}`}>
-                                                            {kw}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                ) : destKeywordsLimit.length > 0 ? (
-                                    <div className="flex flex-wrap gap-1">
-                                        {destKeywordsLimit.map(kw => (
-                                            <span key={kw} className={`text-[10px] px-1.5 py-0.5 rounded border ${isSharedMode ? 'text-accent-alt bg-accent-alt/10 border-accent-alt/30' : 'text-info-alt bg-info-alt/10 border-info-alt/30'}`}>
-                                                {kw}
-                                            </span>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <p className="text-xs text-text-muted text-center py-2">수집된 지역이 없습니다.</p>
+                        {/* 시·구별 칩 — 어디가 걸리는지 이름으로 보인다 */}
+                        {regionGroups.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-2">
+                                {regionGroups.slice(0, 4).map(([name, dongs]) => (
+                                    <span key={name} className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded ${TAB_STYLE[tab].chip}`}>
+                                        {name}<span className="font-mono opacity-70 ml-1">{dongs.length}</span>
+                                    </span>
+                                ))}
+                                {regionGroups.length > 4 && (
+                                    <button
+                                        onClick={() => setIsAccordionOpen(!isAccordionOpen)}
+                                        className="text-[9.5px] text-text-muted px-1"
+                                    >
+                                        외 {regionGroups.length - 4}개 {isAccordionOpen ? '▴' : '▾'}
+                                    </button>
                                 )}
                             </div>
+                        )}
+
+                        {isAccordionOpen && regionGroups.length > 4 && (
+                            <div className="flex flex-wrap gap-1 mt-1.5 max-h-24 overflow-y-auto custom-scrollbar">
+                                {regionGroups.slice(4).map(([name, dongs]) => (
+                                    <span key={name} className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded ${TAB_STYLE[tab].chip}`}>
+                                        {name}<span className="font-mono opacity-70 ml-1">{dongs.length}</span>
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* 값을 바꾼 뒤 "그럼 몇 개가 되나"를 저장 전에 확인한다 */}
+                        {tab !== 'home' && (
+                            <Button
+                                onClick={() => previewByCorridor ? handlePreviewCorridor() : handlePreviewRegions(previewCity)}
+                                disabled={isPreviewLoading || (!previewByCorridor && !previewCity)}
+                                size="sm"
+                                className={`w-full h-7 mt-2 text-[10px] font-bold bg-surface-alt/60 border border-border text-text-muted`}
+                            >
+                                {isPreviewLoading ? '연산 중…' : previewCount > 0 ? '🔍 다시 계산' : '🔍 지금 값으로 미리보기'}
+                            </Button>
                         )}
                     </div>
 

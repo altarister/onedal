@@ -67,38 +67,43 @@ describe('국면 × 필드 표 (§2-4-5)', () => {
         });
     });
 
-    it('명세 표 그대로 — 합짐 (상차 반경 숨김 · 경유 입력)', () => {
+    it('명세 표 그대로 — 합짐 (도착 도시·상차 반경 숨김 · 우회 입력)', () => {
         expect(PHASE_FIELDS.merge).toEqual({
-            destinationCity: 'auto', pickupRadiusKm: 'hidden',
+            destinationCity: 'hidden', pickupRadiusKm: 'hidden',
             detourAllowKm: 'input', dropoffRadiusKm: 'input', discountPct: 'input',
         });
     });
 
-    it('명세 표 그대로 — 운행중 (하차 반경까지 숨김)', () => {
+    it('명세 표 그대로 — 운행중 (우회와 눈높이만)', () => {
         expect(PHASE_FIELDS.drive).toEqual({
+            destinationCity: 'hidden', pickupRadiusKm: 'hidden',
+            detourAllowKm: 'input', dropoffRadiusKm: 'hidden', discountPct: 'input',
+        });
+    });
+
+    it('명세 표 그대로 — 관내 (기준 지역만 · 반경 없음)', () => {
+        // 관내는 거리로 자르지 않는다. 같은 시 안이면 통과다
+        expect(PHASE_FIELDS.local).toEqual({
+            destinationCity: 'override', pickupRadiusKm: 'hidden',
+            detourAllowKm: 'hidden', dropoffRadiusKm: 'hidden', discountPct: 'input',
+        });
+    });
+
+    it('명세 표 그대로 — 복귀 (집 주소 표시 · 우회 입력)', () => {
+        // 복귀는 "최종 하차지 → 집" 이라는 **경로**가 생기는 국면이다.
+        // 두 점 반경(상차·하차) 둘이 아니라 길 위 우회 하나가 그 뜻이다
+        expect(PHASE_FIELDS.home).toEqual({
             destinationCity: 'auto', pickupRadiusKm: 'hidden',
             detourAllowKm: 'input', dropoffRadiusKm: 'hidden', discountPct: 'input',
         });
     });
 
-    it('명세 표 그대로 — 관내 (상차·경유 숨김)', () => {
-        expect(PHASE_FIELDS.local).toEqual({
-            destinationCity: 'auto', pickupRadiusKm: 'hidden',
-            detourAllowKm: 'hidden', dropoffRadiusKm: 'input', discountPct: 'input',
-        });
-    });
-
-    it('명세 표 그대로 — 복귀 (상차 입력 · 경유 숨김)', () => {
-        expect(PHASE_FIELDS.home).toEqual({
-            destinationCity: 'auto', pickupRadiusKm: 'input',
-            detourAllowKm: 'hidden', dropoffRadiusKm: 'input', discountPct: 'input',
-        });
-    });
-
-    it('🔴 도착 도시를 기사님이 고르는 국면은 **첫짐뿐**이다', () => {
-        // 나머지는 경로·GPS·집 주소에서 파생된다 — 저장하면 낡은 값이 남는다
+    it('🔴 도착 도시를 기사님이 **직접 적는** 국면은 첫짐뿐이다', () => {
+        // 관내는 override — 자동이 기본이고 다른 시로 덮을 수 있다.
+        // 나머지는 경로·집 주소에서 파생된다 (저장하면 낡은 값이 남는다)
         const inputs = PHASE_KEYS.filter(p => PHASE_FIELDS[p].destinationCity === 'input');
         expect(inputs).toEqual(['first']);
+        expect(PHASE_KEYS.filter(p => PHASE_FIELDS[p].destinationCity === 'override')).toEqual(['local']);
     });
 
     it('auto 인 국면은 그 출처를 화면에 말할 수 있어야 한다', () => {
@@ -150,12 +155,15 @@ describe('조각 → 평면 매핑 (§2-4-6)', () => {
         expect(flat.eyelinePct).toBe(30);             // discountPct
     });
 
-    it('🔴 도착 도시는 input 인 국면(first)에서만 내보낸다', () => {
+    it('🔴 도착 도시는 input(첫짐)과 **덮어쓴** override(관내)에서만 내보낸다', () => {
         // auto 인 국면에서 저장값(대개 빈 문자열)이 서버 파생값을 덮으면 안 된다
         expect(applyPhaseToFilter('first', s).destinationCity).toBe('파주시');
-        for (const p of ['merge', 'drive', 'local', 'home'] as PhaseKey[]) {
+        for (const p of ['merge', 'drive', 'home'] as PhaseKey[]) {
             expect(applyPhaseToFilter(p, s).destinationCity).toBeUndefined();
         }
+        // 관내: 값을 골랐으면 그 값이, 비워 뒀으면(=자동) 아무것도 안 나간다
+        expect(applyPhaseToFilter('local', s).destinationCity).toBe('파주시');
+        expect(applyPhaseToFilter('local', { ...s, destinationCity: '' }).destinationCity).toBeUndefined();
     });
 
     it('평면 → 조각 (마이그레이션·폼 초기화)', () => {
