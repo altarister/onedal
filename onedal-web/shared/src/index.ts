@@ -580,6 +580,16 @@ export interface AutoDispatchFilter {
     customCityFilters: string[];    // (UI용) 시/구 단위로 그룹핑된 읍면동 목록
     corridorRadiusKm?: number;      // (합짐 모드) 경로 주변 이탈 허용 반경 (기본값 5km, DB설정값)
     userOverrides?: boolean;        // 기사가 팝업에서 수동으로 필터(destinationKeywords 등)를 조작했는지 여부(서버 덮어쓰기 방지용)
+
+    // ── 단가 판정 모델 (2026-08-13 확정 · docs/필터_재설계_명세.md) ──
+    // 셋 다 optional: 구버전 앱은 이 키들을 파싱하지 않으므로 무시된다 (호환).
+    // minFare/maxFare 는 구버전 앱 호환용으로 유지 — 새 앱은 ratePerKm 이 있으면 그걸 쓴다.
+    /** 차종별 하한 단가(원/km) = 실수령 시세 × (1 − 눈높이). 판정: fare ≥ 배송거리 × ratePerKm[차종] */
+    ratePerKm?: Record<string, number>;
+    /** 눈높이 — 시세 대비 허용 할인 %. 100 = "전부"(금액 무관) */
+    eyelinePct?: number;
+    /** 사용 중인 적재 칸 (내 1t 트럭 = 5칸). 명목값이며 통화 확인 시 갱신 */
+    slotsUsed?: number;
 }
 
 /**
@@ -827,6 +837,7 @@ export interface DeviceSession {
 
 
 export * from './vehicles';
+export * from './pricing';
 export * from './cargoHints';
 export * from './cargoTags';
 export * from './cargoUnits';

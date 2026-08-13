@@ -166,6 +166,18 @@ try {
     // 무시 (테이블이 아직 없는 경우 CREATE TABLE에서 생성됨)
 }
 
+// v7 마이그레이션: eyeline_pct(눈높이) 컬럼 추가 — 단가 판정 모델 (docs/필터_재설계_명세.md)
+// 기본 10 = 시세 대비 -10% 까지 허용. 100 = "전부"(금액 무관).
+try {
+    const tableInfo = db.prepare("PRAGMA table_info(user_filters)").all() as Array<{ name: string }>;
+    if (tableInfo.length > 0 && !tableInfo.some(col => col.name === 'eyeline_pct')) {
+        db.exec("ALTER TABLE user_filters ADD COLUMN eyeline_pct INTEGER DEFAULT 10");
+        console.log("🛠️ [DB Migration V7] user_filters에 eyeline_pct 컬럼 추가 완료");
+    }
+} catch (e) {
+    // 무시 (테이블이 아직 없는 경우 CREATE TABLE에서 생성됨)
+}
+
 db.exec(`
     CREATE TABLE IF NOT EXISTS user_filters (
         user_id TEXT PRIMARY KEY,
@@ -180,6 +192,7 @@ db.exec(`
         is_shared_mode BOOLEAN DEFAULT 0,
         load_state TEXT DEFAULT 'EMPTY',
         driver_action TEXT DEFAULT 'WAITING',
+        eyeline_pct INTEGER DEFAULT 10,
         vehicle_rates TEXT DEFAULT '${defaultRates}',
         agency_fee_percent REAL DEFAULT 23.0,
         max_discount_percent REAL DEFAULT 10.0,

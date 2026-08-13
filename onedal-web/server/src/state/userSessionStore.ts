@@ -1,4 +1,4 @@
-import { AutoDispatchFilter, SecuredOrder, PendingOrder, MyOrder, getEligibleVehicleTypes, businessDayKey } from "@onedal/shared";
+import { AutoDispatchFilter, SecuredOrder, PendingOrder, MyOrder, getEligibleVehicleTypes, businessDayKey, rateFloorsFrom } from "@onedal/shared";
 import type { CapacityConfidence } from "@onedal/shared";
 import db from "../db";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
@@ -15,6 +15,9 @@ const SERVICE_DEFAULT_FILTER: Partial<AutoDispatchFilter> = {
     isSharedMode: false,
     driverAction: 'WAITING',      // [V2] 기사 행동 상태 기본값
     dispatchPhase: 'STANDBY',     // [V2] 사냥 전략 기본값
+    // ── 단가 판정 모델 (필터_재설계_명세 §2) — DB eyeline_pct DEFAULT 10 과 같은 값 ──
+    eyelinePct: 10,
+    ratePerKm: rateFloorsFrom(10),
 };
 
 // 1명의 기사가 가지는 '모든' 상태 캡슐화
@@ -100,7 +103,12 @@ export function getUserSession(userId: string): UserSession {
                     maxFare: filterRow.max_fare,
                     pickupRadiusKm: filterRow.pickup_radius_km,
                     excludedKeywords: JSON.parse(filterRow.excluded_keywords || '[]'),
-                    isActive: Boolean(filterRow.is_active)
+                    isActive: Boolean(filterRow.is_active),
+                    // ── 단가 판정 모델 (필터_재설계_명세 §2) ──
+                    // eyeline_pct 의 원천은 DB (ALTER ADD COLUMN DEFAULT 10 이 기존 행도 채운다).
+                    // ratePerKm 은 파생값 — 저장하지 않고 눈높이에서 매번 만든다.
+                    eyelinePct: filterRow.eyeline_pct,
+                    ratePerKm: rateFloorsFrom(filterRow.eyeline_pct),
                 } as AutoDispatchFilter;
 
                 // [완전 격리] activeFilter = baseFilter의 독립 복사본 (로그인 시 1회만)
