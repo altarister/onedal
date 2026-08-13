@@ -12,7 +12,6 @@ interface Props {
 export default function PricingSettingsTab({ onClose }: Props) {
   const [vehicleRates, setVehicleRates] = useState<Record<string, number>>({});
   const [agencyFeePercent, setAgencyFeePercent] = useState(23);
-  const [maxDiscountPercent, setMaxDiscountPercent] = useState(10);
   const [minFare, setMinFare] = useState<number | undefined>();
   const [maxFare, setMaxFare] = useState<number | undefined>();
   const [pickupRadiusKm, setPickupRadiusKm] = useState<number | undefined>();
@@ -48,7 +47,6 @@ export default function PricingSettingsTab({ onClose }: Props) {
       const s = settingsRes.data;
       setVehicleRates(p.vehicleRates || {});
       setAgencyFeePercent(p.agencyFeePercent ?? 23);
-      setMaxDiscountPercent(p.maxDiscountPercent ?? 10);
       setMinFare(p.minFare);
       setMaxFare(p.maxFare);
       setPickupRadiusKm(p.pickupRadiusKm);
@@ -67,7 +65,7 @@ export default function PricingSettingsTab({ onClose }: Props) {
     try {
       setIsLoading(true);
       await apiClient.put('/settings/pricing', {
-        vehicleRates, agencyFeePercent, maxDiscountPercent, excludedKeywords, minFare, maxFare, pickupRadiusKm
+        vehicleRates, agencyFeePercent, excludedKeywords, minFare, maxFare, pickupRadiusKm
       });
       await apiClient.put('/settings', {
         destinationCity,
@@ -112,16 +110,13 @@ export default function PricingSettingsTab({ onClose }: Props) {
         </div>
       </div>
 
-      {/* 수수료 & 할인율 */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-text-muted">📊 퀵사 수수료율 (%)</label>
-          <Input type="number" value={agencyFeePercent} onChange={(e) => setAgencyFeePercent(Number(e.target.value) || 0)} className="h-9 text-center font-bold" />
-        </div>
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-text-muted">🔻 최대 할인율 (%)</label>
-          <Input type="number" value={maxDiscountPercent} onChange={(e) => setMaxDiscountPercent(Number(e.target.value) || 0)} className="h-9 text-center font-bold" />
-        </div>
+      {/* 수수료 — 할인율은 필터의 눈높이가 대체했다 (docs/필터_재설계_명세.md) */}
+      <div className="space-y-1.5">
+        <label className="text-xs font-semibold text-text-muted">📊 퀵사 수수료율 (%)</label>
+        <Input type="number" value={agencyFeePercent} onChange={(e) => setAgencyFeePercent(Number(e.target.value) || 0)} className="h-9 text-center font-bold" />
+        <p className="text-[10px] text-text-muted/70">
+          🔻 할인율은 <b>필터의 눈높이</b>에서 정합니다 — 같은 뜻의 값이 두 곳에 있으면 어느 게 진짜인지 알 수 없습니다
+        </p>
       </div>
 
       {/* 하한가 & 상한가 */}

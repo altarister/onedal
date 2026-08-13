@@ -14,23 +14,35 @@
  */
 
 /**
- * 차종별 실수령 시세 (원/km).
+ * 차종별 **총액** 시세 (원/km) — 화주가 내는 값. 수수료를 빼기 전이다.
  *
- * 전제: **배차앱 표시 금액 = 수수료(23%) 공제 후 실수령** (총액 시세 × 0.77).
- *   오토바이 700 → 539 · 다마스 800 → 616 · 라보/승용차 900 → 693 · 1t 1,000 → 770
- *
- * 🔍 검증 대기: 다음 실콜에서 표시 금액과 정산 입금액 대조.
- *    총액으로 판명되면 이 표를 ÷0.77 로 되돌린다 (명세 §6).
+ * ⚠️ **원천은 DB 다** (`user_filters.vehicle_rates` · 설정 화면에서 기사님이 바꾼다).
+ *    이 상수는 DB 를 못 읽을 때만 쓰는 **폴백**이며, DB 기본값과 같은 값을 둔다.
+ *    서버는 반드시 `SettingsRepository.loadPricingConfig()` 로 읽어 쓸 것 —
+ *    여기 값을 직접 쓰면 설정에서 요율을 바꿔도 앱 필터가 안 바뀐다 (표가 두 벌이 된다).
  */
-export const NET_RATE_PER_KM: Record<string, number> = {
-    '오토바이': 539,
-    '다마스': 616,
-    '라보': 693,
-    '승용차': 693,
-    '1t': 770,
-    '1.4t': 924,      // 1.4t 총액 1,200 가정 × 0.77 — 실측 전 잠정
-    '특수화물': 2310,
+export const GROSS_RATE_PER_KM: Record<string, number> = {
+    '오토바이': 700,
+    '다마스': 800,
+    '라보': 900,
+    '승용차': 900,
+    '1t': 1000,
+    '1.4t': 1100,
+    '특수화물': 3000,
 };
+
+/**
+ * 실수령 환산 시세 (원/km) — 총액 × (1 − 수수료 23%).
+ *
+ * 전제: **배차앱 표시 금액 = 수수료 공제 후 실수령.**
+ * 🔍 검증 대기: 다음 실콜에서 표시 금액과 정산 입금액 대조 (명세 §6).
+ *    총액으로 판명되면 이 환산을 걷어내고 총액 그대로 비교한다.
+ *
+ * ⚠️ 이것도 폴백이다. 수수료율의 원천은 DB `agency_fee_percent`.
+ */
+export const NET_RATE_PER_KM: Record<string, number> = Object.fromEntries(
+    Object.entries(GROSS_RATE_PER_KM).map(([v, gross]) => [v, Math.round(gross * 0.77)])
+);
 
 /**
  * 적재 칸 — 내 1t 트럭 = 5칸 (정규 4 + 자투리 1).
@@ -62,13 +74,22 @@ export const EYELINE_ALL = 100;
  * 앱은 이 표를 피기백으로 받아 곱셈 하나로 판정한다:
  *   fare ≥ deliveryDistance × ratePerKm[vehicleType]
  *
+ * **서버는 반드시 DB 값을 넘겨서 부른다** (`grossRates` = `vehicle_rates`,
+ * `agencyFeePercent` = `agency_fee_percent`). 안 넘기면 폴백 상수로 계산되는데,
+ * 그러면 기사님이 설정에서 요율을 바꿔도 앱 필터가 안 바뀐다.
+ *
  * eyelinePct = 100 (전부) 이면 전 차종 0 — 금액 무관 통과.
  */
-export function rateFloorsFrom(eyelinePct: number): Record<string, number> {
+export function rateFloorsFrom(
+    eyelinePct: number,
+    grossRates: Record<string, number> = GROSS_RATE_PER_KM,
+    agencyFeePercent = 23,
+): Record<string, number> {
     const keep = Math.max(0, 1 - eyelinePct / 100);
+    const net = Math.max(0, 1 - agencyFeePercent / 100);
     const floors: Record<string, number> = {};
-    for (const [vehicle, rate] of Object.entries(NET_RATE_PER_KM)) {
-        floors[vehicle] = Math.round(rate * keep);
+    for (const [vehicle, gross] of Object.entries(grossRates)) {
+        floors[vehicle] = Math.round(gross * net * keep);
     }
     return floors;
 }

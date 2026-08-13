@@ -14,6 +14,7 @@
 import db from "../db";
 import { getActiveCalls, computeLoadedPoints } from "../core/helpers";
 import { OrderRepository } from "../repositories/OrderRepository";
+import { SettingsRepository } from "../repositories/SettingsRepository";
 import { getUserSession } from "./userSessionStore";
 import type { AutoDispatchFilter } from "@onedal/shared";
 import { getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS } from "@onedal/shared";
@@ -52,7 +53,7 @@ function logActiveFilter(session: ReturnType<typeof getUserSession>, actionType:
 }
 
 // ━━━ 내부 유틸: 파생 데이터(destinationKeywords, allowedVehicleTypes) 재계산 ━━━
-function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, changes: Partial<AutoDispatchFilter>) {
+function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, changes: Partial<AutoDispatchFilter>, userId: string) {
     /**
      * 차종별 하한 단가표는 **눈높이에서만 파생된다** (docs/필터_재설계_명세.md §2).
      *
@@ -61,7 +62,13 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
      * `eyeline_pct` 이고, 여기가 그것을 표로 펼치는 유일한 자리다.
      */
     if ('eyelinePct' in changes) {
-        session.activeFilter.ratePerKm = rateFloorsFrom(changes.eyelinePct ?? 10);
+        // 요율·수수료의 원천은 DB 다 (설정 화면에서 기사님이 바꾼다).
+        const pricing = SettingsRepository.loadPricingConfig(userId);
+        session.activeFilter.ratePerKm = rateFloorsFrom(
+            changes.eyelinePct ?? 10,
+            pricing.vehicleRates,
+            pricing.agencyFeePercent,
+        );
     }
 
     // [최적화] 지리 연산(getCityRegionsWithRadius)은 CPU 집약적(~7초)이므로,
@@ -293,14 +300,14 @@ export function updateActiveFilter(
             driverAction: 'WAITING',
             dispatchPhase: 'STANDBY',
         };
-        recalculateDerivedFields(session, {});
+        recalculateDerivedFields(session, {}, userId);
         console.log(`[FilterManager] STANDBY 복귀: 합짐 파생값만 되돌림 ` +
             `(오늘 필터 유지 — 도착 ${session.activeFilter.destinationCity}, 최저 ${session.activeFilter.minFare}원)`);
     } else {
         // 일반 변경: activeFilter에 직접 덮어쓰기
         session.activeFilter = { ...session.activeFilter, ...changes };
         // 파생 데이터 재계산
-        recalculateDerivedFields(session, changes);
+        recalculateDerivedFields(session, changes, userId);
     }
 
     // [자체 리뷰 B-③] isSharedMode 는 dispatchPhase 에서 파생되는 값이다.

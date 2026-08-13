@@ -108,7 +108,13 @@ export function getUserSession(userId: string): UserSession {
                     // eyeline_pct 의 원천은 DB (ALTER ADD COLUMN DEFAULT 10 이 기존 행도 채운다).
                     // ratePerKm 은 파생값 — 저장하지 않고 눈높이에서 매번 만든다.
                     eyelinePct: filterRow.eyeline_pct,
-                    ratePerKm: rateFloorsFrom(filterRow.eyeline_pct),
+                    // 단가표는 DB 의 vehicle_rates·agency_fee_percent 에서 파생시킨다.
+                    // shared 폴백 상수를 쓰면 설정에서 요율을 바꿔도 앱 필터가 안 바뀐다.
+                    ratePerKm: rateFloorsFrom(
+                        filterRow.eyeline_pct,
+                        filterRow.vehicle_rates ? JSON.parse(filterRow.vehicle_rates) : undefined,
+                        filterRow.agency_fee_percent ?? 23,
+                    ),
                 } as AutoDispatchFilter;
 
                 // [완전 격리] activeFilter = baseFilter의 독립 복사본 (로그인 시 1회만)

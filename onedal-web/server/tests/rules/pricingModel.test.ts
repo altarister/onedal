@@ -1,4 +1,5 @@
 import {
+    GROSS_RATE_PER_KM,
     NET_RATE_PER_KM,
     VEHICLE_SLOTS,
     TRUCK_CAPACITY_SLOTS,
@@ -18,12 +19,20 @@ import {
  */
 describe('단가 판정 모델 — 명세 고정', () => {
 
-    it('실수령 단가표 = 총액 시세 × 0.77 (수수료 23%)', () => {
-        // 총액 시세 (기사님 제공): 오토바이 700 · 다마스 800 · 라보/승용차 900 · 1t 1,000
+    it('총액 시세 폴백 = DB user_filters.vehicle_rates 기본값과 같다', () => {
+        // ⚠️ 원천은 DB 다. 이 상수는 DB 를 못 읽을 때만 쓰는 폴백이며 값이 갈라지면 안 된다.
+        //    (db.ts 의 defaultRates 와 같은 값 — 기사님 제공 시세표)
+        expect(GROSS_RATE_PER_KM['오토바이']).toBe(700);
+        expect(GROSS_RATE_PER_KM['다마스']).toBe(800);
+        expect(GROSS_RATE_PER_KM['라보']).toBe(900);
+        expect(GROSS_RATE_PER_KM['1t']).toBe(1000);
+        expect(GROSS_RATE_PER_KM['특수화물']).toBe(3000);
+    });
+
+    it('실수령 환산 = 총액 × 0.77 (수수료 23%)', () => {
         expect(NET_RATE_PER_KM['오토바이']).toBe(539);
         expect(NET_RATE_PER_KM['다마스']).toBe(616);
         expect(NET_RATE_PER_KM['라보']).toBe(693);
-        expect(NET_RATE_PER_KM['승용차']).toBe(693);
         expect(NET_RATE_PER_KM['1t']).toBe(770);
     });
 
@@ -61,8 +70,22 @@ describe('단가 판정 모델 — 명세 고정', () => {
         expect(floors['다마스']).toBe(554);     // 616 × 0.9 = 554.4 → 554
     });
 
-    it('눈높이 0(시세) 이면 하한 = 시세 그대로', () => {
+    it('눈높이 0(시세) 이면 하한 = 실수령 시세 그대로', () => {
         expect(rateFloorsFrom(0)).toEqual(NET_RATE_PER_KM);
+    });
+
+    it('🔴 DB 요율·수수료를 넘기면 그 값으로 계산한다 — 표를 두 벌 두지 않기 위한 통로', () => {
+        // 기사님이 설정에서 1t 을 1,200원으로 올린 상황
+        const dbRates = { '1t': 1200, '다마스': 800 };
+        const floors = rateFloorsFrom(10, dbRates, 23);
+        expect(floors['1t']).toBe(Math.round(1200 * 0.77 * 0.9));   // 832
+        expect(floors['다마스']).toBe(554);
+        // 폴백 상수(1000원)를 쓰지 않았다는 것 — 이게 갈라지면 앱 필터만 옛 요율로 돈다
+        expect(floors['1t']).not.toBe(693);
+    });
+
+    it('수수료율도 DB 에서 온다 — 0% 면 총액 그대로', () => {
+        expect(rateFloorsFrom(0, { '1t': 1000 }, 0)['1t']).toBe(1000);
     });
 
     it('눈높이 "전부"(100) 면 전 차종 하한 0 — 금액 무관 통과', () => {
