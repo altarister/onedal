@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
 import { logRoadmapEvent } from "../../lib/roadmapLogger";
-import { VEHICLE_OPTIONS, NET_RATE_PER_KM, VEHICLE_SLOTS, TRUCK_CAPACITY_SLOTS } from "@onedal/shared";
+import { NET_RATE_PER_KM, VEHICLE_SLOTS, TRUCK_CAPACITY_SLOTS } from "@onedal/shared";
 import { socket } from "../../lib/socket";
 import { apiClient } from "../../api/apiClient";
 import { useCityOptions, resolveCity } from "../../lib/cityOptions";
@@ -26,6 +26,23 @@ const EYELINE_STEPS = [
 /** 하한표에 보여줄 차종 — 내 차(1t)로 수행 가능한 등급만, 칸이 작은 순 */
 const RATE_TABLE_ORDER = ['오토바이', '다마스', '승용차', '라보', '1t'];
 
+/**
+ * 탭 = 하루의 다섯 국면 (docs/필터_재설계_명세.md §4-2).
+ * 모두 펼쳐 두고 **지금 어디인지는 초록 점**으로만 표시한다 —
+ * 기사님: *"아침에 앉아서 하루치를 다 정해 둘 수 있다."*
+ *
+ * ⚠️ 눈높이는 아직 **탭 공통 하나**다. 탭마다 따로 저장하려면 DB 컬럼이 다섯 개
+ *    필요하다 — 그건 아직 안 했다 (명세 §7 미결).
+ */
+const TABS = [
+    { key: 'first', label: '첫짐' },
+    { key: 'merge', label: '합짐' },
+    { key: 'drive', label: '운행 중' },
+    { key: 'local', label: '관내' },
+    { key: 'home',  label: '복귀' },
+] as const;
+type TabKey = typeof TABS[number]['key'];
+
 interface OrderFilterModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -39,12 +56,12 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
 
     // 이 페이지는 폼 역할이므로 로컬 state로 관리 후 저장 시 소켓 발송
     const [eyeline, setEyeline] = useState<number>(10);   // 눈높이(%) — 하한가 입력을 대체
+    const [tab, setTab] = useState<TabKey>('first');
     const [pickupRadius, setPickupRadius] = useState<string>("");
     const [targetCity, setTargetCity] = useState<string>("");
     const [targetRadius, setTargetRadius] = useState<string>("");
     const [corridorRadius, setCorridorRadius] = useState<string>("");
     const [blacklist, setBlacklist] = useState<string>("");
-    const [selectedVehicles, setSelectedVehicles] = useState<string[]>([]);
 
     /**
      * 고를 수 있는 시/군 목록 — 지도 데이터에서 받는다.
@@ -112,12 +129,16 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
         if (isOpen && filter) {
             console.log("📥 [OrderFilterModal] 모달 열림 - 현재 activeFilter 스냅샷:", JSON.parse(JSON.stringify(filter)));
             setEyeline(filter.eyelinePct ?? 10);
+            // 지금 상황에 맞는 탭을 열어 준다 (국면 → 탭)
+            setTab(filter.huntPhase === 'LOCAL' ? 'local'
+                 : filter.huntPhase === 'HOME' ? 'home'
+                 : filter.driverAction === 'DRIVING' ? 'drive'
+                 : filter.isSharedMode ? 'merge' : 'first');
             setPickupRadius(filter.pickupRadiusKm?.toString() || "");
             setTargetCity(filter.destinationCity || "");
             setTargetRadius(filter.destinationRadiusKm?.toString() || "");
             setCorridorRadius(filter.corridorRadiusKm?.toString() || "");
             setBlacklist(filter.excludedKeywords ? filter.excludedKeywords.join(',') : "");
-            setSelectedVehicles(filter.allowedVehicleTypes || []);
             // 프리뷰 상태 초기화
             setPreviewRegions(null);
             setPreviewCount(0);
@@ -135,7 +156,6 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
         setTargetRadius(baseFilter.destinationRadiusKm?.toString() || "");
         setCorridorRadius(baseFilter.corridorRadiusKm?.toString() || "");
         setBlacklist(baseFilter.excludedKeywords ? baseFilter.excludedKeywords.join(',') : "");
-        setSelectedVehicles(baseFilter.allowedVehicleTypes || []);
         // 프리뷰 초기화
         setPreviewRegions(null);
         setPreviewCount(0);
@@ -189,7 +209,14 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
         logRoadmapEvent("웹", `필터 저장 (${saveAsDefault ? '앞으로 계속' : '오늘만'})`);
 
         const newFilterToSave = {
-            allowedVehicleTypes: selectedVehicles,
+            /**
+             * 🔴 `allowedVehicleTypes` 를 **보내지 않는다.**
+             *
+             * 허용 차종은 입력이 아니라 파생값이다 — 서버가 지금 실린 짐에서 매번 다시 구한다.
+             * 여기서 보내면 `recalculateDerivedFields` 가 `if (!changes.allowedVehicleTypes)`
+             * 에 걸려 **자기 계산을 건너뛴다.** 그러면 모달을 열었다 저장한 것만으로
+             * 적재 용량 제한이 옛 값에 굳는다 (2026-08-10 에 같은 형태의 사고가 있었다).
+             */
             eyelinePct: eyeline,   // 단가표(ratePerKm)는 서버가 이 값에서 파생시킨다 — 두 곳에서 만들지 않는다
             pickupRadiusKm: pickupRadius ? parseInt(pickupRadius, 10) : filter.pickupRadiusKm,
             destinationCity: targetCity || filter.destinationCity,
@@ -225,68 +252,48 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                 <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] bg-info/10 blur-[100px] rounded-full pointer-events-none" />
                 <div className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] bg-success/10 blur-[100px] rounded-full pointer-events-none" />
 
-                <DialogHeader className="border-b border-info/20 pb-2 relative z-10 flex flex-row items-center justify-between">
-                    <DialogTitle className="flex flex-col gap-1">
-                        {/* <span className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 tracking-tight">
-                            통제 필터 설정
-                        </span> */}
-                        <div className="flex items-center gap-2 flex-wrap">
-                            <Badge variant="outline" className={isSharedMode ? 'bg-warning/20 text-warning border-warning/30' : 'bg-success/20 text-success border-success/30'}>
-                                {isSharedMode ? '합짐(Loaded) 모드' : '첫짐(Empty) 모드'}
+                {/* 슬림 타이틀바 — 한 줄. 설명 문구는 없앴다 (팝업 세로를 줄인다) */}
+                <DialogHeader className="border-b border-info/20 pb-2 relative z-10">
+                    <DialogTitle className="flex items-center gap-2 text-sm font-black">
+                        필터 설정
+                        <Badge variant="outline" className="bg-info/15 text-info border-info/30 text-[10px] font-bold">
+                            오늘 사냥
+                        </Badge>
+                        {isSharedMode && (
+                            <Badge variant="outline" className="bg-warning/15 text-warning border-warning/30 text-[10px] font-bold">
+                                합짐 중
                             </Badge>
-                            {/* 어느 필터를 고치는 화면인지 말해 준다. 이게 없어서
-                                설정 화면과 구분이 안 됐다 (파주/용인 혼선의 절반) */}
-                            <Badge variant="outline" className="bg-info/15 text-info border-info/30">
-                                오늘 사냥
-                            </Badge>
-                        </div>
-                        <span className="text-[10px] font-normal text-text-muted break-keep">
-                            여기서 바꾼 값은 <b>오늘만</b> 쓰고 자정에 평소 설정으로 돌아갑니다.
-                            평소 값까지 바꾸려면 <b>[계속]</b> 으로 저장하세요.
-                        </span>
+                        )}
                     </DialogTitle>
                 </DialogHeader>
 
+                {/* 탭 다섯 — 하루의 다섯 국면. 지금 어디인지는 초록 점으로만 */}
+                <div className="grid grid-cols-5 gap-1 bg-surface-alt/40 p-1 rounded-lg border border-border relative z-10">
+                    {TABS.map(t => {
+                        const on = tab === t.key;
+                        const isNow =
+                            (t.key === 'local' && filter.huntPhase === 'LOCAL') ||
+                            (t.key === 'home' && filter.huntPhase === 'HOME') ||
+                            (t.key === 'drive' && filter.driverAction === 'DRIVING') ||
+                            (t.key === 'merge' && filter.huntPhase !== 'LOCAL' && filter.huntPhase !== 'HOME' && filter.isSharedMode) ||
+                            (t.key === 'first' && filter.huntPhase !== 'LOCAL' && filter.huntPhase !== 'HOME' && !filter.isSharedMode && filter.driverAction !== 'DRIVING');
+                        return (
+                            <button
+                                key={t.key}
+                                onClick={() => setTab(t.key)}
+                                className={`relative py-2 rounded-md text-[11px] font-black transition-all ${on
+                                    ? 'bg-surface border border-border text-text-primary'
+                                    : 'text-text-muted hover:bg-surface-hover/50'}`}
+                            >
+                                {isNow && <span className="absolute top-1 right-1.5 w-1.5 h-1.5 rounded-full bg-success shadow-[0_0_6px_var(--theme-glow-primary)]" />}
+                                {t.label}
+                            </button>
+                        );
+                    })}
+                </div>
+
                 <div className="space-y-3 overflow-y-auto pr-1 pb-1 custom-scrollbar relative z-10">
                     <div>
-                        {/* 차종 멀티셀렉터 */}
-                        <div className="mb-3">
-                            <div className="flex items-center gap-1.5 mb-1.5">
-                                <label className="text-xs font-bold text-text-muted">허용 차종</label>
-                                <span className="text-[10px] text-text-muted ml-auto font-mono">
-                                    {selectedVehicles.length === 0 ? '전체 허용' : `${selectedVehicles.length}개 선택`}
-                                </span>
-                            </div>
-                            <div className="grid grid-cols-4 gap-2">
-                                {VEHICLE_OPTIONS.map((v) => {
-                                    const isSelected = selectedVehicles.includes(v);
-                                    return (
-                                        <Button
-                                            key={v}
-                                            type="button"
-                                            variant={isSelected ? "default" : "outline"}
-                                            onClick={() => {
-                                                setSelectedVehicles(prev =>
-                                                    prev.includes(v)
-                                                        ? prev.filter(x => x !== v)
-                                                        : [...prev, v]
-                                                );
-                                            }}
-                                            className={`h-9 font-black tracking-tight transition-all ${isSelected
-                                                ? 'bg-success/20 border-success/60 text-success hover:bg-success/30 shadow-lg'
-                                                : 'bg-surface-alt/40 border-border text-text-muted hover:text-text-primary'
-                                                }`}
-                                        >
-                                            {v}
-                                        </Button>
-                                    );
-                                })}
-                            </div>
-                            <p className="text-[10px] text-text-muted mt-2 text-center bg-surface-alt/50 p-1.5 rounded-md">
-                                💡 합짐(LOADING) 상태 진입 시, 1t 등 상위 차종은 자동으로 제외 처리됩니다.
-                            </p>
-                        </div>
-
                         {/* ── 눈높이 — 시세 대비 허용 할인 (docs/필터_재설계_명세.md §2) ──
                             금액을 입력하지 않는다. 차종별 하한 단가는 눈높이에서 파생된다.
                             기사님: "처음에는 시세로 찾고, 콜이 없으면 여기 와서 조금씩 낮춘다" */}
@@ -340,6 +347,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                             <div className="space-y-1.5 col-span-2">
                                 <label className="text-xs font-bold text-danger/80 flex items-center gap-1">
                                     <span className="text-danger text-[10px]">🚫</span> 제외 키워드
+                                    <span className="font-normal text-text-muted/60 ml-1">— 다섯 탭 공통</span>
                                 </label>
                                 <Input
                                     type="text"
@@ -352,8 +360,8 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                         </div>
                     </div>
 
-                    {/* 모드별 조건부 렌더링: 첫짐 또는 합짐 전용 섹션 */}
-                    {!isSharedMode ? (
+                    {/* 탭별 섹션 — 지금 모드가 아니어도 미리 정해 둘 수 있다 */}
+                    {tab === 'first' ? (
                         /* ── 첫짐(EMPTY) 모드 섹션 ── */
                         <div className="bg-surface/60 backdrop-blur-md p-3 rounded-xl border border-info-alt/30 shadow-lg relative overflow-hidden">
                             <div className="flex gap-2 mb-2">
@@ -406,7 +414,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                 </div>
                             </div>
                         </div>
-                    ) : (
+                    ) : tab === 'merge' ? (
                         /* ── 합짐(SHARED) 모드 섹션 ── */
                         <div className="bg-surface/60 backdrop-blur-md p-3 rounded-xl border border-warning/30 shadow-lg relative overflow-hidden">
                             <div className="flex items-center gap-3 mb-2">
@@ -439,6 +447,82 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                         경로상 추가 콜 탐색을 허용할 최대 우회 반경
                                     </p>
                                 </div>
+                            </div>
+                        </div>
+                    ) : tab === 'drive' ? (
+                        /* ── 운행 중 ── 설정할 것이 없다. 우회 0 은 고정이고 지나온 구간 제외는 자동.
+                           기사님: "운행 중도 사람이 하는 일이라 변화가 필요할 수 있으니 탭은 그대로 유지" */
+                        <div className="bg-surface/60 backdrop-blur-md p-3 rounded-xl border border-info/30 shadow-lg space-y-2">
+                            <div className="flex items-center gap-2 text-[12px] font-black text-info">
+                                🛣️ 우회 0km — 가는 길 위의 콜만
+                            </div>
+                            <p className="text-[10px] text-text-muted leading-relaxed">
+                                사냥을 멈추는 게 아닙니다. 콜은 계속 잡되 <b className="text-text-primary">가는 길 위의 것만</b> 잡습니다.
+                                지나온 구간은 자동으로 빠집니다.
+                            </p>
+                            <p className="text-[10px] text-text-muted/70">
+                                🚀 출발은 <b className="text-text-primary">지도 좌하단 버튼</b>에 있습니다 (운전 중에 팝업을 열지 않도록).
+                            </p>
+                        </div>
+                    ) : tab === 'local' ? (
+                        /* ── 관내 ── 기준 지역은 지금 있는 곳의 시. 서버가 GPS 로 정한다 */
+                        <div className="bg-surface/60 backdrop-blur-md p-3 rounded-xl border border-accent-alt/30 shadow-lg space-y-2">
+                            <div className="flex items-center gap-2 text-[12px] font-black text-accent-alt">
+                                🏘️ 이 동네 안에서 끝나는 콜
+                            </div>
+                            <p className="text-[10px] text-text-muted leading-relaxed">
+                                상차지와 하차지가 <b className="text-text-primary">모두 같은 시</b>여야 통과합니다. 거리 조건은 없습니다.
+                                기준 지역은 <b className="text-text-primary">지금 있는 곳의 시</b>로 서버가 GPS 에서 정합니다.
+                            </p>
+                            <Button
+                                onClick={() => {
+                                    logRoadmapEvent("웹", "필터 팝업 → 관내 국면으로 전환");
+                                    socket.emit("set-hunt-phase", { phase: 'LOCAL' });
+                                    onClose();
+                                }}
+                                className="w-full h-10 rounded-xl bg-gradient-to-r from-accent-alt to-accent-alt/70 text-white font-black text-[11px]"
+                            >
+                                🏘️ 이 동네에서 찾기로 전환
+                            </Button>
+                        </div>
+                    ) : (
+                        /* ── 복귀 ── 집 방향. 기점은 짐이 남았으면 마지막 하차지, 다 내렸으면 현위치 */
+                        <div className="bg-surface/60 backdrop-blur-md p-3 rounded-xl border border-accent/30 shadow-lg space-y-2">
+                            <div className="flex items-center gap-2 text-[12px] font-black text-accent">
+                                🏠 집 방향
+                            </div>
+                            <p className="text-[10px] text-text-muted leading-relaxed">
+                                기점은 <b className="text-text-primary">짐이 남았으면 마지막 하차지</b>, 다 내렸으면 <b className="text-text-primary">현재 위치</b>입니다.
+                                복귀콜도 합짐을 최대한 합니다 — 집으로 가는 길에 계속 주워 담습니다.
+                            </p>
+                            <div className="grid grid-cols-2 gap-2">
+                                <Button
+                                    onClick={() => {
+                                        logRoadmapEvent("웹", "필터 팝업 → 복귀 국면으로 전환");
+                                        socket.emit("set-hunt-phase", { phase: 'HOME' });
+                                        onClose();
+                                    }}
+                                    className="h-10 rounded-xl bg-gradient-to-r from-accent to-accent/70 text-white font-black text-[11px]"
+                                >
+                                    🏠 복귀행으로 전환
+                                </Button>
+                                {/* 귀가콜은 국면 전환과 **다른 기능**이다 — 집까지 가는 가상 오더를 만든다 */}
+                                <Button
+                                    onClick={() => {
+                                        logRoadmapEvent("웹", "귀가콜 시작 버튼 클릭 (필터 선반영)");
+                                        setHomeReturnLoading(true);
+                                        const parsedCorridor = corridorRadius.trim() === "" ? 10 : parseFloat(corridorRadius);
+                                        const parsedTarget = targetRadius.trim() === "" ? 10 : parseFloat(targetRadius);
+                                        socket.emit("create-home-return", {
+                                            corridorRadiusKm: parsedCorridor,
+                                            destinationRadiusKm: parsedTarget
+                                        });
+                                    }}
+                                    disabled={homeReturnLoading || hasHomeReturnActive}
+                                    className={`h-10 rounded-xl bg-gradient-to-r from-accent-alt to-accent-alt/70 text-white font-black text-[11px] ${homeReturnLoading || hasHomeReturnActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                >
+                                    {homeReturnLoading ? '⏳ 계산중' : hasHomeReturnActive ? '🏠 진행중' : '🏠 귀가콜 만들기'}
+                                </Button>
                             </div>
                         </div>
                     )}
@@ -554,14 +638,14 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
 
                     {/* 사냥 모드 통제 버튼 영역 (1열 5버튼 구조) */}
                     <div className="pt-2">
-                        <div className="grid grid-cols-6 gap-1.5">
+                        <div className="grid grid-cols-3 gap-1.5">
                             {/* 기본 설정 불러오기: DB(baseFilter) 값으로 폼 초기화 */}
                             <Button
                                 onClick={handleLoadBaseFilter}
                                 disabled={!baseFilter}
                                 className="h-11 rounded-xl bg-gradient-to-r from-surface-alt to-surface-hover text-text-primary font-black text-[11px] shadow-soft hover:shadow-md transition-all px-1"
                             >
-                                🔄 초기화
+                                🔄 평소값
                             </Button>
 
                             {/* 메인 액션: 오늘만 이 조건으로 사냥 (자정에 평소 설정으로 복귀) */}
@@ -587,37 +671,13 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                 📌 계속
                             </Button>
 
-                            {/* 🚀 출발은 지도 좌하단 플로팅 버튼으로 옮겼다 (PinnedRoute).
-                                설정이 아니라 운행 조작이라, 팝업을 열어야 누를 수 있으면 안 된다. */}
-
-                            {/* 귀가콜 시작 */}
-                            <Button
-                                onClick={() => {
-                                    logRoadmapEvent("웹", "귀가콜 시작 버튼 클릭 (필터 선반영)");
-                                    setHomeReturnLoading(true);
-                                    
-                                    // 1. 현재 모달에 있는 우회 반경과 도착 반경을 수집
-                                    const parsedCorridor = corridorRadius.trim() === "" ? 10 : parseFloat(corridorRadius);
-                                    const parsedTarget = targetRadius.trim() === "" ? 0 : parseFloat(targetRadius);
-                                    
-                                    // 2. 서버에 로컬 상태를 선 반영 (updateFilter와 유사한 저장 플로우)
-                                    handleSave(); 
-
-                                    // 3. 우회/도착 반경을 직접 파라미터로 넘기며 귀가콜 트리거
-                                    socket.emit("create-home-return", {
-                                        corridorRadiusKm: parsedCorridor,
-                                        destinationRadiusKm: parsedTarget
-                                    });
-                                }}
-                                disabled={homeReturnLoading || hasHomeReturnActive}
-                                className={`h-11 rounded-xl bg-gradient-to-r from-accent-alt to-accent-alt/70 text-white font-black text-[11px] shadow-[0_0_15px_var(--theme-glow-primary)] hover:shadow-[0_0_20px_var(--theme-glow-primary)] transition-all px-1 ${homeReturnLoading || hasHomeReturnActive ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            >
-                                {homeReturnLoading ? '⏳ 계산중' : hasHomeReturnActive ? '🏠 진행중' : '🏠 귀가'}
-                            </Button>
-
+                            {/* 🚀 출발 → 지도 좌하단 플로팅 · 🏠 귀가콜 → 복귀 탭 안으로 옮겼다.
+                                여기 남는 것은 **저장** 셋뿐이다 (평소값 / 오늘만 / 계속). */}
                         </div>
 
-                        <p className="text-[10px] text-text-muted text-center mt-2">이 값은 현재 진행 중인 콜 탐색에만 적용됩니다. 🔄초기화를 누르면 톱니바퀴(⚙️) 설정값을 불러옵니다.</p>
+                        <p className="text-[10px] text-text-muted text-center mt-2">
+                            <b>오늘만</b> = 자정에 평소값으로 돌아감 · <b>계속</b> = 평소값까지 변경 · <b>초기화</b> = 톱니바퀴(⚙️) 설정값 불러오기
+                        </p>
                     </div>
                 </div>
             </DialogContent>
