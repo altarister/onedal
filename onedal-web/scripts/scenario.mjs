@@ -195,6 +195,25 @@ async function run({ main, cod }) {
         await wait(450);
         return { ms: st.milestones.get(id) || [], rp: st.reports.get(id) || [] };
     };
+    /**
+     * 🔴 **고정 대기를 쓰지 않는다.** 조건이 참이 될 때까지 다시 읽는다.
+     *
+     * 예전에는 `fire(); await wait(700)` 이었다. 서버가 700ms 안에 처리하지 못하면
+     * 아직 안 바뀐 값을 읽고 **멀쩡한 제품이 실패로 나왔다** — 3회 중 1회꼴로.
+     * 간헐 실패는 그 자체보다 **"또 플레이키겠지" 하고 진짜 결함을 넘기게 만드는 것**이 더 나쁘다.
+     *
+     * 조건이 끝내 만족되지 않으면 timeout 뒤에 그대로 반환한다 → 검사가 정상적으로 실패한다.
+     */
+    const refreshUntil = async (id, cond, timeoutMs = 5000) => {
+        const deadline = Date.now() + timeoutMs;
+        let cur = await refresh(id);
+        while (!cond(cur) && Date.now() < deadline) {
+            await wait(150);
+            cur = await refresh(id);
+        }
+        return cur;
+    };
+
     const http = async () => (await (await fetch(`http://localhost:${PORT}/api/orders`,
         { headers: { Authorization: `Bearer ${tok}` } })).json()).orders || [];
 
@@ -219,15 +238,22 @@ async function run({ main, cod }) {
     ];
     for (const [name, fire] of steps) {
         const before = deriveIndex(cur.ms, cur.rp);
-        fire(); await wait(700);
-        cur = await refresh(main);
+        const t0 = Date.now();
+        fire();
+        // 단계가 올라갈 때까지 기다린다 (안 올라가면 5초 뒤 실패로 잡힌다)
+        cur = await refreshUntil(main, c => deriveIndex(c.ms, c.rp) > before);
         const after = deriveIndex(cur.ms, cur.rp);
-        check(`${name} → ${after >= 6 ? '운행 완료' : STEPS[after]}`, after === before + 1, `index ${before}→${after}`);
+        const ms = Date.now() - t0;
+        check(`${name} → ${after >= 6 ? '운행 완료' : STEPS[after]}`,
+            after === before + 1, `index ${before}→${after} · ${ms}ms`);
     }
 
     console.log('\n═══ 멱등성 · 순서 어긋남 ═══');
     s.emit('report-milestone', { orderId: main, milestone: 'DELIVERED' }); await wait(600);
-    s.emit('report-milestone', { orderId: main, milestone: 'ARRIVED_PICKUP' }); await wait(800);
+    s.emit('report-milestone', { orderId: main, milestone: 'ARRIVED_PICKUP' });
+    // 여기서는 **안 바뀌는 것**을 확인하는 검사라 폴링할 조건이 없다.
+    // 다만 서버가 처리하고 나서 봐야 하므로 넉넉히 기다린다 (바뀌면 어차피 실패한다).
+    await wait(1200);
     cur = await refresh(main);
     check('중복·역행 보고에도 단계가 안 흔들린다', deriveIndex(cur.ms, cur.rp) === 6);
     check('마일스톤이 중복 저장되지 않는다', cur.ms.length <= 4, `${cur.ms.length}건`);
