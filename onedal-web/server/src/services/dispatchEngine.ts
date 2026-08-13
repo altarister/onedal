@@ -240,26 +240,15 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
     return { success: true };
 }
 
-export const recalculateCorridorFilter = (userId: string, corridorRadiusKm: number, destinationRadiusKm?: number) => {
-    const session = getUserSession(userId);
-    let polylineToUse = null;
-    const activeCalls = getActiveCalls(session);
-    if (activeCalls.length > 0) {
-        polylineToUse = activeCalls[activeCalls.length - 1].routePolyline;
-    }
-
-    if (polylineToUse && polylineToUse.length > 0) {
-        const regions = getCorridorRegions(polylineToUse, corridorRadiusKm, destinationRadiusKm);
-        if (regions && regions.flat.length > 0) {
-            return {
-                destinationKeywords: regions.flat,
-                destinationGroups: regions.grouped,
-                customCityFilters: regions.customCityFilters
-            };
-        }
-    }
-    return null;
-};
+/**
+ * `recalculateCorridorFilter` 는 **`state/filterManager` 로 옮겼다** (2026-08-14).
+ *
+ * 국면별 설정(§2-4)이 들어오면서 회랑을 다시 그려야 하는 자리가 셋으로 늘었다 —
+ * 관제탑 필터 저장 · **국면별 설정 저장** · **국면 전환**. 뒤의 둘은 `filterManager` 안이라
+ * 여기(dispatchEngine)를 부르면 순환 참조가 된다. 그래서 함수를 아래(경계가 낮은 쪽)로 옮겼다.
+ * 회랑 계산은 이 레포에서 이미 **4벌**로 갈라진 적이 있다. 두 벌째를 만들지 않는다.
+ */
+export { recalculateCorridorFilter } from "../state/filterManager";
 
 export const syncCorridorFilter = (userId: string, io: any) => {
     const session = getUserSession(userId);
@@ -613,6 +602,8 @@ export async function bootstrapUserSession(userId: string, io: any): Promise<voi
         io.to(userId).emit("filter-init", {
             activeFilter: session.activeFilter,
             baseFilter: session.baseFilter,
+            phaseSettings: session.phaseSettings,
+            basePhaseSettings: session.basePhaseSettings,
         });
     }
 }
@@ -1110,16 +1101,27 @@ export async function setHuntPhase(
         const session = getUserSession(userId);
         console.log(`🧭 [국면 전환] ${session.activeFilter.huntPhase ?? 'DEST'} → ${phase} (userId: ${userId})`);
 
-        /** 국면마다 "어디로 가는 콜을 찾는가"만 다르다 */
+        /**
+         * 국면마다 **"어디로 가는 콜을 찾는가"만** 다르다.
+         *
+         * 🔴 2026-08-14 — 여기서 반경(`destinationRadiusKm`)을 **더 이상 정하지 않는다.**
+         *
+         * 예전에는 `baseFilter.destinationRadiusKm` 을 실어 보냈다. 그래서 국면별 설정(§2-4)에
+         * 첫짐 하차 7km 를 저장해 둬도, 관내에 갔다 돌아오면 **평소값 1km 로 덮였다.**
+         * 반경의 원천이 둘(평소 설정 · 국면 설정)이 된 것이다.
+         * 이제 반경은 국면 설정 한 곳에서만 나온다 — `filterManager` 가 전환을 감지해 펼친다.
+         */
         let city: string | null = null;
-        let radiusKm = session.baseFilter.destinationRadiusKm ?? 10;
 
         if (phase === 'DEST') {
-            // 오늘 정한 목적지로 돌아간다 (평소 설정이 아니라 **오늘** 필터의 목적지)
-            city = session.baseFilter.destinationCity || null;
+            // 오늘 정한 목적지로 돌아간다 — 첫짐 국면이 기억하고 있는 도시가 먼저다
+            city = session.phaseSettings.first.destinationCity
+                || session.baseFilter.destinationCity
+                || null;
         } else if (phase === 'LOCAL') {
             /**
-             * 이 동네 = **지금 있는 곳의 시**. 반경 0 — 그 시 안에서 끝나는 콜만.
+             * 이 동네 = **지금 있는 곳의 시**. 반경은 관내 국면 설정이 정한다(기본 0) —
+             * 그 시 안에서 끝나는 콜만.
              * 기사님: *"관내콜은 거리로 하지 말자. 그냥 상차지와 하차지가 같은 시도에 있으면."*
              *
              * 기점은 GPS 다. 없으면 전환할 수 없다 — **없는 위치를 지어내지 않는다.**
@@ -1128,7 +1130,6 @@ export async function setHuntPhase(
                 return { success: false, phase, message: '현재 위치를 아직 못 잡았습니다. 잠시 후 다시 시도해 주세요' };
             }
             city = reverseGeocodeToRegion(session.driverLocation.y, session.driverLocation.x);
-            radiusKm = 0;
             if (!city) {
                 return { success: false, phase, message: '지금 위치가 어느 시인지 알 수 없습니다' };
             }
@@ -1157,11 +1158,12 @@ export async function setHuntPhase(
         updateActiveFilter(userId, {
             huntPhase: phase,
             destinationCity: city!,
-            destinationRadiusKm: radiusKm,
             isActive: true,
         }, io);
 
-        console.log(`🧭 [국면 전환] 완료 → ${HUNT_PHASE_LABEL[phase]} · 목적 ${city} (반경 ${radiusKm}km) · 콜 ${getActiveCalls(session).length}건 그대로`);
+        console.log(`🧭 [국면 전환] 완료 → ${HUNT_PHASE_LABEL[phase]} · 목적 ${city} ` +
+            `(반경 ${session.activeFilter.destinationRadiusKm}km — 국면 설정에서) · ` +
+            `콜 ${getActiveCalls(session).length}건 그대로`);
 
         return { success: true, phase, city: city! };
     } catch (e: any) {

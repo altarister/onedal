@@ -154,10 +154,13 @@ const token = async () => (await (await fetch(`http://localhost:${PORT}/api/auth
 
 function connect(tok) {
     const s = io(`http://localhost:${PORT}`, { auth: { token: tok }, transports: ['websocket'] });
-    const st = { filter: null, active: [], terminated: [], reports: new Map(),
+    const st = { filter: null, phases: null, active: [], terminated: [], reports: new Map(),
                  milestones: new Map(), mismatch: [], settle: new Map(), errors: [], stale: null };
-    s.on('filter-init', d => st.filter = d.activeFilter);
-    s.on('filter-updated', d => st.filter = d.activeFilter ?? d);   // 🔴 -updated 다. -update 아니다
+    s.on('filter-init', d => { st.filter = d.activeFilter; st.phases = d.phaseSettings ?? st.phases; });
+    s.on('filter-updated', d => {                                   // 🔴 -updated 다. -update 아니다
+        st.filter = d.activeFilter ?? d;
+        st.phases = d.phaseSettings ?? st.phases;
+    });
     s.on('sync-active-orders', d => { st.active = d.active || []; st.terminated = d.terminated || []; });
     s.on('cargo-report-saved', d => st.reports.set(d.orderId, d.reports || []));
     s.on('milestone-log', d => st.milestones.set(d.orderId, d.milestones || []));
@@ -293,6 +296,58 @@ async function run({ main, cod }) {
     check('합짐 모드가 꺼진다', st.filter?.isSharedMode === false);
     check('빈 차이므로 적재 신뢰도가 CONFIRMED', st.filter?.capacityConfidence === 'CONFIRMED',
         JSON.stringify(st.filter?.allowedVehicleTypes));
+
+    /**
+     * ═══ 국면별 필터 설정 (docs/필터_재설계_명세.md §2-4) ═══
+     *
+     * 기사님: *"첫짐 도착반경 5km 로 사냥하다 첫짐을 잡으면 … **저장된 합짐 도착반경 1km 를
+     * 저장된 값에서 꺼내와** 콜을 잡고 싶은 거야."*
+     *
+     * 여기서만 잡히는 결함: 저장은 됐는데 **국면이 바뀌어도 안 꺼내 쓰는** 경우.
+     * `tsc` 도 `jest` 도 통과한다 — 값이 흐르는지는 실제로 돌려 봐야 안다.
+     */
+    console.log('\n═══ 국면별 필터 설정 ═══');
+    const untilFilter = async (cond, timeoutMs = 4000) => {
+        const deadline = Date.now() + timeoutMs;
+        while (!cond() && Date.now() < deadline) await wait(120);
+        return cond();
+    };
+    const savePhase = (phase, patch) => s.emit('save-phase-settings', {
+        phase, settings: { ...(st.phases?.[phase] ?? {}), ...patch }, saveAsDefault: false,
+    });
+
+    // ① 지금 국면(first)에 저장하면 **바로** 적용된다
+    savePhase('first', { dropoffRadiusKm: 7 });
+    check('첫짐 저장이 지금 국면이라 바로 적용된다',
+        await untilFilter(() => st.filter?.destinationRadiusKm === 7),
+        `하차 반경=${st.filter?.destinationRadiusKm}`);
+
+    // ② 다른 국면(local)에 저장해도 **지금 사냥은 안 바뀐다**
+    savePhase('local', { dropoffRadiusKm: 0, discountPct: 20 });
+    await wait(500);
+    check('관내 탭에 저장해도 지금(첫짐) 필터는 그대로다',
+        st.filter?.destinationRadiusKm === 7,
+        `하차 반경=${st.filter?.destinationRadiusKm}`);
+    check('저장은 됐다 — 관내 국면 값이 서버에 남는다',
+        st.phases?.local?.dropoffRadiusKm === 0 && st.phases?.local?.discountPct === 20,
+        JSON.stringify(st.phases?.local));
+
+    // ③ 🔴 국면을 바꾸면 **그 국면의 저장값을 꺼내 쓴다** — 이 기능의 핵심
+    s.emit('set-hunt-phase', { phase: 'LOCAL' });
+    check('관내로 바꾸면 관내 저장값이 펼쳐진다',
+        await untilFilter(() => st.filter?.destinationRadiusKm === 0 && st.filter?.eyelinePct === 20),
+        `하차 반경=${st.filter?.destinationRadiusKm} · 할인=${st.filter?.eyelinePct}%`);
+
+    // ④ 돌아오면 첫짐 값도 그대로 살아 있다 (덮이지 않았다)
+    s.emit('set-hunt-phase', { phase: 'DEST' });
+    check('첫짐으로 돌아오면 첫짐 저장값이 되살아난다',
+        await untilFilter(() => st.filter?.destinationRadiusKm === 7),
+        `하차 반경=${st.filter?.destinationRadiusKm}`);
+
+    // ⑤ 단가표는 할인율에서 파생된다 (§2-1) — 두 곳에서 만들지 않는다
+    check('할인율이 바뀌면 차종별 단가표가 따라 바뀐다',
+        !!st.filter?.ratePerKm && Object.keys(st.filter.ratePerKm).length > 0,
+        JSON.stringify(st.filter?.ratePerKm));
 
     console.log('\n═══ 전체 ═══');
     check('서버 오류(handler-error) 0건', st.errors.length === 0,

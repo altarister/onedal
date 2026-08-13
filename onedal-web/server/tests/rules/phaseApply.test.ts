@@ -19,11 +19,18 @@ const codeOnly = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/
 describe('국면 전환 — 조각 펼치기', () => {
 
     const fm = codeOnly(read('state/filterManager.ts'));
+    /**
+     * `applyPhaseSettingsIfChanged` **함수 본문만** 잘라낸다.
+     *
+     * ⚠️ 예전엔 다음 `\nfunction ` 까지 잘랐는데, 사이에 `export function`/`export const`
+     *    가 끼어들면서 **옆 함수까지 딸려 들어와** 엉뚱한 곳에서 테스트가 깨졌다.
+     *    다음 최상위 선언에서 끊는다.
+     */
     const applyFn = (() => {
         const start = fm.indexOf('function applyPhaseSettingsIfChanged');
         expect(start).toBeGreaterThan(-1);
-        const next = fm.indexOf('\nfunction ', start + 10);
-        return fm.slice(start, next === -1 ? undefined : next);
+        const next = fm.slice(start + 10).search(/\n(export )?(function|const) /);
+        return next === -1 ? fm.slice(start) : fm.slice(start, start + 10 + next);
     })();
 
     it('🔴 국면 키가 같으면 아무것도 안 한다 — 매번 덮으면 기사님이 방금 고친 값이 되돌아간다', () => {

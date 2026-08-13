@@ -1,7 +1,10 @@
 import { useState, useEffect } from "react";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
 import { logRoadmapEvent } from "../../lib/roadmapLogger";
-import { NET_RATE_PER_KM, VEHICLE_SLOTS, TRUCK_CAPACITY_SLOTS, CAPACITY_CONFIDENCE_LABEL } from "@onedal/shared";
+import { NET_RATE_PER_KM, VEHICLE_SLOTS, TRUCK_CAPACITY_SLOTS, CAPACITY_CONFIDENCE_LABEL,
+         PHASE_KEYS, PHASE_LABEL, PHASE_FIELDS, PHASE_FIELD_LABEL, PHASE_AUTO_SOURCE,
+         DEFAULT_PHASE_SETTINGS, resolvePhaseKey } from "@onedal/shared";
+import type { PhaseKey, PhaseSettings } from "@onedal/shared";
 import { socket } from "../../lib/socket";
 import { apiClient } from "../../api/apiClient";
 import { useCityOptions, resolveCity } from "../../lib/cityOptions";
@@ -27,21 +30,67 @@ const EYELINE_STEPS = [
 const RATE_TABLE_ORDER = ['오토바이', '다마스', '승용차', '라보', '1t'];
 
 /**
- * 탭 = 하루의 다섯 국면 (docs/필터_재설계_명세.md §4-2).
+ * 탭 = 하루의 다섯 국면 (docs/필터_재설계_명세.md §2-4).
  * 모두 펼쳐 두고 **지금 어디인지는 초록 점**으로만 표시한다 —
  * 기사님: *"아침에 앉아서 하루치를 다 정해 둘 수 있다."*
  *
- * ⚠️ 눈높이는 아직 **탭 공통 하나**다. 탭마다 따로 저장하려면 DB 컬럼이 다섯 개
- *    필요하다 — 그건 아직 안 했다 (명세 §7 미결).
+ * 🔴 목록도 라벨도 `shared` 에서 가져온다. 여기에 또 적으면 국면이 늘거나 이름이 바뀔 때
+ *    한쪽만 고쳐진다 (이 레포가 회랑 4벌 · 상태목록 3벌로 이미 당한 사고다).
  */
-const TABS = [
-    { key: 'first', label: '첫짐' },
-    { key: 'merge', label: '합짐' },
-    { key: 'drive', label: '운행 중' },
-    { key: 'local', label: '관내' },
-    { key: 'home',  label: '복귀' },
-] as const;
-type TabKey = typeof TABS[number]['key'];
+const TABS = PHASE_KEYS;
+
+/** 탭별 강조색 — Tailwind 가 스캔할 수 있게 **완성된 클래스 문자열**로 적는다 */
+const TAB_STYLE: Record<PhaseKey, { box: string; text: string; input: string }> = {
+    first: { box: 'border-info-alt/30',   text: 'text-info-alt',   input: 'border-border' },
+    merge: { box: 'border-warning/30',    text: 'text-warning',    input: 'border-warning/30' },
+    drive: { box: 'border-info/30',       text: 'text-info',       input: 'border-info/30' },
+    local: { box: 'border-accent-alt/30', text: 'text-accent-alt', input: 'border-accent-alt/30' },
+    home:  { box: 'border-accent/30',     text: 'text-accent',     input: 'border-accent/30' },
+};
+
+/** 탭이 무엇을 하는 국면인지 — 한 줄 */
+const TAB_HINT: Record<PhaseKey, string> = {
+    first: '🚚 오늘 기준을 세우는 첫 콜',
+    merge: '📦 잡은 경로에 얹는 추가 콜',
+    drive: '🛣️ 가는 길 위의 콜만',
+    local: '🏘️ 이 동네 안에서 끝나는 콜',
+    home:  '🏠 집 방향으로 주워 담기',
+};
+
+/** 국면 설정을 폼에서 다루는 모양 — **문자열**이다 (입력 중 빈 칸을 허용하려면 숫자로는 안 된다) */
+type PhaseForm = Record<keyof PhaseSettings, string>;
+type PhaseFormMap = Record<PhaseKey, PhaseForm>;
+
+const toForm = (s: PhaseSettings): PhaseForm => ({
+    destinationCity: s.destinationCity,
+    pickupRadiusKm: String(s.pickupRadiusKm),
+    detourAllowKm: String(s.detourAllowKm),
+    dropoffRadiusKm: String(s.dropoffRadiusKm),
+    discountPct: String(s.discountPct),
+});
+
+/** 빈 칸은 **이전 값 그대로**다 (0 으로 바꾸면 "제한 없음"으로 뒤집힌다 — §1) */
+const toSettings = (f: PhaseForm, prev: PhaseSettings): PhaseSettings => {
+    const num = (v: string, fallback: number) => {
+        const n = parseFloat(v);
+        return Number.isFinite(n) ? n : fallback;
+    };
+    return {
+        destinationCity: f.destinationCity,
+        pickupRadiusKm: num(f.pickupRadiusKm, prev.pickupRadiusKm),
+        detourAllowKm: num(f.detourAllowKm, prev.detourAllowKm),
+        dropoffRadiusKm: num(f.dropoffRadiusKm, prev.dropoffRadiusKm),
+        discountPct: num(f.discountPct, prev.discountPct),
+    };
+};
+
+const mapToForm = (m: Record<PhaseKey, PhaseSettings>): PhaseFormMap =>
+    Object.fromEntries(PHASE_KEYS.map(k => [k, toForm(m[k])])) as PhaseFormMap;
+
+/** 위 그리드가 그리는 칸 — **표시 순서**. 눈높이(discountPct)는 전용 UI 가 위에서 그린다 */
+const GEO_FIELDS: (keyof PhaseSettings)[] = ['destinationCity', 'pickupRadiusKm', 'detourAllowKm', 'dropoffRadiusKm'];
+
+type TabKey = PhaseKey;
 
 interface OrderFilterModalProps {
     isOpen: boolean;
@@ -52,11 +101,32 @@ interface OrderFilterModalProps {
 }
 
 export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive = false, isTestMode, setIsTestMode }: OrderFilterModalProps) {
-    const { filter, baseFilter, updateFilter } = useFilterConfig();
+    const { filter, baseFilter, phaseSettings, basePhaseSettings, updateFilter, savePhase } = useFilterConfig();
 
-    // 이 페이지는 폼 역할이므로 로컬 state로 관리 후 저장 시 소켓 발송
-    const [eyeline, setEyeline] = useState<number>(10);   // 눈높이(%) — 하한가 입력을 대체
     const [tab, setTab] = useState<TabKey>('first');
+
+    /**
+     * 🔴 **다섯 국면이 각자 자기 값을 기억한다** (§2-4).
+     *
+     * 기사님: *"첫짐 도착반경 5km 로 사냥하다 첫짐을 잡으면 … 저장된 합짐 도착반경 1km 를
+     * 저장된 값에서 꺼내와 콜을 잡고 싶은 거야."*
+     *
+     * 예전에는 이 폼이 값 **한 벌**만 들고 있어서, 합짐 탭에서 반경을 고치면
+     * 첫짐 값이 덮였다. 탭은 다섯인데 저장은 한 곳이었다.
+     */
+    const [forms, setForms] = useState<PhaseFormMap>(() => mapToForm(DEFAULT_PHASE_SETTINGS));
+    const cur = forms[tab];
+    const shown = PHASE_FIELDS[tab];
+
+    /**
+     * 지금 어느 국면인가 — **두 축의 조합**이다 (`huntPhase` × `dispatchPhase`).
+     * 판정은 `shared` 의 `resolvePhaseKey` 하나로만 한다. 예전에는 이 화면이
+     * `isSharedMode`·`driverAction` 으로 자기 규칙을 따로 세워, 서버가 보는 국면과
+     * 화면이 말하는 국면이 갈라질 수 있었다.
+     */
+    const activePhase: PhaseKey = filter
+        ? resolvePhaseKey(filter.huntPhase ?? 'DEST', filter.dispatchPhase ?? 'STANDBY')
+        : 'first';
     /**
      * 저장 안 한 변경이 **어느 탭에** 있는지. (v6 설명 ② — 기사님 확정)
      *
@@ -65,11 +135,15 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
      */
     const [dirtyTabs, setDirtyTabs] = useState<Set<TabKey>>(new Set());
     const markDirty = (t: TabKey) => setDirtyTabs(prev => prev.has(t) ? prev : new Set(prev).add(t));
-    const [pickupRadius, setPickupRadius] = useState<string>("");
-    const [targetCity, setTargetCity] = useState<string>("");
-    const [targetRadius, setTargetRadius] = useState<string>("");
-    const [corridorRadius, setCorridorRadius] = useState<string>("");
+    /** 한 국면의 한 칸만 고친다 — 다른 탭의 값은 건드리지 않는다 */
+    const setField = (key: keyof PhaseSettings, value: string) => {
+        setForms(prev => ({ ...prev, [tab]: { ...prev[tab], [key]: value } }));
+        markDirty(tab);
+    };
+
+    /** 제외 키워드는 **다섯 탭 공통**이라 국면 설정이 아니라 평면 필터에 있다 */
     const [blacklist, setBlacklist] = useState<string>("");
+    const [blacklistDirty, setBlacklistDirty] = useState(false);
 
     /**
      * 고를 수 있는 시/군 목록 — 지도 데이터에서 받는다.
@@ -79,12 +153,15 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
     const cityGroups = useCityOptions();
     const knownCities = cityGroups.flatMap(g => g.cities);
     /** 목록에 없는 저장값(옛 `파주`)을 정식 이름으로 끌어올린다 — 못 찾으면 건드리지 않는다 */
+    const firstCity = forms.first.destinationCity;
     useEffect(() => {
-        if (!targetCity || !cityGroups.length) return;
-        if (knownCities.includes(targetCity)) return;
-        const resolved = resolveCity(targetCity, cityGroups);
-        if (resolved) setTargetCity(resolved);
-    }, [cityGroups, targetCity]);
+        if (!firstCity || !cityGroups.length) return;
+        if (knownCities.includes(firstCity)) return;
+        const resolved = resolveCity(firstCity, cityGroups);
+        if (resolved) {
+            setForms(prev => ({ ...prev, first: { ...prev.first, destinationCity: resolved } }));
+        }
+    }, [cityGroups, firstCity]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // 배열 확인용 아코디언 상태
     const [isAccordionOpen, setIsAccordionOpen] = useState(false);
@@ -99,12 +176,12 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
     const [isPreviewLoading, setIsPreviewLoading] = useState(false);
 
     // 첫짐 섹션: 미리보기 버튼 클릭 시 호출
-    const handlePreviewRegions = async () => {
-        if (!targetCity) return;
+    const handlePreviewRegions = async (city: string) => {
+        if (!city) return;
         setIsPreviewLoading(true);
-        const radius = targetRadius || '0';
+        const radius = forms[tab].dropoffRadiusKm || '0';
         try {
-            const { data } = await apiClient.get(`/settings/preview-regions?city=${encodeURIComponent(targetCity)}&destinationRadiusKm=${radius}`);
+            const { data } = await apiClient.get(`/settings/preview-regions?city=${encodeURIComponent(city)}&destinationRadiusKm=${radius}`);
             setPreviewRegions(data.groupedRegions || {});
             setPreviewCount(data.totalCount || 0);
             setIsAccordionOpen(true);
@@ -118,8 +195,8 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
     // 합짐 섹션: 미리보기 버튼 클릭 시 호출
     const handlePreviewCorridor = async () => {
         setIsPreviewLoading(true);
-        const params = new URLSearchParams({ corridorRadiusKm: corridorRadius !== '' ? corridorRadius : '10' });
-        if (targetRadius) params.set('destinationRadiusKm', targetRadius);
+        const params = new URLSearchParams({ corridorRadiusKm: cur.detourAllowKm !== '' ? cur.detourAllowKm : '10' });
+        if (cur.dropoffRadiusKm) params.set('destinationRadiusKm', cur.dropoffRadiusKm);
         try {
             const { data } = await apiClient.get(`/settings/preview-corridor?${params.toString()}`);
             setPreviewRegions(data.groupedRegions || {});
@@ -136,18 +213,14 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
     useEffect(() => {
         if (isOpen && filter) {
             console.log("📥 [OrderFilterModal] 모달 열림 - 현재 activeFilter 스냅샷:", JSON.parse(JSON.stringify(filter)));
-            setEyeline(filter.eyelinePct ?? 10);
-            // 지금 상황에 맞는 탭을 열어 준다 (국면 → 탭)
-            setTab(filter.huntPhase === 'LOCAL' ? 'local'
-                 : filter.huntPhase === 'HOME' ? 'home'
-                 : filter.driverAction === 'DRIVING' ? 'drive'
-                 : filter.isSharedMode ? 'merge' : 'first');
-            setPickupRadius(filter.pickupRadiusKm?.toString() || "");
-            setTargetCity(filter.destinationCity || "");
-            setTargetRadius(filter.destinationRadiusKm?.toString() || "");
-            setCorridorRadius(filter.corridorRadiusKm?.toString() || "");
+            // 폼은 **국면별 저장값**에서 채운다 (평면 필터가 아니라).
+            // 평면에는 지금 국면의 값 한 벌뿐이라, 거기서 다섯 탭을 채우면 전부 같은 값이 된다
+            if (phaseSettings) setForms(mapToForm(phaseSettings));
+            // 지금 상황에 맞는 탭을 열어 준다 — 국면 판정은 shared 의 resolvePhaseKey 하나로
+            setTab(activePhase);
             setBlacklist(filter.excludedKeywords ? filter.excludedKeywords.join(',') : "");
             setDirtyTabs(new Set());
+            setBlacklistDirty(false);
             // 프리뷰 상태 초기화
             setPreviewRegions(null);
             setPreviewCount(0);
@@ -159,13 +232,12 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
     const handleLoadBaseFilter = () => {
         if (!baseFilter) return;
         console.log("🔄 [OrderFilterModal] 기본 설정 불러오기 클릭 - baseFilter:", JSON.parse(JSON.stringify(baseFilter)));
-        setEyeline(baseFilter.eyelinePct ?? 10);
-        setPickupRadius(baseFilter.pickupRadiusKm?.toString() || "");
-        setTargetCity(baseFilter.destinationCity || "");
-        setTargetRadius(baseFilter.destinationRadiusKm?.toString() || "");
-        setCorridorRadius(baseFilter.corridorRadiusKm?.toString() || "");
+        // 다섯 탭을 **모두** 평소값으로 되돌린다 (한 탭만 되돌리면 나머지가 오늘값으로 남아 섞인다)
+        if (basePhaseSettings) setForms(mapToForm(basePhaseSettings));
         setBlacklist(baseFilter.excludedKeywords ? baseFilter.excludedKeywords.join(',') : "");
-        setDirtyTabs(new Set());
+        // 폼과 서버가 달라진 상태다 — 저장을 눌러야 반영된다는 뜻으로 전부 dirty
+        setDirtyTabs(new Set(PHASE_KEYS));
+        setBlacklistDirty(true);
         // 프리뷰 초기화
         setPreviewRegions(null);
         setPreviewCount(0);
@@ -216,29 +288,32 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
      * 그래서 "왜 내일 또 원래대로냐"를 알 수 없었다.
      */
     const handleSave = (saveAsDefault = false) => {
-        logRoadmapEvent("웹", `필터 저장 (${saveAsDefault ? '앞으로 계속' : '오늘만'})`);
+        logRoadmapEvent("웹", `필터 저장 (${saveAsDefault ? '앞으로 계속' : '오늘만'}) — 변경된 탭: ${[...dirtyTabs].join(',') || '없음'}`);
 
-        const newFilterToSave = {
-            /**
-             * 🔴 `allowedVehicleTypes` 를 **보내지 않는다.**
-             *
-             * 허용 차종은 입력이 아니라 파생값이다 — 서버가 지금 실린 짐에서 매번 다시 구한다.
-             * 여기서 보내면 `recalculateDerivedFields` 가 `if (!changes.allowedVehicleTypes)`
-             * 에 걸려 **자기 계산을 건너뛴다.** 그러면 모달을 열었다 저장한 것만으로
-             * 적재 용량 제한이 옛 값에 굳는다 (2026-08-10 에 같은 형태의 사고가 있었다).
-             */
-            eyelinePct: eyeline,   // 단가표(ratePerKm)는 서버가 이 값에서 파생시킨다 — 두 곳에서 만들지 않는다
-            pickupRadiusKm: pickupRadius ? parseInt(pickupRadius, 10) : filter.pickupRadiusKm,
-            destinationCity: targetCity || filter.destinationCity,
-            destinationRadiusKm: targetRadius ? parseInt(targetRadius, 10) : filter.destinationRadiusKm,
-            corridorRadiusKm: corridorRadius ? parseInt(corridorRadius, 10) : filter.corridorRadiusKm,
-            excludedKeywords: blacklist ? blacklist.split(',').map(s => s.trim()).filter(Boolean) : filter.excludedKeywords,
-            userOverrides: true // 기사가 수동 개입했음을 마킹
-        };
+        /**
+         * 🔴 **고친 탭만 저장한다.**
+         *
+         * 예전에는 저장 버튼 하나가 폼 전체를 평면 필터로 밀어 넣었다. 그래서 합짐 탭을
+         * 보며 저장해도 첫짐 값까지 같이 나갔고, 국면이 바뀌는 순간 덮여 버렸다.
+         * 이제 국면 하나가 저장의 단위다 (§2-4).
+         *
+         * `allowedVehicleTypes` 를 **보내지 않는 이유**는 그대로다 — 허용 차종은 입력이
+         * 아니라 파생값이고, 여기서 보내면 서버가 `if (!changes.allowedVehicleTypes)` 에
+         * 걸려 자기 계산을 건너뛴다 (2026-08-10 사고).
+         */
+        for (const key of dirtyTabs) {
+            const prev = phaseSettings?.[key] ?? DEFAULT_PHASE_SETTINGS[key];
+            savePhase(key, toSettings(forms[key], prev), saveAsDefault);
+        }
 
-        console.log("📤 [OrderFilterModal] 필터 저장 - 서버로 전송:", JSON.parse(JSON.stringify(newFilterToSave)), { saveAsDefault });
+        // 제외 키워드만 다섯 탭 공통이라 평면 필터로 간다
+        if (blacklistDirty) {
+            updateFilter({
+                excludedKeywords: blacklist ? blacklist.split(',').map(t => t.trim()).filter(Boolean) : [],
+                userOverrides: true,
+            }, saveAsDefault);
+        }
 
-        updateFilter(newFilterToSave, saveAsDefault);
         onClose();
     };
 
@@ -248,8 +323,23 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
     const slotsUsed = Math.round(filter.slotsUsed ?? 0);
     const remainSlots = Math.max(0, TRUCK_CAPACITY_SLOTS - slotsUsed);
     /** 하한표 예시 금액용 거리 — 지금 탭이 보는 대표 거리 */
-    const exampleKm = tab === 'local' ? 15 : (parseInt(targetRadius, 10) || 0) + 50;
+    const exampleKm = tab === 'local' ? 15 : (parseInt(cur.dropoffRadiusKm, 10) || 0) + 50;
     const destKeywordsLimit = filter.destinationKeywords || [];
+
+    /**
+     * 미리보기가 무엇을 그릴지는 **지금 탭**이 정한다.
+     * 경유를 쓰는 탭(합짐·운행중)이면 회랑, 아니면 도착 도시 주변이다.
+     * 예전에는 `isSharedMode`(지금 합짐이냐) 로 갈랐는데, 그러면 첫짐을 사냥하는 중에
+     * 합짐 탭을 열어 미리보기를 눌러도 **첫짐 기준**이 그려졌다.
+     */
+    const previewByCorridor = shown.detourAllowKm === 'input';
+    /** `auto` 인 탭에서는 서버가 정한 지금 도착 도시를 그대로 보여준다 (지어내지 않는다) */
+    const previewCity = shown.destinationCity === 'input'
+        ? cur.destinationCity
+        : (filter.destinationCity || '');
+
+    /** 지금 탭의 눈높이(단가 할인율) — 국면마다 따로 기억한다 */
+    const eyeline = parseFloat(cur.discountPct);
 
     const handleBlacklistChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         let val = e.target.value;
@@ -260,6 +350,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
         // 콤마 다중 연타 방지
         val = val.replace(/,+/g, ',');
         setBlacklist(val);
+        setBlacklistDirty(true);
     };
 
     return (
@@ -285,25 +376,20 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
 
                 {/* 탭 다섯 — 하루의 다섯 국면. 지금 어디인지는 초록 점으로만 */}
                 <div className="grid grid-cols-5 gap-1 bg-surface-alt/40 p-1 rounded-lg border border-border relative z-10">
-                    {TABS.map(t => {
-                        const on = tab === t.key;
-                        const isNow =
-                            (t.key === 'local' && filter.huntPhase === 'LOCAL') ||
-                            (t.key === 'home' && filter.huntPhase === 'HOME') ||
-                            (t.key === 'drive' && filter.driverAction === 'DRIVING') ||
-                            (t.key === 'merge' && filter.huntPhase !== 'LOCAL' && filter.huntPhase !== 'HOME' && filter.isSharedMode) ||
-                            (t.key === 'first' && filter.huntPhase !== 'LOCAL' && filter.huntPhase !== 'HOME' && !filter.isSharedMode && filter.driverAction !== 'DRIVING');
+                    {TABS.map(key => {
+                        const on = tab === key;
+                        const isNow = key === activePhase;
                         return (
                             <button
-                                key={t.key}
-                                onClick={() => setTab(t.key)}
+                                key={key}
+                                onClick={() => setTab(key)}
                                 className={`relative py-2 rounded-md text-[11px] font-black transition-all ${on
                                     ? 'bg-surface border border-border text-text-primary'
                                     : 'text-text-muted hover:bg-surface-hover/50'}`}
                             >
                                 {isNow && <span title="지금 이 국면" className="absolute top-1 right-1.5 w-1.5 h-1.5 rounded-full bg-success shadow-[0_0_6px_var(--theme-glow-primary)]" />}
-                                {dirtyTabs.has(t.key) && <span title="저장 안 한 변경이 있습니다" className="absolute top-1 left-1.5 w-1.5 h-1.5 rounded-full bg-warning" />}
-                                {t.label}
+                                {dirtyTabs.has(key) && <span title="저장 안 한 변경이 있습니다" className="absolute top-1 left-1.5 w-1.5 h-1.5 rounded-full bg-warning" />}
+                                {PHASE_LABEL[key]}
                             </button>
                         );
                     })}
@@ -363,7 +449,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                             key={step.value}
                                             type="button"
                                             variant="outline"
-                                            onClick={() => { setEyeline(step.value); markDirty(tab); }}
+                                            onClick={() => setField('discountPct', String(step.value))}
                                             className={`h-9 text-xs font-black ${on
                                                 ? 'bg-info/20 border-info text-info'
                                                 : 'bg-surface-alt/60 border-border text-text-muted'}`}
@@ -423,172 +509,150 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                         </div>
                     </div>
 
-                    {/* 탭별 섹션 — 지금 모드가 아니어도 미리 정해 둘 수 있다 */}
-                    {tab === 'first' ? (
-                        /* ── 첫짐(EMPTY) 모드 섹션 ── */
-                        <div className="bg-surface/60 backdrop-blur-md p-3 rounded-xl border border-info-alt/30 shadow-lg relative overflow-hidden">
-                            <div className="flex gap-2 mb-2">
-                                <div className="flex-[0.4] space-y-1">
-                                    <label className="block text-[10px] font-bold text-text-muted pl-1">도착 희망 시/도</label>
-                                    <select
-                                        value={targetCity}
-                                        onChange={(e) => { setTargetCity(e.target.value); markDirty('first'); }}
-                                        className="w-full h-9 bg-surface-alt/50 border border-border rounded-md px-2 text-[13px] text-info-alt font-bold outline-none focus:border-info-alt shadow-inner appearance-none"
-                                    >
-                                        {/* 아직 안 골랐거나, 목록에 없는 값이 저장돼 있을 때.
-                                            여기서 다른 도시를 대신 보여주면 화면이 필터를 잘못 말하게 된다 */}
-                                        {!knownCities.includes(targetCity) && (
-                                            <option value={targetCity}>
-                                                {targetCity ? `⚠️ ${targetCity} (목록에 없음)` : '— 선택 —'}
-                                            </option>
-                                        )}
-                                        {cityGroups.map(g => (
-                                            <optgroup key={g.sido} label={g.sido}>
-                                                {g.cities.map(c => (
-                                                    <option key={c} value={c}>{c}</option>
+                    {/* ── 국면 설정 — **무엇을 보여줄지는 PHASE_FIELDS 가 정한다** (§2-4) ──
+                        다섯 탭이 같은 5개 키를 갖고, 탭마다 표시만 다르다.
+                        기사님: *"모든 탭마다 키를 가지고 있고 탭마다 디스플레이만 달리해서 숨기고 노출."*
+                        🔴 여기에 탭별 if 를 다시 쓰지 말 것 — 표가 유일한 원천이다 */}
+                    <div className={`bg-surface/60 backdrop-blur-md p-3 rounded-xl border ${TAB_STYLE[tab].box} shadow-lg space-y-2.5`}>
+                        <div className="flex items-center justify-between">
+                            <span className={`text-[12px] font-black ${TAB_STYLE[tab].text}`}>{TAB_HINT[tab]}</span>
+                            {tab === activePhase
+                                ? <span className="text-[9px] font-black text-success">● 지금 이 국면</span>
+                                : <span className="text-[9px] font-bold text-text-muted/70">이 국면이 되면 적용됩니다</span>}
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-2">
+                            {GEO_FIELDS.map(f => {
+                                const mode = shown[f];
+                                if (mode === 'hidden') return null;
+
+                                /* 자동 칸 — 왜 못 고치는지를 화면이 말한다 (빈 칸으로 두면 고장으로 보인다) */
+                                if (mode === 'auto') {
+                                    return (
+                                        <div key={f} className="space-y-1">
+                                            <label className="block text-[10px] font-bold text-text-muted pl-1">{PHASE_FIELD_LABEL[f]}</label>
+                                            <div className="h-9 flex items-center justify-center px-1 rounded-md bg-surface-alt/30 border border-dashed border-border text-[9px] text-text-muted/80 text-center leading-tight">
+                                                자동 · {PHASE_AUTO_SOURCE[tab]}
+                                            </div>
+                                        </div>
+                                    );
+                                }
+
+                                if (f === 'destinationCity') {
+                                    return (
+                                        <div key={f} className="space-y-1">
+                                            <label className="block text-[10px] font-bold text-text-muted pl-1">{PHASE_FIELD_LABEL[f]}</label>
+                                            <select
+                                                value={cur.destinationCity}
+                                                onChange={(e) => setField('destinationCity', e.target.value)}
+                                                className={`w-full h-9 bg-surface-alt/50 border ${TAB_STYLE[tab].input} rounded-md px-2 text-[13px] ${TAB_STYLE[tab].text} font-bold outline-none shadow-inner appearance-none`}
+                                            >
+                                                {/* 아직 안 골랐거나, 목록에 없는 값이 저장돼 있을 때.
+                                                    여기서 다른 도시를 대신 보여주면 화면이 필터를 잘못 말하게 된다 */}
+                                                {!knownCities.includes(cur.destinationCity) && (
+                                                    <option value={cur.destinationCity}>
+                                                        {cur.destinationCity ? `⚠️ ${cur.destinationCity} (목록에 없음)` : '— 선택 —'}
+                                                    </option>
+                                                )}
+                                                {cityGroups.map(g => (
+                                                    <optgroup key={g.sido} label={g.sido}>
+                                                        {g.cities.map(c => (
+                                                            <option key={c} value={c}>{c}</option>
+                                                        ))}
+                                                    </optgroup>
                                                 ))}
-                                            </optgroup>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="flex-[0.3] space-y-1">
-                                    <label className="block text-[10px] font-bold text-text-muted pl-1">상차 반경</label>
-                                    <div className="relative">
-                                        <Input
-                                            type="number"
-                                            value={pickupRadius}
-                                            onChange={(e) => { setPickupRadius(e.target.value); markDirty('first'); }}
-                                            className="bg-surface-alt/50 border-border pr-8 text-text-primary font-bold h-9 text-center"
-                                        />
-                                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted font-black pointer-events-none text-[9px]">KM</span>
+                                            </select>
+                                        </div>
+                                    );
+                                }
+
+                                return (
+                                    <div key={f} className="space-y-1">
+                                        <label className="block text-[10px] font-bold text-text-muted pl-1">{PHASE_FIELD_LABEL[f]}</label>
+                                        <div className="relative">
+                                            <Input
+                                                type="number"
+                                                value={cur[f]}
+                                                onChange={(e) => setField(f, e.target.value)}
+                                                className={`bg-surface-alt/50 ${TAB_STYLE[tab].input} pr-8 ${TAB_STYLE[tab].text} font-bold h-9 text-center`}
+                                            />
+                                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted font-black pointer-events-none text-[9px]">KM</span>
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="flex-[0.3] space-y-1">
-                                    <label className="block text-[10px] font-bold text-text-muted pl-1">도착 반경</label>
-                                    <div className="relative">
-                                        <Input
-                                            type="number"
-                                            value={targetRadius}
-                                            onChange={(e) => { setTargetRadius(e.target.value); markDirty(tab); }}
-                                            className="bg-surface-alt/50 border-border pr-8 text-info-alt font-bold h-9 text-center"
-                                        />
-                                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-info-alt/70 font-black pointer-events-none text-[9px]">KM</span>
-                                    </div>
-                                </div>
-                            </div>
+                                );
+                            })}
                         </div>
-                    ) : tab === 'merge' ? (
-                        /* ── 합짐(SHARED) 모드 섹션 ── */
-                        <div className="bg-surface/60 backdrop-blur-md p-3 rounded-xl border border-warning/30 shadow-lg relative overflow-hidden">
-                            <div className="flex items-center gap-3 mb-2">
-                                <div className="flex-[0.4] space-y-1">
-                                    <label className="block text-[10px] font-bold text-text-muted text-center">우회 탐색 허용 반경</label>
-                                    <div className="relative">
-                                        <Input
-                                            type="number"
-                                            value={corridorRadius}
-                                            onChange={(e) => { setCorridorRadius(e.target.value); markDirty('merge'); }}
-                                            className="bg-surface-alt/50 border-warning/30 text-warning font-bold h-9 text-center shadow-inner"
-                                        />
-                                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-warning/50 font-black pointer-events-none text-[10px]">KM</span>
-                                    </div>
-                                </div>
-                                <div className="flex-[0.3] space-y-1">
-                                    <label className="block text-[10px] font-bold text-text-muted text-center">도착 반경</label>
-                                    <div className="relative">
-                                        <Input
-                                            type="number"
-                                            value={targetRadius}
-                                            onChange={(e) => { setTargetRadius(e.target.value); markDirty(tab); }}
-                                            className="bg-surface-alt/50 border-warning/30 pr-8 text-warning font-bold h-9 text-center"
-                                        />
-                                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-warning/50 font-black pointer-events-none text-[9px]">KM</span>
-                                    </div>
-                                </div>
-                                <div className="flex-[0.3]">
-                                    <p className="text-[9px] text-text-muted leading-tight border-l-2 border-warning/30 pl-2 py-1">
-                                        경로상 추가 콜 탐색을 허용할 최대 우회 반경
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    ) : tab === 'drive' ? (
-                        /* ── 운행 중 ── 설정할 것이 없다. 우회 0 은 고정이고 지나온 구간 제외는 자동.
-                           기사님: "운행 중도 사람이 하는 일이라 변화가 필요할 수 있으니 탭은 그대로 유지" */
-                        <div className="bg-surface/60 backdrop-blur-md p-3 rounded-xl border border-info/30 shadow-lg space-y-2">
-                            <div className="flex items-center gap-2 text-[12px] font-black text-info">
-                                🛣️ 우회 0km — 가는 길 위의 콜만
-                            </div>
+
+                        {/* 경유 허용이 무슨 뜻인지 — 기사님 정의를 그대로 (§3).
+                            "카카오 지도에서 총 100km 였는데 경유를 하니 총 거리가 105km 가 되는 경우" */}
+                        {shown.detourAllowKm === 'input' && (
                             <p className="text-[10px] text-text-muted leading-relaxed">
-                                사냥을 멈추는 게 아닙니다. 콜은 계속 잡되 <b className="text-text-primary">가는 길 위의 것만</b> 잡습니다.
-                                지나온 구간은 자동으로 빠집니다.
+                                <b className={TAB_STYLE[tab].text}>경유 허용</b> = 카카오 <b className="text-text-primary">총거리가 늘어나는 만큼</b> (100km → 105km 면 5km).
+                                {cur.detourAllowKm === '0' && ' 0 이면 가는 길 위의 콜만 잡습니다 — 사냥을 멈추는 게 아닙니다.'}
                             </p>
+                        )}
+
+                        {/* 탭마다 다른 것은 **행동**뿐이다 — 값 입력은 위의 표가 다 그린다 */}
+                        {tab === 'drive' && (
                             <p className="text-[10px] text-text-muted/70">
                                 🚀 출발은 <b className="text-text-primary">지도 좌하단 버튼</b>에 있습니다 (운전 중에 팝업을 열지 않도록).
                             </p>
-                        </div>
-                    ) : tab === 'local' ? (
-                        /* ── 관내 ── 기준 지역은 지금 있는 곳의 시. 서버가 GPS 로 정한다 */
-                        <div className="bg-surface/60 backdrop-blur-md p-3 rounded-xl border border-accent-alt/30 shadow-lg space-y-2">
-                            <div className="flex items-center gap-2 text-[12px] font-black text-accent-alt">
-                                🏘️ 이 동네 안에서 끝나는 콜
-                            </div>
-                            <p className="text-[10px] text-text-muted leading-relaxed">
-                                상차지와 하차지가 <b className="text-text-primary">모두 같은 시</b>여야 통과합니다. 거리 조건은 없습니다.
-                                기준 지역은 <b className="text-text-primary">지금 있는 곳의 시</b>로 서버가 GPS 에서 정합니다.
-                            </p>
-                            <Button
-                                onClick={() => {
-                                    logRoadmapEvent("웹", "필터 팝업 → 관내 국면으로 전환");
-                                    socket.emit("set-hunt-phase", { phase: 'LOCAL' });
-                                    onClose();
-                                }}
-                                className="w-full h-10 rounded-xl bg-gradient-to-r from-accent-alt to-accent-alt/70 text-white font-black text-[11px]"
-                            >
-                                🏘️ 이 동네에서 찾기로 전환
-                            </Button>
-                        </div>
-                    ) : (
-                        /* ── 복귀 ── 집 방향. 기점은 짐이 남았으면 마지막 하차지, 다 내렸으면 현위치 */
-                        <div className="bg-surface/60 backdrop-blur-md p-3 rounded-xl border border-accent/30 shadow-lg space-y-2">
-                            <div className="flex items-center gap-2 text-[12px] font-black text-accent">
-                                🏠 집 방향
-                            </div>
-                            <p className="text-[10px] text-text-muted leading-relaxed">
-                                기점은 <b className="text-text-primary">짐이 남았으면 마지막 하차지</b>, 다 내렸으면 <b className="text-text-primary">현재 위치</b>입니다.
-                                복귀콜도 합짐을 최대한 합니다 — 집으로 가는 길에 계속 주워 담습니다.
-                            </p>
-                            <div className="grid grid-cols-2 gap-2">
+                        )}
+
+                        {tab === 'local' && (
+                            <>
+                                <p className="text-[10px] text-text-muted leading-relaxed">
+                                    상차지와 하차지가 <b className="text-text-primary">모두 같은 시</b>여야 통과합니다.
+                                </p>
                                 <Button
                                     onClick={() => {
-                                        logRoadmapEvent("웹", "필터 팝업 → 복귀 국면으로 전환");
-                                        socket.emit("set-hunt-phase", { phase: 'HOME' });
+                                        logRoadmapEvent("웹", "필터 팝업 → 관내 국면으로 전환");
+                                        socket.emit("set-hunt-phase", { phase: 'LOCAL' });
                                         onClose();
                                     }}
-                                    className="h-10 rounded-xl bg-gradient-to-r from-accent to-accent/70 text-white font-black text-[11px]"
+                                    className="w-full h-10 rounded-xl bg-gradient-to-r from-accent-alt to-accent-alt/70 text-white font-black text-[11px]"
                                 >
-                                    🏠 복귀행으로 전환
+                                    🏘️ 이 동네에서 찾기로 전환
                                 </Button>
-                                {/* 귀가콜은 국면 전환과 **다른 기능**이다 — 집까지 가는 가상 오더를 만든다 */}
-                                <Button
-                                    onClick={() => {
-                                        logRoadmapEvent("웹", "귀가콜 시작 버튼 클릭 (필터 선반영)");
-                                        setHomeReturnLoading(true);
-                                        const parsedCorridor = corridorRadius.trim() === "" ? 10 : parseFloat(corridorRadius);
-                                        const parsedTarget = targetRadius.trim() === "" ? 10 : parseFloat(targetRadius);
-                                        socket.emit("create-home-return", {
-                                            corridorRadiusKm: parsedCorridor,
-                                            destinationRadiusKm: parsedTarget
-                                        });
-                                    }}
-                                    disabled={homeReturnLoading || hasHomeReturnActive}
-                                    className={`h-10 rounded-xl bg-gradient-to-r from-accent-alt to-accent-alt/70 text-white font-black text-[11px] ${homeReturnLoading || hasHomeReturnActive ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                >
-                                    {homeReturnLoading ? '⏳ 계산중' : hasHomeReturnActive ? '🏠 진행중' : '🏠 귀가콜 만들기'}
-                                </Button>
-                            </div>
-                        </div>
-                    )}
+                            </>
+                        )}
+
+                        {tab === 'home' && (
+                            <>
+                                <p className="text-[10px] text-text-muted leading-relaxed">
+                                    기점은 <b className="text-text-primary">짐이 남았으면 마지막 하차지</b>, 다 내렸으면 <b className="text-text-primary">현재 위치</b>입니다.
+                                </p>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <Button
+                                        onClick={() => {
+                                            logRoadmapEvent("웹", "필터 팝업 → 복귀 국면으로 전환");
+                                            socket.emit("set-hunt-phase", { phase: 'HOME' });
+                                            onClose();
+                                        }}
+                                        className="h-10 rounded-xl bg-gradient-to-r from-accent to-accent/70 text-white font-black text-[11px]"
+                                    >
+                                        🏠 복귀행으로 전환
+                                    </Button>
+                                    {/* 귀가콜은 국면 전환과 **다른 기능**이다 — 집까지 가는 가상 오더를 만든다 */}
+                                    <Button
+                                        onClick={() => {
+                                            logRoadmapEvent("웹", "귀가콜 시작 버튼 클릭 (복귀 국면 값으로)");
+                                            setHomeReturnLoading(true);
+                                            const home = toSettings(forms.home, phaseSettings?.home ?? DEFAULT_PHASE_SETTINGS.home);
+                                            socket.emit("create-home-return", {
+                                                corridorRadiusKm: home.detourAllowKm,
+                                                destinationRadiusKm: home.dropoffRadiusKm
+                                            });
+                                        }}
+                                        disabled={homeReturnLoading || hasHomeReturnActive}
+                                        className={`h-10 rounded-xl bg-gradient-to-r from-accent-alt to-accent-alt/70 text-white font-black text-[11px] ${homeReturnLoading || hasHomeReturnActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    >
+                                        {homeReturnLoading ? '⏳ 계산중' : hasHomeReturnActive ? '🏠 진행중' : '🏠 귀가콜 만들기'}
+                                    </Button>
+                                </div>
+                            </>
+                        )}
+                    </div>
 
                     {/* 독립 섹션: 현재 타겟팅 지역 목록 검증 및 미리보기 통합 UI */}
                     <div className="bg-surface/60 backdrop-blur-md p-2 rounded-xl border border-border shadow-lg mt-1">
@@ -598,7 +662,9 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                 onClick={() => setIsAccordionOpen(!isAccordionOpen)}
                             >
                                 <span className="text-[11px] font-medium text-text-muted group-hover:text-text-primary transition-colors">
-                                    {isSharedMode ? `🛣️ 회랑 지역 (±${corridorRadius !== '' ? corridorRadius : '?'}km)` : `📍 도착 지역 (${targetCity})`}
+                                    {previewByCorridor
+                                        ? `🛣️ 회랑 지역 (경유 +${cur.detourAllowKm !== '' ? cur.detourAllowKm : '?'}km)`
+                                        : `📍 도착 지역 (${previewCity || '자동'})`}
                                 </span>
                                 {previewRegions && previewCount > 0 ? (
                                     <Badge variant="secondary" className="bg-warning/80 text-white shadow-[0_0_10px_var(--theme-glow-warning)]">
@@ -615,10 +681,10 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                 <Button
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        if (isSharedMode) handlePreviewCorridor();
-                                        else handlePreviewRegions();
+                                        if (previewByCorridor) handlePreviewCorridor();
+                                        else handlePreviewRegions(previewCity);
                                     }}
-                                    disabled={isPreviewLoading}
+                                    disabled={isPreviewLoading || (!previewByCorridor && !previewCity)}
                                     size="sm"
                                     className={`h-6 text-[10px] px-2 py-0 font-bold ${isSharedMode ? 'bg-warning/20 text-warning hover:bg-warning/40 border border-warning/50' : 'bg-info-alt/20 text-info-alt hover:bg-info-alt/40 border border-info-alt/50'}`}
                                 >

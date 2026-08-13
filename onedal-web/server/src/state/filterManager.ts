@@ -16,10 +16,10 @@ import { getActiveCalls, computeLoadedPoints } from "../core/helpers";
 import { OrderRepository } from "../repositories/OrderRepository";
 import { SettingsRepository } from "../repositories/SettingsRepository";
 import { getUserSession } from "./userSessionStore";
-import type { AutoDispatchFilter } from "@onedal/shared";
-import { getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, resolvePhaseKey, applyPhaseToFilter, normalizePhaseSettings } from "@onedal/shared";
+import type { AutoDispatchFilter, PhaseKey, PhaseSettings } from "@onedal/shared";
+import { DEFAULT_CORRIDOR_RADIUS_KM, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, resolvePhaseKey, applyPhaseToFilter, normalizePhaseSettings } from "@onedal/shared";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
-import { getCityRegionsWithRadius, cityAliases } from "../services/geoService";
+import { getCityRegionsWithRadius, cityAliases, getCorridorRegions } from "../services/geoService";
 
 // ━━━ Prepared Statement 캐싱 (모듈 로드 시 1회만 실행) ━━━
 const stmtUpdateFilter = db.prepare(`
@@ -175,6 +175,35 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
 }
 
 /**
+ * 반경이 바뀌었으면 **회랑 지역 목록도 다시 그린다.**
+ *
+ * 🔴 숫자만 바꾸고 지역 목록을 그대로 두면 화면과 판정이 다른 말을 한다 —
+ *    "경유 5km" 라고 적혀 있는데 실제로는 옛 1km 목록으로 거르는 상태가 된다.
+ *    조용히 틀리는 종류라 눈치채기까지 오래 걸린다.
+ *
+ * 합짐 모드가 아니면(경로가 없으면) 회랑 자체가 없으므로 아무것도 하지 않는다.
+ */
+function refreshCorridorIfNeeded(
+    session: ReturnType<typeof getUserSession>,
+    userId: string,
+    before: { corridorRadiusKm?: number, destinationRadiusKm?: number },
+) {
+    if (!session.activeFilter.isSharedMode) return;
+    const cRadius = session.activeFilter.corridorRadiusKm ?? DEFAULT_CORRIDOR_RADIUS_KM;
+    const dRadius = session.activeFilter.destinationRadiusKm ?? 10;
+    if (cRadius === before.corridorRadiusKm && dRadius === before.destinationRadiusKm) return;
+
+    const regions = recalculateCorridorFilter(userId, cRadius, dRadius);
+    if (!regions) return;   // 경로가 아직 없다 — 없는 값을 지어내지 않는다
+
+    // 셋을 **한 벌로** 넣는다. 별칭(customCityFilters)이 빠지면 앱의 2단계 필터가 조용히 꺼진다
+    session.activeFilter.destinationKeywords = regions.destinationKeywords;
+    session.activeFilter.destinationGroups = regions.destinationGroups;
+    session.activeFilter.customCityFilters = regions.customCityFilters;
+    console.log(`🛣️ [회랑 갱신] 경유 ${cRadius}km · 하차 ${dRadius}km → 지역 ${regions.destinationKeywords.length}개`);
+}
+
+/**
  * 국면이 바뀌었으면 그 국면의 저장값을 평면 필터에 펼친다.
  *
  * 국면 키가 **실제로 바뀔 때만** 편다 — 같은 국면에서 매번 덮으면 기사님이 방금 고친 값이
@@ -193,6 +222,11 @@ function applyPhaseSettingsIfChanged(
 
     const prev = session.appliedPhaseKey;
     session.appliedPhaseKey = key;
+    const before = {
+        corridorRadiusKm: session.activeFilter.corridorRadiusKm,
+        destinationRadiusKm: session.activeFilter.destinationRadiusKm,
+        destinationCity: session.activeFilter.destinationCity,
+    };
 
     const patch = applyPhaseToFilter(key, session.phaseSettings[key]);
     for (const [k, v] of Object.entries(patch)) {
@@ -200,6 +234,24 @@ function applyPhaseSettingsIfChanged(
         // 기사님이 방금 고친 값은 그대로 둔다
         if (k in changes) continue;
         (session.activeFilter as any)[k] = v;
+    }
+
+    /**
+     * 🔴 반경이 바뀌었으면 **지역 목록도 다시 그린다.**
+     *
+     * 위쪽 `recalculateDerivedFields` 는 이 함수보다 **먼저** 돌았다. 그때는 아직 옛 반경이었다.
+     * 여기서 반경만 갈아 끼우고 끝내면 "하차 0km" 라고 적힌 채 **옛 7km 목록으로 거른다** —
+     * 화면과 판정이 다른 말을 하는, 조용히 틀리는 종류다.
+     */
+    refreshCorridorIfNeeded(session, userId, before);
+    const geoChanged = session.activeFilter.destinationRadiusKm !== before.destinationRadiusKm
+                    || session.activeFilter.destinationCity !== before.destinationCity;
+    if (!session.activeFilter.isSharedMode && geoChanged) {
+        // ⚠️ `updateActiveFilter` 가 아니라 파생 계산만 다시 부른다 (재진입하면 무한 루프)
+        recalculateDerivedFields(session, {
+            destinationCity: session.activeFilter.destinationCity,
+            destinationRadiusKm: session.activeFilter.destinationRadiusKm,
+        }, userId);
     }
 
     console.log(`🧭 [국면 설정] ${prev ?? '없음'} → ${key} · ` +
@@ -215,6 +267,96 @@ function applyPhaseSettingsIfChanged(
     );
 }
 
+/**
+ * [관제탑 탭 전용] **한 국면의 설정만** 바꾼다 (§2-4).
+ *
+ * 기사님이 합짐 탭에서 하차 반경을 1km 로 고쳤다고 해서, 지금 첫짐을 사냥 중인
+ * 필터가 바뀌면 안 된다 — **그 국면이 될 때** 꺼내 쓰는 값이다.
+ * 다만 **지금 그 국면이라면 즉시 반영한다** (탭을 보며 고치는데 아무 일도 안 일어나면
+ * 저장이 됐는지 알 수 없다).
+ *
+ * `saveAsDefault` 의 뜻은 필터 저장과 같다 — 없으면 **오늘만**, 있으면 **앞으로 계속**.
+ */
+export function savePhaseSettings(
+    userId: string,
+    phase: PhaseKey,
+    settings: PhaseSettings,
+    saveAsDefault: boolean,
+    io?: any,
+): void {
+    const session = getUserSession(userId);
+
+    // 한 국면만 갈아 끼운다. normalize 로 결측·비정상 값을 막는다
+    const clean = normalizePhaseSettings({ ...session.phaseSettings, [phase]: settings })[phase];
+    session.phaseSettings[phase] = clean;
+
+    if (saveAsDefault) {
+        session.basePhaseSettings[phase] = { ...clean };
+        // 평면 필터는 그대로 두고 phase_settings 만 다시 쓴다 (saveBaseFilter 가 통째로 저장)
+        saveBaseFilter(userId, {}, io);
+    }
+
+    const activeKey = resolvePhaseKey(
+        session.activeFilter.huntPhase ?? 'DEST',
+        session.activeFilter.dispatchPhase ?? 'STANDBY',
+    );
+
+    console.log(`🧭 [국면 저장] ${phase}${saveAsDefault ? ' (앞으로 계속)' : ' (오늘만)'} · ` +
+        `상차 ${clean.pickupRadiusKm}km · 경유 ${clean.detourAllowKm}km · ` +
+        `하차 ${clean.dropoffRadiusKm}km · 할인 ${clean.discountPct}%` +
+        `${phase === activeKey ? ' → 지금 국면이라 바로 적용' : ` (지금은 ${activeKey}, 그 국면이 되면 적용)`}`);
+
+    if (phase === activeKey) {
+        const before = {
+            corridorRadiusKm: session.activeFilter.corridorRadiusKm,
+            destinationRadiusKm: session.activeFilter.destinationRadiusKm,
+        };
+        /**
+         * 🔴 평면 이름 매핑은 여기서 하지 않는다 — `applyPhaseToFilter` 가 유일한 지점.
+         *
+         * `userOverrides` 를 **켜지 않는다.** 그 깃발은 자동 회랑 갱신을 멈추는 것인데,
+         * 이제 기사님이 고른 반경은 국면 설정에 남아 있으므로 얼려 둘 이유가 없다.
+         * 반경은 기사님 것이고, 그 반경으로 그린 **지역 목록은 경로를 따라가야 한다.**
+         */
+        updateActiveFilter(userId, applyPhaseToFilter(phase, clean), io);
+        // 반경이 바뀌었으면 회랑을 다시 그린다 (updateActiveFilter 는 도시 기반 지리만 본다)
+        refreshCorridorIfNeeded(session, userId, before);
+        if (io) broadcastFilter(userId, session, io);
+    } else if (io) {
+        // 지금 국면이 아니면 필터는 그대로. 탭 값이 저장됐다는 것만 알린다
+        broadcastFilter(userId, session, io);
+    }
+}
+
+/**
+ * 지금 경로 주변의 **회랑 지역**을 다시 구한다 (합짐·운행중).
+ *
+ * 🔴 2026-08-14 에 `dispatchEngine` 에서 여기로 옮겨 왔다. 국면별 설정이 들어오면서
+ *    회랑을 다시 그려야 하는 자리가 셋이 됐는데(필터 저장 · 국면 설정 저장 · 국면 전환),
+ *    뒤의 둘은 이 파일 안이라 dispatchEngine 을 부르면 순환 참조가 된다.
+ *    회랑 계산이 4벌로 갈라졌던 사고를 되풀이하지 않으려면 **구현은 하나여야 한다.**
+ */
+export const recalculateCorridorFilter = (userId: string, corridorRadiusKm: number, destinationRadiusKm?: number) => {
+    const session = getUserSession(userId);
+    let polylineToUse = null;
+    const activeCalls = getActiveCalls(session);
+    if (activeCalls.length > 0) {
+        polylineToUse = activeCalls[activeCalls.length - 1].routePolyline;
+    }
+
+    if (polylineToUse && polylineToUse.length > 0) {
+        const regions = getCorridorRegions(polylineToUse, corridorRadiusKm, destinationRadiusKm);
+        if (regions && regions.flat.length > 0) {
+            return {
+                destinationKeywords: regions.flat,
+                destinationGroups: regions.grouped,
+                customCityFilters: regions.customCityFilters
+            };
+        }
+    }
+    return null;
+};
+
 // ━━━ 내부 유틸: 소켓 브로드캐스트 ━━━
 function broadcastFilter(userId: string, session: ReturnType<typeof getUserSession>, io?: any) {
     // [Phase 6] 부트스트랩 중에는 중간 상태를 내보내지 않는다.
@@ -226,7 +368,10 @@ function broadcastFilter(userId: string, session: ReturnType<typeof getUserSessi
     if (io) {
         io.to(userId).emit("filter-updated", {
             activeFilter: session.activeFilter,
-            baseFilter: session.baseFilter
+            baseFilter: session.baseFilter,
+            // 국면별 설정 (§2-4) — 관제탑의 탭이 이걸 편집한다
+            phaseSettings: session.phaseSettings,
+            basePhaseSettings: session.basePhaseSettings,
         });
     }
 }

@@ -4,14 +4,14 @@ import { jwtSecret } from "../config/env";
 import { getUserDevicesSnapshot } from "../routes/devices";
 import { getRegionsByCity } from "../geoResolver";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
-import type { AutoDispatchFilter, Milestone, CargoReport, HuntPhase } from "@onedal/shared";
-import { cargoMismatchRatio, DEFAULT_CORRIDOR_RADIUS_KM } from "@onedal/shared";
+import type { AutoDispatchFilter, Milestone, CargoReport, HuntPhase, PhaseKey, PhaseSettings } from "@onedal/shared";
+import { cargoMismatchRatio, DEFAULT_CORRIDOR_RADIUS_KM, PHASE_KEYS } from "@onedal/shared";
 import { OrderRepository } from "../repositories/OrderRepository";
 import { PlaceRepository } from "../repositories/PlaceRepository";
 import { getUserSession, getAllActiveUserIds } from "../state/userSessionStore";
 import { buildOrderSync } from "../core/helpers";
 import { recalculateCorridorFilter, handleDecision, recalculateKakaoRoute, bootstrapUserSession, completeOrder, reportMilestone, undoMilestone, setHuntPhase, createHomeReturn } from "../services/dispatchEngine";
-import { updateActiveFilter, ensureBusinessDay, saveBaseFilter } from "../state/filterManager";
+import { updateActiveFilter, ensureBusinessDay, saveBaseFilter, savePhaseSettings } from "../state/filterManager";
 import { processDriverMovement, getCityRegionsWithRadius } from "../services/geoService";
 
 
@@ -94,7 +94,9 @@ export function registerSocketHandlers(io: Server) {
             // 이미 부트스트랩이 끝난 세션(단순 새로고침·재연결)은 현재 확정 필터를 즉시 전달
             socket.emit("filter-init", {
                 activeFilter: session.activeFilter,
-                baseFilter: session.baseFilter
+                baseFilter: session.baseFilter,
+                phaseSettings: session.phaseSettings,
+                basePhaseSettings: session.basePhaseSettings
             });
             logRoadmapEvent("서버", `관제탑에게 확정 필터(filter-init) 전달 — minFare=${session.activeFilter.minFare}`);
         }
@@ -109,7 +111,9 @@ export function registerSocketHandlers(io: Server) {
             }
             socket.emit("filter-init", { 
                 activeFilter: session.activeFilter,
-                baseFilter: session.baseFilter
+                baseFilter: session.baseFilter,
+                phaseSettings: session.phaseSettings,
+                basePhaseSettings: session.basePhaseSettings
             });
             logRoadmapEvent("서버", `관제탑 요청으로 필터(filter-init) 정보 재전달\n - activeFilter(현재사냥): minFare=${session.activeFilter.minFare}\n - baseFilter(기본설정): minFare=${session.baseFilter.minFare}`);
         });
@@ -172,6 +176,22 @@ export function registerSocketHandlers(io: Server) {
                 logRoadmapEvent("서버", "관제탑에게 변경 적용된 필터(filter-updated) 정보 전달 (오늘만 — DB 저장 안함)");
             }
             updateActiveFilter(userId, filterChanges, io);
+        });
+
+        /**
+         * 국면별 필터 설정 저장 (§2-4) — **한 탭이 자기 국면만 고친다.**
+         *
+         * 평면 필터(update-filter)와 통로를 나눈 이유: 관제탑이 어느 국면을 고쳤는지
+         * 알아야 하는데, 평면에는 그 정보가 없다. 평면으로 보내면 서버가 "지금 국면"으로
+         * 추측할 수밖에 없어 **합짐 탭에서 고친 값이 첫짐에 저장되는** 사고가 난다.
+         */
+        safeOn(socket, "save-phase-settings", (payload: { phase: PhaseKey, settings: PhaseSettings, saveAsDefault?: boolean }) => {
+            if (!payload?.phase || !PHASE_KEYS.includes(payload.phase)) {
+                console.warn(`⚠️ [국면 저장] 모르는 국면이라 무시합니다: ${payload?.phase}`);
+                return;
+            }
+            logRoadmapEvent("서버", `관제탑 국면 설정 저장(save-phase-settings): ${payload.phase} ${payload.saveAsDefault ? '앞으로 계속' : '오늘만'} · ${JSON.stringify(payload.settings)}`);
+            savePhaseSettings(userId, payload.phase, payload.settings, !!payload.saveAsDefault, io);
         });
 
         // 프론트에서 현재 위치 전송 시 (지도 등 활용 및 Master GPS 용도)
