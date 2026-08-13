@@ -173,6 +173,20 @@ export function getCorridorRegions(polyline: Array<{x: number; y: number}>, corr
      */
     const progressKm: Record<string, number> = {};
 
+    /**
+     * 🔴 **하차지 주변으로 들어온 동은 트림에서 빼지 않는다** (2026-08-14 실측으로 발견).
+     *
+     * 하차지 반경은 *경로* 조건이 아니라 *목적지* 조건이다 — "도착지 근처에서 마지막으로
+     * 하나 더 줍자". 그런데 진행도로 자르면 **도착이 가까울수록 그 동네들이 먼저 사라진다.**
+     * 시뮬레이션에서 경로 끝에 다다르자 회랑이 1개까지 줄었다. 정확히 필요한 순간에 사라진 것이다.
+     *
+     * 그래서 진행도를 `Infinity` 로 준다 — 어디까지 가도 안 빠진다.
+     * (하차지 원의 중심은 경로의 마지막 점이다. 위 버퍼 합병이 쓰는 좌표와 같아야 어긋나지 않는다)
+     */
+    const destCenter = (destinationRadiusKm && destinationRadiusKm > 0 && lineCoords.length > 0)
+        ? lineCoords[lineCoords.length - 1]
+        : null;
+
     for (const feature of mergedMapFeatureCollection.features) {
         const props = feature.properties || {};
         const regionName = props.EMD_KOR_NM;
@@ -208,7 +222,11 @@ export function getCorridorRegions(polyline: Array<{x: number; y: number}>, corr
                         const fb = feature.bbox;
                         const pad = fb ? haversineKm(fb[1], fb[0], fb[3], fb[2]) / 2 : 0;
                         const prev = progressKm[regionName];
-                        const val = at + pad;
+                        // 하차지 원 안(또는 걸친) 동이면 영원히 남긴다
+                        const inDest = destCenter
+                            && haversineKm(c.geometry.coordinates[1], c.geometry.coordinates[0], destCenter[1], destCenter[0])
+                               <= (destinationRadiusKm as number) + pad;
+                        const val = inDest ? Infinity : at + pad;
                         // 같은 이름의 동이 여럿이면 **가장 늦은 것**을 남긴다 (역시 늦게 빼기 위해)
                         if (prev === undefined || val > prev) progressKm[regionName] = val;
                     } catch { /* 스냅 실패는 진행도만 비운다 — 그 동은 안 빠질 뿐이다 */ }
@@ -464,24 +482,33 @@ export function getActivePolyline(session: { myOrders: MyOrder[] }): Array<{x: n
 
 
 /**
- * 마지막 하차지 좌표 추출
+ * 마지막 하차지 좌표 — **도착 감지의 기준점.**
  *
- * 🚨 TODO(미구현) — Phase 4에서 복구 예정
- * getActivePolyline과 동일하게 삭제된 필드(`subCalls`/`mainCallState`)를 참조하므로
- * **항상 null을 반환**합니다. 하차지 500m 도착 감지가 동작하지 않는 원인입니다.
+ * 🔴 2026-08-14 **되살렸다.** `getActivePolyline` 과 같은 병이었다 —
+ *    `session.subCalls` / `mainCallState` 는 V2 리팩터링에서 사라진 필드라 **늘 null 을
+ *    반환했고**, 그래서 하차지 500m 도착 감지가 **한 번도 동작하지 않았다.**
+ *    (`driverAction` 이 `UNLOADING` 으로 자동 전환되는 일이 없었다는 뜻이다)
+ *
+ * 기준은 **경로의 마지막 점**이다. 회랑이 하차지 반경을 그릴 때 쓰는 좌표와 같아야
+ * "도착했다"와 "도착지 주변이다"가 어긋나지 않는다.
+ * 경로가 아직 없으면 콜에 실려 온 하차지 좌표로 물러선다.
  */
-export function getLastDropoffCoord(session: any): {x: number; y: number} | null {
-    // 서브콜이 있으면 마지막 서브콜의 하차지
-    if (session.subCalls?.length > 0) {
-        const lastSub = session.subCalls[session.subCalls.length - 1];
-        if (lastSub.dropoffX && lastSub.dropoffY) return { x: lastSub.dropoffX, y: lastSub.dropoffY };
+export function getLastDropoffCoord(session: { myOrders: MyOrder[] }): {x: number; y: number} | null {
+    const active = getActiveCalls(session);
+    if (active.length === 0) return null;
+
+    const last = active[active.length - 1];
+    const poly = last?.routePolyline;
+    if (poly && poly.length > 0) {
+        const end = poly[poly.length - 1];
+        return { x: end.x, y: end.y };
     }
-    // 없으면 본콜의 하차지
-    if (session.mainCallState?.dropoffX && session.mainCallState?.dropoffY) {
-        return { x: session.mainCallState.dropoffX, y: session.mainCallState.dropoffY };
+    if (last?.dropoffX != null && last?.dropoffY != null) {
+        return { x: last.dropoffX, y: last.dropoffY };
     }
     return null;
 }
+
 
 /** 
  * [마스터 GPS 처리] 관제웹에서 보내온 실시간 GPS(또는 시뮬레이션 GPS)를 기반으로

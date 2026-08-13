@@ -51,3 +51,35 @@ describe('마스터 GPS — 실 GPS 와 시뮬레이터가 같은 길을 간다'
         expect(gps).toMatch(/const pushReal =/);
     });
 });
+
+/**
+ * 🔴 **시뮬레이터는 멈췄다 켜지면 이어 달린다** (2026-08-14 기사님 신고)
+ *
+ * 기사님: *"웹상에서 gps 시뮬레이터가 계속 반복해서 이동한다."*
+ *
+ * 원인은 `if (!intervalRef.current) indexRef.current = 0;` 한 줄이었다.
+ * 이 훅은 실 GPS 가 들어오면 잠시 멈추고 끊기면 다시 켜지는데, 그때마다 인덱스가 0 으로
+ * 돌아가 **여태 달린 게 없던 일이 됐다.** 도착한 뒤에도 다시 출발해 무한 반복이 됐다.
+ */
+describe('GPS 시뮬레이터 — 반복하지 않는다', () => {
+
+    const sim = codeOnly(read('hooks/useMockGpsSimulator.ts'));
+
+    it('🔴 다시 켜질 때 인덱스를 0 으로 되돌리지 않는다 (이어 달린다)', () => {
+        const eff = sim.slice(sim.indexOf('if (!isActive)'));
+        expect(eff).not.toMatch(/if \(!intervalRef\.current\)\s*\{?\s*indexRef\.current = 0/);
+    });
+
+    it('🔴 끝까지 달렸으면 다시 출발하지 않는다', () => {
+        expect(sim).toMatch(/finishedRef/);
+        expect(sim).toMatch(/if \(finishedRef\.current\) return/);
+        expect(sim).toMatch(/finishedRef\.current = true/);
+    });
+
+    it('경로가 바뀌면(= 다른 콜) 처음부터 · 그때 완료 표시도 푼다', () => {
+        const onRoute = sim.slice(sim.indexOf('routeRef.current?.length !== routePolyline?.length'));
+        const body = onRoute.slice(0, 220);
+        expect(body).toMatch(/indexRef\.current = 0/);
+        expect(body).toMatch(/finishedRef\.current = false/);
+    });
+});

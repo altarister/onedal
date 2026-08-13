@@ -49,12 +49,37 @@ describe('지나온 구간 제거 — 다시 그리지 않고 숫자만 비교�
         expect(body).toMatch(/val > prev/);
     });
 
+    it('🔴 하차지 주변 동은 트림에서 빼지 않는다 — 도착이 가까울수록 필요한 콜이다', () => {
+        // 하차지 반경은 *경로* 조건이 아니라 *목적지* 조건이다.
+        // 진행도로 자르면 도착 직전에 그 동네가 먼저 사라진다 (실측: 회랑이 1개까지 줄었다)
+        const fn = geo.slice(geo.indexOf('export function getCorridorRegions'));
+        const body = fn.slice(0, fn.indexOf('\nexport '));
+        expect(body).toMatch(/const destCenter =/);
+        expect(body).toMatch(/inDest \? Infinity : at \+ pad/);
+    });
+
+    it('하차지 원의 중심은 **경로의 마지막 점**이다 (버퍼 합병이 쓰는 좌표와 같아야 한다)', () => {
+        const fn = geo.slice(geo.indexOf('export function getCorridorRegions'));
+        const body = fn.slice(0, fn.indexOf('\nexport '));
+        expect(body).toMatch(/destCenter[\s\S]{0,120}lineCoords\[lineCoords\.length - 1\]/);
+    });
+
     it('🔴 죽어 있던 getActivePolyline 을 되살렸다 (subCalls 는 세션에 없다)', () => {
         const fn = geo.slice(geo.indexOf('export function getActivePolyline'));
         const body = fn.slice(0, fn.indexOf('\n}'));
         expect(body).toMatch(/getActiveCalls\(session\)/);
         expect(body).not.toMatch(/subCalls/);
         expect(body).not.toMatch(/mainCallState/);
+    });
+
+    it('🔴 쌍둥이 죽은 함수 getLastDropoffCoord 도 되살렸다 (500m 도착 감지가 안 돌고 있었다)', () => {
+        const fn = geo.slice(geo.indexOf('export function getLastDropoffCoord'));
+        const body = fn.slice(0, fn.indexOf('\n}'));
+        expect(body).toMatch(/getActiveCalls\(session\)/);
+        expect(body).not.toMatch(/subCalls/);
+        expect(body).not.toMatch(/mainCallState/);
+        // 기준은 경로의 마지막 점 — "도착했다"와 "도착지 주변이다"가 어긋나면 안 된다
+        expect(body).toMatch(/poly\[poly\.length - 1\]/);
     });
 
     it('회랑을 만드는 자리는 **모두** 진행도를 같이 기억한다', () => {
