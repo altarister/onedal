@@ -5,7 +5,6 @@ import db from "../db";
 import { getUserSession } from "../state/userSessionStore";
 import { ensureBusinessDay } from "../state/filterManager";
 
-import { trimCorridorByProgress } from "../services/geoService";
 import { touchDeviceSession } from "./devices";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { dbQueue } from "../utils/dbQueue";

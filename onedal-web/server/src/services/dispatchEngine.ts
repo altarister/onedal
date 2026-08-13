@@ -8,7 +8,7 @@ import type { SecuredOrder, AutoDispatchFilter, PricingConfig, PendingOrder, MyO
 import { geocodeAddress, calculateSoloRoute, calculateDetourRoute, compareDirections } from "./kakaoService";
 import { fetchRealWorldRoute } from "../routes/osrmUtil";
 import { getUserSession } from "../state/userSessionStore";
-import { updateActiveFilter } from "../state/filterManager";
+import { updateActiveFilter, rememberCorridorProgress } from "../state/filterManager";
 import { getCorridorRegions, getCityRegionsWithRadius, reverseGeocodeToRegion } from "../services/geoService";
 import { composeMergedRoute, applyRoute, applySoloRoute, pickRouteHolder, toKm, toMin } from "./routeComposer";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
@@ -291,6 +291,9 @@ export const syncCorridorFilter = (userId: string, io: any) => {
         const regions = getCorridorRegions(polylineToUse, cRadius, dRadius);
 
         if (regions && regions.flat.length > 0) {
+            // 🔴 진행도를 **키워드보다 먼저** 기억한다. updateActiveFilter 의 파생 계산 끝에서
+            //    지나온 구간을 빼는데, 그때 옛 진행도가 남아 있으면 엉뚱한 동이 사라진다
+            rememberCorridorProgress(session, regions);
             updateActiveFilter(userId, {
                 destinationKeywords: regions.flat,
                 destinationGroups: regions.grouped,

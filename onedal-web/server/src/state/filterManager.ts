@@ -19,7 +19,7 @@ import { getUserSession } from "./userSessionStore";
 import type { AutoDispatchFilter, PhaseKey, PhaseSettings } from "@onedal/shared";
 import { DEFAULT_CORRIDOR_RADIUS_KM, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, resolvePhaseKey, applyPhaseToFilter, normalizePhaseSettings } from "@onedal/shared";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
-import { getCityRegionsWithRadius, cityAliases, getCorridorRegions } from "../services/geoService";
+import { getCityRegionsWithRadius, cityAliases, getCorridorRegions, getActivePolyline, progressAlongPolyline } from "../services/geoService";
 
 // ━━━ Prepared Statement 캐싱 (모듈 로드 시 1회만 실행) ━━━
 const stmtUpdateFilter = db.prepare(`
@@ -71,9 +71,15 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
         );
     }
 
-    // [최적화] 지리 연산(getCityRegionsWithRadius)은 CPU 집약적(~7초)이므로,
-    // destinationCity 또는 destinationRadiusKm가 실제로 변경된 경우에만 재계산.
-    // isActive, minFare 등 단순 상태 변경 시에는 기존 캐시된 키워드를 그대로 재사용.
+    /**
+     * [최적화] 지리 연산은 도시·반경이 **실제로 바뀐 경우에만** 다시 돈다.
+     * `isActive`·`minFare` 같은 단순 변경에는 캐시된 키워드를 그대로 쓴다.
+     *
+     * ⚠️ 예전 주석은 이 연산을 **"~7초"** 라고 적어 뒀는데, 2026-08-14 실측은 이렇다:
+     *     `파주시 0km` 1ms · `용인시 10km` 13ms · `파주시 10km` 42ms · `서울 0km` 0ms
+     * 7초는 부팅 때 `f.simplified`(200m) 캐시를 넣기 **전** 숫자다(1415ms → 13ms 기록 참조).
+     * 낡은 경고를 믿고 판단하면 **없는 위험 때문에 기능을 포기**하게 된다 — 실제로 그랬다.
+     */
     const needsGeoRecalc =
         'destinationCity' in changes ||
         'destinationRadiusKm' in changes ||
@@ -172,6 +178,83 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
             );
         }
     }
+
+    /**
+     * 🔴 **마지막에 지나온 구간을 뺀다.**
+     *
+     * 여기가 유일한 자리인 이유: 회랑을 다시 그리는 길이 여럿인데(경로 갱신·반경 변경·
+     * 국면 전환), 어느 길로 오든 **다시 그리면 지나온 동이 되살아난다.**
+     * 파생 계산의 끝에 두면 그 셋을 다 덮는다.
+     */
+    applyTraveledTrim(session);
+}
+
+/**
+ * 회랑을 새로 그렸으면 **진행도도 같이 기억한다.**
+ *
+ * 🔴 키워드와 진행도는 **같은 입력에서 같이 나온 한 벌**이다. 한쪽만 갱신하면
+ *    옛 경로의 진행도로 새 경로의 동을 지우게 된다 — 멀쩡한 지역이 조용히 사라진다.
+ *    회랑을 만드는 자리마다 이 함수를 부른다.
+ */
+export function rememberCorridorProgress(
+    session: ReturnType<typeof getUserSession>,
+    regions: { progressKm?: Record<string, number> } | null,
+) {
+    session.corridorProgressKm = regions?.progressKm ?? null;
+}
+
+/**
+ * **지나온 구간을 필터에서 뺀다** — 회랑을 다시 그리지 않고.
+ *
+ * 기사님: *"성남을 지났으면 이미 지나온 광주시·성남시 콜은 목록에서 뺀다. 뒤로 안 돌아가니까."*
+ *
+ * 회랑을 만들 때 동마다 기록해 둔 진행도(`corridorProgressKm`)와 지금 GPS 의 진행도를
+ * 비교하기만 한다 — 실측 **0.14ms**. 예전 방식(회랑 통째 재계산)은 173ms 였다.
+ *
+ * 안전 쪽으로 기운 규칙 셋. **일찍 빼면 잡을 수 있는 콜을 버린다:**
+ *   ① 진행도를 **모르는 동은 남긴다**
+ *   ② **전부 빠지면 아무것도 안 한다** — 빈 필터는 "제한 없음"이 아니라 **고장**이다
+ *   ③ 동·시 묶음·별칭을 **한 벌로** 줄인다 (별칭이 남으면 앱의 2단계 필터가 어긋난다)
+ */
+export function applyTraveledTrim(session: ReturnType<typeof getUserSession>): boolean {
+    if (session.activeFilter.dispatchPhase !== 'DELIVERING') return false;
+
+    const progress = session.corridorProgressKm;
+    if (!progress) return false;
+
+    const polyline = getActivePolyline(session);
+    const gps = session.driverLocation;
+    if (!polyline || !gps) return false;
+
+    const at = progressAlongPolyline(polyline, gps);
+    if (at === null || at <= 0) return false;
+
+    const before = session.activeFilter.destinationKeywords ?? [];
+    if (before.length === 0) return false;
+
+    // ① 진행도를 모르는 동은 남긴다
+    const kept = new Set(before.filter(d => progress[d] === undefined || progress[d] >= at));
+    if (kept.size === before.length) return false;   // 뺄 게 없다
+    if (kept.size === 0) return false;               // ② 전부 빠진다 — 건드리지 않는다
+
+    // ③ 셋을 한 벌로 줄인다
+    const grouped: Record<string, string[]> = {};
+    for (const [parent, dongs] of Object.entries(session.activeFilter.destinationGroups ?? {})) {
+        const left = dongs.filter(d => kept.has(d));
+        if (left.length > 0) grouped[parent] = left;
+    }
+    const aliases = new Set<string>();
+    for (const parent of Object.keys(grouped)) {
+        for (const a of cityAliases(parent)) aliases.add(a);
+    }
+
+    session.activeFilter.destinationKeywords = Array.from(kept).sort();
+    session.activeFilter.destinationGroups = grouped;
+    session.activeFilter.customCityFilters = Array.from(aliases);
+
+    console.log(`🔄 [지나온 구간] ${at.toFixed(1)}km 지점 — 동 ${before.length} → ${kept.size}개 ` +
+        `(뺀 ${before.length - kept.size}개)`);
+    return true;
 }
 
 /**
@@ -195,6 +278,7 @@ function refreshCorridorIfNeeded(
 
     const regions = recalculateCorridorFilter(userId, cRadius, dRadius);
     if (!regions) return;   // 경로가 아직 없다 — 없는 값을 지어내지 않는다
+    rememberCorridorProgress(session, regions);
 
     // 셋을 **한 벌로** 넣는다. 별칭(customCityFilters)이 빠지면 앱의 2단계 필터가 조용히 꺼진다
     session.activeFilter.destinationKeywords = regions.destinationKeywords;
@@ -350,7 +434,8 @@ export const recalculateCorridorFilter = (userId: string, corridorRadiusKm: numb
             return {
                 destinationKeywords: regions.flat,
                 destinationGroups: regions.grouped,
-                customCityFilters: regions.customCityFilters
+                customCityFilters: regions.customCityFilters,
+                progressKm: regions.progressKm,
             };
         }
     }
@@ -481,12 +566,16 @@ export function updateActiveFilter(
             destinationKeywords: [],
             destinationGroups: {},
             customCityFilters: [],
+            // 진행도도 이 사이클의 경로에서 나온 값이다 — 경로가 끝났으니 지운다.
+            // 남겨 두면 다음 운행 초반에 **옛 경로 기준으로** 동이 사라진다
+            // (`corridorProgressKm` 은 아래에서 지운다 — activeFilter 가 아니라 세션 필드다)
             // 수동 고정도 사이클과 함께 풀린다 (다음 사냥은 자동 회랑으로 시작)
             userOverrides: false,
             isSharedMode: false,
             driverAction: 'WAITING',
             dispatchPhase: 'STANDBY',
         };
+        session.corridorProgressKm = null;
         recalculateDerivedFields(session, {}, userId);
         console.log(`[FilterManager] STANDBY 복귀: 합짐 파생값만 되돌림 ` +
             `(오늘 필터 유지 — 도착 ${session.activeFilter.destinationCity}, 최저 ${session.activeFilter.minFare}원)`);

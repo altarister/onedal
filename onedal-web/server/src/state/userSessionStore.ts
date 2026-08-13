@@ -69,6 +69,15 @@ export interface UserSession {
     phaseSettings: PhaseSettingsMap;
     /** 지금 어느 국면의 설정이 평면에 펼쳐져 있는가 (전환 감지용) */
     appliedPhaseKey: PhaseKey | null;
+
+    /**
+     * 회랑의 동마다 **경로 몇 km 지점인가** — 지나온 구간을 지울 때 쓴다.
+     *
+     * 🔴 **저장이 아니라 캐시다.** 회랑을 만든 그 순간에 같이 나온 값이고,
+     *    회랑을 다시 그리면 이것도 같이 바뀐다. 따로 만들면 갈라진다.
+     *    경로가 없으면 `null` — 없는 값을 지어내지 않는다.
+     */
+    corridorProgressKm: Record<string, number> | null;
 }
 
 const sessions = new Map<string, UserSession>();
@@ -92,6 +101,7 @@ function createDefaultSession(): UserSession {
         basePhaseSettings: normalizePhaseSettings(null),
         phaseSettings: normalizePhaseSettings(null),
         appliedPhaseKey: null,
+        corridorProgressKm: null,
     };
 }
 

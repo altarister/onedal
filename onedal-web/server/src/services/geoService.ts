@@ -1,5 +1,7 @@
 import fs from 'fs';
 import path from 'path';
+import { getActiveCalls } from '../core/helpers';
+import type { MyOrder } from '@onedal/shared';
 /**
  * 배럴(`@turf/turf`) 대신 **쓰는 것만** 가져온다.
  *
@@ -96,7 +98,21 @@ export function cityAliases(parentName: string): string[] {
  * 하차 거점(마지막 좌표)에 대해 (destinationRadiusKm)만큼의 넓은 원 폴리곤을 시뮬레이션하여 두 폴리곤을 합병한 뒤,
  * 그 영역에 찍힌 모든 읍/면/동 행정구역명 키워드를 추출해 반환합니다.
  */
-export function getCorridorRegions(polyline: Array<{x: number; y: number}>, corridorRadiusKm: number, destinationRadiusKm?: number): { flat: string[], grouped: Record<string, string[]>, customCityFilters: string[] } | null {
+export interface CorridorRegions {
+    flat: string[];
+    grouped: Record<string, string[]>;
+    customCityFilters: string[];
+    /**
+     * 동마다 **경로 몇 km 지점인가** (출발점 기준 누적 거리).
+     *
+     * 🔴 이게 있으면 이동할 때 회랑을 **다시 그리지 않아도 된다.**
+     *    지나온 구간 제거가 "숫자 비교"가 되기 때문이다 — 실측 173ms → 0.14ms.
+     *    키워드와 **같은 입력에서 같이** 만든다. 따로 만들면 갈라진다(회랑 4벌 사고).
+     */
+    progressKm: Record<string, number>;
+}
+
+export function getCorridorRegions(polyline: Array<{x: number; y: number}>, corridorRadiusKm: number, destinationRadiusKm?: number): CorridorRegions | null {
     if (!mergedMapFeatureCollection || !mergedMapFeatureCollection.features) return null;
     if (!polyline || polyline.length < 2) return null;
 
@@ -148,6 +164,14 @@ export function getCorridorRegions(polyline: Array<{x: number; y: number}>, corr
     // 3. 교차점 검사 (Intersect)
     const matchedRegionNames = new Set<string>();
     const groupedRegions: Record<string, Set<string>> = {};
+    /**
+     * 동마다 "경로 몇 km 지점인가". **이미 도는 루프에 얹는다** — 따로 돌면 두 벌이 된다.
+     *
+     * 중심점을 경로에 스냅한 뒤 **동의 크기만큼 더한다.** 넓은 동이면 중심점을 지났어도
+     * 아직 그 안에 있을 수 있어서, 그대로 쓰면 **잡을 수 있는 콜을 일찍 버린다.**
+     * 늦게 빼는 쪽이 안전하다.
+     */
+    const progressKm: Record<string, number> = {};
 
     for (const feature of mergedMapFeatureCollection.features) {
         const props = feature.properties || {};
@@ -173,6 +197,22 @@ export function getCorridorRegions(polyline: Array<{x: number; y: number}>, corr
                     groupedRegions[parentName] = new Set<string>();
                 }
                 groupedRegions[parentName].add(regionName);
+
+                // 진행도 — 부팅 때 캐시해 둔 centroid/bbox 를 쓴다 (여기서 다시 계산하지 않는다)
+                const c = (feature as any).centroid;
+                if (c) {
+                    try {
+                        const snapped = turf.nearestPointOnLine(lineFeature as any, c);
+                        const at = (snapped.properties?.location as number) ?? 0;
+                        // 동의 반지름(bbox 대각선 절반)만큼 여유 — 늦게 빼기 위해
+                        const fb = feature.bbox;
+                        const pad = fb ? haversineKm(fb[1], fb[0], fb[3], fb[2]) / 2 : 0;
+                        const prev = progressKm[regionName];
+                        const val = at + pad;
+                        // 같은 이름의 동이 여럿이면 **가장 늦은 것**을 남긴다 (역시 늦게 빼기 위해)
+                        if (prev === undefined || val > prev) progressKm[regionName] = val;
+                    } catch { /* 스냅 실패는 진행도만 비운다 — 그 동은 안 빠질 뿐이다 */ }
+                }
             }
         } catch(e) {
             continue; // GeoJSON 형식이 약간 이상한 폴리곤 에러 스킵
@@ -190,7 +230,8 @@ export function getCorridorRegions(polyline: Array<{x: number; y: number}>, corr
     return {
         flat: Array.from(matchedRegionNames).sort(),
         grouped: resultGroups,
-        customCityFilters: Array.from(customCitySet)
+        customCityFilters: Array.from(customCitySet),
+        progressKm,
     };
 }
 
@@ -208,6 +249,26 @@ function withAliases(flat: string[], grouped: Record<string, string[]>): CityReg
         for (const a of cityAliases(parent)) aliases.add(a);
     }
     return { flat, grouped, customCityFilters: Array.from(aliases) };
+}
+
+/**
+ * 지금 GPS 가 **경로 몇 km 지점인가** (출발점 기준 누적 거리).
+ *
+ * 이동할 때마다 도는 유일한 지리 연산이다 — 실측 0.14ms.
+ * 경로에서 멀리 벗어나 있어도 가장 가까운 점으로 스냅되므로 값은 늘 나온다.
+ */
+export function progressAlongPolyline(
+    polyline: Array<{ x: number; y: number }>,
+    gps: { x: number; y: number },
+): number | null {
+    if (!polyline || polyline.length < 2) return null;
+    try {
+        const line = turf.lineString(polyline.map(p => [p.x, p.y]));
+        const snapped = turf.nearestPointOnLine(line, turf.point([gps.x, gps.y]));
+        return (snapped.properties?.location as number) ?? null;
+    } catch {
+        return null;
+    }
 }
 
 /**
@@ -361,46 +422,16 @@ export function getCityRegionsWithRadius(cityName: string, radiusKm: number): Ci
 }
 
 /**
- * GPS 진행도에 따라 이미 지나간 구간의 키워드를 자동 제거합니다.
- * 
- * 1. 현재 GPS에서 폴리라인 위 가장 가까운 점을 찾고
- * 2. 그 점 이후의 폴리라인만 남겨서
- * 3. 남은 폴리라인으로 회랑을 재계산합니다.
- * 
- * @returns null이면 재계산 불필요 (이미 거의 도착 등)
+ * ~~`trimCorridorByProgress`~~ — **삭제했다** (2026-08-14).
+ *
+ * 이동할 때마다 회랑을 통째로 다시 그리던 함수다(실측 173ms). 그 비용 때문에 2km 마다만
+ * 돌렸고, 정작 `getActivePolyline` 이 죽어 있어서 **한 번도 실행되지 않았다.**
+ *
+ * 지금은 회랑을 만들 때 동마다 진행도를 같이 기록하고(`CorridorRegions.progressKm`),
+ * 이동 시에는 그 숫자만 비교한다 — `filterManager.applyTraveledTrim` (0.14ms).
+ * 같은 일을 하는 두 번째 구현을 남겨 두지 않는다.
  */
-export function trimCorridorByProgress(
-    fullPolyline: Array<{x: number; y: number}>,
-    currentGPS: {x: number; y: number},
-    corridorRadiusKm: number,
-    destinationRadiusKm?: number
-) {
-    if (!fullPolyline || fullPolyline.length < 2) return null;
 
-    try {
-        // 1. 현재 GPS에서 폴리라인 위 가장 가까운 점 찾기
-        const lineCoords = fullPolyline.map(p => [p.x, p.y]);
-        const line = turf.lineString(lineCoords);
-        const point = turf.point([currentGPS.x, currentGPS.y]);
-        const snapped = turf.nearestPointOnLine(line, point);
-
-        // 2. 가까운 점 이후의 폴리라인만 남기기
-        const idx = snapped.properties?.index || 0;
-        const remainingPolyline = fullPolyline.slice(idx);
-
-        if (remainingPolyline.length < 2) return null; // 거의 도착
-
-        // 3. 남은 폴리라인으로 회랑 재계산
-        const result = getCorridorRegions(remainingPolyline, corridorRadiusKm, destinationRadiusKm);
-        if (result) {
-            console.log(`🔄 [GPS Trim] 폴리라인 ${fullPolyline.length}점 → ${remainingPolyline.length}점, 키워드 ${result.flat.length}개`);
-        }
-        return result;
-    } catch (e) {
-        console.error("🔄 [GPS Trim] 에러:", e);
-        return null;
-    }
-}
 
 // ═══ GPS 헬퍼 함수 ═══
 
@@ -414,25 +445,23 @@ export function haversineKm(lat1: number, lng1: number, lat2: number, lng2: numb
 }
 
 /**
- * 현재 활성 경로의 폴리라인 추출 (합짐 경로 우선, 없으면 본콜)
+ * 지금 달리고 있는 경로의 폴리라인.
  *
- * 🚨 TODO(미구현) — Phase 4에서 복구 예정
- * `session.subCalls` / `session.mainCallState`는 V2 리팩터링에서 `myOrders` 단일 배열로
- * 통합되며 삭제된 필드입니다. 따라서 이 함수는 **항상 null을 반환**하고,
- * 그 결과 processDriverMovement()의 회랑 트림(Corridor Trim)이 한 번도 실행되지 않습니다.
- * 수정 시 `getActiveCalls(session)` 기반으로 재작성할 것.
- * ⚠️ 되살리면 2km마다 getCorridorRegions(CPU ~7초)가 돌므로 반드시 성능 측정 후 플래그 적용.
+ * 🔴 2026-08-14 **되살렸다.** 예전에는 `session.subCalls` / `session.mainCallState` 를 읽었는데,
+ *    그 두 필드는 V2 리팩터링에서 `myOrders` 한 배열로 합쳐지며 사라졌다. 그래서 이 함수는
+ *    **항상 null 을 반환했고**, 지나온 구간 제거가 **한 번도 실행되지 않았다.**
+ *    (달리는 내내 이미 지나친 동네의 콜이 필터에 걸려 있었다는 뜻이다)
+ *
+ * 회랑을 만드는 `syncCorridorFilter` 와 **같은 기준**을 쓴다 — 마지막 활성 콜의 경로.
+ * 다르면 "회랑을 만든 경로"와 "진행도를 재는 경로"가 어긋나 엉뚱한 동이 빠진다.
  */
-export function getActivePolyline(session: any): Array<{x: number; y: number}> | null {
-    // 서브콜의 마지막 폴리라인(합짐 경로)이 있으면 우선
-    if (session.subCalls?.length > 0) {
-        const lastSub = session.subCalls[session.subCalls.length - 1];
-        if (lastSub.routePolyline) return lastSub.routePolyline;
-    }
-    // 없으면 본콜 폴리라인
-    if (session.mainCallState?.routePolyline) return session.mainCallState.routePolyline;
-    return null;
+export function getActivePolyline(session: { myOrders: MyOrder[] }): Array<{x: number; y: number}> | null {
+    const active = getActiveCalls(session);
+    if (active.length === 0) return null;
+    const poly = active[active.length - 1]?.routePolyline;
+    return poly && poly.length >= 2 ? poly : null;
 }
+
 
 /**
  * 마지막 하차지 좌표 추출
@@ -472,24 +501,25 @@ export function processDriverMovement(userId: string, lat: number, lng: number, 
     // [V2] dispatchPhase 기반으로 체크
     const isDelivering = session.activeFilter.dispatchPhase === 'DELIVERING';
     if (isDelivering) {
-        // [1] Corridor Trim: 2km 이상 이동 시에만 트리거 (CPU 보호)
+        /**
+         * [1] 지나온 구간 제거 — **0.5km 마다.**
+         *
+         * 🔴 2026-08-14 에 방식을 바꿨다. 예전에는 여기서 회랑을 **통째로 다시 그렸고**
+         *    (`trimCorridorByProgress`, 실측 **173ms**) 그 비용 때문에 2km 로 띄엄띄엄 돌렸다.
+         *
+         *    이제 회랑을 만들 때 동마다 **경로 몇 km 지점인지**를 같이 기록해 두므로
+         *    (`CorridorRegions.progressKm`), 지나온 구간 제거는 **숫자 비교**다 — 0.14ms.
+         *    1200배 싸졌으니 촘촘히 돌려도 된다. 촘촘할수록 필터가 실제 위치에 가깝다.
+         *
+         *    실제 제거는 `filterManager.applyTraveledTrim` 한 곳에서만 한다
+         *    (동 목록·시 묶음·별칭을 **한 벌로** 줄여야 하므로). 여기서는 방아쇠만 당긴다.
+         */
         const lastTrim = (session as any).lastTrimGPS as { x: number; y: number } | undefined;
         const dist = lastTrim ? haversineKm(lastTrim.y, lastTrim.x, lat, lng) : Infinity;
 
-        if (dist > 2) { // 2km 이상 이동
-            const polyline = getActivePolyline(session);
-            if (polyline && polyline.length >= 2) {
-                const trimmed = trimCorridorByProgress(
-                    polyline, currentGPS,
-                    session.activeFilter.corridorRadiusKm || 0,
-                    session.activeFilter.destinationRadiusKm
-                );
-                if (trimmed) {
-                    applyFilterCb(userId, { destinationKeywords: trimmed.flat });
-                    console.log(`🔄 [GPS Trim] ${dist.toFixed(1)}km 이동 → 키워드 ${trimmed.flat.length}개로 축소`);
-                }
-                (session as any).lastTrimGPS = currentGPS;
-            }
+        if (dist > 0.5 && getActivePolyline(session)) {
+            (session as any).lastTrimGPS = currentGPS;
+            applyFilterCb(userId, {});   // 파생 재계산 → 그 끝에서 지나온 구간이 빠진다
         }
 
         // [2] 도착 감지: 마지막 하차지 500m 이내 도달 시
