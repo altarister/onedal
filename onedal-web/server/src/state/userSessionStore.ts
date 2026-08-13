@@ -1,4 +1,6 @@
-import { AutoDispatchFilter, SecuredOrder, PendingOrder, MyOrder, getEligibleVehicleTypes, businessDayKey, rateFloorsFrom } from "@onedal/shared";
+import { AutoDispatchFilter, SecuredOrder, PendingOrder, MyOrder, getEligibleVehicleTypes, businessDayKey, rateFloorsFrom,
+         normalizePhaseSettings, phaseFromFlat, DEFAULT_PHASE_SETTINGS } from "@onedal/shared";
+import type { PhaseSettingsMap, PhaseKey } from "@onedal/shared";
 import type { CapacityConfidence } from "@onedal/shared";
 import db from "../db";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
@@ -54,6 +56,19 @@ export interface UserSession {
     isBootstrapping: boolean;
     /** [Phase 8.4] 지금 잔여 적재량을 얼마나 믿을 수 있는가 (추정/신고/확정) */
     capacityConfidence: CapacityConfidence;
+
+    /**
+     * 국면별 필터 설정 (docs/필터_재설계_명세.md §2-4).
+     *
+     * `basePhaseSettings`   평소값 — DB `user_filters.phase_settings` 의 사본
+     * `phaseSettings`       오늘값 — 자정에 평소값으로 되돌아간다
+     *
+     * 기존 `baseFilter`/`activeFilter` 이원 구조를 국면별로도 그대로 따른다.
+     */
+    basePhaseSettings: PhaseSettingsMap;
+    phaseSettings: PhaseSettingsMap;
+    /** 지금 어느 국면의 설정이 평면에 펼쳐져 있는가 (전환 감지용) */
+    appliedPhaseKey: PhaseKey | null;
 }
 
 const sessions = new Map<string, UserSession>();
@@ -73,7 +88,10 @@ function createDefaultSession(): UserSession {
         capacityConfidence: 'ESTIMATED',
         businessDay: businessDayKey(Date.now()),
         isRestored: false,
-        isBootstrapping: false
+        isBootstrapping: false,
+        basePhaseSettings: normalizePhaseSettings(null),
+        phaseSettings: normalizePhaseSettings(null),
+        appliedPhaseKey: null,
     };
 }
 
@@ -116,6 +134,31 @@ export function getUserSession(userId: string): UserSession {
                         filterRow.agency_fee_percent ?? 23,
                     ),
                 } as AutoDispatchFilter;
+
+                /**
+                 * 국면별 설정 (§2-4). 저장된 게 없으면 **기존 평면값을 `first` 로 옮긴다** —
+                 * 오늘 쓰던 설정(상차 1km 등)을 잃지 않기 위해서다.
+                 */
+                if (filterRow.phase_settings) {
+                    session.basePhaseSettings = normalizePhaseSettings(
+                        (() => { try { return JSON.parse(filterRow.phase_settings); } catch { return null; } })()
+                    );
+                } else {
+                    const migrated = normalizePhaseSettings(null);
+                    migrated.first = phaseFromFlat({
+                        pickupRadiusKm: filterRow.pickup_radius_km,
+                        corridorRadiusKm: filterRow.corridor_radius_km,
+                        destinationRadiusKm: filterRow.destination_radius_km,
+                        eyelinePct: filterRow.eyeline_pct,
+                        destinationCity: filterRow.destination_city ?? "",
+                    }, DEFAULT_PHASE_SETTINGS.first);
+                    session.basePhaseSettings = migrated;
+                    console.log(`🧭 [국면 설정] 저장된 값이 없어 기존 필터를 first 국면으로 옮겼습니다 ` +
+                        `(상차 ${migrated.first.pickupRadiusKm}km · 경유 ${migrated.first.detourAllowKm}km · ` +
+                        `하차 ${migrated.first.dropoffRadiusKm}km · 할인 ${migrated.first.discountPct}%)`);
+                }
+                // 오늘값 = 평소값의 독립 복사본 (자정에 되돌아간다)
+                session.phaseSettings = normalizePhaseSettings(JSON.parse(JSON.stringify(session.basePhaseSettings)));
 
                 // [완전 격리] activeFilter = baseFilter의 독립 복사본 (로그인 시 1회만)
                 //

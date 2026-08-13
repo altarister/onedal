@@ -1,4 +1,4 @@
-import { getEffectiveCorridorRadius, DEFAULT_CORRIDOR_RADIUS_KM } from '@onedal/shared';
+import { getEffectiveCorridorRadius, DEFAULT_CORRIDOR_RADIUS_KM, DEFAULT_PHASE_SETTINGS } from '@onedal/shared';
 
 /**
  * 🔴 2026-08-12 — `getEffectiveCorridorRadius` 는 **정의만 되어 있고 호출하는 곳이 없었다.**
@@ -10,10 +10,23 @@ import { getEffectiveCorridorRadius, DEFAULT_CORRIDOR_RADIUS_KM } from '@onedal/
  * 문서가 코드보다 앞서 나간 경우다. 함수를 만들어 두고 연결하지 않으면
  * 그 함수는 "그렇게 되어 있다"는 착각만 남긴다.
  */
-describe('회랑 반경은 단계가 정한다', () => {
-    it('🔴 운행 중에는 0 — 짐을 싣고 가는 중에 우회하지 않는다', () => {
-        expect(getEffectiveCorridorRadius('DELIVERING', 5)).toBe(0);
-        expect(getEffectiveCorridorRadius('DELIVERING', 20)).toBe(0);
+/**
+ * 🔴 2026-08-14 — **강제 0 을 걷어냈다.** (docs/필터_재설계_명세.md §2-4)
+ *
+ * 옛 규칙: `DELIVERING` 이면 무조건 회랑 0. 국면별 설정이 없던 시절, 운행 중 우회를
+ * 끊을 방법이 이것뿐이었기 때문이다.
+ *
+ * 새 규칙: **운행중(`drive`) 국면이 자기 경유 허용값을 갖는다** (기본 0).
+ * 기사님이 표에서 *"운행중: 우회허용반경(input, **기본값 0**)"* 으로 정하셨다 —
+ * 강제가 아니라 기본값이다. 여기서 덮어쓰면 그 설정이 영영 무시된다.
+ *
+ * **의도는 그대로다** (운행 중엔 우회하지 않는다). 그것을 강제하던 자리가
+ * 함수에서 **국면 기본값**으로 옮겨 갔을 뿐이다 — 아래 마지막 테스트가 그것을 지킨다.
+ */
+describe('회랑 반경은 국면 설정이 정한다', () => {
+    it('🔴 이 함수는 더 이상 값을 덮어쓰지 않는다 — 국면 설정이 진실이다', () => {
+        expect(getEffectiveCorridorRadius('DELIVERING', 5)).toBe(5);
+        expect(getEffectiveCorridorRadius('DELIVERING', 0)).toBe(0);
     });
 
     it('합짐 수집 중에는 기사님이 정한 반경 그대로', () => {
@@ -24,10 +37,16 @@ describe('회랑 반경은 단계가 정한다', () => {
         expect(getEffectiveCorridorRadius('STANDBY', 5)).toBe(5);
     });
 
+    it('🔴 "운행 중엔 우회하지 않는다" 는 **국면 기본값**이 지킨다', () => {
+        // 강제하던 자리가 여기로 옮겨 왔다. 이 값이 0 이 아니면 우회 금지가 풀린다
+        expect(DEFAULT_PHASE_SETTINGS.drive.detourAllowKm).toBe(0);
+    });
+
     it('반경 0 은 "회랑 없음"이 아니라 **경로 위만** 이다', () => {
-        // getCorridorRegions 가 0 이하를 50m 버퍼로 바꾼다.
+        // getCorridorRegions 가 0 이하를 50m 버퍼로 바꾼다 — 경로가 지나는 동은 전부 잡힌다.
+        // (실측: 광주→파주 100km 경로에서 회랑 0 이 58개 동. 첫짐 파주 41개보다 많다)
         // 빈 회랑이 되면 키워드가 0개가 되어 사냥이 통째로 멈춘다 — 그건 다른 뜻이다
-        expect(getEffectiveCorridorRadius('DELIVERING', 5)).toBe(0);
+        expect(getEffectiveCorridorRadius('DELIVERING', 0)).toBe(0);
     });
 });
 

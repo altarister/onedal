@@ -122,7 +122,7 @@ async function boot() {
 
     const bootAfter = Date.now();
     const p = spawn('npx', ['tsx', 'src/index.ts'], {
-        cwd: SERVER, env: { ...process.env, DB_FILE: DB, PORT: String(PORT) }, stdio: 'ignore',
+        cwd: SERVER, env: { ...process.env, DB_FILE: DB, PORT: String(PORT) }, stdio: process.env.SCENARIO_LOG ? 'inherit' : 'ignore',
     });
     for (let i = 0; i < 40; i++) {
         await wait(1000);

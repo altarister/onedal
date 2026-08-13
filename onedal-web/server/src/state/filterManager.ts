@@ -17,7 +17,7 @@ import { OrderRepository } from "../repositories/OrderRepository";
 import { SettingsRepository } from "../repositories/SettingsRepository";
 import { getUserSession } from "./userSessionStore";
 import type { AutoDispatchFilter } from "@onedal/shared";
-import { getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS } from "@onedal/shared";
+import { getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, resolvePhaseKey, applyPhaseToFilter, normalizePhaseSettings } from "@onedal/shared";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { getCityRegionsWithRadius, cityAliases } from "../services/geoService";
 
@@ -27,7 +27,7 @@ const stmtUpdateFilter = db.prepare(`
         destination_city = ?, destination_radius_km = ?, corridor_radius_km = ?,
         min_fare = ?, max_fare = ?, pickup_radius_km = ?,
         excluded_keywords = ?, is_active = ?, is_shared_mode = ?,
-        load_state = ?, eyeline_pct = ?
+        load_state = ?, eyeline_pct = ?, phase_settings = ?
     WHERE user_id = ?
 `);
 
@@ -174,6 +174,47 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
     }
 }
 
+/**
+ * 국면이 바뀌었으면 그 국면의 저장값을 평면 필터에 펼친다.
+ *
+ * 국면 키가 **실제로 바뀔 때만** 편다 — 같은 국면에서 매번 덮으면 기사님이 방금 고친 값이
+ * 계속 되돌아가고, 회랑 재계산도 불필요하게 돈다.
+ */
+function applyPhaseSettingsIfChanged(
+    session: ReturnType<typeof getUserSession>,
+    changes: Partial<AutoDispatchFilter>,
+    userId: string,
+) {
+    const key = resolvePhaseKey(
+        session.activeFilter.huntPhase ?? 'DEST',
+        session.activeFilter.dispatchPhase ?? 'STANDBY',
+    );
+    if (key === session.appliedPhaseKey) return;
+
+    const prev = session.appliedPhaseKey;
+    session.appliedPhaseKey = key;
+
+    const patch = applyPhaseToFilter(key, session.phaseSettings[key]);
+    for (const [k, v] of Object.entries(patch)) {
+        if (v === undefined) continue;
+        // 기사님이 방금 고친 값은 그대로 둔다
+        if (k in changes) continue;
+        (session.activeFilter as any)[k] = v;
+    }
+
+    console.log(`🧭 [국면 설정] ${prev ?? '없음'} → ${key} · ` +
+        `상차 ${session.activeFilter.pickupRadiusKm}km · 경유 ${session.activeFilter.corridorRadiusKm}km · ` +
+        `하차 ${session.activeFilter.destinationRadiusKm}km · 할인 ${session.activeFilter.eyelinePct}%`);
+
+    // 단가표는 할인율에서 파생된다 (§2-1) — 여기서 다시 만든다
+    const pricing = SettingsRepository.loadPricingConfig(userId);
+    session.activeFilter.ratePerKm = rateFloorsFrom(
+        session.activeFilter.eyelinePct ?? 10,
+        pricing.vehicleRates,
+        pricing.agencyFeePercent,
+    );
+}
+
 // ━━━ 내부 유틸: 소켓 브로드캐스트 ━━━
 function broadcastFilter(userId: string, session: ReturnType<typeof getUserSession>, io?: any) {
     // [Phase 6] 부트스트랩 중에는 중간 상태를 내보내지 않는다.
@@ -225,6 +266,7 @@ export function saveBaseFilter(
             0, // isSharedMode는 DB에 영구저장 안함
             'EMPTY', // loadState는 DB에 항상 EMPTY로 저장
             b.eyelinePct ?? 10,   // 눈높이 — 원천은 DB. ratePerKm 는 여기서 파생되므로 저장하지 않는다
+            JSON.stringify(session.basePhaseSettings),   // 국면별 설정 (§2-4-7)
             userId
         );
     } catch (e) {
@@ -349,6 +391,21 @@ export function updateActiveFilter(
         session.activeFilter.isSharedMode = derivedShared;
     }
 
+    /**
+     * 🧭 **국면이 바뀌었으면 그 국면의 저장값을 평면에 펼친다.** (§2-4)
+     *
+     * 기사님: *"첫짐 도착반경 5km 로 사냥하다 첫짐을 잡으면 … **저장된 합짐 도착반경 1km 를
+     * 저장된 값에서 꺼내와** 콜을 잡고 싶은 거야."*
+     *
+     * ⚠️ **여기가 이 함수의 끝이어야 한다.** 조각을 펼친 뒤 `updateActiveFilter` 를 다시
+     *    부르면 무한 루프가 된다. 파생값(키워드·별칭·허용차종)은 위에서 이미 계산됐고,
+     *    반경이 바뀌면 회랑은 다음 경로 계산 때 새 값으로 다시 그려진다.
+     *
+     * 🔴 **기사님이 방금 고친 값은 덮지 않는다.** `changes` 에 들어 있는 키는 건너뛴다 —
+     *    안 그러면 필터 팝업에서 저장한 값이 곧바로 국면 기본값으로 되돌아간다.
+     */
+    applyPhaseSettingsIfChanged(session, changes, userId);
+
     logActiveFilter(session, "실시간 변경(activeFilter)", changes);
     broadcastFilter(userId, session, io);
 
@@ -383,8 +440,16 @@ export function ensureBusinessDay(userId: string, io?: any): boolean {
     // 되돌리는 규칙은 shared 한 곳에만 있다 (세션 생성 때도 같은 규칙을 쓴다)
     session.activeFilter = resetToBaseFilter(session.baseFilter);
 
+    /**
+     * 국면별 오늘값도 평소값으로 되돌린다 (§2-4-7).
+     * 기사님: *"오늘 하루 동안 첫짐은 10km 로 고정되는 거지"* — 하루가 지나면 풀린다.
+     * 다시 펼치도록 `appliedPhaseKey` 를 비운다.
+     */
+    session.phaseSettings = normalizePhaseSettings(JSON.parse(JSON.stringify(session.basePhaseSettings)));
+    session.appliedPhaseKey = null;
+
     console.log(`🌅 [영업일 전환] ${yesterday} → ${today} · 오늘 필터를 기본 설정으로 되돌립니다 ` +
-        `(도착 ${session.baseFilter.destinationCity}, 최저 ${session.baseFilter.minFare}원)`);
+        `(도착 ${session.baseFilter.destinationCity}, 국면 설정 5종 포함)`);
     logRoadmapEvent("서버", `[영업일 전환] ${yesterday} → ${today} — activeFilter 를 baseFilter 로 리셋`);
 
     // 파생 재계산 + 관제탑 전파

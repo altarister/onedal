@@ -178,6 +178,20 @@ try {
     // 무시 (테이블이 아직 없는 경우 CREATE TABLE에서 생성됨)
 }
 
+// v8 마이그레이션: phase_settings(국면별 필터 설정) 컬럼 추가
+// docs/필터_재설계_명세.md §2-4 — 다섯 국면이 각자 값을 기억한다.
+// 값 채우기(기존 평면값 → first 국면)는 userSessionStore 가 로드할 때 한다 —
+// 여기서는 컬럼만 만든다 (부팅 경로에서 데이터를 가공하지 않는다).
+try {
+    const tableInfo = db.prepare("PRAGMA table_info(user_filters)").all() as Array<{ name: string }>;
+    if (tableInfo.length > 0 && !tableInfo.some(col => col.name === 'phase_settings')) {
+        db.exec("ALTER TABLE user_filters ADD COLUMN phase_settings TEXT DEFAULT ''");
+        console.log("🛠️ [DB Migration V8] user_filters에 phase_settings 컬럼 추가 완료");
+    }
+} catch (e) {
+    // 무시 (테이블이 아직 없는 경우 CREATE TABLE에서 생성됨)
+}
+
 db.exec(`
     CREATE TABLE IF NOT EXISTS user_filters (
         user_id TEXT PRIMARY KEY,
@@ -193,6 +207,7 @@ db.exec(`
         load_state TEXT DEFAULT 'EMPTY',
         driver_action TEXT DEFAULT 'WAITING',
         eyeline_pct INTEGER DEFAULT 10,
+        phase_settings TEXT DEFAULT '',
         vehicle_rates TEXT DEFAULT '${defaultRates}',
         agency_fee_percent REAL DEFAULT 23.0,
         max_discount_percent REAL DEFAULT 10.0,

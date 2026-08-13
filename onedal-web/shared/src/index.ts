@@ -716,10 +716,22 @@ export function deriveDispatchPhase(
 export const DEFAULT_CORRIDOR_RADIUS_KM = 5;
 
 export function getEffectiveCorridorRadius(
-    phase: DispatchPhase,
+    _phase: DispatchPhase,
     baseCorridorRadiusKm: number
 ): number {
-    if (phase === 'DELIVERING') return 0;
+    /**
+     * 🔴 2026-08-14 — **강제 0 을 걷어냈다.** (docs/필터_재설계_명세.md §2-4)
+     *
+     * 예전에는 `DELIVERING` 이면 무조건 0 을 돌려줬다. 국면별 설정이 없던 시절,
+     * 운행 중 우회를 끊을 방법이 이것뿐이었기 때문이다.
+     *
+     * 이제 운행중(`drive`) 국면이 **자기 경유 허용값을 갖는다**(기본 0). 기사님이
+     * 3km 정도는 허용하고 싶으면 그렇게 저장할 수 있어야 한다 —
+     * 여기서 덮어쓰면 그 설정이 영영 무시된다.
+     *
+     * 함수는 남겨 둔다. 호출부가 "회랑 반경은 여기서만 정한다"는 계약을 지키고 있고,
+     * 나중에 국면과 무관한 상한이 필요해지면 다시 여기에 넣는다.
+     */
     return baseCorridorRadiusKm;
 }
 
