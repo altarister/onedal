@@ -111,6 +111,35 @@
 
 ---
 
+## 🧹 `recalculateDerivedFields` 의 "도시 없으면 키워드 삭제" 가지 (미수정)
+
+`filterManager.recalculateDerivedFields` 끝부분:
+
+```ts
+else if (!session.activeFilter.destinationCity) {
+    session.activeFilter.destinationKeywords = [];
+    session.activeFilter.destinationGroups = {};
+    session.activeFilter.customCityFilters = [];
+}
+```
+
+**도시와 무관한 변경에도 지운다.** 도시를 비운 그 순간에만 지우면 될 일인데,
+`updateActiveFilter` 를 어떤 이유로 부르든 도시가 비어 있으면 회랑이 날아간다.
+**빈 필터는 "제한 없음"이 아니라 고장이다** — 그 상태로 사냥이 조용히 멈춘다.
+
+2026-08-14 에 실제로 밟을 뻔했다. GPS 이동 시 `applyFilterCb(userId, {})` 로
+파생 재계산을 트리거했는데, 도시를 안 고르고 운행하면 **0.5km 마다** 저 가지에 걸렸다.
+전용 통로(`trimTraveled`)를 만들어 피해 갔지만 **가지 자체는 그대로다.**
+
+**고칠 방향**: `'destinationCity' in changes && !changes.destinationCity` 로 좁힌다
+(= 도시를 **지웠을 때만** 키워드도 지운다).
+
+**왜 지금 안 했나**: `updateActiveFilter` 를 부르는 곳이 많아 회귀 범위가 넓다.
+`scenario` 로 콜 흐름 전체를 다시 돌려야 하고, 첫짐 → 합짐 전환에서 키워드가
+언제 비워져야 하는지 따로 확인이 필요하다.
+
+---
+
 ## 🔧 이중 타이머 경쟁 — `orders.ts` 의 30초 타이머가 취소 불가 (미수정)
 
 2026-08-13 CLAUDE.md 규칙(*"타이머는 ID 를 저장해 취소 가능하게"*)과 코드를 대조하다 나왔다.
