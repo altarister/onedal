@@ -623,9 +623,17 @@ export function updateActiveFilter(
     //      기존 전이(advanceOnKeep / rollbackOnCancel)와 결과가 같으므로 동작은 그대로다.
     const activeCount = getActiveCalls(session).length;
 
-    // 실은 짐이 없으면 '운행 중'일 수 없다. 값이 남아 있으면 다음 판정이 DELIVERING 으로 새어 나간다
-    if (activeCount === 0 && session.activeFilter.driverAction === 'DRIVING') {
-        console.log(`🔗 [불변식] driverAction DRIVING → WAITING (활성 콜 0건)`);
+    /**
+     * 실은 짐이 없으면 **'운행 중'도 '하차 중'도 될 수 없다.**
+     *
+     * 🔴 2026-08-14 — 예전에는 `DRIVING` 만 되돌렸다. 그래서 도착 감지가 켠 `UNLOADING` 이
+     *    콜을 다 끝낸 뒤에도 남아, **빈 차인데 화면은 "하차 중"** 이라고 말했다.
+     *    (도착 감지가 죽어 있던 동안에는 이 값이 켜질 일이 없어 드러나지 않았다)
+     *    판정에는 영향이 없지만 — `deriveDispatchPhase` 는 콜 0건이면 무조건 STANDBY —
+     *    화면이 사실과 다르게 말하고 다음 사냥이 '하차 중'으로 시작한다.
+     */
+    if (activeCount === 0 && session.activeFilter.driverAction !== 'WAITING') {
+        console.log(`🔗 [불변식] driverAction ${session.activeFilter.driverAction} → WAITING (활성 콜 0건)`);
         session.activeFilter.driverAction = 'WAITING';
     }
 
