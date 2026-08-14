@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { socket } from '../lib/socket';
+import { publishLocation } from '../lib/gpsBridge';
 import { useMockGpsSimulator } from './useMockGpsSimulator';
 import { useLocationStore } from '../stores/useLocationStore';
 
@@ -39,19 +39,18 @@ export function useMasterGps(
     /** 지금 좌표를 누가 대고 있나 — 화면·로그에 그대로 쓴다 */
     const [source, setSource] = useState<'real' | 'mock' | 'none'>('none');
 
-    /** 실 좌표를 받았다 — 한 곳에서만 처리한다 (두 군데서 emit 하면 서버가 두 번 계산한다) */
-    const pushReal = (loc: { lat: number; lng: number }) => {
+    /** 실 좌표를 받았다 — 한 곳에서만 처리한다 */
+    const pushReal = (loc: { lat: number; lng: number }, from: 'native' | 'browser') => {
         lastRealFixAt.current = Date.now();
         setSource('real');
         setCurrentGps(loc);
-        socket.emit("dashboard-gps-update", loc);
-        window.dispatchEvent(new CustomEvent("local-gps-update", { detail: loc }));
+        publishLocation(loc.lat, loc.lng, from);
     };
 
     // ── 1. 네이티브(앱 웹뷰)가 밀어 주는 좌표
     useEffect(() => {
         if (nativeLat === null || nativeLng === null) return;
-        pushReal({ lat: nativeLat, lng: nativeLng });
+        pushReal({ lat: nativeLat, lng: nativeLng }, 'native');
     }, [nativeLat, nativeLng]);
 
     // ── 2. 브라우저 위치 — **테스트 중에도 계속 지켜본다.**
@@ -59,7 +58,7 @@ export function useMasterGps(
     useEffect(() => {
         if (!isDriving || !("geolocation" in navigator)) return;
         const watchId = navigator.geolocation.watchPosition(
-            (position) => pushReal({ lat: position.coords.latitude, lng: position.coords.longitude }),
+            (position) => pushReal({ lat: position.coords.latitude, lng: position.coords.longitude }, 'browser'),
             (error) => console.warn(`📍 [Master GPS] 실 위치를 못 받습니다 (${error.message}) — 시뮬레이터가 대신 달립니다`),
             { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
         );
@@ -95,8 +94,7 @@ export function useMasterGps(
         const loc = { lat: mockGps.y, lng: mockGps.x };
         setSource('mock');
         setCurrentGps(loc);
-        socket.emit("dashboard-gps-update", loc);
-        window.dispatchEvent(new CustomEvent("local-gps-update", { detail: loc }));
+        publishLocation(loc.lat, loc.lng, 'mock');
     }, [mockGps, useMock]);
 
     // 출처가 바뀌는 순간만 알린다 (매 좌표마다 찍으면 로그가 묻힌다)

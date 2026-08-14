@@ -17,6 +17,15 @@ export default function VehicleStatusPanel({ liveCalls }: { liveCalls: SecuredOr
 
     // GPS 속도 계산을 위한 상태
     const [currentSpeed, setCurrentSpeed] = useState<number>(0);
+    /**
+     * 지금 좌표를 **시뮬레이터가 대고 있나.**
+     *
+     * 🔴 2026-08-14 — 화면에 `11669 km/h` 가 떴다. 시뮬레이터는 1초에 경로를 1~2km 씩
+     *    **점프**하는데, 속도를 `거리 ÷ 시간` 으로 재니 그 숫자가 나온 것이다.
+     *    상한을 씌우는 건 땜빵이다 — **없는 숫자를 지어내지 않는다**(규칙 ④).
+     *    좌표에 출처가 실려 오므로, 시뮬레이션이면 속도 대신 그 사실을 말한다.
+     */
+    const [gpsIsMock, setGpsIsMock] = useState(false);
     const lastGpsRef = useRef<{ lat: number; lng: number; time: number } | null>(null);
 
 
@@ -50,13 +59,18 @@ export default function VehicleStatusPanel({ liveCalls }: { liveCalls: SecuredOr
 
     useEffect(() => {
         const onGpsUpdate = (e: Event) => {
-            const customEvent = e as CustomEvent<{ lat: number, lng: number }>;
+            const customEvent = e as CustomEvent<{ lat: number, lng: number, source?: string }>;
             const loc = customEvent.detail;
+            const isMock = loc.source === 'mock';
 
             const now = Date.now();
 
-
-            if (lastGpsRef.current) {
+            setGpsIsMock(isMock);
+            if (isMock) {
+                // 시뮬레이터 점프로 속도를 재지 않는다. 옛 값도 남기지 않는다
+                setCurrentSpeed(0);
+                lastGpsRef.current = { ...loc, time: now };
+            } else if (lastGpsRef.current) {
                 const distKm = getDistanceKm(lastGpsRef.current.lat, lastGpsRef.current.lng, loc.lat, loc.lng);
                 const timeHours = (now - lastGpsRef.current.time) / (1000 * 60 * 60);
                 if (timeHours > 0) {
@@ -65,7 +79,7 @@ export default function VehicleStatusPanel({ liveCalls }: { liveCalls: SecuredOr
                     setCurrentSpeed(prev => (prev * 0.7) + (speed * 0.3));
                 }
             }
-            lastGpsRef.current = { ...loc, time: now };
+            if (!isMock) lastGpsRef.current = { ...loc, time: now };
 
             // 상차지 근접 체크 (500m 이내)
             // 취소·방출·완료된 콜은 제외한다. 그렇지 않으면 이미 취소한 콜의 상차지를
@@ -111,7 +125,8 @@ export default function VehicleStatusPanel({ liveCalls }: { liveCalls: SecuredOr
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [liveCalls.map(c => c.id).join(',')]);
 
-    const isMoving = currentSpeed > 5;
+    // 시뮬레이션 중에는 "달리고 있다"는 사실만 참이다 — 속도는 모른다
+    const isMoving = gpsIsMock || currentSpeed > 5;
     const totalCount = liveCalls.length;
 
     // 예약 건 vs 상차 건 분류
@@ -170,9 +185,9 @@ export default function VehicleStatusPanel({ liveCalls }: { liveCalls: SecuredOr
                 <Badge variant="outline" className={`gap-1.5 px-2 py-0.5 rounded-full ${isMoving ? 'border-info/30 bg-info/10 text-info' : 'border-border bg-surface-alt text-text-muted'}`}>
                     <span className={`w-1.5 h-1.5 rounded-full ${isMoving ? 'bg-info animate-pulse' : 'bg-text-muted'}`}></span>
                     <span className="text-[11px] font-black tracking-wider">
-                        {isMoving ? '이동 중' : '정차 중'}
+                        {gpsIsMock ? '시뮬레이션 주행' : isMoving ? '이동 중' : '정차 중'}
                     </span>
-                    {isMoving && (
+                    {isMoving && !gpsIsMock && (
                         <span className="text-[10px] font-mono text-info/70 ml-1">{Math.round(currentSpeed)} km/h</span>
                     )}
                 </Badge>

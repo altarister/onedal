@@ -19,10 +19,10 @@ const gps = codeOnly(read("hooks/useMasterGps.ts"));
  */
 describe('마스터 GPS — 실 GPS 와 시뮬레이터가 같은 길을 간다', () => {
 
-    it('🔴 좌표를 보내는 이벤트가 하나다 (출처가 달라도 서버는 구분하지 않는다)', () => {
-        const emits = gps.match(/socket\.emit\("([^"]+)"/g) || [];
-        expect(emits.length).toBeGreaterThan(0);
-        expect(new Set(emits)).toEqual(new Set(['socket.emit("dashboard-gps-update"']));
+    it('🔴 훅이 직접 emit 하지 않는다 — 브리지(publishLocation)가 유일한 송신 자리다', () => {
+        // 2026-08-14 `pnpm map` 이 찾았다: 두 훅이 각각 쏘고 있었고 서로를 몰랐다
+        expect(gps).not.toMatch(/socket\.emit/);
+        expect(gps).toMatch(/publishLocation\(/);
     });
 
     it('🔴 실 GPS 가 언제나 이긴다 — 시뮬레이터는 빈자리만 메운다', () => {
@@ -46,8 +46,8 @@ describe('마스터 GPS — 실 GPS 와 시뮬레이터가 같은 길을 간다'
         expect(gps).toMatch(/const useMock = isDriving/);
     });
 
-    it('좌표를 내보내는 자리는 실 GPS 한 곳 · 시뮬레이터 한 곳 (두 번 쏘면 서버가 두 번 계산한다)', () => {
-        expect((gps.match(/socket\.emit\("dashboard-gps-update"/g) || []).length).toBe(2);
+    it('좌표를 내보내는 자리는 실 GPS 한 곳 · 시뮬레이터 한 곳', () => {
+        expect((gps.match(/publishLocation\(/g) || []).length).toBe(2);
         expect(gps).toMatch(/const pushReal =/);
     });
 });
@@ -81,5 +81,78 @@ describe('GPS 시뮬레이터 — 반복하지 않는다', () => {
         const body = onRoute.slice(0, 220);
         expect(body).toMatch(/indexRef\.current = 0/);
         expect(body).toMatch(/finishedRef\.current = false/);
+    });
+});
+
+/**
+ * 🔴 **서버에 위치를 알리는 곳은 하나다** (2026-08-14 `pnpm map` 이 찾았다)
+ *
+ * 두 훅이 각각 `dashboard-gps-update` 를 쏘고 있었다 — `useGpsTelemetry`(App 에서 항상)와
+ * `useMasterGps`(운행 중). 둘 다 같은 `useLocationStore` 를 읽으니 네이티브 위치가
+ * 갱신되면 **같은 좌표가 두 번** 나갔고, **서로의 존재를 몰랐다.**
+ *
+ * 더 나쁜 것은 시뮬레이터가 달리는 동안 실제 좌표가 섞이는 것이다 — 서버의 위치가
+ * 파주(가상)와 집(실제) 사이를 오가면 **진행도가 튀고 지나온 구간 제거가 되돌아간다.**
+ */
+describe('GPS 브리지 — 송신은 한 곳', () => {
+
+    const bridge = codeOnly(read('lib/gpsBridge.ts'));
+    const telemetry = codeOnly(read('hooks/useGpsTelemetry.ts'));
+
+    it('🔴 dashboard-gps-update 를 쏘는 파일이 브리지 하나뿐이다', () => {
+        const CLIENT_SRC = join(__dirname, '../../../client-app/src');
+        const walk = (dir: string, out: string[] = []): string[] => {
+            for (const e of require('fs').readdirSync(dir)) {
+                const p = join(dir, e);
+                if (require('fs').statSync(p).isDirectory()) walk(p, out);
+                else if (/\.tsx?$/.test(e)) out.push(p);
+            }
+            return out;
+        };
+        const senders = walk(CLIENT_SRC)
+            .filter(f => /socket\.emit\(\s*['"`]dashboard-gps-update/.test(readFileSync(f, 'utf8')))
+            .map(f => f.split('/').pop());
+        expect(senders).toEqual(['gpsBridge.ts']);
+    });
+
+    it('🔴 시뮬레이터가 도는 동안 실제 좌표를 서버로 보내지 않는다', () => {
+        expect(bridge).toMatch(/lastMockAt/);
+        expect(bridge).toMatch(/reason: 'mock-running'/);
+    });
+
+    it('좌표에 **출처**를 싣는다 — 받는 쪽이 알아야 거짓말을 안 한다', () => {
+        expect(bridge).toMatch(/socket\.emit\('dashboard-gps-update', \{ lat, lng, source/);
+        expect(bridge).toMatch(/type GpsSource = 'native' \| 'browser' \| 'mock'/);
+    });
+
+    it('같은 자리를 다시 보내지 않는다', () => {
+        expect(bridge).toMatch(/same-position/);
+    });
+
+    it('두 훅 모두 브리지를 통해서만 보낸다', () => {
+        expect(telemetry).not.toMatch(/socket\.emit/);
+        expect(telemetry).toMatch(/publishLocation\(lat, lng, 'native'/);
+    });
+});
+
+/**
+ * 🔴 **없는 숫자를 지어내지 않는다** (규칙 ④)
+ *
+ * 화면에 `11669 km/h` 가 떴다. 시뮬레이터는 1초에 경로를 1~2km 씩 **점프**하는데
+ * 속도를 `거리 ÷ 시간` 으로 재니 그 숫자가 나왔다. 상한을 씌우는 건 땜빵이다 —
+ * 좌표에 출처가 실려 오므로 시뮬레이션이면 **속도 대신 그 사실을 말한다.**
+ */
+describe('속도 표시 — 시뮬레이터 점프를 실제 속도로 말하지 않는다', () => {
+
+    const panel = codeOnly(read('components/dashboard/VehicleStatusPanel.tsx'));
+
+    it('🔴 시뮬레이션이면 속도를 재지 않는다', () => {
+        expect(panel).toMatch(/loc\.source === 'mock'/);
+        expect(panel).toMatch(/if \(isMock\)/);
+    });
+
+    it('🔴 시뮬레이션이면 km/h 를 띄우지 않는다', () => {
+        expect(panel).toMatch(/isMoving && !gpsIsMock/);
+        expect(panel).toMatch(/시뮬레이션 주행/);
     });
 });
