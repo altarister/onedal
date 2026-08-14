@@ -834,7 +834,8 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
         if (restoredActive.length > 0) {
             const myVehicle = SettingsRepository.getKakaoRoutingOptions(userId).vehicleType || '1t';
             const loadedVehicles = restoredActive.map(c => c.vehicleType || myVehicle);
-            const phase = deriveDispatchPhase(session.activeFilter.driverAction ?? 'WAITING', restoredActive.length);
+            // 복구 시점엔 출발 사실이 없다(서버 재시작으로 세션이 새로 났다) → 모으기부터 다시
+            const phase = deriveDispatchPhase(restoredActive.length, !!session.departedAt);
 
             updateActiveFilter(userId, {
                 dispatchPhase: phase,

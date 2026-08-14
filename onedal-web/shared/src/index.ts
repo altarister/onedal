@@ -689,14 +689,34 @@ export function resetToBaseFilter(base: AutoDispatchFilter): AutoDispatchFilter 
  * DriverAction(기사 행동) + 확정 오더 수를 조합하여 DispatchPhase를 자동 계산합니다.
  * DB에 저장하지 않으며, 하드코딩(0km, 10km)을 원천 차단합니다.
  */
+/**
+ * 🔴 **"운행 중"은 출발한 사실에서 나온다 — 지금 몸이 뭘 하는지가 아니라.**
+ *
+ * 2026-08-14 사고: 예전에는 `driverAction === 'DRIVING'` 이면 DELIVERING 이었다.
+ * 그런데 `driverAction` 은 **정류장마다 바뀐다** — 하차지에 도착하면 `UNLOADING` 이 되고,
+ * 그 순간 DELIVERING 이 풀렸다. 짐이 2건이면 정류장이 4곳이니 **출발을 네 번 눌러야** 했다.
+ *
+ * 풀리면서 딸려 온 것들: 운행중 국면 설정(우회 0)이 풀려 회랑이 다시 넓어지고,
+ * 지나온 구간 제거가 멈추고, 🚀 출발 버튼이 다시 나타나고, 요약줄이 "대기"로 바뀌었다.
+ * **증상 넷이 이 한 줄에서 나왔다.**
+ *
+ * 기사님에게 "운행 중"은 *"이제 그만 모으고 간다"* 이고, 그건 **한 번 켜지면 마지막 하차까지
+ * 유지되는 상태**다. 중간에 짐을 내리는 건 그 안에서 일어나는 일이지 운행이 끝난 게 아니다.
+ *
+ * 그래서 판정을 **출발했는가**(`hasDeparted`)로 옮겼다. `driverAction` 은 순수하게
+ * "지금 몸이 뭘 하는가"로 남아 화면 표시·도착 마일스톤·통계에 쓰인다 —
+ * **사냥 기준을 흔들지 않는다.**
+ *
+ * 끝나는 조건은 따로 없다. 마지막 콜을 하차 완료하면 콜이 0건이 되어 STANDBY 로 돌아간다.
+ */
 export function deriveDispatchPhase(
-    driverAction: DriverAction,
-    confirmedOrderCount: number
+    confirmedOrderCount: number,
+    hasDeparted: boolean
 ): DispatchPhase {
     if (confirmedOrderCount === 0) return 'STANDBY';
-    if (driverAction === 'DRIVING') return 'DELIVERING';
-    return 'GATHERING';
+    return hasDeparted ? 'DELIVERING' : 'GATHERING';
 }
+
 
 /**
  * [계층 3] DispatchPhase에 따라 실제 적용할 우회 반경을 결정합니다.

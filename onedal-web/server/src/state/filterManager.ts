@@ -233,8 +233,16 @@ export function rememberCorridorProgress(
  *   ③ 동·시 묶음·별칭을 **한 벌로** 줄인다 (별칭이 남으면 앱의 2단계 필터가 어긋난다)
  */
 export function applyTraveledTrim(session: ReturnType<typeof getUserSession>): boolean {
-    if (session.activeFilter.dispatchPhase !== 'DELIVERING') return false;
-
+    /**
+     * 🔴 **국면을 보지 않는다** (2026-08-14 정정).
+     *
+     * 처음에는 `dispatchPhase === 'DELIVERING'` 일 때만 돌렸다. 그런데 지나온 구간은
+     * **국면과 무관하게 참이다** — 이미 지난 동네는 합짐이든 운행중이든 지난 동네다.
+     * 게다가 도착 감지가 국면을 GATHERING 으로 떨어뜨리자 **달리는 중인데 제거가 멈췄다.**
+     *
+     * 조건은 데이터에 맡긴다: 진행도가 있고(= 회랑을 그렸고) · 경로가 있고 · GPS 가 있으면 돈다.
+     * 콜이 0건이면 경로가 없으니 자연히 안 돈다.
+     */
     const progress = session.corridorProgressKm;
     if (!progress) return false;
 
@@ -592,6 +600,7 @@ export function updateActiveFilter(
             dispatchPhase: 'STANDBY',
         };
         session.corridorProgressKm = null;
+        session.departedAt = null;   // 사이클이 끝났다 — 다음 운행은 다시 모으기부터
         recalculateDerivedFields(session, {}, userId);
         console.log(`[FilterManager] STANDBY 복귀: 합짐 파생값만 되돌림 ` +
             `(오늘 필터 유지 — 도착 ${session.activeFilter.destinationCity}, 최저 ${session.activeFilter.minFare}원)`);
@@ -637,7 +646,21 @@ export function updateActiveFilter(
         session.activeFilter.driverAction = 'WAITING';
     }
 
-    const derivedPhase = deriveDispatchPhase(session.activeFilter.driverAction ?? 'WAITING', activeCount);
+    /**
+     * 🚀 출발을 눌렀다 — 관제웹은 `driverAction: 'DRIVING'` 으로 알린다.
+     * 그 **사실**을 세션에 새긴다. 이후 정류장에서 driverAction 이 어떻게 바뀌든
+     * 운행 중은 유지된다 (마지막 하차로 콜이 0건이 될 때까지).
+     */
+    if (changes.driverAction === 'DRIVING' && !session.departedAt) {
+        session.departedAt = Date.now();
+        console.log(`🚀 [출발] 이제 모으지 않고 갑니다 — 운행 중 유지 (정류장에서 안 풀림)`);
+    }
+    // 실은 짐이 없으면 출발했을 리도 없다
+    if (activeCount === 0 && session.departedAt) {
+        session.departedAt = null;
+    }
+
+    const derivedPhase = deriveDispatchPhase(activeCount, !!session.departedAt);
     if (session.activeFilter.dispatchPhase !== derivedPhase) {
         console.log(`🔗 [불변식] dispatchPhase ${session.activeFilter.dispatchPhase} → ${derivedPhase} (활성 콜 ${activeCount}건)`);
         session.activeFilter.dispatchPhase = derivedPhase;
@@ -705,6 +728,7 @@ export function ensureBusinessDay(userId: string, io?: any): boolean {
      */
     session.phaseSettings = normalizePhaseSettings(JSON.parse(JSON.stringify(session.basePhaseSettings)));
     session.appliedPhaseKey = null;
+    session.departedAt = null;   // 어제 출발한 것이 오늘 되살아나지 않는다
 
     console.log(`🌅 [영업일 전환] ${yesterday} → ${today} · 오늘 필터를 기본 설정으로 되돌립니다 ` +
         `(도착 ${session.baseFilter.destinationCity}, 국면 설정 5종 포함)`);

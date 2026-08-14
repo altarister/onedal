@@ -112,8 +112,13 @@ describe('지나온 구간 제거 — 일찍 빼지 않는다', () => {
     const fn = fm.slice(fm.indexOf('export function applyTraveledTrim'), fm.indexOf('export function refreshCorridorIfNeeded') > 0 ? fm.indexOf('export function refreshCorridorIfNeeded') : undefined);
     const body = fn.slice(0, fn.indexOf('\n}\n') + 2);
 
-    it('운행 중일 때만 뺀다 (첫짐·합짐은 아직 안 달렸다)', () => {
-        expect(body).toMatch(/dispatchPhase !== 'DELIVERING'/);
+    it('🔴 국면을 보지 않는다 — 지나온 동네는 합짐이든 운행중이든 지난 동네다', () => {
+        // 2026-08-14 정정: 처음엔 DELIVERING 일 때만 돌렸는데, 도착 감지가 국면을
+        // GATHERING 으로 떨어뜨리자 **달리는 중인데 제거가 멈췄다.**
+        // 조건은 데이터에 맡긴다 — 진행도 · 경로 · GPS 가 있으면 돈다
+        expect(body).not.toMatch(/dispatchPhase/);
+        expect(body).toMatch(/const progress = session\.corridorProgressKm/);
+        expect(body).toMatch(/if \(!polyline \|\| !gps\) return false/);
     });
 
     it('🔴 진행도를 모르는 동은 남긴다', () => {
@@ -186,5 +191,47 @@ describe('GPS 경로는 전용 통로로 간다', () => {
         expect(fn).not.toMatch(/recalculateDerivedFields/);
         expect(fn).not.toMatch(/updateActiveFilter/);
         expect(fn).toMatch(/broadcastFilter/);
+    });
+});
+
+/**
+ * 🔴 **"운행 중"은 정류장에서 풀리지 않는다** (2026-08-14 기사님 신고)
+ *
+ * 기사님: *"이동중인데 필터 값이 변경되지 않았어."*
+ *
+ * 도착 감지가 `driverAction = UNLOADING` 을 켜자 `dispatchPhase` 가 GATHERING 으로 떨어졌고,
+ * **증상 넷이 한꺼번에** 나왔다 — 지나온 구간 제거 정지 · 우회 0 이 풀려 회랑이 넓어짐 ·
+ * 🚀 출발 버튼 재등장 · 요약줄이 "대기". 전부 판정 한 줄에서 나왔다.
+ */
+describe('운행 중 — 출발한 사실에서 나온다', () => {
+
+    const store = codeOnly(read('state/userSessionStore.ts'));
+    const client = codeOnly(readFileSync(join(__dirname, '../../../client-app/src/components/dashboard/PinnedRoute.tsx'), 'utf8'));
+
+    it('🔴 출발 사실을 세션에 새긴다 (driverAction 으로 대신하지 않는다)', () => {
+        expect(store).toMatch(/departedAt: number \| null/);
+        const apply = fm.slice(fm.indexOf('export function updateActiveFilter'));
+        expect(apply).toMatch(/changes\.driverAction === 'DRIVING' && !session\.departedAt/);
+        expect(apply).toMatch(/session\.departedAt = Date\.now\(\)/);
+    });
+
+    it('🔴 국면 판정이 driverAction 을 보지 않는다 — 정류장마다 바뀌는 값이다', () => {
+        const line = fm.slice(fm.indexOf('const derivedPhase ='), fm.indexOf('const derivedPhase =') + 120);
+        expect(line).toMatch(/deriveDispatchPhase\(activeCount, !!session\.departedAt\)/);
+        expect(line).not.toMatch(/driverAction/);
+    });
+
+    it('사이클이 끝나면 출발 사실도 지운다 (콜 0건 · STANDBY 복귀 · 자정)', () => {
+        expect((fm.match(/departedAt = null/g) || []).length).toBeGreaterThanOrEqual(3);
+    });
+
+    it('🔴 🚀 버튼은 국면을 보고 나타난다 — driverAction 을 보면 정류장마다 다시 뜬다', () => {
+        expect(client).toMatch(/filter\.dispatchPhase !== 'DELIVERING'/);
+        expect(client).not.toMatch(/filter\.driverAction !== 'DRIVING'/);
+    });
+
+    it('🚀 버튼이 우회 반경을 직접 정하지 않는다 (운행중 국면 설정이 준다)', () => {
+        const onClick = client.slice(client.indexOf("updateFilter({ driverAction: 'DRIVING'"));
+        expect(onClick.slice(0, 80)).not.toMatch(/corridorRadiusKm/);
     });
 });

@@ -195,14 +195,23 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
                         설정이 아니라 **운행 조작**이라 필터 팝업이 아니라 여기 있어야 한다 —
                         팝업을 열어야 누를 수 있으면 안 된다. "출발하셨나요?" 알림에 답하는 자리와 같은 곳.
 
-                        짐을 잡았고 아직 출발 전일 때만 보인다. 누르면 경유를 0으로 끊고
-                        운행 중으로 넘어간다 — 운전 중에 새 경로를 짜는 부담을 없앤다. */}
-                    {filter && filter.driverAction !== 'DRIVING' && liveRoute.length > 0 && (
+                        짐을 잡았고 아직 출발 전일 때만 보인다. 누르면 운행 중 국면으로 넘어가고,
+                        그 국면의 저장값(경유 0)이 서버에서 펼쳐진다.
+
+                        🔴 2026-08-14 — 조건이 `driverAction !== 'DRIVING'` 이었다. 그 값은
+                           **정류장마다 바뀌므로**, 하차지에 도착할 때마다 버튼이 다시 나타났다.
+                           짐이 2건이면 정류장이 4곳이라 출발을 네 번 눌러야 했다.
+                           "출발했는가"는 국면(`dispatchPhase`)이 답한다.
+
+                        🔴 `corridorRadiusKm: 0` 도 뺐다. 운행중 국면 설정이 이미 그 값을 갖고 있다 —
+                           여기서 또 보내면 같은 값을 두 곳에서 정하게 되고, 기사님이 운행중 탭에서
+                           경유를 3km 로 바꿔 둬도 이 버튼이 0으로 덮어썼다. */}
+                    {filter && filter.dispatchPhase !== 'DELIVERING' && liveRoute.length > 0 && (
                         <button
                             onClick={(e) => {
                                 e.stopPropagation();
-                                logRoadmapEvent("웹", "지도 좌하단 🚀 지금 출발 클릭 → 경유 0 · 운행 중 전환");
-                                updateFilter({ driverAction: 'DRIVING', corridorRadiusKm: 0 });
+                                logRoadmapEvent("웹", "지도 좌하단 🚀 지금 출발 클릭 → 운행 중 국면으로 전환");
+                                updateFilter({ driverAction: 'DRIVING' });
                             }}
                             className="absolute bottom-3 left-3 z-10 px-3.5 py-2 rounded-xl bg-gradient-to-r from-info to-info-alt text-white font-black text-[12px] shadow-[0_0_15px_var(--theme-glow-primary)] hover:shadow-[0_0_20px_var(--theme-glow-primary)] active:scale-95 transition-all"
                         >

@@ -9,19 +9,29 @@ import { deriveDispatchPhase, getRemainingCapacityTypes } from '@onedal/shared';
  * dispatchPhase / 합짐 여부 / 남은 적재 차종을 매번 파생시킨다.
  * 저장된 상태는 실제와 어긋날 수 있지만 파생값은 어긋날 수 없다.
  */
+/**
+ * 🔴 2026-08-14 — 시그니처가 바뀌었다. **규칙을 어긴 게 아니라 규칙이 바뀐 것이다.**
+ *
+ *   전: deriveDispatchPhase(driverAction, 콜수)   "운전 중이면 운행 중"
+ *   후: deriveDispatchPhase(콜수, 출발했는가)      "출발했으면 운행 중"
+ *
+ * `driverAction` 은 정류장마다 바뀐다 — 하차지에 도착하면 `UNLOADING` 이 되고 그 순간
+ * 운행 중이 풀렸다. 짐이 2건이면 정류장이 4곳이라 **출발을 네 번 눌러야** 했다.
+ * 아래 불변식(0건이면 STANDBY · 남으면 GATHERING)은 **그대로**다.
+ */
 describe('deriveDispatchPhase — 진행 중 콜 수로부터 단계 파생', () => {
     test('진행 중 콜이 없으면 STANDBY (첫짐 탐색)', () => {
-        expect(deriveDispatchPhase('WAITING', 0)).toBe('STANDBY');
-        expect(deriveDispatchPhase('DRIVING', 0)).toBe('STANDBY');
+        expect(deriveDispatchPhase(0, false)).toBe('STANDBY');
+        expect(deriveDispatchPhase(0, true)).toBe('STANDBY');
     });
 
     test('콜이 있고 대기 중이면 GATHERING (합짐 수집)', () => {
-        expect(deriveDispatchPhase('WAITING', 1)).toBe('GATHERING');
-        expect(deriveDispatchPhase('WAITING', 3)).toBe('GATHERING');
+        expect(deriveDispatchPhase(1, false)).toBe('GATHERING');
+        expect(deriveDispatchPhase(3, false)).toBe('GATHERING');
     });
 
     test('콜이 있고 운전 중이면 DELIVERING', () => {
-        expect(deriveDispatchPhase('DRIVING', 1)).toBe('DELIVERING');
+        expect(deriveDispatchPhase(1, true)).toBe('DELIVERING');
     });
 });
 
@@ -31,8 +41,8 @@ describe('🔴 이슈 W 재현 방어 — 재시작 후 진행 중 3건이 있�
     const loaded = ['오토바이', '오토바이', '오토바이'];
 
     test('복구 후 단계는 STANDBY가 아니라 GATHERING이어야 한다', () => {
-        expect(deriveDispatchPhase('WAITING', loaded.length)).toBe('GATHERING');
-        expect(deriveDispatchPhase('WAITING', loaded.length)).not.toBe('STANDBY');
+        expect(deriveDispatchPhase(loaded.length, false)).toBe('GATHERING');
+        expect(deriveDispatchPhase(loaded.length, false)).not.toBe('STANDBY');
     });
 
     test('오토바이 3건은 조수석 적재라 짐칸이 비어 있다 → 전 차종 허용', () => {
@@ -48,7 +58,7 @@ describe('🔴 이슈 W 재현 방어 — 재시작 후 진행 중 3건이 있�
     });
 
     test('복구 대상이 0건이면 STANDBY 유지 (필터를 건드리지 않아야 함)', () => {
-        expect(deriveDispatchPhase('WAITING', 0)).toBe('STANDBY');
+        expect(deriveDispatchPhase(0, false)).toBe('STANDBY');
     });
 });
 
@@ -57,12 +67,12 @@ describe('🔴 완료 경로에서도 STANDBY 로 돌아와야 한다 (2026-08-1
     // dispatchPhase 를 STANDBY 로 되돌리는 코드가 취소 경로에만 있고 완료 경로에는 없었다.
     // 이제 filterManager 가 활성 콜 수에서 매번 파생시키므로 경로와 무관하게 정합이 유지된다.
     it('활성 콜이 0이면 무조건 STANDBY — 어떤 경로로 0이 됐든', () => {
-        expect(deriveDispatchPhase('WAITING', 0)).toBe('STANDBY');
-        expect(deriveDispatchPhase('DRIVING', 0)).toBe('STANDBY');
+        expect(deriveDispatchPhase(0, false)).toBe('STANDBY');
+        expect(deriveDispatchPhase(0, true)).toBe('STANDBY');
     });
 
     it('한 건이라도 남아 있으면 합짐 상태를 유지한다', () => {
-        expect(deriveDispatchPhase('WAITING', 1)).toBe('GATHERING');
-        expect(deriveDispatchPhase('DRIVING', 1)).toBe('DELIVERING');
+        expect(deriveDispatchPhase(1, false)).toBe('GATHERING');
+        expect(deriveDispatchPhase(1, true)).toBe('DELIVERING');
     });
 });

@@ -71,6 +71,19 @@ export interface UserSession {
     appliedPhaseKey: PhaseKey | null;
 
     /**
+     * 🚀 **출발을 누른 시각.** null 이면 아직 모으는 중(합짐)이다.
+     *
+     * 🔴 이건 파생값이 아니라 **입력**이다 — 기사님이 누르지 않으면 알 수 없다.
+     *    (규칙 ③ 은 *파생값*을 저장하지 말라는 것이지 입력을 저장하지 말라는 게 아니다)
+     *
+     * 예전에는 `driverAction === 'DRIVING'` 으로 대신했는데, 그 값은 **정류장마다 바뀐다.**
+     * 하차지에 도착해 `UNLOADING` 이 되는 순간 운행중이 통째로 풀렸다.
+     *
+     * 끄는 것도 따로 없다 — 콜이 0건이 되면(마지막 하차 완료) 여기서 지운다.
+     */
+    departedAt: number | null;
+
+    /**
      * 회랑의 동마다 **경로 몇 km 지점인가** — 지나온 구간을 지울 때 쓴다.
      *
      * 🔴 **저장이 아니라 캐시다.** 회랑을 만든 그 순간에 같이 나온 값이고,
@@ -102,6 +115,7 @@ function createDefaultSession(): UserSession {
         phaseSettings: normalizePhaseSettings(null),
         appliedPhaseKey: null,
         corridorProgressKm: null,
+        departedAt: null,
     };
 }
 
