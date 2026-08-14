@@ -1,6 +1,8 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 
+import { nearestIndex } from "../../../client-app/src/hooks/useMockGpsSimulator";
+
 const CLIENT = join(__dirname, "../../../client-app/src");
 const read = (rel: string) => readFileSync(join(CLIENT, rel), "utf8");
 const codeOnly = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
@@ -99,11 +101,21 @@ describe('GPS 시뮬레이터 — 반복하지 않는다', () => {
         expect(sim).toMatch(/finishedRef\.current = true/);
     });
 
-    it('경로가 바뀌면(= 다른 콜) 처음부터 · 그때 완료 표시도 푼다', () => {
+    /**
+     * ⚠️ 이 검사는 원래 *"경로가 바뀌면 **처음부터**"* 를 고정하고 있었다.
+     *    지켜야 할 것은 **완료 표시를 푸는 것**이었고(안 풀면 새 경로를 아예 안 달린다),
+     *    `indexRef = 0` 은 그걸 하려고 같이 쓴 것뿐이었다.
+     *
+     *    그런데 그 한 줄이 2026-08-14 에 사고를 냈다 — 합짐 하나를 내리자 파주 근처에 있던
+     *    차가 **광주 원점으로 순간이동**했고, 그 좌표가 서버로 올라가 위치가 통째로 틀어졌다.
+     *    → 완료 표시는 그대로 풀고, 출발 자리만 **가장 가까운 지점**으로 바꿨다.
+     */
+    it('경로가 바뀌면 완료 표시를 푼다 · 다만 처음부터가 아니라 가까운 자리에서', () => {
         const onRoute = sim.slice(sim.indexOf('routeRef.current?.length !== routePolyline?.length'));
         const body = onRoute.slice(0, 220);
-        expect(body).toMatch(/indexRef\.current = 0/);
         expect(body).toMatch(/finishedRef\.current = false/);
+        expect(body).toMatch(/nearestIndex\(/);
+        expect(body).not.toMatch(/indexRef\.current = 0/);
     });
 });
 
@@ -210,5 +222,49 @@ describe('가상 위치는 남지 않는다', () => {
 
     it('시뮬레이터가 경로 끝에 닿으면 알린다', () => {
         expect(sim).toMatch(/onFinished\?\.\(\)/);
+    });
+});
+
+/**
+ * 🔴 **경로가 갈려도 출발점으로 순간이동하지 않는다** (2026-08-14 실측)
+ *
+ * 기사님: *"콜이 2개이고 중간에 합짐을 내리고 하차 완료 눌렀더니 경로를 다시 설정해서 꼬였어."*
+ *
+ * 서버 쪽 원인(다녀온 상차지를 다시 경유)은 `6d30b0e` 에서 고쳤다. **절반이 더 있었다:**
+ *      22:52:59  하트비트 2 → 1건        (합짐 하나를 내림)
+ *      📍 Mock GPS 0/1656  x=127.294    🔴 파주 근처에 있던 차가 광주 원점으로
+ *      22:53:02  📍 Mock GPS 0/2294     현위치
+ *
+ * 폴리라인 길이가 다르면 **무조건 0 번째부터** 달렸다.
+ * 보기에만 이상한 게 아니다 — 이 좌표는 `gpsBridge` 로 서버에 올라가고,
+ * 서버는 그걸 "지금 내 위치"로 믿는다. **지나온 구간 제거·도착 감지가 통째로 틀어진다.**
+ */
+describe('시뮬레이터 — 경로가 갈리면 가장 가까운 자리에서 이어 달린다', () => {
+
+    const src = codeOnly(readFileSync(join(CLIENT, 'hooks/useMockGpsSimulator.ts'), 'utf8'));
+
+    it('🔴 길이가 달라져도 0 으로 되돌리지 않는다', () => {
+        const eff = src.slice(src.indexOf('routeRef.current?.length !== routePolyline?.length'));
+        const body = eff.slice(0, eff.indexOf('}, [routePolyline])'));
+        expect(body).toMatch(/indexRef\.current = nearestIndex\(/);
+        expect(body).not.toMatch(/indexRef\.current = 0/);
+    });
+
+    it('🔴 달린 자리를 기억한다 — 없으면 이어붙일 기준이 없다', () => {
+        expect(src).toMatch(/hereRef\.current = \{ x: pt\.x, y: pt\.y \}/);
+    });
+
+    it('nearestIndex — 가장 가까운 지점을 고른다', () => {
+        const path = [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }, { x: 3, y: 0 }];
+        expect(nearestIndex(path, { x: 2.1, y: 0.05 })).toBe(2);
+        expect(nearestIndex(path, { x: 0, y: 0 })).toBe(0);
+        expect(nearestIndex(path, { x: 99, y: 99 })).toBe(3);   // 다 멀면 끝점
+    });
+
+    it('자리를 모르면 0 — 지어낼 값이 없다', () => {
+        const path = [{ x: 5, y: 5 }, { x: 6, y: 6 }];
+        expect(nearestIndex(path, null)).toBe(0);
+        expect(nearestIndex(null, { x: 1, y: 1 })).toBe(0);
+        expect(nearestIndex([], { x: 1, y: 1 })).toBe(0);
     });
 });

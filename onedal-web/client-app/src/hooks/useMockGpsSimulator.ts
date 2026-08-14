@@ -1,5 +1,28 @@
 import { useEffect, useRef, useState } from 'react';
 
+/**
+ * 폴리라인에서 **지금 자리와 가장 가까운 지점**의 인덱스.
+ *
+ * 경로가 갈릴 때(콜을 내렸다·합짐이 붙었다) 이어 달릴 자리를 찾는 데 쓴다.
+ * 자리를 모르면 `0` — 처음부터가 맞다 (지어낼 값이 없다).
+ *
+ * 위경도 도(度) 단위 제곱거리로 비교한다. 실제 거리(m)로 바꿀 필요가 없다 —
+ * **가장 가까운 하나를 고르는 데는 순서만 같으면 된다.**
+ */
+export function nearestIndex(
+    path: Array<{ x: number; y: number }> | null | undefined,
+    here: { x: number; y: number } | null | undefined,
+): number {
+    if (!path?.length || !here) return 0;
+    let best = 0, bestD = Infinity;
+    for (let i = 0; i < path.length; i++) {
+        const dx = path[i].x - here.x, dy = path[i].y - here.y;
+        const d = dx * dx + dy * dy;
+        if (d < bestD) { bestD = d; best = i; }
+    }
+    return best;
+}
+
 interface PolylinePoint {
     x: number;
     y: number;
@@ -32,11 +55,32 @@ export function useMockGpsSimulator({
     const routeRef = useRef(routePolyline);
     /** 이 경로를 끝까지 달렸나 — **끝났으면 다시 출발하지 않는다** */
     const finishedRef = useRef(false);
+    /** 지금 어디쯤 있나 — 경로가 갈릴 때 이어붙일 기준 (클로저가 굳지 않게 ref) */
+    const hereRef = useRef<{ x: number; y: number } | null>(null);
 
-    // 경로가 바뀌면(= 다른 콜) 처음부터. 같은 경로면 있던 자리를 지킨다
+    /**
+     * 🔴 **경로가 바뀌어도 출발점으로 순간이동하지 않는다.**
+     *
+     * 2026-08-14 기사님: *"콜이 2개이고 중간에 합짐을 내리고 하차 완료 눌렀더니
+     * 경로를 다시 설정해서 꼬였어."* 서버 쪽 원인(다녀온 상차지를 다시 경유)은 `6d30b0e`
+     * 에서 고쳤는데, **화면이 꼬여 보인 절반은 여기였다.**
+     *
+     *     22:52:59  하트비트 2 → 1건            (합짐 하나를 내림)
+     *     📍 Mock GPS 0/1656  x=127.294        🔴 광주 원점으로 순간이동
+     *     22:53:02  📍 Mock GPS 0/2294         현위치
+     *
+     * 콜을 하나 내리면 남은 콜의 폴리라인으로 갈아타는데, **길이가 다르면 무조건 0 번째부터**
+     * 달렸다. 그래서 파주 근처에 있던 차가 광주로 되돌아갔다.
+     *
+     * 🔴 **보기에만 이상한 게 아니다.** 이 좌표는 `gpsBridge` 로 서버에 그대로 올라간다 —
+     *    서버는 그걸 "지금 내 위치"로 믿으므로 **지나온 구간 제거·도착 감지가 통째로 틀어진다.**
+     *    (실 GPS 는 영향 없다. 시뮬레이터는 `import.meta.env.DEV` 뒤에 있다)
+     *
+     * 경로가 갈리면 **지금 자리에서 가장 가까운 지점**으로 이어붙인다. 뒤로 안 돌아가니까.
+     */
     useEffect(() => {
         if (routeRef.current?.length !== routePolyline?.length) {
-            indexRef.current = 0;
+            indexRef.current = nearestIndex(routePolyline, hereRef.current);
             finishedRef.current = false;
         }
         routeRef.current = routePolyline;
@@ -84,6 +128,7 @@ export function useMockGpsSimulator({
 
             const pt = path[indexRef.current];
             console.log(`📍 [Mock GPS] 이동 중: x=${pt.x}, y=${pt.y} (진척도: ${indexRef.current}/${path.length})`);
+            hereRef.current = { x: pt.x, y: pt.y };
             setMockLocation({ x: pt.x, y: pt.y });
 
             indexRef.current += speedMultiplier;
