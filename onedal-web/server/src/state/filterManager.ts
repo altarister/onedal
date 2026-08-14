@@ -473,16 +473,32 @@ function broadcastFilter(userId: string, session: ReturnType<typeof getUserSessi
     // 그때마다 filter-updated 를 쏘면 관제탑이 첫짐 → 합짐으로 깜빡인다.
     // 확정된 필터는 부트스트랩 끝에서 filter-init 으로 한 번만 나간다.
     if (session.isBootstrapping) return;
+    if (!io) return;
 
-    if (io) {
-        io.to(userId).emit("filter-updated", {
-            activeFilter: session.activeFilter,
-            baseFilter: session.baseFilter,
-            // 국면별 설정 (§2-4) — 관제탑의 탭이 이걸 편집한다
-            phaseSettings: session.phaseSettings,
-            basePhaseSettings: session.basePhaseSettings,
-        });
-    }
+    const payload = {
+        activeFilter: session.activeFilter,
+        baseFilter: session.baseFilter,
+        // 국면별 설정 (§2-4) — 관제탑의 탭이 이걸 편집한다
+        phaseSettings: session.phaseSettings,
+        basePhaseSettings: session.basePhaseSettings,
+    };
+
+    /**
+     * 🔴 **바뀐 게 없으면 안 보낸다** (2026-08-14).
+     *
+     * 이 함수는 `updateActiveFilter` 끝에서 불리고, 그 호출부가 **22곳**이다.
+     * 한 동작(KEEP 하나)이 내부적으로 여러 단계를 거치면 그 수만큼 나갔다 —
+     * 실측 **54ms 안에 15번**. 관제웹은 중간 상태를 다 받아 그때마다 다시 그렸다.
+     *
+     * 바로 위 `isBootstrapping` 방어가 같은 이유로 있었다("중간 상태를 내보내면 관제탑이
+     * 첫짐 → 합짐으로 깜빡인다"). 그 생각을 부트스트랩 밖까지 민 것이다.
+     * 판단은 **서버가 한 번** 한다 — 관제웹 여럿이 매번 비교하는 대신.
+     */
+    const json = JSON.stringify(payload);
+    if (json === session.lastFilterJson) return;
+    session.lastFilterJson = json;
+
+    io.to(userId).emit("filter-updated", payload);
 }
 
 /**

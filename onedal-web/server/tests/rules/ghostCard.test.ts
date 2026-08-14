@@ -114,3 +114,51 @@ describe('타이머 정리 — 키 목록은 한 곳', () => {
         expect(fn.slice(0, 800)).toMatch(/clearOrderTimers\(session, orderId\)/);
     });
 });
+
+/**
+ * 🔴 **바뀐 게 없으면 안 보낸다** — 필터도 오더 동기화와 같은 규칙 (2026-08-14)
+ *
+ * `updateActiveFilter` 는 호출부가 22곳이고 불릴 때마다 broadcast 했다. KEEP 하나가
+ * 내부적으로 여러 단계를 거치면 **관제웹이 중간 상태를 다 받는다** — 실측 54ms 안에 15번.
+ * 관제웹은 그때마다 다시 그렸다.
+ *
+ * 이미 `isBootstrapping` 중에는 안 보내고 있었다("중간 상태를 내보내면 관제탑이 깜빡인다").
+ * 같은 생각을 부트스트랩 밖까지 민 것이다.
+ */
+describe('브로드캐스트 — 바뀐 것만 보낸다', () => {
+
+    const fm = codeOnly(read('state/filterManager.ts'));
+    const handlers = codeOnly(read('socket/socketHandlers.ts'));
+
+    it('🔴 필터는 직전 전송본과 같으면 안 보낸다', () => {
+        const fn = fm.slice(fm.indexOf('function broadcastFilter'));
+        const body = fn.slice(0, fn.indexOf('\n}'));
+        expect(body).toMatch(/json === session\.lastFilterJson/);
+        expect(body).toMatch(/session\.lastFilterJson = json/);
+    });
+
+    it('🔴 오더 동기화도 마찬가지', () => {
+        expect(handlers).toMatch(/json === session\.lastOrderSyncJson/);
+    });
+
+    it('🔴 새 화면이 붙으면 둘 다 무조건 한 번 보낸다 (자동 치유)', () => {
+        const conn = handlers.slice(handlers.indexOf('socket.join(userId)'));
+        expect(conn.slice(0, 600)).toMatch(/lastOrderSyncJson = null/);
+        expect(conn.slice(0, 600)).toMatch(/lastFilterJson = null/);
+    });
+});
+
+/**
+ * 🔴 **로그는 setState updater 안에서 찍지 않는다.**
+ * React StrictMode 가 updater 를 두 번 부른다 — 순수해야 할 함수에 부작용을 넣으면
+ * **같은 줄이 두 번** 찍혀 화면이 "두 번 일어났다"고 잘못 말한다.
+ */
+describe('관제웹 로그 — updater 안에 부작용을 넣지 않는다', () => {
+
+    it('setActiveOrders(prev => …) 안에 console.log 가 없다', () => {
+        const src = codeOnly(readFileSync(join(__dirname, '../../../client-app/src/hooks/useOrderEngine.ts'), 'utf8'));
+        for (const m of src.matchAll(/setActiveOrders\(\s*(?:prev|\w+)\s*=>\s*\{([\s\S]*?)\n\s{12}\}\)/g)) {
+            expect(m[1]).not.toMatch(/console\.log/);
+        }
+    });
+});

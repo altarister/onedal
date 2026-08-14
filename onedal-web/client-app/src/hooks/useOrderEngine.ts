@@ -108,10 +108,10 @@ export function useOrderEngine() {
                     isTerminal(order.status) || order.status === 'ORDER_CONFIRMED' ||
                     order.id === secured.id
                 );
-                const next = [...cleaned, secured];
-                console.log(`   ➡️ activeOrders 변경: [${prev.map(o => o.id.slice(0, 8)).join(', ')}] → [${next.map(o => o.id.slice(0, 8)).join(', ')}]`);
-                return next;
+                return [...cleaned, secured];
             });
+            // 🔴 로그는 updater 밖에서 — StrictMode 가 updater 를 두 번 부른다 (같은 줄이 두 번 찍힌다)
+            console.log(`   ➡️ activeOrders 변경: [${activeOrdersRef.current.map(o => o.id.slice(0, 8)).join(', ')}] → [+${secured.id.slice(0, 8)}]`);
 
         };
 
@@ -157,11 +157,11 @@ export function useOrderEngine() {
             } else {
                 // 시스템에 의한 자동 삭제인 경우 완전히 지움
                 logRoadmapEvent("웹", "PinnedRoute 아코디언 컴포넌트를 강제 삭제하고 초기 관제대기 Empty State 화면 렌더링", "관제대시보드");
-                setActiveOrders(prev => {
-                    const next = prev.filter(o => o.id !== id);
-                    console.log(`   ➡️ activeOrders 변경: [${prev.map(o => o.id.slice(0, 8)).join(', ')}] → [${next.map(o => o.id.slice(0, 8)).join(', ')}]`);
-                    return next;
-                });
+                // 🔴 로그는 updater 밖에서 — StrictMode 가 updater 를 두 번 부른다
+                const before = activeOrdersRef.current;
+                const after = before.filter(o => o.id !== id);
+                console.log(`   ➡️ activeOrders 변경: [${before.map(o => o.id.slice(0, 8)).join(', ')}] → [${after.map(o => o.id.slice(0, 8)).join(', ')}]`);
+                setActiveOrders(after);
             }
             
             setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));

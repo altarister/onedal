@@ -76,6 +76,7 @@ export function registerSocketHandlers(io: Server) {
          *    나가게 한다 (재접속·새로고침·두 번째 탭). 이게 "1초 안에 자동 치유"의 실체다.
          */
         session.lastOrderSyncJson = null;
+        session.lastFilterJson = null;   // 필터도 마찬가지 — 새 화면은 아무것도 모른다
 
         // 날이 바뀌었으면 오늘 필터를 기본 설정으로 되돌린다.
         // 🔴 부트스트랩보다 **먼저** 해야 한다 — 부트스트랩이 이 필터를 읽어 회랑을 만든다

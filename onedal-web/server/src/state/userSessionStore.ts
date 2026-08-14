@@ -82,6 +82,17 @@ export interface UserSession {
     lastOrderSyncJson: string | null;
 
     /**
+     * 관제탑에 마지막으로 보낸 **필터** 본문. 같으면 다시 안 보낸다.
+     *
+     * 🔴 `updateActiveFilter` 는 호출부가 22곳이고, 불릴 때마다 무조건 broadcast 했다.
+     *    KEEP 하나가 내부적으로 여러 단계를 거치면 **관제웹이 중간 상태를 다 받는다** —
+     *    2026-08-14 실측 54ms 안에 15번.
+     *    이미 같은 이유로 `isBootstrapping` 중에는 안 보내고 있었다(중간 상태로 화면이
+     *    깜빡인다). 그 생각을 끝까지 민 것이다.
+     */
+    lastFilterJson: string | null;
+
+    /**
      * 지나온 구간 제거를 마지막으로 돌린 위치. 0.5km 이상 움직였을 때만 다시 돈다.
      *
      * 🔴 예전에는 `(session as any).lastTrimGPS` 로 **선언 없이** 붙여 쓰고 있었다.
@@ -137,6 +148,7 @@ function createDefaultSession(): UserSession {
         corridorProgressKm: null,
         departedAt: null,
         lastOrderSyncJson: null,
+        lastFilterJson: null,
         lastTrimGPS: undefined,
     };
 }
