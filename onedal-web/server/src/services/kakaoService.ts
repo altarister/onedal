@@ -208,16 +208,36 @@ function parseKakaoErrorMsg(resultCode: number, resultMsg: string): string {
  * 단독 주행 연산 (본콜 첫짐)
  * API 키는 모듈 스코프에서 자동 참조 — 호출 시 전달 불필요
  */
+/**
+ * 단독 주행 URL 조립 — **순수 함수라 테스트할 수 있다.**
+ *
+ * 🔴 `skipPickup` 은 **이미 상차한 콜**을 위한 것이다. 짐을 실었으면 상차지는 다녀온 곳이라
+ *    경유지에 넣으면 안 된다 — 넣으면 되돌아가는 경로가 나온다 (2026-08-14 실측).
+ *    판단 자체는 `routeComposer.isAlreadyLoaded` 한 곳에 있다.
+ */
+export function buildSoloRouteUrl(
+    pickupX: number, pickupY: number,
+    dropoffX: number, dropoffY: number,
+    driverLoc?: { x: number, y: number } | null,
+    priority: string = "RECOMMEND",
+    carType: number = 1,
+    skipPickup = false,
+): string {
+    const viaPickup = !!driverLoc && !skipPickup;
+    const originCoord = driverLoc ? `${driverLoc.x},${driverLoc.y}` : `${pickupX},${pickupY}`;
+    const waypointsQuery = viaPickup ? `&waypoints=${pickupX},${pickupY}` : "";
+    return `${KAKAO_NAV_URL}?origin=${originCoord}&destination=${dropoffX},${dropoffY}${waypointsQuery}&priority=${priority}&car_type=${carType}`;
+}
+
 export async function calculateSoloRoute(
     pickupX: number, pickupY: number,
     dropoffX: number, dropoffY: number,
     driverLoc?: { x: number, y: number } | null,
     priority: string = "RECOMMEND",
-    carType: number = 1
+    carType: number = 1,
+    skipPickup = false,
 ): Promise<RouteResult> {
-    const originCoord = driverLoc ? `${driverLoc.x},${driverLoc.y}` : `${pickupX},${pickupY}`;
-    const waypointsQuery = driverLoc ? `&waypoints=${pickupX},${pickupY}` : "";
-    const url = `${KAKAO_NAV_URL}?origin=${originCoord}&destination=${dropoffX},${dropoffY}${waypointsQuery}&priority=${priority}&car_type=${carType}`;
+    const url = buildSoloRouteUrl(pickupX, pickupY, dropoffX, dropoffY, driverLoc, priority, carType, skipPickup);
     
     console.log(`[Kakao Nav API (Solo)] 호출 URL: ${url}`);
     
@@ -239,7 +259,11 @@ export async function calculateSoloRoute(
     let approachDuration = 0;
     let approachDistance = 0;
     
-    // 현위치가 포함된 경우 section[0]은 현위치->상차지 접근 구간입니다.
+    /**
+     * 현위치가 포함된 경우 section[0]은 현위치->상차지 접근 구간입니다.
+     * ⚠️ `skipPickup` 이면 구간이 하나뿐이라 여기에 안 들어온다 — 접근 구간이 **없는 게 맞다.**
+     *    짐을 이미 실었으면 "상차지까지 몇 km" 라는 개념 자체가 없다.
+     */
     if (driverLoc && sections && sections.length > 1) {
         approachDuration = sections[0].duration;
         approachDistance = sections[0].distance;

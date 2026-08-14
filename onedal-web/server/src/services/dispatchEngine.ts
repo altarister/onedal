@@ -10,7 +10,7 @@ import { fetchRealWorldRoute } from "../routes/osrmUtil";
 import { getUserSession, clearOrderTimers } from "../state/userSessionStore";
 import { updateActiveFilter, rememberCorridorProgress } from "../state/filterManager";
 import { getCorridorRegions, getCityRegionsWithRadius, reverseGeocodeToRegion } from "../services/geoService";
-import { composeMergedRoute, applyRoute, applySoloRoute, pickRouteHolder, toKm, toMin } from "./routeComposer";
+import { composeMergedRoute, applyRoute, applySoloRoute, pickRouteHolder, toKm, toMin, isAlreadyLoaded } from "./routeComposer";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { DISPATCH_CONFIG } from "../config/dispatchConfig";
 import db from "../db";
@@ -95,12 +95,15 @@ export async function recalculateActiveKakaoRoute(userId: string, io: any) {
 
         if (activeSubs.length === 0) {
             // 단독 오더 라우팅
+            // 🔴 이미 상차했으면 상차지를 경유하지 않는다 — 안 그러면 되돌아가는 경로가 나온다.
+            //    합짐(composeMergedRoute)은 2026-08-13 에 고쳤는데 **여기가 빠져 있었다.**
             const res = await calculateSoloRoute(
                 activeMain.pickupX!, activeMain.pickupY!,
                 activeMain.dropoffX!, activeMain.dropoffY!,
                 session.driverLocation,
                 routingOptions.defaultPriority,
-                routingOptions.carType
+                routingOptions.carType,
+                isAlreadyLoaded(activeMain),
             );
             applySoloRoute(activeMain, res);
 
@@ -168,7 +171,8 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
                 securedOrder.dropoffX!, securedOrder.dropoffY!,
                 session.driverLocation,
                 priority || routingOptions.defaultPriority,
-                routingOptions.carType
+                routingOptions.carType,
+                isAlreadyLoaded(securedOrder),
             );
 
             let paramLabel = "추천";
@@ -773,12 +777,15 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
         // 3. 본콜 카카오 궤적 1회 복구
         if (activeMain && activeMain.pickupX && activeMain.dropoffX) {
             try {
+                // 🔴 복구도 마찬가지다 — 상차하고 달리다 **새로고침만 해도** 경로가 상차지로
+                //    되돌아가던 자리다 (2026-08-14).
                 const res = await calculateSoloRoute(
                     activeMain.pickupX, activeMain.pickupY!,
                     activeMain.dropoffX, activeMain.dropoffY!,
                     session.driverLocation,
                     routingOptions.defaultPriority,
-                    routingOptions.carType
+                    routingOptions.carType,
+                    isAlreadyLoaded(activeMain),
                 );
                 // 🔴 2026-08-12 — 여기가 **폴리라인과 ETA 두 개만 손으로** 쓰고 있었다.
                 //    카카오에는 현위치를 넣어 제대로 물어보고(origin=...) 답도 받아 놓고서

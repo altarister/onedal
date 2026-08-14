@@ -117,6 +117,21 @@ export interface ComposeMergedRouteParams {
  * 활성 콜들로 TSP 경유지를 짜서 카카오 합짐 경로를 계산한다.
  * 좌표가 온전한 콜이 하나도 없으면 `null`을 준다 (호출부가 조용히 건너뛸 수 있게).
  */
+/**
+ * **짐을 이미 실었는가.**
+ *
+ * 🔴 이 판단은 **여기 한 곳에만 둔다.** 2026-08-13 에 합짐 경로에서만 고치고 단독 경로를
+ *    빠뜨렸다가, 2026-08-14 에 같은 사고가 났다 — 합짐 하나를 내려 콜이 1건이 되는 순간
+ *    단독 분기로 넘어가면서 **이미 다녀온 상차지가 경유지로 되살아났다.**
+ *    (실측: 현위치 접근 44.5km · 총 137km · 폴리라인 1730 → 2294개)
+ *
+ * 기사님이 정리한 원칙 그대로다 — **KEEP 은 예약이고 상차가 적재다.**
+ * 짐을 실었으면 그 콜에 남은 일은 **하차뿐**이다.
+ */
+export function isAlreadyLoaded(c: { status?: string | null }): boolean {
+    return c.status === 'ORDER_PICKED_UP';
+}
+
 export async function composeMergedRoute(params: ComposeMergedRouteParams) {
     const { calls, extra, driverLocation, priority, carType } = params;
 
@@ -136,7 +151,7 @@ export async function composeMergedRoute(params: ComposeMergedRouteParams) {
     for (const c of calls) {
         const p = toCoordPair(c);
         if (!p) continue;
-        const alreadyLoaded = c.status === 'ORDER_PICKED_UP';
+        const alreadyLoaded = isAlreadyLoaded(c);
         if (alreadyLoaded) skippedPickups++;
         pairs.push({ pickup: alreadyLoaded ? null : p.pickup, dropoff: p.dropoff });
     }
