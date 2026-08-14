@@ -522,6 +522,27 @@ export function getLastDropoffCoord(session: { myOrders: MyOrder[] }): {x: numbe
  * 2. 2km 이상 이동 시 회랑(Corridor Trim) 동적 축소 계산 및 필터 갱신
  * 3. 마지막 하차지 500m 이내 도착 시 ARRIVED 상태로 전환
  */
+/** 이만큼 움직였을 때만 위치를 남긴다 (기사님 결정: "이동이 있을 때만") */
+const GPS_LOG_MIN_KM = 0.2;
+
+/**
+ * 이 속도를 넘으면 **트럭이 낸 속도가 아니다** — 위치가 튄 것이다.
+ * 2026-08-14 이전에 `11669km/h` 가 실제로 찍혔다(위치 파이프가 둘이라 서로 다른 좌표가 번갈아 갔다).
+ *
+ * ⚠️ **시뮬레이터에는 쓰지 않는다.** 개발용 시뮬레이터는 15배속이라 매 틱이 이 속도를 넘는다 —
+ *    그대로 두면 로그가 거짓 경보로 뒤덮여 진짜 사건이 묻힌다 (만들자마자 실측으로 확인했다).
+ */
+const IMPLAUSIBLE_SPEED_KMH = 200;
+
+/**
+ * 한 번에 이만큼 건너뛰면 **어느 출처든 순간이동이다.**
+ * 2026-08-14 실측: 합짐 하나를 내리자 시뮬레이터가 파주 → 광주 원점으로 **52.6km** 를 한 틱에
+ * 건너뛰었다. 정상 틱은 0.1~0.6km 다.
+ * (터널을 나온 실 GPS 는 오래 끊겼다 다시 잡히므로 아래 시간 조건으로 걸러진다)
+ */
+const GPS_JUMP_MIN_KM = 5;
+const GPS_JUMP_MAX_GAP_S = 30;
+
 export function processDriverMovement(
     userId: string,
     lat: number,
@@ -537,6 +558,8 @@ export function processDriverMovement(
      *    지나온 구간 제거는 파생을 다시 돌 이유가 없다. 전용 통로로 간다 (더 싸기도 하다).
      */
     trimTraveledCb?: (uid: string) => void,
+    /** 좌표 출처 (`native` · `browser` · `mock`) — 관제웹 `gpsBridge` 가 실어 보낸다 */
+    source?: string,
 ) {
     if (!lat || !lng) return;
     
@@ -546,6 +569,40 @@ export function processDriverMovement(
     //
     // 🔴 `dashboardLocation` 에도 같은 값을 넣고 있었는데 **읽는 곳이 한 군데도 없었다.**
     //    선언에도 없는 필드였다 (`pnpm audit:dead` 가 잡았다). 죽은 저장이라 지웠다.
+    /**
+     * 🔴 **서버가 받은 위치를 남긴다** (2026-08-14 신설).
+     *
+     * 그전까지 이 줄은 **검증도 로그도 없이** 덮어쓰기만 했다. 위치는 회랑·도착 감지·경로의
+     * **공통 입력**인데 무엇이 들어왔는지 기록이 없어, D 그룹(시뮬레이터 순간이동 · 파이프 둘 ·
+     * 11669km/h)은 확인 자체가 불가능했다. 진행도 로그는 설계상 단조라 증거가 못 된다.
+     *
+     * 기사님 결정: **이동이 있을 때만** 남긴다(㉮). 매초 찍으면 파일이 부푼다.
+     * 다만 **말이 안 되는 점프는 조용해도 남긴다** — 그게 찾으려는 바로 그 사건이다.
+     */
+    const prev = session.driverLocation;
+    const prevAt = session.lastGpsAt;
+    const src = source || '알수없음';
+
+    // 첫 좌표는 비교 대상이 없다. 시간을 모르면 속도도 지어내지 않는다 (규칙 ④)
+    if (prev && prevAt) {
+        const movedKm = haversineKm(prev.y, prev.x, currentGPS.y, currentGPS.x);
+        const elapsedS = Math.max(0.001, (Date.now() - prevAt) / 1000);
+        const kmh = (movedKm / elapsedS) * 3600;
+
+        const teleported = movedKm >= GPS_JUMP_MIN_KM && elapsedS < GPS_JUMP_MAX_GAP_S;
+        const tooFast = src !== 'mock' && kmh > IMPLAUSIBLE_SPEED_KMH;
+
+        if (teleported || tooFast) {
+            console.log(`🚨 [위치 점프] ${movedKm.toFixed(1)}km 를 ${elapsedS.toFixed(1)}초에 ` +
+                `(${Math.round(kmh)}km/h · 출처 ${src}) — ${prev.x.toFixed(4)},${prev.y.toFixed(4)} → ` +
+                `${currentGPS.x.toFixed(4)},${currentGPS.y.toFixed(4)}`);
+        } else if (movedKm >= GPS_LOG_MIN_KM) {
+            console.log(`📍 [위치] ${currentGPS.x.toFixed(4)},${currentGPS.y.toFixed(4)} ` +
+                `· ${(movedKm * 1000).toFixed(0)}m 이동 · ${Math.round(kmh)}km/h · 출처 ${src}`);
+        }
+    }
+    session.lastGpsAt = Date.now();
+
     session.driverLocation = currentGPS;
 
     // [V2] dispatchPhase 기반으로 체크

@@ -102,6 +102,13 @@ export interface UserSession {
     lastTrimGPS?: { x: number; y: number };
 
     /**
+     * 마지막으로 위치를 받은 시각(ms). **속도를 재는 데만 쓴다.**
+     * 기사님 결정(2026-08-14): 위치 기록은 *"이동이 있을 때만"* 남긴다 —
+     * 그러려면 얼마나 움직였는지와 함께 **얼마 만에** 움직였는지를 알아야 한다.
+     */
+    lastGpsAt?: number;
+
+    /**
      * 🚀 **출발을 누른 시각.** null 이면 아직 모으는 중(합짐)이다.
      *
      * 🔴 이건 파생값이 아니라 **입력**이다 — 기사님이 누르지 않으면 알 수 없다.
@@ -150,6 +157,7 @@ function createDefaultSession(): UserSession {
         lastOrderSyncJson: null,
         lastFilterJson: null,
         lastTrimGPS: undefined,
+        lastGpsAt: undefined,
     };
 }
 

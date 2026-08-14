@@ -22,7 +22,6 @@ const base: AutoDispatchFilter = {
     excludedKeywords: [],
     destinationKeywords: ['금촌동', '문산읍'],
     customCityFilters: ['파주시', '파주'],
-    customFilters: [],
 };
 
 describe('filterHuntBlocker — 이 필터로 사냥해도 되는가', () => {
