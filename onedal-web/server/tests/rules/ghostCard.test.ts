@@ -1,4 +1,4 @@
-import { readFileSync } from "fs";
+import { readFileSync, readdirSync, statSync } from "fs";
 import { join } from "path";
 import { LIST_SCREENS, isListScreen } from "@onedal/shared";
 
@@ -203,5 +203,64 @@ describe('사냥 재개 — 끄는 곳이 있으면 켜는 곳도 있다', () =>
         const body = fn.slice(0, fn.indexOf('\n}'));
         expect(body).not.toMatch(/isActive: true/);
         expect(body).toMatch(/updateActiveFilter\(userId, \{\}, io\)/);   // 불변식만 태운다
+    });
+});
+
+/**
+ * 🔴 **서버가 1번 보낸 것을 관제웹이 5번 처리하던 문제** (2026-08-14 실측)
+ *
+ * 브라우저 콘솔:  `5 [ROADMAP] 서버로 부터 filter-updated 소켓 이벤트 받음`  ← 매초
+ * 같은 시각 서버:  `broadcastFilter` **1회**
+ *
+ * `useFilterConfig()` 를 부르는 컴포넌트가 5개인데 **훅마다 `socket.on` 을 걸었다.**
+ * 달리는 동안 매초, 동 179개짜리 페이로드로 `normalizePhaseSettings` + 스토어 갱신이
+ * **5벌씩** 돌았다.
+ *
+ * 서버에서 "바뀐 것만 보낸다"로 줄여도 **여기서 5배로 되살아난다** —
+ * 그래서 구독을 스토어로 끌어올렸다. 훅은 읽기만 한다.
+ */
+describe('소켓 구독 — 컴포넌트 수만큼 늘어나지 않는다', () => {
+
+    const CLIENT = join(__dirname, '../../../client-app/src');
+    const rc = (rel: string) => codeOnly(readFileSync(join(CLIENT, rel), 'utf8'));
+
+    it('🔴 훅은 filter 소켓을 직접 구독하지 않는다', () => {
+        const hook = rc('hooks/useFilterConfig.ts');
+        expect(hook).not.toMatch(/socket\.on\(/);
+        expect(hook).toMatch(/ensureFilterSocketSubscribed\(\)/);
+    });
+
+    it('🔴 구독은 스토어에서 단 한 번 (두 번째 호출은 아무것도 안 한다)', () => {
+        const store = rc('stores/filterStore.ts');
+        const fn = store.slice(store.indexOf('export function ensureFilterSocketSubscribed'));
+        expect(fn).toMatch(/if \(subscribed\) return;/);
+        expect(fn).toMatch(/subscribed = true;/);
+        expect(fn).toMatch(/socket\.on\('filter-init'/);
+        expect(fn).toMatch(/socket\.on\('filter-updated'/);
+    });
+
+    /**
+     * 이 훅은 컴포넌트 5개가 쓴다. 그 수가 문제가 아니라 **훅이 구독을 갖는 것**이 문제였다.
+     * 다른 훅이 같은 실수를 하면 여기서 걸린다.
+     */
+    it('🔴 여러 컴포넌트가 쓰는 훅은 socket.on 을 갖지 않는다', () => {
+        const files: string[] = [];
+        const walk = (d: string) => {
+            for (const e of readdirSync(d)) {
+                const p = join(d, e);
+                if (statSync(p).isDirectory()) walk(p);
+                else if (/\.tsx?$/.test(e)) files.push(p);
+            }
+        };
+        walk(CLIENT);
+
+        const offenders: string[] = [];
+        for (const f of files.filter(f => /\/hooks\/use\w+\.tsx?$/.test(f))) {
+            if (!/socket\.on\(/.test(codeOnly(readFileSync(f, 'utf8')))) continue;
+            const name = f.split('/').pop()!.replace(/\.tsx?$/, '');
+            const users = files.filter(o => o !== f && new RegExp(`\\b${name}\\s*\\(`).test(readFileSync(o, 'utf8')));
+            if (users.length > 1) offenders.push(`${name} — 컴포넌트 ${users.length}개가 쓴다`);
+        }
+        expect(offenders).toEqual([]);
     });
 });

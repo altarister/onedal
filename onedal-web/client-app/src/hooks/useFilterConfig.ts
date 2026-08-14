@@ -1,75 +1,20 @@
 import { useEffect } from "react";
 import { socket } from "../lib/socket";
-import type { AutoDispatchFilter, PhaseKey, PhaseSettings, PhaseSettingsMap } from "@onedal/shared";
-import { normalizePhaseSettings } from "@onedal/shared";
+import type { AutoDispatchFilter, PhaseKey, PhaseSettings } from "@onedal/shared";
 import { logRoadmapEvent } from "../lib/roadmapLogger";
-import { useFilterStore } from "../stores/filterStore";
+import { useFilterStore, ensureFilterSocketSubscribed } from "../stores/filterStore";
 
-let lastFilterInitRequestTime = 0;
-
-function requestFilterInitSafe() {
-    const now = Date.now();
-    if (now - lastFilterInitRequestTime > 1000) {
-        lastFilterInitRequestTime = now;
-        socket.emit("request-filter-init");
-    }
-}
-
+/**
+ * 필터를 읽고 바꾸는 훅.
+ *
+ * 🔴 **소켓 구독은 여기에 없다.** `filterStore` 가 앱 전체에서 한 번만 건다 —
+ *    이 훅은 컴포넌트 5개가 부르는데, 훅마다 `socket.on` 을 걸면 서버가 1번 보낸 것을
+ *    **5번 처리한다** (2026-08-14 실측). 이유는 `stores/filterStore.ts` 에 적어 뒀다.
+ */
 export function useFilterConfig() {
-    const { filter, baseFilter, phaseSettings, basePhaseSettings, setBothFilters, setFilter, setBaseFilter, setPhaseSettings } = useFilterStore();
+    const { filter, baseFilter, phaseSettings, basePhaseSettings, setFilter, setBaseFilter } = useFilterStore();
 
-    useEffect(() => {
-        // 소켓 이벤트 핸들러 구독
-        type FilterPayload = {
-            activeFilter: AutoDispatchFilter,
-            baseFilter: AutoDispatchFilter,
-            phaseSettings?: PhaseSettingsMap,
-            basePhaseSettings?: PhaseSettingsMap,
-        };
-
-        /**
-         * 국면별 설정(§2-4)은 **서버가 원천이다.** 옛 서버가 안 보내 줘도 화면이 죽지 않게
-         * normalize 로 빈 곳을 기본값으로 채운다 (없는 값을 지어내는 게 아니라, 서버가
-         * 아직 그 필드를 모르는 동안 화면이 그릴 수 있게 하는 것).
-         */
-        const applyPayload = (payload: FilterPayload) => {
-            setBothFilters(payload.activeFilter, payload.baseFilter);
-            setPhaseSettings(
-                normalizePhaseSettings(payload.phaseSettings),
-                normalizePhaseSettings(payload.basePhaseSettings),
-            );
-        };
-
-        const onFilterInit = (payload: FilterPayload) => {
-            logRoadmapEvent("웹", "서버로 부터 filter-init 초기 필터값(isSharedMode, distance 등) 받음");
-            applyPayload(payload);
-        };
-
-        const onFilterUpdated = (payload: FilterPayload) => {
-            logRoadmapEvent("웹", "서버로 부터 filter-updated 소켓 이벤트 받음");
-            applyPayload(payload);
-        };
-
-        socket.on("filter-init", onFilterInit);
-        socket.on("filter-updated", onFilterUpdated);
-
-        // [Phase 6] 접속 시 요청(request-filter-init)은 더 이상 하지 않는다.
-        //
-        // 서버가 소켓 접속마다 filter-init 을 **먼저 밀어주므로**, 여기서 또 요청하면
-        // 똑같은 페이로드(키워드 140개 포함)가 두 번 오간다. 실제로 측정해 보니
-        // connect 직후 37ms 안에 filter-init 이 2회 도착했다.
-        //
-        // 다만 이 훅이 소켓 연결 이후에 마운트되면 그 push 를 놓치므로,
-        // 아직 필터가 비어 있을 때만 한 번 요청한다.
-        if (!useFilterStore.getState().filter) {
-            requestFilterInitSafe();
-        }
-
-        return () => {
-            socket.off("filter-init", onFilterInit);
-            socket.off("filter-updated", onFilterUpdated);
-        };
-    }, [setBothFilters, setPhaseSettings]);
+    useEffect(() => { ensureFilterSocketSubscribed(); }, []);
 
     /**
      * 필터를 바꾼다 (Optimistic UI).
