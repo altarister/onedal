@@ -60,6 +60,14 @@ export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: 
         incrementDeviceStats(targetDeviceId, "canceled");
         console.log(`   📈 기기(${targetDeviceId}) 취소 카운트 +1 반영 (reason: FORCE_CANCEL)`);
     }
+
+    /**
+     * 🔴 사냥 재개(`isActive`)는 **여기서 하지 않는다.**
+     *    `filterManager` 의 불변식이 "선점 중인 콜이 0건이면 켠다"로 파생시킨다 —
+     *    취소 경로가 셋(화면 이탈·타임아웃·비상)인데 각자 켜면 하나를 빠뜨린다.
+     *    실제로 2026-08-14 에 이 경로가 빠져 사냥이 죽은 채로 남았다.
+     */
+    updateActiveFilter(userId, {}, io);
 }
 
 /** 취소/방출 등 메모리 변동 발생 시, 오더가 남아있다면 카카오 경로를 백그라운드에서 재탐색하여 폴리라인 및 소요시간을 복원합니다. */

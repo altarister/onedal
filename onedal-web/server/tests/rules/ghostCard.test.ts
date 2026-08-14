@@ -162,3 +162,46 @@ describe('관제웹 로그 — updater 안에 부작용을 넣지 않는다', ()
         }
     });
 });
+
+/**
+ * 🔴 **유령 카드의 쌍둥이 — 사냥이 죽은 채로 남던 문제** (2026-08-14 실측)
+ *
+ * 기사님이 자동으로 콜을 잡는 중에 앱을 손으로 만져 리스트로 빠져나왔다. 서버 로그:
+ *      22:03:46  콜 선점 → isActive = false   (결재 날 때까지 다른 콜 안 물게 — 정상)
+ *      22:04:07  🚀 화면 이탈 감지 → 강제 취소 → 카드 삭제        ✅
+ *                🔴 그런데 isActive 를 되돌리지 않았다
+ *      그 뒤     isActive = false 그대로 → **사냥이 죽은 채로 남았다**
+ *
+ * 카드는 사라졌으니 화면에는 아무 표시도 없다. 왜 콜이 안 잡히는지 알 방법이 없다 —
+ * **유령 카드보다 나쁘다.**
+ *
+ * `isActive` 를 끄는 곳은 하나(`/orders/confirm`)인데 켜는 곳이 흩어져 있었고,
+ * 결재를 거치지 않는 취소 경로 셋(화면 이탈·타임아웃·비상)이 그걸 빠뜨렸다.
+ * → 취소 경로마다 켜지 않는다. **"선점 중인 콜이 없다"는 데이터에서 파생시킨다.**
+ */
+describe('사냥 재개 — 끄는 곳이 있으면 켜는 곳도 있다', () => {
+
+    const fm = codeOnly(read('state/filterManager.ts'));
+    const engine = codeOnly(read('services/dispatchEngine.ts'));
+
+    it('🔴 선점 중인 콜이 없으면 isActive 를 다시 켠다 (불변식)', () => {
+        const inv = fm.slice(fm.indexOf('const evaluating ='), fm.indexOf('const derivedShared'));
+        expect(inv).toMatch(/!session\.activeFilter\.isActive && evaluating\.length === 0/);
+        expect(inv).toMatch(/isActive = true/);
+    });
+
+    it('🔴 종료된 콜은 "선점 중"이 아니다 — 캐시에는 종료 콜도 남아 있다', () => {
+        // pendingOrdersData.size 로 세면 영영 0 이 안 된다 (buildOrderSync 가 거기서 terminated 를 뽑는다).
+        // 2026-08-14 재현에서 이걸 틀려 한 번 헛돌았다
+        const inv = fm.slice(fm.indexOf('const evaluating ='), fm.indexOf('const derivedShared'));
+        expect(inv).toMatch(/!isTerminal\(o\.status\)/);
+        expect(inv).not.toMatch(/pendingOrdersData\.size === 0/);
+    });
+
+    it('취소 경로가 각자 켜지 않는다 — 하나를 빠뜨리면 사냥이 죽는다', () => {
+        const fn = engine.slice(engine.indexOf('export function forceCancelEvaluatingOrder'));
+        const body = fn.slice(0, fn.indexOf('\n}'));
+        expect(body).not.toMatch(/isActive: true/);
+        expect(body).toMatch(/updateActiveFilter\(userId, \{\}, io\)/);   // 불변식만 태운다
+    });
+});

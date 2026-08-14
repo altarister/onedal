@@ -17,7 +17,7 @@ import { OrderRepository } from "../repositories/OrderRepository";
 import { SettingsRepository } from "../repositories/SettingsRepository";
 import { getUserSession } from "./userSessionStore";
 import type { AutoDispatchFilter, PhaseKey, PhaseSettings } from "@onedal/shared";
-import { DEFAULT_CORRIDOR_RADIUS_KM, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, resolvePhaseKey, applyPhaseToFilter, normalizePhaseSettings } from "@onedal/shared";
+import { DEFAULT_CORRIDOR_RADIUS_KM, isTerminal, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, resolvePhaseKey, applyPhaseToFilter, normalizePhaseSettings } from "@onedal/shared";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { getCityRegionsWithRadius, cityAliases, getCorridorRegions, getActivePolyline, progressAlongPolyline } from "../services/geoService";
 
@@ -680,6 +680,32 @@ export function updateActiveFilter(
     if (session.activeFilter.dispatchPhase !== derivedPhase) {
         console.log(`🔗 [불변식] dispatchPhase ${session.activeFilter.dispatchPhase} → ${derivedPhase} (활성 콜 ${activeCount}건)`);
         session.activeFilter.dispatchPhase = derivedPhase;
+    }
+
+    /**
+     * 🔴 **선점 중인 콜이 없으면 사냥은 켜져 있어야 한다** (2026-08-14).
+     *
+     * `isActive` 는 "지금 콜을 물어도 되는가" 다. `/orders/confirm` 이 콜을 선점하면서
+     * `false` 로 끄고(결재 날 때까지 다른 콜을 안 물게), **결재가 나면** `rollbackOnCancel`
+     * 이 다시 켠다.
+     *
+     * 그런데 결재를 거치지 않는 취소 경로가 셋이었다 — 화면 이탈 강제 취소 ·
+     * `/detail` 35초 타임아웃 · 비상 보고. **끄기만 하고 켜지 않았다.**
+     * 실측(22:04:07): 기사님이 앱에서 손으로 리스트로 빠져나오자 카드는 사라졌는데
+     * **사냥이 죽은 채로 남았다.** 화면에 아무 표시도 없어 왜 콜이 안 잡히는지 알 수 없다.
+     *
+     * 켜는 책임을 취소 경로마다 흩지 않는다 — **선점 중인 콜이 없다**는 데이터에서 파생시킨다.
+     * 관제웹은 이 값을 보내지 않으므로(기사님이 손으로 끄는 스위치가 아니다) 안전하다.
+     *
+     * ⚠️ `pendingOrdersData.size` 로 세면 안 된다 — 그 캐시에는 **종료된 콜도 남아 있다**
+     *    (`buildOrderSync` 가 거기서 terminated 를 뽑는다). 세어야 할 것은 **아직 끝나지 않은**
+     *    콜이다. 2026-08-14 재현에서 이걸 틀려 한 번 헛돌았다.
+     */
+    const evaluating = Array.from(session.pendingOrdersData.values())
+        .filter((o: any) => !isTerminal(o.status));
+    if (!session.activeFilter.isActive && evaluating.length === 0) {
+        console.log(`🔗 [불변식] isActive false → true (선점 중인 콜 0건 — 사냥을 다시 켠다)`);
+        session.activeFilter.isActive = true;
     }
 
     const derivedShared = derivedPhase !== 'STANDBY';
