@@ -1,4 +1,11 @@
 // Force trigger GitHub Actions deployment
+/**
+ * 🔴 **맨 위여야 한다.** 이 줄 아래의 import 들이 모듈 로드 중에 찍는 로그(DB 준비, 지오 로드
+ *    등)까지 파일에 남기려면 `console` 가로채기가 그보다 먼저 일어나야 한다.
+ */
+import { initFileLogger } from "./utils/fileLogger";
+initFileLogger();
+
 import express from "express";
 import { createServer } from "http";
 import { Server as SocketIOServer } from "socket.io";

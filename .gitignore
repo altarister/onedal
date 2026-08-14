@@ -43,3 +43,6 @@ onedal-app/build/
 *.aab
 *.jks
 *.keystore
+
+# 서버 로그 파일 (pnpm dev / 운영 공통) — 3일치만 남고 자동 정리된다
+onedal-web/server/logs/
