@@ -67,8 +67,3 @@ export function publishLocation(
     window.dispatchEvent(new CustomEvent('local-gps-update', { detail: { lat, lng, source } }));
     return { sent: true };
 }
-
-/** 지금 시뮬레이터가 좌표를 대고 있나 (화면이 속도를 어떻게 표시할지 판단용) */
-export function isMockDriving(): boolean {
-    return Date.now() - lastMockAt < MOCK_HOLD_MS;
-}

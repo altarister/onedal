@@ -10,7 +10,14 @@
 | `pnpm dev` | 로컬 기동 (web + api) |
 | `pnpm scenario` | **실제 서버를 띄워 콜 생애를 끝까지 돌린다** (21건) |
 | `pnpm audit:socket` | 서버 `emit` ↔ 관제웹 `on` 대조 — 한쪽만 고친 것 |
+| `pnpm audit:dead` | **불려야 하는데 안 불리는 것** — 안 쓰이는 export · 세션에 없는 필드 · `session: any` |
+| `pnpm map` | 흐름 지도 — 부팅 순서 · 이벤트 사슬 · REST · 상태 쓰기 (소스에서 추출) |
 | `pnpm e2e:app` | **앱까지 포함한 왕복** — 화면 인식 → 필터 → 터치 → 확정 (7단계) |
+
+**`pnpm audit:dead` 는 "고쳤는데 안 돌고 있는 것"을 잡는다.**
+2026-08-14 하루에 두 건이 나왔다 — `getActivePolyline`(지나온 구간 제거)·`getLastDropoffCoord`(도착 감지).
+둘 다 **호출부는 멀쩡했고**, 세션에서 사라진 필드를 읽어 **몇 달째 `null` 만 반환**하고 있었다.
+파라미터가 `session: any` 라 `tsc` 가 잡지 못했다. → **`any` 로 세션을 받지 않는다.**
 
 **`pnpm scenario` 는 다른 검사가 전부 통과한 결함을 잡는 유일한 수단이다.**
 2026-08-11 에 배포하면 안 되는 결함 6건이 `tsc`·`jest`·`vite build`·`audit:socket` 을

@@ -26,10 +26,6 @@ export const PHASE_LABEL: Record<PhaseKey, string> = {
     home: '복귀',
 };
 
-export const PHASE_ICON: Record<PhaseKey, string> = {
-    first: '🚚', merge: '📦', drive: '🛣️', local: '🏘️', home: '🏠',
-};
-
 /**
  * **국면은 두 축의 조합이다.**
  *

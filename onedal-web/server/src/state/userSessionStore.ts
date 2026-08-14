@@ -82,6 +82,15 @@ export interface UserSession {
     lastOrderSyncJson: string | null;
 
     /**
+     * 지나온 구간 제거를 마지막으로 돌린 위치. 0.5km 이상 움직였을 때만 다시 돈다.
+     *
+     * 🔴 예전에는 `(session as any).lastTrimGPS` 로 **선언 없이** 붙여 쓰고 있었다.
+     *    `as any` 로 붙인 필드는 오타가 나도 tsc 가 못 잡는다 — 세션에서 사라진 필드를
+     *    읽던 오늘의 사고와 같은 뿌리다. 쓸 거면 선언한다.
+     */
+    lastTrimGPS?: { x: number; y: number };
+
+    /**
      * 🚀 **출발을 누른 시각.** null 이면 아직 모으는 중(합짐)이다.
      *
      * 🔴 이건 파생값이 아니라 **입력**이다 — 기사님이 누르지 않으면 알 수 없다.
@@ -128,6 +137,7 @@ function createDefaultSession(): UserSession {
         corridorProgressKm: null,
         departedAt: null,
         lastOrderSyncJson: null,
+        lastTrimGPS: undefined,
     };
 }
 

@@ -3,6 +3,12 @@ import path from 'path';
 import { getActiveCalls } from '../core/helpers';
 import type { MyOrder } from '@onedal/shared';
 /**
+ * 🔴 **타입만 가져온다** (`import type`). 런타임 값을 가져오면 순환 참조가 되어 부팅이 막힌다.
+ *    예전에 이 파라미터가 `any` 라, 세션에서 사라진 필드를 읽는 함수가 **몇 달째 null 만
+ *    반환하는데도 아무도 몰랐다** (`getActivePolyline`·`getLastDropoffCoord`, 2026-08-14).
+ */
+import type { UserSession } from '../state/userSessionStore';
+/**
  * 배럴(`@turf/turf`) 대신 **쓰는 것만** 가져온다.
  *
  * 배럴은 클러스터링·보간 등 이 프로젝트가 안 쓰는 모듈까지 전부 끌고 오는데,
@@ -520,7 +526,7 @@ export function processDriverMovement(
     userId: string,
     lat: number,
     lng: number,
-    session: any,
+    session: UserSession,
     applyFilterCb: (uid: string, filter: any) => void,
     /**
      * 지나온 구간을 뺄 때 부른다 — **필터 변경 경로와 통로를 나눈다.**
@@ -537,8 +543,10 @@ export function processDriverMovement(
     const currentGPS = { x: lng, y: lat }; // 카카오 좌표계 (x=경도, y=위도)
 
     // 마스터 GPS 위치를 세션에 저장 (지도 렌더링 및 카카오 길찾기 Origin으로 사용됨)
+    //
+    // 🔴 `dashboardLocation` 에도 같은 값을 넣고 있었는데 **읽는 곳이 한 군데도 없었다.**
+    //    선언에도 없는 필드였다 (`pnpm audit:dead` 가 잡았다). 죽은 저장이라 지웠다.
     session.driverLocation = currentGPS;
-    session.dashboardLocation = currentGPS;
 
     // [V2] dispatchPhase 기반으로 체크
     const isDelivering = session.activeFilter.dispatchPhase === 'DELIVERING';
@@ -557,11 +565,11 @@ export function processDriverMovement(
          *    (동 목록·시 묶음·별칭을 **한 벌로** 줄여야 하므로). 여기서는 방아쇠만 당긴다.
          *    ⚠️ 필터 변경(`applyFilterCb`)과 **다른 통로**다 — 이유는 인자 주석에 있다.
          */
-        const lastTrim = (session as any).lastTrimGPS as { x: number; y: number } | undefined;
+        const lastTrim = session.lastTrimGPS;
         const dist = lastTrim ? haversineKm(lastTrim.y, lastTrim.x, lat, lng) : Infinity;
 
         if (dist > 0.5 && trimTraveledCb && getActivePolyline(session)) {
-            (session as any).lastTrimGPS = currentGPS;
+            session.lastTrimGPS = currentGPS;
             trimTraveledCb(userId);
         }
 
