@@ -192,74 +192,36 @@ export function useOrderEngine() {
                 payload = { active: payload.filter(o => !isTerminal(o.status)), terminated: [] };
             }
             const serverActiveOrders = payload.active || [];
-            setTerminatedOrders(prevT => {
-                const next = payload.terminated || [];
-                return JSON.stringify(prevT) === JSON.stringify(next) ? prevT : next;
-            });
+
+            /**
+             * 🔴 **여기서 비교하지 않는다** (2026-08-14).
+             *
+             * 예전에는 `JSON.stringify(prev) !== JSON.stringify(server)` 로 매초 비교했다.
+             * 실측: active 118KB · terminated 119KB 가 1초마다 왔고, 양쪽을 문자열로 만드니
+             * **초당 474KB 의 임시 문자열**이 생겼다 다시 버려졌다. 한 시간이면 1.7GB —
+             * **브라우저가 시간이 지나면 죽었다.** 종료 콜은 하루 종일 쌓이기만 하므로
+             * 오후로 갈수록 나빠졌다.
+             *
+             * 비교는 어차피 필요하다. 다만 **서버가 한 번** 한다 (`socketHandlers` 의 백그라운드
+             * 싱크가 직전 전송본과 같으면 아예 안 보낸다). 그러니 **도착했다는 것 자체가
+             * "바뀌었다"는 뜻**이고, 여기서는 그냥 받아 넣으면 된다.
+             *
+             * 자동 치유는 그대로다 — 소켓이 새로 붙으면 서버가 무조건 한 번 보낸다.
+             */
+            setTerminatedOrders(payload.terminated || []);
 
             setActiveOrders(prev => {
-                // 배열 내역(ID, 상태, 카카오결과 등) 전체를 비교하여 하나라도 다르면 무조건 덮어쓰기
-                // 소켓 통신(Vite 프록시) 불안정으로 이벤트가 누락되더라도 1초 안에 100% 자동 치유됨!
-                const prevStr = JSON.stringify(prev);
-                const serverStr = JSON.stringify(serverActiveOrders);
-
-                if (prevStr !== serverStr) {
-                    console.log(`🔄 [하트비트 싱크] 상태 불일치(또는 누락 이벤트) 감지! 유령 삭제 및 최신 데이터로 화면 강제 동기화 수행.`);
-
-                    // -- 시작: 상세 불일치 추적 로직 --
-                    const differences: string[] = [];
-                    if (prev.length !== serverActiveOrders.length) {
-                        differences.push(`배열 길이 다름: 웹(${prev.length}개) vs 서버(${serverActiveOrders.length}개)`);
-                    }
-
+                // 무엇이 달라졌는지는 남긴다. 다만 **문자열을 만들지 않고** 개수·ID 로만 센다
+                if (prev.length !== serverActiveOrders.length) {
+                    const prevIds = new Set(prev.map(o => o.id));
                     const serverIds = new Set(serverActiveOrders.map(o => o.id));
-
-                    // 1. 신규 및 변경된 콜 확인
-                    serverActiveOrders.forEach(serverOrder => {
-                        const prevOrder = prev.find(o => o.id === serverOrder.id);
-                        if (!prevOrder) {
-                            differences.push(`[NEW] ID: ${serverOrder.id.slice(0, 8)} 서버에서 새로 추가됨`);
-                        } else {
-                            const propDiffs: string[] = [];
-                            // 서버 기준 변경점
-                            Object.keys(serverOrder).forEach(key => {
-                                const sVal = JSON.stringify((serverOrder as any)[key]);
-                                const pVal = JSON.stringify((prevOrder as any)[key]);
-                                if (sVal !== pVal) {
-                                    propDiffs.push(`'${key}': ${pVal} ➡️ ${sVal}`);
-                                }
-                            });
-                            // 프론트에만 있고 서버엔 없는 속성
-                            Object.keys(prevOrder).forEach(key => {
-                                if (!(key in serverOrder)) {
-                                    propDiffs.push(`'${key}' 속성 삭제됨`);
-                                }
-                            });
-                            if (propDiffs.length > 0) {
-                                differences.push(`[UPDATE] ID: ${serverOrder.id.slice(0, 8)} 변경점 -> ${propDiffs.join(' | ')}`);
-                            }
-                        }
-                    });
-
-                    // 2. 삭제된 콜 확인
-                    prev.forEach(prevOrder => {
-                        if (!serverIds.has(prevOrder.id)) {
-                            differences.push(`[DELETE] ID: ${prevOrder.id.slice(0, 8)} 웹에 있던 좀비콜이 서버에 의해 삭제됨`);
-                        }
-                    });
-
-                    if (differences.length > 0) {
-                        console.log(`🔍 [하트비트 상세 원인 추적]\n - ${differences.join('\n - ')}`);
-                    } else {
-                        // 길이도 같고 안의 요소, 속성도 다 같은데 stringify 결과가 다른 경우 (예: 키 순서 다름)
-                        console.log(`🔍 [하트비트 상세 원인 추적]\n - 객체 내부의 키 순서(Ordering)가 다르거나 숨겨진 변경 사항 발생`);
-                    }
-                    // -- 끝: 상세 불일치 추적 로직 --
-
-                    return serverActiveOrders;
+                    const added = serverActiveOrders.filter(o => !prevIds.has(o.id)).map(o => o.id.slice(0, 8));
+                    const gone = prev.filter(o => !serverIds.has(o.id)).map(o => o.id.slice(0, 8));
+                    console.log(`🔄 [하트비트 싱크] ${prev.length} → ${serverActiveOrders.length}건`
+                        + (added.length ? ` · 추가 [${added.join(', ')}]` : '')
+                        + (gone.length ? ` · 제거 [${gone.join(', ')}]` : ''));
                 }
-
-                return prev; // 완벽히 일치하면 리렌더 방지
+                return serverActiveOrders;
             });
         };
         socket.on("sync-active-orders", onSyncActiveOrders);

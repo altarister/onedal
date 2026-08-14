@@ -71,6 +71,17 @@ export interface UserSession {
     appliedPhaseKey: PhaseKey | null;
 
     /**
+     * 관제탑에 마지막으로 보낸 오더 동기화 본문. **바뀌었을 때만 보내려고** 들고 있다.
+     *
+     * 🔴 예전에는 1초마다 **무조건** 전체를 보냈고, 관제웹이 받아서 `JSON.stringify` 로
+     *    두 번 비교했다. 실측 초당 474KB — 한 시간이면 1.7GB 의 임시 문자열이라
+     *    **브라우저가 시간이 지나면 죽었다.**
+     *
+     *    비교는 어차피 해야 한다. 다만 **관제웹 여럿이 매초 하는 대신 서버가 한 번** 한다.
+     */
+    lastOrderSyncJson: string | null;
+
+    /**
      * 🚀 **출발을 누른 시각.** null 이면 아직 모으는 중(합짐)이다.
      *
      * 🔴 이건 파생값이 아니라 **입력**이다 — 기사님이 누르지 않으면 알 수 없다.
@@ -116,6 +127,7 @@ function createDefaultSession(): UserSession {
         appliedPhaseKey: null,
         corridorProgressKm: null,
         departedAt: null,
+        lastOrderSyncJson: null,
     };
 }
 

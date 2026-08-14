@@ -182,9 +182,27 @@ export function buildOrderSync(session: { myOrders: MyOrder[]; pendingOrdersData
     for (const o of session.myOrders) merged.set(o.id, o);
 
     const all = Array.from(merged.values());
+
+    /**
+     * 🔴 **종료된 콜의 경로(routePolyline)는 보내지 않는다** (2026-08-14).
+     *
+     * 관제탑은 진행 중인 콜의 경로만 그린다(`PinnedRoute` 의 `liveRoute`). 종료된 콜의
+     * 경로는 **어디에도 쓰지 않는데** 매초 실려 나갔다 — 실측에서 종료 10건이 119KB 였고
+     * 그중 한 건이 폴리라인 2384점이었다.
+     *
+     * 이게 1초마다 나가고, 관제웹은 그걸 다시 `JSON.stringify` 로 비교했다.
+     * **초당 474KB 의 문자열이 만들어지고 버려졌다** — 브라우저가 시간이 지나면 죽은 이유다.
+     * 게다가 종료 콜은 하루 종일 쌓이기만 하므로 **오후로 갈수록 나빠졌다.**
+     */
+    const stripPolyline = (o: any) => {
+        if (!o?.routePolyline?.length) return o;
+        const { routePolyline, ...rest } = o;
+        return rest;
+    };
+
     return {
         active: all.filter(o => !isTerminal(o.status)),
-        terminated: all.filter(o => isTerminal(o.status)),
+        terminated: all.filter(o => isTerminal(o.status)).map(stripPolyline),
     };
 }
 

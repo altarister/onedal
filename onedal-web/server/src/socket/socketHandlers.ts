@@ -71,6 +71,12 @@ export function registerSocketHandlers(io: Server) {
         // 방 참여 (개별 유저 룸) — 부트스트랩이 emit 하기 전에 반드시 먼저 들어가 있어야 한다
         socket.join(userId);
 
+        /**
+         * 🔴 새로 붙은 화면은 **아무것도 모른다.** 직전 전송본을 비워 다음 틱에 무조건 한 번
+         *    나가게 한다 (재접속·새로고침·두 번째 탭). 이게 "1초 안에 자동 치유"의 실체다.
+         */
+        session.lastOrderSyncJson = null;
+
         // 날이 바뀌었으면 오늘 필터를 기본 설정으로 되돌린다.
         // 🔴 부트스트랩보다 **먼저** 해야 한다 — 부트스트랩이 이 필터를 읽어 회랑을 만든다
         ensureBusinessDay(userId, io);
@@ -409,16 +415,29 @@ export function registerSocketHandlers(io: Server) {
         });
     });
 
-    // 3. 백그라운드 싱크: 접속 중인 모든 활성 세션을 순회하며 각 룸에 배차 상태 및 기기 상태 분리 전송
+    /**
+     * 3. 백그라운드 싱크 — **바뀌었을 때만 보낸다.**
+     *
+     * 🔴 2026-08-14 — 예전에는 1초마다 **무조건** 전체를 보냈다. 실측 초당 237KB.
+     *    관제웹은 그걸 받아 `JSON.stringify` 로 두 번 비교했으니 **초당 474KB 의 문자열**이
+     *    만들어지고 버려졌다. 한 시간이면 1.7GB — **브라우저가 시간이 지나면 죽었다.**
+     *    종료 콜은 하루 종일 쌓이기만 하므로 오후로 갈수록 나빠졌다.
+     *
+     * 자동 치유를 없앤 것이 아니다 — 소켓이 새로 붙으면 `lastOrderSyncJson` 을 비워
+     * **무조건 한 번 보낸다**(아래 connection 핸들러). 그게 원래 노렸던 복구다.
+     */
     setInterval(() => {
         const userIds = getAllActiveUserIds();
         for (const uid of userIds) {
             // [Q4 소켓 브로드캐스트 분리 완료] 각 기사별로 자신의 등록된 기기 목록(+상태)만 전달
             io.to(uid).emit("telemetry-devices", getUserDevicesSnapshot(uid));
-            
-            // 각 기사별로 자신의 화면에 뜰 오더 리스트 동기화
+
             const session = getUserSession(uid);
-            io.to(uid).emit("sync-active-orders", buildOrderSync(session));
+            const sync = buildOrderSync(session);
+            const json = JSON.stringify(sync);
+            if (json === session.lastOrderSyncJson) continue;   // 아무것도 안 바뀌었다
+            session.lastOrderSyncJson = json;
+            io.to(uid).emit("sync-active-orders", sync);
         }
     }, 1000);
 }
