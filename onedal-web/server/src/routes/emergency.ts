@@ -20,6 +20,7 @@
 
 import { Router } from "express";
 import type { EmergencyReport } from "@onedal/shared";
+import { isTerminal } from "@onedal/shared";
 import { getUserSession, clearOrderTimers } from "../state/userSessionStore";
 import { updateActiveFilter } from "../state/filterManager";
 import db from "../db";
@@ -97,7 +98,13 @@ router.post("/", async (req, res) => {
                 console.error("Emergency DB 업데이트 에러:", e);
             }
             
-            const activeCalls = session.myOrders.filter(c => !['ORDER_COMPLETED', 'ORDER_RELEASED', 'ORDER_CANCELED', 'ORDER_FORCE_CANCELED'].includes(c.status));
+            /**
+             * 🔴 여기만 종결 상태를 **손으로 적어** 두었고 `ORDER_DELIVERED` 가 빠져 있었다
+             *    (2026-08-14). 그래서 비상 보고 때 **하차를 마친 콜을 아직 실려 있다고 셌다.**
+             *    나머지 코드는 전부 `isTerminal()` 을 쓴다 — CLAUDE.md 가 경고한 "상태목록 N벌"의
+             *    또 한 벌이었다. 목록은 `shared` 한 곳에만 둔다.
+             */
+            const activeCalls = session.myOrders.filter(c => !isTerminal(c.status));
             if (activeCalls.length === 0) {
                 updateActiveFilter(userId, { isSharedMode: false, isActive: true, driverAction: 'WAITING', dispatchPhase: 'STANDBY' }, io);
                 console.log(`   ✅ 본콜 초기화 + 필터 '첫짐' 복원 완료`);

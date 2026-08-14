@@ -110,6 +110,22 @@ report('═ 서버가 보내는데 관제웹이 안 듣는 이벤트 ═', new S
 report('═ 관제웹이 보내는데 서버가 안 받는 이벤트 ═', new Set([...cliEmit].filter(e => !srvOn.has(e))), client.get('emit'));
 report('═ 관제웹이 듣는데 서버가 안 보내는 이벤트 ═', new Set([...cliOn].filter(e => !srvEmit.has(e))), client.get('on'));
 
+/**
+ * 🔴 **네 번째 방향 — 2026-08-14 에 뚫려 있던 사각지대.**
+ *
+ * 세 방향만 보다가 `update-my-location` · `dispatch-complete` 를 놓쳤다.
+ * 둘 다 **아무도 쏜 적이 없는데(git 전체 이력) 열려 있던 문**이었고,
+ * 각각 `session.driverLocation` 을 직접 덮어쓰고 콜을 완료 처리했다 —
+ * `processDriverMovement`(지나온 구간 제거·도착 감지)와 마일스톤 시퀀스를 **통째로 우회**한다.
+ *
+ * 규칙 ② "안전장치는 겹쳐 둔다, 빼지 않는다" 의 반대다. **문이 둘이면 우회로가 생긴다.**
+ *
+ * ⚠️ 앱(`onedal-app`)은 소켓을 쓰지 않는다 — REST 피기백이 의도된 설계다.
+ *    그러니 서버가 받는 이벤트는 **관제웹이 쏘는 것뿐**이어야 한다.
+ */
+report('═ 서버가 받는데 **아무도 안 보내는** 이벤트 (죽은 문) ═',
+    new Set([...srvOn].filter(e => !cliEmit.has(e))), server.get('on'));
+
 console.log(`\n검사한 이벤트: 서버 emit ${srvEmit.size} · on ${srvOn.size} / 관제웹 emit ${cliEmit.size} · on ${cliOn.size}`);
 if (problems.length) {
     console.log(`\n❌ 계약이 끊긴 이벤트 ${problems.length}개: ${problems.join(', ')}`);

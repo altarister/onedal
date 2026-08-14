@@ -36,8 +36,8 @@ export function getSummaryMetrics(userId: string): SummaryMetrics {
             COUNT(*)                          AS orderCount
         FROM orders
         WHERE userId = ?
-          AND status IN ('ORDER_CONFIRMED', 'ORDER_COMPLETED')
-          AND capturedAt LIKE ?
+          AND status IN ('ORDER_DELIVERED', 'ORDER_COMPLETED')
+          AND completedAt LIKE ?
     `).get(userId, `${todayStr}%`) as { revenue: number; distanceKm: number; orderCount: number };
 
     // 이번 달 매출/주행거리/건수
@@ -48,8 +48,8 @@ export function getSummaryMetrics(userId: string): SummaryMetrics {
             COUNT(*)                          AS orderCount
         FROM orders
         WHERE userId = ?
-          AND status IN ('ORDER_CONFIRMED', 'ORDER_COMPLETED')
-          AND capturedAt LIKE ?
+          AND status IN ('ORDER_DELIVERED', 'ORDER_COMPLETED')
+          AND completedAt LIKE ?
     `).get(userId, `${monthStr}%`) as { revenue: number; distanceKm: number; orderCount: number };
 
     // 미수금 총액

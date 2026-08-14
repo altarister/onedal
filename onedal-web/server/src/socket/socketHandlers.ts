@@ -10,7 +10,7 @@ import { OrderRepository } from "../repositories/OrderRepository";
 import { PlaceRepository } from "../repositories/PlaceRepository";
 import { getUserSession, getAllActiveUserIds } from "../state/userSessionStore";
 import { buildOrderSync } from "../core/helpers";
-import { recalculateCorridorFilter, handleDecision, recalculateKakaoRoute, bootstrapUserSession, completeOrder, reportMilestone, undoMilestone, setHuntPhase, createHomeReturn } from "../services/dispatchEngine";
+import { recalculateCorridorFilter, handleDecision, recalculateKakaoRoute, bootstrapUserSession, reportMilestone, undoMilestone, setHuntPhase, createHomeReturn } from "../services/dispatchEngine";
 import { updateActiveFilter, ensureBusinessDay, saveBaseFilter, savePhaseSettings, trimTraveled } from "../state/filterManager";
 import { processDriverMovement, getCityRegionsWithRadius } from "../services/geoService";
 
@@ -202,10 +202,13 @@ export function registerSocketHandlers(io: Server) {
         });
 
         // 프론트에서 현재 위치 전송 시 (지도 등 활용 및 Master GPS 용도)
-        socket.on("update-my-location", (loc: { x: number, y: number }) => {
-            session.driverLocation = loc;
-            session.driverLocationIsFallback = false;   // 진짜 GPS 가 임시 출발지를 이긴다
-        });
+        /**
+         * 🔴 **`update-my-location` 을 지웠다** (2026-08-14).
+         *    `session.driverLocation` 을 **직접** 덮어써 `processDriverMovement` 를 우회했다 —
+         *    지나온 구간 제거도 도착 감지도 안 돌았을 것이다. 그런데 **쏘는 곳이 한 곳도 없었다**
+         *    (git 전체 이력에서 관제웹·앱 어디에도 없다. 태어날 때부터 죽어 있었다).
+         *    위치가 서버로 들어오는 문은 아래 `dashboard-gps-update` **하나뿐**이다.
+         */
 
         // ━━━ [관제웹 Master GPS 수신부] ━━━
         socket.on("dashboard-gps-update", (loc: { lat: number, lng: number }) => {
@@ -384,10 +387,18 @@ export function registerSocketHandlers(io: Server) {
             await handleDecision(userId, data.orderId, 'ORDER_RELEASED', io);
         });
 
-        safeOn(socket, "dispatch-complete", async (data: { orderId: string }) => {
-            if (!data || !data.orderId) return;
-            await completeOrder(userId, data.orderId, io);
-        });
+        /**
+         * 🔴 **`dispatch-complete` 를 지웠다** (2026-08-14). 역시 **쏘는 곳이 없었다.**
+         *
+         *    이 문이 부르던 `completeOrder` 는 상태를 `ORDER_COMPLETED` 로 썼는데, 살아 있는
+         *    경로(마일스톤 `DELIVERED`)는 `ORDER_DELIVERED` 를 쓴다 — **같은 뜻, 이름 둘.**
+         *    그 어긋남이 매출 집계를 0원으로 만들고 있었다(`statService`).
+         *
+         *    `ORDER_COMPLETED` 는 **타입에 남겨 둔다** — 기사님 결정(2026-08-14)대로
+         *    *관제앱은 업무 단위, 정산은 별도 페이지*이므로 **정산 완료**를 뜻하는 자리다.
+         *    다만 그 페이지가 생길 때 **거기서** 만든다. `completeOrder` 는 관제앱 동작
+         *    (경로 재계산·필터 브로드캐스트)을 하고 있어 정산용으로 쓸 수 없었다.
+         */
 
         /**
          * 🧭 국면 전환 — 요약줄 스와이프 (DEST → LOCAL → HOME).

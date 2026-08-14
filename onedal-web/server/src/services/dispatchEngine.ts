@@ -1063,35 +1063,17 @@ export async function reportMilestone(
 }
 
 /**
- * 운행 완료 처리: 메모리 상태 변경 + DB 영구화 + 경로 재계산
- * ⚠️ 하차 보고(reportMilestone DELIVERED)와 별개인 **수동 종료** 경로다.
- *    마일스톤을 건너뛰고 바로 닫고 싶을 때만 쓴다.
+ * 🔴 **`completeOrder` 를 지웠다** (2026-08-14).
+ *
+ * 닿는 길이 `dispatch-complete` 소켓 하나뿐이었는데 **그 이벤트를 쏘는 곳이 없었다** —
+ * 태어날 때부터 죽어 있었다. 그런데 죽은 채로 `ORDER_COMPLETED` 라는 **두 번째 완료 이름**을
+ * 남겨 두었고, 매출 집계가 하필 그 이름을 세는 바람에 **오늘 매출이 0원으로 나왔다.**
+ *
+ * 콜의 끝은 마일스톤 `DELIVERED` → `ORDER_DELIVERED` 하나다.
+ * `ORDER_COMPLETED`(정산 완료)는 **정산 페이지가 생길 때 거기서** 만든다 —
+ * 기사님 결정: *"관제앱은 업무 단위, 정산은 관제앱에서 만들어진 데이터로 정산 페이지에서 따로."*
  */
-export async function completeOrder(userId: string, orderId: string, io: any): Promise<boolean> {
-    const session = getUserSession(userId);
-    const existingOrder = session.myOrders.find(c => c.id === orderId);
-    if (!existingOrder) return false;
 
-    // 두 메모리를 함께 갱신한다 — 예전에는 myOrders 만 바꿔 관제탑에 낡은 상태가 갔다
-    setOrderStatus(session, orderId, 'ORDER_COMPLETED');
-
-    try {
-        db.prepare("UPDATE orders SET status = 'ORDER_COMPLETED', completedAt = datetime('now', 'localtime') WHERE id = ? AND userId = ?").run(orderId, userId);
-        console.log(`✅ [운행 완료] ${orderId} - DB 업데이트 완료 (completedAt 갱신)`);
-    } catch (e) {
-        console.error("DB 업데이트 에러:", e);
-    }
-
-    // 경로 재계산 (완료된 짐 제외한 On-the-fly 라우팅)
-    await recalculateActiveKakaoRoute(userId, io);
-
-    io.to(userId).emit("filter-updated", {
-        activeFilter: session.activeFilter,
-        baseFilter: session.baseFilter
-    });
-
-    return true;
-}
 
 /**
  * **국면 전환** — 기사님이 요약줄을 스와이프해서 지금 무엇을 사냥할지 고른다.

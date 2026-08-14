@@ -14,7 +14,7 @@
 
 import { Router } from "express";
 import type { DispatchConfirmRequest, PendingOrder, OrderStatus } from "@onedal/shared";
-import { RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, restoreWindow } from "@onedal/shared";
+import { RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, restoreWindow, isEvaluating } from "@onedal/shared";
 import db from "../db";
 import { getUserSession } from "../state/userSessionStore";
 import { forceCancelEvaluatingOrder, handleDecision } from "../services/dispatchEngine";
@@ -148,7 +148,9 @@ router.post("/confirm", (req, res) => {
             const graceTimer = setTimeout(() => {
                 session.activeTimers.delete(`presecured_${pendingOrder.id}`);
                 const cached = session.pendingOrdersData.get(pendingOrder.id);
-                if (cached && ['ORDER_PRE_SECURED', 'ORDER_SECURED_EVALUATING', 'ORDER_AWAITING_DECISION'].includes(cached.status)) {
+                // 🔴 여기도 상태 목록을 손으로 적고 있었다 (2026-08-14). `shared` 의
+                //    `EVALUATING_STATUSES` 와 값이 같았지만, 한쪽만 늘어나면 갈라진다.
+                if (cached && isEvaluating(cached.status)) {
                     console.log(`💀 [서버 데스밸리 타이머] 30초 경과 강제 취소 (ID: ${pendingOrder.id}). 현재 상태: ${cached.status}`);
                     handleDecision(userId, pendingOrder.id, "ORDER_CANCELED", io);
                 }
