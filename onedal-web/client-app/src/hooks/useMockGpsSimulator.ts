@@ -9,6 +9,8 @@ interface MockGpsSimulatorProps {
     isActive: boolean;
     routePolyline: PolylinePoint[] | null;
     speedMultiplier?: number;
+    /** 경로 끝에 닿았을 때. 남은 가상 위치를 걷어내라는 신호다 */
+    onFinished?: () => void;
 }
 
 /**
@@ -21,7 +23,8 @@ interface MockGpsSimulatorProps {
 export function useMockGpsSimulator({
     isActive,
     routePolyline,
-    speedMultiplier = 15
+    speedMultiplier = 15,
+    onFinished,
 }: MockGpsSimulatorProps) {
     const [mockLocation, setMockLocation] = useState<{ x: number; y: number } | null>(null);
     const indexRef = useRef(0);
@@ -73,6 +76,9 @@ export function useMockGpsSimulator({
                 intervalRef.current = null;
                 finishedRef.current = true;   // 다시 켜져도 재출발하지 않는다
                 console.log(`🏁 [Mock GPS] 목적지 도달 — 시뮬레이션 종료 (반복하지 않습니다)`);
+                // 🔴 남은 가상 위치를 걷어내라고 알린다. 안 그러면 서버가 그 자리를
+                //    "지금 내 위치" 로 믿고 다음 콜의 경로를 엉뚱하게 그린다
+                onFinished?.();
                 return;
             }
 

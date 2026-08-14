@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { socket } from "../lib/socket";
 import type { SimplifiedOfficeOrder, SecuredOrder, OrderSyncPayload } from "@onedal/shared";
 import { isEvaluating, isTerminal } from "@onedal/shared";
@@ -9,6 +9,12 @@ export function useOrderEngine() {
     const [orders, setOrders] = useState<SimplifiedOfficeOrder[]>([]);
     const [isConnected, setIsConnected] = useState(socket.connected);
     const [activeOrders, setActiveOrders] = useState<SecuredOrder[]>([]);
+    /**
+     * 지금 값을 **부작용 없이** 읽기 위한 사본. 로그를 updater 안에서 찍으면
+     * StrictMode 가 두 번 불러 같은 줄이 두 번 나온다.
+     */
+    const activeOrdersRef = useRef<SecuredOrder[]>([]);
+    useEffect(() => { activeOrdersRef.current = activeOrders; }, [activeOrders]);
     /**
      * 종료된 콜 (취소·방출·완료·하차). 서버가 **따로** 보내준다.
      * 관제탑의 완료/취소 탭 표시용 — 적재·경로 계산에는 절대 쓰지 않는다.
@@ -210,19 +216,24 @@ export function useOrderEngine() {
              */
             setTerminatedOrders(payload.terminated || []);
 
-            setActiveOrders(prev => {
-                // 무엇이 달라졌는지는 남긴다. 다만 **문자열을 만들지 않고** 개수·ID 로만 센다
-                if (prev.length !== serverActiveOrders.length) {
-                    const prevIds = new Set(prev.map(o => o.id));
-                    const serverIds = new Set(serverActiveOrders.map(o => o.id));
-                    const added = serverActiveOrders.filter(o => !prevIds.has(o.id)).map(o => o.id.slice(0, 8));
-                    const gone = prev.filter(o => !serverIds.has(o.id)).map(o => o.id.slice(0, 8));
-                    console.log(`🔄 [하트비트 싱크] ${prev.length} → ${serverActiveOrders.length}건`
-                        + (added.length ? ` · 추가 [${added.join(', ')}]` : '')
-                        + (gone.length ? ` · 제거 [${gone.join(', ')}]` : ''));
-                }
-                return serverActiveOrders;
-            });
+            /**
+             * 🔴 로그는 **updater 밖에서** 찍는다.
+             *    `setActiveOrders(prev => { console.log(...) })` 로 넣었더니 개발 중에
+             *    **같은 줄이 두 번** 찍혔다 — React StrictMode 가 updater 를 두 번 부르기
+             *    때문이다(순수해야 할 함수에 부작용을 넣으면 이렇게 드러난다).
+             *    화면이 "두 번 일어났다"고 잘못 말하게 된다.
+             */
+            const prev = activeOrdersRef.current;
+            if (prev.length !== serverActiveOrders.length) {
+                const prevIds = new Set(prev.map(o => o.id));
+                const serverIds = new Set(serverActiveOrders.map(o => o.id));
+                const added = serverActiveOrders.filter(o => !prevIds.has(o.id)).map(o => o.id.slice(0, 8));
+                const gone = prev.filter(o => !serverIds.has(o.id)).map(o => o.id.slice(0, 8));
+                console.log(`🔄 [하트비트 싱크] ${prev.length} → ${serverActiveOrders.length}건`
+                    + (added.length ? ` · 추가 [${added.join(', ')}]` : '')
+                    + (gone.length ? ` · 제거 [${gone.join(', ')}]` : ''));
+            }
+            setActiveOrders(serverActiveOrders);
         };
         socket.on("sync-active-orders", onSyncActiveOrders);
 

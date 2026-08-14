@@ -17,14 +17,13 @@ import { useMasterGps } from '../../hooks/useMasterGps';
 
 interface Props {
     activeRoute: SecuredOrder[];
-    isTestMode: boolean;
     onDecision?: (id: string, action: 'ORDER_CONFIRMED' | 'ORDER_CANCELED' | 'ORDER_RELEASED' | 'ORDER_FORCE_CANCELED') => void;
     onRecalculate?: (id: string, priority: string) => void;
     viewFilter: 'ACTIVE' | 'COMPLETED' | 'CANCELED' | 'ALL';
     setViewFilter: (filter: 'ACTIVE' | 'COMPLETED' | 'CANCELED' | 'ALL') => void;
 }
 
-export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRecalculate, viewFilter, setViewFilter }: Props) {
+export default function PinnedRoute({ activeRoute, onDecision, onRecalculate, viewFilter, setViewFilter }: Props) {
     // [2026-08-12] 콜별 기록을 **여기서 한 번에** 받는다.
     // 카드가 각자 불러오면 화면 밖 카드의 진행 상황을 알 수 없어
     // 덱 위에 요약 줄을 띄울 수가 없었다 (기사님 지적).
@@ -58,7 +57,7 @@ export default function PinnedRoute({ activeRoute, isTestMode, onDecision, onRec
     const isDriving = filter?.dispatchPhase === 'DELIVERING';
 
     // 📡 마스터 GPS 엔진 연결 (Real / Mock 자동 스위칭)
-    const { currentGps } = useMasterGps(isTestMode, isDriving, activePolyline || null);
+    const { currentGps } = useMasterGps(isDriving, activePolyline || null);
 
     /**
      * 지도와 TSP 의 출발점. GPS 가 잡히면 아래 useEffect 가 곧바로 덮어쓴다.

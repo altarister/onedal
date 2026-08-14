@@ -17,7 +17,6 @@ import { useOrderEngine } from "../hooks/useOrderEngine";
 
 export default function Dashboard() {
     const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
-    const [isTestMode, setIsTestMode] = useState(false);
     const [viewFilter, setViewFilter] = useState<'ACTIVE' | 'COMPLETED' | 'CANCELED' | 'ALL'>('ACTIVE');
     // [이슈 W] 서버 재시작으로 진행 중 콜이 복구됐을 때 표시할 배너
     const [restoredInfo, setRestoredInfo] = useState<{ restoredCount: number; dispatchPhase: string } | null>(null);
@@ -190,7 +189,6 @@ export default function Dashboard() {
                 {/* 🏆 배차 확정 콜 (및 데스밸리 연산 구역) */}
                 <PinnedRoute 
                     activeRoute={activeRoute} 
-                    isTestMode={isTestMode}
                     onDecision={handleDecision} 
                     onRecalculate={handleRecalculate} 
                     viewFilter={viewFilter}
@@ -203,8 +201,6 @@ export default function Dashboard() {
                 isOpen={isFilterModalOpen}
                 onClose={() => setIsFilterModalOpen(false)}
                 hasHomeReturnActive={hasHomeReturnActive}
-                isTestMode={isTestMode}
-                setIsTestMode={setIsTestMode}
             />
 
         </main>

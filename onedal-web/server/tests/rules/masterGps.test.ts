@@ -26,7 +26,30 @@ describe('마스터 GPS — 실 GPS 와 시뮬레이터가 같은 길을 간다'
     });
 
     it('🔴 실 GPS 가 언제나 이긴다 — 시뮬레이터는 빈자리만 메운다', () => {
-        expect(gps).toMatch(/isTestMode \|\| !realIsLive/);
+        expect(gps).toMatch(/&& !realIsLive/);
+    });
+
+    /**
+     * 🔴 **시뮬레이터는 개발 빌드에만 존재한다** (2026-08-14 기사님 지적)
+     *
+     * 기사님: *"나중에 실 폰에서 앱으로 진짜 GPS 가 실행될 때는 다른 것에 영향을 주면 안 된다."*
+     *
+     * 처음엔 *"실 GPS 가 15초 안 오면 시뮬레이터가 이어 달린다"* 였다. 테스트는 편했지만
+     * **실 운행을 안 본 설계**였다 — 터널·지하주차장·건물 안에서 GPS 가 끊기면 15초 뒤
+     * 시뮬레이터가 켜져 **가짜 좌표를 서버로 보낸다.** 서버는 그걸 진짜로 믿는다.
+     */
+    it('🔴 시뮬레이터 가동 조건에 개발 빌드 여부가 걸려 있다  (실 폰에서는 켜질 수 없다)', () => {
+        expect(gps).toMatch(/const SIMULATOR_AVAILABLE = import\.meta\.env\.DEV/);
+        expect(gps).toMatch(/const useMock = SIMULATOR_AVAILABLE/);
+    });
+
+    it('강제 스위치(isTestMode)는 없앴다 — 🚀 출발 하나로 끝난다', () => {
+        expect(gps).not.toMatch(/isTestMode/);
+    });
+
+    it('🔴 시뮬레이션이 끝나면 가상 위치를 걷어낸다', () => {
+        // 안 그러면 서버가 그 자리를 "지금 내 위치" 로 믿고 다음 콜의 경로를 엉뚱하게 그린다
+        expect(gps).toMatch(/onFinished: \(\) => \{ endMockDriving\(\)/);
     });
 
     it('실 GPS 감시는 테스트 중에도 멈추지 않는다 (살아나면 즉시 넘겨받아야 하니까)', () => {
@@ -42,8 +65,8 @@ describe('마스터 GPS — 실 GPS 와 시뮬레이터가 같은 길을 간다'
         expect(Number(v![1].replace(/_/g, ''))).toBeGreaterThanOrEqual(5000);
     });
 
-    it('출발하기 전에는 아무것도 안 보낸다 (사냥 전 위치는 서버가 쓸 데가 없다)', () => {
-        expect(gps).toMatch(/const useMock = isDriving/);
+    it('출발하기 전에는 시뮬레이터가 안 돈다', () => {
+        expect(gps).toMatch(/const useMock = SIMULATOR_AVAILABLE\s*\n\s*&& isDriving/);
     });
 
     it('좌표를 내보내는 자리는 실 GPS 한 곳 · 시뮬레이터 한 곳', () => {
@@ -154,5 +177,38 @@ describe('속도 표시 — 시뮬레이터 점프를 실제 속도로 말하지
     it('🔴 시뮬레이션이면 km/h 를 띄우지 않는다', () => {
         expect(panel).toMatch(/isMoving && !gpsIsMock/);
         expect(panel).toMatch(/시뮬레이션 주행/);
+    });
+});
+
+/**
+ * 🔴 **시뮬레이션이 만든 가상 위치는 시뮬레이션이 끝나면 참이 아니다** (규칙 ④)
+ *
+ * 2026-08-14: 시뮬레이터가 파주에서 멈춘 뒤 그 좌표가 서버에 남았다. 그 상태로 광주에서
+ * 콜을 잡으니 `파주(가짜 현위치) → 광주(상차) → 파주(하차)` 로 경로가 그려졌다 —
+ * 75.7km 짜리 콜의 총거리가 **156.2km**. 화면은 브라우저 좌표(광주)를 보고 있었으니
+ * **서버와 화면이 서로 다른 곳을 알고 있었다.**
+ */
+describe('가상 위치는 남지 않는다', () => {
+
+    const bridge = codeOnly(read('lib/gpsBridge.ts'));
+    const sim = codeOnly(read('hooks/useMockGpsSimulator.ts'));
+
+    it('마지막 **실제** 좌표를 기억한다', () => {
+        expect(bridge).toMatch(/let lastReal/);
+    });
+
+    it('🔴 시뮬레이션이 끝나면 그 실제 좌표로 되돌린다', () => {
+        const fn = bridge.slice(bridge.indexOf('export function endMockDriving'));
+        expect(fn).toMatch(/lastMockAt = 0/);
+        expect(fn).toMatch(/publishLocation\(lastReal\.lat, lastReal\.lng/);
+    });
+
+    it('🔴 실제 좌표를 한 번도 못 받았으면 아무것도 하지 않는다 (가짜로 채우지 않는다)', () => {
+        const fn = bridge.slice(bridge.indexOf('export function endMockDriving'));
+        expect(fn).toMatch(/if \(!lastReal\) return/);
+    });
+
+    it('시뮬레이터가 경로 끝에 닿으면 알린다', () => {
+        expect(sim).toMatch(/onFinished\?\.\(\)/);
     });
 });

@@ -29,6 +29,8 @@ let lastMockAt = 0;
 const MOCK_HOLD_MS = 5_000;
 
 let lastSent: { lat: number; lng: number } | null = null;
+/** 마지막 **실제** 좌표. 시뮬레이션이 끝나면 여기로 되돌린다 */
+let lastReal: { lat: number; lng: number; source: GpsSource } | null = null;
 
 export interface PublishResult {
     /** 실제로 서버로 나갔나 */
@@ -52,7 +54,7 @@ export function publishLocation(
 
     if (source === 'mock') {
         lastMockAt = now;
-    } else if (now - lastMockAt < MOCK_HOLD_MS) {
+    } else if (lastReal = { lat, lng, source }, now - lastMockAt < MOCK_HOLD_MS) {
         // 🔴 시뮬레이터가 달리는 중이다. 실제 좌표를 끼워 넣으면 진행도가 튄다
         return { sent: false, reason: 'mock-running' };
     }
@@ -66,4 +68,23 @@ export function publishLocation(
     socket.emit('dashboard-gps-update', { lat, lng, source, accuracy: extra?.accuracy, timestamp: now });
     window.dispatchEvent(new CustomEvent('local-gps-update', { detail: { lat, lng, source } }));
     return { sent: true };
+}
+
+/**
+ * 🔴 **시뮬레이션이 끝났다 — 가상 위치를 걷어낸다.**
+ *
+ * 2026-08-14: 시뮬레이터가 파주에서 멈춘 뒤 그 **가상 좌표가 서버에 남았다.** 그 상태로
+ * 광주에서 콜을 잡으니 서버가 `파주(가짜 현위치) → 광주(상차) → 파주(하차)` 로 경로를
+ * 그렸다 — 75.7km 짜리 콜의 총거리가 **156.2km** 로 나오고 지도에 이상한 선이 그려졌다.
+ * 화면은 브라우저 좌표(광주)를 보고 있었으니 **서버와 화면이 서로 다른 곳을 알고 있었다.**
+ *
+ * 시뮬레이션이 끝났으면 거기 있는 게 아니다 — **없는 걸 지어내지 않는다**(규칙 ④).
+ * 마지막으로 알던 **실제** 좌표로 되돌린다. 실제 좌표를 한 번도 받은 적이 없으면
+ * 아무것도 하지 않는다 (원래부터 위치를 모르던 상태다 — 가짜로 채우지 않는다).
+ */
+export function endMockDriving(): void {
+    lastMockAt = 0;
+    if (!lastReal) return;
+    lastSent = null;   // 같은 좌표라도 다시 보내야 서버가 되돌아간다
+    publishLocation(lastReal.lat, lastReal.lng, lastReal.source);
 }
