@@ -135,6 +135,34 @@ export function isAlreadyLoaded(c: { status?: string | null }): boolean {
 export async function composeMergedRoute(params: ComposeMergedRouteParams) {
     const { calls, extra, driverLocation, priority, carType } = params;
 
+    const plan = planMergedStops(calls, extra, driverLocation);
+    if (!plan) return null;
+
+    return calculateDetourRoute(
+        plan.origin.dropoff.x, plan.origin.dropoff.y,
+        plan.origin.pickup.x, plan.origin.pickup.y,
+        plan.mergedDest.x, plan.mergedDest.y,
+        plan.waypoints,
+        driverLocation,
+        priority,
+        carType
+    );
+}
+
+/**
+ * **정거장 계획 — 어디를 어떤 순서로 들르는가.** 카카오를 부르지 않는 **순수 함수**다.
+ *
+ * 🔴 떼어낸 이유: 2026-08-14 에 `OrderEvaluator` 가 이 조립을 **손으로 다시 하고 있었고**,
+ *    그래서 이미 상차한 콜의 상차지를 경유지에 넣고 있었다. 고쳐 놓고도 **값으로 증명할
+ *    방법이 없었다** — 카카오 호출 안에 묻혀 있었기 때문이다.
+ *    떼어 두면 "실은 콜의 상차지가 경유지에 없다"를 테스트가 직접 확인한다.
+ *    (`buildSoloRouteUrl` 을 뗀 것과 같은 이유)
+ */
+export function planMergedStops(
+    calls: RouteHolder[],
+    extra: RouteHolder | null | undefined,
+    driverLocation: Coord | null | undefined,
+): { origin: { pickup: Coord; dropoff: Coord }; mergedDest: Coord; waypoints: Coord[]; skippedPickups: number } | null {
     /**
      * 🔴 2026-08-13 — **이미 상차한 콜의 상차지는 경유지에서 뺀다.**
      *
@@ -185,13 +213,5 @@ export async function composeMergedRoute(params: ComposeMergedRouteParams) {
     const mainPair = calls.length > 0 ? toCoordPair(calls[0]) : null;
     const origin = mainPair ?? { pickup: allPickups[0] ?? allDropoffs[0], dropoff: allDropoffs[0] };
 
-    return calculateDetourRoute(
-        origin.dropoff.x, origin.dropoff.y,
-        origin.pickup.x, origin.pickup.y,
-        mergedDest.x, mergedDest.y,
-        waypoints,
-        driverLocation,
-        priority,
-        carType
-    );
+    return { origin, mergedDest, waypoints, skippedPickups };
 }

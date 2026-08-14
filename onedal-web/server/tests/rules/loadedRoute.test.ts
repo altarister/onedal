@@ -1,7 +1,7 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 import { buildSoloRouteUrl } from "../../src/services/kakaoService";
-import { isAlreadyLoaded } from "../../src/services/routeComposer";
+import { isAlreadyLoaded, planMergedStops } from "../../src/services/routeComposer";
 
 const SERVER = join(__dirname, "../../src");
 const read = (rel: string) => readFileSync(join(SERVER, rel), "utf8");
@@ -78,5 +78,69 @@ describe('이미 상차한 콜 — 다녀온 상차지를 다시 경유하지 �
         const calls = [...eng.matchAll(/calculateSoloRoute\(([\s\S]*?)\);/g)];
         expect(calls.length).toBe(3);
         for (const c of calls) expect(c[1]).toMatch(/isAlreadyLoaded\(/);
+    });
+});
+
+/**
+ * 🔴 **합짐 판정 경로에도 같은 버그가 있었다** (2026-08-14 확인 훑기에서 발견)
+ *
+ * `OrderEvaluator` 가 경유지를 **손으로 조립**하고 `calculateDetourRoute` 를 직접 불렀다.
+ * 그래서 **이미 상차한 콜의 상차지까지 경유지에 넣었다** — 다녀온 곳을 다시 가는 경로다.
+ * 거리·시간이 부풀고, 그 값으로 우회 예산을 재니 **합짐 판정이 통째로 틀어진다.**
+ *
+ * 이게 새 콜을 평가하는 **주 경로**다. 상차를 마친 뒤 뜨는 합짐 후보마다 틀린 값으로 쟀다.
+ *
+ * 같은 파일이 같은 이유로 **두 번째**였다 — 파일 안에 이미
+ * *"EE 리팩터링에서 composeMergedRoute 를 쓰는 곳만 통일하고 여기를 놓쳤다"* 고 적혀 있었다.
+ */
+describe('합짐 판정 — 경유지 조립은 한 곳에서만', () => {
+
+    const P = (n: number) => ({ x: 127 + n / 100, y: 37 + n / 100 });
+    const call = (id: string, status: string, p: number, d: number) => ({
+        id, status, pickupX: P(p).x, pickupY: P(p).y, dropoffX: P(d).x, dropoffY: P(d).y,
+    }) as any;
+
+    it('🔴 실은 콜의 상차지는 경유지에 없고, 후보 콜의 상차지는 있다', () => {
+        const loaded = call('A', 'ORDER_PICKED_UP', 1, 2);     // 짐을 실었다 — 상차지는 다녀왔다
+        const cand = call('B', 'ORDER_AWAITING_DECISION', 3, 4); // 후보 — 아직 안 실었다
+
+        const plan = planMergedStops([loaded], cand, { x: 127.5, y: 37.5 })!;
+        expect(plan).not.toBeNull();
+        expect(plan.skippedPickups).toBe(1);
+
+        const has = (c: { x: number; y: number }) =>
+            plan.waypoints.some(w => w.x === c.x && w.y === c.y)
+            || (plan.mergedDest.x === c.x && plan.mergedDest.y === c.y);
+
+        expect(has(P(1))).toBe(false);   // 🔴 실은 콜의 상차지 — 없어야 한다
+        expect(has(P(3))).toBe(true);    //    후보의 상차지 — 있어야 한다
+        expect(has(P(2))).toBe(true);    //    실은 콜의 하차지 — 내려야 하니 있어야 한다
+        expect(has(P(4))).toBe(true);    //    후보의 하차지
+    });
+
+    it('아직 안 실은 콜은 상차지를 들른다 (여기까지 빼면 상차를 건너뛴다)', () => {
+        const confirmed = call('A', 'ORDER_CONFIRMED', 1, 2);   // KEEP 은 예약이지 적재가 아니다
+        const plan = planMergedStops([confirmed], call('B', 'ORDER_AWAITING_DECISION', 3, 4), null)!;
+        expect(plan.skippedPickups).toBe(0);
+        expect(plan.waypoints.some(w => w.x === P(1).x)).toBe(true);
+    });
+
+    it('전부 실었으면 하차지만 남는다 (상차지가 하나도 없어도 안 터진다)', () => {
+        const plan = planMergedStops(
+            [call('A', 'ORDER_PICKED_UP', 1, 2), call('B', 'ORDER_PICKED_UP', 3, 4)], null, null)!;
+        expect(plan.skippedPickups).toBe(2);
+        expect(plan.waypoints.some(w => w.x === P(1).x || w.x === P(3).x)).toBe(false);
+    });
+
+    it('좌표가 하나도 없으면 null — 지어내지 않는다', () => {
+        expect(planMergedStops([], null, null)).toBeNull();
+    });
+
+    it('🔴 경유지를 조립하는 곳은 routeComposer 하나뿐이다', () => {
+        const ev = codeOnly(read('core/engine/OrderEvaluator.ts'));
+        expect(ev).not.toMatch(/calculateDetourRoute\(/);
+        expect(ev).not.toMatch(/allPickups/);
+        expect(ev).not.toMatch(/optimizeWaypoints\(/);
+        expect(ev).toMatch(/composeMergedRoute\(\{/);
     });
 });

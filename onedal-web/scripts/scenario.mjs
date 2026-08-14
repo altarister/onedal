@@ -31,7 +31,7 @@
  */
 import { spawn, execSync } from 'node:child_process';
 import { createRequire } from 'node:module';
-import { existsSync, rmSync } from 'node:fs';
+import { existsSync, rmSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const ROOT = new URL('..', import.meta.url).pathname;
@@ -119,6 +119,18 @@ async function boot() {
             await wait(1000);
         }
     } catch { /* lsof 가 없는 환경이면 그냥 진행한다 */ }
+
+    /**
+     * 🔴 **이번 실행의 로그만 본다.** 로그 파일은 이어 쓰기(append)라, 안 지우면 아래 로그
+     *    기반 검사가 **지난 실행의 줄을 읽고 통과해 버린다.**
+     *    2026-08-14 에 변이 테스트로 확인했다 — 코드를 되돌렸는데도 검사가 통과했다.
+     *    (이 파일은 시나리오 포트 전용이라 기사님 개발 서버 로그와 섞이지 않는다)
+     */
+    try {
+        const day = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+        const lp = join(SERVER, 'logs', `server-${day}-${PORT}.log`);
+        if (existsSync(lp)) rmSync(lp);
+    } catch { /* 못 지워도 진행한다 — 아래 검사가 대신 이상을 알린다 */ }
 
     const bootAfter = Date.now();
     const p = spawn('npx', ['tsx', 'src/index.ts'], {
@@ -372,6 +384,44 @@ try {
         const p = join(SERVER, f);
         if (existsSync(p)) rmSync(p);
     }
+}
+
+/**
+ * 🔴 **L3 — 실제로 돈 서버의 로그로 확인한다** (2026-08-14 신설)
+ *
+ * 규칙 테스트(L1)는 코드 *모양*만 보고, 값 테스트(L2)는 순수 함수만 본다.
+ * *"진짜 서버가 카카오를 부를 때도 이미 상차한 콜의 상차지를 뺐는가"* 는 둘 다 증명 못 한다.
+ *
+ * 오늘 만든 **서버 로그 파일**(`99ac52f`)이 그 자리를 메운다 — 시나리오 서버는
+ * `ORDER_PICKED_UP` 콜을 심어 두고 실제 카카오 경로를 계산하므로, 그 흔적이 로그에 남는다.
+ *
+ * 이 검사가 없으면 2026-08-14 의 `OrderEvaluator` 손조립을 **또** 놓친다 —
+ * 그때도 tsc·jest·audit 이 전부 통과했다.
+ */
+try {
+    const day = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+    const logPath = join(SERVER, 'logs', `server-${day}-${PORT}.log`);
+    const log = existsSync(logPath) ? readFileSync(logPath, 'utf8') : '';
+
+    check('서버 로그 파일이 남는다 (없으면 아래 검사가 무의미하다)', log.length > 0,
+        log ? `${Math.round(log.length / 1024)}KB` : logPath);
+
+    if (log) {
+        const kakao = (log.match(/\[Kakao Nav API/g) || []).length;
+        check('시나리오가 실제 카카오 경로를 계산했다', kakao > 0, `${kakao}회`);
+
+        // 상차한 콜이 섞인 채 경로를 짰다면 반드시 이 줄이 있어야 한다
+        const skipped = (log.match(/이미 상차한 콜 \d+건의 상차지를 경유지에서 제외/g) || []).length;
+        check('🔴 이미 상차한 콜의 상차지를 경유지에서 뺐다 (실제 서버에서)',
+            skipped > 0, `${skipped}회`);
+
+        // 손조립 시절에는 이 줄 없이 Detour 를 불렀다 — 그 흔적이 없어야 한다
+        const detour = (log.match(/\[Kakao Nav API \(Detour\)/g) || []).length;
+        check('합짐 경로를 부를 때 조립을 건너뛴 흔적이 없다',
+            detour === 0 || skipped > 0, `Detour ${detour}회 · 제외 ${skipped}회`);
+    }
+} catch (e) {
+    check('로그 기반 확인', false, String(e?.message || e));
 }
 
 const failed = results.filter(r => !r.ok);

@@ -1,13 +1,12 @@
 import { PendingOrder, SecuredOrder, MyOrder } from "@onedal/shared";
 import { getUserSession } from "../../state/userSessionStore";
 import { computeAllowedDetour, findLoadConflicts, totalDetourCost } from "../helpers";
-import { geocodeAddress, calculateSoloRoute, calculateDetourRoute } from "../../services/kakaoService";
-import { optimizeWaypoints } from "../../utils/routeOptimizer";
+import { geocodeAddress, calculateSoloRoute } from "../../services/kakaoService";
 import { logRoadmapEvent } from "../../utils/roadmapLogger";
 import { DISPATCH_CONFIG } from "../../config/dispatchConfig";
 import { SettingsRepository } from "../../repositories/SettingsRepository";
 import { PricingEngine } from "./PricingEngine";
-import { applySoloRoute } from "../../services/routeComposer";
+import { applySoloRoute, composeMergedRoute } from "../../services/routeComposer";
 import { IAppPlugin } from "../plugins/IAppPlugin";
 import { PluginFactory } from "../plugins/PluginFactory";
 import { getActiveCalls } from "../helpers";
@@ -108,33 +107,33 @@ export class OrderEvaluator {
 
                         console.log(`   - 🗺️ 궤적 길이 (Solo): ${securedOrder.routePolyline?.length || '없음'}`);
                     } else {
-                        // 합짐(Detour) 연산
-                        const allPickups = [
-                            { x: activeMain.pickupX!, y: activeMain.pickupY! },
-                            ...activeSubs.map(c => ({ x: c.pickupX!, y: c.pickupY! })),
-                            { x: securedOrder.pickupX!, y: securedOrder.pickupY! }
-                        ];
-                        const allDropoffs = [
-                            { x: activeMain.dropoffX!, y: activeMain.dropoffY! },
-                            ...activeSubs.map(c => ({ x: c.dropoffX!, y: c.dropoffY! })),
-                            { x: securedOrder.dropoffX!, y: securedOrder.dropoffY! }
-                        ];
-
-                        const startLoc = session.driverLocation || allPickups[0];
-                        const { sortedPickups, sortedDropoffs } = optimizeWaypoints(startLoc, allPickups, allDropoffs);
-
-                        const mergedDest = sortedDropoffs.pop()!;
-                        const waypoints = [...sortedPickups, ...sortedDropoffs];
-
-                        const result = await calculateDetourRoute(
-                            activeMain.dropoffX!, activeMain.dropoffY!,
-                            activeMain.pickupX!, activeMain.pickupY!,
-                            mergedDest.x, mergedDest.y,
-                            waypoints,
-                            session.driverLocation,
-                            routingOptions.defaultPriority,
-                            routingOptions.carType
-                        );
+                        /**
+                         * 합짐(Detour) 연산 — **경유지 조립은 `routeComposer` 한 곳에만 있다.**
+                         *
+                         * 🔴 2026-08-14 — 여기가 `allPickups`/`allDropoffs` 를 **손으로 조립**하고
+                         *    `calculateDetourRoute` 를 직접 불렀다. 그래서 **이미 상차한 콜의
+                         *    상차지까지 경유지에 넣었다** — 다녀온 곳을 다시 가는 경로다.
+                         *    거리·시간이 부풀고, 그 값으로 우회 예산을 재니 **합짐 판정이 통째로
+                         *    틀어진다**(꿀콜이 똥콜이 되고 순서가 뒤집힌다).
+                         *
+                         *    같은 파일이 같은 이유로 **두 번째**다 — 위 103행에
+                         *    *"EE 리팩터링에서 composeMergedRoute 를 쓰는 곳만 통일하고 여기를
+                         *    놓쳤다"* 고 적혀 있다. 이번엔 조립을 아예 안 한다.
+                         *
+                         *    `extra` 가 정확히 이 자리를 위한 파라미터다 —
+                         *    *"후보 콜은 아직 안 실었으므로 상차지를 남긴다."*
+                         */
+                        const result = await composeMergedRoute({
+                            calls: activeCalls,
+                            extra: securedOrder,
+                            driverLocation: session.driverLocation,
+                            priority: routingOptions.defaultPriority,
+                            carType: routingOptions.carType,
+                        });
+                        if (!result) {
+                            // 좌표가 하나도 없다 — 기존 실패 처리로 떨어뜨린다
+                            throw new Error("합짐 경로 조립 실패: 유효한 좌표가 없습니다");
+                        }
 
                         let recommend = "'콜'";
                         const distDiff = parseFloat(result.distDiffKm);
