@@ -264,3 +264,37 @@ describe('소켓 구독 — 컴포넌트 수만큼 늘어나지 않는다', () =
         expect(offenders).toEqual([]);
     });
 });
+
+/**
+ * 🔴 **한 컴포넌트가 터져도 관제탑 전체가 죽지 않는다** (2026-08-14)
+ *
+ * 이 레포에는 에러 경계가 **하나도 없었다.** 렌더 중 예외 하나에 React 가 트리를 통째로
+ * 걷어내 화면이 하얘진다. 실제로 `PinnedRoute` 하나가 터지자 관제탑 전부가 죽었다.
+ *
+ * 기사님이 운행 중이면 그 화면이 **KEEP/CANCEL 결재를 하는 유일한 창구**다.
+ * 죽으면 잡아 둔 콜을 어떻게 할 방법이 없다 — 안전 문제다.
+ */
+describe('관제탑 — 한 곳이 터져도 전체가 죽지 않는다', () => {
+
+    const CLIENT2 = join(__dirname, '../../../client-app/src');
+    const rc2 = (rel: string) => codeOnly(readFileSync(join(CLIENT2, rel), 'utf8'));
+
+    it('🔴 결재 카드에 에러 경계가 있다', () => {
+        const dash = rc2('pages/Dashboard.tsx');
+        expect(dash).toMatch(/<ErrorBoundary label="결재 카드">[\s\S]*?<PinnedRoute[\s\S]*?<\/ErrorBoundary>/);
+    });
+
+    it('🔴 경계가 예외를 삼키지 않는다 — 콘솔에 원래 예외를 남긴다', () => {
+        const eb = rc2('components/common/ErrorBoundary.tsx');
+        expect(eb).toMatch(/componentDidCatch/);
+        expect(eb).toMatch(/console\.error\(/);
+        expect(eb).toMatch(/info\.componentStack/);
+    });
+
+    it('🔴 되살릴 수단을 준다 — 조용히 빈 화면으로 두지 않는다', () => {
+        const eb = rc2('components/common/ErrorBoundary.tsx');
+        expect(eb).toMatch(/다시 그리기/);
+        expect(eb).toMatch(/window\.location\.reload\(\)/);
+        expect(eb).toMatch(/error\.message/);      // 무엇이 터졌는지 보여준다
+    });
+});

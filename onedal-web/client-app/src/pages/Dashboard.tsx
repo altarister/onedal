@@ -6,6 +6,7 @@ import OrderFilterStatus from "../components/dashboard/OrderFilterStatus";
 import OrderFilterModal from "../components/dashboard/OrderFilterModal";
 import VehicleStatusPanel from "../components/dashboard/VehicleStatusPanel";
 import PinnedRoute from "../components/dashboard/PinnedRoute";
+import { ErrorBoundary } from "../components/common/ErrorBoundary";
 import CargoMismatchBanner from "../components/dashboard/CargoMismatchBanner";
 import { useServerErrors } from "../hooks/useServerErrors";
 import { useState, useEffect } from "react";
@@ -186,14 +187,18 @@ export default function Dashboard() {
                 {/* 🚚 내 차 정보 및 적재/이동 상태 패널 */}
                 <VehicleStatusPanel liveCalls={liveCalls} />
 
-                {/* 🏆 배차 확정 콜 (및 데스밸리 연산 구역) */}
-                <PinnedRoute 
-                    activeRoute={activeRoute} 
-                    onDecision={handleDecision} 
-                    onRecalculate={handleRecalculate} 
-                    viewFilter={viewFilter}
-                    setViewFilter={setViewFilter}
-                />
+                {/* 🏆 배차 확정 콜 (및 데스밸리 연산 구역)
+                    🔴 결재 카드가 터져도 관제탑 전체가 죽지 않게 경계를 둔다 —
+                       운행 중이면 여기가 KEEP/CANCEL 을 하는 유일한 창구다 */}
+                <ErrorBoundary label="결재 카드">
+                    <PinnedRoute 
+                        activeRoute={activeRoute} 
+                        onDecision={handleDecision} 
+                        onRecalculate={handleRecalculate} 
+                        viewFilter={viewFilter}
+                        setViewFilter={setViewFilter}
+                    />
+                </ErrorBoundary>
             </div>
 
             {/* 필터 설정 모달 */}
