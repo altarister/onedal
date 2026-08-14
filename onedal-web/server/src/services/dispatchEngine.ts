@@ -7,7 +7,7 @@ import type { SecuredOrder, AutoDispatchFilter, PricingConfig, PendingOrder, MyO
               Milestone, MilestoneSource, HuntPhase } from "@onedal/shared";
 import { geocodeAddress, calculateSoloRoute, calculateDetourRoute, compareDirections } from "./kakaoService";
 import { fetchRealWorldRoute } from "../routes/osrmUtil";
-import { getUserSession } from "../state/userSessionStore";
+import { getUserSession, clearOrderTimers } from "../state/userSessionStore";
 import { updateActiveFilter, rememberCorridorProgress } from "../state/filterManager";
 import { getCorridorRegions, getCityRegionsWithRadius, reverseGeocodeToRegion } from "../services/geoService";
 import { composeMergedRoute, applyRoute, applySoloRoute, pickRouteHolder, toKm, toMin } from "./routeComposer";
@@ -47,12 +47,7 @@ export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: 
     if (session.pendingDecisions.has(orderId)) {
         session.pendingDecisions.delete(orderId);
     }
-    const warnTimer = session.activeTimers.get(`warn_${orderId}`);
-    const timeoutTimer = session.activeTimers.get(`timeout_${orderId}`);
-    if (warnTimer) clearTimeout(warnTimer);
-    if (timeoutTimer) clearTimeout(timeoutTimer);
-    session.activeTimers.delete(`warn_${orderId}`);
-    session.activeTimers.delete(`timeout_${orderId}`);
+    clearOrderTimers(session, orderId);
     Array.from(session.deviceEvaluatingMap.entries()).forEach(([k, v]) => {
         if (v === orderId) session.deviceEvaluatingMap.delete(k);
     });
@@ -306,6 +301,13 @@ export const syncCorridorFilter = (userId: string, io: any) => {
 /** 관제사 최종 판정 처리 */
 export async function handleDecision(userId: string, orderId: string, status: 'ORDER_CONFIRMED' | 'ORDER_CANCELED' | 'ORDER_RELEASED' | 'ORDER_FORCE_CANCELED', io: any) {
     const session = getUserSession(userId);
+
+    /**
+     * 결재가 났으면 이 콜에 걸린 **감시 타이머는 할 일이 끝났다.**
+     * 남겨 두면 30~35초 뒤에 깨어나 이미 처리된 콜을 다시 건드린다 (좀비 타이머).
+     * ⚠️ `pendingDecisions` 는 여기서 지우지 않는다 — 앱이 ACK 할 때까지 판결을 들고 있어야 한다.
+     */
+    clearOrderTimers(session, orderId);
 
     const isKeep = status === 'ORDER_CONFIRMED';
     const piggybackAction = isKeep ? 'KEEP' : 'CANCEL';

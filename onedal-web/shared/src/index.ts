@@ -823,6 +823,7 @@ export type DeviceModeType = "AUTO" | "MANUAL";
  */
 export type ScreenContextType =
     | 'LIST'                  // 사냥 리스트 화면
+    | 'LIST_COMPLETED'        // 완료 리스트 화면 — 여기서도 "리스트로 돌아온 것"이다
     | 'DETAIL_PRE_CONFIRM'    // 광클 직전 상세 (확정 버튼 보임)
     | 'DETAIL_CONFIRMED'      // 확정 후 상세 화면 (닫기/취소 버튼)
     | 'POPUP_PICKUP'          // 출발지 상세 팝업
@@ -830,6 +831,26 @@ export type ScreenContextType =
     | 'POPUP_MEMO'            // 적요 상세 팝업
     | 'POPUP_ERROR'           // 에러/실패 팝업 (확정실패, 취소불가 등)
     | 'UNKNOWN';              // 알 수 없는 화면
+
+/**
+ * 🔴 **"콜에서 손을 뗀 화면"의 정의 — 여기 하나뿐이다.**
+ *
+ * 2026-08-14 유령 카드 사고. 앱은 `LIST` 와 `LIST_COMPLETED` **둘 다** 리스트 복귀로 보고
+ * 세션을 리셋하는데(`HijackService`), 서버는 `screenContext === 'LIST'` **하나만** 인정했다.
+ * 그래서 완료 리스트로 빠져나가면 **앱은 다음 콜을 찾는데 서버는 그 콜을 계속 쥐고 있었다** —
+ * 관제탑에 결재 카드가 영원히 남고, `isActive` 도 꺼진 채라 사냥이 통째로 멈췄다.
+ *
+ * `LIST_COMPLETED` 는 애초에 이 타입에 **있지도 않았다.** 앱만 알고 있던 값이다.
+ *
+ * 같은 판단을 두 곳에서 따로 정의하면 갈라진다 — 이 레포가 회랑 4벌·상태목록 3벌로
+ * 이미 당한 형태다. 화면이 늘어나면 **이 배열에만** 넣는다.
+ */
+export const LIST_SCREENS: ScreenContextType[] = ['LIST', 'LIST_COMPLETED'];
+
+/** 지금 화면이 "콜에서 손을 뗀" 상태인가 (= 서버가 쥐고 있던 콜을 놓아도 되는가) */
+export function isListScreen(screenContext?: string | null): boolean {
+    return !!screenContext && (LIST_SCREENS as string[]).includes(screenContext);
+}
 
 /**
  * 🚨 Safety Mode V3: 비상 보고 사유

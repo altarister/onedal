@@ -234,3 +234,21 @@ export function clearUserSession(userId: string): void {
         console.log(`🧹 [Session] 유저 ${userId} 메모리 세션 완전 파기 완료`);
     }
 }
+
+/**
+ * 한 오더에 걸려 있는 **모든 타이머를 끈다.**
+ *
+ * 🔴 타이머 키가 여러 곳에 손으로 나열돼 있었다 (`warn_` · `timeout_` 을 scrap · emergency ·
+ *    dispatchEngine 세 곳이 각자 지웠다). 2026-08-14 에 네 번째 키(`presecured_`)를 더하면서
+ *    **한 곳만 고치면 나머지가 좀비 타이머로 남는** 구조라는 게 드러났다.
+ *    콜이 정상 처리된 뒤에 깨어난 타이머가 멀쩡한 콜을 취소하는 것이 이 레포의 오래된 사고다.
+ *
+ * 새 타이머를 만들면 **키를 여기에만 더한다.**
+ */
+export function clearOrderTimers(session: { activeTimers: Map<string, any> }, orderId: string): void {
+    for (const prefix of ['warn_', 'timeout_', 'presecured_']) {
+        const t = session.activeTimers.get(`${prefix}${orderId}`);
+        if (t) clearTimeout(t);
+        session.activeTimers.delete(`${prefix}${orderId}`);
+    }
+}

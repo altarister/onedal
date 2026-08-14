@@ -129,16 +129,32 @@ router.post("/confirm", (req, res) => {
                 updateActiveFilter(userId, { isActive: false }, io);
                 console.log(`📤 [Socket 푸시] filter-updated (isActive: false)`);
                 logRoadmapEvent("서버", "폰의 isHolding=true 기간 동안 다른 콜을 물지 않도록 필터 비활성 정보 전달");
-                
-                logRoadmapEvent("서버", "데스밸리 15초 카운트다운 타이머 감시 연산");
-                setTimeout(() => {
-                    const cached = session.pendingOrdersData.get(pendingOrder.id);
-                    if (cached && ['ORDER_PRE_SECURED', 'ORDER_SECURED_EVALUATING', 'ORDER_AWAITING_DECISION'].includes(cached.status)) {
-                         console.log(`💀 [서버 데스밸리 타이머] 30초 경과 강제 취소 (ID: ${pendingOrder.id}). 현재 상태: ${cached.status}`);
-                         handleDecision(userId, pendingOrder.id, "ORDER_CANCELED", io);
-                    }
-                }, 30000);
             }
+
+            /**
+             * 🔴 **안전망은 조건 없이 건다** (2026-08-14).
+             *
+             * 예전에는 이 타이머가 바로 위 `if (session.activeFilter.isActive)` **안에** 있었다.
+             * 그런데 그 블록은 자기가 `isActive` 를 끈다 — 즉 필터가 꺼진 채로 들어온 확정은
+             * **안전망이 아예 안 걸렸다.** 앱이 리스트로 빠져나가면 관제탑 카드가 영원히 남고
+             * `isActive` 도 꺼진 채라 사냥이 통째로 멈춘다.
+             * MANUAL 콜(기사님이 손으로 잡는 것)은 필터와 무관하게 들어오므로 특히 그랬다.
+             *
+             * 안전망이 **조건부면 안전망이 아니다.**
+             *
+             * ⚠️ 타이머는 **ID 를 저장해 취소 가능하게** 한다 (CLAUDE.md 규칙 ② 좀비 타이머).
+             *    예전에는 저장하지 않아, 콜이 정상 처리된 뒤에도 30초 뒤 깨어나 사고를 쳤다.
+             */
+            const graceTimer = setTimeout(() => {
+                session.activeTimers.delete(`presecured_${pendingOrder.id}`);
+                const cached = session.pendingOrdersData.get(pendingOrder.id);
+                if (cached && ['ORDER_PRE_SECURED', 'ORDER_SECURED_EVALUATING', 'ORDER_AWAITING_DECISION'].includes(cached.status)) {
+                    console.log(`💀 [서버 데스밸리 타이머] 30초 경과 강제 취소 (ID: ${pendingOrder.id}). 현재 상태: ${cached.status}`);
+                    handleDecision(userId, pendingOrder.id, "ORDER_CANCELED", io);
+                }
+            }, 30000);
+            session.activeTimers.set(`presecured_${pendingOrder.id}`, graceTimer);
+            logRoadmapEvent("서버", "데스밸리 30초 카운트다운 타이머 감시 연산 (취소 가능하게 등록)");
         }
     } catch (error) {
         console.error("Orders Confirm 에러:", error);

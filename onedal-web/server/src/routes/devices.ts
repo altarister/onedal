@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { DeviceSession, DeviceStatusType, DeviceModeType, ScreenContextType } from "@onedal/shared";
+import { DeviceSession, DeviceStatusType, DeviceModeType, ScreenContextType, isListScreen } from "@onedal/shared";
 import { forceCancelEvaluatingOrder } from "../services/dispatchEngine";
 import { getUserSession } from "../state/userSessionStore";
 import { generatePin, consumePin } from "../state/pairingStore";
@@ -114,7 +114,12 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
     // [Zero-Latency 동기화 핵심 로직] 
     // 기사님이 수동으로 닫기를 누르거나 오더가 사라져서 안드로이드 앱이 리스트 화면으로 이탈했다면, 
     // 서버가 쥐고 있는 대기 중(롱폴링)인 콜 결정을 즉시 강제 파괴하여 데드락을 방지합니다!
-    if (screenContext === 'LIST') {
+    /**
+     * 🔴 "리스트 계열인가"는 `shared.isListScreen` 이 유일한 정의다.
+     *    예전에는 여기서 `=== 'LIST'` 로 직접 판정해, 앱이 리스트로 치는 `LIST_COMPLETED`
+     *    가 **새어 나갔다** (유령 카드 사고 2026-08-14).
+     */
+    if (isListScreen(screenContext)) {
         let userId = "ADMIN_USER";
         if (deviceId) {
             const row = db.prepare("SELECT user_id FROM user_devices WHERE device_id = ?").get(deviceId) as any;

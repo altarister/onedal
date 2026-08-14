@@ -2,7 +2,7 @@ import { Router } from "express";
 import { filterHuntBlocker } from "@onedal/shared";
 import type { SimplifiedOfficeOrder, ScreenContextType } from "@onedal/shared";
 import db from "../db";
-import { getUserSession } from "../state/userSessionStore";
+import { getUserSession, clearOrderTimers } from "../state/userSessionStore";
 import { ensureBusinessDay } from "../state/filterManager";
 
 import { touchDeviceSession } from "./devices";
@@ -106,13 +106,8 @@ router.post("/", (req, res) => {
         if (deviceId) {
             // 앱이 "저번 결재 무사히 받았습니다" (ACK) 라고 보고하면, 큐와 타이머에서 깨끗이 지워줍니다.
             if (ackDecisionId && session.pendingDecisions.has(ackDecisionId)) {
-                // 타이머 청소
-                const warnTimer = session.activeTimers.get(`warn_${ackDecisionId}`);
-                const timeoutTimer = session.activeTimers.get(`timeout_${ackDecisionId}`);
-                if (warnTimer) clearTimeout(warnTimer);
-                if (timeoutTimer) clearTimeout(timeoutTimer);
-                session.activeTimers.delete(`warn_${ackDecisionId}`);
-                session.activeTimers.delete(`timeout_${ackDecisionId}`);
+                // 타이머 청소 — 키 목록은 clearOrderTimers 한 곳에만 있다
+                clearOrderTimers(session, ackDecisionId);
 
                 // 큐에서 제거
                 session.pendingDecisions.delete(ackDecisionId);

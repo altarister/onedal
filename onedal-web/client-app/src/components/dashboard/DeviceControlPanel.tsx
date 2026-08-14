@@ -20,6 +20,9 @@ const EMERGENCY_LABELS: Record<string, string> = {
 /** ScreenContext → 한국어 라벨 + 색상 매핑 (물리적 화면 상태만 표시, 홀드는 isHolding으로 분리) */
 const SCREEN_LABELS: Record<ScreenContextType, { label: string; color: string }> = {
     LIST: { label: "콜 리스트", color: "text-success bg-success/15 border-success/20" },
+    // 완료 리스트도 "콜에서 손을 뗀" 화면이다 — 앱이 여기로 빠져나가면 서버가 콜을 놓는다.
+    // 예전에는 이 값이 shared 타입에 없어서, 앱만 보내고 아무도 못 읽었다 (유령 카드 사고)
+    LIST_COMPLETED: { label: "완료 리스트", color: "text-success bg-success/15 border-success/20" },
     DETAIL_PRE_CONFIRM: { label: "상세페이지", color: "text-info bg-info/15 border-info/20" },
     DETAIL_CONFIRMED: { label: "확정페이지", color: "text-warning bg-warning/15 border-warning/20" },
     POPUP_PICKUP: { label: "출발지 팝업", color: "text-info bg-info/15 border-info/20" },

@@ -20,7 +20,7 @@
 
 import { Router } from "express";
 import type { EmergencyReport } from "@onedal/shared";
-import { getUserSession } from "../state/userSessionStore";
+import { getUserSession, clearOrderTimers } from "../state/userSessionStore";
 import { updateActiveFilter } from "../state/filterManager";
 import db from "../db";
 import { incrementDeviceStats } from "./devices";
@@ -66,12 +66,7 @@ router.post("/", async (req, res) => {
             console.log(`   ✅ 결재 큐(pendingDecisions) 삭제 완료`);
         }
 
-        const warnTimer = session.activeTimers.get(`warn_${targetOrderId}`);
-        const timeoutTimer = session.activeTimers.get(`timeout_${targetOrderId}`);
-        if (warnTimer) clearTimeout(warnTimer);
-        if (timeoutTimer) clearTimeout(timeoutTimer);
-        session.activeTimers.delete(`warn_${targetOrderId}`);
-        session.activeTimers.delete(`timeout_${targetOrderId}`);
+        clearOrderTimers(session, targetOrderId);
         console.log(`   ✅ 롱폴링 대응 데스밸리 타이머 무음 해제 완료`);
 
         if (session.pendingOrdersData.has(targetOrderId)) {
