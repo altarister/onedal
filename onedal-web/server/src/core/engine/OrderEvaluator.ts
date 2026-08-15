@@ -1,4 +1,4 @@
-import { PendingOrder, SecuredOrder, MyOrder, scoreMerge, describeJudgment, TRUCK_CAPACITY_SLOTS } from "@onedal/shared";
+import { PendingOrder, SecuredOrder, MyOrder, scoreMerge, describeJudgment, TRUCK_CAPACITY_SLOTS, callName } from "@onedal/shared";
 import { getUserSession } from "../../state/userSessionStore";
 import { computeAllowedDetour, findLoadConflicts, totalDetourCost } from "../helpers";
 import { geocodeAddress, calculateSoloRoute } from "../../services/kakaoService";
@@ -151,7 +151,7 @@ export class OrderEvaluator {
                          *
                          * 🔴 카카오의 `timeDiffMin` 은 **주행 delta 뿐**이라 상하차를 더해야 한다.
                          */
-                        const slackLimit = computeAllowedDetour(userId, session);
+                        const slackLimit = computeAllowedDetour(userId, session, Date.now(), session.judgment.unknown);
                         const cost = totalDetourCost(result.timeDiffMin, securedOrder.id, session.judgment.unknown);
 
                         const slotsTotal = TRUCK_CAPACITY_SLOTS;
@@ -206,8 +206,19 @@ export class OrderEvaluator {
                         console.log(`   - 🗺️ 궤적 길이 (Detour): ${securedOrder.routePolyline?.length || '없음'}`);
                     }
                 } else {
-                    reasons.push(`본콜 좌표 누락`);
-                    console.log(`   - ❌ 본콜은 있으나 좌표값이 누락됨.`);
+                    /**
+                     * 🔴 **좌표가 없는 것은 `후보콜` 자신이다** (2026-08-16).
+                     *    예전 메시지는 `본콜 좌표 누락` 이었는데, 기사님이
+                     *    *"내가 KEEP 한 첫 콜에 문제가 있나?"* 로 읽으셨다 — 실제로는 방금
+                     *    앱이 집어 온 **후보콜의 주소를 카카오가 못 찾은 것**이다.
+                     *    (실측: 초월읍 신세계사이먼 아울렛 — 3중 폴백 끝에 실패)
+                     */
+                    const who = callName({ target: session.activeFilter.huntPhase,
+                                           index: getActiveCalls(session).length, candidate: true });
+                    const missing = !securedOrder.pickupX ? '상차지' : '하차지';
+                    const addr = (!securedOrder.pickupX ? securedOrder.pickup : securedOrder.dropoff) || '';
+                    reasons.push(`${who}의 ${missing} 주소를 찾지 못했습니다`);
+                    console.log(`   - ❌ ${who}: ${missing} 좌표 변환 실패 — '${addr}'`);
                 }
             } else {
                 reasons.push(`API KEY 부재`);

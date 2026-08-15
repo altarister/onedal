@@ -73,7 +73,7 @@ export class StateMachine {
                     reason: "모든 콜이 취소되어 완전 초기화(STANDBY) 복귀" 
                 };
             } else {
-                // 본콜이 남아있는 경우 → 현재 상태(GATHERING/DRIVING)를 그대로 유지
+                // 잡아 둔 콜이 남아있는 경우 → 현재 상태(GATHERING/DRIVING)를 그대로 유지
                 return { 
                     changed: true, 
                     newFilter: resetFilter, 

@@ -104,7 +104,7 @@ function toCoordPair(c: RouteHolder): { pickup: Coord; dropoff: Coord } | null {
 }
 
 export interface ComposeMergedRouteParams {
-    /** 활성 콜. `calls[0]`이 본콜(출발 기준)이다 */
+    /** 활성 콜. `calls[0]` 이 **첫짐 콜**(출발 기준)이고 그 뒤가 합짐1·합짐2… 다 */
     calls: RouteHolder[];
     /** 아직 `calls`에 들어가지 않은 후보 콜 (합짐 사전 평가용) */
     extra?: RouteHolder | null;
@@ -208,7 +208,7 @@ export function planMergedStops(
     const mergedDest = sortedDropoffs.pop()!;
     const waypoints = [...sortedPickups, ...sortedDropoffs];
 
-    // 출발 기준은 본콜(calls[0]). 본콜 좌표가 없으면 첫 유효 좌표로 대체한다.
+    // 출발 기준은 **첫짐 콜**(calls[0]). 그 좌표가 없으면 첫 유효 좌표로 대체한다.
     // ⚠️ 상차지가 하나도 안 남았을 수 있으므로(전부 적재 완료) 하차지로도 폴백한다.
     const mainPair = calls.length > 0 ? toCoordPair(calls[0]) : null;
     const origin = mainPair ?? { pickup: allPickups[0] ?? allDropoffs[0], dropoff: allDropoffs[0] };

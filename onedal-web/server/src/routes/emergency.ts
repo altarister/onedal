@@ -107,7 +107,7 @@ router.post("/", async (req, res) => {
             const activeCalls = session.myOrders.filter(c => !isTerminal(c.status));
             if (activeCalls.length === 0) {
                 updateActiveFilter(userId, { isSharedMode: false, isActive: true, driverAction: 'WAITING', dispatchPhase: 'STANDBY' }, io);
-                console.log(`   ✅ 본콜 초기화 + 필터 '첫짐' 복원 완료`);
+                console.log(`   ✅ 잡아 둔 콜 없음 → 필터 '첫짐' 복원 완료`);
             } else {
                 const { recalculateActiveKakaoRoute } = await import("../services/dispatchEngine");
                 await recalculateActiveKakaoRoute(userId, io);

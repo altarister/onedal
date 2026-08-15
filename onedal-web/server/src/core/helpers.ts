@@ -81,18 +81,47 @@ export function computeAllowedDetour(
     userId: string,
     session: { myOrders: MyOrder[] },
     nowMs: number = Date.now(),
+    unk?: DwellUnknown,
 ): number | null {
     const slacks = getActiveCalls(session).map(call => {
         const reports = OrderRepository.getCargoReports(call.id);
-        // 마감은 하차 기준이다. 하차 마감이 없으면 상차 마감이라도 본다
         const drop = reports.find(r => r.stopType === 'dropoff' && r.deadlineAt);
         const pick = reports.find(r => r.stopType === 'pickup' && r.deadlineAt);
-        const deadline = drop?.deadlineAt || pick?.deadlineAt;
+        const timing = getStopTiming(call.id, unk);
 
-        // 🔴 주행 시간만 세면 안 된다. 수작업 상하차 두 번이면 한 시간이 그냥 사라진다.
-        //    그걸 빼먹으면 "여유 60분"이라 판단하고 우회했다가 지각한다.
-        const timing = getStopTiming(call.id);
-        return computeSlackMinutes(deadline, (call.totalDurationMin || 0) + timing.totalDwell, nowMs);
+        /**
+         * 🔴 **마감이 어느 정거장의 것이냐에 따라 빼는 시간이 다르다** (2026-08-16 실측).
+         *
+         * 예전에는 어느 마감이든 **전체 주행**(상차지→하차지)을 뺐다. 그래서 기사님이
+         * `목적지콜` 의 상차지와 통화해 *"05:49까지 상차지 도착"* 을 넣으시자,
+         * 서버가 거기서 전체 주행 82분을 빼 **여유 −71분**을 만들었다 —
+         * *"상차하러 가는 데 하차까지의 시간이 걸린다"* 고 센 셈이다.
+         * 그 결과 **그 뒤로 온 `목적지 합짐1 후보콜` 이 전부 막혔다.**
+         *
+         *   하차 약속 → 하차까지 남은 **전부** (주행 + 상하차 두 번)
+         *   상차 약속 → **상차지까지 가는 시간만** (approach)
+         */
+        if (drop?.deadlineAt) {
+            return computeSlackMinutes(drop.deadlineAt, (call.totalDurationMin || 0) + timing.totalDwell, nowMs);
+        }
+
+        if (pick?.deadlineAt) {
+            /**
+             * 🔴 **이미 상차한 콜의 상차 약속은 지난 일이다.** 볼 것이 없다 —
+             *    남은 일은 하차뿐이고, 그 마감은 위에서 봤다 (`isAlreadyLoaded` 와 같은 줄기).
+             */
+            if (call.status === 'ORDER_PICKED_UP') return null;
+
+            /**
+             * ⚠️ 접근 시간을 모르면 **`0` 으로 가정하지 않는다** — 그러면 "이미 상차지에 서 있다"는
+             *    뜻이 되어 여유를 크게 잡고 지각한다. 모르면 `null`(모른다)이다 (규칙 ④).
+             */
+            const approach = call.approachDurationMin;
+            if (approach === undefined || approach === null) return null;
+            return computeSlackMinutes(pick.deadlineAt, approach + timing.pickupDwell, nowMs);
+        }
+
+        return null;   // 이 콜은 마감을 모른다
     });
     return allowedDetourMinutes(slacks);
 }

@@ -205,7 +205,7 @@ function parseKakaoErrorMsg(resultCode: number, resultMsg: string): string {
 // ━━━━━━━━━━ [공개 API 함수] ━━━━━━━━━━
 
 /**
- * 단독 주행 연산 (본콜 첫짐)
+ * 단독 주행 연산 (첫짐 콜 — 합짐이 없을 때)
  * API 키는 모듈 스코프에서 자동 참조 — 호출 시 전달 불필요
  */
 /**
@@ -281,11 +281,11 @@ export async function calculateSoloRoute(
 }
 
 /**
- * 합짐 우회 연산 (기존 본콜 대비 경유지 추가)
+ * 합짐 우회 연산 (첫짐 콜 대비 경유지 추가)
  */
 export async function calculateDetourRoute(
-    baseDestX: number, baseDestY: number,     // 단독 본콜 하차지
-    mainPickupX: number, mainPickupY: number, // 단독 본콜 상차지
+    baseDestX: number, baseDestY: number,     // 첫짐 콜 하차지
+    mainPickupX: number, mainPickupY: number, // 첫짐 콜 상차지
     mergedDestX: number, mergedDestY: number, // 합짐 최종 하차지
     mergedWaypoints: Array<{ x: number; y: number }>, // 스마트 정렬된 경유지들
     driverLoc?: { x: number, y: number } | null,
@@ -304,7 +304,7 @@ export async function calculateDetourRoute(
         baseWaypoints = `${mainPickupX},${mainPickupY}`; // 현위치에서 기존 상차지로 먼저 이동
     }
 
-    // 1. 베이스(단독 본콜) 연산
+    // 1. 베이스(첫짐 콜 단독) 연산
     let baseUrl = `${KAKAO_NAV_URL}?origin=${baseOriginX},${baseOriginY}&destination=${baseDestX},${baseDestY}&priority=${priority}&car_type=${carType}`;
     if (baseWaypoints) {
         baseUrl += `&waypoints=${baseWaypoints}`;

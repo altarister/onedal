@@ -317,3 +317,43 @@ export function describeJudgment(r: JudgmentResult): string {
     const body = r.parts.map(p => `${p.name} ${p.raw}(${p.score})${p.assumed ? '·미확인' : ''}`).join(' · ');
     return `${icon} 총점 ${r.score} — ${body}`;
 }
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 콜을 부르는 이름 — **조합해서 만든다**
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * 🔴 **콜 이름은 여기서만 만든다** (기사님 확정 2026-08-16).
+ *
+ * ```
+ * 타겟명  +  첫짐(생략) / 합짐N  +  (후보)  +  콜
+ * ```
+ * | 타겟 | 첫짐 | 첫 합짐 | 두 번째 합짐 |
+ * |---|---|---|---|
+ * | 목적지 | `목적지콜` | `목적지합짐1콜` | `목적지합짐2콜` |
+ * | 관내 | `관내콜` | `관내합짐1콜` | `관내합짐2콜` |
+ * | 복귀 | `복귀콜` | `복귀합짐1콜` | `복귀합짐2콜` |
+ *
+ * 심사 전(데스밸리에서 결재 안 난 콜)은 `후보` 를 넣는다 — `목적지 합짐1 후보콜`.
+ *
+ * 🔴 **`본콜` 은 폐기했다.** 한 단어가 세 뜻으로 쓰이고 있었다 —
+ *    `routeComposer` 는 *잡아 둔 첫 콜*, `kakaoService` 는 *첫짐*, 그리고
+ *    `OrderEvaluator` 의 `본콜 좌표 누락` 은 실제로 **후보콜**이었다.
+ *    그래서 기사님이 *"내가 KEEP 한 첫 콜에 문제가 있나?"* 로 잘못 읽으셨다 (2026-08-16).
+ */
+const TARGET_LABEL: Record<string, string> = { DEST: '목적지', LOCAL: '관내', HOME: '복귀' };
+
+export function callName(opts: {
+    /** `huntPhase` — 모르면 타겟명을 빼고 부른다 (지어내지 않는다) */
+    target?: string | null;
+    /** `getActiveCalls()` 순서. `0` = 첫짐 · `1` = 합짐1 · `2` = 합짐2 */
+    index: number;
+    /** 아직 결재가 안 난 콜인가 */
+    candidate?: boolean;
+}): string {
+    const target = opts.target ? (TARGET_LABEL[opts.target] ?? '') : '';
+    const slot = opts.index <= 0 ? '' : `합짐${opts.index}`;
+    if (!opts.candidate) return `${target}${slot}콜` || '콜';
+    // 후보는 띄어 쓴다 — `목적지 합짐1 후보콜`
+    return [target, slot, '후보콜'].filter(Boolean).join(' ');
+}

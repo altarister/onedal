@@ -220,7 +220,7 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
                 detourKm: Number(result.distDiffKm),
                 dwellMin: totalDetourCost(0, securedOrder.id, session.judgment.unknown).dwell,
                 dwellAssumed: totalDetourCost(0, securedOrder.id, session.judgment.unknown).hasUnknown,
-                slackMin: computeAllowedDetour(userId, session),
+                slackMin: computeAllowedDetour(userId, session, Date.now(), session.judgment.unknown),
                 slotsFree: Math.max(0, TRUCK_CAPACITY_SLOTS - (session.activeFilter.slotsUsed ?? 0)),
                 slotsTotal: TRUCK_CAPACITY_SLOTS,
             }, session.judgment);   // 🎯 재탐색도 **같은** 기준을 읽는다
@@ -786,7 +786,7 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
         const activeMain = activeCalls[0];
         const activeSubs = activeCalls.slice(1);
 
-        // 3. 본콜 카카오 궤적 1회 복구
+        // 3. 첫짐 콜의 카카오 궤적 1회 복구
         if (activeMain && activeMain.pickupX && activeMain.dropoffX) {
             try {
                 // 🔴 복구도 마찬가지다 — 상차하고 달리다 **새로고침만 해도** 경로가 상차지로
@@ -815,7 +815,7 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
                         `${toKm(res.approachDistance || 0)}km / ${toMin(res.approachDuration)}분`);
                 }
             } catch(e) {
-                console.error('🗺️ [본콜 복구 연산 실패]', e);
+                console.error('🗺️ [첫짐 콜 복구 연산 실패]', e);
             }
         }
 
