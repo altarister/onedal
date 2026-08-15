@@ -5,7 +5,8 @@ import { getUserDevicesSnapshot } from "../routes/devices";
 import { getRegionsByCity } from "../geoResolver";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import type { AutoDispatchFilter, Milestone, CargoReport, HuntPhase, PhaseKey, PhaseSettings } from "@onedal/shared";
-import { cargoMismatchRatio, DEFAULT_CORRIDOR_RADIUS_KM, PHASE_KEYS } from "@onedal/shared";
+import { cargoMismatchRatio, DEFAULT_CORRIDOR_RADIUS_KM, PHASE_KEYS, judgmentFromRow, judgmentToRow } from "@onedal/shared";
+import db from "../db";
 import { OrderRepository } from "../repositories/OrderRepository";
 import { PlaceRepository } from "../repositories/PlaceRepository";
 import { getUserSession, getAllActiveUserIds } from "../state/userSessionStore";
@@ -107,6 +108,41 @@ export function registerSocketHandlers(io: Server) {
             });
             logRoadmapEvent("서버", `관제탑에게 확정 필터(filter-init) 전달 — minFare=${session.activeFilter.minFare}`);
         }
+
+        /**
+         * 🎯 **판정 기준 — 콜 필터와 별도 이벤트로 오간다** (2026-08-16).
+         *
+         * 🔴 `filter-updated` 페이로드에 얹지 않는다. 기사님 확정:
+         *    *"필터와 완전 분리 격리되어 각각 따로 작동해야 한다."*
+         *    한 페이로드에 태우면 필터가 바뀔 때마다 판정 기준이 딸려 나가고, 관제웹도
+         *    둘을 한 덩어리로 다루게 된다 — 그러면 갈라 놓은 의미가 없다.
+         *
+         * 🔴 **앱에는 가지 않는다.** 이건 소켓이고 앱은 REST 피기백만 쓴다 (규칙 ⑤-1).
+         */
+        socket.emit("judgment-init", session.judgment);
+
+        safeOn(socket, "save-judgment", (cfg: unknown) => {
+            /**
+             * 기사님 5번: *"수정을 요청받은 데이터셋은 **한 번에** DB에 넣는다."*
+             * → 트랜잭션 하나. 절반만 반영된 상태를 만들지 않는다.
+             *
+             * `judgmentFromRow` 가 **범위를 벗어난 값을 잘라 준다** —
+             * 음수 가중치나 101점 경계가 들어와 색이 뒤집히는 것을 막는다.
+             */
+            const safe = judgmentFromRow(judgmentToRow(cfg as any));
+            const row = judgmentToRow(safe);
+            const cols = Object.keys(row);
+            db.transaction(() => {
+                db.prepare(`INSERT OR IGNORE INTO user_judgment (user_id) VALUES (?)`).run(userId);
+                db.prepare(
+                    `UPDATE user_judgment SET ${cols.map(c => `${c} = ?`).join(', ')} WHERE user_id = ?`
+                ).run(...cols.map(c => row[c]), userId);
+            })();
+
+            session.judgment = safe;   // 그릇이 하나다 — "오늘만" 이 없다
+            console.log(`🎯 [판정 기준 저장] ${cols.length}개 값 · 🔵 ${safe.color.honeyMin}점 · 🟢 ${safe.color.normalMin}점`);
+            io.to(userId).emit("judgment-updated", safe);
+        });
 
         socket.on("request-filter-init", () => {
             console.log(`📡 [웹 수신] request-filter-init (초기 필터 동기화 요청) - userId: ${userId}`);

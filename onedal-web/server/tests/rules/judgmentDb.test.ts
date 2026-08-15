@@ -104,3 +104,77 @@ describe('세션이 DB 값을 읽고, 판정이 그 값을 쓴다', () => {
         expect(db).not.toMatch(/merge_honey_max_minutes\s+INTEGER/);
     });
 });
+
+/**
+ * 🔴 **콜 필터와 판정 기준은 화면·소켓·스토어까지 갈라져 있다** (기사님 확정 2026-08-16)
+ *
+ * *"필터와 완전 분리 격리되어 각각 따로 작동해야 한다."*
+ *
+ * 한 페이로드·한 스토어에 태우면 갈라 놓은 의미가 없다 —
+ * 필터가 바뀔 때마다 판정 기준이 딸려 나가고, 관제웹도 둘을 한 덩어리로 다루게 된다.
+ */
+describe('콜 필터 ↔ 판정 기준 — 화면까지 갈라져 있다', () => {
+
+    const CLIENT = join(__dirname, "../../../client-app/src");
+    const rc = (rel: string) => codeOnly(readFileSync(join(CLIENT, rel), "utf8"));
+
+    it('🔴 판정 기준이 filter 페이로드에 섞이지 않는다', () => {
+        const fm = codeOnly(read('state/filterManager.ts'));
+        const fn = fm.slice(fm.indexOf('function broadcastFilter'));
+        expect(fn.slice(0, fn.indexOf('\n}'))).not.toMatch(/judgment/);
+    });
+
+    it('🔴 별도 소켓 이벤트로 오간다', () => {
+        const h = codeOnly(read('socket/socketHandlers.ts'));
+        expect(h).toMatch(/socket\.emit\("judgment-init", session\.judgment\)/);
+        expect(h).toMatch(/"save-judgment"/);
+        expect(h).toMatch(/emit\("judgment-updated"/);
+    });
+
+    it('🔴 저장은 트랜잭션 하나 — 절반만 반영되지 않는다', () => {
+        const h = codeOnly(read('socket/socketHandlers.ts'));
+        const fn = h.slice(h.indexOf('"save-judgment"'));
+        expect(fn.slice(0, 1200)).toMatch(/db\.transaction\(/);
+        // 들어온 값을 그대로 믿지 않는다 — 범위 밖이면 잘라 넣는다
+        expect(fn.slice(0, 1200)).toMatch(/judgmentFromRow\(judgmentToRow\(/);
+    });
+
+    it('🔴 관제웹 스토어도 콜 필터와 따로다', () => {
+        const js = rc('stores/judgmentStore.ts');
+        expect(js).toMatch(/socket\.on\('judgment-init'/);
+        expect(js).toMatch(/socket\.on\('judgment-updated'/);
+        // 어제의 5중 구독 사고를 되풀이하지 않는다
+        expect(js).toMatch(/if \(subscribed\) return;/);
+        expect(rc('stores/filterStore.ts')).not.toMatch(/judgment/);
+    });
+
+    it('🔴 폼을 손으로 그리지 않는다 — 표를 읽어 자동 생성한다', () => {
+        const tab = rc('components/dashboard/settings/JudgmentSettingsTab.tsx');
+        expect(tab).toMatch(/JUDGMENT_FIELDS/);
+        // 칸 이름을 하드코딩하면 표에 줄이 늘어도 화면이 안 따라온다
+        expect(tab).not.toMatch(/merge_honey_max_minutes/);
+        expect(tab).toMatch(/f\.why/);        // 근거를 칸마다 띄운다
+    });
+
+    /**
+     * ⚠️ 「오늘만」이라는 **말**은 화면에 있어도 된다 — *"여기서 바꾸면 계속 적용됩니다
+     *    (「오늘만」이 없습니다)"* 는 기사님께 차이를 알려 주는 안내다.
+     *    없어야 하는 것은 **버튼과 그 동작**이다. 그래서 버튼 목록과 저장 인자를 본다.
+     */
+    it('🔴 판정 기준 탭에 「오늘만」 **버튼**이 없다 (그건 콜 필터에만 있다)', () => {
+        const tab = rc('components/dashboard/settings/JudgmentSettingsTab.tsx');
+        const buttons = [...tab.matchAll(/<button[\s\S]*?>([\s\S]*?)<\/button>/g)].map(m => m[1]);
+        expect(buttons.length).toBeGreaterThan(0);
+        for (const b of buttons) expect(b).not.toMatch(/오늘만/);
+        expect(buttons.join(' ')).toMatch(/적용/);
+        expect(tab).not.toMatch(/saveAsDefault/);          // 콜 필터의 저장 인자
+        expect(rc('stores/judgmentStore.ts')).not.toMatch(/saveAsDefault|오늘만/);
+    });
+
+    it('설정 모달에 「판정 기준」 탭이 있다 (「판정/필터」가 아니다 — 「요율/필터」와 헷갈린다)', () => {
+        const m = rc('components/dashboard/SettingsModal.tsx');
+        expect(m).toMatch(/value="judgment"/);
+        expect(m).toMatch(/판정 기준<\/TabsTrigger>/);
+        expect(m).not.toMatch(/판정\/필터/);
+    });
+});

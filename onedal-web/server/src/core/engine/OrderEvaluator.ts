@@ -191,7 +191,13 @@ export class OrderEvaluator {
 
                         const signDist = distDiff > 0 ? "+" : "";
                         const signTime = result.timeDiffMin > 0 ? "+" : "";
-                        timeExt = `${signDist}${distDiff}km, ${signTime}${result.timeDiffMin}분 ${recommend}`;
+                        /**
+                         * 🔴 관제웹 카드가 이 문자열을 읽어 **색을 정한다**(`'꿀'`·`'똥'` 표식).
+                         *    그래서 표식은 그대로 두고 **총점만 덧붙인다** — 기사님이 색을 믿고
+                         *    바로 누르시되, 숫자가 궁금하면 바로 보이게 (규칙 ⑤-3).
+                         *    요소별 상세는 서버 로그의 `🎯 [판정]` 한 줄에 다 있다.
+                         */
+                        timeExt = `${signDist}${distDiff}km, ${signTime}${result.timeDiffMin}분 ${recommend} · ${verdict.score}점`;
                         securedOrder.routePolyline = result.merged.polyline;
                         securedOrder.totalDistanceKm = result.merged.distance / 1000;
                         securedOrder.totalDurationMin = Math.round(result.merged.duration / 60);
