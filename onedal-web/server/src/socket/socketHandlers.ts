@@ -121,6 +121,19 @@ export function registerSocketHandlers(io: Server) {
          */
         socket.emit("judgment-init", session.judgment);
 
+        /**
+         * 🔴 **놓친 뒤에도 받을 수 있어야 한다** (2026-08-16 실측).
+         *
+         * 위 `judgment-init` 은 **접속 순간에 한 번** 나간다. 그런데 관제웹은 기사님이
+         * ⚙️ 설정 → 「판정 기준」 탭을 **여는 순간** 비로소 구독한다 — 그때는 이미 지나갔다.
+         * 그래서 값이 안 오고 폼이 잠긴 채였다. 기사님: *"값을 바꿀 수 없다."*
+         *
+         * 콜 필터가 같은 문제를 이미 겪었고 `request-filter-init` 으로 풀었다. 같은 방식이다.
+         */
+        socket.on("request-judgment", () => {
+            socket.emit("judgment-init", session.judgment);
+        });
+
         safeOn(socket, "save-judgment", (cfg: unknown) => {
             /**
              * 기사님 5번: *"수정을 요청받은 데이터셋은 **한 번에** DB에 넣는다."*

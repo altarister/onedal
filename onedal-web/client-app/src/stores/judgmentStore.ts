@@ -47,6 +47,22 @@ export function ensureJudgmentSocketSubscribed(): void {
     const apply = (cfg: JudgmentConfig) => useJudgmentStore.getState().set(cfg);
     socket.on('judgment-init', apply);
     socket.on('judgment-updated', apply);
+
+    /**
+     * 🔴 **서버의 첫 `judgment-init` 을 놓쳤을 수 있다.**
+     *
+     * 서버는 **소켓 접속 순간**에 한 번 보낸다. 그런데 이 구독은 기사님이
+     * ⚙️ 설정 → 「판정 기준」 탭을 **여는 순간** 시작될 수도 있다 — 그러면 이미 지나갔고,
+     * `loaded` 가 false 라 폼이 잠긴 채로 남는다 (2026-08-16 에 실제로 그랬다).
+     *
+     * 그래서 **아직 못 받았으면 달라고 한다.** 콜 필터의 `request-filter-init` 과 같은 방식이다.
+     * 재접속에도 안전하다 — `connect` 마다 다시 물어본다.
+     */
+    const askIfEmpty = () => {
+        if (!useJudgmentStore.getState().loaded) socket.emit('request-judgment');
+    };
+    askIfEmpty();
+    socket.on('connect', askIfEmpty);
 }
 
 /**

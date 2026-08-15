@@ -178,3 +178,38 @@ describe('콜 필터 ↔ 판정 기준 — 화면까지 갈라져 있다', () =>
         expect(m).not.toMatch(/판정\/필터/);
     });
 });
+
+/**
+ * 🔴 **접속 순간에 한 번 보내는 값은, 놓친 뒤에도 받을 수 있어야 한다** (2026-08-16 실측)
+ *
+ * 기사님: *"값을 바꿀 수 없다."*
+ *
+ * 서버는 `judgment-init` 을 **소켓 접속 순간에 한 번** 보냈다. 그런데 관제웹은 기사님이
+ * ⚙️ 설정 → 「판정 기준」 탭을 **여는 순간** 비로소 구독했다 — 그때는 이미 지나간 뒤였다.
+ * 값을 못 받으니 `loaded` 가 false 로 남고 **폼이 통째로 잠겼다.**
+ *
+ * 콜 필터가 **같은 문제를 이미 겪고** `request-filter-init` 으로 풀어 놓았는데,
+ * 내가 판정 기준을 만들면서 그 교훈을 안 가져왔다.
+ */
+describe('놓친 초기값을 다시 받을 수 있다', () => {
+
+    const CLIENT2 = join(__dirname, "../../../client-app/src");
+    const rc2 = (rel: string) => codeOnly(readFileSync(join(CLIENT2, rel), "utf8"));
+
+    it('🔴 서버가 요청받으면 다시 보낸다', () => {
+        const h = codeOnly(read('socket/socketHandlers.ts'));
+        expect(h).toMatch(/socket\.on\("request-judgment"/);
+    });
+
+    it('🔴 관제웹이 아직 못 받았으면 달라고 한다 · 재접속에도', () => {
+        const js = rc2('stores/judgmentStore.ts');
+        expect(js).toMatch(/socket\.emit\('request-judgment'\)/);
+        expect(js).toMatch(/loaded/);
+        expect(js).toMatch(/socket\.on\('connect'/);   // 재접속 때도 다시 묻는다
+    });
+
+    it('🔴 탭이 아니라 대시보드에서 미리 구독한다', () => {
+        // 탭에서만 구독하면 탭을 열기 전까지 값이 없다 — 폼이 잠긴 채로 남는다
+        expect(rc2('pages/Dashboard.tsx')).toMatch(/ensureJudgmentSocketSubscribed\(\)/);
+    });
+});

@@ -7,6 +7,7 @@ import OrderFilterModal from "../components/dashboard/OrderFilterModal";
 import VehicleStatusPanel from "../components/dashboard/VehicleStatusPanel";
 import PinnedRoute from "../components/dashboard/PinnedRoute";
 import { ErrorBoundary } from "../components/common/ErrorBoundary";
+import { ensureJudgmentSocketSubscribed } from "../stores/judgmentStore";
 import CargoMismatchBanner from "../components/dashboard/CargoMismatchBanner";
 import { useServerErrors } from "../hooks/useServerErrors";
 import { useState, useEffect } from "react";
@@ -18,6 +19,13 @@ import { useOrderEngine } from "../hooks/useOrderEngine";
 
 export default function Dashboard() {
     const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+    /**
+     * 🎯 판정 기준을 **탭이 아니라 여기서** 구독한다 (2026-08-16).
+     *    탭에서만 구독하면 서버의 첫 `judgment-init` 을 놓쳐 폼이 잠긴다.
+     *    구독 자체는 스토어가 한 번만 건다 — 여기서 불러도 중복되지 않는다.
+     */
+    useEffect(() => { ensureJudgmentSocketSubscribed(); }, []);
+
     const [viewFilter, setViewFilter] = useState<'ACTIVE' | 'COMPLETED' | 'CANCELED' | 'ALL'>('ACTIVE');
     // [이슈 W] 서버 재시작으로 진행 중 콜이 복구됐을 때 표시할 배너
     const [restoredInfo, setRestoredInfo] = useState<{ restoredCount: number; dispatchPhase: string } | null>(null);
