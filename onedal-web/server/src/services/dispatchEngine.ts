@@ -2,7 +2,7 @@ import { mapVehicleToKakaoCarType, getRemainingCapacityTypes, deriveDispatchPhas
          MILESTONE_TO_STATUS, MILESTONE_LABEL, canReportMilestone, timingError,
          RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, UNFINISHED_RESTORE_DAYS, deriveStatusFromMilestones,
          restoreWindow, getEffectiveCorridorRadius, DEFAULT_CORRIDOR_RADIUS_KM,
-         HUNT_PHASE_LABEL } from "@onedal/shared";
+         HUNT_PHASE_LABEL, scoreMerge, describeJudgment, TRUCK_CAPACITY_SLOTS } from "@onedal/shared";
 import type { SecuredOrder, AutoDispatchFilter, PricingConfig, PendingOrder, MyOrder,
               Milestone, MilestoneSource, HuntPhase } from "@onedal/shared";
 import { geocodeAddress, calculateSoloRoute, calculateDetourRoute, compareDirections } from "./kakaoService";
@@ -21,7 +21,7 @@ import { SettingsRepository } from "../repositories/SettingsRepository";
 import { PricingEngine } from "../core/engine/PricingEngine";
 import { OrderEvaluator } from "../core/engine/OrderEvaluator";
 import { StateMachine } from "../core/engine/StateMachine";
-import { getActiveCalls, buildOrderSync, setOrderStatus } from "../core/helpers";
+import { getActiveCalls, buildOrderSync, setOrderStatus, totalDetourCost, computeAllowedDetour } from "../core/helpers";
 
 /**
  * 장소명 정규화 (공백 및 주식회사 텍스트 제거)
@@ -207,14 +207,26 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
             let signDist = Number(result.distDiffKm) > 0 ? "+" : "";
             let signTime = Number(result.timeDiffMin) > 0 ? "+" : "";
 
-            let recommend = "";
-            if (Number(result.distDiffKm) > 10 || Number(result.timeDiffMin) > 30) {
-                recommend = "💩 (패널티 🚨)";
-            } else if (Number(result.distDiffKm) > 0 || Number(result.timeDiffMin) > 0) {
-                recommend = "🚙 (양호)";
-            } else {
-                recommend = "🍯 (꿀)";
-            }
+            /**
+             * 🔴 **색은 `shared/judgment.ts` 한 곳에서만 정한다** (2026-08-15).
+             *
+             * 예전에는 여기가 **자기 숫자**를 갖고 있었다 —
+             *     `distDiffKm > 10 || timeDiffMin > 30  →  💩`
+             * 최초 평가(`OrderEvaluator`)는 `60분 / 30km` 기준인데 여기는 `30분 / 10km` 였다.
+             * **같은 콜이 재탐색만 해도 색이 바뀌었다.** 이 레포의 반복 실패(같은 판단 두 곳) 그대로다.
+             */
+            const reVerdict = scoreMerge({
+                driveDiffMin: Number(result.timeDiffMin),
+                detourKm: Number(result.distDiffKm),
+                dwellMin: totalDetourCost(0, securedOrder.id).dwell,
+                dwellAssumed: totalDetourCost(0, securedOrder.id).hasUnknown,
+                slackMin: computeAllowedDetour(userId, session),
+                slotsFree: Math.max(0, TRUCK_CAPACITY_SLOTS - (session.activeFilter.slotsUsed ?? 0)),
+                slotsTotal: TRUCK_CAPACITY_SLOTS,
+            });
+            const recommend = reVerdict.color === '꿀' ? "🍯 (꿀)"
+                            : reVerdict.color === '보통' ? "🚙 (양호)" : "💩 (패널티 🚨)";
+            console.log(`   - 🎯 [판정·재탐색] ${describeJudgment(reVerdict)}`);
 
             let paramLabel = "추천";
             if (priority === "TIME") paramLabel = "최단시간";

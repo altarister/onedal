@@ -1,7 +1,7 @@
 import {
     findTagConflicts, isTimeSensitive,
     computeSlackMinutes, allowedDetourMinutes, describeSlack,
-    dwellMinutes, computeStopTiming, unitPoints, DWELL_UNKNOWN_MINUTES,
+    dwellMinutes, computeStopTiming, unitPoints, DWELL_UNKNOWN_PICKUP_MINUTES, DWELL_UNKNOWN_DROPOFF_MINUTES,
     CARGO_UNITS, CARGO_UNIT_QUANTITY_INPUT, HANDLING_METHODS,
 } from '@onedal/shared';
 
@@ -45,8 +45,19 @@ describe('allowedDetourMinutes — 가장 촉박한 짐이 기준', () => {
         expect(allowedDetourMinutes([null, 90, null])).toBe(90);
     });
 
-    it('이미 늦은 짐이 있으면 우회 여력 0 (음수가 아니라)', () => {
-        expect(allowedDetourMinutes([-30, 120])).toBe(0);
+    /**
+     * ⚠️ 이 검사는 원래 *"이미 늦은 짐이 있으면 우회 여력 **0** (음수가 아니라)"* 이었다.
+     *
+     * 그 `0` 이 **한계**로 쓰이면서 사고가 났다 — `shitTime = slackLimit(0)` 이 되어
+     * `+0분` 짜리 콜조차 `0 >= 0` 으로 똥이 됐다. 2026-08-15 실측: 요금 99,000원 ·
+     * 우회 `+1.1km` · 주행 `+6분` 짜리가 🟡 로 떴다.
+     *
+     * 더 나쁜 것은 **"모른다"와 "늦었다"가 같은 0 으로 뭉개진 것**이다. 기사님 확정:
+     *   마감 미확정 → 일반값(90분)   ·   확정 후 지각 → 합짐을 막는다
+     * 두 경우를 구분하려면 음수가 음수로 나와야 한다.
+     */
+    it('이미 늦은 짐이 있으면 음수를 그대로 돌려준다 (0 으로 뭉개지 않는다)', () => {
+        expect(allowedDetourMinutes([-30, 120])).toBe(-30);
     });
 
     it('아무 짐도 마감을 모르면 null → 호출부가 기존 상수로 폴백', () => {
@@ -102,9 +113,23 @@ describe('상하차 소요 시간 — 경로 시간에 더해야 하는 값', ()
         expect(dwellMinutes('수작업', 2)).toBe(18);
     });
 
-    it('🔴 방법을 모르면 낙관하지 않는다 — 기본 20분', () => {
-        expect(dwellMinutes(undefined, 30)).toBe(DWELL_UNKNOWN_MINUTES);
-        expect(dwellMinutes(null, 30)).toBe(DWELL_UNKNOWN_MINUTES);
+    /**
+     * ⚠️ 이 검사는 원래 *"방법을 모르면 **낙관하지 않는다** — 기본 20분"* 이었다.
+     *    상차 20 + 하차 20 = 40분이 주행에 얹혀 꿀콜이 똥이 됐다.
+     *
+     * 기사님 확정(2026-08-15): *"**일반적인 값**을 넣어두고 미확인으로 표시하면 좋을 듯.
+     * 그럼 계산은 일반값으로 하면 꿀콜이 되어 **잡은 후 내가 전화하여 확정**하면 되니까."*
+     * → 비관도 낙관도 아닌 **일반값**을 쓰고, 화면에 `미확인` 을 함께 적는다 (규칙 ⑤-2).
+     *
+     * 상차가 더 긴 이유도 기사님 말이다 — **상차에는 결박이 붙는다.**
+     */
+    it('🔴 방법을 모르면 일반값 — 상차 15분 · 하차 10분', () => {
+        expect(dwellMinutes(undefined, 30, 'pickup')).toBe(DWELL_UNKNOWN_PICKUP_MINUTES);
+        expect(dwellMinutes(null, 30, 'dropoff')).toBe(DWELL_UNKNOWN_DROPOFF_MINUTES);
+        expect(DWELL_UNKNOWN_PICKUP_MINUTES).toBe(15);
+        expect(DWELL_UNKNOWN_DROPOFF_MINUTES).toBe(10);
+        // 안 넘기면 더 긴 쪽(상차)으로 본다 — 낙관하지 않되 비관도 아니다
+        expect(dwellMinutes(null, 30)).toBe(DWELL_UNKNOWN_PICKUP_MINUTES);
     });
 
     it('상차 + 하차 두 번을 모두 센다', () => {

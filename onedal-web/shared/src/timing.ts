@@ -37,13 +37,30 @@ const DWELL_BASE: Record<string, number> = { '지게차': 10, '수작업': 15, '
  */
 const DWELL_PER_POINT: Record<string, number> = { '지게차': 0.3, '수작업': 1.5, '호이스트': 1.0, '검수': 0 };
 
-/** 방법을 모를 때 쓰는 값. 낙관하지 않는다 — 수작업일 수도 있다 */
-export const DWELL_UNKNOWN_MINUTES = 20;
+/**
+ * 방법을 모를 때 쓰는 **일반값** — 상차와 하차가 다르다 (기사님 확정 2026-08-15).
+ *
+ * 🔴 예전에는 둘 다 `20분` 이었고 주석이 *"낙관하지 않는다"* 며 **비관을 명시**했다.
+ *    상차 20 + 하차 20 = 40분이 주행 시간에 얹혀, `+6분` 짜리 콜이 `+46분` 이 되어 똥이 됐다.
+ *
+ *    기사님: *"**일반적인 값**을 넣어두고 미확인으로 표시하면 좋을 듯. 그럼 계산은 일반값으로
+ *    하면 꿀콜이 되어 **잡은 후 내가 전화하여 확정**하면 되니까."* (규칙 ⑤-2)
+ *
+ *    상차가 더 걸리는 이유도 기사님 말이다 — **상차에는 결박이 붙는다.**
+ */
+export const DWELL_UNKNOWN_PICKUP_MINUTES = 15;    // 찾기 + 상차 + 결박
+export const DWELL_UNKNOWN_DROPOFF_MINUTES = 10;   // 찾기 + 하차
 
-export function dwellMinutes(handling?: string | null, points = 0): number {
-    if (!handling) return DWELL_UNKNOWN_MINUTES;
+export function dwellMinutes(
+    handling?: string | null,
+    points = 0,
+    /** 어느 정거장인가 — 모를 때 쓰는 일반값이 다르다. 안 넘기면 상차(더 긴 쪽)로 본다 */
+    stop: 'pickup' | 'dropoff' = 'pickup',
+): number {
+    const unknown = stop === 'dropoff' ? DWELL_UNKNOWN_DROPOFF_MINUTES : DWELL_UNKNOWN_PICKUP_MINUTES;
+    if (!handling) return unknown;
     const base = DWELL_BASE[handling];
-    if (base == null) return DWELL_UNKNOWN_MINUTES;
+    if (base == null) return unknown;
     return Math.round(base + points * (DWELL_PER_POINT[handling] ?? 1));
 }
 
@@ -67,8 +84,8 @@ export function computeStopTiming(
     dropoff: { handling?: string | null } | undefined,
 ): StopTiming {
     const points = unitPoints(pickup?.unit, pickup?.quantity);
-    const pickupDwell = dwellMinutes(pickup?.handling, points);
-    const dropoffDwell = dwellMinutes(dropoff?.handling ?? pickup?.handling, points);
+    const pickupDwell = dwellMinutes(pickup?.handling, points, 'pickup');
+    const dropoffDwell = dwellMinutes(dropoff?.handling ?? pickup?.handling, points, 'dropoff');
     return {
         pickupDwell,
         dropoffDwell,
@@ -158,10 +175,23 @@ export function computeSlackMinutes(
  * 하나라도 지각하면 안 되므로 **가장 촉박한 짐 기준**이다.
  * 마감을 아는 짐이 하나도 없으면 `null` → 호출부가 기존 고정 상수로 폴백한다.
  */
+/**
+ * 🔴 **세 경우를 섞지 않는다** (2026-08-15 기사님 확정).
+ *
+ *   `null`  마감을 **아무도 모른다**      → 호출부가 일반값(90분)을 쓴다
+ *   양수     여유가 이만큼 있다
+ *   음수     마감을 정했는데 **이미 늦었다** → 호출부가 합짐을 막는다
+ *
+ * 예전에는 `Math.max(0, …)` 로 **음수를 0 으로 깎았다.** 그 0 이 곧 한계로 쓰여
+ * *"0분 안에 다녀와라"* 가 되었고, `+0분` 짜리 콜조차 똥이 됐다.
+ * 실측(2026-08-15): 요금 99,000원 · 우회 `+1.1km` · 주행 `+6분` 짜리가 🟡 로 떴다.
+ *
+ * **0 은 "한계 0분"이 아니라 "모른다" 또는 "늦었다" 였다.** 뭉개면 둘을 구분할 수 없다.
+ */
 export function allowedDetourMinutes(slacks: Array<number | null>): number | null {
     const known = slacks.filter((v): v is number => v !== null);
     if (known.length === 0) return null;
-    return Math.max(0, Math.min(...known));
+    return Math.min(...known);   // 음수를 그대로 돌려준다 — 지각은 지각이라고 말한다
 }
 
 /** 여유를 사람이 읽는 말로. 관제탑에 그대로 띄운다 */
@@ -440,9 +470,9 @@ export function deriveCallTiming(
     const dropoffCargo = reports.find(r => r.stopType === 'dropoff' && r.kind === 'ACTUAL')
                       ?? reports.find(r => r.stopType === 'dropoff' && r.kind === 'DECLARED');
     const points = unitPoints(pickupCargo?.unit, pickupCargo?.quantity);
-    const pickupDwell = dwellMinutes(pickupCargo?.handling, points);
+    const pickupDwell = dwellMinutes(pickupCargo?.handling, points, 'pickup');
     // 하차 방법을 따로 안 물었으면 상차와 같다고 본다 (지게차로 실었으면 대개 지게차로 내린다)
-    const dropoffDwell = dwellMinutes(dropoffCargo?.handling ?? pickupCargo?.handling, points);
+    const dropoffDwell = dwellMinutes(dropoffCargo?.handling ?? pickupCargo?.handling, points, 'dropoff');
 
     const base = { approachMinutes, approachKm, soloMinutes, soloKm,
                    pickupDwellMinutes: pickupDwell, arrivedPickup, pickedUp, arrivedDropoff };

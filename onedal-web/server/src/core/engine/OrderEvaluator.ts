@@ -1,4 +1,4 @@
-import { PendingOrder, SecuredOrder, MyOrder } from "@onedal/shared";
+import { PendingOrder, SecuredOrder, MyOrder, scoreMerge, describeJudgment, TRUCK_CAPACITY_SLOTS } from "@onedal/shared";
 import { getUserSession } from "../../state/userSessionStore";
 import { computeAllowedDetour, findLoadConflicts, totalDetourCost } from "../helpers";
 import { geocodeAddress, calculateSoloRoute } from "../../services/kakaoService";
@@ -138,39 +138,44 @@ export class OrderEvaluator {
                         let recommend = "'콜'";
                         const distDiff = parseFloat(result.distDiffKm);
 
-                        // [Phase 8.4] 🔴 우회 허용치를 **실린 짐의 마감 시각**에서 구한다.
-                        //
-                        // 예전에는 DISPATCH_CONFIG 의 고정 상수(30분/60분)만 봤다.
-                        // 그래서 마감이 20분 뒤인 짐을 싣고도 50분 우회를 '보통'이라 통과시키고,
-                        // 여유가 3시간인데도 70분 우회를 '똥'이라 걸러 **잡을 수 있는 합짐을 놓쳤다.**
-                        //
-                        // 기사님: "오후 2시에 콜을 잡았는데 5시까지는 와야 한다든지 하는 정보가
-                        //          있어야 할 것 같아. 그래야 합짐을 잡을 수 있을 듯."
-                        //
-                        // 마감을 아는 짐이 하나도 없으면 null → 기존 상수로 폴백한다.
+                        /**
+                         * 🔴 **색을 정하는 곳은 `shared/judgment.ts` 하나뿐이다** (2026-08-15).
+                         *
+                         * 예전에는 여기서 직접 임계값을 비교했고, 재탐색(`recalculateKakaoRoute`)은
+                         * **자기 숫자(10km/30분)** 를 따로 갖고 있었다 — 같은 콜이 재탐색만 해도
+                         * 색이 바뀌었다. 이제 둘 다 `scoreMerge()` 를 부른다.
+                         *
+                         * [Phase 8.4] 우회 허용치는 **실린 짐의 마감 시각**에서 구한다.
+                         * 기사님: *"오후 2시에 콜을 잡았는데 5시까지는 와야 한다든지 하는 정보가
+                         * 있어야 할 것 같아. 그래야 합짐을 잡을 수 있을 듯."*
+                         *
+                         * 🔴 카카오의 `timeDiffMin` 은 **주행 delta 뿐**이라 상하차를 더해야 한다.
+                         */
                         const slackLimit = computeAllowedDetour(userId, session);
-                        const shitTime = slackLimit ?? DISPATCH_CONFIG.DETOUR_SHIT_TIME_MIN;
-                        const honeyTime = slackLimit !== null
-                            ? Math.max(0, Math.floor(slackLimit / 2))   // 여유의 절반 안이면 꿀
-                            : DISPATCH_CONFIG.DETOUR_HONEY_TIME_MAX;
-
-                        // 🔴 카카오의 timeDiffMin 은 **주행 delta 뿐**이다.
-                        //    이 콜을 잡으면 상차·하차를 한 번씩 더 해야 하고, 수작업이면
-                        //    거기서만 40~60분이 붙는다. 그걸 빼고 판정하면 무조건 낙관하게 된다.
                         const cost = totalDetourCost(result.timeDiffMin, securedOrder.id);
 
-                        if (cost.total <= honeyTime && distDiff <= DISPATCH_CONFIG.DETOUR_HONEY_DIST_MAX) recommend = "'꿀'";
-                        else if (cost.total >= shitTime || distDiff >= DISPATCH_CONFIG.DETOUR_SHIT_DIST_MIN) recommend = "'똥'";
+                        const slotsTotal = TRUCK_CAPACITY_SLOTS;
+                        const slotsUsed = session.activeFilter.slotsUsed ?? 0;
 
-                        const basis = slackLimit !== null ? `마감 여유 ${slackLimit}분 기준` : '기본 기준';
-                        const breakdown = `주행 +${result.timeDiffMin}분 + 상하차 ${cost.dwell}분`
-                            + (cost.hasUnknown ? ' (상하차 방법 미확인)' : '');
-                        if (cost.total >= shitTime) {
-                            reasons.push(`총 추가시간(+${cost.total}분) 초과 — ${breakdown} · ${basis}`);
-                        } else if (cost.total <= honeyTime) {
-                            pros.push(`총 추가시간(+${cost.total}분) 양호 🍯 — ${breakdown} · ${basis}`);
+                        const verdict = scoreMerge({
+                            driveDiffMin: result.timeDiffMin,
+                            detourKm: distDiff,
+                            dwellMin: cost.dwell,
+                            dwellAssumed: cost.hasUnknown,
+                            slackMin: slackLimit,
+                            slotsFree: Math.max(0, slotsTotal - slotsUsed),
+                            slotsTotal,
+                        });
+
+                        recommend = `'${verdict.color}'`;
+                        console.log(`   - 🎯 [판정] ${describeJudgment(verdict)}`);
+
+                        if (verdict.blocked) reasons.push(verdict.blocked);
+                        else if (verdict.color === '똥') {
+                            const worst = [...verdict.parts].sort((a, b) => a.score - b.score)[0];
+                            reasons.push(`총점 ${verdict.score}점 — 가장 나쁜 요소: ${worst.name} ${worst.raw}`);
                         } else {
-                            pros.push(`총 추가시간(+${cost.total}분) 보통 — ${breakdown} · ${basis}`);
+                            pros.push(`총점 ${verdict.score}점 — ${verdict.parts.map(p => `${p.name} ${p.raw}`).join(' · ')}`);
                         }
 
                         // 함께 실을 수 없는 화물인지 (위험물 + 식료품 등)
@@ -180,13 +185,9 @@ export class OrderEvaluator {
                             recommend = "'똥'";
                         }
 
-                        if (distDiff >= DISPATCH_CONFIG.DETOUR_SHIT_DIST_MIN) {
-                            reasons.push(`우회거리(+${distDiff}km) 초과`);
-                        } else if (distDiff <= DISPATCH_CONFIG.DETOUR_HONEY_DIST_MAX) {
-                            pros.push(`우회거리(+${distDiff}km) 양호 🍯`);
-                        } else {
-                            pros.push(`우회거리(+${distDiff}km) 보통`);
-                        }
+                        // 🔴 우회거리를 따로 또 판정하던 블록을 지웠다 — 이제 `scoreMerge` 안에서
+                        //    다른 요소와 **가중치로 섞인다.** 예전에는 `OR` 라 거리 하나만 넘어도
+                        //    시간과 무관하게 똥이 됐다 (`+31.1km` 콜이 그렇게 걸렸다).
 
                         const signDist = distDiff > 0 ? "+" : "";
                         const signTime = result.timeDiffMin > 0 ? "+" : "";
