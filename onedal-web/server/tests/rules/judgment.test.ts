@@ -160,3 +160,61 @@ describe('판정하는 곳은 한 곳', () => {
         expect(dwellMinutes('지게차', 0)).toBe(10);   // 아는 방법은 그대로
     });
 });
+
+/**
+ * 🔴 **서버가 미리 눌러 두고 기사님이 확정하신다** (기사님 확정 2026-08-16)
+ *
+ * *"너가 눌러 놓은 걸 내가 확정하는 거야. 너가 눌러 논 것에서 상황이 바뀐다면 내가 바꿔서 확정할 거고."*
+ *
+ * 내가 *"안 고르셨는데 고른 것처럼 저장되면 안 된다"* 며 **빈칸으로 두자고** 제안했다가
+ * *"완전히 잘못 생각하고 있어"* 라는 지적을 받았다. 이 제품은 처음부터 일관되게
+ * **미리 채우고 기사님이 확정하는** 방식이다 — 앱이 느슨하게 집어 오면 결재하시고,
+ * 적요에서 미리 클릭해 두면 틀린 것만 고치신다.
+ */
+describe('통화 시트 — 미리 눌러 두고 근거를 남긴다', () => {
+
+    const CLIENT3 = join(__dirname, '../../../client-app/src');
+    const rc3 = (rel: string) => codeOnly(readFileSync(join(CLIENT3, rel), 'utf8'));
+    const sheet = () => rc3('components/dashboard/StopCallSheet.tsx');
+
+    it('🔴 추천 칸을 미리 눌러 둔다', () => {
+        expect(sheet()).toMatch(/suggestedSlot/);
+        expect(sheet()).toMatch(/setDeadlineAt\(suggestedSlot\.iso\)/);
+    });
+
+    it('🔴 상차지는 **상차 정차까지** 포함해 추천한다 (실어 보내는 시각)', () => {
+        const fn = sheet().slice(sheet().indexOf('const suggestedSlot'));
+        expect(fn.slice(0, 500)).toMatch(/arrivalMinutes \+ \(isPickup \? dwell : 0\)/);
+    });
+
+    it('🔴 기사님이 누르시면 추천이 아니라 **확정**이 된다', () => {
+        expect(sheet()).toMatch(/deadlineTouched/);
+        expect(sheet()).toMatch(/setDeadlineTouched\(true\)/);
+    });
+
+    it('🔴 미리 채운 값에는 근거를 남긴다 (누르시면 사라진다)', () => {
+        expect(sheet()).toMatch(/!deadlineTouched && deadlineAt/);
+        expect(sheet()).toMatch(/눌러 뒀습니다/);
+    });
+
+    it('🔴 출발 카운트다운이 내역을 적는다 — 주행·상차·대기', () => {
+        const dc = rc3('components/dashboard/DepartureCountdown.tsx');
+        expect(dc).toMatch(/주행 \{soonest\.driveMin\}/);
+        expect(dc).toMatch(/상차 \{soonest\.dwellMin\}/);
+        expect(dc).toMatch(/대기 \$\{soonest\.waitMin\}/);
+    });
+});
+
+/**
+ * 🔴 **이미 상차했으면 출발 시각이 없다** (2026-08-16 검산에서 발견)
+ *
+ * 예전에는 값을 내놓고 **화면 한 곳**(`DepartureCountdown` 의 `index >= 4`)이 막고 있었다.
+ * 막는 곳이 하나뿐이면 다른 화면이 그 값을 쓰는 순간 잘못된 카운트다운이 뜬다.
+ */
+describe('상차를 마친 콜', () => {
+    it('🔴 출발 시각을 값 만드는 자리에서 null 로 낸다', () => {
+        const tm = codeOnly(readFileSync(
+            join(__dirname, '../../../shared/src/timing.ts'), 'utf8'));
+        expect(tm).toMatch(/const departureAt = pickedUp\s*\?\s*null/);
+    });
+});

@@ -583,8 +583,18 @@ export function deriveCallTiming(
         if (dropoffDeadlineAt) deadlineEstimated = true;
     }
 
-    // 상차 마감은 **실어 보내는 시각**이므로 주행과 상차 정차를 둘 다 뺀다
-    const departureAt = departureDeadline(pickupDeadlineAt, toPickup.driveMinutes, pickupDwell);
+    /**
+     * 상차 마감은 **실어 보내는 시각**이므로 주행과 상차 정차를 둘 다 뺀다.
+     *
+     * 🔴 **이미 상차했으면 출발 시각이 없다.** 기다릴 이유가 사라졌기 때문이다 —
+     *    그 콜에 남은 일은 하차뿐이고, 그건 우회 예산(`computeAllowedDetour`) 쪽에서 센다.
+     *    예전에는 여기서 값을 내놓고 **화면 한 곳**(`DepartureCountdown` 의 `index >= 4` 검사)이
+     *    막고 있었다. 막는 곳이 하나뿐이면 다른 화면이 그 값을 쓰는 순간 잘못된 카운트다운이 뜬다
+     *    → 값을 만드는 자리에서 `null` 로 낸다 (2026-08-16 검산에서 발견).
+     */
+    const departureAt = pickedUp
+        ? null
+        : departureDeadline(pickupDeadlineAt, toPickup.driveMinutes, pickupDwell);
 
     return {
         soloKm, soloMinutes, approachKm, approachMinutes,

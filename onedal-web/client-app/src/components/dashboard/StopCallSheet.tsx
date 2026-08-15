@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import {
     HANDLING_METHODS, cargoPoints, parseCargoHints, hasCargoHints,
     CARGO_TAGS, CARGO_TAG_META, DEFAULT_CARGO_TAG, computeSlackMinutes,
@@ -277,6 +277,32 @@ export default function StopCallSheet({
     };
     const hourSlots = buildArrivalSlots(Date.now(), arrivalMinutes, 5);
 
+    /**
+     * 🔴 **서버가 미리 눌러 두고 기사님이 확정하신다** (기사님 2026-08-16):
+     * *"너가 눌러 놓은 걸 내가 확정하는 거야. 너가 눌러 논 것에서 상황이 바뀐다면 내가 바꿔서 확정할 거고."*
+     *
+     * 이 제품의 일관된 방식이다 — 앱이 느슨하게 집어 오면 기사님이 결재하고, 적요에서 미리
+     * 클릭해 두면 기사님이 틀린 것만 고치신다. 시간 버튼만 빈칸으로 둘 이유가 없다.
+     *
+     *   상차지 → 상차까지 마치는 데 필요한 시간(주행 + 상차) 다음 칸
+     *   하차지 → 도착 예상 **다음 칸** (= 휴식 여유 30분)
+     *
+     * ⚠️ 물량·방법을 고치면 `dwell` 이 변하고 추천 칸도 **따라 움직인다.**
+     *    기사님이 직접 누르시면 그때부터 그 값이 확정이다.
+     */
+    const suggestedSlot = useMemo(() => {
+        if (!driveKnown || hourSlots.length === 0) return null;
+        const needMs = Date.now() + (arrivalMinutes + (isPickup ? dwell : 0)) * 60_000;
+        return hourSlots.find(sl => new Date(sl.iso).getTime() >= needMs) ?? hourSlots[hourSlots.length - 1];
+    }, [driveKnown, arrivalMinutes, dwell, isPickup, hourSlots]);
+
+    /** 기사님이 아직 손대지 않아 추천값이 눌려 있는 상태인가 — 눌리면 근거 줄을 띄운다 */
+    const [deadlineTouched, setDeadlineTouched] = useState(false);
+    useEffect(() => {
+        if (deadlineTouched || deadlineAt || !suggestedSlot) return;
+        setDeadlineAt(suggestedSlot.iso);
+    }, [deadlineTouched, deadlineAt, suggestedSlot]);
+
     // ── 접힌 채로 보여줄 요약. 여기 없는 값은 기사님에게 "없는 값"이다 ──
     // 주행 시간을 모르면 여유도 모른다 — 0 으로 때우면 요약이 거짓말을 한다
     const declaredSlack = driveKnown
@@ -495,8 +521,17 @@ export default function StopCallSheet({
                                     {leadMinutes > 0 && leadLabel && (
                                         <span className="text-text-muted"> (+ {leadLabel} {leadMinutes}분)</span>
                                     )}
+                                    {/* 🔴 상차지 통화에서 화주가 묻는 것은 **"실어서 몇 시에 보낼 수 있나"** 다
+                                        (기사님 2026-08-16). 그래서 도착 시각이 아니라 **상차까지 마친 시각**을 읽어 준다.
+                                        예전 주석은 *"상차 20분은 상차지랑 통화할 때 불필요한 정보"* 였는데,
+                                        그때는 상차 마감을 *도착* 시각으로 봤기 때문이다. 기준이 바뀌었다. */}
                                     <div className="text-[13px] font-black text-info mt-0.5 tabular-nums">
                                         지금 출발하면 {hhmm(new Date(Date.now() + arrivalMinutes * 60_000).toISOString())} 도착
+                                        {isPickup && (
+                                            <span className="text-text-muted font-bold">
+                                                {' '}· 상차 {dwell}분 → <span className="text-info">{hhmm(new Date(Date.now() + (arrivalMinutes + dwell) * 60_000).toISOString())}</span> 출발
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
                             ) : (
@@ -511,12 +546,14 @@ export default function StopCallSheet({
                                 기사님: *"9:39에 가도 될까요? 그럼 한 시간 동안 합짐을 잡을 수 있으니까."*
                                 버튼마다 `여유 N분` 을 쓰지 않는다 — 몇 번째 칸인가가 곧 여유다. */}
                             <div>
-                                <div className="text-[11px] font-bold text-text-muted mb-1">몇 시까지 가면 되나요?</div>
+                                <div className="text-[11px] font-bold text-text-muted mb-1">
+                                    {isPickup ? '몇 시까지 실어 보낼 수 있나요?' : '몇 시까지 가면 되나요?'}
+                                </div>
                                 <div className="flex gap-1.5 flex-wrap">
                                     {hourSlots.map((sl, i) => {
                                         const on = deadlineAt === sl.iso;
                                         return (
-                                            <button key={sl.iso} onClick={() => setDeadlineAt(on ? undefined : sl.iso)}
+                                            <button key={sl.iso} onClick={() => { setDeadlineTouched(true); setDeadlineAt(on ? undefined : sl.iso); }}
                                                 className={`px-3 py-2 rounded-md border text-[14px] font-black tabular-nums transition-colors ${
                                                     on ? 'bg-info text-white border-info'
                                                     : i === 0 ? 'bg-surface-alt/50 text-text-muted border-border border-dashed'
@@ -527,6 +564,16 @@ export default function StopCallSheet({
                                         );
                                     })}
                                 </div>
+                                {/* 🔴 **미리 채운 값에는 근거를 붙인다** (기사님 2026-08-16).
+                                    기존 원칙과 같다 — *"적요는 부정확할 수 있으므로 어디서 온 값인지는
+                                    화면에 남긴다."* 기사님이 직접 누르시면 이 줄은 사라진다. */}
+                                {!deadlineTouched && deadlineAt && suggestedSlot?.iso === deadlineAt && (
+                                    <div className="mt-1 text-[10px] leading-tight text-text-muted">
+                                        ⓘ 주행 {driveMinutes}분{isPickup ? ` + 상차 ${dwell}분` : ''} 기준으로{' '}
+                                        <b className="tabular-nums">{hhmm(deadlineAt)}</b> 을 눌러 뒀습니다 —
+                                        바꾸시면 그게 확정됩니다
+                                    </div>
+                                )}
                             </div>
 
                             {!isPickup && fromPickupCall && (

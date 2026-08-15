@@ -38,7 +38,8 @@ export default function DepartureCountdown({ orders, records }: Props) {
      * `PinnedRouteCard` 와 같은 계산(단독 구간 선택·접근 거리·상차 정차)을 복제했다.
      * 한쪽만 고치면 카운트다운과 통화 화면이 **다른 시각**을 말한다.
      */
-    let soonest: { at: string; estimated: boolean } | null = null;
+    let soonest: { at: string; estimated: boolean;
+                   driveMin: number | null; dwellMin: number; waitMin: number | null } | null = null;
 
     for (const o of orders) {
         const r = records.get(o.id) ?? EMPTY_RECORDS;
@@ -48,7 +49,9 @@ export default function DepartureCountdown({ orders, records }: Props) {
         const t = deriveCallTiming(o, r.reports, r.milestones, now);
         if (!t.departureAt) continue;
         if (!soonest || new Date(t.departureAt).getTime() < new Date(soonest.at).getTime()) {
-            soonest = { at: t.departureAt, estimated: t.deadlineEstimated };
+            // 🔴 내역을 함께 담는다 — 기사님이 **왜 그 시각인지** 알아야 판단하실 수 있다
+            soonest = { at: t.departureAt, estimated: t.deadlineEstimated,
+                        driveMin: t.approachMinutes, dwellMin: t.pickupDwell, waitMin: t.waitMinutes };
         }
     }
 
@@ -79,8 +82,17 @@ export default function DepartureCountdown({ orders, records }: Props) {
                     {late
                         ? '지금 출발해도 상차 약속보다 늦습니다 — 상차지에 알리세요'
                         : `그 사이 여기서 콜을 더 잡을 수 있습니다`}
+                    {/* 🔴 내역을 적는다 (기사님 2026-08-16): `09:25까지 출발 (주행 20, 상차 15, 대기 25분)`.
+                        상차 정차가 들어가는 이유 — **상차 마감은 "실어 보내는" 시각**이라
+                        주행뿐 아니라 상차 시간까지 빼야 그 시각에 보낼 수 있다. */}
+                    {soonest.driveMin != null && (
+                        <span className="ml-1 opacity-80">
+                            (주행 {soonest.driveMin}, 상차 {soonest.dwellMin}
+                            {soonest.waitMin != null && !late && `, 대기 ${soonest.waitMin}`}분)
+                        </span>
+                    )}
                     {soonest.estimated && (
-                        <span className="ml-1 opacity-80">· 통화 전이라 <b>추정</b>입니다 (일과 17시 · 이동 제외 2시간)</span>
+                        <span className="ml-1 opacity-80">· 통화 전이라 <b>추정</b>입니다 (잡은 시각 +1시간)</span>
                     )}
                 </div>
             </div>
