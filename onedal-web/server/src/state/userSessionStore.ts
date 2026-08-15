@@ -1,6 +1,6 @@
 import { AutoDispatchFilter, SecuredOrder, PendingOrder, MyOrder, getEligibleVehicleTypes, businessDayKey, rateFloorsFrom,
-         normalizePhaseSettings, phaseFromFlat, DEFAULT_PHASE_SETTINGS } from "@onedal/shared";
-import type { PhaseSettingsMap, PhaseKey } from "@onedal/shared";
+         normalizePhaseSettings, phaseFromFlat, DEFAULT_PHASE_SETTINGS, DEFAULT_JUDGMENT, judgmentFromRow } from "@onedal/shared";
+import type { PhaseSettingsMap, PhaseKey, JudgmentConfig } from "@onedal/shared";
 import type { CapacityConfidence } from "@onedal/shared";
 import db from "../db";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
@@ -33,6 +33,19 @@ export interface UserSession {
     deviceEvaluatingMap: Map<string, string>;
     baseFilter: AutoDispatchFilter;
     activeFilter: AutoDispatchFilter;
+
+    /**
+     * 🎯 **판정 기준** — 서버가 집어 온 콜에 색을 매기는 값 (2026-08-16 신설).
+     *
+     * 🔴 `activeFilter`(콜 필터)와 **완전히 분리·격리**된다. 기사님 확정:
+     *    *"필터와 완전 분리 격리되어 각각 따로 작동해야 한다."*
+     *      🔍 콜 필터    앱이 콜을 **집기 전** · 국면별 · **`오늘만` 있다** · 자정에 되돌아간다
+     *      🎯 판정 기준  서버가 **집은 뒤** · 한 벌 · **`오늘만` 없다** · 바꾸면 계속 적용
+     *
+     * 그래서 그릇이 하나다 — DB 값을 그대로 담고, 바뀌면 DB 와 함께 갱신한다.
+     * 앱에는 내려보내지 않는다 (앱은 색 판정을 하지 않는다 — 규칙 ⑤-1).
+     */
+    judgment: JudgmentConfig;
     driverLocation: { x: number; y: number } | null;
     /**
      * `driverLocation` 이 **GPS 가 아니라 설정의 '내 주소'** 에서 온 값인가.
@@ -142,6 +155,8 @@ function createDefaultSession(): UserSession {
         deviceEvaluatingMap: new Map<string, string>(),
         baseFilter: { ...SERVICE_DEFAULT_FILTER } as AutoDispatchFilter,
         activeFilter: { ...SERVICE_DEFAULT_FILTER } as AutoDispatchFilter,
+        // 실제 값은 아래 부트스트랩이 DB 에서 읽어 덮는다. 여기선 기본값으로 시작한다
+        judgment: JSON.parse(JSON.stringify(DEFAULT_JUDGMENT)) as JudgmentConfig,
         driverLocation: null,
         driverLocationIsFallback: false,
         userVehicleType: '1t',
@@ -176,6 +191,22 @@ export function getUserSession(userId: string): UserSession {
             }
             const userVehicleType = settingsRow.vehicle_type || '1t';
             session.userVehicleType = userVehicleType;
+
+            /**
+             * 🎯 **판정 기준을 세션에 싣는다** — 콜 필터와 **따로** 읽는다 (2026-08-16).
+             *
+             * 없으면 한 줄 만든다. 컬럼의 `DEFAULT` 가 표(`JUDGMENT_FIELDS`)의 값을 채우므로
+             * 여기서 값을 손으로 적지 않는다 — **기본값의 원천은 표 하나다.**
+             *
+             * `오늘만` 이 없으므로 그릇도 하나다 (기사님 2026-08-16:
+             * *"필터에서는 오늘만 버튼이 있어야 하고… 하지만 판정 기준은 그런 것이 없다"*).
+             */
+            let judgeRow = db.prepare("SELECT * FROM user_judgment WHERE user_id = ?").get(userId) as any;
+            if (!judgeRow) {
+                db.prepare("INSERT OR IGNORE INTO user_judgment (user_id) VALUES (?)").run(userId);
+                judgeRow = db.prepare("SELECT * FROM user_judgment WHERE user_id = ?").get(userId) as any;
+            }
+            session.judgment = judgmentFromRow(judgeRow);
 
             if (filterRow) {
                 // Restore saved filter into baseFilter

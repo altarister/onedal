@@ -4,7 +4,7 @@
 import { isTerminal, cargoPoints, VEHICLE_CAPACITY, normalizeVehicleType,
          computeSlackMinutes, allowedDetourMinutes, findTagConflicts,
          computeStopTiming } from '@onedal/shared';
-import type { MyOrder, CargoReport, CapacityConfidence } from '@onedal/shared';
+import type { MyOrder, CargoReport, CapacityConfidence, DwellUnknown } from '@onedal/shared';
 import { OrderRepository } from '../repositories/OrderRepository';
 
 /**
@@ -98,7 +98,7 @@ export function computeAllowedDetour(
 }
 
 /** 한 콜의 상·하차 정차 시간 (신고된 단위·수량·방법 기준) */
-export function getStopTiming(orderId: string) {
+export function getStopTiming(orderId: string, unk?: DwellUnknown) {
     const reports = OrderRepository.getCargoReports(orderId);
     const pick = reports.find(r => r.stopType === 'pickup' && r.kind === 'ACTUAL')
               || reports.find(r => r.stopType === 'pickup');
@@ -107,6 +107,7 @@ export function getStopTiming(orderId: string) {
     return computeStopTiming(
         pick ? { handling: pick.handling, unit: pick.unit, quantity: pick.quantity } : undefined,
         drop ? { handling: drop.handling } : undefined,
+        unk,
     );
 }
 
@@ -117,10 +118,10 @@ export function getStopTiming(orderId: string) {
  * 상차·하차를 한 번씩 더 하게 되므로 그 정차 시간을 반드시 더해야 한다.
  * 수작업 화물이면 여기서만 40~60분이 붙는다.
  */
-export function totalDetourCost(driveDiffMin: number, incomingOrderId: string): {
+export function totalDetourCost(driveDiffMin: number, incomingOrderId: string, unk?: DwellUnknown): {
     total: number; drive: number; dwell: number; hasUnknown: boolean;
 } {
-    const t = getStopTiming(incomingOrderId);
+    const t = getStopTiming(incomingOrderId, unk);
     return {
         total: Math.round(driveDiffMin + t.totalDwell),
         drive: driveDiffMin,

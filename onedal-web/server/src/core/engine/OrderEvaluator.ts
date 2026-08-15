@@ -152,7 +152,7 @@ export class OrderEvaluator {
                          * 🔴 카카오의 `timeDiffMin` 은 **주행 delta 뿐**이라 상하차를 더해야 한다.
                          */
                         const slackLimit = computeAllowedDetour(userId, session);
-                        const cost = totalDetourCost(result.timeDiffMin, securedOrder.id);
+                        const cost = totalDetourCost(result.timeDiffMin, securedOrder.id, session.judgment.unknown);
 
                         const slotsTotal = TRUCK_CAPACITY_SLOTS;
                         const slotsUsed = session.activeFilter.slotsUsed ?? 0;
@@ -165,7 +165,7 @@ export class OrderEvaluator {
                             slackMin: slackLimit,
                             slotsFree: Math.max(0, slotsTotal - slotsUsed),
                             slotsTotal,
-                        });
+                        }, session.judgment);   // 🎯 DB 에서 온 기준 (기본값이 아니다)
 
                         recommend = `'${verdict.color}'`;
                         console.log(`   - 🎯 [판정] ${describeJudgment(verdict)}`);

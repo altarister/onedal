@@ -51,13 +51,23 @@ const DWELL_PER_POINT: Record<string, number> = { '지게차': 0.3, '수작업':
 export const DWELL_UNKNOWN_PICKUP_MINUTES = 15;    // 찾기 + 상차 + 결박
 export const DWELL_UNKNOWN_DROPOFF_MINUTES = 10;   // 찾기 + 하차
 
+/**
+ * 모를 때 쓸 일반값을 **밖에서 넘길 수 있다** (2026-08-16).
+ * 안 넘기면 아래 상수를 쓴다 — 그 상수는 `user_judgment` 테이블의 `DEFAULT` 와 같은 값이다.
+ * 기사님이 관제웹에서 값을 바꾸면 **서버가 DB 값을 여기로 넘긴다.**
+ */
+export interface DwellUnknown { pickupDwellMin: number; dropoffDwellMin: number }
+
 export function dwellMinutes(
     handling?: string | null,
     points = 0,
     /** 어느 정거장인가 — 모를 때 쓰는 일반값이 다르다. 안 넘기면 상차(더 긴 쪽)로 본다 */
     stop: 'pickup' | 'dropoff' = 'pickup',
+    unk?: DwellUnknown,
 ): number {
-    const unknown = stop === 'dropoff' ? DWELL_UNKNOWN_DROPOFF_MINUTES : DWELL_UNKNOWN_PICKUP_MINUTES;
+    const unknown = stop === 'dropoff'
+        ? (unk?.dropoffDwellMin ?? DWELL_UNKNOWN_DROPOFF_MINUTES)
+        : (unk?.pickupDwellMin ?? DWELL_UNKNOWN_PICKUP_MINUTES);
     if (!handling) return unknown;
     const base = DWELL_BASE[handling];
     if (base == null) return unknown;
@@ -82,10 +92,11 @@ export interface StopTiming {
 export function computeStopTiming(
     pickup: { handling?: string | null; unit?: string | null; quantity?: number | null } | undefined,
     dropoff: { handling?: string | null } | undefined,
+    unk?: DwellUnknown,
 ): StopTiming {
     const points = unitPoints(pickup?.unit, pickup?.quantity);
-    const pickupDwell = dwellMinutes(pickup?.handling, points, 'pickup');
-    const dropoffDwell = dwellMinutes(dropoff?.handling ?? pickup?.handling, points, 'dropoff');
+    const pickupDwell = dwellMinutes(pickup?.handling, points, 'pickup', unk);
+    const dropoffDwell = dwellMinutes(dropoff?.handling ?? pickup?.handling, points, 'dropoff', unk);
     return {
         pickupDwell,
         dropoffDwell,

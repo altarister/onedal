@@ -71,6 +71,112 @@ export const DEFAULT_JUDGMENT: JudgmentConfig = {
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 표 — **DB 컬럼 · 화면 폼 · 기본값이 전부 여기서 나온다**
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * 🔴 **값이 하나 늘면 이 표에 한 줄만 더한다.**
+ *    DB 컬럼도, 관제웹 폼도, 기본값도 전부 이걸 읽는다 — 화면 코드와 서버 판정 코드는 안 고친다.
+ *    (`PHASE_FIELDS` 가 이미 같은 패턴이다 — 표가 화면을 그린다)
+ *
+ * 기사님(2026-08-16): *"수정할 때마다 문서를 읽어야 할 건데.. **문서가 항상 최종본이 아닐 수
+ * 있고**."* → 그래서 역할을 갈랐다:
+ *      DB        지금 값이 얼마인가        ← 진실
+ *      이 표      라벨 · 단위 · 범위 · **근거**  ← 관제웹 폼이 칸마다 띄운다
+ *      docs      왜 그렇게 정했나 (경위)    ← 값은 안 적는다
+ */
+export interface JudgmentField {
+    /** DB 컬럼 이름 = 폼의 키 */ col: string;
+    /** `JudgmentConfig` 안의 자리 */ path: [keyof JudgmentConfig, string];
+    group: '합짐' | '첫짐' | '모를 때' | '가중치' | '색 경계';
+    label: string;
+    unit: string;
+    min: number;
+    max: number;
+    /** SQLite 타입 — 정수인가 실수인가 */ int: boolean;
+    /** 왜 이 값인가. **폼의 칸 아래 그대로 뜬다** */ why: string;
+}
+
+export const JUDGMENT_FIELDS: readonly JudgmentField[] = [
+    { col: 'merge_honey_max_minutes', path: ['merge', 'honeyMaxMin'], group: '합짐',
+      label: '🔵 꿀 기준 시간', unit: '분', min: 0, max: 240, int: true,
+      why: '추가 주행이 이 시간 이하면 만점' },
+    { col: 'merge_shit_min_minutes', path: ['merge', 'shitMinMin'], group: '합짐',
+      label: '🟡 똥 기준 시간', unit: '분', min: 0, max: 480, int: true,
+      why: '이 시간 이상이면 0점' },
+    { col: 'merge_honey_max_km', path: ['merge', 'honeyMaxKm'], group: '합짐',
+      label: '🔵 꿀 기준 거리', unit: 'km', min: 0, max: 200, int: false,
+      why: '카카오 시간에 도로 종류가 이미 반영돼 있어 거리는 보조 지표다' },
+    { col: 'merge_shit_min_km', path: ['merge', 'shitMinKm'], group: '합짐',
+      label: '🟡 똥 기준 거리', unit: 'km', min: 0, max: 400, int: false,
+      why: '고속도로 30km 와 국도 30km 는 시간이 다르다 (기사님 2026-08-15)' },
+
+    { col: 'solo_honey_max_minutes', path: ['solo', 'honeyMaxMin'], group: '첫짐',
+      label: '🔵 꿀 기준 시간', unit: '분', min: 0, max: 240, int: true,
+      why: '첫짐은 순증이 아니라 기준을 세우는 짐이다' },
+    { col: 'solo_shit_min_minutes', path: ['solo', 'shitMinMin'], group: '첫짐',
+      label: '🟡 똥 기준 시간', unit: '분', min: 0, max: 480, int: true, why: '' },
+
+    { col: 'unknown_pickup_dwell_minutes', path: ['unknown', 'pickupDwellMin'], group: '모를 때',
+      label: '상차 미확인', unit: '분', min: 0, max: 120, int: true,
+      why: '찾기 + 상차 + 결박 (기사님 2026-08-15)' },
+    { col: 'unknown_dropoff_dwell_minutes', path: ['unknown', 'dropoffDwellMin'], group: '모를 때',
+      label: '하차 미확인', unit: '분', min: 0, max: 120, int: true,
+      why: '찾기 + 하차 — 결박이 없어 상차보다 짧다' },
+    { col: 'unknown_slack_minutes', path: ['unknown', 'slackMin'], group: '모를 때',
+      label: '마감 미확인 여유', unit: '분', min: 0, max: 480, int: true,
+      why: '용달 마감 2시간 − 상하차 30분 (기사님 2026-08-15)' },
+
+    { col: 'weight_drive_time', path: ['weights', 'driveTime'], group: '가중치',
+      label: '추가 주행', unit: '배', min: 0, max: 10, int: false,
+      why: '0 이면 색에 반영하지 않는다 (표시는 계속한다)' },
+    { col: 'weight_detour_dist', path: ['weights', 'detourDist'], group: '가중치',
+      label: '우회 거리', unit: '배', min: 0, max: 10, int: false, why: '' },
+    { col: 'weight_deadline', path: ['weights', 'deadline'], group: '가중치',
+      label: '마감 여유', unit: '배', min: 0, max: 10, int: false, why: '' },
+    { col: 'weight_slots', path: ['weights', 'slots'], group: '가중치',
+      label: '적재 칸', unit: '배', min: 0, max: 10, int: false, why: '' },
+
+    { col: 'color_honey_min', path: ['color', 'honeyMin'], group: '색 경계',
+      label: '🔵 꿀', unit: '점 이상', min: 0, max: 100, int: true,
+      why: '총점이 이 점수 이상이면 파란색' },
+    { col: 'color_normal_min', path: ['color', 'normalMin'], group: '색 경계',
+      label: '🟢 보통', unit: '점 이상', min: 0, max: 100, int: true,
+      why: '그 미만은 🟡 — 파란색·녹색이면 기사님이 바로 잡으신다' },
+] as const;
+
+/** 표의 기본값을 DB 컬럼 이름으로 뽑는다 (`CREATE TABLE` 의 `DEFAULT` 와 시드가 이걸 쓴다) */
+export function judgmentDefaults(): Record<string, number> {
+    const out: Record<string, number> = {};
+    for (const f of JUDGMENT_FIELDS) {
+        out[f.col] = (DEFAULT_JUDGMENT[f.path[0]] as any)[f.path[1]];
+    }
+    return out;
+}
+
+/** DB 한 줄 → `JudgmentConfig`. 값이 없거나 이상하면 **기본값으로 메운다** */
+export function judgmentFromRow(row: Record<string, any> | undefined | null): JudgmentConfig {
+    const cfg: JudgmentConfig = JSON.parse(JSON.stringify(DEFAULT_JUDGMENT));
+    if (!row) return cfg;
+    for (const f of JUDGMENT_FIELDS) {
+        const v = Number(row[f.col]);
+        if (!Number.isFinite(v)) continue;
+        (cfg[f.path[0]] as any)[f.path[1]] = Math.min(f.max, Math.max(f.min, v));
+    }
+    return cfg;
+}
+
+/** `JudgmentConfig` → DB 한 줄 */
+export function judgmentToRow(cfg: JudgmentConfig): Record<string, number> {
+    const out: Record<string, number> = {};
+    for (const f of JUDGMENT_FIELDS) {
+        const v = Number((cfg[f.path[0]] as any)[f.path[1]]);
+        out[f.col] = Math.min(f.max, Math.max(f.min, Number.isFinite(v) ? v : 0));
+    }
+    return out;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 점수
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 

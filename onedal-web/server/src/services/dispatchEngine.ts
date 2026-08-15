@@ -218,12 +218,12 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
             const reVerdict = scoreMerge({
                 driveDiffMin: Number(result.timeDiffMin),
                 detourKm: Number(result.distDiffKm),
-                dwellMin: totalDetourCost(0, securedOrder.id).dwell,
-                dwellAssumed: totalDetourCost(0, securedOrder.id).hasUnknown,
+                dwellMin: totalDetourCost(0, securedOrder.id, session.judgment.unknown).dwell,
+                dwellAssumed: totalDetourCost(0, securedOrder.id, session.judgment.unknown).hasUnknown,
                 slackMin: computeAllowedDetour(userId, session),
                 slotsFree: Math.max(0, TRUCK_CAPACITY_SLOTS - (session.activeFilter.slotsUsed ?? 0)),
                 slotsTotal: TRUCK_CAPACITY_SLOTS,
-            });
+            }, session.judgment);   // 🎯 재탐색도 **같은** 기준을 읽는다
             const recommend = reVerdict.color === '꿀' ? "🍯 (꿀)"
                             : reVerdict.color === '보통' ? "🚙 (양호)" : "💩 (패널티 🚨)";
             console.log(`   - 🎯 [판정·재탐색] ${describeJudgment(reVerdict)}`);

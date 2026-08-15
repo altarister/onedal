@@ -1,3 +1,4 @@
+import { JUDGMENT_FIELDS, judgmentDefaults } from "@onedal/shared";
 import Database from "better-sqlite3";
 import path from "path";
 
@@ -378,6 +379,37 @@ dropStaleCheck('order_milestones', `
     `CREATE INDEX IF NOT EXISTS idx_milestones_orderId ON order_milestones(orderId)`,
     `CREATE INDEX IF NOT EXISTS idx_milestones_user_time ON order_milestones(userId, occurredAt)`,
 ]);
+
+/**
+ * 🎯 **판정 기준** — 서버가 집어 온 콜에 색을 매기는 값 (2026-08-16 신설).
+ *
+ * 🔴 **콜 필터(`user_filters`)와 완전히 분리·격리된 테이블이다.** 기사님 확정:
+ *    *"필터와 완전 분리 격리되어 각각 따로 작동해야 한다."*
+ *      🔍 콜 필터    앱이 콜을 **집기 전**에 쓴다 · 국면별 · **`오늘만` 있다**
+ *      🎯 판정 기준  서버가 **집은 뒤**에 쓴다 · 한 벌 · **`오늘만` 없다 (바꾸면 계속)**
+ *    앱에는 **내려가지 않는다** — 앱은 색 판정을 하지 않는다 (규칙 ⑤-1).
+ *
+ * 🔴 **JSON 한 칸이 아니라 컬럼인 이유** (기사님 지적):
+ *    *"나중에 라이브 하고 뭔가 필요한 값이 있으면 마이그레이션이 많이 힘들 듯 한데."*
+ *    값이 늘면 아래 `ensureColumns` 에 한 줄 + `DEFAULT` 로 **기존 행이 자동으로 채워진다.**
+ *    JSON 이면 읽는 곳마다 `?? 기본값` 이 자라는데, 그게 규칙 ③ 이 경고한 바로 그것이다.
+ *
+ * 🔴 **컬럼 목록의 원천은 `shared` 의 `JUDGMENT_FIELDS` 표 하나다.**
+ *    표에 한 줄을 더하면 컬럼도 폼도 기본값도 따라온다 — 여기 손으로 적지 않는다.
+ */
+const JUDGMENT_COLS: Record<string, string> = Object.fromEntries(
+    JUDGMENT_FIELDS.map(f => [f.col, `${f.int ? 'INTEGER' : 'REAL'} DEFAULT ${judgmentDefaults()[f.col]}`])
+);
+
+db.exec(`
+    CREATE TABLE IF NOT EXISTS user_judgment (
+        user_id TEXT PRIMARY KEY,
+        ${Object.entries(JUDGMENT_COLS).map(([c, t]) => `${c} ${t}`).join(',\n        ')},
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+`);
+// 표에 줄이 늘면 여기서 기존 행에 컬럼이 붙는다 (DEFAULT 가 값을 채운다)
+ensureColumns('user_judgment', JUDGMENT_COLS);
 
 ensureColumns('order_milestones', { predictedAt: 'TEXT' });
 /**
