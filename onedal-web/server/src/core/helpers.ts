@@ -3,8 +3,8 @@
  */
 import { isTerminal, cargoPoints, VEHICLE_CAPACITY, normalizeVehicleType,
          computeSlackMinutes, allowedDetourMinutes, findTagConflicts,
-         computeStopTiming } from '@onedal/shared';
-import type { MyOrder, CargoReport, CapacityConfidence, DwellUnknown } from '@onedal/shared';
+         computeStopTiming, deriveCallTiming, DEFAULT_DEADLINE_RULES } from '@onedal/shared';
+import type { MyOrder, CargoReport, CapacityConfidence, DwellUnknown, DeadlineRules } from '@onedal/shared';
 import { OrderRepository } from '../repositories/OrderRepository';
 
 /**
@@ -82,6 +82,8 @@ export function computeAllowedDetour(
     session: { myOrders: MyOrder[] },
     nowMs: number = Date.now(),
     unk?: DwellUnknown,
+    /** 마감을 만드는 규칙 — 기사님이 「판정 기준」 탭에서 바꾸신 값 */
+    rules: DeadlineRules = DEFAULT_DEADLINE_RULES,
 ): number | null {
     const slacks = getActiveCalls(session).map(call => {
         const reports = OrderRepository.getCargoReports(call.id);
@@ -103,6 +105,23 @@ export function computeAllowedDetour(
          */
         if (drop?.deadlineAt) {
             return computeSlackMinutes(drop.deadlineAt, (call.totalDurationMin || 0) + timing.totalDwell, nowMs);
+        }
+
+        /**
+         * 🔴 **통화 마감이 없어도 추정 마감으로 센다** (기사님 2026-08-16).
+         *
+         * 예전에는 통화 기록에 마감이 없으면 `null` 을 돌려주고, 호출부가 `90분` 상수로 때웠다.
+         * 기사님: *"여유 90분으로 퉁치니 문제가 발생하는 거야."*
+         * **여유는 입력값이 아니라 마감에서 계산해 나오는 값**이다 —
+         * 마감이 없으면 **규칙으로 만든다**(잡은 시각+60분 → 상차 마감 → +주행+30분 → 하차 마감).
+         */
+        if (!drop?.deadlineAt && !pick?.deadlineAt) {
+            const t = deriveCallTiming(call as any, reports, [], nowMs, rules);
+            if (t.dropoffDeadlineAt) {
+                return computeSlackMinutes(
+                    t.dropoffDeadlineAt, (call.totalDurationMin || 0) + timing.totalDwell, nowMs);
+            }
+            return null;   // 잡은 시각도 주행도 모른다 — 셀 근거가 없다
         }
 
         if (pick?.deadlineAt) {

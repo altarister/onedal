@@ -273,6 +273,43 @@ export function defaultDropoffDeadline(nowMs: number, travelMinutes: number): st
  * @param soloMinutes    상차지 → 하차지 이동
  * @param dropoffDwell   하차 작업
  */
+/**
+ * **상차 마감 — 콜 잡은 시각 + N분.** 통화 전에도 있어야 여유를 셀 수 있다.
+ *
+ * 🔴 **이 시각은 "상차지 도착"이 아니라 "물건을 실어 *보내는*" 시각이다** (기사님 2026-08-16):
+ *    *"화주의 생각은 보통 **여기서 물건 실어서 몇 시에 보낼 수 있을까**야. 그러니 상차 시간을
+ *    포함해야 해. 이건 그냥 룰이라고 생각하고 너의 관념에 픽스시켜."*
+ *    그래서 출발 시각을 역산할 때 **상차 정차도 함께 뺀다** (`departureDeadline` 참조).
+ *
+ * 기본 60분인 이유 — 화주가 주선사에 전화하고 기사가 콜을 잡는 흐름에서, 업계는
+ * **교통량 여유를 포함해 한 시간** 안에 실어 보낼 수 있다고 본다.
+ */
+export function defaultPickupDeadline(capturedAtMs: number, offsetMinutes: number): string {
+    return new Date(capturedAtMs + offsetMinutes * 60_000).toISOString();
+}
+
+/**
+ * **하차 마감 — 상차 마감에서 순산한다.**
+ *
+ * 🔴 예전에는 반대였다: *하차 도착 예상 + 120분* 을 하차 마감으로 잡고 거기서 상차를 역산했다.
+ *    그러면 100km 콜의 마감이 5~6시간 뒤가 되어 **여유가 실제보다 훨씬 크게** 나왔다.
+ *
+ * ```
+ * 하차 마감 = 상차 마감(실어 보내는 시각) + 단독 주행 + 휴식 여유
+ * ```
+ * 휴식 여유(기본 30분)는 기사님 말이다 — *"1시간 정도 하차지로 이동하면서 30분 정도는
+ * 휴게소 가거나 할 수 있을 거야."*
+ */
+export function dropoffDeadlineFromPickup(
+    pickupDeadlineIso: string | null | undefined,
+    soloMinutes: number | null | undefined,
+    restMarginMinutes: number,
+): string | null {
+    if (!pickupDeadlineIso || soloMinutes == null) return null;
+    const ms = new Date(pickupDeadlineIso).getTime() + (soloMinutes + restMarginMinutes) * 60_000;
+    return new Date(ms).toISOString();
+}
+
 export function derivePickupDeadline(
     dropoffDeadlineIso: string | null | undefined,
     soloMinutes: number | null | undefined,
@@ -295,9 +332,16 @@ export function derivePickupDeadline(
 export function departureDeadline(
     pickupDeadlineIso: string | null | undefined,
     approachMinutes: number | null | undefined,
+    /**
+     * 🔴 상차 정차. 상차 마감은 **실어 보내는 시각**이므로 주행뿐 아니라 **상차 시간도 빼야** 한다
+     *    (기사님 2026-08-16). 예전에는 주행만 빼서 출발 시각이 상차 시간만큼 늦었다 —
+     *    그대로 두면 상차지에 정시 도착해도 **약속보다 15분 늦게** 보내게 된다.
+     */
+    pickupDwellMinutes = 0,
 ): string | null {
     if (!pickupDeadlineIso || approachMinutes == null) return null;
-    return new Date(new Date(pickupDeadlineIso).getTime() - approachMinutes * 60_000).toISOString();
+    const ms = new Date(pickupDeadlineIso).getTime() - (approachMinutes + pickupDwellMinutes) * 60_000;
+    return new Date(ms).toISOString();
 }
 
 /** 남은 시간(분). 이미 지났으면 음수 — 0 으로 깎지 않는다. 지각은 지각이라고 말해야 한다 */
@@ -416,6 +460,12 @@ export function remainingToStop(p: {
 
 /** 경로 계산에 필요한 오더 필드만. `SecuredOrder` 전체에 묶이지 않는다 */
 export interface TimingOrderFields {
+    /**
+     * 🔴 **콜을 잡은 시각.** 상차 마감(`잡은 시각 + N분`)의 기준점이다 (기사님 2026-08-16).
+     *    없으면 상차 마감을 만들 수 없다 — **지금 시각으로 대신하지 않는다.**
+     *    그러면 화면을 열 때마다 마감이 뒤로 밀려 *"영원히 여유가 있다"* 고 거짓말한다.
+     */
+    capturedAt?: string;
     approachDurationMin?: number;
     totalDistanceKm?: number;
     kakaoSoloDistanceKm?: number;
@@ -454,11 +504,24 @@ export interface CallTiming {
     waitMinutes: number | null;
 }
 
+/**
+ * 마감을 만드는 규칙. **기본값은 `user_judgment` 테이블에서 온다** —
+ * 기사님이 관제웹 「판정 기준」 탭에서 도로 위에서 바꾸실 수 있다.
+ */
+export interface DeadlineRules {
+    /** 콜 잡은 시각 + 이만큼 = 상차 마감 (콜 대기 여유) */
+    pickupOffsetMinutes: number;
+    /** 상차 마감 + 단독 주행 + 이만큼 = 하차 마감 (휴식 여유) */
+    restMarginMinutes: number;
+}
+export const DEFAULT_DEADLINE_RULES: DeadlineRules = { pickupOffsetMinutes: 60, restMarginMinutes: 30 };
+
 export function deriveCallTiming(
     order: TimingOrderFields,
     reports: CargoReport[],
     milestones: { milestone: string }[],
     nowMs: number,
+    rules: DeadlineRules = DEFAULT_DEADLINE_RULES,
 ): CallTiming {
     const num = (v: unknown) => (v == null ? null : Number(v));
     // OSRM 이 있으면 그쪽이 더 정확하다. **거리와 시간을 같은 출처에서** 가져와야
@@ -498,18 +561,30 @@ export function deriveCallTiming(
     let pickupDeadlineAt = declaredPickup;
     let deadlineEstimated = false;
 
-    if (!dropoffDeadlineAt && toDropoff.driveMinutes != null) {
-        // 두 원칙으로 만든다 — 통화 전에도 마감이 있어야 여유를 셀 수 있다
-        dropoffDeadlineAt = defaultDropoffDeadline(
-            nowMs, toDropoff.driveMinutes + toDropoff.leadMinutes);
+    /**
+     * 🔴 **방향을 뒤집었다** (2026-08-16). 예전에는 *하차 도착 예상 + 120분* 으로 하차 마감을
+     *    먼저 잡고 거기서 상차를 역산했다 — 100km 콜이면 마감이 5~6시간 뒤가 되어
+     *    여유가 실제보다 훨씬 크게 나왔다.
+     *
+     *    이제 **상차에서 순산**한다 (기사님 모델):
+     * ```
+     *    상차 마감 = 콜 잡은 시각 + 60분      (콜 대기 여유 · 실어 **보내는** 시각)
+     *    하차 마감 = 상차 마감 + 단독 주행 + 30분  (휴식 여유)
+     * ```
+     */
+    if (!pickupDeadlineAt && order.capturedAt) {
+        pickupDeadlineAt = defaultPickupDeadline(
+            new Date(order.capturedAt).getTime(), rules.pickupOffsetMinutes);
         deadlineEstimated = true;
     }
-    if (!pickupDeadlineAt) {
-        pickupDeadlineAt = derivePickupDeadline(dropoffDeadlineAt, soloMinutes, dropoffDwell);
-        if (pickupDeadlineAt) deadlineEstimated = true;
+    if (!dropoffDeadlineAt) {
+        dropoffDeadlineAt = dropoffDeadlineFromPickup(
+            pickupDeadlineAt, soloMinutes, rules.restMarginMinutes);
+        if (dropoffDeadlineAt) deadlineEstimated = true;
     }
 
-    const departureAt = departureDeadline(pickupDeadlineAt, toPickup.driveMinutes);
+    // 상차 마감은 **실어 보내는 시각**이므로 주행과 상차 정차를 둘 다 뺀다
+    const departureAt = departureDeadline(pickupDeadlineAt, toPickup.driveMinutes, pickupDwell);
 
     return {
         soloKm, soloMinutes, approachKm, approachMinutes,

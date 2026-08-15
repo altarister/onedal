@@ -190,20 +190,52 @@ describe('deriveCallTiming — 시간 파생의 유일한 지점', () => {
         expect(t.dropoffDwell).toBe(t.pickupDwell);
     });
 
-    it('마감이 없으면 두 원칙으로 추정하고 **추정임을 밝힌다**', () => {
-        const t = deriveCallTiming(order, [], [], NOW);
+    /**
+     * ⚠️ 이 검사는 원래 *"하차 도착 예상 + 120분"* 으로 하차 마감을 먼저 잡고 상차를 역산하는
+     *    방향을 고정했다. **방향을 뒤집었다** (기사님 2026-08-16):
+     * ```
+     *    상차 마감 = 콜 잡은 시각 + 60분          (콜 대기 여유)
+     *    하차 마감 = 상차 마감 + 단독 주행 + 30분  (휴식 여유)
+     * ```
+     *    옛 방향은 100km 콜의 마감을 5~6시간 뒤로 잡아 **여유가 실제보다 훨씬 크게** 나왔다.
+     *
+     * 🔴 그래서 이제 **`capturedAt`(콜 잡은 시각)이 없으면 마감을 만들 수 없다.**
+     *    지금 시각으로 대신하지 않는다 — 화면을 열 때마다 마감이 뒤로 밀려
+     *    *"영원히 여유가 있다"* 고 거짓말한다.
+     */
+    it('마감이 없으면 잡은 시각에서 순산하고 **추정임을 밝힌다**', () => {
+        const t = deriveCallTiming({ ...order, capturedAt: new Date(NOW).toISOString() }, [], [], NOW);
         expect(t.deadlineEstimated).toBe(true);
+        expect(t.pickupDeadlineAt).not.toBeNull();
         expect(t.dropoffDeadlineAt).not.toBeNull();
         expect(t.departureAt).not.toBeNull();
+        // 상차 마감 = 잡은 시각 + 60분
+        expect(new Date(t.pickupDeadlineAt!).getTime() - NOW).toBe(60 * 60_000);
     });
 
-    it('🔴 통화로 정한 마감이 언제나 이긴다', () => {
+    it('🔴 콜 잡은 시각을 모르면 마감을 지어내지 않는다', () => {
+        const t = deriveCallTiming(order, [], [], NOW);   // capturedAt 없음
+        expect(t.pickupDeadlineAt).toBeNull();
+        expect(t.dropoffDeadlineAt).toBeNull();
+    });
+
+    /**
+     * ⚠️ 기대값이 `81` → `66` 으로 바뀌었다. 차이 15분은 **상차 정차**다.
+     *
+     * 기사님(2026-08-16): *"화주의 생각은 보통 **여기서 물건 실어서 몇 시에 보낼 수 있을까**야.
+     * 그러니 상차 시간을 포함해야 해."* → **상차 마감은 상차지 *도착* 시각이 아니라
+     * *상차 완료* 시각**이다. 그래서 출발 역산에 주행뿐 아니라 상차 정차도 뺀다.
+     *
+     * 예전 값(81분)대로 두면 기사님이 상차지에 정시 도착해도 **약속보다 15분 늦게** 보내게 된다.
+     * 통화값이 이긴다는 규칙 자체는 그대로다 — `pickupDeadlineAt` 은 여전히 통화값이다.
+     */
+    it('🔴 통화로 정한 마감이 언제나 이긴다 · 출발은 상차 정차까지 빼서 구한다', () => {
         const declared = new Date('2026-08-12T11:00:00+09:00').toISOString();
         const t = deriveCallTiming(order,
             rp({ stopType: 'pickup', kind: 'DECLARED', deadlineAt: declared }), [], NOW);
         expect(t.pickupDeadlineAt).toBe(declared);
-        // 상차 마감 11:00 − 접근 39분 = 10:21 까지는 출발해야 한다
-        expect(t.waitMinutes).toBe(81);
+        // 상차 마감 11:00 − 상차 정차 − 접근 39분 = 최소 출발 시각
+        expect(t.waitMinutes).toBe(81 - t.pickupDwell);
     });
 
     it('대기 예산 = 최소 출발까지 남은 시간', () => {

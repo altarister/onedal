@@ -59,11 +59,31 @@ describe('그날의 콜 — 99,000원 · +1.1km · +6분', () => {
  */
 describe('마감 — 모름 · 여유 · 지각을 구분한다', () => {
 
-    it('마감을 아무도 모르면 일반값 90분을 쓴다 (용달 2시간 − 상하차 30분)', () => {
-        expect(DEFAULT_JUDGMENT.unknown.slackMin).toBe(90);
+    /**
+     * ⚠️ 이 검사는 원래 *"마감을 모르면 **일반값 90분**을 쓴다"* 였다.
+     *
+     * 기사님(2026-08-16): *"**여유 90분으로 퉁치니 문제가 발생하는 거야.**"*
+     * **여유는 입력값이 아니라 마감에서 계산해 나오는 값**이다. 그래서 상수를 지우고,
+     * 통화 마감이 없으면 `computeAllowedDetour` 가 **규칙으로 만든 추정 마감**에서 구한다:
+     * ```
+     *   상차 마감 = 콜 잡은 시각 + 60분          (콜 대기 여유)
+     *   하차 마감 = 상차 마감 + 단독 주행 + 30분  (휴식 여유)
+     * ```
+     * 그래도 `null` 이 오면 **셀 근거가 아예 없다**는 뜻이라(잡은 시각도 주행도 모른다)
+     * 지어내지 않고 **그 요소를 색에서 뺀다**(가중치 0).
+     */
+    it('🔴 여유를 상수로 때우지 않는다 — 90분 일반값이 사라졌다', () => {
+        expect((DEFAULT_JUDGMENT.unknown as any).slackMin).toBeUndefined();
+        expect(DEFAULT_JUDGMENT.unknown.pickupOffsetMin).toBe(60);
+        expect(DEFAULT_JUDGMENT.unknown.restMarginMin).toBe(30);
+    });
+
+    it('🔴 여유를 셀 근거가 없으면 그 요소를 색에서 뺀다 (지어내지 않는다)', () => {
         const v = scoreMerge({ ...그날의콜, slackMin: null });
-        expect(v.parts.find(p => p.name === '마감 여유')!.assumed).toBe(true);
-        expect(v.color).toBe('꿀');
+        const part = v.parts.find(p => p.name === '마감 여유')!;
+        expect(part.assumed).toBe(true);
+        expect(part.weight).toBe(0);          // 색에 영향을 주지 않는다
+        expect(part.raw).toContain('모름');
     });
 
     it('🔴 마감을 정했는데 이미 늦었으면 합짐을 막는다', () => {

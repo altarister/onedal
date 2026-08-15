@@ -44,7 +44,13 @@ export interface JudgmentConfig {
     unknown: {
         /** 상차 방법 미확인 — 찾기 + 상차 + **결박** */ pickupDwellMin: number;
         /** 하차 방법 미확인 — 찾기 + 하차 */ dropoffDwellMin: number;
-        /** 마감 미확인 — 용달 마감 2시간 − 상하차 30분 */ slackMin: number;
+        /**
+         * 🔴 **콜 잡은 시각 + 이만큼 = 상차 마감** (콜 대기 여유).
+         *    그 시각은 "상차지 도착"이 아니라 **물건을 실어 보내는 시각**이다.
+         */
+        pickupOffsetMin: number;
+        /** 🔴 **상차 마감 + 단독 주행 + 이만큼 = 하차 마감** (휴식 여유) */
+        restMarginMin: number;
     };
     /**
      * 요소별 가중치. **상대값**이다 — 3 과 1 은 "3배 중요"라는 뜻이고 합이 10 일 필요는 없다.
@@ -65,7 +71,7 @@ export const DEFAULT_JUDGMENT: JudgmentConfig = {
     // 🔴 구조를 바꾸는 일과 값을 바꾸는 일을 같이 하지 않는다 — 색이 바뀌면 원인을 못 가린다.
     merge: { honeyMaxMin: 30, shitMinMin: 60, honeyMaxKm: 15, shitMinKm: 30 },
     solo:  { honeyMaxMin: 40, shitMinMin: 90 },
-    unknown: { pickupDwellMin: 15, dropoffDwellMin: 10, slackMin: 90 },
+    unknown: { pickupDwellMin: 15, dropoffDwellMin: 10, pickupOffsetMin: 60, restMarginMin: 30 },
     weights: { driveTime: 1, detourDist: 1, deadline: 1, slots: 1 },
     color: { honeyMin: 70, normalMin: 40 },
 };
@@ -123,9 +129,17 @@ export const JUDGMENT_FIELDS: readonly JudgmentField[] = [
     { col: 'unknown_dropoff_dwell_minutes', path: ['unknown', 'dropoffDwellMin'], group: '모를 때',
       label: '하차 미확인', unit: '분', min: 0, max: 120, int: true,
       why: '찾기 + 하차 — 결박이 없어 상차보다 짧다' },
-    { col: 'unknown_slack_minutes', path: ['unknown', 'slackMin'], group: '모를 때',
-      label: '마감 미확인 여유', unit: '분', min: 0, max: 480, int: true,
-      why: '용달 마감 2시간 − 상하차 30분 (기사님 2026-08-15)' },
+    /**
+     * 🔴 `마감 미확인 여유 90분` 을 **두 규칙으로 갈랐다** (기사님 2026-08-16).
+     *    *"여유"* 는 입력값이 아니라 **마감에서 계산해 나오는 값**이다 — 상수로 두면 안 된다.
+     *    상차지 여유(콜 대기)와 하차지 여유(배송)는 성격이 달라 하나로 퉁칠 수도 없다.
+     */
+    { col: 'unknown_pickup_offset_minutes', path: ['unknown', 'pickupOffsetMin'], group: '모를 때',
+      label: '상차 마감', unit: '분', min: 0, max: 480, int: true,
+      why: '콜 잡은 시각 + 이만큼 = 물건을 실어 보내는 시각 (교통량 여유 포함)' },
+    { col: 'unknown_rest_margin_minutes', path: ['unknown', 'restMarginMin'], group: '모를 때',
+      label: '휴식 여유', unit: '분', min: 0, max: 240, int: true,
+      why: '상차 마감 + 주행 + 이만큼 = 하차 마감 (휴게소 등)' },
 
     { col: 'weight_drive_time', path: ['weights', 'driveTime'], group: '가중치',
       label: '추가 주행', unit: '배', min: 0, max: 10, int: false,
@@ -269,8 +283,19 @@ export function scoreMerge(input: MergeInput, cfg: JudgmentConfig = DEFAULT_JUDG
         };
     }
 
-    const slackAssumed = input.slackMin === null;
-    const slack = slackAssumed ? cfg.unknown.slackMin : input.slackMin!;
+    /**
+     * 🔴 **여유를 상수로 때우지 않는다** (기사님 2026-08-16).
+     *
+     * 예전에는 `slackMin === null` 이면 `cfg.unknown.slackMin`(90분)을 썼다.
+     * 기사님: *"여유 90분으로 퉁치니 문제가 발생하는 거야."* **여유는 입력값이 아니라
+     * 마감에서 계산해 나오는 값**이다 — 이제 `computeAllowedDetour` 가 통화 마감이 없어도
+     * **추정 마감**(잡은 시각+60분 / 상차마감+주행+30분)에서 구해 넘긴다.
+     *
+     * 그래도 `null` 이 오면 그 콜은 **마감을 셀 근거가 아예 없다**는 뜻이다
+     * (잡은 시각도 주행 시간도 모른다). 지어내지 않고 이 요소를 **점수에서 뺀다** — 규칙 ④.
+     */
+    const slackUnknown = input.slackMin === null;
+    const slack = input.slackMin ?? 0;
     const totalAdd = input.driveDiffMin + input.dwellMin;
 
     const parts: ScorePart[] = [
@@ -284,8 +309,12 @@ export function scoreMerge(input: MergeInput, cfg: JudgmentConfig = DEFAULT_JUDG
         },
         {
             // 여유의 절반 안이면 만점, 여유를 다 쓰면 0점
-            name: '마감 여유', raw: `${totalAdd}분 / ${slack}분`, weight: w.deadline,
-            score: rampDown(totalAdd, slack / 2, slack), assumed: slackAssumed,
+            name: '마감 여유',
+            raw: slackUnknown ? `${totalAdd}분 / 모름` : `${totalAdd}분 / ${slack}분`,
+            // 근거가 없으면 가중치 0 — 색에 영향을 주지 않는다 (지어낸 점수로 밀지 않는다)
+            weight: slackUnknown ? 0 : w.deadline,
+            score: slackUnknown ? 0 : rampDown(totalAdd, slack / 2, slack),
+            assumed: slackUnknown,
         },
         {
             name: '적재 칸', raw: `${input.slotsFree}/${input.slotsTotal}칸`, weight: w.slots,

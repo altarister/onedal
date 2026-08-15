@@ -220,7 +220,9 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
                 detourKm: Number(result.distDiffKm),
                 dwellMin: totalDetourCost(0, securedOrder.id, session.judgment.unknown).dwell,
                 dwellAssumed: totalDetourCost(0, securedOrder.id, session.judgment.unknown).hasUnknown,
-                slackMin: computeAllowedDetour(userId, session, Date.now(), session.judgment.unknown),
+                slackMin: computeAllowedDetour(userId, session, Date.now(), session.judgment.unknown,
+                    { pickupOffsetMinutes: session.judgment.unknown.pickupOffsetMin,
+                      restMarginMinutes: session.judgment.unknown.restMarginMin }),
                 slotsFree: Math.max(0, TRUCK_CAPACITY_SLOTS - (session.activeFilter.slotsUsed ?? 0)),
                 slotsTotal: TRUCK_CAPACITY_SLOTS,
             }, session.judgment);   // 🎯 재탐색도 **같은** 기준을 읽는다

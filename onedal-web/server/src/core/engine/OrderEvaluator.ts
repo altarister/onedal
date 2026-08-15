@@ -151,7 +151,9 @@ export class OrderEvaluator {
                          *
                          * 🔴 카카오의 `timeDiffMin` 은 **주행 delta 뿐**이라 상하차를 더해야 한다.
                          */
-                        const slackLimit = computeAllowedDetour(userId, session, Date.now(), session.judgment.unknown);
+                        const slackLimit = computeAllowedDetour(userId, session, Date.now(), session.judgment.unknown,
+                            { pickupOffsetMinutes: session.judgment.unknown.pickupOffsetMin,
+                              restMarginMinutes: session.judgment.unknown.restMarginMin });
                         const cost = totalDetourCost(result.timeDiffMin, securedOrder.id, session.judgment.unknown);
 
                         const slotsTotal = TRUCK_CAPACITY_SLOTS;
