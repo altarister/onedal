@@ -74,6 +74,9 @@ async function seed() {
 
     if (withStops.length < 2) {
         console.error('🔴 좌표가 붙은 콜이 2건 미만이라 시나리오를 못 돌립니다.');
+        console.error('   이 검사는 `server/local.db` 의 **실제 콜을 씨앗으로** 씁니다 —');
+        console.error('   콜 목록을 지우면 씨앗이 사라져 돌지 않습니다 (2026-08-16 에 실제로 그랬습니다).');
+        console.error('   콜을 한두 건 잡아 상·하차 좌표가 붙은 뒤 다시 돌리세요.');
         process.exit(1);
     }
 

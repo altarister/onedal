@@ -450,7 +450,12 @@ export default function PinnedRouteCard({
                                         const lead = isPickupStop ? timing.toPickup : timing.toDropoff;
                                         return (
                                             <StopCallSheet
-                                                key={shownStep.id}
+                                                /* 🔴 **콜 id 를 키에 넣는다** (2026-08-16).
+                                                   예전엔 `shownStep.id`(= `CALL_PICKUP` 같은 **단계 이름**)뿐이라
+                                                   **콜이 달라도 키가 같았다.** React 가 컴포넌트를 재사용해
+                                                   앞 콜의 `deadlineAt`·물량이 다음 콜 화면에 그대로 남았다 —
+                                                   실측: 송정동 콜 화면에 계산서필 콜의 `11:08` 이 떠 있었다. */
+                                                key={`${route.id}:${shownStep.id}`}
                                                 orderId={route.id}
                                                 stopType={isPickupStop ? 'pickup' : 'dropoff'}
                                                 label={isPickupStop ? '상차지' : '하차지'}

@@ -3,6 +3,7 @@
  */
 
 import { Router } from "express";
+import { looksLikePlaceName } from "../services/geoService";
 import type { DispatchConfirmRequest, PendingOrder, SecuredOrder } from "@onedal/shared";
 import { parseLocationDetails, parseMockupFare, parseMockupDistance, parseMockupVehicleType, parseDetailedRawText } from "../utils/parser";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
@@ -160,8 +161,15 @@ router.post("/", async (req, res) => {
              */
             const unreadable: string[] = [];
             if (!pendingOrder.fare || pendingOrder.fare <= 0) unreadable.push('요금');
-            if (!pendingOrder.pickup || pendingOrder.pickup === '미상') unreadable.push('상차지');
-            if (!pendingOrder.dropoff || pendingOrder.dropoff === '미상') unreadable.push('하차지');
+            /**
+             * 🔴 `'미상'` 만 보면 안 된다 (2026-08-16). 앱이 **화면 글자를 지명으로 읽어** 보내면
+             *    `계산서필`·`카톤` 같은 값이 들어와 *"읽었다"* 로 통과했다.
+             *    실재 지명 사전(1239개)과 대조해 **지명이 아니면 못 읽은 것으로 친다.**
+             */
+            if (!pendingOrder.pickup || pendingOrder.pickup === '미상'
+                || !looksLikePlaceName(pendingOrder.pickup)) unreadable.push('상차지');
+            if (!pendingOrder.dropoff || pendingOrder.dropoff === '미상'
+                || !looksLikePlaceName(pendingOrder.dropoff)) unreadable.push('하차지');
 
             if (unreadable.length > 0) {
                 const what = unreadable.join('·');

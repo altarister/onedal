@@ -309,13 +309,25 @@ export default function StopCallSheet({
          * 즉 *화주가 기다려 주는 시간*이지 *내가 얼마나 걸리느냐*가 아니다.
          * 그래서 주행을 모르면 **서버가 만든 상차 마감**으로 고른다.
          */
+        /**
+         * 🔴 **마감에 가장 가까운 칸**을 고른다 (2026-08-16 수정).
+         *
+         * 예전에는 *"마감 이상인 첫 칸"* 이었다. 칸이 30분 간격이라 마감이 칸을 1분만 넘겨도
+         * **다음 칸(30분 뒤)** 으로 밀렸다 — 마감 10:36 인데 `11:06` 을 추천하고,
+         * 근거 줄에는 *"콜 잡은 시각 + 1시간 기준"* 이라 적혀 **사실과 달랐다.**
+         *
+         * 지금은 **가장 가까운 칸**이다. 마감보다 조금 이른 칸이 뽑힐 수 있는데,
+         * 그건 기사님이 통화에서 조정하실 몫이다 (근거 줄이 실제 마감을 함께 보여준다).
+         */
+        const nearest = (targetMs: number) => hourSlots.reduce((best, sl) =>
+            Math.abs(new Date(sl.iso).getTime() - targetMs) < Math.abs(new Date(best.iso).getTime() - targetMs)
+                ? sl : best, hourSlots[0]);
+
         if (!driveKnown) {
             if (!isPickup || !pickupDeadlineAt) return null;
-            const byRule = new Date(pickupDeadlineAt).getTime();
-            return hourSlots.find(sl => new Date(sl.iso).getTime() >= byRule) ?? hourSlots[hourSlots.length - 1];
+            return nearest(new Date(pickupDeadlineAt).getTime());
         }
-        const needMs = Date.now() + (arrivalMinutes + (isPickup ? dwell : 0)) * 60_000;
-        return hourSlots.find(sl => new Date(sl.iso).getTime() >= needMs) ?? hourSlots[hourSlots.length - 1];
+        return nearest(Date.now() + (arrivalMinutes + (isPickup ? dwell : 0)) * 60_000);
     }, [driveKnown, arrivalMinutes, dwell, isPickup, hourSlots, pickupDeadlineAt]);
 
     /** 기사님이 아직 손대지 않아 추천값이 눌려 있는 상태인가 — 눌리면 근거 줄을 띄운다 */
@@ -591,9 +603,17 @@ export default function StopCallSheet({
                                     화면에 남긴다."* 기사님이 직접 누르시면 이 줄은 사라진다. */}
                                 {!deadlineTouched && deadlineAt && suggestedSlot?.iso === deadlineAt && (
                                     <div className="mt-1 text-[10px] leading-tight text-text-muted">
+                                        {/* 🔴 **기준 시각을 함께 적는다.** 칸이 30분 간격이라 추천 칸과
+                                            기준이 다를 수 있는데, 그걸 안 적으면 화면이 거짓말한다 */}
                                         ⓘ {driveKnown
-                                            ? `주행 ${driveMinutes}분${isPickup ? ` + 상차 ${dwell}분` : ''} 기준으로 `
-                                            : '콜 잡은 시각 + 1시간 기준으로 '}
+                                            ? `주행 ${driveMinutes}분${isPickup ? ` + 상차 ${dwell}분` : ''} → `
+                                            : '콜 잡은 시각 + 1시간 → '}
+                                        <b className="tabular-nums">
+                                            {hhmm(driveKnown
+                                                ? new Date(Date.now() + (arrivalMinutes + (isPickup ? dwell : 0)) * 60_000).toISOString()
+                                                : pickupDeadlineAt!)}
+                                        </b>
+                                        {' 이라 가장 가까운 '}
                                         <b className="tabular-nums">{hhmm(deadlineAt)}</b> 을 눌러 뒀습니다 —
                                         바꾸시면 그게 확정됩니다
                                     </div>

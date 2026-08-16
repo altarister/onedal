@@ -1,4 +1,5 @@
 import { readFileSync } from "fs";
+import { initGeoService, looksLikePlaceName } from "../../src/services/geoService";
 import { join } from "path";
 import { scoreMerge, rampDown, DEFAULT_JUDGMENT, describeJudgment, parseCapturedAt, deriveCallTiming } from "@onedal/shared";
 import { DWELL_UNKNOWN_PICKUP_MINUTES, DWELL_UNKNOWN_DROPOFF_MINUTES, allowedDetourMinutes, dwellMinutes } from "@onedal/shared";
@@ -184,7 +185,23 @@ describe('통화 시트 — 미리 눌러 두고 근거를 남긴다', () => {
 
     it('🔴 상차지는 **상차 정차까지** 포함해 추천한다 (실어 보내는 시각)', () => {
         const fn = sheet().slice(sheet().indexOf('const suggestedSlot'));
-        expect(fn.slice(0, 500)).toMatch(/arrivalMinutes \+ \(isPickup \? dwell : 0\)/);
+        expect(fn.slice(0, 1400)).toMatch(/arrivalMinutes \+ \(isPickup \? dwell : 0\)/);
+    });
+
+    /**
+     * 🔴 **마감 이상인 첫 칸이 아니라 가장 가까운 칸** (2026-08-16 수정).
+     *    칸이 30분 간격이라 마감이 칸을 1분만 넘겨도 다음 칸(30분 뒤)으로 밀렸다 —
+     *    마감 10:36 인데 `11:06` 을 추천하고, 근거 줄은 *"콜 잡은 시각 + 1시간 기준"* 이라
+     *    적혀 **사실과 달랐다** (기사님 화면에서 실측).
+     */
+    it('🔴 마감에 가장 가까운 칸을 고른다', () => {
+        const fn = sheet().slice(sheet().indexOf('const suggestedSlot'));
+        expect(fn.slice(0, 1400)).toMatch(/const nearest = /);
+        expect(fn.slice(0, 1400)).toMatch(/Math\.abs/);
+    });
+
+    it('🔴 근거 줄이 **기준 시각**을 함께 적는다 (추천 칸과 다를 수 있다)', () => {
+        expect(sheet()).toMatch(/이라 가장 가까운/);
     });
 
     it('🔴 기사님이 누르시면 추천이 아니라 **확정**이 된다', () => {
@@ -300,5 +317,47 @@ describe('통화 시트 — 주행을 몰라도 추천한다', () => {
         expect(sheet).toMatch(/const loadDoneMs = new Date\(deadlineAt\)\.getTime\(\);/);
         expect(sheet).not.toMatch(/loadDoneMs = new Date\(deadlineAt\)\.getTime\(\) \+ dwell/);
         expect(sheet).toMatch(/실어 보냄/);
+    });
+});
+
+/**
+ * 🔴 **앱이 화면 글자를 지명으로 읽어 보내던 것을 서버가 잡는다** (2026-08-16 실측)
+ *
+ * ```
+ *   ⏱️ [1차 선빵 수신] 계산서필 ➡️ 카톤
+ * ```
+ * `계산서필`(=세금계산서필요) · `카톤`(=카톤박스) 은 **적요 텍스트 조각**이지 지명이 아니다.
+ * 관제탑 카드에 `계산서필 → 카톤` 이 뜨고 차종이 `다`(=다마스 조각)로 찍혔다.
+ *
+ * 근본 해결은 앱 파서지만 **재설치가 필요**하다. 서버에는 전국 읍면동·자치구 1239개가 이미
+ * 메모리에 있으니 그 사전과 대조해 즉시 막는다.
+ *
+ * ⚠️ **콜을 버리지는 않는다** — 규칙 ①(콜의 주인은 기사님이다).
+ *    2차 상세가 오면 제대로 된 주소로 덮인다. 그때까지 "모른다"고 적을 뿐이다.
+ */
+describe('지명이 아닌 글자를 걸러낸다', () => {
+
+    beforeAll(() => { initGeoService(); });
+
+    it('🔴 실재 지명은 통과한다 (번지·건물명이 섞여도)', () => {
+        for (const t of ['경기 광주시 경안동 165-15 농협', '송정동', '금촌동', '탄현면', '경기 파주시'])
+            expect(looksLikePlaceName(t)).toBe(true);
+    });
+
+    it('🔴 화면 글자·적요 조각은 걸러낸다', () => {
+        for (const t of ['계산서필', '카톤', '다', '전표', '신규', '박스', '상세 정보 없음', '', null])
+            expect(looksLikePlaceName(t)).toBe(false);
+    });
+
+    it('🔴 선빵 수신에서 걸러 표시를 바로잡는다 (콜은 안 버린다)', () => {
+        const o = codeOnly(read('routes/orders.ts'));
+        expect(o).toMatch(/looksLikePlaceName\(v\)/);
+        expect(o).toMatch(/주소 확인 중/);
+    });
+
+    it('🔴 2차 상세도 `미상` 만 보지 않는다', () => {
+        const d = codeOnly(read('routes/detail.ts'));
+        expect(d).toMatch(/!looksLikePlaceName\(pendingOrder\.pickup\)/);
+        expect(d).toMatch(/!looksLikePlaceName\(pendingOrder\.dropoff\)/);
     });
 });
