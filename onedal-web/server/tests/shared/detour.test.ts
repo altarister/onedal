@@ -1,4 +1,4 @@
-import { getEffectiveDetourRadius, DEFAULT_CORRIDOR_RADIUS_KM, DEFAULT_PHASE_SETTINGS } from '@onedal/shared';
+import { getEffectiveDetourRadius, DEFAULT_DETOUR_RADIUS_KM, DEFAULT_PHASE_SETTINGS } from '@onedal/shared';
 
 /**
  * 🔴 2026-08-12 — `getEffectiveDetourRadius` 는 **정의만 되어 있고 호출하는 곳이 없었다.**
@@ -54,6 +54,6 @@ describe('우회 반경 기본값은 한 곳에서만 정한다', () => {
     it('DB · 세션 기본값과 같은 5km', () => {
         // 🔴 예전엔 dispatchEngine `?? 10` · socketHandlers `?? 1` · routes/filters `?? 0` 로
         //    같은 기본값이 네 갈래였다. 어느 값이 진짜인지 코드로 알 수 없었다
-        expect(DEFAULT_CORRIDOR_RADIUS_KM).toBe(5);
+        expect(DEFAULT_DETOUR_RADIUS_KM).toBe(5);
     });
 });

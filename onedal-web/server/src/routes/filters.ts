@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { DEFAULT_CORRIDOR_RADIUS_KM } from "@onedal/shared";
+import { DEFAULT_DETOUR_RADIUS_KM } from "@onedal/shared";
 import { requireAuth } from "../middlewares/authMiddleware";
 import { getUserSession } from "../state/userSessionStore";
 import { updateActiveFilter } from "../state/filterManager";
@@ -21,7 +21,7 @@ router.get("/", requireAuth, (req, res) => {
             dispatchPhase: f.dispatchPhase ?? 'STANDBY',     // [V2]
             destinationCity: f.destinationCity ?? "",
             destinationRadiusKm: f.destinationRadiusKm ?? 0,
-            detourRadiusKm: f.detourRadiusKm ?? DEFAULT_CORRIDOR_RADIUS_KM,
+            detourRadiusKm: f.detourRadiusKm ?? DEFAULT_DETOUR_RADIUS_KM,
             allowedVehicleTypes: f.allowedVehicleTypes ?? [],
             minFare: f.minFare ?? 0,
             maxFare: f.maxFare ?? 1000000,

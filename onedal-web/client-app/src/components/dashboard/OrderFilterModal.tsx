@@ -18,7 +18,7 @@ import { Badge } from "../ui/badge";
  * 콜할인율 단계 — 시세 대비 허용 할인 %.
  * "전부"(100)는 금액 무관 통과. 합짐·관내·복귀는 순증 매출이라 여기까지 내려간다.
  */
-const EYELINE_STEPS = [
+const CALL_DISCOUNT_STEPS = [
     { value: 0,   label: '시세' },
     { value: 10,  label: '-10%' },
     { value: 20,  label: '-20%' },
@@ -379,7 +379,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
     const regionGroups = Object.entries(previewRegions ?? filter.destinationGroups ?? {});
 
     /** 지금 탭의 콜할인율(단가 할인율) — 국면마다 따로 기억한다 */
-    const eyeline = parseFloat(cur.discountPct);
+    const callDiscount = parseFloat(cur.discountPct);
 
     const handleBlacklistChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         let val = e.target.value;
@@ -486,8 +486,8 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                         <div className="space-y-1.5">
                             <label className="text-xs font-bold text-text-muted">{DIAL_LABEL[tab]}</label>
                             <div className={`grid gap-1.5 ${tab === 'first' ? 'grid-cols-4' : 'grid-cols-5'}`}>
-                                {EYELINE_STEPS.filter(st => !(tab === 'first' && st.value >= 100)).map(step => {
-                                    const on = eyeline === step.value;
+                                {CALL_DISCOUNT_STEPS.filter(st => !(tab === 'first' && st.value >= 100)).map(step => {
+                                    const on = callDiscount === step.value;
                                     return (
                                         <Button
                                             key={step.value}
@@ -511,7 +511,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                     <span className="text-[9px] text-text-muted/70 text-right whitespace-nowrap">통과 = 요금 ≥ 배송거리 × 단가</span>
                                 </div>
                                 {RATE_TABLE_ORDER.map(v => {
-                                    const floor = Math.round((NET_RATE_PER_KM[v] ?? 0) * Math.max(0, 1 - eyeline / 100));
+                                    const floor = Math.round((NET_RATE_PER_KM[v] ?? 0) * Math.max(0, 1 - callDiscount / 100));
                                     const slot = VEHICLE_SLOTS[v] ?? 0;
                                     const fits = slot <= remainSlots;
                                     return (
@@ -524,7 +524,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                             </span>
                                             <span className="font-mono font-black text-success whitespace-nowrap">
                                                 {!fits ? <span className="text-text-muted font-normal">칸 부족</span>
-                                                 : eyeline >= 100 ? '전부'
+                                                 : callDiscount >= 100 ? '전부'
                                                  : <>≥ {floor.toLocaleString()}원/km
                                                      <span className="text-text-muted/60 font-normal ml-1.5">
                                                         {exampleKm}km면 {(floor * exampleKm).toLocaleString()}

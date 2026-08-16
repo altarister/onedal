@@ -95,7 +95,7 @@ const STEPS = [
          * 이 줄이 이 검사에서 가장 중요하다.
          */
     },
-    { name: '서버가 선빵을 접수',          re: /POST \/confirm 완료.*HTTP 200/ },
+    { name: '서버가 선점을 접수',          re: /POST \/confirm 완료.*HTTP 200/ },
     { name: '확정 광클 성공',              re: /화면: DETAIL_CONFIRMED/ },
 ];
 

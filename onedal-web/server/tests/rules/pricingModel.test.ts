@@ -3,7 +3,7 @@ import {
     NET_RATE_PER_KM,
     VEHICLE_SLOTS,
     TRUCK_CAPACITY_SLOTS,
-    EYELINE_ALL,
+    CALL_DISCOUNT_ALL,
     rateFloorsFrom,
     slotsUsedOf,
 } from "@onedal/shared";
@@ -89,7 +89,7 @@ describe('단가 판정 모델 — 명세 고정', () => {
     });
 
     it('콜할인율 "전부"(100) 면 전 차종 하한 0 — 금액 무관 통과', () => {
-        const floors = rateFloorsFrom(EYELINE_ALL);
+        const floors = rateFloorsFrom(CALL_DISCOUNT_ALL);
         for (const v of Object.keys(NET_RATE_PER_KM)) {
             expect(floors[v]).toBe(0);
         }

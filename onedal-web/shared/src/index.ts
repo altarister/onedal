@@ -733,7 +733,7 @@ export function deriveDispatchPhase(
  *      DB · 세션 기본값 5
  *    어느 값이 진짜인지 코드로는 알 수 없었다. DB 기본값(5)에 맞춘다.
  */
-export const DEFAULT_CORRIDOR_RADIUS_KM = 5;
+export const DEFAULT_DETOUR_RADIUS_KM = 5;
 
 export function getEffectiveDetourRadius(
     _phase: DispatchPhase,

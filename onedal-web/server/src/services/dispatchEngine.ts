@@ -1,7 +1,7 @@
 import { mapVehicleToKakaoCarType, getRemainingCapacityTypes, deriveDispatchPhase, normalizeVehicleType,
          MILESTONE_TO_STATUS, MILESTONE_LABEL, canReportMilestone, timingError,
          RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, UNFINISHED_RESTORE_DAYS, deriveStatusFromMilestones,
-         restoreWindow, getEffectiveDetourRadius, DEFAULT_CORRIDOR_RADIUS_KM,
+         restoreWindow, getEffectiveDetourRadius, DEFAULT_DETOUR_RADIUS_KM,
          CALL_TARGET_LABEL, scoreMerge, describeJudgment, TRUCK_CAPACITY_SLOTS } from "@onedal/shared";
 import type { SecuredOrder, AutoDispatchFilter, PricingConfig, PendingOrder, MyOrder,
               Milestone, MilestoneSource, CallTarget } from "@onedal/shared";
@@ -306,7 +306,7 @@ export const syncDetourFilter = (userId: string, io: any) => {
          */
         const cRadius = getEffectiveDetourRadius(
             session.activeFilter.dispatchPhase ?? 'STANDBY',
-            session.activeFilter.detourRadiusKm ?? DEFAULT_CORRIDOR_RADIUS_KM,
+            session.activeFilter.detourRadiusKm ?? DEFAULT_DETOUR_RADIUS_KM,
         );
         const dRadius = session.activeFilter.destinationRadiusKm;
         const regions = getDetourRegions(polylineToUse, cRadius, dRadius);
@@ -1243,7 +1243,7 @@ export async function createHomeReturn(
         session.myOrders.push(homeOrder as any);
         await evaluateNewOrder(userId, homeOrder as any, io);
 
-        const targetDetour = options?.detourRadiusKm ?? DEFAULT_CORRIDOR_RADIUS_KM;
+        const targetDetour = options?.detourRadiusKm ?? DEFAULT_DETOUR_RADIUS_KM;
         updateActiveFilter(userId, {
             dispatchPhase: 'GATHERING',
             isSharedMode: true,

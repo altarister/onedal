@@ -17,7 +17,7 @@ import { OrderRepository } from "../repositories/OrderRepository";
 import { SettingsRepository } from "../repositories/SettingsRepository";
 import { getUserSession } from "./userSessionStore";
 import type { AutoDispatchFilter, PhaseKey, PhaseSettings } from "@onedal/shared";
-import { DEFAULT_CORRIDOR_RADIUS_KM, isTerminal, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, resolvePhaseKey, applyPhaseToFilter, normalizePhaseSettings } from "@onedal/shared";
+import { DEFAULT_DETOUR_RADIUS_KM, isTerminal, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, resolvePhaseKey, applyPhaseToFilter, normalizePhaseSettings } from "@onedal/shared";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { getCityRegionsWithRadius, cityAliases, getDetourRegions, getActivePolyline, progressAlongPolyline } from "../services/geoService";
 
@@ -296,7 +296,7 @@ function refreshDetourIfNeeded(
     before: { detourRadiusKm?: number, destinationRadiusKm?: number },
 ) {
     if (!session.activeFilter.isSharedMode) return;
-    const cRadius = session.activeFilter.detourRadiusKm ?? DEFAULT_CORRIDOR_RADIUS_KM;
+    const cRadius = session.activeFilter.detourRadiusKm ?? DEFAULT_DETOUR_RADIUS_KM;
     const dRadius = session.activeFilter.destinationRadiusKm ?? 10;
     if (cRadius === before.detourRadiusKm && dRadius === before.destinationRadiusKm) return;
 

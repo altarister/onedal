@@ -5,7 +5,7 @@ import { getUserDevicesSnapshot } from "../routes/devices";
 import { getRegionsByCity } from "../geoResolver";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import type { AutoDispatchFilter, Milestone, CargoReport, CallTarget, PhaseKey, PhaseSettings } from "@onedal/shared";
-import { cargoMismatchRatio, DEFAULT_CORRIDOR_RADIUS_KM, PHASE_KEYS, judgmentFromRow, judgmentToRow } from "@onedal/shared";
+import { cargoMismatchRatio, DEFAULT_DETOUR_RADIUS_KM, PHASE_KEYS, judgmentFromRow, judgmentToRow } from "@onedal/shared";
 import db from "../db";
 import { OrderRepository } from "../repositories/OrderRepository";
 import { PlaceRepository } from "../repositories/PlaceRepository";
@@ -198,7 +198,7 @@ export function registerSocketHandlers(io: Server) {
 
             // 합짐 모드: 경유 반경 또는 도착 반경 변경 시
             if (session.activeFilter.isSharedMode && (isDetourChanged || isTargetChanged)) {
-                const cRadius = newFilter.detourRadiusKm ?? session.activeFilter.detourRadiusKm ?? DEFAULT_CORRIDOR_RADIUS_KM;
+                const cRadius = newFilter.detourRadiusKm ?? session.activeFilter.detourRadiusKm ?? DEFAULT_DETOUR_RADIUS_KM;
                 const dRadius = newFilter.destinationRadiusKm ?? session.activeFilter.destinationRadiusKm ?? 10;
                 
                 const newRegions = recalculateDetourFilter(userId, cRadius, dRadius);

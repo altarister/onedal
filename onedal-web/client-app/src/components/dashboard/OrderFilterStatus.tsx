@@ -62,8 +62,8 @@ export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () =
     }
 
     // ── 단가 판정 모델 표시값 ── 서버가 내려준 파생값을 그대로 쓴다
-    const eyeline = filter.callDiscountPct ?? 10;
-    const callDiscountLabel = eyeline >= 100 ? '전부' : (eyeline === 0 ? '시세' : `-${eyeline}%`);
+    const callDiscount = filter.callDiscountPct ?? 10;
+    const callDiscountLabel = callDiscount >= 100 ? '전부' : (callDiscount === 0 ? '시세' : `-${callDiscount}%`);
     const oneTonRate = filter.ratePerKm?.['1t'] ?? 0;
     const slotsUsed = Math.round(filter.slotsUsed ?? 0);
     const regionCount = filter.destinationKeywords?.length ?? 0;

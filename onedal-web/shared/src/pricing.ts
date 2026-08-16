@@ -66,7 +66,7 @@ export const VEHICLE_SLOTS: Record<string, number> = {
 export const TRUCK_CAPACITY_SLOTS = 5;
 
 /** 콜할인율 값 중 "전부"(금액 무관) — 100% 할인 허용과 같다 */
-export const EYELINE_ALL = 100;
+export const CALL_DISCOUNT_ALL = 100;
 
 /**
  * 콜할인율(허용 할인 %)를 적용한 차종별 하한 단가표(원/km).
