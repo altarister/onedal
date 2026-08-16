@@ -16,13 +16,13 @@ const engine = codeOnly(read("services/dispatchEngine.ts"));
  * 기사님: *"성남을 지난 지금, 이미 지나온 광주시·성남시 콜을 계속 잡을까?
  * — 자동으로 제외. 뒤로 안 돌아가니까. 앞쪽(송파·강남)만 남는다. 이것이 맞아."*
  *
- * 예전 구현은 이동할 때마다 **회랑을 통째로 다시 그렸고**(실측 173ms), 그 비용 때문에
+ * 예전 구현은 이동할 때마다 **경유을 통째로 다시 그렸고**(실측 173ms), 그 비용 때문에
  * 2km 마다만 돌렸다. 게다가 `getActivePolyline` 이 죽어 있어 **한 번도 실행되지 않았다.**
- * 지금은 회랑을 만들 때 동마다 진행도를 같이 기록하고, 이동 시에는 숫자만 비교한다(0.14ms).
+ * 지금은 경유을 만들 때 동마다 진행도를 같이 기록하고, 이동 시에는 숫자만 비교한다(0.14ms).
  */
 describe('지나온 구간 제거 — 다시 그리지 않고 숫자만 비교한다', () => {
 
-    it('🔴 진행도는 회랑과 **같이** 나온다 (따로 만들면 갈라진다)', () => {
+    it('🔴 진행도는 경유과 **같이** 나온다 (따로 만들면 갈라진다)', () => {
         // getDetourRegions 가 progressKm 을 함께 반환한다
         expect(geo).toMatch(/progressKm/);
         const fn = geo.slice(geo.indexOf('export function getDetourRegions'));
@@ -51,7 +51,7 @@ describe('지나온 구간 제거 — 다시 그리지 않고 숫자만 비교�
 
     it('🔴 하차지 주변 동은 트림에서 빼지 않는다 — 도착이 가까울수록 필요한 콜이다', () => {
         // 하차지 반경은 *경로* 조건이 아니라 *목적지* 조건이다.
-        // 진행도로 자르면 도착 직전에 그 동네가 먼저 사라진다 (실측: 회랑이 1개까지 줄었다)
+        // 진행도로 자르면 도착 직전에 그 동네가 먼저 사라진다 (실측: 경유이 1개까지 줄었다)
         const fn = geo.slice(geo.indexOf('export function getDetourRegions'));
         const body = fn.slice(0, fn.indexOf('\nexport '));
         expect(body).toMatch(/const destCenter =/);
@@ -82,7 +82,7 @@ describe('지나온 구간 제거 — 다시 그리지 않고 숫자만 비교�
         expect(body).toMatch(/poly\[poly\.length - 1\]/);
     });
 
-    it('회랑을 만드는 자리는 **모두** 진행도를 같이 기억한다', () => {
+    it('경유을 만드는 자리는 **모두** 진행도를 같이 기억한다', () => {
         // 키워드만 갱신하고 진행도를 두면, 옛 경로 기준으로 멀쩡한 동이 사라진다
         for (const src of [fm, engine]) {
             const calls = (src.match(/getDetourRegions\(/g) || []).length;
@@ -92,7 +92,7 @@ describe('지나온 구간 제거 — 다시 그리지 않고 숫자만 비교�
     });
 
     it('🔴 제거 **로직**은 한 곳(applyTraveledTrim)뿐이고, 부르는 곳은 둘이다', () => {
-        // ① 파생 계산의 끝 — 회랑을 다시 그리는 길이 여럿인데(경로 갱신·반경 변경·국면 전환)
+        // ① 파생 계산의 끝 — 경유을 다시 그리는 길이 여럿인데(경로 갱신·반경 변경·국면 전환)
         //    어느 길로 오든 다시 그리면 지나온 동이 되살아난다
         const derive = fm.slice(fm.indexOf('function recalculateDerivedFields'), fm.indexOf('export function trimTraveled'));
         expect(derive).toMatch(/applyTraveledTrim\(session\)/);
@@ -145,11 +145,11 @@ describe('지나온 구간 제거 — 일찍 빼지 않는다', () => {
 
 /**
  * 🔴 **같은 일을 하는 두 번째 구현을 남기지 않는다.**
- * 회랑 계산은 이 레포에서 이미 4벌로 갈라진 적이 있다.
+ * 경유 계산은 이 레포에서 이미 4벌로 갈라진 적이 있다.
  */
 describe('옛 방식은 지웠다', () => {
 
-    it('trimCorridorByProgress(회랑 통째 재계산)는 더 이상 없다', () => {
+    it('trimCorridorByProgress(경유 통째 재계산)는 더 이상 없다', () => {
         expect(geo).not.toMatch(/export function trimCorridorByProgress/);
         // 부르던 곳도 없다
         expect(codeOnly(read('routes/scrap.ts'))).not.toMatch(/trimCorridorByProgress/);
@@ -168,8 +168,8 @@ describe('옛 방식은 지웠다', () => {
  *
  * 2026-08-14 에 `applyFilterCb(userId, {})` 로 파생 재계산을 트리거했다가 되돌렸다.
  * `recalculateDerivedFields` 안에 *"도착 도시가 비어 있으면 키워드를 지운다"* 는 가지가 있어,
- * 도시를 안 고른 채 운행하면 **0.5km 마다 회랑이 통째로 지워진다.**
- * 빈 필터는 "제한 없음"이 아니라 **고장**이라 사냥이 조용히 멈춘다.
+ * 도시를 안 고른 채 운행하면 **0.5km 마다 경유이 통째로 지워진다.**
+ * 빈 필터는 "제한 없음"이 아니라 **고장**이라 콜 잡기가 조용히 멈춘다.
  */
 describe('GPS 경로는 전용 통로로 간다', () => {
 
@@ -200,7 +200,7 @@ describe('GPS 경로는 전용 통로로 간다', () => {
  * 기사님: *"이동중인데 필터 값이 변경되지 않았어."*
  *
  * 도착 감지가 `driverAction = UNLOADING` 을 켜자 `dispatchPhase` 가 GATHERING 으로 떨어졌고,
- * **증상 넷이 한꺼번에** 나왔다 — 지나온 구간 제거 정지 · 우회 0 이 풀려 회랑이 넓어짐 ·
+ * **증상 넷이 한꺼번에** 나왔다 — 지나온 구간 제거 정지 · 우회 0 이 풀려 경유이 넓어짐 ·
  * 🚀 출발 버튼 재등장 · 요약줄이 "대기". 전부 판정 한 줄에서 나왔다.
  */
 describe('운행 중 — 출발한 사실에서 나온다', () => {

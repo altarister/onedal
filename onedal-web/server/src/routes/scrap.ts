@@ -152,8 +152,8 @@ router.post("/", (req, res) => {
         // 관제탑은 소켓(filter-updated)으로 별도 수신하므로 여기서 빼도 영향이 없다.
         const { destinationGroups, ...appFilter } = session.activeFilter as any;
 
-        // [Phase 6] 부트스트랩이 끝나기 전에는 사냥을 시키지 않는다.
-        // 이 구간(1~3초)의 activeFilter 는 아직 회랑도 적재 차종도 반영되지 않은 미완성 상태라,
+        // [Phase 6] 부트스트랩이 끝나기 전에는 콜 잡기를 시키지 않는다.
+        // 이 구간(1~3초)의 activeFilter 는 아직 경유도 적재 차종도 반영되지 않은 미완성 상태라,
         // 그대로 내보내면 경로를 벗어난 콜을 잡을 수 있다.
         // 잘못된 필터로 잡는 것보다 잠깐 멈추는 편이 안전하다.
         if (session.isBootstrapping) {
@@ -162,13 +162,13 @@ router.post("/", (req, res) => {
         }
 
         /**
-         * 🔴 2026-08-12 — **관제탑이 한 번도 안 붙은 세션은 사냥시키지 않는다.**
+         * 🔴 2026-08-12 — **관제탑이 한 번도 안 붙은 세션은 콜 잡기시키지 않는다.**
          *
          * 기사님: *"출근 전 앱을 먼저 연다면 기본값의 필터값이 가서
          * 잘못된 콜을 잡을 가능성이 있군."* — 실제로 그랬다.
          *
          * `bootstrapUserSession` 은 **관제웹 소켓 접속에만** 걸린다. 앱이 먼저 켜지면
-         * 세션이 DB 기본값으로 만들어지고, `is_active` 가 1 이면 그대로 사냥이 시작된다.
+         * 세션이 DB 기본값으로 만들어지고, `is_active` 가 1 이면 그대로 콜 잡기가 시작된다.
          * 어제 설정(기본 도시·기본 반경)으로 오늘 콜을 잡는 것이다.
          *
          * 위의 `isBootstrapping` 보호는 **부트스트랩이 시작된 뒤**만 막는다.
@@ -178,12 +178,12 @@ router.post("/", (req, res) => {
          */
         if (!session.isRestored) {
             appFilter.isActive = false;
-            console.log(`🚦 [사냥 대기] ${deviceId} — 관제탑이 아직 접속하지 않았습니다. ` +
-                `오늘 필터가 확정되기 전에는 사냥하지 않습니다 (관제웹을 열어 주세요)`);
+            console.log(`🚦 [콜 잡기 대기] ${deviceId} — 관제탑이 아직 접속하지 않았습니다. ` +
+                `오늘 필터가 확정되기 전에는 콜을 잡지 않습니다 (관제웹을 열어 주세요)`);
         }
 
         /**
-         * 🔴 도착지가 정의되지 않은 필터로는 사냥하지 않는다.
+         * 🔴 도착지가 정의되지 않은 필터로는 콜 잡기하지 않는다.
          *
          * 이건 "제한 없음"이 아니라 **"필터가 고장났음"** 이다 —
          * 빈 키워드를 그대로 내보내면 앱이 `isEmpty() → true` 로 읽어
@@ -192,7 +192,7 @@ router.post("/", (req, res) => {
         const blocker = callFilterBlocker(session.activeFilter);
         if (blocker) {
             appFilter.isActive = false;
-            console.log(`🚦 [사냥 보류] ${deviceId} — ${blocker}`);
+            console.log(`🚦 [콜 잡기 보류] ${deviceId} — ${blocker}`);
         }
 
         // logRoadmapEvent("서버", "앱폰에게 최신 필터(dispatchEngineArgs) 및 제어 명령 정보 전달");

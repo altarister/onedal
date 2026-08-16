@@ -17,13 +17,13 @@ export class SettingsRepository {
             vehicleRates: row?.vehicle_rates ? JSON.parse(row.vehicle_rates) : defaultRates,
             agencyFeePercent: row?.agency_fee_percent ?? 23,
             /**
-             * 🔴 2026-08-13 — **`max_discount_percent` 를 `eyeline_pct`(눈높이)가 대체한다.**
+             * 🔴 2026-08-13 — **`max_discount_percent` 를 `eyeline_pct`(콜할인율)가 대체한다.**
              *
              * 둘은 같은 뜻이었다 — "시세에서 얼마나 깎인 것까지 받는가".
              * 같은 뜻의 값이 두 개면 어느 게 진짜인지 화면에서 알 수 없고,
              * 설정에서 하나를 바꿔도 다른 하나가 그대로라 **두 판정이 갈라진다.**
              *
-             * 원천은 필터의 눈높이 하나다 (기사님이 사냥 중에 조작하는 값).
+             * 원천은 필터의 콜할인율 하나다 (기사님이 콜 잡는 중에 조작하는 값).
              * `max_discount_percent` 컬럼은 남아 있지만 **아무도 읽지 않는다.**
              */
             maxDiscountPercent: row?.eyeline_pct ?? 10

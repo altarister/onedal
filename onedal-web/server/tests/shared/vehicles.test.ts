@@ -69,8 +69,8 @@ describe('getEligibleVehicleTypes — 빈차 기준 수행 가능 등급', () =>
 });
 
 describe('getRemainingCapacityTypes — 합짐 잔여 공간 기준', () => {
-    test('🔴 이슈 S 재현 방어: 오토바이 짐을 실어도 사냥 범위가 줄지 않는다', () => {
-        // 수정 전에는 [오토바이] 하나만 반환되어 합짐 사냥이 정지했다.
+    test('🔴 이슈 S 재현 방어: 오토바이 짐을 실어도 콜 잡기 범위가 줄지 않는다', () => {
+        // 수정 전에는 [오토바이] 하나만 반환되어 합짐 콜 잡기가 정지했다.
         const types = getRemainingCapacityTypes('1t', ['오토바이']);
         expect(types).toEqual(expect.arrayContaining(['오토바이', '승용차', '다마스', '라보', '1t']));
     });

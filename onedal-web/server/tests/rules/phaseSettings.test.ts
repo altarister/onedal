@@ -74,7 +74,7 @@ describe('국면 × 필드 표 (§2-4-5)', () => {
         });
     });
 
-    it('명세 표 그대로 — 운행중 (우회와 눈높이만)', () => {
+    it('명세 표 그대로 — 운행중 (우회와 콜할인율만)', () => {
         expect(PHASE_FIELDS.drive).toEqual({
             destinationCity: 'hidden', pickupRadiusKm: 'hidden',
             detourAllowKm: 'input', dropoffRadiusKm: 'hidden', discountPct: 'input',

@@ -21,7 +21,7 @@ export interface SafeCancelWarning {
 }
 
 /**
- * Safety Mode V3: 비상 알림 & 데스밸리 경고 수신 훅
+ * Safety Mode V3: 비상 알림 & 안전취소 경고 수신 훅
  * 
  * emergency-alert: 앱폰이 POST /emergency로 보고한 비상 상황
  * safecancel-warning: 서버 30초 타임아웃 시 관제탑 경고 (안전취소 만료 임박)

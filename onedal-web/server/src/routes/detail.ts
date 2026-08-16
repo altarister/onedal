@@ -121,7 +121,7 @@ router.post("/", async (req, res) => {
 
         /**
          * [Two-Track] 누가 골랐는가 — 앱의 `matchType` 이 진실 공급원이다.
-         *   AUTO   = 매크로가 클릭 → 데스밸리로 서버가 재심사
+         *   AUTO   = 매크로가 클릭 → 안전취소로 서버가 재심사
          *   MANUAL = 기사님이 직접 → 서버는 심사하지 않고 접수만 (기사님 의지 존중)
          *
          * ⚠️ **"100% 신뢰"라고 쓰여 있었지만 그건 사실이 아니었다.**
@@ -191,7 +191,7 @@ router.post("/", async (req, res) => {
              *
              * 그 결과 2026-08-12 에 유령이 남았다. 주소가 없는 콜이라 평가가 실패 →
              * `handleDecision` 이 안 돎 → **DB 에도 안 들어가고 메모리에서도 안 빠졌다.**
-             * MANUAL 은 데스밸리 타이머도(아래 코드가 이 분기에서 `return` 한다)
+             * MANUAL 은 안전취소 타이머도(아래 코드가 이 분기에서 `return` 한다)
              * LIST 이탈 정리도(`devices.ts` 가 MANUAL 을 일부러 제외한다) 없어서
              * **치울 사람이 아무도 없었다.** 관제웹에만 영원히 남았다.
              *
@@ -246,7 +246,7 @@ router.post("/", async (req, res) => {
                         deviceId: payload.deviceId,
                         pickup: pendingOrder.pickup,
                         dropoff: pendingOrder.dropoff,
-                        message: "⚠️ 30초 데스밸리!",
+                        message: "⚠️ 30초 안전취소!",
                         timestamp: new Date().toISOString(),
                     });
                 }

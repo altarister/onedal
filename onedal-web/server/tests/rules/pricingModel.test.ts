@@ -11,7 +11,7 @@ import {
 /**
  * 🔴 2026-08-13 — 단가 판정 모델 (docs/필터_재설계_명세.md)
  *
- * 기사님 확정: *"통과 = 요금 ≥ 배송거리 × 단가(차종) × (1 − 눈높이)"*
+ * 기사님 확정: *"통과 = 요금 ≥ 배송거리 × 단가(차종) × (1 − 콜할인율)"*
  * 모든 단계(첫짐·합짐·관내·복귀)가 같은 식이다.
  *
  * 이 테스트는 명세의 숫자와 파생 규칙을 고정한다 — 값이 바뀌면
@@ -63,14 +63,14 @@ describe('단가 판정 모델 — 명세 고정', () => {
         expect(slotsUsedOf([null, undefined])).toBe(8);
     });
 
-    it('눈높이 → 하한 단가: -10% 면 1t 은 693원/km (770 × 0.9)', () => {
+    it('콜할인율 → 하한 단가: -10% 면 1t 은 693원/km (770 × 0.9)', () => {
         const floors = rateFloorsFrom(10);
         expect(floors['1t']).toBe(693);
         expect(floors['오토바이']).toBe(485);   // 539 × 0.9 = 485.1 → 485
         expect(floors['다마스']).toBe(554);     // 616 × 0.9 = 554.4 → 554
     });
 
-    it('눈높이 0(시세) 이면 하한 = 실수령 시세 그대로', () => {
+    it('콜할인율 0(시세) 이면 하한 = 실수령 시세 그대로', () => {
         expect(rateFloorsFrom(0)).toEqual(NET_RATE_PER_KM);
     });
 
@@ -88,7 +88,7 @@ describe('단가 판정 모델 — 명세 고정', () => {
         expect(rateFloorsFrom(0, { '1t': 1000 }, 0)['1t']).toBe(1000);
     });
 
-    it('눈높이 "전부"(100) 면 전 차종 하한 0 — 금액 무관 통과', () => {
+    it('콜할인율 "전부"(100) 면 전 차종 하한 0 — 금액 무관 통과', () => {
         const floors = rateFloorsFrom(EYELINE_ALL);
         for (const v of Object.keys(NET_RATE_PER_KM)) {
             expect(floors[v]).toBe(0);

@@ -83,7 +83,7 @@ describe('국면별 설정 — 화면은 표를 읽는다', () => {
  *   ① 요약줄 버튼에는 confirm 이 있는데 팝업 버튼에는 없어서, 기사님이
  *      *"필터가 쉽게 바뀌면 오작동"* 이라며 넣은 확인 절차를 우회했다
  *   ② 전환 버튼이 `onClose()` 를 불러 **저장 안 한 값을 조용히 버렸다** —
- *      반경을 고치고 전환하면 화면의 숫자와 실제 사냥 기준이 달라진다
+ *      반경을 고치고 전환하면 화면의 숫자와 실제 콜 잡기 기준이 달라진다
  */
 describe('국면 전환 — 입구는 요약줄 하나', () => {
 
@@ -142,14 +142,14 @@ describe('국면 전환 — 반경은 국면 설정만이 정한다', () => {
 });
 
 /**
- * 🔴 회랑은 **반경이 바뀌면 다시 그려야 한다.**
+ * 🔴 경유은 **반경이 바뀌면 다시 그려야 한다.**
  *
  * 숫자만 바꾸고 지역 목록을 그대로 두면 "경유 5km" 라고 적힌 채 옛 1km 목록으로 거른다.
  * 조용히 틀리는 종류라 눈치채기까지 오래 걸린다.
  */
-describe('회랑 갱신 — 구현은 하나여야 한다', () => {
+describe('경유 갱신 — 구현은 하나여야 한다', () => {
 
-    it('국면 저장·국면 전환 둘 다 회랑을 다시 그린다', () => {
+    it('국면 저장·국면 전환 둘 다 경유을 다시 그린다', () => {
         const save = fm.slice(fm.indexOf('export function savePhaseSettings'), fm.indexOf('export const recalculateDetourFilter'));
         expect(save).toMatch(/refreshDetourIfNeeded/);
 
@@ -183,10 +183,10 @@ describe('회랑 갱신 — 구현은 하나여야 한다', () => {
         expect(handlers).toMatch(/recalculateDetourFilter\(/);
     });
 
-    it('회랑을 부르는 자리가 늘어나도 계산은 filterManager 한 곳이다', () => {
+    it('경유을 부르는 자리가 늘어나도 계산은 filterManager 한 곳이다', () => {
         // dispatchEngine 에 남은 getDetourRegions 호출은 syncDetourFilter(지나온 구간 잘라내기)
         // 하나뿐이다. 그건 "경로가 바뀌었을 때"의 자동 갱신이라 목적이 다르다 —
-        // 늘어나면(2개 이상) 회랑 계산이 또 갈라지기 시작한 것이다.
+        // 늘어나면(2개 이상) 경유 계산이 또 갈라지기 시작한 것이다.
         const engine = codeOnly(read(join(SERVER, 'services/dispatchEngine.ts')));
         expect((engine.match(/getDetourRegions\(/g) || []).length).toBe(1);
     });

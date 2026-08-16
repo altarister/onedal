@@ -37,7 +37,7 @@ describe('deriveDispatchPhase — 진행 중 콜 수로부터 단계 파생', ()
 
 describe('🔴 이슈 W 재현 방어 — 재시작 후 진행 중 3건이 있는 상황', () => {
     // 2026-08-09 실제 상황: 서버 재시작 후 DB에 오토바이 3건이 진행 중인데
-    // 필터는 STANDBY / isSharedMode=false 로 남아 회랑 검사가 꺼진 채 사냥이 돌았다.
+    // 필터는 STANDBY / isSharedMode=false 로 남아 경유 검사가 꺼진 채 콜 잡기가 돌았다.
     const loaded = ['오토바이', '오토바이', '오토바이'];
 
     test('복구 후 단계는 STANDBY가 아니라 GATHERING이어야 한다', () => {

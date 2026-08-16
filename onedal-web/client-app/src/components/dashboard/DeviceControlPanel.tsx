@@ -61,7 +61,7 @@ function DeviceRow({
             filterLabel = '수동 대기';
             filterColor = 'bg-surface-alt text-text-muted border-border';
         } else {
-            // 기기가 AUTO 모드일 때만 전역 사냥 페이즈를 따라갑니다.
+            // 기기가 AUTO 모드일 때만 전역 콜 잡기 페이즈를 따라갑니다.
             const phase = currentFilter.dispatchPhase || 'STANDBY';
             const action = currentFilter.driverAction || 'WAITING';
 

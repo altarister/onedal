@@ -92,10 +92,10 @@ export function useOrderEngine() {
         // ※ `new-order` 리스너 제거됨 (Phase 0): 유일한 발신처였던 레거시 `POST /api/orders`가
         //    삭제되어 이 이벤트는 더 이상 발생하지 않습니다.
 
-        // 1단계: 1차 선빵 수신 (BASIC) — 닫기/취소 버튼 노출
+        // 1단계: 1차 선점 수신 (BASIC) — 닫기/취소 버튼 노출
         const onOrderEvaluating = (secured: SecuredOrder) => {
             logRoadmapEvent("웹", `🟢 [웹 수신] order-evaluating | ID: ${secured.id} | 기기: ${secured.capturedDeviceId} | ${secured.dropoff}`, "관제대시보드");
-            logRoadmapEvent("웹", `확정페이지 진입 (선빵 수신으로 상세 모드 구동)`, "관제대시보드");
+            logRoadmapEvent("웹", `확정페이지 진입 (선점 수신으로 상세 모드 구동)`, "관제대시보드");
             logRoadmapEvent("웹", "PinnedRoute 컴포넌트에 빈 레이아웃(평가중) 렌더링 및 하단 결재버튼 전체 딤드(비활성) 처리", "관제대시보드");
             soundManager.playBeep();
 

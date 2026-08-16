@@ -17,7 +17,7 @@ const codeOnly = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/
  *   앱   — `LIST` · `LIST_COMPLETED` 둘 다 "리스트 복귀"로 보고 세션을 리셋한다
  *   서버 — `screenContext === 'LIST'` **하나만** 인정했다
  * 그래서 완료 리스트로 빠져나가면 서버가 콜을 계속 쥐었고, 관제탑 카드가 남고
- * `isActive` 도 꺼진 채라 **사냥이 통째로 멈췄다.**
+ * `isActive` 도 꺼진 채라 **콜 잡기가 통째로 멈췄다.**
  */
 describe('유령 카드 — "리스트로 돌아왔다"의 정의는 하나다', () => {
 
@@ -52,7 +52,7 @@ describe('유령 카드 — "리스트로 돌아왔다"의 정의는 하나다',
     });
 
     it('MANUAL 콜은 정리하지 않는다 — 규칙이다 (버그가 아니다)', () => {
-        // CLAUDE.md: "MANUAL 콜은 심사하지 않는다 … 데스밸리도 LIST 이탈 정리도 없는 건 설계다"
+        // CLAUDE.md: "MANUAL 콜은 심사하지 않는다 … 안전취소도 LIST 이탈 정리도 없는 건 설계다"
         expect(devices).toMatch(/startsWith\("MANUAL"\)/);
     });
 });
@@ -164,13 +164,13 @@ describe('관제웹 로그 — updater 안에 부작용을 넣지 않는다', ()
 });
 
 /**
- * 🔴 **유령 카드의 쌍둥이 — 사냥이 죽은 채로 남던 문제** (2026-08-14 실측)
+ * 🔴 **유령 카드의 쌍둥이 — 콜 잡기가 죽은 채로 남던 문제** (2026-08-14 실측)
  *
  * 기사님이 자동으로 콜을 잡는 중에 앱을 손으로 만져 리스트로 빠져나왔다. 서버 로그:
  *      22:03:46  콜 선점 → isActive = false   (결재 날 때까지 다른 콜 안 물게 — 정상)
  *      22:04:07  🚀 화면 이탈 감지 → 강제 취소 → 카드 삭제        ✅
  *                🔴 그런데 isActive 를 되돌리지 않았다
- *      그 뒤     isActive = false 그대로 → **사냥이 죽은 채로 남았다**
+ *      그 뒤     isActive = false 그대로 → **콜 잡기가 죽은 채로 남았다**
  *
  * 카드는 사라졌으니 화면에는 아무 표시도 없다. 왜 콜이 안 잡히는지 알 방법이 없다 —
  * **유령 카드보다 나쁘다.**
@@ -179,7 +179,7 @@ describe('관제웹 로그 — updater 안에 부작용을 넣지 않는다', ()
  * 결재를 거치지 않는 취소 경로 셋(화면 이탈·타임아웃·비상)이 그걸 빠뜨렸다.
  * → 취소 경로마다 켜지 않는다. **"선점 중인 콜이 없다"는 데이터에서 파생시킨다.**
  */
-describe('사냥 재개 — 끄는 곳이 있으면 켜는 곳도 있다', () => {
+describe('콜 잡기 재개 — 끄는 곳이 있으면 켜는 곳도 있다', () => {
 
     const fm = codeOnly(read('state/filterManager.ts'));
     const engine = codeOnly(read('services/dispatchEngine.ts'));
@@ -198,7 +198,7 @@ describe('사냥 재개 — 끄는 곳이 있으면 켜는 곳도 있다', () =>
         expect(inv).not.toMatch(/pendingOrdersData\.size === 0/);
     });
 
-    it('취소 경로가 각자 켜지 않는다 — 하나를 빠뜨리면 사냥이 죽는다', () => {
+    it('취소 경로가 각자 켜지 않는다 — 하나를 빠뜨리면 콜 잡기가 죽는다', () => {
         const fn = engine.slice(engine.indexOf('export function forceCancelEvaluatingOrder'));
         const body = fn.slice(0, fn.indexOf('\n}'));
         expect(body).not.toMatch(/isActive: true/);

@@ -140,7 +140,7 @@ export default function CallDeck({ orders, renderCard, records }: Props) {
     }, [idsKey, orders, curId]);
 
     /**
-     * 새로 들어온 **평가중(데스밸리) 콜로 자동 이동**한다.
+     * 새로 들어온 **평가중(안전취소) 콜로 자동 이동**한다.
      *
      * 기사님: *"추가 합짐이 나오면 전화 중이라도 콜을 잡을지 말지를 내가 인지해야 하니까
      * 최근으로 스와이프해 줘야 할 것 같아."*

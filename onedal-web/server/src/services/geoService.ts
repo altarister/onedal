@@ -53,7 +53,7 @@ export function initGeoService() {
                  * 실측: `용인 1km` 42개 동 버퍼링에 **1415ms**, 10km 는 530ms.
                  *
                  * 필터의 최소 단위가 읍/면/동이라 200m 오차는 결과를 바꾸지 않는다.
-                 * 간소화 후: 같은 연산이 **13ms** 다 (100배). 회랑 계산이 이미 쓰던 수법이다.
+                 * 간소화 후: 같은 연산이 **13ms** 다 (100배). 경유 계산이 이미 쓰던 수법이다.
                  */
                 try { f.simplified = turf.simplify(f, { tolerance: 0.002, highQuality: false }); }
                 catch { f.simplified = f; }
@@ -82,7 +82,7 @@ export function initGeoService() {
  *
  *    수도권 안에만 **같은 이름의 동이 97개** 있다. 그래서 파주 필터에
  *    `신촌동`(서울 서대문구 · 성남 수정구에도 있다) · `당하동`(인천 서구) ·
- *    `군내면`(포천시) 콜이 그대로 통과했다. 회랑 밖인데 꿀콜로 보인 것이다.
+ *    `군내면`(포천시) 콜이 그대로 통과했다. 경유 밖인데 꿀콜로 보인 것이다.
  */
 export function cityAliases(parentName: string): string[] {
     const out = new Set<string>([parentName]);
@@ -100,7 +100,7 @@ export function cityAliases(parentName: string): string[] {
 }
 
 /**
- * 주어진 카카오 경로(Polyline)에 맞춰 반경(detourRadiusKm)만큼의 회랑(Detour) 폴리곤을 시뮬레이션하고,
+ * 주어진 카카오 경로(Polyline)에 맞춰 반경(detourRadiusKm)만큼의 경유(Detour) 폴리곤을 시뮬레이션하고,
  * 하차 거점(마지막 좌표)에 대해 (destinationRadiusKm)만큼의 넓은 원 폴리곤을 시뮬레이션하여 두 폴리곤을 합병한 뒤,
  * 그 영역에 찍힌 모든 읍/면/동 행정구역명 키워드를 추출해 반환합니다.
  */
@@ -111,9 +111,9 @@ export interface DetourRegions {
     /**
      * 동마다 **경로 몇 km 지점인가** (출발점 기준 누적 거리).
      *
-     * 🔴 이게 있으면 이동할 때 회랑을 **다시 그리지 않아도 된다.**
+     * 🔴 이게 있으면 이동할 때 경유을 **다시 그리지 않아도 된다.**
      *    지나온 구간 제거가 "숫자 비교"가 되기 때문이다 — 실측 173ms → 0.14ms.
-     *    키워드와 **같은 입력에서 같이** 만든다. 따로 만들면 갈라진다(회랑 4벌 사고).
+     *    키워드와 **같은 입력에서 같이** 만든다. 따로 만들면 갈라진다(경유 4벌 사고).
      */
     progressKm: Record<string, number>;
 }
@@ -135,7 +135,7 @@ export function getDetourRegions(polyline: Array<{x: number; y: number}>, detour
         return null;
     }
 
-    // 2. 경로 주변 두께(Buffer) 생성 -> 터널/회랑 폴리곤 완성
+    // 2. 경로 주변 두께(Buffer) 생성 -> 터널/경유 폴리곤 완성
     let detourPolygon: any;
     try {
         const buffRadius = detourRadiusKm <= 0 ? 0.05 : detourRadiusKm; 
@@ -147,7 +147,7 @@ export function getDetourRegions(polyline: Array<{x: number; y: number}>, detour
             const destFeature = turf.point(lastCoord);
             const destPolygon = turf.buffer(destFeature, destinationRadiusKm, { units: 'kilometers' });
             
-            // 회랑 폴리곤과 하차 반경 폴리곤을 하나로 합침
+            // 경유 폴리곤과 하차 반경 폴리곤을 하나로 합침
             const polygons: Feature<Polygon | MultiPolygon>[] = [];
             if (detourPolygon) polygons.push(detourPolygon as Feature<Polygon | MultiPolygon>);
             if (destPolygon) polygons.push(destPolygon as Feature<Polygon | MultiPolygon>);
@@ -164,7 +164,7 @@ export function getDetourRegions(polyline: Array<{x: number; y: number}>, detour
     }
     if (!detourPolygon) return null;
 
-    // 🚀 [최적화] 완성된 최종 회랑 폴리곤의 Bounding Box를 우선 계산
+    // 🚀 [최적화] 완성된 최종 경유 폴리곤의 Bounding Box를 우선 계산
     const detourBbox = turf.bbox(detourPolygon);
 
     // 3. 교차점 검사 (Intersect)
@@ -184,7 +184,7 @@ export function getDetourRegions(polyline: Array<{x: number; y: number}>, detour
      *
      * 하차지 반경은 *경로* 조건이 아니라 *목적지* 조건이다 — "도착지 근처에서 마지막으로
      * 하나 더 줍자". 그런데 진행도로 자르면 **도착이 가까울수록 그 동네들이 먼저 사라진다.**
-     * 시뮬레이션에서 경로 끝에 다다르자 회랑이 1개까지 줄었다. 정확히 필요한 순간에 사라진 것이다.
+     * 시뮬레이션에서 경로 끝에 다다르자 경유이 1개까지 줄었다. 정확히 필요한 순간에 사라진 것이다.
      *
      * 그래서 진행도를 `Infinity` 로 준다 — 어디까지 가도 안 빠진다.
      * (하차지 원의 중심은 경로의 마지막 점이다. 위 버퍼 합병이 쓰는 좌표와 같아야 어긋나지 않는다)
@@ -210,7 +210,7 @@ export function getDetourRegions(polyline: Array<{x: number; y: number}>, detour
         }
 
         try {
-            // detour(경로 회랑)와 feature(행정구역 지도)가 1픽셀이라도 겹치면 T
+            // detour(경로 경유)와 feature(행정구역 지도)가 1픽셀이라도 겹치면 T
             if (turf.booleanIntersects(detourPolygon, feature.geometry)) {
                 matchedRegionNames.add(regionName);
                 if (!groupedRegions[parentName]) {
@@ -266,7 +266,7 @@ export interface CityRegions {
     customCityFilters: string[];
 }
 
-/** 시별 묶음에서 별칭을 뽑아 붙인다 — 합짐(회랑)과 첫짐이 **같은 규칙**을 쓰게 하는 지점 */
+/** 시별 묶음에서 별칭을 뽑아 붙인다 — 합짐(경유)과 첫짐이 **같은 규칙**을 쓰게 하는 지점 */
 function withAliases(flat: string[], grouped: Record<string, string[]>): CityRegions {
     const aliases = new Set<string>();
     for (const parent of Object.keys(grouped)) {
@@ -448,10 +448,10 @@ export function getCityRegionsWithRadius(cityName: string, radiusKm: number): Ci
 /**
  * ~~`trimCorridorByProgress`~~ — **삭제했다** (2026-08-14).
  *
- * 이동할 때마다 회랑을 통째로 다시 그리던 함수다(실측 173ms). 그 비용 때문에 2km 마다만
+ * 이동할 때마다 경유을 통째로 다시 그리던 함수다(실측 173ms). 그 비용 때문에 2km 마다만
  * 돌렸고, 정작 `getActivePolyline` 이 죽어 있어서 **한 번도 실행되지 않았다.**
  *
- * 지금은 회랑을 만들 때 동마다 진행도를 같이 기록하고(`DetourRegions.progressKm`),
+ * 지금은 경유을 만들 때 동마다 진행도를 같이 기록하고(`DetourRegions.progressKm`),
  * 이동 시에는 그 숫자만 비교한다 — `filterManager.applyTraveledTrim` (0.14ms).
  * 같은 일을 하는 두 번째 구현을 남겨 두지 않는다.
  */
@@ -476,8 +476,8 @@ export function haversineKm(lat1: number, lng1: number, lat2: number, lng2: numb
  *    **항상 null 을 반환했고**, 지나온 구간 제거가 **한 번도 실행되지 않았다.**
  *    (달리는 내내 이미 지나친 동네의 콜이 필터에 걸려 있었다는 뜻이다)
  *
- * 회랑을 만드는 `syncDetourFilter` 와 **같은 기준**을 쓴다 — 마지막 활성 콜의 경로.
- * 다르면 "회랑을 만든 경로"와 "진행도를 재는 경로"가 어긋나 엉뚱한 동이 빠진다.
+ * 경유을 만드는 `syncDetourFilter` 와 **같은 기준**을 쓴다 — 마지막 활성 콜의 경로.
+ * 다르면 "경유을 만든 경로"와 "진행도를 재는 경로"가 어긋나 엉뚱한 동이 빠진다.
  */
 export function getActivePolyline(session: { myOrders: MyOrder[] }): Array<{x: number; y: number}> | null {
     const active = getActiveCalls(session);
@@ -495,7 +495,7 @@ export function getActivePolyline(session: { myOrders: MyOrder[] }): Array<{x: n
  *    반환했고**, 그래서 하차지 500m 도착 감지가 **한 번도 동작하지 않았다.**
  *    (`driverAction` 이 `UNLOADING` 으로 자동 전환되는 일이 없었다는 뜻이다)
  *
- * 기준은 **경로의 마지막 점**이다. 회랑이 하차지 반경을 그릴 때 쓰는 좌표와 같아야
+ * 기준은 **경로의 마지막 점**이다. 경유이 하차지 반경을 그릴 때 쓰는 좌표와 같아야
  * "도착했다"와 "도착지 주변이다"가 어긋나지 않는다.
  * 경로가 아직 없으면 콜에 실려 온 하차지 좌표로 물러선다.
  */
@@ -519,7 +519,7 @@ export function getLastDropoffCoord(session: { myOrders: MyOrder[] }): {x: numbe
 /** 
  * [마스터 GPS 처리] 관제웹에서 보내온 실시간 GPS(또는 시뮬레이션 GPS)를 기반으로
  * 1. 현재 세션의 위치를 업데이트
- * 2. 2km 이상 이동 시 회랑(Detour Trim) 동적 축소 계산 및 필터 갱신
+ * 2. 2km 이상 이동 시 경유(Detour Trim) 동적 축소 계산 및 필터 갱신
  * 3. 마지막 하차지 500m 이내 도착 시 ARRIVED 상태로 전환
  */
 /** 이만큼 움직였을 때만 위치를 남긴다 (기사님 결정: "이동이 있을 때만") */
@@ -554,7 +554,7 @@ export function processDriverMovement(
      *
      * 🔴 처음에는 `applyFilterCb(userId, {})` 로 파생 재계산을 트리거했는데, 그 안에
      *    *"도착 도시가 비어 있으면 키워드를 지운다"* 는 가지가 있다. 도시를 안 고른 채
-     *    운행하면 **0.5km 마다 회랑이 통째로 지워진다** — 빈 필터는 고장이라 사냥이 멈춘다.
+     *    운행하면 **0.5km 마다 경유이 통째로 지워진다** — 빈 필터는 고장이라 콜 잡기가 멈춘다.
      *    지나온 구간 제거는 파생을 다시 돌 이유가 없다. 전용 통로로 간다 (더 싸기도 하다).
      */
     trimTraveledCb?: (uid: string) => void,
@@ -572,7 +572,7 @@ export function processDriverMovement(
     /**
      * 🔴 **서버가 받은 위치를 남긴다** (2026-08-14 신설).
      *
-     * 그전까지 이 줄은 **검증도 로그도 없이** 덮어쓰기만 했다. 위치는 회랑·도착 감지·경로의
+     * 그전까지 이 줄은 **검증도 로그도 없이** 덮어쓰기만 했다. 위치는 경유·도착 감지·경로의
      * **공통 입력**인데 무엇이 들어왔는지 기록이 없어, D 그룹(시뮬레이터 순간이동 · 파이프 둘 ·
      * 11669km/h)은 확인 자체가 불가능했다. 진행도 로그는 설계상 단조라 증거가 못 된다.
      *
@@ -611,10 +611,10 @@ export function processDriverMovement(
         /**
          * [1] 지나온 구간 제거 — **0.5km 마다.**
          *
-         * 🔴 2026-08-14 에 방식을 바꿨다. 예전에는 여기서 회랑을 **통째로 다시 그렸고**
+         * 🔴 2026-08-14 에 방식을 바꿨다. 예전에는 여기서 경유을 **통째로 다시 그렸고**
          *    (`trimCorridorByProgress`, 실측 **173ms**) 그 비용 때문에 2km 로 띄엄띄엄 돌렸다.
          *
-         *    이제 회랑을 만들 때 동마다 **경로 몇 km 지점인지**를 같이 기록해 두므로
+         *    이제 경유을 만들 때 동마다 **경로 몇 km 지점인지**를 같이 기록해 두므로
          *    (`DetourRegions.progressKm`), 지나온 구간 제거는 **숫자 비교**다 — 0.14ms.
          *    1200배 싸졌으니 촘촘히 돌려도 된다. 촘촘할수록 필터가 실제 위치에 가깝다.
          *

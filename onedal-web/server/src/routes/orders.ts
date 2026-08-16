@@ -3,7 +3,7 @@
  *
  * 다이어그램 대응:
  * - GET  /api/orders       : 대시보드 새로고침 시 기존 콜 목록
- * - POST /api/orders/confirm : 1차 선빵(BASIC) — 즉시 응답
+ * - POST /api/orders/confirm : 1차 선점(BASIC) — 즉시 응답
  * - POST /api/orders/decision: 앱 직통 결재 (KEEP/CANCEL)
  *
  * ※ DETAILED(2차 상세보고)는 /api/orders/detail (detail.ts) 로 분리됨
@@ -63,7 +63,7 @@ router.get("/", requireAuth, (req, res) => {
     }
 });
 
-// POST /confirm: 1차 선빵 (BASIC) — 즉시 응답
+// POST /confirm: 1차 선점 (BASIC) — 즉시 응답
 // 다이어그램 Line 58~62 대응
 router.post("/confirm", (req, res) => {
     try {
@@ -121,7 +121,7 @@ router.post("/confirm", (req, res) => {
         if (io) {
             console.log(`📤 [Socket 푸시] order-evaluating (${pendingOrder.id})`);
             io.to(userId).emit("order-evaluating", pendingOrder);
-            console.log(`⏱️ [1차 선빵 수신] ${pendingOrder.pickup} ➡️ ${pendingOrder.dropoff} (기기: ${payload.deviceId})`);
+            console.log(`⏱️ [1차 선점 수신] ${pendingOrder.pickup} ➡️ ${pendingOrder.dropoff} (기기: ${payload.deviceId})`);
             logRoadmapEvent("서버", "앱폰으로 부터 가로챈 '1차 오더 확정' 요청 받음");
             logRoadmapEvent("서버", "관제탑에게 이 콜을 선점했음(order-evaluating) 정보 전달");
 
@@ -137,7 +137,7 @@ router.post("/confirm", (req, res) => {
              * 예전에는 이 타이머가 바로 위 `if (session.activeFilter.isActive)` **안에** 있었다.
              * 그런데 그 블록은 자기가 `isActive` 를 끈다 — 즉 필터가 꺼진 채로 들어온 확정은
              * **안전망이 아예 안 걸렸다.** 앱이 리스트로 빠져나가면 관제탑 카드가 영원히 남고
-             * `isActive` 도 꺼진 채라 사냥이 통째로 멈춘다.
+             * `isActive` 도 꺼진 채라 콜 잡기가 통째로 멈춘다.
              * MANUAL 콜(기사님이 손으로 잡는 것)은 필터와 무관하게 들어오므로 특히 그랬다.
              *
              * 안전망이 **조건부면 안전망이 아니다.**
@@ -151,12 +151,12 @@ router.post("/confirm", (req, res) => {
                 // 🔴 여기도 상태 목록을 손으로 적고 있었다 (2026-08-14). `shared` 의
                 //    `EVALUATING_STATUSES` 와 값이 같았지만, 한쪽만 늘어나면 갈라진다.
                 if (cached && isEvaluating(cached.status)) {
-                    console.log(`💀 [서버 데스밸리 타이머] 30초 경과 강제 취소 (ID: ${pendingOrder.id}). 현재 상태: ${cached.status}`);
+                    console.log(`💀 [서버 안전취소 타이머] 30초 경과 강제 취소 (ID: ${pendingOrder.id}). 현재 상태: ${cached.status}`);
                     handleDecision(userId, pendingOrder.id, "ORDER_CANCELED", io);
                 }
             }, 30000);
             session.activeTimers.set(`presecured_${pendingOrder.id}`, graceTimer);
-            logRoadmapEvent("서버", "데스밸리 30초 카운트다운 타이머 감시 연산 (취소 가능하게 등록)");
+            logRoadmapEvent("서버", "안전취소 30초 카운트다운 타이머 감시 연산 (취소 가능하게 등록)");
         }
     } catch (error) {
         console.error("Orders Confirm 에러:", error);

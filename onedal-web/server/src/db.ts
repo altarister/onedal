@@ -136,7 +136,7 @@ db.exec(`
 `);
 
 // ═══════════════════════════════════════
-// [5] 콜 사냥용 필터 정보
+// [5] 콜 콜 잡기용 필터 정보
 // ═══════════════════════════════════════
 const defaultRates = JSON.stringify({
     "오토바이": 700, "다마스": 800, "라보": 900, "승용차": 900,
@@ -167,7 +167,7 @@ try {
     // 무시 (테이블이 아직 없는 경우 CREATE TABLE에서 생성됨)
 }
 
-// v7 마이그레이션: eyeline_pct(눈높이) 컬럼 추가 — 단가 판정 모델 (docs/필터_재설계_명세.md)
+// v7 마이그레이션: eyeline_pct(콜할인율) 컬럼 추가 — 단가 판정 모델 (docs/필터_재설계_명세.md)
 // 기본 10 = 시세 대비 -10% 까지 허용. 100 = "전부"(금액 무관).
 try {
     const tableInfo = db.prepare("PRAGMA table_info(user_filters)").all() as Array<{ name: string }>;

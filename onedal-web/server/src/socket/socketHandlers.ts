@@ -25,7 +25,7 @@ import { processDriverMovement, getCityRegionsWithRadius } from "../services/geo
  * `SqliteError` 가 uncaught 로 올라가 **서버 전체가 종료됐다.**
  * (2026-08-10 스모크에서 stop_cargo_reports 의 FK 위반으로 실제 발생)
  *
- * 기사님 운행 중에 이런 일이 나면 사냥이 통째로 멈춘다.
+ * 기사님 운행 중에 이런 일이 나면 콜 잡기가 통째로 멈춘다.
  * 한 오더의 입력이 실패하는 것과 서버가 죽는 것은 전혀 다른 무게다.
  */
 function safeOn(socket: Socket, event: string, handler: (...args: any[]) => any) {
@@ -80,7 +80,7 @@ export function registerSocketHandlers(io: Server) {
         session.lastFilterJson = null;   // 필터도 마찬가지 — 새 화면은 아무것도 모른다
 
         // 날이 바뀌었으면 오늘 필터를 기본 설정으로 되돌린다.
-        // 🔴 부트스트랩보다 **먼저** 해야 한다 — 부트스트랩이 이 필터를 읽어 회랑을 만든다
+        // 🔴 부트스트랩보다 **먼저** 해야 한다 — 부트스트랩이 이 필터를 읽어 경유을 만든다
         ensureBusinessDay(userId, io);
         if (role === "ADMIN") {
             socket.join("admin_room");
@@ -92,7 +92,7 @@ export function registerSocketHandlers(io: Server) {
         // [Phase 6] 필터는 부트스트랩이 끝난 뒤 **완성본으로 한 번만** 보낸다.
         //
         // 예전에는 여기서 곧바로 filter-init 을 쐈는데, 그 시점의 activeFilter 는
-        // 아직 복구 전(첫짐·회랑 없음)이라 관제탑이 첫짐 → 합짐으로 깜빡였고
+        // 아직 복구 전(첫짐·경유 없음)이라 관제탑이 첫짐 → 합짐으로 깜빡였고
         // 앱폰도 그 사이 잘못된 필터를 가져갔다.
         if (!session.isRestored) {
             // 첫 접속: 부트스트랩이 완료 시점에 filter-init 을 룸으로 emit 한다
@@ -171,7 +171,7 @@ export function registerSocketHandlers(io: Server) {
                 phaseSettings: session.phaseSettings,
                 basePhaseSettings: session.basePhaseSettings
             });
-            logRoadmapEvent("서버", `관제탑 요청으로 필터(filter-init) 정보 재전달\n - activeFilter(현재사냥): minFare=${session.activeFilter.minFare}\n - baseFilter(기본설정): minFare=${session.baseFilter.minFare}`);
+            logRoadmapEvent("서버", `관제탑 요청으로 필터(filter-init) 정보 재전달\n - activeFilter(현재 콜 필터): minFare=${session.activeFilter.minFare}\n - baseFilter(기본설정): minFare=${session.baseFilter.minFare}`);
         });
 
         // 프론트에서 필터 변경 시
@@ -196,7 +196,7 @@ export function registerSocketHandlers(io: Server) {
              * 가 changes 에 있으면 거기서 알아서 다시 계산한다).
              */
 
-            // 합짐 모드: 회랑 반경 또는 도착 반경 변경 시
+            // 합짐 모드: 경유 반경 또는 도착 반경 변경 시
             if (session.activeFilter.isSharedMode && (isDetourChanged || isTargetChanged)) {
                 const cRadius = newFilter.detourRadiusKm ?? session.activeFilter.detourRadiusKm ?? DEFAULT_CORRIDOR_RADIUS_KM;
                 const dRadius = newFilter.destinationRadiusKm ?? session.activeFilter.destinationRadiusKm ?? 10;
@@ -462,7 +462,7 @@ export function registerSocketHandlers(io: Server) {
             socket.emit("call-target-ack", result);
         });
 
-        // 🏠 귀가콜: 현재 위치 → 집 주소로 가상 오더 생성 + 회랑 자동 세팅
+        // 🏠 귀가콜: 현재 위치 → 집 주소로 가상 오더 생성 + 경유 자동 세팅
         safeOn(socket, "create-home-return", async (data?: { detourRadiusKm?: number, destinationRadiusKm?: number }) => {
             const result = await createHomeReturn(userId, io, data);
             if (result.success) {

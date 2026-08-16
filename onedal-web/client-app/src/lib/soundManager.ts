@@ -128,7 +128,7 @@ class SoundManager {
     }
 
     /**
-     * 2. 오더 상태 변경 (선빵 수신, 카카오 연산 완료 등) 시 울리는 짧은 비프음
+     * 2. 오더 상태 변경 (선점 수신, 카카오 연산 완료 등) 시 울리는 짧은 비프음
      */
     public async playBeep() {
         try {
@@ -142,11 +142,11 @@ class SoundManager {
     }
 
     /**
-     * 3. 데스밸리/비상 알림 시 울리는 경고 사이렌
+     * 3. 안전취소/비상 알림 시 울리는 경고 사이렌
      */
     public async playEmergencyAlarm() {
         try {
-            // 네이티브 강력한 진동 (데스밸리/비상 상황)
+            // 네이티브 강력한 진동 (안전취소/비상 상황)
             Haptics.notification({ type: NotificationType.Error }).catch(() => {});
             this.emergencyAudio.currentTime = 0;
             await this.emergencyAudio.play();

@@ -316,24 +316,24 @@ export class OrderEvaluator {
         /**
          * 5) 도착지 키워드 검사 (합짐 모드일 때)
          *
-         * 🔴 2026-08-12 — 예전에는 `length > 0` 일 때만 검사했다. 즉 **회랑이 없으면
+         * 🔴 2026-08-12 — 예전에는 `length > 0` 일 때만 검사했다. 즉 **경유이 없으면
          *    검사를 통째로 건너뛰었다.** 앱도 같은 방향으로 열려 있어서
          *    (`isEmpty() → true`) 두 겹이 동시에 무력화됐다.
          *
-         *    회랑을 못 구한 상태는 "어디든 좋다"가 아니라 **"판단할 근거가 없다"** 다.
-         *    데스밸리 30초 안에 근거 없이 KEEP 하면 그대로 똥콜을 안고 간다.
+         *    경유을 못 구한 상태는 "어디든 좋다"가 아니라 **"판단할 근거가 없다"** 다.
+         *    안전취소 30초 안에 근거 없이 KEEP 하면 그대로 똥콜을 안고 간다.
          */
         if (filter.isSharedMode) {
             const keywords = filter.destinationKeywords || [];
             if (keywords.length === 0) {
-                reasons.push(`회랑 미확정 (경로가 아직 안 잡혔습니다)`);
+                reasons.push(`경유 미확정 (경로가 아직 안 잡혔습니다)`);
             } else {
                 const dropoffText = order.dropoff || '';
                 const matched = keywords.some((kw: string) => dropoffText.includes(kw));
                 if (!matched) {
-                    reasons.push(`도착지(${dropoffText.substring(0, 10)}) 회랑 이탈`);
+                    reasons.push(`도착지(${dropoffText.substring(0, 10)}) 경유 이탈`);
                 } else {
-                    pros.push(`도착지 회랑 적중`);
+                    pros.push(`도착지 경유 적중`);
                 }
             }
         }

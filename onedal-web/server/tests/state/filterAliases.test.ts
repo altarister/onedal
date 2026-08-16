@@ -10,7 +10,7 @@ import { initGeoService, cityAliases } from '../../src/services/geoService';
  * 그래서 옛 값이 남아도 무해했다. 이제는 아니다.
  *
  * `startTwoTrack` 은 `destinationKeywords` 만 넘긴다. 스프레드가
- * `customCityFilters` 를 안 건드리므로 **직전 회랑의 별칭이 그대로 남는다.**
+ * `customCityFilters` 를 안 건드리므로 **직전 경유의 별칭이 그대로 남는다.**
  * 엉뚱한 시 목록을 들고 있으면 멀쩡한 투트랙 콜을 전부 걸러낸다 — 조용히.
  *
  * `recalculateDerivedFields` 가 키워드를 받을 때 별칭도 반드시 다시 만들게 했고,
@@ -39,7 +39,7 @@ describe('시 별칭 파생 — 키워드가 바뀌면 별칭도 반드시 같�
      * 투트랙이 정확히 이 경우다 — 키워드만 있고 묶음이 없다.
      * 옛 별칭을 남기느니 비우는 게 낫다. 있지도 않은 근거로 거르는 것이 더 나쁘다.
      */
-    it('🔴 묶음이 없으면 별칭은 빈 배열 — 옛 회랑 별칭을 물려주지 않는다', () => {
+    it('🔴 묶음이 없으면 별칭은 빈 배열 — 옛 경유 별칭을 물려주지 않는다', () => {
         expect(aliasesFromGroups({})).toEqual([]);
     });
 

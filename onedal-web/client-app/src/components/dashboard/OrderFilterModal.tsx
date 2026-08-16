@@ -15,7 +15,7 @@ import { Input } from "../ui/input";
 import { Badge } from "../ui/badge";
 
 /**
- * 눈높이 단계 — 시세 대비 허용 할인 %.
+ * 콜할인율 단계 — 시세 대비 허용 할인 %.
  * "전부"(100)는 금액 무관 통과. 합짐·관내·복귀는 순증 매출이라 여기까지 내려간다.
  */
 const EYELINE_STEPS = [
@@ -35,7 +35,7 @@ const RATE_TABLE_ORDER = ['오토바이', '다마스', '승용차', '라보', '1
  * 기사님: *"아침에 앉아서 하루치를 다 정해 둘 수 있다."*
  *
  * 🔴 목록도 라벨도 `shared` 에서 가져온다. 여기에 또 적으면 국면이 늘거나 이름이 바뀔 때
- *    한쪽만 고쳐진다 (이 레포가 회랑 4벌 · 상태목록 3벌로 이미 당한 사고다).
+ *    한쪽만 고쳐진다 (이 레포가 경유 4벌 · 상태목록 3벌로 이미 당한 사고다).
  */
 const TABS = PHASE_KEYS;
 
@@ -60,13 +60,13 @@ const SECTION: Record<PhaseKey, { title: string; hint: string }> = {
     home:  { title: '집 방향',                hint: '최종 하차지 → 집' },
 };
 
-/** 눈높이 줄의 설명 — 목업 문구 그대로 (운행 중은 목업에 없어 기존 문구 유지) */
+/** 콜할인율 줄의 설명 — 목업 문구 그대로 (운행 중은 목업에 없어 기존 문구 유지) */
 const DIAL_LABEL: Record<PhaseKey, string> = {
-    first: '눈높이 — 시세 대비 허용 할인',
-    merge: '눈높이 — 합짐은 “전부”까지 내려간다',
-    drive: '눈높이 — 이미 가는 길이라 “전부”까지 내려간다',
-    local: '눈높이 — 관내도 같은 판정식',
-    home:  '눈높이 — 복귀도 같은 판정식',
+    first: '콜할인율 — 시세 대비 허용 할인',
+    merge: '콜할인율 — 합짐은 “전부”까지 내려간다',
+    drive: '콜할인율 — 이미 가는 길이라 “전부”까지 내려간다',
+    local: '콜할인율 — 관내도 같은 판정식',
+    home:  '콜할인율 — 복귀도 같은 판정식',
 };
 
 /** 지역 카드 문구 — 목업 그대로. 국면마다 "무엇의 목록인가"가 다르다 */
@@ -117,7 +117,7 @@ const toSettings = (f: PhaseForm, prev: PhaseSettings): PhaseSettings => {
 const mapToForm = (m: Record<PhaseKey, PhaseSettings>): PhaseFormMap =>
     Object.fromEntries(PHASE_KEYS.map(k => [k, toForm(m[k])])) as PhaseFormMap;
 
-/** 위 그리드가 그리는 칸 — **표시 순서**. 눈높이(discountPct)는 전용 UI 가 위에서 그린다 */
+/** 위 그리드가 그리는 칸 — **표시 순서**. 콜할인율(discountPct)는 전용 UI 가 위에서 그린다 */
 const GEO_FIELDS: (keyof PhaseSettings)[] = ['destinationCity', 'pickupRadiusKm', 'detourAllowKm', 'dropoffRadiusKm'];
 
 type TabKey = PhaseKey;
@@ -136,7 +136,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
     /**
      * 🔴 **다섯 국면이 각자 자기 값을 기억한다** (§2-4).
      *
-     * 기사님: *"첫짐 도착반경 5km 로 사냥하다 첫짐을 잡으면 … 저장된 합짐 도착반경 1km 를
+     * 기사님: *"첫짐 도착반경 5km 로 콜을 잡다가 첫짐을 잡으면 … 저장된 합짐 도착반경 1km 를
      * 저장된 값에서 꺼내와 콜을 잡고 싶은 거야."*
      *
      * 예전에는 이 폼이 값 **한 벌**만 들고 있어서, 합짐 탭에서 반경을 고치면
@@ -365,8 +365,8 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
 
     /**
      * 미리보기가 무엇을 그릴지는 **지금 탭**이 정한다.
-     * 경유를 쓰는 탭(합짐·운행중)이면 회랑, 아니면 도착 도시 주변이다.
-     * 예전에는 `isSharedMode`(지금 합짐이냐) 로 갈랐는데, 그러면 첫짐을 사냥하는 중에
+     * 경유를 쓰는 탭(합짐·운행중)이면 경유, 아니면 도착 도시 주변이다.
+     * 예전에는 `isSharedMode`(지금 합짐이냐) 로 갈랐는데, 그러면 첫짐을 콜 잡기하는 중에
      * 합짐 탭을 열어 미리보기를 눌러도 **첫짐 기준**이 그려졌다.
      */
     const previewByDetour = shown.detourAllowKm === 'input';
@@ -378,7 +378,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
     /** 화면에 그릴 지역 그룹 — 미리보기를 눌렀으면 그 결과, 아니면 지금 걸린 것 */
     const regionGroups = Object.entries(previewRegions ?? filter.destinationGroups ?? {});
 
-    /** 지금 탭의 눈높이(단가 할인율) — 국면마다 따로 기억한다 */
+    /** 지금 탭의 콜할인율(단가 할인율) — 국면마다 따로 기억한다 */
     const eyeline = parseFloat(cur.discountPct);
 
     const handleBlacklistChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -404,7 +404,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                     <DialogTitle className="flex items-center gap-2 text-sm font-black">
                         필터 설정
                         <Badge variant="outline" className="bg-info/15 text-info border-info/30 text-[10px] font-bold">
-                            오늘 사냥
+                            오늘 콜 잡기
                         </Badge>
                         {isSharedMode && (
                             <Badge variant="outline" className="bg-warning/15 text-warning border-warning/30 text-[10px] font-bold">
@@ -480,8 +480,8 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                             )}
                         </div>
 
-                        {/* ── 눈높이 — 시세 대비 허용 할인 (docs/필터_재설계_명세.md §2) ──
-                            금액을 입력하지 않는다. 차종별 하한 단가는 눈높이에서 파생된다.
+                        {/* ── 콜할인율 — 시세 대비 허용 할인 (docs/필터_재설계_명세.md §2) ──
+                            금액을 입력하지 않는다. 차종별 하한 단가는 콜할인율에서 파생된다.
                             기사님: "처음에는 시세로 찾고, 콜이 없으면 여기 와서 조금씩 낮춘다" */}
                         <div className="space-y-1.5">
                             <label className="text-xs font-bold text-text-muted">{DIAL_LABEL[tab]}</label>
@@ -643,7 +643,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                         {shown.detourAllowKm === 'input' && (
                             <p className="text-[10px] text-text-muted leading-relaxed">
                                 <b className={TAB_STYLE[tab].text}>경유 허용</b> = 카카오 <b className="text-text-primary">총거리가 늘어나는 만큼</b> (100km → 105km 면 5km).
-                                {cur.detourAllowKm === '0' && ' 0 이면 가는 길 위의 콜만 잡습니다 — 사냥을 멈추는 게 아닙니다.'}
+                                {cur.detourAllowKm === '0' && ' 0 이면 가는 길 위의 콜만 잡습니다 — 콜 잡기를 멈추는 게 아닙니다.'}
                             </p>
                         )}
 
@@ -658,7 +658,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                          *      확인 절차를 이 버튼이 우회했다
                          *   ③ 🔴 **저장 안 한 값을 조용히 버렸다.** 전환 버튼이 `onClose()` 를 부르므로,
                          *      관내 반경을 5 로 고치고 전환을 누르면 5 는 사라지고 서버는 **옛 저장값**으로
-                         *      전환한다. 화면에 보이던 숫자와 실제 사냥 기준이 달라진다.
+                         *      전환한다. 화면에 보이던 숫자와 실제 콜 잡기 기준이 달라진다.
                          *      국면별 저장(§2-4)이 들어오면서 새로 생긴 해악이다
                          *
                          * 국면 전환은 **요약줄 버튼 3개 + confirm** 하나뿐이다 (`OrderFilterStatus`).
@@ -669,7 +669,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                 {/* 목업은 여기가 선택(자동 제외/유지)이지만 서버에는 **자동 제외뿐이다.**
                                     고를 수 없는 것을 고르는 것처럼 그리면 화면이 거짓말을 한다 */}
                                 <div className="h-9 flex items-center px-2 rounded-md bg-surface-alt/30 border border-dashed border-border text-[10px] text-text-muted/80">
-                                    자동으로 제외 — GPS 가 지난 구간은 회랑에서 빠집니다
+                                    자동으로 제외 — GPS 가 지난 구간은 경유에서 빠집니다
                                 </div>
                             </div>
                         )}
@@ -776,7 +776,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                         )}
                     </div>
 
-                    {/* 사냥 모드 통제 버튼 영역 (1열 5버튼 구조) */}
+                    {/* 콜 잡기 모드 통제 버튼 영역 (1열 5버튼 구조) */}
                     <div className="pt-2">
                         <div className="grid grid-cols-3 gap-1.5">
                             {/* 기본 설정 불러오기: DB(baseFilter) 값으로 폼 초기화 */}
@@ -788,10 +788,10 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                 🔄 평소값
                             </Button>
 
-                            {/* 메인 액션: 오늘만 이 조건으로 사냥 (자정에 평소 설정으로 복귀) */}
+                            {/* 메인 액션: 오늘만 이 조건으로 콜 잡기 (자정에 평소 설정으로 복귀) */}
                             <Button
                                 onClick={() => handleSave(false)}
-                                title="오늘만 이 조건으로 사냥합니다 (자정에 평소 설정으로 돌아갑니다)"
+                                title="오늘만 이 조건으로 콜을 잡습니다 (자정에 평소 설정으로 돌아갑니다)"
                                 className="h-11 relative group overflow-hidden rounded-xl bg-gradient-to-r from-success to-success/70 text-white font-black text-[11px] shadow-[0_0_15px_var(--theme-glow-primary)] hover:shadow-[0_0_20px_var(--theme-glow-primary)] transition-all px-1"
                             >
                                 <span className="relative z-10 drop-shadow-md tracking-wider flex flex-col leading-tight">

@@ -20,7 +20,7 @@ describe('pickAutoFocus — 새 콜로 화면을 옮길 것인가', () => {
             .toBe('new');
     });
 
-    it('데스밸리 결재 대기 상태도 대상이다', () => {
+    it('안전취소 결재 대기 상태도 대상이다', () => {
         expect(pickAutoFocus(new Set(['a']), [o('new', 'ORDER_AWAITING_DECISION')])).toBe('new');
     });
 

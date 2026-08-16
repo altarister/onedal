@@ -11,7 +11,7 @@
  *   - APP_CRASH: 앱 비정상 종료 후 재시작
  * 
  * 서버 처리:
- *   1. pendingDecisions 큐에서 해당 orderId 삭제 및 데스밸리 타이머(activeTimers) 해제
+ *   1. pendingDecisions 큐에서 해당 orderId 삭제 및 안전취소 타이머(activeTimers) 해제
  *   2. pendingOrdersData에서 해당 orderId 삭제
  *   3. mainCallState가 해당 orderId면 null로 초기화 + 필터 '첫짐'으로 복원
  *   4. 관제탑에 emergency-alert emit
@@ -68,7 +68,7 @@ router.post("/", async (req, res) => {
         }
 
         clearOrderTimers(session, targetOrderId);
-        console.log(`   ✅ 롱폴링 대응 데스밸리 타이머 무음 해제 완료`);
+        console.log(`   ✅ 롱폴링 대응 안전취소 타이머 무음 해제 완료`);
 
         if (session.pendingOrdersData.has(targetOrderId)) {
             session.pendingOrdersData.delete(targetOrderId);

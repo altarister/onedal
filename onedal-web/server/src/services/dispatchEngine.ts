@@ -43,7 +43,7 @@ export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: 
         targetDeviceId = session.pendingOrdersData.get(orderId)?.capturedDeviceId;
         session.pendingOrdersData.delete(orderId);
     }
-    // [Option B] 결재 큐 및 데스밸리 타이머 청소
+    // [Option B] 결재 큐 및 안전취소 타이머 청소
     if (session.pendingDecisions.has(orderId)) {
         session.pendingDecisions.delete(orderId);
     }
@@ -62,10 +62,10 @@ export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: 
     }
 
     /**
-     * 🔴 사냥 재개(`isActive`)는 **여기서 하지 않는다.**
+     * 🔴 콜 잡기 재개(`isActive`)는 **여기서 하지 않는다.**
      *    `filterManager` 의 불변식이 "선점 중인 콜이 0건이면 켠다"로 파생시킨다 —
      *    취소 경로가 셋(화면 이탈·타임아웃·비상)인데 각자 켜면 하나를 빠뜨린다.
-     *    실제로 2026-08-14 에 이 경로가 빠져 사냥이 죽은 채로 남았다.
+     *    실제로 2026-08-14 에 이 경로가 빠져 콜 잡기가 죽은 채로 남았다.
      */
     updateActiveFilter(userId, {}, io);
 }
@@ -78,8 +78,8 @@ export async function recalculateActiveKakaoRoute(userId: string, io: any) {
     const activeCalls = getActiveCalls(session);
 
     if (activeCalls.length === 0) {
-        // 마지막 콜을 취소·완료해 첫짐 모드로 돌아왔다. 회랑 키워드를 그대로 두면
-        // 이미 끝난 경로 주변만 계속 사냥하게 되므로 도시 기준으로 되돌린다.
+        // 마지막 콜을 취소·완료해 첫짐 모드로 돌아왔다. 경유 키워드를 그대로 두면
+        // 이미 끝난 경로 주변만 계속 콜 잡기하게 되므로 도시 기준으로 되돌린다.
         rebuildDestinationKeywords(userId, io);
         return;
     }
@@ -131,7 +131,7 @@ export async function recalculateActiveKakaoRoute(userId: string, io: any) {
         console.log(`⚠️ [사후 재계산 실패] 경로 연산 중 예외 발생:`, error);
     }
 
-    // [핵심 보강] 갱신된 새 폴리라인을 바탕으로 타겟팅 키워드(회랑) 다시 추출!
+    // [핵심 보강] 갱신된 새 폴리라인을 바탕으로 타겟팅 키워드(경유) 다시 추출!
     syncDetourFilter(userId, io);
 
     if (io) {
@@ -264,10 +264,10 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
 /**
  * `recalculateDetourFilter` 는 **`state/filterManager` 로 옮겼다** (2026-08-14).
  *
- * 국면별 설정(§2-4)이 들어오면서 회랑을 다시 그려야 하는 자리가 셋으로 늘었다 —
+ * 국면별 설정(§2-4)이 들어오면서 경유을 다시 그려야 하는 자리가 셋으로 늘었다 —
  * 관제탑 필터 저장 · **국면별 설정 저장** · **국면 전환**. 뒤의 둘은 `filterManager` 안이라
  * 여기(dispatchEngine)를 부르면 순환 참조가 된다. 그래서 함수를 아래(경계가 낮은 쪽)로 옮겼다.
- * 회랑 계산은 이 레포에서 이미 **4벌**로 갈라진 적이 있다. 두 벌째를 만들지 않는다.
+ * 경유 계산은 이 레포에서 이미 **4벌**로 갈라진 적이 있다. 두 벌째를 만들지 않는다.
  */
 export { recalculateDetourFilter } from "../state/filterManager";
 
@@ -286,13 +286,13 @@ export const syncDetourFilter = (userId: string, io: any) => {
      *
      * 관제웹은 수동 조작 때 `userOverrides: true` 를 보내는데 **서버가 한 번도 안 읽었다.**
      * 타입 주석에 "서버 덮어쓰기 방지용"이라 적혀 있는데 방지가 안 됐다 —
-     * 회랑을 손으로 좁혀 놔도 다음 경로 갱신 한 번에 되돌아갔다.
+     * 경유을 손으로 좁혀 놔도 다음 경로 갱신 한 번에 되돌아갔다.
      *
      * 조용히 넘어가지 않는다. 고정됐다는 사실을 로그와 화면에 남긴다.
-     * (사냥 사이클이 끝나 STANDBY 로 돌아가면 baseFilter 로 리셋되며 자동 해제된다)
+     * (콜 잡기 사이클이 끝나 STANDBY 로 돌아가면 baseFilter 로 리셋되며 자동 해제된다)
      */
     if (session.activeFilter.userOverrides) {
-        console.log(`🔒 [회랑 고정] 기사님이 손으로 고친 필터라 자동 갱신을 건너뜁니다 ` +
+        console.log(`🔒 [경유 고정] 기사님이 손으로 고친 필터라 자동 갱신을 건너뜁니다 ` +
             `(키워드 ${(session.activeFilter.destinationKeywords || []).length}개 유지)`);
         return;
     }
@@ -302,7 +302,7 @@ export const syncDetourFilter = (userId: string, io: any) => {
          * 🔴 `getEffectiveDetourRadius` 는 정의만 되어 있고 **호출하는 곳이 없었다.**
          *    "이 함수를 통해서만 detourRadiusKm 를 결정하므로 하드코딩이 원천 차단됩니다"
          *    라는 주석이 붙어 있었는데, 정작 여기서 `?? 10` 을 직접 쓰고 있었다.
-         *    그래서 **운행 중(DELIVERING)에도 회랑이 안 좁혀졌다** — 우회 금지가 안 걸린 것이다.
+         *    그래서 **운행 중(DELIVERING)에도 경유이 안 좁혀졌다** — 우회 금지가 안 걸린 것이다.
          */
         const cRadius = getEffectiveDetourRadius(
             session.activeFilter.dispatchPhase ?? 'STANDBY',
@@ -412,12 +412,12 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
             }
         }
 
-        // ✅ mainCallState/subCalls 할당 완료 후 회랑 재계산 (경로 기반 키워드 갱신)
+        // ✅ mainCallState/subCalls 할당 완료 후 경유 재계산 (경로 기반 키워드 갱신)
         let destinationKeywords = session.activeFilter.destinationKeywords;
         if (cachedOrder && cachedOrder.routePolyline) {
             syncDetourFilter(userId, io);
             destinationKeywords = session.activeFilter.destinationKeywords;
-            console.log(`🗺️ [회랑 갱신] KEEP 후 destinationKeywords ${destinationKeywords.length}개로 재계산 완료`);
+            console.log(`🗺️ [경유 갱신] KEEP 후 destinationKeywords ${destinationKeywords.length}개로 재계산 완료`);
         }
 
         // DB에 영구 저장 (status: confirmed) 및 places/orderStops 기록 (v5 스키마)
@@ -486,7 +486,7 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
         //
         // [Phase 3 / 이슈 S] 이전에는 getSharedModeVehicleTypes(첫 짐 차종) 하나만 보고
         // "첫 짐 이하 등급"을 반환했다. 그 결과 오토바이급(가장 작은) 콜을 잡으면
-        // 허용 차종이 [오토바이] 하나로 줄어 합짐 사냥이 사실상 정지했다.
+        // 허용 차종이 [오토바이] 하나로 줄어 합짐 콜 잡기가 사실상 정지했다.
         // 짐이 작을수록 공간이 더 남는데 범위가 좁아지는 역설이었다.
         // 이제 내 차 용량에서 실제 적재분을 빼서 계산한다.
         const routingOpts = SettingsRepository.getKakaoRoutingOptions(userId);
@@ -497,7 +497,7 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
         console.log(`🚚 [적재 용량] 내 차: ${myVehicle} | 실은 짐: [${loadedVehicles.join(', ')}] → 추가 가능 차종: [${sharedVehicleTypes.join(', ')}]`);
 
         // [자체 리뷰 C] 차종을 인식하지 못하면 보수적으로 "내 차를 가득 채운 것"으로 계산한다.
-        // 안전한 방향이지만 그만큼 합짐 사냥 범위가 좁아지므로, 조용히 넘어가면 안 된다.
+        // 안전한 방향이지만 그만큼 합짐 콜 잡기 범위가 좁아지므로, 조용히 넘어가면 안 된다.
         // 파싱 실패율이 높다면 파서를 고쳐야 하므로 눈에 띄게 남긴다.
         const unknownVehicles = loadedVehicles.filter(v => !normalizeVehicleType(v));
         if (unknownVehicles.length > 0) {
@@ -570,18 +570,18 @@ export async function evaluateNewOrder(userId: string, securedOrder: SecuredOrde
  * 예전에는 이 과정이 세 군데로 흩어져 각자 다른 시점에 돌았다.
  *   getUserSession(동기·DB로드+지리연산) / restoreAndRecalculateSession(비동기) / syncDetourFilter
  * 소켓 핸들러가 복구를 await 하지 않고 곧바로 filter-init 을 쏘는 바람에
- *   ① 앱폰이 1~3초간 "첫짐 필터(회랑 없음)"를 받아 경로 이탈 콜을 잡을 수 있었고
+ *   ① 앱폰이 1~3초간 "첫짐 필터(경유 없음)"를 받아 경로 이탈 콜을 잡을 수 있었고
  *   ② 관제탑은 첫짐 → 합짐으로 깜빡였으며
  *   ③ destinationKeywords 를 4곳이 각자 만들어 진실 공급원이 없었다.
  *
- * 이제 아래 순서를 한 함수가 책임진다. **⑥ 이전에는 앱폰에 사냥을 시키지 않는다.**
+ * 이제 아래 순서를 한 함수가 책임진다. **⑥ 이전에는 앱폰에 콜 잡기를 시키지 않는다.**
  *
  *   ① 세션 확보    DB에서 baseFilter 로드 (지리 연산 없음)
  *   ② 데이터 로드   오늘의 활성 콜 복구 → myOrders
  *   ③ 노선 산출    카카오 Solo / Detour+TSP → routePolyline
  *   ④ 상태 파생    dispatchPhase · allowedVehicleTypes · isSharedMode
- *   ⑤ 회랑 도출    폴리라인 기준(활성 콜 있음) 또는 destinationCity 기준(없음)
- *   ⑥ 필터 확정    activeFilter 완성 → 관제탑 filter-init 1회 + 앱폰 사냥 재개
+ *   ⑤ 경유 도출    폴리라인 기준(활성 콜 있음) 또는 destinationCity 기준(없음)
+ *   ⑥ 필터 확정    activeFilter 완성 → 관제탑 filter-init 1회 + 앱폰 콜 잡기 재개
  */
 export async function bootstrapUserSession(userId: string, io: any): Promise<void> {
     const session = getUserSession(userId);          // ① (지리 연산 없이 baseFilter 만)
@@ -589,7 +589,7 @@ export async function bootstrapUserSession(userId: string, io: any): Promise<voi
 
     session.isBootstrapping = true;                  // 이 순간부터 앱폰은 isActive=false 를 받는다
     const t0 = Date.now();
-    logRoadmapEvent("서버", "[Bootstrap] 시작 — 필터 확정 전까지 앱폰 사냥 일시 정지");
+    logRoadmapEvent("서버", "[Bootstrap] 시작 — 필터 확정 전까지 앱폰 콜 잡기 일시 정지");
 
     try {
         /**
@@ -616,18 +616,18 @@ export async function bootstrapUserSession(userId: string, io: any): Promise<voi
         }
 
         await restoreAndRecalculateSession(userId, io);   // ②③④ (DB 로드 → 카카오 노선 → 상태 파생)
-        rebuildDestinationKeywords(userId, io);           // ⑤ (활성 콜 유무로 회랑/도시 분기)
+        rebuildDestinationKeywords(userId, io);           // ⑤ (활성 콜 유무로 경유/도시 분기)
     } catch (err) {
         console.error("🚨 [Bootstrap] 실패:", err);
     } finally {
-        // ⑥ 성공하든 실패하든 반드시 잠금을 푼다. 여기서 막히면 사냥이 영영 멈춘다.
+        // ⑥ 성공하든 실패하든 반드시 잠금을 푼다. 여기서 막히면 콜 잡기가 영영 멈춘다.
         session.isBootstrapping = false;
     }
 
     const f = session.activeFilter;
     console.log(`✅ [Bootstrap 완료] ${Date.now() - t0}ms | phase=${f.dispatchPhase} 합짐=${f.isSharedMode} ` +
         `차종=${(f.allowedVehicleTypes || []).length}종 키워드=${(f.destinationKeywords || []).length}개`);
-    logRoadmapEvent("서버", `[Bootstrap] 완료 (${Date.now() - t0}ms) — 관제탑에 확정 필터 1회 전송, 앱폰 사냥 재개`);
+    logRoadmapEvent("서버", `[Bootstrap] 완료 (${Date.now() - t0}ms) — 관제탑에 확정 필터 1회 전송, 앱폰 콜 잡기 재개`);
 
     if (io) {
         io.to(userId).emit("filter-init", {
@@ -643,15 +643,15 @@ export async function bootstrapUserSession(userId: string, io: any): Promise<voi
  * **`destinationKeywords` 를 만드는 유일한 함수.**
  *
  * 예전에는 이 값을 네 군데(userSessionStore 세션 생성 / 부트스트랩 / syncDetourFilter /
- * 필터 변경)가 각자 만들었고, 그래서 "지금 어느 지역을 사냥 중인가"에 대한 답이
+ * 필터 변경)가 각자 만들었고, 그래서 "지금 어느 지역을 콜 잡는 중인가"에 대한 답이
  * 호출 순서에 따라 달라졌다. 이제 갈래는 여기 하나뿐이다.
  *
- *   활성 콜 있음 → 주행 경로 주변 회랑 (syncDetourFilter)
+ *   활성 콜 있음 → 주행 경로 주변 경유 (syncDetourFilter)
  *   활성 콜 없음 → 기사님이 설정한 destinationCity + 반경
  *
  * 특히 **마지막 콜을 취소해 활성 0건이 됐을 때**가 중요하다. 예전에는
  * recalculateActiveKakaoRoute 가 `activeCalls.length === 0`이면 곧바로 return 해서
- * 회랑 키워드가 그대로 남았고, 첫짐 모드로 돌아왔는데도 옛 경로 주변만 사냥했다.
+ * 경유 키워드가 그대로 남았고, 첫짐 모드로 돌아왔는데도 옛 경로 주변만 콜 잡기했다.
  */
 export function rebuildDestinationKeywords(userId: string, io: any): void {
     const session = getUserSession(userId);
@@ -843,8 +843,8 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
         //
         // 이전에는 myOrders와 궤적만 복구하고 activeFilter는 손대지 않아,
         // 진행 중인 콜이 3건 있는데도 필터는 STANDBY(첫짐) / isSharedMode=false 인
-        // 상태로 사냥이 계속되었다. 그 결과
-        //   - OrderEvaluator가 도착지 회랑 검사를 건너뛰어 경로 이탈 콜도 통과
+        // 상태로 콜 잡기가 계속되었다. 그 결과
+        //   - OrderEvaluator가 도착지 경유 검사를 건너뛰어 경로 이탈 콜도 통과
         //   - 첫짐 절대하한가(minFare)가 잘못 적용
         //   - 남은 적재 공간을 무시한 차종 허용 (라보 2건 만재여도 1t 콜을 잡으러 감)
         //   - KEEP 시 isShared=0 으로 기록되어 통계 왜곡 (이슈 R)
@@ -872,12 +872,12 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
                 allowedVehicleTypes: getRemainingCapacityTypes(myVehicle, loadedVehicles),
             }, io);
 
-            // 회랑 키워드는 부트스트랩 ⑤(rebuildDestinationKeywords)가 일괄 처리한다.
+            // 경유 키워드는 부트스트랩 ⑤(rebuildDestinationKeywords)가 일괄 처리한다.
             // 여기서 또 계산하면 같은 지리 연산을 두 번 돌린다.
 
             const f = session.activeFilter;
             console.log(`🔄 [상태 복구] 진행 중 ${restoredActive.length}건 → phase=${phase}, 합짐=ON, ` +
-                `추가 가능 차종=[${(f.allowedVehicleTypes || []).join(', ')}], 회랑 키워드=${(f.destinationKeywords || []).length}개`);
+                `추가 가능 차종=[${(f.allowedVehicleTypes || []).join(', ')}], 경유 키워드=${(f.destinationKeywords || []).length}개`);
             logRoadmapEvent("서버", `[Session DB Load] 진행 중 ${restoredActive.length}건 기준으로 배차 상태 재구성 (${phase}/합짐)`);
 
             // 관제탑에 복구 사실을 알린다.
@@ -926,7 +926,7 @@ export interface MilestoneResult {
  *   ② 역행 방지 하차한 뒤 상차 보고가 늦게 도착해도 상태를 되돌리지 않는다
  *   ③ 상태 전이 ORDER_CONFIRMED → ORDER_PICKED_UP → ORDER_DELIVERED
  *   ④ 적재 회복 DELIVERED 는 종결 상태이므로 getActiveCalls()에서 빠지고,
- *              경로 재계산이 잔여 용량과 회랑을 다시 넓혀 준다
+ *              경로 재계산이 잔여 용량과 경유을 다시 넓혀 준다
  *   ⑤ 출처 기록 나중에 자동 감지 정확도를 측정할 유일한 근거
  */
 /**
@@ -1028,8 +1028,8 @@ export async function reportMilestone(
     console.log(`📦 [${MILESTONE_LABEL[milestone]}] ${orderId.slice(0, 8)} (${source})${nextStatus ? ` → ${nextStatus}` : ''}${errText}`);
     logRoadmapEvent("서버", `[마일스톤] ${MILESTONE_LABEL[milestone]} 수신 (${source})${errText}`);
 
-    // ④ 하차하면 그 짐은 더 이상 실려 있지 않다. 경로·잔여 용량·회랑을 다시 계산한다.
-    //    (recalculateActiveKakaoRoute 는 활성 콜이 0건이면 회랑도 첫짐 모드로 되돌린다)
+    // ④ 하차하면 그 짐은 더 이상 실려 있지 않다. 경로·잔여 용량·경유을 다시 계산한다.
+    //    (recalculateActiveKakaoRoute 는 활성 콜이 0건이면 경유도 첫짐 모드로 되돌린다)
     if (milestone === 'DELIVERED') {
         // [T8] 착불인데 수령 여부를 안 고르고 완료했다면 **미수금으로 잡는다.**
         //
@@ -1090,7 +1090,7 @@ export async function reportMilestone(
 
 
 /**
- * **국면 전환** — 기사님이 요약줄을 스와이프해서 지금 무엇을 사냥할지 고른다.
+ * **국면 전환** — 기사님이 요약줄을 스와이프해서 지금 무엇을 콜 잡기할지 고른다.
  *
  *   DEST(목적지행) → LOCAL(이 동네에서 찾기) → HOME(복귀행)
  *
@@ -1153,7 +1153,7 @@ export async function setCallTarget(
         } else {
             /**
              * 복귀행 = **집이 있는 시**. 집 주소는 설정에 있다.
-             * 기점(짐이 남았으면 마지막 하차지 / 다 내렸으면 현위치)은 회랑이 알아서 잡는다 —
+             * 기점(짐이 남았으면 마지막 하차지 / 다 내렸으면 현위치)은 경유이 알아서 잡는다 —
              * 여기서는 "어디로 가는가"만 정한다.
              */
             const settings = db.prepare("SELECT home_address FROM user_settings WHERE user_id = ?").get(userId) as any;
@@ -1190,7 +1190,7 @@ export async function setCallTarget(
 }
 
 /**
- * 귀가콜 생성: 현재 위치 → 집 주소로 가상 오더 생성 + 회랑 자동 세팅
+ * 귀가콜 생성: 현재 위치 → 집 주소로 가상 오더 생성 + 경유 자동 세팅
  */
 export async function createHomeReturn(
     userId: string, 

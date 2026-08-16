@@ -7,7 +7,7 @@
  * 
  * [핵심 원칙]
  * - baseFilter(DB)와 activeFilter(메모리)는 완전히 독립적입니다.
- * - 영구 설정을 바꿔도 현재 사냥 중인 activeFilter에는 1도 영향을 주지 않습니다.
+ * - 영구 설정을 바꿔도 현재 콜 잡는 중인 activeFilter에는 1도 영향을 주지 않습니다.
  * - activeFilter는 직접 수정하고 직접 읽는 1등 시민(first-class citizen)입니다.
  */
 
@@ -55,10 +55,10 @@ function logActiveFilter(session: ReturnType<typeof getUserSession>, actionType:
 // ━━━ 내부 유틸: 파생 데이터(destinationKeywords, allowedVehicleTypes) 재계산 ━━━
 function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, changes: Partial<AutoDispatchFilter>, userId: string) {
     /**
-     * 차종별 하한 단가표는 **눈높이에서만 파생된다** (docs/필터_재설계_명세.md §2).
+     * 차종별 하한 단가표는 **콜할인율에서만 파생된다** (docs/필터_재설계_명세.md §2).
      *
      * 관제웹은 `callDiscountPct` 하나만 보내고 표는 만들지 않는다 — 같은 표를 두 곳에서
-     * 만들면 한쪽만 고쳐진다(회랑 4벌·상태목록 3벌과 같은 사고). 원천은 DB 의
+     * 만들면 한쪽만 고쳐진다(경유 4벌·상태목록 3벌과 같은 사고). 원천은 DB 의
      * `eyeline_pct` 이고, 여기가 그것을 표로 펼치는 유일한 자리다.
      */
     if ('callDiscountPct' in changes) {
@@ -87,7 +87,7 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
 
     if (changes.destinationKeywords) {
         /**
-         * 명시적으로 키워드가 전달된 경우 (합짐 회랑 · 투트랙 등) → 키워드는 그대로 쓴다.
+         * 명시적으로 키워드가 전달된 경우 (합짐 경유 · 투트랙 등) → 키워드는 그대로 쓴다.
          *
          * 🔴 2026-08-12 — 다만 **시 별칭은 같이 안 오면 반드시 다시 만든다.**
          *
@@ -95,7 +95,7 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
          * 앱의 2단계 필터가 아예 안 돌았으므로 옛 값이 남아도 무해했다. 이제는 아니다.
          *
          * `startTwoTrack` 은 `destinationKeywords` 만 넘긴다. 그러면 스프레드(`...changes`)가
-         * `customCityFilters` 를 안 건드려 **직전 회랑의 별칭이 그대로 남는다.**
+         * `customCityFilters` 를 안 건드려 **직전 경유의 별칭이 그대로 남는다.**
          * 앱은 "시가 맞고 동도 맞아야 통과"로 판정하므로, 엉뚱한 시 목록을 들고 있으면
          * 멀쩡한 투트랙 콜을 전부 걸러낸다 — 조용히, 이유도 안 남기고.
          *
@@ -139,9 +139,9 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
     //     if (!changes.allowedVehicleTypes)
     //         = getEligibleVehicleTypes(내 차종)   ← 만재든 아니든 전 차종 허용
     //
-    // 그래서 합짐 도중 회랑이 갱신될 때마다(syncDetourFilter 는 키워드만 넘긴다)
+    // 그래서 합짐 도중 경유이 갱신될 때마다(syncDetourFilter 는 키워드만 넘긴다)
     // **적재 용량 제한이 조용히 풀렸다.** 라보 2개를 싣고도 1t 콜을 잡으러 가는 상태가 된다.
-    // 실측: 상태 복구가 [오토바이, 다마스, 승용차] 로 좁혀 놓은 직후 회랑 갱신 한 번에
+    // 실측: 상태 복구가 [오토바이, 다마스, 승용차] 로 좁혀 놓은 직후 경유 갱신 한 번에
     //       5종 전체로 되돌아갔다 (2026-08-10 스모크).
     //
     // 이슈 W·S 에서 세운 원칙과 같다 — **상태를 저장하지 말고 데이터에서 파생시킨다.**
@@ -182,7 +182,7 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
     /**
      * 🔴 **마지막에 지나온 구간을 뺀다.**
      *
-     * 여기가 유일한 자리인 이유: 회랑을 다시 그리는 길이 여럿인데(경로 갱신·반경 변경·
+     * 여기가 유일한 자리인 이유: 경유을 다시 그리는 길이 여럿인데(경로 갱신·반경 변경·
      * 국면 전환), 어느 길로 오든 **다시 그리면 지나온 동이 되살아난다.**
      * 파생 계산의 끝에 두면 그 셋을 다 덮는다.
      */
@@ -194,8 +194,8 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
  *
  * 🔴 **파생 재계산을 거치지 않는다.** `updateActiveFilter(userId, {})` 로 트리거하면
  *    그 안의 *"도착 도시가 비어 있으면 키워드를 지운다"* 가지에 걸려, 도시를 안 고른 채
- *    운행할 때 **0.5km 마다 회랑이 통째로 지워진다.** 빈 필터는 "제한 없음"이 아니라
- *    고장이라 사냥이 조용히 멈춘다.
+ *    운행할 때 **0.5km 마다 경유이 통째로 지워진다.** 빈 필터는 "제한 없음"이 아니라
+ *    고장이라 콜 잡기가 조용히 멈춘다.
  *
  *    지나온 구간 제거는 허용 차종·적재 칸을 다시 셀 이유가 없다. 필요한 건 숫자 비교뿐이다.
  */
@@ -206,11 +206,11 @@ export function trimTraveled(userId: string, io?: any): void {
 }
 
 /**
- * 회랑을 새로 그렸으면 **진행도도 같이 기억한다.**
+ * 경유을 새로 그렸으면 **진행도도 같이 기억한다.**
  *
  * 🔴 키워드와 진행도는 **같은 입력에서 같이 나온 한 벌**이다. 한쪽만 갱신하면
  *    옛 경로의 진행도로 새 경로의 동을 지우게 된다 — 멀쩡한 지역이 조용히 사라진다.
- *    회랑을 만드는 자리마다 이 함수를 부른다.
+ *    경유을 만드는 자리마다 이 함수를 부른다.
  */
 export function rememberDetourProgress(
     session: ReturnType<typeof getUserSession>,
@@ -220,12 +220,12 @@ export function rememberDetourProgress(
 }
 
 /**
- * **지나온 구간을 필터에서 뺀다** — 회랑을 다시 그리지 않고.
+ * **지나온 구간을 필터에서 뺀다** — 경유을 다시 그리지 않고.
  *
  * 기사님: *"성남을 지났으면 이미 지나온 광주시·성남시 콜은 목록에서 뺀다. 뒤로 안 돌아가니까."*
  *
- * 회랑을 만들 때 동마다 기록해 둔 진행도(`detourProgressKm`)와 지금 GPS 의 진행도를
- * 비교하기만 한다 — 실측 **0.14ms**. 예전 방식(회랑 통째 재계산)은 173ms 였다.
+ * 경유을 만들 때 동마다 기록해 둔 진행도(`detourProgressKm`)와 지금 GPS 의 진행도를
+ * 비교하기만 한다 — 실측 **0.14ms**. 예전 방식(경유 통째 재계산)은 173ms 였다.
  *
  * 안전 쪽으로 기운 규칙 셋. **일찍 빼면 잡을 수 있는 콜을 버린다:**
  *   ① 진행도를 **모르는 동은 남긴다**
@@ -240,7 +240,7 @@ export function applyTraveledTrim(session: ReturnType<typeof getUserSession>): b
      * **국면과 무관하게 참이다** — 이미 지난 동네는 합짐이든 운행중이든 지난 동네다.
      * 게다가 도착 감지가 국면을 GATHERING 으로 떨어뜨리자 **달리는 중인데 제거가 멈췄다.**
      *
-     * 조건은 데이터에 맡긴다: 진행도가 있고(= 회랑을 그렸고) · 경로가 있고 · GPS 가 있으면 돈다.
+     * 조건은 데이터에 맡긴다: 진행도가 있고(= 경유을 그렸고) · 경로가 있고 · GPS 가 있으면 돈다.
      * 콜이 0건이면 경로가 없으니 자연히 안 돈다.
      */
     const progress = session.detourProgressKm;
@@ -282,13 +282,13 @@ export function applyTraveledTrim(session: ReturnType<typeof getUserSession>): b
 }
 
 /**
- * 반경이 바뀌었으면 **회랑 지역 목록도 다시 그린다.**
+ * 반경이 바뀌었으면 **경유 지역 목록도 다시 그린다.**
  *
  * 🔴 숫자만 바꾸고 지역 목록을 그대로 두면 화면과 판정이 다른 말을 한다 —
  *    "경유 5km" 라고 적혀 있는데 실제로는 옛 1km 목록으로 거르는 상태가 된다.
  *    조용히 틀리는 종류라 눈치채기까지 오래 걸린다.
  *
- * 합짐 모드가 아니면(경로가 없으면) 회랑 자체가 없으므로 아무것도 하지 않는다.
+ * 합짐 모드가 아니면(경로가 없으면) 경유 자체가 없으므로 아무것도 하지 않는다.
  */
 function refreshDetourIfNeeded(
     session: ReturnType<typeof getUserSession>,
@@ -308,14 +308,14 @@ function refreshDetourIfNeeded(
     session.activeFilter.destinationKeywords = regions.destinationKeywords;
     session.activeFilter.destinationGroups = regions.destinationGroups;
     session.activeFilter.customCityFilters = regions.customCityFilters;
-    console.log(`🛣️ [회랑 갱신] 경유 ${cRadius}km · 하차 ${dRadius}km → 지역 ${regions.destinationKeywords.length}개`);
+    console.log(`🛣️ [경유 갱신] 경유 ${cRadius}km · 하차 ${dRadius}km → 지역 ${regions.destinationKeywords.length}개`);
 }
 
 /**
  * 국면이 바뀌었으면 그 국면의 저장값을 평면 필터에 펼친다.
  *
  * 국면 키가 **실제로 바뀔 때만** 편다 — 같은 국면에서 매번 덮으면 기사님이 방금 고친 값이
- * 계속 되돌아가고, 회랑 재계산도 불필요하게 돈다.
+ * 계속 되돌아가고, 경유 재계산도 불필요하게 돈다.
  */
 function applyPhaseSettingsIfChanged(
     session: ReturnType<typeof getUserSession>,
@@ -378,7 +378,7 @@ function applyPhaseSettingsIfChanged(
 /**
  * [관제탑 탭 전용] **한 국면의 설정만** 바꾼다 (§2-4).
  *
- * 기사님이 합짐 탭에서 하차 반경을 1km 로 고쳤다고 해서, 지금 첫짐을 사냥 중인
+ * 기사님이 합짐 탭에서 하차 반경을 1km 로 고쳤다고 해서, 지금 첫짐을 콜 잡는 중인
  * 필터가 바뀌면 안 된다 — **그 국면이 될 때** 꺼내 쓰는 값이다.
  * 다만 **지금 그 국면이라면 즉시 반영한다** (탭을 보며 고치는데 아무 일도 안 일어나면
  * 저장이 됐는지 알 수 없다).
@@ -422,12 +422,12 @@ export function savePhaseSettings(
         /**
          * 🔴 평면 이름 매핑은 여기서 하지 않는다 — `applyPhaseToFilter` 가 유일한 지점.
          *
-         * `userOverrides` 를 **켜지 않는다.** 그 깃발은 자동 회랑 갱신을 멈추는 것인데,
+         * `userOverrides` 를 **켜지 않는다.** 그 깃발은 자동 경유 갱신을 멈추는 것인데,
          * 이제 기사님이 고른 반경은 국면 설정에 남아 있으므로 얼려 둘 이유가 없다.
          * 반경은 기사님 것이고, 그 반경으로 그린 **지역 목록은 경로를 따라가야 한다.**
          */
         updateActiveFilter(userId, applyPhaseToFilter(phase, clean), io);
-        // 반경이 바뀌었으면 회랑을 다시 그린다 (updateActiveFilter 는 도시 기반 지리만 본다)
+        // 반경이 바뀌었으면 경유을 다시 그린다 (updateActiveFilter 는 도시 기반 지리만 본다)
         refreshDetourIfNeeded(session, userId, before);
         if (io) broadcastFilter(userId, session, io);
     } else if (io) {
@@ -437,12 +437,12 @@ export function savePhaseSettings(
 }
 
 /**
- * 지금 경로 주변의 **회랑 지역**을 다시 구한다 (합짐·운행중).
+ * 지금 경로 주변의 **경유 지역**을 다시 구한다 (합짐·운행중).
  *
  * 🔴 2026-08-14 에 `dispatchEngine` 에서 여기로 옮겨 왔다. 국면별 설정이 들어오면서
- *    회랑을 다시 그려야 하는 자리가 셋이 됐는데(필터 저장 · 국면 설정 저장 · 국면 전환),
+ *    경유을 다시 그려야 하는 자리가 셋이 됐는데(필터 저장 · 국면 설정 저장 · 국면 전환),
  *    뒤의 둘은 이 파일 안이라 dispatchEngine 을 부르면 순환 참조가 된다.
- *    회랑 계산이 4벌로 갈라졌던 사고를 되풀이하지 않으려면 **구현은 하나여야 한다.**
+ *    경유 계산이 4벌로 갈라졌던 사고를 되풀이하지 않으려면 **구현은 하나여야 한다.**
  */
 export const recalculateDetourFilter = (userId: string, detourRadiusKm: number, destinationRadiusKm?: number) => {
     const session = getUserSession(userId);
@@ -469,7 +469,7 @@ export const recalculateDetourFilter = (userId: string, detourRadiusKm: number, 
 // ━━━ 내부 유틸: 소켓 브로드캐스트 ━━━
 function broadcastFilter(userId: string, session: ReturnType<typeof getUserSession>, io?: any) {
     // [Phase 6] 부트스트랩 중에는 중간 상태를 내보내지 않는다.
-    // 복구 과정에서 updateActiveFilter 가 여러 번(상태 파생 → 회랑 재계산) 호출되는데,
+    // 복구 과정에서 updateActiveFilter 가 여러 번(상태 파생 → 경유 재계산) 호출되는데,
     // 그때마다 filter-updated 를 쏘면 관제탑이 첫짐 → 합짐으로 깜빡인다.
     // 확정된 필터는 부트스트랩 끝에서 filter-init 으로 한 번만 나간다.
     if (session.isBootstrapping) return;
@@ -504,7 +504,7 @@ function broadcastFilter(userId: string, session: ReturnType<typeof getUserSessi
 /**
  * [톱니바퀴 전용] 영구 설정(baseFilter)을 DB에 저장합니다.
  * 
- * ⚠️ 현재 사냥 중인 activeFilter에는 절대 영향을 주지 않습니다.
+ * ⚠️ 현재 콜 잡는 중인 activeFilter에는 절대 영향을 주지 않습니다.
  * "내일 출근할 때 적용될 설정"을 바꾸는 것입니다.
  * 
  * @param userId - 유저 ID
@@ -535,7 +535,7 @@ export function saveBaseFilter(
             b.isActive ? 1 : 0,
             0, // isSharedMode는 DB에 영구저장 안함
             'EMPTY', // loadState는 DB에 항상 EMPTY로 저장
-            b.callDiscountPct ?? 10,   // 눈높이 — 원천은 DB. ratePerKm 는 여기서 파생되므로 저장하지 않는다
+            b.callDiscountPct ?? 10,   // 콜할인율 — 원천은 DB. ratePerKm 는 여기서 파생되므로 저장하지 않는다
             JSON.stringify(session.basePhaseSettings),   // 국면별 설정 (§2-4-7)
             userId
         );
@@ -547,7 +547,7 @@ export function saveBaseFilter(
         "서버",
         `[FilterManager] 영구 설정(baseFilter) DB 저장 완료\n` +
         ` - 변경된 값: ${JSON.stringify(changes)}\n` +
-        ` - ⚠️ activeFilter는 변경하지 않음 (현재 사냥에 영향 없음)`
+        ` - ⚠️ activeFilter는 변경하지 않음 (현재 콜 잡기에 영향 없음)`
     );
 
     // baseFilter 변경 내역을 프론트엔드에 실시간 전파 (초기화 버튼 클릭 시 최신값 반영을 위함)
@@ -557,7 +557,7 @@ export function saveBaseFilter(
 }
 
 /**
- * [돋보기 + 시스템 전용] 현재 사냥 중인 activeFilter를 직접 수정합니다.
+ * [돋보기 + 시스템 전용] 현재 콜 잡는 중인 activeFilter를 직접 수정합니다.
  * 
  * DB에는 절대 접근하지 않습니다. 메모리 + 소켓 전파만 수행합니다.
  * OrderFilterModal(돋보기), dispatchEngine(State Machine), geoService(GPS 트림) 등에서 사용합니다.
@@ -575,7 +575,7 @@ export function updateActiveFilter(
     const session = getUserSession(userId);
 
     // [중요] STANDBY 전환 감지: 다른 상태(GATHERING/DELIVERING)에서 STANDBY로 복귀할 때
-    // 합짐 사이클에서 사용된 임시 값들(회랑, 차종 제한 등)을 baseFilter 기준으로 리셋
+    // 합짐 사이클에서 사용된 임시 값들(경유, 차종 제한 등)을 baseFilter 기준으로 리셋
     const previousPhase = session.activeFilter?.dispatchPhase ?? 'STANDBY';
     const nextPhase = changes.dispatchPhase ?? previousPhase;
     const isTransitionToEmpty = previousPhase !== 'STANDBY' && nextPhase === 'STANDBY';
@@ -584,8 +584,8 @@ export function updateActiveFilter(
         /**
          * 🔴 2026-08-12 — 여기서 `{...session.baseFilter}` 로 **통째로** 덮어쓰고 있었다.
          *
-         * 바로 위 주석은 *"합짐 사이클에서 사용된 임시 값들(회랑, 차종 제한 등)을 리셋"* 이라고
-         * 적혀 있는데, 실제로는 **기사님이 오늘 정한 사냥 설정까지 전부** 되돌렸다 —
+         * 바로 위 주석은 *"합짐 사이클에서 사용된 임시 값들(경유, 차종 제한 등)을 리셋"* 이라고
+         * 적혀 있는데, 실제로는 **기사님이 오늘 정한 콜 잡기 설정까지 전부** 되돌렸다 —
          * 목적지 도시·최저 운임·상차 반경·블랙리스트.
          *
          * 기사님 의도: *"출근할 때 오늘 콜이 많이 나올 만한 곳으로 필터를 바꾸고,
@@ -601,7 +601,7 @@ export function updateActiveFilter(
          */
         session.activeFilter = {
             ...session.activeFilter,
-            // 회랑은 이 사이클의 경로에서 나온 값이다 — 경로가 끝났으니 지운다.
+            // 경유은 이 사이클의 경로에서 나온 값이다 — 경로가 끝났으니 지운다.
             // 비워 두면 recalculateDerivedFields 가 **오늘의** destinationCity 로 다시 만든다
             destinationKeywords: [],
             destinationGroups: {},
@@ -609,7 +609,7 @@ export function updateActiveFilter(
             // 진행도도 이 사이클의 경로에서 나온 값이다 — 경로가 끝났으니 지운다.
             // 남겨 두면 다음 운행 초반에 **옛 경로 기준으로** 동이 사라진다
             // (`detourProgressKm` 은 아래에서 지운다 — activeFilter 가 아니라 세션 필드다)
-            // 수동 고정도 사이클과 함께 풀린다 (다음 사냥은 자동 회랑으로 시작)
+            // 수동 고정도 사이클과 함께 풀린다 (다음 콜 잡기은 자동 경유으로 시작)
             userOverrides: false,
             isSharedMode: false,
             driverAction: 'WAITING',
@@ -655,7 +655,7 @@ export function updateActiveFilter(
      *    콜을 다 끝낸 뒤에도 남아, **빈 차인데 화면은 "하차 중"** 이라고 말했다.
      *    (도착 감지가 죽어 있던 동안에는 이 값이 켜질 일이 없어 드러나지 않았다)
      *    판정에는 영향이 없지만 — `deriveDispatchPhase` 는 콜 0건이면 무조건 STANDBY —
-     *    화면이 사실과 다르게 말하고 다음 사냥이 '하차 중'으로 시작한다.
+     *    화면이 사실과 다르게 말하고 다음 콜 잡기가 '하차 중'으로 시작한다.
      */
     if (activeCount === 0 && session.activeFilter.driverAction !== 'WAITING') {
         console.log(`🔗 [불변식] driverAction ${session.activeFilter.driverAction} → WAITING (활성 콜 0건)`);
@@ -683,7 +683,7 @@ export function updateActiveFilter(
     }
 
     /**
-     * 🔴 **선점 중인 콜이 없으면 사냥은 켜져 있어야 한다** (2026-08-14).
+     * 🔴 **선점 중인 콜이 없으면 콜 잡기은 켜져 있어야 한다** (2026-08-14).
      *
      * `isActive` 는 "지금 콜을 물어도 되는가" 다. `/orders/confirm` 이 콜을 선점하면서
      * `false` 로 끄고(결재 날 때까지 다른 콜을 안 물게), **결재가 나면** `rollbackOnCancel`
@@ -692,7 +692,7 @@ export function updateActiveFilter(
      * 그런데 결재를 거치지 않는 취소 경로가 셋이었다 — 화면 이탈 강제 취소 ·
      * `/detail` 35초 타임아웃 · 비상 보고. **끄기만 하고 켜지 않았다.**
      * 실측(22:04:07): 기사님이 앱에서 손으로 리스트로 빠져나오자 카드는 사라졌는데
-     * **사냥이 죽은 채로 남았다.** 화면에 아무 표시도 없어 왜 콜이 안 잡히는지 알 수 없다.
+     * **콜 잡기가 죽은 채로 남았다.** 화면에 아무 표시도 없어 왜 콜이 안 잡히는지 알 수 없다.
      *
      * 켜는 책임을 취소 경로마다 흩지 않는다 — **선점 중인 콜이 없다**는 데이터에서 파생시킨다.
      * 관제웹은 이 값을 보내지 않으므로(기사님이 손으로 끄는 스위치가 아니다) 안전하다.
@@ -704,7 +704,7 @@ export function updateActiveFilter(
     const evaluating = Array.from(session.pendingOrdersData.values())
         .filter((o: any) => !isTerminal(o.status));
     if (!session.activeFilter.isActive && evaluating.length === 0) {
-        console.log(`🔗 [불변식] isActive false → true (선점 중인 콜 0건 — 사냥을 다시 켠다)`);
+        console.log(`🔗 [불변식] isActive false → true (선점 중인 콜 0건 — 콜 잡기를 다시 켠다)`);
         session.activeFilter.isActive = true;
     }
 
@@ -717,12 +717,12 @@ export function updateActiveFilter(
     /**
      * 🧭 **국면이 바뀌었으면 그 국면의 저장값을 평면에 펼친다.** (§2-4)
      *
-     * 기사님: *"첫짐 도착반경 5km 로 사냥하다 첫짐을 잡으면 … **저장된 합짐 도착반경 1km 를
+     * 기사님: *"첫짐 도착반경 5km 로 콜을 잡다가 첫짐을 잡으면 … **저장된 합짐 도착반경 1km 를
      * 저장된 값에서 꺼내와** 콜을 잡고 싶은 거야."*
      *
      * ⚠️ **여기가 이 함수의 끝이어야 한다.** 조각을 펼친 뒤 `updateActiveFilter` 를 다시
      *    부르면 무한 루프가 된다. 파생값(키워드·별칭·허용차종)은 위에서 이미 계산됐고,
-     *    반경이 바뀌면 회랑은 다음 경로 계산 때 새 값으로 다시 그려진다.
+     *    반경이 바뀌면 경유은 다음 경로 계산 때 새 값으로 다시 그려진다.
      *
      * 🔴 **기사님이 방금 고친 값은 덮지 않는다.** `changes` 에 들어 있는 키는 건너뛴다 —
      *    안 그러면 필터 팝업에서 저장한 값이 곧바로 국면 기본값으로 되돌아간다.
@@ -745,7 +745,7 @@ export function updateActiveFilter(
  *   *"아침에 출근시 필터 설정 없으면 그냥 디폴트 값으로 콜을 잡는 거고."*
  *
  * 경계는 **자정**이다 (기사님 결정 2026-08-12).
- * `isActive` 는 끄지 않는다 — 아침에는 기본 설정 그대로 사냥을 시작하는 것이 맞다고 하셨다.
+ * `isActive` 는 끄지 않는다 — 아침에는 기본 설정 그대로 콜 잡기를 시작하는 것이 맞다고 하셨다.
  *
  * ⚠️ 타이머를 두지 않는다. 접속·스크랩처럼 **세션을 건드리는 순간**에 확인한다.
  *    타이머는 서버가 자는 사이를 못 잡고, 프로세스가 죽으면 사라진다.

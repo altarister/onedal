@@ -24,7 +24,7 @@ export type OrderStatus =
     // --- [심사 및 결재 단계] ---
     | 'ORDER_PRE_SECURED'          // (패널티 X) 상세화면에서 검토 중 (확정 버튼 누르기 전)
     | 'ORDER_SECURED_EVALUATING'   // (패널티 O) 확정 화면 진입, 내 콜로 등록됨, 서버 연산 중
-    | 'ORDER_AWAITING_DECISION'    // (패널티 O) 관제탑 결재 대기 (데스밸리)
+    | 'ORDER_AWAITING_DECISION'    // (패널티 O) 관제탑 결재 대기 (안전취소)
     // --- [확정 이후 단계] ---
     | 'ORDER_CONFIRMED'            // (패널티 O) 관제탑 승인 (내 퀵)
     | 'ORDER_PICKED_UP'            // (패널티 O) 상차 완료 (픽업지에서 서명)
@@ -91,7 +91,7 @@ export const TERMINAL_STATUSES: readonly OrderStatus[] = [
  *    **짐을 실은 채 새로고침하면 콜이 화면에서 통째로 사라졌다.**
  *    서버는 빈 차로 착각해 1t 콜까지 잡으러 갔고, 하차 보고할 화면도 없어졌다.
  *
- * 그래서 나열하지 않고 **파생시킨다.** 평가 중(데스밸리 이전)은 메모리에만
+ * 그래서 나열하지 않고 **파생시킨다.** 평가 중(안전취소 이전)은 메모리에만
  * 존재하므로 복구 대상이 아니고, 그 외에는 전부 복구한다 —
  * 진행 중이면 조작해야 하고, 종결이면 목록(완료됨·취소/방출)에 보여야 한다.
  *
@@ -368,7 +368,7 @@ export type PendingOrderPhase = 'ORDER_PRE_SECURED' | 'ORDER_AWAITING_DECISION';
 export type MyOrderStatus = 'ORDER_CONFIRMED' | 'ORDER_PICKED_UP' | 'ORDER_DELIVERED' | 'ORDER_COMPLETED' | 'ORDER_RELEASED' | 'ORDER_CANCELED' | 'ORDER_FORCE_CANCELED';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// [계층 3] 사냥 전략 단계 — DriverAction + 확정 콜 수에서 파생
+// [계층 3] 콜 잡기 전략 단계 — DriverAction + 확정 콜 수에서 파생
 // DB에 저장하지 않음. 순수 계산(Pure Function)으로만 도출.
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 export type DispatchPhase = 'STANDBY' | 'GATHERING' | 'DELIVERING';
@@ -568,9 +568,9 @@ export interface AutoDispatchFilter {
     capacityConfidence?: CapacityConfidence;
     allowedVehicleTypes: string[];   // 허용 차종 배열 (예: ["1t","다마스"]) — 빈 배열이면 모든 차종 허용
     isActive: boolean;              // 필터링(매크로) 활성화 여부
-    isSharedMode: boolean;          // 첫짐/합짐 분기 (true면 합짐 회랑, false면 첫짐 수동)
+    isSharedMode: boolean;          // 첫짐/합짐 분기 (true면 합짐 경유, false면 첫짐 수동)
     driverAction: DriverAction;     // [V2] 기사 행동 상태 (WAITING, DRIVING, LOADING, UNLOADING, RESTING)
-    dispatchPhase: DispatchPhase;   // [V2] 사냥 전략 단계 (STANDBY, GATHERING, DELIVERING) — 파생값
+    dispatchPhase: DispatchPhase;   // [V2] 콜 잡기 전략 단계 (STANDBY, GATHERING, DELIVERING) — 파생값
     pickupRadiusKm: number;         // 내위치 반경 상차지 탐색(km)
     minFare: number;                // 최소 운임 (하한선)
     maxFare: number;                // 최대 운임 (디폴트 100만)
@@ -591,13 +591,13 @@ export interface AutoDispatchFilter {
     // ── 단가 판정 모델 (2026-08-13 확정 · docs/필터_재설계_명세.md) ──
     // 셋 다 optional: 구버전 앱은 이 키들을 파싱하지 않으므로 무시된다 (호환).
     // minFare/maxFare 는 구버전 앱 호환용으로 유지 — 새 앱은 ratePerKm 이 있으면 그걸 쓴다.
-    /** 차종별 하한 단가(원/km) = 실수령 시세 × (1 − 눈높이). 판정: fare ≥ 배송거리 × ratePerKm[차종] */
+    /** 차종별 하한 단가(원/km) = 실수령 시세 × (1 − 콜할인율). 판정: fare ≥ 배송거리 × ratePerKm[차종] */
     ratePerKm?: Record<string, number>;
-    /** 눈높이 — 시세 대비 허용 할인 %. 100 = "전부"(금액 무관) */
+    /** 콜할인율 — 시세 대비 허용 할인 %. 100 = "전부"(금액 무관) */
     callDiscountPct?: number;
     /** 사용 중인 적재 칸 (내 1t 트럭 = 5칸). 명목값이며 통화 확인 시 갱신 */
     slotsUsed?: number;
-    /** 지금 어느 국면을 사냥하는가 — 기사님이 요약줄 스와이프로 고른다 (기본 DEST) */
+    /** 지금 어느 국면을 콜 잡기하는가 — 기사님이 요약줄 스와이프로 고른다 (기본 DEST) */
     callTarget?: CallTarget;
 }
 
@@ -611,7 +611,7 @@ export interface AutoDispatchFilter {
  *
  * ⚠️ `DispatchPhase`(STANDBY/GATHERING/DELIVERING)와 **다른 것**이다.
  *    · `DispatchPhase` — 지금 짐이 얼마나 실렸나. **데이터에서 파생**된다 (기사님이 못 고른다)
- *    · `CallTarget`     — 어느 방향을 사냥하나. **기사님이 고른다**
+ *    · `CallTarget`     — 어느 방향을 콜 잡기하나. **기사님이 고른다**
  *    둘은 직교한다: "복귀행이면서 합짐 수집 중"이 정상적인 상태다.
  *
  * 🔴 국면 전환은 **필터만 바꾼다. 콜 상태는 절대 건드리지 않는다.**
@@ -628,7 +628,7 @@ export const CALL_TARGET_LABEL: Record<CallTarget, string> = {
 };
 
 /**
- * **이 필터로 사냥해도 되는가.**
+ * **이 필터로 콜을 잡아도 되는가.**
  *
  * 🔴 2026-08-12 — 빈 필터가 "제한 없음"으로 읽히고 있었다.
  *
@@ -637,7 +637,7 @@ export const CALL_TARGET_LABEL: Record<CallTarget, string> = {
  *    서버 (`OrderEvaluator`):
  *        if (isSharedMode && destinationKeywords.length > 0) { ...검사... }
  *
- *    **두 겹이 같은 방향으로 열려 있었다.** 회랑 계산이 0개를 내거나(경로 실패)
+ *    **두 겹이 같은 방향으로 열려 있었다.** 경유 계산이 0개를 내거나(경로 실패)
  *    목적지 도시가 비면, `isActive` 는 켜진 채 도착지 조건만 사라진다.
  *    필터가 느슨해지는 게 아니라 **없어지는** 것이다.
  *
@@ -645,12 +645,12 @@ export const CALL_TARGET_LABEL: Record<CallTarget, string> = {
  *    앱 기본값을 안전 방향으로 돌린 것(v1.3)과 같은 판단이다 —
  *    안 잡는 것과 잡고 나서 버리는 것은 전혀 다르다.
  *
- * @returns 사냥해도 되면 `null`, 안 되면 **왜 안 되는지** (그대로 로그·화면에 쓴다)
+ * @returns 콜 잡기해도 되면 `null`, 안 되면 **왜 안 되는지** (그대로 로그·화면에 쓴다)
  */
 export function callFilterBlocker(filter: AutoDispatchFilter): string | null {
     if (filter.isSharedMode) {
-        // 합짐은 경로에서 회랑이 나와야 성립한다. 회랑이 없으면 "가는 길"이 없는 것이다
-        if (!filter.destinationKeywords?.length) return '회랑이 아직 안 잡혔습니다';
+        // 합짐은 경로에서 경유이 나와야 성립한다. 경유이 없으면 "가는 길"이 없는 것이다
+        if (!filter.destinationKeywords?.length) return '경유이 아직 안 잡혔습니다';
         return null;
     }
     // 첫짐은 도착 목표가 있어야 성립한다
@@ -667,9 +667,9 @@ export function callFilterBlocker(filter: AutoDispatchFilter): string | null {
  *   · 세션 생성 (서버 재시작·첫 접속)
  *
  * 되돌리지 **않는** 것은 없다 — 오늘 정한 것은 전부 기본값으로 간다.
- * 다만 회랑 파생값은 기본 설정에도 없는 값이라 명시적으로 비운다.
+ * 다만 경유 파생값은 기본 설정에도 없는 값이라 명시적으로 비운다.
  * 비워 두면 `recalculateDerivedFields` 가 **오늘의** 목적지 도시로 다시 만든다.
- * (어제 경로에서 나온 지역으로 오늘 사냥하면 안 된다)
+ * (어제 경로에서 나온 지역으로 오늘 콜 잡기하면 안 된다)
  *
  * ⚠️ `isActive` 는 기본 설정 값을 그대로 따른다. 끄지 않는다 —
  *    기사님: *"아침에 출근시 필터 설정 없으면 그냥 디폴트 값으로 콜을 잡는 거고."*
@@ -685,7 +685,7 @@ export function resetToBaseFilter(base: AutoDispatchFilter): AutoDispatchFilter 
 }
 
 /**
- * [계층 3] 사냥 전략 파생 함수 (Pure Function)
+ * [계층 3] 콜 잡기 전략 파생 함수 (Pure Function)
  * DriverAction(기사 행동) + 확정 오더 수를 조합하여 DispatchPhase를 자동 계산합니다.
  * DB에 저장하지 않으며, 하드코딩(0km, 10km)을 원천 차단합니다.
  */
@@ -696,7 +696,7 @@ export function resetToBaseFilter(base: AutoDispatchFilter): AutoDispatchFilter 
  * 그런데 `driverAction` 은 **정류장마다 바뀐다** — 하차지에 도착하면 `UNLOADING` 이 되고,
  * 그 순간 DELIVERING 이 풀렸다. 짐이 2건이면 정류장이 4곳이니 **출발을 네 번 눌러야** 했다.
  *
- * 풀리면서 딸려 온 것들: 운행중 국면 설정(우회 0)이 풀려 회랑이 다시 넓어지고,
+ * 풀리면서 딸려 온 것들: 운행중 국면 설정(우회 0)이 풀려 경유이 다시 넓어지고,
  * 지나온 구간 제거가 멈추고, 🚀 출발 버튼이 다시 나타나고, 요약줄이 "대기"로 바뀌었다.
  * **증상 넷이 이 한 줄에서 나왔다.**
  *
@@ -705,7 +705,7 @@ export function resetToBaseFilter(base: AutoDispatchFilter): AutoDispatchFilter 
  *
  * 그래서 판정을 **출발했는가**(`hasDeparted`)로 옮겼다. `driverAction` 은 순수하게
  * "지금 몸이 뭘 하는가"로 남아 화면 표시·도착 마일스톤·통계에 쓰인다 —
- * **사냥 기준을 흔들지 않는다.**
+ * **콜 잡기 기준을 흔들지 않는다.**
  *
  * 끝나는 조건은 따로 없다. 마지막 콜을 하차 완료하면 콜이 0건이 되어 STANDBY 로 돌아간다.
  */
@@ -727,7 +727,7 @@ export function deriveDispatchPhase(
  * 우회 반경 기본값. **한 곳에서만 정한다.**
  *
  * 🔴 2026-08-12 — 같은 기본값이 네 갈래로 갈라져 있었다.
- *      dispatchEngine  `?? 10`   (회랑 계산에 실제로 쓰이던 값)
+ *      dispatchEngine  `?? 10`   (경유 계산에 실제로 쓰이던 값)
  *      socketHandlers  `?? 1`
  *      routes/filters  `?? 0`
  *      DB · 세션 기본값 5
@@ -749,7 +749,7 @@ export function getEffectiveDetourRadius(
      * 3km 정도는 허용하고 싶으면 그렇게 저장할 수 있어야 한다 —
      * 여기서 덮어쓰면 그 설정이 영영 무시된다.
      *
-     * 함수는 남겨 둔다. 호출부가 "회랑 반경은 여기서만 정한다"는 계약을 지키고 있고,
+     * 함수는 남겨 둔다. 호출부가 "경유 반경은 여기서만 정한다"는 계약을 지키고 있고,
      * 나중에 국면과 무관한 상한이 필요해지면 다시 여기에 넣는다.
      */
     return baseDetourRadiusKm;
@@ -762,7 +762,7 @@ export interface PricingConfig {
     maxDiscountPercent: number;            // 기사 수용 가능 최대 할인율 (예: 10)
 }
 
-// 스마트 회랑 전용 데이터 구조 (PinnedRoute 등 프론트엔드 UI용)
+// 스마트 경유 전용 데이터 구조 (PinnedRoute 등 프론트엔드 UI용)
 export interface DetourRouteData {
     summaryText: string;
     totalDistanceKm: number;
@@ -842,7 +842,7 @@ export type DeviceModeType = "AUTO" | "MANUAL";
  * 판별 기준 키워드는 서버의 config/inseong.json에서 관리됩니다.
  */
 export type ScreenContextType =
-    | 'LIST'                  // 사냥 리스트 화면
+    | 'LIST'                  // 콜 잡기 리스트 화면
     | 'LIST_COMPLETED'        // 완료 리스트 화면 — 여기서도 "리스트로 돌아온 것"이다
     | 'DETAIL_PRE_CONFIRM'    // 광클 직전 상세 (확정 버튼 보임)
     | 'DETAIL_CONFIRMED'      // 확정 후 상세 화면 (닫기/취소 버튼)
@@ -858,11 +858,11 @@ export type ScreenContextType =
  * 2026-08-14 유령 카드 사고. 앱은 `LIST` 와 `LIST_COMPLETED` **둘 다** 리스트 복귀로 보고
  * 세션을 리셋하는데(`HijackService`), 서버는 `screenContext === 'LIST'` **하나만** 인정했다.
  * 그래서 완료 리스트로 빠져나가면 **앱은 다음 콜을 찾는데 서버는 그 콜을 계속 쥐고 있었다** —
- * 관제탑에 결재 카드가 영원히 남고, `isActive` 도 꺼진 채라 사냥이 통째로 멈췄다.
+ * 관제탑에 결재 카드가 영원히 남고, `isActive` 도 꺼진 채라 콜 잡기가 통째로 멈췄다.
  *
  * `LIST_COMPLETED` 는 애초에 이 타입에 **있지도 않았다.** 앱만 알고 있던 값이다.
  *
- * 같은 판단을 두 곳에서 따로 정의하면 갈라진다 — 이 레포가 회랑 4벌·상태목록 3벌로
+ * 같은 판단을 두 곳에서 따로 정의하면 갈라진다 — 이 레포가 경유 4벌·상태목록 3벌로
  * 이미 당한 형태다. 화면이 늘어나면 **이 배열에만** 넣는다.
  */
 export const LIST_SCREENS: ScreenContextType[] = ['LIST', 'LIST_COMPLETED'];

@@ -81,7 +81,7 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
         // ⚖️ 설계 결정 (2026-08-09, 승욱님 확인):
         // PRD §3 의 "누적 페널티 킬스위치"는 데드맨이 mode 를 MANUAL 로 강제하는 것으로
         // 구현돼 있었으나, 통신이 끊긴 폰은 어차피 콜을 잡지 못하므로 실익이 없는 반면
-        // 복귀 후에도 MANUAL 에 머물러 사냥이 멈추는 부작용만 컸다.
+        // 복귀 후에도 MANUAL 에 머물러 콜 잡기가 멈추는 부작용만 컸다.
         // → **자동 복원**을 택했다. 킬스위치는 관제탑의 명시적 MANUAL 지정으로만 작동한다.
         // 이 복원이 없으면, 통신이 70초(구 데드맨) 두절된 뒤 한 번 MANUAL로 떨어진 기기가
         // 통신 재개 후에도 계속 MANUAL에 머물러 "풀오토가 자꾸 풀리는" 현상이 발생했습니다.
@@ -406,7 +406,7 @@ export const getActiveDevicesSnapshot = (): DeviceSession[] => {
         // 데드맨 스위치: 일정 시간 핑이 없으면 통신 단절(OFFLINE) 표기
         // [Phase 1.5] mode를 MANUAL로 강제하던 로직 제거.
         // 통신이 끊긴 기기는 어차피 콜을 못 잡으므로 모드를 바꿀 실익이 없는 반면,
-        // 한 번 MANUAL로 떨어지면 복귀 후에도 되돌아오지 않아 사냥이 멈추는 부작용만 컸습니다.
+        // 한 번 MANUAL로 떨어지면 복귀 후에도 되돌아오지 않아 콜 잡기가 멈추는 부작용만 컸습니다.
         // 관제탑 UI에는 status(OFFLINE)가 별도로 표시되므로 식별에도 문제가 없습니다.
         if (now - session.lastSeen > DEADMAN_TIMEOUT_MS) {
             session.status = "OFFLINE";

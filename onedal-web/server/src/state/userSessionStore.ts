@@ -16,7 +16,7 @@ const SERVICE_DEFAULT_FILTER: Partial<AutoDispatchFilter> = {
     isActive: false,
     isSharedMode: false,
     driverAction: 'WAITING',      // [V2] 기사 행동 상태 기본값
-    dispatchPhase: 'STANDBY',     // [V2] 사냥 전략 기본값
+    dispatchPhase: 'STANDBY',     // [V2] 콜 잡기 전략 기본값
     // ── 단가 판정 모델 (필터_재설계_명세 §2) — DB eyeline_pct DEFAULT 10 과 같은 값 ──
     callDiscountPct: 10,
     ratePerKm: rateFloorsFrom(10),
@@ -27,7 +27,7 @@ export interface UserSession {
     myOrders: MyOrder[];                    // [계층 2-B] 확정된 내 퀵 배열 (단일 배열, 상태 필터링으로 관리)
     // [Option B] 응답 객체 대신 판결(Decision) 데이터를 저장하는 큐 형식으로 변경
     pendingDecisions: Map<string, { action: "KEEP" | "CANCEL" | null; evaluatedAt: number }>;
-    // [Option B] 비상벨(emergency) 시 취소할 수 있도록 데스밸리 타이머 저장
+    // [Option B] 비상벨(emergency) 시 취소할 수 있도록 안전취소 타이머 저장
     activeTimers: Map<string, NodeJS.Timeout>;
     pendingOrdersData: Map<string, PendingOrder>;  // [계층 2-A] 심사 중 오더 (아직 내 퀵이 아님)
     deviceEvaluatingMap: Map<string, string>;
@@ -61,9 +61,9 @@ export interface UserSession {
      */
     businessDay: string;
     /**
-     * [Phase 6] 부트스트랩(데이터 로드 → 노선 산출 → 상태 파생 → 회랑 도출) 진행 중 여부.
-     * true 인 동안에는 activeFilter 가 아직 미완성이므로 앱폰에 사냥을 시키지 않는다.
-     * (예전에는 복구가 끝나기 전 1~3초 동안 "첫짐 필터(회랑 없음)"가 앱에 나가
+     * [Phase 6] 부트스트랩(데이터 로드 → 노선 산출 → 상태 파생 → 경유 도출) 진행 중 여부.
+     * true 인 동안에는 activeFilter 가 아직 미완성이므로 앱폰에 콜 잡기를 시키지 않는다.
+     * (예전에는 복구가 끝나기 전 1~3초 동안 "첫짐 필터(경유 없음)"가 앱에 나가
      *  경로를 벗어난 콜을 잡을 수 있었다)
      */
     isBootstrapping: boolean;
@@ -135,10 +135,10 @@ export interface UserSession {
     departedAt: number | null;
 
     /**
-     * 회랑의 동마다 **경로 몇 km 지점인가** — 지나온 구간을 지울 때 쓴다.
+     * 경유의 동마다 **경로 몇 km 지점인가** — 지나온 구간을 지울 때 쓴다.
      *
-     * 🔴 **저장이 아니라 캐시다.** 회랑을 만든 그 순간에 같이 나온 값이고,
-     *    회랑을 다시 그리면 이것도 같이 바뀐다. 따로 만들면 갈라진다.
+     * 🔴 **저장이 아니라 캐시다.** 경유을 만든 그 순간에 같이 나온 값이고,
+     *    경유을 다시 그리면 이것도 같이 바뀐다. 따로 만들면 갈라진다.
      *    경로가 없으면 `null` — 없는 값을 지어내지 않는다.
      */
     detourProgressKm: Record<string, number> | null;
@@ -221,7 +221,7 @@ export function getUserSession(userId: string): UserSession {
                     isActive: Boolean(filterRow.is_active),
                     // ── 단가 판정 모델 (필터_재설계_명세 §2) ──
                     // eyeline_pct 의 원천은 DB (ALTER ADD COLUMN DEFAULT 10 이 기존 행도 채운다).
-                    // ratePerKm 은 파생값 — 저장하지 않고 눈높이에서 매번 만든다.
+                    // ratePerKm 은 파생값 — 저장하지 않고 콜할인율에서 매번 만든다.
                     callDiscountPct: filterRow.eyeline_pct,
                     // 단가표는 DB 의 vehicle_rates·agency_fee_percent 에서 파생시킨다.
                     // shared 폴백 상수를 쓰면 설정에서 요율을 바꿔도 앱 필터가 안 바뀐다.
@@ -263,9 +263,9 @@ export function getUserSession(userId: string): UserSession {
                 // 비어 있어 실제 적재 상태를 알 수 없기 때문이다.
                 // 진행 중인 콜이 있으면 이후 restoreAndRecalculateSession()이 DB에서
                 // 콜을 복구한 뒤 dispatchPhase / isSharedMode / allowedVehicleTypes /
-                // 회랑 키워드를 **데이터로부터 다시 파생**시켜 덮어쓴다. (이슈 W)
+                // 경유 키워드를 **데이터로부터 다시 파생**시켜 덮어쓴다. (이슈 W)
                 // 그 연결이 없던 동안, 진행 중인 콜이 3건 있어도 필터는 첫짐인 채로
-                // 사냥이 돌아 경로를 벗어난 콜을 잡을 수 있는 상태였다.
+                // 콜 잡기가 돌아 경로를 벗어난 콜을 잡을 수 있는 상태였다.
                 session.activeFilter = {
                     ...session.baseFilter,
                     isSharedMode: false,

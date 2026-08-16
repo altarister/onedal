@@ -229,7 +229,7 @@ router.put("/", requireAuth, async (req, res) => {
  *    → 두 화면이 **같은 목록**을 쓰게 한다. 목록의 출처는 지도 데이터 하나뿐이다.
  *
  * ⚠️ 지금 지도 데이터는 **수도권(서울·인천·경기)** 만 있다. 그 밖은 아직 고를 수 없다 —
- *    없는 지역을 목록에 넣으면 0개짜리 필터가 되어 사냥이 조용히 멈춘다.
+ *    없는 지역을 목록에 넣으면 0개짜리 필터가 되어 콜 잡기가 조용히 멈춘다.
  */
 router.get("/cities", requireAuth, (_req, res) => {
     try {
@@ -269,7 +269,7 @@ router.get("/preview-regions", requireAuth, (req, res) => {
     }
 });
 
-// 합짐 모드: 회랑 반경 변경 시 지역 목록 프리뷰
+// 합짐 모드: 경유 반경 변경 시 지역 목록 프리뷰
 router.get("/preview-detour", requireAuth, (req, res) => {
     try {
         const userId = req.user!.id;

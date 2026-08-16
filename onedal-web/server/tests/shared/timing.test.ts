@@ -312,18 +312,18 @@ describe('resetToBaseFilter — 오늘 필터를 기본 설정으로', () => {
         expect(r.excludedKeywords).toEqual(['착불']);
     });
 
-    it('🔴 어제 경로에서 나온 회랑은 비운다 — 그 지역으로 오늘 사냥하면 안 된다', () => {
+    it('🔴 어제 경로에서 나온 경유은 비운다 — 그 지역으로 오늘 콜 잡기하면 안 된다', () => {
         const r = resetToBaseFilter({ ...base, destinationKeywords: ['어제동'], customCityFilters: ['어제시'] });
         expect(r.destinationKeywords).toEqual([]);
         expect(r.customCityFilters).toEqual([]);
         expect(r.destinationGroups).toEqual({});
     });
 
-    it('수동 고정도 풀린다 — 새 하루는 자동 회랑으로 시작한다', () => {
+    it('수동 고정도 풀린다 — 새 하루는 자동 경유으로 시작한다', () => {
         expect(resetToBaseFilter({ ...base, userOverrides: true }).userOverrides).toBe(false);
     });
 
-    it('🔴 사냥은 끄지 않는다 — 아침에 기본 설정 그대로 잡는 것이 의도다', () => {
+    it('🔴 콜 잡기은 끄지 않는다 — 아침에 기본 설정 그대로 잡는 것이 의도다', () => {
         expect(resetToBaseFilter({ ...base, isActive: true }).isActive).toBe(true);
         // 기본 설정에서 꺼 뒀으면 꺼진 채로 시작한다 (기본 설정을 따를 뿐 강제하지 않는다)
         expect(resetToBaseFilter({ ...base, isActive: false }).isActive).toBe(false);

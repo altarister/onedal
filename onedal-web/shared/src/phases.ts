@@ -46,7 +46,7 @@ export const PHASE_LABEL: Record<PhaseKey, string> = {
  *
  * 합짐을 3종(목적지합짐/관내합짐/복귀합짐)으로 나누는 안은 기각했다 —
  * 기사님: *"합짐·운행중은 무조건 **경로가 생기고 난 이후**에 발생하니까."*
- * 경로가 있으면 회랑이 그 경로에서 파생되므로 어디서 출발했든 같은 기준이면 된다.
+ * 경로가 있으면 경유이 그 경로에서 파생되므로 어디서 출발했든 같은 기준이면 된다.
  *
  * @param callTarget     'DEST' | 'LOCAL' | 'HOME'
  * @param dispatchPhase 'STANDBY' | 'GATHERING' | 'DELIVERING'
@@ -75,7 +75,7 @@ export interface PhaseSettings {
     destinationCity: string;
     /** 상차지 반경 (km) — 내 위치에서 상차지까지 */
     pickupRadiusKm: number;
-    /** 경유 허용 (km) — 카카오 총거리 증가분. 회랑 반경은 서버가 파생 */
+    /** 경유 허용 (km) — 카카오 총거리 증가분. 경유 반경은 서버가 파생 */
     detourAllowKm: number;
     /** 하차지 반경 (km) — 도착 지점 주변 */
     dropoffRadiusKm: number;
@@ -106,7 +106,7 @@ export type FieldMode = 'input' | 'override' | 'auto' | 'hidden';
  *
  * 화면은 이걸 읽어 그리고, 서버도 이걸로 "그 국면에서 안 쓰는 값"을 판정에서 뺀다.
  * 같은 규칙을 두 곳에 적으면 한쪽만 고쳐진다 — 이 레포가 반복해서 당한 사고다
- * (회랑 4벌 · 상태목록 3벌 · 단가표 2벌).
+ * (경유 4벌 · 상태목록 3벌 · 단가표 2벌).
  */
 export const PHASE_FIELDS: Record<PhaseKey, Record<keyof PhaseSettings, FieldMode>> = {
     first: { destinationCity: 'input',    pickupRadiusKm: 'input',  detourAllowKm: 'hidden', dropoffRadiusKm: 'input',  discountPct: 'input' },
@@ -125,7 +125,7 @@ export const PHASE_FIELD_LABEL: Record<keyof PhaseSettings, string> = {
     pickupRadiusKm: '상차 반경',
     detourAllowKm: '우회 허용',
     dropoffRadiusKm: '하차지 주변',
-    discountPct: '눈높이',
+    discountPct: '콜할인율',
 };
 
 /**

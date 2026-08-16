@@ -110,12 +110,12 @@ export default function PricingSettingsTab({ onClose }: Props) {
         </div>
       </div>
 
-      {/* 수수료 — 할인율은 필터의 눈높이가 대체했다 (docs/필터_재설계_명세.md) */}
+      {/* 수수료 — 할인율은 필터의 콜할인율가 대체했다 (docs/필터_재설계_명세.md) */}
       <div className="space-y-1.5">
         <label className="text-xs font-semibold text-text-muted">📊 퀵사 수수료율 (%)</label>
         <Input type="number" value={agencyFeePercent} onChange={(e) => setAgencyFeePercent(Number(e.target.value) || 0)} className="h-9 text-center font-bold" />
         <p className="text-[10px] text-text-muted/70">
-          🔻 할인율은 <b>필터의 눈높이</b>에서 정합니다 — 같은 뜻의 값이 두 곳에 있으면 어느 게 진짜인지 알 수 없습니다
+          🔻 할인율은 <b>필터의 콜할인율</b>에서 정합니다 — 같은 뜻의 값이 두 곳에 있으면 어느 게 진짜인지 알 수 없습니다
         </p>
       </div>
 
@@ -165,7 +165,7 @@ export default function PricingSettingsTab({ onClose }: Props) {
         {/* 관제탑의 돋보기 필터와 **다른 값**이다. 화면에 그 구분이 없어서
             "설정에는 파주인데 필터를 열면 용인" 이 되었다 */}
         <p className="text-[10px] text-text-muted break-keep">
-          <b>매일 아침 여기서 시작</b>합니다. 오늘만 다르게 사냥하려면 관제탑의 🔍 필터에서 바꾸세요 —
+          <b>매일 아침 여기서 시작</b>합니다. 오늘만 다르게 콜을 잡으려면 관제탑의 🔍 필터에서 바꾸세요 —
           그 값은 자정에 여기로 돌아옵니다.
         </p>
         <div className="grid grid-cols-3 gap-2">
