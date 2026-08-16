@@ -7,8 +7,8 @@
 ## 이건 버그가 아니라 규칙이다
 
 - **필터는 두 그릇이고 서로 남남이다.**
-  `baseFilter`(DB · 평소 설정) 와 `activeFilter`(메모리 · 오늘 사냥)는 로그인 시 1회 복사된 뒤
-  완전히 격리된다. 설정을 바꿔도 진행 중인 사냥에 영향이 없어야 한다
+  `baseFilter`(DB · 평소 설정) 와 `activeFilter`(메모리 · 오늘의 콜 필터)는 로그인 시 1회 복사된 뒤
+  완전히 격리된다. 설정을 바꿔도 진행 중인 콜 잡기에 영향이 없어야 한다
   · `saveBaseFilter()` — DB 만, activeFilter 안 건드림
   · `updateActiveFilter()` — 메모리만, DB 안 건드림
 
