@@ -22,8 +22,8 @@ export function useOrderEngine() {
     const [terminatedOrders, setTerminatedOrders] = useState<SecuredOrder[]>([]);
 
     // 파생 상태 (기존 컴포넌트 호환성 유지)
-    const mainCall = activeOrders.length > 0 ? activeOrders[0] : null;
-    const subCalls = activeOrders.length > 1 ? activeOrders.slice(1) : [];
+    const firstCall = activeOrders.length > 0 ? activeOrders[0] : null;
+    const mergeCalls = activeOrders.length > 1 ? activeOrders.slice(1) : [];
 
     // 🚚 지금 실제로 트럭에 실려 있는 콜. **여기가 유일한 판정처다.**
     //
@@ -264,8 +264,8 @@ export function useOrderEngine() {
     return {
         orders,
         isConnected,
-        mainCall,
-        subCalls,
+        firstCall,
+        mergeCalls,
         liveCalls,
         terminatedOrders,
         handleDecision,

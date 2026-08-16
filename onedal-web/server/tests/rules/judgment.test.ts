@@ -13,7 +13,7 @@ const 그날의콜 = {
     driveDiffMin: 6, detourKm: 1.1,
     dwellMin: DWELL_UNKNOWN_PICKUP_MINUTES + DWELL_UNKNOWN_DROPOFF_MINUTES,  // 25분
     dwellAssumed: true,
-    slackMin: null,                       // 통화 전이라 마감을 모른다
+    detourBufferMin: null,                       // 통화 전이라 마감을 모른다
     slotsFree: 3, slotsTotal: 5,
 };
 
@@ -74,13 +74,13 @@ describe('마감 — 모름 · 여유 · 지각을 구분한다', () => {
      * 지어내지 않고 **그 요소를 색에서 뺀다**(가중치 0).
      */
     it('🔴 여유를 상수로 때우지 않는다 — 90분 일반값이 사라졌다', () => {
-        expect((DEFAULT_JUDGMENT.unknown as any).slackMin).toBeUndefined();
+        expect((DEFAULT_JUDGMENT.unknown as any).detourBufferMin).toBeUndefined();
         expect(DEFAULT_JUDGMENT.unknown.pickupOffsetMin).toBe(60);
         expect(DEFAULT_JUDGMENT.unknown.restMarginMin).toBe(30);
     });
 
     it('🔴 여유를 셀 근거가 없으면 그 요소를 색에서 뺀다 (지어내지 않는다)', () => {
-        const v = scoreMerge({ ...그날의콜, slackMin: null });
+        const v = scoreMerge({ ...그날의콜, detourBufferMin: null });
         const part = v.parts.find(p => p.name === '마감 여유')!;
         expect(part.assumed).toBe(true);
         expect(part.weight).toBe(0);          // 색에 영향을 주지 않는다
@@ -88,15 +88,15 @@ describe('마감 — 모름 · 여유 · 지각을 구분한다', () => {
     });
 
     it('🔴 마감을 정했는데 이미 늦었으면 합짐을 막는다', () => {
-        const v = scoreMerge({ ...그날의콜, slackMin: -20 });
+        const v = scoreMerge({ ...그날의콜, detourBufferMin: -20 });
         expect(v.color).toBe('똥');
         expect(v.blocked).toContain('20분');
         expect(v.blocked).toContain('마감');
     });
 
     it('여유가 0 이어도 "모름"과 섞이지 않는다', () => {
-        const zero = scoreMerge({ ...그날의콜, slackMin: 0 });
-        const unknown = scoreMerge({ ...그날의콜, slackMin: null });
+        const zero = scoreMerge({ ...그날의콜, detourBufferMin: 0 });
+        const unknown = scoreMerge({ ...그날의콜, detourBufferMin: null });
         expect(zero.blocked).toBeUndefined();      // 0 은 지각이 아니다
         expect(zero.score).toBeLessThan(unknown.score);
     });

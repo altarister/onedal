@@ -243,10 +243,10 @@ export interface MergeInput {
     /** 상하차 방법을 몰라 일반값으로 때웠는가 */ dwellAssumed: boolean;
     /**
      * 마감까지 남은 여유(분).
-     *   `null` 마감을 아무도 모른다  → 일반값(`unknown.slackMin`)을 쓴다
+     *   `null` 마감을 아무도 모른다  → 일반값(`unknown.detourBufferMin`)을 쓴다
      *   음수    이미 늦었다          → **합짐을 막는다**
      */
-    slackMin: number | null;
+    detourBufferMin: number | null;
     /** 남은 적재 칸 / 총 칸 */ slotsFree: number; slotsTotal: number;
 }
 
@@ -276,17 +276,17 @@ export function scoreMerge(input: MergeInput, cfg: JudgmentConfig = DEFAULT_JUDG
      *    마감을 **안 정했으면**(null) 늦은 게 아니라 모르는 것이다 — 일반값을 쓴다.
      *    예전에는 `Math.max(0, …)` 가 둘을 `0` 으로 뭉개 **모든 합짐이 똥**이 됐다.
      */
-    if (input.slackMin !== null && input.slackMin < 0) {
+    if (input.detourBufferMin !== null && input.detourBufferMin < 0) {
         return {
             score: 0, color: '똥', parts: [],
-            blocked: `이미 마감을 ${-input.slackMin}분 넘겼습니다 (합짐 불가)`,
+            blocked: `이미 마감을 ${-input.detourBufferMin}분 넘겼습니다 (합짐 불가)`,
         };
     }
 
     /**
      * 🔴 **여유를 상수로 때우지 않는다** (기사님 2026-08-16).
      *
-     * 예전에는 `slackMin === null` 이면 `cfg.unknown.slackMin`(90분)을 썼다.
+     * 예전에는 `detourBufferMin === null` 이면 `cfg.unknown.detourBufferMin`(90분)을 썼다.
      * 기사님: *"여유 90분으로 퉁치니 문제가 발생하는 거야."* **여유는 입력값이 아니라
      * 마감에서 계산해 나오는 값**이다 — 이제 `computeAllowedDetour` 가 통화 마감이 없어도
      * **추정 마감**(잡은 시각+60분 / 상차마감+주행+30분)에서 구해 넘긴다.
@@ -294,8 +294,8 @@ export function scoreMerge(input: MergeInput, cfg: JudgmentConfig = DEFAULT_JUDG
      * 그래도 `null` 이 오면 그 콜은 **마감을 셀 근거가 아예 없다**는 뜻이다
      * (잡은 시각도 주행 시간도 모른다). 지어내지 않고 이 요소를 **점수에서 뺀다** — 규칙 ④.
      */
-    const slackUnknown = input.slackMin === null;
-    const slack = input.slackMin ?? 0;
+    const slackUnknown = input.detourBufferMin === null;
+    const slack = input.detourBufferMin ?? 0;
     const totalAdd = input.driveDiffMin + input.dwellMin;
 
     const parts: ScorePart[] = [

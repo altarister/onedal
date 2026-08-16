@@ -59,7 +59,7 @@ describe('판정 기준 — 표 하나가 DB·화면·기본값을 다 만든다
 describe('DB 값이 실제로 색을 바꾼다', () => {
 
     const 콜 = { driveDiffMin: 6, detourKm: 1.1, dwellMin: 25, dwellAssumed: true,
-                slackMin: null, slotsFree: 3, slotsTotal: 5 };
+                detourBufferMin: null, slotsFree: 3, slotsTotal: 5 };
 
     it('🔴 기준을 빡빡하게 바꾸면 같은 콜의 색이 바뀐다', () => {
         expect(scoreMerge(콜).color).toBe('꿀');

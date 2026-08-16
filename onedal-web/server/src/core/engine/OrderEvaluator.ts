@@ -164,7 +164,7 @@ export class OrderEvaluator {
                             detourKm: distDiff,
                             dwellMin: cost.dwell,
                             dwellAssumed: cost.hasUnknown,
-                            slackMin: slackLimit,
+                            detourBufferMin: slackLimit,
                             slotsFree: Math.max(0, slotsTotal - slotsUsed),
                             slotsTotal,
                         }, session.judgment);   // 🎯 DB 에서 온 기준 (기본값이 아니다)
