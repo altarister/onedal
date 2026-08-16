@@ -15,7 +15,7 @@ import type { PhaseKey, PhaseSettings } from "@onedal/shared";
  */
 describe('국면 결정 — 두 축의 조합 (§2-4-1)', () => {
 
-    it('첫짐 3종: 콜 0건일 때 huntPhase 가 국면을 정한다', () => {
+    it('첫짐 3종: 콜 0건일 때 callTarget 가 국면을 정한다', () => {
         expect(resolvePhaseKey('DEST',  'STANDBY')).toBe('first');
         expect(resolvePhaseKey('LOCAL', 'STANDBY')).toBe('local');
         expect(resolvePhaseKey('HOME',  'STANDBY')).toBe('home');
@@ -23,18 +23,18 @@ describe('국면 결정 — 두 축의 조합 (§2-4-1)', () => {
 
     it('🔴 콜을 잡으면 어디서 출발했든 **합짐**이다 — 관내·복귀는 "첫짐의 자리"', () => {
         // 기사님: "첫짐-합짐-운행중-관내-합짐-운행중-복귀-합짐-운행중"
-        for (const hunt of ['DEST', 'LOCAL', 'HOME']) {
-            expect(resolvePhaseKey(hunt, 'GATHERING')).toBe('merge');
+        for (const target of ['DEST', 'LOCAL', 'HOME']) {
+            expect(resolvePhaseKey(target, 'GATHERING')).toBe('merge');
         }
     });
 
     it('🔴 출발하면 어디서 출발했든 **운행중**이다', () => {
-        for (const hunt of ['DEST', 'LOCAL', 'HOME']) {
-            expect(resolvePhaseKey(hunt, 'DELIVERING')).toBe('drive');
+        for (const target of ['DEST', 'LOCAL', 'HOME']) {
+            expect(resolvePhaseKey(target, 'DELIVERING')).toBe('drive');
         }
     });
 
-    it('알 수 없는 huntPhase 는 목적지행으로 본다 (안전 기본값)', () => {
+    it('알 수 없는 callTarget 는 목적지행으로 본다 (안전 기본값)', () => {
         expect(resolvePhaseKey('', 'STANDBY')).toBe('first');
         expect(resolvePhaseKey('???', 'STANDBY')).toBe('first');
     });

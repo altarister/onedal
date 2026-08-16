@@ -598,7 +598,7 @@ export interface AutoDispatchFilter {
     /** 사용 중인 적재 칸 (내 1t 트럭 = 5칸). 명목값이며 통화 확인 시 갱신 */
     slotsUsed?: number;
     /** 지금 어느 국면을 사냥하는가 — 기사님이 요약줄 스와이프로 고른다 (기본 DEST) */
-    huntPhase?: HuntPhase;
+    callTarget?: CallTarget;
 }
 
 /**
@@ -611,7 +611,7 @@ export interface AutoDispatchFilter {
  *
  * ⚠️ `DispatchPhase`(STANDBY/GATHERING/DELIVERING)와 **다른 것**이다.
  *    · `DispatchPhase` — 지금 짐이 얼마나 실렸나. **데이터에서 파생**된다 (기사님이 못 고른다)
- *    · `HuntPhase`     — 어느 방향을 사냥하나. **기사님이 고른다**
+ *    · `CallTarget`     — 어느 방향을 사냥하나. **기사님이 고른다**
  *    둘은 직교한다: "복귀행이면서 합짐 수집 중"이 정상적인 상태다.
  *
  * 🔴 국면 전환은 **필터만 바꾼다. 콜 상태는 절대 건드리지 않는다.**
@@ -619,9 +619,9 @@ export interface AutoDispatchFilter {
  *    기사님: *"콜은 무조건 배달을 해서 완료되어야 한다."* 배달하지 않은 콜이
  *    완료로 기록되면 정산·운행일지가 통째로 틀어진다.
  */
-export type HuntPhase = 'DEST' | 'LOCAL' | 'HOME';
+export type CallTarget = 'DEST' | 'LOCAL' | 'HOME';
 
-export const HUNT_PHASE_LABEL: Record<HuntPhase, string> = {
+export const CALL_TARGET_LABEL: Record<CallTarget, string> = {
     DEST: '목적지행',
     LOCAL: '이 동네에서 찾기',
     HOME: '복귀행',
@@ -647,7 +647,7 @@ export const HUNT_PHASE_LABEL: Record<HuntPhase, string> = {
  *
  * @returns 사냥해도 되면 `null`, 안 되면 **왜 안 되는지** (그대로 로그·화면에 쓴다)
  */
-export function filterHuntBlocker(filter: AutoDispatchFilter): string | null {
+export function callFilterBlocker(filter: AutoDispatchFilter): string | null {
     if (filter.isSharedMode) {
         // 합짐은 경로에서 회랑이 나와야 성립한다. 회랑이 없으면 "가는 길"이 없는 것이다
         if (!filter.destinationKeywords?.length) return '회랑이 아직 안 잡혔습니다';

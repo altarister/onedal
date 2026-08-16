@@ -2,9 +2,9 @@ import { mapVehicleToKakaoCarType, getRemainingCapacityTypes, deriveDispatchPhas
          MILESTONE_TO_STATUS, MILESTONE_LABEL, canReportMilestone, timingError,
          RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, UNFINISHED_RESTORE_DAYS, deriveStatusFromMilestones,
          restoreWindow, getEffectiveCorridorRadius, DEFAULT_CORRIDOR_RADIUS_KM,
-         HUNT_PHASE_LABEL, scoreMerge, describeJudgment, TRUCK_CAPACITY_SLOTS } from "@onedal/shared";
+         CALL_TARGET_LABEL, scoreMerge, describeJudgment, TRUCK_CAPACITY_SLOTS } from "@onedal/shared";
 import type { SecuredOrder, AutoDispatchFilter, PricingConfig, PendingOrder, MyOrder,
-              Milestone, MilestoneSource, HuntPhase } from "@onedal/shared";
+              Milestone, MilestoneSource, CallTarget } from "@onedal/shared";
 import { geocodeAddress, calculateSoloRoute, calculateDetourRoute, compareDirections } from "./kakaoService";
 import { fetchRealWorldRoute } from "../routes/osrmUtil";
 import { getUserSession, clearOrderTimers } from "../state/userSessionStore";
@@ -1109,14 +1109,14 @@ export async function reportMilestone(
  * 적재 상태에서 파생되는 값(`dispatchPhase`·`isSharedMode`·허용 차종)도 건드리지 않는다 —
  * `updateActiveFilter` 가 활성 콜에서 매번 다시 구한다.
  */
-export async function setHuntPhase(
+export async function setCallTarget(
     userId: string,
-    phase: HuntPhase,
+    phase: CallTarget,
     io: any
-): Promise<{ success: boolean; phase: HuntPhase; city?: string; message?: string }> {
+): Promise<{ success: boolean; phase: CallTarget; city?: string; message?: string }> {
     try {
         const session = getUserSession(userId);
-        console.log(`🧭 [국면 전환] ${session.activeFilter.huntPhase ?? 'DEST'} → ${phase} (userId: ${userId})`);
+        console.log(`🧭 [국면 전환] ${session.activeFilter.callTarget ?? 'DEST'} → ${phase} (userId: ${userId})`);
 
         /**
          * 국면마다 **"어디로 가는 콜을 찾는가"만** 다르다.
@@ -1173,12 +1173,12 @@ export async function setHuntPhase(
          *  `customCityFilters` 가 안 채워진다 — 2026-08-12 에 실제로 그랬다)
          */
         updateActiveFilter(userId, {
-            huntPhase: phase,
+            callTarget: phase,
             destinationCity: city!,
             isActive: true,
         }, io);
 
-        console.log(`🧭 [국면 전환] 완료 → ${HUNT_PHASE_LABEL[phase]} · 목적 ${city} ` +
+        console.log(`🧭 [국면 전환] 완료 → ${CALL_TARGET_LABEL[phase]} · 목적 ${city} ` +
             `(반경 ${session.activeFilter.destinationRadiusKm}km — 국면 설정에서) · ` +
             `콜 ${getActiveCalls(session).length}건 그대로`);
 

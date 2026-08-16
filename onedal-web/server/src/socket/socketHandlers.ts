@@ -4,14 +4,14 @@ import { jwtSecret } from "../config/env";
 import { getUserDevicesSnapshot } from "../routes/devices";
 import { getRegionsByCity } from "../geoResolver";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
-import type { AutoDispatchFilter, Milestone, CargoReport, HuntPhase, PhaseKey, PhaseSettings } from "@onedal/shared";
+import type { AutoDispatchFilter, Milestone, CargoReport, CallTarget, PhaseKey, PhaseSettings } from "@onedal/shared";
 import { cargoMismatchRatio, DEFAULT_CORRIDOR_RADIUS_KM, PHASE_KEYS, judgmentFromRow, judgmentToRow } from "@onedal/shared";
 import db from "../db";
 import { OrderRepository } from "../repositories/OrderRepository";
 import { PlaceRepository } from "../repositories/PlaceRepository";
 import { getUserSession, getAllActiveUserIds } from "../state/userSessionStore";
 import { buildOrderSync } from "../core/helpers";
-import { recalculateCorridorFilter, handleDecision, recalculateKakaoRoute, bootstrapUserSession, reportMilestone, undoMilestone, setHuntPhase, createHomeReturn } from "../services/dispatchEngine";
+import { recalculateCorridorFilter, handleDecision, recalculateKakaoRoute, bootstrapUserSession, reportMilestone, undoMilestone, setCallTarget, createHomeReturn } from "../services/dispatchEngine";
 import { updateActiveFilter, ensureBusinessDay, saveBaseFilter, savePhaseSettings, trimTraveled } from "../state/filterManager";
 import { processDriverMovement, getCityRegionsWithRadius } from "../services/geoService";
 
@@ -457,9 +457,9 @@ export function registerSocketHandlers(io: Server) {
          * 완료 처리**했다 — 기사님: *"콜은 무조건 배달을 해서 완료되어야 한다."*
          * 이 핸들러는 **필터만** 바꾼다.
          */
-        safeOn(socket, "set-hunt-phase", async (data: { phase: HuntPhase }) => {
-            const result = await setHuntPhase(userId, data?.phase ?? 'DEST', io);
-            socket.emit("hunt-phase-ack", result);
+        safeOn(socket, "set-call-target", async (data: { phase: CallTarget }) => {
+            const result = await setCallTarget(userId, data?.phase ?? 'DEST', io);
+            socket.emit("call-target-ack", result);
         });
 
         // 🏠 귀가콜: 현재 위치 → 집 주소로 가상 오더 생성 + 회랑 자동 세팅

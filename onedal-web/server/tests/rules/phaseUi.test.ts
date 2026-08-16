@@ -90,11 +90,11 @@ describe('국면 전환 — 입구는 요약줄 하나', () => {
     const status = codeOnly(read(join(CLIENT, 'components/dashboard/OrderFilterStatus.tsx')));
 
     it('🔴 필터 팝업은 국면을 전환하지 않는다', () => {
-        expect(modal).not.toMatch(/set-hunt-phase/);
+        expect(modal).not.toMatch(/set-call-target/);
     });
 
     it('요약줄만 전환한다 — 그리고 확인창을 띄운다', () => {
-        expect(status).toMatch(/set-hunt-phase/);
+        expect(status).toMatch(/set-call-target/);
         expect(status).toMatch(/confirm\(/);
     });
 
@@ -108,23 +108,23 @@ describe('국면 전환 — 입구는 요약줄 하나', () => {
  * 🔴 **반경의 원천은 국면 설정 하나다.**
  *
  * 2026-08-14 `pnpm scenario` 가 잡은 결함: 첫짐 하차 7km 를 저장해 두고 관내에 갔다 오면
- * **평소값 1km 로 덮여 있었다.** `setHuntPhase` 가 `baseFilter.destinationRadiusKm` 를
+ * **평소값 1km 로 덮여 있었다.** `setCallTarget` 가 `baseFilter.destinationRadiusKm` 를
  * 같이 실어 보냈고, 그 값은 `changes` 에 있으므로 "기사님이 방금 고친 값" 으로 보호까지 받았다.
  * 원천이 둘이면 늘 이렇게 끝난다.
  */
 describe('국면 전환 — 반경은 국면 설정만이 정한다', () => {
 
     const engine = codeOnly(read(join(SERVER, 'services/dispatchEngine.ts')));
-    const fn = engine.slice(engine.indexOf('export async function setHuntPhase'));
+    const fn = engine.slice(engine.indexOf('export async function setCallTarget'));
     const body = fn.slice(0, fn.indexOf('\nexport '));
 
-    it('🔴 setHuntPhase 는 destinationRadiusKm 를 보내지 않는다', () => {
+    it('🔴 setCallTarget 는 destinationRadiusKm 를 보내지 않는다', () => {
         expect(body).not.toMatch(/destinationRadiusKm:/);
         expect(body).not.toMatch(/baseFilter\.destinationRadiusKm/);
     });
 
-    it('국면 전환은 "어디로 가는가"만 정한다 (도시 · huntPhase)', () => {
-        expect(body).toMatch(/huntPhase: phase/);
+    it('국면 전환은 "어디로 가는가"만 정한다 (도시 · callTarget)', () => {
+        expect(body).toMatch(/callTarget: phase/);
         expect(body).toMatch(/destinationCity: city!/);
     });
 

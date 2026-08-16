@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
-import { TRUCK_CAPACITY_SLOTS, HUNT_PHASE_LABEL } from "@onedal/shared";
-import type { HuntPhase } from "@onedal/shared";
+import { TRUCK_CAPACITY_SLOTS, CALL_TARGET_LABEL } from "@onedal/shared";
+import type { CallTarget } from "@onedal/shared";
 import { socket } from "../../lib/socket";
 import { logRoadmapEvent } from "../../lib/roadmapLogger";
 
@@ -28,9 +28,9 @@ import { logRoadmapEvent } from "../../lib/roadmapLogger";
  * 하루에 두 번 하는 조작이므로 **확인 한 번이 부담이 아니다.** 편의보다 안전.
  * 같은 이유로 출발 감지도 자동 전환이 아니라 "알림만 주고 기사님이 누른다"이다.
  */
-const PHASES: HuntPhase[] = ['DEST', 'LOCAL', 'HOME'];
+const PHASES: CallTarget[] = ['DEST', 'LOCAL', 'HOME'];
 
-const PHASE_STYLE: Record<HuntPhase, { icon: string; accent: string; hint: string }> = {
+const PHASE_STYLE: Record<CallTarget, { icon: string; accent: string; hint: string }> = {
     DEST:  { icon: '🎯', accent: 'text-info',       hint: '목적지로 가는 콜 — 첫짐·합짐' },
     LOCAL: { icon: '🏘️', accent: 'text-accent-alt', hint: '같은 시 안에서 끝나는 콜' },
     HOME:  { icon: '🏠', accent: 'text-accent',     hint: '집 방향 콜 — 합짐 최대한' },
@@ -48,9 +48,9 @@ export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () =
         );
     }
 
-    const phase: HuntPhase = filter.huntPhase ?? 'DEST';
+    const phase: CallTarget = filter.callTarget ?? 'DEST';
 
-    // [V2] DispatchPhase 기반 상태 라벨 — 국면(HuntPhase)과 다른 축이다
+    // [V2] DispatchPhase 기반 상태 라벨 — 국면(CallTarget)과 다른 축이다
     let label = '수동 대기';
     if (filter.isActive) {
         const dPhase = filter.dispatchPhase || 'STANDBY';
@@ -69,7 +69,7 @@ export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () =
     const regionCount = filter.destinationKeywords?.length ?? 0;
 
     /** 지금 국면의 제목 — 필터를 사람 말로 읽어 준다 */
-    const headline = (p: HuntPhase) => {
+    const headline = (p: CallTarget) => {
         const city = filter.destinationCity || '목적지 미정';
         if (p === 'LOCAL') return <>이 동네(<b className="text-text-primary">{city}</b>) 안에서 끝나는 콜 찾기</>;
         if (p === 'HOME') return <>여기서부터 <b className="text-text-primary">집({city})</b> 방향으로 필터링</>;
@@ -82,18 +82,18 @@ export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () =
      * 되돌리려면 회랑을 다시 계산해야 하고, 그 사이 앱은 바뀐 필터로 사냥한다.
      * 실수로 눌렀을 때 조용히 넘어가면 안 된다.
      */
-    const goPhase = (next: HuntPhase) => {
+    const goPhase = (next: CallTarget) => {
         if (next === phase) return;
         const ok = confirm(
             `사냥 방향을 바꿉니다.\n\n` +
-            `  ${HUNT_PHASE_LABEL[phase]}  →  ${HUNT_PHASE_LABEL[next]}\n` +
+            `  ${CALL_TARGET_LABEL[phase]}  →  ${CALL_TARGET_LABEL[next]}\n` +
             `  ${PHASE_STYLE[next].hint}\n\n` +
             `잡아 둔 콜은 그대로 있습니다 (필터만 바뀝니다).\n계속할까요?`
         );
         if (!ok) return;
         logRoadmapEvent("웹", `국면 전환 버튼 (${phase} → ${next})`);
-        socket.emit("set-hunt-phase", { phase: next });
-        setToast(`${HUNT_PHASE_LABEL[next]} 전환됨`);
+        socket.emit("set-call-target", { phase: next });
+        setToast(`${CALL_TARGET_LABEL[next]} 전환됨`);
         setTimeout(() => setToast(null), 2000);
     };
 
@@ -140,12 +140,12 @@ export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () =
                             key={p}
                             onClick={(e) => { e.stopPropagation(); goPhase(p); }}
                             disabled={isCurrent}
-                            title={isCurrent ? '지금 이 국면입니다' : `${HUNT_PHASE_LABEL[p]} — ${st.hint}`}
+                            title={isCurrent ? '지금 이 국면입니다' : `${CALL_TARGET_LABEL[p]} — ${st.hint}`}
                             className={`py-1.5 rounded-lg text-[11px] font-black transition-all border ${isCurrent
                                 ? `${st.accent} border-current/40 bg-surface-alt cursor-default`
                                 : 'text-text-muted border-border bg-surface-alt/40 hover:bg-surface-hover hover:text-text-primary active:scale-95'}`}
                         >
-                            {st.icon} {HUNT_PHASE_LABEL[p]}
+                            {st.icon} {CALL_TARGET_LABEL[p]}
                             {isCurrent && <span className="ml-1 opacity-60">●</span>}
                         </button>
                     );

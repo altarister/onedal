@@ -215,7 +215,7 @@ export class OrderEvaluator {
                      *    앱이 집어 온 **후보콜의 주소를 카카오가 못 찾은 것**이다.
                      *    (실측: 초월읍 신세계사이먼 아울렛 — 3중 폴백 끝에 실패)
                      */
-                    const who = callName({ target: session.activeFilter.huntPhase,
+                    const who = callName({ target: session.activeFilter.callTarget,
                                            index: getActiveCalls(session).length, candidate: true });
                     const missing = !securedOrder.pickupX ? '상차지' : '하차지';
                     const addr = (!securedOrder.pickupX ? securedOrder.pickup : securedOrder.dropoff) || '';

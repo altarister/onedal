@@ -147,13 +147,13 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
     const shown = PHASE_FIELDS[tab];
 
     /**
-     * 지금 어느 국면인가 — **두 축의 조합**이다 (`huntPhase` × `dispatchPhase`).
+     * 지금 어느 국면인가 — **두 축의 조합**이다 (`callTarget` × `dispatchPhase`).
      * 판정은 `shared` 의 `resolvePhaseKey` 하나로만 한다. 예전에는 이 화면이
      * `isSharedMode`·`driverAction` 으로 자기 규칙을 따로 세워, 서버가 보는 국면과
      * 화면이 말하는 국면이 갈라질 수 있었다.
      */
     const activePhase: PhaseKey = filter
-        ? resolvePhaseKey(filter.huntPhase ?? 'DEST', filter.dispatchPhase ?? 'STANDBY')
+        ? resolvePhaseKey(filter.callTarget ?? 'DEST', filter.dispatchPhase ?? 'STANDBY')
         : 'first';
     /**
      * 저장 안 한 변경이 **어느 탭에** 있는지. (v6 설명 ② — 기사님 확정)

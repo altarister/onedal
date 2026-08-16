@@ -29,10 +29,10 @@ export const PHASE_LABEL: Record<PhaseKey, string> = {
 /**
  * **국면은 두 축의 조합이다.**
  *
- *   `huntPhase`     기사님이 버튼으로 고른다 (DEST · LOCAL · HOME)
+ *   `callTarget`     기사님이 버튼으로 고른다 (DEST · LOCAL · HOME)
  *   `dispatchPhase` 콜 상태에서 파생된다 (STANDBY · GATHERING · DELIVERING)
  *
- * | huntPhase | dispatchPhase | 탭     |
+ * | callTarget | dispatchPhase | 탭     |
  * |-----------|---------------|--------|
  * | DEST      | STANDBY       | first  |
  * | LOCAL     | STANDBY       | local  |
@@ -48,13 +48,13 @@ export const PHASE_LABEL: Record<PhaseKey, string> = {
  * 기사님: *"합짐·운행중은 무조건 **경로가 생기고 난 이후**에 발생하니까."*
  * 경로가 있으면 회랑이 그 경로에서 파생되므로 어디서 출발했든 같은 기준이면 된다.
  *
- * @param huntPhase     'DEST' | 'LOCAL' | 'HOME'
+ * @param callTarget     'DEST' | 'LOCAL' | 'HOME'
  * @param dispatchPhase 'STANDBY' | 'GATHERING' | 'DELIVERING'
  */
-export function resolvePhaseKey(huntPhase: string, dispatchPhase: string): PhaseKey {
+export function resolvePhaseKey(callTarget: string, dispatchPhase: string): PhaseKey {
     if (dispatchPhase === 'DELIVERING') return 'drive';
     if (dispatchPhase === 'GATHERING') return 'merge';
-    return huntPhase === 'LOCAL' ? 'local' : huntPhase === 'HOME' ? 'home' : 'first';
+    return callTarget === 'LOCAL' ? 'local' : callTarget === 'HOME' ? 'home' : 'first';
 }
 
 // ─────────────────────────────────────────────────────────────

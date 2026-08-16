@@ -373,7 +373,7 @@ export function describeJudgment(r: JudgmentResult): string {
 const TARGET_LABEL: Record<string, string> = { DEST: '목적지', LOCAL: '관내', HOME: '복귀' };
 
 export function callName(opts: {
-    /** `huntPhase` — 모르면 타겟명을 빼고 부른다 (지어내지 않는다) */
+    /** `callTarget` — 모르면 타겟명을 빼고 부른다 (지어내지 않는다) */
     target?: string | null;
     /** `getActiveCalls()` 순서. `0` = 첫짐 · `1` = 합짐1 · `2` = 합짐2 */
     index: number;

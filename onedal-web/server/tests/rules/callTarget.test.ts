@@ -1,7 +1,7 @@
 import { readFileSync } from "fs";
 import { join } from "path";
-import { HUNT_PHASE_LABEL } from "@onedal/shared";
-import type { HuntPhase } from "@onedal/shared";
+import { CALL_TARGET_LABEL } from "@onedal/shared";
+import type { CallTarget } from "@onedal/shared";
 
 const read = (rel: string) => readFileSync(join(__dirname, "../../src", rel), "utf8");
 
@@ -26,21 +26,21 @@ const codeOnly = (src: string) =>
  * 짐을 싣고 가는 중에 눌렀다면 배달하지도 않은 콜이 완료로 기록됐다 —
  * 정산도 운행일지도 통째로 틀어진다. 이 테스트가 그 코드의 부활을 막는다.
  */
-describe('국면 전환 (HuntPhase) — 콜을 건드리지 않는다', () => {
+describe('국면 전환 (CallTarget) — 콜을 건드리지 않는다', () => {
 
     const engine = codeOnly(read('services/dispatchEngine.ts'));
-    /** `setHuntPhase` 함수 본문만 잘라낸다 (다음 export 직전까지) */
-    const setHuntPhaseBody = (() => {
-        const start = engine.indexOf('export async function setHuntPhase');
+    /** `setCallTarget` 함수 본문만 잘라낸다 (다음 export 직전까지) */
+    const setCallTargetBody = (() => {
+        const start = engine.indexOf('export async function setCallTarget');
         expect(start).toBeGreaterThan(-1);
         const next = engine.indexOf('\nexport ', start + 10);
         return engine.slice(start, next === -1 ? undefined : next);
     })();
 
-    it('🔴 setHuntPhase 는 콜 상태를 바꾸지 않는다 (setOrderStatus / UPDATE orders 없음)', () => {
-        expect(setHuntPhaseBody).not.toMatch(/setOrderStatus/);
-        expect(setHuntPhaseBody).not.toMatch(/ORDER_COMPLETED/);
-        expect(setHuntPhaseBody).not.toMatch(/UPDATE\s+orders/i);
+    it('🔴 setCallTarget 는 콜 상태를 바꾸지 않는다 (setOrderStatus / UPDATE orders 없음)', () => {
+        expect(setCallTargetBody).not.toMatch(/setOrderStatus/);
+        expect(setCallTargetBody).not.toMatch(/ORDER_COMPLETED/);
+        expect(setCallTargetBody).not.toMatch(/UPDATE\s+orders/i);
     });
 
     it('🔴 옛 startTwoTrack 은 완전히 사라졌다 — 되살리지 말 것', () => {
@@ -54,20 +54,20 @@ describe('국면 전환 (HuntPhase) — 콜을 건드리지 않는다', () => {
     });
 
     it('LOCAL 국면은 GPS 가 없으면 전환을 거부한다 — 위치를 지어내지 않는다', () => {
-        expect(setHuntPhaseBody).toMatch(/driverLocation/);
-        expect(setHuntPhaseBody).toMatch(/success:\s*false/);
+        expect(setCallTargetBody).toMatch(/driverLocation/);
+        expect(setCallTargetBody).toMatch(/success:\s*false/);
     });
 
     it('파생값(키워드·별칭)을 직접 채우지 않는다 — filterManager 한 곳에서만 만든다', () => {
         // destinationCity/RadiusKm 같은 **입력만** 넘겨야 recalculateDerivedFields 가
         // customCityFilters 까지 채운다 (2026-08-12 사고)
-        expect(setHuntPhaseBody).not.toMatch(/destinationKeywords:/);
-        expect(setHuntPhaseBody).not.toMatch(/customCityFilters:/);
+        expect(setCallTargetBody).not.toMatch(/destinationKeywords:/);
+        expect(setCallTargetBody).not.toMatch(/customCityFilters:/);
     });
 
     it('세 국면 라벨이 정의돼 있다', () => {
-        const phases: HuntPhase[] = ['DEST', 'LOCAL', 'HOME'];
-        for (const p of phases) expect(HUNT_PHASE_LABEL[p]).toBeTruthy();
-        expect(HUNT_PHASE_LABEL.LOCAL).toContain('이 동네');
+        const phases: CallTarget[] = ['DEST', 'LOCAL', 'HOME'];
+        for (const p of phases) expect(CALL_TARGET_LABEL[p]).toBeTruthy();
+        expect(CALL_TARGET_LABEL.LOCAL).toContain('이 동네');
     });
 });

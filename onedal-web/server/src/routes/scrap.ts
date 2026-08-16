@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { filterHuntBlocker } from "@onedal/shared";
+import { callFilterBlocker } from "@onedal/shared";
 import type { SimplifiedOfficeOrder, ScreenContextType } from "@onedal/shared";
 import db from "../db";
 import { getUserSession, clearOrderTimers } from "../state/userSessionStore";
@@ -187,9 +187,9 @@ router.post("/", (req, res) => {
          *
          * 이건 "제한 없음"이 아니라 **"필터가 고장났음"** 이다 —
          * 빈 키워드를 그대로 내보내면 앱이 `isEmpty() → true` 로 읽어
-         * **모든 도착지를 통과**시킨다 (`filterHuntBlocker` 주석 참고).
+         * **모든 도착지를 통과**시킨다 (`callFilterBlocker` 주석 참고).
          */
-        const blocker = filterHuntBlocker(session.activeFilter);
+        const blocker = callFilterBlocker(session.activeFilter);
         if (blocker) {
             appFilter.isActive = false;
             console.log(`🚦 [사냥 보류] ${deviceId} — ${blocker}`);

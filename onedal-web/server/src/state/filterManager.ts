@@ -323,7 +323,7 @@ function applyPhaseSettingsIfChanged(
     userId: string,
 ) {
     const key = resolvePhaseKey(
-        session.activeFilter.huntPhase ?? 'DEST',
+        session.activeFilter.callTarget ?? 'DEST',
         session.activeFilter.dispatchPhase ?? 'STANDBY',
     );
     if (key === session.appliedPhaseKey) return;
@@ -405,7 +405,7 @@ export function savePhaseSettings(
     }
 
     const activeKey = resolvePhaseKey(
-        session.activeFilter.huntPhase ?? 'DEST',
+        session.activeFilter.callTarget ?? 'DEST',
         session.activeFilter.dispatchPhase ?? 'STANDBY',
     );
 
