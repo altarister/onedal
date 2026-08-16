@@ -1,5 +1,5 @@
 import { readFileSync } from "fs";
-import { initGeoService, looksLikePlaceName } from "../../src/services/geoService";
+import { initGeoService } from "../../src/services/geoService";
 import { join } from "path";
 import { scoreMerge, rampDown, DEFAULT_JUDGMENT, describeJudgment, parseCapturedAt, deriveCallTiming } from "@onedal/shared";
 import { DWELL_UNKNOWN_PICKUP_MINUTES, DWELL_UNKNOWN_DROPOFF_MINUTES, allowedDetourMinutes, dwellMinutes } from "@onedal/shared";
@@ -344,69 +344,5 @@ describe('통화 시트 — 주행을 몰라도 추천한다', () => {
         expect(sheet).toMatch(/const loadDoneMs = new Date\(deadlineAt\)\.getTime\(\);/);
         expect(sheet).not.toMatch(/loadDoneMs = new Date\(deadlineAt\)\.getTime\(\) \+ dwell/);
         expect(sheet).toMatch(/실어 보냄/);
-    });
-});
-
-/**
- * 🔴 **앱이 화면 글자를 지명으로 읽어 보내던 것을 서버가 잡는다** (2026-08-16 실측)
- *
- * ```
- *   ⏱️ [1차 선빵 수신] 계산서필 ➡️ 카톤
- * ```
- * `계산서필`(=세금계산서필요) · `카톤`(=카톤박스) 은 **적요 텍스트 조각**이지 지명이 아니다.
- * 관제탑 카드에 `계산서필 → 카톤` 이 뜨고 차종이 `다`(=다마스 조각)로 찍혔다.
- *
- * 근본 해결은 앱 파서지만 **재설치가 필요**하다. 서버에는 전국 읍면동·자치구 1239개가 이미
- * 메모리에 있으니 그 사전과 대조해 즉시 막는다.
- *
- * ⚠️ **콜을 버리지는 않는다** — 규칙 ①(콜의 주인은 기사님이다).
- *    2차 상세가 오면 제대로 된 주소로 덮인다. 그때까지 "모른다"고 적을 뿐이다.
- */
-describe('지명이 아닌 글자를 걸러낸다', () => {
-
-    beforeAll(() => { initGeoService(); });
-
-    it('🔴 실재 지명은 통과한다 (번지·건물명이 섞여도)', () => {
-        for (const t of ['경기 광주시 경안동 165-15 농협', '송정동', '금촌동', '탄현면', '경기 파주시'])
-            expect(looksLikePlaceName(t)).toBe(true);
-    });
-
-    it('🔴 화면 글자·적요 조각은 걸러낸다', () => {
-        for (const t of ['계산서필', '카톤', '다', '전표', '신규', '박스', '상세 정보 없음', '미상', '', null])
-            expect(looksLikePlaceName(t)).toBe(false);
-    });
-
-    /**
-     * ⚠️ 변이 테스트로 확인한 것 — 위 검사만으로는 **함수를 통째로 `return true` 로 바꿔도**
-     *    잡히지 않았다(다른 케이스가 가려 줬다). 두 방향을 **한 검사 안에서** 함께 본다.
-     */
-    it('🔴 통과와 차단이 **둘 다** 성립한다 (한쪽만 보면 함수를 무력화해도 안 잡힌다)', () => {
-        const 통과 = ['경기 광주시 경안동 165-15', '경안동', '판교역로 146'];
-        const 차단 = ['계산서필', '카톤', '전표'];
-        expect(통과.every(t => looksLikePlaceName(t))).toBe(true);
-        expect(차단.some(t => looksLikePlaceName(t))).toBe(false);
-    });
-
-    /**
-     * 🔴 **멀쩡한 주소를 막으면 더 큰 사고다.** 재검토(2026-08-16)에서 `판교역로 146` 처럼
-     *    시/도·동 없이 오는 **도로명 주소**가 막히는 것을 발견해 규칙을 넓혔다.
-     *    화면이 *"주소를 못 읽었다"* 고 거짓말하느니 통과시킨다 —
-     *    막아야 할 글자들은 `로`·`길` + 번지 표식이 없다.
-     */
-    it('🔴 시/도·동이 없는 도로명 주소도 통과한다', () => {
-        for (const t of ['판교역로 146', '테헤란로 152 강남파이낸스센터', '경충대로 2170'])
-            expect(looksLikePlaceName(t)).toBe(true);
-    });
-
-    it('🔴 선빵 수신에서 걸러 표시를 바로잡는다 (콜은 안 버린다)', () => {
-        const o = codeOnly(read('routes/orders.ts'));
-        expect(o).toMatch(/looksLikePlaceName\(v\)/);
-        expect(o).toMatch(/주소 확인 중/);
-    });
-
-    it('🔴 2차 상세도 `미상` 만 보지 않는다', () => {
-        const d = codeOnly(read('routes/detail.ts'));
-        expect(d).toMatch(/!looksLikePlaceName\(pendingOrder\.pickup\)/);
-        expect(d).toMatch(/!looksLikePlaceName\(pendingOrder\.dropoff\)/);
     });
 });

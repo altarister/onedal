@@ -302,58 +302,6 @@ export function progressAlongPolyline(
  *
  * ⚠️ 예전에는 "1픽셀이라도 걸치면" 이었다. 아래 판정부의 주석 참고.
  */
-/**
- * 🔴 **이 글자가 실재하는 지명인가** (2026-08-16 신설).
- *
- * 앱이 화면 텍스트를 지명으로 잘못 읽어 보내는 일이 있다. 실측:
- * ```
- *   ⏱️ [1차 선빵 수신] 계산서필 ➡️ 카톤
- * ```
- * `계산서필` = *"세금계산서필요"*, `카톤` = *"카톤박스"* 의 잘린 조각이다.
- * 관제탑 카드에 `계산서필 → 카톤` 이 뜨고 차종이 `다`(=다마스 조각) 로 찍혔다.
- *
- * 근본 해결은 앱 파서지만 **앱은 재설치가 필요하다.** 서버에는 이미 전국 읍면동·자치구
- * 폴리곤 1239개가 메모리에 있으니, **그 이름 사전과 대조**해 즉시 막을 수 있다.
- *
- * ⚠️ **주소 전체가 아니라 "지명 조각이 하나라도 들어 있는가"** 를 본다 —
- *    `경기 광주시 경안동 165-15 농협` 처럼 번지·건물명이 섞여 오기 때문이다.
- */
-let regionNameSet: Set<string> | null = null;
-
-function buildRegionNameSet(): Set<string> {
-    const s = new Set<string>();
-    for (const f of mergedMapFeatureCollection?.features ?? []) {
-        const p = (f.properties || {}) as any;
-        for (const v of [p.name, p.EMD_KOR_NM, p.SIG_KOR_NM, p.intel?.parentName]) {
-            if (typeof v === 'string' && v.length >= 2) s.add(v);
-        }
-    }
-    return s;
-}
-
-export function looksLikePlaceName(text: string | null | undefined): boolean {
-    if (!text) return false;
-    const t = text.trim();
-    if (t.length < 2) return false;
-
-    // ① 시/도 이름으로 시작하는 정상 주소
-    if (/^(서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주)/.test(t)) return true;
-
-    /**
-     * ② **도로명 주소**. `판교역로 146` 처럼 시/도·동이 없이 오는 경우가 있다 —
-     *    지명 사전에만 기대면 **멀쩡한 주소를 막는다.** 화면이 거짓말하느니 통과시킨다.
-     *    (막아야 할 것들 — `계산서필`·`카톤`·`전표`·`다` — 은 이 표식이 없다)
-     */
-    if (/[가-힣]{2,}(로|길)\s*\d/.test(t)) return true;
-
-    // ③ 실재 읍면동·자치구 이름이 하나라도 들어 있는가
-    if (!regionNameSet) regionNameSet = buildRegionNameSet();
-    for (const name of regionNameSet) {
-        if (t.includes(name)) return true;
-    }
-    return false;
-}
-
 export function getCityRegionsWithRadius(cityName: string, radiusKm: number): CityRegions {
     if (!mergedMapFeatureCollection || !mergedMapFeatureCollection.features) {
         return { flat: [], grouped: {}, customCityFilters: [] };

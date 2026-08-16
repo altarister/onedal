@@ -18,7 +18,6 @@ import { RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, restoreWindow, isEvaluating 
 import db from "../db";
 import { getUserSession } from "../state/userSessionStore";
 import { forceCancelEvaluatingOrder, handleDecision } from "../services/dispatchEngine";
-import { looksLikePlaceName } from "../services/geoService";
 import { updateActiveFilter } from "../state/filterManager";
 import { requireAuth } from "../middlewares/authMiddleware";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
@@ -122,26 +121,6 @@ router.post("/confirm", (req, res) => {
         if (io) {
             console.log(`📤 [Socket 푸시] order-evaluating (${pendingOrder.id})`);
             io.to(userId).emit("order-evaluating", pendingOrder);
-            /**
-             * 🔴 **앱이 화면 글자를 지명으로 잘못 읽어 보낸 것을 여기서 잡는다** (2026-08-16).
-             *
-             * 실측: `⏱️ [1차 선빵 수신] 계산서필 ➡️ 카톤` — `계산서필`(=세금계산서필요) ·
-             * `카톤`(=카톤박스) 은 적요 텍스트 조각이지 지명이 아니다.
-             * 관제탑 카드에 `계산서필 → 카톤` 이 뜨고 차종이 `다`(=다마스 조각)로 찍혔다.
-             *
-             * 근본 해결은 앱 파서지만 **재설치가 필요**하다. 서버에는 전국 읍면동·자치구 1239개가
-             * 이미 메모리에 있으니 **그 사전과 대조**해 즉시 표시를 바로잡는다.
-             *
-             * ⚠️ **콜을 버리지 않는다** — 규칙 ①(콜의 주인은 기사님이다).
-             *    2차 상세가 오면 제대로 된 주소로 덮인다. 그때까지 **모른다고 적을 뿐**이다.
-             */
-            for (const k of ['pickup', 'dropoff'] as const) {
-                const v = (pendingOrder as any)[k];
-                if (v && !looksLikePlaceName(v)) {
-                    console.log(`   ⚠️ [지명 아님] ${k}='${v}' — 화면 글자를 읽은 것으로 보입니다 (상세 대기)`);
-                    (pendingOrder as any)[k] = '(주소 확인 중)';
-                }
-            }
             console.log(`⏱️ [1차 선빵 수신] ${pendingOrder.pickup} ➡️ ${pendingOrder.dropoff} (기기: ${payload.deviceId})`);
             logRoadmapEvent("서버", "앱폰으로 부터 가로챈 '1차 오더 확정' 요청 받음");
             logRoadmapEvent("서버", "관제탑에게 이 콜을 선점했음(order-evaluating) 정보 전달");
