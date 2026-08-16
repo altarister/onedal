@@ -194,10 +194,22 @@ describe('통화 시트 — 미리 눌러 두고 근거를 남긴다', () => {
      *    마감 10:36 인데 `11:06` 을 추천하고, 근거 줄은 *"콜 잡은 시각 + 1시간 기준"* 이라
      *    적혀 **사실과 달랐다** (기사님 화면에서 실측).
      */
-    it('🔴 마감에 가장 가까운 칸을 고른다', () => {
-        const fn = sheet().slice(sheet().indexOf('const suggestedSlot'));
-        expect(fn.slice(0, 1400)).toMatch(/const nearest = /);
-        expect(fn.slice(0, 1400)).toMatch(/Math\.abs/);
+    /**
+     * 🔴 **기준 이상인 첫 칸**이어야 한다. 그보다 이른 칸은 **지킬 수 없는 약속**이다 —
+     *    주행 20 + 상차 15 = 35분이 필요한데 30분 뒤 칸을 부르면 5분 늦는다.
+     *
+     * ⚠️ 한 번 `가장 가까운 칸`으로 바꿨다가 되돌렸다(2026-08-16 재검토).
+     *    30분 밀리던 진짜 원인은 설계가 아니라 **초**였다 —
+     *    `buildArrivalSlots` 가 `setSeconds(0,0)` 로 칸의 초를 0 으로 만들어,
+     *    마감 `10:35:17` 앞에서 `10:35:00` 칸이 **17초 모자라** 탈락했다.
+     */
+    it('🔴 기준 이상인 첫 칸을 고른다 · 초는 버리고 비교한다', () => {
+        const src = sheet();
+        // 추천 함수 **한 덩어리만** 본다 — 다른 곳의 Math.abs(짐 양 비교)에 걸리지 않게
+        const fn = src.slice(src.indexOf('const firstAtOrAfter'), src.indexOf('}, [driveKnown'));
+        expect(fn).toMatch(/hourSlots\.find\(sl =>/);
+        expect(fn).toMatch(/Math\.floor\(targetMs \/ 60_000\) \* 60_000/);
+        expect(fn).not.toMatch(/Math\.abs/);   // 「가장 가까운 칸」이 아니다 — 이른 칸은 못 지킨다
     });
 
     it('🔴 근거 줄이 **기준 시각**을 함께 적는다 (추천 칸과 다를 수 있다)', () => {
@@ -307,6 +319,21 @@ describe('통화 시트 — 주행을 몰라도 추천한다', () => {
         expect(fn.slice(0, 900)).toMatch(/pickupDeadlineAt/);
     });
 
+    /**
+     * 🔴 **콜마다 시트를 새로 그린다** (2026-08-16 실측).
+     *
+     * `key` 가 `shownStep.id`(= `CALL_PICKUP` 같은 **단계 이름**)뿐이라 콜이 달라도 같았다.
+     * React 가 컴포넌트를 재사용해 **앞 콜의 `deadlineAt`·물량이 다음 콜 화면에 남았다** —
+     * 송정동 콜 화면에 계산서필 콜의 `11:08` 이 떠 있었다.
+     */
+    it('🔴 시트의 key 에 콜 id 가 들어간다', () => {
+        const card = rc4('components/dashboard/PinnedRouteCard.tsx');
+        const at = card.indexOf('<StopCallSheet');
+        expect(at).toBeGreaterThan(-1);
+        const props = card.slice(at, at + 300);
+        expect(props).toMatch(/key=\{`\$\{route\.id\}:\$\{shownStep\.id\}`\}/);
+    });
+
     it('🔴 카드가 그 값을 넘긴다', () => {
         expect(rc4('components/dashboard/PinnedRouteCard.tsx'))
             .toMatch(/pickupDeadlineAt=\{timing\.pickupDeadlineAt\}/);
@@ -345,8 +372,30 @@ describe('지명이 아닌 글자를 걸러낸다', () => {
     });
 
     it('🔴 화면 글자·적요 조각은 걸러낸다', () => {
-        for (const t of ['계산서필', '카톤', '다', '전표', '신규', '박스', '상세 정보 없음', '', null])
+        for (const t of ['계산서필', '카톤', '다', '전표', '신규', '박스', '상세 정보 없음', '미상', '', null])
             expect(looksLikePlaceName(t)).toBe(false);
+    });
+
+    /**
+     * ⚠️ 변이 테스트로 확인한 것 — 위 검사만으로는 **함수를 통째로 `return true` 로 바꿔도**
+     *    잡히지 않았다(다른 케이스가 가려 줬다). 두 방향을 **한 검사 안에서** 함께 본다.
+     */
+    it('🔴 통과와 차단이 **둘 다** 성립한다 (한쪽만 보면 함수를 무력화해도 안 잡힌다)', () => {
+        const 통과 = ['경기 광주시 경안동 165-15', '경안동', '판교역로 146'];
+        const 차단 = ['계산서필', '카톤', '전표'];
+        expect(통과.every(t => looksLikePlaceName(t))).toBe(true);
+        expect(차단.some(t => looksLikePlaceName(t))).toBe(false);
+    });
+
+    /**
+     * 🔴 **멀쩡한 주소를 막으면 더 큰 사고다.** 재검토(2026-08-16)에서 `판교역로 146` 처럼
+     *    시/도·동 없이 오는 **도로명 주소**가 막히는 것을 발견해 규칙을 넓혔다.
+     *    화면이 *"주소를 못 읽었다"* 고 거짓말하느니 통과시킨다 —
+     *    막아야 할 글자들은 `로`·`길` + 번지 표식이 없다.
+     */
+    it('🔴 시/도·동이 없는 도로명 주소도 통과한다', () => {
+        for (const t of ['판교역로 146', '테헤란로 152 강남파이낸스센터', '경충대로 2170'])
+            expect(looksLikePlaceName(t)).toBe(true);
     });
 
     it('🔴 선빵 수신에서 걸러 표시를 바로잡는다 (콜은 안 버린다)', () => {

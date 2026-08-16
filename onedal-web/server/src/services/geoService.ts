@@ -335,8 +335,18 @@ export function looksLikePlaceName(text: string | null | undefined): boolean {
     if (!text) return false;
     const t = text.trim();
     if (t.length < 2) return false;
-    // 지명은 아니지만 주소로 들어오는 정상 표기 — 시/도 이름
+
+    // ① 시/도 이름으로 시작하는 정상 주소
     if (/^(서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주)/.test(t)) return true;
+
+    /**
+     * ② **도로명 주소**. `판교역로 146` 처럼 시/도·동이 없이 오는 경우가 있다 —
+     *    지명 사전에만 기대면 **멀쩡한 주소를 막는다.** 화면이 거짓말하느니 통과시킨다.
+     *    (막아야 할 것들 — `계산서필`·`카톤`·`전표`·`다` — 은 이 표식이 없다)
+     */
+    if (/[가-힣]{2,}(로|길)\s*\d/.test(t)) return true;
+
+    // ③ 실재 읍면동·자치구 이름이 하나라도 들어 있는가
     if (!regionNameSet) regionNameSet = buildRegionNameSet();
     for (const name of regionNameSet) {
         if (t.includes(name)) return true;

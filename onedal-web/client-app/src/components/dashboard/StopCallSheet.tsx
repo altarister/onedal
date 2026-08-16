@@ -310,24 +310,24 @@ export default function StopCallSheet({
          * 그래서 주행을 모르면 **서버가 만든 상차 마감**으로 고른다.
          */
         /**
-         * 🔴 **마감에 가장 가까운 칸**을 고른다 (2026-08-16 수정).
+         * **기준 시각 이상인 첫 칸**을 고른다. 그보다 이른 칸은 **지킬 수 없는 약속**이다 —
+         * 주행 20 + 상차 15 = 35분이 필요한데 30분 뒤 칸을 부르면 5분 늦는다.
          *
-         * 예전에는 *"마감 이상인 첫 칸"* 이었다. 칸이 30분 간격이라 마감이 칸을 1분만 넘겨도
-         * **다음 칸(30분 뒤)** 으로 밀렸다 — 마감 10:36 인데 `11:06` 을 추천하고,
-         * 근거 줄에는 *"콜 잡은 시각 + 1시간 기준"* 이라 적혀 **사실과 달랐다.**
-         *
-         * 지금은 **가장 가까운 칸**이다. 마감보다 조금 이른 칸이 뽑힐 수 있는데,
-         * 그건 기사님이 통화에서 조정하실 몫이다 (근거 줄이 실제 마감을 함께 보여준다).
+         * 🔴 **초를 버리고 비교한다** (2026-08-16). `buildArrivalSlots` 가 `setSeconds(0,0)` 로
+         *    칸의 초를 0 으로 만든다. 그래서 마감이 `10:35:17` 이면 `10:35:00` 칸이
+         *    **17초 모자라** 탈락하고 **30분 뒤 칸**이 뽑혔다 —
+         *    실측: 마감 10:35 인데 `11:05` 를 추천했다. 설계가 아니라 **17초** 때문이었다.
          */
-        const nearest = (targetMs: number) => hourSlots.reduce((best, sl) =>
-            Math.abs(new Date(sl.iso).getTime() - targetMs) < Math.abs(new Date(best.iso).getTime() - targetMs)
-                ? sl : best, hourSlots[0]);
+        const firstAtOrAfter = (targetMs: number) => {
+            const t = Math.floor(targetMs / 60_000) * 60_000;   // 칸과 같은 눈금(분)으로 맞춘다
+            return hourSlots.find(sl => new Date(sl.iso).getTime() >= t) ?? hourSlots[hourSlots.length - 1];
+        };
 
         if (!driveKnown) {
             if (!isPickup || !pickupDeadlineAt) return null;
-            return nearest(new Date(pickupDeadlineAt).getTime());
+            return firstAtOrAfter(new Date(pickupDeadlineAt).getTime());
         }
-        return nearest(Date.now() + (arrivalMinutes + (isPickup ? dwell : 0)) * 60_000);
+        return firstAtOrAfter(Date.now() + (arrivalMinutes + (isPickup ? dwell : 0)) * 60_000);
     }, [driveKnown, arrivalMinutes, dwell, isPickup, hourSlots, pickupDeadlineAt]);
 
     /** 기사님이 아직 손대지 않아 추천값이 눌려 있는 상태인가 — 눌리면 근거 줄을 띄운다 */
