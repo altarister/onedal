@@ -57,15 +57,15 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
     /**
      * 차종별 하한 단가표는 **눈높이에서만 파생된다** (docs/필터_재설계_명세.md §2).
      *
-     * 관제웹은 `eyelinePct` 하나만 보내고 표는 만들지 않는다 — 같은 표를 두 곳에서
+     * 관제웹은 `callDiscountPct` 하나만 보내고 표는 만들지 않는다 — 같은 표를 두 곳에서
      * 만들면 한쪽만 고쳐진다(회랑 4벌·상태목록 3벌과 같은 사고). 원천은 DB 의
      * `eyeline_pct` 이고, 여기가 그것을 표로 펼치는 유일한 자리다.
      */
-    if ('eyelinePct' in changes) {
+    if ('callDiscountPct' in changes) {
         // 요율·수수료의 원천은 DB 다 (설정 화면에서 기사님이 바꾼다).
         const pricing = SettingsRepository.loadPricingConfig(userId);
         session.activeFilter.ratePerKm = rateFloorsFrom(
-            changes.eyelinePct ?? 10,
+            changes.callDiscountPct ?? 10,
             pricing.vehicleRates,
             pricing.agencyFeePercent,
         );
@@ -364,12 +364,12 @@ function applyPhaseSettingsIfChanged(
 
     console.log(`🧭 [국면 설정] ${prev ?? '없음'} → ${key} · ` +
         `상차 ${session.activeFilter.pickupRadiusKm}km · 경유 ${session.activeFilter.corridorRadiusKm}km · ` +
-        `하차 ${session.activeFilter.destinationRadiusKm}km · 할인 ${session.activeFilter.eyelinePct}%`);
+        `하차 ${session.activeFilter.destinationRadiusKm}km · 할인 ${session.activeFilter.callDiscountPct}%`);
 
     // 단가표는 할인율에서 파생된다 (§2-1) — 여기서 다시 만든다
     const pricing = SettingsRepository.loadPricingConfig(userId);
     session.activeFilter.ratePerKm = rateFloorsFrom(
-        session.activeFilter.eyelinePct ?? 10,
+        session.activeFilter.callDiscountPct ?? 10,
         pricing.vehicleRates,
         pricing.agencyFeePercent,
     );
@@ -535,7 +535,7 @@ export function saveBaseFilter(
             b.isActive ? 1 : 0,
             0, // isSharedMode는 DB에 영구저장 안함
             'EMPTY', // loadState는 DB에 항상 EMPTY로 저장
-            b.eyelinePct ?? 10,   // 눈높이 — 원천은 DB. ratePerKm 는 여기서 파생되므로 저장하지 않는다
+            b.callDiscountPct ?? 10,   // 눈높이 — 원천은 DB. ratePerKm 는 여기서 파생되므로 저장하지 않는다
             JSON.stringify(session.basePhaseSettings),   // 국면별 설정 (§2-4-7)
             userId
         );

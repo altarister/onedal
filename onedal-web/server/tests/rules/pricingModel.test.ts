@@ -107,7 +107,7 @@ describe('단가 판정 모델 — 명세 고정', () => {
 describe('단가 판정 모델 — 피기백 호환', () => {
 
     it('새 필드는 전부 optional — 구버전 앱 필터 객체에 없어도 성립한다', () => {
-        // 구버전 앱이 파싱하는 형태 (ratePerKm/eyelinePct/slotsUsed 없음)
+        // 구버전 앱이 파싱하는 형태 (ratePerKm/callDiscountPct/slotsUsed 없음)
         const legacy: import('@onedal/shared').AutoDispatchFilter = {
             allowedVehicleTypes: [], isActive: false, isSharedMode: false,
             driverAction: 'WAITING', dispatchPhase: 'STANDBY',
@@ -119,10 +119,10 @@ describe('단가 판정 모델 — 피기백 호환', () => {
     });
 
     it('activeFilter 스프레드({...filter})에 새 필드가 실려 간다 — scrap.ts 피기백 경로', () => {
-        const filter = { minFare: 30000, ratePerKm: rateFloorsFrom(10), eyelinePct: 10, slotsUsed: 4 };
+        const filter = { minFare: 30000, ratePerKm: rateFloorsFrom(10), callDiscountPct: 10, slotsUsed: 4 };
         const { ...appFilter } = filter;   // scrap.ts 와 같은 방식
         expect(appFilter.ratePerKm!['1t']).toBe(693);
-        expect(appFilter.eyelinePct).toBe(10);
+        expect(appFilter.callDiscountPct).toBe(10);
         expect(appFilter.minFare).toBe(30000);      // 구 필드도 그대로 — 구앱 호환
     });
 });

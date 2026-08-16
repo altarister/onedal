@@ -152,7 +152,7 @@ describe('조각 → 평면 매핑 (§2-4-6)', () => {
         expect(flat.pickupRadiusKm).toBe(7);
         expect(flat.corridorRadiusKm).toBe(4);        // detourAllowKm
         expect(flat.destinationRadiusKm).toBe(2);     // dropoffRadiusKm
-        expect(flat.eyelinePct).toBe(30);             // discountPct
+        expect(flat.callDiscountPct).toBe(30);             // discountPct
     });
 
     it('🔴 도착 도시는 input(첫짐)과 **덮어쓴** override(관내)에서만 내보낸다', () => {
@@ -168,7 +168,7 @@ describe('조각 → 평면 매핑 (§2-4-6)', () => {
 
     it('평면 → 조각 (마이그레이션·폼 초기화)', () => {
         const back = phaseFromFlat(
-            { pickupRadiusKm: 1, corridorRadiusKm: 1, destinationRadiusKm: 1, eyelinePct: 20, destinationCity: '용인시' },
+            { pickupRadiusKm: 1, corridorRadiusKm: 1, destinationRadiusKm: 1, callDiscountPct: 20, destinationCity: '용인시' },
             DEFAULT_PHASE_SETTINGS.first,
         );
         expect(back).toEqual({

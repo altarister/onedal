@@ -18,7 +18,7 @@ const SERVICE_DEFAULT_FILTER: Partial<AutoDispatchFilter> = {
     driverAction: 'WAITING',      // [V2] 기사 행동 상태 기본값
     dispatchPhase: 'STANDBY',     // [V2] 사냥 전략 기본값
     // ── 단가 판정 모델 (필터_재설계_명세 §2) — DB eyeline_pct DEFAULT 10 과 같은 값 ──
-    eyelinePct: 10,
+    callDiscountPct: 10,
     ratePerKm: rateFloorsFrom(10),
 };
 
@@ -222,7 +222,7 @@ export function getUserSession(userId: string): UserSession {
                     // ── 단가 판정 모델 (필터_재설계_명세 §2) ──
                     // eyeline_pct 의 원천은 DB (ALTER ADD COLUMN DEFAULT 10 이 기존 행도 채운다).
                     // ratePerKm 은 파생값 — 저장하지 않고 눈높이에서 매번 만든다.
-                    eyelinePct: filterRow.eyeline_pct,
+                    callDiscountPct: filterRow.eyeline_pct,
                     // 단가표는 DB 의 vehicle_rates·agency_fee_percent 에서 파생시킨다.
                     // shared 폴백 상수를 쓰면 설정에서 요율을 바꿔도 앱 필터가 안 바뀐다.
                     ratePerKm: rateFloorsFrom(
@@ -246,7 +246,7 @@ export function getUserSession(userId: string): UserSession {
                         pickupRadiusKm: filterRow.pickup_radius_km,
                         corridorRadiusKm: filterRow.corridor_radius_km,
                         destinationRadiusKm: filterRow.destination_radius_km,
-                        eyelinePct: filterRow.eyeline_pct,
+                        callDiscountPct: filterRow.eyeline_pct,
                         destinationCity: filterRow.destination_city ?? "",
                     }, DEFAULT_PHASE_SETTINGS.first);
                     session.basePhaseSettings = migrated;

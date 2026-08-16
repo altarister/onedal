@@ -594,7 +594,7 @@ export interface AutoDispatchFilter {
     /** 차종별 하한 단가(원/km) = 실수령 시세 × (1 − 눈높이). 판정: fare ≥ 배송거리 × ratePerKm[차종] */
     ratePerKm?: Record<string, number>;
     /** 눈높이 — 시세 대비 허용 할인 %. 100 = "전부"(금액 무관) */
-    eyelinePct?: number;
+    callDiscountPct?: number;
     /** 사용 중인 적재 칸 (내 1t 트럭 = 5칸). 명목값이며 통화 확인 시 갱신 */
     slotsUsed?: number;
     /** 지금 어느 국면을 사냥하는가 — 기사님이 요약줄 스와이프로 고른다 (기본 DEST) */

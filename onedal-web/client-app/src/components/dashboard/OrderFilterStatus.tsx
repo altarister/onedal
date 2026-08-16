@@ -62,8 +62,8 @@ export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () =
     }
 
     // ── 단가 판정 모델 표시값 ── 서버가 내려준 파생값을 그대로 쓴다
-    const eyeline = filter.eyelinePct ?? 10;
-    const eyelineLabel = eyeline >= 100 ? '전부' : (eyeline === 0 ? '시세' : `-${eyeline}%`);
+    const eyeline = filter.callDiscountPct ?? 10;
+    const callDiscountLabel = eyeline >= 100 ? '전부' : (eyeline === 0 ? '시세' : `-${eyeline}%`);
     const oneTonRate = filter.ratePerKm?.['1t'] ?? 0;
     const slotsUsed = Math.round(filter.slotsUsed ?? 0);
     const regionCount = filter.destinationKeywords?.length ?? 0;
@@ -118,7 +118,7 @@ export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () =
                     </span>
                     {/* ── 순서를 고정한다 (명세 §4-1) — 💰 금액 · 📍 지역 · 📦 적재 ── */}
                     <span className="text-[11px] text-text-muted font-medium truncate mt-0.5">
-                        💰 {eyelineLabel}
+                        💰 {callDiscountLabel}
                         <span className="opacity-70"> (1t ≥ {oneTonRate.toLocaleString()}원/km)</span>
                         <span className="mx-1.5 opacity-40">·</span>
                         📍 {regionCount}개 동

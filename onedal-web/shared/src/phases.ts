@@ -68,7 +68,7 @@ export function resolvePhaseKey(callTarget: string, dispatchPhase: string): Phas
  *    이름을 못 바꾼다 — `applyPhaseToFilter()` 가 사이를 잇는다.
  *      detourAllowKm   ↔ corridorRadiusKm
  *      dropoffRadiusKm ↔ destinationRadiusKm
- *      discountPct     ↔ eyelinePct
+ *      discountPct     ↔ callDiscountPct
  */
 export interface PhaseSettings {
     /** 도착 도시. 🖊️ `first` 만 저장한다 — 나머지는 런타임 파생 */
@@ -201,7 +201,7 @@ export interface FlatPhasePatch {
     pickupRadiusKm: number;
     corridorRadiusKm: number;
     destinationRadiusKm: number;
-    eyelinePct: number;
+    callDiscountPct: number;
     destinationCity?: string;
 }
 
@@ -220,7 +220,7 @@ export function applyPhaseToFilter(phase: PhaseKey, s: PhaseSettings): FlatPhase
         pickupRadiusKm: s.pickupRadiusKm,
         corridorRadiusKm: s.detourAllowKm,
         destinationRadiusKm: s.dropoffRadiusKm,
-        eyelinePct: s.discountPct,
+        callDiscountPct: s.discountPct,
     };
     /**
      * `input` 은 늘 내보낸다. `override` 는 **덮어썼을 때만** 내보낸다 —
@@ -237,13 +237,13 @@ export function applyPhaseToFilter(phase: PhaseKey, s: PhaseSettings): FlatPhase
 /** 평면 필터에서 국면 조각을 뽑는다 (마이그레이션·폼 초기화용) */
 export function phaseFromFlat(flat: {
     pickupRadiusKm?: number; corridorRadiusKm?: number;
-    destinationRadiusKm?: number; eyelinePct?: number; destinationCity?: string;
+    destinationRadiusKm?: number; callDiscountPct?: number; destinationCity?: string;
 }, fallback: PhaseSettings): PhaseSettings {
     return {
         destinationCity: flat.destinationCity ?? fallback.destinationCity,
         pickupRadiusKm: flat.pickupRadiusKm ?? fallback.pickupRadiusKm,
         detourAllowKm: flat.corridorRadiusKm ?? fallback.detourAllowKm,
         dropoffRadiusKm: flat.destinationRadiusKm ?? fallback.dropoffRadiusKm,
-        discountPct: flat.eyelinePct ?? fallback.discountPct,
+        discountPct: flat.callDiscountPct ?? fallback.discountPct,
     };
 }

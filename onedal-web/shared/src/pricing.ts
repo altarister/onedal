@@ -78,14 +78,14 @@ export const EYELINE_ALL = 100;
  * `agencyFeePercent` = `agency_fee_percent`). 안 넘기면 폴백 상수로 계산되는데,
  * 그러면 기사님이 설정에서 요율을 바꿔도 앱 필터가 안 바뀐다.
  *
- * eyelinePct = 100 (전부) 이면 전 차종 0 — 금액 무관 통과.
+ * callDiscountPct = 100 (전부) 이면 전 차종 0 — 금액 무관 통과.
  */
 export function rateFloorsFrom(
-    eyelinePct: number,
+    callDiscountPct: number,
     grossRates: Record<string, number> = GROSS_RATE_PER_KM,
     agencyFeePercent = 23,
 ): Record<string, number> {
-    const keep = Math.max(0, 1 - eyelinePct / 100);
+    const keep = Math.max(0, 1 - callDiscountPct / 100);
     const net = Math.max(0, 1 - agencyFeePercent / 100);
     const floors: Record<string, number> = {};
     for (const [vehicle, gross] of Object.entries(grossRates)) {
