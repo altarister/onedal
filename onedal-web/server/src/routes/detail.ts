@@ -160,8 +160,8 @@ router.post("/", async (req, res) => {
              */
             const unreadable: string[] = [];
             if (!pendingOrder.fare || pendingOrder.fare <= 0) unreadable.push('요금');
-            if (!pendingOrder.pickup || pendingOrder.pickup === '미상') unreadable.push('상차지');
-            if (!pendingOrder.dropoff || pendingOrder.dropoff === '미상') unreadable.push('하차지');
+            if (!pendingOrder.pickup || pendingOrder.pickup === '배차값없음') unreadable.push('상차지');
+            if (!pendingOrder.dropoff || pendingOrder.dropoff === '배차값없음') unreadable.push('하차지');
 
             if (unreadable.length > 0) {
                 const what = unreadable.join('·');

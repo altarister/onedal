@@ -135,8 +135,8 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
         val pickupInfo = locationInfos.getOrNull(0)
         val dropoffInfo = locationInfos.getOrNull(1) ?: pickupInfo
 
-        val pickup = pickupInfo?.cleanRegion ?: "미상"
-        val dropoff = dropoffInfo?.cleanRegion ?: "미상"
+        val pickup = pickupInfo?.cleanRegion ?: "배차값없음"
+        val dropoff = dropoffInfo?.cleanRegion ?: "배차값없음"
         val scheduleText = pickupInfo?.scheduleText ?: dropoffInfo?.scheduleText
 
         // ── 4. 거리(pickupDistance) 파싱: "11Km", "15Km" 등 ──
@@ -189,7 +189,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
         //    (2026-08-16 실측: "대기 572분"). `XXX` 를 쓰면 `+09:00` 이 붙는다
         SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.getDefault()).format(Date())
 
-        val isValidOrder = fare > 0 || pickup != "미상" || dropoff != "미상"
+        val isValidOrder = fare > 0 || pickup != "배차값없음" || dropoff != "배차값없음"
         if (isValidOrder) {
             AppLogger.d(TAG, "📦 [24시 파싱] 상차=$pickup, 하차=$dropoff, 요금=$fare, " +
                     "차종=$vehicleType, 거리=${pickupDistance}km, 적요=${detailMemo?.take(30)}")
@@ -251,7 +251,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
         //
         // 🔴 2026-08-12 — 예전에는 키워드가 비면 `true`(전부 통과)였다.
         //    도착지 조건이 없는 상태는 "아무 데나 좋다"가 아니라
-        //    **"필터가 아직 안 만들어졌다"** 는 뜻이다. 서버가 회랑을 못 구했거나
+        //    **"필터가 아직 안 만들어졌다"** 는 뜻이다. 서버가 경유을 못 구했거나
         //    목적지 도시가 비었을 때 그렇게 된다.
         //
         //    그대로 통과시키면 `isActive` 는 켜진 채 **도착지 제한만 사라진다.**
@@ -259,7 +259,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
         //    서버도 같은 방향으로 열려 있어서 두 겹이 동시에 무력화됐다.
         //    (서버: `filterHuntBlocker` · `OrderEvaluator` 5번 항목)
         val regionMatch = if (filter.destinationKeywords.isEmpty()) {
-            AppLogger.d(TAG, "🚦 [사냥 보류] 도착지 키워드가 비어 있습니다 — 서버가 필터를 아직 못 만들었습니다")
+            AppLogger.d(TAG, "🚦 [콜 잡기 보류] 도착지 키워드가 비어 있습니다 — 서버가 필터를 아직 못 만들었습니다")
             false
         } else {
             filter.destinationKeywords.any { region ->
@@ -272,7 +272,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
         //
         // 🔴 2026-08-12 — 상한(maxFare)을 **서버만** 보고 있었다.
         //    앱은 파싱만 하고 판정에 안 써서, 상한을 50만으로 잡아도 100만짜리를 잡았다.
-        //    서버가 데스밸리에서 "똥콜"이라 걸러내지만 그때는 **이미 패널티 구간**이다.
+        //    서버가 안전취소에서 "똥콜"이라 걸러내지만 그때는 **이미 패널티 구간**이다.
         //    안 잡는 것과 잡고 나서 버리는 것은 전혀 다르다.
         //
         // 규칙은 서버(OrderEvaluator)와 **똑같이** 맞춘다:
@@ -300,12 +300,12 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
         }
 
         // ── 로그 출력 ──
-        val isValidOrder = order.fare > 0 || order.pickup != "미상" || order.dropoff != "미상"
+        val isValidOrder = order.fare > 0 || order.pickup != "배차값없음" || order.dropoff != "배차값없음"
         if (isValidOrder) {
-            AppLogger.roadmap("🔍 [24시 필터] 차종(${order.vehicleType ?: "미상"})=${if(vehicleMatch) "✅" else "❌"} " +
+            AppLogger.roadmap("🔍 [24시 필터] 차종(${order.vehicleType ?: "배차값없음"})=${if(vehicleMatch) "✅" else "❌"} " +
                     "도착지(${order.dropoff})=${if(regionMatch) "✅" else "❌"} " +
                     "요금(${filter.minFare} <= ${order.fare}${if (hasFareCeiling) " <= ${filter.maxFare}" else ""})=${if(fareMatch) "✅" else "❌"} " +
-                    "거리(${if(filter.isSharedMode) "합짐무시" else "${filter.pickupRadiusKm}km"} >= ${order.pickupDistance ?: "미상"})=${if(distanceMatch) "✅" else "❌"} " +
+                    "거리(${if(filter.isSharedMode) "합짐무시" else "${filter.pickupRadiusKm}km"} >= ${order.pickupDistance ?: "배차값없음"})=${if(distanceMatch) "✅" else "❌"} " +
                     "블랙=${if(blacklistClear) "✅" else "❌"}", "LIST")
         }
 

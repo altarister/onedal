@@ -70,7 +70,7 @@ class SessionManager {
      * 모든 세션 상태를 초기화합니다.
      * 리스트(LIST) 복귀, 2차 필터 실패, 판결 집행 완료 시 호출됩니다.
      *
-     * @param onReset 외부 리소스 정리 콜백 (데스밸리 타이머 취소, 텔레메트리 flush 등)
+     * @param onReset 외부 리소스 정리 콜백 (안전취소 타이머 취소, 텔레메트리 flush 등)
      */
     fun reset(onReset: (() -> Unit)? = null) {
         isDetailScrapSent = false
@@ -82,7 +82,7 @@ class SessionManager {
         isWaitingForDecision = false
         cautionAction = null
         onReset?.invoke()
-        AppLogger.roadmap("🔄 세션 및 사냥 상태 완전 초기화 (새로운 타겟 대기)", "SESSION")
+        AppLogger.roadmap("🔄 세션 및 콜 잡기 상태 완전 초기화 (새로운 타겟 대기)", "SESSION")
         AppLogger.i(TAG, "🔄 세션 상태 완전 초기화")
     }
 

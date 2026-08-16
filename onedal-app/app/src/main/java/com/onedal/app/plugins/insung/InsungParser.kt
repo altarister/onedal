@@ -191,8 +191,8 @@ class InsungParser(private val context: Context) : IScrapParser {
         val pickupInfo = locationInfos.getOrNull(0)
         val dropoffInfo = locationInfos.getOrNull(1) ?: pickupInfo
         
-        val pickup = pickupInfo?.cleanRegion ?: "미상"
-        val dropoff = dropoffInfo?.cleanRegion ?: "미상"
+        val pickup = pickupInfo?.cleanRegion ?: "배차값없음"
+        val dropoff = dropoffInfo?.cleanRegion ?: "배차값없음"
         val scheduleText = pickupInfo?.scheduleText ?: dropoffInfo?.scheduleText
 
         // ── 3. 거리 파싱 ──
@@ -226,7 +226,7 @@ class InsungParser(private val context: Context) : IScrapParser {
         }
 
         // 의미 없는 화면(오더 목록이 아닌 화면 등)에서 무의미한 로그 도배 방지
-        val isValidOrder = fare > 0 || pickup != "미상" || dropoff != "미상"
+        val isValidOrder = fare > 0 || pickup != "배차값없음" || dropoff != "배차값없음"
 
         return SimplifiedOfficeOrder(
             id = UUID.randomUUID().toString(),
@@ -314,11 +314,11 @@ class InsungParser(private val context: Context) : IScrapParser {
             // [1차 리스트 필터] 기존 구조 유지 (dropoff만 검사, rawText는 출발지도 포함되므로 사용 금지)
             // 🔴 2026-08-12 — 예전에는 키워드가 비면 `true`(전부 통과)였다.
             //    도착지 조건이 없는 상태는 "아무 데나 좋다"가 아니라
-            //    **"필터가 아직 안 만들어졌다"** 는 뜻이다 (회랑 실패 · 목적지 미설정).
+            //    **"필터가 아직 안 만들어졌다"** 는 뜻이다 (경유 실패 · 목적지 미설정).
             //    통과시키면 isActive 는 켜진 채 도착지 제한만 사라진다.
             //    서버도 같은 방향으로 열려 있어 두 겹이 동시에 무력화됐다.
             val matchResult = if (filter.destinationKeywords.isEmpty()) {
-                AppLogger.d(TAG, "🚦 [사냥 보류] 도착지 키워드가 비어 있습니다 — 서버가 필터를 아직 못 만들었습니다")
+                AppLogger.d(TAG, "🚦 [콜 잡기 보류] 도착지 키워드가 비어 있습니다 — 서버가 필터를 아직 못 만들었습니다")
                 false
             } else {
                 filter.destinationKeywords.any { region ->
@@ -333,7 +333,7 @@ class InsungParser(private val context: Context) : IScrapParser {
         //
         // 🔴 2026-08-12 — 상한(maxFare)을 **서버만** 보고 있었다.
         //    앱은 파싱만 하고 판정에 안 써서, 상한을 50만으로 잡아도 100만짜리를 잡았다.
-        //    서버가 데스밸리에서 "똥콜"이라 걸러내지만 그때는 **이미 패널티 구간**이다.
+        //    서버가 안전취소에서 "똥콜"이라 걸러내지만 그때는 **이미 패널티 구간**이다.
         //    안 잡는 것과 잡고 나서 버리는 것은 전혀 다르다.
         //
         // 규칙은 서버(OrderEvaluator)와 **똑같이** 맞춘다:
@@ -352,14 +352,14 @@ class InsungParser(private val context: Context) : IScrapParser {
          *
          *   통과 = 요금 ≥ 배송거리 × 단가(차종)
          *
-         * 서버가 눈높이를 이미 반영한 단가표를 피기백으로 내려 준다 — 앱은 곱셈만 한다.
+         * 서버가 콜할인율를 이미 반영한 단가표를 피기백으로 내려 준다 — 앱은 곱셈만 한다.
          *
          * **폴백은 한 갈래 — 셋 중 하나라도 없으면 기존 `minFare` 판정으로 되돌아간다.**
          *   단가표가 없거나(구서버·미응답) · 차종을 못 읽었거나 · 배송거리를 못 읽은 경우.
-         *   통과시켜 버리지 않는 이유는, 그러면 리스트 전체가 들어와 데스밸리가 밀리기 때문이다.
+         *   통과시켜 버리지 않는 이유는, 그러면 리스트 전체가 들어와 안전취소가 밀리기 때문이다.
          *   `minFare` 는 최소한의 문턱으로 남기고 정확한 판정은 서버가 한다.
          *
-         * 눈높이가 "전부"면 서버가 단가를 0 으로 내려 보낸다 → `fare >= 거리 × 0` 은 항상 참.
+         * 콜할인율가 "전부"면 서버가 단가를 0 으로 내려 보낸다 → `fare >= 거리 × 0` 은 항상 참.
          * 즉 "금액 무관 통과"가 별도 분기 없이 같은 식으로 표현된다.
          */
         val rateFloor = order.vehicleType?.let { vt -> resolveRate(filter.ratePerKm, vt) }
@@ -375,11 +375,11 @@ class InsungParser(private val context: Context) : IScrapParser {
 
         // ── 조건 3: 상차지 거리 ──
         // 합짐 모드(isSharedMode)에서는 상차지 반경 제한을 무시합니다.
-        // 합짐은 가는 길 위의 콜을 잡는 것이므로 거리가 아닌 경로(회랑) 기준으로 판단됩니다.
+        // 합짐은 가는 길 위의 콜을 잡는 것이므로 거리가 아닌 경로(경유) 기준으로 판단됩니다.
         val distanceMatch = if (order.pickupDistance == null) {
             true
         } else if (filter.isSharedMode) {
-            true // 합짐 모드: 상차 반경 무시 (회랑 필터가 대신 판단)
+            true // 합짐 모드: 상차 반경 무시 (경유 필터가 대신 판단)
         } else {
             order.pickupDistance <= filter.pickupRadiusKm
         }
@@ -394,17 +394,17 @@ class InsungParser(private val context: Context) : IScrapParser {
         }
 
         // ── 로그 출력 (디버깅용) ──
-        val isValidOrder = order.fare > 0 || order.pickup != "미상" || order.dropoff != "미상"
+        val isValidOrder = order.fare > 0 || order.pickup != "배차값없음" || order.dropoff != "배차값없음"
         if (isValidOrder) {
             val screenCtxLog = if (isDetailPreConfirmStage) "DETAIL" else "LIST"
             
-            AppLogger.roadmap("🔍 [타겟 콜 필터 결과] 차종(${order.vehicleType ?: "미상"})=${if(vehicleMatch) "✅" else "❌"} " +
+            AppLogger.roadmap("🔍 [타겟 콜 필터 결과] 차종(${order.vehicleType ?: "배차값없음"})=${if(vehicleMatch) "✅" else "❌"} " +
                         "도착지(${filter.destinationKeywords.size}중 ${order.dropoff})=${if(regionMatch) "✅" else "❌"} " +
                         (if (useRateModel)
                             "요금/단가(${order.deliveryDistance}km × ${rateFloor}원 = ${((order.deliveryDistance ?: 0.0) * (rateFloor ?: 0)).toInt()} <= ${order.fare})=${if(fareMatch) "✅" else "❌"} "
                          else
                             "요금(${filter.minFare} <= ${order.fare}${if (hasFareCeiling) " <= ${filter.maxFare}" else ""})=${if(fareMatch) "✅" else "❌"} ") +
-                        "상차지/거리(${if(filter.isSharedMode) "합짐무시" else "${filter.pickupRadiusKm}km"} >= ${order.pickupDistance ?: "미상"}km)=${if(distanceMatch) "✅" else "❌"} " +
+                        "상차지/거리(${if(filter.isSharedMode) "합짐무시" else "${filter.pickupRadiusKm}km"} >= ${order.pickupDistance ?: "배차값없음"}km)=${if(distanceMatch) "✅" else "❌"} " +
                         "블랙()=${if(blacklistClear) "✅" else "❌"}", screenCtxLog)
         }
 

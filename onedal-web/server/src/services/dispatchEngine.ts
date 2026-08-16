@@ -28,7 +28,7 @@ import { getActiveCalls, buildOrderSync, setOrderStatus, totalDetourCost, comput
  * 예: "주식회사 레드 캠프" -> "레드캠프"
  */
 export const normalizePlaceName = (name?: string) => {
-    if (!name) return "미상";
+    if (!name) return "배차값없음";
     return name.replace(/\(주\)|주식회사|\s/g, '').trim();
 };
 
@@ -440,9 +440,9 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
             OrderRepository.upsertOrder(cachedOrder, userId, isShared, isExpress);
 
             // 2. places UPSERT 및 orderStops 추가 (상차지)
-            const pickupName = normalizePlaceName(cachedOrder.pickupDetails?.[0]?.customerName || "미상");
+            const pickupName = normalizePlaceName(cachedOrder.pickupDetails?.[0]?.customerName || "배차값없음");
             const pickupAddress = cachedOrder.pickupDetails?.[0]?.addressDetail || cachedOrder.pickup;
-            const pickupRegion = cachedOrder.pickupDetails?.[0]?.region || cachedOrder.pickup.split(' ').slice(0, 2).join(' ') || "미상";
+            const pickupRegion = cachedOrder.pickupDetails?.[0]?.region || cachedOrder.pickup.split(' ').slice(0, 2).join(' ') || "배차값없음";
             
             const pPlaceId = PlaceRepository.upsertPlace(
                 pickupAddress, pickupName, pickupRegion,
@@ -456,9 +456,9 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
             }
 
             // 3. places UPSERT 및 orderStops 추가 (하차지)
-            const dropoffName = normalizePlaceName(cachedOrder.dropoffDetails?.[0]?.customerName || "미상");
+            const dropoffName = normalizePlaceName(cachedOrder.dropoffDetails?.[0]?.customerName || "배차값없음");
             const dropoffAddress = cachedOrder.dropoffDetails?.[0]?.addressDetail || cachedOrder.dropoff;
-            const dropoffRegion = cachedOrder.dropoffDetails?.[0]?.region || cachedOrder.dropoff.split(' ').slice(0, 2).join(' ') || "미상";
+            const dropoffRegion = cachedOrder.dropoffDetails?.[0]?.region || cachedOrder.dropoff.split(' ').slice(0, 2).join(' ') || "배차값없음";
             
             const dPlaceId = PlaceRepository.upsertPlace(
                 dropoffAddress, dropoffName, dropoffRegion,

@@ -184,7 +184,7 @@ export default function PinnedRouteCard({
                     <span className="ml-3 font-medium text-[10px] truncate mt-0.5 flex items-center gap-1 flex-[2]">
                         <span>{route.fare > 0 ? `${(route.fare / 10000).toFixed(1)}만` : '금액미상'}</span>
                         <span className="text-text-muted">,</span>
-                        <span>{evaluating ? '계산중' : route.distanceKm ? `${route.distanceKm}Km` : '미상'}</span>
+                        <span>{evaluating ? '계산중' : route.distanceKm ? `${route.distanceKm}Km` : '거리미상'}</span>
                         <span className="text-text-muted">,</span>
                         <span>{route.vehicleType?.substring(0, 1) || '차'}</span>
                     </span>

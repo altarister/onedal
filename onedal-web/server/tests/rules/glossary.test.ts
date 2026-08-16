@@ -46,7 +46,7 @@ const BANNED: { name: string, pattern: RegExp, allow?: RegExp, until?: string }[
         name: 'corridor → detour', pattern: /corridor/i,
         allow: /trimCorridorByProgress/,   // 죽은 옛 함수의 금지패턴·역사 — 영구 예외
     },
-    // '미상' → '배차값없음' 은 P4(앱과 같은 커밋)에서 추가한다 — 서버 대조 2곳이 아직 살아 있다
+    { name: "'미상' → '배차값없음'", pattern: /['\"`]미상['\"`]/ },   // 단독 센티널만 — 금액미상 같은 조합형(주어 있음)은 허용
 ];
 
 describe('용어집 — 폐기된 옛말이 코드에 없다', () => {

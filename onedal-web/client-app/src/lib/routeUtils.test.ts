@@ -53,7 +53,7 @@ describe('getAddressLabel', () => {
     });
 
     it('빈 문자열이나 1단어 주소는 그대로 반환한다', () => {
-        expect(getAddressLabel('')).toBe('미상');
+        expect(getAddressLabel('')).toBe('배차값없음');
         expect(getAddressLabel('서울')).toBe('서울');
     });
 });

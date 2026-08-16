@@ -54,7 +54,7 @@ class MainViewModel {
     // ── 설정값 ──
     var isLiveMode by mutableStateOf(false)
     var targetApp by mutableStateOf("인성콜")
-    var deathValleyTimeout by mutableStateOf(30000L)
+    var safeCancelTimeout by mutableStateOf(30000L)
 
     /**
      * 1초 폴링 시작
@@ -66,7 +66,7 @@ class MainViewModel {
         deviceId = prefs.getString("deviceId", null) ?: "(서비스 시작 시 자동 생성됨)"
         isLiveMode = prefs.getBoolean("isLiveMode", false)
         targetApp = prefs.getString("targetApp", "인성콜") ?: "인성콜"
-        deathValleyTimeout = prefs.getLong("deathValleyTimeout", 30000L)
+        safeCancelTimeout = prefs.getLong("safeCancelTimeout", 30000L)
 
         scope.launch {
             while (true) {
@@ -130,10 +130,10 @@ class MainViewModel {
             .edit().putString("targetApp", app).apply()
     }
 
-    fun saveDeathValleyTimeout(context: Context, ms: Long) {
-        deathValleyTimeout = ms
+    fun saveSafeCancelTimeout(context: Context, ms: Long) {
+        safeCancelTimeout = ms
         context.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
-            .edit().putLong("deathValleyTimeout", ms).apply()
+            .edit().putLong("safeCancelTimeout", ms).apply()
     }
 
     fun saveLocalIp(context: Context, ip: String) {

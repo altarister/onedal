@@ -5,12 +5,12 @@ import android.os.Looper
 import com.onedal.app.core.AppLogger
 
 /**
- * 데스밸리 비상 자동취소 타이머
+ * 안전취소 비상 자동취소 타이머
  *
  * 서버로 /detail 전송 후 판결(KEEP/CANCEL) 응답이 일정 시간 내에
  * 오지 않으면 기사님을 보호하기 위해 자동으로 취소를 집행합니다.
  */
-class DeathValleyTimer {
+class SafeCancelTimer {
 
     companion object {
         private const val TAG = "1DAL_DEATHVALLEY"
@@ -31,13 +31,13 @@ class DeathValleyTimer {
 
         cancel(session)
         session.isWaitingForDecision = true
-        AppLogger.roadmap("⏳ 데스밸리 타이머 가동 (${timeoutMs / 1000}초 대기 → 서버 판결 대기 시작)", "DEATHVALLEY")
-        AppLogger.w(TAG, "⏳ 데스밸리 타이머 시작: ${timeoutMs / 1000}초 대기...")
+        AppLogger.roadmap("⏳ 안전취소 타이머 가동 (${timeoutMs / 1000}초 대기 → 서버 판결 대기 시작)", "DEATHVALLEY")
+        AppLogger.w(TAG, "⏳ 안전취소 타이머 시작: ${timeoutMs / 1000}초 대기...")
 
         runnable = Runnable {
             if (session.isWaitingForDecision) {
-                AppLogger.roadmap("🚨 데스밸리 타임아웃! 서버 응답 없음 → 기사 보호를 위한 강제 배차 취소 집행", "DEATHVALLEY")
-                AppLogger.e(TAG, "🚨 데스밸리 타임아웃! 기사님 보호를 위해 강제 배차 취소 집행!")
+                AppLogger.roadmap("🚨 안전취소 타임아웃! 서버 응답 없음 → 기사 보호를 위한 강제 배차 취소 집행", "DEATHVALLEY")
+                AppLogger.e(TAG, "🚨 안전취소 타임아웃! 기사님 보호를 위해 강제 배차 취소 집행!")
                 onTimeout()
             }
         }

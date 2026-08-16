@@ -15,7 +15,7 @@ import com.onedal.app.core.ScreenTextNode
 import com.onedal.app.core.engine.ScreenDetector
 import com.onedal.app.core.engine.SessionManager
 import com.onedal.app.core.engine.PopupSurfingMachine
-import com.onedal.app.core.engine.DeathValleyTimer
+import com.onedal.app.core.engine.SafeCancelTimer
 import com.onedal.app.core.engine.CautionDongVerifier
 import com.onedal.app.core.TelemetryManager
 import com.onedal.app.models.DetailedOfficeOrder
@@ -91,13 +91,13 @@ class HijackService : AccessibilityService() {
 
     // ── AUTO 모드 타이머 ──
     private val mainHandler = Handler(Looper.getMainLooper())
-    private val deathValleyTimer = DeathValleyTimer()
+    private val safeCancelTimer = SafeCancelTimer()
     private lateinit var cautionVerifier: CautionDongVerifier
 
-    // [Safety Mode V3] SharedPreference에서 데스밸리 타이머 값 읽기
-    private fun getDeathValleyTimeout(): Long {
+    // [Safety Mode V3] SharedPreference에서 안전취소 타이머 값 읽기
+    private fun getSafeCancelTimeout(): Long {
         val prefs = getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
-        return prefs.getLong("deathValleyTimeout", 30000L)
+        return prefs.getLong("safeCancelTimeout", 30000L)
     }
 
     // 화면 꺼짐/켜짐 감지용 리시버 (퇴근 시 즉시 오프라인 통보 / 출근 시 즉시 생존 신고)
@@ -176,7 +176,7 @@ class HijackService : AccessibilityService() {
 
     override fun onInterrupt() {
         telemetryManager.stop()
-        cancelDeathValleyTimer()
+        cancelSafeCancelTimer()
         apiClient.sendOffline() // 접근성 권한 해제 시 오프라인 통보
         AppLogger.roadmap("⚠️ 1DAL 서비스 일시 중지 (접근성 권한 해제)", "INTERRUPT")
         AppLogger.w(TAG, "⚠️ 1DAL Service Interrupted! (접근성 권한 일시 중지)")
@@ -186,7 +186,7 @@ class HijackService : AccessibilityService() {
         super.onDestroy()
         unregisterReceiver(screenOffReceiver)
         telemetryManager.stop()
-        cancelDeathValleyTimer()
+        cancelSafeCancelTimer()
         apiClient.sendOffline() // 앱 종료 시 오프라인 통보
         apiClient.shutdown()
         AppLogger.roadmap("🛑 1DAL 서비스 완전 종료 (앱 파괴)", "SHUTDOWN")
@@ -235,7 +235,7 @@ class HijackService : AccessibilityService() {
          *      .705  🔄 세션 상태 완전 초기화                      ← isAutoActive = false
          *      19.06 모드: MANUAL (매크로클릭: false)              ← AUTO 인데 MANUAL 로 보고
          *
-         *    그 한 글자가 서버의 배차 흐름을 통째로 바꾼다. MANUAL 은 데스밸리 없이
+         *    그 한 글자가 서버의 배차 흐름을 통째로 바꾼다. MANUAL 은 안전취소 없이
          *    즉시 확정되고, 앱이 리스트로 이탈해도 서버가 안 치운다(일부러 그렇게 설계됐다 —
          *    기사님이 손으로 잡은 콜을 서버가 버리면 안 되므로). 그래서 유령이 남았다.
          *
@@ -254,7 +254,7 @@ class HijackService : AccessibilityService() {
         val wasListScreen = previous == ScreenContext.LIST || previous == ScreenContext.LIST_COMPLETED
         if (isListScreen && !wasListScreen) {
             if (session.hasActiveSession()) {
-                AppLogger.d(TAG, "[복귀 감지] ${previous.name} → ${detected.name} 복귀. 세션 및 데스밸리 락 완전 해제")
+                AppLogger.d(TAG, "[복귀 감지] ${previous.name} → ${detected.name} 복귀. 세션 및 안전취소 락 완전 해제")
                 resetSessionState()
             }
         }
@@ -308,7 +308,7 @@ class HijackService : AccessibilityService() {
             // 🌟 [항시 인터셉터] 콜 필터 매칭 검사 (디버그 로그를 위해 MANUAL/AUTO 무관하게 항시 실행)
             val isTarget = scrapParser.shouldClick(order)
 
-            // 🌟 [AUTO 실행] 사냥 중이지 않고 AUTO 모드일 때만 실제 클릭 동작 수행
+            // 🌟 [AUTO 실행] 콜 잡기 중이지 않고 AUTO 모드일 때만 실제 클릭 동작 수행
             if (!session.isAutoActive && telemetryManager.currentMode == "AUTO") {
                 if (isTarget) {
                     AppLogger.roadmap("🎯 [Current Page: LIST] 1차 필터 통과 → AUTO 타겟 발견, 강제 터치 진행", telemetryManager.currentScreenContext.name)
@@ -323,7 +323,7 @@ class HijackService : AccessibilityService() {
                     touchManager.performSimulatedTouch(fareNode.node)
                     AppLogger.roadmap("[$appLabel] 선택된 콜 정보 전달 (꿀콜 클릭!)", telemetryManager.currentScreenContext.name)
                     
-                    session.isAutoActive = true // 사냥 시작!
+                    session.isAutoActive = true // 콜 잡기 시작!
                     session.setOrderId(order.id)
                     session.lastDetailOrder = order // [오파싱 방지] 상세 진입 후 사용할 원본 데이터 쥐어주기
                     break // 첫 번째 발각콜 클릭 후 이 루프는 종료 (관제 보고 생략)
@@ -387,8 +387,8 @@ class HijackService : AccessibilityService() {
             tempOrder.copy(
                 id = session.currentOrderId.ifEmpty { "MANUAL-${System.currentTimeMillis()}" },
                 type = "MANUAL_CLICK",
-                pickup = tempOrder.pickup.takeIf { it.isNotBlank() && it != "미상" } ?: "수집중(상세확인필요)",
-                dropoff = tempOrder.dropoff.takeIf { it.isNotBlank() && it != "미상" } ?: "수집중(상세확인필요)",
+                pickup = tempOrder.pickup.takeIf { it.isNotBlank() && it != "배차값없음" } ?: "수집중(상세확인필요)",
+                dropoff = tempOrder.dropoff.takeIf { it.isNotBlank() && it != "배차값없음" } ?: "수집중(상세확인필요)",
                 timestamp = nowTimestamp(),
                 rawText = rawScreenStr
             )
@@ -433,7 +433,7 @@ class HijackService : AccessibilityService() {
                 }, 10000)
             }
             
-            // ⚡ AUTO 모드 확정 버튼 처리 (자동 사냥 중일 때만)
+            // ⚡ AUTO 모드 확정 버튼 처리 (자동 콜 잡기 중일 때만)
             if (session.isAutoActive) {
                 // 앱별 확정/취소 버튼 텍스트 가져오기
                 val confirmBtnTexts = keywords.confirmKeywords
@@ -485,7 +485,7 @@ class HijackService : AccessibilityService() {
                                 return
                             }
                         } else {
-                            // 일반 콜: 기존처럼 즉시 광클 (선빵필승)
+                            // 일반 콜: 기존처럼 즉시 광클 (선점필승)
                             AppLogger.d(TAG, "🚀 [AUTO] 확정 버튼 광클 (배차 시도)")
                             AppLogger.roadmap("상세페이지에서 확정 버튼 클릭", telemetryManager.currentScreenContext.name)
                             AppLogger.roadmap("[$appLabel] 콜 확정 완료", telemetryManager.currentScreenContext.name)
@@ -611,8 +611,8 @@ class HijackService : AccessibilityService() {
                 targetApp = currentTargetApp
             )
 
-            // 서버 응답("KEEP", "CANCEL") 대기를 위한 데스밸리 타이머 가동
-            startDeathValleyTimer()
+            // 서버 응답("KEEP", "CANCEL") 대기를 위한 안전취소 타이머 가동
+            startSafeCancelTimer()
 
             val actualMatchType = if (session.isAutoActive) "AUTO" else "MANUAL"
             val previewStr = session.accumulatedDetailText.replace("\n", " ").take(150)
@@ -643,23 +643,23 @@ class HijackService : AccessibilityService() {
     //  AUTO 제어 및 비상 복구 유틸리티
     // ════════════════════════════════════════════════════════════════
 
-    /** 서버 응답 대기용 데스밸리 타이머 시작 (응답 없으면 자동 취소) */
-    private fun startDeathValleyTimer() {
+    /** 서버 응답 대기용 안전취소 타이머 시작 (응답 없으면 자동 취소) */
+    private fun startSafeCancelTimer() {
         telemetryManager.isWaitingDecision = true  // [Piggyback V2] 1.0초 단위 강제 무전 타격 시작!
-        deathValleyTimer.start(getDeathValleyTimeout(), session) {
-            sendEmergencyReport(EmergencyReason.AUTO_CANCEL, "데스밸리 응답 없음 강제취소")
+        safeCancelTimer.start(getSafeCancelTimeout(), session) {
+            sendEmergencyReport(EmergencyReason.AUTO_CANCEL, "안전취소 응답 없음 강제취소")
             executeDecisionImmediately("CANCEL")
         }
     }
 
-    private fun cancelDeathValleyTimer() {
-        deathValleyTimer.cancel(session)
+    private fun cancelSafeCancelTimer() {
+        safeCancelTimer.cancel(session)
         telemetryManager.isWaitingDecision = false // [Piggyback V2] 짧은 무전 해제
     }
 
     /** 서버 판결(KEEP/CANCEL) 결과 행동을 실제 화면 액션으로 쏨 */
     private fun executeDecisionImmediately(decision: String) {
-        cancelDeathValleyTimer() // 타이머 해제
+        cancelSafeCancelTimer() // 타이머 해제
         if (!session.isAutoActive) return // 이미 풀렸으면 스킵
 
         val targetBtnStr = if (decision == "KEEP") "닫기" else "취소"
@@ -674,7 +674,7 @@ class HijackService : AccessibilityService() {
             }
             if (touchManager.findAndClickByText(rootNode, targetBtnStr, isStartsWith = false)) {
                 if (decision == "KEEP") {
-                    AppLogger.roadmap("✅ 판결 KEEP 집행 완료 → [Current Page: LIST] 복귀, 락 해제, 합짐 사냥 루프 회귀", telemetryManager.currentScreenContext.name)
+                    AppLogger.roadmap("✅ 판결 KEEP 집행 완료 → [Current Page: LIST] 복귀, 락 해제, 합짐 콜 잡기 루프 회귀", telemetryManager.currentScreenContext.name)
                 } else {
                     AppLogger.roadmap("❌ 판결 CANCEL 집행 완료 → [Current Page: LIST] 복귀, 락 해제, 기존 모드 루프 회귀", telemetryManager.currentScreenContext.name)
                 }
@@ -711,9 +711,9 @@ class HijackService : AccessibilityService() {
     /** 세션 상태 전체 초기화 (리스트 복귀 시 호출) */
     private fun resetSessionState() {
         session.reset {
-            cancelDeathValleyTimer()
-            telemetryManager.isHolding = false  // [Page/Hold 분리] 리스트 복귀 → 사냥 모드
-            AppLogger.i(TAG, "🛡️ [앱폰] 사냥 복귀 직후: 앱 메모리 상의 scrapBuffer 배열을 비우고 강제 플러시(Flush)하여 잔상 데이터를 제거함")
+            cancelSafeCancelTimer()
+            telemetryManager.isHolding = false  // [Page/Hold 분리] 리스트 복귀 → 콜 잡기 모드
+            AppLogger.i(TAG, "🛡️ [앱폰] 콜 잡기 복귀 직후: 앱 메모리 상의 scrapBuffer 배열을 비우고 강제 플러시(Flush)하여 잔상 데이터를 제거함")
             telemetryManager.forceFlushEvent()  // 즉시 서버에 홀드 해제 알림
         }
     }
@@ -758,8 +758,8 @@ class HijackService : AccessibilityService() {
         return SimplifiedOfficeOrder(
             id = session.currentOrderId,
             type = "${mode}_CLICK",
-            pickup = tempOrder.pickup.takeIf { it.isNotBlank() && it != "미상" } ?: "상태분석중",
-            dropoff = tempOrder.dropoff.takeIf { it.isNotBlank() && it != "미상" } ?: "상태분석중",
+            pickup = tempOrder.pickup.takeIf { it.isNotBlank() && it != "배차값없음" } ?: "상태분석중",
+            dropoff = tempOrder.dropoff.takeIf { it.isNotBlank() && it != "배차값없음" } ?: "상태분석중",
             fare = tempOrder.fare,
             timestamp = nowTimestamp(),
             rawText = screenTexts.joinToString(" ")

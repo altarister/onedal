@@ -410,7 +410,7 @@ export async function calculateDetourRoute(
  */
 export async function geocodeAddress(query: string): Promise<{x: number, y: number} | null> {
     try {
-        if (!query || query === "미상") return null;
+        if (!query || query === "배차값없음") return null;
 
         // "경기 화성시 안녕동 158-95(경기 화성시 안녕남로119번길 25)빌딩명" 
         // 1. 괄호를 공백으로 치환하여 단어들이 서로 붙지 않게 정제

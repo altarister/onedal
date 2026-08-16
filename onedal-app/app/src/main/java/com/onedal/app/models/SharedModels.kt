@@ -13,7 +13,7 @@ package com.onedal.app.models
  * 앱폰이 현재 보고 있는 화면 상태 (서버 ScreenContextType과 1:1 대응)
  */
 enum class ScreenContext(val value: String) {
-    LIST("LIST"),                          // 사냥 리스트 화면
+    LIST("LIST"),                          // 콜 잡기 리스트 화면
     DETAIL_PRE_CONFIRM("DETAIL_PRE_CONFIRM"),  // 광클 직전 상세
     DETAIL_CONFIRMED("DETAIL_CONFIRMED"),      // 확정 후 상세 화면
     POPUP_PICKUP("POPUP_PICKUP"),              // 출발지 상세 팝업
@@ -182,21 +182,21 @@ data class DeviceControl(
 // 6. 관제탑 필터 규격 (웹의 FilterConfig 대응)
 // ────────────────────────────────────────────────
 /**
- * 서버가 내려주는 사냥 명령서.
+ * 서버가 내려주는 콜 잡기 명령서.
  *
  * ⚠️ 여기 기본값은 **서버 응답이 없거나 깨졌을 때만** 쓰인다.
  *    정상 흐름에서는 서버가 모든 값을 채워 보낸다.
  *    그래서 기본값은 "편한 값"이 아니라 **안전한 값**이어야 한다.
  *
  * 🔴 2026-08-12 — 예전 기본값이 위험한 쪽이었다.
- *      isActive = true   → 서버가 죽어도 **필터 없이 계속 사냥**했다
+ *      isActive = true   → 서버가 죽어도 **필터 없이 계속 콜 잡기**했다
  *      minFare  = 0      → 요금 하한이 사라져 똥콜까지 잡았다
  *    서버는 둘 다 반대(false / 30000)였는데 앱만 반대 방향을 보고 있었다.
  *    통신이 끊겼을 때 **멈추는 쪽**이 맞다 — 잘못 잡은 콜은 패널티가 붙는다.
  */
 data class FilterConfig(
     val allowedVehicleTypes: List<String> = emptyList(),  // 빈 배열 = 모든 차종
-    /** 통신이 끊기면 사냥을 멈춘다. 서버가 명시적으로 켜 줘야 돈다 */
+    /** 통신이 끊기면 콜 잡기을 멈춘다. 서버가 명시적으로 켜 줘야 돈다 */
     val isActive: Boolean = false,
     val isSharedMode: Boolean = false,
     // ── 이하 기본값은 서버 미응답 시 최후 안전망 (서버 기본값과 같은 값으로 맞춘다) ──

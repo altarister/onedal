@@ -19,7 +19,7 @@ import com.onedal.app.api.ApiClient
 /**
  * 설정 탭 화면
  *
- * PIN 연동, 서버 환경, 타겟 앱, 데스밸리 타이머 등을 설정합니다.
+ * PIN 연동, 서버 환경, 타겟 앱, 안전취소 타이머 등을 설정합니다.
  */
 @Composable
 fun SettingsScreen(viewModel: MainViewModel) {
@@ -154,21 +154,21 @@ fun SettingsScreen(viewModel: MainViewModel) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // ── 데스밸리 타이머 설정 ──
+        // ── 안전취소 타이머 설정 ──
         Card(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp),
             colors = CardDefaults.cardColors(containerColor = Color(0xFFFCE4EC))
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text("⏱️ 데스밸리 비상 자동취소 타이머", fontWeight = FontWeight.Bold, color = Color(0xFFC2185B))
+                Text("⏱️ 안전취소 비상 자동취소 타이머", fontWeight = FontWeight.Bold, color = Color(0xFFC2185B))
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     val options = listOf(30000L to "30초", 40000L to "40초", 50000L to "50초")
                     options.forEach { (ms, label) ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             RadioButton(
-                                selected = viewModel.deathValleyTimeout == ms,
-                                onClick = { viewModel.saveDeathValleyTimeout(context, ms) }
+                                selected = viewModel.safeCancelTimeout == ms,
+                                onClick = { viewModel.saveSafeCancelTimeout(context, ms) }
                             )
                             Text(label)
                         }

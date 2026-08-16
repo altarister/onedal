@@ -19,7 +19,7 @@ export function getMinuteDiff(start?: string, end?: string) {
 }
 
 export function getAddressLabel(addr: string) {
-    if (!addr) return "미상";
+    if (!addr) return "배차값없음";
     const parts = addr.split(' ');
     if (parts.length <= 1) return addr;
 
