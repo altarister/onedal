@@ -73,7 +73,7 @@ const isRouteFile = (rel) => rel.includes('/routes/');
 const KEEP = {
     requireAdmin: '관리자 라우트를 만들 때 쓸 인증 미들웨어. 지금 관리자 화면이 없어 호출부가 없다. '
                 + '보안 장치라 지웠다가 다시 만들면 그 사이 구멍이 난다 (규칙 ② 안전장치는 겹쳐 둔다).',
-    getGeoCacheStats: '지리 캐시 적중률 진단용. 회랑 성능을 다시 잴 때 쓴다 — 2026-08-14 에 실제로 필요했다.',
+    getGeoCacheStats: '지리 캐시 적중률 진단용. 경유 성능을 다시 잴 때 쓴다 — 2026-08-14 에 실제로 필요했다.',
     getActivePinCount: '페어링 PIN 발급 현황 진단용. 기기 등록이 안 될 때 확인하는 유일한 수단.',
 };
 

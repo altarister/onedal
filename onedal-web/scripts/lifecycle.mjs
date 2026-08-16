@@ -93,10 +93,10 @@ const state = { filter: null, evaluated: new Map(), token: null };
 const filterNow = () => {
     const f = state.filter ?? {};
     return {
-        phase: f.dispatchPhase, 합짐: f.isSharedMode, 사냥: f.isActive,
+        phase: f.dispatchPhase, 합짐: f.isSharedMode, 콜 잡기: f.isActive,
         차종: (f.allowedVehicleTypes || []).length,
         지역: (f.destinationKeywords || []).length,
-        회랑km: f.corridorRadiusKm, 적재신뢰도: f.capacityConfidence,
+        경유km: f.detourRadiusKm, 적재신뢰도: f.capacityConfidence,
     };
 };
 
@@ -123,7 +123,7 @@ const activeCount = async () => (await orders()).filter(o => ACTIVE.includes(o.s
  * **폰을 리스트 화면으로 되돌린다.**
  *
  * 앞선 콜을 확정하면 시뮬레이터는 상세(DETAIL_CONFIRMED)에 머문다. 그 상태로는
- * 앱이 사냥을 안 한다 — 리스트에서만 콜을 읽기 때문이다.
+ * 앱이 콜 잡기을 안 한다 — 리스트에서만 콜을 읽기 때문이다.
  * 서버에서 콜을 취소해도 **시뮬레이터 화면은 그대로**라는 점을 잊기 쉽다.
  *
  * 🔴 2026-08-13 — 처음엔 **뒤로가기(keyevent 4)** 를 반복했다. 잘못이었다.
@@ -163,14 +163,14 @@ async function ensureList() {
  * 앱이 콜 하나를 잡을 때까지 기다린다.
  *
  * 🔴 처음엔 "리스트 화면으로 만든 뒤 기다린다"로 짰는데 잘못이었다.
- *    앱은 **쉬지 않고 사냥한다.** 러너가 준비하는 사이 이미 콜을 잡아 상세로 들어가 있는 게
+ *    앱은 **쉬지 않고 콜 잡기한다.** 러너가 준비하는 사이 이미 콜을 잡아 상세로 들어가 있는 게
  *    오히려 정상이다. 그런데 리스트가 아니라고 죽어버렸다.
  *    → **이미 잡힌 콜이 있으면 그걸 쓴다.** 없을 때만 리스트로 돌려 기다린다.
  *
  * 소켓(`order-evaluated`)만 보지 않고 서버 목록도 함께 훑는다 —
  * 러너가 붙기 전에 잡힌 콜은 소켓 이벤트를 놓치기 때문이다.
  */
-async function huntOne(url, knownIds, label) {
+async function catchOne(url, knownIds, label) {
     const findNew = async () => {
         for (const [id, o] of state.evaluated) if (!knownIds.has(id)) return o;
         for (const o of await orders()) {
@@ -183,7 +183,7 @@ async function huntOne(url, knownIds, label) {
     let got = await findNew();
     if (got) { say(`   \x1b[2m(앱이 이미 잡아 둔 콜을 씁니다)\x1b[0m`); return got; }
 
-    // 없다 — 리스트로 돌려 사냥시킨다
+    // 없다 — 리스트로 돌려 콜 잡기시킨다
     sh(`adb shell am start -n com.android.chrome/com.google.android.apps.chrome.Main ` +
        `-a android.intent.action.VIEW -d "${url}" > /dev/null`);
     await wait(1500);
@@ -216,7 +216,7 @@ async function huntOne(url, knownIds, label) {
  * 소켓으로 대신 쏠 수도 있지만 그러면 관제웹 UI 코드(버튼 → 핸들러 → emit)를 안 거친다.
  * 기사님: *"관제웹에서 잡아서 콜 3개를 진행중으로 만들고"* — 직접 누르는 게 그 뜻이다.
  *
- * ⏱️ 데스밸리는 30초, 서버 자동 취소는 35초다. 그 안에 누르셔야 한다.
+ * ⏱️ 안전취소는 30초, 서버 자동 취소는 35초다. 그 안에 누르셔야 한다.
  */
 async function waitForKeep(id, n) {
     const cur = (await orders()).find(o => o.id === id);
@@ -278,14 +278,14 @@ async function main() {
         await wait(3000);
     }
 
-    head('출발선 — 빈 차, 첫짐 사냥');
+    head('출발선 — 빈 차, 첫짐 콜 잡기');
     say(`   ${JSON.stringify(filterNow())}`);
     expect('활성 콜 0건', await activeCount(), 0);
     expect('첫짐 탐색(STANDBY)', state.filter?.dispatchPhase, 'STANDBY');
     expect('합짐 아님', state.filter?.isSharedMode, false);
 
     /**
-     * 🔴 **사냥 조건을 테스트용으로 넓힌다 — 숨기지 않고 찍는다.**
+     * 🔴 **콜 잡기 조건을 테스트용으로 넓힌다 — 숨기지 않고 찍는다.**
      *
      * 지금 DB 에는 상차 반경 1km · 도착 반경 1km 가 들어 있다. 기사님이 반경 동작을
      * 확인하려고 낮춰 둔 진단용 값이다. 그 상태로는 시뮬레이터 콜이 거의 다 떨어진다 —
@@ -295,7 +295,7 @@ async function main() {
      * 그래서 오늘 필터(activeFilter)만 넓힌다. **평소 설정(baseFilter)은 안 건드린다** —
      * 자정에 원래 값으로 돌아간다.
      */
-    head('사냥 조건 준비 (오늘만 · 평소 설정은 안 건드림)');
+    head('콜 잡기 조건 준비 (오늘만 · 평소 설정은 안 건드림)');
     /**
      * 도착지를 **서울**로 잡는다. 시뮬레이터의 모의 주소 138개 중 서울행이 가장 많다
      * (파주 23 · 광주 21 · 서울 합계 30+). 파주로 두면 리스트 20건이 통째로 탈락해
@@ -319,9 +319,9 @@ async function main() {
      * 기사님: *"앱에서 콜을 잡아 서버에 보고하면 관제웹에서 잡아서 콜 3개를 진행 중으로 만들고
      *          그걸 하나씩 배송하는 시뮬레이션"*
      *
-     * 처음엔 "잡고→통화→잡고→통화" 로 짰는데 실무와 달랐다. **선빵 중에는 사냥이 꺼진다**
+     * 처음엔 "잡고→통화→잡고→통화" 로 짰는데 실무와 달랐다. **선빵 중에는 콜 잡기이 꺼진다**
      * (`orders.ts` 가 "다른 콜 물지 마"로 isActive=false 를 내린다). KEEP 을 눌러야 다시 켜진다.
-     * 그래서 통화를 사이에 넣으면 그동안 사냥이 멈춰 다음 콜을 못 잡는다.
+     * 그래서 통화를 사이에 넣으면 그동안 콜 잡기이 멈춰 다음 콜을 못 잡는다.
      * 기사님 말씀대로 **모으는 게 먼저**다 — 전화는 나중에 돌린다.
      */
     const TARGET = 3;
@@ -330,21 +330,21 @@ async function main() {
 
     for (let i = 1; i <= TARGET; i++) {
         head(`${i}번째 콜 — 앱이 잡고, 기사님이 결재`);
-        const c = await huntOne(url, seen, `${i}번째 콜`);
+        const c = await catchOne(url, seen, `${i}번째 콜`);
         seen.add(c.id);
         ok('앱이 잡아 서버가 평가했다',
            `${c.pickup?.slice(0, 14)} → ${c.dropoff?.slice(0, 14)} ${c.fare?.toLocaleString()}원`);
         if (c.rejectionReasons?.length) say(`   \x1b[2m판정 사유: ${c.rejectionReasons.join(' · ')}\x1b[0m`);
 
         if (await waitForKeep(c.id, i)) calls.push(c);
-        await wait(3000);   // 카카오 경로 + 회랑 재계산
+        await wait(3000);   // 카카오 경로 + 경유 재계산
         say(`   ${JSON.stringify(filterNow())}`);
 
         if (i === 1) {
             expect('합짐 수집(GATHERING) 으로 전환', state.filter?.dispatchPhase, 'GATHERING');
             expect('합짐 모드 켜짐', state.filter?.isSharedMode, true);
             expect('차종이 좁아졌다', filterNow().차종, n => n <= before.차종);
-            expect('회랑 지역이 생겼다', filterNow().지역, n => n > 0);
+            expect('경유 지역이 생겼다', filterNow().지역, n => n > 0);
         }
     }
 

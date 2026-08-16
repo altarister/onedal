@@ -315,7 +315,7 @@ async function run({ main, cod }) {
     /**
      * ═══ 국면별 필터 설정 (docs/필터_재설계_명세.md §2-4) ═══
      *
-     * 기사님: *"첫짐 도착반경 5km 로 사냥하다 첫짐을 잡으면 … **저장된 합짐 도착반경 1km 를
+     * 기사님: *"첫짐 도착반경 5km 로 콜 잡기하다 첫짐을 잡으면 … **저장된 합짐 도착반경 1km 를
      * 저장된 값에서 꺼내와** 콜을 잡고 싶은 거야."*
      *
      * 여기서만 잡히는 결함: 저장은 됐는데 **국면이 바뀌어도 안 꺼내 쓰는** 경우.
@@ -337,7 +337,7 @@ async function run({ main, cod }) {
         await untilFilter(() => st.filter?.destinationRadiusKm === 7),
         `하차 반경=${st.filter?.destinationRadiusKm}`);
 
-    // ② 다른 국면(local)에 저장해도 **지금 사냥은 안 바뀐다**
+    // ② 다른 국면(local)에 저장해도 **지금 콜 잡기은 안 바뀐다**
     savePhase('local', { dropoffRadiusKm: 0, discountPct: 20 });
     await wait(500);
     check('관내 탭에 저장해도 지금(첫짐) 필터는 그대로다',
@@ -348,13 +348,13 @@ async function run({ main, cod }) {
         JSON.stringify(st.phases?.local));
 
     // ③ 🔴 국면을 바꾸면 **그 국면의 저장값을 꺼내 쓴다** — 이 기능의 핵심
-    s.emit('set-hunt-phase', { phase: 'LOCAL' });
+    s.emit('set-call-target', { phase: 'LOCAL' });
     check('관내로 바꾸면 관내 저장값이 펼쳐진다',
-        await untilFilter(() => st.filter?.destinationRadiusKm === 0 && st.filter?.eyelinePct === 20),
-        `하차 반경=${st.filter?.destinationRadiusKm} · 할인=${st.filter?.eyelinePct}%`);
+        await untilFilter(() => st.filter?.destinationRadiusKm === 0 && st.filter?.callDiscountPct === 20),
+        `하차 반경=${st.filter?.destinationRadiusKm} · 할인=${st.filter?.callDiscountPct}%`);
 
     // ④ 돌아오면 첫짐 값도 그대로 살아 있다 (덮이지 않았다)
-    s.emit('set-hunt-phase', { phase: 'DEST' });
+    s.emit('set-call-target', { phase: 'DEST' });
     check('첫짐으로 돌아오면 첫짐 저장값이 되살아난다',
         await untilFilter(() => st.filter?.destinationRadiusKm === 7),
         `하차 반경=${st.filter?.destinationRadiusKm}`);
