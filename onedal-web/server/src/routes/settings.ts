@@ -20,7 +20,7 @@ router.get("/", requireAuth, (req, res) => {
         getUserSession(userId);
 
         let row = db.prepare(`
-            SELECT s.*, f.destination_city, f.destination_radius_km, f.corridor_radius_km, f.is_active 
+            SELECT s.*, f.destination_city, f.destination_radius_km, f.detour_radius_km, f.is_active 
             FROM user_settings s 
             LEFT JOIN user_filters f ON s.user_id = f.user_id 
             WHERE s.user_id = ?
@@ -29,7 +29,7 @@ router.get("/", requireAuth, (req, res) => {
         if (!row) {
             db.prepare("INSERT INTO user_settings (user_id) VALUES (?)").run(userId);
             row = db.prepare(`
-                SELECT s.*, f.destination_city, f.destination_radius_km, f.corridor_radius_km, f.is_active 
+                SELECT s.*, f.destination_city, f.destination_radius_km, f.detour_radius_km, f.is_active 
                 FROM user_settings s 
                 LEFT JOIN user_filters f ON s.user_id = f.user_id 
                 WHERE s.user_id = ?
@@ -52,7 +52,7 @@ router.get("/", requireAuth, (req, res) => {
             alarmVolume: row.alarm_volume ?? 50,
             destinationCity: row.destination_city || '',
             destinationRadiusKm: row.destination_radius_km,
-            detourRadiusKm: row.corridor_radius_km,
+            detourRadiusKm: row.detour_radius_km,
             isActive: Boolean(row.is_active),
         });
     } catch (e) {

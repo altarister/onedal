@@ -41,15 +41,10 @@ const BANNED: { name: string, pattern: RegExp, allow?: RegExp, until?: string }[
     { name: '본콜 → 첫짐 콜', pattern: /본콜/ },
     { name: 'hunt → callTarget/callFilter', pattern: /\bhunt|Hunt/ },   // \b 없이 /hunt/i 로 하면 refreshUntil 의 hUnt 가 걸린다
     { name: 'mainCall/subCalls → firstCall/mergeCalls', pattern: /mainCall|subCalls/ },
-    {
-        name: 'eyeline → callDiscount', pattern: /eyeline/i,
-        allow: /eyeline_pct/,                                  // DB 컬럼 — P3(DB 재생성)에서 함께
-        until: 'P3',
-    },
+    { name: 'eyeline → callDiscount', pattern: /eyeline/i },      // DB 컬럼까지 완료 (P3 2026-08-17)
     {
         name: 'corridor → detour', pattern: /corridor/i,
-        allow: /corridor_radius_km/,                           // DB 컬럼 — P3 에서 함께
-        until: 'P3',
+        allow: /trimCorridorByProgress/,   // 죽은 옛 함수의 금지패턴·역사 — 영구 예외
     },
     // '미상' → '배차값없음' 은 P4(앱과 같은 커밋)에서 추가한다 — 서버 대조 2곳이 아직 살아 있다
 ];

@@ -17,7 +17,7 @@ const SERVICE_DEFAULT_FILTER: Partial<AutoDispatchFilter> = {
     isSharedMode: false,
     driverAction: 'WAITING',      // [V2] 기사 행동 상태 기본값
     dispatchPhase: 'STANDBY',     // [V2] 콜 잡기 전략 기본값
-    // ── 단가 판정 모델 (필터_재설계_명세 §2) — DB eyeline_pct DEFAULT 10 과 같은 값 ──
+    // ── 단가 판정 모델 (필터_재설계_명세 §2) — DB call_discount_pct DEFAULT 10 과 같은 값 ──
     callDiscountPct: 10,
     ratePerKm: rateFloorsFrom(10),
 };
@@ -213,20 +213,20 @@ export function getUserSession(userId: string): UserSession {
                 session.baseFilter = {
                     destinationCity: filterRow.destination_city ?? "",
                     destinationRadiusKm: filterRow.destination_radius_km,
-                    detourRadiusKm: filterRow.corridor_radius_km,
+                    detourRadiusKm: filterRow.detour_radius_km,
                     minFare: filterRow.min_fare,
                     maxFare: filterRow.max_fare,
                     pickupRadiusKm: filterRow.pickup_radius_km,
                     excludedKeywords: JSON.parse(filterRow.excluded_keywords || '[]'),
                     isActive: Boolean(filterRow.is_active),
                     // ── 단가 판정 모델 (필터_재설계_명세 §2) ──
-                    // eyeline_pct 의 원천은 DB (ALTER ADD COLUMN DEFAULT 10 이 기존 행도 채운다).
+                    // call_discount_pct 의 원천은 DB (ALTER ADD COLUMN DEFAULT 10 이 기존 행도 채운다).
                     // ratePerKm 은 파생값 — 저장하지 않고 콜할인율에서 매번 만든다.
-                    callDiscountPct: filterRow.eyeline_pct,
+                    callDiscountPct: filterRow.call_discount_pct,
                     // 단가표는 DB 의 vehicle_rates·agency_fee_percent 에서 파생시킨다.
                     // shared 폴백 상수를 쓰면 설정에서 요율을 바꿔도 앱 필터가 안 바뀐다.
                     ratePerKm: rateFloorsFrom(
-                        filterRow.eyeline_pct,
+                        filterRow.call_discount_pct,
                         filterRow.vehicle_rates ? JSON.parse(filterRow.vehicle_rates) : undefined,
                         filterRow.agency_fee_percent ?? 23,
                     ),
@@ -244,9 +244,9 @@ export function getUserSession(userId: string): UserSession {
                     const migrated = normalizePhaseSettings(null);
                     migrated.first = phaseFromFlat({
                         pickupRadiusKm: filterRow.pickup_radius_km,
-                        detourRadiusKm: filterRow.corridor_radius_km,
+                        detourRadiusKm: filterRow.detour_radius_km,
                         destinationRadiusKm: filterRow.destination_radius_km,
-                        callDiscountPct: filterRow.eyeline_pct,
+                        callDiscountPct: filterRow.call_discount_pct,
                         destinationCity: filterRow.destination_city ?? "",
                     }, DEFAULT_PHASE_SETTINGS.first);
                     session.basePhaseSettings = migrated;
@@ -295,7 +295,7 @@ export function getUserSession(userId: string): UserSession {
                 // 서비스 권장 기본값을 DB에도 저장 (빈 껍데기가 아닌 의미 있는 초기값)
                 db.prepare(`
                     INSERT OR IGNORE INTO user_filters 
-                    (user_id, min_fare, max_fare, pickup_radius_km, destination_radius_km, corridor_radius_km, destination_city) 
+                    (user_id, min_fare, max_fare, pickup_radius_km, destination_radius_km, detour_radius_km, destination_city) 
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                 `).run(userId, 30000, 1000000, 10, 10, 5, '파주');
 

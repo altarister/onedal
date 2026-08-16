@@ -24,10 +24,10 @@ import { getCityRegionsWithRadius, cityAliases, getDetourRegions, getActivePolyl
 // ━━━ Prepared Statement 캐싱 (모듈 로드 시 1회만 실행) ━━━
 const stmtUpdateFilter = db.prepare(`
     UPDATE user_filters SET
-        destination_city = ?, destination_radius_km = ?, corridor_radius_km = ?,
+        destination_city = ?, destination_radius_km = ?, detour_radius_km = ?,
         min_fare = ?, max_fare = ?, pickup_radius_km = ?,
         excluded_keywords = ?, is_active = ?, is_shared_mode = ?,
-        load_state = ?, eyeline_pct = ?, phase_settings = ?
+        load_state = ?, call_discount_pct = ?, phase_settings = ?
     WHERE user_id = ?
 `);
 
@@ -59,7 +59,7 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
      *
      * 관제웹은 `callDiscountPct` 하나만 보내고 표는 만들지 않는다 — 같은 표를 두 곳에서
      * 만들면 한쪽만 고쳐진다(경유 4벌·상태목록 3벌과 같은 사고). 원천은 DB 의
-     * `eyeline_pct` 이고, 여기가 그것을 표로 펼치는 유일한 자리다.
+     * `call_discount_pct` 이고, 여기가 그것을 표로 펼치는 유일한 자리다.
      */
     if ('callDiscountPct' in changes) {
         // 요율·수수료의 원천은 DB 다 (설정 화면에서 기사님이 바꾼다).
