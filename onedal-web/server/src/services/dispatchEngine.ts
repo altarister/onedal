@@ -1,15 +1,15 @@
 import { mapVehicleToKakaoCarType, getRemainingCapacityTypes, deriveDispatchPhase, normalizeVehicleType,
          MILESTONE_TO_STATUS, MILESTONE_LABEL, canReportMilestone, timingError,
          RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, UNFINISHED_RESTORE_DAYS, deriveStatusFromMilestones,
-         restoreWindow, getEffectiveCorridorRadius, DEFAULT_CORRIDOR_RADIUS_KM,
+         restoreWindow, getEffectiveDetourRadius, DEFAULT_CORRIDOR_RADIUS_KM,
          CALL_TARGET_LABEL, scoreMerge, describeJudgment, TRUCK_CAPACITY_SLOTS } from "@onedal/shared";
 import type { SecuredOrder, AutoDispatchFilter, PricingConfig, PendingOrder, MyOrder,
               Milestone, MilestoneSource, CallTarget } from "@onedal/shared";
 import { geocodeAddress, calculateSoloRoute, calculateDetourRoute, compareDirections } from "./kakaoService";
 import { fetchRealWorldRoute } from "../routes/osrmUtil";
 import { getUserSession, clearOrderTimers } from "../state/userSessionStore";
-import { updateActiveFilter, rememberCorridorProgress } from "../state/filterManager";
-import { getCorridorRegions, getCityRegionsWithRadius, reverseGeocodeToRegion } from "../services/geoService";
+import { updateActiveFilter, rememberDetourProgress } from "../state/filterManager";
+import { getDetourRegions, getCityRegionsWithRadius, reverseGeocodeToRegion } from "../services/geoService";
 import { composeMergedRoute, applyRoute, applySoloRoute, pickRouteHolder, toKm, toMin, isAlreadyLoaded } from "./routeComposer";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { DISPATCH_CONFIG } from "../config/dispatchConfig";
@@ -132,7 +132,7 @@ export async function recalculateActiveKakaoRoute(userId: string, io: any) {
     }
 
     // [핵심 보강] 갱신된 새 폴리라인을 바탕으로 타겟팅 키워드(회랑) 다시 추출!
-    syncCorridorFilter(userId, io);
+    syncDetourFilter(userId, io);
 
     if (io) {
         const payload = Array.from(session.pendingOrdersData.values());
@@ -241,7 +241,7 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
         securedOrder.kakaoTimeExt = timeExt;
 
         if (getActiveCalls(session).some(c => c.id === securedOrder.id)) {
-            syncCorridorFilter(userId, io);
+            syncDetourFilter(userId, io);
         }
 
         logRoadmapEvent("서버", "관제탑에게 재산출된 노선(order-evaluated) 정보 전달");
@@ -262,16 +262,16 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
 }
 
 /**
- * `recalculateCorridorFilter` 는 **`state/filterManager` 로 옮겼다** (2026-08-14).
+ * `recalculateDetourFilter` 는 **`state/filterManager` 로 옮겼다** (2026-08-14).
  *
  * 국면별 설정(§2-4)이 들어오면서 회랑을 다시 그려야 하는 자리가 셋으로 늘었다 —
  * 관제탑 필터 저장 · **국면별 설정 저장** · **국면 전환**. 뒤의 둘은 `filterManager` 안이라
  * 여기(dispatchEngine)를 부르면 순환 참조가 된다. 그래서 함수를 아래(경계가 낮은 쪽)로 옮겼다.
  * 회랑 계산은 이 레포에서 이미 **4벌**로 갈라진 적이 있다. 두 벌째를 만들지 않는다.
  */
-export { recalculateCorridorFilter } from "../state/filterManager";
+export { recalculateDetourFilter } from "../state/filterManager";
 
-export const syncCorridorFilter = (userId: string, io: any) => {
+export const syncDetourFilter = (userId: string, io: any) => {
     const session = getUserSession(userId);
     let polylineToUse = null;
 
@@ -299,22 +299,22 @@ export const syncCorridorFilter = (userId: string, io: any) => {
 
     if (polylineToUse && polylineToUse.length > 0) {
         /**
-         * 🔴 `getEffectiveCorridorRadius` 는 정의만 되어 있고 **호출하는 곳이 없었다.**
-         *    "이 함수를 통해서만 corridorRadiusKm 를 결정하므로 하드코딩이 원천 차단됩니다"
+         * 🔴 `getEffectiveDetourRadius` 는 정의만 되어 있고 **호출하는 곳이 없었다.**
+         *    "이 함수를 통해서만 detourRadiusKm 를 결정하므로 하드코딩이 원천 차단됩니다"
          *    라는 주석이 붙어 있었는데, 정작 여기서 `?? 10` 을 직접 쓰고 있었다.
          *    그래서 **운행 중(DELIVERING)에도 회랑이 안 좁혀졌다** — 우회 금지가 안 걸린 것이다.
          */
-        const cRadius = getEffectiveCorridorRadius(
+        const cRadius = getEffectiveDetourRadius(
             session.activeFilter.dispatchPhase ?? 'STANDBY',
-            session.activeFilter.corridorRadiusKm ?? DEFAULT_CORRIDOR_RADIUS_KM,
+            session.activeFilter.detourRadiusKm ?? DEFAULT_CORRIDOR_RADIUS_KM,
         );
         const dRadius = session.activeFilter.destinationRadiusKm;
-        const regions = getCorridorRegions(polylineToUse, cRadius, dRadius);
+        const regions = getDetourRegions(polylineToUse, cRadius, dRadius);
 
         if (regions && regions.flat.length > 0) {
             // 🔴 진행도를 **키워드보다 먼저** 기억한다. updateActiveFilter 의 파생 계산 끝에서
             //    지나온 구간을 빼는데, 그때 옛 진행도가 남아 있으면 엉뚱한 동이 사라진다
-            rememberCorridorProgress(session, regions);
+            rememberDetourProgress(session, regions);
             updateActiveFilter(userId, {
                 destinationKeywords: regions.flat,
                 destinationGroups: regions.grouped,
@@ -415,7 +415,7 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
         // ✅ mainCallState/subCalls 할당 완료 후 회랑 재계산 (경로 기반 키워드 갱신)
         let destinationKeywords = session.activeFilter.destinationKeywords;
         if (cachedOrder && cachedOrder.routePolyline) {
-            syncCorridorFilter(userId, io);
+            syncDetourFilter(userId, io);
             destinationKeywords = session.activeFilter.destinationKeywords;
             console.log(`🗺️ [회랑 갱신] KEEP 후 destinationKeywords ${destinationKeywords.length}개로 재계산 완료`);
         }
@@ -568,7 +568,7 @@ export async function evaluateNewOrder(userId: string, securedOrder: SecuredOrde
  * [Phase 6] 로그인·소켓 접속 시 실행되는 **단일 부트스트랩 시퀀스**.
  *
  * 예전에는 이 과정이 세 군데로 흩어져 각자 다른 시점에 돌았다.
- *   getUserSession(동기·DB로드+지리연산) / restoreAndRecalculateSession(비동기) / syncCorridorFilter
+ *   getUserSession(동기·DB로드+지리연산) / restoreAndRecalculateSession(비동기) / syncDetourFilter
  * 소켓 핸들러가 복구를 await 하지 않고 곧바로 filter-init 을 쏘는 바람에
  *   ① 앱폰이 1~3초간 "첫짐 필터(회랑 없음)"를 받아 경로 이탈 콜을 잡을 수 있었고
  *   ② 관제탑은 첫짐 → 합짐으로 깜빡였으며
@@ -642,11 +642,11 @@ export async function bootstrapUserSession(userId: string, io: any): Promise<voi
 /**
  * **`destinationKeywords` 를 만드는 유일한 함수.**
  *
- * 예전에는 이 값을 네 군데(userSessionStore 세션 생성 / 부트스트랩 / syncCorridorFilter /
+ * 예전에는 이 값을 네 군데(userSessionStore 세션 생성 / 부트스트랩 / syncDetourFilter /
  * 필터 변경)가 각자 만들었고, 그래서 "지금 어느 지역을 사냥 중인가"에 대한 답이
  * 호출 순서에 따라 달라졌다. 이제 갈래는 여기 하나뿐이다.
  *
- *   활성 콜 있음 → 주행 경로 주변 회랑 (syncCorridorFilter)
+ *   활성 콜 있음 → 주행 경로 주변 회랑 (syncDetourFilter)
  *   활성 콜 없음 → 기사님이 설정한 destinationCity + 반경
  *
  * 특히 **마지막 콜을 취소해 활성 0건이 됐을 때**가 중요하다. 예전에는
@@ -657,7 +657,7 @@ export function rebuildDestinationKeywords(userId: string, io: any): void {
     const session = getUserSession(userId);
 
     if (getActiveCalls(session).length > 0) {
-        syncCorridorFilter(userId, io);
+        syncDetourFilter(userId, io);
         return;
     }
 
@@ -1195,7 +1195,7 @@ export async function setCallTarget(
 export async function createHomeReturn(
     userId: string, 
     io: any, 
-    options?: { corridorRadiusKm?: number; destinationRadiusKm?: number }
+    options?: { detourRadiusKm?: number; destinationRadiusKm?: number }
 ): Promise<{ success: boolean; orderId?: string; message?: string }> {
     try {
         const session = getUserSession(userId);
@@ -1243,14 +1243,14 @@ export async function createHomeReturn(
         session.myOrders.push(homeOrder as any);
         await evaluateNewOrder(userId, homeOrder as any, io);
 
-        const targetCorridor = options?.corridorRadiusKm ?? DEFAULT_CORRIDOR_RADIUS_KM;
+        const targetDetour = options?.detourRadiusKm ?? DEFAULT_CORRIDOR_RADIUS_KM;
         updateActiveFilter(userId, {
             dispatchPhase: 'GATHERING',
             isSharedMode: true,
             isActive: true,
-            corridorRadiusKm: targetCorridor,
+            detourRadiusKm: targetDetour,
         }, io);
-        syncCorridorFilter(userId, io);
+        syncDetourFilter(userId, io);
 
         console.log(`🏠 [귀가콜] 가상 오더 생성 완료: ${settings.home_address}`);
         io.to(userId).emit("order-confirmed", homeOrder.id);

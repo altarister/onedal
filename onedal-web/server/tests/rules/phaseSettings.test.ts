@@ -150,7 +150,7 @@ describe('조각 → 평면 매핑 (§2-4-6)', () => {
     it('🔴 새 이름 → 평면(앱 피기백) 옛 이름으로 옮긴다', () => {
         const flat = applyPhaseToFilter('first', s);
         expect(flat.pickupRadiusKm).toBe(7);
-        expect(flat.corridorRadiusKm).toBe(4);        // detourAllowKm
+        expect(flat.detourRadiusKm).toBe(4);        // detourAllowKm
         expect(flat.destinationRadiusKm).toBe(2);     // dropoffRadiusKm
         expect(flat.callDiscountPct).toBe(30);             // discountPct
     });
@@ -168,7 +168,7 @@ describe('조각 → 평면 매핑 (§2-4-6)', () => {
 
     it('평면 → 조각 (마이그레이션·폼 초기화)', () => {
         const back = phaseFromFlat(
-            { pickupRadiusKm: 1, corridorRadiusKm: 1, destinationRadiusKm: 1, callDiscountPct: 20, destinationCity: '용인시' },
+            { pickupRadiusKm: 1, detourRadiusKm: 1, destinationRadiusKm: 1, callDiscountPct: 20, destinationCity: '용인시' },
             DEFAULT_PHASE_SETTINGS.first,
         );
         expect(back).toEqual({

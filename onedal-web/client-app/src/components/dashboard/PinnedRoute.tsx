@@ -202,7 +202,7 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate, vi
                            짐이 2건이면 정류장이 4곳이라 출발을 네 번 눌러야 했다.
                            "출발했는가"는 국면(`dispatchPhase`)이 답한다.
 
-                        🔴 `corridorRadiusKm: 0` 도 뺐다. 운행중 국면 설정이 이미 그 값을 갖고 있다 —
+                        🔴 `detourRadiusKm: 0` 도 뺐다. 운행중 국면 설정이 이미 그 값을 갖고 있다 —
                            여기서 또 보내면 같은 값을 두 곳에서 정하게 되고, 기사님이 운행중 탭에서
                            경유를 3km 로 바꿔 둬도 이 버튼이 0으로 덮어썼다. */}
                     {filter && filter.dispatchPhase !== 'DELIVERING' && liveRoute.length > 0 && (

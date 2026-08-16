@@ -1,10 +1,10 @@
-import { getEffectiveCorridorRadius, DEFAULT_CORRIDOR_RADIUS_KM, DEFAULT_PHASE_SETTINGS } from '@onedal/shared';
+import { getEffectiveDetourRadius, DEFAULT_CORRIDOR_RADIUS_KM, DEFAULT_PHASE_SETTINGS } from '@onedal/shared';
 
 /**
- * 🔴 2026-08-12 — `getEffectiveCorridorRadius` 는 **정의만 되어 있고 호출하는 곳이 없었다.**
+ * 🔴 2026-08-12 — `getEffectiveDetourRadius` 는 **정의만 되어 있고 호출하는 곳이 없었다.**
  *
- * 주석에는 *"이 함수를 통해서만 corridorRadiusKm 를 결정하므로 하드코딩이 원천 차단됩니다"*
- * 라고 적혀 있었는데, 정작 `syncCorridorFilter` 는 `?? 10` 을 직접 쓰고 있었다.
+ * 주석에는 *"이 함수를 통해서만 detourRadiusKm 를 결정하므로 하드코딩이 원천 차단됩니다"*
+ * 라고 적혀 있었는데, 정작 `syncDetourFilter` 는 `?? 10` 을 직접 쓰고 있었다.
  * 그래서 **운행 중(DELIVERING)에도 회랑이 안 좁혀졌다** — 우회 금지가 아예 안 걸렸다.
  *
  * 문서가 코드보다 앞서 나간 경우다. 함수를 만들어 두고 연결하지 않으면
@@ -25,16 +25,16 @@ import { getEffectiveCorridorRadius, DEFAULT_CORRIDOR_RADIUS_KM, DEFAULT_PHASE_S
  */
 describe('회랑 반경은 국면 설정이 정한다', () => {
     it('🔴 이 함수는 더 이상 값을 덮어쓰지 않는다 — 국면 설정이 진실이다', () => {
-        expect(getEffectiveCorridorRadius('DELIVERING', 5)).toBe(5);
-        expect(getEffectiveCorridorRadius('DELIVERING', 0)).toBe(0);
+        expect(getEffectiveDetourRadius('DELIVERING', 5)).toBe(5);
+        expect(getEffectiveDetourRadius('DELIVERING', 0)).toBe(0);
     });
 
     it('합짐 수집 중에는 기사님이 정한 반경 그대로', () => {
-        expect(getEffectiveCorridorRadius('GATHERING', 5)).toBe(5);
+        expect(getEffectiveDetourRadius('GATHERING', 5)).toBe(5);
     });
 
     it('첫짐 대기 중에도 그대로 (회랑 자체를 안 쓰지만 값은 보존한다)', () => {
-        expect(getEffectiveCorridorRadius('STANDBY', 5)).toBe(5);
+        expect(getEffectiveDetourRadius('STANDBY', 5)).toBe(5);
     });
 
     it('🔴 "운행 중엔 우회하지 않는다" 는 **국면 기본값**이 지킨다', () => {
@@ -43,10 +43,10 @@ describe('회랑 반경은 국면 설정이 정한다', () => {
     });
 
     it('반경 0 은 "회랑 없음"이 아니라 **경로 위만** 이다', () => {
-        // getCorridorRegions 가 0 이하를 50m 버퍼로 바꾼다 — 경로가 지나는 동은 전부 잡힌다.
+        // getDetourRegions 가 0 이하를 50m 버퍼로 바꾼다 — 경로가 지나는 동은 전부 잡힌다.
         // (실측: 광주→파주 100km 경로에서 회랑 0 이 58개 동. 첫짐 파주 41개보다 많다)
         // 빈 회랑이 되면 키워드가 0개가 되어 사냥이 통째로 멈춘다 — 그건 다른 뜻이다
-        expect(getEffectiveCorridorRadius('DELIVERING', 0)).toBe(0);
+        expect(getEffectiveDetourRadius('DELIVERING', 0)).toBe(0);
     });
 });
 

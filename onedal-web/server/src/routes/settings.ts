@@ -6,7 +6,7 @@ import { geocodeAddress } from "../services/kakaoService";
 import { getGroupedRegionsByCity } from "../geoResolver";
 import { saveBaseFilter } from "../state/filterManager";
 import { getUserSession } from "../state/userSessionStore";
-import { recalculateCorridorFilter } from "../services/dispatchEngine";
+import { recalculateDetourFilter } from "../services/dispatchEngine";
 import { getCityRegionsWithRadius, getSelectableCities } from "../services/geoService";
 
 const router = Router();
@@ -52,7 +52,7 @@ router.get("/", requireAuth, (req, res) => {
             alarmVolume: row.alarm_volume ?? 50,
             destinationCity: row.destination_city || '',
             destinationRadiusKm: row.destination_radius_km,
-            corridorRadiusKm: row.corridor_radius_km,
+            detourRadiusKm: row.corridor_radius_km,
             isActive: Boolean(row.is_active),
         });
     } catch (e) {
@@ -167,7 +167,7 @@ router.put("/", requireAuth, async (req, res) => {
         const filterChanges: any = {};
         if (payload.destinationCity !== undefined) filterChanges.destinationCity = payload.destinationCity;
         if (payload.destinationRadiusKm !== undefined) filterChanges.destinationRadiusKm = payload.destinationRadiusKm;
-        if (payload.corridorRadiusKm !== undefined) filterChanges.corridorRadiusKm = payload.corridorRadiusKm;
+        if (payload.detourRadiusKm !== undefined) filterChanges.detourRadiusKm = payload.detourRadiusKm;
         if (payload.isActive !== undefined) filterChanges.isActive = payload.isActive;
 
         if (Object.keys(filterChanges).length > 0) {
@@ -270,16 +270,16 @@ router.get("/preview-regions", requireAuth, (req, res) => {
 });
 
 // 합짐 모드: 회랑 반경 변경 시 지역 목록 프리뷰
-router.get("/preview-corridor", requireAuth, (req, res) => {
+router.get("/preview-detour", requireAuth, (req, res) => {
     try {
         const userId = req.user!.id;
-        const parsedCorridor = parseFloat(req.query.corridorRadiusKm as string);
-        const corridorRadiusKm = isNaN(parsedCorridor) ? 10 : parsedCorridor;
+        const parsedDetour = parseFloat(req.query.detourRadiusKm as string);
+        const detourRadiusKm = isNaN(parsedDetour) ? 10 : parsedDetour;
         const destinationRadiusKm = req.query.destinationRadiusKm
             ? parseFloat(req.query.destinationRadiusKm as string)
             : undefined;
 
-        const result = recalculateCorridorFilter(userId, corridorRadiusKm, destinationRadiusKm);
+        const result = recalculateDetourFilter(userId, detourRadiusKm, destinationRadiusKm);
         if (result) {
             res.json({
                 totalCount: result.destinationKeywords.length,
@@ -289,7 +289,7 @@ router.get("/preview-corridor", requireAuth, (req, res) => {
             res.json({ totalCount: 0, groupedRegions: {} });
         }
     } catch (e) {
-        console.error("Preview Corridor 에러:", e);
+        console.error("Preview Detour 에러:", e);
         res.status(500).json({ error: "서버 오류 발생" });
     }
 });

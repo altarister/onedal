@@ -150,44 +150,44 @@ describe('국면 전환 — 반경은 국면 설정만이 정한다', () => {
 describe('회랑 갱신 — 구현은 하나여야 한다', () => {
 
     it('국면 저장·국면 전환 둘 다 회랑을 다시 그린다', () => {
-        const save = fm.slice(fm.indexOf('export function savePhaseSettings'), fm.indexOf('export const recalculateCorridorFilter'));
-        expect(save).toMatch(/refreshCorridorIfNeeded/);
+        const save = fm.slice(fm.indexOf('export function savePhaseSettings'), fm.indexOf('export const recalculateDetourFilter'));
+        expect(save).toMatch(/refreshDetourIfNeeded/);
 
         const apply = fm.slice(fm.indexOf('function applyPhaseSettingsIfChanged'));
-        expect(apply.slice(0, 2000)).toMatch(/refreshCorridorIfNeeded/);
+        expect(apply.slice(0, 2000)).toMatch(/refreshDetourIfNeeded/);
     });
 
     it('반경이 그대로면 다시 그리지 않는다 (지리 연산은 CPU ~7초짜리다)', () => {
-        const fn = fm.slice(fm.indexOf('function refreshCorridorIfNeeded'), fm.indexOf('function applyPhaseSettingsIfChanged'));
-        expect(fn).toMatch(/before\.corridorRadiusKm/);
+        const fn = fm.slice(fm.indexOf('function refreshDetourIfNeeded'), fm.indexOf('function applyPhaseSettingsIfChanged'));
+        expect(fn).toMatch(/before\.detourRadiusKm/);
         expect(fn).toMatch(/return/);
     });
 
     it('🔴 경로가 없으면 아무것도 넣지 않는다 (없는 값을 지어내지 않는다)', () => {
-        const fn = fm.slice(fm.indexOf('function refreshCorridorIfNeeded'), fm.indexOf('function applyPhaseSettingsIfChanged'));
+        const fn = fm.slice(fm.indexOf('function refreshDetourIfNeeded'), fm.indexOf('function applyPhaseSettingsIfChanged'));
         expect(fn).toMatch(/if \(!regions\) return/);
     });
 
     it('🔴 셋을 한 벌로 넣는다 — 별칭이 빠지면 앱의 2단계 필터가 조용히 꺼진다', () => {
-        const fn = fm.slice(fm.indexOf('function refreshCorridorIfNeeded'), fm.indexOf('function applyPhaseSettingsIfChanged'));
+        const fn = fm.slice(fm.indexOf('function refreshDetourIfNeeded'), fm.indexOf('function applyPhaseSettingsIfChanged'));
         expect(fn).toMatch(/destinationKeywords = regions\.destinationKeywords/);
         expect(fn).toMatch(/destinationGroups = regions\.destinationGroups/);
         expect(fn).toMatch(/customCityFilters = regions\.customCityFilters/);
     });
 
-    it('🔴 recalculateCorridorFilter 의 구현은 하나다 — dispatchEngine 은 다시 내보내기만 한다', () => {
+    it('🔴 recalculateDetourFilter 의 구현은 하나다 — dispatchEngine 은 다시 내보내기만 한다', () => {
         const engine = codeOnly(read(join(SERVER, 'services/dispatchEngine.ts')));
-        expect(engine).toMatch(/export \{ recalculateCorridorFilter \} from "\.\.\/state\/filterManager"/);
-        expect(engine).not.toMatch(/export const recalculateCorridorFilter/);
+        expect(engine).toMatch(/export \{ recalculateDetourFilter \} from "\.\.\/state\/filterManager"/);
+        expect(engine).not.toMatch(/export const recalculateDetourFilter/);
         // 부르는 쪽(소켓·설정 라우트)은 여전히 하나의 구현을 본다
-        expect(handlers).toMatch(/recalculateCorridorFilter\(/);
+        expect(handlers).toMatch(/recalculateDetourFilter\(/);
     });
 
     it('회랑을 부르는 자리가 늘어나도 계산은 filterManager 한 곳이다', () => {
-        // dispatchEngine 에 남은 getCorridorRegions 호출은 syncCorridorFilter(지나온 구간 잘라내기)
+        // dispatchEngine 에 남은 getDetourRegions 호출은 syncDetourFilter(지나온 구간 잘라내기)
         // 하나뿐이다. 그건 "경로가 바뀌었을 때"의 자동 갱신이라 목적이 다르다 —
         // 늘어나면(2개 이상) 회랑 계산이 또 갈라지기 시작한 것이다.
         const engine = codeOnly(read(join(SERVER, 'services/dispatchEngine.ts')));
-        expect((engine.match(/getCorridorRegions\(/g) || []).length).toBe(1);
+        expect((engine.match(/getDetourRegions\(/g) || []).length).toBe(1);
     });
 });

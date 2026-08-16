@@ -21,7 +21,7 @@ router.get("/", requireAuth, (req, res) => {
             dispatchPhase: f.dispatchPhase ?? 'STANDBY',     // [V2]
             destinationCity: f.destinationCity ?? "",
             destinationRadiusKm: f.destinationRadiusKm ?? 0,
-            corridorRadiusKm: f.corridorRadiusKm ?? DEFAULT_CORRIDOR_RADIUS_KM,
+            detourRadiusKm: f.detourRadiusKm ?? DEFAULT_CORRIDOR_RADIUS_KM,
             allowedVehicleTypes: f.allowedVehicleTypes ?? [],
             minFare: f.minFare ?? 0,
             maxFare: f.maxFare ?? 1000000,

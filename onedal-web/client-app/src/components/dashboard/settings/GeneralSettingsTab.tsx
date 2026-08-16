@@ -19,7 +19,7 @@ export default function GeneralSettingsTab({ onClose }: Props) {
   const [geocodeError, setGeocodeError] = useState<string | null>(null);
   const [destinationCity, setDestinationCity] = useState<string>("");
   const [destinationRadiusKm, setDestinationRadiusKm] = useState<string>("");
-  const [corridorRadiusKm, setCorridorRadiusKm] = useState<string>("");
+  const [detourRadiusKm, setDetourRadiusKm] = useState<string>("");
   const [isActive, setIsActive] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(false);
   const [volume, setVolume] = useState(50);
@@ -40,7 +40,7 @@ export default function GeneralSettingsTab({ onClose }: Props) {
       setGeocodeError(null);
       setDestinationCity(data.destinationCity || "");
       setDestinationRadiusKm(data.destinationRadiusKm?.toString() || "");
-      setCorridorRadiusKm(data.corridorRadiusKm?.toString() || "");
+      setDetourRadiusKm(data.detourRadiusKm?.toString() || "");
       setIsActive(data.isActive || false);
     } catch (e) {
       console.error("Failed to load settings:", e);
@@ -72,7 +72,7 @@ export default function GeneralSettingsTab({ onClose }: Props) {
         homeX: homeCoords?.x, homeY: homeCoords?.y,
         destinationCity,
         destinationRadiusKm: destinationRadiusKm ? parseInt(destinationRadiusKm, 10) : undefined,
-        corridorRadiusKm: corridorRadiusKm ? parseInt(corridorRadiusKm, 10) : undefined,
+        detourRadiusKm: detourRadiusKm ? parseInt(detourRadiusKm, 10) : undefined,
         isActive
       });
       onClose();

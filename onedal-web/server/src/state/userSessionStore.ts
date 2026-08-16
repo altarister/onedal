@@ -11,7 +11,7 @@ const SERVICE_DEFAULT_FILTER: Partial<AutoDispatchFilter> = {
     maxFare: 1000000,         // 상한가 100만 원
     pickupRadiusKm: 10,       // 상차반경 10km
     destinationRadiusKm: 10,  // 도착반경 10km
-    corridorRadiusKm: 5,      // 우회반경 5km
+    detourRadiusKm: 5,      // 우회반경 5km
     destinationCity: "파주",
     isActive: false,
     isSharedMode: false,
@@ -141,7 +141,7 @@ export interface UserSession {
      *    회랑을 다시 그리면 이것도 같이 바뀐다. 따로 만들면 갈라진다.
      *    경로가 없으면 `null` — 없는 값을 지어내지 않는다.
      */
-    corridorProgressKm: Record<string, number> | null;
+    detourProgressKm: Record<string, number> | null;
 }
 
 const sessions = new Map<string, UserSession>();
@@ -167,7 +167,7 @@ function createDefaultSession(): UserSession {
         basePhaseSettings: normalizePhaseSettings(null),
         phaseSettings: normalizePhaseSettings(null),
         appliedPhaseKey: null,
-        corridorProgressKm: null,
+        detourProgressKm: null,
         departedAt: null,
         lastOrderSyncJson: null,
         lastFilterJson: null,
@@ -213,7 +213,7 @@ export function getUserSession(userId: string): UserSession {
                 session.baseFilter = {
                     destinationCity: filterRow.destination_city ?? "",
                     destinationRadiusKm: filterRow.destination_radius_km,
-                    corridorRadiusKm: filterRow.corridor_radius_km,
+                    detourRadiusKm: filterRow.corridor_radius_km,
                     minFare: filterRow.min_fare,
                     maxFare: filterRow.max_fare,
                     pickupRadiusKm: filterRow.pickup_radius_km,
@@ -244,7 +244,7 @@ export function getUserSession(userId: string): UserSession {
                     const migrated = normalizePhaseSettings(null);
                     migrated.first = phaseFromFlat({
                         pickupRadiusKm: filterRow.pickup_radius_km,
-                        corridorRadiusKm: filterRow.corridor_radius_km,
+                        detourRadiusKm: filterRow.corridor_radius_km,
                         destinationRadiusKm: filterRow.destination_radius_km,
                         callDiscountPct: filterRow.eyeline_pct,
                         destinationCity: filterRow.destination_city ?? "",

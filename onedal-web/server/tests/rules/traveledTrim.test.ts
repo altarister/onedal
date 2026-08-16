@@ -23,9 +23,9 @@ const engine = codeOnly(read("services/dispatchEngine.ts"));
 describe('지나온 구간 제거 — 다시 그리지 않고 숫자만 비교한다', () => {
 
     it('🔴 진행도는 회랑과 **같이** 나온다 (따로 만들면 갈라진다)', () => {
-        // getCorridorRegions 가 progressKm 을 함께 반환한다
+        // getDetourRegions 가 progressKm 을 함께 반환한다
         expect(geo).toMatch(/progressKm/);
-        const fn = geo.slice(geo.indexOf('export function getCorridorRegions'));
+        const fn = geo.slice(geo.indexOf('export function getDetourRegions'));
         const body = fn.slice(0, fn.indexOf('\nexport '));
         expect(body).toMatch(/progressKm\[regionName\]/);
         // 교차 검사 루프 안에서 계산한다 — 따로 도는 두 번째 루프가 아니다
@@ -33,14 +33,14 @@ describe('지나온 구간 제거 — 다시 그리지 않고 숫자만 비교�
     });
 
     it('진행도는 부팅 때 캐시한 centroid/bbox 를 쓴다 (여기서 다시 만들지 않는다)', () => {
-        const fn = geo.slice(geo.indexOf('export function getCorridorRegions'));
+        const fn = geo.slice(geo.indexOf('export function getDetourRegions'));
         const body = fn.slice(0, fn.indexOf('\nexport '));
         expect(body).toMatch(/feature as any\)\.centroid/);
         expect(body).not.toMatch(/turf\.centroid\(/);
     });
 
     it('🔴 넓은 동은 **늦게** 뺀다 — 일찍 빼면 잡을 수 있는 콜을 버린다', () => {
-        const fn = geo.slice(geo.indexOf('export function getCorridorRegions'));
+        const fn = geo.slice(geo.indexOf('export function getDetourRegions'));
         const body = fn.slice(0, fn.indexOf('\nexport '));
         // 중심점 + 동의 크기만큼 여유
         expect(body).toMatch(/const pad = fb \?/);
@@ -52,14 +52,14 @@ describe('지나온 구간 제거 — 다시 그리지 않고 숫자만 비교�
     it('🔴 하차지 주변 동은 트림에서 빼지 않는다 — 도착이 가까울수록 필요한 콜이다', () => {
         // 하차지 반경은 *경로* 조건이 아니라 *목적지* 조건이다.
         // 진행도로 자르면 도착 직전에 그 동네가 먼저 사라진다 (실측: 회랑이 1개까지 줄었다)
-        const fn = geo.slice(geo.indexOf('export function getCorridorRegions'));
+        const fn = geo.slice(geo.indexOf('export function getDetourRegions'));
         const body = fn.slice(0, fn.indexOf('\nexport '));
         expect(body).toMatch(/const destCenter =/);
         expect(body).toMatch(/inDest \? Infinity : at \+ pad/);
     });
 
     it('하차지 원의 중심은 **경로의 마지막 점**이다 (버퍼 합병이 쓰는 좌표와 같아야 한다)', () => {
-        const fn = geo.slice(geo.indexOf('export function getCorridorRegions'));
+        const fn = geo.slice(geo.indexOf('export function getDetourRegions'));
         const body = fn.slice(0, fn.indexOf('\nexport '));
         expect(body).toMatch(/destCenter[\s\S]{0,120}lineCoords\[lineCoords\.length - 1\]/);
     });
@@ -85,9 +85,9 @@ describe('지나온 구간 제거 — 다시 그리지 않고 숫자만 비교�
     it('회랑을 만드는 자리는 **모두** 진행도를 같이 기억한다', () => {
         // 키워드만 갱신하고 진행도를 두면, 옛 경로 기준으로 멀쩡한 동이 사라진다
         for (const src of [fm, engine]) {
-            const calls = (src.match(/getCorridorRegions\(/g) || []).length;
+            const calls = (src.match(/getDetourRegions\(/g) || []).length;
             if (calls === 0) continue;
-            expect(src).toMatch(/rememberCorridorProgress/);
+            expect(src).toMatch(/rememberDetourProgress/);
         }
     });
 
@@ -97,7 +97,7 @@ describe('지나온 구간 제거 — 다시 그리지 않고 숫자만 비교�
         const derive = fm.slice(fm.indexOf('function recalculateDerivedFields'), fm.indexOf('export function trimTraveled'));
         expect(derive).toMatch(/applyTraveledTrim\(session\)/);
         // ② GPS 전용 통로
-        const gps = fm.slice(fm.indexOf('export function trimTraveled'), fm.indexOf('export function rememberCorridorProgress'));
+        const gps = fm.slice(fm.indexOf('export function trimTraveled'), fm.indexOf('export function rememberDetourProgress'));
         expect(gps).toMatch(/applyTraveledTrim\(session\)/);
         // 그 둘뿐이다 — 세 번째가 생기면 순서에 따라 결과가 달라진다
         expect((fm.match(/applyTraveledTrim\(session\)/g) || []).length).toBe(2);
@@ -109,7 +109,7 @@ describe('지나온 구간 제거 — 다시 그리지 않고 숫자만 비교�
  */
 describe('지나온 구간 제거 — 일찍 빼지 않는다', () => {
 
-    const fn = fm.slice(fm.indexOf('export function applyTraveledTrim'), fm.indexOf('export function refreshCorridorIfNeeded') > 0 ? fm.indexOf('export function refreshCorridorIfNeeded') : undefined);
+    const fn = fm.slice(fm.indexOf('export function applyTraveledTrim'), fm.indexOf('export function refreshDetourIfNeeded') > 0 ? fm.indexOf('export function refreshDetourIfNeeded') : undefined);
     const body = fn.slice(0, fn.indexOf('\n}\n') + 2);
 
     it('🔴 국면을 보지 않는다 — 지나온 동네는 합짐이든 운행중이든 지난 동네다', () => {
@@ -117,7 +117,7 @@ describe('지나온 구간 제거 — 일찍 빼지 않는다', () => {
         // GATHERING 으로 떨어뜨리자 **달리는 중인데 제거가 멈췄다.**
         // 조건은 데이터에 맡긴다 — 진행도 · 경로 · GPS 가 있으면 돈다
         expect(body).not.toMatch(/dispatchPhase/);
-        expect(body).toMatch(/const progress = session\.corridorProgressKm/);
+        expect(body).toMatch(/const progress = session\.detourProgressKm/);
         expect(body).toMatch(/if \(!polyline \|\| !gps\) return false/);
     });
 
@@ -139,7 +139,7 @@ describe('지나온 구간 제거 — 일찍 빼지 않는다', () => {
     it('사이클이 끝나면(STANDBY) 진행도를 지운다 — 다음 운행에 옛 기준이 남지 않게', () => {
         const at = fm.indexOf('if (isTransitionToEmpty)');
         const reset = fm.slice(at, fm.indexOf('} else {', at));   // ⚠️ 시작 위치를 주지 않으면 앞쪽 '} else {' 를 물어 빈 조각이 된다
-        expect(reset).toMatch(/corridorProgressKm = null/);
+        expect(reset).toMatch(/detourProgressKm = null/);
     });
 });
 
@@ -187,7 +187,7 @@ describe('GPS 경로는 전용 통로로 간다', () => {
     });
 
     it('전용 통로는 파생 재계산을 거치지 않는다 (허용 차종·적재 칸을 다시 셀 이유가 없다)', () => {
-        const fn = fm.slice(fm.indexOf('export function trimTraveled'), fm.indexOf('export function rememberCorridorProgress'));
+        const fn = fm.slice(fm.indexOf('export function trimTraveled'), fm.indexOf('export function rememberDetourProgress'));
         expect(fn).not.toMatch(/recalculateDerivedFields/);
         expect(fn).not.toMatch(/updateActiveFilter/);
         expect(fn).toMatch(/broadcastFilter/);
@@ -232,6 +232,6 @@ describe('운행 중 — 출발한 사실에서 나온다', () => {
 
     it('🚀 버튼이 우회 반경을 직접 정하지 않는다 (운행중 국면 설정이 준다)', () => {
         const onClick = client.slice(client.indexOf("updateFilter({ driverAction: 'DRIVING'"));
-        expect(onClick.slice(0, 80)).not.toMatch(/corridorRadiusKm/);
+        expect(onClick.slice(0, 80)).not.toMatch(/detourRadiusKm/);
     });
 });

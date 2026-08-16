@@ -585,7 +585,7 @@ export interface AutoDispatchFilter {
     destinationKeywords: string[];  // (내부망) 앱 파싱용 읍/면/동 50개 키워드 배열
     destinationGroups?: Record<string, string[]>; // (UI용) 시/구 단위로 그룹핑된 읍면동 목록
     customCityFilters: string[];    // (UI용) 시/구 단위로 그룹핑된 읍면동 목록
-    corridorRadiusKm?: number;      // (합짐 모드) 경로 주변 이탈 허용 반경 (기본값 5km, DB설정값)
+    detourRadiusKm?: number;      // (합짐 모드) 경로 주변 이탈 허용 반경 (기본값 5km, DB설정값)
     userOverrides?: boolean;        // 기사가 팝업에서 수동으로 필터(destinationKeywords 등)를 조작했는지 여부(서버 덮어쓰기 방지용)
 
     // ── 단가 판정 모델 (2026-08-13 확정 · docs/필터_재설계_명세.md) ──
@@ -721,7 +721,7 @@ export function deriveDispatchPhase(
 /**
  * [계층 3] DispatchPhase에 따라 실제 적용할 우회 반경을 결정합니다.
  * DELIVERING(운전중) 상태일 때만 0km를 강제하고, 그 외에는 기사님의 원본 설정값을 그대로 사용합니다.
- * 이 함수를 통해서만 corridorRadiusKm를 결정하므로 하드코딩이 원천 차단됩니다.
+ * 이 함수를 통해서만 detourRadiusKm를 결정하므로 하드코딩이 원천 차단됩니다.
  */
 /**
  * 우회 반경 기본값. **한 곳에서만 정한다.**
@@ -735,9 +735,9 @@ export function deriveDispatchPhase(
  */
 export const DEFAULT_CORRIDOR_RADIUS_KM = 5;
 
-export function getEffectiveCorridorRadius(
+export function getEffectiveDetourRadius(
     _phase: DispatchPhase,
-    baseCorridorRadiusKm: number
+    baseDetourRadiusKm: number
 ): number {
     /**
      * 🔴 2026-08-14 — **강제 0 을 걷어냈다.** (docs/필터_재설계_명세.md §2-4)
@@ -752,7 +752,7 @@ export function getEffectiveCorridorRadius(
      * 함수는 남겨 둔다. 호출부가 "회랑 반경은 여기서만 정한다"는 계약을 지키고 있고,
      * 나중에 국면과 무관한 상한이 필요해지면 다시 여기에 넣는다.
      */
-    return baseCorridorRadiusKm;
+    return baseDetourRadiusKm;
 }
 
 // 서버 전용: 다이내믹 요율 계산 엔진 파라미터 (앱으로 전송하지 않음)
@@ -763,7 +763,7 @@ export interface PricingConfig {
 }
 
 // 스마트 회랑 전용 데이터 구조 (PinnedRoute 등 프론트엔드 UI용)
-export interface CorridorRouteData {
+export interface DetourRouteData {
     summaryText: string;
     totalDistanceKm: number;
     totalTimeMinutes: number;

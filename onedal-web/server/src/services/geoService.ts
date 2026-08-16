@@ -75,7 +75,7 @@ export function initGeoService() {
  * (`InsungParser.kt` 의 `hasCityAlias && hasDongMatch`).
  * 배차망이 `파주시` 로 쓸지 `파주` 로 쓸지 모르니 둘 다 넣는다.
  *
- * 🔴 예전에는 이 로직이 `getCorridorRegions`(합짐) 안에만 있었다.
+ * 🔴 예전에는 이 로직이 `getDetourRegions`(합짐) 안에만 있었다.
  *    그래서 **첫짐 모드에서는 `customCityFilters` 가 빈 배열**이었고,
  *    앱의 2단계 필터가 `isNotEmpty()` 조건에 걸려 아예 돌지 않았다 —
  *    동 이름 하나만 보고 판정한 것이다.
@@ -100,11 +100,11 @@ export function cityAliases(parentName: string): string[] {
 }
 
 /**
- * 주어진 카카오 경로(Polyline)에 맞춰 반경(corridorRadiusKm)만큼의 회랑(Corridor) 폴리곤을 시뮬레이션하고,
+ * 주어진 카카오 경로(Polyline)에 맞춰 반경(detourRadiusKm)만큼의 회랑(Detour) 폴리곤을 시뮬레이션하고,
  * 하차 거점(마지막 좌표)에 대해 (destinationRadiusKm)만큼의 넓은 원 폴리곤을 시뮬레이션하여 두 폴리곤을 합병한 뒤,
  * 그 영역에 찍힌 모든 읍/면/동 행정구역명 키워드를 추출해 반환합니다.
  */
-export interface CorridorRegions {
+export interface DetourRegions {
     flat: string[];
     grouped: Record<string, string[]>;
     customCityFilters: string[];
@@ -118,7 +118,7 @@ export interface CorridorRegions {
     progressKm: Record<string, number>;
 }
 
-export function getCorridorRegions(polyline: Array<{x: number; y: number}>, corridorRadiusKm: number, destinationRadiusKm?: number): CorridorRegions | null {
+export function getDetourRegions(polyline: Array<{x: number; y: number}>, detourRadiusKm: number, destinationRadiusKm?: number): DetourRegions | null {
     if (!mergedMapFeatureCollection || !mergedMapFeatureCollection.features) return null;
     if (!polyline || polyline.length < 2) return null;
 
@@ -136,10 +136,10 @@ export function getCorridorRegions(polyline: Array<{x: number; y: number}>, corr
     }
 
     // 2. 경로 주변 두께(Buffer) 생성 -> 터널/회랑 폴리곤 완성
-    let corridorPolygon: any;
+    let detourPolygon: any;
     try {
-        const buffRadius = corridorRadiusKm <= 0 ? 0.05 : corridorRadiusKm; 
-        corridorPolygon = turf.buffer(lineFeature, buffRadius, { units: 'kilometers' });
+        const buffRadius = detourRadiusKm <= 0 ? 0.05 : detourRadiusKm; 
+        detourPolygon = turf.buffer(lineFeature, buffRadius, { units: 'kilometers' });
 
         // [신규] 하차 거점 주변 반경(destinationRadiusKm) 합병
         if (destinationRadiusKm && destinationRadiusKm > 0 && lineCoords.length > 0) {
@@ -149,23 +149,23 @@ export function getCorridorRegions(polyline: Array<{x: number; y: number}>, corr
             
             // 회랑 폴리곤과 하차 반경 폴리곤을 하나로 합침
             const polygons: Feature<Polygon | MultiPolygon>[] = [];
-            if (corridorPolygon) polygons.push(corridorPolygon as Feature<Polygon | MultiPolygon>);
+            if (detourPolygon) polygons.push(detourPolygon as Feature<Polygon | MultiPolygon>);
             if (destPolygon) polygons.push(destPolygon as Feature<Polygon | MultiPolygon>);
             
             if (polygons.length > 0) {
                 const fc = turf.featureCollection(polygons);
                 const unionResult = turf.union(fc);
-                if (unionResult) corridorPolygon = unionResult;
+                if (unionResult) detourPolygon = unionResult;
             }
         }
     } catch (e) {
         console.error("🗺️ [GeoService] Turf.js buffer 생성 에러:", e);
         return null;
     }
-    if (!corridorPolygon) return null;
+    if (!detourPolygon) return null;
 
     // 🚀 [최적화] 완성된 최종 회랑 폴리곤의 Bounding Box를 우선 계산
-    const corridorBbox = turf.bbox(corridorPolygon);
+    const detourBbox = turf.bbox(detourPolygon);
 
     // 3. 교차점 검사 (Intersect)
     const matchedRegionNames = new Set<string>();
@@ -203,15 +203,15 @@ export function getCorridorRegions(polyline: Array<{x: number; y: number}>, corr
         // 🚀 [최적화] BBox 선행 검사: 무거운 폴리곤 교차 연산 전에, 사각형 테두리가 겹치는지 먼저 확인. 안 겹치면 즉시 스킵하여 연산량 90% 소거.
         if (feature.bbox) {
             const fbbox = feature.bbox;
-            if (corridorBbox[0] > fbbox[2] || corridorBbox[2] < fbbox[0] ||
-                corridorBbox[1] > fbbox[3] || corridorBbox[3] < fbbox[1]) {
+            if (detourBbox[0] > fbbox[2] || detourBbox[2] < fbbox[0] ||
+                detourBbox[1] > fbbox[3] || detourBbox[3] < fbbox[1]) {
                 continue;
             }
         }
 
         try {
-            // corridor(경로 회랑)와 feature(행정구역 지도)가 1픽셀이라도 겹치면 T
-            if (turf.booleanIntersects(corridorPolygon, feature.geometry)) {
+            // detour(경로 회랑)와 feature(행정구역 지도)가 1픽셀이라도 겹치면 T
+            if (turf.booleanIntersects(detourPolygon, feature.geometry)) {
                 matchedRegionNames.add(regionName);
                 if (!groupedRegions[parentName]) {
                     groupedRegions[parentName] = new Set<string>();
@@ -451,7 +451,7 @@ export function getCityRegionsWithRadius(cityName: string, radiusKm: number): Ci
  * 이동할 때마다 회랑을 통째로 다시 그리던 함수다(실측 173ms). 그 비용 때문에 2km 마다만
  * 돌렸고, 정작 `getActivePolyline` 이 죽어 있어서 **한 번도 실행되지 않았다.**
  *
- * 지금은 회랑을 만들 때 동마다 진행도를 같이 기록하고(`CorridorRegions.progressKm`),
+ * 지금은 회랑을 만들 때 동마다 진행도를 같이 기록하고(`DetourRegions.progressKm`),
  * 이동 시에는 그 숫자만 비교한다 — `filterManager.applyTraveledTrim` (0.14ms).
  * 같은 일을 하는 두 번째 구현을 남겨 두지 않는다.
  */
@@ -476,7 +476,7 @@ export function haversineKm(lat1: number, lng1: number, lat2: number, lng2: numb
  *    **항상 null 을 반환했고**, 지나온 구간 제거가 **한 번도 실행되지 않았다.**
  *    (달리는 내내 이미 지나친 동네의 콜이 필터에 걸려 있었다는 뜻이다)
  *
- * 회랑을 만드는 `syncCorridorFilter` 와 **같은 기준**을 쓴다 — 마지막 활성 콜의 경로.
+ * 회랑을 만드는 `syncDetourFilter` 와 **같은 기준**을 쓴다 — 마지막 활성 콜의 경로.
  * 다르면 "회랑을 만든 경로"와 "진행도를 재는 경로"가 어긋나 엉뚱한 동이 빠진다.
  */
 export function getActivePolyline(session: { myOrders: MyOrder[] }): Array<{x: number; y: number}> | null {
@@ -519,7 +519,7 @@ export function getLastDropoffCoord(session: { myOrders: MyOrder[] }): {x: numbe
 /** 
  * [마스터 GPS 처리] 관제웹에서 보내온 실시간 GPS(또는 시뮬레이션 GPS)를 기반으로
  * 1. 현재 세션의 위치를 업데이트
- * 2. 2km 이상 이동 시 회랑(Corridor Trim) 동적 축소 계산 및 필터 갱신
+ * 2. 2km 이상 이동 시 회랑(Detour Trim) 동적 축소 계산 및 필터 갱신
  * 3. 마지막 하차지 500m 이내 도착 시 ARRIVED 상태로 전환
  */
 /** 이만큼 움직였을 때만 위치를 남긴다 (기사님 결정: "이동이 있을 때만") */
@@ -615,7 +615,7 @@ export function processDriverMovement(
          *    (`trimCorridorByProgress`, 실측 **173ms**) 그 비용 때문에 2km 로 띄엄띄엄 돌렸다.
          *
          *    이제 회랑을 만들 때 동마다 **경로 몇 km 지점인지**를 같이 기록해 두므로
-         *    (`CorridorRegions.progressKm`), 지나온 구간 제거는 **숫자 비교**다 — 0.14ms.
+         *    (`DetourRegions.progressKm`), 지나온 구간 제거는 **숫자 비교**다 — 0.14ms.
          *    1200배 싸졌으니 촘촘히 돌려도 된다. 촘촘할수록 필터가 실제 위치에 가깝다.
          *
          *    실제 제거는 `filterManager.applyTraveledTrim` 한 곳에서만 한다

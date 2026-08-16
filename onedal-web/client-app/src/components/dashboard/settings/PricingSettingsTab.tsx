@@ -19,7 +19,7 @@ export default function PricingSettingsTab({ onClose }: Props) {
   const [newKeyword, setNewKeyword] = useState("");
   const [destinationCity, setDestinationCity] = useState<string>("");
   const [destinationRadiusKm, setDestinationRadiusKm] = useState<string>("");
-  const [corridorRadiusKm, setCorridorRadiusKm] = useState<string>("");
+  const [detourRadiusKm, setDetourRadiusKm] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
 
   const cityGroups = useCityOptions();
@@ -53,7 +53,7 @@ export default function PricingSettingsTab({ onClose }: Props) {
       setExcludedKeywords(p.excludedKeywords || []);
       setDestinationCity(s.destinationCity || "");
       setDestinationRadiusKm(s.destinationRadiusKm?.toString() || "");
-      setCorridorRadiusKm(s.corridorRadiusKm?.toString() || "");
+      setDetourRadiusKm(s.detourRadiusKm?.toString() || "");
     } catch (e) {
       console.error("Failed to load pricing:", e);
     } finally {
@@ -70,7 +70,7 @@ export default function PricingSettingsTab({ onClose }: Props) {
       await apiClient.put('/settings', {
         destinationCity,
         destinationRadiusKm: destinationRadiusKm ? parseInt(destinationRadiusKm, 10) : undefined,
-        corridorRadiusKm: corridorRadiusKm ? parseInt(corridorRadiusKm, 10) : undefined,
+        detourRadiusKm: detourRadiusKm ? parseInt(detourRadiusKm, 10) : undefined,
       });
       onClose();
     } catch (e) {
@@ -196,7 +196,7 @@ export default function PricingSettingsTab({ onClose }: Props) {
           </div>
           <div className="space-y-1.5">
             <label className="text-[10px] font-semibold text-text-muted">우회 허용(km)</label>
-            <Input type="number" value={corridorRadiusKm} onChange={(e) => setCorridorRadiusKm(e.target.value)} placeholder="1" className="h-8 text-xs" />
+            <Input type="number" value={detourRadiusKm} onChange={(e) => setDetourRadiusKm(e.target.value)} placeholder="1" className="h-8 text-xs" />
           </div>
         </div>
       </div>

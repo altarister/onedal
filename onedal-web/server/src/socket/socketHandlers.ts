@@ -11,7 +11,7 @@ import { OrderRepository } from "../repositories/OrderRepository";
 import { PlaceRepository } from "../repositories/PlaceRepository";
 import { getUserSession, getAllActiveUserIds } from "../state/userSessionStore";
 import { buildOrderSync } from "../core/helpers";
-import { recalculateCorridorFilter, handleDecision, recalculateKakaoRoute, bootstrapUserSession, reportMilestone, undoMilestone, setCallTarget, createHomeReturn } from "../services/dispatchEngine";
+import { recalculateDetourFilter, handleDecision, recalculateKakaoRoute, bootstrapUserSession, reportMilestone, undoMilestone, setCallTarget, createHomeReturn } from "../services/dispatchEngine";
 import { updateActiveFilter, ensureBusinessDay, saveBaseFilter, savePhaseSettings, trimTraveled } from "../state/filterManager";
 import { processDriverMovement, getCityRegionsWithRadius } from "../services/geoService";
 
@@ -179,7 +179,7 @@ export function registerSocketHandlers(io: Server) {
             logRoadmapEvent("서버", `관제탑으로 부터 필터 변경(update-filter) 요청 받음. 수신 데이터: ${JSON.stringify(newFilter)}`);
             
             const isTargetChanged = newFilter.destinationRadiusKm !== undefined && newFilter.destinationRadiusKm !== session.activeFilter.destinationRadiusKm;
-            const isCorridorChanged = newFilter.corridorRadiusKm !== undefined && newFilter.corridorRadiusKm !== session.activeFilter.corridorRadiusKm;
+            const isDetourChanged = newFilter.detourRadiusKm !== undefined && newFilter.detourRadiusKm !== session.activeFilter.detourRadiusKm;
 
             /**
              * 🔴 2026-08-12 — **첫짐 지리 연산을 여기서 지웠다.**
@@ -197,11 +197,11 @@ export function registerSocketHandlers(io: Server) {
              */
 
             // 합짐 모드: 회랑 반경 또는 도착 반경 변경 시
-            if (session.activeFilter.isSharedMode && (isCorridorChanged || isTargetChanged)) {
-                const cRadius = newFilter.corridorRadiusKm ?? session.activeFilter.corridorRadiusKm ?? DEFAULT_CORRIDOR_RADIUS_KM;
+            if (session.activeFilter.isSharedMode && (isDetourChanged || isTargetChanged)) {
+                const cRadius = newFilter.detourRadiusKm ?? session.activeFilter.detourRadiusKm ?? DEFAULT_CORRIDOR_RADIUS_KM;
                 const dRadius = newFilter.destinationRadiusKm ?? session.activeFilter.destinationRadiusKm ?? 10;
                 
-                const newRegions = recalculateCorridorFilter(userId, cRadius, dRadius);
+                const newRegions = recalculateDetourFilter(userId, cRadius, dRadius);
                 if (newRegions) {
                     // 셋을 **한 벌로** 넘긴다. 예전에는 앞의 둘만 넘겨서 시 별칭이 빠졌고,
                     // 앱의 2단계 필터(시 + 동 교차 확인)가 조용히 꺼졌다
@@ -463,7 +463,7 @@ export function registerSocketHandlers(io: Server) {
         });
 
         // 🏠 귀가콜: 현재 위치 → 집 주소로 가상 오더 생성 + 회랑 자동 세팅
-        safeOn(socket, "create-home-return", async (data?: { corridorRadiusKm?: number, destinationRadiusKm?: number }) => {
+        safeOn(socket, "create-home-return", async (data?: { detourRadiusKm?: number, destinationRadiusKm?: number }) => {
             const result = await createHomeReturn(userId, io, data);
             if (result.success) {
                 socket.emit("home-return-ack", { success: true, orderId: result.orderId });

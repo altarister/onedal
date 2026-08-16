@@ -19,7 +19,7 @@ import { getUserSession } from "./userSessionStore";
 import type { AutoDispatchFilter, PhaseKey, PhaseSettings } from "@onedal/shared";
 import { DEFAULT_CORRIDOR_RADIUS_KM, isTerminal, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, resolvePhaseKey, applyPhaseToFilter, normalizePhaseSettings } from "@onedal/shared";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
-import { getCityRegionsWithRadius, cityAliases, getCorridorRegions, getActivePolyline, progressAlongPolyline } from "../services/geoService";
+import { getCityRegionsWithRadius, cityAliases, getDetourRegions, getActivePolyline, progressAlongPolyline } from "../services/geoService";
 
 // ━━━ Prepared Statement 캐싱 (모듈 로드 시 1회만 실행) ━━━
 const stmtUpdateFilter = db.prepare(`
@@ -139,7 +139,7 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
     //     if (!changes.allowedVehicleTypes)
     //         = getEligibleVehicleTypes(내 차종)   ← 만재든 아니든 전 차종 허용
     //
-    // 그래서 합짐 도중 회랑이 갱신될 때마다(syncCorridorFilter 는 키워드만 넘긴다)
+    // 그래서 합짐 도중 회랑이 갱신될 때마다(syncDetourFilter 는 키워드만 넘긴다)
     // **적재 용량 제한이 조용히 풀렸다.** 라보 2개를 싣고도 1t 콜을 잡으러 가는 상태가 된다.
     // 실측: 상태 복구가 [오토바이, 다마스, 승용차] 로 좁혀 놓은 직후 회랑 갱신 한 번에
     //       5종 전체로 되돌아갔다 (2026-08-10 스모크).
@@ -212,11 +212,11 @@ export function trimTraveled(userId: string, io?: any): void {
  *    옛 경로의 진행도로 새 경로의 동을 지우게 된다 — 멀쩡한 지역이 조용히 사라진다.
  *    회랑을 만드는 자리마다 이 함수를 부른다.
  */
-export function rememberCorridorProgress(
+export function rememberDetourProgress(
     session: ReturnType<typeof getUserSession>,
     regions: { progressKm?: Record<string, number> } | null,
 ) {
-    session.corridorProgressKm = regions?.progressKm ?? null;
+    session.detourProgressKm = regions?.progressKm ?? null;
 }
 
 /**
@@ -224,7 +224,7 @@ export function rememberCorridorProgress(
  *
  * 기사님: *"성남을 지났으면 이미 지나온 광주시·성남시 콜은 목록에서 뺀다. 뒤로 안 돌아가니까."*
  *
- * 회랑을 만들 때 동마다 기록해 둔 진행도(`corridorProgressKm`)와 지금 GPS 의 진행도를
+ * 회랑을 만들 때 동마다 기록해 둔 진행도(`detourProgressKm`)와 지금 GPS 의 진행도를
  * 비교하기만 한다 — 실측 **0.14ms**. 예전 방식(회랑 통째 재계산)은 173ms 였다.
  *
  * 안전 쪽으로 기운 규칙 셋. **일찍 빼면 잡을 수 있는 콜을 버린다:**
@@ -243,7 +243,7 @@ export function applyTraveledTrim(session: ReturnType<typeof getUserSession>): b
      * 조건은 데이터에 맡긴다: 진행도가 있고(= 회랑을 그렸고) · 경로가 있고 · GPS 가 있으면 돈다.
      * 콜이 0건이면 경로가 없으니 자연히 안 돈다.
      */
-    const progress = session.corridorProgressKm;
+    const progress = session.detourProgressKm;
     if (!progress) return false;
 
     const polyline = getActivePolyline(session);
@@ -290,19 +290,19 @@ export function applyTraveledTrim(session: ReturnType<typeof getUserSession>): b
  *
  * 합짐 모드가 아니면(경로가 없으면) 회랑 자체가 없으므로 아무것도 하지 않는다.
  */
-function refreshCorridorIfNeeded(
+function refreshDetourIfNeeded(
     session: ReturnType<typeof getUserSession>,
     userId: string,
-    before: { corridorRadiusKm?: number, destinationRadiusKm?: number },
+    before: { detourRadiusKm?: number, destinationRadiusKm?: number },
 ) {
     if (!session.activeFilter.isSharedMode) return;
-    const cRadius = session.activeFilter.corridorRadiusKm ?? DEFAULT_CORRIDOR_RADIUS_KM;
+    const cRadius = session.activeFilter.detourRadiusKm ?? DEFAULT_CORRIDOR_RADIUS_KM;
     const dRadius = session.activeFilter.destinationRadiusKm ?? 10;
-    if (cRadius === before.corridorRadiusKm && dRadius === before.destinationRadiusKm) return;
+    if (cRadius === before.detourRadiusKm && dRadius === before.destinationRadiusKm) return;
 
-    const regions = recalculateCorridorFilter(userId, cRadius, dRadius);
+    const regions = recalculateDetourFilter(userId, cRadius, dRadius);
     if (!regions) return;   // 경로가 아직 없다 — 없는 값을 지어내지 않는다
-    rememberCorridorProgress(session, regions);
+    rememberDetourProgress(session, regions);
 
     // 셋을 **한 벌로** 넣는다. 별칭(customCityFilters)이 빠지면 앱의 2단계 필터가 조용히 꺼진다
     session.activeFilter.destinationKeywords = regions.destinationKeywords;
@@ -331,7 +331,7 @@ function applyPhaseSettingsIfChanged(
     const prev = session.appliedPhaseKey;
     session.appliedPhaseKey = key;
     const before = {
-        corridorRadiusKm: session.activeFilter.corridorRadiusKm,
+        detourRadiusKm: session.activeFilter.detourRadiusKm,
         destinationRadiusKm: session.activeFilter.destinationRadiusKm,
         destinationCity: session.activeFilter.destinationCity,
     };
@@ -351,7 +351,7 @@ function applyPhaseSettingsIfChanged(
      * 여기서 반경만 갈아 끼우고 끝내면 "하차 0km" 라고 적힌 채 **옛 7km 목록으로 거른다** —
      * 화면과 판정이 다른 말을 하는, 조용히 틀리는 종류다.
      */
-    refreshCorridorIfNeeded(session, userId, before);
+    refreshDetourIfNeeded(session, userId, before);
     const geoChanged = session.activeFilter.destinationRadiusKm !== before.destinationRadiusKm
                     || session.activeFilter.destinationCity !== before.destinationCity;
     if (!session.activeFilter.isSharedMode && geoChanged) {
@@ -363,7 +363,7 @@ function applyPhaseSettingsIfChanged(
     }
 
     console.log(`🧭 [국면 설정] ${prev ?? '없음'} → ${key} · ` +
-        `상차 ${session.activeFilter.pickupRadiusKm}km · 경유 ${session.activeFilter.corridorRadiusKm}km · ` +
+        `상차 ${session.activeFilter.pickupRadiusKm}km · 경유 ${session.activeFilter.detourRadiusKm}km · ` +
         `하차 ${session.activeFilter.destinationRadiusKm}km · 할인 ${session.activeFilter.callDiscountPct}%`);
 
     // 단가표는 할인율에서 파생된다 (§2-1) — 여기서 다시 만든다
@@ -416,7 +416,7 @@ export function savePhaseSettings(
 
     if (phase === activeKey) {
         const before = {
-            corridorRadiusKm: session.activeFilter.corridorRadiusKm,
+            detourRadiusKm: session.activeFilter.detourRadiusKm,
             destinationRadiusKm: session.activeFilter.destinationRadiusKm,
         };
         /**
@@ -428,7 +428,7 @@ export function savePhaseSettings(
          */
         updateActiveFilter(userId, applyPhaseToFilter(phase, clean), io);
         // 반경이 바뀌었으면 회랑을 다시 그린다 (updateActiveFilter 는 도시 기반 지리만 본다)
-        refreshCorridorIfNeeded(session, userId, before);
+        refreshDetourIfNeeded(session, userId, before);
         if (io) broadcastFilter(userId, session, io);
     } else if (io) {
         // 지금 국면이 아니면 필터는 그대로. 탭 값이 저장됐다는 것만 알린다
@@ -444,7 +444,7 @@ export function savePhaseSettings(
  *    뒤의 둘은 이 파일 안이라 dispatchEngine 을 부르면 순환 참조가 된다.
  *    회랑 계산이 4벌로 갈라졌던 사고를 되풀이하지 않으려면 **구현은 하나여야 한다.**
  */
-export const recalculateCorridorFilter = (userId: string, corridorRadiusKm: number, destinationRadiusKm?: number) => {
+export const recalculateDetourFilter = (userId: string, detourRadiusKm: number, destinationRadiusKm?: number) => {
     const session = getUserSession(userId);
     let polylineToUse = null;
     const activeCalls = getActiveCalls(session);
@@ -453,7 +453,7 @@ export const recalculateCorridorFilter = (userId: string, corridorRadiusKm: numb
     }
 
     if (polylineToUse && polylineToUse.length > 0) {
-        const regions = getCorridorRegions(polylineToUse, corridorRadiusKm, destinationRadiusKm);
+        const regions = getDetourRegions(polylineToUse, detourRadiusKm, destinationRadiusKm);
         if (regions && regions.flat.length > 0) {
             return {
                 destinationKeywords: regions.flat,
@@ -527,7 +527,7 @@ export function saveBaseFilter(
         stmtUpdateFilter.run(
             b.destinationCity ?? "",
             b.destinationRadiusKm,
-            b.corridorRadiusKm,
+            b.detourRadiusKm,
             b.minFare,
             b.maxFare,
             b.pickupRadiusKm,
@@ -608,14 +608,14 @@ export function updateActiveFilter(
             customCityFilters: [],
             // 진행도도 이 사이클의 경로에서 나온 값이다 — 경로가 끝났으니 지운다.
             // 남겨 두면 다음 운행 초반에 **옛 경로 기준으로** 동이 사라진다
-            // (`corridorProgressKm` 은 아래에서 지운다 — activeFilter 가 아니라 세션 필드다)
+            // (`detourProgressKm` 은 아래에서 지운다 — activeFilter 가 아니라 세션 필드다)
             // 수동 고정도 사이클과 함께 풀린다 (다음 사냥은 자동 회랑으로 시작)
             userOverrides: false,
             isSharedMode: false,
             driverAction: 'WAITING',
             dispatchPhase: 'STANDBY',
         };
-        session.corridorProgressKm = null;
+        session.detourProgressKm = null;
         session.departedAt = null;   // 사이클이 끝났다 — 다음 운행은 다시 모으기부터
         recalculateDerivedFields(session, {}, userId);
         console.log(`[FilterManager] STANDBY 복귀: 합짐 파생값만 되돌림 ` +

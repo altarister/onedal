@@ -298,7 +298,7 @@ describe('영업일 경계는 자정이다', () => {
 describe('resetToBaseFilter — 오늘 필터를 기본 설정으로', () => {
     const base = {
         destinationCity: '파주', destinationRadiusKm: 10, minFare: 30000, maxFare: 1000000,
-        pickupRadiusKm: 10, corridorRadiusKm: 5, excludedKeywords: ['착불'],
+        pickupRadiusKm: 10, detourRadiusKm: 5, excludedKeywords: ['착불'],
         allowedVehicleTypes: ['1t'], isActive: true, isSharedMode: false,
         driverAction: 'WAITING', dispatchPhase: 'STANDBY',
         destinationKeywords: [], customCityFilters: [], customFilters: [],

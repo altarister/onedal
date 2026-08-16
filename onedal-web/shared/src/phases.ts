@@ -66,7 +66,7 @@ export function resolvePhaseKey(callTarget: string, dispatchPhase: string): Phas
  *
  * ⚠️ 이름이 평면(`AutoDispatchFilter`)과 다르다. 평면은 앱 피기백 규격이라
  *    이름을 못 바꾼다 — `applyPhaseToFilter()` 가 사이를 잇는다.
- *      detourAllowKm   ↔ corridorRadiusKm
+ *      detourAllowKm   ↔ detourRadiusKm
  *      dropoffRadiusKm ↔ destinationRadiusKm
  *      discountPct     ↔ callDiscountPct
  */
@@ -199,7 +199,7 @@ export function normalizePhaseSettings(raw: unknown): PhaseSettingsMap {
 /** `applyPhaseToFilter` 가 만들어 내는 평면 조각 (AutoDispatchFilter 의 부분집합) */
 export interface FlatPhasePatch {
     pickupRadiusKm: number;
-    corridorRadiusKm: number;
+    detourRadiusKm: number;
     destinationRadiusKm: number;
     callDiscountPct: number;
     destinationCity?: string;
@@ -218,7 +218,7 @@ export interface FlatPhasePatch {
 export function applyPhaseToFilter(phase: PhaseKey, s: PhaseSettings): FlatPhasePatch {
     const patch: FlatPhasePatch = {
         pickupRadiusKm: s.pickupRadiusKm,
-        corridorRadiusKm: s.detourAllowKm,
+        detourRadiusKm: s.detourAllowKm,
         destinationRadiusKm: s.dropoffRadiusKm,
         callDiscountPct: s.discountPct,
     };
@@ -236,13 +236,13 @@ export function applyPhaseToFilter(phase: PhaseKey, s: PhaseSettings): FlatPhase
 
 /** 평면 필터에서 국면 조각을 뽑는다 (마이그레이션·폼 초기화용) */
 export function phaseFromFlat(flat: {
-    pickupRadiusKm?: number; corridorRadiusKm?: number;
+    pickupRadiusKm?: number; detourRadiusKm?: number;
     destinationRadiusKm?: number; callDiscountPct?: number; destinationCity?: string;
 }, fallback: PhaseSettings): PhaseSettings {
     return {
         destinationCity: flat.destinationCity ?? fallback.destinationCity,
         pickupRadiusKm: flat.pickupRadiusKm ?? fallback.pickupRadiusKm,
-        detourAllowKm: flat.corridorRadiusKm ?? fallback.detourAllowKm,
+        detourAllowKm: flat.detourRadiusKm ?? fallback.detourAllowKm,
         dropoffRadiusKm: flat.destinationRadiusKm ?? fallback.dropoffRadiusKm,
         discountPct: flat.callDiscountPct ?? fallback.discountPct,
     };

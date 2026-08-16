@@ -230,17 +230,17 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
     };
 
     // 합짐 섹션: 미리보기 버튼 클릭 시 호출
-    const handlePreviewCorridor = async () => {
+    const handlePreviewDetour = async () => {
         setIsPreviewLoading(true);
-        const params = new URLSearchParams({ corridorRadiusKm: cur.detourAllowKm !== '' ? cur.detourAllowKm : '10' });
+        const params = new URLSearchParams({ detourRadiusKm: cur.detourAllowKm !== '' ? cur.detourAllowKm : '10' });
         if (cur.dropoffRadiusKm) params.set('destinationRadiusKm', cur.dropoffRadiusKm);
         try {
-            const { data } = await apiClient.get(`/settings/preview-corridor?${params.toString()}`);
+            const { data } = await apiClient.get(`/settings/preview-detour?${params.toString()}`);
             setPreviewRegions(data.groupedRegions || {});
             setPreviewCount(data.totalCount || 0);
             setIsAccordionOpen(true);
         } catch (err) {
-            console.error("Corridor preview err:", err);
+            console.error("Detour preview err:", err);
         } finally {
             setIsPreviewLoading(false);
         }
@@ -369,7 +369,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
      * 예전에는 `isSharedMode`(지금 합짐이냐) 로 갈랐는데, 그러면 첫짐을 사냥하는 중에
      * 합짐 탭을 열어 미리보기를 눌러도 **첫짐 기준**이 그려졌다.
      */
-    const previewByCorridor = shown.detourAllowKm === 'input';
+    const previewByDetour = shown.detourAllowKm === 'input';
     /** `auto` 인 탭에서는 서버가 정한 지금 도착 도시를 그대로 보여준다 (지어내지 않는다) */
     const previewCity = shown.destinationCity === 'input'
         ? cur.destinationCity
@@ -701,7 +701,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                         setHomeReturnLoading(true);
                                         const home = toSettings(forms.home, phaseSettings?.home ?? DEFAULT_PHASE_SETTINGS.home);
                                         socket.emit("create-home-return", {
-                                            corridorRadiusKm: home.detourAllowKm,
+                                            detourRadiusKm: home.detourAllowKm,
                                             destinationRadiusKm: home.dropoffRadiusKm
                                         });
                                     }}
@@ -766,8 +766,8 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                         {/* 값을 바꾼 뒤 "그럼 몇 개가 되나"를 저장 전에 확인한다 */}
                         {tab !== 'home' && (
                             <Button
-                                onClick={() => previewByCorridor ? handlePreviewCorridor() : handlePreviewRegions(previewCity)}
-                                disabled={isPreviewLoading || (!previewByCorridor && !previewCity)}
+                                onClick={() => previewByDetour ? handlePreviewDetour() : handlePreviewRegions(previewCity)}
+                                disabled={isPreviewLoading || (!previewByDetour && !previewCity)}
                                 size="sm"
                                 className={`w-full h-7 mt-2 text-[10px] font-bold bg-surface-alt/60 border border-border text-text-muted`}
                             >

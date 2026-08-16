@@ -92,9 +92,9 @@ describe('국면별 설정 — 저장과 복귀', () => {
 
 describe('운행 중 우회 금지 — 강제에서 기본값으로', () => {
 
-    it('🔴 getEffectiveCorridorRadius 는 더 이상 0 을 강제하지 않는다', () => {
+    it('🔴 getEffectiveDetourRadius 는 더 이상 0 을 강제하지 않는다', () => {
         const shared = codeOnly(readFileSync(join(__dirname, '../../../shared/src/index.ts'), 'utf8'));
-        const fn = shared.slice(shared.indexOf('export function getEffectiveCorridorRadius'));
+        const fn = shared.slice(shared.indexOf('export function getEffectiveDetourRadius'));
         const body = fn.slice(0, fn.indexOf('\n}'));
         expect(body).not.toMatch(/DELIVERING/);
     });
