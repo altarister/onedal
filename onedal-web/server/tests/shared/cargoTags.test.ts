@@ -89,7 +89,7 @@ describe('화물 성질', () => {
 
 describe('describeSlack — 기사님이 읽을 말로', () => {
     it.each([
-        [null, '마감 미확인', 'none'],
+        [null, '약속 미확인', 'none'],
         [-15, '15분 지각 예상', 'tight'],
         [20, '여유 20분 — 촉박', 'tight'],
         [60, '여유 60분', 'ok'],

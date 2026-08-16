@@ -135,11 +135,11 @@ export const JUDGMENT_FIELDS: readonly JudgmentField[] = [
      *    상차지 여유(콜 대기)와 하차지 여유(배송)는 성격이 달라 하나로 퉁칠 수도 없다.
      */
     { col: 'unknown_pickup_offset_minutes', path: ['unknown', 'pickupOffsetMin'], group: '모를 때',
-      label: '상차 마감', unit: '분', min: 0, max: 480, int: true,
-      why: '콜 잡은 시각 + 이만큼 = 물건을 실어 보내는 시각 (교통량 여유 포함)' },
+      label: '상차완료 약속', unit: '분', min: 0, max: 480, int: true,
+      why: '콜 잡은 시각 + 이만큼 = 물건을 실어 보내는 시각 (교통량 포함)' },
     { col: 'unknown_rest_margin_minutes', path: ['unknown', 'restMarginMin'], group: '모를 때',
-      label: '휴식 여유', unit: '분', min: 0, max: 240, int: true,
-      why: '상차 마감 + 주행 + 이만큼 = 하차 마감 (휴게소 등)' },
+      label: '휴게 버퍼', unit: '분', min: 0, max: 240, int: true,
+      why: '상차완료 약속 + 주행 + 이만큼 = 하차완료 약속 (안 쉬면 경유버퍼가 된다)' },
 
     { col: 'weight_drive_time', path: ['weights', 'driveTime'], group: '가중치',
       label: '추가 주행', unit: '배', min: 0, max: 10, int: false,
@@ -147,7 +147,7 @@ export const JUDGMENT_FIELDS: readonly JudgmentField[] = [
     { col: 'weight_detour_dist', path: ['weights', 'detourDist'], group: '가중치',
       label: '우회 거리', unit: '배', min: 0, max: 10, int: false, why: '' },
     { col: 'weight_deadline', path: ['weights', 'deadline'], group: '가중치',
-      label: '마감 여유', unit: '배', min: 0, max: 10, int: false, why: '' },
+      label: '경유버퍼', unit: '배', min: 0, max: 10, int: false, why: '' },
     { col: 'weight_slots', path: ['weights', 'slots'], group: '가중치',
       label: '적재 칸', unit: '배', min: 0, max: 10, int: false, why: '' },
 
@@ -279,7 +279,7 @@ export function scoreMerge(input: MergeInput, cfg: JudgmentConfig = DEFAULT_JUDG
     if (input.detourBufferMin !== null && input.detourBufferMin < 0) {
         return {
             score: 0, color: '똥', parts: [],
-            blocked: `이미 마감을 ${-input.detourBufferMin}분 넘겼습니다 (합짐 불가)`,
+            blocked: `이미 하차완료 약속을 ${-input.detourBufferMin}분 넘겼습니다 (합짐 불가)`,
         };
     }
 
@@ -309,7 +309,7 @@ export function scoreMerge(input: MergeInput, cfg: JudgmentConfig = DEFAULT_JUDG
         },
         {
             // 여유의 절반 안이면 만점, 여유를 다 쓰면 0점
-            name: '마감 여유',
+            name: '경유버퍼',
             raw: slackUnknown ? `${totalAdd}분 / 모름` : `${totalAdd}분 / ${slack}분`,
             // 근거가 없으면 가중치 0 — 색에 영향을 주지 않는다 (지어낸 점수로 밀지 않는다)
             weight: slackUnknown ? 0 : w.deadline,
@@ -323,7 +323,7 @@ export function scoreMerge(input: MergeInput, cfg: JudgmentConfig = DEFAULT_JUDG
         },
     ];
     if (input.dwellAssumed) {
-        // 상하차를 일반값으로 때웠다는 사실은 **마감 여유** 점수에 섞여 들어간다
+        // 상하차를 일반값으로 때웠다는 사실은 **경유버퍼** 점수에 섞여 들어간다
         parts[2].assumed = true;
     }
 

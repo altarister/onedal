@@ -81,7 +81,7 @@ describe('마감 — 모름 · 여유 · 지각을 구분한다', () => {
 
     it('🔴 여유를 셀 근거가 없으면 그 요소를 색에서 뺀다 (지어내지 않는다)', () => {
         const v = scoreMerge({ ...그날의콜, detourBufferMin: null });
-        const part = v.parts.find(p => p.name === '마감 여유')!;
+        const part = v.parts.find(p => p.name === '경유버퍼')!;
         expect(part.assumed).toBe(true);
         expect(part.weight).toBe(0);          // 색에 영향을 주지 않는다
         expect(part.raw).toContain('모름');
@@ -91,7 +91,7 @@ describe('마감 — 모름 · 여유 · 지각을 구분한다', () => {
         const v = scoreMerge({ ...그날의콜, detourBufferMin: -20 });
         expect(v.color).toBe('똥');
         expect(v.blocked).toContain('20분');
-        expect(v.blocked).toContain('마감');
+        expect(v.blocked).toContain('약속');
     });
 
     it('여유가 0 이어도 "모름"과 섞이지 않는다', () => {

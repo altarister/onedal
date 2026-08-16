@@ -207,7 +207,7 @@ export function allowedDetourMinutes(slacks: Array<number | null>): number | nul
 
 /** 여유를 사람이 읽는 말로. 관제탑에 그대로 띄운다 */
 export function describeSlack(slack: number | null): { text: string; level: 'none' | 'tight' | 'ok' | 'ample' } {
-    if (slack === null) return { text: '마감 미확인', level: 'none' };
+    if (slack === null) return { text: '약속 미확인', level: 'none' };
     if (slack < 0) return { text: `${-slack}분 지각 예상`, level: 'tight' };
     if (slack < 30) return { text: `여유 ${slack}분 — 촉박`, level: 'tight' };
     if (slack < 90) return { text: `여유 ${slack}분`, level: 'ok' };

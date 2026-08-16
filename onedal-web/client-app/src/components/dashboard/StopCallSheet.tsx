@@ -343,7 +343,7 @@ export default function StopCallSheet({
         ? computeSlackMinutes(declared?.deadlineAt, driveMinutes! + leadMinutes, Date.now())
         : null;
     const declaredSummary = declared
-        ? [summarize(declared), declaredSlack !== null && `여유 ${Math.max(0, declaredSlack)}분`]
+        ? [summarize(declared), declaredSlack !== null && `${isPickup ? '상차버퍼' : '경유버퍼'} ${Math.max(0, declaredSlack)}분`]
             .filter(Boolean).join(' · ')
         : '아직 통화 전 — 눌러서 입력';
 
