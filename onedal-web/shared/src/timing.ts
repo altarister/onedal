@@ -289,6 +289,29 @@ export function defaultPickupDeadline(capturedAtMs: number, offsetMinutes: numbe
 }
 
 /**
+ * 🔴 **앱이 한국 시각에 `Z` 를 붙여 보내던 것을 바로잡는다** (2026-08-16).
+ *
+ * 앱의 옛 형식이 `yyyy-MM-dd'T'HH:mm:ss'Z'` 였다 — 폰의 시간대(KST)로 찍고 **글자 `Z`(=UTC)를
+ * 그냥 붙인** 것이다. 서버가 UTC 로 읽으니 **9시간이 밀렸다.**
+ * 실측: 09:10 KST 에 잡은 콜이 상차 마감 19:10 이 되어 화면에 **"대기 572분"**(맞게는 32분).
+ *
+ * 앱은 `XXX`(→ `+09:00`)로 고쳤지만 **재설치 전까지 옛 앱이 계속 보내고, 이미 저장된 값도 있다.**
+ * 그래서 서버가 방어한다 — **`Z` 가 붙었는데 그 시각이 미래면** 시간대를 잘못 붙인 것으로 보고
+ * 로컬로 다시 읽는다. (콜을 잡은 시각이 미래일 수는 없다)
+ *
+ * ⚠️ 진짜 UTC 로 보내는 정상 값은 **과거**이므로 이 보정에 걸리지 않는다.
+ */
+export function parseCapturedAt(iso: string | null | undefined, nowMs: number): number | null {
+    if (!iso) return null;
+    const asIs = new Date(iso).getTime();
+    if (!Number.isFinite(asIs)) return null;
+    if (!iso.endsWith('Z') || asIs <= nowMs) return asIs;
+    // `Z` 를 떼고 로컬로 읽어 본다 — 그래도 미래면 값 자체가 이상한 것이니 원본을 그대로 쓴다
+    const asLocal = new Date(iso.slice(0, -1)).getTime();
+    return Number.isFinite(asLocal) && asLocal <= nowMs ? asLocal : asIs;
+}
+
+/**
  * **하차 마감 — 상차 마감에서 순산한다.**
  *
  * 🔴 예전에는 반대였다: *하차 도착 예상 + 120분* 을 하차 마감으로 잡고 거기서 상차를 역산했다.
@@ -572,9 +595,9 @@ export function deriveCallTiming(
      *    하차 마감 = 상차 마감 + 단독 주행 + 30분  (휴식 여유)
      * ```
      */
-    if (!pickupDeadlineAt && order.capturedAt) {
-        pickupDeadlineAt = defaultPickupDeadline(
-            new Date(order.capturedAt).getTime(), rules.pickupOffsetMinutes);
+    const capturedMs = parseCapturedAt(order.capturedAt, nowMs);
+    if (!pickupDeadlineAt && capturedMs != null) {
+        pickupDeadlineAt = defaultPickupDeadline(capturedMs, rules.pickupOffsetMinutes);
         deadlineEstimated = true;
     }
     if (!dropoffDeadlineAt) {

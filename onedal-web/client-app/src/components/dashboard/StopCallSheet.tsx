@@ -84,6 +84,12 @@ interface Props {
      * (상차지 담당자가 하차지 사정을 대략 안다 — 기사님 확인)
      */
     onwardMinutes?: number | null;
+    /**
+     * 🔴 서버가 규칙으로 만든 **상차 마감**(`콜 잡은 시각 + 60분`).
+     *    주행 시간과 **무관**하다 — 화주가 기다려 주는 시간이지 내가 얼마나 걸리느냐가 아니다.
+     *    그래서 주행을 아직 몰라도 이 값으로 칸을 추천할 수 있다 (2026-08-16).
+     */
+    pickupDeadlineAt?: string | null;
     onwardKm?: number | null;
     /** [T8] 착불이면 받을 금액(원). 하차 완료 **직전**에 수령 여부를 남긴다 */
     codAmount?: number | null;
@@ -106,7 +112,7 @@ function summarize(r?: CargoReport): string {
 export default function StopCallSheet({
     orderId, stopType, label, address, contactName, phones, reports,
     memoTexts, driveMinutes, orderStatus, arrivedAt, forceOpen, stepLabel,
-    leadMinutes = 0, leadLabel, driveKm, onwardMinutes, onwardKm, codAmount,
+    leadMinutes = 0, leadLabel, driveKm, onwardMinutes, onwardKm, codAmount, pickupDeadlineAt,
 }: Props) {
     const isPickup = stopType === 'pickup';
     /** 단계 카드(A안)가 몰아주는 모드 — 이 시트가 화면의 전부다. 요약 줄을 띄우지 않는다 */
@@ -291,10 +297,26 @@ export default function StopCallSheet({
      *    기사님이 직접 누르시면 그때부터 그 값이 확정이다.
      */
     const suggestedSlot = useMemo(() => {
-        if (!driveKnown || hourSlots.length === 0) return null;
+        if (hourSlots.length === 0) return null;
+        /**
+         * 🔴 **주행을 몰라도 추천한다** (2026-08-16).
+         *
+         * 합짐 콜은 병합 궤적이 **마지막 콜 하나에만** 실려(`pickRouteHolder`) 나머지는
+         * 주행 시간이 비어 있다. 그때 화면이 아무것도 안 눌러 두어 기사님이 통화 중에
+         * 빈 버튼 줄을 보셨다.
+         *
+         * 그런데 **상차 마감은 주행과 무관하다** — `콜 잡은 시각 + 60분`,
+         * 즉 *화주가 기다려 주는 시간*이지 *내가 얼마나 걸리느냐*가 아니다.
+         * 그래서 주행을 모르면 **서버가 만든 상차 마감**으로 고른다.
+         */
+        if (!driveKnown) {
+            if (!isPickup || !pickupDeadlineAt) return null;
+            const byRule = new Date(pickupDeadlineAt).getTime();
+            return hourSlots.find(sl => new Date(sl.iso).getTime() >= byRule) ?? hourSlots[hourSlots.length - 1];
+        }
         const needMs = Date.now() + (arrivalMinutes + (isPickup ? dwell : 0)) * 60_000;
         return hourSlots.find(sl => new Date(sl.iso).getTime() >= needMs) ?? hourSlots[hourSlots.length - 1];
-    }, [driveKnown, arrivalMinutes, dwell, isPickup, hourSlots]);
+    }, [driveKnown, arrivalMinutes, dwell, isPickup, hourSlots, pickupDeadlineAt]);
 
     /** 기사님이 아직 손대지 않아 추천값이 눌려 있는 상태인가 — 눌리면 근거 줄을 띄운다 */
     const [deadlineTouched, setDeadlineTouched] = useState(false);
@@ -569,7 +591,9 @@ export default function StopCallSheet({
                                     화면에 남긴다."* 기사님이 직접 누르시면 이 줄은 사라진다. */}
                                 {!deadlineTouched && deadlineAt && suggestedSlot?.iso === deadlineAt && (
                                     <div className="mt-1 text-[10px] leading-tight text-text-muted">
-                                        ⓘ 주행 {driveMinutes}분{isPickup ? ` + 상차 ${dwell}분` : ''} 기준으로{' '}
+                                        ⓘ {driveKnown
+                                            ? `주행 ${driveMinutes}분${isPickup ? ` + 상차 ${dwell}분` : ''} 기준으로 `
+                                            : '콜 잡은 시각 + 1시간 기준으로 '}
                                         <b className="tabular-nums">{hhmm(deadlineAt)}</b> 을 눌러 뒀습니다 —
                                         바꾸시면 그게 확정됩니다
                                     </div>
@@ -603,15 +627,21 @@ export default function StopCallSheet({
                                 하차지 담당자·연락처는 콜을 잡을 때 이미 들어오므로(28/28 확인)
                                 건너뛰어도 잃는 정보가 없다. */}
                             {isPickup && deadlineAt && onwardMinutes != null && onwardMinutes > 0 && (() => {
-                                const loadDoneMs = new Date(deadlineAt).getTime() + dwell * 60_000;
+                                /**
+                                 * 🔴 **`deadlineAt` 은 이미 "실어 보내는" 시각이다** (기사님 2026-08-16).
+                                 *    예전에는 여기서 상차 정차를 **한 번 더** 더해 `09:53 상차 도착 + 상차 15분
+                                 *    = 10:08 출발` 이라고 적었다 — 위 버튼의 뜻과 어긋나 상차가 두 번 들어갔다.
+                                 *    상차 마감은 *도착*이 아니라 *완료* 시각이므로 그대로 출발 시각이다.
+                                 */
+                                const loadDoneMs = new Date(deadlineAt).getTime();
                                 const arriveMs = loadDoneMs + onwardMinutes * 60_000;
                                 const slots = buildArrivalSlots(loadDoneMs, onwardMinutes, 4);
                                 return (
                                     <div className="rounded-md border border-info/35 bg-info/[0.06] px-2.5 py-2 flex flex-col gap-1.5">
                                         <div className="text-[11px] font-black text-info">이어서 — 하차지도 지금 정하기</div>
                                         <div className="text-[12px] text-text-primary">
-                                            {hhmm(deadlineAt)} 상차 도착 <span className="text-text-muted">+ 상차 {dwell}분</span>
-                                            {' = '}<b className="tabular-nums">{hhmm(new Date(loadDoneMs).toISOString())}</b> 출발
+                                            <b className="tabular-nums">{hhmm(deadlineAt)}</b> 실어 보냄
+                                            <span className="text-text-muted"> (상차 {dwell}분 포함)</span>
                                             <div className="mt-0.5">
                                                 상차지 → 하차지
                                                 {onwardKm != null && <> <b className="tabular-nums">{onwardKm.toFixed(1)}</b>km</>}

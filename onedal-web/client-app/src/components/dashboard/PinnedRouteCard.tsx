@@ -463,6 +463,8 @@ export default function PinnedRouteCard({
                                                 driveKm={lead.driveKm}
                                                 /* 상차지 통화에서 하차지까지 한 번에 정할 수 있게 다음 구간을 넘긴다 */
                                                 onwardMinutes={isPickupStop ? soloMin : null}
+                                                /* 주행을 몰라도 칸을 추천할 수 있게 — 상차 마감은 주행과 무관하다 */
+                                                pickupDeadlineAt={timing.pickupDeadlineAt}
                                                 onwardKm={isPickupStop ? timing.soloKm : null}
                                                 leadMinutes={lead.leadMinutes}
                                                 leadLabel={lead.leadLabel}

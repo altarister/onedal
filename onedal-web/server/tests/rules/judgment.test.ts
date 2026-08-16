@@ -1,6 +1,6 @@
 import { readFileSync } from "fs";
 import { join } from "path";
-import { scoreMerge, rampDown, DEFAULT_JUDGMENT, describeJudgment } from "@onedal/shared";
+import { scoreMerge, rampDown, DEFAULT_JUDGMENT, describeJudgment, parseCapturedAt, deriveCallTiming } from "@onedal/shared";
 import { DWELL_UNKNOWN_PICKUP_MINUTES, DWELL_UNKNOWN_DROPOFF_MINUTES, allowedDetourMinutes, dwellMinutes } from "@onedal/shared";
 
 const SERVER = join(__dirname, "../../src");
@@ -216,5 +216,89 @@ describe('상차를 마친 콜', () => {
         const tm = codeOnly(readFileSync(
             join(__dirname, '../../../shared/src/timing.ts'), 'utf8'));
         expect(tm).toMatch(/const departureAt = pickedUp\s*\?\s*null/);
+    });
+});
+
+/**
+ * 🔴 **앱이 한국 시각에 `Z` 를 붙여 보내 9시간이 밀리던 문제** (2026-08-16 실측)
+ *
+ * 앱의 옛 형식: `yyyy-MM-dd'T'HH:mm:ss'Z'` — 폰 시간대(KST)로 찍고 **글자 `Z`(=UTC)를 그냥 붙임.**
+ * 서버가 UTC 로 읽으니 09:10 KST 가 18:10 KST 가 되고, 상차 마감이 19:10 이 되어
+ * 화면에 **"대기 572분"**(맞게는 32분)이 떴다.
+ *
+ * 앱은 `XXX`(→`+09:00`)로 고쳤지만 **재설치 전까지 옛 앱이 계속 보내고 이미 저장된 값도 있다.**
+ */
+describe('콜 잡은 시각 — 시간대를 잘못 붙인 값도 읽어낸다', () => {
+
+    const NOW = new Date('2026-08-16T09:40:00+09:00').getTime();
+    const t = (x: string | null) => x ? new Date(x).toISOString() : null;
+
+    it('🔴 `Z` 가 붙었는데 미래면 로컬로 다시 읽는다 (잡은 시각이 미래일 수는 없다)', () => {
+        expect(parseCapturedAt('2026-08-16T09:10:12Z', NOW))
+            .toBe(new Date('2026-08-16T09:10:12+09:00').getTime());
+    });
+
+    it('제대로 보낸 값은 그대로 쓴다', () => {
+        expect(parseCapturedAt('2026-08-16T09:10:12+09:00', NOW))
+            .toBe(new Date('2026-08-16T09:10:12+09:00').getTime());
+        // 진짜 UTC 로 보낸 값은 **과거**라 보정에 안 걸린다
+        expect(parseCapturedAt('2026-08-16T00:10:12Z', NOW))
+            .toBe(new Date('2026-08-16T00:10:12Z').getTime());
+    });
+
+    it('🔴 세 형식이 **같은 상차 마감**을 낸다', () => {
+        const base: any = { id: 'X', status: 'ORDER_CONFIRMED', totalDistanceKm: 65,
+                            totalDurationMin: 80, kakaoSoloDistanceKm: 50,
+                            kakaoSoloDurationMin: 60, approachDurationMin: 13 };
+        const 결과 = ['2026-08-16T09:10:12Z', '2026-08-16T09:10:12+09:00', '2026-08-16T00:10:12Z']
+            .map(cap => t(deriveCallTiming({ ...base, capturedAt: cap }, [], [], NOW).pickupDeadlineAt));
+        expect(new Set(결과).size).toBe(1);
+        expect(결과[0]).toBe(new Date('2026-08-16T10:10:12+09:00').toISOString());
+    });
+
+    it('값이 없거나 이상하면 null (지어내지 않는다)', () => {
+        expect(parseCapturedAt(null, NOW)).toBeNull();
+        expect(parseCapturedAt('아무거나', NOW)).toBeNull();
+    });
+
+    it('🔴 앱이 시간대를 실어 보낸다 (`Z` 를 글자로 붙이지 않는다)', () => {
+        const APP = join(__dirname, '../../../../onedal-app/app/src/main/java/com/onedal/app');
+        for (const f of ['HijackService.kt', 'plugins/insung/InsungParser.kt',
+                         'plugins/hwamul24/Hwamul24Parser.kt']) {
+            const src = readFileSync(join(APP, f), 'utf8')
+                .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+            expect(src).not.toMatch(/'T'HH:mm:ss'Z'/);
+        }
+    });
+});
+
+/**
+ * 🔴 **주행을 몰라도 칸을 추천한다** (2026-08-16)
+ *
+ * 합짐 콜은 병합 궤적이 **마지막 콜 하나에만** 실려(`pickRouteHolder`) 나머지는 주행 시간이 비어 있다.
+ * 그래서 기사님이 합짐 통화 화면에서 **빈 버튼 줄**을 보셨다.
+ * 상차 마감은 주행과 무관하므로(`콜 잡은 시각 + 60분`) 그 값으로 고를 수 있다.
+ */
+describe('통화 시트 — 주행을 몰라도 추천한다', () => {
+    const CLIENT4 = join(__dirname, '../../../client-app/src');
+    const rc4 = (rel: string) => codeOnly(readFileSync(join(CLIENT4, rel), 'utf8'));
+
+    it('🔴 주행을 모르면 서버가 만든 상차 마감으로 고른다', () => {
+        const sheet = rc4('components/dashboard/StopCallSheet.tsx');
+        const fn = sheet.slice(sheet.indexOf('const suggestedSlot'));
+        expect(fn.slice(0, 900)).toMatch(/if \(!driveKnown\)/);
+        expect(fn.slice(0, 900)).toMatch(/pickupDeadlineAt/);
+    });
+
+    it('🔴 카드가 그 값을 넘긴다', () => {
+        expect(rc4('components/dashboard/PinnedRouteCard.tsx'))
+            .toMatch(/pickupDeadlineAt=\{timing\.pickupDeadlineAt\}/);
+    });
+
+    it('🔴 「이어서」 블록이 상차 정차를 두 번 더하지 않는다', () => {
+        const sheet = rc4('components/dashboard/StopCallSheet.tsx');
+        expect(sheet).toMatch(/const loadDoneMs = new Date\(deadlineAt\)\.getTime\(\);/);
+        expect(sheet).not.toMatch(/loadDoneMs = new Date\(deadlineAt\)\.getTime\(\) \+ dwell/);
+        expect(sheet).toMatch(/실어 보냄/);
     });
 });

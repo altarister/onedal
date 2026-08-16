@@ -49,7 +49,19 @@ class HijackService : AccessibilityService() {
 
     companion object {
         private const val TAG = "1DAL_MVP"
-        private const val ISO_TIMESTAMP_FORMAT = "yyyy-MM-dd'T'HH:mm:ss'Z'"
+        /**
+         * 🔴 **시각에는 시간대를 함께 실어 보낸다** (2026-08-16).
+         *
+         * 예전 형식은 `yyyy-MM-dd'T'HH:mm:ss'Z'` 였다 — **한국 시각을 찍고 뒤에 글자 `Z`(=UTC)를
+         * 붙인** 것이다. 서버는 그걸 UTC 로 읽으니 **9시간이 밀렸다.**
+         *
+         * 실측(2026-08-16): 09:10 KST 에 잡은 콜이 `2026-08-16T09:10:12Z` 로 저장돼
+         * 서버가 18:10 KST 로 읽었고, 상차 마감이 19:10 이 되어
+         * 화면에 **"대기 572분"** (맞게는 32분)이 떴다.
+         *
+         * `Z` 대신 `XXX` 를 쓰면 `+09:00` 이 붙어 어느 시간대에서 찍었는지가 값에 남는다.
+         */
+        private const val ISO_TIMESTAMP_FORMAT = "yyyy-MM-dd'T'HH:mm:ssXXX"
         private const val MAX_ORDER_HASH_CACHE = 100
         private const val ORDER_HASH_KEEP_COUNT = 50
         private const val MAX_TEXT_NODE_HEIGHT_PX = 400

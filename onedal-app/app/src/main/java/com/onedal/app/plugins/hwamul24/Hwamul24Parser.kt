@@ -185,7 +185,9 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
             }
         }
 
-        val now = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault()).format(Date())
+        val now = // 🔴 `'Z'` 는 **글자 Z 를 붙일 뿐**이다 — 한국 시각에 UTC 표식이 달려 서버가 9시간 밀려 읽었다
+        //    (2026-08-16 실측: "대기 572분"). `XXX` 를 쓰면 `+09:00` 이 붙는다
+        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.getDefault()).format(Date())
 
         val isValidOrder = fare > 0 || pickup != "미상" || dropoff != "미상"
         if (isValidOrder) {
