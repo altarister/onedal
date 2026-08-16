@@ -166,15 +166,16 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
             session.activeFilter.capacityConfidence = confidence;
 
             /**
-             * 관제탑 표시용 **칸** — 같은 적재 점수를 칸 단위로 환산한 것뿐이다.
-             * (1칸 = 7.5점 · docs/필터_재설계_명세.md §2-2)
+             * 관제탑 표시용 — 점수가 곧 **박스**다 (라면박스 축 2026-08-17).
+             * 옛 축에서는 여기서 ÷7.5 로 칸 환산을 했는데, 그 잔재가 남아
+             * "다마스 30박스 → 4/100박스"로 표시되는 사고가 났다 (기사님 실측 2026-08-17).
              *
              * 별도로 세지 않는 이유: 차종으로 다시 세면 통화로 확인한 실제 짐 양이
              * 반영되지 않아 **화면과 판정이 다른 말을 한다.** 판정이 쓰는 점수에서 파생시킨다.
              */
             session.activeFilter.slotsUsed = Math.min(
                 TRUCK_CAPACITY_SLOTS,
-                Math.round((points / 7.5) * 10) / 10
+                Math.round(points * 10) / 10
             );
         }
     }

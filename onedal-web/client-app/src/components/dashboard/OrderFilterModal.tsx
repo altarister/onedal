@@ -451,7 +451,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                 <div className="space-y-3 overflow-y-auto pr-1 pb-1 custom-scrollbar relative z-10">
                     <div>
                         {/* ── 적재 칸 — 내 트럭 5칸 중 얼마나 찼나 (명세 §2-2) ──
-                            서버가 내려준 slotsUsed(적재 점수 ÷ 7.5)를 그대로 쓴다. 여기서 다시 세지 않는다 —
+                            서버가 내려준 slotsUsed(박스)를 그대로 쓴다. 여기서 다시 세지 않는다 —
                             차종으로 다시 세면 통화로 확인한 실제 짐 양이 화면에 반영되지 않는다. */}
                         <div className="bg-surface-alt/50 rounded-md px-3 py-2 mb-3">
                             <div className="flex items-center justify-between mb-1.5">

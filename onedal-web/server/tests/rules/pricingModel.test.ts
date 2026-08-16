@@ -1,3 +1,5 @@
+import { readFileSync } from "fs";
+import { join } from "path";
 import {
     GROSS_RATE_PER_KM,
     NET_RATE_PER_KM,
@@ -57,6 +59,13 @@ describe('단가 판정 모델 — 명세 고정', () => {
 
     it('1t짐(80박스)을 실어도 자투리 20박스가 남는다 — 낱짐 자리', () => {
         expect(TRUCK_CAPACITY_SLOTS - slotsUsedOf(['1t'])).toBe(20);
+    });
+
+    it('🔴 표시용 slotsUsed 에 옛 칸 환산(÷7.5)이 없다 — 박스가 곧 표시 단위다', () => {
+        // 2026-08-17 실측 사고: 다마스 30박스가 ÷7.5 잔재 때문에 "4/100박스"로 표시됐다
+        const fm = readFileSync(join(__dirname, '../../src/state/filterManager.ts'), 'utf8')
+            .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');   // 주석은 역사 — 코드만 본다
+        expect(fm).not.toMatch(/7\.5/);
     });
 
     it('모르는 차종은 1t짐(80박스)으로 보수적으로 센다', () => {
