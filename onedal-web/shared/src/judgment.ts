@@ -149,7 +149,7 @@ export const JUDGMENT_FIELDS: readonly JudgmentField[] = [
     { col: 'weight_deadline', path: ['weights', 'deadline'], group: '가중치',
       label: '경유버퍼', unit: '배', min: 0, max: 10, int: false, why: '' },
     { col: 'weight_slots', path: ['weights', 'slots'], group: '가중치',
-      label: '적재 칸', unit: '배', min: 0, max: 10, int: false, why: '' },
+      label: '적재 용량', unit: '배', min: 0, max: 10, int: false, why: '' },
 
     { col: 'color_honey_min', path: ['color', 'honeyMin'], group: '색 경계',
       label: '🔵 꿀', unit: '점 이상', min: 0, max: 100, int: true,
@@ -317,7 +317,7 @@ export function scoreMerge(input: MergeInput, cfg: JudgmentConfig = DEFAULT_JUDG
             assumed: slackUnknown,
         },
         {
-            name: '적재 칸', raw: `${input.slotsFree}/${input.slotsTotal}칸`, weight: w.slots,
+            name: '적재 용량', raw: `${input.slotsFree}/${input.slotsTotal}박스`, weight: w.slots,
             score: input.slotsTotal > 0
                 ? Math.round(100 * Math.max(0, input.slotsFree) / input.slotsTotal) : 0,
         },

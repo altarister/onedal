@@ -57,29 +57,27 @@ export function mapVehicleToKakaoCarType(vehicle: string): number {
 /**
  * 차종별 적재 점수. 1t 트럭 = 30점 기준.
  *
- * 기사님 실측 규칙 (2026-08-09):
- *   1t 트럭 한 대에  1t짐 ×1  =  라보 ×2  =  다마스 ×3  =  승용차 ×5
- *   오토바이 짐은 조수석에 실으므로 짐칸을 점유하지 않는다(0점, 상한 없음).
- * 최소공배수 30을 1t 용량으로 잡아 위 비율을 정수로 표현했다.
- * 1t 초과 차종은 톤당 30점 비례.
+ * 🔴 **라면박스 축** (기사님 확정 2026-08-17 · docs/용어집.md §5·§7이 원천):
+ *   표시 차종 X 의 콜 = X 한 대 분량의 짐. 1t 짐만 예외로 **80박스**(파레트 2개) —
+ *   내 트럭 용량(TRUCK_CAPACITY_SLOTS = 100박스)과 다르다. 자투리 20박스가 안전 여유.
+ *   오토바이 짐 = 1박스 (옛 "조수석 0점·상한 없음" 규칙은 폐기 — 용어집 확정).
+ *   1t 초과 차종은 톤당 100박스 비례 (어차피 내 차에 안 실리므로 정밀도 무의미).
  *
- * ⚠️ VEHICLE_OPTIONS 배열 순서에 의존하지 말 것.
- *    그 배열은 UI 드롭다운 표시용이며 실제 용량 순서와 다르다.
- *    (승용차 6점 < 다마스 10점 인데 배열에는 승용차가 라보 뒤에 있음)
+ * ⚠️ VEHICLE_OPTIONS 배열 순서에 의존하지 말 것 — UI 드롭다운 표시용이다.
  */
 export const VEHICLE_CAPACITY: Record<string, number> = {
-    '오토바이': 0,
-    '승용차': 6,
-    '다마스': 10,
-    '라보': 15,
-    '1t': 30,
-    '1.4t': 42,
-    '2.5t': 75,
-    '3.5t': 105,
-    '5t': 150,
-    '11t': 330,
-    '25t': 750,
-    '특수화물': 750,
+    '오토바이': 1,
+    '승용차': 5,
+    '다마스': 30,
+    '라보': 40,
+    '1t': 80,
+    '1.4t': 140,
+    '2.5t': 250,
+    '3.5t': 350,
+    '5t': 500,
+    '11t': 1100,
+    '25t': 2500,
+    '특수화물': 2500,
 };
 
 /** 앱 파서가 뽑는 축약 코드(오/다/라 등)를 정식 차종명으로 보정 */
@@ -122,13 +120,13 @@ export function getEligibleVehicleTypes(myVehicle: string): string[] {
 /**
  * [합짐 기준] 이미 실은 짐을 빼고 남은 공간에 추가로 실을 수 있는 콜 등급 목록.
  *
- * 남은 용량 = 내 차 용량 − Σ(실은 짐들의 용량)
- * 오토바이(0점)는 조수석 적재라 남은 용량과 무관하게 항상 허용된다.
+ * 남은 용량 = 내 차 용량(1t = 100박스) − Σ(실은 짐들의 박스)
+ * 오토바이 짐도 1박스를 차지한다 (기사님 확정 2026-08-17 — 옛 "조수석 0점" 규칙 폐기).
  *
- * 예: 1t 트럭 + 오토바이 1건  → 남은 30 → 전 차종 허용 (짐칸을 안 먹었으므로)
- * 예: 1t 트럭 + 라보 1건      → 남은 15 → 오토바이·승용차·다마스·라보
- * 예: 1t 트럭 + 라보 2건      → 남은  0 → 오토바이만
- * 예: 1t 트럭 + 1t 1건        → 남은  0 → 오토바이만
+ * 예: 1t 트럭 + 오토바이 1건  → 남은 99 → 전 차종 허용
+ * 예: 1t 트럭 + 라보 1건      → 남은 60 → 오토바이·승용차·다마스·라보
+ * 예: 1t 트럭 + 라보 2건      → 남은 20 → 오토바이·승용차 (자투리에 낱짐은 실린다)
+ * 예: 1t 트럭 + 1t짐 1건      → 남은 20 → 오토바이·승용차
  *
  * ⚠️ 반드시 "확정된 활성 콜 전부"를 넘길 것. 첫 짐 하나만 넘기면 남은 공간을 알 수 없다.
  *
@@ -143,8 +141,8 @@ export function getRemainingCapacityTypes(myVehicle: string, loadedVehicles: str
 /**
  * 적재 점수를 **직접** 넘겨 남은 공간에 들어갈 차종을 구한다.
  *
- * `getRemainingCapacityTypes` 는 차종만 보고 "1t 콜이면 30점을 다 먹는다"고 **추정**한다.
- * 하지만 1t 콜이라도 실제 짐이 박스 1개면 2점밖에 안 먹는다.
+ * `getRemainingCapacityTypes` 는 차종만 보고 "1t 콜이면 80박스를 먹는다"고 **추정**한다.
+ * 하지만 1t 콜이라도 실제 짐이 박스 1개면 1박스밖에 안 먹는다.
  * 통화나 현장 확인으로 실제 짐 양을 알게 되면 이 함수로 정확하게 계산한다.
  * → 만재로 오인해서 놓치던 합짐 기회가 열린다.
  */
@@ -152,14 +150,22 @@ export function getRemainingCapacityTypesByPoints(myVehicle: string, usedPoints:
     return typesFittingIn(myVehicle, usedPoints);
 }
 
-/** 내 차 용량에서 usedCap 을 뺀 나머지에 들어갈 차종 목록 */
+/**
+ * 내 차 용량에서 usedCap 을 뺀 나머지에 들어갈 차종 목록.
+ *
+ * 🔴 **내 차의 그릇(용량)과 그 차종 콜의 짐은 다른 값이다** (2026-08-17 라면박스 축부터).
+ *    1t 트럭의 그릇 = 100박스(`TRUCK_CAPACITY_SLOTS`) · "1t" 콜의 짐 = 80박스(파레트 2개).
+ *    옛 30점 축에서는 한 표가 둘을 겸했지만 이제 갈라졌다 — 여기서 그릇을 짐 표로 읽으면
+ *    내 용량이 80이 되어 자투리 20박스를 영영 못 쓴다.
+ */
 function typesFittingIn(myVehicle: string, usedCap: number): string[] {
-    const myCap = capacityOf(myVehicle, '1t');
+    const myCap = normalizeVehicleType(myVehicle) === '1t'
+        ? TRUCK_CAPACITY_SLOTS                    // 내 1t 트럭의 그릇 = 100박스
+        : capacityOf(myVehicle, '1t');            // 다른 차주는 베타 이후 — 짐 표로 근사
     const remaining = Math.max(0, myCap - usedCap);
 
     return VEHICLE_OPTIONS.filter(v => {
         const cap = VEHICLE_CAPACITY[v] ?? Infinity;
-        if (cap === 0) return true;          // 오토바이: 조수석 적재, 상한 없음
         return cap <= remaining && cap <= myCap;
     });
 }
@@ -172,3 +178,25 @@ export const CAPACITY_CONFIDENCE_LABEL: Record<CapacityConfidence, string> = {
     DECLARED: '신고',    // 통화로 들은 짐 양
     CONFIRMED: '확정',   // 현장에서 눈으로 확인
 };
+
+/**
+ * 내 트럭(1t)의 총 적재 용량 — **라면박스 100개** (기사님 확정 2026-08-17).
+ * 파레트 2개(80박스) + 여유 20박스. 용어집 §7이 원천.
+ * (식별자의 SLOTS 는 역사적 이름 — 값의 단위는 박스다. 용어집 §9 "적재 용량" 키 유지 결정)
+ */
+export const TRUCK_CAPACITY_SLOTS = 100;
+
+/**
+ * 잡은 콜들의 명목 사용 칸 합계.
+ *
+ * "명목"이다 — 표시 차종 기준. 통화로 실짐이 확인되면(DECLARED/CONFIRMED)
+ * 점수 기반 경로(getRemainingCapacityTypesByPoints)가 더 정확하므로 그쪽을 쓴다.
+ * 모르는 차종은 보수적으로 1t짐(80박스)으로 센다.
+ */
+export function slotsUsedOf(vehicleTypes: Array<string | null | undefined>): number {
+    return vehicleTypes.reduce((sum: number, v) => {
+        if (!v) return sum + VEHICLE_CAPACITY['1t'];                       // 모르면 1t짐(80박스)으로 보수적으로
+        const boxes = VEHICLE_CAPACITY[normalizeVehicleType(v) ?? ''];
+        return sum + (boxes !== undefined ? boxes : VEHICLE_CAPACITY['1t']);
+    }, 0);
+}

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
 import { logRoadmapEvent } from "../../lib/roadmapLogger";
-import { NET_RATE_PER_KM, VEHICLE_SLOTS, TRUCK_CAPACITY_SLOTS, CAPACITY_CONFIDENCE_LABEL,
+import { NET_RATE_PER_KM, VEHICLE_CAPACITY, TRUCK_CAPACITY_SLOTS, CAPACITY_CONFIDENCE_LABEL,
          PHASE_KEYS, PHASE_LABEL, PHASE_FIELDS, fieldLabel, PHASE_AUTO_SOURCE,
          DEFAULT_PHASE_SETTINGS, resolvePhaseKey } from "@onedal/shared";
 import type { PhaseKey, PhaseSettings } from "@onedal/shared";
@@ -456,8 +456,8 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                         <div className="bg-surface-alt/50 rounded-md px-3 py-2 mb-3">
                             <div className="flex items-center justify-between mb-1.5">
                                 <span className="text-[11px] font-bold text-text-muted">
-                                    📦 적재 <span className="font-mono text-text-primary">{slotsUsed}/{TRUCK_CAPACITY_SLOTS}칸</span>
-                                    <span className="text-text-muted/60 font-normal ml-1">· 남은 {remainSlots}칸</span>
+                                    📦 적재 <span className="font-mono text-text-primary">{slotsUsed}/{TRUCK_CAPACITY_SLOTS}박스</span>
+                                    <span className="text-text-muted/60 font-normal ml-1">· 남은 {remainSlots}박스</span>
                                 </span>
                                 {filter.capacityConfidence && (
                                     <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${
@@ -504,7 +504,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                 })}
                             </div>
                             {/* 차종별 하한 단가 — 자동 계산, 읽기 전용.
-                                남은 칸에 안 들어가는 차종은 흐리게 (잡아도 못 싣는다) */}
+                                남은 용량에 안 들어가는 차종은 흐리게 (잡아도 못 싣는다) */}
                             <div className="bg-surface-alt/50 rounded-md px-3 py-2 space-y-1">
                                 <div className="flex items-start justify-between gap-2 pb-1 mb-1 border-b border-border/50">
                                     <span className="text-[11px] font-black text-text-primary">{FLOOR_TITLE[tab]}</span>
@@ -512,18 +512,18 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                 </div>
                                 {RATE_TABLE_ORDER.map(v => {
                                     const floor = Math.round((NET_RATE_PER_KM[v] ?? 0) * Math.max(0, 1 - callDiscount / 100));
-                                    const slot = VEHICLE_SLOTS[v] ?? 0;
+                                    const slot = VEHICLE_CAPACITY[v] ?? 0;   // 이 차종 콜의 짐 = 몇 박스
                                     const fits = slot <= remainSlots;
                                     return (
                                         <div key={v} className={`flex items-center justify-between text-[11px] ${fits ? '' : 'opacity-35'}`}>
                                             <span className="text-text-muted font-bold">
                                                 {v}
                                                 <span className="text-text-muted/60 font-normal ml-1">
-                                                    시세 {NET_RATE_PER_KM[v]}원/km · {slot}/{TRUCK_CAPACITY_SLOTS}칸
+                                                    시세 {NET_RATE_PER_KM[v]}원/km · 짐 {slot}박스
                                                 </span>
                                             </span>
                                             <span className="font-mono font-black text-success whitespace-nowrap">
-                                                {!fits ? <span className="text-text-muted font-normal">칸 부족</span>
+                                                {!fits ? <span className="text-text-muted font-normal">용량 부족</span>
                                                  : callDiscount >= 100 ? '전부'
                                                  : <>≥ {floor.toLocaleString()}원/km
                                                      <span className="text-text-muted/60 font-normal ml-1.5">

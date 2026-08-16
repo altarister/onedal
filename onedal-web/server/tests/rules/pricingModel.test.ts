@@ -1,7 +1,7 @@
 import {
     GROSS_RATE_PER_KM,
     NET_RATE_PER_KM,
-    VEHICLE_SLOTS,
+    VEHICLE_CAPACITY,
     TRUCK_CAPACITY_SLOTS,
     CALL_DISCOUNT_ALL,
     rateFloorsFrom,
@@ -36,31 +36,32 @@ describe('단가 판정 모델 — 명세 고정', () => {
         expect(NET_RATE_PER_KM['1t']).toBe(770);
     });
 
-    it('적재 칸 — 내 1t 트럭 = 5칸, 1t짐 4 · 라보 2 · 다마스 1 · 승용차 1 · 오토바이 0', () => {
-        expect(TRUCK_CAPACITY_SLOTS).toBe(5);
-        expect(VEHICLE_SLOTS['1t']).toBe(4);
-        expect(VEHICLE_SLOTS['라보']).toBe(2);
-        expect(VEHICLE_SLOTS['다마스']).toBe(1);
-        expect(VEHICLE_SLOTS['승용차']).toBe(1);
-        expect(VEHICLE_SLOTS['오토바이']).toBe(0);   // 조수석 — 짐칸을 안 먹는다
+    /**
+     * 🔴 라면박스 축 (기사님 확정 2026-08-17 · 용어집 §5·§7이 원천).
+     *    옛 5칸 체계와 조합표(라보×2=다마스×4=1t짐, 오토바이 공짜)는 폐기됐다.
+     */
+    it('적재 용량 — 내 1t 트럭 = 100박스, 1t짐 80 · 라보 40 · 다마스 30 · 승용차 5 · 오토바이 1', () => {
+        expect(TRUCK_CAPACITY_SLOTS).toBe(100);
+        expect(VEHICLE_CAPACITY['1t']).toBe(80);      // 파레트 2개
+        expect(VEHICLE_CAPACITY['라보']).toBe(40);
+        expect(VEHICLE_CAPACITY['다마스']).toBe(30);
+        expect(VEHICLE_CAPACITY['승용차']).toBe(5);
+        expect(VEHICLE_CAPACITY['오토바이']).toBe(1); // 옛 "조수석 0" 폐기
     });
 
-    it('기사님의 조합표가 성립한다 — 라보×2 = 라보+다마스×2 = 다마스×4 = 1t짐', () => {
-        expect(slotsUsedOf(['라보', '라보'])).toBe(4);
-        expect(slotsUsedOf(['라보', '다마스', '다마스'])).toBe(4);
-        expect(slotsUsedOf(['다마스', '다마스', '다마스', '다마스'])).toBe(4);
-        expect(slotsUsedOf(['1t'])).toBe(4);
-        // 어느 조합이든 + 오토바이는 공짜
-        expect(slotsUsedOf(['1t', '오토바이'])).toBe(4);
+    it('용어집 조합 — 라보×2 = 1t짐(80) · 파레트 2개 = 1t짐', () => {
+        expect(slotsUsedOf(['라보', '라보'])).toBe(80);
+        expect(slotsUsedOf(['1t'])).toBe(80);
+        expect(slotsUsedOf(['1t', '오토바이'])).toBe(81);   // 오토바이도 1박스 차지
     });
 
-    it('1t짐(4칸)을 실어도 자투리 1칸이 남는다 — 파레트 2개 놓아도 660mm', () => {
-        expect(TRUCK_CAPACITY_SLOTS - slotsUsedOf(['1t'])).toBe(1);   // 다마스급 낱짐 자리
+    it('1t짐(80박스)을 실어도 자투리 20박스가 남는다 — 낱짐 자리', () => {
+        expect(TRUCK_CAPACITY_SLOTS - slotsUsedOf(['1t'])).toBe(20);
     });
 
-    it('모르는 차종은 만재(4칸)로 보수적으로 센다', () => {
-        expect(slotsUsedOf(['이상한차종'])).toBe(4);
-        expect(slotsUsedOf([null, undefined])).toBe(8);
+    it('모르는 차종은 1t짐(80박스)으로 보수적으로 센다', () => {
+        expect(slotsUsedOf(['이상한차종'])).toBe(80);
+        expect(slotsUsedOf([null, undefined])).toBe(160);
     });
 
     it('콜할인율 → 하한 단가: -10% 면 1t 은 693원/km (770 × 0.9)', () => {

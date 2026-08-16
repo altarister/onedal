@@ -50,11 +50,13 @@ describe('🔴 이슈 W 재현 방어 — 재시작 후 진행 중 3건이 있�
         expect(types).toEqual(expect.arrayContaining(['오토바이', '승용차', '다마스', '라보', '1t']));
     });
 
-    test('같은 3건이라도 라보 2건이 섞이면 만재로 판정되어야 한다', () => {
+    test('같은 3건이라도 라보 2건이 섞이면(81박스) 큰 짐은 못 받는다', () => {
         // 이번 상황은 우연히 오토바이라 차종 허용이 맞았을 뿐,
-        // 라보 2건이었다면 만재인데도 1t 콜을 잡으러 갔을 것이다.
+        // 라보 2건이었다면 남은 19박스인데도 1t 콜을 잡으러 갔을 것이다.
         const types = getRemainingCapacityTypes('1t', ['라보', '라보', '오토바이']);
-        expect(types).toEqual(['오토바이']);
+        expect(types).toEqual(['오토바이', '승용차']);   // 남은 19 — 낱짐만
+        expect(types).not.toContain('라보');
+        expect(types).not.toContain('1t');
     });
 
     test('복구 대상이 0건이면 STANDBY 유지 (필터를 건드리지 않아야 함)', () => {

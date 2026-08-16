@@ -44,26 +44,8 @@ export const NET_RATE_PER_KM: Record<string, number> = Object.fromEntries(
     Object.entries(GROSS_RATE_PER_KM).map(([v, gross]) => [v, Math.round(gross * 0.77)])
 );
 
-/**
- * 적재 칸 — 내 1t 트럭 = 5칸 (정규 4 + 자투리 1).
- *
- * 현장 체감 분류(기사님 확정): 1t짐 4 · 라보 2 · 다마스 1 · 승용차 1 · 오토바이 0(조수석).
- * 근거는 바닥 면적이 아니라 부피·중량의 최소값 (다마스는 실내높이 1.05m 가 깎는다).
- *
- * 기존 30점 스케일(vehicles.ts VEHICLE_CAPACITY)과의 환산: 1칸 = 7.5점.
- * (파레트 15점 = 2칸 = "1t 에 2개" 그대로 성립)
- */
-export const VEHICLE_SLOTS: Record<string, number> = {
-    '오토바이': 0,
-    '다마스': 1,
-    '승용차': 1,
-    '라보': 2,
-    '1t': 4,
-    '특수화물': 4,
-};
 
-/** 내 트럭(1t)의 총 칸 수. 자투리 1칸 포함 — 5번째 칸은 낱짐(박스)만 */
-export const TRUCK_CAPACITY_SLOTS = 5;
+
 
 /** 콜할인율 값 중 "전부"(금액 무관) — 100% 할인 허용과 같다 */
 export const CALL_DISCOUNT_ALL = 100;
@@ -94,17 +76,3 @@ export function rateFloorsFrom(
     return floors;
 }
 
-/**
- * 잡은 콜들의 명목 사용 칸 합계.
- *
- * "명목"이다 — 표시 차종 기준. 통화로 실짐이 확인되면(DECLARED/CONFIRMED)
- * 점수 기반 경로(getRemainingCapacityTypesByPoints)가 더 정확하므로 그쪽을 쓴다.
- * 모르는 차종은 보수적으로 만재(4칸)로 센다.
- */
-export function slotsUsedOf(vehicleTypes: Array<string | null | undefined>): number {
-    return vehicleTypes.reduce((sum: number, v) => {
-        if (!v) return sum + 4;
-        const slot = VEHICLE_SLOTS[v.trim()];
-        return sum + (slot !== undefined ? slot : 4);
-    }, 0);
-}

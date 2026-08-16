@@ -123,7 +123,7 @@ export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () =
                         <span className="mx-1.5 opacity-40">·</span>
                         📍 {regionCount}개 동
                         <span className="mx-1.5 opacity-40">·</span>
-                        📦 {slotsUsed}/{TRUCK_CAPACITY_SLOTS}칸
+                        📦 {slotsUsed}/{TRUCK_CAPACITY_SLOTS}박스
                     </span>
                 </div>
                 <span className="text-text-muted text-sm shrink-0">⚙️</span>

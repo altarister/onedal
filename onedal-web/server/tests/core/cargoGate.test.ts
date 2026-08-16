@@ -44,7 +44,7 @@ describe('computeLoadedPoints — 화면이 보내는 unit 을 반영한다', ()
 
     it('짐 정보가 없으면 차종으로 추정하고 ESTIMATED — 폴백은 살아 있어야 한다', () => {
         const { points, confidence } = computeLoadedPoints([call('a', '라보')], '1t', new Map());
-        expect(points).toBe(15);                       // 라보 적재량
+        expect(points).toBe(40);                       // 라보 짐 = 40박스 (라면박스 축)
         expect(confidence).toBe('ESTIMATED');
     });
 
@@ -79,9 +79,9 @@ describe('cargoMismatchRatio — 화면이 보내는 unit 으로 판정한다', 
     });
 
     it('단위가 달라도 점수로 비교한다 — 라면박스 4개 vs 파레트 1개', () => {
-        const d = rp('DECLARED', { unit: '라면박스', quantity: 4 });   // 1점
-        const a = rp('ACTUAL', { unit: '파레트', quantity: 1 });        // 15점
-        expect(cargoMismatchRatio(d, a)).toBe(15);
+        const d = rp('DECLARED', { unit: '라면박스', quantity: 4 });   // 4박스
+        const a = rp('ACTUAL', { unit: '파레트', quantity: 1 });        // 40박스
+        expect(cargoMismatchRatio(d, a)).toBe(10);
     });
 
     it('⚠️ 하차지는 null 이다 — 부피를 묻지 않는 설계다. 버그가 아니다', () => {
