@@ -1,7 +1,7 @@
 import { useDevices } from "../../hooks/useDevices";
 import type { DeviceSession, ScreenContextType } from "@onedal/shared";
 import { useSystemAlerts } from "../../hooks/useSystemAlerts";
-import type { EmergencyAlert, DeathValleyWarning } from "../../hooks/useSystemAlerts";
+import type { EmergencyAlert, SafeCancelWarning } from "../../hooks/useSystemAlerts";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
 import type { AutoDispatchFilter } from "@onedal/shared";
 
@@ -44,7 +44,7 @@ function DeviceRow({
     device: DeviceSession;
     onModeChange: (id: string, mode: "AUTO" | "MANUAL") => void;
     deviceAlerts: EmergencyAlert[];
-    deviceWarnings: DeathValleyWarning[];
+    deviceWarnings: SafeCancelWarning[];
     onDismissAlert: (timestamp: string) => void;
     onDismissWarning: (orderId: string) => void;
     currentFilter: AutoDispatchFilter | null;

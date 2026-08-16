@@ -240,8 +240,8 @@ router.post("/", async (req, res) => {
         const warningTimer = setTimeout(() => {
             if (session.pendingDecisions.has(payload.order.id)) {
                 if (io) {
-                    logRoadmapEvent("서버", "관제탑에게 지연 위급 상황(deathvalley-warning) 정보 전달");
-                    io.to(userId).emit("deathvalley-warning", {
+                    logRoadmapEvent("서버", "관제탑에게 지연 위급 상황(safecancel-warning) 정보 전달");
+                    io.to(userId).emit("safecancel-warning", {
                         orderId: payload.order.id,
                         deviceId: payload.deviceId,
                         pickup: pendingOrder.pickup,

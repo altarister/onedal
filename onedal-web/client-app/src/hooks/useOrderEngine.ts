@@ -167,8 +167,8 @@ export function useOrderEngine() {
             setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
         };
 
-        const onDeathvalleyWarning = () => {
-            logRoadmapEvent("웹", "서버로 부터 deathvalley-warning 소켓 경고 이벤트 받음", "관제대시보드");
+        const onSafeCancelWarning = () => {
+            logRoadmapEvent("웹", "서버로 부터 safecancel-warning 소켓 경고 이벤트 받음", "관제대시보드");
             logRoadmapEvent("웹", "상단 비상 알림 배너 팝업 및 타이머 카운트다운 컴포넌트 텍스트 붉은색 렌더링", "관제대시보드");
         };
 
@@ -179,7 +179,7 @@ export function useOrderEngine() {
         socket.on("order-evaluated", onOrderEvaluated);
         socket.on("order-confirmed", onOrderConfirmed);
         socket.on("order-canceled", onOrderCanceled);
-        socket.on("deathvalley-warning", onDeathvalleyWarning);
+        socket.on("safecancel-warning", onSafeCancelWarning);
 
         // ⭐ 1초 하트비트 싱크: 서버의 실제 평가 오더 전체 객체 배열
         // 소켓 이벤트 누락 복구 + 웹 클라이언트 첫 접속/새로고침 시 전체 데이터 복원 기능
@@ -245,7 +245,7 @@ export function useOrderEngine() {
             socket.off("order-evaluated", onOrderEvaluated);
             socket.off("order-confirmed", onOrderConfirmed);
             socket.off("order-canceled", onOrderCanceled);
-            socket.off("deathvalley-warning", onDeathvalleyWarning);
+            socket.off("safecancel-warning", onSafeCancelWarning);
             socket.off("sync-active-orders", onSyncActiveOrders);
         };
     }, []);

@@ -11,7 +11,7 @@ export interface EmergencyAlert {
     timestamp: string;
 }
 
-export interface DeathValleyWarning {
+export interface SafeCancelWarning {
     orderId: string;
     deviceId: string;
     pickup: string;
@@ -24,11 +24,11 @@ export interface DeathValleyWarning {
  * Safety Mode V3: 비상 알림 & 데스밸리 경고 수신 훅
  * 
  * emergency-alert: 앱폰이 POST /emergency로 보고한 비상 상황
- * deathvalley-warning: 서버 30초 타임아웃 시 관제탑 경고
+ * safecancel-warning: 서버 30초 타임아웃 시 관제탑 경고 (안전취소 만료 임박)
  */
 export function useSystemAlerts() {
     const [alerts, setAlerts] = useState<EmergencyAlert[]>([]);
-    const [warnings, setWarnings] = useState<DeathValleyWarning[]>([]);
+    const [warnings, setWarnings] = useState<SafeCancelWarning[]>([]);
 
     const dismissAlert = useCallback((timestamp: string) => {
         setAlerts(prev => prev.filter(a => a.timestamp !== timestamp));
@@ -45,8 +45,8 @@ export function useSystemAlerts() {
             soundManager.playEmergencyAlarm();
         };
 
-        const handleDeathValley = (warning: DeathValleyWarning) => {
-            console.log("⚠️ [DeathValley Warning]", warning);
+        const handleSafeCancel = (warning: SafeCancelWarning) => {
+            console.log("⚠️ [SafeCancel Warning]", warning);
             setWarnings(prev => {
                 // 같은 orderId면 교체
                 const filtered = prev.filter(w => w.orderId !== warning.orderId);
@@ -60,13 +60,13 @@ export function useSystemAlerts() {
         };
 
         socket.on("emergency-alert", handleEmergency);
-        socket.on("deathvalley-warning", handleDeathValley);
+        socket.on("safecancel-warning", handleSafeCancel);
         socket.on("order-canceled", handleOrderCleared);
         socket.on("order-confirmed", handleOrderCleared);
 
         return () => {
             socket.off("emergency-alert", handleEmergency);
-            socket.off("deathvalley-warning", handleDeathValley);
+            socket.off("safecancel-warning", handleSafeCancel);
             socket.off("order-canceled", handleOrderCleared);
             socket.off("order-confirmed", handleOrderCleared);
         };
