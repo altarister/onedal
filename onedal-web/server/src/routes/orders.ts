@@ -110,7 +110,8 @@ router.post("/confirm", (req, res) => {
             ...payload.order,
             status: 'ORDER_PRE_SECURED' as OrderStatus,
             capturedDeviceId: payload.deviceId,
-            capturedAt: payload.capturedAt || new Date().toISOString()
+            capturedAt: payload.capturedAt || new Date().toISOString(),
+            targetApp: (payload as any).targetApp || 'insung',   // 어느 배차망에서 온 콜인가 — 원장에 남긴다
         };
 
         if (pendingOrder.id && pendingOrder.id !== "unknown") {

@@ -461,7 +461,10 @@ export interface DetailedOfficeOrder {
 
 // (FilterConfig removed in favor of AutoDispatchFilter)
 // 3. [오더 풀스팩] 배차 확정 후, 들어가서 스크래핑해올 구체적 데이터
-export interface OfficeOrder extends SimplifiedOfficeOrder, DetailedOfficeOrder { }
+export interface OfficeOrder extends SimplifiedOfficeOrder, DetailedOfficeOrder {
+    /** 어느 배차망에서 온 콜인가 — 'insung' | 'hwamul24' (앱 confirm 페이로드가 싣는다).
+     *  🔴 원장(orders.targetApp)에 저장 — 배차망별 콜 검색·분석의 근거 (기사님 2026-08-17) */
+    targetApp?: string; }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // [계층 2-A] 심사 중 오더 — 서버 메모리 전용 (아직 내 퀵이 아님)
