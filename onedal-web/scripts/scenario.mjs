@@ -416,12 +416,137 @@ async function run({ main, cod }) {
     s.close();
 }
 
+// ─────────────────────────── 장부 검사 ───────────────────────────
+/**
+ * 🔴 **L3.5 — "남은 것"을 본다** (2026-08-18 신설)
+ *
+ * 2026-08-18, 기사님이 운행 중에 `targetApp` 이 **13행 전부 NULL** 인 것을 발견했다.
+ * 그때 `tsc`·`jest` 37스위트·`scenario` 36건·`audit` 이 **전부 통과한 상태**였다.
+ *
+ * 이유는 단순하다 — 우리 검사는 전부 *서버가 스스로 하는 말*만 본다:
+ *   tsc = 타입이 맞나 · jest = 함수가 규칙대로 도나 · scenario = **소켓으로 방송된 상태**가 맞나
+ * **실제로 저장된 행을 여는 검사가 한 개도 없었다.** 타입이 맞고 방송이 맞으면
+ * 값이 증발해도 초록불이 켜진다.
+ *
+ * 게다가 이 시나리오는 콜을 **DB 에 직접 심어** 시작하므로, *콜을 잡는 경로*
+ * (앱 → `/orders/confirm` → `/orders/detail`)를 **한 번도 타지 않았다.**
+ * 그 경로에서 필드가 증발해도 알 길이 없었다 — 실제로 거기서 증발하고 있었다.
+ * 그래서 여기서는 **그 경로를 실제로 태우고, 남은 행을 연다.**
+ */
+async function ledger() {
+    console.log('\n═══ 장부 — 콜을 잡는 경로를 태우고 남은 행을 연다 ═══');
+
+    const dbPath = join(SERVER, DB);
+    let dev, src;
+    {
+        const c = new Database(dbPath, { readonly: true });
+        dev = c.prepare(`SELECT device_id FROM user_devices LIMIT 1`).get();
+        // 좌표가 이미 캐시된 주소라야 카카오 연산이 끝까지 간다
+        src = c.prepare(`SELECT pickup, dropoff, fare, vehicleType FROM orders
+                         WHERE pickup <> '' AND dropoff <> '' AND fare > 0 LIMIT 1`).get();
+        c.close();
+    }
+    if (!dev || !src) {
+        check('장부 검사 준비 (등록 기기·주소 씨앗)', false, '기기 또는 주소 씨앗이 없다');
+        return;
+    }
+
+    const id = `ledger-${Date.now()}`;
+    const capturedAt = new Date().toISOString();
+    const order = {
+        id, pickup: src.pickup, dropoff: src.dropoff, fare: src.fare,
+        vehicleType: src.vehicleType || '1t', timestamp: capturedAt,
+        itemDescription: '장부 검사',
+    };
+    const post = (path, body) => fetch(`http://localhost:${PORT}/api/orders${path}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    }).catch(e => ({ ok: false, err: e }));
+
+    // ① 리스트에서 확정 (앱 1차) → ② 상세 수집 (앱 2차, 여기서 콜 객체가 새로 조립된다)
+    //    MANUAL 은 즉시 KEEP 이라 관제웹 결재 없이 장부까지 간다 (직접콜 무심사 — 설계)
+    const base = { deviceId: dev.device_id, capturedAt, matchType: 'MANUAL' };
+    await post('/confirm', { ...base, step: 'BASIC', order });
+    await wait(400);
+    await post('/detail', { ...base, step: 'DETAILED', order });
+
+    // 카카오 경로 계산 + 확정까지 기다린다
+    let row = null;
+    for (let i = 0; i < 24 && !row; i++) {
+        await wait(500);
+        const c = new Database(dbPath, { readonly: true });
+        row = c.prepare(`SELECT * FROM orders WHERE id = ?`).get(id) || null;
+        c.close();
+    }
+
+    check('콜을 잡는 경로가 장부에 행을 남긴다', !!row, row ? '' : `${id} 가 orders 에 없다`);
+    if (!row) return;
+
+    /**
+     * ① 채워져야 할 칸이 비어 있지 않은가.
+     * 여기에 칸 이름을 적어 두면, 앞으로 **칸을 새로 만들고 안 채우는 사고**가 잡힌다.
+     * (2026-08-18 `targetApp` — 코드도 있고 타입도 맞는데 값이 한 번도 안 들어갔다)
+     */
+    const REQUIRED = ['id', 'type', 'status', 'userId', 'pickup', 'dropoff', 'fare',
+        'vehicleType', 'timestamp', 'capturedAt', 'capturedDeviceId', 'targetApp'];
+    const empty = REQUIRED.filter(k => row[k] === null || row[k] === undefined || row[k] === '');
+    check('확정된 콜 행에 빈 칸이 없다', empty.length === 0,
+        empty.length ? `🔴 빈 칸: ${empty.join(', ')}` : `${REQUIRED.length}칸 확인`);
+
+    /**
+     * ② **화면의 근거로 점수를 재현할 수 있는가.**
+     *
+     * 이 제품은 숫자 옆에 근거 한 줄을 적는다. 그 근거로 점수가 재현되지 않으면
+     * **화면이 거짓말을 하는 것**이다 — 기사님은 색을 보고 1~2초에 누르시는데
+     * 왜 그 색인지 확인할 방법이 사라진다.
+     *
+     * 문구의 시간(소요 + 상차지까지)을 판정 기준에 넣어 나오는 점수가
+     * 실제 찍힌 점수와 같아야 한다. 반올림 오차 1점까지만 봐준다.
+     */
+    const ext = row.kakaoTimeExt || '';
+    const mDrive = /소요 (\d+)분/.exec(ext);
+    const mScore = /· (\d+)점/.exec(ext);
+    if (mDrive && mScore) {
+        const appr = Number((/상차지까지 (\d+)분/.exec(ext) || [])[1] || 0);
+        const shown = Number(mDrive[1]) + appr;
+        const c = new Database(dbPath, { readonly: true });
+        const j = c.prepare(`SELECT solo_honey_max_minutes AS honey, solo_shit_min_minutes AS shit
+                             FROM user_judgment WHERE user_id = ?`).get(row.userId) || {};
+        c.close();
+        const honey = j.honey ?? 40, shit = j.shit ?? 90;
+        const expect = shown <= honey ? 100 : shown >= shit ? 0
+            : Math.round(100 * (shit - shown) / (shit - honey));
+        check('화면의 근거로 점수를 재현할 수 있다', Math.abs(expect - Number(mScore[1])) <= 1,
+            `문구 ${shown}분(소요 ${mDrive[1]}+접근 ${appr}) → ${expect}점 인데 찍힌 값은 ${mScore[1]}점`);
+    } else {
+        check('첫짐 문구에 시간과 점수가 함께 적힌다', false, `문구: "${ext}"`);
+    }
+
+    /**
+     * ③ 색이 콜을 구분하는가.
+     * 값이 옳은지는 여기서 못 본다. 하지만 **판정이 정보를 못 내는 상태**는 보인다 —
+     * 장부의 첫짐이 전부 한 색이면 그 기준은 구분을 포기한 것이다.
+     * (2026-08-18: 첫짐 8건이 전부 '똥'. 기준을 반대로 크게 올려 전부 '꿀' 이 되는 것도 같은 실패다)
+     */
+    {
+        const c = new Database(dbPath, { readonly: true });
+        const marks = c.prepare(`SELECT kakaoTimeExt FROM orders WHERE kakaoTimeExt LIKE '추천거리%'`)
+            .all().map(r => (/'(꿀|보통|똥)'/.exec(r.kakaoTimeExt) || [])[1]).filter(Boolean);
+        c.close();
+        const uniq = [...new Set(marks)];
+        const tally = uniq.map(u => `${u} ${marks.filter(m => m === u).length}`).join(' · ');
+        check('첫짐 판정 색이 한 색으로 몰려 있지 않다',
+            !(marks.length >= 3 && uniq.length === 1),
+            marks.length ? tally : '판정된 첫짐이 없다');
+    }
+}
+
 // ─────────────────────────── 진입 ───────────────────────────
 let proc;
 try {
     const ids = await seed();
     proc = await boot();
     await run(ids);
+    await ledger();
 } catch (e) {
     console.error('\n🔴 시나리오 실행 실패:', e.message);
     results.push({ name: '시나리오 실행', ok: false });

@@ -8,6 +8,7 @@ import { parseLocationDetails, parseMockupFare, parseMockupDistance, parseMockup
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { DISPATCH_CONFIG } from "../config/dispatchConfig";
 import { getUserSession } from "../state/userSessionStore";
+import { evolveOrder } from "../state/orderMemory";
 import { handleDecision, evaluateNewOrder, forceCancelEvaluatingOrder } from "../services/dispatchEngine";
 import db from "../db";
 import { incrementDeviceStats } from "./devices";
@@ -41,12 +42,14 @@ router.post("/", async (req, res) => {
 
         payload.order.id = realOrderId;
 
-        let pendingOrder: PendingOrder = {
+        // 🧠 앞의 기억(`/orders/confirm` 이 남긴 것)에서 시작한다 — 날 payload 로 시작하지 않는다.
+        //    payload 에 없는 키(예: `targetApp`)가 여기서 증발하던 자리다 (2026-08-18).
+        let pendingOrder: PendingOrder = evolveOrder(session, realOrderId, {
             ...payload.order,
             status: 'ORDER_SECURED_EVALUATING' as any,
             capturedDeviceId: payload.deviceId,
             capturedAt: payload.capturedAt || new Date().toISOString()
-        };
+        });
 
         logRoadmapEvent("서버", "상하차지 주소 및 적요 텍스트 정제 연산");
         const rawText = pendingOrder.rawText;
