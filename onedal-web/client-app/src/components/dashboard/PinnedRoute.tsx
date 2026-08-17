@@ -19,8 +19,8 @@ interface Props {
     activeRoute: SecuredOrder[];
     onDecision?: (id: string, action: 'ORDER_CONFIRMED' | 'SAFE_CANCEL' | 'ORDER_RELEASED_BY_ME' | 'ORDER_RELEASED_BY_OFFICE') => void;
     onRecalculate?: (id: string, priority: string) => void;
-    viewFilter: 'ACTIVE' | 'COMPLETED' | 'CANCELED' | 'ALL';
-    setViewFilter: (filter: 'ACTIVE' | 'COMPLETED' | 'CANCELED' | 'ALL') => void;
+    viewFilter: 'ACTIVE' | 'COMPLETED' | 'CANCELED' | 'RELEASED' | 'ALL';
+    setViewFilter: (filter: 'ACTIVE' | 'COMPLETED' | 'CANCELED' | 'RELEASED' | 'ALL') => void;
 }
 
 export default function PinnedRoute({ activeRoute, onDecision, onRecalculate, viewFilter, setViewFilter }: Props) {
@@ -301,11 +301,18 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate, vi
                     >
                         완료됨 ({safeRoute.filter(r => r.status === 'ORDER_DELIVERED' || r.status === 'ORDER_COMPLETED').length})
                     </button>
+                    {/* 취소와 방출을 따로 센다 (기사님 2026-08-18) */}
                     <button
                         onClick={() => { setViewFilter('CANCELED'); scrollToCalls(); }}
                         className={`flex-1 py-2 text-xs font-bold transition-colors ${viewFilter === 'CANCELED' ? 'text-text-primary border-b-2 border-info' : 'text-text-muted hover:text-text-primary'}`}
                     >
-                        취소/방출 ({safeRoute.filter(r => r.status === 'ORDER_RELEASED_BY_ME' || r.status === 'SAFE_CANCEL' || r.status === 'ORDER_RELEASED_BY_OFFICE').length})
+                        취소 ({safeRoute.filter(r => r.status === 'SAFE_CANCEL').length})
+                    </button>
+                    <button
+                        onClick={() => { setViewFilter('RELEASED'); scrollToCalls(); }}
+                        className={`flex-1 py-2 text-xs font-bold transition-colors ${viewFilter === 'RELEASED' ? 'text-text-primary border-b-2 border-info' : 'text-text-muted hover:text-text-primary'}`}
+                    >
+                        방출 ({safeRoute.filter(r => r.status === 'ORDER_RELEASED_BY_ME' || r.status === 'ORDER_RELEASED_BY_OFFICE').length})
                     </button>
                     <button
                         onClick={() => { setViewFilter('ALL'); scrollToCalls(); }}
@@ -366,7 +373,10 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate, vi
                                 return route.status === 'ORDER_DELIVERED' || route.status === 'ORDER_COMPLETED';
                             }
                             if (viewFilter === 'CANCELED') {
-                                return route.status === 'ORDER_RELEASED_BY_ME' || route.status === 'SAFE_CANCEL' || route.status === 'ORDER_RELEASED_BY_OFFICE';
+                                return route.status === 'SAFE_CANCEL';
+                            }
+                            if (viewFilter === 'RELEASED') {
+                                return route.status === 'ORDER_RELEASED_BY_ME' || route.status === 'ORDER_RELEASED_BY_OFFICE';
                             }
                             return true; // ALL
                         })

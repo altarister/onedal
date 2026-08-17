@@ -26,7 +26,7 @@ export default function Dashboard() {
      */
     useEffect(() => { ensureJudgmentSocketSubscribed(); }, []);
 
-    const [viewFilter, setViewFilter] = useState<'ACTIVE' | 'COMPLETED' | 'CANCELED' | 'ALL'>('ACTIVE');
+    const [viewFilter, setViewFilter] = useState<'ACTIVE' | 'COMPLETED' | 'CANCELED' | 'RELEASED' | 'ALL'>('ACTIVE');
     // [이슈 W] 서버 재시작으로 진행 중 콜이 복구됐을 때 표시할 배너
     const [restoredInfo, setRestoredInfo] = useState<{ restoredCount: number; dispatchPhase: string } | null>(null);
     // [T5] 3일이 지나 복구에서 빠진 미완료 콜 — **조용히 사라지게 두지 않는다**
