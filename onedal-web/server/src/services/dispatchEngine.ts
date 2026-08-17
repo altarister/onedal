@@ -183,6 +183,20 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
             // (이 파일에만 같은 기록 로직이 여섯 벌 있었다 — OrderEvaluator 포함)
             applySoloRoute(securedOrder, result);
 
+            /**
+             * 🔴 **두 기억을 함께 갱신한다** (2026-08-17 실측 사고).
+             *
+             * 여기의 securedOrder 는 pendingOrdersData(심사 캐시)의 사본인데, KEEP 된 콜의
+             * 진실은 myOrders(활성)다. 사본에만 새 경로를 쓰면 — 지도는 남양주 우회를
+             * 그리는데 경유 재계산(syncDetourFilter)은 myOrders 의 **옛(서울 통과) 폴리라인**을
+             * 읽어 지역이 안 바뀌고, 앱은 서울 경로 동네로 계속 필터링한다.
+             * (setOrderStatus 가 상태를 두 기억에 같이 쓰는 것과 같은 이유 — helpers 규칙)
+             */
+            const activeTwin = session.myOrders.find(c => c.id === orderId);
+            if (activeTwin && (activeTwin as any) !== (securedOrder as any)) {
+                applySoloRoute(activeTwin as any, result);
+            }
+
             // [재탐색 ②] 예전에는 "[최단시간] 재탐색 완료" 만 표시해, 눌러도 무엇이 달라졌는지
             // 알 수 없었다. 합짐일 때만 수치가 나오고 단독일 때는 없었다.
             // 재탐색은 "어느 쪽이 유리한가"를 보려고 누르는 것이므로 결과 수치가 필수다.
@@ -239,6 +253,8 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
 
         logRoadmapEvent("서버", "재탐색 결과로 폴리라인 및 소요시간 갱신 연산");
         securedOrder.kakaoTimeExt = timeExt;
+        const twin = session.myOrders.find(c => c.id === securedOrder.id);
+        if (twin && (twin as any) !== (securedOrder as any)) twin.kakaoTimeExt = timeExt;   // 주기 sync 가 옛 문구로 되돌리지 않게
 
         if (getActiveCalls(session).some(c => c.id === securedOrder.id)) {
             syncDetourFilter(userId, io);
