@@ -247,3 +247,32 @@ export function phaseFromFlat(flat: {
         discountPct: flat.callDiscountPct ?? fallback.discountPct,
     };
 }
+
+/** 복귀 전환을 생략하는 집 반경 (기사님 확정 2026-08-17 — docs/타겟_자동순환_계획.md §②) */
+export const HOME_RADIUS_KM = 5;
+
+/**
+ * 🧭 **타겟 자동 순환** — 사이클이 끝나면 다음 타겟을 **미리 눌러 둔다** (기사님이 스와이프로 뒤집는다).
+ *
+ *   노선(DEST) 끝 → 복귀(HOME)      단, 마지막 하차지가 집 반경 안이면 유지 (복귀 무의미)
+ *   관내(LOCAL) 끝 → 복귀(HOME)     관내는 보통 시간 채우기 뒤 귀가다
+ *   복귀(HOME) 끝  → 노선(DEST)     집에 왔다 — 다음 왕복
+ *
+ * 🔴 **하차 완료로 끝난 사이클에만** 발동한다 — 취소·방출로 0건이 된 것은
+ *    일이 끝난 게 아니라 무산된 것이다 (호출부가 endedByDelivery 를 보장).
+ * 🔴 집까지의 거리를 모르면(null) 전환하지 않는다 — 지어내지 않는다 (규칙 ④).
+ *
+ * @param current        지금 타겟
+ * @param distToHomeKm   마지막 하차지 → 집 거리 (모르면 null)
+ * @returns 다음 타겟, 전환하지 않으면 null
+ */
+export function decideNextTargetAfterCycle(
+    current: string | undefined,
+    distToHomeKm: number | null,
+): 'DEST' | 'HOME' | null {
+    const cur = current ?? 'DEST';
+    if (cur === 'HOME') return 'DEST';                    // 집에 왔다 — 거리 몰라도 성립
+    if (distToHomeKm === null) return null;               // 집을 모르면 제안하지 않는다
+    if (cur === 'DEST' && distToHomeKm <= HOME_RADIUS_KM) return null;   // 이미 집 근처
+    return 'HOME';                                        // DEST(먼 곳) · LOCAL → 복귀 제안
+}

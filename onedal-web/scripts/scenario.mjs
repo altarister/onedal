@@ -353,12 +353,25 @@ async function run({ main, cod }) {
      * 여기서만 잡히는 결함: 저장은 됐는데 **국면이 바뀌어도 안 꺼내 쓰는** 경우.
      * `tsc` 도 `jest` 도 통과한다 — 값이 흐르는지는 실제로 돌려 봐야 안다.
      */
-    console.log('\n═══ 국면별 필터 설정 ═══');
+    /**
+     * 타겟 자동 순환(2026-08-17)이 사이클 종료 때 복귀를 미리 눌러 뒀을 수 있다.
+     * 여기서 노선(DEST)으로 스와이프해 되돌린다 — "스와이프가 자동을 이긴다"의 L3 이기도 하다.
+     */
     const untilFilter = async (cond, timeoutMs = 4000) => {
         const deadline = Date.now() + timeoutMs;
         while (!cond() && Date.now() < deadline) await wait(120);
         return cond();
     };
+
+    if (st.filter?.callTarget && st.filter.callTarget !== 'DEST') {
+        check('사이클 종료 후 타겟이 복귀(HOME)로 미리 눌러졌다', st.filter.callTarget === 'HOME',
+            `callTarget=${st.filter.callTarget}`);
+        s.emit('set-call-target', { phase: 'DEST' });
+        await untilFilter(() => st.filter?.callTarget === 'DEST');
+        check('스와이프가 자동을 이긴다 — 노선으로 복귀', st.filter?.callTarget === 'DEST', '');
+    }
+
+    console.log('\n═══ 국면별 필터 설정 ═══');
     const savePhase = (phase, patch) => s.emit('save-phase-settings', {
         phase, settings: { ...(st.phases?.[phase] ?? {}), ...patch }, saveAsDefault: false,
     });

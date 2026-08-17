@@ -90,11 +90,20 @@ export default function Dashboard() {
             setGpsNotice(`📣 다음 정거장(${label}) ${data.distanceKm}km 앞 — 도착전 통화를 걸어 주세요`);
             setTimeout(() => setGpsNotice(null), 20_000);
         };
+        // 타겟 자동 순환 — 미리 눌러 둔 것이니 스와이프로 언제든 뒤집을 수 있다
+        const onTargetSwitched = (d: { from: string, to: string }) => {
+            setGpsNotice(d.to === 'HOME'
+                ? '🏠 복귀행으로 바꿔 뒀습니다 — 시간이 남으면 관내로 스와이프'
+                : '🎯 집에 도착했습니다 — 노선행으로 돌아갑니다');
+            setTimeout(() => setGpsNotice(null), 20_000);
+        };
         socket.on("auto-arrived", onAutoArrived);
         socket.on("next-stop-approaching", onApproaching);
+        socket.on("target-auto-switched", onTargetSwitched);
         return () => {
             socket.off("auto-arrived", onAutoArrived);
             socket.off("next-stop-approaching", onApproaching);
+            socket.off("target-auto-switched", onTargetSwitched);
         };
     }, []);
 

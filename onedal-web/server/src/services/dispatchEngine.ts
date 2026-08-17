@@ -1,4 +1,4 @@
-import { mapVehicleToKakaoCarType, getRemainingCapacityTypes, deriveDispatchPhase, normalizeVehicleType,
+import { decideNextTargetAfterCycle, mapVehicleToKakaoCarType, getRemainingCapacityTypes, deriveDispatchPhase, normalizeVehicleType,
          MILESTONE_TO_STATUS, MILESTONE_LABEL, canReportMilestone, timingError,
          RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, UNFINISHED_RESTORE_DAYS, deriveStatusFromMilestones,
          restoreWindow, getEffectiveDetourRadius, DEFAULT_DETOUR_RADIUS_KM,
@@ -9,7 +9,7 @@ import { geocodeAddress, calculateSoloRoute, calculateDetourRoute, compareDirect
 import { fetchRealWorldRoute } from "../routes/osrmUtil";
 import { getUserSession, clearOrderTimers } from "../state/userSessionStore";
 import { updateActiveFilter, rememberDetourProgress } from "../state/filterManager";
-import { getDetourRegions, getCityRegionsWithRadius, reverseGeocodeToRegion } from "../services/geoService";
+import { getDetourRegions, getCityRegionsWithRadius, reverseGeocodeToRegion, haversineKm } from "../services/geoService";
 import { composeMergedRoute, applyRoute, applySoloRoute, pickRouteHolder, toKm, toMin, isAlreadyLoaded } from "./routeComposer";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { DISPATCH_CONFIG } from "../config/dispatchConfig";
@@ -1053,6 +1053,29 @@ export async function reportMilestone(
         const remaining = getActiveCalls(session);
         await recalculateActiveKakaoRoute(userId, io);
         console.log(`🚚 [적재 회복] 하차 완료 → 남은 활성 콜 ${remaining.length}건 기준으로 필터 재계산`);
+
+        /**
+         * 🧭 타겟 자동 순환 (기사님 확정 2026-08-17 — docs/타겟_자동순환_계획.md)
+         *
+         * 🔴 **여기(DELIVERED 처리부)에 있는 이유**: "하차 완료로 끝난 사이클"에만 발동해야
+         *    하는데, STANDBY 복귀 불변식은 취소·방출로 0건이 된 경우도 지나간다 — 거기서는
+         *    끝난 건지 무산된 건지 모른다. 마일스톤이 원인을 아는 유일한 자리가 여기다.
+         *
+         * 자동은 **제안**이다 — setCallTarget 한 길로만 가고(파생 한 곳), 스와이프가 언제나 이긴다.
+         */
+        if (remaining.length === 0) {
+            const home = SettingsRepository.getHomeLocation(userId);
+            const distToHome = (home && order.dropoffX != null && order.dropoffY != null)
+                ? haversineKm(order.dropoffY, order.dropoffX, home.y, home.x)
+                : null;
+            const next = decideNextTargetAfterCycle(session.activeFilter.callTarget, distToHome);
+            if (next && next !== session.activeFilter.callTarget) {
+                const from = session.activeFilter.callTarget ?? 'DEST';
+                console.log(`🧭 [타겟 자동 순환] ${from} → ${next} (집까지 ${distToHome === null ? '모름' : distToHome.toFixed(1) + 'km'})`);
+                await setCallTarget(userId, next, io);
+                io.to(userId).emit("target-auto-switched", { from, to: next });
+            }
+        }
     }
 
     /**
