@@ -1,4 +1,4 @@
-import { PendingOrder, SecuredOrder, MyOrder, scoreMerge, describeJudgment, TRUCK_CAPACITY_SLOTS, callName } from "@onedal/shared";
+import { PendingOrder, SecuredOrder, MyOrder, scoreMerge, scoreSolo, describeJudgment, TRUCK_CAPACITY_SLOTS, callName } from "@onedal/shared";
 import { getUserSession } from "../../state/userSessionStore";
 import { computeAllowedDetour, findLoadConflicts, totalDetourCost } from "../helpers";
 import { geocodeAddress, calculateSoloRoute } from "../../services/kakaoService";
@@ -92,9 +92,19 @@ export class OrderEvaluator {
                             routingOptions.carType
                         );
 
-                        // Stage 2 판단
-                        if (result.duration >= DISPATCH_CONFIG.SOLO_SHIT_TIME_MIN * 60) {
-                            reasons.push(`운행시간(${Math.round(result.duration/60)}분) 초과`);
+                        /**
+                         * 🎯 첫짐 판정 — 색을 정하는 곳은 `shared/judgment.ts` 하나뿐이다.
+                         * 🔴 예전에는 코드 상수(SOLO_SHIT_TIME_MIN 90분)를 직접 비교해 사유만
+                         *    남겼고, 색·점수가 없어 "요율 🍯 인데 종합 💩" 로 갈라져 보였다
+                         *    (2026-08-17 실측). 이제 기준은 user_judgment(첫짐 40/90)에서 온다.
+                         */
+                        const soloVerdict = scoreSolo({ driveMin: result.duration / 60 }, session.judgment);
+                        const soloMark = `'${soloVerdict.color}'`;
+                        console.log(`   - 🎯 [판정] ${describeJudgment(soloVerdict)}`);
+                        if (soloVerdict.color === '똥') {
+                            reasons.push(`총점 ${soloVerdict.score}점 — 운행시간 ${Math.round(result.duration / 60)}분`);
+                        } else {
+                            pros.push(`총점 ${soloVerdict.score}점 — ${soloVerdict.parts.map(pt => `${pt.name} ${pt.raw}`).join(' · ')}`);
                         }
                         
                         // 🔴 예전에는 여기서 손으로 필드를 채웠다. routeComposer 의 규약을 안 타서
@@ -102,8 +112,10 @@ export class OrderEvaluator {
                         //    콜을 잡는 이 경로가 주 경로인데, 여기만 규약 밖에 있었던 것이다.
                         //    (EE 리팩터링에서 composeMergedRoute 를 쓰는 곳만 통일하고 여기를 놓쳤다)
                         applySoloRoute(securedOrder, result);
+                        // 관제웹 카드가 이 문자열의 '꿀'/'똥' 표식으로 색을 정한다 (합짐 timeExt 와 같은 규약)
                         timeExt = `추천거리 ${securedOrder.kakaoSoloDistanceKm}km, 소요 ${securedOrder.kakaoSoloDurationMin}분`
-                            + (securedOrder.approachDurationMin ? ` (상차지까지 ${securedOrder.approachDurationMin}분)` : '');
+                            + (securedOrder.approachDurationMin ? ` (상차지까지 ${securedOrder.approachDurationMin}분)` : '')
+                            + ` ${soloMark} · ${soloVerdict.score}점`;
 
                         console.log(`   - 🗺️ 궤적 길이 (Solo): ${securedOrder.routePolyline?.length || '없음'}`);
                     } else {

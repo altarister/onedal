@@ -2,8 +2,7 @@
 // 기사님이 언제든지 이 수치들을 조정해서 콜 판독 기준을 바꿀 수 있습니다.
 export const DISPATCH_CONFIG = {
     // 1. 단독 주행 판독 기준 (분)
-    SOLO_HONEY_TIME_MAX: 40,    // 이 시간 이하로 걸리면 '꿀'
-    SOLO_SHIT_TIME_MIN: 90,     // 이 시간 이상 걸리면 '똥'
+    // 첫짐 꿀/똥 기준(40/90분)은 user_judgment(첫짐 그룹)로 이관 — 2026-08-17, scoreSolo
 
     // 2. 합짐(경유) 판독 기준 (추가 패널티)
     DETOUR_HONEY_TIME_MAX: 30,  // 추가되는 시간이 이 분 이하 AND

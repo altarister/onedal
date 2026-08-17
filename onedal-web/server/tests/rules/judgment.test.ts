@@ -1,7 +1,7 @@
 import { readFileSync } from "fs";
 import { initGeoService } from "../../src/services/geoService";
 import { join } from "path";
-import { scoreMerge, rampDown, DEFAULT_JUDGMENT, describeJudgment, parseCapturedAt, deriveCallTiming } from "@onedal/shared";
+import { scoreMerge, scoreSolo, rampDown, DEFAULT_JUDGMENT, describeJudgment, parseCapturedAt, deriveCallTiming } from "@onedal/shared";
 import { DWELL_UNKNOWN_PICKUP_MINUTES, DWELL_UNKNOWN_DROPOFF_MINUTES, allowedDetourMinutes, dwellMinutes } from "@onedal/shared";
 
 const SERVER = join(__dirname, "../../src");
@@ -146,6 +146,25 @@ describe('판정하는 곳은 한 곳', () => {
         expect(ev).toMatch(/scoreMerge\(\{/);
         expect(ev).not.toMatch(/DETOUR_SHIT_TIME_MIN|DETOUR_HONEY_TIME_MAX/);
         expect(ev).not.toMatch(/DETOUR_SHIT_DIST_MIN|DETOUR_HONEY_DIST_MAX/);
+    });
+
+    it('🔴 첫짐도 한 곳에서 판정한다 — scoreSolo (코드 상수 90분은 폐기)', () => {
+        const ev = codeOnly(read('core/engine/OrderEvaluator.ts'));
+        expect(ev).toMatch(/scoreSolo\(\{/);
+        expect(ev).not.toMatch(/SOLO_SHIT_TIME_MIN|SOLO_HONEY_TIME_MAX/);
+        const cfg = codeOnly(read('config/dispatchConfig.ts'));
+        expect(cfg).not.toMatch(/SOLO_SHIT_TIME_MIN/);
+    });
+
+    it('첫짐 색 — 기준 40/90분이 세 색을 다 낸다 (기준은 user_judgment 첫짐 그룹)', () => {
+        expect(scoreSolo({ driveMin: 35 }).color).toBe('꿀');
+        expect(scoreSolo({ driveMin: 65 }).color).toBe('보통');
+        expect(scoreSolo({ driveMin: 99 }).color).toBe('똥');     // 2026-08-17 실측 그 콜
+    });
+
+    it('첫짐도 기사님이 탭에서 고친 기준을 쓴다 (기본값이 아니다)', () => {
+        const loose = { ...DEFAULT_JUDGMENT, solo: { honeyMaxMin: 120, shitMinMin: 180 } };
+        expect(scoreSolo({ driveMin: 99 }, loose).color).toBe('꿀');
     });
 
     it('🔴 재탐색이 자기 숫자를 갖지 않는다', () => {

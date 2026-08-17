@@ -268,6 +268,31 @@ export interface MergeInput {
  * 하한이 없으므로 색은 *"잡을까 말까"* 가 아니라 **"얼마나 좋은가"** 다.
  * 그래서 요금을 보지 않는다 — 돈은 앱이 이미 걸렀다 (규칙 ⑤-1).
  */
+/** 첫짐 판정 입력 — 빈 차에 처음 싣는 콜은 우회가 아니라 **총 운행시간**으로 잰다 */
+export interface SoloInput {
+    /** 현위치→상차지→하차지 총 주행 (분) — 접근 포함 */
+    driveMin: number;
+}
+
+/**
+ * 🎯 **첫짐 판정** — 색을 정하는 곳은 여기 하나다 (합짐의 `scoreMerge` 와 짝).
+ *
+ * 🔴 2026-08-17 이관 — 예전에는 `OrderEvaluator` 가 `DISPATCH_CONFIG.SOLO_SHIT_TIME_MIN`
+ *    (코드 상수 90분)을 직접 비교해 **넘으면 사유 한 줄**만 남겼다. 그래서 첫짐은
+ *    색·점수 없이 "요율 🍯 인데 종합 💩" 처럼 갈라져 보였다 (2026-08-17 실측: 오포읍 콜).
+ *    이제 `user_judgment` 의 첫짐 기준(꿀 40 · 똥 90 — 기사님이 탭에서 고친다)을 쓴다.
+ */
+export function scoreSolo(input: SoloInput, cfg: JudgmentConfig = DEFAULT_JUDGMENT): JudgmentResult {
+    const parts: ScorePart[] = [{
+        name: '운행시간',
+        raw: `${Math.round(input.driveMin)}분`,
+        score: rampDown(input.driveMin, cfg.solo.honeyMaxMin, cfg.solo.shitMinMin),
+        weight: 1,
+    }];
+    const score = weighted(parts);
+    return { score, color: colorOf(score, cfg.color), parts };
+}
+
 export function scoreMerge(input: MergeInput, cfg: JudgmentConfig = DEFAULT_JUDGMENT): JudgmentResult {
     const { merge: m, weights: w } = cfg;
 
@@ -279,7 +304,7 @@ export function scoreMerge(input: MergeInput, cfg: JudgmentConfig = DEFAULT_JUDG
     if (input.detourBufferMin !== null && input.detourBufferMin < 0) {
         return {
             score: 0, color: '똥', parts: [],
-            blocked: `이미 하차완료 약속을 ${-input.detourBufferMin}분 넘겼습니다 (합짐 불가)`,
+            blocked: `이 합짐을 붙이면 하차완료 약속을 ${-input.detourBufferMin}분 못 지킵니다 (합짐 불가)`,
         };
     }
 

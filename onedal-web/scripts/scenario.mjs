@@ -253,9 +253,9 @@ async function run({ main, cod }) {
      * '상차지 도착'은 버튼이 아니라 **GPS 재생**으로 찍는다 (2026-08-17 도착 감지 재설계 L3).
      * 통과(주행 속도)로는 안 찍히고, 시뮬(mock) 근접은 1회만 찍히는 것까지 실서버로 검사한다.
      */
-    const mainCall = st.active.find(o => o.id === main);
+    const firstCall = st.active.find(o => o.id === main);   // 첫짐 콜
     const gpsArrive = async () => {
-        const px = mainCall?.pickupX, py = mainCall?.pickupY;
+        const px = firstCall?.pickupX, py = firstCall?.pickupY;
         if (!px || !py) { s.emit('report-milestone', { orderId: main, milestone: 'ARRIVED_PICKUP' }); return; }
         const wait = ms => new Promise(r => setTimeout(r, ms));
         // ① 반경 안이지만 첫 틱 — 속도를 모른다 → 발화 금지 (지어내지 않는다)
