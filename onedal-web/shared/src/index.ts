@@ -604,7 +604,7 @@ export interface AutoDispatchFilter {
 /**
  * **하루의 국면** — 기사님이 요약줄을 스와이프해서 고른다.
  *
- *   DEST(목적지행) → LOCAL(이 동네에서 찾기) → HOME(복귀행)
+ *   DEST(노선행) → LOCAL(이 동네에서 찾기) → HOME(복귀행)
  *
  * 스와이프 순서가 하루의 흐름과 같다: 목적지로 가다가, 거의 도착하면 그 동네 콜을 잡고,
  * 다 내리면 집 방향으로. (docs/필터_재설계_명세.md §4-1)
@@ -622,7 +622,7 @@ export interface AutoDispatchFilter {
 export type CallTarget = 'DEST' | 'LOCAL' | 'HOME';
 
 export const CALL_TARGET_LABEL: Record<CallTarget, string> = {
-    DEST: '목적지행',
+    DEST: '노선행',
     LOCAL: '이 동네에서 찾기',
     HOME: '복귀행',
 };

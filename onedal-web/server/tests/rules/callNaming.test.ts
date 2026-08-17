@@ -23,17 +23,17 @@ const codeOnly = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/
 describe('콜 이름 — 조합 규칙', () => {
 
     it('타겟 + 인덱스로 이름이 나온다', () => {
-        expect(callName({ target: 'DEST', index: 0 })).toBe('목적지콜');
-        expect(callName({ target: 'DEST', index: 1 })).toBe('목적지합짐1콜');
-        expect(callName({ target: 'DEST', index: 2 })).toBe('목적지합짐2콜');
+        expect(callName({ target: 'DEST', index: 0 })).toBe('노선콜');
+        expect(callName({ target: 'DEST', index: 1 })).toBe('노선합짐1콜');
+        expect(callName({ target: 'DEST', index: 2 })).toBe('노선합짐2콜');
         expect(callName({ target: 'LOCAL', index: 0 })).toBe('관내콜');
         expect(callName({ target: 'LOCAL', index: 1 })).toBe('관내합짐1콜');
         expect(callName({ target: 'HOME', index: 1 })).toBe('복귀합짐1콜');
     });
 
     it('심사 전이면 「후보」가 붙는다 (띄어 쓴다)', () => {
-        expect(callName({ target: 'DEST', index: 1, candidate: true })).toBe('목적지 합짐1 후보콜');
-        expect(callName({ target: 'DEST', index: 0, candidate: true })).toBe('목적지 후보콜');
+        expect(callName({ target: 'DEST', index: 1, candidate: true })).toBe('노선 합짐1 후보콜');
+        expect(callName({ target: 'DEST', index: 0, candidate: true })).toBe('노선 후보콜');
     });
 
     it('타겟을 모르면 지어내지 않는다 (아는 만큼만 부른다)', () => {

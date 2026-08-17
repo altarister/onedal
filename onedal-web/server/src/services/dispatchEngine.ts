@@ -1092,7 +1092,7 @@ export async function reportMilestone(
 /**
  * **국면 전환** — 기사님이 요약줄을 스와이프해서 지금 무엇을 콜 잡기할지 고른다.
  *
- *   DEST(목적지행) → LOCAL(이 동네에서 찾기) → HOME(복귀행)
+ *   DEST(노선행) → LOCAL(이 동네에서 찾기) → HOME(복귀행)
  *
  * 🔴 2026-08-13 — 이 함수가 `startTwoTrack` 을 대체한다.
  *

@@ -34,7 +34,7 @@ describe('국면 결정 — 두 축의 조합 (§2-4-1)', () => {
         }
     });
 
-    it('알 수 없는 callTarget 는 목적지행으로 본다 (안전 기본값)', () => {
+    it('알 수 없는 callTarget 는 노선행(DEST)으로 본다 (안전 기본값)', () => {
         expect(resolvePhaseKey('', 'STANDBY')).toBe('first');
         expect(resolvePhaseKey('???', 'STANDBY')).toBe('first');
     });
