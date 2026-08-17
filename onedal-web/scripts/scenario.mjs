@@ -520,6 +520,37 @@ async function ledger() {
     }
 
     /**
+     * ②-2 **취소한 콜도 장부에 남는가.**
+     *
+     * 🔴 2026-08-18 — 안전취소는 **한 번도 저장된 적이 없었다.** 3개월치 백업에도 0건이다.
+     *    KEEP 전에는 행이 없는데 저장 코드가 `UPDATE` 라 0행에 적용되고 조용히 끝난다.
+     *    화면(취소 탭)에는 보이는데 그건 **세션 메모리**라, 서버를 재시작하면 사라진다.
+     *    배차망 취소 횟수(10회)를 세려면 반드시 장부에 있어야 한다 (용어집 §2-1).
+     */
+    {
+        const cid = `${id}-cancel`;
+        const cancelOrder = { ...order, id: cid };
+        await post('/confirm', { ...base, step: 'BASIC', matchType: 'AUTO', order: cancelOrder });
+        await wait(400);
+        await post('/detail', { ...base, step: 'DETAILED', matchType: 'AUTO', order: cancelOrder });
+        await wait(4000);                                     // 카카오 연산이 끝나길 기다린다
+        await post('/decision', { orderId: cid, action: 'CANCEL', deviceId: dev.device_id });
+
+        let crow = null;
+        for (let i = 0; i < 10 && !crow; i++) {
+            await wait(400);
+            const c = new Database(dbPath, { readonly: true });
+            crow = c.prepare(`SELECT status FROM orders WHERE id = ?`).get(cid) || null;
+            c.close();
+        }
+        check('취소한 콜도 장부에 남는다 (재시작해도 안 사라진다)', !!crow,
+            crow ? `status=${crow.status}` : '🔴 orders 에 행이 없다 — 세션 메모리에만 있다');
+        if (crow) {
+            check('취소한 콜의 상태가 SAFE_CANCEL 이다', crow.status === 'SAFE_CANCEL', `status=${crow.status}`);
+        }
+    }
+
+    /**
      * ③ 색이 콜을 구분하는가.
      * 값이 옳은지는 여기서 못 본다. 하지만 **판정이 정보를 못 내는 상태**는 보인다 —
      * 장부의 첫짐이 전부 한 색이면 그 기준은 구분을 포기한 것이다.

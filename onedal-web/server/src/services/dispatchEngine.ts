@@ -136,6 +136,7 @@ export async function recalculateActiveKakaoRoute(userId: string, io: any) {
 
     if (io) {
         const payload = Array.from(session.pendingOrdersData.values());
+        console.log(`📤 [Socket 푸시] sync-active-orders (활성 ${getActiveCalls(session).length}건)`);
         io.to(userId).emit("sync-active-orders", buildOrderSync(session));
     }
 }
@@ -534,10 +535,27 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
         // (두 메모리를 함께 갱신 — 여기는 원래 둘 다 쓰고 있었지만 규약으로 통일한다)
         setOrderStatus(session, orderId, status);
 
-        const existingOrder = session.myOrders.find(c => c.id === orderId);
-        if (existingOrder) {
+        /**
+         * 🔴 **버린 콜도 장부에 남긴다** (기사님 2026-08-18)
+         *
+         * 예전에는 `myOrders` 에 있는 콜만 저장했다 — 즉 **KEEP 한 뒤 버린 것만** 남고,
+         * 심사 중에 버린 안전취소는 행이 없는 채로 `UPDATE` 가 0행에 적용돼 조용히 사라졌다.
+         * 3개월치 백업에도 `SAFE_CANCEL` 이 **0건**이었다.
+         *
+         * 화면(취소 탭)에는 보였는데 그건 세션 메모리라 **서버를 재시작하면 없어진다.**
+         * 기사님: *"인성 입장에선 내가 잡았다 버린 거니 10회 페널티에 들어간다.
+         *          내가 알고 있어야 한다."*
+         *
+         * → 행이 없으면 **만들고** 상태를 준다. 순서가 중요하다 —
+         *   `upsertOrder` 는 항상 `ORDER_CONFIRMED` 로 넣으므로 그 뒤에 진짜 상태를 덮는다.
+         */
+        const cachedForLedger = session.myOrders.find(c => c.id === orderId)
+            ?? session.pendingOrdersData.get(orderId);
+        if (cachedForLedger) {
             try {
-                // 수동 거절(SAFE_CANCEL)일지라도 DB에 저장하도록 함
+                const isShared = getActiveCalls(session).length > 1 ? 1 : 0;
+                const isExpress = (cachedForLedger as any).orderForm === '급송' ? 1 : 0;
+                OrderRepository.upsertOrder(cachedForLedger as any, userId, isShared, isExpress);
                 OrderRepository.updateOrderStatus(orderId, userId, status);
                 console.log(`✅ [상태 동기화] ${orderId} - DB 업데이트 완료 (상태: ${status})`);
             } catch (e) {
@@ -910,6 +928,7 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
 
         // 6. 프론트엔드로 복구된 궤적 즉시 전송
         if (io) {
+            console.log(`📤 [Socket 푸시] sync-active-orders (활성 ${getActiveCalls(session).length}건)`);
             io.to(userId).emit("sync-active-orders", buildOrderSync(session));
         }
 
@@ -975,6 +994,7 @@ export async function undoMilestone(userId: string, orderId: string, milestone: 
     updateActiveFilter(userId, {}, io);
     if (io) {
         io.to(userId).emit("sync-active-orders", buildOrderSync(session));
+        console.log(`📤 [Socket 푸시] milestone-log (${orderId.slice(0, 8)})`);
         io.to(userId).emit("milestone-log", { orderId, milestones: OrderRepository.getMilestones(orderId) });
     }
     return { success: true, status };
@@ -1089,6 +1109,7 @@ export async function reportMilestone(
                 const from = session.activeFilter.callTarget ?? 'DEST';
                 console.log(`🧭 [타겟 자동 순환] ${from} → ${next} (집까지 ${distToHome === null ? '모름' : distToHome.toFixed(1) + 'km'})`);
                 await setCallTarget(userId, next, io);
+                console.log(`📤 [Socket 푸시] target-auto-switched (${from} → ${next})`);
                 io.to(userId).emit("target-auto-switched", { from, to: next });
             }
         }

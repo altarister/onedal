@@ -120,6 +120,7 @@ router.post("/", async (req, res) => {
         session.pendingOrdersData.set(payload.order.id, pendingOrder);
 
         if (io) {
+            console.log(`📤 [Socket 푸시] order-detail-received (${pendingOrder.id}) - 상태 승급: ${pendingOrder.status}`);
             io.to(userId).emit("order-detail-received", pendingOrder);
             logRoadmapEvent("서버", "관제탑에게 정제된 상세 텍스트(order-detail-received) 정보 전달");
         }

@@ -120,7 +120,7 @@ router.post("/confirm", (req, res) => {
         }
 
         if (io) {
-            console.log(`📤 [Socket 푸시] order-evaluating (${pendingOrder.id})`);
+            console.log(`📤 [Socket 푸시] order-evaluating (${pendingOrder.id}) - 상태: ${pendingOrder.status}`);
             io.to(userId).emit("order-evaluating", pendingOrder);
             console.log(`⏱️ [1차 선점 수신] ${pendingOrder.pickup} ➡️ ${pendingOrder.dropoff} (기기: ${payload.deviceId})`);
             logRoadmapEvent("서버", "앱폰으로 부터 가로챈 '1차 오더 확정' 요청 받음");

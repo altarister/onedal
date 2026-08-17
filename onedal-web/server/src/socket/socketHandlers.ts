@@ -277,8 +277,10 @@ export function registerSocketHandlers(io: Server) {
                     const milestone = stop.stopType === 'pickup' ? 'ARRIVED_PICKUP' as const : 'ARRIVED_DROPOFF' as const;
                     const result = await reportMilestone(uid, stop.orderId, milestone, 'GPS', io);
                     if (result.success && !result.duplicated) {
+                        console.log(`📤 [Socket 푸시] milestone-log (${stop.orderId.slice(0, 8)} · GPS 도착)`);
                         io.to(uid).emit("milestone-log", { orderId: stop.orderId, milestones: OrderRepository.getMilestones(stop.orderId) });
                         // auto-arrived — 죽은 문이던 것을 이 기능으로 살렸다 (관제웹이 원래 듣고 있었다)
+                        console.log(`📤 [Socket 푸시] auto-arrived (${stop.orderId.slice(0, 8)} · ${stop.stopType})`);
                         io.to(uid).emit("auto-arrived", {
                             orderId: stop.orderId,
                             stopType: stop.stopType,
@@ -288,6 +290,7 @@ export function registerSocketHandlers(io: Server) {
                 },
                 // 근접 예고 — 도착전 통화 시점 (용어집 §10)
                 (uid, stop, distKm) => {
+                    console.log(`📤 [Socket 푸시] next-stop-approaching (${stop.orderId.slice(0, 8)} · ${stop.stopType})`);
                     io.to(uid).emit("next-stop-approaching", {
                         orderId: stop.orderId,
                         stopType: stop.stopType,
@@ -526,6 +529,7 @@ export function registerSocketHandlers(io: Server) {
             const json = JSON.stringify(sync);
             if (json === session.lastOrderSyncJson) continue;   // 아무것도 안 바뀌었다
             session.lastOrderSyncJson = json;
+            console.log(`📤 [Socket 푸시] sync-active-orders (복구)`);
             io.to(uid).emit("sync-active-orders", sync);
         }
     }, 1000);
