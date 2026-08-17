@@ -183,6 +183,8 @@ function connect(tok) {
     s.on('settlement-updated', d => st.settle.set(d.orderId, d));
     s.on('stale-orders-dropped', d => st.stale = d);
     s.on('handler-error', e => st.errors.push(e));
+    s.on('auto-arrived', () => st.autoArrived = (st.autoArrived || 0) + 1);
+    s.on('next-stop-approaching', () => st.approaching = (st.approaching || 0) + 1);
     return { s, st };
 }
 
@@ -246,10 +248,37 @@ async function run({ main, cod }) {
 
     console.log('\n═══ 콜 생애 6단계 ═══');
     let cur = await refresh(main);
+
+    /**
+     * '상차지 도착'은 버튼이 아니라 **GPS 재생**으로 찍는다 (2026-08-17 도착 감지 재설계 L3).
+     * 통과(주행 속도)로는 안 찍히고, 시뮬(mock) 근접은 1회만 찍히는 것까지 실서버로 검사한다.
+     */
+    const mainCall = st.active.find(o => o.id === main);
+    const gpsArrive = async () => {
+        const px = mainCall?.pickupX, py = mainCall?.pickupY;
+        if (!px || !py) { s.emit('report-milestone', { orderId: main, milestone: 'ARRIVED_PICKUP' }); return; }
+        const wait = ms => new Promise(r => setTimeout(r, ms));
+        // ① 반경 안이지만 첫 틱 — 속도를 모른다 → 발화 금지 (지어내지 않는다)
+        s.emit('dashboard-gps-update', { lat: py + 0.0018, lng: px, source: 'browser' });   // ~200m
+        await wait(300);
+        // ② 반경 안 + 주행 속도(~24km/h) — 통과다 → 발화 금지
+        s.emit('dashboard-gps-update', { lat: py + 0.00162, lng: px, source: 'browser' });  // 2m 이동/0.3s
+        await wait(700);
+        const mid = await refresh(main);
+        check('통과(주행 속도)로는 도착이 찍히지 않는다',
+            !mid.ms.some(x => x.milestone === 'ARRIVED_PICKUP'), `수신 auto-arrived ${st.autoArrived || 0}회`);
+        check('근접 예고(도착전 통화)가 왔다', (st.approaching || 0) >= 1, `${st.approaching || 0}회`);
+        // ③ 시뮬(mock) 근접 — 이제 발화한다 (그리고 아래 refreshUntil 이 인덱스 전진을 확인)
+        s.emit('dashboard-gps-update', { lat: py, lng: px, source: 'mock' });
+        await wait(400);
+        // ④ 같은 자리 한 틱 더 — 재발화 금지 (한 정거장당 1회)
+        s.emit('dashboard-gps-update', { lat: py + 0.00001, lng: px, source: 'mock' });
+    };
+
     const steps = [
         ['상차지 통화', () => s.emit('save-cargo-report', { orderId: main, stopType: 'pickup', kind: 'DECLARED', unit: '라면박스', quantity: 2, handling: '수작업' })],
         ['하차지 통화', () => s.emit('save-cargo-report', { orderId: main, stopType: 'dropoff', kind: 'DECLARED', handling: '지게차' })],
-        ['상차지 도착', () => s.emit('report-milestone', { orderId: main, milestone: 'ARRIVED_PICKUP' })],
+        ['상차지 도착', gpsArrive],
         ['상차 완료', () => s.emit('report-milestone', { orderId: main, milestone: 'PICKED_UP' })],
         ['하차지 도착', () => s.emit('report-milestone', { orderId: main, milestone: 'ARRIVED_DROPOFF' })],
         ['하차 완료', () => s.emit('report-milestone', { orderId: main, milestone: 'DELIVERED' })],
@@ -257,7 +286,7 @@ async function run({ main, cod }) {
     for (const [name, fire] of steps) {
         const before = deriveIndex(cur.ms, cur.rp);
         const t0 = Date.now();
-        fire();
+        await fire();
         // 단계가 올라갈 때까지 기다린다 (안 올라가면 5초 뒤 실패로 잡힌다)
         cur = await refreshUntil(main, c => deriveIndex(c.ms, c.rp) > before);
         const after = deriveIndex(cur.ms, cur.rp);
@@ -265,6 +294,9 @@ async function run({ main, cod }) {
         check(`${name} → ${after >= 6 ? '운행 완료' : STEPS[after]}`,
             after === before + 1, `index ${before}→${after} · ${ms}ms`);
     }
+
+    check('GPS 도착은 1회만 발화한다 (같은 자리 재틱에 재발화 없음)',
+        (st.autoArrived || 0) <= 1, `auto-arrived ${st.autoArrived || 0}회`);
 
     console.log('\n═══ 멱등성 · 순서 어긋남 ═══');
     s.emit('report-milestone', { orderId: main, milestone: 'DELIVERED' }); await wait(600);
