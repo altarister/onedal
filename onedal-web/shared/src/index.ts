@@ -158,7 +158,7 @@ export type Milestone = typeof MILESTONES[number];
  *   MANUAL_WEB  — 관제탑에서 기사님이 직접
  * 나중에 자동 감지 정확도를 측정할 유일한 근거이므로 반드시 기록한다.
  */
-export const MILESTONE_SOURCES = ['AUTO_SCRAPE', 'APP_BUTTON', 'MANUAL_WEB'] as const;
+export const MILESTONE_SOURCES = ['AUTO_SCRAPE', 'APP_BUTTON', 'MANUAL_WEB', 'GPS'] as const;   // GPS = 도착 감지 자동 기록 (ARRIVED_* 만)
 export type MilestoneSource = typeof MILESTONE_SOURCES[number];
 
 /** 마일스톤 → 그 보고가 성립했을 때의 오더 상태 */

@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { getActiveCalls } from '../core/helpers';
+import { planArrivalStops, type ArrivalStop } from './routeComposer';
 import type { MyOrder } from '@onedal/shared';
 /**
  * 🔴 **타입만 가져온다** (`import type`). 런타임 값을 가져오면 순환 참조가 되어 부팅이 막힌다.
@@ -543,6 +544,43 @@ const IMPLAUSIBLE_SPEED_KMH = 200;
 const GPS_JUMP_MIN_KM = 5;
 const GPS_JUMP_MAX_GAP_S = 30;
 
+/**
+ * 도착 감지 파라미터 (2026-08-17 재설계 — docs/도착감지_재설계_계획.md §2)
+ *
+ * · RADIUS_KM 0.5 — 기존값 유지. 주차 위치·GPS 오차 감안 (바꿀 실측 근거가 아직 없다)
+ * · STILL_KMH 5 · HOLD_SEC 30 — "통과"와 "도착"을 가른다. 정거장 옆 도로를 지나가는
+ *   것만으로 500m 안에 반드시 들어오므로, **실 GPS 는 근접+정지 30초**여야 도착이다.
+ *   ⚠️ 신호 대기(60~120초)는 못 거른다 — 오발 시 undo 로 뒤집는다 (자동은 ARRIVED_* 뿐이라
+ *   상태 피해가 없다). L4 실측으로 빈도를 보고 조정한다.
+ * · 시뮬(`mock`)은 15배속이라 "정지"가 없다 — 근접만으로 판정 (안 가르면 L4 검증 불가)
+ * · NOTICE_KM 3 — 근접 예고(도착전 통화). 시내 ~35km/h 로 약 5분 (용어집 §10)
+ */
+export const GPS_ARRIVAL = {
+    RADIUS_KM: 0.5,
+    STILL_KMH: 5,
+    HOLD_SEC: 30,
+    NOTICE_KM: 3,
+} as const;
+
+/**
+ * 도착 판정 한 틱 — **순수 함수** (L2 검증용).
+ * 속도를 모르면(null) 정지로 치지 않는다 — 없는 숫자를 지어내지 않는다 (규칙 ④).
+ */
+export function evaluateArrivalTick(
+    heldSinceMs: number | null,
+    distKm: number,
+    speedKmh: number | null,
+    source: string,
+    nowMs: number,
+): { fire: boolean; heldSinceMs: number | null } {
+    if (distKm >= GPS_ARRIVAL.RADIUS_KM) return { fire: false, heldSinceMs: null };
+    if (source === 'mock') return { fire: true, heldSinceMs: null };
+    const still = speedKmh != null && speedKmh < GPS_ARRIVAL.STILL_KMH;
+    if (!still) return { fire: false, heldSinceMs: null };
+    const since = heldSinceMs ?? nowMs;
+    return { fire: (nowMs - since) / 1000 >= GPS_ARRIVAL.HOLD_SEC, heldSinceMs: since };
+}
+
 export function processDriverMovement(
     userId: string,
     lat: number,
@@ -560,6 +598,10 @@ export function processDriverMovement(
     trimTraveledCb?: (uid: string) => void,
     /** 좌표 출처 (`native` · `browser` · `mock`) — 관제웹 `gpsBridge` 가 실어 보낸다 */
     source?: string,
+    /** 도착 확정 시 (마일스톤 기록·알림은 socketHandlers 가 한다 — 여기는 io 를 모른다) */
+    onArrival?: (uid: string, stop: ArrivalStop) => void,
+    /** 근접 예고(3km) 시 — 도착전 통화 알림 */
+    onApproaching?: (uid: string, stop: ArrivalStop, distKm: number) => void,
 ) {
     if (!lat || !lng) return;
     
@@ -582,15 +624,21 @@ export function processDriverMovement(
     const prev = session.driverLocation;
     const prevAt = session.lastGpsAt;
     const src = source || '알수없음';
+    /** 도착 감지가 같이 쓴다 — 속도를 모르면 null (지어내지 않는다) */
+    let speedKmh: number | null = null;
+    /** 점프 틱은 도착 판단을 건너뛴다 — 위치를 믿을 수 없다 */
+    let jumped = false;
 
     // 첫 좌표는 비교 대상이 없다. 시간을 모르면 속도도 지어내지 않는다 (규칙 ④)
     if (prev && prevAt) {
         const movedKm = haversineKm(prev.y, prev.x, currentGPS.y, currentGPS.x);
         const elapsedS = Math.max(0.001, (Date.now() - prevAt) / 1000);
         const kmh = (movedKm / elapsedS) * 3600;
+        speedKmh = kmh;
 
         const teleported = movedKm >= GPS_JUMP_MIN_KM && elapsedS < GPS_JUMP_MAX_GAP_S;
         const tooFast = src !== 'mock' && kmh > IMPLAUSIBLE_SPEED_KMH;
+        jumped = teleported || tooFast;
 
         if (teleported || tooFast) {
             console.log(`🚨 [위치 점프] ${movedKm.toFixed(1)}km 를 ${elapsedS.toFixed(1)}초에 ` +
@@ -630,16 +678,73 @@ export function processDriverMovement(
             trimTraveledCb(userId);
         }
 
-        // [2] 도착 감지: 마지막 하차지 500m 이내 도달 시
-        const lastDropoff = getLastDropoffCoord(session);
-        if (lastDropoff && haversineKm(lat, lng, lastDropoff.y, lastDropoff.x) < 0.5) {
-            applyFilterCb(userId, { 
-                driverAction: 'UNLOADING',    // [V2] 하차 중으로 자동 전환
-            });
-            console.log(`🏁 [도착 감지] 하차지 500m 이내 도달`);
-            // 도착 알림은 socketHandlers 쪽에서 io.to().emit()으로 발송하도록 콜백 체계 활용 (또는 applyFilterCb 안에서 이벤트 발생 가능)
-        }
     }
+
+    /**
+     * [2] 도착 감지 — **다음 정거장 하나만** 본다 (2026-08-17 재설계).
+     *
+     * 🔴 예전에는 마지막 하차지 1곳만 봤고, 멈춤 조건이 없어 500m 안에서 **매 틱 발화**했다
+     *    (실측: 1초 4연발 + 매번 filter 재계산). 이제:
+     *    · 정거장 목록은 `planArrivalStops`(routeComposer) — 경로가 가리키는 순서 그대로.
+     *      감시가 자기 순서를 만들면 경로와 갈라진다
+     *    · 한 정거장당 발화 1회 (`arrivalFired`) · 점프 틱은 판단하지 않는다
+     *    · DELIVERING 게이트 밖이다 — 출발 버튼 전에 상차지에 닿는 경우도 실재한다
+     */
+    watchArrival(userId, session, currentGPS, speedKmh, jumped, src, applyFilterCb, onArrival, onApproaching);
+}
+
+/** 정거장 키 — 발화·예고 플래그의 단위 */
+const stopKeyOf = (st: ArrivalStop) => `${st.orderId}:${st.stopType}`;
+
+function watchArrival(
+    userId: string,
+    session: UserSession,
+    gps: { x: number; y: number },
+    speedKmh: number | null,
+    jumped: boolean,
+    src: string,
+    applyFilterCb: (uid: string, filter: any) => void,
+    onArrival?: (uid: string, stop: ArrivalStop) => void,
+    onApproaching?: (uid: string, stop: ArrivalStop, distKm: number) => void,
+) {
+    const active = getActiveCalls(session);
+    if (active.length === 0) return;
+    if (jumped) {
+        // 위치를 못 믿는 틱 — 정지 유지도 끊는다 (점프 후 좌표로 30초를 세면 거짓 도착이 된다)
+        if (session.arrivalWatch) session.arrivalWatch.heldSinceMs = null;
+        return;
+    }
+
+    const stops = planArrivalStops(active, gps);
+    const next = stops.find(st => !session.arrivalFired.has(stopKeyOf(st)));
+    if (!next) return;
+
+    const key = stopKeyOf(next);
+    const distKm = haversineKm(gps.y, gps.x, next.y, next.x);
+    const label = next.stopType === 'pickup' ? '상차지' : '하차지';
+
+    // 근접 예고 — 도착전 통화 시점 (정거장당 1회)
+    if (distKm < GPS_ARRIVAL.NOTICE_KM && !session.arrivalNoticed.has(key)) {
+        session.arrivalNoticed.add(key);
+        console.log(`📣 [근접 예고] 다음 정거장(${label}) ${distKm.toFixed(1)}km 앞 — 도착전 통화 시점`);
+        onApproaching?.(userId, next, distKm);
+    }
+
+    if (session.arrivalWatch?.stopKey !== key) session.arrivalWatch = { stopKey: key, heldSinceMs: null };
+    const tick = evaluateArrivalTick(session.arrivalWatch.heldSinceMs, distKm, speedKmh, src, Date.now());
+    session.arrivalWatch.heldSinceMs = tick.heldSinceMs;
+    if (!tick.fire) return;
+
+    session.arrivalFired.add(key);          // 🔴 한 번 찍으면 이 정거장은 끝 — 4연발의 해답
+    session.arrivalWatch = null;
+    console.log(`🏁 [도착 감지] ${label} ${GPS_ARRIVAL.RADIUS_KM * 1000}m 이내 (출처 ${src}) — 1회 발화`);
+
+    if (next.stopType === 'dropoff') {
+        applyFilterCb(userId, {
+            driverAction: 'UNLOADING',    // 하차 중으로 자동 전환 (이제 1회만)
+        });
+    }
+    onArrival?.(userId, next);
 }
 
 /**

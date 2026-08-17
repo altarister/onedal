@@ -618,6 +618,9 @@ export function updateActiveFilter(
         };
         session.detourProgressKm = null;
         session.departedAt = null;   // 사이클이 끝났다 — 다음 운행은 다시 모으기부터
+        session.arrivalFired.clear();      // 도착 감지 상태도 같은 수명이다 —
+        session.arrivalNoticed.clear();    // 어제 찍은 정거장이 오늘 되살아나지 않는다
+        session.arrivalWatch = null;
         recalculateDerivedFields(session, {}, userId);
         console.log(`[FilterManager] STANDBY 복귀: 합짐 파생값만 되돌림 ` +
             `(오늘 필터 유지 — 도착 ${session.activeFilter.destinationCity}, 최저 ${session.activeFilter.minFare}원)`);

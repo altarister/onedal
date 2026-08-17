@@ -215,3 +215,41 @@ export function planMergedStops(
 
     return { origin, mergedDest, waypoints, skippedPickups };
 }
+
+/** 도착 감지가 보는 정거장 — 어느 콜의 어느 쪽인지 라벨이 붙어 있다 */
+export interface ArrivalStop {
+    orderId: string;
+    stopType: 'pickup' | 'dropoff';
+    x: number;
+    y: number;
+}
+
+/**
+ * 도착 감지용 **정거장 목록** — 방문 순서대로, 라벨 포함.
+ *
+ * `planMergedStops` 와 같은 규칙으로 조립한다 (이미 상차한 콜의 상차지는 뺀다 ·
+ * 상차지들 먼저, 하차지들 나중 · `optimizeWaypoints` 순서). 경유지 조립이 여기
+ * `routeComposer` 한 곳뿐이어야 하는 규칙(loadedRoute 테스트)의 연장이다 —
+ * 도착 감지가 자기 순서를 따로 만들면 "경로가 가리키는 다음"과 "감시하는 다음"이 갈라진다.
+ *
+ * `planMergedStops` 와 달리 **마지막 하차지도 포함**한다 (경유지가 아니라 정거장이므로).
+ */
+export function planArrivalStops(
+    calls: RouteHolder[],
+    driverLocation: Coord | null | undefined,
+): ArrivalStop[] {
+    const pickups: ArrivalStop[] = [];
+    const dropoffs: ArrivalStop[] = [];
+    for (const c of calls) {
+        const p = toCoordPair(c);
+        if (!p) continue;
+        if (!isAlreadyLoaded(c)) pickups.push({ orderId: c.id, stopType: 'pickup', ...p.pickup });
+        dropoffs.push({ orderId: c.id, stopType: 'dropoff', ...p.dropoff });
+    }
+    if (pickups.length === 0 && dropoffs.length === 0) return [];
+
+    const startLoc = driverLocation || pickups[0] || dropoffs[0];
+    // optimizeWaypoints 는 객체를 그대로 정렬해 돌려준다 — 라벨이 보존된다
+    const { sortedPickups, sortedDropoffs } = optimizeWaypoints(startLoc, pickups, dropoffs);
+    return [...sortedPickups, ...sortedDropoffs] as ArrivalStop[];
+}

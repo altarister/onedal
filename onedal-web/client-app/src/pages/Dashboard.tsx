@@ -73,18 +73,28 @@ export default function Dashboard() {
     //    서버 라우트 /api/kakao/directions/compare 는 범용이라 남겨두었다.
 
     // 귀가콜 자동 도착 알림 핸들러
-    // 🚨 TODO(미구현) — Phase 4에서 서버 구현 예정
-    // 서버에 `auto-arrived` emit이 0건이라 이 핸들러는 현재 절대 호출되지 않습니다.
-    // (geoService.processDriverMovement의 도착 감지 자체가 죽어 있음 — getLastDropoffCoord 참조)
+    /**
+     * 도착 감지 (2026-08-17 소생 — 죽은 문이었다).
+     * 🔴 confirm() 으로 "배달 완료 처리?"를 묻던 옛 코드는 지웠다 — 하차 완료는 물리 행위라
+     *    GPS 도, 확인창도 대신 못 찍는다 (자동은 ARRIVED_* 뿐). 진행 바 전진은 milestone-log 가
+     *    이미 하므로 여기는 잠깐 알림만 띄운다.
+     */
+    const [gpsNotice, setGpsNotice] = useState<string | null>(null);
     useEffect(() => {
-        const onAutoArrived = (data: { message: string }) => {
-            if (confirm(data.message + "\n\n배달 완료 처리하시겠습니까?")) {
-                console.log("🏁 사용자 도착 확인");
-            }
+        const onAutoArrived = (data: { stopType: 'pickup' | 'dropoff', message: string }) => {
+            setGpsNotice(`🏁 ${data.message}`);
+            setTimeout(() => setGpsNotice(null), 10_000);
+        };
+        const onApproaching = (data: { stopType: 'pickup' | 'dropoff', distanceKm: number }) => {
+            const label = data.stopType === 'pickup' ? '상차지' : '하차지';
+            setGpsNotice(`📣 다음 정거장(${label}) ${data.distanceKm}km 앞 — 도착전 통화를 걸어 주세요`);
+            setTimeout(() => setGpsNotice(null), 20_000);
         };
         socket.on("auto-arrived", onAutoArrived);
+        socket.on("next-stop-approaching", onApproaching);
         return () => {
             socket.off("auto-arrived", onAutoArrived);
+            socket.off("next-stop-approaching", onApproaching);
         };
     }, []);
 
@@ -118,6 +128,18 @@ export default function Dashboard() {
             <Header isConnected={isConnected} />
 
             <div className="flex flex-col max-w-2xl mx-auto">
+
+                {/* 🏁 도착 감지 · 📣 근접 예고 (도착전 통화) — 잠깐 떴다 사라진다 */}
+                {gpsNotice && (
+                    <div className="mx-3 mt-3 rounded-xl border border-primary/40 bg-primary/10 px-4 py-2.5 flex items-center gap-2 text-sm">
+                        <span className="flex-1 font-bold text-text-primary">{gpsNotice}</span>
+                        <button
+                            onClick={() => setGpsNotice(null)}
+                            className="text-text-muted hover:text-text-primary text-xs font-bold px-2 py-1"
+                            aria-label="알림 닫기"
+                        >닫기</button>
+                    </div>
+                )}
 
                 {/* 🔄 서버 재시작 복구 알림 */}
                 {restoredInfo && (

@@ -115,6 +115,17 @@ export interface UserSession {
     lastTrimGPS?: { x: number; y: number };
 
     /**
+     * 도착 감지 상태 (2026-08-17 재설계 — docs/도착감지_재설계_계획.md)
+     * · arrivalFired    한 번 찍은 정거장(`orderId:stopType`) — **한 정거장당 발화 1회**의 근거
+     * · arrivalWatch    지금 감시 중인 "다음 정거장"의 정지 유지 상태 (실 GPS 만)
+     * · arrivalNoticed  근접 예고(3km)를 이미 보낸 정거장
+     * 사이클이 끝나면 셋 다 비운다 (지나온 구간 진행도와 같은 수명).
+     */
+    arrivalFired: Set<string>;
+    arrivalWatch: { stopKey: string; heldSinceMs: number | null } | null;
+    arrivalNoticed: Set<string>;
+
+    /**
      * 마지막으로 위치를 받은 시각(ms). **속도를 재는 데만 쓴다.**
      * 기사님 결정(2026-08-14): 위치 기록은 *"이동이 있을 때만"* 남긴다 —
      * 그러려면 얼마나 움직였는지와 함께 **얼마 만에** 움직였는지를 알아야 한다.
@@ -173,6 +184,9 @@ function createDefaultSession(): UserSession {
         lastFilterJson: null,
         lastTrimGPS: undefined,
         lastGpsAt: undefined,
+        arrivalFired: new Set(),
+        arrivalWatch: null,
+        arrivalNoticed: new Set(),
     };
 }
 

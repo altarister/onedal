@@ -267,6 +267,33 @@ export function registerSocketHandlers(io: Server) {
                 // 지나온 구간 제거는 전용 통로 — 파생 재계산을 거치지 않는다
                 (uid) => trimTraveled(uid, io),
                 loc.source,
+                /**
+                 * 도착 확정 → 마일스톤 자동 기록 (2026-08-17 재설계).
+                 * 🔴 GPS 가 기록하는 마일스톤은 **ARRIVED_* 둘뿐**이다 — 상차·하차 완료는
+                 *    물리 행위라 GPS 가 모른다. 절대 자동으로 찍지 않는다.
+                 * 역행·중복은 reportMilestone 안에서 걸러진다 (canReportMilestone + DB UNIQUE).
+                 */
+                async (uid, stop) => {
+                    const milestone = stop.stopType === 'pickup' ? 'ARRIVED_PICKUP' as const : 'ARRIVED_DROPOFF' as const;
+                    const result = await reportMilestone(uid, stop.orderId, milestone, 'GPS', io);
+                    if (result.success && !result.duplicated) {
+                        io.to(uid).emit("milestone-log", { orderId: stop.orderId, milestones: OrderRepository.getMilestones(stop.orderId) });
+                        // auto-arrived — 죽은 문이던 것을 이 기능으로 살렸다 (관제웹이 원래 듣고 있었다)
+                        io.to(uid).emit("auto-arrived", {
+                            orderId: stop.orderId,
+                            stopType: stop.stopType,
+                            message: `${stop.stopType === 'pickup' ? '상차지' : '하차지'} 도착을 감지했습니다 (GPS)`,
+                        });
+                    }
+                },
+                // 근접 예고 — 도착전 통화 시점 (용어집 §10)
+                (uid, stop, distKm) => {
+                    io.to(uid).emit("next-stop-approaching", {
+                        orderId: stop.orderId,
+                        stopType: stop.stopType,
+                        distanceKm: Math.round(distKm * 10) / 10,
+                    });
+                },
             );
         });
 

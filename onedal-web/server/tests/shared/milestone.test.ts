@@ -31,8 +31,8 @@ describe('마일스톤 규격', () => {
         expect(MILESTONE_TO_STATUS.ARRIVED_DROPOFF).toBeNull();
     });
 
-    it('진입 경로 셋을 모두 구분해 기록한다 (자동 감지 정확도 측정 근거)', () => {
-        expect(MILESTONE_SOURCES).toEqual(['AUTO_SCRAPE', 'APP_BUTTON', 'MANUAL_WEB']);
+    it('진입 경로 넷을 모두 구분해 기록한다 (자동 감지 정확도 측정 근거)', () => {
+        expect(MILESTONE_SOURCES).toEqual(['AUTO_SCRAPE', 'APP_BUTTON', 'MANUAL_WEB', 'GPS']);   // GPS = 도착 감지 자동 (2026-08-17)
     });
 
     it('마일스톤이 어떤 상태로 이어지는지 한 곳에서만 정한다', () => {
