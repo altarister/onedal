@@ -493,32 +493,30 @@ async function ledger() {
         empty.length ? `🔴 빈 칸: ${empty.join(', ')}` : `${REQUIRED.length}칸 확인`);
 
     /**
-     * ② **화면의 근거로 점수를 재현할 수 있는가.**
+     * ② **색과 점수가 서로 맞는가.**
      *
-     * 이 제품은 숫자 옆에 근거 한 줄을 적는다. 그 근거로 점수가 재현되지 않으면
-     * **화면이 거짓말을 하는 것**이다 — 기사님은 색을 보고 1~2초에 누르시는데
-     * 왜 그 색인지 확인할 방법이 사라진다.
+     * 카드의 색은 점수에서 나온다. 둘이 어긋나면 **화면이 자기모순**이고,
+     * 기사님은 색을 보고 1~2초에 누르시므로 그게 곧 오결재가 된다.
      *
-     * 문구의 시간(소요 + 상차지까지)을 판정 기준에 넣어 나오는 점수가
-     * 실제 찍힌 점수와 같아야 한다. 반올림 오차 1점까지만 봐준다.
+     * ⚠️ 예전에는 "문구의 시간으로 점수를 재현"했는데, 2026-08-18 에 첫짐 판정이
+     *    운행시간 → **단가** 로 바뀌면서 그 검사가 없어진 DB 칸을 읽어 터졌다.
+     *    그래서 축이 바뀌어도 참인 것만 본다 — 점수와 색의 관계는 축과 무관하다.
      */
     const ext = row.kakaoTimeExt || '';
-    const mDrive = /소요 (\d+)분/.exec(ext);
     const mScore = /· (\d+)점/.exec(ext);
-    if (mDrive && mScore) {
-        const appr = Number((/상차지까지 (\d+)분/.exec(ext) || [])[1] || 0);
-        const shown = Number(mDrive[1]) + appr;
+    const mColor = /'(꿀|보통|똥)'/.exec(ext);
+    if (mScore && mColor) {
         const c = new Database(dbPath, { readonly: true });
-        const j = c.prepare(`SELECT solo_honey_max_minutes AS honey, solo_shit_min_minutes AS shit
+        const j = c.prepare(`SELECT color_honey_min AS honey, color_normal_min AS normal
                              FROM user_judgment WHERE user_id = ?`).get(row.userId) || {};
         c.close();
-        const honey = j.honey ?? 40, shit = j.shit ?? 90;
-        const expect = shown <= honey ? 100 : shown >= shit ? 0
-            : Math.round(100 * (shit - shown) / (shit - honey));
-        check('화면의 근거로 점수를 재현할 수 있다', Math.abs(expect - Number(mScore[1])) <= 1,
-            `문구 ${shown}분(소요 ${mDrive[1]}+접근 ${appr}) → ${expect}점 인데 찍힌 값은 ${mScore[1]}점`);
+        const honey = j.honey ?? 70, normal = j.normal ?? 40;
+        const score = Number(mScore[1]);
+        const expect = score >= honey ? '꿀' : score >= normal ? '보통' : '똥';
+        check('색과 점수가 서로 맞는다', expect === mColor[1],
+            `${score}점이면 '${expect}' 인데 문구는 '${mColor[1]}' (경계 꿀${honey}·보통${normal})`);
     } else {
-        check('첫짐 문구에 시간과 점수가 함께 적힌다', false, `문구: "${ext}"`);
+        check('첫짐 문구에 색과 점수가 함께 적힌다', false, `문구: "${ext}"`);
     }
 
     /**

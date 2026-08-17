@@ -92,26 +92,39 @@ export class OrderEvaluator {
                             routingOptions.carType
                         );
 
-                        /**
-                         * 🎯 첫짐 판정 — 색을 정하는 곳은 `shared/judgment.ts` 하나뿐이다.
-                         * 🔴 예전에는 코드 상수(SOLO_SHIT_TIME_MIN 90분)를 직접 비교해 사유만
-                         *    남겼고, 색·점수가 없어 "요율 🍯 인데 종합 💩" 로 갈라져 보였다
-                         *    (2026-08-17 실측). 이제 기준은 user_judgment(첫짐 40/90)에서 온다.
-                         */
-                        const soloVerdict = scoreSolo({ driveMin: result.duration / 60 }, session.judgment);
-                        const soloMark = `'${soloVerdict.color}'`;
-                        console.log(`   - 🎯 [판정] ${describeJudgment(soloVerdict)}`);
-                        if (soloVerdict.color === '똥') {
-                            reasons.push(`총점 ${soloVerdict.score}점 — 운행시간 ${Math.round(result.duration / 60)}분`);
-                        } else {
-                            pros.push(`총점 ${soloVerdict.score}점 — ${soloVerdict.parts.map(pt => `${pt.name} ${pt.raw}`).join(' · ')}`);
-                        }
-                        
                         // 🔴 예전에는 여기서 손으로 필드를 채웠다. routeComposer 의 규약을 안 타서
                         //    **접근 구간(현위치 → 상차지)이 통째로 버려지고** 있었다.
                         //    콜을 잡는 이 경로가 주 경로인데, 여기만 규약 밖에 있었던 것이다.
                         //    (EE 리팩터링에서 composeMergedRoute 를 쓰는 곳만 통일하고 여기를 놓쳤다)
                         applySoloRoute(securedOrder, result);
+
+                        /**
+                         * 🎯 **첫짐 판정 — 단가로 잰다** (기사님 확정 2026-08-18)
+                         *
+                         * 🔴 운행시간 축을 버렸다. 첫짐에서 운행시간이 길다는 건 나쁜 게 아니라
+                         *    **그게 일감**이다. 노선(광주→파주)이 늘 80~100분이라 옛 기준(40/90분)으로는
+                         *    잡은 콜이 **전부 똥**으로 떴다 — 100,000원짜리가 0점이었다.
+                         *
+                         * 기사님: *"필터는 최저값보다 크기만 하면 올려주니, 내가 판단하는 건
+                         *          단가가 좋은지 아닌지로 하면 된다."*
+                         *
+                         * 앱이 이미 `요금 ≥ 배송거리 × 단가` 로 하한을 넘긴 콜만 올린다.
+                         * 그러므로 서버가 답할 것은 하나다 — **적정가를 넘었는가.**
+                         */
+                        const pricing = this.loadPricing(securedOrder, userId);
+                        const soloVerdict = scoreSolo({
+                            fare: securedOrder.fare,
+                            fairPrice: pricing?.fairPrice ?? null,
+                            minAcceptable: pricing?.minAcceptable ?? null,
+                        }, session.judgment);
+                        const soloMark = `'${soloVerdict.color}'`;
+                        console.log(`   - 🎯 [판정] ${describeJudgment(soloVerdict)}`);
+                        if (soloVerdict.color === '똥') {
+                            reasons.push(`총점 ${soloVerdict.score}점 — ${soloVerdict.parts.map(pt => `${pt.name} ${pt.raw}`).join(' · ')}`);
+                        } else {
+                            pros.push(`총점 ${soloVerdict.score}점 — ${soloVerdict.parts.map(pt => `${pt.name} ${pt.raw}`).join(' · ')}`);
+                        }
+
                         // 관제웹 카드가 이 문자열의 '꿀'/'똥' 표식으로 색을 정한다 (합짐 timeExt 와 같은 규약)
                         timeExt = `추천거리 ${securedOrder.kakaoSoloDistanceKm}km, 소요 ${securedOrder.kakaoSoloDurationMin}분`
                             + (securedOrder.approachDurationMin ? ` (상차지까지 ${securedOrder.approachDurationMin}분)` : '')
@@ -353,23 +366,45 @@ export class OrderEvaluator {
         console.log(`   - 🔍 [Stage 1] 형상 필터 검증 완료: ${reasons.length === 0 ? '✅ 통과' : `❌ ${reasons.join(', ')}`}`);
     }
 
-    private runStage3Pricing(order: SecuredOrder | PendingOrder, userId: string, reasons: string[], pros: string[]) {
-        if (order.kakaoSoloDistanceKm && order.fare) {
-            try {
-                const pricing = SettingsRepository.loadPricingConfig(userId);
-                const routingOpts = SettingsRepository.getKakaoRoutingOptions(userId);
-                const baseResult = PricingEngine.calculateDynamicFare(
-                    order.kakaoSoloDistanceKm,
-                    order.vehicleType || undefined,
-                    routingOpts.vehicleType,
-                    pricing
-                );
+    /**
+     * 적정가·하한가를 한 곳에서 구한다.
+     *
+     * 🔴 **첫짐 색과 요율 문구가 같은 값을 봐야 한다** (2026-08-18).
+     *    첫짐 판정이 단가 기준으로 바뀌면서 이 값을 두 곳에서 쓰게 됐다.
+     *    각자 계산하면 언젠가 갈라진다 — 파생값은 한 곳에서 만든다 (규칙 ③).
+     *
+     * 못 구하면 `null` 을 준다. 0 이나 짐작값을 지어내지 않는다 (규칙 ④).
+     */
+    private loadPricing(order: SecuredOrder | PendingOrder, userId: string):
+        { fairPrice: number; minAcceptable: number } | null {
+        if (!order.kakaoSoloDistanceKm || !order.fare) return null;
+        try {
+            const pricing = SettingsRepository.loadPricingConfig(userId);
+            const routingOpts = SettingsRepository.getKakaoRoutingOptions(userId);
+            const base = PricingEngine.calculateDynamicFare(
+                order.kakaoSoloDistanceKm,
+                order.vehicleType || undefined,
+                routingOpts.vehicleType,
+                pricing
+            );
+            const adjusted = this.plugin.applyPricingExceptions(
+                order.fare, base.fairPrice, base.minAcceptable
+            );
+            return {
+                fairPrice: adjusted.adjustedFairPrice,
+                minAcceptable: adjusted.adjustedMinAcceptable,
+            };
+        } catch (e) {
+            console.error(`   - ⚠️ [요율] 적정가 계산 실패:`, e);
+            return null;
+        }
+    }
 
-                const adjusted = this.plugin.applyPricingExceptions(
-                    order.fare, 
-                    baseResult.fairPrice, 
-                    baseResult.minAcceptable
-                );
+    private runStage3Pricing(order: SecuredOrder | PendingOrder, userId: string, reasons: string[], pros: string[]) {
+        const p = this.loadPricing(order, userId);
+        if (p) {
+            {
+                const adjusted = { adjustedFairPrice: p.fairPrice, adjustedMinAcceptable: p.minAcceptable };
 
                 if (order.fare < adjusted.adjustedMinAcceptable) {
                     const diff = order.fare - adjusted.adjustedMinAcceptable;
@@ -381,8 +416,6 @@ export class OrderEvaluator {
                 } else {
                     console.log(`   - ✅ [요율 판정] 적정 범위 — 실제 ${order.fare.toLocaleString()}원 (하한 ${adjusted.adjustedMinAcceptable.toLocaleString()} ~ 적정 ${adjusted.adjustedFairPrice.toLocaleString()})`);
                 }
-            } catch (e) {
-                console.error(`   - ⚠️ [요율 판정] 계산 실패:`, e);
             }
         }
     }

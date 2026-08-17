@@ -152,19 +152,33 @@ describe('판정하는 곳은 한 곳', () => {
         const ev = codeOnly(read('core/engine/OrderEvaluator.ts'));
         expect(ev).toMatch(/scoreSolo\(\{/);
         expect(ev).not.toMatch(/SOLO_SHIT_TIME_MIN|SOLO_HONEY_TIME_MAX/);
+        expect(ev).not.toMatch(/driveMin:/);   // 운행시간 축 폐기 (2026-08-18)
         const cfg = codeOnly(read('config/dispatchConfig.ts'));
         expect(cfg).not.toMatch(/SOLO_SHIT_TIME_MIN/);
     });
 
-    it('첫짐 색 — 기준 40/90분이 세 색을 다 낸다 (기준은 user_judgment 첫짐 그룹)', () => {
-        expect(scoreSolo({ driveMin: 35 }).color).toBe('꿀');
-        expect(scoreSolo({ driveMin: 65 }).color).toBe('보통');
-        expect(scoreSolo({ driveMin: 99 }).color).toBe('똥');     // 2026-08-17 실측 그 콜
+    /**
+     * 🔴 **첫짐은 단가로 잰다 — 운행시간 축은 폐기** (기사님 확정 2026-08-18)
+     *
+     * 옛 기준(40/90분)에서는 기사님 노선(광주→파주, 80~100분)이 **전부 똥**으로 떴다.
+     * 100,000원짜리가 0점이었는데 같은 로그에서 요율은 "적정가의 1.5배"라고 말하고 있었다.
+     * 첫짐에서 오래 걸린다는 건 나쁜 게 아니라 그게 일감이다.
+     */
+    it('첫짐 색 — 적정가를 넘으면 꿀, 하한 이상이면 보통, 미만이면 똥', () => {
+        const 적정 = 70_000, 하한 = 63_000;
+        expect(scoreSolo({ fare: 100_000, fairPrice: 적정, minAcceptable: 하한 }).color).toBe('꿀');
+        expect(scoreSolo({ fare: 65_000, fairPrice: 적정, minAcceptable: 하한 }).color).toBe('보통');
+        expect(scoreSolo({ fare: 50_000, fairPrice: 적정, minAcceptable: 하한 }).color).toBe('똥');
     });
 
-    it('첫짐도 기사님이 탭에서 고친 기준을 쓴다 (기본값이 아니다)', () => {
-        const loose = { ...DEFAULT_JUDGMENT, solo: { honeyMaxMin: 120, shitMinMin: 180 } };
-        expect(scoreSolo({ driveMin: 99 }, loose).color).toBe('꿀');
+    it('첫짐 — 운행시간이 아무리 길어도 단가가 좋으면 꿀이다 (2026-08-18 실측 그 콜)', () => {
+        // 100,000원 · 94km · 98분 → 옛 기준으로는 0점 똥이었다
+        expect(scoreSolo({ fare: 100_000, fairPrice: 65_142, minAcceptable: 58_628 }).color).toBe('꿀');
+    });
+
+    it('첫짐 — 적정가를 못 구하면 색을 지어내지 않는다', () => {
+        const r = scoreSolo({ fare: 100_000, fairPrice: null, minAcceptable: null });
+        expect(r.parts[0].raw).toContain('연산 실패');
     });
 
     it('🔴 재탐색이 자기 숫자를 갖지 않는다', () => {

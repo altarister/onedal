@@ -35,8 +35,6 @@ export interface JudgmentConfig {
         /** 이 km 이하면 만점 */ honeyMaxKm: number;
         /** 이 km 이상이면 0점 */ shitMinKm: number;
     };
-    /** 🚚 첫짐 — 빈 차로 잡는 첫 콜 */
-    solo: { honeyMaxMin: number; shitMinMin: number };
     /**
      * 모르는 값을 채우는 **일반값** (규칙 ⑤-2).
      * 불리한 값이 아니다 — 모르면 나쁜 쪽으로 잡던 것이 꿀콜을 놓치게 했다.
@@ -70,7 +68,6 @@ export const DEFAULT_JUDGMENT: JudgmentConfig = {
     // 지금 `dispatchConfig.ts` 에 있던 값을 **그대로** 옮겼다.
     // 🔴 구조를 바꾸는 일과 값을 바꾸는 일을 같이 하지 않는다 — 색이 바뀌면 원인을 못 가린다.
     merge: { honeyMaxMin: 30, shitMinMin: 60, honeyMaxKm: 15, shitMinKm: 30 },
-    solo:  { honeyMaxMin: 40, shitMinMin: 90 },
     unknown: { pickupDwellMin: 15, dropoffDwellMin: 10, pickupOffsetMin: 60, restMarginMin: 30 },
     weights: { driveTime: 1, detourDist: 1, deadline: 1, slots: 1 },
     color: { honeyMin: 70, normalMin: 40 },
@@ -116,12 +113,6 @@ export const JUDGMENT_FIELDS: readonly JudgmentField[] = [
     { col: 'merge_shit_min_km', path: ['merge', 'shitMinKm'], group: '합짐',
       label: '🟡 똥 기준 거리', unit: 'km', min: 0, max: 400, int: false,
       why: '고속도로 30km 와 국도 30km 는 시간이 다르다 (기사님 2026-08-15)' },
-
-    { col: 'solo_honey_max_minutes', path: ['solo', 'honeyMaxMin'], group: '첫짐',
-      label: '🔵 꿀 기준 시간', unit: '분', min: 0, max: 240, int: true,
-      why: '첫짐은 순증이 아니라 기준을 세우는 짐이다' },
-    { col: 'solo_shit_min_minutes', path: ['solo', 'shitMinMin'], group: '첫짐',
-      label: '🟡 똥 기준 시간', unit: '분', min: 0, max: 480, int: true, why: '' },
 
     { col: 'unknown_pickup_dwell_minutes', path: ['unknown', 'pickupDwellMin'], group: '모를 때',
       label: '상차 미확인', unit: '분', min: 0, max: 120, int: true,
@@ -268,29 +259,53 @@ export interface MergeInput {
  * 하한이 없으므로 색은 *"잡을까 말까"* 가 아니라 **"얼마나 좋은가"** 다.
  * 그래서 요금을 보지 않는다 — 돈은 앱이 이미 걸렀다 (규칙 ⑤-1).
  */
-/** 첫짐 판정 입력 — 빈 차에 처음 싣는 콜은 우회가 아니라 **총 운행시간**으로 잰다 */
+/**
+ * 첫짐 판정 입력 — **단가로 잰다** (기사님 확정 2026-08-18).
+ *
+ * 🔴 운행시간 축은 버렸다. 첫짐에서 오래 걸린다는 건 나쁜 게 아니라 **그게 일감**이다.
+ *    노선이 늘 80~100분이라 옛 기준(40/90분)에서는 잡은 콜이 전부 똥으로 떴다.
+ */
 export interface SoloInput {
-    /** 현위치→상차지→하차지 총 주행 (분) — 접근 포함 */
-    driveMin: number;
+    /** 실제 콜 금액 */
+    fare: number;
+    /** 적정가 — 거리 × 차종단가 × 수수료배수. 못 구했으면 null (지어내지 않는다) */
+    fairPrice: number | null;
+    /** 하한가 — 적정가 × 콜할인율. 앱 필터가 이미 넘긴 문턱이다 */
+    minAcceptable: number | null;
 }
 
 /**
  * 🎯 **첫짐 판정** — 색을 정하는 곳은 여기 하나다 (합짐의 `scoreMerge` 와 짝).
  *
- * 🔴 2026-08-17 이관 — 예전에는 `OrderEvaluator` 가 `DISPATCH_CONFIG.SOLO_SHIT_TIME_MIN`
- *    (코드 상수 90분)을 직접 비교해 **넘으면 사유 한 줄**만 남겼다. 그래서 첫짐은
- *    색·점수 없이 "요율 🍯 인데 종합 💩" 처럼 갈라져 보였다 (2026-08-17 실측: 오포읍 콜).
- *    이제 `user_judgment` 의 첫짐 기준(꿀 40 · 똥 90 — 기사님이 탭에서 고친다)을 쓴다.
+ * 기사님 (2026-08-18): *"필터는 최저값보다 크기만 하면 올려주니,
+ * 내가 판단하는 건 단가가 좋은지 아닌지로 하면 된다."*
+ *
+ * 앱이 `요금 ≥ 배송거리 × 단가` 로 하한을 이미 넘긴 콜만 올린다.
+ * 그러므로 서버가 답할 것은 **적정가를 넘었는가** 하나다. 새 기준값을 만들지 않는다 —
+ * 적정가·하한가는 요율 판정이 이미 쓰던 값이다.
+ *
+ *   적정가 이상  → 🔵 꿀
+ *   하한가 이상  → 🟢 보통   (앱이 통과시킨 정상 구간)
+ *   하한가 미만  → 🟡 똥     (앱 폴백으로 올라온 콜)
  */
 export function scoreSolo(input: SoloInput, cfg: JudgmentConfig = DEFAULT_JUDGMENT): JudgmentResult {
-    const parts: ScorePart[] = [{
-        name: '운행시간',
-        raw: `${Math.round(input.driveMin)}분`,
-        score: rampDown(input.driveMin, cfg.solo.honeyMaxMin, cfg.solo.shitMinMin),
-        weight: 1,
-    }];
-    const score = weighted(parts);
-    return { score, color: colorOf(score, cfg.color), parts };
+    const { fare, fairPrice, minAcceptable } = input;
+
+    // 값을 못 구하면 색을 지어내지 않는다 — 모른다고 표시하고 기사님께 넘긴다 (규칙 ⑤-2)
+    if (fairPrice === null || minAcceptable === null || !fare) {
+        return {
+            score: 0, color: '똥',
+            parts: [{ name: '단가', raw: '연산 실패 — 적정가를 구하지 못했습니다', score: 0, weight: 1 }],
+        };
+    }
+
+    const score = fare >= fairPrice ? 100 : fare >= minAcceptable ? 50 : 0;
+    const raw = `${fare.toLocaleString()}원 / 적정 ${fairPrice.toLocaleString()}원`;
+    return {
+        score,
+        color: colorOf(score, cfg.color),
+        parts: [{ name: '단가', raw, score, weight: 1 }],
+    };
 }
 
 export function scoreMerge(input: MergeInput, cfg: JudgmentConfig = DEFAULT_JUDGMENT): JudgmentResult {
