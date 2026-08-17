@@ -43,7 +43,9 @@ describe('규칙 ① 콜의 주인은 기사님이다', () => {
 
         // 요율 판정부 근처에서 콜을 없애는 호출이 나오면 규칙 위반이다
         const around = src.slice(Math.max(0, idx - 1500), idx + 1500);
-        expect(around).not.toMatch(/forceCancelEvaluatingOrder|handleDecision\s*\([^)]*ORDER_CANCELED/);
+        // ⚠️ 여기의 상태값은 **검사 대상 소스의 이름**이라 개명 때 같이 고쳐야 한다.
+        //    (2026-08-18 ORDER_CANCELED → SAFE_CANCEL. 안 고치면 검사가 조용히 아무것도 안 본다)
+        expect(around).not.toMatch(/forceCancelEvaluatingOrder|handleDecision\s*\([^)]*SAFE_CANCEL/);
     });
 
     /**

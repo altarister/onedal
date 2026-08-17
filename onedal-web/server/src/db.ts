@@ -463,7 +463,7 @@ try {
         db.exec(`
             UPDATE orders SET status = 'ORDER_CONFIRMED'           WHERE status = 'confirmed';
             UPDATE orders SET status = 'ORDER_COMPLETED'           WHERE status = 'completed';
-            UPDATE orders SET status = 'ORDER_CANCELED'            WHERE status = 'canceled';
+            UPDATE orders SET status = 'SAFE_CANCEL'            WHERE status = 'canceled';
             UPDATE orders SET status = 'ORDER_PRE_SECURED'         WHERE status IN ('pending', 'evaluating_basic');
             UPDATE orders SET status = 'ORDER_SECURED_EVALUATING'  WHERE status = 'evaluating_detailed';
         `);

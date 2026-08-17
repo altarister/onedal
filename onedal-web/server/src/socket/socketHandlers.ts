@@ -298,7 +298,7 @@ export function registerSocketHandlers(io: Server) {
         });
 
         // 배차 심사 수락/거절
-        safeOn(socket, "decision", async ({ orderId, action }: { orderId: string, action: 'ORDER_CONFIRMED' | 'ORDER_CANCELED' | 'ORDER_RELEASED' | 'ORDER_FORCE_CANCELED' }) => {
+        safeOn(socket, "decision", async ({ orderId, action }: { orderId: string, action: 'ORDER_CONFIRMED' | 'SAFE_CANCEL' | 'ORDER_RELEASED_BY_ME' | 'ORDER_RELEASED_BY_OFFICE' }) => {
             console.log(`⚖️ [소켓 Decision] User: ${userId}, ID: ${orderId}, Status Action: ${action}`);
             const result = await handleDecision(userId, orderId, action, io);
             socket.emit("decision-ack", result);
@@ -441,7 +441,7 @@ export function registerSocketHandlers(io: Server) {
             logRoadmapEvent("서버", `신고 불일치 판단: ${verdict} (${data.ratio.toFixed(1)}배)`);
 
             if (data.action === 'RELEASE') {
-                await handleDecision(userId, data.orderId, 'ORDER_RELEASED', io);
+                await handleDecision(userId, data.orderId, 'ORDER_RELEASED_BY_ME', io);
             }
             socket.emit("cargo-mismatch-resolved", { orderId: data.orderId, action: data.action });
         });
@@ -450,7 +450,7 @@ export function registerSocketHandlers(io: Server) {
          * [Phase 8.4] 현장에서 상차를 포기한다.
          *
          * 신고와 실물이 다르거나, 물건 상태가 나쁘거나, 상차가 불가능한 경우다.
-         * 방출(ORDER_RELEASED)과 같지만 **그 장소에 이유를 남긴다** —
+         * 방출(ORDER_RELEASED_BY_ME)과 같지만 **그 장소에 이유를 남긴다** —
          * 같은 곳에서 또 겪을 확률이 높기 때문이다.
          */
         safeOn(socket, "cancel-at-stop", async (data: { orderId: string, stopType: 'pickup' | 'dropoff', reason?: string }) => {
@@ -461,7 +461,7 @@ export function registerSocketHandlers(io: Server) {
 
             console.log(`✕ [현장 취소] ${data.orderId.slice(0, 8)} ${data.stopType} — ${line}`);
             logRoadmapEvent("서버", `현장에서 상차 취소 (${data.reason || '사유 미기재'})`);
-            await handleDecision(userId, data.orderId, 'ORDER_RELEASED', io);
+            await handleDecision(userId, data.orderId, 'ORDER_RELEASED_BY_ME', io);
         });
 
         /**

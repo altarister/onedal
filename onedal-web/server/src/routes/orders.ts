@@ -153,7 +153,7 @@ router.post("/confirm", (req, res) => {
                 //    `EVALUATING_STATUSES` 와 값이 같았지만, 한쪽만 늘어나면 갈라진다.
                 if (cached && isEvaluating(cached.status)) {
                     console.log(`💀 [서버 안전취소 타이머] 30초 경과 강제 취소 (ID: ${pendingOrder.id}). 현재 상태: ${cached.status}`);
-                    handleDecision(userId, pendingOrder.id, "ORDER_CANCELED", io);
+                    handleDecision(userId, pendingOrder.id, "SAFE_CANCEL", io);
                 }
             }, 30000);
             session.activeTimers.set(`presecured_${pendingOrder.id}`, graceTimer);
@@ -185,7 +185,7 @@ router.post("/decision", async (req, res) => {
         }
         const userId = deviceRow.user_id;
         
-        const mappedStatus = payload.action === 'KEEP' ? 'ORDER_CONFIRMED' : 'ORDER_CANCELED';
+        const mappedStatus = payload.action === 'KEEP' ? 'ORDER_CONFIRMED' : 'SAFE_CANCEL';
         const result = await handleDecision(userId, payload.orderId, mappedStatus, io);
         res.json(result);
     } catch (error) {

@@ -31,9 +31,10 @@ export type OrderStatus =
     | 'ORDER_DELIVERED'            // (패널티 O) 하차 완료 (수취인 서명)
     | 'ORDER_COMPLETED'            // (패널티 O) 운행 완료 (정상 종료)
     // --- [취소 및 방출 단계] ---
-    | 'ORDER_RELEASED'             // (패널티 O) 배차 방출 (확정 후 내가 포기)
-    | 'ORDER_CANCELED'             // (패널티 O) 배차 거절 (내가 능동 거절)
-    | 'ORDER_FORCE_CANCELED';      // (패널티 X) 수동태 취소 (사무실/화주가 강제 취소)
+    // 취소의 세 갈래 — 패널티(배차망 취소 횟수 10회)는 **안전취소에만** 붙는다 (용어집 §2-1)
+    | 'SAFE_CANCEL'                // (패널티 O) 안전취소 — 확정 후 30초 안에 내가 취소
+    | 'ORDER_RELEASED_BY_ME'       // (패널티 X) 내가통화후방출 — 내가 주선사에 전화해 취소 요청
+    | 'ORDER_RELEASED_BY_OFFICE';  // (패널티 X) 일방적퀵사방출 — 사무실이 일방적으로 취소시킴
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // [런타임 상수] 상태 그룹 배열 + 헬퍼 함수
@@ -62,9 +63,9 @@ export const ALL_ORDER_STATUSES: readonly OrderStatus[] = [
     'ORDER_PICKED_UP',
     'ORDER_DELIVERED',
     'ORDER_COMPLETED',
-    'ORDER_RELEASED',
-    'ORDER_CANCELED',
-    'ORDER_FORCE_CANCELED',
+    'ORDER_RELEASED_BY_ME',
+    'SAFE_CANCEL',
+    'ORDER_RELEASED_BY_OFFICE',
 ] as const;
 
 /** 종결 상태 (더 이상 상태 전이 없음) */
@@ -77,9 +78,9 @@ export const TERMINAL_STATUSES: readonly OrderStatus[] = [
     // 적재 계산·경로 계산·화면 표시가 한꺼번에 정상화된다.
     'ORDER_DELIVERED',
     'ORDER_COMPLETED',
-    'ORDER_RELEASED',
-    'ORDER_CANCELED',
-    'ORDER_FORCE_CANCELED',
+    'ORDER_RELEASED_BY_ME',
+    'SAFE_CANCEL',
+    'ORDER_RELEASED_BY_OFFICE',
 ] as const;
 
 /**
@@ -365,7 +366,7 @@ export type PendingOrderPhase = 'ORDER_PRE_SECURED' | 'ORDER_AWAITING_DECISION';
 // [계층 2-B] 확정 오더 상태 (내가 책임지고 수행해야 하는 퀵)
 // 업계 표준 3단계: 배차확정 → 상차완료(서명) → 하차완료(서명)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-export type MyOrderStatus = 'ORDER_CONFIRMED' | 'ORDER_PICKED_UP' | 'ORDER_DELIVERED' | 'ORDER_COMPLETED' | 'ORDER_RELEASED' | 'ORDER_CANCELED' | 'ORDER_FORCE_CANCELED';
+export type MyOrderStatus = 'ORDER_CONFIRMED' | 'ORDER_PICKED_UP' | 'ORDER_DELIVERED' | 'ORDER_COMPLETED' | 'ORDER_RELEASED_BY_ME' | 'SAFE_CANCEL' | 'ORDER_RELEASED_BY_OFFICE';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // [계층 3] 콜 잡기 전략 단계 — DriverAction + 확정 콜 수에서 파생

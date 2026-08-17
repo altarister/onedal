@@ -14,13 +14,13 @@ function makeSession(statuses: string[]) {
 
 describe('buildOrderSync — 진행/종료 분리', () => {
     it('진행 중인 것만 active 로 간다', () => {
-        const s = makeSession(['ORDER_CONFIRMED', 'ORDER_PICKED_UP', 'ORDER_CANCELED']);
+        const s = makeSession(['ORDER_CONFIRMED', 'ORDER_PICKED_UP', 'SAFE_CANCEL']);
         const { active } = buildOrderSync(s);
         expect(active.map(o => o.status)).toEqual(['ORDER_CONFIRMED', 'ORDER_PICKED_UP']);
     });
 
     it('종료된 것은 전부 terminated 로 간다 (탭 표시용)', () => {
-        const s = makeSession(['ORDER_DELIVERED', 'ORDER_COMPLETED', 'ORDER_RELEASED', 'ORDER_CANCELED', 'ORDER_FORCE_CANCELED']);
+        const s = makeSession(['ORDER_DELIVERED', 'ORDER_COMPLETED', 'ORDER_RELEASED_BY_ME', 'SAFE_CANCEL', 'ORDER_RELEASED_BY_OFFICE']);
         const { active, terminated } = buildOrderSync(s);
         expect(active).toHaveLength(0);
         expect(terminated).toHaveLength(5);
@@ -34,7 +34,7 @@ describe('buildOrderSync — 진행/종료 분리', () => {
     });
 
     it('두 배열을 합치면 원본이 된다 — 어느 쪽에서도 콜이 사라지지 않는다', () => {
-        const s = makeSession(['ORDER_CONFIRMED', 'ORDER_CANCELED', 'ORDER_PICKED_UP', 'ORDER_COMPLETED']);
+        const s = makeSession(['ORDER_CONFIRMED', 'SAFE_CANCEL', 'ORDER_PICKED_UP', 'ORDER_COMPLETED']);
         const { active, terminated } = buildOrderSync(s);
         expect(active.length + terminated.length).toBe(4);
     });

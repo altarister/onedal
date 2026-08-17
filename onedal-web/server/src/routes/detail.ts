@@ -3,7 +3,7 @@
  */
 
 import { Router } from "express";
-import type { DispatchConfirmRequest, PendingOrder, SecuredOrder } from "@onedal/shared";
+import type { DispatchConfirmRequest, OrderStatus, PendingOrder, SecuredOrder } from "@onedal/shared";
 import { parseLocationDetails, parseMockupFare, parseMockupDistance, parseMockupVehicleType, parseDetailedRawText } from "../utils/parser";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { DISPATCH_CONFIG } from "../config/dispatchConfig";
@@ -104,11 +104,15 @@ router.post("/", async (req, res) => {
         const io = req.app.get("io");
         // 멀티 스캔폰 대비: 해당 orderId에 대해서만 기기 충돌 체크
         // (폰A의 콜이 폰B의 다른 콜을 차단하지 않도록 격리)
-        const activeStatuses = ['ORDER_EVALUATING', 'ORDER_AWAITING_DECISION'];
+        // 🔴 2026-08-18 — `'ORDER_EVALUATING'` 은 **존재하지 않는 상태값**이었다.
+        //    실제 이름은 `ORDER_SECURED_EVALUATING`. 그냥 문자열 배열이라 tsc 가 못 잡았고,
+        //    그래서 "서버가 연산 중인 콜"을 이 잠금 검사가 **한 번도 인식하지 못했다.**
+        //    타입을 붙여 다시는 오타가 조용히 지나가지 않게 한다.
+        const activeStatuses: OrderStatus[] = ['ORDER_SECURED_EVALUATING', 'ORDER_AWAITING_DECISION'];
         const targetOrder = session.pendingOrdersData.get(payload.order.id);
         if (targetOrder && activeStatuses.includes(targetOrder.status) && targetOrder.capturedDeviceId !== payload.deviceId) {
             console.log(`🔒 [Lock] ${targetOrder.capturedDeviceId} 기기가 이미 이 콜(${payload.order.id})을 평가중. 요청 기기: ${payload.deviceId}`);
-            if (io) io.to(userId).emit("order-canceled", { id: payload.order.id, status: 'ORDER_CANCELED' });
+            if (io) io.to(userId).emit("order-canceled", { id: payload.order.id, status: 'SAFE_CANCEL' });
             return res.json({ deviceId: 'server', action: 'CANCEL' });
         }
 
@@ -279,7 +283,7 @@ router.post("/", async (req, res) => {
                 }
 
                 if (io) {
-                    io.to(userId).emit("order-canceled", { id: payload.order.id, status: 'ORDER_CANCELED' });
+                    io.to(userId).emit("order-canceled", { id: payload.order.id, status: 'SAFE_CANCEL' });
                 }
             }
         }, DISPATCH_CONFIG.WAITING_TIMEOUT_MS);

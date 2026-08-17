@@ -17,7 +17,7 @@ interface Props {
     route: SecuredOrder;
     isExpanded: boolean;
     onToggle: (id: string) => void;
-    onDecision?: (id: string, action: 'ORDER_CONFIRMED' | 'ORDER_CANCELED' | 'ORDER_RELEASED' | 'ORDER_FORCE_CANCELED') => void;
+    onDecision?: (id: string, action: 'ORDER_CONFIRMED' | 'SAFE_CANCEL' | 'ORDER_RELEASED_BY_ME' | 'ORDER_RELEASED_BY_OFFICE') => void;
     processingId: string | null;
     setProcessingId: (id: string | null) => void;
     etaMap: Map<string, { pickupEta?: string, dropoffEta?: string }>;
@@ -207,13 +207,13 @@ export default function PinnedRouteCard({
                 {route.status === 'ORDER_COMPLETED' && (
                     <Badge variant="outline" className="text-[10px] font-black px-1.5 py-0 bg-text-muted/10 border-text-muted/30 text-text-muted flex-shrink-0 ml-2 shadow-sm rounded">운행 완료</Badge>
                 )}
-                {['ORDER_RELEASED'].includes(route.status || '') && (
+                {['ORDER_RELEASED_BY_ME'].includes(route.status || '') && (
                     <Badge variant="outline" className="text-[10px] font-black px-1.5 py-0 bg-warning/10 border-warning/30 text-warning flex-shrink-0 ml-2 shadow-sm rounded">방출됨</Badge>
                 )}
-                {['ORDER_CANCELED'].includes(route.status || '') && (
+                {['SAFE_CANCEL'].includes(route.status || '') && (
                     <Badge variant="outline" className="text-[10px] font-black px-1.5 py-0 bg-danger/10 border-danger/30 text-danger flex-shrink-0 ml-2 shadow-sm rounded">거절됨</Badge>
                 )}
-                {['ORDER_FORCE_CANCELED'].includes(route.status || '') && (
+                {['ORDER_RELEASED_BY_OFFICE'].includes(route.status || '') && (
                     <Badge variant="outline" className="text-[10px] font-black px-1.5 py-0 bg-danger/10 border-danger/30 text-danger flex-shrink-0 ml-2 shadow-sm rounded">사무실 취소</Badge>
                 )}
             </div>
@@ -229,7 +229,7 @@ export default function PinnedRouteCard({
                                 <Button 
                                     variant="destructive"
                                     disabled={processingId === route.id} 
-                                    onClick={(e: React.MouseEvent) => { e.stopPropagation(); logRoadmapEvent("웹", "PinnedRoute에서 CANCEL(취소) 또는 X 버튼 클릭"); logRoadmapEvent("웹", "서버에게 decision=CANCEL 하달 정보 전달"); setProcessingId(route.id); onDecision(route.id, 'ORDER_CANCELED'); }} 
+                                    onClick={(e: React.MouseEvent) => { e.stopPropagation(); logRoadmapEvent("웹", "PinnedRoute에서 CANCEL(취소) 또는 X 버튼 클릭"); logRoadmapEvent("웹", "서버에게 decision=CANCEL 하달 정보 전달"); setProcessingId(route.id); onDecision(route.id, 'SAFE_CANCEL'); }} 
                                     className={`flex-1 h-auto py-2.5 flex-col items-center justify-center overflow-hidden px-1 ${processingId === route.id ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 >
                                     <span className="text-base font-black tracking-tight">{processingId === route.id ? '처리 중...' : '거절 (취소)'}</span>
@@ -620,7 +620,7 @@ export default function PinnedRouteCard({
                                     onClick={(e: React.MouseEvent) => {
                                         e.stopPropagation();
                                         setLocked(true); setProcessingId(route.id);
-                                        onDecision(route.id, 'ORDER_RELEASED');
+                                        onDecision(route.id, 'ORDER_RELEASED_BY_ME');
                                     }}
                                     className="flex-1 py-3 text-sm font-bold bg-warning/10 hover:bg-warning/20 text-warning border-warning/30"
                                 >
@@ -632,7 +632,7 @@ export default function PinnedRouteCard({
                                     onClick={(e: React.MouseEvent) => {
                                         e.stopPropagation();
                                         setLocked(true); setProcessingId(route.id);
-                                        onDecision(route.id, 'ORDER_FORCE_CANCELED');
+                                        onDecision(route.id, 'ORDER_RELEASED_BY_OFFICE');
                                     }}
                                     className="flex-1 py-3 text-sm font-bold shadow-sm"
                                 >

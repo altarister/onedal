@@ -53,7 +53,7 @@ export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: 
     });
     if (io) {
         console.log(`📤 [Socket 푸시] order-canceled (${orderId}) to ${userId}`);
-        io.to(userId).emit("order-canceled", { id: orderId, status: 'ORDER_CANCELED' });
+        io.to(userId).emit("order-canceled", { id: orderId, status: 'SAFE_CANCEL' });
     }
 
     if (targetDeviceId) {
@@ -341,7 +341,7 @@ export const syncDetourFilter = (userId: string, io: any) => {
 };
 
 /** 관제사 최종 판정 처리 */
-export async function handleDecision(userId: string, orderId: string, status: 'ORDER_CONFIRMED' | 'ORDER_CANCELED' | 'ORDER_RELEASED' | 'ORDER_FORCE_CANCELED', io: any) {
+export async function handleDecision(userId: string, orderId: string, status: 'ORDER_CONFIRMED' | 'SAFE_CANCEL' | 'ORDER_RELEASED_BY_ME' | 'ORDER_RELEASED_BY_OFFICE', io: any) {
     const session = getUserSession(userId);
 
     /**
@@ -537,7 +537,7 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
         const existingOrder = session.myOrders.find(c => c.id === orderId);
         if (existingOrder) {
             try {
-                // 수동 거절(ORDER_CANCELED)일지라도 DB에 저장하도록 함
+                // 수동 거절(SAFE_CANCEL)일지라도 DB에 저장하도록 함
                 OrderRepository.updateOrderStatus(orderId, userId, status);
                 console.log(`✅ [상태 동기화] ${orderId} - DB 업데이트 완료 (상태: ${status})`);
             } catch (e) {

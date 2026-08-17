@@ -74,7 +74,7 @@ describe('canReportMilestone — 상태 전이 규칙', () => {
     });
 
     it('취소·방출된 콜에는 어떤 보고도 받지 않는다', () => {
-        for (const dead of ['ORDER_CANCELED', 'ORDER_RELEASED', 'ORDER_FORCE_CANCELED', 'ORDER_COMPLETED']) {
+        for (const dead of ['SAFE_CANCEL', 'ORDER_RELEASED_BY_ME', 'ORDER_RELEASED_BY_OFFICE', 'ORDER_COMPLETED']) {
             expect(canReportMilestone(dead, 'PICKED_UP')).toBe(false);
             expect(canReportMilestone(dead, 'DELIVERED')).toBe(false);
         }

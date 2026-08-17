@@ -17,7 +17,7 @@ import { useMasterGps } from '../../hooks/useMasterGps';
 
 interface Props {
     activeRoute: SecuredOrder[];
-    onDecision?: (id: string, action: 'ORDER_CONFIRMED' | 'ORDER_CANCELED' | 'ORDER_RELEASED' | 'ORDER_FORCE_CANCELED') => void;
+    onDecision?: (id: string, action: 'ORDER_CONFIRMED' | 'SAFE_CANCEL' | 'ORDER_RELEASED_BY_ME' | 'ORDER_RELEASED_BY_OFFICE') => void;
     onRecalculate?: (id: string, priority: string) => void;
     viewFilter: 'ACTIVE' | 'COMPLETED' | 'CANCELED' | 'ALL';
     setViewFilter: (filter: 'ACTIVE' | 'COMPLETED' | 'CANCELED' | 'ALL') => void;
@@ -305,7 +305,7 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate, vi
                         onClick={() => { setViewFilter('CANCELED'); scrollToCalls(); }}
                         className={`flex-1 py-2 text-xs font-bold transition-colors ${viewFilter === 'CANCELED' ? 'text-text-primary border-b-2 border-info' : 'text-text-muted hover:text-text-primary'}`}
                     >
-                        취소/방출 ({safeRoute.filter(r => r.status === 'ORDER_RELEASED' || r.status === 'ORDER_CANCELED' || r.status === 'ORDER_FORCE_CANCELED').length})
+                        취소/방출 ({safeRoute.filter(r => r.status === 'ORDER_RELEASED_BY_ME' || r.status === 'SAFE_CANCEL' || r.status === 'ORDER_RELEASED_BY_OFFICE').length})
                     </button>
                     <button
                         onClick={() => { setViewFilter('ALL'); scrollToCalls(); }}
@@ -366,7 +366,7 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate, vi
                                 return route.status === 'ORDER_DELIVERED' || route.status === 'ORDER_COMPLETED';
                             }
                             if (viewFilter === 'CANCELED') {
-                                return route.status === 'ORDER_RELEASED' || route.status === 'ORDER_CANCELED' || route.status === 'ORDER_FORCE_CANCELED';
+                                return route.status === 'ORDER_RELEASED_BY_ME' || route.status === 'SAFE_CANCEL' || route.status === 'ORDER_RELEASED_BY_OFFICE';
                             }
                             return true; // ALL
                         })

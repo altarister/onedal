@@ -83,7 +83,7 @@ async function seed() {
     const now = new Date();
     const iso = d => d.toISOString().replace(/\.\d{3}Z$/, 'Z');
     // 나머지는 과거로 밀어 간섭을 없앤다
-    c.prepare(`UPDATE orders SET timestamp = '2020-01-01T00:00:00Z', status = 'ORDER_RELEASED'`).run();
+    c.prepare(`UPDATE orders SET timestamp = '2020-01-01T00:00:00Z', status = 'ORDER_RELEASED_BY_ME'`).run();
     c.prepare(`DELETE FROM order_milestones`).run();
     c.prepare(`DELETE FROM stop_cargo_reports`).run();
 

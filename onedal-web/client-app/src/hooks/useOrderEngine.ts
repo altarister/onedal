@@ -250,7 +250,7 @@ export function useOrderEngine() {
         };
     }, []);
 
-    const handleDecision = useCallback((id: string, action: 'ORDER_CONFIRMED' | 'ORDER_CANCELED' | 'ORDER_RELEASED' | 'ORDER_FORCE_CANCELED') => {
+    const handleDecision = useCallback((id: string, action: 'ORDER_CONFIRMED' | 'SAFE_CANCEL' | 'ORDER_RELEASED_BY_ME' | 'ORDER_RELEASED_BY_OFFICE') => {
         // 다이어그램 Line 84~99: 관제탑 → 서버 [Socket] 취소/유지 전달
         logRoadmapEvent("웹", `[Socket] ${action === 'ORDER_CONFIRMED' ? '유지' : '취소'} 전달`, "관제대시보드");
         socket.emit("decision", { orderId: id, action });

@@ -19,7 +19,7 @@ describe('OrderStatus Helpers', () => {
             expect(isEvaluating('ORDER_CONFIRMED')).toBe(false);
             expect(isEvaluating('ORDER_PICKED_UP')).toBe(false);
             expect(isEvaluating('ORDER_COMPLETED')).toBe(false);
-            expect(isEvaluating('ORDER_CANCELED')).toBe(false);
+            expect(isEvaluating('SAFE_CANCEL')).toBe(false);
         });
 
         it('undefined나 유효하지 않은 문자열이 들어오면 false를 반환한다', () => {

@@ -47,6 +47,12 @@ const BANNED: { name: string, pattern: RegExp, allow?: RegExp, until?: string }[
         allow: /trimCorridorByProgress/,   // 죽은 옛 함수의 금지패턴·역사 — 영구 예외
     },
     { name: "'미상' → '배차값없음'", pattern: /['\"`]미상['\"`]/ },   // 단독 센티널만 — 금액미상 같은 조합형(주어 있음)은 허용
+
+    // 취소의 세 갈래 (용어집 §2-1 · 기사님 확정 2026-08-18)
+    // ⚠️ ORDER_RELEASED 는 새 이름의 **앞부분**이라, 뒤에 _BY_ 가 오면 새말이다
+    { name: 'ORDER_RELEASED → ORDER_RELEASED_BY_ME', pattern: /ORDER_RELEASED(?!_BY_)/ },
+    { name: 'ORDER_CANCELED → SAFE_CANCEL', pattern: /ORDER_CANCELED/ },
+    { name: 'ORDER_FORCE_CANCELED → ORDER_RELEASED_BY_OFFICE', pattern: /ORDER_FORCE_CANCELED/ },
 ];
 
 describe('용어집 — 폐기된 옛말이 코드에 없다', () => {

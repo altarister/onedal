@@ -231,7 +231,7 @@ async function waitForKeep(id, n) {
         const o = (await orders()).find(x => x.id === id);
         if (!o) return null;
         if (ACTIVE.includes(o.status)) return 'kept';
-        if (['ORDER_CANCELED', 'ORDER_RELEASED', 'ORDER_FORCE_CANCELED'].includes(o.status)) return o.status;
+        if (['SAFE_CANCEL', 'ORDER_RELEASED_BY_ME', 'ORDER_RELEASED_BY_OFFICE'].includes(o.status)) return o.status;
         return null;
     }, 40000, 900);
 
@@ -270,7 +270,7 @@ async function main() {
         head(`앞선 실행이 남긴 콜 ${leftover.length}건 정리`);
         for (const o of leftover) {
             await new Promise(res => {
-                socket.emit('decision', { orderId: o.id, action: 'ORDER_FORCE_CANCELED' });
+                socket.emit('decision', { orderId: o.id, action: 'ORDER_RELEASED_BY_OFFICE' });
                 socket.once('decision-ack', res);
             });
             ok(`정리: ${o.pickup?.slice(0, 18)}`);

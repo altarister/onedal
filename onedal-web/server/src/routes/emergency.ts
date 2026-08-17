@@ -90,9 +90,9 @@ router.post("/", async (req, res) => {
 
         const existingOrder = session.myOrders.find(c => c.id === targetOrderId);
         if (existingOrder) {
-            existingOrder.status = 'ORDER_FORCE_CANCELED';
+            existingOrder.status = 'ORDER_RELEASED_BY_OFFICE';
             try {
-                const stmt = db.prepare("UPDATE orders SET status = 'ORDER_FORCE_CANCELED' WHERE id = ? AND userId = ?");
+                const stmt = db.prepare("UPDATE orders SET status = 'ORDER_RELEASED_BY_OFFICE' WHERE id = ? AND userId = ?");
                 stmt.run(targetOrderId, userId);
             } catch (e) {
                 console.error("Emergency DB 업데이트 에러:", e);
@@ -129,7 +129,7 @@ router.post("/", async (req, res) => {
 
         if (io) {
             console.log(`📤 [Socket 푸시] order-canceled (${targetOrderId})`);
-            io.to(userId).emit("order-canceled", { id: targetOrderId, status: 'ORDER_FORCE_CANCELED' });
+            io.to(userId).emit("order-canceled", { id: targetOrderId, status: 'ORDER_RELEASED_BY_OFFICE' });
         }
 
         console.log(`🚨🚨🚨 [EMERGENCY] 처리 완료 🚨🚨🚨\n`);

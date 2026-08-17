@@ -20,8 +20,8 @@ describe('mergeOrderViews — 관제웹이 보는 콜 목록', () => {
     });
 
     it('확정·완료·방출도 전부 살아남는다', () => {
-        const ids = ['ORDER_CONFIRMED', 'ORDER_DELIVERED', 'ORDER_COMPLETED', 'ORDER_RELEASED',
-                     'ORDER_CANCELED', 'ORDER_FORCE_CANCELED']
+        const ids = ['ORDER_CONFIRMED', 'ORDER_DELIVERED', 'ORDER_COMPLETED', 'ORDER_RELEASED_BY_ME',
+                     'SAFE_CANCEL', 'ORDER_RELEASED_BY_OFFICE']
             .map((s, i) => o(`h${i}`, s));
         expect(mergeOrderViews(ids, [], [])).toHaveLength(6);
     });
@@ -58,7 +58,7 @@ describe('mergeOrderViews — 관제웹이 보는 콜 목록', () => {
     });
 
     it('진행분이 종료분보다 뒤에 적용된다 — 같은 콜이면 진행이 이긴다', () => {
-        const merged = mergeOrderViews([], [o('a', 'ORDER_RELEASED')], [o('a', 'ORDER_CONFIRMED')]);
+        const merged = mergeOrderViews([], [o('a', 'ORDER_RELEASED_BY_ME')], [o('a', 'ORDER_CONFIRMED')]);
         expect(merged[0].status).toBe('ORDER_CONFIRMED');
     });
 
