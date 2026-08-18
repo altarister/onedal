@@ -444,7 +444,17 @@ export default function PinnedRouteCard({
                                     {/* ── [Phase 8.5 · A안] 지금 할 일 하나만 ──
                                         여섯 단계를 동시에 펼치면 폰 한 화면에 안 들어간다.
                                         현재 단계의 정거장만 띄우고 나머지는 위 진행 점으로 압축한다. */}
-                                    {shownStep && (() => {
+                                    {/* 🔴 **결재 전에는 단계 시트를 열지 않는다** (기사님 확정 2026-08-18).
+                                        통화 기록은 `orders(id)` 를 참조하는데(FK), 콜 행은 **KEEP 을 눌러야**
+                                        처음 만들어진다 — 심사 중인 콜은 서버 메모리에만 있다. 그래서 결재 전에
+                                        저장하면 `FOREIGN KEY constraint failed` 로 **통화 내용이 통째로 날아갔다**
+                                        (2026-08-18 17:17 실측). 6단계는 확정된 콜의 일이므로 그때부터 연다. */}
+                                    {evaluating && (
+                                        <div className="text-[12px] text-text-muted bg-surface-alt/50 border border-border border-dashed rounded-md px-2 py-2">
+                                            결재 전입니다 — KEEP 을 누르면 통화 단계가 열립니다
+                                        </div>
+                                    )}
+                                    {!evaluating && shownStep && (() => {
                                         const isPickupStop = shownStep.stop === 'pickup';
                                         const d = isPickupStop ? pDetail : dDetail;
                                         const lead = isPickupStop ? timing.toPickup : timing.toDropoff;

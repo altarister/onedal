@@ -34,7 +34,17 @@ function safeOn(socket: Socket, event: string, handler: (...args: any[]) => any)
             await handler(...args);
         } catch (err: any) {
             console.error(`🚨 [소켓 핸들러 실패] ${event}:`, err?.message || err);
-            socket.emit("handler-error", { event, message: err?.message || "처리 중 오류가 발생했습니다" });
+            /**
+             * 🔴 **왜 실패했는지 화면에 남긴다** (2026-08-18 실측).
+             *    `FOREIGN KEY constraint failed` 만 뜨자 기사님 화면엔 *"처리에 실패했습니다"* 뿐이었고,
+             *    **통화로 들은 내용이 통째로 날아간 것**을 알 방법이 없었다.
+             *    원문은 그대로 두고(디버깅용), 사람 말을 앞에 붙인다.
+             */
+            const raw = err?.message || "";
+            const human = /FOREIGN KEY/i.test(raw)
+                ? "아직 장부에 없는 콜입니다 — KEEP 으로 확정한 뒤에 저장할 수 있습니다"
+                : (raw || "처리 중 오류가 발생했습니다");
+            socket.emit("handler-error", { event, message: human, detail: raw });
         }
     });
 }
