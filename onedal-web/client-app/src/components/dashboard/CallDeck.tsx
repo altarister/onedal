@@ -34,9 +34,11 @@ interface Props {
     /** 🧭 서버가 내려준 경로 순서 — 시각(약속)은 이 위의 타임라인에서 나온다 */
     routeStops: RouteStopInfo[];
     routeComputedAt: string | null;
+    /** 🛰️ 근접/도착한 정거장의 콜 — 이 값이 바뀌면 그 카드로 넘어간다 (기사님 2026-08-19) */
+    gpsFocus?: { orderId: string; tick: number } | null;
 }
 
-export default function CallDeck({ orders, renderCard, records, visitOrderMap, routeStops, routeComputedAt }: Props) {
+export default function CallDeck({ orders, renderCard, records, visitOrderMap, routeStops, routeComputedAt, gpsFocus }: Props) {
     const trackRef = useRef<HTMLDivElement>(null);
 
     /**
@@ -161,6 +163,18 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, r
      *    단위·시각을 고르는 중에 넘어가면 엉뚱한 카드의 칩을 누르게 된다.
      *    (카드는 사라지지 않으므로 입력값 자체는 남는다. 문제는 손이 가는 자리다)
      */
+    /**
+     * 🛰️ **다가가는 정거장의 콜로 화면이 따라간다** (기사님 2026-08-19).
+     * 평가중 자동 이동과 달리 운행 중의 전환이다 — 이때 기사님 손은 핸들에 있고,
+     * 다음에 볼 카드는 언제나 지금 다가가는 정거장의 것이다.
+     */
+    useEffect(() => {
+        if (!gpsFocus) return;
+        const i = orders.findIndex(o => o.id === gpsFocus.orderId);
+        if (i >= 0) { setCurId(gpsFocus.orderId); scrollToIndex(i); }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [gpsFocus?.tick]);
+
     const seenIds = useRef<Set<string> | null>(null);
     useEffect(() => {
         const target = pickAutoFocus(seenIds.current, orders);

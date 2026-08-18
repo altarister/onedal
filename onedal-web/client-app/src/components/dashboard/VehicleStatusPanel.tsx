@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { socket } from "../../lib/socket";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
 import type { SecuredOrder } from "@onedal/shared";
-import { CAPACITY_CONFIDENCE_LABEL } from "@onedal/shared";
+import { CAPACITY_CONFIDENCE_LABEL , isAlreadyLoaded } from "@onedal/shared";
 import { apiClient } from "../../api/apiClient";
 import { getDistanceKm } from "../../lib/routeUtils";
 
@@ -53,10 +53,6 @@ export default function VehicleStatusPanel({ liveCalls }: { liveCalls: SecuredOr
         };
     }, []);
 
-    // 상차 완료 여부 추적 (콜 ID 별 boolean)
-    // 한 번 500m 이내로 접근하면 상차 완료로 간주
-    const [pickedUpSet, setPickedUpSet] = useState<Set<string>>(new Set());
-
     useEffect(() => {
         const onGpsUpdate = (e: Event) => {
             const customEvent = e as CustomEvent<{ lat: number, lng: number, source?: string }>;
@@ -81,24 +77,6 @@ export default function VehicleStatusPanel({ liveCalls }: { liveCalls: SecuredOr
             }
             if (!isMock) lastGpsRef.current = { ...loc, time: now };
 
-            // 상차지 근접 체크 (500m 이내)
-            // 취소·방출·완료된 콜은 제외한다. 그렇지 않으면 이미 취소한 콜의 상차지를
-            // 지나가기만 해도 "상차 완료"로 기록된다.
-            const activeRoute = liveCalls;
-            setPickedUpSet(prev => {
-                let changed = false;
-                const newSet = new Set(prev);
-                activeRoute.forEach(order => {
-                    if (order.id && order.pickupY && order.pickupX && !newSet.has(order.id)) {
-                        const dist = getDistanceKm(loc.lat, loc.lng, order.pickupY, order.pickupX);
-                        if (dist < 0.5) { // 500m 이내 접근 시 상차로 간주
-                            newSet.add(order.id);
-                            changed = true;
-                        }
-                    }
-                });
-                return changed ? newSet : prev;
-            });
         };
 
         window.addEventListener("local-gps-update", onGpsUpdate);
@@ -108,30 +86,22 @@ export default function VehicleStatusPanel({ liveCalls }: { liveCalls: SecuredOr
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [liveCalls.map(c => c.id).join(',')]);
 
-    // 콜이 취소/완료되어 activeRoute에서 사라지면 pickedUpSet에서도 정리
-    useEffect(() => {
-        const activeIds = new Set(liveCalls.map(c => c.id).filter(Boolean) as string[]);
-        setPickedUpSet(prev => {
-            let changed = false;
-            const next = new Set(prev);
-            for (const id of next) {
-                if (!activeIds.has(id)) {
-                    next.delete(id);
-                    changed = true;
-                }
-            }
-            return changed ? next : prev;
-        });
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [liveCalls.map(c => c.id).join(',')]);
 
     // 시뮬레이션 중에는 "달리고 있다"는 사실만 참이다 — 속도는 모른다
     const isMoving = gpsIsMock || currentSpeed > 5;
     const totalCount = liveCalls.length;
 
-    // 예약 건 vs 상차 건 분류
-    const reservedItems = liveCalls.filter(o => o.id && !pickedUpSet.has(o.id));
-    const loadedItems = liveCalls.filter(o => o.id && pickedUpSet.has(o.id));
+    /**
+     * 🔴 **상차는 추측하지 않는다** (2026-08-19 실측).
+     *
+     * 예전에는 GPS 가 상차지 500m 안을 지나가면 자체 pickedUpSet 에 넣어
+     * "상차 1건"으로 표시했다 — 장부는 ORDER_CONFIRMED(상차 보고 없음)인데
+     * 요약만 실었다고 말하는 "한 화면 두 세상"이었다 (버그 대장 #11 과 같은 뿌리).
+     * GPS 는 도착까지만 안다. 실었는가의 원천은 기사님의 상차 완료 보고
+     * (ORDER_PICKED_UP) 하나고, 판별은 shared 의 isAlreadyLoaded 하나다.
+     */
+    const reservedItems = liveCalls.filter(o => !isAlreadyLoaded(o));
+    const loadedItems = liveCalls.filter(o => isAlreadyLoaded(o));
 
     // 내 차량 (DB 설정 우선, 없으면 필터 설정)
     const myVehicle = dbVehicleType || filter?.allowedVehicleTypes?.[0] || '1t';

@@ -1,7 +1,7 @@
 import { isEvaluating, isTerminal, isAlreadyLoaded, deriveRouteTimeline } from "@onedal/shared";
 import type { SecuredOrder } from "@onedal/shared";
 import { useState, useEffect, useMemo, useRef } from 'react';
-// removed socket
+import { socket } from '../../lib/socket';
 import { logRoadmapEvent } from '../../lib/roadmapLogger';
 import PinnedRouteCanvas, { type RoutePoint } from './PinnedRouteCanvas';
 import PinnedRouteCard from './PinnedRouteCard';
@@ -115,6 +115,24 @@ export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, 
      * routeStops 에 없는 활성 콜(심사 중 후보 · 경로 연산 전/실패)은 **번호 순서 뒤에
      * 덧붙인다** — 지도에서 사라지면 안 되지만, 아직 경로가 아닌 것도 사실이기 때문이다.
      */
+    /**
+     * 🖥️ **다음 정거장에 가까워지면 그 콜 화면으로** (기사님 2026-08-19).
+     * 근접 예고·도착 이벤트에 orderId 가 실려 온다 — 덱이 그 카드로 넘어간다.
+     * 운행 중에는 지금 다가가는 정거장의 카드가 "지금 필요한 화면"이다.
+     */
+    const [gpsFocus, setGpsFocus] = useState<{ orderId: string; tick: number } | null>(null);
+    useEffect(() => {
+        const focus = (d: { orderId?: string }) => {
+            if (d?.orderId) setGpsFocus({ orderId: d.orderId, tick: Date.now() });
+        };
+        socket.on('next-stop-approaching', focus);
+        socket.on('auto-arrived', focus);
+        return () => {
+            socket.off('next-stop-approaching', focus);
+            socket.off('auto-arrived', focus);
+        };
+    }, []);
+
     /**
      * 🗺️ 타임라인도 **여기서 한 번** 만든다 (규칙 ③) — 카운트다운·덱과 같은 값을
      * 카드(통화 시트)도 봐야 한다. 실측: 덱은 합짐 하차 ~05:56 을 아는데 시트는
@@ -384,6 +402,7 @@ export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, 
                     records={callRecords}
                     routeStops={routeStops}
                     routeComputedAt={routeComputedAt}
+                    gpsFocus={gpsFocus}
                     /* 경유번호는 여기서 한 번 만든 것을 지도·요약 줄이 함께 쓴다.
                        시각은 ETA 가 아니라 약속이라 CallDeck 이 deriveCallTiming 에서 직접 꺼낸다 */
                     visitOrderMap={visitOrderMap}
