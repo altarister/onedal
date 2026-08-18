@@ -225,29 +225,36 @@ export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, 
                         const isDistance = lastExt.includes('[최단거리]');
                         const isRecommend = !isTime && !isDistance; // 기본값은 항상 '추천' 상태 점등
 
+                        /**
+                         * 🔒 **합짐 중에는 경로 우선순위를 바꿀 수 없다** (기사님 확정 2026-08-19).
+                         *    "2건 이상이면 선택되지 못한 버튼을 숨긴다 — 어떤 것이 선택돼 있는지는
+                         *    보이고, 경로는 바꿀 수 없게."
+                         *    우선순위는 도로 선택을 바꾼다 — 순서는 안 바뀌지만 주행 시간이 변해
+                         *    이미 잡은 약속들과 어긋날 수 있다. 콜 하나일 때만 고른다.
+                         */
+                        const priorityLocked = liveRoute.length >= 2;
+                        const buttons = [
+                            { key: 'RECOMMEND', label: '추천', on: isRecommend, onCls: 'bg-info/90 text-white border border-info' },
+                            { key: 'TIME', label: '시간', on: isTime, onCls: 'bg-accent/90 text-white border border-accent' },
+                            { key: 'DISTANCE', label: '거리', on: isDistance, onCls: 'bg-success/90 text-white border border-success' },
+                        ].filter(b => !priorityLocked || b.on);
+
                         return (
                             <div className="absolute top-3 left-3 flex flex-col space-y-2 z-10 w-8">
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); logRoadmapEvent("웹", "맵뷰 버튼(추천) 좌상단 클릭"); setProcessingId(`recalc-global`); onRecalculate(recalcTarget.id, 'RECOMMEND'); }}
-                                    disabled={processingId !== null}
-                                    className={`w-8 h-8 flex items-center justify-center rounded-md shadow-lg text-[10px] font-bold backdrop-blur-sm transition-all focus:outline-none ${processingId !== null ? 'opacity-50 cursor-not-allowed' : 'opacity-80 hover:opacity-100 active:scale-95'} ${isRecommend ? 'bg-info/90 text-white border border-info' : 'bg-surface-alt/80 hover:bg-surface-hover text-text-primary border border-border'}`}
-                                >
-                                    추천
-                                </button>
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); logRoadmapEvent("웹", "맵뷰 버튼(최단시간) 좌상단 클릭"); setProcessingId(`recalc-global`); onRecalculate(recalcTarget.id, 'TIME'); }}
-                                    disabled={processingId !== null}
-                                    className={`w-8 h-8 flex items-center justify-center rounded-md shadow-lg text-[10px] font-bold backdrop-blur-sm transition-all focus:outline-none ${processingId !== null ? 'opacity-50 cursor-not-allowed' : 'opacity-80 hover:opacity-100 active:scale-95'} ${isTime ? 'bg-accent/90 text-white border border-accent' : 'bg-surface-alt/80 hover:bg-surface-hover text-text-primary border border-border'}`}
-                                >
-                                    시간
-                                </button>
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); logRoadmapEvent("웹", "맵뷰 버튼(최단거리) 좌상단 클릭"); setProcessingId(`recalc-global`); onRecalculate(recalcTarget.id, 'DISTANCE'); }}
-                                    disabled={processingId !== null}
-                                    className={`w-8 h-8 flex items-center justify-center rounded-md shadow-lg text-[10px] font-bold backdrop-blur-sm transition-all focus:outline-none ${processingId !== null ? 'opacity-50 cursor-not-allowed' : 'opacity-80 hover:opacity-100 active:scale-95'} ${isDistance ? 'bg-success/90 text-white border border-success' : 'bg-surface-alt/80 hover:bg-surface-hover text-text-primary border border-border'}`}
-                                >
-                                    거리
-                                </button>
+                                {buttons.map(b => (
+                                    <button key={b.key}
+                                        onClick={(e) => { e.stopPropagation(); logRoadmapEvent("웹", `맵뷰 버튼(${b.label}) 좌상단 클릭`); setProcessingId(`recalc-global`); onRecalculate(recalcTarget.id, b.key); }}
+                                        disabled={processingId !== null || priorityLocked}
+                                        title={priorityLocked ? '합짐 중에는 경로 기준을 바꿀 수 없습니다' : undefined}
+                                        className={`w-8 h-8 flex items-center justify-center rounded-md shadow-lg text-[10px] font-bold backdrop-blur-sm transition-all focus:outline-none ${
+                                            priorityLocked ? 'cursor-default'
+                                            : processingId !== null ? 'opacity-50 cursor-not-allowed'
+                                            : 'opacity-80 hover:opacity-100 active:scale-95'
+                                        } ${b.on ? b.onCls : 'bg-surface-alt/80 hover:bg-surface-hover text-text-primary border border-border'}`}
+                                    >
+                                        {b.label}
+                                    </button>
+                                ))}
                             </div>
                         );
                     })()}

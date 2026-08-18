@@ -170,3 +170,20 @@ describe('규칙 ① — 강제 정리는 심사 중인 콜만 건드린다', ()
         expect(detail).toMatch(/myOrders\.filter\(\w+ => !isTerminal\(/);
     });
 });
+
+/**
+ * 🗺️ **합짐 중에는 경로 우선순위를 바꿀 수 없다** (기사님 확정 2026-08-19)
+ *
+ * "진행 중 리스트가 2개 이상이면 추천·시간·거리 중 선택되지 못한 버튼을 숨긴다.
+ *  그럼 어떤 것이 선택되어 있는지 알 수 있고 경로를 바꿀 수 없게 되는 거지."
+ *
+ * 우선순위 변경은 도로 선택을 바꾼다 — 순서는 안 바뀌지만 주행 시간이 변해
+ * 이미 잡은 약속들과 어긋날 수 있다. 콜이 하나일 때만 고르게 한다.
+ */
+describe('합짐 중 경로 우선순위 잠금', () => {
+    it('🔴 진행 2건 이상이면 선택된 것만 남기고 잠근다', () => {
+        const route = readFileSync(join(__dirname,
+            '../../../client-app/src/components/dashboard/PinnedRoute.tsx'), 'utf8');
+        expect(route).toMatch(/priorityLocked/);
+    });
+});
