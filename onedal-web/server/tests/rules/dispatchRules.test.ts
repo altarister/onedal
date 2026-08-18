@@ -186,4 +186,16 @@ describe('합짐 중 경로 우선순위 잠금', () => {
             '../../../client-app/src/components/dashboard/PinnedRoute.tsx'), 'utf8');
         expect(route).toMatch(/priorityLocked/);
     });
+
+    /**
+     * 기사님(2026-08-19 보완): *"안전취소 30초 동안은 경로를 바꿔 볼 수 있어야
+     * 잡을지 말지를 결정할 수 있을 것 같아."*
+     * 심사 중에는 "이 콜을 붙이면 어떤 경로가 되나"를 보는 것이 결재의 재료다.
+     */
+    it('🔴 심사 중(평가 콜 존재)에는 잠그지 않는다 — 결재의 재료다', () => {
+        const route = readFileSync(join(__dirname,
+            '../../../client-app/src/components/dashboard/PinnedRoute.tsx'), 'utf8');
+        const lock = route.match(/const priorityLocked = [^;]+;/)?.[0] ?? '';
+        expect(lock).toMatch(/isEvaluating/);
+    });
 });

@@ -232,7 +232,10 @@ export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, 
                          *    우선순위는 도로 선택을 바꾼다 — 순서는 안 바뀌지만 주행 시간이 변해
                          *    이미 잡은 약속들과 어긋날 수 있다. 콜 하나일 때만 고른다.
                          */
-                        const priorityLocked = liveRoute.length >= 2;
+                        // 🔓 심사 중(안전취소 30초)에는 열어 둔다 (기사님 보완 2026-08-19) —
+                        //    "이 콜을 붙이면 어떤 경로가 되나"를 바꿔 보는 것이 결재의 재료다.
+                        //    결재가 끝나 확정 2건 이상만 남으면 그때 잠근다.
+                        const priorityLocked = liveRoute.length >= 2 && !liveRoute.some(o => isEvaluating(o.status));
                         const buttons = [
                             { key: 'RECOMMEND', label: '추천', on: isRecommend, onCls: 'bg-info/90 text-white border border-info' },
                             { key: 'TIME', label: '시간', on: isTime, onCls: 'bg-accent/90 text-white border border-accent' },
