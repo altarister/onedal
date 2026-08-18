@@ -453,10 +453,26 @@ async function ledger() {
 
     const id = `ledger-${Date.now()}`;
     const capturedAt = new Date().toISOString();
+    /**
+     * 🔴 **상세 화면 원문(rawText)을 함께 태운다** (2026-08-19).
+     *
+     * `detail.ts` 는 `if (rawText)` **안에서만** 상하차지 상세(고객·담당·전화1/2)를
+     * 만든다. 원문 없이 order 객체만 올리면 그 블록이 통째로 안 돌아서
+     * **연락처·주소상세·결제수단이 한 번도 검사되지 않는다.**
+     *
+     * 기사님이 리허설에서 *"연락처가 있어야 전화를 할 건데 왜 없을까?"* 로 발견하셨다.
+     * 그때까지 리허설도 이 검사도 원문을 안 보내고 있었다 — 둘 다 실물 경로를 비껴간 것이다.
+     */
+    const rawText = [
+        '배차사 : 장부 검사 퀵', `요금 : ${src.fare.toLocaleString()}(신용)`,
+        `차종 : ${src.vehicleType || '1t'}`, '물품 : 장부 검사',
+        '', '[출발지상세]', '고객 : 장부 상차지', `위치 : ${src.pickup}`, '전화1 : 010-0000-1001',
+        '', '[도착지상세]', '고객 : 장부 하차지', `위치 : ${src.dropoff}`, '전화1 : 010-0000-2001',
+    ].join('\n');
     const order = {
         id, pickup: src.pickup, dropoff: src.dropoff, fare: src.fare,
         vehicleType: src.vehicleType || '1t', timestamp: capturedAt,
-        itemDescription: '장부 검사',
+        itemDescription: '장부 검사', rawText,
     };
     const post = (path, body) => fetch(`http://localhost:${PORT}/api/orders${path}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
@@ -486,6 +502,23 @@ async function ledger() {
      * 여기에 칸 이름을 적어 두면, 앞으로 **칸을 새로 만들고 안 채우는 사고**가 잡힌다.
      * (2026-08-18 `targetApp` — 코드도 있고 타입도 맞는데 값이 한 번도 안 들어갔다)
      */
+    /**
+     * ①-b **전화를 걸 수 있는가.**
+     *
+     * 이 제품의 다음 동작은 언제나 *"KEEP 하고 바로 통화"* 다 (기사님).
+     * 연락처가 증발하면 콜을 잡아도 **아무것도 못 한다** — 색이 틀리는 것 다음으로 큰 사고다.
+     * 상세 원문에서 뽑은 `전화1` 이 `places` 까지 살아서 갔는지 본다.
+     */
+    {
+        const c = new Database(dbPath, { readonly: true });
+        const stop = c.prepare(`SELECT p.phone1, p.customerName FROM orderStops s
+                                JOIN places p ON p.id = s.placeId
+                                WHERE s.orderId = ? AND s.stopType = 'pickup'`).get(id);
+        c.close();
+        check('상세 원문의 상차지 연락처가 장부까지 간다', !!stop?.phone1,
+            stop?.phone1 ? `${stop.customerName} ${stop.phone1}` : '🔴 phone1 이 비었다 — 전화를 걸 수 없다');
+    }
+
     const REQUIRED = ['id', 'type', 'status', 'userId', 'pickup', 'dropoff', 'fare',
         'vehicleType', 'timestamp', 'capturedAt', 'capturedDeviceId', 'targetApp'];
     const empty = REQUIRED.filter(k => row[k] === null || row[k] === undefined || row[k] === '');

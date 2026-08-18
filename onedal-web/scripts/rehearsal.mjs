@@ -158,6 +158,55 @@ function showFilter() {
     console.log('  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 }
 
+/**
+ * 🔴 **앱은 상세 화면을 통짜 텍스트로 올린다** — 리허설도 그래야 한다 (2026-08-19).
+ *
+ * 기사님: *"상황상 연락처가 있어야 전화를 할 건데.. 왜 없을까?"*
+ *
+ * `detail.ts` 는 `if (rawText)` **안에서만** 상하차지 상세(고객·담당·전화1/2)를 만든다.
+ * 리허설은 `order` 객체만 보내고 rawText 를 비워 두고 있어서, 그 블록이
+ * **한 번도 실행되지 않았다.** 연락처가 없던 게 아니라 **파싱 경로를 안 탄 것**이다.
+ *
+ * 그래서 리허설에서는 결제수단·수수료·주소상세·재열람 대조(phone1 비교)까지
+ * 전부 검사 밖에 있었다. 실콜에서만 도는 코드였다.
+ *
+ * ⚠️ 여기 값은 **가짜다.** 전화번호는 실제로 걸리지 않게 `010-0000-xxxx` 로 둔다.
+ */
+function storeName(addr) {
+    // 주소 뒤쪽에서 번지(숫자·숫자-숫자)가 아닌 토큰을 상호로 본다.
+    // "… 경안동 493-4 이마트 광주점" → "이마트 광주점" · "… 금촌동 905-1" → 없음
+    const parts = String(addr).trim().split(/\s+/);
+    const tail = [];
+    for (let i = parts.length - 1; i >= 0 && tail.length < 2; i--) {
+        if (/^\d+(-\d+)?(번지)?$/.test(parts[i]) || /^[가-힣]+(로|길|동|읍|면|리|구|시|군)$/.test(parts[i])) break;
+        tail.unshift(parts[i]);
+    }
+    return tail.length ? tail.join(' ') : null;
+}
+
+function buildRawText(t, n) {
+    const pName = storeName(t.pickup) ?? '리허설 상차지';
+    const dName = storeName(t.dropoff) ?? '리허설 하차지';
+    const pad = String(n).padStart(2, '0');
+    return [
+        '배차사 : 리허설 퀵',
+        '배차화물전화 : 010-0000-0000',
+        `요금 : ${t.fare.toLocaleString()}(신용)`,
+        `차종 : ${t.vehicleType}`,
+        '물품 : 리허설 콜',
+        '',
+        '[출발지상세]',
+        `고객 : ${pName}`,
+        `위치 : ${t.pickup}`,
+        `전화1 : 010-0000-1${pad}`,
+        '',
+        '[도착지상세]',
+        `고객 : ${dName}`,
+        `위치 : ${t.dropoff}`,
+        `전화1 : 010-0000-2${pad}`,
+    ].join('\n');
+}
+
 let seq = 0;
 async function inject(t) {
     if (!t.pickup || !t.dropoff) { console.log('  🔴 이 주소가 지오코딩 캐시에 없어 건너뜁니다'); return; }
@@ -175,6 +224,8 @@ async function inject(t) {
     const order = {
         id, pickup: t.pickup, dropoff: t.dropoff, fare: t.fare, vehicleType: t.vehicleType,
         timestamp: new Date().toISOString(), itemDescription: '리허설 콜',
+        // 앱이 2차 상세 화면에서 긁어 올리는 통짜 텍스트 — 서버가 여기서 연락처를 뽑는다
+        rawText: buildRawText(t, seq),
     };
     const base = { deviceId: DEVICE, capturedAt: new Date().toISOString(), matchType: 'AUTO' };
     const post = (path, body) => fetch(`${BASE}/api/orders${path}`, {
