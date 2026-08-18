@@ -749,7 +749,15 @@ export function deriveRouteTimeline(
     const margin = rules.arrivalMarginMinutes ?? 30;
 
     const out: RouteTimelineEntry[] = [];
-    let dwellBefore = 0;   // 앞 정거장들에서 서 있는 시간의 합
+    /**
+     * 누적이 둘이다 — 도착예상과 출발마감이 다른 것을 세기 때문이다 (기사님 2026-08-19).
+     *   beforeMin      = 정차 + **"부터" 기다림** 의 합 → 도착예상용.
+     *                    "12시부터"면 11:40 에 가도 상차가 12시 시작이라 뒤가 밀린다
+     *   dwellOnlyMin   = 정차만 → 출발마감용. 기다림은 늦게 떠나면 저절로 줄어드는
+     *                    시간이라, 마감에서 빼면 실제보다 일찍 나가라고 거짓말하게 된다
+     */
+    let beforeMin = 0;
+    let dwellOnlyMin = 0;
     for (const st of stops) {
         const order = byId.get(st.orderId);
         if (!order) continue;   // 좀비 정거장 (취소 후 재계산 전) — 만들지 않는다
@@ -760,8 +768,8 @@ export function deriveRouteTimeline(
             timingCache.set(st.orderId, t);
         }
         const dwell = st.stopType === 'pickup' ? t.pickupDwell : t.dropoffDwell;
-        const travelMin = st.driveMinutes != null ? st.driveMinutes + dwellBefore : null;
-        const etaMs = travelMin != null ? anchorMs + travelMin * 60_000 : null;
+        const etaMs = st.driveMinutes != null
+            ? anchorMs + (st.driveMinutes + beforeMin) * 60_000 : null;
 
         const declared = reportsOf(st.orderId).find(r =>
             r.stopType === st.stopType && r.kind === 'DECLARED' && (r as any).promisedArrivalAt,
@@ -775,10 +783,16 @@ export function deriveRouteTimeline(
             etaMs, dwellMinutes: dwell,
             promisedUntil,
             promiseConfirmed: !!declared,
-            departByMs: promisedUntil != null && travelMin != null
-                ? Date.parse(promisedUntil) - travelMin * 60_000 : null,
+            departByMs: promisedUntil != null && st.driveMinutes != null
+                ? Date.parse(promisedUntil) - (st.driveMinutes + dwellOnlyMin) * 60_000 : null,
         });
-        dwellBefore += dwell;
+
+        // "부터"보다 일찍 닿으면 그 차이만큼 이 자리에서 기다린다 — 뒤 정거장에 전파
+        const fromAt = declared?.promisedArrivalFromAt ? Date.parse(declared.promisedArrivalFromAt) : null;
+        const waitMin = fromAt != null && etaMs != null && fromAt > etaMs
+            ? Math.round((fromAt - etaMs) / 60_000) : 0;
+        beforeMin += dwell + waitMin;
+        dwellOnlyMin += dwell;
     }
     return out;
 }

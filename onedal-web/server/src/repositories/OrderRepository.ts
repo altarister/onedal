@@ -74,8 +74,8 @@ export class OrderRepository {
      */
     public static upsertCargoReport(orderId: string, userId: string, r: CargoReport) {
         db.prepare(`
-            INSERT INTO stop_cargo_reports (orderId, userId, stopType, kind, unit, sizeClass, quantity, handling, promisedAt, promisedArrivalAt, deadlineAt, onwardDeadlineAt, tags, protections, afterworks, memo, recordedAt)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO stop_cargo_reports (orderId, userId, stopType, kind, unit, sizeClass, quantity, handling, promisedAt, promisedArrivalAt, promisedArrivalFromAt, deadlineAt, onwardDeadlineAt, tags, protections, afterworks, memo, recordedAt)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(orderId, stopType, kind) DO UPDATE SET
                 unit = excluded.unit,
                 sizeClass = excluded.sizeClass,
@@ -83,6 +83,7 @@ export class OrderRepository {
                 handling = excluded.handling,
                 promisedAt = excluded.promisedAt,
                 promisedArrivalAt = excluded.promisedArrivalAt,
+                promisedArrivalFromAt = excluded.promisedArrivalFromAt,
                 deadlineAt = excluded.deadlineAt,
                 onwardDeadlineAt = excluded.onwardDeadlineAt,
                 tags = excluded.tags,
@@ -91,7 +92,7 @@ export class OrderRepository {
                 memo = excluded.memo,
                 recordedAt = excluded.recordedAt
         `).run(orderId, userId, r.stopType, r.kind, r.unit || null, r.sizeClass || null, r.quantity ?? null,
-               r.handling || null, r.promisedAt || null, (r as any).promisedArrivalAt || null, r.deadlineAt || null, r.onwardDeadlineAt || null,
+               r.handling || null, r.promisedAt || null, (r as any).promisedArrivalAt || null, (r as any).promisedArrivalFromAt || null, r.deadlineAt || null, r.onwardDeadlineAt || null,
                r.tags?.length ? JSON.stringify(r.tags) : null,
             (r as any).protections?.length ? JSON.stringify((r as any).protections) : null,
             (r as any).afterworks?.length ? JSON.stringify((r as any).afterworks) : null,
@@ -100,7 +101,7 @@ export class OrderRepository {
 
     /** 한 오더의 모든 화물 신고 (상차/하차 × 신고값/실측값) */
     public static getCargoReports(orderId: string): CargoReport[] {
-        const rows = db.prepare(`SELECT stopType, kind, unit, sizeClass, quantity, handling, promisedAt, promisedArrivalAt, deadlineAt, onwardDeadlineAt, tags, protections, afterworks, memo
+        const rows = db.prepare(`SELECT stopType, kind, unit, sizeClass, quantity, handling, promisedAt, promisedArrivalAt, promisedArrivalFromAt, deadlineAt, onwardDeadlineAt, tags, protections, afterworks, memo
                                  FROM stop_cargo_reports WHERE orderId = ?`).all(orderId) as any[];
         return rows.map(r => ({ ...r, tags: r.tags ? JSON.parse(r.tags) : undefined,
                                 protections: r.protections ? JSON.parse(r.protections) : undefined,

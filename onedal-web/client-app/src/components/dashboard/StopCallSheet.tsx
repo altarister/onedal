@@ -116,7 +116,7 @@ function summarize(r?: CargoReport): string {
         r.unit && `${r.unit}${r.quantity ? ` ${r.quantity}개` : ''}`,
         r.handling,
         r.tags?.join('·'),
-        (r.promisedArrivalAt ?? r.deadlineAt) && `${hhmm(r.promisedArrivalAt ?? r.deadlineAt!)}까지`,
+        (r.promisedArrivalAt ?? r.deadlineAt) && `${(r as any).promisedArrivalFromAt ? `${hhmm((r as any).promisedArrivalFromAt)}~` : ''}${hhmm(r.promisedArrivalAt ?? r.deadlineAt!)}${(r as any).promisedArrivalFromAt ? ' 사이' : '까지'}`,
     ].filter(Boolean).join(' · ');
 }
 
@@ -171,6 +171,12 @@ export default function StopCallSheet({
     const [memo, setMemo] = useState('');
     const [tags, setTags] = useState<string[]>([]);
     const [deadlineAt, setDeadlineAt] = useState<string | undefined>();
+    /**
+     * 🕒 약속의 **"부터"(하한)** (기사님 2026-08-19) — "12시부터 12시30분 사이에 갈게요".
+     * deadlineAt(까지)만 있으면 "1시 전에 갈게요" — 기존과 같다. 칸을 **두 번 탭**하면 구간이 된다.
+     * 정각 약속은 사슬 전체를 경직시킨다 — 구간이면 폭 안에서 흡수돼 다음 약속을 조율할 수 있다.
+     */
+    const [deadlineFromAt, setDeadlineFromAt] = useState<string | undefined>();
     /** 상차지 통화에서 **함께 정한** 하차지 도착 시각 */
     const [onwardDeadlineAt, setOnwardDeadlineAt] = useState<string | undefined>();
 
@@ -249,6 +255,7 @@ export default function StopCallSheet({
             setProtections(src?.protections?.length ? [...src.protections] : [...DEFAULT_PROTECTIONS]);
             setAfterworks(src?.afterworks?.length ? [...src.afterworks] : [...DEFAULT_AFTERWORKS]);
             setDeadlineAt(src?.promisedArrivalAt ?? src?.deadlineAt ?? onward);
+            setDeadlineFromAt((src as any)?.promisedArrivalFromAt ?? undefined);
             setOnwardDeadlineAt(src?.onwardDeadlineAt);
             return;
         }
@@ -261,6 +268,7 @@ export default function StopCallSheet({
             setTags(h.tags?.length ? [...h.tags] : [DEFAULT_CARGO_TAG]);
             setMemo(src?.memo || '');
             setDeadlineAt(src?.promisedArrivalAt ?? src?.deadlineAt ?? onward);
+            setDeadlineFromAt((src as any)?.promisedArrivalFromAt ?? undefined);
             return;
         }
         setUnit(src?.unit as CargoUnit | undefined);
@@ -277,6 +285,7 @@ export default function StopCallSheet({
         setProtections(src?.protections?.length ? [...src.protections] : [...DEFAULT_PROTECTIONS]);
         setAfterworks(src?.afterworks?.length ? [...src.afterworks] : [...DEFAULT_AFTERWORKS]);
         setDeadlineAt(src?.promisedArrivalAt ?? src?.deadlineAt ?? onward);
+        setDeadlineFromAt((src as any)?.promisedArrivalFromAt ?? undefined);
         setOnwardDeadlineAt(src?.onwardDeadlineAt);
     };
 
@@ -311,6 +320,8 @@ export default function StopCallSheet({
              * `도착 약속 + 지금 추정 소요` 로 파생한다 — deadlineAt 은 더 이상 저장하지 않는다.
              */
             promisedArrivalAt: deadlineAt,
+            // 부터(하한) — 탭 1번이면 없다. 서버 타임라인이 "일찍 가도 소용없음"으로 쓴다
+            promisedArrivalFromAt: deadlineFromAt,
             // 🔴 하차지 시각은 **하차지 기록으로 저장하지 않는다.** 저장하면
             //    deriveCallStep 이 "하차지 통화를 했다"고 보고 그 단계를 건너뛴다.
             //    기사님: *"내 의도는 시퀀스로 되어 있는데 두 개를 한 번에 가는 건 기준이 흔들리는 것 같아."*
@@ -729,10 +740,30 @@ export default function StopCallSheet({
                                 <Row title="도착시간">
                                     {hourSlots.map((sl, i) => {
                                         const on = deadlineAt === sl.iso;
+                                        const isFrom = deadlineFromAt === sl.iso;
+                                        const inRange = !!deadlineFromAt && !!deadlineAt
+                                            && sl.iso > deadlineFromAt && sl.iso < deadlineAt;
+                                        /**
+                                         * 통화 대사와 1:1 (기사님 2026-08-19):
+                                         *   탭 1번 = "그 시각**까지** 갈게요"          (기존과 동일)
+                                         *   탭 2번 = "두 칸 **사이에** 갈게요"          (앞 칸이 부터가 된다)
+                                         *   구간이 있는 채로 다른 칸 = 그 칸이 새 "까지" (구간 해제)
+                                         */
+                                        const tap = () => {
+                                            setDeadlineTouched(true);
+                                            if (on && !deadlineFromAt) { setDeadlineAt(undefined); return; }
+                                            if (isFrom) { setDeadlineFromAt(undefined); return; }
+                                            if (!deadlineAt || deadlineFromAt) {
+                                                setDeadlineFromAt(undefined); setDeadlineAt(sl.iso); return;
+                                            }
+                                            if (sl.iso < deadlineAt) setDeadlineFromAt(sl.iso);
+                                            else { setDeadlineFromAt(deadlineAt); setDeadlineAt(sl.iso); }
+                                        };
                                         return (
-                                            <button key={sl.iso} onClick={() => { setDeadlineTouched(true); setDeadlineAt(on ? undefined : sl.iso); }}
+                                            <button key={sl.iso} onClick={tap}
                                                 className={`px-2.5 py-1.5 rounded-md border text-[13px] font-black tabular-nums transition-colors ${
-                                                    on ? 'bg-info text-white border-info'
+                                                    on || isFrom ? 'bg-info text-white border-info'
+                                                    : inRange ? 'bg-info/20 text-text-primary border-info/40'
                                                     : i === 0 ? 'bg-surface-alt/50 text-text-muted border-border border-dashed'
                                                     : 'bg-surface-alt/50 text-text-primary border-border'
                                                 }`}>
@@ -784,6 +815,8 @@ export default function StopCallSheet({
                                         const arriveAt = deadlineAt
                                             ? hhmm(deadlineAt)
                                             : hhmm(new Date(Date.now() + arrivalMinutes * 60_000).toISOString());
+                                        // 구간 약속이면 "12:23~12:53 사이" 로 읽는다 — 통화 대사 그대로
+                                        const fromLabel = deadlineAt && deadlineFromAt ? `${hhmm(deadlineFromAt)}~` : '';
                                         // 약속까지 남는 시간 = 상차버퍼 (이 자리에서 합짐을 잡을 수 있는 시간)
                                         const waitMin = deadlineAt
                                             ? Math.round((new Date(deadlineAt).getTime() - (Date.now() + arrivalMinutes * 60_000)) / 60_000)
@@ -797,7 +830,7 @@ export default function StopCallSheet({
                                                     }`}>{waitMin}분</b></>}
                                                 {waitMin < 0 && <span className="text-danger font-bold">, 약속보다 {-waitMin}분 늦음</span>}
                                                 {' = '}
-                                                <b className="text-info tabular-nums">{arriveAt}</b> 도착
+                                                <b className="text-info tabular-nums">{fromLabel}{arriveAt}</b>{fromLabel ? ' 사이' : ''} 도착
                                             </>
                                         );
 
