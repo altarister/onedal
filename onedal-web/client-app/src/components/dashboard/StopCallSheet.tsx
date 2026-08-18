@@ -616,7 +616,9 @@ export default function StopCallSheet({
             {/* 헤더 — 라벨 · 담당자 · 진행 배지 */}
             <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
-                    {stepMode && <div className="text-[10px] font-black tracking-[0.08em] text-text-muted">지금 할 일</div>}
+                    {/* 🔴 2026-08-18 — `지금 할 일` 이라는 라벨 줄이 있었다. 바로 아래 `상차지 통화` 가
+                        무엇을 할지 이미 말하므로 한 줄을 그냥 먹고 있었다. 기사님이 배치를 적어 주실 때도
+                        이 줄은 없었다. **강조는 글자가 아니라 왼쪽 색띠와 배경이 한다.** */}
                     <div className="flex items-center gap-1.5 flex-wrap">
                         {/* 🔴 `하차지` + `하차지 통화` 를 나란히 찍고 있었다 — 단계 이름이 이미 정거장을 담는다 */}
                         <span className={stepMode
@@ -689,6 +691,78 @@ export default function StopCallSheet({
                         기사님: *"정보 중복이고 불필요한 액션을 요구하는 것 같다."*
                         → 줄을 누르면 **바로 입력 폼**이 열린다. 저장하면 접히고 요약 줄이 갱신된다. */}
                     <>
+
+                            {!isPickup && fromPickupCall && (
+                                <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-info/10 border border-info/35 border-dashed">
+                                    <span className="text-[10px] font-black text-info shrink-0">상차지 통화에서 들음</span>
+                                    <span className="text-[11px] text-text-muted flex-1">시각을 미리 채웠습니다 — 다시 확인하거나 그대로 두세요</span>
+                                </div>
+                            )}
+
+                            {/* 🚚 차종 정원으로 눌러 둔 경우 — 어디서 온 값인지 화면에 남긴다.
+                                서버도 신고 전에는 같은 값으로 적재를 잡는다 (computeLoadedPoints) */}
+                            {isPickup && prefilledFromVehicle && (
+                                <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-surface-alt/60 border border-border border-dashed">
+                                    <span className="text-[10px] font-black text-text-muted shrink-0">차종 기본값</span>
+                                    <span className="text-[11px] text-text-muted flex-1">
+                                        {vehicleType} 한 대 분량으로 눌러 뒀습니다 — 통화로 확인하고 고치세요
+                                    </span>
+                                </div>
+                            )}
+
+                            {isPickup && prefilledFromMemo && (
+                                <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-warning/10 border border-warning/35 border-dashed">
+                                    <span className="text-[10px] font-black text-warning shrink-0">적요에서 미리 채움</span>
+                                    <span className="text-[11px] text-text-muted flex-1 truncate">{hints.summary}</span>
+                                    <span className="text-[10px] text-text-muted shrink-0">틀리면 고치세요</span>
+                                </div>
+                            )}
+
+                            {cargoForm}
+
+                            {/* 🎯 30분 단위 — 첫 칸이 곧 '지금 출발'이고, 한 칸이 30분의 합짐 시간이다.
+                                기사님: *"9:39에 가도 될까요? 그럼 한 시간 동안 합짐을 잡을 수 있으니까."*
+                                버튼마다 `여유 N분` 을 쓰지 않는다 — 몇 번째 칸인가가 곧 여유다. */}
+                            <div>
+                                {/* 다른 값들과 같은 `라벨 : 값` 꼴로 맞춘다 (기사님 2026-08-18) —
+                                    제목을 따로 한 줄 쓰면 그만큼 세로를 먹는다 */}
+                                <Row title="도착시간">
+                                    {hourSlots.map((sl, i) => {
+                                        const on = deadlineAt === sl.iso;
+                                        return (
+                                            <button key={sl.iso} onClick={() => { setDeadlineTouched(true); setDeadlineAt(on ? undefined : sl.iso); }}
+                                                className={`px-2.5 py-1.5 rounded-md border text-[13px] font-black tabular-nums transition-colors ${
+                                                    on ? 'bg-info text-white border-info'
+                                                    : i === 0 ? 'bg-surface-alt/50 text-text-muted border-border border-dashed'
+                                                    : 'bg-surface-alt/50 text-text-primary border-border'
+                                                }`}>
+                                                {sl.label}
+                                            </button>
+                                        );
+                                    })}
+                                </Row>
+                                {/* 🔴 **미리 채운 값에는 근거를 붙인다** (기사님 2026-08-16).
+                                    기존 원칙과 같다 — *"적요는 부정확할 수 있으므로 어디서 온 값인지는
+                                    화면에 남긴다."* 기사님이 직접 누르시면 이 줄은 사라진다. */}
+                                {!deadlineTouched && deadlineAt && suggestedSlot?.iso === deadlineAt && (
+                                    <div className="mt-1 text-[10px] leading-tight text-text-muted">
+                                        {/* 🔴 **기준 시각을 함께 적는다.** 칸이 30분 간격이라 추천 칸과
+                                            기준이 다를 수 있는데, 그걸 안 적으면 화면이 거짓말한다 */}
+                                        ⓘ {driveKnown
+                                            ? `주행 ${driveMinutes}분${isPickup ? ` + 상차 ${dwell}분` : ''} → `
+                                            : '콜 잡은 시각 + 1시간 → '}
+                                        <b className="tabular-nums">
+                                            {hhmm(driveKnown
+                                                ? new Date(Date.now() + (arrivalMinutes + (isPickup ? dwell : 0)) * 60_000).toISOString()
+                                                : pickupDeadlineAt!)}
+                                        </b>
+                                        {' 이라 가장 가까운 '}
+                                        <b className="tabular-nums">{hhmm(deadlineAt)}</b> 을 눌러 뒀습니다 —
+                                        바꾸시면 그게 확정됩니다
+                                    </div>
+                                )}
+                            </div>
+
                             {/* 통화에서 그대로 읽을 수 있는 한 줄.
                                 기사님: *"거기까지 가는데 몇 km고 28분 걸려 08:39에 도착해야 하는데…"* */}
                             {driveKnown ? (
@@ -716,7 +790,11 @@ export default function StopCallSheet({
                                             : 0;
                                         const tail = (
                                             <>
-                                                {waitMin > 0 && <>, {isPickup ? '대기' : '휴게'} <b className="tabular-nums">{waitMin}분</b></>}
+                                                {waitMin > 0 && <>, {isPickup ? '대기' : '휴게'}{' '}
+                                                    {/* 색이 곧 판단이다 — 60분↑ 넉넉 · 30분↑ 보통 · 그 아래 촉박 */}
+                                                    <b className={`tabular-nums ${
+                                                        waitMin >= 60 ? 'text-success' : waitMin >= 30 ? 'text-info' : 'text-warning'
+                                                    }`}>{waitMin}분</b></>}
                                                 {waitMin < 0 && <span className="text-danger font-bold">, 약속보다 {-waitMin}분 늦음</span>}
                                                 {' = '}
                                                 <b className="text-info tabular-nums">{arriveAt}</b> 도착
@@ -764,77 +842,6 @@ export default function StopCallSheet({
                                 </div>
                             )}
 
-                            {/* 🎯 30분 단위 — 첫 칸이 곧 '지금 출발'이고, 한 칸이 30분의 합짐 시간이다.
-                                기사님: *"9:39에 가도 될까요? 그럼 한 시간 동안 합짐을 잡을 수 있으니까."*
-                                버튼마다 `여유 N분` 을 쓰지 않는다 — 몇 번째 칸인가가 곧 여유다. */}
-                            <div>
-                                {/* 다른 값들과 같은 `라벨 : 값` 꼴로 맞춘다 (기사님 2026-08-18) —
-                                    제목을 따로 한 줄 쓰면 그만큼 세로를 먹는다 */}
-                                <Row title="도착시간">
-                                    {hourSlots.map((sl, i) => {
-                                        const on = deadlineAt === sl.iso;
-                                        return (
-                                            <button key={sl.iso} onClick={() => { setDeadlineTouched(true); setDeadlineAt(on ? undefined : sl.iso); }}
-                                                className={`px-2.5 py-1.5 rounded-md border text-[13px] font-black tabular-nums transition-colors ${
-                                                    on ? 'bg-info text-white border-info'
-                                                    : i === 0 ? 'bg-surface-alt/50 text-text-muted border-border border-dashed'
-                                                    : 'bg-surface-alt/50 text-text-primary border-border'
-                                                }`}>
-                                                {sl.label}
-                                            </button>
-                                        );
-                                    })}
-                                </Row>
-                                {/* 🔴 **미리 채운 값에는 근거를 붙인다** (기사님 2026-08-16).
-                                    기존 원칙과 같다 — *"적요는 부정확할 수 있으므로 어디서 온 값인지는
-                                    화면에 남긴다."* 기사님이 직접 누르시면 이 줄은 사라진다. */}
-                                {!deadlineTouched && deadlineAt && suggestedSlot?.iso === deadlineAt && (
-                                    <div className="mt-1 text-[10px] leading-tight text-text-muted">
-                                        {/* 🔴 **기준 시각을 함께 적는다.** 칸이 30분 간격이라 추천 칸과
-                                            기준이 다를 수 있는데, 그걸 안 적으면 화면이 거짓말한다 */}
-                                        ⓘ {driveKnown
-                                            ? `주행 ${driveMinutes}분${isPickup ? ` + 상차 ${dwell}분` : ''} → `
-                                            : '콜 잡은 시각 + 1시간 → '}
-                                        <b className="tabular-nums">
-                                            {hhmm(driveKnown
-                                                ? new Date(Date.now() + (arrivalMinutes + (isPickup ? dwell : 0)) * 60_000).toISOString()
-                                                : pickupDeadlineAt!)}
-                                        </b>
-                                        {' 이라 가장 가까운 '}
-                                        <b className="tabular-nums">{hhmm(deadlineAt)}</b> 을 눌러 뒀습니다 —
-                                        바꾸시면 그게 확정됩니다
-                                    </div>
-                                )}
-                            </div>
-
-                            {!isPickup && fromPickupCall && (
-                                <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-info/10 border border-info/35 border-dashed">
-                                    <span className="text-[10px] font-black text-info shrink-0">상차지 통화에서 들음</span>
-                                    <span className="text-[11px] text-text-muted flex-1">시각을 미리 채웠습니다 — 다시 확인하거나 그대로 두세요</span>
-                                </div>
-                            )}
-
-                            {/* 🚚 차종 정원으로 눌러 둔 경우 — 어디서 온 값인지 화면에 남긴다.
-                                서버도 신고 전에는 같은 값으로 적재를 잡는다 (computeLoadedPoints) */}
-                            {isPickup && prefilledFromVehicle && (
-                                <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-surface-alt/60 border border-border border-dashed">
-                                    <span className="text-[10px] font-black text-text-muted shrink-0">차종 기본값</span>
-                                    <span className="text-[11px] text-text-muted flex-1">
-                                        {vehicleType} 한 대 분량으로 눌러 뒀습니다 — 통화로 확인하고 고치세요
-                                    </span>
-                                </div>
-                            )}
-
-                            {isPickup && prefilledFromMemo && (
-                                <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-warning/10 border border-warning/35 border-dashed">
-                                    <span className="text-[10px] font-black text-warning shrink-0">적요에서 미리 채움</span>
-                                    <span className="text-[11px] text-text-muted flex-1 truncate">{hints.summary}</span>
-                                    <span className="text-[10px] text-text-muted shrink-0">틀리면 고치세요</span>
-                                </div>
-                            )}
-
-                            {cargoForm}
-
                             {/* ══ 이어서 하차지까지 한 통화로 ══
                                 기사님: *"상차하고 출발 시간까지 알게 되면 다시 상차지에 하차지 정보까지
                                 물을 수 있어. '하차지까지 몇 km 몇 분 걸릴 것 같은데 x:xx까지 가면 될까요?'
@@ -849,20 +856,11 @@ export default function StopCallSheet({
                                 한 화면에 중복으로 표현할 필요가 없어 보인다."*
                                 시퀀스가 이미 다음 단계로 데려간다 — 규칙 ⑥(단계를 압축하지 않는다). */}
 
-                            {deadlineAt && (() => {
-                                const spare = Math.max(0, Math.round((new Date(deadlineAt).getTime() - Date.now()) / 60000) - arrivalMinutes);
-                                return (
-                                    <div className={`text-[12px] font-bold px-2 py-2 rounded-md ${
-                                        spare >= 60 ? 'bg-success/12 text-success'
-                                        : spare >= 30 ? 'bg-info/10 text-info' : 'bg-warning/12 text-warning'
-                                    }`}>
-                                        🕒 {hhmm(deadlineAt)}까지 가겠다고 말하세요
-                                        {spare > 0
-                                            ? <> · 그 사이 <b>{spare >= 60 ? `${Math.floor(spare / 60)}시간 ${spare % 60 || ''}${spare % 60 ? '분' : ''}` : `${spare}분`}</b> 합짐을 잡을 수 있습니다</>
-                                            : <> · 바로 출발해야 합니다</>}
-                                    </div>
-                                );
-                            })()}
+                            {/* 🔴 2026-08-18 — `🕒 20:23까지 가겠다고 말하세요 · 그 사이 30분 합짐` 배너가
+                                여기 있었다. **바로 위 문장이 이미 같은 말**을 한다
+                                (`… 대기 30분 = 20:23 도착`). 기사님: *"UI 영역을 아껴 써야 한다."*
+                                → 배너를 지우고, 배너가 하던 일(여유를 **색**으로 알리기)은
+                                  문장의 대기 항이 물려받는다. */}
 
                             {/* 단계 모드에서는 이것이 **주 버튼**이다 — 저장이 곧 다음 단계로 넘어가는 것.
                                 기사님: *"통화 완료와 통화 스킵 이렇게 선택권이 있으면 될 것 같아."*
