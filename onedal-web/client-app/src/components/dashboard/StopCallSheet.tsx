@@ -820,9 +820,12 @@ export default function StopCallSheet({
                                 🔴 둘을 **한 줄에** 둔다 (기사님 2026-08-18) — 예전엔 스킵을 카드가
                                 시트 바깥 아래에 붙여 두 줄이 됐다. 고르는 자리는 한 눈에 보여야 한다. */}
                             <div className="flex gap-2">
+                            {/* 🔴 점선·흐린 글자였는데 **버튼으로 안 읽혔다** (기사님 2026-08-18).
+                                스킵도 정상 경로다 — 적요가 충분하면 통화 없이 넘어간다. 숨길 이유가 없다.
+                                다만 파란 [통화 완료] 와 같은 무게로 만들지는 않는다 (오클릭 방지). */}
                             {onSkip && (
                                 <button type="button" onClick={(e) => { e.stopPropagation(); onSkip(); }}
-                                    className={`shrink-0 px-4 rounded-lg border border-border border-dashed text-text-muted font-bold ${
+                                    className={`shrink-0 px-4 rounded-lg border border-border bg-surface-alt/60 text-text-primary font-bold ${
                                         stepMode ? 'py-3.5 text-[14px]' : 'py-2.5 text-[13px]'
                                     }`}>
                                     통화 스킵
