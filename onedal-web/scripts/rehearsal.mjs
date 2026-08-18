@@ -93,6 +93,7 @@ function routeOrderCheck(pickupText, dropoffText, progressKm) {
 let holdingOrderId = null;      // 심사 대기 중인 콜 (있으면 상세 화면인 척한다)
 let pendingAck = null;
 let lastFilter = null;
+let dumpAfterAck = false;   // KEEP 직후 전체 필터를 자동으로 펼치기 위한 표식
 
 async function telemetry() {
     try {
@@ -114,19 +115,47 @@ async function telemetry() {
             console.log(`\n📦 판결 수신: ${d.action}  (${d.orderId.slice(0, 8)}) — ACK 보냅니다`);
             pendingAck = d.orderId;
             if (holdingOrderId === d.orderId) holdingOrderId = null;
+            if (d.action === 'KEEP') dumpAfterAck = true;   // 잡혔다 — 재계산된 필터를 곧 펼친다
+            prompt();
+        } else if (dumpAfterAck) {
+            // ACK 뒤 첫 응답 = KEEP 재계산(경유·적재·차종)이 반영된 필터다
+            dumpAfterAck = false;
+            console.log('\n🎯 콜을 잡았습니다 — 지금 앱으로 내려가는 필터:');
+            showFilter();
             prompt();
         }
     } catch { /* 서버가 잠깐 없어도 다음 틱에 다시 */ }
 }
 
+/** 앱으로 내려가는 필터 **전체** — 콜을 잡으면 자동으로 이걸 펼쳐 보여준다 (기사님 2026-08-18) */
 function showFilter() {
     const f = lastFilter;
     if (!f) { console.log('  (아직 필터 수신 전 — 잠시 후 다시)'); return; }
     const pk = f.progressKm ?? {};
     const nums = Object.values(pk).filter(v => v !== null).length;
-    console.log(`  국면 ${f.dispatchPhase} · 콜잡기 ${f.isActive ? 'ON' : 'OFF'} · 경유 ${f.detourRadiusKm}km · 하차 ${f.destinationRadiusKm}km`);
-    console.log(`  동 목록 ${f.destinationKeywords?.length ?? 0}개 · progressKm ${Object.keys(pk).length}개(숫자 ${nums})`);
-    console.log(`  차종 [${(f.allowedVehicleTypes ?? []).join(', ') || '없음 — 만재?'}] · 적재 ${f.slotsUsed}/100박스`);
+
+    console.log('\n  ━━━ 📱 앱으로 내려가는 필터 (전체) ━━━');
+    console.log(`  isActive(콜잡기)      ${f.isActive ? 'ON' : 'OFF'}`);
+    console.log(`  dispatchPhase(국면)   ${f.dispatchPhase} · isSharedMode(합짐) ${f.isSharedMode}`);
+    console.log(`  driverAction          ${f.driverAction ?? '-'}`);
+    console.log(`  destinationCity       ${f.destinationCity || '(없음)'} · 하차 반경 ${f.destinationRadiusKm}km · 경유 ${f.detourRadiusKm}km`);
+    console.log(`  pickupRadiusKm(상차)  ${f.pickupRadiusKm}km`);
+    console.log(`  minFare/maxFare       ${f.minFare?.toLocaleString()} ~ ${f.maxFare?.toLocaleString()}원 · 콜할인율 ${f.callDiscountPct}%`);
+    console.log(`  ratePerKm(단가표)     ${Object.entries(f.ratePerKm ?? {}).map(([k, v]) => `${k} ${v}`).join(' · ') || '(없음)'}`);
+    console.log(`  allowedVehicleTypes   [${(f.allowedVehicleTypes ?? []).join(', ') || '비어 있음 — 만재라 아무것도 못 실음'}]`);
+    console.log(`  적재                  ${f.slotsUsed}/100박스 · 신뢰도 ${f.capacityConfidence}`);
+    console.log(`  excludedKeywords      [${(f.excludedKeywords ?? []).join(', ') || '없음'}]`);
+    console.log(`  customCityFilters     ${(f.customCityFilters ?? []).length}개 — ${(f.customCityFilters ?? []).join(', ') || '없음'}`);
+
+    const kw = f.destinationKeywords ?? [];
+    console.log(`  destinationKeywords   ${kw.length}개 동:`);
+    for (let i = 0; i < kw.length; i += 12) console.log(`     ${kw.slice(i, i + 12).join(' ')}`);
+
+    const entries = Object.entries(pk).sort((a, b) => (a[1] ?? Infinity) - (b[1] ?? Infinity));
+    console.log(`  progressKm(경로 순서) ${entries.length}개 (숫자 ${nums} · 순서모름 ${entries.length - nums}) — 출발점 기준 km:`);
+    for (let i = 0; i < entries.length; i += 6)
+        console.log(`     ${entries.slice(i, i + 6).map(([k, v]) => `${k} ${v === null ? '?' : v.toFixed(1)}`).join(' · ')}`);
+    console.log('  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 }
 
 let seq = 0;
