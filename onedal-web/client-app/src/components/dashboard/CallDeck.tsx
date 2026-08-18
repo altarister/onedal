@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { SecuredOrder } from '@onedal/shared';
-import { deriveCallStep, CALL_STEPS, deriveCallTiming } from '@onedal/shared';
+import { deriveCallStep, CALL_STEPS } from '@onedal/shared';
 import { pickAutoFocus, scrollSettle } from '../../lib/deckFocus';
 import { getAddressLabel } from '../../lib/routeUtils';
 import type { CallRecords } from '../../hooks/useCallProgress';
@@ -23,9 +23,16 @@ interface Props {
     renderCard: (order: SecuredOrder) => React.ReactNode;
     /** 콜별 서버 기록 — 요약 줄이 진행 단계를 파생하는 데 쓴다 */
     records: Map<string, CallRecords>;
+    /**
+     * 정거장마다 **경유번호와 도착시간** (기사님 2026-08-19).
+     * 둘 다 `PinnedRoute` 가 이미 만들어 두는 값이다 — 요약 줄이 그걸 그대로 읽는다.
+     * 각자 계산하면 지도 핀·리스트와 다른 번호를 말하게 된다 (규칙 ③).
+     */
+    etaMap: Map<string, { pickupEta?: string; dropoffEta?: string }>;
+    visitOrderMap: Map<string, { pickupIdx: number; dropoffIdx: number }>;
 }
 
-export default function CallDeck({ orders, renderCard, records }: Props) {
+export default function CallDeck({ orders, renderCard, records, etaMap, visitOrderMap }: Props) {
     const trackRef = useRef<HTMLDivElement>(null);
 
     /**
@@ -183,9 +190,9 @@ export default function CallDeck({ orders, renderCard, records }: Props) {
                     {orders.map((o, i) => {
                         const r = records.get(o.id) ?? EMPTY_RECORDS;
                         const p = deriveCallStep(r.milestones, r.reports);
-                        const t = deriveCallTiming(o, r.reports, r.milestones, Date.now());
+                        const vo = visitOrderMap.get(o.id);
+                        const eta = etaMap.get(o.id);
                         const isCur = i === cur;
-                        const isCallStep = !!p.current?.id.startsWith('CALL_');
                         return (
                             <button
                                 key={o.id}
@@ -206,19 +213,14 @@ export default function CallDeck({ orders, renderCard, records }: Props) {
                                 <span className={`text-[11px] font-black shrink-0 tabular-nums ${
                                     isCur ? 'text-info' : 'text-text-muted'
                                 }`}>{i + 1}</span>
+                                {/* 🔴 2026-08-19 — 정거장마다 **언제 몇 번째로 가는가**를 붙인다 (기사님).
+                                    예전엔 여기에 `(87.2km·64분·1t)` 가 있었는데, 그건 이 콜 **혼자** 갔을 때의
+                                    값이라 여러 콜을 엮은 지금 순서에 대해서는 아무 말도 못 한다.
+                                    경유번호·도착시각은 지도 핀·리스트가 쓰는 것과 **같은 값**이다. */}
                                 <span className="text-[11px] font-bold text-text-primary truncate min-w-0 flex-1">
-                                    {getAddressLabel(o.pickup)}
+                                    {getAddressLabel(o.pickup)}<StopMark at={vo?.pickupIdx} eta={eta?.pickupEta} />
                                     <span className="text-text-muted font-normal mx-0.5">→</span>
-                                    {getAddressLabel(o.dropoff)}
-                                    {/* 🔴 2026-08-18 — 거리·분·차종·금액이 **카드 헤더에 또** 있었다.
-                                        기사님: *"UI 영역을 아껴 써야 한다."* → 이 줄로 모으고 헤더를 지웠다.
-                                        km·분은 `deriveCallTiming` 한 곳에서 파생한다 (규칙 ③) —
-                                        카드가 쓰는 값과 같아야 두 줄이 다른 말을 하지 않는다. */}
-                                    <span className="text-text-muted font-normal ml-1 tabular-nums">
-                                        ({t.soloKm ? `${Number(t.soloKm).toFixed(1)}km` : '거리미상'}
-                                        ·{t.soloMinutes ? `${t.soloMinutes}분` : '시간미상'}
-                                        ·{o.vehicleType || '차종미상'})
-                                    </span>
+                                    {getAddressLabel(o.dropoff)}<StopMark at={vo?.dropoffIdx} eta={eta?.dropoffEta} />
                                 </span>
 
                                 {/* 6단계를 한눈에 — 카드 안 진행 점과 같은 규칙 */}
@@ -234,11 +236,6 @@ export default function CallDeck({ orders, renderCard, records }: Props) {
                                     ))}
                                 </span>
 
-                                <span className={`text-[10px] font-black shrink-0 text-right ${
-                                    p.allDone ? 'text-success' : isCallStep ? 'text-info' : 'text-text-muted'
-                                }`}>
-                                    {p.allDone ? '운행 완료' : `${isCallStep ? '📞 ' : ''}${p.current?.label}`}
-                                </span>
                                 {/* 돈은 맨 오른쪽 — 기사님이 적어 주신 순서 그대로 */}
                                 <span className="text-[12px] font-black tabular-nums shrink-0 text-text-primary">
                                     {o.fare > 0 ? `${(o.fare / 10000).toFixed(1)}만원` : '금액미상'}
@@ -273,5 +270,20 @@ export default function CallDeck({ orders, renderCard, records }: Props) {
             {/* 하단 페이저 점은 없앴다 — 위 요약 줄이 위치(번호·테두리)와 진행을 함께 보여주므로
                 같은 정보를 두 번 그리며 세로만 잡아먹었다. 폰 한 화면이 목표다. */}
         </div>
+    );
+}
+
+/**
+ * `(경유번호 도착시각)` — 이 정거장을 **몇 번째로, 몇 시에** 가는가.
+ *
+ * 둘 다 없으면 빈 괄호를 그리지 않는다. 순서만 정해졌고 시각을 아직 모르는 때가 있는데
+ * (경로 연산 전), 그때 `(3 --:--)` 같은 자리를 만들면 화면이 모르는 것을 아는 척한다.
+ */
+function StopMark({ at, eta }: { at?: number; eta?: string }) {
+    if (!at && !eta) return null;
+    return (
+        <span className="text-text-muted font-normal ml-0.5 tabular-nums">
+            ({[at || null, eta || null].filter(Boolean).join(' ')})
+        </span>
     );
 }

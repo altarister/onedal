@@ -335,6 +335,9 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate, vi
             {viewFilter === 'ACTIVE' && liveRoute.length > 0 && (
                 <CallDeck
                     records={callRecords}
+                    /* 경유번호·도착시각은 여기서 한 번 만든 것을 지도·리스트·요약 줄이 함께 쓴다 */
+                    etaMap={etaMap}
+                    visitOrderMap={visitOrderMap}
                     /* 순서는 잡은 시간순으로 고정한다 — 새 콜은 뒤에 붙기만 해서
                        기존 위치가 안 밀린다. 근거는 deckOrder() 주석 참고 */
                     orders={deckOrder(liveRoute)}
