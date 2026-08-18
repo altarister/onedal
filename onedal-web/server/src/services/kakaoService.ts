@@ -100,7 +100,7 @@ export interface RouteResult {
     raw?: any;
     polyline?: Array<{x: number; y: number}>; // 카카오 실제 도로 곡선 데이터
     sectionEtas?: string[]; // 각 구간 도착 시점(HH:mm) 배열
-    sectionDriveMin?: number[]; // 정거장별 누적 주행(분) — 상대값이라 낡지 않는다
+    sectionDriveMin?: Array<number | null>; // 정거장별 누적 주행(분) — 상대값이라 낡지 않는다. 현위치 미상이면 null
 }
 
 export interface DetourResult {
@@ -181,10 +181,17 @@ function extractPolyline(routes?: any[]): Array<{x: number; y: number}> {
  * (40분 뒤에 보면 "14:05 도착"이 거짓말이 된다) 주행분은 낡지 않는다 —
  * 화면이 그릴 때 지금 시각에 더하면 된다. 타임라인 파생(deriveRouteTimeline)의 재료.
  */
-export function calculateDriveMinutes(sections: any[] | undefined, startsAtFirstStop: boolean): number[] {
-    const mins: number[] = [];
-    if (!sections) return mins;
-    if (startsAtFirstStop) mins.push(0);          // 출발점이 곧 첫 정거장 — 주행 0분
+export function calculateDriveMinutes(sections: any[] | undefined, startsAtFirstStop: boolean): Array<number | null> {
+    if (!sections) return [];
+    /**
+     * 🔴 현위치를 몰라 출발점을 첫 정거장으로 삼은 경로 — 접근 주행이 통째로 없다.
+     *    예전엔 첫 정거장에 0 을 적었다: "지금 즉시 도착"이라는 지어낸 값이 되어
+     *    타임라인이 낙관 약속을 만들었다 (규칙 ④ — 없는 숫자를 지어내지 않는다).
+     *    출발점을 모르면 누적의 기준 자체가 없다 — **전부 null** 이 정직하다.
+     *    (타임라인은 null 을 보면 콜별 파생으로 폴백하고, 시트는 "주행 모름"을 말한다)
+     */
+    if (startsAtFirstStop) return new Array(sections.length + 1).fill(null);
+    const mins: Array<number | null> = [];
     let cumulativeSec = 0;
     for (const section of sections) {
         cumulativeSec += section.duration || 0;

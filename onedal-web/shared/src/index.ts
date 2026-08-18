@@ -511,7 +511,7 @@ export interface PendingOrder extends OfficeOrder {
     osrmSoloDurationMin?: number;     // OSRM이 연산한 해당 콜만의 '단독' 소요 시간
     osrmError?: string;               // OSRM 연산 실패 시 에러 메세지 노출용
     sectionEtas?: string[];           // 카카오 궤적 연산 기반 각 경유지 도착 예상 시간 배열
-    sectionDriveMin?: number[];       // 출발점 기준 정거장별 **누적 주행(분)** — 시계가 아니라 상대값이라 낡지 않는다
+    sectionDriveMin?: Array<number | null>;       // 출발점 기준 정거장별 **누적 주행(분)** — 시계가 아니라 상대값이라 낡지 않는다
     routeComputedAt?: string;         // 이 경로를 계산한 시점 — 타임라인 추정 약속의 닻
     pickupEta?: string;               // 카카오 궤적 연산 기반 상차지 예상 도착 시간
     dropoffEta?: string;              // 카카오 궤적 연산 기반 하차지 예상 도착 시간
@@ -541,7 +541,7 @@ export interface MyOrder extends OfficeOrder {
     osrmSoloDurationMin?: number;     // OSRM이 연산한 해당 콜만의 '단독' 소요 시간
     osrmError?: string;               // OSRM 연산 실패 시 에러 메세지 노출용
     sectionEtas?: string[];           // 카카오 궤적 연산 기반 각 경유지 도착 예상 시간 배열
-    sectionDriveMin?: number[];       // 출발점 기준 정거장별 **누적 주행(분)** — 시계가 아니라 상대값이라 낡지 않는다
+    sectionDriveMin?: Array<number | null>;       // 출발점 기준 정거장별 **누적 주행(분)** — 시계가 아니라 상대값이라 낡지 않는다
     routeComputedAt?: string;         // 이 경로를 계산한 시점 — 타임라인 추정 약속의 닻
     pickupEta?: string;               // 카카오 궤적 연산 기반 상차지 예상 도착 시간
     dropoffEta?: string;              // 카카오 궤적 연산 기반 하차지 예상 도착 시간
@@ -569,7 +569,7 @@ export interface SecuredOrder extends OfficeOrder {
     osrmSoloDurationMin?: number;
     osrmError?: string;
     sectionEtas?: string[];
-    sectionDriveMin?: number[];
+    sectionDriveMin?: Array<number | null>;
     routeComputedAt?: string;
     pickupEta?: string;
     dropoffEta?: string;

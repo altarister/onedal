@@ -39,7 +39,7 @@ export interface RouteResult {
     distance: number;      // meters
     duration: number;      // seconds
     sectionEtas?: any;
-    sectionDriveMin?: number[];
+    sectionDriveMin?: Array<number | null>;
     /** 현위치 → 첫 상차지 소요 시간(초). 카카오가 주는데 예전에는 로그만 찍고 버렸다 */
     approachDuration?: number;
     /** 현위치 → 첫 상차지 거리(미터) */

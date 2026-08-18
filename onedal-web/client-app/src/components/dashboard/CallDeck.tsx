@@ -204,7 +204,7 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, r
 
     return (
         <div className="flex flex-col">
-            {/* ══ 콜별 진행 요약 — **스와이프하지 않아도 보인다** ══
+            {/* ══ 콜 요약 줄 — **스와이프하지 않아도 보인다** ══
                 기사님: *"2개 있다면 각각 어디까지 진행되고 있는지 모두 스와이핑해야만 보인다.
                 그건 문제가 있다. 스와이프 영역 위에 콜마다의 진행 상황이 노출되어야
                 **폰에 손대지 않고** 아직 전화하지 않은 부분이 어디인지 인지할 수 있을 것 같다."*
@@ -252,13 +252,14 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, r
                                     맞다. 이 줄은 **어느 콜인지 고르는 자리**라 이름이 없으면 고를 수가 없다.
                                     그리고 1건과 2건의 생김새가 다르면, 합짐이 붙는 순간 화면이 또 바뀐다 —
                                     영역을 항상 띄우기로 한 이유(화면이 튀지 않게)와 같은 이야기다. */}
-                                <span className={`text-[11px] font-black shrink-0 tabular-nums ${
+                                {/* 🔍 크기: 기사님 2026-08-19 — "~(추정 물결)가 마이너스로 읽힐 만큼 작다. 키워 달라" */}
+                                <span className={`text-[14px] font-black shrink-0 tabular-nums ${
                                     isCur ? 'text-info' : 'text-text-muted'
                                 }`}>{i + 1}</span>
                                 {/* 🔴 2026-08-19 — 정거장마다 **몇 번째로, 몇 시까지 가기로 했는가**.
                                     예전엔 여기에 `(87.2km·64분·1t)` 가 있었는데, 그건 이 콜 **혼자** 갔을 때의
                                     값이라 여러 콜을 엮은 지금 순서에 대해서는 아무 말도 못 한다. */}
-                                <span className="text-[11px] font-bold text-text-primary truncate min-w-0 flex-1">
+                                <span className="text-[14px] font-bold text-text-primary truncate min-w-0 flex-1">
                                     {getAddressLabel(o.pickup)}
                                     <StopMark at={vo?.pickupIdx} kind="pickup" evaluating={isEvaluating(o.status)}
                                         time={promiseOf('pickup')} confirmed={confirmed('pickup')} />
@@ -271,7 +272,7 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, r
                                 {/* 6단계를 한눈에 — 카드 안 진행 점과 같은 규칙 */}
                                 <span className="flex gap-0.5 shrink-0" aria-hidden>
                                     {CALL_STEPS.map((st, k) => (
-                                        <span key={st.id} className={`block h-1 w-2.5 rounded-full ${
+                                        <span key={st.id} className={`block h-1.5 w-3 rounded-full ${
                                             k === p.index ? 'bg-info'
                                             : p.done[k] ? 'bg-success'
                                             : k < p.index ? 'bg-success/35'
@@ -282,7 +283,7 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, r
                                 </span>
 
                                 {/* 돈은 맨 오른쪽 — 기사님이 적어 주신 순서 그대로 */}
-                                <span className="text-[12px] font-black tabular-nums shrink-0 text-text-primary">
+                                <span className="text-[14px] font-black tabular-nums shrink-0 text-text-primary">
                                     {o.fare > 0 ? `${(o.fare / 10000).toFixed(1)}만원` : '금액미상'}
                                 </span>
                             </button>
@@ -337,10 +338,10 @@ function StopMark({ at, time, confirmed, kind, evaluating }: {
     const c = MAP_THEME_COLORS[theme];
     if (!at && !time) return null;
     return (
-        <span className="inline-flex items-center gap-0.5 ml-1 align-middle">
+        <span className="inline-flex items-center gap-1 ml-1 align-middle">
             {!!at && (
                 <span
-                    className="inline-flex items-center justify-center w-[15px] h-[15px] rounded-full text-[9px] font-black leading-none shrink-0"
+                    className="inline-flex items-center justify-center w-[19px] h-[19px] rounded-full text-[11px] font-black leading-none shrink-0"
                     style={{
                         backgroundColor: evaluating ? c.nodeEvaluating : kind === 'pickup' ? c.nodePickup : c.nodeDropoff,
                         border: `1.5px solid ${evaluating ? c.nodeStrokeEvaluating : c.nodeStrokeRegular}`,
@@ -349,7 +350,8 @@ function StopMark({ at, time, confirmed, kind, evaluating }: {
                 >{at}</span>
             )}
             {time && (
-                <span className="text-[10px] font-normal text-text-muted tabular-nums">
+                /* ~ = 통화 전 추정. 12px 아래에서는 물결이 마이너스로 읽혔다 (기사님 2026-08-19) */
+                <span className="text-[13px] font-bold text-text-muted tabular-nums">
                     {confirmed ? hhmm(time) : `~${hhmm(time)}`}
                 </span>
             )}
