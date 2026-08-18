@@ -551,6 +551,35 @@ async function ledger() {
     }
 
     /**
+     * ②-3 **강제 정리된 콜도 장부에 남는가.**
+     *
+     * 🔴 2026-08-18 실사고 — 송정동 → 고덕동 콜이 "그냥 사라졌다."
+     *    앱이 확정 클릭 후 12초 만에 리스트 화면으로 이탈하자 서버의 화면 이탈 감지가
+     *    forceCancelEvaluatingOrder 로 지웠는데, **이 경로가 DB 를 안 거쳤다.**
+     *    결재 취소는 저장하도록 고쳤으면서(②-2) 강제 정리 경로를 빠뜨렸다 — 같은 클래스.
+     *    안전취소는 배차망 취소 횟수(10회)에 들어가므로 한 건도 새면 안 된다 (용어집 §2-1).
+     */
+    {
+        const fid = `${id}-force`;
+        const forceOrder = { ...order, id: fid };
+        await post('/confirm', { ...base, step: 'BASIC', matchType: 'AUTO', order: forceOrder });
+        await wait(600);
+        // 상세를 보내지 않고 화면 이탈을 흉내낸다 — 새 콜 진입이 기존 평가 콜을 강제 정리한다
+        const nextOrder = { ...order, id: `${id}-next` };
+        await post('/confirm', { ...base, step: 'BASIC', matchType: 'AUTO', order: nextOrder });
+
+        let frow = null;
+        for (let i = 0; i < 10 && !frow; i++) {
+            await wait(400);
+            const c = new Database(dbPath, { readonly: true });
+            frow = c.prepare(`SELECT status FROM orders WHERE id = ?`).get(fid) || null;
+            c.close();
+        }
+        check('강제 정리된 콜도 장부에 남는다 (화면 이탈 — 송정동→고덕동 사고)', !!frow,
+            frow ? `status=${frow.status}` : '🔴 orders 에 행이 없다 — 흔적 없이 사라졌다');
+    }
+
+    /**
      * ③ 색이 콜을 구분하는가.
      * 값이 옳은지는 여기서 못 본다. 하지만 **판정이 정보를 못 내는 상태**는 보인다 —
      * 장부의 첫짐이 전부 한 색이면 그 기준은 구분을 포기한 것이다.

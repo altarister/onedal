@@ -40,7 +40,30 @@ export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: 
     let targetDeviceId: string | undefined;
 
     if (session.pendingOrdersData.has(orderId)) {
-        targetDeviceId = session.pendingOrdersData.get(orderId)?.capturedDeviceId;
+        const cached = session.pendingOrdersData.get(orderId)!;
+        targetDeviceId = cached.capturedDeviceId;
+
+        /**
+         * 🔴 **강제 정리도 장부에 남긴다** (2026-08-18 실사고 — 송정동 → 고덕동)
+         *
+         * 앱이 확정 클릭 후 리스트로 이탈하자 이 함수가 콜을 지웠는데, DB 를 안 거쳐
+         * **관제웹에서 "그냥 사라졌다."** 결재 취소는 저장하도록 고쳤으면서(②-2)
+         * 이 경로를 빠뜨렸다. 취소 경로가 셋(화면 이탈·타임아웃·비상)인데
+         * 저장은 결재 경로에만 있었다 — 아래 isActive 주석이 경고한 바로 그 형태다.
+         *
+         * 안전취소는 배차망 취소 횟수(10회)에 들어간다. 기사님이 몇 번 썼는지
+         * 알려면 **한 건도 새면 안 된다** (용어집 §2-1). 캐시 삭제 전에 저장한다.
+         */
+        try {
+            const isShared = getActiveCalls(session).length > 1 ? 1 : 0;
+            const isExpress = (cached as any).orderForm === '급송' ? 1 : 0;
+            OrderRepository.upsertOrder(cached as any, userId, isShared, isExpress);
+            OrderRepository.updateOrderStatus(orderId, userId, 'SAFE_CANCEL');
+            console.log(`✅ [상태 동기화] ${orderId} - 강제 정리도 장부에 기록 (상태: SAFE_CANCEL)`);
+        } catch (e) {
+            console.error("강제 정리 DB 기록 에러:", e);
+        }
+
         session.pendingOrdersData.delete(orderId);
     }
     // [Option B] 결재 큐 및 안전취소 타이머 청소
