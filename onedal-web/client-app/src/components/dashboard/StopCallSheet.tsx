@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import {
     HANDLING_METHODS, cargoPoints, parseCargoHints, hasCargoHints, defaultCargoByVehicle,
     PROTECTIONS, PROTECTION_MINUTES, DEFAULT_PROTECTIONS, protectionMinutes,
+    AFTERWORKS, AFTERWORK_MINUTES, afterworkMinutes,
     CARGO_TAGS, CARGO_TAG_META, DEFAULT_CARGO_TAG, computeSlackMinutes,
     CARGO_UNITS, CARGO_UNIT_QUANTITY_INPUT,
     buildArrivalSlots, dwellMinutes, unitPoints,
@@ -115,7 +116,7 @@ function summarize(r?: CargoReport): string {
 export default function StopCallSheet({
     orderId, stopType, label, address, contactName, phones, reports,
     memoTexts, driveMinutes, vehicleType, orderStatus, arrivedAt, forceOpen, stepLabel,
-    leadMinutes = 0, leadLabel, driveKm, onwardMinutes, onwardKm, codAmount, pickupDeadlineAt,
+    leadMinutes = 0, leadLabel, driveKm, codAmount, pickupDeadlineAt,
 }: Props) {
     const isPickup = stopType === 'pickup';
     /** 단계 카드(A안)가 몰아주는 모드 — 이 시트가 화면의 전부다. 요약 줄을 띄우지 않는다 */
@@ -130,6 +131,8 @@ export default function StopCallSheet({
     const [prefilledFromVehicle, setPrefilledFromVehicle] = useState(false);
     /** 🔒 보호 — 호루·결박·그물망·탑박스 (복수 선택). 결박은 늘 한다 */
     const [protections, setProtections] = useState<string[]>([...DEFAULT_PROTECTIONS]);
+    /** 🧹 후작업 — 정리·검수 (하차 전용 · 복수 선택). 기본은 아무것도 안 누른다 */
+    const [afterworks, setAfterworks] = useState<string[]>([]);
     /** 하차지 시각을 상차지 통화에서 미리 들어 둔 값으로 채웠는가 */
     const [fromPickupCall, setFromPickupCall] = useState(false);
     /** [T8] 착불 수령 상태 — 서버가 진실이다. 화면이 저장했다고 믿지 않는다 */
@@ -172,7 +175,8 @@ export default function StopCallSheet({
     const eff = { unit, quantity: qty, handling };
     const points = isPickup ? cargoPoints(eff) : unitPoints(pickupReport?.unit, pickupReport?.quantity);
     /** 이 정거장의 상하차 소요 — 도착 시각에는 안 들어가지만 **다음 정거장** 계산에는 필요하다 */
-    const dwell = dwellMinutes(eff.handling, points, isPickup ? 'pickup' : 'dropoff', undefined, isPickup ? protections : undefined);
+    const dwell = dwellMinutes(eff.handling, points, isPickup ? 'pickup' : 'dropoff', undefined,
+        isPickup ? protections : undefined, isPickup ? undefined : afterworks);
     // 주행 시간을 모르면 여유를 계산할 수 없다. 0 으로 때우면 "여유가 많다"고 거짓말하게 된다
     const driveKnown = driveMinutes != null && driveMinutes > 0;
     /**
@@ -225,6 +229,8 @@ export default function StopCallSheet({
             setTags(src?.tags?.length ? [...src.tags] : [DEFAULT_CARGO_TAG]);
             setMemo(src?.memo || '');
             setProtections(src?.protections?.length ? [...src.protections] : [...DEFAULT_PROTECTIONS]);
+        setAfterworks(src?.afterworks?.length ? [...src.afterworks] : []);
+            setAfterworks(src?.afterworks?.length ? [...src.afterworks] : []);
             setDeadlineAt(src?.promisedArrivalAt ?? src?.deadlineAt ?? onward);
             setOnwardDeadlineAt(src?.onwardDeadlineAt);
             return;
@@ -252,6 +258,7 @@ export default function StopCallSheet({
         setTags(src?.tags?.length ? [...src.tags] : [DEFAULT_CARGO_TAG]);
         setMemo(src?.memo || '');
         setProtections(src?.protections?.length ? [...src.protections] : [...DEFAULT_PROTECTIONS]);
+        setAfterworks(src?.afterworks?.length ? [...src.afterworks] : []);
         setDeadlineAt(src?.promisedArrivalAt ?? src?.deadlineAt ?? onward);
         setOnwardDeadlineAt(src?.onwardDeadlineAt);
     };
@@ -292,9 +299,10 @@ export default function StopCallSheet({
             //    기사님: *"내 의도는 시퀀스로 되어 있는데 두 개를 한 번에 가는 건 기준이 흔들리는 것 같아."*
             //    상차지 통화에서 **들은 값**일 뿐이므로 여기 담아 두고,
             //    하차지 통화 단계에서 미리 채워 준다. 통화 여부는 기사님이 정한다.
-            onwardDeadlineAt: isPickup && kind === 'DECLARED' ? (onwardDeadlineAt ?? onwardSuggestedRef.current) : undefined,
+            onwardDeadlineAt: isPickup && kind === 'DECLARED' ? onwardDeadlineAt : undefined,
             tags: isPickup && tags.length ? tags : undefined,
             protections: isPickup && protections.length ? protections : undefined,
+            afterworks: !isPickup && afterworks.length ? afterworks : undefined,
             memo: memo || undefined,
         });
         // 저장하면 접는다. 결과는 바로 위 요약 줄에 반영된다.
@@ -401,10 +409,6 @@ export default function StopCallSheet({
         return firstAtOrAfter(minuteTick * 60_000 + (arrivalMinutes + 30) * 60_000);
     }, [driveKnown, arrivalMinutes, dwell, isPickup, hourSlots, pickupDeadlineAt, minuteTick]);
 
-    /** 하차지 도착도 손대기 전엔 추천을 따라간다 (상차와 같은 방식) */
-    const [onwardTouched, setOnwardTouched] = useState(false);
-    /** 렌더 중 계산되는 추천값을 저장 시점에 쓰기 위해 담아 둔다 */
-    const onwardSuggestedRef = useRef<string | undefined>(undefined);
 
     /** 기사님이 아직 손대지 않아 추천값이 눌려 있는 상태인가 — 눌리면 근거 줄을 띄운다 */
     const [deadlineTouched, setDeadlineTouched] = useState(false);
@@ -537,6 +541,28 @@ export default function StopCallSheet({
                         <span className="text-[11px] text-text-muted self-center ml-1">
                             합 {protectionMinutes(protections)}분
                         </span>
+                    )}
+                </Row>
+            )}
+
+            {/* 🧹 후작업 — 짐을 내린 뒤에 하는 일. 보호(상차)와 짝이다 (기사님 2026-08-18:
+                *"검수는 하차할 때 하는 거라 하차로 옮기는 것이 맞을 듯."*) */}
+            {!isPickup && (
+                <Row title="후작업">
+                    {AFTERWORKS.map(a => {
+                        const on = afterworks.includes(a);
+                        return (
+                            <button key={a}
+                                onClick={() => setAfterworks(prev => on ? prev.filter(x => x !== a) : [...prev, a])}
+                                className={`px-2 py-1.5 rounded-md text-[11px] font-bold border ${
+                                    on ? 'bg-warning text-white border-warning' : 'bg-surface-alt/40 text-text-primary border-border'
+                                }`}>
+                                {a}<span className="ml-1 text-[10px] font-normal opacity-70">{AFTERWORK_MINUTES[a]}분</span>
+                            </button>
+                        );
+                    })}
+                    {afterworks.length > 0 && (
+                        <span className="text-[11px] text-text-muted self-center ml-1">합 {afterworkMinutes(afterworks)}분</span>
                     )}
                 </Row>
             )}
@@ -764,60 +790,10 @@ export default function StopCallSheet({
                                 접어 두지 않는다 — 통화가 그 순서로 흘러가기 때문이다.
                                 하차지 담당자·연락처는 콜을 잡을 때 이미 들어오므로(28/28 확인)
                                 건너뛰어도 잃는 정보가 없다. */}
-                            {isPickup && deadlineAt && onwardMinutes != null && onwardMinutes > 0 && (() => {
-                                /**
-                                 * 🔴 **`deadlineAt` 은 이제 "도착" 약속이다** (기사님 2026-08-18 개정).
-                                 *    2026-08-16 에는 "실어 보내는 시각"이라 여기서 상차를 안 더했는데,
-                                 *    약속의 뜻이 도착으로 바뀌면서 **다시 더해야 맞다** —
-                                 *    실어 보내는 시각 = 도착 약속 + 상차 소요(보호 포함).
-                                 *    안 더하면 위 문구("15:52 실어 보냄")와 아래 칸이 어긋난다.
-                                 */
-                                const loadDoneMs = new Date(deadlineAt).getTime() + dwell * 60_000;
-                                const arriveMs = loadDoneMs + onwardMinutes * 60_000;
-                                const slots = buildArrivalSlots(loadDoneMs, onwardMinutes, 4);
-                                /**
-                                 * 🕒 **하차지 도착도 미리 눌러 둔다** (기사님 2026-08-18).
-                                 *    상차와 같은 규칙 — 도착 예상 + 30분 이상인 첫 칸.
-                                 *    빈칸으로 두면 통화 중에 버튼을 찾아 눌러야 한다 (미리 눌러 두고 확정하는 방식).
-                                 */
-                                const onwardSuggested = slots.find(
-                                    sl => Date.parse(sl.iso) >= arriveMs + 30 * 60_000) ?? slots[slots.length - 1];
-                                onwardSuggestedRef.current = onwardTouched
-                                    ? onwardDeadlineAt : (onwardDeadlineAt ?? onwardSuggested?.iso);
-                                return (
-                                    <div className="rounded-md border border-info/35 bg-info/[0.06] px-2.5 py-2 flex flex-col gap-1.5">
-                                        <div className="text-[11px] font-black text-info">이어서 — 하차지도 지금 정하기</div>
-                                        <div className="text-[12px] text-text-primary">
-                                            <b className="tabular-nums">{hhmm(new Date(new Date(deadlineAt).getTime() + dwell * 60_000).toISOString())}</b> 실어 보냄
-                                            <span className="text-text-muted"> (상차 {dwell}분 포함)</span>
-                                            <div className="mt-0.5">
-                                                상차지 → 하차지
-                                                {onwardKm != null && <> <b className="tabular-nums">{onwardKm.toFixed(1)}</b>km</>}
-                                                {' · '}<b className="tabular-nums">{onwardMinutes}</b>분
-                                                {' → '}<b className="text-info tabular-nums">{hhmm(new Date(arriveMs).toISOString())}</b> 도착
-                                            </div>
-                                        </div>
-                                        <div className="flex gap-1.5 flex-wrap">
-                                            {slots.map(sl => {
-                                                const on = (onwardDeadlineAt ?? (onwardTouched ? undefined : onwardSuggested?.iso)) === sl.iso;
-                                                return (
-                                                    <button key={sl.iso}
-                                                        onClick={() => { setOnwardTouched(true); setOnwardDeadlineAt(on ? undefined : sl.iso); }}
-                                                        className={`px-3 py-2 rounded-md border text-[14px] font-black tabular-nums ${
-                                                            on ? 'bg-info text-white border-info'
-                                                               : 'bg-surface-alt/50 text-text-primary border-border'
-                                                        }`}>{sl.label}</button>
-                                                );
-                                            })}
-                                        </div>
-                                        <div className="text-[10px] text-text-muted">
-                                            {onwardDeadlineAt
-                                                ? '다음 단계(하차지 통화)에 미리 채워 둡니다 — 통화할지는 그때 정하세요'
-                                                : '정해 두면 다음 단계에 미리 채워 둡니다'}
-                                        </div>
-                                    </div>
-                                );
-                            })()}
+                            {/* 🔴 「이어서 — 하차지도 지금 정하기」 를 뺐다 (기사님 2026-08-18):
+                                *"통화 완료를 누르면 바로 다음 하차지 통화로 나올 건데,
+                                한 화면에 중복으로 표현할 필요가 없어 보인다."*
+                                시퀀스가 이미 다음 단계로 데려간다 — 규칙 ⑥(단계를 압축하지 않는다). */}
 
                             {deadlineAt && (() => {
                                 const spare = Math.max(0, Math.round((new Date(deadlineAt).getTime() - Date.now()) / 60000) - arrivalMinutes);

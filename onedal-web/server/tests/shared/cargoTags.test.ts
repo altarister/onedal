@@ -2,8 +2,7 @@ import {
     findTagConflicts, isTimeSensitive,
     computeSlackMinutes, allowedDetourMinutes, describeSlack,
     dwellMinutes, computeStopTiming, unitPoints, DWELL_UNKNOWN_PICKUP_MINUTES, DWELL_UNKNOWN_DROPOFF_MINUTES,
-    CARGO_UNITS, CARGO_UNIT_QUANTITY_INPUT, HANDLING_METHODS,
-} from '@onedal/shared';
+    CARGO_UNITS, CARGO_UNIT_QUANTITY_INPUT, HANDLING_METHODS, AFTERWORK_MINUTES, afterworkMinutes } from '@onedal/shared';
 
 /**
  * [Phase 8.4] 시간 여유가 합짐을 결정한다.
@@ -213,23 +212,29 @@ describe('단위 개편 (2026-08-12)', () => {
     });
 });
 
-describe('검수 방법 (2026-08-12)', () => {
-    it('검수는 90분이다 (기사님 지시)', () => {
-        expect(dwellMinutes('검수', 0)).toBe(90);
+describe('검수 — 하차의 후작업으로 이사 (2026-08-18)', () => {
+    /**
+     * 기사님: *"검수는 하차할 때 하는 거라 하차로 옮기는 것이 맞을 듯.
+     * 카테고리는 후작업 이렇게 넣고 정리 1분, 검수 60분 이렇게 추가해줘."*
+     * 방법(옮기는 행위)에서 빠졌고, 시간도 90 → 60분으로 기사님이 다시 정하셨다.
+     */
+    it('방법 목록에는 지게차·수작업 둘뿐이다', () => {
+        expect([...HANDLING_METHODS]).toEqual(['지게차', '수작업']);
     });
 
-    it('🔴 수량이 아무리 많아도 90분 고정 — per-point 를 비워 두면 폴백이 1분씩 붙는다', () => {
-        expect(dwellMinutes('검수', 30)).toBe(90);   // 파레트 2개
-        expect(dwellMinutes('검수', 120)).toBe(90);  // 라면박스 480개
+    it('검수는 후작업이고 60분이다', () => {
+        expect(AFTERWORK_MINUTES).toEqual({ '정리': 1, '검수': 60 });
+        expect(afterworkMinutes(['검수'])).toBe(60);
+        expect(afterworkMinutes(['정리', '검수'])).toBe(61);
+    });
+
+    it('🔴 후작업은 하차에만 붙는다 — 상차는 보호가 맡는다', () => {
+        expect(dwellMinutes('수작업', 30, 'dropoff', undefined, null, ['검수'])).toBe(70);   // 10 + 60
+        expect(dwellMinutes('수작업', 30, 'pickup', undefined, null, ['검수'])).toBe(10);    // 상차엔 안 붙는다
     });
 
     it('다른 방법은 그대로다', () => {
-        expect(dwellMinutes('지게차', 80)).toBe(4);     // 파레트 2개 × 2분 (2026-08-18 새 축)
+        expect(dwellMinutes('지게차', 80)).toBe(4);     // 파레트 2개 × 2분
         expect(dwellMinutes('수작업', 80)).toBe(27);    // 80박스 × 20초
-    });
-
-    /** 호이스트는 뺐다 (기사님 2026-08-18: "해본 적이 없는데 이건 그냥 뺄까?") */
-    it('세 가지가 선택지에 있다 — 호이스트는 뺐다', () => {
-        expect([...HANDLING_METHODS]).toEqual(['지게차', '수작업', '검수']);
     });
 });

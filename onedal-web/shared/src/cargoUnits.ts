@@ -156,3 +156,25 @@ export function protectionMinutes(list?: readonly string[] | null): number {
     if (!list?.length) return 0;
     return list.reduce((sum, p) => sum + (PROTECTION_MINUTES[p as Protection] ?? 0), 0);
 }
+
+/**
+ * 🧹 **후작업 — 짐을 내린 뒤에 하는 일** (기사님 확정 2026-08-18)
+ *
+ * 기사님: *"검수는 하차할 때 하는 거라 하차로 옮기는 것이 맞을 듯.
+ * 카테고리는 후작업 이렇게 넣고 정리 1분, 검수 60분 이렇게 추가해줘."*
+ *
+ * 보호(상차)와 짝이다 — **묶는 일은 상차, 푸는 뒤의 일은 하차**.
+ * 성질·보호처럼 **복수 선택**이고 고른 것의 분을 하차 시간에 더한다.
+ */
+export const AFTERWORK_MINUTES = {
+    '정리': 1,
+    '검수': 60,
+} as const;
+export const AFTERWORKS = Object.keys(AFTERWORK_MINUTES) as Afterwork[];
+export type Afterwork = keyof typeof AFTERWORK_MINUTES;
+
+/** 고른 후작업들의 합(분). 모르면 0 — 지어내지 않는다 */
+export function afterworkMinutes(list?: readonly string[] | null): number {
+    if (!list?.length) return 0;
+    return list.reduce((sum, a) => sum + (AFTERWORK_MINUTES[a as Afterwork] ?? 0), 0);
+}

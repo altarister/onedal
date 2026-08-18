@@ -229,7 +229,9 @@ export const CARGO_SIZE_POINTS: Record<CargoSize, number> = {
  */
 // 🔴 **호이스트를 뺐다** (기사님 2026-08-18): *"해본 적이 없는데 이건 그냥 뺄까?"*
 //    안 해 본 일에 시간 값을 지어내면 그 값이 색을 정한다. DB 제약도 기존 행도 없어 안전했다.
-export const HANDLING_METHODS = ['지게차', '수작업', '검수'] as const;
+// 🔴 **검수를 뺐다** (기사님 2026-08-18): *"검수는 하차할 때 하는 거라 하차로 옮기는 것이 맞을 듯."*
+//    → 하차의 `후작업`(AFTERWORK_MINUTES)으로 이사했다. 방법은 옮기는 행위만 남는다.
+export const HANDLING_METHODS = ['지게차', '수작업'] as const;
 export type HandlingMethod = typeof HANDLING_METHODS[number];
 
 
@@ -269,6 +271,8 @@ export interface CargoReport {
     promisedArrivalAt?: string;
     /** 🔒 보호 — 호루·결박·그물망·탑박스 (복수 선택 · 기사님 2026-08-18) */
     protections?: string[];
+    /** 🧹 후작업 — 정리·검수 (하차 전용 · 복수 선택 · 기사님 2026-08-18) */
+    afterworks?: string[];
     /**
      * [2026-08-12] **상차지 통화에서 함께 들은 하차지 도착 예정 시각.**
      *

@@ -19,11 +19,6 @@ describe('방법 — 옮기는 행위만 (수량 비례)', () => {
         expect(dwellMinutes('지게차', 80)).toBe(4);
     });
 
-    it('검수는 수량과 무관하게 90분 — 절차가 시간을 먹는다', () => {
-        expect(dwellMinutes('검수', 80)).toBe(90);
-        expect(dwellMinutes('검수', 1)).toBe(90);
-    });
-
     it('호이스트는 목록에서 뺐다 — 해본 적 없는 일에 값을 지어내지 않는다', () => {
         expect(HANDLING_METHODS).not.toContain('호이스트');
     });

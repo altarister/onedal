@@ -12,7 +12,7 @@
  * 각자의 것만 남기고, 여기서 그 값을 읽어 시간으로 환산한다. 의존은 한 방향뿐이다.
  */
 import { unitPoints } from './cargoUnits';
-import { protectionMinutes } from './cargoUnits';
+import { protectionMinutes, afterworkMinutes } from './cargoUnits';
 import type { CargoReport } from './index';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -41,15 +41,10 @@ import type { CargoReport } from './index';
  *    수량에만 비례시키면 값이 저절로 도출된다:
  *      수작업 박스당 20초 → 다마스 30박스 = **10분** (기사님이 든 예시 그대로)
  *      지게차 파레트당 2분(박스당 3초) → 1t 파레트 2개 = **4분**
- *    `검수` 만 예외다 — 수량이 아니라 **절차**가 시간을 먹는다 (90분 고정).
+ *    검수는 **하차의 후작업**으로 옮겼다 (기사님 2026-08-18) — 방법에는 이제 둘뿐이다.
  */
-const DWELL_BASE: Record<string, number> = { '지게차': 0, '수작업': 0, '검수': 90 };
-/**
- * 🔴 `검수` 는 0 이다 (기사님 지시: "검수는 90분"). 물건을 하나하나 확인받는 자리라
- *    수량이 아니라 **절차**가 시간을 먹는다. 여기를 비워 두면 아래 `?? 1` 폴백이
- *    점수당 1분을 붙여 파레트 2개에 120분이 되어 버린다 — 반드시 명시한다.
- */
-const DWELL_PER_POINT: Record<string, number> = { '지게차': 0.05, '수작업': 1 / 3, '검수': 0 };   // 박스당 분 — 지게차 3초(파레트 2분) · 수작업 20초
+const DWELL_BASE: Record<string, number> = { '지게차': 0, '수작업': 0 };
+const DWELL_PER_POINT: Record<string, number> = { '지게차': 0.05, '수작업': 1 / 3 };   // 박스당 분 — 지게차 3초(파레트 2분) · 수작업 20초
 
 /**
  * 방법을 모를 때 쓰는 **일반값** — 상차와 하차가 다르다 (기사님 확정 2026-08-15).
@@ -78,8 +73,9 @@ export function dwellMinutes(
     /** 어느 정거장인가 — 모를 때 쓰는 일반값이 다르다. 안 넘기면 상차(더 긴 쪽)로 본다 */
     stop: 'pickup' | 'dropoff' = 'pickup',
     unk?: DwellUnknown,
-    /** 🔒 보호 — 고른 것의 분을 더한다. **상차에만** 붙는다 (묶는 자리) */
+    /** 🔒 보호(상차) — 묶는 자리 · 🧹 후작업(하차) — 내린 뒤의 일. 정거장에 따라 하나만 붙는다 */
     protections?: readonly string[] | null,
+    afterworks?: readonly string[] | null,
 ): number {
     const unknown = stop === 'dropoff'
         ? (unk?.dropoffDwellMin ?? DWELL_UNKNOWN_DROPOFF_MINUTES)
@@ -88,14 +84,14 @@ export function dwellMinutes(
     const base = DWELL_BASE[handling];
     if (base == null) return unknown;
     /**
-     * 🔴 **수량을 모르면 일반값으로 돌아간다** (2026-08-18).
-     *    기본 시간을 0 으로 없앤 뒤로는 `수량 0 × 박스당` 이 그대로 **0분**이 된다 —
-     *    "상차 0분"은 없는 숫자를 지어내는 것보다 나쁘다 (여유를 무한대로 만든다).
-     *    `검수` 는 수량과 무관하므로 예외다.
+     * 🔴 **수량은 늘 있다** (기사님 2026-08-18): *"콜이 들어왔다는 건 어떤 차종의 짐을
+     *    부른 것이라는 걸 무조건 알 수밖에 없다."* 신고가 없으면 차종 정원이 들어온다
+     *    (`defaultCargoByVehicle` — 화면도 서버도 같은 값). 그래서 수량 0 방어를 뒀다가 지웠다.
+     *    다만 **차종조차 못 읽은 콜**은 여전히 있을 수 있어(P3 무결성), 그때만 일반값으로 돈다.
      */
-    if (points <= 0 && base === 0) return unknown;
-    const protect = stop === 'pickup' ? protectionMinutes(protections) : 0;
-    return Math.round(base + points * (DWELL_PER_POINT[handling] ?? 1) + protect);
+    if (points <= 0) return unknown;
+    const extra = stop === 'pickup' ? protectionMinutes(protections) : afterworkMinutes(afterworks);
+    return Math.round(base + points * (DWELL_PER_POINT[handling] ?? 1) + extra);
 }
 
 export interface StopTiming {
@@ -115,12 +111,12 @@ export interface StopTiming {
  */
 export function computeStopTiming(
     pickup: { handling?: string | null; unit?: string | null; quantity?: number | null; protections?: string[] | null } | undefined,
-    dropoff: { handling?: string | null } | undefined,
+    dropoff: { handling?: string | null; afterworks?: string[] | null } | undefined,
     unk?: DwellUnknown,
 ): StopTiming {
     const points = unitPoints(pickup?.unit, pickup?.quantity);
     const pickupDwell = dwellMinutes(pickup?.handling, points, 'pickup', unk, pickup?.protections);
-    const dropoffDwell = dwellMinutes(dropoff?.handling ?? pickup?.handling, points, 'dropoff', unk);
+    const dropoffDwell = dwellMinutes(dropoff?.handling ?? pickup?.handling, points, 'dropoff', unk, null, dropoff?.afterworks);
     return {
         pickupDwell,
         dropoffDwell,
@@ -607,7 +603,7 @@ export function deriveCallTiming(
     const points = unitPoints(pickupCargo?.unit, pickupCargo?.quantity);
     const pickupDwell = dwellMinutes(pickupCargo?.handling, points, 'pickup', undefined, pickupCargo?.protections);
     // 하차 방법을 따로 안 물었으면 상차와 같다고 본다 (지게차로 실었으면 대개 지게차로 내린다)
-    const dropoffDwell = dwellMinutes(dropoffCargo?.handling ?? pickupCargo?.handling, points, 'dropoff');
+    const dropoffDwell = dwellMinutes(dropoffCargo?.handling ?? pickupCargo?.handling, points, 'dropoff', undefined, null, dropoffCargo?.afterworks);
 
     const base = { approachMinutes, approachKm, soloMinutes, soloKm,
                    pickupDwellMinutes: pickupDwell, arrivedPickup, pickedUp, arrivedDropoff };
