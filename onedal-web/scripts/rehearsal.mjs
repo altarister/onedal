@@ -218,9 +218,27 @@ async function inject(t) {
     if (!t.pickup || !t.dropoff) { console.log('  🔴 이 주소가 지오코딩 캐시에 없어 건너뜁니다'); return; }
 
     // 앱이라면 잡았을까 — 올리기 전에 같은 규칙으로 미리 판정
+    /**
+     * 🔴 경로 순서만 보고 있었다 (2026-08-19 실측 사고). 그래서 허용 차종이
+     *    [오토바이, 승용차]인 상태에서 1t 콜을 경고 없이 올렸고, 기사님이
+     *    KEEP 해 **1t 화물 두 개가 잡혔다** — 실앱이라면 파서의 차종 검사가
+     *    걸렀을 콜이다. 앱이 거르는 것(차종·요금·isActive)은 리허설도 거른다.
+     */
+    const blocks = [];
+    const f = lastFilter;
+    if (f) {
+        if (f.isActive === false) blocks.push('콜 잡기 OFF (만석/홀드)');
+        const av = f.allowedVehicleTypes;
+        if (Array.isArray(av) && av.length === 0) blocks.push('허용 차종 없음 — 적재 만석');
+        else if (Array.isArray(av) && av.length && t.vehicleType
+                 && !av.some(a => t.vehicleType.includes(a) || a.includes(t.vehicleType)))
+            blocks.push(`차종 ${t.vehicleType} — 허용 [${av.join(', ')}] 밖`);
+        if (f.minFare && t.fare < f.minFare) blocks.push(`요금 ${t.fare.toLocaleString()}원 < 최저 ${f.minFare.toLocaleString()}원`);
+    }
     const check = routeOrderCheck(t.pickup, t.dropoff, lastFilter?.progressKm);
-    console.log(`  🧭 앱 필터 판정: ${check.passed ? '✅ 통과' : '🔴 차단'} — ${check.reason}`);
-    if (!check.passed) {
+    if (!check.passed) blocks.push(check.reason);
+    console.log(`  🧭 앱 필터 판정: ${blocks.length === 0 ? `✅ 통과 — ${check.reason}` : `🔴 차단 — ${blocks.join(' · ')}`}`);
+    if (blocks.length) {
         const yn = await ask('  앱이라면 안 올릴 콜입니다. 그래도 올릴까요? (y/N) ');
         if (yn.trim().toLowerCase() !== 'y') { console.log('  → 올리지 않았습니다 (앱과 같은 동작)'); return; }
     }

@@ -299,3 +299,17 @@ export function setOrderStatus(
     if (cached) { cached.status = status; found = true; }
     return found;
 }
+
+/**
+ * ⛔ **만석 홀드 — 실을 수 있는 차종이 없으면 콜 잡기를 멈춘다** (기사님 확정 2026-08-19).
+ *
+ * 상차 신고로 적재가 100/100 이 되면 `allowedVehicleTypes` 가 빈 배열이 되는데,
+ * 앱 파서는 빈 배열을 "전체 허용"(서버 미응답 대비 오프라인 안전망)으로 읽는다 —
+ * 한 신호에 뜻이 둘이라 **만석인데 모든 차종을 잡으러 드는** 사고가 난다.
+ * 그래서 만석은 빈 배열이 아니라 isActive=false 로 명시한다 (빈 필터는 고장 — 규칙 ④).
+ *
+ * 목록이 아예 없는 것(옛 필터·미계산)과 비어 있는 것은 다르다 — 없으면 홀드하지 않는다.
+ */
+export function capacityFullHold(filter: { dispatchPhase?: string; allowedVehicleTypes?: string[] }): boolean {
+    return Array.isArray(filter.allowedVehicleTypes) && filter.allowedVehicleTypes.length === 0;
+}

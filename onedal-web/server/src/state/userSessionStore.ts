@@ -24,6 +24,8 @@ const SERVICE_DEFAULT_FILTER: Partial<AutoDispatchFilter> = {
 
 // 1명의 기사가 가지는 '모든' 상태 캡슐화
 export interface UserSession {
+    /** ⛔ 만석 홀드를 이미 알렸는가 — 5초 하트비트마다 같은 로그가 쌓이지 않게 (상태 전환 시에만 찍는다) */
+    capacityHoldNotified?: boolean;
     myOrders: MyOrder[];                    // [계층 2-B] 확정된 내 퀵 배열 (단일 배열, 상태 필터링으로 관리)
     // [Option B] 응답 객체 대신 판결(Decision) 데이터를 저장하는 큐 형식으로 변경
     pendingDecisions: Map<string, { action: "KEEP" | "CANCEL" | null; evaluatedAt: number }>;

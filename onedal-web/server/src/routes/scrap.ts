@@ -2,6 +2,7 @@ import { Router } from "express";
 import { callFilterBlocker } from "@onedal/shared";
 import type { SimplifiedOfficeOrder, ScreenContextType } from "@onedal/shared";
 import db from "../db";
+import { capacityFullHold } from "../core/helpers";
 import { getUserSession, clearOrderTimers } from "../state/userSessionStore";
 import { ensureBusinessDay, buildAppProgressKm } from "../state/filterManager";
 
@@ -164,6 +165,24 @@ router.post("/", (req, res) => {
         if (session.isBootstrapping) {
             appFilter.isActive = false;
             console.log(`⏳ [부트스트랩 중] ${deviceId} 에게 isActive=false 로 응답 (필터 준비 중)`);
+        }
+
+        /**
+         * ⛔ **적재 만석 — 콜 잡기를 멈춘다** (기사님 확정 2026-08-19).
+         * 앱은 빈 allowedVehicleTypes 를 "전체 허용"으로 읽으므로(오프라인 안전망),
+         * 빈 배열을 그대로 보내면 만석인데 모든 차종을 잡으러 든다.
+         * 하차로 공간이 생기면 재계산이 차종 목록을 되살려 자동 복귀한다.
+         * 직접콜(MANUAL)은 필터를 안 타므로 기사님이 잡는 것은 막히지 않는다.
+         */
+        if (capacityFullHold(session.activeFilter)) {
+            appFilter.isActive = false;
+            if (!session.capacityHoldNotified) {
+                session.capacityHoldNotified = true;
+                console.log(`⛔ [적재 만석] ${deviceId} 에게 isActive=false 로 응답 (실을 수 있는 차종 없음 — 하차하면 재개)`);
+            }
+        } else if (session.capacityHoldNotified) {
+            session.capacityHoldNotified = false;
+            console.log(`✅ [적재 만석 해제] 콜 잡기 재개 (허용 차종: ${(session.activeFilter.allowedVehicleTypes ?? []).join(', ')})`);
         }
 
         /**
