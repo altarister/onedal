@@ -41,16 +41,34 @@ const cached = db.prepare(`SELECT query FROM geocode_cache WHERE query LIKE '%�
 db.close();
 const pick = (needle) => cached.find(q => q.includes(needle));
 
-/** 자주 쓰는 무대 — 광주 출발 → 파주 노선 (기사님 평소 시뮬레이션과 같은 그림) */
+/**
+ * 자주 쓰는 무대 — 광주 출발 → 파주 노선 (기사님 평소 시뮬레이션과 같은 그림).
+ * 주소는 전부 geocode_cache 실물 — 1~5 는 잡는 흐름, 6~10 은 걸러져야 하는 것들.
+ */
 const PRESETS = [
-    { key: '1', label: '첫짐 · 광주 경안동 → 파주 금촌동 (10만/1t)',
-      pickup: pick('경안동'), dropoff: pick('금촌동'), fare: 100000, vehicleType: '1t' },
-    { key: '2', label: '합짐 순방향 · 광주 목현동 → 파주 문발동 (3만/다마스)',
-      pickup: pick('목현동'), dropoff: pick('문발동'), fare: 30000, vehicleType: '다마스' },
-    { key: '3', label: '합짐 역주행 · 파주 금촌동 → 광주 경안동 (뒤로 가는 콜 — 차단돼야 함)',
-      pickup: pick('금촌동'), dropoff: pick('경안동'), fare: 90000, vehicleType: '오토바이' },
-    { key: '4', label: '경로 밖 · 성남 판교 → 파주 탄현면 (목록 밖 상차 — 차단돼야 함)',
-      pickup: pick('판교'), dropoff: pick('탄현면'), fare: 80000, vehicleType: '오토바이' },
+    // ── 잡는 흐름 ──
+    { key: '1', label: '첫짐 꿀 · 광주 경안동 → 파주 금촌동 (10만/1t) — 🔵 나와야 정상',
+      pickup: pick('경안동 204-5'), dropoff: pick('금촌동 905-1'), fare: 100000, vehicleType: '1t' },
+    { key: '2', label: '첫짐 똥 · 광주 경안동 → 파주 문산읍 (5.5만/1t · 저단가) — 🟡 나와야 정상',
+      pickup: pick('경안동 493-4'), dropoff: pick('문산역'), fare: 55000, vehicleType: '1t' },
+    { key: '3', label: '합짐 순방향 소형 · 광주 목현동 → 파주 문발동 (3만/다마스)',
+      pickup: pick('목현동'), dropoff: pick('회동길 145'), fare: 30000, vehicleType: '다마스' },
+    { key: '4', label: '합짐 순방향 · 광주 초월읍 → 파주 탄현면 아울렛 (9만/오토바이)',
+      pickup: pick('초월읍 경충대로 2073'), dropoff: pick('신세계사이먼'), fare: 90000, vehicleType: '오토바이' },
+    { key: '5', label: '합짐 중간 상차 · 고양 일산 웨스턴돔 → 파주 야당동 (4만/라보) — 경로 후반끼리',
+      pickup: pick('웨스턴돔'), dropoff: pick('야당동'), fare: 40000, vehicleType: '라보' },
+
+    // ── 걸러져야 하는 것들 ──
+    { key: '6', label: '역주행 · 파주 금촌동 → 광주 경안동 — 🔴 차단돼야 정상',
+      pickup: pick('금촌동 768-2'), dropoff: pick('경안동 167-1'), fare: 90000, vehicleType: '오토바이' },
+    { key: '7', label: '경로 밖 상차 · 성남 판교 → 파주 탄현면 — 🔴 차단돼야 정상',
+      pickup: pick('판교역로 146'), dropoff: pick('쿠팡 파주'), fare: 80000, vehicleType: '오토바이' },
+    { key: '8', label: '우회 큰 합짐 · 광주 남한산성 → 파주 법원읍 (7만/다마스) — 우회 커서 낮은 점수',
+      pickup: pick('남한산성'), dropoff: pick('법원읍'), fare: 70000, vehicleType: '다마스' },
+    { key: '9', label: '적재 초과 · 광주 송정동 → 파주 월롱면 (8만/1t짐) — 첫짐 있으면 차종에서 걸림',
+      pickup: pick('송정동 행정타운로'), dropoff: pick('월롱면'), fare: 80000, vehicleType: '1t' },
+    { key: '10', label: '역방향 장거리 · 파주 임진각 → 성남 판교 (12만/1t) — 노선 정반대',
+      pickup: pick('임진각'), dropoff: pick('판교역로 235'), fare: 120000, vehicleType: '1t' },
 ];
 
 // ── 앱과 같은 규칙 (RouteOrderFilter.check 의 JS 판) — 올리기 전에 미리 알려 준다
