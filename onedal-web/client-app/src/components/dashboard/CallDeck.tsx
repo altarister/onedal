@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { SecuredOrder } from '@onedal/shared';
-import { deriveCallStep, CALL_STEPS } from '@onedal/shared';
+import { deriveCallStep, CALL_STEPS, deriveCallTiming } from '@onedal/shared';
 import { pickAutoFocus, scrollSettle } from '../../lib/deckFocus';
 import { getAddressLabel } from '../../lib/routeUtils';
 import type { CallRecords } from '../../hooks/useCallProgress';
@@ -183,6 +183,7 @@ export default function CallDeck({ orders, renderCard, records }: Props) {
                     {orders.map((o, i) => {
                         const r = records.get(o.id) ?? EMPTY_RECORDS;
                         const p = deriveCallStep(r.milestones, r.reports);
+                        const t = deriveCallTiming(o, r.reports, r.milestones, Date.now());
                         const isCur = i === cur;
                         const isCallStep = !!p.current?.id.startsWith('CALL_');
                         return (
@@ -209,6 +210,15 @@ export default function CallDeck({ orders, renderCard, records }: Props) {
                                     {getAddressLabel(o.pickup)}
                                     <span className="text-text-muted font-normal mx-0.5">→</span>
                                     {getAddressLabel(o.dropoff)}
+                                    {/* 🔴 2026-08-18 — 거리·분·차종·금액이 **카드 헤더에 또** 있었다.
+                                        기사님: *"UI 영역을 아껴 써야 한다."* → 이 줄로 모으고 헤더를 지웠다.
+                                        km·분은 `deriveCallTiming` 한 곳에서 파생한다 (규칙 ③) —
+                                        카드가 쓰는 값과 같아야 두 줄이 다른 말을 하지 않는다. */}
+                                    <span className="text-text-muted font-normal ml-1 tabular-nums">
+                                        ({t.soloKm ? `${Number(t.soloKm).toFixed(1)}km` : '거리미상'}
+                                        ·{t.soloMinutes ? `${t.soloMinutes}분` : '시간미상'}
+                                        ·{o.vehicleType || '차종미상'})
+                                    </span>
                                 </span>
 
                                 {/* 6단계를 한눈에 — 카드 안 진행 점과 같은 규칙 */}
@@ -224,10 +234,14 @@ export default function CallDeck({ orders, renderCard, records }: Props) {
                                     ))}
                                 </span>
 
-                                <span className={`text-[10px] font-black shrink-0 w-[72px] text-right ${
+                                <span className={`text-[10px] font-black shrink-0 text-right ${
                                     p.allDone ? 'text-success' : isCallStep ? 'text-info' : 'text-text-muted'
                                 }`}>
                                     {p.allDone ? '운행 완료' : `${isCallStep ? '📞 ' : ''}${p.current?.label}`}
+                                </span>
+                                {/* 돈은 맨 오른쪽 — 기사님이 적어 주신 순서 그대로 */}
+                                <span className="text-[12px] font-black tabular-nums shrink-0 text-text-primary">
+                                    {o.fare > 0 ? `${(o.fare / 10000).toFixed(1)}만원` : '금액미상'}
                                 </span>
                             </button>
                         );

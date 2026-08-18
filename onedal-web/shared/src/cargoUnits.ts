@@ -140,10 +140,11 @@ export function defaultCargoByVehicle(vehicleType?: string | null):
  * **성질(tags)처럼 복수 선택**이고 고른 것의 분(分)을 더한다.
  * 🔴 **결박은 방법과 무관하게 무조건 붙는다** — *"파레트를 선택하더라도 결박은 무조건"*.
  */
+/** 순서는 **화면에 나오는 순서**다 — 늘 누르는 `결박` 이 맨 앞 (기사님 2026-08-18) */
 export const PROTECTION_MINUTES = {
-    '호루': 3,
     '결박': 4,
     '그물망': 1,
+    '호루': 3,
     '탑박스': 1,
 } as const;
 export const PROTECTIONS = Object.keys(PROTECTION_MINUTES) as Protection[];

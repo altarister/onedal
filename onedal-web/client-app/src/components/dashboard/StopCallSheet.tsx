@@ -82,6 +82,8 @@ interface Props {
     leadMinutes?: number;
     /** 그 시간이 무엇인지 (`상차` 등) */
     leadLabel?: string | null;
+    /** 그 일을 하는 곳의 이름 (`이마트 광주점`) — 문장이 "상차지에서" 대신 실제 이름으로 읽힌다 */
+    leadFrom?: string | null;
     /** 같은 구간의 거리(km) — 통화에서 "몇 km고 몇 분" 이라고 말한다 */
     driveKm?: number | null;
     /**
@@ -121,7 +123,7 @@ function summarize(r?: CargoReport): string {
 export default function StopCallSheet({
     orderId, stopType, label, address, contactName, phones, reports,
     memoTexts, driveMinutes, onSkip, vehicleType, orderStatus, arrivedAt, forceOpen, stepLabel,
-    leadMinutes = 0, leadLabel, driveKm, codAmount, pickupDeadlineAt,
+    leadMinutes = 0, leadLabel, leadFrom, driveKm, codAmount, pickupDeadlineAt,
 }: Props) {
     const isPickup = stopType === 'pickup';
     /** 단계 카드(A안)가 몰아주는 모드 — 이 시트가 화면의 전부다. 요약 줄을 띄우지 않는다 */
@@ -523,7 +525,7 @@ export default function StopCallSheet({
                 </>
             )}
 
-            <Row title="방법">
+            <Row title={isPickup ? '상차방법' : '하차방법'}>
                 {HANDLING_METHODS.map(h => (
                     <button key={h} onClick={() => setHandling(h)}
                         className={chip(eff.handling === h)}>
@@ -539,7 +541,7 @@ export default function StopCallSheet({
             {/* 🔒 보호 — 방법(옮기는 행위)과 축이 다르다. 고른 것의 분을 상차 시간에 더한다.
                 기사님 2026-08-18: *"파레트를 선택하더라도 결박은 무조건 해야 하는 거지."* */}
             {isPickup && (
-                <Row title="보호">
+                <Row title="화물 보호">
                     {PROTECTIONS.map(t => {
                         const on = protections.includes(t);
                         return (
@@ -583,7 +585,7 @@ export default function StopCallSheet({
             )}
 
             {isPickup && (
-                <Row title="성질">
+                <Row title="화물성질">
                     {CARGO_TAGS.map(t => {
                         const on = tags.includes(t);
                         return (
@@ -694,10 +696,13 @@ export default function StopCallSheet({
                                  * 🔴 **통화에서 실제로 하는 말로 쓴다** (기사님 2026-08-18).
                                  *    예전 문구는 *"지금 출발하면 17:57 도착"* 이었는데,
                                  *    기사님: *"지금 출발할 것도 아닌데 이렇게 쓰는 건 별로인 듯하다."*
-                                 *    → 값들을 조합해 **한 문장**으로 읽는다:
-                                 *      상차지  "여기서 거기까지 5.9km · 17분, 대기 30분 → 18:28 도착"
-                                 *      하차지  "상차지에서 6분 상차하고 18:34 출발해서 93.1km · 109분,
-                                 *              휴게 30분 → 20:53 도착"
+                                 *    → 값들을 조합해 **한 문장**으로 읽는다 (기사님이 적어 주신 꼴):
+                                 *      상차지  "여기서 (이마트 광주점)까지 5.9km · 주행 20분, 대기 30분 = 19:34 도착"
+                                 *      하차지  "이마트 광주점에서 4분 상차하고 18:34 출발, 93.1km · 주행 109분,
+                                 *              휴게 30분 = 20:23 도착"
+                                 *
+                                 *    갈 곳의 **이름**을 넣는다 — 통화 상대에게 "거기"는 말이 안 된다.
+                                 *    이름을 모르면 넣지 않는다 (규칙 ④ — 지어내지 않는다).
                                  */
                                 <div className="text-[13px] text-text-primary leading-relaxed">
                                     {(() => {
@@ -709,40 +714,44 @@ export default function StopCallSheet({
                                         const waitMin = deadlineAt
                                             ? Math.round((new Date(deadlineAt).getTime() - (Date.now() + arrivalMinutes * 60_000)) / 60_000)
                                             : 0;
+                                        const tail = (
+                                            <>
+                                                {waitMin > 0 && <>, {isPickup ? '대기' : '휴게'} <b className="tabular-nums">{waitMin}분</b></>}
+                                                {waitMin < 0 && <span className="text-danger font-bold">, 약속보다 {-waitMin}분 늦음</span>}
+                                                {' = '}
+                                                <b className="text-info tabular-nums">{arriveAt}</b> 도착
+                                            </>
+                                        );
 
                                         if (isPickup) {
                                             return (
                                                 <>
-                                                    여기서 거기까지 <b className="tabular-nums">{km}{driveMinutes}분</b>
-                                                    {waitMin > 0 && <>, 대기 <b className="tabular-nums">{waitMin}분</b></>}
-                                                    {waitMin < 0 && <span className="text-danger font-bold">, 약속보다 {-waitMin}분 늦음</span>}
-                                                    {' 그래서 '}
-                                                    <b className="text-info tabular-nums">{arriveAt}</b> 도착
-                                                    <div className="text-[12px] text-text-muted font-bold mt-0.5">
-                                                        상차 {dwell}분 소요 — 실어 보내는 시각{' '}
-                                                        <b className="tabular-nums">
+                                                    여기서 {contactName ? <>(<b>{contactName}</b>)까지</> : '거기까지'}{' '}
+                                                    <b className="tabular-nums">{km}주행 {driveMinutes}분</b>
+                                                    {tail}
+                                                    <span className="text-text-muted"> (상차 {dwell}분,{' '}
+                                                        <span className="tabular-nums">
                                                             {hhmm(new Date((deadlineAt ? new Date(deadlineAt).getTime() : Date.now() + arrivalMinutes * 60_000) + dwell * 60_000).toISOString())}
-                                                        </b>
-                                                    </div>
+                                                        </span> 출발)
+                                                    </span>
                                                 </>
                                             );
                                         }
-                                        // 하차지 — 앞 정거장(상차) 작업이 도착 전에 붙는다
-                                        // 출발 = 지금 + 앞 정거장 작업(상차). 그래야 출발 + 주행 + 휴게 = 도착 으로 맞물린다
+                                        // 하차지 — 앞 정거장(상차) 작업이 도착 **전**에 붙는다.
+                                        // 출발 = 지금 + 상차. 그래야 출발 + 주행 + 휴게 = 도착 으로 맞물린다
                                         const departMs = Date.now() + leadMinutes * 60_000;
                                         return (
                                             <>
-                                                {leadMinutes > 0 && leadLabel && (
-                                                    <>상차지에서 <b className="tabular-nums">{leadMinutes}분</b> {leadLabel}하고{' '}
-                                                    <b className="tabular-nums">{hhmm(new Date(departMs).toISOString())}</b> 출발해서{' '}</>
+                                                {leadMinutes > 0 && leadLabel ? (
+                                                    <>{leadFrom ? <b>{leadFrom}</b> : '상차지'}에서{' '}
+                                                    <b className="tabular-nums">{leadMinutes}분</b> {leadLabel}하고{' '}
+                                                    <b className="tabular-nums">{hhmm(new Date(departMs).toISOString())}</b> 출발,{' '}</>
+                                                ) : (
+                                                    /* 이미 상차를 마쳤으면 앞 절이 없다 — 숫자로 문장이 시작하지 않게 주어를 넣는다 */
+                                                    <>여기서 {contactName ? <>(<b>{contactName}</b>)까지</> : '거기까지'}{' '}</>
                                                 )}
-                                                {/* 이미 상차를 마쳤으면 앞 절이 없다 — 문장이 숫자로 시작하지 않게 주어를 넣는다 */}
-                                                {!(leadMinutes > 0 && leadLabel) && <>여기서 거기까지{' '}</>}
-                                                <b className="tabular-nums">{km}{driveMinutes}분</b>
-                                                {waitMin > 0 && <>, 휴게 <b className="tabular-nums">{waitMin}분</b></>}
-                                                {waitMin < 0 && <span className="text-danger font-bold">, 약속보다 {-waitMin}분 늦음</span>}
-                                                {' 그래서 '}
-                                                <b className="text-info tabular-nums">{arriveAt}</b> 도착
+                                                <b className="tabular-nums">{km}주행 {driveMinutes}분</b>
+                                                {tail}
                                             </>
                                         );
                                     })()}
@@ -759,15 +768,14 @@ export default function StopCallSheet({
                                 기사님: *"9:39에 가도 될까요? 그럼 한 시간 동안 합짐을 잡을 수 있으니까."*
                                 버튼마다 `여유 N분` 을 쓰지 않는다 — 몇 번째 칸인가가 곧 여유다. */}
                             <div>
-                                <div className="text-[11px] font-bold text-text-muted mb-1">
-                                    {isPickup ? '몇 시까지 갈까요?' : '몇 시까지 가면 되나요?'}
-                                </div>
-                                <div className="flex gap-1.5 flex-wrap">
+                                {/* 다른 값들과 같은 `라벨 : 값` 꼴로 맞춘다 (기사님 2026-08-18) —
+                                    제목을 따로 한 줄 쓰면 그만큼 세로를 먹는다 */}
+                                <Row title="도착시간">
                                     {hourSlots.map((sl, i) => {
                                         const on = deadlineAt === sl.iso;
                                         return (
                                             <button key={sl.iso} onClick={() => { setDeadlineTouched(true); setDeadlineAt(on ? undefined : sl.iso); }}
-                                                className={`px-3 py-2 rounded-md border text-[14px] font-black tabular-nums transition-colors ${
+                                                className={`px-2.5 py-1.5 rounded-md border text-[13px] font-black tabular-nums transition-colors ${
                                                     on ? 'bg-info text-white border-info'
                                                     : i === 0 ? 'bg-surface-alt/50 text-text-muted border-border border-dashed'
                                                     : 'bg-surface-alt/50 text-text-primary border-border'
@@ -776,7 +784,7 @@ export default function StopCallSheet({
                                             </button>
                                         );
                                     })}
-                                </div>
+                                </Row>
                                 {/* 🔴 **미리 채운 값에는 근거를 붙인다** (기사님 2026-08-16).
                                     기존 원칙과 같다 — *"적요는 부정확할 수 있으므로 어디서 온 값인지는
                                     화면에 남긴다."* 기사님이 직접 누르시면 이 줄은 사라진다. */}
@@ -1043,7 +1051,10 @@ function SummaryLine({ icon, title, summary, memo, empty, open, onClick, warn }:
 function Row({ title, children }: { title: string; children: React.ReactNode }) {
     return (
         <div className="flex items-start gap-2">
-            <span className="w-8 shrink-0 text-[11px] font-bold text-text-muted pt-2">{title}</span>
+            {/* 라벨은 `상차방법`·`화물 보호` 처럼 **무엇의 값인지**를 그대로 적는다 (기사님 2026-08-18) */}
+            <span className="w-[52px] shrink-0 text-[11px] font-bold text-text-muted pt-2">
+                {title && `${title} :`}
+            </span>
             <div className="flex gap-1.5 flex-wrap flex-1">{children}</div>
         </div>
     );

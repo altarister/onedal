@@ -41,6 +41,7 @@ export default function PinnedRouteCard({
     setProcessingId,
     etaMap,
     visitOrderMap,
+    indexNum,
     records,
     variant = 'list',
 }: Props) {
@@ -129,32 +130,21 @@ export default function PinnedRouteCard({
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-warning/5 to-transparent -translate-x-full animate-[shimmer_2s_infinite] pointer-events-none" />
             )}
 
-            {/* 1-a. 덱 헤더 — 폰 한 화면이 목표다.
-                리스트 헤더(포착시각·방문순서·ETA·약속칩 2개·구간 분)는 폰에서 한 줄에 안 들어가
-                줄바꿈으로 세 줄을 먹었다. 덱에서는 **경로와 돈**만 남기고 나머지는 아래 한 줄로 내린다.
-                약속 시각은 '지금 할 일' 안에서 고르므로 헤더에 칩을 둘 이유가 없다. */}
+            {/* 1-a. 덱 헤더 — **한 줄**. 폰 한 화면이 목표다.
+                🔴 2026-08-18 — 경로·금액·거리·분·차종을 두 줄로 쓰고 있었는데,
+                   그 다섯은 **바로 위 덱 요약 줄이 이미 말한다.** 기사님: *"UI 영역을 아껴 써야 한다."*
+                   → 요약 줄에 없는 것만 남긴다: 몇 번째 콜인가 · 언제 잡았나 · 수수료 · 예약. */}
             {isDeck && (
-                <div className="px-4 pt-3 pb-1.5 flex flex-col gap-0.5">
-                    <div className="flex items-baseline gap-1.5">
-                        <span className="text-[15px] font-black text-text-primary tracking-tight truncate">
-                            {getAddressLabel(route.pickup)}
-                            <span className="text-text-muted font-normal mx-1">→</span>
-                            {getAddressLabel(route.dropoff)}
-                        </span>
-                        <span className="ml-auto text-[15px] font-black tabular-nums shrink-0">
-                            {route.fare > 0 ? `${(route.fare / 10000).toFixed(1)}만` : '금액미상'}
-                        </span>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-x-2 text-[11px] text-text-muted tabular-nums">
-                        <span>{evaluating ? '계산중' : soloKm ? `${Number(soloKm).toFixed(1)}km` : '거리미상'}</span>
-                        <span>·</span>
-                        <span>{soloMin ? `${soloMin}분` : '시간미상'}</span>
-                        <span>·</span>
-                        <span>{route.vehicleType || '차종미상'}</span>
-                        {route.commissionRate && <><span>·</span><span>수수료 {route.commissionRate}</span></>}
-                        {route.scheduleText && <span className="text-warning font-bold">🕒 {route.scheduleText}</span>}
-                        {evaluating && <span className="ml-auto text-warning font-black animate-pulse">평가중</span>}
-                    </div>
+                <div className="px-4 pt-2.5 pb-1 flex flex-wrap items-center gap-x-2 text-[11px] text-text-muted tabular-nums">
+                    <span className="font-black text-text-primary">{indexNum}.</span>
+                    <span>
+                        {route.capturedAt
+                            ? `${new Date(route.capturedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })} 잡음`
+                            : '잡은 시각 미상'}
+                    </span>
+                    {route.commissionRate && <><span>·</span><span>수수료 {route.commissionRate}</span></>}
+                    {route.scheduleText && <span className="text-warning font-bold">🕒 {route.scheduleText}</span>}
+                    {evaluating && <span className="ml-auto text-warning font-black animate-pulse">평가중</span>}
                 </div>
             )}
 
@@ -424,8 +414,9 @@ export default function PinnedRouteCard({
                                         🔴 '지금 할 일' **아래**에 있었다 (2026-08-11).
                                         적요를 읽고 전화를 거는 순서인데 화면은 반대였다.
                                         시안(`buildCard`)도 적요를 지금 할 일 위에 뒀다. */}
-                                    <div className="flex gap-2 bg-surface-alt/40 p-2 rounded-md">
-                                        <span className="flex-shrink-0 text-[11px] font-bold text-text-muted pt-0.5">적요</span>
+                                    {/* 배경 박스를 뺐다 — 한 줄이면 라벨만으로 충분히 구분된다 (UI 영역 아끼기) */}
+                                    <div className="flex gap-1.5 items-baseline">
+                                        <span className="shrink-0 text-[11px] font-bold text-text-muted">적요 :</span>
                                         <span className="font-bold leading-snug break-keep text-[12px]">
                                             {itemAndMemo || <span className="text-text-muted font-normal">상세 정보 없음 (파싱 대기 중)</span>}
                                         </span>
@@ -495,6 +486,8 @@ export default function PinnedRouteCard({
                                                 onwardKm={isPickupStop ? timing.soloKm : null}
                                                 leadMinutes={lead.leadMinutes}
                                                 leadLabel={lead.leadLabel}
+                                                /* 앞 정거장(상차지)의 이름 — 하차지 문장이 "이마트 광주점에서" 로 읽힌다 */
+                                                leadFrom={pDetail?.contactName || pDetail?.customerName}
                                                 orderStatus={route.status}
                                                 arrivedAt={milestoneLog.find(m =>
                                                     m.milestone === (isPickupStop ? 'ARRIVED_PICKUP' : 'ARRIVED_DROPOFF'))?.occurredAt}
