@@ -11,15 +11,16 @@ import { defaultCargoByVehicle, cargoPoints, VEHICLE_CAPACITY } from '@onedal/sh
  * 이 함수가 그 둘을 같은 값으로 맞춘다.
  */
 describe('defaultCargoByVehicle — 차종 정원을 기본 짐으로', () => {
-    it('소형은 라면박스, 수량은 그 차 한 대 분량', () => {
-        expect(defaultCargoByVehicle('오토바이')).toEqual({ unit: '라면박스', quantity: 1 });
-        expect(defaultCargoByVehicle('승용차')).toEqual({ unit: '라면박스', quantity: 5 });
-        expect(defaultCargoByVehicle('다마스')).toEqual({ unit: '라면박스', quantity: 30 });
-        expect(defaultCargoByVehicle('라보')).toEqual({ unit: '라면박스', quantity: 40 });
+    it('소형은 라면박스 + 수작업, 수량은 그 차 한 대 분량', () => {
+        expect(defaultCargoByVehicle('오토바이')).toEqual({ unit: '라면박스', quantity: 1, handling: '수작업' });
+        expect(defaultCargoByVehicle('승용차')).toEqual({ unit: '라면박스', quantity: 5, handling: '수작업' });
+        expect(defaultCargoByVehicle('다마스')).toEqual({ unit: '라면박스', quantity: 30, handling: '수작업' });
+        expect(defaultCargoByVehicle('라보')).toEqual({ unit: '라면박스', quantity: 40, handling: '수작업' });
     });
 
-    it('1t 은 파레트 2개 (용어집 §5: 1t짐 = 파레트 2개 = 박스 80개)', () => {
-        expect(defaultCargoByVehicle('1t')).toEqual({ unit: '파레트', quantity: 2 });
+    /** 기사님 2026-08-18: *"파레트를 사람 손으로 내리기는 너무 어려우니까."* */
+    it('🔴 1t 은 파레트 2개 + **지게차** — 파레트를 손으로 내리지 않는다', () => {
+        expect(defaultCargoByVehicle('1t')).toEqual({ unit: '파레트', quantity: 2, handling: '지게차' });
     });
 
     /**

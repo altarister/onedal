@@ -12,6 +12,7 @@
  *   ② 상하차 방법을 **소요 시간(분)** 으로 환산해 경로 시간에 더한다
  */
 import { VEHICLE_CAPACITY, normalizeVehicleType } from './vehicles';
+import type { HandlingMethod } from './index';
 
 /**
  * 적재 단위 — **기사님이 통화에서 실제로 쓰는 말**을 그대로 쓴다.
@@ -113,13 +114,17 @@ export function unitPoints(unit?: string | null, quantity?: number | null): numb
  *    적요는 이 콜의 실제 정보이고, 차종은 그 차 한 대 분량이라는 짐작일 뿐이다.
  */
 export function defaultCargoByVehicle(vehicleType?: string | null):
-    { unit: CargoUnit; quantity: number } | null {
+    { unit: CargoUnit; quantity: number; handling: HandlingMethod } | null {
     const v = normalizeVehicleType(vehicleType || '');
     if (!v) return null;
     const boxes = VEHICLE_CAPACITY[v];
     if (!boxes) return null;
     // 1t 이상은 파레트로 센다 (용어집 §5: 1t짐 = 파레트 2개 = 박스 80개)
     const perPallet = CARGO_UNIT_POINTS['파레트'];
-    if (boxes >= perPallet * 2) return { unit: '파레트', quantity: Math.round(boxes / perPallet) };
-    return { unit: '라면박스', quantity: boxes };
+    if (boxes >= perPallet * 2) {
+        // 🔴 **파레트면 지게차다** (기사님 2026-08-18): *"파레트를 사람 손으로 내리기는 너무 어려우니까."*
+        //    나머지는 수작업 — 신고 데이터의 최빈값이기도 하다 (수작업 44 · 지게차 12, 규칙 ⑤-2).
+        return { unit: '파레트', quantity: Math.round(boxes / perPallet), handling: '지게차' };
+    }
+    return { unit: '라면박스', quantity: boxes, handling: '수작업' };
 }

@@ -217,7 +217,8 @@ export default function StopCallSheet({
             setQty(byVehicle.quantity);
             setTens(Math.floor(byVehicle.quantity / 10) * 10);
             setOnes(byVehicle.quantity % 10 || null);
-            setHandling(src?.handling);
+            // 🔴 파레트면 지게차 (기사님 2026-08-18: "파레트를 사람 손으로 내리기는 너무 어려우니까")
+            setHandling(src?.handling ?? byVehicle.handling);
             setTags(src?.tags?.length ? [...src.tags] : [DEFAULT_CARGO_TAG]);
             setMemo(src?.memo || '');
             setDeadlineAt(src?.promisedArrivalAt ?? src?.deadlineAt ?? onward);
