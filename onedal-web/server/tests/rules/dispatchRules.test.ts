@@ -144,3 +144,29 @@ describe('규칙 ③ 데이터를 변조해서 동작을 바꾸지 않는다', (
         }
     });
 });
+
+/**
+ * 🔴 규칙 ① — **KEEP 된 콜은 절대 취소하지 않는다** (2026-08-19 실사고)
+ *
+ * 03:35:19 KEEP → 03:35:29 앱이 리스트로 이탈 → 화면 이탈 감지가 **확정된 콜을**
+ * SAFE_CANCEL 로 덮어썼다. 이탈 감지는 deviceEvaluatingMap 만 보고 콜의 상태를
+ * 안 봤다 (그 맵은 피기백 ACK 까지 남아 있어야 해서 KEEP 뒤에도 살아 있다).
+ *
+ * 이어서 같은 콜을 다시 잡자, 재열람 대조가 **취소된 콜**에 매칭해 "진짜 ID" 를
+ * 돌려줬고 새 콜은 만들어지지 않은 채 30초 타이머로 죽었다 — 취소했다가
+ * 다시 잡는 정상 흐름이 영영 막히는 버그다.
+ */
+describe('규칙 ① — 강제 정리는 심사 중인 콜만 건드린다', () => {
+    const src = (rel: string) => readFileSync(join(__dirname, rel), 'utf8');
+
+    it('🔴 forceCancelEvaluatingOrder 가 심사 중(isEvaluating)인지 확인한다', () => {
+        const engine = src('../../src/services/dispatchEngine.ts');
+        const body = engine.slice(engine.indexOf('export function forceCancelEvaluatingOrder'));
+        expect(body.slice(0, 2000)).toMatch(/isEvaluating\(/);
+    });
+
+    it('🔴 재열람 대조는 종결된 콜을 건너뛴다 — 취소한 콜을 다시 잡을 수 있어야 한다', () => {
+        const detail = src('../../src/routes/detail.ts');
+        expect(detail).toMatch(/myOrders\.filter\(\w+ => !isTerminal\(/);
+    });
+});

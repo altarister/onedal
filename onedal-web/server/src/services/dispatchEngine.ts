@@ -2,7 +2,7 @@ import { decideNextTargetAfterCycle, mapVehicleToKakaoCarType, getRemainingCapac
          MILESTONE_TO_STATUS, MILESTONE_LABEL, canReportMilestone, timingError,
          RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, UNFINISHED_RESTORE_DAYS, deriveStatusFromMilestones,
          restoreWindow, getEffectiveDetourRadius, DEFAULT_DETOUR_RADIUS_KM,
-         CALL_TARGET_LABEL, scoreMerge, describeJudgment, TRUCK_CAPACITY_SLOTS } from "@onedal/shared";
+         CALL_TARGET_LABEL, scoreMerge, describeJudgment, TRUCK_CAPACITY_SLOTS, isEvaluating } from "@onedal/shared";
 import type { SecuredOrder, AutoDispatchFilter, PricingConfig, PendingOrder, MyOrder,
               Milestone, MilestoneSource, CallTarget } from "@onedal/shared";
 import { geocodeAddress, calculateSoloRoute, calculateDetourRoute, compareDirections } from "./kakaoService";
@@ -38,6 +38,21 @@ export const normalizePlaceName = (name?: string) => {
 export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: any) {
     const session = getUserSession(userId);
     let targetDeviceId: string | undefined;
+
+    /**
+     * 🔴 **심사 중인 콜만 정리한다 — KEEP 된 콜은 절대 취소하지 않는다** (규칙 ①).
+     *
+     * 2026-08-19 실사고: KEEP 10초 뒤 앱이 리스트로 돌아가자 화면 이탈 감지가
+     * 이 함수를 불렀고, **확정된 콜을 SAFE_CANCEL 로 덮어썼다.** 이탈 감지는
+     * deviceEvaluatingMap 만 봤는데, 그 맵은 피기백 ACK 까지 남아 있어야 해서
+     * KEEP 뒤에도 살아 있다 — 그러니 상태는 여기서 본다 (호출자 셋이 전부 거친다).
+     * 맵은 지우지 않는다 — 지우면 아직 ACK 못 받은 판결이 배달되지 않는다 (규칙 ②).
+     */
+    const current = session.pendingOrdersData.get(orderId) ?? session.myOrders.find(o => o.id === orderId);
+    if (current && !isEvaluating(current.status)) {
+        console.log(`🛡️ [강제 정리 차단] ${orderId} 는 심사 중이 아니라 ${current.status} — 건드리지 않는다 (규칙 ①)`);
+        return;
+    }
 
     if (session.pendingOrdersData.has(orderId)) {
         const cached = session.pendingOrdersData.get(orderId)!;

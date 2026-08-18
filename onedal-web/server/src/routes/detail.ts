@@ -4,6 +4,7 @@
 
 import { Router } from "express";
 import type { DispatchConfirmRequest, OrderStatus, PendingOrder, SecuredOrder } from "@onedal/shared";
+import { isTerminal } from "@onedal/shared";
 import { parseLocationDetails, parseMockupFare, parseMockupDistance, parseMockupVehicleType, parseDetailedRawText } from "../utils/parser";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { DISPATCH_CONFIG } from "../config/dispatchConfig";
@@ -93,7 +94,13 @@ router.post("/", async (req, res) => {
         }
 
         let matchedId: string | null = null;
-        const existingMatch = session.myOrders.find(checkMatch);
+        /**
+         * 🔴 **종결된 콜은 재열람 대상이 아니다** (2026-08-19 실사고).
+         *    취소된 콜과 같은 콜(주소·요금·상세 동일)을 다시 잡자 여기가 그 취소본에
+         *    매칭해 "진짜 ID" 를 돌려줬고, 새 콜은 만들어지지 않은 채 30초 타이머로
+         *    죽었다 — **취소했다가 다시 잡는 정상 흐름이 영영 막힌다.**
+         */
+        const existingMatch = session.myOrders.filter(o => !isTerminal(o.status)).find(checkMatch);
         if (existingMatch) matchedId = existingMatch.id;
 
         if (matchedId) {
