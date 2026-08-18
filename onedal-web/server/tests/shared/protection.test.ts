@@ -1,4 +1,4 @@
-import { dwellMinutes, protectionMinutes, PROTECTION_MINUTES, HANDLING_METHODS, defaultCargoByVehicle } from '@onedal/shared';
+import { dwellMinutes, protectionMinutes, PROTECTION_MINUTES, HANDLING_METHODS, defaultCargoByVehicle, DEFAULT_AFTERWORKS, afterworkMinutes } from '@onedal/shared';
 
 /**
  * 🔒 **방법과 보호는 축이 다르다** (기사님 확정 2026-08-18)
@@ -58,5 +58,31 @@ describe('보호 — 안전 조치 (복수 선택 · 합산)', () => {
 
     it('보호 값이 용어집과 같다 (호루 3 · 결박 4 · 그물망 1 · 탑박스 1)', () => {
         expect(PROTECTION_MINUTES).toEqual({ '호루': 3, '결박': 4, '그물망': 1, '탑박스': 1 });
+    });
+});
+
+/**
+ * 🧹 **정리는 무조건 한다** (기사님 2026-08-18) — 보호의 `결박` 과 같은 성격이다.
+ *    고를지 말지가 아니라 늘 있는 일이라, 통화 전 미리 눌러 둔다.
+ */
+describe('후작업 기본값', () => {
+    it('정리가 기본으로 눌려 있다', () => {
+        expect(DEFAULT_AFTERWORKS).toEqual(['정리']);
+        expect(afterworkMinutes(DEFAULT_AFTERWORKS)).toBe(1);
+    });
+
+    it('검수는 기본이 아니다 — 60분짜리를 늘 붙이면 여유가 사라진다', () => {
+        expect(DEFAULT_AFTERWORKS).not.toContain('검수');
+    });
+});
+
+/** 하차 방법은 상차와 같다고 본다 — 지게차로 실었으면 대개 지게차로 내린다 */
+describe('통화 시트 — 하차 방법 미리 채움', () => {
+    const sheet = () => require('fs').readFileSync(
+        require('path').join(__dirname, '../../../client-app/src/components/dashboard/StopCallSheet.tsx'), 'utf8');
+
+    it('하차 방법을 상차 신고(없으면 차종 기본값)에서 가져온다', () => {
+        expect(sheet()).toMatch(/dropoffHandling/);
+        expect(sheet()).toMatch(/setHandling\(src\?\.handling \?\? dropoffHandling\)/);
     });
 });

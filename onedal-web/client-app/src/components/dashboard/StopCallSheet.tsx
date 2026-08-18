@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import {
     HANDLING_METHODS, cargoPoints, parseCargoHints, hasCargoHints, defaultCargoByVehicle,
     PROTECTIONS, PROTECTION_MINUTES, DEFAULT_PROTECTIONS, protectionMinutes,
-    AFTERWORKS, AFTERWORK_MINUTES, afterworkMinutes,
+    AFTERWORKS, AFTERWORK_MINUTES, DEFAULT_AFTERWORKS, afterworkMinutes,
     CARGO_TAGS, CARGO_TAG_META, DEFAULT_CARGO_TAG, computeSlackMinutes,
     CARGO_UNITS, CARGO_UNIT_QUANTITY_INPUT,
     buildArrivalSlots, dwellMinutes, unitPoints,
@@ -137,7 +137,7 @@ export default function StopCallSheet({
     /** 🔒 보호 — 호루·결박·그물망·탑박스 (복수 선택). 결박은 늘 한다 */
     const [protections, setProtections] = useState<string[]>([...DEFAULT_PROTECTIONS]);
     /** 🧹 후작업 — 정리·검수 (하차 전용 · 복수 선택). 기본은 아무것도 안 누른다 */
-    const [afterworks, setAfterworks] = useState<string[]>([]);
+    const [afterworks, setAfterworks] = useState<string[]>([...DEFAULT_AFTERWORKS]);
     /** 하차지 시각을 상차지 통화에서 미리 들어 둔 값으로 채웠는가 */
     const [fromPickupCall, setFromPickupCall] = useState(false);
     /** [T8] 착불 수령 상태 — 서버가 진실이다. 화면이 저장했다고 믿지 않는다 */
@@ -223,6 +223,17 @@ export default function StopCallSheet({
          */
         const byVehicle = isPickup && !src?.unit && !hasCargoHints(h)
             ? defaultCargoByVehicle(vehicleType) : null;
+
+        /**
+         * 🔴 **하차 방법도 상차와 같은 것으로 미리 눌러 둔다** (기사님 2026-08-18).
+         *    지게차로 실었으면 대개 지게차로 내린다 — 서버의 `computeStopTiming` 도
+         *    *"하차 방법을 따로 안 물었으면 상차와 같다고 본다"* 로 이미 그렇게 계산한다.
+         *    화면만 빈칸이면 또 두 곳이 다른 값을 보게 된다.
+         */
+        const dropoffHandling = !isPickup
+            ? (reports.find(r => r.stopType === 'pickup' && r.kind === 'DECLARED')?.handling
+               ?? defaultCargoByVehicle(vehicleType)?.handling)
+            : undefined;
         setPrefilledFromVehicle(!!byVehicle);
         if (byVehicle) {
             setUnit(byVehicle.unit);
@@ -234,8 +245,7 @@ export default function StopCallSheet({
             setTags(src?.tags?.length ? [...src.tags] : [DEFAULT_CARGO_TAG]);
             setMemo(src?.memo || '');
             setProtections(src?.protections?.length ? [...src.protections] : [...DEFAULT_PROTECTIONS]);
-        setAfterworks(src?.afterworks?.length ? [...src.afterworks] : []);
-            setAfterworks(src?.afterworks?.length ? [...src.afterworks] : []);
+            setAfterworks(src?.afterworks?.length ? [...src.afterworks] : [...DEFAULT_AFTERWORKS]);
             setDeadlineAt(src?.promisedArrivalAt ?? src?.deadlineAt ?? onward);
             setOnwardDeadlineAt(src?.onwardDeadlineAt);
             return;
@@ -258,12 +268,12 @@ export default function StopCallSheet({
         const q = src?.quantity ?? 0;
         setTens(Math.floor(q / 10) * 10);
         setOnes(q > 0 ? q % 10 : null);
-        setHandling(src?.handling);
+        setHandling(src?.handling ?? dropoffHandling);
         // 성질을 한 번도 안 고른 기록이면 기본값을 넣는다 — 빈 값과 '특별할 것 없음'은 다르다
         setTags(src?.tags?.length ? [...src.tags] : [DEFAULT_CARGO_TAG]);
         setMemo(src?.memo || '');
         setProtections(src?.protections?.length ? [...src.protections] : [...DEFAULT_PROTECTIONS]);
-        setAfterworks(src?.afterworks?.length ? [...src.afterworks] : []);
+        setAfterworks(src?.afterworks?.length ? [...src.afterworks] : [...DEFAULT_AFTERWORKS]);
         setDeadlineAt(src?.promisedArrivalAt ?? src?.deadlineAt ?? onward);
         setOnwardDeadlineAt(src?.onwardDeadlineAt);
     };

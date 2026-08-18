@@ -171,6 +171,11 @@ export const AFTERWORK_MINUTES = {
     '검수': 60,
 } as const;
 export const AFTERWORKS = Object.keys(AFTERWORK_MINUTES) as Afterwork[];
+/**
+ * 통화 전 미리 눌러 두는 값 — **정리는 무조건 한다** (기사님 2026-08-18).
+ * 보호의 `결박` 과 같은 성격이다: 고를지 말지가 아니라 늘 있는 일이다.
+ */
+export const DEFAULT_AFTERWORKS: Afterwork[] = ['정리'];
 export type Afterwork = keyof typeof AFTERWORK_MINUTES;
 
 /** 고른 후작업들의 합(분). 모르면 0 — 지어내지 않는다 */
