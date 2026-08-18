@@ -779,14 +779,13 @@ export default function StopCallSheet({
                                     <div className="mt-1 text-[10px] leading-tight text-text-muted">
                                         {/* 🔴 **기준 시각을 함께 적는다.** 칸이 30분 간격이라 추천 칸과
                                             기준이 다를 수 있는데, 그걸 안 적으면 화면이 거짓말한다 */}
+                                        {/* 🔴 근거는 **실제 계산 그대로** 적는다 (2026-08-19).
+                                            예전 문구는 "주행+상차 → 04:09 이라 가장 가까운 04:35" — 실제 규칙
+                                            (도착 예상 + 여유 30분 이상인 첫 칸)과 다른 말이었고, 도착 약속의
+                                            근거에 상차 소요까지 섞어 보여줬다. 숫자가 우연히 맞아 보여 더 위험했다. */}
                                         ⓘ {driveKnown
-                                            ? `주행 ${driveMinutes}분${isPickup ? ` + 상차 ${dwell}분` : ''} → `
-                                            : '콜 잡은 시각 + 1시간 → '}
-                                        <b className="tabular-nums">
-                                            {hhmm(driveKnown
-                                                ? new Date(Date.now() + (arrivalMinutes + (isPickup ? dwell : 0)) * 60_000).toISOString()
-                                                : pickupDeadlineAt!)}
-                                        </b>
+                                            ? <>도착 예상 <b className="tabular-nums">{hhmm(new Date(Date.now() + arrivalMinutes * 60_000).toISOString())}</b> + 여유 30분</>
+                                            : <>콜 잡은 시각 + 1시간 → <b className="tabular-nums">{hhmm(pickupDeadlineAt!)}</b></>}
                                         {' 이라 가장 가까운 '}
                                         <b className="tabular-nums">{hhmm(deadlineAt)}</b> 을 눌러 뒀습니다 —
                                         바꾸시면 그게 확정됩니다

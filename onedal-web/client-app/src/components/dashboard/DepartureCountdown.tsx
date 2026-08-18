@@ -43,9 +43,11 @@ export default function DepartureCountdown({ orders, records, routeStops, routeC
      * `PinnedRouteCard` 와 같은 계산(단독 구간 선택·접근 거리·상차 정차)을 복제했다.
      * 한쪽만 고치면 카운트다운과 통화 화면이 **다른 시각**을 말한다.
      */
+    // 🔴 basis: 추정 근거를 실제 계산대로 — 타임라인은 "경로 도착 예상 +30분", 폴백은 "잡은 시각 +1시간".
+    //    예전엔 폴백 문구가 고정으로 찍혀 타임라인 추정에도 거짓 근거가 붙었다 (2026-08-19)
     let soonest: { at: string; estimated: boolean;
                    driveMin: number | null; dwellMin: number; waitMin: number | null;
-                   boundBy: string | null } | null = null;
+                   boundBy: string | null; basis: string } | null = null;
 
     /**
      * 🧭 **경로 타임라인이 원천이다** (기사님 2026-08-19): *"어떤 콜이건 가장 빨리
@@ -67,6 +69,7 @@ export default function DepartureCountdown({ orders, records, routeStops, routeC
             estimated: !binding.promiseConfirmed,
             driveMin: null, dwellMin: binding.dwellMinutes,
             waitMin: minutesUntil(new Date(binding.departByMs!).toISOString(), now),
+            basis: '경로 도착 예상 +30분',
             // 시각을 같이 적는다 — 상차지가 둘 다 "경안동"이면 이름만으로는 어느 약속인지 모른다
             boundBy: o ? `${getAddressLabel(binding.stopType === 'pickup' ? o.pickup : o.dropoff)} ${binding.stopType === 'pickup' ? '상차' : '하차'} ${binding.promisedUntil ? new Date(binding.promisedUntil).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }) : ''}`.trim() : null,
         };
@@ -84,7 +87,7 @@ export default function DepartureCountdown({ orders, records, routeStops, routeC
             // 🔴 내역을 함께 담는다 — 기사님이 **왜 그 시각인지** 알아야 판단하실 수 있다
             soonest = { at: t.departureAt, estimated: t.deadlineEstimated,
                         driveMin: t.approachMinutes, dwellMin: t.pickupDwell, waitMin: t.waitMinutes,
-                        boundBy: null };
+                        boundBy: null, basis: '잡은 시각 +1시간' };
         }
     }
 
@@ -127,7 +130,7 @@ export default function DepartureCountdown({ orders, records, routeStops, routeC
                         </span>
                     )}
                     {soonest.estimated && (
-                        <span className="ml-1 opacity-80">· 통화 전이라 <b>추정</b>입니다 (잡은 시각 +1시간)</span>
+                        <span className="ml-1 opacity-80">· 통화 전이라 <b>추정</b>입니다 ({soonest.basis})</span>
                     )}
                 </div>
             </div>
