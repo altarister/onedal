@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import {
-    HANDLING_METHODS, cargoPoints, parseCargoHints, hasCargoHints,
+    HANDLING_METHODS, cargoPoints, parseCargoHints, hasCargoHints, defaultCargoByVehicle,
     CARGO_TAGS, CARGO_TAG_META, DEFAULT_CARGO_TAG, computeSlackMinutes,
     CARGO_UNITS, CARGO_UNIT_QUANTITY_INPUT,
     buildArrivalSlots, dwellMinutes, unitPoints,
@@ -58,6 +58,8 @@ interface Props {
     memoTexts?: (string | undefined)[];
     /** 이 정거장까지 남은 주행 시간(분). `null` 이면 아직 모른다 (현위치 미확인 등) */
     driveMinutes?: number | null;
+    /** 콜의 차종 — 통화 전 기본 짐을 미리 눌러 두는 데 쓴다 (기사님 2026-08-18) */
+    vehicleType?: string | null;
     /** 오더 상태 — 상차/하차 완료 배지에 쓴다 */
     orderStatus?: string;
     /** 이 정거장에 도착한 시각 (기록됐다면) */
@@ -111,7 +113,7 @@ function summarize(r?: CargoReport): string {
 
 export default function StopCallSheet({
     orderId, stopType, label, address, contactName, phones, reports,
-    memoTexts, driveMinutes, orderStatus, arrivedAt, forceOpen, stepLabel,
+    memoTexts, driveMinutes, vehicleType, orderStatus, arrivedAt, forceOpen, stepLabel,
     leadMinutes = 0, leadLabel, driveKm, onwardMinutes, onwardKm, codAmount, pickupDeadlineAt,
 }: Props) {
     const isPickup = stopType === 'pickup';
@@ -123,6 +125,8 @@ export default function StopCallSheet({
     const [ones, setOnes] = useState<number | null>(null);
     /** 적요에서 미리 채운 값인가 — 어디서 온 값인지 숨기지 않는다 */
     const [prefilledFromMemo, setPrefilledFromMemo] = useState(false);
+    /** 적요가 없어 차종 정원으로 눌러 둔 상태 — 화면에 근거를 남긴다 */
+    const [prefilledFromVehicle, setPrefilledFromVehicle] = useState(false);
     /** 하차지 시각을 상차지 통화에서 미리 들어 둔 값으로 채웠는가 */
     const [fromPickupCall, setFromPickupCall] = useState(false);
     /** [T8] 착불 수령 상태 — 서버가 진실이다. 화면이 저장했다고 믿지 않는다 */
@@ -197,6 +201,29 @@ export default function StopCallSheet({
         const h = parseCargoHints(...(memoTexts || []));
         const prefilled = !src?.unit && !src?.handling && hasCargoHints(h);
         setPrefilledFromMemo(prefilled);
+
+        /**
+         * 🚚 **적요에 힌트가 없으면 차종 기본값을 눌러 둔다** (기사님 확정 2026-08-18).
+         *    서버는 이미 신고가 없으면 `VEHICLE_CAPACITY[차종]` 을 적재로 잡는다
+         *    (`computeLoadedPoints`) — 화면만 빈칸이라 **두 곳이 다른 값을 보고 있었다.**
+         *    순서는 **저장값 > 적요 > 차종 기본값**. 적요는 이 콜의 실제 정보이고
+         *    차종은 "그 차 한 대 분량"이라는 짐작이라 뒤에 온다.
+         */
+        const byVehicle = isPickup && !src?.unit && !hasCargoHints(h)
+            ? defaultCargoByVehicle(vehicleType) : null;
+        setPrefilledFromVehicle(!!byVehicle);
+        if (byVehicle) {
+            setUnit(byVehicle.unit);
+            setQty(byVehicle.quantity);
+            setTens(Math.floor(byVehicle.quantity / 10) * 10);
+            setOnes(byVehicle.quantity % 10 || null);
+            setHandling(src?.handling);
+            setTags(src?.tags?.length ? [...src.tags] : [DEFAULT_CARGO_TAG]);
+            setMemo(src?.memo || '');
+            setDeadlineAt(src?.promisedArrivalAt ?? src?.deadlineAt ?? onward);
+            setOnwardDeadlineAt(src?.onwardDeadlineAt);
+            return;
+        }
         if (prefilled) {
             setUnit(h.unit);
             setQty(h.quantity);
@@ -668,6 +695,17 @@ export default function StopCallSheet({
                                 <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-info/10 border border-info/35 border-dashed">
                                     <span className="text-[10px] font-black text-info shrink-0">상차지 통화에서 들음</span>
                                     <span className="text-[11px] text-text-muted flex-1">시각을 미리 채웠습니다 — 다시 확인하거나 그대로 두세요</span>
+                                </div>
+                            )}
+
+                            {/* 🚚 차종 정원으로 눌러 둔 경우 — 어디서 온 값인지 화면에 남긴다.
+                                서버도 신고 전에는 같은 값으로 적재를 잡는다 (computeLoadedPoints) */}
+                            {isPickup && prefilledFromVehicle && (
+                                <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-surface-alt/60 border border-border border-dashed">
+                                    <span className="text-[10px] font-black text-text-muted shrink-0">차종 기본값</span>
+                                    <span className="text-[11px] text-text-muted flex-1">
+                                        {vehicleType} 한 대 분량으로 눌러 뒀습니다 — 통화로 확인하고 고치세요
+                                    </span>
                                 </div>
                             )}
 

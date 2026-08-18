@@ -11,6 +11,7 @@
  *   ① 추상적인 소·중·대 대신 **기사님이 통화에서 실제로 쓰는 단위**(파레트·라면박스·마대)를 앞에 둔다
  *   ② 상하차 방법을 **소요 시간(분)** 으로 환산해 경로 시간에 더한다
  */
+import { VEHICLE_CAPACITY, normalizeVehicleType } from './vehicles';
 
 /**
  * 적재 단위 — **기사님이 통화에서 실제로 쓰는 말**을 그대로 쓴다.
@@ -98,4 +99,27 @@ export function unitPoints(unit?: string | null, quantity?: number | null): numb
     const p = CARGO_UNIT_POINTS[unit as CargoUnit];
     if (p == null) return 0;
     return p * (quantity || 1);
+}
+
+/**
+ * 🚚 **차종이 곧 기본 짐** — 통화 전 미리 눌러 둘 단위·수량 (기사님 확정 2026-08-18).
+ *
+ * 서버는 이미 신고가 없으면 `VEHICLE_CAPACITY[차종]` 을 적재로 잡는다
+ * (`computeLoadedPoints` — 1t 첫짐 하나에 slotsUsed 80 이 나오던 값이 이것이다).
+ * 그런데 통화 시트는 빈칸이라 **화면과 서버가 다른 값을 보고 있었다.**
+ * 같은 값을 화면에도 눌러 둔다 — 미리 눌러 두고 기사님이 틀린 것만 고치는 방식.
+ *
+ * 🔴 순서는 **적요 > 차종 기본값**. 적요에 `카톤 10박스` 가 있으면 그것이 이긴다 —
+ *    적요는 이 콜의 실제 정보이고, 차종은 그 차 한 대 분량이라는 짐작일 뿐이다.
+ */
+export function defaultCargoByVehicle(vehicleType?: string | null):
+    { unit: CargoUnit; quantity: number } | null {
+    const v = normalizeVehicleType(vehicleType || '');
+    if (!v) return null;
+    const boxes = VEHICLE_CAPACITY[v];
+    if (!boxes) return null;
+    // 1t 이상은 파레트로 센다 (용어집 §5: 1t짐 = 파레트 2개 = 박스 80개)
+    const perPallet = CARGO_UNIT_POINTS['파레트'];
+    if (boxes >= perPallet * 2) return { unit: '파레트', quantity: Math.round(boxes / perPallet) };
+    return { unit: '라면박스', quantity: boxes };
 }

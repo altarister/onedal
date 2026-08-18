@@ -463,6 +463,7 @@ export default function PinnedRouteCard({
                                                 contactName={d?.contactName || d?.customerName}
                                                 phones={phonesOf(d)}
                                                 reports={cargoReports}
+                                                vehicleType={route.vehicleType}
                                                 memoTexts={[route.itemDescription, route.detailMemo, d?.memo]}
                                                 driveMinutes={lead.driveMinutes}
                                                 driveKm={lead.driveKm}
