@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import type { SecuredOrder } from '@onedal/shared';
-import { deriveCallStep, CALL_STEPS } from '@onedal/shared';
+import { deriveCallStep, CALL_STEPS, deriveCallTiming, isEvaluating } from '@onedal/shared';
 import { pickAutoFocus, scrollSettle } from '../../lib/deckFocus';
-import { getAddressLabel } from '../../lib/routeUtils';
+import { getAddressLabel, hhmm } from '../../lib/routeUtils';
+import { useTheme } from '../../contexts/ThemeContext';
+import { MAP_THEME_COLORS } from '../../styles/themes';
 import type { CallRecords } from '../../hooks/useCallProgress';
 import { EMPTY_RECORDS } from '../../hooks/useCallProgress';
 
@@ -24,15 +26,13 @@ interface Props {
     /** 콜별 서버 기록 — 요약 줄이 진행 단계를 파생하는 데 쓴다 */
     records: Map<string, CallRecords>;
     /**
-     * 정거장마다 **경유번호와 도착시간** (기사님 2026-08-19).
-     * 둘 다 `PinnedRoute` 가 이미 만들어 두는 값이다 — 요약 줄이 그걸 그대로 읽는다.
-     * 각자 계산하면 지도 핀·리스트와 다른 번호를 말하게 된다 (규칙 ③).
+     * 정거장마다 **경유번호** (기사님 2026-08-19) — 지도 핀이 쓰는 것과 같은 값이다.
+     * 각자 계산하면 지도와 다른 번호를 말하게 된다 (규칙 ③).
      */
-    etaMap: Map<string, { pickupEta?: string; dropoffEta?: string }>;
     visitOrderMap: Map<string, { pickupIdx: number; dropoffIdx: number }>;
 }
 
-export default function CallDeck({ orders, renderCard, records, etaMap, visitOrderMap }: Props) {
+export default function CallDeck({ orders, renderCard, records, visitOrderMap }: Props) {
     const trackRef = useRef<HTMLDivElement>(null);
 
     /**
@@ -191,7 +191,16 @@ export default function CallDeck({ orders, renderCard, records, etaMap, visitOrd
                         const r = records.get(o.id) ?? EMPTY_RECORDS;
                         const p = deriveCallStep(r.milestones, r.reports);
                         const vo = visitOrderMap.get(o.id);
-                        const eta = etaMap.get(o.id);
+                        /**
+                         * 🔴 시각은 경로 연산(ETA)이 아니라 **약속**이다 (기사님 2026-08-19):
+                         *    *"기본값으로 30분씩 여유가 있고 통화해서 약속 시간을 변경할 수 있는데,
+                         *    그 시간을 가져와야 한 번에 시간별 경로를 확인할 수 있을 것 같아."*
+                         *    통화로 확정한 약속이 이기고, 통화 전에는 추정(도착 예상+여유 30분)이 뜬다.
+                         *    카드·카운트다운과 같은 `deriveCallTiming` 하나에서 나온다 (규칙 ③).
+                         */
+                        const t = deriveCallTiming(o, r.reports, r.milestones, Date.now());
+                        const confirmed = (stop: 'pickup' | 'dropoff') => r.reports.some(rep =>
+                            rep.stopType === stop && rep.kind === 'DECLARED' && rep.promisedArrivalAt);
                         const isCur = i === cur;
                         return (
                             <button
@@ -213,14 +222,17 @@ export default function CallDeck({ orders, renderCard, records, etaMap, visitOrd
                                 <span className={`text-[11px] font-black shrink-0 tabular-nums ${
                                     isCur ? 'text-info' : 'text-text-muted'
                                 }`}>{i + 1}</span>
-                                {/* 🔴 2026-08-19 — 정거장마다 **언제 몇 번째로 가는가**를 붙인다 (기사님).
+                                {/* 🔴 2026-08-19 — 정거장마다 **몇 번째로, 몇 시까지 가기로 했는가**.
                                     예전엔 여기에 `(87.2km·64분·1t)` 가 있었는데, 그건 이 콜 **혼자** 갔을 때의
-                                    값이라 여러 콜을 엮은 지금 순서에 대해서는 아무 말도 못 한다.
-                                    경유번호·도착시각은 지도 핀·리스트가 쓰는 것과 **같은 값**이다. */}
+                                    값이라 여러 콜을 엮은 지금 순서에 대해서는 아무 말도 못 한다. */}
                                 <span className="text-[11px] font-bold text-text-primary truncate min-w-0 flex-1">
-                                    {getAddressLabel(o.pickup)}<StopMark at={vo?.pickupIdx} eta={eta?.pickupEta} />
+                                    {getAddressLabel(o.pickup)}
+                                    <StopMark at={vo?.pickupIdx} kind="pickup" evaluating={isEvaluating(o.status)}
+                                        time={t.pickupPromisedArrivalAt} confirmed={confirmed('pickup')} />
                                     <span className="text-text-muted font-normal mx-0.5">→</span>
-                                    {getAddressLabel(o.dropoff)}<StopMark at={vo?.dropoffIdx} eta={eta?.dropoffEta} />
+                                    {getAddressLabel(o.dropoff)}
+                                    <StopMark at={vo?.dropoffIdx} kind="dropoff" evaluating={isEvaluating(o.status)}
+                                        time={t.dropoffPromisedArrivalAt} confirmed={confirmed('dropoff')} />
                                 </span>
 
                                 {/* 6단계를 한눈에 — 카드 안 진행 점과 같은 규칙 */}
@@ -274,16 +286,40 @@ export default function CallDeck({ orders, renderCard, records, etaMap, visitOrd
 }
 
 /**
- * `(경유번호 도착시각)` — 이 정거장을 **몇 번째로, 몇 시에** 가는가.
+ * `⑶ 03:45` — 이 정거장을 **몇 번째로, 몇 시까지 가기로 했는가**.
  *
- * 둘 다 없으면 빈 괄호를 그리지 않는다. 순서만 정해졌고 시각을 아직 모르는 때가 있는데
- * (경로 연산 전), 그때 `(3 --:--)` 같은 자리를 만들면 화면이 모르는 것을 아는 척한다.
+ * 번호는 **지도 핀과 같은 색·테두리**다 (기사님 2026-08-19) — 상차 초록 · 하차 로즈 ·
+ * 심사 중 호박색, 테두리와 글자색까지 `MAP_THEME_COLORS` 를 그대로 쓴다.
+ * 색을 여기서 따로 정하면 지도와 요약 줄이 다른 말을 하게 된다 (규칙 ③).
+ *
+ * 시각은 약속이다. 통화로 확정한 약속은 그대로, **통화 전 추정에는 `~` 를 붙인다** —
+ * 표시 없이 값만 쓰면 규칙 ④(지어내지 않는다) 위반이다.
+ * 번호도 시각도 없으면 아무것도 그리지 않는다 (`(3 --:--)` 를 만들지 않는다).
  */
-function StopMark({ at, eta }: { at?: number; eta?: string }) {
-    if (!at && !eta) return null;
+function StopMark({ at, time, confirmed, kind, evaluating }: {
+    at?: number; time?: string | null; confirmed?: boolean;
+    kind: 'pickup' | 'dropoff'; evaluating?: boolean;
+}) {
+    const { theme } = useTheme();
+    const c = MAP_THEME_COLORS[theme];
+    if (!at && !time) return null;
     return (
-        <span className="text-text-muted font-normal ml-0.5 tabular-nums">
-            ({[at || null, eta || null].filter(Boolean).join(' ')})
+        <span className="inline-flex items-center gap-0.5 ml-1 align-middle">
+            {!!at && (
+                <span
+                    className="inline-flex items-center justify-center w-[15px] h-[15px] rounded-full text-[9px] font-black leading-none shrink-0"
+                    style={{
+                        backgroundColor: evaluating ? c.nodeEvaluating : kind === 'pickup' ? c.nodePickup : c.nodeDropoff,
+                        border: `1.5px solid ${evaluating ? c.nodeStrokeEvaluating : c.nodeStrokeRegular}`,
+                        color: c.textBody,
+                    }}
+                >{at}</span>
+            )}
+            {time && (
+                <span className="text-[10px] font-normal text-text-muted tabular-nums">
+                    {confirmed ? hhmm(time) : `~${hhmm(time)}`}
+                </span>
+            )}
         </span>
     );
 }

@@ -676,6 +676,14 @@ export function deriveCallTiming(
         ? null
         : departureDeadline(pickupDeadlineAt, toPickup.driveMinutes, pickupDwell);
 
+    /**
+     * 통화 전에는 약속이 없어서 화면이 비는데, 마감(완료)은 추정으로라도 늘 있다.
+     * 약속(도착)과 완료는 `완료 = 도착 + 정차` 로 묶여 있으므로 (기사님 2026-08-18),
+     * 비어 있는 쪽을 **그 등식 하나로** 채운다 — 다른 화면이 각자 역산하지 않게 (규칙 ③).
+     */
+    pickupPromisedArrivalAt ??= pickupDeadlineAt ? addMin(pickupDeadlineAt, -pickupDwell) : null;
+    dropoffPromisedArrivalAt ??= dropoffDeadlineAt ? addMin(dropoffDeadlineAt, -dropoffDwell) : null;
+
     return {
         pickupPromisedArrivalAt, dropoffPromisedArrivalAt,
         soloKm, soloMinutes, approachKm, approachMinutes,
