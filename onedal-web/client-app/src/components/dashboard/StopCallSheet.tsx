@@ -62,6 +62,11 @@ interface Props {
     driveMinutes?: number | null;
     /** 콜의 차종 — 통화 전 기본 짐을 미리 눌러 두는 데 쓴다 (기사님 2026-08-18) */
     vehicleType?: string | null;
+    /**
+     * [통화 스킵] — 있으면 [통화 완료] 와 **한 줄에** 나란히 놓는다 (기사님 2026-08-18).
+     * 예전엔 카드가 시트 바깥 아래에 따로 붙여서 두 줄이 됐다.
+     */
+    onSkip?: () => void;
     /** 오더 상태 — 상차/하차 완료 배지에 쓴다 */
     orderStatus?: string;
     /** 이 정거장에 도착한 시각 (기록됐다면) */
@@ -115,7 +120,7 @@ function summarize(r?: CargoReport): string {
 
 export default function StopCallSheet({
     orderId, stopType, label, address, contactName, phones, reports,
-    memoTexts, driveMinutes, vehicleType, orderStatus, arrivedAt, forceOpen, stepLabel,
+    memoTexts, driveMinutes, onSkip, vehicleType, orderStatus, arrivedAt, forceOpen, stepLabel,
     leadMinutes = 0, leadLabel, driveKm, codAmount, pickupDeadlineAt,
 }: Props) {
     const isPickup = stopType === 'pickup';
@@ -812,13 +817,24 @@ export default function StopCallSheet({
 
                             {/* 단계 모드에서는 이것이 **주 버튼**이다 — 저장이 곧 다음 단계로 넘어가는 것.
                                 기사님: *"통화 완료와 통화 스킵 이렇게 선택권이 있으면 될 것 같아."*
-                                짝이 되는 [통화 스킵] 은 바로 아래에 카드가 붙인다. */}
+                                🔴 둘을 **한 줄에** 둔다 (기사님 2026-08-18) — 예전엔 스킵을 카드가
+                                시트 바깥 아래에 붙여 두 줄이 됐다. 고르는 자리는 한 눈에 보여야 한다. */}
+                            <div className="flex gap-2">
+                            {onSkip && (
+                                <button type="button" onClick={(e) => { e.stopPropagation(); onSkip(); }}
+                                    className={`shrink-0 px-4 rounded-lg border border-border border-dashed text-text-muted font-bold ${
+                                        stepMode ? 'py-3.5 text-[14px]' : 'py-2.5 text-[13px]'
+                                    }`}>
+                                    통화 스킵
+                                </button>
+                            )}
                             <button onClick={() => save('DECLARED')}
-                                className={`w-full rounded-lg bg-info text-white font-black active:scale-[0.99] transition-transform ${
+                                className={`flex-1 rounded-lg bg-info text-white font-black active:scale-[0.99] transition-transform ${
                                     stepMode ? 'py-3.5 text-[15px]' : 'py-2.5 text-[13px]'
                                 }`}>
                                 {stepMode ? '통화 완료' : '통화 종료 · 저장'}
                             </button>
+                            </div>
                     </>
                 </div>
                 )}

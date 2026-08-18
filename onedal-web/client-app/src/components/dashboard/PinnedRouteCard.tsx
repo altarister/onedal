@@ -464,6 +464,17 @@ export default function PinnedRouteCard({
                                                 phones={phonesOf(d)}
                                                 reports={cargoReports}
                                                 vehicleType={route.vehicleType}
+                                                onSkip={shownStep?.optional ? () => {
+                                                    // 건너뛰기도 **결정**이다 — 서버에 남겨야 새로고침해도 안 되살아난다
+                                                    socket.emit('save-cargo-report', {
+                                                        orderId: route.id,
+                                                        stopType: shownStep.stop,
+                                                        kind: 'SKIPPED',
+                                                        memo: '통화 없이 진행',
+                                                    });
+                                                    setSkippedTo(shownIndex + 1);   // 서버 응답 전까지의 낙관적 표시
+                                                    setViewIndex(null);
+                                                } : undefined}
                                                 memoTexts={[route.itemDescription, route.detailMemo, d?.memo]}
                                                 driveMinutes={lead.driveMinutes}
                                                 driveKm={lead.driveKm}
@@ -484,29 +495,8 @@ export default function PinnedRouteCard({
                                         );
                                     })()}
 
-                                    {/* 통화는 선택이다 — 적요가 충분하거나 상차지에서 이미 들었으면 건너뛴다.
-                                        기사님: *"통화 완료와 통화 스킵 이렇게 선택권이 있으면 될 것 같아."*
-                                        [통화 완료] 바로 아래에 짝으로 둔다. 막지 않고 고르게만 한다. */}
-                                    {shownStep?.optional && (
-                                        <button
-                                            type="button"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                // 건너뛰기도 **결정**이다 — 서버에 남겨야 새로고침해도 안 되살아난다
-                                                socket.emit('save-cargo-report', {
-                                                    orderId: route.id,
-                                                    stopType: shownStep.stop,
-                                                    kind: 'SKIPPED',
-                                                    memo: '통화 없이 진행',
-                                                });
-                                                setSkippedTo(shownIndex + 1);   // 서버 응답 전까지의 낙관적 표시
-                                                setViewIndex(null);
-                                            }}
-                                            className="w-full py-2.5 -mt-1 rounded-lg border border-border border-dashed text-[13px] font-bold text-text-muted"
-                                        >
-                                            통화 스킵
-                                        </button>
-                                    )}
+                                    {/* 🔴 [통화 스킵] 은 시트가 [통화 완료] 와 **한 줄에** 그린다
+                                        (기사님 2026-08-18) — 예전엔 여기서 시트 바깥 아래에 붙여 두 줄이 됐다. */}
 
                                     {/* 🏢 퀵사무실 — 신고와 실제가 다를 때 여기로 건다. 한 줄만 남긴다 */}
                                     {quickPhone && (
