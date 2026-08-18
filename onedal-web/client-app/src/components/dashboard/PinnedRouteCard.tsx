@@ -137,10 +137,12 @@ export default function PinnedRouteCard({
             {isDeck && (
                 <div className="px-4 pt-2.5 pb-1 flex flex-wrap items-center gap-x-2 text-[11px] text-text-muted tabular-nums">
                     <span className="font-black text-text-primary">{indexNum}.</span>
-                    <span>
-                        {route.capturedAt
-                            ? `${new Date(route.capturedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })} 잡음`
-                            : '잡은 시각 미상'}
+                    <span>콜잡은시간{' '}
+                        <b className="text-text-primary font-bold">
+                            {route.capturedAt
+                                ? new Date(route.capturedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
+                                : '-'}
+                        </b>
                     </span>
                     {route.commissionRate && <><span>·</span><span>수수료 {route.commissionRate}</span></>}
                     {route.scheduleText && <span className="text-warning font-bold">🕒 {route.scheduleText}</span>}
@@ -364,18 +366,21 @@ export default function PinnedRouteCard({
                                 );
                             })}
                         </div>
-                        <div className="flex items-center gap-2 text-[10px] font-bold">
-                            {progress.allDone
-                                ? <span className="text-success">운행 완료 · 6단계를 모두 마쳤습니다</span>
-                                : <span className="text-info">{shownStep?.label} 차례</span>}
-                            {viewIndex !== null && !progress.allDone && (
-                                <button
-                                    type="button"
-                                    onClick={(e) => { e.stopPropagation(); setViewIndex(null); }}
-                                    className="text-text-muted underline underline-offset-2"
-                                >되돌아보는 중 · 현재 단계로</button>
-                            )}
-                        </div>
+                        {/* 🔴 2026-08-18 — `{단계} 차례` 를 늘 찍고 있었는데, 바로 아래
+                            '지금 할 일 / 상차지 통화' 가 **같은 말**이다. 기사님: *"UI 영역을 아껴 써야 한다."*
+                            → 그 줄이 필요한 두 경우(운행 완료 · 되돌아보는 중)에만 남긴다. */}
+                        {(progress.allDone || viewIndex !== null) && (
+                            <div className="flex items-center gap-2 text-[10px] font-bold">
+                                {progress.allDone && <span className="text-success">운행 완료 · 6단계를 모두 마쳤습니다</span>}
+                                {viewIndex !== null && !progress.allDone && (
+                                    <button
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); setViewIndex(null); }}
+                                        className="text-text-muted underline underline-offset-2"
+                                    >{shownStep?.label} 되돌아보는 중 · 현재 단계로</button>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     {/* ══════════════════════════════════════════════════════════
@@ -445,6 +450,9 @@ export default function PinnedRouteCard({
                                             결재 전입니다 — KEEP 을 누르면 통화 단계가 열립니다
                                         </div>
                                     )}
+                                    {/* 여기서부터 **하는 일** — 위(적요·착불)는 읽는 것이다.
+                                        기사님이 배치를 적어 주실 때 이 자리에 선을 그으셨다 (2026-08-18) */}
+                                    {!evaluating && shownStep && <hr className="border-border-card" />}
                                     {!evaluating && shownStep && (() => {
                                         const isPickupStop = shownStep.stop === 'pickup';
                                         const d = isPickupStop ? pDetail : dDetail;
