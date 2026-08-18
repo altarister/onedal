@@ -189,6 +189,36 @@ async function inject(t) {
     console.log(`  → 관제웹(localhost:3000)에 카드가 뜹니다. 안전취소 35초 안에 KEEP/CANCEL 하세요.`);
 }
 
+/**
+ * 🧹 **오늘 처음처럼** — 콜과 콜에 딸린 기록만 지운다 (기사님 2026-08-18).
+ * intel(수집 데이터 · 후속 콜 빈도 재료)과 places(거래처 장부), 설정은 남긴다.
+ * 지우기 전에 WAL 포함 백업을 뜬다 — 언제든 되돌릴 수 있게.
+ */
+async function freshStart() {
+    const src = new Database(join(ROOT, 'server/local.db'));
+    const stamp = new Date().toISOString().slice(5, 16).replace(/[-:T]/g, '');
+    const backup = join(ROOT, `server/local.db.backup-rehearsal-${stamp}`);
+    await src.backup(backup);
+    for (const t of ['stop_cargo_reports', 'order_milestones', 'orderStops', 'orders']) {
+        const n = src.prepare(`DELETE FROM ${t}`).run().changes;
+        console.log(`  ${t}: ${n}건 삭제`);
+    }
+    src.close();
+    console.log(`  백업: ${backup.split('/').pop()} · intel·places·설정은 그대로`);
+
+    // 서버 세션 메모리에는 옛 콜이 남아 있다 — 재기동해야 관제웹에서도 사라진다
+    const h = await fetch(`${BASE}/api/health`).then(r => r.json()).catch(() => null);
+    if (h) {
+        console.log(`\n  ⚠️ 서버가 켜져 있습니다 (bootedAt ${h.bootedAt}) — 세션 메모리에 옛 콜이 남습니다.`);
+        console.log('  터미널에서 Ctrl+C 후 pnpm dev 로 재기동해 주세요. 재기동을 감지하면 이어갑니다...');
+        for (;;) {
+            await new Promise(r => setTimeout(r, 2000));
+            const now = await fetch(`${BASE}/api/health`).then(r => r.json()).catch(() => null);
+            if (now && now.bootedAt !== h.bootedAt) { console.log(`  ✅ 재기동 감지 (bootedAt ${now.bootedAt})`); break; }
+        }
+    }
+}
+
 // ── 대화 루프 ─────────────────────────────────────────────
 const rl = createInterface({ input: process.stdin, output: process.stdout });
 const ask = (q) => new Promise(res => rl.question(q, res));
@@ -198,12 +228,22 @@ function menu() {
     for (const p of PRESETS) console.log(`  [${p.key}] ${p.label}`);
     console.log('  [c] 직접 입력 (상차지·하차지·요금·차종)');
     console.log('  [f] 지금 필터 보기 (서버가 앱에 내려보내는 값)');
+    console.log('  [x] 콜 리스트 비우기 (오늘 처음처럼 · 백업 후 삭제)');
     console.log('  [q] 종료');
 }
 function prompt() { process.stdout.write('선택> '); }
 
 async function main() {
     console.log(`서버 ${BASE} · 기기 ${DEVICE} (앱폰 역할)`);
+
+    // 🧹 오늘 처음처럼 시작 — `pnpm rehearsal --fresh` 는 묻지 않고 바로 비운다
+    if (process.argv.includes('--fresh')) {
+        await freshStart();
+    } else {
+        const yn = await ask('오늘 처음처럼 콜 리스트를 비우고 시작할까요? (y/N) ');
+        if (yn.trim().toLowerCase() === 'y') await freshStart();
+    }
+
     const h = await fetch(`${BASE}/api/health`).then(r => r.json()).catch(() => null);
     if (!h) { console.error(`🔴 ${BASE} 응답 없음 — 서버를 먼저 띄우세요 (pnpm dev)`); process.exit(1); }
     console.log(`bootedAt ${h.bootedAt} — 관제웹은 http://localhost:3000 로 여세요\n`);
@@ -216,6 +256,7 @@ async function main() {
     rl.on('line', async (line) => {
         const c = line.trim().toLowerCase();
         if (c === 'q') { rl.close(); process.exit(0); }
+        else if (c === 'x') await freshStart();
         else if (c === 'f') showFilter();
         else if (c === 'c') {
             const pickup = await ask('  상차지 주소: ');
