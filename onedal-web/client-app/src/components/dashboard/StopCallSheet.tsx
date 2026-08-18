@@ -287,7 +287,36 @@ export default function StopCallSheet({
         const sum = t + (o ?? 0);
         setQty(sum > 0 ? sum : undefined);
     };
-    const hourSlots = buildArrivalSlots(Date.now(), arrivalMinutes, 5);
+    /**
+     * 🔴 **칸을 매 렌더마다 새로 만들면 고른 값이 조용히 풀린다** (2026-08-18 실측).
+     *
+     * 예전에는 `buildArrivalSlots(Date.now(), …)` 를 렌더마다 불렀다. 모의 주행 중에는
+     * GPS 로 초마다 다시 그려지는데, **분이 넘어가는 순간 모든 칸의 시각이 1분씩 밀린다.**
+     * 그러면 이미 눌러 둔 값(`deadlineAt`)이 어느 칸과도 안 맞아 **선택이 사라진 것처럼 보인다** —
+     * 기사님 화면에서 "대기 44분"은 떠 있는데 아무 버튼도 안 눌린 상태가 이것이었다.
+     * (달리는 동안 도착 예상이 당겨져 대기가 30 → 44분으로 늘어난 것도 같은 흐름이다)
+     *
+     * → 칸은 **분이 바뀔 때만** 다시 만들고, 고른 값이 목록에 없으면 **그 값을 칸으로 끼워 넣는다.**
+     *   기사님이 고른 시각은 화면에서 사라지면 안 된다.
+     */
+    const [minuteTick, setMinuteTick] = useState(() => Math.floor(Date.now() / 60_000));
+    useEffect(() => {
+        const t = setInterval(() => setMinuteTick(Math.floor(Date.now() / 60_000)), 15_000);
+        return () => clearInterval(t);
+    }, []);
+    const baseSlots = useMemo(
+        () => buildArrivalSlots(minuteTick * 60_000, arrivalMinutes, 5),
+        [minuteTick, arrivalMinutes]);
+    const hourSlots = useMemo(() => {
+        if (!deadlineAt || baseSlots.some(sl => sl.iso === deadlineAt)) return baseSlots;
+        const d = new Date(deadlineAt);
+        const mine = {
+            iso: deadlineAt,
+            label: `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`,
+            minutesFromNow: Math.round((d.getTime() - Date.now()) / 60_000),
+        };
+        return [...baseSlots, mine].sort((a, b) => Date.parse(a.iso) - Date.parse(b.iso));
+    }, [baseSlots, deadlineAt]);
 
     /**
      * 🔴 **서버가 미리 눌러 두고 기사님이 확정하신다** (기사님 2026-08-16):
@@ -335,13 +364,15 @@ export default function StopCallSheet({
         }
         // 🕒 도착 예상 + 30분 (기사님 2026-08-18: "디폴트 체크는 도착시간 + 30분").
         //    상차 소요를 더하지 않는다 — 약속은 도착이고, 소요는 짐 양에 따라 변한다.
-        return firstAtOrAfter(Date.now() + (arrivalMinutes + 30) * 60_000);
-    }, [driveKnown, arrivalMinutes, dwell, isPickup, hourSlots, pickupDeadlineAt]);
+        return firstAtOrAfter(minuteTick * 60_000 + (arrivalMinutes + 30) * 60_000);
+    }, [driveKnown, arrivalMinutes, dwell, isPickup, hourSlots, pickupDeadlineAt, minuteTick]);
 
     /** 기사님이 아직 손대지 않아 추천값이 눌려 있는 상태인가 — 눌리면 근거 줄을 띄운다 */
     const [deadlineTouched, setDeadlineTouched] = useState(false);
     useEffect(() => {
-        if (deadlineTouched || deadlineAt || !suggestedSlot) return;
+        // 손대지 않은 동안에는 추천 칸을 **따라간다**. 예전에는 `deadlineAt` 이 있으면 건너뛰어,
+        // 칸이 밀린 뒤에도 옛 값이 남아 아무 버튼도 안 눌린 것처럼 보였다 (2026-08-18 실측).
+        if (deadlineTouched || !suggestedSlot || deadlineAt === suggestedSlot.iso) return;
         setDeadlineAt(suggestedSlot.iso);
     }, [deadlineTouched, deadlineAt, suggestedSlot]);
 
