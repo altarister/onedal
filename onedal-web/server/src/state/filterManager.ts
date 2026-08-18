@@ -228,19 +228,33 @@ export function rememberDetourProgress(
  *
  * · 키를 **지금 목록(destinationKeywords)으로 좁힌다** — 세션의 detourProgressKm 은
  *   지나온 동도 계속 들고 있어(트림 비교용), 그대로 보내면 지나온 동이 "경로 위"로 남는다
- * · `Infinity`(하차지 원 안 동 — 영원히 안 빠짐)와 값 없음(스냅 실패)은 **null** —
- *   "순서를 모른다"는 뜻이고 앱은 모르면 막지 않는다 (JSON 이 Infinity 를 못 실어서이기도 하다)
+ * · 값 없음(스냅 실패)은 **null** — "순서를 모른다"는 뜻이고 앱은 모르면 막지 않는다
  * · 경로가 없으면(첫짐) **빈 객체** — 앱이 순서 검사를 통째로 건너뛴다
+ *
+ * 🔴 **`Infinity` 를 null 로 보내면 판정이 통째로 죽는다** (2026-08-18 실측으로 발견).
+ *    `Infinity` 는 *하차지 원 안의 동*이라는 뜻인데, **트림에서만** 쓰는 표식이다
+ *    ("도착이 가까워도 이 동네는 빼지 마라"). 순서로는 무한대가 아니라 **경로의 끝**이다.
+ *    처음에 null 로 바꿔 보냈더니 운행중(경유 0km) 목록 7개가 **전부 하차지 원 안**이라
+ *    7개 다 null 이 됐고, 앱은 "순서를 모른다"며 하나도 못 걸렀다.
+ *    → 하차지 원 안 동은 **경로 총 길이**를 준다. 뜻도 그게 맞다.
  */
 export function buildAppProgressKm(
     session: ReturnType<typeof getUserSession>,
 ): Record<string, number | null> {
     const progress = session.detourProgressKm;
     if (!progress) return {};
+
+    // 경로의 끝 = 마지막 점의 진행도. 못 구하면 하차지 원 동은 null 로 남긴다 (지어내지 않는다)
+    const poly = getActivePolyline(session);
+    const endKm = poly && poly.length >= 2
+        ? progressAlongPolyline(poly, poly[poly.length - 1])
+        : null;
+
     const out: Record<string, number | null> = {};
     for (const dong of session.activeFilter.destinationKeywords ?? []) {
         const v = progress[dong];
-        out[dong] = Number.isFinite(v) ? (v as number) : null;
+        out[dong] = Number.isFinite(v) ? (v as number)
+            : (v === Infinity ? endKm : null);
     }
     return out;
 }

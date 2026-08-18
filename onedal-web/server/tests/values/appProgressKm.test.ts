@@ -9,9 +9,12 @@ import { buildAppProgressKm } from '../../src/state/filterManager';
  * 지금 목록(destinationKeywords)으로 좁혀 보내는 것이 이 함수의 존재 이유다.
  */
 describe('buildAppProgressKm', () => {
+    // 경로 총 길이를 구하려면 폴리라인이 필요하다 (하차지 원 안 동에 줄 값)
+    const LINE = [{ x: 127.25, y: 37.41 }, { x: 126.73, y: 37.77 }];
     const session = (keywords: string[], progress: Record<string, number> | null) => ({
         activeFilter: { destinationKeywords: keywords },
         detourProgressKm: progress,
+        myOrders: [{ status: 'ORDER_CONFIRMED', routePolyline: LINE }],
     }) as any;
 
     it('경로가 없으면(첫짐) 빈 객체 — 앱이 순서 검사를 건너뛴다', () => {
@@ -27,13 +30,23 @@ describe('buildAppProgressKm', () => {
         expect('초월읍' in out).toBe(false);                        // ← 실사고 재발 방지 지점
     });
 
-    it('Infinity(하차지 원)와 값 없음(스냅 실패)은 null — 모르면 막지 않는다', () => {
-        const out = buildAppProgressKm(session(
-            ['경안동', '산황동', '금촌동'],
-            { 경안동: 0.5, 금촌동: Infinity },                      // 산황동은 스냅 실패로 값 없음
-        ));
-        expect(out).toEqual({ 경안동: 0.5, 산황동: null, 금촌동: null });
-        // JSON 은 Infinity 를 못 싣는다 — null 로 바꿔야 앱 파서가 "순서 모름"으로 읽는다
+    /**
+     * 🔴 2026-08-18 실측 — 처음엔 Infinity 를 null 로 보냈다가 판정이 통째로 죽었다.
+     *    운행중(경유 0km) 목록 7개가 **전부 하차지 원 안**이라 7개 다 null 이 됐고,
+     *    앱은 "순서를 모른다"며 역주행을 하나도 못 걸렀다.
+     *    Infinity 는 트림용 표식일 뿐, 순서로는 **경로의 끝**이다.
+     */
+    it('Infinity(하차지 원 안)는 경로 끝 거리로 — null 로 보내면 판정이 죽는다', () => {
+        const out = buildAppProgressKm(session(['경안동', '금촌동'], { 경안동: 0.5, 금촌동: Infinity }));
+        expect(out.경안동).toBe(0.5);
+        expect(typeof out.금촌동).toBe('number');
+        expect(out.금촌동 as number).toBeGreaterThan(0.5);   // 경로 끝이므로 앞 동네보다 뒤다
+    });
+
+    it('값 없음(스냅 실패)은 null — 모르면 막지 않는다', () => {
+        const out = buildAppProgressKm(session(['경안동', '산황동'], { 경안동: 0.5 }));
+        expect(out).toEqual({ 경안동: 0.5, 산황동: null });
+        // JSON 은 Infinity 를 못 싣는다 — 실어 보내는 값은 전부 JSON 왕복이 돼야 한다
         expect(JSON.parse(JSON.stringify(out))).toEqual(out);
     });
 });
