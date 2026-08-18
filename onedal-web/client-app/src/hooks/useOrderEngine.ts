@@ -72,11 +72,26 @@ export function useOrderEngine() {
         return () => soundManager.stopCallRinging();
     }, []);
 
-    useEffect(() => {
+    /**
+     * 🔴 **종료된 콜은 장부(DB)에서 다시 읽는다** (2026-08-18 실측으로 발견).
+     *
+     * `terminatedOrders` 는 서버 **세션 메모리**에서 온다(`buildOrderSync`). 그런데 취소된 콜은
+     * 캐시 정리(TTL·새 콜 진입)로 메모리에서 빠지므로, 다음 싱크에 목록에서 **통째로 사라진다** —
+     * 기사님 실측: 30초 자동 취소가 취소 탭에 뜬 뒤, 새 콜을 올리자 **취소 수가 0** 이 됐다.
+     * DB 에는 멀쩡히 3건이 남아 있었다. 화면만 거짓말한 것이다.
+     *
+     * 취소 횟수는 배차망 패널티(10회)와 직결되므로 한 건도 새면 안 된다 (용어집 §2-1).
+     * → 콜이 끝나는 순간(`order-canceled`·`order-confirmed`) 이력을 다시 읽는다.
+     */
+    const reloadHistory = useCallback(() => {
         const token = localStorage.getItem('access_token');
         fetch("/api/orders", {
             headers: token ? { 'Authorization': `Bearer ${token}` } : {}
         }).then((res) => res.json()).then((data) => setOrders(data.orders || [])).catch(() => { });
+    }, []);
+
+    useEffect(() => {
+        reloadHistory();
 
         if (socket.connected) {
             setIsConnected(true);
@@ -179,6 +194,10 @@ export function useOrderEngine() {
         socket.on("order-evaluated", onOrderEvaluated);
         socket.on("order-confirmed", onOrderConfirmed);
         socket.on("order-canceled", onOrderCanceled);
+        // 종료된 콜이 메모리에서 빠져도 화면에서 사라지지 않게, 장부를 다시 읽는다
+        const onTerminalReload = () => setTimeout(reloadHistory, 400);   // DB 기록이 끝난 뒤
+        socket.on("order-canceled", onTerminalReload);
+        socket.on("order-confirmed", onTerminalReload);
         socket.on("safecancel-warning", onSafeCancelWarning);
 
         // ⭐ 1초 하트비트 싱크: 서버의 실제 평가 오더 전체 객체 배열
@@ -246,6 +265,8 @@ export function useOrderEngine() {
             socket.off("order-confirmed", onOrderConfirmed);
             socket.off("order-canceled", onOrderCanceled);
             socket.off("safecancel-warning", onSafeCancelWarning);
+            socket.off("order-canceled", onTerminalReload);
+            socket.off("order-confirmed", onTerminalReload);
             socket.off("sync-active-orders", onSyncActiveOrders);
         };
     }, []);

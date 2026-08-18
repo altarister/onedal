@@ -272,8 +272,13 @@ router.post("/", async (req, res) => {
                 }
 
                 // KEEP이 아닌 경우(미결재/CANCEL)만 기존 로직대로 취소
+                //
+                // 🔴 **지우기 전에 장부에 남긴다** (2026-08-18 — 취소 저장의 네 번째 경로).
+                //    결재 취소·화면 이탈은 고쳤는데 이 타임아웃 경로만 남아 있었다.
+                //    안전취소는 배차망 취소 횟수(10회)에 들어가므로 한 건도 새면 안 된다 (용어집 §2-1).
+                //    같은 클래스가 네 번째다 — 취소 경로가 여럿인데 저장을 경로마다 붙인 탓이다.
                 session.pendingDecisions.delete(payload.order.id);
-                session.pendingOrdersData.delete(payload.order.id);
+                forceCancelEvaluatingOrder(userId, payload.order.id, io);   // 저장 + 캐시 정리 + order-canceled
                 Array.from(session.deviceEvaluatingMap.entries()).forEach(([k, v]) => {
                     if (v === payload.order.id) session.deviceEvaluatingMap.delete(k);
                 });
