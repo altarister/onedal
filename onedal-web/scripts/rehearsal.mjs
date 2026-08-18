@@ -110,7 +110,13 @@ async function telemetry() {
         });
         const j = await r.json();
         lastFilter = j.dispatchEngineArgs ?? lastFilter;
-        const d = j.piggybackDecision;
+        /**
+         * 🔴 서버 응답의 판결 필드는 `decision` 이다 (scrap.ts `res.json({ decision: ... })`).
+         *    `piggybackDecision` 을 읽고 있어 판결을 한 번도 못 받았고 → ACK 를 못 보냈고 →
+         *    서버가 규칙 ②대로 55분간 5초마다 같은 KEEP 을 태워 보냈다 (2026-08-19 실측).
+         *    tests/rules/routeOrderSingleSource.test.ts 가 응답 조립처와 이름을 대조한다.
+         */
+        const d = j.decision;
         if (d?.orderId) {
             console.log(`\n📦 판결 수신: ${d.action}  (${d.orderId.slice(0, 8)}) — ACK 보냅니다`);
             pendingAck = d.orderId;

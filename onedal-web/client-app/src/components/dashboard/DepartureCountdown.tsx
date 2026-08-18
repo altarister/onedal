@@ -67,7 +67,8 @@ export default function DepartureCountdown({ orders, records, routeStops, routeC
             estimated: !binding.promiseConfirmed,
             driveMin: null, dwellMin: binding.dwellMinutes,
             waitMin: minutesUntil(new Date(binding.departByMs!).toISOString(), now),
-            boundBy: o ? `${getAddressLabel(binding.stopType === 'pickup' ? o.pickup : o.dropoff)} ${binding.stopType === 'pickup' ? '상차' : '하차'}` : null,
+            // 시각을 같이 적는다 — 상차지가 둘 다 "경안동"이면 이름만으로는 어느 약속인지 모른다
+            boundBy: o ? `${getAddressLabel(binding.stopType === 'pickup' ? o.pickup : o.dropoff)} ${binding.stopType === 'pickup' ? '상차' : '하차'} ${binding.promisedUntil ? new Date(binding.promisedUntil).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }) : ''}`.trim() : null,
         };
     }
 

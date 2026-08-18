@@ -1,4 +1,4 @@
-import { isEvaluating, isTerminal, isAlreadyLoaded } from "@onedal/shared";
+import { isEvaluating, isTerminal, isAlreadyLoaded, deriveRouteTimeline } from "@onedal/shared";
 import type { SecuredOrder } from "@onedal/shared";
 import { useState, useEffect, useMemo, useRef } from 'react';
 // removed socket
@@ -115,6 +115,18 @@ export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, 
      * routeStops 에 없는 활성 콜(심사 중 후보 · 경로 연산 전/실패)은 **번호 순서 뒤에
      * 덧붙인다** — 지도에서 사라지면 안 되지만, 아직 경로가 아닌 것도 사실이기 때문이다.
      */
+    /**
+     * 🗺️ 타임라인도 **여기서 한 번** 만든다 (규칙 ③) — 카운트다운·덱과 같은 값을
+     * 카드(통화 시트)도 봐야 한다. 실측: 덱은 합짐 하차 ~05:56 을 아는데 시트는
+     * "주행 시간을 모릅니다"라며 03:28 을 추천했다 — 한 화면이 두 세상을 보고 있었다.
+     */
+    const routeTimeline = useMemo(() => deriveRouteTimeline(
+        routeStops, liveRoute,
+        (id) => (callRecords.get(id) ?? EMPTY_RECORDS).reports,
+        (id) => (callRecords.get(id) ?? EMPTY_RECORDS).milestones,
+        Date.now(), routeComputedAt,
+    ), [routeStops, liveRoute, callRecords, routeComputedAt]);
+
     const unifiedRoutePoints: RoutePoint[] = useMemo(() => {
         const byId = new Map(liveRoute.map(r => [r.id, r]));
         const pts: RoutePoint[] = [];
@@ -390,6 +402,9 @@ export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, 
                             visitOrderMap={visitOrderMap}
                             indexNum={chronologicalIds.indexOf(route.id) + 1}
                             records={callRecords.get(route.id) ?? EMPTY_RECORDS}
+                            timeline={routeTimeline}
+                            routeStops={routeStops}
+                            routeComputedAt={routeComputedAt}
                             variant="deck"
                         />
                     )}
@@ -451,6 +466,9 @@ export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, 
                                     visitOrderMap={visitOrderMap}
                                     indexNum={indexNum}
                                     records={callRecords.get(route.id) ?? EMPTY_RECORDS}
+                                    timeline={routeTimeline}
+                                    routeStops={routeStops}
+                                    routeComputedAt={routeComputedAt}
                                 />
                             );
                         })}

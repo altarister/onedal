@@ -86,3 +86,23 @@ describe('관제웹 — 자기 TSP 를 돌리지 않는다', () => {
         expect(offenders.map(f => f.split('/client-app/')[1])).toEqual([]);
     });
 });
+
+/**
+ * 📦 **리허설은 서버가 실제로 보내는 필드를 읽어야 한다** (2026-08-19 실측 사고)
+ *
+ * 서버 응답은 `decision` 인데 리허설이 `piggybackDecision` 을 읽고 있었다.
+ * 그래서 판결을 한 번도 못 받았고 → ACK 를 못 보냈고 → 서버는 규칙 ②(ACK 까지
+ * 판결을 지우지 않는다)대로 **55분 동안 5초마다** 같은 KEEP 을 태워 보냈다.
+ * 게다가 holdingOrderId 가 안 풀려 화면이 DETAIL_CONFIRMED 로 영구 고착됐다.
+ *
+ * 응답 조립처(scrap.ts)와 리허설이 같은 이름을 쓰는지 소스로 대조한다.
+ */
+describe('리허설 ↔ 서버 — 판결 필드 계약', () => {
+    it('🔴 scrap 응답의 판결 필드 이름을 리허설이 그대로 읽는다', () => {
+        const scrap = readFileSync(join(__dirname, '../../src/routes/scrap.ts'), 'utf8');
+        const rehearsal = readFileSync(join(__dirname, '../../../scripts/rehearsal.mjs'), 'utf8');
+        const m = scrap.match(/(\w+):\s*piggybackDecision/);
+        expect(m).not.toBeNull();                       // 응답에 판결이 실린다
+        expect(rehearsal).toContain(`j.${m![1]}`);      // 리허설이 그 이름을 읽는다
+    });
+});

@@ -11,6 +11,7 @@ import StopCallSheet from './StopCallSheet';
 import type { CallRecords } from "../../hooks/useCallProgress";
 import { MILESTONE_LABEL, timingError, buildArrivalSlots, deriveCallStep, canRewindTo, CALL_STEPS,
          deriveCallTiming } from "@onedal/shared";
+import type { RouteTimelineEntry, RouteStopInfo } from "@onedal/shared";
 import { Button } from "../ui/button";
 
 interface Props {
@@ -25,6 +26,10 @@ interface Props {
     indexNum: number;
     /** 이 콜의 서버 기록 (통화·현장 신고 + 마일스톤). 위에서 한 번에 받아 내려준다 */
     records: CallRecords;
+    /** 🗺️ 경로 타임라인 — 덱·카운트다운과 같은 값을 통화 시트도 본다 (규칙 ③) */
+    timeline?: RouteTimelineEntry[];
+    routeStops?: RouteStopInfo[];
+    routeComputedAt?: string | null;
     /**
      * `deck` — 진행 중 탭의 스와이프 덱. **폰 한 화면**이 목표라 헤더를 경로 한 줄로 줄인다.
      * `list` — 완료됨·취소/방출·전체. 조회용이라 포착시각·방문순서·ETA 를 그대로 둔다.
@@ -43,6 +48,9 @@ export default function PinnedRouteCard({
     visitOrderMap,
     indexNum,
     records,
+    timeline,
+    routeStops,
+    routeComputedAt,
     variant = 'list',
 }: Props) {
     const isDeck = variant === 'deck';
@@ -457,6 +465,29 @@ export default function PinnedRouteCard({
                                         const isPickupStop = shownStep.stop === 'pickup';
                                         const d = isPickupStop ? pDetail : dDetail;
                                         const lead = isPickupStop ? timing.toPickup : timing.toDropoff;
+                                        /**
+                                         * 🗺️ **경로 타임라인이 있으면 그것이 이긴다** (2026-08-19 실측).
+                                         *
+                                         * 콜별 파생(timing.*)은 "혼자 간다" 가정이라 합짐에서는 값이
+                                         * 아예 없다 — 그래서 같은 화면에서 덱은 합짐 하차 ~05:56 을
+                                         * 아는데 시트는 "주행 시간을 모릅니다"라며 03:28 같은
+                                         * **물리적으로 못 지킬 칸**을 추천했다.
+                                         *
+                                         *   주행 = 경로 누적 주행(routeStops.driveMinutes)
+                                         *   선행 = 도착예상 − 닻 − 주행  (앞 정거장 정차·"부터" 대기의 합)
+                                         */
+                                        const stopKind = isPickupStop ? 'pickup' : 'dropoff';
+                                        const tlEntry = timeline?.find(e => e.orderId === route.id && e.stopType === stopKind);
+                                        const stopDrive = routeStops?.find(st => st.orderId === route.id && st.stopType === stopKind)?.driveMinutes;
+                                        const anchorMs = routeComputedAt ? Date.parse(routeComputedAt) : null;
+                                        const routeLead = tlEntry?.etaMs != null && stopDrive != null && anchorMs != null
+                                            ? {
+                                                driveMinutes: stopDrive,
+                                                driveKm: null,
+                                                leadMinutes: Math.max(0, Math.round((tlEntry.etaMs - anchorMs) / 60_000) - stopDrive),
+                                                leadLabel: '상차·대기',
+                                              }
+                                            : null;
                                         return (
                                             <StopCallSheet
                                                 /* 🔴 **콜 id 를 키에 넣는다** (2026-08-16).
@@ -485,15 +516,15 @@ export default function PinnedRouteCard({
                                                     setViewIndex(null);
                                                 } : undefined}
                                                 memoTexts={[route.itemDescription, route.detailMemo, d?.memo]}
-                                                driveMinutes={lead.driveMinutes}
-                                                driveKm={lead.driveKm}
+                                                driveMinutes={routeLead?.driveMinutes ?? lead.driveMinutes}
+                                                driveKm={routeLead ? routeLead.driveKm : lead.driveKm}
                                                 /* 상차지 통화에서 하차지까지 한 번에 정할 수 있게 다음 구간을 넘긴다 */
                                                 onwardMinutes={isPickupStop ? soloMin : null}
                                                 /* 주행을 몰라도 칸을 추천할 수 있게 — 상차 마감은 주행과 무관하다 */
                                                 pickupDeadlineAt={timing.pickupDeadlineAt}
                                                 onwardKm={isPickupStop ? timing.soloKm : null}
-                                                leadMinutes={lead.leadMinutes}
-                                                leadLabel={lead.leadLabel}
+                                                leadMinutes={routeLead?.leadMinutes ?? lead.leadMinutes}
+                                                leadLabel={routeLead ? routeLead.leadLabel : lead.leadLabel}
                                                 /* 앞 정거장(상차지)의 이름 — 하차지 문장이 "이마트 광주점에서" 로 읽힌다 */
                                                 leadFrom={pDetail?.contactName || pDetail?.customerName}
                                                 orderStatus={route.status}
