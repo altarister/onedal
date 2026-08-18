@@ -11,7 +11,8 @@
     "e2e:app": "node scripts/appLoop.mjs",
     "lifecycle": "node scripts/lifecycle.mjs",
     "map": "node scripts/map-flow.mjs",
-    "audit:dead": "node scripts/audit-dead.mjs"
+    "audit:dead": "node scripts/audit-dead.mjs",
+    "rehearsal": "node scripts/rehearsal.mjs"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
