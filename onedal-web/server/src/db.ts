@@ -352,7 +352,7 @@ db.exec(`
         unit        TEXT,        -- 파레트 | 라면박스 | 소 | 중 | 대 | 초과
         sizeClass   TEXT,        -- (구) 소 | 중 | 대 | 초과 — unit 으로 대체됨
         quantity    INTEGER,     -- 개수
-        handling    TEXT,        -- 지게차 | 수작업 | 호이스트
+        handling    TEXT,        -- 지게차 | 수작업 | 검수 (호이스트는 2026-08-18 제거)
         promisedAt  TEXT,        -- 약속·예정 시각 (적요의 12:42상차 등)
         deadlineAt  TEXT,        -- 마감 시각 (늦어도 언제까지). 합짐 우회 허용치를 정한다
         tags        TEXT,        -- 화물 성질 JSON 배열 (식료품·냉장·파손주의 등)
@@ -416,7 +416,7 @@ ensureColumns('order_milestones', { predictedAt: 'TEXT' });
 ensureColumns('orders', { targetApp: 'TEXT' });
 ensureColumns('intel', { targetApp: 'TEXT' });
 // 🕒 도착 약속 — "몇 시까지 갈게요" (기사님 확정 2026-08-18). 완료 시각은 저장하지 않고 파생한다
-ensureColumns('stop_cargo_reports', { promisedArrivalAt: 'TEXT' });
+ensureColumns('stop_cargo_reports', { promisedArrivalAt: 'TEXT', protections: 'TEXT' });   // 🔒 보호(복수) — tags 와 같은 JSON 문자열
 /**
  * 🔴 2026-08-12 — 옛 DB 의 `stop_cargo_reports` 에 CHECK 제약이 굳어 있었다.
  *

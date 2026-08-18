@@ -102,17 +102,19 @@ describe('describeSlack — 기사님이 읽을 말로', () => {
 });
 
 describe('상하차 소요 시간 — 경로 시간에 더해야 하는 값', () => {
+    /**
+     * 🔴 **축을 다시 갈랐다** (기사님 2026-08-18) — 방법은 *옮기는 행위만*,
+     *    찾기·대기 명목의 기본 시간은 없앴고 안전 조치는 `보호` 로 뺐다.
+     *    지게차 파레트당 2분 · 수작업 박스당 20초.
+     */
     it('수작업은 지게차보다 훨씬 오래 걸린다', () => {
-        // 파레트 2개(80점 — 라면박스 축). 지게차는 옛 축과 같은 19분,
-        // 수작업은 박스당 22.5초 기준으로 재보정되어 45분 (옛 60분 — 축 전환 2026-08-17)
-        expect(dwellMinutes('지게차', 80)).toBe(19);
-        expect(dwellMinutes('수작업', 80)).toBe(45);
+        expect(dwellMinutes('지게차', 80)).toBe(4);    // 파레트 2개 × 2분
+        expect(dwellMinutes('수작업', 80)).toBe(27);   // 80박스 × 20초
     });
 
     it('짐이 적으면 방법 차이도 줄어든다', () => {
-        // 라면박스 8개(8점) — 옛 축의 2점과 같은 물리량, 분(分)도 같다
-        expect(dwellMinutes('지게차', 8)).toBe(11);
-        expect(dwellMinutes('수작업', 8)).toBe(18);
+        expect(dwellMinutes('지게차', 8)).toBe(0.4 > 0 ? 0 : 0);   // 8박스 = 24초 → 0분
+        expect(dwellMinutes('수작업', 8)).toBe(3);                  // 8박스 × 20초
     });
 
     /**
@@ -136,9 +138,9 @@ describe('상하차 소요 시간 — 경로 시간에 더해야 하는 값', ()
 
     it('상차 + 하차 두 번을 모두 센다', () => {
         const t = computeStopTiming({ handling: '수작업', unit: '파레트', quantity: 2 }, { handling: '지게차' });
-        expect(t.pickupDwell).toBe(45);
-        expect(t.dropoffDwell).toBe(19);
-        expect(t.totalDwell).toBe(64);   // 주행 시간에 이만큼이 더 붙는다
+        expect(t.pickupDwell).toBe(27);   // 80박스 × 20초
+        expect(t.dropoffDwell).toBe(4);   // 파레트 2개 × 2분
+        expect(t.totalDwell).toBe(31);    // 주행 시간에 이만큼이 더 붙는다
     });
 
     it('하차 방법을 안 물었으면 상차와 같다고 본다', () => {
@@ -222,11 +224,12 @@ describe('검수 방법 (2026-08-12)', () => {
     });
 
     it('다른 방법은 그대로다', () => {
-        expect(dwellMinutes('지게차', 80)).toBe(19);     // 파레트 2개 = 80점 (라면박스 축)
-        expect(dwellMinutes('수작업', 80)).toBe(45);
+        expect(dwellMinutes('지게차', 80)).toBe(4);     // 파레트 2개 × 2분 (2026-08-18 새 축)
+        expect(dwellMinutes('수작업', 80)).toBe(27);    // 80박스 × 20초
     });
 
-    it('네 가지가 모두 선택지에 있다', () => {
-        expect([...HANDLING_METHODS]).toEqual(['지게차', '수작업', '호이스트', '검수']);
+    /** 호이스트는 뺐다 (기사님 2026-08-18: "해본 적이 없는데 이건 그냥 뺄까?") */
+    it('세 가지가 선택지에 있다 — 호이스트는 뺐다', () => {
+        expect([...HANDLING_METHODS]).toEqual(['지게차', '수작업', '검수']);
     });
 });

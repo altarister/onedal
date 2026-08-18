@@ -12,6 +12,7 @@
  * 각자의 것만 남기고, 여기서 그 값을 읽어 시간으로 환산한다. 의존은 한 방향뿐이다.
  */
 import { unitPoints } from './cargoUnits';
+import { protectionMinutes } from './cargoUnits';
 import type { CargoReport } from './index';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -31,13 +32,24 @@ import type { CargoReport } from './index';
  *   수작업 + 라면박스 40개(40점) → 15 + 40×0.375 = 30분    (옛 10점×1.5 와 동일 — 박스당 22.5초)
  *   수작업 + 파레트 2개(80점)   → 15 + 80×0.375 = 45분    (수작업으로 파레트는 정말 오래 걸린다)
  */
-const DWELL_BASE: Record<string, number> = { '지게차': 10, '수작업': 15, '호이스트': 20, '검수': 90 };
+/**
+ * 🔴 **축을 다시 갈랐다** (기사님 확정 2026-08-18).
+ *    방법 = *"짐을 손으로 내리거나 싣는 행위만"* · 보호 = 안전 조치(`PROTECTION_MINUTES`).
+ *    기사님: *"지게차 19 · 수작업 45 … 그때는 안전이라는 값이 없었으니 두리뭉실 넣은 값이야."*
+ *
+ *    그래서 **기본 시간을 0 으로 없앴다** — 찾기·대기 명목으로 붙어 있던 10~20분이다.
+ *    수량에만 비례시키면 값이 저절로 도출된다:
+ *      수작업 박스당 20초 → 다마스 30박스 = **10분** (기사님이 든 예시 그대로)
+ *      지게차 파레트당 2분(박스당 3초) → 1t 파레트 2개 = **4분**
+ *    `검수` 만 예외다 — 수량이 아니라 **절차**가 시간을 먹는다 (90분 고정).
+ */
+const DWELL_BASE: Record<string, number> = { '지게차': 0, '수작업': 0, '검수': 90 };
 /**
  * 🔴 `검수` 는 0 이다 (기사님 지시: "검수는 90분"). 물건을 하나하나 확인받는 자리라
  *    수량이 아니라 **절차**가 시간을 먹는다. 여기를 비워 두면 아래 `?? 1` 폴백이
  *    점수당 1분을 붙여 파레트 2개에 120분이 되어 버린다 — 반드시 명시한다.
  */
-const DWELL_PER_POINT: Record<string, number> = { '지게차': 0.1125, '수작업': 0.375, '호이스트': 0.375, '검수': 0 };
+const DWELL_PER_POINT: Record<string, number> = { '지게차': 0.05, '수작업': 1 / 3, '검수': 0 };   // 박스당 분 — 지게차 3초(파레트 2분) · 수작업 20초
 
 /**
  * 방법을 모를 때 쓰는 **일반값** — 상차와 하차가 다르다 (기사님 확정 2026-08-15).
@@ -66,6 +78,8 @@ export function dwellMinutes(
     /** 어느 정거장인가 — 모를 때 쓰는 일반값이 다르다. 안 넘기면 상차(더 긴 쪽)로 본다 */
     stop: 'pickup' | 'dropoff' = 'pickup',
     unk?: DwellUnknown,
+    /** 🔒 보호 — 고른 것의 분을 더한다. **상차에만** 붙는다 (묶는 자리) */
+    protections?: readonly string[] | null,
 ): number {
     const unknown = stop === 'dropoff'
         ? (unk?.dropoffDwellMin ?? DWELL_UNKNOWN_DROPOFF_MINUTES)
@@ -73,7 +87,15 @@ export function dwellMinutes(
     if (!handling) return unknown;
     const base = DWELL_BASE[handling];
     if (base == null) return unknown;
-    return Math.round(base + points * (DWELL_PER_POINT[handling] ?? 1));
+    /**
+     * 🔴 **수량을 모르면 일반값으로 돌아간다** (2026-08-18).
+     *    기본 시간을 0 으로 없앤 뒤로는 `수량 0 × 박스당` 이 그대로 **0분**이 된다 —
+     *    "상차 0분"은 없는 숫자를 지어내는 것보다 나쁘다 (여유를 무한대로 만든다).
+     *    `검수` 는 수량과 무관하므로 예외다.
+     */
+    if (points <= 0 && base === 0) return unknown;
+    const protect = stop === 'pickup' ? protectionMinutes(protections) : 0;
+    return Math.round(base + points * (DWELL_PER_POINT[handling] ?? 1) + protect);
 }
 
 export interface StopTiming {
@@ -92,12 +114,12 @@ export interface StopTiming {
  * 하차 방법을 따로 안 물었으면 상차와 같다고 본다 (지게차로 실었으면 대개 지게차로 내린다).
  */
 export function computeStopTiming(
-    pickup: { handling?: string | null; unit?: string | null; quantity?: number | null } | undefined,
+    pickup: { handling?: string | null; unit?: string | null; quantity?: number | null; protections?: string[] | null } | undefined,
     dropoff: { handling?: string | null } | undefined,
     unk?: DwellUnknown,
 ): StopTiming {
     const points = unitPoints(pickup?.unit, pickup?.quantity);
-    const pickupDwell = dwellMinutes(pickup?.handling, points, 'pickup', unk);
+    const pickupDwell = dwellMinutes(pickup?.handling, points, 'pickup', unk, pickup?.protections);
     const dropoffDwell = dwellMinutes(dropoff?.handling ?? pickup?.handling, points, 'dropoff', unk);
     return {
         pickupDwell,
@@ -583,7 +605,7 @@ export function deriveCallTiming(
     const dropoffCargo = reports.find(r => r.stopType === 'dropoff' && r.kind === 'ACTUAL')
                       ?? reports.find(r => r.stopType === 'dropoff' && r.kind === 'DECLARED');
     const points = unitPoints(pickupCargo?.unit, pickupCargo?.quantity);
-    const pickupDwell = dwellMinutes(pickupCargo?.handling, points, 'pickup');
+    const pickupDwell = dwellMinutes(pickupCargo?.handling, points, 'pickup', undefined, pickupCargo?.protections);
     // 하차 방법을 따로 안 물었으면 상차와 같다고 본다 (지게차로 실었으면 대개 지게차로 내린다)
     const dropoffDwell = dwellMinutes(dropoffCargo?.handling ?? pickupCargo?.handling, points, 'dropoff');
 

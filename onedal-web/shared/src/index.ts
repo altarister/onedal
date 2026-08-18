@@ -227,8 +227,12 @@ export const CARGO_SIZE_POINTS: Record<CargoSize, number> = {
  * [2026-08-12] 기사님 요청으로 `검수` 추가 — **90분 고정**.
  * 물건을 하나하나 확인받는 자리라 수량과 무관하게 오래 걸린다는 판단이다.
  */
-export const HANDLING_METHODS = ['지게차', '수작업', '호이스트', '검수'] as const;
+// 🔴 **호이스트를 뺐다** (기사님 2026-08-18): *"해본 적이 없는데 이건 그냥 뺄까?"*
+//    안 해 본 일에 시간 값을 지어내면 그 값이 색을 정한다. DB 제약도 기존 행도 없어 안전했다.
+export const HANDLING_METHODS = ['지게차', '수작업', '검수'] as const;
 export type HandlingMethod = typeof HANDLING_METHODS[number];
+
+
 
 /**
  * 정거장 기록의 종류.
@@ -263,6 +267,8 @@ export interface CargoReport {
      * `도착 약속 + 지금 추정 소요` 로 파생한다 — 신고가 약속을 흔들지 않게 (규칙 ③).
      */
     promisedArrivalAt?: string;
+    /** 🔒 보호 — 호루·결박·그물망·탑박스 (복수 선택 · 기사님 2026-08-18) */
+    protections?: string[];
     /**
      * [2026-08-12] **상차지 통화에서 함께 들은 하차지 도착 예정 시각.**
      *

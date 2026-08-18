@@ -25,16 +25,16 @@ describe('도착 약속 (promisedArrivalAt)', () => {
     }] as any);
 
     it('완료 시각 = 도착 약속 + 상차 소요 (파생)', () => {
-        // 수작업 20박스 → 15 + 20×0.375 ≈ 23분
+        // 수작업 20박스 = 7분 (박스당 20초 · 2026-08-18 새 축)
         const t = deriveCallTiming(order, report({ unit: '라면박스', quantity: 20, handling: '수작업' }), [], NOW);
-        expect(t.pickupDeadlineAt).toBe('2026-08-18T05:53:00.000Z');
+        expect(t.pickupDeadlineAt).toBe('2026-08-18T05:37:00.000Z');
     });
 
     it('🔴 신고로 상차 소요가 바뀌어도 도착 약속은 흔들리지 않는다 — 완료 예상만 갱신', () => {
-        // 40박스로 정정 → 소요 30분. 도착 약속(05:30Z)은 그대로, 완료만 05:30+30
+        // 40박스로 정정 → 소요 13분. 도착 약속(05:30Z)은 그대로, 완료만 뒤로 밀린다
         const t = deriveCallTiming(order, report({ unit: '라면박스', quantity: 40, handling: '수작업' }), [], NOW);
         expect(t.pickupPromisedArrivalAt).toBe(ARRIVE);
-        expect(t.pickupDeadlineAt).toBe('2026-08-18T06:00:00.000Z');
+        expect(t.pickupDeadlineAt).toBe('2026-08-18T05:43:00.000Z');
     });
 
     it('통화 전 추정 — 도착 약속 = 잡은 시각 + 접근 주행 + 여유 30분', () => {

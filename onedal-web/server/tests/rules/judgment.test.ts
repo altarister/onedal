@@ -191,7 +191,8 @@ describe('판정하는 곳은 한 곳', () => {
     it('🔴 상하차 일반값을 코드가 직접 쓰지 않는다 (dwellMinutes 가 정한다)', () => {
         expect(dwellMinutes(null, 0, 'pickup')).toBe(DWELL_UNKNOWN_PICKUP_MINUTES);
         expect(dwellMinutes(null, 0, 'dropoff')).toBe(DWELL_UNKNOWN_DROPOFF_MINUTES);
-        expect(dwellMinutes('지게차', 0)).toBe(10);   // 아는 방법은 그대로
+        expect(dwellMinutes('지게차', 80)).toBe(4);    // 방법+수량을 알면 일반값과 무관 (파레트 2개 × 2분)
+        expect(dwellMinutes('지게차', 0)).toBe(DWELL_UNKNOWN_PICKUP_MINUTES);   // 수량을 모르면 일반값
     });
 });
 
@@ -379,10 +380,11 @@ describe('통화 시트 — 주행을 몰라도 추천한다', () => {
             .toMatch(/pickupDeadlineAt=\{timing\.pickupDeadlineAt\}/);
     });
 
-    it('🔴 「이어서」 블록이 상차 정차를 두 번 더하지 않는다', () => {
+    it('🔴 「이어서」 블록이 도착 약속에 상차 정차를 더해 실어 보내는 시각을 낸다', () => {
         const sheet = rc4('components/dashboard/StopCallSheet.tsx');
-        expect(sheet).toMatch(/const loadDoneMs = new Date\(deadlineAt\)\.getTime\(\);/);
-        expect(sheet).not.toMatch(/loadDoneMs = new Date\(deadlineAt\)\.getTime\(\) \+ dwell/);
+        // 🔴 2026-08-18 개정 — 약속이 **도착** 기준이 되면서 여기서 상차를 **더해야** 맞다.
+        //    (2026-08-16 에는 약속이 완료 기준이라 더하면 두 번 세는 것이었다)
+        expect(sheet).toMatch(/const loadDoneMs = new Date\(deadlineAt\)\.getTime\(\) \+ dwell \* 60_000;/);
         expect(sheet).toMatch(/실어 보냄/);
     });
 });

@@ -128,3 +128,31 @@ export function defaultCargoByVehicle(vehicleType?: string | null):
     }
     return { unit: '라면박스', quantity: boxes, handling: '수작업' };
 }
+
+/**
+ * 🔒 **보호 — 짐을 고정·보호하는 데 드는 시간** (기사님 확정 2026-08-18)
+ *
+ * 방법(`HANDLING_METHODS`)과 축이 다르다. 방법은 *"짐을 손으로 내리거나 싣는 행위만"* 이고,
+ * 보호는 그 뒤에 붙는 안전 조치다. 예전에는 이 둘이 섞여 있었다 —
+ * 수작업 15분 주석이 *"찾기 + 상차 + **결박**"* 이었다.
+ * 기사님: *"그때는 안전이라는 값이 없었으니 그냥 두리뭉실 넣은 값이야."*
+ *
+ * **성질(tags)처럼 복수 선택**이고 고른 것의 분(分)을 더한다.
+ * 🔴 **결박은 방법과 무관하게 무조건 붙는다** — *"파레트를 선택하더라도 결박은 무조건"*.
+ */
+export const PROTECTION_MINUTES = {
+    '호루': 3,
+    '결박': 4,
+    '그물망': 1,
+    '탑박스': 1,
+} as const;
+export const PROTECTIONS = Object.keys(PROTECTION_MINUTES) as Protection[];
+export type Protection = keyof typeof PROTECTION_MINUTES;
+/** 통화 전 미리 눌러 두는 값 — 결박은 늘 한다 */
+export const DEFAULT_PROTECTIONS: Protection[] = ['결박'];
+
+/** 고른 보호들의 합(분). 모르면 0 — 지어내지 않는다 */
+export function protectionMinutes(list?: readonly string[] | null): number {
+    if (!list?.length) return 0;
+    return list.reduce((sum, p) => sum + (PROTECTION_MINUTES[p as Protection] ?? 0), 0);
+}

@@ -27,7 +27,9 @@ describe('parseCargoHints — 적요에서 통화 시트 미리 채우기', () =
     it('상하차 방법이 적혀 있을 때만 읽는다', () => {
         expect(parseCargoHints('카트가지고 고객님앞').handling).toBe('수작업');
         expect(parseCargoHints('지게차 상차').handling).toBe('지게차');
-        expect(parseCargoHints('크레인 필요').handling).toBe('호이스트');
+        // 🔴 크레인·호이스트는 매핑하지 않는다 (2026-08-18 — 방법 목록에서 뺐다).
+        //    지게차로 바꿔 넣으면 없는 사실을 지어내는 것이라, **미확인**으로 두고 통화에서 정한다.
+        expect(parseCargoHints('크레인 필요').handling).toBeUndefined();
         expect(parseCargoHints('마대 1개').handling).toBeUndefined();
     });
 

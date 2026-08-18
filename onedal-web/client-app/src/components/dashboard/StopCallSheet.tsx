@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import {
     HANDLING_METHODS, cargoPoints, parseCargoHints, hasCargoHints, defaultCargoByVehicle,
+    PROTECTIONS, PROTECTION_MINUTES, DEFAULT_PROTECTIONS, protectionMinutes,
     CARGO_TAGS, CARGO_TAG_META, DEFAULT_CARGO_TAG, computeSlackMinutes,
     CARGO_UNITS, CARGO_UNIT_QUANTITY_INPUT,
     buildArrivalSlots, dwellMinutes, unitPoints,
@@ -127,6 +128,8 @@ export default function StopCallSheet({
     const [prefilledFromMemo, setPrefilledFromMemo] = useState(false);
     /** 적요가 없어 차종 정원으로 눌러 둔 상태 — 화면에 근거를 남긴다 */
     const [prefilledFromVehicle, setPrefilledFromVehicle] = useState(false);
+    /** 🔒 보호 — 호루·결박·그물망·탑박스 (복수 선택). 결박은 늘 한다 */
+    const [protections, setProtections] = useState<string[]>([...DEFAULT_PROTECTIONS]);
     /** 하차지 시각을 상차지 통화에서 미리 들어 둔 값으로 채웠는가 */
     const [fromPickupCall, setFromPickupCall] = useState(false);
     /** [T8] 착불 수령 상태 — 서버가 진실이다. 화면이 저장했다고 믿지 않는다 */
@@ -169,7 +172,7 @@ export default function StopCallSheet({
     const eff = { unit, quantity: qty, handling };
     const points = isPickup ? cargoPoints(eff) : unitPoints(pickupReport?.unit, pickupReport?.quantity);
     /** 이 정거장의 상하차 소요 — 도착 시각에는 안 들어가지만 **다음 정거장** 계산에는 필요하다 */
-    const dwell = dwellMinutes(eff.handling, points);
+    const dwell = dwellMinutes(eff.handling, points, isPickup ? 'pickup' : 'dropoff', undefined, isPickup ? protections : undefined);
     // 주행 시간을 모르면 여유를 계산할 수 없다. 0 으로 때우면 "여유가 많다"고 거짓말하게 된다
     const driveKnown = driveMinutes != null && driveMinutes > 0;
     /**
@@ -221,6 +224,7 @@ export default function StopCallSheet({
             setHandling(src?.handling ?? byVehicle.handling);
             setTags(src?.tags?.length ? [...src.tags] : [DEFAULT_CARGO_TAG]);
             setMemo(src?.memo || '');
+            setProtections(src?.protections?.length ? [...src.protections] : [...DEFAULT_PROTECTIONS]);
             setDeadlineAt(src?.promisedArrivalAt ?? src?.deadlineAt ?? onward);
             setOnwardDeadlineAt(src?.onwardDeadlineAt);
             return;
@@ -247,6 +251,7 @@ export default function StopCallSheet({
         // 성질을 한 번도 안 고른 기록이면 기본값을 넣는다 — 빈 값과 '특별할 것 없음'은 다르다
         setTags(src?.tags?.length ? [...src.tags] : [DEFAULT_CARGO_TAG]);
         setMemo(src?.memo || '');
+        setProtections(src?.protections?.length ? [...src.protections] : [...DEFAULT_PROTECTIONS]);
         setDeadlineAt(src?.promisedArrivalAt ?? src?.deadlineAt ?? onward);
         setOnwardDeadlineAt(src?.onwardDeadlineAt);
     };
@@ -287,8 +292,9 @@ export default function StopCallSheet({
             //    기사님: *"내 의도는 시퀀스로 되어 있는데 두 개를 한 번에 가는 건 기준이 흔들리는 것 같아."*
             //    상차지 통화에서 **들은 값**일 뿐이므로 여기 담아 두고,
             //    하차지 통화 단계에서 미리 채워 준다. 통화 여부는 기사님이 정한다.
-            onwardDeadlineAt: isPickup && kind === 'DECLARED' ? onwardDeadlineAt : undefined,
+            onwardDeadlineAt: isPickup && kind === 'DECLARED' ? (onwardDeadlineAt ?? onwardSuggestedRef.current) : undefined,
             tags: isPickup && tags.length ? tags : undefined,
+            protections: isPickup && protections.length ? protections : undefined,
             memo: memo || undefined,
         });
         // 저장하면 접는다. 결과는 바로 위 요약 줄에 반영된다.
@@ -394,6 +400,11 @@ export default function StopCallSheet({
         //    상차 소요를 더하지 않는다 — 약속은 도착이고, 소요는 짐 양에 따라 변한다.
         return firstAtOrAfter(minuteTick * 60_000 + (arrivalMinutes + 30) * 60_000);
     }, [driveKnown, arrivalMinutes, dwell, isPickup, hourSlots, pickupDeadlineAt, minuteTick]);
+
+    /** 하차지 도착도 손대기 전엔 추천을 따라간다 (상차와 같은 방식) */
+    const [onwardTouched, setOnwardTouched] = useState(false);
+    /** 렌더 중 계산되는 추천값을 저장 시점에 쓰기 위해 담아 둔다 */
+    const onwardSuggestedRef = useRef<string | undefined>(undefined);
 
     /** 기사님이 아직 손대지 않아 추천값이 눌려 있는 상태인가 — 눌리면 근거 줄을 띄운다 */
     const [deadlineTouched, setDeadlineTouched] = useState(false);
@@ -506,6 +517,30 @@ export default function StopCallSheet({
                 예전엔 "특수한 상황에서만"이라 접었는데, `일반화물` 이 기본으로 들어가면서
                 **누르지 않아도 이미 답이 정해져 있는** 줄이 되었다.
                 접어 두면 그 기본값이 보이지 않아 오히려 확인이 안 된다. */}
+            {/* 🔒 보호 — 방법(옮기는 행위)과 축이 다르다. 고른 것의 분을 상차 시간에 더한다.
+                기사님 2026-08-18: *"파레트를 선택하더라도 결박은 무조건 해야 하는 거지."* */}
+            {isPickup && (
+                <Row title="보호">
+                    {PROTECTIONS.map(t => {
+                        const on = protections.includes(t);
+                        return (
+                            <button key={t}
+                                onClick={() => setProtections(prev => on ? prev.filter(x => x !== t) : [...prev, t])}
+                                className={`px-2 py-1.5 rounded-md text-[11px] font-bold border ${
+                                    on ? 'bg-warning text-white border-warning' : 'bg-surface-alt/40 text-text-primary border-border'
+                                }`}>
+                                {t}<span className="ml-1 text-[10px] font-normal opacity-70">{PROTECTION_MINUTES[t]}분</span>
+                            </button>
+                        );
+                    })}
+                    {protections.length > 0 && (
+                        <span className="text-[11px] text-text-muted self-center ml-1">
+                            합 {protectionMinutes(protections)}분
+                        </span>
+                    )}
+                </Row>
+            )}
+
             {isPickup && (
                 <Row title="성질">
                     {CARGO_TAGS.map(t => {
@@ -731,14 +766,24 @@ export default function StopCallSheet({
                                 건너뛰어도 잃는 정보가 없다. */}
                             {isPickup && deadlineAt && onwardMinutes != null && onwardMinutes > 0 && (() => {
                                 /**
-                                 * 🔴 **`deadlineAt` 은 이미 "실어 보내는" 시각이다** (기사님 2026-08-16).
-                                 *    예전에는 여기서 상차 정차를 **한 번 더** 더해 `09:53 상차 도착 + 상차 15분
-                                 *    = 10:08 출발` 이라고 적었다 — 위 버튼의 뜻과 어긋나 상차가 두 번 들어갔다.
-                                 *    상차 마감은 *도착*이 아니라 *완료* 시각이므로 그대로 출발 시각이다.
+                                 * 🔴 **`deadlineAt` 은 이제 "도착" 약속이다** (기사님 2026-08-18 개정).
+                                 *    2026-08-16 에는 "실어 보내는 시각"이라 여기서 상차를 안 더했는데,
+                                 *    약속의 뜻이 도착으로 바뀌면서 **다시 더해야 맞다** —
+                                 *    실어 보내는 시각 = 도착 약속 + 상차 소요(보호 포함).
+                                 *    안 더하면 위 문구("15:52 실어 보냄")와 아래 칸이 어긋난다.
                                  */
-                                const loadDoneMs = new Date(deadlineAt).getTime();
+                                const loadDoneMs = new Date(deadlineAt).getTime() + dwell * 60_000;
                                 const arriveMs = loadDoneMs + onwardMinutes * 60_000;
                                 const slots = buildArrivalSlots(loadDoneMs, onwardMinutes, 4);
+                                /**
+                                 * 🕒 **하차지 도착도 미리 눌러 둔다** (기사님 2026-08-18).
+                                 *    상차와 같은 규칙 — 도착 예상 + 30분 이상인 첫 칸.
+                                 *    빈칸으로 두면 통화 중에 버튼을 찾아 눌러야 한다 (미리 눌러 두고 확정하는 방식).
+                                 */
+                                const onwardSuggested = slots.find(
+                                    sl => Date.parse(sl.iso) >= arriveMs + 30 * 60_000) ?? slots[slots.length - 1];
+                                onwardSuggestedRef.current = onwardTouched
+                                    ? onwardDeadlineAt : (onwardDeadlineAt ?? onwardSuggested?.iso);
                                 return (
                                     <div className="rounded-md border border-info/35 bg-info/[0.06] px-2.5 py-2 flex flex-col gap-1.5">
                                         <div className="text-[11px] font-black text-info">이어서 — 하차지도 지금 정하기</div>
@@ -754,10 +799,10 @@ export default function StopCallSheet({
                                         </div>
                                         <div className="flex gap-1.5 flex-wrap">
                                             {slots.map(sl => {
-                                                const on = onwardDeadlineAt === sl.iso;
+                                                const on = (onwardDeadlineAt ?? (onwardTouched ? undefined : onwardSuggested?.iso)) === sl.iso;
                                                 return (
                                                     <button key={sl.iso}
-                                                        onClick={() => setOnwardDeadlineAt(on ? undefined : sl.iso)}
+                                                        onClick={() => { setOnwardTouched(true); setOnwardDeadlineAt(on ? undefined : sl.iso); }}
                                                         className={`px-3 py-2 rounded-md border text-[14px] font-black tabular-nums ${
                                                             on ? 'bg-info text-white border-info'
                                                                : 'bg-surface-alt/50 text-text-primary border-border'

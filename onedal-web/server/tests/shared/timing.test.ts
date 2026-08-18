@@ -181,7 +181,7 @@ describe('deriveCallTiming — 시간 파생의 유일한 지점', () => {
             { stopType: 'pickup', kind: 'DECLARED', unit: '파레트', quantity: 2, handling: '수작업' },
             { stopType: 'pickup', kind: 'ACTUAL', unit: '파레트', quantity: 2, handling: '지게차' },
         ] as any, [], NOW);
-        expect(t.pickupDwell).toBe(19);      // 지게차 10 + 30점×0.3
+        expect(t.pickupDwell).toBe(4);       // 지게차 파레트 2개 × 2분 (2026-08-18 새 축)
     });
 
     it('하차 방법을 안 물었으면 상차 방법으로 본다', () => {

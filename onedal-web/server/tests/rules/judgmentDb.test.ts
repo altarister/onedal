@@ -72,8 +72,10 @@ describe('DB 값이 실제로 색을 바꾼다', () => {
         const unk = { pickupDwellMin: 40, dropoffDwellMin: 35 };
         expect(dwellMinutes(null, 0, 'pickup', unk)).toBe(40);
         expect(dwellMinutes(null, 0, 'dropoff', unk)).toBe(35);
-        // 방법을 아는 짐은 일반값과 무관하다
-        expect(dwellMinutes('지게차', 0, 'pickup', unk)).toBe(10);
+        // 방법과 **수량**을 아는 짐은 일반값과 무관하다 (2026-08-18 새 축: 수량 비례)
+        expect(dwellMinutes('지게차', 80, 'pickup', unk)).toBe(4);
+        // 🔴 방법만 알고 수량을 모르면 0분이 아니라 일반값으로 돌아간다
+        expect(dwellMinutes('지게차', 0, 'pickup', unk)).toBe(40);
     });
 });
 
