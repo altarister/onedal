@@ -178,7 +178,8 @@ export class OrderEvaluator {
                          */
                         const slackLimit = computeAllowedDetour(userId, session, Date.now(), session.judgment.unknown,
                             { pickupOffsetMinutes: session.judgment.unknown.pickupOffsetMin,
-                              restMarginMinutes: session.judgment.unknown.restMarginMin });
+                              restMarginMinutes: session.judgment.unknown.restMarginMin,
+                              arrivalMarginMinutes: session.judgment.unknown.arrivalMarginMin });
                         const cost = totalDetourCost(result.timeDiffMin, securedOrder.id, session.judgment.unknown);
 
                         const slotsTotal = TRUCK_CAPACITY_SLOTS;

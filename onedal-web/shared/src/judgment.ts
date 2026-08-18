@@ -49,6 +49,12 @@ export interface JudgmentConfig {
         pickupOffsetMin: number;
         /** 🔴 **상차 마감 + 단독 주행 + 이만큼 = 하차 마감** (휴식 여유) */
         restMarginMin: number;
+        /**
+         * 🕒 통화 전 추정 **도착 약속 = 도착 예상 + 이만큼** (기사님 2026-08-18).
+         *    약속은 도착 시각이다 — 상차 소요(짐 양에 따라 변함)를 약속에 섞지 않는다.
+         *    pickupOffsetMin(+60 완료 규칙)은 접근 주행을 모를 때의 폴백으로 남는다.
+         */
+        arrivalMarginMin: number;
     };
     /**
      * 요소별 가중치. **상대값**이다 — 3 과 1 은 "3배 중요"라는 뜻이고 합이 10 일 필요는 없다.
@@ -68,7 +74,7 @@ export const DEFAULT_JUDGMENT: JudgmentConfig = {
     // 지금 `dispatchConfig.ts` 에 있던 값을 **그대로** 옮겼다.
     // 🔴 구조를 바꾸는 일과 값을 바꾸는 일을 같이 하지 않는다 — 색이 바뀌면 원인을 못 가린다.
     merge: { honeyMaxMin: 30, shitMinMin: 60, honeyMaxKm: 15, shitMinKm: 30 },
-    unknown: { pickupDwellMin: 15, dropoffDwellMin: 10, pickupOffsetMin: 60, restMarginMin: 30 },
+    unknown: { pickupDwellMin: 15, dropoffDwellMin: 10, pickupOffsetMin: 60, restMarginMin: 30, arrivalMarginMin: 30 },
     weights: { driveTime: 1, detourDist: 1, deadline: 1, slots: 1 },
     color: { honeyMin: 70, normalMin: 40 },
 };

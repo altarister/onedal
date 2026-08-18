@@ -592,8 +592,14 @@ async function ledger() {
         c.close();
         const uniq = [...new Set(marks)];
         const tally = uniq.map(u => `${u} ${marks.filter(m => m === u).length}`).join(' · ');
-        check('첫짐 판정 색이 한 색으로 몰려 있지 않다',
-            !(marks.length >= 3 && uniq.length === 1),
+        /**
+         * ⚠️ "전부 꿀"은 실패가 아니다 (2026-08-18 오탐 수정) — 앱 필터가
+         *    `요금 ≥ 거리 × 단가` 로 하한을 이미 걸렀으니 잡힌 콜이 꿀로 몰리는 건 설계다.
+         *    이 검사가 지키는 사고는 그 반대다: 기준이 틀려 **잡은 콜이 전부 똥**으로 뜨던 것
+         *    (2026-08-18 오전 — 100,000원짜리가 0점, 8건 전부 똥).
+         */
+        check('첫짐 판정이 잡은 콜을 전부 똥으로 만들지 않는다',
+            !(marks.length >= 3 && uniq.length === 1 && uniq[0] === '똥'),
             marks.length ? tally : '판정된 첫짐이 없다');
     }
 }

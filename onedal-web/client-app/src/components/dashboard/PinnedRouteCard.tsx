@@ -173,13 +173,13 @@ export default function PinnedRouteCard({
                     <span className={`${evaluating ? 'text-warning' : 'text-success'} flex-shrink-0 flex items-center font-bold`}>
                         {pLabel}. {getAddressLabel(route.pickup)}{etas?.pickupEta && <span className="text-success/80 ml-0.5 font-normal">({etas.pickupEta})</span>}
                         <DeadlineChip orderId={route.id} stopType="pickup" eta={etas?.pickupEta}
-                            deadlineAt={cargoReports.find(r => r.stopType === 'pickup' && r.deadlineAt)?.deadlineAt} />
+                            deadlineAt={(() => { const r = cargoReports.find(x => x.stopType === 'pickup' && (x.promisedArrivalAt || x.deadlineAt)); return r?.promisedArrivalAt ?? r?.deadlineAt; })()} />
                     </span>
                     <span className="text-text-muted text-[10px] flex-shrink-0 mx-0.5 tracking-tighter">{separatorText}</span>
                     <span className={`${evaluating ? 'text-warning' : 'text-danger'} flex-shrink-0 font-bold`}>
                         {dLabel}. {getAddressLabel(route.dropoff)}{etas?.dropoffEta && <span className="text-danger/80 ml-0.5 font-normal">({etas.dropoffEta})</span>}
                         <DeadlineChip orderId={route.id} stopType="dropoff" eta={etas?.dropoffEta}
-                            deadlineAt={cargoReports.find(r => r.stopType === 'dropoff' && r.deadlineAt)?.deadlineAt} />
+                            deadlineAt={(() => { const r = cargoReports.find(x => x.stopType === 'dropoff' && (x.promisedArrivalAt || x.deadlineAt)); return r?.promisedArrivalAt ?? r?.deadlineAt; })()} />
                     </span>
                     <span className="ml-3 font-medium text-[10px] truncate mt-0.5 flex items-center gap-1 flex-[2]">
                         <span>{route.fare > 0 ? `${(route.fare / 10000).toFixed(1)}만` : '금액미상'}</span>

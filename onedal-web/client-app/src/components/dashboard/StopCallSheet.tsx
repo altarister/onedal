@@ -105,7 +105,7 @@ function summarize(r?: CargoReport): string {
         r.unit && `${r.unit}${r.quantity ? ` ${r.quantity}개` : ''}`,
         r.handling,
         r.tags?.join('·'),
-        r.deadlineAt && `${hhmm(r.deadlineAt)}까지`,
+        (r.promisedArrivalAt ?? r.deadlineAt) && `${hhmm(r.promisedArrivalAt ?? r.deadlineAt!)}까지`,
     ].filter(Boolean).join(' · ');
 }
 
@@ -190,7 +190,7 @@ export default function StopCallSheet({
      */
     const loadInto = (src?: CargoReport) => {
         // 하차지 통화인데 아직 시각을 안 정했다면, **상차지 통화에서 들은 값**을 미리 넣는다
-        const onward = !isPickup && !src?.deadlineAt
+        const onward = !isPickup && !(src?.promisedArrivalAt ?? src?.deadlineAt)
             ? reports.find(r => r.stopType === 'pickup' && r.kind === 'DECLARED')?.onwardDeadlineAt
             : undefined;
         setFromPickupCall(!!onward);
@@ -205,7 +205,7 @@ export default function StopCallSheet({
             setHandling(h.handling);
             setTags(h.tags?.length ? [...h.tags] : [DEFAULT_CARGO_TAG]);
             setMemo(src?.memo || '');
-            setDeadlineAt(src?.deadlineAt ?? onward);
+            setDeadlineAt(src?.promisedArrivalAt ?? src?.deadlineAt ?? onward);
             return;
         }
         setUnit(src?.unit as CargoUnit | undefined);
@@ -219,7 +219,7 @@ export default function StopCallSheet({
         // 성질을 한 번도 안 고른 기록이면 기본값을 넣는다 — 빈 값과 '특별할 것 없음'은 다르다
         setTags(src?.tags?.length ? [...src.tags] : [DEFAULT_CARGO_TAG]);
         setMemo(src?.memo || '');
-        setDeadlineAt(src?.deadlineAt ?? onward);
+        setDeadlineAt(src?.promisedArrivalAt ?? src?.deadlineAt ?? onward);
         setOnwardDeadlineAt(src?.onwardDeadlineAt);
     };
 
@@ -247,7 +247,13 @@ export default function StopCallSheet({
             quantity: isPickup ? eff.quantity : undefined,
             handling: eff.handling,
             promisedAt: saved?.promisedAt || hints.promisedAt,
-            deadlineAt,
+            /**
+             * 🕒 **약속은 도착 시각으로 저장한다** (기사님 확정 2026-08-18).
+             * 상차 소요는 짐 양에 따라 변하는 값이라, 완료 기준으로 저장하면 신고할 때마다
+             * 약속이 흔들린다 (실측: 40박스 신고 → 갑자기 지각). 완료 시각은 서버가
+             * `도착 약속 + 지금 추정 소요` 로 파생한다 — deadlineAt 은 더 이상 저장하지 않는다.
+             */
+            promisedArrivalAt: deadlineAt,
             // 🔴 하차지 시각은 **하차지 기록으로 저장하지 않는다.** 저장하면
             //    deriveCallStep 이 "하차지 통화를 했다"고 보고 그 단계를 건너뛴다.
             //    기사님: *"내 의도는 시퀀스로 되어 있는데 두 개를 한 번에 가는 건 기준이 흔들리는 것 같아."*
@@ -327,7 +333,9 @@ export default function StopCallSheet({
             if (!isPickup || !pickupDeadlineAt) return null;
             return firstAtOrAfter(new Date(pickupDeadlineAt).getTime());
         }
-        return firstAtOrAfter(Date.now() + (arrivalMinutes + (isPickup ? dwell : 0)) * 60_000);
+        // 🕒 도착 예상 + 30분 (기사님 2026-08-18: "디폴트 체크는 도착시간 + 30분").
+        //    상차 소요를 더하지 않는다 — 약속은 도착이고, 소요는 짐 양에 따라 변한다.
+        return firstAtOrAfter(Date.now() + (arrivalMinutes + 30) * 60_000);
     }, [driveKnown, arrivalMinutes, dwell, isPickup, hourSlots, pickupDeadlineAt]);
 
     /** 기사님이 아직 손대지 않아 추천값이 눌려 있는 상태인가 — 눌리면 근거 줄을 띄운다 */
@@ -340,7 +348,7 @@ export default function StopCallSheet({
     // ── 접힌 채로 보여줄 요약. 여기 없는 값은 기사님에게 "없는 값"이다 ──
     // 주행 시간을 모르면 여유도 모른다 — 0 으로 때우면 요약이 거짓말을 한다
     const declaredSlack = driveKnown
-        ? computeSlackMinutes(declared?.deadlineAt, driveMinutes! + leadMinutes, Date.now())
+        ? computeSlackMinutes((declared as any)?.promisedArrivalAt ?? declared?.deadlineAt, driveMinutes! + leadMinutes, Date.now())
         : null;
     const declaredSummary = declared
         ? [summarize(declared), declaredSlack !== null && `${isPickup ? '상차버퍼' : '경유버퍼'} ${Math.max(0, declaredSlack)}분`]
@@ -555,17 +563,22 @@ export default function StopCallSheet({
                                     {leadMinutes > 0 && leadLabel && (
                                         <span className="text-text-muted"> (+ {leadLabel} {leadMinutes}분)</span>
                                     )}
-                                    {/* 🔴 상차지 통화에서 화주가 묻는 것은 **"실어서 몇 시에 보낼 수 있나"** 다
-                                        (기사님 2026-08-16). 그래서 도착 시각이 아니라 **상차까지 마친 시각**을 읽어 준다.
-                                        예전 주석은 *"상차 20분은 상차지랑 통화할 때 불필요한 정보"* 였는데,
-                                        그때는 상차 마감을 *도착* 시각으로 봤기 때문이다. 기준이 바뀌었다. */}
+                                    {/* 🕒 **약속은 도착 시각이다** (기사님 확정 2026-08-18 — 2026-08-16 기준을 재개정).
+                                        통화의 대사는 "몇 시까지 갈게요"다. 상차 소요는 짐 양에 따라 변하므로
+                                        참고로만 보여 주고 약속에 섞지 않는다. 약속을 고르면 대기 가능(상차버퍼)이 보인다. */}
                                     <div className="text-[13px] font-black text-info mt-0.5 tabular-nums">
                                         지금 출발하면 {hhmm(new Date(Date.now() + arrivalMinutes * 60_000).toISOString())} 도착
                                         {isPickup && (
                                             <span className="text-text-muted font-bold">
-                                                {' '}· 상차 {dwell}분 → <span className="text-info">{hhmm(new Date(Date.now() + (arrivalMinutes + dwell) * 60_000).toISOString())}</span> 출발
+                                                {' '}· 상차 {dwell}분 소요
                                             </span>
                                         )}
+                                        {deadlineAt && (() => {
+                                            const waitMin = Math.round((new Date(deadlineAt).getTime() - (Date.now() + arrivalMinutes * 60_000)) / 60_000);
+                                            return waitMin >= 0
+                                                ? <span className="text-success font-bold"> · 약속까지 대기 {waitMin}분 가능</span>
+                                                : <span className="text-danger font-bold"> · 약속보다 {-waitMin}분 늦음</span>;
+                                        })()}
                                     </div>
                                 </div>
                             ) : (
@@ -581,7 +594,7 @@ export default function StopCallSheet({
                                 버튼마다 `여유 N분` 을 쓰지 않는다 — 몇 번째 칸인가가 곧 여유다. */}
                             <div>
                                 <div className="text-[11px] font-bold text-text-muted mb-1">
-                                    {isPickup ? '몇 시까지 실어 보낼 수 있나요?' : '몇 시까지 가면 되나요?'}
+                                    {isPickup ? '몇 시까지 갈까요?' : '몇 시까지 가면 되나요?'}
                                 </div>
                                 <div className="flex gap-1.5 flex-wrap">
                                     {hourSlots.map((sl, i) => {
@@ -660,7 +673,7 @@ export default function StopCallSheet({
                                     <div className="rounded-md border border-info/35 bg-info/[0.06] px-2.5 py-2 flex flex-col gap-1.5">
                                         <div className="text-[11px] font-black text-info">이어서 — 하차지도 지금 정하기</div>
                                         <div className="text-[12px] text-text-primary">
-                                            <b className="tabular-nums">{hhmm(deadlineAt)}</b> 실어 보냄
+                                            <b className="tabular-nums">{hhmm(new Date(new Date(deadlineAt).getTime() + dwell * 60_000).toISOString())}</b> 실어 보냄
                                             <span className="text-text-muted"> (상차 {dwell}분 포함)</span>
                                             <div className="mt-0.5">
                                                 상차지 → 하차지

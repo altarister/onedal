@@ -415,6 +415,8 @@ ensureColumns('order_milestones', { predictedAt: 'TEXT' });
 // 어느 배차망에서 온 콜인가 (insung/hwamul24) — 배차망별 콜 검색·분석의 근거 (기사님 2026-08-17)
 ensureColumns('orders', { targetApp: 'TEXT' });
 ensureColumns('intel', { targetApp: 'TEXT' });
+// 🕒 도착 약속 — "몇 시까지 갈게요" (기사님 확정 2026-08-18). 완료 시각은 저장하지 않고 파생한다
+ensureColumns('stop_cargo_reports', { promisedArrivalAt: 'TEXT' });
 /**
  * 🔴 2026-08-12 — 옛 DB 의 `stop_cargo_reports` 에 CHECK 제약이 굳어 있었다.
  *

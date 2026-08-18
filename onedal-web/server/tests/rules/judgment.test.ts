@@ -216,9 +216,15 @@ describe('통화 시트 — 미리 눌러 두고 근거를 남긴다', () => {
         expect(sheet()).toMatch(/setDeadlineAt\(suggestedSlot\.iso\)/);
     });
 
-    it('🔴 상차지는 **상차 정차까지** 포함해 추천한다 (실어 보내는 시각)', () => {
+    /**
+     * 🕒 **약속은 도착 시각이다 — 추천 칸은 도착 예상 + 30분** (기사님 2026-08-18 개정).
+     *    옛 규칙은 상차 정차까지 더해 "실어 보내는 시각"을 추천했는데, 상차 소요는
+     *    짐 양에 따라 변하는 값이라 신고할 때마다 약속이 흔들렸다 (실측: 40박스 → 갑자기 지각).
+     */
+    it('🔴 추천 칸은 도착 예상 + 30분 — 상차 소요를 약속에 섞지 않는다', () => {
         const fn = sheet().slice(sheet().indexOf('const suggestedSlot'));
-        expect(fn.slice(0, 1400)).toMatch(/arrivalMinutes \+ \(isPickup \? dwell : 0\)/);
+        expect(fn.slice(0, 1800)).toMatch(/arrivalMinutes \+ 30/);
+        expect(fn.slice(0, 1800)).not.toMatch(/arrivalMinutes \+ \(isPickup \? dwell : 0\)/);
     });
 
     /**
@@ -315,7 +321,8 @@ describe('콜 잡은 시각 — 시간대를 잘못 붙인 값도 읽어낸다',
         const 결과 = ['2026-08-16T09:10:12Z', '2026-08-16T09:10:12+09:00', '2026-08-16T00:10:12Z']
             .map(cap => t(deriveCallTiming({ ...base, capturedAt: cap }, [], [], NOW).pickupDeadlineAt));
         expect(new Set(결과).size).toBe(1);
-        expect(결과[0]).toBe(new Date('2026-08-16T10:10:12+09:00').toISOString());
+        // 🕒 도착 약속(+13 접근 +30 여유) + 상차 미확인 15분 = 완료 (기사님 2026-08-18 개정 규칙)
+        expect(결과[0]).toBe(new Date(new Date('2026-08-16T09:10:12+09:00').getTime() + (13 + 30 + 15) * 60_000).toISOString());
     });
 
     it('값이 없거나 이상하면 null (지어내지 않는다)', () => {

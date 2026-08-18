@@ -500,6 +500,14 @@ export interface TimingOrderFields {
 }
 
 export interface CallTiming {
+    /**
+     * 🕒 **도착 약속** — 통화로 정한 "몇 시까지 갈게요" (기사님 확정 2026-08-18).
+     * 상차 소요와 분리된 저장값이며, 완료(deadlineAt)는 여기에 소요를 더해 파생한다.
+     * 통화 전엔 추정(도착 예상 + 여유 30분) · 접근 주행을 모르면 null.
+     */
+    pickupPromisedArrivalAt: string | null;
+    dropoffPromisedArrivalAt: string | null;
+
     /** 상차지 → 하차지 (단독 구간) */
     soloKm: number | null;
     soloMinutes: number | null;
@@ -536,10 +544,16 @@ export interface CallTiming {
 export interface DeadlineRules {
     /** 콜 잡은 시각 + 이만큼 = 상차 마감 (콜 대기 여유) */
     pickupOffsetMinutes: number;
+    /** 통화 전 추정 도착 약속 = 도착 예상 + 이 여유(분) */
+    arrivalMarginMinutes?: number;
     /** 상차 마감 + 단독 주행 + 이만큼 = 하차 마감 (휴식 여유) */
     restMarginMinutes: number;
 }
-export const DEFAULT_DEADLINE_RULES: DeadlineRules = { pickupOffsetMinutes: 60, restMarginMinutes: 30 };
+export const DEFAULT_DEADLINE_RULES: DeadlineRules = {
+    pickupOffsetMinutes: 60, restMarginMinutes: 30,
+    /** 도착 약속 여유 — 기사님 2026-08-18: "디폴트 체크는 도착시간 + 30분" */
+    arrivalMarginMinutes: 30,
+};
 
 export function deriveCallTiming(
     order: TimingOrderFields,
@@ -578,9 +592,24 @@ export function deriveCallTiming(
     const toPickup = remainingToStop({ ...base, stop: 'pickup' });
     const toDropoff = remainingToStop({ ...base, stop: 'dropoff' });
 
-    // ── 마감: 통화로 정한 값이 언제나 이긴다 ──
-    const declaredPickup = reports.find(r => r.stopType === 'pickup' && r.kind === 'DECLARED')?.deadlineAt ?? null;
-    const declaredDropoff = reports.find(r => r.stopType === 'dropoff' && r.kind === 'DECLARED')?.deadlineAt ?? null;
+    // ── 약속: 통화로 정한 값이 언제나 이긴다 ──
+    //
+    // 🔴 **약속은 도착 시각이다 — 상차 소요와 분리한다** (기사님 확정 2026-08-18).
+    //    상차 소요는 짐 양에 따라 변하는 값이라, 완료 기준으로 저장하면 신고할 때마다
+    //    약속이 흔들린다 (실측: 40박스 신고 → 갑자기 지각). 전화로 잡는 것은
+    //    "몇 시까지 갈게요"(도착)이고, 완료 = 도착 약속 + 지금 추정 소요로 **파생**한다.
+    //    옛 행(deadlineAt 만 있는 것)은 그 값을 완료로 그대로 쓴다 — 호환 폴백.
+    const addMin = (iso: string, min: number) => new Date(Date.parse(iso) + min * 60_000).toISOString();
+    const pickRep = reports.find(r => r.stopType === 'pickup' && r.kind === 'DECLARED');
+    const dropRep = reports.find(r => r.stopType === 'dropoff' && r.kind === 'DECLARED');
+    let pickupPromisedArrivalAt = pickRep?.promisedArrivalAt ?? null;
+    let dropoffPromisedArrivalAt = dropRep?.promisedArrivalAt ?? null;
+    const declaredPickup = pickupPromisedArrivalAt
+        ? addMin(pickupPromisedArrivalAt, pickupDwell)
+        : (pickRep?.deadlineAt ?? null);
+    const declaredDropoff = dropoffPromisedArrivalAt
+        ? addMin(dropoffPromisedArrivalAt, dropoffDwell)
+        : (dropRep?.deadlineAt ?? null);
 
     let dropoffDeadlineAt = declaredDropoff;
     let pickupDeadlineAt = declaredPickup;
@@ -599,7 +628,15 @@ export function deriveCallTiming(
      */
     const capturedMs = parseCapturedAt(order.capturedAt, nowMs);
     if (!pickupDeadlineAt && capturedMs != null) {
-        pickupDeadlineAt = defaultPickupDeadline(capturedMs, rules.pickupOffsetMinutes);
+        // 도착 예상(잡은 시각 + 카카오 접근 주행) + 여유 30분 = 추정 도착 약속 (기사님 2026-08-18).
+        // 접근 주행을 모르면 도착을 지어내지 않고 옛 규칙(잡은 시각 + 60분 = 완료)으로 폴백한다.
+        if (approachMinutes != null) {
+            const margin = rules.arrivalMarginMinutes ?? 30;
+            pickupPromisedArrivalAt = new Date(capturedMs + (approachMinutes + margin) * 60_000).toISOString();
+            pickupDeadlineAt = addMin(pickupPromisedArrivalAt, pickupDwell);
+        } else {
+            pickupDeadlineAt = defaultPickupDeadline(capturedMs, rules.pickupOffsetMinutes);
+        }
         deadlineEstimated = true;
     }
     if (!dropoffDeadlineAt) {
@@ -622,6 +659,7 @@ export function deriveCallTiming(
         : departureDeadline(pickupDeadlineAt, toPickup.driveMinutes, pickupDwell);
 
     return {
+        pickupPromisedArrivalAt, dropoffPromisedArrivalAt,
         soloKm, soloMinutes, approachKm, approachMinutes,
         pickupDwell, dropoffDwell,
         arrivedPickup, pickedUp, arrivedDropoff,
