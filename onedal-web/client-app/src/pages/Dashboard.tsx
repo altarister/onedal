@@ -45,6 +45,7 @@ export default function Dashboard() {
         terminatedOrders,
         handleDecision,
         handleRecalculate,
+        routeStops,
     } = useOrderEngine();
 
     // [2026-08-10] 서버가 진행/종료를 **나눠서** 보낸다. 예전에는 한 배열로 와서
@@ -231,6 +232,7 @@ export default function Dashboard() {
                        운행 중이면 여기가 KEEP/CANCEL 을 하는 유일한 창구다 */}
                 <ErrorBoundary label="결재 카드">
                     <PinnedRoute 
+                        routeStops={routeStops}
                         activeRoute={activeRoute} 
                         onDecision={handleDecision} 
                         onRecalculate={handleRecalculate} 

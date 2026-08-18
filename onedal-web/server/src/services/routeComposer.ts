@@ -1,4 +1,5 @@
 import type { MyOrder, PendingOrder } from "@onedal/shared";
+import { isAlreadyLoaded } from "@onedal/shared";
 import { calculateDetourRoute } from "./kakaoService";
 import { optimizeWaypoints } from "../utils/routeOptimizer";
 
@@ -38,6 +39,7 @@ export interface RouteResult {
     distance: number;      // meters
     duration: number;      // seconds
     sectionEtas?: any;
+    sectionDriveMin?: number[];
     /** 현위치 → 첫 상차지 소요 시간(초). 카카오가 주는데 예전에는 로그만 찍고 버렸다 */
     approachDuration?: number;
     /** 현위치 → 첫 상차지 거리(미터) */
@@ -75,6 +77,7 @@ export function applySoloRoute(holder: RouteHolder, r: RouteResult): void {
     holder.totalDistanceKm = toKm(r.distance);
     holder.totalDurationMin = toMin(r.duration);
     if (r.sectionEtas) holder.sectionEtas = r.sectionEtas;
+    if (r.sectionDriveMin) holder.sectionDriveMin = r.sectionDriveMin;
 
     holder.kakaoSoloDistanceKm = toKm(Math.max(0, r.distance - approachM));
     holder.kakaoSoloDurationMin = toMin(Math.max(0, r.duration - approachSec));
@@ -90,6 +93,7 @@ export function applyRoute(holder: RouteHolder, r: RouteResult): void {
     holder.totalDistanceKm = toKm(r.distance);
     holder.totalDurationMin = toMin(r.duration);
     if (r.sectionEtas) holder.sectionEtas = r.sectionEtas;
+    if (r.sectionDriveMin) holder.sectionDriveMin = r.sectionDriveMin;
     // 통화 대본의 "여기서 N분 걸립니다" — 예전에는 계산해 놓고 로그만 찍고 버렸다
     if (r.approachDuration) holder.approachDurationMin = toMin(r.approachDuration);
 }
@@ -119,18 +123,9 @@ export interface ComposeMergedRouteParams {
  */
 /**
  * **짐을 이미 실었는가.**
- *
- * 🔴 이 판단은 **여기 한 곳에만 둔다.** 2026-08-13 에 합짐 경로에서만 고치고 단독 경로를
- *    빠뜨렸다가, 2026-08-14 에 같은 사고가 났다 — 합짐 하나를 내려 콜이 1건이 되는 순간
- *    단독 분기로 넘어가면서 **이미 다녀온 상차지가 경유지로 되살아났다.**
- *    (실측: 현위치 접근 44.5km · 총 137km · 폴리라인 1730 → 2294개)
- *
- * 기사님이 정리한 원칙 그대로다 — **KEEP 은 예약이고 상차가 적재다.**
- * 짐을 실었으면 그 콜에 남은 일은 **하차뿐**이다.
  */
-export function isAlreadyLoaded(c: { status?: string | null }): boolean {
-    return c.status === 'ORDER_PICKED_UP';
-}
+// 정의는 shared 로 옮겼다 (2026-08-19 — 관제웹 지도 폴백도 같은 판단을 쓴다). 재수출만 남긴다.
+export { isAlreadyLoaded };
 
 export async function composeMergedRoute(params: ComposeMergedRouteParams) {
     const { calls, extra, driverLocation, priority, carType } = params;

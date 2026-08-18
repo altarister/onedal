@@ -100,6 +100,7 @@ export interface RouteResult {
     raw?: any;
     polyline?: Array<{x: number; y: number}>; // 카카오 실제 도로 곡선 데이터
     sectionEtas?: string[]; // 각 구간 도착 시점(HH:mm) 배열
+    sectionDriveMin?: number[]; // 정거장별 누적 주행(분) — 상대값이라 낡지 않는다
 }
 
 export interface DetourResult {
@@ -174,6 +175,24 @@ function extractPolyline(routes?: any[]): Array<{x: number; y: number}> {
  * 이제 **배열 길이를 정거장 수에 항상 맞춘다.** 출발점이 곧 상차지면 그 도착은 "지금"이다.
  * 관제탑은 오프셋을 추측할 필요가 없다.
  */
+/**
+ * 정거장별 **누적 주행(분)** — `calculateEtas` 와 같은 규약(정거장 수에 맞춘 길이)인데
+ * 시계 문자열이 아니라 **상대값**이다. 시계 스냅샷은 계산한 순간부터 낡지만
+ * (40분 뒤에 보면 "14:05 도착"이 거짓말이 된다) 주행분은 낡지 않는다 —
+ * 화면이 그릴 때 지금 시각에 더하면 된다. 타임라인 파생(deriveRouteTimeline)의 재료.
+ */
+export function calculateDriveMinutes(sections: any[] | undefined, startsAtFirstStop: boolean): number[] {
+    const mins: number[] = [];
+    if (!sections) return mins;
+    if (startsAtFirstStop) mins.push(0);          // 출발점이 곧 첫 정거장 — 주행 0분
+    let cumulativeSec = 0;
+    for (const section of sections) {
+        cumulativeSec += section.duration || 0;
+        mins.push(Math.round(cumulativeSec / 60));
+    }
+    return mins;
+}
+
 function calculateEtas(sections: any[], startsAtFirstStop: boolean): string[] {
     const etas: string[] = [];
     if (!sections) return etas;
@@ -276,7 +295,8 @@ export async function calculateSoloRoute(
         approachDistance,
         raw: summary,
         polyline: extractPolyline(data?.routes),
-        sectionEtas: calculateEtas(sections, !driverLoc) // 정거장 수에 맞춘 도착 예정 시각
+        sectionEtas: calculateEtas(sections, !driverLoc), // 정거장 수에 맞춘 도착 예정 시각
+        sectionDriveMin: calculateDriveMinutes(sections, !driverLoc)
     };
 }
 
@@ -390,13 +410,15 @@ export async function calculateDetourRoute(
             duration: baseDuration, distance: baseDistance, 
             approachDuration: baseApproachDuration, approachDistance: baseApproachDistance, 
             raw: baseSummary, polyline: extractPolyline(baseData?.routes),
-            sectionEtas: calculateEtas(baseData?.routes?.[0]?.sections, !driverLoc)
+            sectionEtas: calculateEtas(baseData?.routes?.[0]?.sections, !driverLoc),
+            sectionDriveMin: calculateDriveMinutes(baseData?.routes?.[0]?.sections, !driverLoc)
         },
         merged: { 
             duration: mergedDuration, distance: mergedDistance, 
             approachDuration: mergedApproachDuration, approachDistance: mergedApproachDistance, 
             raw: mergedSummary, polyline: extractPolyline(mergedData?.routes),
-            sectionEtas: calculateEtas(mergedData?.routes?.[0]?.sections, !driverLoc)
+            sectionEtas: calculateEtas(mergedData?.routes?.[0]?.sections, !driverLoc),
+            sectionDriveMin: calculateDriveMinutes(mergedData?.routes?.[0]?.sections, !driverLoc)
         },
         timeDiffMin: Math.round((mergedDuration - baseDuration) / 60),
         distDiffKm: ((mergedDistance - baseDistance) / 1000).toFixed(1)

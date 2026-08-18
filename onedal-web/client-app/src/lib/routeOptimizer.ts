@@ -1,5 +1,3 @@
-import { getDistanceKm } from './routeUtils';
-
 /**
  * 경로 포인트(지도 핀 렌더링 + ETA 매핑에 사용)
  */
@@ -12,49 +10,14 @@ export interface RoutePoint {
     routeId?: string;
 }
 
-/**
- * TSP(Nearest Neighbor) 기반 경로 최적화
- * 
- * 현재 위치에서 가장 가까운 상차지 → 그 다음 가까운 상차지 → ... → 하차지 순으로 정렬합니다.
- * PinnedRoute.tsx에서 인라인으로 있던 로직을 순수 함수로 추출한 것입니다.
+/*
+ * 🧭 여기 있던 TSP(`optimizeRouteOrder`)는 걷어냈다 (기사님 동의 2026-08-19).
+ *
+ * 서버도 `optimizeWaypoints` 로 방문 순서를 만드는데 관제웹이 **한 벌 더** 만들어
+ * 인덱스로 끼워 맞추고 있었다 — 두 순서가 어긋나면 ETA 가 엉뚱한 정거장에 붙는다
+ * ("파생값 두 벌" 사고 클래스). 이제 순서는 `sync-active-orders` 의 `routeStops` 가
+ * 유일한 원천이고, tests/rules/routeOrderSingleSource.test.ts 가 재발을 막는다.
  */
-export function optimizeRouteOrder(
-    rawPickups: RoutePoint[],
-    rawDropoffs: RoutePoint[],
-    startLocation: { x: number; y: number } | null
-): RoutePoint[] {
-    const sortedPickups: RoutePoint[] = [];
-    let currentLoc = startLocation || (rawPickups[0] ? { x: rawPickups[0].x!, y: rawPickups[0].y! } : { x: 0, y: 0 });
-
-    // 상차지 최적화 (Nearest Neighbor)
-    const pPool = [...rawPickups].filter(p => typeof p.x === 'number' && typeof p.y === 'number');
-    while (pPool.length > 0) {
-        let bestIdx = 0; let minD = Infinity;
-        pPool.forEach((p, idx) => {
-            const d = getDistanceKm(currentLoc.y, currentLoc.x, p.y!, p.x!);
-            if (d < minD) { minD = d; bestIdx = idx; }
-        });
-        const best = pPool.splice(bestIdx, 1)[0];
-        sortedPickups.push(best);
-        currentLoc = { x: best.x!, y: best.y! };
-    }
-
-    // 하차지 최적화 (Nearest Neighbor, 마지막 상차지에서 시작)
-    const sortedDropoffs: RoutePoint[] = [];
-    const dPool = [...rawDropoffs].filter(d => typeof d.x === 'number' && typeof d.y === 'number');
-    while (dPool.length > 0) {
-        let bestIdx = 0; let minD = Infinity;
-        dPool.forEach((p, idx) => {
-            const d = getDistanceKm(currentLoc.y, currentLoc.x, p.y!, p.x!);
-            if (d < minD) { minD = d; bestIdx = idx; }
-        });
-        const best = dPool.splice(bestIdx, 1)[0];
-        sortedDropoffs.push(best);
-        currentLoc = { x: best.x!, y: best.y! };
-    }
-
-    return [...sortedPickups, ...sortedDropoffs];
-}
 
 /**
  * 각 콜별 상하차 예상 시간(ETA) 매핑

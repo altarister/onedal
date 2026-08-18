@@ -45,7 +45,7 @@ describe('buildOrderSync — 진행/종료 분리', () => {
     });
 
     it('빈 세션도 안전하다', () => {
-        expect(buildOrderSync(makeSession([]))).toEqual({ active: [], terminated: [] });
+        expect(buildOrderSync(makeSession([]))).toEqual({ active: [], terminated: [], routeStops: [] });
     });
 });
 

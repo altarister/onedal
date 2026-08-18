@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { socket } from "../lib/socket";
-import type { SimplifiedOfficeOrder, SecuredOrder, OrderSyncPayload } from "@onedal/shared";
+import type { SimplifiedOfficeOrder, SecuredOrder, OrderSyncPayload, RouteStopInfo } from "@onedal/shared";
 import { isEvaluating, isTerminal } from "@onedal/shared";
 import { logRoadmapEvent } from "../lib/roadmapLogger";
 import { soundManager } from "../lib/soundManager";
@@ -20,6 +20,8 @@ export function useOrderEngine() {
      * 관제탑의 완료/취소 탭 표시용 — 적재·경로 계산에는 절대 쓰지 않는다.
      */
     const [terminatedOrders, setTerminatedOrders] = useState<SecuredOrder[]>([]);
+    /** 🧭 서버가 내려준 경로 순서 — 방문 순서의 유일한 원천 (기사님 동의 2026-08-19) */
+    const [routeStops, setRouteStops] = useState<RouteStopInfo[]>([]);
 
     // 파생 상태 (기존 컴포넌트 호환성 유지)
     const firstCall = activeOrders.length > 0 ? activeOrders[0] : null;
@@ -234,6 +236,8 @@ export function useOrderEngine() {
              * 자동 치유는 그대로다 — 소켓이 새로 붙으면 서버가 무조건 한 번 보낸다.
              */
             setTerminatedOrders(payload.terminated || []);
+            // 옛 서버는 이 필드가 없다 → 빈 배열 (화면은 번호 없이 콜만 그린다)
+            setRouteStops(payload.routeStops ?? []);
 
             /**
              * 🔴 로그는 **updater 밖에서** 찍는다.
@@ -284,6 +288,7 @@ export function useOrderEngine() {
 
     return {
         orders,
+        routeStops,
         isConnected,
         firstCall,
         mergeCalls,

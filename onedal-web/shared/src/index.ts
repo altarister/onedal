@@ -504,6 +504,7 @@ export interface PendingOrder extends OfficeOrder {
     osrmSoloDurationMin?: number;     // OSRM이 연산한 해당 콜만의 '단독' 소요 시간
     osrmError?: string;               // OSRM 연산 실패 시 에러 메세지 노출용
     sectionEtas?: string[];           // 카카오 궤적 연산 기반 각 경유지 도착 예상 시간 배열
+    sectionDriveMin?: number[];       // 출발점 기준 정거장별 **누적 주행(분)** — 시계가 아니라 상대값이라 낡지 않는다
     pickupEta?: string;               // 카카오 궤적 연산 기반 상차지 예상 도착 시간
     dropoffEta?: string;              // 카카오 궤적 연산 기반 하차지 예상 도착 시간
     isRejected?: boolean;             // 서버 종합 평가 결과: 똥콜 판정 여부
@@ -532,6 +533,7 @@ export interface MyOrder extends OfficeOrder {
     osrmSoloDurationMin?: number;     // OSRM이 연산한 해당 콜만의 '단독' 소요 시간
     osrmError?: string;               // OSRM 연산 실패 시 에러 메세지 노출용
     sectionEtas?: string[];           // 카카오 궤적 연산 기반 각 경유지 도착 예상 시간 배열
+    sectionDriveMin?: number[];       // 출발점 기준 정거장별 **누적 주행(분)** — 시계가 아니라 상대값이라 낡지 않는다
     pickupEta?: string;               // 카카오 궤적 연산 기반 상차지 예상 도착 시간
     dropoffEta?: string;              // 카카오 궤적 연산 기반 하차지 예상 도착 시간
     settlement?: SettlementInfo;      // 정산 및 미수금 관리 트래킹 (운행일지용)
@@ -558,6 +560,7 @@ export interface SecuredOrder extends OfficeOrder {
     osrmSoloDurationMin?: number;
     osrmError?: string;
     sectionEtas?: string[];
+    sectionDriveMin?: number[];
     pickupEta?: string;
     dropoffEta?: string;
     settlement?: SettlementInfo;
@@ -955,9 +958,38 @@ export * from './cargoUnits';
  * 관제탑으로 보내는 오더 스냅샷.
  * **진행 중과 종료된 것을 나눠서** 보낸다 — 한 배열로 보내면 받는 쪽이 거르기를 잊는다.
  */
+/**
+ * 이미 상차한 콜인가 — **이 판단은 여기 한 곳에만 둔다.**
+ *
+ * 🔴 서버에서 2026-08-13 에 합짐 경로에서만 고치고 단독 경로를 빠뜨렸다가
+ *    2026-08-14 에 같은 사고가 났다 (다녀온 상차지가 경유지로 되살아남).
+ *    관제웹도 지도 폴백에서 같은 판단이 필요해져 shared 로 올렸다 (2026-08-19) —
+ *    server/routeComposer 와 관제웹이 **같은 정의**를 봐야 지도와 경로가 갈라지지 않는다.
+ *
+ * 기사님 원칙 그대로 — **KEEP 은 예약이고 상차가 적재다.** 짐을 실었으면 남은 일은 하차뿐이다.
+ */
+export function isAlreadyLoaded(c: { status?: string | null }): boolean {
+    return c.status === 'ORDER_PICKED_UP';
+}
+
 export interface OrderSyncPayload {
     active: SecuredOrder[];
     terminated: SecuredOrder[];
+    /**
+     * 🧭 **경로 순서의 원천 — 서버 하나다** (기사님 동의 2026-08-19).
+     * 방문 순서대로의 정거장 목록. 관제웹은 자기 TSP 를 돌리지 않고 이걸 그대로 그린다
+     * (두 벌이면 ETA 가 엉뚱한 정거장에 붙는다 — "파생값 두 벌" 사고 클래스).
+     * 빈 배열은 "정거장 없음"이 아니라 "경로 미연산/고장"일 수 있다 — 콜 자체는 그린다.
+     */
+    routeStops?: RouteStopInfo[];
+}
+
+/** 경로 위의 정거장 하나 — 어느 콜의 어느 쪽을 몇 분 주행 뒤에 가는가 */
+export interface RouteStopInfo {
+    orderId: string;
+    stopType: 'pickup' | 'dropoff';
+    /** 출발점(현위치)에서 이 정거장까지 **누적 주행(분), 정차 미포함**. 연산 전·실패면 null */
+    driveMinutes: number | null;
 }
 export * from './callSteps';
 export * from './timing';

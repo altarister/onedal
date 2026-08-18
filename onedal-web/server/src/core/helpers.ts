@@ -6,6 +6,7 @@ import { isTerminal, cargoPoints, VEHICLE_CAPACITY, normalizeVehicleType,
          computeStopTiming, deriveCallTiming, DEFAULT_DEADLINE_RULES } from '@onedal/shared';
 import type { MyOrder, CargoReport, CapacityConfidence, DwellUnknown, DeadlineRules } from '@onedal/shared';
 import { OrderRepository } from '../repositories/OrderRepository';
+import { planArrivalStops, pickRouteHolder } from '../services/routeComposer';
 
 /**
  * 종료되지 않은(활성) 콜만 필터링합니다.
@@ -216,7 +217,8 @@ export function findLoadConflicts(
  * ⚠️ 페이로드를 만드는 곳은 **여기 하나뿐**이어야 한다.
  *    (예전에는 네 군데가 각자 `Array.from(...)` 을 했다)
  */
-export function buildOrderSync(session: { myOrders: MyOrder[]; pendingOrdersData: Map<string, any> }) {
+export function buildOrderSync(session: { myOrders: MyOrder[]; pendingOrdersData: Map<string, any>;
+                                          driverLocation?: { x: number; y: number } | null }) {
     // 🔴 세션은 같은 콜을 **두 곳**에 들고 있다.
     //    pendingOrdersData — 평가 중 + 확정된 콜의 캐시
     //    myOrders          — 확정된 내 콜 (모든 판정 로직이 이걸 본다)
@@ -249,9 +251,29 @@ export function buildOrderSync(session: { myOrders: MyOrder[]; pendingOrdersData
         return rest;
     };
 
+    /**
+     * 🧭 **경로 순서 — 원천은 서버 하나다** (기사님 동의 2026-08-19).
+     *
+     * 순서는 `planArrivalStops`(도착 감지가 보는 것과 같은 순서), 주행분은 경로 연산이
+     * 홀더에 남긴 `sectionDriveMin`. 길이가 어긋나면(평가 중 후보까지 넣고 계산한 낡은
+     * 값 · 연산 실패) 주행분을 **전부 null** 로 보낸다 — 낡은 분을 엉뚱한 정거장에
+     * 붙이는 것이 없는 것보다 나쁘다 (규칙 ④).
+     */
+    const activeCalls = session.myOrders.filter(o => !isTerminal(o.status));
+    const stops = activeCalls.length
+        ? planArrivalStops(activeCalls, session.driverLocation ?? null) : [];
+    const mins = activeCalls.length
+        ? pickRouteHolder(activeCalls, activeCalls[0]).sectionDriveMin : undefined;
+    const aligned = !!mins && mins.length === stops.length;
+    const routeStops = stops.map((st, i) => ({
+        orderId: st.orderId, stopType: st.stopType,
+        driveMinutes: aligned ? mins![i] : null,
+    }));
+
     return {
         active: all.filter(o => !isTerminal(o.status)),
         terminated: all.filter(o => isTerminal(o.status)).map(stripPolyline),
+        routeStops,
     };
 }
 

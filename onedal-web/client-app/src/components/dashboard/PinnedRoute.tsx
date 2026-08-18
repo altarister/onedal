@@ -1,4 +1,4 @@
-import { isEvaluating, isTerminal } from "@onedal/shared";
+import { isEvaluating, isTerminal, isAlreadyLoaded } from "@onedal/shared";
 import type { SecuredOrder } from "@onedal/shared";
 import { useState, useEffect, useMemo, useRef } from 'react';
 // removed socket
@@ -11,19 +11,22 @@ import { useCallProgress, EMPTY_RECORDS } from '../../hooks/useCallProgress';
 import { deckOrder } from '../../lib/deckFocus';
 import { apiClient } from '../../api/apiClient';
 import { getAddressLabel } from '../../lib/routeUtils';
-import { optimizeRouteOrder, buildEtaMap, buildVisitOrderMap } from '../../lib/routeOptimizer';
+import { buildEtaMap, buildVisitOrderMap } from '../../lib/routeOptimizer';
+import type { RouteStopInfo } from '@onedal/shared';
 import { useFilterConfig } from '../../hooks/useFilterConfig';
 import { useMasterGps } from '../../hooks/useMasterGps';
 
 interface Props {
     activeRoute: SecuredOrder[];
+    /** 🧭 서버가 내려준 경로 순서 — 방문 순서의 유일한 원천 (기사님 동의 2026-08-19) */
+    routeStops: RouteStopInfo[];
     onDecision?: (id: string, action: 'ORDER_CONFIRMED' | 'SAFE_CANCEL' | 'ORDER_RELEASED_BY_ME' | 'ORDER_RELEASED_BY_OFFICE') => void;
     onRecalculate?: (id: string, priority: string) => void;
     viewFilter: 'ACTIVE' | 'COMPLETED' | 'CANCELED' | 'RELEASED' | 'ALL';
     setViewFilter: (filter: 'ACTIVE' | 'COMPLETED' | 'CANCELED' | 'RELEASED' | 'ALL') => void;
 }
 
-export default function PinnedRoute({ activeRoute, onDecision, onRecalculate, viewFilter, setViewFilter }: Props) {
+export default function PinnedRoute({ activeRoute, routeStops, onDecision, onRecalculate, viewFilter, setViewFilter }: Props) {
     // [2026-08-12] 콜별 기록을 **여기서 한 번에** 받는다.
     // 카드가 각자 불러오면 화면 밖 카드의 진행 상황을 알 수 없어
     // 덱 위에 요약 줄을 띄울 수가 없었다 (기사님 지적).
@@ -100,11 +103,40 @@ export default function PinnedRoute({ activeRoute, onDecision, onRecalculate, vi
         });
     };
 
-    // 서버와 동일한 동선 최적화(TSP Nearest Neighbor) 로직 적용 — 완료된 콜은 지도 핀에서 제외
-    const rawPickups = liveRoute.map((r) => ({ type: '상차', name: getAddressLabel(r.pickup), isEvaluating: isEvaluating(r.status), x: r.pickupX, y: r.pickupY, routeId: r.id }));
-    const rawDropoffs = liveRoute.map((r) => ({ type: '하차', name: getAddressLabel(r.dropoff), isEvaluating: isEvaluating(r.status), x: r.dropoffX, y: r.dropoffY, routeId: r.id }));
-
-    const unifiedRoutePoints: RoutePoint[] = optimizeRouteOrder(rawPickups, rawDropoffs, myLocation);
+    /**
+     * 🧭 **방문 순서는 서버가 내려준 routeStops 하나다** (기사님 동의 2026-08-19).
+     *
+     * 예전에는 여기서 자기 TSP(`optimizeRouteOrder`)를 돌렸다 — 서버도 `optimizeWaypoints`
+     * 로 순서를 만드는데 관제웹이 **한 벌 더** 만들어 인덱스로 끼워 맞추고 있었다.
+     * 두 순서가 어긋나면 ETA 가 엉뚱한 정거장에 붙는다 ("파생값 두 벌" 사고 클래스).
+     *
+     * routeStops 에 없는 활성 콜(심사 중 후보 · 경로 연산 전/실패)은 **번호 순서 뒤에
+     * 덧붙인다** — 지도에서 사라지면 안 되지만, 아직 경로가 아닌 것도 사실이기 때문이다.
+     */
+    const unifiedRoutePoints: RoutePoint[] = useMemo(() => {
+        const byId = new Map(liveRoute.map(r => [r.id, r]));
+        const pts: RoutePoint[] = [];
+        const covered = new Set<string>();
+        for (const st of routeStops) {
+            const r = byId.get(st.orderId);
+            if (!r) continue;                          // 좀비 정거장 (취소 후 재계산 전) — 그리지 않는다
+            covered.add(`${st.orderId}:${st.stopType}`);
+            const isP = st.stopType === 'pickup';
+            pts.push({ type: isP ? '상차' : '하차', name: getAddressLabel(isP ? r.pickup : r.dropoff),
+                       isEvaluating: isEvaluating(r.status),
+                       x: isP ? r.pickupX : r.dropoffX, y: isP ? r.pickupY : r.dropoffY, routeId: r.id });
+        }
+        for (const r of liveRoute) {
+            // 이미 상차한 콜의 상차지는 지난 정거장이라 서버 목록에 없다 — 다시 그리지 않는다
+            if (!covered.has(`${r.id}:pickup`) && !isAlreadyLoaded(r))
+                pts.push({ type: '상차', name: getAddressLabel(r.pickup), isEvaluating: isEvaluating(r.status),
+                           x: r.pickupX, y: r.pickupY, routeId: r.id });
+            if (!covered.has(`${r.id}:dropoff`))
+                pts.push({ type: '하차', name: getAddressLabel(r.dropoff), isEvaluating: isEvaluating(r.status),
+                           x: r.dropoffX, y: r.dropoffY, routeId: r.id });
+        }
+        return pts;
+    }, [liveRoute, routeStops]);
 
     // 각 콜별 상하차 예상 시간(ETA) 매핑
     const etaMap = useMemo(() => {
