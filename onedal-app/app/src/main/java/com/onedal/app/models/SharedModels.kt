@@ -216,6 +216,12 @@ data class FilterConfig(
     val destinationKeywords: List<String> = emptyList(),
     val customCityFilters: List<String> = emptyList(),
     val destinationGroups: Map<String, List<String>> = emptyMap(),
+    /**
+     * 🧭 동마다 "경로 출발점에서 몇 km 지점인가" — 역주행·경로 밖 상차 차단용
+     * (기사님 확정 2026-08-18). null = 경로 위지만 순서를 모름(막지 않는다).
+     * 비어 있으면(첫짐·구서버) 순서 검사를 하지 않는다 — 오프라인 안전망과 같은 방향.
+     */
+    val progressKm: Map<String, Double?> = emptyMap(),
 )
 
 // ────────────────────────────────────────────────

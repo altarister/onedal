@@ -2,6 +2,7 @@ package com.onedal.app.plugins.hwamul24
 
 import android.content.Context
 import com.onedal.app.core.AppLogger
+import com.onedal.app.plugins.RouteOrderFilter
 import com.onedal.app.core.IScrapParser
 import com.onedal.app.core.LocationTextAnalyzer
 import com.onedal.app.core.ScreenTextNode
@@ -47,6 +48,16 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
         } catch (e: Exception) { emptyList() }
     }
 
+    /** 🧭 progressKm 파싱 — JSON null 은 "순서를 모름"이므로 코틀린 null 로 보존한다 (0 으로 지어내지 않는다) */
+    private fun parseProgressMap(json: JSONObject, key: String): Map<String, Double?> {
+        val obj = json.optJSONObject(key) ?: return emptyMap()
+        val map = mutableMapOf<String, Double?>()
+        for (k in obj.keys()) {
+            map[k] = if (obj.isNull(k)) null else obj.optDouble(k)
+        }
+        return map
+    }
+
     fun loadCurrentFilter(): FilterConfig {
         return try {
             val jsonStr = prefs.getString("activeFilter", null) ?: return FilterConfig()
@@ -63,7 +74,8 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
                 destinationRadiusKm = json.optInt("destinationRadiusKm", 10),
                 excludedKeywords = parseJsonArray(json, "excludedKeywords"),
                 destinationKeywords = parseJsonArray(json, "destinationKeywords"),
-                customCityFilters = parseJsonArray(json, "customCityFilters")
+                customCityFilters = parseJsonArray(json, "customCityFilters"),
+                progressKm = parseProgressMap(json, "progressKm")   // 없으면 빈 맵 → 순서 검사 안 함 (구서버 호환)
             )
         } catch (e: Exception) {
             AppLogger.e(TAG, "❌ 필터 JSON 파싱 실패: ${e.message}")
@@ -309,7 +321,13 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
                     "블랙=${if(blacklistClear) "✅" else "❌"}", "LIST")
         }
 
-        return vehicleMatch && regionMatch && fareMatch && distanceMatch && blacklistClear
+        // ── 조건 6: 🧭 경로 순서 (역주행·경로 밖 상차 차단 — 기사님 확정 2026-08-18) ──
+        val routeOrder = RouteOrderFilter.check(order.pickup, order.dropoff, filter.progressKm)
+        if (!routeOrder.passed && order.fare > 0) {
+            AppLogger.d(TAG, "🧭 [경로 순서] 차단 — ${routeOrder.reason}")
+        }
+
+        return vehicleMatch && regionMatch && fareMatch && distanceMatch && blacklistClear && routeOrder.passed
     }
 
     // ════════════════════════════════════════════════════════════════

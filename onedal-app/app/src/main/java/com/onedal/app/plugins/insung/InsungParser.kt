@@ -2,6 +2,7 @@ package com.onedal.app.plugins.insung
 
 import android.content.Context
 import com.onedal.app.core.AppLogger
+import com.onedal.app.plugins.RouteOrderFilter
 import com.onedal.app.core.IScrapParser
 import com.onedal.app.core.LocationTextAnalyzer
 import com.onedal.app.core.ScreenTextNode
@@ -88,6 +89,16 @@ class InsungParser(private val context: Context) : IScrapParser {
     /**
      * 콤마 구분 문자열을 List<String>으로 파싱하는 헬퍼
      */
+    /** 🧭 progressKm 파싱 — JSON null 은 "순서를 모름"이므로 코틀린 null 로 보존한다 (0 으로 지어내지 않는다) */
+    private fun parseProgressMap(json: JSONObject, key: String): Map<String, Double?> {
+        val obj = json.optJSONObject(key) ?: return emptyMap()
+        val map = mutableMapOf<String, Double?>()
+        for (k in obj.keys()) {
+            map[k] = if (obj.isNull(k)) null else obj.optDouble(k)
+        }
+        return map
+    }
+
     private fun parseCommaSeparated(json: JSONObject, key: String): List<String> {
         val str = json.optString(key, "")
         return if (str.isNotEmpty()) str.split(",").map { it.trim() }.filter { it.isNotEmpty() } else emptyList()
@@ -111,7 +122,8 @@ class InsungParser(private val context: Context) : IScrapParser {
                 excludedKeywords = parseJsonArray(json, "excludedKeywords"),
                 destinationKeywords = parseJsonArray(json, "destinationKeywords"),
                 customCityFilters = parseJsonArray(json, "customCityFilters"),
-                ratePerKm = parseRateMap(json, "ratePerKm")   // 없으면 빈 맵 → minFare 판정 (구서버 호환)
+                ratePerKm = parseRateMap(json, "ratePerKm"),   // 없으면 빈 맵 → minFare 판정 (구서버 호환)
+                progressKm = parseProgressMap(json, "progressKm")   // 없으면 빈 맵 → 순서 검사 안 함 (구서버 호환)
             )
         } catch (e: Exception) {
             AppLogger.e(TAG, "❌ 필터 JSON 파싱 실패: ${e.message}")
@@ -408,7 +420,14 @@ class InsungParser(private val context: Context) : IScrapParser {
                         "블랙()=${if(blacklistClear) "✅" else "❌"}", screenCtxLog)
         }
 
-        val result = vehicleMatch && regionMatch && fareMatch && distanceMatch && blacklistClear
+        // ── 조건 5: 🧭 경로 순서 (역주행·경로 밖 상차 차단 — 기사님 확정 2026-08-18) ──
+        //    합짐·운행중에만 값이 내려온다(첫짐은 빈 맵 → 검사 없음). 국면 분기는 앱에 두지 않는다.
+        val routeOrder = RouteOrderFilter.check(order.pickup, order.dropoff, filter.progressKm)
+        if (!routeOrder.passed && order.fare > 0) {
+            AppLogger.d(TAG, "🧭 [경로 순서] 차단 — ${routeOrder.reason}")
+        }
+
+        val result = vehicleMatch && regionMatch && fareMatch && distanceMatch && blacklistClear && routeOrder.passed
 
         return result
     }

@@ -3,7 +3,7 @@ import { callFilterBlocker } from "@onedal/shared";
 import type { SimplifiedOfficeOrder, ScreenContextType } from "@onedal/shared";
 import db from "../db";
 import { getUserSession, clearOrderTimers } from "../state/userSessionStore";
-import { ensureBusinessDay } from "../state/filterManager";
+import { ensureBusinessDay, buildAppProgressKm } from "../state/filterManager";
 
 import { touchDeviceSession } from "./devices";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
@@ -152,6 +152,10 @@ router.post("/", (req, res) => {
         // 그런데 응답의 27%(약 3.6KB)를 차지하며 매 하트비트마다 재전송되고 있었다.
         // 관제탑은 소켓(filter-updated)으로 별도 수신하므로 여기서 빼도 영향이 없다.
         const { destinationGroups, ...appFilter } = session.activeFilter as any;
+
+        // 🧭 경로 순서 맵 — 앱의 역주행·경로 밖 상차 차단 입력 (기사님 확정 2026-08-18)
+        //    첫짐(경로 없음)이면 빈 객체라 앱이 순서 검사를 건너뛴다. +2.7KB (동 211개 기준)
+        appFilter.progressKm = buildAppProgressKm(session);
 
         // [Phase 6] 부트스트랩이 끝나기 전에는 콜 잡기를 시키지 않는다.
         // 이 구간(1~3초)의 activeFilter 는 아직 경유도 적재 차종도 반영되지 않은 미완성 상태라,

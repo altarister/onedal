@@ -221,6 +221,31 @@ export function rememberDetourProgress(
 }
 
 /**
+ * 🧭 **앱에 내려보낼 경로 순서 맵** — 역주행·경로 밖 상차 차단용 (기사님 확정 2026-08-18)
+ *
+ * 실사고: 파주 도착 직전에 `초월읍(광주) → 금촌동(파주)` 콜이 앱 필터를 통과했다
+ * (2026-08-18 08:50). 앱은 하차지만 보고 상차지를 아무도 안 봐서 — 78km 역주행 콜이었다.
+ *
+ * · 키를 **지금 목록(destinationKeywords)으로 좁힌다** — 세션의 detourProgressKm 은
+ *   지나온 동도 계속 들고 있어(트림 비교용), 그대로 보내면 지나온 동이 "경로 위"로 남는다
+ * · `Infinity`(하차지 원 안 동 — 영원히 안 빠짐)와 값 없음(스냅 실패)은 **null** —
+ *   "순서를 모른다"는 뜻이고 앱은 모르면 막지 않는다 (JSON 이 Infinity 를 못 실어서이기도 하다)
+ * · 경로가 없으면(첫짐) **빈 객체** — 앱이 순서 검사를 통째로 건너뛴다
+ */
+export function buildAppProgressKm(
+    session: ReturnType<typeof getUserSession>,
+): Record<string, number | null> {
+    const progress = session.detourProgressKm;
+    if (!progress) return {};
+    const out: Record<string, number | null> = {};
+    for (const dong of session.activeFilter.destinationKeywords ?? []) {
+        const v = progress[dong];
+        out[dong] = Number.isFinite(v) ? (v as number) : null;
+    }
+    return out;
+}
+
+/**
  * **지나온 구간을 필터에서 뺀다** — 경유을 다시 그리지 않고.
  *
  * 기사님: *"성남을 지났으면 이미 지나온 광주시·성남시 콜은 목록에서 뺀다. 뒤로 안 돌아가니까."*
