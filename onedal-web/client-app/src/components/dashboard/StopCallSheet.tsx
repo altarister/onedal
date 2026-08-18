@@ -690,31 +690,62 @@ export default function StopCallSheet({
                             {/* 통화에서 그대로 읽을 수 있는 한 줄.
                                 기사님: *"거기까지 가는데 몇 km고 28분 걸려 08:39에 도착해야 하는데…"* */}
                             {driveKnown ? (
-                                <div className="text-[12px] text-text-primary">
-                                    {isPickup ? '현위치 → 상차지' : '상차지 → 하차지'}
-                                    {driveKm != null && <> <b className="tabular-nums">{driveKm.toFixed(1)}</b>km</>}
-                                    {' · '}<b className="tabular-nums">{driveMinutes}</b>분
-                                    {/* 앞 정거장 작업은 도착 **전**이라 항으로 드러낸다 (하차지 통화의 상차 20분) */}
-                                    {leadMinutes > 0 && leadLabel && (
-                                        <span className="text-text-muted"> (+ {leadLabel} {leadMinutes}분)</span>
-                                    )}
-                                    {/* 🕒 **약속은 도착 시각이다** (기사님 확정 2026-08-18 — 2026-08-16 기준을 재개정).
-                                        통화의 대사는 "몇 시까지 갈게요"다. 상차 소요는 짐 양에 따라 변하므로
-                                        참고로만 보여 주고 약속에 섞지 않는다. 약속을 고르면 대기 가능(상차버퍼)이 보인다. */}
-                                    <div className="text-[13px] font-black text-info mt-0.5 tabular-nums">
-                                        지금 출발하면 {hhmm(new Date(Date.now() + arrivalMinutes * 60_000).toISOString())} 도착
-                                        {isPickup && (
-                                            <span className="text-text-muted font-bold">
-                                                {' '}· 상차 {dwell}분 소요
-                                            </span>
-                                        )}
-                                        {deadlineAt && (() => {
-                                            const waitMin = Math.round((new Date(deadlineAt).getTime() - (Date.now() + arrivalMinutes * 60_000)) / 60_000);
-                                            return waitMin >= 0
-                                                ? <span className="text-success font-bold"> · 약속까지 대기 {waitMin}분 가능</span>
-                                                : <span className="text-danger font-bold"> · 약속보다 {-waitMin}분 늦음</span>;
-                                        })()}
-                                    </div>
+                                /**
+                                 * 🔴 **통화에서 실제로 하는 말로 쓴다** (기사님 2026-08-18).
+                                 *    예전 문구는 *"지금 출발하면 17:57 도착"* 이었는데,
+                                 *    기사님: *"지금 출발할 것도 아닌데 이렇게 쓰는 건 별로인 듯하다."*
+                                 *    → 값들을 조합해 **한 문장**으로 읽는다:
+                                 *      상차지  "여기서 거기까지 5.9km · 17분, 대기 30분 → 18:28 도착"
+                                 *      하차지  "상차지에서 6분 상차하고 18:34 출발해서 93.1km · 109분,
+                                 *              휴게 30분 → 20:53 도착"
+                                 */
+                                <div className="text-[13px] text-text-primary leading-relaxed">
+                                    {(() => {
+                                        const km = driveKm != null ? `${driveKm.toFixed(1)}km · ` : '';
+                                        const arriveAt = deadlineAt
+                                            ? hhmm(deadlineAt)
+                                            : hhmm(new Date(Date.now() + arrivalMinutes * 60_000).toISOString());
+                                        // 약속까지 남는 시간 = 상차버퍼 (이 자리에서 합짐을 잡을 수 있는 시간)
+                                        const waitMin = deadlineAt
+                                            ? Math.round((new Date(deadlineAt).getTime() - (Date.now() + arrivalMinutes * 60_000)) / 60_000)
+                                            : 0;
+
+                                        if (isPickup) {
+                                            return (
+                                                <>
+                                                    여기서 거기까지 <b className="tabular-nums">{km}{driveMinutes}분</b>
+                                                    {waitMin > 0 && <>, 대기 <b className="tabular-nums">{waitMin}분</b></>}
+                                                    {waitMin < 0 && <span className="text-danger font-bold">, 약속보다 {-waitMin}분 늦음</span>}
+                                                    {' 그래서 '}
+                                                    <b className="text-info tabular-nums">{arriveAt}</b> 도착
+                                                    <div className="text-[12px] text-text-muted font-bold mt-0.5">
+                                                        상차 {dwell}분 소요 — 실어 보내는 시각{' '}
+                                                        <b className="tabular-nums">
+                                                            {hhmm(new Date((deadlineAt ? new Date(deadlineAt).getTime() : Date.now() + arrivalMinutes * 60_000) + dwell * 60_000).toISOString())}
+                                                        </b>
+                                                    </div>
+                                                </>
+                                            );
+                                        }
+                                        // 하차지 — 앞 정거장(상차) 작업이 도착 전에 붙는다
+                                        // 출발 = 지금 + 앞 정거장 작업(상차). 그래야 출발 + 주행 + 휴게 = 도착 으로 맞물린다
+                                        const departMs = Date.now() + leadMinutes * 60_000;
+                                        return (
+                                            <>
+                                                {leadMinutes > 0 && leadLabel && (
+                                                    <>상차지에서 <b className="tabular-nums">{leadMinutes}분</b> {leadLabel}하고{' '}
+                                                    <b className="tabular-nums">{hhmm(new Date(departMs).toISOString())}</b> 출발해서{' '}</>
+                                                )}
+                                                {/* 이미 상차를 마쳤으면 앞 절이 없다 — 문장이 숫자로 시작하지 않게 주어를 넣는다 */}
+                                                {!(leadMinutes > 0 && leadLabel) && <>여기서 거기까지{' '}</>}
+                                                <b className="tabular-nums">{km}{driveMinutes}분</b>
+                                                {waitMin > 0 && <>, 휴게 <b className="tabular-nums">{waitMin}분</b></>}
+                                                {waitMin < 0 && <span className="text-danger font-bold">, 약속보다 {-waitMin}분 늦음</span>}
+                                                {' 그래서 '}
+                                                <b className="text-info tabular-nums">{arriveAt}</b> 도착
+                                            </>
+                                        );
+                                    })()}
                                 </div>
                             ) : (
                                 /* 없는 숫자를 0 으로 때우면 "여유가 많다"고 거짓말하게 된다 */
