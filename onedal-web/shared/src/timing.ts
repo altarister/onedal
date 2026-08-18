@@ -695,3 +695,103 @@ export function deriveCallTiming(
         waitMinutes: minutesUntil(departureAt, nowMs),
     };
 }
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 경로 타임라인 — 시각의 원천은 "지금 경로" 하나다 (기사님 동의 2026-08-19)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * 실측 사고 두 건이 이 함수의 존재 이유다:
+ *   ① 합짐 콜의 도착시각이 안 나왔다 — 합짐은 kakaoSolo·approach 가 계산되지 않아
+ *      콜별 파생(deriveCallTiming)의 사슬이 끊겼다
+ *   ② 카운트다운이 첫짐만 봤다 — 합짐은 출발 마감이 null 이라 후보에서 조용히 빠졌다
+ *
+ * 콜마다 "혼자 간다"고 가정하지 않고, 서버가 내려준 경로 순서(routeStops) 위에서
+ * 주행·정차를 **순서대로 누적**한다:
+ *
+ *   도착예상ᵢ = 기준시각 + 누적주행ᵢ + Σ(앞 정거장 정차)
+ *   약속ᵢ     = 통화 확정  >  경로 추정(도착예상 + 여유 30분)  >  콜별 파생 폴백
+ *   출발마감ᵢ = 약속ᵢ − (누적주행ᵢ + Σ(앞 정거장 정차))
+ *
+ * 🔴 기준시각은 **경로를 계산한 시점**(routeComputedAt)이다. nowMs 를 쓰면 추정 약속이
+ *    매초 미래로 밀려 카운트다운이 영원히 "30분 남음"에 머문다 — 약속은 잡히면 고정이다.
+ *    (콜별 파생이 capturedAt 에 닻을 내리는 것과 같은 이유)
+ *
+ * 정차·폴백 약속은 deriveCallTiming 에서 그대로 가져온다 (규칙 ③ — 파생 한 곳).
+ */
+export interface RouteTimelineEntry {
+    orderId: string;
+    stopType: 'pickup' | 'dropoff';
+    /** 도착예상 (ms). 주행분을 모르면 null — 지어내지 않는다 (규칙 ④) */
+    etaMs: number | null;
+    /** 이 정거장의 정차(분) — 신고값 또는 차종 추정 */
+    dwellMinutes: number;
+    /** "까지" 약속 — 확정 > 경로 추정 > 콜별 파생. 셋 다 없으면 null */
+    promisedUntil: string | null;
+    /** 통화로 확정한 약속인가 (false = 추정 — 화면은 ~ 를 붙인다) */
+    promiseConfirmed: boolean;
+    /** 이 약속을 지키기 위한 출발 마감 (ms) */
+    departByMs: number | null;
+}
+
+export function deriveRouteTimeline(
+    stops: Array<{ orderId: string; stopType: 'pickup' | 'dropoff'; driveMinutes: number | null }>,
+    orders: TimingOrderFields[],
+    reportsOf: (orderId: string) => CargoReport[],
+    milestonesOf: (orderId: string) => { milestone: string }[],
+    nowMs: number,
+    routeComputedAt?: string | null,
+    rules: DeadlineRules = DEFAULT_DEADLINE_RULES,
+): RouteTimelineEntry[] {
+    const byId = new Map(orders.map(o => [(o as any).id as string, o]));
+    const timingCache = new Map<string, CallTiming>();
+    const anchorMs = routeComputedAt ? Date.parse(routeComputedAt) : nowMs;
+    const margin = rules.arrivalMarginMinutes ?? 30;
+
+    const out: RouteTimelineEntry[] = [];
+    let dwellBefore = 0;   // 앞 정거장들에서 서 있는 시간의 합
+    for (const st of stops) {
+        const order = byId.get(st.orderId);
+        if (!order) continue;   // 좀비 정거장 (취소 후 재계산 전) — 만들지 않는다
+
+        let t = timingCache.get(st.orderId);
+        if (!t) {
+            t = deriveCallTiming(order, reportsOf(st.orderId), milestonesOf(st.orderId), nowMs, rules);
+            timingCache.set(st.orderId, t);
+        }
+        const dwell = st.stopType === 'pickup' ? t.pickupDwell : t.dropoffDwell;
+        const travelMin = st.driveMinutes != null ? st.driveMinutes + dwellBefore : null;
+        const etaMs = travelMin != null ? anchorMs + travelMin * 60_000 : null;
+
+        const declared = reportsOf(st.orderId).find(r =>
+            r.stopType === st.stopType && r.kind === 'DECLARED' && (r as any).promisedArrivalAt,
+        ) as any;
+        const promisedUntil: string | null = declared?.promisedArrivalAt
+            ?? (etaMs != null ? new Date(etaMs + margin * 60_000).toISOString() : null)
+            ?? (st.stopType === 'pickup' ? t.pickupPromisedArrivalAt : t.dropoffPromisedArrivalAt);
+
+        out.push({
+            orderId: st.orderId, stopType: st.stopType,
+            etaMs, dwellMinutes: dwell,
+            promisedUntil,
+            promiseConfirmed: !!declared,
+            departByMs: promisedUntil != null && travelMin != null
+                ? Date.parse(promisedUntil) - travelMin * 60_000 : null,
+        });
+        dwellBefore += dwell;
+    }
+    return out;
+}
+
+/**
+ * **어떤 콜이건 가장 빨리 나가야 하는** 정거장 (기사님 2026-08-19).
+ * 상차만 보지 않는다 — 하차 약속이 빡빡하면 그게 출발을 묶는다.
+ */
+export function pickBindingDeparture(timeline: RouteTimelineEntry[]): RouteTimelineEntry | null {
+    let best: RouteTimelineEntry | null = null;
+    for (const e of timeline) {
+        if (e.departByMs == null) continue;
+        if (!best || e.departByMs < best.departByMs!) best = e;
+    }
+    return best;
+}

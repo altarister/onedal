@@ -505,6 +505,7 @@ export interface PendingOrder extends OfficeOrder {
     osrmError?: string;               // OSRM 연산 실패 시 에러 메세지 노출용
     sectionEtas?: string[];           // 카카오 궤적 연산 기반 각 경유지 도착 예상 시간 배열
     sectionDriveMin?: number[];       // 출발점 기준 정거장별 **누적 주행(분)** — 시계가 아니라 상대값이라 낡지 않는다
+    routeComputedAt?: string;         // 이 경로를 계산한 시점 — 타임라인 추정 약속의 닻
     pickupEta?: string;               // 카카오 궤적 연산 기반 상차지 예상 도착 시간
     dropoffEta?: string;              // 카카오 궤적 연산 기반 하차지 예상 도착 시간
     isRejected?: boolean;             // 서버 종합 평가 결과: 똥콜 판정 여부
@@ -534,6 +535,7 @@ export interface MyOrder extends OfficeOrder {
     osrmError?: string;               // OSRM 연산 실패 시 에러 메세지 노출용
     sectionEtas?: string[];           // 카카오 궤적 연산 기반 각 경유지 도착 예상 시간 배열
     sectionDriveMin?: number[];       // 출발점 기준 정거장별 **누적 주행(분)** — 시계가 아니라 상대값이라 낡지 않는다
+    routeComputedAt?: string;         // 이 경로를 계산한 시점 — 타임라인 추정 약속의 닻
     pickupEta?: string;               // 카카오 궤적 연산 기반 상차지 예상 도착 시간
     dropoffEta?: string;              // 카카오 궤적 연산 기반 하차지 예상 도착 시간
     settlement?: SettlementInfo;      // 정산 및 미수금 관리 트래킹 (운행일지용)
@@ -561,6 +563,7 @@ export interface SecuredOrder extends OfficeOrder {
     osrmError?: string;
     sectionEtas?: string[];
     sectionDriveMin?: number[];
+    routeComputedAt?: string;
     pickupEta?: string;
     dropoffEta?: string;
     settlement?: SettlementInfo;
@@ -982,6 +985,11 @@ export interface OrderSyncPayload {
      * 빈 배열은 "정거장 없음"이 아니라 "경로 미연산/고장"일 수 있다 — 콜 자체는 그린다.
      */
     routeStops?: RouteStopInfo[];
+    /**
+     * 경로를 계산한 시점 — 타임라인 추정 약속의 **닻**. 지금 시각을 닻으로 쓰면
+     * 추정 약속이 매초 미래로 밀려 카운트다운이 영원히 "30분 남음"에 머문다.
+     */
+    routeComputedAt?: string | null;
 }
 
 /** 경로 위의 정거장 하나 — 어느 콜의 어느 쪽을 몇 분 주행 뒤에 가는가 */

@@ -78,6 +78,7 @@ export function applySoloRoute(holder: RouteHolder, r: RouteResult): void {
     holder.totalDurationMin = toMin(r.duration);
     if (r.sectionEtas) holder.sectionEtas = r.sectionEtas;
     if (r.sectionDriveMin) holder.sectionDriveMin = r.sectionDriveMin;
+    holder.routeComputedAt = new Date().toISOString();   // 타임라인 추정 약속의 닻
 
     holder.kakaoSoloDistanceKm = toKm(Math.max(0, r.distance - approachM));
     holder.kakaoSoloDurationMin = toMin(Math.max(0, r.duration - approachSec));
@@ -94,6 +95,7 @@ export function applyRoute(holder: RouteHolder, r: RouteResult): void {
     holder.totalDurationMin = toMin(r.duration);
     if (r.sectionEtas) holder.sectionEtas = r.sectionEtas;
     if (r.sectionDriveMin) holder.sectionDriveMin = r.sectionDriveMin;
+    holder.routeComputedAt = new Date().toISOString();   // 타임라인 추정 약속의 닻
     // 통화 대본의 "여기서 N분 걸립니다" — 예전에는 계산해 놓고 로그만 찍고 버렸다
     if (r.approachDuration) holder.approachDurationMin = toMin(r.approachDuration);
 }

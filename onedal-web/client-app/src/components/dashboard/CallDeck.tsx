@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { SecuredOrder } from '@onedal/shared';
-import { deriveCallStep, CALL_STEPS, deriveCallTiming, isEvaluating } from '@onedal/shared';
+import { deriveCallStep, CALL_STEPS, deriveCallTiming, deriveRouteTimeline, isEvaluating } from '@onedal/shared';
+import type { RouteStopInfo, RouteTimelineEntry } from '@onedal/shared';
 import { pickAutoFocus, scrollSettle } from '../../lib/deckFocus';
 import { getAddressLabel, hhmm } from '../../lib/routeUtils';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -30,9 +31,12 @@ interface Props {
      * 각자 계산하면 지도와 다른 번호를 말하게 된다 (규칙 ③).
      */
     visitOrderMap: Map<string, { pickupIdx: number; dropoffIdx: number }>;
+    /** 🧭 서버가 내려준 경로 순서 — 시각(약속)은 이 위의 타임라인에서 나온다 */
+    routeStops: RouteStopInfo[];
+    routeComputedAt: string | null;
 }
 
-export default function CallDeck({ orders, renderCard, records, visitOrderMap }: Props) {
+export default function CallDeck({ orders, renderCard, records, visitOrderMap, routeStops, routeComputedAt }: Props) {
     const trackRef = useRef<HTMLDivElement>(null);
 
     /**
@@ -170,6 +174,20 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap }:
 
     if (orders.length === 0) return null;
 
+    /**
+     * 🗺️ **시각의 원천은 "지금 경로" 하나다** (기사님 동의 2026-08-19).
+     *
+     * 🔴 예전에는 콜마다 deriveCallTiming 을 따로 불렀다 — 합짐은 단독 주행값이
+     *    없어 **하차 약속이 아예 안 나왔고**(기사님 발견), 나와도 "혼자 간다" 가정이라
+     *    경로 순서(2·3번째 정거장)를 모르는 값이었다. 타임라인은 경로 위에서
+     *    주행·정차를 누적한다. 카운트다운과 같은 함수를 읽는다 (규칙 ③).
+     */
+    const timeline: RouteTimelineEntry[] = deriveRouteTimeline(
+        routeStops, orders,
+        (id) => (records.get(id) ?? EMPTY_RECORDS).reports,
+        (id) => (records.get(id) ?? EMPTY_RECORDS).milestones,
+        Date.now(), routeComputedAt);
+
     return (
         <div className="flex flex-col">
             {/* ══ 콜별 진행 요약 — **스와이프하지 않아도 보인다** ══
@@ -191,16 +209,17 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap }:
                         const r = records.get(o.id) ?? EMPTY_RECORDS;
                         const p = deriveCallStep(r.milestones, r.reports);
                         const vo = visitOrderMap.get(o.id);
-                        /**
-                         * 🔴 시각은 경로 연산(ETA)이 아니라 **약속**이다 (기사님 2026-08-19):
-                         *    *"기본값으로 30분씩 여유가 있고 통화해서 약속 시간을 변경할 수 있는데,
-                         *    그 시간을 가져와야 한 번에 시간별 경로를 확인할 수 있을 것 같아."*
-                         *    통화로 확정한 약속이 이기고, 통화 전에는 추정(도착 예상+여유 30분)이 뜬다.
-                         *    카드·카운트다운과 같은 `deriveCallTiming` 하나에서 나온다 (규칙 ③).
-                         */
-                        const t = deriveCallTiming(o, r.reports, r.milestones, Date.now());
-                        const confirmed = (stop: 'pickup' | 'dropoff') => r.reports.some(rep =>
-                            rep.stopType === stop && rep.kind === 'DECLARED' && rep.promisedArrivalAt);
+                        // 타임라인에 있으면 그것이 약속이다. 없으면(경로 밖 — 심사 중 후보 등)
+                        // 콜별 파생으로 폴백 — 시각이 아예 사라지는 것보다는 혼자 간 값이 낫다
+                        const tle = (stop: 'pickup' | 'dropoff') =>
+                            timeline.find(e => e.orderId === o.id && e.stopType === stop);
+                        const fallback = timeline.length ? null : deriveCallTiming(o, r.reports, r.milestones, Date.now());
+                        const promiseOf = (stop: 'pickup' | 'dropoff') => tle(stop)?.promisedUntil
+                            ?? (stop === 'pickup' ? fallback?.pickupPromisedArrivalAt : fallback?.dropoffPromisedArrivalAt)
+                            ?? null;
+                        const confirmed = (stop: 'pickup' | 'dropoff') => tle(stop)?.promiseConfirmed
+                            ?? r.reports.some(rep =>
+                                rep.stopType === stop && rep.kind === 'DECLARED' && rep.promisedArrivalAt);
                         const isCur = i === cur;
                         return (
                             <button
@@ -228,11 +247,11 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap }:
                                 <span className="text-[11px] font-bold text-text-primary truncate min-w-0 flex-1">
                                     {getAddressLabel(o.pickup)}
                                     <StopMark at={vo?.pickupIdx} kind="pickup" evaluating={isEvaluating(o.status)}
-                                        time={t.pickupPromisedArrivalAt} confirmed={confirmed('pickup')} />
+                                        time={promiseOf('pickup')} confirmed={confirmed('pickup')} />
                                     <span className="text-text-muted font-normal mx-0.5">→</span>
                                     {getAddressLabel(o.dropoff)}
                                     <StopMark at={vo?.dropoffIdx} kind="dropoff" evaluating={isEvaluating(o.status)}
-                                        time={t.dropoffPromisedArrivalAt} confirmed={confirmed('dropoff')} />
+                                        time={promiseOf('dropoff')} confirmed={confirmed('dropoff')} />
                                 </span>
 
                                 {/* 6단계를 한눈에 — 카드 안 진행 점과 같은 규칙 */}

@@ -46,6 +46,7 @@ export default function Dashboard() {
         handleDecision,
         handleRecalculate,
         routeStops,
+        routeComputedAt,
     } = useOrderEngine();
 
     // [2026-08-10] 서버가 진행/종료를 **나눠서** 보낸다. 예전에는 한 배열로 와서
@@ -233,6 +234,7 @@ export default function Dashboard() {
                 <ErrorBoundary label="결재 카드">
                     <PinnedRoute 
                         routeStops={routeStops}
+                        routeComputedAt={routeComputedAt}
                         activeRoute={activeRoute} 
                         onDecision={handleDecision} 
                         onRecalculate={handleRecalculate} 

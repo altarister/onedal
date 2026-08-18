@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
-import { deriveCallStep, deriveCallTiming, minutesUntil, formatCountdown } from '@onedal/shared';
-import type { SecuredOrder } from '@onedal/shared';
+import { deriveCallStep, deriveCallTiming, deriveRouteTimeline, pickBindingDeparture,
+         minutesUntil, formatCountdown } from '@onedal/shared';
+import type { SecuredOrder, RouteStopInfo } from '@onedal/shared';
 import type { CallRecords } from '../../hooks/useCallProgress';
+import { getAddressLabel } from '../../lib/routeUtils';
 import { EMPTY_RECORDS } from '../../hooks/useCallProgress';
 
 /**
@@ -21,9 +23,12 @@ import { EMPTY_RECORDS } from '../../hooks/useCallProgress';
 interface Props {
     orders: SecuredOrder[];
     records: Map<string, CallRecords>;
+    /** 🧭 서버가 내려준 경로 순서 — 있으면 타임라인이 카운트다운의 원천이 된다 */
+    routeStops: RouteStopInfo[];
+    routeComputedAt: string | null;
 }
 
-export default function DepartureCountdown({ orders, records }: Props) {
+export default function DepartureCountdown({ orders, records, routeStops, routeComputedAt }: Props) {
     // 카운트다운이므로 초 단위로 다시 그린다. 화면에 이것 하나뿐이라 부담이 없다
     const [now, setNow] = useState(Date.now());
     useEffect(() => {
@@ -39,19 +44,46 @@ export default function DepartureCountdown({ orders, records }: Props) {
      * 한쪽만 고치면 카운트다운과 통화 화면이 **다른 시각**을 말한다.
      */
     let soonest: { at: string; estimated: boolean;
-                   driveMin: number | null; dwellMin: number; waitMin: number | null } | null = null;
+                   driveMin: number | null; dwellMin: number; waitMin: number | null;
+                   boundBy: string | null } | null = null;
 
-    for (const o of orders) {
+    /**
+     * 🧭 **경로 타임라인이 원천이다** (기사님 2026-08-19): *"어떤 콜이건 가장 빨리
+     * 출발해야 하는 것 기준으로 노출되어야 한다."*
+     *
+     * 🔴 예전에는 콜별 deriveCallTiming 의 departureAt 만 모았는데, 합짐은 단독
+     *    주행값이 없어 departureAt 이 null → **후보에서 조용히 빠졌다.** 첫짐 혼자
+     *    남아 1:20:57 이 떴다. 타임라인은 경로 위에서 누적하므로 합짐도 들어온다.
+     *    하차 약속도 출발을 묶는다 — 상차만 보지 않는다.
+     */
+    const reportsOf = (id: string) => (records.get(id) ?? EMPTY_RECORDS).reports;
+    const milestonesOf = (id: string) => (records.get(id) ?? EMPTY_RECORDS).milestones;
+    const timeline = deriveRouteTimeline(routeStops, orders, reportsOf, milestonesOf, now, routeComputedAt);
+    const binding = pickBindingDeparture(timeline);
+    if (binding) {
+        const o = orders.find(x => x.id === binding.orderId);
+        soonest = {
+            at: new Date(binding.departByMs!).toISOString(),
+            estimated: !binding.promiseConfirmed,
+            driveMin: null, dwellMin: binding.dwellMinutes,
+            waitMin: minutesUntil(new Date(binding.departByMs!).toISOString(), now),
+            boundBy: o ? `${getAddressLabel(binding.stopType === 'pickup' ? o.pickup : o.dropoff)} ${binding.stopType === 'pickup' ? '상차' : '하차'}` : null,
+        };
+    }
+
+    // 폴백 — 경로 순서가 아직 없다 (옛 서버 · 연산 전/실패). 콜별 파생으로라도 센다
+    if (!soonest) for (const o of orders) {
         const r = records.get(o.id) ?? EMPTY_RECORDS;
         // 이미 상차했으면 출발을 기다릴 이유가 없다 (그 콜은 우회 예산 쪽이다)
         if (deriveCallStep(r.milestones, r.reports).index >= 4) continue;
 
         const t = deriveCallTiming(o, r.reports, r.milestones, now);
         if (!t.departureAt) continue;
-        if (!soonest || new Date(t.departureAt).getTime() < new Date(soonest.at).getTime()) {
+        if (!soonest || new Date(t.departureAt).getTime() < new Date((soonest as any).at).getTime()) {
             // 🔴 내역을 함께 담는다 — 기사님이 **왜 그 시각인지** 알아야 판단하실 수 있다
             soonest = { at: t.departureAt, estimated: t.deadlineEstimated,
-                        driveMin: t.approachMinutes, dwellMin: t.pickupDwell, waitMin: t.waitMinutes };
+                        driveMin: t.approachMinutes, dwellMin: t.pickupDwell, waitMin: t.waitMinutes,
+                        boundBy: null };
         }
     }
 
@@ -76,6 +108,8 @@ export default function DepartureCountdown({ orders, records }: Props) {
                     }`}>{text}</span>
                     <span className="text-[11px] font-bold text-text-primary">
                         {late ? '출발 시각이 지났습니다' : '뒤에는 출발해야 합니다'}
+                        {/* 어느 약속이 출발을 묶는지 — 없으면 왜 이 시각인지 알 수 없다 */}
+                        {soonest.boundBy && <span className="text-text-muted font-normal"> · {soonest.boundBy} 약속 기준</span>}
                     </span>
                 </div>
                 <div className="text-[11px] text-text-muted break-keep">

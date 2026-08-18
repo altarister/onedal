@@ -265,6 +265,8 @@ export function buildOrderSync(session: { myOrders: MyOrder[]; pendingOrdersData
     const mins = activeCalls.length
         ? pickRouteHolder(activeCalls, activeCalls[0]).sectionDriveMin : undefined;
     const aligned = !!mins && mins.length === stops.length;
+    const routeComputedAt = activeCalls.length
+        ? pickRouteHolder(activeCalls, activeCalls[0]).routeComputedAt ?? null : null;
     const routeStops = stops.map((st, i) => ({
         orderId: st.orderId, stopType: st.stopType,
         driveMinutes: aligned ? mins![i] : null,
@@ -274,6 +276,7 @@ export function buildOrderSync(session: { myOrders: MyOrder[]; pendingOrdersData
         active: all.filter(o => !isTerminal(o.status)),
         terminated: all.filter(o => isTerminal(o.status)).map(stripPolyline),
         routeStops,
+        routeComputedAt,
     };
 }
 

@@ -20,13 +20,15 @@ interface Props {
     activeRoute: SecuredOrder[];
     /** 🧭 서버가 내려준 경로 순서 — 방문 순서의 유일한 원천 (기사님 동의 2026-08-19) */
     routeStops: RouteStopInfo[];
+    /** 경로를 계산한 시점 — 타임라인 추정 약속의 닻 */
+    routeComputedAt: string | null;
     onDecision?: (id: string, action: 'ORDER_CONFIRMED' | 'SAFE_CANCEL' | 'ORDER_RELEASED_BY_ME' | 'ORDER_RELEASED_BY_OFFICE') => void;
     onRecalculate?: (id: string, priority: string) => void;
     viewFilter: 'ACTIVE' | 'COMPLETED' | 'CANCELED' | 'RELEASED' | 'ALL';
     setViewFilter: (filter: 'ACTIVE' | 'COMPLETED' | 'CANCELED' | 'RELEASED' | 'ALL') => void;
 }
 
-export default function PinnedRoute({ activeRoute, routeStops, onDecision, onRecalculate, viewFilter, setViewFilter }: Props) {
+export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, onDecision, onRecalculate, viewFilter, setViewFilter }: Props) {
     // [2026-08-12] 콜별 기록을 **여기서 한 번에** 받는다.
     // 카드가 각자 불러오면 화면 밖 카드의 진행 상황을 알 수 없어
     // 덱 위에 요약 줄을 띄울 수가 없었다 (기사님 지적).
@@ -361,12 +363,15 @@ export default function PinnedRoute({ activeRoute, routeStops, onDecision, onRec
             {/* 최소 출발 시각 카운트다운 — 그 남은 시간이 곧 **대기 예산**이다.
                 기사님: *"첫 콜을 잡았다면 최소 출발 시간이 카운트다운하면 좋을 듯하다."* */}
             {viewFilter === 'ACTIVE' && liveRoute.length > 0 && (
-                <DepartureCountdown orders={liveRoute} records={callRecords} />
+                <DepartureCountdown orders={liveRoute} records={callRecords}
+                    routeStops={routeStops} routeComputedAt={routeComputedAt} />
             )}
 
             {viewFilter === 'ACTIVE' && liveRoute.length > 0 && (
                 <CallDeck
                     records={callRecords}
+                    routeStops={routeStops}
+                    routeComputedAt={routeComputedAt}
                     /* 경유번호는 여기서 한 번 만든 것을 지도·요약 줄이 함께 쓴다.
                        시각은 ETA 가 아니라 약속이라 CallDeck 이 deriveCallTiming 에서 직접 꺼낸다 */
                     visitOrderMap={visitOrderMap}
