@@ -696,9 +696,20 @@ export default function StopCallSheet({
                 </Row>
             )}
 
-            <input value={memo} onChange={e => setMemo(e.target.value)}
-                placeholder="메모 (선택) — 지하 2층, 경비실 통과"
-                className="w-full bg-surface-alt/40 border border-border rounded-md px-2 py-2 text-[12px] text-text-primary placeholder:text-text-muted/70" />
+            {/**
+              * 📝 **메모는 통화 단계에만** (기사님 확정 2026-08-19:
+              *    *"상차 완료, 하차 완료에 메모가 필요 없겠다. 기타가 새로 생겨서"*).
+              *
+              * 현장 단계에는 사유 칩과 `기타` 메모가 생겼다. 자유 메모까지 두면 같은 자리에
+              * 적을 곳이 둘이 되어 **무엇을 어디에 적을지 흐려지고**, 같은 사실이 두 곳에
+              * 나뉘어 남는다 (규칙 ③).
+              * 통화에는 사유 칩이 없고 들은 말(*"지하 2층, 경비실 통과"*)을 적어야 하므로 남긴다.
+              */}
+            {isCall && (
+                <input value={memo} onChange={e => setMemo(e.target.value)}
+                    placeholder="메모 (선택) — 지하 2층, 경비실 통과"
+                    className="w-full bg-surface-alt/40 border border-border rounded-md px-2 py-2 text-[12px] text-text-primary placeholder:text-text-muted/70" />
+            )}
         </>
     );
 
