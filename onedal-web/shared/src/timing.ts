@@ -750,13 +750,29 @@ export interface RouteTimelineEntry {
      * 재계산으로 경로가 바뀌든 앞 약속이 늦춰지든, 깨지는 자리는 여기 하나다.
      */
     lateMinutes: number;
+    /** 이미 다녀온 정거장인가 — 지나간 곳의 기준은 약속이 아니라 실제 시각이다 */
+    arrived: boolean;
+}
+
+/** 이 정거장에 실제로 도착한 시각 (없으면 null) — 도착·완료 어느 쪽이든 도착으로 본다 */
+function arrivedMs(
+    ms: { milestone: string; occurredAt?: string }[],
+    stopType: 'pickup' | 'dropoff',
+): number | null {
+    const names = stopType === 'pickup'
+        ? ['ARRIVED_PICKUP', 'PICKED_UP']
+        : ['ARRIVED_DROPOFF', 'DELIVERED'];
+    for (const m of ms) {
+        if (names.includes(m.milestone) && m.occurredAt) return Date.parse(m.occurredAt);
+    }
+    return null;
 }
 
 export function deriveRouteTimeline(
     stops: Array<{ orderId: string; stopType: 'pickup' | 'dropoff'; driveMinutes: number | null }>,
     orders: TimingOrderFields[],
     reportsOf: (orderId: string) => CargoReport[],
-    milestonesOf: (orderId: string) => { milestone: string }[],
+    milestonesOf: (orderId: string) => { milestone: string; occurredAt?: string }[],
     nowMs: number,
     routeComputedAt?: string | null,
     rules: DeadlineRules = DEFAULT_DEADLINE_RULES,
@@ -816,7 +832,19 @@ export function deriveRouteTimeline(
          * ⚠️ 실현가능성 — 경로상 도착예상이 **확정** 약속을 넘겼는가.
          *    추정 약속은 도착예상에서 파생되므로 넘길 수가 없다 (확정만 검사한다).
          */
-        const lateMinutes = declared && etaMs != null && promisedUntil
+        /**
+         * 🚚 **지나간 정거장의 기준은 실제 시각이다** (기사님 실측 2026-08-19, 모의주행).
+         *
+         * 출발 후 화면이 통째로 미래로 튀었다 — `경안동 13:00 → 금촌동 17:00`,
+         * `초월읍 12:00 ⚠️78분`, `-1:19:58 출발 시각이 지났습니다`. 그런데 장부에는
+         * **10:37 에 경안동 도착·상차 완료**로 남아 있었다. 타임라인이 "13:00(확정 약속)
+         * 까지 못 떠난다"고 보고 뒤를 전부 밀었다 — **이미 끝난 일인데.**
+         *
+         * 약속은 아직 가지 않은 정거장에만 유효하다. 다녀온 곳은 실제 시각이 이긴다.
+         */
+        const actualMs = arrivedMs(milestonesOf(st.orderId), st.stopType);
+        //    이미 다녀온 정거장은 지각으로 세지 않는다 — 끝난 일이다
+        const lateMinutes = actualMs == null && declared && etaMs != null && promisedUntil
             ? Math.max(0, Math.round((etaMs - Date.parse(promisedUntil)) / 60_000)) : 0;
 
         out.push({
@@ -824,9 +852,10 @@ export function deriveRouteTimeline(
             etaMs, dwellMinutes: dwell,
             promisedUntil,
             promiseConfirmed: !!declared,
-            departByMs: promisedUntil != null && st.driveMinutes != null
+            departByMs: actualMs == null && promisedUntil != null && st.driveMinutes != null
                 ? Date.parse(promisedUntil) - (st.driveMinutes + mandatoryMin) * 60_000 : null,
             lateMinutes,
+            arrived: actualMs != null,
         });
 
         /**
@@ -835,14 +864,16 @@ export function deriveRouteTimeline(
          */
         const fromAt = declared?.promisedArrivalFromAt ? Date.parse(declared.promisedArrivalFromAt) : null;
         const confirmedUntil = declared && promisedUntil ? Date.parse(promisedUntil) : null;
-        const startMs = Math.max(etaMs ?? 0, fromAt ?? 0, confirmedUntil ?? 0);
+        const startMs = actualMs ?? Math.max(etaMs ?? 0, fromAt ?? 0, confirmedUntil ?? 0);
         if (etaMs != null) {
             carriedMs = startMs + dwell * 60_000;
             // 다음 정거장의 도착예상 = 닻 + (누적 주행 + beforeMin) 이므로,
             // 떠나는 시각과의 차이를 beforeMin 에 실어 보낸다 (누적 축은 하나로 둔다)
             beforeMin = Math.round((carriedMs - anchorMs) / 60_000) - st.driveMinutes!;
             // 출발마감용 — 확정 약속 때문에 **반드시** 늦어지는 만큼만 더한다
-            const forcedMin = confirmedUntil != null
+            const forcedMin = actualMs != null
+                ? Math.max(0, Math.round((actualMs - etaMs) / 60_000))
+                : confirmedUntil != null
                 ? Math.max(0, Math.round((confirmedUntil - etaMs) / 60_000)) : 0;
             mandatoryMin += dwell + forcedMin;
         } else {

@@ -161,3 +161,49 @@ describe('출발마감 — 앞 확정 약속의 지연을 반영한다', () => {
         expect(tl[1].departByMs!).toBeLessThanOrEqual(NOW);     // 이미 지난 시각이어야 한다
     });
 });
+
+/**
+ * 🚚 **이미 다녀온 정거장에 미래 약속을 적용하지 않는다** (기사님 실측 2026-08-19, 모의주행)
+ *
+ * 출발 후 화면이 통째로 미래로 튀었다:
+ *   `경안동 13:00 → 금촌동 17:00` · `초월읍 12:00 ⚠️78분` · `-1:19:58 출발 시각이 지났습니다`
+ *
+ * 그런데 장부를 보면 **10:37 에 경안동 도착·상차 완료**다. 타임라인이 "경안동을
+ * 13:00(확정 약속)까지 떠나지 못한다"고 보고 뒤를 전부 밀었다 — 이미 끝난 일인데.
+ *
+ * 약속은 **아직 가지 않은 정거장**에만 유효하다. 지나간 정거장의 기준은 **실제 시각**이다.
+ * (기사님: *"주행하다가 뭔가 크게 바뀌는 것 같아."*)
+ */
+describe('지나간 정거장 — 실제 시각이 기준이다', () => {
+    const arrived = (id: string) => id === 'A'
+        ? [{ milestone: 'ARRIVED_PICKUP', occurredAt: '2026-08-19T00:20:00.000Z' }] as any : [];
+
+    it('🔴 이미 도착한 정거장은 확정 약속으로 뒤를 밀지 않는다', () => {
+        // 상차를 01:00 까지로 약속했지만 00:20 에 이미 도착했다
+        const reportsOf = (id: string) => id === 'A' ? [{
+            stopType: 'pickup', kind: 'DECLARED', promisedArrivalAt: '2026-08-19T01:00:00.000Z',
+        }] as any : [];
+        const 실제 = deriveRouteTimeline(stops, orders, reportsOf, arrived, NOW, ANCHOR);
+        const 미도착 = deriveRouteTimeline(stops, orders, reportsOf, none, NOW, ANCHOR);
+        // 도착했으면 약속(01:00)이 아니라 실제(00:20) 기준이라 뒤가 덜 밀린다
+        expect(실제[1].etaMs!).toBeLessThan(미도착[1].etaMs!);
+    });
+
+    it('🔴 이미 다녀온 정거장은 지각으로 세지 않는다 — 끝난 일이다', () => {
+        const reportsOf = (id: string) => id === 'A' ? [{
+            stopType: 'pickup', kind: 'DECLARED', promisedArrivalAt: '2026-08-19T00:10:00.000Z',
+        }] as any : [];   // 00:10 약속인데 00:20 도착 = 10분 늦었지만 이미 끝났다
+        const tl = deriveRouteTimeline(stops, orders, reportsOf, arrived, NOW, ANCHOR);
+        expect(tl[0].lateMinutes).toBe(0);
+        expect(tl[0].arrived).toBe(true);
+    });
+
+    it('아직 안 간 정거장은 그대로 약속 기준이다', () => {
+        const reportsOf = (id: string) => id === 'A' ? [{
+            stopType: 'dropoff', kind: 'DECLARED', promisedArrivalAt: '2026-08-19T09:00:00.000Z',
+        }] as any : [];
+        const tl = deriveRouteTimeline(stops, orders, reportsOf, arrived, NOW, ANCHOR);
+        expect(tl[1].arrived).toBe(false);
+        expect(tl[1].promisedUntil).toBe('2026-08-19T09:00:00.000Z');
+    });
+});
