@@ -67,6 +67,8 @@ interface Props {
      * 예전엔 카드가 시트 바깥 아래에 따로 붙여서 두 줄이 됐다.
      */
     onSkip?: () => void;
+    /** 건너뛰기 버튼의 글자 — 없으면 버튼을 띄우지 않는다 (하차 완료는 건너뛸 수 없다) */
+    skipLabel?: string;
     /** 오더 상태 — 상차/하차 완료 배지에 쓴다 */
     orderStatus?: string;
     /** 이 정거장에 도착한 시각 (기록됐다면) */
@@ -122,7 +124,7 @@ function summarize(r?: CargoReport): string {
 
 export default function StopCallSheet({
     orderId, stopType, label, address, contactName, phones, reports,
-    memoTexts, driveMinutes, onSkip, vehicleType, orderStatus, arrivedAt, forceOpen, stepLabel,
+    memoTexts, driveMinutes, onSkip, skipLabel, vehicleType, orderStatus, arrivedAt, forceOpen, stepLabel,
     leadMinutes = 0, leadLabel, leadFrom, driveKm, codAmount, pickupDeadlineAt,
 }: Props) {
     const isPickup = stopType === 'pickup';
@@ -958,12 +960,12 @@ export default function StopCallSheet({
                             {/* 🔴 점선·흐린 글자였는데 **버튼으로 안 읽혔다** (기사님 2026-08-18).
                                 스킵도 정상 경로다 — 적요가 충분하면 통화 없이 넘어간다. 숨길 이유가 없다.
                                 다만 파란 [통화 완료] 와 같은 무게로 만들지는 않는다 (오클릭 방지). */}
-                            {onSkip && (
+                            {onSkip && skipLabel && (
                                 <button type="button" onClick={(e) => { e.stopPropagation(); onSkip(); }}
                                     className={`shrink-0 px-4 rounded-lg border border-border bg-surface-alt/60 text-text-primary font-bold ${
                                         stepMode ? 'py-3.5 text-[14px]' : 'py-2.5 text-[13px]'
                                     }`}>
-                                    통화 스킵
+                                    {skipLabel}
                                 </button>
                             )}
                             <button onClick={() => save('DECLARED')}
@@ -1088,6 +1090,17 @@ export default function StopCallSheet({
                             </button>
                         )}
                     </div>
+
+                    {/* ⏭️ **현장 단계도 건너뛸 수 있다** (기사님 2026-08-19) —
+                        *"넘어갈 때의 조건이 내 선택이 필수가 아니어야 하겠다."*
+                        건너뛴 것은 `source: 'SKIPPED'` 로 장부에 남아, 진행은 하되
+                        **초록칠은 안 된다** — "확인한 것"과 "넘어간 것"이 갈린다. */}
+                    {onSkip && skipLabel && !arrivedAt && !doneLoad && (
+                        <button type="button" onClick={(e) => { e.stopPropagation(); onSkip(); }}
+                            className="w-full py-2 rounded-md border border-border bg-surface-alt/40 text-text-muted text-[12px] font-bold">
+                            {skipLabel} — 기록 없이 다음 단계로
+                        </button>
+                    )}
                     {isPickup && !doneLoad && (
                         <div className="text-[10px] text-text-muted -mt-1.5">
                             상차 취소는 방출로 처리되고, 이 장소에 사유가 기록됩니다

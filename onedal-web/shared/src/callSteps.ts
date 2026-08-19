@@ -48,7 +48,7 @@ export interface CallProgress {
     current: typeof CALL_STEPS[number] | null;
 }
 
-interface MilestoneRow { milestone: string }
+interface MilestoneRow { milestone: string; source?: string }
 
 /**
  * 증거만으로 "여기까지는 확실히 지나왔다"를 구한다.
@@ -80,19 +80,24 @@ export function deriveCallStep(
     reports: CargoReport[] = [],
     skippedTo = 0,
 ): CallProgress {
-    const has = (m: string) => milestones.some(x => x.milestone === m);
-    // `done` 은 **통화를 실제로 한** 단계만 초록으로 칠한다 —
-    // 건너뛴 칸은 지나갔지만 내용이 없다는 것을 화면에서 구분할 수 있어야 한다
+    /**
+     * 🔴 **`done`(초록칠)은 증거가 있는 단계만이다** — "지나갔다"와 "확인했다"는 다르다.
+     *    건너뛴 칸(`source: 'SKIPPED'`)은 진행은 하되 초록이 아니다. 화면에서 구분되지
+     *    않으면 *"내가 확인한 건지 아닌지"* 를 알 수 없다 (기사님 2026-08-19).
+     *    통화도 같은 규칙이다 — `SKIPPED` 리포트는 진행만 시키고 초록은 안 된다.
+     */
+    const confirmed = (m: string) =>
+        milestones.some(x => x.milestone === m && x.source !== 'SKIPPED');
     const called = (stop: 'pickup' | 'dropoff') =>
         reports.some(r => r.stopType === stop && r.kind === 'DECLARED');
 
     const done = [
         called('pickup'),
         called('dropoff'),
-        has('ARRIVED_PICKUP'),
-        has('PICKED_UP'),
-        has('ARRIVED_DROPOFF'),
-        has('DELIVERED'),
+        confirmed('ARRIVED_PICKUP'),
+        confirmed('PICKED_UP'),
+        confirmed('ARRIVED_DROPOFF'),
+        confirmed('DELIVERED'),
     ];
 
     // 건너뛰기는 앞으로만 민다. 증거가 더 앞서 있으면 증거가 이긴다 —

@@ -159,8 +159,26 @@ export type Milestone = typeof MILESTONES[number];
  *   MANUAL_WEB  — 관제탑에서 기사님이 직접
  * 나중에 자동 감지 정확도를 측정할 유일한 근거이므로 반드시 기록한다.
  */
-export const MILESTONE_SOURCES = ['AUTO_SCRAPE', 'APP_BUTTON', 'MANUAL_WEB', 'GPS'] as const;   // GPS = 도착 감지 자동 기록 (ARRIVED_* 만)
+/**
+ * 🔴 **출처가 곧 신뢰도다** (기사님 확정 2026-08-19).
+ *
+ * 기사님: *"내가 확인한 건지 아닌지가 명확하게 데이터로 남아 있어야
+ * 데이터로 가치가 있는지 판단할 수 있을 것 같아."*
+ *
+ *   `MANUAL_WEB`·`APP_BUTTON` — 기사님이 **직접** 눌렀다 → 확인된 시각, 실측 통계에 쓴다
+ *   `GPS`                     — 자동 감지 → 참고값 (500m 안에 들어왔다)
+ *   `SKIPPED`                 — **안 한 채 지나갔다** → 그 콜의 실측은 믿을 수 없다
+ */
+export const MILESTONE_SOURCES = ['AUTO_SCRAPE', 'APP_BUTTON', 'MANUAL_WEB', 'GPS', 'SKIPPED'] as const;
 export type MilestoneSource = typeof MILESTONE_SOURCES[number];
+
+/**
+ * 건너뛴 기록인가 — **판단은 여기 한 곳**이다.
+ * 문자열 비교를 여기저기 흩으면 또 갈라진다 (`hasVisitedStop` 을 만든 이유와 같다).
+ */
+export function isSkipped(m: { source?: string | null }): boolean {
+    return m.source === 'SKIPPED';
+}
 
 /** 마일스톤 → 그 보고가 성립했을 때의 오더 상태 */
 /**

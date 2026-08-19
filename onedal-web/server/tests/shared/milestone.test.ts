@@ -31,8 +31,15 @@ describe('마일스톤 규격', () => {
         expect(MILESTONE_TO_STATUS.ARRIVED_DROPOFF).toBeNull();
     });
 
-    it('진입 경로 넷을 모두 구분해 기록한다 (자동 감지 정확도 측정 근거)', () => {
-        expect(MILESTONE_SOURCES).toEqual(['AUTO_SCRAPE', 'APP_BUTTON', 'MANUAL_WEB', 'GPS']);   // GPS = 도착 감지 자동 (2026-08-17)
+    /**
+     * 🔄 **출처가 넷에서 다섯이 됐다** (기사님 2026-08-19) — `SKIPPED` 추가.
+     *    *"내가 확인한 건지 아닌지가 명확하게 데이터로 남아 있어야 데이터로 가치가
+     *    있는지 판단할 수 있을 것 같아."*
+     *    직접(MANUAL_WEB·APP_BUTTON) · 자동(GPS) · **건너뜀(SKIPPED)** 이 갈린다.
+     *    건너뛴 콜의 실측은 통계에서 빼야 하므로 출처가 곧 신뢰도다.
+     */
+    it('진입 경로를 모두 구분해 기록한다 (자동 감지 정확도 측정 근거)', () => {
+        expect(MILESTONE_SOURCES).toEqual(['AUTO_SCRAPE', 'APP_BUTTON', 'MANUAL_WEB', 'GPS', 'SKIPPED']);
     });
 
     it('마일스톤이 어떤 상태로 이어지는지 한 곳에서만 정한다', () => {

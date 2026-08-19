@@ -508,17 +508,39 @@ export default function PinnedRouteCard({
                                                 phones={phonesOf(d)}
                                                 reports={cargoReports}
                                                 vehicleType={route.vehicleType}
-                                                onSkip={shownStep?.optional ? () => {
-                                                    // 건너뛰기도 **결정**이다 — 서버에 남겨야 새로고침해도 안 되살아난다
-                                                    socket.emit('save-cargo-report', {
-                                                        orderId: route.id,
-                                                        stopType: shownStep.stop,
-                                                        kind: 'SKIPPED',
-                                                        memo: '통화 없이 진행',
-                                                    });
+                                                /**
+                                                 * ⏭️ **건너뛰기는 모든 단계에 있다** (기사님 확정 2026-08-19):
+                                                 *    *"그걸 넘어갈 때의 조건이 내 선택이 필수가 아니어야 하겠다 —
+                                                 *    통화 스킵과 같은 거 말야."*
+                                                 *
+                                                 * 통화는 `SKIPPED` 리포트로, 현장은 **`source: 'SKIPPED'` 마일스톤**으로
+                                                 * 남는다. 둘 다 서버에 남으므로 새로고침해도 안 되살아나고,
+                                                 * **"확인한 것"과 "넘어간 것"이 데이터에서 갈린다.**
+                                                 *
+                                                 * 🔴 **한 칸씩만** 넘어간다 (규칙 ⑥) — 지금 단계의 마일스톤만 찍는다.
+                                                 */
+                                                onSkip={shownStep ? () => {
+                                                    const stepId = shownStep.id;
+                                                    if (stepId.startsWith('CALL_')) {
+                                                        socket.emit('save-cargo-report', {
+                                                            orderId: route.id,
+                                                            stopType: shownStep.stop,
+                                                            kind: 'SKIPPED',
+                                                            memo: '통화 없이 진행',
+                                                        });
+                                                    } else {
+                                                        const m = stepId === 'ARRIVE_PICKUP' ? 'ARRIVED_PICKUP'
+                                                                : stepId === 'LOADED' ? 'PICKED_UP'
+                                                                : stepId === 'ARRIVE_DROPOFF' ? 'ARRIVED_DROPOFF'
+                                                                : 'DELIVERED';
+                                                        socket.emit('report-milestone', { orderId: route.id, milestone: m, source: 'SKIPPED' });
+                                                    }
                                                     setSkippedTo(shownIndex + 1);   // 서버 응답 전까지의 낙관적 표시
                                                     setViewIndex(null);
                                                 } : undefined}
+                                                /* 하차 완료는 콜의 끝이라 건너뛰지 않는다 — 안 한 하차를 넘어가면 완료가 아니다 */
+                                                skipLabel={shownStep?.id === 'DELIVERED' ? undefined
+                                                    : shownStep?.id.startsWith('CALL_') ? '통화 스킵' : '건너뛰기'}
                                                 memoTexts={[route.itemDescription, route.detailMemo, d?.memo]}
                                                 driveMinutes={routeLead?.driveMinutes ?? lead.driveMinutes}
                                                 driveKm={routeLead ? routeLead.driveKm : lead.driveKm}
