@@ -1012,19 +1012,7 @@ export default function StopCallSheet({
                 {tab === 'ACTUAL' && (
                 <div className="pt-2 pb-1 pl-5 flex flex-col gap-2.5">
                     {cargoForm}
-                    {/**
-                      * 💾 **완료한 뒤에만 띄운다** (기사님 2026-08-19).
-                      *    완료 버튼이 이미 `save('ACTUAL')` 을 함께 하므로 완료 **전**에는
-                      *    중복이고, 무엇을 눌러야 하는지 흐려진다.
-                      *    그런데 완료 **뒤**에는 완료 버튼이 "취소"로 바뀌어 실측을 고칠
-                      *    방법이 사라진다 — 그래서 그때만 남긴다.
-                      */}
-                    {doneLoad && (
-                        <button onClick={() => save('ACTUAL')}
-                            className="w-full py-2.5 rounded-md bg-surface-alt/60 border border-border text-text-primary text-[13px] font-black">
-                            현장 내용 저장
-                        </button>
-                    )}
+
 
                     {(() => {
                         const dPts = unitPoints(declared?.unit, declared?.quantity);
@@ -1081,11 +1069,28 @@ export default function StopCallSheet({
                       *    위아래 여백은 최소로 — *"스크롤 안 하려면"* (기사님).
                       */}
                     <div className="flex gap-1.5">
-                        {onSkip && skipLabel && !skipLabel.includes('통화') && (
+                        {/* 아직 안 지나간 단계에만 — 이미 찍었으면 건너뛸 것이 없다 */}
+                        {onSkip && skipLabel && !skipLabel.includes('통화') && !doneLoad && !arrivedAt && (
                             <button type="button" onClick={(e) => { e.stopPropagation(); onSkip(); }}
                                 title="기록 없이 다음 단계로"
                                 className="w-[20%] shrink-0 py-2.5 rounded-md border border-dashed border-border bg-surface-alt/30 text-text-muted text-[12px] font-bold">
                                 ⏭️ 건너뛰기
+                            </button>
+                        )}
+                        {/**
+                          * 💾 **저장도 같은 줄의 서브 버튼**이다 (기사님 실측 2026-08-19).
+                          *
+                          * 완료 버튼이 이미 `save('ACTUAL')` 을 겸하므로 완료 **전**에는 필요 없다.
+                          * 완료 **뒤**에는 완료 버튼이 "취소"로 바뀌어 실측을 고칠 방법이 사라지므로
+                          * 그때만 띄운다 — 다만 **폼 아래 큰 버튼으로 세우지 않는다.**
+                          * 그러면 완료 전후로 화면 모양이 달라져 *"합짐은 예전 거로 보인다"* 가 된다.
+                          * 어느 상태에서도 **줄은 하나**다.
+                          */}
+                        {showDone && doneLoad && (
+                            <button type="button" onClick={(e) => { e.stopPropagation(); save('ACTUAL'); }}
+                                title="현장 내용만 다시 저장"
+                                className="w-[20%] shrink-0 py-2.5 rounded-md border border-border bg-surface-alt/60 text-text-primary text-[12px] font-bold">
+                                💾 저장
                             </button>
                         )}
                         {/* 🔴 2026-08-12 — 눌러 놓고 되돌릴 수가 없었다.
