@@ -165,10 +165,23 @@ export interface ArrivalSlot {
  */
 export function buildArrivalSlots(nowMs: number, minMinutes: number, count = 5, stepMin = 30): ArrivalSlot[] {
     const slots: ArrivalSlot[] = [];
-    const base = nowMs + minMinutes * 60_000;
+    /**
+     * 🔲 **격자를 :00 / :30 경계에 맞춘다** (기사님 실측 2026-08-19).
+     *
+     * 예전엔 `지금 + 주행` 에서 시작해 30분씩 쌓았다. 그러면 **여는 시각이 1분만
+     * 달라도 격자 전체가 1분 밀린다** — 되돌아보기로 다시 열자 저장해 둔 약속(11:05)이
+     * 새 격자(11:06…)와 안 맞아 따로 끼워졌고, `11:05 · 11:06` 처럼 1분 차이 칸이
+     * 둘씩 생겨 **칸이 7개**가 됐다. 어느 것을 눌러야 하는지 알 수가 없다.
+     *
+     * 경계에 맞추면 언제 열어도 같은 칸이라 저장값이 격자 위에 있고 중복이 없다.
+     * 통화 대사와도 맞는다 — *"11시 반까지 갈게요"* 지 *"11시 6분까지"* 가 아니다.
+     */
+    const step = stepMin * 60_000;
+    const earliest = nowMs + minMinutes * 60_000;          // 지킬 수 있는 가장 이른 시각
+    const base = Math.ceil(earliest / step) * step;        // 그 이후의 첫 경계
 
     for (let i = 0; i < count; i++) {
-        const t = new Date(base + i * stepMin * 60_000);
+        const t = new Date(base + i * step);
         t.setSeconds(0, 0);
         slots.push({
             iso: t.toISOString(),

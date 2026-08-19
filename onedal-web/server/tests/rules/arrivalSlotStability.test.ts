@@ -1,3 +1,4 @@
+import { buildArrivalSlots } from '@onedal/shared';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
@@ -94,5 +95,39 @@ describe('저장된 약속 — 추천이 덮지 않는다', () => {
 
     it('🔴 구간의 "부터"도 칸 목록에 끼워 넣는다 — 양 끝이 다 보여야 한다', () => {
         expect(code()).toMatch(/deadlineFromAt[\s\S]{0,200}baseSlots\.some|pin[\s\S]{0,300}deadlineFromAt/);
+    });
+});
+
+/**
+ * 🔲 **칸은 30분 경계에 고정한다** (기사님 실측 2026-08-19, 3회차)
+ *
+ * 되돌아보기로 다시 열자 칸이 **7개**가 됐다 — `11:05`와 `11:06`, `12:35`와 `12:36`
+ * 이 나란히 떴다. 격자가 `지금 + 주행` 에서 시작해 30분씩이라, **마운트 시각이
+ * 1분만 달라도 격자 전체가 1분 밀린다.** 그러면 저장해 둔 약속(11:05)이 새 격자
+ * (11:06…)와 안 맞아 따로 끼워지고, 1분 차이 칸이 둘씩 생긴다.
+ * 기사님은 어느 것을 눌러야 할지 알 수 없다.
+ *
+ * → 격자를 **:00 / :30 경계**에 맞춘다. 언제 열어도 같은 칸이 나오므로
+ *   저장값이 격자 위에 있고 중복이 생기지 않는다.
+ *   통화 대사와도 맞는다 — "11시 반까지 갈게요"지 "11시 6분까지"가 아니다.
+ */
+describe('도착시간 칸 — 30분 경계', () => {
+    const at = (iso: string) => Date.parse(iso);
+
+    it('🔴 칸은 항상 :00 또는 :30 이다', () => {
+        const slots = buildArrivalSlots(at('2026-08-19T01:07:23.000Z'), 14, 5);
+        for (const sl of slots) expect([0, 30]).toContain(new Date(sl.iso).getMinutes());
+    });
+
+    it('🔴 1분 뒤에 다시 만들어도 같은 칸이 나온다 (중복이 생기지 않는다)', () => {
+        const a = buildArrivalSlots(at('2026-08-19T01:07:00.000Z'), 14, 5).map(s => s.iso);
+        const b = buildArrivalSlots(at('2026-08-19T01:08:00.000Z'), 14, 5).map(s => s.iso);
+        expect(b).toEqual(a);
+    });
+
+    it('첫 칸은 도착 예상 이후다 — 지킬 수 없는 시각을 권하지 않는다', () => {
+        const now = at('2026-08-19T01:07:00.000Z');
+        const slots = buildArrivalSlots(now, 14, 5);
+        expect(Date.parse(slots[0].iso)).toBeGreaterThanOrEqual(now + 14 * 60_000);
     });
 });
