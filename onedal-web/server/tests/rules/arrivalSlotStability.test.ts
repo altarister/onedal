@@ -99,38 +99,15 @@ describe('저장된 약속 — 추천이 덮지 않는다', () => {
 });
 
 /**
- * 🔲 **칸은 30분 경계에 고정한다** (기사님 실측 2026-08-19, 3회차)
+ * 🔄 **한때 `:00/:30` 경계로 고정했다가 되돌렸다** (2026-08-19, 하루 안에 두 번).
  *
- * 되돌아보기로 다시 열자 칸이 **7개**가 됐다 — `11:05`와 `11:06`, `12:35`와 `12:36`
- * 이 나란히 떴다. 격자가 `지금 + 주행` 에서 시작해 30분씩이라, **마운트 시각이
- * 1분만 달라도 격자 전체가 1분 밀린다.** 그러면 저장해 둔 약속(11:05)이 새 격자
- * (11:06…)와 안 맞아 따로 끼워지고, 1분 차이 칸이 둘씩 생긴다.
- * 기사님은 어느 것을 눌러야 할지 알 수 없다.
+ * 중복 칸(`11:05 · 11:06`)을 없애려던 것이었는데, 경계로 올리면 **여유가 제멋대로
+ * 변한다** — 도착 예상 17:02 면 28분, 17:29 면 1분. 기사님: *"격자로 하면 여유 시간의
+ * 디폴트 값이 막 변화하는 거잖아."*
  *
- * → 격자를 **:00 / :30 경계**에 맞춘다. 언제 열어도 같은 칸이 나오므로
- *   저장값이 격자 위에 있고 중복이 생기지 않는다.
- *   통화 대사와도 맞는다 — "11시 반까지 갈게요"지 "11시 6분까지"가 아니다.
+ * 중복의 진짜 원인은 눈금이 아니라 **기준점이 열 때마다 달라진 것**이었다 —
+ * 아래 「격자의 기준」이 그것을 잡는다 (저장된 약속을 기준점으로).
  */
-describe('도착시간 칸 — 30분 경계', () => {
-    const at = (iso: string) => Date.parse(iso);
-
-    it('🔴 칸은 항상 :00 또는 :30 이다', () => {
-        const slots = buildArrivalSlots(at('2026-08-19T01:07:23.000Z'), 14, 5);
-        for (const sl of slots) expect([0, 30]).toContain(new Date(sl.iso).getMinutes());
-    });
-
-    it('🔴 1분 뒤에 다시 만들어도 같은 칸이 나온다 (중복이 생기지 않는다)', () => {
-        const a = buildArrivalSlots(at('2026-08-19T01:07:00.000Z'), 14, 5).map(s => s.iso);
-        const b = buildArrivalSlots(at('2026-08-19T01:08:00.000Z'), 14, 5).map(s => s.iso);
-        expect(b).toEqual(a);
-    });
-
-    it('첫 칸은 도착 예상 이후다 — 지킬 수 없는 시각을 권하지 않는다', () => {
-        const now = at('2026-08-19T01:07:00.000Z');
-        const slots = buildArrivalSlots(now, 14, 5);
-        expect(Date.parse(slots[0].iso)).toBeGreaterThanOrEqual(now + 14 * 60_000);
-    });
-});
 
 /**
  * 🎯 **추천은 "가장 가까운 칸"이다 — 문구가 그렇게 말한다** (기사님 실측 2026-08-19)
@@ -162,5 +139,61 @@ describe('추천 칸 — 목표에 가장 가까운 것', () => {
 
     it('🔴 도착 예상보다 이른 칸은 후보가 아니다 — 지킬 수 없는 약속', () => {
         expect(code()).toMatch(/etaMs|도착 예상 이후|arrivalMinutes \* 60_000/);
+    });
+});
+
+/**
+ * 🚫 **합의하지 않은 시각을 약속으로 저장하지 않는다** (기사님 확정 2026-08-19)
+ *
+ * 기사님: *"통화는 스킵할 수 있는데.. 그러면 30분이 넘는 값이 통화 없이 내가 결정하게
+ * 되는 거야.. **난 그런 결정을 내릴 권한이 없어.**"*
+ *
+ * 🔴 화주와 합의한 시각만 **확정**(`DECLARED` + `promisedArrivalAt`)이다. 기사님이 칸을
+ *    직접 누르지 않았는데 추천값을 확정으로 저장하면, **아무도 합의하지 않은 시각**이
+ *    출발 마감을 묶고 카운트다운을 정한다 (규칙 ① — 결정은 기사님이).
+ *
+ * 안 저장해도 잃는 것이 없다 — 타임라인이 **추정 약속**(도착 예상 + 여유)을 쓰고
+ * 화면은 `~` 로 그것이 추정임을 말한다. 그게 정직한 상태다.
+ *
+ * ⚠️ 이전에 내가 반대로 고쳤던 자리다 ("통화 완료했는데 약속이 없는 콜이 된다"는
+ *    걱정으로 추천값을 실었다). 걱정이 틀렸다 — 약속이 없으면 추정이 대신한다.
+ */
+describe('약속 저장 — 고른 것만 확정이다', () => {
+    const sheet = () => readFileSync(join(__dirname,
+        '../../../client-app/src/components/dashboard/StopCallSheet.tsx'), 'utf8');
+    const code = () => sheet().split('\n')
+        .filter(l => !/^\s*(\/\/|\/\*|\*)/.test(l)).join('\n');
+
+    it('🔴 추천값을 확정으로 저장하지 않는다 — 손대지 않았으면 비운다', () => {
+        const c = code();
+        expect(c).not.toMatch(/promisedArrivalAt: deadlineAt \?\? suggestedSlot\?\.iso/);
+        expect(c).toMatch(/deadlineTouched \?[\s\S]{0,80}promisedArrivalAt|promisedArrivalAt: deadlineTouched/);
+    });
+});
+
+/**
+ * 📏 **여유는 늘 같아야 한다 — 격자가 그것을 흔들면 안 된다** (기사님 실측 2026-08-19)
+ *
+ * 기사님: *"왜 꼭 정각 혹은 30분을 더하는 거지? 지금 시간부터 30분이어야 하는데.
+ * 격자로 하면 **여유 시간의 디폴트 값이 막 변화하는 거잖아.**"*
+ *
+ * 🔴 `:00/:30` 경계로 잡으면 도착 예상이 17:02 일 땐 여유 28분, 17:29 일 땐 **1분**이 된다.
+ *    같은 규칙인데 결과가 제멋대로다.
+ *
+ * → 격자의 기준은 **도착 예상 + 여유**다 (저장된 약속이 있으면 그것이 기준).
+ *   그래야 여유가 늘 30분이고, 저장값도 언제나 칸 위에 있어 **중복 칸이 안 생긴다**
+ *   (버그 대장 #23 이 격자를 도입한 이유는 중복이었지 정각이 아니었다).
+ */
+describe('격자의 기준 — 도착 예상 + 여유', () => {
+    it('🔴 정각/30분 경계로 올리지 않는다', () => {
+        const timing = readFileSync(join(__dirname, '../../../shared/src/timing.ts'), 'utf8');
+        const fn = timing.slice(timing.indexOf('export function buildArrivalSlots'));
+        expect(fn.slice(0, 1600)).not.toMatch(/Math\.ceil\(earliest \/ step\) \* step/);
+    });
+
+    it('🔴 저장된 약속이 있으면 그것이 격자의 기준이 된다 (칸 위에 있으니 중복이 없다)', () => {
+        const sheetSrc = readFileSync(join(__dirname,
+            '../../../client-app/src/components/dashboard/StopCallSheet.tsx'), 'utf8');
+        expect(sheetSrc).toMatch(/slotAnchor|savedPromise/);
     });
 });

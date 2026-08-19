@@ -359,9 +359,21 @@ export default function StopCallSheet({
              *    타임라인·카운트다운이 근거를 잃고, 화면은 "통화했다"고 표시한다.
              *    고른 게 없으면 화면에 눌려 있던 추천값을 그대로 싣는다.
              */
-            promisedArrivalAt: deadlineAt ?? suggestedSlot?.iso,
-            // 부터(하한) — 탭 1번이면 없다. 서버 타임라인이 "일찍 가도 소용없음"으로 쓴다
-            promisedArrivalFromAt: deadlineFromAt,
+            /**
+             * 🚫 **합의하지 않은 시각을 약속으로 저장하지 않는다** (기사님 확정 2026-08-19).
+             *
+             * 기사님: *"통화는 스킵할 수 있는데.. 그러면 30분이 넘는 값이 통화 없이 내가
+             * 결정하게 되는 거야.. **난 그런 결정을 내릴 권한이 없어.**"*
+             *
+             * 🔴 확정 약속은 **화주와 합의한 시각**만이다. 손대지 않은 추천값을 확정으로
+             *    저장하면 아무도 합의하지 않은 시각이 출발 마감을 묶고 카운트다운을 정한다
+             *    (규칙 ① — 결정은 기사님이).
+             *    안 저장해도 잃는 것이 없다 — 타임라인이 추정 약속을 쓰고 화면은 `~` 로
+             *    그것이 추정임을 말한다. **그게 정직한 상태다.**
+             *    (이전에 내가 반대로 고쳤던 자리다 — "약속이 없는 콜이 된다"는 걱정은 틀렸다)
+             */
+            promisedArrivalAt: deadlineTouched ? deadlineAt : undefined,
+            promisedArrivalFromAt: deadlineTouched ? deadlineFromAt : undefined,
             // 🔴 하차지 시각은 **하차지 기록으로 저장하지 않는다.** 저장하면
             //    deriveCallStep 이 "하차지 통화를 했다"고 보고 그 단계를 건너뛴다.
             //    기사님: *"내 의도는 시퀀스로 되어 있는데 두 개를 한 번에 가는 건 기준이 흔들리는 것 같아."*
@@ -426,9 +438,31 @@ export default function StopCallSheet({
      */
     const slotBaseMs = useRef<number>(0);
     if (slotBaseMs.current === 0) slotBaseMs.current = Date.now();
-    const baseSlots = useMemo(
-        () => buildArrivalSlots(slotBaseMs.current, arrivalMinutes, 5),
-        [arrivalMinutes]);
+
+    /**
+     * 📏 **격자의 기준점** — 저장된 약속이 있으면 **그것이 기준**이다 (2026-08-19).
+     *
+     * 🔴 중복 칸(`11:05 · 11:06`)의 진짜 원인은 눈금이 아니라 **기준점이 열 때마다
+     *    달라진 것**이었다. 한때 `:00/:30` 경계로 올려 풀려 했지만, 그러면
+     *    **여유가 제멋대로 변한다** (도착 예상 17:02 → 28분, 17:29 → 1분).
+     *    기사님: *"격자로 하면 여유 시간의 디폴트 값이 막 변화하는 거잖아."*
+     *
+     * 저장값을 기준으로 삼으면 그 값이 **언제나 칸 위에** 있어 중복이 안 생기고,
+     * 여유도 늘 30분이다. 저장 전에는 `도착 예상 + 여유` 가 기준 —
+     * 기사님 말씀대로 *"지금 시간부터 30분"* 이다.
+     */
+    const savedPromise = (declared as any)?.promisedArrivalFromAt ?? declared?.promisedArrivalAt ?? declared?.deadlineAt;
+    const slotAnchor = savedPromise
+        ? Date.parse(savedPromise)
+        : slotBaseMs.current + (arrivalMinutes + 30) * 60_000;
+    const baseSlots = useMemo(() => {
+        // 기준점을 두 번째 칸 자리에 두어 **더 이른 시각도 고를 수 있게** 한다.
+        // 단 도착 예상보다 이른 칸은 지킬 수 없으므로 뺀다.
+        const etaMs = slotBaseMs.current + arrivalMinutes * 60_000;
+        const first = slotAnchor - 30 * 60_000;
+        return buildArrivalSlots(Math.max(first, etaMs), 0, 5)
+            .filter(sl => Date.parse(sl.iso) >= Math.floor(etaMs / 60_000) * 60_000);
+    }, [arrivalMinutes, slotAnchor]);
     const hourSlots = useMemo(() => {
         /** 고른 값이 목록에 없으면 **칸으로 끼워 넣는다** — 구간이면 부터·까지 양 끝 다 */
         const pin = (list: typeof baseSlots, iso?: string) => {
@@ -510,8 +544,8 @@ export default function StopCallSheet({
         //    상차 소요를 더하지 않는다 — 약속은 도착이고, 소요는 짐 양에 따라 변한다.
         // 도착 예상(= 지금 + 주행)보다 이른 칸은 지킬 수 없다 — 그것이 하한
         const etaMs = slotBaseMs.current + arrivalMinutes * 60_000;
-        return nearestSlot(etaMs + 30 * 60_000, etaMs);
-    }, [driveKnown, arrivalMinutes, dwell, isPickup, hourSlots, pickupDeadlineAt]);
+        return nearestSlot(slotAnchor, etaMs);
+    }, [driveKnown, arrivalMinutes, dwell, isPickup, hourSlots, pickupDeadlineAt, slotAnchor]);
 
 
     /** 기사님이 아직 손대지 않아 추천값이 눌려 있는 상태인가 — 눌리면 근거 줄을 띄운다 */

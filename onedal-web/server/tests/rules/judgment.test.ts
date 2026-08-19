@@ -224,7 +224,7 @@ describe('통화 시트 — 미리 눌러 두고 근거를 남긴다', () => {
      */
     it('🔴 추천 칸은 도착 예상 + 30분 — 상차 소요를 약속에 섞지 않는다', () => {
         const fn = sheet().slice(sheet().indexOf('const suggestedSlot'));
-        expect(fn.slice(0, 2600)).toMatch(/etaMs \+ 30 \* 60_000/);
+        expect(fn.slice(0, 2600)).toMatch(/nearestSlot\(slotAnchor, etaMs\)/);
         expect(fn.slice(0, 2600)).not.toMatch(/arrivalMinutes \+ \(isPickup \? dwell : 0\)/);
     });
 

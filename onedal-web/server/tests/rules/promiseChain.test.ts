@@ -106,8 +106,17 @@ describe('시트 복원 — 분기마다 갈라지지 않는다', () => {
         expect((c.match(/setDeadlineAt\(src\?\.promisedArrivalAt/g) ?? []).length).toBeLessThanOrEqual(1);
     });
 
-    it('🔴 약속이 비면 저장하지 않는다 — 통화 완료했는데 약속이 없는 일이 없게', () => {
-        expect(code()).toMatch(/promisedArrivalAt: deadlineAt \?\?/);
+    /**
+     * 🔄 **뒤집었다** (2026-08-19). 한때 "약속이 비면 추천값이라도 싣는다"로 했는데,
+     *    기사님: *"통화는 스킵할 수 있는데.. 그러면 30분이 넘는 값이 통화 없이 내가
+     *    결정하게 되는 거야. **난 그런 결정을 내릴 권한이 없어.**"*
+     *    확정 약속은 **화주와 합의한 시각**만이다. 안 저장해도 잃는 것이 없다 —
+     *    타임라인이 추정 약속을 쓰고 화면이 `~` 로 추정임을 말한다.
+     */
+    it('🔴 손대지 않은 추천값을 확정으로 저장하지 않는다 (규칙 ①)', () => {
+        const c = code();
+        expect(c).toMatch(/promisedArrivalAt: deadlineTouched \? deadlineAt : undefined/);
+        expect(c).not.toMatch(/promisedArrivalAt: deadlineAt \?\? suggestedSlot/);
     });
 });
 
