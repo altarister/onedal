@@ -90,8 +90,22 @@ describe('저장 경로 — 스킵이 장부에 남는다', () => {
     const read = (p: string) => readFileSync(join(__dirname, p), 'utf8');
 
     it('🔴 관제웹이 현장 단계 스킵을 서버로 보낸다', () => {
+        const card = read('../../../client-app/src/components/dashboard/PinnedRouteCard.tsx');
+        expect(card).toMatch(/source: 'SKIPPED'/);
+    });
+
+    /**
+     * 🔴 **버튼이 보이는 자리에 있어야 한다** (기사님 2026-08-19: *"버튼이 어디 있는 건지
+     *    알려줘, 못 찾았어"*). 처음엔 현장 기록 폼(`tab === 'ACTUAL'`) **안**에 넣었는데,
+     *    그 폼은 탭을 열어야 그려진다 — 도착 전 단계에서는 존재하지 않았다.
+     *    건너뛰기는 **단계 카드에 늘 보여야** 하므로 폼 밖, 주 버튼 줄 옆에 둔다.
+     */
+    it('🔴 건너뛰기 버튼이 현장 기록 폼(ACTUAL 탭) 안에 갇혀 있지 않다', () => {
         const sheet = read('../../../client-app/src/components/dashboard/StopCallSheet.tsx');
-        expect(sheet).toMatch(/source: 'SKIPPED'/);
+        const actualBlock = sheet.slice(sheet.indexOf("{tab === 'ACTUAL' && ("));
+        const skipInActual = actualBlock.slice(0, actualBlock.indexOf('\n                )}'))
+            .includes('기록 없이 다음 단계로');
+        expect(skipInActual).toBe(false);
     });
 
     it('🔴 서버가 스킵 출처를 그대로 받아 적는다 — 손으로 덮어쓰지 않는다', () => {

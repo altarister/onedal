@@ -1091,16 +1091,6 @@ export default function StopCallSheet({
                         )}
                     </div>
 
-                    {/* ⏭️ **현장 단계도 건너뛸 수 있다** (기사님 2026-08-19) —
-                        *"넘어갈 때의 조건이 내 선택이 필수가 아니어야 하겠다."*
-                        건너뛴 것은 `source: 'SKIPPED'` 로 장부에 남아, 진행은 하되
-                        **초록칠은 안 된다** — "확인한 것"과 "넘어간 것"이 갈린다. */}
-                    {onSkip && skipLabel && !arrivedAt && !doneLoad && (
-                        <button type="button" onClick={(e) => { e.stopPropagation(); onSkip(); }}
-                            className="w-full py-2 rounded-md border border-border bg-surface-alt/40 text-text-muted text-[12px] font-bold">
-                            {skipLabel} — 기록 없이 다음 단계로
-                        </button>
-                    )}
                     {isPickup && !doneLoad && (
                         <div className="text-[10px] text-text-muted -mt-1.5">
                             상차 취소는 방출로 처리되고, 이 장소에 사유가 기록됩니다
@@ -1109,6 +1099,24 @@ export default function StopCallSheet({
                 </div>
                 )}
             </div>
+
+            {/**
+              * ⏭️ **건너뛰기는 단계마다 늘 보인다** (기사님 2026-08-19).
+              *
+              * 🔴 처음엔 현장 기록 폼(`tab === 'ACTUAL'`) **안**에 넣었다 — 그 폼은 탭이
+              *    열려야 그려지므로 도착 전 단계에서는 **존재하지도 않았다.**
+              *    기사님: *"버튼이 어디 있는 건지 알려줘, 못 찾았어."*
+              *    그래서 폼 밖, 시트 맨 아래로 뺐다.
+              *
+              * 건너뛴 것은 `source: 'SKIPPED'` 로 장부에 남는다 — 진행은 하되
+              * **초록칠은 안 된다.** "확인한 것"과 "넘어간 것"이 갈린다.
+              */}
+            {onSkip && skipLabel && !skipLabel.includes('통화') && (
+                <button type="button" onClick={(e) => { e.stopPropagation(); onSkip(); }}
+                    className="mt-2 w-full py-2 rounded-md border border-dashed border-border bg-surface-alt/30 text-text-muted text-[12px] font-bold">
+                    ⏭️ {skipLabel} — 기록 없이 다음 단계로
+                </button>
+            )}
         </div>
     );
 }
