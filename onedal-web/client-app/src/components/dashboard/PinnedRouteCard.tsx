@@ -539,6 +539,7 @@ export default function PinnedRouteCard({
                                                     setViewIndex(null);
                                                 } : undefined}
                                                 /* 하차 완료는 콜의 끝이라 건너뛰지 않는다 — 안 한 하차를 넘어가면 완료가 아니다 */
+                                                stepId={shownStep?.id}
                                                 skipLabel={shownStep?.id === 'DELIVERED' ? undefined
                                                     : shownStep?.id.startsWith('CALL_') ? '통화 스킵' : '건너뛰기'}
                                                 memoTexts={[route.itemDescription, route.detailMemo, d?.memo]}

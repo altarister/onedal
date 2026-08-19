@@ -69,6 +69,11 @@ interface Props {
     onSkip?: () => void;
     /** 건너뛰기 버튼의 글자 — 없으면 버튼을 띄우지 않는다 (하차 완료는 건너뛸 수 없다) */
     skipLabel?: string;
+    /**
+     * 🎯 지금 어느 단계인가 — **주 버튼을 하나만** 띄우기 위해 받는다 (기사님 2026-08-19).
+     * 추측(도착 기록 유무)으로 갈라도 되지만, 되돌아보기·건너뛰기가 섞이면 어긋난다.
+     */
+    stepId?: string;
     /** 오더 상태 — 상차/하차 완료 배지에 쓴다 */
     orderStatus?: string;
     /** 이 정거장에 도착한 시각 (기록됐다면) */
@@ -124,7 +129,7 @@ function summarize(r?: CargoReport): string {
 
 export default function StopCallSheet({
     orderId, stopType, label, address, contactName, phones, reports,
-    memoTexts, driveMinutes, onSkip, skipLabel, vehicleType, orderStatus, arrivedAt, forceOpen, stepLabel,
+    memoTexts, driveMinutes, onSkip, skipLabel, stepId, vehicleType, orderStatus, arrivedAt, forceOpen, stepLabel,
     leadMinutes = 0, leadLabel, leadFrom, driveKm, codAmount, pickupDeadlineAt,
 }: Props) {
     const isPickup = stopType === 'pickup';
@@ -518,6 +523,20 @@ export default function StopCallSheet({
     const doneLoad = isPickup
         ? (orderStatus === 'ORDER_PICKED_UP' || orderStatus === 'ORDER_DELIVERED')
         : orderStatus === 'ORDER_DELIVERED';
+    /**
+     * 🎯 **지금 단계의 버튼만 보인다** (기사님 2026-08-19: *"상차지 도착과 상차 완료가
+     *    완전 똑같은데? 중복으로 하나 더 생긴 거 아닌가?"*).
+     *
+     * 둘은 **데이터로는 다른 사실**이다 — 도착은 *거기 갔다*, 완료는 *실었다*.
+     * 그 사이가 화주 부재·대기·불일치를 잡는 유일한 구간이라 합치지 않는다.
+     * 다만 나란히 두면 화면이 구분을 지운다 — 그래서 **한 번에 하나만** 그린다.
+     * stepId 가 없으면(리스트 조회 등) 예전처럼 둘 다 — 조회 화면은 정보를 줄이지 않는다.
+     */
+    const isArriveStep = stepId === 'ARRIVE_PICKUP' || stepId === 'ARRIVE_DROPOFF';
+    const isDoneStep = stepId === 'LOADED' || stepId === 'DELIVERED';
+    const showArrive = !stepId || isArriveStep;
+    const showDone = !stepId || isDoneStep;
+
     const badges: Array<[string, string]> = [];
     if (declared) badges.push(['📞 통화완료', 'bg-info/15 text-info']);
     if (arrivedAt) badges.push([`📍 도착 ${hhmm(arrivedAt)}`, 'bg-warning/15 text-warning']);
@@ -993,10 +1012,19 @@ export default function StopCallSheet({
                 {tab === 'ACTUAL' && (
                 <div className="pt-2 pb-1 pl-5 flex flex-col gap-2.5">
                     {cargoForm}
-                    <button onClick={() => save('ACTUAL')}
-                        className="w-full py-2.5 rounded-md bg-surface-alt/60 border border-border text-text-primary text-[13px] font-black">
-                        현장 내용 저장
-                    </button>
+                    {/**
+                      * 💾 **완료한 뒤에만 띄운다** (기사님 2026-08-19).
+                      *    완료 버튼이 이미 `save('ACTUAL')` 을 함께 하므로 완료 **전**에는
+                      *    중복이고, 무엇을 눌러야 하는지 흐려진다.
+                      *    그런데 완료 **뒤**에는 완료 버튼이 "취소"로 바뀌어 실측을 고칠
+                      *    방법이 사라진다 — 그래서 그때만 남긴다.
+                      */}
+                    {doneLoad && (
+                        <button onClick={() => save('ACTUAL')}
+                            className="w-full py-2.5 rounded-md bg-surface-alt/60 border border-border text-text-primary text-[13px] font-black">
+                            현장 내용 저장
+                        </button>
+                    )}
 
                     {(() => {
                         const dPts = unitPoints(declared?.unit, declared?.quantity);
@@ -1051,6 +1079,7 @@ export default function StopCallSheet({
                             기사님 기준: *"단계별로 DB 에 저장하고 … **수정이 가능해야 한다**."*
                             잘못 눌러도 시각 기록이 영영 틀어진 채 남았다.
                             이미 누른 버튼은 **취소 버튼**이 된다 (한 번 더 묻는다). */}
+                        {showArrive && (
                         <button
                             onClick={() => {
                                 const m = isPickup ? 'ARRIVED_PICKUP' : 'ARRIVED_DROPOFF';
@@ -1069,6 +1098,8 @@ export default function StopCallSheet({
                             }`}>
                             {arrivedAt ? `✓ 도착 ${hhmm(arrivedAt)} · 취소` : '📍 도착'}
                         </button>
+                        )}
+                        {showDone && (
                         <button
                             onClick={() => {
                                 const m = isPickup ? 'PICKED_UP' : 'DELIVERED';
@@ -1083,7 +1114,9 @@ export default function StopCallSheet({
                             }`}>
                             {doneLoad ? (isPickup ? '✓ 상차완료 · 취소' : '✓ 하차완료 · 취소') : (isPickup ? '📦 상차 완료' : '🏁 하차 완료')}
                         </button>
-                        {isPickup && !doneLoad && (
+                        )}
+                        {/* 상차 취소는 **상차 완료 단계**에만 — 도착 전에는 취소할 상차가 없다 */}
+                        {isPickup && !doneLoad && showDone && (
                             <button onClick={() => socket.emit('cancel-at-stop', { orderId, stopType, reason: memo || '현장 상차 불가' })}
                                 className="flex-1 py-2.5 rounded-md bg-danger/12 text-danger border border-danger/45 text-[13px] font-black">
                                 ✕ 상차 취소
@@ -1091,7 +1124,7 @@ export default function StopCallSheet({
                         )}
                     </div>
 
-                    {isPickup && !doneLoad && (
+                    {isPickup && !doneLoad && showDone && (
                         <div className="text-[10px] text-text-muted -mt-1.5">
                             상차 취소는 방출로 처리되고, 이 장소에 사유가 기록됩니다
                         </div>
