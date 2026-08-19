@@ -478,18 +478,39 @@ export default function StopCallSheet({
          *    **17초 모자라** 탈락하고 **30분 뒤 칸**이 뽑혔다 —
          *    실측: 마감 10:35 인데 `11:05` 를 추천했다. 설계가 아니라 **17초** 때문이었다.
          */
-        const firstAtOrAfter = (targetMs: number) => {
-            const t = Math.floor(targetMs / 60_000) * 60_000;   // 칸과 같은 눈금(분)으로 맞춘다
-            return hourSlots.find(sl => new Date(sl.iso).getTime() >= t) ?? hourSlots[hourSlots.length - 1];
+        /**
+         * 🎯 **목표에 가장 가까운 칸** — 단, 도착 예상보다 이른 칸은 고르지 않는다.
+         *
+         * 🔴 예전엔 "목표 **이후** 첫 칸"이었다. 격자가 :00/:30 이라 **2분만 지나쳐도
+         *    30분이 통째로 밀렸다** — 실측: 도착 예상 17:02 + 여유 30분 = 17:32 인데
+         *    18:00 이 눌렸다 (기사님: *"잡은 시점으로부터 30분 더 받는 거 아니었어?"*).
+         *    화면은 이미 *"…이라 **가장 가까운** 18:00"* 이라 적고 있었다 —
+         *    **문구가 맞고 코드가 틀렸다.**
+         *
+         * 도착 예상보다 이른 칸을 거르는 이유: 그건 **지킬 수 없는 약속**이다.
+         * 17:30 은 도착 예상(17:02)보다 뒤이므로 후보가 된다 — 여유가 30분에서
+         * 28분으로 줄 뿐이고, 여유는 애초에 근사값이다.
+         */
+        const nearestSlot = (targetMs: number, notBeforeMs: number) => {
+            const floorMin = (ms: number) => Math.floor(ms / 60_000) * 60_000;
+            const t = floorMin(targetMs);
+            const earliest = floorMin(notBeforeMs);
+            const usable = hourSlots.filter(sl => new Date(sl.iso).getTime() >= earliest);
+            if (usable.length === 0) return hourSlots[hourSlots.length - 1];
+            return usable.reduce((best, sl) =>
+                Math.abs(new Date(sl.iso).getTime() - t) < Math.abs(new Date(best.iso).getTime() - t) ? sl : best);
         };
 
         if (!driveKnown) {
             if (!isPickup || !pickupDeadlineAt) return null;
-            return firstAtOrAfter(new Date(pickupDeadlineAt).getTime());
+            const t = new Date(pickupDeadlineAt).getTime();
+            return nearestSlot(t, t);   // 주행을 모르면 마감 자체가 하한이다
         }
         // 🕒 도착 예상 + 30분 (기사님 2026-08-18: "디폴트 체크는 도착시간 + 30분").
         //    상차 소요를 더하지 않는다 — 약속은 도착이고, 소요는 짐 양에 따라 변한다.
-        return firstAtOrAfter(slotBaseMs.current + (arrivalMinutes + 30) * 60_000);
+        // 도착 예상(= 지금 + 주행)보다 이른 칸은 지킬 수 없다 — 그것이 하한
+        const etaMs = slotBaseMs.current + arrivalMinutes * 60_000;
+        return nearestSlot(etaMs + 30 * 60_000, etaMs);
     }, [driveKnown, arrivalMinutes, dwell, isPickup, hourSlots, pickupDeadlineAt]);
 
 
@@ -706,9 +727,13 @@ export default function StopCallSheet({
               * 통화에는 사유 칩이 없고 들은 말(*"지하 2층, 경비실 통과"*)을 적어야 하므로 남긴다.
               */}
             {isCall && (
-                <input value={memo} onChange={e => setMemo(e.target.value)}
-                    placeholder="메모 (선택) — 지하 2층, 경비실 통과"
-                    className="w-full bg-surface-alt/40 border border-border rounded-md px-2 py-2 text-[12px] text-text-primary placeholder:text-text-muted/70" />
+                /* 🗂️ 라벨을 `기타` 로 — 현장 단계의 사유 갈래와 같은 말을 쓴다 (기사님 2026-08-19).
+                   통화에서 들은 그 밖의 것이 여기 들어간다: *"지하 2층, 경비실 통과"* */
+                <Row title="기타">
+                    <input value={memo} onChange={e => setMemo(e.target.value)}
+                        placeholder="통화에서 들은 그 밖의 것 — 지하 2층, 경비실 통과"
+                        className="flex-1 min-w-0 bg-surface-alt/40 border border-border rounded-md px-2 py-2 text-[12px] text-text-primary placeholder:text-text-muted/70" />
+                </Row>
             )}
         </>
     );
