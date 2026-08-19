@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { isEvaluating, isTerminal } from "@onedal/shared";
+import { isEvaluating, isTerminal, isDeliveredCall } from "@onedal/shared";
 import type { SecuredOrder } from "@onedal/shared";
 import { socket } from "../../lib/socket";
 import { getAddressLabel, getMinuteDiff , telHref } from "../../lib/routeUtils";
@@ -145,6 +145,11 @@ export default function PinnedRouteCard({
             {isDeck && (
                 <div className="px-4 pt-2.5 pb-1 flex flex-wrap items-center gap-x-2 text-[11px] text-text-muted tabular-nums">
                     <span className="font-black text-text-primary">{indexNum}.</span>
+                    {/* 🔄 이번 운행에서 **끝낸** 콜 — 사이클이 도는 동안 카드가 남는다 (2026-08-19).
+                        마지막 하차를 마치면 이 카드들이 한꺼번에 완료됨 탭으로 간다 */}
+                    {isDeliveredCall(route) && (
+                        <span className="px-1.5 py-0.5 rounded bg-success/15 text-success text-[10px] font-black">✅ 완료</span>
+                    )}
                     <span>콜잡은시간{' '}
                         <b className="text-text-primary font-bold">
                             {route.capturedAt

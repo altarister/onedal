@@ -1034,6 +1034,39 @@ export function hasVisitedStop(
     return !!c.arrivedDropoffAt || c.status === 'ORDER_DELIVERED';
 }
 
+/**
+ * 🔄 **이번 운행에서 "한 일"인가** — 하차·정산 완료만이다.
+ *    취소·방출은 종결(`isTerminal`)이지만 **없던 일**이라 여기 안 든다.
+ */
+export function isDeliveredCall(c: { status?: string | null }): boolean {
+    return c.status === 'ORDER_DELIVERED' || c.status === 'ORDER_COMPLETED';
+}
+
+/**
+ * 🔄 **이번 운행(사이클)의 카드 목록** (기사님 확정 2026-08-19).
+ *
+ * 기사님: *"노선행으로 묶어서 생각해 보면 합짐이 들어가 있는 여러 개의 한 경로로 볼 수
+ * 있을 것 같고, 모든 경로가 끝나면 완료로 한꺼번에 상태값을 바꾸면 될 것 같다."*
+ * + *"마지막 6번째 바의 하차 완료는 볼 수도 없는 상황인 듯."*
+ *
+ * 하차 완료를 누르는 순간 카드가 사라져서 **6단계가 채워진 모습을 볼 수 없었다.**
+ * 그래서 진행 중인 콜이 하나라도 남아 있는 동안에는 **하차한 콜도 함께 보여준다.**
+ * 마지막 하차가 끝나면(진행 중 0건) 한꺼번에 빠진다.
+ *
+ * 🔴 **상태는 미루지 않는다.** 하차한 콜의 운임은 그 순간 발생하므로
+ *    `ORDER_DELIVERED` 는 즉시 쓴다 — 미루면 정산·운행일지가 늦고, 서버가 죽으면
+ *    "내린 짐이 안 내린 걸로" 남는다. **상태는 콜별 즉시, 화면만 사이클 단위.**
+ *
+ * ⚠️ 이 목록은 **화면 전용**이다. 경로·적재·운임·카운트다운은 진행 중인 콜만 봐야 한다 —
+ *    섞이면 하차한 짐이 계속 실려 있는 것으로 세어진다 (`TERMINAL_STATUSES` 주석의 사고).
+ */
+export function deckOfCycle<T extends { status?: string | null; capturedAt?: string }>(calls: T[]): T[] {
+    const inProgress = calls.filter(c => !isTerminal(c.status ?? undefined));
+    if (inProgress.length === 0) return [];          // 사이클이 끝났다 — 완료분도 보낸다
+    return [...inProgress, ...calls.filter(isDeliveredCall)]
+        .sort((a, b) => (a.capturedAt ?? '').localeCompare(b.capturedAt ?? ''));
+}
+
 export interface OrderSyncPayload {
     active: SecuredOrder[];
     terminated: SecuredOrder[];

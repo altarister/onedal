@@ -1,4 +1,4 @@
-import { isEvaluating, isTerminal, hasVisitedStop, deriveRouteTimeline } from "@onedal/shared";
+import { isEvaluating, isTerminal, hasVisitedStop, deriveRouteTimeline, deckOfCycle, isDeliveredCall } from "@onedal/shared";
 import type { SecuredOrder } from "@onedal/shared";
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { socket } from '../../lib/socket';
@@ -46,6 +46,15 @@ export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, 
 
     // 지도 렌더링용: 완료된 콜 제외한 현재 진행 중인 오더만 추출
     const liveRoute = useMemo(() => (activeRoute || []).filter(r => !isTerminal(r.status)), [activeRoute]);
+
+    /**
+     * 🔄 **이번 운행의 카드 목록** — 하차해도 사이클이 끝날 때까지 남는다 (기사님 2026-08-19).
+     *
+     * 🔴 `liveRoute`(진행 중)와 **엄격히 갈라 둔다.** 이 목록은 **덱 화면 전용**이고,
+     *    경로·적재·운임·카운트다운·타임라인은 전부 `liveRoute` 를 쓴다 —
+     *    완료분이 섞이면 하차한 짐이 계속 실려 있는 것으로 세어진다.
+     */
+    const cycleDeck = useMemo(() => deckOfCycle(activeRoute || []), [activeRoute]);
 
     // 현재 활성 폴리라인 (진행 중인 오더에서만 추출, 완료된 stale 궤적 무시)
     const activePolyline = useMemo(() => {
@@ -373,13 +382,14 @@ export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, 
                         onClick={() => { setViewFilter('ACTIVE'); scrollToCalls(); }}
                         className={`flex-1 py-2 text-xs font-bold transition-colors ${viewFilter === 'ACTIVE' ? 'text-text-primary border-b-2 border-info' : 'text-text-muted hover:text-text-primary'}`}
                     >
-                        진행 중 ({liveRoute.length})
+                        진행 중 ({cycleDeck.length})
                     </button>
                     <button
                         onClick={() => { setViewFilter('COMPLETED'); scrollToCalls(); }}
                         className={`flex-1 py-2 text-xs font-bold transition-colors ${viewFilter === 'COMPLETED' ? 'text-text-primary border-b-2 border-info' : 'text-text-muted hover:text-text-primary'}`}
                     >
-                        완료됨 ({safeRoute.filter(r => r.status === 'ORDER_DELIVERED' || r.status === 'ORDER_COMPLETED').length})
+                        {/* 🔄 사이클이 도는 동안 하차한 콜은 진행 중 탭에 있다 — 두 곳에서 세지 않는다 */}
+                        완료됨 ({safeRoute.filter(r => isDeliveredCall(r) && !cycleDeck.some(c => c.id === r.id)).length})
                     </button>
                     {/* 취소와 방출을 따로 센다 (기사님 2026-08-18) */}
                     <button
@@ -413,7 +423,7 @@ export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, 
                     routeStops={routeStops} routeComputedAt={routeComputedAt} />
             )}
 
-            {viewFilter === 'ACTIVE' && liveRoute.length > 0 && (
+            {viewFilter === 'ACTIVE' && cycleDeck.length > 0 && (
                 <CallDeck
                     records={callRecords}
                     routeStops={routeStops}
@@ -423,8 +433,9 @@ export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, 
                        시각은 ETA 가 아니라 약속이라 CallDeck 이 deriveCallTiming 에서 직접 꺼낸다 */
                     visitOrderMap={visitOrderMap}
                     /* 순서는 잡은 시간순으로 고정한다 — 새 콜은 뒤에 붙기만 해서
-                       기존 위치가 안 밀린다. 근거는 deckOrder() 주석 참고 */
-                    orders={deckOrder(liveRoute)}
+                       기존 위치가 안 밀린다. 근거는 deckOrder() 주석 참고.
+                       🔄 하차한 콜도 사이클이 끝날 때까지 함께 있다 (deckOfCycle) */
+                    orders={deckOrder(cycleDeck)}
                     renderCard={(route) => (
                         <PinnedRouteCard
                             route={route}
@@ -445,7 +456,7 @@ export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, 
                     )}
                 />
             )}
-            {viewFilter === 'ACTIVE' && liveRoute.length === 0 && safeRoute.length > 0 && (
+            {viewFilter === 'ACTIVE' && cycleDeck.length === 0 && safeRoute.length > 0 && (
                 <div className="mx-4 my-6 py-8 px-4 text-center border border-dashed border-border rounded-xl text-text-muted text-[13px]">
                     진행 중인 콜이 없습니다
                     <div className="text-[11px] mt-1 opacity-80">첫짐 필터로 돌아가 새 콜을 기다립니다</div>
@@ -460,7 +471,9 @@ export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, 
                             // ACTIVE 는 위 덱이 담당하므로 여기 오지 않는다
                             if (viewFilter === 'COMPLETED') {
                                 // 하차 보고(ORDER_DELIVERED)가 곧 배송 완료다 (Phase 8.3)
-                                return route.status === 'ORDER_DELIVERED' || route.status === 'ORDER_COMPLETED';
+                                // 🔄 다만 사이클이 도는 동안에는 진행 중 탭에 남아 있다 —
+                                //    같은 콜이 두 탭에 동시에 보이지 않게 여기서 뺀다
+                                return isDeliveredCall(route) && !cycleDeck.some(c => c.id === route.id);
                             }
                             if (viewFilter === 'CANCELED') {
                                 return route.status === 'SAFE_CANCEL';
