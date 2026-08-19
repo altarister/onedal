@@ -259,14 +259,16 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, r
                                 {/* 🔴 2026-08-19 — 정거장마다 **몇 번째로, 몇 시까지 가기로 했는가**.
                                     예전엔 여기에 `(87.2km·64분·1t)` 가 있었는데, 그건 이 콜 **혼자** 갔을 때의
                                     값이라 여러 콜을 엮은 지금 순서에 대해서는 아무 말도 못 한다. */}
+                                {/* 순서: **⑴ 지명 시각** (기사님 2026-08-19) — 번호가 지명 앞에 와야
+                                    "몇 번째로 어디" 로 읽힌다. 예전엔 지명 뒤에 붙어 시각과 엉겼다 */}
                                 <span className="text-[14px] font-bold text-text-primary truncate min-w-0 flex-1">
-                                    {getAddressLabel(o.pickup)}
                                     <StopMark at={vo?.pickupIdx} kind="pickup" evaluating={isEvaluating(o.status)}
-                                        time={promiseOf('pickup')} confirmed={confirmed('pickup')} />
-                                    <span className="text-text-muted font-normal mx-0.5">→</span>
-                                    {getAddressLabel(o.dropoff)}
+                                        time={promiseOf('pickup')} confirmed={confirmed('pickup')}
+                                        name={getAddressLabel(o.pickup)} />
+                                    <span className="text-text-muted font-normal mx-1">→</span>
                                     <StopMark at={vo?.dropoffIdx} kind="dropoff" evaluating={isEvaluating(o.status)}
-                                        time={promiseOf('dropoff')} confirmed={confirmed('dropoff')} />
+                                        time={promiseOf('dropoff')} confirmed={confirmed('dropoff')}
+                                        name={getAddressLabel(o.dropoff)} />
                                 </span>
 
                                 {/* 6단계를 한눈에 — 카드 안 진행 점과 같은 규칙 */}
@@ -329,15 +331,14 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, r
  * 표시 없이 값만 쓰면 규칙 ④(지어내지 않는다) 위반이다.
  * 번호도 시각도 없으면 아무것도 그리지 않는다 (`(3 --:--)` 를 만들지 않는다).
  */
-function StopMark({ at, time, confirmed, kind, evaluating }: {
+function StopMark({ at, time, confirmed, kind, evaluating, name }: {
     at?: number; time?: string | null; confirmed?: boolean;
-    kind: 'pickup' | 'dropoff'; evaluating?: boolean;
+    kind: 'pickup' | 'dropoff'; evaluating?: boolean; name: string;
 }) {
     const { theme } = useTheme();
     const c = MAP_THEME_COLORS[theme];
-    if (!at && !time) return null;
     return (
-        <span className="inline-flex items-center gap-1 ml-1 align-middle">
+        <span className="inline-flex items-center gap-1 align-middle">
             {!!at && (
                 <span
                     className="inline-flex items-center justify-center w-[19px] h-[19px] rounded-full text-[11px] font-black leading-none shrink-0"
@@ -348,6 +349,7 @@ function StopMark({ at, time, confirmed, kind, evaluating }: {
                     }}
                 >{at}</span>
             )}
+            <span>{name}</span>
             {time && (
                 /* ~ = 통화 전 추정. 12px 아래에서는 물결이 마이너스로 읽혔다 (기사님 2026-08-19) */
                 <span className="text-[13px] font-bold text-text-muted tabular-nums">

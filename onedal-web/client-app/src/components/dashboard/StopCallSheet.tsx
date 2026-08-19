@@ -307,6 +307,15 @@ export default function StopCallSheet({
     };
 
     const save = (kind: CargoReportKind) => {
+        /**
+         * 🔴 **저장했으면 그건 기사님이 고른 값이다** (기사님 실측 2026-08-19).
+         *
+         * *"234가 선택된 걸 확인하고 통화 완료를 눌렀는데, 뒤로 갔다 오면 이전으로
+         * 돌아가 있다. 콜 요약 줄의 물결도 사라졌다"* — 저장은 됐는데 `deadlineTouched`
+         * 가 false 인 채라, 시트가 다시 열릴 때 **추천 재적용이 고른 값을 덮었다.**
+         * 저장은 손댄 것과 같다 — 표식을 세워 추천이 다시 끼어들지 못하게 한다.
+         */
+        setDeadlineTouched(true);
         socket.emit('save-cargo-report', {
             orderId, stopType, kind,
             unit: isPickup ? eff.unit : undefined,
@@ -369,14 +378,30 @@ export default function StopCallSheet({
      * → 칸은 **분이 바뀔 때만** 다시 만들고, 고른 값이 목록에 없으면 **그 값을 칸으로 끼워 넣는다.**
      *   기사님이 고른 시각은 화면에서 사라지면 안 된다.
      */
-    const [minuteTick, setMinuteTick] = useState(() => Math.floor(Date.now() / 60_000));
-    useEffect(() => {
-        const t = setInterval(() => setMinuteTick(Math.floor(Date.now() / 60_000)), 15_000);
-        return () => clearInterval(t);
-    }, []);
+    /**
+     * 🔴 **분 틱으로 칸을 다시 만들던 것도 버린다** (기사님 실측 2026-08-19).
+     *
+     * 15초마다 `minuteTick` 이 바뀌면 칸 배열이 통째로 갈렸다. 그래서
+     *   · 화면이 깜빡이고 (목록이 다시 그려진다)
+     *   · **약속 시각이 픽스되지 않고 계속 뒤로 밀렸다** — 20분 뒤에 다시 열면
+     *     칸 다섯 개가 전부 20분 미래로 가 있어, 아까 약속한 시각이 화면에서 사라진다
+     *
+     * 기사님: *"하나를 잡아 놓고 20분 후 다시 들어가 보면 도착 시간 약속했던 부분이 보여야 한다."*
+     *
+     * → 칸의 기준 시각은 **시트를 연 순간 한 번** 잡고 그대로 둔다.
+     *   시간이 흐르는 것은 문장·카운트다운이 말하고, **고르는 칸은 움직이지 않는다.**
+     *   (저장된 약속이 있으면 그 자리를 기준으로 잡아, 다시 열어도 같은 칸이 나온다)
+     */
+    const slotBaseMs = useRef<number>(0);
+    if (slotBaseMs.current === 0) {
+        const saved = (declared as any)?.promisedArrivalFromAt ?? declared?.promisedArrivalAt ?? declared?.deadlineAt;
+        slotBaseMs.current = saved
+            ? Date.parse(saved) - arrivalMinutes * 60_000   // 저장된 약속이 첫 칸 근처에 오도록
+            : Date.now();
+    }
     const baseSlots = useMemo(
-        () => buildArrivalSlots(minuteTick * 60_000, arrivalMinutes, 5),
-        [minuteTick, arrivalMinutes]);
+        () => buildArrivalSlots(slotBaseMs.current, arrivalMinutes, 5),
+        [arrivalMinutes]);
     const hourSlots = useMemo(() => {
         if (!deadlineAt || baseSlots.some(sl => sl.iso === deadlineAt)) return baseSlots;
         const d = new Date(deadlineAt);
@@ -434,8 +459,8 @@ export default function StopCallSheet({
         }
         // 🕒 도착 예상 + 30분 (기사님 2026-08-18: "디폴트 체크는 도착시간 + 30분").
         //    상차 소요를 더하지 않는다 — 약속은 도착이고, 소요는 짐 양에 따라 변한다.
-        return firstAtOrAfter(minuteTick * 60_000 + (arrivalMinutes + 30) * 60_000);
-    }, [driveKnown, arrivalMinutes, dwell, isPickup, hourSlots, pickupDeadlineAt, minuteTick]);
+        return firstAtOrAfter(slotBaseMs.current + (arrivalMinutes + 30) * 60_000);
+    }, [driveKnown, arrivalMinutes, dwell, isPickup, hourSlots, pickupDeadlineAt]);
 
 
     /** 기사님이 아직 손대지 않아 추천값이 눌려 있는 상태인가 — 눌리면 근거 줄을 띄운다 */
@@ -744,20 +769,30 @@ export default function StopCallSheet({
                                         const inRange = !!deadlineFromAt && !!deadlineAt
                                             && sl.iso > deadlineFromAt && sl.iso < deadlineAt;
                                         /**
-                                         * 통화 대사와 1:1 (기사님 2026-08-19):
-                                         *   탭 1번 = "그 시각**까지** 갈게요"          (기존과 동일)
-                                         *   탭 2번 = "두 칸 **사이에** 갈게요"          (앞 칸이 부터가 된다)
-                                         *   구간이 있는 채로 다른 칸 = 그 칸이 새 "까지" (구간 해제)
+                                         * 🔴 **규칙은 하나 — 어떤 탭도 선택을 통째로 날리지 않는다**
+                                         *    (기사님 실측 2026-08-19).
+                                         *
+                                         * 예전엔 2번이 눌린 채 4번을 누르면 **2가 사라지고 4만** 남았고,
+                                         * 234 구간에서 4를 누르면 **23이 사라졌다.** 기사님:
+                                         * *"의도적이면 설명서가 필요하고, 그렇지 않다면 기준이 있어야 한다."*
+                                         *
+                                         *   없을 때 탭            → 그 칸이 "까지" (한 점)
+                                         *   한 점 + 다른 칸 탭    → 두 칸 사이가 **구간** (앞=부터, 뒤=까지)
+                                         *   구간의 양 끝 탭       → 그 끝을 풀어 한 점으로
+                                         *   구간 밖 칸 탭         → 구간을 **그 칸까지 늘린다** (extendRange)
+                                         *
+                                         * 설명서가 필요 없는 쪽으로 고른 기준이다 — 누른 칸은 언제나
+                                         * 선택 안에 들어오고, 지우려면 그 칸을 다시 누른다.
                                          */
                                         const tap = () => {
                                             setDeadlineTouched(true);
+                                            // 양 끝을 다시 누르면 그 끝만 푼다
                                             if (on && !deadlineFromAt) { setDeadlineAt(undefined); return; }
                                             if (isFrom) { setDeadlineFromAt(undefined); return; }
-                                            if (!deadlineAt || deadlineFromAt) {
-                                                setDeadlineFromAt(undefined); setDeadlineAt(sl.iso); return;
-                                            }
-                                            if (sl.iso < deadlineAt) setDeadlineFromAt(sl.iso);
-                                            else { setDeadlineFromAt(deadlineAt); setDeadlineAt(sl.iso); }
+                                            if (on && deadlineFromAt) { setDeadlineAt(deadlineFromAt); setDeadlineFromAt(undefined); return; }
+                                            if (!deadlineAt) { setDeadlineAt(sl.iso); return; }
+                                            const next = extendRange(deadlineFromAt, deadlineAt, sl.iso);
+                                            setDeadlineFromAt(next.from); setDeadlineAt(next.until);
                                         };
                                         return (
                                             <button key={sl.iso} onClick={tap}
@@ -1076,6 +1111,23 @@ function SummaryLine({ icon, title, summary, memo, empty, open, onClick, warn }:
             <span className="text-[10px] text-text-muted shrink-0">{open ? '▾' : '▸'}</span>
         </button>
     );
+}
+
+/**
+ * 👆 **누른 칸을 품도록 선택을 늘린다** — 어떤 탭도 선택을 통째로 날리지 않는다
+ *    (기사님 실측 2026-08-19: *"2번이 눌린 채 4번을 누르면 2가 사라진다.
+ *    의도적이면 설명서가 필요하고, 그렇지 않다면 기준이 있어야 한다."*)
+ *
+ *   현재보다 이른 칸  → 그 칸이 새 "부터"
+ *   현재보다 늦은 칸  → 그 칸이 새 "까지" (기존 시작이 "부터"가 된다)
+ *   구간 안쪽 칸      → 그 칸이 새 "부터" (구간을 좁힌다)
+ */
+function extendRange(from: string | undefined, until: string, tapped: string):
+    { from: string | undefined; until: string } {
+    const start = from ?? until;
+    if (tapped < start) return { from: tapped, until };
+    if (tapped > until) return { from: start, until: tapped };
+    return { from: tapped, until };
 }
 
 function Row({ title, children }: { title: string; children: React.ReactNode }) {
