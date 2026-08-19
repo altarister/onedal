@@ -99,13 +99,30 @@ export default function Dashboard() {
                 : '🎯 집에 도착했습니다 — 노선행으로 돌아갑니다');
             setTimeout(() => setGpsNotice(null), 20_000);
         };
+        /**
+         * 🔔 **새 콜이 뜨면 보이는 탭으로 데려온다** (기사님 실측 2026-08-19).
+         *
+         * 기사님: *"콜이 하나뿐이라 완료로 넘어가서 완료된 콜을 보고 있었는데,
+         * 다시 콜을 잡았을 때 **보고 있는 탭이 완료 탭이어서 콜이 왔는지도 모르고
+         * 지나갔어.**"*
+         *
+         * 🔴 화면 불편이 아니라 **콜을 잃는 사고**다 — 안전취소 30초 안에 결재해야 하는데
+         *    화면에 없으면 아무것도 못 한다.
+         *
+         * ⚠️ 아무 때나 탭을 뺏지는 않는다. **평가 중으로 들어오는 새 콜**에만 —
+         *    화면을 뺏는 것은 결재를 위해서만 정당하다 (규칙 ①).
+         */
+        const onNewCall = () => setViewFilter('ACTIVE');
+
         socket.on("auto-arrived", onAutoArrived);
         socket.on("next-stop-approaching", onApproaching);
         socket.on("target-auto-switched", onTargetSwitched);
+        socket.on("order-evaluating", onNewCall);
         return () => {
             socket.off("auto-arrived", onAutoArrived);
             socket.off("next-stop-approaching", onApproaching);
             socket.off("target-auto-switched", onTargetSwitched);
+            socket.off("order-evaluating", onNewCall);
         };
     }, []);
 

@@ -6,7 +6,7 @@ import {
     CARGO_TAGS, CARGO_TAG_META, DEFAULT_CARGO_TAG, computeSlackMinutes,
     CARGO_UNITS, CARGO_UNIT_QUANTITY_INPUT,
     buildArrivalSlots, dwellMinutes, unitPoints,
-    arrivalReasonsFor, REASON_NEEDS_MEMO,
+    arrivalReasonGroupsFor, REASON_NEEDS_MEMO,
 } from '@onedal/shared';
 import type { CargoReport, HandlingMethod, CargoReportKind, CargoUnit } from '@onedal/shared';
 import { socket } from '../../lib/socket';
@@ -1094,24 +1094,27 @@ export default function StopCallSheet({
                       * 🔴 이 값은 **아무것도 판정하지 않는다** — 색·필터·약속과 무관한 순수 기록이다.
                       *    그래서 목록이 아직 가설이어도 안전하다. `기타` + 메모가 목록을 고칠 재료다.
                       */}
-                    {stepId && arrivalReasonsFor(stepId).length > 0 && !(showArrive ? arrivedAt : doneLoad) && (
+                    {stepId && arrivalReasonGroupsFor(stepId).length > 0 && !(showArrive ? arrivedAt : doneLoad) && (
                         <div className="flex flex-col gap-1">
-                            <div className="flex gap-1 flex-wrap items-center">
-                                <span className="text-[11px] font-bold text-text-muted mr-1">문제 있었나요?</span>
-                                {arrivalReasonsFor(stepId!).map(r => {
-                                    const on = reasons.includes(r);
-                                    return (
-                                        <button key={r} type="button"
-                                            onClick={() => setReasons(prev => on ? prev.filter(x => x !== r) : [...prev, r])}
-                                            className={`px-2 py-1 rounded-md text-[11px] font-bold border ${
-                                                on ? 'bg-warning/85 text-white border-warning'
-                                                   : 'bg-surface-alt/40 text-text-muted border-border'
-                                            }`}>
-                                            {r}
-                                        </button>
-                                    );
-                                })}
-                            </div>
+                            {arrivalReasonGroupsFor(stepId).map(g => (
+                                <div key={g.label} className="flex gap-1 flex-wrap items-center">
+                                    {/* 갈래 이름을 같은 너비로 — 시트마다 높이가 비슷해야 버튼을 찾기 쉽다 */}
+                                    <span className="w-[64px] shrink-0 text-[11px] font-bold text-text-muted">{g.label}</span>
+                                    {g.reasons.map(r => {
+                                        const on = reasons.includes(r);
+                                        return (
+                                            <button key={r} type="button"
+                                                onClick={() => setReasons(prev => on ? prev.filter(x => x !== r) : [...prev, r])}
+                                                className={`px-2 py-1 rounded-md text-[11px] font-bold border ${
+                                                    on ? 'bg-warning/85 text-white border-warning'
+                                                       : 'bg-surface-alt/40 text-text-muted border-border'
+                                                }`}>
+                                                {r}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            ))}
                             {/* `기타` 를 고를 때만 — 목록 밖의 일을 남길 데가 있어야 목록을 고칠 수 있다 */}
                             {reasons.includes(REASON_NEEDS_MEMO) && (
                                 <input value={reasonMemo} onChange={e => setReasonMemo(e.target.value)}
