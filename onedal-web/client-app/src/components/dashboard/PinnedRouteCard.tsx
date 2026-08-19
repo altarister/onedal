@@ -154,7 +154,11 @@ export default function PinnedRouteCard({
                     </span>
                     {route.commissionRate && <><span>·</span><span>수수료 {route.commissionRate}</span></>}
                     {route.scheduleText && <span className="text-warning font-bold">🕒 {route.scheduleText}</span>}
-                    {evaluating && <span className="ml-auto text-warning font-black animate-pulse">평가중</span>}
+                    {evaluating && <span className="text-warning font-black animate-pulse">평가중</span>}
+                    {/* 💰 돈은 이 줄 맨 오른쪽 (기사님 2026-08-19) — 콜 요약 줄에서 옮겨 왔다 */}
+                    <span className="ml-auto text-[14px] font-black text-text-primary tabular-nums">
+                        {route.fare > 0 ? `${(route.fare / 10000).toFixed(1)}만원` : '금액미상'}
+                    </span>
                 </div>
             )}
 

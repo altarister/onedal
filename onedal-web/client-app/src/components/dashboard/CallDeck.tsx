@@ -282,10 +282,9 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, r
                                     ))}
                                 </span>
 
-                                {/* 돈은 맨 오른쪽 — 기사님이 적어 주신 순서 그대로 */}
-                                <span className="text-[14px] font-black tabular-nums shrink-0 text-text-primary">
-                                    {o.fare > 0 ? `${(o.fare / 10000).toFixed(1)}만원` : '금액미상'}
-                                </span>
+                                {/* 🔴 금액은 여기서 뺐다 (기사님 2026-08-19) — 아래 `콜잡은시간` 줄
+                                    오른쪽으로 옮겼다. 이 줄은 **어느 콜이 어디까지 갔나**를 보는 자리이고,
+                                    폭을 비워야 경로명·시각이 잘리지 않는다. */}
                             </button>
                         );
                     })}
