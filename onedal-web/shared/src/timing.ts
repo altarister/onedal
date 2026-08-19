@@ -768,12 +768,17 @@ export function deriveRouteTimeline(
      *    가도 상차는 대개 그때 시작된다. 일찍 가는 것을 이득으로 세면 뒤 약속이
      *    낙관으로 잡힌다 — 못 지킬 약속을 화면이 권하게 된다.
      *
-     * `dwellOnlyMin`(정차만)은 그대로 둔다 — 출발마감은 "지금 나가면 되는 시각"이라
-     * 기다림·약속 지연을 빼면 실제보다 일찍 나가라고 거짓말하게 된다.
+     * 출발마감의 기준은 하나 더 갈린다 (기사님 실측 2026-08-19 2회차):
+     *   `mandatoryMin` = 정차 + **확정 "까지" 약속으로 생긴 지연**
+     *     화면이 동시에 두 말을 했다 — 요약 줄은 `경안동 11:49 ⚠️6분`(못 지킨다),
+     *     카운트다운은 `1:22:45 뒤에 출발`(여유가 있다). 앞 정거장에 11:41 까지
+     *     있어야 하는 시간을 출발마감에서 안 뺐기 때문이다.
+     *     확정 약속으로 생긴 지연은 **줄일 수 없다** — 그 시각까지 거기 있어야 한다.
+     *   "부터" 대기는 여전히 안 뺀다 — 늦게 떠나면 저절로 줄어드는 시간이다.
      */
     let carriedMs: number | null = null;   // 앞 정거장을 떠나는 시각 (없으면 닻 기준)
     let beforeMin = 0;
-    let dwellOnlyMin = 0;
+    let mandatoryMin = 0;   // 정차 + 확정 약속 지연 (출발마감용)
     for (const st of stops) {
         const order = byId.get(st.orderId);
         if (!order) continue;   // 좀비 정거장 (취소 후 재계산 전) — 만들지 않는다
@@ -807,7 +812,7 @@ export function deriveRouteTimeline(
             promisedUntil,
             promiseConfirmed: !!declared,
             departByMs: promisedUntil != null && st.driveMinutes != null
-                ? Date.parse(promisedUntil) - (st.driveMinutes + dwellOnlyMin) * 60_000 : null,
+                ? Date.parse(promisedUntil) - (st.driveMinutes + mandatoryMin) * 60_000 : null,
             lateMinutes,
         });
 
@@ -823,10 +828,14 @@ export function deriveRouteTimeline(
             // 다음 정거장의 도착예상 = 닻 + (누적 주행 + beforeMin) 이므로,
             // 떠나는 시각과의 차이를 beforeMin 에 실어 보낸다 (누적 축은 하나로 둔다)
             beforeMin = Math.round((carriedMs - anchorMs) / 60_000) - st.driveMinutes!;
+            // 출발마감용 — 확정 약속 때문에 **반드시** 늦어지는 만큼만 더한다
+            const forcedMin = confirmedUntil != null
+                ? Math.max(0, Math.round((confirmedUntil - etaMs) / 60_000)) : 0;
+            mandatoryMin += dwell + forcedMin;
         } else {
             beforeMin += dwell;
+            mandatoryMin += dwell;
         }
-        dwellOnlyMin += dwell;
     }
     return out;
 }

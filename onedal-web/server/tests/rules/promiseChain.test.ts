@@ -110,3 +110,54 @@ describe('시트 복원 — 분기마다 갈라지지 않는다', () => {
         expect(code()).toMatch(/promisedArrivalAt: deadlineAt \?\?/);
     });
 });
+
+/**
+ * ⏱️ **출발마감도 앞 약속에 묶인다** (기사님 실측 2026-08-19, 2회차)
+ *
+ * 화면이 동시에 두 말을 했다:
+ *   콜 요약 줄  `경안동 11:49 ⚠️6분`        — 이미 6분 못 지킨다
+ *   카운트다운  `1:22:45 뒤에는 출발`        — 1시간 22분 여유가 있다
+ *
+ * 출발마감이 `약속 − (주행 + 앞 정차)` 라서, **앞 정거장의 확정 약속 때문에
+ * 반드시 늦어지는 시간**을 안 뺐기 때문이다. 초월읍에 11:41 까지 있어야 하면
+ * 경안동 11:49 는 이미 물리적으로 불가능한데, 카운트다운은 여유를 말한다.
+ *
+ * "부터" 대기는 여전히 빼지 않는다 — 늦게 떠나면 저절로 줄어드는 시간이다.
+ * 그러나 확정 "까지" 약속으로 생긴 지연은 **줄일 수 없다** (그 시각까지 거기 있어야 한다).
+ */
+describe('출발마감 — 앞 확정 약속의 지연을 반영한다', () => {
+    const twoStops = [
+        { orderId: 'A', stopType: 'pickup', driveMinutes: 10 },
+        { orderId: 'B', stopType: 'pickup', driveMinutes: 20 },
+    ] as any;
+    const twoOrders = [
+        { id: 'A', capturedAt: '2026-08-19T00:00:00Z' },
+        { id: 'B', capturedAt: '2026-08-19T00:00:00Z' },
+    ] as any;
+
+    /**
+     * ⚠️ **뒤 정거장에 확정 약속이 있을 때만 당겨진다.**
+     *    B 가 추정 약속이면 앞이 밀릴 때 B 약속도 같이 밀리므로 출발마감은 그대로다 —
+     *    그게 맞는 동작이다 (지각도 아니다). 확정 약속은 안 밀리니까 마감이 당겨진다.
+     */
+    it('🔴 앞을 늦게 떠나야 하면, 확정 약속이 있는 뒤 정거장의 출발마감이 당겨진다', () => {
+        const bFixed = { stopType: 'pickup', kind: 'DECLARED', promisedArrivalAt: '2026-08-19T02:00:00.000Z' };
+        const withPromise = deriveRouteTimeline(twoStops, twoOrders, (id: string) =>
+            id === 'A' ? [{ stopType: 'pickup', kind: 'DECLARED', promisedArrivalAt: '2026-08-19T01:00:00.000Z' }] as any
+                       : [bFixed] as any, none, NOW, ANCHOR);
+        const noPromise = deriveRouteTimeline(twoStops, twoOrders, (id: string) =>
+            id === 'A' ? [] as any : [bFixed] as any, none, NOW, ANCHOR);
+        expect(withPromise[1].departByMs!).toBeLessThan(noPromise[1].departByMs!);
+    });
+
+    it('🔴 못 지키는 약속이면 출발마감이 이미 지나 있다 (여유를 말하지 않는다)', () => {
+        const reportsOf = (id: string) =>
+            id === 'A' ? [{ stopType: 'pickup', kind: 'DECLARED', promisedArrivalAt: '2026-08-19T01:00:00.000Z' }] as any
+          : id === 'B' ? [{ stopType: 'pickup', kind: 'DECLARED', promisedArrivalAt: '2026-08-19T01:05:00.000Z' }] as any
+          : [];
+        const tl = deriveRouteTimeline(twoStops, twoOrders, reportsOf, none, NOW, ANCHOR);
+        expect(tl[1].lateMinutes).toBeGreaterThan(0);           // 못 지킨다
+        expect(tl[1].departByMs!).toBeLessThan(tl[1].etaMs!);   // 그런데 여유가 있다고 하면 모순
+        expect(tl[1].departByMs!).toBeLessThanOrEqual(NOW);     // 이미 지난 시각이어야 한다
+    });
+});

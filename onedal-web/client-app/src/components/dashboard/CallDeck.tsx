@@ -351,10 +351,11 @@ function StopMark({ at, time, confirmed, kind, evaluating, name, late = 0 }: {
                     }}
                 >{at}</span>
             )}
-            <span>{name}</span>
+            {/* 지각 표시가 붙으면 폭이 모자란다 — 잘릴 것은 지명이지 시각·경고가 아니다 */}
+            <span className="truncate max-w-[5.5em]">{name}</span>
             {time && (
                 /* ~ = 통화 전 추정. 12px 아래에서는 물결이 마이너스로 읽혔다 (기사님 2026-08-19) */
-                <span className={`text-[13px] font-bold tabular-nums ${late > 0 ? 'text-danger' : 'text-text-muted'}`}>
+                <span className={`text-[13px] font-bold tabular-nums shrink-0 ${late > 0 ? 'text-danger' : 'text-text-muted'}`}>
                     {confirmed ? hhmm(time) : `~${hhmm(time)}`}
                     {/* ⚠️ 못 지키는 약속 — 색만으로는 이유를 모르니 분을 적는다 */}
                     {late > 0 && <span className="ml-0.5">⚠️{late}분</span>}
