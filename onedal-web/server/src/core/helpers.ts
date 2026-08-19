@@ -6,7 +6,7 @@ import { isTerminal, cargoPoints, VEHICLE_CAPACITY, normalizeVehicleType,
          computeStopTiming, deriveCallTiming, DEFAULT_DEADLINE_RULES } from '@onedal/shared';
 import type { MyOrder, CargoReport, CapacityConfidence, DwellUnknown, DeadlineRules } from '@onedal/shared';
 import { OrderRepository } from '../repositories/OrderRepository';
-import { planArrivalStops, pickRouteHolder } from '../services/routeComposer';
+import { planArrivalStops } from '../services/routeComposer';
 
 /**
  * 종료되지 않은(활성) 콜만 필터링합니다.
@@ -262,11 +262,22 @@ export function buildOrderSync(session: { myOrders: MyOrder[]; pendingOrdersData
     const activeCalls = session.myOrders.filter(o => !isTerminal(o.status));
     const stops = activeCalls.length
         ? planArrivalStops(activeCalls, session.driverLocation ?? null) : [];
-    const mins = activeCalls.length
-        ? pickRouteHolder(activeCalls, activeCalls[0]).sectionDriveMin : undefined;
+    /**
+     * 🔴 **경로는 "마지막 콜"이 아니라 "값이 있는 마지막 콜"에서 읽는다** (2026-08-19 실측).
+     *
+     * 기록은 `pickRouteHolder` 가 KEEP **처리 중**의 activeCalls 로 고르는데, 그때는
+     * 새 콜이 아직 목록에 없어 **앞 콜**에 실린다. 반면 여기는 KEEP 이 끝난 뒤라
+     * "마지막"이 새 콜이고 그 콜은 비어 있다 — 그래서 주행분이 전부 null 이 되어
+     * **타임라인이 통째로 폴백으로 돌았다** (합짐 시각·카운트다운·지각 검산 전부).
+     *
+     * 관제웹은 이미 `reverse().find(r => r.totalDistanceKm != null)` 로 값이 있는 콜을
+     * 찾는다 — 서버도 같은 방식이어야 두 쪽이 같은 경로를 본다.
+     */
+    const holder = [...activeCalls].reverse().find(c => c.sectionDriveMin?.length) ?? null;
+    const mins = holder?.sectionDriveMin;
     const aligned = !!mins && mins.length === stops.length;
-    const routeComputedAt = activeCalls.length
-        ? pickRouteHolder(activeCalls, activeCalls[0]).routeComputedAt ?? null : null;
+    const routeComputedAt = holder?.routeComputedAt
+        ?? [...activeCalls].reverse().find(c => c.routeComputedAt)?.routeComputedAt ?? null;
     const routeStops = stops.map((st, i) => ({
         orderId: st.orderId, stopType: st.stopType,
         driveMinutes: aligned ? mins![i] : null,

@@ -106,3 +106,34 @@ describe('리허설 ↔ 서버 — 판결 필드 계약', () => {
         expect(rehearsal).toContain(`j.${m![1]}`);      // 리허설이 그 이름을 읽는다
     });
 });
+
+/**
+ * 🔴 **경로를 기록한 콜과 읽는 콜이 어긋났다** (기사님 실측 2026-08-19)
+ *
+ * 실측: 콜 2건을 잡았는데 `routeComputedAt`·`sectionDriveMin` 이 **콜1 에만** 있었다.
+ *   기록: 콜2 KEEP 처리 중 `pickRouteHolder(activeCalls, …)` — 이때 activeCalls 는
+ *         아직 [콜1] 이라 **콜1** 에 실린다
+ *   읽기: KEEP 이 끝난 뒤 activeCalls 는 [콜1, 콜2] — "마지막"인 **콜2** 를 본다 → 빈다
+ *
+ * 그 결과 routeStops 의 주행분이 전부 null 이 되어 **타임라인이 통째로 폴백으로 돌았다.**
+ * 합짐 시각·카운트다운·지각 검산이 전부 콜별 파생("혼자 간다")으로 계산된 것이다.
+ *
+ * 관제웹은 이미 `[...liveRoute].reverse().find(r => r.totalDistanceKm != null)` 로
+ * **뒤에서부터 값이 있는 콜**을 찾는다. 서버도 같은 방식이어야 한다.
+ */
+describe('경로 홀더 — 값이 있는 콜을 찾는다', () => {
+    const withRoute = (id: string, over: object = {}) => ({
+        id, status: 'ORDER_CONFIRMED', pickup: `${id}-상차`, dropoff: `${id}-하차`,
+        pickupX: 127.2, pickupY: 37.4, dropoffX: 126.8, dropoffY: 37.7, fare: 50000, ...over,
+    }) as any;
+
+    it('🔴 마지막 콜이 비어 있어도 앞 콜의 경로를 읽는다', () => {
+        const calls = [
+            withRoute('A', { sectionDriveMin: [10, 20, 30, 40], routeComputedAt: '2026-08-19T01:00:00Z' }),
+            withRoute('B'),   // 나중에 확정돼 경로가 안 실린 콜
+        ];
+        const sync = buildOrderSync({ myOrders: calls, pendingOrdersData: new Map(), driverLocation: null } as any) as any;
+        expect(sync.routeComputedAt).toBe('2026-08-19T01:00:00Z');
+        expect(sync.routeStops.map((s: any) => s.driveMinutes)).toEqual([10, 20, 30, 40]);
+    });
+});
