@@ -1,3 +1,5 @@
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { deriveRouteTimeline, pickBindingDeparture } from '@onedal/shared';
 
 /**
@@ -123,5 +125,55 @@ describe('pickBindingDeparture — 어떤 콜이건 가장 빨리 나가야 하�
 
     it('출발마감이 없는 정거장뿐이면 null', () => {
         expect(pickBindingDeparture([])).toBeNull();
+    });
+});
+
+/**
+ * 🧾 **왜 그 시각인지 내역이 함께 나온다** (기사님 실측 2026-08-19)
+ *
+ * 기사님: *"콜 잡은 시간 17:14:44, 상차지 디폴트값 18:00 이면 대략 46분 후 출발해야
+ * 합니다 이렇게 나와야 하는데.. 30분 정도로 노출되는 것 같아. 예전 코드인 거야
+ * 아님 안 바뀐 거야?"*
+ *
+ * 30분이 **맞았다** — `출발마감 = 약속 18:00 − 접근 주행 15분 = 17:45`. 46분은 주행을
+ * 빼지 않은 값이다. 그런데 화면이 그 15분을 **어디에도 안 적어서** 기사님은 계산을
+ * 확인할 방법이 없었고, "예전 코드인가"를 의심하셨다.
+ *
+ * 🔴 이건 계산 버그가 아니라 **근거 누락**이다. 폴백 경로(콜별 파생)는 내역을 적는데
+ *    타임라인 경로는 `driveMin: null` 로 넣어 내역 줄이 통째로 사라졌다 — 정작
+ *    지금 돌고 있는 건 타임라인 쪽이다.
+ *
+ * → 타임라인이 이미 쓰고 있는 누적 주행분을 **결과에 실어** 내보낸다 (규칙 ③ —
+ *   화면이 다시 계산하면 두 벌이 된다).
+ */
+describe('출발마감의 내역 — 주행분이 결과에 실린다', () => {
+    it('🔴 정거장마다 그 시각을 만든 누적 주행분이 함께 나온다', () => {
+        const tl = run(stops());
+        expect(tl.map(e => e.driveMinutes)).toEqual([12, 20, 60, 90]);
+    });
+
+    it('주행분을 모르면 null — 지어내지 않는다 (규칙 ④)', () => {
+        const tl = run(stops({ driveMinutes: null }));
+        expect(tl.every(e => e.driveMinutes === null)).toBe(true);
+    });
+
+    it('🔴 출발마감 = 약속 − (주행 + 앞 정차) — 내역이 그 뺄셈과 맞는다', () => {
+        const ARRIVE = '2026-08-19T04:40:00.000Z';   // A 상차 확정 04:40
+        const reportsOf = (id: string) => id === 'A'
+            ? [{ stopType: 'pickup', kind: 'DECLARED', promisedArrivalAt: ARRIVE }] as any
+            : [];
+        const b = pickBindingDeparture(run(stops(), reportsOf))!;
+        expect(b.driveMinutes).toBe(12);
+        // 첫 정거장이므로 앞 정차는 0 — 04:40 − 12분 = 04:28
+        expect(new Date(b.departByMs!).toISOString()).toBe('2026-08-19T04:28:00.000Z');
+    });
+
+    it('🔴 화면이 그 값을 그대로 적는다 — 다시 계산하지 않는다 (규칙 ③)', () => {
+        const c = readFileSync(join(__dirname,
+            '../../../client-app/src/components/dashboard/DepartureCountdown.tsx'), 'utf8');
+        expect(c).toMatch(/binding\.driveMinutes/);
+        expect(c).toMatch(/binding\.leadMinutes/);
+        // 타임라인 분기에서 내역이 비어 있던 옛 모양이 남아 있으면 안 된다
+        expect(c).not.toMatch(/driveMin: null/);
     });
 });

@@ -268,10 +268,23 @@ describe('통화 시트 — 미리 눌러 두고 근거를 남긴다', () => {
         expect(sheet()).toMatch(/눌러 뒀습니다/);
     });
 
-    it('🔴 출발 카운트다운이 내역을 적는다 — 주행·상차·대기', () => {
+    /**
+     * 🧾 **내역이 없으면 계산을 확인할 수 없다** (기사님 실측 2026-08-19)
+     *
+     * *"콜 잡은 시간 17:14:44, 상차지 18:00 이면 대략 46분 후 출발이어야 하는데
+     * 30분으로 나온다. 예전 코드인 거야 아님 안 바뀐 거야?"* — 30분이 맞았다
+     * (`18:00 − 접근 주행 15분 = 17:45`). 화면이 그 15분을 안 적어서 확인할 길이 없었다.
+     *
+     * ⚠️ **분기마다 빼는 값이 다르다** — 그래서 문구는 `detail` 이 만들어 온다:
+     *      타임라인(지금 돌고 있는 것) — `주행 N` (+ 앞 정차) · 약속은 **도착** 시각이라
+     *                                    이 정거장의 정차는 뺄셈에 없다 (규칙 ⑤-5)
+     *      폴백(경로 순서 없음)        — `주행 N, 상차 M` · 옛 규칙(마감 = 실어 보내는 시각)
+     */
+    it('🔴 출발 카운트다운이 내역을 적는다 — 그 시각을 만든 뺄셈 그대로', () => {
         const dc = rc3('components/dashboard/DepartureCountdown.tsx');
-        expect(dc).toMatch(/주행 \{soonest\.driveMin\}/);
-        expect(dc).toMatch(/상차 \{soonest\.dwellMin\}/);
+        expect(dc).toMatch(/\{soonest\.detail\}/);
+        expect(dc).toMatch(/주행 \$\{binding\.driveMinutes\}/);
+        expect(dc).toMatch(/주행 \$\{t\.approachMinutes\}, 상차 \$\{t\.pickupDwell\}/);
         expect(dc).toMatch(/대기 \$\{soonest\.waitMin\}/);
     });
 });

@@ -45,8 +45,16 @@ export default function DepartureCountdown({ orders, records, routeStops, routeC
      */
     // 🔴 basis: 추정 근거를 실제 계산대로 — 타임라인은 "경로 도착 예상 +30분", 폴백은 "잡은 시각 +1시간".
     //    예전엔 폴백 문구가 고정으로 찍혀 타임라인 추정에도 거짓 근거가 붙었다 (2026-08-19)
+    /**
+     * 🧾 `detail` — **왜 그 시각인지**. 분기마다 뺄셈이 다르므로 문구도 각자 만든다.
+     *
+     * 기사님 실측(2026-08-19): *"콜 잡은 시간 17:14:44, 상차지 18:00 이면 대략 46분 후
+     * 출발이어야 하는데 30분으로 나온다. 예전 코드인 거야?"* — 30분이 맞았다
+     * (18:00 − 접근 주행 15분 = 17:45). 그런데 **그 15분이 화면에 없어서** 확인할
+     * 방법이 없었다. 지금 돌고 있는 타임라인 분기가 내역을 `null` 로 비워 뒀던 탓이다.
+     */
     let soonest: { at: string; estimated: boolean;
-                   driveMin: number | null; dwellMin: number; waitMin: number | null;
+                   detail: string | null; waitMin: number | null;
                    boundBy: string | null; basis: string } | null = null;
 
     /**
@@ -67,7 +75,10 @@ export default function DepartureCountdown({ orders, records, routeStops, routeC
         soonest = {
             at: new Date(binding.departByMs!).toISOString(),
             estimated: !binding.promiseConfirmed,
-            driveMin: null, dwellMin: binding.dwellMinutes,
+            // 🔴 이 정거장의 정차는 **안 적는다** — 약속은 *도착* 시각이라 뺄셈에 없다 (규칙 ⑤-5)
+            detail: binding.driveMinutes != null
+                ? `주행 ${binding.driveMinutes}${binding.leadMinutes > 0 ? `, 앞 정차 ${binding.leadMinutes}` : ''}`
+                : null,
             waitMin: minutesUntil(new Date(binding.departByMs!).toISOString(), now),
             basis: '경로 도착 예상 +30분',
             // 시각을 같이 적는다 — 상차지가 둘 다 "경안동"이면 이름만으로는 어느 약속인지 모른다
@@ -86,7 +97,10 @@ export default function DepartureCountdown({ orders, records, routeStops, routeC
         if (!soonest || new Date(t.departureAt).getTime() < new Date((soonest as any).at).getTime()) {
             // 🔴 내역을 함께 담는다 — 기사님이 **왜 그 시각인지** 알아야 판단하실 수 있다
             soonest = { at: t.departureAt, estimated: t.deadlineEstimated,
-                        driveMin: t.approachMinutes, dwellMin: t.pickupDwell, waitMin: t.waitMinutes,
+                        // 폴백은 옛 규칙(마감 = 실어 보내는 시각)이라 상차 정차까지 뺀다
+                        detail: t.approachMinutes != null
+                            ? `주행 ${t.approachMinutes}, 상차 ${t.pickupDwell}` : null,
+                        waitMin: t.waitMinutes,
                         boundBy: null, basis: '잡은 시각 +1시간' };
         }
     }
@@ -120,12 +134,11 @@ export default function DepartureCountdown({ orders, records, routeStops, routeC
                     {late
                         ? '지금 출발해도 상차 약속보다 늦습니다 — 상차지에 알리세요'
                         : `그 사이 여기서 콜을 더 잡을 수 있습니다`}
-                    {/* 🔴 내역을 적는다 (기사님 2026-08-16): `09:25까지 출발 (주행 20, 상차 15, 대기 25분)`.
-                        상차 정차가 들어가는 이유 — **상차 마감은 "실어 보내는" 시각**이라
-                        주행뿐 아니라 상차 시간까지 빼야 그 시각에 보낼 수 있다. */}
-                    {soonest.driveMin != null && (
+                    {/* 🔴 내역을 적는다 (기사님 2026-08-16): `09:25까지 출발 (주행 20, 대기 25분)`.
+                        빼는 값이 분기마다 다르므로 문구는 `detail` 이 이미 만들어 왔다. */}
+                    {soonest.detail && (
                         <span className="ml-1 opacity-80">
-                            (주행 {soonest.driveMin}, 상차 {soonest.dwellMin}
+                            ({soonest.detail}
                             {soonest.waitMin != null && !late && `, 대기 ${soonest.waitMin}`}분)
                         </span>
                     )}

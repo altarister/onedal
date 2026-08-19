@@ -738,6 +738,17 @@ export interface RouteTimelineEntry {
     etaMs: number | null;
     /** 이 정거장의 정차(분) — 신고값 또는 차종 추정 */
     dwellMinutes: number;
+    /**
+     * 🧾 여기까지의 **누적 주행(분)** — 모르면 null (규칙 ④).
+     * `departByMs` 를 만든 뺄셈의 재료다. 화면은 이 값을 그대로 적기만 한다 (규칙 ③).
+     */
+    driveMinutes: number | null;
+    /**
+     * 🧾 앞 정거장들 때문에 **반드시** 더 드는 분 (정차·확정 약속 대기).
+     * `출발마감 = 약속 − (driveMinutes + leadMinutes)`.
+     * ⚠️ **이 정거장의 정차는 안 들어간다** — 약속은 *도착* 시각이다 (규칙 ⑤-5).
+     */
+    leadMinutes: number;
     /** "까지" 약속 — 확정 > 경로 추정 > 콜별 파생. 셋 다 없으면 null */
     promisedUntil: string | null;
     /** 통화로 확정한 약속인가 (false = 추정 — 화면은 ~ 를 붙인다) */
@@ -849,6 +860,7 @@ export function deriveRouteTimeline(
         out.push({
             orderId: st.orderId, stopType: st.stopType,
             etaMs, dwellMinutes: dwell,
+            driveMinutes: st.driveMinutes, leadMinutes: mandatoryMin,
             promisedUntil,
             promiseConfirmed: !!declared,
             departByMs: actualMs == null && promisedUntil != null && st.driveMinutes != null
