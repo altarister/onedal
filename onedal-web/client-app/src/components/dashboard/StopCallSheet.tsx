@@ -1073,8 +1073,21 @@ export default function StopCallSheet({
                         </div>
                     )}
 
-                    {/* ⑤ 시간을 남기는 버튼들 */}
-                    <div className="flex gap-2">
+                    {/**
+                      * ⑤ **주 버튼은 가운데, 서브는 좌우** (기사님 확정 2026-08-19).
+                      *    통화 시트가 이미 그 모양이라 손이 같은 자리를 찾는다:
+                      *      도착 단계 — [건너뛰기 20%] [📍 도착 80%]
+                      *      완료 단계 — [건너뛰기 20%] [📦 상차 완료 60%] [✕ 상차 취소 20%]
+                      *    위아래 여백은 최소로 — *"스크롤 안 하려면"* (기사님).
+                      */}
+                    <div className="flex gap-1.5">
+                        {onSkip && skipLabel && !skipLabel.includes('통화') && (
+                            <button type="button" onClick={(e) => { e.stopPropagation(); onSkip(); }}
+                                title="기록 없이 다음 단계로"
+                                className="w-[20%] shrink-0 py-2.5 rounded-md border border-dashed border-border bg-surface-alt/30 text-text-muted text-[12px] font-bold">
+                                ⏭️ 건너뛰기
+                            </button>
+                        )}
                         {/* 🔴 2026-08-12 — 눌러 놓고 되돌릴 수가 없었다.
                             기사님 기준: *"단계별로 DB 에 저장하고 … **수정이 가능해야 한다**."*
                             잘못 눌러도 시각 기록이 영영 틀어진 채 남았다.
@@ -1092,7 +1105,7 @@ export default function StopCallSheet({
                                     socket.emit('undo-milestone', { orderId, milestone: m });
                                 }
                             }}
-                            className={`flex-1 py-2.5 rounded-md text-[13px] font-black border ${
+                            className={`flex-1 py-3 rounded-md text-[14px] font-black border ${
                                 arrivedAt ? 'bg-text-muted/10 text-text-muted border-border'
                                 : 'bg-warning/12 text-warning border-warning/45'
                             }`}>
@@ -1108,7 +1121,7 @@ export default function StopCallSheet({
                                     socket.emit('undo-milestone', { orderId, milestone: m });
                                 }
                             }}
-                            className={`flex-1 py-2.5 rounded-md text-[13px] font-black border ${
+                            className={`flex-1 py-3 rounded-md text-[14px] font-black border ${
                                 doneLoad ? 'bg-text-muted/10 text-text-muted border-border'
                                 : 'bg-success text-white border-success'
                             }`}>
@@ -1118,8 +1131,9 @@ export default function StopCallSheet({
                         {/* 상차 취소는 **상차 완료 단계**에만 — 도착 전에는 취소할 상차가 없다 */}
                         {isPickup && !doneLoad && showDone && (
                             <button onClick={() => socket.emit('cancel-at-stop', { orderId, stopType, reason: memo || '현장 상차 불가' })}
-                                className="flex-1 py-2.5 rounded-md bg-danger/12 text-danger border border-danger/45 text-[13px] font-black">
-                                ✕ 상차 취소
+                                title="상차 취소 — 방출로 처리됩니다"
+                                className="w-[20%] shrink-0 py-2.5 rounded-md bg-danger/12 text-danger border border-danger/45 text-[12px] font-black">
+                                ✕ 취소
                             </button>
                         )}
                     </div>
@@ -1133,23 +1147,6 @@ export default function StopCallSheet({
                 )}
             </div>
 
-            {/**
-              * ⏭️ **건너뛰기는 단계마다 늘 보인다** (기사님 2026-08-19).
-              *
-              * 🔴 처음엔 현장 기록 폼(`tab === 'ACTUAL'`) **안**에 넣었다 — 그 폼은 탭이
-              *    열려야 그려지므로 도착 전 단계에서는 **존재하지도 않았다.**
-              *    기사님: *"버튼이 어디 있는 건지 알려줘, 못 찾았어."*
-              *    그래서 폼 밖, 시트 맨 아래로 뺐다.
-              *
-              * 건너뛴 것은 `source: 'SKIPPED'` 로 장부에 남는다 — 진행은 하되
-              * **초록칠은 안 된다.** "확인한 것"과 "넘어간 것"이 갈린다.
-              */}
-            {onSkip && skipLabel && !skipLabel.includes('통화') && (
-                <button type="button" onClick={(e) => { e.stopPropagation(); onSkip(); }}
-                    className="mt-2 w-full py-2 rounded-md border border-dashed border-border bg-surface-alt/30 text-text-muted text-[12px] font-bold">
-                    ⏭️ {skipLabel} — 기록 없이 다음 단계로
-                </button>
-            )}
         </div>
     );
 }

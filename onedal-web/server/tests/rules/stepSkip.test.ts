@@ -95,17 +95,23 @@ describe('저장 경로 — 스킵이 장부에 남는다', () => {
     });
 
     /**
-     * 🔴 **버튼이 보이는 자리에 있어야 한다** (기사님 2026-08-19: *"버튼이 어디 있는 건지
-     *    알려줘, 못 찾았어"*). 처음엔 현장 기록 폼(`tab === 'ACTUAL'`) **안**에 넣었는데,
-     *    그 폼은 탭을 열어야 그려진다 — 도착 전 단계에서는 존재하지 않았다.
-     *    건너뛰기는 **단계 카드에 늘 보여야** 하므로 폼 밖, 주 버튼 줄 옆에 둔다.
+     * 🔄 **내 진단이 틀렸던 것을 남긴다** (2026-08-19).
+     *
+     * 기사님이 *"버튼이 어디 있는 건지 알려줘, 못 찾았어"* 라고 하셔서 "현장 기록 폼
+     * 안에 갇혔다"고 진단하고 밖으로 뺐다. **틀렸다.** 현장 단계는 `forceOpen='ACTUAL'`
+     * 이라 폼이 늘 열려 있어 버튼도 보인다. 못 찾으신 진짜 이유는 그 화면이
+     * **하차 완료 단계**였기 때문이다 — 거기는 건너뛰기를 일부러 안 둔다(콜의 끝).
+     * 실제로 기사님은 곧 버튼을 찾아 세 번 누르셨다 (장부에 SKIPPED 3건).
+     *
+     * 그래서 검사도 "폼 밖에 있는가"가 아니라 **"주 버튼과 한 줄에 있는가"** 로 고친다
+     * (기사님 확정 배치: 좌 건너뛰기 20% · 가운데 주 버튼 · 우 취소 20%).
      */
-    it('🔴 건너뛰기 버튼이 현장 기록 폼(ACTUAL 탭) 안에 갇혀 있지 않다', () => {
+    it('🔴 건너뛰기가 주 버튼과 한 줄에 있다 (좌측 서브)', () => {
         const sheet = read('../../../client-app/src/components/dashboard/StopCallSheet.tsx');
-        const actualBlock = sheet.slice(sheet.indexOf("{tab === 'ACTUAL' && ("));
-        const skipInActual = actualBlock.slice(0, actualBlock.indexOf('\n                )}'))
-            .includes('기록 없이 다음 단계로');
-        expect(skipInActual).toBe(false);
+        const row = sheet.slice(sheet.indexOf('⑤ **주 버튼은 가운데'));
+        const upToArrive = row.slice(0, row.indexOf("ARRIVED_PICKUP"));
+        expect(upToArrive).toMatch(/onSkip && skipLabel/);
+        expect(upToArrive).toMatch(/w-\[20%\]/);
     });
 
     it('🔴 서버가 스킵 출처를 그대로 받아 적는다 — 손으로 덮어쓰지 않는다', () => {
