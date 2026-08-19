@@ -6,6 +6,7 @@ import {
     CARGO_TAGS, CARGO_TAG_META, DEFAULT_CARGO_TAG, computeSlackMinutes,
     CARGO_UNITS, CARGO_UNIT_QUANTITY_INPUT,
     buildArrivalSlots, dwellMinutes, unitPoints,
+    arrivalReasonsFor, REASON_NEEDS_MEMO,
 } from '@onedal/shared';
 import type { CargoReport, HandlingMethod, CargoReportKind, CargoUnit } from '@onedal/shared';
 import { socket } from '../../lib/socket';
@@ -74,6 +75,8 @@ interface Props {
      * 추측(도착 기록 유무)으로 갈라도 되지만, 되돌아보기·건너뛰기가 섞이면 어긋난다.
      */
     stepId?: string;
+    /** 📍 이 정거장 도착에 남긴 사유 (없으면 정상 도착) */
+    arrivedReasons?: string[];
     /** 오더 상태 — 상차/하차 완료 배지에 쓴다 */
     orderStatus?: string;
     /** 이 정거장에 도착한 시각 (기록됐다면) */
@@ -129,7 +132,7 @@ function summarize(r?: CargoReport): string {
 
 export default function StopCallSheet({
     orderId, stopType, label, address, contactName, phones, reports,
-    memoTexts, driveMinutes, onSkip, skipLabel, stepId, vehicleType, orderStatus, arrivedAt, forceOpen, stepLabel,
+    memoTexts, driveMinutes, onSkip, skipLabel, stepId, vehicleType, orderStatus, arrivedAt, arrivedReasons, forceOpen, stepLabel,
     leadMinutes = 0, leadLabel, leadFrom, driveKm, codAmount, pickupDeadlineAt,
 }: Props) {
     const isPickup = stopType === 'pickup';
@@ -184,6 +187,12 @@ export default function StopCallSheet({
      * 정각 약속은 사슬 전체를 경직시킨다 — 구간이면 폭 안에서 흡수돼 다음 약속을 조율할 수 있다.
      */
     const [deadlineFromAt, setDeadlineFromAt] = useState<string | undefined>();
+    /**
+     * 📍 **도착 사유** (기사님 확정 2026-08-19) — 정상이면 비어 있다.
+     * 아무것도 안 고르고 `📍 도착` 을 누르면 **지금과 완전히 같은 동작**이다.
+     */
+    const [reasons, setReasons] = useState<string[]>([]);
+    const [reasonMemo, setReasonMemo] = useState('');
     /** 상차지 통화에서 **함께 정한** 하차지 도착 시각 */
     const [onwardDeadlineAt, setOnwardDeadlineAt] = useState<string | undefined>();
 
@@ -540,6 +549,11 @@ export default function StopCallSheet({
     const badges: Array<[string, string]> = [];
     if (declared) badges.push(['📞 통화완료', 'bg-info/15 text-info']);
     if (arrivedAt) badges.push([`📍 도착 ${hhmm(arrivedAt)}`, 'bg-warning/15 text-warning']);
+    /**
+     * 📍 **남긴 사유는 화면에 보인다** — 쓰기만 하고 안 읽으면 죽은 데이터다
+     *    (`appLocation` 이 그렇게 죽었다 — `pnpm audit:dead` 가 잡았다).
+     */
+    if (arrivedReasons?.length) badges.push([`⚠️ ${arrivedReasons.join(' · ')}`, 'bg-danger/15 text-danger']);
     if (actual) badges.push(['👁 현장확인', 'bg-success/15 text-success']);
     if (doneLoad) badges.push([isPickup ? '📦 상차완료' : '🏁 하차완료', 'bg-success text-white']);
 
@@ -1062,6 +1076,41 @@ export default function StopCallSheet({
                     )}
 
                     {/**
+                      * 📍 **문제가 있었나요?** — 도착 버튼 **위**에 늘 펼쳐 둔다 (기사님 2026-08-19).
+                      *    접어 두면 아무도 안 연다. 아무것도 안 고르고 도착을 누르면 **정상 도착**이라
+                      *    지금과 완전히 같은 동작이다 (버튼 한 번).
+                      *
+                      * 🔴 이 값은 **아무것도 판정하지 않는다** — 색·필터·약속과 무관한 순수 기록이다.
+                      *    그래서 목록이 아직 가설이어도 안전하다. `기타` + 메모가 목록을 고칠 재료다.
+                      */}
+                    {showArrive && !arrivedAt && (
+                        <div className="flex flex-col gap-1">
+                            <div className="flex gap-1 flex-wrap items-center">
+                                <span className="text-[11px] font-bold text-text-muted mr-1">문제 있었나요?</span>
+                                {arrivalReasonsFor(stopType).map(r => {
+                                    const on = reasons.includes(r);
+                                    return (
+                                        <button key={r} type="button"
+                                            onClick={() => setReasons(prev => on ? prev.filter(x => x !== r) : [...prev, r])}
+                                            className={`px-2 py-1 rounded-md text-[11px] font-bold border ${
+                                                on ? 'bg-warning/85 text-white border-warning'
+                                                   : 'bg-surface-alt/40 text-text-muted border-border'
+                                            }`}>
+                                            {r}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            {/* `기타` 를 고를 때만 — 목록 밖의 일을 남길 데가 있어야 목록을 고칠 수 있다 */}
+                            {reasons.includes(REASON_NEEDS_MEMO) && (
+                                <input value={reasonMemo} onChange={e => setReasonMemo(e.target.value)}
+                                    placeholder="무슨 일이었나요? (한 줄)"
+                                    className="w-full px-2 py-1.5 rounded-md bg-surface-alt/40 border border-border text-[12px] text-text-primary" />
+                            )}
+                        </div>
+                    )}
+
+                    {/**
                       * ⑤ **주 버튼은 가운데, 서브는 좌우** (기사님 확정 2026-08-19).
                       *    통화 시트가 이미 그 모양이라 손이 같은 자리를 찾는다:
                       *      도착 단계 — [건너뛰기 20%] [📍 도착 80%]
@@ -1105,6 +1154,11 @@ export default function StopCallSheet({
                                     socket.emit('report-milestone', {
                                         orderId, milestone: m,
                                         predictedAt: driveKnown ? new Date(Date.now() + driveMinutes! * 60_000).toISOString() : undefined,
+                                        // 📍 고른 사유를 함께 — `기타` 면 메모를 붙여 목록을 고칠 재료로 남긴다
+                                        reasons: reasons.length
+                                            ? reasons.map(r => r === REASON_NEEDS_MEMO && reasonMemo.trim()
+                                                ? `${r}: ${reasonMemo.trim()}` : r)
+                                            : undefined,
                                     });
                                 } else if (confirm(`도착 기록(${hhmm(arrivedAt)})을 취소할까요?`)) {
                                     socket.emit('undo-milestone', { orderId, milestone: m });
@@ -1114,7 +1168,8 @@ export default function StopCallSheet({
                                 arrivedAt ? 'bg-text-muted/10 text-text-muted border-border'
                                 : 'bg-warning/12 text-warning border-warning/45'
                             }`}>
-                            {arrivedAt ? `✓ 도착 ${hhmm(arrivedAt)} · 취소` : '📍 도착'}
+                            {arrivedAt ? `✓ 도착 ${hhmm(arrivedAt)} · 취소`
+                                : reasons.length ? `📍 도착 (문제 ${reasons.length}건)` : '📍 도착'}
                         </button>
                         )}
                         {showDone && (

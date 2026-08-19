@@ -327,7 +327,7 @@ export function registerSocketHandlers(io: Server) {
         // [Phase 8.2] 관제탑에서 누르는 상차/하차 보고.
         // 앱의 화면 자동 감지(AUTO_SCRAPE)가 붙어도 이 핸들러는 그대로 두면 된다 —
         // 진입점만 늘어날 뿐 본체(reportMilestone)는 하나이기 때문이다.
-        safeOn(socket, "report-milestone", async (data: { orderId: string, milestone: Milestone, occurredAt?: string, predictedAt?: string, source?: MilestoneSource }) => {
+        safeOn(socket, "report-milestone", async (data: { orderId: string, milestone: Milestone, occurredAt?: string, predictedAt?: string, source?: MilestoneSource, reasons?: string[] }) => {
             /**
              * 🔴 **출처를 손으로 덮어쓰지 않는다** (기사님 2026-08-19).
              *    예전엔 `'MANUAL_WEB'` 로 고정이라 **건너뛴 것도 "직접 확인"으로 둔갑**했다.
@@ -336,7 +336,7 @@ export function registerSocketHandlers(io: Server) {
              */
             const source: MilestoneSource = data.source === 'SKIPPED' ? 'SKIPPED' : 'MANUAL_WEB';
             logRoadmapEvent("서버", `관제탑으로부터 ${data.milestone} 보고 수신${source === 'SKIPPED' ? ' (건너뜀)' : ''}`);
-            const result = await reportMilestone(userId, data.orderId, data.milestone, source, io, data.occurredAt, data.predictedAt);
+            const result = await reportMilestone(userId, data.orderId, data.milestone, source, io, data.occurredAt, data.predictedAt, data.reasons);
             socket.emit("milestone-result", { orderId: data.orderId, ...result });
             socket.emit("milestone-log", { orderId: data.orderId, milestones: OrderRepository.getMilestones(data.orderId) });
         });

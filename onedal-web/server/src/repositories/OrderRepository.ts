@@ -172,8 +172,10 @@ export class OrderRepository {
 
     /** 한 오더의 마일스톤 이력 (예상 대비 오차 확인용) */
     public static getMilestones(orderId: string) {
-        return db.prepare(`SELECT milestone, occurredAt, predictedAt, source
-                           FROM order_milestones WHERE orderId = ? ORDER BY occurredAt`).all(orderId);
+        const rows = db.prepare(`SELECT milestone, occurredAt, predictedAt, source, reasons
+                                 FROM order_milestones WHERE orderId = ? ORDER BY occurredAt`).all(orderId) as any[];
+        // 사유는 JSON 문자열로 산다 (tags·protections 와 같은 방식) — 읽는 쪽이 배열로 받게 푼다
+        return rows.map(r => ({ ...r, reasons: r.reasons ? JSON.parse(r.reasons) : undefined }));
     }
 
     /**

@@ -58,7 +58,7 @@ for (const o of orders.reverse()) {
     console.log(`  상태 ${o.status}   잡은 시각 ${hhmm(o.capturedAt)}   ${o.id.slice(-14)}`);
 
     // ── 단계 기록 — 무엇을 직접 확인했고 무엇을 넘어갔나 ──
-    const ms = db.prepare(`SELECT milestone, source, occurredAt, predictedAt
+    const ms = db.prepare(`SELECT milestone, source, occurredAt, predictedAt, reasons
                            FROM order_milestones WHERE orderId = ? ORDER BY occurredAt`).all(o.id);
     if (ms.length) {
         console.log(`  ─ 단계`);
@@ -66,7 +66,9 @@ for (const o of orders.reverse()) {
             const err = m.predictedAt
                 ? ` (예상 ${hhmm(m.predictedAt)} 대비 ${Math.round((Date.parse(m.occurredAt) - Date.parse(m.predictedAt)) / 60000)}분)`
                 : '';
-            console.log(`     ${hhmm(m.occurredAt)}  ${(STEP_LABEL[m.milestone] || m.milestone).padEnd(12)} ${SOURCE_MARK[m.source] || m.source}${err}`);
+            // 📍 도착 사유 — 겪은 일이 여기 남는다 (2026-08-19)
+            const why = m.reasons ? `  ⚠️ ${JSON.parse(m.reasons).join(' · ')}` : '';
+            console.log(`     ${hhmm(m.occurredAt)}  ${(STEP_LABEL[m.milestone] || m.milestone).padEnd(12)} ${SOURCE_MARK[m.source] || m.source}${err}${why}`);
         }
     }
 

@@ -1074,6 +1074,8 @@ export async function reportMilestone(
     occurredAt?: string,
     /** 이 시점에 우리가 예상했던 시각. 오차를 재기 위해 함께 저장한다 */
     predictedAt?: string,
+    /** 📍 도착 사유 (기사님 2026-08-19) — 정상 도착이면 비어 있다 */
+    reasons?: string[],
 ): Promise<MilestoneResult> {
     const session = getUserSession(userId);
     const order = session.myOrders.find(c => c.id === orderId);
@@ -1096,9 +1098,10 @@ export async function reportMilestone(
     const nowIso = new Date().toISOString();
     // ① 멱등성은 DB UNIQUE 로 보장한다. 애플리케이션 체크만 두면 동시 요청에서 뚫린다
     const insert = db.prepare(`
-        INSERT OR IGNORE INTO order_milestones (orderId, userId, milestone, source, occurredAt, predictedAt, recordedAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(orderId, userId, milestone, source, occurredAt || nowIso, predictedAt || null, nowIso);
+        INSERT OR IGNORE INTO order_milestones (orderId, userId, milestone, source, occurredAt, predictedAt, reasons, recordedAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(orderId, userId, milestone, source, occurredAt || nowIso, predictedAt || null,
+           reasons?.length ? JSON.stringify(reasons) : null, nowIso);
 
     if (insert.changes === 0) {
         console.log(`🔁 [마일스톤] ${milestone} (${source}) 중복 — ${orderId} 는 이미 기록됨`);

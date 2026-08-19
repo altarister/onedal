@@ -1067,6 +1067,42 @@ export function deckOfCycle<T extends { status?: string | null; capturedAt?: str
         .sort((a, b) => (a.capturedAt ?? '').localeCompare(b.capturedAt ?? ''));
 }
 
+/**
+ * 📍 **도착 사유** — 그 도착이 어땠는가 (기사님 확정 2026-08-19).
+ * 기획: `docs/도착_사유_기획.md`
+ *
+ * 🔴 **이 값은 아무것도 판정하지 않는다** — 색·필터·약속과 무관하다.
+ *    겪은 일을 적어 두는 칸일 뿐이라, 목록이 아직 **가설**이어도 안전하다
+ *    (기사님: *"나도 아직 나가 본 적이 없고 유튜브에서 본 것이 전부야.
+ *    일단 이 정도로 시작해 보자"*).
+ *
+ * 🔴 **`기타` 를 반드시 둔다.** 목록 밖의 일이 어디에도 안 남으면 **목록을 고칠
+ *    근거 자체가 사라진다.** 한 달쯤 뒤 "한 번도 안 쓴 사유"와 "기타로 적힌 것"을
+ *    세어 기사님의 실제 운행에 맞춘다 — 그것이 이 기능의 설계다.
+ *
+ * ⚠️ `수량 다름` 은 넣지 않는다 (기사님): 도착은 **가서 본 것**, 수량은 **실어 봐야
+ *    아는 것**이다. 상차 완료의 실측(ACTUAL)을 고치면 `cargoMismatchRatio` 가
+ *    스스로 센다 — 사유로 또 적으면 같은 사실이 두 곳에 살고 갈라진다 (규칙 ③).
+ */
+export const PICKUP_ARRIVAL_REASONS = ['화주 미준비', '물건 없음', '진입 곤란'] as const;
+export const DROPOFF_ARRIVAL_REASONS = ['짐 무너짐', '결박 풀림', '파손 발견', '수령인 부재', '진입 곤란'] as const;
+/** 양쪽에 다 있는 것 — `기타` 는 언제나 맨 끝이라 목록이 길어져도 자리가 안 바뀐다 */
+export const COMMON_ARRIVAL_REASONS = ['교통 지연', '사고', '기타'] as const;
+
+export const ARRIVAL_REASONS = [
+    ...PICKUP_ARRIVAL_REASONS, ...DROPOFF_ARRIVAL_REASONS, ...COMMON_ARRIVAL_REASONS,
+] as const;
+export type ArrivalReason = typeof ARRIVAL_REASONS[number];
+
+/** 이것을 고를 때만 메모를 받는다 — 자유 입력 금지 원칙의 유일한 예외 (근거는 위) */
+export const REASON_NEEDS_MEMO = '기타';
+
+/** 이 정거장에서 고를 수 있는 사유 */
+export function arrivalReasonsFor(stopType: 'pickup' | 'dropoff'): string[] {
+    const own = stopType === 'pickup' ? PICKUP_ARRIVAL_REASONS : DROPOFF_ARRIVAL_REASONS;
+    return [...own, ...COMMON_ARRIVAL_REASONS];
+}
+
 export interface OrderSyncPayload {
     active: SecuredOrder[];
     terminated: SecuredOrder[];

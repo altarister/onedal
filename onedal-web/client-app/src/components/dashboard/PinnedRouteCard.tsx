@@ -562,6 +562,8 @@ export default function PinnedRouteCard({
                                                 orderStatus={route.status}
                                                 arrivedAt={milestoneLog.find(m =>
                                                     m.milestone === (isPickupStop ? 'ARRIVED_PICKUP' : 'ARRIVED_DROPOFF'))?.occurredAt}
+                                                arrivedReasons={(milestoneLog.find(m =>
+                                                    m.milestone === (isPickupStop ? 'ARRIVED_PICKUP' : 'ARRIVED_DROPOFF')) as any)?.reasons}
                                                 forceOpen={shownStep.id.startsWith('CALL_') ? 'DECLARED' : 'ACTUAL'}
                                                 stepLabel={shownStep.label}
                                                 codAmount={isCod ? route.fare : null}

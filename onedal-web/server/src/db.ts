@@ -413,6 +413,8 @@ ensureColumns('user_judgment', JUDGMENT_COLS);
 
 ensureColumns('order_milestones', { predictedAt: 'TEXT' });
 // 어느 배차망에서 온 콜인가 (insung/hwamul24) — 배차망별 콜 검색·분석의 근거 (기사님 2026-08-17)
+// 📍 도착 사유 (JSON 배열) — tags·protections 와 같은 방식. 정상 도착이면 NULL
+ensureColumns('order_milestones', { reasons: 'TEXT' });
 ensureColumns('orders', { targetApp: 'TEXT',
     // ⚓ 타임라인 추정 약속의 닻 — 메모리에만 두면 서버 재시작에 모든 추정이 지금 시각으로 리셋된다
     routeComputedAt: 'TEXT' });

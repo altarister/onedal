@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { socket } from '../lib/socket';
 import type { CargoReport } from '@onedal/shared';
 
-export interface MilestoneRow { milestone: string; occurredAt: string; predictedAt?: string }
+export interface MilestoneRow { milestone: string; occurredAt: string; predictedAt?: string; source?: string; reasons?: string[] }
 export interface CallRecords { reports: CargoReport[]; milestones: MilestoneRow[] }
 
 /**
