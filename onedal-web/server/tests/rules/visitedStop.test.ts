@@ -143,3 +143,27 @@ describe('우회 비용의 비교 기준', () => {
         expect(fresh.origin.dropoff).toEqual(P(2));
     });
 });
+
+/**
+ * 🗺️ **관제웹 폴백도 같은 정의를 쓴다** (기사님 실측 2026-08-19)
+ *
+ * 기사님: *"경로 인덱스가 바뀌었어. 다시 경로를 만들었다고 하면 다산동 → 하차1 →
+ * 하차2 → 하차3 일 텐데 지금은 뒤죽박죽이 되어 있어서."*
+ *
+ * 서버는 ①로 다녀온 상차지를 뺐다 — `routeStops` 에는 하차만 남는다. 그런데 관제웹의
+ * **폴백**(routeStops 에 없는 콜을 뒤에 덧붙이는 자리)이 여전히 `isAlreadyLoaded`
+ * (상차 완료 버튼)를 봤다. 상차 완료를 안 눌렀으니 false → **뺀 상차지를 도로 넣었고**,
+ * 그것도 콜 순서대로라 `⑴상차 ⑵하차 ⑶상차 ⑷하차…` 로 번갈아 매겨졌다.
+ *
+ * 같은 클래스가 한 곳 더 남아 있었다 — 정의를 옮길 때 **호출부를 전부 훑어야 한다.**
+ */
+describe('관제웹 폴백 — 정의가 서버와 같다', () => {
+    it('🔴 PinnedRoute 폴백이 hasVisitedStop 을 쓴다 (isAlreadyLoaded 가 아니라)', () => {
+        const src = readFileSync(join(__dirname,
+            '../../../client-app/src/components/dashboard/PinnedRoute.tsx'), 'utf8');
+        const code = src.split('\n').filter(l => !/^\s*(\/\/|\/\*|\*)/.test(l)).join('\n');
+        expect(code).toMatch(/hasVisitedStop\(r, 'pickup'\)/);
+        expect(code).toMatch(/hasVisitedStop\(r, 'dropoff'\)/);
+        expect(code).not.toMatch(/isAlreadyLoaded\(r\)/);
+    });
+});

@@ -1,4 +1,4 @@
-import { isEvaluating, isTerminal, isAlreadyLoaded, deriveRouteTimeline } from "@onedal/shared";
+import { isEvaluating, isTerminal, hasVisitedStop, deriveRouteTimeline } from "@onedal/shared";
 import type { SecuredOrder } from "@onedal/shared";
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { socket } from '../../lib/socket';
@@ -159,11 +159,17 @@ export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, 
                        x: isP ? r.pickupX : r.dropoffX, y: isP ? r.pickupY : r.dropoffY, routeId: r.id });
         }
         for (const r of liveRoute) {
-            // 이미 상차한 콜의 상차지는 지난 정거장이라 서버 목록에 없다 — 다시 그리지 않는다
-            if (!covered.has(`${r.id}:pickup`) && !isAlreadyLoaded(r))
+            /**
+             * 🚏 **다녀온 정거장은 폴백에서도 되살리지 않는다** (기사님 실측 2026-08-19).
+             *    서버가 ①로 뺀 상차지를 여기서 `isAlreadyLoaded`(상차 완료 버튼)로 판단해
+             *    **도로 넣고 있었다.** 그것도 콜 순서대로라 `⑴상차 ⑵하차 ⑶상차…` 로
+             *    번갈아 매겨져 번호가 뒤죽박죽이 됐다.
+             *    판단은 서버와 같은 `hasVisitedStop` 하나여야 한다.
+             */
+            if (!covered.has(`${r.id}:pickup`) && !hasVisitedStop(r, 'pickup'))
                 pts.push({ type: '상차', name: getAddressLabel(r.pickup), isEvaluating: isEvaluating(r.status),
                            x: r.pickupX, y: r.pickupY, routeId: r.id });
-            if (!covered.has(`${r.id}:dropoff`))
+            if (!covered.has(`${r.id}:dropoff`) && !hasVisitedStop(r, 'dropoff'))
                 pts.push({ type: '하차', name: getAddressLabel(r.dropoff), isEvaluating: isEvaluating(r.status),
                            x: r.dropoffX, y: r.dropoffY, routeId: r.id });
         }
