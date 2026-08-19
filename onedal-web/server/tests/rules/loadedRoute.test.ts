@@ -62,10 +62,16 @@ describe('이미 상차한 콜 — 다녀온 상차지를 다시 경유하지 �
         expect(isAlreadyLoaded({ status: null })).toBe(false);
         expect(isAlreadyLoaded({})).toBe(false);
 
-        // composeMergedRoute 도 자기가 비교하지 않고 이 함수를 쓴다
+        /**
+         * 🔄 **경유지 선별의 기준이 넓어졌다** (2026-08-19) — `isAlreadyLoaded`(실었는가)
+         *    에서 `hasVisitedStop`(다녀왔는가)으로. 상차 완료를 안 눌러도 GPS 로 다녀왔으면
+         *    경유지에서 뺀다 (기사님: *"지나온 것은 무시할 것 같은데"*).
+         *    `isAlreadyLoaded` 는 여전히 **적재 판단**으로 살아 있다 — 질문이 다르다.
+         *    자세한 근거는 tests/rules/visitedStop.test.ts.
+         */
         const rc = codeOnly(read('services/routeComposer.ts'));
         const fn = rc.slice(rc.indexOf('export async function composeMergedRoute'));
-        expect(fn).toMatch(/isAlreadyLoaded\(c\)/);
+        expect(fn).toMatch(/hasVisitedStop\(c, 'pickup'\)/);
         expect(fn).not.toMatch(/=== 'ORDER_PICKED_UP'/);
     });
 

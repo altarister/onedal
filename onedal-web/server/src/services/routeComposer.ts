@@ -1,5 +1,5 @@
 import type { MyOrder, PendingOrder } from "@onedal/shared";
-import { isAlreadyLoaded } from "@onedal/shared";
+import { isAlreadyLoaded, hasVisitedStop } from "@onedal/shared";
 import { calculateDetourRoute } from "./kakaoService";
 import { optimizeWaypoints } from "../utils/routeOptimizer";
 
@@ -176,9 +176,14 @@ export function planMergedStops(
     for (const c of calls) {
         const p = toCoordPair(c);
         if (!p) continue;
-        const alreadyLoaded = isAlreadyLoaded(c);
-        if (alreadyLoaded) skippedPickups++;
-        pairs.push({ pickup: alreadyLoaded ? null : p.pickup, dropoff: p.dropoff });
+        /**
+         * 🚏 **다녀온 정거장은 경유지에서 뺀다** — 판단은 `hasVisitedStop` 하나 (2026-08-19).
+         *    예전엔 `isAlreadyLoaded`(상차 완료 버튼)만 봐서, **GPS 로 이미 다녀온
+         *    상차지를 다시 가는 경로**가 나왔다 (실측: 없는 우회 20km).
+         */
+        const visitedPickup = hasVisitedStop(c, 'pickup');
+        if (visitedPickup) skippedPickups++;
+        pairs.push({ pickup: visitedPickup ? null : p.pickup, dropoff: p.dropoff });
     }
 
     if (extra && !calls.some(c => c.id === extra.id)) {
@@ -240,8 +245,9 @@ export function planArrivalStops(
     for (const c of calls) {
         const p = toCoordPair(c);
         if (!p) continue;
-        if (!isAlreadyLoaded(c)) pickups.push({ orderId: c.id, stopType: 'pickup', ...p.pickup });
-        dropoffs.push({ orderId: c.id, stopType: 'dropoff', ...p.dropoff });
+        // 다녀온 곳은 "다음에 갈 정거장"이 아니다 — 도착 감지·경로·타임라인이 같은 목록을 본다
+        if (!hasVisitedStop(c, 'pickup')) pickups.push({ orderId: c.id, stopType: 'pickup', ...p.pickup });
+        if (!hasVisitedStop(c, 'dropoff')) dropoffs.push({ orderId: c.id, stopType: 'dropoff', ...p.dropoff });
     }
     if (pickups.length === 0 && dropoffs.length === 0) return [];
 

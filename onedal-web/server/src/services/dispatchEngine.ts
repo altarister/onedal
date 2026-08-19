@@ -749,6 +749,16 @@ export function rebuildDestinationKeywords(userId: string, io: any): void {
  * [방안 1] 서버 재시작 시 DB에서 콜을 불러와 1회성 카카오 궤적 복구 연산
  * ⚠️ 직접 호출하지 말 것 — bootstrapUserSession() 을 통해서만 실행된다.
  */
+/** 장부의 도착 마일스톤을 콜 객체 칸으로 되살린다 — 재시작해도 다녀온 곳을 기억하게 */
+function hydrateVisitedStops(orderId: string): { arrivedPickupAt?: string; arrivedDropoffAt?: string } {
+    const rows = OrderRepository.getMilestones(orderId) as { milestone: string; occurredAt: string }[];
+    const at = (m: string) => rows.find(r => r.milestone === m)?.occurredAt;
+    return {
+        arrivedPickupAt: at('ARRIVED_PICKUP'),
+        arrivedDropoffAt: at('ARRIVED_DROPOFF'),
+    };
+}
+
 export async function restoreAndRecalculateSession(userId: string, io: any) {
     const session = getUserSession(userId);
     if (session.isRestored) return; // 이미 복구했으면 스킵
@@ -847,7 +857,13 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
                 isShared: !!row.isShared,
                 isExpress: !!row.isExpress,
                 orderForm: row.orderForm,
-                detailMemo: row.detailMemo
+                detailMemo: row.detailMemo,
+                /**
+                 * 🚏 **도착 시각을 되살린다** (2026-08-19).
+                 * 안 되살리면 재시작 직후 `hasVisitedStop` 이 false 가 되어
+                 * **이미 다녀온 정거장으로 되돌아가는 경로**가 다시 그려진다.
+                 */
+                ...hydrateVisitedStops(row.id),
             };
             session.pendingOrdersData.set(order.id, order as any);
         }
@@ -1014,6 +1030,16 @@ export async function undoMilestone(userId: string, orderId: string, milestone: 
     const removed = OrderRepository.deleteMilestone(orderId, userId, milestone);
     if (!removed) return { success: false, reason: 'NOT_FOUND' as const };
 
+    // 🚏 도착을 되돌리면 "다녀왔다"도 되돌린다 — 안 지우면 경로에서 영영 빠진 채 남는다
+    const undoField = milestone === 'ARRIVED_PICKUP' ? 'arrivedPickupAt'
+                    : milestone === 'ARRIVED_DROPOFF' ? 'arrivedDropoffAt' : null;
+    if (undoField) {
+        const o = session.myOrders.find(c => c.id === orderId);
+        if (o) delete (o as any)[undoField];
+        const cached = session.pendingOrdersData.get(orderId);
+        if (cached) delete (cached as any)[undoField];
+    }
+
     const rest = OrderRepository.getMilestones(orderId) as { milestone: string }[];
     const status = deriveStatusFromMilestones(rest);
 
@@ -1077,6 +1103,22 @@ export async function reportMilestone(
     if (insert.changes === 0) {
         console.log(`🔁 [마일스톤] ${milestone} (${source}) 중복 — ${orderId} 는 이미 기록됨`);
         return { success: true, duplicated: true, status: order.status };
+    }
+
+    /**
+     * 🚏 **도착 시각을 콜 객체에도 남긴다** (2026-08-19).
+     *
+     * 경로 조립(`planArrivalStops`·`planMergedStops`)이 "다녀왔는가"를 판단할 때
+     * 매번 DB 를 뒤지지 않게, 세션 콜에 실어 둔다. `hasVisitedStop` 이 이 값을 본다.
+     * 두 기억(myOrders·pendingOrdersData)에 함께 쓴다 — 한쪽만 쓰면 갈라진다 (helpers 규칙).
+     */
+    const arrivedField = milestone === 'ARRIVED_PICKUP' ? 'arrivedPickupAt'
+                       : milestone === 'ARRIVED_DROPOFF' ? 'arrivedDropoffAt' : null;
+    if (arrivedField) {
+        const at = occurredAt || nowIso;
+        (order as any)[arrivedField] = at;
+        const cached = session.pendingOrdersData.get(orderId);
+        if (cached && cached !== (order as any)) (cached as any)[arrivedField] = at;
     }
 
     // ③ 상태 전이. 도착(ARRIVED_*)은 상태를 바꾸지 않는다 — 도착했다고 짐이 실린 건 아니다

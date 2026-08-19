@@ -513,6 +513,8 @@ export interface PendingOrder extends OfficeOrder {
     sectionEtas?: string[];           // 카카오 궤적 연산 기반 각 경유지 도착 예상 시간 배열
     sectionDriveMin?: Array<number | null>;       // 출발점 기준 정거장별 **누적 주행(분)** — 시계가 아니라 상대값이라 낡지 않는다
     routeComputedAt?: string;         // 이 경로를 계산한 시점 — 타임라인 추정 약속의 닻
+    arrivedPickupAt?: string;         // 🚏 상차지에 실제로 도착한 시각 — 경로에서 뺄지의 근거 (hasVisitedStop)
+    arrivedDropoffAt?: string;        // 🚏 하차지에 실제로 도착한 시각
     pickupEta?: string;               // 카카오 궤적 연산 기반 상차지 예상 도착 시간
     dropoffEta?: string;              // 카카오 궤적 연산 기반 하차지 예상 도착 시간
     isRejected?: boolean;             // 서버 종합 평가 결과: 똥콜 판정 여부
@@ -543,6 +545,8 @@ export interface MyOrder extends OfficeOrder {
     sectionEtas?: string[];           // 카카오 궤적 연산 기반 각 경유지 도착 예상 시간 배열
     sectionDriveMin?: Array<number | null>;       // 출발점 기준 정거장별 **누적 주행(분)** — 시계가 아니라 상대값이라 낡지 않는다
     routeComputedAt?: string;         // 이 경로를 계산한 시점 — 타임라인 추정 약속의 닻
+    arrivedPickupAt?: string;         // 🚏 상차지에 실제로 도착한 시각 — 경로에서 뺄지의 근거 (hasVisitedStop)
+    arrivedDropoffAt?: string;        // 🚏 하차지에 실제로 도착한 시각
     pickupEta?: string;               // 카카오 궤적 연산 기반 상차지 예상 도착 시간
     dropoffEta?: string;              // 카카오 궤적 연산 기반 하차지 예상 도착 시간
     settlement?: SettlementInfo;      // 정산 및 미수금 관리 트래킹 (운행일지용)
@@ -571,6 +575,8 @@ export interface SecuredOrder extends OfficeOrder {
     sectionEtas?: string[];
     sectionDriveMin?: Array<number | null>;
     routeComputedAt?: string;
+    arrivedPickupAt?: string;
+    arrivedDropoffAt?: string;
     pickupEta?: string;
     dropoffEta?: string;
     settlement?: SettlementInfo;
@@ -980,6 +986,34 @@ export * from './cargoUnits';
  */
 export function isAlreadyLoaded(c: { status?: string | null }): boolean {
     return c.status === 'ORDER_PICKED_UP';
+}
+
+/**
+ * 🚏 **이 정거장에 이미 다녀왔는가 — 판단은 여기 하나뿐이다** (기사님 확정 2026-08-19).
+ *
+ * 기사님: *"현실에서는 내가 지나온 것은 무시할 것 같은데."*
+ *
+ * 🔴 그동안 판단이 **두 벌**이었다 — 경로 조립은 `status`(상차 완료 버튼), 시각 계산은
+ *    마일스톤(GPS 도착). 그래서 **상차 완료를 안 누르면 이미 지나온 상차지로 되돌아가는
+ *    경로**가 나왔다. 실측: 같은 콜이 버튼 전엔 경유지 5개·+20.0km·🟢56점,
+ *    누른 뒤엔 3개·+0.7km·🔵80점 — **없는 우회 비용 20km**를 물고 있었다.
+ *    같은 자리를 세 번 고친 뒤라, 인스턴스가 아니라 **클래스를 없앤다** (버그 대장 #24 연장).
+ *
+ * **GPS 도착이면 다녀온 것이다.** 도착 감지는 500m 안에 들어와야 찍히므로 "거기 갔다"는
+ * 뜻이고, **가는 길**은 더 필요 없다.
+ *
+ * ⚠️ `isAlreadyLoaded`(실었는가)와 **다른 질문**이다. 도착했지만 아직 안 실은 상태가 있고,
+ *    그때 단계는 여전히 "상차 완료" 대기다. 적재 계산도 실은 것만 센다.
+ *    여기는 오직 **"경로에 남겨 둘 이유가 있는가"** 만 답한다.
+ */
+export function hasVisitedStop(
+    c: { status?: string | null; arrivedPickupAt?: string | null; arrivedDropoffAt?: string | null },
+    stopType: 'pickup' | 'dropoff',
+): boolean {
+    if (stopType === 'pickup') {
+        return !!c.arrivedPickupAt || c.status === 'ORDER_PICKED_UP' || c.status === 'ORDER_DELIVERED';
+    }
+    return !!c.arrivedDropoffAt || c.status === 'ORDER_DELIVERED';
 }
 
 export interface OrderSyncPayload {
