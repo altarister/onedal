@@ -77,6 +77,8 @@ interface Props {
     stepId?: string;
     /** 📍 이 정거장 도착에 남긴 사유 (없으면 정상 도착) */
     arrivedReasons?: string[];
+    /** 📍 상차·하차 완료에 남긴 사유 */
+    doneReasons?: string[];
     /** 오더 상태 — 상차/하차 완료 배지에 쓴다 */
     orderStatus?: string;
     /** 이 정거장에 도착한 시각 (기록됐다면) */
@@ -132,7 +134,7 @@ function summarize(r?: CargoReport): string {
 
 export default function StopCallSheet({
     orderId, stopType, label, address, contactName, phones, reports,
-    memoTexts, driveMinutes, onSkip, skipLabel, stepId, vehicleType, orderStatus, arrivedAt, arrivedReasons, forceOpen, stepLabel,
+    memoTexts, driveMinutes, onSkip, skipLabel, stepId, vehicleType, orderStatus, arrivedAt, arrivedReasons, doneReasons, forceOpen, stepLabel,
     leadMinutes = 0, leadLabel, leadFrom, driveKm, codAmount, pickupDeadlineAt,
 }: Props) {
     const isPickup = stopType === 'pickup';
@@ -554,6 +556,7 @@ export default function StopCallSheet({
      *    (`appLocation` 이 그렇게 죽었다 — `pnpm audit:dead` 가 잡았다).
      */
     if (arrivedReasons?.length) badges.push([`⚠️ ${arrivedReasons.join(' · ')}`, 'bg-danger/15 text-danger']);
+    if (doneReasons?.length) badges.push([`⚠️ ${doneReasons.join(' · ')}`, 'bg-danger/15 text-danger']);
     if (actual) badges.push(['👁 현장확인', 'bg-success/15 text-success']);
     if (doneLoad) badges.push([isPickup ? '📦 상차완료' : '🏁 하차완료', 'bg-success text-white']);
 
@@ -1025,7 +1028,15 @@ export default function StopCallSheet({
                 )}
                 {tab === 'ACTUAL' && (
                 <div className="pt-2 pb-1 pl-5 flex flex-col gap-2.5">
-                    {cargoForm}
+                    {/**
+                      * 📦 **짐 입력은 실어 본 뒤에만** (기사님 확정 2026-08-19).
+                      *
+                      * 🔴 도착 단계에서 수량을 적으면 그건 **추측인데 `ACTUAL`(실측)로 저장**된다 —
+                      *    문을 열기도 전에 "실측"이 생기고, 그 값으로 `cargoMismatchRatio`
+                      *    (신고 vs 실측)가 계산되어 **가짜 불일치 경고**가 뜬다.
+                      *    도착의 관심사는 *오는 길과 그 장소*, 완료의 관심사가 *짐*이다.
+                      */}
+                    {showDone && cargoForm}
 
 
                     {(() => {
@@ -1083,11 +1094,11 @@ export default function StopCallSheet({
                       * 🔴 이 값은 **아무것도 판정하지 않는다** — 색·필터·약속과 무관한 순수 기록이다.
                       *    그래서 목록이 아직 가설이어도 안전하다. `기타` + 메모가 목록을 고칠 재료다.
                       */}
-                    {showArrive && !arrivedAt && (
+                    {stepId && arrivalReasonsFor(stepId).length > 0 && !(showArrive ? arrivedAt : doneLoad) && (
                         <div className="flex flex-col gap-1">
                             <div className="flex gap-1 flex-wrap items-center">
                                 <span className="text-[11px] font-bold text-text-muted mr-1">문제 있었나요?</span>
-                                {arrivalReasonsFor(stopType).map(r => {
+                                {arrivalReasonsFor(stepId!).map(r => {
                                     const on = reasons.includes(r);
                                     return (
                                         <button key={r} type="button"
@@ -1176,7 +1187,17 @@ export default function StopCallSheet({
                         <button
                             onClick={() => {
                                 const m = isPickup ? 'PICKED_UP' : 'DELIVERED';
-                                if (!doneLoad) { save('ACTUAL'); socket.emit('report-milestone', { orderId, milestone: m }); }
+                                if (!doneLoad) {
+                                    save('ACTUAL');
+                                    socket.emit('report-milestone', {
+                                        orderId, milestone: m,
+                                        // 📍 이 단계에서 고른 사유 (화주 미준비·물건 없음 등)
+                                        reasons: reasons.length
+                                            ? reasons.map(r => r === REASON_NEEDS_MEMO && reasonMemo.trim()
+                                                ? `${r}: ${reasonMemo.trim()}` : r)
+                                            : undefined,
+                                    });
+                                }
                                 else if (confirm(`${isPickup ? '상차' : '하차'} 완료 기록을 취소할까요?`)) {
                                     socket.emit('undo-milestone', { orderId, milestone: m });
                                 }
@@ -1185,7 +1206,8 @@ export default function StopCallSheet({
                                 doneLoad ? 'bg-text-muted/10 text-text-muted border-border'
                                 : 'bg-success text-white border-success'
                             }`}>
-                            {doneLoad ? (isPickup ? '✓ 상차완료 · 취소' : '✓ 하차완료 · 취소') : (isPickup ? '📦 상차 완료' : '🏁 하차 완료')}
+                            {doneLoad ? (isPickup ? '✓ 상차완료 · 취소' : '✓ 하차완료 · 취소')
+                                : `${isPickup ? '📦 상차 완료' : '🏁 하차 완료'}${reasons.length ? ` (문제 ${reasons.length}건)` : ''}`}
                         </button>
                         )}
                         {/* 상차 취소는 **상차 완료 단계**에만 — 도착 전에는 취소할 상차가 없다 */}

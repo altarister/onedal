@@ -13,54 +13,71 @@ import { ARRIVAL_REASONS, arrivalReasonsFor, REASON_NEEDS_MEMO } from '@onedal/s
  * 🔴 **이 값은 아무것도 판정하지 않는다** — 색·필터·약속과 무관하다. 그래서 목록이
  *    아직 가설이어도(§3-4) 안전하다. 대신 `기타` + 메모로 **목록을 고칠 재료**를 모은다.
  */
-describe('사유 목록 — 정거장마다 다르다', () => {
-    it('🔴 상차지: 화주 미준비 · 물건 없음 · 진입 곤란 (+ 공통)', () => {
-        const r = arrivalReasonsFor('pickup');
-        expect(r).toContain('화주 미준비');
-        expect(r).toContain('물건 없음');
-        expect(r).toContain('진입 곤란');
+describe('사유 목록 — **단계마다** 관심사가 다르다', () => {
+    it('🔴 상차지 도착: 이동 문제 + 그 장소 문제 (짐 이야기는 없다)', () => {
+        const r = arrivalReasonsFor('ARRIVE_PICKUP');
+        expect(r).toEqual(expect.arrayContaining(['교통 지연', '사고', '진입 곤란', '주소 다름', '점심시간', '문 잠김']));
+        // 아직 문을 열기 전이다 — 짐 상태를 말할 수 없다
+        expect(r).not.toContain('물건 없음');
+        expect(r).not.toContain('짐 무너짐');
     });
 
-    it('🔴 하차지: 짐 무너짐 · 결박 풀림 · 파손 발견 · 수령인 부재 (+ 공통)', () => {
-        const r = arrivalReasonsFor('dropoff');
-        expect(r).toContain('짐 무너짐');
-        expect(r).toContain('결박 풀림');
-        expect(r).toContain('파손 발견');
-        expect(r).toContain('수령인 부재');
+    it('🔴 상차 완료: 화주·짐 문제 (여기서 비로소 실어 본다)', () => {
+        const r = arrivalReasonsFor('LOADED');
+        expect(r).toEqual(expect.arrayContaining(['화주 미준비', '물건 없음', '상차 중 파손']));
+        expect(r).not.toContain('교통 지연');   // 오는 길 이야기는 도착에서 끝났다
     });
 
-    it('공통(교통 지연·사고)은 양쪽에 다 있다', () => {
-        for (const stop of ['pickup', 'dropoff'] as const) {
-            expect(arrivalReasonsFor(stop)).toContain('교통 지연');
-            expect(arrivalReasonsFor(stop)).toContain('사고');
-        }
+    it('🔴 하차지 도착: 이동 + 그 장소 + **짐 상태** (문을 열면 보인다)', () => {
+        const r = arrivalReasonsFor('ARRIVE_DROPOFF');
+        expect(r).toEqual(expect.arrayContaining([
+            '교통 지연', '사고', '진입 곤란', '주소 다름', '수령인 부재',
+            '짐 무너짐', '결박 풀림', '파손 발견',
+        ]));
+    });
+
+    it('🔴 하차 완료: 인수 단계의 문제', () => {
+        const r = arrivalReasonsFor('DELIVERED');
+        expect(r).toEqual(expect.arrayContaining(['검수 지연', '인수 거부']));
     });
 
     /**
-     * 🔴 `수량 다름` 은 **넣지 않는다** (기사님 2026-08-19):
-     *    *"이건 상차 완료해야 아는 거니까 도착에서는 빼자."*
-     *    도착은 가서 본 것, 수량은 실어 봐야 아는 것. 실측(ACTUAL)을 고치면
-     *    `cargoMismatchRatio` 가 스스로 센다 — 두 곳에 살면 갈라진다 (규칙 ③).
+     * 🔴 `수량 다름` 은 **사유가 아니다** (기사님 확정 2026-08-19: *"3 실측폼"*).
+     *    실측 폼에 실제 수량을 적으면 `cargoMismatchRatio` 가 신고와의 차이를 스스로 센다.
+     *    사유로 또 적으면 같은 사실이 두 곳에 살고 갈라진다 (규칙 ③).
      */
-    it('🔴 수량 다름은 사유가 아니다 — 상차 완료가 답할 일이다', () => {
+    it('🔴 수량 다름은 어느 단계에도 없다 — 실측 폼이 답한다', () => {
         expect(ARRIVAL_REASONS).not.toContain('수량 다름');
     });
 
-    /**
-     * 🔴 **`기타` 를 반드시 둔다** — 목록이 가설이라(§3-4), 목록 밖의 일이 어디에도
-     *    안 남으면 **목록을 고칠 근거 자체가 사라진다.**
-     */
-    it('🔴 기타가 양쪽에 있고, 그때만 메모를 받는다', () => {
-        expect(arrivalReasonsFor('pickup')).toContain('기타');
-        expect(arrivalReasonsFor('dropoff')).toContain('기타');
-        expect(REASON_NEEDS_MEMO).toBe('기타');
-    });
-
-    it('사유는 맨 끝이 기타다 — 목록이 길어져도 자리가 안 바뀐다', () => {
-        for (const stop of ['pickup', 'dropoff'] as const) {
-            const r = arrivalReasonsFor(stop);
+    it('🔴 기타는 모든 단계 맨 끝에 있다 — 목록을 고칠 재료', () => {
+        for (const step of ['ARRIVE_PICKUP', 'LOADED', 'ARRIVE_DROPOFF', 'DELIVERED'] as const) {
+            const r = arrivalReasonsFor(step);
             expect(r[r.length - 1]).toBe('기타');
         }
+        expect(REASON_NEEDS_MEMO).toBe('기타');
+    });
+});
+
+/**
+ * 📦 **짐 폼은 완료 단계에만 있다** (기사님 확정 2026-08-19)
+ *
+ * 기사님: *"상차지 도착에서는 단위·수량·방법·보호·성질 이것들이 모두 없어야 하는 거
+ * 아닌가? 상차지 도착에 관한 것만 있으면 될 것 같은데."*
+ *
+ * 🔴 단순히 지저분해서가 아니다. **도착 시점에 수량을 적으면 그건 추측인데 `ACTUAL`
+ *    (실측)로 저장된다** — 문을 열기도 전에 "실측"이 생기고, 그 값으로
+ *    `cargoMismatchRatio`(신고 vs 실측)가 계산되어 **가짜 불일치 경고**가 뜬다.
+ *    실측이 가능한 시점은 **실어 본 뒤**다.
+ */
+describe('짐 폼 — 실어 본 뒤에만', () => {
+    const sheet = () => readFileSync(join(__dirname,
+        '../../../client-app/src/components/dashboard/StopCallSheet.tsx'), 'utf8');
+    const code = () => sheet().split('\n')
+        .filter(l => !/^\s*(\/\/|\/\*|\*)/.test(l)).join('\n');
+
+    it('🔴 현장 폼에서 짐 입력은 완료 단계(showDone)에만 그려진다', () => {
+        expect(code()).toMatch(/showDone && cargoForm|\{showDone \?[\s\S]{0,80}cargoForm/);
     });
 });
 
