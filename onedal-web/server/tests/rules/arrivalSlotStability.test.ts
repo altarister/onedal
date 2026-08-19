@@ -68,3 +68,31 @@ describe('저장 — 고른 약속을 추천이 덮지 않는다', () => {
         expect(code()).toMatch(/setDeadlineTouched\(true\)[\s\S]{0,400}save-cargo-report|save-cargo-report[\s\S]{0,600}setDeadlineTouched\(true\)/);
     });
 });
+
+/**
+ * 💾 **저장된 약속이 있으면 추천은 끼어들지 않는다** (기사님 실측 2026-08-19)
+ *
+ * DB 에는 10:12~11:12 로 저장됐는데, 되돌아보기로 시트를 다시 열자 화면이
+ * **10:12~10:42** 로 바뀌어 있었다. 시트가 새로 마운트되면 `deadlineTouched` 가
+ * false 로 초기화되고, 추천 재적용이 "까지"(11:12)를 추천 칸(10:42)으로 덮은 것이다.
+ * (저장 시 표식을 세우는 것만으로는 부족했다 — 마운트가 표식을 지운다)
+ *
+ * → 저장된 약속은 **이미 확정된 값**이다. 미리 눌러 두기는 통화 전에만 한다.
+ *
+ * 그리고 칸의 기준은 언제나 **지금**이다 — 저장값을 기준으로 삼으면 그 약속이
+ * 첫 칸이 되어 **더 이른 시각으로 당길 수가 없다.** 저장값은 목록에 끼워 넣어 보인다
+ * (구간이면 부터·까지 둘 다).
+ */
+describe('저장된 약속 — 추천이 덮지 않는다', () => {
+    it('🔴 저장된 약속이 있으면 추천 재적용을 건너뛴다', () => {
+        expect(code()).toMatch(/hasSavedPromise/);
+    });
+
+    it('🔴 칸 기준은 지금 — 저장값을 기준으로 삼지 않는다 (당길 수 없게 된다)', () => {
+        expect(code()).not.toMatch(/slotBaseMs\.current = saved/);
+    });
+
+    it('🔴 구간의 "부터"도 칸 목록에 끼워 넣는다 — 양 끝이 다 보여야 한다', () => {
+        expect(code()).toMatch(/deadlineFromAt[\s\S]{0,200}baseSlots\.some|pin[\s\S]{0,300}deadlineFromAt/);
+    });
+});

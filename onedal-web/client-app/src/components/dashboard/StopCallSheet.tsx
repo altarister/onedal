@@ -390,28 +390,27 @@ export default function StopCallSheet({
      *
      * → 칸의 기준 시각은 **시트를 연 순간 한 번** 잡고 그대로 둔다.
      *   시간이 흐르는 것은 문장·카운트다운이 말하고, **고르는 칸은 움직이지 않는다.**
-     *   (저장된 약속이 있으면 그 자리를 기준으로 잡아, 다시 열어도 같은 칸이 나온다)
+     *   ⚠️ 저장된 약속을 **기준으로 삼지는 않는다** — 그러면 그 약속이 첫 칸이 되어
+     *      **더 이른 시각으로 당길 수가 없다.** 저장값은 아래에서 목록에 끼워 넣는다.
      */
     const slotBaseMs = useRef<number>(0);
-    if (slotBaseMs.current === 0) {
-        const saved = (declared as any)?.promisedArrivalFromAt ?? declared?.promisedArrivalAt ?? declared?.deadlineAt;
-        slotBaseMs.current = saved
-            ? Date.parse(saved) - arrivalMinutes * 60_000   // 저장된 약속이 첫 칸 근처에 오도록
-            : Date.now();
-    }
+    if (slotBaseMs.current === 0) slotBaseMs.current = Date.now();
     const baseSlots = useMemo(
         () => buildArrivalSlots(slotBaseMs.current, arrivalMinutes, 5),
         [arrivalMinutes]);
     const hourSlots = useMemo(() => {
-        if (!deadlineAt || baseSlots.some(sl => sl.iso === deadlineAt)) return baseSlots;
-        const d = new Date(deadlineAt);
-        const mine = {
-            iso: deadlineAt,
-            label: `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`,
-            minutesFromNow: Math.round((d.getTime() - Date.now()) / 60_000),
+        /** 고른 값이 목록에 없으면 **칸으로 끼워 넣는다** — 구간이면 부터·까지 양 끝 다 */
+        const pin = (list: typeof baseSlots, iso?: string) => {
+            if (!iso || list.some(sl => sl.iso === iso)) return list;
+            const d = new Date(iso);
+            return [...list, {
+                iso,
+                label: `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`,
+                minutesFromNow: Math.round((d.getTime() - Date.now()) / 60_000),
+            }].sort((a, b) => Date.parse(a.iso) - Date.parse(b.iso));
         };
-        return [...baseSlots, mine].sort((a, b) => Date.parse(a.iso) - Date.parse(b.iso));
-    }, [baseSlots, deadlineAt]);
+        return pin(pin(baseSlots, deadlineAt), deadlineFromAt);
+    }, [baseSlots, deadlineAt, deadlineFromAt]);
 
     /**
      * 🔴 **서버가 미리 눌러 두고 기사님이 확정하신다** (기사님 2026-08-16):
@@ -465,12 +464,21 @@ export default function StopCallSheet({
 
     /** 기사님이 아직 손대지 않아 추천값이 눌려 있는 상태인가 — 눌리면 근거 줄을 띄운다 */
     const [deadlineTouched, setDeadlineTouched] = useState(false);
+    /**
+     * 🔴 **저장된 약속은 이미 확정된 값이다** (기사님 실측 2026-08-19).
+     *
+     * DB 에 10:12~11:12 로 저장했는데 되돌아보기로 다시 열자 **10:12~10:42** 가 떴다 —
+     * 시트가 새로 마운트되며 `deadlineTouched` 가 false 로 초기화되고, 추천 재적용이
+     * "까지"를 추천 칸으로 덮은 것이다. 저장 때 표식을 세우는 것만으로는 부족했다
+     * (마운트가 표식을 지운다). **미리 눌러 두기는 통화 전에만 한다.**
+     */
+    const hasSavedPromise = !!((declared as any)?.promisedArrivalAt ?? declared?.deadlineAt);
     useEffect(() => {
         // 손대지 않은 동안에는 추천 칸을 **따라간다**. 예전에는 `deadlineAt` 이 있으면 건너뛰어,
         // 칸이 밀린 뒤에도 옛 값이 남아 아무 버튼도 안 눌린 것처럼 보였다 (2026-08-18 실측).
-        if (deadlineTouched || !suggestedSlot || deadlineAt === suggestedSlot.iso) return;
+        if (deadlineTouched || hasSavedPromise || !suggestedSlot || deadlineAt === suggestedSlot.iso) return;
         setDeadlineAt(suggestedSlot.iso);
-    }, [deadlineTouched, deadlineAt, suggestedSlot]);
+    }, [deadlineTouched, hasSavedPromise, deadlineAt, suggestedSlot]);
 
     // ── 접힌 채로 보여줄 요약. 여기 없는 값은 기사님에게 "없는 값"이다 ──
     // 주행 시간을 모르면 여유도 모른다 — 0 으로 때우면 요약이 거짓말을 한다
