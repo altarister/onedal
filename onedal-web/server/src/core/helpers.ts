@@ -205,6 +205,42 @@ export function findLoadConflicts(
 }
 
 /**
+ * 🔬 **계측 (2026-08-19)** — 경로 순서와 주행분이 **어디에도 안 남는다.**
+ *
+ * 기사님 실측: 상차 약속이 `18:51` 로 저장됐는데, 화면이 말하는 도착 예상은 `17:56`
+ * 이었다. 역산하면 저장 순간의 주행은 47분, 지금은 21분이다. 어느 쪽이 47분을
+ * 만들었는지 — 서버가 그렇게 줬는지, 관제웹이 다른 값을 썼는지 — **확인할 방법이
+ * 없었다.** 카카오는 구간을 나눠 주고 `sections[0]` 이 곧 상차지까지인데,
+ * 그 값이 로그에도 장부에도 남지 않아 사후에 볼 수가 없다.
+ *
+ * → 값이 **바뀔 때만** 한 줄 남긴다 (`sync` 는 매초 나가므로 무조건 찍으면 로그가 묻힌다).
+ *
+ * ⚠️ 이건 원인을 못박기 위한 계측이다. 원인이 확정되면 지우거나 정식 로그로 승격한다.
+ */
+let lastRouteStopsSig = '';
+function logRouteStops(
+    routeStops: Array<{ orderId: string; stopType: string; driveMinutes: number | null }>,
+    routeComputedAt: string | null, holderId: string | null,
+    aligned: boolean, minsLen: number,
+) {
+    const sig = JSON.stringify([routeStops, routeComputedAt, holderId]);
+    if (sig === lastRouteStopsSig) return;
+    lastRouteStopsSig = sig;
+    if (!routeStops.length) return;
+
+    const circled = ['⑴', '⑵', '⑶', '⑷', '⑸', '⑹', '⑺', '⑻', '⑼', '⑽'];
+    const body = routeStops.map((st, i) =>
+        `${circled[i] ?? `(${i + 1})`} ${st.orderId.slice(-6)} ${st.stopType === 'pickup' ? '상차' : '하차'} ` +
+        `${st.driveMinutes != null ? `${st.driveMinutes}분` : '주행모름'}`).join(' ');
+    const anchor = routeComputedAt
+        ? new Date(routeComputedAt).toLocaleTimeString('ko-KR', { hour12: false })
+        : '없음';
+    // 어긋나면 주행분이 전부 null 로 나간다 — 그 사실 자체가 원인일 수 있으므로 함께 적는다
+    const mismatch = aligned ? '' : ` ⚠️ 길이 어긋남(주행분 ${minsLen} ≠ 정거장 ${routeStops.length}) → 전부 null`;
+    console.log(`🧭 [경로 순서] 닻 ${anchor} · 홀더 ${holderId?.slice(-6) ?? '없음'} · ${body}${mismatch}`);
+}
+
+/**
  * [2026-08-10] 관제탑으로 보낼 오더 스냅샷. **진행 중과 종료된 것을 나눠서** 보낸다.
  *
  * 🔴 예전에는 `Array.from(pendingOrdersData.values())` 를 통째로 보냈다.
@@ -282,6 +318,7 @@ export function buildOrderSync(session: { myOrders: MyOrder[]; pendingOrdersData
         orderId: st.orderId, stopType: st.stopType,
         driveMinutes: aligned ? mins![i] : null,
     }));
+    logRouteStops(routeStops, routeComputedAt, holder?.id ?? null, aligned, mins?.length ?? 0);
 
     return {
         active: all.filter(o => !isTerminal(o.status)),

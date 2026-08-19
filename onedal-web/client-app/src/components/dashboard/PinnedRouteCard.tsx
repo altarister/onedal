@@ -557,6 +557,19 @@ export default function PinnedRouteCard({
                                                 onwardKm={isPickupStop ? timing.soloKm : null}
                                                 leadMinutes={routeLead?.leadMinutes ?? lead.leadMinutes}
                                                 leadLabel={routeLead ? routeLead.leadLabel : lead.leadLabel}
+                                                /**
+                                                 * 🔬 **계측 (2026-08-19)** — 이 시트가 **어느 값을 썼는지** 서버 로그에 남긴다.
+                                                 *
+                                                 * `routeLead ?? lead` 는 경로가 아직 없으면 조용히 콜별 파생으로 넘어간다.
+                                                 * 그 갈림이 화면 어디에도 안 보여서, 약속이 18:51 로 굳은 뒤에도
+                                                 * 무엇이 그 값을 만들었는지 알 수 없었다. 저장할 때만 실려 나가고
+                                                 * **저장되지는 않는다** (규칙 ⑤-4 — 장부에 남기려면 넷을 먼저 정한다).
+                                                 */
+                                                diag={{
+                                                    source: routeLead ? '경로(routeStops)' : '콜별 파생(폴백)',
+                                                    routeComputedAt: routeComputedAt ?? null,
+                                                    etaMs: tlEntry?.etaMs ?? null,
+                                                }}
                                                 /* 앞 정거장(상차지)의 이름 — 하차지 문장이 "이마트 광주점에서" 로 읽힌다 */
                                                 leadFrom={pDetail?.contactName || pDetail?.customerName}
                                                 orderStatus={route.status}

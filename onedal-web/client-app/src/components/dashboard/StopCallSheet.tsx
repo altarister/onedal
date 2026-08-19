@@ -94,6 +94,11 @@ interface Props {
     leadMinutes?: number;
     /** 그 시간이 무엇인지 (`상차` 등) */
     leadLabel?: string | null;
+    /**
+     * 🔬 **계측 (2026-08-19)** — 이 시트가 쓴 재료의 출처. 저장할 때만 서버 로그로 나가고
+     * **저장되지 않는다.** 원인이 확정되면 지운다. (`PinnedRouteCard` 의 주석 참고)
+     */
+    diag?: { source: string; routeComputedAt: string | null; etaMs: number | null };
     /** 그 일을 하는 곳의 이름 (`이마트 광주점`) — 문장이 "상차지에서" 대신 실제 이름으로 읽힌다 */
     leadFrom?: string | null;
     /** 같은 구간의 거리(km) — 통화에서 "몇 km고 몇 분" 이라고 말한다 */
@@ -135,7 +140,7 @@ function summarize(r?: CargoReport): string {
 export default function StopCallSheet({
     orderId, stopType, label, address, contactName, phones, reports,
     memoTexts, driveMinutes, onSkip, skipLabel, stepId, vehicleType, orderStatus, arrivedAt, arrivedReasons, doneReasons, forceOpen, stepLabel,
-    leadMinutes = 0, leadLabel, leadFrom, driveKm, codAmount, pickupDeadlineAt,
+    leadMinutes = 0, leadLabel, leadFrom, driveKm, codAmount, pickupDeadlineAt, diag,
 }: Props) {
     const isPickup = stopType === 'pickup';
     /** 단계 카드(A안)가 몰아주는 모드 — 이 시트가 화면의 전부다. 요약 줄을 띄우지 않는다 */
@@ -384,6 +389,19 @@ export default function StopCallSheet({
             protections: isPickup && protections.length ? protections : undefined,
             afterworks: !isPickup && afterworks.length ? afterworks : undefined,
             memo: memo || undefined,
+            /**
+             * 🔬 **계측 (2026-08-19)** — 이 약속을 만든 재료를 그대로 싣는다.
+             *    서버는 로그로만 쓰고 버린다 (`socketHandlers` 의 `약속 계측` 참고).
+             *    `touched` 가 특히 중요하다 — 18:51 을 **기사님이 직접 누르신 것인지**
+             *    시스템이 추천한 것인지가 여기서 갈린다.
+             */
+            _diag: diag ? {
+                ...diag,
+                driveMinutes, leadMinutes,
+                baseAt: new Date(slotBaseMs.current).toISOString(),
+                suggestedAt: suggestedSlot?.iso,
+                touched: deadlineTouched,
+            } : undefined,
         });
         // 저장하면 접는다. 결과는 바로 위 요약 줄에 반영된다.
         // 단, 단계 카드(A안)에서는 이 정거장이 화면의 전부이므로 열어 둔다 —
