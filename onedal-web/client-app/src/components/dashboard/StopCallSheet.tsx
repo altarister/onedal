@@ -212,6 +212,18 @@ export default function StopCallSheet({
      * 맞다 — 통화하면서 버튼을 찾아 누를 시간이 없다. 채워 두고 **틀린 것만 고치는** 편이 빠르다.
      * 적요는 부정확할 수 있으므로 어디서 온 값인지는 화면에 남긴다.
      */
+    /**
+     * 🔴 **약속 복원은 여기 한 곳뿐이다** (2026-08-19 코드리뷰).
+     *    예전엔 `loadInto` 의 세 분기(차종기본값·적요·일반)가 **각자** 복원했고,
+     *    그중 적요 분기에만 `onwardDeadlineAt` 이 빠져 있었다 — 적요 힌트가 있는 콜에서
+     *    **상차 통화에서 들은 하차 시각이 조용히 유실**됐다. 한 벌만 고치면 나머지가 갈라진다.
+     */
+    const restorePromise = (src?: CargoReport, onward?: string) => {
+        setDeadlineAt(src?.promisedArrivalAt ?? src?.deadlineAt ?? onward);
+        setDeadlineFromAt((src as any)?.promisedArrivalFromAt ?? undefined);
+        setOnwardDeadlineAt(src?.onwardDeadlineAt);
+    };
+
     const loadInto = (src?: CargoReport) => {
         // 하차지 통화인데 아직 시각을 안 정했다면, **상차지 통화에서 들은 값**을 미리 넣는다
         const onward = !isPickup && !(src?.promisedArrivalAt ?? src?.deadlineAt)
@@ -254,9 +266,7 @@ export default function StopCallSheet({
             setMemo(src?.memo || '');
             setProtections(src?.protections?.length ? [...src.protections] : [...DEFAULT_PROTECTIONS]);
             setAfterworks(src?.afterworks?.length ? [...src.afterworks] : [...DEFAULT_AFTERWORKS]);
-            setDeadlineAt(src?.promisedArrivalAt ?? src?.deadlineAt ?? onward);
-            setDeadlineFromAt((src as any)?.promisedArrivalFromAt ?? undefined);
-            setOnwardDeadlineAt(src?.onwardDeadlineAt);
+            restorePromise(src, onward);
             return;
         }
         if (prefilled) {
@@ -267,8 +277,7 @@ export default function StopCallSheet({
             setHandling(h.handling);
             setTags(h.tags?.length ? [...h.tags] : [DEFAULT_CARGO_TAG]);
             setMemo(src?.memo || '');
-            setDeadlineAt(src?.promisedArrivalAt ?? src?.deadlineAt ?? onward);
-            setDeadlineFromAt((src as any)?.promisedArrivalFromAt ?? undefined);
+            restorePromise(src, onward);
             return;
         }
         setUnit(src?.unit as CargoUnit | undefined);
@@ -284,9 +293,7 @@ export default function StopCallSheet({
         setMemo(src?.memo || '');
         setProtections(src?.protections?.length ? [...src.protections] : [...DEFAULT_PROTECTIONS]);
         setAfterworks(src?.afterworks?.length ? [...src.afterworks] : [...DEFAULT_AFTERWORKS]);
-        setDeadlineAt(src?.promisedArrivalAt ?? src?.deadlineAt ?? onward);
-        setDeadlineFromAt((src as any)?.promisedArrivalFromAt ?? undefined);
-        setOnwardDeadlineAt(src?.onwardDeadlineAt);
+        restorePromise(src, onward);
     };
 
 // 단계 카드는 줄을 누르지 않으므로 loadInto 가 안 불린다 — 여기서 한 번 채운다
@@ -328,7 +335,13 @@ export default function StopCallSheet({
              * 약속이 흔들린다 (실측: 40박스 신고 → 갑자기 지각). 완료 시각은 서버가
              * `도착 약속 + 지금 추정 소요` 로 파생한다 — deadlineAt 은 더 이상 저장하지 않는다.
              */
-            promisedArrivalAt: deadlineAt,
+            /**
+             * 🔴 **약속 없이 저장하지 않는다** (2026-08-19 코드리뷰).
+             *    `deadlineAt` 이 undefined 인 채 통화 완료를 누르면 약속이 안 잡힌 콜이 된다 —
+             *    타임라인·카운트다운이 근거를 잃고, 화면은 "통화했다"고 표시한다.
+             *    고른 게 없으면 화면에 눌려 있던 추천값을 그대로 싣는다.
+             */
+            promisedArrivalAt: deadlineAt ?? suggestedSlot?.iso,
             // 부터(하한) — 탭 1번이면 없다. 서버 타임라인이 "일찍 가도 소용없음"으로 쓴다
             promisedArrivalFromAt: deadlineFromAt,
             // 🔴 하차지 시각은 **하차지 기록으로 저장하지 않는다.** 저장하면

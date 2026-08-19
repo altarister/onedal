@@ -231,6 +231,8 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, r
                         const promiseOf = (stop: 'pickup' | 'dropoff') => tle(stop)?.promisedUntil
                             ?? (stop === 'pickup' ? fallback?.pickupPromisedArrivalAt : fallback?.dropoffPromisedArrivalAt)
                             ?? null;
+                        /** ⚠️ 못 지키는 약속 — 경로가 바뀌었거나 앞 약속이 늦춰진 것 */
+                        const lateOf = (stop: 'pickup' | 'dropoff') => tle(stop)?.lateMinutes ?? 0;
                         const confirmed = (stop: 'pickup' | 'dropoff') => tle(stop)?.promiseConfirmed
                             ?? r.reports.some(rep =>
                                 rep.stopType === stop && rep.kind === 'DECLARED' && rep.promisedArrivalAt);
@@ -264,11 +266,11 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, r
                                 <span className="text-[14px] font-bold text-text-primary truncate min-w-0 flex-1">
                                     <StopMark at={vo?.pickupIdx} kind="pickup" evaluating={isEvaluating(o.status)}
                                         time={promiseOf('pickup')} confirmed={confirmed('pickup')}
-                                        name={getAddressLabel(o.pickup)} />
+                                        late={lateOf('pickup')} name={getAddressLabel(o.pickup)} />
                                     <span className="text-text-muted font-normal mx-1">→</span>
                                     <StopMark at={vo?.dropoffIdx} kind="dropoff" evaluating={isEvaluating(o.status)}
                                         time={promiseOf('dropoff')} confirmed={confirmed('dropoff')}
-                                        name={getAddressLabel(o.dropoff)} />
+                                        late={lateOf('dropoff')} name={getAddressLabel(o.dropoff)} />
                                 </span>
 
                                 {/* 6단계를 한눈에 — 카드 안 진행 점과 같은 규칙 */}
@@ -331,9 +333,9 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, r
  * 표시 없이 값만 쓰면 규칙 ④(지어내지 않는다) 위반이다.
  * 번호도 시각도 없으면 아무것도 그리지 않는다 (`(3 --:--)` 를 만들지 않는다).
  */
-function StopMark({ at, time, confirmed, kind, evaluating, name }: {
+function StopMark({ at, time, confirmed, kind, evaluating, name, late = 0 }: {
     at?: number; time?: string | null; confirmed?: boolean;
-    kind: 'pickup' | 'dropoff'; evaluating?: boolean; name: string;
+    kind: 'pickup' | 'dropoff'; evaluating?: boolean; name: string; late?: number;
 }) {
     const { theme } = useTheme();
     const c = MAP_THEME_COLORS[theme];
@@ -352,8 +354,10 @@ function StopMark({ at, time, confirmed, kind, evaluating, name }: {
             <span>{name}</span>
             {time && (
                 /* ~ = 통화 전 추정. 12px 아래에서는 물결이 마이너스로 읽혔다 (기사님 2026-08-19) */
-                <span className="text-[13px] font-bold text-text-muted tabular-nums">
+                <span className={`text-[13px] font-bold tabular-nums ${late > 0 ? 'text-danger' : 'text-text-muted'}`}>
                     {confirmed ? hhmm(time) : `~${hhmm(time)}`}
+                    {/* ⚠️ 못 지키는 약속 — 색만으로는 이유를 모르니 분을 적는다 */}
+                    {late > 0 && <span className="ml-0.5">⚠️{late}분</span>}
                 </span>
             )}
         </span>

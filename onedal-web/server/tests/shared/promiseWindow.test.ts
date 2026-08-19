@@ -32,8 +32,18 @@ const orders = [{ id: 'A', capturedAt: '2026-08-19T03:50:00Z' }] as any;
 const none = (_id: string) => [] as any;
 
 describe('타임라인 — 부터(하한)는 기다림으로 뒤 정거장에 전파된다', () => {
-    it('🔴 상차 "부터"가 도착예상보다 늦으면, 하차 도착예상이 그만큼 밀린다', () => {
-        // 도착예상 04:10 인데 화주가 "05:00 부터" → 50분 대기
+    /**
+     * 🔄 **기준을 "부터"에서 "까지"로 바꿨다** (2026-08-19 코드리뷰).
+     *
+     * 처음엔 "부터"(05:00)만 기다림으로 전파했다 — 구간의 이점(여유)을 살리려는
+     * 낙관이었다. 그런데 그러면 **뒤 약속을 못 지킨다**: 05:00 기준으로 하차를
+     * 약속했는데 실제로 05:30 에 상차하면 그대로 30분 지각이다.
+     * 화주와 정하는 것은 언제나 "언제까지"이므로, 뒤 계산의 기준도 **상한**이어야 한다.
+     * 구간의 여유는 *이 정거장에서 합짐을 잡을 시간*으로 쓰이지, 뒤 약속을 당기는
+     * 근거가 되지는 않는다.
+     */
+    it('🔴 구간 약속이면 "까지"(상한)가 뒤 정거장의 기준이 된다 — 지킬 수 있는 약속만 권한다', () => {
+        // 도착예상 04:10 · 약속 05:00~05:30 → 뒤는 05:30 기준 (80분 밀림)
         const reportsOf = (id: string) => id === 'A' ? [{
             stopType: 'pickup', kind: 'DECLARED',
             promisedArrivalFromAt: '2026-08-19T05:00:00.000Z',
@@ -42,10 +52,10 @@ describe('타임라인 — 부터(하한)는 기다림으로 뒤 정거장에 �
         const withWait = deriveRouteTimeline(stops, orders, reportsOf, none, NOW, COMPUTED);
         const noWait = deriveRouteTimeline(stops, orders, none, none, NOW, COMPUTED);
         const shift = withWait[1].etaMs! - noWait[1].etaMs!;
-        expect(shift).toBe(50 * 60_000);
+        expect(shift).toBe(80 * 60_000);
     });
 
-    it('"부터"가 도착예상보다 이르면 아무것도 안 밀린다 — 기다림이 없다', () => {
+    it('"부터"가 도착예상보다 일러도 확정 "까지" 기준은 그대로다', () => {
         const reportsOf = (id: string) => id === 'A' ? [{
             stopType: 'pickup', kind: 'DECLARED',
             promisedArrivalFromAt: '2026-08-19T04:05:00.000Z',   // 도착예상(04:10)보다 이름

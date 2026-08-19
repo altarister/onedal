@@ -732,6 +732,11 @@ export interface RouteTimelineEntry {
     promiseConfirmed: boolean;
     /** 이 약속을 지키기 위한 출발 마감 (ms) */
     departByMs: number | null;
+    /**
+     * ⚠️ **못 지키는 분** — 경로상 도착예상이 확정 약속을 넘긴 만큼 (0 이면 지킬 수 있다).
+     * 재계산으로 경로가 바뀌든 앞 약속이 늦춰지든, 깨지는 자리는 여기 하나다.
+     */
+    lateMinutes: number;
 }
 
 export function deriveRouteTimeline(
@@ -750,12 +755,23 @@ export function deriveRouteTimeline(
 
     const out: RouteTimelineEntry[] = [];
     /**
-     * 누적이 둘이다 — 도착예상과 출발마감이 다른 것을 세기 때문이다 (기사님 2026-08-19).
-     *   beforeMin      = 정차 + **"부터" 기다림** 의 합 → 도착예상용.
-     *                    "12시부터"면 11:40 에 가도 상차가 12시 시작이라 뒤가 밀린다
-     *   dwellOnlyMin   = 정차만 → 출발마감용. 기다림은 늦게 떠나면 저절로 줄어드는
-     *                    시간이라, 마감에서 빼면 실제보다 일찍 나가라고 거짓말하게 된다
+     * ⛓️ **앞 정거장을 떠나는 시각이 뒤 정거장의 기준이다** (2026-08-19 코드리뷰).
+     *
+     * 🔴 예전에는 정차와 "부터" 대기만 누적했다. 그래서 **확정한 "까지" 약속이
+     *    뒤로 전파되지 않았다** — 실측: 상차를 11:12 로 약속했는데 하차 추정이
+     *    11:51 로 떴다 (11:12 + 상차 8분 + 주행 97분 = 12:57 이 물리적 최소).
+     *    그 값으로 화주와 약속하면 무조건 지각이다.
+     *
+     *      출발ᵢ = max(도착예상ᵢ, "부터"ᵢ, 확정 "까지"ᵢ) + 정차ᵢ
+     *
+     *    "까지"를 기준에 넣는 이유: 화주가 "11:12까지 오세요"라고 했으면 그 전에
+     *    가도 상차는 대개 그때 시작된다. 일찍 가는 것을 이득으로 세면 뒤 약속이
+     *    낙관으로 잡힌다 — 못 지킬 약속을 화면이 권하게 된다.
+     *
+     * `dwellOnlyMin`(정차만)은 그대로 둔다 — 출발마감은 "지금 나가면 되는 시각"이라
+     * 기다림·약속 지연을 빼면 실제보다 일찍 나가라고 거짓말하게 된다.
      */
+    let carriedMs: number | null = null;   // 앞 정거장을 떠나는 시각 (없으면 닻 기준)
     let beforeMin = 0;
     let dwellOnlyMin = 0;
     for (const st of stops) {
@@ -778,6 +794,13 @@ export function deriveRouteTimeline(
             ?? (etaMs != null ? new Date(etaMs + margin * 60_000).toISOString() : null)
             ?? (st.stopType === 'pickup' ? t.pickupPromisedArrivalAt : t.dropoffPromisedArrivalAt);
 
+        /**
+         * ⚠️ 실현가능성 — 경로상 도착예상이 **확정** 약속을 넘겼는가.
+         *    추정 약속은 도착예상에서 파생되므로 넘길 수가 없다 (확정만 검사한다).
+         */
+        const lateMinutes = declared && etaMs != null && promisedUntil
+            ? Math.max(0, Math.round((etaMs - Date.parse(promisedUntil)) / 60_000)) : 0;
+
         out.push({
             orderId: st.orderId, stopType: st.stopType,
             etaMs, dwellMinutes: dwell,
@@ -785,13 +808,24 @@ export function deriveRouteTimeline(
             promiseConfirmed: !!declared,
             departByMs: promisedUntil != null && st.driveMinutes != null
                 ? Date.parse(promisedUntil) - (st.driveMinutes + dwellOnlyMin) * 60_000 : null,
+            lateMinutes,
         });
 
-        // "부터"보다 일찍 닿으면 그 차이만큼 이 자리에서 기다린다 — 뒤 정거장에 전파
+        /**
+         * 이 정거장을 **떠나는 시각**을 다음으로 넘긴다.
+         *   도착예상 · "부터"(일찍 가도 소용없음) · 확정 "까지"(그때 시작한다) 중 가장 늦은 것 + 정차
+         */
         const fromAt = declared?.promisedArrivalFromAt ? Date.parse(declared.promisedArrivalFromAt) : null;
-        const waitMin = fromAt != null && etaMs != null && fromAt > etaMs
-            ? Math.round((fromAt - etaMs) / 60_000) : 0;
-        beforeMin += dwell + waitMin;
+        const confirmedUntil = declared && promisedUntil ? Date.parse(promisedUntil) : null;
+        const startMs = Math.max(etaMs ?? 0, fromAt ?? 0, confirmedUntil ?? 0);
+        if (etaMs != null) {
+            carriedMs = startMs + dwell * 60_000;
+            // 다음 정거장의 도착예상 = 닻 + (누적 주행 + beforeMin) 이므로,
+            // 떠나는 시각과의 차이를 beforeMin 에 실어 보낸다 (누적 축은 하나로 둔다)
+            beforeMin = Math.round((carriedMs - anchorMs) / 60_000) - st.driveMinutes!;
+        } else {
+            beforeMin += dwell;
+        }
         dwellOnlyMin += dwell;
     }
     return out;

@@ -10,7 +10,7 @@ export class OrderRepository {
         const stmtOrder = db.prepare(`
             INSERT INTO orders (
                 id, type, pickup, dropoff, fare, timestamp, status, userId, capturedAt, capturedDeviceId,
-                vehicleType, distanceKm, totalDistanceKm, totalDurationMin, kakaoSoloDistanceKm, kakaoSoloDurationMin, kakaoTimeExt,
+                vehicleType, distanceKm, totalDistanceKm, totalDurationMin, kakaoSoloDistanceKm, kakaoSoloDurationMin, kakaoTimeExt, routeComputedAt,
                 paymentType, billingType, commissionRate, tollFare, tripType, orderForm, itemDescription, detailMemo,
                 dispatcherName, dispatcherPhone, isShared, isExpress,
                 -- [2026-08-10] 앱은 예전부터 보내고 DB에도 컬럼이 있는데 이 목록에만 빠져 있어
@@ -18,7 +18,7 @@ export class OrderRepository {
                 -- 예약 표기의 원문이라, 이게 없으면 시간창 경로 최적화의 입력 자체가 없다.
                 scheduleText, postTime, targetApp
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET 
                 status = 'ORDER_CONFIRMED', 
                 userId = excluded.userId, 
@@ -50,6 +50,7 @@ export class OrderRepository {
             cachedOrder.kakaoSoloDistanceKm || null,
             cachedOrder.kakaoSoloDurationMin || null,
             cachedOrder.kakaoTimeExt || null,
+            (cachedOrder as any).routeComputedAt || null,   // ⚓ 타임라인 추정 약속의 닻
             cachedOrder.paymentType || null,
             cachedOrder.billingType || null,
             cachedOrder.commissionRate || null,

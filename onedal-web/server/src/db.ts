@@ -413,7 +413,9 @@ ensureColumns('user_judgment', JUDGMENT_COLS);
 
 ensureColumns('order_milestones', { predictedAt: 'TEXT' });
 // 어느 배차망에서 온 콜인가 (insung/hwamul24) — 배차망별 콜 검색·분석의 근거 (기사님 2026-08-17)
-ensureColumns('orders', { targetApp: 'TEXT' });
+ensureColumns('orders', { targetApp: 'TEXT',
+    // ⚓ 타임라인 추정 약속의 닻 — 메모리에만 두면 서버 재시작에 모든 추정이 지금 시각으로 리셋된다
+    routeComputedAt: 'TEXT' });
 ensureColumns('intel', { targetApp: 'TEXT' });
 // 🕒 도착 약속 — "몇 시까지 갈게요" (기사님 확정 2026-08-18). 완료 시각은 저장하지 않고 파생한다
 ensureColumns('stop_cargo_reports', { promisedArrivalAt: 'TEXT', protections: 'TEXT', afterworks: 'TEXT',
