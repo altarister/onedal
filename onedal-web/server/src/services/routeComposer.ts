@@ -212,8 +212,26 @@ export function planMergedStops(
 
     // 출발 기준은 **첫짐 콜**(calls[0]). 그 좌표가 없으면 첫 유효 좌표로 대체한다.
     // ⚠️ 상차지가 하나도 안 남았을 수 있으므로(전부 적재 완료) 하차지로도 폴백한다.
-    const mainPair = calls.length > 0 ? toCoordPair(calls[0]) : null;
-    const origin = mainPair ?? { pickup: allPickups[0] ?? allDropoffs[0], dropoff: allDropoffs[0] };
+    /**
+     * ⚖️ **비교 기준(base)도 다녀온 곳을 뺀다** (2026-08-19 실측).
+     *
+     * `origin.pickup` 은 우회 비용을 재는 base 경로의 경유지가 된다
+     * (`현위치 → origin.pickup → origin.dropoff`). ①에서 merged 만 다녀온 상차지를
+     * 뺐더니 **base 가 부풀어** 우회 비용이 음수로 나왔다 —
+     * `추가 주행 +-13분 · 우회 거리 +-23.4km`. 합짐을 붙였는데 거리가 줄 리 없다.
+     * 그 부푼 값과 비교하면 **모든 합짐이 과대평가**되고, 색이 곧 결정이므로(규칙 ⑤-3)
+     * 색이 틀린다.
+     *
+     * 다녀온 상차지는 base 에서도 들르지 않는다 — 지금 남은 일은 하차뿐이다.
+     * (`pickup === dropoff` 면 카카오 경유지가 목적지와 같아 사실상 직행이 된다)
+     */
+    const firstCall = calls.length > 0 ? calls[0] : null;
+    const mainPair = firstCall ? toCoordPair(firstCall) : null;
+    const origin = mainPair
+        ? (hasVisitedStop(firstCall!, 'pickup')
+            ? { pickup: mainPair.dropoff, dropoff: mainPair.dropoff }
+            : mainPair)
+        : { pickup: allPickups[0] ?? allDropoffs[0], dropoff: allDropoffs[0] };
 
     return { origin, mergedDest, waypoints, skippedPickups };
 }

@@ -105,3 +105,41 @@ describe('도착 시각은 콜 객체에 실린다', () => {
         expect(engine).toMatch(/hydrateVisitedStops|arrivedPickupAt[\s\S]{0,400}getMilestones|getMilestones[\s\S]{0,400}arrivedPickupAt/);
     });
 });
+
+/**
+ * ⚖️ **비교 기준(base)도 다녀온 곳을 뺀다** (기사님 실측 2026-08-19, ① 직후)
+ *
+ * ①을 넣자 합짐 경로(merged)는 다녀온 상차지를 제대로 뺐는데, **비교 대상인 base 는
+ * 안 뺐다.** base 는 `현위치 → 첫짐 상차지 → 첫짐 하차지` 로 고정 조립되기 때문이다.
+ *
+ * 실측 로그:
+ *   `🔵 총점 80 — 추가 주행 +-13분(100) · 우회 거리 +-23.4km(100)`
+ *
+ * **우회 비용이 음수**로 나왔다 — 합짐을 붙였는데 거리가 23km 줄었다는 뜻이다.
+ * 정거장이 늘었는데 그럴 리 없다. base 가 이미 다녀온 경안동을 다시 들르는 경로라
+ * **부풀어 있었고**, 그 부푼 값과 비교하니 모든 합짐이 과대평가된다.
+ * 색이 곧 결정인데(규칙 ⑤-3) 비교 기준이 틀리면 색도 틀린다.
+ *
+ * → base 의 출발 기준도 `hasVisitedStop` 을 따른다: 첫짐 상차지를 이미 다녀왔으면
+ *   base 는 **현위치 → 첫짐 하차지** 다 (거기가 지금 남은 일이므로).
+ */
+describe('우회 비용의 비교 기준', () => {
+    const P = (n: number) => ({ x: 127 + n / 100, y: 37 + n / 100 });
+    const call = (id: string, over: object = {}) => ({
+        id, status: 'ORDER_CONFIRMED',
+        pickupX: P(1).x, pickupY: P(1).y, dropoffX: P(2).x, dropoffY: P(2).y, ...over,
+    }) as any;
+
+    it('🔴 첫짐 상차지를 다녀왔으면 base 출발에 그 상차지를 넣지 않는다', () => {
+        const visited = planMergedStops(
+            [call('A', { arrivedPickupAt: '2026-08-19T05:01:00.000Z' })], null, { x: 127.5, y: 37.5 })!;
+        // origin.pickup 이 base 의 경유지가 된다 — 다녀왔으면 하차지와 같아야 한다(= 들르지 않음)
+        expect(visited.origin.pickup).toEqual(visited.origin.dropoff);
+    });
+
+    it('아직 안 갔으면 base 가 상차지를 들른다', () => {
+        const fresh = planMergedStops([call('A')], null, { x: 127.5, y: 37.5 })!;
+        expect(fresh.origin.pickup).toEqual(P(1));
+        expect(fresh.origin.dropoff).toEqual(P(2));
+    });
+});
