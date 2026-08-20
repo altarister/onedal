@@ -106,7 +106,7 @@ export const DEFAULT_JUDGMENT: JudgmentConfig = {
 export interface JudgmentField {
     /** DB 컬럼 이름 = 폼의 키 */ col: string;
     /** `JudgmentConfig` 안의 자리 */ path: [keyof JudgmentConfig, string];
-    group: '합짐' | '첫짐' | '모를 때' | '가중치' | '색 경계' | '시한';
+    group: '합짐' | '첫짐' | '모를 때' | '가중치' | '색 경계' | '데드라인';
     label: string;
     unit: string;
     min: number;
@@ -157,12 +157,12 @@ export const JUDGMENT_FIELDS: readonly JudgmentField[] = [
     { col: 'weight_slots', path: ['weights', 'slots'], group: '가중치',
       label: '적재 용량', unit: '배', min: 0, max: 10, int: false, why: '' },
 
-    { col: 'deadline_ratio_pct', path: ['deadline', 'ratioPct'], group: '시한',
-      label: '시한 배율', unit: '%', min: 100, max: 300, int: true,
+    { col: 'deadline_ratio_pct', path: ['deadline', 'ratioPct'], group: '데드라인',
+      label: '데드라인 배율', unit: '%', min: 100, max: 300, int: true,
       why: '배송 주행 × 이 배율이 업계가 보는 상한 — 내비 시간의 150% (교육 영상 · 2026-08-20 정리)' },
-    { col: 'deadline_pickup_min', path: ['deadline', 'pickupMin'], group: '시한',
-      label: '시한 픽업 보정', unit: '분', min: 0, max: 120, int: true,
-      why: '픽업에 걸린다고 쳐 주는 시간. 시한 = 잡은 시각 + 주행×배율 + 이 값' },
+    { col: 'deadline_pickup_min', path: ['deadline', 'pickupMin'], group: '데드라인',
+      label: '데드라인 픽업 보정', unit: '분', min: 0, max: 120, int: true,
+      why: '픽업에 걸린다고 쳐 주는 시간. 데드라인 = 잡은 시각 + 주행×배율 + 이 값' },
     { col: 'color_honey_min', path: ['color', 'honeyMin'], group: '색 경계',
       label: '🔵 꿀', unit: '점 이상', min: 0, max: 100, int: true,
       why: '총점이 이 점수 이상이면 파란색' },

@@ -491,7 +491,7 @@ export default function PinnedRouteCard({
                                             if (!chips.length) return null;
                                             return (
                                                 <div className="flex items-center gap-1.5 text-[11px] mb-1">
-                                                    <span className="text-text-muted font-bold">예산</span>
+                                                    <span className="text-text-muted font-bold">버퍼</span>
                                                     {chips.map(({ k, b }) => (
                                                         <span key={k} className={`px-1.5 py-0.5 rounded font-bold tabular-nums ${
                                                             b.min >= 30 ? 'bg-success/15 text-success'
@@ -499,16 +499,16 @@ export default function PinnedRouteCard({
                                                             : b.min >= 0 ? 'bg-warning/15 text-warning'
                                                             : 'bg-danger/15 text-danger'
                                                         }`}>
-                                                            {k === 'pickup' ? '상차' : '하차'} {b.min >= 0 ? '+' : ''}{b.min}분{b.firm ? '' : '~'}
+                                                            {k === 'pickup' ? '상차버퍼' : '경유버퍼'} {b.min >= 0 ? '+' : ''}{b.min}분{b.firm ? '' : '~'}
                                                         </span>
                                                     ))}
-                                                    <span className="text-[10px] text-text-muted">합짐에 쓸 수 있는 시간{chips.some(c => !c.b.firm) ? ' · ~는 통화 전 추정' : ''}</span>
-                                                    {/* ⏱️ 시한 — 업계가 보는 배달 상한 (판정 기준 탭에서 조절) */}
+                                                    <span className="text-[10px] text-text-muted">{chips.some(c => !c.b.firm) ? '~는 통화 전 추정' : ''}</span>
+                                                    {/* ⏱️ 데드라인 — 콜마다 자동으로 서는 배달 상한. 통화로 합의하면 미뤄진다 (용어집) */}
                                                     {(() => {
                                                         const dl = seededSteps.find(x => x.step === 'CALL_DROPOFF')?.row?.deadline_at;
                                                         return dl ? (
                                                             <span className="px-1.5 py-0.5 rounded bg-surface-hover text-text-muted font-bold tabular-nums text-[10px]">
-                                                                시한 {new Date(dl).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                                                                데드라인 {new Date(dl).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })}
                                                             </span>
                                                         ) : null;
                                                     })()}

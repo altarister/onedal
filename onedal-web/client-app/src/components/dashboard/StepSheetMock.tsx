@@ -267,8 +267,8 @@ function SlotGrid({ r, pick, onPick }: {
                     /* ⏳ 지나간 시각은 못 지킬 약속이다 — 흐리게, 못 누르게 (기획 ⑧).
                        이미 골라 둔 칸이면 그대로 보인다 — 기록을 지우지 않는다 */
                     const past = Date.parse(iso) < Date.now() && !on && !isFrom;
-                    /* ⏱️ 시한(주행×150%+픽업 보정) 넘는 칸 — 표시만 하고 **막지 않는다**.
-                       여기는 통화 중이다 — 화주가 이 시각에 합의하면 그게 면책이다 (시한은 관행) */
+                    /* ⏱️ 데드라인(주행×150%+픽업 보정) 넘는 칸 — 표시만 하고 **막지 않는다**.
+                       여기는 통화 중이다 — 화주가 합의하면 데드라인이 미뤄진다 (관행이지 법이 아니다) */
                     const over = r.deadline_at && iso > r.deadline_at;
                     return (
                         <Chip key={iso} onTap={tap && !past ? (() => tap(iso)) : undefined}
@@ -286,7 +286,7 @@ function SlotGrid({ r, pick, onPick }: {
             </Row>
             <div className="mt-1 text-[10px] leading-tight text-text-muted">
                 {r.deadline_at && <>⚠️ <b className="tabular-nums">{hhmm(r.deadline_at)}</b> 넘는 칸은
-                    업계 시한(주행×150%) 밖 — 화주 합의가 있으면 괜찮습니다 · </>}
+                    데드라인(주행×150%) 밖 — 화주와 합의하면 데드라인이 미뤄집니다 · </>}
                 {pick?.touched
                     ? <>기사님이 고른 값 — 통화 완료 때 <b>약속으로 저장</b>됩니다</>
                     : <>ⓘ 저장된 값 — 도착 예상 <b className="tabular-nums">{hhmm(predicted)}</b>
