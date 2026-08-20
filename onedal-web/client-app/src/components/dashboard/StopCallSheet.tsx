@@ -95,6 +95,16 @@ interface Props {
     /** 그 시간이 무엇인지 (`상차` 등) */
     leadLabel?: string | null;
     /**
+     * 🕒 **도착 예상 (ms)** — 타임라인이 만든 값. **시트는 이걸 그대로 쓴다.**
+     *
+     * 🔴 예전에는 `driveMinutes` 만 받아 **시트가 열린 시각**에 더했다. 그런데 그 분은
+     *    닻(`routeComputedAt`)부터 잰 값이라 **닻과 시트를 연 시각의 차이만큼 통째로 밀렸다**
+     *    (실측: `기준 18:20:03 · 닻 18:17:26`). 시트를 늦게 열수록 더 벌어진다.
+     *    게다가 화면 안에서도 기준이 둘이었다 — 칸은 `slotBaseMs`(고정), 문구는 `Date.now()`(흐름).
+     *    그래서 **칸은 멈춰 있는데 문구의 도착 예상만 계속 늘어났다.**
+     */
+    etaMs?: number | null;
+    /**
      * 🔬 **계측 (2026-08-19)** — 이 시트가 쓴 재료의 출처. 저장할 때만 서버 로그로 나가고
      * **저장되지 않는다.** 원인이 확정되면 지운다. (`PinnedRouteCard` 의 주석 참고)
      */
@@ -140,7 +150,7 @@ function summarize(r?: CargoReport): string {
 export default function StopCallSheet({
     orderId, stopType, label, address, contactName, phones, reports,
     memoTexts, driveMinutes, onSkip, skipLabel, stepId, vehicleType, orderStatus, arrivedAt, arrivedReasons, doneReasons, forceOpen, stepLabel,
-    leadMinutes = 0, leadLabel, leadFrom, driveKm, codAmount, pickupDeadlineAt, diag,
+    leadMinutes = 0, leadLabel, leadFrom, driveKm, codAmount, pickupDeadlineAt, etaMs, diag,
 }: Props) {
     const isPickup = stopType === 'pickup';
     /** 단계 카드(A안)가 몰아주는 모드 — 이 시트가 화면의 전부다. 요약 줄을 띄우지 않는다 */
@@ -458,6 +468,12 @@ export default function StopCallSheet({
     if (slotBaseMs.current === 0) slotBaseMs.current = Date.now();
 
     /**
+     * 🕒 **도착 예상은 여기 하나뿐이다** (규칙 ③ · 2026-08-20).
+     *    타임라인이 준 값을 그대로 쓰고, 없을 때만(경로 미계산) 분으로 만든다.
+     */
+    const arrivalMs = etaMs ?? (slotBaseMs.current + arrivalMinutes * 60_000);
+
+    /**
      * 📏 **격자의 기준점** — 저장된 약속이 있으면 **그것이 기준**이다 (2026-08-19).
      *
      * 🔴 중복 칸(`11:05 · 11:06`)의 진짜 원인은 눈금이 아니라 **기준점이 열 때마다
@@ -472,15 +488,14 @@ export default function StopCallSheet({
     const savedPromise = (declared as any)?.promisedArrivalFromAt ?? declared?.promisedArrivalAt ?? declared?.deadlineAt;
     const slotAnchor = savedPromise
         ? Date.parse(savedPromise)
-        : slotBaseMs.current + (arrivalMinutes + 30) * 60_000;
+        : arrivalMs + 30 * 60_000;
     const baseSlots = useMemo(() => {
         // 기준점을 두 번째 칸 자리에 두어 **더 이른 시각도 고를 수 있게** 한다.
         // 단 도착 예상보다 이른 칸은 지킬 수 없으므로 뺀다.
-        const etaMs = slotBaseMs.current + arrivalMinutes * 60_000;
         const first = slotAnchor - 30 * 60_000;
-        return buildArrivalSlots(Math.max(first, etaMs), 0, 5)
-            .filter(sl => Date.parse(sl.iso) >= Math.floor(etaMs / 60_000) * 60_000);
-    }, [arrivalMinutes, slotAnchor]);
+        return buildArrivalSlots(Math.max(first, arrivalMs), 0, 5)
+            .filter(sl => Date.parse(sl.iso) >= Math.floor(arrivalMs / 60_000) * 60_000);
+    }, [arrivalMs, slotAnchor]);
     const hourSlots = useMemo(() => {
         /** 고른 값이 목록에 없으면 **칸으로 끼워 넣는다** — 구간이면 부터·까지 양 끝 다 */
         const pin = (list: typeof baseSlots, iso?: string) => {
@@ -561,9 +576,8 @@ export default function StopCallSheet({
         // 🕒 도착 예상 + 30분 (기사님 2026-08-18: "디폴트 체크는 도착시간 + 30분").
         //    상차 소요를 더하지 않는다 — 약속은 도착이고, 소요는 짐 양에 따라 변한다.
         // 도착 예상(= 지금 + 주행)보다 이른 칸은 지킬 수 없다 — 그것이 하한
-        const etaMs = slotBaseMs.current + arrivalMinutes * 60_000;
-        return nearestSlot(slotAnchor, etaMs);
-    }, [driveKnown, arrivalMinutes, dwell, isPickup, hourSlots, pickupDeadlineAt, slotAnchor]);
+        return nearestSlot(slotAnchor, arrivalMs);
+    }, [driveKnown, arrivalMs, dwell, isPickup, hourSlots, pickupDeadlineAt, slotAnchor]);
 
 
     /** 기사님이 아직 손대지 않아 추천값이 눌려 있는 상태인가 — 눌리면 근거 줄을 띄운다 */
@@ -966,7 +980,7 @@ export default function StopCallSheet({
                                             (도착 예상 + 여유 30분 이상인 첫 칸)과 다른 말이었고, 도착 약속의
                                             근거에 상차 소요까지 섞어 보여줬다. 숫자가 우연히 맞아 보여 더 위험했다. */}
                                         ⓘ {driveKnown
-                                            ? <>도착 예상 <b className="tabular-nums">{hhmm(new Date(Date.now() + arrivalMinutes * 60_000).toISOString())}</b> + 여유 30분</>
+                                            ? <>도착 예상 <b className="tabular-nums">{hhmm(new Date(arrivalMs).toISOString())}</b> + 여유 30분</>
                                             : <>콜 잡은 시각 + 1시간 → <b className="tabular-nums">{hhmm(pickupDeadlineAt!)}</b></>}
                                         {' 이라 가장 가까운 '}
                                         <b className="tabular-nums">{hhmm(deadlineAt)}</b> 을 눌러 뒀습니다 —
@@ -995,12 +1009,12 @@ export default function StopCallSheet({
                                         const km = driveKm != null ? `${driveKm.toFixed(1)}km · ` : '';
                                         const arriveAt = deadlineAt
                                             ? hhmm(deadlineAt)
-                                            : hhmm(new Date(Date.now() + arrivalMinutes * 60_000).toISOString());
+                                            : hhmm(new Date(arrivalMs).toISOString());
                                         // 구간 약속이면 "12:23~12:53 사이" 로 읽는다 — 통화 대사 그대로
                                         const fromLabel = deadlineAt && deadlineFromAt ? `${hhmm(deadlineFromAt)}~` : '';
                                         // 약속까지 남는 시간 = 상차버퍼 (이 자리에서 합짐을 잡을 수 있는 시간)
                                         const waitMin = deadlineAt
-                                            ? Math.round((new Date(deadlineAt).getTime() - (Date.now() + arrivalMinutes * 60_000)) / 60_000)
+                                            ? Math.round((new Date(deadlineAt).getTime() - arrivalMs) / 60_000)
                                             : 0;
                                         const tail = (
                                             <>
@@ -1023,7 +1037,7 @@ export default function StopCallSheet({
                                                     {tail}
                                                     <span className="text-text-muted"> (상차 {dwell}분,{' '}
                                                         <span className="tabular-nums">
-                                                            {hhmm(new Date((deadlineAt ? new Date(deadlineAt).getTime() : Date.now() + arrivalMinutes * 60_000) + dwell * 60_000).toISOString())}
+                                                            {hhmm(new Date((deadlineAt ? new Date(deadlineAt).getTime() : arrivalMs) + dwell * 60_000).toISOString())}
                                                         </span> 출발)
                                                     </span>
                                                 </>

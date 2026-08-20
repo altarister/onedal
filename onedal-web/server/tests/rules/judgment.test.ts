@@ -224,7 +224,7 @@ describe('통화 시트 — 미리 눌러 두고 근거를 남긴다', () => {
      */
     it('🔴 추천 칸은 도착 예상 + 30분 — 상차 소요를 약속에 섞지 않는다', () => {
         const fn = sheet().slice(sheet().indexOf('const suggestedSlot'));
-        expect(fn.slice(0, 2600)).toMatch(/nearestSlot\(slotAnchor, etaMs\)/);
+        expect(fn.slice(0, 2600)).toMatch(/nearestSlot\(slotAnchor, arrivalMs\)/);
         expect(fn.slice(0, 2600)).not.toMatch(/arrivalMinutes \+ \(isPickup \? dwell : 0\)/);
     });
 
@@ -280,6 +280,34 @@ describe('통화 시트 — 미리 눌러 두고 근거를 남긴다', () => {
      *                                    이 정거장의 정차는 뺄셈에 없다 (규칙 ⑤-5)
      *      폴백(경로 순서 없음)        — `주행 N, 상차 M` · 옛 규칙(마감 = 실어 보내는 시각)
      */
+    /**
+     * 🕒 **도착 예상은 하나다** (2026-08-20 실측)
+     *
+     * 통화 시트가 도착 예상을 **여섯 곳에서 따로** 만들고 있었고, 기준마저 두 가지였다 —
+     * 칸은 `slotBaseMs.current`(시트 연 시각, 고정), 문구는 `Date.now()`(매 렌더 흐름).
+     * 그래서 **칸은 멈춰 있는데 문구의 도착 예상만 계속 늘어났다.**
+     *
+     * 🔴 더 큰 문제는 **기준 시각이 틀렸다**는 것이다. `driveMinutes`·`leadMinutes` 는
+     *    경로를 계산한 시각(`routeComputedAt`, 닻)부터 잰 값인데, 시트는 그걸
+     *    **시트를 연 시각**에 더했다. 실측 로그: `기준 18:20:03 · 닻 18:17:26` —
+     *    2분 37초가 통째로 밀렸고, 시트를 늦게 열수록 더 벌어진다.
+     *
+     * → 타임라인이 이미 만든 `etaMs` 를 **그대로 받는다.** 시트는 다시 더하지 않는다 (규칙 ③).
+     */
+    it('🔴 도착 예상을 시트가 다시 계산하지 않는다 — 타임라인의 etaMs 를 받는다', () => {
+        const c = sheet();
+        expect(c).toMatch(/etaMs\?:\s*number \| null/);       // Props 로 받는다
+        expect(c).toMatch(/const arrivalMs = etaMs \?\?/);     // 파생은 한 곳
+        // 여섯 곳에 흩어져 있던 옛 계산이 한 곳(폴백)으로 모였는지
+        expect((c.match(/slotBaseMs\.current \+ arrivalMinutes/g) ?? []).length).toBe(1);
+        expect(c).not.toMatch(/Date\.now\(\) \+ arrivalMinutes/);   // 매 렌더 흐르던 기준은 아예 없다
+    });
+
+    it('🔴 카드가 타임라인의 etaMs 를 시트에 넘긴다', () => {
+        expect(rc3('components/dashboard/PinnedRouteCard.tsx'))
+            .toMatch(/etaMs=\{tlEntry\?\.etaMs/);
+    });
+
     it('🔴 출발 카운트다운이 내역을 적는다 — 그 시각을 만든 뺄셈 그대로', () => {
         const dc = rc3('components/dashboard/DepartureCountdown.tsx');
         expect(dc).toMatch(/\{soonest\.detail\}/);

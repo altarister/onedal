@@ -558,6 +558,13 @@ export default function PinnedRouteCard({
                                                 leadMinutes={routeLead?.leadMinutes ?? lead.leadMinutes}
                                                 leadLabel={routeLead ? routeLead.leadLabel : lead.leadLabel}
                                                 /**
+                                                 * 🕒 **도착 예상은 타임라인이 만든 것 하나다** (2026-08-20).
+                                                 *    분(`driveMinutes`)만 넘기면 시트가 **자기가 열린 시각**에 더한다 —
+                                                 *    그 분은 닻(`routeComputedAt`)부터 잰 값이라 그만큼 통째로 밀린다.
+                                                 *    실측: `기준 18:20:03 · 닻 18:17:26` (2분 37초).
+                                                 */
+                                                etaMs={tlEntry?.etaMs ?? null}
+                                                /**
                                                  * 🔬 **계측 (2026-08-19)** — 이 시트가 **어느 값을 썼는지** 서버 로그에 남긴다.
                                                  *
                                                  * `routeLead ?? lead` 는 경로가 아직 없으면 조용히 콜별 파생으로 넘어간다.
