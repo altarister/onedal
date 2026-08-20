@@ -13,7 +13,8 @@
     "map": "node scripts/map-flow.mjs",
     "audit:dead": "node scripts/audit-dead.mjs",
     "rehearsal": "node scripts/rehearsal.mjs",
-    "ledger": "node scripts/ledger.mjs"
+    "ledger": "node scripts/ledger.mjs",
+    "options": "node scripts/options.mjs"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
