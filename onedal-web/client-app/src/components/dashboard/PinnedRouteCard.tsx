@@ -503,6 +503,15 @@ export default function PinnedRouteCard({
                                                         </span>
                                                     ))}
                                                     <span className="text-[10px] text-text-muted">합짐에 쓸 수 있는 시간{chips.some(c => !c.b.firm) ? ' · ~는 통화 전 추정' : ''}</span>
+                                                    {/* ⏱️ 시한 — 업계가 보는 배달 상한 (판정 기준 탭에서 조절) */}
+                                                    {(() => {
+                                                        const dl = seededSteps.find(x => x.step === 'CALL_DROPOFF')?.row?.deadline_at;
+                                                        return dl ? (
+                                                            <span className="px-1.5 py-0.5 rounded bg-surface-hover text-text-muted font-bold tabular-nums text-[10px]">
+                                                                시한 {new Date(dl).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                                                            </span>
+                                                        ) : null;
+                                                    })()}
                                                 </div>
                                             );
                                         })()}

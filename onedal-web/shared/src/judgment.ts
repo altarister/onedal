@@ -66,6 +66,14 @@ export interface JudgmentConfig {
     weights: {
         driveTime: number; detourDist: number; deadline: number; slots: number;
     };
+    /**
+     * ⏱️ **콜 시한** — 업계 관행의 상한 (기사님 승인 2026-08-21).
+     *    시한 = 잡은 시각 + 배송 주행 × (ratioPct/100) + pickupMin.
+     *    법이 아니라 관행이다 — 어기면 배상이 아니라 주선사 압박. 그래서 콜을 자르지 않고
+     *    **통화 전 추정 약속을 이 안으로 깎고**, 화면이 넘는 칸을 표시한다.
+     *    통화로 굳힌 약속은 시한 위여도 그대로다 — 화주 합의가 면책이다.
+     */
+    deadline: { ratioPct: number; pickupMin: number };
     /** 총점이 몇 점 이상이면 무슨 색인가 */
     color: { honeyMin: number; normalMin: number };
 }
@@ -76,6 +84,7 @@ export const DEFAULT_JUDGMENT: JudgmentConfig = {
     merge: { honeyMaxMin: 30, shitMinMin: 60, honeyMaxKm: 15, shitMinKm: 30 },
     unknown: { pickupDwellMin: 15, dropoffDwellMin: 10, pickupOffsetMin: 60, restMarginMin: 30, arrivalMarginMin: 30 },
     weights: { driveTime: 1, detourDist: 1, deadline: 1, slots: 1 },
+    deadline: { ratioPct: 150, pickupMin: 20 },
     color: { honeyMin: 70, normalMin: 40 },
 };
 
@@ -97,7 +106,7 @@ export const DEFAULT_JUDGMENT: JudgmentConfig = {
 export interface JudgmentField {
     /** DB 컬럼 이름 = 폼의 키 */ col: string;
     /** `JudgmentConfig` 안의 자리 */ path: [keyof JudgmentConfig, string];
-    group: '합짐' | '첫짐' | '모를 때' | '가중치' | '색 경계';
+    group: '합짐' | '첫짐' | '모를 때' | '가중치' | '색 경계' | '시한';
     label: string;
     unit: string;
     min: number;
@@ -148,6 +157,12 @@ export const JUDGMENT_FIELDS: readonly JudgmentField[] = [
     { col: 'weight_slots', path: ['weights', 'slots'], group: '가중치',
       label: '적재 용량', unit: '배', min: 0, max: 10, int: false, why: '' },
 
+    { col: 'deadline_ratio_pct', path: ['deadline', 'ratioPct'], group: '시한',
+      label: '시한 배율', unit: '%', min: 100, max: 300, int: true,
+      why: '배송 주행 × 이 배율이 업계가 보는 상한 — 내비 시간의 150% (교육 영상 · 2026-08-20 정리)' },
+    { col: 'deadline_pickup_min', path: ['deadline', 'pickupMin'], group: '시한',
+      label: '시한 픽업 보정', unit: '분', min: 0, max: 120, int: true,
+      why: '픽업에 걸린다고 쳐 주는 시간. 시한 = 잡은 시각 + 주행×배율 + 이 값' },
     { col: 'color_honey_min', path: ['color', 'honeyMin'], group: '색 경계',
       label: '🔵 꿀', unit: '점 이상', min: 0, max: 100, int: true,
       why: '총점이 이 점수 이상이면 파란색' },
@@ -157,6 +172,17 @@ export const JUDGMENT_FIELDS: readonly JudgmentField[] = [
 ] as const;
 
 /** 표의 기본값을 DB 컬럼 이름으로 뽑는다 (`CREATE TABLE` 의 `DEFAULT` 와 시드가 이걸 쓴다) */
+/**
+ * ⏱️ **콜 시한(하차까지의 상한, ms)** — 배송 주행을 모르면 `null` (지어내지 않는다 · 규칙 ④).
+ * 쓰는 곳: 시딩의 추정 약속 캡 · 격자의 ⚠️ 표시 · (예정) 합짐 예산 판정의 기본 제약.
+ */
+export function callDeadlineMs(
+    capturedMs: number, soloDriveMin: number | null | undefined, cfg: JudgmentConfig,
+): number | null {
+    if (soloDriveMin == null || !Number.isFinite(soloDriveMin) || soloDriveMin <= 0) return null;
+    return capturedMs + (soloDriveMin * cfg.deadline.ratioPct / 100 + cfg.deadline.pickupMin) * 60_000;
+}
+
 export function judgmentDefaults(): Record<string, number> {
     const out: Record<string, number> = {};
     for (const f of JUDGMENT_FIELDS) {

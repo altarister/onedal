@@ -19,7 +19,7 @@
  */
 import db from '../db';
 import { STEP_TABLES, defaultCargoByVehicle, dwellMinutes, unitPoints,
-         parseCargoHints, DEFAULT_JUDGMENT } from '@onedal/shared';
+         parseCargoHints, callDeadlineMs, DEFAULT_JUDGMENT } from '@onedal/shared';
 import type { JudgmentConfig, CargoReport, Milestone, RouteTimelineEntry } from '@onedal/shared';
 
 /** 🧭 경로가 아는 시각 — `deriveRouteTimeline` 의 결과를 그대로 받는다 (파생 한 곳 · 규칙 ③) */
@@ -108,15 +108,29 @@ function computeChain(o: any, born: Partial<Record<StepId, any>>, judgment?: Jud
     const pickupEta = ms(born.ARRIVE_PICKUP?.occurred_at)
         ?? tlEta('pickup')
         ?? (approach != null ? capturedMs + approach * 60_000 : null);
+    const pickupCapMs = solo != null && capturedMs != null
+        ? (callDeadlineMs(capturedMs, solo, cfg)! - (solo + pickupDwell) * 60_000) : null;
     const pickupPromise = ms(callP?.status !== 'PLANNED' ? callP?.promised_arrival_at : null)
-        ?? (pickupEta != null ? pickupEta + margin * 60_000
-            : capturedMs + (cfg.unknown.pickupOffsetMin ?? 60) * 60_000 - pickupDwell * 60_000);
+        ?? (() => {   // ⏱️ 상차 추정 상한 = 시한 − 배송 주행 − 상차 정차 (거기서 떠나야 시한에 닿는다)
+            const est = pickupEta != null ? pickupEta + margin * 60_000
+                : capturedMs + (cfg.unknown.pickupOffsetMin ?? 60) * 60_000 - pickupDwell * 60_000;
+            return pickupCapMs == null ? est : Math.min(est, pickupCapMs);
+        })();
     const departMs = ms(born.LOADED?.occurred_at) ?? pickupPromise + pickupDwell * 60_000;
     const dropoffEta = ms(born.ARRIVE_DROPOFF?.occurred_at)
         ?? tlEta('dropoff')
         ?? (solo != null ? departMs + solo * 60_000 : null);
+    /**
+     * ⏱️ **통화 전 추정 약속은 시한 안으로 깎는다** (기사님 승인 2026-08-21).
+     *    시한 = 잡은 시각 + 배송 주행 × 150% + 픽업 20분 (판정 기준 탭에서 조절).
+     *    짧은 콜은 우리 추정(+여유30·휴게30)이 업계 상한을 넘었다 — 주선사가 압박할
+     *    약속을 서버가 지어내는 셈이었다. **굳은 약속(통화)은 안 깎는다** — 화주 합의가 면책.
+     */
+    const deadlineMs = callDeadlineMs(capturedMs, solo, cfg);
+    const cap = (est: number | null, limit: number | null) =>
+        est == null ? null : limit == null ? est : Math.min(est, limit);
     const dropoffPromise = ms(callD?.status !== 'PLANNED' ? callD?.promised_arrival_at : null)
-        ?? (dropoffEta != null ? dropoffEta + rest * 60_000 : null);
+        ?? cap(dropoffEta != null ? dropoffEta + rest * 60_000 : null, deadlineMs);
     // 🔴 하차 완료도 **약속 기준** — 상차와 대칭 (2026-08-20)
     const deliveredMs = dropoffPromise != null ? dropoffPromise + dropoffDwell * 60_000 : null;
 
@@ -328,10 +342,19 @@ export function stepsView(orderId: string, judgment?: JudgmentConfig): StepView[
     if (!o) return [];
     const born = bornRows(orderId);
     const chain = computeChain(o, born, judgment);
+    // ⏱️ 파생 시한 — 저장하지 않는다 (규칙 ③). 격자의 ⚠️와 예산 줄 시한 칩이 그린다
+    const num = (v: unknown) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
+    const dl = callDeadlineMs(Date.parse(o.capturedAt ?? ''), num(o.kakaoSoloDurationMin), judgment ?? DEFAULT_JUDGMENT);
+    const deadlineOf = (step: StepId) =>
+        dl == null ? null : step === 'CALL_DROPOFF' ? new Date(dl).toISOString()
+        : step === 'CALL_PICKUP' ? new Date(dl - (num(o.kakaoSoloDurationMin)! + (chain.CALL_PICKUP.planned_dwell_min ?? 0)) * 60_000).toISOString()
+        : null;
     return ORDER.map(step => {
         const t = tableOf(step);
+        const extra = (step === 'CALL_PICKUP' || step === 'CALL_DROPOFF')
+            ? { deadline_at: deadlineOf(step) } : {};
         return born[step]
-            ? { step, table: t.table, label: t.label, born: true, row: born[step] }
-            : { step, table: t.table, label: t.label, born: false, row: { status: 'PLANNED', ...chain[step] } };
+            ? { step, table: t.table, label: t.label, born: true, row: { ...born[step], ...extra } }
+            : { step, table: t.table, label: t.label, born: false, row: { status: 'PLANNED', ...chain[step], ...extra } };
     });
 }
