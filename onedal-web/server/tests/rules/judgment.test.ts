@@ -303,9 +303,16 @@ describe('통화 시트 — 미리 눌러 두고 근거를 남긴다', () => {
         expect(c).not.toMatch(/Date\.now\(\) \+ arrivalMinutes/);   // 매 렌더 흐르던 기준은 아예 없다
     });
 
+    /**
+     * 🏗️ 옛 시트 철거(2026-08-21) — `etaMs` 프롭도 함께 사라졌다.
+     * 같은 원칙(도착 예상은 화면이 만들지 않는다)은 더 세게 남았다:
+     * 새 단계 화면의 격자 밑값은 **저장된 행의 predicted_at** 이고,
+     * 그 값은 출생(시딩)이 타임라인에서 받아 한 번 쓴 것이다.
+     */
     it('🔴 카드가 타임라인의 etaMs 를 시트에 넘긴다', () => {
-        expect(rc3('components/dashboard/PinnedRouteCard.tsx'))
-            .toMatch(/etaMs=\{tlEntry\?\.etaMs/);
+        const sheet = rc3('components/dashboard/StepSheetMock.tsx');
+        expect(sheet).toMatch(/r\.predicted_at/);                 // 격자 밑값은 저장된 행
+        expect(sheet).not.toMatch(/Date\.now\(\) \+ .*driveMinutes/);  // 화면 계산 금지
     });
 
     it('🔴 출발 카운트다운이 내역을 적는다 — 그 시각을 만든 뺄셈 그대로', () => {
@@ -410,17 +417,23 @@ describe('통화 시트 — 주행을 몰라도 추천한다', () => {
      * React 가 컴포넌트를 재사용해 **앞 콜의 `deadlineAt`·물량이 다음 콜 화면에 남았다** —
      * 송정동 콜 화면에 계산서필 콜의 `11:08` 이 떠 있었다.
      */
+    /** 🏗️ 옛 시트 철거(2026-08-21) 후에도 교훈은 산다 — 콜이 달라지면 시트 상태가 새로 선다 */
     it('🔴 시트의 key 에 콜 id 가 들어간다', () => {
         const card = rc4('components/dashboard/PinnedRouteCard.tsx');
-        const at = card.indexOf('<StopCallSheet');
+        const at = card.indexOf('<StepSheetMock');
         expect(at).toBeGreaterThan(-1);
         const props = card.slice(at, at + 300);
-        expect(props).toMatch(/key=\{`\$\{route\.id\}:\$\{shownStep\.id\}`\}/);
+        expect(props).toMatch(/key=\{`\$\{route\.id\}:\$\{sv\.step\}`\}/);
     });
 
-    it('🔴 카드가 그 값을 넘긴다', () => {
-        expect(rc4('components/dashboard/PinnedRouteCard.tsx'))
-            .toMatch(/pickupDeadlineAt=\{timing\.pickupDeadlineAt\}/);
+    /**
+     * 🏗️ `pickupDeadlineAt` 프롭도 옛 시트와 함께 철거 — "주행을 몰라도 추천"은 이제
+     * **출생**이 한다: 시딩이 접근을 모르면 약속을 옛 규칙(잡은 시각+60분)으로 폴백해
+     * 행에 저장하고, 격자는 그 저장값을 그린다 (`stepSeeder.test` 의 '주행을 모르면' 검사).
+     */
+    it('🔴 주행을 몰라도 약속 폴백이 행에 저장된다 — 시딩이 한다', () => {
+        const seeder = readFileSync(join(__dirname, '../../src/services/stepSeeder.ts'), 'utf8');
+        expect(seeder).toMatch(/pickupOffsetMin \?\? 60/);
     });
 
     /**

@@ -7,10 +7,9 @@ import { logRoadmapEvent } from '../../lib/roadmapLogger';
 
 
 import { Badge } from "../ui/badge";
-import StopCallSheet from './StopCallSheet';
 import StepSheetMock from './StepSheetMock';
 import type { CallRecords } from "../../hooks/useCallProgress";
-import { MILESTONE_LABEL, timingError, buildArrivalSlots, deriveCallStep, canRewindTo, CALL_STEPS,
+import { MILESTONE_LABEL, timingError, buildArrivalSlots,
          deriveCallTiming } from "@onedal/shared";
 import type { RouteTimelineEntry, RouteStopInfo } from "@onedal/shared";
 import { Button } from "../ui/button";
@@ -50,8 +49,6 @@ export default function PinnedRouteCard({
     indexNum,
     records,
     timeline,
-    routeStops,
-    routeComputedAt,
     variant = 'list',
 }: Props) {
     const isDeck = variant === 'deck';
@@ -78,8 +75,7 @@ export default function PinnedRouteCard({
      *   skippedTo — "통화를 건너뛰었다"는 서버에 남길 값이 아니다 (안 한 일을 기록하면 데이터가 오염된다)
      *   viewIndex — 지난 단계를 되돌아볼 때만. 새 기록이 들어오면 자동으로 따라간다
      */
-    const [skippedTo, setSkippedTo] = useState(0);
-    const [viewIndex, setViewIndex] = useState<number | null>(null);
+    /* 🏗️ skippedTo·viewIndex 는 옛 시트와 함께 철거 — 새 단계 화면은 stepNav 하나로 같은 일을 한다 */
     /**
      * 되돌릴 수 없는 동작(방출·사무실 취소)을 누른 뒤 잠근다.
      * `processingId` 는 PinnedRoute 가 매 렌더 초기화해서(1초 동기화) 방어가 되지 않는다.
@@ -121,14 +117,11 @@ export default function PinnedRouteCard({
     })();
     useEffect(() => { setStepNav(null); }, [stepCurIdx, route.id]);
 
-    const progress = deriveCallStep(milestoneLog, cargoReports, skippedTo);
-    // 되돌아보는 중이면 그 단계를, 아니면 파생된 현재 단계를 보여준다
-    const shownIndex = viewIndex ?? progress.index;
-    const shownStep = CALL_STEPS[shownIndex] ?? null;
+    /* 🏗️ deriveCallStep(옛 진행도)도 옛 시트와 함께 철거 — 현재 단계는 stepCurIdx(단계 행의 status)가 정한다 */
+
 
     // 새 기록이 들어와 단계가 앞으로 가면 되돌아보기를 자동 해제한다 —
     // 도착을 눌렀는데 화면이 옛 단계에 머물러 있으면 무엇이 반영됐는지 알 수 없다
-    useEffect(() => { setViewIndex(null); }, [progress.index]);
     useEffect(() => {
         // 평가 중이 아닐 때는 카운터 초기화
         if (!isEvaluating(route.status)) {
@@ -388,53 +381,8 @@ export default function PinnedRouteCard({
                     )}
 
 
-                    {/* [Phase 8.5] 진행 6단계 — 점을 눌러 지난 단계로 되돌아간다.
-                        끝난 단계만 눌린다. 아직 오지 않은 단계로 건너뛰면 기록이 뒤엉킨다.
-
-                        🔴 이 블록이 카드 **맨 아래**에 있었다 (2026-08-11).
-                        시안(`buildCard`)은 헤더 안에 뒀는데 구현에서는 적요·요금·판정 근거를
-                        전부 지나야 닿았다. 되돌아가기 수단인데 스크롤해야 보였다. */}
-                    <div className="mt-2">
-                        <div className="flex items-center gap-1">
-                            {CALL_STEPS.map((st, i) => {
-                                const passed = i < progress.index;
-                                const isNow = i === shownIndex;
-                                return (
-                                    <button
-                                        key={st.id}
-                                        type="button"
-                                        title={st.label}
-                                        disabled={!canRewindTo(progress, i)}
-                                        onClick={(e) => { e.stopPropagation(); setViewIndex(i); }}
-                                        className="flex-1 pt-1.5 pb-1 disabled:cursor-default"
-                                    >
-                                        <span className={`block h-1 rounded-full ${
-                                            isNow ? 'bg-info'
-                                            : progress.done[i] ? 'bg-success'
-                                            : passed ? 'bg-success/35'
-                                            : st.optional ? 'bg-transparent ring-1 ring-inset ring-border'
-                                            : 'bg-surface-hover'
-                                        }`} />
-                                    </button>
-                                );
-                            })}
-                        </div>
-                        {/* 🔴 2026-08-18 — `{단계} 차례` 를 늘 찍고 있었는데, 바로 아래
-                            '지금 할 일 / 상차지 통화' 가 **같은 말**이다. 기사님: *"UI 영역을 아껴 써야 한다."*
-                            → 그 줄이 필요한 두 경우(운행 완료 · 되돌아보는 중)에만 남긴다. */}
-                        {(progress.allDone || viewIndex !== null) && (
-                            <div className="flex items-center gap-2 text-[10px] font-bold">
-                                {progress.allDone && <span className="text-success">운행 완료 · 6단계를 모두 마쳤습니다</span>}
-                                {viewIndex !== null && !progress.allDone && (
-                                    <button
-                                        type="button"
-                                        onClick={(e) => { e.stopPropagation(); setViewIndex(null); }}
-                                        className="text-text-muted underline underline-offset-2"
-                                    >{shownStep?.label} 되돌아보는 중 · 현재 단계로</button>
-                                )}
-                            </div>
-                        )}
-                    </div>
+                    {/* 🏗️ 옛 진행 6단계 막대는 철거했다 (기사님 2026-08-21) —
+                        아래 단계 화면의 막대가 같은 일(진행 표시·되돌아보기)을 한다 */}
 
                     {/* ══════════════════════════════════════════════════════════
                         상세 영역 — **읽는 순서 = 화면 순서** (2026-08-11 재배치)
@@ -454,10 +402,7 @@ export default function PinnedRouteCard({
                        ══════════════════════════════════════════════════════════ */}
                     <div className="flex flex-col gap-2 text-[13px] leading-tight mt-3">
                         {(() => {
-                            const pDetail = route.pickupDetails?.[0];
-                            const dDetail = route.dropoffDetails?.[0];
-                            const phonesOf = (d?: typeof pDetail) =>
-                                [d?.phone1, d?.phone2].filter((v): v is string => !!v && v !== '*');
+                            /* 🏗️ pDetail/dDetail/phonesOf 는 새 단계 화면이 자기 자리에서 꺼낸다 */
 
                             const quickName = route.companyName || '';
                             const quickPhone = quickName.match(/\d{2,3}-\d{3,4}-\d{4}/)?.[0] || route.dispatcherPhone || '';
@@ -503,136 +448,12 @@ export default function PinnedRouteCard({
                                             결재 전입니다 — KEEP 을 누르면 통화 단계가 열립니다
                                         </div>
                                     )}
-                                    {/* 여기서부터 **하는 일** — 위(적요·착불)는 읽는 것이다.
-                                        기사님이 배치를 적어 주실 때 이 자리에 선을 그으셨다 (2026-08-18) */}
-                                    {!evaluating && shownStep && <hr className="border-border-card" />}
-                                    {!evaluating && shownStep && (() => {
-                                        const isPickupStop = shownStep.stop === 'pickup';
-                                        const d = isPickupStop ? pDetail : dDetail;
-                                        const lead = isPickupStop ? timing.toPickup : timing.toDropoff;
-                                        /**
-                                         * 🗺️ **경로 타임라인이 있으면 그것이 이긴다** (2026-08-19 실측).
-                                         *
-                                         * 콜별 파생(timing.*)은 "혼자 간다" 가정이라 합짐에서는 값이
-                                         * 아예 없다 — 그래서 같은 화면에서 덱은 합짐 하차 ~05:56 을
-                                         * 아는데 시트는 "주행 시간을 모릅니다"라며 03:28 같은
-                                         * **물리적으로 못 지킬 칸**을 추천했다.
-                                         *
-                                         *   주행 = 경로 누적 주행(routeStops.driveMinutes)
-                                         *   선행 = 도착예상 − 닻 − 주행  (앞 정거장 정차·"부터" 대기의 합)
-                                         */
-                                        const stopKind = isPickupStop ? 'pickup' : 'dropoff';
-                                        const tlEntry = timeline?.find(e => e.orderId === route.id && e.stopType === stopKind);
-                                        const stopDrive = routeStops?.find(st => st.orderId === route.id && st.stopType === stopKind)?.driveMinutes;
-                                        const anchorMs = routeComputedAt ? Date.parse(routeComputedAt) : null;
-                                        const routeLead = tlEntry?.etaMs != null && stopDrive != null && anchorMs != null
-                                            ? {
-                                                driveMinutes: stopDrive,
-                                                driveKm: null,
-                                                leadMinutes: Math.max(0, Math.round((tlEntry.etaMs - anchorMs) / 60_000) - stopDrive),
-                                                leadLabel: '상차·대기',
-                                              }
-                                            : null;
-                                        return (
-                                            <StopCallSheet
-                                                /* 🔴 **콜 id 를 키에 넣는다** (2026-08-16).
-                                                   예전엔 `shownStep.id`(= `CALL_PICKUP` 같은 **단계 이름**)뿐이라
-                                                   **콜이 달라도 키가 같았다.** React 가 컴포넌트를 재사용해
-                                                   앞 콜의 `deadlineAt`·물량이 다음 콜 화면에 그대로 남았다 —
-                                                   실측: 송정동 콜 화면에 계산서필 콜의 `11:08` 이 떠 있었다. */
-                                                key={`${route.id}:${shownStep.id}`}
-                                                orderId={route.id}
-                                                stopType={isPickupStop ? 'pickup' : 'dropoff'}
-                                                label={isPickupStop ? '상차지' : '하차지'}
-                                                address={d?.addressDetail || (isPickupStop ? route.pickup : route.dropoff)}
-                                                contactName={d?.contactName || d?.customerName}
-                                                phones={phonesOf(d)}
-                                                reports={cargoReports}
-                                                vehicleType={route.vehicleType}
-                                                /**
-                                                 * ⏭️ **건너뛰기는 모든 단계에 있다** (기사님 확정 2026-08-19):
-                                                 *    *"그걸 넘어갈 때의 조건이 내 선택이 필수가 아니어야 하겠다 —
-                                                 *    통화 스킵과 같은 거 말야."*
-                                                 *
-                                                 * 통화는 `SKIPPED` 리포트로, 현장은 **`source: 'SKIPPED'` 마일스톤**으로
-                                                 * 남는다. 둘 다 서버에 남으므로 새로고침해도 안 되살아나고,
-                                                 * **"확인한 것"과 "넘어간 것"이 데이터에서 갈린다.**
-                                                 *
-                                                 * 🔴 **한 칸씩만** 넘어간다 (규칙 ⑥) — 지금 단계의 마일스톤만 찍는다.
-                                                 */
-                                                onSkip={shownStep ? () => {
-                                                    const stepId = shownStep.id;
-                                                    if (stepId.startsWith('CALL_')) {
-                                                        socket.emit('save-cargo-report', {
-                                                            orderId: route.id,
-                                                            stopType: shownStep.stop,
-                                                            kind: 'SKIPPED',
-                                                            memo: '통화 없이 진행',
-                                                        });
-                                                    } else {
-                                                        const m = stepId === 'ARRIVE_PICKUP' ? 'ARRIVED_PICKUP'
-                                                                : stepId === 'LOADED' ? 'PICKED_UP'
-                                                                : stepId === 'ARRIVE_DROPOFF' ? 'ARRIVED_DROPOFF'
-                                                                : 'DELIVERED';
-                                                        socket.emit('report-milestone', { orderId: route.id, milestone: m, source: 'SKIPPED' });
-                                                    }
-                                                    setSkippedTo(shownIndex + 1);   // 서버 응답 전까지의 낙관적 표시
-                                                    setViewIndex(null);
-                                                } : undefined}
-                                                /* 하차 완료는 콜의 끝이라 건너뛰지 않는다 — 안 한 하차를 넘어가면 완료가 아니다 */
-                                                stepId={shownStep?.id}
-                                                skipLabel={shownStep?.id === 'DELIVERED' ? undefined
-                                                    : shownStep?.id.startsWith('CALL_') ? '통화 스킵' : '건너뛰기'}
-                                                memoTexts={[route.itemDescription, route.detailMemo, d?.memo]}
-                                                driveMinutes={routeLead?.driveMinutes ?? lead.driveMinutes}
-                                                driveKm={routeLead ? routeLead.driveKm : lead.driveKm}
-                                                /* 상차지 통화에서 하차지까지 한 번에 정할 수 있게 다음 구간을 넘긴다 */
-                                                onwardMinutes={isPickupStop ? soloMin : null}
-                                                /* 주행을 몰라도 칸을 추천할 수 있게 — 상차 마감은 주행과 무관하다 */
-                                                pickupDeadlineAt={timing.pickupDeadlineAt}
-                                                onwardKm={isPickupStop ? timing.soloKm : null}
-                                                leadMinutes={routeLead?.leadMinutes ?? lead.leadMinutes}
-                                                leadLabel={routeLead ? routeLead.leadLabel : lead.leadLabel}
-                                                /**
-                                                 * 🕒 **도착 예상은 타임라인이 만든 것 하나다** (2026-08-20).
-                                                 *    분(`driveMinutes`)만 넘기면 시트가 **자기가 열린 시각**에 더한다 —
-                                                 *    그 분은 닻(`routeComputedAt`)부터 잰 값이라 그만큼 통째로 밀린다.
-                                                 *    실측: `기준 18:20:03 · 닻 18:17:26` (2분 37초).
-                                                 */
-                                                etaMs={tlEntry?.etaMs ?? null}
-                                                departPrevMs={tlEntry?.departPrevMs ?? null}
-                                                segmentDriveMinutes={tlEntry?.segmentDriveMinutes ?? null}
-                                                /**
-                                                 * 🔬 **계측 (2026-08-19)** — 이 시트가 **어느 값을 썼는지** 서버 로그에 남긴다.
-                                                 *
-                                                 * `routeLead ?? lead` 는 경로가 아직 없으면 조용히 콜별 파생으로 넘어간다.
-                                                 * 그 갈림이 화면 어디에도 안 보여서, 약속이 18:51 로 굳은 뒤에도
-                                                 * 무엇이 그 값을 만들었는지 알 수 없었다. 저장할 때만 실려 나가고
-                                                 * **저장되지는 않는다** (규칙 ⑤-4 — 장부에 남기려면 넷을 먼저 정한다).
-                                                 */
-                                                diag={{
-                                                    source: routeLead ? '경로(routeStops)' : '콜별 파생(폴백)',
-                                                    routeComputedAt: routeComputedAt ?? null,
-                                                    etaMs: tlEntry?.etaMs ?? null,
-                                                }}
-                                                /* 앞 정거장(상차지)의 이름 — 하차지 문장이 "이마트 광주점에서" 로 읽힌다 */
-                                                leadFrom={pDetail?.contactName || pDetail?.customerName}
-                                                orderStatus={route.status}
-                                                arrivedAt={milestoneLog.find(m =>
-                                                    m.milestone === (isPickupStop ? 'ARRIVED_PICKUP' : 'ARRIVED_DROPOFF'))?.occurredAt}
-                                                arrivedReasons={(milestoneLog.find(m =>
-                                                    m.milestone === (isPickupStop ? 'ARRIVED_PICKUP' : 'ARRIVED_DROPOFF')) as any)?.reasons}
-                                                doneReasons={(milestoneLog.find(m =>
-                                                    m.milestone === (isPickupStop ? 'PICKED_UP' : 'DELIVERED')) as any)?.reasons}
-                                                forceOpen={shownStep.id.startsWith('CALL_') ? 'DECLARED' : 'ACTUAL'}
-                                                stepLabel={shownStep.label}
-                                                codAmount={isCod ? route.fare : null}
-                                            />
-                                        );
-                                    })()}
-
-                                    {/* 🔴 [통화 스킵] 은 시트가 [통화 완료] 와 **한 줄에** 그린다
-                                        (기사님 2026-08-18) — 예전엔 여기서 시트 바깥 아래에 붙여 두 줄이 됐다. */}
+                                    {/* 🏗️ **옛 통화·현장 시트는 철거했다** (기사님 2026-08-21).
+                                        아래 단계 화면(StepSheetMock)이 같은 문(save-cargo-report ·
+                                        report-milestone)으로 저장하는 본 화면이 됐다 — 열 때마다
+                                        계산하던 옛 시트와 달리 저장된 단계 행만 그린다.
+                                        StopCallSheet.tsx 파일은 남겨 뒀다 — 삭제는 테이블 철거 때 함께. */}
+                                    {!evaluating && <hr className="border-border-card" />}
 
                                     {/* 🏢 퀵사무실 — 신고와 실제가 다를 때 여기로 건다. 한 줄만 남긴다 */}
                                     {quickPhone && (
@@ -642,15 +463,12 @@ export default function PinnedRouteCard({
                                         </a>
                                     )}
 
-                                    {/* ── 🌱 [시험] 여섯 단계 계획값 ──
+                                    {/* ── 단계 화면 — 지금 할 일 하나 + 진행 막대 (본 화면 · 2026-08-21 승격) ──
                                         기사님: *"콜을 잡는 순간 모든 상세값이 임시로 정해지는 거지."*
-                                        그 값이 지금은 담길 자리가 없어 시트를 열 때마다 다시 계산된다.
-                                        여기서 **저장된 것을 그대로** 띄워 값이 맞는지 눈으로 본다.
+                                        저장된 단계 행만 그린다 — 화면에는 계산이 없다 (규칙 ③).
                                         🔴 KEEP 뒤에만 보인다 — 그 전에는 `orders` 에 행이 없어 FK 가 걸린다. */}
                                     {!isEvaluating(route.status) && (
                                     <div onClick={e => e.stopPropagation()}>
-                                        {/* 항상 펼쳐 둔다 (기사님 2026-08-20) — 읽기는 마운트 때 한 번 (아래 useEffect) */}
-                                        <div className="text-[11px] font-bold text-info py-1 select-none">🌱 여섯 단계 계획값 (시험)</div>
                                         {/* 💰 **예산 줄** (기사님 모델 2026-08-20) — `여유 = 약속 − 지금 예상`.
                                             약속은 통화로만 굳고, 합짐이 붙으면 예상만 민다. 그래서 이 뺄셈이
                                             곧 **"합짐에 쓸 수 있는 시간"**이다. 우회가 이 안에 들어와야 잡는 콜.
@@ -767,7 +585,7 @@ export default function PinnedRouteCard({
                                                                 && e.stopType === (svPickup ? 'pickup' : 'dropoff'));
                                                             const callPRow = seededSteps.find(y => y.step === 'CALL_PICKUP')?.row;
                                                             return (
-                                                                <StepSheetMock orderId={route.id}
+                                                                <StepSheetMock key={`${route.id}:${sv.step}`} orderId={route.id}
                                                                     codAmount={route.paymentType === '착불' ? route.fare : null}
                                                                     place={{
                                                                         name: dd?.contactName || dd?.customerName || undefined,
@@ -781,10 +599,6 @@ export default function PinnedRouteCard({
                                                                     view={viewOf(sv)} />
                                                             );
                                                         })()}
-                                                        {/* 🔴 아직 화면·판정은 이 값을 안 쓴다 — 위 통화 시트와 견주어 보는 용도 */}
-                                                        <div className="text-[10px] text-text-muted pt-1">
-                                                            저장된 값을 그대로 읽은 것입니다 — 화면·판정은 아직 이 표를 안 씁니다
-                                                        </div>
                                                     </div>
                                                 );
                                             })()}

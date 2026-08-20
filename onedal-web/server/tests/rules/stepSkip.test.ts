@@ -90,8 +90,9 @@ describe('저장 경로 — 스킵이 장부에 남는다', () => {
     const read = (p: string) => readFileSync(join(__dirname, p), 'utf8');
 
     it('🔴 관제웹이 현장 단계 스킵을 서버로 보낸다', () => {
-        const card = read('../../../client-app/src/components/dashboard/PinnedRouteCard.tsx');
-        expect(card).toMatch(/source: 'SKIPPED'/);
+        // 🏗️ 발신처가 옛 시트(카드)에서 새 단계 화면으로 옮겨갔다 (2026-08-21 철거)
+        const sheet = read('../../../client-app/src/components/dashboard/StepSheetMock.tsx');
+        expect(sheet).toMatch(/source: 'SKIPPED'/);
     });
 
     /**
