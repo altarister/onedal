@@ -2,7 +2,7 @@ import { AutoDispatchFilter, SecuredOrder, PendingOrder, MyOrder, getEligibleVeh
          normalizePhaseSettings, phaseFromFlat, DEFAULT_PHASE_SETTINGS, DEFAULT_JUDGMENT, judgmentFromRow } from "@onedal/shared";
 import type { PhaseSettingsMap, PhaseKey, JudgmentConfig } from "@onedal/shared";
 import type { CapacityConfidence } from "@onedal/shared";
-import db from "../db";
+import db, { seedCallOptions } from "../db";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 
 // ━━━ 서비스 권장 기본값 (신규 가입자용) ━━━
@@ -223,6 +223,13 @@ export function getUserSession(userId: string): UserSession {
                 judgeRow = db.prepare("SELECT * FROM user_judgment WHERE user_id = ?").get(userId) as any;
             }
             session.judgment = judgmentFromRow(judgeRow);
+
+            /**
+             * 🎛️ **콜 옵션 시딩** (2026-08-20) — 화면의 선택지와 그 값.
+             *    `INSERT OR IGNORE` 라 이미 있으면 건드리지 않는다.
+             *    🔴 아직 아무도 안 읽는다 — 채워만 두고 다음 단계에서 화면을 잇는다.
+             */
+            seedCallOptions(userId);
 
             if (filterRow) {
                 // Restore saved filter into baseFilter

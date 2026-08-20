@@ -1,4 +1,4 @@
-import { JUDGMENT_FIELDS, judgmentDefaults } from "@onedal/shared";
+import { JUDGMENT_FIELDS, judgmentDefaults, CALL_OPTION_COLUMNS, buildDefaultCallOptions } from "@onedal/shared";
 import Database from "better-sqlite3";
 import path from "path";
 
@@ -410,6 +410,47 @@ db.exec(`
 `);
 // 표에 줄이 늘면 여기서 기존 행에 컬럼이 붙는다 (DEFAULT 가 값을 채운다)
 ensureColumns('user_judgment', JUDGMENT_COLS);
+
+/**
+ * 🎛️ **콜 옵션** — 화면의 선택지와 그 값 (2026-08-20 신설).
+ *
+ * 컬럼 목록은 `shared/src/callOptions.ts` 의 `CALL_OPTION_COLUMNS` 가 유일한 원천이다.
+ * 🔴 **아직 아무도 안 읽는다** — 화면·판정은 옛 상수로 돈다. 채워만 두고 다음 단계에서 잇는다.
+ */
+db.exec(`
+    CREATE TABLE IF NOT EXISTS call_options (
+        id      INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT NOT NULL,
+        ${CALL_OPTION_COLUMNS.map(([, col, type]) => `${col} ${type}`).join(',\n        ')},
+        updated_at TEXT NOT NULL,
+        UNIQUE(user_id, category, key),
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+`);
+ensureColumns('call_options', Object.fromEntries(CALL_OPTION_COLUMNS.map(([, c, t]) => [c, t])));
+
+/**
+ * 🌱 **시딩 — 옛 상수를 그대로 복사한다.** 손으로 옮겨 적으면 오타 하나로 값이 갈린다.
+ *    `INSERT OR IGNORE` 라 **기사님이 고친 값은 덮지 않는다** (한 번 채우면 그 뒤로는 DB 가 진실).
+ */
+export function seedCallOptions(userId: string) {
+    const rows = buildDefaultCallOptions();
+    const cols = CALL_OPTION_COLUMNS.map(([, c]) => c);
+    const stmt = db.prepare(
+        `INSERT OR IGNORE INTO call_options (user_id, ${cols.join(', ')}, updated_at)
+         VALUES (?, ${cols.map(() => '?').join(', ')}, ?)`);
+    const now = new Date().toISOString();
+    const tx = db.transaction(() => {
+        for (const r of rows) {
+            stmt.run(userId, ...CALL_OPTION_COLUMNS.map(([field]) => {
+                const v = (r as any)[field];
+                return typeof v === 'boolean' ? (v ? 1 : 0) : v;
+            }), now);
+        }
+    });
+    tx();
+    return rows.length;
+}
 
 ensureColumns('order_milestones', { predictedAt: 'TEXT' });
 // 어느 배차망에서 온 콜인가 (insung/hwamul24) — 배차망별 콜 검색·분석의 근거 (기사님 2026-08-17)

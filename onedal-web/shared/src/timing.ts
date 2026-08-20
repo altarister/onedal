@@ -43,8 +43,8 @@ import type { CargoReport } from './index';
  *      지게차 파레트당 2분(박스당 3초) → 1t 파레트 2개 = **4분**
  *    검수는 **하차의 후작업**으로 옮겼다 (기사님 2026-08-18) — 방법에는 이제 둘뿐이다.
  */
-const DWELL_BASE: Record<string, number> = { '지게차': 0, '수작업': 0 };
-const DWELL_PER_POINT: Record<string, number> = { '지게차': 0.05, '수작업': 1 / 3 };   // 박스당 분 — 지게차 3초(파레트 2분) · 수작업 20초
+export const DWELL_BASE: Record<string, number> = { '지게차': 0, '수작업': 0 };
+export const DWELL_PER_POINT: Record<string, number> = { '지게차': 0.05, '수작업': 1 / 3 };   // 박스당 분 — 지게차 3초(파레트 2분) · 수작업 20초
 
 /**
  * 방법을 모를 때 쓰는 **일반값** — 상차와 하차가 다르다 (기사님 확정 2026-08-15).
