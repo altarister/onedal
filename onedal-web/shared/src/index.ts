@@ -1174,7 +1174,7 @@ export interface RouteStopInfo {
 export * from './callSteps';
 export * from './callOptions';
 export * from './cargoSpec';
-export * from './stepLoaded';
+export * from './stepTables';
 export * from './timing';
 /**
  * 🔴 콜의 **색을 정하는 곳 — 여기 하나뿐이다** (2026-08-15 신설).

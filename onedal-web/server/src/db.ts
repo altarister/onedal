@@ -1,5 +1,5 @@
 import { JUDGMENT_FIELDS, judgmentDefaults, CALL_OPTION_COLUMNS, buildDefaultCallOptions,
-         STEP_LOADED_COLUMNS } from "@onedal/shared";
+         STEP_TABLES } from "@onedal/shared";
 import Database from "better-sqlite3";
 import path from "path";
 
@@ -454,24 +454,26 @@ export function seedCallOptions(userId: string) {
 }
 
 /**
- * 📦 **상차 완료 단계 — 한 콜에 한 행** (2026-08-20 신설).
+ * 🪜 **여섯 단계, 여섯 테이블** (2026-08-20 신설).
  *
- * 컬럼은 `shared/src/stepLoaded.ts` 의 `STEP_LOADED_COLUMNS` 가 원천이다.
+ * 컬럼은 `shared/src/stepTables.ts` 의 `STEP_TABLES` 가 원천이다 — **여기 손으로 적지 않는다.**
  * 🔴 **행은 KEEP 때 생기고 상태만 바뀐다** — 계획(`planned_*`)과 실측(`actual_*`)이
  *    같은 행에 있어 오차를 조인 없이 잰다. 지금 `stop_cargo_reports` 가 못 하는 것이다.
- * 🔴 **아직 아무도 안 읽는다** — 모양을 확인한 뒤 잇는다.
+ * 🔴 **아직 아무도 안 읽는다** — 여섯을 다 만들어 모양을 보고 합칠지 정한다.
  */
-db.exec(`
-    CREATE TABLE IF NOT EXISTS step_loaded (
-        id      INTEGER PRIMARY KEY AUTOINCREMENT,
-        orderId TEXT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
-        userId  TEXT NOT NULL,
-        ${STEP_LOADED_COLUMNS.map(([, col, type]) => `${col} ${type}`).join(',\n        ')},
-        recorded_at TEXT NOT NULL,
-        UNIQUE(orderId)
-    )
-`);
-ensureColumns('step_loaded', Object.fromEntries(STEP_LOADED_COLUMNS.map(([, c, t]) => [c, t])));
+for (const t of STEP_TABLES) {
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS ${t.table} (
+            id      INTEGER PRIMARY KEY AUTOINCREMENT,
+            orderId TEXT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+            userId  TEXT NOT NULL,
+            ${t.columns.map(([, col, type]) => `${col} ${type}`).join(',\n            ')},
+            recorded_at TEXT NOT NULL,
+            UNIQUE(orderId)
+        )
+    `);
+    ensureColumns(t.table, Object.fromEntries(t.columns.map(([, c, ty]) => [c, ty])));
+}
 
 ensureColumns('order_milestones', { predictedAt: 'TEXT' });
 // 어느 배차망에서 온 콜인가 (insung/hwamul24) — 배차망별 콜 검색·분석의 근거 (기사님 2026-08-17)
