@@ -5,7 +5,7 @@ import { getUserDevicesSnapshot } from "../routes/devices";
 import { getRegionsByCity } from "../geoResolver";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import type { AutoDispatchFilter, Milestone, MilestoneSource, CargoReport, CallTarget, PhaseKey, PhaseSettings } from "@onedal/shared";
-import { cargoMismatchRatio, DEFAULT_DETOUR_RADIUS_KM, PHASE_KEYS, judgmentFromRow, judgmentToRow, deriveRouteTimeline, isTerminal } from "@onedal/shared";
+import { cargoMismatchRatio, DEFAULT_DETOUR_RADIUS_KM, PHASE_KEYS, judgmentFromRow, judgmentToRow, deriveRouteTimeline, DEFAULT_DEADLINE_RULES, isTerminal } from "@onedal/shared";
 import db from "../db";
 import { OrderRepository } from "../repositories/OrderRepository";
 import { PlaceRepository } from "../repositories/PlaceRepository";
@@ -26,10 +26,20 @@ function routeTlOf(userId: string): RouteTl | undefined {
         const sync = buildOrderSync(session);
         if (!sync.routeStops.length) return undefined;
         const active = session.myOrders.filter((o: any) => !isTerminal(o.status));
+        // ⏱️ 판정 기준 탭의 값(여유·시한 배율)을 타임라인 규칙으로 — 기본값과 탭이 갈라지지 않게
+        const cfg = session.judgment;
+        const rules = cfg ? {
+            ...DEFAULT_DEADLINE_RULES,
+            pickupOffsetMinutes: cfg.unknown.pickupOffsetMin,
+            restMarginMinutes: cfg.unknown.restMarginMin,
+            arrivalMarginMinutes: cfg.unknown.arrivalMarginMin,
+            deadlineRatioPct: cfg.deadline.ratioPct,
+            deadlinePickupMinutes: cfg.deadline.pickupMin,
+        } : undefined;
         return deriveRouteTimeline(sync.routeStops as any, active as any,
             id => OrderRepository.getCargoReports(id) as any,
             id => OrderRepository.getMilestones(id) as any,
-            Date.now(), sync.routeComputedAt);
+            Date.now(), sync.routeComputedAt, rules);
     } catch { return undefined; }
 }
 import { updateActiveFilter, ensureBusinessDay, saveBaseFilter, savePhaseSettings, trimTraveled } from "../state/filterManager";

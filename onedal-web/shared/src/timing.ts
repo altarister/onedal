@@ -578,11 +578,16 @@ export interface DeadlineRules {
     arrivalMarginMinutes?: number;
     /** 상차 마감 + 단독 주행 + 이만큼 = 하차 마감 (휴식 여유) */
     restMarginMinutes: number;
+    /** ⏱️ 시한 = 잡은 시각 + 배송 주행 × (이 배율/100) + 픽업 보정 — 업계 관행의 상한 (2026-08-21) */
+    deadlineRatioPct?: number;
+    deadlinePickupMinutes?: number;
 }
 export const DEFAULT_DEADLINE_RULES: DeadlineRules = {
     pickupOffsetMinutes: 60, restMarginMinutes: 30,
     /** 도착 약속 여유 — 기사님 2026-08-18: "디폴트 체크는 도착시간 + 30분" */
     arrivalMarginMinutes: 30,
+    /** 판정 기준 탭의 '시한'과 같은 기본값 — 서버는 judgment 값을 rules 로 넘겨 준다 */
+    deadlineRatioPct: 150, deadlinePickupMinutes: 20,
 };
 
 export function deriveCallTiming(
@@ -853,8 +858,29 @@ export function deriveRouteTimeline(
         const declared = reportsOf(st.orderId).find(r =>
             r.stopType === st.stopType && r.kind === 'DECLARED' && (r as any).promisedArrivalAt,
         ) as any;
+        /**
+         * ⏱️ **추정 약속은 시한 안으로 깎는다** (기사님 실측 2026-08-21 · 리허설 12).
+         *    시딩은 깎는데 여기는 안 깎아서 **한 화면이 두 목소리**를 냈다 —
+         *    새 시트 06:20 vs 카운트다운 "06:36 약속 기준". 추정을 만드는 곳의 규칙은 하나여야 한다.
+         *      하차 캡 = 시한   ·   상차 캡 = 시한 − 배송 주행 − 상차 정차
+         *    배송 주행을 모르면(합짐) 캡 없음 — 지어내지 않는다 (규칙 ④).
+         *    🔴 통화로 굳힌 약속(declared)은 안 깎는다 — 화주 합의가 면책.
+         *    캡이 도착 예상보다 이르면 도착 예상까지만 — 지킬 수 없는 약속을 권하지 않는다.
+         */
+        const capMs = (() => {
+            const capturedMs2 = parseCapturedAt(order.capturedAt, nowMs);
+            const ratio = rules.deadlineRatioPct ?? 150;
+            const pickupMin = rules.deadlinePickupMinutes ?? 20;
+            if (capturedMs2 == null || t.soloMinutes == null) return null;
+            const deadline = capturedMs2 + (t.soloMinutes * ratio / 100 + pickupMin) * 60_000;
+            return st.stopType === 'dropoff' ? deadline
+                : deadline - (t.soloMinutes + t.pickupDwell) * 60_000;
+        })();
+        const estMs = etaMs != null
+            ? Math.max(etaMs, capMs != null ? Math.min(etaMs + margin * 60_000, capMs) : etaMs + margin * 60_000)
+            : null;
         const promisedUntil: string | null = declared?.promisedArrivalAt
-            ?? (etaMs != null ? new Date(etaMs + margin * 60_000).toISOString() : null)
+            ?? (estMs != null ? new Date(estMs).toISOString() : null)
             ?? (st.stopType === 'pickup' ? t.pickupPromisedArrivalAt : t.dropoffPromisedArrivalAt);
 
         /**

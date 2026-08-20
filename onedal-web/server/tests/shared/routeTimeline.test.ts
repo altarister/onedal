@@ -33,7 +33,9 @@ const stops = (over: object = {}) => ([
 
 // 합짐 B 는 실제 사고 그대로 — kakaoSolo·approach 가 없다
 const orders = [
-    { id: 'A', capturedAt: '2026-08-19T03:50:00Z', kakaoSoloDurationMin: 65, approachDurationMin: 12 },
+    // ⏱️ 배송 120분 — 시한 캡(상차 캡 04:55 · 하차 시한 07:10)이 이 검사들의 어떤 추정
+    //    약속도 물지 않는 여유. 캡 자체의 검증은 timelineDeadlineCap.test 가 한다
+    { id: 'A', capturedAt: '2026-08-19T03:50:00Z', kakaoSoloDurationMin: 120, approachDurationMin: 12 },
     { id: 'B', capturedAt: '2026-08-19T03:58:00Z', kakaoSoloDurationMin: null, approachDurationMin: null },
 ] as any;
 
