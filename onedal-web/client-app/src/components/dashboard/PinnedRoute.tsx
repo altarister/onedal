@@ -8,6 +8,7 @@ import PinnedRouteCard from './PinnedRouteCard';
 import CallDeck from './CallDeck';
 import DepartureCountdown from './DepartureCountdown';
 import { useCallProgress, EMPTY_RECORDS } from '../../hooks/useCallProgress';
+import { useStepRecords } from '../../hooks/useStepRecords';
 import { deckOrder } from '../../lib/deckFocus';
 import { apiClient } from '../../api/apiClient';
 import { getAddressLabel } from '../../lib/routeUtils';
@@ -33,6 +34,13 @@ export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, 
     // 카드가 각자 불러오면 화면 밖 카드의 진행 상황을 알 수 없어
     // 덱 위에 요약 줄을 띄울 수가 없었다 (기사님 지적).
     const callRecords = useCallProgress(activeRoute.map(o => o.id));
+    /**
+     * 🔄 **파생 치환 ①** (기사님 승인 2026-08-21) — 타임라인·카운트다운의 재료를
+     * 새 장부(여섯 단계 행)에서 읽는다. 계산은 그대로, 출처만 바뀐다.
+     * `callRecords`(옛 장부)는 판정 근거의 이력 표시 등 남은 독자용으로 아직 둔다 —
+     * 옛 테이블 철거 때 함께 걷는다.
+     */
+    const stepRecords = useStepRecords(activeRoute.map(o => o.id));
     const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
     /** 콜을 다루기 시작하면 탭 바를 화면 맨 위로 끌어올린다 */
     const tabBarRef = useRef<HTMLDivElement>(null);
@@ -149,10 +157,10 @@ export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, 
      */
     const routeTimeline = useMemo(() => deriveRouteTimeline(
         routeStops, liveRoute,
-        (id) => (callRecords.get(id) ?? EMPTY_RECORDS).reports,
-        (id) => (callRecords.get(id) ?? EMPTY_RECORDS).milestones,
+        (id) => (stepRecords.get(id) ?? EMPTY_RECORDS).reports,
+        (id) => (stepRecords.get(id) ?? EMPTY_RECORDS).milestones,
         Date.now(), routeComputedAt,
-    ), [routeStops, liveRoute, callRecords, routeComputedAt]);
+    ), [routeStops, liveRoute, stepRecords, routeComputedAt]);
 
     const unifiedRoutePoints: RoutePoint[] = useMemo(() => {
         const byId = new Map(liveRoute.map(r => [r.id, r]));
@@ -419,7 +427,7 @@ export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, 
             {/* 최소 출발 시각 카운트다운 — 그 남은 시간이 곧 **대기 예산**이다.
                 기사님: *"첫 콜을 잡았다면 최소 출발 시간이 카운트다운하면 좋을 듯하다."* */}
             {viewFilter === 'ACTIVE' && liveRoute.length > 0 && (
-                <DepartureCountdown orders={liveRoute} records={callRecords}
+                <DepartureCountdown orders={liveRoute} records={stepRecords}
                     routeStops={routeStops} routeComputedAt={routeComputedAt} />
             )}
 
