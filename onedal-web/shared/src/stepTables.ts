@@ -9,30 +9,18 @@
  *    한 정거장이 최대 세 행(`SKIPPED`·`DECLARED`·`ACTUAL`)으로 흩어진다.
  *    → [전수 조사 §3~§5](../../../docs/단계_값_전수조사.md)
  *
- * ⚠️ **아직 아무도 안 읽는다.** 여섯을 다 만들어 **모양을 보고** 합칠지 정한다.
+ * 🔴 **여섯을 각각 따로 적는다** (기사님 지시 2026-08-20).
+ *    공통 묶음을 조합하면 *"이 테이블에 무엇이 있는지"* 가 한눈에 안 보이고,
+ *    무엇보다 **같은 이름의 컬럼이 단계마다 뜻이 다른 것**을 적을 자리가 없다.
+ *    기사님이 짚으신 대로 —
+ *    ```
+ *    상차지 통화  memo = "전화 받지 않음"     통화 시도의 결과
+ *    상차 완료    memo = "친절함"            사람·거래처 평가
+ *    하차 완료    memo = "하차지 사람없음"    현장 상황
+ *    ```
+ *    이름이 같다고 같은 값이 아니다. 그래서 컬럼마다 **그 단계에서의 뜻**을 옆에 적는다.
  *
- * ---
- * ## 컬럼이 단계마다 다른 이유
- *
- * | | 통화 | 도착 | 완료 |
- * |---|---|---|---|
- * | 짐 계획 | ⭕ 여기서 정한다 | ❌ | ⭕ |
- * | 짐 실측 | ❌ | ❌ | ⭕ **여기서만** |
- * | 약속 시각 | ⭕ **여기서만** | ❌ | ❌ |
- * | 사유 | ❌ (칩이 없다) | ⭕ | ⭕ |
- * | 예측 시각 | ❌ | ⭕ | ⭕ |
- *
- * ## ⚠️ `memo` 는 단계마다 **뜻이 다르다** (기사님 지적 2026-08-20)
- *
- * ```
- * 상차지 통화  "전화 받지 않음"     통화 시도의 결과      — 그때뿐
- * 상차 완료    "친절함"            사람·거래처 평가      — 🔴 다음에 또 갈 때도 유효
- * 하차 완료    "하차지 사람없음"    현장 상황            — 그때뿐
- * ```
- *
- * 🔴 *"친절함"* 은 **콜이 아니라 장소에 쌓여야 하는 값**이다 (`places` 테이블).
- *    지금은 그 콜의 메모에 묻혀 다음에 같은 곳을 만나도 안 보인다 (todo ⑤ 의 `이 곳 기록`).
- *    **아직 안 갈랐다** — 여섯을 만들어 본 뒤 함께 정한다.
+ * ⚠️ **아직 아무도 안 읽는다.** 여섯을 다 만들어 모양을 보고 합칠지 정한다.
  */
 
 import type { CallStepId } from './callSteps';
@@ -40,124 +28,170 @@ import type { CallStepId } from './callSteps';
 export const STEP_STATUSES = ['PLANNED', 'DONE', 'SKIPPED'] as const;
 export type StepStatus = typeof STEP_STATUSES[number];
 
-/** `[필드, 컬럼, SQL 타입]` */
-export type ColumnDef = readonly [string, string, string];
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 컬럼 묶음 — 단계마다 골라 쓴다
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-/** 여섯 단계가 **모두** 갖는 것 */
-const BASE: ColumnDef[] = [
-    ['status',     'status',      `TEXT NOT NULL DEFAULT 'PLANNED'`],
-    /** 이 단계가 **실제로 일어난** 시각 — 통화한 / 도착한 / 마친 (단계마다 다른 사건이다) */
-    ['occurredAt', 'occurred_at', 'TEXT'],
-    /** 직접 · 자동(GPS) · 건너뜀 — **GPS 는 도착 단계에만** 온다 */
-    ['source',     'source',      'TEXT'],
-    /** ⚠️ 단계마다 뜻이 다르다 (파일 상단 주석) */
-    ['memo',       'memo',        'TEXT'],
-];
-
-/** 🔴 **그때 무엇을 예측했나** — 나중에 `occurred_at` 과 견주면 우리 계산이 얼마나 맞는지 나온다 (todo ⑥) */
-const PREDICT: ColumnDef[] = [
-    ['predictedAt', 'predicted_at', 'TEXT'],
-];
-
-/** 겪은 일 (JSON 배열) — **목록이 단계마다 다르다** (`REASON_GROUPS_BY_STEP`) */
-const REASONS: ColumnDef[] = [
-    ['reasons', 'reasons', 'TEXT'],
-];
-
-/** 통화에서 정하는 것 — *"몇 시까지 갈게요"* */
-const PROMISE: ColumnDef[] = [
-    ['promisedArrivalAt',     'promised_arrival_at',      'TEXT'],
-    /** 구간 약속의 **"부터"** — *"12시부터 12시30분 사이"* (칸 두 번 탭) */
-    ['promisedArrivalFromAt', 'promised_arrival_from_at', 'TEXT'],
-];
-
-/**
- * 짐 **계획** — 콜을 잡는 순간 채우고, 적요·통화로 덮인다.
- * `plannedSource` 가 **어디서 온 값인지**를 남긴다 (`VEHICLE`·`MEMO`·`DECLARED` — 규칙 ⑤-2).
- */
-const CARGO_PLANNED: ColumnDef[] = [
-    ['plannedUnit',        'planned_unit',        'TEXT'],
-    ['plannedQuantity',    'planned_quantity',    'INTEGER'],
-    ['plannedHandling',    'planned_handling',    'TEXT'],
-    ['plannedProtections', 'planned_protections', 'TEXT'],
-    ['plannedAfterworks',  'planned_afterworks',  'TEXT'],
-    ['plannedTags',        'planned_tags',        'TEXT'],
-    ['plannedSource',      'planned_source',      'TEXT'],
-    ['plannedAt',          'planned_at',          'TEXT'],
-    /** 그때 계산한 정차 시간(분) — 옵션 값이 바뀌면 실제와 갈리므로 **그때 값**을 남긴다 */
-    ['plannedDwellMin',    'planned_dwell_min',   'REAL'],
-];
-
-/** 짐 **실측** — 현장에서 실제로 보고 적은 것. **완료 단계에만** 있다 */
-const CARGO_ACTUAL: ColumnDef[] = [
-    ['actualUnit',        'actual_unit',        'TEXT'],
-    ['actualQuantity',    'actual_quantity',    'INTEGER'],
-    ['actualHandling',    'actual_handling',    'TEXT'],
-    ['actualProtections', 'actual_protections', 'TEXT'],
-    ['actualAfterworks',  'actual_afterworks',  'TEXT'],
-    ['actualTags',        'actual_tags',        'TEXT'],
-];
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 여섯 단계
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+/** `[필드, 컬럼, SQL 타입, 이 단계에서의 뜻]` */
+export type ColumnDef = readonly [string, string, string, string];
 
 export interface StepTable {
     step: CallStepId;
     table: string;
     label: string;
     stop: 'pickup' | 'dropoff';
-    columns: ColumnDef[];
+    columns: readonly ColumnDef[];
 }
 
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ① 상차지 통화 — **약속과 짐을 여기서 정한다**
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const CALL_PICKUP: StepTable = {
+    step: 'CALL_PICKUP', table: 'step_call_pickup', label: '상차지 통화', stop: 'pickup',
+    columns: [
+        ['status',     'status',      `TEXT NOT NULL DEFAULT 'PLANNED'`, '계획 · 통화함 · 건너뜀'],
+        ['occurredAt', 'occurred_at', 'TEXT',    '**통화한** 시각'],
+        ['source',     'source',      'TEXT',    '직접 · 건너뜀 (GPS 는 없다 — 통화를 기계가 대신할 수 없다)'],
+        ['memo',       'memo',        'TEXT',    '**통화 시도의 결과** — "전화 받지 않음" · "지하 2층, 경비실 통과"'],
+
+        ['promisedArrivalAt',     'promised_arrival_at',      'TEXT', '🔴 **"몇 시까지 갈게요"** — 이 단계의 핵심 산출물'],
+        ['promisedArrivalFromAt', 'promised_arrival_from_at', 'TEXT', '구간 약속의 **"부터"** — "12시부터 12시30분 사이"'],
+
+        ['plannedUnit',        'planned_unit',        'TEXT',    '파레트 · 라면박스 …'],
+        ['plannedQuantity',    'planned_quantity',    'INTEGER', '몇 개'],
+        ['plannedHandling',    'planned_handling',    'TEXT',    '지게차 · 수작업'],
+        ['plannedProtections', 'planned_protections', 'TEXT',    '🔒 결박 · 그물망 … (JSON · **상차 전용**)'],
+        ['plannedAfterworks',  'planned_afterworks',  'TEXT',    '🧹 상차 통화에서 하차 후작업까지 들었을 때만'],
+        ['plannedTags',        'planned_tags',        'TEXT',    '일반화물 · 농산물 … (JSON)'],
+        ['plannedSource',      'planned_source',      'TEXT',    '🔴 이 값이 **어디서 왔나** — VEHICLE(차종 기본) · MEMO(적요) · DECLARED(통화)'],
+        ['plannedAt',          'planned_at',          'TEXT',    '이 계획이 정해진 시각'],
+        ['plannedDwellMin',    'planned_dwell_min',   'REAL',    '그때 계산한 상차 소요(분) — 옵션이 바뀌어도 **그때 값**이 남는다'],
+
+        ['onwardDeadlineAt',   'onward_deadline_at',  'TEXT',    '🔴 **여기서만** — 상차 통화에서 함께 들은 하차지 시각. 하차 기록으로 저장하면 "하차 통화를 했다"고 오인된다 (규칙 ⑥)'],
+    ],
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ② 하차지 통화 — **하차 방법과 후작업을 정한다**
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const CALL_DROPOFF: StepTable = {
+    step: 'CALL_DROPOFF', table: 'step_call_dropoff', label: '하차지 통화', stop: 'dropoff',
+    columns: [
+        ['status',     'status',      `TEXT NOT NULL DEFAULT 'PLANNED'`, '계획 · 통화함 · 건너뜀'],
+        ['occurredAt', 'occurred_at', 'TEXT',    '**통화한** 시각'],
+        ['source',     'source',      'TEXT',    '직접 · 건너뜀'],
+        ['memo',       'memo',        'TEXT',    '**통화 시도의 결과** — "5시 이후엔 문 닫음"'],
+
+        ['promisedArrivalAt',     'promised_arrival_at',      'TEXT', '🔴 **하차 약속** — 상차 통화에서 들은 값(`onward`)이 여기 미리 채워진다'],
+        ['promisedArrivalFromAt', 'promised_arrival_from_at', 'TEXT', '구간 약속의 **"부터"**'],
+
+        ['plannedUnit',        'planned_unit',        'TEXT',    '⚠️ 하차 시트는 짐을 안 묻는다 — 상차에서 온 값을 그대로 들고 있을 뿐'],
+        ['plannedQuantity',    'planned_quantity',    'INTEGER', '〃'],
+        ['plannedHandling',    'planned_handling',    'TEXT',    '🔴 **하차 방법** — 이 단계에서 정한다 (지게차로 실었으면 대개 지게차로 내린다)'],
+        ['plannedProtections', 'planned_protections', 'TEXT',    '⚠️ 하차에는 안 붙는다 — 묶는 자리는 상차다'],
+        ['plannedAfterworks',  'planned_afterworks',  'TEXT',    '🧹 **정리 · 검수** — 이 단계의 핵심. 검수 60분이 여기서 붙는다'],
+        ['plannedTags',        'planned_tags',        'TEXT',    '짐 성질 (상차에서 온 값)'],
+        ['plannedSource',      'planned_source',      'TEXT',    'VEHICLE · MEMO · DECLARED'],
+        ['plannedAt',          'planned_at',          'TEXT',    '이 계획이 정해진 시각'],
+        ['plannedDwellMin',    'planned_dwell_min',   'REAL',    '그때 계산한 **하차** 소요(분)'],
+    ],
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ③ 상차지 도착 — **짐이 없다.** 문을 열기 전이다
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const ARRIVE_PICKUP: StepTable = {
+    step: 'ARRIVE_PICKUP', table: 'step_arrive_pickup', label: '상차지 도착', stop: 'pickup',
+    columns: [
+        ['status',      'status',       `TEXT NOT NULL DEFAULT 'PLANNED'`, '계획 · 도착함 · 건너뜀'],
+        ['occurredAt',  'occurred_at',  'TEXT', '**도착한** 시각'],
+        ['source',      'source',       'TEXT', '🔴 **GPS 가 오는 유일한 자리** — 직접 · 자동(GPS) · 건너뜀'],
+        ['memo',        'memo',         'TEXT', '**오는 길에 겪은 일** — "고속도로 사고로 20분 지연"'],
+        ['predictedAt', 'predicted_at', 'TEXT', '🔴 그때 **예측한 도착 시각** — 실제와 견주면 우리 계산이 얼마나 맞는지 나온다 (todo ⑥)'],
+        ['reasons',     'reasons',      'TEXT', '**도로 문제 · 상차지 문제 · 기타** (JSON · 짐 이야기는 없다 — 아직 문을 안 열었다)'],
+    ],
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ④ 상차 완료 — **계획과 실측이 처음으로 만난다**
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const LOADED: StepTable = {
+    step: 'LOADED', table: 'step_loaded', label: '상차 완료', stop: 'pickup',
+    columns: [
+        ['status',      'status',       `TEXT NOT NULL DEFAULT 'PLANNED'`, '계획 · 상차함 · 건너뜀'],
+        ['occurredAt',  'occurred_at',  'TEXT', '**상차를 마친** 시각 (= 출발 시각)'],
+        ['source',      'source',       'TEXT', '직접 · 건너뜀'],
+        ['memo',        'memo',         'TEXT', '🔴 **사람·거래처 평가** — "친절함". 이건 콜이 아니라 **장소에 쌓여야** 하는 값이다 (`places` · todo ⑤)'],
+        ['predictedAt', 'predicted_at', 'TEXT', '그때 예측한 **상차 완료 시각**'],
+        ['reasons',     'reasons',      'TEXT', '**화주 미준비 · 물건 없음 · 상차 중 파손 · 기타** (JSON)'],
+
+        ['plannedUnit',        'planned_unit',        'TEXT',    '통화·차종에서 온 **계획**'],
+        ['plannedQuantity',    'planned_quantity',    'INTEGER', '〃'],
+        ['plannedHandling',    'planned_handling',    'TEXT',    '〃'],
+        ['plannedProtections', 'planned_protections', 'TEXT',    '🔒 계획한 보호'],
+        ['plannedAfterworks',  'planned_afterworks',  'TEXT',    '⚠️ 상차에는 안 붙는다 (하차용)'],
+        ['plannedTags',        'planned_tags',        'TEXT',    '계획한 성질'],
+        ['plannedSource',      'planned_source',      'TEXT',    'VEHICLE · MEMO · DECLARED'],
+        ['plannedAt',          'planned_at',          'TEXT',    '계획이 정해진 시각'],
+        ['plannedDwellMin',    'planned_dwell_min',   'REAL',    '예측한 상차 소요(분)'],
+
+        ['actualUnit',        'actual_unit',        'TEXT',    '🔴 **실제로 실은 것** — 계획과 다르면 여기서 갈린다'],
+        ['actualQuantity',    'actual_quantity',    'INTEGER', '🔴 실제 개수 — `planned` 와 견주면 오차가 **한 행 안에서** 나온다'],
+        ['actualHandling',    'actual_handling',    'TEXT',    '실제로 쓴 방법'],
+        ['actualProtections', 'actual_protections', 'TEXT',    '🔒 실제로 한 보호'],
+        ['actualAfterworks',  'actual_afterworks',  'TEXT',    '⚠️ 상차에는 안 붙는다'],
+        ['actualTags',        'actual_tags',        'TEXT',    '실제 성질 (열어 보니 달랐을 때)'],
+    ],
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ⑤ 하차지 도착 — 상차지 도착과 **컬럼은 같고 사유가 다르다**
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const ARRIVE_DROPOFF: StepTable = {
+    step: 'ARRIVE_DROPOFF', table: 'step_arrive_dropoff', label: '하차지 도착', stop: 'dropoff',
+    columns: [
+        ['status',      'status',       `TEXT NOT NULL DEFAULT 'PLANNED'`, '계획 · 도착함 · 건너뜀'],
+        ['occurredAt',  'occurred_at',  'TEXT', '**도착한** 시각'],
+        ['source',      'source',       'TEXT', '🔴 **GPS 가 오는 자리** — 직접 · 자동(GPS) · 건너뜀'],
+        ['memo',        'memo',         'TEXT', '**현장 상황** — "하차지 사람없음"'],
+        ['predictedAt', 'predicted_at', 'TEXT', '그때 예측한 도착 시각'],
+        ['reasons',     'reasons',      'TEXT', '🔴 **도로 · 하차지 · 짐 상태 · 기타** — 상차지 도착에 없던 **짐 상태**(짐 무너짐 · 결박 풀림 · 파손 발견)가 여기 있다. 문을 열면 보이기 때문이다'],
+    ],
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ⑥ 하차 완료 — **콜의 끝.** 계획은 없고 실측과 돈만 있다
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const DELIVERED: StepTable = {
+    step: 'DELIVERED', table: 'step_delivered', label: '하차 완료', stop: 'dropoff',
+    columns: [
+        ['status',      'status',       `TEXT NOT NULL DEFAULT 'PLANNED'`, '계획 · 하차함 · 건너뜀'],
+        ['occurredAt',  'occurred_at',  'TEXT', '🔴 **하차를 마친** 시각 — 관제앱에서 이 콜은 여기서 끝난다 (정산은 별개)'],
+        ['source',      'source',       'TEXT', '직접 · 건너뜀'],
+        ['memo',        'memo',         'TEXT', '**현장 상황** — "수령인이 검수를 오래 함"'],
+        ['predictedAt', 'predicted_at', 'TEXT', '그때 예측한 하차 완료 시각'],
+        ['reasons',     'reasons',      'TEXT', '**검수 지연 · 인수 거부 · 기타** (JSON)'],
+
+        ['actualUnit',        'actual_unit',        'TEXT',    '⚠️ 하차에서는 대개 안 고친다 — 상차 실측이 그대로 온다'],
+        ['actualQuantity',    'actual_quantity',    'INTEGER', '〃 (일부만 내렸을 때만 다르다)'],
+        ['actualHandling',    'actual_handling',    'TEXT',    '🔴 **실제로 쓴 하차 방법**'],
+        ['actualProtections', 'actual_protections', 'TEXT',    '⚠️ 하차에는 안 붙는다'],
+        ['actualAfterworks',  'actual_afterworks',  'TEXT',    '🧹 **실제로 한 후작업** — 검수를 했나 안 했나'],
+        ['actualTags',        'actual_tags',        'TEXT',    '실제 성질'],
+
+        ['codReceived',       'cod_received',       'INTEGER', '💵 🔴 **착불 현금을 받았는가** — 기사님: *"완료 누르기 전에 내가 받을 거야."* 없으면 미수금으로 남는다'],
+    ],
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/** `db.ts` 가 이 목록을 순회하며 테이블을 만든다 — **DDL 을 손으로 적지 않는다** */
 export const STEP_TABLES: readonly StepTable[] = [
-    {
-        step: 'CALL_PICKUP', table: 'step_call_pickup', label: '상차지 통화', stop: 'pickup',
-        columns: [...BASE, ...PROMISE, ...CARGO_PLANNED,
-            /**
-             * 상차지 통화에서 **함께 들은 하차지 시각.**
-             * 🔴 하차지 기록으로 저장하지 않는다 — 그러면 `deriveCallStep` 이
-             *    *"하차지 통화를 했다"* 고 보고 단계를 건너뛴다 (규칙 ⑥).
-             */
-            ['onwardDeadlineAt', 'onward_deadline_at', 'TEXT'],
-        ],
-    },
-    {
-        step: 'CALL_DROPOFF', table: 'step_call_dropoff', label: '하차지 통화', stop: 'dropoff',
-        // 하차 통화도 짐 계획을 고친다 — 하차 방법·후작업이 여기서 정해진다
-        columns: [...BASE, ...PROMISE, ...CARGO_PLANNED],
-    },
-    {
-        step: 'ARRIVE_PICKUP', table: 'step_arrive_pickup', label: '상차지 도착', stop: 'pickup',
-        // 🔴 짐이 없다 — **문을 열기 전이라 실측할 수 없다** (도착 사유 기획 §3)
-        columns: [...BASE, ...PREDICT, ...REASONS],
-    },
-    {
-        step: 'LOADED', table: 'step_loaded', label: '상차 완료', stop: 'pickup',
-        // 계획과 실측이 **한 행에** — 오차를 조인 없이 잰다
-        columns: [...BASE, ...PREDICT, ...REASONS, ...CARGO_PLANNED, ...CARGO_ACTUAL],
-    },
-    {
-        step: 'ARRIVE_DROPOFF', table: 'step_arrive_dropoff', label: '하차지 도착', stop: 'dropoff',
-        columns: [...BASE, ...PREDICT, ...REASONS],
-    },
-    {
-        step: 'DELIVERED', table: 'step_delivered', label: '하차 완료', stop: 'dropoff',
-        columns: [...BASE, ...PREDICT, ...REASONS, ...CARGO_ACTUAL,
-            /**
-             * 💵 **착불 현금을 받았는가** — 기사님: *"착불현금은 완료 누르기 전에 내가 받을 거야."*
-             *    받은 기록이 없으면 미수금으로 남는다 (정산 페이지 소관).
-             */
-            ['codReceived', 'cod_received', 'INTEGER'],
-        ],
-    },
+    CALL_PICKUP, CALL_DROPOFF, ARRIVE_PICKUP, LOADED, ARRIVE_DROPOFF, DELIVERED,
 ];
 
-/** 단계 id 로 찾는다 */
 export function stepTableOf(step: CallStepId): StepTable | undefined {
     return STEP_TABLES.find(t => t.step === step);
 }
