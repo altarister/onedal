@@ -312,13 +312,31 @@ export function buildOrderSync(session: { myOrders: MyOrder[]; pendingOrdersData
     const holder = [...activeCalls].reverse().find(c => c.sectionDriveMin?.length) ?? null;
     const mins = holder?.sectionDriveMin;
     const aligned = !!mins && mins.length === stops.length;
+    /**
+     * 🔴 **자리가 아니라 이름으로 맞춘다** (기사님 실측 2026-08-21 · 3콜 리허설).
+     *
+     * 정거장에 도착하면 목록에서 빠지는데 주행분 배열은 계산 시점 그대로라, 도착할
+     * 때마다 길이가 어긋나 **주행분 전체가 null** 이 됐다 — 운행 내내 타임라인이 죽었다
+     * (예산 줄·검산 문장·카운트다운이 전부 이 값을 먹는다).
+     *
+     * 남은 정거장의 누적 주행분은 여전히 옳다 — 닻에서 잰 상대값이라 낡지 않는다.
+     * 죽은 것은 값이 아니라 **인덱스 맞추기**였다. 경로 연산이 남긴 `sectionStops`
+     * (구간마다 어느 정거장인가)로 조회하면, 다녀온 곳은 안 찾아질 뿐이고
+     * 계산에 없던 새 정거장만 null 이 된다 (규칙 ④ — 모르는 것만 모른다).
+     */
+    const secStops = holder?.sectionStops;
+    const minByKey = secStops && mins && secStops.length === mins.length
+        ? new Map(secStops.map((st, i) => [`${st.orderId}|${st.stopType}`, mins[i]]))
+        : null;
     const routeComputedAt = holder?.routeComputedAt
         ?? [...activeCalls].reverse().find(c => c.routeComputedAt)?.routeComputedAt ?? null;
     const routeStops = stops.map((st, i) => ({
         orderId: st.orderId, stopType: st.stopType,
-        driveMinutes: aligned ? mins![i] : null,
+        driveMinutes: minByKey
+            ? (minByKey.get(`${st.orderId}|${st.stopType}`) ?? null)
+            : aligned ? mins![i] : null,
     }));
-    logRouteStops(routeStops, routeComputedAt, holder?.id ?? null, aligned, mins?.length ?? 0);
+    logRouteStops(routeStops, routeComputedAt, holder?.id ?? null, aligned || !!minByKey, mins?.length ?? 0);
 
     return {
         active: all.filter(o => !isTerminal(o.status)),

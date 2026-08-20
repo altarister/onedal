@@ -49,7 +49,18 @@ describe('통화 시트 문구 — 지금 출발한다고 가정하지 않는다
     });
 
     it('주행에는 "주행" 이라고 적는다 — 숫자만 있으면 무슨 분인지 모른다', () => {
-        expect(code()).toMatch(/\{km\}주행 \{driveMinutes\}분/);
+        expect(code()).toMatch(/\{km\}주행 \{driveMinutes\}분/);   // 상차지 — 현위치부터
+    });
+
+    /**
+     * 🔴 **하차지는 누적이 아니라 구간이다** (실측 2026-08-20).
+     *    `driveMinutes` 는 닻부터의 누적(129분 = 접근 16 + 단독 113)이라,
+     *    "상차지를 떠난 뒤의 주행"에 쓰면 접근 16분을 **두 번** 센다.
+     */
+    it('🔴 하차지 주행은 구간(segmentDriveMinutes)을 쓴다 — 누적을 쓰면 접근을 두 번 센다', () => {
+        const c = code();
+        expect(c).toMatch(/const segMin = segmentDriveMinutes \?\? driveMinutes/);
+        expect(c).toMatch(/\{km\}주행 \{segMin\}분/);
     });
 });
 
@@ -62,9 +73,24 @@ describe('문장이 검산된다 — 출발 + 주행 + 대기 = 도착', () => {
         expect(code()).toMatch(/const arriveAt = deadlineAt\s*\n?\s*\?\s*hhmm\(deadlineAt\)/);
     });
 
-    /** 출발은 "지금 + 상차" — 그래야 출발 + 주행 + 휴게가 도착과 맞물린다 */
-    it('하차지 출발 시각 = 지금 + 앞 정거장 작업 시간', () => {
-        expect(code()).toMatch(/const departMs = Date\.now\(\) \+ leadMinutes \* 60_000/);
+    /**
+     * 🔴 **이 검사가 틀린 계산을 못박고 있었다** (기사님 실측 2026-08-20).
+     *
+     * 예전 규칙은 *"출발 = 지금 + 상차"* 였다. 그런데 `지금` 은 **시트를 연 시각**이라
+     * 열 때마다 값이 달라졌고, 상차지 시트가 말하는 출발(`상차 약속 + 상차`)과
+     * **44분** 어긋났다 — 한 화면 안에서 두 시트가 다른 시각을 말했다.
+     *
+     *   하차지 시트: *"…에서 8분 상차하고 **16:19** 출발, 주행 129분 … = 18:26 도착"*
+     *   참값:        *"…에서 8분 상차하고 **17:03** 출발, 주행 113분 … = 18:56 도착"*
+     *
+     * 이제 **시각을 시트가 만들지 않는다** — 타임라인의 `departPrevMs` 를 그대로 그린다
+     * (규칙 ③). 값이 없으면 앞 절을 쓰지 않는다 (규칙 ④ — 지어내지 않는다).
+     * 계산 쪽 검사는 `tests/rules/departSentence.test.ts` 에 있다.
+     */
+    it('🔴 하차지 출발 시각을 시트가 계산하지 않는다 — 타임라인이 준 값을 쓴다', () => {
+        expect(code()).not.toMatch(/Date\.now\(\) \+ leadMinutes/);
+        expect(code()).toMatch(/departPrevMs != null/);
+        expect(code()).toMatch(/hhmm\(new Date\(departPrevMs\)/);
     });
 
     /** 규칙 ④ — 늦으면 "대기 -30분" 같은 거짓 항을 만들지 않고 늦었다고 적는다 */

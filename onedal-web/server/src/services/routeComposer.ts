@@ -40,6 +40,8 @@ export interface RouteResult {
     duration: number;      // seconds
     sectionEtas?: any;
     sectionDriveMin?: Array<number | null>;
+    /** 🧭 구간마다 어느 정거장인가 — `sectionDriveMin` 과 같은 길이. 자리가 아니라 이름으로 맞추는 열쇠 */
+    sectionStops?: Array<{ orderId: string; stopType: 'pickup' | 'dropoff' }>;
     /** 현위치 → 첫 상차지 소요 시간(초). 카카오가 주는데 예전에는 로그만 찍고 버렸다 */
     approachDuration?: number;
     /** 현위치 → 첫 상차지 거리(미터) */
@@ -78,6 +80,14 @@ export function applySoloRoute(holder: RouteHolder, r: RouteResult): void {
     holder.totalDurationMin = toMin(r.duration);
     if (r.sectionEtas) holder.sectionEtas = r.sectionEtas;
     if (r.sectionDriveMin) holder.sectionDriveMin = r.sectionDriveMin;
+    // 단독 경로의 정거장은 자명하다 — 이미 상차했으면 하차 하나뿐
+    if (r.sectionDriveMin) {
+        const own: Array<{ orderId: string; stopType: 'pickup' | 'dropoff' }> =
+            hasVisitedStop(holder as any, 'pickup')
+                ? [{ orderId: holder.id, stopType: 'dropoff' }]
+                : [{ orderId: holder.id, stopType: 'pickup' }, { orderId: holder.id, stopType: 'dropoff' }];
+        holder.sectionStops = own.length === r.sectionDriveMin.length ? own : undefined;
+    }
     holder.routeComputedAt = new Date().toISOString();   // 타임라인 추정 약속의 닻
 
     holder.kakaoSoloDistanceKm = toKm(Math.max(0, r.distance - approachM));
@@ -95,6 +105,11 @@ export function applyRoute(holder: RouteHolder, r: RouteResult): void {
     holder.totalDurationMin = toMin(r.duration);
     if (r.sectionEtas) holder.sectionEtas = r.sectionEtas;
     if (r.sectionDriveMin) holder.sectionDriveMin = r.sectionDriveMin;
+    // 합짐 경로의 구간 주인은 composeMergedRoute 가 붙여 보낸다 — 길이가 어긋나면 안 싣는다
+    if ((r as any).sectionStops) {
+        holder.sectionStops = r.sectionDriveMin && (r as any).sectionStops.length === r.sectionDriveMin.length
+            ? (r as any).sectionStops : undefined;
+    }
     holder.routeComputedAt = new Date().toISOString();   // 타임라인 추정 약속의 닻
     // 통화 대본의 "여기서 N분 걸립니다" — 예전에는 계산해 놓고 로그만 찍고 버렸다
     if (r.approachDuration) holder.approachDurationMin = toMin(r.approachDuration);
@@ -135,7 +150,7 @@ export async function composeMergedRoute(params: ComposeMergedRouteParams) {
     const plan = planMergedStops(calls, extra, driverLocation);
     if (!plan) return null;
 
-    return calculateDetourRoute(
+    const result = await calculateDetourRoute(
         plan.origin.dropoff.x, plan.origin.dropoff.y,
         plan.origin.pickup.x, plan.origin.pickup.y,
         plan.mergedDest.x, plan.mergedDest.y,
@@ -144,6 +159,16 @@ export async function composeMergedRoute(params: ComposeMergedRouteParams) {
         priority,
         carType
     );
+    /**
+     * 🧭 구간의 주인 — `planArrivalStops` 는 같은 optimizeWaypoints 를 쓰므로
+     * 카카오 요청의 경유 순서와 같다. 자리가 아니라 이름으로 맞추는 열쇠가 된다.
+     */
+    if (result) {
+        (result as any).sectionStops = planArrivalStops(
+            extra ? [...calls, extra] : calls, driverLocation,
+        ).map(st => ({ orderId: st.orderId, stopType: st.stopType }));
+    }
+    return result;
 }
 
 /**

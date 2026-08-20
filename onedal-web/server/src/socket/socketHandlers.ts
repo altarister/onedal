@@ -5,13 +5,33 @@ import { getUserDevicesSnapshot } from "../routes/devices";
 import { getRegionsByCity } from "../geoResolver";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import type { AutoDispatchFilter, Milestone, MilestoneSource, CargoReport, CallTarget, PhaseKey, PhaseSettings } from "@onedal/shared";
-import { cargoMismatchRatio, DEFAULT_DETOUR_RADIUS_KM, PHASE_KEYS, judgmentFromRow, judgmentToRow } from "@onedal/shared";
+import { cargoMismatchRatio, DEFAULT_DETOUR_RADIUS_KM, PHASE_KEYS, judgmentFromRow, judgmentToRow, deriveRouteTimeline, isTerminal } from "@onedal/shared";
 import db from "../db";
 import { OrderRepository } from "../repositories/OrderRepository";
 import { PlaceRepository } from "../repositories/PlaceRepository";
 import { getUserSession, getAllActiveUserIds } from "../state/userSessionStore";
 import { buildOrderSync } from "../core/helpers";
 import { recalculateDetourFilter, handleDecision, recalculateKakaoRoute, bootstrapUserSession, reportMilestone, undoMilestone, setCallTarget, createHomeReturn } from "../services/dispatchEngine";
+import { birthFirstStep, bridgeCargoReport, bridgeMilestone, bridgeUndoMilestone, bridgeCod, stepsView, refreshPlannedSteps } from "../services/stepSeeder";
+import type { RouteTl } from "../services/stepSeeder";
+
+/**
+ * 🧭 **경로가 아는 시각을 시딩에 먹인다** (기사님 실측 2026-08-21 — 합짐 예측 없음).
+ * 파생은 `deriveRouteTimeline` 한 곳이다 (규칙 ③) — 여기서는 부르기만 한다.
+ * 실패하면 undefined — 시딩은 콜 단독 값으로 폴백한다 (경로를 몰라도 죽지 않는다).
+ */
+function routeTlOf(userId: string): RouteTl | undefined {
+    try {
+        const session = getUserSession(userId);
+        const sync = buildOrderSync(session);
+        if (!sync.routeStops.length) return undefined;
+        const active = session.myOrders.filter((o: any) => !isTerminal(o.status));
+        return deriveRouteTimeline(sync.routeStops as any, active as any,
+            id => OrderRepository.getCargoReports(id) as any,
+            id => OrderRepository.getMilestones(id) as any,
+            Date.now(), sync.routeComputedAt);
+    } catch { return undefined; }
+}
 import { updateActiveFilter, ensureBusinessDay, saveBaseFilter, savePhaseSettings, trimTraveled } from "../state/filterManager";
 import { processDriverMovement, getCityRegionsWithRadius } from "../services/geoService";
 
@@ -287,6 +307,13 @@ export function registerSocketHandlers(io: Server) {
                     const milestone = stop.stopType === 'pickup' ? 'ARRIVED_PICKUP' as const : 'ARRIVED_DROPOFF' as const;
                     const result = await reportMilestone(uid, stop.orderId, milestone, 'GPS', io);
                     if (result.success && !result.duplicated) {
+                        // 🌉 다리 — GPS 도착도 단계 행을 마감하고 다음을 낳는다
+                        try {
+                            bridgeMilestone(uid, stop.orderId, milestone, 'GPS', undefined, undefined, getUserSession(uid)?.judgment, routeTlOf(uid));
+                            io.to(uid).emit("steps-synced", { orderId: stop.orderId, steps: stepsView(stop.orderId, getUserSession(uid)?.judgment) });
+                        } catch (e) {
+                            console.error(`🌉 [단계 다리 실패] ${stop.orderId.slice(-6)}:`, (e as Error).message);
+                        }
                         console.log(`📤 [Socket 푸시] milestone-log (${stop.orderId.slice(0, 8)} · GPS 도착)`);
                         io.to(uid).emit("milestone-log", { orderId: stop.orderId, milestones: OrderRepository.getMilestones(stop.orderId) });
                         // auto-arrived — 죽은 문이던 것을 이 기능으로 살렸다 (관제웹이 원래 듣고 있었다)
@@ -315,11 +342,44 @@ export function registerSocketHandlers(io: Server) {
             console.log(`⚖️ [소켓 Decision] User: ${userId}, ID: ${orderId}, Status Action: ${action}`);
             const result = await handleDecision(userId, orderId, action, io);
             socket.emit("decision-ack", result);
+            /**
+             * 🌱 **KEEP 하면 여섯 단계가 생긴다** (기사님 2026-08-20 — 시험 버튼 대체).
+             *    "콜을 잡는 순간 모든 상세값이 임시로 정해진다" — 그 순간이 여기다.
+             *    실패해도 결재는 이미 끝났다 — 시딩이 KEEP 을 막으면 안 된다.
+             */
+            if (action === 'ORDER_CONFIRMED') {
+                try {
+                    // 🌱 출생 모델 (기사님 2026-08-20): KEEP 은 **첫 행(상차지 통화)만** 낳는다.
+                    //    나머지는 각 단계가 끝날 때 앞 값을 물려받아 태어난다 — 뒤 행을 찾아다니며
+                    //    고치는 코드가 없어야 화면·장부가 갈라질 수 없다.
+                    const judgment = getUserSession(userId)?.judgment;
+                    const tl = routeTlOf(userId);
+                    birthFirstStep(userId, orderId, judgment, tl);
+                    // 🧭 합짐이 붙으면 **경로 위 모든 콜**의 흐르는 예상이 민다 — 굳은 약속은 불변
+                    for (const c of getUserSession(userId).myOrders.filter((o: any) => !isTerminal(o.status))) {
+                        refreshPlannedSteps(userId, c.id, judgment, tl);
+                        io.to(userId).emit("steps-synced", { orderId: c.id, steps: stepsView(c.id, judgment) });
+                    }
+                } catch (e) {
+                    console.error(`🌱 [단계 출생 실패] ${orderId.slice(-6)}:`, (e as Error).message);
+                }
+            }
         });
 
         // 카카오 경로 재탐색
         safeOn(socket, "recalculate-route", async ({ orderId, priority }: { orderId: string, priority: string }) => {
             const result = await recalculateKakaoRoute(userId, orderId, priority, io);
+            // 🧭 경로가 바뀌었다 — PLANNED 행의 흐르는 예상을 새 경로로
+            try {
+                const judgment = getUserSession(userId)?.judgment;
+                const tl = routeTlOf(userId);
+                for (const c of getUserSession(userId).myOrders.filter((o: any) => !isTerminal(o.status))) {
+                    refreshPlannedSteps(userId, c.id, judgment, tl);
+                    socket.emit("steps-synced", { orderId: c.id, steps: stepsView(c.id, judgment) });
+                }
+            } catch (e) {
+                console.error(`🌉 [단계 다리 실패]`, (e as Error).message);
+            }
             socket.emit("recalculate-route-ack", result);
         });
 
@@ -337,6 +397,13 @@ export function registerSocketHandlers(io: Server) {
             const source: MilestoneSource = data.source === 'SKIPPED' ? 'SKIPPED' : 'MANUAL_WEB';
             logRoadmapEvent("서버", `관제탑으로부터 ${data.milestone} 보고 수신${source === 'SKIPPED' ? ' (건너뜀)' : ''}`);
             const result = await reportMilestone(userId, data.orderId, data.milestone, source, io, data.occurredAt, data.predictedAt, data.reasons);
+            // 🌉 다리 — 단계 행 마감 + 다음 출생
+            try {
+                bridgeMilestone(userId, data.orderId, data.milestone, source, data.occurredAt, data.reasons, getUserSession(userId)?.judgment, routeTlOf(userId));
+                socket.emit("steps-synced", { orderId: data.orderId, steps: stepsView(data.orderId, getUserSession(userId)?.judgment) });
+            } catch (e) {
+                console.error(`🌉 [단계 다리 실패] ${data.orderId.slice(-6)}:`, (e as Error).message);
+            }
             socket.emit("milestone-result", { orderId: data.orderId, ...result });
             socket.emit("milestone-log", { orderId: data.orderId, milestones: OrderRepository.getMilestones(data.orderId) });
         });
@@ -348,15 +415,36 @@ export function registerSocketHandlers(io: Server) {
         safeOn(socket, "undo-milestone", async (data: { orderId: string, milestone: Milestone }) => {
             if (!data.orderId || !data.milestone) throw new Error("orderId 또는 milestone 누락");
             const result = await undoMilestone(userId, data.orderId, data.milestone, io);
+            // 🌉 다리 — 단계 행도 되돌린다 (마감 해제)
+            try {
+                bridgeUndoMilestone(userId, data.orderId, data.milestone);
+                socket.emit("steps-synced", { orderId: data.orderId, steps: stepsView(data.orderId, getUserSession(userId)?.judgment) });
+            } catch (e) {
+                console.error(`🌉 [단계 다리 실패] ${data.orderId.slice(-6)}:`, (e as Error).message);
+            }
             socket.emit("milestone-result", { orderId: data.orderId, ...result });
             socket.emit("milestone-log", { orderId: data.orderId, milestones: OrderRepository.getMilestones(data.orderId) });
         });
 
         // [Phase 8.4] 통화 결과 / 현장 확인 기록
+        /** 이미 만들어 둔 여섯 단계를 그대로 읽는다 (화면 새로고침용) */
+        safeOn(socket, "request-steps", (data: { orderId: string }) => {
+            if (!data?.orderId) throw new Error("orderId 누락");
+            socket.emit("steps-synced", { orderId: data.orderId, steps: stepsView(data.orderId, getUserSession(userId)?.judgment) });
+        });
+
         safeOn(socket, "save-cargo-report", (data: { orderId: string } & CargoReport) => {
             const { orderId, ...report } = data;
             if (!orderId) throw new Error("orderId 누락");
             OrderRepository.upsertCargoReport(orderId, userId, report);
+
+            // 🌉 다리 — 단계 행도 같이 (마감 + 다음 출생). 실패해도 기존 저장은 이미 끝났다
+            try {
+                bridgeCargoReport(userId, orderId, report as CargoReport, getUserSession(userId)?.judgment, routeTlOf(userId));
+                socket.emit("steps-synced", { orderId, steps: stepsView(orderId, getUserSession(userId)?.judgment) });
+            } catch (e) {
+                console.error(`🌉 [단계 다리 실패] ${orderId.slice(-6)}:`, (e as Error).message);
+            }
 
             const all = OrderRepository.getCargoReports(orderId);
             const pick = (st: string, k: string) => all.find(r => r.stopType === st && r.kind === k);
@@ -438,6 +526,13 @@ export function registerSocketHandlers(io: Server) {
             const amount = order?.fare ?? data.amount ?? 0;
 
             OrderRepository.setCodCollected(data.orderId, userId, data.received, amount);
+            // 🌉 다리 — 하차 완료 행에도 (완료 카드의 착불 버튼이 이 값으로 불을 켠다)
+            try {
+                bridgeCod(data.orderId, data.received);
+                socket.emit("steps-synced", { orderId: data.orderId, steps: stepsView(data.orderId, getUserSession(userId)?.judgment) });
+            } catch (e) {
+                console.error(`🌉 [단계 다리 실패] ${data.orderId.slice(-6)}:`, (e as Error).message);
+            }
             console.log(`💵 [착불 ${data.received ? '수령' : '미수'}] ${data.orderId.slice(0, 8)} ${amount.toLocaleString()}원`);
             logRoadmapEvent("서버", `[착불] ${data.received ? '현장 수령' : '미수금 등록'} ${amount}원`);
 

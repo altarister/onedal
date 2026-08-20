@@ -530,6 +530,8 @@ export interface PendingOrder extends OfficeOrder {
     osrmError?: string;               // OSRM 연산 실패 시 에러 메세지 노출용
     sectionEtas?: string[];           // 카카오 궤적 연산 기반 각 경유지 도착 예상 시간 배열
     sectionDriveMin?: Array<number | null>;       // 출발점 기준 정거장별 **누적 주행(분)** — 시계가 아니라 상대값이라 낡지 않는다
+    /** 🧭 구간마다 어느 정거장인가 — sectionDriveMin 과 같은 길이. 도착으로 정거장이 빠져도 이름으로 맞춘다 (2026-08-21) */
+    sectionStops?: Array<{ orderId: string; stopType: 'pickup' | 'dropoff' }>;
     routeComputedAt?: string;         // 이 경로를 계산한 시점 — 타임라인 추정 약속의 닻
     arrivedPickupAt?: string;         // 🚏 상차지에 실제로 도착한 시각 — 경로에서 뺄지의 근거 (hasVisitedStop)
     arrivedDropoffAt?: string;        // 🚏 하차지에 실제로 도착한 시각
@@ -562,6 +564,8 @@ export interface MyOrder extends OfficeOrder {
     osrmError?: string;               // OSRM 연산 실패 시 에러 메세지 노출용
     sectionEtas?: string[];           // 카카오 궤적 연산 기반 각 경유지 도착 예상 시간 배열
     sectionDriveMin?: Array<number | null>;       // 출발점 기준 정거장별 **누적 주행(분)** — 시계가 아니라 상대값이라 낡지 않는다
+    /** 🧭 구간마다 어느 정거장인가 — sectionDriveMin 과 같은 길이. 도착으로 정거장이 빠져도 이름으로 맞춘다 (2026-08-21) */
+    sectionStops?: Array<{ orderId: string; stopType: 'pickup' | 'dropoff' }>;
     routeComputedAt?: string;         // 이 경로를 계산한 시점 — 타임라인 추정 약속의 닻
     arrivedPickupAt?: string;         // 🚏 상차지에 실제로 도착한 시각 — 경로에서 뺄지의 근거 (hasVisitedStop)
     arrivedDropoffAt?: string;        // 🚏 하차지에 실제로 도착한 시각

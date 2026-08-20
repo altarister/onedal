@@ -8,6 +8,7 @@ import { logRoadmapEvent } from '../../lib/roadmapLogger';
 
 import { Badge } from "../ui/badge";
 import StopCallSheet from './StopCallSheet';
+import StepSheetMock from './StepSheetMock';
 import type { CallRecords } from "../../hooks/useCallProgress";
 import { MILESTONE_LABEL, timingError, buildArrivalSlots, deriveCallStep, canRewindTo, CALL_STEPS,
          deriveCallTiming } from "@onedal/shared";
@@ -84,6 +85,41 @@ export default function PinnedRouteCard({
      * `processingId` 는 PinnedRoute 가 매 렌더 초기화해서(1초 동기화) 방어가 되지 않는다.
      */
     const [locked, setLocked] = useState(false);
+
+    /**
+     * 🌱 **[시험] 콜을 잡는 순간 여섯 단계가 정해진다** (2026-08-20)
+     *
+     * 기사님 구조를 **눈으로 확인**하기 위한 임시 블록이다.
+     * 기존 흐름(통화 시트 · 마일스톤)은 그대로 두고, 옆에 나란히 세워 값을 견준다.
+     */
+    const [seededSteps, setSeededSteps] = useState<any[] | null>(null);
+    /** 🌱 단계 네비게이션 — 기존 카드와 같은 문법: null 이면 현재 단계, 숫자면 되돌아보는 중 */
+    const [stepNav, setStepNav] = useState<number | null>(null);
+    useEffect(() => {
+        const onSynced = (p: { orderId: string; steps: any[] }) => {
+            if (p.orderId === route.id) setSeededSteps(p.steps);
+        };
+        socket.on('steps-synced', onSynced);
+        /* 블록이 항상 열려 있으므로 저장된 것을 바로 읽는다 — 심사 중엔 행이 없어 안 부른다 */
+        if (!isEvaluating(route.status)) socket.emit('request-steps', { orderId: route.id });
+        return () => { socket.off('steps-synced', onSynced); };
+    }, [route.id, route.status]);
+    const stepDone = (x: any) => x?.born !== false && (x?.row?.status === 'DONE' || x?.row?.status === 'SKIPPED');
+    /**
+     * 🔴 현재 단계 = "첫 미완료"가 아니라 **증거 최전방** (기사님 실측 2026-08-21).
+     *
+     * GPS 도착이 하차지 통화를 건너뛰고 지나가자, "첫 미완료" 규칙이 화면을
+     * **하차지 통화에 묶어** 상차 완료·하차 도착이 끝나도 안 따라갔다.
+     * 옛 `deriveCallStep` 과 같은 규칙으로 간다 — 가장 멀리 간 증거의 **다음**이 현재다.
+     * 건너뛰어진 통화는 PLANNED 로 정직하게 남고(안 한 건 안 한 것), 막대가 노랗게 알린다.
+     */
+    const stepCurIdx = (() => {
+        if (!seededSteps) return 0;
+        let last = -1;
+        seededSteps.forEach((x, i) => { if (stepDone(x)) last = i; });
+        return Math.min(last + 1, seededSteps.length - 1);
+    })();
+    useEffect(() => { setStepNav(null); }, [stepCurIdx, route.id]);
 
     const progress = deriveCallStep(milestoneLog, cargoReports, skippedTo);
     // 되돌아보는 중이면 그 단계를, 아니면 파생된 현재 단계를 보여준다
@@ -564,6 +600,8 @@ export default function PinnedRouteCard({
                                                  *    실측: `기준 18:20:03 · 닻 18:17:26` (2분 37초).
                                                  */
                                                 etaMs={tlEntry?.etaMs ?? null}
+                                                departPrevMs={tlEntry?.departPrevMs ?? null}
+                                                segmentDriveMinutes={tlEntry?.segmentDriveMinutes ?? null}
                                                 /**
                                                  * 🔬 **계측 (2026-08-19)** — 이 시트가 **어느 값을 썼는지** 서버 로그에 남긴다.
                                                  *
@@ -602,6 +640,156 @@ export default function PinnedRouteCard({
                                            className="text-[11px] text-info font-bold underline underline-offset-2 px-0.5">
                                             🏢 {quickClean} {quickPhone}
                                         </a>
+                                    )}
+
+                                    {/* ── 🌱 [시험] 여섯 단계 계획값 ──
+                                        기사님: *"콜을 잡는 순간 모든 상세값이 임시로 정해지는 거지."*
+                                        그 값이 지금은 담길 자리가 없어 시트를 열 때마다 다시 계산된다.
+                                        여기서 **저장된 것을 그대로** 띄워 값이 맞는지 눈으로 본다.
+                                        🔴 KEEP 뒤에만 보인다 — 그 전에는 `orders` 에 행이 없어 FK 가 걸린다. */}
+                                    {!isEvaluating(route.status) && (
+                                    <div onClick={e => e.stopPropagation()}>
+                                        {/* 항상 펼쳐 둔다 (기사님 2026-08-20) — 읽기는 마운트 때 한 번 (아래 useEffect) */}
+                                        <div className="text-[11px] font-bold text-info py-1 select-none">🌱 여섯 단계 계획값 (시험)</div>
+                                        {/* 💰 **예산 줄** (기사님 모델 2026-08-20) — `여유 = 약속 − 지금 예상`.
+                                            약속은 통화로만 굳고, 합짐이 붙으면 예상만 민다. 그래서 이 뺄셈이
+                                            곧 **"합짐에 쓸 수 있는 시간"**이다. 우회가 이 안에 들어와야 잡는 콜.
+                                            ~ 는 아직 통화 전(추정 약속)이라는 표시다. 지나간 정거장은 안 센다 */}
+                                        {(() => {
+                                            if (!seededSteps) return null;
+                                            const budget = (stopType: 'pickup' | 'dropoff') => {
+                                                const st = seededSteps.find(x => x.step === (stopType === 'pickup' ? 'CALL_PICKUP' : 'CALL_DROPOFF'));
+                                                const promised = st?.row?.promised_arrival_at;
+                                                const tl = timeline?.find(e => e.orderId === route.id && e.stopType === stopType);
+                                                if (!promised || !tl || tl.etaMs == null || tl.arrived) return null;
+                                                return {
+                                                    min: Math.round((Date.parse(promised) - tl.etaMs) / 60_000),
+                                                    firm: st.born !== false && st.row.status !== 'PLANNED',
+                                                };
+                                            };
+                                            const chips = (['pickup', 'dropoff'] as const)
+                                                .map(k => ({ k, b: budget(k) }))
+                                                .filter(x => x.b != null) as Array<{ k: 'pickup' | 'dropoff'; b: { min: number; firm: boolean } }>;
+                                            if (!chips.length) return null;
+                                            return (
+                                                <div className="flex items-center gap-1.5 text-[11px] mb-1">
+                                                    <span className="text-text-muted font-bold">예산</span>
+                                                    {chips.map(({ k, b }) => (
+                                                        <span key={k} className={`px-1.5 py-0.5 rounded font-bold tabular-nums ${
+                                                            b.min >= 30 ? 'bg-success/15 text-success'
+                                                            : b.min >= 10 ? 'bg-info/15 text-info'
+                                                            : b.min >= 0 ? 'bg-warning/15 text-warning'
+                                                            : 'bg-danger/15 text-danger'
+                                                        }`}>
+                                                            {k === 'pickup' ? '상차' : '하차'} {b.min >= 0 ? '+' : ''}{b.min}분{b.firm ? '' : '~'}
+                                                        </span>
+                                                    ))}
+                                                    <span className="text-[10px] text-text-muted">합짐에 쓸 수 있는 시간{chips.some(c => !c.b.firm) ? ' · ~는 통화 전 추정' : ''}</span>
+                                                </div>
+                                            );
+                                        })()}
+                                        <div className="mt-1 mb-2">
+                                            {/* KEEP 이 만든다 (기사님 2026-08-20) — 여기는 보기만. 이 기능 전에 잡은 콜은 행이 없다 */}
+                                            {!seededSteps && (
+                                                <div className="text-[10px] text-text-muted">아직 없습니다 — KEEP 하면 만들어집니다</div>
+                                            )}
+                                            {/* 🌱 **네비게이션 모양** (기사님 2026-08-21: *"새로 영역이 길어지면 스크롤 해야
+                                                하니 처음 UI 가 더 좋다"*) — 아코디언을 접고, 기존 카드와 **같은 문법**으로:
+                                                진행 막대(누르면 그 단계) + 시트는 **한 번에 하나**. 시퀀스가 데려간다. */}
+                                            {seededSteps && (() => {
+                                                const shownIdx = stepNav ?? stepCurIdx;
+                                                const sv = seededSteps[shownIdx];
+                                                if (!sv) return null;
+                                                const r = sv.row || {};
+                                                const born = sv.born !== false;
+                                                const statusLabel = !born ? '예정'
+                                                    : r.status === 'DONE' ? '함'
+                                                    : r.status === 'SKIPPED' ? '건너뜀' : '진행';
+                                                const allDone = seededSteps.every(stepDone);
+                                                /* 짐 칸이 없는 단계는 가장 신선한 짐(실측 > 상차 통화)을 빌려 입는다 — 표시용 */
+                                                const viewOf = (x: any) => {
+                                                    if (x.step !== 'DELIVERED' && x.step !== 'CALL_DROPOFF') return x;
+                                                    const loaded = seededSteps.find(y => y.step === 'LOADED')?.row;
+                                                    const callP = seededSteps.find(y => y.step === 'CALL_PICKUP')?.row;
+                                                    const callD = seededSteps.find(y => y.step === 'CALL_DROPOFF')?.row;
+                                                    const cargo = {
+                                                        planned_unit: loaded?.actual_unit ?? callP?.planned_unit,
+                                                        planned_quantity: loaded?.actual_quantity ?? callP?.planned_quantity,
+                                                    };
+                                                    const base = x.step === 'DELIVERED' ? { ...(callD ?? {}), ...cargo } : cargo;
+                                                    return { ...x, row: { ...base, ...x.row,
+                                                        planned_unit: x.row.planned_unit ?? cargo.planned_unit,
+                                                        planned_quantity: x.row.planned_quantity ?? cargo.planned_quantity } };
+                                                };
+                                                return (
+                                                    <div className="mt-1" onClick={e => e.stopPropagation()}>
+                                                        {/* 진행 막대 — 위 기존 카드의 막대와 같은 옷. 초록 함 · 노랑 건너뜀 · 파랑 보는 곳 · 회색 예정 */}
+                                                        <div className="flex items-center gap-1">
+                                                            {seededSteps.map((x, i) => (
+                                                                <button key={x.step} type="button" title={x.label}
+                                                                    onClick={() => setStepNav(i === stepCurIdx ? null : i)}
+                                                                    className="flex-1 pt-1.5 pb-1">
+                                                                    <span className={`block h-1 rounded-full ${
+                                                                        i === shownIdx ? 'bg-info'
+                                                                        : x.row?.status === 'SKIPPED' ? 'bg-warning/70'
+                                                                        : stepDone(x) ? 'bg-success'
+                                                                        : i < stepCurIdx ? 'bg-warning/40'   /* 지나쳤는데 안 함 — 빠뜨림이 보인다 */
+                                                                        : 'bg-surface-hover'
+                                                                    }`} />
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                        <div className="flex items-center gap-2 text-[11px] py-1">
+                                                            <span className="font-bold text-text-primary">{sv.label}</span>
+                                                            <span className={`px-1 rounded text-[10px] ${
+                                                                !born ? 'bg-surface-hover text-text-muted'
+                                                                : r.status === 'DONE' ? 'bg-success/15 text-success'
+                                                                : r.status === 'SKIPPED' ? 'bg-warning/15 text-warning'
+                                                                : 'bg-info/15 text-info'
+                                                            }`}>{statusLabel}</span>
+                                                            {r.occurred_at && (
+                                                                <span className="text-[10px] text-text-muted tabular-nums">
+                                                                    {new Date(r.occurred_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                                                                </span>
+                                                            )}
+                                                            {stepNav !== null && stepNav !== stepCurIdx && (
+                                                                <button type="button" onClick={() => setStepNav(null)}
+                                                                    className="text-text-muted underline underline-offset-2 text-[10px]">
+                                                                    되돌아보는 중 · 현재 단계로</button>
+                                                            )}
+                                                            {allDone && <span className="text-success text-[10px] font-bold">운행 완료 · 6단계를 모두 마쳤습니다</span>}
+                                                        </div>
+                                                        {(() => {
+                                                            /* 헤더·문장 재료 — 행에 없는 값(장소·전화·구간 주행)은 경로·타임라인이 준다 */
+                                                            const svPickup = sv.step === 'CALL_PICKUP' || sv.step === 'ARRIVE_PICKUP' || sv.step === 'LOADED';
+                                                            const dd = svPickup ? route.pickupDetails?.[0] : route.dropoffDetails?.[0];
+                                                            const svTl = timeline?.find(e => e.orderId === route.id
+                                                                && e.stopType === (svPickup ? 'pickup' : 'dropoff'));
+                                                            const callPRow = seededSteps.find(y => y.step === 'CALL_PICKUP')?.row;
+                                                            return (
+                                                                <StepSheetMock orderId={route.id}
+                                                                    codAmount={route.paymentType === '착불' ? route.fare : null}
+                                                                    place={{
+                                                                        name: dd?.contactName || dd?.customerName || undefined,
+                                                                        address: dd?.addressDetail || (svPickup ? route.pickup : route.dropoff),
+                                                                        phone: [dd?.phone1, dd?.phone2].find(v => !!v && v !== '*') || undefined,
+                                                                    }}
+                                                                    prevName={route.pickupDetails?.[0]?.contactName || route.pickupDetails?.[0]?.customerName}
+                                                                    leadMinutes={callPRow?.planned_dwell_min ?? null}
+                                                                    departPrevMs={svTl?.departPrevMs ?? null}
+                                                                    segmentDriveMinutes={svTl?.segmentDriveMinutes ?? null}
+                                                                    view={viewOf(sv)} />
+                                                            );
+                                                        })()}
+                                                        {/* 🔴 아직 화면·판정은 이 값을 안 쓴다 — 위 통화 시트와 견주어 보는 용도 */}
+                                                        <div className="text-[10px] text-text-muted pt-1">
+                                                            저장된 값을 그대로 읽은 것입니다 — 화면·판정은 아직 이 표를 안 씁니다
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
+                                        </div>
+                                    </div>
                                     )}
 
                                     {/* ── 접힘 — 문제가 생겼을 때만 ──

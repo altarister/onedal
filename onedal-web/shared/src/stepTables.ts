@@ -51,6 +51,7 @@ const CALL_PICKUP: StepTable = {
         ['source',     'source',      'TEXT',    '직접 · 건너뜀 (GPS 는 없다 — 통화를 기계가 대신할 수 없다)'],
         ['memo',       'memo',        'TEXT',    '**통화 시도의 결과** — "전화 받지 않음" · "지하 2층, 경비실 통과"'],
 
+        ['predictedAt', 'predicted_at', 'TEXT', '🔴 **이 통화를 걸 때 예상한 도착 시각** — 약속의 *근거*다. `상차지 도착` 의 같은 이름과 **다른 값**이다: 저기는 도착 직전까지 갱신된 마지막 예상이고, 여기는 **말을 꺼낸 순간** 얼마로 보였는지다. 둘을 견주면 "그때 여유를 얼마나 뒀나" 가 재현된다'],
         ['promisedArrivalAt',     'promised_arrival_at',      'TEXT', '🔴 **"몇 시까지 갈게요"** — 이 단계의 핵심 산출물'],
         ['promisedArrivalFromAt', 'promised_arrival_from_at', 'TEXT', '구간 약속의 **"부터"** — "12시부터 12시30분 사이"'],
 
@@ -80,11 +81,14 @@ const CALL_DROPOFF: StepTable = {
         ['source',     'source',      'TEXT',    '직접 · 건너뜀'],
         ['memo',       'memo',        'TEXT',    '**통화 시도의 결과** — "5시 이후엔 문 닫음"'],
 
+        ['predictedAt', 'predicted_at', 'TEXT', '🔴 **이 통화를 걸 때 예상한 하차지 도착 시각** — 약속의 근거 (`상차지 통화` 와 같은 뜻)'],
         ['promisedArrivalAt',     'promised_arrival_at',      'TEXT', '🔴 **하차 약속** — 상차 통화에서 들은 값(`onward`)이 여기 미리 채워진다'],
         ['promisedArrivalFromAt', 'promised_arrival_from_at', 'TEXT', '구간 약속의 **"부터"**'],
 
-        ['plannedUnit',        'planned_unit',        'TEXT',    '⚠️ 하차 시트는 짐을 안 묻는다 — 상차에서 온 값을 그대로 들고 있을 뿐'],
-        ['plannedQuantity',    'planned_quantity',    'INTEGER', '〃'],
+        // 🔴 **짐의 단위·수량은 여기 없다** (기사님 2026-08-20: *"파레트 수량은 빼야 한다"*).
+        //    짐은 상차에서 정해지고 하차는 그것을 **내릴 뿐**이다. 복사해 두면 두 벌이 되어
+        //    상차에서 라면박스로 고쳤을 때 하차만 파레트로 남는다 (규칙 ③).
+        //    필요하면 `step_loaded` 의 실측을, 없으면 `step_call_pickup` 의 계획을 읽는다.
         ['plannedHandling',    'planned_handling',    'TEXT',    '🔴 **하차 방법** — 이 단계에서 정한다 (지게차로 실었으면 대개 지게차로 내린다)'],
         ['plannedProtections', 'planned_protections', 'TEXT',    '⚠️ 하차에는 안 붙는다 — 묶는 자리는 상차다'],
         ['plannedAfterworks',  'planned_afterworks',  'TEXT',    '🧹 **정리 · 검수** — 이 단계의 핵심. 검수 60분이 여기서 붙는다'],

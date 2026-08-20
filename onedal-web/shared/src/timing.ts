@@ -753,6 +753,22 @@ export interface RouteTimelineEntry {
     promisedUntil: string | null;
     /** 통화로 확정한 약속인가 (false = 추정 — 화면은 ~ 를 붙인다) */
     promiseConfirmed: boolean;
+    /**
+     * 🚚 **앞 정거장에서 여기까지의 주행(분)** — `driveMinutes` 는 닻부터의 **누적**이라
+     * 통화 문장에 쓰면 접근 주행을 **두 번** 센다 (기사님 실측 2026-08-20: `주행 129분`,
+     * 참값 113분). 첫 정거장은 앞이 없으므로 누적과 같다. 모르면 `null`.
+     */
+    segmentDriveMinutes: number | null;
+    /**
+     * 🚚 **앞 정거장을 떠나는 시각 (ms)** — 통화에서 *"…에서 8분 상차하고 17:03 출발"* 이라고
+     * 말하는 그 시각이다. `앞 정거장 약속(확정 > 추정) + 그 정거장 정차`.
+     * 첫 정거장은 떠나 온 곳이 없어 `null` 이다 (규칙 ④ — 0 이 아니다).
+     *
+     * ⚠️ 루프 안의 `carriedMs` 와 **뜻이 다르다.** 저건 *물리적으로 가능한 가장 이른 출발*
+     *    (도착예상 기준)이라 도착예상 누적에 쓰고, 이건 *약속대로 갔을 때의 출발* 이라
+     *    화면이 말한다. 섞으면 추정 약속의 여유 30분이 뒤로 계속 전파된다.
+     */
+    departPrevMs: number | null;
     /** 이 약속을 지키기 위한 출발 마감 (ms) */
     departByMs: number | null;
     /**
@@ -816,6 +832,9 @@ export function deriveRouteTimeline(
      *   "부터" 대기는 여전히 안 뺀다 — 늦게 떠나면 저절로 줄어드는 시간이다.
      */
     let carriedMs: number | null = null;   // 앞 정거장을 떠나는 시각 (없으면 닻 기준)
+    // 화면이 말하는 값 — 위 `carriedMs` 와 뜻이 다르다 (RouteTimelineEntry.departPrevMs 주석)
+    let prevDriveMin: number | null = null;
+    let prevDepartMs: number | null = null;
     let beforeMin = 0;
     let mandatoryMin = 0;   // 정차 + 확정 약속 지연 (출발마감용)
     for (const st of stops) {
@@ -861,6 +880,9 @@ export function deriveRouteTimeline(
             orderId: st.orderId, stopType: st.stopType,
             etaMs, dwellMinutes: dwell,
             driveMinutes: st.driveMinutes, leadMinutes: mandatoryMin,
+            segmentDriveMinutes: st.driveMinutes != null && prevDriveMin != null
+                ? st.driveMinutes - prevDriveMin : st.driveMinutes,
+            departPrevMs: prevDepartMs,
             promisedUntil,
             promiseConfirmed: !!declared,
             departByMs: actualMs == null && promisedUntil != null && st.driveMinutes != null
@@ -873,6 +895,14 @@ export function deriveRouteTimeline(
          * 이 정거장을 **떠나는 시각**을 다음으로 넘긴다.
          *   도착예상 · "부터"(일찍 가도 소용없음) · 확정 "까지"(그때 시작한다) 중 가장 늦은 것 + 정차
          */
+        /**
+         * 🚚 **화면이 말하는 출발** — 다녀왔으면 실제 시각, 아니면 약속(확정 > 추정),
+         *    둘 다 없으면 도착예상. 거기에 이 정거장의 정차를 더한다.
+         */
+        const leaveBase = actualMs ?? (promisedUntil ? Date.parse(promisedUntil) : etaMs);
+        prevDepartMs = leaveBase != null ? leaveBase + dwell * 60_000 : null;
+        prevDriveMin = st.driveMinutes;
+
         const fromAt = declared?.promisedArrivalFromAt ? Date.parse(declared.promisedArrivalFromAt) : null;
         const confirmedUntil = declared && promisedUntil ? Date.parse(promisedUntil) : null;
         const startMs = actualMs ?? Math.max(etaMs ?? 0, fromAt ?? 0, confirmedUntil ?? 0);

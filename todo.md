@@ -1,5 +1,26 @@
 # 1DAL 정비 계획 (Cleanup & Fix Plan)
 
+## 🌱 단계 치환 — 옛 두 테이블을 여섯 단계 테이블로 (2026-08-20~ 진행 중)
+
+`stop_cargo_reports` · `order_milestones` 와 화면 곳곳의 재계산을 **단계 행(step_xxx)** 으로
+바꾼다. 원칙: 값은 태어날 때 한 번, 화면은 읽기만 (규칙 ③) · 약속은 통화로만 굳고 예상만
+흐른다 · 여유 = 약속 − 예상 (저장 안 함).
+
+- [x] 출생 모델 — KEEP 은 첫 행만, 단계가 끝나면 다음이 앞 값을 물려받아 태어남 (`stepSeeder.ts`)
+- [x] 다리 — 기존 저장(`save-cargo-report`·`report-milestone`·GPS·undo·착불)이 단계 행도 갱신
+- [x] 새 시트 6종 — 기존과 같은 옷, DB 값만 그림. 진행 막대 네비게이션 (`StepSheetMock.tsx`)
+- [x] 기능 이식 ①~⑥ + 기획 반영 (헤더·검산 문장·출처 배지·지난 칸·💾·건너뛰기)
+- [x] 적요 파싱을 출생으로 이동 — `실측 > 통화 > 적요 > 차종` (`planned_source`)
+- [x] 예산 줄 — `약속 − 지금 예상` 파생 표시
+- [x] 경로 걷는 시딩 — 합짐도 타임라인(`deriveRouteTimeline`)의 예상으로 태어남 + PLANNED 행 갱신
+- [ ] **dryRun 예산 판정** — 합짐 후보를 경로에 끼워 `굳은 약속 − 새 예상 ≥ 0` 검사 + 소비량 순위
+- [ ] **파생 치환** — 판정·카운트다운·진행도·적재·GPS 감지가 단계 행을 읽는다 (가장 위험한 칸)
+- [ ] **철거** — 옛 시트(`StopCallSheet`) · `stop_cargo_reports` · `order_milestones` 손으로 DROP
+- [ ] 미결 둘 — `8분` 내역(방법분+보호분) 나눠 저장 · `memo`/장소평가(`places`) 가르기
+
+버그 기록: [버그_대장 #30~#32](docs/버그_대장.md) · 검사: `stepSeeder.test`(15) ·
+`departSentence.test`(6) · `routeStopsAlign.test`(4)
+
 > ⚠️ **2026-08-17 이전 절의 옛 용어는 당시 기록이다** — 사냥→콜 필터/콜 잡기 · 데스밸리→안전취소 ·
 > 회랑→경유 · 눈높이→콜할인율 · 선빵→선점 · 미상→배차값없음. 번역표: [docs/용어집.md](docs/용어집.md)
 

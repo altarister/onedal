@@ -105,6 +105,21 @@ interface Props {
      */
     etaMs?: number | null;
     /**
+     * 🚚 **앞 정거장을 떠나는 시각 (ms)** — 타임라인이 만든 값. **시트는 그리기만 한다.**
+     *
+     * 🔴 예전에는 `Date.now() + leadMinutes` 로 **시트가 자기 계산**을 했다 (실측 2026-08-20:
+     *    `16:19 출발`, 참값 `17:03` — 44분 이름). 시트를 열 때마다 값이 달라졌고,
+     *    상차지 시트와 하차지 시트가 **서로 다른 출발 시각**을 말했다.
+     */
+    departPrevMs?: number | null;
+    /**
+     * 🚚 **앞 정거장에서 여기까지의 주행(분)** — `driveMinutes` 는 닻부터의 **누적**이다.
+     *
+     * 🔴 문장에 누적을 쓰면 접근 주행을 **두 번** 센다 (실측: `주행 129분`, 참값 `113분`).
+     *    129 = 접근 16 + 단독 113 이고, 상차지를 떠난 뒤의 주행은 113 뿐이다.
+     */
+    segmentDriveMinutes?: number | null;
+    /**
      * 🔬 **계측 (2026-08-19)** — 이 시트가 쓴 재료의 출처. 저장할 때만 서버 로그로 나가고
      * **저장되지 않는다.** 원인이 확정되면 지운다. (`PinnedRouteCard` 의 주석 참고)
      */
@@ -151,6 +166,7 @@ export default function StopCallSheet({
     orderId, stopType, label, address, contactName, phones, reports,
     memoTexts, driveMinutes, onSkip, skipLabel, stepId, vehicleType, orderStatus, arrivedAt, arrivedReasons, doneReasons, forceOpen, stepLabel,
     leadMinutes = 0, leadLabel, leadFrom, driveKm, codAmount, pickupDeadlineAt, etaMs, diag,
+    departPrevMs, segmentDriveMinutes,
 }: Props) {
     const isPickup = stopType === 'pickup';
     /** 단계 카드(A안)가 몰아주는 모드 — 이 시트가 화면의 전부다. 요약 줄을 띄우지 않는다 */
@@ -1043,20 +1059,22 @@ export default function StopCallSheet({
                                                 </>
                                             );
                                         }
-                                        // 하차지 — 앞 정거장(상차) 작업이 도착 **전**에 붙는다.
-                                        // 출발 = 지금 + 상차. 그래야 출발 + 주행 + 휴게 = 도착 으로 맞물린다
-                                        const departMs = Date.now() + leadMinutes * 60_000;
+                                        /* 🚚 **출발 시각과 구간 주행은 타임라인이 만든다** (규칙 ③ · 2026-08-20).
+                                           시트가 **연 시각에 상차분을 더하던** 시절엔 상차지 시트가 말하는
+                                           출발(17:03)과 44분 어긋났다. 없으면 앞 절을 아예 안 쓴다 —
+                                           지어낸 시각으로 화주와 약속하면 안 된다 (규칙 ④). */
+                                        const segMin = segmentDriveMinutes ?? driveMinutes;
                                         return (
                                             <>
-                                                {leadMinutes > 0 && leadLabel ? (
+                                                {departPrevMs != null && leadMinutes > 0 && leadLabel ? (
                                                     <>{leadFrom ? <b>{leadFrom}</b> : '상차지'}에서{' '}
                                                     <b className="tabular-nums">{leadMinutes}분</b> {leadLabel}하고{' '}
-                                                    <b className="tabular-nums">{hhmm(new Date(departMs).toISOString())}</b> 출발,{' '}</>
+                                                    <b className="tabular-nums">{hhmm(new Date(departPrevMs).toISOString())}</b> 출발,{' '}</>
                                                 ) : (
                                                     /* 이미 상차를 마쳤으면 앞 절이 없다 — 숫자로 문장이 시작하지 않게 주어를 넣는다 */
                                                     <>여기서 {contactName ? <>(<b>{contactName}</b>)까지</> : '거기까지'}{' '}</>
                                                 )}
-                                                <b className="tabular-nums">{km}주행 {driveMinutes}분</b>
+                                                <b className="tabular-nums">{km}주행 {segMin}분</b>
                                                 {tail}
                                             </>
                                         );

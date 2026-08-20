@@ -80,8 +80,11 @@ describe('감시 구조 (L1 — 코드 모양)', () => {
         // 'GPS' 출처로 reportMilestone 을 부르는 자리는 socketHandlers 한 곳이고,
         // 그 마일스톤은 stopType 삼항으로 ARRIVED_ 둘 중 하나만 나온다
         expect(sock).toMatch(/stopType === 'pickup' \? 'ARRIVED_PICKUP' as const : 'ARRIVED_DROPOFF' as const/);
+        // 둘: reportMilestone(옛 장부) + bridgeMilestone(단계 행 다리 · 2026-08-20 출생 모델).
+        // 둘 다 위 삼항이 만든 같은 `milestone` 변수를 받는다 — ARRIVED_* 밖으로 나갈 길이 없다
         const gpsCalls = sock.match(/'GPS'/g) ?? [];
-        expect(gpsCalls.length).toBe(1);
+        expect(gpsCalls.length).toBe(2);
+        expect(sock).toMatch(/bridgeMilestone\(uid, stop\.orderId, milestone, 'GPS'/);
         expect(sock).not.toMatch(/'PICKED_UP'[^\n]*'GPS'|'GPS'[^\n]*'PICKED_UP'/);
     });
 
