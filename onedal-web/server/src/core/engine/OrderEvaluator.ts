@@ -3,6 +3,7 @@ import { PendingOrder, SecuredOrder, MyOrder, TRUCK_CAPACITY_SLOTS, callName , D
          DEFAULT_JUDGMENT, REACH_COEF_MIN_PER_KM_TEMP, reachRadiusKm } from "@onedal/shared";
 import type { DryRunGate } from "@onedal/shared";
 import { OrderRepository } from "../../repositories/OrderRepository";
+import db from "../../db";
 import { stepRecordsOf } from "../../services/stepSeeder";
 import { getUserSession } from "../../state/userSessionStore";
 import { findLoadConflicts, totalDetourCost } from "../helpers";
@@ -109,16 +110,24 @@ export class OrderEvaluator {
                         /**
                          * 🧪 **도달 계수 수집** (필터 확정안 v2 구현 4 — 계측 단계).
                          * 도달 시간→반경 계수(분/km)는 감으로 정하지 않는다 (기사님 확정 3).
-                         * 심사마다 (직선거리, 카카오 접근 분) 쌍을 로그로 남긴다 —
-                         * 쌓이면 역산해 잠정 1.5분/km 를 대체하고 DB 칸으로 승격한다.
+                         * 심사마다 (직선거리, 카카오 접근 분) 쌍을 `reach_samples` 장부에
+                         * 남긴다 — 로그는 3일 순환이라 표본이 증발한다. 역산은 `pnpm reach`.
                          */
                         if (session.driverLocation && securedOrder.pickupX && securedOrder.pickupY
                             && securedOrder.approachDurationMin != null) {
                             const lineKm = haversineKm(session.driverLocation.y, session.driverLocation.x,
                                 securedOrder.pickupY, securedOrder.pickupX);
-                            if (lineKm > 0.3) console.log(
-                                `   - 🧪 [도달 계수 수집] 직선 ${lineKm.toFixed(1)}km → 카카오 ${securedOrder.approachDurationMin}분 ` +
-                                `(계수 ${(securedOrder.approachDurationMin / lineKm).toFixed(2)}분/km · 잠정 ${REACH_COEF_MIN_PER_KM_TEMP})`);
+                            if (lineKm > 0.3) {
+                                console.log(
+                                    `   - 🧪 [도달 계수 수집] 직선 ${lineKm.toFixed(1)}km → 카카오 ${securedOrder.approachDurationMin}분 ` +
+                                    `(계수 ${(securedOrder.approachDurationMin / lineKm).toFixed(2)}분/km · 잠정 ${REACH_COEF_MIN_PER_KM_TEMP})`);
+                                try {
+                                    db.prepare(`INSERT INTO reach_samples (user_id, captured_at, line_km, kakao_min) VALUES (?, ?, ?, ?)`)
+                                        .run(userId, new Date().toISOString(), Number(lineKm.toFixed(2)), securedOrder.approachDurationMin);
+                                } catch (e) {
+                                    console.error(`   - 🧪 [도달 계수 수집] 표본 저장 실패 (계측이라 심사는 계속):`, (e as Error).message);
+                                }
+                            }
                         }
 
                         /**

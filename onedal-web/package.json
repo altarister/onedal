@@ -14,7 +14,8 @@
     "audit:dead": "node scripts/audit-dead.mjs",
     "rehearsal": "node scripts/rehearsal.mjs",
     "ledger": "node scripts/ledger.mjs",
-    "options": "node scripts/options.mjs"
+    "options": "node scripts/options.mjs",
+    "reach": "node scripts/reach.mjs"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

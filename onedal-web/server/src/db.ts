@@ -324,12 +324,11 @@ db.exec(`
 ensureColumns('user_judgment', JUDGMENT_COLS);
 
 /**
- * 🎛️ **국면 옵션 — 행 = 사용자×국면** (필터 확정안 v2 · 병행 전환 ①단계 · 2026-08-21).
+ * 🎛️ **국면 옵션 — 행 = 사용자×국면** (필터 확정안 v2 · 2026-08-21 전환 완료).
  *
- * `phase_settings` JSON blob 을 대체할 새 그릇이다. **컬럼 목록의 원천은 shared 의
- * `FILTER_FIELDS` 표 하나** (user_judgment 와 같은 문법 — 표에 한 줄이 늘면 컬럼·폼이
- * 따라온다). 지금은 blob 과 **양쪽에 같이 쓰며 비교**만 한다 — 로그인 때 어긋나면
- * ⚠️ 가 찍힌다. 비교가 깨끗해지면 읽기를 이리로 넘기고 blob 을 손으로 철거한다.
+ * **국면 옵션의 유일한 원천이다** (옛 `phase_settings` blob 은 병행 비교 후 손 DROP).
+ * **컬럼 목록의 원천은 shared 의 `FILTER_FIELDS` 표 하나** (user_judgment 와 같은
+ * 문법 — 표에 한 줄이 늘면 컬럼·폼이 따라온다).
  */
 const FILTER_PHASE_COLS: Record<string, string> = Object.fromEntries(
     FILTER_FIELDS.map(f => [f.col, f.text ? 'TEXT' : (f.int ? 'INTEGER' : 'REAL')])
@@ -344,6 +343,25 @@ db.exec(`
     )
 `);
 ensureColumns('user_filter_phases', FILTER_PHASE_COLS);
+
+/**
+ * 🧪 **도달 계수 표본** (필터 확정안 v2 ②값 — 잠정 1.5분/km 를 실측으로 대체하는 절차).
+ *
+ * 심사 때마다 (현위치→상차지 직선 km, 카카오 실제 분) 쌍을 남긴다.
+ * 원래 로그로만 모았는데 **로그는 3일 순환이라 표본이 증발한다** — 그래서 장부에 남긴다.
+ * 역산은 `pnpm reach` (단일 계수가 아니라 기본분+거리비례 1차식으로 본다 —
+ * 실측: 3.8km 가 4.5분/km, 31.4km 가 1.2분/km. 짧을수록 고정 오버헤드가 지배한다).
+ * 🔴 계수 확정 전엔 필터를 조이지 않는다 (기사님 확정 3 — 거르지 않고 딱지만).
+ */
+db.exec(`
+    CREATE TABLE IF NOT EXISTS reach_samples (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id     TEXT NOT NULL,
+        captured_at TEXT NOT NULL,
+        line_km     REAL NOT NULL,
+        kakao_min   REAL NOT NULL
+    )
+`);
 
 /**
  * 📊 **하루 성과 기록** (필터 확정안 v2 ①-B · 필터 정의 4장).
