@@ -25,6 +25,7 @@ import authRouter from "./routes/auth";
 import settingsRouter from "./routes/settings";
 import logbookAnalyticsRouter from "./routes/logbook/analytics";
 import logbookPlacesRouter from "./routes/logbook/places";
+import logbookFilterDaysRouter from "./routes/logbook/filterDays";
 import healthRouter, { logServerIdentity } from "./routes/health";
 import { validateEnv } from "./config/env";
 
@@ -84,6 +85,7 @@ app.use("/api/settings", settingsRouter); // 개인화 설정 라우터
 
 // ── BFF: Logbook (운행일지 대시보드 전용) ──
 app.use("/api/logbook/analytics", logbookAnalyticsRouter);
+app.use("/api/logbook/filter-days", logbookFilterDaysRouter);
 app.use("/api/logbook/places", logbookPlacesRouter);
 
 
