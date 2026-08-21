@@ -1,4 +1,4 @@
-import { PendingOrder, SecuredOrder, MyOrder, scoreMerge, scoreSolo, describeJudgment, TRUCK_CAPACITY_SLOTS, callName } from "@onedal/shared";
+import { PendingOrder, SecuredOrder, MyOrder, scoreMerge, scoreSolo, describeJudgment, TRUCK_CAPACITY_SLOTS, callName , DEFAULT_DEADLINE_RULES } from "@onedal/shared";
 import { getUserSession } from "../../state/userSessionStore";
 import { computeAllowedDetour, findLoadConflicts, totalDetourCost } from "../helpers";
 import { geocodeAddress, calculateSoloRoute } from "../../services/kakaoService";
@@ -177,9 +177,11 @@ export class OrderEvaluator {
                          * 🔴 카카오의 `timeDiffMin` 은 **주행 delta 뿐**이라 상하차를 더해야 한다.
                          */
                         const slackLimit = computeAllowedDetour(userId, session, Date.now(), session.judgment.unknown,
+                            // 🏗️ 옛 판정 경로 잔재 — 여유·휴게는 두 시계로 폐기됐다(⑯). 새 판정(dryRun)으로
+                            //    대체될 때까지 DEFAULT 상수로 물려 둔다 (판정 기준 탭 값 아님)
                             { pickupOffsetMinutes: session.judgment.unknown.pickupOffsetMin,
-                              restMarginMinutes: session.judgment.unknown.restMarginMin,
-                              arrivalMarginMinutes: session.judgment.unknown.arrivalMarginMin });
+                              restMarginMinutes: DEFAULT_DEADLINE_RULES.restMarginMinutes,
+                              arrivalMarginMinutes: DEFAULT_DEADLINE_RULES.arrivalMarginMinutes });
                         const cost = totalDetourCost(result.timeDiffMin, securedOrder.id, session.judgment.unknown);
 
                         const slotsTotal = TRUCK_CAPACITY_SLOTS;

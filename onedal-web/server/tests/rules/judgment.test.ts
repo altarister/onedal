@@ -75,8 +75,12 @@ describe('마감 — 모름 · 여유 · 지각을 구분한다', () => {
      */
     it('🔴 여유를 상수로 때우지 않는다 — 90분 일반값이 사라졌다', () => {
         expect((DEFAULT_JUDGMENT.unknown as any).detourBufferMin).toBeUndefined();
-        expect(DEFAULT_JUDGMENT.unknown.pickupOffsetMin).toBe(60);
-        expect(DEFAULT_JUDGMENT.unknown.restMarginMin).toBe(30);
+        // ⏱️ 60→30: 두 시계 확정(⑯) — "상차 시계 잠정"으로 재해석. 근거: 소숙 실측
+        //    (35분부터 늦음 취급 — §16-2 ④). 옛 60은 근거 없던 잠정치였다
+        expect(DEFAULT_JUDGMENT.unknown.pickupOffsetMin).toBe(30);
+        // restMarginMin(휴게30)·arrivalMarginMin(여유30)은 두 시계로 폐기 — 없어야 한다
+        expect((DEFAULT_JUDGMENT.unknown as any).restMarginMin).toBeUndefined();
+        expect((DEFAULT_JUDGMENT.unknown as any).arrivalMarginMin).toBeUndefined();
     });
 
     it('🔴 여유를 셀 근거가 없으면 그 요소를 색에서 뺀다 (지어내지 않는다)', () => {
@@ -433,7 +437,8 @@ describe('통화 시트 — 주행을 몰라도 추천한다', () => {
      */
     it('🔴 주행을 몰라도 약속 폴백이 행에 저장된다 — 시딩이 한다', () => {
         const seeder = readFileSync(join(__dirname, '../../src/services/stepSeeder.ts'), 'utf8');
-        expect(seeder).toMatch(/pickupOffsetMin \?\? 60/);
+        // 상차 시계 잠정(30)이 통화 전 추정 약속의 폴백이다 (⑯)
+        expect(seeder).toMatch(/pickupOffsetMin \?\? 30/);
     });
 
     /**

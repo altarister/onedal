@@ -13,8 +13,12 @@ import { birthFirstStep, bridgeCargoReport, bridgeMilestone, bridgeUndoMilestone
  *   ② 다음 행은 **가장 신선한 값**을 물려받아 태어난다 (실측 > 통화 > 차종 기본)
  *   ③ 안 태어난 단계는 저장되지 않고 **회색 예정**(파생)으로만 보인다
  *
- * 사슬 값은 기사님 실측 콜 그대로다 (같은 날 오전의 접근 주행 사고에서 온 숫자):
- *   접근 = 129 − 113 = 16분 · 16:09 잡음 → 16:25 예상 → 16:55 약속 → 17:03 출발 → 18:56 하차 예상
+ * 사슬 값은 두 시계 모델(시간체계 ⑯ · 기사님 확정 2026-08-21)이다:
+ *   상차 시계: 잡음 + 30분(잠정) — 적요 상차 시각 > 통화 > 잠정
+ *   배달 시계: 상차 완료 + 배송 × 150% — 픽업 20분 보정 폐기 · 여유30/휴게30 폐지
+ *   16:09 잡음 · 접근 16 · 배송 113 · 상차 8분:
+ *     예상 16:25 → 약속 16:39(잡음+30) → 완료 16:47 → 하차 예상 18:40
+ *     → 데드라인·하차 약속 19:36(완료+169.5) → 하차 완료 19:41
  */
 
 const ORDER_ID = 'TEST-BIRTH-1';
@@ -59,17 +63,37 @@ maybe('출생 모델 — KEEP 은 첫 행만 낳는다', () => {
         birthFirstStep(USER, ORDER_ID);
         const preview = of('ARRIVE_DROPOFF');
         expect(preview.born).toBe(false);
-        expect(kst(preview.row.predicted_at)).toBe('18:56');   // 파생값 — 저장은 안 됐다
+        expect(kst(preview.row.predicted_at)).toBe('18:40');   // 완료(16:47)+113 — 파생값, 저장 안 됨
         expect((db.prepare(`SELECT COUNT(*) c FROM step_arrive_dropoff WHERE orderId = ?`)
             .get(ORDER_ID) as any).c).toBe(0);
     });
 
-    it('첫 행의 사슬 값 — 예상 16:25 (접근 129−113) · 약속 16:55 (+여유 30)', () => {
+    it('첫 행의 사슬 값 — 예상 16:25 (접근 129−113) · 약속 16:39 (상차 시계 = 잡음+30)', () => {
         putOrder();
         birthFirstStep(USER, ORDER_ID);
         const r = of('CALL_PICKUP').row;
         expect(kst(r.predicted_at)).toBe('16:25');
-        expect(kst(r.promised_arrival_at)).toBe('16:55');
+        expect(kst(r.promised_arrival_at)).toBe('16:39');   // 여유30 이 아니라 상차 시계
+    });
+
+    /**
+     * 🔴 **캡 바닥** (리허설 13번 실측 버그) — 상차 시계가 도착 예상보다 일러도
+     *    도착 전 시각을 약속으로 지어내지 않는다. 약속 = 도착 예상(현실)이 되고,
+     *    모자람은 상차버퍼 음수(통화 필수)로 보인다.
+     */
+    it('🔴 접근이 상차 시계를 넘는 콜 — 약속은 도착 예상까지 (불가능한 약속 금지)', () => {
+        putOrder({ totalDurationMin: 153, kakaoSoloDurationMin: 78 });   // 접근 75분 (노하우 13 재현)
+        birthFirstStep(USER, ORDER_ID);
+        const r = of('CALL_PICKUP').row;
+        expect(kst(r.predicted_at)).toBe('17:24');           // 16:09 + 75
+        expect(kst(r.promised_arrival_at)).toBe('17:24');    // 시계(16:39)가 아니라 도착 예상
+    });
+
+    /** ⏱️ 적요의 상차 시각이 상차 시계를 대체한다 (소숙 콜③ — 10시 예약) */
+    it('🔴 적요에 상차 시각이 있으면 그게 상차 시계다', () => {
+        putOrder({ detailMemo: '17:30상차 예약' });
+        birthFirstStep(USER, ORDER_ID);
+        expect(kst(of('CALL_PICKUP').row.promised_arrival_at)).toBe('17:30');
     });
 
     /**
@@ -228,35 +252,29 @@ maybe('출생 모델 — 단계가 끝나면 다음이 앞 값을 물려받아 �
         ] as any;
         birthFirstStep(USER, ORDER_ID, undefined, routeTl);
         const r = of('CALL_PICKUP').row;
-        expect(kst(r.predicted_at)).toBe('16:13');                 // 닻 + 4분
-        expect(kst(r.promised_arrival_at)).toBe('16:43');          // + 여유 30
+        expect(kst(r.predicted_at)).toBe('16:13');                 // 닻 + 4분 (경로가 앎)
+        expect(kst(r.promised_arrival_at)).toBe('16:39');          // 상차 시계 (잡음+30)
     });
 
     /**
-     * ⏱️ **150% 시한이 통화 전 추정 약속을 깎는다** (기사님 승인 2026-08-21).
-     *
-     * 업계 관행: 시한 = 잡은 시각 + 배송 주행 × 150% + 픽업 20분.
-     * 짧은 콜은 우리 추정(도착+여유30+휴게30)이 이 상한을 넘어서, 주선사가 압박할
-     * 약속을 서버가 지어내고 있었다. **통화로 굳힌 약속은 시한 위여도 그대로다** —
-     * 화주가 합의했으면 그게 면책이다 (시한은 법이 아니라 관행).
+     * ⏱️ **배달 데드라인의 기산점은 상차 완료다** (시간체계 ⑯ · 소숙 자막 [09:08]).
+     *    상차 전 대기는 배달 시계를 태우지 않는다 — 잡은-시각 기산이었으면
+     *    이 짧은 콜이 16:59 에 잘렸다.
      */
-    it('🔴 짧은 콜 — 추정 약속이 시한(주행×150%+20분)으로 깎인다', () => {
+    it('🔴 짧은 콜 — 배달 데드라인 = 상차 완료 + 배송×150%', () => {
         putOrder({ totalDurationMin: 40, kakaoSoloDurationMin: 20 });   // 접근 20 · 배송 20
         birthFirstStep(USER, ORDER_ID);
         bridgeCargoReport(USER, ORDER_ID, { stopType: 'pickup', kind: 'SKIPPED' } as any);
-        // 시한 = 16:09 + 20×1.5 + 20 = 16:59 (하차까지)
-        // 하차 추정: 도착 16:57 + 휴게 30 = 17:27 → 깎여서 16:59
-        expect(kst(of('CALL_DROPOFF').row.promised_arrival_at)).toBe('16:59');
-        // 상차 추정: 예상 16:29 + 여유 30 = 16:59 → 시한 − 배송 20 − 상차 8 = 16:31 로 깎임
-        expect(kst(of('CALL_PICKUP').row.promised_arrival_at)).toBe('16:31');
+        // 상차 약속 16:39(시계) · 완료 16:47 · 데드라인 = 16:47 + 20×1.5 = 17:17
+        expect(kst(of('CALL_DROPOFF').row.promised_arrival_at)).toBe('17:17');
     });
 
-    it('🔴 통화로 굳힌 약속은 시한 위여도 그대로 — 화주 합의가 면책이다', () => {
+    it('🔴 통화로 굳힌 약속은 데드라인과 무관하게 그대로 — 화주 합의가 면책이다', () => {
         putOrder({ totalDurationMin: 40, kakaoSoloDurationMin: 20 });
         birthFirstStep(USER, ORDER_ID);
         bridgeCargoReport(USER, ORDER_ID, {
             stopType: 'pickup', kind: 'DECLARED',
-            promisedArrivalAt: '2026-08-20T12:00:00Z',   // 21:00 — 시한 훨씬 뒤
+            promisedArrivalAt: '2026-08-20T12:00:00Z',   // 21:00
         } as any);
         expect(kst(of('CALL_PICKUP').row.promised_arrival_at)).toBe('21:00');
     });

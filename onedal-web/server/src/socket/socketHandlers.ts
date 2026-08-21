@@ -30,11 +30,8 @@ function routeTlOf(userId: string): RouteTl | undefined {
         const cfg = session.judgment;
         const rules = cfg ? {
             ...DEFAULT_DEADLINE_RULES,
-            pickupOffsetMinutes: cfg.unknown.pickupOffsetMin,
-            restMarginMinutes: cfg.unknown.restMarginMin,
-            arrivalMarginMinutes: cfg.unknown.arrivalMarginMin,
+            pickupOffsetMinutes: cfg.unknown.pickupOffsetMin,   // 상차 시계 잠정 (⑯)
             deadlineRatioPct: cfg.deadline.ratioPct,
-            deadlinePickupMinutes: cfg.deadline.pickupMin,
         } : undefined;
         return deriveRouteTimeline(sync.routeStops as any, active as any,
             id => OrderRepository.getCargoReports(id) as any,

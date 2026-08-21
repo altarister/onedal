@@ -63,8 +63,7 @@ function computeChain(o: any, born: Partial<Record<StepId, any>>, judgment?: Jud
     routeTl?: RouteTl) {
     const cfg = judgment ?? DEFAULT_JUDGMENT;
     const unk = { pickupDwellMin: cfg.unknown.pickupDwellMin, dropoffDwellMin: cfg.unknown.dropoffDwellMin };
-    const margin = cfg.unknown.arrivalMarginMin ?? 30;
-    const rest = cfg.unknown.restMarginMin ?? 30;
+    // ⏱️ 두 시계 (시간체계 ⑯) — 여유30·휴게30 은 폐기됐다. 지어낸 여유는 없다
 
     // ── 짐: **가장 신선한 것** — 상차 실측 > 상차 통화 계획 > **적요** > 차종 기본 (규칙 ⑤-2)
     //    🔴 적요 파싱은 여기(출생) 한 곳이다 (기사님 기획 승인 2026-08-21).
@@ -108,29 +107,37 @@ function computeChain(o: any, born: Partial<Record<StepId, any>>, judgment?: Jud
     const pickupEta = ms(born.ARRIVE_PICKUP?.occurred_at)
         ?? tlEta('pickup')
         ?? (approach != null ? capturedMs + approach * 60_000 : null);
-    const pickupCapMs = solo != null && capturedMs != null
-        ? (callDeadlineMs(capturedMs, solo, cfg)! - (solo + pickupDwell) * 60_000) : null;
+    /**
+     * ⏱️ **상차 시계** (주선사의 시계 · ⑯) — 통화 전 추정 상차 약속의 원천:
+     *    적요의 상차 시각 > (통화 약속 — 굳었으면 아래에서 이김) > 잡은 시각 + 잠정 30분.
+     *    🔴 **캡 바닥** (리허설 13번 버그): 시계가 도착 예상보다 일러도 도착 전 시각을
+     *    약속으로 지어내지 않는다 — 약속 = 도착 예상, 모자람은 상차버퍼 음수로 보인다.
+     */
+    const memoPickupMs = (() => {
+        if (!hints.promisedAt) return null;                       // "12:42상차" → HH:MM
+        const kstDay = new Date(capturedMs + 9 * 3600_000).toISOString().slice(0, 10);
+        const t = Date.parse(`${kstDay}T${hints.promisedAt}:00+09:00`);
+        return Number.isFinite(t) && t >= capturedMs ? t : null;  // 과거 시각이면 무시
+    })();
+    const pickupClockMs = memoPickupMs ?? capturedMs + (cfg.unknown.pickupOffsetMin ?? 30) * 60_000;
     const pickupPromise = ms(callP?.status !== 'PLANNED' ? callP?.promised_arrival_at : null)
-        ?? (() => {   // ⏱️ 상차 추정 상한 = 시한 − 배송 주행 − 상차 정차 (거기서 떠나야 시한에 닿는다)
-            const est = pickupEta != null ? pickupEta + margin * 60_000
-                : capturedMs + (cfg.unknown.pickupOffsetMin ?? 60) * 60_000 - pickupDwell * 60_000;
-            return pickupCapMs == null ? est : Math.min(est, pickupCapMs);
-        })();
+        ?? (pickupEta != null ? Math.max(pickupEta, pickupClockMs) : pickupClockMs);
     const departMs = ms(born.LOADED?.occurred_at) ?? pickupPromise + pickupDwell * 60_000;
     const dropoffEta = ms(born.ARRIVE_DROPOFF?.occurred_at)
         ?? tlEta('dropoff')
         ?? (solo != null ? departMs + solo * 60_000 : null);
     /**
-     * ⏱️ **통화 전 추정 약속은 시한 안으로 깎는다** (기사님 승인 2026-08-21).
-     *    시한 = 잡은 시각 + 배송 주행 × 150% + 픽업 20분 (판정 기준 탭에서 조절).
-     *    짧은 콜은 우리 추정(+여유30·휴게30)이 업계 상한을 넘었다 — 주선사가 압박할
-     *    약속을 서버가 지어내는 셈이었다. **굳은 약속(통화)은 안 깎는다** — 화주 합의가 면책.
+     * ⏱️ **배달 데드라인 = 상차 완료 + 배송 × 150%** (기산점은 상차 완료 · ⑯ 확정).
+     *    근거: 소숙 자막 [09:08] "픽업 시간마다 도착 시간을 계산" + 콜①② 검산 —
+     *    상차 전 대기는 배달 시계를 태우지 않는다. 휴게30 은 폐기 — 하차 추정 약속은
+     *    데드라인 그 자체다 (경유버퍼 = 데드라인 − 예상이 저절로 여유를 말한다).
+     *    🔴 굳은 약속(통화)은 데드라인과 무관하게 그대로 — 화주 합의가 면책.
      */
-    const deadlineMs = callDeadlineMs(capturedMs, solo, cfg);
-    const cap = (est: number | null, limit: number | null) =>
-        est == null ? null : limit == null ? est : Math.min(est, limit);
+    const deadlineMs = callDeadlineMs(departMs, solo, cfg);
     const dropoffPromise = ms(callD?.status !== 'PLANNED' ? callD?.promised_arrival_at : null)
-        ?? cap(dropoffEta != null ? dropoffEta + rest * 60_000 : null, deadlineMs);
+        ?? (deadlineMs != null
+            ? Math.max(dropoffEta ?? deadlineMs, deadlineMs)     // 바닥: 예상이 데드라인 넘으면 예상(현실)
+            : null);
     // 🔴 하차 완료도 **약속 기준** — 상차와 대칭 (2026-08-20)
     const deliveredMs = dropoffPromise != null ? dropoffPromise + dropoffDwell * 60_000 : null;
 
@@ -342,12 +349,15 @@ export function stepsView(orderId: string, judgment?: JudgmentConfig): StepView[
     if (!o) return [];
     const born = bornRows(orderId);
     const chain = computeChain(o, born, judgment);
-    // ⏱️ 파생 시한 — 저장하지 않는다 (규칙 ③). 격자의 ⚠️와 예산 줄 시한 칩이 그린다
+    // ⏱️ 파생 데드라인 — 저장하지 않는다 (규칙 ③). 격자의 ⚠️와 버퍼 줄 칩이 그린다.
+    //    상차 = 상차 시계 · 하차 = 배달 데드라인(상차 완료 예정 기산 — 완료 예정은 사슬이 이미 계산)
     const num = (v: unknown) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
-    const dl = callDeadlineMs(Date.parse(o.capturedAt ?? ''), num(o.kakaoSoloDurationMin), judgment ?? DEFAULT_JUDGMENT);
+    const departPlanned = ms(born.LOADED?.occurred_at) ?? ms(chain.LOADED.predicted_at);
+    const dl = departPlanned != null
+        ? callDeadlineMs(departPlanned, num(o.kakaoSoloDurationMin), judgment ?? DEFAULT_JUDGMENT) : null;
     const deadlineOf = (step: StepId) =>
-        dl == null ? null : step === 'CALL_DROPOFF' ? new Date(dl).toISOString()
-        : step === 'CALL_PICKUP' ? new Date(dl - (num(o.kakaoSoloDurationMin)! + (chain.CALL_PICKUP.planned_dwell_min ?? 0)) * 60_000).toISOString()
+        step === 'CALL_DROPOFF' ? (dl != null ? new Date(dl).toISOString() : null)
+        : step === 'CALL_PICKUP' ? chain.CALL_PICKUP.promised_arrival_at ?? null   // 상차 시계가 곧 한계
         : null;
     return ORDER.map(step => {
         const t = tableOf(step);

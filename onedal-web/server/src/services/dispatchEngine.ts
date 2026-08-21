@@ -2,7 +2,7 @@ import { decideNextTargetAfterCycle, mapVehicleToKakaoCarType, getRemainingCapac
          MILESTONE_TO_STATUS, MILESTONE_LABEL, canReportMilestone, timingError,
          RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, UNFINISHED_RESTORE_DAYS, deriveStatusFromMilestones,
          restoreWindow, getEffectiveDetourRadius, DEFAULT_DETOUR_RADIUS_KM,
-         CALL_TARGET_LABEL, scoreMerge, describeJudgment, TRUCK_CAPACITY_SLOTS, isEvaluating } from "@onedal/shared";
+         CALL_TARGET_LABEL, scoreMerge, describeJudgment, TRUCK_CAPACITY_SLOTS, isEvaluating , DEFAULT_DEADLINE_RULES } from "@onedal/shared";
 import type { SecuredOrder, AutoDispatchFilter, PricingConfig, PendingOrder, MyOrder,
               Milestone, MilestoneSource, CallTarget } from "@onedal/shared";
 import { geocodeAddress, calculateSoloRoute, calculateDetourRoute, compareDirections } from "./kakaoService";
@@ -274,9 +274,10 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
                 dwellMin: totalDetourCost(0, securedOrder.id, session.judgment.unknown).dwell,
                 dwellAssumed: totalDetourCost(0, securedOrder.id, session.judgment.unknown).hasUnknown,
                 detourBufferMin: computeAllowedDetour(userId, session, Date.now(), session.judgment.unknown,
+                    // 🏗️ 옛 판정 경로 잔재 — dryRun 대체 예정 (⑯)
                     { pickupOffsetMinutes: session.judgment.unknown.pickupOffsetMin,
-                      restMarginMinutes: session.judgment.unknown.restMarginMin,
-                              arrivalMarginMinutes: session.judgment.unknown.arrivalMarginMin }),
+                      restMarginMinutes: DEFAULT_DEADLINE_RULES.restMarginMinutes,
+                      arrivalMarginMinutes: DEFAULT_DEADLINE_RULES.arrivalMarginMinutes }),
                 slotsFree: Math.max(0, TRUCK_CAPACITY_SLOTS - (session.activeFilter.slotsUsed ?? 0)),
                 slotsTotal: TRUCK_CAPACITY_SLOTS,
             }, session.judgment);   // 🎯 재탐색도 **같은** 기준을 읽는다
