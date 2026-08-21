@@ -13,6 +13,9 @@ import { PluginFactory } from "../core/plugins/PluginFactory";
 
 const router = Router();
 
+// 🧭 피기백 v2 로 말하는 기기 — 최초 감지 로그를 1회만 찍기 위한 표식 (메모리)
+const v2Devices = new Set<string>();
+
 // POST: 탈락 콜 빅데이터 수신 (오답노트용) 및 하트비트
 router.post("/", (req, res) => {
     try {
@@ -239,6 +242,11 @@ router.post("/", (req, res) => {
          *    여기서 비는 키워드는 "고장"이 아니라 "progressKm 쪽에 실려 있음"이다.
          */
         const speaksV2 = !!req.body && Object.prototype.hasOwnProperty.call(req.body, 'filterVersion');
+        // 기기당 최초 1회만 — 새 APK 가 실제로 v2 로 말하기 시작했는지 서버 로그에서 보인다
+        if (speaksV2 && deviceId && !v2Devices.has(deviceId)) {
+            v2Devices.add(deviceId);
+            console.log(`🧭 [피기백 v2] ${deviceId} — 신프로토콜 감지 (버전 게이트·중복 제거 작동)`);
+        }
         let responseFilter: any = appFilter;
         let filterVersion: string | undefined;
         if (speaksV2) {
