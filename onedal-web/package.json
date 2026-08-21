@@ -15,7 +15,8 @@
     "rehearsal": "node scripts/rehearsal.mjs",
     "ledger": "node scripts/ledger.mjs",
     "options": "node scripts/options.mjs",
-    "reach": "node scripts/reach.mjs"
+    "reach": "node scripts/reach.mjs",
+    "reach:sweep": "node scripts/reach-sweep.mjs"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

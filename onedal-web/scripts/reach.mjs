@@ -31,57 +31,69 @@ const Database = require('better-sqlite3');
 
 const db = new Database(join(ROOT, 'server/local.db'), { readonly: true });
 const rows = db.prepare(
-    `SELECT captured_at, line_km, kakao_min FROM reach_samples ORDER BY captured_at`
+    `SELECT captured_at, line_km, kakao_min, source FROM reach_samples ORDER BY captured_at`
 ).all();
 db.close();
 
 if (rows.length === 0) {
-    console.log('표본이 없습니다 — 심사가 돌 때마다 서버가 reach_samples 에 남깁니다.');
+    console.log('표본이 없습니다 — 심사(자동) 또는 pnpm reach:sweep 으로 모입니다.');
     process.exit(0);
 }
 
+const kstHour = (iso) => Number(new Date(iso).toLocaleString('en-US', {
+    timeZone: 'Asia/Seoul', hour: '2-digit', hour12: false }));
+const isDay = (r) => { const h = kstHour(r.captured_at); return h >= 7 && h < 19; };
+
+// ── 1차식 최소제곱: 분 = base + perKm × km ──────────────
+function fit(rs) {
+    const n = rs.length;
+    if (n < 3) return null;
+    const xs = rs.map(r => r.line_km), ys = rs.map(r => r.kakao_min);
+    const xm = xs.reduce((a, b) => a + b, 0) / n;
+    const ym = ys.reduce((a, b) => a + b, 0) / n;
+    let sxy = 0, sxx = 0;
+    for (let i = 0; i < n; i++) { sxy += (xs[i] - xm) * (ys[i] - ym); sxx += (xs[i] - xm) ** 2; }
+    if (sxx === 0) return null;
+    const perKm = sxy / sxx, base = ym - perKm * xm;
+    const resid = rs.map((r, i) => ys[i] - (base + perKm * xs[i]));
+    const sd = Math.sqrt(resid.reduce((a, e) => a + e * e, 0) / Math.max(1, n - 2));
+    return { n, base, perKm, sd };
+}
+
 // ── 표본 표 ──────────────────────────────────────────────
-console.log(`\n🧪 도달 계수 표본 ${rows.length}건  (원천: server/local.db reach_samples)\n`);
-console.log('  잡힌 시각(KST)      직선km   카카오분   분/km');
+const bySource = rows.reduce((m, r) => (m[r.source] = (m[r.source] ?? 0) + 1, m), {});
+console.log(`\n🧪 도달 계수 표본 ${rows.length}건  (${Object.entries(bySource).map(([s, c]) => `${s} ${c}`).join(' · ')})\n`);
+console.log('  잡힌 시각(KST)      직선km   카카오분   분/km   출처');
 for (const r of rows) {
     const kst = new Date(r.captured_at).toLocaleString('ko-KR', {
         timeZone: 'Asia/Seoul', month: '2-digit', day: '2-digit',
         hour: '2-digit', minute: '2-digit', hour12: false,
     });
-    console.log(`  ${kst}        ${String(r.line_km).padStart(5)}   ${String(r.kakao_min).padStart(6)}   ${(r.kakao_min / r.line_km).toFixed(2)}`);
+    console.log(`  ${kst}        ${String(r.line_km).padStart(5)}   ${String(r.kakao_min).padStart(6)}   ${(r.kakao_min / r.line_km).toFixed(2).padStart(5)}   ${r.source}${isDay(r) ? '' : ' 🌙'}`);
 }
 
-// ── 1차식 최소제곱: 분 = base + perKm × km ──────────────
-const n = rows.length;
-const xs = rows.map(r => r.line_km), ys = rows.map(r => r.kakao_min);
-const xm = xs.reduce((a, b) => a + b, 0) / n;
-const ym = ys.reduce((a, b) => a + b, 0) / n;
-let sxy = 0, sxx = 0;
-for (let i = 0; i < n; i++) { sxy += (xs[i] - xm) * (ys[i] - ym); sxx += (xs[i] - xm) ** 2; }
-const perKm = sxx > 0 ? sxy / sxx : null;
-const base = perKm != null ? ym - perKm * xm : null;
+const all = fit(rows);
+if (!all) { console.log(`\n표본 ${rows.length}건 — 아직 맞추기엔 적습니다.`); process.exit(0); }
 
-if (perKm == null || n < 3) {
-    console.log(`\n표본 ${n}건 — 아직 맞추기엔 적습니다. 더 쌓이면 다시 돌려 보세요.`);
-    process.exit(0);
-}
+console.log(`\n  1차식 적합(전체):  소요(분) ≈ ${all.base.toFixed(1)}분 + ${all.perKm.toFixed(2)}분/km × 직선km`);
+console.log(`  잔차 산포 ±${all.sd.toFixed(1)}분 · 표본 ${all.n}건${all.n < 20 ? '  ⚠️ 20건 미만 — 참고만' : ''}`);
 
-// 산포(잔차 표준편차) — 이 모델을 믿어도 되는가의 눈금
-const resid = rows.map((r, i) => ys[i] - (base + perKm * xs[i]));
-const sd = Math.sqrt(resid.reduce((a, e) => a + e * e, 0) / Math.max(1, n - 2));
-
-console.log(`\n  1차식 적합:  소요(분) ≈ ${base.toFixed(1)}분 + ${perKm.toFixed(2)}분/km × 직선km`);
-console.log(`  잔차 산포 ±${sd.toFixed(1)}분 · 표본 ${n}건${n < 20 ? '  ⚠️ 20건 미만 — 참고만' : ''}`);
+// 카카오 소요는 실시간 교통 반영 — 주간(07~19시)과 밤이 다르다. 갈라 보여준다
+const day = fit(rows.filter(isDay)), night = fit(rows.filter(r => !isDay(r)));
+if (day) console.log(`  주간(07~19시): ${day.base.toFixed(1)}분 + ${day.perKm.toFixed(2)}분/km  (${day.n}건 · ±${day.sd.toFixed(1)}분)`);
+if (night) console.log(`  야간 🌙:       ${night.base.toFixed(1)}분 + ${night.perKm.toFixed(2)}분/km  (${night.n}건 · ±${night.sd.toFixed(1)}분)`);
+if (!day) console.log(`  ⚠️ 주간(운행 시간대) 표본이 아직 없다 — 낮에 pnpm reach:sweep 한 번 돌릴 것`);
 
 // ── 시계 → 반경 환산 비교 (잠정 1.5분/km vs 1차식) ──────
-console.log(`\n  시계 → 직선 반경 환산  (역산: km = (분 − 기본분) ÷ 분/km)`);
+const ref = day ?? all;   // 확정에 쓸 기준은 운행 시간대 — 없으면 전체
+console.log(`\n  시계 → 직선 반경 환산  (기준: ${day ? '주간' : '전체'} 적합 · 역산 km = (분 − 기본분) ÷ 분/km)`);
 console.log(`  ┌────────┬──────────────┬──────────────┐`);
 console.log(`  │  시계  │ 잠정 1.5분/km │  1차식(실측)  │`);
 console.log(`  ├────────┼──────────────┼──────────────┤`);
 for (const min of [15, 30, 45, 60]) {
     const old = (min / 1.5).toFixed(0);
-    const fit = Math.max(0, (min - base) / perKm).toFixed(1);
-    console.log(`  │  ${String(min).padStart(2)}분  │  ${String(old).padStart(6)} km   │  ${String(fit).padStart(6)} km   │`);
+    const f = Math.max(0, (min - ref.base) / ref.perKm).toFixed(1);
+    console.log(`  │  ${String(min).padStart(2)}분  │  ${String(old).padStart(6)} km   │  ${String(f).padStart(6)} km   │`);
 }
 console.log(`  └────────┴──────────────┴──────────────┘`);
 console.log(`\n  🔴 보고서일 뿐이다 — 필터에 자동 반영되지 않는다. 계수 확정은 표본이 쌓인 뒤 기사님이 한다.\n`);

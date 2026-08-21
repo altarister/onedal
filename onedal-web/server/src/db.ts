@@ -359,9 +359,13 @@ db.exec(`
         user_id     TEXT NOT NULL,
         captured_at TEXT NOT NULL,
         line_km     REAL NOT NULL,
-        kakao_min   REAL NOT NULL
+        kakao_min   REAL NOT NULL,
+        source      TEXT NOT NULL DEFAULT '심사'
     )
 `);
+// source: '심사' = 실제 콜 심사에서 잰 것 · 'sweep' = pnpm reach:sweep 의 설계 표본
+// (같은 카카오 API 실측이지만 출처를 구분해야 나중에 콜 분포 편향을 따로 볼 수 있다)
+ensureColumns('reach_samples', { source: `TEXT NOT NULL DEFAULT '심사'` });
 
 /**
  * 📊 **하루 성과 기록** (필터 확정안 v2 ①-B · 필터 정의 4장).
