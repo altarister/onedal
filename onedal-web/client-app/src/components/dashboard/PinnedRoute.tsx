@@ -7,7 +7,7 @@ import PinnedRouteCanvas, { type RoutePoint } from './PinnedRouteCanvas';
 import PinnedRouteCard from './PinnedRouteCard';
 import CallDeck from './CallDeck';
 import DepartureCountdown from './DepartureCountdown';
-import { useCallProgress, EMPTY_RECORDS } from '../../hooks/useCallProgress';
+import { EMPTY_RECORDS } from '../../hooks/useCallProgress';
 import { useStepRecords } from '../../hooks/useStepRecords';
 import { useJudgmentStore } from '../../stores/judgmentStore';
 import { deckOrder } from '../../lib/deckFocus';
@@ -34,7 +34,11 @@ export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, 
     // [2026-08-12] 콜별 기록을 **여기서 한 번에** 받는다.
     // 카드가 각자 불러오면 화면 밖 카드의 진행 상황을 알 수 없어
     // 덱 위에 요약 줄을 띄울 수가 없었다 (기사님 지적).
-    const callRecords = useCallProgress(activeRoute.map(o => o.id));
+    /**
+     * 🔄 파생 치환 완주 (2026-08-21) — 덱·카드·타임라인·카운트다운 전부 새 장부
+     * (여섯 단계 행) 하나를 읽는다. 옛 장부 훅(useCallProgress)은 소비자가 없어져
+     * 철거 대기 — 옛 테이블(stop_cargo_reports·order_milestones)과 함께 걷는다 (확인 후).
+     */
     /**
      * 🔄 **파생 치환 ①** (기사님 승인 2026-08-21) — 타임라인·카운트다운의 재료를
      * 새 장부(여섯 단계 행)에서 읽는다. 계산은 그대로, 출처만 바뀐다.
@@ -439,7 +443,7 @@ export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, 
 
             {viewFilter === 'ACTIVE' && cycleDeck.length > 0 && (
                 <CallDeck
-                    records={callRecords}
+                    records={stepRecords}
                     /* 🗺️ 타임라인은 여기서 만든 것 하나 (새 장부 stepRecords 기반) — 덱이
                        옛 장부로 한 벌 더 파생하면 정차가 갈라져 두 데드라인이 된다 (2026-08-21) */
                     timeline={routeTimeline}
@@ -462,7 +466,7 @@ export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, 
                             etaMap={etaMap}
                             visitOrderMap={visitOrderMap}
                             indexNum={chronologicalIds.indexOf(route.id) + 1}
-                            records={callRecords.get(route.id) ?? EMPTY_RECORDS}
+                            records={stepRecords.get(route.id) ?? EMPTY_RECORDS}
                             timeline={routeTimeline}
                             routeStops={routeStops}
                             routeComputedAt={routeComputedAt}
@@ -528,7 +532,7 @@ export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, 
                                     etaMap={etaMap}
                                     visitOrderMap={visitOrderMap}
                                     indexNum={indexNum}
-                                    records={callRecords.get(route.id) ?? EMPTY_RECORDS}
+                                    records={stepRecords.get(route.id) ?? EMPTY_RECORDS}
                                     timeline={routeTimeline}
                                     routeStops={routeStops}
                                     routeComputedAt={routeComputedAt}
