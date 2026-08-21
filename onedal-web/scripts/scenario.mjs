@@ -637,6 +637,129 @@ async function ledger() {
     }
 }
 
+/**
+ * 🎓 **노하우 문제지 — 고수가 판정을 채점한다** (시간체계 16-4 · 판정색 확정안 v2)
+ *
+ * 실제 고수가 돈을 벌며 해낸 아침 4콜(신림 기점)을 실서버에 태우고, 판정 스냅샷
+ * (`order_judgments`)이 합격선에 드는지 본다. **고수가 해낸 콜을 우리가 나쁘다고
+ * 하면 우리가 틀린 것이다.**
+ *
+ * 못박는 것은 **합격선**(색 범위)이지 점수 숫자가 아니다 — 환산식·가중치가 진화해도
+ * 고수 콜을 낙제시키지 않는 한 이 검사는 통과한다. 기준을 일부러 바꿔 합격선 자체가
+ * 달라지면 16-4 문서를 기사님 확정으로 개정하고 이 표를 같이 고친다 (glossary 와 같은 관계).
+ *
+ * 처음 만든 날 실측: 옛 판정은 이 4콜을 **전부 🟡**로 낙제시켰다 (요율 재계산 ·
+ * 절대치 감점 · 누적 우회). 셋 다 이 검사가 있었으면 리허설 전에 잡혔다.
+ */
+async function gosuExam() {
+    console.log('\n═══ 🎓 노하우 문제지 — 고수 4콜 채점 (16-4) ═══');
+    const dbPath = join(SERVER, DB);
+    let dev;
+    {
+        const c = new Database(dbPath, { readonly: true });
+        dev = c.prepare(`SELECT device_id FROM user_devices LIMIT 1`).get();
+        c.close();
+    }
+    if (!dev) { check('문제지 준비 (등록 기기)', false); return; }
+
+    const tok = await token();
+    const { s, st } = connect(tok);
+    await new Promise(r => s.on('connect', r));
+    await wait(2000);
+
+    // ── 깨끗한 시작 — 장부 검사가 남긴 활성 콜(MANUAL)을 방출한다
+    for (const o of st.active) {
+        s.emit('decision', { orderId: o.id, action: 'ORDER_RELEASED_BY_ME' });
+        await wait(800);
+    }
+    await wait(1500);
+    check('문제지 시작 전 빈 차', st.active.length === 0, `활성 ${st.active.length}건`);
+
+    // ── 시작 위치 신림역 (16-4 채점 조건 — 초월읍 기점이면 13번 접근 75분으로 왜곡)
+    s.emit('dashboard-gps-update', { lat: 37.4842, lng: 126.9294, source: 'browser' });
+    await wait(1200);
+    console.log('  📍 시작 위치: 신림역 (노하우 아침의 기점)');
+
+    /** 합격선 (16-4) — 색 **범위**만 못박는다. 점수는 자유다 */
+    const EXAM = [
+        { n: 13, label: '가산동 → 진위면 3.0만 — 고수: 43분 픽업 · 사무실 통화 1건',
+          pickup: '서울 금천구 가산동', dropoff: '경기 평택시 진위면', fare: 30000,
+          passLabel: '🟢 이상', pass: v => ['보통', '꿀'].includes(v.color) },
+        { n: 14, label: '양평동 → 안중읍 3.8만 — 고수: 40분 픽업 각오 · 통화 2건 · 배달 빠듯',
+          pickup: '서울 영등포구 양평동', dropoff: '경기 평택시 안중읍', fare: 38000,
+          memo: '평택 시내 (블라인드 — 실제는 안중읍)',
+          passLabel: '🟢~🟡 + 통화 필수 딱지', pass: v => ['보통', '똥'].includes(v.color),
+          needTag: '통화 필수' },
+        { n: 15, label: '문래동 → 상갈동 3.5만 — 고수: 10시 예약을 당김',
+          pickup: '서울 영등포구 문래동', dropoff: '경기 용인시 기흥구 상갈동', fare: 35000,
+          memo: '10:00상차 예약', passLabel: '🔵', pass: v => v.color === '꿀' },
+        { n: 16, label: '가산 옆 3분 → 지곡동 3.5만 — 고수: 통화 0건, 최고의 합짐',
+          pickup: '서울 금천구 가산디지털단지', dropoff: '경기 용인시 기흥구 지곡동', fare: 35000,
+          passLabel: '🔵', pass: v => v.color === '꿀' },
+    ];
+
+    const post = (path, body) => fetch(`http://localhost:${PORT}/api/orders${path}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    }).catch(e => ({ ok: false, err: e }));
+
+    /** 판정 스냅샷이 설 때까지 (심사 = KEEP 전이므로 스냅샷만 기다리면 된다) */
+    const snapshotOf = async (id, timeoutMs = 25_000) => {
+        const deadline = Date.now() + timeoutMs;
+        while (Date.now() < deadline) {
+            const c = new Database(dbPath, { readonly: true });
+            const r = c.prepare(`SELECT color, score, detail FROM order_judgments WHERE orderId = ?`).get(id);
+            c.close();
+            if (r) return { ...r, detail: JSON.parse(r.detail) };
+            await wait(500);
+        }
+        return null;
+    };
+
+    const emoji = { '꿀': '🔵', '보통': '🟢', '똥': '🟡', '사고': '🔴' };
+    for (const t of EXAM) {
+        const id = `GOSU-${Date.now()}-${t.n}`;
+        const capturedAt = new Date().toISOString();
+        // 🔴 적요는 rawText 물품 줄에 — 서버 /detail 의 rawText 해부가 order 필드를 덮는다 (#34)
+        const rawText = [
+            '배차사 : 노하우 퀵', `요금 : ${t.fare.toLocaleString()}(신용)`, '차종 : 승용차',
+            `물품 : ${t.memo || '노하우 문제지'}`,
+            '', '[출발지상세]', '고객 : 문제지 상차지', `위치 : ${t.pickup}`, `전화1 : 010-0000-11${t.n}`,
+            '', '[도착지상세]', '고객 : 문제지 하차지', `위치 : ${t.dropoff}`, `전화1 : 010-0000-22${t.n}`,
+        ].join('\n');
+        const order = { id, pickup: t.pickup, dropoff: t.dropoff, fare: t.fare,
+                        vehicleType: '승용차', timestamp: capturedAt,
+                        itemDescription: t.memo || '노하우 문제지', rawText };
+        const base = { deviceId: dev.device_id, capturedAt, matchType: 'AUTO' };
+        await post('/confirm', { ...base, step: 'BASIC', order });
+        await wait(400);
+        await post('/detail', { ...base, step: 'DETAILED', order });
+
+        const v = await snapshotOf(id);
+        if (!v) { check(`${t.n} ${t.label}`, false, '판정 스냅샷이 서지 않았다'); continue; }
+
+        const gatesOk = (v.detail.gates || []).every(g => g.pass);
+        const tagsStr = (v.detail.tags || []).join(' · ');
+        check(`${t.n}번 합격선 ${t.passLabel}`,
+            t.pass(v) && gatesOk,
+            `${emoji[v.color] || ''} ${v.color} ${v.score}점${gatesOk ? '' : ' · 🔴 문지기 실패'} — ${t.label}`);
+        if (t.needTag) {
+            check(`${t.n}번 딱지 — ${t.needTag} (고수도 통화로 시간을 샀다)`,
+                tagsStr.includes(t.needTag), tagsStr || '딱지 없음');
+        }
+
+        // 다음 콜의 합짐 심사를 위해 KEEP (안전취소 35초 안 — 스냅샷 폴링이 그 안에 끝난다)
+        s.emit('decision', { orderId: id, action: 'ORDER_CONFIRMED' });
+        const kept = Date.now() + 8000;
+        while (Date.now() < kept && !st.active.some(o => o.id === id)) await wait(300);
+        if (!st.active.some(o => o.id === id)) {
+            check(`${t.n}번 KEEP`, false, '결재가 반영되지 않았다 — 뒤 콜 채점이 왜곡된다');
+        }
+        await wait(1500);   // KEEP 후 경로 재계산이 앉을 틈
+    }
+
+    s.close();
+}
+
 // ─────────────────────────── 진입 ───────────────────────────
 let proc;
 try {
@@ -644,6 +767,7 @@ try {
     proc = await boot();
     await run(ids);
     await ledger();
+    await gosuExam();
 } catch (e) {
     console.error('\n🔴 시나리오 실행 실패:', e.message);
     results.push({ name: '시나리오 실행', ok: false });
