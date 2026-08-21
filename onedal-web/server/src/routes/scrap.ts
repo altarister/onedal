@@ -16,6 +16,11 @@ const router = Router();
 // 🧭 피기백 v2 로 말하는 기기 — 최초 감지 로그를 1회만 찍기 위한 표식 (메모리)
 const v2Devices = new Set<string>();
 
+// 🛰️ 같은 기기 이름이 서로 다른 곳(IP)에서 동시에 말하는지 감지 (2026-08-22 실측:
+// 구버전 리허설 스크립트와 실폰이 같은 deviceId 로 겹치자, 폰이 잡은 심사 콜을
+// 스크립트의 "리스트 화면" 보고가 2초 만에 강제 취소시켰다 — 4콜 연쇄)
+const senderTrace = new Map<string, { ip: string; at: number; warnedAt: number }>();
+
 // POST: 탈락 콜 빅데이터 수신 (오답노트용) 및 하트비트
 router.post("/", (req, res) => {
     try {
@@ -246,6 +251,19 @@ router.post("/", (req, res) => {
         if (speaksV2 && deviceId && !v2Devices.has(deviceId)) {
             v2Devices.add(deviceId);
             console.log(`🧭 [피기백 v2] ${deviceId} — 신프로토콜 감지 (버전 게이트·중복 제거 작동)`);
+        }
+
+        // 🛰️ 이중 발신 감지 — 같은 기기 이름이 15초 안에 다른 IP 에서도 말하면 경고 (분당 1회)
+        if (deviceId) {
+            const now = Date.now();
+            const prev = senderTrace.get(deviceId);
+            const ip = req.ip ?? '?';
+            if (prev && prev.ip !== ip && now - prev.at < 15_000 && now - prev.warnedAt > 60_000) {
+                prev.warnedAt = now;
+                console.warn(`🛰️⚠️ [이중 발신] ${deviceId} 가 두 곳에서 동시에 신호 중 — ${prev.ip} ↔ ${ip}. ` +
+                    `리허설 스크립트와 실폰이 같이 켜져 있으면 화면 이탈 감지가 심사 콜을 강제 취소합니다 — 하나만 켜세요`);
+            }
+            senderTrace.set(deviceId, { ip, at: now, warnedAt: prev?.warnedAt ?? 0 });
         }
         let responseFilter: any = appFilter;
         let filterVersion: string | undefined;
