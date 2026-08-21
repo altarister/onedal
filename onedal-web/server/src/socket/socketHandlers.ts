@@ -12,7 +12,7 @@ import { PlaceRepository } from "../repositories/PlaceRepository";
 import { getUserSession, getAllActiveUserIds } from "../state/userSessionStore";
 import { buildOrderSync } from "../core/helpers";
 import { recalculateDetourFilter, handleDecision, recalculateKakaoRoute, bootstrapUserSession, reportMilestone, undoMilestone, setCallTarget, createHomeReturn } from "../services/dispatchEngine";
-import { birthFirstStep, bridgeCargoReport, bridgeMilestone, bridgeUndoMilestone, bridgeCod, stepsView, refreshPlannedSteps } from "../services/stepSeeder";
+import { birthFirstStep, bridgeCargoReport, bridgeMilestone, bridgeUndoMilestone, bridgeCod, stepsView, stepRecordsOf, refreshPlannedSteps } from "../services/stepSeeder";
 import type { RouteTl } from "../services/stepSeeder";
 
 /**
@@ -30,8 +30,8 @@ function routeTlOf(userId: string): RouteTl | undefined {
         const cfg = session.judgment;
         const inputs = cfg ? derivationInputsOf(cfg) : undefined;
         return deriveRouteTimeline(sync.routeStops as any, active as any,
-            id => OrderRepository.getCargoReports(id) as any,
-            id => OrderRepository.getMilestones(id) as any,
+            id => stepRecordsOf(id).reports as any,       // 🔄 파생 치환 ② — 새 장부가 재료
+            id => stepRecordsOf(id).milestones as any,
             Date.now(), sync.routeComputedAt, inputs?.rules, inputs?.unk);
     } catch { return undefined; }
 }

@@ -13,6 +13,7 @@
 
 import db from "../db";
 import { getActiveCalls, computeLoadedPoints } from "../core/helpers";
+import { stepRecordsOf } from "../services/stepSeeder";
 import { OrderRepository } from "../repositories/OrderRepository";
 import { SettingsRepository } from "../repositories/SettingsRepository";
 import { getUserSession } from "./userSessionStore";
@@ -216,7 +217,8 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
             // [Phase 8.4] 통화·현장에서 실제 짐 양을 알면 그걸 쓴다.
             // 차종만 보면 "1t 콜 = 30점 만재"로 추정하는데, 실제로 박스 1개면 2점이다.
             // 그 차이만큼 **놓치던 합짐 기회**가 열린다.
-            const reports = new Map(loaded.map(c => [c.id, OrderRepository.getCargoReports(c.id)]));
+            // 🔄 파생 치환 ② — 적재의 재료도 새 장부에서
+            const reports = new Map(loaded.map(c => [c.id, stepRecordsOf(c.id).reports]));
             const { points, confidence } = computeLoadedPoints(loaded, myVehicle, reports);
             session.activeFilter.allowedVehicleTypes = getRemainingCapacityTypesByPoints(myVehicle, points);
             session.capacityConfidence = confidence;

@@ -74,6 +74,22 @@ describe('계획 짐값 → 타임라인 정차 (규칙 ③ — 입력 한 곳)'
         expect(kst(Date.parse(p.promisedUntil!))).toBe('13:36');
     });
 
+    /**
+     * 🔴 **실측은 상태와 무관하게 실측이다** (2026-08-21 scenario C 실측).
+     * 시드/복구된 콜은 상차 완료 밀스톤 없이 실측 신고만 올 수 있다 — LOADED 행이
+     * PLANNED 인 채 actual_* 만 앉는다. 상태 가드가 그걸 버리면 적재 신뢰도가
+     * CONFIRMED 로 못 올라간다 (옛 장부는 올라갔다 — 두 장부 두 목소리).
+     */
+    it('🔴 PLANNED 인 LOADED 행의 실측(actual)도 ACTUAL 로 나간다', () => {
+        const withActual = [{
+            step: 'LOADED', born: true,
+            row: { status: 'PLANNED', actual_unit: '파레트', actual_quantity: 5, actual_handling: '지게차' },
+        }] as any;
+        const r = recordsOfSteps(withActual).reports.find((x: any) => x.kind === 'ACTUAL');
+        expect(r).toBeDefined();
+        expect((r as any).quantity).toBe(5);
+    });
+
     it('통화(DECLARED)가 오면 계획(PLANNED)을 이긴다 — 정차 우선순위', () => {
         const withCall = [...steps.map((s: any) => ({ ...s, row: { ...s.row } })),] as any;
         withCall[0].row.status = 'DONE';        // 통화 완료 — 이제 DECLARED 로 나간다

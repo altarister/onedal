@@ -22,6 +22,7 @@ import { PricingEngine } from "../core/engine/PricingEngine";
 import { OrderEvaluator } from "../core/engine/OrderEvaluator";
 import { StateMachine } from "../core/engine/StateMachine";
 import { getActiveCalls, buildOrderSync, setOrderStatus } from "../core/helpers";
+import { stepRecordsOf } from "./stepSeeder";
 
 /**
  * 장소명 정규화 (공백 및 주식회사 텍스트 제거)
@@ -742,7 +743,8 @@ export function rebuildDestinationKeywords(userId: string, io: any): void {
  */
 /** 장부의 도착 마일스톤을 콜 객체 칸으로 되살린다 — 재시작해도 다녀온 곳을 기억하게 */
 function hydrateVisitedStops(orderId: string): { arrivedPickupAt?: string; arrivedDropoffAt?: string } {
-    const rows = OrderRepository.getMilestones(orderId) as { milestone: string; occurredAt: string }[];
+    // 🔄 파생 치환 ② — 복구의 재료도 새 장부 (단계 행의 occurred_at)
+    const rows = stepRecordsOf(orderId).milestones as { milestone: string; occurredAt: string }[];
     const at = (m: string) => rows.find(r => r.milestone === m)?.occurredAt;
     return {
         arrivedPickupAt: at('ARRIVED_PICKUP'),
@@ -1031,7 +1033,7 @@ export async function undoMilestone(userId: string, orderId: string, milestone: 
         if (cached) delete (cached as any)[undoField];
     }
 
-    const rest = OrderRepository.getMilestones(orderId) as { milestone: string }[];
+    const rest = stepRecordsOf(orderId).milestones as { milestone: string }[];   // 🔄 파생 치환 ②
     const status = deriveStatusFromMilestones(rest);
 
     setOrderStatus(session, orderId, status);

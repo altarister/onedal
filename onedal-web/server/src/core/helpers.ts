@@ -8,6 +8,7 @@ import type { MyOrder, CargoReport, CapacityConfidence, DwellUnknown } from '@on
 import { OrderRepository } from '../repositories/OrderRepository';
 import db from '../db';
 import { planArrivalStops } from '../services/routeComposer';
+import { stepRecordsOf } from '../services/stepSeeder';
 
 /**
  * 종료되지 않은(활성) 콜만 필터링합니다.
@@ -80,7 +81,8 @@ export function computeLoadedPoints(
 
 /** 한 콜의 상·하차 정차 시간 (신고된 단위·수량·방법 기준) */
 export function getStopTiming(orderId: string, unk?: DwellUnknown) {
-    const reports = OrderRepository.getCargoReports(orderId);
+    // 🔄 파생 치환 ② — 재료는 새 장부 (KEEP 전 후보는 빈 기록 = 옛 장부와 동일)
+    const reports = stepRecordsOf(orderId).reports;
     const pick = reports.find(r => r.stopType === 'pickup' && r.kind === 'ACTUAL')
               || reports.find(r => r.stopType === 'pickup');
     const drop = reports.find(r => r.stopType === 'dropoff' && r.kind === 'ACTUAL')
@@ -117,13 +119,13 @@ export function findLoadConflicts(
     session: { myOrders: MyOrder[] },
     incomingOrderId: string,
 ): Array<[string, string]> {
-    const incomingTags = OrderRepository.getCargoReports(incomingOrderId)
+    const incomingTags = stepRecordsOf(incomingOrderId).reports
         .flatMap(r => r.tags || []);
     if (incomingTags.length === 0) return [];
 
     const loadedTags = getActiveCalls(session)
         .filter(c => c.id !== incomingOrderId)
-        .flatMap(c => OrderRepository.getCargoReports(c.id).flatMap(r => r.tags || []));
+        .flatMap(c => stepRecordsOf(c.id).reports.flatMap(r => r.tags || []));
     if (loadedTags.length === 0) return [];
 
     // 중복 제거해서 같은 경고가 여러 번 뜨지 않게

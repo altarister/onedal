@@ -18,7 +18,7 @@
  * 그대로 예측 오차다 (todo ⑥).
  */
 import db from '../db';
-import { STEP_TABLES, defaultCargoByVehicle, dwellMinutes, unitPoints,
+import { STEP_TABLES, defaultCargoByVehicle, dwellMinutes, unitPoints, recordsOfSteps,
          parseCargoHints, callDeadlineMs, pickupClockMsOf, DEFAULT_JUDGMENT } from '@onedal/shared';
 import type { JudgmentConfig, CargoReport, Milestone, RouteTimelineEntry } from '@onedal/shared';
 
@@ -344,6 +344,21 @@ export function bridgeUndoMilestone(userId: string, orderId: string, milestone: 
  * 화면용 — 태어난 행은 그대로, 안 태어난 단계는 **회색 예정**(파생값, 저장 안 됨).
  * 기사님(2026-08-20): *"다음에 뭐가 올지는 알아야지."*
  */
+/**
+ * 🔄 **파생 치환 ② — 서버 계산의 재료를 새 장부(여섯 단계 행)에서** (2026-08-21).
+ *
+ * 옛 장부(stop_cargo_reports · order_milestones)를 읽던 계산 소비처(적재·정차·
+ * 동승·타임라인·복구)가 전부 **이 관문 하나**를 거친다. 쓰기는 아직 양쪽(다리) —
+ * 관제웹 소비까지 넘어가면 옛 테이블을 손으로 철거한다 (확인 받고).
+ * KEEP 전 후보는 행이 없어 빈 기록이 나온다 — 옛 장부와 같은 동작이다.
+ */
+export function stepRecordsOf(orderId: string): {
+    reports: CargoReport[];
+    milestones: Array<{ milestone: string; occurredAt?: string; source?: string }>;
+} {
+    return recordsOfSteps(stepsView(orderId)) as any;
+}
+
 export function stepsView(orderId: string, judgment?: JudgmentConfig): StepView[] {
     const o = db.prepare(`SELECT * FROM orders WHERE id = ?`).get(orderId) as any;
     if (!o) return [];

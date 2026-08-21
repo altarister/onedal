@@ -45,6 +45,26 @@ export function recordsOfSteps(steps: StepViewRow[]): StepRecords {
     for (const s of steps) {
         if (s.born === false) continue;                  // 회색 예정 — 저장된 게 아니다
         const r = s.row ?? {};
+
+        /**
+         * 🔴 **실측은 상태와 무관하게 실측이다** (2026-08-21 scenario C 실측).
+         *    시드·복구된 콜은 완료 밀스톤 없이 실측 신고만 올 수 있다 — LOADED 행이
+         *    PLANNED 인 채 actual_* 만 앉는다. 상태 가드보다 먼저 건진다. 안 그러면
+         *    적재 신뢰도가 CONFIRMED 로 못 올라간다 (옛 장부는 올라갔다 — 두 목소리).
+         */
+        if ((s.step === 'LOADED' || s.step === 'DELIVERED') && r.actual_unit != null) {
+            reports.push({
+                stopType: s.step === 'LOADED' ? 'pickup' : 'dropoff',
+                kind: 'ACTUAL',
+                unit: r.actual_unit ?? undefined,
+                quantity: r.actual_quantity ?? undefined,
+                handling: r.actual_handling ?? undefined,
+                protections: parse(r.actual_protections),
+                afterworks: parse(r.actual_afterworks),
+                tags: parse(r.actual_tags),
+            });
+        }
+
         if (r.status === 'PLANNED' || !r.status) {
             /**
              * 🔴 아직 안 한 일이지만 **계획 짐값은 이미 저장된 값이다** (KEEP 이 차종
@@ -83,20 +103,6 @@ export function recordsOfSteps(steps: StepViewRow[]): StepRecords {
                 promisedArrivalFromAt: r.promised_arrival_from_at ?? undefined,
                 onwardDeadlineAt: r.onward_deadline_at ?? undefined,
                 memo: r.memo ?? undefined,
-            });
-        }
-
-        // 실측 — 상차·하차 완료 행의 actual_* (정차 계산에서 계획을 이긴다)
-        if ((s.step === 'LOADED' || s.step === 'DELIVERED') && r.actual_unit != null) {
-            reports.push({
-                stopType: s.step === 'LOADED' ? 'pickup' : 'dropoff',
-                kind: 'ACTUAL',
-                unit: r.actual_unit ?? undefined,
-                quantity: r.actual_quantity ?? undefined,
-                handling: r.actual_handling ?? undefined,
-                protections: parse(r.actual_protections),
-                afterworks: parse(r.actual_afterworks),
-                tags: parse(r.actual_tags),
             });
         }
 

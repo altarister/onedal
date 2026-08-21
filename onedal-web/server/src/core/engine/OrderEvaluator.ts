@@ -3,6 +3,7 @@ import { PendingOrder, SecuredOrder, MyOrder, TRUCK_CAPACITY_SLOTS, callName , D
          DEFAULT_JUDGMENT, REACH_COEF_MIN_PER_KM_TEMP, reachRadiusKm } from "@onedal/shared";
 import type { DryRunGate } from "@onedal/shared";
 import { OrderRepository } from "../../repositories/OrderRepository";
+import { stepRecordsOf } from "../../services/stepSeeder";
 import { getUserSession } from "../../state/userSessionStore";
 import { findLoadConflicts, totalDetourCost } from "../helpers";
 import { haversineKm } from "../../services/geoService";
@@ -231,8 +232,8 @@ export class OrderEvaluator {
                             // 후보를 **포함한** 경로의 타임라인 — 기존 콜 약속이 어떻게 되는지가 문지기다
                             const tlAfter = stopsAfter.length
                                 ? deriveRouteTimeline(stopsAfter as any, [...activeCalls, securedOrder] as any,
-                                    id => OrderRepository.getCargoReports(id) as any,
-                                    id => OrderRepository.getMilestones(id) as any,
+                                    id => stepRecordsOf(id).reports as any,       // 🔄 파생 치환 ②
+                                    id => stepRecordsOf(id).milestones as any,
                                     Date.now(), new Date().toISOString(), rules)
                                 : [];
                             const existing = tlAfter.filter(e => e.orderId !== securedOrder.id);
