@@ -50,8 +50,10 @@ describe('deriveRouteTimeline — 경로 위에서 누적한다', () => {
         const tl = run();
         const bDrop = tl.find(e => e.orderId === 'B' && e.stopType === 'dropoff')!;
         expect(bDrop.etaMs).not.toBeNull();
-        expect(bDrop.promisedUntil).not.toBeNull();
-        expect(bDrop.departByMs).not.toBeNull();
+        // ⏱️ 두 시계(⑯): B 는 배송 주행을 몰라 하차 추정 약속이 **없다** — 지어내지 않는다.
+        //    도착 예상(etaMs)은 경로가 아니 나온다 — 그 둘은 다른 값이다
+        expect(bDrop.promisedUntil).toBeNull();
+        expect(bDrop.departByMs).toBeNull();   // 약속이 없으니 출발마감도 없다 — 카운트다운이 안 묶임
     });
 
     it('정차가 순서대로 누적된다 — 뒤 정거장 도착예상에 앞 정거장 정차가 들어간다', () => {
@@ -62,10 +64,11 @@ describe('deriveRouteTimeline — 경로 위에서 누적한다', () => {
         expect(d1.etaMs! - p2.etaMs!).toBe((60 - 20 + p2.dwellMinutes) * 60_000);
     });
 
-    it('추정 약속 = 도착예상 + 여유 30분, 확정 아님 표시', () => {
+    it('추정 약속 = max(도착 예상, 상차 시계) — 여유30 폐기 (⑯), 확정 아님 표시', () => {
         const tl = run();
         const p1 = tl[0];
-        expect(Date.parse(p1.promisedUntil!)).toBe(p1.etaMs! + 30 * 60_000);
+        // A 잡음 03:50 + 잠정 30 = 상차 시계 04:20 · 도착 예상 04:12 → 04:20
+        expect(new Date(Date.parse(p1.promisedUntil!)).toISOString()).toBe('2026-08-19T04:20:00.000Z');
         expect(p1.promiseConfirmed).toBe(false);
     });
 
@@ -91,8 +94,8 @@ describe('deriveRouteTimeline — 경로 위에서 누적한다', () => {
         const tl = run(stops({ driveMinutes: null }));
         const aPick = tl.find(e => e.orderId === 'A' && e.stopType === 'pickup')!;
         expect(aPick.etaMs).toBeNull();
-        // A 는 접근 주행이 있어 콜별 파생(잡은 시각 + 접근 + 30)이 나온다
-        expect(aPick.promisedUntil).toBe('2026-08-19T04:32:00.000Z');
+        // A 는 콜별 파생 폴백 — 두 시계: max(잡음+접근 04:02, 상차 시계 04:20) = 04:20
+        expect(aPick.promisedUntil).toBe('2026-08-19T04:20:00.000Z');
     });
 
     it('경로에 없는 콜의 정거장은 만들지 않는다', () => {
@@ -161,9 +164,11 @@ describe('출발마감의 내역 — 주행분이 결과에 실린다', () => {
 
     it('🔴 출발마감 = 약속 − (주행 + 앞 정차) — 내역이 그 뺄셈과 맞는다', () => {
         const ARRIVE = '2026-08-19T04:40:00.000Z';   // A 상차 확정 04:40
+        // ⏱️ 두 시계에서 추정(바닥) 약속은 "지금 떠나야"로 묶일 수 있어, 이 검사의 의도
+        //    (확정 약속의 출발마감 내역)를 보려면 B 도 넉넉한 확정을 준다
         const reportsOf = (id: string) => id === 'A'
             ? [{ stopType: 'pickup', kind: 'DECLARED', promisedArrivalAt: ARRIVE }] as any
-            : [];
+            : [{ stopType: 'pickup', kind: 'DECLARED', promisedArrivalAt: '2026-08-19T05:40:00.000Z' }] as any;
         const b = pickBindingDeparture(run(stops(), reportsOf))!;
         expect(b.driveMinutes).toBe(12);
         // 첫 정거장이므로 앞 정차는 0 — 04:40 − 12분 = 04:28

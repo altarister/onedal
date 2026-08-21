@@ -56,20 +56,20 @@ describe('하차지 문장 — 앞 정거장을 떠나는 시각은 타임라인
         expect(kst(p.etaMs!)).toBe('16:25');
     });
 
-    it('🔴 상차 약속은 16:55 — 도착 예상 + 여유 30분', () => {
+    it('🔴 상차 약속은 16:39 — 상차 시계(잡음+30) · 여유30 은 폐기 (⑯)', () => {
         const p = run().find(e => e.stopType === 'pickup')!;
-        expect(kst(Date.parse(p.promisedUntil!))).toBe('16:55');
+        expect(kst(Date.parse(p.promisedUntil!))).toBe('16:39');
     });
 
     /**
      * 🔴 **이 값이 없어서 시트가 자기 계산을 했다.**
-     *    출발 = 앞 정거장 약속 + 그 정거장 정차. 16:55 + 8분 = 17:03.
+     *    출발 = 앞 정거장 약속 + 그 정거장 정차. 16:39 + 8분 = 16:47 (두 시계 ⑯).
      *    상차지 시트도 같은 말을 한다 — 두 시트가 갈라질 수 없어야 한다.
      */
-    it('🔴 하차지 문장의 출발 시각은 17:03 — 상차 약속(16:55) + 상차 8분', () => {
+    it('🔴 하차지 문장의 출발 시각은 16:47 — 상차 약속(16:39) + 상차 8분', () => {
         const d = run().find(e => e.stopType === 'dropoff')!;
         expect(d.departPrevMs).not.toBeNull();
-        expect(kst(d.departPrevMs!)).toBe('17:03');
+        expect(kst(d.departPrevMs!)).toBe('16:47');
     });
 
     /**
@@ -90,11 +90,11 @@ describe('하차지 문장 — 앞 정거장을 떠나는 시각은 타임라인
 
     /**
      * 🔴 **문장이 검산된다** — 출발 + 구간 주행 + 휴게 = 도착.
-     *    17:03 + 113분 = 18:56 이 물리적 도착이고, 시트가 말하던 18:26 은 30분 이르다.
+     *    16:47 + 113분 = 18:40 이 물리적 도착이다 (두 시계 ⑯ 갱신).
      */
-    it('🔴 출발 + 구간 주행 = 18:56 — 시트가 말하던 18:26 이 아니다', () => {
+    it('🔴 출발 + 구간 주행 = 18:40 — 시트가 자기 계산하던 18:26 이 아니다', () => {
         const d = run().find(e => e.stopType === 'dropoff')!;
         const arriveMs = d.departPrevMs! + d.segmentDriveMinutes! * 60_000;
-        expect(kst(arriveMs)).toBe('18:56');
+        expect(kst(arriveMs)).toBe('18:40');
     });
 });

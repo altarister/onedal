@@ -376,8 +376,8 @@ describe('콜 잡은 시각 — 시간대를 잘못 붙인 값도 읽어낸다',
         const 결과 = ['2026-08-16T09:10:12Z', '2026-08-16T09:10:12+09:00', '2026-08-16T00:10:12Z']
             .map(cap => t(deriveCallTiming({ ...base, capturedAt: cap }, [], [], NOW).pickupDeadlineAt));
         expect(new Set(결과).size).toBe(1);
-        // 🕒 도착 약속(+13 접근 +30 여유) + 상차 미확인 15분 = 완료 (기사님 2026-08-18 개정 규칙)
-        expect(결과[0]).toBe(new Date(new Date('2026-08-16T09:10:12+09:00').getTime() + (13 + 30 + 15) * 60_000).toISOString());
+        // ⏱️ 두 시계(⑯): 약속 = max(도착 예상 +13, 상차 시계 +30) = +30 · + 상차 미확인 15 = 완료
+        expect(결과[0]).toBe(new Date(new Date('2026-08-16T09:10:12+09:00').getTime() + (30 + 15) * 60_000).toISOString());
     });
 
     it('값이 없거나 이상하면 null (지어내지 않는다)', () => {

@@ -14,6 +14,7 @@
 import { unitPoints } from './cargoUnits';
 import { protectionMinutes, afterworkMinutes } from './cargoUnits';
 import type { CargoReport } from './index';
+import { parseCargoHints } from './cargoHints';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 상하차 소요 시간 (dwell time)
@@ -521,6 +522,9 @@ export interface TimingOrderFields {
      *    그러면 화면을 열 때마다 마감이 뒤로 밀려 *"영원히 여유가 있다"* 고 거짓말한다.
      */
     capturedAt?: string;
+    /** ⏱️ 적요 — 상차 시계("HH:MM상차")를 여기서 읽는다 (두 시계 · ⑯) */
+    itemDescription?: string;
+    detailMemo?: string;
     approachDurationMin?: number;
     totalDistanceKm?: number;
     kakaoSoloDistanceKm?: number;
@@ -583,12 +587,32 @@ export interface DeadlineRules {
     deadlinePickupMinutes?: number;
 }
 export const DEFAULT_DEADLINE_RULES: DeadlineRules = {
-    pickupOffsetMinutes: 60, restMarginMinutes: 30,
-    /** 도착 약속 여유 — 기사님 2026-08-18: "디폴트 체크는 도착시간 + 30분" */
+    /** ⏱️ 상차 시계 잠정 (⑯ · 2026-08-21) — 잡은 시각 + 이만큼 = 무통보 상차 한계.
+     *  옛 뜻("+60 = 완료 마감")에서 재해석·값 60→30 (근거: 소숙 실측 §16-2④) */
+    pickupOffsetMinutes: 30,
+    /** 🏗️ 잔재 — 여유30·휴게30·픽업 보정은 두 시계로 폐기됐다(⑯). 옛 판정 경로
+     *  (deriveCallTiming 마감 사슬)만 아직 읽는다 — dryRun 대체 때 함께 제거 */
+    restMarginMinutes: 30,
     arrivalMarginMinutes: 30,
-    /** 판정 기준 탭의 '시한'과 같은 기본값 — 서버는 judgment 값을 rules 로 넘겨 준다 */
     deadlineRatioPct: 150, deadlinePickupMinutes: 20,
 };
+
+/**
+ * ⏱️ **상차 시계** (주선사의 시계 · ⑯) — 적요의 상차 시각 > 잡은 시각 + 잠정.
+ * 통화로 굳힌 약속은 호출부(declared)가 이긴다. 파생 한 곳 — 시딩과 타임라인이 같이 쓴다.
+ */
+export function pickupClockMsOf(
+    order: Pick<TimingOrderFields, 'itemDescription' | 'detailMemo'>,
+    capturedMs: number, offsetMinutes: number,
+): number {
+    const hint = parseCargoHints(order.itemDescription, order.detailMemo).promisedAt;
+    if (hint) {
+        const kstDay = new Date(capturedMs + 9 * 3600_000).toISOString().slice(0, 10);
+        const t = Date.parse(`${kstDay}T${hint}:00+09:00`);
+        if (Number.isFinite(t) && t >= capturedMs) return t;   // 과거 시각이면 무시
+    }
+    return capturedMs + offsetMinutes * 60_000;
+}
 
 export function deriveCallTiming(
     order: TimingOrderFields,
@@ -663,11 +687,11 @@ export function deriveCallTiming(
      */
     const capturedMs = parseCapturedAt(order.capturedAt, nowMs);
     if (!pickupDeadlineAt && capturedMs != null) {
-        // 도착 예상(잡은 시각 + 카카오 접근 주행) + 여유 30분 = 추정 도착 약속 (기사님 2026-08-18).
-        // 접근 주행을 모르면 도착을 지어내지 않고 옛 규칙(잡은 시각 + 60분 = 완료)으로 폴백한다.
+        // ⏱️ 두 시계 (⑯) — 추정 상차 약속 = max(도착 예상, 상차 시계). 여유30 은 폐기됐다.
         if (approachMinutes != null) {
-            const margin = rules.arrivalMarginMinutes ?? 30;
-            pickupPromisedArrivalAt = new Date(capturedMs + (approachMinutes + margin) * 60_000).toISOString();
+            const clock = pickupClockMsOf(order, capturedMs, rules.pickupOffsetMinutes ?? 30);
+            pickupPromisedArrivalAt = new Date(
+                Math.max(capturedMs + approachMinutes * 60_000, clock)).toISOString();
             pickupDeadlineAt = addMin(pickupPromisedArrivalAt, pickupDwell);
         } else {
             pickupDeadlineAt = defaultPickupDeadline(capturedMs, rules.pickupOffsetMinutes);
@@ -811,7 +835,6 @@ export function deriveRouteTimeline(
     const byId = new Map(orders.map(o => [(o as any).id as string, o]));
     const timingCache = new Map<string, CallTiming>();
     const anchorMs = routeComputedAt ? Date.parse(routeComputedAt) : nowMs;
-    const margin = rules.arrivalMarginMinutes ?? 30;
 
     const out: RouteTimelineEntry[] = [];
     /**
@@ -837,6 +860,8 @@ export function deriveRouteTimeline(
      *   "부터" 대기는 여전히 안 뺀다 — 늦게 떠나면 저절로 줄어드는 시간이다.
      */
     let carriedMs: number | null = null;   // 앞 정거장을 떠나는 시각 (없으면 닻 기준)
+    /** ⏱️ 콜별 상차 완료 예정(약속+정차) — 그 콜의 하차 데드라인 기산점 (두 시계) */
+    const pickupDoneOf = new Map<string, number>();
     // 화면이 말하는 값 — 위 `carriedMs` 와 뜻이 다르다 (RouteTimelineEntry.departPrevMs 주석)
     let prevDriveMin: number | null = null;
     let prevDepartMs: number | null = null;
@@ -859,29 +884,30 @@ export function deriveRouteTimeline(
             r.stopType === st.stopType && r.kind === 'DECLARED' && (r as any).promisedArrivalAt,
         ) as any;
         /**
-         * ⏱️ **추정 약속은 시한 안으로 깎는다** (기사님 실측 2026-08-21 · 리허설 12).
-         *    시딩은 깎는데 여기는 안 깎아서 **한 화면이 두 목소리**를 냈다 —
-         *    새 시트 06:20 vs 카운트다운 "06:36 약속 기준". 추정을 만드는 곳의 규칙은 하나여야 한다.
-         *      하차 캡 = 시한   ·   상차 캡 = 시한 − 배송 주행 − 상차 정차
-         *    배송 주행을 모르면(합짐) 캡 없음 — 지어내지 않는다 (규칙 ④).
-         *    🔴 통화로 굳힌 약속(declared)은 안 깎는다 — 화주 합의가 면책.
-         *    캡이 도착 예상보다 이르면 도착 예상까지만 — 지킬 수 없는 약속을 권하지 않는다.
+         * ⏱️ **추정 약속은 두 시계다** (⑯ · 2026-08-21 — 시딩 d257f90 과 같은 규칙).
+         *    상차 = max(도착 예상, 상차 시계) — 캡 바닥: 도착 전 시각을 권하지 않는다
+         *    하차 = 배달 데드라인 = 상차 완료(실제 PICKED_UP > 이 경로의 상차 약속+정차) + 배송×150%
+         *    배송 주행을 모르면(합짐) 하차 추정 없음 — 지어내지 않는다 (규칙 ④).
+         *    🔴 통화로 굳힌 약속(declared)은 어느 쪽도 안 깎는다 — 화주 합의가 면책.
          */
-        const capMs = (() => {
-            const capturedMs2 = parseCapturedAt(order.capturedAt, nowMs);
-            const ratio = rules.deadlineRatioPct ?? 150;
-            const pickupMin = rules.deadlinePickupMinutes ?? 20;
-            if (capturedMs2 == null || t.soloMinutes == null) return null;
-            const deadline = capturedMs2 + (t.soloMinutes * ratio / 100 + pickupMin) * 60_000;
-            return st.stopType === 'dropoff' ? deadline
-                : deadline - (t.soloMinutes + t.pickupDwell) * 60_000;
+        const capturedMs2 = parseCapturedAt(order.capturedAt, nowMs);
+        const pickedActualMs = (() => {
+            const m = milestonesOf(st.orderId).find(x => x.milestone === 'PICKED_UP' && x.occurredAt);
+            return m ? Date.parse(m.occurredAt!) : null;
         })();
-        const estMs = etaMs != null
-            ? Math.max(etaMs, capMs != null ? Math.min(etaMs + margin * 60_000, capMs) : etaMs + margin * 60_000)
-            : null;
+        const estMs = (() => {
+            if (st.stopType === 'pickup') {
+                if (capturedMs2 == null) return etaMs;
+                const clock = pickupClockMsOf(order, capturedMs2, rules.pickupOffsetMinutes ?? 30);
+                return etaMs != null ? Math.max(etaMs, clock) : clock;
+            }
+            const loadedBase = pickedActualMs ?? pickupDoneOf.get(st.orderId) ?? null;
+            if (loadedBase == null || t.soloMinutes == null) return null;
+            const deadline = loadedBase + t.soloMinutes * (rules.deadlineRatioPct ?? 150) / 100 * 60_000;
+            return etaMs != null ? Math.max(etaMs, deadline) : deadline;
+        })();
         const promisedUntil: string | null = declared?.promisedArrivalAt
-            ?? (estMs != null ? new Date(estMs).toISOString() : null)
-            ?? (st.stopType === 'pickup' ? t.pickupPromisedArrivalAt : t.dropoffPromisedArrivalAt);
+            ?? (estMs != null ? new Date(estMs).toISOString() : null);
 
         /**
          * ⚠️ 실현가능성 — 경로상 도착예상이 **확정** 약속을 넘겼는가.
@@ -928,6 +954,8 @@ export function deriveRouteTimeline(
         const leaveBase = actualMs ?? (promisedUntil ? Date.parse(promisedUntil) : etaMs);
         prevDepartMs = leaveBase != null ? leaveBase + dwell * 60_000 : null;
         prevDriveMin = st.driveMinutes;
+        // ⏱️ 이 콜의 상차 완료 예정 — 하차 데드라인의 기산점 (실측 PICKED_UP 이 있으면 그쪽이 이김)
+        if (st.stopType === 'pickup' && prevDepartMs != null) pickupDoneOf.set(st.orderId, prevDepartMs);
 
         const fromAt = declared?.promisedArrivalFromAt ? Date.parse(declared.promisedArrivalFromAt) : null;
         const confirmedUntil = declared && promisedUntil ? Date.parse(promisedUntil) : null;

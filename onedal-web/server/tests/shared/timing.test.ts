@@ -216,9 +216,9 @@ describe('deriveCallTiming — 시간 파생의 유일한 지점', () => {
         expect(t.pickupDeadlineAt).not.toBeNull();
         expect(t.dropoffDeadlineAt).not.toBeNull();
         expect(t.departureAt).not.toBeNull();
-        // 🕒 도착 약속(잡은 시각 + 접근 39분 + 여유 30분) + 상차 소요 = 완료 (기사님 2026-08-18 개정).
-        //    옛 규칙(+60분 완료)은 접근 주행을 모를 때의 폴백으로만 남는다.
-        expect(new Date(t.pickupPromisedArrivalAt!).getTime() - NOW).toBe((39 + 30) * 60_000);
+        // ⏱️ 두 시계(⑯): 추정 도착 약속 = max(도착 예상 39분, 상차 시계 30분) = +39분.
+        //    여유30·+60 완료 규칙은 폐기 — 접근이 시계를 넘으면 도착 예상이 바닥이다
+        expect(new Date(t.pickupPromisedArrivalAt!).getTime() - NOW).toBe(39 * 60_000);
         expect(new Date(t.pickupDeadlineAt!).getTime() - new Date(t.pickupPromisedArrivalAt!).getTime())
             .toBe(t.pickupDwell * 60_000);
     });
