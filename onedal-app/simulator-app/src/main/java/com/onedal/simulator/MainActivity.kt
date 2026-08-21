@@ -90,7 +90,8 @@ class MainActivity : Activity() {
         // 자주 쓰는 것만 — 나머지는 "직접 입력"
         val labels = arrayOf(
             "로컬 · 인성콜  ($ip)",
-            "로컬 · 인성콜 🎯오탐 문제지",
+            "로컬 · 인성콜 🎯오탐 문제지 (4콜)",
+            "로컬 · 인성콜 📼리허설 무대 (16콜)",
             "로컬 · 화물24시",
             "배포본 (map.altari.com)",
             "개발용 PC IP 바꾸기  (지금 $ip)",
@@ -99,6 +100,7 @@ class MainActivity : Activity() {
         val urls = arrayOf(
             "$base/inseong",
             "$base/inseong/dispatch?preset=ohtam",
+            "$base/inseong/dispatch?preset=rehearsal",
             "$base/hwamul24",
             DEFAULT_URL,
         )
@@ -108,7 +110,7 @@ class MainActivity : Activity() {
             .setItems(labels) { _, which ->
                 when (which) {
                     in urls.indices -> load(urls[which])
-                    4 -> askText("개발용 PC IP", ip) { v ->
+                    urls.size -> askText("개발용 PC IP", ip) { v ->
                         prefs.edit().putString(KEY_IP, v.trim()).apply()
                         Toast.makeText(this, "PC IP 저장: ${v.trim()}", Toast.LENGTH_SHORT).show()
                         showUrlPicker()
