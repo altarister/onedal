@@ -11,6 +11,7 @@ import { SimulationProvider, useSimulationContext } from '@altari/ui-simulators'
 import { useSimStreaming } from '@altari/ui-simulators';
 import { Hwamul24DispatchBoard } from '@altari/ui-simulators';
 import { Hwamul24CallDetailScreen } from '@altari/ui-simulators';
+import { getPreset } from '@altari/core-simulator';
 import type { CallItem } from '@altari/core-simulator';
 
 function Hwamul24DispatchContent() {
@@ -35,13 +36,18 @@ function Hwamul24DispatchContent() {
     targetRegion: simConfig.targetRegion
   }), [driverLocation, simConfig]);
 
+  // 🎯 문제지 — `?preset=오탐` (인성 페이지와 같은 규약)
+  const [presetParams] = useSearchParams();
+  const preset = useMemo(() => getPreset(presetParams.get('preset')), [presetParams]);
+
   useSimStreaming({
     config: generatorConfig,
     appendCall,
     setIsFetchingOrder,
     isTimerPaused,
     intervalMs: simConfig.intervalMs,
-    initialCount: 5
+    initialCount: 5,
+    preset
   });
 
   // 콜 클릭

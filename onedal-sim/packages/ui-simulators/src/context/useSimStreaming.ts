@@ -4,8 +4,8 @@
  * GameContext 의존성 없음. 마운트 즉시 스트리밍 시작.
  */
 import { useEffect, useRef } from 'react';
-import { generateSimCall } from '@altari/core-simulator';
-import type { SimGeneratorConfig, CallItem } from '@altari/core-simulator';
+import { generateSimCall, toForcedPair } from '@altari/core-simulator';
+import type { SimGeneratorConfig, CallItem, PresetProblem } from '@altari/core-simulator';
 
 interface UseSimStreamingProps {
   config: SimGeneratorConfig;
@@ -14,6 +14,11 @@ interface UseSimStreamingProps {
   isTimerPaused: boolean;
   intervalMs?: number;
   initialCount?: number;
+  /**
+   * 🎯 문제지 — 있으면 **랜덤 대신 이 목록을 순서대로** 흘린다 (다 흘리면 멈춘다).
+   * 특정 조건(예: 인천 남동구행)을 시험하려고 복권을 긁지 않기 위한 것이다.
+   */
+  preset?: PresetProblem[] | null;
 }
 
 export const useSimStreaming = ({
@@ -22,24 +27,47 @@ export const useSimStreaming = ({
   setIsFetchingOrder,
   isTimerPaused,
   intervalMs = 5000,
-  initialCount = 5
+  initialCount = 5,
+  preset = null
 }: UseSimStreamingProps) => {
 
-  const configRef = useRef({ config, appendCall, setIsFetchingOrder, intervalMs });
+  const configRef = useRef({ config, appendCall, setIsFetchingOrder, intervalMs, preset });
   const seededRef = useRef(false);
+  // 문제지를 어디까지 냈는가 — 한 문제씩 순서대로 낸다
+  const presetIdxRef = useRef(0);
 
   useEffect(() => {
-    configRef.current = { config, appendCall, setIsFetchingOrder, intervalMs };
-  }, [config, appendCall, setIsFetchingOrder, intervalMs]);
+    configRef.current = { config, appendCall, setIsFetchingOrder, intervalMs, preset };
+  }, [config, appendCall, setIsFetchingOrder, intervalMs, preset]);
+
+  /**
+   * 다음 콜 하나 — 문제지가 있으면 그 다음 문제, 없으면 랜덤.
+   * 문제지를 다 냈으면 null(더 안 낸다) — 랜덤으로 되돌아가면 채점이 흐려진다.
+   */
+  const nextCall = () => {
+    const cfg = configRef.current;
+    if (cfg.preset && cfg.preset.length > 0) {
+      const p = cfg.preset[presetIdxRef.current];
+      if (!p) return null;
+      presetIdxRef.current += 1;
+      const forced = toForcedPair(p);
+      if (!forced) return null;
+      console.log(`🎯 [문제지] ${p.label} — 앱이 ${p.expect === 'BLOCK' ? '걸러야' : '올려야'} 한다 · ${p.why}`);
+      return generateSimCall(cfg.config, forced);
+    }
+    return generateSimCall(cfg.config);
+  };
 
   useEffect(() => {
     if (isTimerPaused) return;
 
     // 초기 시드: 최초 마운트 시 한 번만 실행
+    // 🎯 문제지 모드에서는 **한 문제씩** 봐야 하므로 미리 쏟지 않는다
     if (!seededRef.current) {
       const cfg = configRef.current;
-      for (let i = 0; i < initialCount; i++) {
-        const call = generateSimCall(cfg.config);
+      const seedCount = cfg.preset ? 1 : initialCount;
+      for (let i = 0; i < seedCount; i++) {
+        const call = nextCall();
         if (call) cfg.appendCall(call);
       }
       seededRef.current = true;
@@ -53,7 +81,7 @@ export const useSimStreaming = ({
       const loadingTime = Math.min(cfg.intervalMs / 2, 500);
 
       innerTimeoutId = setTimeout(() => {
-        const call = generateSimCall(cfg.config);
+        const call = nextCall();
         if (call) cfg.appendCall(call);
         cfg.setIsFetchingOrder(false);
       }, loadingTime);

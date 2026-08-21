@@ -9,8 +9,24 @@ import type { CallItem, LocationDetailInfo } from './types';
 import mockDataRaw from './data/mockLocationData.json';
 
 // 좌표가 포함된 모의 데이터
-type MockEntry = LocationDetailInfo & { lon: number; lat: number };
+export type MockEntry = LocationDetailInfo & { lon: number; lat: number };
 const MOCK_DATA = mockDataRaw as MockEntry[];
+
+/** 주소 조각으로 모의 데이터를 찾는다 — 프리셋(문제지)이 실제 좌표를 쓰기 위한 창구 */
+export function findMockEntry(addressPart: string): MockEntry | undefined {
+    return MOCK_DATA.find(m => (m.addressDetail || '').includes(addressPart));
+}
+
+/**
+ * 🎯 **강제 쌍** — 랜덤 대신 정해진 상차·하차로 콜을 만든다 (문제지 모드).
+ * 요금·차종까지 고정할 수 있어야 같은 콜이 매번 같게 재현된다.
+ */
+export interface ForcedPair {
+    pickup: MockEntry;
+    dropoff: MockEntry;
+    fare?: number;
+    vehicleType?: string;
+}
 
 // ======= 요금 상수 =======
 const BASE_FARE = 10000;
@@ -41,7 +57,7 @@ export interface SimGeneratorConfig {
  * mockLocationData.json에서 기사 반경 내 항목을 필터링하고
  * 상차지/하차지를 선택하여 CallItem을 생성합니다.
  */
-export function generateSimCall(config: SimGeneratorConfig): CallItem | null {
+export function generateSimCall(config: SimGeneratorConfig, forced?: ForcedPair): CallItem | null {
   const { driverLon, driverLat, maxPickupKm, minFare, targetRegion } = config;
   const driverCoord: [number, number] = [driverLon, driverLat];
 
@@ -65,7 +81,9 @@ export function generateSimCall(config: SimGeneratorConfig): CallItem | null {
 
   // 가까운 곳이 더 자주 선택되도록 제곱 편향
   const randSkew = Math.pow(Math.random(), 2.0);
-  const pickupItem = pickupCandidates[Math.floor(randSkew * pickupCandidates.length)];
+  let pickupItem = pickupCandidates[Math.floor(randSkew * pickupCandidates.length)];
+  // 🎯 문제지 모드 — 정해진 상차지로 갈아 끼운다 (반경 밖이어도 그대로 낸다: 문제지는 조건을 시험한다)
+  if (forced) pickupItem = { entry: forced.pickup, dist: calculateDistanceKm(driverCoord, [forced.pickup.lon, forced.pickup.lat]) };
 
   // 3. 하차지 후보
   let dropoffCandidates = withDistance.filter(m => m.entry !== pickupItem.entry);
@@ -79,8 +97,8 @@ export function generateSimCall(config: SimGeneratorConfig): CallItem | null {
     }
   }
 
-  if (dropoffCandidates.length === 0) return null;
-  const dropoffItem = pick(dropoffCandidates);
+  if (dropoffCandidates.length === 0 && !forced) return null;
+  let dropoffItem = forced ? { entry: forced.dropoff, dist: 0 } : pick(dropoffCandidates);
 
   // 4. 거리/요금 계산
   const pickupCoord: [number, number] = [pickupItem.entry.lon, pickupItem.entry.lat];
@@ -91,7 +109,8 @@ export function generateSimCall(config: SimGeneratorConfig): CallItem | null {
 
   let fare = BASE_FARE + (distanceKm * FARE_PER_KM) + (Math.random() * FARE_RANDOM_EXTRA);
   fare = Math.max(fare, minFare);
-  const finalFare = Math.floor(fare / 1000) * 1000;
+  // 문제지는 요금까지 고정한다 — 같은 콜이 매번 같아야 채점이 성립한다
+  const finalFare = forced?.fare ?? Math.floor(fare / 1000) * 1000;
 
   // 5. 메타 데이터 부여
   const isShared = Math.random() < 0.3;
@@ -146,7 +165,7 @@ export function generateSimCall(config: SimGeneratorConfig): CallItem | null {
     isExpress,
     paymentType: pick(PAYMENT_OPTIONS),
     billingType: pick(BILLING_OPTIONS),
-    vehicleType: pick(VEHICLE_OPTIONS),
+    vehicleType: forced?.vehicleType ?? pick(VEHICLE_OPTIONS),
     itemDescription: pick(ITEM_OPTIONS),
     callCategory: isExpress ? '급송' : pick(CATEGORY_OPTIONS),
     companyName: pick(COMPANY_OPTIONS),

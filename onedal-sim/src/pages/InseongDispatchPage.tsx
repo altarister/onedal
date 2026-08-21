@@ -13,6 +13,7 @@ import { InseongDispatchBoard } from '@altari/ui-simulators';
 import { InseongCallDetailScreen } from '@altari/ui-simulators';
 import { InseongOngoingDetailScreen } from '@altari/ui-simulators';
 import { InseongDropdownMenu } from '@altari/ui-simulators';
+import { getPreset } from '@altari/core-simulator';
 import type { CallItem } from '@altari/core-simulator';
 
 function SimDispatchContent() {
@@ -38,13 +39,18 @@ function SimDispatchContent() {
     targetRegion: simConfig.targetRegion
   }), [driverLocation, simConfig]);
 
+  // 🎯 문제지 — `?preset=오탐` 이면 랜덤 대신 정해진 콜을 순서대로 흘린다
+  const [presetParams] = useSearchParams();
+  const preset = useMemo(() => getPreset(presetParams.get('preset')), [presetParams]);
+
   useSimStreaming({
     config: generatorConfig,
     appendCall,
     setIsFetchingOrder,
     isTimerPaused,
     intervalMs: simConfig.intervalMs,
-    initialCount: 5
+    initialCount: 5,
+    preset
   });
 
   // 콜 클릭
