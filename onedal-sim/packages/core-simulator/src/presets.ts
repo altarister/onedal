@@ -97,6 +97,13 @@ export const PRESETS: Record<string, PresetProblem[]> = {
      * 🔴 `expect`(정답)를 적지 않았다 — 통과 여부가 **그날 필터 상태**(국면·반경·도착 도시)에
      *    달렸기 때문이다. 이건 채점 문제지가 아니라 **무대 재현**이다.
      * 좌표·주소는 서버 `geocode_cache` 의 실측값을 그대로 옮겼다 (지어낸 값이 아니다).
+     *
+     * 🔴 **차종은 화면 코드로 적는다** (`오·다·라·1t`) — 2026-08-22 실측으로 잡은 것.
+     *    리허설은 서버에 직접 주입해서 `다마스`·`승용차` 같은 전체 이름을 썼지만, 여기는
+     *    **화면에 글자로 그려지고 앱이 그걸 읽는다.** 앱 파서의 차종 정규식은 축약 코드만
+     *    받으므로(`^(오|다|라|1t|…)$`), 전체 이름을 적으면 차종을 못 읽어 **요금까지 어긋난다**
+     *    (실측: 다마스 콜이 1t 로 읽혔다). `승용차` 는 화면 코드가 없어 `라`(라보)로 둔다 —
+     *    단가가 624원/km 로 같아 판정 결과가 바뀌지 않는다.
      */
     '리허설': [
     {
@@ -117,42 +124,42 @@ export const PRESETS: Record<string, PresetProblem[]> = {
         label: '03. 합짐 순방향 소형 · 목현동 → 파주 문발동',
         pickup: '경기 광주시 목현동 558 쏘카 광주정비센터', pickupFallback: { region: '목현동', addressDetail: '경기 광주시 목현동 558 쏘카 광주정비센터', lon: 127.204247220314, lat: 37.4418813986696 },
         dropoff: '경기 파주시 문발동 회동길 145 아시아출판문화정보센터', dropoffFallback: { region: '문발동', addressDetail: '경기 파주시 문발동 회동길 145 아시아출판문화정보센터', lon: 126.686833634678, lat: 37.7085496415678 },
-        fare: 30000, vehicleType: '다마스',
+        fare: 30000, vehicleType: '다',
         why: '리허설 3번과 같은 콜',
     },
     {
         label: '04. 합짐 순방향 · 초월읍 → 파주 탄현면 아울렛',
         pickup: '경기 광주시 초월읍 경충대로 2073 초월읍행정복지센터', pickupFallback: { region: '초월읍', addressDetail: '경기 광주시 초월읍 경충대로 2073 초월읍행정복지센터', lon: 127.287960741315, lat: 37.3852482375545 },
         dropoff: '경기 파주시 탄현면 필승로 200 신세계사이먼 파주프리미엄아울렛', dropoffFallback: { region: '탄현면', addressDetail: '경기 파주시 탄현면 필승로 200 신세계사이먼 파주프리미엄아울렛', lon: 126.695385303664, lat: 37.769351232912 },
-        fare: 90000, vehicleType: '오토바이',
+        fare: 90000, vehicleType: '오',
         why: '리허설 4번과 같은 콜',
     },
     {
         label: '05. 합짐 중간 상차 · 일산 웨스턴돔 → 파주 야당동 — 경로 후반끼리',
         pickup: '경기 고양시 일산동구 정발산로 24 웨스턴돔', pickupFallback: { region: '일산동구', addressDetail: '경기 고양시 일산동구 정발산로 24 웨스턴돔', lon: 126.772038816453, lat: 37.6558964094856 },
         dropoff: '경기 파주시 야당동 경의로 1007 홈플러스 운정점', dropoffFallback: { region: '야당동', addressDetail: '경기 파주시 야당동 경의로 1007 홈플러스 운정점', lon: 126.73674522120051, lat: 37.729529103751986 },
-        fare: 40000, vehicleType: '라보',
+        fare: 40000, vehicleType: '라',
         why: '리허설 5번과 같은 콜',
     },
     {
         label: '06. 역주행 · 파주 금촌동 → 광주 경안동 — 🔴 차단돼야 정상',
         pickup: '경기 파주시 금촌동 768-2 농협 금촌지점', pickupFallback: { region: '금촌동', addressDetail: '경기 파주시 금촌동 768-2 농협 금촌지점', lon: 126.77784164063, lat: 37.7605231854904 },
         dropoff: '경기 광주시 경안동 167-1 경안천 체육공원', dropoffFallback: { region: '경안동', addressDetail: '경기 광주시 경안동 167-1 경안천 체육공원', lon: 127.252889947198, lat: 37.4100225848715 },
-        fare: 90000, vehicleType: '오토바이',
+        fare: 90000, vehicleType: '오',
         why: '리허설 6번과 같은 콜',
     },
     {
         label: '07. 경로 밖 상차 · 성남 판교 → 파주 탄현면 — 🔴 차단돼야 정상',
         pickup: '경기 성남시 분당구 판교역로 146 현대백화점 판교점', pickupFallback: { region: '분당구', addressDetail: '경기 성남시 분당구 판교역로 146 현대백화점 판교점', lon: 127.11204751299005, lat: 37.39279718014944 },
         dropoff: '경기 파주시 탄현면 축현리 243 쿠팡 파주풀필먼트센터', dropoffFallback: { region: '탄현면', addressDetail: '경기 파주시 탄현면 축현리 243 쿠팡 파주풀필먼트센터', lon: 126.732643858007, lat: 37.8096400252179 },
-        fare: 80000, vehicleType: '오토바이',
+        fare: 80000, vehicleType: '오',
         why: '리허설 7번과 같은 콜',
     },
     {
         label: '08. 우회 큰 합짐 · 남한산성 → 파주 법원읍 — 우회 커서 낮은 점수',
         pickup: '경기 광주시 남한산성면 남한산성로 731 남한산성', pickupFallback: { region: '남한산성면', addressDetail: '경기 광주시 남한산성면 남한산성로 731 남한산성', lon: 127.188418117775, lat: 37.4766964501253 },
         dropoff: '경기 파주시 법원읍 법원리 495-1 법원읍행정복지센터', dropoffFallback: { region: '법원읍', addressDetail: '경기 파주시 법원읍 법원리 495-1 법원읍행정복지센터', lon: 126.879961040737, lat: 37.8559448212025 },
-        fare: 70000, vehicleType: '다마스',
+        fare: 70000, vehicleType: '다',
         why: '리허설 8번과 같은 콜',
     },
     {
@@ -173,7 +180,7 @@ export const PRESETS: Record<string, PresetProblem[]> = {
         label: '11. 주행중 합짐 · 남양주 다산역 → 파주시청 — 출발 후 경로 위에서 잡기',
         pickup: '경기 남양주시 다산동 6067-4 다산역', pickupFallback: { region: '다산동', addressDetail: '경기 남양주시 다산동 6067-4 다산역', lon: 127.14979716054, lat: 37.6242782781657 },
         dropoff: '경기 파주시 금촌동 시청로 36 파주시청', dropoffFallback: { region: '금촌동', addressDetail: '경기 파주시 금촌동 시청로 36 파주시청', lon: 126.77745767154, lat: 37.7592897612753 },
-        fare: 40000, vehicleType: '오토바이',
+        fare: 40000, vehicleType: '오',
         why: '리허설 11번과 같은 콜',
     },
     {
@@ -187,28 +194,28 @@ export const PRESETS: Record<string, PresetProblem[]> = {
         label: '13. 노하우① 서울 가산동 → 평택 진위면 — 잡고 43분 뒤 픽업했던 콜',
         pickup: '서울 금천구 가산동', pickupFallback: { region: '가산동', addressDetail: '서울 금천구 가산동', lon: 126.887331423733, lat: 37.4764396758109 },
         dropoff: '경기 평택시 진위면', dropoffFallback: { region: '진위면', addressDetail: '경기 평택시 진위면', lon: 127.086486466222, lat: 37.0981445784915 },
-        fare: 30000, vehicleType: '승용차',
+        fare: 30000, vehicleType: '라',
         why: '리허설 13번과 같은 콜',
     },
     {
         label: '14. 노하우② 영등포 양평동 → 평택 안중읍 — 블라인드·배달 빠듯했던 콜',
         pickup: '서울 영등포구 양평동', pickupFallback: { region: '양평동', addressDetail: '서울 영등포구 양평동', lon: 126.891286436895, lat: 37.5346717204507 },
         dropoff: '경기 평택시 안중읍', dropoffFallback: { region: '안중읍', addressDetail: '경기 평택시 안중읍', lon: 126.949923987001, lat: 36.9957132982606, memo: '평택 시내 (블라인드 — 실제는 안중읍)' },
-        fare: 38000, vehicleType: '승용차',
+        fare: 38000, vehicleType: '라',
         why: '리허설 14번과 같은 콜',
     },
     {
         label: '15. 노하우③ 영등포 문래동 → 용인 상갈동 — 10시 예약, 통화로 9:50 당김',
         pickup: '서울 영등포구 문래동', pickupFallback: { region: '문래동', addressDetail: '서울 영등포구 문래동', lon: 126.89777054767478, lat: 37.51398329680753 },
         dropoff: '경기 용인시 기흥구 상갈동', dropoffFallback: { region: '상갈동', addressDetail: '경기 용인시 기흥구 상갈동', lon: 127.108456942804, lat: 37.2707323982422, memo: '10:00상차 예약' },
-        fare: 35000, vehicleType: '승용차',
+        fare: 35000, vehicleType: '라',
         why: '리허설 15번과 같은 콜',
     },
     {
         label: '16. 노하우④ 가산 옆 3분 → 용인 지곡동 — 통화 0건이었던 콜',
         pickup: '서울 금천구 가산디지털단지', pickupFallback: { region: '가산디지털단지', addressDetail: '서울 금천구 가산디지털단지', lon: 126.882661758356, lat: 37.4803959660982 },
         dropoff: '경기 용인시 기흥구 지곡동', dropoffFallback: { region: '지곡동', addressDetail: '경기 용인시 기흥구 지곡동', lon: 127.128773551608, lat: 37.2494402392591 },
-        fare: 35000, vehicleType: '승용차',
+        fare: 35000, vehicleType: '라',
         why: '리허설 16번과 같은 콜',
     },
     ],

@@ -153,11 +153,10 @@ export function InseongDispatchPage() {
     minFare: Number(searchParams.get('minFare') || '30000'),
     targetRegion: searchParams.get('target') || '',
     /**
-     * 🕐 콜이 뜨는 간격. 문제지 모드는 **한 콜씩 원달앱으로 끝까지 해 보는** 자리라
-     * 훨씬 길게 준다 (잡기 → 심사 → 결재 → 30초 안전취소가 한 콜에 1분 가까이 걸린다).
-     * `?interval=15000` 처럼 직접 지정하면 그 값이 이긴다.
+     * 🕐 콜이 뜨는 간격 — 실제 배차망처럼 **5초**(기사님 확정 2026-08-22).
+     * 천천히 보고 싶으면 `?interval=20000` 처럼 직접 지정한다.
      */
-    intervalMs: Number(searchParams.get('interval') || (searchParams.get('preset') ? '45000' : '5000'))
+    intervalMs: Number(searchParams.get('interval') || '5000')
   };
 
   return (
