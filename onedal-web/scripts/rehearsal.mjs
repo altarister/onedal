@@ -105,8 +105,11 @@ const PRESETS = [
      * ⚠️ 주소가 캐시 밖(서울·평택·용인)이라 첫 주입 때 카카오 지오코딩이 한 번씩 돈다.
      *    콜 필터(파주 노선)에 막히면 "그래도 올릴까요"에 y — 영상 기사의 필터는 우리와 다르다.
      */
-    { key: '13', label: '노하우① 서울 가산동 → 평택 진위면 (3만/승용차) — 잡고 43분 뒤 픽업했던 콜',
-      pickup: '서울 금천구 가산동', dropoff: '경기 평택시 진위면', fare: 30000, vehicleType: '승용차' },
+    { key: '13', label: '노하우① 서울 가산동 → 평택 진위면 (3만/승용차) — 잡고 43분 뒤 픽업했던 콜 (📍 시작 위치를 신림역으로 옮김)',
+      pickup: '서울 금천구 가산동', dropoff: '경기 평택시 진위면', fare: 30000, vehicleType: '승용차',
+      // 채점 조건 (시간체계 16-4): 시작 위치 신림/가산권 — 초월읍 기점이면 13번 접근이
+      // 75분이라 문제지 자체가 왜곡된다. 신림역 실좌표 (지어낸 값 아님)
+      start: { label: '신림역 (노하우 시작 위치)', lat: 37.4842, lng: 126.9294 } },
     { key: '14', label: '노하우② 영등포 양평동 → 평택 안중읍 (3.8만/승용차) — 블라인드("평택시")·배달 빠듯했던 콜',
       pickup: '서울 영등포구 양평동', dropoff: '경기 평택시 안중읍', fare: 38000, vehicleType: '승용차',
       memo: '평택 시내 (블라인드 — 실제는 안중읍)' },
@@ -262,8 +265,38 @@ function buildRawText(t, n) {
     ].join('\n');
 }
 
+/**
+ * 📍 **시작 위치 이동** — 위치가 서버로 들어오는 문은 `dashboard-gps-update` 소켓
+ * **하나뿐**이라(socketHandlers 주석), 리허설도 관제웹인 척 그 문으로 들어간다.
+ * lifecycle.mjs 와 같은 방식: auth/bypass 토큰 + client-app 의 socket.io-client.
+ * ⚠️ 관제웹 목업 주행이 GPS 를 쏘는 중이면 나중 값이 이긴다 — 시작 위치는
+ *    문제지를 **시작하기 전**(운행 전)에 옮기는 용도다.
+ */
+let gpsSocket = null;
+async function moveTo(start) {
+    if (!gpsSocket) {
+        const { io } = await import(join(ROOT, 'client-app/node_modules/socket.io-client/build/esm/index.js'));
+        const { accessToken } = await (await fetch(`${BASE}/api/auth/bypass`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
+        })).json();
+        gpsSocket = io(BASE, { auth: { token: accessToken }, transports: ['websocket'] });
+        await new Promise((res, rej) => {
+            gpsSocket.once('connect', res);
+            gpsSocket.once('connect_error', e => rej(new Error(e.message)));
+            setTimeout(() => rej(new Error('소켓 연결 시간 초과')), 8000);
+        });
+    }
+    gpsSocket.emit('dashboard-gps-update', { lat: start.lat, lng: start.lng, source: 'rehearsal-시작위치' });
+    await new Promise(r => setTimeout(r, 1200));   // 서버가 필터 중심·경로를 재계산할 틈
+    console.log(`  📍 시작 위치를 ${start.label} 로 옮겼습니다 — 노하우 문제지 채점 조건 (16-4)`);
+}
+
 let seq = 0;
 async function inject(t) {
+    if (t.start) {
+        try { await moveTo(t.start); }
+        catch (e) { console.log(`  ⚠️ 시작 위치 이동 실패 (${e.message}) — 현 위치 그대로 진행합니다`); }
+    }
     if (!t.pickup || !t.dropoff) { console.log('  🔴 이 주소가 지오코딩 캐시에 없어 건너뜁니다'); return; }
 
     // 앱이라면 잡았을까 — 올리기 전에 같은 규칙으로 미리 판정
