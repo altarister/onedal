@@ -133,6 +133,25 @@ export function scoreDryRun(input: DryRunInput, cfg: JudgmentConfig): DryRunVerd
     return { color, score, axes, gates: input.gates, tags: input.tags };
 }
 
+/**
+ * 🧮 **합짐의 우회는 한계 비용이다 — 첫짐 대비 누적이 아니다** (문제지 캘리브레이션 1차 · 2026-08-21)
+ *
+ * 카카오 `timeDiffMin` 은 **첫짐 단독 대비**라, 나중에 온 후보일수록 앞 합짐들의
+ * 비용까지 뒤집어쓴다. 문제지 실측: 16번의 delta +189분 — 진짜 한계 비용은
+ * 294(4콜) − 251(직전 3콜) = **43분**이었다. 이 부풀림이 옛 판정 낙제(+162분)와
+ * dryRun 1차의 15·16 🟢(합격선 🔵) 둘 다의 원인이다.
+ *
+ * 직전 경로의 총 소요를 알면 그걸 빼고, 모르면(첫 합짐 — 직전 = 첫짐 단독) 카카오
+ * delta 를 그대로 쓴다 — 그때는 둘이 같은 값이다.
+ */
+export function marginalDetourMin(
+    mergedTotalMin: number,
+    prevRouteTotalMin: number | null,
+    fallbackDiffMin: number,
+): number {
+    return prevRouteTotalMin != null ? Math.round(mergedTotalMin - prevRouteTotalMin) : fallbackDiffMin;
+}
+
 /** 로그 한 줄 — `🧪 [dryRun] 🟢 64점 (순증 2.6만/h · 버퍼 최소 +18분) · 딱지: 통화 필수` */
 export function describeDryRun(v: DryRunVerdict): string {
     const emoji = v.color === '꿀' ? '🔵' : v.color === '보통' ? '🟢' : v.color === '똥' ? '🟡' : '🔴';

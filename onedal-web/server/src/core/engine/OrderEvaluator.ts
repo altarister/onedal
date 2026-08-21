@@ -1,5 +1,5 @@
 import { PendingOrder, SecuredOrder, MyOrder, scoreMerge, scoreSolo, describeJudgment, TRUCK_CAPACITY_SLOTS, callName , DEFAULT_DEADLINE_RULES,
-         scoreDryRun, describeDryRun, deriveRouteTimeline, minRouteBuffer } from "@onedal/shared";
+         scoreDryRun, describeDryRun, deriveRouteTimeline, minRouteBuffer, marginalDetourMin } from "@onedal/shared";
 import type { DryRunGate } from "@onedal/shared";
 import { OrderRepository } from "../../repositories/OrderRepository";
 import { getUserSession } from "../../state/userSessionStore";
@@ -283,8 +283,24 @@ export class OrderEvaluator {
                             });
 
                             const bufAfter = minRouteBuffer(existing);
-                            // 딱지 — 판단 없이 사실만 (절대치 문턱의 강등 자리)
-                            const tags = [`우회 ${result.timeDiffMin > 0 ? '+' : ''}${result.timeDiffMin}분 · ${distDiff > 0 ? '+' : ''}${distDiff}km`];
+
+                            /**
+                             * 🧮 우회는 **한계 비용** — 직전 경로(붙이기 전) 총 소요를 뺀다.
+                             * 카카오 delta(첫짐 단독 대비 누적)를 그대로 쓰면 나중 후보가
+                             * 앞 합짐들의 비용을 뒤집어쓴다 (문제지 16번: +189분, 진짜는 43분).
+                             * 직전 총 소요는 경로 홀더가 들고 있다 — "값이 있는 마지막 콜".
+                             */
+                            const prevTotal = [...activeCalls].reverse()
+                                .find(c => c.totalDurationMin != null)?.totalDurationMin ?? null;
+                            const marginal = marginalDetourMin(
+                                Math.round(result.merged.duration / 60), prevTotal, result.timeDiffMin);
+
+                            // 딱지 — 판단 없이 사실만 (절대치 문턱의 강등 자리). 분·km 둘 다 한계 기준
+                            const prevKm = [...activeCalls].reverse()
+                                .find(c => c.totalDistanceKm != null)?.totalDistanceKm ?? null;
+                            const marginalKm = prevKm != null
+                                ? Math.round((result.merged.distance / 1000 - prevKm) * 10) / 10 : distDiff;
+                            const tags = [`우회 ${marginal > 0 ? '+' : ''}${marginal}분 · ${marginalKm > 0 ? '+' : ''}${marginalKm}km`];
                             const candPickup = tlAfter.find(e => e.orderId === securedOrder.id && e.stopType === 'pickup');
                             const clockMs = Date.now() + session.judgment.unknown.pickupOffsetMin * 60_000;
                             if (candPickup?.etaMs != null && candPickup.etaMs > clockMs) tags.push('통화 필수 — 무통보 상차 한계 밖');
@@ -293,7 +309,7 @@ export class OrderEvaluator {
 
                             const dry = scoreDryRun({
                                 kind: 'merge', fare: securedOrder.fare,
-                                detourExtraMin: cost.total,
+                                detourExtraMin: marginal + cost.dwell,
                                 bufferAfterMin: bufAfter?.minutes ?? null,
                                 slotsFreePct: slotsTotal > 0
                                     ? (Math.max(0, slotsTotal - slotsUsed) / slotsTotal) * 100 : null,

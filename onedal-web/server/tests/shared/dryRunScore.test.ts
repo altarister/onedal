@@ -1,4 +1,4 @@
-import { scoreDryRun, describeDryRun, DEFAULT_JUDGMENT } from '@onedal/shared';
+import { scoreDryRun, describeDryRun, marginalDetourMin, DEFAULT_JUDGMENT } from '@onedal/shared';
 
 /**
  * 🧪 **새 판정 채점기** — 판정색_확정안 v2 (기사님 확정 2026-08-21)
@@ -73,6 +73,23 @@ describe('scoreDryRun — 확정안 v2 구조', () => {
         expect(v.axes.length).toBe(0);
         expect(v.score).toBe(0);
         expect(v.tags).toContain('버퍼 잴 약속 없음');
+    });
+
+    /**
+     * 🧮 **문제지 캘리브레이션 1차** (2026-08-21 16:12 실측) — 우회는 한계 비용이다.
+     * 카카오 delta 는 첫짐 단독 대비 누적이라 16번이 +189분을 뒤집어썼다.
+     * 한계(294−251=43)로 재면 3.5만÷68분(정차 25 포함) = 3.1만/h → 🔵 — 합격선 그대로.
+     */
+    it('🔴 한계 비용 — 16번 문제지: 누적 +189가 아니라 294−251=43분', () => {
+        expect(marginalDetourMin(294, 251, 189)).toBe(43);
+        // 첫 합짐(직전 = 첫짐 단독)은 카카오 delta 그대로 — 둘이 같은 값이다
+        expect(marginalDetourMin(213, null, 109)).toBe(109);
+
+        const v = scoreDryRun({ kind: 'merge', fare: 35000,
+            detourExtraMin: marginalDetourMin(294, 251, 189) + 25,   // + 정차 25분
+            bufferAfterMin: 0, slotsFreePct: 85, gates: [], tags: [] }, cfg);
+        expect(v.axes.find(a => a.key === 'revenuePerDetour')!.score).toBe(100);  // 3.1만/h ≥ 목표
+        expect(v.color).toBe('꿀');                                               // 16-4: 16번 = 🔵
     });
 
     it('딱지는 색에 영향이 없다 — 사실 표시만 (기사님 확정 ①)', () => {
