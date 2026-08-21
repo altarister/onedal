@@ -67,6 +67,21 @@ describe('병행 전환 배선 — 양쪽에 쓰고, 로그인에 비교한다',
         expect(fm).toMatch(/writePhaseRows\(userId, blob\)/);   // 빈 그릇 → blob 그대로 이식
     });
 
+    /**
+     * 🔴 **두 번째 편집 화면을 되살리지 않는다** (전수 조사 8장 · 기사님 확정 폐기).
+     * 요율 탭의 "내 노선 기본 설정" 4칸은 국면 첫짐 탭과 같은 값의 두 번째 편집
+     * 화면이었고, 평면 1km vs 국면 15km "두 벌 값" 사고의 뿌리였다.
+     * 절대 하한가·상한가 입력도 함께 폐기 — 하한은 단가표 × 콜할인율 파생만.
+     */
+    it('🔴 요율 탭에 노선·반경·절대가 편집이 없다 (편집 자리는 국면 탭 하나)', () => {
+        const tab = codeOnly(readFileSync(join(__dirname,
+            '../../../client-app/src/components/dashboard/settings/PricingSettingsTab.tsx'), 'utf8'));
+        expect(tab).not.toMatch(/setDestinationCity|setDestinationRadiusKm|setDetourRadiusKm/);
+        expect(tab).not.toMatch(/setMinFare|setMaxFare|setPickupRadiusKm/);
+        expect(tab).toMatch(/vehicleRates/);          // 금액 축의 원천은 남는다
+        expect(tab).toMatch(/excludedKeywords/);
+    });
+
     it('🔴 컬럼 목록을 db.ts 가 손으로 적지 않는다 (FILTER_FIELDS 표에서 뽑는다)', () => {
         const db = codeOnly(read('db.ts'));
         expect(db).toMatch(/FILTER_FIELDS\.map/);

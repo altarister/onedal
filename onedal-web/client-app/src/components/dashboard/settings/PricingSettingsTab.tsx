@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { apiClient } from "../../../api/apiClient";
-import { useCityOptions, resolveCity } from "../../../lib/cityOptions";
 import { VEHICLE_OPTIONS } from "@onedal/shared";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
@@ -9,28 +8,24 @@ interface Props {
   onClose: () => void;
 }
 
+/**
+ * 요율/필터 탭 — **금액 축의 원천만 남는다** (필터 확정안 v2 구현 3 · 기사님 확정 2026-08-21).
+ *
+ * 🔴 걷어낸 것 (전수 조사 8장의 폐기 확정):
+ *   · "내 노선 기본 설정" 4칸(도착 시/군·도착 반경·상차 반경·우회 허용) — 국면 첫짐
+ *     탭과 **같은 값의 두 번째 편집 화면**이었다. 평면 1km vs 국면 15km 로 갈라진
+ *     "두 벌 값" 사고의 뿌리. 이제 편집 자리는 🔍 필터의 국면 탭 하나다.
+ *   · 절대 하한가·상한가 — "하한 금액을 입력하지 않는다"(명세 08-13 원칙 3) 관철.
+ *     하한은 단가표 × 콜할인율에서 파생된다. ⚠️ 앱 피기백의 minFare 키는 산다 —
+ *     화물24 파서가 아직 그걸로 거른다 (확정안 ①-삭제 · 앱 트랙).
+ *   · 평면 콜할인율 — 국면별 콜할인율(5개)이 원천 (이전 정리에서 이미 제거됨).
+ */
 export default function PricingSettingsTab({ onClose }: Props) {
   const [vehicleRates, setVehicleRates] = useState<Record<string, number>>({});
   const [agencyFeePercent, setAgencyFeePercent] = useState(23);
-  const [minFare, setMinFare] = useState<number | undefined>();
-  const [maxFare, setMaxFare] = useState<number | undefined>();
-  const [pickupRadiusKm, setPickupRadiusKm] = useState<number | undefined>();
   const [excludedKeywords, setExcludedKeywords] = useState<string[]>([]);
   const [newKeyword, setNewKeyword] = useState("");
-  const [destinationCity, setDestinationCity] = useState<string>("");
-  const [destinationRadiusKm, setDestinationRadiusKm] = useState<string>("");
-  const [detourRadiusKm, setDetourRadiusKm] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
-
-  const cityGroups = useCityOptions();
-  const knownCities = cityGroups.flatMap(g => g.cities);
-  // 옛 저장값(`파주`)을 정식 이름(`파주시`)으로 끌어올린다 — 못 찾으면 그대로 둔다
-  useEffect(() => {
-    if (!destinationCity || !cityGroups.length) return;
-    if (knownCities.includes(destinationCity)) return;
-    const resolved = resolveCity(destinationCity, cityGroups);
-    if (resolved) setDestinationCity(resolved);
-  }, [cityGroups, destinationCity]);
 
   useEffect(() => {
     loadPricing();
@@ -39,21 +34,10 @@ export default function PricingSettingsTab({ onClose }: Props) {
   const loadPricing = async () => {
     try {
       setIsLoading(true);
-      const [pricingRes, settingsRes] = await Promise.all([
-        apiClient.get('/settings/pricing'),
-        apiClient.get('/settings'),
-      ]);
-      const p = pricingRes.data;
-      const s = settingsRes.data;
+      const { data: p } = await apiClient.get('/settings/pricing');
       setVehicleRates(p.vehicleRates || {});
       setAgencyFeePercent(p.agencyFeePercent ?? 23);
-      setMinFare(p.minFare);
-      setMaxFare(p.maxFare);
-      setPickupRadiusKm(p.pickupRadiusKm);
       setExcludedKeywords(p.excludedKeywords || []);
-      setDestinationCity(s.destinationCity || "");
-      setDestinationRadiusKm(s.destinationRadiusKm?.toString() || "");
-      setDetourRadiusKm(s.detourRadiusKm?.toString() || "");
     } catch (e) {
       console.error("Failed to load pricing:", e);
     } finally {
@@ -65,12 +49,7 @@ export default function PricingSettingsTab({ onClose }: Props) {
     try {
       setIsLoading(true);
       await apiClient.put('/settings/pricing', {
-        vehicleRates, agencyFeePercent, excludedKeywords, minFare, maxFare, pickupRadiusKm
-      });
-      await apiClient.put('/settings', {
-        destinationCity,
-        destinationRadiusKm: destinationRadiusKm ? parseInt(destinationRadiusKm, 10) : undefined,
-        detourRadiusKm: detourRadiusKm ? parseInt(detourRadiusKm, 10) : undefined,
+        vehicleRates, agencyFeePercent, excludedKeywords,
       });
       onClose();
     } catch (e) {
@@ -91,7 +70,7 @@ export default function PricingSettingsTab({ onClose }: Props) {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* 차종별 단가 */}
+      {/* 차종별 단가 — 금액 축의 원천 (정의서 3장: 통과 = 요금 ≥ 거리 × 단가 × (1−콜할인율)) */}
       <div className="space-y-1.5">
         <label className="text-sm font-semibold text-text-muted">💰 차종별 km당 적정 단가 (원)</label>
         <div className="grid grid-cols-3 gap-2">
@@ -110,30 +89,13 @@ export default function PricingSettingsTab({ onClose }: Props) {
         </div>
       </div>
 
-      {/* 수수료 — 할인율은 필터의 콜할인율가 대체했다 (docs/필터_재설계_명세.md) */}
+      {/* 수수료 — 할인율은 필터의 콜할인율(국면별)가 대체했다 (docs/필터_재설계_명세.md) */}
       <div className="space-y-1.5">
         <label className="text-xs font-semibold text-text-muted">📊 퀵사 수수료율 (%)</label>
         <Input type="number" value={agencyFeePercent} onChange={(e) => setAgencyFeePercent(Number(e.target.value) || 0)} className="h-9 text-center font-bold" />
         <p className="text-[10px] text-text-muted/70">
-          🔻 할인율은 <b>필터의 콜할인율</b>에서 정합니다 — 같은 뜻의 값이 두 곳에 있으면 어느 게 진짜인지 알 수 없습니다
+          🔻 할인율은 <b>🔍 필터의 국면별 콜할인율</b>에서 정합니다 — 같은 뜻의 값이 두 곳에 있으면 어느 게 진짜인지 알 수 없습니다
         </p>
-      </div>
-
-      {/* 하한가 & 상한가 */}
-      <div className="grid grid-cols-2 gap-3 pt-2 border-t">
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-text-muted">⬇️ 첫짐 절대 하한가 (원)</label>
-          <Input type="number" value={minFare || ''} onChange={(e) => setMinFare(Number(e.target.value) || 0)} placeholder="30000" className="h-9 font-bold" />
-        </div>
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-text-muted">⬆️ 절대 상한가 (원)</label>
-          <Input type="number" value={maxFare || ''} onChange={(e) => setMaxFare(Number(e.target.value) || 0)} placeholder="1000000" className="h-9 font-bold" />
-        </div>
-      </div>
-
-      <div className="space-y-1.5">
-        <label className="text-xs font-semibold text-text-muted">🎯 상차 반경 (km)</label>
-        <Input type="number" value={pickupRadiusKm || ''} onChange={(e) => setPickupRadiusKm(Number(e.target.value) || 0)} placeholder="10" className="h-9 font-bold" />
       </div>
 
       {/* 블랙리스트 */}
@@ -159,47 +121,12 @@ export default function PricingSettingsTab({ onClose }: Props) {
         />
       </div>
 
-      {/* 기본 노선 */}
-      <div className="space-y-1.5 pt-2 border-t">
-        <label className="text-sm font-semibold text-text-muted">📍 내 노선 기본 설정</label>
-        {/* 관제탑의 돋보기 필터와 **다른 값**이다. 화면에 그 구분이 없어서
-            "설정에는 파주인데 필터를 열면 용인" 이 되었다 */}
-        <p className="text-[10px] text-text-muted break-keep">
-          <b>매일 아침 여기서 시작</b>합니다. 오늘만 다르게 콜을 잡으려면 관제탑의 🔍 필터에서 바꾸세요 —
-          그 값은 자정에 여기로 돌아옵니다.
-        </p>
-        <div className="grid grid-cols-3 gap-2">
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-semibold text-text-muted">도착 시/군</label>
-            {/* 자유 입력이었을 때 `파주` 가 저장됐고, 필터 모달의 고정 목록(`파주시`)과
-                맞지 않아 화면이 엉뚱한 도시를 보여줬다. 두 화면이 같은 목록을 쓴다 */}
-            <select
-              value={destinationCity}
-              onChange={(e) => setDestinationCity(e.target.value)}
-              className="flex h-8 w-full rounded-md border border-input bg-transparent px-2 text-xs shadow-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            >
-              {!knownCities.includes(destinationCity) && (
-                <option value={destinationCity} className="bg-surface-alt">
-                  {destinationCity ? `⚠️ ${destinationCity} (목록에 없음)` : '— 선택 —'}
-                </option>
-              )}
-              {cityGroups.map(g => (
-                <optgroup key={g.sido} label={g.sido}>
-                  {g.cities.map(c => <option key={c} value={c} className="bg-surface-alt">{c}</option>)}
-                </optgroup>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-semibold text-text-muted">도착 반경(km)</label>
-            <Input type="number" value={destinationRadiusKm} onChange={(e) => setDestinationRadiusKm(e.target.value)} placeholder="10" className="h-8 text-xs" />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-semibold text-text-muted">우회 허용(km)</label>
-            <Input type="number" value={detourRadiusKm} onChange={(e) => setDetourRadiusKm(e.target.value)} placeholder="1" className="h-8 text-xs" />
-          </div>
-        </div>
-      </div>
+      {/* 노선·반경의 편집 자리는 하나다 — 두 번째 편집 화면을 되살리지 않는다 */}
+      <p className="text-[10px] text-text-muted break-keep pt-2 border-t">
+        📍 노선·반경(도착 목표 · 상차 반경 · 우회 허용 · 하차지 주변)은 <b>관제탑 🔍 필터의 국면 탭</b>에서
+        정합니다 — <b>평소값까지 변경</b>으로 저장하면 매일 아침 그 값으로 시작합니다.
+        하한 금액은 입력하지 않습니다 — 단가표 × 콜할인율에서 파생됩니다.
+      </p>
 
       <div className="flex justify-end gap-2 mt-2">
         <Button variant="ghost" onClick={onClose}>취소</Button>
