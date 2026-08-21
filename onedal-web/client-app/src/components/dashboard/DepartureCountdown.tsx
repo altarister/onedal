@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { deriveCallStep, deriveCallTiming, deriveRouteTimeline, pickBindingDeparture,
-         minutesUntil, formatCountdown } from '@onedal/shared';
+         minRouteBuffer, minutesUntil, formatCountdown } from '@onedal/shared';
 import type { SecuredOrder, RouteStopInfo } from '@onedal/shared';
 import type { CallRecords } from '../../hooks/useCallProgress';
 import { getAddressLabel } from '../../lib/routeUtils';
@@ -69,6 +69,13 @@ export default function DepartureCountdown({ orders, records, routeStops, routeC
     const reportsOf = (id: string) => (records.get(id) ?? EMPTY_RECORDS).reports;
     const milestonesOf = (id: string) => (records.get(id) ?? EMPTY_RECORDS).milestones;
     const timeline = deriveRouteTimeline(routeStops, orders, reportsOf, milestonesOf, now, routeComputedAt);
+    /**
+     * 🧮 **경로 최소 버퍼** (⑯-1) — 콜별이 아니라 **내 콜 전부의 최소값**이 예산이다.
+     * 기사님 실측(2026-08-20): 콜별 +60 이 아니라 +6 이 진실 — 여기(항상 떠 있는 줄)에
+     * 하나만 적는다. 콜카드의 칩은 "이 콜의 약속"이고 이것은 "지금 더 실을 수 있는 시간"이다.
+     */
+    const minBuf = minRouteBuffer(timeline);
+    const minBufOrder = minBuf ? orders.find(o => o.id === minBuf.orderId) : null;
     const binding = pickBindingDeparture(timeline);
     if (binding) {
         const o = orders.find(x => x.id === binding.orderId);
@@ -146,6 +153,19 @@ export default function DepartureCountdown({ orders, records, routeStops, routeC
                         <span className="ml-1 opacity-80">· 통화 전이라 <b>추정</b>입니다 ({soonest.basis})</span>
                     )}
                 </div>
+                {/* 🧮 경로 최소 버퍼 — 합짐 심사가 실제로 쓸 수 있는 예산. 어느 약속이 묶는지 함께 적는다 */}
+                {minBuf && (
+                    <div className="text-[11px] mt-0.5">
+                        <span className={`font-bold tabular-nums ${
+                            minBuf.minutes >= 30 ? 'text-success'
+                            : minBuf.minutes >= 10 ? 'text-info'
+                            : minBuf.minutes >= 0 ? 'text-warning' : 'text-danger'
+                        }`}>
+                            버퍼 최소 {minBuf.minutes >= 0 ? '+' : ''}{minBuf.minutes}분{minBuf.firm ? '' : '~'}
+                        </span>
+                        <span className="text-text-muted"> — {minBufOrder ? getAddressLabel(minBuf.stopType === 'pickup' ? minBufOrder.pickup : minBufOrder.dropoff) : ''} {minBuf.stopType === 'pickup' ? '상차' : '하차'} 약속이 묶습니다{minBuf.firm ? '' : ' (통화 전 추정)'}</span>
+                    </div>
+                )}
             </div>
         </div>
     );

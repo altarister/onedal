@@ -995,3 +995,35 @@ export function pickBindingDeparture(timeline: RouteTimelineEntry[]): RouteTimel
     }
     return best;
 }
+
+/** 경로 전체에서 가장 빡빡한 약속의 여유 — 시간체계 ⑯-1 "화면 표시 = 내 콜 전부의 최소값" */
+export interface RouteBufferMin {
+    /** 약속 − 도착 예상 (분). 음수 = 이미 못 지키는 약속이 있다 */
+    minutes: number;
+    /** 묶는 약속이 통화로 굳었나 (false = 추정 — 화면은 ~ 를 붙인다) */
+    firm: boolean;
+    orderId: string;
+    stopType: 'pickup' | 'dropoff';
+}
+
+/**
+ * 🧮 **버퍼의 진실은 최소값이다** (기사님 실측 2026-08-20, 12번+2번 리허설).
+ *
+ * 콜별 버퍼가 +60분이어도 **다른 콜의 약속**이 +6분이면 합짐에 쓸 수 있는 시간은
+ * 6분이다 — 콜마다 자기 값만 보여주면 "여유 있구나" 하고 잡았다가 다른 약속을 깬다.
+ * 그래서 화면이 예산으로 내미는 숫자는 **아직 안 간 정거장 전부의 최소값** 하나다.
+ *
+ * 콜별 칩(내 약속의 여유)과 뜻이 다르다 — 칩은 "이 콜은 어떤가", 이것은 "지금
+ * 경로에 무엇을 더 실을 수 있는가". 판정 재설계의 `bufferCost` 축도 이 값을 먹는다.
+ */
+export function minRouteBuffer(timeline: RouteTimelineEntry[]): RouteBufferMin | null {
+    let best: RouteBufferMin | null = null;
+    for (const e of timeline) {
+        if (e.arrived || e.promisedUntil == null || e.etaMs == null) continue;
+        const minutes = Math.round((Date.parse(e.promisedUntil) - e.etaMs) / 60_000);
+        if (!best || minutes < best.minutes) {
+            best = { minutes, firm: e.promiseConfirmed, orderId: e.orderId, stopType: e.stopType };
+        }
+    }
+    return best;
+}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { isEvaluating, isTerminal, isDeliveredCall } from "@onedal/shared";
+import { isEvaluating, isTerminal, isDeliveredCall, minRouteBuffer } from "@onedal/shared";
 import type { SecuredOrder } from "@onedal/shared";
 import { socket } from "../../lib/socket";
 import { getAddressLabel, getMinuteDiff , telHref } from "../../lib/routeUtils";
@@ -347,6 +347,31 @@ export default function PinnedRouteCard({
                                 )}
                             </div>
 
+                            {/* 🧮 **심사 카드에도 상차버퍼** (⑯-1) — "잡을 때 여유 있구나" 하고 잡았다가
+                                잡고 나니 0분이던 함정 제거. 잡기 전후 **같은 파생**(추정 약속 − 도착 예상)이라
+                                같은 숫자가 나온다. 통화 전이니 항상 ~ 다. */}
+                            {(() => {
+                                const t = deriveCallTiming(route, [], [], Date.now());
+                                if (!t.pickupPromisedArrivalAt || t.toPickup.driveMinutes == null) return null;
+                                const etaMs = Date.now() + (t.toPickup.driveMinutes + t.toPickup.leadMinutes) * 60_000;
+                                const buf = Math.round((Date.parse(t.pickupPromisedArrivalAt) - etaMs) / 60_000);
+                                return (
+                                    <div className="mt-2 flex items-center gap-1.5 text-[11px]">
+                                        <span className="text-text-muted font-bold">버퍼</span>
+                                        <span className={`px-1.5 py-0.5 rounded font-bold tabular-nums ${
+                                            buf >= 30 ? 'bg-success/15 text-success'
+                                            : buf >= 10 ? 'bg-info/15 text-info'
+                                            : buf >= 0 ? 'bg-warning/15 text-warning'
+                                            : 'bg-danger/15 text-danger'
+                                        }`}>상차버퍼 {buf >= 0 ? '+' : ''}{buf}분~</span>
+                                        <span className="text-[10px] text-text-muted">
+                                            {buf > 0 ? '잡으면 이만큼 이 자리에서 더 기다릴 수 있습니다'
+                                                     : '잡으면 바로 출발 — 통화로 미루지 않으면 여유가 없습니다'}
+                                        </span>
+                                    </div>
+                                );
+                            })()}
+
                             {/* 텔레메트리 진행 상태 바 (30초 만기) */}
                             {(route.status === 'ORDER_SECURED_EVALUATING' || route.status === 'ORDER_AWAITING_DECISION') && (() => {
                                 const isDanger = telemetryCount >= 25;
@@ -503,6 +528,20 @@ export default function PinnedRouteCard({
                                                         </span>
                                                     ))}
                                                     <span className="text-[10px] text-text-muted">{chips.some(c => !c.b.firm) ? '~는 통화 전 추정' : ''}</span>
+                                                    {/* 🧮 경로 최소 버퍼 (⑯-1) — 이 콜의 칩이 +60 이어도 **다른 콜 약속**이
+                                                        +6 이면 예산은 6분이다 (기사님 실측 2026-08-20). 내 칩보다 빡빡할 때만 적는다 */}
+                                                    {(() => {
+                                                        const mb = timeline ? minRouteBuffer(timeline) : null;
+                                                        if (!mb || mb.orderId === route.id) return null;
+                                                        if (chips.length && !chips.some(c => mb.minutes < c.b.min)) return null;
+                                                        return (
+                                                            <span className={`px-1.5 py-0.5 rounded font-bold tabular-nums text-[10px] ${
+                                                                mb.minutes >= 0 ? 'bg-surface-hover text-text-muted' : 'bg-danger/15 text-danger'
+                                                            }`}>
+                                                                경로 최소 {mb.minutes >= 0 ? '+' : ''}{mb.minutes}분{mb.firm ? '' : '~'} (다른 콜 약속)
+                                                            </span>
+                                                        );
+                                                    })()}
                                                     {/* ⏱️ 데드라인 — 콜마다 자동으로 서는 배달 상한. 통화로 합의하면 미뤄진다 (용어집) */}
                                                     {(() => {
                                                         const dl = seededSteps.find(x => x.step === 'CALL_DROPOFF')?.row?.deadline_at;
