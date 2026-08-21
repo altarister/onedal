@@ -19,16 +19,16 @@ import { SettingsRepository } from "../repositories/SettingsRepository";
 import { getUserSession } from "./userSessionStore";
 import type { AutoDispatchFilter, PhaseKey, PhaseSettings } from "@onedal/shared";
 import { DEFAULT_DETOUR_RADIUS_KM, isTerminal, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, resolvePhaseKey, applyPhaseToFilter, normalizePhaseSettings,
-         PHASE_KEYS, FILTER_FIELDS, phaseRowOf, phaseOfRow, phaseStoreDiff } from "@onedal/shared";
+         PHASE_KEYS, FILTER_FIELDS, phaseRowOf, phaseOfRow } from "@onedal/shared";
 import type { PhaseSettingsMap } from "@onedal/shared";
 
 // ─────────────────────────────────────────────────────────────
-// 🎛️ 국면 옵션 병행 전환 (필터 확정안 v2 · 2026-08-21)
+// 🎛️ 국면 옵션 (필터 확정안 v2 · 2026-08-21 전환 완료)
 //
-// 전환 ③ 완료 — **읽기 원천은 행(user_filter_phases)이다** (loadPhaseRows).
-// blob(user_filters.phase_settings)은 ④ 손 철거 전까지 이중 쓰기로 남아,
-// 어긋나면 로그인 비교가 ⚠️ 로 소리친다. 저장 경로 전수 스모크(계속·오늘만·
-// 다국면·재접속)로 일치를 확인하고 넘겼다 — 2026-08-21.
+// **국면 옵션의 유일한 원천은 user_filter_phases 행이다.**
+// 옛 blob(user_filters.phase_settings)과 평면 4칸은 ④에서 손으로 철거했다 —
+// 병행 절차: 새 그릇 → 이중 쓰기+비교(전수 스모크 일치) → 읽기 전환 → 철거.
+// ⚠️ 실서버 data.db 는 배포 때 같은 손 순서 (blob→행 이식 SQL 은 필터_확정안.md).
 // ─────────────────────────────────────────────────────────────
 
 /** 국면 5행을 새 그릇에 upsert — 컬럼 목록의 원천은 FILTER_FIELDS 표 */
@@ -57,42 +57,35 @@ export function readPhaseRows(userId: string): Partial<Record<PhaseKey, PhaseSet
 }
 
 /**
- * 로그인 때 — **행이 읽기 원천이다** (전환 ③ · 2026-08-21).
- * 행이 없으면(첫 로그인) blob 값으로 1회 이식하고 그 값을 쓴다.
- * blob 은 ④ 철거 전까지 이중 쓰기로 남아 있으니, 어긋나면 ⚠️ 가 소리친다 —
- * 그때는 이중 쓰기가 새는 경로가 있다는 뜻이고, **행 값이 이긴다.**
+ * 로그인 때 국면 옵션을 읽는다 — **원천은 행 하나다.**
+ * 행이 없는 건 신규 유저뿐이다 (기존 유저는 병행 단계에서 이식 완료) —
+ * 그때만 표 기본값으로 5행을 시드한다.
  */
-export function loadPhaseRows(userId: string, blob: PhaseSettingsMap): PhaseSettingsMap {
+export function loadPhaseRows(userId: string): PhaseSettingsMap {
     try {
         const rows = readPhaseRows(userId);
         if (Object.keys(rows).length === 0) {
-            writePhaseRows(userId, blob);
-            console.log(`🎛️ [국면 이식] user_filter_phases 에 blob 값 그대로 5행 시드 (병행 전환 ①)`);
-            return blob;
+            const seeded = normalizePhaseSettings(null);
+            writePhaseRows(userId, seeded);
+            console.log(`🎛️ [국면] 행이 없어 표 기본값으로 5행 시드 (신규 유저)`);
+            return seeded;
         }
-        const map = normalizePhaseSettings(rows);       // 빠진 국면은 기본값으로 메운다
-        const diffs = phaseStoreDiff(blob, map);
-        if (diffs.length) {
-            console.warn(`⚠️ [국면 병행 비교] blob 과 행이 어긋남(행을 씀) — ${diffs.join(' · ')}`);
-        } else {
-            console.log(`🎛️ [국면 병행 비교] 행 = blob 일치 — 행을 읽음 (5국면 × ${FILTER_FIELDS.length}칸)`);
-        }
-        return map;
+        return normalizePhaseSettings(rows);            // 빠진 국면은 기본값으로 메운다
     } catch (e) {
-        console.error(`🎛️ [국면 병행] 행 읽기 실패 — blob 으로 계속:`, (e as Error).message);
-        return blob;
+        // 세션 생성을 막지 않는다 — 기본값이면 콜 잡기는 돌고, 값은 다음 저장에서 복원된다
+        console.error(`🎛️ [국면] 행 읽기 실패 — 표 기본값으로 계속:`, (e as Error).message);
+        return normalizePhaseSettings(null);
     }
 }
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { getCityRegionsWithRadius, cityAliases, getDetourRegions, getActivePolyline, progressAlongPolyline } from "../services/geoService";
 
 // ━━━ Prepared Statement 캐싱 (모듈 로드 시 1회만 실행) ━━━
+// 노선·반경·할인율 평면 칸은 ④에서 철거 — 그 값들은 user_filter_phases 행에 산다.
+// min_fare·max_fare 는 보류 칸 (앱 피기백 — 화물24 단가식 뒤 3단계 강등, 확정안 ①-삭제 #3)
 const stmtUpdateFilter = db.prepare(`
     UPDATE user_filters SET
-        destination_city = ?, destination_radius_km = ?, detour_radius_km = ?,
-        min_fare = ?, max_fare = ?, pickup_radius_km = ?,
-        excluded_keywords = ?, is_active = ?, is_shared_mode = ?,
-        load_state = ?, call_discount_pct = ?, phase_settings = ?
+        min_fare = ?, max_fare = ?, excluded_keywords = ?, is_active = ?, is_shared_mode = ?
     WHERE user_id = ?
 `);
 
@@ -123,8 +116,8 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
      * 차종별 하한 단가표는 **콜할인율에서만 파생된다** (docs/필터_재설계_명세.md §2).
      *
      * 관제웹은 `callDiscountPct` 하나만 보내고 표는 만들지 않는다 — 같은 표를 두 곳에서
-     * 만들면 한쪽만 고쳐진다(경유 4벌·상태목록 3벌과 같은 사고). 원천은 DB 의
-     * `call_discount_pct` 이고, 여기가 그것을 표로 펼치는 유일한 자리다.
+     * 만들면 한쪽만 고쳐진다(경유 4벌·상태목록 3벌과 같은 사고). 원천은 국면별
+     * `discount_pct`(user_filter_phases) 이고, 여기가 그것을 표로 펼치는 유일한 자리다.
      */
     if ('callDiscountPct' in changes) {
         // 요율·수수료의 원천은 DB 다 (설정 화면에서 기사님이 바꾼다).
@@ -506,7 +499,7 @@ export function savePhaseSettings(
 
     if (saveAsDefault) {
         session.basePhaseSettings[phase] = { ...clean };
-        // 평면 필터는 그대로 두고 phase_settings 만 다시 쓴다 (saveBaseFilter 가 통째로 저장)
+        // saveBaseFilter 가 writePhaseRows 로 행(원천)에 저장한다
         saveBaseFilter(userId, {}, io);
     }
 
@@ -631,22 +624,14 @@ export function saveBaseFilter(
 
         stmtInsertFilter.run(userId);
         stmtUpdateFilter.run(
-            b.destinationCity ?? "",
-            b.destinationRadiusKm,
-            b.detourRadiusKm,
             b.minFare,
             b.maxFare,
-            b.pickupRadiusKm,
             JSON.stringify(b.excludedKeywords || []),
             b.isActive ? 1 : 0,
             0, // isSharedMode는 DB에 영구저장 안함
-            'EMPTY', // loadState는 DB에 항상 EMPTY로 저장
-            b.callDiscountPct ?? 10,   // 콜할인율 — 원천은 DB. ratePerKm 는 여기서 파생되므로 저장하지 않는다
-            JSON.stringify(session.basePhaseSettings),   // 국면별 설정 (§2-4-7)
             userId
         );
-        // 🎛️ 읽기 원천(행)에 쓴다 — blob 은 위 UPDATE 가 ④ 철거 전까지 같이 쓴다.
-        //    갈라지면 로그인 비교(loadPhaseRows)가 소리치고 행이 이긴다.
+        // 🎛️ 국면 옵션(노선·반경·할인율)의 원천 — user_filter_phases 행
         writePhaseRows(userId, session.basePhaseSettings);
     } catch (e) {
         console.error(`[FilterManager] DB 저장 에러 (userId: ${userId}):`, e);

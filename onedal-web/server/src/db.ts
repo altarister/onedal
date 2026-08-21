@@ -168,51 +168,20 @@ try {
     // 무시 (테이블이 아직 없는 경우 CREATE TABLE에서 생성됨)
 }
 
-// v7 마이그레이션: call_discount_pct(콜할인율) 컬럼 추가 — 단가 판정 모델 (docs/필터_재설계_명세.md)
-// 기본 10 = 시세 대비 -10% 까지 허용. 100 = "전부"(금액 무관).
-try {
-    const tableInfo = db.prepare("PRAGMA table_info(user_filters)").all() as Array<{ name: string }>;
-    if (tableInfo.length > 0 && !tableInfo.some(col => col.name === 'call_discount_pct')) {
-        db.exec("ALTER TABLE user_filters ADD COLUMN call_discount_pct INTEGER DEFAULT 10");
-        console.log("🛠️ [DB Migration V7] user_filters에 call_discount_pct 컬럼 추가 완료");
-    }
-} catch (e) {
-    // 무시 (테이블이 아직 없는 경우 CREATE TABLE에서 생성됨)
-}
-
-// v8 마이그레이션: phase_settings(국면별 필터 설정) 컬럼 추가
-// docs/필터_재설계_명세.md §2-4 — 다섯 국면이 각자 값을 기억한다.
-// 값 채우기(기존 평면값 → first 국면)는 userSessionStore 가 로드할 때 한다 —
-// 여기서는 컬럼만 만든다 (부팅 경로에서 데이터를 가공하지 않는다).
-try {
-    const tableInfo = db.prepare("PRAGMA table_info(user_filters)").all() as Array<{ name: string }>;
-    if (tableInfo.length > 0 && !tableInfo.some(col => col.name === 'phase_settings')) {
-        db.exec("ALTER TABLE user_filters ADD COLUMN phase_settings TEXT DEFAULT ''");
-        console.log("🛠️ [DB Migration V8] user_filters에 phase_settings 컬럼 추가 완료");
-    }
-} catch (e) {
-    // 무시 (테이블이 아직 없는 경우 CREATE TABLE에서 생성됨)
-}
-
+// 🎛️ 국면 옵션(노선·반경·할인율)은 여기 없다 — 원천은 user_filter_phases 행이다
+// (필터 확정안 v2 ④ · 2026-08-21 옛 blob·평면 칸 손 DROP 완료).
+// min_fare·max_fare 는 보류 칸 — 앱 피기백 (확정안 ①-삭제 #3, 화물24 단가식 뒤 강등)
 db.exec(`
     CREATE TABLE IF NOT EXISTS user_filters (
         user_id TEXT PRIMARY KEY,
-        destination_city TEXT DEFAULT '파주',
-        destination_radius_km INTEGER DEFAULT 10,
-        detour_radius_km INTEGER DEFAULT 5,
         min_fare INTEGER DEFAULT 30000,
         max_fare INTEGER DEFAULT 1000000,
-        pickup_radius_km REAL DEFAULT 10,
         excluded_keywords TEXT DEFAULT '[]',
         is_active BOOLEAN DEFAULT 0,
         is_shared_mode BOOLEAN DEFAULT 0,
-        load_state TEXT DEFAULT 'EMPTY',
         driver_action TEXT DEFAULT 'WAITING',
-        call_discount_pct INTEGER DEFAULT 10,
-        phase_settings TEXT DEFAULT '',
         vehicle_rates TEXT DEFAULT '${defaultRates}',
         agency_fee_percent REAL DEFAULT 23.0,
-        max_discount_percent REAL DEFAULT 10.0,
         FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     )
 `);

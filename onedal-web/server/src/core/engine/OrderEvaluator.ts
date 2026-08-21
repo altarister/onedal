@@ -349,8 +349,8 @@ export class OrderEvaluator {
         logRoadmapEvent("서버", "경로 폴리라인 및 최종 수익성(콜/꿀/똥) 라벨링 연산");
         securedOrder.kakaoTimeExt = timeExt;
 
-        // Stage 3. 요율 판정
-        this.runStage3Pricing(securedOrder, userId, reasons, pros);
+        // Stage 3. 요율 판정 — 콜할인율은 현 국면 값 (원천: user_filter_phases)
+        this.runStage3Pricing(securedOrder, userId, session.activeFilter.callDiscountPct, reasons, pros);
 
         // 최종 평가 합산
         securedOrder.rejectionReasons = reasons;
@@ -462,11 +462,11 @@ export class OrderEvaluator {
      *
      * 못 구하면 `null` 을 준다. 0 이나 짐작값을 지어내지 않는다 (규칙 ④).
      */
-    private loadPricing(order: SecuredOrder | PendingOrder, userId: string):
+    private loadPricing(order: SecuredOrder | PendingOrder, userId: string, callDiscountPct?: number):
         { fairPrice: number; minAcceptable: number } | null {
         if (!order.kakaoSoloDistanceKm || !order.fare) return null;
         try {
-            const pricing = SettingsRepository.loadPricingConfig(userId);
+            const pricing = SettingsRepository.loadPricingConfig(userId, callDiscountPct);
             const routingOpts = SettingsRepository.getKakaoRoutingOptions(userId);
             const base = PricingEngine.calculateDynamicFare(
                 order.kakaoSoloDistanceKm,
@@ -487,8 +487,8 @@ export class OrderEvaluator {
         }
     }
 
-    private runStage3Pricing(order: SecuredOrder | PendingOrder, userId: string, reasons: string[], pros: string[]) {
-        const p = this.loadPricing(order, userId);
+    private runStage3Pricing(order: SecuredOrder | PendingOrder, userId: string, callDiscountPct: number | undefined, reasons: string[], pros: string[]) {
+        const p = this.loadPricing(order, userId, callDiscountPct);
         if (p) {
             {
                 const adjusted = { adjustedFairPrice: p.fairPrice, adjustedMinAcceptable: p.minAcceptable };

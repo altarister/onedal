@@ -69,20 +69,21 @@ describe('⏱️ 시간 축 — 계수 확정 전엔 거르지 않고 계측만 
     });
 });
 
-describe('병행 전환 배선 — 양쪽에 쓰고, 로그인에 비교한다', () => {
-    it('🔴 saveBaseFilter 가 blob 과 행 양쪽에 쓴다 (이중 쓰기)', () => {
+describe('국면 옵션의 원천은 행 하나다 (병행 전환 완료 · ④)', () => {
+    it('🔴 saveBaseFilter 가 행(user_filter_phases)에 쓴다', () => {
         const fm = codeOnly(read('state/filterManager.ts'));
         const fn = fm.slice(fm.indexOf('function saveBaseFilter'));
         expect(fn.slice(0, fn.indexOf('\n}'))).toMatch(/writePhaseRows\(/);
     });
 
-    it('🔴 로그인의 읽기 원천은 행이다 (전환 ③) — 빈 그릇이면 blob 이식, 어긋나면 비교가 소리친다', () => {
+    it('🔴 로그인의 읽기 원천은 행이다 — 행이 없는 건 신규 유저뿐, 표 기본값으로 시드한다', () => {
         const store = codeOnly(read('state/userSessionStore.ts'));
-        // 행에서 읽은 값이 세션의 평소값이 된다 — 비교만 하고 버리면 전환이 아니다
+        // 행에서 읽은 값이 세션의 평소값이 된다
         expect(store).toMatch(/session\.basePhaseSettings = loadPhaseRows\(/);
         const fm = codeOnly(read('state/filterManager.ts'));
-        expect(fm).toMatch(/phaseStoreDiff\(/);
-        expect(fm).toMatch(/writePhaseRows\(userId, blob\)/);   // 빈 그릇 → blob 그대로 이식
+        const fn = fm.slice(fm.indexOf('function loadPhaseRows'));
+        expect(fn.slice(0, fn.indexOf('\n}'))).toMatch(/normalizePhaseSettings\(rows\)/);
+        expect(fn.slice(0, fn.indexOf('\n}'))).toMatch(/writePhaseRows\(userId, seeded\)/);
     });
 
     /**

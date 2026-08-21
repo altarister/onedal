@@ -1,25 +1,20 @@
 import { AutoDispatchFilter, SecuredOrder, PendingOrder, MyOrder, getEligibleVehicleTypes, businessDayKey, rateFloorsFrom,
-         normalizePhaseSettings, phaseFromFlat, DEFAULT_PHASE_SETTINGS, DEFAULT_JUDGMENT, judgmentFromRow } from "@onedal/shared";
+         normalizePhaseSettings, applyPhaseToFilter, DEFAULT_JUDGMENT, judgmentFromRow } from "@onedal/shared";
 import type { PhaseSettingsMap, PhaseKey, JudgmentConfig } from "@onedal/shared";
 import type { CapacityConfidence } from "@onedal/shared";
 import db, { seedCallOptions } from "../db";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 
 // ━━━ 서비스 권장 기본값 (신규 가입자용) ━━━
+// 노선·반경·할인율은 여기 없다 — 그 값들의 원천은 국면 표(DEFAULT_PHASE_SETTINGS)이고,
+// 로그인 때 첫짐 국면에서 파생해 얹는다 (④ 철거 — 같은 값의 두 번째 기본값을 두지 않는다)
 const SERVICE_DEFAULT_FILTER: Partial<AutoDispatchFilter> = {
-    minFare: 30000,           // 하한가 3만 원
+    minFare: 30000,           // 하한가 3만 원 (보류 칸 — 앱 피기백, 확정안 ①-삭제 #3)
     maxFare: 1000000,         // 상한가 100만 원
-    pickupRadiusKm: 10,       // 상차반경 10km
-    destinationRadiusKm: 10,  // 도착반경 10km
-    detourRadiusKm: 5,      // 우회반경 5km
-    destinationCity: "파주",
     isActive: false,
     isSharedMode: false,
     driverAction: 'WAITING',      // [V2] 기사 행동 상태 기본값
     dispatchPhase: 'STANDBY',     // [V2] 콜 잡기 전략 기본값
-    // ── 단가 판정 모델 (필터_재설계_명세 §2) — DB call_discount_pct DEFAULT 10 과 같은 값 ──
-    callDiscountPct: 10,
-    ratePerKm: rateFloorsFrom(10),
 };
 
 // 1명의 기사가 가지는 '모든' 상태 캡슐화
@@ -77,7 +72,7 @@ export interface UserSession {
     /**
      * 국면별 필터 설정 (docs/필터_재설계_명세.md §2-4).
      *
-     * `basePhaseSettings`   평소값 — DB `user_filters.phase_settings` 의 사본
+     * `basePhaseSettings`   평소값 — DB `user_filter_phases` 행의 사본
      * `phaseSettings`       오늘값 — 자정에 평소값으로 되돌아간다
      *
      * 기존 `baseFilter`/`activeFilter` 이원 구조를 국면별로도 그대로 따른다.
@@ -234,64 +229,38 @@ export function getUserSession(userId: string): UserSession {
              */
             seedCallOptions(userId);
 
+            /**
+             * 🎛️ **국면 옵션의 원천은 user_filter_phases 행 하나다** (필터 확정안 v2 · ④ 완료).
+             * 옛 blob·평면 칸은 철거했다. require 지연 — filterManager ↔ 여기 순환 방지.
+             */
+            try {
+                const { loadPhaseRows } = require('./filterManager');
+                session.basePhaseSettings = loadPhaseRows(userId);
+            } catch (e) {
+                // createDefaultSession 이 채운 표 기본값으로 계속 — 세션 생성을 막지 않는다
+                console.error('🎛️ [국면] 행 읽기 실패 — 표 기본값으로 계속:', (e as Error).message);
+            }
+            // 오늘값 = 평소값의 독립 복사본 (자정에 되돌아간다)
+            session.phaseSettings = normalizePhaseSettings(JSON.parse(JSON.stringify(session.basePhaseSettings)));
+            // 로그인은 첫짐(STANDBY)에서 시작한다 — 평면 조각(도시·반경·할인율)은 첫짐 국면에서 파생
+            const firstPatch = applyPhaseToFilter('first', session.basePhaseSettings.first);
+
             if (filterRow) {
-                // Restore saved filter into baseFilter
+                // Restore saved filter into baseFilter — 국면 파생 조각 + user_filters 잔여 칸
                 session.baseFilter = {
-                    destinationCity: filterRow.destination_city ?? "",
-                    destinationRadiusKm: filterRow.destination_radius_km,
-                    detourRadiusKm: filterRow.detour_radius_km,
-                    minFare: filterRow.min_fare,
+                    ...firstPatch,
+                    minFare: filterRow.min_fare,   // 보류 칸 — 앱 피기백 (확정안 ①-삭제 #3, 화물24 단가식 뒤 강등)
                     maxFare: filterRow.max_fare,
-                    pickupRadiusKm: filterRow.pickup_radius_km,
                     excludedKeywords: JSON.parse(filterRow.excluded_keywords || '[]'),
                     isActive: Boolean(filterRow.is_active),
-                    // ── 단가 판정 모델 (필터_재설계_명세 §2) ──
-                    // call_discount_pct 의 원천은 DB (ALTER ADD COLUMN DEFAULT 10 이 기존 행도 채운다).
-                    // ratePerKm 은 파생값 — 저장하지 않고 콜할인율에서 매번 만든다.
-                    callDiscountPct: filterRow.call_discount_pct,
-                    // 단가표는 DB 의 vehicle_rates·agency_fee_percent 에서 파생시킨다.
+                    // ratePerKm 은 파생값 — 콜할인율(현 국면)과 DB 단가표·수수료에서 매번 만든다.
                     // shared 폴백 상수를 쓰면 설정에서 요율을 바꿔도 앱 필터가 안 바뀐다.
                     ratePerKm: rateFloorsFrom(
-                        filterRow.call_discount_pct,
+                        firstPatch.callDiscountPct,
                         filterRow.vehicle_rates ? JSON.parse(filterRow.vehicle_rates) : undefined,
                         filterRow.agency_fee_percent ?? 23,
                     ),
                 } as AutoDispatchFilter;
-
-                /**
-                 * 국면별 설정 (§2-4). 저장된 게 없으면 **기존 평면값을 `first` 로 옮긴다** —
-                 * 오늘 쓰던 설정(상차 1km 등)을 잃지 않기 위해서다.
-                 */
-                if (filterRow.phase_settings) {
-                    session.basePhaseSettings = normalizePhaseSettings(
-                        (() => { try { return JSON.parse(filterRow.phase_settings); } catch { return null; } })()
-                    );
-                } else {
-                    const migrated = normalizePhaseSettings(null);
-                    migrated.first = phaseFromFlat({
-                        pickupRadiusKm: filterRow.pickup_radius_km,
-                        detourRadiusKm: filterRow.detour_radius_km,
-                        destinationRadiusKm: filterRow.destination_radius_km,
-                        callDiscountPct: filterRow.call_discount_pct,
-                        destinationCity: filterRow.destination_city ?? "",
-                    }, DEFAULT_PHASE_SETTINGS.first);
-                    session.basePhaseSettings = migrated;
-                    console.log(`🧭 [국면 설정] 저장된 값이 없어 기존 필터를 first 국면으로 옮겼습니다 ` +
-                        `(상차 ${migrated.first.pickupRadiusKm}km · 경유 ${migrated.first.detourAllowKm}km · ` +
-                        `하차 ${migrated.first.dropoffRadiusKm}km · 할인 ${migrated.first.discountPct}%)`);
-                }
-                // 오늘값 = 평소값의 독립 복사본 (자정에 되돌아간다)
-                session.phaseSettings = normalizePhaseSettings(JSON.parse(JSON.stringify(session.basePhaseSettings)));
-
-                // 🎛️ 전환 ③ (필터 확정안 v2) — **행이 읽기 원천.** 비었으면 blob 이식,
-                //    어긋나면 ⚠️ 후 행이 이긴다. require 지연 — filterManager ↔ 여기 순환 방지
-                try {
-                    const { loadPhaseRows } = require('./filterManager');
-                    session.basePhaseSettings = loadPhaseRows(userId, session.basePhaseSettings);
-                    session.phaseSettings = normalizePhaseSettings(JSON.parse(JSON.stringify(session.basePhaseSettings)));
-                } catch (e) {
-                    console.error('🎛️ [국면 병행] 행 읽기 실패 — blob 으로 계속:', (e as Error).message);
-                }
 
                 // [완전 격리] activeFilter = baseFilter의 독립 복사본 (로그인 시 1회만)
                 //
@@ -317,10 +286,13 @@ export function getUserSession(userId: string): UserSession {
 
                 logRoadmapEvent("서버", `[Session DB Load] 유저 ${userId} 복구된 원본 필터(Raw DB): \n` + JSON.stringify(filterRow, null, 2));
             } else {
-                // 신규 유저: 서비스 권장 기본값으로 초기화
-                session.baseFilter = { ...SERVICE_DEFAULT_FILTER } as AutoDispatchFilter;
+                // 신규 유저: 서비스 권장 기본값 + 국면 표 기본값(첫짐 파생)으로 초기화
+                session.baseFilter = {
+                    ...SERVICE_DEFAULT_FILTER, ...firstPatch,
+                    ratePerKm: rateFloorsFrom(firstPatch.callDiscountPct),
+                } as AutoDispatchFilter;
                 session.activeFilter = {
-                    ...SERVICE_DEFAULT_FILTER,
+                    ...session.baseFilter,
                     isSharedMode: false,
                     driverAction: 'WAITING',      // [V2]
                     dispatchPhase: 'STANDBY',     // [V2]
@@ -328,12 +300,10 @@ export function getUserSession(userId: string): UserSession {
                 session.activeFilter.destinationKeywords = [];
                 session.activeFilter.allowedVehicleTypes = getEligibleVehicleTypes(userVehicleType);
 
-                // 서비스 권장 기본값을 DB에도 저장 (빈 껍데기가 아닌 의미 있는 초기값)
+                // 잔여 칸 기본값을 DB에도 저장 — 국면 옵션 5행은 loadPhaseRows 가 이미 시드했다
                 db.prepare(`
-                    INSERT OR IGNORE INTO user_filters 
-                    (user_id, min_fare, max_fare, pickup_radius_km, destination_radius_km, detour_radius_km, destination_city) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                `).run(userId, 30000, 1000000, 10, 10, 5, '파주');
+                    INSERT OR IGNORE INTO user_filters (user_id, min_fare, max_fare) VALUES (?, ?, ?)
+                `).run(userId, 30000, 1000000);
 
                 console.log(`[Session] 유저 ${userId} 최초 필터 생성됨 (차종: ${userVehicleType}, 서비스 권장 기본값 적용)`);
             }

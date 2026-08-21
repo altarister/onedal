@@ -69,9 +69,10 @@ describe('국면별 설정 — 저장과 복귀', () => {
     const fm = codeOnly(read('state/filterManager.ts'));
     const store = codeOnly(read('state/userSessionStore.ts'));
 
-    it('평소값 저장(계속)에 phase_settings 가 들어간다', () => {
-        expect(fm).toMatch(/phase_settings\s*=\s*\?/);
-        expect(fm).toMatch(/JSON\.stringify\(session\.basePhaseSettings\)/);
+    it('평소값 저장(계속)은 행(user_filter_phases)에 쓴다 — 옛 blob 칸은 철거됐다 (④)', () => {
+        const fn = fm.slice(fm.indexOf('function saveBaseFilter'));
+        expect(fn.slice(0, fn.indexOf('\n}'))).toMatch(/writePhaseRows\(userId, session\.basePhaseSettings\)/);
+        expect(fm).not.toMatch(/phase_settings\s*=\s*\?/);   // blob 쓰기를 되살리지 않는다
     });
 
     it('🔴 자정에 국면별 오늘값도 평소값으로 되돌아간다', () => {
@@ -80,9 +81,10 @@ describe('국면별 설정 — 저장과 복귀', () => {
         expect(reset).toMatch(/appliedPhaseKey\s*=\s*null/);   // 다시 펼치도록
     });
 
-    it('🔴 저장된 게 없으면 기존 평면값을 first 국면으로 옮긴다 — 쓰던 설정을 잃지 않는다', () => {
-        expect(store).toMatch(/phaseFromFlat/);
-        expect(store).toMatch(/migrated\.first/);
+    it('🔴 로그인 평면 조각(도시·반경·할인율)은 첫짐 국면에서 파생한다 — 두 번째 원천을 두지 않는다 (④)', () => {
+        expect(store).toMatch(/applyPhaseToFilter\('first'/);
+        // 옛 평면 칸을 다시 읽지 않는다 (blob·평면 4칸·call_discount_pct 는 DROP 됐다)
+        expect(store).not.toMatch(/filterRow\.(destination_city|pickup_radius_km|detour_radius_km|call_discount_pct|phase_settings)/);
     });
 
     it('오늘값은 평소값의 **독립 복사본**이다 (참조를 공유하면 오늘 바꾼 게 평소값까지 바꾼다)', () => {

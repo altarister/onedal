@@ -17,9 +17,6 @@ export default function GeneralSettingsTab({ onClose }: Props) {
   const [homeCoords, setHomeCoords] = useState<{ x: number; y: number } | null>(null);
   const [isGeocodingLoading, setIsGeocodingLoading] = useState(false);
   const [geocodeError, setGeocodeError] = useState<string | null>(null);
-  const [destinationCity, setDestinationCity] = useState<string>("");
-  const [destinationRadiusKm, setDestinationRadiusKm] = useState<string>("");
-  const [detourRadiusKm, setDetourRadiusKm] = useState<string>("");
   const [isActive, setIsActive] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(false);
   const [volume, setVolume] = useState(50);
@@ -38,9 +35,6 @@ export default function GeneralSettingsTab({ onClose }: Props) {
       setHomeAddress(data.homeAddress || "");
       setHomeCoords(null);
       setGeocodeError(null);
-      setDestinationCity(data.destinationCity || "");
-      setDestinationRadiusKm(data.destinationRadiusKm?.toString() || "");
-      setDetourRadiusKm(data.detourRadiusKm?.toString() || "");
       setIsActive(data.isActive || false);
     } catch (e) {
       console.error("Failed to load settings:", e);
@@ -67,12 +61,10 @@ export default function GeneralSettingsTab({ onClose }: Props) {
   const handleSaveSettings = async () => {
     try {
       setIsLoading(true);
+      // 노선·반경은 여기서 보내지 않는다 — 편집 자리는 🔍 필터 국면 탭 하나 (④ 철거)
       await apiClient.put('/settings', {
         vehicleType, defaultPriority, homeAddress,
         homeX: homeCoords?.x, homeY: homeCoords?.y,
-        destinationCity,
-        destinationRadiusKm: destinationRadiusKm ? parseInt(destinationRadiusKm, 10) : undefined,
-        detourRadiusKm: detourRadiusKm ? parseInt(detourRadiusKm, 10) : undefined,
         isActive
       });
       onClose();

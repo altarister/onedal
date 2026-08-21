@@ -19,19 +19,20 @@ router.get("/", requireAuth, (req, res) => {
         // [중요] 조회 전에 세션을 먼저 가져와서, 신규 유저인 경우 DB에 권장 기본값을 강제 생성하게 함
         getUserSession(userId);
 
+        // ④ 철거 — 노선·반경은 국면 탭(user_filter_phases)이 원천이라 여기서 안 내린다
         let row = db.prepare(`
-            SELECT s.*, f.destination_city, f.destination_radius_km, f.detour_radius_km, f.is_active 
-            FROM user_settings s 
-            LEFT JOIN user_filters f ON s.user_id = f.user_id 
+            SELECT s.*, f.is_active
+            FROM user_settings s
+            LEFT JOIN user_filters f ON s.user_id = f.user_id
             WHERE s.user_id = ?
         `).get(userId) as any;
 
         if (!row) {
             db.prepare("INSERT INTO user_settings (user_id) VALUES (?)").run(userId);
             row = db.prepare(`
-                SELECT s.*, f.destination_city, f.destination_radius_km, f.detour_radius_km, f.is_active 
-                FROM user_settings s 
-                LEFT JOIN user_filters f ON s.user_id = f.user_id 
+                SELECT s.*, f.is_active
+                FROM user_settings s
+                LEFT JOIN user_filters f ON s.user_id = f.user_id
                 WHERE s.user_id = ?
             `).get(userId) as any;
         }
@@ -50,9 +51,6 @@ router.get("/", requireAuth, (req, res) => {
             homeX: row.home_x || null,
             homeY: row.home_y || null,
             alarmVolume: row.alarm_volume ?? 50,
-            destinationCity: row.destination_city || '',
-            destinationRadiusKm: row.destination_radius_km,
-            detourRadiusKm: row.detour_radius_km,
             isActive: Boolean(row.is_active),
         });
     } catch (e) {
@@ -163,11 +161,8 @@ router.put("/", requireAuth, async (req, res) => {
         }
 
 
-        // 내 노선 설정 (user_filters) 동시 업데이트
+        // 무인 서핑 스위치만 user_filters 로 — 노선·반경 편집 자리는 국면 탭 하나 (④ 철거)
         const filterChanges: any = {};
-        if (payload.destinationCity !== undefined) filterChanges.destinationCity = payload.destinationCity;
-        if (payload.destinationRadiusKm !== undefined) filterChanges.destinationRadiusKm = payload.destinationRadiusKm;
-        if (payload.detourRadiusKm !== undefined) filterChanges.detourRadiusKm = payload.detourRadiusKm;
         if (payload.isActive !== undefined) filterChanges.isActive = payload.isActive;
 
         if (Object.keys(filterChanges).length > 0) {
@@ -306,8 +301,10 @@ router.get("/pricing", requireAuth, (req, res) => {
         // [중요] 조회 전에 세션을 먼저 가져와서, 신규 유저인 경우 DB에 권장 기본값(3만/100만/10km)을 강제 생성하게 함
         getUserSession(userId);
 
+        // ④ 철거 — 콜할인율·반경은 국면 탭(user_filter_phases)이 원천이라 여기 없다.
+        //    남는 것: 금액 축의 원천(단가표·수수료)과 블랙리스트, 보류 칸(min/max_fare)
         const row = db.prepare(
-            "SELECT vehicle_rates, agency_fee_percent, max_discount_percent, excluded_keywords, min_fare, max_fare, pickup_radius_km FROM user_filters WHERE user_id = ?"
+            "SELECT vehicle_rates, agency_fee_percent, excluded_keywords, min_fare, max_fare FROM user_filters WHERE user_id = ?"
         ).get(userId) as any;
 
         const defaultRates: Record<string, number> = {
@@ -319,11 +316,9 @@ router.get("/pricing", requireAuth, (req, res) => {
         res.json({
             vehicleRates: row?.vehicle_rates ? JSON.parse(row.vehicle_rates) : defaultRates,
             agencyFeePercent: row?.agency_fee_percent ?? 23,
-            maxDiscountPercent: row?.max_discount_percent ?? 10,
             excludedKeywords: row?.excluded_keywords ? JSON.parse(row.excluded_keywords) : [],
             minFare: row?.min_fare ?? 0,
             maxFare: row?.max_fare ?? 1000000,
-            pickupRadiusKm: row?.pickup_radius_km ?? 10,
         });
     } catch (e) {
         console.error("Pricing GET 에러:", e);
@@ -335,7 +330,8 @@ router.get("/pricing", requireAuth, (req, res) => {
 router.put("/pricing", requireAuth, (req, res) => {
     try {
         const userId = req.user!.id;
-        const { vehicleRates, agencyFeePercent, maxDiscountPercent, excludedKeywords, minFare, maxFare, pickupRadiusKm } = req.body;
+        // ④ 철거 — 콜할인율(maxDiscountPercent)·반경은 국면 탭이 원천이라 받지 않는다
+        const { vehicleRates, agencyFeePercent, excludedKeywords, minFare, maxFare } = req.body;
 
         db.prepare("INSERT OR IGNORE INTO user_filters (user_id) VALUES (?)").run(userId);
 
@@ -350,10 +346,6 @@ router.put("/pricing", requireAuth, (req, res) => {
             updates.push("agency_fee_percent = @agencyFeePercent");
             params.agencyFeePercent = agencyFeePercent;
         }
-        if (maxDiscountPercent !== undefined) {
-            updates.push("max_discount_percent = @maxDiscountPercent");
-            params.maxDiscountPercent = maxDiscountPercent;
-        }
         if (updates.length > 0) {
             db.prepare(`UPDATE user_filters SET ${updates.join(", ")} WHERE user_id = @userId`).run(params);
         }
@@ -362,14 +354,13 @@ router.put("/pricing", requireAuth, (req, res) => {
         const filterChanges: any = {};
         if (minFare !== undefined) filterChanges.minFare = minFare;
         if (maxFare !== undefined) filterChanges.maxFare = maxFare;
-        if (pickupRadiusKm !== undefined) filterChanges.pickupRadiusKm = pickupRadiusKm;
         if (excludedKeywords !== undefined) filterChanges.excludedKeywords = excludedKeywords;
 
         if (Object.keys(filterChanges).length > 0) {
             saveBaseFilter(userId, filterChanges, req.app.get("io"));
         }
 
-        console.log(`💰 [요율 설정 저장] userId: ${userId}, 수수료: ${agencyFeePercent}%, 할인: ${maxDiscountPercent}%`);
+        console.log(`💰 [요율 설정 저장] userId: ${userId}, 수수료: ${agencyFeePercent}%`);
         res.json({ success: true });
     } catch (e) {
         console.error("Pricing PUT 에러:", e);
