@@ -1,6 +1,6 @@
 import { PendingOrder, SecuredOrder, MyOrder, TRUCK_CAPACITY_SLOTS, callName , DEFAULT_DEADLINE_RULES,
          scoreDryRun, describeDryRun, deriveRouteTimeline, minRouteBuffer, marginalDetourMin,
-         DEFAULT_JUDGMENT, REACH_COEF_MIN_PER_KM_TEMP, reachRadiusKm } from "@onedal/shared";
+         DEFAULT_JUDGMENT, REACH_COEF_MIN_PER_KM_TEMP, reachRadiusKm, anyRegionHit } from "@onedal/shared";
 import type { DryRunGate } from "@onedal/shared";
 import { OrderRepository } from "../../repositories/OrderRepository";
 import db from "../../db";
@@ -450,7 +450,8 @@ export class OrderEvaluator {
                 reasons.push(`경유 미확정 (경로가 아직 안 잡혔습니다)`);
             } else {
                 const dropoffText = order.dropoff || '';
-                const matched = keywords.some((kw: string) => dropoffText.includes(kw));
+                // 🗺️ 사전 확장 매칭 (④) — "남동"⊂"남동구" 부분 문자열 오탐을 트랩으로 거른다
+                const matched = anyRegionHit(dropoffText, keywords, filter.keywordTraps);
                 if (!matched) {
                     reasons.push(`도착지(${dropoffText.substring(0, 10)}) 경유 이탈`);
                 } else {

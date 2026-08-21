@@ -78,7 +78,7 @@ export function loadPhaseRows(userId: string): PhaseSettingsMap {
     }
 }
 import { logRoadmapEvent } from "../utils/roadmapLogger";
-import { getCityRegionsWithRadius, cityAliases, getDetourRegions, getActivePolyline, progressAlongPolyline } from "../services/geoService";
+import { getCityRegionsWithRadius, cityAliases, getDetourRegions, getActivePolyline, progressAlongPolyline, trapsForKeywords } from "../services/geoService";
 
 // ━━━ Prepared Statement 캐싱 (모듈 로드 시 1회만 실행) ━━━
 // 노선·반경·할인율 평면 칸은 ④에서 철거 — 그 값들은 user_filter_phases 행에 산다.
@@ -729,6 +729,11 @@ export function updateActiveFilter(
         // 파생 데이터 재계산
         recalculateDerivedFields(session, changes, userId);
     }
+
+    // 🗺️ 키워드 트랩 — 지금 키워드에서 매번 파생한다 (regionMatch 사전 확장 · 기사님 확정 ④).
+    //    "남동"→"인천 남동구" 오탐의 원천 수리. 원천은 전국 지명 사전(geoService)이고,
+    //    앱·서버 매칭(anyRegionHit)이 이 트랩으로 부분 문자열 오탐을 거른다.
+    session.activeFilter.keywordTraps = trapsForKeywords(session.activeFilter.destinationKeywords ?? []);
 
     // [자체 리뷰 B-③] isSharedMode 는 dispatchPhase 에서 파생되는 값이다.
     // (STANDBY = 첫짐 = 단독,  GATHERING/DELIVERING = 합짐)

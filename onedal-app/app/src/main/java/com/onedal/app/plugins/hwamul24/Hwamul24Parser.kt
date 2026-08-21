@@ -3,6 +3,7 @@ package com.onedal.app.plugins.hwamul24
 import android.content.Context
 import com.onedal.app.core.AppLogger
 import com.onedal.app.plugins.RouteOrderFilter
+import com.onedal.app.plugins.RegionMatch
 import com.onedal.app.core.IScrapParser
 import com.onedal.app.core.LocationTextAnalyzer
 import com.onedal.app.core.ScreenTextNode
@@ -58,6 +59,17 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
         return map
     }
 
+    /** 🗺️ keywordTraps 파싱 — {동: [더 긴 지명...]} (RegionMatch ④). 없으면 빈 맵 (구서버 호환) */
+    private fun parseTrapsMap(json: JSONObject, key: String): Map<String, List<String>> {
+        val obj = json.optJSONObject(key) ?: return emptyMap()
+        val map = mutableMapOf<String, List<String>>()
+        for (k in obj.keys()) {
+            val arr = obj.optJSONArray(k) ?: continue
+            map[k] = (0 until arr.length()).mapNotNull { arr.optString(it).takeIf { s -> s.isNotEmpty() } }
+        }
+        return map
+    }
+
     fun loadCurrentFilter(): FilterConfig {
         return try {
             val jsonStr = prefs.getString("activeFilter", null) ?: return FilterConfig()
@@ -65,6 +77,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
 
             // 🧭 [피기백 v2] 도착 목록 = destinationKeywords ∪ progressKm 키 (인성 파서와 같은 규칙)
             val progress = parseProgressMap(json, "progressKm")   // 없으면 빈 맵 → 순서 검사 안 함 (구서버 호환)
+            val traps = parseTrapsMap(json, "keywordTraps")       // 없으면 빈 맵 → 문법 안전망만 (구서버 호환)
             FilterConfig(
                 allowedVehicleTypes = parseJsonArray(json, "allowedVehicleTypes"),
                 isActive = json.optBoolean("isActive", false),   // 키가 없으면 멈춘다 (안전 방향)
@@ -77,7 +90,8 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
                 excludedKeywords = parseJsonArray(json, "excludedKeywords"),
                 destinationKeywords = (parseJsonArray(json, "destinationKeywords") + progress.keys).distinct(),
                 customCityFilters = parseJsonArray(json, "customCityFilters"),
-                progressKm = progress
+                progressKm = progress,
+                keywordTraps = traps
             )
         } catch (e: Exception) {
             AppLogger.e(TAG, "❌ 필터 JSON 파싱 실패: ${e.message}")
@@ -276,9 +290,8 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
             AppLogger.d(TAG, "🚦 [콜 잡기 보류] 도착지 키워드가 비어 있습니다 — 서버가 필터를 아직 못 만들었습니다")
             false
         } else {
-            filter.destinationKeywords.any { region ->
-                order.dropoff.contains(region, ignoreCase = true)
-            }
+            // 🗺️ RegionMatch(④) — "남동"⊂"인천 남동구" 부분 문자열 오탐을 트랩으로 거른다
+            RegionMatch.anyHit(order.dropoff, filter.destinationKeywords, filter.keywordTraps)
         }
 
         // ── 조건 3: 요금 하한선 ──

@@ -677,6 +677,11 @@ export interface AutoDispatchFilter {
     slotsUsed?: number;
     /** 지금 어느 국면을 콜 잡기하는가 — 기사님이 요약줄 스와이프로 고른다 (기본 DEST) */
     callTarget?: CallTarget;
+    /**
+     * 🗺️ 키워드 트랩 — 키워드로 시작하는 더 긴 다른 지명 (예: 남동 → [남동구]).
+     * 부분 문자열 오탐 방지(regionMatch ④)의 사전. destinationKeywords 에서 매번 파생.
+     */
+    keywordTraps?: Record<string, string[]>;
 }
 
 /**
@@ -1003,6 +1008,7 @@ export interface DeviceSession {
 
 
 export * from './vehicles';
+export * from './regionMatch';
 export * from './pricing';
 export * from './phases';
 export * from './cargoHints';

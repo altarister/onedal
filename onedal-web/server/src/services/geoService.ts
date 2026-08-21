@@ -60,6 +60,7 @@ export function initGeoService() {
                 catch { f.simplified = f; }
             });
             mergedMapFeatureCollection = parsed;
+            adminNameSet = null;   // 지도가 다시 로드되면 지명 사전도 다시 만든다
             console.log(`🗺️ [GeoService] 전국 자치구/읍면동 폴리곤 로드 성공 (총 ${parsed.features?.length || 0}개 방어구역)`);
         } else {
             console.warn(`🗺️ [GeoService] merged_map.geojson 형식이 올바른 FeatureCollection이 아닙니다.`);
@@ -791,6 +792,41 @@ export function reverseGeocodeToRegion(lat: number, lng: number): string | null 
  *   경기       → 시/군 단위로 (`수원시` 면 4개 구 전부)
  * 이렇게 묶으면 `getCityRegionsWithRadius` 의 `includes` 검색과 그대로 맞물린다.
  */
+// ─────────────────────────────────────────────────────────────
+// 🗺️ 전국 지명 사전 — 키워드 트랩 계산 (regionMatch 사전 확장 · 2026-08-22 기사님 확정 ④)
+//
+// "남동"(광주 인근 동)이 "인천 남동구" 에 contains 로 걸려 인천행이 복귀행 필터를
+// 통과한 사고의 원천 수리다. 동 이름(EMD_KOR_NM)과 상위 지명 낱말(parentName)을
+// 사전으로 모아, 키워드로 시작하는 **더 긴 다른 지명**을 트랩으로 계산한다.
+// 트랩은 필터 파생 때 함께 만들어 피기백(keywordTraps)에 실린다.
+// ─────────────────────────────────────────────────────────────
+let adminNameSet: Set<string> | null = null;
+function allAdminNames(): Set<string> {
+    if (adminNameSet) return adminNameSet;
+    const s = new Set<string>();
+    for (const f of mergedMapFeatureCollection?.features ?? []) {
+        const props: any = f.properties || {};
+        if (props.EMD_KOR_NM) s.add(String(props.EMD_KOR_NM));
+        const parent = props.intel?.parentName || props.SIG_KOR_NM;
+        if (parent) for (const tok of String(parent).split(' ')) if (tok) s.add(tok);
+    }
+    adminNameSet = s;
+    return s;
+}
+
+/** 키워드마다 "그 이름으로 시작하는 더 긴 지명"(트랩) — 없는 키워드는 키를 만들지 않는다 */
+export function trapsForKeywords(keywords: string[]): Record<string, string[]> {
+    const names = allAdminNames();
+    const out: Record<string, string[]> = {};
+    for (const k of keywords) {
+        if (!k) continue;
+        const traps: string[] = [];
+        for (const n of names) if (n !== k && n.startsWith(k)) traps.push(n);
+        if (traps.length) out[k] = traps;
+    }
+    return out;
+}
+
 export function getSelectableCities(): { sido: string; cities: string[] }[] {
     if (!mergedMapFeatureCollection?.features) return [];
 

@@ -3,6 +3,7 @@ package com.onedal.app.plugins.insung
 import android.content.Context
 import com.onedal.app.core.AppLogger
 import com.onedal.app.plugins.RouteOrderFilter
+import com.onedal.app.plugins.RegionMatch
 import com.onedal.app.core.IScrapParser
 import com.onedal.app.core.LocationTextAnalyzer
 import com.onedal.app.core.ScreenTextNode
@@ -99,6 +100,17 @@ class InsungParser(private val context: Context) : IScrapParser {
         return map
     }
 
+    /** 🗺️ keywordTraps 파싱 — {동: [더 긴 지명...]} (RegionMatch ④). 없으면 빈 맵 (구서버 호환) */
+    private fun parseTrapsMap(json: JSONObject, key: String): Map<String, List<String>> {
+        val obj = json.optJSONObject(key) ?: return emptyMap()
+        val map = mutableMapOf<String, List<String>>()
+        for (k in obj.keys()) {
+            val arr = obj.optJSONArray(k) ?: continue
+            map[k] = (0 until arr.length()).mapNotNull { arr.optString(it).takeIf { s -> s.isNotEmpty() } }
+        }
+        return map
+    }
+
     private fun parseCommaSeparated(json: JSONObject, key: String): List<String> {
         val str = json.optString(key, "")
         return if (str.isNotEmpty()) str.split(",").map { it.trim() }.filter { it.isNotEmpty() } else emptyList()
@@ -114,6 +126,7 @@ class InsungParser(private val context: Context) : IScrapParser {
             //    신서버는 progressKm 에 실린 동을 키워드에서 빼서 보낸다 (같은 목록 두 번 안 싣기).
             //    구서버(중복 포함)와도 distinct 로 같은 집합이 된다 (호환)
             val progress = parseProgressMap(json, "progressKm")   // 없으면 빈 맵 → 순서 검사 안 함 (구서버 호환)
+            val traps = parseTrapsMap(json, "keywordTraps")       // 없으면 빈 맵 → 문법 안전망만 (구서버 호환)
             FilterConfig(
                 allowedVehicleTypes = parseJsonArray(json, "allowedVehicleTypes"),
                 isActive = json.optBoolean("isActive", false),   // 키가 없으면 멈춘다 (안전 방향)
@@ -127,7 +140,8 @@ class InsungParser(private val context: Context) : IScrapParser {
                 destinationKeywords = (parseJsonArray(json, "destinationKeywords") + progress.keys).distinct(),
                 customCityFilters = parseJsonArray(json, "customCityFilters"),
                 ratePerKm = parseRateMap(json, "ratePerKm"),   // 없으면 빈 맵 → minFare 판정 (구서버 호환)
-                progressKm = progress
+                progressKm = progress,
+                keywordTraps = traps
             )
         } catch (e: Exception) {
             AppLogger.e(TAG, "❌ 필터 JSON 파싱 실패: ${e.message}")
@@ -308,9 +322,8 @@ class InsungParser(private val context: Context) : IScrapParser {
             }
 
             // [2단계] 동/읍/면 검사: 도착지 텍스트에 우리 키워드(동 이름)가 있는가?
-            val hasDongMatch = filter.destinationKeywords.any { dong -> 
-                pureDropoffText.contains(dong, ignoreCase = true) 
-            }
+            // 🗺️ RegionMatch(④) — "남동"⊂"인천 남동구" 부분 문자열 오탐을 트랩으로 거른다
+            val hasDongMatch = RegionMatch.anyHit(pureDropoffText, filter.destinationKeywords, filter.keywordTraps)
 
             val matchResult = when {
                 hasCityAlias && hasDongMatch -> true    // ✅ 시/도 + 동 모두 확인 → 꿀콜
@@ -337,9 +350,8 @@ class InsungParser(private val context: Context) : IScrapParser {
                 AppLogger.d(TAG, "🚦 [콜 잡기 보류] 도착지 키워드가 비어 있습니다 — 서버가 필터를 아직 못 만들었습니다")
                 false
             } else {
-                filter.destinationKeywords.any { region ->
-                    order.dropoff.contains(region, ignoreCase = true)
-                }
+                // 🗺️ RegionMatch(④) — 부분 문자열 오탐을 트랩으로 거른다
+                RegionMatch.anyHit(order.dropoff, filter.destinationKeywords, filter.keywordTraps)
             }
             if (!isDetailPreConfirmStage && order.fare > 0) AppLogger.d(TAG, "🔍 [1차 리스트 필터] 도착지=${order.dropoff}, 결과=$matchResult")
             matchResult
