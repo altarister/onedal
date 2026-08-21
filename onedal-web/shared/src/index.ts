@@ -1187,6 +1187,7 @@ export * from './cargoSpec';
 export * from './stepTables';
 export * from './stepRecords';
 export * from './timing';
+export * from './dryRun';
 /**
  * 🔴 콜의 **색을 정하는 곳 — 여기 하나뿐이다** (2026-08-15 신설).
  *    이 파일은 아무것도 import 하지 않는다 — 순환 참조를 만들지 않으려는 것이다.

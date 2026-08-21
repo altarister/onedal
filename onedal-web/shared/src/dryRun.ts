@@ -1,0 +1,146 @@
+/**
+ * 🧪 **새 판정 채점기 (dryRun)** — [docs/판정색_확정안.md](../../../docs/판정색_확정안.md) v2 의 구현.
+ *
+ * 노하우 4콜 낙제(2026-08-21 · 전부 🟡)의 답이다. 확정된 뼈대:
+ *
+ *   **조건 전수를 표시하고, 축 셋으로 색을 내고, 서버는 떨어뜨리지 않는다.**
+ *
+ *   문지기(통과/실패) — 실패 = 🔴 고정 + 사유. 자동 탈락 없음 (규칙 ①)
+ *   축(0~100 × 가중치) — 순증 대비 우회 · 버퍼 소비 · 적재 · 시급(첫짐)
+ *   딱지(사실만) — 우회 절대값 · 통화 필요 · 블라인드 · 미확인
+ *
+ * 옛 채점기(judgment.ts scoreSolo/scoreMerge)와 **병행**한다 — 화면은 아직 옛 색,
+ * 이 결과는 서버 로그(`🧪 [dryRun]`)에만 나간다. 문제지(리허설 13~16) 캘리브레이션이
+ * 끝나 16-4 색이 나오면 화면을 전환하고 옛 것을 철거한다.
+ *
+ * ⚠️ **환산식은 초안이다** — 캘리브레이션으로 확정되기 전까지 화면에 내보내지 않는다
+ *    (⑤-4: 값의 근거가 확정되기 전에 기사님이 보는 값이 되면 안 된다).
+ */
+import type { JudgmentConfig } from './judgment';
+
+export interface DryRunGate {
+    key: string;
+    name: string;
+    pass: boolean;
+    /** 실패했을 때 기사님이 읽는 문장 — "잡으면 ~가 깨집니다" */
+    why: string | null;
+}
+
+export interface DryRunAxis {
+    key: string;
+    name: string;
+    /** 0~100 */
+    score: number;
+    weight: number;
+    /** 판단 없이 사실만 — 화면·로그에 그대로 적는 문자열 */
+    raw: string;
+}
+
+export interface DryRunInput {
+    kind: 'first' | 'merge';
+    fare: number;
+    /** 합짐: 이 콜을 붙일 때 늘어나는 총 소요(주행 delta + 정차 delta, 분) */
+    detourExtraMin?: number | null;
+    /** 합짐: 붙인 뒤 경로의 최소 버퍼(기존 콜 정거장만, 분). null = 잴 약속이 없다 */
+    bufferAfterMin?: number | null;
+    /** 합짐: 붙이기 전 최소 버퍼 — 소비량 표시용 */
+    bufferBeforeMin?: number | null;
+    /** 첫짐: 접근 + 정차 + 배송 전체 소요(분) */
+    totalMinutes?: number | null;
+    /** 적재 여유 % (0~100). null = 모름 */
+    slotsFreePct?: number | null;
+    gates: DryRunGate[];
+    /** 판단 없는 사실 딱지 — 서버가 조립해 넘긴다 */
+    tags: string[];
+    /**
+     * 시급 목표(원/시간). 🔴 dryRun 전용 임시값 — 기사님 확정: "캘리브레이션 결과를
+     * 보고 정한다". DB 칸(`target_hourly_krw`)은 화면 전환 때 만든다.
+     */
+    targetHourlyKrw?: number;
+}
+
+export interface DryRunVerdict {
+    /** '사고' = 문지기 실패 (🔴). 뜻은 "잡으면 사고" 하나 — 사유 문장이 가른다 */
+    color: '꿀' | '보통' | '똥' | '사고';
+    /** 축 가중 평균. 문지기 실패여도 계산해 둔다 — 캘리브레이션 재료 */
+    score: number;
+    axes: DryRunAxis[];
+    gates: DryRunGate[];
+    tags: string[];
+}
+
+const TEMP_TARGET_HOURLY = 30_000;   // 16-6 실측 역산(4콜 14.1만 ÷ ≈4.5h) — 로그 전용
+
+const clamp = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
+const manwon = (krw: number) => (krw / 10_000).toFixed(1);
+
+export function scoreDryRun(input: DryRunInput, cfg: JudgmentConfig): DryRunVerdict {
+    const target = input.targetHourlyKrw ?? TEMP_TARGET_HOURLY;
+    const axes: DryRunAxis[] = [];
+
+    if (input.kind === 'merge') {
+        // ── 순증 대비 우회 — "같은 40분이라도 3.5만이면 좋고 5천원이면 나쁘다" (기사님 확정 ②)
+        if (input.detourExtraMin != null && input.detourExtraMin > 0) {
+            const hourly = (input.fare / input.detourExtraMin) * 60;
+            axes.push({
+                key: 'revenuePerDetour', name: '순증 대비 우회',
+                score: clamp((hourly / target) * 100), weight: 1,
+                raw: `${manwon(input.fare)}만 ÷ ${input.detourExtraMin}분 = ${manwon(hourly)}만/h`,
+            });
+        } else if (input.detourExtraMin != null) {
+            // 우회 0분 이하 — 길목 콜. 공짜 순증이므로 만점
+            axes.push({ key: 'revenuePerDetour', name: '순증 대비 우회', score: 100, weight: 1,
+                        raw: `우회 ${input.detourExtraMin}분 — 길목` });
+        }
+
+        // ── 버퍼 소비 — 콜을 붙인 뒤 "남는 최소 버퍼"로 잰다 (곡선: 30분↑ 100 · 0분 40 · 음수 0)
+        if (input.bufferAfterMin != null) {
+            const a = input.bufferAfterMin;
+            const score = a >= 30 ? 100 : a >= 0 ? 40 + 2 * a : 0;
+            const spent = input.bufferBeforeMin != null ? input.bufferBeforeMin - a : null;
+            axes.push({
+                key: 'bufferCost', name: '버퍼 소비', score: clamp(score), weight: 1,
+                raw: `${spent != null ? `소비 ${spent}분 → ` : ''}최소 ${a >= 0 ? '+' : ''}${a}분`,
+            });
+        }
+        // ── 적재 (합짐만) — 남을수록 다음 합짐 여지가 크다 (옛 축 보존).
+        //    첫짐은 빈 차라 늘 ~만점이 되어 시급 축을 희석한다 — 축에서 빼고 사실만 안다
+        if (input.slotsFreePct != null) {
+            axes.push({ key: 'loadCapacity', name: '적재', score: clamp(input.slotsFreePct), weight: 1,
+                        raw: `여유 ${Math.round(input.slotsFreePct)}%` });
+        }
+    } else {
+        // ── 시급 (첫짐) — 요금 ÷ (접근+정차+배송)
+        if (input.totalMinutes != null && input.totalMinutes > 0) {
+            const hourly = (input.fare / input.totalMinutes) * 60;
+            axes.push({
+                key: 'hourlyRate', name: '시급', score: clamp((hourly / target) * 100), weight: 1,
+                raw: `${manwon(input.fare)}만 ÷ ${input.totalMinutes}분 = ${manwon(hourly)}만/h`,
+            });
+        }
+    }
+
+    const totalW = axes.reduce((a, x) => a + x.weight, 0);
+    const score = totalW > 0
+        ? Math.round(axes.reduce((a, x) => a + x.score * x.weight, 0) / totalW)
+        : 0;
+
+    const failed = input.gates.some(g => !g.pass);
+    const color: DryRunVerdict['color'] = failed ? '사고'
+        : score >= cfg.color.honeyMin ? '꿀'
+        : score >= cfg.color.normalMin ? '보통' : '똥';
+
+    return { color, score, axes, gates: input.gates, tags: input.tags };
+}
+
+/** 로그 한 줄 — `🧪 [dryRun] 🟢 64점 (순증 2.6만/h · 버퍼 최소 +18분) · 딱지: 통화 필수` */
+export function describeDryRun(v: DryRunVerdict): string {
+    const emoji = v.color === '꿀' ? '🔵' : v.color === '보통' ? '🟢' : v.color === '똥' ? '🟡' : '🔴';
+    const gates = v.gates.filter(g => !g.pass).map(g => g.why ?? g.name);
+    const head = gates.length
+        ? `${emoji} 잡으면 사고 — ${gates.join(' · ')} (축점 ${v.score})`
+        : `${emoji} ${v.score}점`;
+    const axes = v.axes.map(a => `${a.name} ${a.raw}(${a.score})`).join(' · ');
+    const tags = v.tags.length ? ` · 딱지: ${v.tags.join(' · ')}` : '';
+    return `${head}${axes ? ` — ${axes}` : ''}${tags}`;
+}

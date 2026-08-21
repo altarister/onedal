@@ -1,4 +1,7 @@
-import { PendingOrder, SecuredOrder, MyOrder, scoreMerge, scoreSolo, describeJudgment, TRUCK_CAPACITY_SLOTS, callName , DEFAULT_DEADLINE_RULES } from "@onedal/shared";
+import { PendingOrder, SecuredOrder, MyOrder, scoreMerge, scoreSolo, describeJudgment, TRUCK_CAPACITY_SLOTS, callName , DEFAULT_DEADLINE_RULES,
+         scoreDryRun, describeDryRun, deriveRouteTimeline, minRouteBuffer } from "@onedal/shared";
+import type { DryRunGate } from "@onedal/shared";
+import { OrderRepository } from "../../repositories/OrderRepository";
 import { getUserSession } from "../../state/userSessionStore";
 import { computeAllowedDetour, findLoadConflicts, totalDetourCost } from "../helpers";
 import { geocodeAddress, calculateSoloRoute } from "../../services/kakaoService";
@@ -130,6 +133,25 @@ export class OrderEvaluator {
                             + (securedOrder.approachDurationMin ? ` (상차지까지 ${securedOrder.approachDurationMin}분)` : '')
                             + ` ${soloMark} · ${soloVerdict.score}점`;
 
+                        // 🧪 새 판정 병행 (dryRun) — 첫짐은 시급 축 (확정안 v2). 로그 한 줄뿐.
+                        try {
+                            const dwell = totalDetourCost(0, securedOrder.id, session.judgment.unknown);
+                            const total = securedOrder.totalDurationMin != null
+                                ? securedOrder.totalDurationMin + dwell.dwell : null;
+                            const tags: string[] = [];
+                            if (securedOrder.approachDurationMin != null
+                                && securedOrder.approachDurationMin > session.judgment.unknown.pickupOffsetMin)
+                                tags.push('통화 필수 — 무통보 상차 한계 밖');
+                            if (dwell.hasUnknown) tags.push('정차 미확인(일반값)');
+                            const dry = scoreDryRun({
+                                kind: 'first', fare: securedOrder.fare, totalMinutes: total,
+                                gates: [], tags,
+                            }, session.judgment);
+                            console.log(`   - 🧪 [dryRun] ${describeDryRun(dry)}`);
+                        } catch (e) {
+                            console.log(`   - 🧪 [dryRun] 계산 실패: ${(e as Error).message}`);
+                        }
+
                         console.log(`   - 🗺️ 궤적 길이 (Solo): ${securedOrder.routePolyline?.length || '없음'}`);
                     } else {
                         /**
@@ -213,6 +235,73 @@ export class OrderEvaluator {
                         for (const [a, b] of conflicts) {
                             reasons.push(`동승 불가: 실린 화물(${a}) + 이 화물(${b})`);
                             recommend = "'똥'";
+                        }
+
+                        /**
+                         * 🧪 **새 판정 병행 (dryRun)** — 판정색_확정안 v2. 화면은 옛 색 그대로,
+                         * 이 결과는 로그 한 줄뿐이다. 문제지(13~16) 캘리브레이션이 끝나면 전환.
+                         * 실패해도 심사를 막지 않는다 — try 로 감싼다.
+                         */
+                        try {
+                            const secStops = (result.merged as any).sectionStops as
+                                Array<{ orderId: string; stopType: 'pickup' | 'dropoff' }> | undefined;
+                            const secMins = result.merged.sectionDriveMin;
+                            const stopsAfter = secStops && secMins && secStops.length === secMins.length
+                                ? secStops.map((st, i) => ({ ...st, driveMinutes: secMins[i] }))
+                                : [];
+                            const rules = {
+                                ...DEFAULT_DEADLINE_RULES,
+                                pickupOffsetMinutes: session.judgment.unknown.pickupOffsetMin,
+                                deadlineRatioPct: session.judgment.deadline.ratioPct,
+                            };
+                            // 후보를 **포함한** 경로의 타임라인 — 기존 콜 약속이 어떻게 되는지가 문지기다
+                            const tlAfter = stopsAfter.length
+                                ? deriveRouteTimeline(stopsAfter as any, [...activeCalls, securedOrder] as any,
+                                    id => OrderRepository.getCargoReports(id) as any,
+                                    id => OrderRepository.getMilestones(id) as any,
+                                    Date.now(), new Date().toISOString(), rules)
+                                : [];
+                            const existing = tlAfter.filter(e => e.orderId !== securedOrder.id);
+                            const late = existing.filter(e => e.lateMinutes > 0);
+                            // 콜 호칭 조합 규칙 — "노선합짐1콜 하차 약속이 깨집니다"
+                            const nameOf = (id: string) => {
+                                const idx = activeCalls.findIndex(c => c.id === id);
+                                return idx >= 0
+                                    ? callName({ target: session.activeFilter.callTarget, index: idx })
+                                    : id.slice(-6);
+                            };
+                            const gates: DryRunGate[] = [{
+                                key: 'routePromiseGuard', name: '기존 콜 약속 보존', pass: late.length === 0,
+                                why: late.length
+                                    ? `잡으면 ${late.map(e =>
+                                        `${nameOf(e.orderId)} ${e.stopType === 'pickup' ? '상차' : '하차'} 약속이 ${e.lateMinutes}분 깨집니다`).join(' · ')}`
+                                    : null,
+                            }];
+                            if (conflicts.length) gates.push({
+                                key: 'cargoTagCompat', name: '짐 동승', pass: false,
+                                why: `동승 불가 — ${conflicts.map(([a, b]) => `${a}+${b}`).join(' · ')}`,
+                            });
+
+                            const bufAfter = minRouteBuffer(existing);
+                            // 딱지 — 판단 없이 사실만 (절대치 문턱의 강등 자리)
+                            const tags = [`우회 ${result.timeDiffMin > 0 ? '+' : ''}${result.timeDiffMin}분 · ${distDiff > 0 ? '+' : ''}${distDiff}km`];
+                            const candPickup = tlAfter.find(e => e.orderId === securedOrder.id && e.stopType === 'pickup');
+                            const clockMs = Date.now() + session.judgment.unknown.pickupOffsetMin * 60_000;
+                            if (candPickup?.etaMs != null && candPickup.etaMs > clockMs) tags.push('통화 필수 — 무통보 상차 한계 밖');
+                            if (cost.hasUnknown) tags.push('정차 미확인(일반값)');
+                            if (!bufAfter) tags.push('버퍼 잴 약속 없음');
+
+                            const dry = scoreDryRun({
+                                kind: 'merge', fare: securedOrder.fare,
+                                detourExtraMin: cost.total,
+                                bufferAfterMin: bufAfter?.minutes ?? null,
+                                slotsFreePct: slotsTotal > 0
+                                    ? (Math.max(0, slotsTotal - slotsUsed) / slotsTotal) * 100 : null,
+                                gates, tags,
+                            }, session.judgment);
+                            console.log(`   - 🧪 [dryRun] ${describeDryRun(dry)}`);
+                        } catch (e) {
+                            console.log(`   - 🧪 [dryRun] 계산 실패: ${(e as Error).message}`);
                         }
 
                         // 🔴 우회거리를 따로 또 판정하던 블록을 지웠다 — 이제 `scoreMerge` 안에서
