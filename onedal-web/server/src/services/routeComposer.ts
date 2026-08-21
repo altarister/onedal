@@ -162,9 +162,14 @@ export async function composeMergedRoute(params: ComposeMergedRouteParams) {
     /**
      * 🧭 구간의 주인 — `planArrivalStops` 는 같은 optimizeWaypoints 를 쓰므로
      * 카카오 요청의 경유 순서와 같다. 자리가 아니라 이름으로 맞추는 열쇠가 된다.
+     *
+     * 🔴 **`merged` 안에 붙인다** — 호출부는 전부 `applyRoute(holder, result.merged)` 라
+     *    바깥에 붙이면 홀더에 영영 안 실린다. 실제로 그렇게 끊겨 있어서 #32 증상
+     *    (도착마다 길이 어긋남 → 주행분 전부 null)이 4콜 모의주행에서 재발했다
+     *    (2026-08-21 · tests/services/sectionStopsPlumbing.test.ts 가 이 이음새를 지킨다).
      */
-    if (result) {
-        (result as any).sectionStops = planArrivalStops(
+    if (result?.merged) {
+        (result.merged as any).sectionStops = planArrivalStops(
             extra ? [...calls, extra] : calls, driverLocation,
         ).map(st => ({ orderId: st.orderId, stopType: st.stopType }));
     }
