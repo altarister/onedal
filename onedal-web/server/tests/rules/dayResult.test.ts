@@ -28,6 +28,22 @@ beforeAll(() => {
     ins.run(`${U}-6`, 'ORDER_DELIVERED', U,
         new Date('2026-08-19T10:00:00+09:00').toISOString(),
         new Date('2026-08-19T10:00:00+09:00').toISOString(), 99000, 'insung');
+    /**
+     * 🔴 자정을 걸친 콜 — **하차한 날의 매출이다** (2026-08-22 실측: 어제 잡고 새벽에
+     * 하차한 21만원이 잡은 날 기준 집계 탓에 어느 날 기록에도 안 잡혔다).
+     * 관제앱은 업무 단위 — 콜의 끝은 하차(ORDER_DELIVERED)이고, 매출은 그날 것이다.
+     */
+    const insDone = db.prepare(`INSERT OR REPLACE INTO orders
+        (id, type, status, userId, timestamp, capturedAt, pickup, dropoff, fare, targetApp, completedAt)
+        VALUES (?, 'NEW_ORDER', 'ORDER_DELIVERED', ?, ?, ?, '상', '하', ?, 'insung', ?)`);
+    // 전날 밤에 잡고 DAY 새벽에 하차 → DAY 매출
+    insDone.run(`${U}-7`, U,
+        new Date('2026-08-19T21:00:00+09:00').toISOString(),
+        new Date('2026-08-19T21:00:00+09:00').toISOString(), 70000,
+        new Date(`${DAY}T05:00:00+09:00`).toISOString());
+    // DAY 밤에 잡고 다음 날 새벽에 하차 → DAY 아님 (다음 날 매출)
+    insDone.run(`${U}-8`, U, at(23), at(23), 88000,
+        new Date('2026-08-21T01:00:00+09:00').toISOString());
     db.prepare(`INSERT OR REPLACE INTO order_judgments (orderId, userId, color, score, detail, judgedAt)
                 VALUES (?, ?, ?, ?, '{}', ?)`).run(`${U}-1`, U, '꿀', 80, at(9));
     db.prepare(`INSERT OR REPLACE INTO order_judgments (orderId, userId, color, score, detail, judgedAt)
@@ -46,8 +62,9 @@ describe('recordDayResult — 하루를 설정 스냅샷과 함께 남긴다', (
         recordDayResult(U, DAY, { first: { discountPct: 0 } });
         const r = db.prepare(`SELECT * FROM filter_day_results WHERE user_id = ? AND day = ?`)
                     .get(U, DAY) as any;
-        expect(r.revenue).toBe(115000);                       // 3+3.5+5만 — 취소·다른 날 제외
-        expect(r.calls).toBe(3);
+        // 3+3.5+5만(그날 하차) + 7만(전날 잡고 그날 새벽 하차) — 취소·다른 날 하차 제외
+        expect(r.revenue).toBe(185000);
+        expect(r.calls).toBe(4);
         expect(JSON.parse(r.cancels)).toEqual({ insung: 1, hwamul24: 1 });
         expect(JSON.parse(r.colors)).toEqual({ '꿀': 1, '보통': 1 });
         expect(JSON.parse(r.settings).first.discountPct).toBe(0);   // 리셋 전 스냅샷

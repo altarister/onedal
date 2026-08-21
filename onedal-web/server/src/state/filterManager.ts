@@ -860,10 +860,18 @@ export function recordDayResult(userId: string, day: string, settingsSnapshot: u
     if (!day || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return;
     const range = [`${day}T00:00:00+09:00`, `${day}T24:00:00+09:00`]
         .map(t => new Date(t).toISOString());
+    /**
+     * 🔴 매출은 **하차한 날**의 것이다 (버그 대장 #38 · 2026-08-22).
+     * 잡은 날(capturedAt) 기준으로 세면 자정을 걸친 콜(어제 잡고 새벽 하차)이
+     * 어느 날 기록에도 안 잡힌다 — 어제 기록은 이미 확정됐고 오늘 집계는 잡은 날로
+     * 거르니까. 관제앱은 업무 단위 — 콜의 끝은 하차고, 매출은 그날 것이다.
+     * completedAt 이 없는 옛 행만 잡은 날로 근사한다 (지어내지 않는 폴백).
+     */
     const done = db.prepare(`
         SELECT COALESCE(SUM(fare), 0) AS revenue, COUNT(*) AS calls FROM orders
         WHERE userId = ? AND status IN ('ORDER_DELIVERED', 'ORDER_COMPLETED')
-          AND capturedAt >= ? AND capturedAt < ?`).get(userId, range[0], range[1]) as any;
+          AND COALESCE(completedAt, capturedAt) >= ? AND COALESCE(completedAt, capturedAt) < ?`)
+        .get(userId, range[0], range[1]) as any;
     const cancels: Record<string, number> = {};
     for (const r of db.prepare(`
         SELECT COALESCE(targetApp, 'insung') AS app, COUNT(*) AS n FROM orders
