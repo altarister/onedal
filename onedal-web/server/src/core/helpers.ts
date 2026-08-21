@@ -6,6 +6,7 @@ import { isTerminal, cargoPoints, VEHICLE_CAPACITY, normalizeVehicleType,
          computeStopTiming } from '@onedal/shared';
 import type { MyOrder, CargoReport, CapacityConfidence, DwellUnknown } from '@onedal/shared';
 import { OrderRepository } from '../repositories/OrderRepository';
+import db from '../db';
 import { planArrivalStops } from '../services/routeComposer';
 
 /**
@@ -184,7 +185,7 @@ function logRouteStops(
  * ⚠️ 페이로드를 만드는 곳은 **여기 하나뿐**이어야 한다.
  *    (예전에는 네 군데가 각자 `Array.from(...)` 을 했다)
  */
-export function buildOrderSync(session: { myOrders: MyOrder[]; pendingOrdersData: Map<string, any>;
+export function buildOrderSync(session: { userId?: string; myOrders: MyOrder[]; pendingOrdersData: Map<string, any>;
                                           driverLocation?: { x: number; y: number } | null }) {
     // 🔴 세션은 같은 콜을 **두 곳**에 들고 있다.
     //    pendingOrdersData — 평가 중 + 확정된 콜의 캐시
@@ -269,11 +270,25 @@ export function buildOrderSync(session: { myOrders: MyOrder[]; pendingOrdersData
     }));
     logRouteStops(routeStops, routeComputedAt, holder?.id ?? null, aligned || !!minByKey, mins?.length ?? 0);
 
+    /**
+     * 🚫 **취소 카운터 — 리셋 없는 예산** (필터 정의 2장 · 확정안 구현 5).
+     * 잘못 집힌 콜 하나 = 취소 1회 소진, 망별(인성/24시) 10회. 리셋이 없으므로
+     * 저장하지 않고 장부(orders)에서 그냥 센다 (규칙 ③ — 파생값은 저장하지 않는다).
+     */
+    const cancelCounts: Record<string, number> = {};
+    try {
+        const rows = db.prepare(`SELECT COALESCE(targetApp, 'insung') AS app, COUNT(*) AS n
+                                 FROM orders WHERE userId = ? AND status = 'SAFE_CANCEL'
+                                 GROUP BY COALESCE(targetApp, 'insung')`).all(session.userId) as any[];
+        for (const r of rows) cancelCounts[r.app] = r.n;
+    } catch { /* 파생 계측 — 실패해도 sync 는 계속 */ }
+
     return {
         active: all.filter(o => !isTerminal(o.status)),
         terminated: all.filter(o => isTerminal(o.status)).map(stripPolyline),
         routeStops,
         routeComputedAt,
+        cancelCounts,
     };
 }
 

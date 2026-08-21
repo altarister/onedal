@@ -23,6 +23,8 @@ export function useOrderEngine() {
     /** 🧭 서버가 내려준 경로 순서 — 방문 순서의 유일한 원천 (기사님 동의 2026-08-19) */
     const [routeStops, setRouteStops] = useState<RouteStopInfo[]>([]);
     const [routeComputedAt, setRouteComputedAt] = useState<string | null>(null);
+    // 🚫 취소 카운터 — 리셋 없는 예산 (필터 정의 2장). 서버가 장부에서 파생해 sync 에 싣는다
+    const [cancelCounts, setCancelCounts] = useState<Record<string, number>>({});
 
     // 파생 상태 (기존 컴포넌트 호환성 유지)
     const firstCall = activeOrders.length > 0 ? activeOrders[0] : null;
@@ -240,6 +242,7 @@ export function useOrderEngine() {
             // 옛 서버는 이 필드가 없다 → 빈 배열 (화면은 번호 없이 콜만 그린다)
             setRouteStops(payload.routeStops ?? []);
             setRouteComputedAt(payload.routeComputedAt ?? null);
+            if (payload.cancelCounts) setCancelCounts(payload.cancelCounts);
 
             /**
              * 🔴 로그는 **updater 밖에서** 찍는다.
@@ -292,6 +295,7 @@ export function useOrderEngine() {
         orders,
         routeStops,
         routeComputedAt,
+        cancelCounts,
         isConnected,
         firstCall,
         mergeCalls,

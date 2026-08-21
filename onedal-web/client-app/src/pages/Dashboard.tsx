@@ -47,6 +47,7 @@ export default function Dashboard() {
         handleRecalculate,
         routeStops,
         routeComputedAt,
+        cancelCounts,
     } = useOrderEngine();
 
     // [2026-08-10] 서버가 진행/종료를 **나눠서** 보낸다. 예전에는 한 배열로 와서
@@ -240,7 +241,7 @@ export default function Dashboard() {
                 <DeviceControlPanel />
 
                 {/* ⚙️ 오더 필터 한 줄 현황판 (클릭 시 설정 모달 띄움) */}
-                <OrderFilterStatus onOpenFilter={() => setIsFilterModalOpen(true)} />
+                <OrderFilterStatus onOpenFilter={() => setIsFilterModalOpen(true)} cancelCounts={cancelCounts} />
 
                 {/* 🚚 내 차 정보 및 적재/이동 상태 패널 */}
                 <VehicleStatusPanel liveCalls={liveCalls} />

@@ -1172,6 +1172,11 @@ export interface OrderSyncPayload {
     active: SecuredOrder[];
     terminated: SecuredOrder[];
     /**
+     * 🚫 취소 카운터 — **리셋 없는 예산** (필터 정의 2장). 망별(targetApp) SAFE_CANCEL
+     * 누적. 파생값이라 저장하지 않고 서버가 장부에서 세어 싣는다. 요약줄이 상시 표시.
+     */
+    cancelCounts?: Record<string, number>;
+    /**
      * 🧭 **경로 순서의 원천 — 서버 하나다** (기사님 동의 2026-08-19).
      * 방문 순서대로의 정거장 목록. 관제웹은 자기 TSP 를 돌리지 않고 이걸 그대로 그린다
      * (두 벌이면 ETA 가 엉뚱한 정거장에 붙는다 — "파생값 두 벌" 사고 클래스).

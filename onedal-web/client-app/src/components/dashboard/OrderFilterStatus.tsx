@@ -36,7 +36,8 @@ const PHASE_STYLE: Record<CallTarget, { icon: string; accent: string; hint: stri
     HOME:  { icon: '🏠', accent: 'text-accent',     hint: '집 방향 콜 — 합짐 최대한' },
 };
 
-export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () => void }) {
+export default function OrderFilterStatus({ onOpenFilter, cancelCounts = {} }:
+    { onOpenFilter: () => void; cancelCounts?: Record<string, number> }) {
     const { filter } = useFilterConfig();
     const [toast, setToast] = useState<string | null>(null);
 
@@ -124,6 +125,14 @@ export default function OrderFilterStatus({ onOpenFilter }: { onOpenFilter: () =
                         📍 {regionCount}개 동
                         <span className="mx-1.5 opacity-40">·</span>
                         📦 {slotsUsed}/{TRUCK_CAPACITY_SLOTS}박스
+                        {/* 🚫 취소 카운터 — 리셋 없는 예산 (필터 정의 2장). 소진 속도가
+                            "필터를 조여라"의 신호라 늘 보인다. 8회부터 빨강 */}
+                        <span className="mx-1.5 opacity-40">·</span>
+                        <span className={
+                            Math.max(cancelCounts['insung'] ?? 0, cancelCounts['hwamul24'] ?? 0) >= 8 ? 'text-danger font-bold'
+                            : Math.max(cancelCounts['insung'] ?? 0, cancelCounts['hwamul24'] ?? 0) >= 5 ? 'text-warning font-bold'
+                            : ''
+                        }>🚫 인성 {cancelCounts['insung'] ?? 0}/10 · 24시 {cancelCounts['hwamul24'] ?? 0}/10</span>
                     </span>
                 </div>
                 <span className="text-text-muted text-sm shrink-0">⚙️</span>
