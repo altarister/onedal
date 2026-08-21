@@ -3,7 +3,7 @@ import { useFilterConfig } from "../../hooks/useFilterConfig";
 import { logRoadmapEvent } from "../../lib/roadmapLogger";
 import { NET_RATE_PER_KM, VEHICLE_CAPACITY, TRUCK_CAPACITY_SLOTS, CAPACITY_CONFIDENCE_LABEL,
          PHASE_KEYS, PHASE_LABEL, PHASE_FIELDS, fieldLabel, PHASE_AUTO_SOURCE,
-         DEFAULT_PHASE_SETTINGS, resolvePhaseKey } from "@onedal/shared";
+         DEFAULT_PHASE_SETTINGS, resolvePhaseKey, reachRadiusKm } from "@onedal/shared";
 import type { PhaseKey, PhaseSettings } from "@onedal/shared";
 import { socket } from "../../lib/socket";
 import { apiClient } from "../../api/apiClient";
@@ -12,6 +12,7 @@ import { useCityOptions, resolveCity } from "../../lib/cityOptions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
+import { useJudgmentStore } from "../../stores/judgmentStore";
 import { Badge } from "../ui/badge";
 
 /**
@@ -132,6 +133,8 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
     const { filter, baseFilter, phaseSettings, basePhaseSettings, updateFilter, savePhase } = useFilterConfig();
 
     const [tab, setTab] = useState<TabKey>('first');
+    // ⏱️ 시간 축 안내의 재료 — 무통보 상차 한계는 판정 기준 탭에 산다 (읽기 공유 · 확정 2)
+    const judgmentCfg = useJudgmentStore(st => st.judgment);
 
     /**
      * 🔴 **다섯 국면이 각자 자기 값을 기억한다** (§2-4).
@@ -637,6 +640,17 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                 );
                             })}
                         </div>
+
+                        {/* ⏱️ 시간 축 예고 (필터 확정안 v2 구현 4 — 계측 단계).
+                            상차 반경의 축은 km → 도달 시간(분)으로 개편 예정이다. 계수(분/km)가
+                            실측으로 확정되기 전에는 **거르지 않고 안내만** 한다 (기사님 확정 3). */}
+                        {shown.pickupRadiusKm === 'input' && (
+                            <p className="text-[10px] text-text-muted leading-relaxed">
+                                <b className={TAB_STYLE[tab].text}>상차 반경</b>은 곧 <b className="text-text-primary">도달 시간</b>에서
+                                자동으로 정해집니다 — 무통보 상차 한계(잡음+{judgmentCfg.unknown.pickupOffsetMin}분) 안에 닿는 거리
+                                ≈ {reachRadiusKm(judgmentCfg.unknown.pickupOffsetMin)}km <span className="opacity-70">(잠정 계수 — 실측 수집 중, 아직 거르지 않습니다)</span>
+                            </p>
+                        )}
 
                         {/* 경유 허용이 무슨 뜻인지 — 기사님 정의를 그대로 (§3).
                             "카카오 지도에서 총 100km 였는데 경유를 하니 총 거리가 105km 가 되는 경우" */}

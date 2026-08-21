@@ -196,6 +196,29 @@ export const FILTER_FIELDS: readonly FilterField[] = [
       why: '시세 대비 허용 할인. 100 = 전부(금액 무관 — 순증 매출). 자동으로 안 내려간다 (정의서)' },
 ] as const;
 
+// ─────────────────────────────────────────────────────────────
+//  ⏱️ 시간 축 — 도달 반경 파생 (필터 확정안 v2 구현 4 · 계측 단계)
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * 🧪 **잠정 계수 — 직선거리 1km 를 몇 분에 가는가.** 근거 없는 값이라 **거르는 데 쓰지
+ * 않는다** (기사님 확정 3 강화: 계수 확정 전엔 딱지만). 심사 로그의
+ * `[도달 계수 수집]`(직선 km ↔ 카카오 분)이 쌓이면 역산해 확정하고, 그때 이 상수는
+ * 판정 기준처럼 DB 칸으로 승격된다 — 지금은 dryRun 로그와 화면 안내에만 쓴다.
+ */
+export const REACH_COEF_MIN_PER_KM_TEMP = 1.5;
+
+/**
+ * 도달 시간(분) → 반경(km). 도달 분의 원천:
+ *   빈 차   → 상차 시계 잠정 (판정 기준 탭 — 잡고 30분 안에 무통보 상차)
+ *   콜 있음 → 경로 최소 버퍼 (minRouteBuffer — 앞 일이 많을수록 저절로 준다)
+ * "첫짐 상차가 남아 있으면 반경이 줄고, 싣고 나면 늘어난다"(16-3)가 이 뺄셈이다.
+ */
+export function reachRadiusKm(reachMin: number, coefMinPerKm: number = REACH_COEF_MIN_PER_KM_TEMP): number {
+    if (!Number.isFinite(reachMin) || reachMin <= 0 || coefMinPerKm <= 0) return 0;
+    return Math.round((reachMin / coefMinPerKm) * 10) / 10;
+}
+
 /** `PhaseSettings` → DB 행 값 (컬럼 이름 키) */
 export function phaseRowOf(s: PhaseSettings): Record<string, string | number> {
     const out: Record<string, string | number> = {};

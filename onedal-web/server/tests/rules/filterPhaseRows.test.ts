@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { FILTER_FIELDS, phaseRowOf, phaseOfRow, phaseStoreDiff,
+import { FILTER_FIELDS, phaseRowOf, phaseOfRow, phaseStoreDiff, reachRadiusKm,
          DEFAULT_PHASE_SETTINGS, PHASE_KEYS, normalizePhaseSettings } from '@onedal/shared';
 
 /**
@@ -49,6 +49,23 @@ describe('FILTER_FIELDS — 표 하나가 컬럼·폼·비교를 다 만든다',
         const blob = normalizePhaseSettings(null);
         const { first, ...rest } = blob as any;
         expect(phaseStoreDiff(blob, rest)).toContain('first: 행 없음');
+    });
+});
+
+describe('⏱️ 시간 축 — 계수 확정 전엔 거르지 않고 계측만 (기사님 확정 3 강화)', () => {
+    it('도달 분 → 반경 km (잠정 계수 1.5분/km)', () => {
+        expect(reachRadiusKm(30)).toBe(20);        // 시계 30분 ≈ 20km
+        expect(reachRadiusKm(0)).toBe(0);          // 여유 없음 — 지어내지 않는다
+        expect(reachRadiusKm(-5)).toBe(0);
+        expect(reachRadiusKm(45, 1.5)).toBe(30);
+    });
+
+    it('🔴 심사가 계수 재료(직선↔카카오 분)를 수집하고, dryRun 반경은 로그뿐이다', () => {
+        const ev = codeOnly(read('core/engine/OrderEvaluator.ts'));
+        expect(ev).toMatch(/도달 계수 수집/);
+        expect(ev).toMatch(/도달 반경 dryRun/);
+        // 🔴 파생 반경이 필터를 조이지 않는다 — pickupRadiusKm 에 대입하는 코드가 없어야 한다
+        expect(ev).not.toMatch(/pickupRadiusKm\s*=/);
     });
 });
 

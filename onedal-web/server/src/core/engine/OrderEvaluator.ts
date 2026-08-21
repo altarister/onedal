@@ -1,10 +1,11 @@
 import { PendingOrder, SecuredOrder, MyOrder, TRUCK_CAPACITY_SLOTS, callName , DEFAULT_DEADLINE_RULES,
          scoreDryRun, describeDryRun, deriveRouteTimeline, minRouteBuffer, marginalDetourMin,
-         DEFAULT_JUDGMENT } from "@onedal/shared";
+         DEFAULT_JUDGMENT, REACH_COEF_MIN_PER_KM_TEMP, reachRadiusKm } from "@onedal/shared";
 import type { DryRunGate } from "@onedal/shared";
 import { OrderRepository } from "../../repositories/OrderRepository";
 import { getUserSession } from "../../state/userSessionStore";
 import { findLoadConflicts, totalDetourCost } from "../helpers";
+import { haversineKm } from "../../services/geoService";
 import { geocodeAddress, calculateSoloRoute } from "../../services/kakaoService";
 import { logRoadmapEvent } from "../../utils/roadmapLogger";
 import { DISPATCH_CONFIG } from "../../config/dispatchConfig";
@@ -105,6 +106,21 @@ export class OrderEvaluator {
                         applySoloRoute(securedOrder, result);
 
                         /**
+                         * 🧪 **도달 계수 수집** (필터 확정안 v2 구현 4 — 계측 단계).
+                         * 도달 시간→반경 계수(분/km)는 감으로 정하지 않는다 (기사님 확정 3).
+                         * 심사마다 (직선거리, 카카오 접근 분) 쌍을 로그로 남긴다 —
+                         * 쌓이면 역산해 잠정 1.5분/km 를 대체하고 DB 칸으로 승격한다.
+                         */
+                        if (session.driverLocation && securedOrder.pickupX && securedOrder.pickupY
+                            && securedOrder.approachDurationMin != null) {
+                            const lineKm = haversineKm(session.driverLocation.y, session.driverLocation.x,
+                                securedOrder.pickupY, securedOrder.pickupX);
+                            if (lineKm > 0.3) console.log(
+                                `   - 🧪 [도달 계수 수집] 직선 ${lineKm.toFixed(1)}km → 카카오 ${securedOrder.approachDurationMin}분 ` +
+                                `(계수 ${(securedOrder.approachDurationMin / lineKm).toFixed(2)}분/km · 잠정 ${REACH_COEF_MIN_PER_KM_TEMP})`);
+                        }
+
+                        /**
                          * 🎯 **첫짐 판정 — 단가로 잰다** (기사님 확정 2026-08-18)
                          *
                          * 🔴 운행시간 축을 버렸다. 첫짐에서 운행시간이 길다는 건 나쁜 게 아니라
@@ -135,6 +151,9 @@ export class OrderEvaluator {
                             gates: [], tags,
                         }, judgmentCfg);
                         console.log(`   - 🎨 [판정] ${describeDryRun(dry)}`);
+                        // 🧪 도달 반경 dryRun (구현 4 계측) — 거르지 않는다, 설정 반경과 견주기만
+                        console.log(`   - 🧪 [도달 반경 dryRun] 빈 차 — 시계 ${judgmentCfg.unknown.pickupOffsetMin}분 ` +
+                            `≈ ${reachRadiusKm(judgmentCfg.unknown.pickupOffsetMin)}km (설정 ${session.activeFilter.pickupRadiusKm}km · 계수 잠정 ${REACH_COEF_MIN_PER_KM_TEMP}분/km)`);
                         (dry.color === '똥' || dry.color === '사고' ? reasons : pros)
                             .push(`총점 ${dry.score}점 — ${dry.axes.map(a => `${a.name} ${a.raw}`).join(' · ')}`);
 
@@ -271,6 +290,9 @@ export class OrderEvaluator {
                                 gates, tags,
                             }, judgmentCfg);
                             console.log(`   - 🎨 [판정] ${describeDryRun(dry)}`);
+                            // 🧪 도달 반경 dryRun (구현 4 계측) — 앞 일이 많을수록 버퍼가 줄어 반경이 준다 (16-3)
+                            if (bufAfter) console.log(`   - 🧪 [도달 반경 dryRun] 버퍼 ${Math.max(0, bufAfter.minutes)}분 ` +
+                                `≈ ${reachRadiusKm(Math.max(0, bufAfter.minutes))}km (설정 ${session.activeFilter.pickupRadiusKm}km · 계수 잠정)`);
 
                             const failedGates = dry.gates.filter(g => !g.pass);
                             if (failedGates.length) reasons.push(...failedGates.map(g => g.why ?? g.name));
