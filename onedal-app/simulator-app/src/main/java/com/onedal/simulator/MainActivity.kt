@@ -1,27 +1,46 @@
 package com.onedal.simulator
 
 import android.app.Activity
+import android.app.AlertDialog
+import android.content.Context
 import android.os.Bundle
+import android.text.InputType
+import android.view.KeyEvent
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.EditText
+import android.widget.Toast
 
 /**
- * 인성콜 시뮬레이터 WebView 래퍼
+ * 🚚 **배차망 시뮬레이터 WebView 래퍼**
  *
- * 브라우저(삼성/크롬)가 웹 콘텐츠를 접근성 노드로 노출하지 않는 문제를 우회하기 위해,
- * 자체 앱 안의 WebView로 시뮬레이터를 로드합니다.
+ * 브라우저(삼성/크롬)가 웹 콘텐츠를 접근성 노드로 노출하지 않는 문제를 우회하려고,
+ * 자체 앱 안의 WebView 로 시뮬레이터를 로드한다. 패키지명이 원달 앱(com.onedal.app)과
+ * 달라서 원달의 접근성 서비스가 이 앱의 WebView 콘텐츠를 정상적으로 읽는다.
  *
- * 패키지명이 com.onedal.simulator로 원달 앱(com.onedal.app)과 다르기 때문에,
- * 원달의 접근성 서비스가 이 앱의 WebView 콘텐츠를 정상적으로 읽을 수 있습니다.
+ * 🔴 **화면에 버튼을 추가하지 않는다** — 이 화면은 원달 앱이 "배차망 화면"으로 읽는 곳이다.
+ *    설정 UI 를 상시로 띄우면 접근성 트리에 섞여 파서를 흔든다.
+ *    그래서 주소 변경은 **볼륨 위 버튼**으로 연다 (다이얼로그는 열려 있는 동안만 트리에 뜬다).
+ *
+ * 주소는 둘 중 하나다 (2026-08-22 — 시뮬레이터를 레포 안으로 들이면서 열었다):
+ *   · 배포본  https://map.altari.com/...   (옛 map 레포가 S3 로 배포한 것 — 기본값)
+ *   · 로컬    http://<개발용 PC IP>:5173/... (레포의 `onedal-sim` — 문제지 모드가 여기 있다)
+ * 원달 앱의 "개발용 PC IP" 설정과 같은 생각이다 — 폰을 다시 빌드하지 않고 붙일 곳을 바꾼다.
  */
 class MainActivity : Activity() {
 
     companion object {
-        private const val SIMULATOR_URL = "https://map.altari.com/inseong"
+        private const val PREFS = "OnedalSimPrefs"
+        private const val KEY_URL = "simulatorUrl"
+        private const val KEY_IP = "localPcIp"
+        private const val DEFAULT_URL = "https://map.altari.com/inseong"
+        private const val DEFAULT_IP = "172.30.1.58"
+        private const val SIM_PORT = 5173
     }
 
     private lateinit var webView: WebView
+    private val prefs by lazy { getSharedPreferences(PREFS, Context.MODE_PRIVATE) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,9 +68,74 @@ class MainActivity : Activity() {
             webViewClient = WebViewClient()
             webChromeClient = WebChromeClient()
 
-            // 시뮬레이터 로드
-            loadUrl(SIMULATOR_URL)
+            loadUrl(currentUrl())
         }
+    }
+
+    private fun currentUrl(): String = prefs.getString(KEY_URL, DEFAULT_URL) ?: DEFAULT_URL
+    private fun localIp(): String = prefs.getString(KEY_IP, DEFAULT_IP) ?: DEFAULT_IP
+
+    /** 볼륨 위 = 주소 바꾸기 (이 앱에서 소리를 쓸 일이 없다) */
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
+            showUrlPicker()
+            return true
+        }
+        return super.onKeyDown(keyCode, event)
+    }
+
+    private fun showUrlPicker() {
+        val ip = localIp()
+        val base = "http://$ip:$SIM_PORT"
+        // 자주 쓰는 것만 — 나머지는 "직접 입력"
+        val labels = arrayOf(
+            "로컬 · 인성콜  ($ip)",
+            "로컬 · 인성콜 🎯오탐 문제지",
+            "로컬 · 화물24시",
+            "배포본 (map.altari.com)",
+            "개발용 PC IP 바꾸기  (지금 $ip)",
+            "주소 직접 입력",
+        )
+        val urls = arrayOf(
+            "$base/inseong",
+            "$base/inseong/dispatch?preset=ohtam",
+            "$base/hwamul24",
+            DEFAULT_URL,
+        )
+
+        AlertDialog.Builder(this)
+            .setTitle("어느 배차망을 띄울까요")
+            .setItems(labels) { _, which ->
+                when (which) {
+                    in urls.indices -> load(urls[which])
+                    4 -> askText("개발용 PC IP", ip) { v ->
+                        prefs.edit().putString(KEY_IP, v.trim()).apply()
+                        Toast.makeText(this, "PC IP 저장: ${v.trim()}", Toast.LENGTH_SHORT).show()
+                        showUrlPicker()
+                    }
+                    else -> askText("주소 직접 입력", currentUrl()) { v -> load(v.trim()) }
+                }
+            }
+            .show()
+    }
+
+    private fun load(url: String) {
+        prefs.edit().putString(KEY_URL, url).apply()
+        webView.loadUrl(url)
+        Toast.makeText(this, url, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun askText(title: String, initial: String, onOk: (String) -> Unit) {
+        val input = EditText(this).apply {
+            inputType = InputType.TYPE_TEXT_VARIATION_URI
+            setText(initial)
+        }
+        AlertDialog.Builder(this)
+            .setTitle(title)
+            .setView(input)
+            .setPositiveButton("확인") { _, _ -> onOk(input.text.toString()) }
+            .setNegativeButton("취소", null)
+            .show()
     }
 
     override fun onBackPressed() {
