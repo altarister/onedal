@@ -1,0 +1,14 @@
+# 🔴 onedal-web 과 **완전히 별개인** 워크스페이스다 (기사님 확정 2026-08-22).
+#
+# 시뮬레이터를 레포 안으로 들이면서 가장 중요한 요구가 *"우리 프로젝트에 영향이 없어야
+# 한다"* 였다. 그 격리는 네 겹이다 —
+#   ① 폴더: onedal-web 의 **형제** (자식이 아니다)
+#   ② 워크스페이스: 여기와 onedal-web/pnpm-workspace.yaml 은 서로를 모른다.
+#      node_modules·설치·빌드가 완전히 분리된다
+#   ③ 게이트: 커밋 게이트(tsc·jest·scenario)는 onedal-web 안에서만 돈다
+#   ④ 배포: .github/workflows/deploy.yml 이 `paths: onedal-web/**` 이라
+#      여기를 아무리 고쳐도 EC2 배포가 걸리지 않는다
+#
+# 🔴 그러므로 이 폴더를 onedal-web 워크스페이스에 등록하지 않는다 — 그 순간 격리가 깨진다.
+packages:
+  - 'packages/*'

@@ -1,0 +1,12 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/**
+ * 시뮬레이터 화면은 **기본 Tailwind 클래스만** 쓴다 (테마 변수·플러그인 의존 없음 — 이식 전
+ * 실제로 대조해 확인했다). 배차망 UI 를 흉내 내는 것이 목적이라 디자인 시스템을 두지 않는다.
+ */
+html, body, #root {
+    height: 100%;
+    margin: 0;
+}
