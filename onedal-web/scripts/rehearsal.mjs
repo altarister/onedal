@@ -142,6 +142,7 @@ function routeOrderCheck(pickupText, dropoffText, progressKm) {
 let holdingOrderId = null;      // 심사 대기 중인 콜 (있으면 상세 화면인 척한다)
 let pendingAck = null;
 let lastFilter = null;
+let lastFilterVersion = '';     // 🧭 피기백 v2 — 신앱처럼 버전을 실어 보낸다 (scenario 는 구프로토콜로 호환 검증)
 let dumpAfterAck = false;   // KEEP 직후 전체 필터를 자동으로 펼치기 위한 표식
 
 async function telemetry() {
@@ -151,6 +152,7 @@ async function telemetry() {
             data: [],
             screenContext: holdingOrderId ? 'DETAIL_CONFIRMED' : 'LIST',
             isHolding: !!holdingOrderId,
+            filterVersion: lastFilterVersion,   // 🧭 v2 — 같으면 서버가 필터 본문을 생략한다
             ...(pendingAck ? { ackDecisionId: pendingAck } : {}),
         };
         pendingAck = null;
@@ -158,7 +160,8 @@ async function telemetry() {
             method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
         });
         const j = await r.json();
-        lastFilter = j.dispatchEngineArgs ?? lastFilter;
+        if (j.filterVersion) lastFilterVersion = j.filterVersion;
+        lastFilter = j.dispatchEngineArgs ?? lastFilter;   // 본문 없음 = 안 바뀜 — 저장본 유지 (신앱과 같은 동작)
         /**
          * 🔴 서버 응답의 판결 필드는 `decision` 이다 (scrap.ts `res.json({ decision: ... })`).
          *    `piggybackDecision` 을 읽고 있어 판결을 한 번도 못 받았고 → ACK 를 못 보냈고 →

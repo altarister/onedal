@@ -252,6 +252,9 @@ class ApiClient(private val context: Context) {
                         val filterJson = gson.toJson(scrapRes.dispatchEngineArgs)
                         val prevFilterJson = prefs.getString("activeFilter", null)
                         prefs.edit().putString("activeFilter", filterJson).apply()
+                        // 🧭 [피기백 v2] 필터와 함께 온 버전을 저장 — 다음 텔레메트리에 실어 보내면
+                        //    서버가 같을 때 본문을 생략한다. 응답에 필터가 없으면(버전 일치) 저장본 유지
+                        prefs.edit().putString("filterVersion", scrapRes.filterVersion ?: "").apply()
 
                         // 서버가 이제 Array로 내려주므로 Gson 파싱(역직렬화) 시 에러(IllegalStateException)가 전혀 발생하지 않음
                         val updatedFilter = gson.fromJson(filterJson, FilterConfig::class.java)

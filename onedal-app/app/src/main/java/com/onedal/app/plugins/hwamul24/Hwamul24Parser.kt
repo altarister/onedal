@@ -63,6 +63,8 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
             val jsonStr = prefs.getString("activeFilter", null) ?: return FilterConfig()
             val json = JSONObject(jsonStr)
 
+            // 🧭 [피기백 v2] 도착 목록 = destinationKeywords ∪ progressKm 키 (인성 파서와 같은 규칙)
+            val progress = parseProgressMap(json, "progressKm")   // 없으면 빈 맵 → 순서 검사 안 함 (구서버 호환)
             FilterConfig(
                 allowedVehicleTypes = parseJsonArray(json, "allowedVehicleTypes"),
                 isActive = json.optBoolean("isActive", false),   // 키가 없으면 멈춘다 (안전 방향)
@@ -73,9 +75,9 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
                 destinationCity = json.optString("destinationCity", ""),
                 destinationRadiusKm = json.optInt("destinationRadiusKm", 10),
                 excludedKeywords = parseJsonArray(json, "excludedKeywords"),
-                destinationKeywords = parseJsonArray(json, "destinationKeywords"),
+                destinationKeywords = (parseJsonArray(json, "destinationKeywords") + progress.keys).distinct(),
                 customCityFilters = parseJsonArray(json, "customCityFilters"),
-                progressKm = parseProgressMap(json, "progressKm")   // 없으면 빈 맵 → 순서 검사 안 함 (구서버 호환)
+                progressKm = progress
             )
         } catch (e: Exception) {
             AppLogger.e(TAG, "❌ 필터 JSON 파싱 실패: ${e.message}")

@@ -2,7 +2,7 @@ import { Router } from "express";
 import { callFilterBlocker } from "@onedal/shared";
 import type { SimplifiedOfficeOrder, ScreenContextType } from "@onedal/shared";
 import db from "../db";
-import { capacityFullHold } from "../core/helpers";
+import { capacityFullHold, filterVersionOf } from "../core/helpers";
 import { getUserSession, clearOrderTimers } from "../state/userSessionStore";
 import { ensureBusinessDay, buildAppProgressKm } from "../state/filterManager";
 
@@ -225,6 +225,33 @@ router.post("/", (req, res) => {
             console.log(`🚦 [콜 잡기 보류] ${deviceId} — ${blocker}`);
         }
 
+        /**
+         * 🧭 **피기백 규격 v2** (기사님 확정 2026-08-22 — "같은 목록을 왜 두 번 보내나").
+         * 앱이 `filterVersion` 을 보내면 신프로토콜이다:
+         *   ① 중복 제거 — 운행 중 progressKm 의 키 집합은 destinationKeywords 와 같다
+         *      (buildAppProgressKm 이 키워드를 순회해 만든다). 신앱은 도착 목록을
+         *      `키워드 ∪ progressKm 키` 로 합치므로, progressKm 에 실린 동은 키워드에서 뺀다
+         *   ② 버전 게이트 — 내용 해시가 앱이 든 것과 같으면 본문을 생략한다.
+         *      앱은 응답에 필터가 없으면 저장본을 유지한다 (원래 그 동작이다)
+         * 필드를 안 보내는 구앱·구스크립트에는 지금 그대로 전부 보낸다 — scenario 가
+         * 구프로토콜로 남아 이 호환 경로를 상시 검증한다.
+         * ⚠️ 빈 필터 고장 검사(callFilterBlocker)는 위에서 **원본 기준**으로 끝났다 —
+         *    여기서 비는 키워드는 "고장"이 아니라 "progressKm 쪽에 실려 있음"이다.
+         */
+        const speaksV2 = !!req.body && Object.prototype.hasOwnProperty.call(req.body, 'filterVersion');
+        let responseFilter: any = appFilter;
+        let filterVersion: string | undefined;
+        if (speaksV2) {
+            const progressKeys = appFilter.progressKm ?? {};
+            responseFilter = {
+                ...appFilter,
+                destinationKeywords: (appFilter.destinationKeywords ?? [])
+                    .filter((k: string) => !(k in progressKeys)),
+            };
+            filterVersion = filterVersionOf(responseFilter);
+            if (req.body.filterVersion === filterVersion) responseFilter = undefined;   // 안 바뀜 — 본문 생략
+        }
+
         // logRoadmapEvent("서버", "앱폰에게 최신 필터(dispatchEngineArgs) 및 제어 명령 정보 전달");
         // 4. 응답 (해당 유저의 필터값 및 제어 명령 송신)
         res.json({
@@ -236,7 +263,8 @@ router.post("/", (req, res) => {
             deviceControl: {
                 mode: deviceMode
             },
-            dispatchEngineArgs: appFilter,
+            ...(filterVersion !== undefined ? { filterVersion } : {}),
+            ...(responseFilter !== undefined ? { dispatchEngineArgs: responseFilter } : {}),
             decision: piggybackDecision
         });
     } catch (error) {

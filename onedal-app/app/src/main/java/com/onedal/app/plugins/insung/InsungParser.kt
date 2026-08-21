@@ -110,6 +110,10 @@ class InsungParser(private val context: Context) : IScrapParser {
             val json = JSONObject(jsonStr)
 
             // 각 optXxx 의 두 번째 인자는 서버 미응답 시 최후 안전망 (정상 흐름에서는 서버가 항상 전송)
+            // 🧭 [피기백 v2] 도착 목록 = destinationKeywords ∪ progressKm 키.
+            //    신서버는 progressKm 에 실린 동을 키워드에서 빼서 보낸다 (같은 목록 두 번 안 싣기).
+            //    구서버(중복 포함)와도 distinct 로 같은 집합이 된다 (호환)
+            val progress = parseProgressMap(json, "progressKm")   // 없으면 빈 맵 → 순서 검사 안 함 (구서버 호환)
             FilterConfig(
                 allowedVehicleTypes = parseJsonArray(json, "allowedVehicleTypes"),
                 isActive = json.optBoolean("isActive", false),   // 키가 없으면 멈춘다 (안전 방향)
@@ -120,10 +124,10 @@ class InsungParser(private val context: Context) : IScrapParser {
                 destinationCity = json.optString("destinationCity", ""),
                 destinationRadiusKm = json.optInt("destinationRadiusKm", 10),
                 excludedKeywords = parseJsonArray(json, "excludedKeywords"),
-                destinationKeywords = parseJsonArray(json, "destinationKeywords"),
+                destinationKeywords = (parseJsonArray(json, "destinationKeywords") + progress.keys).distinct(),
                 customCityFilters = parseJsonArray(json, "customCityFilters"),
                 ratePerKm = parseRateMap(json, "ratePerKm"),   // 없으면 빈 맵 → minFare 판정 (구서버 호환)
-                progressKm = parseProgressMap(json, "progressKm")   // 없으면 빈 맵 → 순서 검사 안 함 (구서버 호환)
+                progressKm = progress
             )
         } catch (e: Exception) {
             AppLogger.e(TAG, "❌ 필터 JSON 파싱 실패: ${e.message}")

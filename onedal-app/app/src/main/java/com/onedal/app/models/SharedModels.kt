@@ -152,7 +152,10 @@ data class ScrapPayload(
     val lat: Double? = null,            // [GPS 텔레메트리] 앱폰(차량) 위도
     val lng: Double? = null,            // [GPS 텔레메트리] 앱폰(차량) 경도
     val ackDecisionId: String? = null,  // [Piggyback] 수신 확인 응답용 ID
-    val targetApp: String = "insung"    // 타겟 앱 (insung, hwamul24 등)
+    val targetApp: String = "insung",   // 타겟 앱 (insung, hwamul24 등)
+    // 🧭 [피기백 v2] 지금 들고 있는 필터의 버전 — 서버가 같으면 필터 본문을 생략한다.
+    //    구서버는 이 필드를 무시하고 늘 전부 보낸다 (호환)
+    val filterVersion: String? = null
 )
 
 // 서버 응답 (Piggyback 통신: 상태, 통계, 제어명령, 최신 필터를 구조화하여 한 번에 태워보냄)
@@ -161,7 +164,10 @@ data class ScrapResponse(
     val apiStatus: ApiStatus,
     val deviceControl: DeviceControl,
     val dispatchEngineArgs: FilterConfig?,
-    val decision: DecisionPayload? = null
+    val decision: DecisionPayload? = null,
+    // 🧭 [피기백 v2] 서버가 계산한 필터 버전 — dispatchEngineArgs 와 함께 저장해 뒀다가
+    //    다음 텔레메트리에 실어 보낸다. 구서버 응답에는 없다(null) → 늘 전체 수신 (호환)
+    val filterVersion: String? = null
 )
 
 data class DecisionPayload(

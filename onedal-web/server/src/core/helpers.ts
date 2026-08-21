@@ -327,3 +327,18 @@ export function setOrderStatus(
 export function capacityFullHold(filter: { dispatchPhase?: string; allowedVehicleTypes?: string[] }): boolean {
     return Array.isArray(filter.allowedVehicleTypes) && filter.allowedVehicleTypes.length === 0;
 }
+
+/**
+ * 🧭 **피기백 필터 버전 — 내용 해시** (피기백 규격 v2 · 2026-08-22).
+ *
+ * 앱이 들고 있는 필터와 지금 필터가 같으면 본문을 생략하기 위한 값이다.
+ * 🔴 카운터가 아니라 **내용에서 파생**한다 (규칙 ③) — 카운터는 필터를 고치는
+ * 모든 경로가 빠짐없이 올려 줘야 하는데, 한 경로만 빼먹어도 앱이 낡은 필터로
+ * 콜을 잡는다. 해시는 어긋날 수가 없다. (FNV-1a 32bit · base36)
+ */
+export function filterVersionOf(filter: unknown): string {
+    const s = JSON.stringify(filter);
+    let h = 0x811c9dc5;
+    for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+    return (h >>> 0).toString(36);
+}

@@ -151,7 +151,11 @@ class TelemetryManager(
             isHolding = isHolding,                       // [Page/Hold 분리] 콜 처리 중 여부
             lat = lat,                                   // [GPS 텔레메트리] 앱폰 위도
             lng = lng,                                   // [GPS 텔레메트리] 앱폰 경도
-            targetApp = appCode
+            targetApp = appCode,
+            // 🧭 [피기백 v2] 들고 있는 필터 버전 — 같으면 서버가 본문을 생략한다.
+            // ⚠️ null 이면 Gson 이 필드를 통째로 빼서 서버가 구앱으로 오인한다 —
+            //    아직 버전이 없으면 빈 문자열("전체 주세요")을 보낸다
+            filterVersion = prefs?.getString("filterVersion", "") ?: ""
         )
 
         val triggerStr = if (isHeartbeat) "⏱️ 타이머 생존신고" else "👀 화면 변경 감지"
