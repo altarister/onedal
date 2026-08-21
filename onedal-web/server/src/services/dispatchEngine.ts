@@ -22,7 +22,7 @@ import { PricingEngine } from "../core/engine/PricingEngine";
 import { OrderEvaluator } from "../core/engine/OrderEvaluator";
 import { StateMachine } from "../core/engine/StateMachine";
 import { getActiveCalls, buildOrderSync, setOrderStatus } from "../core/helpers";
-import { stepRecordsOf } from "./stepSeeder";
+import { stepRecordsOf, stepsView, bridgeUndoMilestone, milestoneAlreadyRecorded } from "./stepSeeder";
 
 /**
  * 장소명 정규화 (공백 및 주식회사 텍스트 제거)
@@ -1020,8 +1020,9 @@ export interface MilestoneResult {
  */
 export async function undoMilestone(userId: string, orderId: string, milestone: Milestone, io: any) {
     const session = getUserSession(userId);
-    const removed = OrderRepository.deleteMilestone(orderId, userId, milestone);
-    if (!removed) return { success: false, reason: 'NOT_FOUND' as const };
+    // 🔄 옛 테이블 삭제는 철거 — 새 장부의 마감 해제가 기록의 되돌림이다
+    if (!milestoneAlreadyRecorded(orderId, milestone)) return { success: false, reason: 'NOT_FOUND' as const };
+    bridgeUndoMilestone(userId, orderId, milestone);
 
     // 🚏 도착을 되돌리면 "다녀왔다"도 되돌린다 — 안 지우면 경로에서 영영 빠진 채 남는다
     const undoField = milestone === 'ARRIVED_PICKUP' ? 'arrivedPickupAt'
@@ -1052,8 +1053,7 @@ export async function undoMilestone(userId: string, orderId: string, milestone: 
     updateActiveFilter(userId, {}, io);
     if (io) {
         io.to(userId).emit("sync-active-orders", buildOrderSync(session));
-        console.log(`📤 [Socket 푸시] milestone-log (${orderId.slice(0, 8)})`);
-        io.to(userId).emit("milestone-log", { orderId, milestones: OrderRepository.getMilestones(orderId) });
+        io.to(userId).emit("steps-synced", { orderId, steps: stepsView(orderId, session.judgment) });
     }
     return { success: true, status };
 }
@@ -1089,14 +1089,9 @@ export async function reportMilestone(
     }
 
     const nowIso = new Date().toISOString();
-    // ① 멱등성은 DB UNIQUE 로 보장한다. 애플리케이션 체크만 두면 동시 요청에서 뚫린다
-    const insert = db.prepare(`
-        INSERT OR IGNORE INTO order_milestones (orderId, userId, milestone, source, occurredAt, predictedAt, reasons, recordedAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(orderId, userId, milestone, source, occurredAt || nowIso, predictedAt || null,
-           reasons?.length ? JSON.stringify(reasons) : null, nowIso);
-
-    if (insert.changes === 0) {
+    // ① 멱등성 — 🔄 옛 테이블(order_milestones UNIQUE)은 철거됐다 (2026-08-21).
+    //    새 장부의 단계 행이 그 근거다: 행마다 UNIQUE(orderId) + occurred_at 존재 여부
+    if (milestoneAlreadyRecorded(orderId, milestone)) {
         console.log(`🔁 [마일스톤] ${milestone} (${source}) 중복 — ${orderId} 는 이미 기록됨`);
         return { success: true, duplicated: true, status: order.status };
     }
@@ -1155,9 +1150,7 @@ export async function reportMilestone(
             if (row?.paymentType === '착불' && (!row.settlementStatus || row.settlementStatus === '미정산')) {
                 OrderRepository.setCodCollected(orderId, userId, false, row.fare ?? 0);
                 console.warn(`💵 [착불 미확인] ${orderId.slice(0, 8)} — 수령 여부를 고르지 않고 하차 완료. ${(row.fare ?? 0).toLocaleString()}원을 미수금으로 잡습니다`);
-                io?.to(userId).emit("settlement-updated", {
-                    orderId, ...OrderRepository.getSettlement(orderId), autoMarked: true,
-                });
+                // 🔄 settlement-updated 는 철거 (2026-08-21) — 화면은 sync(orders 필드)로 안다
             }
         } catch (e) {
             console.error(`🚨 [착불 확인 실패]`, e);

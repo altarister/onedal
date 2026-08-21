@@ -352,6 +352,16 @@ export function bridgeUndoMilestone(userId: string, orderId: string, milestone: 
  * 관제웹 소비까지 넘어가면 옛 테이블을 손으로 철거한다 (확인 받고).
  * KEEP 전 후보는 행이 없어 빈 기록이 나온다 — 옛 장부와 같은 동작이다.
  */
+/** 이 마일스톤이 이미 새 장부에 찍혀 있는가 — reportMilestone 멱등의 근거 (옛 UNIQUE 대체) */
+export function milestoneAlreadyRecorded(orderId: string, milestone: string): boolean {
+    const step = ({ ARRIVED_PICKUP: 'ARRIVE_PICKUP', PICKED_UP: 'LOADED',
+                    ARRIVED_DROPOFF: 'ARRIVE_DROPOFF', DELIVERED: 'DELIVERED' } as Record<string, StepId>)[milestone];
+    if (!step) return false;
+    const t = tableOf(step);
+    const r = db.prepare(`SELECT occurred_at FROM ${t.table} WHERE orderId = ?`).get(orderId) as any;
+    return !!r?.occurred_at;
+}
+
 export function stepRecordsOf(orderId: string): {
     reports: CargoReport[];
     milestones: Array<{ milestone: string; occurredAt?: string; source?: string }>;

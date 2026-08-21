@@ -317,8 +317,6 @@ export function registerSocketHandlers(io: Server) {
                         } catch (e) {
                             console.error(`🌉 [단계 다리 실패] ${stop.orderId.slice(-6)}:`, (e as Error).message);
                         }
-                        console.log(`📤 [Socket 푸시] milestone-log (${stop.orderId.slice(0, 8)} · GPS 도착)`);
-                        io.to(uid).emit("milestone-log", { orderId: stop.orderId, milestones: OrderRepository.getMilestones(stop.orderId) });
                         // auto-arrived — 죽은 문이던 것을 이 기능으로 살렸다 (관제웹이 원래 듣고 있었다)
                         console.log(`📤 [Socket 푸시] auto-arrived (${stop.orderId.slice(0, 8)} · ${stop.stopType})`);
                         io.to(uid).emit("auto-arrived", {
@@ -408,7 +406,6 @@ export function registerSocketHandlers(io: Server) {
                 console.error(`🌉 [단계 다리 실패] ${data.orderId.slice(-6)}:`, (e as Error).message);
             }
             socket.emit("milestone-result", { orderId: data.orderId, ...result });
-            socket.emit("milestone-log", { orderId: data.orderId, milestones: OrderRepository.getMilestones(data.orderId) });
         });
 
         /**
@@ -426,7 +423,6 @@ export function registerSocketHandlers(io: Server) {
                 console.error(`🌉 [단계 다리 실패] ${data.orderId.slice(-6)}:`, (e as Error).message);
             }
             socket.emit("milestone-result", { orderId: data.orderId, ...result });
-            socket.emit("milestone-log", { orderId: data.orderId, milestones: OrderRepository.getMilestones(data.orderId) });
         });
 
         // [Phase 8.4] 통화 결과 / 현장 확인 기록
@@ -439,17 +435,11 @@ export function registerSocketHandlers(io: Server) {
         safeOn(socket, "save-cargo-report", (data: { orderId: string } & CargoReport) => {
             const { orderId, ...report } = data;
             if (!orderId) throw new Error("orderId 누락");
-            OrderRepository.upsertCargoReport(orderId, userId, report);
+            // 🔄 옛 장부(stop_cargo_reports) 쓰기는 철거됐다 (2026-08-21) — 새 장부가 유일한 원천
+            bridgeCargoReport(userId, orderId, report as CargoReport, getUserSession(userId)?.judgment, routeTlOf(userId));
+            socket.emit("steps-synced", { orderId, steps: stepsView(orderId, getUserSession(userId)?.judgment) });
 
-            // 🌉 다리 — 단계 행도 같이 (마감 + 다음 출생). 실패해도 기존 저장은 이미 끝났다
-            try {
-                bridgeCargoReport(userId, orderId, report as CargoReport, getUserSession(userId)?.judgment, routeTlOf(userId));
-                socket.emit("steps-synced", { orderId, steps: stepsView(orderId, getUserSession(userId)?.judgment) });
-            } catch (e) {
-                console.error(`🌉 [단계 다리 실패] ${orderId.slice(-6)}:`, (e as Error).message);
-            }
-
-            const all = OrderRepository.getCargoReports(orderId);
+            const all = stepRecordsOf(orderId).reports;
             const pick = (st: string, k: string) => all.find(r => r.stopType === st && r.kind === k);
             const ratio = cargoMismatchRatio(pick(report.stopType, 'DECLARED'), pick(report.stopType, 'ACTUAL'));
 
@@ -498,8 +488,6 @@ export function registerSocketHandlers(io: Server) {
                 io.to(userId).emit("cargo-mismatch", { orderId, stopType: report.stopType, ratio });
             }
 
-            socket.emit("cargo-report-saved", { orderId, reports: all });
-
             // 🔴 2026-08-11 — 여기서 필터를 다시 파생시키지 않아, 짐 양을 신고해도
             //    잔여 용량(allowedVehicleTypes)이 **다음 이벤트가 올 때까지 그대로**였다.
             //    적재 계산을 고쳐도(T2) 이 호출이 없으면 화면에 반영되지 않는다.
@@ -538,35 +526,20 @@ export function registerSocketHandlers(io: Server) {
             }
             console.log(`💵 [착불 ${data.received ? '수령' : '미수'}] ${data.orderId.slice(0, 8)} ${amount.toLocaleString()}원`);
             logRoadmapEvent("서버", `[착불] ${data.received ? '현장 수령' : '미수금 등록'} ${amount}원`);
-
-            io.to(userId).emit("settlement-updated", {
-                orderId: data.orderId,
-                ...OrderRepository.getSettlement(data.orderId),
-            });
         });
 
-        safeOn(socket, "request-settlement", (data: { orderId: string }) => {
-            socket.emit("settlement-updated", {
-                orderId: data.orderId,
-                ...OrderRepository.getSettlement(data.orderId),
-            });
-        });
+        // 🔄 settlement-updated·request-settlement 은 철거 (2026-08-21) — 착불 표시는 단계 행(cod_received)이, 상태는 orders 가 원천
 
         // 카드 헤더에서 약속 시각만 바꾼다. 짐 정보는 건드리지 않는다
         safeOn(socket, "set-stop-deadline", (data: { orderId: string, stopType: 'pickup' | 'dropoff', deadlineAt: string | null }) => {
             if (!data.orderId) throw new Error("orderId 누락");
-            OrderRepository.setStopDeadline(data.orderId, userId, data.stopType, data.deadlineAt);
+            // 🔄 새 장부의 통화 행 약속만 고친다 (짐 정보 불변) — 옛 setStopDeadline 철거
+            const table = data.stopType === 'pickup' ? 'step_call_pickup' : 'step_call_dropoff';
+            db.prepare(`UPDATE ${table} SET promised_arrival_at = ? WHERE orderId = ?`)
+              .run(data.deadlineAt, data.orderId);
             const label = data.stopType === 'pickup' ? '상차' : '하차';
             console.log(`🕒 [${label} 약속 시각] ${data.orderId.slice(0, 8)} → ${data.deadlineAt?.slice(11, 16) ?? '해제'}`);
-            socket.emit("cargo-report-saved", { orderId: data.orderId, reports: OrderRepository.getCargoReports(data.orderId) });
-        });
-
-        safeOn(socket, "request-milestones", (data: { orderId: string }) => {
-            socket.emit("milestone-log", { orderId: data.orderId, milestones: OrderRepository.getMilestones(data.orderId) });
-        });
-
-        safeOn(socket, "request-cargo-reports", (data: { orderId: string }) => {
-            socket.emit("cargo-report-saved", { orderId: data.orderId, reports: OrderRepository.getCargoReports(data.orderId) });
+            socket.emit("steps-synced", { orderId: data.orderId, steps: stepsView(data.orderId, getUserSession(userId)?.judgment) });
         });
 
         /**

@@ -70,76 +70,12 @@ export class OrderRepository {
     }
 
     /**
-     * [Phase 8.4] 정거장별 화물 신고를 저장합니다.
-     * 같은 (오더, 정거장, 종류)는 덮어쓴다 — 통화를 다시 걸어 정정하는 일이 흔하다.
+     * 🔄 옛 장부(stop_cargo_reports · order_milestones) 함수들은 철거됐다 (기사님 확인
+     * 2026-08-21). 신고·마일스톤의 유일한 원천은 여섯 단계 행이고, 읽기는
+     * stepSeeder.stepRecordsOf 하나다. 정산(cod·settlement)은 orders 테이블이라 남는다.
      */
-    public static upsertCargoReport(orderId: string, userId: string, r: CargoReport) {
-        db.prepare(`
-            INSERT INTO stop_cargo_reports (orderId, userId, stopType, kind, unit, sizeClass, quantity, handling, promisedAt, promisedArrivalAt, promisedArrivalFromAt, deadlineAt, onwardDeadlineAt, tags, protections, afterworks, memo, recordedAt)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(orderId, stopType, kind) DO UPDATE SET
-                unit = excluded.unit,
-                sizeClass = excluded.sizeClass,
-                quantity = excluded.quantity,
-                handling = excluded.handling,
-                promisedAt = excluded.promisedAt,
-                promisedArrivalAt = excluded.promisedArrivalAt,
-                promisedArrivalFromAt = excluded.promisedArrivalFromAt,
-                deadlineAt = excluded.deadlineAt,
-                onwardDeadlineAt = excluded.onwardDeadlineAt,
-                tags = excluded.tags,
-                protections = excluded.protections,
-                afterworks = excluded.afterworks,
-                memo = excluded.memo,
-                recordedAt = excluded.recordedAt
-        `).run(orderId, userId, r.stopType, r.kind, r.unit || null, r.sizeClass || null, r.quantity ?? null,
-               r.handling || null, r.promisedAt || null, (r as any).promisedArrivalAt || null, (r as any).promisedArrivalFromAt || null, r.deadlineAt || null, r.onwardDeadlineAt || null,
-               r.tags?.length ? JSON.stringify(r.tags) : null,
-            (r as any).protections?.length ? JSON.stringify((r as any).protections) : null,
-            (r as any).afterworks?.length ? JSON.stringify((r as any).afterworks) : null,
-            r.memo || null, new Date().toISOString());
-    }
 
-    /** 한 오더의 모든 화물 신고 (상차/하차 × 신고값/실측값) */
-    public static getCargoReports(orderId: string): CargoReport[] {
-        const rows = db.prepare(`SELECT stopType, kind, unit, sizeClass, quantity, handling, promisedAt, promisedArrivalAt, promisedArrivalFromAt, deadlineAt, onwardDeadlineAt, tags, protections, afterworks, memo
-                                 FROM stop_cargo_reports WHERE orderId = ?`).all(orderId) as any[];
-        return rows.map(r => ({ ...r, tags: r.tags ? JSON.parse(r.tags) : undefined,
-                                protections: r.protections ? JSON.parse(r.protections) : undefined,
-                                afterworks: r.afterworks ? JSON.parse(r.afterworks) : undefined })) as CargoReport[];
-    }
-
-    /**
-     * 약속 시각만 고친다.
-     *
-     * ⚠️ `upsertCargoReport` 로 하면 안 된다 — 그건 `ON CONFLICT DO UPDATE SET unit = excluded.unit, …`
-     *    이라서 **넘기지 않은 필드가 전부 null 로 덮인다.** 시각 하나 고치려다 짐 정보를 날린다.
-     *    계약이 좁으면 실수할 자리가 없다.
-     */
-    public static setStopDeadline(orderId: string, userId: string, stopType: string, deadlineAt: string | null) {
-        const r = db.prepare(`UPDATE stop_cargo_reports SET deadlineAt = ?, recordedAt = ?
-                              WHERE orderId = ? AND userId = ? AND stopType = ?`)
-                    .run(deadlineAt, new Date().toISOString(), orderId, userId, stopType);
-        // 통화 기록이 아직 없으면(적요만 보고 바로 출발) 최소 행을 만들어 둔다
-        if (r.changes === 0) {
-            db.prepare(`INSERT INTO stop_cargo_reports (orderId, userId, stopType, kind, deadlineAt, recordedAt)
-                        VALUES (?, ?, ?, 'DECLARED', ?, ?)`)
-              .run(orderId, userId, stopType, deadlineAt, new Date().toISOString());
-        }
-    }
-
-    /**
-     * [Phase 8 · T8] 착불 현금을 현장에서 받았는가.
-     *
-     * 🔴 2026-08-11 — `settlementStatus` · `unpaidAmount` 는 컬럼도 있고
-     *    운행일지 미수금 화면도 있는데 **쓰는 경로가 어디에도 없었다.**
-     *    기사님이 현금을 받아도 기록이 안 남아 미수금 화면이 늘 비어 있었다.
-     *
-     * 기사님: *"착불현금은 완료 누르기 전에 내가 받을꺼야."*
-     * 그래서 하차 완료를 누르기 **직전**에 이 값을 남긴다.
-     *
-     * 미수(`받음=false`)면 금액을 그대로 미수금으로 올린다 — 0 으로 덮지 않는다.
-     */
+    /** 착불 수령 기록 — orders 테이블 (정산은 별도 페이지의 일) */
     public static setCodCollected(orderId: string, userId: string, received: boolean, amount: number) {
         db.prepare(`UPDATE orders
                     SET settlementStatus = ?, unpaidAmount = ?, settledAt = ?
@@ -156,26 +92,6 @@ export class OrderRepository {
     public static getSettlement(orderId: string): { settlementStatus?: string; unpaidAmount?: number; settledAt?: string } {
         return (db.prepare(`SELECT settlementStatus, unpaidAmount, settledAt FROM orders WHERE id = ?`)
                   .get(orderId) as any) || {};
-    }
-
-    /**
-     * 잘못 누른 마일스톤을 지운다.
-     *
-     * 기사님 기준: *"단계별로 DB 에 저장하고 … 수정이 가능해야 한다."*
-     * 도착을 잘못 눌러도 되돌릴 방법이 없었다 — 시각 기록이 영영 틀어진 채 남는다.
-     */
-    public static deleteMilestone(orderId: string, userId: string, milestone: string): boolean {
-        const r = db.prepare(`DELETE FROM order_milestones WHERE orderId = ? AND userId = ? AND milestone = ?`)
-                    .run(orderId, userId, milestone);
-        return r.changes > 0;
-    }
-
-    /** 한 오더의 마일스톤 이력 (예상 대비 오차 확인용) */
-    public static getMilestones(orderId: string) {
-        const rows = db.prepare(`SELECT milestone, occurredAt, predictedAt, source, reasons
-                                 FROM order_milestones WHERE orderId = ? ORDER BY occurredAt`).all(orderId) as any[];
-        // 사유는 JSON 문자열로 산다 (tags·protections 와 같은 방식) — 읽는 쪽이 배열로 받게 푼다
-        return rows.map(r => ({ ...r, reasons: r.reasons ? JSON.parse(r.reasons) : undefined }));
     }
 
     /**

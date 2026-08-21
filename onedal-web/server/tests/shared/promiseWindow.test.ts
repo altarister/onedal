@@ -83,14 +83,12 @@ describe('타임라인 — 부터(하한)는 기다림으로 뒤 정거장에 �
 describe('저장 경로 — 부터가 유실되지 않는다', () => {
     const read = (p: string) => readFileSync(join(__dirname, p), 'utf8');
 
-    it('🔴 DB upsert/select 가 promisedArrivalFromAt 을 실어 나른다', () => {
-        const repo = read('../../src/repositories/OrderRepository.ts');
-        const insert = repo.match(/INSERT INTO stop_cargo_reports[\s\S]*?VALUES/)![0];
-        const select = repo.match(/SELECT [\s\S]*?FROM stop_cargo_reports/)![0];
-        expect(insert).toContain('promisedArrivalFromAt');
-        expect(select).toContain('promisedArrivalFromAt');
-        expect(repo).toContain('promisedArrivalFromAt = excluded.promisedArrivalFromAt');
-        expect(read('../../src/db.ts')).toContain('promisedArrivalFromAt');
+    it('🔴 저장 경로(bridgeCargoReport → 단계 행)가 부터를 실어 나른다', () => {
+        // 🏗️ 옛 upsert(stop_cargo_reports)는 철거 (2026-08-21) — 부터의 저장 경로는 다리 하나다
+        const seeder = read('../../src/services/stepSeeder.ts');
+        expect(seeder).toContain('promised_arrival_from_at: report.promisedArrivalFromAt');
+        const records = read('../../../shared/src/stepRecords.ts');
+        expect(records).toContain('promisedArrivalFromAt: r.promised_arrival_from_at');
     });
 
     it('🔴 새 단계 시트가 부터(기간)를 저장하고, 단계 행에 칸이 있다', () => {

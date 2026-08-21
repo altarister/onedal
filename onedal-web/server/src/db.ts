@@ -313,73 +313,15 @@ db.exec(`
     CREATE INDEX IF NOT EXISTS idx_orderStops_orderId ON orderStops(orderId);
     CREATE INDEX IF NOT EXISTS idx_orderStops_placeId ON orderStops(placeId);
 
-    -- [Phase 8.2] 운행 마일스톤(상차/하차 보고) 이력
-    --
-    -- 같은 보고가 여러 경로로 들어온다. 앱이 화면 변화를 감지(AUTO_SCRAPE)한 직후
-    -- 기사님이 관제탑에서도 누르면(MANUAL_WEB) 두 번 들어온다.
-    -- UNIQUE(orderId, milestone) 로 **DB 레벨에서 멱등성을 보장**한다.
-    -- 애플리케이션 체크만 두면 동시 요청에서 뚫린다.
-    --
-    -- occurredAt 은 "실제로 일어난 시각", recordedAt 은 "서버가 받은 시각"이다.
-    -- 통신이 끊겼다 복구되면 둘이 크게 벌어지므로 분리해서 남긴다.
-    CREATE TABLE IF NOT EXISTS order_milestones (
-        id              INTEGER PRIMARY KEY AUTOINCREMENT,
-        orderId         TEXT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
-        userId          TEXT NOT NULL,
-        milestone       TEXT NOT NULL,   -- MILESTONES (@onedal/shared)
-        source          TEXT NOT NULL,   -- MILESTONE_SOURCES (@onedal/shared)
-        occurredAt      TEXT NOT NULL,   -- 실제로 일어난 시각 (버튼을 누른 때)
-        predictedAt     TEXT,            -- 그때 우리가 예상했던 시각 — 오차 계산용
-        recordedAt      TEXT NOT NULL,   -- 서버가 받은 시각
-        UNIQUE(orderId, milestone)
-    );
-    CREATE INDEX IF NOT EXISTS idx_milestones_orderId ON order_milestones(orderId);
-    CREATE INDEX IF NOT EXISTS idx_milestones_user_time ON order_milestones(userId, occurredAt);
-
-    -- [Phase 8.4] 정거장별 화물 정보. **같은 항목을 두 번 기록한다.**
-    --   kind='DECLARED' 통화로 들은 값 (상차 전)  — 합짐 판단의 '예측'
-    --   kind='ACTUAL'   현장에서 확인한 값        — 잔여 공간의 '확정'
-    -- 둘의 차이가 곧 의사결정 근거다. 신고 "박스 1개"인데 실제 "파렛트 3개"면
-    -- 퀵사무실에 전화해 수행 여부를 다시 정해야 한다.
-    --
-    -- 크기·개수는 kg 가 아니라 **적재 점수(1t=30점)** 축으로 받는다.
-    -- 통화 중에 한 손으로 3초 안에 입력해야 하므로 숫자 타이핑을 요구하지 않는다.
-    CREATE TABLE IF NOT EXISTS stop_cargo_reports (
-        id          INTEGER PRIMARY KEY AUTOINCREMENT,
-        orderId     TEXT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
-        userId      TEXT NOT NULL,
-        stopType    TEXT NOT NULL,   -- 'pickup' | 'dropoff'
-        kind        TEXT NOT NULL,   -- 'DECLARED'(통화) | 'ACTUAL'(현장)
-        unit        TEXT,        -- 파레트 | 라면박스 | 소 | 중 | 대 | 초과
-        sizeClass   TEXT,        -- (구) 소 | 중 | 대 | 초과 — unit 으로 대체됨
-        quantity    INTEGER,     -- 개수
-        handling    TEXT,        -- 지게차 | 수작업 | 검수 (호이스트는 2026-08-18 제거)
-        promisedAt  TEXT,        -- 약속·예정 시각 (적요의 12:42상차 등)
-        deadlineAt  TEXT,        -- 마감 시각 (늦어도 언제까지). 합짐 우회 허용치를 정한다
-        tags        TEXT,        -- 화물 성질 JSON 배열 (식료품·냉장·파손주의 등)
-        memo        TEXT,
-        recordedAt  TEXT NOT NULL,
-        UNIQUE(orderId, stopType, kind)
-    );
-    CREATE INDEX IF NOT EXISTS idx_cargo_orderId ON stop_cargo_reports(orderId);
+    -- 🔄 옛 장부(order_milestones · stop_cargo_reports) CREATE 는 철거됐다 (기사님 확인
+    -- 2026-08-21). 신고·마일스톤의 유일한 원천은 여섯 단계 행(step_* 테이블)이다.
+    -- 기존 DB 의 실물 테이블은 손으로 DROP 한다 (부팅 경로에서 지우지 않는다).
+    SELECT 1
 `);
 
 // ── 스키마 진화: 테이블이 모두 만들어진 **뒤에** 돌아야 한다 ──
-dropStaleCheck('order_milestones', `
-    CREATE TABLE order_milestones (
-        id              INTEGER PRIMARY KEY AUTOINCREMENT,
-        orderId         TEXT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
-        userId          TEXT NOT NULL,
-        milestone       TEXT NOT NULL,
-        source          TEXT NOT NULL,
-        occurredAt      TEXT NOT NULL,
-        predictedAt     TEXT,
-        recordedAt      TEXT NOT NULL,
-        UNIQUE(orderId, milestone)
-    )`, [
-    `CREATE INDEX IF NOT EXISTS idx_milestones_orderId ON order_milestones(orderId)`,
-    `CREATE INDEX IF NOT EXISTS idx_milestones_user_time ON order_milestones(userId, occurredAt)`,
-]);
+// 🔄 order_milestones 의 dropStaleCheck 도 철거 (테이블 자체가 은퇴)
+
 
 /**
  * 🎯 **판정 기준** — 서버가 집어 온 콜에 색을 매기는 값 (2026-08-16 신설).
@@ -534,53 +476,15 @@ for (const t of STEP_TABLES) {
     ensureColumns(t.table, Object.fromEntries(t.columns.map(([, c, ty]) => [c, ty])));
 }
 
-ensureColumns('order_milestones', { predictedAt: 'TEXT' });
 // 어느 배차망에서 온 콜인가 (insung/hwamul24) — 배차망별 콜 검색·분석의 근거 (기사님 2026-08-17)
-// 📍 도착 사유 (JSON 배열) — tags·protections 와 같은 방식. 정상 도착이면 NULL
-ensureColumns('order_milestones', { reasons: 'TEXT' });
 ensureColumns('orders', { targetApp: 'TEXT',
     // ⚓ 타임라인 추정 약속의 닻 — 메모리에만 두면 서버 재시작에 모든 추정이 지금 시각으로 리셋된다
     routeComputedAt: 'TEXT' });
 ensureColumns('intel', { targetApp: 'TEXT' });
-// 🕒 도착 약속 — "몇 시까지 갈게요" (기사님 확정 2026-08-18). 완료 시각은 저장하지 않고 파생한다
-ensureColumns('stop_cargo_reports', { promisedArrivalAt: 'TEXT', protections: 'TEXT', afterworks: 'TEXT',
-    promisedArrivalFromAt: 'TEXT' });   // 🔒 보호(복수) — tags 와 같은 JSON. 부터(하한)는 2026-08-19 구간 약속
-/**
- * 🔴 2026-08-12 — 옛 DB 의 `stop_cargo_reports` 에 CHECK 제약이 굳어 있었다.
- *
- *     kind TEXT NOT NULL CHECK(kind IN ('DECLARED', 'ACTUAL'))
- *
- * 파일 위쪽 주석이 경고해 둔 바로 그 함정인데, `order_milestones` 에만 걸고
- * 이 테이블은 빠뜨렸다. 그래서 `kind: 'SKIPPED'`(통화 건너뛰기)를 저장하려는 순간
- * **`CHECK constraint failed` 로 조용히 실패**했다 (safeOn 이 잡아 서버는 살았다).
- *
- * 허용값 목록이 `@onedal/shared` 의 `CargoReportKind` 와 **두 번째 진실 공급원**이 된다.
- * 검증은 애플리케이션 한 곳에서만 한다.
- */
-dropStaleCheck('stop_cargo_reports', `
-    CREATE TABLE stop_cargo_reports (
-        id          INTEGER PRIMARY KEY AUTOINCREMENT,
-        orderId     TEXT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
-        userId      TEXT NOT NULL,
-        stopType    TEXT NOT NULL,   -- 'pickup' | 'dropoff'
-        kind        TEXT NOT NULL,   -- 'DECLARED'(통화) | 'ACTUAL'(현장) | 'SKIPPED'(통화 건너뜀)
-        unit        TEXT,
-        sizeClass   TEXT,
-        quantity    INTEGER,
-        handling    TEXT,
-        promisedAt  TEXT,
-        deadlineAt  TEXT,
-        onwardDeadlineAt TEXT,
-        tags        TEXT,
-        memo        TEXT,
-        recordedAt  TEXT NOT NULL,
-        UNIQUE(orderId, stopType, kind)
-    )
-`, [`CREATE INDEX IF NOT EXISTS idx_cargo_orderId ON stop_cargo_reports(orderId)`]);
+// 🔄 stop_cargo_reports 의 dropStaleCheck 도 철거 (테이블 은퇴 — 2026-08-21)
 
-ensureColumns('stop_cargo_reports', { unit: 'TEXT', deadlineAt: 'TEXT', tags: 'TEXT',
-    // 상차지 통화에서 함께 들은 하차지 도착 예정 (하차지 기록으로 저장하면 단계를 건너뛰게 된다)
-    onwardDeadlineAt: 'TEXT' });
+
+
 
 
 // ═══════════════════════════════════════

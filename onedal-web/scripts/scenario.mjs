@@ -84,8 +84,12 @@ async function seed() {
     const iso = d => d.toISOString().replace(/\.\d{3}Z$/, 'Z');
     // 나머지는 과거로 밀어 간섭을 없앤다
     c.prepare(`UPDATE orders SET timestamp = '2020-01-01T00:00:00Z', status = 'ORDER_RELEASED_BY_ME'`).run();
-    c.prepare(`DELETE FROM order_milestones`).run();
-    c.prepare(`DELETE FROM stop_cargo_reports`).run();
+    // 🔄 새 장부(여섯 단계 행)를 비운다 — 씨앗 콜의 지난 리허설 이력이 남으면
+    //    첫 refresh 부터 index 5 로 시작해 6단계 검사가 통째로 무너진다 (2026-08-21 실측)
+    for (const t of ['step_call_pickup', 'step_call_dropoff', 'step_arrive_pickup',
+                     'step_loaded', 'step_arrive_dropoff', 'step_delivered']) {
+        c.prepare(`DELETE FROM ${t}`).run();
+    }
 
     const [main, cod] = withStops;
     const nowIso = iso(now);
@@ -169,23 +173,48 @@ const token = async () => (await (await fetch(`http://localhost:${PORT}/api/auth
 
 function connect(tok) {
     const s = io(`http://localhost:${PORT}`, { auth: { token: tok }, transports: ['websocket'] });
-    const st = { filter: null, phases: null, active: [], terminated: [], reports: new Map(),
-                 milestones: new Map(), mismatch: [], settle: new Map(), errors: [], stale: null };
+    const st = { filter: null, phases: null, active: [], terminated: [], steps: new Map(),
+                 mismatch: [], errors: [], stale: null };
     s.on('filter-init', d => { st.filter = d.activeFilter; st.phases = d.phaseSettings ?? st.phases; });
     s.on('filter-updated', d => {                                   // 🔴 -updated 다. -update 아니다
         st.filter = d.activeFilter ?? d;
         st.phases = d.phaseSettings ?? st.phases;
     });
     s.on('sync-active-orders', d => { st.active = d.active || []; st.terminated = d.terminated || []; });
-    s.on('cargo-report-saved', d => st.reports.set(d.orderId, d.reports || []));
-    s.on('milestone-log', d => st.milestones.set(d.orderId, d.milestones || []));
+    // 🔄 옛 장부 이벤트(cargo-report-saved·milestone-log)는 철거됐다 (2026-08-21) —
+    //    새 장부(여섯 단계 행) 하나를 듣고, 옛 모양(reports/milestones)은 아래에서 파생한다
+    s.on('steps-synced', d => st.steps.set(d.orderId, d.steps || []));
     s.on('cargo-mismatch', m => st.mismatch.push(m));
-    s.on('settlement-updated', d => st.settle.set(d.orderId, d));
     s.on('stale-orders-dropped', d => st.stale = d);
     s.on('handler-error', e => st.errors.push(e));
     s.on('auto-arrived', () => st.autoArrived = (st.autoArrived || 0) + 1);
     s.on('next-stop-approaching', () => st.approaching = (st.approaching || 0) + 1);
     return { s, st };
+}
+
+/** 여섯 단계 행 → 옛 모양(reports/milestones) — shared recordsOfSteps 의 검사기 판 */
+const MILESTONE_OF = { ARRIVE_PICKUP: 'ARRIVED_PICKUP', LOADED: 'PICKED_UP',
+                       ARRIVE_DROPOFF: 'ARRIVED_DROPOFF', DELIVERED: 'DELIVERED' };
+function recordsOf(steps) {
+    const rp = [], ms = [];
+    for (const s of steps) {
+        if (s.born === false) continue;
+        const r = s.row ?? {};
+        if ((s.step === 'LOADED' || s.step === 'DELIVERED') && r.actual_unit != null) {
+            rp.push({ stopType: s.step === 'LOADED' ? 'pickup' : 'dropoff', kind: 'ACTUAL',
+                      unit: r.actual_unit, quantity: r.actual_quantity, handling: r.actual_handling });
+        }
+        if (r.status === 'PLANNED' || !r.status) continue;
+        if (s.step === 'CALL_PICKUP' || s.step === 'CALL_DROPOFF') {
+            rp.push({ stopType: s.step === 'CALL_PICKUP' ? 'pickup' : 'dropoff',
+                      kind: r.status === 'SKIPPED' ? 'SKIPPED' : 'DECLARED',
+                      unit: r.planned_unit, quantity: r.planned_quantity, handling: r.planned_handling,
+                      promisedArrivalAt: r.promised_arrival_at ?? undefined });
+        }
+        const m = MILESTONE_OF[s.step];
+        if (m && r.occurred_at) ms.push({ milestone: m, occurredAt: r.occurred_at, source: r.source });
+    }
+    return { ms, rp };
 }
 
 // 화면(deriveCallStep)이 쓰는 파생을 그대로 재현한다
@@ -210,10 +239,9 @@ async function run({ main, cod }) {
     await wait(4000);
 
     const refresh = async id => {
-        s.emit('request-cargo-reports', { orderId: id });
-        s.emit('request-milestones', { orderId: id });
+        s.emit('request-steps', { orderId: id });
         await wait(450);
-        return { ms: st.milestones.get(id) || [], rp: st.reports.get(id) || [] };
+        return recordsOf(st.steps.get(id) || []);
     };
     /**
      * 🔴 **고정 대기를 쓰지 않는다.** 조건이 참이 될 때까지 다시 읽는다.
@@ -328,10 +356,16 @@ async function run({ main, cod }) {
 
     console.log('\n═══ F · 착불 현금 ═══');
     s.emit('cod-collected', { orderId: cod, received: true }); await wait(900);
-    check('[받았음] 이 기록된다', st.settle.get(cod)?.settlementStatus === '수령',
-        `status=${st.settle.get(cod)?.settlementStatus}`);
+    // 🔄 settlement-updated 이벤트는 철거 (2026-08-21) — 원천인 장부(orders)를 직접 본다
+    const settleOf = (id) => {
+        const c = new Database(join(SERVER, DB), { readonly: true });
+        const r = c.prepare(`SELECT settlementStatus FROM orders WHERE id = ?`).get(id);
+        c.close();
+        return r?.settlementStatus;
+    };
+    check('[받았음] 이 기록된다', settleOf(cod) === '수령', `status=${settleOf(cod)}`);
     s.emit('report-milestone', { orderId: cod, milestone: 'DELIVERED' }); await wait(1400);
-    check('하차 완료가 수령 기록을 덮어쓰지 않는다', st.settle.get(cod)?.settlementStatus === '수령');
+    check('하차 완료가 수령 기록을 덮어쓰지 않는다', settleOf(cod) === '수령');
 
     // ⚠️ 이 검사는 **모든 콜을 끝낸 뒤에** 해야 한다.
     //    시드가 콜을 2건 만드는데 1건만 완료하고 STANDBY 를 기대해서

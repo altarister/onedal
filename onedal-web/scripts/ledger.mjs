@@ -57,9 +57,16 @@ for (const o of orders.reverse()) {
     console.log(`${short(o.pickup)} → ${short(o.dropoff)}  ·  ${(o.fare || 0).toLocaleString()}원 ${o.vehicleType || ''}`);
     console.log(`  상태 ${o.status}   잡은 시각 ${hhmm(o.capturedAt)}   ${o.id.slice(-14)}`);
 
-    // ── 단계 기록 — 무엇을 직접 확인했고 무엇을 넘어갔나 ──
-    const ms = db.prepare(`SELECT milestone, source, occurredAt, predictedAt, reasons
-                           FROM order_milestones WHERE orderId = ? ORDER BY occurredAt`).all(o.id);
+    // ── 단계 기록 — 🔄 새 장부(여섯 단계 행)에서 읽는다 (옛 테이블 철거 2026-08-21) ──
+    const STEP_ROWS = [
+        ['step_arrive_pickup', 'ARRIVED_PICKUP'], ['step_loaded', 'PICKED_UP'],
+        ['step_arrive_dropoff', 'ARRIVED_DROPOFF'], ['step_delivered', 'DELIVERED'],
+    ];
+    const ms = STEP_ROWS.flatMap(([t, m]) => {
+        const r = db.prepare(`SELECT status, source, occurred_at, predicted_at, reasons FROM ${t} WHERE orderId = ?`).get(o.id);
+        return r?.occurred_at ? [{ milestone: m, source: r.source, occurredAt: r.occurred_at,
+                                   predictedAt: r.predicted_at, reasons: r.reasons ?? null }] : [];
+    }).sort((a, b) => (a.occurredAt < b.occurredAt ? -1 : 1));
     if (ms.length) {
         console.log(`  ─ 단계`);
         for (const m of ms) {
@@ -72,10 +79,21 @@ for (const o of orders.reverse()) {
         }
     }
 
-    // ── 통화·현장 신고 — 약속과 짐 ──
-    const rp = db.prepare(`SELECT stopType, kind, unit, quantity, handling,
-                                  promisedArrivalFromAt, promisedArrivalAt, memo
-                           FROM stop_cargo_reports WHERE orderId = ?`).all(o.id);
+    // ── 통화·현장 신고 — 🔄 새 장부에서 파생 ──
+    const rp = [];
+    for (const [t, stopType] of [['step_call_pickup', 'pickup'], ['step_call_dropoff', 'dropoff']]) {
+        const r = db.prepare(`SELECT * FROM ${t} WHERE orderId = ?`).get(o.id);
+        if (r && r.status && r.status !== 'PLANNED') rp.push({
+            stopType, kind: r.status === 'SKIPPED' ? 'SKIPPED' : 'DECLARED',
+            unit: r.planned_unit, quantity: r.planned_quantity, handling: r.planned_handling,
+            promisedArrivalFromAt: r.promised_arrival_from_at, promisedArrivalAt: r.promised_arrival_at, memo: r.memo });
+    }
+    for (const [t, stopType] of [['step_loaded', 'pickup'], ['step_delivered', 'dropoff']]) {
+        const r = db.prepare(`SELECT * FROM ${t} WHERE orderId = ?`).get(o.id);
+        if (r && r.actual_unit != null) rp.push({
+            stopType, kind: 'ACTUAL', unit: r.actual_unit, quantity: r.actual_quantity,
+            handling: r.actual_handling, promisedArrivalFromAt: null, promisedArrivalAt: null, memo: null });
+    }
     if (rp.length) {
         console.log(`  ─ 신고`);
         for (const r of rp) {

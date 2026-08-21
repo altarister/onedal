@@ -107,8 +107,9 @@ describe('짐 폼 — 실어 본 뒤에만', () => {
 describe('저장 — 사유가 장부에 남는다', () => {
     const read = (p: string) => readFileSync(join(__dirname, p), 'utf8');
 
-    it('🔴 order_milestones 에 reasons 칸이 있다', () => {
-        expect(read('../../src/db.ts')).toMatch(/ensureColumns\('order_milestones'[\s\S]{0,200}reasons/);
+    it('🔴 단계 행(도착 두 단계)에 reasons 칸이 있다 — 옛 테이블 철거 후의 거처', () => {
+        const tables = read('../../../shared/src/stepTables.ts');
+        expect(tables).toMatch(/reasons/);
     });
 
     it('🔴 도착을 기록할 때 사유를 함께 적는다', () => {

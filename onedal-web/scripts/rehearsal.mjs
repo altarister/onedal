@@ -356,7 +356,8 @@ async function freshStart() {
     const stamp = new Date().toISOString().slice(5, 16).replace(/[-:T]/g, '');
     const backup = join(ROOT, `server/local.db.backup-rehearsal-${stamp}`);
     await src.backup(backup);
-    for (const t of ['stop_cargo_reports', 'order_milestones', 'orderStops', 'orders']) {
+    // 🔄 옛 장부 테이블은 철거됨 (2026-08-21) — 단계 행은 orders CASCADE 로 함께 지워진다
+    for (const t of ['orderStops', 'orders']) {
         const n = src.prepare(`DELETE FROM ${t}`).run().changes;
         console.log(`  ${t}: ${n}건 삭제`);
     }
