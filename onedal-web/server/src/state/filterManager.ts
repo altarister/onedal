@@ -12,13 +12,13 @@
  */
 
 import db from "../db";
-import { getActiveCalls, computeLoadedPoints } from "../core/helpers";
+import { getActiveCalls, computeLoadedPoints, buildOrderSync } from "../core/helpers";
 import { stepRecordsOf } from "../services/stepSeeder";
 import { OrderRepository } from "../repositories/OrderRepository";
 import { SettingsRepository } from "../repositories/SettingsRepository";
 import { getUserSession } from "./userSessionStore";
 import type { AutoDispatchFilter, PhaseKey, PhaseSettings } from "@onedal/shared";
-import { DEFAULT_DETOUR_RADIUS_KM, isTerminal, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, resolvePhaseKey, applyPhaseToFilter, normalizePhaseSettings,
+import { DEFAULT_DETOUR_RADIUS_KM, isTerminal, isDeliveredCall, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, resolvePhaseKey, applyPhaseToFilter, normalizePhaseSettings,
          PHASE_KEYS, FILTER_FIELDS, phaseRowOf, phaseOfRow } from "@onedal/shared";
 import type { PhaseSettingsMap } from "@onedal/shared";
 
@@ -902,6 +902,33 @@ export function ensureBusinessDay(userId: string, io?: any): boolean {
      */
     try { recordDayResult(userId, yesterday, session.phaseSettings); }
     catch (e) { console.error('📊 [성과 기록] 실패:', (e as Error).message); }
+
+    /**
+     * 🖥️ **어제 하차분을 화면 사이클에서 정리한다** (버그 대장 #37 · 2026-08-22).
+     *
+     * `deckOfCycle`(기사님 확정 2026-08-19)은 *"진행 중이 남으면 하차한 콜도 같이
+     * 보여준다"* — 6단계 채워진 모습을 보기 위한 화면 규칙이다. 사이클이 자정을
+     * 걸치면(미하차 콜을 남기고 잠들면) 어제 하차한 콜이 오늘 "진행 중"으로 계속
+     * 보였다. 재부팅 복구는 이미 영업일로 거르는데 **살아 있는 세션만 구멍**이었다.
+     *
+     * 하차한 날의 원천은 장부(orders.completedAt)다 — 오늘이 아니면 화면 재료
+     * (메모리)에서만 뺀다. 미하차 콜·장부·매출은 건드리지 않는다 (규칙 ① ·
+     * "상태는 콜별 즉시, 화면만 사이클 단위").
+     */
+    try {
+        const gone = session.myOrders.filter(o => {
+            if (!isDeliveredCall(o)) return false;
+            const row = db.prepare(`SELECT completedAt FROM orders WHERE id = ? AND userId = ?`)
+                .get(o.id, userId) as { completedAt?: string } | undefined;
+            return !row?.completedAt || businessDayKey(Date.parse(row.completedAt)) !== today;
+        });
+        if (gone.length) {
+            session.myOrders = session.myOrders.filter(o => !gone.includes(o));
+            for (const o of gone) session.pendingOrdersData.delete(o.id);
+            console.log(`🌅 [영업일 전환] 어제 하차 완료 ${gone.length}건을 화면 사이클에서 정리 (장부·매출은 그대로)`);
+            if (io) io.to(userId).emit("sync-active-orders", buildOrderSync(session));
+        }
+    } catch (e) { console.error('🌅 [영업일 전환] 하차분 정리 실패 (전환은 계속):', (e as Error).message); }
 
     // 되돌리는 규칙은 shared 한 곳에만 있다 (세션 생성 때도 같은 규칙을 쓴다)
     session.activeFilter = resetToBaseFilter(session.baseFilter);
