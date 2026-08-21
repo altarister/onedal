@@ -224,8 +224,9 @@ interface SlotPick { until?: string; from?: string; touched: boolean }
  * 도착시간 격자 — 밑값(도착 예상)은 **저장된 행**에서 온다. 계산하지 않는다.
  * `pick`/`onPick` 이 오면 이식된 것 — 옛 시트의 탭 규칙 그대로 움직인다.
  */
-function SlotGrid({ r, pick, onPick }: {
+function SlotGrid({ r, pick, onPick, stopKind }: {
     r: Record<string, any>; pick?: SlotPick; onPick?: (next: SlotPick) => void;
+    stopKind?: 'pickup' | 'dropoff';
 }) {
     const predicted = r.predicted_at as string | null;
     const storedPromise = r.promised_arrival_at as string | null;
@@ -285,8 +286,10 @@ function SlotGrid({ r, pick, onPick }: {
                 })}
             </Row>
             <div className="mt-1 text-[10px] leading-tight text-text-muted">
-                {r.deadline_at && <>⚠️ <b className="tabular-nums">{hhmm(r.deadline_at)}</b> 넘는 칸은
-                    데드라인(주행×150%) 밖 — 화주와 합의하면 데드라인이 미뤄집니다 · </>}
+                {r.deadline_at && <>⚠️ <b className="tabular-nums">{hhmm(r.deadline_at)}</b> 넘는 칸은{' '}
+                    {stopKind === 'pickup'
+                        ? <>무통보 상차 한계(잡음+잠정) 밖 — 주선사·화주와 통화로 미룹니다</>
+                        : <>배달 데드라인(상차 완료+주행×150%) 밖 — 화주와 합의하면 미뤄집니다</>} · </>}
                 {pick?.touched
                     ? <>기사님이 고른 값 — 통화 완료 때 <b>약속으로 저장</b>됩니다</>
                     : <>ⓘ 저장된 값 — 도착 예상 <b className="tabular-nums">{hhmm(predicted)}</b>
@@ -439,7 +442,7 @@ function LiveCall({ orderId, r, pickup, place, prevName, leadMinutes, departPrev
                     placeholder={pickup ? '통화에서 들은 그 밖의 것 — 지하 2층, 경비실 통과' : '통화에서 들은 그 밖의 것 — 5시 이후엔 문 닫음'}
                     className="w-full px-2 py-1.5 rounded-md bg-surface-alt/40 border border-border text-[12px] text-text-primary" />
             </Row>
-            <SlotGrid r={r} pick={pick} onPick={setPick} />
+            <SlotGrid r={r} pick={pick} onPick={setPick} stopKind={pickup ? 'pickup' : 'dropoff'} />
             <Sentence r={r} pickup={pickup} place={place}
                 prevName={prevName} leadMinutes={leadMinutes}
                 departPrevMs={departPrevMs} segmentDriveMinutes={segmentDriveMinutes} />
@@ -714,7 +717,7 @@ export default function StepSheetMock({ view, orderId, codAmount, place, prevNam
                 <>
                     <CargoForm r={r} pickup={pickup} />
                     <MemoRow r={r} />
-                    <SlotGrid r={r} />
+                    <SlotGrid r={r} stopKind={pickup ? 'pickup' : 'dropoff'} />
                     <div className="flex gap-2">
                         <span className={skipBtn}>통화 스킵</span>
                         <span className={`${mainBtn} text-center`}>통화 완료</span>

@@ -145,9 +145,11 @@ describe('추천 근거 문구 — 실제 계산 그대로', () => {
         expect(c).not.toMatch(/\+ 상차 \$\{dwell\}분/);
     });
 
-    it('🔴 카운트다운 추정 설명이 타임라인 기준(도착 예상 +30분)을 말한다', () => {
-        const cd = readFileSync(
-            join(__dirname, '../../../client-app/src/components/dashboard/DepartureCountdown.tsx'), 'utf8');
-        expect(cd).toMatch(/도착 예상 \+30분|도착예상 \+30분/);
+    it('🔴 카운트다운 추정 설명이 두 시계 기준을 말한다 — 여유30 카피 금지 (⑯)', () => {
+        const c = readFileSync(join(__dirname,
+            '../../../client-app/src/components/dashboard/DepartureCountdown.tsx'), 'utf8');
+        expect(c).toMatch(/상차 시계\(잡음\+잠정 30분\)/);
+        expect(c).toMatch(/배달 데드라인\(상차 완료\+150%\)/);
+        expect(c).not.toMatch(/도착 예상 \+30분/);
     });
 });

@@ -19,7 +19,7 @@
  */
 import db from '../db';
 import { STEP_TABLES, defaultCargoByVehicle, dwellMinutes, unitPoints,
-         parseCargoHints, callDeadlineMs, DEFAULT_JUDGMENT } from '@onedal/shared';
+         parseCargoHints, callDeadlineMs, pickupClockMsOf, DEFAULT_JUDGMENT } from '@onedal/shared';
 import type { JudgmentConfig, CargoReport, Milestone, RouteTimelineEntry } from '@onedal/shared';
 
 /** 🧭 경로가 아는 시각 — `deriveRouteTimeline` 의 결과를 그대로 받는다 (파생 한 곳 · 규칙 ③) */
@@ -355,9 +355,14 @@ export function stepsView(orderId: string, judgment?: JudgmentConfig): StepView[
     const departPlanned = ms(born.LOADED?.occurred_at) ?? ms(chain.LOADED.predicted_at);
     const dl = departPlanned != null
         ? callDeadlineMs(departPlanned, num(o.kakaoSoloDurationMin), judgment ?? DEFAULT_JUDGMENT) : null;
+    // 상차 격자의 ⚠️ 기준 = **상차 시계**(무통보 한계) 그 자체 — 약속(바닥 적용값)이 아니다.
+    //    실측(2026-08-21): 약속을 기준 삼으니 경로 유무에 따라 값이 흔들렸다
+    const capturedMs2 = Date.parse(o.capturedAt ?? '');
+    const clockMs = Number.isFinite(capturedMs2)
+        ? pickupClockMsOf(o, capturedMs2, (judgment ?? DEFAULT_JUDGMENT).unknown.pickupOffsetMin ?? 30) : null;
     const deadlineOf = (step: StepId) =>
         step === 'CALL_DROPOFF' ? (dl != null ? new Date(dl).toISOString() : null)
-        : step === 'CALL_PICKUP' ? chain.CALL_PICKUP.promised_arrival_at ?? null   // 상차 시계가 곧 한계
+        : step === 'CALL_PICKUP' ? (clockMs != null ? new Date(clockMs).toISOString() : null)
         : null;
     return ORDER.map(step => {
         const t = tableOf(step);

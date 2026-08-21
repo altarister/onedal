@@ -43,8 +43,8 @@ export default function DepartureCountdown({ orders, records, routeStops, routeC
      * `PinnedRouteCard` 와 같은 계산(단독 구간 선택·접근 거리·상차 정차)을 복제했다.
      * 한쪽만 고치면 카운트다운과 통화 화면이 **다른 시각**을 말한다.
      */
-    // 🔴 basis: 추정 근거를 실제 계산대로 — 타임라인은 "경로 도착 예상 +30분", 폴백은 "잡은 시각 +1시간".
-    //    예전엔 폴백 문구가 고정으로 찍혀 타임라인 추정에도 거짓 근거가 붙었다 (2026-08-19)
+    // 🔴 basis: 추정 근거를 실제 계산대로 — 두 시계(⑯): 상차는 "상차 시계(잡음+잠정)",
+    //    하차는 "배달 데드라인(상차 완료+150%)". 여유30 카피는 폐기됐다 (2026-08-21)
     /**
      * 🧾 `detail` — **왜 그 시각인지**. 분기마다 뺄셈이 다르므로 문구도 각자 만든다.
      *
@@ -80,7 +80,7 @@ export default function DepartureCountdown({ orders, records, routeStops, routeC
                 ? `주행 ${binding.driveMinutes}${binding.leadMinutes > 0 ? `, 앞 정차 ${binding.leadMinutes}` : ''}`
                 : null,
             waitMin: minutesUntil(new Date(binding.departByMs!).toISOString(), now),
-            basis: '경로 도착 예상 +30분',
+            basis: binding.stopType === 'pickup' ? '상차 시계(잡음+잠정 30분)' : '배달 데드라인(상차 완료+150%)',
             // 시각을 같이 적는다 — 상차지가 둘 다 "경안동"이면 이름만으로는 어느 약속인지 모른다
             boundBy: o ? `${getAddressLabel(binding.stopType === 'pickup' ? o.pickup : o.dropoff)} ${binding.stopType === 'pickup' ? '상차' : '하차'} ${binding.promisedUntil ? new Date(binding.promisedUntil).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }) : ''}`.trim() : null,
         };
