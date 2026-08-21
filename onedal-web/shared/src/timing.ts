@@ -193,6 +193,25 @@ export function buildArrivalSlots(nowMs: number, minMinutes: number, count = 5, 
 }
 
 /**
+ * 🔄 **격자 밑값의 수명** (2026-08-22 실측 — 자정을 걸친 문산읍 콜).
+ *
+ * 도착시간 격자의 밑값은 **저장된 도착 예상**이다 — 시트는 계산하지 않고, 분 틱에
+ * 흔들리지 않는다 (arrivalSlotStability 의 안정성 규칙). 그런데 약속이 깨진 채
+ * 자정을 넘기면 다섯 칸이 **전부 과거**가 되어 재약속을 잡을 칸이 없다 —
+ * 통화로 확정하는 것이 이 제품의 순서인데 통화의 도구가 죽는다.
+ *
+ * 그래서 수명을 정한다: **누를 칸이 하나라도 살아 있으면 저장된 밑값 그대로**,
+ * 전부 과거가 된 격자만 "지금 + 남은 주행"으로 다시 편다 (죽은 격자에는 지킬
+ * 안정성이 남아 있지 않다). 저장된 약속은 지우지 않는다 — ⓘ 로 함께 보인다.
+ */
+export function slotBaseMs(predictedIso: string, nowMs: number,
+                           driveMin?: number | null, count = 5, stepMin = 30): number {
+    const base = Date.parse(predictedIso);
+    if (base + (count - 1) * stepMin * 60_000 >= nowMs) return base;   // 살아 있는 격자 — 그대로
+    return nowMs + Math.max(0, driveMin ?? 0) * 60_000;                // 재약속 모드 — 지금 지킬 수 있는 가장 이른 시각
+}
+
+/**
  * 이 짐을 마감까지 배달하고 **남는 시간**(분).
  *
  *   여유 = 마감 시각 − (지금 + 남은 주행 시간)

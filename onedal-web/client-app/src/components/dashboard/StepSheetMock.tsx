@@ -37,7 +37,7 @@ import {
     PROTECTIONS, PROTECTION_MINUTES, protectionMinutes,
     AFTERWORKS, AFTERWORK_MINUTES, afterworkMinutes,
     CARGO_TAGS, CARGO_TAG_META, arrivalReasonGroupsFor, REASON_NEEDS_MEMO,
-    dwellMinutes, unitPoints,
+    dwellMinutes, unitPoints, slotBaseMs,
 } from '@onedal/shared';
 import type { CargoUnit } from '@onedal/shared';
 
@@ -223,10 +223,14 @@ interface SlotPick { until?: string; from?: string; touched: boolean }
 /**
  * 도착시간 격자 — 밑값(도착 예상)은 **저장된 행**에서 온다. 계산하지 않는다.
  * `pick`/`onPick` 이 오면 이식된 것 — 옛 시트의 탭 규칙 그대로 움직인다.
+ *
+ * 🔄 예외 하나 — **다섯 칸이 전부 과거가 된 격자**(약속이 깨진 채 자정을 넘긴 콜)만
+ *    지금+남은 주행으로 다시 편다 (shared `slotBaseMs` — 재약속 모드 · 2026-08-22).
+ *    살아 있는 격자는 그대로다 — 분 틱에 흔들리지 않는다.
  */
-function SlotGrid({ r, pick, onPick, stopKind }: {
+function SlotGrid({ r, pick, onPick, stopKind, driveMin }: {
     r: Record<string, any>; pick?: SlotPick; onPick?: (next: SlotPick) => void;
-    stopKind?: 'pickup' | 'dropoff';
+    stopKind?: 'pickup' | 'dropoff'; driveMin?: number | null;
 }) {
     const predicted = r.predicted_at as string | null;
     const storedPromise = r.promised_arrival_at as string | null;
@@ -238,7 +242,9 @@ function SlotGrid({ r, pick, onPick, stopKind }: {
         );
     }
     const storedFrom = r.promised_arrival_from_at as string | null;
-    const baseMs = Date.parse(predicted);
+    // 재약속 모드는 **누를 수 있는 격자**에만 — 읽기 전용(지난 단계 열람)은 기록 그대로 보여준다
+    const baseMs = onPick ? slotBaseMs(predicted, Date.now(), driveMin) : Date.parse(predicted);
+    const repromise = baseMs !== Date.parse(predicted);   // 죽은 격자를 지금 기준으로 다시 폈다
     const slots = Array.from({ length: 5 }, (_, i) => new Date(baseMs + i * 30 * 60_000).toISOString());
     // 이식 전(모양만)이거나 아직 안 누른 상태 — 저장된 약속과 가장 가까운 칸에 불
     const nearest = (iso: string | null) => iso == null ? undefined
@@ -292,6 +298,12 @@ function SlotGrid({ r, pick, onPick, stopKind }: {
                         : <>배달 데드라인(상차 완료+주행×150%) 밖 — 화주와 합의하면 미뤄집니다</>} · </>}
                 {pick?.touched
                     ? <>기사님이 고른 값 — 통화 완료 때 <b>약속으로 저장</b>됩니다</>
+                    : repromise
+                    ? <>🔄 <b>약속이 지나 지금 기준으로 다시 폈습니다</b> — 저장된{' '}
+                        {storedPromise
+                            ? <>약속 <b className="tabular-nums">{storedFrom ? `${hhmm(storedFrom)}~${hhmm(storedPromise)} 사이` : hhmm(storedPromise)}</b></>
+                            : <>도착 예상 <b className="tabular-nums">{hhmm(predicted)}</b></>}
+                        {onPick && <> · 통화로 새 약속을 골라 주세요</>}</>
                     : <>ⓘ 저장된 값 — 도착 예상 <b className="tabular-nums">{hhmm(predicted)}</b>
                         {storedPromise && <> · 약속 <b className="tabular-nums">
                             {storedFrom ? `${hhmm(storedFrom)}~${hhmm(storedPromise)} 사이` : hhmm(storedPromise)}</b></>}
@@ -442,7 +454,8 @@ function LiveCall({ orderId, r, pickup, place, prevName, leadMinutes, departPrev
                     placeholder={pickup ? '통화에서 들은 그 밖의 것 — 지하 2층, 경비실 통과' : '통화에서 들은 그 밖의 것 — 5시 이후엔 문 닫음'}
                     className="w-full px-2 py-1.5 rounded-md bg-surface-alt/40 border border-border text-[12px] text-text-primary" />
             </Row>
-            <SlotGrid r={r} pick={pick} onPick={setPick} stopKind={pickup ? 'pickup' : 'dropoff'} />
+            <SlotGrid r={r} pick={pick} onPick={setPick} stopKind={pickup ? 'pickup' : 'dropoff'}
+                driveMin={segmentDriveMinutes} />
             <Sentence r={r} pickup={pickup} place={place}
                 prevName={prevName} leadMinutes={leadMinutes}
                 departPrevMs={departPrevMs} segmentDriveMinutes={segmentDriveMinutes} />
