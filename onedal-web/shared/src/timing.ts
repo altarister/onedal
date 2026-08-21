@@ -598,6 +598,31 @@ export const DEFAULT_DEADLINE_RULES: DeadlineRules = {
 };
 
 /**
+ * 🎛️ **판정 기준 탭 → 시간 파생 입력, 한 곳에서** (필터 확정안 구현 1 · 2026-08-21).
+ *
+ * 탭의 시간 4칸(미확인 정차 2 · 상차 시계 잠정 · 데드라인 배율)을 rules/unk 로 조립한다.
+ * 🔴 예전에는 서버(routeTlOf)가 손으로 조립하고 **관제웹은 아예 안 받아 기본값 상수**로
+ *    파생했다 — 기사님이 탭에서 잠정을 30→45로 바꾸는 순간 서버(45)와 화면(30)이
+ *    갈라지는 잠복 두 목소리(#33 클래스). 조립도 소비도 이 함수 하나를 거친다.
+ */
+export function derivationInputsOf(cfg: {
+    unknown: { pickupDwellMin: number; dropoffDwellMin: number; pickupOffsetMin: number };
+    deadline: { ratioPct: number };
+}): { rules: DeadlineRules; unk: DwellUnknown } {
+    return {
+        rules: {
+            ...DEFAULT_DEADLINE_RULES,
+            pickupOffsetMinutes: cfg.unknown.pickupOffsetMin,
+            deadlineRatioPct: cfg.deadline.ratioPct,
+        },
+        unk: {
+            pickupDwellMin: cfg.unknown.pickupDwellMin,
+            dropoffDwellMin: cfg.unknown.dropoffDwellMin,
+        },
+    };
+}
+
+/**
  * ⏱️ **상차 시계** (주선사의 시계 · ⑯) — 적요의 상차 시각 > 잡은 시각 + 잠정.
  * 통화로 굳힌 약속은 호출부(declared)가 이긴다. 파생 한 곳 — 시딩과 타임라인이 같이 쓴다.
  */
@@ -620,6 +645,8 @@ export function deriveCallTiming(
     milestones: { milestone: string }[],
     nowMs: number,
     rules: DeadlineRules = DEFAULT_DEADLINE_RULES,
+    /** 미확인 정차 일반값 — 판정 기준 탭에서 (derivationInputsOf). 안 넘기면 기본 상수 */
+    unk?: DwellUnknown,
 ): CallTiming {
     const num = (v: unknown) => (v == null ? null : Number(v));
     // OSRM 이 있으면 그쪽이 더 정확하다. **거리와 시간을 같은 출처에서** 가져와야
@@ -646,9 +673,9 @@ export function deriveCallTiming(
     const pickupCargo = cargoOf('pickup');
     const dropoffCargo = cargoOf('dropoff');
     const points = unitPoints(pickupCargo?.unit, pickupCargo?.quantity);
-    const pickupDwell = dwellMinutes(pickupCargo?.handling, points, 'pickup', undefined, pickupCargo?.protections);
+    const pickupDwell = dwellMinutes(pickupCargo?.handling, points, 'pickup', unk, pickupCargo?.protections);
     // 하차 방법을 따로 안 물었으면 상차와 같다고 본다 (지게차로 실었으면 대개 지게차로 내린다)
-    const dropoffDwell = dwellMinutes(dropoffCargo?.handling ?? pickupCargo?.handling, points, 'dropoff', undefined, null, dropoffCargo?.afterworks);
+    const dropoffDwell = dwellMinutes(dropoffCargo?.handling ?? pickupCargo?.handling, points, 'dropoff', unk, null, dropoffCargo?.afterworks);
 
     const base = { approachMinutes, approachKm, soloMinutes, soloKm,
                    pickupDwellMinutes: pickupDwell, arrivedPickup, pickedUp, arrivedDropoff };
@@ -835,6 +862,8 @@ export function deriveRouteTimeline(
     nowMs: number,
     routeComputedAt?: string | null,
     rules: DeadlineRules = DEFAULT_DEADLINE_RULES,
+    /** 미확인 정차 일반값 — 판정 기준 탭에서 (derivationInputsOf) */
+    unk?: DwellUnknown,
 ): RouteTimelineEntry[] {
     const byId = new Map(orders.map(o => [(o as any).id as string, o]));
     const timingCache = new Map<string, CallTiming>();
@@ -877,7 +906,7 @@ export function deriveRouteTimeline(
 
         let t = timingCache.get(st.orderId);
         if (!t) {
-            t = deriveCallTiming(order, reportsOf(st.orderId), milestonesOf(st.orderId), nowMs, rules);
+            t = deriveCallTiming(order, reportsOf(st.orderId), milestonesOf(st.orderId), nowMs, rules, unk);
             timingCache.set(st.orderId, t);
         }
         const dwell = st.stopType === 'pickup' ? t.pickupDwell : t.dropoffDwell;

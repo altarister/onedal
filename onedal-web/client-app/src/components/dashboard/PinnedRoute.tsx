@@ -1,4 +1,4 @@
-import { isEvaluating, isTerminal, hasVisitedStop, deriveRouteTimeline, deckOfCycle, isDeliveredCall } from "@onedal/shared";
+import { isEvaluating, isTerminal, hasVisitedStop, deriveRouteTimeline, derivationInputsOf, deckOfCycle, isDeliveredCall } from "@onedal/shared";
 import type { SecuredOrder } from "@onedal/shared";
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { socket } from '../../lib/socket';
@@ -9,6 +9,7 @@ import CallDeck from './CallDeck';
 import DepartureCountdown from './DepartureCountdown';
 import { useCallProgress, EMPTY_RECORDS } from '../../hooks/useCallProgress';
 import { useStepRecords } from '../../hooks/useStepRecords';
+import { useJudgmentStore } from '../../stores/judgmentStore';
 import { deckOrder } from '../../lib/deckFocus';
 import { apiClient } from '../../api/apiClient';
 import { getAddressLabel } from '../../lib/routeUtils';
@@ -155,12 +156,17 @@ export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, 
      * 카드(통화 시트)도 봐야 한다. 실측: 덱은 합짐 하차 ~05:56 을 아는데 시트는
      * "주행 시간을 모릅니다"라며 03:28 을 추천했다 — 한 화면이 두 세상을 보고 있었다.
      */
-    const routeTimeline = useMemo(() => deriveRouteTimeline(
-        routeStops, liveRoute,
-        (id) => (stepRecords.get(id) ?? EMPTY_RECORDS).reports,
-        (id) => (stepRecords.get(id) ?? EMPTY_RECORDS).milestones,
-        Date.now(), routeComputedAt,
-    ), [routeStops, liveRoute, stepRecords, routeComputedAt]);
+    // 🎛️ 판정 기준 탭의 시간 4칸이 화면 파생까지 — 조립은 derivationInputsOf 한 곳 (서버와 같은 함수)
+    const judgmentCfg = useJudgmentStore(st => st.judgment);
+    const routeTimeline = useMemo(() => {
+        const { rules, unk } = derivationInputsOf(judgmentCfg);
+        return deriveRouteTimeline(
+            routeStops, liveRoute,
+            (id) => (stepRecords.get(id) ?? EMPTY_RECORDS).reports,
+            (id) => (stepRecords.get(id) ?? EMPTY_RECORDS).milestones,
+            Date.now(), routeComputedAt, rules, unk,
+        );
+    }, [routeStops, liveRoute, stepRecords, routeComputedAt, judgmentCfg]);
 
     const unifiedRoutePoints: RoutePoint[] = useMemo(() => {
         const byId = new Map(liveRoute.map(r => [r.id, r]));

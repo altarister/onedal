@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { isEvaluating, isTerminal, isDeliveredCall, minRouteBuffer } from "@onedal/shared";
+import { isEvaluating, isTerminal, isDeliveredCall, minRouteBuffer, derivationInputsOf } from "@onedal/shared";
 import type { SecuredOrder } from "@onedal/shared";
 import { socket } from "../../lib/socket";
 import { getAddressLabel, getMinuteDiff , telHref } from "../../lib/routeUtils";
@@ -11,6 +11,7 @@ import StepSheetMock from './StepSheetMock';
 import type { CallRecords } from "../../hooks/useCallProgress";
 import { MILESTONE_LABEL, timingError, buildArrivalSlots,
          deriveCallTiming } from "@onedal/shared";
+import { useJudgmentStore } from "../../stores/judgmentStore";
 import type { RouteTimelineEntry, RouteStopInfo } from "@onedal/shared";
 import { Button } from "../ui/button";
 
@@ -157,7 +158,9 @@ export default function PinnedRouteCard({
      *    `DepartureCountdown` 이 **각자 계산**했다. 한쪽만 고치면 두 화면이
      *    다른 시각을 말한다. 파생값을 만들었으면 그 입력도 한 곳에서 만든다.
      */
-    const timing = deriveCallTiming(route, cargoReports, milestoneLog, Date.now());
+    // 🎛️ 판정 기준 탭의 시간 4칸을 함께 — 조립은 derivationInputsOf 한 곳 (서버·타임라인과 동일)
+    const { rules: jdRules, unk: jdUnk } = derivationInputsOf(useJudgmentStore.getState().judgment);
+    const timing = deriveCallTiming(route, cargoReports, milestoneLog, Date.now(), jdRules, jdUnk);
     const soloKm = timing.soloKm;
     const soloMin = timing.soloMinutes;
 
@@ -357,7 +360,8 @@ export default function PinnedRouteCard({
                                 잡고 나니 0분이던 함정 제거. 잡기 전후 **같은 파생**(추정 약속 − 도착 예상)이라
                                 같은 숫자가 나온다. 통화 전이니 항상 ~ 다. */}
                             {(() => {
-                                const t = deriveCallTiming(route, [], [], Date.now());
+                                // 🎛️ 심사 버퍼도 판정 기준 탭 값으로 — 잡기 전후 같은 파생
+                                const t = deriveCallTiming(route, [], [], Date.now(), jdRules, jdUnk);
                                 if (!t.pickupPromisedArrivalAt || t.toPickup.driveMinutes == null) return null;
                                 const etaMs = Date.now() + (t.toPickup.driveMinutes + t.toPickup.leadMinutes) * 60_000;
                                 const buf = Math.round((Date.parse(t.pickupPromisedArrivalAt) - etaMs) / 60_000);

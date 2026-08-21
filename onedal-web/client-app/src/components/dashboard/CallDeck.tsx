@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { SecuredOrder } from '@onedal/shared';
-import { deriveCallStep, CALL_STEPS, deriveCallTiming, isEvaluating } from '@onedal/shared';
+import { deriveCallStep, CALL_STEPS, deriveCallTiming, derivationInputsOf, isEvaluating } from '@onedal/shared';
 import type { RouteTimelineEntry } from '@onedal/shared';
 import { pickAutoFocus, scrollSettle } from '../../lib/deckFocus';
 import { getAddressLabel, hhmm } from '../../lib/routeUtils';
@@ -8,6 +8,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { MAP_THEME_COLORS } from '../../styles/themes';
 import type { CallRecords } from '../../hooks/useCallProgress';
 import { EMPTY_RECORDS } from '../../hooks/useCallProgress';
+import { useJudgmentStore } from '../../stores/judgmentStore';
 
 /**
  * [Phase 8.5] 진행 중인 콜을 **좌우로 넘기는** 덱.
@@ -220,7 +221,8 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
                         // 콜별 파생으로 폴백 — 시각이 아예 사라지는 것보다는 혼자 간 값이 낫다
                         const tle = (stop: 'pickup' | 'dropoff') =>
                             timeline.find(e => e.orderId === o.id && e.stopType === stop);
-                        const fallback = timeline.length ? null : deriveCallTiming(o, r.reports, r.milestones, Date.now());
+                        const jd = derivationInputsOf(useJudgmentStore.getState().judgment);
+                        const fallback = timeline.length ? null : deriveCallTiming(o, r.reports, r.milestones, Date.now(), jd.rules, jd.unk);
                         const promiseOf = (stop: 'pickup' | 'dropoff') => tle(stop)?.promisedUntil
                             ?? (stop === 'pickup' ? fallback?.pickupPromisedArrivalAt : fallback?.dropoffPromisedArrivalAt)
                             ?? null;

@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { deriveCallStep, deriveCallTiming, deriveRouteTimeline, pickBindingDeparture,
+import { deriveCallStep, deriveCallTiming, deriveRouteTimeline, derivationInputsOf, pickBindingDeparture,
          minRouteBuffer, minutesUntil, formatCountdown } from '@onedal/shared';
 import type { SecuredOrder, RouteStopInfo } from '@onedal/shared';
 import type { CallRecords } from '../../hooks/useCallProgress';
 import { getAddressLabel } from '../../lib/routeUtils';
 import { EMPTY_RECORDS } from '../../hooks/useCallProgress';
+import { useJudgmentStore } from '../../stores/judgmentStore';
 
 /**
  * **최소 출발 시각까지 남은 시간**을 센다.
@@ -68,7 +69,9 @@ export default function DepartureCountdown({ orders, records, routeStops, routeC
      */
     const reportsOf = (id: string) => (records.get(id) ?? EMPTY_RECORDS).reports;
     const milestonesOf = (id: string) => (records.get(id) ?? EMPTY_RECORDS).milestones;
-    const timeline = deriveRouteTimeline(routeStops, orders, reportsOf, milestonesOf, now, routeComputedAt);
+    // 🎛️ 판정 기준 탭의 시간 4칸이 카운트다운 파생까지 (derivationInputsOf — 서버와 같은 조립)
+    const { rules, unk } = derivationInputsOf(useJudgmentStore.getState().judgment);
+    const timeline = deriveRouteTimeline(routeStops, orders, reportsOf, milestonesOf, now, routeComputedAt, rules, unk);
     /**
      * 🧮 **경로 최소 버퍼** (⑯-1) — 콜별이 아니라 **내 콜 전부의 최소값**이 예산이다.
      * 기사님 실측(2026-08-20): 콜별 +60 이 아니라 +6 이 진실 — 여기(항상 떠 있는 줄)에
@@ -87,7 +90,7 @@ export default function DepartureCountdown({ orders, records, routeStops, routeC
                 ? `주행 ${binding.driveMinutes}${binding.leadMinutes > 0 ? `, 앞 정차 ${binding.leadMinutes}` : ''}`
                 : null,
             waitMin: minutesUntil(new Date(binding.departByMs!).toISOString(), now),
-            basis: binding.stopType === 'pickup' ? '상차 시계(잡음+잠정 30분)' : '배달 데드라인(상차 완료+150%)',
+            basis: binding.stopType === 'pickup' ? `상차 시계(잡음+잠정 ${rules.pickupOffsetMinutes}분)` : `배달 데드라인(상차 완료+${rules.deadlineRatioPct}%)`,
             // 시각을 같이 적는다 — 상차지가 둘 다 "경안동"이면 이름만으로는 어느 약속인지 모른다
             boundBy: o ? `${getAddressLabel(binding.stopType === 'pickup' ? o.pickup : o.dropoff)} ${binding.stopType === 'pickup' ? '상차' : '하차'} ${binding.promisedUntil ? new Date(binding.promisedUntil).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }) : ''}`.trim() : null,
         };
@@ -99,7 +102,7 @@ export default function DepartureCountdown({ orders, records, routeStops, routeC
         // 이미 상차했으면 출발을 기다릴 이유가 없다 (그 콜은 우회 예산 쪽이다)
         if (deriveCallStep(r.milestones, r.reports).index >= 4) continue;
 
-        const t = deriveCallTiming(o, r.reports, r.milestones, now);
+        const t = deriveCallTiming(o, r.reports, r.milestones, now, rules, unk);
         if (!t.departureAt) continue;
         if (!soonest || new Date(t.departureAt).getTime() < new Date((soonest as any).at).getTime()) {
             // 🔴 내역을 함께 담는다 — 기사님이 **왜 그 시각인지** 알아야 판단하실 수 있다
