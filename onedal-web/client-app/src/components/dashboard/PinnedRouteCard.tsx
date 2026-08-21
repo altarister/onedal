@@ -8,7 +8,7 @@ import { logRoadmapEvent } from '../../lib/roadmapLogger';
 
 import { Badge } from "../ui/badge";
 import StepSheetMock from './StepSheetMock';
-import type { CallRecords } from "../../hooks/useCallProgress";
+import type { CallRecords } from "../../hooks/records";
 import { MILESTONE_LABEL, timingError, buildArrivalSlots,
          deriveCallTiming } from "@onedal/shared";
 import { useJudgmentStore } from "../../stores/judgmentStore";
@@ -510,7 +510,7 @@ export default function PinnedRouteCard({
                                         아래 단계 화면(StepSheetMock)이 같은 문(save-cargo-report ·
                                         report-milestone)으로 저장하는 본 화면이 됐다 — 열 때마다
                                         계산하던 옛 시트와 달리 저장된 단계 행만 그린다.
-                                        StopCallSheet.tsx 파일은 남겨 뒀다 — 삭제는 테이블 철거 때 함께. */}
+                                        StopCallSheet.tsx 는 2026-08-21 철거 완료 (기사님 확인) — 규칙들은 시딩·StepSheetMock 이 잇는다. */}
                                     {!evaluating && <hr className="border-border-card" />}
 
                                     {/* 🏢 퀵사무실 — 신고와 실제가 다를 때 여기로 건다. 한 줄만 남긴다 */}

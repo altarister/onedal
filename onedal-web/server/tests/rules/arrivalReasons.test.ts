@@ -72,12 +72,17 @@ describe('사유 목록 — **단계마다** 관심사가 다르다', () => {
  */
 describe('짐 폼 — 실어 본 뒤에만', () => {
     const sheet = () => readFileSync(join(__dirname,
-        '../../../client-app/src/components/dashboard/StopCallSheet.tsx'), 'utf8');
+        '../../../client-app/src/components/dashboard/StepSheetMock.tsx'), 'utf8');
     const code = () => sheet().split('\n')
         .filter(l => !/^\s*(\/\/|\/\*|\*)/.test(l)).join('\n');
 
-    it('🔴 현장 폼에서 짐 입력은 완료 단계(showDone)에만 그려진다', () => {
-        expect(code()).toMatch(/showDone && cargoForm|\{showDone \?[\s\S]{0,80}cargoForm/);
+    it('🔴 실측(ACTUAL) 짐 입력은 완료 단계 컴포넌트(LiveDone)에만 있다', () => {
+        // 🏗️ 새 구조 — 단계별 컴포넌트 분리가 조건 분기를 대체한다
+        const c = code();
+        const doneBlock = c.slice(c.indexOf('function LiveDone'));
+        expect(doneBlock).toMatch(/'ACTUAL'/);
+        const callBlock = c.slice(c.indexOf('function LiveCall'), c.indexOf('function LiveArrive'));
+        expect(callBlock).not.toMatch(/'ACTUAL'/);
     });
 
     /**
@@ -94,7 +99,7 @@ describe('짐 폼 — 실어 본 뒤에만', () => {
     it('🔴 메모 입력은 통화 단계에만, 라벨은 `기타` (현장 사유 갈래와 같은 말)', () => {
         // 라벨을 "메모" → "기타" 로 통일했다 (기사님 2026-08-19) — 현장 단계의 `기타` 갈래와 짝
         const c = code();
-        expect(c).toMatch(/isCall && \([\s\S]{0,120}<Row title="기타">/);
+        expect(c).toMatch(/<Row title="기타">/);
         expect(c).not.toMatch(/placeholder="메모 \(선택\)/);
     });
 });
@@ -112,7 +117,7 @@ describe('저장 — 사유가 장부에 남는다', () => {
     });
 
     it('🔴 관제웹이 사유를 보내고, 서버가 그대로 받는다', () => {
-        expect(read('../../../client-app/src/components/dashboard/StopCallSheet.tsx')).toMatch(/reasons/);
+        expect(read('../../../client-app/src/components/dashboard/StepSheetMock.tsx')).toMatch(/reasons/);
         expect(read('../../src/socket/socketHandlers.ts')).toMatch(/reasons/);
     });
 

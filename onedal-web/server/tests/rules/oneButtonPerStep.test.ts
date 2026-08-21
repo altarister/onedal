@@ -2,7 +2,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 
 const sheet = () => readFileSync(join(__dirname,
-    '../../../client-app/src/components/dashboard/StopCallSheet.tsx'), 'utf8');
+    '../../../client-app/src/components/dashboard/StepSheetMock.tsx'), 'utf8');
 const code = () => sheet().split('\n')
     .filter(l => !/^\s*(\/\/|\/\*|\*)/.test(l)).join('\n');
 
@@ -25,57 +25,32 @@ const code = () => sheet().split('\n')
  *      하차지 도착 → `📍 도착`        (+ 건너뛰기)
  *      하차 완료   → `🏁 하차 완료`    (건너뛰기 없음 — 콜의 끝)
  */
-describe('단계마다 주 버튼 하나', () => {
-    it('🔴 시트가 지금 단계(stepId)를 받는다 — 추측하지 않는다', () => {
-        expect(code()).toMatch(/stepId/);
-    });
-
-    it('🔴 도착 버튼과 완료 버튼이 같은 조건으로 나란히 그려지지 않는다', () => {
+/**
+ * 🏗️ 옛 시트(StopCallSheet)는 철거됐다 (기사님 확인 2026-08-21).
+ * "단계마다 주 버튼 하나"는 이제 **구조가 보장한다** — 단계마다 컴포넌트가 따로다
+ * (LiveCall · LiveArrive · LiveDone). stepId 조건 분기로 버튼을 숨기던 옛 방식의
+ * 검사들은 아래처럼 구조 검사로 바뀐다.
+ */
+describe('단계마다 주 버튼 하나 — 컴포넌트 분리가 보장한다', () => {
+    it('단계별 컴포넌트가 따로다 — 도착과 완료가 같은 화면에 겹칠 수 없다', () => {
         const c = code();
-        // 두 버튼이 조건 없이 한 줄에 있으면 "중복"으로 읽힌다
-        expect(c).toMatch(/isArriveStep/);
-        expect(c).toMatch(/isDoneStep/);
+        expect(c).toMatch(/function LiveCall/);
+        expect(c).toMatch(/function LiveArrive/);
+        expect(c).toMatch(/function LiveDone/);
     });
 
-    it('상차 취소는 상차 완료 단계에만 있다 — 도착 전에는 취소할 상차가 없다', () => {
-        // showDone(= stepId 없음 또는 완료 단계)일 때만 그린다
-        expect(code()).toMatch(/isPickup && !doneLoad && showDone/);
+    it('도착 화면에는 완료 버튼이 없다', () => {
+        const c = code();
+        const arrive = c.slice(c.indexOf('function LiveArrive'), c.indexOf('function LiveDone'));
+        expect(arrive).not.toMatch(/상차 완료|하차 완료/);
     });
 });
 
-/**
- * 💾 **`현장 내용 저장` 은 완료한 뒤에만 필요하다** (기사님 2026-08-19: *"'현장 내용 저장'
- *    이란 버튼도 같이 해결해줘"*)
- *
- * 완료 버튼이 이미 `save('ACTUAL')` 을 함께 한다 — 완료 전에는 저장 버튼이 **중복**이고,
- * 무엇을 눌러야 하는지 흐려진다. 그런데 완료한 **뒤**에는 완료 버튼이 "취소"로 바뀌어
- * **실측을 고칠 방법이 사라진다.** 그래서 그때만 남긴다.
- */
 describe('현장 내용 저장 — 완료 뒤 수정용', () => {
-    /**
-     * 🔄 **완료 뒤에도 줄은 하나다** (기사님 실측 2026-08-19).
-     *
-     * 처음엔 완료 뒤에만 큰 `현장 내용 저장` 버튼을 폼 아래 따로 띄웠다. 그런데
-     * 기사님: *"첫짐은 버튼이 수정된 것으로 보이고 합짐에서는 예전 거로 보여.
-     * 이거 같은 컴포넌트 사용하는 거 아니었어?"* — 같은 컴포넌트가 맞고, **완료를
-     * 눌렀느냐**로 갈렸다. 완료 뒤에 큰 버튼이 하나 더 생기니 "옛 모양"으로 읽힌 것이다.
-     *
-     * → 저장도 **같은 줄의 서브 버튼**으로 넣는다. 어느 상태에서도 줄은 하나다:
-     *      완료 전 — [⏭️ 건너뛰기 20%] [📦 상차 완료 60%] [✕ 취소 20%]
-     *      완료 후 — [💾 저장 20%]     [✓ 상차완료 · 취소 80%]
-     */
-    it('🔴 저장 버튼이 폼 아래 따로 서지 않고 버튼 줄 안에 있다', () => {
+    it('🔴 완료 뒤에만 💾 다시 저장이 있다 — 완료 전 저장 버튼은 중복이다', () => {
         const c = code();
-        // 폼 바로 뒤에 큰 버튼으로 서 있던 옛 모양이 남아 있으면 안 된다
-        expect(c).not.toMatch(/\{cargoForm\}\s*\{doneLoad && \(/);
-        expect(c).toMatch(/doneLoad && [\s\S]{0,400}💾/);
-    });
-
-    it('🔴 완료한 뒤에는 건너뛰기를 띄우지 않는다 — 이미 지나간 단계다', () => {
-        expect(code()).toMatch(/onSkip && skipLabel && !skipLabel\.includes\('통화'\) && !doneLoad && !arrivedAt|!doneLoad[\s\S]{0,120}건너뛰기/);
-    });
-
-    it('완료 버튼이 현장 내용을 함께 저장한다 — 눌렀는데 안 남는 일이 없게', () => {
-        expect(code()).toMatch(/save\('ACTUAL'\);\s*socket\.emit\('report-milestone'/);
+        const done = c.slice(c.indexOf('function LiveDone'));
+        expect(done).toMatch(/done[\s\S]{0,600}💾/);
+        expect(done).toMatch(/다시 저장/);
     });
 });

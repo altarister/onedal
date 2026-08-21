@@ -78,11 +78,14 @@ describe('후작업 기본값', () => {
 
 /** 하차 방법은 상차와 같다고 본다 — 지게차로 실었으면 대개 지게차로 내린다 */
 describe('통화 시트 — 하차 방법 미리 채움', () => {
-    const sheet = () => require('fs').readFileSync(
-        require('path').join(__dirname, '../../../client-app/src/components/dashboard/StopCallSheet.tsx'), 'utf8');
-
-    it('하차 방법을 상차 신고(없으면 차종 기본값)에서 가져온다', () => {
-        expect(sheet()).toMatch(/dropoffHandling/);
-        expect(sheet()).toMatch(/setHandling\(src\?\.handling \?\? dropoffHandling\)/);
+    // 🏗️ 옛 시트(StopCallSheet)는 철거됐다 (2026-08-21) — 규칙의 거처가 옮겨졌다:
+    //    하차 방법 = 상차와 같다고 본다 → 시딩(computeChain)과 타임라인(timing) 둘 다
+    it('하차 방법을 상차에서 물려받는다 — 시딩과 타임라인 같은 규칙', () => {
+        const seeder = require('fs').readFileSync(
+            require('path').join(__dirname, '../../src/services/stepSeeder.ts'), 'utf8');
+        expect(seeder).toMatch(/dropHandling = callD\?\.planned_handling \?\? handling/);
+        const timing = require('fs').readFileSync(
+            require('path').join(__dirname, '../../../shared/src/timing.ts'), 'utf8');
+        expect(timing).toMatch(/dropoffCargo\?\.handling \?\? pickupCargo\?\.handling/);
     });
 });

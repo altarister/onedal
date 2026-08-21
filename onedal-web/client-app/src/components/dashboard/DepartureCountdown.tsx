@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react';
 import { deriveCallStep, deriveCallTiming, deriveRouteTimeline, derivationInputsOf, pickBindingDeparture,
          minRouteBuffer, minutesUntil, formatCountdown } from '@onedal/shared';
 import type { SecuredOrder, RouteStopInfo } from '@onedal/shared';
-import type { CallRecords } from '../../hooks/useCallProgress';
+import type { CallRecords } from '../../hooks/records';
 import { getAddressLabel } from '../../lib/routeUtils';
-import { EMPTY_RECORDS } from '../../hooks/useCallProgress';
+import { EMPTY_RECORDS } from '../../hooks/records';
 import { useJudgmentStore } from '../../stores/judgmentStore';
 
 /**

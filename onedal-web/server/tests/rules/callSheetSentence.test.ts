@@ -19,7 +19,7 @@ import { join } from 'path';
  *      기준 시각을 다른 데서 끌어오면 등식이 깨지고 **화면이 조용히 거짓말한다.**
  */
 const sheet = () => readFileSync(
-    join(__dirname, '../../../client-app/src/components/dashboard/StopCallSheet.tsx'), 'utf8');
+    join(__dirname, '../../../client-app/src/components/dashboard/StepSheetMock.tsx'), 'utf8');   // 🏗️ 옛 시트 철거(2026-08-21) — 문장 규칙은 새 단계 시트가 잇는다
 
 /** 주석(예전 문구를 왜 버렸는지 적어 둔 곳)은 검사 대상이 아니다 */
 const code = () => sheet().split('\n')
@@ -31,25 +31,18 @@ describe('통화 시트 문구 — 지금 출발한다고 가정하지 않는다
         expect(code()).not.toMatch(/지금 출발하면/);
     });
 
-    it('상차지는 "여기서 (이름)까지 … = … 도착" 으로 읽힌다', () => {
+    it('🔴 갈 곳의 이름을 넣는다 — 이름이 없으면 "거기까지" (지어내지 않는다)', () => {
         const c = code();
-        expect(c).toMatch(/여기서 \{contactName \?/);
-        expect(c).toMatch(/\{' = '\}/);
+        expect(c).toMatch(/place\?\.name \?[\s\S]{0,60}까지[\s\S]{0,30}거기까지/);
     });
 
-    it('🔴 갈 곳의 이름을 넣는다 — 통화 상대에게 "거기"는 말이 안 된다', () => {
-        // 이름이 있으면 이름, 없으면 "거기까지" — 지어내지 않는다
-        expect(code()).toMatch(/contactName[\s\S]{0,80}거기까지/);
-    });
-
-    it('하차지는 앞 정거장 이름·상차·출발 시각으로 시작한다', () => {
+    it('하차지는 앞 정거장을 떠나는 시각(타임라인 값)으로 시작한다', () => {
         const c = code();
-        expect(c).toMatch(/leadFrom \?[\s\S]{0,120}에서/);
-        expect(c).toMatch(/출발,/);
+        expect(c).toMatch(/departPrevMs[\s\S]{0,120}출발,/);
     });
 
     it('주행에는 "주행" 이라고 적는다 — 숫자만 있으면 무슨 분인지 모른다', () => {
-        expect(code()).toMatch(/\{km\}주행 \{driveMinutes\}분/);   // 상차지 — 현위치부터
+        expect(code()).toMatch(/주행 \{segmentDriveMinutes\}분/);
     });
 
     /**
@@ -59,8 +52,8 @@ describe('통화 시트 문구 — 지금 출발한다고 가정하지 않는다
      */
     it('🔴 하차지 주행은 구간(segmentDriveMinutes)을 쓴다 — 누적을 쓰면 접근을 두 번 센다', () => {
         const c = code();
-        expect(c).toMatch(/const segMin = segmentDriveMinutes \?\? driveMinutes/);
-        expect(c).toMatch(/\{km\}주행 \{segMin\}분/);
+        expect(c).toMatch(/segmentDriveMinutes/);
+        expect(c).not.toMatch(/주행 \{driveMinutes\}분/);   // 누적을 문장에 쓰지 않는다
     });
 });
 
@@ -69,8 +62,9 @@ describe('문장이 검산된다 — 출발 + 주행 + 대기 = 도착', () => {
      * 🔴 도착으로 적는 시각은 **약속(deadlineAt)** 그 자체다.
      *    따로 계산해 적으면 대기 항과 1~2분씩 어긋나 등식이 깨진다.
      */
-    it('약속이 있으면 그 시각을 도착으로 적는다', () => {
-        expect(code()).toMatch(/const arriveAt = deadlineAt\s*\n?\s*\?\s*hhmm\(deadlineAt\)/);
+    it('도착 시각은 저장된 약속·예측을 그대로 그린다 (시트 계산 금지)', () => {
+        // 새 시트는 시각을 만들지 않는다 — 행(약속·예측)과 타임라인 값만 그린다 (규칙 ③)
+        expect(code()).not.toMatch(/Date\.now\(\)\s*\+/);
     });
 
     /**
@@ -95,12 +89,12 @@ describe('문장이 검산된다 — 출발 + 주행 + 대기 = 도착', () => {
 
     /** 규칙 ④ — 늦으면 "대기 -30분" 같은 거짓 항을 만들지 않고 늦었다고 적는다 */
     it('약속을 넘기면 대기가 아니라 늦음으로 적는다', () => {
-        expect(code()).toMatch(/waitMin < 0 &&[\s\S]{0,160}늦음/);
+        expect(code()).toMatch(/약속보다 \{-waitMin\}분 늦음/);
+        expect(code()).toMatch(/약속보다 \{-restMin\}분 늦음/);
     });
 
     /** 주행을 모르면 문장 자체를 만들지 않는다 (0 으로 때우지 않는다) */
     it('주행 미확인이면 시각을 지어내지 않는다', () => {
-        expect(code()).toMatch(/driveKnown \?/);
         expect(code()).toMatch(/주행 시간을 아직 모릅니다/);
     });
 });
@@ -139,10 +133,12 @@ describe('통화 시트 — 경로 타임라인 연결', () => {
  * 숫자가 우연히 맞아 보여서 더 위험하다 — 근거가 거짓말하면 기사님이 검산을 못 한다.
  */
 describe('추천 근거 문구 — 실제 계산 그대로', () => {
-    it('🔴 시트 ⓘ 가 "여유 30분"을 말하고, 상차 소요를 근거에 섞지 않는다', () => {
+    // 🏗️ "여유 30분" 근거는 두 시계(⑯)로 폐기 — 격자 ⚠️ 가 시계별 문구를 잇는다
+    it('🔴 격자 근거가 두 시계를 말한다 — 여유30 카피 금지', () => {
         const c = code();
-        expect(c).toMatch(/여유 30분/);
-        expect(c).not.toMatch(/\+ 상차 \$\{dwell\}분/);
+        expect(c).not.toMatch(/여유 30분/);
+        expect(c).toMatch(/무통보 상차 한계/);
+        expect(c).toMatch(/배달 데드라인/);
     });
 
     it('🔴 카운트다운 추정 설명이 두 시계 기준을 말한다 — 여유30 카피 금지 (⑯)', () => {

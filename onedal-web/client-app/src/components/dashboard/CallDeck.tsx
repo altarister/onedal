@@ -6,8 +6,8 @@ import { pickAutoFocus, scrollSettle } from '../../lib/deckFocus';
 import { getAddressLabel, hhmm } from '../../lib/routeUtils';
 import { useTheme } from '../../contexts/ThemeContext';
 import { MAP_THEME_COLORS } from '../../styles/themes';
-import type { CallRecords } from '../../hooks/useCallProgress';
-import { EMPTY_RECORDS } from '../../hooks/useCallProgress';
+import type { CallRecords } from '../../hooks/records';
+import { EMPTY_RECORDS } from '../../hooks/records';
 import { useJudgmentStore } from '../../stores/judgmentStore';
 
 /**

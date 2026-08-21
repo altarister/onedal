@@ -3,7 +3,7 @@ import { join } from 'path';
 import { deriveRouteTimeline } from '@onedal/shared';
 
 const sheet = () => readFileSync(join(__dirname,
-    '../../../client-app/src/components/dashboard/StopCallSheet.tsx'), 'utf8');
+    '../../../client-app/src/components/dashboard/StepSheetMock.tsx'), 'utf8');
 const code = () => sheet().split('\n')
     .filter(l => !/^\s*(\/\/|\/\*|\*)/.test(l)).join('\n');
 
@@ -99,120 +99,16 @@ describe('routeComputedAt — 닻은 장부에 남는다', () => {
     });
 });
 
-/** 📋 loadInto 3벌 복사 — 한 벌만 고치면 나머지가 조용히 갈라진다 */
-describe('시트 복원 — 분기마다 갈라지지 않는다', () => {
-    it('🔴 저장값 복원이 한 곳에서만 일어난다', () => {
-        const c = code();
-        expect((c.match(/setDeadlineAt\(src\?\.promisedArrivalAt/g) ?? []).length).toBeLessThanOrEqual(1);
-    });
-
-    /**
-     * 🔄 **뒤집었다** (2026-08-19). 한때 "약속이 비면 추천값이라도 싣는다"로 했는데,
-     *    기사님: *"통화는 스킵할 수 있는데.. 그러면 30분이 넘는 값이 통화 없이 내가
-     *    결정하게 되는 거야. **난 그런 결정을 내릴 권한이 없어.**"*
-     *    확정 약속은 **화주와 합의한 시각**만이다. 안 저장해도 잃는 것이 없다 —
-     *    타임라인이 추정 약속을 쓰고 화면이 `~` 로 추정임을 말한다.
-     */
-    it('🔴 손대지 않은 추천값을 확정으로 저장하지 않는다 (규칙 ①)', () => {
-        const c = code();
-        expect(c).toMatch(/promisedArrivalAt: deadlineTouched \? deadlineAt : undefined/);
-        expect(c).not.toMatch(/promisedArrivalAt: deadlineAt \?\? suggestedSlot/);
-    });
-});
-
 /**
- * ⏱️ **출발마감도 앞 약속에 묶인다** (기사님 실측 2026-08-19, 2회차)
- *
- * 화면이 동시에 두 말을 했다:
- *   콜 요약 줄  `경안동 11:49 ⚠️6분`        — 이미 6분 못 지킨다
- *   카운트다운  `1:22:45 뒤에는 출발`        — 1시간 22분 여유가 있다
- *
- * 출발마감이 `약속 − (주행 + 앞 정차)` 라서, **앞 정거장의 확정 약속 때문에
- * 반드시 늦어지는 시간**을 안 뺐기 때문이다. 초월읍에 11:41 까지 있어야 하면
- * 경안동 11:49 는 이미 물리적으로 불가능한데, 카운트다운은 여유를 말한다.
- *
- * "부터" 대기는 여전히 빼지 않는다 — 늦게 떠나면 저절로 줄어드는 시간이다.
- * 그러나 확정 "까지" 약속으로 생긴 지연은 **줄일 수 없다** (그 시각까지 거기 있어야 한다).
+ * 🏗️ 옛 시트의 복원(loadInto)·손댐 표식(deadlineTouched) 검사는 시트 철거(2026-08-21)와
+ * 함께 걷었다. 새 설계에서 그 사고를 막는 자리가 바뀌었다:
+ *   · 시트는 저장된 행을 그리기만 한다 (복원 분기 자체가 소멸 — 규칙 ③)
+ *   · "통화 없이 확정할 권한이 없다"는 **kind 로** 지켜진다 — 통화 완료(DONE)만
+ *     DECLARED(확정)가 되고, 스킵(SKIPPED)은 약속으로 안 굳는다.
+ *     그 규칙의 검사는 shared(stepRecords 변환·timing 의 DECLARED-만-확정)에 있다.
  */
-describe('출발마감 — 앞 확정 약속의 지연을 반영한다', () => {
-    const twoStops = [
-        { orderId: 'A', stopType: 'pickup', driveMinutes: 10 },
-        { orderId: 'B', stopType: 'pickup', driveMinutes: 20 },
-    ] as any;
-    const twoOrders = [
-        { id: 'A', capturedAt: '2026-08-19T00:00:00Z' },
-        { id: 'B', capturedAt: '2026-08-19T00:00:00Z' },
-    ] as any;
-
-    /**
-     * ⚠️ **뒤 정거장에 확정 약속이 있을 때만 당겨진다.**
-     *    B 가 추정 약속이면 앞이 밀릴 때 B 약속도 같이 밀리므로 출발마감은 그대로다 —
-     *    그게 맞는 동작이다 (지각도 아니다). 확정 약속은 안 밀리니까 마감이 당겨진다.
-     */
-    it('🔴 앞을 늦게 떠나야 하면, 확정 약속이 있는 뒤 정거장의 출발마감이 당겨진다', () => {
-        const bFixed = { stopType: 'pickup', kind: 'DECLARED', promisedArrivalAt: '2026-08-19T02:00:00.000Z' };
-        const withPromise = deriveRouteTimeline(twoStops, twoOrders, (id: string) =>
-            id === 'A' ? [{ stopType: 'pickup', kind: 'DECLARED', promisedArrivalAt: '2026-08-19T01:00:00.000Z' }] as any
-                       : [bFixed] as any, none, NOW, ANCHOR);
-        const noPromise = deriveRouteTimeline(twoStops, twoOrders, (id: string) =>
-            id === 'A' ? [] as any : [bFixed] as any, none, NOW, ANCHOR);
-        expect(withPromise[1].departByMs!).toBeLessThan(noPromise[1].departByMs!);
-    });
-
-    it('🔴 못 지키는 약속이면 출발마감이 이미 지나 있다 (여유를 말하지 않는다)', () => {
-        const reportsOf = (id: string) =>
-            id === 'A' ? [{ stopType: 'pickup', kind: 'DECLARED', promisedArrivalAt: '2026-08-19T01:00:00.000Z' }] as any
-          : id === 'B' ? [{ stopType: 'pickup', kind: 'DECLARED', promisedArrivalAt: '2026-08-19T01:05:00.000Z' }] as any
-          : [];
-        const tl = deriveRouteTimeline(twoStops, twoOrders, reportsOf, none, NOW, ANCHOR);
-        expect(tl[1].lateMinutes).toBeGreaterThan(0);           // 못 지킨다
-        expect(tl[1].departByMs!).toBeLessThan(tl[1].etaMs!);   // 그런데 여유가 있다고 하면 모순
-        expect(tl[1].departByMs!).toBeLessThanOrEqual(NOW);     // 이미 지난 시각이어야 한다
-    });
-});
-
-/**
- * 🚚 **이미 다녀온 정거장에 미래 약속을 적용하지 않는다** (기사님 실측 2026-08-19, 모의주행)
- *
- * 출발 후 화면이 통째로 미래로 튀었다:
- *   `경안동 13:00 → 금촌동 17:00` · `초월읍 12:00 ⚠️78분` · `-1:19:58 출발 시각이 지났습니다`
- *
- * 그런데 장부를 보면 **10:37 에 경안동 도착·상차 완료**다. 타임라인이 "경안동을
- * 13:00(확정 약속)까지 떠나지 못한다"고 보고 뒤를 전부 밀었다 — 이미 끝난 일인데.
- *
- * 약속은 **아직 가지 않은 정거장**에만 유효하다. 지나간 정거장의 기준은 **실제 시각**이다.
- * (기사님: *"주행하다가 뭔가 크게 바뀌는 것 같아."*)
- */
-describe('지나간 정거장 — 실제 시각이 기준이다', () => {
-    const arrived = (id: string) => id === 'A'
-        ? [{ milestone: 'ARRIVED_PICKUP', occurredAt: '2026-08-19T00:20:00.000Z' }] as any : [];
-
-    it('🔴 이미 도착한 정거장은 확정 약속으로 뒤를 밀지 않는다', () => {
-        // 상차를 01:00 까지로 약속했지만 00:20 에 이미 도착했다
-        const reportsOf = (id: string) => id === 'A' ? [{
-            stopType: 'pickup', kind: 'DECLARED', promisedArrivalAt: '2026-08-19T01:00:00.000Z',
-        }] as any : [];
-        const 실제 = deriveRouteTimeline(stops, orders, reportsOf, arrived, NOW, ANCHOR);
-        const 미도착 = deriveRouteTimeline(stops, orders, reportsOf, none, NOW, ANCHOR);
-        // 도착했으면 약속(01:00)이 아니라 실제(00:20) 기준이라 뒤가 덜 밀린다
-        expect(실제[1].etaMs!).toBeLessThan(미도착[1].etaMs!);
-    });
-
-    it('🔴 이미 다녀온 정거장은 지각으로 세지 않는다 — 끝난 일이다', () => {
-        const reportsOf = (id: string) => id === 'A' ? [{
-            stopType: 'pickup', kind: 'DECLARED', promisedArrivalAt: '2026-08-19T00:10:00.000Z',
-        }] as any : [];   // 00:10 약속인데 00:20 도착 = 10분 늦었지만 이미 끝났다
-        const tl = deriveRouteTimeline(stops, orders, reportsOf, arrived, NOW, ANCHOR);
-        expect(tl[0].lateMinutes).toBe(0);
-        expect(tl[0].arrived).toBe(true);
-    });
-
-    it('아직 안 간 정거장은 그대로 약속 기준이다', () => {
-        const reportsOf = (id: string) => id === 'A' ? [{
-            stopType: 'dropoff', kind: 'DECLARED', promisedArrivalAt: '2026-08-19T09:00:00.000Z',
-        }] as any : [];
-        const tl = deriveRouteTimeline(stops, orders, reportsOf, arrived, NOW, ANCHOR);
-        expect(tl[1].arrived).toBe(false);
-        expect(tl[1].promisedUntil).toBe('2026-08-19T09:00:00.000Z');
+describe('약속 확정 — 통화 완료 행위로만', () => {
+    it('격자가 "통화 완료 때 약속으로 저장"을 말한다 (미리 눌림 ≠ 확정)', () => {
+        expect(sheet()).toMatch(/통화 완료 때/);
     });
 });

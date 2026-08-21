@@ -95,147 +95,35 @@ describe('판정하는 곳은 한 곳', () => {
  * **미리 채우고 기사님이 확정하는** 방식이다 — 앱이 느슨하게 집어 오면 결재하시고,
  * 적요에서 미리 클릭해 두면 틀린 것만 고치신다.
  */
-describe('통화 시트 — 미리 눌러 두고 근거를 남긴다', () => {
-
+/**
+ * 🏗️ 옛 시트(StopCallSheet)는 철거됐다 (기사님 확인 2026-08-21).
+ * "미리 눌러 두고 기사님이 확정"의 거처가 옮겨졌다:
+ *   · 미리 눌림(추천 계산) → **서버 시딩** (stepSeeder computeChain — stepSeeder.test 가 지킨다)
+ *   · 근거 표시 → planned_source 배지 + 격자 ⓘ "저장된 값 — 도착 예상 …"
+ *   · 누르면 확정 → 격자 안내 + 통화 완료 저장 (promiseChain·stepSkip 검사)
+ *   · 시트는 계산하지 않는다 → callSheetSentence 검사
+ */
+describe('미리 눌러 두고 기사님이 확정 — 새 거처', () => {
     const CLIENT3 = join(__dirname, '../../../client-app/src');
     const rc3 = (rel: string) => codeOnly(readFileSync(join(CLIENT3, rel), 'utf8'));
-    const sheet = () => rc3('components/dashboard/StopCallSheet.tsx');
+    const sheet3 = () => rc3('components/dashboard/StepSheetMock.tsx');
 
-    it('🔴 추천 칸을 미리 눌러 둔다', () => {
-        expect(sheet()).toMatch(/suggestedSlot/);
-        expect(sheet()).toMatch(/setDeadlineAt\(suggestedSlot\.iso\)/);
+    it('🔴 격자 ⓘ 가 저장된 값의 근거(도착 예상·약속)를 함께 적는다', () => {
+        expect(sheet3()).toMatch(/저장된 값/);
+        expect(sheet3()).toMatch(/도착 예상/);
     });
 
-    /**
-     * 🕒 **약속은 도착 시각이다 — 추천 칸은 도착 예상 + 30분** (기사님 2026-08-18 개정).
-     *    옛 규칙은 상차 정차까지 더해 "실어 보내는 시각"을 추천했는데, 상차 소요는
-     *    짐 양에 따라 변하는 값이라 신고할 때마다 약속이 흔들렸다 (실측: 40박스 → 갑자기 지각).
-     */
-    it('🔴 추천 칸은 도착 예상 + 30분 — 상차 소요를 약속에 섞지 않는다', () => {
-        const fn = sheet().slice(sheet().indexOf('const suggestedSlot'));
-        expect(fn.slice(0, 2600)).toMatch(/nearestSlot\(slotAnchor, arrivalMs\)/);
-        expect(fn.slice(0, 2600)).not.toMatch(/arrivalMinutes \+ \(isPickup \? dwell : 0\)/);
+    it('🔴 누르면 확정 — 격자가 그 사실을 말한다', () => {
+        expect(sheet3()).toMatch(/누르면 그게 확정|약속으로 저장/);
     });
 
-    /**
-     * 🔄 **다시 "가장 가까운 칸"으로** (2026-08-19) — 두 번 뒤집힌 자리라 경위를 남긴다.
-     *
-     *   08-16 ①  "가장 가까운 칸"으로 바꿈 (마감 10:36 인데 11:06 을 추천해서)
-     *   08-16 ②  되돌림 — 진짜 원인이 설계가 아니라 **초**였다
-     *            (`setSeconds(0,0)` 로 10:35:00 칸이 마감 10:35:17 앞에서 17초 모자라 탈락)
-     *   08-19 ③  **다시 "가장 가까운 칸"** — 이번엔 원인이 다르다
-     *
-     * 🔴 08-19 에 격자를 **:00 / :30 경계**로 옮겼다 (중복 칸 문제 — 버그 대장 #23).
-     *    옛 격자는 `지금 + 주행` 에서 시작해 목표와 칸이 거의 일치했다 — 그래서
-     *    "이후 첫 칸"이 맞았다. 새 격자는 목표와 칸이 **최대 29분** 벌어진다.
-     *    **격자를 바꾸면서 그 격자에 의존하던 규칙을 안 바꾼 것이다.**
-     *    실측: 도착 예상 17:02 + 여유 30분 = 17:32 → `18:00` (74분 뒤)이 눌렸다.
-     *
-     * ⚠️ 08-16 의 우려("지킬 수 없는 약속")는 그대로 지킨다 — `nearestSlot` 은
-     *    **도착 예상 이후의 칸**만 후보로 삼는다. 17:30 은 도착 예상(17:02)보다 뒤라
-     *    안전하고, 여유가 30 → 28분으로 줄 뿐이다 (여유는 애초에 근사값이다).
-     */
-    it('🔴 목표에 가장 가까운 칸 · 도착 예상보다 이른 칸은 후보가 아니다', () => {
-        const src = sheet();
-        const fn = src.slice(src.indexOf('const nearestSlot'), src.indexOf('}, [driveKnown'));
-        expect(fn).toMatch(/Math\.abs/);            // 가장 가까운 것을 고른다
-        expect(fn).toMatch(/notBeforeMs/);          // 도착 예상이 하한
-        expect(fn).toMatch(/floorMin/);             // 초는 여전히 버리고 비교한다 (08-16 교훈)
-    });
-
-    it('🔴 근거 줄이 **기준 시각**을 함께 적는다 (추천 칸과 다를 수 있다)', () => {
-        expect(sheet()).toMatch(/이라 가장 가까운/);
-    });
-
-    it('🔴 기사님이 누르시면 추천이 아니라 **확정**이 된다', () => {
-        expect(sheet()).toMatch(/deadlineTouched/);
-        expect(sheet()).toMatch(/setDeadlineTouched\(true\)/);
-    });
-
-    it('🔴 미리 채운 값에는 근거를 남긴다 (누르시면 사라진다)', () => {
-        expect(sheet()).toMatch(/!deadlineTouched && deadlineAt/);
-        expect(sheet()).toMatch(/눌러 뒀습니다/);
-    });
-
-    /**
-     * 🧾 **내역이 없으면 계산을 확인할 수 없다** (기사님 실측 2026-08-19)
-     *
-     * *"콜 잡은 시간 17:14:44, 상차지 18:00 이면 대략 46분 후 출발이어야 하는데
-     * 30분으로 나온다. 예전 코드인 거야 아님 안 바뀐 거야?"* — 30분이 맞았다
-     * (`18:00 − 접근 주행 15분 = 17:45`). 화면이 그 15분을 안 적어서 확인할 길이 없었다.
-     *
-     * ⚠️ **분기마다 빼는 값이 다르다** — 그래서 문구는 `detail` 이 만들어 온다:
-     *      타임라인(지금 돌고 있는 것) — `주행 N` (+ 앞 정차) · 약속은 **도착** 시각이라
-     *                                    이 정거장의 정차는 뺄셈에 없다 (규칙 ⑤-5)
-     *      폴백(경로 순서 없음)        — `주행 N, 상차 M` · 옛 규칙(마감 = 실어 보내는 시각)
-     */
-    /**
-     * 🕒 **도착 예상은 하나다** (2026-08-20 실측)
-     *
-     * 통화 시트가 도착 예상을 **여섯 곳에서 따로** 만들고 있었고, 기준마저 두 가지였다 —
-     * 칸은 `slotBaseMs.current`(시트 연 시각, 고정), 문구는 `Date.now()`(매 렌더 흐름).
-     * 그래서 **칸은 멈춰 있는데 문구의 도착 예상만 계속 늘어났다.**
-     *
-     * 🔴 더 큰 문제는 **기준 시각이 틀렸다**는 것이다. `driveMinutes`·`leadMinutes` 는
-     *    경로를 계산한 시각(`routeComputedAt`, 닻)부터 잰 값인데, 시트는 그걸
-     *    **시트를 연 시각**에 더했다. 실측 로그: `기준 18:20:03 · 닻 18:17:26` —
-     *    2분 37초가 통째로 밀렸고, 시트를 늦게 열수록 더 벌어진다.
-     *
-     * → 타임라인이 이미 만든 `etaMs` 를 **그대로 받는다.** 시트는 다시 더하지 않는다 (규칙 ③).
-     */
-    it('🔴 도착 예상을 시트가 다시 계산하지 않는다 — 타임라인의 etaMs 를 받는다', () => {
-        const c = sheet();
-        expect(c).toMatch(/etaMs\?:\s*number \| null/);       // Props 로 받는다
-        expect(c).toMatch(/const arrivalMs = etaMs \?\?/);     // 파생은 한 곳
-        // 여섯 곳에 흩어져 있던 옛 계산이 한 곳(폴백)으로 모였는지
-        expect((c.match(/slotBaseMs\.current \+ arrivalMinutes/g) ?? []).length).toBe(1);
-        expect(c).not.toMatch(/Date\.now\(\) \+ arrivalMinutes/);   // 매 렌더 흐르던 기준은 아예 없다
-    });
-
-    /**
-     * 🏗️ 옛 시트 철거(2026-08-21) — `etaMs` 프롭도 함께 사라졌다.
-     * 같은 원칙(도착 예상은 화면이 만들지 않는다)은 더 세게 남았다:
-     * 새 단계 화면의 격자 밑값은 **저장된 행의 predicted_at** 이고,
-     * 그 값은 출생(시딩)이 타임라인에서 받아 한 번 쓴 것이다.
-     */
-    it('🔴 카드가 타임라인의 etaMs 를 시트에 넘긴다', () => {
-        const sheet = rc3('components/dashboard/StepSheetMock.tsx');
-        expect(sheet).toMatch(/r\.predicted_at/);                 // 격자 밑값은 저장된 행
-        expect(sheet).not.toMatch(/Date\.now\(\) \+ .*driveMinutes/);  // 화면 계산 금지
-    });
-
-    it('🔴 출발 카운트다운이 내역을 적는다 — 그 시각을 만든 뺄셈 그대로', () => {
-        const dc = rc3('components/dashboard/DepartureCountdown.tsx');
-        expect(dc).toMatch(/\{soonest\.detail\}/);
-        expect(dc).toMatch(/주행 \$\{binding\.driveMinutes\}/);
-        expect(dc).toMatch(/주행 \$\{t\.approachMinutes\}, 상차 \$\{t\.pickupDwell\}/);
-        expect(dc).toMatch(/대기 \$\{soonest\.waitMin\}/);
+    it('🔴 미리 눌림은 서버 시딩이 한다 — 차종 기본값 배지가 남는다', () => {
+        expect(sheet3()).toMatch(/차종 기본값/);
+        const seeder = codeOnly(readFileSync(join(__dirname, '../../src/services/stepSeeder.ts'), 'utf8'));
+        expect(seeder).toMatch(/defaultCargoByVehicle/);
     });
 });
 
-/**
- * 🔴 **이미 상차했으면 출발 시각이 없다** (2026-08-16 검산에서 발견)
- *
- * 예전에는 값을 내놓고 **화면 한 곳**(`DepartureCountdown` 의 `index >= 4`)이 막고 있었다.
- * 막는 곳이 하나뿐이면 다른 화면이 그 값을 쓰는 순간 잘못된 카운트다운이 뜬다.
- */
-describe('상차를 마친 콜', () => {
-    it('🔴 출발 시각을 값 만드는 자리에서 null 로 낸다', () => {
-        const tm = codeOnly(readFileSync(
-            join(__dirname, '../../../shared/src/timing.ts'), 'utf8'));
-        expect(tm).toMatch(/const departureAt = pickedUp\s*\?\s*null/);
-    });
-});
-
-/**
- * 🔴 **앱이 한국 시각에 `Z` 를 붙여 보내 9시간이 밀리던 문제** (2026-08-16 실측)
- *
- * 앱의 옛 형식: `yyyy-MM-dd'T'HH:mm:ss'Z'` — 폰 시간대(KST)로 찍고 **글자 `Z`(=UTC)를 그냥 붙임.**
- * 서버가 UTC 로 읽으니 09:10 KST 가 18:10 KST 가 되고, 상차 마감이 19:10 이 되어
- * 화면에 **"대기 572분"**(맞게는 32분)이 떴다.
- *
- * 앱은 `XXX`(→`+09:00`)로 고쳤지만 **재설치 전까지 옛 앱이 계속 보내고 이미 저장된 값도 있다.**
- */
 describe('콜 잡은 시각 — 시간대를 잘못 붙인 값도 읽어낸다', () => {
 
     const NOW = new Date('2026-08-16T09:40:00+09:00').getTime();
@@ -281,23 +169,9 @@ describe('콜 잡은 시각 — 시간대를 잘못 붙인 값도 읽어낸다',
     });
 });
 
-/**
- * 🔴 **주행을 몰라도 칸을 추천한다** (2026-08-16)
- *
- * 합짐 콜은 병합 궤적이 **마지막 콜 하나에만** 실려(`pickRouteHolder`) 나머지는 주행 시간이 비어 있다.
- * 그래서 기사님이 합짐 통화 화면에서 **빈 버튼 줄**을 보셨다.
- * 상차 마감은 주행과 무관하므로(`콜 잡은 시각 + 60분`) 그 값으로 고를 수 있다.
- */
-describe('통화 시트 — 주행을 몰라도 추천한다', () => {
+describe('시트 상태 — 콜마다 새로 선다', () => {
     const CLIENT4 = join(__dirname, '../../../client-app/src');
     const rc4 = (rel: string) => codeOnly(readFileSync(join(CLIENT4, rel), 'utf8'));
-
-    it('🔴 주행을 모르면 서버가 만든 상차 마감으로 고른다', () => {
-        const sheet = rc4('components/dashboard/StopCallSheet.tsx');
-        const fn = sheet.slice(sheet.indexOf('const suggestedSlot'));
-        expect(fn.slice(0, 900)).toMatch(/if \(!driveKnown\)/);
-        expect(fn.slice(0, 900)).toMatch(/pickupDeadlineAt/);
-    });
 
     /**
      * 🔴 **콜마다 시트를 새로 그린다** (2026-08-16 실측).
@@ -333,6 +207,6 @@ describe('통화 시트 — 주행을 몰라도 추천한다', () => {
      *    그래서 상차 정차를 두 번 더하는지 검사할 대상 자체가 사라졌다.
      */
     it('상차지 통화에 하차지 시각 블록이 없다 — 단계를 한 화면에 겹치지 않는다', () => {
-        expect(rc4('components/dashboard/StopCallSheet.tsx')).not.toMatch(/이어서 — 하차지도 지금 정하기/);
+        expect(rc4('components/dashboard/StepSheetMock.tsx')).not.toMatch(/이어서 — 하차지도 지금 정하기/);
     });
 });

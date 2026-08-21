@@ -1,199 +1,48 @@
-import { buildArrivalSlots } from '@onedal/shared';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { buildArrivalSlots } from '@onedal/shared';
 
 const sheet = () => readFileSync(join(__dirname,
-    '../../../client-app/src/components/dashboard/StopCallSheet.tsx'), 'utf8');
-const code = () => sheet().split('\n')
-    .filter(l => !/^\s*(\/\/|\/\*|\*)/.test(l)).join('\n');
+    '../../../client-app/src/components/dashboard/StepSheetMock.tsx'), 'utf8');   // 🏗️ 옛 시트 철거(2026-08-21)
 
 /**
- * 🕒 **도착시간 칸은 열어 둔 동안 흔들리지 않는다** (기사님 실측 2026-08-19)
+ * 🕐 **도착시간 격자 — 흔들리지 않는 기준** (기사님 실측 2026-08-19~21)
  *
- * 네 가지 증상이 한 뿌리에서 나왔다 — **칸을 지금 시각으로 계속 새로 만든다**:
- *
- *   ① 상차지 통화 화면이 깜빡인다        — 15초마다 칸 배열이 갈려 목록이 다시 그려짐
- *   ② 시각이 픽스되지 않고 계속 늘어난다  — 칸 자체가 `지금 + 주행` 기준이라 시간이 흐르면 미래로 밀림
- *      "하나를 잡아 놓고 20분 후 다시 들어가면 약속했던 시각이 보여야 한다"
- *   ③ 클릭 일관성 없음                   — 아래 별도 규칙
- *   ④ 저장이 안 된다                     — 칸 iso 가 밀려 저장값과 어느 칸도 안 맞고,
- *                                          추천 재적용이 고른 값을 덮어씀
- *
- * → 칸의 기준 시각은 **시트를 연 순간 한 번** 고정한다 (`slotBaseMs`).
- *   시간이 흐르는 것은 문장·카운트다운이 말하고, 고르는 칸은 움직이지 않는다.
+ * 옛 시트는 격자를 자기 시각(Date.now)으로 만들어 분 틱마다 칸이 밀렸고,
+ * 저장 약속을 추천이 덮었다. 새 구조에서 그 사고들의 방어 자리가 바뀌었다:
+ *   · 칸 생성 규칙 → shared `buildArrivalSlots` (순수 함수 — 아래에서 직접 검사)
+ *   · 격자의 밑값(도착 예상·약속) → **저장된 행** — 시트는 계산하지 않는다 (규칙 ③)
+ *   · 저장된 약속·"부터" → 격자가 읽어 불을 켠다 (추천이 덮을 손댐 개념 자체가 소멸)
  */
-describe('도착시간 칸 — 기준 시각을 고정한다', () => {
-    it('🔴 칸을 만드는 기준이 분 틱이 아니라 고정 기준(slotBaseMs)이다', () => {
-        const c = code();
-        expect(c).toMatch(/slotBaseMs/);
-        expect(c).not.toMatch(/buildArrivalSlots\(minuteTick \* 60_000/);
+describe('격자 — 저장된 행이 밑값이다 (시트 계산 금지)', () => {
+    it('🔴 격자 밑값이 저장된 행에서 온다 — Date.now 로 만들지 않는다', () => {
+        expect(sheet()).toMatch(/밑값\(도착 예상\)은 \*\*저장된 행\*\*에서 온다/);
     });
 
-    it('🔴 추천 계산도 같은 고정 기준을 쓴다 — 칸과 추천이 갈리지 않게', () => {
-        expect(code()).not.toMatch(/firstAtOrAfter\(minuteTick \* 60_000/);
+    it('🔴 저장된 약속과 가장 가까운 칸에 불이 켜진다', () => {
+        expect(sheet()).toMatch(/저장된 약속과 가장 가까운 칸/);
+    });
+
+    it('🔴 저장된 "부터"(기간)도 격자가 읽는다 — 양 끝이 다 보여야 한다', () => {
+        expect(sheet()).toMatch(/promised_arrival_from_at/);
     });
 });
 
-/**
- * 👆 **두 번 탭 = 구간, 규칙은 하나** (기사님 2026-08-19)
- *
- * 실측: 2번째가 눌린 상태에서 4번째를 누르면 **2가 사라지고 4만** 남았다.
- * 다시 2를 누르면 234 구간이 되고, 거기서 4를 누르면 **23이 사라지고 4만** 남았다.
- * "의도적이면 설명서가 필요하고, 아니면 기준이 있어야 한다."
- *
- * → 기준을 하나로 정한다 (설명 없이도 예측되는 쪽):
- *     · 아무것도 없을 때 탭        → 그 칸이 "까지" (한 점 약속)
- *     · 한 점이 있을 때 다른 칸 탭 → **두 칸 사이가 구간** (앞=부터, 뒤=까지)
- *     · 구간일 때 양 끝 탭         → 그 끝을 풀어 한 점으로
- *     · 구간일 때 그 밖의 칸 탭    → **구간을 그 칸까지 늘린다** (초기화하지 않는다)
- *   어떤 탭도 선택을 통째로 날리지 않는다 — 날아가는 것이 기사님이 겪은 "일관성 없음"이다.
- */
-describe('도착시간 탭 — 선택을 통째로 날리지 않는다', () => {
-    it('🔴 구간 상태에서 바깥 칸을 눌러도 구간이 유지된다 (늘어난다)', () => {
-        const c = code();
-        // 옛 규칙의 흔적: 구간이 있으면 무조건 새 한 점으로 초기화하던 분기
-        expect(c).not.toMatch(/if \(!deadlineAt \|\| deadlineFromAt\) \{/);
-        expect(c).toMatch(/extendRange|늘린다/);
-    });
-});
+describe('칸 생성 — buildArrivalSlots (순수 함수)', () => {
+    const NOW = Date.parse('2026-08-21T04:00:00Z');
 
-/**
- * 💾 **저장한 약속이 되살아난다** (기사님 실측 2026-08-19)
- *
- * "234가 선택된 걸 확인하고 통화 완료를 눌렀는데, 뒤로 갔다 오면 이전으로 돌아가 있다.
- *  콜 요약 줄의 물결(~)도 사라졌다" — 저장은 됐는데 화면이 옛 값을 다시 덮은 것이다.
- * 저장 직후 `deadlineTouched` 가 풀리면 추천 재적용이 고른 값을 지운다.
- */
-describe('저장 — 고른 약속을 추천이 덮지 않는다', () => {
-    it('🔴 저장한 뒤에도 손댐 표식이 유지된다', () => {
-        expect(code()).toMatch(/setDeadlineTouched\(true\)[\s\S]{0,400}save-cargo-report|save-cargo-report[\s\S]{0,600}setDeadlineTouched\(true\)/);
-    });
-});
-
-/**
- * 💾 **저장된 약속이 있으면 추천은 끼어들지 않는다** (기사님 실측 2026-08-19)
- *
- * DB 에는 10:12~11:12 로 저장됐는데, 되돌아보기로 시트를 다시 열자 화면이
- * **10:12~10:42** 로 바뀌어 있었다. 시트가 새로 마운트되면 `deadlineTouched` 가
- * false 로 초기화되고, 추천 재적용이 "까지"(11:12)를 추천 칸(10:42)으로 덮은 것이다.
- * (저장 시 표식을 세우는 것만으로는 부족했다 — 마운트가 표식을 지운다)
- *
- * → 저장된 약속은 **이미 확정된 값**이다. 미리 눌러 두기는 통화 전에만 한다.
- *
- * 그리고 칸의 기준은 언제나 **지금**이다 — 저장값을 기준으로 삼으면 그 약속이
- * 첫 칸이 되어 **더 이른 시각으로 당길 수가 없다.** 저장값은 목록에 끼워 넣어 보인다
- * (구간이면 부터·까지 둘 다).
- */
-describe('저장된 약속 — 추천이 덮지 않는다', () => {
-    it('🔴 저장된 약속이 있으면 추천 재적용을 건너뛴다', () => {
-        expect(code()).toMatch(/hasSavedPromise/);
+    it('🔴 도착 예상보다 이른 칸은 만들지 않는다 — 지킬 수 없는 약속', () => {
+        const slots = buildArrivalSlots(NOW, 47);          // 도착까지 47분
+        for (const s of slots) expect(Date.parse(s.iso)).toBeGreaterThanOrEqual(NOW + 47 * 60_000);
     });
 
-    it('🔴 칸 기준은 지금 — 저장값을 기준으로 삼지 않는다 (당길 수 없게 된다)', () => {
-        expect(code()).not.toMatch(/slotBaseMs\.current = saved/);
+    it('첫 칸 = 지킬 수 있는 가장 이른 시각, 이후 30분 간격 (여유가 늘 같다 — #23 되돌림)', () => {
+        const slots = buildArrivalSlots(NOW, 10);
+        expect(Date.parse(slots[0].iso)).toBe(NOW + 10 * 60_000);
+        expect(Date.parse(slots[1].iso) - Date.parse(slots[0].iso)).toBe(30 * 60_000);
     });
 
-    it('🔴 구간의 "부터"도 칸 목록에 끼워 넣는다 — 양 끝이 다 보여야 한다', () => {
-        expect(code()).toMatch(/deadlineFromAt[\s\S]{0,200}baseSlots\.some|pin[\s\S]{0,300}deadlineFromAt/);
-    });
-});
-
-/**
- * 🔄 **한때 `:00/:30` 경계로 고정했다가 되돌렸다** (2026-08-19, 하루 안에 두 번).
- *
- * 중복 칸(`11:05 · 11:06`)을 없애려던 것이었는데, 경계로 올리면 **여유가 제멋대로
- * 변한다** — 도착 예상 17:02 면 28분, 17:29 면 1분. 기사님: *"격자로 하면 여유 시간의
- * 디폴트 값이 막 변화하는 거잖아."*
- *
- * 중복의 진짜 원인은 눈금이 아니라 **기준점이 열 때마다 달라진 것**이었다 —
- * 아래 「격자의 기준」이 그것을 잡는다 (저장된 약속을 기준점으로).
- */
-
-/**
- * 🎯 **추천은 "가장 가까운 칸"이다 — 문구가 그렇게 말한다** (기사님 실측 2026-08-19)
- *
- * 기사님: *"16:46:43 에 콜을 잡았는데 상차지에 18:00 도착이라고 미리 선택된 부분이
- * 이상하다. 잡은 시점으로부터 30분 더 받는 거 아니었어? 상차 여유 30분과 주행 여유
- * 30분은 다른 건데 두 개를 합해서 한 시간의 여유로 선택된 듯한데."*
- *
- * 실측 로그: 접근 주행 **937초(15.6분)**.
- *   도착 예상 17:02  +  여유 30분  =  17:32
- *   격자(:00/:30)에서 **이후 첫 칸** → 18:00   ← 지금 동작 (74분 뒤)
- *   가장 가까운 칸                  → 17:30   ← **화면 문구가 말하는 것**
- *
- * 🔴 여유가 두 번 더해진 것이 아니다 — **격자 올림이 최악에 가깝게 걸린 것**이다
- *    (17:32 는 17:30 을 2분 지나쳤다). 화면은 이미
- *    *"…이라 가장 가까운 18:00 을 눌러 뒀습니다"* 라고 적고 있었다 —
- *    **문구가 맞고 코드가 틀렸다.**
- *
- * ⚠️ 다만 **도착 예상보다 이른 칸은 고르지 않는다** — 그건 지킬 수 없는 약속이다.
- *    도착 예상 이후의 칸 중에서 목표에 가장 가까운 것을 고른다.
- */
-describe('추천 칸 — 목표에 가장 가까운 것', () => {
-    it('🔴 목표를 조금 지나쳤으면 앞 칸을 고른다 (30분을 통째로 미루지 않는다)', () => {
-        const sheetSrc = code();
-        // firstAtOrAfter(이후 첫 칸)만 쓰면 2분 차이로 30분이 밀린다
-        expect(sheetSrc).toMatch(/nearestSlot|가장 가까운 칸/);
-        expect(sheetSrc).not.toMatch(/return hourSlots\.find\(sl => new Date\(sl\.iso\)\.getTime\(\) >= t\) \?\? hourSlots\[hourSlots\.length - 1\];/);
-    });
-
-    it('🔴 도착 예상보다 이른 칸은 후보가 아니다 — 지킬 수 없는 약속', () => {
-        expect(code()).toMatch(/etaMs|도착 예상 이후|arrivalMinutes \* 60_000/);
-    });
-});
-
-/**
- * 🚫 **합의하지 않은 시각을 약속으로 저장하지 않는다** (기사님 확정 2026-08-19)
- *
- * 기사님: *"통화는 스킵할 수 있는데.. 그러면 30분이 넘는 값이 통화 없이 내가 결정하게
- * 되는 거야.. **난 그런 결정을 내릴 권한이 없어.**"*
- *
- * 🔴 화주와 합의한 시각만 **확정**(`DECLARED` + `promisedArrivalAt`)이다. 기사님이 칸을
- *    직접 누르지 않았는데 추천값을 확정으로 저장하면, **아무도 합의하지 않은 시각**이
- *    출발 마감을 묶고 카운트다운을 정한다 (규칙 ① — 결정은 기사님이).
- *
- * 안 저장해도 잃는 것이 없다 — 타임라인이 **추정 약속**(도착 예상 + 여유)을 쓰고
- * 화면은 `~` 로 그것이 추정임을 말한다. 그게 정직한 상태다.
- *
- * ⚠️ 이전에 내가 반대로 고쳤던 자리다 ("통화 완료했는데 약속이 없는 콜이 된다"는
- *    걱정으로 추천값을 실었다). 걱정이 틀렸다 — 약속이 없으면 추정이 대신한다.
- */
-describe('약속 저장 — 고른 것만 확정이다', () => {
-    const sheet = () => readFileSync(join(__dirname,
-        '../../../client-app/src/components/dashboard/StopCallSheet.tsx'), 'utf8');
-    const code = () => sheet().split('\n')
-        .filter(l => !/^\s*(\/\/|\/\*|\*)/.test(l)).join('\n');
-
-    it('🔴 추천값을 확정으로 저장하지 않는다 — 손대지 않았으면 비운다', () => {
-        const c = code();
-        expect(c).not.toMatch(/promisedArrivalAt: deadlineAt \?\? suggestedSlot\?\.iso/);
-        expect(c).toMatch(/deadlineTouched \?[\s\S]{0,80}promisedArrivalAt|promisedArrivalAt: deadlineTouched/);
-    });
-});
-
-/**
- * 📏 **여유는 늘 같아야 한다 — 격자가 그것을 흔들면 안 된다** (기사님 실측 2026-08-19)
- *
- * 기사님: *"왜 꼭 정각 혹은 30분을 더하는 거지? 지금 시간부터 30분이어야 하는데.
- * 격자로 하면 **여유 시간의 디폴트 값이 막 변화하는 거잖아.**"*
- *
- * 🔴 `:00/:30` 경계로 잡으면 도착 예상이 17:02 일 땐 여유 28분, 17:29 일 땐 **1분**이 된다.
- *    같은 규칙인데 결과가 제멋대로다.
- *
- * → 격자의 기준은 **도착 예상 + 여유**다 (저장된 약속이 있으면 그것이 기준).
- *   그래야 여유가 늘 30분이고, 저장값도 언제나 칸 위에 있어 **중복 칸이 안 생긴다**
- *   (버그 대장 #23 이 격자를 도입한 이유는 중복이었지 정각이 아니었다).
- */
-describe('격자의 기준 — 도착 예상 + 여유', () => {
-    it('🔴 정각/30분 경계로 올리지 않는다', () => {
-        const timing = readFileSync(join(__dirname, '../../../shared/src/timing.ts'), 'utf8');
-        const fn = timing.slice(timing.indexOf('export function buildArrivalSlots'));
-        expect(fn.slice(0, 1600)).not.toMatch(/Math\.ceil\(earliest \/ step\) \* step/);
-    });
-
-    it('🔴 저장된 약속이 있으면 그것이 격자의 기준이 된다 (칸 위에 있으니 중복이 없다)', () => {
-        const sheetSrc = readFileSync(join(__dirname,
-            '../../../client-app/src/components/dashboard/StopCallSheet.tsx'), 'utf8');
-        expect(sheetSrc).toMatch(/slotAnchor|savedPromise/);
+    it('같은 입력이면 같은 칸이다 — 분 틱에 흔들리지 않는다', () => {
+        expect(buildArrivalSlots(NOW, 20)).toEqual(buildArrivalSlots(NOW, 20));
     });
 });

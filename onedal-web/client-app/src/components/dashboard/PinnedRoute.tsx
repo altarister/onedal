@@ -7,7 +7,7 @@ import PinnedRouteCanvas, { type RoutePoint } from './PinnedRouteCanvas';
 import PinnedRouteCard from './PinnedRouteCard';
 import CallDeck from './CallDeck';
 import DepartureCountdown from './DepartureCountdown';
-import { EMPTY_RECORDS } from '../../hooks/useCallProgress';
+import { EMPTY_RECORDS } from '../../hooks/records';
 import { useStepRecords } from '../../hooks/useStepRecords';
 import { useJudgmentStore } from '../../stores/judgmentStore';
 import { deckOrder } from '../../lib/deckFocus';

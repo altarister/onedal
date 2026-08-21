@@ -45,15 +45,19 @@ describe('defaultCargoByVehicle — 차종 정원을 기본 짐으로', () => {
  * 순서: **저장값 > 적요 > 차종 기본값** — 통화 시트가 지켜야 하는 규칙.
  * 적요는 이 콜의 실제 정보이고, 차종은 "그 차 한 대 분량"이라는 짐작이라 뒤에 온다.
  */
-describe('통화 시트 — 미리 채움의 순서', () => {
-    const sheet = () => require('fs').readFileSync(
-        require('path').join(__dirname, '../../../client-app/src/components/dashboard/StopCallSheet.tsx'), 'utf8');
+describe('미리 채움의 순서 — 시딩(출생) 한 곳이 정한다', () => {
+    // 🏗️ 옛 시트(StopCallSheet)는 철거됐다 (2026-08-21). 순서 규칙은 시딩으로 옮겨졌다:
+    //    실측 > 통화 계획 > **적요** > 차종 기본 — 화면은 planned_source 배지만 그린다
+    const seeder = () => require('fs').readFileSync(
+        require('path').join(__dirname, '../../src/services/stepSeeder.ts'), 'utf8');
 
-    it('차종 기본값은 적요 힌트가 없을 때만 누른다', () => {
-        expect(sheet()).toMatch(/!hasCargoHints\(h\)\s*\n?\s*\?\s*defaultCargoByVehicle/);
+    it('적요 힌트가 차종 기본값보다 앞선다 (unit 사슬)', () => {
+        expect(seeder()).toMatch(/hints\.unit \?\? vehicleCargo\?\.unit/);
+        expect(seeder()).toMatch(/hints\.handling \?\? vehicleCargo\?\.handling/);
     });
 
-    it('눌러 둔 근거를 화면에 남긴다 (어디서 온 값인지)', () => {
-        expect(sheet()).toMatch(/차종 기본값/);
+    it('눌러 둔 근거(출처)를 남긴다 — 화면 배지의 재료', () => {
+        expect(seeder()).toMatch(/'MEMO'/);
+        expect(seeder()).toMatch(/'VEHICLE'/);
     });
 });

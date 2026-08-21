@@ -69,7 +69,7 @@ describe('사유 카테고리 — 갈래로 묶는다', () => {
     });
 
     it('🔴 화면이 갈래로 그린다', () => {
-        expect(code('../../../client-app/src/components/dashboard/StopCallSheet.tsx'))
+        expect(code('../../../client-app/src/components/dashboard/StepSheetMock.tsx'))
             .toMatch(/arrivalReasonGroupsFor/);
     });
 });

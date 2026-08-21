@@ -93,9 +93,11 @@ describe('저장 경로 — 부터가 유실되지 않는다', () => {
         expect(read('../../src/db.ts')).toContain('promisedArrivalFromAt');
     });
 
-    it('🔴 통화 시트가 부터를 저장하고, 두 번째 탭으로 구간을 만든다', () => {
-        const sheet = read('../../../client-app/src/components/dashboard/StopCallSheet.tsx');
+    it('🔴 새 단계 시트가 부터(기간)를 저장하고, 단계 행에 칸이 있다', () => {
+        // 🏗️ 옛 시트는 철거 (2026-08-21) — 기간 저장은 StepSheetMock + 단계 행이 잇는다
+        const sheet = read('../../../client-app/src/components/dashboard/StepSheetMock.tsx');
         expect(sheet).toContain('promisedArrivalFromAt');
-        expect(sheet).toMatch(/deadlineFromAt/);
+        const tables = read('../../../shared/src/stepTables.ts');
+        expect(tables).toContain('promised_arrival_from_at');
     });
 });

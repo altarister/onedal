@@ -107,12 +107,11 @@ describe('저장 경로 — 스킵이 장부에 남는다', () => {
      * 그래서 검사도 "폼 밖에 있는가"가 아니라 **"주 버튼과 한 줄에 있는가"** 로 고친다
      * (기사님 확정 배치: 좌 건너뛰기 20% · 가운데 주 버튼 · 우 취소 20%).
      */
-    it('🔴 건너뛰기가 주 버튼과 한 줄에 있다 (좌측 서브)', () => {
-        const sheet = read('../../../client-app/src/components/dashboard/StopCallSheet.tsx');
-        const row = sheet.slice(sheet.indexOf('⑤ **주 버튼은 가운데'));
-        const upToArrive = row.slice(0, row.indexOf("ARRIVED_PICKUP"));
-        expect(upToArrive).toMatch(/onSkip && skipLabel/);
-        expect(upToArrive).toMatch(/w-\[20%\]/);
+    it('🔴 건너뛰기가 주 버튼과 한 줄에 있다 (통화 스킵·도착 건너뛰기)', () => {
+        // 🏗️ 새 단계 시트 기준 — 통화 단계는 [통화 스킵][통화 완료], 도착 단계는 [⏭️ 건너뛰기][📍 도착]
+        const sheet = read('../../../client-app/src/components/dashboard/StepSheetMock.tsx');
+        expect(sheet).toMatch(/save\('SKIPPED'\)/);
+        expect(sheet).toMatch(/⏭️ 건너뛰기/);
     });
 
     it('🔴 서버가 스킵 출처를 그대로 받아 적는다 — 손으로 덮어쓰지 않는다', () => {

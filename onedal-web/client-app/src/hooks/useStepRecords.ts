@@ -12,7 +12,7 @@ import { useEffect, useState } from 'react';
 import { socket } from '../lib/socket';
 import { recordsOfSteps } from '@onedal/shared';
 import type { StepViewRow } from '@onedal/shared';
-import type { CallRecords } from './useCallProgress';
+import type { CallRecords } from './records';
 
 export function useStepRecords(orderIds: string[]): Map<string, CallRecords> {
     const [records, setRecords] = useState<Map<string, CallRecords>>(new Map());
