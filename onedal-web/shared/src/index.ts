@@ -265,7 +265,13 @@ export type HandlingMethod = typeof HANDLING_METHODS[number];
  * 건너뛰기는 안 한 일이 아니라 **기사님이 내린 결정**이고, 시각과 함께 남길 값이다.
  * (나중에 "적요만 보고 갔다가 문제가 생긴" 경우를 되짚을 수 있다)
  */
-export type CargoReportKind = 'DECLARED' | 'ACTUAL' | 'SKIPPED';
+/**
+ * 'PLANNED' 는 **화면 파생 전용**이다 (recordsOfSteps 가 만든다) — DB 에 저장되지 않는다
+ * (`stop_cargo_reports` 의 CHECK 는 세 값만 안다). KEEP 때 미리 눌러 둔 차종 기본값이
+ * 타임라인의 정차 계산까지 닿게 하는 통로다 — 시딩(서버)과 타임라인(관제웹)이
+ * 다른 정차를 먹고 한 화면에서 두 데드라인을 말한 사고(2026-08-21)의 수리.
+ */
+export type CargoReportKind = 'DECLARED' | 'ACTUAL' | 'SKIPPED' | 'PLANNED';
 
 export interface CargoReport {
     stopType: 'pickup' | 'dropoff';

@@ -45,7 +45,29 @@ export function recordsOfSteps(steps: StepViewRow[]): StepRecords {
     for (const s of steps) {
         if (s.born === false) continue;                  // 회색 예정 — 저장된 게 아니다
         const r = s.row ?? {};
-        if (r.status === 'PLANNED' || !r.status) continue;   // 아직 안 한 일
+        if (r.status === 'PLANNED' || !r.status) {
+            /**
+             * 🔴 아직 안 한 일이지만 **계획 짐값은 이미 저장된 값이다** (KEEP 이 차종
+             *    기본값으로 심는다). 이걸 버리면 타임라인이 미확인 15분으로 정차를
+             *    지어내 시딩(계획 6분 기산)과 **다른 데드라인**을 말한다 — 2026-08-21
+             *    리허설 13 실측: 덱 ~15:46 vs 칩 15:37. 규칙 ③(입력도 한 곳).
+             *    약속·확정 표시는 **안 나간다** — 서버의 추정 약속이 DECLARED(통화)로
+             *    오독되면 "굳은 약속은 안 깎는다"에 걸려 진짜 통화처럼 굳어 버린다.
+             */
+            if ((s.step === 'CALL_PICKUP' || s.step === 'CALL_DROPOFF') && r.planned_unit != null) {
+                reports.push({
+                    stopType: s.step === 'CALL_PICKUP' ? 'pickup' : 'dropoff',
+                    kind: 'PLANNED',
+                    unit: r.planned_unit ?? undefined,
+                    quantity: r.planned_quantity ?? undefined,
+                    handling: r.planned_handling ?? undefined,
+                    protections: parse(r.planned_protections),
+                    afterworks: parse(r.planned_afterworks),
+                    tags: parse(r.planned_tags),
+                });
+            }
+            continue;
+        }
 
         if (s.step === 'CALL_PICKUP' || s.step === 'CALL_DROPOFF') {
             reports.push({

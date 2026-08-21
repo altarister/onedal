@@ -434,8 +434,9 @@ export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, 
             {viewFilter === 'ACTIVE' && cycleDeck.length > 0 && (
                 <CallDeck
                     records={callRecords}
-                    routeStops={routeStops}
-                    routeComputedAt={routeComputedAt}
+                    /* 🗺️ 타임라인은 여기서 만든 것 하나 (새 장부 stepRecords 기반) — 덱이
+                       옛 장부로 한 벌 더 파생하면 정차가 갈라져 두 데드라인이 된다 (2026-08-21) */
+                    timeline={routeTimeline}
                     gpsFocus={gpsFocus}
                     /* 경유번호는 여기서 한 번 만든 것을 지도·요약 줄이 함께 쓴다.
                        시각은 ETA 가 아니라 약속이라 CallDeck 이 deriveCallTiming 에서 직접 꺼낸다 */

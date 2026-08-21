@@ -636,11 +636,15 @@ export function deriveCallTiming(
     const pickedUp = has('PICKED_UP');
     const arrivedDropoff = has('ARRIVED_DROPOFF');
 
-    // 현장 실측이 있으면 그것이 진실이다 — 통화 내용은 아직 추정이다
-    const pickupCargo = reports.find(r => r.stopType === 'pickup' && r.kind === 'ACTUAL')
-                     ?? reports.find(r => r.stopType === 'pickup' && r.kind === 'DECLARED');
-    const dropoffCargo = reports.find(r => r.stopType === 'dropoff' && r.kind === 'ACTUAL')
-                      ?? reports.find(r => r.stopType === 'dropoff' && r.kind === 'DECLARED');
+    // 현장 실측이 있으면 그것이 진실이다 — 통화 내용은 아직 추정이다.
+    // 통화 전이면 KEEP 이 심어 둔 계획 짐값(차종 기본값)이라도 먹는다 — 시딩과 같은 입력.
+    // 이게 없으면 미확인 15분으로 지어내 서버 데드라인과 갈라진다 (규칙 ③ · 2026-08-21)
+    const cargoOf = (stop: 'pickup' | 'dropoff') =>
+        reports.find(r => r.stopType === stop && r.kind === 'ACTUAL')
+        ?? reports.find(r => r.stopType === stop && r.kind === 'DECLARED')
+        ?? reports.find(r => r.stopType === stop && r.kind === 'PLANNED');
+    const pickupCargo = cargoOf('pickup');
+    const dropoffCargo = cargoOf('dropoff');
     const points = unitPoints(pickupCargo?.unit, pickupCargo?.quantity);
     const pickupDwell = dwellMinutes(pickupCargo?.handling, points, 'pickup', undefined, pickupCargo?.protections);
     // 하차 방법을 따로 안 물었으면 상차와 같다고 본다 (지게차로 실었으면 대개 지게차로 내린다)

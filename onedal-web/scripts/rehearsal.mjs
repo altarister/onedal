@@ -245,7 +245,10 @@ function buildRawText(t, n) {
         '배차화물전화 : 010-0000-0000',
         `요금 : ${t.fare.toLocaleString()}(신용)`,
         `차종 : ${t.vehicleType}`,
-        '물품 : 리허설 콜',
+        // 🔴 적요는 여기다 — 서버 /detail 이 rawText 를 해부해 order 를 덮으므로
+        //    (detail.ts `{ ...pendingOrder, ...parsedDetails }`), order.itemDescription 에
+        //    실은 memo 는 이 줄에 지고 있었다. 15번 '10:00상차 예약' 이 안 뜨던 이유.
+        `물품 : ${t.memo || '리허설 콜'}`,
         '',
         '[출발지상세]',
         `고객 : ${pName}`,

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { SecuredOrder } from '@onedal/shared';
-import { deriveCallStep, CALL_STEPS, deriveCallTiming, deriveRouteTimeline, isEvaluating } from '@onedal/shared';
-import type { RouteStopInfo, RouteTimelineEntry } from '@onedal/shared';
+import { deriveCallStep, CALL_STEPS, deriveCallTiming, isEvaluating } from '@onedal/shared';
+import type { RouteTimelineEntry } from '@onedal/shared';
 import { pickAutoFocus, scrollSettle } from '../../lib/deckFocus';
 import { getAddressLabel, hhmm } from '../../lib/routeUtils';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -31,14 +31,19 @@ interface Props {
      * 각자 계산하면 지도와 다른 번호를 말하게 된다 (규칙 ③).
      */
     visitOrderMap: Map<string, { pickupIdx: number; dropoffIdx: number }>;
-    /** 🧭 서버가 내려준 경로 순서 — 시각(약속)은 이 위의 타임라인에서 나온다 */
-    routeStops: RouteStopInfo[];
-    routeComputedAt: string | null;
+    /**
+     * 🗺️ 경로 타임라인 — **PinnedRoute 가 만든 것을 그대로 받는다** (규칙 ③).
+     * 🔴 예전엔 여기서 routeStops + 옛 장부(callRecords)로 **한 벌 더** 파생했다.
+     *    옛 장부에는 KEEP 의 계획 짐값이 없어 정차가 미확인 15분으로 잡혔고,
+     *    덱 줄(~15:46)과 버퍼 칩·데드라인(15:37)이 **다른 정차의 시각**을 말했다
+     *    (2026-08-21 리허설 13 실측). 파생은 한 곳, 여기는 그리기만 한다.
+     */
+    timeline: RouteTimelineEntry[];
     /** 🛰️ 근접/도착한 정거장의 콜 — 이 값이 바뀌면 그 카드로 넘어간다 (기사님 2026-08-19) */
     gpsFocus?: { orderId: string; tick: number } | null;
 }
 
-export default function CallDeck({ orders, renderCard, records, visitOrderMap, routeStops, routeComputedAt, gpsFocus }: Props) {
+export default function CallDeck({ orders, renderCard, records, visitOrderMap, timeline, gpsFocus }: Props) {
     const trackRef = useRef<HTMLDivElement>(null);
 
     /**
@@ -188,20 +193,8 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, r
 
     if (orders.length === 0) return null;
 
-    /**
-     * 🗺️ **시각의 원천은 "지금 경로" 하나다** (기사님 동의 2026-08-19).
-     *
-     * 🔴 예전에는 콜마다 deriveCallTiming 을 따로 불렀다 — 합짐은 단독 주행값이
-     *    없어 **하차 약속이 아예 안 나왔고**(기사님 발견), 나와도 "혼자 간다" 가정이라
-     *    경로 순서(2·3번째 정거장)를 모르는 값이었다. 타임라인은 경로 위에서
-     *    주행·정차를 누적한다. 카운트다운과 같은 함수를 읽는다 (규칙 ③).
-     */
-    const timeline: RouteTimelineEntry[] = deriveRouteTimeline(
-        routeStops, orders,
-        (id) => (records.get(id) ?? EMPTY_RECORDS).reports,
-        (id) => (records.get(id) ?? EMPTY_RECORDS).milestones,
-        Date.now(), routeComputedAt);
-
+    // 🗺️ 시각의 원천은 "지금 경로" 하나다 (기사님 동의 2026-08-19) — 타임라인은
+    //    PinnedRoute 가 새 장부(stepRecords)로 만든 것을 prop 으로 받는다 (Props 주석)
     return (
         <div className="flex flex-col">
             {/* ══ 콜 요약 줄 — **스와이프하지 않아도 보인다** ══
