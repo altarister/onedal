@@ -1,108 +1,55 @@
 import { readFileSync } from "fs";
 import { initGeoService } from "../../src/services/geoService";
 import { join } from "path";
-import { scoreMerge, scoreSolo, rampDown, DEFAULT_JUDGMENT, describeJudgment, parseCapturedAt, deriveCallTiming } from "@onedal/shared";
+import { scoreDryRun, describeDryRun, DEFAULT_JUDGMENT, parseCapturedAt, deriveCallTiming } from "@onedal/shared";
 import { DWELL_UNKNOWN_PICKUP_MINUTES, DWELL_UNKNOWN_DROPOFF_MINUTES, allowedDetourMinutes, dwellMinutes } from "@onedal/shared";
 
 const SERVER = join(__dirname, "../../src");
 const read = (rel: string) => readFileSync(join(SERVER, rel), "utf8");
 const codeOnly = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 
-/** 그날 실제로 있었던 콜 — 요금 99,000원 · 우회 +1.1km · 주행 +6분 */
-const 그날의콜 = {
-    driveDiffMin: 6, detourKm: 1.1,
-    dwellMin: DWELL_UNKNOWN_PICKUP_MINUTES + DWELL_UNKNOWN_DROPOFF_MINUTES,  // 25분
-    dwellAssumed: true,
-    detourBufferMin: null,                       // 통화 전이라 마감을 모른다
-    slotsFree: 3, slotsTotal: 5,
-};
-
 /**
- * 🔴 **꿀콜이 똥으로 표시되던 문제** (2026-08-15 실측)
+ * 🎨 **판정색 확정안 v2 로 전환된 뒤의 규칙 검사** (2026-08-21)
  *
- * 기사님: *"'99,000원짜리 콜이 1.1km 우회로 붙는데 똥입니다.' 이걸 이야기 하는 거였어."*
- *
- * 서버 로그가 그대로 말해 준다:
- * ```
- * 👍 장점: 차종 일치 | 도착지 경유 적중 | 우회거리(+1.1km) 양호 🍯
- * 💩 똥콜: 총 추가시간(+46분) 초과 — 주행 +6분 + 상하차 40분(미확인) · 마감 여유 0분 기준
- * ```
- * **세 번의 비관이 곱해졌다:**
- *   ① 상하차를 모른다며 20+20=40분 (주석이 *"낙관하지 않는다"* 며 비관을 명시)
- *   ② 마감 여유가 음수라 `Math.max(0,…)` 로 **0** 이 됨
- *   ③ 그 `0` 이 곧 한계가 되어 `46 >= 0` → 똥. **+0분짜리 콜조차 똥이 된다**
+ * 옛 채점기(scoreMerge·scoreSolo — 절대치 문턱·요율 재계산)는 노하우 4콜 문제지
+ * 낙제로 철거됐다. 채점 행동 자체는 `tests/shared/dryRunScore.test.ts` 가 지킨다.
+ * 여기 남는 것은 **역사적 실측 콜들이 새 채점기에서도 옳게 나오는가**와
+ * **판정하는 곳이 한 곳뿐인가**(소스 검사)다.
  */
-describe('그날의 콜 — 99,000원 · +1.1km · +6분', () => {
 
-    it('🔴 이제 꿀이다 (예전에는 똥이었다)', () => {
-        const v = scoreMerge(그날의콜);
-        expect(v.color).toBe('꿀');
-        expect(v.score).toBeGreaterThanOrEqual(DEFAULT_JUDGMENT.color.honeyMin);
-        expect(v.blocked).toBeUndefined();
-    });
+describe('실측 콜 회귀 — 옛 사고가 새 채점기에서 재발하지 않는다', () => {
 
-    it('상하차를 일반값으로 때웠다고 **표시**한다 (숫자가 거짓말하지 않게)', () => {
-        const v = scoreMerge(그날의콜);
-        expect(v.parts.some(p => p.assumed)).toBe(true);
-        expect(describeJudgment(v)).toContain('미확인');
+    /** 그날 실제로 있었던 콜 (2026-08-15) — 99,000원 · 한계 우회 +6분 + 정차 25분 */
+    it('🔴 99,000원 · +31분이면 꿀이다 (옛 채점기는 마감 여유 0 으로 뭉개 똥이었다)', () => {
+        const v = scoreDryRun({ kind: 'merge', fare: 99_000,
+            detourExtraMin: 6 + DWELL_UNKNOWN_PICKUP_MINUTES + DWELL_UNKNOWN_DROPOFF_MINUTES,
+            bufferAfterMin: null, slotsFreePct: 60,
+            gates: [], tags: ['정차 미확인(일반값)'] }, DEFAULT_JUDGMENT);
+        expect(v.color).toBe('꿀');           // 9.9만 ÷ 31분 = 19.2만/h
+        expect(describeDryRun(v)).toContain('미확인');
     });
 
     it('상하차 일반값이 25분이다 (상차 15 + 하차 10 · 예전 40분)', () => {
         expect(DWELL_UNKNOWN_PICKUP_MINUTES + DWELL_UNKNOWN_DROPOFF_MINUTES).toBe(25);
         expect(DWELL_UNKNOWN_PICKUP_MINUTES).toBeGreaterThan(DWELL_UNKNOWN_DROPOFF_MINUTES);  // 상차엔 결박이 붙는다
     });
-});
 
-/**
- * 🔴 **마감을 "모른다"와 "늦었다"는 다르다** (기사님 확정 2026-08-15)
- *
- * 예전에는 `Math.max(0, …)` 가 둘 다 `0` 으로 뭉갰고, 그 0 이 한계가 되어 모든 합짐이 똥이었다.
- */
-describe('마감 — 모름 · 여유 · 지각을 구분한다', () => {
-
-    /**
-     * ⚠️ 이 검사는 원래 *"마감을 모르면 **일반값 90분**을 쓴다"* 였다.
-     *
-     * 기사님(2026-08-16): *"**여유 90분으로 퉁치니 문제가 발생하는 거야.**"*
-     * **여유는 입력값이 아니라 마감에서 계산해 나오는 값**이다. 그래서 상수를 지우고,
-     * 통화 마감이 없으면 `computeAllowedDetour` 가 **규칙으로 만든 추정 마감**에서 구한다:
-     * ```
-     *   상차 마감 = 콜 잡은 시각 + 60분          (콜 대기 여유)
-     *   하차 마감 = 상차 마감 + 단독 주행 + 30분  (휴식 여유)
-     * ```
-     * 그래도 `null` 이 오면 **셀 근거가 아예 없다**는 뜻이라(잡은 시각도 주행도 모른다)
-     * 지어내지 않고 **그 요소를 색에서 뺀다**(가중치 0).
-     */
-    it('🔴 여유를 상수로 때우지 않는다 — 90분 일반값이 사라졌다', () => {
-        expect((DEFAULT_JUDGMENT.unknown as any).detourBufferMin).toBeUndefined();
-        // ⏱️ 60→30: 두 시계 확정(⑯) — "상차 시계 잠정"으로 재해석. 근거: 소숙 실측
-        //    (35분부터 늦음 취급 — §16-2 ④). 옛 60은 근거 없던 잠정치였다
-        expect(DEFAULT_JUDGMENT.unknown.pickupOffsetMin).toBe(30);
-        // restMarginMin(휴게30)·arrivalMarginMin(여유30)은 두 시계로 폐기 — 없어야 한다
-        expect((DEFAULT_JUDGMENT.unknown as any).restMarginMin).toBeUndefined();
-        expect((DEFAULT_JUDGMENT.unknown as any).arrivalMarginMin).toBeUndefined();
+    it('첫짐 — 운행시간이 아무리 길어도 시급이 좋으면 꿀이다 (2026-08-18 실측 그 콜)', () => {
+        // 100,000원 · 98분(+정차 25) — 옛 시간 기준(40/90분)으로는 0점 똥이었다
+        const v = scoreDryRun({ kind: 'first', fare: 100_000, totalMinutes: 123,
+            gates: [], tags: [] }, DEFAULT_JUDGMENT);
+        expect(v.color).toBe('꿀');           // 4.9만/h ≥ 목표 3.0만
     });
 
-    it('🔴 여유를 셀 근거가 없으면 그 요소를 색에서 뺀다 (지어내지 않는다)', () => {
-        const v = scoreMerge({ ...그날의콜, detourBufferMin: null });
-        const part = v.parts.find(p => p.name === '경유버퍼')!;
-        expect(part.assumed).toBe(true);
-        expect(part.weight).toBe(0);          // 색에 영향을 주지 않는다
-        expect(part.raw).toContain('모름');
-    });
-
-    it('🔴 마감을 정했는데 이미 늦었으면 합짐을 막는다', () => {
-        const v = scoreMerge({ ...그날의콜, detourBufferMin: -20 });
-        expect(v.color).toBe('똥');
-        expect(v.blocked).toContain('20분');
-        expect(v.blocked).toContain('약속');
-    });
-
-    it('여유가 0 이어도 "모름"과 섞이지 않는다', () => {
-        const zero = scoreMerge({ ...그날의콜, detourBufferMin: 0 });
-        const unknown = scoreMerge({ ...그날의콜, detourBufferMin: null });
-        expect(zero.blocked).toBeUndefined();      // 0 은 지각이 아니다
-        expect(zero.score).toBeLessThan(unknown.score);
+    it('가중치 0 인 축은 색에 반영되지 않는다 (표시는 계속한다)', () => {
+        const cfg = { ...DEFAULT_JUDGMENT,
+            weights: { ...DEFAULT_JUDGMENT.weights, slots: 0 } };
+        const base = { kind: 'merge' as const, fare: 35_000, detourExtraMin: 40,
+            bufferAfterMin: null, gates: [], tags: [] };
+        const withBadSlots = scoreDryRun({ ...base, slotsFreePct: 0 }, cfg);
+        const withoutSlots = scoreDryRun(base, cfg);
+        expect(withBadSlots.score).toBe(withoutSlots.score);          // 색 무관
+        expect(withBadSlots.axes.some(a => a.key === 'loadCapacity')).toBe(true);  // 표시는 남는다
     });
 
     it('🔴 allowedDetourMinutes 가 음수를 0 으로 깎지 않는다', () => {
@@ -112,84 +59,22 @@ describe('마감 — 모름 · 여유 · 지각을 구분한다', () => {
     });
 });
 
-describe('점수 — 임계값을 그대로 두 점으로 쓴다', () => {
-
-    it('꿀 기준 이하면 만점 · 똥 기준 이상이면 0점 · 사이는 선형', () => {
-        expect(rampDown(10, 30, 60)).toBe(100);
-        expect(rampDown(30, 30, 60)).toBe(100);
-        expect(rampDown(60, 30, 60)).toBe(0);
-        expect(rampDown(90, 30, 60)).toBe(0);
-        expect(rampDown(45, 30, 60)).toBe(50);
-    });
-
-    it('가중치 0 인 요소는 색에 반영되지 않는다', () => {
-        const cfg = { ...DEFAULT_JUDGMENT, weights: { ...DEFAULT_JUDGMENT.weights, detourDist: 0 } };
-        const far = { ...그날의콜, detourKm: 99 };
-        expect(scoreMerge(far, cfg).score).toBeGreaterThan(scoreMerge(far).score);
-    });
-
-    /**
-     * 🔴 예전에는 시간과 거리가 `OR` 였다 — 거리 하나만 넘어도 시간과 무관하게 똥.
-     *    `+31.1km` 콜이 그렇게 걸렸다. 이제 가중치로 섞인다.
-     */
-    it('거리 하나가 넘었다고 바로 똥이 되지 않는다', () => {
-        const v = scoreMerge({ ...그날의콜, detourKm: 31, driveDiffMin: 5 });
-        expect(v.color).not.toBe('똥');
-    });
-});
-
-/**
- * 🔴 **색을 정하는 곳은 한 곳뿐이다.**
- * 최초 평가 `60분/30km` · 재탐색 `30분/10km` 로 갈라져 있어 **같은 콜이 재탐색만 해도
- * 색이 바뀌었다.**
- */
 describe('판정하는 곳은 한 곳', () => {
 
-    it('🔴 OrderEvaluator 가 임계값을 직접 비교하지 않는다', () => {
+    it('🔴 채점은 scoreDryRun 하나 — 옛 채점기·임계값 상수가 코드에 없다', () => {
         const ev = codeOnly(read('core/engine/OrderEvaluator.ts'));
-        expect(ev).toMatch(/scoreMerge\(\{/);
+        expect(ev).toMatch(/scoreDryRun\(\{/);
+        expect(ev).not.toMatch(/scoreMerge|scoreSolo/);
         expect(ev).not.toMatch(/DETOUR_SHIT_TIME_MIN|DETOUR_HONEY_TIME_MAX/);
-        expect(ev).not.toMatch(/DETOUR_SHIT_DIST_MIN|DETOUR_HONEY_DIST_MAX/);
-    });
-
-    it('🔴 첫짐도 한 곳에서 판정한다 — scoreSolo (코드 상수 90분은 폐기)', () => {
-        const ev = codeOnly(read('core/engine/OrderEvaluator.ts'));
-        expect(ev).toMatch(/scoreSolo\(\{/);
-        expect(ev).not.toMatch(/SOLO_SHIT_TIME_MIN|SOLO_HONEY_TIME_MAX/);
-        expect(ev).not.toMatch(/driveMin:/);   // 운행시간 축 폐기 (2026-08-18)
         const cfg = codeOnly(read('config/dispatchConfig.ts'));
         expect(cfg).not.toMatch(/SOLO_SHIT_TIME_MIN/);
     });
 
-    /**
-     * 🔴 **첫짐은 단가로 잰다 — 운행시간 축은 폐기** (기사님 확정 2026-08-18)
-     *
-     * 옛 기준(40/90분)에서는 기사님 노선(광주→파주, 80~100분)이 **전부 똥**으로 떴다.
-     * 100,000원짜리가 0점이었는데 같은 로그에서 요율은 "적정가의 1.5배"라고 말하고 있었다.
-     * 첫짐에서 오래 걸린다는 건 나쁜 게 아니라 그게 일감이다.
-     */
-    it('첫짐 색 — 적정가를 넘으면 꿀, 하한 이상이면 보통, 미만이면 똥', () => {
-        const 적정 = 70_000, 하한 = 63_000;
-        expect(scoreSolo({ fare: 100_000, fairPrice: 적정, minAcceptable: 하한 }).color).toBe('꿀');
-        expect(scoreSolo({ fare: 65_000, fairPrice: 적정, minAcceptable: 하한 }).color).toBe('보통');
-        expect(scoreSolo({ fare: 50_000, fairPrice: 적정, minAcceptable: 하한 }).color).toBe('똥');
-    });
-
-    it('첫짐 — 운행시간이 아무리 길어도 단가가 좋으면 꿀이다 (2026-08-18 실측 그 콜)', () => {
-        // 100,000원 · 94km · 98분 → 옛 기준으로는 0점 똥이었다
-        expect(scoreSolo({ fare: 100_000, fairPrice: 65_142, minAcceptable: 58_628 }).color).toBe('꿀');
-    });
-
-    it('첫짐 — 적정가를 못 구하면 색을 지어내지 않는다', () => {
-        const r = scoreSolo({ fare: 100_000, fairPrice: null, minAcceptable: null });
-        expect(r.parts[0].raw).toContain('연산 실패');
-    });
-
-    it('🔴 재탐색이 자기 숫자를 갖지 않는다', () => {
+    it('🔴 재탐색은 색을 다시 정하지 않는다 — 심사 스냅샷 고정 (확정 ④)', () => {
         const en = codeOnly(read('services/dispatchEngine.ts'));
-        expect(en).toMatch(/scoreMerge\(\{/);
+        expect(en).not.toMatch(/scoreMerge|scoreDryRun/);
+        expect(en).toMatch(/getJudgment\(/);
         expect(en).not.toMatch(/distDiffKm\)\s*>\s*10/);
-        expect(en).not.toMatch(/timeDiffMin\)\s*>\s*30/);
     });
 
     it('🔴 상하차 일반값을 코드가 직접 쓰지 않는다 (dwellMinutes 가 정한다)', () => {

@@ -302,7 +302,7 @@ export default function PinnedRouteCard({
                                      *    지울 것은 판정 표식뿐이므로 **낱말 단위**로 제거한다.
                                      */
                                     const cleanReason = route.kakaoTimeExt
-                                        .replace(/'(꿀|똥|콜)'/g, '')
+                                        .replace(/'(꿀|똥|콜|보통|사고)'/g, '')
                                         .replace(/\[(추천|최단거리|최단시간)\]/g, '')
                                         .replace(/[🚙💩🍯]/g, '')
                                         .replace(/\s{2,}/g, ' ')
@@ -312,6 +312,12 @@ export default function PinnedRouteCard({
                                         btnBg = "bg-danger hover:bg-danger/80 shadow-[0_0_15px_var(--theme-glow-warning)]";
                                         btnTitle = "판단 불가";
                                         verdict = "🔴 잡지 마세요 — 경로·요율을 계산하지 못했습니다";
+                                    } else if (route.kakaoTimeExt.includes("'사고'")) {
+                                        /* 🔴 문지기 실패 (확정안 v2 ⑤ — 기사님이 🟡이 아니라 🔴로 확정).
+                                           뜻은 "잡으면 사고" 하나 — 사유 문장이 연산실패와 가른다 */
+                                        btnBg = "bg-danger hover:bg-danger/80 shadow-[0_0_15px_var(--theme-glow-warning)]";
+                                        btnTitle = "잡으면 사고";
+                                        verdict = `🔴 잡지 마세요 — ${route.judgment?.gates?.filter(g => !g.pass).map(g => g.why ?? g.name).join(' · ') || '조건 위반'}`;
                                     } else if (route.kakaoTimeExt.includes("'꿀'")) {
                                         btnBg = "bg-info hover:bg-info/80 shadow-[0_0_15px_var(--theme-glow-primary)]";
                                         verdict = "🍯 꿀콜";
@@ -371,6 +377,29 @@ export default function PinnedRouteCard({
                                     </div>
                                 );
                             })()}
+
+                            {/* 🎨 **조건 전수** (판정색 확정안 v2 ④) — 기사님: "모든 조건이 표시되었으면
+                                좋겠다." 문지기·축·딱지를 접지 않고 전부 편다. 딱지는 판단 없이 사실만 */}
+                            {route.judgment && (
+                                <div className="mt-2 flex flex-col gap-1 text-[11px] rounded-md border border-border bg-surface-alt/30 px-2.5 py-2">
+                                    {route.judgment.gates.map(g => (
+                                        <div key={g.key} className={g.pass ? 'text-text-muted' : 'text-danger font-bold'}>
+                                            {g.pass ? '✅' : '🔴'} {g.name}{!g.pass && g.why ? ` — ${g.why}` : ''}
+                                        </div>
+                                    ))}
+                                    {route.judgment.axes.map(a => (
+                                        <div key={a.key} className="text-text-primary tabular-nums">
+                                            <span className="font-bold">{a.name}</span> {a.raw}
+                                            <span className="text-text-muted"> ({a.score}점{a.weight !== 1 ? ` ×${a.weight}` : ''})</span>
+                                        </div>
+                                    ))}
+                                    {route.judgment.tags.length > 0 && (
+                                        <div className="text-text-muted break-keep">
+                                            {route.judgment.tags.map(t => `🏷️ ${t}`).join('  ')}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
                             {/* 텔레메트리 진행 상태 바 (30초 만기) */}
                             {(route.status === 'ORDER_SECURED_EVALUATING' || route.status === 'ORDER_AWAITING_DECISION') && (() => {

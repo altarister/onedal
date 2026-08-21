@@ -28,13 +28,6 @@
  * 사용자 설정 팝업에서 수정 가능하도록 하는 기능이 필요하겠다."*
  */
 export interface JudgmentConfig {
-    /** 📦 합짐 — 경로에 콜을 더할 때 */
-    merge: {
-        /** 이 분 이하면 만점 */ honeyMaxMin: number;
-        /** 이 분 이상이면 0점 */ shitMinMin: number;
-        /** 이 km 이하면 만점 */ honeyMaxKm: number;
-        /** 이 km 이상이면 0점 */ shitMinKm: number;
-    };
     /**
      * 모르는 값을 채우는 **일반값** (규칙 ⑤-2).
      * 불리한 값이 아니다 — 모르면 나쁜 쪽으로 잡던 것이 꿀콜을 놓치게 했다.
@@ -59,7 +52,16 @@ export interface JudgmentConfig {
      * 준 상태이다. 나중에 실지로 도로에 나가서 데이터를 모아서…"* → 전부 1 = 단순 평균.
      */
     weights: {
-        driveTime: number; detourDist: number; deadline: number; slots: number;
+        /** 순증 대비 우회 — 요금 ÷ 한계 추가 소요 (기사님 확정 ②: 시간·거리 통합) */
+        revenueDetour: number;
+        /** 버퍼 소비 — 붙인 뒤 남는 최소 버퍼 */
+        bufferCost: number;
+        slots: number;
+    };
+    /** 채점의 기준 시급 — 순증·시급 축이 이 값 대비 %로 점수가 된다 */
+    target: {
+        /** 원/시간. 문제지 캘리브레이션으로 확정 (기사님 2026-08-21) */
+        hourlyKrw: number;
     };
     /**
      * ⏱️ **배달 데드라인 배율** (두 시계 · 시간체계 ⑯ · 2026-08-21).
@@ -73,11 +75,11 @@ export interface JudgmentConfig {
 }
 
 export const DEFAULT_JUDGMENT: JudgmentConfig = {
-    // 지금 `dispatchConfig.ts` 에 있던 값을 **그대로** 옮겼다.
-    // 🔴 구조를 바꾸는 일과 값을 바꾸는 일을 같이 하지 않는다 — 색이 바뀌면 원인을 못 가린다.
-    merge: { honeyMaxMin: 30, shitMinMin: 60, honeyMaxKm: 15, shitMinKm: 30 },
+    // 🧪 판정색 확정안 v2 (기사님 확정 2026-08-21) — 절대치 문턱(merge 4칸) 폐기,
+    //    가중치 통합(revenueDetour), 목표 시급은 문제지 캘리브레이션으로 확정(3.0만).
     unknown: { pickupDwellMin: 15, dropoffDwellMin: 10, pickupOffsetMin: 30 },
-    weights: { driveTime: 1, detourDist: 1, deadline: 1, slots: 1 },
+    weights: { revenueDetour: 1, bufferCost: 1, slots: 1 },
+    target: { hourlyKrw: 30_000 },
     deadline: { ratioPct: 150 },
     color: { honeyMin: 70, normalMin: 40 },
 };
@@ -110,19 +112,9 @@ export interface JudgmentField {
 }
 
 export const JUDGMENT_FIELDS: readonly JudgmentField[] = [
-    { col: 'merge_honey_max_minutes', path: ['merge', 'honeyMaxMin'], group: '합짐',
-      label: '🔵 꿀 기준 시간', unit: '분', min: 0, max: 240, int: true,
-      why: '추가 주행이 이 시간 이하면 만점' },
-    { col: 'merge_shit_min_minutes', path: ['merge', 'shitMinMin'], group: '합짐',
-      label: '🟡 똥 기준 시간', unit: '분', min: 0, max: 480, int: true,
-      why: '이 시간 이상이면 0점' },
-    { col: 'merge_honey_max_km', path: ['merge', 'honeyMaxKm'], group: '합짐',
-      label: '🔵 꿀 기준 거리', unit: 'km', min: 0, max: 200, int: false,
-      why: '카카오 시간에 도로 종류가 이미 반영돼 있어 거리는 보조 지표다' },
-    { col: 'merge_shit_min_km', path: ['merge', 'shitMinKm'], group: '합짐',
-      label: '🟡 똥 기준 거리', unit: 'km', min: 0, max: 400, int: false,
-      why: '고속도로 30km 와 국도 30km 는 시간이 다르다 (기사님 2026-08-15)' },
-
+    // 🧪 합짐 절대치 문턱 4칸(merge_honey_max_* 등)은 **딱지로 강등되어 삭제됐다**
+    //    (판정색 확정안 v2 · 기사님 확정 2026-08-21). 우회의 절대 크기는 감점이 아니라
+    //    사실 표시("우회 +43분")로만 남는다 — 노하우 4콜 낙제의 원인이던 상수들이다.
     { col: 'unknown_pickup_dwell_minutes', path: ['unknown', 'pickupDwellMin'], group: '모를 때',
       label: '상차 미확인', unit: '분', min: 0, max: 120, int: true,
       why: '찾기 + 상차 + 결박 (기사님 2026-08-15)' },
@@ -138,15 +130,19 @@ export const JUDGMENT_FIELDS: readonly JudgmentField[] = [
       label: '상차 시계 잠정', unit: '분', min: 0, max: 240, int: true,
       why: '잡은 시각 + 이만큼 = 무통보로 봐주는 상차 한계. 소숙 실측: 35분부터 늦음 취급 (잠정 — 도로에서 조정)' },
 
-    { col: 'weight_drive_time', path: ['weights', 'driveTime'], group: '가중치',
-      label: '추가 주행', unit: '배', min: 0, max: 10, int: false,
-      why: '0 이면 색에 반영하지 않는다 (표시는 계속한다)' },
-    { col: 'weight_detour_dist', path: ['weights', 'detourDist'], group: '가중치',
-      label: '우회 거리', unit: '배', min: 0, max: 10, int: false, why: '' },
-    { col: 'weight_deadline', path: ['weights', 'deadline'], group: '가중치',
-      label: '경유버퍼', unit: '배', min: 0, max: 10, int: false, why: '' },
+    // 🧪 옛 가중치 둘(추가 주행 · 우회 거리)은 **순증 대비 우회 하나로 통합**됐다
+    //    (기사님 확정 ② — 같은 40분 우회라도 요금이 가른다)
+    { col: 'weight_revenue_detour', path: ['weights', 'revenueDetour'], group: '가중치',
+      label: '순증 대비 우회', unit: '배', min: 0, max: 10, int: false,
+      why: '요금 ÷ 한계 추가 소요. 0 이면 색에 반영하지 않는다 (표시는 계속한다)' },
+    { col: 'weight_buffer_cost', path: ['weights', 'bufferCost'], group: '가중치',
+      label: '버퍼 소비', unit: '배', min: 0, max: 10, int: false,
+      why: '붙인 뒤 남는 최소 버퍼 — 통화로 약속이 굳은 운행에서 살아나는 축' },
     { col: 'weight_slots', path: ['weights', 'slots'], group: '가중치',
       label: '적재 용량', unit: '배', min: 0, max: 10, int: false, why: '' },
+    { col: 'target_hourly_krw', path: ['target', 'hourlyKrw'], group: '가중치',
+      label: '목표 시급', unit: '원/h', min: 10000, max: 100000, int: true,
+      why: '순증·시급 축의 기준. 노하우 실측 역산(4콜 14.1만÷4.5h≈3.1만) — 문제지 캘리브레이션으로 확정 (2026-08-21)' },
 
     { col: 'deadline_ratio_pct', path: ['deadline', 'ratioPct'], group: '데드라인',
       label: '데드라인 배율', unit: '%', min: 100, max: 300, int: true,
@@ -203,210 +199,12 @@ export function judgmentToRow(cfg: JudgmentConfig): Record<string, number> {
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 점수
+// 점수 — 🧪 **채점은 dryRun.ts 의 `scoreDryRun` 하나다** (판정색 확정안 v2 · 2026-08-21)
+//
+// 옛 채점기(scoreSolo·scoreMerge·describeJudgment·rampDown)는 여기 살았다.
+// 노하우 4콜 문제지 낙제(요율 재계산 · 절대치 감점)의 자리라 캘리브레이션 통과 후 철거.
+// 색 이름 '꿀/보통/똥/사고' 와 경계(color.honeyMin/normalMin)는 그대로다.
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-export type CallColor = '꿀' | '보통' | '똥';
-
-/** 요소 하나가 낸 점수 — 로그와 화면이 **이 배열을 그대로 읽는다** */
-export interface ScorePart {
-    /** 화면에 적을 이름 */ name: string;
-    /** 사람이 읽는 원래 값 (`+6분`) */ raw: string;
-    /** 0~100 */ score: number;
-    weight: number;
-    /** 일반값으로 때웠는가 — 화면에 `미확인` 배지를 단다 */ assumed?: boolean;
-}
-
-export interface JudgmentResult {
-    score: number;              // 0~100 (가중 평균)
-    color: CallColor;
-    parts: ScorePart[];
-    /** 점수와 무관하게 떨어뜨린 이유 (있으면 색은 무조건 '똥') */ blocked?: string;
-}
-
-/**
- * 좋을수록 100, 나쁠수록 0. `good` 이하면 만점, `bad` 이상이면 0점, 사이는 선형.
- *
- * 🔴 기존 임계값(꿀/똥)을 **그대로 두 점으로 쓴다.** 점수 구조만 씌우고 값은 안 바꾼다.
- */
-export function rampDown(value: number, good: number, bad: number): number {
-    if (!Number.isFinite(value)) return 0;
-    if (bad <= good) return value <= good ? 100 : 0;
-    if (value <= good) return 100;
-    if (value >= bad) return 0;
-    return Math.round(100 * (bad - value) / (bad - good));
-}
-
-const weighted = (parts: ScorePart[]): number => {
-    const total = parts.reduce((a, p) => a + p.weight, 0);
-    if (total <= 0) return 0;
-    return Math.round(parts.reduce((a, p) => a + p.score * p.weight, 0) / total);
-};
-
-const colorOf = (score: number, c: JudgmentConfig['color']): CallColor =>
-    score >= c.honeyMin ? '꿀' : score >= c.normalMin ? '보통' : '똥';
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-export interface MergeInput {
-    /** 카카오가 준 **추가 주행** 시간(분) — 도로 종류가 이미 반영돼 있다 */ driveDiffMin: number;
-    /** 추가 우회 거리(km) */ detourKm: number;
-    /** 이 콜을 넣으면 늘어나는 상하차 시간(분) */ dwellMin: number;
-    /** 상하차 방법을 몰라 일반값으로 때웠는가 */ dwellAssumed: boolean;
-    /**
-     * 마감까지 남은 여유(분).
-     *   `null` 마감을 아무도 모른다  → 일반값(`unknown.detourBufferMin`)을 쓴다
-     *   음수    이미 늦었다          → **합짐을 막는다**
-     */
-    detourBufferMin: number | null;
-    /** 남은 적재 칸 / 총 칸 */ slotsFree: number; slotsTotal: number;
-}
-
-/**
- * 🔴 **경유(도착지)은 점수에 넣지 않는다.**
- *
- * 기사님 기준표에는 가중치 1로 적혀 있었지만, 같은 표 4가 *"경유 이탈 = 탈락"* 이라고
- * **하드 조건**으로도 정의한다. 두 곳에서 세면 이중 계산이다 —
- * 이탈한 콜은 어차피 탈락하므로 점수에 남는 것은 **언제나 적중(100점)** 이고,
- * 그러면 평균을 100 쪽으로 밀어 **모든 콜이 좋아 보이게** 만든다.
- *
- * 그래서 경유은 `OrderEvaluator` 의 기존 하드 게이트 **한 곳에만** 둔다.
- */
-
-/**
- * 📦 합짐 색.
- *
- * 명세 §1-5: *"합짐은 **순증 매출** — 바닥이 '전부'(금액 무관)."*
- * 하한이 없으므로 색은 *"잡을까 말까"* 가 아니라 **"얼마나 좋은가"** 다.
- * 그래서 요금을 보지 않는다 — 돈은 앱이 이미 걸렀다 (규칙 ⑤-1).
- */
-/**
- * 첫짐 판정 입력 — **단가로 잰다** (기사님 확정 2026-08-18).
- *
- * 🔴 운행시간 축은 버렸다. 첫짐에서 오래 걸린다는 건 나쁜 게 아니라 **그게 일감**이다.
- *    노선이 늘 80~100분이라 옛 기준(40/90분)에서는 잡은 콜이 전부 똥으로 떴다.
- */
-export interface SoloInput {
-    /** 실제 콜 금액 */
-    fare: number;
-    /** 적정가 — 거리 × 차종단가 × 수수료배수. 못 구했으면 null (지어내지 않는다) */
-    fairPrice: number | null;
-    /** 하한가 — 적정가 × 콜할인율. 앱 필터가 이미 넘긴 문턱이다 */
-    minAcceptable: number | null;
-}
-
-/**
- * 🎯 **첫짐 판정** — 색을 정하는 곳은 여기 하나다 (합짐의 `scoreMerge` 와 짝).
- *
- * 기사님 (2026-08-18): *"필터는 최저값보다 크기만 하면 올려주니,
- * 내가 판단하는 건 단가가 좋은지 아닌지로 하면 된다."*
- *
- * 앱이 `요금 ≥ 배송거리 × 단가` 로 하한을 이미 넘긴 콜만 올린다.
- * 그러므로 서버가 답할 것은 **적정가를 넘었는가** 하나다. 새 기준값을 만들지 않는다 —
- * 적정가·하한가는 요율 판정이 이미 쓰던 값이다.
- *
- *   적정가 이상  → 🔵 꿀
- *   하한가 이상  → 🟢 보통   (앱이 통과시킨 정상 구간)
- *   하한가 미만  → 🟡 똥     (앱 폴백으로 올라온 콜)
- */
-export function scoreSolo(input: SoloInput, cfg: JudgmentConfig = DEFAULT_JUDGMENT): JudgmentResult {
-    const { fare, fairPrice, minAcceptable } = input;
-
-    // 값을 못 구하면 색을 지어내지 않는다 — 모른다고 표시하고 기사님께 넘긴다 (규칙 ⑤-2)
-    if (fairPrice === null || minAcceptable === null || !fare) {
-        return {
-            score: 0, color: '똥',
-            parts: [{ name: '단가', raw: '연산 실패 — 적정가를 구하지 못했습니다', score: 0, weight: 1 }],
-        };
-    }
-
-    const score = fare >= fairPrice ? 100 : fare >= minAcceptable ? 50 : 0;
-    const raw = `${fare.toLocaleString()}원 / 적정 ${fairPrice.toLocaleString()}원`;
-    return {
-        score,
-        color: colorOf(score, cfg.color),
-        parts: [{ name: '단가', raw, score, weight: 1 }],
-    };
-}
-
-export function scoreMerge(input: MergeInput, cfg: JudgmentConfig = DEFAULT_JUDGMENT): JudgmentResult {
-    const { merge: m, weights: w } = cfg;
-
-    /**
-     * 🔴 마감을 **정했는데** 여유가 음수면 이미 늦은 것이다. 점수와 무관하게 막는다.
-     *    마감을 **안 정했으면**(null) 늦은 게 아니라 모르는 것이다 — 일반값을 쓴다.
-     *    예전에는 `Math.max(0, …)` 가 둘을 `0` 으로 뭉개 **모든 합짐이 똥**이 됐다.
-     */
-    if (input.detourBufferMin !== null && input.detourBufferMin < 0) {
-        return {
-            score: 0, color: '똥', parts: [],
-            blocked: `이 합짐을 붙이면 하차완료 약속을 ${-input.detourBufferMin}분 못 지킵니다 (합짐 불가)`,
-        };
-    }
-
-    /**
-     * 🔴 **여유를 상수로 때우지 않는다** (기사님 2026-08-16).
-     *
-     * 예전에는 `detourBufferMin === null` 이면 `cfg.unknown.detourBufferMin`(90분)을 썼다.
-     * 기사님: *"여유 90분으로 퉁치니 문제가 발생하는 거야."* **여유는 입력값이 아니라
-     * 마감에서 계산해 나오는 값**이다 — 이제 `computeAllowedDetour` 가 통화 마감이 없어도
-     * **추정 마감**(잡은 시각+60분 / 상차마감+주행+30분)에서 구해 넘긴다.
-     *
-     * 그래도 `null` 이 오면 그 콜은 **마감을 셀 근거가 아예 없다**는 뜻이다
-     * (잡은 시각도 주행 시간도 모른다). 지어내지 않고 이 요소를 **점수에서 뺀다** — 규칙 ④.
-     */
-    const slackUnknown = input.detourBufferMin === null;
-    const slack = input.detourBufferMin ?? 0;
-    const totalAdd = input.driveDiffMin + input.dwellMin;
-
-    const parts: ScorePart[] = [
-        {
-            name: '추가 주행', raw: `+${input.driveDiffMin}분`, weight: w.driveTime,
-            score: rampDown(input.driveDiffMin, m.honeyMaxMin, m.shitMinMin),
-        },
-        {
-            name: '우회 거리', raw: `+${input.detourKm.toFixed(1)}km`, weight: w.detourDist,
-            score: rampDown(input.detourKm, m.honeyMaxKm, m.shitMinKm),
-        },
-        {
-            // 여유의 절반 안이면 만점, 여유를 다 쓰면 0점
-            name: '경유버퍼',
-            raw: slackUnknown ? `${totalAdd}분 / 모름` : `${totalAdd}분 / ${slack}분`,
-            // 근거가 없으면 가중치 0 — 색에 영향을 주지 않는다 (지어낸 점수로 밀지 않는다)
-            weight: slackUnknown ? 0 : w.deadline,
-            score: slackUnknown ? 0 : rampDown(totalAdd, slack / 2, slack),
-            assumed: slackUnknown,
-        },
-        {
-            name: '적재 용량', raw: `${input.slotsFree}/${input.slotsTotal}박스`, weight: w.slots,
-            score: input.slotsTotal > 0
-                ? Math.round(100 * Math.max(0, input.slotsFree) / input.slotsTotal) : 0,
-        },
-    ];
-    if (input.dwellAssumed) {
-        // 상하차를 일반값으로 때웠다는 사실은 **경유버퍼** 점수에 섞여 들어간다
-        parts[2].assumed = true;
-    }
-
-    const score = weighted(parts);
-    return { score, color: colorOf(score, cfg.color), parts };
-}
-
-/**
- * 🚚 첫짐 색은 **이번 단계에서 건드리지 않는다.**
- *
- * 고장은 합짐 쪽에 있었고(마감 여유 0 → 모든 합짐이 똥), 재탐색이 자기 숫자를 쓰던 것도
- * 합짐 경로다. 첫짐까지 같이 바꾸면 색이 변했을 때 **원인이 둘**이 된다.
- * 표 2(첫짐 가중치)는 판정 기준을 DB 로 옮기는 단계에서 함께 붙인다.
- */
-
-/** 로그·화면이 그대로 쓰는 한 줄 요약 */
-export function describeJudgment(r: JudgmentResult): string {
-    if (r.blocked) return `🚫 ${r.blocked}`;
-    const icon = r.color === '꿀' ? '🔵' : r.color === '보통' ? '🟢' : '🟡';
-    const body = r.parts.map(p => `${p.name} ${p.raw}(${p.score})${p.assumed ? '·미확인' : ''}`).join(' · ');
-    return `${icon} 총점 ${r.score} — ${body}`;
-}
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 콜을 부르는 이름 — **조합해서 만든다**

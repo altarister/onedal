@@ -1,9 +1,10 @@
-import { PendingOrder, SecuredOrder, MyOrder, scoreMerge, scoreSolo, describeJudgment, TRUCK_CAPACITY_SLOTS, callName , DEFAULT_DEADLINE_RULES,
-         scoreDryRun, describeDryRun, deriveRouteTimeline, minRouteBuffer, marginalDetourMin } from "@onedal/shared";
+import { PendingOrder, SecuredOrder, MyOrder, TRUCK_CAPACITY_SLOTS, callName , DEFAULT_DEADLINE_RULES,
+         scoreDryRun, describeDryRun, deriveRouteTimeline, minRouteBuffer, marginalDetourMin,
+         DEFAULT_JUDGMENT } from "@onedal/shared";
 import type { DryRunGate } from "@onedal/shared";
 import { OrderRepository } from "../../repositories/OrderRepository";
 import { getUserSession } from "../../state/userSessionStore";
-import { computeAllowedDetour, findLoadConflicts, totalDetourCost } from "../helpers";
+import { findLoadConflicts, totalDetourCost } from "../helpers";
 import { geocodeAddress, calculateSoloRoute } from "../../services/kakaoService";
 import { logRoadmapEvent } from "../../utils/roadmapLogger";
 import { DISPATCH_CONFIG } from "../../config/dispatchConfig";
@@ -26,6 +27,8 @@ export class OrderEvaluator {
      */
     public async evaluate(userId: string, securedOrder: SecuredOrder | PendingOrder, io: any): Promise<void> {
         const session = getUserSession(userId);
+        // 판정 기준 — 원천은 DB(세션에 로그인 때 실림). 없으면(검사·초기화 전) 기본표로 폴백
+        const judgmentCfg = session.judgment ?? DEFAULT_JUDGMENT;
         const reasons: string[] = [];
         const pros: string[] = [];
         let timeExt = "카카오 연산 실패";
@@ -114,43 +117,35 @@ export class OrderEvaluator {
                          * 앱이 이미 `요금 ≥ 배송거리 × 단가` 로 하한을 넘긴 콜만 올린다.
                          * 그러므로 서버가 답할 것은 하나다 — **적정가를 넘었는가.**
                          */
-                        const pricing = this.loadPricing(securedOrder, userId);
-                        const soloVerdict = scoreSolo({
-                            fare: securedOrder.fare,
-                            fairPrice: pricing?.fairPrice ?? null,
-                            minAcceptable: pricing?.minAcceptable ?? null,
-                        }, session.judgment);
-                        const soloMark = `'${soloVerdict.color}'`;
-                        console.log(`   - 🎯 [판정] ${describeJudgment(soloVerdict)}`);
-                        if (soloVerdict.color === '똥') {
-                            reasons.push(`총점 ${soloVerdict.score}점 — ${soloVerdict.parts.map(pt => `${pt.name} ${pt.raw}`).join(' · ')}`);
-                        } else {
-                            pros.push(`총점 ${soloVerdict.score}점 — ${soloVerdict.parts.map(pt => `${pt.name} ${pt.raw}`).join(' · ')}`);
-                        }
+                        /**
+                         * 🎨 **첫짐 판정 = 시급 축** (판정색 확정안 v2 · 문제지 4/4 통과 후 전환).
+                         * 🔴 요율 재계산은 철거했다 — 돈은 앱이 이미 걸렀다 (규칙 ⑤-1).
+                         *    노하우 13번(3만, 고수의 콜)을 "하한 3.79만 미달 똥"으로 낙제시키던 자리다.
+                         */
+                        const dwell = totalDetourCost(0, securedOrder.id, judgmentCfg.unknown);
+                        const total = securedOrder.totalDurationMin != null
+                            ? securedOrder.totalDurationMin + dwell.dwell : null;
+                        const tags: string[] = [];
+                        if (securedOrder.approachDurationMin != null
+                            && securedOrder.approachDurationMin > judgmentCfg.unknown.pickupOffsetMin)
+                            tags.push('통화 필수 — 무통보 상차 한계 밖');
+                        if (dwell.hasUnknown) tags.push('정차 미확인(일반값)');
+                        const dry = scoreDryRun({
+                            kind: 'first', fare: securedOrder.fare, totalMinutes: total,
+                            gates: [], tags,
+                        }, judgmentCfg);
+                        console.log(`   - 🎨 [판정] ${describeDryRun(dry)}`);
+                        (dry.color === '똥' || dry.color === '사고' ? reasons : pros)
+                            .push(`총점 ${dry.score}점 — ${dry.axes.map(a => `${a.name} ${a.raw}`).join(' · ')}`);
 
-                        // 관제웹 카드가 이 문자열의 '꿀'/'똥' 표식으로 색을 정한다 (합짐 timeExt 와 같은 규약)
+                        // 스냅샷 — 심사 1회 저장, 불변 (카드 접이·채점 회귀가 읽는다)
+                        OrderRepository.saveJudgment(securedOrder.id, userId, dry);
+                        (securedOrder as any).judgment = dry;
+
+                        // 관제웹 카드가 이 문자열의 '꿀'/'똥'/'사고' 표식으로 색을 정한다 (합짐 timeExt 와 같은 규약)
                         timeExt = `추천거리 ${securedOrder.kakaoSoloDistanceKm}km, 소요 ${securedOrder.kakaoSoloDurationMin}분`
                             + (securedOrder.approachDurationMin ? ` (상차지까지 ${securedOrder.approachDurationMin}분)` : '')
-                            + ` ${soloMark} · ${soloVerdict.score}점`;
-
-                        // 🧪 새 판정 병행 (dryRun) — 첫짐은 시급 축 (확정안 v2). 로그 한 줄뿐.
-                        try {
-                            const dwell = totalDetourCost(0, securedOrder.id, session.judgment.unknown);
-                            const total = securedOrder.totalDurationMin != null
-                                ? securedOrder.totalDurationMin + dwell.dwell : null;
-                            const tags: string[] = [];
-                            if (securedOrder.approachDurationMin != null
-                                && securedOrder.approachDurationMin > session.judgment.unknown.pickupOffsetMin)
-                                tags.push('통화 필수 — 무통보 상차 한계 밖');
-                            if (dwell.hasUnknown) tags.push('정차 미확인(일반값)');
-                            const dry = scoreDryRun({
-                                kind: 'first', fare: securedOrder.fare, totalMinutes: total,
-                                gates: [], tags,
-                            }, session.judgment);
-                            console.log(`   - 🧪 [dryRun] ${describeDryRun(dry)}`);
-                        } catch (e) {
-                            console.log(`   - 🧪 [dryRun] 계산 실패: ${(e as Error).message}`);
-                        }
+                            + ` '${dry.color}' · ${dry.score}점`;
 
                         console.log(`   - 🗺️ 궤적 길이 (Solo): ${securedOrder.routePolyline?.length || '없음'}`);
                     } else {
@@ -186,63 +181,23 @@ export class OrderEvaluator {
                         const distDiff = parseFloat(result.distDiffKm);
 
                         /**
-                         * 🔴 **색을 정하는 곳은 `shared/judgment.ts` 하나뿐이다** (2026-08-15).
-                         *
-                         * 예전에는 여기서 직접 임계값을 비교했고, 재탐색(`recalculateKakaoRoute`)은
-                         * **자기 숫자(10km/30분)** 를 따로 갖고 있었다 — 같은 콜이 재탐색만 해도
-                         * 색이 바뀌었다. 이제 둘 다 `scoreMerge()` 를 부른다.
-                         *
-                         * [Phase 8.4] 우회 허용치는 **실린 짐의 마감 시각**에서 구한다.
-                         * 기사님: *"오후 2시에 콜을 잡았는데 5시까지는 와야 한다든지 하는 정보가
-                         * 있어야 할 것 같아. 그래야 합짐을 잡을 수 있을 듯."*
-                         *
+                         * 🎨 **합짐 판정 = 확정안 v2 채점기** (문제지 4/4 통과 후 전환 · 2026-08-21).
+                         * 🔴 절대치 문턱(scoreMerge)은 철거 — 노하우 14·15·16을 "+75/+122/+162분
+                         *    초과 똥"으로 낙제시키던 자리다. 우회의 절대 크기는 딱지(사실)로만 남는다.
                          * 🔴 카카오의 `timeDiffMin` 은 **주행 delta 뿐**이라 상하차를 더해야 한다.
                          */
-                        const slackLimit = computeAllowedDetour(userId, session, Date.now(), session.judgment.unknown,
-                            // 🏗️ 옛 판정 경로 잔재 — 여유·휴게는 두 시계로 폐기됐다(⑯). 새 판정(dryRun)으로
-                            //    대체될 때까지 DEFAULT 상수로 물려 둔다 (판정 기준 탭 값 아님)
-                            { pickupOffsetMinutes: session.judgment.unknown.pickupOffsetMin,
-                              restMarginMinutes: DEFAULT_DEADLINE_RULES.restMarginMinutes,
-                              arrivalMarginMinutes: DEFAULT_DEADLINE_RULES.arrivalMarginMinutes });
-                        const cost = totalDetourCost(result.timeDiffMin, securedOrder.id, session.judgment.unknown);
+                        const cost = totalDetourCost(result.timeDiffMin, securedOrder.id, judgmentCfg.unknown);
 
                         const slotsTotal = TRUCK_CAPACITY_SLOTS;
                         const slotsUsed = session.activeFilter.slotsUsed ?? 0;
 
-                        const verdict = scoreMerge({
-                            driveDiffMin: result.timeDiffMin,
-                            detourKm: distDiff,
-                            dwellMin: cost.dwell,
-                            dwellAssumed: cost.hasUnknown,
-                            detourBufferMin: slackLimit,
-                            slotsFree: Math.max(0, slotsTotal - slotsUsed),
-                            slotsTotal,
-                        }, session.judgment);   // 🎯 DB 에서 온 기준 (기본값이 아니다)
-
-                        recommend = `'${verdict.color}'`;
-                        console.log(`   - 🎯 [판정] ${describeJudgment(verdict)}`);
-
-                        if (verdict.blocked) reasons.push(verdict.blocked);
-                        else if (verdict.color === '똥') {
-                            const worst = [...verdict.parts].sort((a, b) => a.score - b.score)[0];
-                            reasons.push(`총점 ${verdict.score}점 — 가장 나쁜 요소: ${worst.name} ${worst.raw}`);
-                        } else {
-                            pros.push(`총점 ${verdict.score}점 — ${verdict.parts.map(p => `${p.name} ${p.raw}`).join(' · ')}`);
-                        }
-
-                        // 함께 실을 수 없는 화물인지 (위험물 + 식료품 등)
+                        // 함께 실을 수 없는 화물인지 (위험물 + 식료품 등) — 문지기 재료
                         const conflicts = findLoadConflicts(userId, session, securedOrder.id);
                         for (const [a, b] of conflicts) {
                             reasons.push(`동승 불가: 실린 화물(${a}) + 이 화물(${b})`);
-                            recommend = "'똥'";
                         }
 
-                        /**
-                         * 🧪 **새 판정 병행 (dryRun)** — 판정색_확정안 v2. 화면은 옛 색 그대로,
-                         * 이 결과는 로그 한 줄뿐이다. 문제지(13~16) 캘리브레이션이 끝나면 전환.
-                         * 실패해도 심사를 막지 않는다 — try 로 감싼다.
-                         */
-                        try {
+                        {
                             const secStops = (result.merged as any).sectionStops as
                                 Array<{ orderId: string; stopType: 'pickup' | 'dropoff' }> | undefined;
                             const secMins = result.merged.sectionDriveMin;
@@ -251,8 +206,8 @@ export class OrderEvaluator {
                                 : [];
                             const rules = {
                                 ...DEFAULT_DEADLINE_RULES,
-                                pickupOffsetMinutes: session.judgment.unknown.pickupOffsetMin,
-                                deadlineRatioPct: session.judgment.deadline.ratioPct,
+                                pickupOffsetMinutes: judgmentCfg.unknown.pickupOffsetMin,
+                                deadlineRatioPct: judgmentCfg.deadline.ratioPct,
                             };
                             // 후보를 **포함한** 경로의 타임라인 — 기존 콜 약속이 어떻게 되는지가 문지기다
                             const tlAfter = stopsAfter.length
@@ -302,7 +257,7 @@ export class OrderEvaluator {
                                 ? Math.round((result.merged.distance / 1000 - prevKm) * 10) / 10 : distDiff;
                             const tags = [`우회 ${marginal > 0 ? '+' : ''}${marginal}분 · ${marginalKm > 0 ? '+' : ''}${marginalKm}km`];
                             const candPickup = tlAfter.find(e => e.orderId === securedOrder.id && e.stopType === 'pickup');
-                            const clockMs = Date.now() + session.judgment.unknown.pickupOffsetMin * 60_000;
+                            const clockMs = Date.now() + judgmentCfg.unknown.pickupOffsetMin * 60_000;
                             if (candPickup?.etaMs != null && candPickup.etaMs > clockMs) tags.push('통화 필수 — 무통보 상차 한계 밖');
                             if (cost.hasUnknown) tags.push('정차 미확인(일반값)');
                             if (!bufAfter) tags.push('버퍼 잴 약속 없음');
@@ -314,25 +269,26 @@ export class OrderEvaluator {
                                 slotsFreePct: slotsTotal > 0
                                     ? (Math.max(0, slotsTotal - slotsUsed) / slotsTotal) * 100 : null,
                                 gates, tags,
-                            }, session.judgment);
-                            console.log(`   - 🧪 [dryRun] ${describeDryRun(dry)}`);
-                        } catch (e) {
-                            console.log(`   - 🧪 [dryRun] 계산 실패: ${(e as Error).message}`);
+                            }, judgmentCfg);
+                            console.log(`   - 🎨 [판정] ${describeDryRun(dry)}`);
+
+                            const failedGates = dry.gates.filter(g => !g.pass);
+                            if (failedGates.length) reasons.push(...failedGates.map(g => g.why ?? g.name));
+                            (dry.color === '똥' || dry.color === '사고' ? reasons : pros)
+                                .push(`총점 ${dry.score}점 — ${dry.axes.map(a => `${a.name} ${a.raw}`).join(' · ')}`);
+
+                            // 스냅샷 — 심사 1회 저장, 불변 (카드 접이·채점 회귀가 읽는다)
+                            OrderRepository.saveJudgment(securedOrder.id, userId, dry);
+                            (securedOrder as any).judgment = dry;
+                            recommend = `'${dry.color}'`;
+
+                            /**
+                             * 🔴 관제웹 카드가 이 문자열의 표식('꿀'/'똥'/'사고')으로 색을 정한다.
+                             *    우회 분·km 는 **한계 기준** — 첫짐 단독 대비 누적(카카오 delta)을
+                             *    적으면 나중 후보가 부풀려 보인다 (문제지 캘리브레이션 1차).
+                             */
+                            timeExt = `${marginalKm > 0 ? '+' : ''}${marginalKm}km, ${marginal > 0 ? '+' : ''}${marginal}분 ${recommend} · ${dry.score}점`;
                         }
-
-                        // 🔴 우회거리를 따로 또 판정하던 블록을 지웠다 — 이제 `scoreMerge` 안에서
-                        //    다른 요소와 **가중치로 섞인다.** 예전에는 `OR` 라 거리 하나만 넘어도
-                        //    시간과 무관하게 똥이 됐다 (`+31.1km` 콜이 그렇게 걸렸다).
-
-                        const signDist = distDiff > 0 ? "+" : "";
-                        const signTime = result.timeDiffMin > 0 ? "+" : "";
-                        /**
-                         * 🔴 관제웹 카드가 이 문자열을 읽어 **색을 정한다**(`'꿀'`·`'똥'` 표식).
-                         *    그래서 표식은 그대로 두고 **총점만 덧붙인다** — 기사님이 색을 믿고
-                         *    바로 누르시되, 숫자가 궁금하면 바로 보이게 (규칙 ⑤-3).
-                         *    요소별 상세는 서버 로그의 `🎯 [판정]` 한 줄에 다 있다.
-                         */
-                        timeExt = `${signDist}${distDiff}km, ${signTime}${result.timeDiffMin}분 ${recommend} · ${verdict.score}점`;
                         securedOrder.routePolyline = result.merged.polyline;
                         securedOrder.totalDistanceKm = result.merged.distance / 1000;
                         securedOrder.totalDurationMin = Math.round(result.merged.duration / 60);

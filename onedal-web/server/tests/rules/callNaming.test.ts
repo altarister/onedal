@@ -64,35 +64,8 @@ describe('콜 이름 — 조합 규칙', () => {
 });
 
 /**
- * 🔴 **마감이 어느 정거장의 것이냐에 따라 빼는 시간이 다르다** (2026-08-16 실측)
- *
- * 기사님이 `목적지콜` 의 상차지와 통화해 *"05:49까지 상차지 도착"* 을 넣으시자,
- * 서버가 거기서 **전체 주행 82분**(상차지→하차지)을 빼 **여유 −71분**을 만들었다.
- * *"상차하러 가는 데 하차까지의 시간이 걸린다"* 고 센 셈이다.
- * 그 결과 그 뒤로 온 `목적지 합짐1 후보콜` 이 **전부 막혔다.**
+ * 🎨 `computeAllowedDetour`(마감 구분 — 상차엔 접근만·하차엔 전부) 검사는 함수 철거와
+ * 함께 걷었다 (판정색 확정안 v2 전환 · 2026-08-21). 그 교훈("빼는 값이 정거장마다
+ * 다르다")은 timing.ts 의 두 시계 검사(timelineDeadlineCap 등)가 잇는다.
  */
-describe('마감 — 상차 약속과 하차 약속을 구분한다', () => {
 
-    const h = codeOnly(read('core/helpers.ts'));
-    const fn = h.slice(h.indexOf('export function computeAllowedDetour'), h.indexOf('/** 한 콜의 상·하차'));
-
-    it('🔴 하차 약속에는 전체 주행 + 상하차를 뺀다', () => {
-        expect(fn).toMatch(/drop\?\.deadlineAt[\s\S]*?totalDurationMin[\s\S]*?totalDwell/);
-    });
-
-    it('🔴 상차 약속에는 **상차지까지 가는 시간만** 뺀다', () => {
-        const pickBlock = fn.slice(fn.indexOf('if (pick?.deadlineAt)'));
-        expect(pickBlock).toMatch(/approachDurationMin/);
-        expect(pickBlock).toMatch(/pickupDwell/);
-        expect(pickBlock).not.toMatch(/totalDurationMin/);   // 전체 주행을 빼면 안 된다
-    });
-
-    it('🔴 이미 상차했으면 상차 약속은 보지 않는다 (지난 일이다)', () => {
-        expect(fn).toMatch(/ORDER_PICKED_UP.*return null/s);
-    });
-
-    it('🔴 접근 시간을 모르면 0 이 아니라 null 이다 (지어내지 않는다)', () => {
-        const pickBlock = fn.slice(fn.indexOf('if (pick?.deadlineAt)'));
-        expect(pickBlock).toMatch(/approach === undefined \|\| approach === null\) return null/);
-    });
-});

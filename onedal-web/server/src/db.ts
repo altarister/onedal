@@ -413,6 +413,23 @@ db.exec(`
 ensureColumns('user_judgment', JUDGMENT_COLS);
 
 /**
+ * 🎨 **판정 스냅샷** — 색은 심사 순간의 결정이고 불변이다 (판정색 확정안 v2 ③ · 기사님 확정).
+ * 지금까지 판정은 소켓으로만 날아가 새로고침하면 근거가 사라졌다 (화면은 메모리, 장부는 빔 —
+ * 버그 대장 #4·6·8·15 클래스). 카드 접이와 문제지 채점 회귀가 이걸 읽는다.
+ * ⚠️ orders FK 없음 — 심사는 KEEP 전이라 orders 행이 아직 없다 (steps 의 FK 교훈).
+ */
+db.exec(`
+    CREATE TABLE IF NOT EXISTS order_judgments (
+        orderId  TEXT PRIMARY KEY,
+        userId   TEXT NOT NULL,
+        color    TEXT NOT NULL CHECK(color IN ('꿀', '보통', '똥', '사고')),
+        score    INTEGER NOT NULL,
+        detail   TEXT NOT NULL,
+        judgedAt TEXT NOT NULL
+    )
+`);
+
+/**
  * 🎛️ **콜 옵션** — 화면의 선택지와 그 값 (2026-08-20 신설).
  *
  * 컬럼 목록은 `shared/src/callOptions.ts` 의 `CALL_OPTION_COLUMNS` 가 유일한 원천이다.

@@ -179,6 +179,26 @@ export class OrderRepository {
     }
 
     /**
+     * 🎨 판정 스냅샷 — **심사 시 1회 저장, 불변** (판정색 확정안 v2 ③).
+     * 재심사(재탐색)가 와도 덮지 않는다 — INSERT OR IGNORE. 색이 나중에 바뀌면
+     * "믿고 눌렀는데"가 무너진다 (기사님 확정 ④).
+     */
+    public static saveJudgment(orderId: string, userId: string,
+        v: { color: string; score: number; axes: unknown; gates: unknown; tags: unknown }) {
+        db.prepare(`INSERT OR IGNORE INTO order_judgments (orderId, userId, color, score, detail, judgedAt)
+                    VALUES (?, ?, ?, ?, ?, ?)`)
+          .run(orderId, userId, v.color, v.score,
+               JSON.stringify({ axes: v.axes, gates: v.gates, tags: v.tags }), new Date().toISOString());
+    }
+
+    public static getJudgment(orderId: string):
+        { color: string; score: number; detail: any; judgedAt: string } | null {
+        const r = db.prepare(`SELECT color, score, detail, judgedAt FROM order_judgments WHERE orderId = ?`)
+                    .get(orderId) as any;
+        return r ? { ...r, detail: JSON.parse(r.detail) } : null;
+    }
+
+    /**
      * 수동 취소 등 상태값을 변경합니다.
      */
     public static updateOrderStatus(orderId: string, userId: string, status: string) {

@@ -1,7 +1,7 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 import { JUDGMENT_FIELDS, judgmentDefaults, judgmentFromRow, judgmentToRow,
-         DEFAULT_JUDGMENT, scoreMerge, dwellMinutes } from "@onedal/shared";
+         DEFAULT_JUDGMENT, scoreDryRun, dwellMinutes } from "@onedal/shared";
 
 const read = (rel: string) => readFileSync(join(__dirname, "../../src", rel), "utf8");
 const codeOnly = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
@@ -38,12 +38,12 @@ describe('판정 기준 — 표 하나가 DB·화면·기본값을 다 만든다
 
     it('값이 비었거나 이상하면 기본값으로 메운다 (지어내지 않는다)', () => {
         expect(judgmentFromRow(null)).toEqual(DEFAULT_JUDGMENT);
-        expect(judgmentFromRow({ merge_honey_max_minutes: 'abc' }).merge.honeyMaxMin)
-            .toBe(DEFAULT_JUDGMENT.merge.honeyMaxMin);
+        expect(judgmentFromRow({ target_hourly_krw: 'abc' }).target.hourlyKrw)
+            .toBe(DEFAULT_JUDGMENT.target.hourlyKrw);
     });
 
     it('🔴 범위를 벗어난 값은 잘라 넣는다 (음수 가중치로 색이 뒤집히지 않게)', () => {
-        expect(judgmentFromRow({ weight_drive_time: -5 }).weights.driveTime).toBe(0);
+        expect(judgmentFromRow({ weight_revenue_detour: -5 }).weights.revenueDetour).toBe(0);
         expect(judgmentFromRow({ color_honey_min: 999 }).color.honeyMin).toBe(100);
     });
 
@@ -58,13 +58,13 @@ describe('판정 기준 — 표 하나가 DB·화면·기본값을 다 만든다
 
 describe('DB 값이 실제로 색을 바꾼다', () => {
 
-    const 콜 = { driveDiffMin: 6, detourKm: 1.1, dwellMin: 25, dwellAssumed: true,
-                detourBufferMin: null, slotsFree: 3, slotsTotal: 5 };
+    const 콜 = { kind: 'merge' as const, fare: 99_000, detourExtraMin: 31,
+                bufferAfterMin: null, slotsFreePct: 60, gates: [], tags: [] };
 
     it('🔴 기준을 빡빡하게 바꾸면 같은 콜의 색이 바뀐다', () => {
-        expect(scoreMerge(콜).color).toBe('꿀');
+        expect(scoreDryRun(콜, DEFAULT_JUDGMENT).color).toBe('꿀');
         const 빡빡 = judgmentFromRow({ ...judgmentToRow(DEFAULT_JUDGMENT), color_honey_min: 99 });
-        expect(scoreMerge(콜, 빡빡).color).not.toBe('꿀');
+        expect(scoreDryRun(콜, 빡빡).color).not.toBe('꿀');
     });
 
     it('🔴 상하차 일반값을 바꾸면 계산이 따라온다 (DB 컬럼이 죽어 있지 않다)', () => {
@@ -88,14 +88,17 @@ describe('세션이 DB 값을 읽고, 판정이 그 값을 쓴다', () => {
         expect(store).toMatch(/session\.judgment/);
     });
 
-    it('🔴 판정이 기본값이 아니라 **세션 값**을 쓴다 (두 곳 모두)', () => {
-        expect(codeOnly(read('core/engine/OrderEvaluator.ts'))).toMatch(/\}, session\.judgment\)/);
-        expect(codeOnly(read('services/dispatchEngine.ts'))).toMatch(/\}, session\.judgment\)/);
+    it('🔴 판정이 기본값이 아니라 **세션 값**을 쓴다', () => {
+        const ev = codeOnly(read('core/engine/OrderEvaluator.ts'));
+        expect(ev).toMatch(/judgmentCfg = session\.judgment/);
+        expect(ev).toMatch(/\}, judgmentCfg\)/);
+        // 재탐색은 색을 다시 정하지 않는다 — 스냅샷 고정 (확정 ④). 채점 호출이 없어야 한다
+        expect(codeOnly(read('services/dispatchEngine.ts'))).not.toMatch(/scoreDryRun|scoreMerge/);
     });
 
     it('🔴 상하차 일반값도 세션 값을 타고 내려간다', () => {
         expect(codeOnly(read('core/engine/OrderEvaluator.ts')))
-            .toMatch(/totalDetourCost\([^)]*session\.judgment\.unknown\)/);
+            .toMatch(/totalDetourCost\([^)]*judgmentCfg\.unknown\)/);
     });
 
     it('🔴 컬럼 목록을 db.ts 가 손으로 적지 않는다 (표에서 뽑는다)', () => {

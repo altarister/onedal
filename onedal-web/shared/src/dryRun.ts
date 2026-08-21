@@ -52,10 +52,7 @@ export interface DryRunInput {
     gates: DryRunGate[];
     /** 판단 없는 사실 딱지 — 서버가 조립해 넘긴다 */
     tags: string[];
-    /**
-     * 시급 목표(원/시간). 🔴 dryRun 전용 임시값 — 기사님 확정: "캘리브레이션 결과를
-     * 보고 정한다". DB 칸(`target_hourly_krw`)은 화면 전환 때 만든다.
-     */
+    /** 시급 목표(원/시간). 생략하면 판정 기준 탭의 `target.hourlyKrw` (캘리브레이션으로 3.0만 확정) */
     targetHourlyKrw?: number;
 }
 
@@ -69,13 +66,13 @@ export interface DryRunVerdict {
     tags: string[];
 }
 
-const TEMP_TARGET_HOURLY = 30_000;   // 16-6 실측 역산(4콜 14.1만 ÷ ≈4.5h) — 로그 전용
-
 const clamp = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
 const manwon = (krw: number) => (krw / 10_000).toFixed(1);
 
 export function scoreDryRun(input: DryRunInput, cfg: JudgmentConfig): DryRunVerdict {
-    const target = input.targetHourlyKrw ?? TEMP_TARGET_HOURLY;
+    // 🎯 기준은 전부 판정 기준 탭(DB)에서 — 기본값의 원천은 DB 다 (규칙 ③)
+    const target = input.targetHourlyKrw ?? cfg.target.hourlyKrw;
+    const w = cfg.weights;
     const axes: DryRunAxis[] = [];
 
     if (input.kind === 'merge') {
@@ -84,12 +81,12 @@ export function scoreDryRun(input: DryRunInput, cfg: JudgmentConfig): DryRunVerd
             const hourly = (input.fare / input.detourExtraMin) * 60;
             axes.push({
                 key: 'revenuePerDetour', name: '순증 대비 우회',
-                score: clamp((hourly / target) * 100), weight: 1,
+                score: clamp((hourly / target) * 100), weight: w.revenueDetour,
                 raw: `${manwon(input.fare)}만 ÷ ${input.detourExtraMin}분 = ${manwon(hourly)}만/h`,
             });
         } else if (input.detourExtraMin != null) {
             // 우회 0분 이하 — 길목 콜. 공짜 순증이므로 만점
-            axes.push({ key: 'revenuePerDetour', name: '순증 대비 우회', score: 100, weight: 1,
+            axes.push({ key: 'revenuePerDetour', name: '순증 대비 우회', score: 100, weight: w.revenueDetour,
                         raw: `우회 ${input.detourExtraMin}분 — 길목` });
         }
 
@@ -99,14 +96,14 @@ export function scoreDryRun(input: DryRunInput, cfg: JudgmentConfig): DryRunVerd
             const score = a >= 30 ? 100 : a >= 0 ? 40 + 2 * a : 0;
             const spent = input.bufferBeforeMin != null ? input.bufferBeforeMin - a : null;
             axes.push({
-                key: 'bufferCost', name: '버퍼 소비', score: clamp(score), weight: 1,
+                key: 'bufferCost', name: '버퍼 소비', score: clamp(score), weight: w.bufferCost,
                 raw: `${spent != null ? `소비 ${spent}분 → ` : ''}최소 ${a >= 0 ? '+' : ''}${a}분`,
             });
         }
         // ── 적재 (합짐만) — 남을수록 다음 합짐 여지가 크다 (옛 축 보존).
         //    첫짐은 빈 차라 늘 ~만점이 되어 시급 축을 희석한다 — 축에서 빼고 사실만 안다
         if (input.slotsFreePct != null) {
-            axes.push({ key: 'loadCapacity', name: '적재', score: clamp(input.slotsFreePct), weight: 1,
+            axes.push({ key: 'loadCapacity', name: '적재', score: clamp(input.slotsFreePct), weight: w.slots,
                         raw: `여유 ${Math.round(input.slotsFreePct)}%` });
         }
     } else {
@@ -114,7 +111,7 @@ export function scoreDryRun(input: DryRunInput, cfg: JudgmentConfig): DryRunVerd
         if (input.totalMinutes != null && input.totalMinutes > 0) {
             const hourly = (input.fare / input.totalMinutes) * 60;
             axes.push({
-                key: 'hourlyRate', name: '시급', score: clamp((hourly / target) * 100), weight: 1,
+                key: 'hourlyRate', name: '시급', score: clamp((hourly / target) * 100), weight: w.revenueDetour,
                 raw: `${manwon(input.fare)}만 ÷ ${input.totalMinutes}분 = ${manwon(hourly)}만/h`,
             });
         }

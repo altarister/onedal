@@ -2,7 +2,7 @@ import { decideNextTargetAfterCycle, mapVehicleToKakaoCarType, getRemainingCapac
          MILESTONE_TO_STATUS, MILESTONE_LABEL, canReportMilestone, timingError,
          RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, UNFINISHED_RESTORE_DAYS, deriveStatusFromMilestones,
          restoreWindow, getEffectiveDetourRadius, DEFAULT_DETOUR_RADIUS_KM,
-         CALL_TARGET_LABEL, scoreMerge, describeJudgment, TRUCK_CAPACITY_SLOTS, isEvaluating , DEFAULT_DEADLINE_RULES } from "@onedal/shared";
+         CALL_TARGET_LABEL, isEvaluating } from "@onedal/shared";
 import type { SecuredOrder, AutoDispatchFilter, PricingConfig, PendingOrder, MyOrder,
               Milestone, MilestoneSource, CallTarget } from "@onedal/shared";
 import { geocodeAddress, calculateSoloRoute, calculateDetourRoute, compareDirections } from "./kakaoService";
@@ -21,7 +21,7 @@ import { SettingsRepository } from "../repositories/SettingsRepository";
 import { PricingEngine } from "../core/engine/PricingEngine";
 import { OrderEvaluator } from "../core/engine/OrderEvaluator";
 import { StateMachine } from "../core/engine/StateMachine";
-import { getActiveCalls, buildOrderSync, setOrderStatus, totalDetourCost, computeAllowedDetour } from "../core/helpers";
+import { getActiveCalls, buildOrderSync, setOrderStatus } from "../core/helpers";
 
 /**
  * 장소명 정규화 (공백 및 주식회사 텍스트 제거)
@@ -261,29 +261,19 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
             let signTime = Number(result.timeDiffMin) > 0 ? "+" : "";
 
             /**
-             * 🔴 **색은 `shared/judgment.ts` 한 곳에서만 정한다** (2026-08-15).
+             * 🎨 **색은 심사 1회 고정이다 — 재탐색은 색을 다시 정하지 않는다**
+             * (판정색 확정안 v2 ③·④ · 기사님 확정 2026-08-21).
              *
-             * 예전에는 여기가 **자기 숫자**를 갖고 있었다 —
-             *     `distDiffKm > 10 || timeDiffMin > 30  →  💩`
-             * 최초 평가(`OrderEvaluator`)는 `60분 / 30km` 기준인데 여기는 `30분 / 10km` 였다.
-             * **같은 콜이 재탐색만 해도 색이 바뀌었다.** 이 레포의 반복 실패(같은 판단 두 곳) 그대로다.
+             * 예전에는 여기가 scoreMerge 를 다시 불러 **재탐색만 해도 색이 바뀔 수** 있었다.
+             * "파란색이면 믿고 누른다" — 누른 뒤 색이 바뀌면 그 신뢰가 무너진다.
+             * 심사 순간의 스냅샷(order_judgments)을 읽어 그대로 쓴다.
              */
-            const reVerdict = scoreMerge({
-                driveDiffMin: Number(result.timeDiffMin),
-                detourKm: Number(result.distDiffKm),
-                dwellMin: totalDetourCost(0, securedOrder.id, session.judgment.unknown).dwell,
-                dwellAssumed: totalDetourCost(0, securedOrder.id, session.judgment.unknown).hasUnknown,
-                detourBufferMin: computeAllowedDetour(userId, session, Date.now(), session.judgment.unknown,
-                    // 🏗️ 옛 판정 경로 잔재 — dryRun 대체 예정 (⑯)
-                    { pickupOffsetMinutes: session.judgment.unknown.pickupOffsetMin,
-                      restMarginMinutes: DEFAULT_DEADLINE_RULES.restMarginMinutes,
-                      arrivalMarginMinutes: DEFAULT_DEADLINE_RULES.arrivalMarginMinutes }),
-                slotsFree: Math.max(0, TRUCK_CAPACITY_SLOTS - (session.activeFilter.slotsUsed ?? 0)),
-                slotsTotal: TRUCK_CAPACITY_SLOTS,
-            }, session.judgment);   // 🎯 재탐색도 **같은** 기준을 읽는다
-            const recommend = reVerdict.color === '꿀' ? "🍯 (꿀)"
-                            : reVerdict.color === '보통' ? "🚙 (양호)" : "💩 (패널티 🚨)";
-            console.log(`   - 🎯 [판정·재탐색] ${describeJudgment(reVerdict)}`);
+            const stored = OrderRepository.getJudgment(securedOrder.id);
+            const recommend = stored?.color === '꿀' ? "🍯 (꿀)"
+                            : stored?.color === '보통' ? "🚙 (양호)"
+                            : stored?.color === '똥' ? "💩"
+                            : stored?.color === '사고' ? "🚨 (사고)" : "";
+            if (stored) console.log(`   - 🎨 [재탐색] 색은 심사 스냅샷 고정 — ${stored.color} ${stored.score}점`);
 
             let paramLabel = "추천";
             if (priority === "TIME") paramLabel = "최단시간";

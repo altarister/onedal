@@ -589,6 +589,17 @@ export interface SecuredOrder extends OfficeOrder {
     status: OrderStatus;                  // 단일 통합 라이프사이클 상태
     capturedDeviceId: string;
     capturedAt: string;
+    /**
+     * 🎨 판정 스냅샷 (판정색 확정안 v2) — 심사 1회, 불변. 심사 카드가 조건 전수를
+     * 이걸로 그린다. import 순환을 피해 타입만 구조로 적는다 (dryRun.ts 의 DryRunVerdict)
+     */
+    judgment?: {
+        color: '꿀' | '보통' | '똥' | '사고';
+        score: number;
+        axes: Array<{ key: string; name: string; score: number; weight: number; raw: string }>;
+        gates: Array<{ key: string; name: string; pass: boolean; why: string | null }>;
+        tags: string[];
+    };
     kakaoCalculatedFare?: number;
     kakaoTimeExt?: string;
     routePolyline?: Array<{ x: number; y: number }>;

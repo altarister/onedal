@@ -2,9 +2,9 @@
  * 공통 헬퍼 함수 — 전체 서버에서 한 곳에서만 정의합니다.
  */
 import { isTerminal, cargoPoints, VEHICLE_CAPACITY, normalizeVehicleType,
-         computeSlackMinutes, allowedDetourMinutes, findTagConflicts,
-         computeStopTiming, deriveCallTiming, DEFAULT_DEADLINE_RULES } from '@onedal/shared';
-import type { MyOrder, CargoReport, CapacityConfidence, DwellUnknown, DeadlineRules } from '@onedal/shared';
+         findTagConflicts,
+         computeStopTiming } from '@onedal/shared';
+import type { MyOrder, CargoReport, CapacityConfidence, DwellUnknown } from '@onedal/shared';
 import { OrderRepository } from '../repositories/OrderRepository';
 import { planArrivalStops } from '../services/routeComposer';
 
@@ -72,79 +72,10 @@ export function computeLoadedPoints(
 }
 
 /**
- * [Phase 8.4] 지금 실린 짐들의 마감을 지키면서 **추가로 우회할 수 있는 시간**(분).
- *
- * 하나라도 지각하면 안 되므로 **가장 촉박한 짐 기준**이다.
- * 마감을 아는 짐이 없으면 `null` — 호출부가 기존 고정 상수로 폴백한다.
- * (모르는 것을 "여유가 많다"고 가정하면 지각한다)
+ * 🎨 `computeAllowedDetour`(옛 합짐 판정의 "우회 허용치")는 판정색 확정안 v2 전환으로
+ * 철거됐다 (2026-08-21) — 새 채점기는 버퍼 소비를 후보 포함 타임라인에서 직접 잰다.
+ * "상차 약속엔 접근만, 하차 약속엔 전부를 뺀다"는 교훈은 timing.ts 의 두 시계가 잇는다.
  */
-export function computeAllowedDetour(
-    userId: string,
-    session: { myOrders: MyOrder[] },
-    nowMs: number = Date.now(),
-    unk?: DwellUnknown,
-    /** 마감을 만드는 규칙 — 기사님이 「판정 기준」 탭에서 바꾸신 값 */
-    rules: DeadlineRules = DEFAULT_DEADLINE_RULES,
-): number | null {
-    const slacks = getActiveCalls(session).map(call => {
-        const reports = OrderRepository.getCargoReports(call.id);
-        const drop = reports.find(r => r.stopType === 'dropoff' && r.deadlineAt);
-        const pick = reports.find(r => r.stopType === 'pickup' && r.deadlineAt);
-        const timing = getStopTiming(call.id, unk);
-
-        /**
-         * 🔴 **마감이 어느 정거장의 것이냐에 따라 빼는 시간이 다르다** (2026-08-16 실측).
-         *
-         * 예전에는 어느 마감이든 **전체 주행**(상차지→하차지)을 뺐다. 그래서 기사님이
-         * `목적지콜` 의 상차지와 통화해 *"05:49까지 상차지 도착"* 을 넣으시자,
-         * 서버가 거기서 전체 주행 82분을 빼 **여유 −71분**을 만들었다 —
-         * *"상차하러 가는 데 하차까지의 시간이 걸린다"* 고 센 셈이다.
-         * 그 결과 **그 뒤로 온 `노선 합짐1 후보콜` 이 전부 막혔다.**
-         *
-         *   하차 약속 → 하차까지 남은 **전부** (주행 + 상하차 두 번)
-         *   상차 약속 → **상차지까지 가는 시간만** (approach)
-         */
-        if (drop?.deadlineAt) {
-            return computeSlackMinutes(drop.deadlineAt, (call.totalDurationMin || 0) + timing.totalDwell, nowMs);
-        }
-
-        /**
-         * 🔴 **통화 마감이 없어도 추정 마감으로 센다** (기사님 2026-08-16).
-         *
-         * 예전에는 통화 기록에 마감이 없으면 `null` 을 돌려주고, 호출부가 `90분` 상수로 때웠다.
-         * 기사님: *"여유 90분으로 퉁치니 문제가 발생하는 거야."*
-         * **여유는 입력값이 아니라 마감에서 계산해 나오는 값**이다 —
-         * 마감이 없으면 **규칙으로 만든다**(잡은 시각+60분 → 상차 마감 → +주행+30분 → 하차 마감).
-         */
-        if (!drop?.deadlineAt && !pick?.deadlineAt) {
-            const t = deriveCallTiming(call as any, reports, [], nowMs, rules);
-            if (t.dropoffDeadlineAt) {
-                return computeSlackMinutes(
-                    t.dropoffDeadlineAt, (call.totalDurationMin || 0) + timing.totalDwell, nowMs);
-            }
-            return null;   // 잡은 시각도 주행도 모른다 — 셀 근거가 없다
-        }
-
-        if (pick?.deadlineAt) {
-            /**
-             * 🔴 **이미 상차한 콜의 상차 약속은 지난 일이다.** 볼 것이 없다 —
-             *    남은 일은 하차뿐이고, 그 마감은 위에서 봤다 (`isAlreadyLoaded` 와 같은 줄기).
-             */
-            if (call.status === 'ORDER_PICKED_UP') return null;
-
-            /**
-             * ⚠️ 접근 시간을 모르면 **`0` 으로 가정하지 않는다** — 그러면 "이미 상차지에 서 있다"는
-             *    뜻이 되어 여유를 크게 잡고 지각한다. 모르면 `null`(모른다)이다 (규칙 ④).
-             */
-            const approach = call.approachDurationMin;
-            if (approach === undefined || approach === null) return null;
-            return computeSlackMinutes(pick.deadlineAt, approach + timing.pickupDwell, nowMs);
-        }
-
-        return null;   // 이 콜은 마감을 모른다
-    });
-    return allowedDetourMinutes(slacks);
-}
 
 /** 한 콜의 상·하차 정차 시간 (신고된 단위·수량·방법 기준) */
 export function getStopTiming(orderId: string, unk?: DwellUnknown) {
