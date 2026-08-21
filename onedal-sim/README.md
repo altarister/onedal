@@ -22,8 +22,8 @@ cd onedal-sim && pnpm install && pnpm dev     # http://<PC IP>:5173
 복권을 긁어야 했다. 문제지는 정해진 콜을 **순서대로 한 문제씩** 흘린다.
 
 ```
-http://<PC IP>:5173/inseong/dispatch?preset=오탐
-http://<PC IP>:5173/hwamul24/dispatch?preset=오탐
+http://<PC IP>:5173/inseong/dispatch?preset=ohtam      ← 폰에서 치기 쉬운 영문 별칭
+http://<PC IP>:5173/hwamul24/dispatch?preset=오탐       ← 한글도 된다 (브라우저가 인코딩한다)
 ```
 
 `오탐` 문제지 (2026-08-22 실사고 재현 — 사전 확장 매칭 ④):

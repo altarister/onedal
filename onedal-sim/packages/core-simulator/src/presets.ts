@@ -94,7 +94,10 @@ export function toForcedPair(p: PresetProblem): ForcedPair | null {
     return { pickup, dropoff, fare: p.fare, vehicleType: p.vehicleType };
 }
 
+/** 폰에서 URL 을 손으로 칠 때 한글이 번거롭다 — 영문 별칭도 받는다 */
+const ALIASES: Record<string, string> = { ohtam: '오탐', mismatch: '오탐' };
+
 export function getPreset(name?: string | null): PresetProblem[] | null {
     if (!name) return null;
-    return PRESETS[name] ?? null;
+    return PRESETS[name] ?? PRESETS[ALIASES[name.toLowerCase()] ?? ''] ?? null;
 }
