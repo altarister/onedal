@@ -93,6 +93,28 @@ const PRESETS = [
      */
     { key: '12', label: '짧은 첫짐 · 광주 경안동 → 성남 판교 (4.5만/1t · 주행 ~30분) — ⏱️ 시한 깎임 확인',
       pickup: pick('경안동 204-5'), dropoff: pick('판교역로 235'), fare: 45000, vehicleType: '1t' },
+
+    /**
+     * 📼 **노하우 재현 — 소숙의 오전 4콜** (기사님 요청 2026-08-21).
+     *
+     * "(23) 퀵서비스 오전 픽업" 영상의 실제 콜 4개를 그대로 옮겼다. 두 시계 모델
+     * (상차 시계: 주선사 · 배달 시계: 상차부터 150%)을 우리 화면이 재현하는지 본다:
+     *   13 → 14 → 15 순서로 잡고, 첫 픽업 후 16을 잡으면 영상과 같은 아침이 된다.
+     *   확인할 것: 상차버퍼가 통화 전 ~30분 안팎으로 서는가 · 15번은 적요의
+     *   "10:00상차"가 상차 시계를 대체하는가 · 안중(14)의 배달 데드라인이 빠듯한가.
+     * ⚠️ 주소가 캐시 밖(서울·평택·용인)이라 첫 주입 때 카카오 지오코딩이 한 번씩 돈다.
+     *    콜 필터(파주 노선)에 막히면 "그래도 올릴까요"에 y — 영상 기사의 필터는 우리와 다르다.
+     */
+    { key: '13', label: '노하우① 서울 가산동 → 평택 진위면 (3만/승용차) — 잡고 43분 뒤 픽업했던 콜',
+      pickup: '서울 금천구 가산동', dropoff: '경기 평택시 진위면', fare: 30000, vehicleType: '승용차' },
+    { key: '14', label: '노하우② 영등포 양평동 → 평택 안중읍 (3.8만/승용차) — 블라인드("평택시")·배달 빠듯했던 콜',
+      pickup: '서울 영등포구 양평동', dropoff: '경기 평택시 안중읍', fare: 38000, vehicleType: '승용차',
+      memo: '평택 시내 (블라인드 — 실제는 안중읍)' },
+    { key: '15', label: '노하우③ 영등포 문래동 → 용인 상갈동 (3.5만/승용차) — 10시 예약, 통화로 9:50에 당김',
+      pickup: '서울 영등포구 문래동', dropoff: '경기 용인시 기흥구 상갈동', fare: 35000, vehicleType: '승용차',
+      memo: '10:00상차 예약' },
+    { key: '16', label: '노하우④ 가산 옆 3분 → 용인 지곡동 (3.5만/승용차) — 통화 0건이었던 콜 (첫 픽업 후 잡기)',
+      pickup: '서울 금천구 가산디지털단지', dropoff: '경기 용인시 기흥구 지곡동', fare: 35000, vehicleType: '승용차' },
 ];
 
 // ── 앱과 같은 규칙 (RouteOrderFilter.check 의 JS 판) — 올리기 전에 미리 알려 준다
@@ -271,7 +293,7 @@ async function inject(t) {
     const id = `REHEARSAL-${Date.now()}-${++seq}`;
     const order = {
         id, pickup: t.pickup, dropoff: t.dropoff, fare: t.fare, vehicleType: t.vehicleType,
-        timestamp: new Date().toISOString(), itemDescription: '리허설 콜',
+        timestamp: new Date().toISOString(), itemDescription: t.memo || '리허설 콜',
         // 앱이 2차 상세 화면에서 긁어 올리는 통짜 텍스트 — 서버가 여기서 연락처를 뽑는다
         rawText: buildRawText(t, seq),
     };
