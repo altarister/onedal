@@ -300,6 +300,13 @@ export function rememberDetourProgress(
 export function buildAppProgressKm(
     session: ReturnType<typeof getUserSession>,
 ): Record<string, number | null> {
+    /**
+     * 🔴 진행 중 경로가 없으면(활성 콜 0) 순서도 없다 (버그 대장 #39 · 2026-08-22).
+     * 옛 사이클의 진행도 잔재를 내려보내면 앱 RouteOrderFilter 가 "경로 밖 상차지
+     * 차단"을 **첫짐 탐색에** 발동한다 — 옛 경유 목록 밖 첫짐 후보가 전부 막힌다.
+     * 원천(경로)이 없으면 파생도 빈 것이다 (규칙 ③).
+     */
+    if (getActiveCalls(session).length === 0) return {};
     const progress = session.detourProgressKm;
     if (!progress) return {};
 
@@ -770,6 +777,12 @@ export function updateActiveFilter(
     // 실은 짐이 없으면 출발했을 리도 없다
     if (activeCount === 0 && session.departedAt) {
         session.departedAt = null;
+    }
+    // 경로가 끝났으면 진행도 잔재도 남기지 않는다 (#39 — departedAt 과 같은 수명.
+    // 함수 첫머리의 STANDBY 복귀 정리는 changes 로 온 전환만 보고, 불변식이 아래에서
+    // 파생으로 되돌리는 전환은 못 본다 — 그래서 여기서 데이터 기준으로 지운다)
+    if (activeCount === 0 && session.detourProgressKm) {
+        session.detourProgressKm = null;
     }
 
     const derivedPhase = deriveDispatchPhase(activeCount, !!session.departedAt);

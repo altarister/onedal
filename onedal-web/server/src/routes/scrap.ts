@@ -152,7 +152,13 @@ router.post("/", (req, res) => {
         // 앱의 InsungParser.loadCurrentFilter()는 이 키를 파싱조차 하지 않는다.
         // 그런데 응답의 27%(약 3.6KB)를 차지하며 매 하트비트마다 재전송되고 있었다.
         // 관제탑은 소켓(filter-updated)으로 별도 수신하므로 여기서 빼도 영향이 없다.
-        const { destinationGroups, ...appFilter } = session.activeFilter as any;
+        // 🧹 앱이 파싱하지 않는 키도 함께 뺀다 (2026-08-22 앱 Kotlin 전수 대조 —
+        //    앱이 읽는 것: isActive·isSharedMode·pickupRadiusKm·min/maxFare·destinationCity·
+        //    destinationRadiusKm·excluded/destinationKeywords·customCityFilters·
+        //    allowedVehicleTypes·ratePerKm·progressKm)
+        const { destinationGroups, dispatchPhase, driverAction, detourRadiusKm, callDiscountPct,
+                userOverrides, capacityConfidence, slotsUsed, callTarget,
+                ...appFilter } = session.activeFilter as any;
 
         // 🧭 경로 순서 맵 — 앱의 역주행·경로 밖 상차 차단 입력 (기사님 확정 2026-08-18)
         //    첫짐(경로 없음)이면 빈 객체라 앱이 순서 검사를 건너뛴다. +2.7KB (동 211개 기준)
