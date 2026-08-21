@@ -283,13 +283,14 @@ export function getUserSession(userId: string): UserSession {
                 // 오늘값 = 평소값의 독립 복사본 (자정에 되돌아간다)
                 session.phaseSettings = normalizePhaseSettings(JSON.parse(JSON.stringify(session.basePhaseSettings)));
 
-                // 🎛️ 병행 전환 (필터 확정안 v2) — 새 그릇이 비었으면 blob 값 그대로 이식,
-                //    있으면 비교해 어긋나면 ⚠️. require 지연 — filterManager ↔ 여기 순환 방지
+                // 🎛️ 전환 ③ (필터 확정안 v2) — **행이 읽기 원천.** 비었으면 blob 이식,
+                //    어긋나면 ⚠️ 후 행이 이긴다. require 지연 — filterManager ↔ 여기 순환 방지
                 try {
-                    const { ensurePhaseRows } = require('./filterManager');
-                    ensurePhaseRows(userId, session.basePhaseSettings);
+                    const { loadPhaseRows } = require('./filterManager');
+                    session.basePhaseSettings = loadPhaseRows(userId, session.basePhaseSettings);
+                    session.phaseSettings = normalizePhaseSettings(JSON.parse(JSON.stringify(session.basePhaseSettings)));
                 } catch (e) {
-                    console.error('🎛️ [국면 병행] 로그인 비교 실패:', (e as Error).message);
+                    console.error('🎛️ [국면 병행] 행 읽기 실패 — blob 으로 계속:', (e as Error).message);
                 }
 
                 // [완전 격리] activeFilter = baseFilter의 독립 복사본 (로그인 시 1회만)

@@ -25,8 +25,10 @@ import type { PhaseSettingsMap } from "@onedal/shared";
 // ─────────────────────────────────────────────────────────────
 // 🎛️ 국면 옵션 병행 전환 (필터 확정안 v2 · 2026-08-21)
 //
-// 새 그릇(user_filter_phases)을 blob 옆에 세우고 **양쪽에 같이 쓰며 비교**한다.
-// 읽기는 아직 blob — 로그인 비교(ensurePhaseRows)가 조용해지면 넘긴다.
+// 전환 ③ 완료 — **읽기 원천은 행(user_filter_phases)이다** (loadPhaseRows).
+// blob(user_filters.phase_settings)은 ④ 손 철거 전까지 이중 쓰기로 남아,
+// 어긋나면 로그인 비교가 ⚠️ 로 소리친다. 저장 경로 전수 스모크(계속·오늘만·
+// 다국면·재접속)로 일치를 확인하고 넘겼다 — 2026-08-21.
 // ─────────────────────────────────────────────────────────────
 
 /** 국면 5행을 새 그릇에 upsert — 컬럼 목록의 원천은 FILTER_FIELDS 표 */
@@ -46,7 +48,7 @@ export function writePhaseRows(userId: string, map: PhaseSettingsMap): void {
     tx(map);
 }
 
-/** 새 그릇에서 국면 옵션 읽기 — 전환 ③단계에서 읽기 원천이 된다. 지금은 비교용 */
+/** 새 그릇에서 국면 옵션 읽기 — 전환 ③부터 이것이 읽기 원천이다 */
 export function readPhaseRows(userId: string): Partial<Record<PhaseKey, PhaseSettings>> {
     const rows = db.prepare(`SELECT * FROM user_filter_phases WHERE user_id = ?`).all(userId) as any[];
     const out: Partial<Record<PhaseKey, PhaseSettings>> = {};
@@ -55,25 +57,30 @@ export function readPhaseRows(userId: string): Partial<Record<PhaseKey, PhaseSet
 }
 
 /**
- * 로그인 때 — 행이 없으면 blob 값으로 **1회 이식**, 있으면 **비교**한다.
- * 어긋나면 ⚠️ 로그가 소리친다 — 이 로그가 조용해야 읽기를 행으로 넘긴다 (전환 ③).
+ * 로그인 때 — **행이 읽기 원천이다** (전환 ③ · 2026-08-21).
+ * 행이 없으면(첫 로그인) blob 값으로 1회 이식하고 그 값을 쓴다.
+ * blob 은 ④ 철거 전까지 이중 쓰기로 남아 있으니, 어긋나면 ⚠️ 가 소리친다 —
+ * 그때는 이중 쓰기가 새는 경로가 있다는 뜻이고, **행 값이 이긴다.**
  */
-export function ensurePhaseRows(userId: string, blob: PhaseSettingsMap): void {
+export function loadPhaseRows(userId: string, blob: PhaseSettingsMap): PhaseSettingsMap {
     try {
         const rows = readPhaseRows(userId);
         if (Object.keys(rows).length === 0) {
             writePhaseRows(userId, blob);
             console.log(`🎛️ [국면 이식] user_filter_phases 에 blob 값 그대로 5행 시드 (병행 전환 ①)`);
-            return;
+            return blob;
         }
-        const diffs = phaseStoreDiff(blob, rows);
+        const map = normalizePhaseSettings(rows);       // 빠진 국면은 기본값으로 메운다
+        const diffs = phaseStoreDiff(blob, map);
         if (diffs.length) {
-            console.warn(`⚠️ [국면 병행 비교] blob 과 행이 어긋남 — ${diffs.join(' · ')}`);
+            console.warn(`⚠️ [국면 병행 비교] blob 과 행이 어긋남(행을 씀) — ${diffs.join(' · ')}`);
         } else {
-            console.log(`🎛️ [국면 병행 비교] blob = 행 일치 (5국면 × ${FILTER_FIELDS.length}칸)`);
+            console.log(`🎛️ [국면 병행 비교] 행 = blob 일치 — 행을 읽음 (5국면 × ${FILTER_FIELDS.length}칸)`);
         }
+        return map;
     } catch (e) {
-        console.error(`🎛️ [국면 병행] 실패 (병행 계측이라 세션은 계속):`, (e as Error).message);
+        console.error(`🎛️ [국면 병행] 행 읽기 실패 — blob 으로 계속:`, (e as Error).message);
+        return blob;
     }
 }
 import { logRoadmapEvent } from "../utils/roadmapLogger";
@@ -638,8 +645,8 @@ export function saveBaseFilter(
             JSON.stringify(session.basePhaseSettings),   // 국면별 설정 (§2-4-7)
             userId
         );
-        // 🎛️ 병행 전환 ②단계 — 같은 값을 새 그릇(user_filter_phases)에도 쓴다 (필터 확정안 v2).
-        //    blob 과 행이 갈라지면 로그인 비교(ensurePhaseRows)가 소리친다.
+        // 🎛️ 읽기 원천(행)에 쓴다 — blob 은 위 UPDATE 가 ④ 철거 전까지 같이 쓴다.
+        //    갈라지면 로그인 비교(loadPhaseRows)가 소리치고 행이 이긴다.
         writePhaseRows(userId, session.basePhaseSettings);
     } catch (e) {
         console.error(`[FilterManager] DB 저장 에러 (userId: ${userId}):`, e);
