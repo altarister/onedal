@@ -88,10 +88,10 @@ router.put("/", requireAuth, async (req, res) => {
         const userId = req.user!.id;
         const payload = req.body;
 
+        // 🪦 car_type 은 죽은 두 벌이라 DROP 됐다 — 차종의 원천은 vehicle_type 하나 (전수조사 2026-08-21)
         const updateStmt = db.prepare(`
-            UPDATE user_settings 
-            SET car_type = COALESCE(@carType, car_type),
-                vehicle_type = COALESCE(@vehicleType, vehicle_type),
+            UPDATE user_settings
+            SET vehicle_type = COALESCE(@vehicleType, vehicle_type),
                 car_fuel = COALESCE(@carFuel, car_fuel),
                 car_hipass = COALESCE(@carHipass, car_hipass),
                 fuel_price = COALESCE(@fuelPrice, fuel_price),
@@ -104,7 +104,6 @@ router.put("/", requireAuth, async (req, res) => {
 
         const result = updateStmt.run({
             userId,
-            carType: payload.carType ?? null,
             vehicleType: payload.vehicleType ?? null,
             carFuel: payload.carFuel ?? null,
             carHipass: payload.carHipass !== undefined ? (payload.carHipass ? 1 : 0) : null,
@@ -119,7 +118,6 @@ router.put("/", requireAuth, async (req, res) => {
             db.prepare("INSERT OR IGNORE INTO user_settings (user_id) VALUES (?)").run(userId);
             updateStmt.run({
                 userId,
-                carType: payload.carType ?? null,
                 vehicleType: payload.vehicleType ?? null,
                 carFuel: payload.carFuel ?? null,
                 carHipass: payload.carHipass !== undefined ? (payload.carHipass ? 1 : 0) : null,

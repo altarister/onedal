@@ -121,7 +121,7 @@ db.exec(`
     CREATE TABLE IF NOT EXISTS user_settings (
         user_id TEXT PRIMARY KEY,
         vehicle_type TEXT DEFAULT '1t',
-        car_type INTEGER DEFAULT 1,
+        -- 🪦 car_type INTEGER DEFAULT 1,   차종 두 벌의 죽은 쪽 — 원천은 vehicle_type (전수조사 2026-08-21)
         car_fuel TEXT DEFAULT 'GASOLINE',
         car_hipass BOOLEAN DEFAULT 1,
         fuel_price INTEGER DEFAULT 1600,
@@ -157,17 +157,6 @@ try {
     // 무시
 }
 
-// v6 마이그레이션: driver_action 컬럼 추가 (도메인 모델 V2)
-try {
-    const tableInfo = db.prepare("PRAGMA table_info(user_filters)").all() as Array<{ name: string }>;
-    if (tableInfo.length > 0 && !tableInfo.some(col => col.name === 'driver_action')) {
-        db.exec("ALTER TABLE user_filters ADD COLUMN driver_action TEXT DEFAULT 'WAITING'");
-        console.log("🛠️ [DB Migration V6] user_filters에 driver_action 컬럼 추가 완료");
-    }
-} catch (e) {
-    // 무시 (테이블이 아직 없는 경우 CREATE TABLE에서 생성됨)
-}
-
 // 🎛️ 국면 옵션(노선·반경·할인율)은 여기 없다 — 원천은 user_filter_phases 행이다
 // (필터 확정안 v2 ④ · 2026-08-21 옛 blob·평면 칸 손 DROP 완료).
 // min_fare·max_fare 는 보류 칸 — 앱 피기백 (확정안 ①-삭제 #3, 화물24 단가식 뒤 강등)
@@ -178,8 +167,9 @@ db.exec(`
         max_fare INTEGER DEFAULT 1000000,
         excluded_keywords TEXT DEFAULT '[]',
         is_active BOOLEAN DEFAULT 0,
-        is_shared_mode BOOLEAN DEFAULT 0,
-        driver_action TEXT DEFAULT 'WAITING',
+        -- 🪦 죽은 칸 정리 (전수조사 2026-08-21 · 기사님 확인 — 기능 만들 때 다시 판다)
+        -- is_shared_mode BOOLEAN DEFAULT 0,     항상 0만 저장, 읽기 없음 (세션 파생값)
+        -- driver_action TEXT DEFAULT 'WAITING', V6 유물 — 로그인이 하드코딩, 저장 안 함
         vehicle_rates TEXT DEFAULT '${defaultRates}',
         agency_fee_percent REAL DEFAULT 23.0,
         FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -231,16 +221,17 @@ db.exec(`
         kakaoTimeExt          TEXT,
         settlementStatus      TEXT DEFAULT '미정산',
         unpaidAmount          INTEGER DEFAULT 0,
-        payerName             TEXT,
-        payerPhone            TEXT,
+        -- 🪦 정산 페이지용으로 미리 팠던 칸 — 그 기능 만들 때 화면과 같이 다시 판다 (⑤-4 · 전수조사 2026-08-21)
+        -- payerName             TEXT,
+        -- payerPhone            TEXT,
+        -- settlementMemo        TEXT,
         dueDate               TEXT,
-        settlementMemo        TEXT,
         settledAt             TEXT,
         isShared              BOOLEAN DEFAULT 0,
         isExpress             BOOLEAN DEFAULT 0,
         postTime              TEXT,
         scheduleText          TEXT,
-        createdAt             TEXT DEFAULT (datetime('now', 'localtime')),
+        -- 🪦 createdAt DEFAULT 자동값 — 아무도 안 읽음. 시각의 원천은 capturedAt·timestamp
         completedAt           TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_orders_dashboard ON orders(userId, status, completedAt);
@@ -257,7 +248,7 @@ db.exec(`
         contactName     TEXT,
         phone1          TEXT,
         phone2          TEXT,
-        mileage         INTEGER DEFAULT 0,
+        -- 🪦 mileage INTEGER DEFAULT 0,   거래처 마일리지 구상의 흔적 — 기능 만들 때 다시 (전수조사 2026-08-21)
         rating          REAL DEFAULT 3.0,
         blacklistMemo   TEXT,
         visitCount      INTEGER DEFAULT 0,
@@ -273,10 +264,10 @@ db.exec(`
         orderId         TEXT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
         placeId         INTEGER NOT NULL REFERENCES places(id),
         stopType        TEXT NOT NULL,
-        stopOrder       INTEGER DEFAULT 0,
+        -- 🪦 stopOrder INTEGER DEFAULT 0,  경유 순서·요청시각을 여기 두려던 계획 —
+        -- requestedTime TEXT,              실제 담당은 세션·step_* 행 (전수조사 2026-08-21)
         customerNameSnapshot TEXT,
         phoneSnapshot        TEXT,
-        requestedTime   TEXT,
         memo            TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_orderStops_orderId ON orderStops(orderId);

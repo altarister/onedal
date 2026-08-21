@@ -85,7 +85,7 @@ import { getCityRegionsWithRadius, cityAliases, getDetourRegions, getActivePolyl
 // min_fare·max_fare 는 보류 칸 (앱 피기백 — 화물24 단가식 뒤 3단계 강등, 확정안 ①-삭제 #3)
 const stmtUpdateFilter = db.prepare(`
     UPDATE user_filters SET
-        min_fare = ?, max_fare = ?, excluded_keywords = ?, is_active = ?, is_shared_mode = ?
+        min_fare = ?, max_fare = ?, excluded_keywords = ?, is_active = ?
     WHERE user_id = ?
 `);
 
@@ -628,7 +628,6 @@ export function saveBaseFilter(
             b.maxFare,
             JSON.stringify(b.excludedKeywords || []),
             b.isActive ? 1 : 0,
-            0, // isSharedMode는 DB에 영구저장 안함
             userId
         );
         // 🎛️ 국면 옵션(노선·반경·할인율)의 원천 — user_filter_phases 행
