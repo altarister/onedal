@@ -855,6 +855,45 @@ export function updateActiveFilter(
  *
  * @returns 되돌렸으면 true
  */
+/**
+ * 📊 하루의 성과를 설정 스냅샷과 함께 남긴다 — filter_day_results (필터 정의 4장).
+ *
+ * 근사 둘을 정직하게 적는다:
+ *   · 매출·콜수는 **잡은 날(capturedAt KST)** 기준 — 자정을 넘긴 배송은 잡은 날에 계상
+ *   · "그냥 매출"이다 (관제앱은 업무 단위 — 미수금·비용은 정산 페이지의 일)
+ * INSERT OR IGNORE — 같은 날을 두 번 쓰지 않는다 (세션 여럿이 자정을 함께 넘어도 1회).
+ */
+export function recordDayResult(userId: string, day: string, settingsSnapshot: unknown): void {
+    if (!day || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return;
+    const range = [`${day}T00:00:00+09:00`, `${day}T24:00:00+09:00`]
+        .map(t => new Date(t).toISOString());
+    const done = db.prepare(`
+        SELECT COALESCE(SUM(fare), 0) AS revenue, COUNT(*) AS calls FROM orders
+        WHERE userId = ? AND status IN ('ORDER_DELIVERED', 'ORDER_COMPLETED')
+          AND capturedAt >= ? AND capturedAt < ?`).get(userId, range[0], range[1]) as any;
+    const cancels: Record<string, number> = {};
+    for (const r of db.prepare(`
+        SELECT COALESCE(targetApp, 'insung') AS app, COUNT(*) AS n FROM orders
+        WHERE userId = ? AND status = 'SAFE_CANCEL' AND capturedAt >= ? AND capturedAt < ?
+        GROUP BY COALESCE(targetApp, 'insung')`).all(userId, range[0], range[1]) as any[]) {
+        cancels[r.app] = r.n;
+    }
+    const colors: Record<string, number> = {};
+    for (const r of db.prepare(`
+        SELECT color, COUNT(*) AS n FROM order_judgments
+        WHERE userId = ? AND judgedAt >= ? AND judgedAt < ? GROUP BY color`)
+        .all(userId, range[0], range[1]) as any[]) {
+        colors[r.color] = r.n;
+    }
+    db.prepare(`INSERT OR IGNORE INTO filter_day_results
+                (user_id, day, settings, revenue, calls, cancels, colors)
+                VALUES (?, ?, ?, ?, ?, ?, ?)`)
+      .run(userId, day, JSON.stringify(settingsSnapshot ?? {}),
+           done.revenue, done.calls, JSON.stringify(cancels), JSON.stringify(colors));
+    console.log(`📊 [성과 기록] ${day} — 매출 ${done.revenue.toLocaleString()}원 · 완료 ${done.calls}콜 · ` +
+        `취소 ${JSON.stringify(cancels)} · 색 ${JSON.stringify(colors)}`);
+}
+
 export function ensureBusinessDay(userId: string, io?: any): boolean {
     const session = getUserSession(userId);
     const today = businessDayKey(Date.now());
@@ -862,6 +901,14 @@ export function ensureBusinessDay(userId: string, io?: any): boolean {
 
     const yesterday = session.businessDay;
     session.businessDay = today;
+
+    /**
+     * 📊 **성과 기록 — 어제치를 리셋 전에 집계한다** (필터 정의 4장 · 확정안 구현 6).
+     * "이 설정이 얼마를 벌었나" — 설정 스냅샷은 **리셋되기 전의 어제 오늘값**이어야
+     * 하므로 아래 되돌리기보다 먼저 찍는다. 실패해도 전환은 계속 (계측이지 흐름이 아니다).
+     */
+    try { recordDayResult(userId, yesterday, session.phaseSettings); }
+    catch (e) { console.error('📊 [성과 기록] 실패:', (e as Error).message); }
 
     // 되돌리는 규칙은 shared 한 곳에만 있다 (세션 생성 때도 같은 규칙을 쓴다)
     session.activeFilter = resetToBaseFilter(session.baseFilter);

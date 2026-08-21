@@ -435,6 +435,26 @@ db.exec(`
 ensureColumns('user_filter_phases', FILTER_PHASE_COLS);
 
 /**
+ * 📊 **하루 성과 기록** (필터 확정안 v2 ①-B · 필터 정의 4장).
+ * "이 설정이 얼마를 벌었나" — 설정 스냅샷(리셋 전 어제 오늘값)과 결과를 함께 남긴다.
+ * 자정 전환(ensureBusinessDay → recordDayResult)이 하루 1회 쓴다. 조회는 운행일지(확정 4).
+ * settings 는 기록용 스냅샷이라 JSON 을 허용한다 (판정 근거 detail 과 같은 성격 — 편집 안 함).
+ */
+db.exec(`
+    CREATE TABLE IF NOT EXISTS filter_day_results (
+        user_id  TEXT NOT NULL,
+        day      TEXT NOT NULL,
+        settings TEXT NOT NULL,
+        revenue  INTEGER NOT NULL,
+        calls    INTEGER NOT NULL,
+        cancels  TEXT NOT NULL,
+        colors   TEXT NOT NULL,
+        PRIMARY KEY (user_id, day),
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+`);
+
+/**
  * 🎨 **판정 스냅샷** — 색은 심사 순간의 결정이고 불변이다 (판정색 확정안 v2 ③ · 기사님 확정).
  * 지금까지 판정은 소켓으로만 날아가 새로고침하면 근거가 사라졌다 (화면은 메모리, 장부는 빔 —
  * 버그 대장 #4·6·8·15 클래스). 카드 접이와 문제지 채점 회귀가 이걸 읽는다.

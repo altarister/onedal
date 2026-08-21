@@ -837,6 +837,28 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                         <p className="text-[10px] text-text-muted text-center mt-2">
                             <b>오늘만</b> = 자정에 평소값으로 돌아감 · <b>계속</b> = 평소값까지 변경 · <b>초기화</b> = 톱니바퀴(⚙️) 설정값 불러오기
                         </p>
+
+                        {/* 🩺 **모니터 — 지금 앱에 내려가 있는 필터, 원본 그대로** (필터 정의 6장 ·
+                            확정안 구현 7). "이것이 기기이고 오류나 버그가 있을 수 있으니 항상 현재
+                            필터 상황을 모니터할 수 있어야 한다." 파생값(키워드·단가표)까지 편다 —
+                            이 화면과 폼 위의 값이 다르면 저장이 안 됐거나 서버가 옛 코드다. */}
+                        {filter && (
+                            <details className="mt-3 rounded-lg border border-border bg-surface-alt/30 px-3 py-2">
+                                <summary className="text-[11px] font-bold text-text-muted cursor-pointer select-none">
+                                    🩺 지금 앱에 내려간 필터 (원본) — 콜 잡기 {filter.isActive ? 'ON' : 'OFF'}
+                                </summary>
+                                <div className="mt-2 flex flex-col gap-1 text-[11px] text-text-primary tabular-nums">
+                                    <div>국면 <b>{filter.callTarget ?? 'DEST'}</b> · 단계 <b>{filter.dispatchPhase ?? 'STANDBY'}</b>{filter.isSharedMode ? ' · 합짐 모드' : ''}</div>
+                                    <div>상차 반경 <b>{filter.pickupRadiusKm}km</b> · 도착 <b>{filter.destinationCity || '—'} {filter.destinationRadiusKm ?? 0}km</b> · 경유 <b>{filter.detourRadiusKm ?? 0}km</b></div>
+                                    <div>콜할인율 <b>{filter.callDiscountPct ?? 10}%</b> · 적재 <b>{Math.round(filter.slotsUsed ?? 0)}/{TRUCK_CAPACITY_SLOTS}박스</b> ({filter.capacityConfidence ? CAPACITY_CONFIDENCE_LABEL[filter.capacityConfidence] : '—'})</div>
+                                    <div className="text-text-muted">단가 하한(원/km): {RATE_TABLE_ORDER.map(v => `${v} ${filter.ratePerKm?.[v]?.toLocaleString() ?? '—'}`).join(' · ')}</div>
+                                    <div className="text-text-muted break-keep">경유 지역 <b className="text-text-primary">{filter.destinationKeywords?.length ?? 0}개 동</b>{(filter.destinationKeywords?.length ?? 0) > 0 && <> — {filter.destinationKeywords!.slice(0, 8).join(', ')}{filter.destinationKeywords!.length > 8 ? ' …' : ''}</>}</div>
+                                    <div className="text-text-muted">제외 단어: {(filter.excludedKeywords?.length ?? 0) > 0 ? filter.excludedKeywords!.join(', ') : '없음'}</div>
+                                    {/* 앱 호환 파생 — 입력 화면은 철거됐고 값만 내려간다 (확정안 ①-삭제) */}
+                                    <div className="text-text-muted opacity-80">피기백 하한/상한(앱 호환 파생): {filter.minFare?.toLocaleString() ?? '—'} / {filter.maxFare?.toLocaleString() ?? '—'}원</div>
+                                </div>
+                            </details>
+                        )}
                     </div>
                 </div>
             </DialogContent>
