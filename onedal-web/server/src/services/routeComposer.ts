@@ -201,7 +201,7 @@ export function planMergedStops(
      * 기사님이 정리한 원칙과 같은 줄기다 — **KEEP 은 예약이고 상차가 적재다.**
      * 짐을 실었으면 그 콜에 남은 일은 **하차뿐**이다.
      */
-    const pairs: { pickup: Coord | null; dropoff: Coord }[] = [];
+    const pairs: { pickup: Coord | null; dropoff: Coord | null }[] = [];
     let skippedPickups = 0;
     for (const c of calls) {
         const p = toCoordPair(c);
@@ -210,10 +210,17 @@ export function planMergedStops(
          * 🚏 **다녀온 정거장은 경유지에서 뺀다** — 판단은 `hasVisitedStop` 하나 (2026-08-19).
          *    예전엔 `isAlreadyLoaded`(상차 완료 버튼)만 봐서, **GPS 로 이미 다녀온
          *    상차지를 다시 가는 경로**가 나왔다 (실측: 없는 우회 20km).
+         * 🔴 **하차지도 같은 규칙이다** (2026-08-21 · #36 — #32·#35 계보의 세 번째).
+         *    하차 완료된 콜(사이클까지 활성)의 하차지를 계속 넣어, 다녀온 하차지를
+         *    다시 가는 경로가 나왔고 planArrivalStops(둘 다 뺌)와 정거장 수가 갈라져
+         *    주행중 합짐 KEEP 뒤 **주행분 전부 null** — 두 계획의 방문 규칙은 하나다.
          */
         const visitedPickup = hasVisitedStop(c, 'pickup');
         if (visitedPickup) skippedPickups++;
-        pairs.push({ pickup: visitedPickup ? null : p.pickup, dropoff: p.dropoff });
+        pairs.push({
+            pickup: visitedPickup ? null : p.pickup,
+            dropoff: hasVisitedStop(c, 'dropoff') ? null : p.dropoff,
+        });
     }
 
     if (extra && !calls.some(c => c.id === extra.id)) {
@@ -226,7 +233,8 @@ export function planMergedStops(
     }
 
     const allPickups = pairs.map(p => p.pickup).filter(Boolean) as Coord[];
-    const allDropoffs = pairs.map(p => p.dropoff);
+    const allDropoffs = pairs.map(p => p.dropoff).filter(Boolean) as Coord[];
+    if (allDropoffs.length === 0) return null;   // 갈 곳이 없다 — 사이클 끝 (경로를 지어내지 않는다)
 
     // TSP 시작점: 기사님 현위치를 알면 거기서부터 최적화한다.
     // 예전에는 4곳 중 2곳만 driverLocation을 쓰고 나머지는 첫 상차지를 썼는데,

@@ -27,6 +27,37 @@ const call = (id: string, px: number, dx: number) => ({
     pickupX: px, pickupY: 37.4, dropoffX: dx, dropoffY: 37.7,
 }) as any;
 
+describe('경유 계획 = 도착 계획 — 같은 방문 규칙 (버그 대장 #36)', () => {
+    const { planMergedStops, planArrivalStops } = require('../../src/services/routeComposer');
+
+    /**
+     * 🔴 **다녀온 하차지도 경유지에서 뺀다** (2026-08-21 실측 — #32·#35 계보의 세 번째).
+     * planMergedStops 는 다녀온 **상차지만** 빼고 하차지는 항상 넣었다. 하차 완료된
+     * 콜(사이클까지 활성)의 하차지를 카카오 경로가 다시 방문했고, planArrivalStops(둘 다
+     * 뺌)와 정거장 수가 갈라져 **주행분 전부 null** — 주행중 합짐(11) KEEP 뒤 운행
+     * 내내 타임라인이 죽었다. 두 계획의 방문 규칙은 hasVisitedStop 하나여야 한다.
+     */
+    it('🔴 하차 완료된 콜의 하차지가 카카오 경유에서 빠진다 — 도착 계획과 같은 수', () => {
+        const calls = [
+            { id: 'DONE', status: 'ORDER_DELIVERED',            // 하차까지 끝난 콜 (사이클 중)
+              pickupX: 127.0, pickupY: 37.4, dropoffX: 126.9, dropoffY: 37.5 },
+            { id: 'RIDE', status: 'ORDER_PICKED_UP',            // 실은 콜 — 하차만 남음
+              pickupX: 127.1, pickupY: 37.4, dropoffX: 126.8, dropoffY: 37.6 },
+        ] as any;
+        const extra = { id: 'NEW', status: 'ORDER_CONFIRMED',
+            pickupX: 127.05, pickupY: 37.45, dropoffX: 126.85, dropoffY: 37.55 } as any;
+        const loc = { x: 127.02, y: 37.42 };
+
+        const plan = planMergedStops(calls, extra, loc)!;
+        const kakaoStops = plan.waypoints.length + 1;           // 경유 + 최종 목적지
+        const arrival = planArrivalStops([...calls, extra], loc);
+        expect(kakaoStops).toBe(arrival.length);                 // 두 계획이 같은 정거장 수
+        // 하차 완료된 DONE 의 하차지(126.9, 37.5)가 어디에도 없어야 한다
+        const all = [...plan.waypoints, plan.mergedDest];
+        expect(all.some((w: any) => w.x === 126.9 && w.y === 37.5)).toBe(false);
+    });
+});
+
 describe('sectionStops 배선 — 경로 연산 → 홀더', () => {
     it('🔴 applyRoute(holder, result.merged) 가 sectionStops 를 홀더에 싣는다', async () => {
         // 2콜 = 정거장 4 (상차 2 + 하차 2) — 카카오가 구간 주행분 4개를 줬다고 치자
