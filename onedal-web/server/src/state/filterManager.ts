@@ -17,7 +17,64 @@ import { OrderRepository } from "../repositories/OrderRepository";
 import { SettingsRepository } from "../repositories/SettingsRepository";
 import { getUserSession } from "./userSessionStore";
 import type { AutoDispatchFilter, PhaseKey, PhaseSettings } from "@onedal/shared";
-import { DEFAULT_DETOUR_RADIUS_KM, isTerminal, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, resolvePhaseKey, applyPhaseToFilter, normalizePhaseSettings } from "@onedal/shared";
+import { DEFAULT_DETOUR_RADIUS_KM, isTerminal, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, resolvePhaseKey, applyPhaseToFilter, normalizePhaseSettings,
+         PHASE_KEYS, FILTER_FIELDS, phaseRowOf, phaseOfRow, phaseStoreDiff } from "@onedal/shared";
+import type { PhaseSettingsMap } from "@onedal/shared";
+
+// ─────────────────────────────────────────────────────────────
+// 🎛️ 국면 옵션 병행 전환 (필터 확정안 v2 · 2026-08-21)
+//
+// 새 그릇(user_filter_phases)을 blob 옆에 세우고 **양쪽에 같이 쓰며 비교**한다.
+// 읽기는 아직 blob — 로그인 비교(ensurePhaseRows)가 조용해지면 넘긴다.
+// ─────────────────────────────────────────────────────────────
+
+/** 국면 5행을 새 그릇에 upsert — 컬럼 목록의 원천은 FILTER_FIELDS 표 */
+export function writePhaseRows(userId: string, map: PhaseSettingsMap): void {
+    const cols = FILTER_FIELDS.map(f => f.col);
+    const stmt = db.prepare(`
+        INSERT INTO user_filter_phases (user_id, phase, ${cols.join(', ')})
+        VALUES (?, ?, ${cols.map(() => '?').join(', ')})
+        ON CONFLICT(user_id, phase) DO UPDATE SET ${cols.map(c => `${c} = excluded.${c}`).join(', ')}
+    `);
+    const tx = db.transaction((m: PhaseSettingsMap) => {
+        for (const key of PHASE_KEYS) {
+            const row = phaseRowOf(m[key]);
+            stmt.run(userId, key, ...cols.map(c => row[c]));
+        }
+    });
+    tx(map);
+}
+
+/** 새 그릇에서 국면 옵션 읽기 — 전환 ③단계에서 읽기 원천이 된다. 지금은 비교용 */
+export function readPhaseRows(userId: string): Partial<Record<PhaseKey, PhaseSettings>> {
+    const rows = db.prepare(`SELECT * FROM user_filter_phases WHERE user_id = ?`).all(userId) as any[];
+    const out: Partial<Record<PhaseKey, PhaseSettings>> = {};
+    for (const r of rows) out[r.phase as PhaseKey] = phaseOfRow(r, r.phase);
+    return out;
+}
+
+/**
+ * 로그인 때 — 행이 없으면 blob 값으로 **1회 이식**, 있으면 **비교**한다.
+ * 어긋나면 ⚠️ 로그가 소리친다 — 이 로그가 조용해야 읽기를 행으로 넘긴다 (전환 ③).
+ */
+export function ensurePhaseRows(userId: string, blob: PhaseSettingsMap): void {
+    try {
+        const rows = readPhaseRows(userId);
+        if (Object.keys(rows).length === 0) {
+            writePhaseRows(userId, blob);
+            console.log(`🎛️ [국면 이식] user_filter_phases 에 blob 값 그대로 5행 시드 (병행 전환 ①)`);
+            return;
+        }
+        const diffs = phaseStoreDiff(blob, rows);
+        if (diffs.length) {
+            console.warn(`⚠️ [국면 병행 비교] blob 과 행이 어긋남 — ${diffs.join(' · ')}`);
+        } else {
+            console.log(`🎛️ [국면 병행 비교] blob = 행 일치 (5국면 × ${FILTER_FIELDS.length}칸)`);
+        }
+    } catch (e) {
+        console.error(`🎛️ [국면 병행] 실패 (병행 계측이라 세션은 계속):`, (e as Error).message);
+    }
+}
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { getCityRegionsWithRadius, cityAliases, getDetourRegions, getActivePolyline, progressAlongPolyline } from "../services/geoService";
 
@@ -579,6 +636,9 @@ export function saveBaseFilter(
             JSON.stringify(session.basePhaseSettings),   // 국면별 설정 (§2-4-7)
             userId
         );
+        // 🎛️ 병행 전환 ②단계 — 같은 값을 새 그릇(user_filter_phases)에도 쓴다 (필터 확정안 v2).
+        //    blob 과 행이 갈라지면 로그인 비교(ensurePhaseRows)가 소리친다.
+        writePhaseRows(userId, session.basePhaseSettings);
     } catch (e) {
         console.error(`[FilterManager] DB 저장 에러 (userId: ${userId}):`, e);
     }

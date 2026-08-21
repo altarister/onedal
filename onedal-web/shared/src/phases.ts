@@ -158,6 +158,88 @@ export const PHASE_AUTO_SOURCE: Record<PhaseKey, string> = {
 };
 
 // ─────────────────────────────────────────────────────────────
+//  🎛️ FILTER_FIELDS — 국면 옵션의 유일한 원천 (필터 확정안 v2 · 2026-08-21)
+//
+//  JUDGMENT_FIELDS 와 같은 문법: 칸 하나 = DB 컬럼 + 폼 + 근거.
+//  `user_filter_phases` 테이블(행 = 사용자×국면)의 컬럼과 이식·병행 비교가 전부
+//  이 표에서 나온다. phase_settings JSON blob 은 병행 비교가 끝나면 철거된다.
+//  ⚠️ 이식 단계는 현행 5칸 그대로 — 축 개편(pickup_reach_min)은 구현 4에서 한 줄 얹는다.
+// ─────────────────────────────────────────────────────────────
+
+export interface FilterField {
+    /** DB 컬럼 이름 */ col: string;
+    /** `PhaseSettings` 안의 자리 */ path: keyof PhaseSettings;
+    /** 문자열 칸인가 (도착 도시) — 숫자 범위 검증을 건너뛴다 */ text?: boolean;
+    label: string;
+    unit: string;
+    min: number;
+    max: number;
+    int: boolean;
+    /** 왜 이 값인가 — 폼의 칸 아래 그대로 뜬다 */ why: string;
+}
+
+export const FILTER_FIELDS: readonly FilterField[] = [
+    { col: 'destination_city', path: 'destinationCity', text: true,
+      label: '도착 목표', unit: '', min: 0, max: 0, int: false,
+      why: '짐이 많은 지역을 향한다 (정의서 1장②) — 첫짐만 저장, 관내는 덮어쓰기, 복귀는 자동' },
+    { col: 'pickup_radius_km', path: 'pickupRadiusKm',
+      label: '상차 반경', unit: 'km', min: 0, max: 100, int: false,
+      why: '내 위치에서 상차지까지. ⚠️ 축 개편 예정 — 도달 시간(분)에서 파생 (확정안 구현 4)' },
+    { col: 'detour_allow_km', path: 'detourAllowKm',
+      label: '우회 허용', unit: 'km', min: 0, max: 200, int: false,
+      why: '카카오 총거리 증가분 — 길 위의 짐을 최대한 (정의서 1장③). 경유 반경은 서버가 파생' },
+    { col: 'dropoff_radius_km', path: 'dropoffRadiusKm',
+      label: '하차지 주변', unit: 'km', min: 0, max: 100, int: false,
+      why: '도착 지점 주변 탐색 반경' },
+    { col: 'discount_pct', path: 'discountPct',
+      label: '콜할인율', unit: '%', min: 0, max: 100, int: true,
+      why: '시세 대비 허용 할인. 100 = 전부(금액 무관 — 순증 매출). 자동으로 안 내려간다 (정의서)' },
+] as const;
+
+/** `PhaseSettings` → DB 행 값 (컬럼 이름 키) */
+export function phaseRowOf(s: PhaseSettings): Record<string, string | number> {
+    const out: Record<string, string | number> = {};
+    for (const f of FILTER_FIELDS) out[f.col] = s[f.path] as any;
+    return out;
+}
+
+/** DB 행 → `PhaseSettings`. 값이 없거나 이상하면 그 국면의 기본값으로 메운다 */
+export function phaseOfRow(row: Record<string, unknown> | undefined | null, phase: PhaseKey): PhaseSettings {
+    const d = DEFAULT_PHASE_SETTINGS[phase];
+    const out = { ...d } as PhaseSettings;
+    if (!row) return out;
+    for (const f of FILTER_FIELDS) {
+        const v = row[f.col];
+        if (f.text) {
+            if (typeof v === 'string') (out as any)[f.path] = v;
+        } else {
+            const n = Number(v);
+            if (Number.isFinite(n)) (out as any)[f.path] = Math.min(f.max, Math.max(f.min, n));
+        }
+    }
+    return out;
+}
+
+/**
+ * 🧪 병행 비교 — blob 과 행이 같은 말을 하는가. 어긋난 칸 이름을 돌려준다 (빈 배열 = 일치).
+ * 전환 ②단계의 계측이다 — 이 로그가 조용해야 읽기를 행으로 넘긴다.
+ */
+export function phaseStoreDiff(blob: PhaseSettingsMap, rows: Partial<Record<PhaseKey, PhaseSettings>>): string[] {
+    const diffs: string[] = [];
+    for (const key of PHASE_KEYS) {
+        const b = blob[key];
+        const r = rows[key];
+        if (!r) { diffs.push(`${key}: 행 없음`); continue; }
+        for (const f of FILTER_FIELDS) {
+            if ((b[f.path] as any) !== (r[f.path] as any)) {
+                diffs.push(`${key}.${f.col}: blob=${b[f.path]} 행=${r[f.path]}`);
+            }
+        }
+    }
+    return diffs;
+}
+
+// ─────────────────────────────────────────────────────────────
 //  기본값 (명세 §2-4-5)
 // ─────────────────────────────────────────────────────────────
 

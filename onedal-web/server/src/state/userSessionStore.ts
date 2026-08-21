@@ -280,6 +280,15 @@ export function getUserSession(userId: string): UserSession {
                 // 오늘값 = 평소값의 독립 복사본 (자정에 되돌아간다)
                 session.phaseSettings = normalizePhaseSettings(JSON.parse(JSON.stringify(session.basePhaseSettings)));
 
+                // 🎛️ 병행 전환 (필터 확정안 v2) — 새 그릇이 비었으면 blob 값 그대로 이식,
+                //    있으면 비교해 어긋나면 ⚠️. require 지연 — filterManager ↔ 여기 순환 방지
+                try {
+                    const { ensurePhaseRows } = require('./filterManager');
+                    ensurePhaseRows(userId, session.basePhaseSettings);
+                } catch (e) {
+                    console.error('🎛️ [국면 병행] 로그인 비교 실패:', (e as Error).message);
+                }
+
                 // [완전 격리] activeFilter = baseFilter의 독립 복사본 (로그인 시 1회만)
                 //
                 // 여기서는 일단 첫짐(STANDBY)으로 시작한다. 이 시점에는 아직 myOrders가

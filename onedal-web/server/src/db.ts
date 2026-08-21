@@ -1,5 +1,5 @@
 import { JUDGMENT_FIELDS, judgmentDefaults, CALL_OPTION_COLUMNS, buildDefaultCallOptions,
-         STEP_TABLES } from "@onedal/shared";
+         STEP_TABLES, FILTER_FIELDS } from "@onedal/shared";
 import Database from "better-sqlite3";
 import path from "path";
 
@@ -411,6 +411,28 @@ db.exec(`
 `);
 // 표에 줄이 늘면 여기서 기존 행에 컬럼이 붙는다 (DEFAULT 가 값을 채운다)
 ensureColumns('user_judgment', JUDGMENT_COLS);
+
+/**
+ * 🎛️ **국면 옵션 — 행 = 사용자×국면** (필터 확정안 v2 · 병행 전환 ①단계 · 2026-08-21).
+ *
+ * `phase_settings` JSON blob 을 대체할 새 그릇이다. **컬럼 목록의 원천은 shared 의
+ * `FILTER_FIELDS` 표 하나** (user_judgment 와 같은 문법 — 표에 한 줄이 늘면 컬럼·폼이
+ * 따라온다). 지금은 blob 과 **양쪽에 같이 쓰며 비교**만 한다 — 로그인 때 어긋나면
+ * ⚠️ 가 찍힌다. 비교가 깨끗해지면 읽기를 이리로 넘기고 blob 을 손으로 철거한다.
+ */
+const FILTER_PHASE_COLS: Record<string, string> = Object.fromEntries(
+    FILTER_FIELDS.map(f => [f.col, f.text ? 'TEXT' : (f.int ? 'INTEGER' : 'REAL')])
+);
+db.exec(`
+    CREATE TABLE IF NOT EXISTS user_filter_phases (
+        user_id TEXT NOT NULL,
+        phase   TEXT NOT NULL CHECK(phase IN ('first','merge','drive','local','home')),
+        ${Object.entries(FILTER_PHASE_COLS).map(([c, t]) => `${c} ${t}`).join(',\n        ')},
+        PRIMARY KEY (user_id, phase),
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+`);
+ensureColumns('user_filter_phases', FILTER_PHASE_COLS);
 
 /**
  * 🎨 **판정 스냅샷** — 색은 심사 순간의 결정이고 불변이다 (판정색 확정안 v2 ③ · 기사님 확정).
