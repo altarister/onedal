@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { DeviceSession, DeviceStatusType, DeviceModeType, ScreenContextType, isListScreen } from "@onedal/shared";
+import { DeviceSession, DeviceStatusType, DeviceModeType, ScreenContextType, isListScreen, BLIND_GRACE_MS } from "@onedal/shared";
 import { forceCancelEvaluatingOrder } from "../services/dispatchEngine";
 import { getUserSession } from "../state/userSessionStore";
 import { generatePin, consumePin } from "../state/pairingStore";
@@ -52,10 +52,40 @@ function lookupDeviceName(deviceId: string): string | undefined {
 }
 
 /**
+ * 👁️ **화면을 못 읽는 중인지 기록한다** (기사님 확정 2026-08-22 · 크리티컬).
+ *
+ * 기사님: *"분명 폰 이름 1234에 파란불이 들어와 있었어."*
+ *
+ * 접근성이 막혀 콜을 하나도 못 읽는 동안 관제웹은 파란불이었다 — `status` 는
+ * *"데이터가 왔는가"* 만 보기 때문이다. **「연결됐다」와 「읽고 있다」는 다른 말이다.**
+ *
+ * 🔴 판단은 근거 있는 것만: `노드 0` = 접근성 트리가 안 온다(명백한 고장).
+ *    *"노드는 있는데 콜이 0"* 은 빈 리스트일 수 있어 여기서 단정하지 않는다 (규칙 ⑤-4 ②).
+ *    옛 APK 는 이 값을 안 보내므로(`undefined`) 아무 판단도 하지 않는다 — 호환.
+ */
+function applyBlindSignal(session: DeviceSession, screenNodeCount?: number): void {
+    if (screenNodeCount === undefined) return;          // 옛 APK — 모르는 것은 판단하지 않는다
+    session.screenNodeCount = screenNodeCount;
+
+    if (screenNodeCount > 0) {
+        if (session.blindSince) {
+            console.log(`👁️ [화면 복구] ${session.deviceId} — 다시 읽고 있습니다 (노드 ${screenNodeCount}개)`);
+        }
+        session.blindSince = undefined;
+        return;
+    }
+    if (!session.blindSince) {
+        session.blindSince = Date.now();
+        console.warn(`👁️ [화면 못 읽음] ${session.deviceId} — 접근성 트리가 안 옵니다. ` +
+            `${BLIND_GRACE_MS / 1000}초 더 이어지면 관제탑에 알립니다`);
+    }
+}
+
+/**
  * App에서 화면이 변경되거나 주기적으로 스크랩 데이터를 전송할 때 세션 갱신
  * @returns 현재 기기의 관제 모드 (AUTO | MANUAL)
  */
-export const touchDeviceSession = (deviceId: string, userId: string, addedPollCount: number = 0, screenContext?: ScreenContextType, io?: any, isHolding?: boolean, lat?: number, lng?: number): DeviceModeType => {
+export const touchDeviceSession = (deviceId: string, userId: string, addedPollCount: number = 0, screenContext?: ScreenContextType, io?: any, isHolding?: boolean, lat?: number, lng?: number, screenNodeCount?: number): DeviceModeType => {
     let session = activeDevices.get(deviceId);
 
     if (!session) {
@@ -109,6 +139,8 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
         }
     }
 
+    // 새 세션이든 갱신이든 **한 곳에서** 본다 — 두 갈래에 나눠 적으면 한쪽만 고쳐진다
+    applyBlindSignal(session, screenNodeCount);
     activeDevices.set(deviceId, session);
 
     // [Zero-Latency 동기화 핵심 로직] 

@@ -286,6 +286,23 @@ class HijackService : AccessibilityService() {
     //  기능 3: 콜 목록 스캔 및 서버 보고 (LIST 화면)
     // ════════════════════════════════════════════════════════════════
 
+    /**
+     * 👁️ 리스트에서 콜을 한 건도 못 건졌을 때, **왜 그런지 사람 말로** 적는다.
+     * 숫자만 남기면 나중에 로그를 보고도 어느 칸인지 다시 헤아려야 한다.
+     */
+    private fun lastScanReason(nodes: Int, groups: Int, fareFail: Int): String = when {
+        nodes == 0 -> "접근성 트리가 안 온다 (권한·서비스 확인)"
+        fareFail > 0 && groups == fareFail -> "카드는 잡았는데 요금을 못 읽는다 ($fareFail 건)"
+        groups == 0 -> "글자는 읽히는데 콜 카드가 0개 — 리스트가 비었거나 못 뽑는 것"
+        else -> "일부만 걸렀다 (그룹 $groups · 요금실패 $fareFail)"
+    }
+    /**
+     * ⚠️ **"빈 리스트"와 "못 뽑는 것"을 여기서 단정하지 않는다.** 가르려면 *"콜이 없을 때
+     *    노드가 몇 개인가"* 라는 기준값이 필요한데 **실측이 없다** — 근거 없는 상수를
+     *    만들지 않는다(규칙 ⑤-4 ②). 숫자를 정직하게 남기고, 판단은 **지속 시간**으로
+     *    서버가 한다. 실측이 쌓이면 그때 기준을 정한다.
+     */
+
     private fun handleListScreen(rootNode: AccessibilityNodeInfo, screenTexts: List<String>) {
         // 세션 초기화: 리스트로 돌아오면 이전 상세/서핑 상태 전부 리셋
         resetSessionState()
@@ -296,11 +313,14 @@ class HijackService : AccessibilityService() {
         // 앱별 앵커 노드 감지 및 텍스트 그룹화 로직을 파서(ScrapParser)로 위임
         val groupedNodes = scrapParser.groupListNodes(allNodes)
 
+        /** 그룹은 나왔는데 요금을 못 읽어 버려진 수 — 아래 진단이 읽는다 */
+        var fareFail = 0
+
         // 각 요금 노드 기준으로 텍스트 세트를 묶어 파싱
         for ((fareNode, cardTexts) in groupedNodes) {
             val order = scrapParser.parse(cardTexts)
 
-            if (order.fare == 0) continue  // 파싱 실패 → 스킵
+            if (order.fare == 0) { fareFail++; continue }
 
             val orderHash = (order.pickup + order.dropoff + order.fare.toString()).hashCode()
             if (processedOrderHashes.contains(orderHash)) continue
@@ -335,6 +355,31 @@ class HijackService : AccessibilityService() {
             telemetryManager.enqueue(order)
             recentListOrders.add(order)
         }
+
+        /**
+         * 👁️ **리스트가 빈 이유를 구분해 남긴다** (기사님 확정 2026-08-22 · 크리티컬).
+         *
+         * 기사님: *"분명 폰 이름 1234에 파란불이 들어와 있었어."*
+         *
+         * 접근성이 막혀 콜을 하나도 못 읽는 동안 **관제웹은 파란불이었다.** 텔레메트리는
+         * 계속 갔고 화면 판별(`LIST`)도 됐기 때문이다. 그런데 로그는 `resetSessionState`
+         * 에서 끊겨 **노드를 몇 개 읽었는지조차 알 수 없었다.**
+         *
+         * 🔴 실운행이면 콜을 통째로 놓치는데 기사님이 알 방법이 없다. 8/21 은 하루 종일
+         *    `LIST` + 0항목이 18,824회였다 — 대부분 진짜 빈 리스트지만 **고장과 구분이 안 된다.**
+         *
+         * 세 숫자가 그걸 가른다:
+         *   노드 많음 + 그룹 0  → 콜은 화면에 있는데 **못 뽑는다**
+         *   노드 0    + 그룹 0  → 접근성 트리가 **아예 안 온다**
+         *   노드 적음 + 그룹 0  → 리스트가 진짜 비었다 (정상)
+         *   그룹 있음 + 요금실패 → 카드는 잡았는데 **요금을 못 읽는다**
+         */
+        val picked = groupedNodes.size - fareFail
+        if (picked == 0) {
+            AppLogger.w(TAG, "👁️ [리스트 빈 이유] 텍스트노드 ${allNodes.size} · 콜그룹 ${groupedNodes.size} · " +
+                "요금실패 $fareFail — ${lastScanReason(allNodes.size, groupedNodes.size, fareFail)}")
+        }
+        telemetryManager.screenNodeCount = allNodes.size
 
         // 메모리 관리
         if (processedOrderHashes.size > MAX_ORDER_HASH_CACHE) {

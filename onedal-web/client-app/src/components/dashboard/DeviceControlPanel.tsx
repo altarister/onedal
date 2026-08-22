@@ -1,5 +1,6 @@
 import { useDevices } from "../../hooks/useDevices";
 import type { DeviceSession, ScreenContextType } from "@onedal/shared";
+import { isDeviceBlind } from "@onedal/shared";
 import { useSystemAlerts } from "../../hooks/useSystemAlerts";
 import type { EmergencyAlert, SafeCancelWarning } from "../../hooks/useSystemAlerts";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
@@ -52,6 +53,19 @@ function DeviceRow({
     const isDisconnected = device.status === "OFFLINE";
     const screenInfo = device.screenContext ? SCREEN_LABELS[device.screenContext] : null;
 
+    /**
+     * 👁️ **앱은 켜져 있는데 화면을 못 읽는 중** (기사님 확정 2026-08-22 · 크리티컬).
+     *
+     * 기사님: *"분명 폰 이름 1234에 파란불이 들어와 있었어."*
+     *
+     * 접근성이 막혀 콜을 하나도 못 읽는 동안 이 자리는 **파란불**이었다 — 텔레메트리가
+     * 계속 왔기 때문이다. **「연결됐다」와 「읽고 있다」는 다른 말인데 화면은 앞의 것만
+     * 보여줬다.** 실운행이면 콜을 통째로 놓치는데 기사님이 알 방법이 없다.
+     *
+     * 그래서 이 배지는 **연결 상태보다 먼저** 읽혀야 한다.
+     */
+    const isBlind = isDeviceBlind(device);
+
     let filterLabel = '동기화 중';
     let filterColor = 'bg-surface-alt text-text-muted border-border';
     if (currentFilter) {
@@ -99,6 +113,12 @@ function DeviceRow({
                     {!isDisconnected && currentFilter && (
                         <Badge variant="outline" className={`text-[10px] font-extrabold px-1.5 py-0 rounded shadow-sm shrink-0 border ${filterColor}`}>
                             {filterLabel}
+                        </Badge>
+                    )}
+                    {/* 👁️ 연결됐다고 읽고 있는 건 아니다 — 파란불을 믿고 기다리는 일을 막는다 */}
+                    {isBlind && !isDisconnected && (
+                        <Badge variant="outline" className="text-[10px] font-black px-1.5 py-0 shrink-0 bg-danger/15 text-danger border-danger/30 animate-pulse">
+                            👁️ 화면 못 읽음
                         </Badge>
                     )}
                     <div className="flex items-center gap-1.5 text-[10px] text-text-muted font-medium ml-1 truncate">

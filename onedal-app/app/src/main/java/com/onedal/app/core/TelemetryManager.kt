@@ -37,6 +37,16 @@ class TelemetryManager(
     @Volatile
     var isHolding: Boolean = false
 
+    /**
+     * 👁️ **마지막 리스트 화면에서 읽은 텍스트 노드 수** (2026-08-22 · 크리티컬).
+     *
+     * 콜 0건이 **리스트가 빈 것**인지 **못 읽는 것**인지 가르는 유일한 단서다.
+     * 기사님이 겪은 일: 접근성이 막혔는데 관제웹은 파란불 — 텔레메트리가 계속 갔기 때문이다.
+     * `null` 은 "아직 리스트를 본 적 없음"이고 `0` 은 **접근성 트리가 안 온다**는 뜻이다.
+     */
+    @Volatile
+    var screenNodeCount: Int? = null
+
     // [Piggyback V2] 관제탑 결재 대기 여부 (1.0초 단위 Short Polling 발동 조건)
     var isWaitingDecision: Boolean = false
         set(value) {
@@ -149,6 +159,7 @@ class TelemetryManager(
             data = snapshot,
             screenContext = currentScreenContext.value,  // [Safety Mode V3] 화면 상태 (물리적 페이지)
             isHolding = isHolding,                       // [Page/Hold 분리] 콜 처리 중 여부
+            screenNodeCount = screenNodeCount,           // 👁️ 마지막 리스트에서 읽은 텍스트 노드 수
             lat = lat,                                   // [GPS 텔레메트리] 앱폰 위도
             lng = lng,                                   // [GPS 텔레메트리] 앱폰 경도
             targetApp = appCode,

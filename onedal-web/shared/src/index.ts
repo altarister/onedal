@@ -980,6 +980,28 @@ export type ScreenContextType =
 export const LIST_SCREENS: ScreenContextType[] = ['LIST', 'LIST_COMPLETED'];
 
 /** 지금 화면이 "콜에서 손을 뗀" 상태인가 (= 서버가 쥐고 있던 콜을 놓아도 되는가) */
+/**
+ * 👁️ **앱은 켜져 있는데 화면을 못 읽는 중인가** (기사님 확정 2026-08-22 · 크리티컬).
+ *
+ * 기사님: *"분명 폰 이름 1234에 파란불이 들어와 있었어."*
+ *
+ * 접근성이 막혀 콜을 하나도 못 읽는 동안 관제웹은 파란불이었다 — 텔레메트리가 계속 왔고
+ * 서버는 *"데이터가 왔으니 ONLINE"* 으로만 봤기 때문이다. 실운행이면 **콜을 통째로
+ * 놓치는데 기사님이 알 방법이 없다.**
+ *
+ * 🔴 판단은 **근거 있는 것만** 한다. `노드 0` 은 접근성 트리가 안 오는 명백한 고장이다.
+ *    반면 *"노드는 있는데 콜이 0"* 은 **빈 리스트일 수도** 있어 여기서 단정하지 않는다 —
+ *    가르려면 "콜이 없을 때 노드가 몇 개인가"의 실측이 필요하다 (규칙 ⑤-4 ②).
+ *
+ * ⏱️ **15초**를 기다린다: 화면 전환·앱 전환 중에는 순간적으로 0이 될 수 있고,
+ *    텔레메트리는 5초 간격이라 세 번 연속이면 일시적인 것이 아니다.
+ */
+export const BLIND_GRACE_MS = 15_000;
+
+export function isDeviceBlind(session: { blindSince?: number }, now: number = Date.now()): boolean {
+    return !!session.blindSince && now - session.blindSince >= BLIND_GRACE_MS;
+}
+
 export function isListScreen(screenContext?: string | null): boolean {
     return !!screenContext && (LIST_SCREENS as string[]).includes(screenContext);
 }
@@ -1027,6 +1049,17 @@ export interface DeviceSession {
     isHolding?: boolean;    // [Page/Hold 분리] 콜 처리 중 여부 (확정 클릭 ~ 리스트 복귀)
     lat?: number;           // [GPS 텔레메트리] 앱폰(차량) 위도
     lng?: number;           // [GPS 텔레메트리] 앱폰(차량) 경도
+    /**
+     * 👁️ **마지막 리스트에서 읽은 텍스트 노드 수** (2026-08-22 · 크리티컬).
+     * `0` 이면 접근성 트리가 안 오는 것 — 앱은 살아 있지만 **화면을 못 읽는다.**
+     */
+    screenNodeCount?: number;
+    /**
+     * 👁️ **화면을 못 읽기 시작한 시각** (밀리초). 노드가 0이 아니면 지워진다.
+     * 관제웹이 이걸 보고 *"앱은 켜져 있는데 화면을 못 읽는 중"* 을 말한다 —
+     * 기사님이 **파란불을 믿고 기다리는 일**을 막는 유일한 신호다.
+     */
+    blindSince?: number;
     stats: {
         polled: number;     // 리스트 조회(콜 수집) 누적 횟수
         grabbed: number;    // 성공 횟수
