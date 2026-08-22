@@ -47,6 +47,29 @@ describe('summarizeTally — 폰 하나의 성적표', () => {
 });
 
 /**
+ * 🕐 기사님: *"`방금 1건 → 통과 0 · 차종 1` 같은 게 나오니까 **멈춰 있는 것 같아.**
+ * 보내온 마지막 시간을 쓰는 것이 더 좋을 것 같다."*
+ *
+ * `방금` 은 다시 그려져야만 참인 말이다 — 폰이 끊기면 문구가 숫자와 함께 멈춘다.
+ */
+describe('🕐 언제 온 숫자인가', () => {
+    it('받은 시각을 초까지 적는다 (30초 전과 90초 전이 같아 보이면 못 읽는다)', () => {
+        const t = new Date(2026, 7, 23, 20, 39, 13).getTime();
+        expect(summarizeTally(mk({ seen: 6, passed: 0, region: 4 }), t)!.at).toBe('20:39:13');
+    });
+
+    it('한 자리 수는 0을 채운다 — 자리가 밀리면 눈이 못 따라간다', () => {
+        const t = new Date(2026, 7, 23, 5, 4, 7).getTime();
+        expect(summarizeTally(mk({ seen: 1, passed: 1 }), t)!.at).toBe('05:04:07');
+    });
+
+    it('🔴 시각을 모르면 null — 아무 시각이나 지어내지 않는다', () => {
+        expect(summarizeTally(mk({ seen: 1, passed: 1 }))!.at).toBeNull();
+        expect(summarizeTally(mk({ seen: 1, passed: 1 }), 0)!.at).toBeNull();
+    });
+});
+
+/**
  * 🔴 **어느 화면에 사는가**(폰 카드 O · 필터 카드 X)는 여기서 안 지킨다 —
  *    앱→서버→화면 왕복을 통째로 보는 `server/tests/rules/filterTally.test.ts` 한 곳에 뒀다.
  *    같은 규칙이 두 벌이면 나중에 한쪽만 고쳐진다.

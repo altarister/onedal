@@ -5,6 +5,7 @@ import { useSystemAlerts } from "../../hooks/useSystemAlerts";
 import type { EmergencyAlert, SafeCancelWarning } from "../../hooks/useSystemAlerts";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
 import { summarizeTally } from "../../lib/filterTally";
+import { formatClock } from "../../lib/clock";
 import type { AutoDispatchFilter } from "@onedal/shared";
 
 
@@ -100,7 +101,14 @@ function DeviceRow({
     const criticalAlerts = deviceAlerts.filter(a => a.reason !== 'AUTO_CANCEL' && a.reason !== 'BUTTON_NOT_FOUND');
 
     /** 👁️ **이 폰의** 마지막 스캔 성적표 — 아직 안 훑었으면 null (아래에서 줄 자체가 안 뜬다) */
-    const scanSummary = summarizeTally(device.filterTally);
+    const scanSummary = summarizeTally(device.filterTally, device.filterTallyAt);
+
+    /**
+     * 🕐 **마지막 보고 시각.** 성적표 시각(`filterTallyAt`)과 **다른 값이다** —
+     * 이쪽은 하트비트를 포함한 *"이 폰이 살아 있다"* 이고, 저쪽은 *"리스트를 훑었다"* 다.
+     * 리스트를 안 보는 동안엔 이 시각만 움직인다. 섞으면 둘 중 하나가 거짓이 된다.
+     */
+    const lastSeenAt = formatClock(device.lastSeen);
 
     return (
         <div className="flex flex-col border-b border-border last:border-0 py-1 px-1">
@@ -133,10 +141,12 @@ function DeviceRow({
                             👁️ 화면 못 읽음
                         </Badge>
                     )}
-                    <div className="flex items-center gap-1.5 text-[10px] text-text-muted font-medium ml-1 truncate">
-                        <span>수집:{device.stats.polled}</span>
-                        <span>수락:{device.stats.grabbed}</span>
-                        <span>취소:{device.stats.canceled}</span>
+                    {/* 🕐 **마지막으로 이 폰이 보고한 시각**을 숫자 앞에 붙인다 (기사님 형식 확정 2026-08-23).
+                        기사님: *"`20:39:13(수집:16 수락:3 취소:1)` 이렇게 표시하면 한 줄로 나올 듯."*
+                        숫자만 있으면 "지금 그런 것"과 "아까 그러고 멈춘 것"이 똑같이 보인다. */}
+                    <div className="flex items-center gap-1 text-[10px] text-text-muted font-medium ml-1 truncate tabular-nums">
+                        {lastSeenAt && <span className="opacity-70">{lastSeenAt}</span>}
+                        <span>(수집:{device.stats.polled} 수락:{device.stats.grabbed} 취소:{device.stats.canceled})</span>
                     </div>
                 </div>
                 <div className="shrink-0 ml-2">
@@ -165,10 +175,11 @@ function DeviceRow({
                    둘 중 하나를 골라야 하고, 고르는 순간 멀쩡한 폰이 멈춘 폰을 가린다.
                 🔴 잘 돌 때는 조용히 — 통과가 있으면 흐리게, 0이면 굵게. 늘 소리치면 아무도 안 본다. */}
             {scanSummary && (
-                <div className={`text-[10px] font-medium truncate px-2 pt-0.5 ${
+                <div className={`text-[10px] font-medium truncate px-2 pt-0.5 tabular-nums ${
                     scanSummary.passed === 0 ? 'text-warning font-bold' : 'text-text-muted opacity-70'
                 }`}>
-                    👁️ 방금 {scanSummary.seen}건 → 통과 {scanSummary.passed}
+                    👁️ {scanSummary.at && <span className="opacity-70">{scanSummary.at} </span>}
+                    {scanSummary.seen}건 → 통과 {scanSummary.passed}
                     {scanSummary.rejects.length > 0 && (
                         <span className="opacity-80">
                             <span className="mx-1 opacity-40">·</span>

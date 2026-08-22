@@ -79,6 +79,30 @@ describe('👁️ 서버 — 받아서 기기 세션에 둔다', () => {
     it('🔴 스크랩이 그 값을 세션에 옮긴다', () => {
         expect(code(srv('routes/scrap.ts')) + code(srv('routes/devices.ts'))).toMatch(/filterTally/);
     });
+
+    /**
+     * 🔴 **언제 온 숫자인지가 숫자만큼 중요하다** (기사님 지적 2026-08-23).
+     *
+     * 기사님: *"`방금 1건 → 통과 0 · 차종 1` 같은 게 나오니까 **멈춰 있는 것 같아.**
+     * 보내온 마지막 시간을 쓰는 것이 더 좋을 것 같다."*
+     *
+     * `방금` 은 **다시 그려져야만 참인 말**이다. 폰이 끊기면 화면이 다시 안 그려지고,
+     * 10분 전 숫자가 그대로 `방금` 이라고 적힌 채 남는다 — 문구가 같이 멈춘다.
+     */
+    it('🔴 언제 온 것인지도 들고 있다 (숫자만 있으면 멈춘 건지 알 수 없다)', () => {
+        expect(code(shared())).toMatch(/filterTallyAt\?: *number/);
+    });
+
+    /**
+     * 🔴 **찍는 시계는 서버 것이다.** 앱이 보낸 시각을 쓰면 폰 시계가 틀어졌을 때
+     *    화면이 미래나 과거를 말한다. 서버가 **받은 순간**이 유일하게 확실한 사실이다.
+     */
+    it('🔴 서버가 받은 순간을 찍는다 — 앱 시계를 믿지 않는다', () => {
+        const d = code(srv('routes/devices.ts'));
+        expect(d).toMatch(/session\.filterTallyAt = Date\.now\(\)/);
+        // 성적표가 실제로 온 스캔에서만 — 하트비트가 시각만 밀어 올리면 옛 숫자가 새것처럼 보인다
+        expect(d).toMatch(/if \(filterTally\)[\s\S]{0,120}filterTallyAt/);
+    });
 });
 
 /**
@@ -96,7 +120,13 @@ describe('👁️ 서버 — 받아서 기기 세션에 둔다', () => {
 describe('👁️ 관제웹 — 왜 안 잡는지 한 줄로 말한다 (폰마다)', () => {
     it('🔴 폰 카드가 **자기** 숫자를 그린다 — 주어가 붙는다', () => {
         expect(code(client('components/dashboard/DeviceControlPanel.tsx')))
-            .toMatch(/summarizeTally\(\s*device\.filterTally\s*\)/);
+            .toMatch(/summarizeTally\(\s*device\.filterTally\s*,/);
+    });
+
+    it('🔴 숫자 옆에 **언제**가 붙는다 — "방금"이라는 말은 쓰지 않는다', () => {
+        const c = code(client('components/dashboard/DeviceControlPanel.tsx'));
+        expect(c).toMatch(/device\.filterTallyAt/);
+        expect(c).not.toMatch(/방금/);
     });
 
     it('🔴 필터 카드는 기기별 값을 읽지 않는다 (고르는 순간 화면이 거짓말한다)', () => {

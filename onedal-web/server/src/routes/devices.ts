@@ -161,7 +161,18 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
      * 안 온 스캔(하트비트·상세 화면)에서는 **직전 값을 지우지 않는다** — 리스트를 안 보는
      * 동안 화면이 빈칸이 되면 *"필터가 죽었나"* 로 읽힌다. 마지막으로 본 것이 답이다.
      */
-    if (filterTally) session.filterTally = filterTally;
+    if (filterTally) {
+        session.filterTally = filterTally;
+        /**
+         * 🕐 **받은 순간을 서버 시계로 찍는다** (기사님 지적 2026-08-23).
+         *
+         * 숫자만 있으면 *"지금 그런 것"* 과 *"아까 그러고 멈춘 것"* 이 똑같이 보인다.
+         * 🔴 앱이 보낸 시각을 쓰지 않는다 — 폰 시계가 틀어지면 화면이 미래를 말한다.
+         * 🔴 **여기 안에서만** 찍는다. 밖으로 빼면 하트비트가 시각만 밀어 올려
+         *    옛 숫자가 새것처럼 보인다 (그게 고치려는 거짓말 그 자체다).
+         */
+        session.filterTallyAt = Date.now();
+    }
     activeDevices.set(deviceId, session);
 
     // [Zero-Latency 동기화 핵심 로직] 
