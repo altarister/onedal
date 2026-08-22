@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { DeviceSession, DeviceStatusType, DeviceModeType, ScreenContextType, isListScreen, BLIND_GRACE_MS } from "@onedal/shared";
+import { FilterTally, DeviceSession, DeviceStatusType, DeviceModeType, ScreenContextType, isListScreen, BLIND_GRACE_MS } from "@onedal/shared";
 import { forceCancelEvaluatingOrder } from "../services/dispatchEngine";
 import { getUserSession } from "../state/userSessionStore";
 import { generatePin, consumePin } from "../state/pairingStore";
@@ -98,7 +98,7 @@ function applyBlindSignal(session: DeviceSession, screenNodeCount?: number, isSc
  * App에서 화면이 변경되거나 주기적으로 스크랩 데이터를 전송할 때 세션 갱신
  * @returns 현재 기기의 관제 모드 (AUTO | MANUAL)
  */
-export const touchDeviceSession = (deviceId: string, userId: string, addedPollCount: number = 0, screenContext?: ScreenContextType, io?: any, isHolding?: boolean, lat?: number, lng?: number, screenNodeCount?: number, isScreenOn?: boolean): DeviceModeType => {
+export const touchDeviceSession = (deviceId: string, userId: string, addedPollCount: number = 0, screenContext?: ScreenContextType, io?: any, isHolding?: boolean, lat?: number, lng?: number, screenNodeCount?: number, isScreenOn?: boolean, filterTally?: FilterTally): DeviceModeType => {
     let session = activeDevices.get(deviceId);
 
     if (!session) {
@@ -154,6 +154,14 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
 
     // 새 세션이든 갱신이든 **한 곳에서** 본다 — 두 갈래에 나눠 적으면 한쪽만 고쳐진다
     applyBlindSignal(session, screenNodeCount, isScreenOn);
+    /**
+     * 👁️ **마지막 스캔의 필터 성적표를 그대로 얹는다** (기사님 확정 2026-08-23).
+     *
+     * 서버가 만드는 값이 아니라 **앱이 판정한 사실**이라 해석하지 않고 옮기기만 한다.
+     * 안 온 스캔(하트비트·상세 화면)에서는 **직전 값을 지우지 않는다** — 리스트를 안 보는
+     * 동안 화면이 빈칸이 되면 *"필터가 죽었나"* 로 읽힌다. 마지막으로 본 것이 답이다.
+     */
+    if (filterTally) session.filterTally = filterTally;
     activeDevices.set(deviceId, session);
 
     // [Zero-Latency 동기화 핵심 로직] 

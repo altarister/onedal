@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
+import { useDeviceStore } from "../../stores/deviceStore";
 import { TRUCK_CAPACITY_SLOTS, CALL_TARGET_LABEL, CANCEL_BUDGET_PER_ROUND } from "@onedal/shared";
 import type { CallTarget } from "@onedal/shared";
 import { socket } from "../../lib/socket";
@@ -50,6 +51,28 @@ export default function OrderFilterStatus({ onOpenFilter, cancelCounts = {}, can
 
     /** 두 망 중 더 많이 쓴 쪽으로 색을 정한다 — 하나만 위험해도 위험한 것이다 */
     const worstCancel = Math.max(cancelCounts['insung'] ?? 0, cancelCounts['hwamul24'] ?? 0);
+
+    /**
+     * 👁️ **왜 하나도 안 잡는지** — 앱이 매 스캔마다 채워 보내는 성적표 (기사님 확정 2026-08-23).
+     *
+     * 기사님: *"앱에서 리스트는 돌아가고 있는데 관제웹에서는 **필터링이 잘되고 있는 건지
+     * 알 수가 없어서** 답답하더라구. 실전에서는 16개가 다 들어오지 않으니까."*
+     *
+     * 기기가 여럿이면 **가장 최근에 스캔한 것**을 쓴다 (`seen` 이 있는 것 중 뒤에 온 것).
+     * 합치면 어느 폰이 무엇을 봤는지가 섞여 뜻을 잃는다.
+     */
+    const devices = useDeviceStore(st => st.devices);
+    const tally = devices.filter(d => d.filterTally && d.filterTally.seen > 0).pop()?.filterTally;
+
+    /** 떨어진 축을 **많이 걸린 순서**로 — 지금 무엇을 풀어야 하는지가 맨 앞에 온다 */
+    const rejects = tally ? ([
+        ['도착지', tally.region],
+        ['차종', tally.vehicle],
+        ['요금', tally.fare],
+        ['상차지', tally.pickup],
+        ['경로순서', tally.routeOrder],
+        ['블랙', tally.blacklist],
+    ] as const).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]) : [];
 
     /**
      * 🚫 **한 판을 다 쓰면 알린다** (기사님 확정 2026-08-23).
@@ -166,6 +189,23 @@ export default function OrderFilterStatus({ onOpenFilter, cancelCounts = {}, can
                             24시 {cancelCounts['hwamul24'] ?? 0}/{CANCEL_BUDGET_PER_ROUND}
                             {(cancelRounds['hwamul24'] ?? 1) > 1 && ` (${cancelRounds['hwamul24']}판)`}</span>
                     </span>
+                    {/* ── 👁️ 방금 스캔에서 무엇이 걸렀나 (기사님 확정 2026-08-23) ──
+                        `수집:N` 은 "앱이 살아 있다"까지만 말한다. 이 줄이 **왜 안 잡는지**를 말한다.
+                        🔴 잘 돌 때는 조용히 — 통과가 있으면 흐리게, 0이면 굵게 띄운다.
+                           늘 소리치면 아무도 안 본다. */}
+                    {tally && (
+                        <span className={`text-[11px] font-medium truncate mt-0.5 ${
+                            tally.passed === 0 ? 'text-warning font-bold' : 'text-text-muted opacity-70'
+                        }`}>
+                            👁️ 방금 {tally.seen}건 → 통과 {tally.passed}
+                            {rejects.length > 0 && (
+                                <span className="opacity-80">
+                                    <span className="mx-1 opacity-40">·</span>
+                                    {rejects.map(([name, n]) => `${name} ${n}`).join(' · ')}
+                                </span>
+                            )}
+                        </span>
+                    )}
                 </div>
                 <span className="text-text-muted text-sm shrink-0">⚙️</span>
             </div>

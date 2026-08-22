@@ -9,6 +9,7 @@ import com.onedal.app.core.LocationTextAnalyzer
 import com.onedal.app.core.ScreenTextNode
 import com.google.gson.Gson
 import com.onedal.app.models.FilterConfig
+import com.onedal.app.models.FilterTally
 import com.onedal.app.models.SimplifiedOfficeOrder
 import org.json.JSONObject
 import org.json.JSONArray
@@ -281,7 +282,7 @@ class InsungParser(private val context: Context) : IScrapParser {
      * 파싱된 오더가 4대 필터 조건을 모두 만족하는지 종합 판정합니다.
      * 모든 조건이 AND(교집합)로 통과해야만 true를 반환합니다.
      */
-    override fun shouldClick(order: SimplifiedOfficeOrder): Boolean {
+    override fun shouldClick(order: SimplifiedOfficeOrder, tally: FilterTally?): Boolean {
         val filter = loadCurrentFilter()
         
         // ── 조건 0: 전체 필터 활성화 여부 (스캔 정지 상태면 무조건 클릭 안함) ──
@@ -444,6 +445,26 @@ class InsungParser(private val context: Context) : IScrapParser {
         }
 
         val result = vehicleMatch && regionMatch && fareMatch && distanceMatch && blacklistClear && routeOrder.passed
+
+        /**
+         * 👁️ **성적표를 채운다** — 첫 번째로 걸린 축에만 센다 (기사님 확정 2026-08-23).
+         *
+         * 여러 축에 걸린 콜을 다 세면 합이 `seen` 을 넘고, *"이 축을 풀면 몇 개가
+         * 들어오나"* 를 못 읽는다 — 그게 이 숫자의 쓸모다.
+         * 순서는 화면의 판정 순서와 같다: 차종 → 도착지 → 요금 → 상차지 → 블랙 → 경로순서.
+         */
+        tally?.let { t ->
+            t.seen++
+            when {
+                result           -> t.passed++
+                !vehicleMatch    -> t.vehicle++
+                !regionMatch     -> t.region++
+                !fareMatch       -> t.fare++
+                !distanceMatch   -> t.pickup++
+                !blacklistClear  -> t.blacklist++
+                else             -> t.routeOrder++
+            }
+        }
 
         return result
     }

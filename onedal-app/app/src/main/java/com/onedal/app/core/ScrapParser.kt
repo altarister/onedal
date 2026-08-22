@@ -1,6 +1,7 @@
 package com.onedal.app.core
 
 import android.content.Context
+import com.onedal.app.models.FilterTally
 import com.onedal.app.models.SimplifiedOfficeOrder
 import com.onedal.app.plugins.hwamul24.Hwamul24Parser
 import com.onedal.app.plugins.insung.InsungParser
@@ -26,7 +27,7 @@ class ScrapParser(private val context: Context, targetApp: String) : IScrapParse
     fun currentParserName(): String = delegate::class.simpleName ?: "Unknown"
 
     override fun parse(texts: List<String>): SimplifiedOfficeOrder = delegate.parse(texts)
-    override fun shouldClick(order: SimplifiedOfficeOrder): Boolean = delegate.shouldClick(order)
+    override fun shouldClick(order: SimplifiedOfficeOrder, tally: FilterTally?): Boolean = delegate.shouldClick(order, tally)
     override fun parsePickupDistance(rawText: String): Double? {
         return delegate.parsePickupDistance(rawText)
     }

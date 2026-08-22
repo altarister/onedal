@@ -1,5 +1,6 @@
 package com.onedal.app.core
 
+import com.onedal.app.models.FilterTally
 import com.onedal.app.models.SimplifiedOfficeOrder
 
 /**
@@ -14,8 +15,16 @@ interface IScrapParser {
     /** 텍스트 리스트를 파싱하여 SimplifiedOfficeOrder 객체로 변환 */
     fun parse(texts: List<String>): SimplifiedOfficeOrder
 
-    /** 파싱된 오더가 4대 필터 조건을 모두 만족하는지 판정 */
-    fun shouldClick(order: SimplifiedOfficeOrder): Boolean
+    /**
+     * 파싱된 오더가 필터 조건을 모두 만족하는지 판정.
+     *
+     * 👁️ `tally` 를 주면 **축별 탈락 수를 채워 준다** (기사님 확정 2026-08-23).
+     *    한 콜은 **첫 번째로 걸린 축에만** 센다 — 다 세면 합이 본 수를 넘어
+     *    *"이 축을 풀면 몇 개가 들어오나"* 를 못 읽는다.
+     *    🔴 파서가 결과를 들고 있지 않는다. **호출자가 그릇을 만들어 넘긴다** —
+     *       파서 안에 두면 언제 갱신되는지가 호출 순서에 달린다 (숨은 상태).
+     */
+    fun shouldClick(order: SimplifiedOfficeOrder, tally: FilterTally? = null): Boolean
 
     /**
      * rawText에서 상차지 직선거리(숫자)만 파싱합니다.

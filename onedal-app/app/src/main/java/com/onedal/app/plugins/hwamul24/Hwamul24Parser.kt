@@ -8,6 +8,7 @@ import com.onedal.app.core.IScrapParser
 import com.onedal.app.core.LocationTextAnalyzer
 import com.onedal.app.core.ScreenTextNode
 import com.onedal.app.models.FilterConfig
+import com.onedal.app.models.FilterTally
 import com.onedal.app.models.SimplifiedOfficeOrder
 import org.json.JSONObject
 import java.text.SimpleDateFormat
@@ -248,7 +249,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
      * 화물24시에서는 리스트 단계에서 적요까지 파싱 가능하므로,
      * 블랙리스트(수작업 등) 필터도 1차에서 완벽히 걸러냅니다.
      */
-    override fun shouldClick(order: SimplifiedOfficeOrder): Boolean {
+    override fun shouldClick(order: SimplifiedOfficeOrder, tally: FilterTally?): Boolean {
         val filter = loadCurrentFilter()
 
         // ── 조건 0: 전체 필터 활성화 여부 ──
@@ -342,7 +343,26 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
             AppLogger.d(TAG, "🧭 [경로 순서] 차단 — ${routeOrder.reason}")
         }
 
-        return vehicleMatch && regionMatch && fareMatch && distanceMatch && blacklistClear && routeOrder.passed
+        val result = vehicleMatch && regionMatch && fareMatch && distanceMatch && blacklistClear && routeOrder.passed
+
+        /**
+         * 👁️ **성적표를 채운다** — 인성 파서와 **같은 규칙**이다 (첫 축에만 센다).
+         *    한쪽만 고치면 두 배차망의 숫자가 다른 뜻을 갖게 된다.
+         */
+        tally?.let { t ->
+            t.seen++
+            when {
+                result           -> t.passed++
+                !vehicleMatch    -> t.vehicle++
+                !regionMatch     -> t.region++
+                !fareMatch       -> t.fare++
+                !distanceMatch   -> t.pickup++
+                !blacklistClear  -> t.blacklist++
+                else             -> t.routeOrder++
+            }
+        }
+
+        return result
     }
 
     // ════════════════════════════════════════════════════════════════

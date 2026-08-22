@@ -48,6 +48,14 @@ class TelemetryManager(
     var screenNodeCount: Int? = null
 
     /**
+     * 👁️ **마지막 스캔의 필터 성적표** (기사님 확정 2026-08-23).
+     *
+     * `data` 건수는 *"앱이 살아 있다"* 까지만 말한다. **왜 하나도 안 잡는지**는 이 값이 말한다.
+     * 리스트 스캔이 매번 새로 채워 넣는다 — 누적이 아니라 **지금 화면의 스냅샷**이다.
+     */
+    var filterTally: com.onedal.app.models.FilterTally? = null
+
+    /**
      * 💤 **폰 화면이 켜져 있는가** (기사님 확정 2026-08-22).
      *
      * 접근성 스크래핑은 화면이 켜져 있어야 배차망 화면을 읽는다. 화면이 꺼지면 앱은
@@ -173,6 +181,7 @@ class TelemetryManager(
             screenContext = currentScreenContext.value,  // [Safety Mode V3] 화면 상태 (물리적 페이지)
             isHolding = isHolding,                       // [Page/Hold 분리] 콜 처리 중 여부
             screenNodeCount = screenNodeCount,           // 👁️ 마지막 리스트에서 읽은 텍스트 노드 수
+            filterTally = filterTally,                   // 👁️ 축별로 몇 개가 왜 떨어졌나
             isScreenOn = isScreenOn,                     // 💤 폰 화면이 켜져 있는가 (꺼지면 못 읽는다)
             lat = lat,                                   // [GPS 텔레메트리] 앱폰 위도
             lng = lng,                                   // [GPS 텔레메트리] 앱폰 경도

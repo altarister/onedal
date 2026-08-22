@@ -1067,6 +1067,21 @@ export interface DeviceSession {
      * 기사님이 **파란불을 믿고 기다리는 일**을 막는 유일한 신호다.
      */
     blindSince?: number;
+    /**
+     * 👁️ **마지막 스캔의 필터 성적표** (기사님 확정 2026-08-23).
+     *
+     * 기사님: *"앱에서 리스트는 돌아가고 있는데 관제웹에서는 **필터링이 잘되고 있는 건지
+     * 알 수가 없어서** 답답하더라구. 실전에서는 16개가 다 들어오지 않으니까."*
+     *
+     * `stats.polled` 는 *"앱이 살아 있다"* 까지만 말한다. **왜 하나도 안 잡는지**는 이 값이 말한다 —
+     * *"도착지에서 5개"* 면 경유 반경을 넓힐 때고, *"요금에서만"* 이면 콜할인율을 만질 때다.
+     *
+     * ⚠️ **누적이 아니라 마지막 스캔의 스냅샷**이다. 누적은 *"어제부터 300개 떨어짐"* 이라
+     *    지금 상태를 못 알려 준다. 질문은 *"지금 리스트에 뭐가 떠 있고 왜 안 잡나"* 다.
+     * ⚠️ **한 콜은 첫 번째로 걸린 축에만** 세어져 있다 — 그래야 합이 `seen` 과 맞고
+     *    *"이 축을 풀면 몇 개가 들어오나"* 를 읽을 수 있다.
+     */
+    filterTally?: FilterTally;
     stats: {
         polled: number;     // 리스트 조회(콜 수집) 누적 횟수
         grabbed: number;    // 성공 횟수
@@ -1316,6 +1331,23 @@ export interface OrderSyncPayload {
  * 🔴 예전에는 관제웹 문자열에 `/10` 으로 **박혀 있었고 서버는 한도를 아예 몰랐다.**
  *    서버가 "다 썼다"를 판정하려면 같은 값을 봐야 한다 — 두 벌이면 갈라진다.
  */
+/**
+ * 👁️ **필터 성적표 — 마지막 스캔 한 판** (기사님 확정 2026-08-23).
+ * 앱의 `FilterTally` 와 **같은 모양**이다. 축 이름이 갈라지면 화면이 엉뚱한 축을 가리킨다.
+ */
+export interface FilterTally {
+    /** 이번 스캔에서 판정한 콜 수 (요금을 못 읽어 버려진 카드는 여기 안 든다) */
+    seen: number;
+    /** 전부 통과한 콜 수 */
+    passed: number;
+    vehicle: number;
+    region: number;
+    fare: number;
+    pickup: number;
+    blacklist: number;
+    routeOrder: number;
+}
+
 export const CANCEL_BUDGET_PER_ROUND = 10;
 
 export interface RouteStopInfo {

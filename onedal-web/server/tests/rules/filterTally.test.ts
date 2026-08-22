@@ -1,0 +1,88 @@
+import { readFileSync } from 'fs';
+import { join } from 'path';
+
+/**
+ * 👁️ **필터가 왜 하나도 안 잡는지 화면이 말해 준다** (기사님 확정 2026-08-23)
+ *
+ * 기사님: *"앱에서 리스트는 돌아가고 있는데 관제웹에서는 **필터링이 잘되고 있는 건지
+ * 알 수가 없어서** 답답하더라구. 지금은 16개 중 무조건 들어온다는 걸 알지만
+ * **나중에 실전에서는 그렇지 못해서** 그래."*
+ *
+ * `수집:13` 은 *"앱이 살아 있다"* 까지만 말한다. **왜 하나도 안 잡는지**는 안 말한다.
+ * 그래서 기사님이 매번 물으셔야 했고, 답은 로그를 열어야만 있었다.
+ *
+ * 🔴 **앱은 이미 답을 알고 있다.** 매 스캔마다 축별로 판정한다:
+ *
+ *     🔍 차종=✅ 도착지(342중 진위면)=❌ 요금=✅ 상차지=✅ 블랙=✅
+ *
+ * 그 숫자가 서버로 안 올라올 뿐이다. 올리면 화면이 이렇게 말할 수 있다:
+ *
+ *     👁️ 방금 본 8건 → 통과 0 · 도착지 5 · 차종 2 · 요금 1
+ *
+ * *"도착지에서 5개"* 면 경유 반경을 넓힐 때고, *"요금에서만"* 이면 콜할인율을 만질 때다.
+ *
+ * ⚠️ **누적이 아니라 마지막 스캔의 스냅샷**이다. 누적은 *"어제부터 300개 떨어짐"* 이라
+ *    지금 상태를 못 알려 준다. 질문은 *"지금 리스트에 뭐가 떠 있고 왜 안 잡나"* 다.
+ *
+ * ⚠️ **한 콜은 첫 번째로 걸린 축에만 센다.** 여러 축에 걸린 콜을 다 세면 합이 본 수를
+ *    넘고, *"이 축을 풀면 몇 개가 들어오나"* 를 못 읽는다 — 그게 이 숫자의 쓸모다.
+ *
+ * 🔴 **숨은 상태로 만들지 않는다.** 파서가 자기 안에 마지막 결과를 들고 있으면 언제
+ *    갱신되는지가 호출 순서에 달린다. 호출자가 **그릇을 만들어 넘기고** 파서는 채우기만 한다.
+ */
+
+const APP = join(__dirname, '../../../../onedal-app/app/src/main/java/com/onedal/app');
+const app = (p: string) => readFileSync(join(APP, p), 'utf8');
+const srv = (p: string) => readFileSync(join(__dirname, '../../src', p), 'utf8');
+const shared = () => readFileSync(join(__dirname, '../../../shared/src/index.ts'), 'utf8');
+const client = (p: string) => readFileSync(join(__dirname, '../../../client-app/src', p), 'utf8');
+const code = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+
+describe('👁️ 앱 — 축별로 몇 개가 떨어졌는지 센다', () => {
+    it('🔴 담을 그릇이 있다 (본 수 · 통과 수 · 축별 탈락 수)', () => {
+        const m = code(app('models/SharedModels.kt'));
+        expect(m).toMatch(/class FilterTally/);
+        for (const f of ['seen', 'passed', 'vehicle', 'region', 'fare', 'pickup', 'routeOrder']) {
+            expect(m).toMatch(new RegExp(`var ${f}\\b`));
+        }
+    });
+
+    /**
+     * 🔴 파서가 자기 안에 들고 있으면 **언제 갱신되는지가 호출 순서에 달린다.**
+     *    호출자가 그릇을 넘긴다 — 기본값 null 이라 옛 호출부는 그대로 돈다.
+     */
+    it('🔴 호출자가 그릇을 넘긴다 (파서가 숨겨 두지 않는다)', () => {
+        expect(code(app('core/IScrapParser.kt'))).toMatch(/shouldClick\([^)]*tally[^)]*\)/);
+        for (const p of ['plugins/insung/InsungParser.kt', 'plugins/hwamul24/Hwamul24Parser.kt']) {
+            expect(code(app(p))).toMatch(/tally/);
+        }
+    });
+
+    it('🔴 리스트 스캔이 매번 새 그릇으로 센다 (누적하지 않는다)', () => {
+        const s = code(app('HijackService.kt'));
+        const fn = s.split('private fun handleListScreen')[1]?.split('\n    private fun ')[0] ?? '';
+        expect(fn).toMatch(/FilterTally\(\)/);
+        expect(fn).toMatch(/shouldClick\(order, *tally\)/);
+    });
+
+    it('🔴 그 숫자를 서버로 보낸다 (앱 안에서만 알면 화면은 여전히 모른다)', () => {
+        expect(code(app('core/TelemetryManager.kt'))).toMatch(/filterTally/);
+        expect(code(app('models/SharedModels.kt'))).toMatch(/filterTally/);
+    });
+});
+
+describe('👁️ 서버 — 받아서 기기 세션에 둔다', () => {
+    it('🔴 기기 세션이 마지막 스캔 결과를 들고 있다', () => {
+        expect(code(shared())).toMatch(/filterTally\?:/);
+    });
+
+    it('🔴 스크랩이 그 값을 세션에 옮긴다', () => {
+        expect(code(srv('routes/scrap.ts')) + code(srv('routes/devices.ts'))).toMatch(/filterTally/);
+    });
+});
+
+describe('👁️ 관제웹 — 왜 안 잡는지 한 줄로 말한다', () => {
+    it('🔴 필터 카드가 그 숫자를 그린다', () => {
+        expect(code(client('components/dashboard/OrderFilterStatus.tsx'))).toMatch(/filterTally/);
+    });
+});

@@ -24,6 +24,7 @@ import com.onedal.app.models.DispatchDetailedRequest
 import com.onedal.app.models.EmergencyReason
 import com.onedal.app.models.EmergencyReport
 import com.onedal.app.models.ScreenContext
+import com.onedal.app.models.FilterTally
 import com.onedal.app.models.SimplifiedOfficeOrder
 import android.os.Handler
 import android.os.Looper
@@ -361,6 +362,15 @@ class HijackService : AccessibilityService() {
         /** 그룹은 나왔는데 요금을 못 읽어 버려진 수 — 아래 진단이 읽는다 */
         var fareFail = 0
 
+        /**
+         * 👁️ **이번 스캔의 필터 성적표** (기사님 확정 2026-08-23).
+         *
+         * 기사님: *"관제웹에서는 필터링이 잘되고 있는 건지 알 수가 없어서 답답하다."*
+         * **매 스캔마다 새로 만든다** — 누적이 아니다. 질문은 *"어제부터 몇 개"* 가 아니라
+         * *"지금 리스트에 뭐가 떠 있고 왜 안 잡나"* 이기 때문이다.
+         */
+        val tally = FilterTally()
+
         // 각 요금 노드 기준으로 텍스트 세트를 묶어 파싱
         for ((fareNode, cardTexts) in groupedNodes) {
             val order = scrapParser.parse(cardTexts)
@@ -385,7 +395,7 @@ class HijackService : AccessibilityService() {
             if (processedOrderHashes.contains(orderHash)) continue
 
             // 🌟 [항시 인터셉터] 콜 필터 매칭 검사 (디버그 로그를 위해 MANUAL/AUTO 무관하게 항시 실행)
-            val isTarget = scrapParser.shouldClick(order)
+            val isTarget = scrapParser.shouldClick(order, tally)
 
             // 🌟 [AUTO 실행] 콜 잡기 중이지 않고 AUTO 모드일 때만 실제 클릭 동작 수행
             if (!session.isAutoActive && telemetryManager.currentMode == "AUTO") {
@@ -453,6 +463,11 @@ class HijackService : AccessibilityService() {
                 "요금실패 $fareFail — ${lastScanReason(allNodes.size, groupedNodes.size, fareFail)}")
         }
         telemetryManager.screenNodeCount = allNodes.size
+        /**
+         * 👁️ **성적표를 서버로 넘긴다.** 앱 안에서만 알면 화면은 여전히 모른다 —
+         *    기사님이 매번 로그를 여셔야 했던 이유가 그것이다.
+         */
+        telemetryManager.filterTally = tally
 
         // 메모리 관리
         if (processedOrderHashes.size > MAX_ORDER_HASH_CACHE) {
