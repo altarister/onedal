@@ -13,6 +13,7 @@ import com.onedal.app.models.ScrapPayload
 import com.onedal.app.models.ScrapResponse
 import com.onedal.app.models.PairDeviceRequest
 import com.onedal.app.models.PairDeviceResponse
+import org.json.JSONObject
 import java.util.concurrent.Executors
 
 /**
@@ -262,7 +263,32 @@ class ApiClient(private val context: Context) {
                     AppLogger.roadmap("[post /api/scrap response] deviceId: ${payload.deviceId}, (건수: ${payload.data.size})", screenName)
                     
                     if (scrapRes.dispatchEngineArgs != null) {
-                        val filterJson = gson.toJson(scrapRes.dispatchEngineArgs)
+                        /**
+                         * 🕳️ **서버가 보낸 원문을 그대로 보관한다** (기사님 실측 2026-08-23).
+                         *
+                         * 예전에는 `gson.toJson(scrapRes.dispatchEngineArgs)` 로 **되말아서**
+                         * 저장했다. Gson 은 기본으로 `null` 필드를 직렬화하지 않으므로
+                         * `{"분당구": null}` 같은 항목이 **그 왕복에서 통째로 사라졌다.**
+                         *
+                         * 실측: 서버가 435개를 보냈는데 앱은 **407개**를 들고 있었다 —
+                         * 차이 28개가 정확히 진행도를 모르는(null) 지역 수였다.
+                         *
+                         * 🔴 이게 왜 치명적인가: `RouteOrderFilter` 에서 **뜻이 뒤집힌다.**
+                         *      키가 있고 값이 null → *"순서 미상 — 통과"*   ← 서버의 의도
+                         *      키가 아예 없음      → *"경로 밖 — 차단"*     ← 사라진 뒤 동작
+                         *    *"진행도를 모르는 동은 남긴다"* 는 규칙이 **저장 계층에서**
+                         *    조용히 깨져 있었다. 콜을 못 잡는데 화면은 멀쩡해 보였다.
+                         *
+                         * 원문을 그대로 두면 어떤 값도 잃지 않는다 — 왕복 자체를 없앤다.
+                         *
+                         * ⚠️ 원문을 못 꺼내면 **옛 필터를 지킨다.** 되말기로 폴백하지 않는다 —
+                         *    그건 안전망이 아니라 망가진 동작으로 돌아가는 길이고, 조용히
+                         *    28개를 잃은 채 계속 돈다. 필터가 하나 늦는 편이 낫다 (규칙 ④).
+                         */
+                        val filterJson = JSONObject(body).optJSONObject("dispatchEngineArgs")?.toString()
+                        if (filterJson == null) {
+                            AppLogger.w(TAG, "📋 [필터 원문 없음] 응답에서 dispatchEngineArgs 를 못 꺼냈습니다 — 저장본을 그대로 둡니다")
+                        } else {
                         val prevFilterJson = prefs.getString("activeFilter", null)
                         prefs.edit().putString("activeFilter", filterJson).apply()
                         // 🧭 [피기백 v2] 필터와 함께 온 버전을 저장 — 다음 텔레메트리에 실어 보내면
@@ -288,8 +314,9 @@ class ApiClient(private val context: Context) {
                         if (prevFilterJson != filterJson) {
                             AppLogger.v(TAG, "📋 [필터 변경 감지] 전체 스키마:\n$updatedFilter")
                         }
+                        }
                     }
-                    
+
                     prefs.edit().putString("apiStatus", gson.toJson(scrapRes.apiStatus)).apply()
                     prefs.edit().putString("deviceControl", gson.toJson(scrapRes.deviceControl)).apply()
 
