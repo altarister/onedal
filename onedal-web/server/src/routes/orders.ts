@@ -18,6 +18,7 @@ import { RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, restoreWindow, isEvaluating 
 import db from "../db";
 import { getUserSession } from "../state/userSessionStore";
 import { forceCancelEvaluatingOrder, handleDecision } from "../services/dispatchEngine";
+import { parsePolyline } from "../services/routeComposer";
 import { updateActiveFilter } from "../state/filterManager";
 import { requireAuth } from "../middlewares/authMiddleware";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
@@ -56,7 +57,16 @@ router.get("/", requireAuth, (req, res) => {
             ...IN_PROGRESS_STATUSES, unfinishedSinceIso,
         );
 
-        res.json({ orders: rows });
+        /**
+         * 🗺️ **장부의 문자열을 좌표 배열로 되돌려 내보낸다** (2026-08-23 실측 사고).
+         *
+         * `routePolyline` 은 DB 에 JSON 문자열로 산다. 행을 `SELECT *` 로 읽어 **그대로**
+         * 보냈더니 관제웹이 배열인 줄 알고 `.filter()` 를 부르다 화면이 통째로 죽었다.
+         * 되돌리는 규칙은 `parsePolyline` 한 곳에만 있다 (규칙 ③).
+         */
+        res.json({
+            orders: (rows as any[]).map(r => ({ ...r, routePolyline: parsePolyline(r.routePolyline) })),
+        });
     } catch (error) {
         console.error("Orders GET 에러:", error);
         res.status(500).json({ error: "서버 오류 발생" });

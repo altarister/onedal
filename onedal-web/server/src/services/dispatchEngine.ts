@@ -10,7 +10,7 @@ import { fetchRealWorldRoute } from "../routes/osrmUtil";
 import { getUserSession, clearOrderTimers } from "../state/userSessionStore";
 import { updateActiveFilter, rememberDetourProgress } from "../state/filterManager";
 import { getDetourRegions, getCityRegionsWithRadius, reverseGeocodeToRegion, haversineKm } from "../services/geoService";
-import { composeMergedRoute, applyRoute, applySoloRoute, pickRouteHolder, toKm, toMin, isAlreadyLoaded, snapshotRoute, restoreRouteSnapshot } from "./routeComposer";
+import { composeMergedRoute, applyRoute, applySoloRoute, pickRouteHolder, toKm, toMin, isAlreadyLoaded, snapshotRoute, restoreRouteSnapshot, parsePolyline } from "./routeComposer";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { DISPATCH_CONFIG } from "../config/dispatchConfig";
 import db from "../db";
@@ -789,20 +789,6 @@ function hydrateVisitedStops(orderId: string): { arrivedPickupAt?: string; arriv
         arrivedPickupAt: at('ARRIVED_PICKUP'),
         arrivedDropoffAt: at('ARRIVED_DROPOFF'),
     };
-}
-
-/**
- * 🗺️ 장부에 문자열로 남은 궤적을 좌표 배열로 되돌린다.
- * 깨진 값은 **없는 것으로** 친다 — 낡거나 망가진 궤적을 쓰느니 다시 재는 편이 낫다 (규칙 ④).
- */
-function parsePolyline(raw: unknown): Array<{ x: number; y: number }> | undefined {
-    if (typeof raw !== 'string' || !raw) return undefined;
-    try {
-        const v = JSON.parse(raw);
-        return Array.isArray(v) && v.length ? v : undefined;
-    } catch {
-        return undefined;
-    }
 }
 
 export async function restoreAndRecalculateSession(userId: string, io: any) {

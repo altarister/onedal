@@ -103,11 +103,31 @@ class HijackService : AccessibilityService() {
     // 화면 꺼짐/켜짐 감지용 리시버 (퇴근 시 즉시 오프라인 통보 / 출근 시 즉시 생존 신고)
     private val screenOffReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
+            /**
+             * 💤 **화면 상태는 이벤트로 한 번 알리고 끝내지 않는다** (기사님 확정 2026-08-22).
+             *
+             * 예전에는 `sendOffline()` 한 번이 전부였다. 그런데 화면이 꺼져도 앱은 60초마다
+             * 생존신고를 계속하고, 그 하트비트가 서버에서 `status = "ONLINE"` 으로
+             * **되돌려 버린다** — 실측 20:28 에 꺼짐을 보고했는데 20:32 에 관제웹은 녹색이었다.
+             *
+             * 그래서 **플래그를 세워 매 텔레메트리에 실어 보낸다.** 서버가 추측할 일이 없다.
+             * 접근성 스크래핑은 화면이 켜져 있어야 도니, 화면 꺼짐 = **콜을 못 잡는 상태**다.
+             */
             if (intent?.action == Intent.ACTION_SCREEN_OFF) {
+                telemetryManager.isScreenOn = false
                 AppLogger.roadmap("📵 화면 꺼짐 감지 → 서버로 퇴근(OFFLINE) 보고", "OFFLINE")
                 AppLogger.w(TAG, "📵 [Screen Off 감지] 기사님 퇴근 또는 화면 꺼짐! 즉시 서버로 오프라인 통보!")
                 apiClient.sendOffline()
+                /**
+                 * 💤 **지금 바로 알린다** (기사님 확정 2026-08-22).
+                 *
+                 * 화면을 끄는 순간 텔레메트리 주기가 **60초(하트비트 모드)로 떨어진다.**
+                 * 그래서 앱은 즉시 알았는데 관제웹은 **최대 1분 뒤에야** 알았다.
+                 * 한 번 밀어 보내면 1초 안에 배지가 뜬다.
+                 */
+                telemetryManager.forceFlushEvent()
             } else if (intent?.action == Intent.ACTION_SCREEN_ON) {
+                telemetryManager.isScreenOn = true
                 AppLogger.roadmap("💡 화면 켜짐 감지 → 서버로 출근(ONLINE) 보고", "ONLINE")
                 AppLogger.w(TAG, "💡 [Screen On 감지] 화면 켜짐! 즉시 서버로 생존 신고(ONLINE)!")
                 telemetryManager.forceHeartbeat()
@@ -141,6 +161,13 @@ class HijackService : AccessibilityService() {
         touchManager = AutoTouchManager(this)
         surfingMachine = PopupSurfingMachine(touchManager)
         cautionVerifier = CautionDongVerifier(this)
+
+        /**
+         * 💤 시작할 때의 화면 상태는 **물어봐서** 세운다 — 기본값(켜짐)으로 두면
+         * 화면이 꺼진 채 서비스가 붙었을 때 첫 보고부터 거짓말한다.
+         */
+        telemetryManager.isScreenOn =
+            (getSystemService(Context.POWER_SERVICE) as android.os.PowerManager).isInteractive
 
         telemetryManager.start()
         apiClient.fetchKeywords()
@@ -247,16 +274,24 @@ class HijackService : AccessibilityService() {
          *
          * (타이머로 유예를 주는 방법도 있지만, 몇 밀리초를 줘야 하는지에 근거가 없다.
          *  화면 전이는 이미 상태로 표현돼 있으므로 그걸 쓴다)
+         *
+         * 🔴 **그런데 2026-08-23 에 같은 사고가 다시 났다** — 이 판정은 멀쩡했는데
+         *    `handleListScreen` 첫 줄이 **조건 없이** 리셋을 부르고 있어서 무의미했다.
+         *    이번엔 `matchType` 이 아니라 **미리보기**가 뒤집혔다: 앱이 자기가 터치한 콜을
+         *    "손으로 연 상세"로 읽어 확정을 안 눌렀고, 🔵 100점 판정까지 받고 콜을 놓쳤다.
+         *    → 그 자리를 없애고 **리셋은 여기 한 곳에서만** 한다 (`sessionEndsWithCall.test.ts`).
+         *
+         * ⚠️ 조건(`hasActiveSession()`)도 뗐다. 그건 `isAutoActive`·`isWaitingForDecision`·
+         *    `currentOrderId` 만 보므로 `surfingState`·`isPreview` 가 더럽게 남으면 그냥
+         *    통과한다. **복귀는 그 자체로 콜의 끝**이니 조건 없이 지우는 것이 맞다.
          */
         val isListScreen = detected == ScreenContext.LIST ||
                            detected == ScreenContext.LIST_COMPLETED ||
                            rawScreenStr.contains("대기 중인 오더가 없")
         val wasListScreen = previous == ScreenContext.LIST || previous == ScreenContext.LIST_COMPLETED
         if (isListScreen && !wasListScreen) {
-            if (session.hasActiveSession()) {
-                AppLogger.d(TAG, "[복귀 감지] ${previous.name} → ${detected.name} 복귀. 세션 및 안전취소 락 완전 해제")
-                resetSessionState()
-            }
+            AppLogger.d(TAG, "[복귀 감지] ${previous.name} → ${detected.name} 복귀. 세션 및 안전취소 락 완전 해제")
+            resetSessionState()
         }
 
         // 서버 판결 대기 중에는 화면 내 버튼 탐색이나 서핑(클릭 액션) 무시
@@ -304,9 +339,19 @@ class HijackService : AccessibilityService() {
      */
 
     private fun handleListScreen(rootNode: AccessibilityNodeInfo, screenTexts: List<String>) {
-        // 세션 초기화: 리스트로 돌아오면 이전 상세/서핑 상태 전부 리셋
-        resetSessionState()
-
+        /**
+         * 🔚 **여기서 세션을 지우지 않는다** (기사님 확정 2026-08-23).
+         *
+         * 예전에는 첫 줄이 `resetSessionState()` 였다. *"리스트로 돌아오면 리셋"* 이라고
+         * 적혀 있었지만 실제로는 **"리스트를 보고 있으면 리셋"** 이었다 — 이 핸들러는
+         * 리스트에 머무는 5초마다 돌기 때문이다.
+         *
+         * 그래서 자동 터치 직후 화면이 아직 안 바뀐 사이(118ms)에 LIST 이벤트가 한 번 더
+         * 오면 **방금 잡은 콜이 통째로 지워졌다.** 리셋은 위쪽 **복귀 판정**이 한다.
+         *
+         * 🔴 세션을 지우는 자리는 전부 *"이 콜은 끝났다"* 여야 한다 — 복귀 · 동명이동 실패 ·
+         *    2차 필터 실패 · 판결 집행. **"지금 무슨 화면이냐"는 콜의 끝이 아니다.**
+         */
         val allNodes = mutableListOf<ScreenTextNode>()
         extractAllTextNodes(rootNode, allNodes)
 
@@ -320,7 +365,21 @@ class HijackService : AccessibilityService() {
         for ((fareNode, cardTexts) in groupedNodes) {
             val order = scrapParser.parse(cardTexts)
 
-            if (order.fare == 0) { fareFail++; continue }
+            if (order.fare == 0) {
+                fareFail++
+                /**
+                 * 💸 **요금을 못 읽으면 그 카드의 글자를 남긴다** (기사님 확정 2026-08-23).
+                 *
+                 * 숫자(`요금실패 1`)만으로는 **차종을 못 읽은 건지 요금 자리에 딴 게 있는
+                 * 건지** 알 수가 없어, 재현해도 원인을 못 찾았다.
+                 *
+                 * 파서는 `차종 노드 → 바로 다음이 요금` 으로 읽는다(`InsungParser`).
+                 * 그래서 **텍스트 순서 자체가 진단**이다 — 앞부분만 봐도 어디서 어긋났는지 보인다.
+                 * 카드마다 매번 찍히지 않게 **못 읽은 것만** 남긴다.
+                 */
+                AppLogger.w(TAG, "💸 [요금 못 읽음] ${cardTexts.joinToString(" | ").take(140)}")
+                continue
+            }
 
             val orderHash = (order.pickup + order.dropoff + order.fare.toString()).hashCode()
             if (processedOrderHashes.contains(orderHash)) continue

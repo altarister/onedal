@@ -123,6 +123,24 @@ export interface RouteSnapshot {
     at: { x: number; y: number } | null;
 }
 
+/**
+ * 🗺️ **장부의 문자열을 좌표 배열로 되돌린다** — 저장 형식과 쓰는 형식의 경계.
+ *
+ * `routePolyline` 은 DB 에 JSON 문자열로 산다. 행을 그대로 내보내면 관제웹이
+ * 배열인 줄 알고 `.filter()` 를 부르다 죽는다 (2026-08-23 실측 사고).
+ * **되돌리는 자리는 여기 하나다** (규칙 ③) — 깨진 값은 `undefined`, 없는 것으로 친다.
+ */
+export function parsePolyline(raw: unknown): Array<{ x: number; y: number }> | undefined {
+    if (Array.isArray(raw)) return raw.length ? raw : undefined;   // 이미 배열이면 그대로
+    if (typeof raw !== 'string' || !raw) return undefined;
+    try {
+        const v = JSON.parse(raw);
+        return Array.isArray(v) && v.length ? v : undefined;
+    } catch {
+        return undefined;
+    }
+}
+
 /** 지금 모습을 그대로 뜬다 (덮어쓰기 직전에 부른다) */
 export function snapshotRoute(holder: RouteHolder & { id: string }, at: { x: number; y: number } | null): RouteSnapshot {
     return {

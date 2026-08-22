@@ -39,6 +39,23 @@ describe('🗺️ 가 — 확정 경로는 장부에 남는다', () => {
      * 🔴 저장했으면 **다시 부르지 않는다.** 재시작 복구가 장부의 궤적을 먼저 본다.
      *    없을 때만(옛 행·연산 실패) 카카오로 간다 — 안전망은 남긴다.
      */
+    /**
+     * 🔴 **장부의 문자열이 화면까지 새어 나가면 안 된다** (2026-08-23 실측 사고).
+     *
+     * `routePolyline` 은 DB 에 **JSON 문자열**로 산다. 그런데 `/api/orders` 는 행을
+     * `SELECT *` 로 읽어 **그대로** 관제웹에 보냈다. 관제웹은 좌표 배열로 알고
+     * `.filter()` 를 부르다 통째로 죽었다:
+     *
+     *     TypeError: currentPolyline.filter is not a function  (PinnedRouteCanvas:65)
+     *
+     * 저장 형식(문자열)과 쓰는 형식(배열)이 다르면 **경계에서 반드시 되돌린다.**
+     * 그 자리는 `parsePolyline` 한 곳이다 (규칙 ③).
+     */
+    it('🔴 장부에서 읽어 내보낼 때 좌표 배열로 되돌린다', () => {
+        const ord = code(read('routes/orders.ts'));
+        expect(ord).toMatch(/parsePolyline|routePolyline/);
+    });
+
     it('🔴 재시작 복구가 장부의 궤적을 먼저 쓴다', () => {
         const eng = code(read('services/dispatchEngine.ts'));
         const fn = eng.split('export async function restoreAndRecalculateSession')[1] ?? '';

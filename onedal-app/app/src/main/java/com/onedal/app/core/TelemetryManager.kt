@@ -47,6 +47,19 @@ class TelemetryManager(
     @Volatile
     var screenNodeCount: Int? = null
 
+    /**
+     * 💤 **폰 화면이 켜져 있는가** (기사님 확정 2026-08-22).
+     *
+     * 접근성 스크래핑은 화면이 켜져 있어야 배차망 화면을 읽는다. 화면이 꺼지면 앱은
+     * 살아 있어도 **콜을 잡을 수 없다** — 그런데 관제웹은 녹색이었다.
+     *
+     * 🔴 예전에는 `Screen Off` 이벤트로 `sendOffline()` 을 **한 번** 보내고 끝이었다.
+     *    그러면 60초 뒤 하트비트가 `status = "ONLINE"` 으로 되돌려 버린다.
+     *    **사실을 매번 실어 보내면 서버가 추측할 일이 없다** (규칙 ③).
+     */
+    @Volatile
+    var isScreenOn: Boolean = true
+
     // [Piggyback V2] 관제탑 결재 대기 여부 (1.0초 단위 Short Polling 발동 조건)
     var isWaitingDecision: Boolean = false
         set(value) {
@@ -160,6 +173,7 @@ class TelemetryManager(
             screenContext = currentScreenContext.value,  // [Safety Mode V3] 화면 상태 (물리적 페이지)
             isHolding = isHolding,                       // [Page/Hold 분리] 콜 처리 중 여부
             screenNodeCount = screenNodeCount,           // 👁️ 마지막 리스트에서 읽은 텍스트 노드 수
+            isScreenOn = isScreenOn,                     // 💤 폰 화면이 켜져 있는가 (꺼지면 못 읽는다)
             lat = lat,                                   // [GPS 텔레메트리] 앱폰 위도
             lng = lng,                                   // [GPS 텔레메트리] 앱폰 경도
             targetApp = appCode,
