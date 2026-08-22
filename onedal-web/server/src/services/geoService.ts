@@ -61,6 +61,7 @@ export function initGeoService() {
             });
             mergedMapFeatureCollection = parsed;
             adminNameSet = null;   // 지도가 다시 로드되면 지명 사전도 다시 만든다
+            districtNameCount = null;   // 구 이름 유일성도 같은 이유로 다시 센다
             console.log(`🗺️ [GeoService] 전국 자치구/읍면동 폴리곤 로드 성공 (총 ${parsed.features?.length || 0}개 방어구역)`);
         } else {
             console.warn(`🗺️ [GeoService] merged_map.geojson 형식이 올바른 FeatureCollection이 아닙니다.`);
@@ -92,6 +93,28 @@ export function cityAliases(parentName: string): string[] {
     // 예: 광주시 → 광주, 송파구 → 송파
     if (/[시군구]$/.test(parentName)) out.add(parentName.slice(0, -1));
 
+    /**
+     * 🏙️ **구 단독형** — 배차망 리스트가 그렇게 준다 (기사님 지적 2026-08-23).
+     *
+     * `성남시 분당구` 의 별칭이 `성남시 분당구`·`성남시 분당` 뿐이라, 리스트 카드에
+     * **`분당구`** 라고만 뜨는 콜은 **어느 쪽도 안 맞았다.** 실측에서 합짐 국면의
+     * 구 단위 콜이 전멸했다 — `분당구`·`동작구`·`단원구`·`강동구` 전부 ❌.
+     *
+     * 첫짐(파주 목적지)은 동·읍·면뿐이라 안 걸렸다. **합짐은 경로가 서울·성남을
+     * 지나므로** 그 지역 콜을 통째로 놓쳤다.
+     *
+     * ⚠️ **이름이 겹치는 구는 넣지 않는다.** `중구` 는 서울에도 인천에도 있어서,
+     *    단독형을 실으면 서울 중구를 지날 때 인천 중구 콜을 잡는다.
+     *    잘못 잡으면 배차망 취소 횟수(10회)를 쓴다 — *"안 잡는 것과 잡고 나서
+     *    버리는 것은 전혀 다르다"* (`RouteOrderFilter`).
+     *    판단은 **지도에서 센다** — 손으로 적은 목록을 두지 않는다 (규칙 ⑤-4 ②).
+     */
+    const tail = parentName.split(' ').pop() ?? '';
+    if (tail !== parentName && /구$/.test(tail) && isUniqueDistrictName(tail)) {
+        out.add(tail);
+        out.add(tail.slice(0, -1));   // 분당구 → 분당 (리스트가 줄여 쓰는 경우)
+    }
+
     // 특수 룰: 광주광역시와 헷갈리지 않도록 경기 광주는 앞에 도를 붙인 표기도 받는다
     if (parentName === '광주시') {
         out.add('경기 광주');
@@ -99,6 +122,41 @@ export function cityAliases(parentName: string): string[] {
         out.add('경광주');
     }
     return Array.from(out);
+}
+
+/**
+ * 🏙️ **이 구 이름이 지도 안에서 유일한가** — 부팅 때 한 번 세어 캐시한다.
+ *
+ * 겹치면(서울 중구 / 인천 중구) 단독형을 못 쓴다. 목록을 상수로 적어 두면
+ * 지도가 넓어질 때 조용히 틀리므로 **데이터에서 파생시킨다** (규칙 ③).
+ */
+let districtNameCount: Map<string, number> | null = null;
+function isUniqueDistrictName(district: string): boolean {
+    /**
+     * 🔴 **방위 이름은 지도를 보기 전에 거른다** (2026-08-23 실측).
+     *
+     * 지도(`merged_map.geojson`)는 **수도권만** 담는다. 그래서 세어 보면 `서구`(인천)가
+     * "유일"로 나오는데, 실제로는 대전·광주·부산·대구에도 있다 —
+     * **없는 데이터를 근거로 유일하다고 판정하는 것**이다.
+     *
+     * 이름 자체가 답을 갖고 있다: `구` 를 떼고 **한 글자**면 방위·중심을 가리키는 말이지
+     * 고유명이 아니다 (`서`·`동`·`남`·`북`·`중`). 손으로 목록을 적지 않아도 갈린다.
+     */
+    if (district.length <= 2) return false;
+
+    if (!districtNameCount) {
+        districtNameCount = new Map();
+        const parents = new Set<string>();
+        for (const f of mergedMapFeatureCollection?.features ?? []) {
+            const props: any = f.properties || {};
+            parents.add(props.intel?.parentName || props.SIG_KOR_NM || '');
+        }
+        for (const p of parents) {
+            const t = p.split(' ').pop() ?? '';
+            if (t && t !== p && /구$/.test(t)) districtNameCount.set(t, (districtNameCount.get(t) ?? 0) + 1);
+        }
+    }
+    return districtNameCount.get(district) === 1;
 }
 
 /**
@@ -251,6 +309,35 @@ export function getDetourRegions(polyline: Array<{x: number; y: number}>, detour
     for (const [parent, set] of Object.entries(groupedRegions)) {
         resultGroups[parent] = Array.from(set).sort();
         for (const alias of cityAliases(parent)) customCitySet.add(alias);
+
+        /**
+         * 🏙️ **구 이름도 목록에 싣는다 — 진행도는 비운 채로** (기사님 지적 2026-08-23).
+         *
+         * 배차망 리스트는 서울·성남·안산 같은 대도시를 **구**로 표시하는데, 경유 목록은
+         * 읍/면/동만 담고 있어 그 콜이 전멸했다 (`분당구`·`동작구`·`단원구`·`강동구` ❌).
+         * 앱은 도착 목록을 `destinationKeywords ∪ progressKm 키` 로 만들므로,
+         * **여기 실으면 리스트·상세 양쪽에서 한 번에 산다** (앱은 안 고쳐도 된다).
+         *
+         * 🔴 값은 **`null`(순서 미상)** 이다. 구는 넓어서 *"경로 몇 km 지점"* 이 하나로
+         *    안 정해진다 — 0 이나 평균을 넣으면 **없는 숫자를 지어내는 것**이고(규칙 ④),
+         *    그 숫자로 역주행 판정이 돌아 멀쩡한 콜이 막힌다. 앱의 `RouteOrderFilter` 는
+         *    `null` 을 *"모르면 통과"* 로 이미 다룬다 — 경로 위에 있다는 것만 알리고
+         *    정밀한 구분은 서버가 전체 주소로 한다 (규칙 ⑤).
+         *
+         * ⚠️ 동 이름을 덮지 않는다. 같은 글자의 동이 있으면 그쪽 숫자가 이긴다.
+         */
+        const tail = parent.split(' ').pop() ?? '';
+        if (tail !== parent && /구$/.test(tail) && isUniqueDistrictName(tail) && !(tail in progressKm)) {
+            (progressKm as Record<string, number | null>)[tail] = null;
+            /**
+             * ⚠️ **도착 목록에도 넣어야 앱까지 간다.** `buildAppProgressKm` 은
+             *    `destinationKeywords` 를 **돌면서** 진행도를 뽑는다 — 지나온 구간을 뺄 때
+             *    목록과 진행도가 **한 벌로** 줄어야 하기 때문이다. 여기만 넣고 목록에서
+             *    빠뜨리면 앱은 구 이름을 영영 못 본다.
+             *    (트림 규칙 ①*"진행도를 모르는 동은 남긴다"* 라 구는 안 빠진다)
+             */
+            matchedRegionNames.add(tail);
+        }
     }
 
     return {
