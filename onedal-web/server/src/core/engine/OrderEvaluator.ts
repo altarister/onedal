@@ -156,10 +156,40 @@ export class OrderEvaluator {
                             && securedOrder.approachDurationMin > judgmentCfg.unknown.pickupOffsetMin)
                             tags.push('통화 필수 — 무통보 상차 한계 밖');
                         if (dwell.hasUnknown) tags.push('정차 미확인(일반값)');
+
+                        /**
+                         * 💸 **미리보기 콜은 단가를 다시 본다** (기사님 확정 2026-08-22 · A안).
+                         *
+                         * 규칙 ⑤-1 *"돈은 앱이 이미 걸렀다"* 의 전제는 **앱 필터를 통과한 콜**에만
+                         * 성립한다. 미리보기는 기사님이 리스트에서 **아무 콜이나 눌러 보는 것**이라
+                         * 필터 밖이고, 하한가를 넘겼다는 보장이 없다.
+                         *
+                         * 실측(2026-08-22 18:30): 시급으로는 🔵 90점인데 요율은
+                         * `55,000원 < 하한 67,144원` 이었다 — 기사님이 평소 안 받던 단가다.
+                         *
+                         * ⚠️ **필터콜은 건드리지 않는다.** 거기서 하한을 되살리면 노하우 13번
+                         *    (3만원짜리 고수의 콜)이 다시 똥으로 낙제한다 — v2 가 그 축을 버린 이유다.
+                         *
+                         * 🔴 **색만 낮추고 점수는 그대로 둔다.** 시급 축은 사실이고 하한 미달도
+                         *    사실이다. 딱지로 이유를 함께 적으므로 숫자가 거짓말하지 않는다 (규칙 ④).
+                         */
+                        const previewRate = (securedOrder as any).isPreview
+                            ? this.loadPricing(securedOrder, userId, session.activeFilter.callDiscountPct) : null;
+                        const rateShort = !!previewRate && securedOrder.fare > 0
+                            && securedOrder.fare < previewRate.minAcceptable;
+                        if (rateShort) {
+                            tags.push(`요율 미달 — 평소 하한 ${previewRate!.minAcceptable.toLocaleString()}원`);
+                        }
+
                         const dry = scoreDryRun({
                             kind: 'first', fare: securedOrder.fare, totalMinutes: total,
                             gates: [], tags,
                         }, judgmentCfg);
+                        if (rateShort && (dry.color === '꿀' || dry.color === '보통')) {
+                            console.log(`   - 💸 [미리보기 단가] ${dry.color} → 똥 (필터 밖 콜이라 하한을 다시 봤다: ` +
+                                `실제 ${securedOrder.fare.toLocaleString()}원 < 하한 ${previewRate!.minAcceptable.toLocaleString()}원)`);
+                            dry.color = '똥';
+                        }
                         console.log(`   - 🎨 [판정] ${describeDryRun(dry)}`);
                         // 🧪 도달 반경 dryRun (구현 4 계측) — 거르지 않는다, 설정 반경과 견주기만
                         console.log(`   - 🧪 [도달 반경 dryRun] 빈 차 — 시계 ${judgmentCfg.unknown.pickupOffsetMin}분 ` +

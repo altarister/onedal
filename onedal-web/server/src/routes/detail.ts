@@ -12,7 +12,7 @@ import { getUserSession } from "../state/userSessionStore";
 import { evolveOrder } from "../state/orderMemory";
 import { handleDecision, evaluateNewOrder, forceCancelEvaluatingOrder } from "../services/dispatchEngine";
 import db from "../db";
-import { incrementDeviceStats } from "./devices";
+import { countCancel } from "../core/cancelCount";
 
 const router = Router();
 
@@ -49,7 +49,9 @@ router.post("/", async (req, res) => {
             ...payload.order,
             status: 'ORDER_SECURED_EVALUATING' as any,
             capturedDeviceId: payload.deviceId,
-            capturedAt: payload.capturedAt || new Date().toISOString()
+            capturedAt: payload.capturedAt || new Date().toISOString(),
+            // 👀 미리보기 딱지는 두 요청이 같은 말을 해야 한다 — 확정을 누르면 둘 다 false 로 온다
+            isPreview: !!(payload as any).isPreview,
         });
 
         logRoadmapEvent("서버", "상하차지 주소 및 적요 텍스트 정제 연산");
@@ -147,7 +149,22 @@ router.post("/", async (req, res) => {
          *      · [P3] 서버가 못 읽은 값(요금·주소)은 조용히 넘기지 않고 화면에 띄운다
          *      · [C′] 평가가 실패해도 확정은 진행한다 (실패가 콜을 유령으로 만들지 않게)
          */
-        const isManual = pendingOrder.type?.includes("MANUAL") || payload.matchType === "MANUAL";
+        /**
+         * ✋ **미리보기 콜은 잡지 않는다** (기사님 확정 2026-08-22 · 용어집 §9).
+         *
+         * 규칙 ① 의 *"직접콜은 심사하지 않는다"* 때문에 MANUAL 콜은 여기서 **즉시 KEEP** 된다.
+         * 그런데 미리보기 콜은 기사님이 **확정을 누르기 전**이라 아직 안 잡은 콜이다.
+         *
+         * 🔴 실측(2026-08-22 18:15): 팝업 3장을 읽고 올라온 미리보기 콜이 그대로 KEEP 되어
+         *    기사님이 누른 적 없는 콜이 진행 중으로 들어갔다. KEEP 이라 30초 타이머도 안 돌았다.
+         *
+         * **"심사하지 않는다"와 "잡는다"는 다른 말이다.** 미리보기는 심사도 안 하고 잡지도
+         * 않는다 — 판정만 보여주고 기사님의 확정을 기다린다 (규칙 ① 콜의 주인은 기사님이다).
+         * 확정을 누르면 앱이 딱지 없이 다시 보내고, 그때 이 갈래로 들어와 KEEP 된다.
+         */
+        const isPreviewCall = !!(payload as any).isPreview;
+        const isManual = !isPreviewCall
+            && (pendingOrder.type?.includes("MANUAL") || payload.matchType === "MANUAL");
         const targetApp = (payload as any).targetApp || 'insung';
 
         if (isManual) {
@@ -216,6 +233,26 @@ router.post("/", async (req, res) => {
              *    카카오가 잠깐 죽었다고 실제로 들고 있는 짐을 지우는 건 더 나쁜 사고다.
              *    → 지우지 말고 **확정까지 밀어붙이고, 실패했다는 사실을 화면에 남긴다.**
              */
+            /**
+             * 👀 **미리보기로 이미 판정했으면 다시 계산하지 않는다** (기사님 지적 2026-08-22 19:04).
+             *
+             * 실측: 미리보기 때 19:04:52 에 판정하고, 확정을 눌러 다시 올라오자 19:04:59 에
+             * **또 판정했다.** 카카오 호출이 두 배가 되고 관제웹 카드도 두 번 바뀐다.
+             *
+             * 판정은 **심사 1회 · 불변 스냅샷**이다(`judgment` — 판정색 확정안 v2). 확정은
+             * **같은 콜의 상태 승급**이지 새 콜이 아니다. 있는 판정을 그대로 쓰고 KEEP 만 한다.
+             *
+             * ⚠️ 그래서 판정은 **미리보기를 본 그 순간의 것**이다 — 기사님이 보고 누른 색과
+             *    잡힌 콜의 색이 같다. 확정까지 몇 초 사이에 경로가 바뀌었다면 다음 콜을 잡을 때
+             *    반영된다 (KEEP 직후 `syncDetourFilter` 가 경유를 다시 편다).
+             */
+            const alreadyJudged = !!(pendingOrder as any).judgment;
+            if (alreadyJudged) {
+                console.log(`   👀 [미리보기 → 확정] ${pendingOrder.id} — 판정은 이미 있다(심사 1회). 다시 계산하지 않고 확정만 한다`);
+                handleDecision(userId, pendingOrder.id, "ORDER_CONFIRMED", io);
+                return;
+            }
+
             evaluateNewOrder(userId, pendingOrder, io, targetApp)
                 .catch((err) => {
                     const msg = err?.message || String(err);
@@ -290,10 +327,7 @@ router.post("/", async (req, res) => {
                     if (v === payload.order.id) session.deviceEvaluatingMap.delete(k);
                 });
 
-                if (payload.deviceId) {
-                    incrementDeviceStats(payload.deviceId, "canceled");
-                    console.log(`   📈 기기(${payload.deviceId}) 취소 카운트 +1 반영 (reason: TIMEOUT)`);
-                }
+                countCancel(session, payload.deviceId, payload.order.id, 'TIMEOUT');
 
                 if (io) {
                     io.to(userId).emit("order-canceled", { id: payload.order.id, status: 'SAFE_CANCEL' });

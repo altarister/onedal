@@ -41,6 +41,19 @@ class SessionManager {
     /** 동명이동 3단계 검증 상태 (null=일반, VERIFY/ACCEPT/CANCEL) */
     var cautionAction: String? = null
 
+    /**
+     * 👀 **미리보기 콜** — 기사님이 확정을 누르기 전에 팝업 3장을 읽어 판정만 받아 보는 중
+     * (기사님 확정 2026-08-22 · 용어집 §9).
+     *
+     * 🔴 아직 안 잡은 콜이라 **인성에는 아무 일도 일어나지 않았다.** 서버는 이 표시를 보고
+     *    취소 카운트(배차망 10회 패널티)에서 뺀다. 확정 화면에 들어가면 딱지를 벗는다.
+     *
+     * ⚠️ 손으로 연 상세(`isAutoActive == false`)에서만 켜진다. 앱이 자동으로 연 상세는
+     *    광클이 생명이라 팝업을 먼저 열지 않는다 — 2026-08-09 에 "잡기 전 미리 계산"을
+     *    제거한 바로 그 이유다.
+     */
+    var isPreview: Boolean = false
+
     // ── SurfingState enum ──
     enum class SurfingState {
         IDLE,
@@ -81,6 +94,7 @@ class SessionManager {
         isAutoActive = false
         isWaitingForDecision = false
         cautionAction = null
+        isPreview = false
         onReset?.invoke()
         AppLogger.roadmap("🔄 세션 및 콜 잡기 상태 완전 초기화 (새로운 타겟 대기)", "SESSION")
         AppLogger.i(TAG, "🔄 세션 상태 완전 초기화")

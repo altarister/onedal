@@ -53,7 +53,20 @@ export default function PinnedRouteCard({
     variant = 'list',
 }: Props) {
     const isDeck = variant === 'deck';
-    const evaluating = isEvaluating(route.status);
+    /**
+     * 👀 **미리보기에게 "결재 대기"는 판정 완료다** (기사님 실측 2026-08-22 · 용어집 §9).
+     *
+     * 기사님: *"평가를 보여주면 좋을 것 같은데 계속 평가중만 깜박이고 있어."*
+     *
+     * `ORDER_AWAITING_DECISION` 은 원래 **기사님의 결재를 기다리는** 상태라 "평가중"으로
+     * 그린다. 그런데 미리보기 콜은 결재 버튼 자체가 없다(결재는 인성 앱 확정 버튼으로 한다).
+     * 그 상태로 두면 **판정이 끝났는데 화면은 영원히 깜박인다** — 색을 볼 수가 없다.
+     *
+     * ⚠️ 판정 **전**(`PRE_SECURED`·`SECURED_EVALUATING`)은 미리보기도 평가중이 맞다.
+     *    벗기는 것은 판정이 끝난 뒤 한 칸뿐이다.
+     */
+    const evaluating = isEvaluating(route.status)
+        && !(route.isPreview && route.status === 'ORDER_AWAITING_DECISION');
     const etas = etaMap.get(route.id);
     const visitOrder = visitOrderMap.get(route.id);
 
@@ -234,6 +247,12 @@ export default function PinnedRouteCard({
                 {evaluating && (
                     <Badge className={`text-[10px] font-black px-1.5 py-0 animate-pulse flex-shrink-0 ml-2 rounded ${route.status === 'ORDER_PRE_SECURED' ? 'bg-danger/20 text-danger hover:bg-danger/20' : 'bg-warning/20 text-warning hover:bg-warning/20'}`}>평가중</Badge>
                 )}
+                {/* 👀 **미리보기 콜** — 기사님이 확정을 누르기 전에 판정만 받아 보는 콜 (용어집 §9).
+                    아직 안 잡은 콜이므로 "이건 아직 내 것이 아니다"가 한눈에 보여야 한다.
+                    확정을 누르면 앱이 딱지 없이 다시 보내므로 이 배지가 사라진다. */}
+                {route.isPreview && !isTerminal(route.status) && (
+                    <Badge variant="outline" className="text-[10px] font-black px-1.5 py-0 bg-warning/10 border-warning/30 text-warning flex-shrink-0 ml-2 shadow-sm rounded">👀 아직 안 잡음</Badge>
+                )}
                 {!evaluating && route.type === 'MANUAL' && route.status !== 'ORDER_COMPLETED' && (
                     <Badge variant="outline" className="text-[10px] font-black px-1.5 py-0 bg-info/10 border-info/30 text-info flex-shrink-0 ml-2 shadow-sm rounded">수동 배차</Badge>
                 )}
@@ -264,7 +283,11 @@ export default function PinnedRouteCard({
             {isExpanded && (
                 <div className="px-4 pb-4 pt-2 text-sm border-t border-border bg-surface">
 
-                    {route.type !== 'MANUAL' && evaluating && onDecision && (
+                    {/* 👀 **미리보기 콜에는 결재 버튼을 띄우지 않는다** (기사님 확정 2026-08-22 · 용어집 §9).
+                        아직 배차망에서 안 잡은 콜이라 여기서 KEEP 을 눌러도 잡히지 않는다 —
+                        결재는 **인성 앱의 확정 버튼**으로 한다. 관제웹은 판정 색만 보여준다.
+                        (MANUAL 콜에 버튼을 안 띄우는 것과 같은 이유의 연장이다) */}
+                    {!route.isPreview && route.type !== 'MANUAL' && evaluating && onDecision && (
                         <>
                             <div className="mt-1 flex gap-3">
                                 <Button 

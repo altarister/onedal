@@ -397,30 +397,46 @@ class HijackService : AccessibilityService() {
         if (session.currentOrderId.isEmpty()) {
             session.setOrderId(finalOrder.id)
         }
-        
+
         session.lastDetailOrder = finalOrder // 팝업 서핑용으로 최종 갱신
-        
+
+        /**
+         * 👀 **손으로 연 상세는 팝업 3장을 먼저 읽는다** (기사님 확정 2026-08-22 · 용어집 §9).
+         *
+         * 기사님: *"내가 상세 페이지를 보았을 때 팝업 3장을 열어서 정보를 모두 확인하고
+         * 그걸 가지고 판단까지 해주면 나는 **페널티 축적 없이** 콜을 판단할 수 있다."*
+         *
+         * 🔴 왜 여기여야 하나: 확정 전에는 팝업을 못 여니까 지금까지는 *"리스트에서 본 콜 중
+         *    요금이 같은 것"* 을 역추적해 주소를 빌려 왔고, 실패하면 화면 요약 파싱값을 그대로
+         *    썼다. 2026-08-22 실측에서 **세 번 다 실패**해 적요 조각이 주소로 올라갔다
+         *    (`계산서필 → 카톤` · `가전 → 계산서필` · `박스 → 계산서필`).
+         *    팝업에서 주소를 직접 읽으면 **그 역추적이 필요 없어진다** — 버그를 고치는 게
+         *    아니라 버그가 사는 자리를 없앤다.
+         *
+         * ⚠️ **필터콜(앱이 누른 것)은 건드리지 않는다.** 거기서 팝업을 먼저 열면 광클이
+         *    늦어져 선점을 놓친다 — 2026-08-09 에 "잡기 전 미리 계산"을 제거한 그 이유다.
+         *
+         * 서핑이 끝나면(`DONE`) `handleDropoffPopup` 이 confirm + detail 을 함께 보낸다.
+         */
+        if (!session.isAutoActive && session.surfingState == SessionManager.SurfingState.IDLE) {
+            session.isPreview = true
+            AppLogger.roadmap("👀 [미리보기] 손으로 연 상세 — 팝업 3장을 먼저 읽고 판정을 받는다", telemetryManager.currentScreenContext.name)
+            surfingMachine.startSurfing(rootNode, session, screenTexts)
+            return   // confirm 은 서핑이 끝난 뒤에 detail 과 함께 나간다
+        }
+
+        // 서핑 중 팝업이 닫혀 상세로 돌아온 경우 — 다음 팝업을 연다 (확정 화면과 같은 규칙)
+        if (session.isPreview && session.surfingState != SessionManager.SurfingState.DONE) {
+            advanceSurfing(rootNode)
+            return
+        }
+
         AppLogger.roadmap("상세페이지 텍스트 추출 및 2차 필터(적요 등) 통과 확인", telemetryManager.currentScreenContext.name)
         
         val isTarget = scrapParser.shouldClick(finalOrder)
 
         if (!session.isAutoActive || isTarget) {
-            // ✅ [Phase 2] 매크로가 실제로 클릭한 경우만 AUTO, 나머지는 전부 MANUAL
-            val actualMatchType = if (session.isAutoActive) "AUTO" else "MANUAL"
-            val request = DispatchBasicRequest(
-                step = "BASIC",
-                deviceId = apiClient.getDeviceId(),
-                order = finalOrder,
-                capturedAt = finalOrder.timestamp,
-                matchType = actualMatchType,
-                targetApp = currentTargetApp
-            )
-
-            apiClient.sendConfirm(request)
-            AppLogger.d(TAG, "📤 [post /confirm request] 서버 전송 내용 -> 모드: $actualMatchType (스위치: ${telemetryManager.currentMode}, 매크로클릭: ${session.isAutoActive}) | 텍스트: ${rawScreenStr.take(150)}...")
-            session.isDetailScrapSent = true
-            telemetryManager.isHolding = true  // [Page/Hold 분리] 확정 클릭 → 콜 처리 중
-            telemetryManager.forceFlushEvent()  // 즉시 서버에 홀드 상태 알림
+            sendConfirmOnce(finalOrder, rawScreenStr)
 
             // ✅ [Phase 2] 수동 클릭이지만 스위치가 AUTO면, 서버가 결재를 보낼 수 있으므로
             // 일시적으로 고속 폴링(1초) 활성화 (10초 후 자동 해제)
@@ -519,6 +535,32 @@ class HijackService : AccessibilityService() {
         // 잔상 방어
         if (isPopupResidue(rawScreenStr)) return
 
+        /**
+         * 👀 **미리보기로 보다가 확정을 눌렀다 — 딱지를 벗고 서버에 알린다**
+         * (기사님 실측 2026-08-22 18:57 · 용어집 §9).
+         *
+         * 기사님: *"관제엡의 노랑색을 보고 확정을 눌렀어. 그런데 관제엡은 내가 생각한 것과
+         * 다르게 움직이고 있어. 싱크가 전혀 안 되는 것 같아."*
+         *
+         * 🔴 확정 화면에 들어와도 **아무 요청도 안 나갔다.** 아래 서핑 분기는 `IDLE` 일 때만
+         *    일하는데 미리보기는 이미 `DONE` 이고, `sendConfirmOnce` 는 중복 방지에 막혔다.
+         *    그래서 서버는 여전히 "미리보기"로 알고 30초 뒤 정리해 버렸다 — 기사님은 잡았는데.
+         *
+         * 팝업은 **다시 열지 않는다.** 방금 읽은 텍스트(`accumulatedDetailText`)가 그대로 있다.
+         * 딱지만 벗겨 confirm·detail 을 다시 보내면 서버가 보통 콜로 받아 KEEP 한다.
+         */
+        if (session.isPreview) {
+            session.isPreview = false
+            session.isDetailScrapSent = false      // 같은 콜을 한 번 더 보내야 한다
+            AppLogger.roadmap("👀 [미리보기 → 확정] 기사님이 확정을 눌렀다 — 딱지를 벗고 서버에 다시 알린다",
+                telemetryManager.currentScreenContext.name)
+            session.lastDetailOrder?.let { order ->
+                sendConfirmOnce(order, rawScreenStr)
+                sendDetail(order)
+            }
+            return
+        }
+
         // 확정 화면에 처음 진입했을 때 서핑 시작! (적요상세 → 출발지 → 도착지 순서)
         if (session.surfingState == SessionManager.SurfingState.IDLE) {
             AppLogger.roadmap("🔒 [Current Page: DETAIL_CONFIRMED] 진입, isHolding=true 설정", telemetryManager.currentScreenContext.name)
@@ -528,16 +570,66 @@ class HijackService : AccessibilityService() {
             if (session.lastDetailOrder == null) {
                 session.lastDetailOrder = buildOrderFromScreen(screenTexts)
             }
-            
+
+            /**
+             * 👀 확정을 눌렀으니 **미리보기가 아니다.** 여기서 딱지를 벗는다 (용어집 §9).
+             *    손으로 연 상세에서 미리보기로 판정을 받아 본 뒤 확정을 누른 경우가 이 길이다.
+             *    🔴 딱지는 **벗겨지기만 한다** — 잡은 콜을 안 잡은 것으로 되돌리면 취소
+             *    카운트가 새고, 그건 배차망 10회 패널티와 어긋난다.
+             */
+            session.isPreview = false
+
             surfingMachine.startSurfing(rootNode, session, screenTexts)
         }
-        // 서핑 중: 적요상세 팝업에서 돌아온 후 출발지 누르기
-        else if (session.surfingState == SessionManager.SurfingState.WAITING_FOR_PICKUP_POPUP) {
-            surfingMachine.clickPickup(rootNode)
+        // 서핑 중: 팝업이 닫혀 확정 화면으로 돌아왔다 — 다음 팝업을 연다
+        else {
+            advanceSurfing(rootNode)
         }
-        // 서핑 중: 출발지 팝업에서 돌아온 후 도착지 누르기
-        else if (session.surfingState == SessionManager.SurfingState.WAITING_FOR_DROPOFF_POPUP) {
-            surfingMachine.clickDropoff(rootNode)
+    }
+
+    /**
+     * 📤 **1차 선점을 보낸다 — 한 콜에 한 번만.**
+     *
+     * 두 곳에서 부른다. 필터콜은 상세 진입 즉시(광클), **미리보기 콜은 팝업 3장을 읽은 뒤**
+     * `/detail` 직전에. 같은 요청을 두 벌로 적으면 한쪽만 고쳐져 갈라지므로 여기 하나만 둔다.
+     *
+     * 🔴 `isDetailScrapSent` 가 중복 전송을 막는다 — 미리보기 서핑이 끝나 상세 화면으로
+     *    돌아왔을 때 이 함수가 다시 불리지 않게 하는 자물쇠이기도 하다.
+     */
+    private fun sendConfirmOnce(order: SimplifiedOfficeOrder, rawScreenStr: String) {
+        if (session.isDetailScrapSent) return
+
+        // ✅ [Phase 2] 매크로가 실제로 클릭한 경우만 AUTO, 나머지는 전부 MANUAL
+        val actualMatchType = if (session.isAutoActive) "AUTO" else "MANUAL"
+        apiClient.sendConfirm(
+            DispatchBasicRequest(
+                step = "BASIC",
+                deviceId = apiClient.getDeviceId(),
+                order = order,
+                capturedAt = order.timestamp,
+                matchType = actualMatchType,
+                targetApp = currentTargetApp,
+                isPreview = session.isPreview,
+            )
+        )
+        AppLogger.d(TAG, "📤 [post /confirm request] 서버 전송 내용 -> 모드: $actualMatchType (스위치: ${telemetryManager.currentMode}, 매크로클릭: ${session.isAutoActive}, 미리보기: ${session.isPreview}) | 텍스트: ${rawScreenStr.take(150)}...")
+        session.isDetailScrapSent = true
+        telemetryManager.isHolding = true  // [Page/Hold 분리] 확정 클릭 → 콜 처리 중
+        telemetryManager.forceFlushEvent()  // 즉시 서버에 홀드 상태 알림
+    }
+
+    /**
+     * 🏄 **서핑을 한 칸 진행한다** — 팝업이 닫혀 상세/확정 화면으로 돌아왔을 때.
+     *
+     * 🔴 확정 화면과 **확정 전 상세**가 같은 규칙을 쓴다. 두 곳에 나눠 적으면 한쪽만
+     *    고쳐져 갈라진다 — 이 레포가 반복해서 겪은 「목록을 손으로 나열」이다.
+     *    새 팝업 단계가 생기면 **여기에만** 더한다.
+     */
+    private fun advanceSurfing(rootNode: AccessibilityNodeInfo) {
+        when (session.surfingState) {
+            SessionManager.SurfingState.WAITING_FOR_PICKUP_POPUP -> surfingMachine.clickPickup(rootNode)
+            SessionManager.SurfingState.WAITING_FOR_DROPOFF_POPUP -> surfingMachine.clickDropoff(rootNode)
+            else -> {}   // IDLE·WAITING_FOR_MEMO·DONE — 여기서 할 일이 없다
         }
     }
 
@@ -594,6 +686,27 @@ class HijackService : AccessibilityService() {
 
         // /detail 서버 전송 (팝업 수집 완료)
         session.lastDetailOrder?.let { order ->
+            /**
+             * 👀 **미리보기는 선점을 여기서 처음 보낸다** (기사님 확정 2026-08-22).
+             *
+             * 손으로 연 상세는 confirm 을 미뤄 두고 팝업 3장을 먼저 읽었다. 서버는 confirm
+             * 으로 콜을 만들고 detail 로 승급하므로 **순서가 뒤집히면 안 된다** — 여기서
+             * 먼저 보낸다. 이미 보냈으면(`isDetailScrapSent`) 아무 일도 하지 않는다.
+             */
+            sendConfirmOnce(order, session.accumulatedDetailText)
+            sendDetail(order)
+        }
+    }
+
+    /**
+     * 🌐 **2차 상세를 보낸다 — 팝업에서 모은 텍스트를 통째로.**
+     *
+     * 두 곳에서 부른다. 서핑이 끝났을 때, 그리고 **미리보기로 본 콜을 기사님이 확정했을 때**
+     * (그때는 팝업을 다시 열지 않고 모아 둔 텍스트를 그대로 다시 보낸다).
+     * 같은 요청을 두 벌로 적으면 한쪽만 고쳐져 갈라지므로 여기 하나만 둔다.
+     */
+    private fun sendDetail(order: SimplifiedOfficeOrder) {
+        run {
             val payload = DispatchDetailedRequest(
                 step = "DETAILED",
                 deviceId = apiClient.getDeviceId(),
@@ -608,7 +721,8 @@ class HijackService : AccessibilityService() {
                 ),
                 capturedAt = order.timestamp,
                 matchType = if (session.isAutoActive) "AUTO" else "MANUAL",
-                targetApp = currentTargetApp
+                targetApp = currentTargetApp,
+                isPreview = session.isPreview,
             )
 
             // 서버 응답("KEEP", "CANCEL") 대기를 위한 안전취소 타이머 가동

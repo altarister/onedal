@@ -112,7 +112,16 @@ router.post("/confirm", (req, res) => {
             capturedDeviceId: payload.deviceId,
             capturedAt: payload.capturedAt || new Date().toISOString(),
             targetApp: (payload as any).targetApp || 'insung',   // 어느 배차망에서 온 콜인가 — 원장에 남긴다
-        };
+            /**
+             * 👀 **미리보기 콜** — 확정 전에 팝업 3장을 읽어 판정만 받아 보는 콜 (용어집 §9).
+             *
+             * 🔴 **딱지는 벗겨지기만 한다.** 기사님이 확정을 누르면 앱이 같은 콜을
+             *    `isPreview` 없이 다시 보내는데, 그때 `false` 로 덮여 보통 콜이 된다.
+             *    반대(보통 콜 → 미리보기)는 없다 — 잡은 콜을 안 잡은 것으로 되돌리면
+             *    취소 카운트가 새고, 그건 배차망 10회 패널티와 어긋난다.
+             */
+            isPreview: !!(payload as any).isPreview,
+        } as PendingOrder;
 
         if (pendingOrder.id && pendingOrder.id !== "unknown") {
             logRoadmapEvent("서버", "콜의 가확정 상태를 메모리에 캐싱 연산");

@@ -14,7 +14,7 @@ import { composeMergedRoute, applyRoute, applySoloRoute, pickRouteHolder, toKm, 
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { DISPATCH_CONFIG } from "../config/dispatchConfig";
 import db from "../db";
-import { incrementDeviceStats } from "../routes/devices";
+import { countCancel } from "../core/cancelCount";
 import { OrderRepository } from "../repositories/OrderRepository";
 import { PlaceRepository } from "../repositories/PlaceRepository";
 import { SettingsRepository } from "../repositories/SettingsRepository";
@@ -54,6 +54,15 @@ export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: 
         console.log(`🛡️ [강제 정리 차단] ${orderId} 는 심사 중이 아니라 ${current.status} — 건드리지 않는다 (규칙 ①)`);
         return;
     }
+
+    /**
+     * 👀 **미리보기 딱지는 지우기 전에 뽑는다** (2026-08-22 18:45 실측).
+     *
+     * 아래에서 `pendingOrdersData.delete` 로 캐시를 지운 뒤 `countCancel` 을 부르는데,
+     * 그때는 세션에서 콜을 못 찾아 딱지를 볼 수 없다 — 미리보기인데 취소 카운트가 올랐다.
+     * **판단에 쓸 값을 지운 다음에 판단하지 않는다.**
+     */
+    const wasPreview = !!(current as any)?.isPreview;
 
     if (session.pendingOrdersData.has(orderId)) {
         const cached = session.pendingOrdersData.get(orderId)!;
@@ -95,10 +104,7 @@ export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: 
         io.to(userId).emit("order-canceled", { id: orderId, status: 'SAFE_CANCEL' });
     }
 
-    if (targetDeviceId) {
-        incrementDeviceStats(targetDeviceId, "canceled");
-        console.log(`   📈 기기(${targetDeviceId}) 취소 카운트 +1 반영 (reason: FORCE_CANCEL)`);
-    }
+    countCancel(session, targetDeviceId, orderId, 'FORCE_CANCEL', wasPreview);
 
     /**
      * 🔴 콜 잡기 재개(`isActive`)는 **여기서 하지 않는다.**
@@ -594,10 +600,7 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
             }
         }
 
-        if (targetDeviceId) {
-            incrementDeviceStats(targetDeviceId, "canceled");
-            console.log(`   📈 기기(${targetDeviceId}) 취소 카운트 +1 반영 (reason: DECISION_CANCEL)`);
-        }
+        countCancel(session, targetDeviceId, orderId, 'DECISION_CANCEL');
 
         if (io) {
             logRoadmapEvent("서버", "관제탑에게 콜이 삭제되었음(order-canceled) 정보 전달");

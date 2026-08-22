@@ -522,6 +522,8 @@ export interface PendingOrder extends OfficeOrder {
     status: OrderStatus;                  // ORDER_PRE_SECURED | ORDER_SECURED_EVALUATING | ORDER_AWAITING_DECISION
     capturedDeviceId: string;         // 이 오더를 물어온 기기 (앱폰 1호기)
     capturedAt: string;               // 낚아챈 실제 타임스탬프
+    /** 👀 미리보기 콜 — 확정 전이라 취소 카운트에 안 들어간다 (용어집 §9 · `DispatchBasicRequest.isPreview`) */
+    isPreview?: boolean;
     kakaoCalculatedFare?: number;     // 서버 연산 기반 가성비 단가
     kakaoTimeExt?: string;            // 카카오 연산 결과: 예상 소요 시간 텍스트
     routePolyline?: Array<{ x: number; y: number }>;  // 카카오 실제 궤적 좌표들
@@ -558,6 +560,12 @@ export interface MyOrder extends OfficeOrder {
     capturedAt: string;               // 낚아챈 실제 타임스탬프
     /** 🏁 하차한 시각 (장부 `orders.completedAt`) — 화면의 사이클 경계가 본다 (#40) */
     completedAt?: string | null;
+    /**
+     * 👀 미리보기 콜 (용어집 §9). 확정되면 `false` 로 덮여 보통 콜이 된다 —
+     * `PendingOrder` 와 **같은 모양이어야** 두 타입이 한 함수(`pickRouteHolder` 등)에
+     * 섞여 들어갈 때 갈라지지 않는다.
+     */
+    isPreview?: boolean;
     kakaoCalculatedFare?: number;     // 서버 연산 기반 가성비 단가
     kakaoTimeExt?: string;            // 카카오 연산 결과: 예상 소요 시간 텍스트
     routePolyline?: Array<{ x: number; y: number }>;  // 카카오 실제 궤적 좌표들
@@ -596,6 +604,8 @@ export interface SecuredOrder extends OfficeOrder {
      * 화면의 사이클 경계가 이걸 본다 (`deckOfCycle` — 버그 대장 #40).
      */
     completedAt?: string | null;
+    /** 👀 미리보기 콜 — 확정 전이라 아직 안 잡은 콜이다 (용어집 §9) */
+    isPreview?: boolean;
     /**
      * 🎨 판정 스냅샷 (판정색 확정안 v2) — 심사 1회, 불변. 심사 카드가 조건 전수를
      * 이걸로 그린다. import 순환을 피해 타입만 구조로 적는다 (dryRun.ts 의 DryRunVerdict)
@@ -899,6 +909,16 @@ export interface DispatchBasicRequest {
     capturedAt: string;
     matchType: 'AUTO' | 'MANUAL';
     listRanking?: number;
+    /**
+     * 👀 **미리보기 콜** — 기사님이 **확정을 누르기 전에** 팝업 3장(적요상세·출발지·도착지)을
+     *    읽어 판정만 받아 보는 콜 (기사님 확정 2026-08-22 · 용어집 §9).
+     *
+     * 🔴 아직 안 잡은 콜이라 **인성에서는 아무 일도 일어나지 않았다** — 취소할 것이 없다.
+     *    그래서 취소 카운트(배차망 10회 패널티)에 넣지 않는다. 확정을 누르면 딱지가 벗겨진다.
+     *
+     * ⚠️ **선택 필드로 둔다.** 없으면 옛 동작 — 갱신 안 된 APK 가 그대로 돈다.
+     */
+    isPreview?: boolean;
 }
 
 // 1-B. 앱폰 -> 서버: 2차 호출 (상세 페이지 진입 후 상세 정보 파싱 완료 시)
@@ -909,6 +929,8 @@ export interface DispatchDetailedRequest {
     capturedAt: string;
     matchType: 'AUTO' | 'MANUAL';
     listRanking?: number;
+    /** 👀 미리보기 콜 — 뜻과 규칙은 `DispatchBasicRequest.isPreview` 에 적었다 */
+    isPreview?: boolean;
 }
 
 // 두 가지 Step을 묶어주는 유니온 타입

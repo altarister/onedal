@@ -130,8 +130,22 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
         const stuckOrderId = userSession.deviceEvaluatingMap.get(deviceId);
         if (stuckOrderId) {
             const stuckOrder = userSession.pendingOrdersData.get(stuckOrderId);
-            if (stuckOrder && !stuckOrder.type?.startsWith("MANUAL")) {
-                console.log(`🚀 [화면 이탈 감지] 기기(${deviceId})가 리스트 화면으로 이탈함! 대기 중이던 AUTO 롱폴링 파이프 강제 파괴.`);
+            /**
+             * 🔄 **미리보기는 리스트로 돌아가면 즉시 정리한다** (기사님 실측 2026-08-22 · 용어집 §9).
+             *
+             * 직접콜(MANUAL)을 정리에서 빼는 것은 규칙 ① *"기사님이 잡은 콜을 서버가 버리지
+             * 않는다"* 때문이다. 하지만 **미리보기는 아직 안 잡은 콜**이라 그 보호가 필요 없다.
+             *
+             * 기사님: *"인성앱은 자체 확정 카운터가 돌아가고 그 타이머가 끝나면 다시 리스트로
+             * 돌아가. 근데 관제앱은 계속 평가중 타이머가 돌아서 싱크가 많이 차이나."*
+             *
+             * 리스트로 돌아갔다 = **이 콜을 안 잡겠다는 뜻**이다. 서버는 그걸 텔레메트리로
+             * 이미 알고 있었으면서 30초를 더 기다리고 있었다.
+             */
+            const isPreviewStuck = !!(stuckOrder as any)?.isPreview;
+            if (stuckOrder && (isPreviewStuck || !stuckOrder.type?.startsWith("MANUAL"))) {
+                console.log(`🚀 [화면 이탈 감지] 기기(${deviceId})가 리스트 화면으로 이탈함!` +
+                    (isPreviewStuck ? ' 👀 미리보기 콜을 즉시 정리합니다 (안 잡은 콜).' : ' 대기 중이던 AUTO 롱폴링 파이프 강제 파괴.'));
                 forceCancelEvaluatingOrder(userId, stuckOrderId, io);
             }
         }

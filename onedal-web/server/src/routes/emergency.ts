@@ -24,7 +24,7 @@ import { isTerminal } from "@onedal/shared";
 import { getUserSession, clearOrderTimers } from "../state/userSessionStore";
 import { updateActiveFilter } from "../state/filterManager";
 import db from "../db";
-import { incrementDeviceStats } from "./devices";
+import { countCancel } from "../core/cancelCount";
 
 const router = Router();
 
@@ -82,11 +82,8 @@ router.post("/", async (req, res) => {
             if (v === targetOrderId) session.deviceEvaluatingMap.delete(k);
         });
 
-        // 📈 취소(알림) 카운트 증가 처리
-        if (deviceId) {
-            incrementDeviceStats(deviceId, "canceled");
-            console.log(`   📈 기기(${deviceId}) 취소 카운트 +1 반영 (reason: ${reason})`);
-        }
+        // 📈 취소(알림) 카운트 증가 처리 — 세는 규칙은 countCancel 한 곳에 있다
+        countCancel(session, deviceId, targetOrderId, reason);
 
         const existingOrder = session.myOrders.find(c => c.id === targetOrderId);
         if (existingOrder) {
