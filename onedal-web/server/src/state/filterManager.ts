@@ -185,7 +185,26 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
          * 파주 필터에 서울 서대문구 `신촌동` 콜이 그대로 통과했다.
          */
         session.activeFilter.customCityFilters = customCityFilters;
-    } else if (!session.activeFilter.destinationCity) {
+    } else if ('destinationCity' in changes && !changes.destinationCity) {
+        /**
+         * 🔴 **도시를 "지웠을 때"만 경유도 지운다** (todo A번 · 2026-08-14 부터 미수정 → 08-22 수정).
+         *
+         * 예전 조건은 `!session.activeFilter.destinationCity` — *"도시가 **비어 있으면**"* 이었다.
+         * 그래서 **도시와 무관한 변경**(최저 운임·콜 잡기 껐다 켜기·GPS 파생 재계산)에도
+         * 경유 키워드가 통째로 날아갔다.
+         *
+         * 🔴 만드는 쪽과 지우는 쪽이 서로 다른 것을 보고 있었다:
+         *    KEEP → `syncDetourFilter` 는 **경로 기반**으로 꽂는다 (도시를 안 본다)
+         *    그 뒤 아무 변경 → 여기서 *"도시가 비었네"* → 전멸
+         *
+         * 그리고 장부상 **합짐 국면은 목적지 도시가 원래 비어 있다**(`user_filter_phases`).
+         * 즉 첫짐을 KEEP 해서 합짐으로 넘어가는 **정상 흐름이 곧 그 조건**이었다.
+         * 경유가 0개가 되면 앱은 아무 콜도 안 올린다 — 화면엔 에러가 없고 **조용히 멈춘다.**
+         * (CLAUDE.md: *"빈 필터는 '제한 없음'이 아니라 고장이다"*)
+         *
+         * 2026-08-14 에 GPS 이동이 이 가지를 밟을 뻔해 전용 통로(`trimTraveled`)로 피했는데,
+         * 가지 자체는 남아 있었다. 이제 **기사님이 도시를 지운 그 순간**에만 걸린다.
+         */
         session.activeFilter.destinationKeywords = [];
         session.activeFilter.destinationGroups = {};
         session.activeFilter.customCityFilters = [];

@@ -407,7 +407,7 @@
 
 ---
 
-## 🧹 `recalculateDerivedFields` 의 "도시 없으면 키워드 삭제" 가지 (미수정)
+## ✅ `recalculateDerivedFields` 의 "도시 없으면 키워드 삭제" 가지 — 2026-08-22 수정 (버그 대장 #41)
 
 `filterManager.recalculateDerivedFields` 끝부분:
 
@@ -430,9 +430,13 @@ else if (!session.activeFilter.destinationCity) {
 **고칠 방향**: `'destinationCity' in changes && !changes.destinationCity` 로 좁힌다
 (= 도시를 **지웠을 때만** 키워드도 지운다).
 
-**왜 지금 안 했나**: `updateActiveFilter` 를 부르는 곳이 많아 회귀 범위가 넓다.
-`scenario` 로 콜 흐름 전체를 다시 돌려야 하고, 첫짐 → 합짐 전환에서 키워드가
-언제 비워져야 하는지 따로 확인이 필요하다.
+**✅ 2026-08-22 수정 완료** — `'destinationCity' in changes && !changes.destinationCity` 로 좁혔다.
+*"비어 있으면"* 이 아니라 *"지웠으면"* 이다. 검사 `tests/rules/detourSurvives.test.ts` (3건)은
+소스가 아니라 **실제로 돌려서** 잡는다 — 옛 조건으로 되돌리면 2건이 빨간불인 것까지 확인했다.
+게이트: tsc 0 · Test Suites 77/77 · Tests 834 · scenario 50/50.
+
+> 곁가지: `applyPhaseSettings` 도 국면 전환 때 `destinationCity` 를 실어 파생을 다시 부른다.
+> 거기는 `!isSharedMode` 가 막아 주지만 **같은 자리를 두 곳에서 부른다**는 사실은 남는다.
 
 ---
 
