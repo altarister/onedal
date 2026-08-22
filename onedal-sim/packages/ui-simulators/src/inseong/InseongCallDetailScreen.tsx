@@ -3,6 +3,7 @@ import type { CallItem } from '@altari/core-simulator';
 import type { LocationDetailInfo } from '@altari/core-simulator';
 import { formatRegionName, formatRegionFullName } from '@altari/core-simulator';
 import { InseongLocationDetailScreen } from './InseongLocationDetailScreen';
+import { InseongMemoDetailScreen } from './InseongMemoDetailScreen';
 import { getNextPickupDetail, getNextDropoffDetail } from '@altari/core-simulator';
 
 interface Props {
@@ -18,6 +19,15 @@ export const InseongCallDetailScreen = ({ call, feedback, isConfirmed, onClose, 
 
   // 출발지/도착지 상세 팝업 상태
   const [locationPopup, setLocationPopup] = useState<{ type: 'PICKUP' | 'DROPOFF'; detail: LocationDetailInfo } | null>(null);
+  /**
+   * 📋 적요 상세 팝업 — **확정 전에도 열린다** (기사님 실물 확인 2026-08-22).
+   *
+   * 🔴 화면은 만들어져 있었는데(`InseongMemoDetailScreen`) 확정 **전** 화면만 버튼에
+   *    연결이 빠져 있었다. 확정 **후** 화면(`InseongOngoingDetailScreen`)은 같은 컴포넌트를
+   *    잘 열고 있었다 — 한쪽만 연결된 비대칭이었다.
+   *    그래서 원달앱의 팝업 서핑이 "적요상세를 눌렀는데 안 열린다"로 첫 칸에서 멈췄다.
+   */
+  const [showMemoPopup, setShowMemoPopup] = useState(false);
   const isCorrect = feedback?.isCorrect;
 
   const fareFormatted = call.fare.toLocaleString();
@@ -121,7 +131,7 @@ export const InseongCallDetailScreen = ({ call, feedback, isConfirmed, onClose, 
         <div className="flex px-3 gap-2 h-[100px] mb-2">
           {/* Left button - only 적요상세 */}
           <div className="flex flex-col gap-1.5 w-[90px] shrink-0">
-            <button className="flex-1 bg-white border border-gray-300 flex items-center justify-center font-bold text-[14px] text-gray-800 shadow-sm active:bg-gray-50">
+            <button onClick={() => setShowMemoPopup(true)} className="flex-1 bg-white border border-gray-300 flex items-center justify-center font-bold text-[14px] text-gray-800 shadow-sm active:bg-gray-50">
               적요상세
             </button>
           </div>
@@ -180,6 +190,16 @@ export const InseongCallDetailScreen = ({ call, feedback, isConfirmed, onClose, 
           type={locationPopup.type}
           detail={locationPopup.detail}
           onClose={() => setLocationPopup(null)}
+        />
+      )}
+
+      {/* 적요 상세 팝업 오버레이 — 확정 후 화면과 같은 컴포넌트를 쓴다 */}
+      {showMemoPopup && (
+        <InseongMemoDetailScreen
+          call={call}
+          distPickup={distPickup}
+          distDelivery={distDelivery}
+          onClose={() => setShowMemoPopup(false)}
         />
       )}
 
