@@ -243,7 +243,49 @@ describe('🏄 팝업 서핑 — 손으로 연 상세는 읽고 나서 올린다
     it('🔴 확정 화면에 들어가면 딱지를 벗고 다시 보낸다', () => {
         const src = code(app('HijackService.kt'));
         const fn = src.split('private fun handleConfirmedScreen')[1]?.split('private fun ')[0] ?? '';
-        expect(fn).toMatch(/isPreview/);                       // 딱지를 벗는 자리가 여기다
-        expect(fn).toMatch(/sendConfirmOnce|sendDetailOnce/);  // 서버에 알린다
+        expect(fn).toMatch(/isPreview/);     // 딱지를 벗는 자리가 여기다
+        expect(fn).toMatch(/sendDetail/);    // 서버에 알린다
+    });
+
+    /**
+     * 🔴 **선점 보고는 한 번뿐이다** (기사님 지적 2026-08-22 · H안).
+     *
+     * 기사님: *"결론적으로 confirm 을 두 번 보내는 것이 문제인 듯싶은데?"*
+     *
+     * `confirm` 은 **1차 선점 보고**(*"이런 콜을 발견했습니다"*)다 — 확정 버튼과 다른 말이다.
+     * 같은 콜을 두 번 발견할 수는 없다. 확정은 *"새로 발견했다"* 가 아니라 **같은 콜의
+     * 상태가 바뀐 것**이라 `detail` 하나로 알린다.
+     *
+     * `evolveOrder` 는 세션에 콜이 있으면 이어받고 없으면 payload 로 만들므로,
+     * 미리보기가 이미 정리된 뒤에 확정해도 콜을 잃지 않는다.
+     *
+     * 덤: 확정 구간에 요청이 하나뿐이라 **순서 경쟁 자체가 사라진다.**
+     */
+    it('🔴 확정할 때 선점 보고를 다시 하지 않는다', () => {
+        const src = code(app('HijackService.kt'));
+        const fn = src.split('private fun handleConfirmedScreen')[1]?.split('private fun ')[0] ?? '';
+        expect(fn).not.toMatch(/sendConfirmOnce/);
+    });
+});
+
+/**
+ * 🔴 **배차 요청은 한 줄로 나간다** (기사님 지적 2026-08-22 · D안).
+ *
+ * `confirm` 과 `detail` 을 **같은 풀에 던지는데 스레드가 2개**라 둘이 동시에 출발했다.
+ * 실측(19:04:57): `detail` 이 `confirm` 보다 10ms 먼저 닿았다. 서버 계약은
+ * *"confirm 이 콜을 만들고 detail 이 승급한다"* 라 **순서가 뒤집히면 안 된다.**
+ *
+ * 🔴 앱을 기다리게 만들지 않는다(규칙 ② *"HTTP 를 물고 기다리지 않는다"*).
+ *    던지는 쪽은 그대로 즉시 리턴하고, **큐가 넣은 순서대로 하나씩 꺼낸다.**
+ *
+ * 2스레드는 2026-05-08(`9750c58`)에 **롱폴링이 스레드를 오래 물어서** 늘린 것이다.
+ * 피기백 V2 로 바뀌어 `sendDetail` 이 202 만 받고 즉시 리턴하는 지금, 그 이유는 사라졌다.
+ * ⚠️ 비상 정리·텔레메트리는 원래 각자 전용 스레드라 영향받지 않는다.
+ */
+describe('🧵 배차 요청 — 큐가 순서를 지킨다 (D안)', () => {
+    it('🔴 dispatch 실행기는 한 줄이다', () => {
+        const src = code(app('api/ApiClient.kt'));
+        const line = src.split('\n').find(l => l.includes('dispatchExecutor =')) ?? '';
+        expect(line).toMatch(/newSingleThreadExecutor/);
     });
 });

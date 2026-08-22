@@ -20,7 +20,7 @@ import java.util.concurrent.Executors
  * HTTP 연결 설정, Gson 직렬화, 로컬/라이브 URL 스위칭 로직을 전담합니다.
  *
  * [Executor 분리 전략]
- * - dispatchExecutor (2스레드): confirm + detail + decision — 배차 라이프사이클 전용
+ * - dispatchExecutor (1스레드): confirm → detail — 배차 라이프사이클 전용 · **순서 보장**
  * - emergencyExecutor (전용 1스레드): emergency — 어떤 상황에서도 즉시 실행
  * - telemetryExecutor (1스레드): scrap + keywords + pair + offline — 텔레메트리/설정
  */
@@ -32,8 +32,21 @@ class ApiClient(private val context: Context) {
 
     private val gson = Gson()
 
-    /** 배차 라이프사이클 전용 (confirm/detail/decision) — 2스레드로 병렬 가능 */
-    private val dispatchExecutor = Executors.newFixedThreadPool(2)
+    /**
+     * 배차 라이프사이클 전용 (confirm/detail) — **한 줄로 세운다** (기사님 확정 2026-08-22).
+     *
+     * 🔴 서버 계약은 *"`confirm` 이 콜을 만들고 `detail` 이 승급한다"* 라 **순서가 뒤집히면
+     *    안 된다.** 2스레드였을 때 둘이 동시에 출발해 실측(19:04:57)에서 `detail` 이 10ms
+     *    먼저 닿았다 — 승급할 콜이 아직 없는 상태였다.
+     *
+     * 던지는 쪽은 **여전히 기다리지 않는다**(규칙 ② *"HTTP 를 물고 기다리지 않는다"*).
+     * 큐가 넣은 순서대로 하나씩 꺼낼 뿐이다.
+     *
+     * ⚠️ 2스레드는 2026-05-08(`9750c58`)에 **롱폴링이 스레드를 오래 물어서** 늘린 것이다.
+     *    피기백 V2 로 `sendDetail` 이 202 만 받고 즉시 리턴하는 지금 그 이유는 사라졌다.
+     *    판결은 텔레메트리(별도 스레드)로 온다. 앱 규칙 *"한 번에 하나만 평가한다"* 와도 맞다.
+     */
+    private val dispatchExecutor = Executors.newSingleThreadExecutor()
 
     /** 비상 전용 — 절대 다른 작업에 의해 블로킹되지 않음 */
     private val emergencyExecutor = Executors.newSingleThreadExecutor()

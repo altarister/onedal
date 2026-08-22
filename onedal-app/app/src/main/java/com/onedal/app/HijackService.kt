@@ -547,17 +547,18 @@ class HijackService : AccessibilityService() {
          *    그래서 서버는 여전히 "미리보기"로 알고 30초 뒤 정리해 버렸다 — 기사님은 잡았는데.
          *
          * 팝업은 **다시 열지 않는다.** 방금 읽은 텍스트(`accumulatedDetailText`)가 그대로 있다.
-         * 딱지만 벗겨 confirm·detail 을 다시 보내면 서버가 보통 콜로 받아 KEEP 한다.
+         *
+         * 🔴 **선점 보고(`confirm`)는 다시 하지 않는다** (기사님 지적 · H안).
+         *    `confirm` 은 *"이런 콜을 발견했습니다"* 이고 같은 콜을 두 번 발견할 수는 없다.
+         *    확정은 **같은 콜의 상태가 바뀐 것**이라 `detail` 하나로 알린다. 서버의
+         *    `evolveOrder` 가 세션의 콜을 이어받고, 없으면 payload 로 만든다 — 콜을 잃지 않는다.
+         *    덤으로 확정 구간에 요청이 하나뿐이라 **순서 경쟁 자체가 사라진다.**
          */
         if (session.isPreview) {
             session.isPreview = false
-            session.isDetailScrapSent = false      // 같은 콜을 한 번 더 보내야 한다
-            AppLogger.roadmap("👀 [미리보기 → 확정] 기사님이 확정을 눌렀다 — 딱지를 벗고 서버에 다시 알린다",
+            AppLogger.roadmap("👀 [미리보기 → 확정] 기사님이 확정을 눌렀다 — 딱지를 벗고 서버에 알린다 (상세만)",
                 telemetryManager.currentScreenContext.name)
-            session.lastDetailOrder?.let { order ->
-                sendConfirmOnce(order, rawScreenStr)
-                sendDetail(order)
-            }
+            session.lastDetailOrder?.let { order -> sendDetail(order) }
             return
         }
 
