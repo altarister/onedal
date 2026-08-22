@@ -69,6 +69,21 @@ describe('👁️ 앱 — 축별로 몇 개가 떨어졌는지 센다', () => {
         expect(code(app('core/TelemetryManager.kt'))).toMatch(/filterTally/);
         expect(code(app('models/SharedModels.kt'))).toMatch(/filterTally/);
     });
+
+    /**
+     * 🔴 **한 스캔의 성적표는 한 번만 간다** (기사님 지적 2026-08-23).
+     *
+     * `filterTally` 가 남아 있는 `var` 라, **하트비트를 포함한 모든 전송**에 같은 숫자가
+     * 계속 실려 갔다. 서버는 올 때마다 새 시각을 찍었고, 폰이 `알 수 없는 화면` 에 있어
+     * **스캔을 아예 안 하는데도** 화면은 *"방금 훑었다"* 고 말했다 —
+     * #51 에서 막으려던 거짓말이 **앱 경로로 그대로 살아 있었다.**
+     *
+     * 보내고 나면 비운다. 그래야 *"성적표가 왔다" = "방금 리스트를 훑었다"* 가 참이 된다.
+     */
+    it('🔴 보내고 나면 비운다 — 하트비트가 옛 숫자를 새것처럼 실어 나르지 않게', () => {
+        const t = code(app('core/TelemetryManager.kt'));
+        expect(t).toMatch(/filterTally = null/);
+    });
 });
 
 describe('👁️ 서버 — 받아서 기기 세션에 둔다', () => {
@@ -97,11 +112,16 @@ describe('👁️ 서버 — 받아서 기기 세션에 둔다', () => {
      * 🔴 **찍는 시계는 서버 것이다.** 앱이 보낸 시각을 쓰면 폰 시계가 틀어졌을 때
      *    화면이 미래나 과거를 말한다. 서버가 **받은 순간**이 유일하게 확실한 사실이다.
      */
+    /**
+     * 🔴 **`lastSeen` 과 똑같은 값을 찍는다.** 별도로 `Date.now()` 를 부르면 몇 ms 어긋나고,
+     *    화면이 *"이 성적표가 **마지막 보고에 함께** 온 것인가"* 를 등호로 물을 수 없게 된다.
+     *    그 물음이 곧 *"방금 훑은 것이 맞나"* 다.
+     */
     it('🔴 서버가 받은 순간을 찍는다 — 앱 시계를 믿지 않는다', () => {
         const d = code(srv('routes/devices.ts'));
-        expect(d).toMatch(/session\.filterTallyAt = Date\.now\(\)/);
+        expect(d).toMatch(/session\.filterTallyAt = session\.lastSeen/);
         // 성적표가 실제로 온 스캔에서만 — 하트비트가 시각만 밀어 올리면 옛 숫자가 새것처럼 보인다
-        expect(d).toMatch(/if \(filterTally\)[\s\S]{0,120}filterTallyAt/);
+        expect(d).toMatch(/if \(filterTally\)[\s\S]{0,200}filterTallyAt/);
     });
 });
 
@@ -123,10 +143,23 @@ describe('👁️ 관제웹 — 왜 안 잡는지 한 줄로 말한다 (폰마�
             .toMatch(/summarizeTally\(\s*device\.filterTally\s*,/);
     });
 
-    it('🔴 숫자 옆에 **언제**가 붙는다 — "방금"이라는 말은 쓰지 않는다', () => {
-        const c = code(client('components/dashboard/DeviceControlPanel.tsx'));
-        expect(c).toMatch(/device\.filterTallyAt/);
-        expect(c).not.toMatch(/방금/);
+    it('🔴 "방금" 이라는 말은 쓰지 않는다 (다시 그려져야만 참인 말이다)', () => {
+        expect(code(client('components/dashboard/DeviceControlPanel.tsx'))).not.toMatch(/방금/);
+    });
+
+    /**
+     * 🔴 **마지막 보고에 함께 온 성적표만 그린다** (기사님 확정 2026-08-23 — 한 줄로 합침).
+     *
+     * 기사님이 `알 수 없는 화면` 인데 `👁️ 06:28:15 1건 → 통과 0` 이 떠 있는 화면을 보시고
+     * *"아래 줄은 없어져야 해"* 라고 하셨다. 스캔을 안 하는 폰이 *"방금 훑었다"* 고 말하고
+     * 있었던 것이다.
+     *
+     * 시각을 나란히 두 개 적어 기사님이 비교하시게 하지 않는다 — **화면이 판단해서
+     * 낡은 것은 안 그린다.** 그래야 보이는 숫자가 언제나 "지금 훑고 있는 것"이다.
+     */
+    it('🔴 낡은 성적표는 안 그린다 — 마지막 보고에 함께 온 것만', () => {
+        expect(code(client('components/dashboard/DeviceControlPanel.tsx')))
+            .toMatch(/filterTallyAt === device\.lastSeen/);
     });
 
     it('🔴 필터 카드는 기기별 값을 읽지 않는다 (고르는 순간 화면이 거짓말한다)', () => {

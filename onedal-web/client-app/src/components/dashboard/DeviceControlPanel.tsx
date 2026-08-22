@@ -100,15 +100,24 @@ function DeviceRow({
     // 알아서 잘 취소된 루틴 알림은 무시하고 오직 배차실 개입 등 치명적 알림만 선별
     const criticalAlerts = deviceAlerts.filter(a => a.reason !== 'AUTO_CANCEL' && a.reason !== 'BUTTON_NOT_FOUND');
 
-    /** 👁️ **이 폰의** 마지막 스캔 성적표 — 아직 안 훑었으면 null (아래에서 줄 자체가 안 뜬다) */
-    const scanSummary = summarizeTally(device.filterTally, device.filterTallyAt);
+    /** 🕐 **마지막 보고 시각** — 하트비트를 포함한 *"이 폰이 살아 있다"* */
+    const lastSeenAt = formatClock(device.lastSeen);
 
     /**
-     * 🕐 **마지막 보고 시각.** 성적표 시각(`filterTallyAt`)과 **다른 값이다** —
-     * 이쪽은 하트비트를 포함한 *"이 폰이 살아 있다"* 이고, 저쪽은 *"리스트를 훑었다"* 다.
-     * 리스트를 안 보는 동안엔 이 시각만 움직인다. 섞으면 둘 중 하나가 거짓이 된다.
+     * 👁️ **지금 훑고 있는 것만 그린다** (기사님 확정 2026-08-23).
+     *
+     * 기사님이 `알 수 없는 화면` 인데 `👁️ 06:28:15 1건 → 통과 0` 이 떠 있는 걸 보시고
+     * *"아래 줄은 없어져야 해"* 라고 하셨다. 스캔을 안 하는 폰이 *"방금 훑었다"* 고
+     * 말하고 있었던 것이다 (앱이 같은 성적표를 하트비트마다 다시 실어 보냈다).
+     *
+     * 🔴 **마지막 보고에 함께 온 것만** 참이다. 서버가 두 시각을 같은 값으로 찍으므로
+     *    등호 하나로 물을 수 있다. 낡으면 **안 그린다** — 시각 두 개를 나란히 적어
+     *    기사님더러 비교하시게 하지 않는다.
+     * ⚠️ 서버는 마지막 값을 지우지 않고 들고 있다. 여기서 안 그리는 것은 **표시 규칙**이지
+     *    데이터를 버리는 것이 아니다.
      */
-    const lastSeenAt = formatClock(device.lastSeen);
+    const isScanFresh = device.filterTallyAt != null && device.filterTallyAt === device.lastSeen;
+    const scanSummary = isScanFresh ? summarizeTally(device.filterTally, device.filterTallyAt) : null;
 
     return (
         <div className="flex flex-col border-b border-border last:border-0 py-1 px-1">
@@ -146,7 +155,19 @@ function DeviceRow({
                         숫자만 있으면 "지금 그런 것"과 "아까 그러고 멈춘 것"이 똑같이 보인다. */}
                     <div className="flex items-center gap-1 text-[10px] text-text-muted font-medium ml-1 truncate tabular-nums">
                         {lastSeenAt && <span className="opacity-70">{lastSeenAt}</span>}
-                        <span>(수집:{device.stats.polled} 수락:{device.stats.grabbed} 취소:{device.stats.canceled})</span>
+                        <span>
+                            (수집:{device.stats.polled} 수락:{device.stats.grabbed} 취소:{device.stats.canceled}
+                            {/* 👁️ 지금 훑고 있을 때만 뒤에 붙는다 — 낡으면 이 조각째로 사라진다.
+                                통과 0 이면 굵은 주황. 잘 돌 때는 조용해야 아무도 안 지나친다. */}
+                            {scanSummary && (
+                                <span className={scanSummary.passed === 0 ? 'text-warning font-bold' : ''}>
+                                    <span className="mx-1 opacity-40">·</span>
+                                    훑음 {scanSummary.seen}→{scanSummary.passed}
+                                    {/* 가장 많이 걸린 축 하나만 — 무엇을 풀어야 하는지가 그 한 칸에 있다 */}
+                                    {scanSummary.rejects[0] && ` ${scanSummary.rejects[0][0]}${scanSummary.rejects[0][1]}`}
+                                </span>
+                            )})
+                        </span>
                     </div>
                 </div>
                 <div className="shrink-0 ml-2">
@@ -164,30 +185,6 @@ function DeviceRow({
                     </Button>
                 </div>
             </div>
-
-            {/* ── 👁️ 이 폰이 방금 훑은 리스트에서 무엇이 걸렀나 (기사님 확정 2026-08-23) ──
-                `수집:N` 은 "앱이 살아 있다"까지만 말한다. 이 줄이 **왜 안 잡는지**를 말한다.
-
-                기사님: *"앱에서 리스트는 돌아가고 있는데 관제웹에서는 필터링이 잘되고 있는 건지
-                알 수가 없어서 답답하더라구. 실전에서는 16개가 다 들어오지 않으니까."*
-
-                🔴 **폰 카드 안에 둔다.** 폰마다 다른 값이라 필터 카드(한 벌)에 놓으면
-                   둘 중 하나를 골라야 하고, 고르는 순간 멀쩡한 폰이 멈춘 폰을 가린다.
-                🔴 잘 돌 때는 조용히 — 통과가 있으면 흐리게, 0이면 굵게. 늘 소리치면 아무도 안 본다. */}
-            {scanSummary && (
-                <div className={`text-[10px] font-medium truncate px-2 pt-0.5 tabular-nums ${
-                    scanSummary.passed === 0 ? 'text-warning font-bold' : 'text-text-muted opacity-70'
-                }`}>
-                    👁️ {scanSummary.at && <span className="opacity-70">{scanSummary.at} </span>}
-                    {scanSummary.seen}건 → 통과 {scanSummary.passed}
-                    {scanSummary.rejects.length > 0 && (
-                        <span className="opacity-80">
-                            <span className="mx-1 opacity-40">·</span>
-                            {scanSummary.rejects.map(([name, n]) => `${name} ${n}`).join(' · ')}
-                        </span>
-                    )}
-                </div>
-            )}
 
             {/* 🚨 개별 폰 비상/경고 알림 렌더링 (사람 개입 필요한 경우만 노출) */}
             {(criticalAlerts.length > 0 || deviceWarnings.length > 0) && (

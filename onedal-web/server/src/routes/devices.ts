@@ -170,8 +170,11 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
          * 🔴 앱이 보낸 시각을 쓰지 않는다 — 폰 시계가 틀어지면 화면이 미래를 말한다.
          * 🔴 **여기 안에서만** 찍는다. 밖으로 빼면 하트비트가 시각만 밀어 올려
          *    옛 숫자가 새것처럼 보인다 (그게 고치려는 거짓말 그 자체다).
+         * 🔴 **`lastSeen` 과 똑같은 값을 넣는다.** 따로 `Date.now()` 를 부르면 몇 ms 어긋나고,
+         *    화면이 *"이 성적표가 마지막 보고에 함께 온 것인가"* 를 등호로 못 묻는다 —
+         *    그 물음이 곧 *"지금 훑고 있는 것이 맞나"* 다.
          */
-        session.filterTallyAt = Date.now();
+        session.filterTallyAt = session.lastSeen;
     }
     activeDevices.set(deviceId, session);
 
