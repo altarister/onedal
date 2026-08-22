@@ -10,7 +10,7 @@ import { fetchRealWorldRoute } from "../routes/osrmUtil";
 import { getUserSession, clearOrderTimers } from "../state/userSessionStore";
 import { updateActiveFilter, rememberDetourProgress } from "../state/filterManager";
 import { getDetourRegions, getCityRegionsWithRadius, reverseGeocodeToRegion, haversineKm } from "../services/geoService";
-import { composeMergedRoute, applyRoute, applySoloRoute, pickRouteHolder, toKm, toMin, isAlreadyLoaded } from "./routeComposer";
+import { composeMergedRoute, applyRoute, applySoloRoute, pickRouteHolder, toKm, toMin, isAlreadyLoaded, snapshotRoute, restoreRouteSnapshot } from "./routeComposer";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { DISPATCH_CONFIG } from "../config/dispatchConfig";
 import db from "../db";
@@ -63,6 +63,25 @@ export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: 
      * **판단에 쓸 값을 지운 다음에 판단하지 않는다.**
      */
     const wasPreview = !!(current as any)?.isPreview;
+
+    /**
+     * ↩️ **취소는 원래 경로로 되돌아가는 것이다** (기사님 확정 2026-08-23).
+     *
+     * 이 콜을 붙이면서 덮인 경로가 있으면 그대로 되살린다 — 카카오를 다시 부르지 않는다.
+     * ⚠️ 되살리는 조건(현위치가 그대로인가)은 `restoreRouteSnapshot` 한 곳에만 있다.
+     *    움직였으면 되살리지 않고 그냥 둔다 — 다음 경로 연산이 제대로 다시 잰다.
+     */
+    const snap = session.routeSnapshot;
+    if (snap && snap.orderId !== orderId) {
+        const holder = session.myOrders.find(o => o.id === snap.orderId);
+        if (holder) {
+            const ok = restoreRouteSnapshot(holder, snap, session.driverLocation ?? null);
+            console.log(ok
+                ? `↩️ [경로 복원] ${snap.orderId} — 덮이기 전 궤적(${snap.routePolyline?.length ?? 0}점)을 되살렸습니다 (카카오 호출 없음)`
+                : `↩️ [경로 복원 안 함] ${snap.orderId} — 현위치가 달라져 다시 재야 합니다`);
+        }
+    }
+    session.routeSnapshot = null;   // 한 번 쓰면 버린다 — 낡은 것이 되살아나지 않게
 
     if (session.pendingOrdersData.has(orderId)) {
         const cached = session.pendingOrdersData.get(orderId)!;
@@ -261,6 +280,16 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
 
             // 병합 궤적은 "마지막 활성 콜"에 싣는다 (routeComposer 규약).
             const routeHolder = pickRouteHolder(existingActive, securedOrder);
+            /**
+             * ↩️ **덮기 직전 모습을 한 벌 떠 둔다** (기사님 확정 2026-08-23).
+             *
+             * 이 콜이 취소되면 이걸 되돌린다 — 원래 경로는 아무것도 안 바뀌었는데
+             * 카카오를 다시 부르던 자리다. 심사 콜이 붙기 전 모습이라야 하므로
+             * `applyRoute` **바로 앞**에서 뜬다.
+             */
+            if ((routeHolder as any).id && routeHolder !== (securedOrder as any)) {
+                session.routeSnapshot = snapshotRoute(routeHolder as any, session.driverLocation ?? null);
+            }
             applyRoute(routeHolder, result.merged);
             mergedRouteHolder = routeHolder;
 
@@ -472,6 +501,13 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
             syncDetourFilter(userId, io);
             destinationKeywords = session.activeFilter.destinationKeywords;
             console.log(`🗺️ [경유 갱신] KEEP 후 destinationKeywords ${destinationKeywords.length}개로 재계산 완료`);
+        }
+        /**
+         * ↩️ **KEEP 했으면 되돌릴 일이 없다** — 보관본을 버린다.
+         * 남겨 두면 다음 취소 때 **엉뚱한 콜의 낡은 경로**가 되살아난다.
+         */
+        if (session.routeSnapshot) {
+            session.routeSnapshot = null;
         }
 
         // DB에 영구 저장 (status: confirmed) 및 places/orderStops 기록 (v5 스키마)
@@ -755,6 +791,20 @@ function hydrateVisitedStops(orderId: string): { arrivedPickupAt?: string; arriv
     };
 }
 
+/**
+ * 🗺️ 장부에 문자열로 남은 궤적을 좌표 배열로 되돌린다.
+ * 깨진 값은 **없는 것으로** 친다 — 낡거나 망가진 궤적을 쓰느니 다시 재는 편이 낫다 (규칙 ④).
+ */
+function parsePolyline(raw: unknown): Array<{ x: number; y: number }> | undefined {
+    if (typeof raw !== 'string' || !raw) return undefined;
+    try {
+        const v = JSON.parse(raw);
+        return Array.isArray(v) && v.length ? v : undefined;
+    } catch {
+        return undefined;
+    }
+}
+
 export async function restoreAndRecalculateSession(userId: string, io: any) {
     const session = getUserSession(userId);
     if (session.isRestored) return; // 이미 복구했으면 스킵
@@ -841,6 +891,12 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
                 distanceKm: row.distanceKm,
                 totalDistanceKm: row.totalDistanceKm,
                 totalDurationMin: row.totalDurationMin,
+                /**
+                 * 🗺️ **장부에 남은 궤적을 그대로 되살린다** (기사님 확정 2026-08-23).
+                 * 이게 있으면 아래 카카오 복구 연산을 건너뛴다 — 한 번 잰 경로를 다시 재지 않는다.
+                 * 깨진 값이면 없는 것으로 친다 (그러면 아래에서 다시 잰다 — 안전망).
+                 */
+                routePolyline: parsePolyline(row.routePolyline),
                 kakaoSoloDistanceKm: row.kakaoSoloDistanceKm,
                 kakaoSoloDurationMin: row.kakaoSoloDurationMin,
                 kakaoTimeExt: row.kakaoTimeExt,
@@ -881,6 +937,18 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
 
         // 3. 첫짐 콜의 카카오 궤적 1회 복구
         if (activeMain && activeMain.pickupX && activeMain.dropoffX) {
+            /**
+             * 🗺️ **장부에 궤적이 있으면 다시 재지 않는다** (기사님 확정 2026-08-23).
+             *
+             * 기사님: *"확정된 경로를 새로 받아올 필요가 없다 생각되어서 하는 질문이야."*
+             *
+             * 거리·시간·접근 구간까지 행에 남아 있으므로 카카오를 부를 이유가 없다.
+             * ⚠️ 궤적이 없거나(옛 행·연산 실패) 깨졌으면 **아래로 내려가 다시 잰다** —
+             *    안전망은 빼지 않는다 (규칙 ②).
+             */
+            if (activeMain.routePolyline?.length) {
+                console.log(`🗺️ [복구 - 궤적 재사용] ${activeMain.id} — 장부의 ${activeMain.routePolyline.length}점을 그대로 씁니다 (카카오 호출 없음)`);
+            } else
             try {
                 // 🔴 복구도 마찬가지다 — 상차하고 달리다 **새로고침만 해도** 경로가 상차지로
                 //    되돌아가던 자리다 (2026-08-14).

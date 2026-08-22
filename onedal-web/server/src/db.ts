@@ -460,6 +460,18 @@ for (const t of STEP_TABLES) {
 
 // 어느 배차망에서 온 콜인가 (insung/hwamul24) — 배차망별 콜 검색·분석의 근거 (기사님 2026-08-17)
 ensureColumns('orders', { targetApp: 'TEXT',
+    /**
+     * 🗺️ **한 번 잰 경로를 다시 재지 않는다** (기사님 확정 2026-08-23).
+     *
+     * 기사님: *"확정된 경로를 새로 받아올 필요가 없다 생각되어서 하는 질문이야."*
+     *
+     * 거리·시간·`routeComputedAt` 은 저장하면서 **궤적만 메모리에 뒀다.** 그래서 서버가
+     * 재시작할 때마다 `restoreAndRecalculateSession` 이 카카오를 다시 불렀다
+     * (2026-08-22 하루에 여섯 번 재시작 = 여섯 번 재계산).
+     *
+     * JSON 문자열로 넣는다 — 좌표 배열이라 칸을 쪼갤 이유가 없고, 읽는 쪽은 한 곳뿐이다.
+     */
+    routePolyline: 'TEXT',
     // ⚓ 타임라인 추정 약속의 닻 — 메모리에만 두면 서버 재시작에 모든 추정이 지금 시각으로 리셋된다
     routeComputedAt: 'TEXT' });
 ensureColumns('intel', { targetApp: 'TEXT' });

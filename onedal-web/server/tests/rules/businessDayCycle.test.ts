@@ -21,8 +21,27 @@ import { getUserSession, clearUserSession } from '../../src/state/userSessionSto
  */
 
 const U = 'midnight-cycle-test-user';
-const yday = (h: number) => new Date(`2026-08-21T${String(h).padStart(2, '0')}:00:00+09:00`).toISOString();
-const today = (h: number) => new Date(`2026-08-22T${String(h).padStart(2, '0')}:00:00+09:00`).toISOString();
+
+/**
+ * 🔴 **날짜를 박아 두지 않는다** (2026-08-23 회귀로 발견).
+ *
+ * 예전에는 `'2026-08-22'` 를 "오늘"이라 적어 뒀다. 하루가 지나자 그 콜이 진짜로
+ * *"어제 하차분"* 이 되어 정리됐고, **서버는 옳게 동작하는데 검사만 빨간불**이 됐다.
+ * 검사가 시간에 따라 뜻이 달라지면 진짜 회귀와 구분할 수가 없다.
+ *
+ * `ensureBusinessDay` 가 보는 것과 **같은 오늘**(KST 기준)에서 거꾸로 센다.
+ */
+const KST_MS = 9 * 60 * 60 * 1000;
+/** 오늘 KST 자정(UTC 기준 시각) */
+const todayMidnightMs = (() => {
+    const nowKst = new Date(Date.now() + KST_MS);
+    return Date.UTC(nowKst.getUTCFullYear(), nowKst.getUTCMonth(), nowKst.getUTCDate()) - KST_MS;
+})();
+const at = (dayOffset: number, h: number) =>
+    new Date(todayMidnightMs + dayOffset * 86400000 + h * 3600000).toISOString();
+
+const yday = (h: number) => at(-1, h);    // 어제 h 시 (KST)
+const today = (h: number) => at(0, h);    // 오늘 h 시 (KST)
 
 beforeAll(() => {
     db.prepare(`INSERT OR IGNORE INTO users (id, google_id, email, name) VALUES (?, ?, ?, ?)`)
@@ -51,7 +70,7 @@ it('🔴 영업일 전환이 어제 하차분만 화면 사이클에서 정리�
     const mem = (id: string, status: string) => ({ id: `${U}-${id}`, status, capturedAt: yday(21) }) as any;
     session.myOrders = [mem('ydone', 'ORDER_DELIVERED'), mem('tdone', 'ORDER_DELIVERED'), mem('live', 'ORDER_PICKED_UP')];
     for (const o of session.myOrders) session.pendingOrdersData.set(o.id, o);
-    session.businessDay = '2026-08-21';          // 자정을 걸쳐 살아 있던 세션
+    session.businessDay = yday(0).slice(0, 10);  // 어제 날짜 — 자정을 걸쳐 살아 있던 세션
 
     const switched = ensureBusinessDay(U);
     expect(switched).toBe(true);

@@ -152,6 +152,14 @@ export interface UserSession {
      *    경로가 없으면 `null` — 없는 값을 지어내지 않는다.
      */
     detourProgressKm: Record<string, number> | null;
+    /**
+     * ↩️ **새 콜을 붙이기 직전의 경로 한 벌** (기사님 확정 2026-08-23).
+     *
+     * 심사 중인 콜이 취소되면 이걸 되돌린다 — 원래 콜은 아무것도 안 바뀌었는데
+     * 카카오를 다시 부르던 자리다. KEEP 되면 버린다 (되돌릴 일이 없다).
+     * ⚠️ 되돌리는 조건은 `restoreRouteSnapshot` 한 곳에만 있다 — 현위치가 그대로일 때만.
+     */
+    routeSnapshot: import('../services/routeComposer').RouteSnapshot | null;
 }
 
 const sessions = new Map<string, UserSession>();
@@ -179,6 +187,7 @@ function createDefaultSession(userId: string): UserSession {
         phaseSettings: normalizePhaseSettings(null),
         appliedPhaseKey: null,
         detourProgressKm: null,
+        routeSnapshot: null,
         departedAt: null,
         lastOrderSyncJson: null,
         lastFilterJson: null,

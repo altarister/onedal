@@ -63,7 +63,20 @@ function lookupDeviceName(deviceId: string): string | undefined {
  *    *"노드는 있는데 콜이 0"* 은 빈 리스트일 수 있어 여기서 단정하지 않는다 (규칙 ⑤-4 ②).
  *    옛 APK 는 이 값을 안 보내므로(`undefined`) 아무 판단도 하지 않는다 — 호환.
  */
-function applyBlindSignal(session: DeviceSession, screenNodeCount?: number): void {
+function applyBlindSignal(session: DeviceSession, screenNodeCount?: number, isScreenOn?: boolean): void {
+    if (isScreenOn !== undefined) session.isScreenOn = isScreenOn;
+
+    /**
+     * 💤 **화면이 꺼져 있으면 노드가 0인 게 당연하다** (기사님 확정 2026-08-22).
+     *
+     * 그걸 "못 읽음"으로 부르면 기사님이 폰을 끌 때마다 거짓 경고가 뜬다 —
+     * **당연한 것을 고장이라 하지 않는다.** 화면 꺼짐은 별도로 표시한다(💤).
+     */
+    if (session.isScreenOn === false) {
+        session.blindSince = undefined;
+        return;
+    }
+
     if (screenNodeCount === undefined) return;          // 옛 APK — 모르는 것은 판단하지 않는다
     session.screenNodeCount = screenNodeCount;
 
@@ -85,7 +98,7 @@ function applyBlindSignal(session: DeviceSession, screenNodeCount?: number): voi
  * App에서 화면이 변경되거나 주기적으로 스크랩 데이터를 전송할 때 세션 갱신
  * @returns 현재 기기의 관제 모드 (AUTO | MANUAL)
  */
-export const touchDeviceSession = (deviceId: string, userId: string, addedPollCount: number = 0, screenContext?: ScreenContextType, io?: any, isHolding?: boolean, lat?: number, lng?: number, screenNodeCount?: number): DeviceModeType => {
+export const touchDeviceSession = (deviceId: string, userId: string, addedPollCount: number = 0, screenContext?: ScreenContextType, io?: any, isHolding?: boolean, lat?: number, lng?: number, screenNodeCount?: number, isScreenOn?: boolean): DeviceModeType => {
     let session = activeDevices.get(deviceId);
 
     if (!session) {
@@ -140,7 +153,7 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
     }
 
     // 새 세션이든 갱신이든 **한 곳에서** 본다 — 두 갈래에 나눠 적으면 한쪽만 고쳐진다
-    applyBlindSignal(session, screenNodeCount);
+    applyBlindSignal(session, screenNodeCount, isScreenOn);
     activeDevices.set(deviceId, session);
 
     // [Zero-Latency 동기화 핵심 로직] 

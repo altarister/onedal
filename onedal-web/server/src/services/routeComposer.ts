@@ -98,6 +98,75 @@ export function applySoloRoute(holder: RouteHolder, r: RouteResult): void {
     holder.approachDurationMin = approachSec > 0 ? toMin(approachSec) : undefined;
 }
 
+/**
+ * ↩️ **경로를 바꾸기 직전 모습을 한 벌 떠 둔다** (기사님 확정 2026-08-23).
+ *
+ * 기사님: *"판정을 내리고 나서 내가 취소하면 이전 경로를 불러오는 거야?
+ * 아님 새로 카카오로부터 다시 받아오는 거야?"* — 다시 받아오고 있었다.
+ *
+ * 새 콜을 붙일 때 경로가 덮이고, 그 콜을 취소하면 **원래 경로를 또 계산했다.**
+ * 원래 콜은 아무것도 안 바뀌었는데. 덮기 전 모습을 들고 있다가 되돌리면 된다.
+ *
+ * 🔴 `applyRoute` 가 **경로를 쓰는 유일한 자리**이므로 스냅샷도 여기서만 뜬다 (규칙 ③).
+ */
+export interface RouteSnapshot {
+    orderId: string;
+    routePolyline?: RouteHolder['routePolyline'];
+    totalDistanceKm?: number;
+    totalDurationMin?: number;
+    sectionEtas?: RouteHolder['sectionEtas'];
+    sectionDriveMin?: RouteHolder['sectionDriveMin'];
+    sectionStops?: RouteHolder['sectionStops'];
+    routeComputedAt?: string;
+    approachDurationMin?: number;
+    /** 뜰 때의 현위치 — 되살릴 때 **여기서 움직였으면 쓰지 않는다** */
+    at: { x: number; y: number } | null;
+}
+
+/** 지금 모습을 그대로 뜬다 (덮어쓰기 직전에 부른다) */
+export function snapshotRoute(holder: RouteHolder & { id: string }, at: { x: number; y: number } | null): RouteSnapshot {
+    return {
+        orderId: holder.id,
+        routePolyline: holder.routePolyline,
+        totalDistanceKm: holder.totalDistanceKm,
+        totalDurationMin: holder.totalDurationMin,
+        sectionEtas: holder.sectionEtas,
+        sectionDriveMin: holder.sectionDriveMin,
+        sectionStops: holder.sectionStops,
+        routeComputedAt: holder.routeComputedAt,
+        approachDurationMin: holder.approachDurationMin,
+        at: at ? { x: at.x, y: at.y } : null,
+    };
+}
+
+/**
+ * 스냅샷을 되돌린다 — **현위치가 그대로일 때만.**
+ *
+ * ⚠️ 취소하는 사이 기사님이 움직였으면 같은 콜이라도 접근 구간이 달라진다.
+ *    낡은 궤적을 쓰는 것은 없는 값을 쓰는 것보다 나쁘다 (규칙 ④).
+ * @returns 되돌렸으면 true — false 면 호출자가 다시 계산해야 한다
+ */
+export function restoreRouteSnapshot(
+    holder: RouteHolder,
+    snap: RouteSnapshot | null | undefined,
+    now: { x: number; y: number } | null,
+): boolean {
+    if (!snap || !snap.routePolyline?.length) return false;
+
+    const moved = (snap.at?.x ?? null) !== (now?.x ?? null) || (snap.at?.y ?? null) !== (now?.y ?? null);
+    if (moved) return false;
+
+    holder.routePolyline = snap.routePolyline;
+    holder.totalDistanceKm = snap.totalDistanceKm;
+    holder.totalDurationMin = snap.totalDurationMin;
+    holder.sectionEtas = snap.sectionEtas;
+    holder.sectionDriveMin = snap.sectionDriveMin;
+    holder.sectionStops = snap.sectionStops;
+    holder.routeComputedAt = snap.routeComputedAt;
+    holder.approachDurationMin = snap.approachDurationMin;
+    return true;
+}
+
 /** 경로 연산 결과를 콜에 기록한다. 어떤 필드를 쓰는지도 여기서만 정한다. */
 export function applyRoute(holder: RouteHolder, r: RouteResult): void {
     holder.routePolyline = r.polyline;

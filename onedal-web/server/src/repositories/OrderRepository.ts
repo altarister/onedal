@@ -10,7 +10,7 @@ export class OrderRepository {
         const stmtOrder = db.prepare(`
             INSERT INTO orders (
                 id, type, pickup, dropoff, fare, timestamp, status, userId, capturedAt, capturedDeviceId,
-                vehicleType, distanceKm, totalDistanceKm, totalDurationMin, kakaoSoloDistanceKm, kakaoSoloDurationMin, kakaoTimeExt, routeComputedAt,
+                vehicleType, distanceKm, totalDistanceKm, totalDurationMin, kakaoSoloDistanceKm, kakaoSoloDurationMin, kakaoTimeExt, routeComputedAt, routePolyline,
                 paymentType, billingType, commissionRate, tollFare, tripType, orderForm, itemDescription, detailMemo,
                 dispatcherName, dispatcherPhone, isShared, isExpress,
                 -- [2026-08-10] 앱은 예전부터 보내고 DB에도 컬럼이 있는데 이 목록에만 빠져 있어
@@ -18,7 +18,7 @@ export class OrderRepository {
                 -- 예약 표기의 원문이라, 이게 없으면 시간창 경로 최적화의 입력 자체가 없다.
                 scheduleText, postTime, targetApp
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET 
                 status = 'ORDER_CONFIRMED', 
                 userId = excluded.userId, 
@@ -26,7 +26,9 @@ export class OrderRepository {
                 -- 재확정 시 값이 비어 들어와도 기존 값을 지우지 않는다 (PlaceRepository 와 같은 규약)
                 scheduleText = COALESCE(excluded.scheduleText, scheduleText),
                 postTime = COALESCE(excluded.postTime, postTime),
-                targetApp = COALESCE(excluded.targetApp, targetApp)
+                targetApp = COALESCE(excluded.targetApp, targetApp),
+                -- 🗺️ 재확정 때 궤적이 비어 오면 기존 것을 지우지 않는다 (위 규약과 같다)
+                routePolyline = COALESCE(excluded.routePolyline, routePolyline)
         `);
         
         stmtOrder.run(
@@ -51,6 +53,13 @@ export class OrderRepository {
             cachedOrder.kakaoSoloDurationMin || null,
             cachedOrder.kakaoTimeExt || null,
             (cachedOrder as any).routeComputedAt || null,   // ⚓ 타임라인 추정 약속의 닻
+            /**
+             * 🗺️ **궤적도 함께 남긴다** (기사님 확정 2026-08-23).
+             * 없으면 서버가 재시작할 때마다 카카오를 다시 부른다. 좌표 배열이라 JSON 으로 넣는다.
+             * 빈 배열은 `null` 로 — "없는 것"과 "빈 것"을 섞지 않는다 (규칙 ④).
+             */
+            (cachedOrder as any).routePolyline?.length
+                ? JSON.stringify((cachedOrder as any).routePolyline) : null,
             cachedOrder.paymentType || null,
             cachedOrder.billingType || null,
             cachedOrder.commissionRate || null,

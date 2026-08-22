@@ -89,7 +89,7 @@ router.post("/", (req, res) => {
         let deviceMode = "MANUAL";
         if (deviceId) {
             const io = req.app.get("io");
-            deviceMode = touchDeviceSession(deviceId, userId, data.length, screenContext, io, isHolding, lat, lng, (req.body as any).screenNodeCount);
+            deviceMode = touchDeviceSession(deviceId, userId, data.length, screenContext, io, isHolding, lat, lng, (req.body as any).screenNodeCount, (req.body as any).isScreenOn);
         }
 
         // logRoadmapEvent("서버", "관제탑에게 실시간 마커용 GPS(device-sessions-updated) 정보 전달");

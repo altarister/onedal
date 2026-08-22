@@ -63,3 +63,43 @@ describe('👁️ 리스트 스캔 — 빈 이유를 구분한다', () => {
         expect(code(app('core/TelemetryManager.kt'))).toMatch(/screenNodeCount|nodeCount/);
     });
 });
+
+/**
+ * 💤 **화면 꺼짐과 접근성 막힘을 구분한다** (기사님 확정 2026-08-22).
+ *
+ * 기사님: *"화면꺼짐이 그대로 보이는 것이 맞을 것 같아. 접근성 스크래핑이 꺼진 건지,
+ * 화면이 꺼진 건지 구분이 되면 더 좋고."*
+ *
+ * 실측: 폰 화면이 꺼진 채로 관제웹은 **녹색**이었다. 앱은 `Screen Off` 를 감지해
+ * `sendOffline()` 까지 보냈는데(20:28:15), 60초 뒤 하트비트가 오자
+ * `touchDeviceSession` 이 `status = "ONLINE"` 으로 **되돌렸다.**
+ *
+ * 🔴 원인은 **이벤트 한 번으로 알리고 그 뒤 상태를 서버가 추측**하는 구조다.
+ *    이벤트가 덮이면 끝이다. 사실을 매번 실어 보내면 추측할 일이 없다 (규칙 ③).
+ *
+ * ⚠️ 그리고 **화면이 꺼지면 노드가 0인 게 당연하다.** 그걸 "못 읽음"으로 부르면
+ *    기사님이 폰을 끌 때마다 거짓 경고가 뜬다 — 당연한 것을 고장이라 하지 않는다.
+ */
+describe('💤 화면 꺼짐 — 접근성 막힘과 구분한다', () => {
+    it('🔴 앱이 화면 켜짐/꺼짐을 매번 실어 보낸다 (이벤트 한 번에 기대지 않는다)', () => {
+        expect(code(app('core/TelemetryManager.kt'))).toMatch(/isScreenOn/);
+        expect(code(app('models/SharedModels.kt'))).toMatch(/isScreenOn/);
+    });
+
+    /**
+     * 🔴 **화면을 끄는 순간 알린다.** 끄면 텔레메트리 주기가 5초 → **60초(하트비트)** 로
+     *    떨어져서, 앱은 즉시 알았는데 관제웹은 최대 1분 뒤에야 알았다.
+     */
+    it('🔴 화면 꺼짐은 다음 하트비트를 기다리지 않는다', () => {
+        const src = code(app('HijackService.kt'));
+        const off = src.split('ACTION_SCREEN_OFF')[1]?.split('ACTION_SCREEN_ON')[0] ?? '';
+        expect(off).toMatch(/forceFlushEvent|forceHeartbeat/);
+    });
+
+    it('🔴 화면이 꺼져 있으면 "못 읽음"으로 치지 않는다 (당연한 것을 고장이라 하지 않는다)', () => {
+        const src = readFileSync(join(__dirname, '../../src/routes/devices.ts'), 'utf8')
+            .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+        const fn = src.split('function applyBlindSignal')[1]?.split('\nexport ')[0] ?? '';
+        expect(fn).toMatch(/isScreenOn/);
+    });
+});
