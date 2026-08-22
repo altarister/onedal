@@ -23,8 +23,16 @@ export function useOrderEngine() {
     /** 🧭 서버가 내려준 경로 순서 — 방문 순서의 유일한 원천 (기사님 동의 2026-08-19) */
     const [routeStops, setRouteStops] = useState<RouteStopInfo[]>([]);
     const [routeComputedAt, setRouteComputedAt] = useState<string | null>(null);
-    // 🚫 취소 카운터 — 리셋 없는 예산 (필터 정의 2장). 서버가 장부에서 파생해 sync 에 싣는다
+    // 🚫 취소 예산 — 한 판에서 몇 번 썼나. 서버가 장부에서 파생해 sync 에 싣는다
     const [cancelCounts, setCancelCounts] = useState<Record<string, number>>({});
+    // 🚫 몇 판째인가 — 판수가 남으므로 총량은 사라지지 않는다 (필터_정의 §2 의 취지)
+    const [cancelRounds, setCancelRounds] = useState<Record<string, number>>({});
+    /**
+     * 🚫 **한 판을 다 쓴 순간** 서버가 보내는 알림 (기사님 확정 2026-08-23).
+     * 숫자만 조용히 0으로 돌아가면 **다 썼다는 사실 자체를 놓친다.**
+     */
+    const [cancelBudgetToast, setCancelBudgetToast] =
+        useState<{ app: string; used: number; limit: number; round: number } | null>(null);
 
     // 파생 상태 (기존 컴포넌트 호환성 유지)
     const firstCall = activeOrders.length > 0 ? activeOrders[0] : null;
@@ -243,6 +251,7 @@ export function useOrderEngine() {
             setRouteStops(payload.routeStops ?? []);
             setRouteComputedAt(payload.routeComputedAt ?? null);
             if (payload.cancelCounts) setCancelCounts(payload.cancelCounts);
+            if (payload.cancelRounds) setCancelRounds(payload.cancelRounds);
 
             /**
              * 🔴 로그는 **updater 밖에서** 찍는다.
@@ -265,6 +274,16 @@ export function useOrderEngine() {
         };
         socket.on("sync-active-orders", onSyncActiveOrders);
 
+        /**
+         * 🚫 **취소 한 판을 다 썼다** — 서버가 리셋하는 그 순간에만 온다.
+         *    숫자는 sync 로 0이 되지만, 그 사실은 이 이벤트로만 알 수 있다.
+         */
+        const onCancelBudgetReached = (p: { app: string; used: number; limit: number; round: number }) => {
+            console.warn(`🚫 [취소 예산 소진] ${p.app} ${p.used}/${p.limit} → ${p.round}판째`);
+            setCancelBudgetToast(p);
+        };
+        socket.on("cancel-budget-reached", onCancelBudgetReached);
+
         return () => {
             socket.off("connect", onConnect);
             socket.off("disconnect", onDisconnect);
@@ -277,6 +296,7 @@ export function useOrderEngine() {
             socket.off("order-canceled", onTerminalReload);
             socket.off("order-confirmed", onTerminalReload);
             socket.off("sync-active-orders", onSyncActiveOrders);
+            socket.off("cancel-budget-reached", onCancelBudgetReached);
         };
     }, []);
 
@@ -296,6 +316,8 @@ export function useOrderEngine() {
         routeStops,
         routeComputedAt,
         cancelCounts,
+        cancelRounds,
+        cancelBudgetToast,
         isConnected,
         firstCall,
         mergeCalls,

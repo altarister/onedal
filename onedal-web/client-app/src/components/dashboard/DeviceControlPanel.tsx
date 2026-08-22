@@ -115,8 +115,16 @@ function DeviceRow({
                             {filterLabel}
                         </Badge>
                     )}
-                    {/* 👁️ 연결됐다고 읽고 있는 건 아니다 — 파란불을 믿고 기다리는 일을 막는다 */}
-                    {isBlind && !isDisconnected && (
+                    {/* 💤 폰 화면이 꺼져 있다 — 앱은 살아 있지만 배차망을 못 본다 (콜을 못 잡는다).
+                        기사님 확정: "화면꺼짐이 그대로 보이는 것이 맞을 것 같아." */}
+                    {device.isScreenOn === false && !isDisconnected && (
+                        <Badge variant="outline" className="text-[10px] font-black px-1.5 py-0 shrink-0 bg-warning/15 text-warning border-warning/30">
+                            💤 화면 꺼짐
+                        </Badge>
+                    )}
+                    {/* 👁️ 화면은 켜져 있는데 접근성이 막혀 못 읽는다 — 연결됐다고 읽고 있는 건 아니다.
+                        기사님 확정: "접근성 스크래핑이 꺼진 건지, 화면이 꺼진 건지 구분이 되면 더 좋고." */}
+                    {isBlind && !isDisconnected && device.isScreenOn !== false && (
                         <Badge variant="outline" className="text-[10px] font-black px-1.5 py-0 shrink-0 bg-danger/15 text-danger border-danger/30 animate-pulse">
                             👁️ 화면 못 읽음
                         </Badge>

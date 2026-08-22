@@ -405,6 +405,20 @@ class HijackService : AccessibilityService() {
                     session.isAutoActive = true // 콜 잡기 시작!
                     session.setOrderId(order.id)
                     session.lastDetailOrder = order // [오파싱 방지] 상세 진입 후 사용할 원본 데이터 쥐어주기
+
+                    /**
+                     * 📊 **잡은 콜도 수집에 센다** (기사님 확정 2026-08-23).
+                     *
+                     * 예전에는 여기서 바로 `break` 라, 아래의 `enqueue` 에 못 닿았다.
+                     * 그래서 관제웹의 `수집:N` 이 **탈락한 콜만** 센 숫자였다 —
+                     * 16콜을 돌렸는데 13 이 뜨는 이유가 이것이었다.
+                     *
+                     * 기사님: *"실전에서는 리스트에 몇 개가 뜨는지 모르니까,
+                     * 필터가 잘 돌고 있는지 알 수가 없어 답답하다."*
+                     * **본 콜을 다 세야** 그 숫자가 "필터가 도는가"의 답이 된다.
+                     */
+                    telemetryManager.enqueue(order)
+                    recentListOrders.add(order)
                     break // 첫 번째 발각콜 클릭 후 이 루프는 종료 (관제 보고 생략)
                 }
             }

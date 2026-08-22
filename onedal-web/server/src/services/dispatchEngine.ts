@@ -14,7 +14,7 @@ import { composeMergedRoute, applyRoute, applySoloRoute, pickRouteHolder, toKm, 
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { DISPATCH_CONFIG } from "../config/dispatchConfig";
 import db from "../db";
-import { countCancel } from "../core/cancelCount";
+import { countCancel, countKeep } from "../core/cancelCount";
 import { OrderRepository } from "../repositories/OrderRepository";
 import { PlaceRepository } from "../repositories/PlaceRepository";
 import { SettingsRepository } from "../repositories/SettingsRepository";
@@ -123,7 +123,7 @@ export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: 
         io.to(userId).emit("order-canceled", { id: orderId, status: 'SAFE_CANCEL' });
     }
 
-    countCancel(session, targetDeviceId, orderId, 'FORCE_CANCEL', wasPreview);
+    countCancel(session, targetDeviceId, orderId, 'FORCE_CANCEL', wasPreview, io);
 
     /**
      * 🔴 콜 잡기 재개(`isActive`)는 **여기서 하지 않는다.**
@@ -451,6 +451,18 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
 
         if (!cachedOrder) return { success: false, action: status };
 
+        /**
+         * ✅ **수락을 센다** (기사님 지적 2026-08-23).
+         *
+         * 관제웹의 `수락:N` 이 **항상 0** 이었다 — 올리는 자리가 코드에 하나도 없었다.
+         * 취소(`countCancel`)와 **같은 파일에 나란히** 둔다. 둘은 한 사건의 양면이라
+         * 떨어져 있으면 미리보기 예외 같은 조건이 한쪽만 고쳐진다.
+         *
+         * ⚠️ 딱지가 아직 캐시에 살아 있을 때 센다 — 아래에서 `pendingOrdersData` 를
+         *    승격본으로 덮어쓰므로, **판단에 쓸 값을 지운 다음에 판단하지 않는다.**
+         */
+        countKeep(session, targetDeviceId, orderId, !!(cachedOrder as any).isPreview);
+
         // [V2 핵심] PendingOrder → MyOrder 승격 (심사 완료 → 내 퀵 확정)
         const confirmedOrder: MyOrder = {
             ...cachedOrder,
@@ -636,7 +648,7 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
             }
         }
 
-        countCancel(session, targetDeviceId, orderId, 'DECISION_CANCEL');
+        countCancel(session, targetDeviceId, orderId, 'DECISION_CANCEL', undefined, io);
 
         if (io) {
             logRoadmapEvent("서버", "관제탑에게 콜이 삭제되었음(order-canceled) 정보 전달");

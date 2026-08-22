@@ -83,7 +83,7 @@ router.post("/", async (req, res) => {
         });
 
         // 📈 취소(알림) 카운트 증가 처리 — 세는 규칙은 countCancel 한 곳에 있다
-        countCancel(session, deviceId, targetOrderId, reason);
+        countCancel(session, deviceId, targetOrderId, reason, undefined, io);
 
         const existingOrder = session.myOrders.find(c => c.id === targetOrderId);
         if (existingOrder) {

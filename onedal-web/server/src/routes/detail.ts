@@ -327,7 +327,7 @@ router.post("/", async (req, res) => {
                     if (v === payload.order.id) session.deviceEvaluatingMap.delete(k);
                 });
 
-                countCancel(session, payload.deviceId, payload.order.id, 'TIMEOUT');
+                countCancel(session, payload.deviceId, payload.order.id, 'TIMEOUT', undefined, io);
 
                 if (io) {
                     io.to(userId).emit("order-canceled", { id: payload.order.id, status: 'SAFE_CANCEL' });

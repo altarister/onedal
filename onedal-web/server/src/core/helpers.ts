@@ -273,16 +273,37 @@ export function buildOrderSync(session: { userId?: string; myOrders: MyOrder[]; 
     logRouteStops(routeStops, routeComputedAt, holder?.id ?? null, aligned || !!minByKey, mins?.length ?? 0);
 
     /**
-     * 🚫 **취소 카운터 — 리셋 없는 예산** (필터 정의 2장 · 확정안 구현 5).
-     * 잘못 집힌 콜 하나 = 취소 1회 소진, 망별(인성/24시) 10회. 리셋이 없으므로
-     * 저장하지 않고 장부(orders)에서 그냥 센다 (규칙 ③ — 파생값은 저장하지 않는다).
+     * 🚫 **취소 예산 — 한 판(10회)에서 몇 번 썼나** (기사님 개정 2026-08-23 · 확정안 구현 5).
+     *
+     * 잘못 집힌 콜 하나 = 취소 1회 소진, 망별(인성/24시). 파생값이라 저장하지 않고
+     * 장부(`orders`)에서 센다 (규칙 ③). **저장하는 것은 리셋 시각 하나뿐**이다.
+     *
+     * ⚠️ 예전에는 전 기간을 세어 `47/10` 같은 숫자가 떴다. 한도를 네 배 넘긴 값은
+     *    *"조여라"* 도 *"괜찮다"* 도 알려 주지 못한다 — 화면이 뜻을 잃은 것이다.
+     *    지금은 **리셋 이후만** 세고, 총량은 판수(`cancelRounds`)가 지킨다.
      */
     const cancelCounts: Record<string, number> = {};
+    const cancelRounds: Record<string, number> = {};
     try {
-        const rows = db.prepare(`SELECT COALESCE(targetApp, 'insung') AS app, COUNT(*) AS n
-                                 FROM orders WHERE userId = ? AND status = 'SAFE_CANCEL'
-                                 GROUP BY COALESCE(targetApp, 'insung')`).all(session.userId) as any[];
-        for (const r of rows) cancelCounts[r.app] = r.n;
+        const resets = db.prepare(
+            `SELECT app, COUNT(*) AS rounds, MAX(reset_at) AS resetAt
+             FROM cancel_budget_resets WHERE user_id = ? GROUP BY app`
+        ).all(session.userId) as any[];
+        const resetByApp = new Map<string, { rounds: number; resetAt: string }>(
+            resets.map(r => [r.app, { rounds: r.rounds, resetAt: r.resetAt }])
+        );
+
+        const rows = db.prepare(`SELECT COALESCE(targetApp, 'insung') AS app, timestamp
+                                 FROM orders WHERE userId = ? AND status = 'SAFE_CANCEL'`)
+            .all(session.userId) as any[];
+        for (const r of rows) {
+            const cut = resetByApp.get(r.app)?.resetAt;
+            // 리셋 시각보다 이른 취소는 지난 판의 것 — 이번 판 숫자에 넣지 않는다
+            if (cut && String(r.timestamp) <= cut) continue;
+            cancelCounts[r.app] = (cancelCounts[r.app] ?? 0) + 1;
+        }
+        for (const [app, v] of resetByApp) cancelRounds[app] = v.rounds + 1;
+        for (const app of Object.keys(cancelCounts)) cancelRounds[app] ??= 1;
     } catch { /* 파생 계측 — 실패해도 sync 는 계속 */ }
 
     return {
@@ -290,6 +311,7 @@ export function buildOrderSync(session: { userId?: string; myOrders: MyOrder[]; 
         terminated: all.filter(o => isTerminal(o.status)).map(stripPolyline),
         routeStops,
         routeComputedAt,
+        cancelRounds,
         cancelCounts,
     };
 }

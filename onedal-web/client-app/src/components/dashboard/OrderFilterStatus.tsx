@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
-import { TRUCK_CAPACITY_SLOTS, CALL_TARGET_LABEL } from "@onedal/shared";
+import { TRUCK_CAPACITY_SLOTS, CALL_TARGET_LABEL, CANCEL_BUDGET_PER_ROUND } from "@onedal/shared";
 import type { CallTarget } from "@onedal/shared";
 import { socket } from "../../lib/socket";
 import { logRoadmapEvent } from "../../lib/roadmapLogger";
@@ -36,10 +36,35 @@ const PHASE_STYLE: Record<CallTarget, { icon: string; accent: string; hint: stri
     HOME:  { icon: '🏠', accent: 'text-accent',     hint: '집 방향 콜 — 합짐 최대한' },
 };
 
-export default function OrderFilterStatus({ onOpenFilter, cancelCounts = {} }:
-    { onOpenFilter: () => void; cancelCounts?: Record<string, number> }) {
+export default function OrderFilterStatus({ onOpenFilter, cancelCounts = {}, cancelRounds = {}, budgetToast }:
+    {
+        onOpenFilter: () => void;
+        cancelCounts?: Record<string, number>;
+        /** 🚫 몇 판째인가 — 총량이 사라지지 않게 (필터_정의 §2 의 취지) */
+        cancelRounds?: Record<string, number>;
+        /** 🚫 한 판을 다 쓴 순간 서버가 보낸 알림 — 뜨면 토스트로 한 번 보여 준다 */
+        budgetToast?: { app: string; used: number; limit: number; round: number } | null;
+    }) {
     const { filter } = useFilterConfig();
     const [toast, setToast] = useState<string | null>(null);
+
+    /** 두 망 중 더 많이 쓴 쪽으로 색을 정한다 — 하나만 위험해도 위험한 것이다 */
+    const worstCancel = Math.max(cancelCounts['insung'] ?? 0, cancelCounts['hwamul24'] ?? 0);
+
+    /**
+     * 🚫 **한 판을 다 쓰면 알린다** (기사님 확정 2026-08-23).
+     *
+     * 기사님: *"10회가 되면 토스트 알림주고 리셋해줘."*
+     * 숫자만 조용히 0으로 돌아가면 **다 썼다는 사실 자체를 놓친다.**
+     * 카운터 리셋은 서버가 하고, 화면은 그 순간을 한 번 말해 준다.
+     */
+    useEffect(() => {
+        if (!budgetToast) return;
+        const name = budgetToast.app === 'hwamul24' ? '화물24시' : '인성콜';
+        setToast(`🚫 ${name} 취소 ${budgetToast.limit}회를 다 썼습니다 — ${budgetToast.round}판째 시작 (누적 ${(budgetToast.round - 1) * budgetToast.limit}회)`);
+        const t = setTimeout(() => setToast(null), 6000);   // 페널티 신호라 평소(2초)보다 길게 둔다
+        return () => clearTimeout(t);
+    }, [budgetToast]);
 
     if (!filter) {
         return (
@@ -125,14 +150,21 @@ export default function OrderFilterStatus({ onOpenFilter, cancelCounts = {} }:
                         📍 {regionCount}개 동
                         <span className="mx-1.5 opacity-40">·</span>
                         📦 {slotsUsed}/{TRUCK_CAPACITY_SLOTS}박스
-                        {/* 🚫 취소 카운터 — 리셋 없는 예산 (필터 정의 2장). 소진 속도가
-                            "필터를 조여라"의 신호라 늘 보인다. 8회부터 빨강 */}
+                        {/* 🚫 취소 예산 — 한 판 CANCEL_BUDGET_PER_ROUND 회. 소진 속도가
+                            "필터를 조여라"의 신호라 늘 보인다. 한도의 80%부터 빨강.
+                            판수(N판째)는 2판 이상일 때만 붙인다 — 첫 판에 군더더기를 안 만든다.
+                            🔴 한도를 여기 숫자로 적지 않는다. 서버가 "다 썼다"를 판정하려면
+                               같은 값을 봐야 하고, 두 벌이면 갈라진다 (규칙 ⑤-4 ①) */}
                         <span className="mx-1.5 opacity-40">·</span>
                         <span className={
-                            Math.max(cancelCounts['insung'] ?? 0, cancelCounts['hwamul24'] ?? 0) >= 8 ? 'text-danger font-bold'
-                            : Math.max(cancelCounts['insung'] ?? 0, cancelCounts['hwamul24'] ?? 0) >= 5 ? 'text-warning font-bold'
+                            worstCancel >= CANCEL_BUDGET_PER_ROUND * 0.8 ? 'text-danger font-bold'
+                            : worstCancel >= CANCEL_BUDGET_PER_ROUND * 0.5 ? 'text-warning font-bold'
                             : ''
-                        }>🚫 인성 {cancelCounts['insung'] ?? 0}/10 · 24시 {cancelCounts['hwamul24'] ?? 0}/10</span>
+                        }>🚫 인성 {cancelCounts['insung'] ?? 0}/{CANCEL_BUDGET_PER_ROUND}
+                            {(cancelRounds['insung'] ?? 1) > 1 && ` (${cancelRounds['insung']}판)`}
+                            <span className="mx-1 opacity-40">·</span>
+                            24시 {cancelCounts['hwamul24'] ?? 0}/{CANCEL_BUDGET_PER_ROUND}
+                            {(cancelRounds['hwamul24'] ?? 1) > 1 && ` (${cancelRounds['hwamul24']}판)`}</span>
                     </span>
                 </div>
                 <span className="text-text-muted text-sm shrink-0">⚙️</span>

@@ -531,4 +531,22 @@ db.exec(`
     )
 `);
 
+// ═══════════════════════════════════════
+// [9] 취소 예산 판 나누기 — **리셋 시각만** 저장한다 (기사님 확정 2026-08-23)
+//
+// 🔴 카운트는 저장하지 않는다. 장부(`orders` 의 SAFE_CANCEL)에서 세는 **파생값**이고,
+//    파생값을 저장하면 두 그릇이 갈라진다 (규칙 ③). 여기 사는 것은 **사건** —
+//    "이 시각에 한 판이 끝났다" 하나뿐이다.
+//
+// 한 판 = `CANCEL_BUDGET_PER_ROUND`(10)회. 다 쓰면 알리고 새 판이 열린다.
+// 판수가 남으므로 총량은 사라지지 않는다 — 필터_정의 §2 의 취지를 지키는 방식이다.
+// ═══════════════════════════════════════
+db.exec(`
+    CREATE TABLE IF NOT EXISTS cancel_budget_resets (
+        user_id  TEXT NOT NULL,
+        app      TEXT NOT NULL,
+        reset_at TEXT NOT NULL
+    )
+`);
+
 export default db;
