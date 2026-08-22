@@ -21,6 +21,7 @@
 import { createInterface } from 'node:readline';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
+import { restartServer } from './lib/restartServer.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname;
 const require = createRequire(join(ROOT, 'server/index.js'));
@@ -367,17 +368,17 @@ async function freshStart() {
     src.close();
     console.log(`  백업: ${backup.split('/').pop()} · intel·places·설정은 그대로`);
 
-    // 서버 세션 메모리에는 옛 콜이 남아 있다 — 재기동해야 관제웹에서도 사라진다
-    const h = await fetch(`${BASE}/api/health`).then(r => r.json()).catch(() => null);
-    if (h) {
-        console.log(`\n  ⚠️ 서버가 켜져 있습니다 (bootedAt ${h.bootedAt}) — 세션 메모리에 옛 콜이 남습니다.`);
-        console.log('  터미널에서 Ctrl+C 후 pnpm dev 로 재기동해 주세요. 재기동을 감지하면 이어갑니다...');
-        for (;;) {
-            await new Promise(r => setTimeout(r, 2000));
-            const now = await fetch(`${BASE}/api/health`).then(r => r.json()).catch(() => null);
-            if (now && now.bootedAt !== h.bootedAt) { console.log(`  ✅ 재기동 감지 (bootedAt ${now.bootedAt})`); break; }
-        }
-    }
+    /**
+     * 🔴 **장부를 비웠으면 메모리도 함께 비운다 — 한 동작이다** (2026-08-22 · 버그 대장 #40).
+     *
+     * 세션 메모리(`myOrders`·`pendingOrdersData`)의 옛 콜은 `buildOrderSync` 를 타고
+     * 관제웹으로 계속 내려간다. 지워진 콜이 화면에 살아 있는 **유령**이 되고,
+     * 새 콜을 하나 잡는 순간 그 유령들이 진행 중 탭으로 함께 소환된다.
+     *
+     * 예전에는 여기서 *"재기동해 주세요"* 하고 사람을 기다렸다. 그 한 칸을 사람이
+     * 메우게 둔 것이 사고의 뿌리였다 — **도구가 스스로 한다.**
+     */
+    await restartServer({ base: BASE, entry: join(ROOT, 'server/src/index.ts') });
 }
 
 // ── 대화 루프 ─────────────────────────────────────────────

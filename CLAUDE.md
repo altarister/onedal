@@ -68,9 +68,16 @@
 
 | 대상 | 확인 방법 | 어긋났을 때 |
 |---|---|---|
-| 서버 | `curl localhost:4000/api/health` → `bootedAt`, `git.commit` | `tsx watch`가 변경을 놓친 것. `Ctrl+C` 후 `pnpm dev` |
+| 서버 | `curl localhost:4000/api/health` → `bootedAt`, `git.commit` | 감시자(`tsx watch`)가 변경을 놓친 것. `Ctrl+C` 후 `pnpm dev` |
 | 앱 | 대시보드 상단 `📦 v...` 또는 `adb shell dumpsys package com.onedal.app \| grep versionName` | `adb install -r` 재설치 |
 | 관제웹 | `localhost:3000`으로 접속 | `localhost:4000`은 옛 `dist/` 빌드가 뜬다 |
+
+> 🔴 **서버는 2층이다.** `pnpm dev` 가 띄우는 것은 **감시자**(`tsx watch`)이고, 실제 서버는
+> 그 **자식**이다. 감시자는 소스가 바뀌면 자식만 갈아치우므로 부모는 며칠씩 살아 있다.
+> 그래서 `bootedAt` 이 안 바뀌면 **재기동이 안 된 것**이지 "느린 것"이 아니다.
+> 2026-08-22 에 `pnpm dev` 가 `a & b & c` 라 **Ctrl+C 가 서버에 닿지 않았고**(백그라운드),
+> 기사님이 껐다고 믿은 서버가 4시간 40분 더 돌며 지워진 콜을 화면에 보냈다 (버그 대장 #40).
+> 지금은 `trap 'kill 0' … & wait` 라 Ctrl+C 가 함께 죽인다. **끄고 나서도 `bootedAt` 으로 확인한다.**
 
 
 ## 도메인 용어
