@@ -81,8 +81,25 @@ describe('👁️ 서버 — 받아서 기기 세션에 둔다', () => {
     });
 });
 
-describe('👁️ 관제웹 — 왜 안 잡는지 한 줄로 말한다', () => {
-    it('🔴 필터 카드가 그 숫자를 그린다', () => {
-        expect(code(client('components/dashboard/OrderFilterStatus.tsx'))).toMatch(/filterTally/);
+/**
+ * 🔴 **그 숫자의 주어는 "폰"이지 "필터"가 아니다** (기사님 지적 2026-08-23).
+ *
+ * 처음엔 필터 카드 한복판에 놓았다. 폰이 하나일 땐 맞아 보였지만 기사님이 바로 짚으셨다 —
+ * *"이것이 필터에 들어가면 안 될 것 같아. 폰이 2개 이상이어도 상관없는 건가?
+ * 1번 폰은 작동하는데 2번 폰은 작동하지 않는다면?"*
+ *
+ * 필터는 **서버가 만들어 모든 폰에 똑같이 내려보내는 한 벌**이고, 성적표는 **폰마다 다르다.**
+ * 한 벌짜리 카드에 폰마다 다른 값을 놓으면 둘 중 하나를 골라야 하는데, 옛 코드는
+ * `devices.filter(…).pop()` 으로 **배열 순서상 마지막 폰**을 집었다 —
+ * 멀쩡한 1번 폰의 숫자가 멈춘 2번 폰을 가리는 화면이었다.
+ */
+describe('👁️ 관제웹 — 왜 안 잡는지 한 줄로 말한다 (폰마다)', () => {
+    it('🔴 폰 카드가 **자기** 숫자를 그린다 — 주어가 붙는다', () => {
+        expect(code(client('components/dashboard/DeviceControlPanel.tsx')))
+            .toMatch(/summarizeTally\(\s*device\.filterTally\s*\)/);
+    });
+
+    it('🔴 필터 카드는 기기별 값을 읽지 않는다 (고르는 순간 화면이 거짓말한다)', () => {
+        expect(code(client('components/dashboard/OrderFilterStatus.tsx'))).not.toMatch(/\.filterTally/);
     });
 });

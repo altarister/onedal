@@ -4,6 +4,7 @@ import { isDeviceBlind } from "@onedal/shared";
 import { useSystemAlerts } from "../../hooks/useSystemAlerts";
 import type { EmergencyAlert, SafeCancelWarning } from "../../hooks/useSystemAlerts";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
+import { summarizeTally } from "../../lib/filterTally";
 import type { AutoDispatchFilter } from "@onedal/shared";
 
 
@@ -98,6 +99,9 @@ function DeviceRow({
     // 알아서 잘 취소된 루틴 알림은 무시하고 오직 배차실 개입 등 치명적 알림만 선별
     const criticalAlerts = deviceAlerts.filter(a => a.reason !== 'AUTO_CANCEL' && a.reason !== 'BUTTON_NOT_FOUND');
 
+    /** 👁️ **이 폰의** 마지막 스캔 성적표 — 아직 안 훑었으면 null (아래에서 줄 자체가 안 뜬다) */
+    const scanSummary = summarizeTally(device.filterTally);
+
     return (
         <div className="flex flex-col border-b border-border last:border-0 py-1 px-1">
             <div className="flex items-center justify-between hover:bg-surface-alt/30 transition-colors rounded px-1">
@@ -150,6 +154,29 @@ function DeviceRow({
                     </Button>
                 </div>
             </div>
+
+            {/* ── 👁️ 이 폰이 방금 훑은 리스트에서 무엇이 걸렀나 (기사님 확정 2026-08-23) ──
+                `수집:N` 은 "앱이 살아 있다"까지만 말한다. 이 줄이 **왜 안 잡는지**를 말한다.
+
+                기사님: *"앱에서 리스트는 돌아가고 있는데 관제웹에서는 필터링이 잘되고 있는 건지
+                알 수가 없어서 답답하더라구. 실전에서는 16개가 다 들어오지 않으니까."*
+
+                🔴 **폰 카드 안에 둔다.** 폰마다 다른 값이라 필터 카드(한 벌)에 놓으면
+                   둘 중 하나를 골라야 하고, 고르는 순간 멀쩡한 폰이 멈춘 폰을 가린다.
+                🔴 잘 돌 때는 조용히 — 통과가 있으면 흐리게, 0이면 굵게. 늘 소리치면 아무도 안 본다. */}
+            {scanSummary && (
+                <div className={`text-[10px] font-medium truncate px-2 pt-0.5 ${
+                    scanSummary.passed === 0 ? 'text-warning font-bold' : 'text-text-muted opacity-70'
+                }`}>
+                    👁️ 방금 {scanSummary.seen}건 → 통과 {scanSummary.passed}
+                    {scanSummary.rejects.length > 0 && (
+                        <span className="opacity-80">
+                            <span className="mx-1 opacity-40">·</span>
+                            {scanSummary.rejects.map(([name, n]) => `${name} ${n}`).join(' · ')}
+                        </span>
+                    )}
+                </div>
+            )}
 
             {/* 🚨 개별 폰 비상/경고 알림 렌더링 (사람 개입 필요한 경우만 노출) */}
             {(criticalAlerts.length > 0 || deviceWarnings.length > 0) && (
