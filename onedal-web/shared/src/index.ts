@@ -556,6 +556,8 @@ export interface MyOrder extends OfficeOrder {
     status: MyOrderStatus;            // ORDER_CONFIRMED | ORDER_PICKED_UP | ORDER_DELIVERED
     capturedDeviceId: string;         // 이 오더를 물어온 기기 (앱폰 1호기)
     capturedAt: string;               // 낚아챈 실제 타임스탬프
+    /** 🏁 하차한 시각 (장부 `orders.completedAt`) — 화면의 사이클 경계가 본다 (#40) */
+    completedAt?: string | null;
     kakaoCalculatedFare?: number;     // 서버 연산 기반 가성비 단가
     kakaoTimeExt?: string;            // 카카오 연산 결과: 예상 소요 시간 텍스트
     routePolyline?: Array<{ x: number; y: number }>;  // 카카오 실제 궤적 좌표들
@@ -589,6 +591,11 @@ export interface SecuredOrder extends OfficeOrder {
     status: OrderStatus;                  // 단일 통합 라이프사이클 상태
     capturedDeviceId: string;
     capturedAt: string;
+    /**
+     * 🏁 **하차한 시각** (장부 `orders.completedAt`). 없으면 아직 안 내렸거나 옛 행이다.
+     * 화면의 사이클 경계가 이걸 본다 (`deckOfCycle` — 버그 대장 #40).
+     */
+    completedAt?: string | null;
     /**
      * 🎨 판정 스냅샷 (판정색 확정안 v2) — 심사 1회, 불변. 심사 카드가 조건 전수를
      * 이걸로 그린다. import 순환을 피해 타입만 구조로 적는다 (dryRun.ts 의 DryRunVerdict)
@@ -1087,10 +1094,41 @@ export function isDeliveredCall(c: { status?: string | null }): boolean {
  * ⚠️ 이 목록은 **화면 전용**이다. 경로·적재·운임·카운트다운은 진행 중인 콜만 봐야 한다 —
  *    섞이면 하차한 짐이 계속 실려 있는 것으로 세어진다 (`TERMINAL_STATUSES` 주석의 사고).
  */
-export function deckOfCycle<T extends { status?: string | null; capturedAt?: string }>(calls: T[]): T[] {
+export function deckOfCycle<T extends { status?: string | null; capturedAt?: string; completedAt?: string | null }>(calls: T[]): T[] {
     const inProgress = calls.filter(c => !isTerminal(c.status ?? undefined));
     if (inProgress.length === 0) return [];          // 사이클이 끝났다 — 완료분도 보낸다
-    return [...inProgress, ...calls.filter(isDeliveredCall)]
+
+    /**
+     * 🔵 **이번 운행에서 하차한 것만이다** (기사님 확정 2026-08-22 · 버그 대장 #40).
+     *
+     * 기사님: *"상태가 완료된 상황인데 왜 이것이 진행중으로 나오는 거지?
+     * 지금 진행중인 콜과 연결된 것도 없는데 말이지."*
+     *
+     * 예전 규칙은 *"진행 중이 있나"* 와 *"하차했나"* 둘만 물었다. **"같은 운행인가"를
+     * 묻지 않아서**, 10:05 에 하차한 콜이 네 시간 뒤 14:24 에 잡은 새 콜과 함께 되살아났다.
+     *
+     * 경계는 저장하지 않고 데이터에서 파생한다 (규칙 ③):
+     *   이번 운행의 시작 = 지금 진행 중인 콜 중 **가장 먼저 잡은 시각**
+     *   그보다 먼저 하차했으면 지난 운행이다
+     * 같은 운행이면 자연히 남는다 — 먼저 내린 콜의 하차가 뒤 콜을 잡은 뒤이기 때문이다.
+     *
+     * ⚠️ **하차 시각을 모르면 남긴다.** 없는 값으로 카드를 지우지 않는다 (규칙 ④) —
+     *    안 보이는 것이 잘못 보이는 것보다 나쁘다.
+     * ⚠️ 시각은 **반드시 날짜로** 비교한다. 장부의 두 칸은 표기가 달라(`+09:00` · `Z`)
+     *    문자열로 비교하면 같은 순간이 뒤집힌다.
+     */
+    const ms = (s?: string | null) => { const t = Date.parse(s ?? ''); return Number.isNaN(t) ? null : t; };
+    const cycleStart = inProgress.reduce<number | null>((min, c) => {
+        const t = ms(c.capturedAt);
+        return t === null ? min : (min === null ? t : Math.min(min, t));
+    }, null);
+    const inThisCycle = (c: T) => {
+        if (cycleStart === null) return true;        // 잡은 시각을 모르면 가르지 않는다
+        const done = ms(c.completedAt);
+        return done === null || done >= cycleStart;
+    };
+
+    return [...inProgress, ...calls.filter(c => isDeliveredCall(c) && inThisCycle(c))]
         .sort((a, b) => (a.capturedAt ?? '').localeCompare(b.capturedAt ?? ''));
 }
 

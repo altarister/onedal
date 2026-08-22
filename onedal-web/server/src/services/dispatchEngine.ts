@@ -847,6 +847,12 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
                 dropoffY: row.dropoffY,
                 // [T8] 착불 여부가 복구에서 빠져 있었다 — 재접속 직후 착불 표시가 사라진다
                 paymentType: row.paymentType,
+                /**
+                 * 🏁 **하차 시각** — 화면의 사이클 경계가 이걸 본다 (버그 대장 #40).
+                 * 없으면 관제웹이 "언제 내렸는지 모른다"가 되어 지난 운행의 완료분을
+                 * 못 가른다 (그래도 카드를 지우진 않는다 — 규칙 ④).
+                 */
+                completedAt: row.completedAt,
                 isShared: !!row.isShared,
                 isExpress: !!row.isExpress,
                 orderForm: row.orderForm,
@@ -1119,8 +1125,17 @@ export async function reportMilestone(
 
         try {
             if (milestone === 'DELIVERED') {
+                const deliveredAt = occurredAt || nowIso;
                 db.prepare(`UPDATE orders SET status = ?, completedAt = ? WHERE id = ? AND userId = ?`)
-                  .run(nextStatus, occurredAt || nowIso, orderId, userId);
+                  .run(nextStatus, deliveredAt, orderId, userId);
+                /**
+                 * 🏁 **메모리에도 같이 적는다** — 장부에만 쓰면 재시작 전까지 화면이
+                 * 하차 시각을 모른다. 그러면 사이클 경계(`deckOfCycle`)가 지난 운행의
+                 * 완료분을 못 가른다 (버그 대장 #40 · 「기억 갈라짐」 클래스 예방).
+                 */
+                (order as any).completedAt = deliveredAt;
+                const cachedDone = session.pendingOrdersData.get(orderId);
+                if (cachedDone && cachedDone !== (order as any)) (cachedDone as any).completedAt = deliveredAt;
             } else {
                 db.prepare(`UPDATE orders SET status = ? WHERE id = ? AND userId = ?`)
                   .run(nextStatus, orderId, userId);
