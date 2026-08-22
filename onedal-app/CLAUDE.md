@@ -56,6 +56,12 @@
 | `docs/EDGE_CASES.md` | 방어 로직 10/10 일치 — **이 레포 최고 품질** |
 | `docs/SHARED_PREFERENCES_SPEC.md` · `docs/SCREEN_STATE_MACHINE.md` · `docs/API_SPEC.md` | 코드와 일치 |
 | `docs/ANDROID_ARCHITECTURE.md` (v2.0) · `docs/PLUGIN_INTERFACE_SPEC.md` (v2.0) | 2026-08-09 재작성 |
+| `docs/TRD.md` **§0 생명주기만** | 2026-08-23 코드 대조. **나머지 절은 초기 설계안이라 미검증** — 상단 대조표를 볼 것 |
 
 > 재작성 전 두 문서는 계획을 완료로 기술해 **존재하지 않는 파일·인터페이스**를 안내했다.
 > 재작성본 상단에 "무엇이 사실이 아니었는지"가 남아 있다.
+
+> 🔴 **앱이 언제 도는지는 [`docs/TRD.md` §0](docs/TRD.md) 하나만 본다.**
+> 원달앱 화면(`MainActivity`)과 스캐너(`HijackService`)는 **따로 산다** — 아이콘을 안 눌러도,
+> 최근앱에서 밀어 없애도 스캐너는 돈다. 진짜 전원 스위치는 **접근성 토글**이다.
+> TRD §1-2 의 `MainForegroundService` 는 **만들지 않은 것**이니 근거로 쓰지 말 것.
