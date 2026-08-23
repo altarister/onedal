@@ -22,6 +22,36 @@
 - **종료된 콜은 사라지지 않고 "완료됨 · 취소/방출" 로 이동한다.**
   `mergeOrderViews(history, terminated, live)` — 안 보이는 것과 없어진 것은 다르다
 
+## 🔐 앱(관제앱)의 구글 로그인은 **웹과 다른 길**이다 (2026-08-23)
+
+- 🔴 **구글은 임베디드 웹뷰 안에서의 로그인을 정책으로 막는다**(`disallowed_useragent`).
+  그래서 앱에서는 `<GoogleLogin>` 이 **에러도 없이 조용히 안 뜬다.**
+  승인된 자바스크립트 원본에 `https://localhost` 를 넣어도 소용없다 —
+  막는 이유가 **주소가 아니라 환경**이다. (넣어 보고 확인했다)
+- 앱은 `@capgo/capacitor-social-login` 으로 **안드로이드 계정 선택창(OS)** 을 띄운다.
+  `Login.tsx` 가 `isNativeApp()` 으로 갈라 그릴 뿐, **서버는 하나도 안 고쳤다.**
+- 🔴 **`webClientId` 에는 웹 클라이언트 ID 를 넣는다.** 그래야 `idToken` 의 `aud` 가
+  웹 클라이언트 ID 라서 기존 `/api/auth/google` 검증이 그대로 통한다.
+  **안드로이드용 클라이언트 ID 는 어디에도 안 넣는다** — 구글이
+  *"이 패키지 + 이 서명은 정품"* 이라고 알아보게 하는 **등록**일 뿐이다.
+
+구글 콘솔에 있는 것 (값은 콘솔이 원천 — 여기 복사해 두지 않는다):
+
+| 유형 | 무엇 |
+|---|---|
+| 웹 애플리케이션 `1DAL Web App` | 관제웹·서버 검증이 쓰는 **진짜 ID** (`VITE_GOOGLE_CLIENT_ID`) |
+| **Android** `1DAL Android` | 패키지 `kr.co.onedal.dashboard` + **디버그 키 SHA-1** 등록용 |
+
+- ⚠️ **릴리스 키로 서명하면 SHA-1 이 달라진다.** 지문을 하나 더 등록하지 않으면
+  **앱에서만 로그인이 조용히 실패한다.** 디버그 지문은 이렇게 다시 뽑는다:
+  ```bash
+  keytool -list -v -keystore ~/.android/debug.keystore \
+          -alias androiddebugkey -storepass android -keypass android | grep SHA1
+  ```
+- ⚠️ OAuth 동의 화면이 **테스트 모드**면 등록된 **테스트 사용자**만 로그인된다
+- ⚠️ 앱은 예전에 **개발자 우회(`/api/auth/bypass`)** 로 들어가고 있었다. 2026-08-23 에
+  라이브에서 그 길을 막자 **로그인 수단이 하나도 없어졌다** — 그래서 이 작업을 했다
+
 ## 함정
 
 - **접속 주소와 `.env` 주의사항은 루트 [CLAUDE.md](../../CLAUDE.md) 에 있다** (한 곳에만 둔다)

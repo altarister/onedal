@@ -10,3 +10,6 @@ project(':capacitor-community-keep-awake').projectDir = new File('../../node_mod
 
 include ':capacitor-haptics'
 project(':capacitor-haptics').projectDir = new File('../../node_modules/.pnpm/@capacitor+haptics@8.0.2_@capacitor+core@8.3.1/node_modules/@capacitor/haptics/android')
+
+include ':capgo-capacitor-social-login'
+project(':capgo-capacitor-social-login').projectDir = new File('../../node_modules/.pnpm/@capgo+capacitor-social-login@8.4.5_@capacitor+core@8.3.1/node_modules/@capgo/capacitor-social-login/android')
