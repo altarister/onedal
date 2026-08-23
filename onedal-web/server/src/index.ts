@@ -101,6 +101,37 @@ app.use("/api", (req, res) => {
 // 소켓 연결 이벤트 핸들링 (Step 4 분리 완료)
 registerSocketHandlers(io);
 
+/**
+ * 🎯 **리허설 배차망** — `rehearsal.altari.com` 은 시뮬레이터를 서빙한다 (기사님 확정 2026-08-23).
+ *
+ * 기사님: *"지금 올라가 있는 건 **리스트 컨트롤을 할 수 없거든.** 구로동 쪽으로 배달 가능한
+ * 콜을 하나 확실히 넣어야 이동 중에 콜을 잡을 걸 확인할 수 있어."*
+ *
+ * 옛 배포본(`map.altari.com`)은 다른 레포가 올린 것이라 **랜덤**이다. 문제지(`?preset=`)는
+ * 레포 안의 `onedal-sim` 에만 있다. 랜덤으로는 *"구로행 콜을 주행 중에 잡았다"* 를
+ * **만들 수 없고, 안 나오면 시험 자체가 성립하지 않는다.**
+ *
+ * 🔴 **같은 서버·같은 포트에 얹되 Host 로만 가른다.** 그래야 시뮬레이터를 **루트로** 서빙할 수
+ *    있고, `vite base` 나 `BrowserRouter basename` 을 건드리지 않아도 된다 —
+ *    건드리면 **로컬(5173)과 배포본이 갈라져** 문제지가 로컬에서만 맞는 일이 생긴다.
+ *
+ * ⚠️ **API 라우터 뒤, 관제웹 서빙 앞**에 둔다. 리허설 호스트에서도 `/api` 는 살아 있어야
+ *    하고(관제웹 서빙이 먼저 잡으면 시뮬 index.html 이 API 를 덮는다), 이 블록이
+ *    관제웹보다 뒤면 영영 안 불린다.
+ */
+const REHEARSAL_HOST = 'rehearsal.';
+const simBuildPath = path.join(__dirname, '../../../onedal-sim/dist');
+if (fs.existsSync(simBuildPath)) {
+    console.log(`🎯 리허설 배차망을 서빙합니다: ${simBuildPath} (host: ${REHEARSAL_HOST}*)`);
+    const simStatic = express.static(simBuildPath);
+    app.use((req, res, next) => {
+        if (!req.hostname?.startsWith(REHEARSAL_HOST)) return next();
+        simStatic(req, res, () => res.sendFile(path.join(simBuildPath, 'index.html')));
+    });
+} else {
+    console.log(`⚠️ 리허설 배차망 빌드(${simBuildPath})가 없어 건너뜁니다 — onedal-sim 을 빌드하면 켜집니다.`);
+}
+
 // React 프론트엔드 정적 파일 서빙 (프로덕션 배포용)
 const clientBuildPath = path.join(__dirname, '../../client-app/dist');
 if (fs.existsSync(clientBuildPath)) {

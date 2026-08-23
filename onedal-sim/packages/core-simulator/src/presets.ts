@@ -88,6 +88,77 @@ export const PRESETS: Record<string, PresetProblem[]> = {
     ],
 
     /**
+     * 🚚 **구로 주행 문제지** — v2 배포 실주행 시험용 (기사님 확정 2026-08-23).
+     *
+     * 기사님: *"구로동 쪽으로 배달 가능한 콜을 하나 **확실히** 넣어야 이동 중에 콜을 잡을 걸
+     * 확인할 수 있어."* 배포본 시뮬레이터는 랜덤이라 구로행이 안 나올 수 있고,
+     * **안 나오면 시험 자체가 성립하지 않는다.**
+     *
+     * 🔴 **`expect`(채점 정답)를 비운다.** 이건 채점 문제지가 아니라 **무대**다 —
+     *    통과 여부가 그날 필터 상태(반경·요율·적재)에 달렸으므로 정답을 적으면 거짓이 된다.
+     *    리허설 이식분과 같은 규칙이다.
+     *
+     * 🔴 **`?loop=1` 과 함께 쓴다.** 문제지는 다 내면 멈추는데(채점을 흐리지 않으려고),
+     *    주행은 1시간이다. 되돌려 흘리지 않으면 초반 몇 분만 콜이 온다.
+     *
+     *     https://rehearsal.altari.com/inseong/dispatch?preset=구로&loop=1
+     *
+     * ⚠️ 상차지는 **초월 고정**이다. 시뮬레이터의 기사 위치는 실제 GPS 를 따라가지 않으므로,
+     *    구로에 가까워질수록 상차지가 뒤로 멀어져 거리에서 떨어지기 시작한다.
+     *    출발 전 `오늘만` 으로 **상차지 반경을 넉넉히** 열어 두는 것이 전제다 (배포_v2 §7-0-1).
+     */
+    '구로': [
+        {
+            label: '① 초월 → 구로 — 오늘의 주인공',
+            pickup: '초월읍', dropoff: '구로구',
+            fare: 95000, vehicleType: '1t',
+            why: '이 콜이 잡혀야 도착 감지까지 간다. 목적지가 실제 주행 종점이다',
+        },
+        {
+            label: '② 초월 → 금천 — 합짐 후보 (구로 바로 옆)',
+            pickup: '초월읍', dropoff: '금천구',
+            fare: 88000, vehicleType: '1t',
+            why: '①과 붙여 실을 수 있는가 — 경유 판정이 도는지 본다',
+        },
+        {
+            label: '③ 초월 → 영등포 — 합짐 후보 (조금 더 멀다)',
+            pickup: '초월읍', dropoff: '영등포구',
+            fare: 99000, vehicleType: '1t',
+            why: '②보다 우회가 크다. 순위가 ②보다 뒤인지 — 우회 비용으로 줄 세우는지',
+        },
+        {
+            label: '④ 초월 → 파주 — 떨어져야 정상이다',
+            pickup: '초월읍', dropoff: '파주읍',
+            fare: 120000, vehicleType: '1t',
+            why: '요금은 제일 높지만 반대 방향이다. 화면에 `도착지 N` 으로 세어지는지 확인한다',
+        },
+        {
+            label: '⑤ 초월 → 분당 — 가는 길목',
+            pickup: '초월읍', dropoff: '분당구',
+            fare: 62000, vehicleType: '1t',
+            why: '경로 위의 콜. 경유 반경 안에 드는지',
+        },
+        {
+            label: '⑥ 초월 → 구로 · 싼 콜',
+            pickup: '초월읍', dropoff: '구로구',
+            fare: 22000, vehicleType: '1t',
+            why: '방향은 맞는데 단가가 안 나온다 — `요금 N` 축이 움직이는지',
+        },
+        {
+            label: '⑦ 초월 → 영등포 · 다른 차종',
+            pickup: '초월읍', dropoff: '영등포구',
+            fare: 150000, vehicleType: '5t',
+            why: '차종이 안 맞는다 — `차종 N` 축이 움직이는지',
+        },
+        {
+            label: '⑧ 초월 → 광명 — 무난한 합짐',
+            pickup: '초월읍', dropoff: '광명동',
+            fare: 78000, vehicleType: '1t',
+            why: '한 바퀴의 마지막. 다시 ①로 돌아가기 전 평범한 콜 하나',
+        },
+    ],
+
+    /**
      * 📼 **리허설 무대** — `pnpm rehearsal` 의 콜 16개를 그대로 옮겼다 (기사님 요청 2026-08-22).
      *
      * 리허설은 서버에 콜을 **직접 주입**했다 — 앱 구간(화면 읽기·필터·자동 터치)을 건너뛴다.
@@ -236,6 +307,7 @@ export function toForcedPair(p: PresetProblem): ForcedPair | null {
 const ALIASES: Record<string, string> = {
     ohtam: '오탐', mismatch: '오탐',
     rehearsal: '리허설', reh: '리허설',
+    guro: '구로', drive: '구로',
 };
 
 export function getPreset(name?: string | null): PresetProblem[] | null {

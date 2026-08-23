@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { OAuth2Client } from "google-auth-library";
 import jwt from "jsonwebtoken";
-import { jwtSecret, jwtRefreshSecret } from "../config/env";
+import { jwtSecret, jwtRefreshSecret, isLiveServer } from "../config/env";
 import bcrypt from "bcrypt";
 import { v4 as uuidv4 } from "uuid";
 import db from "../db";
@@ -217,6 +217,22 @@ router.get("/me", requireAuth, (req, res) => {
 // 5. POST /api/auth/bypass : 개발/테스트용 우회 로그인 (구글 연동 불가 기기용)
 // ============================================
 router.post("/bypass", async (req, res) => {
+    /**
+     * 🔒 **라이브에서는 없는 길이다** (2026-08-23).
+     *
+     * 이 라우트는 *"DB 의 첫 번째 유저를 무조건 가져오는"* 개발 편의 기능이다.
+     * v2 배포 준비 중 확인해 보니 **라이브에서 그대로 열려 있었고**, 아무나 POST 하면
+     * 기사님 계정의 **30일짜리 관리자 토큰**이 나왔다. 환경 가드가 하나도 없었다.
+     *
+     * 🔴 **토큰을 만들기 전에** 끊는다. 뒤에 두면 만들어 놓고 안 주는 꼴이다.
+     * 🔴 **404 다.** 401 이면 *"여기 뭔가 있다"* 를 알려 주는 것이다.
+     * 🔴 **로컬에서는 그대로 열어 둔다** — 막는 것이 목적이 아니라 라이브에서만 막는 것이
+     *    목적이다. 매번 구글 로그인을 하면 개발이 느려진다.
+     */
+    if (isLiveServer()) {
+        return res.status(404).json({ message: "Not Found" });
+    }
+
     try {
         logRoadmapEvent("서버", "관제탑 개발자 로컬 우회 로그인 요청 받음");
         // DB에 있는 첫 번째 유저를 무조건 가져옴 (개발자 테스트용)

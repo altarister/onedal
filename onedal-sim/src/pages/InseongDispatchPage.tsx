@@ -42,6 +42,11 @@ function SimDispatchContent() {
   // 🎯 문제지 — `?preset=오탐` 이면 랜덤 대신 정해진 콜을 순서대로 흘린다
   const [presetParams] = useSearchParams();
   const preset = useMemo(() => getPreset(presetParams.get('preset')), [presetParams]);
+  /**
+   * 🔁 `?loop=1` — 문제지를 다 내면 처음으로 되돌린다 (기본값 아님).
+   * 채점은 한 바퀴가 한 판이라 되돌리면 흐려진다. 주행 시험처럼 오래 흘려야 할 때만 켠다.
+   */
+  const loop = presetParams.get('loop') === '1';
 
   useSimStreaming({
     config: generatorConfig,
@@ -50,7 +55,8 @@ function SimDispatchContent() {
     isTimerPaused,
     intervalMs: simConfig.intervalMs,
     initialCount: 5,
-    preset
+    preset,
+    loop
   });
 
   // 콜 클릭

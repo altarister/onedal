@@ -51,3 +51,23 @@ export function jwtSecret(): string {
 export function jwtRefreshSecret(): string {
     return process.env.JWT_REFRESH_SECRET as string;
 }
+
+/**
+ * 🔒 **여기가 라이브인가.**
+ *
+ * 2026-08-23 v2 배포 준비 중, 개발용 우회 로그인(`/api/auth/bypass`)이 **라이브에서
+ * 열려 있는 것**을 발견했다. 아무나 POST 하면 기사님 계정의 30일짜리 관리자 토큰이 나왔다.
+ * 그때까지는 시험 데이터뿐이라 넘어갔지만, v2 부터는 **집 주소와 실제 운행 기록**이 들어간다.
+ *
+ * 이 파일의 첫 문단과 같은 이야기다 — **조용한 실패가 가장 위험하다.**
+ *
+ * 🔴 **신호를 둘 본다.** `NODE_ENV` 는 PM2 가 넣고(`ecosystem.config.cjs`),
+ *    `DB_FILE` 은 실 DB(`data.db`)를 가리킨다. **하나라도** 라이브를 가리키면 라이브로 본다 —
+ *    보안 판단은 **애매하면 닫는다.** 한쪽만 보면 그 설정이 빠진 날 조용히 열린다.
+ *
+ * ⚠️ **"막을까 말까"에만 쓴다.** 동작을 갈라 쓰면(로컬은 이렇게, 라이브는 저렇게)
+ *    로컬에서 통과한 것이 라이브에서 다르게 도는 길이 생긴다 — 이 레포가 반복해 당한 형태다.
+ */
+export function isLiveServer(): boolean {
+    return process.env.NODE_ENV === "production" || process.env.DB_FILE === "data.db";
+}
