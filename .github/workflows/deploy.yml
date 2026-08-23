@@ -34,10 +34,19 @@ jobs:
             #    손으로 하면 잊는다. 배포마다 자동으로 남긴다 — 최근 5개만 보관.
             echo "💾 [0/4] 배포 전 DB 백업"
             if [ -f server/data.db ]; then
-                cp -a server/data.db "server/data.db.backup-$(date +%Y%m%d-%H%M%S)"
+                # 🔴 **세 파일을 다 뜬다** (2026-08-23 실전에서 걸린 결함).
+                #    SQLite 는 WAL 모드라 **최근 데이터가 data.db-wal 에 있다.** 본체만 뜨면
+                #    그 시점 이후가 통째로 빠진 백업이 된다 — 그날 WAL 이 4MB 였다.
+                #    되돌릴 때 이 셋을 **같이** 복원해야 그 순간으로 돌아간다.
+                TS=$(date +%Y%m%d-%H%M%S)
+                for f in data.db data.db-wal data.db-shm; do
+                    [ -f "server/$f" ] && cp -a "server/$f" "server/$f.backup-$TS"
+                done
                 ls -1t server/data.db.backup-* | tail -n +6 | xargs -r rm -f
-                echo "✅ 백업 완료 (최근 5개 보관):"
-                ls -la server/data.db.backup-* | tail -5
+                ls -1t server/data.db-wal.backup-* 2>/dev/null | tail -n +6 | xargs -r rm -f
+                ls -1t server/data.db-shm.backup-* 2>/dev/null | tail -n +6 | xargs -r rm -f
+                echo "✅ 백업 완료 (최근 5벌 보관):"
+                ls -la server/data.db*.backup-* | tail -6
             else
                 echo "ℹ️ data.db 가 없습니다 — 첫 배포이거나 이미 지운 상태"
             fi
