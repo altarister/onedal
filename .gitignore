@@ -46,3 +46,11 @@ onedal-app/build/
 
 # 서버 로그 파일 (pnpm dev / 운영 공통) — 3일치만 남고 자동 정리된다
 onedal-web/server/logs/
+
+# 🚗 주행 로그 — 실제 운행 기록이라 레포에 넣지 않는다 (기사님 확정 2026-08-23)
+#    서버 로그·DB·폰 logcat 이라 크고(수십 MB) 개인 정보가 들어 있다.
+log/
+
+# 🗺️ 카카오 조회 캐시 — 스킬이 만드는 파생물 (지우면 다시 만들어진다)
+.claude/skills/_cache/
+.claude/skills/**/__pycache__/

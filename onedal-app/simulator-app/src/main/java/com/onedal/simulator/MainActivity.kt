@@ -34,9 +34,14 @@ class MainActivity : Activity() {
         private const val PREFS = "OnedalSimPrefs"
         private const val KEY_URL = "simulatorUrl"
         private const val KEY_IP = "localPcIp"
-        private const val DEFAULT_URL = "https://map.altari.com/inseong"
+        // 붙을 곳은 둘 중 하나다 (기사님 확정 2026-08-24):
+        //   · 로컬  http://<개발용 PC IP>:5173  — 레포의 onedal-sim (배포 없이 바로 본다)
+        //   · 서버  https://rehearsal.altari.com — 리허설 배차망 (실주행·차 안에서)
+        // 어느 쪽이든 /inseong · /hwamul24 설정 화면으로 들어가 문제지를 고른다.
+        private const val REHEARSAL_BASE = "https://rehearsal.altari.com"
         private const val DEFAULT_IP = "172.30.1.58"
         private const val SIM_PORT = 5173
+        private const val DEFAULT_URL = "$REHEARSAL_BASE/"
     }
 
     private lateinit var webView: WebView
@@ -86,23 +91,17 @@ class MainActivity : Activity() {
 
     private fun showUrlPicker() {
         val ip = localIp()
-        val base = "http://$ip:$SIM_PORT"
-        // 자주 쓰는 것만 — 나머지는 "직접 입력"
+        // 🔴 로컬 ↔ 서버, 둘뿐이다 (기사님 확정 2026-08-24).
+        //    홈(`/`)이 인성·화물24 분기 페이지라, 여기서는 어디로 붙을지만 고른다.
         val labels = arrayOf(
-            "로컬 · 인성콜  ($ip)",
-            "로컬 · 인성콜 🎯오탐 문제지 (4콜)",
-            "로컬 · 인성콜 📼리허설 무대 (16콜)",
-            "로컬 · 화물24시",
-            "배포본 (map.altari.com)",
-            "개발용 PC IP 바꾸기  (지금 $ip)",
-            "주소 직접 입력",
+            "🏠 로컬  (http://$ip:$SIM_PORT)",
+            "☁️ 서버  (rehearsal.altari.com)",
+            "⚙️ 개발용 PC IP 바꾸기  (지금 $ip)",
+            "✏️ 주소 직접 입력",
         )
         val urls = arrayOf(
-            "$base/inseong",
-            "$base/inseong/dispatch?preset=ohtam",
-            "$base/inseong/dispatch?preset=rehearsal",
-            "$base/hwamul24",
-            DEFAULT_URL,
+            "http://$ip:$SIM_PORT/",
+            "$REHEARSAL_BASE/",
         )
 
         AlertDialog.Builder(this)

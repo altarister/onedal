@@ -158,7 +158,9 @@ class InsungParser(private val context: Context) : IScrapParser {
         val rawJoined = texts.joinToString(", ")
 
         // ── 1. 차종 앵커링을 통한 요금(Fare) 및 차종(VehicleType) 파싱 ──
-        val vehicleRegex = Regex("^(오|다|라|1t|1\\.4|2\\.5t?|3\\.5t?|5t|11t|14t|18t|25t)$")
+        // 승(승용차)이 빠져 있었다 — 필터 매칭(위 §조건1)은 승용차를 아는데 요금 앵커링만 몰라
+        // 승용차 콜의 요금을 통째로 못 읽었다 (2026-08-24 시뮬 실측). 두 정규식을 맞춘다.
+        val vehicleRegex = Regex("^(오|다|라|승|1t|1\\.4|2\\.5t?|3\\.5t?|5t|11t|14t|18t|25t)$")
         var fare = 0
         var vehicleType: String? = null
 
@@ -180,7 +182,7 @@ class InsungParser(private val context: Context) : IScrapParser {
                 }
             } else {
                 // 예외 fallback: 텍스트 노드가 하나로 뭉쳐진 경우 ("라2.2" 등)
-                val clumpedMatch = Regex("(오|다|라|1t|1\\.4|2\\.5t?|3\\.5t?|5t|11t|14t|18t|25t)\\s*(\\d+(?:\\.\\d+)?)").find(text)
+                val clumpedMatch = Regex("(오|다|라|승|1t|1\\.4|2\\.5t?|3\\.5t?|5t|11t|14t|18t|25t)\\s*(\\d+(?:\\.\\d+)?)").find(text)
                 if (clumpedMatch != null) {
                     vehicleType = clumpedMatch.groupValues[1]
                     val nextVal = clumpedMatch.groupValues[2].toDoubleOrNull()
