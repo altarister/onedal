@@ -668,6 +668,45 @@ export const GPS_ARRIVAL = {
 } as const;
 
 /**
+ * 📍 **이 시간 넘게 좌표가 안 오면 «지금 위치»가 아니다** (기사님 실측 2026-08-25).
+ *
+ * 기사님: *"경로가 이상하게 그리는건 이유가 뭐야?"*
+ *
+ * 14:24 에 모의 주행이 **여주**에서 끝났는데, 4시간 25분 뒤 **광주**에서 콜을 잡을 때도
+ * 서버가 그 여주 좌표를 현위치로 믿었다. 경로 요청 origin 이 세 번 다 소수점 14자리까지
+ * 같았다 — 접근 구간이 **40km 뒤로** 잡혀 지도가 그렇게 그려졌다.
+ * 실 운행에서도 터널·실내 주차장에서 GPS 가 끊기면 같은 형태로 난다.
+ *
+ * ── 값의 근거 ──
+ * 관제웹이 붙어 있으면 위치는 **초 단위**로 온다. 5분간 한 번도 안 왔다면 그건
+ * «잠깐 튄 것»이 아니라 **연결이 끊긴 것**이다. 그리고 5분이면 차가 최대 8km 움직여
+ * 접근 구간(현위치 → 상차지)이 이미 무의미해진다.
+ */
+export const DRIVER_LOCATION_STALE_MS = 5 * 60 * 1000;
+
+/**
+ * 낡은 현위치를 **비운다** — 판단하는 곳은 여기 하나뿐이다 (규칙 ③).
+ *
+ * 비우면 이미 있는 «내 주소로 메우기» 길이 받고, 화면이 «내 주소 기준»이라고 말한다
+ * (`driverLocationIsFallback`). 없는 값을 지어내지 않는다 (규칙 ④).
+ *
+ * ⚠️ **타이머를 두지 않는다.** 읽는 순간 빼기 한 번이다 — 타이머는 좀비가 되고(규칙 ②),
+ *    5분마다 깨어나도 «4분 59초»와 «9분 59초»를 똑같이 취급해 오히려 부정확하다.
+ * ⚠️ **받은 시각을 모르면 건드리지 않는다** — 없는 값으로 지우지 않는다 (규칙 ④).
+ */
+export function dropStaleLocation(
+    session: { driverLocation: { x: number; y: number } | null; driverLocationAt: number | null },
+    nowMs: number = Date.now(),
+): void {
+    if (!session.driverLocation || session.driverLocationAt == null) return;
+    if (nowMs - session.driverLocationAt <= DRIVER_LOCATION_STALE_MS) return;
+    const age = Math.round((nowMs - session.driverLocationAt) / 60000);
+    console.log(`📍 [현위치 낡음] ${age}분 전 좌표라 «지금 위치»로 쓰지 않습니다 — 내 주소 기준으로 계산합니다`);
+    session.driverLocation = null;
+    session.driverLocationAt = null;
+}
+
+/**
  * 도착 판정 한 틱 — **순수 함수** (L2 검증용).
  * 속도를 모르면(null) 정지로 치지 않는다 — 없는 숫자를 지어내지 않는다 (규칙 ④).
  */
@@ -759,6 +798,7 @@ export function processDriverMovement(
     session.lastGpsAt = Date.now();
 
     session.driverLocation = currentGPS;
+    session.driverLocationAt = Date.now();   // 낡음을 재려면 «언제 받았나»가 있어야 한다
 
     // [V2] dispatchPhase 기반으로 체크
     const isDelivering = session.activeFilter.dispatchPhase === 'DELIVERING';

@@ -9,7 +9,7 @@ import { geocodeAddress, calculateSoloRoute, calculateDetourRoute, compareDirect
 import { fetchRealWorldRoute } from "../routes/osrmUtil";
 import { getUserSession, clearOrderTimers } from "../state/userSessionStore";
 import { updateActiveFilter, rememberDetourProgress, recalculateDetourFilter } from "../state/filterManager";
-import { getDetourRegions, getCityRegionsWithRadius, reverseGeocodeToRegion, haversineKm } from "../services/geoService";
+import { getDetourRegions, getCityRegionsWithRadius, reverseGeocodeToRegion, haversineKm, dropStaleLocation } from "../services/geoService";
 import { composeMergedRoute, applyRoute, applySoloRoute, pickRouteHolder, toKm, toMin, hasVisitedStop, snapshotRoute, restoreRouteSnapshot, parsePolyline } from "./routeComposer";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { DISPATCH_CONFIG } from "../config/dispatchConfig";
@@ -137,6 +137,12 @@ export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: 
 /** 취소/방출 등 메모리 변동 발생 시, 오더가 남아있다면 카카오 경로를 백그라운드에서 재탐색하여 폴리라인 및 소요시간을 복원합니다. */
 export async function recalculateActiveKakaoRoute(userId: string, io: any) {
     const session = getUserSession(userId);
+
+    /**
+     * 📍 낡은 현위치는 «지금 위치»가 아니다 — 비우면 «내 주소» 폴백이 받는다 (2026-08-25).
+     *    판단은 `dropStaleLocation` 한 곳에만 있다 (규칙 ③).
+     */
+    dropStaleLocation(session);
 
     // 완료되지 않은 활성 콜만 추출 (On-the-fly 필터링)
     const activeCalls = getActiveCalls(session);
@@ -356,6 +362,12 @@ export { recalculateDetourFilter } from "../state/filterManager";
 
 export const syncDetourFilter = (userId: string, io: any) => {
     const session = getUserSession(userId);
+
+    /**
+     * 📍 낡은 현위치는 «지금 위치»가 아니다 — 비우면 «내 주소» 폴백이 받는다 (2026-08-25).
+     *    판단은 `dropStaleLocation` 한 곳에만 있다 (규칙 ③).
+     */
+    dropStaleLocation(session);
     let polylineToUse = null;
 
     // 완료되지 않은 활성 콜만 추출하여 최신 폴리라인을 가져옵니다.

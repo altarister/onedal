@@ -86,27 +86,67 @@ describe('도착 목표가 국면을 넘어 살아남는다', () => {
     });
 
     /**
-     * 🔴 **조립은 한 곳뿐이다** («경유 4벌» 클래스 · 실측 2026-08-25 12:35:50).
+     * 🔴 **도착 목표는 «지금 쓰는 값»에서 읽는다 — 국면 설정을 직접 뒤지지 않는다**
+     *    (기사님 실측 2026-08-25 18:58).
      *
-     * `syncDetourFilter` 와 `refreshDetourIfNeeded` 가 **각각** 경유 목록을 조립하고 있었다.
-     * 도착 목표를 앞쪽에만 넣었더니, 출발하는 순간 뒤쪽이 돌면서 **131개 → 27개** 로
-     * 되돌렸다. 한쪽만 고치면 다른 쪽이 조용히 덮는다 (규칙 ③).
+     * 기사님: *"지금 복귀콜을 잡고 있는거 아니었어? 화면이 거짓인거야?"*
+     *
+     * 화면과 서버는 **복귀행 · 목적 광주시** 라고 정확히 말하고 있었다. 그런데 판정은
+     * **파주**를 보고 있었다 — 상속이 `phaseSettings.first` 를 직접 읽었기 때문이다.
+     * 그래서 광주로 내리는 콜(곤지암읍·경안동)이 전부 «도착지 밖»으로 떨어졌다.
+     *
+     *     화면·서버 타겟   복귀행 · 광주시
+     *     앱이 받은 필터   destinationCity=광주시
+     *     상속이 읽은 것   phaseSettings.first.destinationCity = 파주시   ← 🔴
+     *
+     * ── 구조 ──
+     *   ① 국면 설정(phaseSettings)  →  ② 평면 필터(activeFilter)  →  ③ 파생 목록
+     *                applyPhaseToFilter          syncDetourFilter
+     *
+     *   ①과 ② 사이에 **국면 전환·`override`·`auto` 파생**이 있다. ③을 만들면서 ①을
+     *   직접 읽으면 그 변환이 통째로 무시된다.
+     *
+     * 🔴 **파생은 바로 윗단만 본다.** 두 단계를 건너뛰지 않는다.
+     *    ①을 다시 해석하는 것은 `applyPhaseToFilter` 를 **두 번째로 구현하는 것**이고,
+     *    이 레포가 반복해 당한 «같은 규칙 두 벌»이다.
+     *
+     * ⚠️ 이 검사는 한때 `phaseSettings.first` 를 **강제하고 있었다** — 틀린 것을 지켰다.
      */
-    it('🔴 도착목표 상속은 recalculateDetourFilter 한 곳에서만 한다', () => {
+    it('🔴 도착목표는 activeFilter 에서 읽는다 (국면 설정을 직접 뒤지지 않는다)', () => {
+        // 🔴 주석을 통째로 걷어낸다 — 줄머리만 보면 블록 주석 **안쪽**이 남아
+        //    "안 읽는다"고 적어 둔 설명이 위반으로 잡힌다
         const strip = (p: string) => readFileSync(join(__dirname, p), 'utf8')
-            .split('\n').filter(l => !/^\s*(\/\/|\/\*|\*)/.test(l)).join('\n');
+            .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 
         const fm = strip('../../src/state/filterManager.ts');
-        const fn = fm.slice(fm.indexOf('export const recalculateDetourFilter'));
+        // 함수 하나만 본다 — 파일 끝까지 보면 다른 함수의 phaseSettings 를 잡는다
+        const from = fm.indexOf('export const recalculateDetourFilter');
+        const end = fm.indexOf('\n};', from);            // 화살표 함수의 끝
+        const fn = fm.slice(from, end === -1 ? undefined : end);
         expect(fn).toMatch(/unionRegions\(/);
-        expect(fn).toMatch(/phaseSettings\.first/);
-        expect(fn).toMatch(/first\.destinationCity/);
+        expect(fn).toMatch(/activeFilter\.destinationCity/);
+        expect(fn).toMatch(/activeFilter\.destinationRadiusKm/);
+        // 국면 설정을 직접 읽으면 타겟(노선·관내·복귀)이 바뀌어도 안 따라간다
+        expect(fn).not.toMatch(/phaseSettings/);
 
-        // 다른 곳이 직접 조립하면 또 갈라진다 — 경유 목록의 원천은 위 한 곳이다
+        // 조립하는 곳이 둘이면 한쪽만 고쳐진다 («경유 4벌» — 12:35:50 에 131→27 로 되돌아갔다)
         const de = strip('../../src/services/dispatchEngine.ts');
         const sync = de.slice(de.indexOf('export const syncDetourFilter'));
         expect(sync).not.toMatch(/getDetourRegions\(/);
         expect(sync).toMatch(/recalculateDetourFilter\(/);
+    });
+
+    it('🔴 타겟이 복귀행으로 바뀌면 목록도 따라간다 (2026-08-25 18:58 실측)', () => {
+        const 경유 = {
+            flat: ['금촌동'], grouped: { '파주시': ['금촌동'] },
+            customCityFilters: ['파주시', '파주'],
+        };
+        // 복귀행 · 목적 광주시 — 화면이 말하는 그 값으로 합친다
+        const merged = unionRegions(경유, '광주시', 1);
+        expect(merged.flat).toContain('곤지암읍');     // 광주시 안 — 내릴 수 있어야 한다
+        expect(merged.flat).toContain('경안동');
+        expect(merged.customCityFilters).toContain('광주시');
+        expect(merged.flat).toContain('금촌동');       // 경유 것도 그대로 남는다
     });
 
     it('🔴 도착목표를 넣어도 상차지 축은 안 뚫린다 — progressKm 은 경로 위만', () => {

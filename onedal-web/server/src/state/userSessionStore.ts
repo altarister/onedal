@@ -52,6 +52,18 @@ export interface UserSession {
      * GPS 가 들어오면 false 로 돌아간다 (진짜 위치가 언제나 이긴다).
      */
     driverLocationIsFallback: boolean;
+    /**
+     * 📍 **`driverLocation` 을 받은 시각** (epoch ms · 2026-08-25 신설).
+     *
+     * 좌표만 들고 있으면 **얼마나 낡았는지 알 수가 없다.** 2026-08-25 실측:
+     * 14:24 에 모의 주행이 여주에서 끝났고, 4시간 25분 뒤 광주에서 콜을 잡는데도
+     * 서버가 그 여주 좌표를 «지금 내 위치»로 믿어 접근 구간을 **40km 뒤로** 그렸다.
+     * 실 운행에서도 터널·실내에서 GPS 가 끊기면 같은 형태로 난다.
+     *
+     * 🔴 **낡음은 저장하는 상태가 아니라 시각 차이에서 파생된다** (규칙 ③).
+     *    타이머를 두지 않고 읽는 순간 잰다 (`dropStaleLocation`).
+     */
+    driverLocationAt: number | null;
     userVehicleType: string; // user_settings의 내 차종 (동적 허용 차종 생성용)
     isRestored: boolean;     // [방안 1] 서버 재시작 복구 로직 1회 실행 여부 플래그
     /**
@@ -202,6 +214,7 @@ function createDefaultSession(userId: string): UserSession {
         judgment: JSON.parse(JSON.stringify(DEFAULT_JUDGMENT)) as JudgmentConfig,
         driverLocation: null,
         driverLocationIsFallback: false,
+        driverLocationAt: null,
         userVehicleType: '1t',
         capacityConfidence: 'ESTIMATED',
         businessDay: businessDayKey(Date.now()),

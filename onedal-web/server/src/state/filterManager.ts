@@ -605,19 +605,34 @@ export const recalculateDetourFilter = (userId: string, detourRadiusKm: number, 
         const detour = getDetourRegions(polylineToUse, detourRadiusKm, destinationRadiusKm);
         if (detour && detour.flat.length > 0) {
             /**
-             * 🎯 **노선의 도착 목표를 첫짐에서 상속한다** (기사님 확정 2026-08-25).
+             * 🎯 **지금 도착 목표를 경유에 합친다** (기사님 확정 2026-08-25).
              *
              * 기사님: *"가남→세종대왕면 , 가남→점동면 둘다 콜이 올라와야 한다고 난 보는데."*
              *
-             * 경유만 쓰면 «여주 안인데 경로에서 벗어난 곳」이 통째로 막힌다. 노선인 동안
-             * 목적지는 안 바뀌므로 따로 저장하지 않고 첫짐에서 파생한다 (규칙 ③).
+             * 경유만 쓰면 «목적지 안인데 경로에서 벗어난 곳»이 통째로 막힌다.
+             * 저장하지 않고 **지금 쓰는 필터 값**에서 파생한다 (규칙 ③).
+             *
+             * 🔴 **`phaseSettings` 를 직접 읽지 않는다** (2026-08-25 18:58 실측 사고).
+             *    한때 `phaseSettings.first` 를 읽었는데, **복귀행으로 바뀌자 판정만 옛
+             *    노선 목적지(파주)를 계속 봤다.** 화면과 서버는 «복귀행 · 광주시»라고
+             *    정확히 말하고 있었는데 광주로 내리는 콜이 전부 «도착지 밖»이 됐다.
+             *
+             *        ① 국면 설정  →  ② 평면 필터(activeFilter)  →  ③ 파생 목록
+             *                applyPhaseToFilter        여기
+             *
+             *    ①과 ② 사이에 국면 전환·`override`·`auto` 파생이 있다. ③에서 ①을 직접
+             *    읽으면 그 변환이 통째로 무시된다. **파생은 바로 윗단만 본다.**
+             *    ①을 다시 해석하는 것은 `applyPhaseToFilter` 를 두 번째로 구현하는 것이다.
              *
              * 🔴 **조립은 여기 한 곳뿐이다.** 예전엔 `syncDetourFilter` 도 따로 조립해서,
-             *    도착 목표를 한쪽에만 넣자 다른 쪽이 덮어썼다 (실측 2026-08-25 12:35:50 —
+             *    도착 목표를 한쪽에만 넣자 다른 쪽이 덮어썼다 (실측 12:35:50 —
              *    131개가 출발 순간 27개로 되돌아갔다). «경유 4벌» 과 같은 클래스다.
              */
-            const first = session.phaseSettings.first;
-            const merged = unionRegions(detour, first.destinationCity, first.dropoffRadiusKm);
+            const merged = unionRegions(
+                detour,
+                session.activeFilter.destinationCity,
+                session.activeFilter.destinationRadiusKm ?? 0,
+            );
             return {
                 // 필터에 실을 것 — 경유 ∪ 도착 목표 (하차지를 연다)
                 destinationKeywords: merged.flat,
