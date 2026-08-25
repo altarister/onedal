@@ -22,6 +22,8 @@
  * 갈라진다. 그 상태가 제일 나쁘다 — 화면이 반씩 맞는 말을 한다.
  */
 
+import { isAppOrigin } from './appOrigin';
+
 export type ServerTarget = 'live' | 'local';
 
 /** 🔴 값의 원천. 로컬 IP 가 바뀌면 여기만 고친다 */
@@ -40,8 +42,9 @@ const KEY_NAME = 'apiTarget';
  */
 export function isNativeApp(): boolean {
     if (typeof window === 'undefined') return false;
-    return /^https?:\/\/localhost(:\d+)?$/.test(window.location.origin)
-        || (window as any).Capacitor?.isNativePlatform?.() === true;
+    // 🔴 판단은 `appOrigin` 하나다 — 여기서 무늬를 또 적으면 두 벌이 된다 (규칙 ③)
+    return (window as any).Capacitor?.isNativePlatform?.() === true
+        || isAppOrigin(window.location.origin);
 }
 
 /** 지금 보고 있는 서버 이름 — 화면이 «어디를 보는지» 말할 수 있어야 한다 (규칙 ⑤-4 ④) */
