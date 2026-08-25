@@ -10,7 +10,7 @@ export class OrderRepository {
         const stmtOrder = db.prepare(`
             INSERT INTO orders (
                 id, type, pickup, dropoff, fare, timestamp, status, userId, capturedAt, capturedDeviceId,
-                vehicleType, distanceKm, totalDistanceKm, totalDurationMin, kakaoSoloDistanceKm, kakaoSoloDurationMin, kakaoTimeExt, routeComputedAt, routePolyline,
+                vehicleType, distanceKm, deliveryDistance, totalDistanceKm, totalDurationMin, kakaoSoloDistanceKm, kakaoSoloDurationMin, kakaoTimeExt, routeComputedAt, routePolyline,
                 paymentType, billingType, commissionRate, tollFare, tripType, orderForm, itemDescription, detailMemo,
                 dispatcherName, dispatcherPhone, isShared, isExpress,
                 -- [2026-08-10] 앱은 예전부터 보내고 DB에도 컬럼이 있는데 이 목록에만 빠져 있어
@@ -18,7 +18,7 @@ export class OrderRepository {
                 -- 예약 표기의 원문이라, 이게 없으면 시간창 경로 최적화의 입력 자체가 없다.
                 scheduleText, postTime, targetApp
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET 
                 status = 'ORDER_CONFIRMED', 
                 userId = excluded.userId, 
@@ -47,6 +47,8 @@ export class OrderRepository {
             cachedOrder.capturedDeviceId || null,
             cachedOrder.vehicleType || null,
             cachedOrder.distanceKm || null,
+            // 🚚 앱이 화면에서 읽은 배송거리 — 합짐 콜의 단독 주행 추정 입력 (soloMinutesOf)
+            (cachedOrder as any).deliveryDistance || null,
             cachedOrder.totalDistanceKm || null,
             cachedOrder.totalDurationMin || null,
             cachedOrder.kakaoSoloDistanceKm || null,

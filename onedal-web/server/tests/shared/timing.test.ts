@@ -175,12 +175,25 @@ describe('deriveCallTiming — 시간 파생의 유일한 지점', () => {
         expect(t.approachMinutes).toBe(39);
     });
 
-    it('🔴 OSRM 이 있으면 거리와 시간을 **같은 출처**에서 가져온다', () => {
-        // 한쪽만 OSRM 이 되면 속도가 이상해진다
-        const t = deriveCallTiming(
-            { ...order, osrmSoloDistanceKm: 70, osrmSoloDurationMin: 90 }, [], [], NOW);
-        expect(t.soloKm).toBe(70);
-        expect(t.soloMinutes).toBe(90);
+    /**
+     * ⚠️ **여기 있던 «OSRM» 검사를 지웠다** (2026-08-26).
+     *
+     * `osrmSoloDistanceKm` 은 **서버도 DB도 한 번도 채운 적이 없다.** 타입 선언과
+     * `useOsrm` 분기와 관제웹 표시만 있었고, 그 분기는 **영원히 false** 였다.
+     * 이 검사는 그 유령이 «작동한다»고 증명해 주고 있었다 — 존재하지 않는 기능을.
+     *
+     * 대신 진짜로 지켜야 하는 것을 검사한다: 실측이 없을 때 배송거리로 채우되
+     * **실측이 있으면 추정이 덮지 않는 것** (soloMinutesOf · 규칙 ⑤-2).
+     */
+    it('🔴 실측이 없으면 배송거리로 채우고, 실측이 있으면 그것이 이긴다', () => {
+        const est = deriveCallTiming(
+            { ...order, kakaoSoloDistanceKm: undefined, kakaoSoloDurationMin: undefined,
+              deliveryDistance: 20 } as any, [], [], NOW);
+        expect(est.soloKm).toBe(20);
+        expect(est.soloMinutes).toBeGreaterThan(0);      // 20km ÷ 46km/h ≈ 26분
+
+        const measured = deriveCallTiming({ ...order, deliveryDistance: 20 } as any, [], [], NOW);
+        expect(measured.soloMinutes).toBe(86);           // 실측(86분)이 추정을 덮지 않는다
     });
 
     it('상차 정차는 실측이 통화값을 이긴다', () => {

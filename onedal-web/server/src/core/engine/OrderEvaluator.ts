@@ -1,6 +1,7 @@
 import { PendingOrder, SecuredOrder, MyOrder, TRUCK_CAPACITY_SLOTS, callName , DEFAULT_DEADLINE_RULES,
          scoreDryRun, describeDryRun, deriveRouteTimeline, minRouteBuffer, marginalDetourMin,
-         DEFAULT_JUDGMENT, REACH_COEF_MIN_PER_KM_TEMP, reachRadiusKm, anyRegionHit } from "@onedal/shared";
+         DEFAULT_JUDGMENT, REACH_COEF_MIN_PER_KM_TEMP, reachRadiusKm, anyRegionHit,
+         soloMinutesOf, derivationInputsOf } from "@onedal/shared";
 import type { DryRunGate } from "@onedal/shared";
 import { OrderRepository } from "../../repositories/OrderRepository";
 import db from "../../db";
@@ -265,11 +266,9 @@ export class OrderEvaluator {
                             const stopsAfter = secStops && secMins && secStops.length === secMins.length
                                 ? secStops.map((st, i) => ({ ...st, driveMinutes: secMins[i] }))
                                 : [];
-                            const rules = {
-                                ...DEFAULT_DEADLINE_RULES,
-                                pickupOffsetMinutes: judgmentCfg.unknown.pickupOffsetMin,
-                                deadlineRatioPct: judgmentCfg.deadline.ratioPct,
-                            };
+                            // 🔴 손으로 다시 만들지 않는다 — 판정 기준 → 파생 입력은 한 곳이다 (규칙 ③).
+                            //    여기서 따로 조립하면 배송 속도 같은 새 칸이 조용히 빠진다 (2026-08-26).
+                            const rules = derivationInputsOf(judgmentCfg).rules;
                             // 후보를 **포함한** 경로의 타임라인 — 기존 콜 약속이 어떻게 되는지가 문지기다
                             const tlAfter = stopsAfter.length
                                 ? deriveRouteTimeline(stopsAfter as any, [...activeCalls, securedOrder] as any,
@@ -321,6 +320,14 @@ export class OrderEvaluator {
                             const clockMs = Date.now() + judgmentCfg.unknown.pickupOffsetMin * 60_000;
                             if (candPickup?.etaMs != null && candPickup.etaMs > clockMs) tags.push('통화 필수 — 무통보 상차 한계 밖');
                             if (cost.hasUnknown) tags.push('정차 미확인(일반값)');
+                            /**
+                             * 🚚 **추정으로 채웠으면 화면이 그렇게 말해야 한다** (규칙 ⑤-2 · 2026-08-26).
+                             *    합짐 콜은 단독 경로를 안 재므로 배송거리 ÷ 속도로 채운다.
+                             *    숫자만 쓰고 «추정»을 안 적으면 그게 규칙 ④ 위반이 된다.
+                             */
+                            if (soloMinutesOf(securedOrder as any, rules).estimated) {
+                                tags.push('배송주행 추정(일반값)');
+                            }
                             if (!bufAfter) tags.push('버퍼 잴 약속 없음');
 
                             const dry = scoreDryRun({

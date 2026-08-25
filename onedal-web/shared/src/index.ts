@@ -533,8 +533,6 @@ export interface PendingOrder extends OfficeOrder {
     kakaoSoloDurationMin?: number;    // 카카오가 연산한 해당 콜만의 '단독' 소요 시간
     /** 현위치 → 상차지 소요 시간(분). 통화 대본의 "여기서 N분 걸립니다"가 이 값이다 */
     approachDurationMin?: number;
-    osrmSoloDistanceKm?: number;      // OSRM이 연산한 해당 콜만의 '단독' 주행 거리
-    osrmSoloDurationMin?: number;     // OSRM이 연산한 해당 콜만의 '단독' 소요 시간
     osrmError?: string;               // OSRM 연산 실패 시 에러 메세지 노출용
     sectionEtas?: string[];           // 카카오 궤적 연산 기반 각 경유지 도착 예상 시간 배열
     sectionDriveMin?: Array<number | null>;       // 출발점 기준 정거장별 **누적 주행(분)** — 시계가 아니라 상대값이라 낡지 않는다
@@ -575,8 +573,6 @@ export interface MyOrder extends OfficeOrder {
     kakaoSoloDurationMin?: number;    // 카카오가 연산한 해당 콜만의 '단독' 소요 시간
     /** 현위치 → 상차지 소요 시간(분). 통화 대본의 "여기서 N분 걸립니다"가 이 값이다 */
     approachDurationMin?: number;
-    osrmSoloDistanceKm?: number;      // OSRM이 연산한 해당 콜만의 '단독' 주행 거리
-    osrmSoloDurationMin?: number;     // OSRM이 연산한 해당 콜만의 '단독' 소요 시간
     osrmError?: string;               // OSRM 연산 실패 시 에러 메세지 노출용
     sectionEtas?: string[];           // 카카오 궤적 연산 기반 각 경유지 도착 예상 시간 배열
     sectionDriveMin?: Array<number | null>;       // 출발점 기준 정거장별 **누적 주행(분)** — 시계가 아니라 상대값이라 낡지 않는다
@@ -625,8 +621,6 @@ export interface SecuredOrder extends OfficeOrder {
     kakaoSoloDistanceKm?: number;
     kakaoSoloDurationMin?: number;
     approachDurationMin?: number;
-    osrmSoloDistanceKm?: number;
-    osrmSoloDurationMin?: number;
     osrmError?: string;
     sectionEtas?: string[];
     sectionDriveMin?: Array<number | null>;

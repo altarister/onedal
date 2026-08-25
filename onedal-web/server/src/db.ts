@@ -216,6 +216,7 @@ db.exec(`
         distanceKm            REAL,
         totalDistanceKm       REAL,
         totalDurationMin      INTEGER,
+        deliveryDistance      REAL,
         kakaoSoloDistanceKm   REAL,
         kakaoSoloDurationMin  INTEGER,
         kakaoTimeExt          TEXT,

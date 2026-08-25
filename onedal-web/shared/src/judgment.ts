@@ -32,6 +32,29 @@ export interface JudgmentConfig {
      * 모르는 값을 채우는 **일반값** (규칙 ⑤-2).
      * 불리한 값이 아니다 — 모르면 나쁜 쪽으로 잡던 것이 꿀콜을 놓치게 했다.
      */
+    /**
+     * 🚚 **배송 주행을 모를 때 쓰는 속도** (기사님 확정 2026-08-26).
+     *
+     * 합짐으로 잡은 콜은 «혼자 갔을 때» 경로를 재지 않는다 — 재는 자리가 첫짐 분기
+     * 안에만 있다. 그런데 **하차 약속이 `상차 완료 + 단독 배송주행 × 150%`** 로
+     * 정의돼 있어, 값이 없으면 약속이 안 생기고 → 버퍼 축이 통째로 빠진다.
+     * 2026-08-26 실측: 되돌아가는 37분이 점수를 하나도 못 깎고 🔵 가 나왔다.
+     *
+     * 앱이 이미 배송거리를 보내므로 **거리 ÷ 속도**로 채운다 (규칙 ⑤-2 — 일반값 +
+     * «미확인» 표시). 통화로 신고하면 실측이 이긴다.
+     *
+     * 🔴 **속도가 하나가 아닌 이유** — 카카오 실측 45건:
+     *    `0~3km 27.4 · 3~10km 24.9 · 10~25km 46.1 · 25km+ 56.0 km/h`
+     *    짧으면 시내, 길면 국도라 두 배 넘게 벌어진다. 평균 하나로 환산하면
+     *    짧은 콜을 두 배 빠르게, 긴 콜을 두 배 느리게 잰다.
+     * ⚠️ 표본은 **접근 구간**(현위치→상차지)이다. 배송 구간 표본은 아직 1건뿐이라
+     *    실주행이 쌓이면 다시 봐야 한다.
+     */
+    speed: {
+        /** 10km 미만 — 시내. 실측 중앙값 24.9~27.4 */ shortKmh: number;
+        /** 10~25km — 국도 섞임. 실측 46.1 */ midKmh: number;
+        /** 25km 이상 — 고속·국도. 실측 56.0 */ longKmh: number;
+    };
     unknown: {
         /** 상차 방법 미확인 — 찾기 + 상차 + **결박** */ pickupDwellMin: number;
         /** 하차 방법 미확인 — 찾기 + 하차 */ dropoffDwellMin: number;
@@ -78,6 +101,7 @@ export const DEFAULT_JUDGMENT: JudgmentConfig = {
     // 🧪 판정색 확정안 v2 (기사님 확정 2026-08-21) — 절대치 문턱(merge 4칸) 폐기,
     //    가중치 통합(revenueDetour), 목표 시급은 문제지 캘리브레이션으로 확정(3.0만).
     unknown: { pickupDwellMin: 15, dropoffDwellMin: 10, pickupOffsetMin: 30 },
+    speed: { shortKmh: 25, midKmh: 46, longKmh: 56 },
     weights: { revenueDetour: 1, bufferCost: 1, slots: 1 },
     target: { hourlyKrw: 30_000 },
     deadline: { ratioPct: 150 },
@@ -132,6 +156,16 @@ export const JUDGMENT_FIELDS: readonly JudgmentField[] = [
 
     // 🧪 옛 가중치 둘(추가 주행 · 우회 거리)은 **순증 대비 우회 하나로 통합**됐다
     //    (기사님 확정 ② — 같은 40분 우회라도 요금이 가른다)
+    { col: 'speed_short_kmh', path: ['speed', 'shortKmh'], group: '모를 때',
+      label: '배송 속도 (10km 미만)', unit: 'km/h', min: 5, max: 120, int: true,
+      why: '카카오 실측 중앙값 24.9~27.4 — 시내 구간' },
+    { col: 'speed_mid_kmh', path: ['speed', 'midKmh'], group: '모를 때',
+      label: '배송 속도 (10~25km)', unit: 'km/h', min: 5, max: 120, int: true,
+      why: '카카오 실측 중앙값 46.1 — 국도가 섞인다' },
+    { col: 'speed_long_kmh', path: ['speed', 'longKmh'], group: '모를 때',
+      label: '배송 속도 (25km 이상)', unit: 'km/h', min: 5, max: 120, int: true,
+      why: '카카오 실측 중앙값 56.0 — 고속·국도' },
+
     { col: 'weight_revenue_detour', path: ['weights', 'revenueDetour'], group: '가중치',
       label: '순증 대비 우회', unit: '배', min: 0, max: 10, int: false,
       why: '요금 ÷ 한계 추가 소요. 0 이면 색에 반영하지 않는다 (표시는 계속한다)' },

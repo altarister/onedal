@@ -521,8 +521,6 @@ export function remainingToStop(p: {
  * 🔴 2026-08-12 리팩토링 — `remainingToStop` 은 순수 함수로 잘 뽑아 뒀는데
  *    **그 입력을 만드는 일이 두 화면에 복제**되어 있었다.
  *
- *        PinnedRouteCard:115   soloKm = osrmSoloDistanceKm ?? kakaoSoloDistanceKm
- *        DepartureCountdown:48 soloKm = osrmSoloDistanceKm ?? kakaoSoloDistanceKm
  *        PinnedRouteCard:133   pickupDwell = dwellMinutes(...)
  *        DepartureCountdown:52 pickupDwell = dwellMinutes(...)
  *        PinnedRouteCard:426   approachKm  = totalDistanceKm − soloKm
@@ -548,8 +546,8 @@ export interface TimingOrderFields {
     totalDistanceKm?: number;
     kakaoSoloDistanceKm?: number;
     kakaoSoloDurationMin?: number;
-    osrmSoloDistanceKm?: number;
-    osrmSoloDurationMin?: number;
+    /** 🚚 앱이 화면에서 읽어 보낸 배송거리(km) — 단독 주행 추정의 입력 (soloMinutesOf) */
+    deliveryDistance?: number;
 }
 
 export interface CallTiming {
@@ -604,6 +602,10 @@ export interface DeadlineRules {
     /** ⏱️ 시한 = 잡은 시각 + 배송 주행 × (이 배율/100) + 픽업 보정 — 업계 관행의 상한 (2026-08-21) */
     deadlineRatioPct?: number;
     deadlinePickupMinutes?: number;
+    /** 🚚 배송 주행을 모를 때 쓰는 속도 (km/h) — 판정 기준 탭에서 온다 */
+    speedShortKmh?: number;
+    speedMidKmh?: number;
+    speedLongKmh?: number;
 }
 export const DEFAULT_DEADLINE_RULES: DeadlineRules = {
     /** ⏱️ 상차 시계 잠정 (⑯ · 2026-08-21) — 잡은 시각 + 이만큼 = 무통보 상차 한계.
@@ -614,6 +616,8 @@ export const DEFAULT_DEADLINE_RULES: DeadlineRules = {
     restMarginMinutes: 30,
     arrivalMarginMinutes: 30,
     deadlineRatioPct: 150, deadlinePickupMinutes: 20,
+    // 카카오 실측 45건 중앙값 (2026-08-26). 근거는 judgment.ts 의 speed 절에
+    speedShortKmh: 25, speedMidKmh: 46, speedLongKmh: 56,
 };
 
 /**
@@ -627,12 +631,18 @@ export const DEFAULT_DEADLINE_RULES: DeadlineRules = {
 export function derivationInputsOf(cfg: {
     unknown: { pickupDwellMin: number; dropoffDwellMin: number; pickupOffsetMin: number };
     deadline: { ratioPct: number };
+    speed?: { shortKmh: number; midKmh: number; longKmh: number };
 }): { rules: DeadlineRules; unk: DwellUnknown } {
     return {
         rules: {
             ...DEFAULT_DEADLINE_RULES,
             pickupOffsetMinutes: cfg.unknown.pickupOffsetMin,
             deadlineRatioPct: cfg.deadline.ratioPct,
+            ...(cfg.speed ? {
+                speedShortKmh: cfg.speed.shortKmh,
+                speedMidKmh: cfg.speed.midKmh,
+                speedLongKmh: cfg.speed.longKmh,
+            } : {}),
         },
         unk: {
             pickupDwellMin: cfg.unknown.pickupDwellMin,
@@ -658,6 +668,51 @@ export function pickupClockMsOf(
     return capturedMs + offsetMinutes * 60_000;
 }
 
+/**
+ * 🚚 **단독 배송 주행(분) — 값이 태어나는 자리는 여기 하나다** (기사님 확정 2026-08-26)
+ *
+ * 기사님: *"상차지를 지났는데 왜 파랑이었는지… 노랑이어야 맞는 것 같은데."*
+ *
+ * 되돌아가는 37분이 점수를 하나도 못 깎았다. 딱지에 답이 있었다 — `버퍼 잴 약속 없음`.
+ * 하차 약속이 `상차 완료 + 단독 배송주행 × 150%` 인데 **그 주행이 없었다.**
+ *
+ * ── 왜 없었나 ──
+ * `dispatchEngine` 이 단독 경로를 **첫짐 분기 안에서만** 잰다. 합짐은 병합 경로만 잰다.
+ * 그래서 합짐 콜은 구조적으로 `kakaoSoloDurationMin` 을 가질 수 없었고,
+ * 하나가 비어 **셋이 죽었다** — 판정 버퍼 축 · 타임라인 추정 약속 · 단계 시딩 마감.
+ * 증상이 셋이라 각각 고치면 폴백만 는다. 그래서 **태어나는 자리를 하나** 만든다.
+ *
+ * ── 어떻게 채우나 ──
+ * 앱이 **이미 배송거리를 보내고 있다**(인성 리스트 두 번째 숫자 · 단가 판정의 입력).
+ * 서버는 그걸 `...payload.order` 로 받아 두고 한 번도 안 읽었다.
+ * 없는 값을 만드는 게 아니라 **버리던 값을 줍는 것**이다 (규칙 ⑤-2).
+ *
+ * 🔴 **속도는 하나가 아니다** — 카카오 실측 45건:
+ *    `0~3km 27.4 · 3~10km 24.9 · 10~25km 46.1 · 25km+ 56.0 km/h`
+ *    짧으면 시내, 길면 국도다. 평균 하나면 짧은 콜을 두 배 빠르게 잰다.
+ *
+ * 🔴 **실측이 있으면 추정이 덮지 않는다.** 통화 신고 > 카카오 실측 > 거리 환산 순.
+ * 🔴 **배송거리조차 없으면 `null` 을 낸다** — 지어내지 않는다 (규칙 ④).
+ * ⚠️ `estimated: true` 는 **화면이 «추정»이라고 말해야 한다는 뜻**이다 (규칙 ⑤-2).
+ */
+export function soloMinutesOf(
+    order: { kakaoSoloDurationMin?: number | null; deliveryDistance?: number | null },
+    rules: { speedShortKmh?: number; speedMidKmh?: number; speedLongKmh?: number }
+        = DEFAULT_DEADLINE_RULES,
+): { minutes: number | null; estimated: boolean } {
+    const measured = order.kakaoSoloDurationMin;
+    if (measured != null && Number.isFinite(Number(measured)) && Number(measured) > 0) {
+        return { minutes: Number(measured), estimated: false };
+    }
+    const km = Number(order.deliveryDistance);
+    if (!Number.isFinite(km) || km <= 0) return { minutes: null, estimated: false };
+
+    const kmh = km < 10 ? (rules.speedShortKmh ?? 25)
+        : km < 25 ? (rules.speedMidKmh ?? 46)
+            : (rules.speedLongKmh ?? 56);
+    return { minutes: Math.max(1, Math.round((km / kmh) * 60)), estimated: true };
+}
+
 export function deriveCallTiming(
     order: TimingOrderFields,
     reports: CargoReport[],
@@ -668,11 +723,9 @@ export function deriveCallTiming(
     unk?: DwellUnknown,
 ): CallTiming {
     const num = (v: unknown) => (v == null ? null : Number(v));
-    // OSRM 이 있으면 그쪽이 더 정확하다. **거리와 시간을 같은 출처에서** 가져와야
-    // 한쪽만 OSRM 이 되어 속도가 이상해지는 일이 없다
-    const useOsrm = order.osrmSoloDistanceKm != null;
-    const soloKm = num(useOsrm ? order.osrmSoloDistanceKm : order.kakaoSoloDistanceKm);
-    const soloMinutes = num(useOsrm ? order.osrmSoloDurationMin : order.kakaoSoloDurationMin);
+    const soloKm = num(order.kakaoSoloDistanceKm) ?? num(order.deliveryDistance);
+    // 🚚 단독 배송 주행은 **여기 하나에서** 온다 (규칙 ③ — soloMinutesOf 참조)
+    const soloMinutes = soloMinutesOf(order, rules).minutes;
     const totalKm = num(order.totalDistanceKm);
     const approachKm = totalKm != null && soloKm != null ? Math.max(0, totalKm - soloKm) : null;
     const approachMinutes = num(order.approachDurationMin);

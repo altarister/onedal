@@ -774,8 +774,8 @@ export default function PinnedRouteCard({
                                                 approachDurationMin: route.approachDurationMin,
                                                 kakaoSoloDistanceKm: route.kakaoSoloDistanceKm,
                                                 kakaoSoloDurationMin: route.kakaoSoloDurationMin,
-                                                osrmSoloDistanceKm: route.osrmSoloDistanceKm,
-                                                osrmSoloDurationMin: route.osrmSoloDurationMin,
+                                                // 🚚 실측이 없으면 배송거리로 추정한다 — 그 입력을 함께 보여 준다
+                                                deliveryDistance: (route as any).deliveryDistance,
                                             }).map(([k, v]) => (
                                                 <div key={k} className="flex bg-surface-alt/40 p-1 rounded text-[10px]">
                                                     <span className="w-[120px] flex-shrink-0 text-text-muted font-bold select-all">route.{k} :</span>

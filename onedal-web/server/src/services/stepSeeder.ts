@@ -19,7 +19,8 @@
  */
 import db from '../db';
 import { STEP_TABLES, defaultCargoByVehicle, dwellMinutes, unitPoints, recordsOfSteps,
-         parseCargoHints, callDeadlineMs, pickupClockMsOf, DEFAULT_JUDGMENT } from '@onedal/shared';
+         parseCargoHints, callDeadlineMs, pickupClockMsOf, DEFAULT_JUDGMENT,
+         soloMinutesOf, derivationInputsOf } from '@onedal/shared';
 import type { JudgmentConfig, CargoReport, Milestone, RouteTimelineEntry } from '@onedal/shared';
 
 /** 🧭 경로가 아는 시각 — `deriveRouteTimeline` 의 결과를 그대로 받는다 (파생 한 곳 · 규칙 ③) */
@@ -93,7 +94,8 @@ function computeChain(o: any, born: Partial<Record<StepId, any>>, judgment?: Jud
     // ── 시각: 실측 > 굳은 약속 > 추정 의 사슬 (접근은 저장 컬럼이 아니라 뺄셈이다 — 2026-08-20)
     const capturedMs = Date.parse(o.capturedAt ?? new Date().toISOString());
     const num = (v: unknown) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
-    const solo = num(o.kakaoSoloDurationMin);
+    // 🚚 실측이 없으면 배송거리로 추정 — 값이 태어나는 자리는 soloMinutesOf 하나다 (규칙 ③)
+    const solo = soloMinutesOf(o as any, derivationInputsOf(judgment ?? DEFAULT_JUDGMENT).rules).minutes;
     const total = num(o.totalDurationMin);
     const approach = total != null && solo != null ? Math.max(0, total - solo) : null;
 
@@ -379,7 +381,9 @@ export function stepsView(orderId: string, judgment?: JudgmentConfig): StepView[
     const num = (v: unknown) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
     const departPlanned = ms(born.LOADED?.occurred_at) ?? ms(chain.LOADED.predicted_at);
     const dl = departPlanned != null
-        ? callDeadlineMs(departPlanned, num(o.kakaoSoloDurationMin), judgment ?? DEFAULT_JUDGMENT) : null;
+        ? callDeadlineMs(departPlanned,
+            soloMinutesOf(o as any, derivationInputsOf(judgment ?? DEFAULT_JUDGMENT).rules).minutes,
+            judgment ?? DEFAULT_JUDGMENT) : null;
     // 상차 격자의 ⚠️ 기준 = **상차 시계**(무통보 한계) 그 자체 — 약속(바닥 적용값)이 아니다.
     //    실측(2026-08-21): 약속을 기준 삼으니 경로 유무에 따라 값이 흔들렸다
     const capturedMs2 = Date.parse(o.capturedAt ?? '');
