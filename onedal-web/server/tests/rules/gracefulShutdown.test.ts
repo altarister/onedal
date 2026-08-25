@@ -57,6 +57,27 @@ describe('종료 — Ctrl+C 에 서버가 스스로 나간다', () => {
         }
     });
 
+    /**
+     * 🔴 **`kill 0` 은 자기 자신도 때린다** (기사님 실측 2026-08-26)
+     *
+     * `pnpm dev` 는 Ctrl+C 가 자식들에게 닿게 하려고 트랩을 건다 (버그 대장 #40).
+     * 그런데 `kill 0` 은 **자기가 속한 프로세스 그룹 전체**에 보내고, 그 그룹에는
+     * 트랩을 건 shell 자신이 들어 있다 → TERM 을 받고 트랩이 또 돌고 또 `kill 0`.
+     *
+     * 실측 (격리 재현):
+     *     trap 'kill 0' TERM                →  트랩 3번
+     *     trap 'trap - TERM; kill 0' TERM   →  트랩 1번
+     *
+     * 신호가 올 때마다 `tsx` 가 *"Previous process hasn't exited yet"* 를 한 줄씩 찍는다.
+     * 그래서 기사님 화면에 3번·4번·6번으로 **매번 다른 횟수**가 나왔다.
+     *
+     * ⚠️ 트랩 자체는 지우면 안 된다 — #40 이 그래서 났다. **해제하고 죽이는** 것이다.
+     */
+    it('🔴 dev 트랩은 자기 자신을 다시 부르지 않는다 (kill 0 재귀)', () => {
+        const pkg = JSON.parse(readFileSync(join(SRC, '../../package.json'), 'utf8'));
+        expect(pkg.scripts.dev).toMatch(/trap\s+-\s+INT TERM HUP;\s*kill 0/);
+    });
+
     it('🔴 그래도 안 나가면 스스로 끊는다 — 무한정 매달리지 않는다', () => {
         // 놓지 못하는 연결이 하나 있으면 close() 콜백이 영영 안 온다.
         // 그때는 tsx 가 강제로 죽이기 전에 우리가 먼저 끝낸다 (종료 코드를 우리가 정한다).
