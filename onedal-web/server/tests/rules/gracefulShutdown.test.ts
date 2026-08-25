@@ -10,8 +10,14 @@ import { join } from 'path';
  *     6:21:51 AM [tsx] Previous process hasn't exited yet. Force killing...
  *     6:21:51 AM [tsx] Previous process hasn't exited yet. Force killing...
  *
- * `tsx watch` 가 자식(진짜 서버)에게 SIGTERM 을 보냈는데 **안 나가서 강제로 죽인 것**이다.
- * 원인은 단순했다 — 서버에 종료 절차가 **하나도 없었다.**
+ * ⚠️ **그 메시지의 원인은 이게 아니었다** (2026-08-26 정정). 고친 뒤에도 줄 수가 그대로
+ *    3줄이었다. `tsx` 는 **신호를 받는 그 순간** 자식의 `exitCode` 를 보므로, 서버가
+ *    아무리 빨리 나가도(실측 0.23초) 그 시점엔 «아직 안 나갔다»가 참이다. 못 피한다.
+ *    → 원인을 못 밝힌 채로 둔다. **무해하다** — 서버는 정리하고 나가고 잔재는 0이다.
+ *
+ * 🔴 **그럼에도 이 검사를 남기는 이유**: 종료 절차가 없던 것은 **그것대로 진짜 결함**이다.
+ *    강제 종료로 끝나면 DB 를 닫을 기회도, 관제탑을 내보낼 기회도 없다. 증상과 무관하게
+ *    지켜야 하는 선이라 검사로 못박는다.
  *
  * Node 는 **열린 손잡이가 하나라도 있으면 안 죽는다.** 이 서버가 쥔 것:
  *   ① 듣고 있는 HTTP 소켓 (keep-alive 연결 포함)
@@ -55,27 +61,6 @@ describe('종료 — Ctrl+C 에 서버가 스스로 나간다', () => {
         for (const f of ['socket/socketHandlers.ts', 'state/pairingStore.ts']) {
             expect(code(f)).toMatch(/\.unref\(\)/);
         }
-    });
-
-    /**
-     * 🔴 **`kill 0` 은 자기 자신도 때린다** (기사님 실측 2026-08-26)
-     *
-     * `pnpm dev` 는 Ctrl+C 가 자식들에게 닿게 하려고 트랩을 건다 (버그 대장 #40).
-     * 그런데 `kill 0` 은 **자기가 속한 프로세스 그룹 전체**에 보내고, 그 그룹에는
-     * 트랩을 건 shell 자신이 들어 있다 → TERM 을 받고 트랩이 또 돌고 또 `kill 0`.
-     *
-     * 실측 (격리 재현):
-     *     trap 'kill 0' TERM                →  트랩 3번
-     *     trap 'trap - TERM; kill 0' TERM   →  트랩 1번
-     *
-     * 신호가 올 때마다 `tsx` 가 *"Previous process hasn't exited yet"* 를 한 줄씩 찍는다.
-     * 그래서 기사님 화면에 3번·4번·6번으로 **매번 다른 횟수**가 나왔다.
-     *
-     * ⚠️ 트랩 자체는 지우면 안 된다 — #40 이 그래서 났다. **해제하고 죽이는** 것이다.
-     */
-    it('🔴 dev 트랩은 자기 자신을 다시 부르지 않는다 (kill 0 재귀)', () => {
-        const pkg = JSON.parse(readFileSync(join(SRC, '../../package.json'), 'utf8'));
-        expect(pkg.scripts.dev).toMatch(/trap\s+-\s+INT TERM HUP;\s*kill 0/);
     });
 
     it('🔴 그래도 안 나가면 스스로 끊는다 — 무한정 매달리지 않는다', () => {

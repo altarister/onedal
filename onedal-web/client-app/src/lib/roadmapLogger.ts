@@ -30,9 +30,14 @@ const FLUSH_MS = 2000;
 /** 통신이 안 될 때 들고 있을 최대치 — 넘으면 **오래된 것부터** 버린다 (최근이 더 쓸모 있다) */
 const MAX_BUFFER = 500;
 
+/** 🔴 서버가 꺼져 있을 때 물러서는 한계 — 30초. 이보다 더 물러서면 돌아온 걸 늦게 안다 */
+const MAX_BACKOFF_MS = 30_000;
+
 let timer: ReturnType<typeof setTimeout> | null = null;
 let dropped = 0;
 let warnedOnce = false;
+/** 0 이면 평소 간격. 실패할 때마다 두 배씩 물러선다 (2 → 4 → 8 → 16 → 30초) */
+let backoffMs = 0;
 
 /** 폰을 구분할 이름 — 없으면 «관제웹» */
 function deviceId(): string {
@@ -59,6 +64,8 @@ async function flush(): Promise<void> {
             body: JSON.stringify({ deviceId: deviceId(), lines }),
             keepalive: true,   // 탭이 닫혀도 마지막 묶음은 나간다
         });
+        backoffMs = 0;          // 통했다 — 평소 간격으로 돌아간다
+        warnedOnce = false;     // 다음에 또 끊기면 그때 한 번 더 알린다
     } catch {
         // 🔴 못 보냈으면 **되돌려 놓는다.** 통신이 끊긴 구간이야말로 나중에 봐야 할 자리다
         BUFFER.unshift(...lines);
@@ -67,13 +74,27 @@ async function flush(): Promise<void> {
             warnedOnce = true;
             console.warn('🖥️ [로그 전송 실패] 통신이 되면 한꺼번에 올립니다 (화면은 계속 돕니다)');
         }
-        schedule();
+        /**
+         * 🔴 **물러서며 다시 건다** (기사님 실측 2026-08-26).
+         *
+         * 예전엔 실패해도 **늘 2초 뒤** 다시 걸었다. 서버를 꺼 두면 그 자리에서
+         * 무한 재시도가 되어 관제웹 콘솔이 `ERR_CONNECTION_REFUSED` 로 도배됐다 —
+         * 기사님이 *"이것도 계속 나오고 있어"* 로 발견하셨다.
+         *
+         * ⚠️ 실패한 `fetch` 는 **브라우저가 스스로** 콘솔에 찍는다. `try/catch` 로는 못 막는다.
+         *    그러니 줄일 방법은 **덜 시도하는 것**뿐이다 — 2초 → 30초로 물러선다(15배 줄어든다).
+         *
+         * 🔴 **포기하지는 않는다.** 서버가 돌아오면 첫 성공에서 `backoffMs` 가 0이 되고
+         *    쌓아 둔 줄이 한꺼번에 올라간다. 끊긴 구간의 로그는 여전히 보존된다.
+         */
+        backoffMs = Math.min(backoffMs ? backoffMs * 2 : FLUSH_MS * 2, MAX_BACKOFF_MS);
+        schedule(backoffMs);
     }
 }
 
-function schedule(): void {
+function schedule(delayMs: number = FLUSH_MS): void {
     if (timer) return;
-    timer = setTimeout(() => { void flush(); }, FLUSH_MS);
+    timer = setTimeout(() => { void flush(); }, delayMs);
 }
 
 export function logRoadmapEvent(platform: "서버" | "웹" | "앱", message: string, page: string = "") {
