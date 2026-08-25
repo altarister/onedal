@@ -257,16 +257,16 @@ export function InseongSetupPage() {
           {/* 콜 수신 간격 — 두 탭 공통 */}
           <div>
             <label className="block text-slate-300 text-sm font-semibold mb-2">
-              ⏱ 콜 수신 간격: <span className="text-amber-400">{(intervalMs / 1000).toFixed(0)}초</span>
+              ⏱ 콜 수신 간격: <span className="text-amber-400">{intervalMs >= 60000 ? `${(intervalMs / 60000).toFixed(1)}분` : `${(intervalMs / 1000).toFixed(0)}초`}</span>
             </label>
             <input
-              type="range" min={2000} max={30000} step={1000}
+              type="range" min={5000} max={600000} step={5000}
               value={intervalMs}
               onChange={e => setIntervalMs(Number(e.target.value))}
               className="w-full accent-amber-500"
             />
             <div className="flex justify-between text-xs text-slate-500 mt-1">
-              <span>2초</span><span>30초</span>
+              <span>5초</span><span>10분</span>
             </div>
           </div>
 
