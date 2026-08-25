@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { jwtSecret } from "../config/env";
+import db from "../db";
 
 
 
@@ -21,6 +22,30 @@ declare global {
 }
 
 /**
+ * 🪪 **이 서버의 유저인가** — 서명 검증과 **다른 질문**이다 (기사님 실측 2026-08-26).
+ *
+ * 로컬과 라이브가 같은 JWT 비밀을 쓰므로, 라이브에서 발급된 토큰도 로컬에서 **서명은
+ * 통과한다.** 서명은 *"위조가 아니다"* 만 말할 뿐 *"어느 서버가 발급했나"* 를 모른다.
+ *
+ * 그래서 2026-08-26 새벽, 라이브 토큰을 든 클라이언트가 로컬에 4초 붙었고 —
+ *
+ *     ERR [Session] 유저 283e9dc3-… 필터 Lazy Load 중 오류: SQLITE_CONSTRAINT_FOREIGNKEY
+ *     🔌 [소켓 연결] 유저 접속: 알타리(알타리) (283e9dc3-…)
+ *
+ * — **로컬 DB 에 없는 유저의 메모리 세션**이 남았다. 소켓은 끊겨도 세션은 안 지워지고
+ * (`clearUserSession` 은 명시적 로그아웃 전용), 1초 인터벌이 그 뒤로 없는 유저까지 돌았다.
+ *
+ * 🔴 **판단은 여기 하나뿐이다** (규칙 ③). REST 와 소켓이 각자 `users` 를 조회하면
+ *    한쪽만 고쳐진다 — 이 레포가 반복해 당한 «같은 판단 두 벌» 형태다.
+ * ⚠️ 세션 저장소에서 막지 않는 이유: `getUserSession` 은 검사용 가짜 id 도 받아야 하는
+ *    단순한 그릇이다. 막을 자리는 **문**이다.
+ */
+export function isKnownUser(userId: string | undefined | null): boolean {
+    if (!userId) return false;
+    return !!db.prepare("SELECT 1 FROM users WHERE id = ?").get(userId);
+}
+
+/**
  * Access Token 유효성 검증 및 req.user 주입 미들웨어
  * 로그인(인증)이 필요한 API 라우터에 부착합니다.
  */
@@ -36,6 +61,14 @@ export const requireAuth = (req: Request, res: Response, next: NextFunction): vo
 
     try {
         const decoded = jwt.verify(token, jwtSecret()) as AuthUser;
+
+        // 🔴 서명이 맞아도 이 서버의 유저가 아니면 들이지 않는다 (남의 서버가 발급한 토큰)
+        if (!isKnownUser(decoded.id)) {
+            console.log(`❌ [AuthMiddleware] 이 서버에 없는 유저의 토큰 — ${decoded.id} (${decoded.email})`);
+            res.status(401).json({ error: "이 서버에 등록되지 않은 계정입니다. 다시 로그인해 주세요." });
+            return;
+        }
+
         req.user = decoded; // 이후 라우터 로직에서 req.user.id 접근 가능
         next();
     } catch (err: any) {

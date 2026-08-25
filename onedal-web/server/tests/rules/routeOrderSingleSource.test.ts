@@ -68,6 +68,77 @@ describe('routeStops — 서버가 순서를 명시해 내려준다', () => {
     });
 });
 
+/**
+ * 🧭 **계측 로그는 «바뀔 때만» 한 줄이다** (기사님 실측 2026-08-26)
+ *
+ * 기사님: *"1초에 한번씩 이런 로그가 싸이고 있는건데 의도 된거지?"*
+ *
+ * 아니었다. `logRouteStops` 는 2026-08-19 에 넣은 계측이고, 스스로 이렇게 적어 뒀다 —
+ * *"값이 바뀔 때만 한 줄 남긴다(`sync` 는 매초 나가므로 무조건 찍으면 로그가 묻힌다)."*
+ * 그런데 오늘 로그는 **324줄인데 내용은 3종류**뿐이었다. 중복 방지가 죽어 있었다.
+ *
+ * ── 왜 죽었나 ──
+ * 지문이 **모듈 전역 변수 하나**였고, 저장이 빈 목록 검사보다 **앞**에 있었다:
+ *
+ *     lastRouteStopsSig = sig;          // ← 지문을 먼저 덮어쓰고
+ *     if (!routeStops.length) return;   // ← 그 다음에 빠져나간다
+ *
+ * 1초 인터벌은 `sessions` 의 **모든 유저**를 돈다. 남의 서버 토큰으로 생긴 유령 세션
+ * (콜 0건)이 끼어 있으면, 그 세션이 매초 지문만 갈아치우고 조용히 나간다. 다음 초에
+ * 기사님 세션은 "바뀐 것"이 되어 또 찍힌다 — 영원히.
+ *
+ * 유령 자체는 `foreignToken.test.ts` 가 문에서 막는다. 여기서는 **계측이 그것과
+ * 무관하게 스스로 옳도록** 강제한다 (규칙 ② — 안전장치는 겹쳐 둔다).
+ */
+describe('계측 로그 — 값이 안 바뀌면 다시 안 찍는다', () => {
+    const call = (id: string, over: object = {}) => ({
+        id, status: 'ORDER_CONFIRMED', pickup: `${id}-상차`, dropoff: `${id}-하차`,
+        pickupX: 127.2, pickupY: 37.4, dropoffX: 126.8, dropoffY: 37.7, fare: 50000, ...over,
+    }) as any;
+    const sessionOf = (userId: string, calls: any[]) =>
+        ({ userId, myOrders: calls, pendingOrdersData: new Map(), driverLocation: null }) as any;
+
+    /** 찍힌 `🧭 [경로 순서]` 줄만 모은다 */
+    const linesWhile = (fn: () => void): string[] => {
+        const spy = jest.spyOn(console, 'log').mockImplementation(() => {});
+        try {
+            fn();
+            return spy.mock.calls.map(c => String(c[0])).filter(l => l.includes('[경로 순서]'));
+        } finally {
+            spy.mockRestore();
+        }
+    };
+
+    it('같은 세션을 다시 sync 해도 값이 그대로면 한 줄도 안 찍는다', () => {
+        const me = sessionOf('나', [call('A', { sectionDriveMin: [12, 77] })]);
+        buildOrderSync(me);                                   // 기준선 — 여기서 한 번 찍힌다
+        expect(linesWhile(() => { buildOrderSync(me); buildOrderSync(me); })).toEqual([]);
+    });
+
+    it('🔴 콜 없는 다른 세션이 끼어들어도 지문이 풀리지 않는다 (유령 세션)', () => {
+        const me = sessionOf('나', [call('B', { sectionDriveMin: [9, 41] })]);
+        const ghost = sessionOf('유령', []);                   // 남의 서버 토큰으로 생긴 세션
+        buildOrderSync(me);                                   // 기준선
+        expect(linesWhile(() => {
+            for (let i = 0; i < 3; i++) { buildOrderSync(ghost); buildOrderSync(me); }
+        })).toEqual([]);
+    });
+
+    it('값이 진짜 바뀌면 (콜이 늘면) 그때는 찍는다 — 계측을 죽이는 것이 아니다', () => {
+        const me = sessionOf('나', [call('C', { sectionDriveMin: [5, 30] })]);
+        buildOrderSync(me);
+        me.myOrders = [call('C', { sectionDriveMin: [5, 30] }), call('D')];
+        expect(linesWhile(() => buildOrderSync(me))).toHaveLength(1);
+    });
+
+    it('세션마다 따로 기억한다 — 두 기사가 서로의 지문을 지우지 않는다', () => {
+        const a = sessionOf('기사A', [call('E', { sectionDriveMin: [1, 2] })]);
+        const b = sessionOf('기사B', [call('F', { sectionDriveMin: [3, 4] })]);
+        buildOrderSync(a); buildOrderSync(b);                 // 각자 기준선
+        expect(linesWhile(() => { buildOrderSync(a); buildOrderSync(b); })).toEqual([]);
+    });
+});
+
 /** 관제웹에서 클라 TSP 가 완전히 사라졌는지 — 소스를 읽어 강제한다 */
 describe('관제웹 — 자기 TSP 를 돌리지 않는다', () => {
     const CLIENT_SRC = join(__dirname, '../../../client-app/src');

@@ -151,16 +151,33 @@ export function findLoadConflicts(
  *
  * ⚠️ 이건 원인을 못박기 위한 계측이다. 원인이 확정되면 지우거나 정식 로그로 승격한다.
  */
-let lastRouteStopsSig = '';
+/**
+ * 🔴 **지문은 기사님마다 따로 기억한다** (기사님 실측 2026-08-26).
+ *
+ * 예전엔 모듈 전역 변수 **하나**였고, 저장이 빈 목록 검사보다 **앞**에 있었다:
+ *
+ *     lastRouteStopsSig = sig;          // ← 먼저 덮어쓰고
+ *     if (!routeStops.length) return;   // ← 그 다음에 빠져나간다
+ *
+ * 1초 인터벌은 `sessions` 의 **모든 유저**를 돈다. 콜이 0건인 세션(남의 서버 토큰으로
+ * 생긴 유령 세션)이 하나만 끼어도 매초 지문만 갈아치우고 조용히 나갔고, 다음 초에
+ * 기사님 세션이 "바뀐 것"이 되어 또 찍혔다 — **324줄에 내용은 3종류.**
+ *
+ * 유령은 문에서 막지만(`isKnownUser`), 계측은 그것과 **무관하게 스스로 옳아야 한다**
+ * (규칙 ② — 안전장치는 겹쳐 둔다).
+ */
+const lastRouteStopsSig = new Map<string, string>();
 function logRouteStops(
+    userId: string | undefined,
     routeStops: Array<{ orderId: string; stopType: string; driveMinutes: number | null }>,
     routeComputedAt: string | null, holderId: string | null,
     aligned: boolean, minsLen: number,
 ) {
+    if (!routeStops.length) return;            // 빈 세션은 남의 지문을 건드리지 않는다
+    const key = userId ?? '(주인없음)';
     const sig = JSON.stringify([routeStops, routeComputedAt, holderId]);
-    if (sig === lastRouteStopsSig) return;
-    lastRouteStopsSig = sig;
-    if (!routeStops.length) return;
+    if (sig === lastRouteStopsSig.get(key)) return;
+    lastRouteStopsSig.set(key, sig);
 
     const circled = ['⑴', '⑵', '⑶', '⑷', '⑸', '⑹', '⑺', '⑻', '⑼', '⑽'];
     const body = routeStops.map((st, i) =>
@@ -270,7 +287,7 @@ export function buildOrderSync(session: { userId?: string; myOrders: MyOrder[]; 
             ? (minByKey.get(`${st.orderId}|${st.stopType}`) ?? null)
             : aligned ? mins![i] : null,
     }));
-    logRouteStops(routeStops, routeComputedAt, holder?.id ?? null, aligned || !!minByKey, mins?.length ?? 0);
+    logRouteStops(session.userId, routeStops, routeComputedAt, holder?.id ?? null, aligned || !!minByKey, mins?.length ?? 0);
 
     /**
      * 🚫 **취소 예산 — 한 판(10회)에서 몇 번 썼나** (기사님 개정 2026-08-23 · 확정안 구현 5).
