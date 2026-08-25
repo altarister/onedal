@@ -58,6 +58,11 @@ export function InseongSetupPage() {
    * 5초로 두면 처리하는 사이 다음 문제가 지나가 **평가조차 안 된다.**
    */
   const [intervalMs, setIntervalMs] = useState(10000);
+  /**
+   * 🧱 **채움 콜 수** — 시간을 만드는 «못 잡는 콜»을 몇 개나 흘릴지 (기사님 확정 2026-08-26).
+   * 잡는 콜과 국면 전용 축은 여기서 안 줄어든다. 집 3개 · 차 20개.
+   */
+  const [fillers, setFillers] = useState(20);
 
   // ── 랜덤콜 ──
   const [maxPickupKm, setMaxPickupKm] = useState(15);
@@ -95,6 +100,7 @@ export function InseongSetupPage() {
       preset: presetKey,
       loop: loop ? '1' : '0',
       interval: intervalMs.toString(),
+      fillers: fillers.toString(),
     });
     navigate(`/inseong/dispatch?${params.toString()}`);
   };
@@ -257,18 +263,43 @@ export function InseongSetupPage() {
           {/* 콜 수신 간격 — 두 탭 공통 */}
           <div>
             <label className="block text-slate-300 text-sm font-semibold mb-2">
-              ⏱ 콜 수신 간격: <span className="text-amber-400">{intervalMs >= 60000 ? `${(intervalMs / 60000).toFixed(1)}분` : `${(intervalMs / 1000).toFixed(0)}초`}</span>
+              ⏱ 콜 수신 간격: <span className="text-amber-400">{(intervalMs / 1000).toFixed(0)}초</span>
             </label>
             <input
-              type="range" min={5000} max={600000} step={5000}
+              type="range" min={5000} max={60000} step={5000}
               value={intervalMs}
               onChange={e => setIntervalMs(Number(e.target.value))}
               className="w-full accent-amber-500"
             />
             <div className="flex justify-between text-xs text-slate-500 mt-1">
-              <span>5초</span><span>10분</span>
+              <span>5초</span><span>60초</span>
             </div>
           </div>
+
+          {/* 🧱 채움 콜 수 — 시나리오 탭 전용 */}
+          {tab === 'scenario' && (
+            <div>
+              <label className="block text-slate-300 text-sm font-semibold mb-2">
+                🧱 채움 콜 수: <span className="text-amber-400">{fillers}개</span>
+                <span className="ml-2 text-xs text-slate-500">
+                  ≈ 출발 후 {(((fillers + 1) * intervalMs) / 1000).toFixed(0)}초 뒤 주행중 합짐
+                </span>
+              </label>
+              <input
+                type="range" min={0} max={20} step={1}
+                value={fillers}
+                onChange={e => setFillers(Number(e.target.value))}
+                className="w-full accent-amber-500"
+              />
+              <div className="flex justify-between text-xs text-slate-500 mt-1">
+                <span>0개</span><span>🏠 집 3</span><span>🚗 차 20</span>
+              </div>
+              {/* 🔴 잡는 콜은 안 줄어든다 — 줄여도 시나리오가 안 깨지는 것이 요점이다 */}
+              <p className="mt-2 text-xs text-slate-500">
+                못 잡는 «채움» 콜만 줄입니다. 첫짐·합짐·주행중 합짐과 국면 전용 축은 그대로 남습니다.
+              </p>
+            </div>
+          )}
 
           {/* 시작 */}
           <button

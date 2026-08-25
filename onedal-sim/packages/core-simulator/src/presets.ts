@@ -28,6 +28,19 @@ export interface PresetProblem {
      * 무대 재현용(리허설 이식분)은 결과가 그날 필터 상태에 달렸으므로 비워 둔다.
      */
     expect?: 'BLOCK' | 'PASS';
+    /**
+     * 🧱 **시간을 만드는 채움 콜** — 개수를 줄여도 시나리오가 안 깨지는 문제 (2026-08-26).
+     *
+     * 기사님: *"모의 주행 시간이 얼마인지 알 거니까 텀은 조절 가능하니까, 역산해서
+     * 적당한 순서에 주행중 합짐이 나오게 해 줄 수 있지 않을까?"*
+     *
+     * 실측: 모의 주행 **40초**(15배속·25km) · 실주행 **40분**. 800배 차이라 텀 하나로는
+     * 둘을 못 맞춘다 — 텀을 1초로 내리면 첫짐·합짐을 결재할 시간이 사라진다.
+     * 그래서 **채움 개수**를 따로 조절한다: 집 5초·3개 · 차 30초·20개.
+     *
+     * 🔴 깃발이 없는 문제(잡는 콜 · 국면 전용 축)는 **언제나 남는다.**
+     */
+    filler?: boolean;
     why: string;
 }
 
@@ -519,121 +532,121 @@ export const PRESETS: Record<string, PresetProblem[]> = {
         },        {
             label: '08 ✖ 요금 · 모다아울렛 → 롯데아울렛 · 7천원',
             pickup: '경충대로 907', dropoff: '프리미엄아울렛로 177-74',
-            fare: 7000, vehicleType: '다마스', expect: 'BLOCK',
+            fare: 7000, vehicleType: '다마스', expect: 'BLOCK', filler: true,
             why: '경로 위 · 차종도 자리도 되는데 **15.5km 하한 8,587원**에 못 미친다 — 요금 축 하나',
         },
         {
             label: '09 ✖ 요금 · 곤지암성당 → 롯데아울렛 · 5천원',
             pickup: '경충대로543번길 19', dropoff: '프리미엄아울렛로 177-74',
-            fare: 5000, vehicleType: '다마스', expect: 'BLOCK',
+            fare: 5000, vehicleType: '다마스', expect: 'BLOCK', filler: true,
             why: '경로 위 · 차종도 자리도 되는데 **12.4km 하한 6,869원**에 못 미친다 — 요금 축 하나',
         },
         {
             label: '10 ✖ 차종 · 동원대 → 인삼농협 · 5t',
             pickup: '경충대로 26', dropoff: '둔터로124번길 160',
-            fare: 152000, vehicleType: '5t', expect: 'BLOCK',
+            fare: 152000, vehicleType: '5t', expect: 'BLOCK', filler: true,
             why: '경로 위 · 요금도 좋다 — **5t 라서** 떨어진다 (3.3km 는 짧아 요금으론 못 막는다)',
         },
         {
             label: '11 ✖ 요금 · 모다아울렛 → 인삼농협 · 4천원',
             pickup: '경충대로 907', dropoff: '둔터로124번길 160',
-            fare: 4000, vehicleType: '다마스', expect: 'BLOCK',
+            fare: 4000, vehicleType: '다마스', expect: 'BLOCK', filler: true,
             why: '경로 위 · 차종도 자리도 되는데 **11.0km 하한 6,094원**에 못 미친다 — 요금 축 하나',
         },
         {
             label: '12 ✖ 요금 · 모다아울렛 → 예스파크 · 4천원',
             pickup: '경충대로 907', dropoff: '도자예술로 72',
-            fare: 4000, vehicleType: '다마스', expect: 'BLOCK',
+            fare: 4000, vehicleType: '다마스', expect: 'BLOCK', filler: true,
             why: '경로 위 · 차종도 자리도 되는데 **10.0km 하한 5,540원**에 못 미친다 — 요금 축 하나',
         },
         {
             label: '13 ✖ 차종 · 곤지암성당 → 롯데아울렛 · 11t',
             pickup: '경충대로543번길 19', dropoff: '프리미엄아울렛로 177-74',
-            fare: 155000, vehicleType: '11t', expect: 'BLOCK',
+            fare: 155000, vehicleType: '11t', expect: 'BLOCK', filler: true,
             why: '경로 위 · 요금도 좋다 — **11t 라서** 떨어진다 (12.4km 는 짧아 요금으론 못 막는다)',
         },
         {
             label: '14 ✖ 요금 · 동원대 → 롯데아울렛 · 3천원',
             pickup: '경충대로 26', dropoff: '프리미엄아울렛로 177-74',
-            fare: 3000, vehicleType: '다마스', expect: 'BLOCK',
+            fare: 3000, vehicleType: '다마스', expect: 'BLOCK', filler: true,
             why: '경로 위 · 차종도 자리도 되는데 **9.6km 하한 5,318원**에 못 미친다 — 요금 축 하나',
         },
         {
             label: '15 ✖ 요금 · 곤지암성당 → 인삼농협 · 2천원',
             pickup: '경충대로543번길 19', dropoff: '둔터로124번길 160',
-            fare: 2000, vehicleType: '다마스', expect: 'BLOCK',
+            fare: 2000, vehicleType: '다마스', expect: 'BLOCK', filler: true,
             why: '경로 위 · 차종도 자리도 되는데 **7.3km 하한 4,044원**에 못 미친다 — 요금 축 하나',
         },
         {
             label: '16 ✖ 차종 · 동원대 → 예스파크 · 25t',
             pickup: '경충대로 26', dropoff: '도자예술로 72',
-            fare: 158000, vehicleType: '25t', expect: 'BLOCK',
+            fare: 158000, vehicleType: '25t', expect: 'BLOCK', filler: true,
             why: '경로 위 · 요금도 좋다 — **25t 라서** 떨어진다 (4.4km 는 짧아 요금으론 못 막는다)',
         },
         {
             label: '17 ✖ 요금 · 곤지암성당 → 예스파크 · 2천원',
             pickup: '경충대로543번길 19', dropoff: '도자예술로 72',
-            fare: 2000, vehicleType: '다마스', expect: 'BLOCK',
+            fare: 2000, vehicleType: '다마스', expect: 'BLOCK', filler: true,
             why: '경로 위 · 차종도 자리도 되는데 **6.7km 하한 3,711원**에 못 미친다 — 요금 축 하나',
         },
         {
             label: '18 ✖ 요금 · 모다아울렛 → 롯데아울렛 · 4천원',
             pickup: '경충대로 907', dropoff: '프리미엄아울렛로 177-74',
-            fare: 4000, vehicleType: '다마스', expect: 'BLOCK',
+            fare: 4000, vehicleType: '다마스', expect: 'BLOCK', filler: true,
             why: '경로 위 · 차종도 자리도 되는데 **15.5km 하한 8,587원**에 못 미친다 — 요금 축 하나',
         },
         {
             label: '19 ✖ 차종 · 모다아울렛 → 예스파크 · 3.5t',
             pickup: '경충대로 907', dropoff: '도자예술로 72',
-            fare: 161000, vehicleType: '3.5t', expect: 'BLOCK',
+            fare: 161000, vehicleType: '3.5t', expect: 'BLOCK', filler: true,
             why: '경로 위 · 요금도 좋다 — **3.5t 라서** 떨어진다 (10.0km 는 짧아 요금으론 못 막는다)',
         },
         {
             label: '20 ✖ 요금 · 곤지암성당 → 롯데아울렛 · 4천원',
             pickup: '경충대로543번길 19', dropoff: '프리미엄아울렛로 177-74',
-            fare: 4000, vehicleType: '다마스', expect: 'BLOCK',
+            fare: 4000, vehicleType: '다마스', expect: 'BLOCK', filler: true,
             why: '경로 위 · 차종도 자리도 되는데 **12.4km 하한 6,869원**에 못 미친다 — 요금 축 하나',
         },
         {
             label: '21 ✖ 요금 · 모다아울렛 → 인삼농협 · 3천원',
             pickup: '경충대로 907', dropoff: '둔터로124번길 160',
-            fare: 3000, vehicleType: '다마스', expect: 'BLOCK',
+            fare: 3000, vehicleType: '다마스', expect: 'BLOCK', filler: true,
             why: '경로 위 · 차종도 자리도 되는데 **11.0km 하한 6,094원**에 못 미친다 — 요금 축 하나',
         },
         {
             label: '22 ✖ 차종 · 동원대 → 인삼농협 · 11t',
             pickup: '경충대로 26', dropoff: '둔터로124번길 160',
-            fare: 164000, vehicleType: '11t', expect: 'BLOCK',
+            fare: 164000, vehicleType: '11t', expect: 'BLOCK', filler: true,
             why: '경로 위 · 요금도 좋다 — **11t 라서** 떨어진다 (3.3km 는 짧아 요금으론 못 막는다)',
         },
         {
             label: '23 ✖ 요금 · 모다아울렛 → 예스파크 · 3천원',
             pickup: '경충대로 907', dropoff: '도자예술로 72',
-            fare: 3000, vehicleType: '다마스', expect: 'BLOCK',
+            fare: 3000, vehicleType: '다마스', expect: 'BLOCK', filler: true,
             why: '경로 위 · 차종도 자리도 되는데 **10.0km 하한 5,540원**에 못 미친다 — 요금 축 하나',
         },
         {
             label: '24 ✖ 요금 · 동원대 → 롯데아울렛 · 2천원',
             pickup: '경충대로 26', dropoff: '프리미엄아울렛로 177-74',
-            fare: 2000, vehicleType: '다마스', expect: 'BLOCK',
+            fare: 2000, vehicleType: '다마스', expect: 'BLOCK', filler: true,
             why: '경로 위 · 차종도 자리도 되는데 **9.6km 하한 5,318원**에 못 미친다 — 요금 축 하나',
         },
         {
             label: '25 ✖ 차종 · 곤지암성당 → 예스파크 · 5t',
             pickup: '경충대로543번길 19', dropoff: '도자예술로 72',
-            fare: 167000, vehicleType: '5t', expect: 'BLOCK',
+            fare: 167000, vehicleType: '5t', expect: 'BLOCK', filler: true,
             why: '경로 위 · 요금도 좋다 — **5t 라서** 떨어진다 (6.7km 는 짧아 요금으론 못 막는다)',
         },
         {
             label: '26 ✖ 요금 · 모다아울렛 → 롯데아울렛 · 5천원',
             pickup: '경충대로 907', dropoff: '프리미엄아울렛로 177-74',
-            fare: 5000, vehicleType: '다마스', expect: 'BLOCK',
+            fare: 5000, vehicleType: '다마스', expect: 'BLOCK', filler: true,
             why: '경로 위 · 차종도 자리도 되는데 **15.5km 하한 8,587원**에 못 미친다 — 요금 축 하나',
         },
         {
             label: '27 ✖ 요금 · 곤지암성당 → 롯데아울렛 · 3천원',
             pickup: '경충대로543번길 19', dropoff: '프리미엄아울렛로 177-74',
-            fare: 3000, vehicleType: '다마스', expect: 'BLOCK',
+            fare: 3000, vehicleType: '다마스', expect: 'BLOCK', filler: true,
             why: '경로 위 · 차종도 자리도 되는데 **12.4km 하한 6,869원**에 못 미친다 — 요금 축 하나',
         },
 

@@ -41,7 +41,26 @@ function SimDispatchContent() {
 
   // 🎯 문제지 — `?preset=오탐` 이면 랜덤 대신 정해진 콜을 순서대로 흘린다
   const [presetParams] = useSearchParams();
-  const preset = useMemo(() => getPreset(presetParams.get('preset')), [presetParams]);
+  /**
+   * 🧱 **`?fillers=N` — 시간을 만드는 채움 콜을 앞에서 N개만 쓴다** (기사님 확정 2026-08-26).
+   *
+   * 모의 주행은 **40초**(15배속·25km)인데 실주행은 **40분**이다. 텀 하나로는 둘을 못 맞춘다 —
+   * 텀을 1초로 내리면 첫짐·합짐을 결재할 시간이 사라진다. 그래서 **개수**를 따로 조절한다.
+   *
+   *   (채움 N + 1) × 텀  ≈  주행시간 ÷ 2      ← 주행중 합짐이 한가운데 오게
+   *   집  5초 × 3개  = 20초  (주행 40초)
+   *   차  30초 × 20개 = 10.5분 (주행 40분)
+   *
+   * 🔴 깃발 없는 문제(잡는 콜 · 국면 전용 축)는 **N 과 무관하게 전부 남는다.**
+   *    줄여도 시나리오가 안 깨지는 것이 이 방식의 요점이다.
+   */
+  const fillerLimit = Number(presetParams.get('fillers') ?? '99');
+  const preset = useMemo(() => {
+    const all = getPreset(presetParams.get('preset'));
+    if (!all) return all;
+    let used = 0;
+    return all.filter(p => !p.filler || used++ < fillerLimit);
+  }, [presetParams, fillerLimit]);
   /**
    * 🔁 `?loop=1` — 문제지를 다 내면 처음으로 되돌린다 (기본값 아님).
    * 채점은 한 바퀴가 한 판이라 되돌리면 흐려진다. 주행 시험처럼 오래 흘려야 할 때만 켠다.
