@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { socket } from "../lib/socket";
 import type { SimplifiedOfficeOrder, SecuredOrder, OrderSyncPayload, RouteStopInfo } from "@onedal/shared";
 import { isEvaluating, isTerminal } from "@onedal/shared";
-import { logRoadmapEvent } from "../lib/roadmapLogger";
+import { logRoadmapEvent, logStateChange } from "../lib/roadmapLogger";
 import { soundManager } from "../lib/soundManager";
 
 export function useOrderEngine() {
@@ -111,12 +111,21 @@ export function useOrderEngine() {
         }
 
         const onConnect = () => {
+            /**
+             * 📡 **소켓이 붙고 끊긴 순간을 남긴다** (필드테스트 ④ · 2026-08-25).
+             *    어제 문서 §4-2 가 *"주행 중 소켓이 몇 번 끊겼나"* 를 모른다고 적어 뒀다.
+             *    끊긴 동안 쌓아 뒀다가 붙으면 한꺼번에 올라간다 (`roadmapLogger`).
+             */
+            logStateChange("소켓", "연결됨", "관제대시보드");
             setIsConnected(true);
             // 💡 서버 재시작(소켓 재접속) 시, 프론트엔드의 캐시도 강제 초기화!
             // 화면에 남아있는 평가 중인/확정된 상태도 모두 유령(Ghost)이 됩니다. 따라서 전부 지워야 싱크가 맞습니다.
             setActiveOrders([]);
         };
-        const onDisconnect = () => setIsConnected(false);
+        const onDisconnect = (reason?: string) => {
+            logStateChange("소켓", `끊김${reason ? `(${reason})` : ''}`, "관제대시보드");
+            setIsConnected(false);
+        };
         // ※ `new-order` 리스너 제거됨 (Phase 0): 유일한 발신처였던 레거시 `POST /api/orders`가
         //    삭제되어 이 이벤트는 더 이상 발생하지 않습니다.
 

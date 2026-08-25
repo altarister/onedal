@@ -27,6 +27,7 @@ import logbookAnalyticsRouter from "./routes/logbook/analytics";
 import logbookPlacesRouter from "./routes/logbook/places";
 import logbookFilterDaysRouter from "./routes/logbook/filterDays";
 import healthRouter, { logServerIdentity } from "./routes/health";
+import logsRouter from "./routes/logs";
 import { validateEnv } from "./config/env";
 
 import { initGeoService } from "./services/geoService";
@@ -68,6 +69,8 @@ app.use((req, res, next) => {
 // API 라우터 등록
 // [이슈 U] 지금 도는 서버가 어떤 코드인지 밖에서 확인 (부팅 시각·커밋 해시)
 app.use("/api/health", healthRouter);
+// 🖥️ 관제웹이 스스로 남기는 로그 — 인증을 걸지 않는다 (로그인 전 화면도 남겨야 한다)
+app.use("/api/logs", logsRouter);
 
 app.use("/api/orders", ordersRouter);
 app.use("/api/orders/detail", detailRouter);

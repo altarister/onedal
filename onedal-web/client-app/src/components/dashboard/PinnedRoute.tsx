@@ -2,7 +2,7 @@ import { isEvaluating, isTerminal, hasVisitedStop, deriveRouteTimeline, derivati
 import type { SecuredOrder } from "@onedal/shared";
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { socket } from '../../lib/socket';
-import { logRoadmapEvent } from '../../lib/roadmapLogger';
+import { logRoadmapEvent , logStateChange } from '../../lib/roadmapLogger';
 import PinnedRouteCanvas, { type RoutePoint } from './PinnedRouteCanvas';
 import PinnedRouteCard from './PinnedRouteCard';
 import CallDeck from './CallDeck';
@@ -104,7 +104,24 @@ export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, 
     }, [liveRoute]);
 
     // 📡 마스터 GPS 엔진 연결 (Real / Mock 자동 스위칭)
-    const { currentGps } = useMasterGps(isDriving, activePolyline || null, mockStops);
+    const { currentGps, gpsSource } = useMasterGps(isDriving, activePolyline || null, mockStops);
+
+    /**
+     * 📡 **화면이 무엇을 그리고 있었나** — 주행 뒤에 돌아볼 수 있게 남긴다
+     *    (필드테스트 ④ · 2026-08-25). 어제 문서 §4-2 가 모른다고 적어 둔 둘 중 하나다.
+     *
+     * ⚠️ **바뀔 때만** 남긴다. 관제앱 웹뷰가 초당 5.5회 다시 그리는데 그걸 다 남기면
+     *    정작 사건이 묻힌다 (`logStateChange` 가 직전 값과 같으면 버린다).
+     */
+    useEffect(() => {
+        logStateChange("국면", filter?.dispatchPhase ?? "없음", "진행중경로");
+    }, [filter?.dispatchPhase]);
+    useEffect(() => {
+        logStateChange("진행중 콜", `${liveRoute.length}건`, "진행중경로");
+    }, [liveRoute.length]);
+    useEffect(() => {
+        logStateChange("GPS 출처", gpsSource, "진행중경로");
+    }, [gpsSource]);
 
     /**
      * 지도와 TSP 의 출발점. GPS 가 잡히면 아래 useEffect 가 곧바로 덮어쓴다.
