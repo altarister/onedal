@@ -10,6 +10,7 @@ import com.onedal.app.plugins.hwamul24.Hwamul24Keywords
 import com.onedal.app.plugins.insung.InsungKeywords
 import com.onedal.app.core.AutoTouchManager
 import com.onedal.app.core.ScrapParser
+import com.onedal.app.plugins.insung.InsungParser
 import com.onedal.app.core.ScreenKeywords
 import com.onedal.app.core.ScreenTextNode
 import com.onedal.app.core.engine.ScreenDetector
@@ -425,7 +426,22 @@ class HijackService : AccessibilityService() {
             }
 
             val orderHash = (order.pickup + order.dropoff + order.fare.toString()).hashCode()
-            if (processedOrderHashes.contains(orderHash)) continue
+            /**
+             * ⏭️ **건너뛰었다는 사실을 남긴다** (2026-08-25 · 시험 두 판을 여기서 잃었다).
+             *
+             * 지문은 **상차+하차+요금**이라 차종만 바꾼 콜은 같은 콜로 보인다. 그런데
+             * 아무 로그 없이 `continue` 하니, 화면엔 떴는데 판정이 한 줄도 안 남는다 —
+             * *"필터가 막았나 / 요금을 못 읽었나 / 서버가 안 보냈나"* 를 가릴 수가 없다.
+             *
+             * 실측 2026-08-25: 문제지 ⑧⑨ 를 승용차로 바꿔 다시 흘렸는데 세 판 내리
+             * 조용히 건너뛰었고, **서버를 고쳤는지조차 확인 못 했다.**
+             * (캐시는 접근성 토글로 서비스가 새로 만들어져야 비워진다 — 앱을 밀어내도 안 된다)
+             */
+            if (processedOrderHashes.contains(orderHash)) {
+                AppLogger.d(TAG, "⏭️ [이미 본 콜] ${order.pickup.take(14)} → ${order.dropoff.take(14)} " +
+                    "${order.fare}원 (지문 $orderHash · 기억 ${processedOrderHashes.size}개)")
+                continue
+            }
 
             // 🌟 [항시 인터셉터] 콜 필터 매칭 검사 (디버그 로그를 위해 MANUAL/AUTO 무관하게 항시 실행)
             val isTarget = scrapParser.shouldClick(order, tally)
@@ -1039,8 +1055,23 @@ class HijackService : AccessibilityService() {
         return SimplifiedOfficeOrder(
             id = session.currentOrderId,
             type = "${mode}_CLICK",
-            pickup = tempOrder.pickup.takeIf { it.isNotBlank() && it != "배차값없음" } ?: "상태분석중",
-            dropoff = tempOrder.dropoff.takeIf { it.isNotBlank() && it != "배차값없음" } ?: "상태분석중",
+            /**
+             * 🔴 **상세 화면 글자를 리스트 파서 결과 그대로 믿지 않는다** (2026-08-25 실측).
+             *
+             * `parse()` 는 *"첫 번째 유효 지역 = 상차지, 두 번째 = 하차지"* 로 읽는데
+             * 그건 **리스트에서만 참**이다. 손으로 연 상세에서는 배치가 달라
+             * 상차지 **«다마스»** · 하차지 **«계산서필»** 이 장부에 남았다.
+             *
+             * 직접콜은 서버가 심사하지 않으므로(규칙 ①) 그 값이 **경로의 기점**이 된다.
+             * 주소 꼴이 아니면 «배차값없음» 으로 둔다 — 뒤따르는 팝업 서핑이 진짜 주소를
+             * 채운다. 모르면 모른다고 두는 것이 지어내는 것보다 낫다 (규칙 ④).
+             */
+            pickup = tempOrder.pickup.takeIf {
+                it.isNotBlank() && it != "배차값없음" && InsungParser.looksLikeAddress(it)
+            } ?: "배차값없음",
+            dropoff = tempOrder.dropoff.takeIf {
+                it.isNotBlank() && it != "배차값없음" && InsungParser.looksLikeAddress(it)
+            } ?: "배차값없음",
             fare = tempOrder.fare,
             timestamp = nowTimestamp(),
             rawText = screenTexts.joinToString(" ")

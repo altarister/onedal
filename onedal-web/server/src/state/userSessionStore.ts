@@ -164,6 +164,19 @@ export interface UserSession {
      */
     detourProgressKm: Record<string, number> | null;
     /**
+     * 🛣️ **경로 위에 있는 동 목록** — 상차지 판정의 원천 (2026-08-25 신설).
+     *
+     * 2026-08-25 부터 `destinationKeywords` 에는 **도착 목표**(첫짐의 «여주시»)에서 온
+     * 동이 섞인다. 그건 **하차지를 열려고** 넣은 것이지 «경로 위»라는 뜻이 아니다.
+     *
+     * 🔴 `detourProgressKm` 의 키로는 구분할 수 없다 — `centroid` 가 없어 스냅에 실패한
+     *    동은 **경로 위인데도** 진행도 맵에 안 들어간다. «모르는 것»과 «경로 밖»은 다르다.
+     *    그래서 경유 목록 자체를 따로 기억한다.
+     *
+     * 저장이 아니라 캐시다 — 경유를 다시 그리면 같이 바뀐다. 경로가 없으면 `null`.
+     */
+    detourFlat: string[] | null;
+    /**
      * ↩️ **새 콜을 붙이기 직전의 경로 한 벌** (기사님 확정 2026-08-23).
      *
      * 심사 중인 콜이 취소되면 이걸 되돌린다 — 원래 콜은 아무것도 안 바뀌었는데
@@ -198,6 +211,7 @@ function createDefaultSession(userId: string): UserSession {
         phaseSettings: normalizePhaseSettings(null),
         appliedPhaseKey: null,
         detourProgressKm: null,
+        detourFlat: null,
         routeSnapshot: null,
         departedAt: null,
         lastOrderSyncJson: null,

@@ -49,7 +49,9 @@ const SIMULATOR_AVAILABLE = import.meta.env.DEV;
  */
 export function useMasterGps(
     isDriving: boolean,
-    activePolyline: PolylinePoint[] | null
+    activePolyline: PolylinePoint[] | null,
+    /** 🏁 들러야 할 정거장 — 모의 주행이 도로를 벗어나 실제 좌표를 찍게 한다 (2026-08-25) */
+    stops?: PolylinePoint[],
 ) {
     const [currentGps, setCurrentGps] = useState<{ lat: number; lng: number } | null>(null);
     const { lat: nativeLat, lng: nativeLng } = useLocationStore();
@@ -107,6 +109,7 @@ export function useMasterGps(
     const mockGps = useMockGpsSimulator({
         isActive: useMock,
         routePolyline: activePolyline,
+        stops,
         speedMultiplier: 15,
         // 경로 끝에 닿으면 가상 위치를 걷어내고 마지막 실제 좌표로 되돌린다
         onFinished: () => { endMockDriving(); setSource('none'); },

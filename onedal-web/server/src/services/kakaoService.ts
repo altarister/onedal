@@ -237,9 +237,11 @@ function parseKakaoErrorMsg(resultCode: number, resultMsg: string): string {
 /**
  * 단독 주행 URL 조립 — **순수 함수라 테스트할 수 있다.**
  *
- * 🔴 `skipPickup` 은 **이미 상차한 콜**을 위한 것이다. 짐을 실었으면 상차지는 다녀온 곳이라
+ * 🔴 `skipPickup` 은 **이미 다녀온 상차지**를 위한 것이다. 거기 갔으면 상차지는 지나온 곳이라
  *    경유지에 넣으면 안 된다 — 넣으면 되돌아가는 경로가 나온다 (2026-08-14 실측).
- *    판단 자체는 `routeComposer.isAlreadyLoaded` 한 곳에 있다.
+ *    판단 자체는 `hasVisitedStop(c, 'pickup')` 한 곳에 있다.
+ *    ⚠️ **`isAlreadyLoaded`(상차 완료 버튼)가 아니다.** 그걸 보면 버튼을 안 누른 채 달릴 때
+ *    되돌아간다 — 2026-08-25 에 실제로 났다 (여주 → 성남 왕복 50km).
  */
 export function buildSoloRouteUrl(
     pickupX: number, pickupY: number,

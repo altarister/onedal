@@ -67,16 +67,26 @@ describe('국면 × 필드 표 (§2-4-5)', () => {
         });
     });
 
-    it('명세 표 그대로 — 합짐 (도착 도시·상차 반경 숨김 · 우회 입력)', () => {
+    /**
+     * 🔴 **합짐·주행중의 도착 목표는 `hidden` → `auto` 로 바뀌었다** (기사님 확정 2026-08-25).
+     *
+     * 기사님: *"가남→세종대왕면 , 가남→점동면 둘다 콜이 올라와야 한다고 난 보는데."*
+     *
+     * 콜을 잡는 순간 도착 목표가 판정에서 사라지는데 **화면에는 그대로 적혀 있었다**
+     * (규칙 ⑤-4 ④ — 화면이 조용히 거짓말한다). 이제 첫짐에서 상속해 판정에 쓰므로
+     * 화면에도 보여야 한다. 노선인 동안 목적지는 안 바뀌니 **못 고친다**(`auto`).
+     * 근거는 tests/rules/destinationSurvivesPhase.test.ts.
+     */
+    it('명세 표 그대로 — 합짐 (도착 목표는 첫짐에서 상속 · 상차 반경 숨김 · 우회 입력)', () => {
         expect(PHASE_FIELDS.merge).toEqual({
-            destinationCity: 'hidden', pickupRadiusKm: 'hidden',
+            destinationCity: 'auto', pickupRadiusKm: 'hidden',
             detourAllowKm: 'input', dropoffRadiusKm: 'input', discountPct: 'input',
         });
     });
 
-    it('명세 표 그대로 — 운행중 (우회와 콜할인율만)', () => {
+    it('명세 표 그대로 — 운행중 (도착 목표 상속 · 우회와 콜할인율)', () => {
         expect(PHASE_FIELDS.drive).toEqual({
-            destinationCity: 'hidden', pickupRadiusKm: 'hidden',
+            destinationCity: 'auto', pickupRadiusKm: 'hidden',
             detourAllowKm: 'input', dropoffRadiusKm: 'hidden', discountPct: 'input',
         });
     });

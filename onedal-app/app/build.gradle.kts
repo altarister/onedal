@@ -43,6 +43,27 @@ android {
         compose = true
         buildConfig = true
     }
+    /**
+     * 🧪 **JVM 테스트에서 android.util.Log 가 터지지 않게 한다** (2026-08-25).
+     *
+     * 필터 판정(`InsungParser.decide`)은 로그를 남기는데, 단위 테스트에는 안드로이드
+     * 런타임이 없어 `Log.d` 가 *"not mocked"* 로 예외를 던진다. 기본값(0/false/null)을
+     * 돌려주게 해 두면 판정 자체를 폰 없이 채점할 수 있다.
+     *
+     * 기사님(2026-08-25): *"도대체 어떻게 하면 필터가 잘 작동하는지 확인할 수 있는 거야.
+     * 지금 이것만 2시간 동안 하고 있어."* — 폰 한 판 3분에 실패 지점이 여섯 개였다.
+     */
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+        /**
+         * 🔴 **표를 보여 주는 것이 이 검사의 목적이다.** Gradle 은 표준 출력을 기본으로
+         *    숨기는데, 그러면 «몇 개 통과」만 남고 **어느 축에서 갈렸는지**를 못 본다.
+         *    기사님이 필요한 건 통과/실패 숫자가 아니라 그 표다.
+         */
+        unitTests.all {
+            it.testLogging { showStandardStreams = true }
+        }
+    }
 }
 
 dependencies {

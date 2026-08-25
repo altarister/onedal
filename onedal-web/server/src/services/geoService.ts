@@ -982,3 +982,46 @@ export function getSelectableCities(): { sido: string; cities: string[] }[] {
         .filter(s => bySido.has(s))
         .map(sido => ({ sido, cities: Array.from(bySido.get(sido)!).sort((a, b) => a.localeCompare(b, 'ko')) }));
 }
+
+/**
+ * 🎯 **경유에 도착 목표를 합친다** (기사님 확정 2026-08-25).
+ *
+ * 기사님: *"내가 노선을 선택했을때 여주시로 갈꺼고 … 가남→세종대왕면, 가남→점동면
+ * 둘다 콜이 올라와야 한다고 난 보는데."*
+ *
+ * 콜을 하나 잡으면 경유 지명이 `destinationKeywords` 를 **덮어써서** 기사님이 고른
+ * 도착 목표가 판정에서 사라졌다. 화면에는 «여주시」가 그대로 남아 있는데도 —
+ * 실측 2026-08-25: 가남→세종대왕면(경유 안)은 잡히고 가남→점동면(경유 밖)은 막혔다.
+ * 둘 다 여주시인데 갈렸다.
+ *
+ * 🔴 **노선인 동안 도착 목표는 안 바뀐다.** 그래서 합짐·주행중에 따로 저장하지 않고
+ *    **첫짐에서 파생**한다 (규칙 ③ — 두 벌이 되면 갈라진다).
+ *
+ * ⚠️ 이 합집합은 **하차지만** 연다. 상차지는 끝까지 경로 위여야 하므로
+ *    `buildAppProgressKm` 이 경유에 있는 동만 `progressKm` 으로 내보낸다.
+ *    안 그러면 앱이 «순서 미상 — 통과» 로 읽어 **점동면에서 싣는 콜**을 허용한다
+ *    (2026-08-18 파주 사고: 78km 뒤로 돌아가 싣는 콜이 통과했다).
+ */
+export function unionRegions(
+    detour: { flat: string[]; grouped: Record<string, string[]>; customCityFilters: string[] },
+    destinationCity: string,
+    radiusKm: number,
+) {
+    if (!destinationCity) return detour;
+    const city = getCityRegionsWithRadius(destinationCity, radiusKm);
+    if (!city || city.flat.length === 0) return detour;
+
+    const grouped: Record<string, string[]> = {};
+    for (const [k, v] of Object.entries(detour.grouped)) grouped[k] = [...v];
+    for (const [k, v] of Object.entries(city.grouped)) {
+        grouped[k] = Array.from(new Set([...(grouped[k] ?? []), ...v])).sort();
+    }
+    return {
+        flat: Array.from(new Set([...detour.flat, ...city.flat])).sort(),
+        grouped,
+        // 🔴 별칭은 **둘 다** 남긴다. 경유 쪽 시가 빠지면 앱의 2단계 필터가
+        //    (시 별칭 ∧ 동)에서 그 시를 통째로 막는다 (2026-08-12 투트랙 사고).
+        customCityFilters: Array.from(new Set([...detour.customCityFilters, ...city.customCityFilters])),
+    };
+}
+

@@ -8,9 +8,9 @@ import type { SecuredOrder, AutoDispatchFilter, PricingConfig, PendingOrder, MyO
 import { geocodeAddress, calculateSoloRoute, calculateDetourRoute, compareDirections } from "./kakaoService";
 import { fetchRealWorldRoute } from "../routes/osrmUtil";
 import { getUserSession, clearOrderTimers } from "../state/userSessionStore";
-import { updateActiveFilter, rememberDetourProgress } from "../state/filterManager";
+import { updateActiveFilter, rememberDetourProgress, recalculateDetourFilter } from "../state/filterManager";
 import { getDetourRegions, getCityRegionsWithRadius, reverseGeocodeToRegion, haversineKm } from "../services/geoService";
-import { composeMergedRoute, applyRoute, applySoloRoute, pickRouteHolder, toKm, toMin, isAlreadyLoaded, snapshotRoute, restoreRouteSnapshot, parsePolyline } from "./routeComposer";
+import { composeMergedRoute, applyRoute, applySoloRoute, pickRouteHolder, toKm, toMin, hasVisitedStop, snapshotRoute, restoreRouteSnapshot, parsePolyline } from "./routeComposer";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { DISPATCH_CONFIG } from "../config/dispatchConfig";
 import db from "../db";
@@ -167,7 +167,7 @@ export async function recalculateActiveKakaoRoute(userId: string, io: any) {
                 session.driverLocation,
                 routingOptions.defaultPriority,
                 routingOptions.carType,
-                isAlreadyLoaded(activeMain),
+                hasVisitedStop(activeMain, 'pickup'),
             );
             applySoloRoute(activeMain, res);
 
@@ -237,7 +237,7 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
                 session.driverLocation,
                 priority || routingOptions.defaultPriority,
                 routingOptions.carType,
-                isAlreadyLoaded(securedOrder),
+                hasVisitedStop(securedOrder, 'pickup'),
             );
 
             let paramLabel = "추천";
@@ -392,15 +392,29 @@ export const syncDetourFilter = (userId: string, io: any) => {
             session.activeFilter.detourRadiusKm ?? DEFAULT_DETOUR_RADIUS_KM,
         );
         const dRadius = session.activeFilter.destinationRadiusKm;
-        const regions = getDetourRegions(polylineToUse, cRadius, dRadius);
 
-        if (regions && regions.flat.length > 0) {
+        /**
+         * 🔴 **경유 목록을 여기서 만들지 않는다** (2026-08-25 · «경유 4벌» 클래스).
+         *
+         * 예전엔 `getDetourRegions` 를 직접 불러 조립했다. 그런데 `refreshDetourIfNeeded`
+         * 도 따로 조립하고 있어서, **도착 목표를 한쪽에만 넣자 다른 쪽이 덮어썼다** —
+         * 실측 2026-08-25 12:35:50: 131개로 만들어 둔 목록이 출발 순간 **27개**로 되돌아갔다.
+         *
+         * 조립은 `recalculateDetourFilter` 한 곳뿐이다 (규칙 ③ — 파생값을 만들었으면
+         * 그 입력도 한 곳에서 만든다).
+         */
+        const regions = recalculateDetourFilter(userId, cRadius, dRadius);
+
+        if (regions && regions.destinationKeywords.length > 0) {
             // 🔴 진행도를 **키워드보다 먼저** 기억한다. updateActiveFilter 의 파생 계산 끝에서
             //    지나온 구간을 빼는데, 그때 옛 진행도가 남아 있으면 엉뚱한 동이 사라진다
+            //
+            // 🔴 `regions.flat` 은 **경유만**이다 (합집합이 아니라). 여기가 «경로 위가
+            //    어디인가»의 원천이라, 도착 목표에서 온 동을 섞으면 상차지 축이 뚫린다.
             rememberDetourProgress(session, regions);
             updateActiveFilter(userId, {
-                destinationKeywords: regions.flat,
-                destinationGroups: regions.grouped,
+                destinationKeywords: regions.destinationKeywords,
+                destinationGroups: regions.destinationGroups,
                 customCityFilters: regions.customCityFilters
             }, io);
         }
@@ -956,7 +970,7 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
                     session.driverLocation,
                     routingOptions.defaultPriority,
                     routingOptions.carType,
-                    isAlreadyLoaded(activeMain),
+                    hasVisitedStop(activeMain, 'pickup'),
                 );
                 // 🔴 2026-08-12 — 여기가 **폴리라인과 ETA 두 개만 손으로** 쓰고 있었다.
                 //    카카오에는 현위치를 넣어 제대로 물어보고(origin=...) 답도 받아 놓고서

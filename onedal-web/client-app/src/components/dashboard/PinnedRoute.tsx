@@ -83,8 +83,28 @@ export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, 
 
     const isDriving = filter?.dispatchPhase === 'DELIVERING';
 
+    /**
+     * 🏁 **모의 주행이 들러야 할 정거장** (2026-08-25).
+     *
+     * 폴리라인은 도로 위만 지나는데 물류센터는 떨어져 있다 — 실측 곤지암 601m ·
+     * 부발 525m. 도착 반경 500m 라 모의 주행이 **영영 못 닿았고**, 하차가 안 된 콜이
+     * 남아 경로가 나중에 되돌아갔다. 실제 기사님은 시설 안까지 들어가므로 좌표를 준다.
+     *
+     * ⚠️ 다녀온 곳은 뺀다 — 판단은 서버와 같은 `hasVisitedStop` 하나다.
+     */
+    const mockStops = useMemo(() => {
+        const out: Array<{ x: number; y: number }> = [];
+        for (const r of liveRoute) {
+            if (r.pickupX != null && r.pickupY != null && !hasVisitedStop(r, 'pickup'))
+                out.push({ x: r.pickupX, y: r.pickupY });
+            if (r.dropoffX != null && r.dropoffY != null && !hasVisitedStop(r, 'dropoff'))
+                out.push({ x: r.dropoffX, y: r.dropoffY });
+        }
+        return out;
+    }, [liveRoute]);
+
     // 📡 마스터 GPS 엔진 연결 (Real / Mock 자동 스위칭)
-    const { currentGps } = useMasterGps(isDriving, activePolyline || null);
+    const { currentGps } = useMasterGps(isDriving, activePolyline || null, mockStops);
 
     /**
      * 지도와 TSP 의 출발점. GPS 가 잡히면 아래 useEffect 가 곧바로 덮어쓴다.
