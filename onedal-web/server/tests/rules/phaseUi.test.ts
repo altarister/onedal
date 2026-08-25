@@ -184,10 +184,14 @@ describe('경유 갱신 — 구현은 하나여야 한다', () => {
     });
 
     it('경유을 부르는 자리가 늘어나도 계산은 filterManager 한 곳이다', () => {
-        // dispatchEngine 에 남은 getDetourRegions 호출은 syncDetourFilter(지나온 구간 잘라내기)
-        // 하나뿐이다. 그건 "경로가 바뀌었을 때"의 자동 갱신이라 목적이 다르다 —
-        // 늘어나면(2개 이상) 경유 계산이 또 갈라지기 시작한 것이다.
+        /**
+         * 🔴 **0 이다** (2026-08-25). 예전엔 `syncDetourFilter` 가 자기 몫으로 하나를
+         *    들고 있었고, 이 검사도 *"하나뿐"* 으로 그걸 허용했다. 그러다 도착 목표
+         *    상속을 넣자 **한쪽만 고쳐졌고**, 출발하는 순간 다른 쪽이 돌면서
+         *    131개 → **27개** 로 되돌렸다 (실측 12:35:50).
+         *    "목적이 다르니 하나는 괜찮다"가 정확히 갈라짐의 시작이었다.
+         */
         const engine = codeOnly(read(join(SERVER, 'services/dispatchEngine.ts')));
-        expect((engine.match(/getDetourRegions\(/g) || []).length).toBe(1);
+        expect((engine.match(/getDetourRegions\(/g) || []).length).toBe(0);
     });
 });

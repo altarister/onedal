@@ -36,7 +36,7 @@ function routeTlOf(userId: string): RouteTl | undefined {
     } catch { return undefined; }
 }
 import { updateActiveFilter, ensureBusinessDay, saveBaseFilter, savePhaseSettings, trimTraveled } from "../state/filterManager";
-import { processDriverMovement, getCityRegionsWithRadius } from "../services/geoService";
+import { processDriverMovement, getCityRegionsWithRadius, GPS_ARRIVAL } from "../services/geoService";
 
 
 
@@ -334,6 +334,41 @@ export function registerSocketHandlers(io: Server) {
                         stopType: stop.stopType,
                         distanceKm: Math.round(distKm * 10) / 10,
                     });
+                },
+                /**
+                 * 🚚 **떠남 → 하차 완료** (기사님 확정 2026-08-25).
+                 *
+                 * 기사님: *"곤지암과 부발에서 멀어진 거면 하차를 했는데 버튼을 못 누른 걸로
+                 * 봐야 하지 않을까… 운행 중에 클릭 못 할 거라 말이지."*
+                 *
+                 * 🔴 위 주석의 *"상차·하차 완료는 절대 자동으로 찍지 않는다"* 를 **하차에 한해**
+                 *    푼다. 근거는 «도착 + 2km 이탈» 이라는 물리적 사실이고, 실측(2026-08-25)에서
+                 *    GPS 도착 3건이 다 찍혔는데 손으로 눌러야 하는 네 단계가 전부 비어 있었다 —
+                 *    적재가 안 풀려 다음 콜이 차종에서 막혔다.
+                 *
+                 * ⚠️ **상차 완료(PICKED_UP)는 여전히 자동으로 안 찍는다.** 상차지는 짐을 실었는지
+                 *    안 실었는지 GPS 로 구분할 수 없고, 못 실었는데 실은 것으로 치면 적재가 거짓이
+                 *    된다. 하차는 반대다 — 안 내렸으면 그 자리를 뜨지 않는다.
+                 *
+                 * 되돌릴 수 있다: 단계 표는 `UNIQUE(orderId)` + `INSERT OR REPLACE` 라 그 단계에서
+                 * 고칠 수 있고, 하차 완료된 콜은 `TERMINAL_STATUSES` 라 다른 콜과 관계가 끊긴다.
+                 */
+                async (uid, orderId) => {
+                    const result = await reportMilestone(uid, orderId, 'DELIVERED', 'GPS', io);
+                    if (result.success && !result.duplicated) {
+                        try {
+                            bridgeMilestone(uid, orderId, 'DELIVERED', 'GPS', undefined, undefined,
+                                getUserSession(uid)?.judgment, routeTlOf(uid));
+                            io.to(uid).emit("steps-synced", { orderId, steps: stepsView(orderId, getUserSession(uid)?.judgment) });
+                        } catch (e) {
+                            console.error(`🌉 [단계 다리 실패] ${orderId.slice(-6)}:`, (e as Error).message);
+                        }
+                        console.log(`📤 [Socket 푸시] auto-delivered (${orderId.slice(0, 8)})`);
+                        io.to(uid).emit("auto-delivered", {
+                            orderId,
+                            message: `하차지를 ${GPS_ARRIVAL.DEPARTED_KM}km 벗어나 하차 완료로 기록했습니다 (GPS)`,
+                        });
+                    }
                 },
             );
         });

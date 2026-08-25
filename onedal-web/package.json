@@ -6,6 +6,8 @@
     "dev:client": "pnpm --filter client-app dev",
     "dev:logbook": "pnpm --filter logbook dev",
     "dev": "node scripts/dev-preflight.mjs && { trap 'kill 0' INT TERM HUP; pnpm run dev:server & pnpm run dev:client & pnpm run dev:logbook & wait; }",
+    "dev:fresh": "node scripts/reset-calls.mjs && pnpm run dev",
+    "reset:calls": "node scripts/reset-calls.mjs",
     "audit:socket": "node scripts/audit-socket-contract.mjs",
     "scenario": "node scripts/scenario.mjs",
     "e2e:app": "node scripts/appLoop.mjs",

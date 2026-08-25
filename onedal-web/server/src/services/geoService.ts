@@ -648,7 +648,63 @@ export const GPS_ARRIVAL = {
     STILL_KMH: 5,
     HOLD_SEC: 30,
     NOTICE_KM: 3,
+    /**
+     * 🚚 **떠남 판정** — 하차지에 도착했다가 이만큼 멀어지면 «내리고 갔다»로 본다
+     *    (기사님 확정 2026-08-25: *"2km 로 정하고 진행해 보자"*).
+     *
+     * 기사님: *"곤지암과 부발에서 멀어진 거면 하차를 했는데 버튼을 못 누른 걸로 봐야
+     * 하지 않을까… 운행 중에 클릭 못 할 거라 말이지."*
+     *
+     * 🔴 2026-08-25 실측이 근거다. GPS 는 상차지 도착 3건·하차지 도착 3건을 다 찍었는데
+     *    **손으로 눌러야 하는 네 단계(통화·상차완료·하차통화·하차완료)는 전부 비어 있었다.**
+     *    적재가 90박스로 남아 다음 콜이 차종에서 막혔다 — 어제 실주행의 «안전취소 24건»과
+     *    같은 모양이다 (운전 중에는 아무것도 못 누른다).
+     *
+     * ⚠️ **되돌릴 수 없는 기록이 아니다.** 단계 표는 `UNIQUE(orderId)` + `INSERT OR REPLACE`
+     *    라 나중에 그 단계에서 고칠 수 있고, 하차 완료된 콜은 `TERMINAL_STATUSES` 라
+     *    적재·경로 계산에서 빠져 **다른 콜과 관계가 끊긴다**. 고쳐도 남에게 번지지 않는다.
+     */
+    DEPARTED_KM: 2,
 } as const;
+
+/**
+ * 📍 **이 시간 넘게 좌표가 안 오면 «지금 위치»가 아니다** (기사님 실측 2026-08-25).
+ *
+ * 기사님: *"경로가 이상하게 그리는건 이유가 뭐야?"*
+ *
+ * 14:24 에 모의 주행이 **여주**에서 끝났는데, 4시간 25분 뒤 **광주**에서 콜을 잡을 때도
+ * 서버가 그 여주 좌표를 현위치로 믿었다. 경로 요청 origin 이 세 번 다 소수점 14자리까지
+ * 같았다 — 접근 구간이 **40km 뒤로** 잡혀 지도가 그렇게 그려졌다.
+ * 실 운행에서도 터널·실내 주차장에서 GPS 가 끊기면 같은 형태로 난다.
+ *
+ * ── 값의 근거 ──
+ * 관제웹이 붙어 있으면 위치는 **초 단위**로 온다. 5분간 한 번도 안 왔다면 그건
+ * «잠깐 튄 것»이 아니라 **연결이 끊긴 것**이다. 그리고 5분이면 차가 최대 8km 움직여
+ * 접근 구간(현위치 → 상차지)이 이미 무의미해진다.
+ */
+export const DRIVER_LOCATION_STALE_MS = 5 * 60 * 1000;
+
+/**
+ * 낡은 현위치를 **비운다** — 판단하는 곳은 여기 하나뿐이다 (규칙 ③).
+ *
+ * 비우면 이미 있는 «내 주소로 메우기» 길이 받고, 화면이 «내 주소 기준»이라고 말한다
+ * (`driverLocationIsFallback`). 없는 값을 지어내지 않는다 (규칙 ④).
+ *
+ * ⚠️ **타이머를 두지 않는다.** 읽는 순간 빼기 한 번이다 — 타이머는 좀비가 되고(규칙 ②),
+ *    5분마다 깨어나도 «4분 59초»와 «9분 59초»를 똑같이 취급해 오히려 부정확하다.
+ * ⚠️ **받은 시각을 모르면 건드리지 않는다** — 없는 값으로 지우지 않는다 (규칙 ④).
+ */
+export function dropStaleLocation(
+    session: { driverLocation: { x: number; y: number } | null; driverLocationAt: number | null },
+    nowMs: number = Date.now(),
+): void {
+    if (!session.driverLocation || session.driverLocationAt == null) return;
+    if (nowMs - session.driverLocationAt <= DRIVER_LOCATION_STALE_MS) return;
+    const age = Math.round((nowMs - session.driverLocationAt) / 60000);
+    console.log(`📍 [현위치 낡음] ${age}분 전 좌표라 «지금 위치»로 쓰지 않습니다 — 내 주소 기준으로 계산합니다`);
+    session.driverLocation = null;
+    session.driverLocationAt = null;
+}
 
 /**
  * 도착 판정 한 틱 — **순수 함수** (L2 검증용).
@@ -690,6 +746,8 @@ export function processDriverMovement(
     onArrival?: (uid: string, stop: ArrivalStop) => void,
     /** 근접 예고(3km) 시 — 도착전 통화 알림 */
     onApproaching?: (uid: string, stop: ArrivalStop, distKm: number) => void,
+    /** 하차지에서 2km 멀어졌을 때 — 하차 완료로 넘긴다 */
+    onDeparted?: (uid: string, orderId: string) => void,
 ) {
     if (!lat || !lng) return;
     
@@ -740,6 +798,7 @@ export function processDriverMovement(
     session.lastGpsAt = Date.now();
 
     session.driverLocation = currentGPS;
+    session.driverLocationAt = Date.now();   // 낡음을 재려면 «언제 받았나»가 있어야 한다
 
     // [V2] dispatchPhase 기반으로 체크
     const isDelivering = session.activeFilter.dispatchPhase === 'DELIVERING';
@@ -778,7 +837,7 @@ export function processDriverMovement(
      *    · 한 정거장당 발화 1회 (`arrivalFired`) · 점프 틱은 판단하지 않는다
      *    · DELIVERING 게이트 밖이다 — 출발 버튼 전에 상차지에 닿는 경우도 실재한다
      */
-    watchArrival(userId, session, currentGPS, speedKmh, jumped, src, applyFilterCb, onArrival, onApproaching);
+    watchArrival(userId, session, currentGPS, speedKmh, jumped, src, applyFilterCb, onArrival, onApproaching, onDeparted);
 }
 
 /** 정거장 키 — 발화·예고 플래그의 단위 */
@@ -794,6 +853,8 @@ function watchArrival(
     applyFilterCb: (uid: string, filter: any) => void,
     onArrival?: (uid: string, stop: ArrivalStop) => void,
     onApproaching?: (uid: string, stop: ArrivalStop, distKm: number) => void,
+    /** 하차지에서 멀어졌다 — «내리고 갔다»로 본다 (기사님 확정 2026-08-25) */
+    onDeparted?: (uid: string, orderId: string) => void,
 ) {
     const active = getActiveCalls(session);
     if (active.length === 0) return;
@@ -801,6 +862,27 @@ function watchArrival(
         // 위치를 못 믿는 틱 — 정지 유지도 끊는다 (점프 후 좌표로 30초를 세면 거짓 도착이 된다)
         if (session.arrivalWatch) session.arrivalWatch.heldSinceMs = null;
         return;
+    }
+
+    /**
+     * 🚚 **떠남 감지** — 하차지에 도착했다가 멀어지면 «내리고 갔다»로 본다.
+     *
+     * 도착만 보고 떠남을 안 보면, 운전 중이라 버튼을 못 누른 콜이 계속 실려 있는 것으로
+     * 남아 **적재가 안 풀린다** (2026-08-25 실측: 하차 도착 3건 · 하차 완료 0건).
+     *
+     * 🔴 되돌아와도 다시 안 걸린다 — 여기서 지운 뒤에는 `departWatch` 에 없고,
+     *    하차 완료된 콜은 `getActiveCalls` 에서 빠져 감시 대상 자체가 아니다.
+     */
+    if (session.departWatch.size > 0 && onDeparted) {
+        for (const [key, w] of [...session.departWatch]) {
+            const away = haversineKm(gps.y, gps.x, w.y, w.x);
+            if (away >= GPS_ARRIVAL.DEPARTED_KM) {
+                session.departWatch.delete(key);
+                console.log(`🚚 [떠남 감지] 하차지에서 ${away.toFixed(1)}km 멀어졌습니다 — ` +
+                    `내리고 간 것으로 봅니다 (${w.orderId.slice(0, 8)})`);
+                onDeparted(userId, w.orderId);
+            }
+        }
     }
 
     const stops = planArrivalStops(active, gps);
@@ -831,6 +913,8 @@ function watchArrival(
         applyFilterCb(userId, {
             driverAction: 'UNLOADING',    // 하차 중으로 자동 전환 (이제 1회만)
         });
+        // 🚚 여기서부터 «멀어지는지»를 본다 — 2km 벗어나면 내리고 간 것으로 친다
+        session.departWatch.set(key, { orderId: next.orderId, x: next.x, y: next.y });
     }
     onArrival?.(userId, next);
 }
@@ -938,3 +1022,46 @@ export function getSelectableCities(): { sido: string; cities: string[] }[] {
         .filter(s => bySido.has(s))
         .map(sido => ({ sido, cities: Array.from(bySido.get(sido)!).sort((a, b) => a.localeCompare(b, 'ko')) }));
 }
+
+/**
+ * 🎯 **경유에 도착 목표를 합친다** (기사님 확정 2026-08-25).
+ *
+ * 기사님: *"내가 노선을 선택했을때 여주시로 갈꺼고 … 가남→세종대왕면, 가남→점동면
+ * 둘다 콜이 올라와야 한다고 난 보는데."*
+ *
+ * 콜을 하나 잡으면 경유 지명이 `destinationKeywords` 를 **덮어써서** 기사님이 고른
+ * 도착 목표가 판정에서 사라졌다. 화면에는 «여주시」가 그대로 남아 있는데도 —
+ * 실측 2026-08-25: 가남→세종대왕면(경유 안)은 잡히고 가남→점동면(경유 밖)은 막혔다.
+ * 둘 다 여주시인데 갈렸다.
+ *
+ * 🔴 **노선인 동안 도착 목표는 안 바뀐다.** 그래서 합짐·주행중에 따로 저장하지 않고
+ *    **첫짐에서 파생**한다 (규칙 ③ — 두 벌이 되면 갈라진다).
+ *
+ * ⚠️ 이 합집합은 **하차지만** 연다. 상차지는 끝까지 경로 위여야 하므로
+ *    `buildAppProgressKm` 이 경유에 있는 동만 `progressKm` 으로 내보낸다.
+ *    안 그러면 앱이 «순서 미상 — 통과» 로 읽어 **점동면에서 싣는 콜**을 허용한다
+ *    (2026-08-18 파주 사고: 78km 뒤로 돌아가 싣는 콜이 통과했다).
+ */
+export function unionRegions(
+    detour: { flat: string[]; grouped: Record<string, string[]>; customCityFilters: string[] },
+    destinationCity: string,
+    radiusKm: number,
+) {
+    if (!destinationCity) return detour;
+    const city = getCityRegionsWithRadius(destinationCity, radiusKm);
+    if (!city || city.flat.length === 0) return detour;
+
+    const grouped: Record<string, string[]> = {};
+    for (const [k, v] of Object.entries(detour.grouped)) grouped[k] = [...v];
+    for (const [k, v] of Object.entries(city.grouped)) {
+        grouped[k] = Array.from(new Set([...(grouped[k] ?? []), ...v])).sort();
+    }
+    return {
+        flat: Array.from(new Set([...detour.flat, ...city.flat])).sort(),
+        grouped,
+        // 🔴 별칭은 **둘 다** 남긴다. 경유 쪽 시가 빠지면 앱의 2단계 필터가
+        //    (시 별칭 ∧ 동)에서 그 시를 통째로 막는다 (2026-08-12 투트랙 사고).
+        customCityFilters: Array.from(new Set([...detour.customCityFilters, ...city.customCityFilters])),
+    };
+}
+

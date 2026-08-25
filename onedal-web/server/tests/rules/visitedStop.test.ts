@@ -2,6 +2,7 @@ import { readFileSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
 import { hasVisitedStop, isAlreadyLoaded } from '@onedal/shared';
 import { planArrivalStops, planMergedStops } from '../../src/services/routeComposer';
+import { buildSoloRouteUrl } from '../../src/services/kakaoService';
 
 /**
  * 🚏 **"다녀왔다"의 정의는 하나다** (기사님 확정 2026-08-19)
@@ -141,6 +142,54 @@ describe('우회 비용의 비교 기준', () => {
         const fresh = planMergedStops([call('A')], null, { x: 127.5, y: 37.5 })!;
         expect(fresh.origin.pickup).toEqual(P(1));
         expect(fresh.origin.dropoff).toEqual(P(2));
+    });
+});
+
+/**
+ * 🛣️ **단독 경로도 같은 정의를 쓴다** (기사님 실측 2026-08-25)
+ *
+ * 기사님: *"지도가 그전에 이상하게 작동했어 경로가 이상했었거든.. 그리고 왔던길을 다시가는
+ * 모습도 보였어."*
+ *
+ * 합짐 경로(`planMergedStops`)·관제웹 폴백은 2026-08-19 에 `hasVisitedStop` 으로 옮겼는데
+ * **`calculateSoloRoute` 호출부 세 곳이 안 따라왔다.** 합짐이 전부 하차되어 콜이 하나만
+ * 남는 순간 단독 경로로 떨어지므로, **사이클 끝마다** 되살아났다.
+ *
+ * 실측 로그 (2026-08-25 09:22:51, 가남 콜 `b9f6996a`):
+ *   `origin=127.5201,37.2347` (현위치 — 여주)
+ *   `waypoints=127.1307,37.4120` ← **성남 야탑 상차지. 00:21:40 에 GPS 도착이 찍힌 곳**
+ *   총 이동 104,784m · 섹션 2개
+ * 상차 완료 버튼을 안 눌러 `status` 가 `ORDER_CONFIRMED` 였고, `isAlreadyLoaded` 는
+ * 그것만 보므로 false → **여주에서 성남까지 50km 를 되돌아가는 경로**를 그렸다.
+ *
+ * 같은 순간 `⚠️ 길이 어긋남(주행분 2 ≠ 정거장 1)` 이 떴다 — 정거장 목록은 `hasVisitedStop`
+ * 으로 상차지를 뺐고(1) 카카오 경로는 넣었으니(2), **두 벌이 갈라진 그 자국**이다.
+ */
+describe('단독 경로 — 다녀온 상차지를 경유하지 않는다', () => {
+    const engine = () => readFileSync(join(__dirname, '../../src/services/dispatchEngine.ts'), 'utf8')
+        .split('\n').filter(l => !/^\s*(\/\/|\/\*|\*)/.test(l)).join('\n');
+
+    it('🔴 calculateSoloRoute 의 skipPickup 인자가 hasVisitedStop 이다', () => {
+        const c = engine();
+        const calls = c.match(/calculateSoloRoute\([\s\S]{0,400}?\)\s*;/g) ?? [];
+        expect(calls.length).toBeGreaterThanOrEqual(3);   // 첫짐·후보콜·복구
+        for (const call of calls) {
+            expect(call).toMatch(/hasVisitedStop\(\s*\w+\s*,\s*'pickup'\s*\)/);
+            expect(call).not.toMatch(/isAlreadyLoaded\(/);
+        }
+    });
+
+    it('🔴 URL 조립이 실제로 상차지를 뺀다 — 되돌아가는 경유지가 없다', () => {
+        const 야탑 = { x: 127.1307, y: 37.4120 };
+        const 여주현위치 = { x: 127.5201, y: 37.2347 };
+        const 가남 = { x: 127.5768, y: 37.2302 };
+        const 다녀옴 = buildSoloRouteUrl(야탑.x, 야탑.y, 가남.x, 가남.y, 여주현위치, 'RECOMMEND', 1,
+            hasVisitedStop(order({ arrivedPickupAt: '2026-08-25T00:21:40.883Z' }), 'pickup'));
+        expect(다녀옴).not.toMatch(/waypoints/);
+
+        const 안감 = buildSoloRouteUrl(야탑.x, 야탑.y, 가남.x, 가남.y, 여주현위치, 'RECOMMEND', 1,
+            hasVisitedStop(order(), 'pickup'));
+        expect(안감).toMatch(/waypoints=127\.1307,37\.412/);
     });
 });
 

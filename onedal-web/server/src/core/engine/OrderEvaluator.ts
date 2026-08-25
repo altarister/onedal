@@ -7,7 +7,7 @@ import db from "../../db";
 import { stepRecordsOf } from "../../services/stepSeeder";
 import { getUserSession } from "../../state/userSessionStore";
 import { findLoadConflicts, totalDetourCost } from "../helpers";
-import { haversineKm } from "../../services/geoService";
+import { haversineKm, dropStaleLocation } from "../../services/geoService";
 import { geocodeAddress, calculateSoloRoute } from "../../services/kakaoService";
 import { logRoadmapEvent } from "../../utils/roadmapLogger";
 import { DISPATCH_CONFIG } from "../../config/dispatchConfig";
@@ -30,6 +30,8 @@ export class OrderEvaluator {
      */
     public async evaluate(userId: string, securedOrder: SecuredOrder | PendingOrder, io: any): Promise<void> {
         const session = getUserSession(userId);
+        // 📍 낡은 현위치로 우회 비용을 재면 색이 틀린다 (규칙 ⑤-3) — 판단은 한 곳뿐이다
+        dropStaleLocation(session);
         // 판정 기준 — 원천은 DB(세션에 로그인 때 실림). 없으면(검사·초기화 전) 기본표로 폴백
         const judgmentCfg = session.judgment ?? DEFAULT_JUDGMENT;
         const reasons: string[] = [];

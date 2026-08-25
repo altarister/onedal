@@ -1,5 +1,6 @@
 import type { MyOrder, PendingOrder } from "@onedal/shared";
 import { isAlreadyLoaded, hasVisitedStop } from "@onedal/shared";
+import { haversineKm } from "./geoService";
 import { calculateDetourRoute } from "./kakaoService";
 import { optimizeWaypoints } from "../utils/routeOptimizer";
 
@@ -229,7 +230,10 @@ export interface ComposeMergedRouteParams {
  * **짐을 이미 실었는가.**
  */
 // 정의는 shared 로 옮겼다 (2026-08-19 — 관제웹 지도 폴백도 같은 판단을 쓴다). 재수출만 남긴다.
-export { isAlreadyLoaded };
+// ⚠️ **경로에 상차지를 넣을지는 이걸로 정하지 않는다** — `hasVisitedStop(c, 'pickup')` 이다.
+//    2026-08-25 에 단독 경로 세 곳이 이걸 보고 있어서, 사이클 끝(콜 1건)마다 여주에서
+//    성남 상차지로 50km 되돌아가는 경로가 나왔다.
+export { isAlreadyLoaded, hasVisitedStop };
 
 export async function composeMergedRoute(params: ComposeMergedRouteParams) {
     const { calls, extra, driverLocation, priority, carType } = params;
@@ -395,7 +399,44 @@ export function planArrivalStops(
     if (pickups.length === 0 && dropoffs.length === 0) return [];
 
     const startLoc = driverLocation || pickups[0] || dropoffs[0];
-    // optimizeWaypoints 는 객체를 그대로 정렬해 돌려준다 — 라벨이 보존된다
-    const { sortedPickups, sortedDropoffs } = optimizeWaypoints(startLoc, pickups, dropoffs);
-    return [...sortedPickups, ...sortedDropoffs] as ArrivalStop[];
+
+    /**
+     * 🔴 **상차를 전부 앞에 몰지 않는다 — 지나가는 길목부터 들른다** (기사님 실측 2026-08-25).
+     *
+     * 예전엔 `[...sortedPickups, ...sortedDropoffs]` 였다. 상차지를 전부 앞에 몰아 두는
+     * 규칙인데, **새 콜이 붙으면 차를 그 상차지로 끌고 간다.**
+     *
+     * 실측 14:07:53 — 기사님 위치에서 **곤지암 하차 4.0km · 가남 29.9km** 인데 순서가
+     *   ⑴ 가남상차 ⑵ 가남하차 ⑶ 세종대왕면하차 **⑷ 곤지암하차(94분)**
+     * 로 나왔다. 4km 앞 하차지를 두고 **30km 동쪽으로 갔다가 되돌아오는** 경로다.
+     * 게다가 하차 정렬의 기준점이 가남으로 옮겨져 곤지암이 더 밀렸다.
+     *
+     * ⚠️ **적재 때문에 상차가 먼저인 것이 아니다.** 하차는 이미 실은 짐을 내리는 것이라
+     *    지나가는 길에 내리는 편이 싸다. 상차가 하차보다 먼저여야 하는 것은
+     *    **같은 콜 안에서뿐**이다 (제 짐을 싣기 전에 내릴 수 없다).
+     *
+     * → 한 통에 넣고 가까운 순으로 돌되, 그 한 가지만 지킨다.
+     */
+    const pool: ArrivalStop[] = [...pickups, ...dropoffs];
+    const out: ArrivalStop[] = [];
+    let here: Coord = startLoc;
+    const pickedUp = new Set(pickups.map(p => p.orderId));   // 아직 안 실은 콜
+
+    while (pool.length > 0) {
+        let bestIdx = -1, bestD = Infinity;
+        for (let i = 0; i < pool.length; i++) {
+            const st = pool[i];
+            // 같은 콜의 상차를 아직 안 했으면 그 하차는 갈 수 없다
+            if (st.stopType === 'dropoff' && pickedUp.has(st.orderId)) continue;
+            const d = haversineKm(here.y, here.x, st.y, st.x);
+            if (d < bestD) { bestD = d; bestIdx = i; }
+        }
+        // 갈 수 있는 곳이 없다 = 남은 것이 전부 «상차 안 한 콜의 하차» → 순서대로 붙인다
+        if (bestIdx === -1) { out.push(...pool); break; }
+        const best = pool.splice(bestIdx, 1)[0];
+        if (best.stopType === 'pickup') pickedUp.delete(best.orderId);
+        out.push(best);
+        here = best;
+    }
+    return out;
 }

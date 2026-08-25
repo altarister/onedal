@@ -78,7 +78,7 @@ export function loadPhaseRows(userId: string): PhaseSettingsMap {
     }
 }
 import { logRoadmapEvent } from "../utils/roadmapLogger";
-import { getCityRegionsWithRadius, cityAliases, getDetourRegions, getActivePolyline, progressAlongPolyline, trapsForKeywords } from "../services/geoService";
+import { getCityRegionsWithRadius, cityAliases, getDetourRegions, unionRegions, getActivePolyline, progressAlongPolyline, trapsForKeywords } from "../services/geoService";
 
 // ━━━ Prepared Statement 캐싱 (모듈 로드 시 1회만 실행) ━━━
 // 노선·반경·할인율 평면 칸은 ④에서 철거 — 그 값들은 user_filter_phases 행에 산다.
@@ -293,9 +293,15 @@ export function trimTraveled(userId: string, io?: any): void {
  */
 export function rememberDetourProgress(
     session: ReturnType<typeof getUserSession>,
-    regions: { progressKm?: Record<string, number> } | null,
+    regions: { progressKm?: Record<string, number>; flat?: string[] } | null,
 ) {
     session.detourProgressKm = regions?.progressKm ?? null;
+    /**
+     * 🛣️ 경로 위 동 목록도 함께 기억한다 (2026-08-25).
+     * ⚠️ **여기에는 경유만 넣는다.** 도착 목표에서 온 동을 섞으면 상차지 축이 뚫린다
+     *    (`buildAppProgressKm` 주석 참고 — 2026-08-18 파주 사고와 같은 형태).
+     */
+    session.detourFlat = regions?.flat ?? null;
 }
 
 /**
@@ -335,8 +341,26 @@ export function buildAppProgressKm(
         ? progressAlongPolyline(poly, poly[poly.length - 1])
         : null;
 
+    // 경로 위 동 목록 — 없으면(옛 세션) 거르지 않는다. 지금까지의 동작 그대로다
+    const onRoute = session.detourFlat ? new Set(session.detourFlat) : null;
+
     const out: Record<string, number | null> = {};
     for (const dong of session.activeFilter.destinationKeywords ?? []) {
+        /**
+         * 🔴 **경유에 없는 동은 내보내지 않는다** (2026-08-25).
+         *
+         * 목록에는 이제 도착 목표(첫짐의 «여주시») 에서 온 동이 섞여 있다. 그건
+         * **하차지를 열려고** 넣은 것이지 «경로 위»라는 뜻이 아니다.
+         *
+         * 여기서 `null` 로 내보내면 앱의 `RouteOrderFilter` 가 키가 있다는 이유로
+         * «상차지 순서 미상 — 통과» 로 읽어 **그 동에서 싣는 콜을 허용한다** —
+         * 2026-08-18 파주 사고(78km 뒤로 돌아가 싣기)와 같은 형태다.
+         *
+         * ⚠️ **`progress` 의 키로 거르면 안 된다.** `centroid` 가 없어 스냅에 실패한 동은
+         *    경로 위인데도 진행도 맵에 없다. 그 동은 `null`(«순서 미상 — 통과»)로 나가야
+         *    맞다 — «모르는 것»과 «경로 밖»은 다르다. 그래서 경유 목록으로 거른다.
+         */
+        if (onRoute && !onRoute.has(dong)) continue;
         const v = progress[dong];
         out[dong] = Number.isFinite(v) ? (v as number)
             : (v === Infinity ? endKm : null);
@@ -578,13 +602,49 @@ export const recalculateDetourFilter = (userId: string, detourRadiusKm: number, 
     }
 
     if (polylineToUse && polylineToUse.length > 0) {
-        const regions = getDetourRegions(polylineToUse, detourRadiusKm, destinationRadiusKm);
-        if (regions && regions.flat.length > 0) {
+        const detour = getDetourRegions(polylineToUse, detourRadiusKm, destinationRadiusKm);
+        if (detour && detour.flat.length > 0) {
+            /**
+             * 🎯 **지금 도착 목표를 경유에 합친다** (기사님 확정 2026-08-25).
+             *
+             * 기사님: *"가남→세종대왕면 , 가남→점동면 둘다 콜이 올라와야 한다고 난 보는데."*
+             *
+             * 경유만 쓰면 «목적지 안인데 경로에서 벗어난 곳»이 통째로 막힌다.
+             * 저장하지 않고 **지금 쓰는 필터 값**에서 파생한다 (규칙 ③).
+             *
+             * 🔴 **`phaseSettings` 를 직접 읽지 않는다** (2026-08-25 18:58 실측 사고).
+             *    한때 `phaseSettings.first` 를 읽었는데, **복귀행으로 바뀌자 판정만 옛
+             *    노선 목적지(파주)를 계속 봤다.** 화면과 서버는 «복귀행 · 광주시»라고
+             *    정확히 말하고 있었는데 광주로 내리는 콜이 전부 «도착지 밖»이 됐다.
+             *
+             *        ① 국면 설정  →  ② 평면 필터(activeFilter)  →  ③ 파생 목록
+             *                applyPhaseToFilter        여기
+             *
+             *    ①과 ② 사이에 국면 전환·`override`·`auto` 파생이 있다. ③에서 ①을 직접
+             *    읽으면 그 변환이 통째로 무시된다. **파생은 바로 윗단만 본다.**
+             *    ①을 다시 해석하는 것은 `applyPhaseToFilter` 를 두 번째로 구현하는 것이다.
+             *
+             * 🔴 **조립은 여기 한 곳뿐이다.** 예전엔 `syncDetourFilter` 도 따로 조립해서,
+             *    도착 목표를 한쪽에만 넣자 다른 쪽이 덮어썼다 (실측 12:35:50 —
+             *    131개가 출발 순간 27개로 되돌아갔다). «경유 4벌» 과 같은 클래스다.
+             */
+            const merged = unionRegions(
+                detour,
+                session.activeFilter.destinationCity,
+                session.activeFilter.destinationRadiusKm ?? 0,
+            );
             return {
-                destinationKeywords: regions.flat,
-                destinationGroups: regions.grouped,
-                customCityFilters: regions.customCityFilters,
-                progressKm: regions.progressKm,
+                // 필터에 실을 것 — 경유 ∪ 도착 목표 (하차지를 연다)
+                destinationKeywords: merged.flat,
+                destinationGroups: merged.grouped,
+                customCityFilters: merged.customCityFilters,
+                /**
+                 * 🛣️ **경로 위가 어디인가 — 경유만이다** (상차지 축의 원천).
+                 *    도착 목표에서 온 동을 여기 섞으면 앱이 «순서 미상 — 통과» 로 읽어
+                 *    그 동에서 싣는 콜을 허용한다 (2026-08-18 파주 사고와 같은 형태).
+                 */
+                progressKm: detour.progressKm,
+                flat: detour.flat,
             };
         }
     }

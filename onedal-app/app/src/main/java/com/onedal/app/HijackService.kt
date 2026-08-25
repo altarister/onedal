@@ -10,6 +10,7 @@ import com.onedal.app.plugins.hwamul24.Hwamul24Keywords
 import com.onedal.app.plugins.insung.InsungKeywords
 import com.onedal.app.core.AutoTouchManager
 import com.onedal.app.core.ScrapParser
+import com.onedal.app.plugins.insung.InsungParser
 import com.onedal.app.core.ScreenKeywords
 import com.onedal.app.core.ScreenTextNode
 import com.onedal.app.core.engine.ScreenDetector
@@ -84,6 +85,13 @@ class HijackService : AccessibilityService() {
     private var lastScreenFingerprint = 0
     private val processedOrderHashes = mutableSetOf<Int>()
     private var currentTargetApp = "insung"
+
+    /**
+     * 👁️ 리스트를 떠난 시각 (0 = 지금 리스트를 보고 있다).
+     * 상세에 머무는 동안은 배차망 리스트를 못 읽으므로, 그 길이를 재서 복귀할 때 남긴다.
+     * **놓친 콜과 걸러낸 콜을 구분하는 유일한 근거다.**
+     */
+    private var listBlindSinceMs = 0L
 
     // ── 세션 상태 (SessionManager로 통합) ──
     private val session = SessionManager()
@@ -290,9 +298,35 @@ class HijackService : AccessibilityService() {
                            detected == ScreenContext.LIST_COMPLETED ||
                            rawScreenStr.contains("대기 중인 오더가 없")
         val wasListScreen = previous == ScreenContext.LIST || previous == ScreenContext.LIST_COMPLETED
+        /**
+         * 👁️ **리스트를 못 보고 있던 동안을 기록한다** (기사님 요청 2026-08-25).
+         *
+         * 앱은 한 번에 콜 하나만 평가한다 — 상세로 들어가면 그동안 **리스트를 아예 안 읽는다.**
+         * 그 사이 배차망에 뜬 콜은 평가조차 되지 않고 조용히 사라진다.
+         *
+         * 🔴 2026-08-25 실측: `②` 를 잡는 데 **11.7초** 가 걸렸고, 그동안 `③` 이 화면에
+         *    떴다 사라졌다. 로그에 아무 기록이 없어서 *"필터가 걸렀나 / 안 떴나 / 못 봤나"* 를
+         *    구분할 수 없었다. **놓친 콜과 걸러낸 콜은 전혀 다른 것**인데 같아 보였다.
+         *
+         * 그래서 리스트를 떠난 시각을 재 두고, 돌아올 때 얼마나 못 봤는지 남긴다.
+         * (배차망 콜 간격보다 이 시간이 길면 문제지가 통째로 지나간다)
+         */
+        if (!isListScreen && wasListScreen) {
+            listBlindSinceMs = System.currentTimeMillis()
+        }
         if (isListScreen && !wasListScreen) {
             AppLogger.d(TAG, "[복귀 감지] ${previous.name} → ${detected.name} 복귀. 세션 및 안전취소 락 완전 해제")
             resetSessionState()
+            // 👁️ 리셋한 뒤에 «못 본 시간»을 남긴다 — 리셋이 먼저다 (콜의 끝이 우선)
+            if (listBlindSinceMs > 0L) {
+                val blindSec = (System.currentTimeMillis() - listBlindSinceMs) / 1000.0
+                AppLogger.roadmap(
+                    "👁️ [리스트 못 봄] ${"%.1f".format(blindSec)}초 동안 상세에 있었습니다 — " +
+                    "그사이 뜬 콜은 **평가되지 않았습니다** (놓친 것이지 거른 것이 아닙니다)",
+                    "LIST"
+                )
+                listBlindSinceMs = 0L
+            }
         }
 
         // 서버 판결 대기 중에는 화면 내 버튼 탐색이나 서핑(클릭 액션) 무시
@@ -371,8 +405,31 @@ class HijackService : AccessibilityService() {
          */
         val tally = FilterTally()
 
+        /**
+         * 👁️ **빈 카드를 센다** — 필드 테스트 1회차 ① 의 계측 (2026-08-25 신설).
+         *
+         * 2026-08-23 실주행: `💸 요금 못 읽음` 12,467회인데 **뒤가 공백**이었다.
+         * 요금이 이상한 게 아니라 **같은 줄 글자가 하나도 안 묶였다** — 스캔당 약 30개.
+         * 그때 빌드에는 진단 로그가 아예 없어(`👁️` 0줄) 원인을 못 봤다.
+         *
+         * 🔴 겹침은 «열린 구간»이라 높이 0인 사각형은 **닻 자신과도 안 겹친다**
+         *    (`RowGroupingTest` 로 재현). 스크롤 밖 노드의 bounds 가 `(0,0,0,0)` 으로
+         *    온다면 정확히 이 모양이다 — **그게 맞는지 좌표로 확인하려고 남긴다.**
+         */
+        var emptyCard = 0
+        var emptyRectAnchor = 0
+        val emptySamples = mutableListOf<String>()
+
         // 각 요금 노드 기준으로 텍스트 세트를 묶어 파싱
         for ((fareNode, cardTexts) in groupedNodes) {
+            if (cardTexts.isEmpty()) {
+                emptyCard++
+                val r = fareNode.rect
+                if (InsungParser.isEmptyRect(r.top, r.bottom)) emptyRectAnchor++
+                if (emptySamples.size < 3) {
+                    emptySamples += "\"${fareNode.text}\"@(${r.left},${r.top},${r.right},${r.bottom})"
+                }
+            }
             val order = scrapParser.parse(cardTexts)
 
             if (order.fare == 0) {
@@ -387,12 +444,36 @@ class HijackService : AccessibilityService() {
                  * 그래서 **텍스트 순서 자체가 진단**이다 — 앞부분만 봐도 어디서 어긋났는지 보인다.
                  * 카드마다 매번 찍히지 않게 **못 읽은 것만** 남긴다.
                  */
-                AppLogger.w(TAG, "💸 [요금 못 읽음] ${cardTexts.joinToString(" | ").take(140)}")
+                /**
+                 * 🔴 **빈 카드는 여기서 안 찍는다** (2026-08-25). 2026-08-23 실주행에서
+                 *    이 줄이 **12,467회** 나왔고 뒤가 전부 공백이었다 — 그 소음이 다른
+                 *    로그를 통째로 묻었다. 빈 카드는 스캔 요약(`👁️ [리스트 스캔]`)이
+                 *    좌표와 함께 한 줄로 말한다. 여기는 **글자는 있는데 요금만 못 읽은**
+                 *    진짜 파싱 실패만 남긴다.
+                 */
+                if (cardTexts.isNotEmpty()) {
+                    AppLogger.w(TAG, "💸 [요금 못 읽음] ${cardTexts.joinToString(" | ").take(140)}")
+                }
                 continue
             }
 
             val orderHash = (order.pickup + order.dropoff + order.fare.toString()).hashCode()
-            if (processedOrderHashes.contains(orderHash)) continue
+            /**
+             * ⏭️ **건너뛰었다는 사실을 남긴다** (2026-08-25 · 시험 두 판을 여기서 잃었다).
+             *
+             * 지문은 **상차+하차+요금**이라 차종만 바꾼 콜은 같은 콜로 보인다. 그런데
+             * 아무 로그 없이 `continue` 하니, 화면엔 떴는데 판정이 한 줄도 안 남는다 —
+             * *"필터가 막았나 / 요금을 못 읽었나 / 서버가 안 보냈나"* 를 가릴 수가 없다.
+             *
+             * 실측 2026-08-25: 문제지 ⑧⑨ 를 승용차로 바꿔 다시 흘렸는데 세 판 내리
+             * 조용히 건너뛰었고, **서버를 고쳤는지조차 확인 못 했다.**
+             * (캐시는 접근성 토글로 서비스가 새로 만들어져야 비워진다 — 앱을 밀어내도 안 된다)
+             */
+            if (processedOrderHashes.contains(orderHash)) {
+                AppLogger.d(TAG, "⏭️ [이미 본 콜] ${order.pickup.take(14)} → ${order.dropoff.take(14)} " +
+                    "${order.fare}원 (지문 $orderHash · 기억 ${processedOrderHashes.size}개)")
+                continue
+            }
 
             // 🌟 [항시 인터셉터] 콜 필터 매칭 검사 (디버그 로그를 위해 MANUAL/AUTO 무관하게 항시 실행)
             val isTarget = scrapParser.shouldClick(order, tally)
@@ -458,9 +539,17 @@ class HijackService : AccessibilityService() {
          *   그룹 있음 + 요금실패 → 카드는 잡았는데 **요금을 못 읽는다**
          */
         val picked = groupedNodes.size - fareFail
-        if (picked == 0) {
-            AppLogger.w(TAG, "👁️ [리스트 빈 이유] 텍스트노드 ${allNodes.size} · 콜그룹 ${groupedNodes.size} · " +
-                "요금실패 $fareFail — ${lastScanReason(allNodes.size, groupedNodes.size, fareFail)}")
+        /**
+         * 🔴 **`picked == 0` 일 때만 찍으면 안 된다** (2026-08-25).
+         *    2026-08-23 패턴은 «그룹 30 · 통과 1» 이라 `picked = 1` 이었다 —
+         *    빈 카드가 29개인데도 **한 줄도 안 남았을 것**이다.
+         *    빈 카드가 하나라도 있으면 남긴다.
+         */
+        if (picked == 0 || emptyCard > 0) {
+            val rect = if (emptyCard > 0) " · 빈카드 $emptyCard(닻 rect 0: $emptyRectAnchor)" else ""
+            val sample = if (emptySamples.isNotEmpty()) " ⤷ ${emptySamples.joinToString(" · ")}" else ""
+            AppLogger.w(TAG, "👁️ [리스트 스캔] 텍스트노드 ${allNodes.size} · 콜그룹 ${groupedNodes.size} · " +
+                "통과 $picked · 요금실패 $fareFail$rect — ${lastScanReason(allNodes.size, groupedNodes.size, fareFail)}$sample")
         }
         telemetryManager.screenNodeCount = allNodes.size
         /**
@@ -1006,8 +1095,23 @@ class HijackService : AccessibilityService() {
         return SimplifiedOfficeOrder(
             id = session.currentOrderId,
             type = "${mode}_CLICK",
-            pickup = tempOrder.pickup.takeIf { it.isNotBlank() && it != "배차값없음" } ?: "상태분석중",
-            dropoff = tempOrder.dropoff.takeIf { it.isNotBlank() && it != "배차값없음" } ?: "상태분석중",
+            /**
+             * 🔴 **상세 화면 글자를 리스트 파서 결과 그대로 믿지 않는다** (2026-08-25 실측).
+             *
+             * `parse()` 는 *"첫 번째 유효 지역 = 상차지, 두 번째 = 하차지"* 로 읽는데
+             * 그건 **리스트에서만 참**이다. 손으로 연 상세에서는 배치가 달라
+             * 상차지 **«다마스»** · 하차지 **«계산서필»** 이 장부에 남았다.
+             *
+             * 직접콜은 서버가 심사하지 않으므로(규칙 ①) 그 값이 **경로의 기점**이 된다.
+             * 주소 꼴이 아니면 «배차값없음» 으로 둔다 — 뒤따르는 팝업 서핑이 진짜 주소를
+             * 채운다. 모르면 모른다고 두는 것이 지어내는 것보다 낫다 (규칙 ④).
+             */
+            pickup = tempOrder.pickup.takeIf {
+                it.isNotBlank() && it != "배차값없음" && InsungParser.looksLikeAddress(it)
+            } ?: "배차값없음",
+            dropoff = tempOrder.dropoff.takeIf {
+                it.isNotBlank() && it != "배차값없음" && InsungParser.looksLikeAddress(it)
+            } ?: "배차값없음",
             fare = tempOrder.fare,
             timestamp = nowTimestamp(),
             rawText = screenTexts.joinToString(" ")

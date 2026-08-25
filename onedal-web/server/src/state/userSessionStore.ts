@@ -52,6 +52,18 @@ export interface UserSession {
      * GPS 가 들어오면 false 로 돌아간다 (진짜 위치가 언제나 이긴다).
      */
     driverLocationIsFallback: boolean;
+    /**
+     * 📍 **`driverLocation` 을 받은 시각** (epoch ms · 2026-08-25 신설).
+     *
+     * 좌표만 들고 있으면 **얼마나 낡았는지 알 수가 없다.** 2026-08-25 실측:
+     * 14:24 에 모의 주행이 여주에서 끝났고, 4시간 25분 뒤 광주에서 콜을 잡는데도
+     * 서버가 그 여주 좌표를 «지금 내 위치»로 믿어 접근 구간을 **40km 뒤로** 그렸다.
+     * 실 운행에서도 터널·실내에서 GPS 가 끊기면 같은 형태로 난다.
+     *
+     * 🔴 **낡음은 저장하는 상태가 아니라 시각 차이에서 파생된다** (규칙 ③).
+     *    타이머를 두지 않고 읽는 순간 잰다 (`dropStaleLocation`).
+     */
+    driverLocationAt: number | null;
     userVehicleType: string; // user_settings의 내 차종 (동적 허용 차종 생성용)
     isRestored: boolean;     // [방안 1] 서버 재시작 복구 로직 1회 실행 여부 플래그
     /**
@@ -125,6 +137,17 @@ export interface UserSession {
     arrivalNoticed: Set<string>;
 
     /**
+     * 🚚 **떠남 감시** — 하차지에 도착한 뒤 «멀어졌는지»를 보려고 그 좌표를 들고 있는다
+     *    (기사님 확정 2026-08-25).
+     *
+     * 도착만 보고 떠남을 안 보면, 운전 중이라 버튼을 못 누른 콜이 **계속 실려 있는 것으로**
+     * 남는다 — 적재가 안 풀려 다음 콜이 차종에서 막힌다 (2026-08-25 실측).
+     *
+     * `arrivalFired` 와 같은 수명이다 — 사이클이 끝나면 함께 비운다.
+     */
+    departWatch: Map<string, { orderId: string; x: number; y: number }>;
+
+    /**
      * 마지막으로 위치를 받은 시각(ms). **속도를 재는 데만 쓴다.**
      * 기사님 결정(2026-08-14): 위치 기록은 *"이동이 있을 때만"* 남긴다 —
      * 그러려면 얼마나 움직였는지와 함께 **얼마 만에** 움직였는지를 알아야 한다.
@@ -153,6 +176,19 @@ export interface UserSession {
      */
     detourProgressKm: Record<string, number> | null;
     /**
+     * 🛣️ **경로 위에 있는 동 목록** — 상차지 판정의 원천 (2026-08-25 신설).
+     *
+     * 2026-08-25 부터 `destinationKeywords` 에는 **도착 목표**(첫짐의 «여주시»)에서 온
+     * 동이 섞인다. 그건 **하차지를 열려고** 넣은 것이지 «경로 위»라는 뜻이 아니다.
+     *
+     * 🔴 `detourProgressKm` 의 키로는 구분할 수 없다 — `centroid` 가 없어 스냅에 실패한
+     *    동은 **경로 위인데도** 진행도 맵에 안 들어간다. «모르는 것»과 «경로 밖»은 다르다.
+     *    그래서 경유 목록 자체를 따로 기억한다.
+     *
+     * 저장이 아니라 캐시다 — 경유를 다시 그리면 같이 바뀐다. 경로가 없으면 `null`.
+     */
+    detourFlat: string[] | null;
+    /**
      * ↩️ **새 콜을 붙이기 직전의 경로 한 벌** (기사님 확정 2026-08-23).
      *
      * 심사 중인 콜이 취소되면 이걸 되돌린다 — 원래 콜은 아무것도 안 바뀌었는데
@@ -178,6 +214,7 @@ function createDefaultSession(userId: string): UserSession {
         judgment: JSON.parse(JSON.stringify(DEFAULT_JUDGMENT)) as JudgmentConfig,
         driverLocation: null,
         driverLocationIsFallback: false,
+        driverLocationAt: null,
         userVehicleType: '1t',
         capacityConfidence: 'ESTIMATED',
         businessDay: businessDayKey(Date.now()),
@@ -187,6 +224,7 @@ function createDefaultSession(userId: string): UserSession {
         phaseSettings: normalizePhaseSettings(null),
         appliedPhaseKey: null,
         detourProgressKm: null,
+        detourFlat: null,
         routeSnapshot: null,
         departedAt: null,
         lastOrderSyncJson: null,
@@ -194,6 +232,7 @@ function createDefaultSession(userId: string): UserSession {
         lastTrimGPS: undefined,
         lastGpsAt: undefined,
         arrivalFired: new Set(),
+        departWatch: new Map(),
         arrivalWatch: null,
         arrivalNoticed: new Set(),
     };

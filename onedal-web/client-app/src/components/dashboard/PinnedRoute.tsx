@@ -2,7 +2,7 @@ import { isEvaluating, isTerminal, hasVisitedStop, deriveRouteTimeline, derivati
 import type { SecuredOrder } from "@onedal/shared";
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { socket } from '../../lib/socket';
-import { logRoadmapEvent } from '../../lib/roadmapLogger';
+import { logRoadmapEvent , logStateChange } from '../../lib/roadmapLogger';
 import PinnedRouteCanvas, { type RoutePoint } from './PinnedRouteCanvas';
 import PinnedRouteCard from './PinnedRouteCard';
 import CallDeck from './CallDeck';
@@ -83,8 +83,45 @@ export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, 
 
     const isDriving = filter?.dispatchPhase === 'DELIVERING';
 
+    /**
+     * 🏁 **모의 주행이 들러야 할 정거장** (2026-08-25).
+     *
+     * 폴리라인은 도로 위만 지나는데 물류센터는 떨어져 있다 — 실측 곤지암 601m ·
+     * 부발 525m. 도착 반경 500m 라 모의 주행이 **영영 못 닿았고**, 하차가 안 된 콜이
+     * 남아 경로가 나중에 되돌아갔다. 실제 기사님은 시설 안까지 들어가므로 좌표를 준다.
+     *
+     * ⚠️ 다녀온 곳은 뺀다 — 판단은 서버와 같은 `hasVisitedStop` 하나다.
+     */
+    const mockStops = useMemo(() => {
+        const out: Array<{ x: number; y: number }> = [];
+        for (const r of liveRoute) {
+            if (r.pickupX != null && r.pickupY != null && !hasVisitedStop(r, 'pickup'))
+                out.push({ x: r.pickupX, y: r.pickupY });
+            if (r.dropoffX != null && r.dropoffY != null && !hasVisitedStop(r, 'dropoff'))
+                out.push({ x: r.dropoffX, y: r.dropoffY });
+        }
+        return out;
+    }, [liveRoute]);
+
     // 📡 마스터 GPS 엔진 연결 (Real / Mock 자동 스위칭)
-    const { currentGps } = useMasterGps(isDriving, activePolyline || null);
+    const { currentGps, gpsSource } = useMasterGps(isDriving, activePolyline || null, mockStops);
+
+    /**
+     * 📡 **화면이 무엇을 그리고 있었나** — 주행 뒤에 돌아볼 수 있게 남긴다
+     *    (필드테스트 ④ · 2026-08-25). 어제 문서 §4-2 가 모른다고 적어 둔 둘 중 하나다.
+     *
+     * ⚠️ **바뀔 때만** 남긴다. 관제앱 웹뷰가 초당 5.5회 다시 그리는데 그걸 다 남기면
+     *    정작 사건이 묻힌다 (`logStateChange` 가 직전 값과 같으면 버린다).
+     */
+    useEffect(() => {
+        logStateChange("국면", filter?.dispatchPhase ?? "없음", "진행중경로");
+    }, [filter?.dispatchPhase]);
+    useEffect(() => {
+        logStateChange("진행중 콜", `${liveRoute.length}건`, "진행중경로");
+    }, [liveRoute.length]);
+    useEffect(() => {
+        logStateChange("GPS 출처", gpsSource, "진행중경로");
+    }, [gpsSource]);
 
     /**
      * 지도와 TSP 의 출발점. GPS 가 잡히면 아래 useEffect 가 곧바로 덮어쓴다.

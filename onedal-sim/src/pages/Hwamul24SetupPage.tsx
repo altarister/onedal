@@ -39,7 +39,8 @@ export function Hwamul24SetupPage() {
   const [maxPickupKm, setMaxPickupKm] = useState(15);
   const [minFare, setMinFare] = useState(30000);
   const [targetRegion, setTargetRegion] = useState('');
-  const [intervalMs, setIntervalMs] = useState(5000);
+  // ⏱ 기본 10초 — 인성과 같은 이유 (앱이 콜 하나를 처리하는 데 약 12초)
+  const [intervalMs, setIntervalMs] = useState(10000);
 
   const handleStart = () => {
     const preset = LOCATION_PRESETS[selectedPreset];

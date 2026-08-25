@@ -5,7 +5,7 @@
  * 유일한 차이: useGame()/useDispatchContext() 대신 모든 데이터를 props로 받음.
  */
 import React from 'react';
-import { formatRegionName } from '@altari/core-simulator';
+import { formatRegionName, formatInsungVehicle } from '@altari/core-simulator';
 import type { CallItem } from '@altari/core-simulator';
 
 interface SimBoardProps {
@@ -163,9 +163,9 @@ const CallRow = React.memo(({
         <div className={`whitespace-normal line-clamp-2`}>{call.dropoffDetails?.[0]?.region || call.dropoffs[0].name}</div>
       </div>
 
-      {/* 차종 */}
+      {/* 차종 — 인성은 약자로 쓴다 (오·다·라·5t). 파서가 이 약자를 앵커로 요금을 읽는다 */}
       <div className={`w-[10%] flex justify-center items-center border-r border-gray-200 text-[13px] font-bold `}>
-        {call.vehicleType || '오토'}
+        {formatInsungVehicle(call.vehicleType)}
       </div>
 
       {/* 요금 */}

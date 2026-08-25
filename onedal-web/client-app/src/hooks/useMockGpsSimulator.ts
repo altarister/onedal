@@ -31,6 +31,20 @@ interface PolylinePoint {
 interface MockGpsSimulatorProps {
     isActive: boolean;
     routePolyline: PolylinePoint[] | null;
+    /**
+     * 🏁 **들러야 할 정거장** — 상차지·하차지의 실제 좌표 (2026-08-25 신설).
+     *
+     * 폴리라인은 **도로 위**만 지난다. 그런데 물류센터는 도로에서 떨어져 있는 곳이 많다 —
+     * 실측: 쿠팡 곤지암2 **601m** · 쿠팡 이천4 **525m**. 도착 감지 반경은 500m 라
+     * 모의 주행은 그 하차지에 **영영 못 닿았다.**
+     *
+     * 그래서 «지나쳤는데 하차가 안 된 콜」이 남았고, 경로가 나중에 서쪽으로 70km
+     * 되돌아갔다 — 기사님(2026-08-25): *"경로가 이상하다.."*
+     *
+     * 🔴 **실제 주행은 시설 안까지 들어간다.** 모의 주행만 도로를 안 벗어났던 것이다.
+     *    그러니 이건 판정을 느슨하게 푸는 게 아니라 **모의 주행을 현실에 맞추는 것**이다.
+     */
+    stops?: PolylinePoint[];
     speedMultiplier?: number;
     /** 경로 끝에 닿았을 때. 남은 가상 위치를 걷어내라는 신호다 */
     onFinished?: () => void;
@@ -46,6 +60,7 @@ interface MockGpsSimulatorProps {
 export function useMockGpsSimulator({
     isActive,
     routePolyline,
+    stops,
     speedMultiplier = 15,
     onFinished,
 }: MockGpsSimulatorProps) {
@@ -55,6 +70,8 @@ export function useMockGpsSimulator({
     const routeRef = useRef(routePolyline);
     /** 이 경로를 끝까지 달렸나 — **끝났으면 다시 출발하지 않는다** */
     const finishedRef = useRef(false);
+    /** 이미 들른 정거장 — 같은 자리를 두 번 찍지 않는다 */
+    const visitedStopsRef = useRef(new Set<string>());
     /** 지금 어디쯤 있나 — 경로가 갈릴 때 이어붙일 기준 (클로저가 굳지 않게 ref) */
     const hereRef = useRef<{ x: number; y: number } | null>(null);
 
@@ -124,6 +141,34 @@ export function useMockGpsSimulator({
                 //    "지금 내 위치" 로 믿고 다음 콜의 경로를 엉뚱하게 그린다
                 onFinished?.();
                 return;
+            }
+
+            /**
+             * 🏁 **이번 걸음에 지나치는 정거장이 있으면 그 자리를 먼저 찍는다** (2026-08-25).
+             *
+             * 배속 주행은 한 걸음이 수백 m~수 km 다 (실측 최대 **3,523m**). 도착 반경은
+             * 500m 라, 정거장 옆을 스쳐도 **원을 통째로 뛰어넘는다.** 게다가 물류센터는
+             * 도로에서 떨어져 있어(곤지암 601m · 부발 525m) 폴리라인만 달리면 애초에
+             * 닿지도 않는다.
+             *
+             * 실제 기사님은 시설 안까지 들어가므로, 모의 주행도 **그 좌표를 한 번 찍고**
+             * 다음 걸음으로 간다. 안 그러면 «지나쳤는데 하차가 안 된 콜」이 남아
+             * 경로가 나중에 되돌아간다 (2026-08-25 실측: 곤지암으로 서쪽 70km).
+             */
+            const from = indexRef.current;
+            const to = Math.min(from + speedMultiplier, path.length);
+            const due = (stops ?? []).find(st => {
+                const k = `${st.x},${st.y}`;
+                if (visitedStopsRef.current.has(k)) return false;
+                const i = nearestIndex(path, st);
+                return i >= from && i < to;
+            });
+            if (due) {
+                visitedStopsRef.current.add(`${due.x},${due.y}`);
+                console.log(`🏁 [Mock GPS] 정거장에 들름: x=${due.x}, y=${due.y} (도로에서 떨어져 있어도 닿는다)`);
+                hereRef.current = { x: due.x, y: due.y };
+                setMockLocation({ x: due.x, y: due.y });
+                return;   // 이번 틱은 정거장에 머문다 — 다음 틱에 경로로 복귀
             }
 
             const pt = path[indexRef.current];
