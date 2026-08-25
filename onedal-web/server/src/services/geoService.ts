@@ -648,6 +648,23 @@ export const GPS_ARRIVAL = {
     STILL_KMH: 5,
     HOLD_SEC: 30,
     NOTICE_KM: 3,
+    /**
+     * 🚚 **떠남 판정** — 하차지에 도착했다가 이만큼 멀어지면 «내리고 갔다»로 본다
+     *    (기사님 확정 2026-08-25: *"2km 로 정하고 진행해 보자"*).
+     *
+     * 기사님: *"곤지암과 부발에서 멀어진 거면 하차를 했는데 버튼을 못 누른 걸로 봐야
+     * 하지 않을까… 운행 중에 클릭 못 할 거라 말이지."*
+     *
+     * 🔴 2026-08-25 실측이 근거다. GPS 는 상차지 도착 3건·하차지 도착 3건을 다 찍었는데
+     *    **손으로 눌러야 하는 네 단계(통화·상차완료·하차통화·하차완료)는 전부 비어 있었다.**
+     *    적재가 90박스로 남아 다음 콜이 차종에서 막혔다 — 어제 실주행의 «안전취소 24건»과
+     *    같은 모양이다 (운전 중에는 아무것도 못 누른다).
+     *
+     * ⚠️ **되돌릴 수 없는 기록이 아니다.** 단계 표는 `UNIQUE(orderId)` + `INSERT OR REPLACE`
+     *    라 나중에 그 단계에서 고칠 수 있고, 하차 완료된 콜은 `TERMINAL_STATUSES` 라
+     *    적재·경로 계산에서 빠져 **다른 콜과 관계가 끊긴다**. 고쳐도 남에게 번지지 않는다.
+     */
+    DEPARTED_KM: 2,
 } as const;
 
 /**
@@ -690,6 +707,8 @@ export function processDriverMovement(
     onArrival?: (uid: string, stop: ArrivalStop) => void,
     /** 근접 예고(3km) 시 — 도착전 통화 알림 */
     onApproaching?: (uid: string, stop: ArrivalStop, distKm: number) => void,
+    /** 하차지에서 2km 멀어졌을 때 — 하차 완료로 넘긴다 */
+    onDeparted?: (uid: string, orderId: string) => void,
 ) {
     if (!lat || !lng) return;
     
@@ -778,7 +797,7 @@ export function processDriverMovement(
      *    · 한 정거장당 발화 1회 (`arrivalFired`) · 점프 틱은 판단하지 않는다
      *    · DELIVERING 게이트 밖이다 — 출발 버튼 전에 상차지에 닿는 경우도 실재한다
      */
-    watchArrival(userId, session, currentGPS, speedKmh, jumped, src, applyFilterCb, onArrival, onApproaching);
+    watchArrival(userId, session, currentGPS, speedKmh, jumped, src, applyFilterCb, onArrival, onApproaching, onDeparted);
 }
 
 /** 정거장 키 — 발화·예고 플래그의 단위 */
@@ -794,6 +813,8 @@ function watchArrival(
     applyFilterCb: (uid: string, filter: any) => void,
     onArrival?: (uid: string, stop: ArrivalStop) => void,
     onApproaching?: (uid: string, stop: ArrivalStop, distKm: number) => void,
+    /** 하차지에서 멀어졌다 — «내리고 갔다»로 본다 (기사님 확정 2026-08-25) */
+    onDeparted?: (uid: string, orderId: string) => void,
 ) {
     const active = getActiveCalls(session);
     if (active.length === 0) return;
@@ -801,6 +822,27 @@ function watchArrival(
         // 위치를 못 믿는 틱 — 정지 유지도 끊는다 (점프 후 좌표로 30초를 세면 거짓 도착이 된다)
         if (session.arrivalWatch) session.arrivalWatch.heldSinceMs = null;
         return;
+    }
+
+    /**
+     * 🚚 **떠남 감지** — 하차지에 도착했다가 멀어지면 «내리고 갔다»로 본다.
+     *
+     * 도착만 보고 떠남을 안 보면, 운전 중이라 버튼을 못 누른 콜이 계속 실려 있는 것으로
+     * 남아 **적재가 안 풀린다** (2026-08-25 실측: 하차 도착 3건 · 하차 완료 0건).
+     *
+     * 🔴 되돌아와도 다시 안 걸린다 — 여기서 지운 뒤에는 `departWatch` 에 없고,
+     *    하차 완료된 콜은 `getActiveCalls` 에서 빠져 감시 대상 자체가 아니다.
+     */
+    if (session.departWatch.size > 0 && onDeparted) {
+        for (const [key, w] of [...session.departWatch]) {
+            const away = haversineKm(gps.y, gps.x, w.y, w.x);
+            if (away >= GPS_ARRIVAL.DEPARTED_KM) {
+                session.departWatch.delete(key);
+                console.log(`🚚 [떠남 감지] 하차지에서 ${away.toFixed(1)}km 멀어졌습니다 — ` +
+                    `내리고 간 것으로 봅니다 (${w.orderId.slice(0, 8)})`);
+                onDeparted(userId, w.orderId);
+            }
+        }
     }
 
     const stops = planArrivalStops(active, gps);
@@ -831,6 +873,8 @@ function watchArrival(
         applyFilterCb(userId, {
             driverAction: 'UNLOADING',    // 하차 중으로 자동 전환 (이제 1회만)
         });
+        // 🚚 여기서부터 «멀어지는지»를 본다 — 2km 벗어나면 내리고 간 것으로 친다
+        session.departWatch.set(key, { orderId: next.orderId, x: next.x, y: next.y });
     }
     onArrival?.(userId, next);
 }

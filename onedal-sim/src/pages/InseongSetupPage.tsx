@@ -51,7 +51,13 @@ export function InseongSetupPage() {
 
   // ── 공통 ──
   const [selectedPreset, setSelectedPreset] = useState(0);
-  const [intervalMs, setIntervalMs] = useState(5000);
+  /**
+   * ⏱ 기본 10초 (기사님 확정 2026-08-25).
+   * 앱은 한 번에 콜 하나만 평가하고(`isHolding`) 그동안 리스트를 안 읽는다 —
+   * 한 콜을 잡는 데 상세 진입·확정·적요까지 **약 12초**가 걸린다 (2026-08-25 실측).
+   * 5초로 두면 처리하는 사이 다음 문제가 지나가 **평가조차 안 된다.**
+   */
+  const [intervalMs, setIntervalMs] = useState(10000);
 
   // ── 랜덤콜 ──
   const [maxPickupKm, setMaxPickupKm] = useState(15);
@@ -60,7 +66,9 @@ export function InseongSetupPage() {
 
   // ── 시나리오콜 ──
   const [presetKey, setPresetKey] = useState(PRESET_MENU[0]?.key ?? '여주');
-  const [loop, setLoop] = useState(true);
+  // 🔁 기본 꺼짐 (기사님 확정 2026-08-25) — 한 바퀴만 돌려야 무엇을 놓쳤는지 셀 수 있다.
+  //    켜 두면 놓친 문제가 다음 바퀴에 다시 와서 «놓쳤다»가 안 보인다.
+  const [loop, setLoop] = useState(false);
 
   const location = LOCATION_PRESETS[selectedPreset];
 

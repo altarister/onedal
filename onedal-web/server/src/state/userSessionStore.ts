@@ -125,6 +125,17 @@ export interface UserSession {
     arrivalNoticed: Set<string>;
 
     /**
+     * 🚚 **떠남 감시** — 하차지에 도착한 뒤 «멀어졌는지»를 보려고 그 좌표를 들고 있는다
+     *    (기사님 확정 2026-08-25).
+     *
+     * 도착만 보고 떠남을 안 보면, 운전 중이라 버튼을 못 누른 콜이 **계속 실려 있는 것으로**
+     * 남는다 — 적재가 안 풀려 다음 콜이 차종에서 막힌다 (2026-08-25 실측).
+     *
+     * `arrivalFired` 와 같은 수명이다 — 사이클이 끝나면 함께 비운다.
+     */
+    departWatch: Map<string, { orderId: string; x: number; y: number }>;
+
+    /**
      * 마지막으로 위치를 받은 시각(ms). **속도를 재는 데만 쓴다.**
      * 기사님 결정(2026-08-14): 위치 기록은 *"이동이 있을 때만"* 남긴다 —
      * 그러려면 얼마나 움직였는지와 함께 **얼마 만에** 움직였는지를 알아야 한다.
@@ -194,6 +205,7 @@ function createDefaultSession(userId: string): UserSession {
         lastTrimGPS: undefined,
         lastGpsAt: undefined,
         arrivalFired: new Set(),
+        departWatch: new Map(),
         arrivalWatch: null,
         arrivalNoticed: new Set(),
     };

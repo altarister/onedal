@@ -90,6 +90,19 @@ export default function Dashboard() {
             setGpsNotice(`🏁 ${data.message}`);
             setTimeout(() => setGpsNotice(null), 10_000);
         };
+        /**
+         * 🚚 **떠남 → 하차 완료** (기사님 확정 2026-08-25).
+         *
+         * 기사님: *"곤지암과 부발에서 멀어진 거면 하차를 했는데 버튼을 못 누른 걸로 봐야
+         * 하지 않을까… 운행 중에 클릭 못 할 거라 말이지."*
+         *
+         * 자동으로 찍었다는 **사실을 반드시 알린다** — 조용히 넘어가면 기사님이 모른 채
+         * 장부가 바뀐다. 틀렸으면 그 단계에서 고칠 수 있다 (단계 표는 덮어쓰기다).
+         */
+        const onAutoDelivered = (data: { orderId: string, message: string }) => {
+            setGpsNotice(`🚚 ${data.message}`);
+            setTimeout(() => setGpsNotice(null), 15_000);
+        };
         const onApproaching = (data: { stopType: 'pickup' | 'dropoff', distanceKm: number }) => {
             const label = data.stopType === 'pickup' ? '상차지' : '하차지';
             setGpsNotice(`📣 다음 정거장(${label}) ${data.distanceKm}km 앞 — 도착전 통화를 걸어 주세요`);
@@ -118,11 +131,13 @@ export default function Dashboard() {
         const onNewCall = () => setViewFilter('ACTIVE');
 
         socket.on("auto-arrived", onAutoArrived);
+        socket.on("auto-delivered", onAutoDelivered);
         socket.on("next-stop-approaching", onApproaching);
         socket.on("target-auto-switched", onTargetSwitched);
         socket.on("order-evaluating", onNewCall);
         return () => {
             socket.off("auto-arrived", onAutoArrived);
+            socket.off("auto-delivered", onAutoDelivered);
             socket.off("next-stop-approaching", onApproaching);
             socket.off("target-auto-switched", onTargetSwitched);
             socket.off("order-evaluating", onNewCall);

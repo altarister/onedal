@@ -35,12 +35,34 @@ SURNAMES = ["김", "이", "박", "최", "정", "강", "조", "윤", "장", "임"
 TITLES = ["과장", "대리", "사원", "부장", "팀장", "주임", "실장", "차장"]
 
 
-def region_of(road_address: str) -> str:
-    """«경기 이천시 부발읍 경충대로 2091» → «부발읍». 기존 데이터의 region 칸과 같은 꼴."""
+def region_of(road_address: str, x=None, y=None) -> str:
+    """«경기 이천시 부발읍 경충대로 2091» → «부발읍». 기존 데이터의 region 칸과 같은 꼴.
+
+    🔴 **`region` 이 곧 화면에 그려지는 글자다** (`SimDispatchBoard` 가 이걸 먼저 쓴다).
+       앱은 화면을 읽어 경유 목록(동 단위)과 맞추므로, 여기에 «광주시» 같은 시 이름이
+       들어가면 **경로 위에 있어도 «경로 밖»으로 떨어진다.**
+
+    ⚠️ 2026-08-25 실측: 도로명주소에 읍·면·동이 없는 곳(«경기 광주시 고불로 264»)이
+       12개 있었고, 전부 시 이름으로 채워져 있었다. 코카콜라 태전물류는 경로에서
+       0.43km 인데 «광주시» 로 그려져 경유 목록의 «태전동» 과 못 맞았다.
+
+    → 주소에서 못 찾으면 **좌표로 법정동을 물어본다.** 시 이름으로 때우지 않는다.
+    """
     parts = road_address.split(" ")
     for p in parts[1:]:
         if p.endswith(("읍", "면", "동", "구")):
             return p
+    if x is not None and y is not None:
+        u = f"https://dapi.kakao.com/v2/local/geo/coord2regioncode.json?x={x}&y={y}"
+        try:
+            docs = kakao._get(u).get("documents", [])
+            for t in docs:
+                if t.get("region_type") == "B":          # 법정동
+                    n = (t.get("region_3depth_name") or "").strip()
+                    if n:
+                        return n.split()[0]
+        except Exception:
+            pass
     return parts[1] if len(parts) > 1 else ""
 
 
@@ -127,7 +149,7 @@ def main():
                 #    시뮬 화면에 뜬 번호로 실수로 전화가 걸리면 남의 영업장에 닿는다.
                 "phone1": fake_phone(rng),
                 "phone2": fake_phone(rng),
-                "region": region_of(c["road"]),
+                "region": region_of(c["road"], c["x"], c["y"]),
                 "addressDetail": f"{c['road']} {c['name']}",
                 "lon": c["x"],
                 "lat": c["y"],

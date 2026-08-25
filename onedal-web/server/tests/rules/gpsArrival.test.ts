@@ -76,16 +76,45 @@ describe('감시 구조 (L1 — 코드 모양)', () => {
         expect(guard).toMatch(/heldSinceMs = null/);
     });
 
-    it("🔴 GPS 가 기록하는 마일스톤은 ARRIVED_* 둘뿐 — 상차·하차 완료는 물리 행위다", () => {
-        // 'GPS' 출처로 reportMilestone 을 부르는 자리는 socketHandlers 한 곳이고,
-        // 그 마일스톤은 stopType 삼항으로 ARRIVED_ 둘 중 하나만 나온다
+    /**
+     * 🔴 **2026-08-25 개정** — 하차 완료(DELIVERED)를 GPS 가 찍을 수 있게 열었다.
+     *
+     * 기사님: *"곤지암과 부발에서 멀어진 거면 하차를 했는데 버튼을 못 누른 걸로 봐야 하지
+     * 않을까… 운행 중에 클릭 못 할 거라 말이지."*
+     *
+     * 근거는 **«도착 + 2km 이탈»이라는 물리적 사실**이다. 안 내렸으면 그 자리를 뜨지 않는다.
+     * 실측(2026-08-25): GPS 도착 3건이 다 찍혔는데 손으로 눌러야 하는 네 단계가 전부 비어
+     * 적재가 90박스로 남았고, 다음 콜이 차종에서 막혔다.
+     *
+     * ⚠️ **상차 완료(PICKED_UP)는 여전히 금지다.** 상차지는 짐을 실었는지를 GPS 가 구분할
+     *    수 없다 — 못 실었는데 실은 것으로 치면 적재가 거짓이 된다. 하차와 대칭이 아니다.
+     */
+    it("🔴 GPS 가 찍는 것은 ARRIVED_* 둘과 DELIVERED 뿐 — 상차 완료는 여전히 물리 행위다", () => {
+        // 도착 둘은 stopType 삼항으로만 나온다 — ARRIVED_* 밖으로 샐 길이 없다
         expect(sock).toMatch(/stopType === 'pickup' \? 'ARRIVED_PICKUP' as const : 'ARRIVED_DROPOFF' as const/);
-        // 둘: reportMilestone(옛 장부) + bridgeMilestone(단계 행 다리 · 2026-08-20 출생 모델).
-        // 둘 다 위 삼항이 만든 같은 `milestone` 변수를 받는다 — ARRIVED_* 밖으로 나갈 길이 없다
-        const gpsCalls = sock.match(/'GPS'/g) ?? [];
-        expect(gpsCalls.length).toBe(2);
         expect(sock).toMatch(/bridgeMilestone\(uid, stop\.orderId, milestone, 'GPS'/);
+
+        // 🔴 상차 완료는 절대 GPS 로 찍지 않는다
         expect(sock).not.toMatch(/'PICKED_UP'[^\n]*'GPS'|'GPS'[^\n]*'PICKED_UP'/);
+
+        // 하차 완료는 **떠남 감지가 있을 때만** 열린다 — 근거 없이 찍으면 안 된다
+        expect(sock).toMatch(/reportMilestone\(uid, orderId, 'DELIVERED', 'GPS'/);
+        expect(geo).toMatch(/DEPARTED_KM/);
+        expect(geo).toMatch(/onDeparted/);
+
+        // 'GPS' 출처는 네 자리뿐이다 — 도착(report+bridge) 둘, 하차완료(report+bridge) 둘.
+        // 늘어나면 "이것도 GPS 가 알 수 있는 일인가"를 다시 묻게 된다
+        const gpsCalls = sock.match(/'GPS'/g) ?? [];
+        expect(gpsCalls.length).toBe(4);
+    });
+
+    it('🚚 떠남은 하차지에서만 본다 — 상차지는 감시하지 않는다', () => {
+        // departWatch 에 넣는 자리가 dropoff 가지 안에 있어야 한다
+        const i = geo.indexOf("next.stopType === 'dropoff'");
+        expect(i).toBeGreaterThan(-1);
+        expect(geo.slice(i, i + 400)).toMatch(/departWatch\.set/);
+        // 되돌아와도 다시 안 걸린다 — 한 번 발화하면 지운다
+        expect(geo).toMatch(/departWatch\.delete/);
     });
 
     it('사이클이 끝나면 도착 상태도 지운다 — 어제 찍은 정거장이 오늘 되살아나지 않는다', () => {

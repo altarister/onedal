@@ -85,6 +85,13 @@ class HijackService : AccessibilityService() {
     private val processedOrderHashes = mutableSetOf<Int>()
     private var currentTargetApp = "insung"
 
+    /**
+     * 👁️ 리스트를 떠난 시각 (0 = 지금 리스트를 보고 있다).
+     * 상세에 머무는 동안은 배차망 리스트를 못 읽으므로, 그 길이를 재서 복귀할 때 남긴다.
+     * **놓친 콜과 걸러낸 콜을 구분하는 유일한 근거다.**
+     */
+    private var listBlindSinceMs = 0L
+
     // ── 세션 상태 (SessionManager로 통합) ──
     private val session = SessionManager()
     private lateinit var surfingMachine: PopupSurfingMachine
@@ -290,9 +297,35 @@ class HijackService : AccessibilityService() {
                            detected == ScreenContext.LIST_COMPLETED ||
                            rawScreenStr.contains("대기 중인 오더가 없")
         val wasListScreen = previous == ScreenContext.LIST || previous == ScreenContext.LIST_COMPLETED
+        /**
+         * 👁️ **리스트를 못 보고 있던 동안을 기록한다** (기사님 요청 2026-08-25).
+         *
+         * 앱은 한 번에 콜 하나만 평가한다 — 상세로 들어가면 그동안 **리스트를 아예 안 읽는다.**
+         * 그 사이 배차망에 뜬 콜은 평가조차 되지 않고 조용히 사라진다.
+         *
+         * 🔴 2026-08-25 실측: `②` 를 잡는 데 **11.7초** 가 걸렸고, 그동안 `③` 이 화면에
+         *    떴다 사라졌다. 로그에 아무 기록이 없어서 *"필터가 걸렀나 / 안 떴나 / 못 봤나"* 를
+         *    구분할 수 없었다. **놓친 콜과 걸러낸 콜은 전혀 다른 것**인데 같아 보였다.
+         *
+         * 그래서 리스트를 떠난 시각을 재 두고, 돌아올 때 얼마나 못 봤는지 남긴다.
+         * (배차망 콜 간격보다 이 시간이 길면 문제지가 통째로 지나간다)
+         */
+        if (!isListScreen && wasListScreen) {
+            listBlindSinceMs = System.currentTimeMillis()
+        }
         if (isListScreen && !wasListScreen) {
             AppLogger.d(TAG, "[복귀 감지] ${previous.name} → ${detected.name} 복귀. 세션 및 안전취소 락 완전 해제")
             resetSessionState()
+            // 👁️ 리셋한 뒤에 «못 본 시간»을 남긴다 — 리셋이 먼저다 (콜의 끝이 우선)
+            if (listBlindSinceMs > 0L) {
+                val blindSec = (System.currentTimeMillis() - listBlindSinceMs) / 1000.0
+                AppLogger.roadmap(
+                    "👁️ [리스트 못 봄] ${"%.1f".format(blindSec)}초 동안 상세에 있었습니다 — " +
+                    "그사이 뜬 콜은 **평가되지 않았습니다** (놓친 것이지 거른 것이 아닙니다)",
+                    "LIST"
+                )
+                listBlindSinceMs = 0L
+            }
         }
 
         // 서버 판결 대기 중에는 화면 내 버튼 탐색이나 서핑(클릭 액션) 무시
