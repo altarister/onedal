@@ -18,6 +18,8 @@
  *    로그 때문에 관제웹이 느려지면 그게 더 큰 사고다 (기사님: *"관제앱이 너무 느림"*).
  */
 
+import { apiBase } from './serverTarget';
+
 interface Line { at: string; msg: string }
 
 const BUFFER: Line[] = [];
@@ -51,7 +53,7 @@ async function flush(): Promise<void> {
         dropped = 0;
     }
     try {
-        await fetch('/api/logs', {
+        await fetch(`${apiBase()}/logs`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ deviceId: deviceId(), lines }),

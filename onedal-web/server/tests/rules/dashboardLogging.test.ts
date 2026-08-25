@@ -31,7 +31,13 @@ describe('관제웹 로그 — 주행이 끝나도 남는다', () => {
 
     it('🔴 소켓이 아니라 HTTP 로 보낸다 (끊긴 걸 끊긴 통로로 못 보낸다)', () => {
         const c = code(read('lib/roadmapLogger.ts'));
-        expect(c).toMatch(/fetch\(['"]\/api\/logs['"]/);
+        /**
+         * ⚠️ **상대 경로면 안 된다** (2026-08-25 정정). 관제앱은 `https://localhost` 에서
+         *    자기 번들을 띄우므로 `/api/logs` 가 **자기 자신**에게 간다 — 로그가 서버에
+         *    영영 안 닿는다. 주소는 `serverTarget` 한 곳에서 정한다.
+         */
+        expect(c).toMatch(/fetch\(`\$\{apiBase\(\)\}\/logs`/);
+        expect(c).not.toMatch(/fetch\(['"]\/api/);
         expect(c).not.toMatch(/socket\.emit/);
     });
 

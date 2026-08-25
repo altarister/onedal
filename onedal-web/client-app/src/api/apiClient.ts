@@ -2,7 +2,9 @@ import axios from "axios";
 
 // Vite 프록시를 사용할 경우, 서버가 http://localhost:4000/ 이라면 상대경로 /api를 사용합니다.
 // (또는 VITE_API_URL 환경 변수 사용 가능)
-const baseURL = import.meta.env.VITE_API_URL || "/api";
+// 🎯 주소를 정하는 곳은 `serverTarget` 하나다 — 여기서 또 읽으면 소켓과 갈라진다 (규칙 ③)
+import { apiBase } from "../lib/serverTarget";
+const baseURL = apiBase();
 
 export const apiClient = axios.create({
     baseURL,

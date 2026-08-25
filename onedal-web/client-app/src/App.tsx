@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from "react-router-dom";
+import { ServerSwitch } from './components/ServerSwitch'
 import { useEffect } from "react";
 import Dashboard from "./pages/Dashboard";
 import Settlement from "./pages/Settlement";
@@ -14,6 +15,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-bg-base flex flex-col items-center justify-center text-text-muted">
+          <ServerSwitch />
         <div className="w-8 h-8 border-4 border-info border-t-transparent rounded-full animate-spin mb-4"></div>
         <p>인증 정보를 확인 중입니다...</p>
       </div>
