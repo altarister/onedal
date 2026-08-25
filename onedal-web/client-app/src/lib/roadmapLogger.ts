@@ -124,3 +124,73 @@ if (typeof document !== 'undefined') {
     });
     window.addEventListener('pagehide', () => { void flush(); });
 }
+
+/**
+ * 🎣 **콘솔에 찍히는 것도 같이 올린다** (기사님 2026-08-25).
+ *
+ * 기사님: *"예전에 리액트로 만들 때 콘솔을 찍도록 만들어져 있는데.. 그것들도 로그로
+ * 나가면 좋을 듯싶은데."*
+ *
+ * 관제웹에는 `console.log/warn/error` 가 **47곳**에 있다. 그 대부분이 «무슨 일이
+ * 있었나»를 말하는 줄인데, 지금은 브라우저 콘솔에서만 살다 주행이 끝나면 사라진다.
+ *
+ * ⚠️ **USB 로 logcat 을 보는 것과는 다르다.** logcat 은 폰이 컴퓨터에 묶여 있을 때만
+ *    보이고, 관제웹을 크롬으로 열면(2026-08-23 주행이 그랬다) `Capacitor/Console`
+ *    자체가 없다. 주행 중에는 폰이 차에 있으므로 **서버로 보내는 길만 남는다.**
+ *
+ * 🔴 **되먹임을 막는 장치 셋**
+ *   ① `[ROADMAP` 줄은 건너뛴다 — `logRoadmapEvent` 가 이미 버퍼에 넣었다
+ *   ② 우리 자신의 실패 알림(`🖥️ [로그`)은 건너뛴다 — 실패가 실패를 부른다
+ *   ③ **초당 상한**을 둔다. 실수로 루프에서 찍는 코드가 들어와도 파일을 못 채운다.
+ *      넘친 줄은 세어서 «몇 줄 넘쳤다»로 한 줄 남긴다 (조용히 버리지 않는다)
+ */
+const PER_SEC_CAP = 30;
+let secBucket = 0;
+let secStamp = 0;
+let overflow = 0;
+
+export function installConsoleCapture(): void {
+    if (typeof console === 'undefined' || (console as any).__1dalCaptured) return;
+    (console as any).__1dalCaptured = true;
+
+    const wrap = (level: 'log' | 'warn' | 'error') => {
+        const original = console[level].bind(console);
+        console[level] = (...args: unknown[]) => {
+            original(...args);
+            try {
+                const text = args.map(a =>
+                    typeof a === 'string' ? a
+                        : (() => { try { return JSON.stringify(a); } catch { return String(a); } })()
+                ).join(' ');
+                if (!text) return;
+                if (text.startsWith('[ROADMAP ')) return;   // ① 이미 버퍼에 있다
+                if (text.startsWith('🖥️ [로그')) return;     // ② 실패가 실패를 부른다
+
+                const now = Date.now();
+                if (now - secStamp >= 1000) {               // ③ 초당 상한
+                    if (overflow > 0) {
+                        push(`⚠️ [콘솔 넘침] ${overflow}줄을 못 실었습니다 (초당 ${PER_SEC_CAP}줄까지)`);
+                        overflow = 0;
+                    }
+                    secStamp = now; secBucket = 0;
+                }
+                if (secBucket >= PER_SEC_CAP) { overflow++; return; }
+                secBucket++;
+
+                const tag = level === 'log' ? '' : `[${level.toUpperCase()}] `;
+                push(`${tag}${text}`);
+            } catch { /* 로그가 화면을 죽이지 않는다 */ }
+        };
+    };
+    (['log', 'warn', 'error'] as const).forEach(wrap);
+}
+
+/** 버퍼에 한 줄 — 시각은 여기서 찍는다 */
+function push(msg: string): void {
+    const now = new Date();
+    const ts = now.toTimeString().split(' ')[0] + '.' + String(now.getMilliseconds()).padStart(3, '0');
+    BUFFER.push({ at: ts, msg: `[🖥️콘솔] ${msg}`.slice(0, 500) });
+    while (BUFFER.length > MAX_BUFFER) { BUFFER.shift(); dropped++; }
+    if (BUFFER.length >= FLUSH_LINES) void flush();
+    else schedule();
+}
