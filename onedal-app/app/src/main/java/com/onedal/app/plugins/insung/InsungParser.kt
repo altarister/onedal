@@ -117,6 +117,43 @@ class InsungParser(private val context: Context) : IScrapParser {
             return null
         }
 
+        /**
+         * 🚚 **차종을 «담고 있나»가 아니라 «같은가»로 본다** (기사님 실측 2026-08-26).
+         *
+         * 예전엔 이랬다:
+         * ```
+         * "1t" -> normParsed.contains("1") || normParsed.contains("t") || normParsed.contains("톤")
+         * ```
+         * 허용에 `1t` 가 있으면 **`t` 가 든 차종이 전부 통과**했다 — 5t·2.5t·11t·25t 까지.
+         * 2026-08-26 실측에서 막아야 할 **5t 콜을 잡았고**, 그 한 건이 적재를 채워
+         * 뒤에 온 콜이 전부 «자리 없음»으로 떨어졌다. **첫짐조차 못 잡았다.**
+         *
+         * ⚠️ 규칙 ⑤(*"앱은 느슨하게 올린다"*)와 어긋나지 않는다 — **느슨한 것과 틀린 것은
+         *    다르다.** 못 싣는 차종은 애매한 콜이 아니라 **불가능한 콜**이다.
+         *
+         * 🔴 인성 리스트는 **한 글자**로 준다(`다`·`오`·`라`·`승`). 톤 차량만 숫자로 온다
+         *    (`1t`·`2.5t`). 그래서 한글은 첫 글자로, 톤은 **정확히 일치**로 가른다.
+         */
+        fun vehicleMatches(allowed: String, parsed: String): Boolean {
+            val a = normalizeVehicle(allowed)
+            val p = normalizeVehicle(parsed)
+            return when (a) {
+                "다마스" -> p == "다" || p == "다마스"
+                "라보" -> p == "라" || p == "라보"
+                "승용차" -> p == "승" || p == "승용차"
+                "오토바이" -> p == "오" || p == "바" || p == "오토바이" || p == "바이"
+                // 톤 차량 — 숫자가 다르면 다른 차다. 담고 있는지로 보지 않는다
+                else -> a == p
+            }
+        }
+
+        /** `1톤`·`1 t`·`1` 을 전부 `1t` 로 맞춘다 — 화면 표기가 제각각이라 */
+        private fun normalizeVehicle(s: String): String {
+            val v = s.lowercase(Locale.getDefault()).replace(" ", "").replace("톤", "t")
+            // 숫자만 온 경우(`1`·`2.5`)는 톤을 붙여 준다
+            return if (Regex("""^\d+(\.\d+)?$""").matches(v)) "${v}t" else v
+        }
+
         fun decide(order: SimplifiedOfficeOrder, filter: FilterConfig, tally: FilterTally? = null): Boolean {
 
             // ── 조건 0: 전체 필터 활성화 여부 (스캔 정지 상태면 무조건 클릭 안함) ──
@@ -131,15 +168,7 @@ class InsungParser(private val context: Context) : IScrapParser {
                 true
             } else {
                 order.vehicleType != null && filter.allowedVehicleTypes.any { allowed ->
-                    val normAllowed = allowed.lowercase(Locale.getDefault())
-                    val normParsed = order.vehicleType.lowercase(Locale.getDefault())
-                    when (normAllowed) {
-                        "1t" -> normParsed.contains("1") || normParsed.contains("t") || normParsed.contains("톤")
-                        "다마스" -> normParsed.contains("다")
-                        "라보" -> normParsed.contains("라")
-                        "오토바이" -> normParsed.contains("오") || normParsed.contains("바")
-                        else -> normParsed.contains(normAllowed) || normAllowed.contains(normParsed)
-                    }
+                    vehicleMatches(allowed, order.vehicleType)
                 }
             }
 
