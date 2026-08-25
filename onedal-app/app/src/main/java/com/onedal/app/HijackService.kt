@@ -405,8 +405,31 @@ class HijackService : AccessibilityService() {
          */
         val tally = FilterTally()
 
+        /**
+         * 👁️ **빈 카드를 센다** — 필드 테스트 1회차 ① 의 계측 (2026-08-25 신설).
+         *
+         * 2026-08-23 실주행: `💸 요금 못 읽음` 12,467회인데 **뒤가 공백**이었다.
+         * 요금이 이상한 게 아니라 **같은 줄 글자가 하나도 안 묶였다** — 스캔당 약 30개.
+         * 그때 빌드에는 진단 로그가 아예 없어(`👁️` 0줄) 원인을 못 봤다.
+         *
+         * 🔴 겹침은 «열린 구간»이라 높이 0인 사각형은 **닻 자신과도 안 겹친다**
+         *    (`RowGroupingTest` 로 재현). 스크롤 밖 노드의 bounds 가 `(0,0,0,0)` 으로
+         *    온다면 정확히 이 모양이다 — **그게 맞는지 좌표로 확인하려고 남긴다.**
+         */
+        var emptyCard = 0
+        var emptyRectAnchor = 0
+        val emptySamples = mutableListOf<String>()
+
         // 각 요금 노드 기준으로 텍스트 세트를 묶어 파싱
         for ((fareNode, cardTexts) in groupedNodes) {
+            if (cardTexts.isEmpty()) {
+                emptyCard++
+                val r = fareNode.rect
+                if (InsungParser.isEmptyRect(r.top, r.bottom)) emptyRectAnchor++
+                if (emptySamples.size < 3) {
+                    emptySamples += "\"${fareNode.text}\"@(${r.left},${r.top},${r.right},${r.bottom})"
+                }
+            }
             val order = scrapParser.parse(cardTexts)
 
             if (order.fare == 0) {
@@ -421,7 +444,16 @@ class HijackService : AccessibilityService() {
                  * 그래서 **텍스트 순서 자체가 진단**이다 — 앞부분만 봐도 어디서 어긋났는지 보인다.
                  * 카드마다 매번 찍히지 않게 **못 읽은 것만** 남긴다.
                  */
-                AppLogger.w(TAG, "💸 [요금 못 읽음] ${cardTexts.joinToString(" | ").take(140)}")
+                /**
+                 * 🔴 **빈 카드는 여기서 안 찍는다** (2026-08-25). 2026-08-23 실주행에서
+                 *    이 줄이 **12,467회** 나왔고 뒤가 전부 공백이었다 — 그 소음이 다른
+                 *    로그를 통째로 묻었다. 빈 카드는 스캔 요약(`👁️ [리스트 스캔]`)이
+                 *    좌표와 함께 한 줄로 말한다. 여기는 **글자는 있는데 요금만 못 읽은**
+                 *    진짜 파싱 실패만 남긴다.
+                 */
+                if (cardTexts.isNotEmpty()) {
+                    AppLogger.w(TAG, "💸 [요금 못 읽음] ${cardTexts.joinToString(" | ").take(140)}")
+                }
                 continue
             }
 
@@ -507,9 +539,17 @@ class HijackService : AccessibilityService() {
          *   그룹 있음 + 요금실패 → 카드는 잡았는데 **요금을 못 읽는다**
          */
         val picked = groupedNodes.size - fareFail
-        if (picked == 0) {
-            AppLogger.w(TAG, "👁️ [리스트 빈 이유] 텍스트노드 ${allNodes.size} · 콜그룹 ${groupedNodes.size} · " +
-                "요금실패 $fareFail — ${lastScanReason(allNodes.size, groupedNodes.size, fareFail)}")
+        /**
+         * 🔴 **`picked == 0` 일 때만 찍으면 안 된다** (2026-08-25).
+         *    2026-08-23 패턴은 «그룹 30 · 통과 1» 이라 `picked = 1` 이었다 —
+         *    빈 카드가 29개인데도 **한 줄도 안 남았을 것**이다.
+         *    빈 카드가 하나라도 있으면 남긴다.
+         */
+        if (picked == 0 || emptyCard > 0) {
+            val rect = if (emptyCard > 0) " · 빈카드 $emptyCard(닻 rect 0: $emptyRectAnchor)" else ""
+            val sample = if (emptySamples.isNotEmpty()) " ⤷ ${emptySamples.joinToString(" · ")}" else ""
+            AppLogger.w(TAG, "👁️ [리스트 스캔] 텍스트노드 ${allNodes.size} · 콜그룹 ${groupedNodes.size} · " +
+                "통과 $picked · 요금실패 $fareFail$rect — ${lastScanReason(allNodes.size, groupedNodes.size, fareFail)}$sample")
         }
         telemetryManager.screenNodeCount = allNodes.size
         /**

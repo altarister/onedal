@@ -53,6 +53,29 @@ class InsungParser(private val context: Context) : IScrapParser {
         private val VEHICLE_WITH_FARE = Regex("($VEHICLE_TOKENS)\\s*(\\d+(?:\\.\\d+)?)")
 
         /**
+         * 📏 **같은 줄인가** — 카드를 묶는 유일한 판정 (2026-08-25 계측용으로 떼어냈다).
+         *
+         * 인성 리스트는 한 줄이 콜 하나다. 차종 글자를 닻으로 잡고 **세로로 겹치는**
+         * 글자들을 같은 카드로 본다.
+         *
+         * 🔴 **2026-08-23 실주행에서 `💸 [요금 못 읽음]` 이 12,467회 났고 뒤가 공백이었다.**
+         *    카드가 묶이긴 했는데 **같은 줄 글자가 0개**였다는 뜻이다 (스캔당 약 30개,
+         *    같은 시간에 제대로 묶인 것은 18개뿐).
+         *
+         * ⚠️ 겹침은 **열린 구간**으로 잰다. 그래서 높이가 0인 사각형(`top == bottom`)은
+         *    자기 자신과도 안 겹친다 — 스크롤 밖 노드처럼 bounds 가 `(0,0,0,0)` 으로
+         *    오면 **그 카드는 통째로 비게 된다.** 이게 지금 유력한 가설이고,
+         *    확정하려면 실주행에서 좌표를 봐야 한다 (그래서 아래 계측을 넣었다).
+         *
+         * 🔴 **여기서 고치지 않는다.** 원인을 못박기 전에 조건을 바꾸면 그게 레거시가 된다.
+         */
+        fun sameRow(aTop: Int, aBottom: Int, bTop: Int, bBottom: Int): Boolean =
+            aTop < bBottom && aBottom > bTop
+
+        /** 사각형이 자리를 안 차지한다 — 스크롤 밖 노드의 표식일 수 있다 (계측용) */
+        fun isEmptyRect(top: Int, bottom: Int): Boolean = top >= bottom
+
+        /**
          * 🏠 **주소처럼 생겼는가** (2026-08-25 신설).
          *
          * 기사님이 손으로 연 상세에서 상차지가 **«다마스»**, 하차지가 **«계산서필»** 로
@@ -572,10 +595,10 @@ class InsungParser(private val context: Context) : IScrapParser {
         // 🔴 여기가 **승(승용차)을 빼먹고 있던 세 번째 목록**이었다 (2026-08-25).
         //    카드를 묶는 자리라, 빠지면 그 콜은 로그 한 줄 없이 사라진다.
         val fareNodes = allNodes.filter { it.text.matches(VEHICLE_ONLY) }
-        
+
         return fareNodes.map { fareNode ->
             val rowNodes = allNodes.filter {
-                it.rect.top < fareNode.rect.bottom && it.rect.bottom > fareNode.rect.top
+                sameRow(it.rect.top, it.rect.bottom, fareNode.rect.top, fareNode.rect.bottom)
             }
             Pair(fareNode, rowNodes.map { it.text })
         }
