@@ -22,7 +22,17 @@ export function ServerSwitch() {
     const [open, setOpen] = useState(false);
 
     useEffect(() => {
-        const onVolume = () => setOpen(v => !v);
+        /**
+         * 🔴 **토글이 아니라 «항상 연다»** (기사님 실측 2026-08-25).
+         *
+         * 처음엔 `setOpen(v => !v)` 였다. 기사님이 여러 번 누르시자 **누를 때마다
+         * 열렸다 닫혔다** 했고, 짝수 번이면 닫힌 채로 끝나 *"아무 반응이 없다"* 가 됐다.
+         * 계측 로그가 그대로 말해 줬다 — 볼륨 업 48개(=24번) 도착, 브리지도 정상.
+         *
+         * 닫는 길은 **닫기 버튼과 바깥 누르기** 둘로 충분하다. 여는 버튼이 닫기도 하면
+         * «지금 열려 있나»를 기억해야 하는데, 운전 중에 그걸 기억할 수 없다.
+         */
+        const onVolume = () => setOpen(true);
         window.addEventListener('onedal:volume-up', onVolume);
         return () => window.removeEventListener('onedal:volume-up', onVolume);
     }, []);

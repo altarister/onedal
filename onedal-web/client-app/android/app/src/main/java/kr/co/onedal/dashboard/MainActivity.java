@@ -1,5 +1,6 @@
 package kr.co.onedal.dashboard;
 
+import android.util.Log;
 import android.view.KeyEvent;
 import com.getcapacitor.BridgeActivity;
 
@@ -27,11 +28,15 @@ import com.getcapacitor.BridgeActivity;
  */
 public class MainActivity extends BridgeActivity {
 
+    private static final String TAG = "1DAL_DASH";
+
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
         if (event.getKeyCode() == KeyEvent.KEYCODE_VOLUME_UP) {
             // 눌렀다 뗄 때 한 번만 연다 — 반복 이벤트로 깜빡이지 않게
             if (event.getAction() == KeyEvent.ACTION_UP && getBridge() != null) {
+                // 여는 순간만 남긴다 — 전건을 찍으면 로그가 묻힌다 (2026-08-25 계측에서 배웠다)
+                Log.d(TAG, "🔊 서버 고르기 팝업 열기");
                 getBridge().eval(
                     "window.dispatchEvent(new CustomEvent('onedal:volume-up'))",
                     null

@@ -15,7 +15,6 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-bg-base flex flex-col items-center justify-center text-text-muted">
-          <ServerSwitch />
         <div className="w-8 h-8 border-4 border-info border-t-transparent rounded-full animate-spin mb-4"></div>
         <p>인증 정보를 확인 중입니다...</p>
       </div>
@@ -76,6 +75,10 @@ function AppLayout() {
 export default function App() {
   return (
     <BrowserRouter>
+      {/* 🔊 볼륨 업 → 서버 고르기. **최상위에 둔다** — 어느 화면이든 열려야 한다.
+          🔴 2026-08-25: 자동 삽입이 AuthGuard 의 «로딩 중» 분기에 붙어,
+             로그인이 끝나면 컴포넌트 자체가 사라져 아무 반응이 없었다. */}
+      <ServerSwitch />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route 
