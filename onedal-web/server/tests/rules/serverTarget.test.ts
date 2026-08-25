@@ -1,4 +1,4 @@
-import { readFileSync } from 'fs';
+import { readFileSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
 
 /**
@@ -72,5 +72,42 @@ describe('서버 주소 — 한 곳에서 정한다', () => {
 
     it('팝업이 화면에 붙어 있다', () => {
         expect(code(read('src/App.tsx'))).toMatch(/<ServerSwitch\s*\/>/);
+    });
+});
+
+/**
+ * 🔴 **한 화면이 두 서버를 보고 있었다** (기사님 실측 2026-08-26)
+ *
+ * 위 검사들은 `apiClient`·`socket`·`roadmapLogger` **세 파일만** 확인했다. 그래서
+ * 네 번째가 조용히 남아 있었다 — `useOrderEngine` 이 `fetch("/api/orders")` 로
+ * **주소를 손으로 적고** 있었다.
+ *
+ * 브라우저에서 서버를 안 바꾸면 상대 경로가 곧 정답이라 **아무 증상이 없다.**
+ * 어제 볼륨 업 스위치가 생기고 나서야 드러났다:
+ *
+ *     로그인·소켓·기기목록  → apiBase() = 라이브   (기기 이름 `v2`, filter-init 라이브)
+ *     이력(orders) 한 줄만  → 상대경로  = 로컬     → 라이브 토큰이라 401
+ *
+ * 화면 하나가 두 서버에 걸쳐 있었고, **로컬 서버 로그에는 그 한 줄만 찍혔다.**
+ * 그래서 *"관제탑이 접속을 안 했다"* 와 *"관제웹은 잘 붙어 있다"* 가 동시에 참이었다.
+ *
+ * 🔴 **관제앱(APK)에서는 더 나쁘다.** 거기서 상대 경로는 `https://localhost` —
+ * 자기 번들이다. 이력이 **영영 안 온다**(취소·완료 탭이 조용히 빈다).
+ *
+ * → 세 파일을 지목하는 대신 **전부 훑는다.** 지목하는 검사는 네 번째를 못 잡는다.
+ */
+describe('관제웹 전체 — 서버 주소를 손으로 적은 곳이 없다', () => {
+    const walk = (dir: string): string[] => readdirSync(dir).flatMap(f => {
+        const p = join(dir, f);
+        return statSync(p).isDirectory() ? walk(p) : /\.(ts|tsx)$/.test(f) ? [p] : [];
+    });
+
+    it('🔴 `/api` 로 시작하는 주소를 직접 쓰지 않는다 — apiBase() 를 거친다', () => {
+        const offenders = walk(join(CLIENT, 'src'))
+            // 주소를 «정하는» 곳은 여기 하나다 — 유일하게 리터럴을 가질 자격이 있다
+            .filter(f => !f.endsWith('serverTarget.ts'))
+            .filter(f => /(^|[^.\w])['"`]\/api(\/|['"`])/.test(code(readFileSync(f, 'utf8'))))
+            .map(f => f.split('/client-app/')[1]);
+        expect(offenders).toEqual([]);
     });
 });

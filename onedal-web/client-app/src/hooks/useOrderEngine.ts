@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { socket } from "../lib/socket";
+import { apiBase } from "../lib/serverTarget";   // 🎯 주소를 정하는 곳은 하나다 (규칙 ③)
 import type { SimplifiedOfficeOrder, SecuredOrder, OrderSyncPayload, RouteStopInfo } from "@onedal/shared";
 import { isEvaluating, isTerminal } from "@onedal/shared";
 import { logRoadmapEvent, logStateChange } from "../lib/roadmapLogger";
@@ -96,9 +97,19 @@ export function useOrderEngine() {
      * 취소 횟수는 배차망 패널티(10회)와 직결되므로 한 건도 새면 안 된다 (용어집 §2-1).
      * → 콜이 끝나는 순간(`order-canceled`·`order-confirmed`) 이력을 다시 읽는다.
      */
+    /**
+     * 🔴 **주소를 손으로 적지 않는다** (기사님 실측 2026-08-26).
+     *
+     * 예전엔 `fetch("/api/orders")` 였다. 브라우저에서 서버를 안 바꾸면 상대 경로가
+     * 곧 정답이라 **아무 증상이 없었다.** 볼륨 업 스위치가 생기고 나서 드러났다 —
+     * 로그인·소켓·기기목록은 `apiBase()` 를 따라 **라이브**로 갔는데 이 한 줄만
+     * **로컬**로 갔다. 한 화면이 두 서버에 걸쳐 라이브 토큰으로 로컬에 물어봤고,
+     * 401 이 났다. 관제앱에서는 더 나쁘다 — 상대 경로가 `https://localhost`(자기
+     * 번들)라 **이력이 영영 안 온다.**
+     */
     const reloadHistory = useCallback(() => {
         const token = localStorage.getItem('access_token');
-        fetch("/api/orders", {
+        fetch(`${apiBase()}/orders`, {
             headers: token ? { 'Authorization': `Bearer ${token}` } : {}
         }).then((res) => res.json()).then((data) => setOrders(data.orders || [])).catch(() => { });
     }, []);
