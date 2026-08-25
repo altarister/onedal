@@ -12,7 +12,15 @@ interface PendingPin {
 
 const pendingPins = new Map<string, PendingPin>();
 
-// 만료된 PIN을 주기적으로 정리 (메모리 누수 방지)
+/**
+ * 만료된 PIN을 주기적으로 정리 (메모리 누수 방지)
+ *
+ * 🔴 `.unref()` — **이 타이머가 서버를 붙잡지 않게 한다** (2026-08-26).
+ * Node 는 살아 있는 타이머가 하나만 있어도 안 죽는다. 기사님이 Ctrl+C 를 누르셨을 때
+ * `tsx` 가 *"Previous process hasn't exited yet. Force killing..."* 를 뱉은 이유 중
+ * 하나가 이것이다. unref 한 타이머는 **할 일이 남았을 때만** 붙잡는다 —
+ * 서버가 도는 동안에는 평소대로 1분마다 돌고, 끝낼 때만 조용히 비켜선다.
+ */
 setInterval(() => {
     const now = Date.now();
     for (const [pin, entry] of pendingPins) {
@@ -20,7 +28,7 @@ setInterval(() => {
             pendingPins.delete(pin);
         }
     }
-}, 60_000); // 1분마다 정리
+}, 60_000).unref(); // 1분마다 정리
 
 /**
  * 새로운 6자리 PIN을 생성하고 userId와 매핑하여 메모리에 보관합니다.

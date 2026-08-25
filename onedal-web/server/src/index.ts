@@ -13,6 +13,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
 import fs from "fs";
+import db from "./db";   // 🛑 종료 절차에서 닫는다 (아래 shutdown)
 
 import ordersRouter from "./routes/orders";
 import detailRouter from "./routes/detail";
@@ -160,3 +161,59 @@ httpServer.listen(PORT as number, "0.0.0.0", () => {
     console.log(`📡 서버 포트: ${PORT}`);
     console.log(`🌐 대시보드는 http://localhost:3000 에서 확인하세요\n`);
 });
+
+/**
+ * 🛑 **끝내는 절차** (기사님 실측 2026-08-26)
+ *
+ * 기사님이 Ctrl+C 를 누르시자 `tsx` 가 이렇게 뱉었다:
+ *
+ *     [tsx] Previous process hasn't exited yet. Force killing...
+ *
+ * 정중히 나가라(SIGTERM)고 했는데 안 나가서 **강제로 죽인 것**이다. 서버에 종료 절차가
+ * 하나도 없었다. Node 는 **열린 손잡이가 하나라도 있으면 안 죽는다** — 듣고 있는 HTTP
+ * 소켓, 붙어 있는 Socket.IO 연결, 1초 인터벌 두 개를 그대로 쥔 채 신호를 받았다.
+ *
+ * ── 왜 이게 중요한가 ──
+ * 버그 대장 #40 은 **기사님이 껐다고 믿은 서버가 4시간 40분 더 돌며** 지워진 콜을
+ * 화면에 보낸 사고다. 그때는 Ctrl+C 가 **닿지 않았고**(`a & b & c`), 이번엔 **닿았는데
+ * 안 나갔다.** 뿌리는 같다 — 서버가 스스로 끝낼 줄을 몰랐다.
+ *
+ * ── 순서에 이유가 있다 ──
+ *   ① `io.close()`      — 관제탑을 먼저 내보낸다. 소켓이 붙어 있으면 HTTP 가 안 닫힌다
+ *   ② `closeAllConnections()` — keep-alive 는 «놀고 있어도» 살아 있다. 이걸 안 하면
+ *                          `close()` 콜백이 영영 안 온다 (여기서 제일 오래 매달렸다)
+ *   ③ `httpServer.close()`    — 듣기를 멈추고, 다 빠지면 콜백이 온다
+ *   ④ `db.close()`      — 강제 종료(SIGKILL)로 끝나면 **닫을 기회가 없다.**
+ *                          지금은 WAL 이라 견디지만 기본값으로 둘 일은 아니다
+ *
+ * 🔴 **그래도 안 나가면 우리가 먼저 끝낸다.** 3초 뒤 `process.exit` —
+ *    종료 코드를 tsx 의 SIGKILL 이 아니라 **우리가 정한다.**
+ * 🔴 두 번 눌러도 한 번만 돈다. 정리 도중에 또 들어오면 절차가 겹친다.
+ * ⚠️ 타이머 자신도 `unref()` — 이 타이머 때문에 3초를 기다리면 본말전도다.
+ */
+let shuttingDown = false;
+function shutdown(signal: string) {
+    if (shuttingDown) return;           // 두 번 눌러도 절차는 한 번뿐
+    shuttingDown = true;
+    console.log(`\n🛑 [종료] ${signal} 수신 — 관제탑을 내보내고 서버를 닫습니다`);
+
+    // 못 나가는 연결이 하나라도 있으면 여기서 끝낸다 (tsx 가 강제로 죽이기 전에)
+    const giveUp = setTimeout(() => {
+        console.log(`🛑 [종료] 3초가 지나 스스로 끊습니다 (안 놓아준 연결이 있습니다)`);
+        process.exit(0);
+    }, 3000);
+    giveUp.unref();
+
+    io.close(() => {
+        httpServer.closeAllConnections?.();      // keep-alive 가 붙잡는다
+        httpServer.close(() => {
+            try { db.close(); } catch { /* 이미 닫혔으면 그만이다 */ }
+            console.log(`🛑 [종료] 정리 완료 — 안녕히 가세요`);
+            clearTimeout(giveUp);
+            process.exit(0);
+        });
+    });
+}
+
+process.on("SIGINT", () => shutdown("SIGINT"));      // Ctrl+C
+process.on("SIGTERM", () => shutdown("SIGTERM"));    // tsx watch 의 재시작 · 배포

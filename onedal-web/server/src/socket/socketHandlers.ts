@@ -704,5 +704,11 @@ export function registerSocketHandlers(io: Server) {
             console.log(`📤 [Socket 푸시] sync-active-orders (복구)`);
             io.to(uid).emit("sync-active-orders", sync);
         }
-    }, 1000);
+        /**
+         * 🔴 `.unref()` — **이 1초 타이머가 서버를 붙잡지 않게 한다** (2026-08-26).
+         * Node 는 살아 있는 타이머가 하나만 있어도 안 죽는다. Ctrl+C 에
+         * *"Previous process hasn't exited yet. Force killing..."* 가 뜬 이유 중 하나다.
+         * 서버가 도는 동안에는 평소대로 매초 돈다 — 끝낼 때만 비켜선다.
+         */
+    }, 1000).unref();
 }
