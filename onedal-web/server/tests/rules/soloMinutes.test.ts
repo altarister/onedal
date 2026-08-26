@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { soloMinutesOf, derivationInputsOf, DEFAULT_JUDGMENT } from '@onedal/shared';
+import { soloMinutesOf, derivationInputsOf, DEFAULT_JUDGMENT, deriveRouteTimeline } from '@onedal/shared';
 
 /**
  * 🚚 **단독 배송 주행 — 합짐 콜도 가져야 한다** (기사님 실측 2026-08-26)
@@ -123,5 +123,58 @@ describe('읽는 자리를 한 곳으로 모았다', () => {
         for (const f of ['../shared/src/timing.ts', '../shared/src/index.ts']) {
             expect(read(f)).not.toMatch(/osrmSolo/);
         }
+    });
+});
+
+/**
+ * 🚚 **상차지에 도착해도 «상차 완료 예정»을 잃지 않는다** (기사님 실측 2026-08-26)
+ *
+ * 같은 판에서 07(상차 전)은 버퍼 축이 있고 28(상차 후)은 통째로 빠졌다:
+ *
+ *     07  🔵 90점 — 우회(100) · **버퍼 소비 최소 +184분(100)** · 적재 여유(70)
+ *     28  🔵 70점 — 우회(100) · 적재 여유(40)        딱지: **버퍼 잴 약속 없음**
+ *
+ * 하차 약속 = `상차 완료 + 단독 주행 × 150%` 인데 앞쪽이 비었다. 실측(`PICKED_UP`)은
+ * 기사님 보고로만 생기고, 예정은 **경로에 상차 정거장이 남아 있을 때만** 채워진다 —
+ * 도착하면 정거장이 빠지므로 둘 다 사라진다.
+ *
+ * 장부에는 도착이 남아 있다: `step_arrive_pickup DONE 09:17:19 (GPS)`.
+ * CLAUDE.md ⑤-5 대로 **도착 + 상차 정차**로 파생한다.
+ */
+describe('상차지 도착 뒤에도 하차 약속이 산다', () => {
+    const rules = derivationInputsOf(DEFAULT_JUDGMENT).rules;
+    const ANCHOR = '2026-08-26T00:17:00.000Z';
+    const NOW = Date.parse(ANCHOR);
+    const order = {
+        id: 'A', capturedAt: '2026-08-26T00:10:00.000Z',
+        kakaoSoloDurationMin: 20, kakaoSoloDistanceKm: 10,
+    } as any;
+    /** 상차는 이미 다녀왔다 — 남은 정거장은 하차뿐 */
+    const stops = [{ orderId: 'A', stopType: 'dropoff' as const, driveMinutes: 10 }];
+
+    const promiseOf = (milestones: any[]) => deriveRouteTimeline(
+        stops as any, [order] as any, () => [], () => milestones,
+        NOW, ANCHOR, rules,
+    )[0]?.promisedUntil ?? null;
+
+    it('🔴 상차 완료 보고가 없어도 «도착 실측»에서 하차 약속이 나온다', () => {
+        const p = promiseOf([{ milestone: 'ARRIVED_PICKUP', occurredAt: '2026-08-26T00:15:00.000Z' }]);
+        expect(p).not.toBeNull();
+    });
+
+    it('도착조차 없으면 약속을 지어내지 않는다 (규칙 ④)', () => {
+        expect(promiseOf([])).toBeNull();
+    });
+
+    it('실측 상차 완료가 있으면 그것이 이긴다 — 도착+정차가 덮지 않는다', () => {
+        const withDone = promiseOf([
+            { milestone: 'ARRIVED_PICKUP', occurredAt: '2026-08-26T00:15:00.000Z' },
+            { milestone: 'PICKED_UP', occurredAt: '2026-08-26T00:16:00.000Z' },
+        ]);
+        const onlyArrived = promiseOf([
+            { milestone: 'ARRIVED_PICKUP', occurredAt: '2026-08-26T00:15:00.000Z' },
+        ]);
+        // 실측 완료(00:16)가 도착+정차(00:15+15분=00:30)보다 이르므로 약속도 이르다
+        expect(Date.parse(withDone!)).toBeLessThan(Date.parse(onlyArrived!));
     });
 });

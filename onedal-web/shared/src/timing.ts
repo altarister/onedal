@@ -1032,7 +1032,29 @@ export function deriveRouteTimeline(
                 const clock = pickupClockMsOf(order, capturedMs2, rules.pickupOffsetMinutes ?? 30);
                 return etaMs != null ? Math.max(etaMs, clock) : clock;
             }
-            const loadedBase = pickedActualMs ?? pickupDoneOf.get(st.orderId) ?? null;
+            /**
+             * 🚚 **상차지에 도착하면 «상차 완료 예정»을 잃고 있었다** (기사님 실측 2026-08-26).
+             *
+             * 하차 약속 = `상차 완료 + 단독 주행 × 150%` 인데 그 앞쪽이 비었다:
+             *   · 실측(`PICKED_UP`) — 기사님이 **보고해야** 생긴다
+             *   · 예정(`pickupDoneOf`) — **경로에 상차 정거장이 남아 있을 때만** 채워진다
+             * 도착하는 순간 정거장이 빠지므로 **둘 다 없어진다.** 그래서 같은 판에서도
+             * 상차 전 후보는 버퍼 축이 있고(07 · +184분), 상차 후 후보는 통째로 빠졌다
+             * (28 · 「버퍼 잴 약속 없음」) — 되돌아가는 콜이 후하게 나온 이유다.
+             *
+             * 🔴 **도착 실측은 갖고 있다** (`ARRIVED_PICKUP` · GPS). CLAUDE.md ⑤-5 가
+             *    답을 이미 적어 뒀다 — *"완료 시각은 도착 + 지금 추정 상차 소요로 파생한다."*
+             *    없는 값을 만드는 게 아니라 **있는 값에서 파생**하는 것이다 (규칙 ③).
+             * ⚠️ 순서: 실측 완료 > 경로상 예정 > **도착 실측 + 정차**. 뒤로 갈수록 약하다.
+             */
+            const arrivedPickupMs = (() => {
+                const m = milestonesOf(st.orderId).find(
+                    x => x.milestone === 'ARRIVED_PICKUP' && (x as any).occurredAt);
+                return m ? Date.parse((m as any).occurredAt) : null;
+            })();
+            const loadedBase = pickedActualMs
+                ?? pickupDoneOf.get(st.orderId)
+                ?? (arrivedPickupMs != null ? arrivedPickupMs + t.pickupDwell * 60_000 : null);
             if (loadedBase == null || t.soloMinutes == null) return null;
             const deadline = loadedBase + t.soloMinutes * (rules.deadlineRatioPct ?? 150) / 100 * 60_000;
             return etaMs != null ? Math.max(etaMs, deadline) : deadline;
