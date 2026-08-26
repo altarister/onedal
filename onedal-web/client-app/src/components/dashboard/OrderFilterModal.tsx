@@ -398,7 +398,20 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="sm:max-w-lg bg-bg-base border-border shadow-2xl p-4 overflow-hidden flex flex-col gap-3">
+            {/**
+              * 📜 **창이 화면보다 커지면 손이 안 닿는다** (기사님 실측 2026-08-26).
+              *
+              * 기사님: *"일단 필터 옵션창에 스크롤부터 넣어야겠다. 입력할 수가 없어."*
+              *
+              * `overflow-y-auto` 는 아래에 이미 있었는데 **높이 제한이 없어서** 창이
+              * 화면 밖으로 자랐고, 바깥의 `overflow-hidden` 이 그대로 잘라 냈다.
+              * 국면 탭이 다섯이라 세로가 길다 — 라이브에 필터를 넣으려는데 입력칸에
+              * 닿지를 못했다.
+              *
+              * 🔴 `max-h-[90dvh]` — `dvh` 여야 모바일 주소창이 접혔다 펴져도 안 잘린다.
+              *    관제앱은 폰에서 보는 화면이다.
+              */}
+            <DialogContent className="sm:max-w-lg max-h-[90dvh] bg-bg-base border-border shadow-2xl p-4 overflow-hidden flex flex-col gap-3">
                 <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] bg-info/10 blur-[100px] rounded-full pointer-events-none" />
                 <div className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] bg-success/10 blur-[100px] rounded-full pointer-events-none" />
 
@@ -451,7 +464,12 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                     })}
                 </div>
 
-                <div className="space-y-3 overflow-y-auto pr-1 pb-1 custom-scrollbar relative z-10">
+                {/**
+                     * 🔴 `flex-1 min-h-0` — **`min-h-0` 이 없으면 스크롤이 안 걸린다.**
+                     *    flex 자식은 기본이 `min-height:auto` 라 내용보다 작아지지 않는다.
+                     *    그래서 `overflow-y-auto` 가 있어도 넘칠 일이 없어 그냥 자란다.
+                     */}
+                    <div className="flex-1 min-h-0 space-y-3 overflow-y-auto pr-1 pb-1 custom-scrollbar relative z-10">
                     <div>
                         {/* ── 적재 칸 — 내 트럭 5칸 중 얼마나 찼나 (명세 §2-2) ──
                             서버가 내려준 slotsUsed(박스)를 그대로 쓴다. 여기서 다시 세지 않는다 —

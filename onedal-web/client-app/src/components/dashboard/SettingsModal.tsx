@@ -23,7 +23,12 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md bg-surface border-border-card text-text-primary">
+      {/**
+        * 📜 **여기도 스크롤이 없었다** (2026-08-26 · 필터 창과 같은 병).
+        *    판정 기준 탭에 「배송 속도」 세 칸이 늘어 세로가 더 길어졌다.
+        *    `max-h-[90dvh]` 로 창을 화면 안에 가두고, 내용은 아래에서 스크롤한다.
+        */}
+      <DialogContent className="sm:max-w-md max-h-[90dvh] overflow-hidden flex flex-col bg-surface border-border-card text-text-primary">
         <DialogHeader className="mb-2">
           <DialogTitle className="flex justify-between items-center text-xl font-bold">
             사용자 설정
@@ -40,7 +45,9 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabType)} className="w-full">
+        {/* 🔴 `min-h-0` 이 없으면 flex 자식이 안 줄어들어 스크롤이 안 걸린다 */}
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabType)}
+              className="w-full flex-1 min-h-0 flex flex-col">
           {/* 🎯 「판정 기준」은 **콜 필터와 다른 층**이다 (기사님 2026-08-16).
               🔍 필터 팝업 = 콜을 **집기 전** 조건 · 여기 = **집은 뒤** 색을 매기는 기준.
               화면이 갈리는 것 자체가 그 구분을 몸으로 가르쳐 준다.
@@ -52,15 +59,15 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             <TabsTrigger value="devices">기기 설정</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="settings" className="space-y-4 outline-none">
+          <TabsContent value="settings" className="space-y-4 outline-none flex-1 min-h-0 overflow-y-auto pr-1">
             <GeneralSettingsTab onClose={onClose} />
           </TabsContent>
 
-          <TabsContent value="dispatch" className="space-y-4 outline-none max-h-[60vh] overflow-y-auto pr-1">
+          <TabsContent value="dispatch" className="space-y-4 outline-none flex-1 min-h-0 overflow-y-auto pr-1">
             <PricingSettingsTab onClose={onClose} />
           </TabsContent>
 
-          <TabsContent value="judgment" className="space-y-4 outline-none max-h-[60vh] overflow-y-auto pr-1">
+          <TabsContent value="judgment" className="space-y-4 outline-none flex-1 min-h-0 overflow-y-auto pr-1">
             <JudgmentSettingsTab />
           </TabsContent>
 
