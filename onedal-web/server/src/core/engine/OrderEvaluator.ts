@@ -305,16 +305,24 @@ export class OrderEvaluator {
                              * 앞 합짐들의 비용을 뒤집어쓴다 (문제지 16번: +189분, 진짜는 43분).
                              * 직전 총 소요는 경로 홀더가 들고 있다 — "값이 있는 마지막 콜".
                              */
-                            const prevTotal = [...activeCalls].reverse()
-                                .find(c => c.totalDurationMin != null)?.totalDurationMin ?? null;
+                            /**
+                             * 🧮 **같은 시각·같은 기점의 두 경로를 뺀다** (기사님 실측 2026-08-26).
+                             *
+                             * 예전엔 «저장된 직전 총주행»을 뺐다. 그 값은 **KEEP 하던 시각·
+                             * 그때의 기점**에서 잰 것이라, 기사님이 달린 만큼 짧아진 게
+                             * *"우회가 줄었다"* 로 읽혔다 — 되돌아가는 콜에 **우회 −4.6km**.
+                             * 달릴수록 심해지는 치우침이다.
+                             *
+                             * 이제 `composeMergedRoute` 가 base 를 **기존 활성 콜 전부**로
+                             * 잰다(같은 호출·같은 기점). 그래서 카카오가 준 `timeDiffMin` ·
+                             * `distDiffKm` 이 **그대로 정확한 한계 비용**이다.
+                             * 2026-08-21 의 «부풀림»(base=첫짐 단독)도 그 수정으로 사라졌다.
+                             */
                             const marginal = marginalDetourMin(
-                                Math.round(result.merged.duration / 60), prevTotal, result.timeDiffMin);
+                                Math.round(result.merged.duration / 60), null, result.timeDiffMin);
 
                             // 딱지 — 판단 없이 사실만 (절대치 문턱의 강등 자리). 분·km 둘 다 한계 기준
-                            const prevKm = [...activeCalls].reverse()
-                                .find(c => c.totalDistanceKm != null)?.totalDistanceKm ?? null;
-                            const marginalKm = prevKm != null
-                                ? Math.round((result.merged.distance / 1000 - prevKm) * 10) / 10 : distDiff;
+                            const marginalKm = distDiff;
                             const tags = [`우회 ${marginal > 0 ? '+' : ''}${marginal}분 · ${marginalKm > 0 ? '+' : ''}${marginalKm}km`];
                             const candPickup = tlAfter.find(e => e.orderId === securedOrder.id && e.stopType === 'pickup');
                             const clockMs = Date.now() + judgmentCfg.unknown.pickupOffsetMin * 60_000;

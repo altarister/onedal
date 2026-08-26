@@ -319,10 +319,32 @@ export async function calculateDetourRoute(
     mergedWaypoints: Array<{ x: number; y: number }>, // 스마트 정렬된 경유지들
     driverLoc?: { x: number, y: number } | null,
     priority: string = "RECOMMEND",
-    carType: number = 1
+    carType: number = 1,
+    /**
+     * 🧮 **후보를 뺀 «기존 전부» 경로** — base 의 경유지와 종점.
+     *    안 넘기면 예전처럼 «첫짐 단독»으로 잰다 (기존 콜이 하나면 같은 값이다).
+     */
+    basePlan?: { waypoints: Array<{ x: number; y: number }>; dest: { x: number; y: number } } | null,
 ): Promise<DetourResult> {
     const headers = getHeaders();
 
+    /**
+     * 🧮 **base 는 «기존 활성 콜 전부»다** (기사님 실측 2026-08-26).
+     *
+     * 예전엔 `base` 가 **첫짐 콜 하나**였다. 그러면 `timeDiffMin` 이
+     * *"첫짐 단독 대비"* 가 되어 **앞 합짐들의 비용까지 뒤집어쓴다** (부풀림).
+     * 그걸 피하려고 2026-08-21 에 판정이 «저장된 직전 총주행»을 빼도록 바꿨는데,
+     * 저장값은 **KEEP 하던 시각·그때의 기점**에서 잰 것이라 이번엔 **축소**가 생겼다 —
+     * 기사님이 달린 만큼 짧아진 게 *"우회가 줄었다"* 로 읽힌다.
+     *
+     *     실측: 되돌아가는 콜인데 **우회 −9분 · −4.6km**
+     *           (이전 24.9km 는 집 근처에서, 새 20.3km 는 인삼농협 근처에서 잰 값)
+     *
+     * 🔴 카카오는 **이미 두 번** 불린다. `base` 의 기준만 바로잡으면
+     *    `timeDiffMin` 이 **같은 시각·같은 기점의 정확한 한계 비용**이 된다 —
+     *    호출 수는 그대로고 근사도 아니다.
+     * ⚠️ 기존이 한 콜뿐이면 base 는 그 콜의 단독 경로 — **예전과 같은 값**이다.
+     */
     let baseOriginX = mainPickupX;
     let baseOriginY = mainPickupY;
     let baseWaypoints = "";
@@ -330,11 +352,17 @@ export async function calculateDetourRoute(
     if (driverLoc) {
         baseOriginX = driverLoc.x;
         baseOriginY = driverLoc.y;
-        baseWaypoints = `${mainPickupX},${mainPickupY}`; // 현위치에서 기존 상차지로 먼저 이동
+        // 현위치 → (기존 콜들의 남은 정거장) → 기존 최종 하차지
+        baseWaypoints = (basePlan?.waypoints?.length
+            ? basePlan.waypoints : [{ x: mainPickupX, y: mainPickupY }])
+            .filter(w => w?.x != null && w?.y != null)
+            .map(w => `${w.x},${w.y}`).join('|');
     }
 
     // 1. 베이스(첫짐 콜 단독) 연산
-    let baseUrl = `${KAKAO_NAV_URL}?origin=${baseOriginX},${baseOriginY}&destination=${baseDestX},${baseDestY}&priority=${priority}&car_type=${carType}`;
+    const baseFinalX = basePlan?.dest?.x ?? baseDestX;
+    const baseFinalY = basePlan?.dest?.y ?? baseDestY;
+    let baseUrl = `${KAKAO_NAV_URL}?origin=${baseOriginX},${baseOriginY}&destination=${baseFinalX},${baseFinalY}&priority=${priority}&car_type=${carType}`;
     if (baseWaypoints) {
         baseUrl += `&waypoints=${baseWaypoints}`;
     }

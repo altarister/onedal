@@ -241,6 +241,19 @@ export async function composeMergedRoute(params: ComposeMergedRouteParams) {
     const plan = planMergedStops(calls, extra, driverLocation);
     if (!plan) return null;
 
+    /**
+     * 🧮 **후보를 뺀 «기존 전부» 경로를 같은 기점에서 함께 잰다** (기사님 실측 2026-08-26).
+     *
+     * 카카오는 어차피 두 번 불린다(base · merged). 그런데 base 가 «첫짐 하나»라
+     * `timeDiffMin` 이 앞 합짐들의 비용까지 뒤집어썼고, 그걸 피하려 판정이 **저장된**
+     * 직전 총주행을 빼면서 이번엔 **낡은 기점** 문제가 생겼다 — 되돌아가는 콜의
+     * 우회가 **−4.6km** 로 나왔다.
+     *
+     * 여기서 base 를 «기존 활성 콜 전부»로 만들면 둘이 **같은 시각·같은 기점**이 되어
+     * `timeDiffMin` 이 그대로 정확한 한계 비용이 된다. 호출 수는 그대로다.
+     */
+    const basePlan = planMergedStops(calls, null, driverLocation);
+
     const result = await calculateDetourRoute(
         plan.origin.dropoff.x, plan.origin.dropoff.y,
         plan.origin.pickup.x, plan.origin.pickup.y,
@@ -248,7 +261,8 @@ export async function composeMergedRoute(params: ComposeMergedRouteParams) {
         plan.waypoints,
         driverLocation,
         priority,
-        carType
+        carType,
+        basePlan ? { waypoints: basePlan.waypoints, dest: basePlan.mergedDest } : null,
     );
     /**
      * 🧭 구간의 주인 — `planArrivalStops` 는 같은 optimizeWaypoints 를 쓰므로
