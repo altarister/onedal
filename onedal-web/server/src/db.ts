@@ -485,6 +485,37 @@ ensureColumns('orders', { targetApp: 'TEXT',
      */
     deliveryDistance: 'REAL' });
 ensureColumns('intel', { targetApp: 'TEXT' });
+
+/**
+ * 🛰️ **주행 궤적** (기사님 확정 2026-08-26).
+ *
+ * 좌표는 그동안 소켓으로 흘려보내고 **메모리에만 살았다.** 필드테스트 1·2회차 둘 다
+ * 궤적을 못 남겨(«발견 3»), 2회차에서 **상차지 5곳 중 3곳이 GPS 자동 감지 실패**했는데
+ * **몇 미터 차이로 빗나갔는지를 몰랐다.**
+ *
+ * 기사님이 원하는 것은 사후 분석만이 아니다 — *"네비가 가리키는 경로를 놓쳐 지나쳤을 때
+ * 얼마나 우회하게 되는지, 약속에 늦으면 전화해서 고쳐야 하니까."* 그러려면
+ * **부여받은 경로와 실제 궤적을 대조**해야 하고, 그 재료가 이 표다.
+ *
+ * 🔴 비용을 눌러 둔다 (서버 메모리 911MB · 가용 345MB):
+ *    50m 또는 15초 문턱 · 20점씩 일괄 쓰기 · **7일 보관** → 상한 5MB
+ *    (`gpsTrackStore.ts` 에 규칙이 있다. 여기는 그릇만 만든다)
+ */
+db.exec(`
+    CREATE TABLE IF NOT EXISTS gps_tracks (
+        id        INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id   TEXT    NOT NULL,
+        at_ms     INTEGER NOT NULL,
+        x         REAL    NOT NULL,
+        y         REAL    NOT NULL,
+        source    TEXT,
+        speed_kmh REAL,
+        order_id  TEXT
+    )
+`);
+// 정리(부팅 때 7일 넘은 것 삭제)와 조회(주행 구간 뽑기)가 둘 다 시각으로 훑는다
+db.exec(`CREATE INDEX IF NOT EXISTS idx_gps_tracks_at ON gps_tracks(at_ms)`);
+db.exec(`CREATE INDEX IF NOT EXISTS idx_gps_tracks_user_at ON gps_tracks(user_id, at_ms)`);
 // 🔄 stop_cargo_reports 의 dropStaleCheck 도 철거 (테이블 은퇴 — 2026-08-21)
 
 

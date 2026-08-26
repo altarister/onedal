@@ -14,6 +14,7 @@ import dotenv from "dotenv";
 import path from "path";
 import fs from "fs";
 import db from "./db";   // 🛑 종료 절차에서 닫는다 (아래 shutdown)
+import { pruneGpsTracks, flushGpsBuffer, GPS_TRACK } from "./services/gpsTrackStore";
 
 import ordersRouter from "./routes/orders";
 import detailRouter from "./routes/detail";
@@ -154,6 +155,14 @@ const PORT = process.env.PORT || 4000;
 
 httpServer.listen(PORT as number, "0.0.0.0", () => {
     initGeoService();
+    /**
+     * 🛰️ 궤적 보관 정리 — **부팅 때 한 번.** 8일째 부팅하면 1일차가 지워진다.
+     *    서버 로그가 3일치만 두는 것과 같은 규칙이다 (기사님 확정 2026-08-26).
+     */
+    {
+        const n = pruneGpsTracks();
+        if (n > 0) console.log(`🛰️ [궤적 정리] ${GPS_TRACK.KEEP_DAYS}일 지난 좌표 ${n.toLocaleString()}점 삭제`);
+    }
     logServerIdentity();
     // hydrateSessionsFromDB(); // 서버 기동 시 일괄 복구 로직 폐기 완료 (userSessionStore에서 Lazy Load로 대체)
     logRoadmapEvent("서버", "서버 기동 및 디폴트 필터 셋업 (대기 모드)");
@@ -196,6 +205,8 @@ function shutdown(signal: string) {
     if (shuttingDown) return;           // 두 번 눌러도 절차는 한 번뿐
     shuttingDown = true;
     console.log(`\n🛑 [종료] ${signal} 수신 — 관제탑을 내보내고 서버를 닫습니다`);
+    // 🛰️ 아직 디스크로 안 간 궤적을 먼저 쓴다 — 안 그러면 마지막 구간이 통째로 사라진다
+    flushGpsBuffer();
 
     // 못 나가는 연결이 하나라도 있으면 여기서 끝낸다 (tsx 가 강제로 죽이기 전에)
     const giveUp = setTimeout(() => {

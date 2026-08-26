@@ -8,6 +8,7 @@ import type { MyOrder } from '@onedal/shared';
  *    예전에 이 파라미터가 `any` 라, 세션에서 사라진 필드를 읽는 함수가 **몇 달째 null 만
  *    반환하는데도 아무도 몰랐다** (`getActivePolyline`·`getLastDropoffCoord`, 2026-08-14).
  */
+import { shouldStoreGpsPoint, bufferGpsPoint } from './gpsTrackStore';
 import type { UserSession } from '../state/userSessionStore';
 /**
  * 배럴(`@turf/turf`) 대신 **쓰는 것만** 가져온다.
@@ -633,6 +634,30 @@ const GPS_JUMP_MIN_KM = 5;
 const GPS_JUMP_MAX_GAP_S = 30;
 
 /**
+ * 🔴 **속도를 재려면 표본이 커야 한다** (2026-08-26 실측).
+ *
+ * 2회차 주행 로그의 「위치 점프」 **70줄 중 43줄이 `0.0km 를 0.0초에`** 였다.
+ * 1m 움직인 것을 `46395km/h` 로 경고한다 — `속도 = 거리 ÷ 시간` 인데 시간이 0에
+ * 가까우면 거리가 아무리 작아도 속도가 폭발하기 때문이다(`elapsedS` 바닥이 0.001초).
+ *
+ * 그래서 **진짜 점프와 구분이 안 됐다.** 궤적을 그 줄에서 복원하려다 실제로 한 번
+ * 오독했다. 경고가 너무 자주 울리면 경고가 아니다.
+ *
+ * ⚠️ 이건 **로그 문턱**이지 `speedKmh` 를 바꾸는 게 아니다 — 그 값은 도착 감지가
+ *    쓰고 있고, 지금 손대면 감지가 흔들린다 (2회차에 이미 5곳 중 3곳을 놓쳤다).
+ */
+const SPEED_SAMPLE_MIN_KM = 0.05;
+const SPEED_SAMPLE_MIN_S = 1;
+
+/**
+ * 이 틱의 속도를 «믿을 수 있는가» — 순수 계산이라 폰 없이 검사된다.
+ * 표본이 작으면(50m 미만 · 1초 미만) 속도는 의미가 없다.
+ */
+export function isSpeedSampleUsable(movedKm: number, elapsedS: number): boolean {
+    return movedKm >= SPEED_SAMPLE_MIN_KM && elapsedS >= SPEED_SAMPLE_MIN_S;
+}
+
+/**
  * 도착 감지 파라미터 (2026-08-17 재설계 — docs/도착감지_재설계_계획.md §2)
  *
  * · RADIUS_KM 0.5 — 기존값 유지. 주차 위치·GPS 오차 감안 (바꿀 실측 근거가 아직 없다)
@@ -783,7 +808,9 @@ export function processDriverMovement(
         speedKmh = kmh;
 
         const teleported = movedKm >= GPS_JUMP_MIN_KM && elapsedS < GPS_JUMP_MAX_GAP_S;
-        const tooFast = src !== 'mock' && kmh > IMPLAUSIBLE_SPEED_KMH;
+        // 🔴 표본이 작으면 속도가 거짓말한다 — 경고를 울리지 않는다 (위 주석)
+        const tooFast = src !== 'mock' && isSpeedSampleUsable(movedKm, elapsedS)
+            && kmh > IMPLAUSIBLE_SPEED_KMH;
         jumped = teleported || tooFast;
 
         if (teleported || tooFast) {
@@ -795,6 +822,27 @@ export function processDriverMovement(
                 `· ${(movedKm * 1000).toFixed(0)}m 이동 · ${Math.round(kmh)}km/h · 출처 ${src}`);
         }
     }
+    /**
+     * 🛰️ **궤적을 남긴다** (기사님 확정 2026-08-26).
+     *
+     * 여기가 좌표가 들어오는 **유일한 문**이라 저장도 여기서 한다 (규칙 ③).
+     * 문턱(50m·15초)과 일괄 쓰기는 `gpsTrackStore` 가 판단한다 — 이 함수는 부르기만 한다.
+     *
+     * 🔴 **점프 틱도 남긴다.** 그게 찾으려는 바로 그 사건이다 (위 로그 규칙과 같은 뜻).
+     * ⚠️ 저장은 «기록»이지 판정 입력이 아니다 — 실패해도 콜 잡기를 멈추지 않는다.
+     */
+    {
+        const lastPt = session.lastTrackPoint ?? null;
+        const nowPt = { x: currentGPS.x, y: currentGPS.y, atMs: Date.now() };
+        if (shouldStoreGpsPoint(lastPt, nowPt)) {
+            bufferGpsPoint(userId, {
+                ...nowPt, source: src,
+                speedKmh: speedKmh != null && Number.isFinite(speedKmh) ? Math.round(speedKmh) : null,
+            });
+            session.lastTrackPoint = nowPt;
+        }
+    }
+
     session.lastGpsAt = Date.now();
 
     session.driverLocation = currentGPS;

@@ -21,6 +21,12 @@ const SERVICE_DEFAULT_FILTER: Partial<AutoDispatchFilter> = {
 export interface UserSession {
     /** 이 세션의 주인 — 파생 쿼리(취소 카운터 등)가 세션만 받고도 장부를 읽을 수 있게 */
     userId: string;
+    /**
+     * 🛰️ **궤적에 마지막으로 남긴 점** — 솎기 기준 (2026-08-26).
+     *    `driverLocation` 과 다르다: 저것은 «지금 위치»(매 좌표 갱신),
+     *    이것은 «디스크에 남긴 마지막 점»이다. 50m·15초 문턱을 이걸로 잰다.
+     */
+    lastTrackPoint?: { x: number; y: number; atMs: number } | null;
     /** ⛔ 만석 홀드를 이미 알렸는가 — 5초 하트비트마다 같은 로그가 쌓이지 않게 (상태 전환 시에만 찍는다) */
     capacityHoldNotified?: boolean;
     myOrders: MyOrder[];                    // [계층 2-B] 확정된 내 퀵 배열 (단일 배열, 상태 필터링으로 관리)
@@ -203,6 +209,7 @@ const sessions = new Map<string, UserSession>();
 function createDefaultSession(userId: string): UserSession {
     return {
         userId,
+        lastTrackPoint: null,
         myOrders: [],
         pendingDecisions: new Map<string, { action: "KEEP" | "CANCEL" | null; evaluatedAt: number }>(),
         activeTimers: new Map<string, NodeJS.Timeout>(),
