@@ -694,23 +694,48 @@ export function pickupClockMsOf(
  * 🔴 **실측이 있으면 추정이 덮지 않는다.** 통화 신고 > 카카오 실측 > 거리 환산 순.
  * 🔴 **배송거리조차 없으면 `null` 을 낸다** — 지어내지 않는다 (규칙 ④).
  * ⚠️ `estimated: true` 는 **화면이 «추정»이라고 말해야 한다는 뜻**이다 (규칙 ⑤-2).
+ *
+ * 🔴 **거리와 시간을 «짝»으로 낸다** (2026-08-26 자기 리뷰에서 잡음).
+ *    예전 코드가 정확히 이걸 경고하고 있었다 —
+ *    *"거리와 시간을 같은 출처에서 가져와야 한쪽만 되어 속도가 이상해지지 않는다."*
+ *    처음 고칠 때 `soloKm` 은 `kakaoSoloDistanceKm`, `soloMinutes` 는
+ *    `kakaoSoloDurationMin` 으로 **열쇠를 갈라 뒀다.** 한쪽만 있으면 카카오 거리에
+ *    추정 시간이 붙어 **속도가 거짓말한다.** 그래서 한 함수가 둘 다 낸다.
+ *    `approachKm = 전체 − solo` 도 이 짝에 기대므로 섞이면 접근 거리까지 틀린다.
  */
 export function soloMinutesOf(
-    order: { kakaoSoloDurationMin?: number | null; deliveryDistance?: number | null },
+    order: {
+        kakaoSoloDurationMin?: number | null;
+        kakaoSoloDistanceKm?: number | null;
+        deliveryDistance?: number | null;
+    },
     rules: { speedShortKmh?: number; speedMidKmh?: number; speedLongKmh?: number }
         = DEFAULT_DEADLINE_RULES,
-): { minutes: number | null; estimated: boolean } {
-    const measured = order.kakaoSoloDurationMin;
-    if (measured != null && Number.isFinite(Number(measured)) && Number(measured) > 0) {
-        return { minutes: Number(measured), estimated: false };
-    }
-    const km = Number(order.deliveryDistance);
-    if (!Number.isFinite(km) || km <= 0) return { minutes: null, estimated: false };
+): { minutes: number | null; km: number | null; estimated: boolean } {
+    const pos = (v: unknown) => {
+        const n = Number(v);
+        return v != null && Number.isFinite(n) && n > 0 ? n : null;
+    };
+    /**
+     * ① **실측 시간이 있으면 그것이 이긴다.** 거리는 **같은 출처에서만** 가져온다 —
+     *    카카오 거리가 없으면 `null` 로 두고, 화면 거리를 빌려 짝을 맞추지 않는다.
+     *    빌려 오면 «카카오 시간 ÷ 화면 거리» 라는 있지도 않은 속도가 만들어진다.
+     */
+    const mMin = pos(order.kakaoSoloDurationMin);
+    const mKm = pos(order.kakaoSoloDistanceKm);
+    if (mMin != null) return { minutes: mMin, km: mKm, estimated: false };
 
-    const kmh = km < 10 ? (rules.speedShortKmh ?? 25)
-        : km < 25 ? (rules.speedMidKmh ?? 46)
-            : (rules.speedLongKmh ?? 56);
-    return { minutes: Math.max(1, Math.round((km / kmh) * 60)), estimated: true };
+    // ② 화면 배송거리 → 구간 속도로 환산. 거리·시간이 같은 출처가 된다
+    const km = pos(order.deliveryDistance);
+    if (km != null) {
+        const kmh = km < 10 ? (rules.speedShortKmh ?? 25)
+            : km < 25 ? (rules.speedMidKmh ?? 46)
+                : (rules.speedLongKmh ?? 56);
+        return { minutes: Math.max(1, Math.round((km / kmh) * 60)), km, estimated: true };
+    }
+
+    // ③ 거리만 남았으면 거리만 낸다 — 시간을 지어내지 않는다 (규칙 ④)
+    return { minutes: null, km: mKm, estimated: false };
 }
 
 export function deriveCallTiming(
@@ -723,9 +748,10 @@ export function deriveCallTiming(
     unk?: DwellUnknown,
 ): CallTiming {
     const num = (v: unknown) => (v == null ? null : Number(v));
-    const soloKm = num(order.kakaoSoloDistanceKm) ?? num(order.deliveryDistance);
-    // 🚚 단독 배송 주행은 **여기 하나에서** 온다 (규칙 ③ — soloMinutesOf 참조)
-    const soloMinutes = soloMinutesOf(order, rules).minutes;
+    // 🚚 단독 구간은 **거리·시간을 한 짝으로** 여기 하나에서 온다 (규칙 ③ — soloMinutesOf)
+    const solo = soloMinutesOf(order, rules);
+    const soloKm = solo.km;
+    const soloMinutes = solo.minutes;
     const totalKm = num(order.totalDistanceKm);
     const approachKm = totalKm != null && soloKm != null ? Math.max(0, totalKm - soloKm) : null;
     const approachMinutes = num(order.approachDurationMin);

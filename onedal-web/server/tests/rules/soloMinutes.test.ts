@@ -43,9 +43,40 @@ describe('soloMinutesOf — 실측이 없으면 배송거리로 추정한다', (
     const cfg = derivationInputsOf(DEFAULT_JUDGMENT).rules;
     const order = (over: object) => ({ id: 'x', ...over }) as any;
 
-    it('실측(kakaoSoloDurationMin)이 있으면 그대로 쓴다 — 추정이 실측을 덮지 않는다', () => {
-        const r = soloMinutesOf(order({ kakaoSoloDurationMin: 21, deliveryDistance: 18.7 }), cfg);
-        expect(r).toEqual({ minutes: 21, estimated: false });
+    it('실측이 있으면 그대로 쓴다 — 추정이 실측을 덮지 않는다', () => {
+        const r = soloMinutesOf(order({
+            kakaoSoloDurationMin: 21, kakaoSoloDistanceKm: 18.7, deliveryDistance: 30,
+        }), cfg);
+        expect(r).toEqual({ minutes: 21, km: 18.7, estimated: false });
+    });
+
+    /**
+     * 🔴 **거리와 시간은 한 짝이어야 한다** (2026-08-26 자기 리뷰).
+     *
+     * 옛 코드가 정확히 이걸 경고하고 있었다 — *"거리와 시간을 같은 출처에서 가져와야
+     * 한쪽만 되어 속도가 이상해지지 않는다."* 처음 고칠 때 거리는
+     * `kakaoSoloDistanceKm`, 시간은 `kakaoSoloDurationMin` 으로 **열쇠를 갈라** 뒀다.
+     * 한쪽만 있으면 카카오 거리에 추정 시간이 붙어 **속도가 거짓말한다.**
+     */
+    it('🔴 카카오 실측이 반쪽뿐이면 다른 출처로 짝을 맞추지 않는다', () => {
+        // 시간만 있고 거리가 없다 → 화면 거리로 «시간까지» 갈아끼우지 않는다
+        const half = soloMinutesOf(order({ kakaoSoloDurationMin: 21, deliveryDistance: 30 }), cfg);
+        expect(half.estimated).toBe(false);
+        expect(half.minutes).toBe(21);
+        expect(half.km).toBeNull();                 // 카카오 거리가 없으면 없는 대로 둔다
+
+        // 거리만 있고 시간이 없다
+        const half2 = soloMinutesOf(order({ kakaoSoloDistanceKm: 18.7 }), cfg);
+        expect(half2.minutes).toBeNull();
+        expect(half2.km).toBe(18.7);
+    });
+
+    it('🔴 추정으로 갈 때는 거리·시간이 같은 출처(화면 배송거리)에서 나온다', () => {
+        const r = soloMinutesOf(order({ deliveryDistance: 20 }), cfg);
+        expect(r.km).toBe(20);
+        expect(r.estimated).toBe(true);
+        // 20km ÷ 46km/h ≈ 26분 — 낸 거리와 낸 시간의 속도가 설정값과 맞는다
+        expect(20 / (r.minutes! / 60)).toBeCloseTo(46, 0);
     });
 
     it('🔴 실측이 없으면 배송거리 ÷ 구간 속도로 채운다 (합짐 콜의 구멍)', () => {
@@ -66,8 +97,8 @@ describe('soloMinutesOf — 실측이 없으면 배송거리로 추정한다', (
     });
 
     it('배송거리조차 없으면 지어내지 않는다 (규칙 ④)', () => {
-        expect(soloMinutesOf(order({}), cfg)).toEqual({ minutes: null, estimated: false });
-        expect(soloMinutesOf(order({ deliveryDistance: 0 }), cfg)).toEqual({ minutes: null, estimated: false });
+        expect(soloMinutesOf(order({}), cfg)).toEqual({ minutes: null, km: null, estimated: false });
+        expect(soloMinutesOf(order({ deliveryDistance: 0 }), cfg)).toEqual({ minutes: null, km: null, estimated: false });
     });
 
     it('속도는 DB 판정 기준에서 온다 — 코드 상수로 박아 두지 않는다 (규칙 ⑤-4 ①)', () => {

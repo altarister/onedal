@@ -95,9 +95,20 @@ function computeChain(o: any, born: Partial<Record<StepId, any>>, judgment?: Jud
     const capturedMs = Date.parse(o.capturedAt ?? new Date().toISOString());
     const num = (v: unknown) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
     // 🚚 실측이 없으면 배송거리로 추정 — 값이 태어나는 자리는 soloMinutesOf 하나다 (규칙 ③)
-    const solo = soloMinutesOf(o as any, derivationInputsOf(judgment ?? DEFAULT_JUDGMENT).rules).minutes;
+    const soloPair = soloMinutesOf(o as any, derivationInputsOf(judgment ?? DEFAULT_JUDGMENT).rules);
+    const solo = soloPair.minutes;
     const total = num(o.totalDurationMin);
-    const approach = total != null && solo != null ? Math.max(0, total - solo) : null;
+    /**
+     * 🔴 **접근 주행은 «같은 출처끼리» 뺀다** (2026-08-26 자기 리뷰에서 잡음).
+     *
+     * 접근은 저장 컬럼이 아니라 뺄셈이다 — `카카오 전체 − 카카오 단독`.
+     * 단독이 **추정**이면 카카오 전체에서 추정을 빼는 꼴이 되어 의미가 없다.
+     * 게다가 `Math.max(0, …)` 이 음수를 가려 **«0분»으로 조용히** 나온다 —
+     * 화면이 "상차지까지 0분"이라고 거짓말한다 (규칙 ⑤-4 ④).
+     * 추정일 때는 **모른다고 둔다** (규칙 ④).
+     */
+    const approach = total != null && solo != null && !soloPair.estimated
+        ? Math.max(0, total - solo) : null;
 
     /**
      * 🧭 **경로가 알면 경로가 이긴다** (기사님 실측 2026-08-21 · 3콜 리허설).

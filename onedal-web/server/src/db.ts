@@ -474,7 +474,16 @@ ensureColumns('orders', { targetApp: 'TEXT',
      */
     routePolyline: 'TEXT',
     // ⚓ 타임라인 추정 약속의 닻 — 메모리에만 두면 서버 재시작에 모든 추정이 지금 시각으로 리셋된다
-    routeComputedAt: 'TEXT' });
+    routeComputedAt: 'TEXT',
+    /**
+     * 🚚 **배송거리** — 앱이 인성 화면에서 읽어 보내는 값 (리스트 두 번째 숫자).
+     *    합짐 콜의 단독 주행 추정 입력이다 (`soloMinutesOf`).
+     *
+     * 🔴 `CREATE TABLE IF NOT EXISTS` 에만 적으면 **기존 DB 에는 안 붙는다.**
+     *    그 함정이 CLAUDE.md 에 적혀 있는데 2026-08-26 에 또 밟았다 —
+     *    `tsc`·`jest` 는 통과하고 **실서버에서만** `no such column` 으로 터진다.
+     */
+    deliveryDistance: 'REAL' });
 ensureColumns('intel', { targetApp: 'TEXT' });
 // 🔄 stop_cargo_reports 의 dropStaleCheck 도 철거 (테이블 은퇴 — 2026-08-21)
 
