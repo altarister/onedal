@@ -91,3 +91,81 @@ cd /Users/seungwookkim/reps/onedal
 앱과 서버가 통신할 때 IP 하드코딩을 방지하기 위해 환경 변수를 활용합니다.
 - VITE 빌드 시 클라이언트 코드에 주입되는 `VITE_API_BASE_URL`을 `.env`의 `EC2_HOST` 변수와 매핑하여 동적으로 바인딩합니다.
 - 서버 IP가 변경(예: EC2 재시작으로 인한 유동 IP 변경)되더라도, 클라이언트 코드를 일일이 수정할 필요 없이 PM2 생태계 파일(`ecosystem.config.cjs`)과 `.env`만 수정하고 재빌드하여 신속하게 대응할 수 있습니다.
+
+---
+
+# 되돌리는 법 — **먼저 만든다**
+
+> 되돌릴 자리가 없으면 배포하지 않는다.
+
+## 코드
+
+```bash
+git tag live-YYYY-MM-DD origin/main     # 지금 라이브에 이름을 준다
+git push origin live-YYYY-MM-DD
+git push origin +live-YYYY-MM-DD:main   # 롤백 — 자동 재배포가 따라온다
+```
+
+🔴 **`main` 은 «지금 라이브에 있는 것»이다.** `main` 에서 직접 작업하면 롤백이 한 줄로 안 끝난다.
+
+## DB
+
+배포 스크립트가 **코드 갱신 전에** 자동으로 뜬다 (최근 5개 보관).
+
+```bash
+cd ~/onedal/onedal/onedal-web/server
+ls -la data.db.backup-*        # 어느 것으로 돌아갈지 눈으로 고른다
+pm2 stop all                   # 쓰는 중에 바꾸면 깨진다
+cp -a data.db.backup-<고른것> data.db
+pm2 start all
+```
+
+🔴 **코드와 DB 는 짝이다.** 옛 코드로 되돌렸으면 **그때 DB** 로 같이 돌아가야 한다.
+새 스키마의 DB 를 옛 코드에 물리면 조용히 어긋난다.
+
+⚠️ WAL 모드라 `data.db` 만 뜨면 **최근 데이터가 빠진다.** `-wal`·`-shm` 셋을 같이 뜬다.
+
+---
+
+# 인스턴스가 통째로 안 보일 때 (2026-08-28 실측)
+
+증상: **HTTP 522/521 · SSH 타임아웃 · ping 100% 손실.**
+GitHub Actions 배포도 SSH 단계에서 실패한다 — 즉 **우리 네트워크 문제가 아니다.**
+
+## 원인
+
+인스턴스를 **정지했다 시작**하면 퍼블릭 IP 가 바뀐다. 그러면 SSH·Cloudflare 둘 다 끊긴다.
+(재부팅reboot 은 IP 가 유지된다. 정지→시작만 바뀐다)
+
+## 조치
+
+```
+1. AWS 콘솔 → 리전 N. Virginia → EC2 → 인스턴스 상태 확인
+2. Elastic IPs → Allocate → Associate      ← 이걸 붙여야 다시 안 당한다
+3. Cloudflare DNS 의 A 레코드를 새 IP 로 (1dal · rehearsal · api)
+4. ~/.ssh/config 의 HostName 갱신
+5. GitHub Secrets 의 EC2_H0ST 도 갱신      ← 안 하면 자동 배포가 계속 실패
+```
+
+🔴 **`EC2_H0ST` 의 `0` 은 숫자다.** 워크플로가 `EC2_H0ST || EC2_HOST` 로 읽는데 숫자 0
+짜리만 존재한다 — 「오타를 고치면」 자동 배포가 깨진다.
+
+💰 탄력적 IP 는 **붙여 두면 추가 비용이 없다** (퍼블릭 IPv4 는 어차피 시간당 $0.005).
+다만 **인스턴스를 정지시켜 둬도 요금이 나간다** — 오래 세울 계획이면 그때 해제한다.
+
+## 부팅 자동복구 — 2026-08-28 에 막았다
+
+인스턴스가 떠도 **서버는 안 떴다.** 둘이 없었다:
+
+- **`pm2 startup` 이 만든 유닛이 애초에 고장** — `Type=forking` + `PIDFile=~/.pm2/pm2.pid`
+  인데 **PM2 v6 은 그 파일을 안 만든다.** systemd 가 «protocol» 실패로 판정하고 포기한다
+  → `Type=oneshot` + `RemainAfterExit=yes` 로 바꿨다
+- **`ecosystem.config.cjs` 의 `cwd` 가 상대경로(`./server`)** — systemd 는 작업 디렉터리가
+  `/` 라 `/server` 를 찾는다. `pm2 resurrect` 가 **종료코드 0 으로 성공을 보고하고 아무것도
+  안 띄웠다** → `WorkingDirectory=` 를 박았다
+- **iptables 80→4000 이 재부팅에 날아간다** → `onedal-portforward.service` 로 영구화
+
+🔴 **`pm2 startup` 을 다시 돌리지 말 것.** 고친 유닛이 원래(고장난) 것으로 되돌아간다.
+🔴 **`systemctl stop pm2-ubuntu` 는 서버를 죽인다** (`ExecStop=pm2 kill`).
+
+✅ 재부팅으로 실증했다 — **부팅 14초 뒤 자동 기동, 총 20초 만에 도메인 200.**
