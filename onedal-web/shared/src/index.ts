@@ -684,7 +684,12 @@ export interface AutoDispatchFilter {
     ratePerKm?: Record<string, number>;
     /** 콜할인율 — 시세 대비 허용 할인 %. 100 = "전부"(금액 무관) */
     callDiscountPct?: number;
-    /** 사용 중인 적재 칸 (내 1t 트럭 = 5칸). 명목값이며 통화 확인 시 갱신 */
+    /**
+     * 사용 중인 적재 **박스 수** (내 1t 트럭 = 100박스 · `TRUCK_CAPACITY_SLOTS`).
+     * 명목값이며 통화 확인 시 갱신.
+     * ⚠️ 예전엔 "적재 칸 (1t = 5칸)"이라 적혀 있었다 — **옛 5칸 축**이라 20배 어긋났다.
+     *    앱·서버·관제웹이 함께 읽는 칸이라 오독 비용이 크다 (2026-08-29 정정)
+     */
     slotsUsed?: number;
     /** 지금 어느 국면을 콜 잡기하는가 — 기사님이 요약줄 스와이프로 고른다 (기본 DEST) */
     callTarget?: CallTarget;

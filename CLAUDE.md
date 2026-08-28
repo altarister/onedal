@@ -39,8 +39,18 @@
 
 ## 커밋 전 필수
 
-`tsc --noEmit`(server) · `tsc -b`(client) · `npx jest` · **`./gradlew :app:compileDebugKotlin`**(앱 코드를 고쳤다면)
+`tsc --noEmit`(server) · `tsc -b`(client) · `npx jest` · **`pnpm test:web`**(shared·관제웹 vitest) ·
+**`./gradlew :app:compileDebugKotlin`**(앱 코드를 고쳤다면)
 이 전부 통과해야 커밋한다. 실패 시 커밋 금지.
+
+> 🔴 **`pnpm test:web` 은 2026-08-29 에 게이트에 들어왔다.** 그 전까지 `shared`·`client-app` 의
+> vitest 검사 **7개(58건)를 부르는 명령이 아예 없었다** — `package.json` 에 `test` 스크립트조차
+> 없었다. 그래서 `shared/src/index.test.ts` 는 **틀린 기대값**(하차 완료를 «진행 중»으로)을
+> 가진 채 몇 달을 살았고, 5월에 커밋된 컴파일 산출물(`shared/src/index.js`)이 import 를
+> 가로채 **아예 죽어 있었는데도** 아무도 몰랐다.
+> 2026-08-15 의 fail-open 차단 검사(지금 이름 `tests/shared/callFilterBlocker.test.ts` —
+> 당시엔 컴파일이 안 돼 조용히 사라져 있었다)와 **같은 병**이다 —
+> 그때는 «사라진 것», 이번엔 «애초에 부르지 않는 것». **있는 검사가 안 불리면 없는 것이다.**
 
 > 🔴 **버그를 고칠 때는 순서를 뒤집는다** (2026-08-18, 기사님 지시로 신설)
 > `진단 → 이 버그를 잡았을 검사를 먼저 만들어 **빨간불 확인** → 수정 → 초록불`
