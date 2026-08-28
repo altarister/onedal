@@ -24,7 +24,7 @@ router.post("/", async (req, res) => {
             return res.status(400).json({ error: "step=DETAILED 전용" });
         }
 
-        logRoadmapEvent("서버", "앱폰으로 부터 무인서핑이 완료된 '2차 오더 상세' 요청 받음");
+        logRoadmapEvent("서버", "앱폰으로 부터 상세 수집이 완료된 '2차 오더 상세' 요청 받음");
 
         // [하드 락] 미등록 기기 차단
         if (!payload.deviceId) {

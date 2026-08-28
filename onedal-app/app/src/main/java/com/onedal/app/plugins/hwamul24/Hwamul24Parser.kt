@@ -23,7 +23,7 @@ import java.util.UUID
  * 구조화된 SimplifiedOfficeOrder 객체로 변환합니다.
  *
  * 핵심 장점: 인성콜과 달리 리스트 화면에서 적요(상세 내용)가 바로 노출되므로,
- * 팝업 서핑 없이 1차 필터 단계에서 수작업/블랙리스트 등을 100% 걸러낼 수 있습니다.
+ * 상세 수집 없이 1차 필터 단계에서 수작업/블랙리스트 등을 100% 걸러낼 수 있습니다.
  *
  * 카드 구조 (스크린샷 분석 결과):
  *   [출발지 지역명]           > [도착지 지역명]
@@ -286,7 +286,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
         //    그대로 통과시키면 `isActive` 는 켜진 채 **도착지 제한만 사라진다.**
         //    필터가 느슨해지는 게 아니라 없어지는 것이다.
         //    서버도 같은 방향으로 열려 있어서 두 겹이 동시에 무력화됐다.
-        //    (서버: `filterHuntBlocker` · `OrderEvaluator` 5번 항목)
+        //    (서버: `callFilterBlocker` · `OrderEvaluator` 5번 항목)
         val regionMatch = if (filter.destinationKeywords.isEmpty()) {
             AppLogger.d(TAG, "🚦 [콜 잡기 보류] 도착지 키워드가 비어 있습니다 — 서버가 필터를 아직 못 만들었습니다")
             false

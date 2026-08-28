@@ -11,11 +11,17 @@
  *   - APP_CRASH: 앱 비정상 종료 후 재시작
  * 
  * 서버 처리:
- *   1. pendingDecisions 큐에서 해당 orderId 삭제 및 안전취소 타이머(activeTimers) 해제
- *   2. pendingOrdersData에서 해당 orderId 삭제
- *   3. mainCallState가 해당 orderId면 null로 초기화 + 필터 '첫짐'으로 복원
- *   4. 관제탑에 emergency-alert emit
- *   5. 관제탑에 order-canceled emit
+ *   1. pendingDecisions 큐에서 해당 orderId 삭제 및 안전취소 타이머 해제(clearOrderTimers)
+ *   2. pendingOrdersData·deviceEvaluatingMap 에서 해당 orderId 정리
+ *   3. 취소 카운트 증가 (countCancel — 세는 규칙은 그 한 곳에 있다)
+ *   4. 잡아 둔 콜이면 ORDER_RELEASED_BY_OFFICE 로 (메모리+DB), 그 뒤
+ *      · 남은 활성 콜이 없으면 → 필터를 첫짐(STANDBY·WAITING)으로 복원
+ *      · 남아 있으면      → 경로 재계산 (recalculateActiveKakaoRoute)
+ *   5. 관제탑에 emergency-alert · order-canceled emit
+ *
+ * ⚠️ 3번은 예전에 `mainCallState 가 해당 orderId 면 null 로 초기화` 라고 적혀 있었다.
+ *    그 필드는 V2 리팩터링에서 사라졌는데 주석만 현재형으로 남아, **없는 처리를 있다고**
+ *    말하고 있었다 (2026-08-29 정정). 지금 기준은 «남은 활성 콜이 있는가» 하나다.
  */
 
 import { Router } from "express";

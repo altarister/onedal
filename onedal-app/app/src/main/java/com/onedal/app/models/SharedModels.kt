@@ -14,7 +14,7 @@ package com.onedal.app.models
  */
 enum class ScreenContext(val value: String) {
     LIST("LIST"),                          // 콜 잡기 리스트 화면
-    DETAIL_PRE_CONFIRM("DETAIL_PRE_CONFIRM"),  // 광클 직전 상세
+    DETAIL_PRE_CONFIRM("DETAIL_PRE_CONFIRM"),  // 선점 직전 상세
     DETAIL_CONFIRMED("DETAIL_CONFIRMED"),      // 확정 후 상세 화면
     POPUP_PICKUP("POPUP_PICKUP"),              // 출발지 상세 팝업
     POPUP_DROPOFF("POPUP_DROPOFF"),            // 도착지 상세 팝업

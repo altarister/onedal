@@ -884,7 +884,7 @@ export interface EdgeDeviceTelemetry {
 
     // 앱에서 긁어낸 실시간 통계 누적 현황
     collectedCount: number;           // 인성망에서 긁어낸 전체 오더 갯수 (블랙리스트 걸러지기 전)
-    acceptedCount: number;            // 0.01초 광클 로직이 성공해서 수락된 배차 갯수
+    acceptedCount: number;            // 선점(확정 버튼 자동 클릭)이 성공해서 수락된 배차 갯수
     bannedCount: number;              // 지뢰콜/하한가/까대기 등으로 로컬 필터가 뱉어버린 콜 갯수
 
     // 정합성 검사 용도
@@ -950,7 +950,7 @@ export type DeviceModeType = "AUTO" | "MANUAL";
 export type ScreenContextType =
     | 'LIST'                  // 콜 잡기 리스트 화면
     | 'LIST_COMPLETED'        // 완료 리스트 화면 — 여기서도 "리스트로 돌아온 것"이다
-    | 'DETAIL_PRE_CONFIRM'    // 광클 직전 상세 (확정 버튼 보임)
+    | 'DETAIL_PRE_CONFIRM'    // 선점 직전 상세 (확정 버튼 보임)
     | 'DETAIL_CONFIRMED'      // 확정 후 상세 화면 (닫기/취소 버튼)
     | 'POPUP_PICKUP'          // 출발지 상세 팝업
     | 'POPUP_DROPOFF'         // 도착지 상세 팝업

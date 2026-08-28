@@ -12,7 +12,7 @@ import { join } from 'path';
  *   17:19  1차 선점: `가전 → 계산서필`
  *   17:24  1차 선점: `박스 → 계산서필`      ← 실제로는 경안동 → 문산읍
  *
- * 팝업 서핑(적요상세·출발지·도착지)은 **확정 화면에서만** 돌았다. 확정 전에는 팝업을 못 여니
+ * 상세 수집(적요상세·출발지·도착지)은 **확정 화면에서만** 돌았다. 확정 전에는 팝업을 못 여니
  * *"리스트에서 본 콜 중 요금이 같은 것"* 을 역추적해 주소를 빌려 왔고, 그게 실패하면 화면
  * 요약 파싱값을 그대로 썼다 — 앱 주석에 이미 *"오파싱 가능성 있음"* 이라 적혀 있던 자리다.
  *
@@ -208,18 +208,18 @@ describe('💸 미리보기 — 필터 밖이라 단가를 다시 본다 (A안)'
  * ⚠️ 앱이 연 상세(필터콜)는 **건드리지 않는다.** 거기서 팝업을 먼저 열면 광클이 늦어져
  *    선점을 놓친다 — 2026-08-09 에 "잡기 전 미리 계산"을 제거한 바로 그 이유다.
  */
-describe('🏄 팝업 서핑 — 손으로 연 상세는 읽고 나서 올린다', () => {
-    it('🔴 확정 전 상세에서도 서핑을 시작한다', () => {
+describe('🏄 상세 수집 — 손으로 연 상세는 읽고 나서 올린다', () => {
+    it('🔴 확정 전 상세에서도 상세 수집을 시작한다', () => {
         const src = code(app('HijackService.kt'));
-        // handlePreConfirmScreen 안에서 서핑을 거는 자리가 있어야 한다
+        // handlePreConfirmScreen 안에서 상세 수집을 거는 자리가 있어야 한다
         const fn = src.split('private fun handlePreConfirmScreen')[1]?.split('private fun ')[0] ?? '';
-        expect(fn).toMatch(/startSurfing|surfPreConfirm/);
+        expect(fn).toMatch(/startCollect|surfPreConfirm/);
     });
 
     it('🔴 필터콜(앱이 누른 것)은 지금 그대로 — 광클을 늦추지 않는다', () => {
         const src = code(app('HijackService.kt'));
         const fn = src.split('private fun handlePreConfirmScreen')[1]?.split('private fun ')[0] ?? '';
-        // 서핑은 isAutoActive == false 인 갈래에서만 걸린다
+        // 상세 수집은 isAutoActive == false 인 갈래에서만 걸린다
         expect(fn).toMatch(/!session\.isAutoActive/);
     });
 

@@ -90,7 +90,7 @@ class InsungParser(private val context: Context) : IScrapParser {
          *
          * → 행정구역·도로명 꼬리가 없으면 주소로 쓰지 않는다. **모르면 모른다고 둔다**
          *   (규칙 ④). 서버는 «배차값없음» 을 «못 읽음» 으로 다루고, 뒤이어 오는
-         *   팝업 서핑(`[출발지상세]`·`[도착지상세]`)이 진짜 주소를 채운다.
+         *   상세 수집(`[출발지상세]`·`[도착지상세]`)이 진짜 주소를 채운다.
          */
         fun looksLikeAddress(text: String): Boolean {
             val t = text.trim()

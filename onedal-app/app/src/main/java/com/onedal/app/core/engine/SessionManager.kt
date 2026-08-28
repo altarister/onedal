@@ -29,8 +29,8 @@ class SessionManager {
     /** 서버 판결(KEEP/CANCEL) 대기 중인지 */
     var isWaitingForDecision: Boolean = false
 
-    /** 팝업 서핑 상태 */
-    var surfingState: SurfingState = SurfingState.IDLE
+    /** 상세 수집 상태 */
+    var collectState: CollectState = CollectState.IDLE
 
     /** 팝업에서 수집한 텍스트 누적 버퍼 */
     var accumulatedDetailText: String = ""
@@ -49,13 +49,13 @@ class SessionManager {
      *    취소 카운트(배차망 10회 패널티)에서 뺀다. 확정 화면에 들어가면 딱지를 벗는다.
      *
      * ⚠️ 손으로 연 상세(`isAutoActive == false`)에서만 켜진다. 앱이 자동으로 연 상세는
-     *    광클이 생명이라 팝업을 먼저 열지 않는다 — 2026-08-09 에 "잡기 전 미리 계산"을
+     *    선점이 생명이라 팝업을 먼저 열지 않는다 — 2026-08-09 에 "잡기 전 미리 계산"을
      *    제거한 바로 그 이유다.
      */
     var isPreview: Boolean = false
 
-    // ── SurfingState enum ──
-    enum class SurfingState {
+    // ── CollectState enum ──
+    enum class CollectState {
         IDLE,
         WAITING_FOR_MEMO_POPUP,
         WAITING_FOR_PICKUP_POPUP,
@@ -87,7 +87,7 @@ class SessionManager {
      */
     fun reset(onReset: (() -> Unit)? = null) {
         isDetailScrapSent = false
-        surfingState = SurfingState.IDLE
+        collectState = CollectState.IDLE
         accumulatedDetailText = ""
         lastDetailOrder = null
         currentOrderId = ""

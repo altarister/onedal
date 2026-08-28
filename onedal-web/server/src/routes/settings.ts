@@ -159,7 +159,7 @@ router.put("/", requireAuth, async (req, res) => {
         }
 
 
-        // 무인 서핑 스위치만 user_filters 로 — 노선·반경 편집 자리는 국면 탭 하나 (④ 철거)
+        // 자동 콜 잡기 스위치(isActive)만 user_filters 로 — 노선·반경 편집 자리는 국면 탭 하나 (④ 철거)
         const filterChanges: any = {};
         if (payload.isActive !== undefined) filterChanges.isActive = payload.isActive;
 

@@ -10,7 +10,7 @@
  *     07:21:51.419  LIST 인식              ← 크롬 웹페이지를 배차망으로 인식
  *     07:21:51.531  ✅ 가로채기 성공        ← 웹페이지 버튼이 눌린다
  *     07:21:51.870  모드: AUTO (매크로클릭: true)
- *     07:21:52.196  DETAIL_CONFIRMED       ← 확정 광클 성공
+ *     07:21:52.196  DETAIL_CONFIRMED       ← 확정 선점 성공
  *
  * ⚠️ **반드시 크롬이어야 한다.** 삼성 인터넷(`com.sec.android.app.sbrowser`)은
  *    웹 콘텐츠를 접근성 트리에 **안 올린다** — 텍스트 노드가 URL·탭 수 2개뿐이다.
@@ -96,7 +96,7 @@ const STEPS = [
          */
     },
     { name: '서버가 선점을 접수',          re: /POST \/confirm 완료.*HTTP 200/ },
-    { name: '확정 광클 성공',              re: /화면: DETAIL_CONFIRMED/ },
+    { name: '확정 선점 성공',              re: /화면: DETAIL_CONFIRMED/ },
 ];
 
 async function run(url) {

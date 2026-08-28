@@ -91,10 +91,15 @@ export default function GeneralSettingsTab({ onClose }: Props) {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* 무인 서핑 모드 */}
+      {/*
+        자동 콜 잡기 — `isActive` 스위치 하나다.
+        ⚠️ 예전 이름은 «무인 서핑 모드»였다. 용어집이 폐기한 말인 데다, 그 말의 대응어인
+           «상세 수집»(팝업을 넘겨 상차지·적요를 읽는 것)과 **다른 것**을 가리키고 있었다 —
+           이 스위치는 콜 잡기 전체를 켜고 끈다 (2026-08-29 정정)
+      */}
       <div className="flex items-center justify-between rounded-lg border p-3">
         <div className="space-y-0.5">
-          <h3 className="text-sm font-bold">🚀 무인 서핑 모드 (Full Auto)</h3>
+          <h3 className="text-sm font-bold">🚀 자동 콜 잡기 (Full Auto)</h3>
           <p className="text-[10px] text-text-muted">이 모드를 켜면 꿀콜을 자동으로 낚아채고 평가합니다.</p>
         </div>
         <Switch checked={isActive} onCheckedChange={setIsActive} />

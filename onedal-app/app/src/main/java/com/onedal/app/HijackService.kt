@@ -15,7 +15,7 @@ import com.onedal.app.core.ScreenKeywords
 import com.onedal.app.core.ScreenTextNode
 import com.onedal.app.core.engine.ScreenDetector
 import com.onedal.app.core.engine.SessionManager
-import com.onedal.app.core.engine.PopupSurfingMachine
+import com.onedal.app.core.engine.DetailCollectMachine
 import com.onedal.app.core.engine.SafeCancelTimer
 import com.onedal.app.core.engine.CautionDongVerifier
 import com.onedal.app.core.TelemetryManager
@@ -44,7 +44,7 @@ import java.util.Locale
  *   기능 1 — 시동 걸기 (4대 엔진 초기화)
  *   기능 2 — 화면 읽기 및 종류 판별 (키워드 사전 기반)
  *   기능 3 — 콜 목록 스캔 및 서버 보고 (LIST)
- *   기능 4 — 확정 화면 자동 팝업 서핑 (출발지/도착지 상세 수집)
+ *   기능 4 — 확정 화면 자동 상세 수집 (팝업을 넘기며 출발지·도착지·적요를 읽는다)
  *   기능 6 — 상세 진입(PRE_CONFIRM) 시 /confirm 브리핑 전송
  */
 class HijackService : AccessibilityService() {
@@ -95,7 +95,7 @@ class HijackService : AccessibilityService() {
 
     // ── 세션 상태 (SessionManager로 통합) ──
     private val session = SessionManager()
-    private lateinit var surfingMachine: PopupSurfingMachine
+    private lateinit var collectMachine: DetailCollectMachine
     private val recentListOrders = mutableListOf<SimplifiedOfficeOrder>()
 
     // ── AUTO 모드 타이머 ──
@@ -168,7 +168,7 @@ class HijackService : AccessibilityService() {
         AppLogger.i(TAG, "🎯 타겟 앱 설정 완료: $targetApp")
 
         touchManager = AutoTouchManager(this)
-        surfingMachine = PopupSurfingMachine(touchManager)
+        collectMachine = DetailCollectMachine(touchManager)
         cautionVerifier = CautionDongVerifier(this)
 
         /**
@@ -291,7 +291,7 @@ class HijackService : AccessibilityService() {
          *    → 그 자리를 없애고 **리셋은 여기 한 곳에서만** 한다 (`sessionEndsWithCall.test.ts`).
          *
          * ⚠️ 조건(`hasActiveSession()`)도 뗐다. 그건 `isAutoActive`·`isWaitingForDecision`·
-         *    `currentOrderId` 만 보므로 `surfingState`·`isPreview` 가 더럽게 남으면 그냥
+         *    `currentOrderId` 만 보므로 `collectState`·`isPreview` 가 더럽게 남으면 그냥
          *    통과한다. **복귀는 그 자체로 콜의 끝**이니 조건 없이 지우는 것이 맞다.
          */
         val isListScreen = detected == ScreenContext.LIST ||
@@ -329,7 +329,7 @@ class HijackService : AccessibilityService() {
             }
         }
 
-        // 서버 판결 대기 중에는 화면 내 버튼 탐색이나 서핑(클릭 액션) 무시
+        // 서버 판결 대기 중에는 화면 내 버튼 탐색이나 상세 수집(클릭 액션) 무시
         if (session.isWaitingForDecision) {
             rootNode.recycle()
             return
@@ -620,7 +620,7 @@ class HijackService : AccessibilityService() {
             session.setOrderId(finalOrder.id)
         }
 
-        session.lastDetailOrder = finalOrder // 팝업 서핑용으로 최종 갱신
+        session.lastDetailOrder = finalOrder // 상세 수집용으로 최종 갱신
 
         /**
          * 👀 **손으로 연 상세는 팝업 3장을 먼저 읽는다** (기사님 확정 2026-08-22 · 용어집 §9).
@@ -635,21 +635,21 @@ class HijackService : AccessibilityService() {
          *    팝업에서 주소를 직접 읽으면 **그 역추적이 필요 없어진다** — 버그를 고치는 게
          *    아니라 버그가 사는 자리를 없앤다.
          *
-         * ⚠️ **필터콜(앱이 누른 것)은 건드리지 않는다.** 거기서 팝업을 먼저 열면 광클이
-         *    늦어져 선점을 놓친다 — 2026-08-09 에 "잡기 전 미리 계산"을 제거한 그 이유다.
+         * ⚠️ **필터콜(앱이 누른 것)은 건드리지 않는다.** 거기서 팝업을 먼저 열면 확정 버튼을
+         *    누르기까지가 늦어져 선점을 놓친다 — 2026-08-09 에 "잡기 전 미리 계산"을 제거한 그 이유다.
          *
-         * 서핑이 끝나면(`DONE`) `handleDropoffPopup` 이 confirm + detail 을 함께 보낸다.
+         * 상세 수집이 끝나면(`DONE`) `handleDropoffPopup` 이 confirm + detail 을 함께 보낸다.
          */
-        if (!session.isAutoActive && session.surfingState == SessionManager.SurfingState.IDLE) {
+        if (!session.isAutoActive && session.collectState == SessionManager.CollectState.IDLE) {
             session.isPreview = true
             AppLogger.roadmap("👀 [미리보기] 손으로 연 상세 — 팝업 3장을 먼저 읽고 판정을 받는다", telemetryManager.currentScreenContext.name)
-            surfingMachine.startSurfing(rootNode, session, screenTexts)
-            return   // confirm 은 서핑이 끝난 뒤에 detail 과 함께 나간다
+            collectMachine.startCollect(rootNode, session, screenTexts)
+            return   // confirm 은 상세 수집이 끝난 뒤에 detail 과 함께 나간다
         }
 
-        // 서핑 중 팝업이 닫혀 상세로 돌아온 경우 — 다음 팝업을 연다 (확정 화면과 같은 규칙)
-        if (session.isPreview && session.surfingState != SessionManager.SurfingState.DONE) {
-            advanceSurfing(rootNode)
+        // 상세 수집 중 팝업이 닫혀 상세로 돌아온 경우 — 다음 팝업을 연다 (확정 화면과 같은 규칙)
+        if (session.isPreview && session.collectState != SessionManager.CollectState.DONE) {
+            advanceCollect(rootNode)
             return
         }
 
@@ -723,8 +723,8 @@ class HijackService : AccessibilityService() {
                                 return
                             }
                         } else {
-                            // 일반 콜: 기존처럼 즉시 광클 (선점필승)
-                            AppLogger.d(TAG, "🚀 [AUTO] 확정 버튼 광클 (배차 시도)")
+                            // 일반 콜: 기존처럼 확정 버튼을 즉시 누른다 (선점필승)
+                            AppLogger.d(TAG, "🚀 [AUTO] 확정 버튼 즉시 클릭 (배차 시도)")
                             AppLogger.roadmap("상세페이지에서 확정 버튼 클릭", telemetryManager.currentScreenContext.name)
                             AppLogger.roadmap("[$appLabel] 콜 확정 완료", telemetryManager.currentScreenContext.name)
                             clickFirstMatchingButton(rootNode, confirmBtnTexts)
@@ -750,7 +750,7 @@ class HijackService : AccessibilityService() {
     }
 
     // ════════════════════════════════════════════════════════════════
-    //  기능 4: 확정 화면(CONFIRMED) → 자동 팝업 서핑 구동
+    //  기능 4: 확정 화면(CONFIRMED) → 자동 상세 수집 구동
     // ════════════════════════════════════════════════════════════════
 
     private fun handleConfirmedScreen(rootNode: AccessibilityNodeInfo, screenTexts: List<String>, rawScreenStr: String) {
@@ -764,7 +764,7 @@ class HijackService : AccessibilityService() {
          * 기사님: *"관제엡의 노랑색을 보고 확정을 눌렀어. 그런데 관제엡은 내가 생각한 것과
          * 다르게 움직이고 있어. 싱크가 전혀 안 되는 것 같아."*
          *
-         * 🔴 확정 화면에 들어와도 **아무 요청도 안 나갔다.** 아래 서핑 분기는 `IDLE` 일 때만
+         * 🔴 확정 화면에 들어와도 **아무 요청도 안 나갔다.** 아래 상세 수집 분기는 `IDLE` 일 때만
          *    일하는데 미리보기는 이미 `DONE` 이고, `sendConfirmOnce` 는 중복 방지에 막혔다.
          *    그래서 서버는 여전히 "미리보기"로 알고 30초 뒤 정리해 버렸다 — 기사님은 잡았는데.
          *
@@ -784,10 +784,10 @@ class HijackService : AccessibilityService() {
             return
         }
 
-        // 확정 화면에 처음 진입했을 때 서핑 시작! (적요상세 → 출발지 → 도착지 순서)
-        if (session.surfingState == SessionManager.SurfingState.IDLE) {
+        // 확정 화면에 처음 진입했을 때 상세 수집 시작! (적요상세 → 출발지 → 도착지 순서)
+        if (session.collectState == SessionManager.CollectState.IDLE) {
             AppLogger.roadmap("🔒 [Current Page: DETAIL_CONFIRMED] 진입, isHolding=true 설정", telemetryManager.currentScreenContext.name)
-            AppLogger.roadmap("🏄‍♂️ 무인 서핑 가동 (State Machine: IDLE → 팝업버튼 트리거 대기)", telemetryManager.currentScreenContext.name)
+            AppLogger.roadmap("🏄‍♂️ 상세 수집 가동 (State Machine: IDLE → 팝업버튼 트리거 대기)", telemetryManager.currentScreenContext.name)
             ensureSessionId()
             
             if (session.lastDetailOrder == null) {
@@ -802,21 +802,21 @@ class HijackService : AccessibilityService() {
              */
             session.isPreview = false
 
-            surfingMachine.startSurfing(rootNode, session, screenTexts)
+            collectMachine.startCollect(rootNode, session, screenTexts)
         }
-        // 서핑 중: 팝업이 닫혀 확정 화면으로 돌아왔다 — 다음 팝업을 연다
+        // 상세 수집 중: 팝업이 닫혀 확정 화면으로 돌아왔다 — 다음 팝업을 연다
         else {
-            advanceSurfing(rootNode)
+            advanceCollect(rootNode)
         }
     }
 
     /**
      * 📤 **1차 선점을 보낸다 — 한 콜에 한 번만.**
      *
-     * 두 곳에서 부른다. 필터콜은 상세 진입 즉시(광클), **미리보기 콜은 팝업 3장을 읽은 뒤**
+     * 두 곳에서 부른다. 필터콜은 상세 진입 즉시(선점), **미리보기 콜은 팝업 3장을 읽은 뒤**
      * `/detail` 직전에. 같은 요청을 두 벌로 적으면 한쪽만 고쳐져 갈라지므로 여기 하나만 둔다.
      *
-     * 🔴 `isDetailScrapSent` 가 중복 전송을 막는다 — 미리보기 서핑이 끝나 상세 화면으로
+     * 🔴 `isDetailScrapSent` 가 중복 전송을 막는다 — 미리보기 상세 수집이 끝나 상세 화면으로
      *    돌아왔을 때 이 함수가 다시 불리지 않게 하는 자물쇠이기도 하다.
      */
     private fun sendConfirmOnce(order: SimplifiedOfficeOrder, rawScreenStr: String) {
@@ -842,16 +842,16 @@ class HijackService : AccessibilityService() {
     }
 
     /**
-     * 🏄 **서핑을 한 칸 진행한다** — 팝업이 닫혀 상세/확정 화면으로 돌아왔을 때.
+     * 🏄 **상세 수집을 한 칸 진행한다** — 팝업이 닫혀 상세/확정 화면으로 돌아왔을 때.
      *
      * 🔴 확정 화면과 **확정 전 상세**가 같은 규칙을 쓴다. 두 곳에 나눠 적으면 한쪽만
      *    고쳐져 갈라진다 — 이 레포가 반복해서 겪은 「목록을 손으로 나열」이다.
      *    새 팝업 단계가 생기면 **여기에만** 더한다.
      */
-    private fun advanceSurfing(rootNode: AccessibilityNodeInfo) {
-        when (session.surfingState) {
-            SessionManager.SurfingState.WAITING_FOR_PICKUP_POPUP -> surfingMachine.clickPickup(rootNode)
-            SessionManager.SurfingState.WAITING_FOR_DROPOFF_POPUP -> surfingMachine.clickDropoff(rootNode)
+    private fun advanceCollect(rootNode: AccessibilityNodeInfo) {
+        when (session.collectState) {
+            SessionManager.CollectState.WAITING_FOR_PICKUP_POPUP -> collectMachine.clickPickup(rootNode)
+            SessionManager.CollectState.WAITING_FOR_DROPOFF_POPUP -> collectMachine.clickDropoff(rootNode)
             else -> {}   // IDLE·WAITING_FOR_MEMO·DONE — 여기서 할 일이 없다
         }
     }
@@ -861,7 +861,7 @@ class HijackService : AccessibilityService() {
     // ════════════════════════════════════════════════════════════════
 
     private fun handleMemoPopup(rootNode: AccessibilityNodeInfo, screenTexts: List<String>) {
-        surfingMachine.handleMemoPopup(rootNode, session, screenTexts)
+        collectMachine.handleMemoPopup(rootNode, session, screenTexts)
     }
 
     // ════════════════════════════════════════════════════════════════
@@ -869,7 +869,7 @@ class HijackService : AccessibilityService() {
     // ════════════════════════════════════════════════════════════════
 
     private fun handlePickupPopup(rootNode: AccessibilityNodeInfo, screenTexts: List<String>) {
-        surfingMachine.handlePickupPopup(rootNode, session, screenTexts)
+        collectMachine.handlePickupPopup(rootNode, session, screenTexts)
     }
 
     // ════════════════════════════════════════════════════════════════
@@ -903,9 +903,9 @@ class HijackService : AccessibilityService() {
         }
         // ═══════════════════════════════════════════════════════════
 
-        // 서핑 모드: 도착지 텍스트 수집 → /detail 전송
-        val surfingDone = surfingMachine.handleDropoffPopup(rootNode, session, screenTexts)
-        if (!surfingDone) return
+        // 상세 수집 모드: 도착지 텍스트 수집 → /detail 전송
+        val collectDone = collectMachine.handleDropoffPopup(rootNode, session, screenTexts)
+        if (!collectDone) return
 
         // /detail 서버 전송 (팝업 수집 완료)
         session.lastDetailOrder?.let { order ->
@@ -924,7 +924,7 @@ class HijackService : AccessibilityService() {
     /**
      * 🌐 **2차 상세를 보낸다 — 팝업에서 모은 텍스트를 통째로.**
      *
-     * 두 곳에서 부른다. 서핑이 끝났을 때, 그리고 **미리보기로 본 콜을 기사님이 확정했을 때**
+     * 두 곳에서 부른다. 상세 수집이 끝났을 때, 그리고 **미리보기로 본 콜을 기사님이 확정했을 때**
      * (그때는 팝업을 다시 열지 않고 모아 둔 텍스트를 그대로 다시 보낸다).
      * 같은 요청을 두 벌로 적으면 한쪽만 고쳐져 갈라지므로 여기 하나만 둔다.
      */
@@ -1103,7 +1103,7 @@ class HijackService : AccessibilityService() {
              * 상차지 **«다마스»** · 하차지 **«계산서필»** 이 장부에 남았다.
              *
              * 직접콜은 서버가 심사하지 않으므로(규칙 ①) 그 값이 **경로의 기점**이 된다.
-             * 주소 꼴이 아니면 «배차값없음» 으로 둔다 — 뒤따르는 팝업 서핑이 진짜 주소를
+             * 주소 꼴이 아니면 «배차값없음» 으로 둔다 — 뒤따르는 상세 수집이 진짜 주소를
              * 채운다. 모르면 모른다고 두는 것이 지어내는 것보다 낫다 (규칙 ④).
              */
             pickup = tempOrder.pickup.takeIf {

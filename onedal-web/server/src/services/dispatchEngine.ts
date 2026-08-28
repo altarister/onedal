@@ -533,7 +533,9 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
             }
         }
 
-        // ✅ mainCallState/subCalls 할당 완료 후 경유 재계산 (경로 기반 키워드 갱신)
+        // ✅ 콜 배정이 끝난 뒤 경유 재계산 (경로 기반 키워드 갱신)
+        //    ⚠️ 예전 주석은 `mainCallState/subCalls 할당 완료 후` 였다 — 그 필드는 V2 에서
+        //       사라졌고 지금 배정은 myOrders 로 한다 (2026-08-29 정정)
         let destinationKeywords = session.activeFilter.destinationKeywords;
         if (cachedOrder && cachedOrder.routePolyline) {
             syncDetourFilter(userId, io);
