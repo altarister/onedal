@@ -11,7 +11,8 @@ import com.onedal.app.models.SimplifiedOfficeOrder
 import com.onedal.app.models.ScreenContext
 
 /**
- * 이벤트 기반 즉각 스크랩 전송 및 20초 주기 생존신고(Heartbeat) 관리.
+ * 이벤트 기반 즉각 스크랩 전송 및 **60초** 주기 생존신고(Heartbeat) 관리.
+ * (판결 대기 중에는 1초 — `FAST_POLLING_MS`. 값의 원천은 아래 상수다)
  */
 class TelemetryManager(
     private val apiClient: ApiClient,
@@ -99,7 +100,7 @@ class TelemetryManager(
         if (isRunning) return
         isRunning = true
         resetHeartbeatTimer()
-        AppLogger.i(TAG, "Telemetry Loop Started (Event-driven + 20s Keep-alive)")
+        AppLogger.i(TAG, "Telemetry Loop Started (Event-driven + 60s Keep-alive)")
     }
 
     fun stop() {
@@ -223,7 +224,7 @@ class TelemetryManager(
             onDecisionReceived = decisionCallback
         )
 
-        // 통신을 방금 했으므로, 다음 하트비트 시점을 20초 뒤로 연기함
+        // 통신을 방금 했으므로, 다음 하트비트 시점을 한 주기(60초) 뒤로 연기함
         resetHeartbeatTimer()
     }
 

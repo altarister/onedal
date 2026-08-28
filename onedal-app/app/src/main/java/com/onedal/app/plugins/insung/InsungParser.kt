@@ -21,7 +21,7 @@ import java.util.UUID
 /**
  * 화면에서 추출된 원시 문자열 데이터를 파싱하여
  * 구조화된 모델(SimplifiedOfficeOrder)로 변환하고,
- * 서버에서 내려준 4대 필터 조건(도착지/요금/블랙리스트/거리)에
+ * 서버에서 내려준 필터 조건(차종·도착지·요금·상차거리·블랙·경로순서 — 축은 여섯이다)에
  * 부합하는지 종합 판정하는 두뇌 엔진입니다.
  */
 class InsungParser(private val context: Context) : IScrapParser {
@@ -567,7 +567,7 @@ class InsungParser(private val context: Context) : IScrapParser {
     }
 
     /**
-     * 파싱된 오더가 4대 필터 조건을 모두 만족하는지 종합 판정합니다.
+     * 파싱된 오더가 필터 조건을 모두 만족하는지 종합 판정합니다.
      * 모든 조건이 AND(교집합)로 통과해야만 true를 반환합니다.
      */
     override fun shouldClick(order: SimplifiedOfficeOrder, tally: FilterTally?): Boolean =

@@ -605,12 +605,28 @@ class HijackService : AccessibilityService() {
                 rawText = rawScreenStr
             )
         } else {
-            // 캐시 매칭 모두 실패 시 (임시 폴백 - 오파싱 가능성 있음)
+            /**
+             * 캐시 매칭 모두 실패 시 (임시 폴백 — 오파싱 가능성 있음)
+             *
+             * 🔴 **주소 꼴이 아니면 주소로 쓰지 않는다** — `looksLikeAddress` (2026-08-29 신설).
+             *    라이브 실측(08-28 23:22)에서 상차지·하차지 자리에 **「가전 → 다마스」**,
+             *    즉 품목과 차종이 들어왔다. 좌표를 못 만들어 궤적이 1점에서 멈췄다.
+             *    가드는 있었는데 `buildOrderFromScreen` 경로에만 걸려 있어서 **정작 사고가
+             *    난 이 폴백은 `isNotBlank()` 만 봤다** — 판단이 두 벌이었던 것이다 (규칙 ③).
+             *
+             *    직접콜(MANUAL)은 서버가 심사하지 않으므로(규칙 ①) 여기가 유일한 문이다.
+             *    막히면 «수집중»으로 두고, 뒤이어 오는 상세 수집이 진짜 주소를 채운다
+             *    (규칙 ④ — 모르면 모른다고 둔다).
+             */
+            val safeAddr = { s: String ->
+                s.takeIf { it.isNotBlank() && it != "배차값없음" && InsungParser.looksLikeAddress(it) }
+                    ?: "수집중(상세확인필요)"
+            }
             tempOrder.copy(
                 id = session.currentOrderId.ifEmpty { "MANUAL-${System.currentTimeMillis()}" },
                 type = "MANUAL_CLICK",
-                pickup = tempOrder.pickup.takeIf { it.isNotBlank() && it != "배차값없음" } ?: "수집중(상세확인필요)",
-                dropoff = tempOrder.dropoff.takeIf { it.isNotBlank() && it != "배차값없음" } ?: "수집중(상세확인필요)",
+                pickup = safeAddr(tempOrder.pickup),
+                dropoff = safeAddr(tempOrder.dropoff),
                 timestamp = nowTimestamp(),
                 rawText = rawScreenStr
             )
@@ -955,9 +971,17 @@ class HijackService : AccessibilityService() {
             val previewStr = session.accumulatedDetailText.replace("\n", " ").take(150)
             AppLogger.d(TAG, "🌐 [post /detail request] $actualMatchType 모드 판결 요청 텍스트: $previewStr...")
 
-            // Option B (Piggyback V2): sendDetail은 202 응답만 확인하고 곧바로 리턴됨. 
+            // Option B (Piggyback V2): sendDetail은 202 응답만 확인하고 곧바로 리턴됨.
             // 실제 판결은 Telemetry 1.0초 폴링을 통해 decisionCallback으로 들어오게 됨.
-            apiClient.sendDetail(payload) { _, _ -> /* 구형 롱폴링 콜백 미사용 */ }
+            //
+            // ⚠️ **콜백이 «미사용»은 아니다** (2026-08-29 정정). `ApiClient.sendDetail` 은
+            //    전송이 **실패**하면(비2xx · 재시도 소진 · 예외) 이 콜백을 `CANCEL` 로 부른다.
+            //    여기서 버리는 것은 그 CANCEL 이다 — 대신 위에서 켠 **30초 안전취소 타이머**가
+            //    받아 준다(규칙 ② — 안전장치는 겹쳐 둔다). 즉 «안 잡히는» 게 아니라
+            //    «30초 늦게 잡히는» 것이다.
+            // ❓ 즉시 취소로 30초를 아낄지는 판단이 필요하다 — 취소는 배차망 횟수(10회)를
+            //    먹으므로, 일시적 통신 오류로 취소가 늘어나는 쪽이 더 나쁠 수 있다 (todo)
+            apiClient.sendDetail(payload) { _, _ -> /* 실패 시 CANCEL — 30초 타이머에 맡긴다 */ }
         }
     }
 
@@ -1069,8 +1093,8 @@ class HijackService : AccessibilityService() {
 
     /**
      * 앱별 확정 버튼 텍스트 리스트 중 첫 번째로 발견되는 버튼을 클릭합니다.
-     * 화물24시: "배차신청" → "전화걸기" 순으로 시도
-     * 인성콜: "확정" 하나만 시도
+     * 목록은 배차망 플러그인의 `confirmKeywords` 가 정한다 — 여기 손으로 적지 않는다.
+     * ⚠️ 예전 주석은 *"인성콜: 확정 하나만"* 이라 했는데 실제로는 둘이다("확정"·"배차").
      */
     private fun clickFirstMatchingButton(rootNode: AccessibilityNodeInfo, buttonTexts: List<String>): Boolean {
         for (btnText in buttonTexts) {

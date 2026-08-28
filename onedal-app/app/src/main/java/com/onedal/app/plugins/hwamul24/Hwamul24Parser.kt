@@ -41,7 +41,11 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
         context.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
     }
 
-    // ── 필터 로드 (InsungParser와 동일한 공통 로직) ──
+    // ── 필터 로드 ──
+    // 🔴 **인성과 다르다** — 여기는 `ratePerKm`(단가표)를 안 읽는다.
+    //    그래서 24시는 단가 판정이 영영 안 돌고 `minFare` 하나로만 거른다.
+    //    예전 주석은 "InsungParser 와 동일한 공통 로직" 이라 그 차이를 덮고 있었다
+    //    (2026-08-29 정정). 고칠 것은 todo 「💰 가격 필터는 둘 다 건다」에 있다
 
     private fun parseJsonArray(json: JSONObject, key: String): List<String> {
         return try {
@@ -193,7 +197,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
         var detailMemo: String? = null
         for (text in texts) {
             val trimmed = text.trim()
-            // 적요 후보: 10자 이상, 한글 포함, 요금/차종/순수 뱃지 아님
+            // 적요 후보: 8자 이상, 한글 포함, 요금/차종/순수 뱃지 아님
             if (trimmed.length >= 8 &&
                 trimmed.contains(Regex("[가-힣]")) &&
                 !trimmed.contains("원") &&
@@ -240,11 +244,11 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
     }
 
     // ════════════════════════════════════════════════════════════════
-    //  shouldClick(): 4대 필터 조건 판정 (공통 로직)
+    //  shouldClick(): 필터 조건 판정 (공통 로직)
     // ════════════════════════════════════════════════════════════════
 
     /**
-     * 파싱된 오더가 4대 필터 조건을 모두 만족하는지 종합 판정합니다.
+     * 파싱된 오더가 필터 조건을 모두 만족하는지 종합 판정합니다.
      *
      * 화물24시에서는 리스트 단계에서 적요까지 파싱 가능하므로,
      * 블랙리스트(수작업 등) 필터도 1차에서 완벽히 걸러냅니다.

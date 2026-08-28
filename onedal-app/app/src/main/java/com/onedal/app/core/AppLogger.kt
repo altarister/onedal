@@ -46,7 +46,6 @@ object AppLogger {
 
     /**
      * 매우 많은 양의 스팸성 텍스트 덤프 출력용 (Log.v 대체용)
-     * 현재는 요청하신 대로 '모두 표기(true)'로 세팅되어 있습니다.
      */
     fun v(tag: String, message: String) {
         if (SHOW_VERBOSE_LOGS) {
