@@ -265,8 +265,13 @@ export async function composeMergedRoute(params: ComposeMergedRouteParams) {
         basePlan ? { waypoints: basePlan.waypoints, dest: basePlan.mergedDest } : null,
     );
     /**
-     * 🧭 구간의 주인 — `planArrivalStops` 는 같은 optimizeWaypoints 를 쓰므로
-     * 카카오 요청의 경유 순서와 같다. 자리가 아니라 이름으로 맞추는 열쇠가 된다.
+     * 🧭 **구간의 주인 — 방금 카카오에 보낸 그 순서다** (`plan.orderedStops`).
+     *
+     * 🔴 예전에는 `planArrivalStops`(도착 계획)로 따로 만들었고, 주석은 *"같은
+     *    optimizeWaypoints 를 쓰므로 순서가 같다"* 고 적혀 있었다. **2026-08-25 에
+     *    갈라진 뒤로 거짓이었다** — 도착 계획은 «지나가는 길목부터»(최근접 탐욕),
+     *    이 요청은 «상차 전부 먼저»다. 정거장 수는 같아 아래 길이 검사를 통과하고
+     *    **주행분이 남의 이름에 붙었다** (2026-08-29 · tests/rules/sectionStopsOrder.test.ts).
      *
      * 🔴 **`merged` 안에 붙인다** — 호출부는 전부 `applyRoute(holder, result.merged)` 라
      *    바깥에 붙이면 홀더에 영영 안 실린다. 실제로 그렇게 끊겨 있어서 #32 증상
@@ -274,9 +279,7 @@ export async function composeMergedRoute(params: ComposeMergedRouteParams) {
      *    (2026-08-21 · tests/services/sectionStopsPlumbing.test.ts 가 이 이음새를 지킨다).
      */
     if (result?.merged) {
-        (result.merged as any).sectionStops = planArrivalStops(
-            extra ? [...calls, extra] : calls, driverLocation,
-        ).map(st => ({ orderId: st.orderId, stopType: st.stopType }));
+        (result.merged as any).sectionStops = plan.orderedStops;
     }
     return result;
 }
@@ -294,7 +297,14 @@ export function planMergedStops(
     calls: RouteHolder[],
     extra: RouteHolder | null | undefined,
     driverLocation: Coord | null | undefined,
-): { origin: { pickup: Coord; dropoff: Coord }; mergedDest: Coord; waypoints: Coord[]; skippedPickups: number } | null {
+): {
+    origin: { pickup: Coord; dropoff: Coord };
+    mergedDest: Coord;
+    waypoints: Coord[];
+    /** 🧭 카카오가 받는 정거장 순서의 이름표 — `[...waypoints, mergedDest]` 와 같은 길이·순서 */
+    orderedStops: Array<{ orderId: string; stopType: 'pickup' | 'dropoff' }>;
+    skippedPickups: number;
+} | null {
     /**
      * 🔴 2026-08-13 — **이미 상차한 콜의 상차지는 경유지에서 뺀다.**
      *
@@ -306,11 +316,28 @@ export function planMergedStops(
      * 기사님이 정리한 원칙과 같은 줄기다 — **KEEP 은 예약이고 상차가 적재다.**
      * 짐을 실었으면 그 콜에 남은 일은 **하차뿐**이다.
      */
-    const pairs: { pickup: Coord | null; dropoff: Coord | null }[] = [];
+    /**
+     * 🧭 좌표에 **이름표를 붙여** 나른다 (2026-08-29).
+     *
+     * 구간 주행분(`sectionDriveMin`)은 카카오가 준 순서 그대로이고, 화면·판정은
+     * 그것을 «어느 정거장의 값인가»로 조회한다. 예전에는 그 이름표를
+     * `planArrivalStops`(도착 계획)로 따로 만들었는데, 두 계획은 2026-08-25 에
+     * **갈라졌다** — 도착 계획은 «지나가는 길목부터»(최근접), 여기는 «상차 전부 먼저».
+     * 정거장 수는 같아 길이 검사를 통과하고, **값이 남의 이름에 붙었다.**
+     *
+     * → 이름표를 **계획을 세우는 이 자리에서 함께** 만든다. 좌표를 되짚어 맞추면
+     *   같은 지점을 쓰는 두 콜에서 또 갈라진다 (규칙 ③ — 파생값은 한 곳에서).
+     */
+    type Labeled = Coord & { orderId: string; stopType: 'pickup' | 'dropoff' };
+    const pairs: { pickup: Labeled | null; dropoff: Labeled | null }[] = [];
     let skippedPickups = 0;
     for (const c of calls) {
-        const p = toCoordPair(c);
-        if (!p) continue;
+        const p0 = toCoordPair(c);
+        if (!p0) continue;
+        const p = {
+            pickup: { ...p0.pickup, orderId: c.id, stopType: 'pickup' as const },
+            dropoff: { ...p0.dropoff, orderId: c.id, stopType: 'dropoff' as const },
+        };
         /**
          * 🚏 **다녀온 정거장은 경유지에서 뺀다** — 판단은 `hasVisitedStop` 하나 (2026-08-19).
          *    예전엔 `isAlreadyLoaded`(상차 완료 버튼)만 봐서, **GPS 로 이미 다녀온
@@ -330,15 +357,18 @@ export function planMergedStops(
 
     if (extra && !calls.some(c => c.id === extra.id)) {
         const extraPair = toCoordPair(extra);
-        if (extraPair) pairs.push(extraPair);   // 후보 콜은 아직 안 실었으므로 상차지를 남긴다
+        if (extraPair) pairs.push({          // 후보 콜은 아직 안 실었으므로 상차지를 남긴다
+            pickup: { ...extraPair.pickup, orderId: extra.id, stopType: 'pickup' },
+            dropoff: { ...extraPair.dropoff, orderId: extra.id, stopType: 'dropoff' },
+        });
     }
     if (pairs.length === 0) return null;
     if (skippedPickups > 0) {
         console.log(`🛣️ [경로] 이미 상차한 콜 ${skippedPickups}건의 상차지를 경유지에서 제외 (다녀온 곳을 다시 가지 않는다)`);
     }
 
-    const allPickups = pairs.map(p => p.pickup).filter(Boolean) as Coord[];
-    const allDropoffs = pairs.map(p => p.dropoff).filter(Boolean) as Coord[];
+    const allPickups = pairs.map(p => p.pickup).filter(Boolean) as Labeled[];
+    const allDropoffs = pairs.map(p => p.dropoff).filter(Boolean) as Labeled[];
     if (allDropoffs.length === 0) return null;   // 갈 곳이 없다 — 사이클 끝 (경로를 지어내지 않는다)
 
     // TSP 시작점: 기사님 현위치를 알면 거기서부터 최적화한다.
@@ -352,6 +382,13 @@ export function planMergedStops(
 
     const mergedDest = sortedDropoffs.pop()!;
     const waypoints = [...sortedPickups, ...sortedDropoffs];
+    /**
+     * 🧭 **구간의 주인** — 카카오가 받는 정거장 순서 그대로다.
+     *    현위치를 알면 `origin` 은 현위치이므로 정거장은 `waypoints + mergedDest` 다
+     *    (`kakaoService.calculateDetourRoute` 의 requestBody 참조).
+     */
+    const orderedStops = [...waypoints, mergedDest]
+        .map(s => ({ orderId: s.orderId, stopType: s.stopType }));
 
     // 출발 기준은 **첫짐 콜**(calls[0]). 그 좌표가 없으면 첫 유효 좌표로 대체한다.
     // ⚠️ 상차지가 하나도 안 남았을 수 있으므로(전부 적재 완료) 하차지로도 폴백한다.
@@ -376,7 +413,7 @@ export function planMergedStops(
             : mainPair)
         : { pickup: allPickups[0] ?? allDropoffs[0], dropoff: allDropoffs[0] };
 
-    return { origin, mergedDest, waypoints, skippedPickups };
+    return { origin, mergedDest, waypoints, orderedStops, skippedPickups };
 }
 
 /** 도착 감지가 보는 정거장 — 어느 콜의 어느 쪽인지 라벨이 붙어 있다 */
