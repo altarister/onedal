@@ -28,6 +28,7 @@ import settingsRouter from "./routes/settings";
 import logbookAnalyticsRouter from "./routes/logbook/analytics";
 import logbookPlacesRouter from "./routes/logbook/places";
 import logbookFilterDaysRouter from "./routes/logbook/filterDays";
+import logbookGpsTrackRouter from "./routes/logbook/gpsTrack";
 import healthRouter, { logServerIdentity } from "./routes/health";
 import logsRouter from "./routes/logs";
 import { validateEnv } from "./config/env";
@@ -92,6 +93,7 @@ app.use("/api/settings", settingsRouter); // 개인화 설정 라우터
 app.use("/api/logbook/analytics", logbookAnalyticsRouter);
 app.use("/api/logbook/filter-days", logbookFilterDaysRouter);
 app.use("/api/logbook/places", logbookPlacesRouter);
+app.use("/api/logbook/gps-track", logbookGpsTrackRouter);
 
 
 // [Phase 1.5] 정의되지 않은 /api/* 요청은 여기서 404 JSON으로 끊는다.

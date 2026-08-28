@@ -49,6 +49,13 @@ export const GPS_TRACK = {
     FLUSH_MS: 10_000,
     /** 보관 기간 — 8일째 부팅하면 1일차가 지워진다 */
     KEEP_DAYS: 7,
+    /**
+     * 궤적 공백 경보 문턱 (5분) — 표본 조건(15초)의 20배.
+     * 저장 조건이 «50m 이동 **또는** 15초 경과»라 폰이 살아 있으면 정차 중에도 점이 온다.
+     * 그러므로 이만큼 비면 «차가 서 있던 것»이 아니라 **폰이 좌표를 안 보낸 것**이다
+     * (2026-08-28 실측: S23 배터리 최적화로 5분+ 공백 7회, 최대 17분).
+     */
+    GAP_ALERT_MS: 5 * 60_000,
 } as const;
 
 export interface GpsPoint {
@@ -133,6 +140,92 @@ export function flushGpsBuffer(): void {
     } catch (e) {
         console.log(`⚠️ [궤적 저장 실패] ${batch.length}점을 버립니다 —`, (e as Error)?.message);
     }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 읽기 — 이 표에 처음 생긴 SELECT 다 (2026-08-28)
+//
+// 그동안 «쓰기 전용»이라 확인마다 EC2 에 들어가 node -e 를 손으로 짰다.
+// 궤적은 «기록»이므로 읽기도 판정과 무관하다 — 여기가 비어도 콜 잡기는 그대로 돈다.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/** DB 에서 읽은 궤적 한 점 — 칸 이름은 표 그대로(snake_case) 두지 않고 여기서 한 번만 옮긴다 */
+export interface TrackPoint {
+    atMs: number;
+    x: number;
+    y: number;
+    source: string | null;
+    speedKmh: number | null;
+    orderId: string | null;
+    stopType: 'pickup' | 'dropoff' | null;
+}
+
+export interface TrackGap { fromMs: number; toMs: number; minutes: number }
+
+export interface TrackSummary {
+    count: number;
+    fromMs: number | null;
+    toMs: number | null;
+    /** 이 공백들이 곧 «폰이 좌표를 안 보낸 구간»이다 — GAP_ALERT_MS 주석 참조 */
+    gaps: TrackGap[];
+    /** 상차로 가던 점 · 하차로 가던 점 · 콜이 안 붙은 점 */
+    byStop: { pickup: number; dropoff: number; none: number };
+}
+
+/**
+ * 점 목록을 요약한다 — **순수 계산이라 폰 없이 검사된다** (`shouldStoreGpsPoint` 와 같은 규칙).
+ * 시각 오름차순을 전제한다 (아래 SELECT 가 `ORDER BY at_ms` 로 보장).
+ */
+export function summarizeTrack(
+    points: Pick<TrackPoint, 'atMs' | 'stopType'>[],
+    gapMs: number = GPS_TRACK.GAP_ALERT_MS,
+): TrackSummary {
+    const byStop = { pickup: 0, dropoff: 0, none: 0 };
+    const gaps: TrackGap[] = [];
+    let prev: number | null = null;
+    for (const p of points) {
+        byStop[p.stopType ?? 'none']++;
+        if (prev != null && p.atMs - prev >= gapMs) {
+            gaps.push({ fromMs: prev, toMs: p.atMs, minutes: Math.round((p.atMs - prev) / 60_000) });
+        }
+        prev = p.atMs;
+    }
+    return {
+        count: points.length,
+        fromMs: points.length ? points[0].atMs : null,
+        toMs: points.length ? points[points.length - 1].atMs : null,
+        gaps, byStop,
+    };
+}
+
+const rowToPoint = (r: any): TrackPoint => ({
+    atMs: r.at_ms, x: r.x, y: r.y,
+    source: r.source ?? null, speedKmh: r.speed_kmh ?? null,
+    orderId: r.order_id ?? null, stopType: r.stop_type ?? null,
+});
+
+/** «이 콜의 궤적» — 시각 오름차순 */
+export function trackOfOrder(userId: string, orderId: string): TrackPoint[] {
+    return db.prepare(`
+        SELECT at_ms, x, y, source, speed_kmh, order_id, stop_type
+        FROM gps_tracks WHERE user_id = ? AND order_id = ? ORDER BY at_ms
+    `).all(userId, orderId).map(rowToPoint);
+}
+
+/** 궤적이 붙은 콜 목록 — 콜별 점 수·구간. 어느 콜의 궤적을 열어 볼지 고르는 입구다 */
+export function trackSegmentsOf(userId: string): Array<{
+    orderId: string; count: number; fromMs: number; toMs: number;
+    pickupCount: number; dropoffCount: number;
+}> {
+    return db.prepare(`
+        SELECT order_id AS orderId, COUNT(*) AS count,
+               MIN(at_ms) AS fromMs, MAX(at_ms) AS toMs,
+               SUM(CASE WHEN stop_type = 'pickup'  THEN 1 ELSE 0 END) AS pickupCount,
+               SUM(CASE WHEN stop_type = 'dropoff' THEN 1 ELSE 0 END) AS dropoffCount
+        FROM gps_tracks
+        WHERE user_id = ? AND order_id IS NOT NULL
+        GROUP BY order_id ORDER BY MIN(at_ms)
+    `).all(userId) as any[];
 }
 
 /**

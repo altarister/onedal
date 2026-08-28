@@ -1,5 +1,6 @@
 import db from '../../src/db';
-import { shouldStoreGpsPoint, GPS_TRACK, pruneGpsTracks, flushGpsBuffer, bufferGpsPoint } from '../../src/services/gpsTrackStore';
+import { shouldStoreGpsPoint, GPS_TRACK, pruneGpsTracks, flushGpsBuffer, bufferGpsPoint,
+         summarizeTrack, trackOfOrder, trackSegmentsOf } from '../../src/services/gpsTrackStore';
 import { isSpeedSampleUsable, gpsPointOf } from '../../src/services/geoService';
 import { planArrivalStops } from '../../src/services/routeComposer';
 
@@ -187,5 +188,61 @@ describe('궤적에 콜을 붙인다 — 경로 대조의 열쇠', () => {
     it('좌표·시각·출처·속도는 그대로 실린다', () => {
         const p = gpsPointOf(sess([order('A')]), GPS, 123_456, 'mock', 7);
         expect([p.x, p.y, p.atMs, p.source, p.speedKmh]).toEqual([127.00, 37.50, 123_456, 'mock', 7]);
+    });
+});
+
+/**
+ * 📖 **읽기 — 쓰기 전용이던 표에 처음 생긴 SELECT** (2026-08-28)
+ *
+ * «궤적에 콜이 붙는가» 확인에 EC2 에 들어가 node -e 를 손으로 짰다 — 읽는 코드가
+ * 서버 어디에도 없었기 때문이다. 그날 손으로 한 질문(콜별 점 수 · 공백 · 상하차 구분)이
+ * `summarizeTrack`·`trackOfOrder`·`trackSegmentsOf` 가 됐고, 여기서 그 답을 고정한다.
+ *
+ * 공백 문턱의 근거: 저장 조건이 «50m 이동 **또는** 15초 경과»라 폰이 살아 있으면
+ * 정차 중에도 점이 온다. 그러므로 5분+ 공백은 «서 있던 것»이 아니라
+ * **폰이 좌표를 안 보낸 것**이다 (08-28 실측: S23 배터리 최적화로 7회, 최대 17분).
+ */
+describe('읽기 — 궤적을 요약한다', () => {
+    const MIN = 60_000;
+    const pt = (atMs: number, stopType: 'pickup' | 'dropoff' | null = 'pickup') => ({ atMs, stopType });
+
+    it('🔴 5분+ 벌어진 구간을 공백으로 잡는다 — 폰이 좌표를 안 보낸 증거', () => {
+        const s = summarizeTrack([pt(0), pt(15_000), pt(15_000 + 17 * MIN), pt(15_000 + 17 * MIN + 15_000)]);
+        expect(s.gaps).toHaveLength(1);
+        expect(s.gaps[0]).toEqual({ fromMs: 15_000, toMs: 15_000 + 17 * MIN, minutes: 17 });
+    });
+
+    it('15초 간격 정상 궤적에는 공백이 없다', () => {
+        const s = summarizeTrack([pt(0), pt(15_000), pt(30_000), pt(45_000)]);
+        expect(s.gaps).toHaveLength(0);
+        expect([s.fromMs, s.toMs, s.count]).toEqual([0, 45_000, 4]);
+    });
+
+    it('상차행·하차행·미부착을 가른다 — orderId 만으로는 궤적을 반으로 못 가른다', () => {
+        const s = summarizeTrack([pt(0, 'pickup'), pt(1, 'pickup'), pt(2, 'dropoff'), pt(3, null)]);
+        expect(s.byStop).toEqual({ pickup: 2, dropoff: 1, none: 1 });
+    });
+
+    it('빈 궤적은 비어 있다고 말한다 — 지어내지 않는다 (규칙 ④)', () => {
+        const s = summarizeTrack([]);
+        expect([s.count, s.fromMs, s.toMs]).toEqual([0, null, null]);
+        expect(s.gaps).toHaveLength(0);
+    });
+
+    it('🔴 DB 왕복 — 넣은 점이 콜별로 묶여 나오고, 점은 시각 오름차순이다', () => {
+        const ins = db.prepare(`INSERT INTO gps_tracks (user_id, at_ms, x, y, source, order_id, stop_type)
+                                VALUES (?,?,?,?,?,?,?)`);
+        ins.run(U, 2_000, 127.2, 37.2, 'native', 'ORD-A', 'dropoff');   // 일부러 역순으로 넣는다
+        ins.run(U, 1_000, 127.1, 37.1, 'native', 'ORD-A', 'pickup');
+        ins.run(U, 3_000, 127.3, 37.3, 'native', null, null);           // 미부착 — 목록에 안 나와야
+
+        const segs = trackSegmentsOf(U);
+        expect(segs).toHaveLength(1);
+        expect(segs[0]).toMatchObject({ orderId: 'ORD-A', count: 2, fromMs: 1_000, toMs: 2_000,
+                                        pickupCount: 1, dropoffCount: 1 });
+
+        const points = trackOfOrder(U, 'ORD-A');
+        expect(points.map(p => p.atMs)).toEqual([1_000, 2_000]);        // 오름차순 — summarizeTrack 의 전제
+        expect(points[0].stopType).toBe('pickup');
     });
 });

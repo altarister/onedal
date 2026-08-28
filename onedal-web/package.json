@@ -17,6 +17,7 @@
     "audit:docs": "node scripts/audit-docs.mjs",
     "rehearsal": "node scripts/rehearsal.mjs",
     "ledger": "node scripts/ledger.mjs",
+    "track": "node scripts/track.mjs",
     "options": "node scripts/options.mjs",
     "reach": "node scripts/reach.mjs",
     "reach:sweep": "node scripts/reach-sweep.mjs"
