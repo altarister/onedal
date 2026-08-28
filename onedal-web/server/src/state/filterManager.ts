@@ -216,7 +216,7 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
     //     if (!changes.allowedVehicleTypes)
     //         = getEligibleVehicleTypes(내 차종)   ← 만재든 아니든 전 차종 허용
     //
-    // 그래서 합짐 도중 경유이 갱신될 때마다(syncDetourFilter 는 키워드만 넘긴다)
+    // 그래서 합짐 도중 경유가 갱신될 때마다(syncDetourFilter 는 키워드만 넘긴다)
     // **적재 용량 제한이 조용히 풀렸다.** 라보 2개를 싣고도 1t 콜을 잡으러 가는 상태가 된다.
     // 실측: 상태 복구가 [오토바이, 다마스, 승용차] 로 좁혀 놓은 직후 경유 갱신 한 번에
     //       5종 전체로 되돌아갔다 (2026-08-10 스모크).
@@ -261,7 +261,7 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
     /**
      * 🔴 **마지막에 지나온 구간을 뺀다.**
      *
-     * 여기가 유일한 자리인 이유: 경유을 다시 그리는 길이 여럿인데(경로 갱신·반경 변경·
+     * 여기가 유일한 자리인 이유: 경유를 다시 그리는 길이 여럿인데(경로 갱신·반경 변경·
      * 국면 전환), 어느 길로 오든 **다시 그리면 지나온 동이 되살아난다.**
      * 파생 계산의 끝에 두면 그 셋을 다 덮는다.
      */
@@ -273,7 +273,7 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
  *
  * 🔴 **파생 재계산을 거치지 않는다.** `updateActiveFilter(userId, {})` 로 트리거하면
  *    그 안의 *"도착 도시가 비어 있으면 키워드를 지운다"* 가지에 걸려, 도시를 안 고른 채
- *    운행할 때 **0.5km 마다 경유이 통째로 지워진다.** 빈 필터는 "제한 없음"이 아니라
+ *    운행할 때 **0.5km 마다 경유가 통째로 지워진다.** 빈 필터는 "제한 없음"이 아니라
  *    고장이라 콜 잡기가 조용히 멈춘다.
  *
  *    지나온 구간 제거는 허용 차종·적재 칸을 다시 셀 이유가 없다. 필요한 건 숫자 비교뿐이다.
@@ -285,11 +285,11 @@ export function trimTraveled(userId: string, io?: any): void {
 }
 
 /**
- * 경유을 새로 그렸으면 **진행도도 같이 기억한다.**
+ * 경유를 새로 그렸으면 **진행도도 같이 기억한다.**
  *
  * 🔴 키워드와 진행도는 **같은 입력에서 같이 나온 한 벌**이다. 한쪽만 갱신하면
  *    옛 경로의 진행도로 새 경로의 동을 지우게 된다 — 멀쩡한 지역이 조용히 사라진다.
- *    경유을 만드는 자리마다 이 함수를 부른다.
+ *    경유를 만드는 자리마다 이 함수를 부른다.
  */
 export function rememberDetourProgress(
     session: ReturnType<typeof getUserSession>,
@@ -369,11 +369,11 @@ export function buildAppProgressKm(
 }
 
 /**
- * **지나온 구간을 필터에서 뺀다** — 경유을 다시 그리지 않고.
+ * **지나온 구간을 필터에서 뺀다** — 경유를 다시 그리지 않고.
  *
  * 기사님: *"성남을 지났으면 이미 지나온 광주시·성남시 콜은 목록에서 뺀다. 뒤로 안 돌아가니까."*
  *
- * 경유을 만들 때 동마다 기록해 둔 진행도(`detourProgressKm`)와 지금 GPS 의 진행도를
+ * 경유를 만들 때 동마다 기록해 둔 진행도(`detourProgressKm`)와 지금 GPS 의 진행도를
  * 비교하기만 한다 — 실측 **0.14ms**. 예전 방식(경유 통째 재계산)은 173ms 였다.
  *
  * 안전 쪽으로 기운 규칙 셋. **일찍 빼면 잡을 수 있는 콜을 버린다:**
@@ -389,7 +389,7 @@ export function applyTraveledTrim(session: ReturnType<typeof getUserSession>): b
      * **국면과 무관하게 참이다** — 이미 지난 동네는 합짐이든 운행중이든 지난 동네다.
      * 게다가 도착 감지가 국면을 GATHERING 으로 떨어뜨리자 **달리는 중인데 제거가 멈췄다.**
      *
-     * 조건은 데이터에 맡긴다: 진행도가 있고(= 경유을 그렸고) · 경로가 있고 · GPS 가 있으면 돈다.
+     * 조건은 데이터에 맡긴다: 진행도가 있고(= 경유를 그렸고) · 경로가 있고 · GPS 가 있으면 돈다.
      * 콜이 0건이면 경로가 없으니 자연히 안 돈다.
      */
     const progress = session.detourProgressKm;
@@ -576,7 +576,7 @@ export function savePhaseSettings(
          * 반경은 기사님 것이고, 그 반경으로 그린 **지역 목록은 경로를 따라가야 한다.**
          */
         updateActiveFilter(userId, applyPhaseToFilter(phase, clean), io);
-        // 반경이 바뀌었으면 경유을 다시 그린다 (updateActiveFilter 는 도시 기반 지리만 본다)
+        // 반경이 바뀌었으면 경유를 다시 그린다 (updateActiveFilter 는 도시 기반 지리만 본다)
         refreshDetourIfNeeded(session, userId, before);
         if (io) broadcastFilter(userId, session, io);
     } else if (io) {
@@ -589,7 +589,7 @@ export function savePhaseSettings(
  * 지금 경로 주변의 **경유 지역**을 다시 구한다 (합짐·운행중).
  *
  * 🔴 2026-08-14 에 `dispatchEngine` 에서 여기로 옮겨 왔다. 국면별 설정이 들어오면서
- *    경유을 다시 그려야 하는 자리가 셋이 됐는데(필터 저장 · 국면 설정 저장 · 국면 전환),
+ *    경유를 다시 그려야 하는 자리가 셋이 됐는데(필터 저장 · 국면 설정 저장 · 국면 전환),
  *    뒤의 둘은 이 파일 안이라 dispatchEngine 을 부르면 순환 참조가 된다.
  *    경유 계산이 4벌로 갈라졌던 사고를 되풀이하지 않으려면 **구현은 하나여야 한다.**
  */
@@ -780,7 +780,7 @@ export function updateActiveFilter(
          */
         session.activeFilter = {
             ...session.activeFilter,
-            // 경유은 이 사이클의 경로에서 나온 값이다 — 경로가 끝났으니 지운다.
+            // 경유는 이 사이클의 경로에서 나온 값이다 — 경로가 끝났으니 지운다.
             // 비워 두면 recalculateDerivedFields 가 **오늘의** destinationCity 로 다시 만든다
             destinationKeywords: [],
             destinationGroups: {},
@@ -788,7 +788,7 @@ export function updateActiveFilter(
             // 진행도도 이 사이클의 경로에서 나온 값이다 — 경로가 끝났으니 지운다.
             // 남겨 두면 다음 운행 초반에 **옛 경로 기준으로** 동이 사라진다
             // (`detourProgressKm` 은 아래에서 지운다 — activeFilter 가 아니라 세션 필드다)
-            // 수동 고정도 사이클과 함께 풀린다 (다음 콜 잡기은 자동 경유으로 시작)
+            // 수동 고정도 사이클과 함께 풀린다 (다음 콜 잡기는 자동 경유로 시작)
             userOverrides: false,
             isSharedMode: false,
             driverAction: 'WAITING',
@@ -876,7 +876,7 @@ export function updateActiveFilter(
     }
 
     /**
-     * 🔴 **선점 중인 콜이 없으면 콜 잡기은 켜져 있어야 한다** (2026-08-14).
+     * 🔴 **선점 중인 콜이 없으면 콜 잡기는 켜져 있어야 한다** (2026-08-14).
      *
      * `isActive` 는 "지금 콜을 물어도 되는가" 다. `/orders/confirm` 이 콜을 선점하면서
      * `false` 로 끄고(결재 날 때까지 다른 콜을 안 물게), **결재가 나면** `rollbackOnCancel`
@@ -915,7 +915,7 @@ export function updateActiveFilter(
      *
      * ⚠️ **여기가 이 함수의 끝이어야 한다.** 조각을 펼친 뒤 `updateActiveFilter` 를 다시
      *    부르면 무한 루프가 된다. 파생값(키워드·별칭·허용차종)은 위에서 이미 계산됐고,
-     *    반경이 바뀌면 경유은 다음 경로 계산 때 새 값으로 다시 그려진다.
+     *    반경이 바뀌면 경유는 다음 경로 계산 때 새 값으로 다시 그려진다.
      *
      * 🔴 **기사님이 방금 고친 값은 덮지 않는다.** `changes` 에 들어 있는 키는 건너뛴다 —
      *    안 그러면 필터 팝업에서 저장한 값이 곧바로 국면 기본값으로 되돌아간다.

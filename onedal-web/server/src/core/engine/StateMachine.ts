@@ -58,7 +58,8 @@ export class StateMachine {
         session: UserSession, 
         activeCallsCount: number
     ): StateTransitionResult {
-        // 이미 멈춰있지 않고 탐색 중이거나 합짐 상태일 때만 필터를 재조정
+        // 콜 잡기가 꺼져 있거나(선점 중이라 서버가 내려 둔 상태) 합짐 상태일 때만 필터를 재조정
+        // ⚠️ 예전 주석은 "멈춰있지 **않고**" 라 조건을 정반대로 적고 있었다 (2026-08-29 정정)
         if (!session.activeFilter.isActive || session.activeFilter.isSharedMode) {
             const resetFilter: Partial<AutoDispatchFilter> = { isActive: true };
 

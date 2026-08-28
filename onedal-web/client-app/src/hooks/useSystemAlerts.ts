@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { socket } from "../lib/socket";
 import { soundManager } from "../lib/soundManager";
+import { orderIdOf } from "../lib/socketPayload";
 
 export interface EmergencyAlert {
     deviceId: string;
@@ -54,8 +55,16 @@ export function useSystemAlerts() {
             });
         };
 
-        // 오더가 취소/확정되면 해당 경고 자동 제거
-        const handleOrderCleared = (orderId: string) => {
+        /**
+         * 오더가 취소/확정되면 해당 경고 자동 제거.
+         *
+         * 🔴 두 이벤트의 **모양이 다르다** — 확정은 문자열, 취소는 `{ id, status }`.
+         *    예전에는 문자열로만 받아 취소 쪽이 **한 번도 안 지워졌다** (2026-08-29 정정).
+         *    푸는 법은 `orderIdOf` 한 곳에 있다 (규칙 ③).
+         */
+        const handleOrderCleared = (payload: unknown) => {
+            const orderId = orderIdOf(payload);
+            if (!orderId) return;
             setWarnings(prev => prev.filter(w => w.orderId !== orderId));
         };
 

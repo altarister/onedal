@@ -417,7 +417,7 @@ async function run({ main, cod }) {
         await untilFilter(() => st.filter?.destinationRadiusKm === 7),
         `하차 반경=${st.filter?.destinationRadiusKm}`);
 
-    // ② 다른 국면(local)에 저장해도 **지금 콜 잡기은 안 바뀐다**
+    // ② 다른 국면(local)에 저장해도 **지금 콜 잡기는 안 바뀐다**
     savePhase('local', { dropoffRadiusKm: 0, discountPct: 20 });
     await wait(500);
     check('관내 탭에 저장해도 지금(첫짐) 필터는 그대로다',

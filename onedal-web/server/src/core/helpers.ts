@@ -30,7 +30,12 @@ export function getActiveCalls(session: { myOrders: MyOrder[] }): MyOrder[] {
  *
  *   현장 실측(ACTUAL)  → 확정
  *   통화 신고(DECLARED) → 신고
- *   없음               → 차종으로 추정 (1t 콜이면 30점을 다 먹는다고 가정)
+ *   없음               → 차종으로 추정 (**그 차종의 정원을 다 먹는다**고 가정)
+ *
+ * ⚠️ 예전 주석은 "1t 콜이면 30점"이라 적었는데 **틀렸다** — 30 은 다마스 값이고
+ *    1t 는 80(정원 100 중)이다. 라면박스 축 전환(2026-08-17) 전 숫자가 남은 것이다.
+ *    적재 판정이 이 값을 먹으므로 숫자를 여기 다시 적지 않는다 — 원천은
+ *    `VEHICLE_CAPACITY`(shared/vehicles.ts) 하나다 (규칙 ③ · 2026-08-29 정정)
  */
 export function computeLoadedPoints(
     calls: MyOrder[],

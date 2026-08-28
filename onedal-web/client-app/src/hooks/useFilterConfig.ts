@@ -29,7 +29,7 @@ export function useFilterConfig() {
      *    (기사님: *"사용자 설정에는 파주가 선택되어 있고 새로고침하고 필터 열어 보면 용인"*)
      */
     const updateFilter = (newFilter: Partial<AutoDispatchFilter>, saveAsDefault = false) => {
-        // 오늘 콜 잡기은 언제나 바뀐다
+        // 오늘 콜 잡기는 언제나 바뀐다
         if (filter) {
             setFilter({ ...filter, ...newFilter });
         }

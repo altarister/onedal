@@ -223,10 +223,6 @@ export interface ComposeMergedRouteParams {
 }
 
 /**
- * 활성 콜들로 TSP 경유지를 짜서 카카오 합짐 경로를 계산한다.
- * 좌표가 온전한 콜이 하나도 없으면 `null`을 준다 (호출부가 조용히 건너뛸 수 있게).
- */
-/**
  * **짐을 이미 실었는가.**
  */
 // 정의는 shared 로 옮겼다 (2026-08-19 — 관제웹 지도 폴백도 같은 판단을 쓴다). 재수출만 남긴다.
@@ -235,6 +231,10 @@ export interface ComposeMergedRouteParams {
 //    성남 상차지로 50km 되돌아가는 경로가 나왔다.
 export { isAlreadyLoaded, hasVisitedStop };
 
+/**
+ * 활성 콜들로 TSP 경유지를 짜서 카카오 합짐 경로를 계산한다.
+ * 좌표가 온전한 콜이 하나도 없으면 `null`을 준다 (호출부가 조용히 건너뛸 수 있게).
+ */
 export async function composeMergedRoute(params: ComposeMergedRouteParams) {
     const { calls, extra, driverLocation, priority, carType } = params;
 

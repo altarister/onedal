@@ -86,7 +86,10 @@ export class OrderEvaluator {
                 }
 
                 // 카카오 라우팅 연산
-                if (securedOrder.pickupX && securedOrder.dropoffY) {
+                // ⚠️ 예전에는 `pickupX && dropoff**Y**` 라 두 축이 섞여 있었다. X·Y 는 위에서
+                //    같은 좌표 객체로 **함께** 채워지므로 동작은 같지만(확인함), 아래 else 의
+                //    진단문은 X 로 «어느 쪽이 없나»를 가른다 — 축을 맞춘다 (2026-08-29)
+                if (securedOrder.pickupX && securedOrder.dropoffX) {
                     const routingOptions = SettingsRepository.getKakaoRoutingOptions(userId);
                     const activeCalls = getActiveCalls(session);
                     const activeMain = activeCalls[0];
@@ -484,11 +487,11 @@ export class OrderEvaluator {
         /**
          * 5) 도착지 키워드 검사 (합짐 모드일 때)
          *
-         * 🔴 2026-08-12 — 예전에는 `length > 0` 일 때만 검사했다. 즉 **경유이 없으면
+         * 🔴 2026-08-12 — 예전에는 `length > 0` 일 때만 검사했다. 즉 **경유가 없으면
          *    검사를 통째로 건너뛰었다.** 앱도 같은 방향으로 열려 있어서
          *    (`isEmpty() → true`) 두 겹이 동시에 무력화됐다.
          *
-         *    경유을 못 구한 상태는 "어디든 좋다"가 아니라 **"판단할 근거가 없다"** 다.
+         *    경유를 못 구한 상태는 "어디든 좋다"가 아니라 **"판단할 근거가 없다"** 다.
          *    안전취소 30초 안에 근거 없이 KEEP 하면 그대로 똥콜을 안고 간다.
          */
         if (filter.isSharedMode) {

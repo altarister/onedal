@@ -63,7 +63,16 @@ router.post("/google", async (req, res) => {
             console.log(`🔓 [AUTH] 기존 회원 로그인: ${name} (${email})`);
         }
 
-        // 3. 1시간짜리 Access Token 발급
+        /**
+         * 3. **30일짜리** Access Token 발급.
+         *
+         * ⚠️ 예전 주석은 "1시간짜리"였는데 코드는 처음부터 `30d` 였다 (2026-08-29 정정).
+         * 🔴 그래서 **AT 가 RT(14일)보다 두 배 오래 산다** — 아래 Refresh Token 을 해시로
+         *    저장하고 기기별로 폐기하는 설계는 *"AT 는 짧으니 RT 만 막으면 된다"* 를 전제한다.
+         *    지금은 AT 를 막을 수단이 없어 그 전제가 성립하지 않는다.
+         *    **코드를 안 고친 이유**: 줄이면 운행 중 로그아웃이 나고, 앱은 아직 네이티브
+         *    구글 로그인이 없어(todo.md 🔐) 재로그인 수단이 없다. 기사님 판단이 필요한 값이다
+         */
         const secret = jwtSecret();
         const accessToken = jwt.sign(
             { id: userRow.id, email: userRow.email, name: userRow.name, role: userRow.role },

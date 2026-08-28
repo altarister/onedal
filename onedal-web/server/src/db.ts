@@ -400,7 +400,8 @@ db.exec(`
  * 🎛️ **콜 옵션** — 화면의 선택지와 그 값 (2026-08-20 신설).
  *
  * 컬럼 목록은 `shared/src/callOptions.ts` 의 `CALL_OPTION_COLUMNS` 가 유일한 원천이다.
- * 🔴 **아직 아무도 안 읽는다** — 화면·판정은 옛 상수로 돈다. 채워만 두고 다음 단계에서 잇는다.
+ * 🔴 **화면·판정은 아직 안 읽는다** — 옛 상수로 돈다. 채워만 두고 다음 단계에서 잇는다.
+ *    (지금 읽는 것은 `pnpm options` 하나다 — scripts/options.mjs)
  */
 db.exec(`
     CREATE TABLE IF NOT EXISTS call_options (
@@ -441,9 +442,13 @@ export function seedCallOptions(userId: string) {
  * 🪜 **여섯 단계, 여섯 테이블** (2026-08-20 신설).
  *
  * 컬럼은 `shared/src/stepTables.ts` 의 `STEP_TABLES` 가 원천이다 — **여기 손으로 적지 않는다.**
- * 🔴 **행은 KEEP 때 생기고 상태만 바뀐다** — 계획(`planned_*`)과 실측(`actual_*`)이
- *    같은 행에 있어 오차를 조인 없이 잰다. 지금 `stop_cargo_reports` 가 못 하는 것이다.
- * 🔴 **아직 아무도 안 읽는다** — 여섯을 다 만들어 모양을 보고 합칠지 정한다.
+ * 🔴 **첫 행은 KEEP 때 태어나고, 나머지는 각 단계가 끝날 때 태어난다** (출생 모델
+ *    2026-08-20 · socketHandlers 참조). 계획(`planned_*`)과 실측(`actual_*`)이
+ *    같은 행에 있어 오차를 조인 없이 잰다 — 옛 `stop_cargo_reports` 가 못 하던 것이다.
+ * 🔴 **지금은 신고·마일스톤의 유일한 원천이다** — 판정·화면·복구가 전부 이 표를 읽는다
+ *    (helpers · OrderEvaluator · filterManager · dispatchEngine · socketHandlers · stepSeeder).
+ *    ⚠️ 예전 주석은 *"행은 KEEP 때 생긴다"* · *"아직 아무도 안 읽는다"* 였는데 **둘 다 낡았다**
+ *       (2026-08-29 정정). «아무도 안 읽는다»를 믿고 이 표를 함부로 바꾸면 전부 흔들린다
  */
 for (const t of STEP_TABLES) {
     db.exec(`
@@ -484,7 +489,10 @@ ensureColumns('orders', { targetApp: 'TEXT',
      *    `tsc`·`jest` 는 통과하고 **실서버에서만** `no such column` 으로 터진다.
      */
     deliveryDistance: 'REAL' });
-ensureColumns('intel', { targetApp: 'TEXT' });
+// ⚠️ intel 의 ensureColumns 는 여기 있으면 안 된다 — 그 표는 아래 [7] 에서 만들어진다.
+//    `ensureColumns` 는 표가 없으면 조용히 return 하므로(위 :32), 빈 DB 첫 부팅에서
+//    targetApp 이 안 붙은 채 scrap.ts 가 INSERT 해 `no such column` 으로 터졌다.
+//    → CREATE 문 바로 뒤로 옮겼다 (2026-08-29 · 검사 `schemaOrder.test.ts`)
 
 /**
  * 🛰️ **주행 궤적** (기사님 확정 2026-08-26).
@@ -560,9 +568,12 @@ db.exec(`
         fare INTEGER DEFAULT 0,
         timestamp TEXT NOT NULL,
         user_id TEXT REFERENCES users(id),
-        device_id TEXT
+        device_id TEXT,
+        targetApp TEXT
     )
 `);
+// 기존 DB 에는 CREATE 가 안 도니 여기서 붙인다 — **CREATE 뒤여야 한다** (위 [3] 끝 주석 참조)
+ensureColumns('intel', { targetApp: 'TEXT' });
 
 // ═══════════════════════════════════════
 // [8] 카카오 지오코딩 영구 캐시 (장소 사전)

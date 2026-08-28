@@ -46,7 +46,7 @@ export const PHASE_LABEL: Record<PhaseKey, string> = {
  *
  * 합짐을 3종(목적지합짐/관내합짐/복귀합짐)으로 나누는 안은 기각했다 —
  * 기사님: *"합짐·운행중은 무조건 **경로가 생기고 난 이후**에 발생하니까."*
- * 경로가 있으면 경유이 그 경로에서 파생되므로 어디서 출발했든 같은 기준이면 된다.
+ * 경로가 있으면 경유가 그 경로에서 파생되므로 어디서 출발했든 같은 기준이면 된다.
  *
  * @param callTarget     'DEST' | 'LOCAL' | 'HOME'
  * @param dispatchPhase 'STANDBY' | 'GATHERING' | 'DELIVERING'

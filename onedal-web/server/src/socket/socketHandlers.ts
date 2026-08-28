@@ -129,7 +129,7 @@ export function registerSocketHandlers(io: Server) {
         session.lastFilterJson = null;   // 필터도 마찬가지 — 새 화면은 아무것도 모른다
 
         // 날이 바뀌었으면 오늘 필터를 기본 설정으로 되돌린다.
-        // 🔴 부트스트랩보다 **먼저** 해야 한다 — 부트스트랩이 이 필터를 읽어 경유을 만든다
+        // 🔴 부트스트랩보다 **먼저** 해야 한다 — 부트스트랩이 이 필터를 읽어 경유를 만든다
         ensureBusinessDay(userId, io);
         if (role === "ADMIN") {
             socket.join("admin_room");

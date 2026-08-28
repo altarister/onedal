@@ -241,8 +241,11 @@ function finalizeStep(userId: string, orderId: string, step: StepId,
 }
 
 /**
- * 🌉 **다리** — 기존 통화·현장 저장이 단계 행도 같이 채운다 (계획 B단계).
- * 기존 흐름(stop_cargo_reports)은 그대로다. 실패해도 본 흐름을 막지 않는다 (호출부 try).
+ * 🌉 통화·현장 저장이 단계 행을 채운다. 실패해도 본 흐름을 막지 않는다 (호출부 try).
+ *
+ * ⚠️ 예전엔 «다리»였다 — 옛 표(`stop_cargo_reports`)와 나란히 쓰던 시절의 이름이다.
+ *    **그 표는 2026-08-21 에 철거됐고 지금 이 경로가 유일한 저장 경로다** (08-29 정정).
+ *    이름이 «곁다리»로 읽히면 호출부의 try 가 «실패해도 그만»으로 오해된다
  */
 export function bridgeCargoReport(userId: string, orderId: string,
     report: CargoReport, judgment?: JudgmentConfig, routeTl?: RouteTl) {
@@ -354,16 +357,15 @@ export function bridgeUndoMilestone(userId: string, orderId: string, milestone: 
 }
 
 /**
- * 화면용 — 태어난 행은 그대로, 안 태어난 단계는 **회색 예정**(파생값, 저장 안 됨).
- * 기사님(2026-08-20): *"다음에 뭐가 올지는 알아야지."*
- */
-/**
  * 🔄 **파생 치환 ② — 서버 계산의 재료를 새 장부(여섯 단계 행)에서** (2026-08-21).
  *
  * 옛 장부(stop_cargo_reports · order_milestones)를 읽던 계산 소비처(적재·정차·
- * 동승·타임라인·복구)가 전부 **이 관문 하나**를 거친다. 쓰기는 아직 양쪽(다리) —
- * 관제웹 소비까지 넘어가면 옛 테이블을 손으로 철거한다 (확인 받고).
+ * 동승·타임라인·복구)가 전부 **이 관문 하나**를 거친다.
  * KEEP 전 후보는 행이 없어 빈 기록이 나온다 — 옛 장부와 같은 동작이다.
+ *
+ * ⚠️ 예전 주석은 *"쓰기는 아직 양쪽(다리) — 넘어가면 옛 테이블을 손으로 철거한다"* 였는데
+ *    **철거는 2026-08-21 에 이미 끝났다** (db.ts:277 · OrderRepository.ts:84).
+ *    지금 이 표가 **유일한 원천**이다 — «곁다리라 실패해도 된다»로 읽히면 안 된다 (08-29 정정)
  */
 /** 이 마일스톤이 이미 새 장부에 찍혀 있는가 — reportMilestone 멱등의 근거 (옛 UNIQUE 대체) */
 export function milestoneAlreadyRecorded(orderId: string, milestone: string): boolean {
@@ -382,6 +384,10 @@ export function stepRecordsOf(orderId: string): {
     return recordsOfSteps(stepsView(orderId)) as any;
 }
 
+/**
+ * 화면용 — 태어난 행은 그대로, 안 태어난 단계는 **회색 예정**(파생값, 저장 안 됨).
+ * 기사님(2026-08-20): *"다음에 뭐가 올지는 알아야지."*
+ */
 export function stepsView(orderId: string, judgment?: JudgmentConfig): StepView[] {
     const o = db.prepare(`SELECT * FROM orders WHERE id = ?`).get(orderId) as any;
     if (!o) return [];

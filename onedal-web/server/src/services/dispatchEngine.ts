@@ -353,7 +353,7 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
 /**
  * `recalculateDetourFilter` 는 **`state/filterManager` 로 옮겼다** (2026-08-14).
  *
- * 국면별 설정(§2-4)이 들어오면서 경유을 다시 그려야 하는 자리가 셋으로 늘었다 —
+ * 국면별 설정(§2-4)이 들어오면서 경유를 다시 그려야 하는 자리가 셋으로 늘었다 —
  * 관제탑 필터 저장 · **국면별 설정 저장** · **국면 전환**. 뒤의 둘은 `filterManager` 안이라
  * 여기(dispatchEngine)를 부르면 순환 참조가 된다. 그래서 함수를 아래(경계가 낮은 쪽)로 옮겼다.
  * 경유 계산은 이 레포에서 이미 **4벌**로 갈라진 적이 있다. 두 벌째를 만들지 않는다.
@@ -381,7 +381,7 @@ export const syncDetourFilter = (userId: string, io: any) => {
      *
      * 관제웹은 수동 조작 때 `userOverrides: true` 를 보내는데 **서버가 한 번도 안 읽었다.**
      * 타입 주석에 "서버 덮어쓰기 방지용"이라 적혀 있는데 방지가 안 됐다 —
-     * 경유을 손으로 좁혀 놔도 다음 경로 갱신 한 번에 되돌아갔다.
+     * 경유를 손으로 좁혀 놔도 다음 경로 갱신 한 번에 되돌아갔다.
      *
      * 조용히 넘어가지 않는다. 고정됐다는 사실을 로그와 화면에 남긴다.
      * (콜 잡기 사이클이 끝나 STANDBY 로 돌아가면 baseFilter 로 리셋되며 자동 해제된다)
@@ -397,7 +397,7 @@ export const syncDetourFilter = (userId: string, io: any) => {
          * 🔴 `getEffectiveDetourRadius` 는 정의만 되어 있고 **호출하는 곳이 없었다.**
          *    "이 함수를 통해서만 detourRadiusKm 를 결정하므로 하드코딩이 원천 차단됩니다"
          *    라는 주석이 붙어 있었는데, 정작 여기서 `?? 10` 을 직접 쓰고 있었다.
-         *    그래서 **운행 중(DELIVERING)에도 경유이 안 좁혀졌다** — 우회 금지가 안 걸린 것이다.
+         *    그래서 **운행 중(DELIVERING)에도 경유가 안 좁혀졌다** — 우회 금지가 안 걸린 것이다.
          */
         const cRadius = getEffectiveDetourRadius(
             session.activeFilter.dispatchPhase ?? 'STANDBY',
@@ -816,10 +816,6 @@ export function rebuildDestinationKeywords(userId: string, io: any): void {
     console.log(`🗺️ [키워드 재구성] 첫짐 모드 — '${city}' 기준 ${flat.length}개`);
 }
 
-/**
- * [방안 1] 서버 재시작 시 DB에서 콜을 불러와 1회성 카카오 궤적 복구 연산
- * ⚠️ 직접 호출하지 말 것 — bootstrapUserSession() 을 통해서만 실행된다.
- */
 /** 장부의 도착 마일스톤을 콜 객체 칸으로 되살린다 — 재시작해도 다녀온 곳을 기억하게 */
 function hydrateVisitedStops(orderId: string): { arrivedPickupAt?: string; arrivedDropoffAt?: string } {
     // 🔄 파생 치환 ② — 복구의 재료도 새 장부 (단계 행의 occurred_at)
@@ -831,6 +827,10 @@ function hydrateVisitedStops(orderId: string): { arrivedPickupAt?: string; arriv
     };
 }
 
+/**
+ * [방안 1] 서버 재시작 시 DB에서 콜을 불러와 1회성 카카오 궤적 복구 연산
+ * ⚠️ 직접 호출하지 말 것 — bootstrapUserSession() 을 통해서만 실행된다.
+ */
 export async function restoreAndRecalculateSession(userId: string, io: any) {
     const session = getUserSession(userId);
     if (session.isRestored) return; // 이미 복구했으면 스킵
@@ -1101,21 +1101,6 @@ export interface MilestoneResult {
 }
 
 /**
- * [Phase 8.2] 상차/하차 보고를 받는 **유일한 진입점**.
- *
- * 기사님 말: *"화면 분석해서 자동으로 하든, 내가 직접 누르든, 앱으로부터 받든
- * 이벤트를 받게 될 것이다."* — 진입점이 셋이다.
- * 오늘 EE에서 배운 것: **갈래가 셋이면 셋이 어긋난다. 진입점만 셋, 본체는 하나.**
- *
- * 이 함수가 책임지는 것
- *   ① 멱등성   같은 보고가 자동 감지 + 수동 클릭으로 두 번 와도 한 번만 반영
- *   ② 역행 방지 하차한 뒤 상차 보고가 늦게 도착해도 상태를 되돌리지 않는다
- *   ③ 상태 전이 ORDER_CONFIRMED → ORDER_PICKED_UP → ORDER_DELIVERED
- *   ④ 적재 회복 DELIVERED 는 종결 상태이므로 getActiveCalls()에서 빠지고,
- *              경로 재계산이 잔여 용량과 경유을 다시 넓혀 준다
- *   ⑤ 출처 기록 나중에 자동 감지 정확도를 측정할 유일한 근거
- */
-/**
  * 잘못 누른 마일스톤을 되돌린다.
  *
  * 상태를 손으로 되돌리지 않는다 — 지우고 나서 **남은 마일스톤으로 다시 파생**시킨다.
@@ -1161,6 +1146,21 @@ export async function undoMilestone(userId: string, orderId: string, milestone: 
     return { success: true, status };
 }
 
+/**
+ * [Phase 8.2] 상차/하차 보고를 받는 **유일한 진입점**.
+ *
+ * 기사님 말: *"화면 분석해서 자동으로 하든, 내가 직접 누르든, 앱으로부터 받든
+ * 이벤트를 받게 될 것이다."* — 진입점이 셋이다.
+ * 오늘 EE에서 배운 것: **갈래가 셋이면 셋이 어긋난다. 진입점만 셋, 본체는 하나.**
+ *
+ * 이 함수가 책임지는 것
+ *   ① 멱등성   같은 보고가 자동 감지 + 수동 클릭으로 두 번 와도 한 번만 반영
+ *   ② 역행 방지 하차한 뒤 상차 보고가 늦게 도착해도 상태를 되돌리지 않는다
+ *   ③ 상태 전이 ORDER_CONFIRMED → ORDER_PICKED_UP → ORDER_DELIVERED
+ *   ④ 적재 회복 DELIVERED 는 종결 상태이므로 getActiveCalls()에서 빠지고,
+ *              경로 재계산이 잔여 용량과 경유를 다시 넓혀 준다
+ *   ⑤ 출처 기록 나중에 자동 감지 정확도를 측정할 유일한 근거
+ */
 export async function reportMilestone(
     userId: string,
     orderId: string,
@@ -1248,7 +1248,7 @@ export async function reportMilestone(
     console.log(`📦 [${MILESTONE_LABEL[milestone]}] ${orderId.slice(0, 8)} (${source})${nextStatus ? ` → ${nextStatus}` : ''}${errText}`);
     logRoadmapEvent("서버", `[마일스톤] ${MILESTONE_LABEL[milestone]} 수신 (${source})${errText}`);
 
-    // ④ 하차하면 그 짐은 더 이상 실려 있지 않다. 경로·잔여 용량·경유을 다시 계산한다.
+    // ④ 하차하면 그 짐은 더 이상 실려 있지 않다. 경로·잔여 용량·경유를 다시 계산한다.
     //    (recalculateActiveKakaoRoute 는 활성 콜이 0건이면 경유도 첫짐 모드로 되돌린다)
     if (milestone === 'DELIVERED') {
         // [T8] 착불인데 수령 여부를 안 고르고 완료했다면 **미수금으로 잡는다.**
@@ -1395,7 +1395,7 @@ export async function setCallTarget(
         } else {
             /**
              * 복귀행 = **집이 있는 시**. 집 주소는 설정에 있다.
-             * 기점(짐이 남았으면 마지막 하차지 / 다 내렸으면 현위치)은 경유이 알아서 잡는다 —
+             * 기점(짐이 남았으면 마지막 하차지 / 다 내렸으면 현위치)은 경유가 알아서 잡는다 —
              * 여기서는 "어디로 가는가"만 정한다.
              */
             const settings = db.prepare("SELECT home_address FROM user_settings WHERE user_id = ?").get(userId) as any;

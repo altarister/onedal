@@ -24,7 +24,8 @@ import { haversineKm } from './geoService';
  * 50m 또는 15초       6,400점/일   0.7MB/일   7일 상한 5MB ← 이걸로 간다
  * ```
  *   ① **문턱** — 정차 중에는 15초에 한 점만 쌓인다
- *   ② **일괄 쓰기** — 20점 또는 30초마다 트랜잭션 하나. 1점씩 넣는 것보다 수십 배 싸다
+ *   ② **일괄 쓰기** — 5점 또는 10초마다 트랜잭션 하나. 1점씩 넣는 것보다 다섯 배 싸다
+ *      (처음엔 20점·30초였다 — SIGKILL 로 버퍼가 통째로 날아가 낮췄다, 아래 FLUSH_POINTS 참조)
  *   ③ **7일 보관** — 부팅 때 정리. 8일째 부팅하면 1일차가 지워진다
  *      (서버 로그가 3일치만 두는 것과 같은 규칙)
  *
@@ -88,7 +89,7 @@ export function shouldStoreGpsPoint(
     return (now.atMs - prev.atMs) >= GPS_TRACK.MIN_GAP_MS;
 }
 
-/** 아직 디스크로 안 간 점들 — 메모리에만 산다 (20점 × 110B ≈ 2KB) */
+/** 아직 디스크로 안 간 점들 — 메모리에만 산다 (5점 × 110B ≈ 0.5KB) */
 const BUFFER: Array<GpsPoint & { userId: string }> = [];
 let lastFlushMs = Date.now();
 

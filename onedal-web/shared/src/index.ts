@@ -743,8 +743,8 @@ export const CALL_TARGET_LABEL: Record<CallTarget, string> = {
  */
 export function callFilterBlocker(filter: AutoDispatchFilter): string | null {
     if (filter.isSharedMode) {
-        // 합짐은 경로에서 경유이 나와야 성립한다. 경유이 없으면 "가는 길"이 없는 것이다
-        if (!filter.destinationKeywords?.length) return '경유이 아직 안 잡혔습니다';
+        // 합짐은 경로에서 경유가 나와야 성립한다. 경유가 없으면 "가는 길"이 없는 것이다
+        if (!filter.destinationKeywords?.length) return '경유가 아직 안 잡혔습니다';
         return null;
     }
     // 첫짐은 도착 목표가 있어야 성립한다
@@ -790,7 +790,7 @@ export function resetToBaseFilter(base: AutoDispatchFilter): AutoDispatchFilter 
  * 그런데 `driverAction` 은 **정류장마다 바뀐다** — 하차지에 도착하면 `UNLOADING` 이 되고,
  * 그 순간 DELIVERING 이 풀렸다. 짐이 2건이면 정류장이 4곳이니 **출발을 네 번 눌러야** 했다.
  *
- * 풀리면서 딸려 온 것들: 운행중 국면 설정(우회 0)이 풀려 경유이 다시 넓어지고,
+ * 풀리면서 딸려 온 것들: 운행중 국면 설정(우회 0)이 풀려 경유가 다시 넓어지고,
  * 지나온 구간 제거가 멈추고, 🚀 출발 버튼이 다시 나타나고, 요약줄이 "대기"로 바뀌었다.
  * **증상 넷이 이 한 줄에서 나왔다.**
  *
