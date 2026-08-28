@@ -64,7 +64,7 @@ cd /Users/seungwookkim/reps/onedal
 ## 🗺️ [추가] 카카오 API 연동 트러블슈팅 (OPEN_MAP_AND_LOCAL 오류)
 
 ### 🚨 발생했던 문제 증상
-*   **현상**: 안드로이드 봇이 주소를 완벽하게 스크래핑해 서버로 넘겼음에도 불구하고, 서버의 `kakaoUtil.ts` 에서 지오코딩 1~3차 폴백 시도가 모두 에러(`카카오 좌표 변환 최종 실패`)로 떨어짐.
+*   **현상**: 안드로이드 봇이 주소를 완벽하게 스크래핑해 서버로 넘겼음에도 불구하고, 서버의 `kakaoUtil.ts`(지금은 `services/kakaoService.ts`)에서 지오코딩 1~3차 폴백 시도가 모두 에러(`카카오 좌표 변환 최종 실패`)로 떨어짐.
 *   **에러 로그 확인**: 서버에서 직접 API를 때려보니 카카오 서버가 `{"errorType":"NotAuthorizedError","message":"App(1DAL) disabled OPEN_MAP_AND_LOCAL service."}` 패킷을 반환 중이던 상태.
 
 ### 🔍 원인 파악 및 조치 내역
