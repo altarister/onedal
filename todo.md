@@ -165,35 +165,30 @@ todo 에 적힌 둘 외에 **하나 더 있었다.**
 - [ ] **주행 중 기점으로 다시 재기** — 현위치를 경로 중간에 두고, 그 상태에서 콜을 하나
       더 붙였을 때 두 순서가 어떻게 갈리는지. 그게 08-25 의 실제 상황이다
 - [ ] 그 숫자를 보고 **둘 중 하나로 통일** (규칙 ③ — 두 계획이 갈라져 있으면 안 된다)
-- [ ] `shared/callSteps.ts:22` — 건너뛰기 저장 규칙이 **정반대**로 적혀 있다
-      (*"서버에 남길 값이 아니다"* → 지금은 남긴다). 세 앱 중 하나가 이걸 믿으면 장부가 깨진다
-- [ ] `shared/timing.ts:23-35` — **없는 계수 4개**를 현재형으로 서술 (base 10/15, 0.1125/0.375).
-      실제는 base 0 · 지게차 0.05 · 수작업 1/3. **계수 확인의 첫 눈길이 닿는 자리**
-- [ ] `shared/timing.ts:319` — **역산 함수의 문서가 순산 함수 위에** 붙어 있다.
-      마감 사슬의 방향을 정하는 자리라 뒤집어 읽으면 버퍼가 통째로 틀어진다
+- [x] ~~`shared/callSteps.ts:22` 건너뛰기 규칙 정반대~~ — 08-29 완료 (`fabad2a`)
+- [x] ~~`shared/timing.ts:23-35` 없는 계수 4개~~ — 08-29 완료 (`fabad2a`) · 「기본 60분」도 함께(실제 30분)
+- [x] ~~`shared/timing.ts:319` 역산 JSDoc 이 순산 함수 위에~~ — 08-29 완료 (`fabad2a`)
 - [ ] `OrderEvaluator:150·173` — *"요율 재계산 철거 · 필터콜은 안 건드린다"* 인데
       Stage 3 가 모든 콜에 돌고 `요율 미달` 사유가 카드에 뜬다. **색만 철거된 것인지 확인 필요**
 
 **🟡 죽은 서술 (없는 것을 있다고 말한다)**
-- [ ] `helpers.ts:213` · `filterManager.ts:155` — `completeOrder`·`startTwoTrack` (둘 다 철거됨)
-- [ ] `shared/judgment.ts:24` — *"다음 단계에서 `user_filters.judgment_config` 로 옮긴다"*
-      → 이미 `user_judgment` 표로 옮겨졌고, 그 칸 이름은 레포에 없다
-- [ ] `shared/stepTables.ts:23` — *"아직 아무도 안 읽는다"* → 지금 장부의 유일한 원천
-- [ ] `shared/cargoTags.ts:8` — *"합짐 판정에 시간 축이 아예 없다"* → `dryRun` 의 `bufferCost` 축이 있다
-- [ ] `filters.ts` (파일 전체) — **마운트가 안 돼 있는데** 주석은 살아 있는 API 처럼 말한다.
-      todo 「🗑️ 삭제 대기」에 이미 있음 — 지우기 전까지 파일 상단에 ⚰️ 한 줄
-- [ ] `audit-socket-contract.mjs` KNOWN_GAPS 의 `auto-arrived` — **이미 구현됐다.**
-      남겨 두면 그 이벤트가 진짜 끊겼을 때 🔴 대신 🟡 로 나와 검사기가 파손을 숨긴다
+- [x] ~~`completeOrder`·`startTwoTrack` 죽은 이름~~ — 08-29 완료 (`fabad2a`)
+- [x] ~~`shared/judgment.ts:24` judgment_config~~ — 08-29 완료 (`fabad2a`)
+- [x] ~~`shared/stepTables.ts:23` "아무도 안 읽는다"~~ — 08-29 완료 (`fabad2a`)
+- [x] ~~`shared/cargoTags.ts:8` "시간 축이 없다"~~ — 08-29 완료 (`fabad2a`)
+- [x] ~~`filters.ts` 묘비~~ — 08-29 완료 (`fabad2a`). 파일 삭제 자체는 여전히 확인 대기
+- [x] ~~KNOWN_GAPS 의 `auto-arrived` 오탐~~ — 08-29 제거 (`fabad2a`). 비우고도 소켓 검사 통과
 - [ ] JSDoc 오부착 **나머지 ~25곳** (shared 18 · client-app 2 · 앱 4) — 6곳은 고쳤다
 
 **🟡 앱 (Kotlin)**
-- [ ] `TelemetryManager` «20초 하트비트» ×3 → 실제 60초. **로그 문자열이라 현장 진단을 오도**
-- [ ] `InsungParser:78` — *"주소 아니면 안 쓴다"* 가드가 **손으로 연 상세 경로엔 안 걸린다.**
-      「가전 → 다마스」 결함과 **같은 뿌리로 보인다** (아래 파서 항목과 함께)
-- [ ] `HijackService:958` — *"콜백 미사용"* 인데 `ApiClient` 는 실패 시 **CANCEL 을 실제로 부른다.**
-      람다가 그 CANCEL 을 버린다 — 둘 중 하나는 거짓말이다
-- [ ] `Hwamul24Parser:44` *"InsungParser 와 동일"* → **`ratePerKm` 를 안 읽는다** (단가 판정이 영영 안 돔)
-- [ ] 「4대 필터」 표기 4곳 → 실제 6축 (차종·경로순서가 나중에 추가됨)
+- [x] ~~`TelemetryManager` 20초 → 60초~~ — 08-29 완료 (`1bee216`)
+- [x] ~~`InsungParser:78` 가드가 한쪽 경로에만~~ — 08-29 **원인 확정하고 고침** (`1bee216`)
+- [x] ~~`HijackService` "콜백 미사용"~~ — 08-29 주석 정정 (`1bee216`). 30초 타이머가 받아 준다
+      · ❓ 남은 판단: **즉시 취소로 30초를 아낄까** — 취소는 배차망 횟수(10회)를 먹으므로
+        일시적 통신 오류로 취소가 느는 쪽이 더 나쁠 수 있다
+- [x] ~~`Hwamul24Parser` "동일" 주석~~ — 08-29 정정 (`1bee216`).
+      🔴 **코드는 그대로다** — 24시는 여전히 단가 판정을 안 돈다. 고칠 것은 「💰 가격 필터」 절
+- [x] ~~「4대 필터」 표기 4곳~~ — 08-29 완료 (`1bee216`) · 적요 「10자」→8자 함께
 - [ ] 죽은 것: `CautionDongVerifier.isCautionDong`(호출 0, 실제 판정은 더 엄격) ·
       `hasActiveSession`(호출 0) · `FARE_RANGE_MIN/MAX` · `parseCommaSeparated`
 
