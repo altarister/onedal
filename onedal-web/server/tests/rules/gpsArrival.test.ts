@@ -3,7 +3,7 @@ import { join } from "path";
 import { evaluateArrivalTick, GPS_ARRIVAL } from "../../src/services/geoService";
 
 /**
- * 🔴 도착 감지 재설계 규칙 (2026-08-17 — docs/도착감지_재설계_계획.md)
+ * 🔴 도착 감지 규칙 (근거: docs/결정_이력.md «도착은 GPS 가 찍는다»)
  *
  * 실측 사고가 배경이다: 마지막 하차지 1곳만 보던 감지가 멈춤 조건이 없어
  * 500m 안에서 **1초에 4연발**했고, 매번 filter 재계산까지 딸려 왔다.

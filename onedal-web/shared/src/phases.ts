@@ -362,7 +362,7 @@ export function phaseFromFlat(flat: {
     };
 }
 
-/** 복귀 전환을 생략하는 집 반경 (기사님 확정 2026-08-17 — docs/타겟_자동순환_계획.md §②) */
+/** 복귀 전환을 생략하는 집 반경 (근거: docs/결정_이력.md «타겟은 사이클이 끝나면 저절로 넘어간다») */
 export const HOME_RADIUS_KM = 5;
 
 /**
