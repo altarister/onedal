@@ -8,7 +8,7 @@ import type { MyOrder } from '@onedal/shared';
  *    예전에 이 파라미터가 `any` 라, 세션에서 사라진 필드를 읽는 함수가 **몇 달째 null 만
  *    반환하는데도 아무도 몰랐다** (`getActivePolyline`·`getLastDropoffCoord`, 2026-08-14).
  */
-import { shouldStoreGpsPoint, bufferGpsPoint } from './gpsTrackStore';
+import { shouldStoreGpsPoint, bufferGpsPoint, type GpsPoint } from './gpsTrackStore';
 import type { UserSession } from '../state/userSessionStore';
 /**
  * 배럴(`@turf/turf`) 대신 **쓰는 것만** 가져온다.
@@ -835,10 +835,8 @@ export function processDriverMovement(
         const lastPt = session.lastTrackPoint ?? null;
         const nowPt = { x: currentGPS.x, y: currentGPS.y, atMs: Date.now() };
         if (shouldStoreGpsPoint(lastPt, nowPt)) {
-            bufferGpsPoint(userId, {
-                ...nowPt, source: src,
-                speedKmh: speedKmh != null && Number.isFinite(speedKmh) ? Math.round(speedKmh) : null,
-            });
+            // 🧭 «그때 어느 콜을 향하고 있었나»를 함께 싣는다 — 경로 대조의 열쇠
+            bufferGpsPoint(userId, gpsPointOf(session, currentGPS, nowPt.atMs, src, speedKmh));
             session.lastTrackPoint = nowPt;
         }
     }
@@ -891,6 +889,51 @@ export function processDriverMovement(
 /** 정거장 키 — 발화·예고 플래그의 단위 */
 const stopKeyOf = (st: ArrivalStop) => `${st.orderId}:${st.stopType}`;
 
+/**
+ * 🧭 **«지금 향하는 정거장» — 원천은 여기 하나다** (2026-08-28).
+ *
+ * 도착 감지와 궤적 저장이 **같은 답**을 봐야 한다. 두 벌이 되면 궤적이 가리키는 콜과
+ * 도착이 찍히는 콜이 갈라진다 — 이 레포가 반복해 당한 사고 클래스다
+ * (경유 4벌 · 상태목록 3벌 · 시별칭, 규칙 ③).
+ *
+ * 활성 콜이 없거나 남은 정거장이 없으면 `null` — **지어내지 않는다** (규칙 ④).
+ */
+function nextStopOf(
+    session: Pick<UserSession, 'myOrders' | 'arrivalFired'>,
+    gps: { x: number; y: number },
+): ArrivalStop | null {
+    const active = getActiveCalls(session as any);
+    if (active.length === 0) return null;
+    const stops = planArrivalStops(active, gps);
+    return stops.find(st => !session.arrivalFired.has(stopKeyOf(st))) ?? null;
+}
+
+/**
+ * 🛰️ **저장할 좌표 한 점을 만든다 — «그때 어느 콜이었나»를 함께 싣는다.**
+ *
+ * 🔴 3회차 주행(2026-08-28)에서 드러난 구멍을 메운다. `gps_tracks.order_id` 칸은
+ *    처음부터 있었는데 **채우는 쪽을 안 이어서** 1,894점 전부가 비어 있었다.
+ *    그러면 *"부여받은 경로 ↔ 실제 궤적"* 대조가 안 된다 — **합짐을 여럿 싣고 있으면
+ *    시각만으로는 어느 콜 구간인지 못 가리기 때문**이고, 그게 이 제품의 핵심 상황이다.
+ *
+ * 순수 함수로 떼어 둔 이유: 폰 없이 검사할 수 있어야 이 이음새가 다시 안 끊긴다.
+ */
+export function gpsPointOf(
+    session: Pick<UserSession, 'myOrders' | 'arrivalFired'>,
+    gps: { x: number; y: number },
+    atMs: number,
+    src: string,
+    speedKmh: number | null,
+): GpsPoint & { stopType: 'pickup' | 'dropoff' | null } {
+    const next = nextStopOf(session, gps);
+    return {
+        x: gps.x, y: gps.y, atMs, source: src,
+        speedKmh: speedKmh != null && Number.isFinite(speedKmh) ? Math.round(speedKmh) : null,
+        orderId: next?.orderId ?? null,
+        stopType: next?.stopType ?? null,
+    };
+}
+
 function watchArrival(
     userId: string,
     session: UserSession,
@@ -933,8 +976,8 @@ function watchArrival(
         }
     }
 
-    const stops = planArrivalStops(active, gps);
-    const next = stops.find(st => !session.arrivalFired.has(stopKeyOf(st)));
+    // 🧭 궤적 저장과 **같은 함수**에서 온다 — 두 벌이 되면 답이 갈라진다 (규칙 ③)
+    const next = nextStopOf(session, gps);
     if (!next) return;
 
     const key = stopKeyOf(next);

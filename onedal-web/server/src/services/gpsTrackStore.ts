@@ -59,6 +59,11 @@ export interface GpsPoint {
     speedKmh?: number | null;
     /** 그때 어느 콜을 향하고 있었나 — 경로 대조의 열쇠 (모르면 비운다) */
     orderId?: string | null;
+    /**
+     * 그 콜의 **상차지로 가던 길인가 하차지로 가던 길인가.**
+     * 콜 하나가 두 구간을 만드므로, `orderId` 만으로는 궤적을 반으로 못 가른다.
+     */
+    stopType?: 'pickup' | 'dropoff' | null;
 }
 
 /**
@@ -103,8 +108,8 @@ export function bufferGpsPoint(userId: string, p: GpsPoint): void {
 }
 
 const insertStmt = () => db.prepare(`
-    INSERT INTO gps_tracks (user_id, at_ms, x, y, source, speed_kmh, order_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO gps_tracks (user_id, at_ms, x, y, source, speed_kmh, order_id, stop_type)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 `);
 
 /**
@@ -122,7 +127,7 @@ export function flushGpsBuffer(): void {
         db.transaction(() => {
             for (const p of batch) {
                 st.run(p.userId, Math.round(p.atMs), p.x, p.y,
-                    p.source ?? null, p.speedKmh ?? null, p.orderId ?? null);
+                    p.source ?? null, p.speedKmh ?? null, p.orderId ?? null, p.stopType ?? null);
             }
         })();
     } catch (e) {

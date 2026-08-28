@@ -1,6 +1,7 @@
 import db from '../../src/db';
 import { shouldStoreGpsPoint, GPS_TRACK, pruneGpsTracks, flushGpsBuffer, bufferGpsPoint } from '../../src/services/gpsTrackStore';
-import { isSpeedSampleUsable } from '../../src/services/geoService';
+import { isSpeedSampleUsable, gpsPointOf } from '../../src/services/geoService';
+import { planArrivalStops } from '../../src/services/routeComposer';
 
 /**
  * 🛰️ **주행 궤적을 남긴다** (기사님 확정 2026-08-26)
@@ -122,5 +123,69 @@ describe('위치 점프 경고 — 표본이 작으면 속도를 믿지 않는�
     it('50m 이상 · 1초 이상이면 속도를 잰다', () => {
         expect(isSpeedSampleUsable(0.05, 1)).toBe(true);
         expect(isSpeedSampleUsable(5.0, 2)).toBe(true);
+    });
+});
+
+/**
+ * 🧭 **궤적에 «그때 어느 콜이었나»가 붙는다** (2026-08-28 실측으로 드러남)
+ *
+ * 3회차 주행 뒤 라이브 DB 를 열어 보니 —
+ *
+ *     궤적 1,894점 · 콜이 붙은 점 **0개** · 서로 다른 콜 **0개**
+ *
+ * `gps_tracks.order_id` 칸은 처음부터 있었고 *"그때 어느 콜을 향하고 있었나 — 경로 대조의
+ * 열쇠"* 라는 주석까지 달려 있었는데, **채우는 쪽을 안 이었다.** `geoService` 가
+ * `bufferGpsPoint` 를 부를 때 `orderId` 를 안 실었다.
+ *
+ * 🔴 **이게 비면 이 표를 만든 목적이 사라진다.** 기사님이 원한 것은
+ *    *"부여받은 경로와 현실의 주행 궤적을 매칭해 얼마나 우회했는지"* 인데,
+ *    **합짐 두세 개를 동시에 싣고 있으면 시각만으로는 어느 콜 구간인지 못 가린다** —
+ *    하필 그게 이 제품의 핵심 상황이다.
+ *
+ * 🔴 **«다음 정거장»을 여기서 다시 계산하지 않는다** (규칙 ③).
+ *    `watchArrival` 이 쓰는 것과 **같은 함수**에서 온다 — 두 벌이 되면 궤적이 가리키는 콜과
+ *    도착 감지가 보는 콜이 갈라진다. 이 레포가 반복해 당한 사고 클래스다
+ *    (경유 4벌 · 상태목록 3벌 · 시별칭).
+ */
+describe('궤적에 콜을 붙인다 — 경로 대조의 열쇠', () => {
+    const order = (id: string, over: object = {}) => ({
+        id, status: 'ORDER_CONFIRMED', pickup: `${id}-상차`, dropoff: `${id}-하차`,
+        pickupX: 127.20, pickupY: 37.40, dropoffX: 126.80, dropoffY: 37.70,
+        fare: 50000, ...over,
+    }) as any;
+    const sess = (calls: any[], fired: string[] = []) => ({
+        myOrders: calls, arrivalFired: new Set(fired), driverLocation: null,
+    }) as any;
+    const GPS = { x: 127.00, y: 37.50 };
+
+    it('🔴 좌표에 «그때 향하던 콜»이 실린다', () => {
+        const p = gpsPointOf(sess([order('A')]), GPS, 1_000, 'native', 40);
+        expect(p.orderId).toBe('A');
+        expect(p.stopType).toBe('pickup');
+    });
+
+    it('🔴 이미 다녀온 정거장은 건너뛴다 — 상차를 찍었으면 다음은 하차지다', () => {
+        const p = gpsPointOf(sess([order('A')], ['A:pickup']), GPS, 1_000, 'native', 40);
+        expect(p.orderId).toBe('A');
+        expect(p.stopType).toBe('dropoff');
+    });
+
+    it('활성 콜이 없으면 비운다 — 지어내지 않는다 (규칙 ④)', () => {
+        const p = gpsPointOf(sess([]), GPS, 1_000, 'native', 40);
+        expect(p.orderId).toBeNull();
+        expect(p.stopType).toBeNull();
+    });
+
+    it('🔴 «다음 정거장»의 원천이 watchArrival 과 같다 — 두 벌이 아니다', () => {
+        const calls = [order('A'), order('B')];
+        const p = gpsPointOf(sess(calls), GPS, 1_000, 'native', 40);
+        const expected = planArrivalStops(calls, GPS)[0];
+        expect(p.orderId).toBe(expected.orderId);
+        expect(p.stopType).toBe(expected.stopType);
+    });
+
+    it('좌표·시각·출처·속도는 그대로 실린다', () => {
+        const p = gpsPointOf(sess([order('A')]), GPS, 123_456, 'mock', 7);
+        expect([p.x, p.y, p.atMs, p.source, p.speedKmh]).toEqual([127.00, 37.50, 123_456, 'mock', 7]);
     });
 });

@@ -326,6 +326,7 @@ async function run({ main, cod }) {
     check('GPS 도착은 1회만 발화한다 (같은 자리 재틱에 재발화 없음)',
         (st.autoArrived || 0) <= 1, `auto-arrived ${st.autoArrived || 0}회`);
 
+
     console.log('\n═══ 멱등성 · 순서 어긋남 ═══');
     s.emit('report-milestone', { orderId: main, milestone: 'DELIVERED' }); await wait(600);
     s.emit('report-milestone', { orderId: main, milestone: 'ARRIVED_PICKUP' });
@@ -442,6 +443,45 @@ async function run({ main, cod }) {
     check('할인율이 바뀌면 차종별 단가표가 따라 바뀐다',
         !!st.filter?.ratePerKm && Object.keys(st.filter.ratePerKm).length > 0,
         JSON.stringify(st.filter?.ratePerKm));
+
+    /**
+     * 🧭 **궤적에 «그때 어느 콜이었나»가 붙는가** (2026-08-28 신설)
+     *
+     * 3회차 주행 뒤 라이브를 열어 보니 **궤적 1,894점 전부 `order_id` 가 비어 있었다.**
+     * 칸도 있고 주석도 있었는데 `geoService` 가 값을 안 실었다 — **조용히 끊긴 이음새**다.
+     * 단위 검사는 순수 함수(`gpsPointOf`)만 보므로, *실제 서버가 저장까지 하는지*는
+     * 여기서만 확인된다 (`audit:dead` 가 잡는 사고 클래스와 같은 뿌리).
+     *
+     * 🔴 이게 비면 *"부여받은 경로 ↔ 실제 궤적"* 대조가 불가능해진다 —
+     *    합짐을 여럿 싣고 있으면 시각만으로는 어느 콜 구간인지 못 가리기 때문이다.
+     *
+     * ⚠️ **여기(맨 끝)에 두는 이유** — 궤적은 5점 또는 **10초**마다 한 번에 쓴다
+     *    (`GPS_TRACK.FLUSH_MS`). 좌표를 보낸 직후에 세면 아직 메모리에 있어 0점이다.
+     *    그래서 «비워질 때까지» 잠깐 기다렸다가 센다.
+     */
+    {
+        const dbFile = join(SERVER, DB);
+        const countTracks = () => {
+            const c = new Database(dbFile, { readonly: true });
+            let g = { n: 0, withOrder: 0, withStop: 0 };
+            try {
+                g = c.prepare(`SELECT count(*) n,
+                                      sum(order_id IS NOT NULL) withOrder,
+                                      sum(stop_type IS NOT NULL) withStop
+                               FROM gps_tracks`).get();
+            } catch { /* 표가 없으면 아래 검사가 실패로 잡는다 */ }
+            c.close();
+            return g;
+        };
+        let g = countTracks();
+        for (let i = 0; i < 14 && !(g.n > 0); i++) { await wait(1000); g = countTracks(); }
+        check('궤적이 실제로 쌓인다 (좌표 재생이 저장까지 간다)',
+            (g.n || 0) > 0, `${g.n || 0}점`);
+        check('🔴 궤적에 그때 향하던 콜이 붙는다 (경로 대조의 열쇠)',
+            (g.withOrder || 0) > 0, `콜 붙은 점 ${g.withOrder || 0}/${g.n || 0}`);
+        check('궤적에 상차/하차 구간이 갈린다',
+            (g.withStop || 0) > 0, `구간 붙은 점 ${g.withStop || 0}/${g.n || 0}`);
+    }
 
     console.log('\n═══ 전체 ═══');
     check('서버 오류(handler-error) 0건', st.errors.length === 0,

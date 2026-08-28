@@ -510,9 +510,16 @@ db.exec(`
         y         REAL    NOT NULL,
         source    TEXT,
         speed_kmh REAL,
-        order_id  TEXT
+        order_id  TEXT,
+        stop_type TEXT
     )
 `);
+/**
+ * 🔴 위 `CREATE TABLE IF NOT EXISTS` 는 **기존 표에 칸을 안 붙인다.**
+ *    라이브에는 2026-08-27 부터 이 표가 이미 있으므로 `stop_type` 은 여기서만 생긴다
+ *    (server/CLAUDE.md 함정 — `tsc`·`jest` 는 통과하고 런타임에서만 `no such column`).
+ */
+ensureColumns('gps_tracks', { stop_type: 'TEXT' });
 // 정리(부팅 때 7일 넘은 것 삭제)와 조회(주행 구간 뽑기)가 둘 다 시각으로 훑는다
 db.exec(`CREATE INDEX IF NOT EXISTS idx_gps_tracks_at ON gps_tracks(at_ms)`);
 db.exec(`CREATE INDEX IF NOT EXISTS idx_gps_tracks_user_at ON gps_tracks(user_id, at_ms)`);
