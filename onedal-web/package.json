@@ -19,6 +19,7 @@
     "rehearsal": "node scripts/rehearsal.mjs",
     "ledger": "node scripts/ledger.mjs",
     "track": "node scripts/track.mjs",
+    "route:order": "node scripts/route-order.mjs",
     "options": "node scripts/options.mjs",
     "reach": "node scripts/reach.mjs",
     "reach:sweep": "node scripts/reach-sweep.mjs"
