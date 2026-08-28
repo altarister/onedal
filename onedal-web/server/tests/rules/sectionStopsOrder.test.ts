@@ -44,12 +44,15 @@ describe('구간 주인 — 카카오에 보낸 순서와 같아야 값이 제 �
         expect(plan.orderedStops).toHaveLength(plan.waypoints.length + 1);
     });
 
-    it('🔴 두 계획은 실제로 갈라져 있다 — 그래서 도착 계획을 이름표로 쓰면 안 된다', () => {
+    /**
+     * 🔴 이 검사는 원래 *"두 계획이 갈라져 있다"* 를 증명하던 자리다 (2026-08-29 발견).
+     *    갈라진 채로는 **길이가 같아 안전장치를 통과**하고 주행분이 남의 이름에 붙었다.
+     *    같은 날 둘을 하나로 합쳤으므로(planArrivalStops 가 planMergedStops 를 되쓴다)
+     *    이제 **같아야 한다**로 뒤집어 못박는다 — 다시 갈라지면 여기서 터진다.
+     */
+    it('🔴 이름표와 도착 계획이 같은 순서다 — 갈라지면 값이 남의 이름에 붙는다', () => {
         const arrival = planArrivalStops([near, far], here).map(s => `${s.orderId}:${s.stopType}`);
-        const kakao = kakaoStopOrder([near, far], here);
-
-        expect(kakao).toHaveLength(arrival.length);   // 길이가 같아 안전장치가 못 막는다
-        expect(kakao).not.toEqual(arrival);           // 그런데 순서가 다르다
+        expect(kakaoStopOrder([near, far], here)).toEqual(arrival);
     });
 
     it('상차를 아직 안 한 콜의 하차지는 그 상차지보다 뒤에 온다 (제 짐을 싣기 전에 못 내린다)', () => {
@@ -67,5 +70,34 @@ describe('구간 주인 — 카카오에 보낸 순서와 같아야 값이 제 �
         const kakao = kakaoStopOrder([loaded, far], here);
         expect(kakao).not.toContain('A:pickup');
         expect(kakao).toContain('A:dropoff');
+    });
+});
+
+/**
+ * 🔴 **도착 감지는 «실제로 달리는 순서»를 봐야 한다** (기사님 확정 2026-08-29)
+ *
+ * `nextStopOf` 는 *"아직 안 지난 첫 정거장"* **하나만** 감시한다. 그 순서가 실제 경로와
+ * 다르면 —
+ *   · 도착해도 안 찍힌다 (다른 정거장을 보고 있으므로)
+ *   · 근접 예고(도착전 통화)가 **엉뚱한 곳에서** 울린다
+ *   · 화면의 방문 순서(`routeStops`)가 내비게이션과 다른 말을 한다
+ *
+ * 2026-08-25 에 기사님 실측(*"4km 앞 하차지를 두고 30km 동쪽으로 갔다 되돌아온다"*)으로
+ * **도착 계획만** 최근접 순서로 바꿨는데, 정작 **카카오 경로는 안 바뀌었다.** 즉 그 고침은
+ * 기사님이 겪은 «경로» 문제를 못 고치고 **화면과 감시만** 경로에서 떼어 놓았다.
+ *
+ * → 둘을 하나로 되돌린다. **경로 순서를 바꿀지는 별개 문제**이고, 바꾸면 이 검사 덕에
+ *   도착 감지·화면이 자동으로 따라온다 (규칙 ③ — 파생값은 한 곳에서).
+ */
+describe('도착 감지 = 실제 경로 — 두 계획은 하나여야 한다', () => {
+    it('🔴 도착 계획의 순서가 카카오 요청 순서와 같다', () => {
+        const arrival = planArrivalStops([near, far], here).map(s => `${s.orderId}:${s.stopType}`);
+        expect(arrival).toEqual(kakaoStopOrder([near, far], here));
+    });
+
+    it('이미 상차한 콜이 섞여도 같다', () => {
+        const loaded = { ...near, status: 'ORDER_PICKED_UP' };
+        const arrival = planArrivalStops([loaded, far], here).map(s => `${s.orderId}:${s.stopType}`);
+        expect(arrival).toEqual(kakaoStopOrder([loaded, far], here));
     });
 });

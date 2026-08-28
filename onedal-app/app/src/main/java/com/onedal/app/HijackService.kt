@@ -974,14 +974,37 @@ class HijackService : AccessibilityService() {
             // Option B (Piggyback V2): sendDetail은 202 응답만 확인하고 곧바로 리턴됨.
             // 실제 판결은 Telemetry 1.0초 폴링을 통해 decisionCallback으로 들어오게 됨.
             //
-            // ⚠️ **콜백이 «미사용»은 아니다** (2026-08-29 정정). `ApiClient.sendDetail` 은
-            //    전송이 **실패**하면(비2xx · 재시도 소진 · 예외) 이 콜백을 `CANCEL` 로 부른다.
-            //    여기서 버리는 것은 그 CANCEL 이다 — 대신 위에서 켠 **30초 안전취소 타이머**가
-            //    받아 준다(규칙 ② — 안전장치는 겹쳐 둔다). 즉 «안 잡히는» 게 아니라
-            //    «30초 늦게 잡히는» 것이다.
-            // ❓ 즉시 취소로 30초를 아낄지는 판단이 필요하다 — 취소는 배차망 횟수(10회)를
-            //    먹으므로, 일시적 통신 오류로 취소가 늘어나는 쪽이 더 나쁠 수 있다 (todo)
-            apiClient.sendDetail(payload) { _, _ -> /* 실패 시 CANCEL — 30초 타이머에 맡긴다 */ }
+            /**
+             * 🔴 **전송이 실패하면 기다리지 않고 바로 뱉는다** (기사님 확정 2026-08-29).
+             *
+             * `ApiClient.sendDetail` 은 실패 시(비2xx · 재시도 소진 · 예외) `CANCEL` 을 준다.
+             * 예전에는 이 콜백을 **버리고** 30초 안전취소 타이머에 맡겼다. 실패 경로를 재어
+             * 보니 그 대기가 **버는 것 없이 잃기만** 했다:
+             * ```
+             *   서버 5xx        → 1초 미만 (응답이 왔으니 재시도 안 함)
+             *   연결 자체 불가  → 1~2초    (즉시 실패 ×2 + 0.5초)
+             *   타임아웃        → 30.5초   (15초 ×2 + 0.5초) ← 타이머(30초)가 먼저 발화한다
+             * ```
+             * 🔴 **기다려도 결론이 바뀌지 않는다.** 상세가 서버에 닿지 못했으니 판정할 재료가
+             *    없고, 타이머가 만료되면 하는 일도 똑같은 `CANCEL` 이다
+             *    (`startSafeCancelTimer` → `executeDecisionImmediately("CANCEL")`).
+             *    그러므로 **취소 횟수는 늘지 않는다** — 같은 결론에 28초 빨리 닿을 뿐이다.
+             *    타임아웃(30.5초)에서는 타이머가 먼저 처리하므로 이 콜백이 늦게 와도 무해하다.
+             *
+             * ⚠️ 안전취소 타이머는 **그대로 둔다** — 이건 겹쳐 두는 것이지 대체가 아니다
+             *    (규칙 ② · 앱의 30초는 최후의 안전장치라 절대 제거하지 않는다).
+             */
+            apiClient.sendDetail(payload) { failedOrderId, decision ->
+                // 👻 고스트 방어 — 정상 판결 경로(`decisionCallback`)와 **같은 규칙**이다.
+                //    실패 응답이 늦게 와서 이미 다음 콜로 넘어갔으면 그 콜을 취소하면 안 된다
+                //    (판결에 orderId 를 싣고 대조한다 — 규칙 ②).
+                if (failedOrderId.isNotEmpty() && failedOrderId != session.currentOrderId) {
+                    AppLogger.e(TAG, "👻 [상세 전송 실패·무시] 지난 콜($failedOrderId)의 실패다 — 현재 콜(${session.currentOrderId})은 건드리지 않는다")
+                } else {
+                    AppLogger.e(TAG, "❌ [상세 전송 실패] 판정 재료가 서버에 없다 — 즉시 $decision (30초 대기 생략)")
+                    executeDecisionImmediately(decision)
+                }
+            }
         }
     }
 

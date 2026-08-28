@@ -92,15 +92,18 @@ export default function GeneralSettingsTab({ onClose }: Props) {
   return (
     <div className="flex flex-col gap-4">
       {/*
-        자동 콜 잡기 — `isActive` 스위치 하나다.
-        ⚠️ 예전 이름은 «무인 서핑 모드»였다. 용어집이 폐기한 말인 데다, 그 말의 대응어인
-           «상세 수집»(팝업을 넘겨 상차지·적요를 읽는 것)과 **다른 것**을 가리키고 있었다 —
-           이 스위치는 콜 잡기 전체를 켜고 끈다 (2026-08-29 정정)
+        🎛️ **콜 필터 켬/끔** — 용어집 §1 의 그 스위치다 (`isActive`).
+        기기별 모드(`mode: AUTO/MANUAL`)의 **집계**라 이름이 같다 —
+        AUTO 기기가 하나라도 있으면 켜진 것으로 파생된다 (`devices.ts` 의 hasAnyAutoDevice).
+
+        ⚠️ 이름을 두 번 고쳤다 (2026-08-29): «무인 서핑 모드»는 용어집이 폐기한 말이었고,
+           그 대응어 «상세 수집»(팝업을 넘겨 적요를 읽는 것)은 **이 스위치가 아니다.**
+           잠시 «자동 콜 잡기»로 뒀다가, 기기 모드와 같은 개념임이 확인돼 용어집 등재어로 맞췄다
       */}
       <div className="flex items-center justify-between rounded-lg border p-3">
         <div className="space-y-0.5">
-          <h3 className="text-sm font-bold">🚀 자동 콜 잡기 (Full Auto)</h3>
-          <p className="text-[10px] text-text-muted">이 모드를 켜면 꿀콜을 자동으로 낚아채고 평가합니다.</p>
+          <h3 className="text-sm font-bold">🚀 콜 필터 (Full Auto)</h3>
+          <p className="text-[10px] text-text-muted">켜면 앱이 필터로 콜을 잡습니다 (필터콜). 끄면 보고만 하고 못 잡습니다.</p>
         </div>
         <Switch checked={isActive} onCheckedChange={setIsActive} />
       </div>

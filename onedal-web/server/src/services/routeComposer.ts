@@ -285,6 +285,38 @@ export async function composeMergedRoute(params: ComposeMergedRouteParams) {
 }
 
 /**
+ * 🧭 **방문 순서 — 지나가는 길목부터** (기사님 실측 2026-08-25).
+ *
+ * 한 통에 넣고 가까운 순으로 돌되 **한 가지만 지킨다** — 제 짐을 싣기 전에는 못 내린다.
+ * 순수 함수라 폰·카카오 없이 검사된다 (`tests/rules/stopOrderNearest.test.ts`).
+ */
+function orderByNearest<T extends Coord & { orderId: string; stopType: 'pickup' | 'dropoff' }>(
+    startLoc: Coord, pickups: T[], dropoffs: T[],
+): T[] {
+    const pool = [...pickups, ...dropoffs];
+    const notLoaded = new Set(pickups.map(p => p.orderId));   // 아직 안 실은 콜
+    const out: T[] = [];
+    let here: Coord = startLoc;
+
+    while (pool.length > 0) {
+        let bestIdx = -1, bestD = Infinity;
+        for (let i = 0; i < pool.length; i++) {
+            const st = pool[i];
+            if (st.stopType === 'dropoff' && notLoaded.has(st.orderId)) continue;
+            const d = haversineKm(here.y, here.x, st.y, st.x);
+            if (d < bestD) { bestD = d; bestIdx = i; }
+        }
+        // 갈 수 있는 곳이 없다 = 남은 것이 전부 «상차 안 한 콜의 하차» → 순서대로 붙인다
+        if (bestIdx === -1) { out.push(...pool); break; }
+        const best = pool.splice(bestIdx, 1)[0];
+        if (best.stopType === 'pickup') notLoaded.delete(best.orderId);
+        out.push(best);
+        here = best;
+    }
+    return out;
+}
+
+/**
  * **정거장 계획 — 어디를 어떤 순서로 들르는가.** 카카오를 부르지 않는 **순수 함수**다.
  *
  * 🔴 떼어낸 이유: 2026-08-14 에 `OrderEvaluator` 가 이 조립을 **손으로 다시 하고 있었고**,
@@ -378,10 +410,29 @@ export function planMergedStops(
     // ⚠️ 짐을 다 싣고 하차만 남았으면 `allPickups` 가 **비어 있다**. 그때는 첫 하차지에서 시작한다.
     //    (GPS 가 없고 상차지도 없는데 `allPickups[0]` 을 쓰면 undefined 가 그대로 흘러간다)
     const startLoc = driverLocation || allPickups[0] || allDropoffs[0];
-    const { sortedPickups, sortedDropoffs } = optimizeWaypoints(startLoc, allPickups, allDropoffs);
 
-    const mergedDest = sortedDropoffs.pop()!;
-    const waypoints = [...sortedPickups, ...sortedDropoffs];
+    /**
+     * 🔴 **상차를 전부 앞에 몰지 않는다 — 지나가는 길목부터 들른다** (기사님 실측 2026-08-25).
+     *
+     * 예전엔 `optimizeWaypoints` 로 상차·하차를 따로 정렬해 `[...상차, ...하차]` 로 붙였다.
+     * 상차지를 전부 앞에 몰아 두는 규칙인데, **새 콜이 붙으면 차를 그 상차지로 끌고 간다.**
+     *
+     * 실측 14:07:53 — 기사님 위치에서 **곤지암 하차 4.0km · 가남 29.9km** 인데 순서가
+     *   ⑴ 가남상차 ⑵ 가남하차 ⑶ 세종대왕면하차 **⑷ 곤지암하차(94분)**
+     * 로 나왔다. 4km 앞 하차지를 두고 **30km 동쪽으로 갔다가 되돌아오는** 경로다.
+     *
+     * ⚠️ **적재 때문에 상차가 먼저인 것이 아니다.** 하차는 이미 실은 짐을 내리는 것이라
+     *    지나가는 길에 내리는 편이 싸다. 상차가 하차보다 먼저여야 하는 것은
+     *    **같은 콜 안에서뿐**이다 (제 짐을 싣기 전에 내릴 수 없다).
+     *
+     * 🔴 **2026-08-29 — 이 규칙이 여기 없었다.** 08-25 에는 `planArrivalStops`(도착 감지·화면)만
+     *    고쳤고 **실제 카카오 경로는 그대로**였다. 그래서 기사님이 겪은 경로 문제는 안 고쳐진 채
+     *    감시와 화면만 경로에서 떨어졌고, 구간 주행분이 남의 이름에 붙는 결함이 됐다
+     *    (버그 대장 #60). 규칙을 **경로를 만드는 이 자리**로 옮기고, 도착 계획은 이걸 되쓴다.
+     */
+    const ordered = orderByNearest(startLoc, allPickups, allDropoffs);
+    const mergedDest = ordered.pop()!;
+    const waypoints = ordered;
     /**
      * 🧭 **구간의 주인** — 카카오가 받는 정거장 순서 그대로다.
      *    현위치를 알면 `origin` 은 현위치이므로 정거장은 `waypoints + mergedDest` 다
@@ -427,67 +478,46 @@ export interface ArrivalStop {
 /**
  * 도착 감지용 **정거장 목록** — 방문 순서대로, 라벨 포함.
  *
- * `planMergedStops` 와 같은 규칙으로 조립한다 (이미 상차한 콜의 상차지는 뺀다 ·
- * 상차지들 먼저, 하차지들 나중 · `optimizeWaypoints` 순서). 경유지 조립이 여기
- * `routeComposer` 한 곳뿐이어야 하는 규칙(loadedRoute 테스트)의 연장이다 —
- * 도착 감지가 자기 순서를 따로 만들면 "경로가 가리키는 다음"과 "감시하는 다음"이 갈라진다.
+ * 🔴 **순서를 여기서 만들지 않는다 — 경로 계획(`planMergedStops`)을 되쓴다**
+ *    (기사님 확정 2026-08-29 · 규칙 ③).
  *
- * `planMergedStops` 와 달리 **마지막 하차지도 포함**한다 (경유지가 아니라 정거장이므로).
+ * 도착 감지(`nextStopOf`)는 *"아직 안 지난 첫 정거장"* **하나만** 본다. 그 순서가 실제
+ * 카카오 경로와 다르면 도착해도 안 찍히고, 근접 예고(도착전 통화)가 엉뚱한 곳에서 울리며,
+ * 화면의 방문 순서가 내비게이션과 다른 말을 한다.
+ *
+ * ⚠️ **2026-08-25 의 고침은 층을 잘못 짚었다.** 기사님 실측
+ *    (*"곤지암 하차 4.0km · 가남 29.9km 인데 가남부터 갔다가 되돌아온다"*)은 **경로** 문제인데,
+ *    그때 바꾼 것은 이 도착 계획뿐이라 **카카오 경로는 그대로**였다. 결과는 «경로는 안 고쳐지고
+ *    감시와 화면만 경로에서 떨어진» 상태였고, 구간 주행분이 남의 이름에 붙는 결함으로 드러났다
+ *    (버그 대장 #60).
+ *
+ * → 둘을 하나로 되돌린다. **경로 순서를 바꿀지는 별개 문제**다 (`pnpm route:order` 로 재는 중).
+ *   바꾸면 여기가 저절로 따라오므로 다시 갈라지지 않는다.
+ *
+ * `planMergedStops` 와 달리 **마지막 하차지도 포함**한다 (경유지가 아니라 정거장이므로) —
+ * `orderedStops` 가 이미 `[...waypoints, mergedDest]` 라 그대로 맞는다.
  */
 export function planArrivalStops(
     calls: RouteHolder[],
     driverLocation: Coord | null | undefined,
 ): ArrivalStop[] {
-    const pickups: ArrivalStop[] = [];
-    const dropoffs: ArrivalStop[] = [];
+    const plan = planMergedStops(calls, null, driverLocation);
+    if (!plan) return [];
+
+    // 좌표는 콜에서 다시 집는다 — `orderedStops` 는 이름표만 나른다
+    const coordOf = new Map<string, Coord>();
     for (const c of calls) {
         const p = toCoordPair(c);
         if (!p) continue;
-        // 다녀온 곳은 "다음에 갈 정거장"이 아니다 — 도착 감지·경로·타임라인이 같은 목록을 본다
-        if (!hasVisitedStop(c, 'pickup')) pickups.push({ orderId: c.id, stopType: 'pickup', ...p.pickup });
-        if (!hasVisitedStop(c, 'dropoff')) dropoffs.push({ orderId: c.id, stopType: 'dropoff', ...p.dropoff });
+        coordOf.set(`${c.id}|pickup`, p.pickup);
+        coordOf.set(`${c.id}|dropoff`, p.dropoff);
     }
-    if (pickups.length === 0 && dropoffs.length === 0) return [];
 
-    const startLoc = driverLocation || pickups[0] || dropoffs[0];
-
-    /**
-     * 🔴 **상차를 전부 앞에 몰지 않는다 — 지나가는 길목부터 들른다** (기사님 실측 2026-08-25).
-     *
-     * 예전엔 `[...sortedPickups, ...sortedDropoffs]` 였다. 상차지를 전부 앞에 몰아 두는
-     * 규칙인데, **새 콜이 붙으면 차를 그 상차지로 끌고 간다.**
-     *
-     * 실측 14:07:53 — 기사님 위치에서 **곤지암 하차 4.0km · 가남 29.9km** 인데 순서가
-     *   ⑴ 가남상차 ⑵ 가남하차 ⑶ 세종대왕면하차 **⑷ 곤지암하차(94분)**
-     * 로 나왔다. 4km 앞 하차지를 두고 **30km 동쪽으로 갔다가 되돌아오는** 경로다.
-     * 게다가 하차 정렬의 기준점이 가남으로 옮겨져 곤지암이 더 밀렸다.
-     *
-     * ⚠️ **적재 때문에 상차가 먼저인 것이 아니다.** 하차는 이미 실은 짐을 내리는 것이라
-     *    지나가는 길에 내리는 편이 싸다. 상차가 하차보다 먼저여야 하는 것은
-     *    **같은 콜 안에서뿐**이다 (제 짐을 싣기 전에 내릴 수 없다).
-     *
-     * → 한 통에 넣고 가까운 순으로 돌되, 그 한 가지만 지킨다.
-     */
-    const pool: ArrivalStop[] = [...pickups, ...dropoffs];
     const out: ArrivalStop[] = [];
-    let here: Coord = startLoc;
-    const pickedUp = new Set(pickups.map(p => p.orderId));   // 아직 안 실은 콜
-
-    while (pool.length > 0) {
-        let bestIdx = -1, bestD = Infinity;
-        for (let i = 0; i < pool.length; i++) {
-            const st = pool[i];
-            // 같은 콜의 상차를 아직 안 했으면 그 하차는 갈 수 없다
-            if (st.stopType === 'dropoff' && pickedUp.has(st.orderId)) continue;
-            const d = haversineKm(here.y, here.x, st.y, st.x);
-            if (d < bestD) { bestD = d; bestIdx = i; }
-        }
-        // 갈 수 있는 곳이 없다 = 남은 것이 전부 «상차 안 한 콜의 하차» → 순서대로 붙인다
-        if (bestIdx === -1) { out.push(...pool); break; }
-        const best = pool.splice(bestIdx, 1)[0];
-        if (best.stopType === 'pickup') pickedUp.delete(best.orderId);
-        out.push(best);
-        here = best;
+    for (const st of plan.orderedStops) {
+        const co = coordOf.get(`${st.orderId}|${st.stopType}`);
+        if (!co) continue;   // 좌표를 모르면 감시할 수 없다 — 지어내지 않는다 (규칙 ④)
+        out.push({ orderId: st.orderId, stopType: st.stopType, x: co.x, y: co.y });
     }
     return out;
 }

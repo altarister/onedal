@@ -5,6 +5,7 @@ import com.onedal.app.core.AppLogger
 import com.onedal.app.plugins.RouteOrderFilter
 import com.onedal.app.plugins.RegionMatch
 import com.onedal.app.core.IScrapParser
+import com.onedal.app.plugins.insung.InsungParser
 import com.onedal.app.core.LocationTextAnalyzer
 import com.onedal.app.core.ScreenTextNode
 import com.onedal.app.models.FilterConfig
@@ -42,10 +43,22 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
     }
 
     // ── 필터 로드 ──
-    // 🔴 **인성과 다르다** — 여기는 `ratePerKm`(단가표)를 안 읽는다.
-    //    그래서 24시는 단가 판정이 영영 안 돌고 `minFare` 하나로만 거른다.
-    //    예전 주석은 "InsungParser 와 동일한 공통 로직" 이라 그 차이를 덮고 있었다
-    //    (2026-08-29 정정). 고칠 것은 todo 「💰 가격 필터는 둘 다 건다」에 있다
+    // 🔴 **`ratePerKm` 를 여기서 잇는다** (기사님 확정 2026-08-29).
+    //    예전에는 이 파서만 단가표를 **파싱하지 않아** 24시는 단가 판정이 영영 안 돌았다 —
+    //    `minFare` 하나로만 걸러 «400km 에 10만원» 이 그대로 통과했다. 주석은
+    //    "InsungParser 와 동일한 공통 로직" 이라 그 차이를 덮고 있었다.
+    //    잇는 지금 시점을 고른 이유: **24시는 아직 «준비중»(Phase 5 파서 복구 전)이라
+    //    잃을 콜이 없다.** 복구할 때 이미 맞는 상태에서 시작한다
+
+    /** 단가표 파싱 — 인성(`InsungParser.parseRateMap`)과 같은 규칙. 없으면 빈 맵 → minFare 단독 폴백 */
+    private fun parseRateMap(json: JSONObject, key: String): Map<String, Int> {
+        return try {
+            val obj = json.optJSONObject(key) ?: return emptyMap()
+            val out = mutableMapOf<String, Int>()
+            obj.keys().forEach { k -> out[k] = obj.optInt(k, 0) }
+            out
+        } catch (e: Exception) { emptyMap() }
+    }
 
     private fun parseJsonArray(json: JSONObject, key: String): List<String> {
         return try {
@@ -95,6 +108,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
                 excludedKeywords = parseJsonArray(json, "excludedKeywords"),
                 destinationKeywords = (parseJsonArray(json, "destinationKeywords") + progress.keys).distinct(),
                 customCityFilters = parseJsonArray(json, "customCityFilters"),
+                ratePerKm = parseRateMap(json, "ratePerKm"),   // 없으면 빈 맵 → minFare 판정 (구서버 호환)
                 progressKm = progress,
                 keywordTraps = traps
             )
@@ -310,7 +324,25 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
         // 규칙은 서버(OrderEvaluator)와 **똑같이** 맞춘다:
         //   0 < maxFare < 1,000,000 일 때만 적용한다. 100만은 "상한 없음"의 뜻이다.
         val hasFareCeiling = filter.maxFare in 1..999_999
+
+        /**
+         * 💰 **최저가 AND 단가 — 둘 다 넘어야 통과** (기사님 확정 2026-08-23).
+         *
+         * 두 손해가 서로 다른 축이라 한 축으로는 못 막는다:
+         *   2km 에 10,000원   → 상하차 품값도 안 나온다  ← `minFare` 가 막는다
+         *   400km 에 100,000원 → 단가가 안 나온다        ← `ratePerKm` 가 막는다
+         *
+         * 🔴 **그런데 이 파서는 아직 `deliveryDistance`(배송거리)를 안 읽는다.**
+         *    24시 카드에 그 숫자가 있는지부터 확인해야 한다(Phase 5 파서 복구 과제).
+         *    없으면 `useRateModel` 이 false 라 **지금은 `minFare` 단독으로만 돈다** —
+         *    안전망을 빼지 않으려는 폴백이다 (규칙 ②). 배송거리를 읽게 되는 순간
+         *    이 판정이 **저절로 켜진다.**
+         */
+        // 단가 조회는 인성과 **같은 함수**를 쓴다 — 차종 별칭 규칙이 두 벌이 되면 망마다 값이 갈린다
+        val rateFloor = order.vehicleType?.let { vt -> InsungParser.resolveRate(filter.ratePerKm, vt) }
+        val useRateModel = filter.ratePerKm.isNotEmpty() && rateFloor != null && order.deliveryDistance != null
         val fareMatch = order.fare >= filter.minFare &&
+                        (!useRateModel || order.fare >= order.deliveryDistance!! * rateFloor!!) &&
                         (!hasFareCeiling || order.fare <= filter.maxFare)
 
         // ── 조건 4: 상차지 거리 (합짐 모드이면 무시) ──

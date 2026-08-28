@@ -100,7 +100,12 @@ class InsungParser(private val context: Context) : IScrapParser {
                    Regex("\\d+(-\\d+)?$").containsMatchIn(t) && t.contains(" ")
         }
 
-        private fun resolveRate(rates: Map<String, Int>, parsedVehicle: String): Int? {
+        /**
+         * 차종 → 단가(원/km). **두 파서가 함께 쓴다** — 24시도 같은 단가표를 본다.
+         * 🔴 복제하지 않는다 (규칙 ③): 차종 별칭 규칙이 두 벌이 되면 망마다 다른 값이 나온다.
+         * ⚠️ 자리가 `InsungParser` 인 것은 역사일 뿐이다. 파서가 셋이 되면 중립 자리로 옮긴다
+         */
+        internal fun resolveRate(rates: Map<String, Int>, parsedVehicle: String): Int? {
             if (rates.isEmpty()) return null
             val p = parsedVehicle.lowercase(Locale.getDefault())
             for ((key, rate) in rates) {
