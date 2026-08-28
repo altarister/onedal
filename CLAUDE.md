@@ -56,6 +56,7 @@
 | 콜 흐름 (상태·복구·적재·정산) | `cd onedal-web && pnpm scenario` |
 | 소켓 이벤트 | `cd onedal-web && pnpm audit:socket` |
 | `shared/` · DB 스키마 | **기존 DB 사본**으로 부팅 스모크 (빈 DB 는 문제를 숨긴다) |
+| 문서(`docs/`·`CLAUDE.md`) | `cd onedal-web && pnpm audit:docs` — 문서가 코드와 다른 말을 하는가 |
 
 > 앱 컴파일이 필수인 이유: 2026-08-09에 `main`이 컴파일조차 안 되는 상태였다는 걸
 > 뒤늦게 발견했다(`InsungParser`의 import 누락). 서버는 tsc로 매번 확인하는데

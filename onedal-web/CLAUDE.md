@@ -10,6 +10,7 @@
 | `pnpm dev` | 로컬 기동 (web + api) |
 | `pnpm scenario` | **실제 서버를 띄워 콜 생애를 끝까지 돌린다** (21건) |
 | `pnpm audit:socket` | 서버 `emit` ↔ 관제웹 `on` 대조 — 한쪽만 고친 것 |
+| `pnpm audit:docs` | **문서가 코드와 다른 말을 하는가** — 없는 파일·사라진 식별자·옛말·죽은 링크 |
 | `pnpm audit:dead` | **불려야 하는데 안 불리는 것** — 안 쓰이는 export · 세션에 없는 필드 · `session: any` |
 | `pnpm map` | 흐름 지도 — 부팅 순서 · 이벤트 사슬 · REST · 상태 쓰기 (소스에서 추출) |
 | `pnpm e2e:app` | **앱까지 포함한 왕복** — 화면 인식 → 필터 → 터치 → 확정 (7단계) |
