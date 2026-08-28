@@ -75,7 +75,7 @@ python3 .claude/skills/주소검증/scripts/verify_addresses.py \
 |---|---|
 | 랜덤 시뮬이 뽑는 주소 사전 (140개) | `onedal-sim/packages/core-simulator/src/data/mockLocationData.json` |
 | 문제지 (`pickup`·`dropoff`·`pickupFallback` 좌표) | `onedal-sim/packages/core-simulator/src/presets.ts` |
-| 옛 사본 (참고용) | `ex/mockLocationData.json` |
+| 옛 사본 (2026-05-07 · 140개 이전) | `git show d506575:ex/mockLocationData.json` |
 
 ⚠️ `presets.ts` 는 좌표가 **하드코딩**되어 있다. 주소를 바꾸면 `lon`·`lat` 도 같이 바꿔야 한다 —
 이 스크립트가 새 좌표를 함께 출력한다.
