@@ -233,7 +233,7 @@ class InsungParser(private val context: Context) : IScrapParser {
             val hasFareCeiling = filter.maxFare in 1..999_999
 
             /**
-             * 🔴 2026-08-13 — **단가 판정** (docs/필터.md)
+             * 🔴 2026-08-13 — **단가 판정** (docs/지금/필터.md)
              *
              * 기사님: *"합짐은 경로 중 우회되는 짧은 구간이 들어올 수 있다.
              * 그래서 여기는 단가가 들어가야 할 것 같은데."*

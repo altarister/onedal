@@ -658,7 +658,7 @@ export function isSpeedSampleUsable(movedKm: number, elapsedS: number): boolean 
 }
 
 /**
- * 도착 감지 파라미터 (근거: docs/결정_이력.md «도착은 GPS 가 찍는다»)
+ * 도착 감지 파라미터 (근거: docs/기록/결정_이력.md «도착은 GPS 가 찍는다»)
  *
  * · RADIUS_KM 0.5 — 기존값 유지. 주차 위치·GPS 오차 감안 (바꿀 실측 근거가 아직 없다)
  * · STILL_KMH 5 · HOLD_SEC 30 — "통과"와 "도착"을 가른다. 정거장 옆 도로를 지나가는

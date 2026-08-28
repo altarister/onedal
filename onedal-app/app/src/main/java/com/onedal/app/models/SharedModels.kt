@@ -275,7 +275,7 @@ data class FilterConfig(
     val minFare: Int = 30000,
     val maxFare: Int = 1000000,
     /**
-     * 차종별 하한 단가(원/km) — 단가 판정 모델 (docs/필터.md).
+     * 차종별 하한 단가(원/km) — 단가 판정 모델 (docs/지금/필터.md).
      * 판정: fare ≥ deliveryDistance × ratePerKm[차종]
      * 비어 있으면(서버가 구버전이거나 미응답) minFare 판정으로 동작한다 — 오프라인 안전망.
      */

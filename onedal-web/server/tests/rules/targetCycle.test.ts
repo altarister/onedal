@@ -3,7 +3,7 @@ import { join } from "path";
 import { decideNextTargetAfterCycle, HOME_RADIUS_KM } from "@onedal/shared";
 
 /**
- * 🧭 타겟 자동 순환 규칙 (근거: docs/결정_이력.md «타겟은 사이클이 끝나면.md)
+ * 🧭 타겟 자동 순환 규칙 (근거: docs/기록/결정_이력.md «타겟은 사이클이 끝나면.md)
  * 노선 끝→복귀 (집 근처면 유지) · 관내 끝→복귀 · 복귀 끝→노선 · 자동은 제안일 뿐.
  */
 

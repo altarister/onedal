@@ -88,7 +88,7 @@ export interface UserSession {
     capacityConfidence: CapacityConfidence;
 
     /**
-     * 국면별 필터 설정 (docs/필터.md §3).
+     * 국면별 필터 설정 (docs/지금/필터.md §3).
      *
      * `basePhaseSettings`   평소값 — DB `user_filter_phases` 행의 사본
      * `phaseSettings`       오늘값 — 자정에 평소값으로 되돌아간다
@@ -132,7 +132,7 @@ export interface UserSession {
     lastTrimGPS?: { x: number; y: number };
 
     /**
-     * 도착 감지 상태 (근거: docs/결정_이력.md «도착은 GPS 가 찍는다»)
+     * 도착 감지 상태 (근거: docs/기록/결정_이력.md «도착은 GPS 가 찍는다»)
      * · arrivalFired    한 번 찍은 정거장(`orderId:stopType`) — **한 정거장당 발화 1회**의 근거
      * · arrivalWatch    지금 감시 중인 "다음 정거장"의 정지 유지 상태 (실 GPS 만)
      * · arrivalNoticed  근접 예고(3km)를 이미 보낸 정거장

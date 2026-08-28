@@ -113,7 +113,7 @@ function logActiveFilter(session: ReturnType<typeof getUserSession>, actionType:
 // ━━━ 내부 유틸: 파생 데이터(destinationKeywords, allowedVehicleTypes) 재계산 ━━━
 function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, changes: Partial<AutoDispatchFilter>, userId: string) {
     /**
-     * 차종별 하한 단가표는 **콜할인율에서만 파생된다** (docs/필터.md §4).
+     * 차종별 하한 단가표는 **콜할인율에서만 파생된다** (docs/지금/필터.md §4).
      *
      * 관제웹은 `callDiscountPct` 하나만 보내고 표는 만들지 않는다 — 같은 표를 두 곳에서
      * 만들면 한쪽만 고쳐진다(경유 4벌·상태목록 3벌과 같은 사고). 원천은 국면별

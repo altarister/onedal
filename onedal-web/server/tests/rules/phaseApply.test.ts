@@ -6,7 +6,7 @@ const read = (rel: string) => readFileSync(join(__dirname, "../../src", rel), "u
 const codeOnly = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 
 /**
- * 🔴 국면 전환 시 조각 펼치기 — docs/필터.md §3
+ * 🔴 국면 전환 시 조각 펼치기 — docs/지금/필터.md §3
  *
  * 기사님: *"첫짐 도착반경 5km 로 콜을 잡다가 첫짐을 잡으면 … **저장된 합짐 도착반경 1km 를
  * 저장된 값에서 꺼내와** 콜을 잡고 싶은 거야."*

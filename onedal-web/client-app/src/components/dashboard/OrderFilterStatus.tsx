@@ -6,7 +6,7 @@ import { socket } from "../../lib/socket";
 import { logRoadmapEvent } from "../../lib/roadmapLogger";
 
 /**
- * 요약줄 — 관제탑에 늘 보이는 한 칸. (docs/필터.md §3)
+ * 요약줄 — 관제탑에 늘 보이는 한 칸. (docs/지금/필터.md §3)
  *
  *   탭        → 필터 설정 팝업
  *   국면 버튼  → 확인 후 전환 (노선행 → 이 동네 → 복귀행)

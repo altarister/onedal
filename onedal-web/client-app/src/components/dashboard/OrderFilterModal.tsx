@@ -31,7 +31,7 @@ const CALL_DISCOUNT_STEPS = [
 const RATE_TABLE_ORDER = ['오토바이', '다마스', '승용차', '라보', '1t'];
 
 /**
- * 탭 = 하루의 다섯 국면 (docs/필터.md §3).
+ * 탭 = 하루의 다섯 국면 (docs/지금/필터.md §3).
  * 모두 펼쳐 두고 **지금 어디인지는 초록 점**으로만 표시한다 —
  * 기사님: *"아침에 앉아서 하루치를 다 정해 둘 수 있다."*
  *
@@ -501,7 +501,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                             )}
                         </div>
 
-                        {/* ── 콜할인율 — 시세 대비 허용 할인 (docs/필터.md §4) ──
+                        {/* ── 콜할인율 — 시세 대비 허용 할인 (docs/지금/필터.md §4) ──
                             금액을 입력하지 않는다. 차종별 하한 단가는 콜할인율에서 파생된다.
                             기사님: "처음에는 시세로 찾고, 콜이 없으면 여기 와서 조금씩 낮춘다" */}
                         <div className="space-y-1.5">
