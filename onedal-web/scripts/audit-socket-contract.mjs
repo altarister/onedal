@@ -20,10 +20,19 @@ const ROOT = new URL('..', import.meta.url).pathname;
 /** socket.io 내장 이벤트 — 서버가 명시적으로 보내지 않는다 */
 const BUILTIN = new Set(['connect', 'disconnect', 'connect_error', 'reconnect', 'error']);
 
-/** 아직 구현 전이라 알고도 비워둔 것 (근거를 함께 적는다) */
-const KNOWN_GAPS = {
-    'auto-arrived': 'Phase 4 미구현 — GPS 자동 도착 감지가 아직 없다 (todo 기록됨)',
-};
+/**
+ * 아직 구현 전이라 알고도 비워둔 것 (근거를 함께 적는다).
+ *
+ * 🔴 **지금은 비어 있다.** 여기 이름을 올리면 그 이벤트는 🔴 대신 🟡 로 나오므로,
+ *    **진짜 파손이 생겨도 이 검사가 숨긴다.** 올릴 때는 «왜 아직 없는가»를 함께 적고,
+ *    구현되면 **반드시 내린다.**
+ *
+ * ⚠️ 2026-08-29 까지 `auto-arrived` 가 *"Phase 4 미구현"* 으로 올라 있었는데
+ *    **이미 구현돼 있었다** — 서버가 쏘고(`socketHandlers`) 관제웹 두 곳이 듣는다.
+ *    메워진 구멍을 «알고 비워 둔 구멍»으로 적어 두면, 이 검사가 막으려던 사고를
+ *    이 검사가 만든다.
+ */
+const KNOWN_GAPS = {};
 
 function walk(dir, out = []) {
     for (const name of readdirSync(dir)) {

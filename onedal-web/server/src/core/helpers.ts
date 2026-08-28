@@ -215,9 +215,10 @@ export function buildOrderSync(session: { userId?: string; myOrders: MyOrder[]; 
     //    pendingOrdersData — 평가 중 + 확정된 콜의 캐시
     //    myOrders          — 확정된 내 콜 (모든 판정 로직이 이걸 본다)
     //
-    //    예전에는 이 함수가 pendingOrdersData 만 읽었다. 그런데 `completeOrder` 와
-    //    `startTwoTrack` 은 myOrders 만 갱신한다 → **관제탑에 낡은 상태가 갔다.**
+    //    예전에는 이 함수가 pendingOrdersData 만 읽었다. 그런데 당시의 `completeOrder` ·
+    //    `startTwoTrack` 은 myOrders 만 갱신했다 → **관제탑에 낡은 상태가 갔다.**
     //    (하차 완료했는데 카드에 "상차 완료"로 남아 있던 원인)
+    //    ⚠️ 그 두 함수는 지금 없다 (2026-08-14 철거 · setCallTarget 이 대체). 이유는 남는다
     //
     //    확정된 콜은 myOrders 가 진실이므로 나중에 덮어쓴다.
     const merged = new Map<string, any>();

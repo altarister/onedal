@@ -152,7 +152,8 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
          * 첫짐에도 별칭을 싣기 시작하면서 생긴 구멍이다. 예전에는 첫짐 별칭이 늘 비어 있어
          * 앱의 2단계 필터가 아예 안 돌았으므로 옛 값이 남아도 무해했다. 이제는 아니다.
          *
-         * `startTwoTrack` 은 `destinationKeywords` 만 넘긴다. 그러면 스프레드(`...changes`)가
+         * 옛 `startTwoTrack`(철거됨 · 지금은 `setCallTarget`/`syncDetourFilter`)은
+         * `destinationKeywords` 만 넘겼다. 그러면 스프레드(`...changes`)가
          * `customCityFilters` 를 안 건드려 **직전 경유의 별칭이 그대로 남는다.**
          * 앱은 "시가 맞고 동도 맞아야 통과"로 판정하므로, 엉뚱한 시 목록을 들고 있으면
          * 멀쩡한 투트랙 콜을 전부 걸러낸다 — 조용히, 이유도 안 남기고.

@@ -20,7 +20,11 @@
  *    ```
  *    이름이 같다고 같은 값이 아니다. 그래서 컬럼마다 **그 단계에서의 뜻**을 옆에 적는다.
  *
- * ⚠️ **아직 아무도 안 읽는다.** 여섯을 다 만들어 모양을 보고 합칠지 정한다.
+ * 🔴 **지금 장부의 유일한 원천이다.** 옛 표(`stop_cargo_reports`·`order_milestones`)는
+ *    2026-08-21 에 철거됐고, 판정·화면·복구가 전부 이 여섯을 읽는다
+ *    (`stepSeeder` · `helpers` · `OrderEvaluator` · `filterManager` · `socketHandlers`).
+ *    ⚠️ 예전 주석은 *"아직 아무도 안 읽는다 — 모양을 보고 합칠지 정한다"* 였다.
+ *       그 말을 믿고 이 표를 함부로 바꾸면 세 앱이 동시에 흔들린다 (2026-08-29 정정)
  */
 
 import type { CallStepId } from './callSteps';
