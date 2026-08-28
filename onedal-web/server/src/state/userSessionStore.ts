@@ -88,7 +88,7 @@ export interface UserSession {
     capacityConfidence: CapacityConfidence;
 
     /**
-     * 국면별 필터 설정 (docs/필터_재설계_명세.md §2-4).
+     * 국면별 필터 설정 (docs/필터.md §3).
      *
      * `basePhaseSettings`   평소값 — DB `user_filter_phases` 행의 사본
      * `phaseSettings`       오늘값 — 자정에 평소값으로 되돌아간다

@@ -332,7 +332,7 @@ export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, 
                         );
                     })()}
 
-                    {/* ── 🚀 지금 출발 — 지도 좌하단 플로팅 (docs/필터_재설계_명세.md §4-1) ──
+                    {/* ── 🚀 지금 출발 — 지도 좌하단 플로팅 (docs/필터.md §3) ──
                         기사님: *"지금 출발 버튼은 관제웹 지도 영역 좌하단에 버튼으로 들어가면 될 듯하다."*
 
                         설정이 아니라 **운행 조작**이라 필터 팝업이 아니라 여기 있어야 한다 —

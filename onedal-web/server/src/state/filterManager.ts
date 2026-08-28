@@ -28,7 +28,7 @@ import type { PhaseSettingsMap } from "@onedal/shared";
 // **국면 옵션의 유일한 원천은 user_filter_phases 행이다.**
 // 옛 blob(user_filters.phase_settings)과 평면 4칸은 ④에서 손으로 철거했다 —
 // 병행 절차: 새 그릇 → 이중 쓰기+비교(전수 스모크 일치) → 읽기 전환 → 철거.
-// ⚠️ 실서버 data.db 는 배포 때 같은 손 순서 (blob→행 이식 SQL 은 필터_확정안.md).
+// ⚠️ 실서버 data.db 는 배포 때 같은 손 순서 (배포 절차는 todo.md 🚀 절).
 // ─────────────────────────────────────────────────────────────
 
 /** 국면 5행을 새 그릇에 upsert — 컬럼 목록의 원천은 FILTER_FIELDS 표 */
@@ -113,7 +113,7 @@ function logActiveFilter(session: ReturnType<typeof getUserSession>, actionType:
 // ━━━ 내부 유틸: 파생 데이터(destinationKeywords, allowedVehicleTypes) 재계산 ━━━
 function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, changes: Partial<AutoDispatchFilter>, userId: string) {
     /**
-     * 차종별 하한 단가표는 **콜할인율에서만 파생된다** (docs/필터_재설계_명세.md §2).
+     * 차종별 하한 단가표는 **콜할인율에서만 파생된다** (docs/필터.md §4).
      *
      * 관제웹은 `callDiscountPct` 하나만 보내고 표는 만들지 않는다 — 같은 표를 두 곳에서
      * 만들면 한쪽만 고쳐진다(경유 4벌·상태목록 3벌과 같은 사고). 원천은 국면별

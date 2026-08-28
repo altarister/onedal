@@ -89,7 +89,7 @@ export default function PricingSettingsTab({ onClose }: Props) {
         </div>
       </div>
 
-      {/* 수수료 — 할인율은 필터의 콜할인율(국면별)가 대체했다 (docs/필터_재설계_명세.md) */}
+      {/* 수수료 — 할인율은 필터의 콜할인율(국면별)가 대체했다 (docs/필터.md) */}
       <div className="space-y-1.5">
         <label className="text-xs font-semibold text-text-muted">📊 퀵사 수수료율 (%)</label>
         <Input type="number" value={agencyFeePercent} onChange={(e) => setAgencyFeePercent(Number(e.target.value) || 0)} className="h-9 text-center font-bold" />

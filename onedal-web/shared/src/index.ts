@@ -466,7 +466,7 @@ export interface SimplifiedOfficeOrder {
      * 배송거리 (상차지 → 하차지, km). 리스트 최좌측 두 숫자 중 **두 번째** 값.
      * 앱의 단가 판정(`fare ≥ deliveryDistance × ratePerKm[차종]`) 입력이며,
      * 서버는 판정 근거를 로그에 남길 때 쓴다 (실제 판정은 카카오 도로거리로 다시 잰다).
-     * 🔍 이 값이 직선거리인지 도로거리인지는 실콜 대조 대기 중 (docs/필터_재설계_명세.md §6)
+     * 🔍 이 값이 직선거리인지 도로거리인지는 실콜 대조 대기 중 (docs/필터.md §11)
      */
     deliveryDistance?: number;
 }
@@ -677,7 +677,7 @@ export interface AutoDispatchFilter {
     detourRadiusKm?: number;      // (합짐 모드) 경로 주변 이탈 허용 반경 (기본값 5km, DB설정값)
     userOverrides?: boolean;        // 기사가 팝업에서 수동으로 필터(destinationKeywords 등)를 조작했는지 여부(서버 덮어쓰기 방지용)
 
-    // ── 단가 판정 모델 (2026-08-13 확정 · docs/필터_재설계_명세.md) ──
+    // ── 단가 판정 모델 (2026-08-13 확정 · docs/필터.md) ──
     // 셋 다 optional: 구버전 앱은 이 키들을 파싱하지 않으므로 무시된다 (호환).
     // minFare/maxFare 는 구버전 앱 호환용으로 유지 — 새 앱은 ratePerKm 이 있으면 그걸 쓴다.
     /** 차종별 하한 단가(원/km) = 실수령 시세 × (1 − 콜할인율). 판정: fare ≥ 배송거리 × ratePerKm[차종] */
@@ -701,7 +701,7 @@ export interface AutoDispatchFilter {
  *   DEST(노선행) → LOCAL(이 동네에서 찾기) → HOME(복귀행)
  *
  * 스와이프 순서가 하루의 흐름과 같다: 목적지로 가다가, 거의 도착하면 그 동네 콜을 잡고,
- * 다 내리면 집 방향으로. (docs/필터_재설계_명세.md §4-1)
+ * 다 내리면 집 방향으로. (docs/필터.md §3)
  *
  * ⚠️ `DispatchPhase`(STANDBY/GATHERING/DELIVERING)와 **다른 것**이다.
  *    · `DispatchPhase` — 지금 짐이 얼마나 실렸나. **데이터에서 파생**된다 (기사님이 못 고른다)
@@ -834,7 +834,7 @@ export function getEffectiveDetourRadius(
     baseDetourRadiusKm: number
 ): number {
     /**
-     * 🔴 2026-08-14 — **강제 0 을 걷어냈다.** (docs/필터_재설계_명세.md §2-4)
+     * 🔴 2026-08-14 — **강제 0 을 걷어냈다.** (docs/필터.md §3)
      *
      * 예전에는 `DELIVERING` 이면 무조건 0 을 돌려줬다. 국면별 설정이 없던 시절,
      * 운행 중 우회를 끊을 방법이 이것뿐이었기 때문이다.
@@ -1311,7 +1311,7 @@ export interface OrderSyncPayload {
     /**
      * 🚫 **몇 판째인가** (망별). 한 판 = `CANCEL_BUDGET_PER_ROUND` 회.
      *
-     * 🔴 [필터_정의.md §2](../../docs/필터_정의.md) 의 *"취소는 리셋되지 않는다"* 를
+     * 🔴 docs/필터.md §6 의 *"취소는 리셋되지 않는다"* 를
      *    지키는 자리다. 그 취지는 **총량이 사라지면 안 된다**는 것이지 "숫자가 영원히
      *    커져야 한다"가 아니다. 판수가 남으므로 총량은 `(판수-1)×10 + 카운트` 로 그대로 산다.
      */

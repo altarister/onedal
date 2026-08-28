@@ -14,7 +14,7 @@ const fm = codeOnly(read(join(SERVER, "state/filterManager.ts")));
 const handlers = codeOnly(read(join(SERVER, "socket/socketHandlers.ts")));
 
 /**
- * 🔴 국면별 필터 설정 — 관제웹 (docs/필터_재설계_명세.md §2-4)
+ * 🔴 국면별 필터 설정 — 관제웹 (docs/필터.md §3)
  *
  * 기사님: *"모든 탭마다 키를 가지고 있고 **탭마다 디스플레이만 달리해서** 숨기고 노출하면 될 듯."*
  *

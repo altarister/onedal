@@ -11,7 +11,7 @@ import { getEffectiveDetourRadius, DEFAULT_DETOUR_RADIUS_KM, DEFAULT_PHASE_SETTI
  * 그 함수는 "그렇게 되어 있다"는 착각만 남긴다.
  */
 /**
- * 🔴 2026-08-14 — **강제 0 을 걷어냈다.** (docs/필터_재설계_명세.md §2-4)
+ * 🔴 2026-08-14 — **강제 0 을 걷어냈다.** (docs/필터.md §3)
  *
  * 옛 규칙: `DELIVERING` 이면 무조건 경유 0. 국면별 설정이 없던 시절, 운행 중 우회를
  * 끊을 방법이 이것뿐이었기 때문이다.

@@ -380,7 +380,7 @@ async function run({ main, cod }) {
         JSON.stringify(st.filter?.allowedVehicleTypes));
 
     /**
-     * ═══ 국면별 필터 설정 (docs/필터_재설계_명세.md §2-4) ═══
+     * ═══ 국면별 필터 설정 (docs/필터.md §3) ═══
      *
      * 기사님: *"첫짐 도착반경 5km 로 콜 잡기하다 첫짐을 잡으면 … **저장된 합짐 도착반경 1km 를
      * 저장된 값에서 꺼내와** 콜을 잡고 싶은 거야."*
