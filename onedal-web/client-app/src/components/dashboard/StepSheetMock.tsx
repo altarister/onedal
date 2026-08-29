@@ -153,14 +153,30 @@ function MinuteBadge({ minutes, unit, onEdit }: { minutes: number; unit?: string
     );
     const stepBy = draft < 5 ? 0.5 : 5;
     const 닫기 = (저장: boolean) => { setOpen(false); if (저장 && draft !== minutes) onEdit(draft); };
+    /**
+     * 🔴 **버튼이 움직이면 운전 중에 못 누른다** (기사님 실측 2026-08-30).
+     *
+     * 기사님: *"+ 버튼을 누르면 **선택된 값이 안 보이면서** 영역이 들쑥날쑥해져서
+     * + 버튼을 누르기 어렵다."*
+     *
+     * 원인이 둘이었다:
+     *   ① 고친 값을 `text-info`(파랑)로 칠했는데 **칩이 선택되면 배경도 `bg-info`** 다
+     *      — 파랑 위에 파랑이라 글자가 사라졌다
+     *   ② `7분 → 12분` 처럼 자릿수가 바뀌면 폭이 변해 **± 버튼이 옆으로 밀렸다**
+     *
+     * → 색은 배경과 무관한 것으로 바꾸고(테두리), 숫자 칸 폭을 **고정**한다.
+     *   버튼도 키운다 — 이건 신호 대기 중에 누르는 것이다.
+     */
     return (
-        <span className="ml-1 inline-flex items-center gap-1" onClick={e => e.stopPropagation()}>
-            <button className="px-1 rounded bg-surface-alt text-[11px]"
+        <span className="ml-1 inline-flex items-center gap-1 align-middle" onClick={e => e.stopPropagation()}>
+            <button className="px-2 py-0.5 rounded bg-black/25 text-[13px] leading-none font-bold"
                 onClick={() => setDraft(d => Math.max(0, +(d - stepBy).toFixed(2)))}>−</button>
-            <b className={`text-[11px] tabular-nums ${draft !== minutes ? 'text-info' : ''}`}>{draft}{unit ?? '분'}</b>
-            <button className="px-1 rounded bg-surface-alt text-[11px]"
+            <b className={`inline-block min-w-[3.4em] text-center text-[12px] tabular-nums leading-none py-0.5 rounded ${
+                draft !== minutes ? 'ring-1 ring-current' : ''}`}>{draft}{unit ?? '분'}</b>
+            <button className="px-2 py-0.5 rounded bg-black/25 text-[13px] leading-none font-bold"
                 onClick={() => setDraft(d => +(d + stepBy).toFixed(2))}>+</button>
-            <button className="px-1 rounded bg-info text-white text-[10px]" onClick={() => 닫기(true)}>✓</button>
+            <button className="px-2 py-0.5 rounded bg-success text-white text-[11px] leading-none font-bold"
+                onClick={() => 닫기(true)}>✓</button>
         </span>
     );
 }

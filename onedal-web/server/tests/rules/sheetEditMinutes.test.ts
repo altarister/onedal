@@ -323,6 +323,22 @@ describe('✏️ 화면이 그 규칙을 지키는가', () => {
         expect(시트).not.toMatch(/onClick=\{\(\) => onEdit\(/);
     });
 
+    /**
+     * 🔴 **버튼이 움직이면 운전 중에 못 누른다** (기사님 실측 2026-08-30).
+     *    ① 고친 값을 `text-info` 로 칠했는데 칩이 선택되면 배경도 `bg-info` 라 **사라졌다**
+     *    ② 자릿수가 바뀌면 폭이 변해 ± 버튼이 밀렸다
+     */
+    it('🔴 고친 값을 배경과 같은 색으로 칠하지 않는다 — 파랑 위 파랑은 안 보인다', () => {
+        const 배지 = 시트.slice(시트.indexOf('function MinuteBadge'), 시트.indexOf('function CargoForm'));
+        expect(배지).not.toMatch(/text-info/);
+    });
+
+    it('🔴 숫자 칸 폭을 고정한다 — 자릿수가 바뀌어도 ± 가 안 밀린다', () => {
+        const 배지 = 시트.slice(시트.indexOf('function MinuteBadge'), 시트.indexOf('function CargoForm'));
+        expect(배지).toMatch(/min-w-\[/);
+        expect(배지).toMatch(/tabular-nums/);
+    });
+
     it('안 바뀌었으면 저장도 안 한다', () => {
         expect(시트).toMatch(/draft !== minutes/);
     });
