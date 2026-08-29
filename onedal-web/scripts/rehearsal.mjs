@@ -78,7 +78,24 @@ const pick = (needle) => cached.find(q => q.includes(needle));
  * 주소는 전부 geocode_cache 실물 — 1~5 는 잡는 흐름, 6~10 은 걸러져야 하는 것들.
  */
 const PRESETS = [
-    // ── 잡는 흐름 ──
+    /**
+ * 🔴 **주소는 문제지에 적는다 — 캐시에서 꺼내 쓰지 않는다** (기사님 지적 2026-08-30)
+ *
+ * 기사님: *"왜 캐시를 자꾸 열고 그러는 거야?"* — 맞는 지적이다.
+ *
+ * 19·20·21 만 `pick()` 으로 **지오코딩 캐시에서 이름으로 찾아** 쓰고 있었다. 그래서
+ * 문제지를 읽어도 «어디에서 어디로 가는 판인지» 알 수가 없었고, 확인하려면 매번 DB 를
+ * 열어야 했다. 게다가 캐시에 **동 이름 없는 맨 상호명**(`신둔농협하나로마트 본점`)이
+ * 한 줄 섞여 있어 19 번이 그걸 물었다 — 앱의 경로 순서 검사는 **글자 안에서 동 이름을
+ * 찾으므로** 맨 상호명은 「경로 밖」이 된다. 2026-08-29 에 이조갈비·이천제일·이천터미널이
+ * 같은 이유로 막혔고 그때 지번 주소로 고쳤는데, 이 셋만 캐시를 거쳐 되살아났다.
+ *
+ * → 이제 1~16 과 똑같이 **주소를 그대로 적는다.** 문제지가 스스로를 설명한다.
+ *
+ * ⚠️ 신둔농협은 캐시에 **본점(맨 이름)** 과 **예스파크점(신둔면 주소)** 둘이 있었다.
+ *    동 이름이 있는 쪽을 골랐다 — 다른 지점이면 기사님이 한 줄로 고쳐 주시면 된다.
+ */
+// ── 잡는 흐름 ──
     { key: '1', label: '첫짐 꿀 · 광주 경안동 → 파주 금촌동 (10만/1t) — 🔵 나와야 정상',
       pickup: pick('경안동 204-5'), dropoff: pick('금촌동 905-1'), fare: 100000, vehicleType: '1t' },
     { key: '2', label: '첫짐 똥 · 광주 경안동 → 파주 문산읍 (5.5만/1t · 저단가) — 🟡 나와야 정상',
@@ -166,7 +183,8 @@ const PRESETS = [
      *    합짐이 «붙는 자리»가 다 다르고, 그게 이 문제지의 전부다.
      */
     { key: '19', label: '🚚 [1] 첫짐 · 모다아울렛 → 신둔농협 (5만/다마스) — KEEP 후 **상차 완료**, 그리고 출발',
-      pickup: pick('모다아울렛 곤지암점'), dropoff: pick('신둔농협하나로마트 본점'),
+      pickup: '경기 광주시 초월읍 경충대로 907 모다아울렛 곤지암점',
+      dropoff: '경기 이천시 신둔면 도자예술로 72 신둔농협하나로마트 예스파크점',
       fare: 50000, vehicleType: '다마스',
       start: HOME,   // 🏠 설정의 집 — 좌표를 여기 적지 않는다 (규칙 ③)
       expect: [
@@ -174,7 +192,8 @@ const PRESETS = [
         'KEEP → 상차 완료 → 출발. 신둔 쪽으로 달리기 시작한다',
       ] },
     { key: '20', label: '🚚 [2] 합짐1 · 곤지암성당 → 이천제일 (5만/다마스) — **달리는 중에** 올린다',
-      pickup: pick('곤지암성당'), dropoff: pick('이천제일식자재마트'),
+      pickup: '경기 광주시 곤지암읍 경충대로543번길 19 곤지암성당',
+      dropoff: '경기 이천시 관고동 107-5 이천제일식자재마트',
       fare: 50000, vehicleType: '다마스',
       expect: [
         '성당은 **가는 길목**이다 (집에서 5.9km · 신둔 가는 도중)',
@@ -182,7 +201,8 @@ const PRESETS = [
         'KEEP → 성당 도착 → 상차 완료 (이제 2콜 적재)',
       ] },
     { key: '21', label: '🚚 [3] 합짐2 · 이조갈비 → 이천터미널 (5만/다마스) — **신둔 2.4km 앞**에서 올린다',
-      pickup: pick('이조갈비함흥냉면'), dropoff: pick('이천터미널'),
+      pickup: '경기 이천시 사음동 452-4 이조갈비함흥냉면',
+      dropoff: '경기 이천시 중리동 219-1 이천터미널',
       fare: 50000, vehicleType: '다마스',
       expect: [
         '🔴 **여기가 순서가 갈리는 자리다.**',
@@ -351,6 +371,54 @@ function buildRawText(t, n) {
  *    문제지를 **시작하기 전**(운행 전)에 옮기는 용도다.
  */
 let gpsSocket = null;
+/**
+ * 📏 **배송거리 — 실앱이 늘 싣고 오는 값** (기사님 지적 2026-08-30)
+ *
+ * 기사님: *"정말 재료가 없는 건가? 구할 방법이 진짜 없어?"* — 있었다.
+ *
+ * ── 무엇이 비어 있었나 ──
+ *
+ * 합짐 칩에 시각이 하나도 안 떴다. 하차 추정은 `상차 완료 + 단독 주행 × 150%` 인데
+ * 합짐은 **혼자 갔을 때의 카카오 경로를 안 부르므로** `kakaoSoloDurationMin` 이 없다.
+ * 나는 거기서 «재료가 없다»고 단정했다 — **틀렸다.**
+ *
+ * `soloMinutesOf` 는 ② 단계로 **배송거리 → 구간 속도** 환산을 이미 갖고 있다.
+ * 그리고 배송거리는 **배차망 화면에 늘 떠 있는 값**이라 앱이 항상 긁어 보낸다
+ * (앱의 단가 필터 `fare ≥ 배송거리 × 단가` 가 그 값으로 돈다).
+ *
+ * 🔴 **즉 제품에는 재료가 있었고, 없는 건 문제지였다.** 리허설이 이 칸을 안 실어
+ *    보내서 합짐만 시각을 잃었다 — 실콜에서는 안 나는 증상을 «제품 구멍»으로 볼 뻔했다.
+ *
+ * ⚠️ 여기서 만드는 값은 **문제지 값**이다. 실앱 값은 배차망이 적어 준 도로 거리이고,
+ *    이건 두 지점 직선거리에 도로 계수를 곱한 것이다. 판정을 이 숫자로 논하지 않는다.
+ */
+const ROAD_FACTOR = 1.3;          // 직선 → 도로. 문제지용 근사치다
+const geoCache = new Map();
+async function coordOf(address) {
+    if (geoCache.has(address)) return geoCache.get(address);
+    let out = null;
+    try {
+        const { accessToken } = await (await fetch(`${BASE}/api/auth/bypass`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
+        })).json();
+        const r = await fetch(`${BASE}/api/settings/geocode?address=${encodeURIComponent(address)}`,
+            { headers: { Authorization: `Bearer ${accessToken}` } });
+        if (r.ok) { const j = await r.json(); if (j?.x && j?.y) out = { x: +j.x, y: +j.y }; }
+    } catch { /* 못 구하면 null — 지어내지 않는다 */ }
+    geoCache.set(address, out);
+    return out;
+}
+async function deliveryKmOf(pickup, dropoff) {
+    const [a, b] = await Promise.all([coordOf(pickup), coordOf(dropoff)]);
+    if (!a || !b) return null;
+    const R = 6371, rad = (d) => d * Math.PI / 180;
+    const dLat = rad(b.y - a.y), dLng = rad(b.x - a.x);
+    const h = Math.sin(dLat / 2) ** 2
+        + Math.cos(rad(a.y)) * Math.cos(rad(b.y)) * Math.sin(dLng / 2) ** 2;
+    const straight = 2 * R * Math.asin(Math.sqrt(h));
+    return Math.round(straight * ROAD_FACTOR * 10) / 10;
+}
+
 async function moveTo(start) {
     if (!gpsSocket) {
         const { io } = await import(join(ROOT, 'client-app/node_modules/socket.io-client/build/esm/index.js'));
@@ -477,8 +545,21 @@ async function inject(t) {
     if (lastFilter && !lastFilter.isActive) console.log('  ⚠️ 콜 잡기가 OFF 상태입니다 — 서버가 홀드 중이거나 필터가 꺼져 있습니다');
 
     const id = `REHEARSAL-${Date.now()}-${++seq}`;
+    /**
+     * 📏 실앱이 늘 싣고 오는 칸이다 — 안 실으면 **합짐만 시각을 잃는다** (2026-08-30).
+     *    🔴 못 구하면 «없음»으로 두되 **조용히 넘어가지 않는다** — 빠진 줄 모르면
+     *       또 «제품이 시각을 못 만든다»고 오진한다.
+     */
+    const deliveryDistance = t.deliveryDistance ?? await deliveryKmOf(t.pickup, t.dropoff);
+    if (deliveryDistance == null) {
+        console.log('  ⚠️ 배송거리를 못 구했습니다 — 실앱이라면 늘 있는 값입니다.');
+        console.log('     이 콜은 합짐일 때 하차 시각이 안 뜰 수 있습니다 (재료 없음).');
+    } else {
+        console.log(`  📏 배송거리 ${deliveryDistance}km \x1b[2m(문제지 값 — 직선×${ROAD_FACTOR})\x1b[0m`);
+    }
     const order = {
         id, pickup: t.pickup, dropoff: t.dropoff, fare: t.fare, vehicleType: t.vehicleType,
+        ...(deliveryDistance != null ? { deliveryDistance } : {}),
         timestamp: new Date().toISOString(), itemDescription: t.memo || '리허설 콜',
         // 앱이 2차 상세 화면에서 긁어 올리는 통짜 텍스트 — 서버가 여기서 연락처를 뽑는다
         rawText: buildRawText(t, seq),
@@ -537,10 +618,70 @@ function menu() {
     for (const p of PRESETS) console.log(`  [${p.key}] ${p.label}`);
     console.log('  [c] 직접 입력 (상차지·하차지·요금·차종)');
     console.log('  [f] 지금 필터 보기 (서버가 앱에 내려보내는 값)');
+    console.log('  \x1b[36m[19,20,21@90] ⏱️ 예약 발송 — 시계가 올린다 (90초 간격)\x1b[0m');
+    console.log('  \x1b[2m               손으로 치면 «달리는 중에 합짐» 같은 시점을 놓친다\x1b[0m');
+    console.log('  [t] 예약 취소');
     console.log('  [x] 콜 리스트 비우기 (오늘 처음처럼 · 백업 후 삭제)');
     console.log('  [q] 종료');
 }
 function prompt() { process.stdout.write('선택> '); }
+
+/**
+ * ⏱️ **예약 발송 — 콜은 시계가 올린다** (기사님 지시 2026-08-30)
+ *
+ * 기사님: *"리허설을 타이머로 올리도록 수정해야 해. **너가 올리니까 자꾸 늦어.**"*
+ *
+ * ── 왜 늦었나 ──
+ *
+ * 지금까지는 사람(또는 내가) 메뉴에 숫자를 쳐서 올렸다. 그런데 리허설의 핵심 장면은
+ * **«달리는 중에 합짐이 들어온다»** 처럼 **시점이 조건인 것**들이다. 손으로 치면 그
+ * 시점을 매번 놓친다 — 첫짐을 KEEP 하고 상차를 마칠 때쯤 합짐이 와야 하는데,
+ * 알아채고 치는 사이에 이미 하차까지 가 버린다.
+ *
+ * 🔴 **그래서 판을 시작하기 전에 «몇 초 뒤에 무엇이 온다»를 미리 정해 둔다.**
+ *    기사님은 화면만 보시면 되고, 올리는 일은 시계가 한다.
+ *
+ * ```
+ * 선택> 19,20,21@90      19 지금 · 20 90초 뒤 · 21 180초 뒤
+ * 선택> 20@45            하나만 45초 뒤에
+ * 선택> t                취소 (예약을 전부 지운다)
+ * ```
+ */
+let 예약 = [];
+function cancelSchedule(quiet = false) {
+    const n = 예약.length;
+    예약.forEach(clearTimeout);
+    예약 = [];
+    if (n && !quiet) console.log(`  🧹 예약 ${n}건을 지웠습니다`);
+    return n;
+}
+
+/** `19,20,21@90` 같은 줄을 읽는다. 형식이 아니면 null (그냥 메뉴 입력으로 넘긴다) */
+function parseSchedule(line) {
+    const m = line.match(/^([0-9]+(?:\s*,\s*[0-9]+)*)\s*@\s*([0-9]+)$/);
+    if (!m) return null;
+    return { keys: m[1].split(',').map(x => x.trim()), gapSec: parseInt(m[2], 10) };
+}
+
+function schedule(keys, gapSec) {
+    cancelSchedule(true);
+    const 계획 = [];
+    keys.forEach((k, i) => {
+        const t = PRESETS.find(p => p.key === k);
+        // 🔴 없는 번호를 **조용히 건너뛰지 않는다** — 안 온 콜을 «안 잡힌 콜»로 오진한다
+        if (!t) { console.log(`  ⚠️ [${k}] 는 없는 문제지입니다 — 예약하지 않습니다`); return; }
+        const sec = i * gapSec;
+        계획.push(`[${k}] ${sec === 0 ? '지금' : `+${sec}초`}`);
+        예약.push(setTimeout(async () => {
+            console.log(`\n⏱️ [예약 발송 ${sec === 0 ? '지금' : `+${sec}초`}] ${t.label}`);
+            try { await inject(t); } catch (e) { console.log(`  🚨 발송 실패: ${e?.message || e}`); }
+            prompt();
+        }, sec * 1000));
+    });
+    if (!계획.length) { console.log('  예약할 것이 없습니다'); return; }
+    console.log(`  ⏱️ 예약 ${계획.length}건 — ${계획.join(' · ')}`);
+    console.log(`  \x1b[2m취소하려면 t\x1b[0m`);
+}
 
 /**
  * 🚦 **리허설 전에 «지금 무엇이 돌고 있는가»를 확인한다** (2026-08-29 신설)
@@ -621,7 +762,9 @@ async function main() {
 
     rl.on('line', async (line) => {
         const c = line.trim().toLowerCase();
-        if (c === 'q') { rl.close(); process.exit(0); }
+        if (c === 'q') { cancelSchedule(true); rl.close(); process.exit(0); }
+        else if (c === 't') { if (!cancelSchedule()) console.log('  예약된 것이 없습니다'); }
+        else if (parseSchedule(c)) { const p = parseSchedule(c); schedule(p.keys, p.gapSec); }
         else if (c === 'x') await freshStart();
         else if (c === 'f') showFilter();
         else if (c === 'c') {
