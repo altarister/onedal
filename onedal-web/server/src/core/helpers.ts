@@ -8,6 +8,7 @@ import type { MyOrder, CargoReport, CapacityConfidence, DwellUnknown, StopTiming
 import { OrderRepository } from '../repositories/OrderRepository';
 import db from '../db';
 import { planArrivalStops } from '../services/routeComposer';
+import type { RouteSnapshot } from '../services/routeComposer';
 import { stepsView, stepRecordsOf, plannedDwellOf } from '../services/stepSeeder';
 
 /**
@@ -219,6 +220,8 @@ function logRouteStops(
     routeStops: Array<{ orderId: string; stopType: string; driveMinutes: number | null }>,
     routeComputedAt: string | null, holderId: string | null,
     aligned: boolean, minsLen: number,
+    /** 경로에 섞인 «확정 안 된» 콜 — 있으면 주행분을 안 쓴다 */
+    pendingInRoute: string[] = [],
 ) {
     if (!routeStops.length) return;            // 빈 세션은 남의 지문을 건드리지 않는다
     const key = userId ?? '(주인없음)';
@@ -227,15 +230,26 @@ function logRouteStops(
     lastRouteStopsSig.set(key, sig);
 
     const circled = ['⑴', '⑵', '⑶', '⑷', '⑸', '⑹', '⑺', '⑻', '⑼', '⑽'];
+    /**
+     * 🔴 **«25분» 이 아니라 «누적 25분» 이라고 적는다** (2026-08-29).
+     *    `sectionDriveMin` 은 정거장별 **누적** 주행분인데(kakaoService 주석), 로그가
+     *    그냥 «하차 39분» 이라 적어 **그 구간이 39분 걸린다**로 읽혔다.
+     *    2026-08-29 에 이걸로 «재탐색이 경로를 14분 나쁘게 만들었다»고 오진했다 —
+     *    실제로는 합짐 후보가 붙어 누적이 늘어난 것이었다.
+     */
     const body = routeStops.map((st, i) =>
         `${circled[i] ?? `(${i + 1})`} ${st.orderId.slice(-6)} ${st.stopType === 'pickup' ? '상차' : '하차'} ` +
-        `${st.driveMinutes != null ? `${st.driveMinutes}분` : '주행모름'}`).join(' ');
+        `${st.driveMinutes != null ? `누적 ${st.driveMinutes}분` : '주행모름'}`).join(' ');
     const anchor = routeComputedAt
         ? new Date(routeComputedAt).toLocaleTimeString('ko-KR', { hour12: false })
         : '없음';
     // 어긋나면 주행분이 전부 null 로 나간다 — 그 사실 자체가 원인일 수 있으므로 함께 적는다
     const mismatch = aligned ? '' : ` ⚠️ 길이 어긋남(주행분 ${minsLen} ≠ 정거장 ${routeStops.length}) → 전부 null`;
-    console.log(`🧭 [경로 순서] 닻 ${anchor} · 홀더 ${holderId?.slice(-6) ?? '없음'} · ${body}${mismatch}`);
+    // 후보가 섞였으면 «왜 주행분이 없는가»를 함께 적는다 — 없는 것보다 이유가 중요하다
+    const pending = pendingInRoute.length
+        ? ` ⚠️ 후보 포함 경로(${pendingInRoute.map(id => id.slice(-6)).join(' · ')}) → 주행분 안 씀`
+        : '';
+    console.log(`🧭 [경로 순서] 닻 ${anchor} · 홀더 ${holderId?.slice(-6) ?? '없음'} · ${body}${mismatch}${pending}`);
 }
 
 /**
@@ -252,7 +266,9 @@ function logRouteStops(
  *    (예전에는 네 군데가 각자 `Array.from(...)` 을 했다)
  */
 export function buildOrderSync(session: { userId?: string; myOrders: MyOrder[]; pendingOrdersData: Map<string, any>;
-                                          driverLocation?: { x: number; y: number } | null }) {
+                                          driverLocation?: { x: number; y: number } | null;
+                                          /** ↩️ 후보를 붙이며 덮기 직전에 떠 둔 경로 — 확정 경로의 주행분이 여기 있다 */
+                                          routeSnapshot?: RouteSnapshot | null }) {
     // 🔴 세션은 같은 콜을 **두 곳**에 들고 있다.
     //    pendingOrdersData — 평가 중 + 확정된 콜의 캐시
     //    myOrders          — 확정된 내 콜 (모든 판정 로직이 이걸 본다)
@@ -324,18 +340,63 @@ export function buildOrderSync(session: { userId?: string; myOrders: MyOrder[]; 
      * 계산에 없던 새 정거장만 null 이 된다 (규칙 ④ — 모르는 것만 모른다).
      */
     const secStops = holder?.sectionStops;
-    const minByKey = secStops && mins && secStops.length === mins.length
-        ? new Map(secStops.map((st, i) => [`${st.orderId}|${st.stopType}`, mins[i]]))
+    /**
+     * 🔴 **후보를 붙인 경로를 «확정된 경로»인 척 내보내지 않는다** (2026-08-29 실측).
+     *
+     * 심사 중에는 경로를 **후보까지 붙여** 다시 잰다(그게 우회를 재는 방법이다).
+     * 그런데 정거장 목록에는 후보가 없으므로, 그 값을 그대로 붙이면
+     * **첫짐 하차가 25분 → 39분**으로 늘어난 것처럼 보인다. 실측 그대로다:
+     *
+     * ```
+     * 16:25:51  첫짐만        ⑵ 하차 25분
+     * 16:26:06  합짐 후보 선점 (KEEP 전)
+     * 16:26:09  재탐색        ⑵ 하차 39분   ← 경로가 나빠진 게 아니다
+     * ```
+     *
+     * 예전에는 «구간 수 ≠ 정거장 수» 검사가 이걸 막았다. 2026-08-21 에 이름으로 맞추게
+     * 바꾸며(도착할 때마다 주행분이 죽던 문제를 고치려고) **그 보호가 같이 걷혔다.**
+     *
+     * 🔴 **다녀와서 빠진 정거장과는 다르다.** 그 콜은 여전히 활성이다.
+     *    후보는 **활성 콜이 아니다** — 그 차이로 가른다.
+     *
+     * ⚠️ 이 값은 로그용이 아니다. `routeStops` 는 관제웹 타임라인의 재료라
+     *    도착 예상·카운트다운·버퍼가 전부 이걸 먹는다.
+     */
+    const activeIds = new Set(activeCalls.map(c => c.id));
+    const pendingInRoute = secStops
+        ? [...new Set(secStops.filter(st => !activeIds.has(st.orderId)).map(st => st.orderId))]
+        : [];
+    const 짝짓기 = (
+        st: Array<{ orderId: string; stopType: string }> | undefined,
+        mn: Array<number | null> | undefined,
+    ) => st && mn && st.length === mn.length
+        ? new Map(st.map((x, i) => [`${x.orderId}|${x.stopType}`, mn[i]]))
         : null;
+    /**
+     * ↩️ **후보가 섞였으면 «덮이기 전 경로»를 쓴다** — 모른다고 하지 않는다.
+     *
+     * 재탐색이 후보를 붙여 홀더를 덮을 때 **덮기 직전 모습을 한 벌 떠 둔다**
+     * (`session.routeSnapshot` — 후보가 취소되면 되살리려고 만든 것이다).
+     * 확정된 경로의 주행분은 거기 그대로 있으므로, 심사 30초 동안 화면이
+     * **깜깜해지지 않는다.** 우리는 아는 값을 갖고 있다 (규칙 ④ — 모르는 것만 모른다).
+     */
+    const snapMins = pendingInRoute.length > 0 ? session.routeSnapshot : null;
+    const snapUsable = !!snapMins?.sectionStops
+        && snapMins.sectionStops.every(st => activeIds.has(st.orderId));
+    const minByKey = pendingInRoute.length === 0
+        ? 짝짓기(secStops, mins)
+        : snapUsable ? 짝짓기(snapMins!.sectionStops, snapMins!.sectionDriveMin) : null;
     const routeComputedAt = holder?.routeComputedAt
         ?? [...activeCalls].reverse().find(c => c.routeComputedAt)?.routeComputedAt ?? null;
     const routeStops = stops.map((st, i) => ({
         orderId: st.orderId, stopType: st.stopType,
         driveMinutes: minByKey
             ? (minByKey.get(`${st.orderId}|${st.stopType}`) ?? null)
-            : aligned ? mins![i] : null,
+            // 후보가 섞였으면 자리맞춤 폴백도 막는다 — 길이가 우연히 같을 수 있다
+            : (aligned && pendingInRoute.length === 0) ? mins![i] : null,
     }));
-    logRouteStops(session.userId, routeStops, routeComputedAt, holder?.id ?? null, aligned || !!minByKey, mins?.length ?? 0);
+    logRouteStops(session.userId, routeStops, routeComputedAt, holder?.id ?? null,
+        aligned || !!minByKey, mins?.length ?? 0, pendingInRoute);
 
     /**
      * 🚫 **취소 예산 — 한 판(10회)에서 몇 번 썼나** (기사님 개정 2026-08-23 · 확정안 구현 5).
