@@ -158,13 +158,35 @@ export function scoreDryRun(input: DryRunInput, cfg: JudgmentConfig): DryRunVerd
         ? Math.round(axes.reduce((a, x) => a + x.score * x.weight, 0) / totalW)
         : 0;
 
+    /**
+     * 🔴 **못 쟀으면 색을 지어내지 않는다** (2026-08-29 · 규칙 ⑤).
+     *
+     * 잴 값이 없으면 그 기준을 아예 안 만든다 → 분모가 준다. 극단에서 **양쪽으로**
+     * 색이 지어졌다 (실측):
+     *   · 기준 0개  → 🟡 **똥 0점**  — 10만원짜리도 버린다. *"모르는 값을 불리하게
+     *     지어내 탈락시키는 건 구분이 아니라 포기다"* (규칙 ⑤)
+     *   · 통과한 조건 하나만 → 🔵 **꿀 100점** — 아무것도 못 쟀는데 최고점.
+     *     기사님은 **색만 보고 1~2초에 누른다**(규칙 ⑤-3). 이쪽이 더 위험하다.
+     *
+     * 「통과/실패」 조건은 *"이 콜이 얼마나 좋은가"* 가 아니라 *"사고가 나는가"* 를
+     * 답한다. 그래서 **혼자서 점수를 만들지 못한다** — 좋고 나쁨을 재는 것은
+     * 돈·버퍼·적재 쪽이다. 그게 하나도 없으면 못 잰 것이다.
+     *
+     * ⚠️ 못 잰 것과 깨진 조건이 **같은 🔴 색**을 쓴다. 이미 아는 숙제다 (판정.md §7).
+     *    여기서는 **딱지로 가른다** — 「잴 수 없음」이 붙었는지 보면 된다.
+     */
+    const gateKeys = new Set(input.gates.map(g => g.key));
+    const measured = axes.filter(a => !gateKeys.has(a.key) && a.weight > 0);
+    const tags = [...input.tags];
+    if (measured.length === 0) tags.push('잴 수 없음 — 재료가 없어 점수를 못 냅니다');
+
     // 켜 둔 조건이 깨지면 점수와 무관하게 «사고» — 끈 조건(가중치 0)은 색을 덮지 않는다
     const failed = activeGates.some(g => !g.pass);
-    const color: DryRunVerdict['color'] = failed ? '사고'
+    const color: DryRunVerdict['color'] = failed || measured.length === 0 ? '사고'
         : score >= cfg.color.honeyMin ? '꿀'
         : score >= cfg.color.normalMin ? '보통' : '똥';
 
-    return { color, score, axes, gates: input.gates, tags: input.tags };
+    return { color, score, axes, gates: input.gates, tags };
 }
 
 /**
@@ -190,8 +212,14 @@ export function marginalDetourMin(
 export function describeDryRun(v: DryRunVerdict): string {
     const emoji = v.color === '꿀' ? '🔵' : v.color === '보통' ? '🟢' : v.color === '똥' ? '🟡' : '🔴';
     const gates = v.gates.filter(g => !g.pass).map(g => g.why ?? g.name);
+    /**
+     * 🔴 **못 쟀을 때 «0점»이라고 쓰지 않는다** (규칙 ④ — 없는 숫자를 지어내지 않는다).
+     *    0 은 «나쁘다»로 읽힌다. 못 잰 것은 나쁜 게 아니라 **못 잰 것**이다.
+     */
+    const unmeasured = v.tags.some(t => t.startsWith('잴 수 없음'));
     const head = gates.length
         ? `${emoji} 잡으면 사고 — ${gates.join(' · ')} (축점 ${v.score})`
+        : unmeasured ? `${emoji} 잴 수 없음`
         : `${emoji} ${v.score}점`;
     const axes = v.axes.map(a => `${a.name} ${a.raw}(${a.score})`).join(' · ');
     const tags = v.tags.length ? ` · 딱지: ${v.tags.join(' · ')}` : '';
