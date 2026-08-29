@@ -8,6 +8,12 @@ import type { CargoReport } from '@onedal/shared';
  * 채우는 것은 `useStepRecords`(steps-synced) 뿐이다.
  */
 export interface MilestoneRow { milestone: string; occurredAt: string; predictedAt?: string; source?: string; reasons?: string[] }
-export interface CallRecords { reports: CargoReport[]; milestones: MilestoneRow[] }
+/** ⏱️ 정거장마다 예측·실측 정차(분) — 없으면 null (규칙 ④). 원천은 `dwellLedgerOfSteps` */
+export interface DwellPair { planned: number | null; actual: number | null }
+export interface DwellLedger { pickup: DwellPair; dropoff: DwellPair }
+export interface CallRecords { reports: CargoReport[]; milestones: MilestoneRow[]; dwell: DwellLedger }
 
-export const EMPTY_RECORDS: CallRecords = { reports: [], milestones: [] };
+const NO_DWELL: DwellPair = { planned: null, actual: null };
+export const EMPTY_RECORDS: CallRecords = {
+    reports: [], milestones: [], dwell: { pickup: NO_DWELL, dropoff: NO_DWELL },
+};

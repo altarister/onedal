@@ -10,7 +10,7 @@
  */
 import { useEffect, useState } from 'react';
 import { socket } from '../lib/socket';
-import { recordsOfSteps } from '@onedal/shared';
+import { recordsOfSteps, dwellLedgerOfSteps } from '@onedal/shared';
 import type { StepViewRow } from '@onedal/shared';
 import type { CallRecords } from './records';
 
@@ -23,7 +23,11 @@ export function useStepRecords(orderIds: string[]): Map<string, CallRecords> {
             if (!orderIds.includes(p.orderId)) return;
             setRecords(prev => {
                 const next = new Map(prev);
-                next.set(p.orderId, recordsOfSteps(p.steps) as CallRecords);
+                // ⏱️ 손으로 적은 정차도 함께 — 타임라인이 이걸로 뒤를 민다 (「−5분」)
+                next.set(p.orderId, {
+                    ...(recordsOfSteps(p.steps) as CallRecords),
+                    dwell: dwellLedgerOfSteps(p.steps),
+                });
                 return next;
             });
         };

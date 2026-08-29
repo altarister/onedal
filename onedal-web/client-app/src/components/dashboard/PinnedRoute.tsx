@@ -5,6 +5,7 @@ import { socket } from '../../lib/socket';
 import { logRoadmapEvent , logStateChange } from '../../lib/roadmapLogger';
 import PinnedRouteCanvas, { type RoutePoint } from './PinnedRouteCanvas';
 import PinnedRouteCard from './PinnedRouteCard';
+import type { EtaCell } from './PinnedRouteCard';
 import CallDeck from './CallDeck';
 import DepartureCountdown from './DepartureCountdown';
 import { EMPTY_RECORDS } from '../../hooks/records';
@@ -13,7 +14,7 @@ import { useJudgmentStore } from '../../stores/judgmentStore';
 import { deckOrder } from '../../lib/deckFocus';
 import { apiClient } from '../../api/apiClient';
 import { getAddressLabel } from '../../lib/routeUtils';
-import { buildEtaMap, buildVisitOrderMap } from '../../lib/routeOptimizer';
+import { buildVisitOrderMap } from '../../lib/routeOptimizer';
 import type { RouteStopInfo } from '@onedal/shared';
 import { useFilterConfig } from '../../hooks/useFilterConfig';
 import { useMasterGps } from '../../hooks/useMasterGps';
@@ -206,6 +207,7 @@ export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, 
             (id) => (stepRecords.get(id) ?? EMPTY_RECORDS).reports,
             (id) => (stepRecords.get(id) ?? EMPTY_RECORDS).milestones,
             Date.now(), routeComputedAt, rules, unk,
+            (id) => (stepRecords.get(id) ?? EMPTY_RECORDS).dwell,
         );
     }, [routeStops, liveRoute, stepRecords, routeComputedAt, judgmentCfg]);
 
@@ -240,12 +242,32 @@ export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, 
         return pts;
     }, [liveRoute, routeStops]);
 
-    // 각 콜별 상하차 예상 시간(ETA) 매핑
+    /**
+     * 🕐 **콜별 상하차 예상 시각 — 재료는 타임라인 하나다** (기사님 질문 2026-08-30).
+     *
+     * 기사님: *"여기에 표시되고 있는 시간이 어떻게 산출되었는지 알면 좋겠어."*
+     *
+     * 🔴 예전엔 카카오의 `sectionEtas`(= 경로 계산 시각 + 구간 주행 누적)를 그대로 썼다.
+     *    그래서 **정차가 한 번도 안 들어갔다** — 칩은 `~21:48` 이라 적는데 같은 화면의
+     *    시트는 상차 14분을 세어 `~22:02` 를 말했다. **한 화면이 두 시각을 말한 것**이다
+     *    (이 레포가 네 번 겪은 「두 목소리」 클래스).
+     *
+     * 지금은 `routeTimeline` 에서 받는다 — 정차·확정 약속·실측 밀림이 전부 들어간
+     * 그 값이다. 시각을 만드는 곳이 하나가 됐다 (규칙 ③).
+     */
     const etaMap = useMemo(() => {
-        const routeWithEtas = [...safeRoute].reverse().find(r => r.sectionEtas && r.sectionEtas.length > 0);
-        if (!routeWithEtas) return new Map<string, { pickupEta?: string; dropoffEta?: string }>();
-        return buildEtaMap(unifiedRoutePoints, routeWithEtas.sectionEtas!);
-    }, [unifiedRoutePoints, safeRoute]);
+        const m = new Map<string, EtaCell>();
+        for (const e of routeTimeline) {
+            if (e.etaMs == null) continue;          // 주행을 모르면 안 적는다 (규칙 ④)
+            const hhmm = new Date(e.etaMs).toTimeString().substring(0, 5);
+            const cur = m.get(e.orderId) ?? {};
+            // ⏱️ 앞 정거장 실측이 밀어낸 분 — 화면의 「+5분」 (0 이면 안 그린다)
+            m.set(e.orderId, e.stopType === 'pickup'
+                ? { ...cur, pickupEta: hhmm, pickupShift: e.dwellShiftMinutes }
+                : { ...cur, dropoffEta: hhmm, dropoffShift: e.dwellShiftMinutes });
+        }
+        return m;
+    }, [routeTimeline]);
 
     // 지도 상의 방문 순번(1, 2, 3...)을 콜(주문) ID별 상/하차지로 매핑
     const visitOrderMap = useMemo(() => buildVisitOrderMap(unifiedRoutePoints), [unifiedRoutePoints]);

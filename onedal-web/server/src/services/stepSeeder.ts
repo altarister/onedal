@@ -180,7 +180,8 @@ function computeChain(o: any, born: Partial<Record<StepId, any>>, judgment?: Jud
         LOADED: { ...cargoCols, predicted_at: iso(departMs),
             planned_protections: j(protections), planned_dwell_min: pickupDwell },
         ARRIVE_DROPOFF: { predicted_at: iso(dropoffEta) },
-        DELIVERED: { predicted_at: iso(deliveredMs), cod_received: null },
+        // 🔴 하차 완료에도 **예측**을 담아 태어난다 — 실측을 적을 때 견줄 상대가 있어야 한다
+        DELIVERED: { predicted_at: iso(deliveredMs), planned_dwell_min: dropoffDwell, cod_received: null },
     };
     return birth;
 }
@@ -309,6 +310,54 @@ export function bridgeMilestone(userId: string, orderId: string, milestone: Mile
 }
 
 /**
+ * ⏱️ **이 콜의 이 정거장에서 걸린 분을 고친다** (기사님 확정 2026-08-30).
+ *
+ * 기사님: *"수작업 10분을 수작업 15분으로 수정 가능하면 좋겠다 … **정차 중에 입력해야지.
+ * 신호 걸릴 때나, 화주랑 통화할 당시 바로바로.**"*
+ *
+ * ── 🔴 이건 **콜 하나짜리 값**이다 (A) ──
+ *
+ * 처음엔 콜 옵션 표(`call_options`)의 「박스당 분」을 되돌려 계산해 고쳤다 — 그건 **B**,
+ * 즉 «앞으로 잡을 모든 콜»의 규칙을 바꾸는 짓이었다. 오늘 이 짐이 무거웠다는 사실이
+ * 내일 남의 짐 예측까지 바꾸면 안 된다. 기사님이 A 로 확정했다.
+ *
+ * ── 🔴 **완료 단계에서만 연다** ──
+ *
+ * ```
+ * 완료 단계   LOADED · DELIVERED   →  actual_dwell_min    (겪었다 = 실측)
+ * 통화 단계   열지 않는다
+ * ```
+ *
+ * 통화에서 기사님이 고치는 것은 **분이 아니라 박스 수**다 — *"라면박스로 얼마나
+ * 될까요? 30박스에요"*. 분은 거기서 **따라 나온다**. 통화 단계에도 분을 직접 쓰게 하면
+ * 그 값이 `planned_dwell_min` 을 붙잡아 **박스 수를 고쳐도 분이 안 따라오는** 얼어붙은
+ * 값이 된다 (규칙 ③ — 파생값을 손으로 굳히지 않는다).
+ *
+ * 🔴 **예측을 덮지 않는다.** 완료 행에는 두 칸이 나란히 있어 «14분 예측 → 19분 실제»가
+ *    한 행 안에 남는다. 그래야 우리 계산이 얼마나 맞는지 나중에 잴 수 있다.
+ *
+ * 🔴 **단계를 닫지 않는다.** `save-cargo-report` 는 「통화함」이라 `status`·`occurred_at`
+ *    을 함께 쓰는데, 배지는 **지나가며 누르는 것**이다. 그걸로 단계가 끝났다고 기록되면
+ *    안 한 일이 장부에 남는다.
+ *
+ * 🔴 **안 태어난 행에는 안 쓴다.** 파생으로 그려 둔 「예정」 행은 저장된 것이 아니다.
+ */
+export const DWELL_COLUMN_OF: Partial<Record<StepId, 'actual_dwell_min'>> = {
+    LOADED: 'actual_dwell_min', DELIVERED: 'actual_dwell_min',
+};
+
+export function saveStepDwell(orderId: string, step: StepId, minutes: number): boolean {
+    const col = DWELL_COLUMN_OF[step];
+    if (!col) return false;
+    if (!Number.isFinite(minutes) || minutes < 0) return false;
+    const t = tableOf(step);
+    const r = db.prepare(`UPDATE ${t.table} SET ${col} = ?, recorded_at = ? WHERE orderId = ?`)
+                .run(Math.round(minutes * 100) / 100, new Date().toISOString(), orderId);
+    if (r.changes) console.log(`⏱️ [정차 실측] ${orderId.slice(-6)} · ${t.label} — ${minutes}분`);
+    return r.changes > 0;
+}
+
+/**
  * 🧭 **경로가 바뀌면 PLANNED 행의 예상이 따라온다** (합짐 KEEP · 경로 재계산).
  *
  * 동결 규칙의 반쪽이다 — **굳은 것(DONE·SKIPPED)은 안 건드리고**, PLANNED 행의
@@ -407,7 +456,18 @@ export function plannedDwellOf(view: StepView[]): {
     const p = row('CALL_PICKUP'), d = row('CALL_DROPOFF');
     if (!p) return null;
     const n = (v: unknown) => { const x = Number(v); return Number.isFinite(x) && x > 0 ? x : null; };
-    const pd = n(p.planned_dwell_min), dd = n(d?.planned_dwell_min);
+    /**
+     * ⏱️ **실측이 예측을 이긴다** (기사님 확정 2026-08-30).
+     *
+     * 기사님: *"다 나르고 나니까 15분이 걸렸다고 알 수 있는 거야 … 누구도 거짓을
+     * 말하지 않았고 **결과는 바뀐 거지**."*
+     *
+     * 🔴 **덮어쓰는 게 아니라 이기는 것이다.** 예측은 자기 칸(`planned_dwell_min`)에
+     *    그대로 남는다 — 둘을 견줘야 «우리 계산이 얼마나 맞았나»가 나온다.
+     *    실측은 완료 행에 산다: 상차는 `LOADED`, 하차는 `DELIVERED`.
+     */
+    const pd = n(row('LOADED')?.actual_dwell_min)    ?? n(p.planned_dwell_min);
+    const dd = n(row('DELIVERED')?.actual_dwell_min) ?? n(d?.planned_dwell_min);
     if (pd == null || dd == null) return null;
     return {
         pickupDwell: pd, dropoffDwell: dd,

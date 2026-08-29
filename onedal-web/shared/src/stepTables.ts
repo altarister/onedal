@@ -149,6 +149,7 @@ const LOADED: StepTable = {
         ['actualProtections', 'actual_protections', 'TEXT',    '🔒 실제로 한 보호'],
         ['actualAfterworks',  'actual_afterworks',  'TEXT',    '⚠️ 상차에는 안 붙는다'],
         ['actualTags',        'actual_tags',        'TEXT',    '실제 성질 (열어 보니 달랐을 때)'],
+        ['actualDwellMin',    'actual_dwell_min',   'REAL',    '🔴 **실제로 걸린 상차 소요(분)** — 기사님이 배지를 눌러 적는다. 위 `planned_dwell_min`(예측)을 **덮지 않는다**: 둘을 나란히 둬야 «14분 예측 → 19분 실제» 가 남는다 (기사님 확정 2026-08-30). 이 값이 있으면 경로 시각이 이걸로 다시 잡힌다'],
     ],
 };
 
@@ -188,6 +189,9 @@ const DELIVERED: StepTable = {
         ['actualProtections', 'actual_protections', 'TEXT',    '⚠️ 하차에는 안 붙는다'],
         ['actualAfterworks',  'actual_afterworks',  'TEXT',    '🧹 **실제로 한 후작업** — 검수를 했나 안 했나'],
         ['actualTags',        'actual_tags',        'TEXT',    '실제 성질'],
+
+        ['plannedDwellMin',   'planned_dwell_min',  'REAL',    '예측한 **하차** 소요(분) — 상차 실측이 있으면 그걸 물려받아 태어난다 (기사님: *"하차지 값은 그 값을 받아와서 15분이 생성되어 있을 거야"*)'],
+        ['actualDwellMin',    'actual_dwell_min',   'REAL',    '🔴 **실제로 걸린 하차 소요(분)** — *"근처 사람들이 도와줘서 5분"*. 예측을 덮지 않는다'],
 
         ['codReceived',       'cod_received',       'INTEGER', '💵 🔴 **착불 현금을 받았는가** — 기사님: *"완료 누르기 전에 내가 받을 거야."* 없으면 미수금으로 남는다'],
     ],

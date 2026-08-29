@@ -16,6 +16,19 @@ import { useJudgmentStore } from "../../stores/judgmentStore";
 import type { RouteTimelineEntry, RouteStopInfo } from "@onedal/shared";
 import { Button } from "../ui/button";
 
+/**
+ * 🕐 **칩 한 칸이 아는 것** — 도착 예상과, 앞 정거장 실측이 밀어낸 분.
+ *
+ * 🔴 두 값 다 `deriveRouteTimeline` 이 만든다 (규칙 ③). 예전엔 카카오 `sectionEtas` 를
+ *    그대로 옮겨 **정차를 한 번도 안 셌다** — 같은 화면의 시트와 다른 시각을 말했다
+ *    (2026-08-30 기사님 질문에서 드러났다).
+ */
+export interface EtaCell {
+    pickupEta?: string; dropoffEta?: string;
+    /** 앞 정거장들의 실측이 이 정거장을 밀어낸 분. `0` 이면 예측대로 — 안 그린다 */
+    pickupShift?: number; dropoffShift?: number;
+}
+
 interface Props {
     route: SecuredOrder;
     isExpanded: boolean;
@@ -23,7 +36,7 @@ interface Props {
     onDecision?: (id: string, action: 'ORDER_CONFIRMED' | 'SAFE_CANCEL' | 'ORDER_RELEASED_BY_ME' | 'ORDER_RELEASED_BY_OFFICE') => void;
     processingId: string | null;
     setProcessingId: (id: string | null) => void;
-    etaMap: Map<string, { pickupEta?: string, dropoffEta?: string }>;
+    etaMap: Map<string, EtaCell>;
     visitOrderMap: Map<string, { pickupIdx: number, dropoffIdx: number }>;
     indexNum: number;
     /** 이 콜의 서버 기록 (통화·현장 신고 + 마일스톤). 위에서 한 번에 받아 내려준다 */

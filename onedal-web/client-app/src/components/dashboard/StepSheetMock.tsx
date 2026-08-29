@@ -116,9 +116,53 @@ const toggle = (list: string[], v: string) =>
  * 그 값이 **판정 기준 탭에서 온다.** 예전엔 옛 상수로 그려서, 기사님이 탭에서
  * 「수작업 박스당」을 고치면 **판정만 바뀌고 화면은 그대로**였다 (두 목소리 · #33 클래스).
  */
-function CargoForm({ r, pickup, live, on }: {
+
+/**
+ * ⏱️ **분(分)을 그 자리에서 고친다** (기사님 확정 2026-08-29).
+ *
+ * 기사님: *"정차 중에 입력해야지.. 신호 걸릴 때나.. 화주랑 통화할 당시 바로바로."*
+ * 화주가 *"박스가 좀 커요"* 라고 할 때 **설정으로 들어갔다 나오면 통화가 끊긴다.**
+ *
+ * 🔴 **칩을 고르는 것과 섞이지 않게** 배지만 따로 누른다 — 칩 몸통은 «무슨 방법으로»,
+ *    배지는 «몇 분 걸렸나». 누르면 ± 로 바뀌고, 손을 떼면 저장한다.
+ *
+ * 🔴 **적히는 곳은 이 콜의 단계 행 하나다** (기사님 확정 2026-08-30: A).
+ *    하루 전엔 콜 옵션 표(모든 콜의 규칙)를 고쳤다 — 그건 B 였고 뒤집었다.
+ *    그래서 배지는 **완료 단계에서만** 열린다 (`actualDwell` 을 받은 폼).
+ */
+function MinuteBadge({ minutes, unit, onEdit }: { minutes: number; unit?: string; onEdit?: (v: number) => void }) {
+    const [open, setOpen] = useState(false);
+    if (!onEdit) return <span className="ml-1 text-[10px] font-normal opacity-70">{minutes}{unit ?? '분'}</span>;
+    if (!open) return (
+        <span role="button" tabIndex={0}
+            title="눌러서 실제로 걸린 시간을 적습니다 — 이 콜에만 적용됩니다"
+            onClick={e => { e.stopPropagation(); setOpen(true); }}
+            onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); setOpen(true); } }}
+            className="ml-1 text-[10px] font-normal opacity-70 underline decoration-dotted underline-offset-2">
+            {minutes}{unit ?? '분'}
+        </span>
+    );
+    const stepBy = minutes < 5 ? 0.5 : 5;
+    return (
+        <span className="ml-1 inline-flex items-center gap-1" onClick={e => e.stopPropagation()}>
+            <button className="px-1 rounded bg-surface-alt text-[11px]"
+                onClick={() => onEdit(Math.max(0, +(minutes - stepBy).toFixed(2)))}>−</button>
+            <b className="text-[11px] tabular-nums">{minutes}{unit ?? '분'}</b>
+            <button className="px-1 rounded bg-surface-alt text-[11px]"
+                onClick={() => onEdit(+(minutes + stepBy).toFixed(2))}>+</button>
+            <button className="px-1 rounded bg-info text-white text-[10px]" onClick={() => setOpen(false)}>✓</button>
+        </span>
+    );
+}
+
+function CargoForm({ r, pickup, live, on, actualDwell }: {
     r: Record<string, any>; pickup: boolean;
     live?: CargoState; on?: (patch: Partial<CargoState>) => void;
+    /**
+     * ⏱️ **완료 단계에서만 넘어온다** — 여기서만 분을 손으로 고칠 수 있다.
+     *    통화 때 고치는 것은 분이 아니라 **박스 수**다 (분은 따라 나온다).
+     */
+    actualDwell?: { orderId: string; step: string };
 }) {
     const c = live ?? cargoOfRow(r);
     const { unit, qty, handling, protections, afterworks, tags } = c;
@@ -127,6 +171,43 @@ function CargoForm({ r, pickup, live, on }: {
 
     // 판정 기준 탭의 값 — 정차 분을 판정과 **같은 재료**로 잰다
     const { unk } = useDerivation();
+
+    /**
+     * ⏱️ **이 콜, 이 정거장에서 실제로 걸린 분** (기사님 확정 2026-08-30: **A**).
+     *
+     * 기사님: *"다 나르고 나니까 **15분이 걸렸다**고 알 수 있는 거야."*
+     *
+     * ── 🔴 하루 만에 B → A 로 뒤집었다 ──
+     *
+     * 처음엔 이 배지가 콜 옵션 표의 「박스당 분」을 **되돌려 계산해** 고쳤다. 그건
+     * **앞으로 잡을 모든 콜**의 규칙을 바꾸는 짓이다 — 오늘 이 짐이 무거웠다는 사실이
+     * 내일 남의 짐 예측까지 바꾸면 안 된다.
+     *
+     * ── 무엇을 저장하나 ──
+     *
+     * 단계 행의 `actual_dwell_min` **하나**. 그건 **이 정거장 전체의 분**이라
+     * 배지가 보여 주는 «방법만의 분»에 보호(상차)/후작업(하차)을 더해서 넣는다.
+     *
+     * ```
+     * 예측 14분 = 수작업 10 + 결박 4
+     * 실제 19분 = 수작업 15 + 결박 4      ← 배지에서 10 → 15 로 올린 결과
+     * ```
+     *
+     * 🔴 예측(`planned_dwell_min`)은 **덮지 않는다.** 두 칸이 나란히 남아야 «우리 계산이
+     *    얼마나 맞았나»를 나중에 잰다. 뒤 정거장이 5분 밀리는 것은 타임라인이 스스로 센다.
+     */
+    const extraMin = pickup ? protectionMinutes(protections) : afterworkMinutes(afterworks, unk.afterworkMin);
+    const saveActualDwell = actualDwell && on
+        ? (handlingMin: number) => socket.emit('save-step-dwell', {
+              orderId: actualDwell.orderId, step: actualDwell.step, minutes: Math.max(0, Math.round(handlingMin + extraMin)),
+          })
+        : undefined;
+    /** 저장된 실측이 있으면 배지는 **그 값**을 보여 준다 — 눌렀는데 안 바뀌면 화면이 거짓말이다 */
+    const savedTotal = actualDwell ? Number(r.actual_dwell_min) : NaN;
+    const handlingMinOf = (h: string) =>
+        h === handling && Number.isFinite(savedTotal)
+            ? Math.max(0, Math.round(savedTotal - extraMin))
+            : dwellMinutes(h, points, pickup ? 'pickup' : 'dropoff', unk);
 
     return (
         <>
@@ -170,7 +251,8 @@ function CargoForm({ r, pickup, live, on }: {
             <Row title={pickup ? '상차방법' : '하차방법'}>
                 {HANDLING_METHODS.map(h => (
                     <Chip key={h} cls={chip(handling === h)} onTap={on && (() => on({ handling: h }))}>
-                        {h}<span className="ml-1 text-[10px] font-normal opacity-70">{dwellMinutes(h, points, pickup ? 'pickup' : 'dropoff', unk)}분</span>
+                        {h}<MinuteBadge minutes={handlingMinOf(h)}
+                            {...(h === handling ? { onEdit: saveActualDwell } : {})} />
                     </Chip>
                 ))}
             </Row>
@@ -180,7 +262,8 @@ function CargoForm({ r, pickup, live, on }: {
                     {PROTECTIONS.map(t => (
                         <Chip key={t} cls={warnChip(protections.includes(t))}
                             onTap={on && (() => on({ protections: toggle(protections, t) }))}>
-                            {t}<span className="ml-1 text-[10px] font-normal opacity-70">{protectionMinutes([t])}분</span>
+                            {/* 🔒 보호 분은 **규칙**이라 여기서 안 고친다 — 콜별 실측은 위 방법 배지 하나로 모은다 */}
+                            {t}<MinuteBadge minutes={protectionMinutes([t])} />
                         </Chip>
                     ))}
                     {protections.length > 0 && (
@@ -194,7 +277,8 @@ function CargoForm({ r, pickup, live, on }: {
                     {AFTERWORKS.map(a => (
                         <Chip key={a} cls={warnChip(afterworks.includes(a))}
                             onTap={on && (() => on({ afterworks: toggle(afterworks, a) }))}>
-                            {a}<span className="ml-1 text-[10px] font-normal opacity-70">{afterworkMinutes([a], unk.afterworkMin)}분</span>
+                            {/* 🧹 후작업 분도 규칙이다 — 위와 같은 이유 */}
+                            {a}<MinuteBadge minutes={afterworkMinutes([a], unk.afterworkMin)} />
                         </Chip>
                     ))}
                     {afterworks.length > 0 && (
@@ -598,7 +682,8 @@ function LiveDone({ orderId, r, step, codAmount }: {
                     </span>
                 </div>
             )}
-            <CargoForm r={r} pickup={pickup} live={cargo} on={patch => setCargo(prev => ({ ...prev, ...patch }))} />
+            <CargoForm r={r} pickup={pickup} live={cargo} on={patch => setCargo(prev => ({ ...prev, ...patch }))}
+                actualDwell={{ orderId, step }} />
             {mismatch !== null && (
                 <div className="text-[12px] font-black text-danger bg-danger/10 border border-danger/35 rounded-md px-2 py-2">
                     ⚠️ 실제가 통화의 {mismatch.toFixed(1)}배 — 사무실 확인이 필요할 수 있습니다

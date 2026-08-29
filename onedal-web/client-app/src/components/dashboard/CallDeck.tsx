@@ -228,6 +228,8 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
                             ?? null;
                         /** ⚠️ 못 지키는 약속 — 경로가 바뀌었거나 앞 약속이 늦춰진 것 */
                         const lateOf = (stop: 'pickup' | 'dropoff') => tle(stop)?.lateMinutes ?? 0;
+                        /** ⏱️ 앞 정거장 실측이 밀어낸 분 — 「+5분」 (경로 밖 후보는 0) */
+                        const shiftOf = (stop: 'pickup' | 'dropoff') => tle(stop)?.dwellShiftMinutes ?? 0;
                         const confirmed = (stop: 'pickup' | 'dropoff') => tle(stop)?.promiseConfirmed
                             ?? r.reports.some(rep =>
                                 rep.stopType === stop && rep.kind === 'DECLARED' && rep.promisedArrivalAt);
@@ -261,11 +263,13 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
                                 <span className="text-[14px] font-bold text-text-primary truncate min-w-0 flex-1">
                                     <StopMark at={vo?.pickupIdx} kind="pickup" evaluating={isEvaluating(o.status)}
                                         time={promiseOf('pickup')} confirmed={confirmed('pickup')}
-                                        late={lateOf('pickup')} name={getAddressLabel(o.pickup)} />
+                                        late={lateOf('pickup')} shift={shiftOf('pickup')}
+                                        name={getAddressLabel(o.pickup)} />
                                     <span className="text-text-muted font-normal mx-1">→</span>
                                     <StopMark at={vo?.dropoffIdx} kind="dropoff" evaluating={isEvaluating(o.status)}
                                         time={promiseOf('dropoff')} confirmed={confirmed('dropoff')}
-                                        late={lateOf('dropoff')} name={getAddressLabel(o.dropoff)} />
+                                        late={lateOf('dropoff')} shift={shiftOf('dropoff')}
+                                        name={getAddressLabel(o.dropoff)} />
                                 </span>
 
                                 {/* 6단계를 한눈에 — 카드 안 진행 점과 같은 규칙 */}
@@ -328,9 +332,16 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
  * 표시 없이 값만 쓰면 규칙 ④(지어내지 않는다) 위반이다.
  * 번호도 시각도 없으면 아무것도 그리지 않는다 (`(3 --:--)` 를 만들지 않는다).
  */
-function StopMark({ at, time, confirmed, kind, evaluating, name, late = 0 }: {
+function StopMark({ at, time, confirmed, kind, evaluating, name, late = 0, shift = 0 }: {
     at?: number; time?: string | null; confirmed?: boolean;
     kind: 'pickup' | 'dropoff'; evaluating?: boolean; name: string; late?: number;
+    /**
+     * ⏱️ **앞 정거장 실측이 이 시각을 밀어낸 분** (기사님 요청 2026-08-30).
+     *    *"상차에 10분으로 되어 있던 것이 15분이 되었다면 … **처음 출발할 때 적어둔
+     *    시간 옆에 -5분 이렇게 표시** 되면 더욱 좋지 않을까."*
+     *    🔴 `0` 이면 안 그린다 — 예측대로 가고 있다는 뜻이라 적을 말이 없다.
+     */
+    shift?: number;
 }) {
     const { theme } = useTheme();
     const c = MAP_THEME_COLORS[theme];
@@ -354,6 +365,12 @@ function StopMark({ at, time, confirmed, kind, evaluating, name, late = 0 }: {
                     {confirmed ? hhmm(time) : `~${hhmm(time)}`}
                     {/* ⚠️ 못 지키는 약속 — 색만으로는 이유를 모르니 분을 적는다 */}
                     {late > 0 && <span className="ml-0.5">⚠️{late}분</span>}
+                    {shift !== 0 && (
+                        <span className={`ml-0.5 ${shift > 0 ? 'text-warning' : 'text-success'}`}
+                              title="앞 정거장에서 실제로 걸린 시간이 예측과 달라 밀린 분">
+                            {shift > 0 ? '+' : ''}{shift}분
+                        </span>
+                    )}
                 </span>
             )}
         </span>

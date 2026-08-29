@@ -5,7 +5,7 @@ import { isKnownUser } from "../middlewares/authMiddleware";
 import { getUserDevicesSnapshot } from "../routes/devices";
 import { getRegionsByCity } from "../geoResolver";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
-import type { AutoDispatchFilter, Milestone, MilestoneSource, CargoReport, CallTarget, PhaseKey, PhaseSettings } from "@onedal/shared";
+import type { AutoDispatchFilter, Milestone, MilestoneSource, CargoReport, CallTarget, PhaseKey, PhaseSettings, CallStepId } from "@onedal/shared";
 import { cargoMismatchRatio, DEFAULT_DETOUR_RADIUS_KM, PHASE_KEYS, judgmentFromRow, judgmentToRow, deriveRouteTimeline, derivationInputsOf, isTerminal } from "@onedal/shared";
 import db, { forgetCallOptions, loadCallOptions } from "../db";
 import { OrderRepository } from "../repositories/OrderRepository";
@@ -13,7 +13,7 @@ import { PlaceRepository } from "../repositories/PlaceRepository";
 import { getUserSession, getAllActiveUserIds } from "../state/userSessionStore";
 import { buildOrderSync } from "../core/helpers";
 import { recalculateDetourFilter, handleDecision, recalculateKakaoRoute, bootstrapUserSession, reportMilestone, undoMilestone, setCallTarget, createHomeReturn } from "../services/dispatchEngine";
-import { birthFirstStep, bridgeCargoReport, bridgeMilestone, bridgeUndoMilestone, bridgeCod, stepsView, stepRecordsOf, refreshPlannedSteps } from "../services/stepSeeder";
+import { birthFirstStep, bridgeCargoReport, bridgeMilestone, bridgeUndoMilestone, bridgeCod, stepsView, stepRecordsOf, refreshPlannedSteps, saveStepDwell } from "../services/stepSeeder";
 import type { RouteTl } from "../services/stepSeeder";
 
 /**
@@ -518,6 +518,22 @@ export function registerSocketHandlers(io: Server) {
         safeOn(socket, "request-steps", (data: { orderId: string }) => {
             if (!data?.orderId) throw new Error("orderId 누락");
             socket.emit("steps-synced", { orderId: data.orderId, steps: stepsView(data.orderId, getUserSession(userId)?.judgment) });
+        });
+
+        /**
+         * ⏱️ **배지로 고친 정차 분** — 이 콜, 이 정거장만 (기사님 확정 2026-08-30: A).
+         *
+         * 🔴 `save-cargo-report` 와 **다른 문**이다. 저건 「통화함/실측함」이라 단계를 닫는데,
+         *    배지는 신호 대기 중에 툭 누르는 것이다. 같은 문으로 보내면 **안 한 통화가
+         *    했다고 기록된다.**
+         */
+        safeOn(socket, "save-step-dwell", (data: { orderId: string; step: CallStepId; minutes: number }) => {
+            const { orderId, step, minutes } = data ?? ({} as any);
+            if (!orderId || !step) throw new Error("orderId·step 누락");
+            // 뒤 정거장이 밀리는 것은 관제웹이 이 행을 받아 스스로 다시 센다 (규칙 ③)
+            if (saveStepDwell(orderId, step, minutes)) {
+                socket.emit("steps-synced", { orderId, steps: stepsView(orderId, getUserSession(userId)?.judgment) });
+            }
         });
 
         safeOn(socket, "save-cargo-report", (data: { orderId: string } & CargoReport) => {

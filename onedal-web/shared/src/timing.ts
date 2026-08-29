@@ -944,6 +944,16 @@ export interface RouteTimelineEntry {
     /** 통화로 확정한 약속인가 (false = 추정 — 화면은 ~ 를 붙인다) */
     promiseConfirmed: boolean;
     /**
+     * ⏱️ **앞 정거장들의 실측이 이 정거장을 밀어낸 분** — 예측대로면 `0`.
+     *
+     * 기사님(2026-08-30): *"상차에 10분으로 되어 있던 것이 15분이 되었다면 다음
+     * 도착지의 시간이 5분 늦어질 거라는 거지. 그래서 **처음 출발할 때 적어둔 시간 옆에
+     * -5분 이렇게 표시** 되면 더욱 좋지 않을까."*
+     *
+     * 🔴 이 정거장 **자신의** 실측은 안 들어간다 — 밀림은 떠난 뒤에 생긴다.
+     */
+    dwellShiftMinutes: number;
+    /**
      * 🚚 **앞 정거장에서 여기까지의 주행(분)** — `driveMinutes` 는 닻부터의 **누적**이라
      * 통화 문장에 쓰면 접근 주행을 **두 번** 센다 (기사님 실측 2026-08-20: `주행 129분`,
      * 참값 113분). 첫 정거장은 앞이 없으므로 누적과 같다. 모르면 `null`.
@@ -994,6 +1004,15 @@ export function deriveRouteTimeline(
     rules: DeadlineRules = DEFAULT_DEADLINE_RULES,
     /** 미확인 정차 일반값 — 판정 기준 탭에서 (derivationInputsOf) */
     unk?: DwellUnknown,
+    /**
+     * ⏱️ 그 콜의 **예측 정차와 실측 정차** — `dwellLedgerOfSteps` 가 만든다.
+     * 안 넘기면 계산값 그대로다 (옛 동작). 넘기면 실측이 계산을 이기고,
+     * 예측과의 차이가 뒤 정거장의 밀림(`dwellShiftMinutes`)이 된다.
+     */
+    dwellLedgerOf?: (orderId: string) => {
+        pickup: { planned: number | null; actual: number | null };
+        dropoff: { planned: number | null; actual: number | null };
+    },
 ): RouteTimelineEntry[] {
     const byId = new Map(orders.map(o => [(o as any).id as string, o]));
     const timingCache = new Map<string, CallTiming>();
@@ -1030,6 +1049,33 @@ export function deriveRouteTimeline(
     let prevDepartMs: number | null = null;
     let beforeMin = 0;
     let mandatoryMin = 0;   // 정차 + 확정 약속 지연 (출발마감용)
+    /**
+     * ⏱️ 앞 정거장들의 실측이 만든 **누적 밀림(분)** — 화면의 「+5분」이 이 값이다.
+     *
+     * 🔴 **다녀온 정거장의 밀림부터 깔고 시작한다** (기사님 리허설 2026-08-30에서 잡힘).
+     *
+     * 처음엔 `stops` 만 훑어 누적했다. 그런데 «실제로 몇 분 걸렸는지»를 아는 순간은
+     * **상차 완료를 누르는 때**이고, 그 순간 그 정거장은 **경로에서 빠진다.** 그래서
+     * 방금 5분 더 걸린 그 정거장을 **아무도 안 세게 됐다** — 화면에 영영 안 떴다.
+     *
+     * 다녀온 정거장의 밀림은 이미 벌어진 일이라 **남은 정거장 전부에 그대로 실린다.**
+     * 그래서 순서를 따질 필요 없이 먼저 더해 두면 된다.
+     */
+    let shiftMin = (() => {
+        if (!dwellLedgerOf) return 0;
+        const inRoute = new Set(stops.map(s => `${s.orderId}:${s.stopType}`));
+        let sum = 0;
+        for (const o of orders) {
+            const id = (o as any).id as string;
+            const led = dwellLedgerOf(id);
+            for (const st of ['pickup', 'dropoff'] as const) {
+                if (inRoute.has(`${id}:${st}`)) continue;      // 아직 남아 있다 — 아래 루프가 센다
+                const p = led[st];
+                if (p.planned != null && p.actual != null) sum += Math.round(p.actual - p.planned);
+            }
+        }
+        return sum;
+    })();
     for (const st of stops) {
         const order = byId.get(st.orderId);
         if (!order) continue;   // 좀비 정거장 (취소 후 재계산 전) — 만들지 않는다
@@ -1039,7 +1085,16 @@ export function deriveRouteTimeline(
             t = deriveCallTiming(order, reportsOf(st.orderId), milestonesOf(st.orderId), nowMs, rules, unk);
             timingCache.set(st.orderId, t);
         }
-        const dwell = st.stopType === 'pickup' ? t.pickupDwell : t.dropoffDwell;
+        /**
+         * ⏱️ **기사님이 적은 실측이 계산을 이긴다** (기사님 확정 2026-08-30).
+         *    *"상차에 10분으로 되어 있던 것이 15분이 되었다면 **다음 도착지의 시간이
+         *    5분 늦어질 거라는 거지.**"* — 그 밀림이 여기서 생긴다.
+         *    예측은 단계 행의 `planned_dwell_min` 에 그대로 남아 있다 (덮지 않는다).
+         */
+        const led = dwellLedgerOf?.(st.orderId);
+        const pair = led ? (st.stopType === 'pickup' ? led.pickup : led.dropoff) : null;
+        const handMin = pair?.actual ?? null;
+        const dwell = handMin ?? (st.stopType === 'pickup' ? t.pickupDwell : t.dropoffDwell);
         const etaMs = st.driveMinutes != null
             ? anchorMs + (st.driveMinutes + beforeMin) * 60_000 : null;
 
@@ -1084,9 +1139,21 @@ export function deriveRouteTimeline(
                     x => x.milestone === 'ARRIVED_PICKUP' && (x as any).occurredAt);
                 return m ? Date.parse((m as any).occurredAt) : null;
             })();
+            /**
+             * ⏱️ 🔴 **여기서도 실측이 계산을 이긴다** (기사님 리허설 2026-08-30).
+             *
+             * 예전엔 `t.pickupDwell`(계산값)만 봤다. 그래서 기사님이 상차 완료 시트에서
+             * 「19분」이라 적어도 **하차 약속은 14분으로 잡힌 채** 그대로였고, 화면은
+             * `신둔면 ~03:15 +5분` 처럼 **「5분 밀렸다」고 말하면서 안 밀린 시각**을 적었다.
+             *
+             * 🔴 이 줄은 **상차지에 도착했지만 아직 상차를 안 끝냈을 때만** 지난다 —
+             *    도착하는 순간 그 정거장이 경로에서 빠져 `pickupDoneOf` 가 안 채워지기
+             *    때문이다. 오늘 같은 자리에서 두 번 밟혔다 (밀림 누적도 그랬다).
+             */
+            const pickupDwellUsed = led?.pickup.actual ?? t.pickupDwell;
             const loadedBase = pickedActualMs
                 ?? pickupDoneOf.get(st.orderId)
-                ?? (arrivedPickupMs != null ? arrivedPickupMs + t.pickupDwell * 60_000 : null);
+                ?? (arrivedPickupMs != null ? arrivedPickupMs + pickupDwellUsed * 60_000 : null);
             if (loadedBase == null || t.soloMinutes == null) return null;
             const deadline = loadedBase + t.soloMinutes * (rules.deadlineRatioPct ?? 150) / 100 * 60_000;
             return etaMs != null ? Math.max(etaMs, deadline) : deadline;
@@ -1126,7 +1193,17 @@ export function deriveRouteTimeline(
                 ? Date.parse(promisedUntil) - (st.driveMinutes + mandatoryMin) * 60_000 : null,
             lateMinutes,
             arrived: actualMs != null,
+            dwellShiftMinutes: shiftMin,
         });
+        /**
+         * ⏱️ **여기서 더 걸린 만큼 뒤가 밀린다** — 다음 정거장부터 진다 (기사님의 「−5분」).
+         *    이 정거장 자신은 아직 안 밀렸다: 밀림은 **떠난 뒤에** 생기기 때문이다.
+         */
+        if (handMin != null) {
+            // 예측은 **장부에 적힌 그때 값**이 먼저다 — 없으면 지금 계산값과 견준다
+            const predicted = pair?.planned ?? (st.stopType === 'pickup' ? t.pickupDwell : t.dropoffDwell);
+            shiftMin += Math.round(handMin - predicted);
+        }
 
         /**
          * 이 정거장을 **떠나는 시각**을 다음으로 넘긴다.

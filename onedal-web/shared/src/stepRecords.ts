@@ -113,3 +113,46 @@ export function recordsOfSteps(steps: StepViewRow[]): StepRecords {
     }
     return { reports, milestones };
 }
+
+/**
+ * ⏱️ **그 콜의 정거장마다 «예측한 정차»와 «실제로 걸린 정차»** — 없으면 `null` (규칙 ④).
+ *
+ * 기사님(2026-08-30): *"다 나르고 나니까 15분이 걸렸다고 알 수 있는 거야. **누구도
+ * 거짓을 말하지 않았고 결과는 바뀐 거지.** 우린 그걸 잘 저장할 수만 있게 만들면 돼."*
+ *
+ * 🔴 **읽는 규칙이 여기 하나뿐이어야 한다.** 서버 판정(`plannedDwellOf`)과 관제웹
+ *    타임라인(`deriveRouteTimeline`)이 이 값을 각자 다르게 고르면 **한 화면이 두 시각을
+ *    말한다** — 이 레포가 네 번 겪은 그 사고다.
+ *
+ * 둘 다 **완료 행**에 산다: 상차는 `LOADED`, 하차는 `DELIVERED`.
+ * 통화 행의 `planned_dwell_min` 은 안 본다 — 완료 행이 태어날 때 그 값을 물려받으므로
+ * 여기서 또 보면 두 벌이 된다.
+ */
+export interface DwellPair { planned: number | null; actual: number | null }
+
+export function dwellLedgerOfSteps(steps: StepViewRow[]): { pickup: DwellPair; dropoff: DwellPair } {
+    const at = (step: string): DwellPair => {
+        const s = steps.find(v => v.step === step);
+        if (!s || s.born === false) return { planned: null, actual: null };  // 회색 예정 — 저장된 게 아니다
+        const num = (v: unknown) => { const x = Number(v); return Number.isFinite(x) && x >= 0 ? x : null; };
+        return { planned: num(s.row?.planned_dwell_min), actual: num(s.row?.actual_dwell_min) };
+    };
+    return { pickup: at('LOADED'), dropoff: at('DELIVERED') };
+}
+
+/**
+ * ⏱️ **예측 대비 얼마나 더/덜 걸렸나(분)** — 기사님의 「−5분」의 재료.
+ *
+ * 🔴 **한쪽만 있으면 `0` 이다.** 견줄 상대가 없는데 «밀렸다»고 말하지 않는다 (규칙 ④).
+ */
+export function dwellSlipMinutes(p: DwellPair): number {
+    return p.planned != null && p.actual != null ? Math.round(p.actual - p.planned) : 0;
+}
+
+/** ⏱️ 실측만 — 타임라인이 정차를 이걸로 갈아 끼운다 (있으면 계산을 이긴다) */
+export function dwellActualOfSteps(steps: StepViewRow[]): {
+    pickup: number | null; dropoff: number | null;
+} {
+    const l = dwellLedgerOfSteps(steps);
+    return { pickup: l.pickup.actual, dropoff: l.dropoff.actual };
+}
