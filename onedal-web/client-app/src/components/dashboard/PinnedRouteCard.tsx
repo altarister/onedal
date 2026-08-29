@@ -1,3 +1,4 @@
+import { verdictOf, BUTTON_BG } from '../../lib/verdict';
 import { useState, useEffect } from 'react';
 import { isEvaluating, isTerminal, isDeliveredCall, minRouteBuffer, derivationInputsOf } from "@onedal/shared";
 import type { SecuredOrder } from "@onedal/shared";
@@ -317,9 +318,15 @@ export default function PinnedRouteCard({
                                      *    나쁜 걸 아는 것보다 **아무것도 모르는 게 더 위험하다** —
                                      *    경로도 요율도 못 구한 콜은 판단 근거 자체가 없다.
                                      */
-                                    let btnBg = "bg-success hover:bg-success/80";
-                                    let btnTitle = "유지 확정";
-                                    let verdict = "";
+                                    /**
+                                     * 🎨 **색은 값에서 온다 — 문장을 뒤지지 않는다** (2026-08-29 · 4단계).
+                                     *    예전엔 여기서 `kakaoTimeExt` 에 `'꿀'` 이 들어 있나 찾아 색을 정했다.
+                                     *    문구를 다듬으면 색이 조용히 바뀌던 자리다. 판정은 `lib/verdict.ts` 하나가 한다.
+                                     */
+                                    const v = verdictOf(route);
+                                    const btnBg = BUTTON_BG[v.color ?? '없음'];
+                                    const btnTitle = v.title;
+                                    const verdict = v.reason;
 
                                     /**
                                      * ⚠️ 예전 정규식은 `[...꿀똥콜추천최단거리시간]` 처럼 **낱글자 집합**이라
@@ -333,26 +340,6 @@ export default function PinnedRouteCard({
                                         .replace(/[🚙💩🍯]/g, '')
                                         .replace(/\s{2,}/g, ' ')
                                         .trim() || '연산 완료';
-
-                                    if (route.kakaoTimeExt.includes("실패") || route.kakaoTimeExt.includes("에러")) {
-                                        btnBg = "bg-danger hover:bg-danger/80 shadow-[0_0_15px_var(--theme-glow-warning)]";
-                                        btnTitle = "판단 불가";
-                                        verdict = "🔴 잡지 마세요 — 경로·요율을 계산하지 못했습니다";
-                                    } else if (route.kakaoTimeExt.includes("'사고'")) {
-                                        /* 🔴 문지기 실패 (확정안 v2 ⑤ — 기사님이 🟡이 아니라 🔴로 확정).
-                                           뜻은 "잡으면 사고" 하나 — 사유 문장이 연산실패와 가른다 */
-                                        btnBg = "bg-danger hover:bg-danger/80 shadow-[0_0_15px_var(--theme-glow-warning)]";
-                                        btnTitle = "잡으면 사고";
-                                        verdict = `🔴 잡지 마세요 — ${route.judgment?.gates?.filter(g => !g.pass).map(g => g.why ?? g.name).join(' · ') || '조건 위반'}`;
-                                    } else if (route.kakaoTimeExt.includes("'꿀'")) {
-                                        btnBg = "bg-info hover:bg-info/80 shadow-[0_0_15px_var(--theme-glow-primary)]";
-                                        verdict = "🍯 꿀콜";
-                                    } else if (route.kakaoTimeExt.includes("'똥'")) {
-                                        btnBg = "bg-warning hover:bg-warning/80 shadow-[0_0_15px_var(--theme-glow-warning)]";
-                                        verdict = "💩 별로입니다";
-                                    } else {
-                                        verdict = "보통";
-                                    }
 
                                     return (
                                         <Button 

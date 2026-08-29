@@ -1,3 +1,4 @@
+import { verdictOf } from '../lib/verdict';
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { socket } from "../lib/socket";
 import { apiBase } from "../lib/serverTarget";   // 🎯 주소를 정하는 곳은 하나다 (규칙 ③)
@@ -66,14 +67,15 @@ export function useOrderEngine() {
             // 2. 카카오 연산 결과가 없으면(기다리는 중) 무시 (이 구간 동안 약 1~2초 침묵 발생)
             if (!order.kakaoTimeExt) return false;
             
-            // 3. 똥콜, 실패, 에러면 무시
-            if (order.kakaoTimeExt.includes("'똥'") || 
-                order.kakaoTimeExt.includes("실패") || 
-                order.kakaoTimeExt.includes("에러")) {
-                return false;
-            }
-            
-            // 4. 연산 완료 + 양호/꿀콜이면 true (벨 울림)
+            /**
+             * 3. 🎨 **색은 값에서 온다** (2026-08-29 · 4단계). 예전엔 여기서도 문장에
+             *    `'똥'` 이 들어 있나 뒤졌다 — 재탐색이 쓰는 `💩` 모양은 못 잡아
+             *    **똥콜에도 벨이 울렸다.** 판정은 `lib/verdict.ts` 하나가 한다 (규칙 ③).
+             */
+            const color = verdictOf(order).color;
+            if (color === '똥' || color === '사고') return false;
+
+            // 4. 연산 완료 + 보통/꿀콜이면 true (벨 울림)
             return true;
         });
 

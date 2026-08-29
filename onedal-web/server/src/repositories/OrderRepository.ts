@@ -118,6 +118,27 @@ export class OrderRepository {
                JSON.stringify({ axes: v.axes, gates: v.gates, tags: v.tags }), new Date().toISOString());
     }
 
+    /**
+     * 🎨 **스냅샷을 판정 그대로 되살린다** — 새로 재는 것이 아니라 **그때 그 값**이다.
+     *
+     * 서버가 다시 뜨면 콜을 DB 에서 다시 만드는데(`restoreAndRecalculateSession`)
+     * 판정만 안 붙이고 있었다. 그러면 화면이 **문장을 뒤져** 색을 정하는 옛 길로 떨어지고,
+     * 재탐색 문구(`🍯 (꿀)` — 괄호)를 못 잡아 **꿀콜이 「보통」 초록**으로 보였다.
+     * 🚨 `(사고)` 도 마찬가지였다 — **잡으면 사고인 콜이 초록**이었다.
+     *
+     * 색은 심사 1회 고정이다 (v2 ③④) — 되살리는 것이 그 약속을 지키는 것이다.
+     */
+    public static getJudgmentVerdict(orderId: string): SecuredOrder['judgment'] | null {
+        const r = this.getJudgment(orderId);
+        if (!r) return null;
+        const d = r.detail ?? {};
+        return {
+            color: r.color as NonNullable<SecuredOrder['judgment']>['color'],
+            score: r.score,
+            axes: d.axes ?? [], gates: d.gates ?? [], tags: d.tags ?? [],
+        };
+    }
+
     public static getJudgment(orderId: string):
         { color: string; score: number; detail: any; judgedAt: string } | null {
         const r = db.prepare(`SELECT color, score, detail, judgedAt FROM order_judgments WHERE orderId = ?`)

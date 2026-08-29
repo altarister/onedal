@@ -948,6 +948,14 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
                  * **이미 다녀온 정거장으로 되돌아가는 경로**가 다시 그려진다.
                  */
                 ...hydrateVisitedStops(row.id),
+                /**
+                 * 🎨 **색도 되살린다** (2026-08-29). 심사 스냅샷은 DB 에 멀쩡히 있는데
+                 *    재시작 뒤 콜에 안 붙이고 있었다. 그러면 관제웹이 **문장을 뒤져**
+                 *    색을 정하는 옛 길로 떨어지고, 재탐색 문구(`🍯 (꿀)` — 괄호)를 못 잡아
+                 *    **꿀콜이 「보통」 초록**으로 보였다. 🚨 `(사고)` 도 마찬가지였다.
+                 *    새로 재는 게 아니라 **그때 그 값**이다 — 색은 심사 1회 고정 (v2 ③④).
+                 */
+                judgment: OrderRepository.getJudgmentVerdict(row.id) ?? undefined,
             };
             session.pendingOrdersData.set(order.id, order as any);
         }

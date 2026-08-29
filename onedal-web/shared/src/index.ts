@@ -551,6 +551,22 @@ export interface PendingOrder extends OfficeOrder {
 // [계층 2-B] 확정 오더 (내 퀵) — 기사가 KEEP하여 내 소유가 된 오더
 // 업계 표준: 배차확정(CONFIRMED) → 상차완료(PICKED_UP) → 하차완료(DELIVERED)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+/**
+ * 🎨 **판정 스냅샷** (판정색 확정안 v2) — 심사 1회, 불변.
+ * 심사 카드가 조건 전수를 이걸로 그리고, **색도 여기서 온다** (2026-08-29 · 4단계).
+ *
+ * import 순환을 피해 `dryRun.ts` 의 `DryRunVerdict` 를 구조로 적는다.
+ * 🔴 **여기 한 곳에만 적는다** (규칙 ③) — 예전엔 `SecuredOrder` 안에만 있어서
+ *    `MyOrder` 로 다니는 콜(재시작 복구가 만드는 것)에는 **색이 실리지 못했다.**
+ */
+export interface JudgmentSnapshot {
+    color: '꿀' | '보통' | '똥' | '사고';
+    score: number;
+    axes: Array<{ key: string; name: string; score: number; weight: number; raw: string }>;
+    gates: Array<{ key: string; name: string; pass: boolean; why: string | null }>;
+    tags: string[];
+}
+
 export interface MyOrder extends OfficeOrder {
     status: MyOrderStatus;            // ORDER_CONFIRMED | ORDER_PICKED_UP | ORDER_DELIVERED
     capturedDeviceId: string;         // 이 오더를 물어온 기기 (앱폰 1호기)
@@ -564,6 +580,8 @@ export interface MyOrder extends OfficeOrder {
      */
     isPreview?: boolean;
     kakaoCalculatedFare?: number;     // 서버 연산 기반 가성비 단가
+    /** 🎨 판정 스냅샷 — `SecuredOrder` 와 **같은 타입**을 가리킨다 (규칙 ③) */
+    judgment?: JudgmentSnapshot;
     kakaoTimeExt?: string;            // 카카오 연산 결과: 예상 소요 시간 텍스트
     routePolyline?: Array<{ x: number; y: number }>;  // 카카오 실제 궤적 좌표들
     totalDistanceKm?: number;         // 통합 연산된 전체 총 주행 거리
@@ -600,17 +618,8 @@ export interface SecuredOrder extends OfficeOrder {
     completedAt?: string | null;
     /** 👀 미리보기 콜 — 확정 전이라 아직 안 잡은 콜이다 (용어집 §9) */
     isPreview?: boolean;
-    /**
-     * 🎨 판정 스냅샷 (판정색 확정안 v2) — 심사 1회, 불변. 심사 카드가 조건 전수를
-     * 이걸로 그린다. import 순환을 피해 타입만 구조로 적는다 (dryRun.ts 의 DryRunVerdict)
-     */
-    judgment?: {
-        color: '꿀' | '보통' | '똥' | '사고';
-        score: number;
-        axes: Array<{ key: string; name: string; score: number; weight: number; raw: string }>;
-        gates: Array<{ key: string; name: string; pass: boolean; why: string | null }>;
-        tags: string[];
-    };
+    /** 🎨 판정 스냅샷 — 심사 1회, 불변 ([[JudgmentSnapshot]]) */
+    judgment?: JudgmentSnapshot;
     kakaoCalculatedFare?: number;
     kakaoTimeExt?: string;
     routePolyline?: Array<{ x: number; y: number }>;
