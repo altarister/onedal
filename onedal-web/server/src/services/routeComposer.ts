@@ -252,6 +252,9 @@ export async function composeMergedRoute(params: ComposeMergedRouteParams) {
      * 여기서 base 를 «기존 활성 콜 전부»로 만들면 둘이 **같은 시각·같은 기점**이 되어
      * `timeDiffMin` 이 그대로 정확한 한계 비용이 된다. 호출 수는 그대로다.
      */
+    if (plan.skippedPickups > 0) {
+        console.log(`🛣️ [경로] 이미 상차한 콜 ${plan.skippedPickups}건의 상차지를 경유지에서 제외 (다녀온 곳을 다시 가지 않는다)`);
+    }
     const basePlan = planMergedStops(calls, null, driverLocation);
 
     const result = await calculateDetourRoute(
@@ -395,9 +398,17 @@ export function planMergedStops(
         });
     }
     if (pairs.length === 0) return null;
-    if (skippedPickups > 0) {
-        console.log(`🛣️ [경로] 이미 상차한 콜 ${skippedPickups}건의 상차지를 경유지에서 제외 (다녀온 곳을 다시 가지 않는다)`);
-    }
+    /**
+     * 🔇 **여기서 로그를 찍지 않는다** (2026-08-29 정정).
+     *
+     * 이 함수는 순수 계획이라 **1초 동기화(`helpers.buildOrderSync`)와 GPS 매 틱
+     * (`geoService.nextStopOf`)에서도 불린다.** 예전엔 도착 계획이 자기 순서를 따로
+     * 만들어서 이 자리가 카카오 호출 직전에만 돌았는데, 08-29 에 둘을 합치면서
+     * **같은 줄이 초당 여러 번 찍혔다** — 실측으로 기사님 화면 로그가 이 줄로 덮였다.
+     *
+     * 알림은 **실제로 경로를 만들 때**(`composeMergedRoute`) 한 번만 찍는다.
+     * 로그가 너무 자주 울리면 로그가 아니다 — 다른 줄을 묻는다.
+     */
 
     const allPickups = pairs.map(p => p.pickup).filter(Boolean) as Labeled[];
     const allDropoffs = pairs.map(p => p.dropoff).filter(Boolean) as Labeled[];
