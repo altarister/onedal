@@ -37,8 +37,38 @@ const dev = db.prepare(`SELECT device_id FROM user_devices LIMIT 1`).get();
 if (!dev) { console.error('🔴 등록된 기기가 없습니다. 관제웹에서 PIN 연동을 먼저 하세요.'); process.exit(1); }
 const DEVICE = dev.device_id;
 
+/**
+ * 🏠 **집은 설정에서 읽는다 — 좌표를 문제지에 또 적지 않는다** (기사님 지적 2026-08-29).
+ *
+ * 기사님: *"현 위치가 우리집으로 되어 있어야 한다."*
+ *
+ * 처음엔 문제지에 집 좌표를 손으로 적었다. 그러면 **설정의 집과 갈라진다** —
+ * 이 레포가 반복해 당한 «같은 값 두 벌» 이다 (규칙 ③). 집 주소를 바꾸면 문제지가
+ * 옛 자리를 가리키고, 접근 주행·복귀 계산이 조용히 어긋난다.
+ *
+ * → `user_settings.home_address` 하나를 원천으로 쓴다. 없으면 **멈춘다** (지어내지 않는다).
+ */
+const homeRow = db.prepare(`SELECT home_address, home_x, home_y FROM user_settings
+                            WHERE home_x IS NOT NULL AND home_x != 0 LIMIT 1`).get();
+const HOME = homeRow ? { label: `집 · ${homeRow.home_address}`, lat: homeRow.home_y, lng: homeRow.home_x } : null;
+if (!HOME) {
+    console.error('🔴 설정에 집 주소가 없습니다 — 관제웹 ⚙️ 설정에서 집 주소를 넣고 «위치 확인» 을 누르세요.');
+    console.error('   집이 없으면 접근 주행·복귀 계산이 통째로 안 섭니다.');
+    process.exit(1);
+}
+
 // ── 콜 재료: 지오코딩 캐시에 있는 실제 주소만 쓴다 (카카오 지오코딩 호출 없이 바로 좌표가 잡힌다)
-const cached = db.prepare(`SELECT query FROM geocode_cache WHERE query LIKE '%시%' ORDER BY hit_count DESC LIMIT 200`)
+/**
+ * 🔴 **후보를 좁히지 않는다** (2026-08-29 정정).
+ *
+ * 예전엔 `WHERE query LIKE '%시%' ORDER BY hit_count DESC LIMIT 200` 이었다.
+ * 그래서 **① 「시」가 없는 상호**(«곤지암성당»·«이천터미널»)와
+ * **② 방금 넣어 hit_count 가 0 인 새 주소**가 통째로 빠졌다 —
+ * 문제지가 «이 주소가 캐시에 없다» 며 조용히 건너뛰었다 (실측).
+ *
+ * 캐시는 지금 1,400여 건이라 전부 들고 있어도 부담이 없다. **거르지 않는다.**
+ */
+const cached = db.prepare(`SELECT query FROM geocode_cache ORDER BY hit_count DESC`)
     .all().map(r => r.query);
 db.close();
 const pick = (needle) => cached.find(q => q.includes(needle));
@@ -138,7 +168,7 @@ const PRESETS = [
     { key: '19', label: '🚚 [1] 첫짐 · 모다아울렛 → 신둔농협 (5만/다마스) — KEEP 후 **상차 완료**, 그리고 출발',
       pickup: pick('모다아울렛 곤지암점'), dropoff: pick('신둔농협하나로마트 본점'),
       fare: 50000, vehicleType: '다마스',
-      start: { label: '집 · 초월역동광뷰엘아파트', lat: 37.376687, lng: 127.294440 },
+      start: HOME,   // 🏠 설정의 집 — 좌표를 여기 적지 않는다 (규칙 ③)
       expect: [
         '이 판의 전부는 **방문 순서**다 — 색은 판정이 정한다 (단정하지 않는다)',
         'KEEP → 상차 완료 → 출발. 신둔 쪽으로 달리기 시작한다',

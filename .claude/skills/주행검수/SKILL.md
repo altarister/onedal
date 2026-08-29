@@ -79,8 +79,9 @@ cp /tmp/rc.bak server/src/services/routeComposer.ts
 기사님이 혼자 돌리실 수 있게 **순서와 무엇을 볼지**를 남긴다.
 
 ```
-1. 브라우저: http://localhost:3000/?speed=3      ← 3배속 (기본 15배속은 3km 를 6초에 지난다)
-2. 터미널  : pnpm rehearsal  →  17 올림
+0. 터미널  : pnpm preflight                      ← 🔴 **먼저 이것부터**
+1. 브라우저: http://localhost:3000/?speed=1 + ⌘+Shift+R
+2. 터미널  : pnpm rehearsal  →  첫짐 올림
 3. 화면    : 색 확인 → KEEP → 상차 완료 → 출발
 4. 터미널  : 「하차지 3km 앞」 신호가 뜨면 18 올림
 5. 화면    : 색 확인 → KEEP/CANCEL → **방문 순서** 확인
