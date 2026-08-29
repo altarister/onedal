@@ -202,7 +202,7 @@ export const FILTER_FIELDS: readonly FilterField[] = [
       why: '도착 지점 주변 탐색 반경' },
     { col: 'discount_pct', path: 'discountPct',
       label: '콜할인율', unit: '%', min: 0, max: 100, int: true,
-      why: '시세 대비 허용 할인. 100 = 전부(금액 무관 — 순증 매출). 자동으로 안 내려간다 (정의서)' },
+      why: '시세 대비 허용 할인. 100 = 전부 (금액 무관 — 붙이면 늘어나는 매출). 자동으로 안 내려간다 (정의서)' },
 ] as const;
 
 // ─────────────────────────────────────────────────────────────

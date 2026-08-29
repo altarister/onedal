@@ -360,7 +360,7 @@ export function bridgeUndoMilestone(userId: string, orderId: string, milestone: 
  * 🔄 **파생 치환 ② — 서버 계산의 재료를 새 장부(여섯 단계 행)에서** (2026-08-21).
  *
  * 옛 장부(stop_cargo_reports · order_milestones)를 읽던 계산 소비처(적재·정차·
- * 동승·타임라인·복구)가 전부 **이 관문 하나**를 거친다.
+ * 짐 성질·타임라인·복구)가 전부 **이 관문 하나**를 거친다.
  * KEEP 전 후보는 행이 없어 빈 기록이 나온다 — 옛 장부와 같은 동작이다.
  *
  * ⚠️ 예전 주석은 *"쓰기는 아직 양쪽(다리) — 넘어가면 옛 테이블을 손으로 철거한다"* 였는데

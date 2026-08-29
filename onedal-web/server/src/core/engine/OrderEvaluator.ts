@@ -259,7 +259,7 @@ export class OrderEvaluator {
                         // 함께 실을 수 없는 화물인지 (위험물 + 식료품 등) — 문지기 재료
                         const conflicts = findLoadConflicts(userId, session, securedOrder.id);
                         for (const [a, b] of conflicts) {
-                            reasons.push(`동승 불가: 실린 화물(${a}) + 이 화물(${b})`);
+                            reasons.push(`같이 못 싣는 조합: 실린 화물(${a}) + 이 화물(${b})`);
                         }
 
                         {
@@ -296,8 +296,8 @@ export class OrderEvaluator {
                                     : null,
                             }];
                             if (conflicts.length) gates.push({
-                                key: 'cargoTagCompat', name: '짐 동승', pass: false,
-                                why: `동승 불가 — ${conflicts.map(([a, b]) => `${a}+${b}`).join(' · ')}`,
+                                key: 'cargoTagCompat', name: '같이 못 실음', pass: false,
+                                why: `같이 못 싣는 조합 — ${conflicts.map(([a, b]) => `${a}+${b}`).join(' · ')}`,
                             });
 
                             const bufAfter = minRouteBuffer(existing);

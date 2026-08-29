@@ -323,7 +323,7 @@ export interface CargoReport {
      * 이 값이 있어야 합짐 우회를 몇 분까지 허용할지 계산할 수 있다.
      */
     deadlineAt?: string;
-    /** 화물 성질 (식료품·냉장·파손주의 등). 시간 민감도와 동승 가능 여부를 결정 */
+    /** 화물 성질 (식료품·냉장·파손주의 등). 시간 민감도와 «같이 실을 수 있나»를 결정 */
     tags?: string[];
     memo?: string;
 }

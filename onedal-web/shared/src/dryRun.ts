@@ -6,7 +6,7 @@
  *   **조건 전수를 표시하고, 축 셋으로 색을 내고, 서버는 떨어뜨리지 않는다.**
  *
  *   문지기(통과/실패) — 실패 = 🔴 고정 + 사유. 자동 탈락 없음 (규칙 ①)
- *   축(0~100 × 가중치) — 순증 대비 우회 · 버퍼 소비 · 적재 · 시급(첫짐)
+ *   축(0~100 × 가중치) — 우회 시급 · 버퍼 소비 · 적재 · 시급(첫짐)
  *   딱지(사실만) — 우회 절대값 · 통화 필요 · 블라인드 · 미확인
  *
  * 🔴 **이름이 `dryRun` 이지만 시험 주행이 아니다 — 이게 지금 쓰는 채점기다** (2026-08-28 확인).
@@ -80,17 +80,17 @@ export function scoreDryRun(input: DryRunInput, cfg: JudgmentConfig): DryRunVerd
     const axes: DryRunAxis[] = [];
 
     if (input.kind === 'merge') {
-        // ── 순증 대비 우회 — "같은 40분이라도 3.5만이면 좋고 5천원이면 나쁘다" (기사님 확정 ②)
+        // ── 우회 시급 — "같은 40분이라도 3.5만이면 좋고 5천원이면 나쁘다" (기사님 확정 ②)
         if (input.detourExtraMin != null && input.detourExtraMin > 0) {
             const hourly = (input.fare / input.detourExtraMin) * 60;
             axes.push({
-                key: 'revenuePerDetour', name: '순증 대비 우회',
+                key: 'revenuePerDetour', name: '우회 시급',
                 score: clamp((hourly / target) * 100), weight: w.revenueDetour,
                 raw: `${manwon(input.fare)}만 ÷ ${input.detourExtraMin}분 = ${manwon(hourly)}만/h`,
             });
         } else if (input.detourExtraMin != null) {
-            // 우회 0분 이하 — 길목 콜. 공짜 순증이므로 만점
-            axes.push({ key: 'revenuePerDetour', name: '순증 대비 우회', score: 100, weight: w.revenueDetour,
+            // 우회 0분 이하 — 길목 콜. 우회가 없으니 만점 — 운임이 통째로 이득이다
+            axes.push({ key: 'revenuePerDetour', name: '우회 시급', score: 100, weight: w.revenueDetour,
                         raw: `우회 ${input.detourExtraMin}분 — 길목` });
         }
 
@@ -185,7 +185,7 @@ export function marginalDetourMin(
     return prevRouteTotalMin != null ? Math.round(mergedTotalMin - prevRouteTotalMin) : fallbackDiffMin;
 }
 
-/** 로그 한 줄 — `🧪 [dryRun] 🟢 64점 (순증 2.6만/h · 버퍼 최소 +18분) · 딱지: 통화 필수` */
+/** 로그 한 줄 — `🧪 [dryRun] 🟢 64점 (우회 시급 2.6만/h · 버퍼 최소 +18분) · 딱지: 통화 필수` */
 export function describeDryRun(v: DryRunVerdict): string {
     const emoji = v.color === '꿀' ? '🔵' : v.color === '보통' ? '🟢' : v.color === '똥' ? '🟡' : '🔴';
     const gates = v.gates.filter(g => !g.pass).map(g => g.why ?? g.name);

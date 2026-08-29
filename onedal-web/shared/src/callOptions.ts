@@ -176,7 +176,7 @@ export function buildDefaultCallOptions(): CallOption[] {
 
     // ── 짐 성질 — 숫자가 없다. 목록과 순서만
     (CARGO_TAGS as readonly string[]).forEach((t, i) => out.push(opt({
-        category: 'tag', key: t, sortOrder: i, why: '동승 가능 여부·취급 주의를 가른다',
+        category: 'tag', key: t, sortOrder: i, why: '같이 실을 수 있나·취급 주의를 가른다',
     })));
 
     // ── 시간 규칙

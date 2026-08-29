@@ -79,7 +79,7 @@ export interface JudgmentConfig {
      * 준 상태이다. 나중에 실지로 도로에 나가서 데이터를 모아서…"* → 전부 1 = 단순 평균.
      */
     weights: {
-        /** 순증 대비 우회 — 요금 ÷ 한계 추가 소요 (기사님 확정 ②: 시간·거리 통합) */
+        /** 우회 시급 — 요금 ÷ 한계 추가 소요 (기사님 확정 ②: 시간·거리 통합) */
         revenueDetour: number;
         /** 버퍼 소비 — 붙인 뒤 남는 최소 버퍼 */
         bufferCost: number;
@@ -91,10 +91,10 @@ export interface JudgmentConfig {
          *    → 가중치를 주되 **0 이 아니면 실패 시 색을 덮는 것은 그대로다** (안전은 안 뺀다).
          */
         promiseGuard: number;
-        /** 🧪 **짐 동승** — 함께 실으면 안 되는 성질인가 (적재는 «공간», 이것은 «성질») */
+        /** 🧪 **같이 못 실음** — 함께 실으면 안 되는 성질인가 (적재는 «공간», 이것은 «성질») */
         cargoCompat: number;
     };
-    /** 채점의 기준 시급 — 순증·시급 축이 이 값 대비 %로 점수가 된다 */
+    /** 채점의 기준 시급 — 우회 시급·시급 축이 이 값 대비 %로 점수가 된다 */
     target: {
         /** 원/시간. 문제지 캘리브레이션으로 확정 (기사님 2026-08-21) */
         hourlyKrw: number;
@@ -167,7 +167,7 @@ export const JUDGMENT_FIELDS: readonly JudgmentField[] = [
       label: '상차 시계 잠정', unit: '분', min: 0, max: 240, int: true,
       why: '잡은 시각 + 이만큼 = 무통보로 봐주는 상차 한계. 소숙 실측: 35분부터 늦음 취급 (잠정 — 도로에서 조정)' },
 
-    // 🧪 옛 가중치 둘(추가 주행 · 우회 거리)은 **순증 대비 우회 하나로 통합**됐다
+    // 🧪 옛 가중치 둘(추가 주행 · 우회 거리)은 **우회 시급 하나로 통합**됐다
     //    (기사님 확정 ② — 같은 40분 우회라도 요금이 가른다)
     { col: 'speed_short_kmh', path: ['speed', 'shortKmh'], group: '모를 때',
       label: '배송 속도 (10km 미만)', unit: 'km/h', min: 5, max: 120, int: true,
@@ -180,23 +180,23 @@ export const JUDGMENT_FIELDS: readonly JudgmentField[] = [
       why: '카카오 실측 중앙값 56.0 — 고속·국도' },
 
     { col: 'weight_revenue_detour', path: ['weights', 'revenueDetour'], group: '가중치',
-      label: '순증 대비 우회', unit: '배', min: 0, max: 10, int: false,
+      label: '우회 시급', unit: '배', min: 0, max: 10, int: false,
       why: '요금 ÷ 한계 추가 소요. 0 이면 색에 반영하지 않는다 (표시는 계속한다)' },
     { col: 'weight_buffer_cost', path: ['weights', 'bufferCost'], group: '가중치',
       label: '버퍼 소비', unit: '배', min: 0, max: 10, int: false,
       why: '붙인 뒤 남는 최소 버퍼 — 통화로 약속이 굳은 운행에서 살아나는 축' },
     { col: 'weight_slots', path: ['weights', 'slots'], group: '가중치',
       label: '적재 용량', unit: '배', min: 0, max: 10, int: false,
-      why: '**공간** — 몇 칸 남았나. 아래 «짐 동승»(성질)과 다른 축이다' },
+      why: '**공간** — 몇 칸 남았나. 아래 «같이 못 실음»(성질)과 다른 축이다' },
     { col: 'weight_promise_guard', path: ['weights', 'promiseGuard'], group: '가중치',
       label: '기존 콜 약속 보존', unit: '배', min: 0, max: 10, int: false,
       why: '이미 잡은 콜의 약속이 깨지는가. 0 이면 **검사 자체를 끈다** — 경로만 보려는 검사에서 쓴다. 0 이 아니면 깨질 때 색이 «사고» 로 덮인다 (안전)' },
     { col: 'weight_cargo_compat', path: ['weights', 'cargoCompat'], group: '가중치',
-      label: '짐 동승', unit: '배', min: 0, max: 10, int: false,
+      label: '같이 못 실음', unit: '배', min: 0, max: 10, int: false,
       why: '함께 실어도 되는 **성질**인가 (위험물+식료품 등). 적재(공간)와 다르다. 0 이면 검사를 끈다' },
     { col: 'target_hourly_krw', path: ['target', 'hourlyKrw'], group: '가중치',
       label: '목표 시급', unit: '원/h', min: 10000, max: 100000, int: true,
-      why: '순증·시급 축의 기준. 노하우 실측 역산(4콜 14.1만÷4.5h≈3.1만) — 문제지 캘리브레이션으로 확정 (2026-08-21)' },
+      why: '우회 시급·시급 축의 기준. 노하우 실측 역산(4콜 14.1만÷4.5h≈3.1만) — 문제지 캘리브레이션으로 확정 (2026-08-21)' },
 
     { col: 'deadline_ratio_pct', path: ['deadline', 'ratioPct'], group: '데드라인',
       label: '데드라인 배율', unit: '%', min: 100, max: 300, int: true,
