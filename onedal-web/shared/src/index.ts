@@ -561,7 +561,8 @@ export interface PendingOrder extends OfficeOrder {
  */
 export interface JudgmentSnapshot {
     color: '꿀' | '보통' | '똥' | '사고';
-    score: number;
+    /** 🔴 못 쟀으면 `null` — **0 이 아니다** (0 은 «나쁘다»로 읽힌다) */
+    score: number | null;
     axes: Array<{ key: string; name: string; score: number; weight: number; raw: string }>;
     gates: Array<{ key: string; name: string; pass: boolean; why: string | null }>;
     tags: string[];

@@ -61,9 +61,15 @@ describe('실측 콜 회귀 — 옛 사고가 새 채점기에서 재발하지 �
 
 describe('판정하는 곳은 한 곳', () => {
 
-    it('🔴 채점은 scoreDryRun 하나 — 옛 채점기·임계값 상수가 코드에 없다', () => {
+    /**
+     * 🔴 **2026-08-29 갈아탐** — 채점기가 `scoreDryRun` 에서 `judge` 로 바뀌었다.
+     *    갈아타기 전 **84건을 나란히 대조해 어긋남 0** 을 확인했다 (검사 73 · 리허설 11).
+     *    지키는 것은 그대로다: **채점하는 곳은 한 곳뿐이다.**
+     */
+    it('🔴 채점은 judge 하나 — 옛 채점기·임계값 상수가 코드에 없다', () => {
         const ev = codeOnly(read('core/engine/OrderEvaluator.ts'));
-        expect(ev).toMatch(/scoreDryRun\(\{/);
+        expect(ev).toMatch(/judge\(CRITERIA,/);
+        expect(ev).not.toMatch(/scoreDryRun/);
         expect(ev).not.toMatch(/scoreMerge|scoreSolo/);
         expect(ev).not.toMatch(/DETOUR_SHIT_TIME_MIN|DETOUR_HONEY_TIME_MAX/);
         const cfg = codeOnly(read('config/dispatchConfig.ts'));
@@ -72,7 +78,7 @@ describe('판정하는 곳은 한 곳', () => {
 
     it('🔴 재탐색은 색을 다시 정하지 않는다 — 심사 스냅샷 고정 (확정 ④)', () => {
         const en = codeOnly(read('services/dispatchEngine.ts'));
-        expect(en).not.toMatch(/scoreMerge|scoreDryRun/);
+        expect(en).not.toMatch(/scoreMerge|scoreDryRun|judge\(CRITERIA/);
         expect(en).toMatch(/getJudgment\(/);
         expect(en).not.toMatch(/distDiffKm\)\s*>\s*10/);
     });

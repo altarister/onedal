@@ -91,9 +91,9 @@ describe('세션이 DB 값을 읽고, 판정이 그 값을 쓴다', () => {
     it('🔴 판정이 기본값이 아니라 **세션 값**을 쓴다', () => {
         const ev = codeOnly(read('core/engine/OrderEvaluator.ts'));
         expect(ev).toMatch(/judgmentCfg = session\.judgment/);
-        expect(ev).toMatch(/\}, judgmentCfg\)/);
+        expect(ev).toMatch(/judge\(CRITERIA,[\s\S]{0,400}judgmentCfg\)/);
         // 재탐색은 색을 다시 정하지 않는다 — 스냅샷 고정 (확정 ④). 채점 호출이 없어야 한다
-        expect(codeOnly(read('services/dispatchEngine.ts'))).not.toMatch(/scoreDryRun|scoreMerge/);
+        expect(codeOnly(read('services/dispatchEngine.ts'))).not.toMatch(/scoreDryRun|scoreMerge|judge\(CRITERIA/);
     });
 
     it('🔴 상하차 일반값도 세션 값을 타고 내려간다', () => {

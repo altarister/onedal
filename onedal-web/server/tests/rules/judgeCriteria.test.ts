@@ -194,33 +194,30 @@ describe('설명 한 줄', () => {
 });
 
 /**
- * 🔴 **아직 색을 정하지 않는다 — 나란히 놓고 대조만 한다** (2026-08-29 · 6단계).
- *    새 함수가 제품에 물린 것은 «대조» 하나뿐이다. 색·점수·스냅샷은 여전히
- *    옛 채점기(`scoreDryRun`)가 낸다. 어긋남이 없는 것을 확인한 뒤 갈아탄다 (규칙 ②).
+ * 🔴 **갈아탔다 — 색은 이제 판정 함수가 낸다** (2026-08-29 · 6단계 완료).
+ *
+ * 갈아타기 전에 **84건을 나란히 대조**해 어긋남 0 을 확인했다
+ * (검사 73건 · 기사님 리허설 11건). 대조가 조는 게 아닌 것도 변이 검증으로 봤다 —
+ * 「공간」 점수를 일부러 11점으로 바꾸니 그대로 잡아냈다.
  */
-describe('제품에는 «대조»로만 물렸다', () => {
+describe('갈아탔다 — 채점하는 곳은 하나다', () => {
     const { readFileSync } = require('fs');
     const { join } = require('path');
     const ev = readFileSync(join(__dirname, '../../src/core/engine/OrderEvaluator.ts'), 'utf8');
 
-    it('judge() 를 부르는 곳은 대조 함수 하나뿐이다', () => {
-        const 부름 = (ev.match(/\bjudge\(/g) || []).length;
-        expect(부름).toBe(1);
-    });
-
-    it('🔴 색·점수·스냅샷은 여전히 옛 채점기가 낸다', () => {
-        expect(ev).toMatch(/const dry = scoreDryRun\(/);
+    it('🔴 색·점수·스냅샷이 전부 새 함수에서 나온다', () => {
+        expect(ev).toMatch(/toSnapshot\(judge\(CRITERIA,/);
         expect(ev).toMatch(/saveJudgment\(securedOrder\.id, userId, dry\)/);
         expect(ev).toMatch(/recommend = `'\$\{dry\.color\}'`/);
-        // 새 함수의 결과가 색으로 새어 나가지 않는다
-        expect(ev).not.toMatch(/새\.color\s*[;,)]/);
     });
 
-    it('대조는 어긋날 때만 찍는다 — 매번 찍으면 로그가 묻힌다', () => {
-        expect(ev).toMatch(/if \(새\.color === 옛\.color && 새\.score === 옛\.score\) return;/);
+    it('🔴 옛 채점기는 손을 뗐다 — 부르지도, 들여오지도 않는다', () => {
+        // 주석의 «옛 채점기» 언급은 역사다 — 그건 남겨 둔다 (glossary 검사와 같은 태도)
+        expect(ev).not.toMatch(/scoreDryRun\(/);
+        expect(ev).not.toMatch(/import[\s\S]{0,200}scoreDryRun/);
     });
 
-    it('🔴 새 함수가 터져도 판정은 계속된다', () => {
-        expect(ev).toMatch(/catch[\s\S]{0,120}판정 대조[\s\S]{0,60}터졌습니다/);
+    it('첫짐·합짐 두 자리 모두 갈아탔다 — 한쪽만 바꾸면 두 벌이 된다', () => {
+        expect((ev.match(/toSnapshot\(judge\(CRITERIA,/g) || []).length).toBe(2);
     });
 });

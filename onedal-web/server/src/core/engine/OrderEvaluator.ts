@@ -1,10 +1,10 @@
 import { PendingOrder, SecuredOrder, MyOrder, TRUCK_CAPACITY_SLOTS, callName , DEFAULT_DEADLINE_RULES,
-         scoreDryRun, describeDryRun, deriveRouteTimeline, minRouteBuffer, marginalDetourMin,
+         deriveRouteTimeline, minRouteBuffer, marginalDetourMin,
          DEFAULT_JUDGMENT, REACH_COEF_MIN_PER_KM_TEMP, reachRadiusKm, anyRegionHit,
          soloMinutesOf, derivationInputsOf } from "@onedal/shared";
 import type { DryRunGate } from "@onedal/shared";
-import { judge, CRITERIA, describe as describeJudge } from '@onedal/shared';
-import type { JudgeFacts, JudgmentConfig } from '@onedal/shared';
+import { judge, CRITERIA, toSnapshot } from '@onedal/shared';
+import type { JudgmentSnapshot } from '@onedal/shared';
 import { firstLoadFacts, mergeFacts } from './judgeFacts';
 import { OrderRepository } from "../../repositories/OrderRepository";
 import db from "../../db";
@@ -24,22 +24,20 @@ import { getActiveCalls } from "../helpers";
 
 
 /**
- * ⚖️ **두 답을 나란히 놓는다 — 색은 아직 옛것이 낸다** (2026-08-29 · 6단계)
+ * 🎨 **판정 한 줄** — 로그가 화면과 같은 말을 쓰게 (규칙 ③).
  *
- * 새 판정 함수로 갈아타기 전에 **실제 콜에서** 두 답이 같은지 본다.
- * 2026-08-21 에 지금 채점기로 갈아탈 때와 같은 방식이다.
- *
- * 🔴 **어긋날 때만 찍는다.** 매번 찍으면 로그가 묻히고, 묻히면 아무도 안 본다
- *    (오늘 「이중 발신」 경고가 그랬다 — 서버는 말하고 있었는데 아무도 안 봤다).
+ * 옛 채점기의 한 줄 설명 자리를 잇는다. 기준을 **하나도 빼지 않고** 적는다 —
+ * 「잴 게 없음」·「잴 수 없음」도 그대로 보인다. 그게 기사님이 말씀하신 «조건 전수»다.
+ * 🔴 못 쟀으면 **«0점»이라 쓰지 않는다** — 0 은 «나쁘다»로 읽힌다.
  */
-function 판정대조(옛: { color: string; score: number }, facts: JudgeFacts, cfg: JudgmentConfig) {
-    try {
-        const 새 = judge(CRITERIA, facts, cfg);
-        if (새.color === 옛.color && 새.score === 옛.score) return;
-        console.log(`   - ⚖️ [판정 대조] 옛 ${옛.color}/${옛.score} ≠ 새 ${새.color}/${새.score} — ${describeJudge(새)}`);
-    } catch (e) {
-        console.log(`   - ⚖️ [판정 대조] 새 함수가 터졌습니다 (색은 옛것 그대로): ${(e as Error).message}`);
-    }
+function 판정줄(v: JudgmentSnapshot): string {
+    const emoji = v.color === '꿀' ? '🔵' : v.color === '보통' ? '🟢' : v.color === '똥' ? '🟡' : '🔴';
+    const 깨짐 = v.gates.filter(g => !g.pass).map(g => g.why ?? g.name);
+    const head = 깨짐.length ? `${emoji} 잡으면 사고 — ${깨짐.join(' · ')}`
+        : v.score == null ? `${emoji} 잴 수 없음` : `${emoji} ${v.score}점`;
+    const 기준 = v.axes.map(a => `${a.name} ${a.raw}${a.raw.startsWith('—') || a.raw.startsWith('⚠️') ? '' : `(${a.score})`}`).join(' · ');
+    const 딱지 = v.tags.length ? ` · 딱지: ${v.tags.join(' · ')}` : '';
+    return `${head}${기준 ? ` — ${기준}` : ''}${딱지}`;
 }
 
 export class OrderEvaluator {
@@ -210,22 +208,23 @@ export class OrderEvaluator {
                             tags.push(`요율 미달 — 평소 하한 ${previewRate!.minAcceptable.toLocaleString()}원`);
                         }
 
-                        const dry = scoreDryRun({
-                            kind: 'first', fare: securedOrder.fare, totalMinutes: total,
-                            gates: [], tags,
-                        }, judgmentCfg);
-                        판정대조(dry, firstLoadFacts({
+                        /**
+                         * ⚖️ **색은 판정 함수 하나가 낸다** (2026-08-29 · 6단계 갈아타기 완료).
+                         *    옛 채점기는 여기서 손을 뗐다. 갈아타기 전 84건을
+                         *    나란히 대조해 **어긋남 0** 을 확인했다 (검사 73 · 실제 리허설 11).
+                         */
+                        const dry = toSnapshot(judge(CRITERIA, firstLoadFacts({
                             fare: securedOrder.fare, totalMinutes: total,
                             minAcceptableKrw: rateShort ? previewRate!.minAcceptable : null,
                             tags,
-                        }), judgmentCfg);
+                        }), judgmentCfg));
 
                         if (rateShort && (dry.color === '꿀' || dry.color === '보통')) {
                             console.log(`   - 💸 [미리보기 단가] ${dry.color} → 똥 (필터 밖 콜이라 하한을 다시 봤다: ` +
                                 `실제 ${securedOrder.fare.toLocaleString()}원 < 하한 ${previewRate!.minAcceptable.toLocaleString()}원)`);
                             dry.color = '똥';
                         }
-                        console.log(`   - 🎨 [판정] ${describeDryRun(dry)}`);
+                        console.log(`   - 🎨 [판정] ${판정줄(dry)}`);
                         // 🧪 도달 반경 dryRun (구현 4 계측) — 거르지 않는다, 설정 반경과 견주기만
                         console.log(`   - 🧪 [도달 반경 dryRun] 빈 차 — 시계 ${judgmentCfg.unknown.pickupOffsetMin}분 ` +
                             `≈ ${reachRadiusKm(judgmentCfg.unknown.pickupOffsetMin)}km (설정 ${session.activeFilter.pickupRadiusKm}km · 계수 잠정 ${REACH_COEF_MIN_PER_KM_TEMP}분/km)`);
@@ -370,23 +369,16 @@ export class OrderEvaluator {
                             }
                             if (!bufAfter) tags.push('버퍼 잴 약속 없음');
 
-                            const dry = scoreDryRun({
-                                kind: 'merge', fare: securedOrder.fare,
-                                detourExtraMin: marginal + cost.dwell,
-                                bufferAfterMin: bufAfter?.minutes ?? null,
-                                slotsFreePct: slotsTotal > 0
-                                    ? (Math.max(0, slotsTotal - slotsUsed) / slotsTotal) * 100 : null,
-                                gates, tags,
-                            }, judgmentCfg);
-                            console.log(`   - 🎨 [판정] ${describeDryRun(dry)}`);
-                            판정대조(dry, mergeFacts({
+                            // ⚖️ 색은 판정 함수 하나가 낸다 (6단계 갈아타기 완료)
+                            const dry = toSnapshot(judge(CRITERIA, mergeFacts({
                                 fare: securedOrder.fare,
                                 extraMinutes: marginal + cost.dwell,
                                 bufferAfterMin: bufAfter?.minutes ?? null,
                                 freePct: slotsTotal > 0
                                     ? (Math.max(0, slotsTotal - slotsUsed) / slotsTotal) * 100 : null,
                                 gates, conflicts, tags,
-                            }), judgmentCfg);
+                            }), judgmentCfg));
+                            console.log(`   - 🎨 [판정] ${판정줄(dry)}`);
                             // 🧪 도달 반경 dryRun (구현 4 계측) — 앞 일이 많을수록 버퍼가 줄어 반경이 준다 (16-3)
                             if (bufAfter) console.log(`   - 🧪 [도달 반경 dryRun] 버퍼 ${Math.max(0, bufAfter.minutes)}분 ` +
                                 `≈ ${reachRadiusKm(Math.max(0, bufAfter.minutes))}km (설정 ${session.activeFilter.pickupRadiusKm}km · 계수 잠정)`);

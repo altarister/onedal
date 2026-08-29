@@ -163,6 +163,40 @@ export function judge(criteria: Array<Criterion<any>>, facts: Facts, cfg: Judgme
     return { color, score, criteria: rows, notes };
 }
 
+
+/**
+ * 🎁 **새 판정을 화면이 아는 모양으로 옮긴다** (2026-08-29 · 6단계 갈아타기)
+ *
+ * 관제웹 카드는 **조건 전수**를 그린다 — 기사님: *"모든 조건이 표시되었으면 좋겠다."*
+ * 그 화면이 읽는 칸은 `axes`(기준) · `gates`(무조건 빨간불) · `tags`(딱지) 셋이다.
+ * **화면을 고치지 않고** 새 판정을 그 칸에 옮겨 담는다 — 갈아타기를 한 걸음으로 줄인다.
+ *
+ * 🔴 **기준은 하나도 빼지 않는다.** 「잴 게 없음」·「잴 수 없음」도 그대로 보인다 —
+ *    그게 «전수»다. 점수 대신 이유가 적힌다.
+ * 🔴 **점수는 못 쟀으면 `null` 이다.** 0 으로 바꾸지 않는다 (0 은 «나쁘다»로 읽힌다).
+ */
+export function toSnapshot(v: Judgment) {
+    const 점 = (o: Outcome) => (o.kind === 'scored' ? o.score : null);
+    return {
+        color: v.color,
+        score: v.score,
+        axes: v.criteria.map(c => ({
+            key: c.key, name: c.name,
+            score: 점(c.outcome) ?? 0,
+            weight: c.weight,
+            // 점수를 못 낸 기준은 **숫자 대신 이유**가 보인다
+            raw: c.outcome.kind === 'scored' ? c.outcome.why
+                : c.outcome.kind === 'nothing' ? `— ${c.outcome.why}`
+                : `⚠️ ${c.outcome.why}`,
+        })),
+        /** 「잡으면 사고」로 색을 덮은 기준만 — 화면이 빨간 줄로 그린다 */
+        gates: v.criteria
+            .filter(c => c.outcome.kind === 'scored' && (c.outcome as { hardFail?: boolean }).hardFail)
+            .map(c => ({ key: c.key, name: c.name, pass: false, why: (c.outcome as { why: string }).why })),
+        tags: v.notes,
+    };
+}
+
 /** 한 줄 설명 — 로그·화면이 같은 말을 쓰게 (규칙 ③) */
 export function describe(v: Judgment): string {
     const emoji = v.color === '꿀' ? '🔵' : v.color === '보통' ? '🟢' : v.color === '똥' ? '🟡' : '🔴';

@@ -111,7 +111,8 @@ export class OrderRepository {
      * "믿고 눌렀는데"가 무너진다 (기사님 확정 ④).
      */
     public static saveJudgment(orderId: string, userId: string,
-        v: { color: string; score: number; axes: unknown; gates: unknown; tags: unknown }) {
+        /** 🔴 못 쟀으면 `score` 는 `null` 이다 — 0 으로 지어내지 않는다 (2026-08-29) */
+        v: { color: string; score: number | null; axes: unknown; gates: unknown; tags: unknown }) {
         db.prepare(`INSERT OR IGNORE INTO order_judgments (orderId, userId, color, score, detail, judgedAt)
                     VALUES (?, ?, ?, ?, ?, ?)`)
           .run(orderId, userId, v.color, v.score,
