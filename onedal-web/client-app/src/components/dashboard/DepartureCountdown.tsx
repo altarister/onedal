@@ -71,7 +71,9 @@ export default function DepartureCountdown({ orders, records, routeStops, routeC
     const milestonesOf = (id: string) => (records.get(id) ?? EMPTY_RECORDS).milestones;
     // 🎛️ 판정 기준 탭의 시간 4칸이 카운트다운 파생까지 (derivationInputsOf — 서버와 같은 조립)
     const { rules, unk } = derivationInputsOf(useJudgmentStore.getState().judgment);
-    const timeline = deriveRouteTimeline(routeStops, orders, reportsOf, milestonesOf, now, routeComputedAt, rules, unk);
+    // ⏱️ 실측 정차도 같은 재료로 — 덱만 보고 카운트다운이 못 보면 한 화면이 두 시각을 말한다
+    const dwellLedgerOf = (id: string) => (records.get(id) ?? EMPTY_RECORDS).dwell;
+    const timeline = deriveRouteTimeline(routeStops, orders, reportsOf, milestonesOf, now, routeComputedAt, rules, unk, dwellLedgerOf);
     /**
      * 🧮 **경로 최소 버퍼** (⑯-1) — 콜별이 아니라 **내 콜 전부의 최소값**이 예산이다.
      * 기사님 실측(2026-08-20): 콜별 +60 이 아니라 +6 이 진실 — 여기(항상 떠 있는 줄)에

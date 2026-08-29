@@ -132,25 +132,35 @@ const toggle = (list: string[], v: string) =>
  */
 function MinuteBadge({ minutes, unit, onEdit }: { minutes: number; unit?: string; onEdit?: (v: number) => void }) {
     const [open, setOpen] = useState(false);
+    /**
+     * 🔴 **± 를 누를 때마다 저장하지 않는다** (자기 리뷰 2026-08-30).
+     *    리허설 로그에 **1.7초 동안 7번** 저장됐다(5→6→7→8→9→14→19). 누를 때마다
+     *    DB 쓰기 + `steps-synced` 브로드캐스트 왕복이라, 되돌아온 값이 손가락을 앞질러
+     *    숫자가 튈 수도 있다. **손을 뗄 때(✓) 한 번만** 보낸다.
+     */
+    const [draft, setDraft] = useState(minutes);
+    useEffect(() => { if (!open) setDraft(minutes); }, [minutes, open]);
+
     if (!onEdit) return <span className="ml-1 text-[10px] font-normal opacity-70">{minutes}{unit ?? '분'}</span>;
     if (!open) return (
         <span role="button" tabIndex={0}
             title="눌러서 실제로 걸린 시간을 적습니다 — 이 콜에만 적용됩니다"
-            onClick={e => { e.stopPropagation(); setOpen(true); }}
-            onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); setOpen(true); } }}
+            onClick={e => { e.stopPropagation(); setDraft(minutes); setOpen(true); }}
+            onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); setDraft(minutes); setOpen(true); } }}
             className="ml-1 text-[10px] font-normal opacity-70 underline decoration-dotted underline-offset-2">
             {minutes}{unit ?? '분'}
         </span>
     );
-    const stepBy = minutes < 5 ? 0.5 : 5;
+    const stepBy = draft < 5 ? 0.5 : 5;
+    const 닫기 = (저장: boolean) => { setOpen(false); if (저장 && draft !== minutes) onEdit(draft); };
     return (
         <span className="ml-1 inline-flex items-center gap-1" onClick={e => e.stopPropagation()}>
             <button className="px-1 rounded bg-surface-alt text-[11px]"
-                onClick={() => onEdit(Math.max(0, +(minutes - stepBy).toFixed(2)))}>−</button>
-            <b className="text-[11px] tabular-nums">{minutes}{unit ?? '분'}</b>
+                onClick={() => setDraft(d => Math.max(0, +(d - stepBy).toFixed(2)))}>−</button>
+            <b className={`text-[11px] tabular-nums ${draft !== minutes ? 'text-info' : ''}`}>{draft}{unit ?? '분'}</b>
             <button className="px-1 rounded bg-surface-alt text-[11px]"
-                onClick={() => onEdit(+(minutes + stepBy).toFixed(2))}>+</button>
-            <button className="px-1 rounded bg-info text-white text-[10px]" onClick={() => setOpen(false)}>✓</button>
+                onClick={() => setDraft(d => +(d + stepBy).toFixed(2))}>+</button>
+            <button className="px-1 rounded bg-info text-white text-[10px]" onClick={() => 닫기(true)}>✓</button>
         </span>
     );
 }

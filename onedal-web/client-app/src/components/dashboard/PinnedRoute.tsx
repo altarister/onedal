@@ -202,12 +202,12 @@ export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, 
     const judgmentCfg = useJudgmentStore(st => st.judgment);
     const routeTimeline = useMemo(() => {
         const { rules, unk } = derivationInputsOf(judgmentCfg);
+        const dwellLedgerOf = (id: string) => (stepRecords.get(id) ?? EMPTY_RECORDS).dwell;
         return deriveRouteTimeline(
             routeStops, liveRoute,
             (id) => (stepRecords.get(id) ?? EMPTY_RECORDS).reports,
             (id) => (stepRecords.get(id) ?? EMPTY_RECORDS).milestones,
-            Date.now(), routeComputedAt, rules, unk,
-            (id) => (stepRecords.get(id) ?? EMPTY_RECORDS).dwell,
+            Date.now(), routeComputedAt, rules, unk, dwellLedgerOf,
         );
     }, [routeStops, liveRoute, stepRecords, routeComputedAt, judgmentCfg]);
 

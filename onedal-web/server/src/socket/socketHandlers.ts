@@ -13,7 +13,7 @@ import { PlaceRepository } from "../repositories/PlaceRepository";
 import { getUserSession, getAllActiveUserIds } from "../state/userSessionStore";
 import { buildOrderSync } from "../core/helpers";
 import { recalculateDetourFilter, handleDecision, recalculateKakaoRoute, bootstrapUserSession, reportMilestone, undoMilestone, setCallTarget, createHomeReturn } from "../services/dispatchEngine";
-import { birthFirstStep, bridgeCargoReport, bridgeMilestone, bridgeUndoMilestone, bridgeCod, stepsView, stepRecordsOf, refreshPlannedSteps, saveStepDwell } from "../services/stepSeeder";
+import { birthFirstStep, bridgeCargoReport, bridgeMilestone, bridgeUndoMilestone, bridgeCod, stepsView, stepRecordsOf, refreshPlannedSteps, saveStepDwell, dwellLedgerFor } from "../services/stepSeeder";
 import type { RouteTl } from "../services/stepSeeder";
 
 /**
@@ -30,10 +30,11 @@ function routeTlOf(userId: string): RouteTl | undefined {
         // ⏱️ 판정 기준 탭의 시간 4칸 → 파생 입력, 조립은 derivationInputsOf 한 곳 (관제웹과 같은 함수)
         const cfg = session.judgment;
         const inputs = cfg ? derivationInputsOf(cfg) : undefined;
+        const dwellLedgerOf = (id: string) => dwellLedgerFor(id);
         return deriveRouteTimeline(sync.routeStops as any, active as any,
             id => stepRecordsOf(id).reports as any,       // 🔄 파생 치환 ② — 새 장부가 재료
             id => stepRecordsOf(id).milestones as any,
-            Date.now(), sync.routeComputedAt, inputs?.rules, inputs?.unk);
+            Date.now(), sync.routeComputedAt, inputs?.rules, inputs?.unk, dwellLedgerOf);
     } catch { return undefined; }
 }
 import { updateActiveFilter, ensureBusinessDay, saveBaseFilter, savePhaseSettings, trimTraveled } from "../state/filterManager";
@@ -530,10 +531,17 @@ export function registerSocketHandlers(io: Server) {
         safeOn(socket, "save-step-dwell", (data: { orderId: string; step: CallStepId; minutes: number }) => {
             const { orderId, step, minutes } = data ?? ({} as any);
             if (!orderId || !step) throw new Error("orderId·step 누락");
-            // 뒤 정거장이 밀리는 것은 관제웹이 이 행을 받아 스스로 다시 센다 (규칙 ③)
-            if (saveStepDwell(orderId, step, minutes)) {
-                socket.emit("steps-synced", { orderId, steps: stepsView(orderId, getUserSession(userId)?.judgment) });
+            /**
+             * 🔴 **안 먹었으면 조용히 넘어가지 않는다** (자기 리뷰 2026-08-30).
+             *    행이 아직 안 태어났거나 완료 단계가 아니면 저장이 안 되는데, 예전엔
+             *    `false` 를 돌리고 끝이라 **기사님은 눌렀는데 안 바뀐 화면**만 보셨다.
+             *    던지면 `safeOn` 이 `handler-error` 로 이유를 화면에 보낸다.
+             */
+            if (!saveStepDwell(orderId, step, minutes)) {
+                throw new Error("이 단계에는 실제 정차를 적을 수 없습니다 — 상차/하차 완료에서만 됩니다");
             }
+            // 뒤 정거장이 밀리는 것은 관제웹이 이 행을 받아 스스로 다시 센다 (규칙 ③)
+            socket.emit("steps-synced", { orderId, steps: stepsView(orderId, getUserSession(userId)?.judgment) });
         });
 
         safeOn(socket, "save-cargo-report", (data: { orderId: string } & CargoReport) => {

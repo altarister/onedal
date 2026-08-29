@@ -24,8 +24,12 @@ import { join } from 'path';
 
 /** 🔴 문서 경로는 **레포 뿌리 기준**으로 적는다 — `audit:docs` ④ 가 그 형태만 검사한다 */
 const ROOT = join(__dirname, '../../../..');
-const 벗긴다 = (p: string) => readFileSync(join(__dirname, p), 'utf8')
-    .replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+const 벗긴다 = (p: string) => {
+    try {
+        return readFileSync(join(__dirname, p), 'utf8')
+            .replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    } catch { return ''; }
+};
 const 덱 = 벗긴다('../../../client-app/src/components/dashboard/CallDeck.tsx');
 const 카드 = 벗긴다('../../../client-app/src/components/dashboard/PinnedRouteCard.tsx');
 const 문서 = readFileSync(join(ROOT, 'docs/지금/시각_표시.md'), 'utf8');
@@ -115,5 +119,71 @@ describe('🕐 펼친 카드 — 안 A (원래 값과 지금 값을 둘 다)', (
 
     it('다녀온 정거장은 흐리게 — 지난 일이다', () => {
         expect(카드).toMatch(/다녀옴/);
+    });
+});
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * 🔴 **시각을 만드는 곳은 넷인데 재료가 하나만 달랐다** (자기 리뷰 2026-08-30)
+ *
+ * `deriveRouteTimeline` 은 제품에서 **네 곳**이 부른다. 오늘 실측 정차를 물리면서
+ * **한 곳만** 고쳤더니 이렇게 됐다:
+ *
+ * ```
+ * 덱·카드          3:20      ← 실측 19분을 봄
+ * 출발 카운트다운   3:15      ← 못 봄
+ * ```
+ *
+ * 🔴 **어제까지는 넷 다 안 봐서 «틀리지만 일치»했다.** 한 곳만 고쳐 갈라 놓은 것은
+ *    내가 오늘 만든 것이다 — 이 레포가 반복해 온 「두 목소리」 그대로다.
+ *
+ * ⚠️ 이 검사는 **글자를 본다.** 다섯 번째 호출부가 생겨도 잡히게 하려는 것이라 그렇다.
+ *    (타입으로 강제하려면 필수 인자로 바꿔야 하는데, 검사 호출부 수십 곳이 함께 깨진다)
+ */
+describe('🕐 시각을 만드는 네 곳이 같은 재료를 쓴다', () => {
+    const 제품 = [
+        '../../src/core/engine/OrderEvaluator.ts',
+        '../../src/socket/socketHandlers.ts',
+        '../../../client-app/src/components/dashboard/DepartureCountdown.tsx',
+        '../../../client-app/src/components/dashboard/PinnedRoute.tsx',
+    ];
+    /** 호출 한 덩어리를 통째로 떠온다 — 인자가 여러 줄에 걸쳐 있다 */
+    const 호출들 = (src: string) => {
+        const out: string[] = [];
+        let i = src.indexOf('deriveRouteTimeline(');
+        while (i !== -1) {
+            let depth = 0, j = src.indexOf('(', i);
+            for (let k = j; k < src.length; k++) {
+                if (src[k] === '(') depth++;
+                else if (src[k] === ')' && --depth === 0) { out.push(src.slice(i, k + 1)); j = k; break; }
+            }
+            i = src.indexOf('deriveRouteTimeline(', j + 1);
+        }
+        return out;
+    };
+
+    /** 🔴 파일이 옮겨지면 «검사가 아무것도 안 보고 통과»한다 — 먼저 그것부터 막는다 */
+    it('🔴 네 곳이 다 제자리에 있고 실제로 부르고 있다', () => {
+        for (const p of 제품) {
+            expect(벗긴다(p)).not.toBe('');
+            expect(호출들(벗긴다(p)).length).toBeGreaterThan(0);
+        }
+    });
+
+    it.each(제품)('🔴 %s 가 실측 정차(장부)를 넘긴다', (p) => {
+        for (const c of 호출들(벗긴다(p))) {
+            expect(c).toMatch(/[dD]wellLedger/);
+        }
+    });
+
+    /**
+     * 🔴 판정 기준 탭의 정차 값(`unk`)도 같은 자리에서 빠져 있었다 —
+     *    어제 `getStopTiming` 에서 잡은 것과 **같은 병**이다.
+     */
+    it.each(제품)('🔴 %s 가 판정 기준의 정차 일반값(unk)도 넘긴다', (p) => {
+        for (const c of 호출들(벗긴다(p))) {
+            expect(c).toMatch(/unk/);
+        }
     });
 });

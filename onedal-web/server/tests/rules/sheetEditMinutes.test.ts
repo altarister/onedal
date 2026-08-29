@@ -98,6 +98,17 @@ maybe('✏️ 배지가 고치는 것은 이 콜의 이 정거장이다 (A)', ()
     it('통화 단계로는 아무것도 못 쓴다', () => {
         expect(saveStepDwell(ID, 'CALL_PICKUP' as any, 30)).toBe(false);
     });
+
+    /**
+     * 🔴 **안 먹었으면 화면이 알아야 한다** (자기 리뷰 2026-08-30).
+     *    예전엔 false 를 돌리고 끝이라, 기사님은 **눌렀는데 안 바뀐 화면**만 보셨다.
+     */
+    it('🔴 저장이 안 되면 소켓이 이유를 던진다 — 조용히 넘어가지 않는다', () => {
+        const 소켓 = readFileSync(join(__dirname, '../../src/socket/socketHandlers.ts'), 'utf8');
+        const 문 = 소켓.slice(소켓.indexOf('save-step-dwell'), 소켓.indexOf('save-step-dwell') + 1200);
+        expect(문).toMatch(/if \(!saveStepDwell/);
+        expect(문).toMatch(/throw new Error/);
+    });
 });
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -298,6 +309,22 @@ describe('✏️ 화면이 그 규칙을 지키는가', () => {
     it('🔴 완료 단계에서만 열린다 — 통화 시트는 실측을 안 넘긴다', () => {
         expect(시트).toMatch(/actualDwell=\{\{ orderId, step \}\}/);
         expect((시트.match(/actualDwell=\{\{/g) ?? []).length).toBe(1);
+    });
+
+    /**
+     * 🔴 **± 를 누를 때마다 저장하지 않는다** (자기 리뷰 2026-08-30).
+     *    리허설 로그에 1.7초 동안 7번 저장됐다 — 누를 때마다 DB 쓰기 + 브로드캐스트다.
+     *    손을 뗄 때(✓) 한 번만 보낸다.
+     */
+    it('🔴 ± 는 초안만 바꾸고, 저장은 ✓ 를 누를 때 한 번이다', () => {
+        expect(시트).toMatch(/setDraft\(d =>/);
+        expect(시트).toMatch(/닫기\(true\)/);
+        // ± 버튼이 곧바로 onEdit 을 부르지 않는다
+        expect(시트).not.toMatch(/onClick=\{\(\) => onEdit\(/);
+    });
+
+    it('안 바뀌었으면 저장도 안 한다', () => {
+        expect(시트).toMatch(/draft !== minutes/);
     });
 
     it('칩 고르는 것과 섞이지 않는다 — 배지가 눌림을 삼킨다', () => {

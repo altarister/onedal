@@ -8,7 +8,7 @@ import type { JudgmentSnapshot } from '@onedal/shared';
 import { firstLoadFacts, mergeFacts } from './judgeFacts';
 import { OrderRepository } from "../../repositories/OrderRepository";
 import db, { dwellRatesFor } from "../../db";
-import { stepRecordsOf } from "../../services/stepSeeder";
+import { stepRecordsOf, dwellLedgerFor } from "../../services/stepSeeder";
 import { getUserSession } from "../../state/userSessionStore";
 import { findLoadConflicts, totalDetourCost } from "../helpers";
 import { haversineKm, dropStaleLocation } from "../../services/geoService";
@@ -299,13 +299,15 @@ export class OrderEvaluator {
                                 : [];
                             // 🔴 손으로 다시 만들지 않는다 — 판정 기준 → 파생 입력은 한 곳이다 (규칙 ③).
                             //    여기서 따로 조립하면 배송 속도 같은 새 칸이 조용히 빠진다 (2026-08-26).
-                            const rules = derivationInputsOf(judgmentCfg, dwellRatesFor(userId)).rules;
+                            const 파생 = derivationInputsOf(judgmentCfg, dwellRatesFor(userId));
+                            // ⏱️ 실측 정차와 판정 기준 값을 **함께** 넘긴다 — 넷이 같은 재료를 써야 한다
+                            const dwellLedgerOf = (id: string) => dwellLedgerFor(id);
                             // 후보를 **포함한** 경로의 타임라인 — 기존 콜 약속이 어떻게 되는지가 문지기다
                             const tlAfter = stopsAfter.length
                                 ? deriveRouteTimeline(stopsAfter as any, [...activeCalls, securedOrder] as any,
                                     id => stepRecordsOf(id).reports as any,       // 🔄 파생 치환 ②
                                     id => stepRecordsOf(id).milestones as any,
-                                    Date.now(), new Date().toISOString(), rules)
+                                    Date.now(), new Date().toISOString(), 파생.rules, 파생.unk, dwellLedgerOf)
                                 : [];
                             const existing = tlAfter.filter(e => e.orderId !== securedOrder.id);
                             const late = existing.filter(e => e.lateMinutes > 0);
@@ -364,7 +366,7 @@ export class OrderEvaluator {
                              *    합짐 콜은 단독 경로를 안 재므로 배송거리 ÷ 속도로 채운다.
                              *    숫자만 쓰고 «추정»을 안 적으면 그게 규칙 ④ 위반이 된다.
                              */
-                            if (soloMinutesOf(securedOrder as any, rules).estimated) {
+                            if (soloMinutesOf(securedOrder as any, 파생.rules).estimated) {
                                 tags.push('배송주행 추정(일반값)');
                             }
                             if (!bufAfter) tags.push('버퍼 잴 약속 없음');

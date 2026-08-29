@@ -24,7 +24,7 @@ import db, { dwellRatesFor } from '../db';
 import { DEFAULT_PROTECTIONS, DEFAULT_AFTERWORKS, DEFAULT_CARGO_TAG } from '@onedal/shared';
 import { STEP_TABLES, defaultCargoByVehicle, dwellMinutes, unitPoints, recordsOfSteps,
          parseCargoHints, callDeadlineMs, pickupClockMsOf, DEFAULT_JUDGMENT,
-         soloMinutesOf, derivationInputsOf } from '@onedal/shared';
+         soloMinutesOf, derivationInputsOf, dwellLedgerOfSteps } from '@onedal/shared';
 import type { JudgmentConfig, CargoReport, Milestone, RouteTimelineEntry } from '@onedal/shared';
 
 /** 🧭 경로가 아는 시각 — `deriveRouteTimeline` 의 결과를 그대로 받는다 (파생 한 곳 · 규칙 ③) */
@@ -474,6 +474,16 @@ export function plannedDwellOf(view: StepView[]): {
         pickupHandling: p.planned_handling ?? null,
         dropoffHandling: d?.planned_handling ?? p.planned_handling ?? null,
     };
+}
+
+/**
+ * ⏱️ **그 콜의 예측·실측 정차** — `deriveRouteTimeline` 에 먹이는 재료 (규칙 ③).
+ *
+ * 🔴 시각을 만드는 곳이 넷인데(판정·출생·카운트다운·덱) 재료가 하나만 달랐다.
+ *    그래서 «덱은 3:20, 카운트다운은 3:15» 가 났다 — 넷이 이 문 하나로 들어온다.
+ */
+export function dwellLedgerFor(orderId: string) {
+    return dwellLedgerOfSteps(stepsView(orderId) as any);
 }
 
 export function stepRecordsOf(orderId: string): {
