@@ -23,6 +23,7 @@
  * | ② | 세션의 콜·현위치·국면 | **서버 프로세스 메모리** | 서버 재기동 (감시자를 깨운다) |
  * | ③ | 주행 상태(`isDriving`) | 서버 `activeFilter.dispatchPhase` | ②와 함께 사라진다 |
  * | ④ | 시뮬레이터 진척도·마지막 좌표 | **브라우저 메모리** | 🔴 **새로고침뿐** — 여기서 못 지운다 |
+ * | ⑤ | **떠도는 시험 스크립트** · **포트를 쥔 옛 서버** | 다른 프로세스 | 찾아서 알려준다 (지우진 않는다) |
  *
  * ④ 는 서버가 손댈 수 없다. 그래서 이 도구는 **비우고 나서 «새로고침 하세요» 라고 말한다.**
  * 말만 하지 않고 ①②③ 이 실제로 비었는지 **확인해서 보여 준다.**
@@ -34,6 +35,7 @@ import { execSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { restartServer } from './lib/restartServer.mjs';
+import { strayScripts, portListeners, startedAt } from './lib/strays.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname;
 const require = createRequire(join(ROOT, 'server/index.js'));
@@ -48,6 +50,43 @@ const health = () => fetch(`${BASE}/api/health`).then(r => r.json()).catch(() =>
 
 async function main() {
     say('\n🧹 리허설 전 자리 정리\n');
+
+    /**
+     * ── ⓪ 떠도는 것부터 (2026-08-29 사고 뒤 신설) ──────
+     *
+     * 🔴 이 검사가 없어서 하루를 날렸다. 13:48 에 백그라운드로 띄운 `pnpm rehearsal` 이
+     *    2시간 20분째 살아서 실폰과 **같은 기기 ID** 로 신호를 보냈고, 서버는 그걸
+     *    *"리스트에서 콜이 사라졌다"* 로 읽어 **심사 0.8초 만에 강제 취소**했다.
+     *    기사님 눈에는 «콜을 못 잡는다» 로만 보였다.
+     *
+     * 🔴 같은 날 옛 서버가 **4000 을 쥔 채** 살아 있어 새 서버가 못 올라왔다.
+     *    `bootedAt` 은 «옛 서버가 잘 대답한다»고 말할 뿐이라 **혼자서는 못 잡는다.**
+     *
+     * → **자리를 깔기 전에 판을 어지럽히는 것부터 치운다.** 죽이진 않는다 —
+     *   무엇을 죽일지는 사람이 정한다 (지우는 것은 손으로 · 규칙).
+     */
+    say('── ⓪ 떠도는 것 (판을 어지럽히는 것부터)');
+    const strays = strayScripts();
+    if (strays.length) {
+        bad(`시험 스크립트 ${strays.length}개가 아직 돌고 있습니다`);
+        for (const p of strays) say(`     PID ${p.pid}  ${p.name}  (${startedAt(p.pid)})`);
+        say('     🔴 실폰과 **같은 기기 ID** 로 신호를 보냅니다 — 심사 콜이 강제 취소됩니다.');
+        say(`     👉  kill -9 ${strays.map(p => p.pid).join(' ')}`);
+    } else {
+        ok('떠도는 시험 스크립트 없음');
+    }
+
+    const listeners = portListeners(new URL(BASE).port || 4000);
+    if (listeners.length > 1) {
+        bad(`4000 을 ${listeners.length}개가 듣고 있습니다 — 옛 서버가 안 죽었습니다`);
+        for (const pid of listeners) say(`     PID ${pid}  (${startedAt(pid)})`);
+        say('     🔴 새 코드가 안 돕니다. 옛 것을 내려야 새 서버가 포트를 잡습니다.');
+        say(`     👉  lsof -tiTCP:4000 -sTCP:LISTEN | xargs kill -9   그리고 pnpm dev`);
+    } else if (listeners.length === 1) {
+        ok('4000 을 듣는 것은 하나', `PID ${listeners[0]}`);
+    } else {
+        bad('4000 을 듣는 것이 없습니다 — 서버가 안 떠 있습니다 (pnpm dev)');
+    }
 
     // ── ① 서버가 살아 있나 ────────────────────────────
     const h0 = await health();
@@ -107,6 +146,9 @@ async function main() {
     say('        주소도 함께 확인:  http://localhost:3000/?speed=1');
     say('          speed=1  1배속 (기본 15배속은 3km 를 6초에 지난다 — 판단할 틈이 없다)');
     say('          ?autokeep=1 이 붙어 있으면 **빼세요** (자동 결재가 켜집니다)');
+    say('');
+    say('     🔴 **탭은 하나만 남기세요.** 2026-08-29 에 관제웹이 두 개 붙어 로그가 두 벌로');
+    say('        찍혔고, 어느 화면이 진짜인지 가릴 수 없었습니다.');
 
     say('\n' + '─'.repeat(52));
     say('✅ 서버 쪽 정리 끝 — 새로고침만 하시면 시작할 수 있습니다\n');
