@@ -1,26 +1,15 @@
 /**
- * 🧪 **새 판정 채점기 (dryRun)** — docs/지금/판정.md 의 구현.
+ * 🧮 **우회 한계 비용 · 통과/실패 조건의 규격**
  *
- * 노하우 4콜 낙제(2026-08-21 · 전부 🟡)의 답이다. 확정된 뼈대:
+ * 🪦 **채점기(`scoreDryRun`)는 2026-08-29 에 철거됐다.** 판정은 `judge.ts` 가
+ *    기준 다섯을 모아서 낸다 (`criteria.ts`). 갈아타기 전 84건을 나란히 대조해
+ *    **어긋남 0** 을 확인했고, 그 대조 검사도 «갈아탄 뒤에는 지운다» 는 자기 약속대로 지웠다.
  *
- *   **조건 전수를 표시하고, 축 셋으로 색을 내고, 서버는 떨어뜨리지 않는다.**
+ * 🔴 **되살리지 말 것** — 옛 채점기는 재료가 없으면 그 기준을 통째로 빼고 **평균을 올렸다**.
+ *    「잴 게 없다」와 「잴 수 없다」를 못 갈라서 첫짐이 빨간불이 되거나, 못 쟀는데 꿀이 됐다.
  *
- *   문지기(통과/실패) — 실패 = 🔴 고정 + 사유. 자동 탈락 없음 (규칙 ①)
- *   축(0~100 × 가중치) — 우회 시급 · 버퍼 소비 · 적재 · 시급(첫짐)
- *   딱지(사실만) — 우회 절대값 · 통화 필요 · 블라인드 · 미확인
- *
- * 🔴 **이름이 `dryRun` 이지만 시험 주행이 아니다 — 이게 지금 쓰는 채점기다** (2026-08-28 확인).
- *
- *    여기 «서버 로그에만 나간다» 고 적혀 있었는데 **사실이 아니었다.** 실제로는
- *      ① `order_judgments` 에 색·점수·상세가 저장되고 (심사 1회, 불변)
- *      ② `dry.color` 가 문구를 «잡을 이유 / 버릴 이유» 로 가르고
- *      ③ 그 문구의 표식을 관제웹 카드가 읽어 **화면 색을 정한다**
- *    기사님이 보는 🔵🟢🟡🔴 가 이 함수의 결과다. 고칠 때 그렇게 알고 고쳐야 한다.
- *
- * ⚠️ 화면이 색을 **값이 아니라 문자열 표식**으로 받는 것이 이 구조의 가장 약한 곳이다 —
- *    문구를 바꾸면 색이 조용히 틀어진다. 고칠 것은 docs/지금/판정.md §7 에.
+ * 남은 것은 둘뿐이다 — 합짐의 **한계** 우회 계산과, 통과/실패 조건이 오가는 **규격**.
  */
-import type { JudgmentConfig } from './judgment';
 
 export interface DryRunGate {
     key: string;
@@ -30,176 +19,10 @@ export interface DryRunGate {
     why: string | null;
 }
 
-export interface DryRunAxis {
-    key: string;
-    name: string;
-    /** 0~100 */
-    score: number;
-    weight: number;
-    /** 판단 없이 사실만 — 화면·로그에 그대로 적는 문자열 */
-    raw: string;
-}
 
-export interface DryRunInput {
-    kind: 'first' | 'merge';
-    fare: number;
-    /** 합짐: 이 콜을 붙일 때 늘어나는 총 소요(주행 delta + 정차 delta, 분) */
-    detourExtraMin?: number | null;
-    /** 합짐: 붙인 뒤 경로의 최소 버퍼(기존 콜 정거장만, 분). null = 잴 약속이 없다 */
-    bufferAfterMin?: number | null;
-    /** 합짐: 붙이기 전 최소 버퍼 — 소비량 표시용 */
-    bufferBeforeMin?: number | null;
-    /** 첫짐: 접근 + 정차 + 배송 전체 소요(분) */
-    totalMinutes?: number | null;
-    /** 적재 여유 % (0~100). null = 모름 */
-    slotsFreePct?: number | null;
-    gates: DryRunGate[];
-    /** 판단 없는 사실 딱지 — 서버가 조립해 넘긴다 */
-    tags: string[];
-    // 🪦 `targetHourlyKrw` 입력 인자는 철거됐다 (2026-08-29) — 넘기는 곳이 0 이었다.
-    //    목표 시급의 원천은 **판정 기준 탭 하나**다 (규칙 ③). 호출마다 다른 값을 넣을 수
-    //    있게 두면 두 벌이 된다.
-}
 
-export interface DryRunVerdict {
-    /** '사고' = 문지기 실패 (🔴). 뜻은 "잡으면 사고" 하나 — 사유 문장이 가른다 */
-    color: '꿀' | '보통' | '똥' | '사고';
-    /** 축 가중 평균. 문지기 실패여도 계산해 둔다 — 캘리브레이션 재료 */
-    score: number;
-    axes: DryRunAxis[];
-    gates: DryRunGate[];
-    tags: string[];
-}
 
-const clamp = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
-const manwon = (krw: number) => (krw / 10_000).toFixed(1);
 
-export function scoreDryRun(input: DryRunInput, cfg: JudgmentConfig): DryRunVerdict {
-    // 🎯 기준은 전부 판정 기준 탭(DB)에서 — 기본값의 원천은 DB 다 (규칙 ③)
-    const target = cfg.target.hourlyKrw;   // 원천은 판정 기준 탭 하나 (규칙 ③)
-    const w = cfg.weights;
-    const axes: DryRunAxis[] = [];
-
-    if (input.kind === 'merge') {
-        // ── 우회 시급 — "같은 40분이라도 3.5만이면 좋고 5천원이면 나쁘다" (기사님 확정 ②)
-        if (input.detourExtraMin != null && input.detourExtraMin > 0) {
-            const hourly = (input.fare / input.detourExtraMin) * 60;
-            axes.push({
-                key: 'revenuePerDetour', name: '우회 시급',
-                score: clamp((hourly / target) * 100), weight: w.revenueDetour,
-                raw: `${manwon(input.fare)}만 ÷ ${input.detourExtraMin}분 = ${manwon(hourly)}만/h`,
-            });
-        } else if (input.detourExtraMin != null) {
-            // 우회 0분 이하 — 길목 콜. 우회가 없으니 만점 — 운임이 통째로 이득이다
-            axes.push({ key: 'revenuePerDetour', name: '우회 시급', score: 100, weight: w.revenueDetour,
-                        raw: `우회 ${input.detourExtraMin}분 — 길목` });
-        }
-
-        // ── 버퍼 소비 — 콜을 붙인 뒤 "남는 최소 버퍼"로 잰다 (곡선: 30분↑ 100 · 0분 40 · 음수 0)
-        if (input.bufferAfterMin != null) {
-            const a = input.bufferAfterMin;
-            const score = a >= 30 ? 100 : a >= 0 ? 40 + 2 * a : 0;
-            const spent = input.bufferBeforeMin != null ? input.bufferBeforeMin - a : null;
-            axes.push({
-                key: 'bufferCost', name: '버퍼 소비', score: clamp(score), weight: w.bufferCost,
-                raw: `${spent != null ? `소비 ${spent}분 → ` : ''}최소 ${a >= 0 ? '+' : ''}${a}분`,
-            });
-        }
-        // ── 적재 (합짐만) — 남을수록 다음 합짐 여지가 크다 (옛 축 보존).
-        //    첫짐은 빈 차라 늘 ~만점이 되어 시급 축을 희석한다 — 축에서 빼고 사실만 안다
-        if (input.slotsFreePct != null) {
-            axes.push({ key: 'loadCapacity', name: '적재', score: clamp(input.slotsFreePct), weight: w.slots,
-                        raw: `여유 ${Math.round(input.slotsFreePct)}%` });
-        }
-    } else {
-        // ── 시급 (첫짐) — 요금 ÷ (접근+정차+배송)
-        if (input.totalMinutes != null && input.totalMinutes > 0) {
-            const hourly = (input.fare / input.totalMinutes) * 60;
-            axes.push({
-                key: 'hourlyRate', name: '시급', score: clamp((hourly / target) * 100), weight: w.revenueDetour,
-                raw: `${manwon(input.fare)}만 ÷ ${input.totalMinutes}분 = ${manwon(hourly)}만/h`,
-            });
-        }
-    }
-
-    /**
-     * 🔒 **통과/실패 조건도 «가중치를 가진 축»이다** (기사님 확정 2026-08-29).
-     *
-     * 예전에는 이 둘이 축 밖의 «문지기»라 **끌 수가 없었다.** 그래서 경로만 보려는
-     * 검사에서도 끼어들어 색을 덮었다 (실측: 축점 57점인데 색은 «사고»).
-     * 기사님: *"이 테스트와 관련된 기준만 남기고 나머지 기준을 통과하게 하는 거야."*
-     *
-     * 이제 가중치를 준다 — 통과 100점 · 실패 0점.
-     *   · 가중치 0  → 축에서도 빠지고 **색을 덮지도 않는다** (검사 자체를 끈 것)
-     *   · 가중치 >0 → 평균에 들어가고, **실패하면 색은 여전히 «사고»** (안전은 안 뺀다)
-     *
-     * 🔴 안전을 뺀 것이 아니다. 끄는 것은 **명시적으로 0 을 넣었을 때만**이고,
-     *    기본값은 1 이라 예전과 똑같이 «사고» 가 뜬다.
-     */
-    const gateWeight = (key: string) =>
-        key === 'cargoTagCompat' ? w.cargoCompat : w.promiseGuard;
-    const activeGates = input.gates.filter(g => gateWeight(g.key) > 0);
-    for (const g of activeGates) {
-        axes.push({
-            key: g.key, name: g.name, score: g.pass ? 100 : 0, weight: gateWeight(g.key),
-            raw: g.pass ? '통과' : (g.why ?? '실패'),
-        });
-    }
-
-    /**
-     * ⚠️ **가중치 0 인 축도 목록에는 남긴다** — 색에는 안 들어가지만 **숫자는 계속 보인다.**
-     *    (`judgment.ts` 의 «0 이면 색에 반영하지 않는다 (표시는 계속한다)» 와 같은 약속)
-     *    끈 축의 값도 캘리브레이션 재료라 버리지 않는다.
-     *    🔴 2026-08-29 에 이걸 모르고 «끈 축은 목록에서도 뺀다» 로 고쳤다가
-     *       `judgment.test.ts` 가 잡았다 — 있던 규칙을 부수는 변경이었다.
-     */
-    const totalW = axes.reduce((a, x) => a + x.weight, 0);
-    const score = totalW > 0
-        ? Math.round(axes.reduce((a, x) => a + x.score * x.weight, 0) / totalW)
-        : 0;
-
-    /**
-     * 🔴 **못 쟀으면 색을 지어내지 않는다** (2026-08-29 · 규칙 ⑤).
-     *
-     * 잴 값이 없으면 그 기준을 아예 안 만든다 → 분모가 준다. 극단에서 **양쪽으로**
-     * 색이 지어졌다 (실측):
-     *   · 기준 0개  → 🟡 **똥 0점**  — 10만원짜리도 버린다. *"모르는 값을 불리하게
-     *     지어내 탈락시키는 건 구분이 아니라 포기다"* (규칙 ⑤)
-     *   · 통과한 조건 하나만 → 🔵 **꿀 100점** — 아무것도 못 쟀는데 최고점.
-     *     기사님은 **색만 보고 1~2초에 누른다**(규칙 ⑤-3). 이쪽이 더 위험하다.
-     *
-     * 「통과/실패」 조건은 *"이 콜이 얼마나 좋은가"* 가 아니라 *"사고가 나는가"* 를
-     * 답한다. 그래서 **혼자서 점수를 만들지 못한다** — 좋고 나쁨을 재는 것은
-     * 돈·버퍼·적재 쪽이다. 그게 하나도 없으면 못 잰 것이다.
-     *
-     * ⚠️ 못 잰 것과 깨진 조건이 **같은 🔴 색**을 쓴다. 이미 아는 숙제다 (판정.md §7).
-     *    여기서는 **딱지로 가른다** — 「잴 수 없음」이 붙었는지 보면 된다.
-     */
-    const gateKeys = new Set(input.gates.map(g => g.key));
-    const measured = axes.filter(a => !gateKeys.has(a.key) && a.weight > 0);
-    const tags = [...input.tags];
-    if (measured.length === 0) tags.push('잴 수 없음 — 재료가 없어 점수를 못 냅니다');
-
-    // 켜 둔 조건이 깨지면 점수와 무관하게 «사고» — 끈 조건(가중치 0)은 색을 덮지 않는다
-    const failed = activeGates.some(g => !g.pass);
-    const color: DryRunVerdict['color'] = failed || measured.length === 0 ? '사고'
-        : score >= cfg.color.honeyMin ? '꿀'
-        : score >= cfg.color.normalMin ? '보통' : '똥';
-
-    return { color, score, axes, gates: input.gates, tags };
-}
-
-/**
- * 🧮 **합짐의 우회는 한계 비용이다 — 첫짐 대비 누적이 아니다** (문제지 캘리브레이션 1차 · 2026-08-21)
- *
- * 카카오 `timeDiffMin` 은 **첫짐 단독 대비**라, 나중에 온 후보일수록 앞 합짐들의
- * 비용까지 뒤집어쓴다. 문제지 실측: 16번의 delta +189분 — 진짜 한계 비용은
- * 294(4콜) − 251(직전 3콜) = **43분**이었다. 이 부풀림이 옛 판정 낙제(+162분)와
- * dryRun 1차의 15·16 🟢(합격선 🔵) 둘 다의 원인이다.
- *
- * 직전 경로의 총 소요를 알면 그걸 빼고, 모르면(첫 합짐 — 직전 = 첫짐 단독) 카카오
- * delta 를 그대로 쓴다 — 그때는 둘이 같은 값이다.
- */
 export function marginalDetourMin(
     mergedTotalMin: number,
     prevRouteTotalMin: number | null,
@@ -209,19 +32,3 @@ export function marginalDetourMin(
 }
 
 /** 로그 한 줄 — `🧪 [dryRun] 🟢 64점 (우회 시급 2.6만/h · 버퍼 최소 +18분) · 딱지: 통화 필수` */
-export function describeDryRun(v: DryRunVerdict): string {
-    const emoji = v.color === '꿀' ? '🔵' : v.color === '보통' ? '🟢' : v.color === '똥' ? '🟡' : '🔴';
-    const gates = v.gates.filter(g => !g.pass).map(g => g.why ?? g.name);
-    /**
-     * 🔴 **못 쟀을 때 «0점»이라고 쓰지 않는다** (규칙 ④ — 없는 숫자를 지어내지 않는다).
-     *    0 은 «나쁘다»로 읽힌다. 못 잰 것은 나쁜 게 아니라 **못 잰 것**이다.
-     */
-    const unmeasured = v.tags.some(t => t.startsWith('잴 수 없음'));
-    const head = gates.length
-        ? `${emoji} 잡으면 사고 — ${gates.join(' · ')} (축점 ${v.score})`
-        : unmeasured ? `${emoji} 잴 수 없음`
-        : `${emoji} ${v.score}점`;
-    const axes = v.axes.map(a => `${a.name} ${a.raw}(${a.score})`).join(' · ');
-    const tags = v.tags.length ? ` · 딱지: ${v.tags.join(' · ')}` : '';
-    return `${head}${axes ? ` — ${axes}` : ''}${tags}`;
-}

@@ -1,4 +1,5 @@
-import { scoreDryRun, DEFAULT_JUDGMENT } from '@onedal/shared';
+import { judge, CRITERIA, DEFAULT_JUDGMENT } from '@onedal/shared';
+import type { JudgeFacts } from '@onedal/shared';
 import type { JudgmentConfig } from '@onedal/shared';
 
 /**
@@ -27,16 +28,12 @@ const cfg = (over: Partial<JudgmentConfig['weights']>): JudgmentConfig => ({
 });
 
 /** 합짐 한 건 — 우회는 아주 좋고(만점권), 약속은 깨진다 */
-const 우회좋고_약속깨짐 = {
-    kind: 'merge' as const,
-    fare: 50_000,
-    detourExtraMin: 8,          // 5만 ÷ 8분 = 37.5만/h → 목표 3만/h 대비 만점
-    bufferAfterMin: 30,         // 버퍼도 만점
-    slotsFreePct: 100,          // 적재도 만점
-    gates: [
-        { key: 'routePromiseGuard', name: '기존 콜 약속 보존', pass: false, why: '첫짐 하차 약속이 12분 깨집니다' },
-    ],
-    tags: [],
+const 우회좋고_약속깨짐: JudgeFacts = {
+    money: { fare: 50_000, extraMinutes: 8 },      // 5만 ÷ 8분 = 37.5만/h → 만점
+    promise: { hasExistingCalls: true, bufferAfterMin: 30,
+               lateStops: [{ label: '첫짐 하차 약속이 12분 깨집니다', lateMinutes: null }] },
+    space: { freePct: 100, hasLoad: true },        // 적재도 만점
+    nature: { conflicts: [], excludedHits: [], hasLoad: true },
 };
 
 describe('판정 기준 다섯 — 가중치로 켜고 끈다', () => {
@@ -47,15 +44,20 @@ describe('판정 기준 다섯 — 가중치로 켜고 끈다', () => {
     });
 
     it('🔴 약속 보존을 켜 두면 — 다른 축이 만점이어도 색은 «사고»', () => {
-        const v = scoreDryRun(우회좋고_약속깨짐, cfg({}));
+        const v = judge(CRITERIA, 우회좋고_약속깨짐, cfg({}));
         expect(v.color).toBe('사고');
-        expect(v.axes.find(a => a.key === 'routePromiseGuard')?.score).toBe(0);
+        expect((v.criteria.find(a => a.key === 'promise')!.outcome as any).score).toBe(0);
     });
 
     it('🔴 약속 보존을 끄면(0) — 축에서도 빠지고 색을 덮지도 않는다', () => {
-        const v = scoreDryRun(우회좋고_약속깨짐, cfg({ promiseGuard: 0 }));
+        const v = judge(CRITERIA, 우회좋고_약속깨짐, cfg({ promiseGuard: 0 }));
         expect(v.color).not.toBe('사고');
-        expect(v.axes.some(a => a.key === 'routePromiseGuard')).toBe(false);   // 끈 조건은 축으로도 안 만든다
+        // 🔴 **끈 기준도 목록에는 남는다** (2026-08-29 갈아탄 뒤 규칙이 하나로 정리됨) —
+        //    화면이 «조건 전수»를 그려야 하므로 «안 봄 (가중치 0)» 으로 보인다.
+        //    색에 안 들어갈 뿐이다.
+        const 약속줄 = v.criteria.find(a => a.key === 'promise')!;
+        expect(약속줄.weight).toBe(0);
+        expect(약속줄.outcome).toEqual({ kind: 'nothing', why: '안 봄 (가중치 0)' });
         expect(v.score).toBe(100);   // 나머지 셋이 만점이니 만점이 나와야 한다
     });
 
@@ -64,30 +66,36 @@ describe('판정 기준 다섯 — 가중치로 켜고 끈다', () => {
      * 경로만 볼 때는 **순증 대비 우회만** 켜고 나머지를 끈다.
      */
     it('🔴 경로만 볼 때 — 우회 하나만 켜면 그 축 점수가 곧 총점이다', () => {
-        const 우회보통 = { ...우회좋고_약속깨짐, detourExtraMin: 100, bufferAfterMin: -50, slotsFreePct: 0 };
-        const v = scoreDryRun(우회보통, cfg({ bufferCost: 0, slots: 0, promiseGuard: 0, cargoCompat: 0 }));
+        const 우회보통: JudgeFacts = {
+            money: { fare: 50_000, extraMinutes: 100 },
+            promise: { hasExistingCalls: true, lateStops: [], bufferAfterMin: -50 },
+            space: { freePct: 0, hasLoad: true },
+            nature: { conflicts: [], excludedHits: [], hasLoad: true },
+        };
+        const v = judge(CRITERIA, 우회보통, cfg({ bufferCost: 0, slots: 0, promiseGuard: 0, cargoCompat: 0 }));
         // ⚠️ 끈 축도 **목록에는 남는다** (숫자는 계속 보인다 — judgment.ts 의 약속).
         //    색에 들어가는 것은 가중치가 있는 축뿐이다.
-        const 색에드는축 = v.axes.filter(a => a.weight > 0);
+        const 색에드는축 = v.criteria.filter(a => a.weight > 0 && a.outcome.kind === 'scored');
         expect(색에드는축).toHaveLength(1);
-        expect(색에드는축[0].key).toBe('revenuePerDetour');
-        expect(v.score).toBe(색에드는축[0].score);   // 축이 하나면 그 점수가 총점
+        expect(색에드는축[0].key).toBe('money');
+        expect(v.score).toBe((색에드는축[0].outcome as any).score);   // 축이 하나면 그 점수가 총점
     });
 
     it('최적 경로면 만점이 나온다 — 관련 없는 기준을 끈 상태에서', () => {
-        const v = scoreDryRun(우회좋고_약속깨짐, cfg({ bufferCost: 0, slots: 0, promiseGuard: 0, cargoCompat: 0 }));
+        const v = judge(CRITERIA, 우회좋고_약속깨짐, cfg({ bufferCost: 0, slots: 0, promiseGuard: 0, cargoCompat: 0 }));
         expect(v.score).toBe(100);
         expect(v.color).toBe('꿀');
     });
 
     it('짐 동승도 따로 끈다 — 적재(공간)와 다른 축이다', () => {
-        const 동승불가 = {
+        const 동승불가: JudgeFacts = {
             ...우회좋고_약속깨짐,
-            gates: [{ key: 'cargoTagCompat', name: '짐 동승', pass: false, why: '위험물+식료품' }],
+            promise: { hasExistingCalls: true, lateStops: [], bufferAfterMin: 30 },
+            nature: { conflicts: [['위험물', '식료품']], excludedHits: [], hasLoad: true },
         };
-        expect(scoreDryRun(동승불가, cfg({})).color).toBe('사고');
-        expect(scoreDryRun(동승불가, cfg({ cargoCompat: 0 })).color).not.toBe('사고');
+        expect(judge(CRITERIA, 동승불가, cfg({})).color).toBe('사고');
+        expect(judge(CRITERIA, 동승불가, cfg({ cargoCompat: 0 })).color).not.toBe('사고');
         // 적재를 꺼도 짐 동승은 살아 있다 — 둘은 다른 축이다
-        expect(scoreDryRun(동승불가, cfg({ slots: 0 })).color).toBe('사고');
+        expect(judge(CRITERIA, 동승불가, cfg({ slots: 0 })).color).toBe('사고');
     });
 });

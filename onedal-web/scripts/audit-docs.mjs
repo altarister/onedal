@@ -58,9 +58,21 @@ const DOCS = ALL.filter(p => {
 });
 
 /** 코드 전문 — 주석까지 포함한다. 문서가 가리키는 이름이 «있기만» 하면 되므로 */
+/**
+ * 🔴 **주석은 걷어낸다** (2026-08-29). 예전엔 통째로 이어 붙여서 **묘비 주석**
+ *    («`scoreDryRun` 은 철거됐다»)에 이름이 남아 있으면 «코드에 있다»로 봤다.
+ *    그래서 문서가 철거된 함수를 가리켜도 감사가 통과했다.
+ */
+const 코드만보기 = (t) => t.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
+/**
+ * 🔴 **검사 파일도 뺀다** (2026-08-29). 검사가 «이 이름이 코드에 없어야 한다» 고
+ *    정규식으로 적어 두면, 그 글자 때문에 **철거된 이름이 «살아 있다»로 보인다.**
+ *    실제로 `scoreDryRun` 이 그랬다. 문서가 물어보는 것은 «제품에 있는가» 다.
+ */
 const CODE = ALL
-    .filter(p => /\.(ts|tsx|kt|mjs|cjs|js)$/.test(p) && !p.includes('/dist/'))
-    .map(p => { try { return readFileSync(p, 'utf8'); } catch { return ''; } })
+    .filter(p => /\.(ts|tsx|kt|mjs|cjs|js)$/.test(p) && !p.includes('/dist/')
+                 && !/[\\/]tests?[\\/]|\.test\./.test(p))
+    .map(p => { try { return 코드만보기(readFileSync(p, 'utf8')); } catch { return ''; } })
     .join('\n');
 
 let problems = 0;
@@ -105,11 +117,18 @@ say('② 사라진 식별자', '문서가 말하는 상수·상태값·칸이 �
     // 오탐을 줄이려고 «코드처럼 생긴 것»만 본다:
     //   ALL_CAPS_SNAKE (상태값·상수) · snake_case (DB 칸) · camelCase + 단위 접미사
     const re = /`([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+|[a-z][a-z0-9]*(?:_[a-z0-9]+)+|[a-z][A-Za-z0-9]*(?:Km|Min|Ms|Pct|State|At))`/g;
+    /**
+     * 🔴 **`함수()` 꼴도 본다** (2026-08-29 신설). 위 regex 는 `snake_case`·`ALL_CAPS` 만
+     *    잡아서, 판정을 갈아탄 뒤 문서가 여전히 `scoreDryRun()` 을 가리켰는데 **네 감사가
+     *    다 통과했다.** 괄호가 붙은 이름은 «우리가 부르는 것»이라 오탐이 거의 없다.
+     */
+    const reFn = /`([A-Za-z_$][\w$]*)\(\)`/g;
     /** 우리 코드가 아닌 것 — 이유 없는 예외는 만들지 않는다 */
     const NOT_OURS = [
         /^ACCESS_|^TYPE_VIEW_|^FLAG_/,          // 안드로이드 SDK 상수
         /^VITE_|^EC2_|^GOOGLE_|^ALLOW_|_KEY$|_SECRET$/,  // 환경변수·시크릿 (코드에 문자열로 안 산다)
         /^worker_threads$|^child_process$/,     // Node 내장 모듈
+        /^disallowed_useragent$/,               // 구글이 돌려주는 에러 문자열 (우리 코드가 아니다)
     ];
     const bad = new Map();
     for (const d of DOCS) {
@@ -118,12 +137,18 @@ say('② 사라진 식별자', '문서가 말하는 상수·상태값·칸이 �
         //    (①·③·④ 는 그대로 건다 — «없는 파일을 가리키는 것»과 «옛말»은 거기서도 문제다)
         if (r.startsWith('docs/기획/') || r === 'todo.md') continue;
         const s = readFileSync(d, 'utf8');
-        for (const m of new Set([...s.matchAll(re)].map(x => x[1]))) {
+        const 이름들 = new Set([...s.matchAll(re)].map(x => x[1]));
+        for (const m of [...s.matchAll(reFn)].map(x => x[1])) 이름들.add(m);
+        for (const m of 이름들) {
             if (CODE.includes(m) || NOT_OURS.some(p => p.test(m))) continue;
             // 대응표·역사 서술·«앞으로 만들 것»·«지울 것» 은 코드에 없는 게 맞다.
             // 그 이름이 나오는 줄이 **전부** 그런 문맥이면 문서가 맞는 것이다
             const lines = s.split('\n').filter(l => l.includes(m));
-            const ok = /→|폐기|옛|그때|예전|없다|사라|바뀌|이었|예정|후보|한다면|삭제|만들|신설|제안|분리|기록|\[x\]/;
+            //    «얹는다·붙인다» 도 앞으로 만들 것이다. «만 보므로» 는 옛 이름을 세는 문장이다
+            const ok = /→|폐기|옛|그때|예전|없다|사라|바뀌|이었|예정|후보|한다면|삭제|만들|신설|제안|분리|기록|얹|만 보므로|철거|되살|철거|되살|\[x\]/;
+            // 🔴 **문서 전체가 «옛 설계의 기록»이면** 그 안의 이름은 코드에 없는 게 맞다.
+            //    (`안전모드_설계` 는 머리말이 «전부 0곳» 이라고 스스로 적어 뒀다)
+            if (/^docs\/기록\//.test(r) && /0곳|철거|없앴|폐기/.test(s.slice(0, 800))) continue;
             if (lines.every(l => ok.test(l))) continue;
             if (!bad.has(m)) bad.set(m, new Set());
             bad.get(m).add(r);
@@ -198,6 +223,72 @@ say('④ 죽은 링크', '문서→문서 · 코드→문서');
             if (existsSync(join(ROOT, m))) continue;
             problems++; bad++;
             console.log(`  ${C.r}⚠${C.x} ${rel(p)} ${C.d}→ ${m}${C.x}`);
+        }
+    }
+    if (!bad) console.log(`  ${C.g}없음 ✅${C.x}`);
+}
+
+// ═══════════════════════════ ⑤ 손 뗀 자리
+say('⑤ 손 뗀 자리', '문서가 «이 파일이 한다»는 일을 그 파일이 아직 하는가');
+{
+    /**
+     * 🔴 **왜 필요한가** — 2026-08-29 판정을 갈아탄 뒤, `docs/지금/판정.md` 가
+     *    여전히 «채점기 = `shared/src/dryRun.ts`» 라고 가리켰다. 그런데 감사는
+     *    **통과했다**:
+     *      ① 없는 파일 — `dryRun.ts` 는 아직 있다
+     *      ② 사라진 식별자 — `scoreDryRun` 도 아직 export 된다
+     *      ③ 옛말 — 「문지기·축」은 용어집 금지어가 아니다 (개발 중에 생긴 말)
+     *    **«파일은 있는데 그 일을 더 이상 안 한다»** 를 볼 눈이 없었다.
+     *
+     * 어떻게 보나: 문서가 «역할 = 파일» 이라고 적은 표 줄을 찾아, **제품 코드가
+     * 그 파일에서 무언가를 실제로 들여오는지** 본다. 아무도 안 들여오면 손 뗀 것이다.
+     *
+     * ⚠️ 검사·문서·자기 자신은 세지 않는다 — 검사만 쓰는 파일은 «제품이 손 뗀 것»이 맞다.
+     */
+    const PROD = ALL.filter(p => /\.(ts|tsx)$/.test(p)
+        && !/[\\/]tests?[\\/]|\.test\.|[\\/]dist[\\/]|scripts[\\/]/.test(p));
+    /**
+     * 🔴 **«들여오는가»로는 부족하다.** `shared/src/index.ts` 같은 **재수출 통**이 있으면
+     *    아무도 안 부르는 파일도 «살아 있다»로 보인다 — 처음에 이걸로 못 잡았다.
+     *    그래서 **그 파일이 내놓은 이름을 제품이 실제로 부르는가**를 본다.
+     *    통(`index.ts`)과 자기 자신은 세지 않는다.
+     */
+    const 쓰이는가 = (file) => {
+        const src = readFileSync(file, 'utf8');
+        const names = [...src.matchAll(/^export\s+(?:async\s+)?(?:function|const)\s+(\w+)/gm)].map(x => x[1]);
+        if (!names.length) return true;                        // 타입만 있는 파일은 판단하지 않는다
+        /**
+         * 🔴 **재수출 통만 뺀다 — 진짜 소비자는 빼지 않는다** (2026-08-29 오탐에서 배움).
+         *    처음엔 `index.ts` 를 통째로 뺐다가 `server/src/index.ts`(라우터를 실제로
+         *    `app.use` 하는 곳)까지 빠져 **멀쩡한 `routes/health.ts` 를 «손 뗀 자리»** 라 했다.
+         *    통은 «export * from» 만 하는 파일이다 — 그것으로 가른다.
+         */
+        const 재수출통 = (p) => /^\s*export\s+\*\s+from/m.test(readFileSync(p, 'utf8'));
+        const 남들 = PROD.filter(p => p !== file && !재수출통(p));
+        /**
+         * 🔴 **«부른다»만 보면 안 된다** (2026-08-29 두 번째 오탐).
+         *    `CRITERIA` 는 부르는 게 아니라 `judge(CRITERIA, …)` 로 **넘기는 값**이다.
+         *    이름이 코드에 **나오는지**를 본다 — 주석은 걷어낸다 (주석은 역사일 수 있다).
+         */
+        const 코드만 = (t) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+        return 남들.some(p => {
+            const t = 코드만(readFileSync(p, 'utf8'));
+            return names.some(n => new RegExp(`\\b${n}\\b`).test(t));
+        });
+    };
+    let bad = 0;
+    for (const d of DOCS.filter(x => x.includes('/docs/지금/'))) {
+        const s = readFileSync(d, 'utf8');
+        // 표의 «… | `경로/파일.ts` |» 꼴만 본다 — 산문 속 언급은 역사일 수 있다
+        for (const m of new Set([...s.matchAll(/\|[^|\n]*\|\s*`([\w./-]+\.tsx?)`\s*\|/g)].map(x => x[1]))) {
+            // 🔴 «shared/src/dryRun.ts» 처럼 앱 이름이 앞에 붙은 것과, «routes/x.ts» 처럼
+            //    앱 안 상대 경로로 적힌 것을 둘 다 받는다 (처음에 이걸 틀려 못 잡았다)
+            const full = [m, `server/src/${m}`, `shared/src/${m}`, `client-app/src/${m}`]
+                .map(x => join(WEB, x)).find(existsSync);
+            if (!full) continue;                       // ① 이 이미 잡는다
+            if (쓰이는가(full)) continue;
+            problems++; bad++;
+            console.log(`  ${C.r}⚠${C.x} ${rel(d)} ${C.d}→ \`${m}\` 가 내놓은 것을 제품이 아무도 안 부른다 (손 뗀 자리)${C.x}`);
         }
     }
     if (!bad) console.log(`  ${C.g}없음 ✅${C.x}`);

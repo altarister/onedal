@@ -1,7 +1,7 @@
 import { readFileSync } from "fs";
 import { initGeoService } from "../../src/services/geoService";
 import { join } from "path";
-import { scoreDryRun, describeDryRun, DEFAULT_JUDGMENT, parseCapturedAt, deriveCallTiming } from "@onedal/shared";
+import { judge, CRITERIA, describe as 판정설명, DEFAULT_JUDGMENT, parseCapturedAt, deriveCallTiming } from "@onedal/shared";
 import { DWELL_UNKNOWN_PICKUP_MINUTES, DWELL_UNKNOWN_DROPOFF_MINUTES, allowedDetourMinutes, dwellMinutes } from "@onedal/shared";
 
 const SERVER = join(__dirname, "../../src");
@@ -20,13 +20,18 @@ const codeOnly = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/
 describe('실측 콜 회귀 — 옛 사고가 새 채점기에서 재발하지 않는다', () => {
 
     /** 그날 실제로 있었던 콜 (2026-08-15) — 99,000원 · 한계 우회 +6분 + 정차 25분 */
-    it('🔴 99,000원 · +31분이면 꿀이다 (옛 채점기는 마감 여유 0 으로 뭉개 똥이었다)', () => {
-        const v = scoreDryRun({ kind: 'merge', fare: 99_000,
-            detourExtraMin: 6 + DWELL_UNKNOWN_PICKUP_MINUTES + DWELL_UNKNOWN_DROPOFF_MINUTES,
-            bufferAfterMin: null, slotsFreePct: 60,
-            gates: [], tags: ['정차 미확인(일반값)'] }, DEFAULT_JUDGMENT);
-        expect(v.color).toBe('꿀');           // 9.9만 ÷ 31분 = 19.2만/h
-        expect(describeDryRun(v)).toContain('미확인');
+    it('🔴 99,000원 · +31분이면 「돈」이 만점이다 (옛 채점기는 마감 여유 0 으로 뭉개 똥이었다)', () => {
+        const v = judge(CRITERIA, {
+            money: { fare: 99_000, extraMinutes: 6 + DWELL_UNKNOWN_PICKUP_MINUTES + DWELL_UNKNOWN_DROPOFF_MINUTES },
+            promise: { hasExistingCalls: true, lateStops: [], bufferAfterMin: null },
+            space: { freePct: 60, hasLoad: true },
+            nature: { conflicts: [], excludedHits: [], hasLoad: true },
+            notes: ['정차 미확인(일반값)'],
+        }, DEFAULT_JUDGMENT);
+        // 9.9만 ÷ 31분 = 19.2만/h — 「돈」은 만점이다
+        expect((v.criteria.find(c => c.key === 'money')!.outcome as any).score).toBe(100);
+        // ⚠️ 여유를 못 재면 색은 🔴 다 (3단계에서 정한 것) — 옛 채점기는 그 기준을 빼고 꿀을 냈다
+        expect(판정설명(v)).toContain('미확인');
     });
 
     it('상하차 일반값이 25분이다 (상차 15 + 하차 10 · 예전 40분)', () => {
@@ -36,20 +41,28 @@ describe('실측 콜 회귀 — 옛 사고가 새 채점기에서 재발하지 �
 
     it('첫짐 — 운행시간이 아무리 길어도 시급이 좋으면 꿀이다 (2026-08-18 실측 그 콜)', () => {
         // 100,000원 · 98분(+정차 25) — 옛 시간 기준(40/90분)으로는 0점 똥이었다
-        const v = scoreDryRun({ kind: 'first', fare: 100_000, totalMinutes: 123,
-            gates: [], tags: [] }, DEFAULT_JUDGMENT);
+        const v = judge(CRITERIA, {
+            money: { fare: 100_000, extraMinutes: 123 },
+            promise: { hasExistingCalls: false, lateStops: [], bufferAfterMin: null },
+            space: { freePct: null, hasLoad: false },
+            nature: { conflicts: [], excludedHits: [], hasLoad: false },
+        }, DEFAULT_JUDGMENT);
         expect(v.color).toBe('꿀');           // 4.9만/h ≥ 목표 3.0만
     });
 
-    it('가중치 0 인 축은 색에 반영되지 않는다 (표시는 계속한다)', () => {
+    it('가중치 0 인 기준은 색에 반영되지 않는다 (표시는 계속한다)', () => {
         const cfg = { ...DEFAULT_JUDGMENT,
             weights: { ...DEFAULT_JUDGMENT.weights, slots: 0 } };
-        const base = { kind: 'merge' as const, fare: 35_000, detourExtraMin: 40,
-            bufferAfterMin: null, gates: [], tags: [] };
-        const withBadSlots = scoreDryRun({ ...base, slotsFreePct: 0 }, cfg);
-        const withoutSlots = scoreDryRun(base, cfg);
-        expect(withBadSlots.score).toBe(withoutSlots.score);          // 색 무관
-        expect(withBadSlots.axes.some(a => a.key === 'loadCapacity')).toBe(true);  // 표시는 남는다
+        const 사실 = (freePct: number | null) => ({
+            money: { fare: 35_000, extraMinutes: 40 },
+            promise: { hasExistingCalls: true, lateStops: [], bufferAfterMin: 20 },
+            space: { freePct, hasLoad: true },
+            nature: { conflicts: [], excludedHits: [], hasLoad: true },
+        });
+        const 자리나쁨 = judge(CRITERIA, 사실(0), cfg);
+        const 자리좋음 = judge(CRITERIA, 사실(100), cfg);
+        expect(자리나쁨.score).toBe(자리좋음.score);                    // 색 무관
+        expect(자리나쁨.criteria.some(c => c.key === 'space')).toBe(true);  // 표시는 남는다
     });
 
     it('🔴 allowedDetourMinutes 가 음수를 0 으로 깎지 않는다', () => {

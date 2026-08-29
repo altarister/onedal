@@ -1,7 +1,7 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 import { JUDGMENT_FIELDS, judgmentDefaults, judgmentFromRow, judgmentToRow,
-         DEFAULT_JUDGMENT, scoreDryRun, dwellMinutes } from "@onedal/shared";
+         DEFAULT_JUDGMENT, judge, CRITERIA, dwellMinutes } from "@onedal/shared";
 
 const read = (rel: string) => readFileSync(join(__dirname, "../../src", rel), "utf8");
 const codeOnly = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
@@ -58,13 +58,18 @@ describe('판정 기준 — 표 하나가 DB·화면·기본값을 다 만든다
 
 describe('DB 값이 실제로 색을 바꾼다', () => {
 
-    const 콜 = { kind: 'merge' as const, fare: 99_000, detourExtraMin: 31,
-                bufferAfterMin: null, slotsFreePct: 60, gates: [], tags: [] };
+    /** 2026-08-15 실측 콜 — 9.9만 · 우회 31분 */
+    const 콜 = {
+        money: { fare: 99_000, extraMinutes: 31 },
+        promise: { hasExistingCalls: true, lateStops: [], bufferAfterMin: 20 },
+        space: { freePct: 60, hasLoad: true },
+        nature: { conflicts: [], excludedHits: [], hasLoad: true },
+    };
 
     it('🔴 기준을 빡빡하게 바꾸면 같은 콜의 색이 바뀐다', () => {
-        expect(scoreDryRun(콜, DEFAULT_JUDGMENT).color).toBe('꿀');
+        expect(judge(CRITERIA, 콜, DEFAULT_JUDGMENT).color).toBe('꿀');
         const 빡빡 = judgmentFromRow({ ...judgmentToRow(DEFAULT_JUDGMENT), color_honey_min: 99 });
-        expect(scoreDryRun(콜, 빡빡).color).not.toBe('꿀');
+        expect(judge(CRITERIA, 콜, 빡빡).color).not.toBe('꿀');
     });
 
     it('🔴 상하차 일반값을 바꾸면 계산이 따라온다 (DB 컬럼이 죽어 있지 않다)', () => {
