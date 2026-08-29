@@ -55,22 +55,43 @@ const check = (name, ok, detail = '') => {
 const say = m => console.log(m);
 
 /**
- * ── 문제지 (서 → 동 한 방향) ─────────────────────────────
- * 좌표는 지어낸 것이 아니다 — 지오코딩 캐시의 실측값이다.
+ * ── 문제지 — **기사님 운행 축** (초월 → 곤지암 → 신둔 → 이천, 서→동 한 방향) ────────
  *
- *   집(2.5km) ─ 초월읍상차 ─(4.9km)─ 곤지암하차 ─(26.0km)─ 가남상차 ─(6.8km)─ 세종대왕면하차
+ * 기사님(2026-08-29): *"1번 콜과 2번 콜이 너무 멀었어"* — 앞 문제지는 곤지암↔가남이
+ * 26km 라 «합짐» 이라기보다 «다른 동네» 였다. 실제 운행은 **좁은 구간에서 여러 콜을
+ * 줍는 것**이다. 그래서 기사님이 직접 뽑아 주신 7개 지점으로 다시 짰다.
  *
- * 🔴 합짐이 붙는 순간 기사님은 **곤지암 3.6km 앞**에 있고, 가남은 **29.2km** 밖이다.
- *    길목부터 : 곤지암하차 → 가남상차 → 세종대왕면   36.4km
- *    상차먼저 : 가남상차 → 세종대왕면 → 곤지암하차   59.5km  ← 23.1km 더 간다
+ * 좌표는 전부 **카카오가 그 이름으로 돌려준 실측값**이다 (주소검증 스킬 통과).
+ * ```
+ *   집 ─2.2─ 모다 ─3.7─ 성당 ─6.2─ 신둔 ─2.2─ 이조 ─1.6─ 제일 ─1.8─ 터미널
+ *                                                          합계 17.6 km
+ * ```
+ *
+ * 🔴 **3콜을 한 경로에 싣는다** (전부 다마스 30박스 = 90/100, 다 들어간다):
+ * ```
+ *   ① 첫짐   모다 상차 → 신둔 하차
+ *   ② 합짐1  성당 상차 → 제일 하차     ← 모다에서 실은 뒤, 신둔 가는 길에 붙는다
+ *   ③ 합짐2  이조 상차 → 터미널 하차   ← 신둔 하차 **2.4km 앞**에서 붙는다
+ * ```
+ * 합짐2 가 붙는 순간의 두 순서 (check_scenario.py 검산):
+ *   길목부터  신둔하차 → 이조상차 → 제일하차 → 터미널    7.9 km
+ *   상차먼저  이조상차 → 제일하차 → 터미널 → 신둔하차   13.3 km  ← 5.4km 더 간다
+ *
+ * ⚠️ 앞 문제지와 노리는 곳이 다르다. 그건 «경로 순서» 하나였고, 여기는 **정거장 6개**로
+ *    `sectionStops` ↔ `sectionDriveMin` 정렬을 압박하고 **3콜 적재**까지 함께 본다.
  */
-const 집 = { x: 127.2600, y: 37.3900 };
-const 초월읍 = { x: 127.2880, y: 37.3852 };   // 첫짐 상차지
-const 곤지암 = { x: 127.3366, y: 37.3648 };   // 첫짐 하차지  ← 코앞인데 밀리던 자리
-const 가남 = { x: 127.5768, y: 37.2302 };     // 합짐 상차지  ← 30km 밖
-const 세종대왕면 = { x: 127.5853, y: 37.2911 }; // 합짐 하차지
-/** 합짐이 들어오는 지점 — 곤지암으로 가는 길 위, 3.6km 앞 */
-const 주행중 = { x: 127.2960, y: 37.3690 };
+const 집 = { x: 127.294440, y: 37.376687 };       // 초월역동광뷰엘아파트 (출발)
+const 모다 = { x: 127.312587, y: 37.363298 };     // 모다아울렛 곤지암점    — 첫짐 상차
+const 성당 = { x: 127.348642, y: 37.346213 };     // 곤지암성당            — 합짐1 상차
+const 신둔 = { x: 127.401207, y: 37.309733 };     // 신둔농협하나로마트 본점 — 첫짐 하차
+const 이조 = { x: 127.416293, y: 37.294522 };     // 이조갈비함흥냉면       — 합짐2 상차
+const 제일 = { x: 127.429230, y: 37.285068 };     // 이천제일식자재마트      — 합짐1 하차
+const 터미널 = { x: 127.446936, y: 37.277421 };   // 이천터미널            — 합짐2 하차
+
+/** 합짐1 이 붙는 지점 — 모다에서 상차하고 성당 쪽으로 가는 길 */
+const 주행중1 = { x: 127.330, y: 37.355 };
+/** 합짐2 가 붙는 지점 — 신둔 하차지 2.4km 앞 */
+const 주행중2 = { x: 127.380, y: 37.323 };
 
 // ─────────────────────────── 서버 ───────────────────────────
 function seed() {
@@ -128,7 +149,7 @@ const token = async () => (await (await fetch(`http://localhost:${PORT}/api/auth
 async function 앱이올린다(deviceId, id, pk, dp, label) {
     const order = {
         id, pickup: `모의-${label}-상차`, dropoff: `모의-${label}-하차`,
-        fare: 50000, vehicleType: '1t', paymentType: '신용',
+        fare: 50000, vehicleType: '다마스', paymentType: '신용',
         timestamp: new Date().toISOString(), itemDescription: '모의 주행 콜',
         pickupX: pk.x, pickupY: pk.y, dropoffX: dp.x, dropoffY: dp.y,
         deliveryDistance: 30,
@@ -194,49 +215,69 @@ async function main() {
         };
 
         // ── ① 아침: 첫짐을 잡는다 ────────────────────────────
-        say('═══ ① 아침 — 첫짐을 잡는다 (초월읍 상차 → 곤지암 하차) ═══');
+        say('═══ ① 아침 — 첫짐 (모다아울렛 상차 → 신둔농협 하차) ═══');
         s.emit('dashboard-gps-update', { lat: 집.y, lng: 집.x, source: 'mock' });
         await wait(600);
-        await 앱이올린다(DEVICE, '첫짐', 초월읍, 곤지암, '첫짐');
+        await 앱이올린다(DEVICE, '첫짐', 모다, 신둔, '첫짐');
         await 결재('첫짐');
         check('첫짐이 세션에 실렸다', 순서().length === 2, 순서().join(' → '));
         보이기();
 
-        // ── ② 상차지로 가서 싣는다 ───────────────────────────
-        say('\n═══ ② 초월읍 상차지로 이동 → 도착 → 상차 완료 ═══');
+        // ── ② 모다에서 싣는다 ───────────────────────────────
+        say('\n═══ ② 모다아울렛에서 상차 ═══');
         let before = st.arrived.length;
-        await 도착하기(초월읍);
-        check('상차지 도착이 찍혔다', st.arrived.length > before, `누적 ${st.arrived.length}회`);
+        await 도착하기(모다);
+        check('첫짐 상차지 도착', st.arrived.length > before, `누적 ${st.arrived.length}회`);
         s.emit('report-milestone', { orderId: '첫짐', milestone: 'PICKED_UP' });
         await wait(900);
         check('상차 완료 뒤 상차지가 경로에서 빠졌다', !순서().includes('첫짐:pickup'));
         보이기();
 
-        // ── ③ 하차지로 달리는 중 — 곤지암 3.6km 앞 ──────────
-        say('\n═══ ③ 곤지암으로 달리는 중 (하차지 3.6km 앞) ═══');
-        s.emit('dashboard-gps-update', { lat: 주행중.y, lng: 주행중.x, source: 'mock' });
-        await wait(1200);
+        // ── ③ 가는 길에 합짐1 이 붙는다 ─────────────────────
+        say('\n═══ ③ 신둔으로 가는 길 — 합짐1 이 붙는다 (성당 상차 → 제일 하차) ═══');
+        s.emit('dashboard-gps-update', { lat: 주행중1.y, lng: 주행중1.x, source: 'mock' });
+        await wait(900);
+        await 앱이올린다(DEVICE, '합짐1', 성당, 제일, '합짐1');
+        await 결재('합짐1');
+        보이기();
+        check('합짐1 의 상차(성당)가 첫짐 하차(신둔)보다 앞이다 — 가는 길목이다',
+            순서().indexOf('합짐1:pickup') >= 0 &&
+            순서().indexOf('합짐1:pickup') < 순서().indexOf('첫짐:dropoff'),
+            순서().join(' → '));
+
+        // ── ④ 성당에서 싣는다 ───────────────────────────────
+        say('\n═══ ④ 곤지암성당에서 상차 (2콜 적재) ═══');
+        before = st.arrived.length;
+        await 도착하기(성당);
+        check('합짐1 상차지 도착', st.arrived.length > before, `누적 ${st.arrived.length}회`);
+        s.emit('report-milestone', { orderId: '합짐1', milestone: 'PICKED_UP' });
+        await wait(900);
         보이기();
 
-        // ── ④ 🔴 바로 그때 합짐이 들어온다 ──────────────────
-        say('\n═══ ④ 🔴 그때 합짐이 붙는다 — 가남 상차 (29.2km 밖) ═══');
-        say('     2026-08-25 사고가 난 자리다. 4km 앞 하차를 두고 30km 밖 상차로 갔었다.');
-        await 앱이올린다(DEVICE, '합짐', 가남, 세종대왕면, '합짐');
-        await 결재('합짐');
-        s.emit('dashboard-gps-update', { lat: 주행중.y, lng: 주행중.x, source: 'mock' });
+        // ── ⑤ 🔴 신둔 코앞에서 합짐2 가 붙는다 ──────────────
+        say('\n═══ ⑤ 🔴 신둔 하차지 2.4km 앞 — 합짐2 가 붙는다 (이조 상차 → 터미널 하차) ═══');
+        say('     여기가 순서가 갈리는 자리다.');
+        s.emit('dashboard-gps-update', { lat: 주행중2.y, lng: 주행중2.x, source: 'mock' });
+        await wait(900);
+        await 앱이올린다(DEVICE, '합짐2', 이조, 터미널, '합짐2');
+        await 결재('합짐2');
+        s.emit('dashboard-gps-update', { lat: 주행중2.y, lng: 주행중2.x, source: 'mock' });
         await wait(1500);
         보이기();
 
         const 지금 = 순서();
-        check('🔴 3.6km 앞 하차지를 두고 29.2km 밖 상차지로 먼저 가지 않는다',
+        check('🔴 2.4km 앞 하차지(신둔)를 두고 먼 상차지로 먼저 가지 않는다',
             지금[0] === '첫짐:dropoff', `첫 정거장 ${지금[0] ?? '(없음)'}`);
-        check('합짐의 하차는 그 상차보다 뒤다 (제 짐을 싣기 전엔 못 내린다)',
-            지금.indexOf('합짐:dropoff') > 지금.indexOf('합짐:pickup'));
-        say('     길목부터 36.4km  vs  상차먼저 59.5km — 23.1km 차이다');
+        check('합짐2 의 하차는 그 상차보다 뒤다',
+            지금.indexOf('합짐2:dropoff') > 지금.indexOf('합짐2:pickup'));
+        check('🔴 3콜이 모두 경로에 있다 (다마스 30박스 ×3 = 90/100)',
+            new Set(지금.map(k => k.split(':')[0])).size === 3, `${지금.length}개 정거장`);
+        say('     길목부터 7.9km  vs  상차먼저 13.3km — 5.4km 차이다');
 
-        // ── ⑤ 남은 정거장을 순서대로 걸어간다 ────────────────
-        say('\n═══ ⑤ 남은 정거장을 순서대로 — 도착이 다 찍히는가 ═══');
-        const 좌표 = { '첫짐:dropoff': 곤지암, '합짐:pickup': 가남, '합짐:dropoff': 세종대왕면 };
+        // ── ⑥ 남은 정거장을 순서대로 ────────────────────────
+        say('\n═══ ⑥ 남은 정거장을 순서대로 — 도착이 다 찍히는가 ═══');
+        const 좌표 = { '첫짐:dropoff': 신둔, '합짐1:pickup': 성당, '합짐1:dropoff': 제일,
+                       '합짐2:pickup': 이조, '합짐2:dropoff': 터미널 };
         for (const key of 지금) {
             const to = 좌표[key];
             if (!to) { say(`     ⚠️ ${key} 좌표를 모른다 — 건너뜀`); continue; }
@@ -249,21 +290,20 @@ async function main() {
                 await wait(700);
             }
         }
-        check('🔴 도착이 정거장 수만큼 찍혔다 (한 정거장당 1회)',
-            st.arrived.length === 지금.length + 1, `${st.arrived.length}회 (상차지 포함)`);
         check('근접 예고(도착전 통화)도 울렸다', st.approaching.length >= 1, `${st.approaching.length}회`);
 
-        // ── ⑥ 궤적 ─────────────────────────────────────────
-        say('\n═══ ⑥ 궤적 — 어느 콜의 어느 구간이었나 ═══');
-        await wait(1200);   // 버퍼가 디스크로 갈 틈 (5점 또는 10초)
+        // ── ⑦ 궤적 ─────────────────────────────────────────
+        say('\n═══ ⑦ 궤적 — 어느 콜의 어느 구간이었나 ═══');
+        await wait(1200);
         db = new Database(dbPath, { readonly: true });
         const rows = db.prepare(`SELECT order_id, stop_type, COUNT(*) n FROM gps_tracks
                                  WHERE stop_type IS NOT NULL GROUP BY order_id, stop_type`).all();
         for (const r of rows) say(`     ${r.order_id} ${r.stop_type}: ${r.n}점`);
         const kinds = new Set(rows.map(r => r.stop_type));
-        check('🔴 pickup 과 dropoff 가 둘 다 찍혔다 (08-28 라이브에는 pickup 뿐이었다)',
-            kinds.has('pickup') && kinds.has('dropoff'), `[${[...kinds].join(', ')}]`);
-        check('궤적에 콜이 붙었다', rows.length > 0, `${rows.length}종`);
+        check('🔴 pickup 과 dropoff 가 둘 다 찍혔다', kinds.has('pickup') && kinds.has('dropoff'),
+            `[${[...kinds].join(', ')}]`);
+        check('세 콜 모두 궤적에 나타났다',
+            new Set(rows.map(r => r.order_id)).size === 3, `${new Set(rows.map(r => r.order_id)).size}콜`);
 
         s.close();
     } finally {
