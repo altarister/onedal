@@ -5,6 +5,7 @@ import type { SimplifiedOfficeOrder, SecuredOrder, OrderSyncPayload, RouteStopIn
 import { isEvaluating, isTerminal } from "@onedal/shared";
 import { logRoadmapEvent, logStateChange } from "../lib/roadmapLogger";
 import { soundManager } from "../lib/soundManager";
+import { autoKeepEnabled, autoKeepLoadedCount, logAutoKeep } from "../lib/autoKeep";
 
 export function useOrderEngine() {
     const [orders, setOrders] = useState<SimplifiedOfficeOrder[]>([]);
@@ -15,6 +16,8 @@ export function useOrderEngine() {
      * StrictMode 가 두 번 불러 같은 줄이 두 번 나온다.
      */
     const activeOrdersRef = useRef<SecuredOrder[]>([]);
+    /** 🤖 자동 결재가 지금까지 몇 건을 눌렀나 (개발 전용 — `?autokeep=1`) */
+    const autoKeptRef = useRef(0);
     useEffect(() => { activeOrdersRef.current = activeOrders; }, [activeOrders]);
     /**
      * 종료된 콜 (취소·방출·완료·하차). 서버가 **따로** 보내준다.
@@ -187,6 +190,31 @@ export function useOrderEngine() {
             }
             soundManager.playBeep();
             setActiveOrders(prev => prev.map(o => o.id === secured.id ? secured : o));
+
+            /**
+             * 🤖 **자동 결재 (개발 전용)** — `?autokeep=1` 일 때만 돈다.
+             *
+             * 리허설을 사람 없이 돌려 보기 위한 손이다. 별도 소켓 클라이언트로 누르면
+             * **화면 밖에서 벌어져 기사님이 볼 수가 없어서**, 관제웹 자신이 누르게 했다.
+             * 실 빌드에는 `import.meta.env.DEV` 게이트라 **코드가 들어가지도 않는다** (규칙 ①).
+             */
+            if (autoKeepEnabled()) {
+                const n = ++autoKeptRef.current;
+                setTimeout(() => {
+                    logAutoKeep(secured.id, 'ORDER_CONFIRMED', `${n}번째 콜`);
+                    socket.emit('decision', { orderId: secured.id, action: 'ORDER_CONFIRMED' });
+                    // 첫 N 건은 상차 완료까지 — 리허설 17번의 «하차지만 남는다» 조건
+                    if (n <= autoKeepLoadedCount()) {
+                        setTimeout(() => {
+                            socket.emit('report-milestone', { orderId: secured.id, milestone: 'ARRIVED_PICKUP' });
+                            setTimeout(() => {
+                                socket.emit('report-milestone', { orderId: secured.id, milestone: 'PICKED_UP' });
+                                logAutoKeep(secured.id, 'ORDER_CONFIRMED', '상차 완료까지 눌렀다');
+                            }, 900);
+                        }, 2200);
+                    }
+                }, 900);   // 화면에 카드·색이 그려지는 것을 기사님이 볼 틈
+            }
         };
 
         const onOrderConfirmed = (id: string) => {

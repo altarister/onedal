@@ -10,6 +10,7 @@ import { ErrorBoundary } from "../components/common/ErrorBoundary";
 import { ensureJudgmentSocketSubscribed } from "../stores/judgmentStore";
 import CargoMismatchBanner from "../components/dashboard/CargoMismatchBanner";
 import { useServerErrors } from "../hooks/useServerErrors";
+import { mountAutoKeepBadge } from "../lib/autoKeep";
 import { useState, useEffect } from "react";
 import { socket } from "../lib/socket";
 
@@ -24,6 +25,9 @@ export default function Dashboard() {
      *    탭에서만 구독하면 서버의 첫 `judgment-init` 을 놓쳐 폼이 잠긴다.
      *    구독 자체는 스토어가 한 번만 건다 — 여기서 불러도 중복되지 않는다.
      */
+    // 🤖 자동 결재가 켜져 있으면 화면에 못박는다 (모르고 쓰는 것을 막는다)
+    useEffect(() => { mountAutoKeepBadge(); }, []);
+
     useEffect(() => { ensureJudgmentSocketSubscribed(); }, []);
 
     const [viewFilter, setViewFilter] = useState<'ACTIVE' | 'COMPLETED' | 'CANCELED' | 'RELEASED' | 'ALL'>('ACTIVE');
