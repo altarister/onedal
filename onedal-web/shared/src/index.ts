@@ -543,7 +543,6 @@ export interface PendingOrder extends OfficeOrder {
     arrivedDropoffAt?: string;        // 🚏 하차지에 실제로 도착한 시각
     pickupEta?: string;               // 카카오 궤적 연산 기반 상차지 예상 도착 시간
     dropoffEta?: string;              // 카카오 궤적 연산 기반 하차지 예상 도착 시간
-    isRejected?: boolean;             // 서버 종합 평가 결과: 똥콜 판정 여부
     rejectionReasons?: string[];      // 모든 탈락/패널티 사유 배열
     approvalReasons?: string[];       // 모든 장점/긍정 사유 배열
 }
@@ -584,7 +583,6 @@ export interface MyOrder extends OfficeOrder {
     pickupEta?: string;               // 카카오 궤적 연산 기반 상차지 예상 도착 시간
     dropoffEta?: string;              // 카카오 궤적 연산 기반 하차지 예상 도착 시간
     settlement?: SettlementInfo;      // 정산 및 미수금 관리 트래킹 (운행일지용)
-    isRejected?: boolean;             // 서버 종합 평가 결과: 똥콜 판정 여부
     rejectionReasons?: string[];      // 모든 탈락/패널티 사유 배열
     approvalReasons?: string[];       // 모든 장점/긍정 사유 배열
 }
@@ -630,7 +628,6 @@ export interface SecuredOrder extends OfficeOrder {
     pickupEta?: string;
     dropoffEta?: string;
     settlement?: SettlementInfo;
-    isRejected?: boolean;
     rejectionReasons?: string[];
     approvalReasons?: string[];
 }

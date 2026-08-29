@@ -73,7 +73,8 @@ describe('OrderEvaluator', () => {
 
         await evaluator.evaluate('test-user', order, mockIo);
 
-        expect(order.isRejected).toBe(false);
+        // 🪦 `isRejected` 는 철거됐다 (2026-08-29) — 아래 «사유 0건» 이 같은 것을 본다.
+        //    서버는 콜을 버리지 않는다 (규칙 ①). 남는 것은 **사유**뿐이다.
         expect(order.rejectionReasons.length).toBe(0); // 똥콜 사유 없음
         expect(order.approvalReasons.length).toBeGreaterThan(0); // 꿀콜 장점 기록됨
         expect(order.status).toBe('ORDER_AWAITING_DECISION');
@@ -94,7 +95,8 @@ describe('OrderEvaluator', () => {
 
         await evaluator.evaluate('test-user', order, mockIo);
 
-        expect(order.isRejected).toBe(true);
+        // 🪦 `isRejected` 대신 **사유가 쌓였는가**를 본다 (아래 두 줄이 그것이다).
+        expect(order.rejectionReasons.length).toBeGreaterThan(0);
         // Stage 1 사유 확인
         expect(order.rejectionReasons.some(r => r.includes('첫짐 절대하한가 미달'))).toBe(true);
         expect(order.rejectionReasons.some(r => r.includes('제외키워드(착불)'))).toBe(true);

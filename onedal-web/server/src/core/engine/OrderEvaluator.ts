@@ -414,7 +414,10 @@ export class OrderEvaluator {
         // 최종 평가 합산
         securedOrder.rejectionReasons = reasons;
         securedOrder.approvalReasons = pros;
-        securedOrder.isRejected = reasons.length > 0;
+        // 🪦 `isRejected` 는 철거됐다 (2026-08-29) — 쓰기만 하고 **읽는 곳이 0** 이었다.
+        //    *"서버 종합 평가: 똥콜인가"* 라는 옛 설계의 흔적인데, 규칙 ①(콜의 주인은
+        //    기사님)과 정면으로 어긋난다. 서버는 콜을 자동으로 버리지 않는다 —
+        //    사유만 표시하고 판단은 기사님이 한다. 되살리지 말 것.
 
         if (reasons.length > 0) {
             console.log(`   - 💩 [종합 평가] 똥콜 판정 (${reasons.length}건): ${reasons.join(' | ')}`);

@@ -56,8 +56,9 @@ export interface DryRunInput {
     gates: DryRunGate[];
     /** 판단 없는 사실 딱지 — 서버가 조립해 넘긴다 */
     tags: string[];
-    /** 시급 목표(원/시간). 생략하면 판정 기준 탭의 `target.hourlyKrw` (캘리브레이션으로 3.0만 확정) */
-    targetHourlyKrw?: number;
+    // 🪦 `targetHourlyKrw` 입력 인자는 철거됐다 (2026-08-29) — 넘기는 곳이 0 이었다.
+    //    목표 시급의 원천은 **판정 기준 탭 하나**다 (규칙 ③). 호출마다 다른 값을 넣을 수
+    //    있게 두면 두 벌이 된다.
 }
 
 export interface DryRunVerdict {
@@ -75,7 +76,7 @@ const manwon = (krw: number) => (krw / 10_000).toFixed(1);
 
 export function scoreDryRun(input: DryRunInput, cfg: JudgmentConfig): DryRunVerdict {
     // 🎯 기준은 전부 판정 기준 탭(DB)에서 — 기본값의 원천은 DB 다 (규칙 ③)
-    const target = input.targetHourlyKrw ?? cfg.target.hourlyKrw;
+    const target = cfg.target.hourlyKrw;   // 원천은 판정 기준 탭 하나 (규칙 ③)
     const w = cfg.weights;
     const axes: DryRunAxis[] = [];
 
