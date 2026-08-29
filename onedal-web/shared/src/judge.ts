@@ -118,7 +118,7 @@ export interface Judgment {
  * ⚠️ 여기서 칸을 열거하지 않는다. 열거하면 **기준을 더할 때 두 곳을 고쳐야** 하고,
  *    한쪽만 고치면 조용히 어긋난다 (규칙 ③). 꾸러미의 모양은 `criteria.ts` 가 적는다.
  */
-export type Facts = { notes?: string[] };
+export type Facts = { notes?: string[]; [criterionKey: string]: unknown };
 
 /**
  * 🔴 **여기서 기준을 알아보지 않는다.** 어떤 기준이 몇 개든 똑같이 돈다 —

@@ -234,7 +234,7 @@ export const 지리 = defineCriterion<GeographyFacts>({
 export const CRITERIA: Array<Criterion<any>> = [돈, 약속, 공간, 성질, 지리];
 
 /** 사실 꾸러미 — 칸 이름이 기준의 `key` 와 같다. 각 기준은 **자기 칸만** 본다 */
-export interface JudgeFacts {
+export type JudgeFacts = {
     money?: MoneyFacts;
     promise?: PromiseFacts;
     space?: SpaceFacts;
