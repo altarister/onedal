@@ -98,7 +98,20 @@ describe('세션이 DB 값을 읽고, 판정이 그 값을 쓴다', () => {
 
     it('🔴 상하차 일반값도 세션 값을 타고 내려간다', () => {
         expect(codeOnly(read('core/engine/OrderEvaluator.ts')))
-            .toMatch(/totalDetourCost\([^)]*judgmentCfg\.unknown\)/);
+            .toMatch(/totalDetourCost\([^)]*judgmentCfg\.unknown[,)]/);
+    });
+
+    /**
+     * 🔴 **판정 시점에는 `orders` 행이 없다** (2026-08-29). `upsertOrder` 는 KEEP 할 때
+     *    도는데 판정은 그 전이다. 콜을 함께 넘기지 않으면 차종을 못 읽어 정차가
+     *    통째로 「미확인 일반값」이 된다 — 다마스도 5t 도 같은 25분이 된다.
+     *    실제로 그랬다: 시나리오 14번(승용차)에 「정차 미확인」 딱지가 붙어 있었다.
+     */
+    it('🔴 판정은 **메모리의 콜**을 함께 넘긴다 — DB 행은 아직 없다', () => {
+        const ev = codeOnly(read('core/engine/OrderEvaluator.ts'));
+        const calls = ev.match(/totalDetourCost\([^)]*\)/g) || [];
+        expect(calls.length).toBeGreaterThan(0);
+        for (const c of calls) expect(c).toMatch(/securedOrder\)/);
     });
 
     it('🔴 컬럼 목록을 db.ts 가 손으로 적지 않는다 (표에서 뽑는다)', () => {

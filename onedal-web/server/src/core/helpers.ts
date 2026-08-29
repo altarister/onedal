@@ -3,12 +3,12 @@
  */
 import { isTerminal, cargoPoints, VEHICLE_CAPACITY, normalizeVehicleType,
          findTagConflicts,
-         computeStopTiming } from '@onedal/shared';
-import type { MyOrder, CargoReport, CapacityConfidence, DwellUnknown } from '@onedal/shared';
+         computeStopTiming, recordsOfSteps } from '@onedal/shared';
+import type { MyOrder, CargoReport, CapacityConfidence, DwellUnknown, StopTiming } from '@onedal/shared';
 import { OrderRepository } from '../repositories/OrderRepository';
 import db from '../db';
 import { planArrivalStops } from '../services/routeComposer';
-import { stepRecordsOf } from '../services/stepSeeder';
+import { stepsView, stepRecordsOf, plannedDwellOf } from '../services/stepSeeder';
 
 /**
  * 종료되지 않은(활성) 콜만 필터링합니다.
@@ -84,14 +84,54 @@ export function computeLoadedPoints(
  * "상차 약속엔 접근만, 하차 약속엔 전부를 뺀다"는 교훈은 timing.ts 의 두 시계가 잇는다.
  */
 
-/** 한 콜의 상·하차 정차 시간 (신고된 단위·수량·방법 기준) */
-export function getStopTiming(orderId: string, unk?: DwellUnknown) {
-    // 🔄 파생 치환 ② — 재료는 새 장부 (KEEP 전 후보는 빈 기록 = 옛 장부와 동일)
-    const reports = stepRecordsOf(orderId).reports;
+/**
+ * 한 콜의 상·하차 정차 시간.
+ *
+ * 🔴 **차종을 알면 짐을 안다** (기사님 지적 2026-08-29):
+ *    *"다마스를 불렀다면 기본적으로 박스 30개라고 묵시적으로 알 수 있다고 한 것 같은데..
+ *      **모르는 게 있다는 것이 버그 아닐까?**"*
+ *
+ *    맞다. 여기가 **태어난 단계 행만** 읽었는데, 행은 KEEP 해야 태어난다.
+ *    그런데 **판정은 KEEP 하기 전에 난다** — 기사님은 색을 보고 KEEP 을 누르니까.
+ *    그래서 판정 시점에는 장부가 늘 비어 있었고 정차가 언제나 「미확인 일반값」(15·10)이었다.
+ *    차종이 무엇이든 총 25분 — 다마스도 1t 도 5t 도 같은 값이었다는 뜻이다.
+ *
+ *    🔴 **틀린 방향이 차종마다 달랐다** (실측 2026-08-29):
+ *    1t 은 지게차라 실제 13분인데 25분으로 봐 **우회가 비싸 보였고**,
+ *    5t 은 실제 57분인데 25분으로 봐 **싸 보였다.** 색이 곧 결정이라(규칙 ⑤-3) 양쪽 다 사고다.
+ *    다마스만 우연히 25분(14+11)으로 같다 — 가장 흔한 차종에서 티가 안 났다.
+ *
+ *    🔴 **여기서 다시 세지 않는다** (규칙 ③). 단계 사슬(`computeChain`)이 이미
+ *    «실측 > 통화 계획 > 적요 > 차종 기본» 순으로 짐을 정하고 정차 시간까지 계산해
+ *    `planned_dwell_min` 에 담아 둔다. 안 태어난 행에도 파생값으로 들어 있다.
+ *    이 함수는 **그 값을 읽기만 한다** — 같은 콜이 두 곳에서 다른 정차를 말하지 않게.
+ */
+export function getStopTiming(orderId: string, unk?: DwellUnknown,
+    /** KEEP 전이라 `orders` 행이 아직 없을 때 넘기는 **메모리의 콜** (판정 경로가 그렇다) */
+    order?: unknown): StopTiming {
+    // 🔄 파생 치환 ② — 재료는 새 장부. 한 번만 읽어 신고와 사슬 둘 다에 쓴다
+    const view = stepsView(orderId, undefined, order);
+    const reports = recordsOfSteps(view as any).reports as CargoReport[];
     const pick = reports.find(r => r.stopType === 'pickup' && r.kind === 'ACTUAL')
               || reports.find(r => r.stopType === 'pickup');
     const drop = reports.find(r => r.stopType === 'dropoff' && r.kind === 'ACTUAL')
               || reports.find(r => r.stopType === 'dropoff');
+
+    if (!pick) {
+        // 장부가 비어 있다 = KEEP 전이다. 사슬이 차종에서 뽑아 둔 값을 그대로 쓴다.
+        const plan = plannedDwellOf(view);
+        // ⚠️ **차종조차 못 읽은 콜은 여전히 모른다** (규칙 ④ — 없는 숫자를 지어내지 않는다).
+        //    그때만 아래 일반값 경로로 내려가서, 호출자가 넘긴 `unk` 를 존중한다.
+        if (plan?.pickupHandling) {
+            return {
+                pickupDwell: plan.pickupDwell,
+                dropoffDwell: plan.dropoffDwell,
+                totalDwell: plan.pickupDwell + plan.dropoffDwell,
+                hasUnknown: !plan.dropoffHandling,
+            };
+        }
+    }
+
     return computeStopTiming(
         pick ? { handling: pick.handling, unit: pick.unit, quantity: pick.quantity } : undefined,
         drop ? { handling: drop.handling } : undefined,
@@ -106,10 +146,12 @@ export function getStopTiming(orderId: string, unk?: DwellUnknown) {
  * 상차·하차를 한 번씩 더 하게 되므로 그 정차 시간을 반드시 더해야 한다.
  * 수작업 화물이면 여기서만 40~60분이 붙는다.
  */
-export function totalDetourCost(driveDiffMin: number, incomingOrderId: string, unk?: DwellUnknown): {
+export function totalDetourCost(driveDiffMin: number, incomingOrderId: string, unk?: DwellUnknown,
+    /** KEEP 전에는 `orders` 행이 없다 — 판정 경로는 메모리의 콜을 함께 넘긴다 */
+    order?: unknown): {
     total: number; drive: number; dwell: number; hasUnknown: boolean;
 } {
-    const t = getStopTiming(incomingOrderId, unk);
+    const t = getStopTiming(incomingOrderId, unk, order);
     return {
         total: Math.round(driveDiffMin + t.totalDwell),
         drive: driveDiffMin,

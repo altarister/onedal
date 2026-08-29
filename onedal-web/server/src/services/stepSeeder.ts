@@ -377,6 +377,36 @@ export function milestoneAlreadyRecorded(orderId: string, milestone: string): bo
     return !!r?.occurred_at;
 }
 
+/**
+ * 🚚 **KEEP 전에도 이 콜의 정차 시간을 말해 준다** (기사님 지적 2026-08-29).
+ *
+ * `recordsOfSteps` 는 **안 태어난 행을 버린다** — 「저장된 게 아니다」가 맞는 원칙이다.
+ * 그런데 정차 시간은 신고가 아니라 **계산 결과**다. 사슬(`computeChain`)이 차종에서
+ * 짐을 뽑아 이미 `planned_dwell_min` 에 계산해 뒀는데, 판정은 그걸 못 보고 있었다.
+ *
+ * 그래서 이 함수는 **신고가 아니라 사슬의 계산값**만 꺼낸다. 태어났으면 태어난 행의 값,
+ * 아니면 파생값 — 어느 쪽이든 **만든 곳은 한 곳**이다 (규칙 ③).
+ *
+ * 🔴 `pickupHandling` 이 없으면 **차종조차 못 읽은 콜**이다. 그때는 여기서 값을
+ *    지어내지 않고 `null` 을 돌려 호출자가 「미확인」으로 가게 둔다 (규칙 ④).
+ */
+export function plannedDwellOf(view: StepView[]): {
+    pickupDwell: number; dropoffDwell: number;
+    pickupHandling: string | null; dropoffHandling: string | null;
+} | null {
+    const row = (step: StepId) => view.find(v => v.step === step)?.row as any;
+    const p = row('CALL_PICKUP'), d = row('CALL_DROPOFF');
+    if (!p) return null;
+    const n = (v: unknown) => { const x = Number(v); return Number.isFinite(x) && x > 0 ? x : null; };
+    const pd = n(p.planned_dwell_min), dd = n(d?.planned_dwell_min);
+    if (pd == null || dd == null) return null;
+    return {
+        pickupDwell: pd, dropoffDwell: dd,
+        pickupHandling: p.planned_handling ?? null,
+        dropoffHandling: d?.planned_handling ?? p.planned_handling ?? null,
+    };
+}
+
 export function stepRecordsOf(orderId: string): {
     reports: CargoReport[];
     milestones: Array<{ milestone: string; occurredAt?: string; source?: string }>;
@@ -388,8 +418,15 @@ export function stepRecordsOf(orderId: string): {
  * 화면용 — 태어난 행은 그대로, 안 태어난 단계는 **회색 예정**(파생값, 저장 안 됨).
  * 기사님(2026-08-20): *"다음에 뭐가 올지는 알아야지."*
  */
-export function stepsView(orderId: string, judgment?: JudgmentConfig): StepView[] {
-    const o = db.prepare(`SELECT * FROM orders WHERE id = ?`).get(orderId) as any;
+export function stepsView(orderId: string, judgment?: JudgmentConfig,
+    /**
+     * 🔴 **KEEP 전에는 `orders` 행이 없다** (2026-08-29). `upsertOrder` 는 KEEP 할 때
+     *    (`handleDecision`) 돈다. 그런데 **판정은 그 전에** 난다 — 기사님이 색을 보고
+     *    KEEP 을 누르니까. 그래서 DB 만 보면 판정 시점의 콜을 통째로 못 본다.
+     *    그때는 **메모리의 콜 객체**를 넘긴다 — 사슬은 하나 그대로다 (규칙 ③).
+     */
+    fallbackOrder?: any): StepView[] {
+    const o = (db.prepare(`SELECT * FROM orders WHERE id = ?`).get(orderId) as any) ?? fallbackOrder;
     if (!o) return [];
     const born = bornRows(orderId);
     const chain = computeChain(o, born, judgment);
