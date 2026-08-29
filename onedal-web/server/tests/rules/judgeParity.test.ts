@@ -13,15 +13,14 @@ import type { DryRunInput, JudgeFacts } from '@onedal/shared';
  *   옛 채점기는 그 구분이 없어서 **재료가 없으면 그 기준을 통째로 빼고 평균을 올렸다.**
  *   그래서 «다르다»가 나오면 대개 **새 쪽이 더 정직한 것**이다.
  *
- * ══ 지금 다른 곳 셋 (2026-08-29) ══
+ * ══ 지금 다른 곳 둘 (2026-08-29) ══
  *
  * | 상황 | 옛 | 새 | 왜 |
  * |---|---|---|---|
  * | 버퍼를 못 쟀다 | 그 기준을 빼고 평균을 **올린다** | 🔴 「잴 수 없다」 | 3단계에서 정한 것 |
- * | 차종이 안 맞는다 | **색에 안 든다** (딱지로만) | 「공간」 0점 · 잡으면 사고 | 13개 사유를 기준에 넣었다 |
- * | 같이 못 싣는 조합 | 기준 **다섯** (통과는 평균에 못 듦) | 기준 **넷** | 통과도 세야 대칭이다 |
+ *  * | 같이 못 싣는 조합 | 기준 **다섯** (통과는 평균에 못 듦) | 기준 **넷** | 통과도 세야 대칭이다 |
  *
- * 🔴 **셋 다 «새 쪽이 더 정직한 것»이다.** 옛 채점기는 재료가 없으면 기준을 통째로 빼서
+ * 🔴 **둘 다 «새 쪽이 더 정직한 것»이다.** 옛 채점기는 재료가 없으면 기준을 통째로 빼서
  *    분모가 줄었고(점수가 올랐다), 점수 없는 사유는 색에 아예 못 들었다.
  *
  * ⚠️ **「버퍼 소비」와 「약속 보존」을 하나로 합쳤다.** 기사님이 *"둘이 어떤 점에서 달라
@@ -52,7 +51,7 @@ const CASES: Case[] = [
                gates: 합짐문지기통과, tags: [] },
         now: { money: { fare: 45_000, extraMinutes: 21 },
                promise: { hasExistingCalls: true, lateStops: [], bufferAfterMin: 0 },
-               space: { freePct: 70, vehicleFits: true, hasLoad: true },
+               space: { freePct: 70, hasLoad: true },
                nature: { conflicts: [], excludedHits: [], hasLoad: true } },
     },
     {
@@ -60,7 +59,7 @@ const CASES: Case[] = [
         old: { kind: 'first', fare: 62_000, totalMinutes: 30, gates: [], tags: [] },
         now: { money: { fare: 62_000, extraMinutes: 30 },
                promise: { hasExistingCalls: false, lateStops: [], bufferAfterMin: null },
-               space: { freePct: null, vehicleFits: true, hasLoad: false },
+               space: { freePct: null, hasLoad: false },
                nature: { conflicts: [], excludedHits: [], hasLoad: false } },
     },
     {
@@ -69,7 +68,7 @@ const CASES: Case[] = [
                gates: 합짐문지기통과, tags: [] },
         now: { money: { fare: 30_000, extraMinutes: 103 },
                promise: { hasExistingCalls: true, lateStops: [], bufferAfterMin: 10 },
-               space: { freePct: 50, vehicleFits: true, hasLoad: true },
+               space: { freePct: 50, hasLoad: true },
                nature: { conflicts: [], excludedHits: [], hasLoad: true } },
     },
     {
@@ -78,7 +77,7 @@ const CASES: Case[] = [
                gates: 합짐문지기통과, tags: [] },
         now: { money: { fare: 50_000, extraMinutes: 0 },
                promise: { hasExistingCalls: true, lateStops: [], bufferAfterMin: 30 },
-               space: { freePct: 90, vehicleFits: true, hasLoad: true },
+               space: { freePct: 90, hasLoad: true },
                nature: { conflicts: [], excludedHits: [], hasLoad: true } },
     },
     {
@@ -88,7 +87,7 @@ const CASES: Case[] = [
                tags: [] },
         now: { money: { fare: 50_000, extraMinutes: 8 },
                promise: { hasExistingCalls: true, lateStops: [{ label: '첫짐 하차', lateMinutes: 12 }], bufferAfterMin: 30 },
-               space: { freePct: 100, vehicleFits: true, hasLoad: true },
+               space: { freePct: 100, hasLoad: true },
                nature: { conflicts: [], excludedHits: [], hasLoad: true } },
     },
     {
@@ -99,7 +98,7 @@ const CASES: Case[] = [
                tags: [] },
         now: { money: { fare: 50_000, extraMinutes: 20 },
                promise: { hasExistingCalls: true, lateStops: [], bufferAfterMin: 20 },
-               space: { freePct: 60, vehicleFits: true, hasLoad: true },
+               space: { freePct: 60, hasLoad: true },
                nature: { conflicts: [['위험물', '식료품']], excludedHits: [], hasLoad: true } },
         diff: '기준 **개수**가 다르다. 옛 채점기는 「같이 못 실음」을 **충돌이 있을 때만** 기준으로 '
             + '만들어(통과는 평균에 못 든다) 다섯이 되고, 새 함수는 늘 넷이다. '
@@ -112,22 +111,36 @@ const CASES: Case[] = [
                gates: 합짐문지기통과, tags: [] },
         now: { money: { fare: 50_000, extraMinutes: 20 },
                promise: { hasExistingCalls: true, lateStops: [], bufferAfterMin: null },
-               space: { freePct: 70, vehicleFits: true, hasLoad: true },
+               space: { freePct: 70, hasLoad: true },
                nature: { conflicts: [], excludedHits: [], hasLoad: true } },
         diff: '옛 채점기는 **버퍼 기준을 통째로 빼고** 평균을 올린다 (분모가 준다). '
             + '새 함수는 「잴 수 없다」로 보고 🔴 를 낸다 — 3단계에서 정한 그대로다. '
             + '⚠️ **점수는 우연히 둘 다 90 이다** — 색만 다르다. 점수만 대조했으면 못 잡았을 것이다.',
     },
     {
-        name: '🔴 차종이 안 맞는다 — 옛 채점기는 아예 못 본다',
+        /**
+         * 🔴 **차종 불일치는 둘 다 딱지다** (기사님과 확정 2026-08-29 · 내 첫 제안을 물렸다).
+         *    `allowedVehicleTypes` 는 «기사님이 평소 받는 차종 목록»이지 물리 제약이 아니다.
+         *    게다가 **앱이 같은 목록으로 이미 거른다** (규칙 ⑤-1).
+         */
+        name: '차종이 목록에 없다 — 둘 다 색을 안 건드린다',
         old: { kind: 'merge', fare: 50_000, detourExtraMin: 20, bufferAfterMin: 20, slotsFreePct: 70,
                gates: 합짐문지기통과, tags: ['차종(1t) 불일치'] },
         now: { money: { fare: 50_000, extraMinutes: 20 },
                promise: { hasExistingCalls: true, lateStops: [], bufferAfterMin: 20 },
-               space: { freePct: 70, vehicleFits: false, vehicleLabel: '1t', hasLoad: true },
+               space: { freePct: 70, hasLoad: true },
+               nature: { conflicts: [], excludedHits: [], hasLoad: true },
+               notes: ['차종(1t) 불일치'] },
+    },
+    {
+        /** 🔴 진짜 «못 싣는다»는 자리로 잰다 — 짐이 정원을 넘으면 여유가 음수다 */
+        name: '자리가 모자란다 — 「공간」 0점 (덮어쓰지는 않는다)',
+        old: { kind: 'merge', fare: 50_000, detourExtraMin: 20, bufferAfterMin: 20, slotsFreePct: -15,
+               gates: 합짐문지기통과, tags: [] },
+        now: { money: { fare: 50_000, extraMinutes: 20 },
+               promise: { hasExistingCalls: true, lateStops: [], bufferAfterMin: 20 },
+               space: { freePct: -15, hasLoad: true },
                nature: { conflicts: [], excludedHits: [], hasLoad: true } },
-        diff: '차종 불일치는 옛 채점기에서 **점수 없는 사유**라 색에 안 들었다 (딱지로만 남았다). '
-            + '새 함수는 「공간」이 0점 + «잡으면 사고» 로 본다 — 내 차에 안 들어가는 짐이다.',
     },
 ];
 
@@ -151,13 +164,13 @@ describe('⚖️ 옛 채점기 ↔ 새 함수', () => {
      * 🔴 **다른 경우가 몇 건인지 세어 둔다.** 갈아탈 때 «무엇이 얼마나 바뀌는가»의 답이다.
      *    이 숫자가 조용히 늘면 검사가 터진다 — 모르는 사이에 판정이 움직이지 않게.
      */
-    it('다른 곳은 셋뿐이고, 셋 다 이유가 적혀 있다', () => {
+    it('다른 곳은 둘뿐이고, 둘 다 이유가 적혀 있다', () => {
         const 다름 = CASES.filter(c => {
             const 옛 = scoreDryRun(c.old, cfg);
             const 새 = judge(CRITERIA, c.now, cfg);
             return 옛.color !== 새.color || 옛.score !== 새.score;
         });
-        expect(다름).toHaveLength(3);
+        expect(다름).toHaveLength(2);
         expect(다름.every(c => !!c.diff)).toBe(true);
     });
 });

@@ -24,7 +24,7 @@ const cfg = (over: Partial<JudgmentConfig['weights']> = {}): JudgmentConfig => (
 const 좋은합짐 = (): JudgeFacts => ({
     money: { fare: 50_000, extraMinutes: 30 },                    // 10만/h → 만점권
     promise: { hasExistingCalls: true, lateStops: [], bufferAfterMin: 30 },
-    space: { freePct: 70, vehicleFits: true, hasLoad: true, vehicleLabel: '다마스' },
+    space: { freePct: 70, hasLoad: true },
     nature: { conflicts: [], excludedHits: [], hasLoad: true },
     geography: { onDetourPath: true },
 });
@@ -126,7 +126,7 @@ describe('④ 세 대답이 갈린다', () => {
         const f: JudgeFacts = {
             money: { fare: 60_000, extraMinutes: 40 },
             promise: { hasExistingCalls: false, lateStops: [], bufferAfterMin: null },
-            space: { freePct: null, vehicleFits: true, hasLoad: false },
+            space: { freePct: null, hasLoad: false },
             nature: { conflicts: [], excludedHits: [], hasLoad: false },
         };
         const v = judge(CRITERIA.filter(c => c.key !== 'geography'), f, cfg());
