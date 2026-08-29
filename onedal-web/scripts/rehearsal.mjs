@@ -19,6 +19,7 @@
  * 실행:  cd onedal-web && pnpm rehearsal
  */
 import { createInterface } from 'node:readline';
+import { readdirSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { restartServer } from './lib/restartServer.mjs';
@@ -395,6 +396,65 @@ function menu() {
 }
 function prompt() { process.stdout.write('선택> '); }
 
+/**
+ * 🚦 **리허설 전에 «지금 무엇이 돌고 있는가»를 확인한다** (2026-08-29 신설)
+ *
+ * 🔴 리허설은 개발 서버(4000)를 쓴다. 그 서버가 **옛 코드로 돌고 있으면 리허설이 통째로
+ *    헛일이 된다** — 고친 것을 안 고쳐진 채로 보게 된다. 이 레포가 반복해 오진한 뿌리다
+ *    (루트 CLAUDE.md 「무엇이 실제로 돌고 있는가」).
+ *
+ * 실측 2026-08-29: 감시자(`tsx watch`)는 살아 있는데 **자식이 11시간 27분째** 그대로였다.
+ * 그날 아침 고친 «경로 순서»가 안 돌고 있었고, 그대로 리허설했으면 옛 순서를 보고
+ * *"안 고쳐졌네"* 로 판단할 뻔했다.
+ *
+ * → **서버 기동 시각과 소스 최신 수정 시각을 견준다.** 소스가 더 새것이면 깨운다.
+ */
+async function preflight() {
+    const h = await fetch(`${BASE}/api/health`).then(r => r.json()).catch(() => null);
+    if (!h) { console.error(`🔴 ${BASE} 응답 없음 — 서버를 먼저 띄우세요 (pnpm dev)`); process.exit(1); }
+
+    // 서버·shared 소스 중 가장 최근에 고친 시각
+    const newest = (dir) => {
+        let t = 0;
+        const walk = (d) => {
+            for (const e of readdirSync(d)) {
+                if (e === 'node_modules' || e.startsWith('.')) continue;
+                const fp = join(d, e);
+                const st = statSync(fp);
+                if (st.isDirectory()) walk(fp);
+                else if (/\.(ts|tsx)$/.test(e)) t = Math.max(t, st.mtimeMs);
+            }
+        };
+        try { walk(dir); } catch { /* 없으면 건너뛴다 */ }
+        return t;
+    };
+    const srcMs = Math.max(newest(join(ROOT, 'server/src')), newest(join(ROOT, 'shared/src')));
+    const bootMs = new Date(h.bootedAt).getTime();
+    const kst = ms => new Date(ms + 9 * 3600e3).toISOString().slice(5, 16).replace('T', ' ');
+
+    if (srcMs > bootMs) {
+        const 뒤처짐 = Math.round((srcMs - bootMs) / 60000);
+        console.log(`\n🔴 **서버가 옛 코드로 돌고 있습니다** — 소스가 ${뒤처짐}분 더 새것입니다`);
+        console.log(`   서버 기동 ${kst(bootMs)} · 소스 수정 ${kst(srcMs)}`);
+        const r = await restartServer({ base: BASE, entry: join(ROOT, 'server/src/index.ts') });
+        if (!r.restarted) {
+            console.error('\n🔴 재기동을 확인하지 못했습니다 — 이대로 리허설하면 **고친 것이 안 보입니다.**');
+            console.error('   서버를 직접 다시 띄운 뒤(pnpm dev) 다시 실행하세요.\n');
+            process.exit(1);
+        }
+    } else {
+        console.log(`✅ 서버가 최신 코드입니다 (기동 ${kst(bootMs)})`);
+    }
+
+    // 관제웹이 떠 있는지 — 없으면 화면을 못 본다 (리허설의 목적 자체가 화면이다)
+    const web = await fetch('http://localhost:3000', { signal: AbortSignal.timeout(2000) })
+        .then(r => r.ok).catch(() => false);
+    console.log(web
+        ? '✅ 관제웹 http://localhost:3000 — 이 주소를 열어 두세요'
+        : '⚠️ 관제웹(3000)이 안 떠 있습니다 — `pnpm dev` 가 셋을 다 띄웁니다');
+    console.log('');
+}
+
 async function main() {
     console.log(`서버 ${BASE} · 기기 ${DEVICE} (앱폰 역할)`);
 
@@ -406,9 +466,7 @@ async function main() {
         if (yn.trim().toLowerCase() === 'y') await freshStart();
     }
 
-    const h = await fetch(`${BASE}/api/health`).then(r => r.json()).catch(() => null);
-    if (!h) { console.error(`🔴 ${BASE} 응답 없음 — 서버를 먼저 띄우세요 (pnpm dev)`); process.exit(1); }
-    console.log(`bootedAt ${h.bootedAt} — 관제웹은 http://localhost:3000 로 여세요\n`);
+    await preflight();
 
     setInterval(telemetry, 5000);
     await telemetry();
