@@ -29,15 +29,16 @@
  *
  * 스타일 출처: `StopCallSheet.tsx` 의 `chip()`·`Row`·격자·주 버튼 줄 — 클래스를 그대로 옮겼다.
  */
+import { useJudgmentStore } from '../../stores/judgmentStore';
 import { useState, useEffect } from 'react';
 import { socket } from '../../lib/socket';
 import { telHref } from '../../lib/routeUtils';
 import {
     CARGO_UNITS, CARGO_UNIT_QUANTITY_INPUT, HANDLING_METHODS,
-    PROTECTIONS, PROTECTION_MINUTES, protectionMinutes,
-    AFTERWORKS, AFTERWORK_MINUTES, afterworkMinutes,
+    PROTECTIONS, protectionMinutes,
+    AFTERWORKS, afterworkMinutes,
     CARGO_TAGS, CARGO_TAG_META, arrivalReasonGroupsFor, REASON_NEEDS_MEMO,
-    dwellMinutes, unitPoints, slotBaseMs,
+    dwellMinutes, unitPoints, slotBaseMs, derivationInputsOf,
 } from '@onedal/shared';
 import type { CargoUnit } from '@onedal/shared';
 
@@ -108,6 +109,13 @@ const toggle = (list: string[], v: string) =>
     list.includes(v) ? list.filter(x => x !== v) : [...list, v];
 
 /** 짐 폼 — 통화(상차)·상차 완료가 같은 옷을 입는다. `on` 이 오면 눌리고, 없으면 모양만 */
+/**
+ * 🔴 **화면의 분(分)은 판정과 같은 값이어야 한다** (2026-08-29 · 기사님 지적).
+ *
+ * 이 시트는 갈래마다 분을 적는다 — `수작업 10분` · `결박 4분` · `검수 60분`.
+ * 그 값이 **판정 기준 탭에서 온다.** 예전엔 옛 상수로 그려서, 기사님이 탭에서
+ * 「수작업 박스당」을 고치면 **판정만 바뀌고 화면은 그대로**였다 (두 목소리 · #33 클래스).
+ */
 function CargoForm({ r, pickup, live, on }: {
     r: Record<string, any>; pickup: boolean;
     live?: CargoState; on?: (patch: Partial<CargoState>) => void;
@@ -116,6 +124,9 @@ function CargoForm({ r, pickup, live, on }: {
     const { unit, qty, handling, protections, afterworks, tags } = c;
     const points = unitPoints(unit, qty);
     const qInput = unit ? (CARGO_UNIT_QUANTITY_INPUT[unit as CargoUnit] ?? { mode: 'preset' as const, options: [1, 2, 3] }) : null;
+
+    // 판정 기준 탭의 값 — 정차 분을 판정과 **같은 재료**로 잰다
+    const { unk } = derivationInputsOf(useJudgmentStore(st => st.judgment));
 
     return (
         <>
@@ -159,7 +170,7 @@ function CargoForm({ r, pickup, live, on }: {
             <Row title={pickup ? '상차방법' : '하차방법'}>
                 {HANDLING_METHODS.map(h => (
                     <Chip key={h} cls={chip(handling === h)} onTap={on && (() => on({ handling: h }))}>
-                        {h}<span className="ml-1 text-[10px] font-normal opacity-70">{dwellMinutes(h, points)}분</span>
+                        {h}<span className="ml-1 text-[10px] font-normal opacity-70">{dwellMinutes(h, points, pickup ? 'pickup' : 'dropoff', unk)}분</span>
                     </Chip>
                 ))}
             </Row>
@@ -169,7 +180,7 @@ function CargoForm({ r, pickup, live, on }: {
                     {PROTECTIONS.map(t => (
                         <Chip key={t} cls={warnChip(protections.includes(t))}
                             onTap={on && (() => on({ protections: toggle(protections, t) }))}>
-                            {t}<span className="ml-1 text-[10px] font-normal opacity-70">{PROTECTION_MINUTES[t]}분</span>
+                            {t}<span className="ml-1 text-[10px] font-normal opacity-70">{protectionMinutes([t])}분</span>
                         </Chip>
                     ))}
                     {protections.length > 0 && (
@@ -183,11 +194,11 @@ function CargoForm({ r, pickup, live, on }: {
                     {AFTERWORKS.map(a => (
                         <Chip key={a} cls={warnChip(afterworks.includes(a))}
                             onTap={on && (() => on({ afterworks: toggle(afterworks, a) }))}>
-                            {a}<span className="ml-1 text-[10px] font-normal opacity-70">{AFTERWORK_MINUTES[a]}분</span>
+                            {a}<span className="ml-1 text-[10px] font-normal opacity-70">{afterworkMinutes([a], unk.afterworkMin)}분</span>
                         </Chip>
                     ))}
                     {afterworks.length > 0 && (
-                        <span className="text-[11px] text-text-muted self-center ml-1">합 {afterworkMinutes(afterworks)}분</span>
+                        <span className="text-[11px] text-text-muted self-center ml-1">합 {afterworkMinutes(afterworks, unk.afterworkMin)}분</span>
                     )}
                 </Row>
             )}
