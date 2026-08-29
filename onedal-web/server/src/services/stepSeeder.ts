@@ -279,6 +279,31 @@ export function bridgeCargoReport(userId: string, orderId: string,
             memo: (report as any).memo ?? undefined,
             onward_deadline_at: (report as any).onwardDeadlineAt ?? undefined,
         }, judgment, routeTl);
+        /**
+         * ⏱️ **짐이 바뀌었으면 예측 정차도 다시 잰다** (기사님 리허설 2026-08-30).
+         *
+         * 장부에서 같은 콜의 두 행이 다른 예측을 들고 있었다:
+         * ```
+         * step_call_pickup   라면박스 20개   14.0분   ← 30개(차종 기본)일 때 값이 남았다
+         * step_loaded        라면박스 20개   11.0분   ← 나중에 태어나 20개로 다시 쟀다
+         * ```
+         * 짐만 쓰고 정차를 안 고쳐서다. 상차 완료 행이 태어나기 전까지 **판정이 3분 긴
+         * 값**을 썼다.
+         *
+         * 🔴 **여기서 손으로 다시 계산하지 않는다.** 짐을 먼저 써 넣고 `computeChain` 을
+         *    다시 돌려 그 값을 가져온다 — 정차를 만드는 곳은 끝까지 한 곳이다 (규칙 ③).
+         * 🔴 «굳은 행은 불변» 의 예외가 아니다. 이건 **그 단계 자신의 사건**(통화)이라
+         *    마감하며 채우는 값이다 (`refreshPlannedSteps` 의 경로 변경과는 다르다).
+         */
+        const o = db.prepare(`SELECT * FROM orders WHERE id = ?`).get(orderId) as any;
+        if (o) {
+            const want = computeChain(o, bornRows(orderId), judgment, routeTl)[step];
+            const d = want?.planned_dwell_min;
+            if (typeof d === 'number' && Number.isFinite(d)) {
+                db.prepare(`UPDATE ${tableOf(step).table} SET planned_dwell_min = ? WHERE orderId = ?`)
+                  .run(d, orderId);
+            }
+        }
     } else {  // ACTUAL — 현장 실측은 완료 행의 actual_* 로 (행이 없으면 낳는다)
         const step: StepId = report.stopType === 'pickup' ? 'LOADED' : 'DELIVERED';
         finalizeStep(userId, orderId, step, {

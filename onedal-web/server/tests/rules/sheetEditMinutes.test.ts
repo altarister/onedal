@@ -1,7 +1,8 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import db, { seedCallOptions } from '../../src/db';
-import { saveStepDwell, DWELL_COLUMN_OF, plannedDwellOf, stepsView, birthFirstStep } from '../../src/services/stepSeeder';
+import { saveStepDwell, DWELL_COLUMN_OF, plannedDwellOf, stepsView, birthFirstStep,
+         bridgeCargoReport } from '../../src/services/stepSeeder';
 import { dwellActualOfSteps, dwellLedgerOfSteps, dwellSlipMinutes, deriveRouteTimeline, DEFAULT_JUDGMENT, derivationInputsOf } from '@onedal/shared';
 
 /**
@@ -356,5 +357,68 @@ describe('✏️ 화면이 그 규칙을 지키는가', () => {
         expect(경로).toMatch(/routeTimeline/);
         expect(경로).not.toMatch(/buildEtaMap/);
         expect(경로).not.toMatch(/sectionEtas/);
+    });
+});
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * 🔴 **통화로 박스 수를 고치면 예측 정차도 따라가야 한다** (기사님 리허설 2026-08-30)
+ *
+ * 장부에서 같은 콜의 두 행이 **다른 예측**을 들고 있었다:
+ *
+ * ```
+ * step_call_pickup   라면박스 20개   예측 14.0분   ← 30개(차종 기본)일 때 값이 남았다
+ * step_loaded        라면박스 20개   예측 11.0분   ← 나중에 태어나 20개로 다시 쟀다
+ * ```
+ *
+ * `bridgeCargoReport` 가 `planned_quantity` 만 쓰고 `planned_dwell_min` 은 안 고쳤다.
+ * 상차 완료 행이 태어나기 전까지 판정은 **3분 긴 값**을 쓴다.
+ *
+ * 🔴 어제 배지를 통화 단계에 안 연 이유가 *"손으로 쓴 값이 예측을 얼린다"* 였는데,
+ *    **이미 얼어 있었다.** 원인은 배지가 아니라 통화 저장이었다.
+ */
+maybe('📞 통화로 짐을 고치면 그 행의 예측 정차도 따라간다', () => {
+    const ID2 = 'TEST-DECLARE-DWELL';
+    const 콜2 = {
+        id: ID2, userId: USER, status: 'ORDER_CONFIRMED',
+        timestamp: '2026-08-30T00:00:00Z', capturedAt: '2026-08-30T00:00:00Z',
+        pickup: '경기 광주시 초월읍', dropoff: '경기 이천시 신둔면', vehicleType: '다마스',
+    };
+    beforeAll(() => {
+        seedCallOptions(USER);
+        db.prepare(`DELETE FROM orders WHERE id = ?`).run(ID2);
+        const c = Object.keys(콜2);
+        db.prepare(`INSERT INTO orders (${c.join(',')}) VALUES (${c.map(() => '?').join(',')})`)
+          .run(...c.map(k => (콜2 as any)[k]));
+        birthFirstStep(USER, ID2);
+    });
+    afterAll(() => db.prepare(`DELETE FROM orders WHERE id = ?`).run(ID2));
+
+    const 행 = () => db.prepare(`SELECT * FROM step_call_pickup WHERE orderId = ?`).get(ID2) as any;
+
+    it('태어날 때는 차종 기본값(다마스 30박스)으로 잰다', () => {
+        expect(행().planned_quantity).toBe(30);
+        expect(행().planned_dwell_min).toBeGreaterThan(0);
+    });
+
+    it('🔴 통화로 20박스라 들으면 예측 정차가 줄어든다', () => {
+        const 전 = 행().planned_dwell_min;
+        bridgeCargoReport(USER, ID2, {
+            stopType: 'pickup', kind: 'DECLARED',
+            unit: '라면박스', quantity: 20, handling: '수작업', protections: ['결박'],
+        } as any, DEFAULT_JUDGMENT);
+        const 후 = 행();
+        expect(후.planned_quantity).toBe(20);
+        expect(후.planned_dwell_min).toBeLessThan(전);     // 짐이 줄었으니 정차도 줄어야 한다
+    });
+
+    it('🔴 늘리면 늘어난다 — 한 방향만 따라가는 게 아니다', () => {
+        const 전 = 행().planned_dwell_min;
+        bridgeCargoReport(USER, ID2, {
+            stopType: 'pickup', kind: 'DECLARED',
+            unit: '라면박스', quantity: 40, handling: '수작업', protections: ['결박'],
+        } as any, DEFAULT_JUDGMENT);
+        expect(행().planned_dwell_min).toBeGreaterThan(전);
     });
 });

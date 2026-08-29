@@ -994,6 +994,40 @@ function arrivedMs(
     return null;
 }
 
+/**
+ * 🕐 **끝난 정거장의 시각은 «지금 경로»가 아니라 장부에 있다** (기사님 발견 2026-08-30)
+ *
+ * 기사님: *"완료됨 가서 이전 콜을 확인해 보니 `?. 초월읍 약속? - ?. 신둔면 약속?`
+ * 이렇게 나오는데.. **약속시간이 날아가나 봐.**"*
+ *
+ * 순번도 시각도 **경로**에서 찾고 있었다. 그런데 다녀온 정거장은 경로에서 빠지고,
+ * 끝난 콜은 통째로 빠진다 — 그래서 화면이 물음표만 남겼다. 장부에는 다 있었다.
+ *
+ * 🔴 **읽는 순서**: 실제로 간 시각 > 통화로 굳힌 약속 > 없음.
+ *    없으면 `null` 이다 — 지어내지 않는다 (규칙 ④).
+ */
+export interface StopTimeView {
+    ms: number;
+    /** 실제로 간 시각인가 · 통화로 굳힌 약속인가 */
+    kind: 'actual' | 'confirmed';
+}
+
+export function stopTimeOfRecords(
+    reports: CargoReport[],
+    milestones: { milestone: string; occurredAt?: string }[],
+    stopType: 'pickup' | 'dropoff',
+): StopTimeView | null {
+    const 실제 = arrivedMs(milestones, stopType);
+    if (실제 != null) return { ms: 실제, kind: 'actual' };
+    const 약속 = reports.find(r =>
+        r.stopType === stopType && r.kind === 'DECLARED' && (r as any).promisedArrivalAt);
+    if (약속) {
+        const t = Date.parse((약속 as any).promisedArrivalAt);
+        if (Number.isFinite(t)) return { ms: t, kind: 'confirmed' };
+    }
+    return null;
+}
+
 export function deriveRouteTimeline(
     stops: Array<{ orderId: string; stopType: 'pickup' | 'dropoff'; driveMinutes: number | null }>,
     orders: TimingOrderFields[],

@@ -1,6 +1,6 @@
 import { verdictOf, BUTTON_BG } from '../../lib/verdict';
 import { useState, useEffect } from 'react';
-import { isEvaluating, isTerminal, isDeliveredCall, minRouteBuffer, derivationInputsOf } from "@onedal/shared";
+import { isEvaluating, isTerminal, isDeliveredCall, minRouteBuffer, derivationInputsOf, stopTimeOfRecords } from "@onedal/shared";
 import type { SecuredOrder } from "@onedal/shared";
 import { socket } from "../../lib/socket";
 import { getAddressLabel, getMinuteDiff , telHref } from "../../lib/routeUtils";
@@ -42,17 +42,29 @@ export interface EtaCell {
  *    둘이 같은 재료를 쓰므로 **한 화면이 두 말을 할 수 없다.**
  * 🔴 밀림이 0 이면 화살표를 안 그린다 — 안 움직인 값에 화살표를 붙이면 움직인 것처럼 읽힌다.
  */
-function PromiseLines({ route, timeline }: { route: SecuredOrder; timeline?: RouteTimelineEntry[] }) {
+function PromiseLines({ route, timeline, records }: {
+    route: SecuredOrder; timeline?: RouteTimelineEntry[]; records: CallRecords;
+}) {
     const hhmm = (ms: number) => new Date(ms).toLocaleTimeString('ko-KR',
         { hour: '2-digit', minute: '2-digit', hour12: false });
     const 줄 = (['pickup', 'dropoff'] as const).map(stop => {
+        const 이름 = getAddressLabel(stop === 'pickup' ? route.pickup : route.dropoff);
         const e = timeline?.find(x => x.orderId === route.id && x.stopType === stop);
-        if (!e?.promisedUntil) return null;
+        if (!e?.promisedUntil) {
+            /**
+             * 🔴 **경로에 없으면 장부에서 읽는다** (기사님 발견 2026-08-30).
+             *    다녀온 정거장은 경로에서 빠지고 끝난 콜은 통째로 빠진다. 예전에는
+             *    거기서 포기해 **시각이 통째로 사라졌다** — 장부에는 다 있었다.
+             */
+            const t = stopTimeOfRecords(records.reports, records.milestones, stop);
+            if (!t) return null;
+            return { stop, 이름, 원래: null, 지금: hhmm(t.ms), 밀림: 0,
+                     확정: true, 다녀옴: t.kind === 'actual', 지각: 0 };
+        }
         const 지금 = Date.parse(e.promisedUntil);
         const 밀림 = e.dwellShiftMinutes ?? 0;
         return {
-            stop,
-            이름: getAddressLabel(stop === 'pickup' ? route.pickup : route.dropoff),
+            stop, 이름,
             원래: 밀림 !== 0 ? hhmm(지금 - 밀림 * 60_000) : null,
             지금: hhmm(지금),
             밀림, 확정: e.promiseConfirmed, 다녀옴: e.arrived, 지각: e.lateMinutes ?? 0,
@@ -138,7 +150,24 @@ export default function PinnedRouteCard({
      */
     const evaluating = isEvaluating(route.status)
         && !(route.isPreview && route.status === 'ORDER_AWAITING_DECISION');
-    const etas = etaMap.get(route.id);
+    /**
+     * 🕐 **경로에 없으면 장부에서 읽는다** (기사님 발견 2026-08-30).
+     *
+     * 기사님: *"완료됨 가서 이전 콜을 확인해 보니 `?. 초월읍 약속? - ?. 신둔면 약속?`
+     * 이렇게 나오는데.. **약속시간이 날아가나 봐.**"*
+     *
+     * `etaMap` 은 **지금 경로**에서 만든다. 끝난 콜은 경로에 없어 통째로 비었다 —
+     * 그런데 장부에는 «몇 시에 갔는지»가 남아 있다. 규칙은 `stopTimeOfRecords` 하나다.
+     */
+    const 장부시각 = (stop: 'pickup' | 'dropoff') => {
+        const t = stopTimeOfRecords(records.reports, records.milestones, stop);
+        return t ? new Date(t.ms).toTimeString().substring(0, 5) : undefined;
+    };
+    const fromRoute = etaMap.get(route.id);
+    const etas = {
+        pickupEta: fromRoute?.pickupEta ?? 장부시각('pickup'),
+        dropoffEta: fromRoute?.dropoffEta ?? 장부시각('dropoff'),
+    };
     const visitOrder = visitOrderMap.get(route.id);
 
     // [텔레메트리 스니펫] 카운터 상태 및 애니메이션 트리거
@@ -358,7 +387,7 @@ export default function PinnedRouteCard({
                         원천: docs/지금/시각_표시.md
                         접힌 줄(덱)은 «틀어졌나»만 기호로 답하고(안 C), 몇 시였는지는 여기서 답한다.
                         통화의 대사가 이 줄에서 나온다 — *"원래 3시 15분이라 했는데 20분쯤 되겠습니다."* */}
-                    <PromiseLines route={route} timeline={timeline} />
+                    <PromiseLines route={route} timeline={timeline} records={records} />
 
                     {/* 👀 **미리보기 콜에는 결재 버튼을 띄우지 않는다** (기사님 확정 2026-08-22 · 용어집 §9).
                         아직 배차망에서 안 잡은 콜이라 여기서 KEEP 을 눌러도 잡히지 않는다 —

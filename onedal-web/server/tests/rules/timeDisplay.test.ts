@@ -33,6 +33,7 @@ const 벗긴다 = (p: string) => {
 const 덱 = 벗긴다('../../../client-app/src/components/dashboard/CallDeck.tsx');
 const 카드 = 벗긴다('../../../client-app/src/components/dashboard/PinnedRouteCard.tsx');
 const 문서 = readFileSync(join(ROOT, 'docs/지금/시각_표시.md'), 'utf8');
+import { stopTimeOfRecords } from '@onedal/shared';
 
 describe('🕐 접힌 줄 — 안 C (기호로만)', () => {
     /** 🔴 이게 안 C 와 안 B 를 가르는 줄이다 */
@@ -185,5 +186,47 @@ describe('🕐 시각을 만드는 네 곳이 같은 재료를 쓴다', () => {
         for (const c of 호출들(벗긴다(p))) {
             expect(c).toMatch(/unk/);
         }
+    });
+});
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * 🔴 **끝난 것의 시각은 경로가 아니라 장부에서 읽는다** (기사님 발견 2026-08-30)
+ *
+ * 기사님: *"완료됨 가서 이전 콜을 확인해 보니 `?. 초월읍 약속? - ?. 신둔면 약속?`
+ * 이렇게 나오는데.. **약속시간이 날아가나 봐.**"*
+ *
+ * 순번도 시각도 **지금 경로**에서 찾고 있었다. 다녀온 정거장은 경로에서 빠지고
+ * 끝난 콜은 통째로 빠진다 — 그래서 물음표만 남았다. 장부에는 다 있었다.
+ */
+describe('🕐 끝난 정거장도 시각을 잃지 않는다', () => {
+    const 신고 = (stopType: string, at: string) =>
+        ({ stopType, kind: 'DECLARED', promisedArrivalAt: at }) as any;
+
+    it('🔴 실제로 간 시각이 가장 세다', () => {
+        const t = stopTimeOfRecords(
+            [신고('pickup', '2026-08-30T02:20:00Z')],
+            [{ milestone: 'ARRIVED_PICKUP', occurredAt: '2026-08-30T02:33:00Z' }],
+            'pickup');
+        expect(t).toEqual({ ms: Date.parse('2026-08-30T02:33:00Z'), kind: 'actual' });
+    });
+
+    it('아직 안 갔으면 통화로 굳힌 약속을 쓴다', () => {
+        const t = stopTimeOfRecords([신고('pickup', '2026-08-30T02:20:00Z')], [], 'pickup');
+        expect(t).toEqual({ ms: Date.parse('2026-08-30T02:20:00Z'), kind: 'confirmed' });
+    });
+
+    it('🔴 둘 다 없으면 null 이다 — 지어내지 않는다 (규칙 ④)', () => {
+        expect(stopTimeOfRecords([], [], 'pickup')).toBeNull();
+    });
+
+    it('상차·하차를 섞지 않는다', () => {
+        expect(stopTimeOfRecords([신고('dropoff', '2026-08-30T03:15:00Z')], [], 'pickup')).toBeNull();
+    });
+
+    it('🔴 카드가 경로에 없으면 장부로 폴백한다 — 머리 줄과 펼친 블록 둘 다', () => {
+        expect((카드.match(/stopTimeOfRecords/g) ?? []).length).toBeGreaterThanOrEqual(2);
+        expect(카드).toMatch(/fromRoute\?\.pickupEta \?\?/);
     });
 });
