@@ -28,6 +28,28 @@ const REAL_GPS_STALE_MS = 15_000;
 const SIMULATOR_AVAILABLE = import.meta.env.DEV;
 
 /**
+ * 🐢 **모의 주행 속도 — URL 로 늦출 수 있다** (기사님 확정 2026-08-29).
+ *
+ * 기본 15배속은 **3km 를 6초에** 지난다. 그래서 리허설에서 «하차지 3km 앞» 신호를 받고
+ * 합짐을 올리려 해도 **그 사이에 이미 도착해 버렸다** (2026-08-29 실측:
+ * 근접 예고 12:26:24 → 도착 12:26:30, 6초). 화면을 보며 판단할 틈이 없다.
+ *
+ *   http://localhost:3000/?speed=3     3배속 — 3km 를 약 30초에 지난다
+ *
+ * ⚠️ **켜지 않으면 기본 15배속 그대로다** — 평소 시뮬레이션은 빠른 편이 낫다.
+ *    개발 빌드에서만 읽는다 (`SIMULATOR_AVAILABLE` 뒤).
+ */
+function mockSpeedMultiplier(): number {
+    if (!SIMULATOR_AVAILABLE) return 15;
+    try {
+        const n = Number(new URLSearchParams(window.location.search).get('speed'));
+        return Number.isFinite(n) && n >= 1 && n <= 60 ? n : 15;
+    } catch {
+        return 15;
+    }
+}
+
+/**
  * 관제웹의 마스터 GPS — **실 GPS 와 시뮬레이터가 같은 통로를 쓴다.**
  *
  * 기사님(2026-08-14): *"출발을 눌렀을 때 GPS 가 활성화된 상태이면 앱의 GPS 로 작동하고,
@@ -110,7 +132,7 @@ export function useMasterGps(
         isActive: useMock,
         routePolyline: activePolyline,
         stops,
-        speedMultiplier: 15,
+        speedMultiplier: mockSpeedMultiplier(),
         // 경로 끝에 닿으면 가상 위치를 걷어내고 마지막 실제 좌표로 되돌린다
         onFinished: () => { endMockDriving(); setSource('none'); },
     });
