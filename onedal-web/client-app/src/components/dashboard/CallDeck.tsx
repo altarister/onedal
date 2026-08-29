@@ -336,10 +336,15 @@ function StopMark({ at, time, confirmed, kind, evaluating, name, late = 0, shift
     at?: number; time?: string | null; confirmed?: boolean;
     kind: 'pickup' | 'dropoff'; evaluating?: boolean; name: string; late?: number;
     /**
-     * ⏱️ **앞 정거장 실측이 이 시각을 밀어낸 분** (기사님 요청 2026-08-30).
-     *    *"상차에 10분으로 되어 있던 것이 15분이 되었다면 … **처음 출발할 때 적어둔
-     *    시간 옆에 -5분 이렇게 표시** 되면 더욱 좋지 않을까."*
-     *    🔴 `0` 이면 안 그린다 — 예측대로 가고 있다는 뜻이라 적을 말이 없다.
+     * ⏱️ **앞 정거장이 예측과 달라 이 시각이 밀린 분** — 접힌 줄에서는 **기호로만** 말한다.
+     *
+     * 기사님 확정 2026-08-30 (안 C · docs/지금/시각_표시.md):
+     * 달리면서 필요한 답은 **«틀어졌나» 하나**다. 몇 분인지는 통화하려고 카드를 펼칠 때
+     * 필요하고, 거기서는 `3:15 → 3:20 (+5)` 로 전부 적는다 (안 A).
+     *
+     * 🔴 **색을 쓰지 않는다.** 지도가 이미 상차=초록·하차=빨강을 쓰고 판정이 🔵🟢🟡🔴 을
+     *    쓴다 — 여기에 초록·빨강을 더하면 **무엇의 색인지 헷갈린다** (규칙 ⑤-3).
+     * 🔴 `0` 이면 안 그린다 — 예측대로 가고 있다는 뜻이라 적을 말이 없다.
      */
     shift?: number;
 }) {
@@ -366,9 +371,9 @@ function StopMark({ at, time, confirmed, kind, evaluating, name, late = 0, shift
                     {/* ⚠️ 못 지키는 약속 — 색만으로는 이유를 모르니 분을 적는다 */}
                     {late > 0 && <span className="ml-0.5">⚠️{late}분</span>}
                     {shift !== 0 && (
-                        <span className={`ml-0.5 ${shift > 0 ? 'text-warning' : 'text-success'}`}
-                              title="앞 정거장에서 실제로 걸린 시간이 예측과 달라 밀린 분">
-                            {shift > 0 ? '+' : ''}{shift}분
+                        <span className="ml-0.5 opacity-80"
+                              title={`앞 정거장이 예측과 달라 ${Math.abs(shift)}분 ${shift > 0 ? '밀렸습니다' : '당겨졌습니다'} — 몇 분인지는 카드를 펼치면 나옵니다`}>
+                            {shift > 0 ? '▲' : '▼'}
                         </span>
                     )}
                 </span>

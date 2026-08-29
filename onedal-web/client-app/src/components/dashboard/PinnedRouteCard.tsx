@@ -29,6 +29,63 @@ export interface EtaCell {
     pickupShift?: number; dropoffShift?: number;
 }
 
+/**
+ * 🕐 **안 A — 원래 값과 지금 값을 둘 다** (기사님 확정 2026-08-30 · docs/지금/시각_표시.md)
+ *
+ * ```
+ * 상차 초월읍   2:20 → 2:33  다녀옴
+ * 하차 신둔면   3:15 → 3:20 (+5)
+ * ```
+ *
+ * 🔴 **원래 값을 따로 저장하지 않는다** — 지금 값에서 밀린 분을 빼면 나온다 (규칙 ③).
+ *    `dwellShiftMinutes` 가 그 밀림이고, 그 값이 곧 접힌 줄의 `▲▼` 다.
+ *    둘이 같은 재료를 쓰므로 **한 화면이 두 말을 할 수 없다.**
+ * 🔴 밀림이 0 이면 화살표를 안 그린다 — 안 움직인 값에 화살표를 붙이면 움직인 것처럼 읽힌다.
+ */
+function PromiseLines({ route, timeline }: { route: SecuredOrder; timeline?: RouteTimelineEntry[] }) {
+    const hhmm = (ms: number) => new Date(ms).toLocaleTimeString('ko-KR',
+        { hour: '2-digit', minute: '2-digit', hour12: false });
+    const 줄 = (['pickup', 'dropoff'] as const).map(stop => {
+        const e = timeline?.find(x => x.orderId === route.id && x.stopType === stop);
+        if (!e?.promisedUntil) return null;
+        const 지금 = Date.parse(e.promisedUntil);
+        const 밀림 = e.dwellShiftMinutes ?? 0;
+        return {
+            stop,
+            이름: getAddressLabel(stop === 'pickup' ? route.pickup : route.dropoff),
+            원래: 밀림 !== 0 ? hhmm(지금 - 밀림 * 60_000) : null,
+            지금: hhmm(지금),
+            밀림, 확정: e.promiseConfirmed, 다녀옴: e.arrived, 지각: e.lateMinutes ?? 0,
+        };
+    }).filter(Boolean);
+    if (!줄.length) return null;
+
+    return (
+        <div className="mb-3 rounded-md border border-border/60 bg-surface-alt/30 px-2.5 py-2 space-y-1">
+            {줄.map(r => (
+                <div key={r!.stop} className="flex items-baseline gap-2 text-[12px] tabular-nums">
+                    <span className="w-[26px] shrink-0 font-bold text-text-muted">
+                        {r!.stop === 'pickup' ? '상차' : '하차'}
+                    </span>
+                    <span className="truncate max-w-[7em] text-text-primary">{r!.이름}</span>
+                    {r!.원래 && <><span className="text-text-muted line-through">{r!.원래}</span>
+                        <span className="text-text-muted">→</span></>}
+                    <span className={`font-bold ${r!.다녀옴 ? 'text-text-muted' : 'text-text-primary'}`}>
+                        {r!.확정 || r!.다녀옴 ? '' : '~'}{r!.지금}
+                    </span>
+                    {r!.밀림 !== 0 && (
+                        <span className="text-text-muted">
+                            ({r!.밀림 > 0 ? '+' : ''}{r!.밀림}분)
+                        </span>
+                    )}
+                    {r!.다녀옴 && <span className="text-text-muted">다녀옴</span>}
+                    {r!.지각 > 0 && <span className="text-danger font-bold">⚠️{r!.지각}분</span>}
+                </div>
+            ))}
+        </div>
+    );
+}
+
 interface Props {
     route: SecuredOrder;
     isExpanded: boolean;
@@ -296,6 +353,12 @@ export default function PinnedRouteCard({
             {/* 2. 카드 콘텐츠 */}
             {isExpanded && (
                 <div className="px-4 pb-4 pt-2 text-sm border-t border-border bg-surface">
+
+                    {/* 🕐 **안 A — 펼치면 원래 값과 지금 값을 둘 다 적는다** (기사님 확정 2026-08-30)
+                        원천: docs/지금/시각_표시.md
+                        접힌 줄(덱)은 «틀어졌나»만 기호로 답하고(안 C), 몇 시였는지는 여기서 답한다.
+                        통화의 대사가 이 줄에서 나온다 — *"원래 3시 15분이라 했는데 20분쯤 되겠습니다."* */}
+                    <PromiseLines route={route} timeline={timeline} />
 
                     {/* 👀 **미리보기 콜에는 결재 버튼을 띄우지 않는다** (기사님 확정 2026-08-22 · 용어집 §9).
                         아직 배차망에서 안 잡은 콜이라 여기서 KEEP 을 눌러도 잡히지 않는다 —
