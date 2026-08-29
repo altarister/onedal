@@ -121,12 +121,44 @@ export function scoreDryRun(input: DryRunInput, cfg: JudgmentConfig): DryRunVerd
         }
     }
 
+    /**
+     * 🔒 **통과/실패 조건도 «가중치를 가진 축»이다** (기사님 확정 2026-08-29).
+     *
+     * 예전에는 이 둘이 축 밖의 «문지기»라 **끌 수가 없었다.** 그래서 경로만 보려는
+     * 검사에서도 끼어들어 색을 덮었다 (실측: 축점 57점인데 색은 «사고»).
+     * 기사님: *"이 테스트와 관련된 기준만 남기고 나머지 기준을 통과하게 하는 거야."*
+     *
+     * 이제 가중치를 준다 — 통과 100점 · 실패 0점.
+     *   · 가중치 0  → 축에서도 빠지고 **색을 덮지도 않는다** (검사 자체를 끈 것)
+     *   · 가중치 >0 → 평균에 들어가고, **실패하면 색은 여전히 «사고»** (안전은 안 뺀다)
+     *
+     * 🔴 안전을 뺀 것이 아니다. 끄는 것은 **명시적으로 0 을 넣었을 때만**이고,
+     *    기본값은 1 이라 예전과 똑같이 «사고» 가 뜬다.
+     */
+    const gateWeight = (key: string) =>
+        key === 'cargoTagCompat' ? w.cargoCompat : w.promiseGuard;
+    const activeGates = input.gates.filter(g => gateWeight(g.key) > 0);
+    for (const g of activeGates) {
+        axes.push({
+            key: g.key, name: g.name, score: g.pass ? 100 : 0, weight: gateWeight(g.key),
+            raw: g.pass ? '통과' : (g.why ?? '실패'),
+        });
+    }
+
+    /**
+     * ⚠️ **가중치 0 인 축도 목록에는 남긴다** — 색에는 안 들어가지만 **숫자는 계속 보인다.**
+     *    (`judgment.ts` 의 «0 이면 색에 반영하지 않는다 (표시는 계속한다)» 와 같은 약속)
+     *    끈 축의 값도 캘리브레이션 재료라 버리지 않는다.
+     *    🔴 2026-08-29 에 이걸 모르고 «끈 축은 목록에서도 뺀다» 로 고쳤다가
+     *       `judgment.test.ts` 가 잡았다 — 있던 규칙을 부수는 변경이었다.
+     */
     const totalW = axes.reduce((a, x) => a + x.weight, 0);
     const score = totalW > 0
         ? Math.round(axes.reduce((a, x) => a + x.score * x.weight, 0) / totalW)
         : 0;
 
-    const failed = input.gates.some(g => !g.pass);
+    // 켜 둔 조건이 깨지면 점수와 무관하게 «사고» — 끈 조건(가중치 0)은 색을 덮지 않는다
+    const failed = activeGates.some(g => !g.pass);
     const color: DryRunVerdict['color'] = failed ? '사고'
         : score >= cfg.color.honeyMin ? '꿀'
         : score >= cfg.color.normalMin ? '보통' : '똥';

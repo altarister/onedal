@@ -84,6 +84,15 @@ export interface JudgmentConfig {
         /** 버퍼 소비 — 붙인 뒤 남는 최소 버퍼 */
         bufferCost: number;
         slots: number;
+        /**
+         * 🔒 **기존 콜 약속 보존** — 이 콜을 붙이면 이미 잡은 콜의 약속이 깨지는가.
+         *    예전에는 «문지기»라 점수와 무관하게 색을 «사고»로 덮었고, **끌 수가 없었다.**
+         *    경로만 보려는 검사에서도 끼어들어 색이 덮였다 (2026-08-29 실측: 57점인데 사고).
+         *    → 가중치를 주되 **0 이 아니면 실패 시 색을 덮는 것은 그대로다** (안전은 안 뺀다).
+         */
+        promiseGuard: number;
+        /** 🧪 **짐 동승** — 함께 실으면 안 되는 성질인가 (적재는 «공간», 이것은 «성질») */
+        cargoCompat: number;
     };
     /** 채점의 기준 시급 — 순증·시급 축이 이 값 대비 %로 점수가 된다 */
     target: {
@@ -106,7 +115,7 @@ export const DEFAULT_JUDGMENT: JudgmentConfig = {
     //    가중치 통합(revenueDetour), 목표 시급은 문제지 캘리브레이션으로 확정(3.0만).
     unknown: { pickupDwellMin: 15, dropoffDwellMin: 10, pickupOffsetMin: 30 },
     speed: { shortKmh: 25, midKmh: 46, longKmh: 56 },
-    weights: { revenueDetour: 1, bufferCost: 1, slots: 1 },
+    weights: { revenueDetour: 1, bufferCost: 1, slots: 1, promiseGuard: 1, cargoCompat: 1 },
     target: { hourlyKrw: 30_000 },
     deadline: { ratioPct: 150 },
     color: { honeyMin: 70, normalMin: 40 },
@@ -177,7 +186,14 @@ export const JUDGMENT_FIELDS: readonly JudgmentField[] = [
       label: '버퍼 소비', unit: '배', min: 0, max: 10, int: false,
       why: '붙인 뒤 남는 최소 버퍼 — 통화로 약속이 굳은 운행에서 살아나는 축' },
     { col: 'weight_slots', path: ['weights', 'slots'], group: '가중치',
-      label: '적재 용량', unit: '배', min: 0, max: 10, int: false, why: '' },
+      label: '적재 용량', unit: '배', min: 0, max: 10, int: false,
+      why: '**공간** — 몇 칸 남았나. 아래 «짐 동승»(성질)과 다른 축이다' },
+    { col: 'weight_promise_guard', path: ['weights', 'promiseGuard'], group: '가중치',
+      label: '기존 콜 약속 보존', unit: '배', min: 0, max: 10, int: false,
+      why: '이미 잡은 콜의 약속이 깨지는가. 0 이면 **검사 자체를 끈다** — 경로만 보려는 검사에서 쓴다. 0 이 아니면 깨질 때 색이 «사고» 로 덮인다 (안전)' },
+    { col: 'weight_cargo_compat', path: ['weights', 'cargoCompat'], group: '가중치',
+      label: '짐 동승', unit: '배', min: 0, max: 10, int: false,
+      why: '함께 실어도 되는 **성질**인가 (위험물+식료품 등). 적재(공간)와 다르다. 0 이면 검사를 끈다' },
     { col: 'target_hourly_krw', path: ['target', 'hourlyKrw'], group: '가중치',
       label: '목표 시급', unit: '원/h', min: 10000, max: 100000, int: true,
       why: '순증·시급 축의 기준. 노하우 실측 역산(4콜 14.1만÷4.5h≈3.1만) — 문제지 캘리브레이션으로 확정 (2026-08-21)' },
