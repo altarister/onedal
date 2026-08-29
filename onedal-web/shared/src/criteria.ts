@@ -97,7 +97,7 @@ export interface PromiseFacts {
 export const 약속 = defineCriterion<PromiseFacts>({
     key: 'promise', name: '약속', asks: '이미 잡은 콜에 늦지 않나',
     weightKey: 'promiseGuard',
-    measure(f) {
+    measure(f, cfg) {
         if (!f || !Array.isArray(f.lateStops)) return unmeasurable('경로 타임라인을 못 받았습니다');
         if (!f.hasExistingCalls) return nothing('잡아 둔 콜이 없습니다');
         if (f.lateStops.length) {
@@ -105,8 +105,14 @@ export const 약속 = defineCriterion<PromiseFacts>({
             return scored(0, 왜, true);          // 🔴 이건 «잡으면 사고»다
         }
         if (f.bufferAfterMin == null) return unmeasurable('남는 여유를 못 쟀습니다');
+        /**
+         * 🔴 **곡선의 두 끝이 판정 기준 탭에서 온다** (2026-08-29 화면으로 올림).
+         *    예전엔 `30분 만점 · 0분 40점` 이 여기 박혀 있어 기사님이 못 고쳤다.
+         *    값은 그대로다 — 자리만 옮겼다.
+         */
+        const 만점 = cfg.slack.fullMin, 영점 = cfg.slack.zeroScore;
         const a = f.bufferAfterMin;
-        const s = a >= 30 ? 100 : a >= 0 ? 40 + 2 * a : 0;
+        const s = a >= 만점 ? 100 : a >= 0 ? 영점 + ((100 - 영점) / 만점) * a : 0;
         return scored(s, `최소 ${a >= 0 ? '+' : ''}${a}분`);
     },
 });

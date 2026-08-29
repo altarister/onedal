@@ -180,7 +180,14 @@ export const DEFAULT_AFTERWORKS: Afterwork[] = ['정리'];
 export type Afterwork = keyof typeof AFTERWORK_MINUTES;
 
 /** 고른 후작업들의 합(분). 모르면 0 — 지어내지 않는다 */
-export function afterworkMinutes(list?: readonly string[] | null): number {
-    if (!list?.length) return 0;
-    return list.reduce((sum, a) => sum + (AFTERWORK_MINUTES[a as Afterwork] ?? 0), 0);
+export function afterworkMinutes(
+    list?: readonly string[] | null,
+    /**
+     * 🔴 판정 기준 탭에서 온 값 — 「검수 60분」이 여기로 들어온다 (2026-08-29 화면으로 올림).
+     *    안 오면 아래 상수를 쓴다 (되돌리는 길).
+     */
+    override?: Record<string, number>,
+): number {
+    const 표 = override ?? AFTERWORK_MINUTES;
+    return (list ?? []).reduce((a, k) => a + ((표 as Record<string, number>)[k] ?? 0), 0);
 }

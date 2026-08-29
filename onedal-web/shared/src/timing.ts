@@ -12,7 +12,7 @@
  * 각자의 것만 남기고, 여기서 그 값을 읽어 시간으로 환산한다. 의존은 한 방향뿐이다.
  */
 import { unitPoints } from './cargoUnits';
-import { protectionMinutes, afterworkMinutes } from './cargoUnits';
+import { protectionMinutes, afterworkMinutes, AFTERWORK_MINUTES } from './cargoUnits';
 import type { CargoReport } from './index';
 import { parseCargoHints } from './cargoHints';
 
@@ -69,7 +69,17 @@ export const DWELL_UNKNOWN_DROPOFF_MINUTES = 10;   // 찾기 + 하차
  * 안 넘기면 아래 상수를 쓴다 — 그 상수는 `user_judgment` 테이블의 `DEFAULT` 와 같은 값이다.
  * 기사님이 관제웹에서 값을 바꾸면 **서버가 DB 값을 여기로 넘긴다.**
  */
-export interface DwellUnknown { pickupDwellMin: number; dropoffDwellMin: number }
+export interface DwellUnknown {
+    pickupDwellMin: number;
+    dropoffDwellMin: number;
+    /**
+     * 📦 **박스 하나에 걸리는 시간(분)** — 판정 기준 탭에서 온다 (2026-08-29 화면으로 올림).
+     *    안 실려 오면 아래 `DWELL_PER_POINT` 상수를 쓴다 (되돌리는 길).
+     */
+    perBoxMin?: { forkliftMin: number; manualMin: number };
+    /** 🧹 후작업 시간(분) — 「검수」가 붙이는 60분이 여기 산다 */
+    afterworkMin?: Record<string, number>;
+}
 
 export function dwellMinutes(
     handling?: string | null,
@@ -94,8 +104,12 @@ export function dwellMinutes(
      *    다만 **차종조차 못 읽은 콜**은 여전히 있을 수 있어(P3 무결성), 그때만 일반값으로 돈다.
      */
     if (points <= 0) return unknown;
-    const extra = stop === 'pickup' ? protectionMinutes(protections) : afterworkMinutes(afterworks);
-    return Math.round(base + points * (DWELL_PER_POINT[handling] ?? 1) + extra);
+    const extra = stop === 'pickup' ? protectionMinutes(protections) : afterworkMinutes(afterworks, unk?.afterworkMin);
+    /** 🔴 판정 기준 탭 값이 있으면 그것, 없으면 옛 상수 (되돌리는 길) */
+    const 박스당 = handling === '지게차' ? unk?.perBoxMin?.forkliftMin
+                 : handling === '수작업' ? unk?.perBoxMin?.manualMin
+                 : undefined;
+    return Math.round(base + points * (박스당 ?? DWELL_PER_POINT[handling] ?? 1) + extra);
 }
 
 export interface StopTiming {
@@ -640,6 +654,8 @@ export function derivationInputsOf(cfg: {
     unknown: { pickupDwellMin: number; dropoffDwellMin: number; pickupOffsetMin: number };
     deadline: { ratioPct: number };
     speed?: { shortKmh: number; midKmh: number; longKmh: number };
+    dwellPerBox?: { forkliftMin: number; manualMin: number };
+    afterwork?: { inspectMin: number };
 }): { rules: DeadlineRules; unk: DwellUnknown } {
     return {
         rules: {
@@ -655,6 +671,9 @@ export function derivationInputsOf(cfg: {
         unk: {
             pickupDwellMin: cfg.unknown.pickupDwellMin,
             dropoffDwellMin: cfg.unknown.dropoffDwellMin,
+            // 🔴 정차 값도 여기 한 그릇에 실어 나른다 — 만드는 곳이 둘이면 갈라진다 (#33 클래스)
+            ...(cfg.dwellPerBox ? { perBoxMin: cfg.dwellPerBox } : {}),
+            ...(cfg.afterwork ? { afterworkMin: { ...AFTERWORK_MINUTES, 검수: cfg.afterwork.inspectMin } } : {}),
         },
     };
 }
