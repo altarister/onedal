@@ -7,7 +7,7 @@ import { getRegionsByCity } from "../geoResolver";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import type { AutoDispatchFilter, Milestone, MilestoneSource, CargoReport, CallTarget, PhaseKey, PhaseSettings } from "@onedal/shared";
 import { cargoMismatchRatio, DEFAULT_DETOUR_RADIUS_KM, PHASE_KEYS, judgmentFromRow, judgmentToRow, deriveRouteTimeline, derivationInputsOf, isTerminal } from "@onedal/shared";
-import db from "../db";
+import db, { forgetCallOptions, loadCallOptions } from "../db";
 import { OrderRepository } from "../repositories/OrderRepository";
 import { PlaceRepository } from "../repositories/PlaceRepository";
 import { getUserSession, getAllActiveUserIds } from "../state/userSessionStore";
@@ -169,6 +169,13 @@ export function registerSocketHandlers(io: Server) {
          * 🔴 **앱에는 가지 않는다.** 이건 소켓이고 앱은 REST 피기백만 쓴다 (규칙 ⑤-1).
          */
         socket.emit("judgment-init", session.judgment);
+        /**
+         * 🎛️ **콜 옵션 — 화면의 칩과 그 분(分)** (2026-08-29 이음).
+         *    통화 시트가 「수작업 10분」·「검수 60분」이라고 그리는 그 값이다.
+         *    🔴 **판정과 같은 표에서 온다** — 낮에 판정 기준 탭에 또 만들었다가 되돌렸다.
+         *    두 그릇이면 «화면 10분 / 판정 19분» 같은 두 목소리가 난다 (#71).
+         */
+        socket.emit("call-options-init", session.callOptions);
 
         /**
          * 🔴 **놓친 뒤에도 받을 수 있어야 한다** (2026-08-16 실측).
@@ -181,6 +188,7 @@ export function registerSocketHandlers(io: Server) {
          */
         socket.on("request-judgment", () => {
             socket.emit("judgment-init", session.judgment);
+            socket.emit("call-options-init", session.callOptions);
         });
 
         safeOn(socket, "save-judgment", (cfg: unknown) => {
@@ -204,6 +212,35 @@ export function registerSocketHandlers(io: Server) {
             session.judgment = safe;   // 그릇이 하나다 — "오늘만" 이 없다
             console.log(`🎯 [판정 기준 저장] ${cols.length}개 값 · 🔵 ${safe.color.honeyMin}점 · 🟢 ${safe.color.normalMin}점`);
             io.to(userId).emit("judgment-updated", safe);
+        });
+
+        /**
+         * 🎛️ **콜 옵션 저장** (2026-08-29) — 화면의 칩과 그 분(分)을 기사님이 고친다.
+         *
+         * 🔴 **셋을 한 번에 해야 한다.** 하나라도 빠지면 두 목소리가 난다:
+         *   ① DB 를 고친다        — 다음 로그인에도 남는다
+         *   ② **기억을 버린다**    — 서버 판정이 옛 값을 계속 쓰지 않게 (`forgetCallOptions`)
+         *   ③ 세션과 화면을 갱신   — 지금 열려 있는 관제웹이 바로 새 값을 본다
+         *
+         * ⚠️ ②를 빠뜨리면 «화면은 새 값 · 판정은 옛 값» 이 된다 — 이 레포가 오늘만
+         *    세 번 겪은 #33 클래스다 (버그 대장 #71).
+         */
+        safeOn(socket, "save-call-options", (list: unknown) => {
+            if (!Array.isArray(list) || list.length === 0) return;
+            const 고친것 = list as Array<{ category: string; key: string; num1?: number | null; num2?: number | null }>;
+            db.transaction(() => {
+                const st = db.prepare(
+                    `UPDATE call_options SET num1 = ?, num2 = ?, updated_at = ?
+                     WHERE user_id = ? AND category = ? AND key = ?`);
+                const now = new Date().toISOString();
+                for (const o of 고친것) st.run(o.num1 ?? null, o.num2 ?? null, now, userId, o.category, o.key);
+            })();
+
+            forgetCallOptions(userId);                       // ② 서버 판정이 새 값을 쓰게
+            const session = getUserSession(userId);
+            session.callOptions = loadCallOptions(userId);   // ③ 세션도 새 값으로
+            console.log(`🎛️ [콜 옵션 저장] ${고친것.length}개 · 정차 값을 다시 읽었습니다`);
+            io.to(userId).emit("call-options-init", session.callOptions);
         });
 
         socket.on("request-filter-init", () => {

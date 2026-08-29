@@ -1,5 +1,5 @@
 import { judge, CRITERIA, DEFAULT_JUDGMENT, dwellMinutes, derivationInputsOf,
-         JUDGMENT_FIELDS, judgmentDefaults } from '@onedal/shared';
+         dwellRatesOf, buildDefaultCallOptions, JUDGMENT_FIELDS, judgmentDefaults } from '@onedal/shared';
 import type { JudgmentConfig, JudgeFacts } from '@onedal/shared';
 
 /**
@@ -54,26 +54,37 @@ describe('⏰ 여유 곡선 — 두 끝이 판정 기준 탭에서 온다', () =
     });
 });
 
-describe('📦 박스당 정차 시간 — 판정 기준 탭에서 온다', () => {
-    /** 다마스 30박스 수작업 — 기본값이면 박스당 20초라 10분이 붙는다 */
-    const 잰다 = (c: JudgmentConfig) =>
-        dwellMinutes('수작업', 30, 'pickup', derivationInputsOf(c).unk, ['결박']);
+/**
+ * 🎛️ **정차 값은 «콜 옵션 표»에서 온다** (2026-08-29 · 그릇을 가른 뒤).
+ *    낮에 판정 기준 탭으로 올렸다가 되돌렸다 — 그 셋은 «어떻게 잴 것인가»가 아니라
+ *    **화면의 칩에 붙는 숫자**이고, 그 표에 이미 칸이 있었다 (규칙 ③).
+ */
+describe('📦 박스당 정차 시간 — 콜 옵션 표에서 온다', () => {
+    /** 표를 손으로 고쳐 «바꾸면 정말 바뀌는가»를 본다 */
+    const 표 = (over: (o: any) => void = () => {}) => {
+        const opts = JSON.parse(JSON.stringify(buildDefaultCallOptions()));
+        over(opts); return dwellRatesOf(opts);
+    };
+    const 잰다 = (rates: any) =>
+        dwellMinutes('수작업', 30, 'pickup', derivationInputsOf(DEFAULT_JUDGMENT, rates).unk, ['결박']);
 
     it('기본값은 옛 상수 그대로다 (수작업 1/3분 · 지게차 0.05분)', () => {
-        expect(DEFAULT_JUDGMENT.dwellPerBox).toEqual({ forkliftMin: 0.05, manualMin: 1 / 3 });
-        expect(잰다(DEFAULT_JUDGMENT)).toBe(14);                    // 오늘 실측한 다마스 상차 14분
+        const r = 표();
+        expect(r.perBoxMin!.forkliftMin).toBeCloseTo(0.05);
+        expect(r.perBoxMin!.manualMin).toBeCloseTo(1 / 3);
+        expect(잰다(r)).toBe(14);                                   // 오늘 실측한 다마스 상차 14분
     });
 
     it('🔴 박스당 시간을 늘리면 정차가 늘어난다 — 「돈」의 분모가 움직인다', () => {
-        const 느리게 = cfg({ dwellPerBox: { forkliftMin: 0.05, manualMin: 0.5 } });   // 30초/박스
+        const 느리게 = 표(o => { o.find((x: any) => x.key === '수작업').num2 = 0.5; });
         expect(잰다(느리게)).toBe(19);                              // 14분 → 19분 (박스당 20초→30초)
     });
 
     it('지게차도 따로 움직인다', () => {
-        const 잰다지게차 = (c: JudgmentConfig) =>
-            dwellMinutes('지게차', 80, 'pickup', derivationInputsOf(c).unk, ['결박']);
-        const 느리게 = cfg({ dwellPerBox: { forkliftMin: 0.2, manualMin: 1 / 3 } });
-        expect(잰다지게차(느리게)).toBeGreaterThan(잰다지게차(DEFAULT_JUDGMENT));
+        const 잰다지게차 = (rates: any) =>
+            dwellMinutes('지게차', 80, 'pickup', derivationInputsOf(DEFAULT_JUDGMENT, rates).unk, ['결박']);
+        const 느리게 = 표(o => { o.find((x: any) => x.key === '지게차').num2 = 0.2; });
+        expect(잰다지게차(느리게)).toBeGreaterThan(잰다지게차(표()));
     });
 
     /** 🔴 되돌리는 길 — 값이 안 실려 오면 옛 상수로 돈다 */
@@ -83,29 +94,32 @@ describe('📦 박스당 정차 시간 — 판정 기준 탭에서 온다', () =
     });
 });
 
-describe('🧹 검수 후작업 — 여섯 중 제일 센 값', () => {
-    const 하차정차 = (c: JudgmentConfig) =>
-        dwellMinutes('수작업', 30, 'dropoff', derivationInputsOf(c).unk, null, ['정리', '검수']);
+describe('🧹 검수 후작업 — 제일 센 값. 이것도 콜 옵션 표에서 온다', () => {
+    const 표 = (분?: number) => {
+        const opts = JSON.parse(JSON.stringify(buildDefaultCallOptions()));
+        if (분 != null) opts.find((x: any) => x.key === '검수').num1 = 분;
+        return dwellRatesOf(opts);
+    };
+    const 하차정차 = (rates: any) =>
+        dwellMinutes('수작업', 30, 'dropoff', derivationInputsOf(DEFAULT_JUDGMENT, rates).unk, null, ['정리', '검수']);
 
     it('기본값은 옛 상수 그대로다 (60분)', () => {
-        expect(DEFAULT_JUDGMENT.afterwork.inspectMin).toBe(60);
+        expect(표().afterworkMin!['검수']).toBe(60);
     });
 
     it('🔴 검수 시간을 줄이면 하차 정차가 그만큼 줄어든다', () => {
-        const 짧게 = cfg({ afterwork: { inspectMin: 10 } });
-        expect(하차정차(DEFAULT_JUDGMENT) - 하차정차(짧게)).toBe(50);   // 60 → 10
+        expect(하차정차(표()) - 하차정차(표(10))).toBe(50);          // 60 → 10
     });
 
     it('검수를 안 누르면 안 붙는다 — 값을 바꿔도 그대로', () => {
-        const 정리만 = (c: JudgmentConfig) =>
-            dwellMinutes('수작업', 30, 'dropoff', derivationInputsOf(c).unk, null, ['정리']);
-        expect(정리만(cfg({ afterwork: { inspectMin: 240 } }))).toBe(정리만(DEFAULT_JUDGMENT));
+        const 정리만 = (rates: any) =>
+            dwellMinutes('수작업', 30, 'dropoff', derivationInputsOf(DEFAULT_JUDGMENT, rates).unk, null, ['정리']);
+        expect(정리만(표(240))).toBe(정리만(표()));
     });
 });
 
-describe('🗄️ 다섯 다 DB 칸과 화면을 가졌다 (규칙 ⑤-4 ①)', () => {
-    const 새칸 = ['slack_full_min', 'slack_zero_score', 'dwell_forklift_min',
-                  'dwell_manual_min', 'afterwork_inspect_min'];
+describe('🗄️ 여유 곡선 둘은 판정 기준 탭에 있다 (규칙 ⑤-4 ①)', () => {
+    const 새칸 = ['slack_full_min', 'slack_zero_score'];
 
     it('판정 기준 표에 다섯이 다 있다', () => {
         const cols = JUDGMENT_FIELDS.map(f => f.col);
@@ -124,8 +138,12 @@ describe('🗄️ 다섯 다 DB 칸과 화면을 가졌다 (규칙 ⑤-4 ①)', 
         const d = judgmentDefaults();
         expect(d.slack_full_min).toBe(30);
         expect(d.slack_zero_score).toBe(40);
-        expect(d.dwell_forklift_min).toBeCloseTo(0.05);
-        expect(d.dwell_manual_min).toBeCloseTo(1 / 3);
-        expect(d.afterwork_inspect_min).toBe(60);
+    });
+
+    /** 🔴 정차 값은 **여기 없어야** 한다 — 같은 값을 두 그릇에 담지 않는다 */
+    it('🔴 정차 값은 판정 기준 탭에 없다 — 콜 옵션 표가 원천이다', () => {
+        const cols = JUDGMENT_FIELDS.map(f => f.col);
+        for (const c of ['dwell_forklift_min', 'dwell_manual_min', 'afterwork_inspect_min'])
+            expect(cols).not.toContain(c);
     });
 });

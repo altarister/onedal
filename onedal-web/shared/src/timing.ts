@@ -12,7 +12,7 @@
  * 각자의 것만 남기고, 여기서 그 값을 읽어 시간으로 환산한다. 의존은 한 방향뿐이다.
  */
 import { unitPoints } from './cargoUnits';
-import { protectionMinutes, afterworkMinutes, AFTERWORK_MINUTES } from './cargoUnits';
+import { protectionMinutes, afterworkMinutes } from './cargoUnits';
 import type { CargoReport } from './index';
 import { parseCargoHints } from './cargoHints';
 
@@ -654,9 +654,14 @@ export function derivationInputsOf(cfg: {
     unknown: { pickupDwellMin: number; dropoffDwellMin: number; pickupOffsetMin: number };
     deadline: { ratioPct: number };
     speed?: { shortKmh: number; midKmh: number; longKmh: number };
-    dwellPerBox?: { forkliftMin: number; manualMin: number };
-    afterwork?: { inspectMin: number };
-}): { rules: DeadlineRules; unk: DwellUnknown } {
+}, /**
+ * 🎛️ **정차 값은 콜 옵션 표에서 온다** (2026-08-29 · 그릇을 가른 뒤).
+ *    낮에는 판정 기준 설정에 실려 왔는데, 그 셋은 «어떻게 잴 것인가»가 아니라
+ *    **화면의 칩에 붙는 숫자**라 자리를 옮겼다 (`dwellRatesOf`).
+ *    안 넘기면 `timing.ts` 의 옛 상수로 돈다 — 되돌리는 길.
+ */
+   rates?: { perBoxMin?: { forkliftMin: number; manualMin: number }; afterworkMin?: Record<string, number> },
+): { rules: DeadlineRules; unk: DwellUnknown } {
     return {
         rules: {
             ...DEFAULT_DEADLINE_RULES,
@@ -672,8 +677,8 @@ export function derivationInputsOf(cfg: {
             pickupDwellMin: cfg.unknown.pickupDwellMin,
             dropoffDwellMin: cfg.unknown.dropoffDwellMin,
             // 🔴 정차 값도 여기 한 그릇에 실어 나른다 — 만드는 곳이 둘이면 갈라진다 (#33 클래스)
-            ...(cfg.dwellPerBox ? { perBoxMin: cfg.dwellPerBox } : {}),
-            ...(cfg.afterwork ? { afterworkMin: { ...AFTERWORK_MINUTES, 검수: cfg.afterwork.inspectMin } } : {}),
+            ...(rates?.perBoxMin ? { perBoxMin: rates.perBoxMin } : {}),
+            ...(rates?.afterworkMin ? { afterworkMin: rates.afterworkMin } : {}),
         },
     };
 }

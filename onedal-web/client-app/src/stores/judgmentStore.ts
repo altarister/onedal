@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import type { JudgmentConfig } from '@onedal/shared';
-import { DEFAULT_JUDGMENT } from '@onedal/shared';
+import type { JudgmentConfig, CallOption } from '@onedal/shared';
+import { DEFAULT_JUDGMENT, derivationInputsOf, dwellRatesOf } from '@onedal/shared';
 import { socket } from '../lib/socket';
 
 /**
@@ -20,16 +20,36 @@ import { socket } from '../lib/socket';
  */
 interface JudgmentState {
     judgment: JudgmentConfig;
+    /**
+     * 🎛️ **콜 옵션 — 화면의 칩과 그 분(分)** (2026-08-29 이음).
+     *    통화 시트가 「수작업 10분」·「검수 60분」이라 그리는 값이 여기서 온다.
+     *    🔴 **판정과 같은 표에서 온다** — 두 그릇이면 «화면 10분 / 판정 19분» 이 난다 (#71).
+     */
+    callOptions: CallOption[];
     /** 서버가 아직 안 보냈는가 (폼을 잠가 둔다) */
     loaded: boolean;
     set: (cfg: JudgmentConfig) => void;
+    setOptions: (o: CallOption[]) => void;
 }
 
 export const useJudgmentStore = create<JudgmentState>((set) => ({
     judgment: JSON.parse(JSON.stringify(DEFAULT_JUDGMENT)),
+    callOptions: [],
     loaded: false,
     set: (judgment) => set({ judgment, loaded: true }),
+    setOptions: (callOptions) => set({ callOptions }),
 }));
+
+/**
+ * ⏱️ **정차 값을 만드는 곳은 여기 하나다** (규칙 ③).
+ *    화면 컴포넌트가 각자 `derivationInputsOf` 를 부르면 **콜 옵션을 빠뜨리기 쉽다** —
+ *    2026-08-29 에 통화 시트가 정확히 그래서 판정과 갈렸다 (#71).
+ */
+export function useDerivation() {
+    const judgment = useJudgmentStore(st => st.judgment);
+    const options = useJudgmentStore(st => st.callOptions);
+    return derivationInputsOf(judgment, dwellRatesOf(options));
+}
 
 /**
  * 🔴 **구독은 앱 전체에서 단 한 번.**
@@ -46,6 +66,7 @@ export function ensureJudgmentSocketSubscribed(): void {
 
     const apply = (cfg: JudgmentConfig) => useJudgmentStore.getState().set(cfg);
     socket.on('judgment-init', apply);
+    socket.on('call-options-init', (o: CallOption[]) => useJudgmentStore.getState().setOptions(o));
     socket.on('judgment-updated', apply);
 
     /**
@@ -72,4 +93,16 @@ export function ensureJudgmentSocketSubscribed(): void {
  */
 export function saveJudgment(cfg: JudgmentConfig): void {
     socket.emit('save-judgment', cfg);
+}
+
+/**
+ * 🎛️ **콜 옵션을 고쳐 저장한다** — 화면의 칩에 붙는 분(分).
+ *
+ * 🔴 **서버가 셋을 한 번에 한다** — ① DB ② **기억 버리기** ③ 세션·화면 갱신.
+ *    ②를 빠뜨리면 화면만 새 값이 되고 **판정은 옛 값을 계속 쓴다** (버그 대장 #71 클래스).
+ *    그래서 여기서는 낙관적으로 미리 바꾸지 않는다 — 서버가 `call-options-init` 로
+ *    되돌려 주는 것을 받는다. 그래야 **화면이 곧 서버의 값**이다.
+ */
+export function saveCallOptions(changed: CallOption[]): void {
+    socket.emit('save-call-options', changed);
 }

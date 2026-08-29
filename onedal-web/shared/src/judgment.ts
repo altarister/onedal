@@ -136,21 +136,6 @@ export interface JudgmentConfig {
      *    만점을 받고(공격적), `zeroScore` 를 낮추면 여유 0분짜리가 확 깎인다(보수적).
      */
     slack: { fullMin: number; zeroScore: number };
-    /**
-     * 📦 **박스 하나에 걸리는 시간(분)** — 정차 시간이 여기서 나오고,
-     *    그게 「돈」 기준의 분모가 된다 (2026-08-29 화면으로 올림).
-     *
-     * 🔴 이 값이 틀리면 우회 시급이 통째로 틀린다 — 2026-08-29 #60(차종을 안 봐서
-     *    정차가 전부 25분이던 것)과 **같은 자리**다.
-     */
-    dwellPerBox: { forkliftMin: number; manualMin: number };
-    /**
-     * 🧹 **검수 후작업(분)** — 통화 시트에서 「검수」를 누르면 하차에 붙는 시간.
-     *
-     * 🔴 **여섯 중 이게 제일 세다.** 다른 값은 몇 점씩 움직이는데 이건 **혼자 색을 뒤집는다** —
-     *    60분이 여유를 먹고, 여유가 「약속」 점수를 정하고, 그게 색이 된다.
-     */
-    afterwork: { inspectMin: number };
 }
 
 export const DEFAULT_JUDGMENT: JudgmentConfig = {
@@ -162,12 +147,10 @@ export const DEFAULT_JUDGMENT: JudgmentConfig = {
     target: { hourlyKrw: 30_000 },
     deadline: { ratioPct: 150 },
     color: { honeyMin: 70, normalMin: 40 },
-    // 🔴 아래 셋은 **코드에 박혀 있던 값을 그대로** 올린 것이다 (2026-08-29).
-    //    값은 하나도 안 바꿨다 — 구조만 옮겼다. 같이 움직이면 «구조 때문인지 값
-    //    때문인지» 못 가린다.
+    // 🔴 여유 곡선은 «어떻게 잴 것인가» 라 여기 산다. 정차 값(박스당 분·검수 분)은
+    //    **화면의 칩에 붙는 숫자**라 콜 옵션 표로 옮겼다 (2026-08-29 · 규칙 ③) —
+    //    같은 값을 두 그릇에 담지 않는다.
     slack: { fullMin: 30, zeroScore: 40 },
-    dwellPerBox: { forkliftMin: 0.05, manualMin: 1 / 3 },
-    afterwork: { inspectMin: 60 },
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -252,15 +235,6 @@ export const JUDGMENT_FIELDS: readonly JudgmentField[] = [
     { col: 'slack_zero_score', path: ['slack', 'zeroScore'], group: '정차·여유',
       label: '여유 0분일 때 점수', unit: '점', min: 0, max: 100, int: true,
       why: '여유가 딱 0분일 때 「약속」이 받는 점수. 낮추면 빠듯한 콜이 확 깎인다(보수적). 옛 상수 40점' },
-    { col: 'dwell_forklift_min', path: ['dwellPerBox', 'forkliftMin'], group: '정차·여유',
-      label: '지게차 — 박스당', unit: '분', min: 0.01, max: 5, int: false,
-      why: '박스 하나를 지게차로 옮기는 시간. 정차 시간이 여기서 나오고 그게 「돈」의 분모가 된다. 옛 상수 0.05분(3초)' },
-    { col: 'dwell_manual_min', path: ['dwellPerBox', 'manualMin'], group: '정차·여유',
-      label: '수작업 — 박스당', unit: '분', min: 0.01, max: 5, int: false,
-      why: '박스 하나를 손으로 옮기는 시간. 옛 상수 0.333분(20초). 다마스 30박스면 10분이 붙는다' },
-    { col: 'afterwork_inspect_min', path: ['afterwork', 'inspectMin'], group: '정차·여유',
-      label: '검수 후작업', unit: '분', min: 0, max: 240, int: true,
-      why: '통화 시트에서 「검수」를 누르면 하차에 붙는 시간. 🔴 이 값 하나가 색을 뒤집을 수 있다 — 여유를 먹고, 여유가 「약속」 점수를 정한다. 기사님 확정 60분 (2026-08-19)' },
     { col: 'target_hourly_krw', path: ['target', 'hourlyKrw'], group: '가중치',
       label: '목표 시급', unit: '원/h', min: 10000, max: 100000, int: true,
       why: '우회 시급·시급 축의 기준. 노하우 실측 역산(4콜 14.1만÷4.5h≈3.1만) — 문제지 캘리브레이션으로 확정 (2026-08-21)' },

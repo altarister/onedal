@@ -1,4 +1,4 @@
-import db from '../../src/db';
+import db, { forgetCallOptions, seedCallOptions } from '../../src/db';
 import { getStopTiming } from '../../src/core/helpers';
 import { OrderRepository } from '../../src/repositories/OrderRepository';
 import { judge, CRITERIA, toSnapshot, DEFAULT_JUDGMENT } from '@onedal/shared';
@@ -50,13 +50,14 @@ maybe('① 🔴 점수를 못 내도 판정 저장이 터지지 않는다', () =
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-maybe('② 🔴 판정 기준 탭의 정차 값이 **판정 경로에** 닿는다', () => {
+maybe('② 🔴 콜 옵션 표의 정차 값이 **판정 경로에** 닿는다', () => {
     const ID = 'TEST-DWELL-REACH';
     const 콜 = {
         id: ID, userId: USER, status: 'ORDER_CONFIRMED',
         timestamp: '2026-08-29T00:00:00Z', capturedAt: '2026-08-29T00:00:00Z',
         pickup: '경기 광주시 초월읍', dropoff: '경기 이천시 신둔면', vehicleType: '다마스',
     };
+    beforeAll(() => { seedCallOptions(USER); });
     const put = () => {
         db.prepare(`DELETE FROM orders WHERE id = ?`).run(ID);
         const c = Object.keys(콜);
@@ -70,11 +71,19 @@ maybe('② 🔴 판정 기준 탭의 정차 값이 **판정 경로에** 닿는�
      *    `judgmentTunable.test.ts` 는 `dwellMinutes` 를 **직접** 불러 초록불이었다 —
      *    2026-08-29 에 네 번 반복한 «고쳤는데 안 돌고 있는 것» 그대로다.
      */
+    /**
+     * 🎛️ 2026-08-29 저녁에 **정차 값의 그릇이 바뀌었다** — 판정 기준 탭 → 콜 옵션 표.
+     *    지키는 성질은 그대로다: **표를 고치면 판정이 쓰는 정차가 따라 움직인다.**
+     */
     it('수작업 박스당 시간을 늘리면 판정이 쓰는 정차도 늘어난다', () => {
         put();
         const 기본 = getStopTiming(ID, undefined, 콜, DEFAULT_JUDGMENT);
-        const 느리게 = getStopTiming(ID, undefined, 콜,
-            cfg({ dwellPerBox: { forkliftMin: 0.05, manualMin: 0.5 } }));
+        // 표를 손으로 고쳐 서버 기억을 갈아 끼운다
+        db.prepare(`UPDATE call_options SET num2 = 0.5 WHERE user_id = ? AND category = 'handling' AND key = '수작업'`).run(USER);
+        forgetCallOptions(USER);
+        const 느리게 = getStopTiming(ID, undefined, 콜, DEFAULT_JUDGMENT);
+        db.prepare(`UPDATE call_options SET num2 = ? WHERE user_id = ? AND category = 'handling' AND key = '수작업'`).run(1 / 3, USER);
+        forgetCallOptions(USER);
         expect(느리게.pickupDwell).toBeGreaterThan(기본.pickupDwell);
     });
 

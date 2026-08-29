@@ -17,7 +17,7 @@
  * `predicted_at` 은 **태어난 순간의 예측**으로 동결된다 — 실제(occurred_at)와 빼면
  * 그대로 예측 오차다 (todo ⑥).
  */
-import db from '../db';
+import db, { dwellRatesFor } from '../db';
 // 🔴 **미리 눌러 두는 기본값은 shared 하나에서 온다** (2026-08-29). 예전엔 여기서
 //    `['결박']`·`['정리']`·`['일반화물']` 을 **손으로 다시 적어** 두 벌이었다.
 //    같은 값이라 화면은 똑같이 나왔고, 사고는 «한쪽만 고치는 날» 났을 것이다 (규칙 ③).
@@ -72,7 +72,7 @@ function computeChain(o: any, born: Partial<Record<StepId, any>>, judgment?: Jud
      *    떠서 만들었고, 그래서 7단계로 올린 정차 값(박스당 분·검수 분)이 **판정 경로에
      *    안 닿았다.** 만드는 곳이 둘이면 갈라진다 (#33 클래스).
      */
-    const unk = derivationInputsOf(cfg).unk;
+    const unk = derivationInputsOf(cfg, o.userId ? dwellRatesFor(o.userId) : undefined).unk;
     // ⏱️ 두 시계 (시간체계 ⑯) — 여유30·휴게30 은 폐기됐다. 지어낸 여유는 없다
 
     // ── 짐: **가장 신선한 것** — 상차 실측 > 상차 통화 계획 > **적요** > 차종 기본 (규칙 ⑤-2)

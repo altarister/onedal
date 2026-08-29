@@ -33,9 +33,14 @@ const 시트 = readFileSync(
 const 코드만 = 시트.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
 describe('⏱️ 통화 시트의 분(分)', () => {
-    it('🔴 판정 기준 설정을 읽는다', () => {
-        expect(코드만).toMatch(/useJudgmentStore/);
-        expect(코드만).toMatch(/derivationInputsOf/);
+    /**
+     * 🔴 **정차 값을 만드는 곳은 하나여야 한다** (2026-08-29 · 그릇을 가른 뒤).
+     *    화면이 각자 `derivationInputsOf` 를 부르면 **콜 옵션을 빠뜨리기 쉽다** —
+     *    통화 시트가 정확히 그래서 판정과 갈렸다 (#71). 그래서 훅 하나로 모았다.
+     */
+    it('🔴 정차 값을 훅 하나로 받는다 — 각자 조립하지 않는다', () => {
+        expect(코드만).toMatch(/useDerivation\(\)/);
+        expect(코드만).not.toMatch(/derivationInputsOf\(/);
     });
 
     it('🔴 상하차 방법의 분을 설정과 함께 잰다 — 옛 상수로 그리지 않는다', () => {

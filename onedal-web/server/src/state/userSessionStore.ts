@@ -2,7 +2,8 @@ import { AutoDispatchFilter, SecuredOrder, PendingOrder, MyOrder, getEligibleVeh
          normalizePhaseSettings, applyPhaseToFilter, DEFAULT_JUDGMENT, judgmentFromRow } from "@onedal/shared";
 import type { PhaseSettingsMap, PhaseKey, JudgmentConfig } from "@onedal/shared";
 import type { CapacityConfidence } from "@onedal/shared";
-import db, { seedCallOptions } from "../db";
+import db, { seedCallOptions, loadCallOptions } from "../db";
+import type { CallOption } from "@onedal/shared";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 
 // ━━━ 서비스 권장 기본값 (신규 가입자용) ━━━
@@ -51,6 +52,8 @@ export interface UserSession {
      * 앱에는 내려보내지 않는다 (앱은 색 판정을 하지 않는다 — 규칙 ⑤-1).
      */
     judgment: JudgmentConfig;
+    /** 🎛️ 화면의 선택지와 그 값 — 정차 분의 원천 ([[dwellRatesOf]]) */
+    callOptions: CallOption[];
     driverLocation: { x: number; y: number } | null;
     /**
      * `driverLocation` 이 **GPS 가 아니라 설정의 '내 주소'** 에서 온 값인가.
@@ -219,6 +222,7 @@ function createDefaultSession(userId: string): UserSession {
         activeFilter: { ...SERVICE_DEFAULT_FILTER } as AutoDispatchFilter,
         // 실제 값은 아래 부트스트랩이 DB 에서 읽어 덮는다. 여기선 기본값으로 시작한다
         judgment: JSON.parse(JSON.stringify(DEFAULT_JUDGMENT)) as JudgmentConfig,
+        callOptions: [],
         driverLocation: null,
         driverLocationIsFallback: false,
         driverLocationAt: null,
@@ -278,11 +282,17 @@ export function getUserSession(userId: string): UserSession {
             session.judgment = judgmentFromRow(judgeRow);
 
             /**
-             * 🎛️ **콜 옵션 시딩** (2026-08-20) — 화면의 선택지와 그 값.
-             *    `INSERT OR IGNORE` 라 이미 있으면 건드리지 않는다.
-             *    🔴 아직 아무도 안 읽는다 — 채워만 두고 다음 단계에서 화면을 잇는다.
+             * 🎛️ **콜 옵션 — 화면의 선택지와 그 값** (2026-08-20 시딩 · 2026-08-29 이음).
+             *
+             * ⚠️ 이 자리에 «아직 아무도 안 읽는다 — 다음 단계에서 화면을 잇는다» 고
+             *    적혀 있었다. **2026-08-29 에 이었다.**
+             *
+             * 🔴 정차 값(지게차·수작업 박스당 분 · 검수 분)의 **원천이 이 표다.**
+             *    낮에 판정 기준 탭으로 올렸다가 되돌렸다 — 그 셋은 «어떻게 잴 것인가»가
+             *    아니라 **화면의 칩에 붙는 숫자**이고, 이 표에 이미 칸이 있었다 (규칙 ③).
              */
             seedCallOptions(userId);
+            session.callOptions = loadCallOptions(userId);
 
             /**
              * 🎛️ **국면 옵션의 원천은 user_filter_phases 행 하나다** (필터 확정안 v2 · ④ 완료).

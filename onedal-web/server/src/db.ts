@@ -1,4 +1,5 @@
-import { JUDGMENT_FIELDS, judgmentDefaults, CALL_OPTION_COLUMNS, buildDefaultCallOptions,
+import type { CallOption } from '@onedal/shared';
+import { dwellRatesOf, JUDGMENT_FIELDS, judgmentDefaults, CALL_OPTION_COLUMNS, buildDefaultCallOptions,
          STEP_TABLES, FILTER_FIELDS } from "@onedal/shared";
 import Database from "better-sqlite3";
 import path from "path";
@@ -449,6 +450,34 @@ ensureColumns('call_options', Object.fromEntries(CALL_OPTION_COLUMNS.map(([, c, 
  * 🌱 **시딩 — 옛 상수를 그대로 복사한다.** 손으로 옮겨 적으면 오타 하나로 값이 갈린다.
  *    `INSERT OR IGNORE` 라 **기사님이 고친 값은 덮지 않는다** (한 번 채우면 그 뒤로는 DB 가 진실).
  */
+/**
+ * 🎛️ **콜 옵션을 읽는다** (2026-08-29 신설 — 시딩만 있고 읽는 길이 없었다).
+ *    화면의 칩과 그 분(分)이 여기서 온다. 정차 값의 **원천**이다.
+ */
+export function loadCallOptions(userId: string): CallOption[] {
+    const rows = db.prepare(
+        `SELECT * FROM call_options WHERE user_id = ? AND enabled = 1 ORDER BY category, sort_order`
+    ).all(userId) as any[];
+    return rows.map(r => Object.fromEntries([
+        ...CALL_OPTION_COLUMNS.map(([field, col]) => [field, r[col]]),
+        // 저장은 0/1, 쓰는 쪽은 참/거짓
+        ['enabled', !!r.enabled], ['isDefault', !!r.is_default],
+    ]) as any) as CallOption[];
+}
+
+/**
+ * ⏱️ **정차 값을 한 곳에서 만들어 나른다** (2026-08-29).
+ *    표를 매번 읽지 않게 사람마다 기억해 둔다 — 저장하면 `forgetCallOptions` 로 버린다.
+ *    🔴 만드는 곳이 여기 하나다 (규칙 ③) — 서버의 모든 정차 계산이 이걸 쓴다.
+ */
+const 정차값기억 = new Map<string, ReturnType<typeof dwellRatesOf>>();
+export function dwellRatesFor(userId: string) {
+    let v = 정차값기억.get(userId);
+    if (!v) { v = dwellRatesOf(loadCallOptions(userId)); 정차값기억.set(userId, v); }
+    return v;
+}
+export function forgetCallOptions(userId: string) { 정차값기억.delete(userId); }
+
 export function seedCallOptions(userId: string) {
     const rows = buildDefaultCallOptions();
     const cols = CALL_OPTION_COLUMNS.map(([, c]) => c);

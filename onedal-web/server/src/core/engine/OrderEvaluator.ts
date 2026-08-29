@@ -7,7 +7,7 @@ import { judge, CRITERIA, toSnapshot } from '@onedal/shared';
 import type { JudgmentSnapshot } from '@onedal/shared';
 import { firstLoadFacts, mergeFacts } from './judgeFacts';
 import { OrderRepository } from "../../repositories/OrderRepository";
-import db from "../../db";
+import db, { dwellRatesFor } from "../../db";
 import { stepRecordsOf } from "../../services/stepSeeder";
 import { getUserSession } from "../../state/userSessionStore";
 import { findLoadConflicts, totalDetourCost } from "../helpers";
@@ -299,7 +299,7 @@ export class OrderEvaluator {
                                 : [];
                             // 🔴 손으로 다시 만들지 않는다 — 판정 기준 → 파생 입력은 한 곳이다 (규칙 ③).
                             //    여기서 따로 조립하면 배송 속도 같은 새 칸이 조용히 빠진다 (2026-08-26).
-                            const rules = derivationInputsOf(judgmentCfg).rules;
+                            const rules = derivationInputsOf(judgmentCfg, dwellRatesFor(userId)).rules;
                             // 후보를 **포함한** 경로의 타임라인 — 기존 콜 약속이 어떻게 되는지가 문지기다
                             const tlAfter = stopsAfter.length
                                 ? deriveRouteTimeline(stopsAfter as any, [...activeCalls, securedOrder] as any,

@@ -210,3 +210,43 @@ export function groupCallOptions(list: CallOption[]): Record<CallOptionCategory,
     for (const c of CALL_OPTION_CATEGORIES) out[c].sort((a, b) => a.sortOrder - b.sortOrder);
     return out;
 }
+
+/**
+ * ⏱️ **정차 값의 원천은 이 표다** (기사님 확정 2026-08-29 · 그릇을 가른 뒤)
+ *
+ * ── 왜 여기인가 ──
+ *
+ * 2026-08-29 낮에 「지게차 박스당」·「수작업 박스당」·「검수 분」을 **판정 기준 탭**으로
+ * 올렸다. 그런데 그 셋은 **화면의 칩에 붙는 숫자**다 — 통화 시트가 「수작업 10분」·
+ * 「검수 60분」이라고 그리는 그 값. 판정은 그걸 **쓰는** 쪽이지 정하는 쪽이 아니다.
+ *
+ * 게다가 이 표에는 **이미 그 칸이 있었다** (`handling.num2` · `afterwork.num1`).
+ * 판정 기준 탭에 또 만든 것은 **같은 값을 두 그릇에 담은 것**이다 (규칙 ③).
+ *
+ * ```
+ * 판정 기준 탭  →  «어떻게 잴 것인가»          가중치 · 색 경계 · 목표 시급 · 여유 곡선
+ * 콜 옵션 표    →  «무엇을 고를 수 있고 몇 분인가»  칩과 그 숫자      ← 정차 값은 여기
+ * ```
+ *
+ * 🔴 **표가 비어 있으면 `undefined` 를 준다** — 그때는 `timing.ts` 의 옛 상수로 돈다
+ *    (되돌리는 길). 값을 지어내지 않는다 (규칙 ④).
+ */
+export function dwellRatesOf(options: readonly CallOption[]): {
+    perBoxMin?: { forkliftMin: number; manualMin: number };
+    afterworkMin?: Record<string, number>;
+} {
+    const 방법 = options.filter(o => o.category === 'handling');
+    const 지게차 = 방법.find(o => o.key === '지게차')?.num2;
+    const 수작업 = 방법.find(o => o.key === '수작업')?.num2;
+
+    const 후작업 = options.filter(o => o.category === 'afterwork' && o.num1 != null);
+    const afterworkMin = 후작업.length
+        ? Object.fromEntries(후작업.map(o => [o.key, o.num1 as number]))
+        : undefined;
+
+    return {
+        ...(지게차 != null && 수작업 != null
+            ? { perBoxMin: { forkliftMin: 지게차, manualMin: 수작업 } } : {}),
+        ...(afterworkMin ? { afterworkMin } : {}),
+    };
+}

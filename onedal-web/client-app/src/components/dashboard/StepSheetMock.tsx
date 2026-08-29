@@ -29,7 +29,7 @@
  *
  * 스타일 출처: `StopCallSheet.tsx` 의 `chip()`·`Row`·격자·주 버튼 줄 — 클래스를 그대로 옮겼다.
  */
-import { useJudgmentStore } from '../../stores/judgmentStore';
+import { useDerivation } from '../../stores/judgmentStore';
 import { useState, useEffect } from 'react';
 import { socket } from '../../lib/socket';
 import { telHref } from '../../lib/routeUtils';
@@ -38,7 +38,7 @@ import {
     PROTECTIONS, protectionMinutes,
     AFTERWORKS, afterworkMinutes,
     CARGO_TAGS, CARGO_TAG_META, arrivalReasonGroupsFor, REASON_NEEDS_MEMO,
-    dwellMinutes, unitPoints, slotBaseMs, derivationInputsOf,
+    dwellMinutes, unitPoints, slotBaseMs,
 } from '@onedal/shared';
 import type { CargoUnit } from '@onedal/shared';
 
@@ -126,7 +126,7 @@ function CargoForm({ r, pickup, live, on }: {
     const qInput = unit ? (CARGO_UNIT_QUANTITY_INPUT[unit as CargoUnit] ?? { mode: 'preset' as const, options: [1, 2, 3] }) : null;
 
     // 판정 기준 탭의 값 — 정차 분을 판정과 **같은 재료**로 잰다
-    const { unk } = derivationInputsOf(useJudgmentStore(st => st.judgment));
+    const { unk } = useDerivation();
 
     return (
         <>
