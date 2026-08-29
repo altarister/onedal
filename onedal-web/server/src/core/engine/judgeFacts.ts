@@ -55,7 +55,9 @@ export function mergeFacts(input: {
      */
     const guard = input.gates.find(g => g.key === 'routePromiseGuard');
     const lateStops = guard && !guard.pass
-        ? [{ label: guard.why ?? guard.name, lateMinutes: 0 }]
+        // 🔴 분(分)은 그 문장 안에만 있다 — **자리표시자 0 을 넣지 않는다.**
+        //    넣었더니 «…12분 깨집니다 **0분 늦음**» 이라 스스로 모순됐다 (규칙 ④)
+        ? [{ label: guard.why ?? guard.name, lateMinutes: null }]
         : [];
 
     return {

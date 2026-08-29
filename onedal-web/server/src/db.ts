@@ -385,16 +385,46 @@ db.exec(`
  * 버그 대장 #4·6·8·15 클래스). 카드 접이와 문제지 채점 회귀가 이걸 읽는다.
  * ⚠️ orders FK 없음 — 심사는 KEEP 전이라 orders 행이 아직 없다 (steps 의 FK 교훈).
  */
-db.exec(`
+/**
+ * 🔴 **`score` 는 `null` 일 수 있다** (2026-08-29 코드 리뷰에서 잡힘).
+ *
+ * 잴 수 있는 기준이 하나도 없으면 점수가 없다 — **0 이 아니라 «못 쟀다»** 다
+ *    (0 은 «나쁘다»로 읽힌다). 기사님이 가중치를 0 으로 두면 실제로 생긴다.
+ * 예전엔 `NOT NULL` 이라 그때 저장이 터졌고, `try` 가 그걸 삼켜
+ * **「카카오 연산 실패」로 둔갑**해 판정이 통째로 사라졌다.
+ */
+const ORDER_JUDGMENTS_SQL = `
     CREATE TABLE IF NOT EXISTS order_judgments (
         orderId  TEXT PRIMARY KEY,
         userId   TEXT NOT NULL,
         color    TEXT NOT NULL CHECK(color IN ('꿀', '보통', '똥', '사고')),
-        score    INTEGER NOT NULL,
+        score    INTEGER,
         detail   TEXT NOT NULL,
         judgedAt TEXT NOT NULL
     )
-`);
+`;
+db.exec(ORDER_JUDGMENTS_SQL);
+
+/**
+ * 🔧 **굳어버린 `NOT NULL` 을 푼다** — 행을 먼저 옮긴 뒤에만 옛 표를 지운다
+ *    (`dropStaleCheck` 와 같은 방식). 이미 풀려 있으면 아무 일도 안 한다.
+ */
+function relaxScoreNotNull() {
+    const row = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='order_judgments'")
+                  .get() as { sql?: string } | undefined;
+    if (!row?.sql || !/score\s+INTEGER\s+NOT NULL/i.test(row.sql)) return;
+
+    const before = (db.prepare(`SELECT COUNT(*) c FROM order_judgments`).get() as any).c;
+    db.transaction(() => {
+        db.exec(ORDER_JUDGMENTS_SQL.replace('order_judgments', 'order_judgments__new'));
+        db.exec(`INSERT INTO order_judgments__new SELECT * FROM order_judgments`);
+        db.exec(`DROP TABLE order_judgments`);
+        db.exec(`ALTER TABLE order_judgments__new RENAME TO order_judgments`);
+    })();
+    const after = (db.prepare(`SELECT COUNT(*) c FROM order_judgments`).get() as any).c;
+    console.log(`🔧 [스키마] order_judgments.score 를 «못 쟀으면 null» 로 (${before}건 → ${after}건 보존)`);
+}
+relaxScoreNotNull();
 
 /**
  * 🎛️ **콜 옵션** — 화면의 선택지와 그 값 (2026-08-20 신설).

@@ -111,7 +111,8 @@ describe('세션이 DB 값을 읽고, 판정이 그 값을 쓴다', () => {
         const ev = codeOnly(read('core/engine/OrderEvaluator.ts'));
         const calls = ev.match(/totalDetourCost\([^)]*\)/g) || [];
         expect(calls.length).toBeGreaterThan(0);
-        for (const c of calls) expect(c).toMatch(/securedOrder\)/);
+        // 🔴 이제 판정 설정까지 함께 넘긴다 (2026-08-29 리뷰) — 정차 값이 사슬까지 가야 한다
+        for (const c of calls) expect(c).toMatch(/securedOrder, judgmentCfg\)/);
     });
 
     it('🔴 컬럼 목록을 db.ts 가 손으로 적지 않는다 (표에서 뽑는다)', () => {

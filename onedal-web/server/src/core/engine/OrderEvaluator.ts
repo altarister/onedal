@@ -175,7 +175,7 @@ export class OrderEvaluator {
                          * 🔴 요율 재계산은 철거했다 — 돈은 앱이 이미 걸렀다 (규칙 ⑤-1).
                          *    노하우 13번(3만, 고수의 콜)을 "하한 3.79만 미달 똥"으로 낙제시키던 자리다.
                          */
-                        const dwell = totalDetourCost(0, securedOrder.id, judgmentCfg.unknown, securedOrder);
+                        const dwell = totalDetourCost(0, securedOrder.id, judgmentCfg.unknown, securedOrder, judgmentCfg);
                         const total = securedOrder.totalDurationMin != null
                             ? securedOrder.totalDurationMin + dwell.dwell : null;
                         const tags: string[] = [];
@@ -279,7 +279,7 @@ export class OrderEvaluator {
                          *    초과 똥"으로 낙제시키던 자리다. 우회의 절대 크기는 딱지(사실)로만 남는다.
                          * 🔴 카카오의 `timeDiffMin` 은 **주행 delta 뿐**이라 상하차를 더해야 한다.
                          */
-                        const cost = totalDetourCost(result.timeDiffMin, securedOrder.id, judgmentCfg.unknown, securedOrder);
+                        const cost = totalDetourCost(result.timeDiffMin, securedOrder.id, judgmentCfg.unknown, securedOrder, judgmentCfg);
 
                         const slotsTotal = TRUCK_CAPACITY_SLOTS;
                         const slotsUsed = session.activeFilter.slotsUsed ?? 0;

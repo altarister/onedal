@@ -182,7 +182,9 @@ export function toSnapshot(v: Judgment) {
         score: v.score,
         axes: v.criteria.map(c => ({
             key: c.key, name: c.name,
-            score: 점(c.outcome) ?? 0,
+            // 🔴 못 잰 기준은 **null** 이다 — 위 주석대로. `?? 0` 이었을 때
+            //    첫짐 카드가 「약속 — 잡아 둔 콜이 없습니다 (0점)」 로 그려졌다
+            score: 점(c.outcome),
             weight: c.weight,
             // 점수를 못 낸 기준은 **숫자 대신 이유**가 보인다
             raw: c.outcome.kind === 'scored' ? c.outcome.why

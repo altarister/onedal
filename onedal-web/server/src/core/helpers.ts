@@ -4,7 +4,7 @@
 import { isTerminal, cargoPoints, VEHICLE_CAPACITY, normalizeVehicleType,
          findTagConflicts,
          computeStopTiming, recordsOfSteps } from '@onedal/shared';
-import type { MyOrder, CargoReport, CapacityConfidence, DwellUnknown, StopTiming } from '@onedal/shared';
+import type { MyOrder, CargoReport, CapacityConfidence, DwellUnknown, StopTiming, JudgmentConfig } from '@onedal/shared';
 import { OrderRepository } from '../repositories/OrderRepository';
 import db from '../db';
 import { planArrivalStops } from '../services/routeComposer';
@@ -109,9 +109,15 @@ export function computeLoadedPoints(
  */
 export function getStopTiming(orderId: string, unk?: DwellUnknown,
     /** KEEP 전이라 `orders` 행이 아직 없을 때 넘기는 **메모리의 콜** (판정 경로가 그렇다) */
-    order?: unknown): StopTiming {
+    order?: unknown,
+    /**
+     * 🔴 **판정 기준 설정** — 안 넘기면 사슬이 기본값으로 돌아 **판정 기준 탭의
+     *    정차 값이 안 닿는다** (2026-08-29 리뷰에서 잡힘). 7단계로 올린 값이
+     *    화면에만 먹히고 판정엔 안 먹히던 자리다.
+     */
+    cfg?: JudgmentConfig): StopTiming {
     // 🔄 파생 치환 ② — 재료는 새 장부. 한 번만 읽어 신고와 사슬 둘 다에 쓴다
-    const view = stepsView(orderId, undefined, order);
+    const view = stepsView(orderId, cfg, order);
     const reports = recordsOfSteps(view as any).reports as CargoReport[];
     const pick = reports.find(r => r.stopType === 'pickup' && r.kind === 'ACTUAL')
               || reports.find(r => r.stopType === 'pickup');
@@ -149,10 +155,12 @@ export function getStopTiming(orderId: string, unk?: DwellUnknown,
  */
 export function totalDetourCost(driveDiffMin: number, incomingOrderId: string, unk?: DwellUnknown,
     /** KEEP 전에는 `orders` 행이 없다 — 판정 경로는 메모리의 콜을 함께 넘긴다 */
-    order?: unknown): {
+    order?: unknown,
+    /** 판정 기준 설정 — 정차 값이 여기서 사슬까지 간다 */
+    cfg?: JudgmentConfig): {
     total: number; drive: number; dwell: number; hasUnknown: boolean;
 } {
-    const t = getStopTiming(incomingOrderId, unk, order);
+    const t = getStopTiming(incomingOrderId, unk, order, cfg);
     return {
         total: Math.round(driveDiffMin + t.totalDwell),
         drive: driveDiffMin,

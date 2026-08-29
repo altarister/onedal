@@ -63,7 +63,12 @@ function bornRows(orderId: string): Partial<Record<StepId, any>> {
 function computeChain(o: any, born: Partial<Record<StepId, any>>, judgment?: JudgmentConfig,
     routeTl?: RouteTl) {
     const cfg = judgment ?? DEFAULT_JUDGMENT;
-    const unk = { pickupDwellMin: cfg.unknown.pickupDwellMin, dropoffDwellMin: cfg.unknown.dropoffDwellMin };
+    /**
+     * 🔴 **손으로 만들지 않는다** (2026-08-29 리뷰에서 잡힘). 예전엔 여기서 두 칸만
+     *    떠서 만들었고, 그래서 7단계로 올린 정차 값(박스당 분·검수 분)이 **판정 경로에
+     *    안 닿았다.** 만드는 곳이 둘이면 갈라진다 (#33 클래스).
+     */
+    const unk = derivationInputsOf(cfg).unk;
     // ⏱️ 두 시계 (시간체계 ⑯) — 여유30·휴게30 은 폐기됐다. 지어낸 여유는 없다
 
     // ── 짐: **가장 신선한 것** — 상차 실측 > 상차 통화 계획 > **적요** > 차종 기본 (규칙 ⑤-2)

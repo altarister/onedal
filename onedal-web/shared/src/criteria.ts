@@ -81,8 +81,12 @@ export const 돈 = defineCriterion<MoneyFacts>({
 export interface PromiseFacts {
     /** 이미 잡아 둔 콜이 있는가 — 없으면 **잴 게 없다** (첫짐) */
     hasExistingCalls: boolean;
-    /** 이 콜을 붙였을 때 늦는 약속들. 비어 있으면 안 깨진다 */
-    lateStops: Array<{ label: string; lateMinutes: number }>;
+    /**
+     * 이 콜을 붙였을 때 늦는 약속들. 비어 있으면 안 깨진다.
+     * 🔴 `lateMinutes` 는 **모를 수 있다** — 옛 조건은 «몇 분 늦는지»를 문장으로만
+     *    들고 있다. 모르면 `null` 이고, 그때는 «N분 늦음» 을 **안 적는다** (규칙 ④).
+     */
+    lateStops: Array<{ label: string; lateMinutes: number | null }>;
     /** 붙인 뒤 남는 **가장 빠듯한** 여유(분). 음수면 이미 빠듯하다 */
     bufferAfterMin: number | null;
 }
@@ -101,7 +105,7 @@ export const 약속 = defineCriterion<PromiseFacts>({
         if (!f || !Array.isArray(f.lateStops)) return unmeasurable('경로 타임라인을 못 받았습니다');
         if (!f.hasExistingCalls) return nothing('잡아 둔 콜이 없습니다');
         if (f.lateStops.length) {
-            const 왜 = f.lateStops.map(s => `${s.label} ${s.lateMinutes}분 늦음`).join(' · ');
+            const 왜 = f.lateStops.map(s => s.lateMinutes == null ? s.label : `${s.label} ${s.lateMinutes}분 늦음`).join(' · ');
             return scored(0, 왜, true);          // 🔴 이건 «잡으면 사고»다
         }
         if (f.bufferAfterMin == null) return unmeasurable('남는 여유를 못 쟀습니다');
