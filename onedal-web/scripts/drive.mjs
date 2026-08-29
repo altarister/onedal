@@ -234,7 +234,24 @@ async function main() {
         s.close();
     } finally {
         db?.close();
+        /**
+         * 🔴 **껍데기만 죽이면 서버가 남는다** — 이 레포의 「서버는 2층이다」 함정 그대로다.
+         *
+         * `spawn('npx', ['tsx', ...])` 는 **npx 껍데기**를 띄우고, 실제 서버는 그 **자식**이다.
+         * `proc.kill()` 은 껍데기만 죽여서 자식이 포트를 쥔 채 남는다 — 실측으로 확인했다
+         * (drive 가 끝났는데 4014 에 서버가 1분 38초째 살아 있었다).
+         *
+         * 남으면 다음 실행이 **그 옛 서버에 붙어** 시드하지도 않은 DB 로 검사가 돌 수 있다.
+         * (부팅 때 포트를 비우고 `bootedAt` 을 대조하므로 오진까지 가지는 않지만,
+         *  «끝났는데 안 죽는» 상태를 남기지 않는다 — 규칙 ②)
+         *
+         * → 포트를 **직접 쥔 프로세스**를 죽인다.
+         */
         proc.kill('SIGKILL');
+        try {
+            const pids = execSync(`lsof -ti :${PORT} || true`, { encoding: 'utf8' }).trim();
+            if (pids) execSync(`kill -9 ${pids.split('\n').join(' ')}`);
+        } catch { /* lsof 없는 환경이면 넘어간다 */ }
         for (const f of [dbPath, `${dbPath}-wal`, `${dbPath}-shm`]) if (existsSync(f)) rmSync(f);
     }
 
