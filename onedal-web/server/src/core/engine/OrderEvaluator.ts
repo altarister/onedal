@@ -3,6 +3,9 @@ import { PendingOrder, SecuredOrder, MyOrder, TRUCK_CAPACITY_SLOTS, callName , D
          DEFAULT_JUDGMENT, REACH_COEF_MIN_PER_KM_TEMP, reachRadiusKm, anyRegionHit,
          soloMinutesOf, derivationInputsOf } from "@onedal/shared";
 import type { DryRunGate } from "@onedal/shared";
+import { judge, CRITERIA, describe as describeJudge } from '@onedal/shared';
+import type { JudgeFacts, JudgmentConfig } from '@onedal/shared';
+import { firstLoadFacts, mergeFacts } from './judgeFacts';
 import { OrderRepository } from "../../repositories/OrderRepository";
 import db from "../../db";
 import { stepRecordsOf } from "../../services/stepSeeder";
@@ -18,6 +21,26 @@ import { applySoloRoute, composeMergedRoute } from "../../services/routeComposer
 import { IAppPlugin } from "../plugins/IAppPlugin";
 import { PluginFactory } from "../plugins/PluginFactory";
 import { getActiveCalls } from "../helpers";
+
+
+/**
+ * ⚖️ **두 답을 나란히 놓는다 — 색은 아직 옛것이 낸다** (2026-08-29 · 6단계)
+ *
+ * 새 판정 함수로 갈아타기 전에 **실제 콜에서** 두 답이 같은지 본다.
+ * 2026-08-21 에 지금 채점기로 갈아탈 때와 같은 방식이다.
+ *
+ * 🔴 **어긋날 때만 찍는다.** 매번 찍으면 로그가 묻히고, 묻히면 아무도 안 본다
+ *    (오늘 「이중 발신」 경고가 그랬다 — 서버는 말하고 있었는데 아무도 안 봤다).
+ */
+function 판정대조(옛: { color: string; score: number }, facts: JudgeFacts, cfg: JudgmentConfig) {
+    try {
+        const 새 = judge(CRITERIA, facts, cfg);
+        if (새.color === 옛.color && 새.score === 옛.score) return;
+        console.log(`   - ⚖️ [판정 대조] 옛 ${옛.color}/${옛.score} ≠ 새 ${새.color}/${새.score} — ${describeJudge(새)}`);
+    } catch (e) {
+        console.log(`   - ⚖️ [판정 대조] 새 함수가 터졌습니다 (색은 옛것 그대로): ${(e as Error).message}`);
+    }
+}
 
 export class OrderEvaluator {
     private plugin: IAppPlugin;
@@ -191,6 +214,12 @@ export class OrderEvaluator {
                             kind: 'first', fare: securedOrder.fare, totalMinutes: total,
                             gates: [], tags,
                         }, judgmentCfg);
+                        판정대조(dry, firstLoadFacts({
+                            fare: securedOrder.fare, totalMinutes: total,
+                            minAcceptableKrw: rateShort ? previewRate!.minAcceptable : null,
+                            tags,
+                        }), judgmentCfg);
+
                         if (rateShort && (dry.color === '꿀' || dry.color === '보통')) {
                             console.log(`   - 💸 [미리보기 단가] ${dry.color} → 똥 (필터 밖 콜이라 하한을 다시 봤다: ` +
                                 `실제 ${securedOrder.fare.toLocaleString()}원 < 하한 ${previewRate!.minAcceptable.toLocaleString()}원)`);
@@ -350,6 +379,14 @@ export class OrderEvaluator {
                                 gates, tags,
                             }, judgmentCfg);
                             console.log(`   - 🎨 [판정] ${describeDryRun(dry)}`);
+                            판정대조(dry, mergeFacts({
+                                fare: securedOrder.fare,
+                                extraMinutes: marginal + cost.dwell,
+                                bufferAfterMin: bufAfter?.minutes ?? null,
+                                freePct: slotsTotal > 0
+                                    ? (Math.max(0, slotsTotal - slotsUsed) / slotsTotal) * 100 : null,
+                                gates, conflicts, tags,
+                            }), judgmentCfg);
                             // 🧪 도달 반경 dryRun (구현 4 계측) — 앞 일이 많을수록 버퍼가 줄어 반경이 준다 (16-3)
                             if (bufAfter) console.log(`   - 🧪 [도달 반경 dryRun] 버퍼 ${Math.max(0, bufAfter.minutes)}분 ` +
                                 `≈ ${reachRadiusKm(Math.max(0, bufAfter.minutes))}km (설정 ${session.activeFilter.pickupRadiusKm}km · 계수 잠정)`);
