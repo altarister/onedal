@@ -1,25 +1,44 @@
 # 1DAL 정비 계획 (Cleanup & Fix Plan)
 
-## 🧹 `audit:dead` 를 게이트에 넣기 전에 — 묵은 8건 (2026-08-29 전수조사)
+## 🧹 죽은 줄 알았던 여덟 — 캐 보니 여섯이 «이어야 할 것»이었다 (2026-08-29)
 
-`audit:dead` 는 「고쳤는데 안 돌고 있는 것」을 잡는 도구인데 **게이트에 못 넣고 있다** —
-아래 8건이 남아 있어 매번 빨간불이라 «시끄러운 검사»가 되기 때문이다.
+`audit:dead` 를 게이트에 넣으려고 묵은 8건을 캤다. **1단계(죽은 값 아홉)와 똑같았다** —
+진짜 죽은 건 **하나뿐**이었다.
 
-**1단계(죽은 값 아홉)와 같은 방식으로** 하나씩 «왜 있었나»를 캔 뒤,
-지우거나 사유와 함께 `KEEP` 에 넣는다. **캐기 전에 지우지 않는다** — 그때 셋이 살아 있었다.
+| 값 | 판정 | 한 일 |
+|---|---|---|
+| `stepTableOf` | 진짜 죽음 | ✅ 지웠다 (`STEP_TABLES.find` 한 줄이면 된다) |
+| `DEFAULT_CARGO_TAG` · `DEFAULT_PROTECTIONS` · `DEFAULT_AFTERWORKS` | **두 벌이었다** | ✅ 이었다 — 시딩이 `['일반화물']`·`['결박']`·`['정리']` 를 손으로 적고 있었다 |
+| `EMPTY_CARGO` · `cargoForStop` · `isCargoKnown` | 이어야 할 것 | ⬜ 아래 참고 |
+| `effectiveCargo` | 이어야 할 것 | ⬜ 아래 참고 |
+| `cargoMismatchOf` | 이어야 할 것 | ⬜ 짐 신고 정확도를 재는 유일한 수단 |
+| `groupCallOptions` | 🔴 **기사님 판단 필요** | 아래 참고 |
 
-| 값 | 어디 |
-|---|---|
-| `groupCallOptions` | `shared/src/callOptions.ts:163` |
-| `EMPTY_CARGO` · `cargoForStop` · `isCargoKnown` | `shared/src/cargoSpec.ts` |
-| `DEFAULT_CARGO_TAG` | `shared/src/cargoTags.ts:13` |
-| `stepTableOf` · `effectiveCargo` · `cargoMismatchOf` | `shared/src/stepTables.ts` |
+### ⬜ 잇는 일 — 크기와 함께
 
-⚠️ 여덟 다 **적재 체계 전환·단계 치환** 무렵에 태어났다 — 그때 계획이 남아 있을 수 있다.
+- [ ] **`effectiveCargo` 잇기** (중) — *"지금 무엇을 믿어야 하나"*(실측 > 계획)를 **한 곳**에서
+      판단한다. 지금은 읽는 쪽마다 따로 해서 **화면과 판정이 다른 값**을 볼 수 있다 —
+      2026-08-29 **#67②가 정확히 그 사고**였다 (7단계 값이 화면엔 닿고 판정엔 안 닿았다)
+- [ ] **`cargoSpec` 잇기** (큼) — 짐을 **묶는 이름**. 2026-08-20 에 «타입만 세워 두고 연결은
+      다음 단계에서» 라고 적고, 증상까지 예고해 뒀다:
+      *"`dwellMinutes(handling, points, stop, unk, protections, afterworks)` 가 그 증상이다"*
+      🔴 **그 예고가 2026-08-29 에 그대로 커졌다** — `getStopTiming(orderId, unk, order, cfg)` 로
+      인자가 또 늘었고, 새 값(박스당 분·검수 분)을 넣을 자리가 없어 `unk` 안에 **밀어 넣었다.**
+      잇는 것은 그 병을 되돌리는 일이다
+- [ ] **`cargoMismatchOf` 잇기** (소) — 계획 대비 실측 배율. 신고가 얼마나 맞는지 잰다
 
-- [ ] 8건 조사 → 지우거나 KEEP 등록
-- [ ] 그 뒤 `pnpm audit:dead` 를 커밋 게이트에 넣는다
+### 🔴 기사님 판단 — `groupCallOptions`
 
+콜 옵션(단위·방법·보호·후작업·성질과 그 분)을 **갈래별로 묶어 화면에 그리려던** 함수다.
+**DB 표(`call_options`)도 값도 이미 있는데 그 화면이 없다** — 지금은 `pnpm options` 로
+터미널에서만 본다.
+
+> **통화 시트에서 선택지를 갈래별로 묶어 보고, 그 분(分)을 직접 고치고 싶으신가요?**
+> 원하시면 화면을 만들고, 아니면 이 함수와 표를 정리한다.
+
+⚠️ **리허설로는 이 종류를 못 잡는다.** 지금은 두 벌이 **같은 값**이라 화면이 똑같이 나온다 —
+사고는 **한쪽만 고치는 날** 난다. 그래서 재현이 아니라 **검사로 잠갔다**
+(`tests/rules/cargoDefaults.test.ts`).
 
 ## ✅ 손으로 확인해야 끝나는 것 (2026-08-28)
 

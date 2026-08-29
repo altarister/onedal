@@ -18,6 +18,10 @@
  * 그대로 예측 오차다 (todo ⑥).
  */
 import db from '../db';
+// 🔴 **미리 눌러 두는 기본값은 shared 하나에서 온다** (2026-08-29). 예전엔 여기서
+//    `['결박']`·`['정리']`·`['일반화물']` 을 **손으로 다시 적어** 두 벌이었다.
+//    같은 값이라 화면은 똑같이 나왔고, 사고는 «한쪽만 고치는 날» 났을 것이다 (규칙 ③).
+import { DEFAULT_PROTECTIONS, DEFAULT_AFTERWORKS, DEFAULT_CARGO_TAG } from '@onedal/shared';
 import { STEP_TABLES, defaultCargoByVehicle, dwellMinutes, unitPoints, recordsOfSteps,
          parseCargoHints, callDeadlineMs, pickupClockMsOf, DEFAULT_JUDGMENT,
          soloMinutesOf, derivationInputsOf } from '@onedal/shared';
@@ -83,10 +87,10 @@ function computeChain(o: any, born: Partial<Record<StepId, any>>, judgment?: Jud
     const unit = loaded?.actual_unit ?? callP?.planned_unit ?? hints.unit ?? vehicleCargo?.unit ?? null;
     const quantity = loaded?.actual_quantity ?? callP?.planned_quantity ?? memoQty ?? vehicleCargo?.quantity ?? null;
     const handling = loaded?.actual_handling ?? callP?.planned_handling ?? hints.handling ?? vehicleCargo?.handling ?? null;
-    const protections: string[] = parse(loaded?.actual_protections) ?? parse(callP?.planned_protections) ?? ['결박'];
+    const protections: string[] = parse(loaded?.actual_protections) ?? parse(callP?.planned_protections) ?? [...DEFAULT_PROTECTIONS];
     const dropHandling = callD?.planned_handling ?? handling;
-    const afterworks: string[] = parse(callD?.planned_afterworks) ?? ['정리'];
-    const tags: string[] = parse(callP?.planned_tags) ?? (hints.tags?.length ? hints.tags : null) ?? ['일반화물'];
+    const afterworks: string[] = parse(callD?.planned_afterworks) ?? [...DEFAULT_AFTERWORKS];
+    const tags: string[] = parse(callP?.planned_tags) ?? (hints.tags?.length ? hints.tags : null) ?? [DEFAULT_CARGO_TAG];
     const source = loaded?.actual_unit != null ? 'ACTUAL'
         : callP && callP.status !== 'PLANNED' ? 'DECLARED'
         : hints.unit != null || hints.handling != null ? 'MEMO'

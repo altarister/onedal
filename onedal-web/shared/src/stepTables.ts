@@ -200,9 +200,11 @@ export const STEP_TABLES: readonly StepTable[] = [
     CALL_PICKUP, CALL_DROPOFF, ARRIVE_PICKUP, LOADED, ARRIVE_DROPOFF, DELIVERED,
 ];
 
-export function stepTableOf(step: CallStepId): StepTable | undefined {
-    return STEP_TABLES.find(t => t.step === step);
-}
+/**
+ * 🪦 `stepTableOf(step)` 은 2026-08-29 에 지웠다 — 부르는 곳이 0 이었고,
+ *    필요하면 `STEP_TABLES.find(t => t.step === step)` 한 줄이면 된다.
+ *    (같은 날 캔 여덟 중 **유일하게 진짜 죽어 있던 것** — 나머지는 «이어야 할 것»이었다)
+ */
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 읽기
