@@ -1386,3 +1386,5 @@ export * from './dryRun';
  *    이 파일은 아무것도 import 하지 않는다 — 순환 참조를 만들지 않으려는 것이다.
  */
 export * from './judgment';
+export * from './judge';
+export * from './criteria';

@@ -93,6 +93,17 @@ export interface JudgmentConfig {
         promiseGuard: number;
         /** 🧪 **같이 못 실음** — 함께 실으면 안 되는 성질인가 (적재는 «공간», 이것은 «성질») */
         cargoCompat: number;
+        /**
+         * 🧭 **지리** — 가는 길 위에 있나. **기본 0 (안 봄)** — 기사님과 확정 2026-08-29.
+         *
+         * 합짐의 지리는 「돈」(우회 시급)이 이미 세고, 첫짐의 지리는 앱이 집기 전에
+         * `progressKm` 로 이미 걸렀다. 여기서 또 깎으면 **같은 사실을 두 번 세는 것**이고
+         * 잡을 수 있었던 콜을 놓친다 (규칙 ① · ⑤-1).
+         *
+         * 🔴 다만 「돈」이 못 보는 것이 있다 — 역주행은 시간이 같아도 **다음 콜 기회**를
+         *    죽인다. 그걸 잴 값이 생기면 여기서 켠다. 자리와 이름은 **화면에 보인다.**
+         */
+        geography: number;
     };
     /** 채점의 기준 시급 — 우회 시급·시급 축이 이 값 대비 %로 점수가 된다 */
     target: {
@@ -115,7 +126,7 @@ export const DEFAULT_JUDGMENT: JudgmentConfig = {
     //    가중치 통합(revenueDetour), 목표 시급은 문제지 캘리브레이션으로 확정(3.0만).
     unknown: { pickupDwellMin: 15, dropoffDwellMin: 10, pickupOffsetMin: 30 },
     speed: { shortKmh: 25, midKmh: 46, longKmh: 56 },
-    weights: { revenueDetour: 1, bufferCost: 1, slots: 1, promiseGuard: 1, cargoCompat: 1 },
+    weights: { revenueDetour: 1, bufferCost: 1, slots: 1, promiseGuard: 1, cargoCompat: 1, geography: 0 },
     target: { hourlyKrw: 30_000 },
     deadline: { ratioPct: 150 },
     color: { honeyMin: 70, normalMin: 40 },
@@ -194,6 +205,9 @@ export const JUDGMENT_FIELDS: readonly JudgmentField[] = [
     { col: 'weight_cargo_compat', path: ['weights', 'cargoCompat'], group: '가중치',
       label: '같이 못 실음', unit: '배', min: 0, max: 10, int: false,
       why: '함께 실어도 되는 **성질**인가 (위험물+식료품 등). 적재(공간)와 다르다. 0 이면 검사를 끈다' },
+    { col: 'weight_geography', path: ['weights', 'geography'], group: '가중치',
+      label: '지리', unit: '배', min: 0, max: 10, int: false,
+      why: '가는 길 위에 있나. **기본 0 (안 봄)** — 합짐의 지리는 우회 시급이, 첫짐의 지리는 앱 필터가 이미 본다. 같은 사실을 두 번 세지 않으려고 꺼 뒀다 (2026-08-29 확정). 역주행이 «다음 콜 기회»를 죽이는 것을 잴 값이 생기면 켠다' },
     { col: 'target_hourly_krw', path: ['target', 'hourlyKrw'], group: '가중치',
       label: '목표 시급', unit: '원/h', min: 10000, max: 100000, int: true,
       why: '우회 시급·시급 축의 기준. 노하우 실측 역산(4콜 14.1만÷4.5h≈3.1만) — 문제지 캘리브레이션으로 확정 (2026-08-21)' },
