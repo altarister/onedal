@@ -1,5 +1,26 @@
 # 1DAL 정비 계획 (Cleanup & Fix Plan)
 
+## 🧹 `audit:dead` 를 게이트에 넣기 전에 — 묵은 8건 (2026-08-29 전수조사)
+
+`audit:dead` 는 「고쳤는데 안 돌고 있는 것」을 잡는 도구인데 **게이트에 못 넣고 있다** —
+아래 8건이 남아 있어 매번 빨간불이라 «시끄러운 검사»가 되기 때문이다.
+
+**1단계(죽은 값 아홉)와 같은 방식으로** 하나씩 «왜 있었나»를 캔 뒤,
+지우거나 사유와 함께 `KEEP` 에 넣는다. **캐기 전에 지우지 않는다** — 그때 셋이 살아 있었다.
+
+| 값 | 어디 |
+|---|---|
+| `groupCallOptions` | `shared/src/callOptions.ts:163` |
+| `EMPTY_CARGO` · `cargoForStop` · `isCargoKnown` | `shared/src/cargoSpec.ts` |
+| `DEFAULT_CARGO_TAG` | `shared/src/cargoTags.ts:13` |
+| `stepTableOf` · `effectiveCargo` · `cargoMismatchOf` | `shared/src/stepTables.ts` |
+
+⚠️ 여덟 다 **적재 체계 전환·단계 치환** 무렵에 태어났다 — 그때 계획이 남아 있을 수 있다.
+
+- [ ] 8건 조사 → 지우거나 KEEP 등록
+- [ ] 그 뒤 `pnpm audit:dead` 를 커밋 게이트에 넣는다
+
+
 ## ✅ 손으로 확인해야 끝나는 것 (2026-08-28)
 
 오늘 고치고 배포까지 했으나 **아직 실물로 확인 안 된 것들**. 확인 전까지는 «될 것»이지 «된다»가 아니다.

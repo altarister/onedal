@@ -40,8 +40,17 @@
 ## 커밋 전 필수
 
 `tsc --noEmit`(server) · `tsc -b`(client) · `npx jest` · **`pnpm test:web`**(shared·관제웹 vitest) ·
-**`./gradlew :app:compileDebugKotlin`**(앱 코드를 고쳤다면)
+**`./gradlew :app:compileDebugKotlin` + `:app:testDebugUnitTest`**(앱 코드를 고쳤다면)
 이 전부 통과해야 커밋한다. 실패 시 커밋 금지.
+
+> 🔴 **앱 단위 검사(27건)는 2026-08-29 전수조사에서 게이트에 들어왔다.**
+> 컴파일만 걸려 있어서 «도는가»는 봐도 **«옳은가»는 아무도 안 봤다** —
+> 앱 필터의 순서 검사를 일부러 무력화해 보니 **그 검사가 잡았다.** 게이트가 안 불렀을 뿐이다.
+
+> ⚠️ **`pnpm audit:dead` 는 아직 게이트에 못 넣는다.** 잡는 것은 맞는데(변이로 확인)
+> **묵은 8건이 남아 있어 매번 빨간불**이 된다. 「시끄러운 검사는 무시당한다」 —
+> 그 8건을 하나씩 캐서 지우거나 사유와 함께 `KEEP` 에 넣은 **뒤에** 게이트에 넣는다
+> ([todo.md](todo.md) 에 적어 뒀다). 지금은 `shared/` 를 건드리면 돌린다.
 
 > 🔴 **`pnpm test:web` 은 2026-08-29 에 게이트에 들어왔다.** 그 전까지 `shared`·`client-app` 의
 > vitest 검사 **7개(58건)를 부르는 명령이 아예 없었다** — `package.json` 에 `test` 스크립트조차
@@ -67,6 +76,8 @@
 | 소켓 이벤트 | `cd onedal-web && pnpm audit:socket` |
 | `shared/` · DB 스키마 | **기존 DB 사본**으로 부팅 스모크 (빈 DB 는 문제를 숨긴다) |
 | 문서(`docs/`·`CLAUDE.md`) | `cd onedal-web && pnpm audit:docs` — 문서가 코드와 다른 말을 하는가 |
+| **경로 순서·도착 감지·궤적** | `cd onedal-web && pnpm drive` — 40초. 시나리오가 **못 잡는** 것들이다 (변이로 확인) |
+| `shared/` 의 export 를 더하거나 뺐다면 | `cd onedal-web && pnpm audit:dead` |
 
 > 앱 컴파일이 필수인 이유: 2026-08-09에 `main`이 컴파일조차 안 되는 상태였다는 걸
 > 뒤늦게 발견했다(`InsungParser`의 import 누락). 서버는 tsc로 매번 확인하는데

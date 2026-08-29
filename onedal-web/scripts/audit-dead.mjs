@@ -75,12 +75,27 @@ const KEEP = {
                 + '보안 장치라 지웠다가 다시 만들면 그 사이 구멍이 난다 (규칙 ② 안전장치는 겹쳐 둔다).',
     getGeoCacheStats: '지리 캐시 적중률 진단용. 경유 성능을 다시 잴 때 쓴다 — 2026-08-14 에 실제로 필요했다.',
     getActivePinCount: '페어링 PIN 발급 현황 진단용. 기기 등록이 안 될 때 확인하는 유일한 수단.',
+    /**
+     * 판정 기준 다섯 — 이름으로 부르지 않고 `CRITERIA` 배열에 담겨 쓰인다.
+     * 낱개로 내보내는 이유: **검사가 기준 하나만 떼어 시험**할 수 있어야 한다
+     * («이 시험과 관련된 기준만 남긴다» — 기사님 2026-08-29).
+     */
+    돈: '판정 기준. `CRITERIA` 배열로 쓰인다. 낱개 export 는 검사가 하나만 떼어 보려고.',
+    약속: '판정 기준. 위와 같다.',
+    공간: '판정 기준. 위와 같다.',
+    성질: '판정 기준. 위와 같다.',
+    지리: '판정 기준. 위와 같다 — 지금은 가중치 0 이라 색에 안 들지만 화면에는 보인다.',
 };
 
 const exports = [];
 for (const f of [...SERVER, ...CLIENT, ...SHARED]) {
     if (ENTRY.test(f.rel)) continue;
-    for (const m of f.src.matchAll(/^export\s+(?:async\s+)?(?:function|const|class)\s+(\w+)/gm)) {
+    /**
+     * 🔴 **한글 이름도 본다** (2026-08-29 전수조사에서 잡힘). `\w` 는 한글을 안 잡아서
+     *    `export const 돈` 같은 **기준 다섯이 통째로 안 보였다** — 2026-08-29 에 만든
+     *    판정 기준이 전부 한글 이름이라, 그날부터 이 검사가 그 파일에 눈을 감고 있었다.
+     */
+    for (const m of f.src.matchAll(/^export\s+(?:async\s+)?(?:function|const|class)\s+([\w가-힣]+)/gm)) {
         exports.push({ file: f.rel, name: m[1], line: f.src.slice(0, m.index).split('\n').length });
     }
 }
