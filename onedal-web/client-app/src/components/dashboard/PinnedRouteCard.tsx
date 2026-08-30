@@ -420,9 +420,13 @@ export default function PinnedRouteCard({
                         (MANUAL 콜에 버튼을 안 띄우는 것과 같은 이유의 연장이다) */}
                     {/* 🔴 type 은 확정 전 «MANUAL_CLICK» — !== 'MANUAL' 로 거르면 직접·알람 콜의
                         평가 순간에 결재 버튼이 잠깐 그려진다 (0831 실측 «킵 버튼 잔상»).
-                        결정은 스캔앱에서만 — 직접 갈래(MANUAL*)에는 버튼 자체를 안 만든다. */}
-                    {!route.isPreview && !isManualLineage(route.type) && evaluating && onDecision && (
+                        결정은 스캔앱에서만 — 직접 갈래(MANUAL*)에는 버튼 자체를 안 만든다.
+                        🪧 다만 **근거는 갈래와 무관하게 보인다** (기사님 0831: "왜 똥콜이고 꿀콜인지
+                        여기 있는 정보를 최대한 보여줘야 한다") — 버퍼·조건 전수가 버튼 블록 안에
+                        갇혀 있어 직접·알람 콜은 근거를 통째로 못 보던 것을 가른다. */}
+                    {(evaluating || route.isPreview) && (
                         <>
+                            {!route.isPreview && !isManualLineage(route.type) && onDecision && (
                             <div className="mt-1 flex gap-3">
                                 <Button 
                                     variant="destructive"
@@ -498,6 +502,31 @@ export default function PinnedRouteCard({
                                     </Button>
                                 )}
                             </div>
+                            )}
+
+                            {/* 🪧 직접·알람 콜의 판정 안내판 — KEEP 버튼이 하던 말(색·판정·근거)을
+                                누를 수 없는 판으로 그대로 한다. 결정은 스캔앱에서, 근거는 여기서 (기사님 0831) */}
+                            {(route.isPreview || isManualLineage(route.type)) && (() => {
+                                const v = verdictOf(route);
+                                if (!v.color) return null;
+                                const cleanReason = (route.kakaoTimeExt ?? '')
+                                    .replace(/'(꿀|똥|콜|보통|사고)'/g, '')
+                                    .replace(/\[(추천|최단거리|최단시간)\]/g, '')
+                                    .replace(/[🚙💩🍯]/g, '')
+                                    .replace(/\s{2,}/g, ' ')
+                                    .trim();
+                                return (
+                                    <div className={`mt-1 rounded-md py-2.5 px-3 text-white flex flex-col items-center ${BUTTON_BG[v.color]}`}>
+                                        <span className="text-[13px] font-black tracking-tight leading-tight">{v.reason}</span>
+                                        {cleanReason && <span className="text-[10px] font-medium opacity-95 mt-0.5 tracking-tight leading-snug break-keep line-clamp-2">{cleanReason}</span>}
+                                        {route.approvalReasons && route.approvalReasons.length > 0 && (
+                                            <span className="text-[10px] font-medium opacity-90 mt-0.5 tracking-tight leading-snug break-keep line-clamp-2">
+                                                ✅ {route.approvalReasons.join(', ')}
+                                            </span>
+                                        )}
+                                    </div>
+                                );
+                            })()}
 
                             {/* 🧮 **심사 카드에도 상차버퍼** (⑯-1) — "잡을 때 여유 있구나" 하고 잡았다가
                                 잡고 나니 0분이던 함정 제거. 잡기 전후 **같은 파생**(추정 약속 − 도착 예상)이라
@@ -548,8 +577,9 @@ export default function PinnedRouteCard({
                                 </div>
                             )}
 
-                            {/* 텔레메트리 진행 상태 바 (30초 만기) */}
-                            {(route.status === 'ORDER_SECURED_EVALUATING' || route.status === 'ORDER_AWAITING_DECISION') && (() => {
+                            {/* 텔레메트리 진행 상태 바 (30초 만기) — 자동콜의 안전취소 홀드 표시라 직접 갈래엔 안 건다 */}
+                            {!route.isPreview && !isManualLineage(route.type)
+                                && (route.status === 'ORDER_SECURED_EVALUATING' || route.status === 'ORDER_AWAITING_DECISION') && (() => {
                                 const isDanger = telemetryCount >= 25;
                                 const isWarning = telemetryCount >= 20 && telemetryCount < 25;
                                 const barColor = isDanger ? 'bg-danger/20' : isWarning ? 'bg-warning/20' : 'bg-success/20';
