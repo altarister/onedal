@@ -312,6 +312,18 @@ export default function PinnedRouteCard({
                         </span>
                     )}
                     {evaluating && <span className="text-warning font-black animate-pulse">평가중</span>}
+                    {/* 🎨 판정색 칩 — 색은 KEEP 버튼 배경에만 살아서, 버튼 없는 직접·알람 콜은
+                        판정을 받아도 **색이 보일 자리가 없었다** (0831 실측 «그런 거 없어»).
+                        색은 ⑤-3 — 흘깃 보고 결정하는 값이라 덱 머리글에 박는다. 판정 전엔 안 그린다 */}
+                    {(() => {
+                        const v = verdictOf(route);
+                        if (!v.color) return null;
+                        return (
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-black text-white ${BUTTON_BG[v.color]}`}>
+                                {v.color}{route.judgment?.score != null ? ` ${route.judgment.score}` : ''}
+                            </span>
+                        );
+                    })()}
                     {/* 💰 돈은 이 줄 맨 오른쪽 (기사님 2026-08-19) — 콜 요약 줄에서 옮겨 왔다 */}
                     <span className="ml-auto text-[14px] font-black text-text-primary tabular-nums">
                         {route.fare > 0 ? `${(route.fare / 10000).toFixed(1)}만원` : '금액미상'}
