@@ -45,7 +45,7 @@ class FilterVerdictTest {
      *
      * `destinationKeywords` 는 **경유 ∪ 도착목표(첫짐의 여주시)** 다 — 2026-08-25 수정분.
      * 여주 시내(교동·창동·홍문동…)와 **점동면**이 들어 있는 것이 그 증거다.
-     * `progressKm` 은 **경유만** — 경로 위에서만 실을 수 있다는 뜻이고,
+     * `orderKm` 은 **경유만** — 경로 위에서만 실을 수 있다는 뜻이고,
      * 도착목표로 들어온 동(점동면 등)은 여기 **없어야** 한다.
      */
     private fun driveFilter() = FilterConfig(
@@ -68,7 +68,7 @@ class FilterVerdictTest {
             "세종대왕면", "상거동", "연라동", "점동면", "교동", "창동", "홍문동", "오학동",
         ),
         customCityFilters = listOf("광주시", "광주", "이천시", "이천", "여주시", "여주", "분당구", "분당"),
-        progressKm = mapOf(
+        orderKm = mapOf(
             "태전동" to 9.5, "초월읍" to 16.5, "곤지암읍" to 21.4,
             "부발읍" to 44.9, "대월면" to 40.2, "신둔면" to 33.0, "가남읍" to 48.5,
             // 🔴 점동면·세종대왕면은 **없다** — 경로 위가 아니다

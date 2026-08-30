@@ -359,7 +359,7 @@ export function getDetourRegions(polyline: Array<{x: number; y: number}>, detour
         if (tail !== parent && /구$/.test(tail) && isUniqueDistrictName(tail) && !(tail in progressKm)) {
             (progressKm as Record<string, number | null>)[tail] = null;
             /**
-             * ⚠️ **도착 목록에도 넣어야 앱까지 간다.** `buildAppProgressKm` 은
+             * ⚠️ **도착 목록에도 넣어야 앱까지 간다.** `buildAppOrderKm` 은
              *    `destinationKeywords` 를 **돌면서** 진행도를 뽑는다 — 지나온 구간을 뺄 때
              *    목록과 진행도가 **한 벌로** 줄어야 하기 때문이다. 여기만 넣고 목록에서
              *    빠뜨리면 앱은 구 이름을 영영 못 본다.
@@ -1158,7 +1158,7 @@ export function getSelectableCities(): { sido: string; cities: string[] }[] {
  *    **첫짐에서 파생**한다 (규칙 ③ — 두 벌이 되면 갈라진다).
  *
  * ⚠️ 이 합집합은 **하차지만** 연다. 상차지는 끝까지 경로 위여야 하므로
- *    `buildAppProgressKm` 이 경유에 있는 동만 `progressKm` 으로 내보낸다.
+ *    `buildAppOrderKm` 이 경유에 있는 동만 `progressKm` 으로 내보낸다.
  *    안 그러면 앱이 «순서 미상 — 통과» 로 읽어 **점동면에서 싣는 콜**을 허용한다
  *    (2026-08-18 파주 사고: 78km 뒤로 돌아가 싣는 콜이 통과했다).
  */

@@ -1,4 +1,4 @@
-import { buildAppProgressKm } from '../../src/state/filterManager';
+import { buildAppOrderKm } from '../../src/state/filterManager';
 
 /**
  * 🧭 **progressKm 의 수명 = 진행 중 경로의 수명** (2026-08-22 실측 · 버그 대장 #39)
@@ -21,10 +21,10 @@ const sessionLike = (over: Record<string, unknown>) => ({
 }) as any;
 
 it('🔴 활성 콜이 없으면 빈 객체 — 옛 경로 잔재로 첫짐을 차단하지 않는다', () => {
-    expect(buildAppProgressKm(sessionLike({}))).toEqual({});
+    expect(buildAppOrderKm(sessionLike({}))).toEqual({});
 });
 
 it('진행 중이면 경로 진행도를 내려보낸다 (기존 동작 보존)', () => {
     const s = sessionLike({ myOrders: [{ id: 'a', status: 'ORDER_CONFIRMED' }] });
-    expect(buildAppProgressKm(s)['금촌동']).toBe(12.3);
+    expect(buildAppOrderKm(s)['금촌동']).toBe(12.3);
 });

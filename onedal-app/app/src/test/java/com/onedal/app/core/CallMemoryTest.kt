@@ -36,7 +36,7 @@ class CallMemoryTest {
         destinationRadiusKm = 1,
         destinationKeywords = listOf("신둔면", "관고동", "중리동"),
         customCityFilters = listOf("이천시", "이천"),
-        progressKm = emptyMap(),
+        orderKm = emptyMap(),
     )
 
     /** 7지점 07번 — 터미널→신둔. 5판에서 실제로 삼켜진 콜이다 */

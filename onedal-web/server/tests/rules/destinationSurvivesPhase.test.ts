@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { getUserSession } from '../../src/state/userSessionStore';
-import { buildAppProgressKm } from '../../src/state/filterManager';
+import { buildAppOrderKm } from '../../src/state/filterManager';
 import { initGeoService } from '../../src/services/geoService';
 import { unionRegions } from '../../src/services/geoService';
 
@@ -35,7 +35,7 @@ beforeAll(() => { initGeoService(); });
  *   `destinationKeywords` = **경유 ∪ 도착목표(첫짐에서 상속)**
  *   도착목표는 저장하지 않는다 — 노선의 목적지는 도중에 안 바뀌므로 첫짐에서 파생한다 (규칙 ③).
  *
- * 🔴 **그런데 상차지 축이 뚫리면 안 된다.** `buildAppProgressKm` 은 `destinationKeywords`
+ * 🔴 **그런데 상차지 축이 뚫리면 안 된다.** `buildAppOrderKm` 은 `destinationKeywords`
  *    를 그대로 훑으며 경유에 없는 동까지 `null` 로 내보낸다. 그러면 앱의
  *    `RouteOrderFilter` 가 «상차지 순서 미상 — 통과» 로 흘려보내, **점동면에서 싣는
  *    콜이 통과한다** — 2026-08-18 파주 사고(78km 뒤로 돌아가 싣기)와 같은 형태다.
@@ -153,7 +153,7 @@ describe('도착 목표가 국면을 넘어 살아남는다', () => {
     it('🔴 도착목표를 넣어도 상차지 축은 안 뚫린다 — progressKm 은 경로 위만', () => {
         // 경유 4개 + 도착목표에서 온 점동면·세종대왕면
         const s = session({ keywords: ['초월읍', '부발읍', '가남읍', '산북면', '점동면', '세종대왕면'] });
-        const progress = buildAppProgressKm(s);
+        const progress = buildAppOrderKm(s);
 
         // 경로 위 동은 진행도와 함께 내려간다
         expect(progress['초월읍']).toBe(16.5);

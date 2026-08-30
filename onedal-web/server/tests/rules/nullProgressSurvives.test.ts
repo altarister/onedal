@@ -21,7 +21,7 @@ import { initGeoService, getDetourRegions } from '../../src/services/geoService'
  * 서버 JSON → Gson 객체 → **다시 JSON**. Gson 은 기본으로 `null` 필드를 직렬화하지
  * 않으므로, `{"분당구": null}` 이 그 왕복에서 **통째로 없어진다.**
  *
- * 🔴 **이건 구 이름만의 문제가 아니다.** `buildAppProgressKm` 은 진행도를 모르는 동에도
+ * 🔴 **이건 구 이름만의 문제가 아니다.** `buildAppOrderKm` 은 진행도를 모르는 동에도
  *    `null` 을 넣는다. 그 키가 사라지면 앱의 `RouteOrderFilter` 에서 **뜻이 뒤집힌다**:
  *
  *        키가 있고 값이 null  →  "순서 미상 — 통과"     ← 서버의 의도

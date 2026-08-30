@@ -130,7 +130,7 @@ describe('🧭 경유 목록 — 구도 함께 싣되 진행도는 비운다', (
     /**
      * 🔴 **`progressKm` 에만 넣으면 앱까지 안 간다.**
      *
-     * `buildAppProgressKm` 은 `destinationKeywords` 를 **돌면서** 진행도를 뽑는다
+     * `buildAppOrderKm` 은 `destinationKeywords` 를 **돌면서** 진행도를 뽑는다
      * (지나온 구간을 뺄 때 목록과 진행도가 **한 벌로** 줄어야 하기 때문이다).
      * 그러니 구 이름이 도착 목록(`flat`)에도 있어야 앱이 받는다.
      */

@@ -291,7 +291,7 @@ data class FilterConfig(
      * (기사님 확정 2026-08-18). null = 경로 위지만 순서를 모름(막지 않는다).
      * 비어 있으면(첫짐·구서버) 순서 검사를 하지 않는다 — 오프라인 안전망과 같은 방향.
      */
-    val progressKm: Map<String, Double?> = emptyMap(),
+    val orderKm: Map<String, Double?> = emptyMap(),
     /**
      * 🗺️ 키워드 트랩 — 키워드로 시작하는 더 긴 다른 지명 (예: 남동 → [남동구]).
      * 부분 문자열 오탐 방지(RegionMatch ④). 비어 있으면(구서버) 문법 안전망만 돈다.

@@ -1,4 +1,4 @@
-import { buildAppProgressKm } from '../../src/state/filterManager';
+import { buildAppOrderKm } from '../../src/state/filterManager';
 
 /**
  * 🧭 앱에 내려보낼 경로 순서 맵 (기사님 확정 2026-08-18 — 여유 0km, 역주행은 버린다)
@@ -13,7 +13,7 @@ import { buildAppProgressKm } from '../../src/state/filterManager';
  *    곤지암읍(6km 길목)이 «경로 끝 19.2km»로 나가 순방향 콜이 차단됐다.
  *    지리 재현 검사는 `routeOrderKm.test.ts` — 여기는 배선(키 좁힘·null 규약)만 본다.
  */
-describe('buildAppProgressKm', () => {
+describe('buildAppOrderKm', () => {
     const LINE = [{ x: 127.25, y: 37.41 }, { x: 126.73, y: 37.77 }];
     const session = (keywords: string[], order: Record<string, number> | null) => ({
         activeFilter: { destinationKeywords: keywords },
@@ -22,11 +22,11 @@ describe('buildAppProgressKm', () => {
     }) as any;
 
     it('경로가 없으면(첫짐) 빈 객체 — 앱이 순서 검사를 건너뛴다', () => {
-        expect(buildAppProgressKm(session(['금촌동', '교하동'], null))).toEqual({});
+        expect(buildAppOrderKm(session(['금촌동', '교하동'], null))).toEqual({});
     });
 
     it('키는 지금 목록으로 좁힌다 — 지나온 동(목록에서 빠진 것)은 실리지 않는다', () => {
-        const out = buildAppProgressKm(session(
+        const out = buildAppOrderKm(session(
             ['신장동', '금촌동'],                                  // 트림 후 남은 목록
             { 초월읍: 3.2, 신장동: 27.1, 금촌동: 83.5 },            // 세션엔 지나온 초월읍이 남아 있다
         ));
@@ -42,7 +42,7 @@ describe('buildAppProgressKm', () => {
      *    «순서 미상 — 통과»(null)다. 느슨한 쪽이 안전하다 (규칙 ⑤).
      */
     it('유한하지 않은 값이 섞여 들면 null — 모르면 막지 않는다', () => {
-        const out = buildAppProgressKm(session(['경안동', '금촌동'], { 경안동: 0.5, 금촌동: Infinity }));
+        const out = buildAppOrderKm(session(['경안동', '금촌동'], { 경안동: 0.5, 금촌동: Infinity }));
         expect(out.경안동).toBe(0.5);
         expect(out.금촌동).toBeNull();
         // JSON 은 Infinity 를 못 싣는다 — 실어 보내는 값은 전부 JSON 왕복이 돼야 한다
@@ -50,7 +50,7 @@ describe('buildAppProgressKm', () => {
     });
 
     it('값 없음(스냅 실패)은 null — 모르면 막지 않는다', () => {
-        const out = buildAppProgressKm(session(['경안동', '산황동'], { 경안동: 0.5 }));
+        const out = buildAppOrderKm(session(['경안동', '산황동'], { 경안동: 0.5 }));
         expect(out).toEqual({ 경안동: 0.5, 산황동: null });
         expect(JSON.parse(JSON.stringify(out))).toEqual(out);
     });

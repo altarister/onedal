@@ -302,7 +302,7 @@ export function rememberDetourProgress(
     /**
      * 🛣️ 경로 위 동 목록도 함께 기억한다 (2026-08-25).
      * ⚠️ **여기에는 경유만 넣는다.** 도착 목표에서 온 동을 섞으면 상차지 축이 뚫린다
-     *    (`buildAppProgressKm` 주석 참고 — 2026-08-18 파주 사고와 같은 형태).
+     *    (`buildAppOrderKm` 주석 참고 — 2026-08-18 파주 사고와 같은 형태).
      */
     session.detourFlat = regions?.flat ?? null;
 }
@@ -326,7 +326,7 @@ export function rememberDetourProgress(
  *    하차원 안 동들도 각자의 실제 위치를 가져 서로의 순서가 살아 있다 (2026-08-18 에
  *    null 로 보내 판정이 죽었던 그 자리 — 지금은 유한한 실수가 나가므로 그 일이 없다).
  */
-export function buildAppProgressKm(
+export function buildAppOrderKm(
     session: ReturnType<typeof getUserSession>,
 ): Record<string, number | null> {
     /**

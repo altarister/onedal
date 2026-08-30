@@ -67,8 +67,8 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
         } catch (e: Exception) { emptyList() }
     }
 
-    /** 🧭 progressKm 파싱 — JSON null 은 "순서를 모름"이므로 코틀린 null 로 보존한다 (0 으로 지어내지 않는다) */
-    private fun parseProgressMap(json: JSONObject, key: String): Map<String, Double?> {
+    /** 🧭 orderKm 파싱 — JSON null 은 "순서를 모름"이므로 코틀린 null 로 보존한다 (0 으로 지어내지 않는다) */
+    private fun parseOrderMap(json: JSONObject, key: String): Map<String, Double?> {
         val obj = json.optJSONObject(key) ?: return emptyMap()
         val map = mutableMapOf<String, Double?>()
         for (k in obj.keys()) {
@@ -93,8 +93,8 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
             val jsonStr = prefs.getString("activeFilter", null) ?: return FilterConfig()
             val json = JSONObject(jsonStr)
 
-            // 🧭 [피기백 v2] 도착 목록 = destinationKeywords ∪ progressKm 키 (인성 파서와 같은 규칙)
-            val progress = parseProgressMap(json, "progressKm")   // 없으면 빈 맵 → 순서 검사 안 함 (구서버 호환)
+            // 🧭 [피기백 v2] 도착 목록 = destinationKeywords ∪ orderKm 키 (인성 파서와 같은 규칙)
+            val progress = parseOrderMap(json, "orderKm")   // 없으면 빈 맵 → 순서 검사 안 함 (구서버 호환)
             val traps = parseTrapsMap(json, "keywordTraps")       // 없으면 빈 맵 → 문법 안전망만 (구서버 호환)
             FilterConfig(
                 allowedVehicleTypes = parseJsonArray(json, "allowedVehicleTypes"),
@@ -109,7 +109,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
                 destinationKeywords = (parseJsonArray(json, "destinationKeywords") + progress.keys).distinct(),
                 customCityFilters = parseJsonArray(json, "customCityFilters"),
                 ratePerKm = parseRateMap(json, "ratePerKm"),   // 없으면 빈 맵 → minFare 판정 (구서버 호환)
-                progressKm = progress,
+                orderKm = progress,
                 keywordTraps = traps
             )
         } catch (e: Exception) {
@@ -374,7 +374,7 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
         }
 
         // ── 조건 6: 🧭 경로 순서 (역주행·경로 밖 상차 차단 — 기사님 확정 2026-08-18) ──
-        val routeOrder = RouteOrderFilter.check(order.pickup, order.dropoff, filter.progressKm)
+        val routeOrder = RouteOrderFilter.check(order.pickup, order.dropoff, filter.orderKm)
         if (!routeOrder.passed && order.fare > 0) {
             AppLogger.d(TAG, "🧭 [경로 순서] 차단 — ${routeOrder.reason}")
         }

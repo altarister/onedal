@@ -8,12 +8,12 @@ const scrap = () => readFileSync(join(__dirname, '../../src/routes/scrap.ts'), '
 /**
  * 🧭 **피기백 규격 v2** (기사님 확정 2026-08-22 — "같은 목록을 왜 두 번 보내나")
  *
- * 실측: 대기 상태 응답 4.0KB 중 destinationKeywords(1.06KB)와 progressKm(1.96KB)의
- * **키 집합이 동일**했고(buildAppProgressKm 이 키워드를 순회해 만든다), 필터가 안
+ * 실측: 대기 상태 응답 4.0KB 중 destinationKeywords(1.06KB)와 orderKm(1.96KB · 옛 이름 progressKm)의
+ * **키 집합이 동일**했고(buildAppOrderKm 이 키워드를 순회해 만든다), 필터가 안
  * 바뀌어도 매 5초 전부 재전송됐다.
  *
- *   ① 중복 제거 — 신앱은 도착 목록을 `키워드 ∪ progressKm 키` 로 합친다.
- *      서버는 progressKm 에 실린 동을 키워드에서 뺀다
+ *   ① 중복 제거 — 신앱은 도착 목록을 `키워드 ∪ orderKm 키` 로 합친다.
+ *      서버는 orderKm 에 실린 동을 키워드에서 뺀다
  *   ② 버전 게이트 — 내용 해시가 같으면 필터 본문을 생략한다
  *
  * 🔴 신호는 앱이 보내는 `filterVersion` 필드 하나다 — 없으면(구앱·scenario)
@@ -21,7 +21,7 @@ const scrap = () => readFileSync(join(__dirname, '../../src/routes/scrap.ts'), '
  */
 describe('filterVersionOf — 내용 해시 (카운터가 아니다, 규칙 ③)', () => {
     it('같은 내용이면 같은 버전 — 요청마다 흔들리지 않는다', () => {
-        const f = { destinationKeywords: ['금촌동'], isActive: true, progressKm: {} };
+        const f = { destinationKeywords: ['금촌동'], isActive: true, orderKm: {} };
         expect(filterVersionOf(f)).toBe(filterVersionOf({ ...f }));
     });
 
@@ -37,8 +37,8 @@ describe('scrap 응답 — v2 게이트의 배선', () => {
         expect(scrap()).toMatch(/hasOwnProperty\.call\(req\.body, 'filterVersion'\)/);
     });
 
-    it('🔴 progressKm 에 실린 동을 키워드에서 뺀다 (중복 제거)', () => {
-        expect(scrap()).toMatch(/\.filter\(\(k: string\) => !\(k in progressKeys\)\)/);
+    it('🔴 orderKm 에 실린 동을 키워드에서 뺀다 (중복 제거)', () => {
+        expect(scrap()).toMatch(/\.filter\(\(k: string\) => !\(k in orderKeys\)\)/);
     });
 
     it('🔴 버전이 같으면 본문을 생략한다 — 앱은 저장본을 유지한다', () => {

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { initGeoService, getDetourRegions } from '../../src/services/geoService';
-import { buildAppProgressKm, rememberDetourProgress } from '../../src/state/filterManager';
+import { buildAppOrderKm, rememberDetourProgress } from '../../src/state/filterManager';
 
 /**
  * 🧭 버그 대장 #78 — **경로 순서가 지리를 뒤집는다** (2026-08-30 실폰 2회 재현)
@@ -18,7 +18,7 @@ import { buildAppProgressKm, rememberDetourProgress } from '../../src/state/filt
  *      실제로는 6km 길목인 동네가 **경로 끝보다 뒤**가 되어 순서가 뒤집혔다.
  *
  * 수리: 값을 둘로 가른다 — 트림용 progressKm 은 그대로, 순서용 orderKm(순수 스냅점)을
- * 따로 만들어 앱 피기백(buildAppProgressKm)은 orderKm 만 쓴다.
+ * 따로 만들어 앱 피기백(buildAppOrderKm)은 orderKm 만 쓴다.
  *
  * 고정본은 그날 서버가 실제로 부른 URL 그대로 받아 둔 카카오 경로다
  * (fixtures/route-home-moda-sindun.json · 350점 · 19,202m). 카카오를 다시 부르지 않는다.
@@ -46,7 +46,7 @@ const sessionWith = (r: ReturnType<typeof regions>) => {
 
 describe('#78 순서용 값은 지리를 지킨다 — 앱에 내려가는 경로 순서', () => {
     it('🔴 곤지암읍(길목)은 관고동·신둔면(끝쪽)보다 앞이다 — 03 미탐의 재현 지점', () => {
-        const out = buildAppProgressKm(sessionWith(regions()));
+        const out = buildAppOrderKm(sessionWith(regions()));
 
         // 실폰 로그: 곤지암 19.20 > 관고 17.04 → "2.2km 후진" 차단. 지리는 그 반대다.
         expect(out['곤지암읍']).not.toBeNull();
@@ -57,12 +57,12 @@ describe('#78 순서용 값은 지리를 지킨다 — 앱에 내려가는 경�
     });
 
     it('집 앞 초월읍이 맨 앞이다', () => {
-        const out = buildAppProgressKm(sessionWith(regions()));
+        const out = buildAppOrderKm(sessionWith(regions()));
         expect(out['초월읍'] as number).toBeLessThan(out['곤지암읍'] as number);
     });
 
     it('실어 보내는 값은 전부 JSON 왕복이 된다 — Infinity 가 새지 않는다', () => {
-        const out = buildAppProgressKm(sessionWith(regions()));
+        const out = buildAppOrderKm(sessionWith(regions()));
         expect(JSON.parse(JSON.stringify(out))).toEqual(out);
         for (const v of Object.values(out)) {
             if (v !== null) expect(Number.isFinite(v)).toBe(true);

@@ -307,7 +307,7 @@ class InsungParser(private val context: Context) : IScrapParser {
 
             // ── 조건 5: 🧭 경로 순서 (역주행·경로 밖 상차 차단 — 기사님 확정 2026-08-18) ──
             //    합짐·운행중에만 값이 내려온다(첫짐은 빈 맵 → 검사 없음). 국면 분기는 앱에 두지 않는다.
-            val routeOrder = RouteOrderFilter.check(order.pickup, order.dropoff, filter.progressKm)
+            val routeOrder = RouteOrderFilter.check(order.pickup, order.dropoff, filter.orderKm)
             if (!routeOrder.passed && order.fare > 0) {
                 AppLogger.d(TAG, "🧭 [경로 순서] 차단 — ${routeOrder.reason}")
             }
@@ -383,8 +383,8 @@ class InsungParser(private val context: Context) : IScrapParser {
     /**
      * 콤마 구분 문자열을 List<String>으로 파싱하는 헬퍼
      */
-    /** 🧭 progressKm 파싱 — JSON null 은 "순서를 모름"이므로 코틀린 null 로 보존한다 (0 으로 지어내지 않는다) */
-    private fun parseProgressMap(json: JSONObject, key: String): Map<String, Double?> {
+    /** 🧭 orderKm 파싱 — JSON null 은 "순서를 모름"이므로 코틀린 null 로 보존한다 (0 으로 지어내지 않는다) */
+    private fun parseOrderMap(json: JSONObject, key: String): Map<String, Double?> {
         val obj = json.optJSONObject(key) ?: return emptyMap()
         val map = mutableMapOf<String, Double?>()
         for (k in obj.keys()) {
@@ -415,10 +415,10 @@ class InsungParser(private val context: Context) : IScrapParser {
             val json = JSONObject(jsonStr)
 
             // 각 optXxx 의 두 번째 인자는 서버 미응답 시 최후 안전망 (정상 흐름에서는 서버가 항상 전송)
-            // 🧭 [피기백 v2] 도착 목록 = destinationKeywords ∪ progressKm 키.
-            //    신서버는 progressKm 에 실린 동을 키워드에서 빼서 보낸다 (같은 목록 두 번 안 싣기).
+            // 🧭 [피기백 v2] 도착 목록 = destinationKeywords ∪ orderKm 키.
+            //    신서버는 orderKm 에 실린 동을 키워드에서 빼서 보낸다 (같은 목록 두 번 안 싣기).
             //    구서버(중복 포함)와도 distinct 로 같은 집합이 된다 (호환)
-            val progress = parseProgressMap(json, "progressKm")   // 없으면 빈 맵 → 순서 검사 안 함 (구서버 호환)
+            val progress = parseOrderMap(json, "orderKm")   // 없으면 빈 맵 → 순서 검사 안 함 (구서버 호환)
             val traps = parseTrapsMap(json, "keywordTraps")       // 없으면 빈 맵 → 문법 안전망만 (구서버 호환)
             FilterConfig(
                 allowedVehicleTypes = parseJsonArray(json, "allowedVehicleTypes"),
@@ -433,7 +433,7 @@ class InsungParser(private val context: Context) : IScrapParser {
                 destinationKeywords = (parseJsonArray(json, "destinationKeywords") + progress.keys).distinct(),
                 customCityFilters = parseJsonArray(json, "customCityFilters"),
                 ratePerKm = parseRateMap(json, "ratePerKm"),   // 없으면 빈 맵 → minFare 판정 (구서버 호환)
-                progressKm = progress,
+                orderKm = progress,
                 keywordTraps = traps
             )
         } catch (e: Exception) {

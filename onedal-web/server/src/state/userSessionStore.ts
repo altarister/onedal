@@ -205,7 +205,7 @@ export interface UserSession {
      * 🧭 경유의 동마다 **경로 몇 km 지점인가 — 순서 전용** (순수 스냅점 · #78 · 2026-08-30).
      *
      * `detourProgressKm` 은 트림용이라 pad·Infinity 가 섞여 있다 — 순서 판정에 쓰면
-     * 지리가 뒤집힌다 (곤지암읍이 경로 끝 뒤로 갔다). 앱 피기백(`buildAppProgressKm`)은
+     * 지리가 뒤집힌다 (곤지암읍이 경로 끝 뒤로 갔다). 앱 피기백(`buildAppOrderKm`)은
      * 이것만 쓴다. 역시 저장이 아니라 캐시 — 경유를 다시 그리면 같이 바뀐다.
      */
     detourOrderKm: Record<string, number> | null;

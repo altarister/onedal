@@ -4,7 +4,7 @@ import type { SimplifiedOfficeOrder, ScreenContextType } from "@onedal/shared";
 import db from "../db";
 import { capacityFullHold, filterVersionOf } from "../core/helpers";
 import { getUserSession, clearOrderTimers } from "../state/userSessionStore";
-import { ensureBusinessDay, buildAppProgressKm } from "../state/filterManager";
+import { ensureBusinessDay, buildAppOrderKm } from "../state/filterManager";
 
 import { touchDeviceSession } from "./devices";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
@@ -163,14 +163,16 @@ router.post("/", (req, res) => {
         // 🧹 앱이 파싱하지 않는 키도 함께 뺀다 (2026-08-22 앱 Kotlin 전수 대조 —
         //    앱이 읽는 것: isActive·isSharedMode·pickupRadiusKm·min/maxFare·destinationCity·
         //    destinationRadiusKm·excluded/destinationKeywords·customCityFilters·
-        //    allowedVehicleTypes·ratePerKm·progressKm)
+        //    allowedVehicleTypes·ratePerKm·orderKm)
         const { destinationGroups, dispatchPhase, driverAction, detourRadiusKm, callDiscountPct,
                 userOverrides, capacityConfidence, slotsUsed, callTarget,
                 ...appFilter } = session.activeFilter as any;
 
         // 🧭 경로 순서 맵 — 앱의 역주행·경로 밖 상차 차단 입력 (기사님 확정 2026-08-18)
         //    첫짐(경로 없음)이면 빈 객체라 앱이 순서 검사를 건너뛴다. +2.7KB (동 211개 기준)
-        appFilter.progressKm = buildAppProgressKm(session);
+        //    🔴 키 이름은 orderKm — #78 이후 실리는 값이 «순서 전용»이라 이름을 한 벌로
+        //       맞췄다 (2026-08-30 기사님 확정 · 옛 이름 progressKm 은 트림용에만 남는다)
+        appFilter.orderKm = buildAppOrderKm(session);
 
         // [Phase 6] 부트스트랩이 끝나기 전에는 콜 잡기를 시키지 않는다.
         // 이 구간(1~3초)의 activeFilter 는 아직 경유도 적재 차종도 반영되지 않은 미완성 상태라,
@@ -236,15 +238,15 @@ router.post("/", (req, res) => {
         /**
          * 🧭 **피기백 규격 v2** (기사님 확정 2026-08-22 — "같은 목록을 왜 두 번 보내나").
          * 앱이 `filterVersion` 을 보내면 신프로토콜이다:
-         *   ① 중복 제거 — 운행 중 progressKm 의 키 집합은 destinationKeywords 와 같다
-         *      (buildAppProgressKm 이 키워드를 순회해 만든다). 신앱은 도착 목록을
-         *      `키워드 ∪ progressKm 키` 로 합치므로, progressKm 에 실린 동은 키워드에서 뺀다
+         *   ① 중복 제거 — 운행 중 orderKm 의 키 집합은 destinationKeywords 와 같다
+         *      (buildAppOrderKm 이 키워드를 순회해 만든다). 신앱은 도착 목록을
+         *      `키워드 ∪ orderKm 키` 로 합치므로, orderKm 에 실린 동은 키워드에서 뺀다
          *   ② 버전 게이트 — 내용 해시가 앱이 든 것과 같으면 본문을 생략한다.
          *      앱은 응답에 필터가 없으면 저장본을 유지한다 (원래 그 동작이다)
          * 필드를 안 보내는 구앱·구스크립트에는 지금 그대로 전부 보낸다 — scenario 가
          * 구프로토콜로 남아 이 호환 경로를 상시 검증한다.
          * ⚠️ 빈 필터 고장 검사(callFilterBlocker)는 위에서 **원본 기준**으로 끝났다 —
-         *    여기서 비는 키워드는 "고장"이 아니라 "progressKm 쪽에 실려 있음"이다.
+         *    여기서 비는 키워드는 "고장"이 아니라 "orderKm 쪽에 실려 있음"이다.
          */
         const speaksV2 = !!req.body && Object.prototype.hasOwnProperty.call(req.body, 'filterVersion');
         // 기기당 최초 1회만 — 새 APK 가 실제로 v2 로 말하기 시작했는지 서버 로그에서 보인다
@@ -268,11 +270,11 @@ router.post("/", (req, res) => {
         let responseFilter: any = appFilter;
         let filterVersion: string | undefined;
         if (speaksV2) {
-            const progressKeys = appFilter.progressKm ?? {};
+            const orderKeys = appFilter.orderKm ?? {};
             responseFilter = {
                 ...appFilter,
                 destinationKeywords: (appFilter.destinationKeywords ?? [])
-                    .filter((k: string) => !(k in progressKeys)),
+                    .filter((k: string) => !(k in orderKeys)),
             };
             filterVersion = filterVersionOf(responseFilter);
             if (req.body.filterVersion === filterVersion) responseFilter = undefined;   // 안 바뀜 — 본문 생략

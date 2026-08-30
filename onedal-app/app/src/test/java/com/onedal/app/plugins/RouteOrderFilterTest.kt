@@ -12,7 +12,7 @@ import org.junit.Test
  *    78km 뒤로 돌아가 실어야 하는 콜이었고, 잡았다 취소하면 배차망 패널티(10회)를 쓴다.
  *
  * 규칙 (여유 0km — 뒤로 가는 콜은 버린다):
- *   · progressKm 비어 있음(첫짐)  → 검사 안 함 (통과)
+ *   · orderKm 비어 있음(첫짐)  → 검사 안 함 (통과)
  *   · 상차지가 키에 없음          → 경로 밖 → 차단
  *   · 상차 > 하차                 → 역주행 → 차단
  *   · 값이 null(순서 모름)        → 통과 (느슨하게 — 서버가 판정으로 거른다)
@@ -62,7 +62,7 @@ class RouteOrderFilterTest {
     @Test fun `순서를 모르는 동(null)은 통과 - 하차지`() =
         assertTrue(pass("경기 광주시 경안동", "고양시 일산동구 산황동"))
 
-    @Test fun `첫짐 - progressKm 이 비어 있으면 검사하지 않는다`() =
+    @Test fun `첫짐 - orderKm 이 비어 있으면 검사하지 않는다`() =
         assertTrue(RouteOrderFilter.check("아무데나", "아무데나", emptyMap()).passed)
 
     // ── 같은 지점끼리(여유 0의 경계) ──
