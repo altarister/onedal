@@ -93,9 +93,13 @@ export default function JudgmentSeat({ route, confirmedActive, onDecision, proce
                             {hourly != null ? <>{hourly.toFixed(1)}만<span className="text-[14px] text-text-muted font-bold">/h</span></> : <span className="text-[15px]">{v.reason}</span>}
                         </div>
                         <div className="text-[14px] font-bold mt-1">{routeText || '경로 계산됨'}</div>
+                        {/* 셋째 줄은 «걸리는 것»만 — 긴 승인 사유 전체는 근거 ▾ 안으로 (v13) */}
                         <div className="text-[12.5px] font-semibold mt-1" style={{ color: negatives.length ? c!.text : 'var(--color-text-muted, #7d879c)' }}>
-                            {negatives.length ? negatives.join(' · ') : (positives.length ? positives.join(' · ') : '걸리는 것 없음')} · 근거 {open ? '▴' : '▾'}
+                            {negatives.length ? negatives.join(' · ') : '걸리는 것 없음'} · 근거 {open ? '▴' : '▾'}
                         </div>
+                        {open && positives.length > 0 && (
+                            <div className="mt-1 text-[12px] text-text-muted">✅ {positives.join(' · ')}</div>
+                        )}
                         {open && route.judgment && (
                             <div className="mt-2 flex flex-col gap-1 text-[12px] rounded-md border border-border bg-surface-alt/40 px-2.5 py-2">
                                 {route.judgment.gates.map(g => <div key={g.key} className={g.pass ? 'text-text-muted' : 'text-danger font-bold'}>{g.pass ? '✅' : '🔴'} {g.name}{!g.pass && g.why ? ` — ${g.why}` : ''}</div>)}
