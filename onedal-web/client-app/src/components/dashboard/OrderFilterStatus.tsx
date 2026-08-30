@@ -104,13 +104,21 @@ export default function OrderFilterStatus({ onOpenFilter, budgetToast }:
     const slotsUsed = Math.round(filter.slotsUsed ?? 0);
     const regionCount = filter.destinationKeywords?.length ?? 0;
 
-    /** 지금 국면의 제목 — 필터를 사람 말로 읽어 준다 */
+    /** 지금 국면의 제목 — v14 문장 (관내는 방향이 없어 화살표 없음, 복귀는 도착지가 늘 집) */
     const headline = (p: CallTarget) => {
         const city = filter.destinationCity || '목적지 미정';
-        if (p === 'LOCAL') return <>이 동네(<b className="text-text-primary">{city}</b>) 안에서 끝나는 콜 찾기</>;
-        if (p === 'HOME') return <>여기서부터 <b className="text-text-primary">집({city})</b> 방향으로 필터링</>;
+        if (p === 'LOCAL') return <><b className="text-text-primary">{city}</b> 안에서 끝나는 콜</>;
+        if (p === 'HOME') return <>여기서 → <b className="text-text-primary">집({city}) {filter.destinationRadiusKm ?? 0}km</b></>;
         return <>여기서 <b className="text-text-primary">{filter.pickupRadiusKm}km</b> → <b className="text-text-primary">{city} {filter.destinationRadiusKm ?? 0}km</b></>;
     };
+
+    /** v14 국면 색·라벨 — 노선(파랑) · 관내(민트) · 복귀(주황). 지역 라벨도 국면 따라 */
+    const V14: Record<CallTarget, { c: string; chipBg: string; chipBd: string; on: string; onBd: string; onGlow: string; region: string }> = {
+        DEST:  { c: '#4f8df9', chipBg: 'rgba(79,141,249,.14)', chipBd: 'rgba(79,141,249,.35)', on: '#cfe0ff', onBd: 'rgba(79,141,249,.55)', onGlow: 'rgba(79,141,249,.18)', region: '도착목표' },
+        LOCAL: { c: '#35c3a9', chipBg: 'rgba(53,195,169,.13)', chipBd: 'rgba(53,195,169,.4)',  on: '#c8f3ea', onBd: 'rgba(53,195,169,.6)',  onGlow: 'rgba(53,195,169,.2)',  region: '관내' },
+        HOME:  { c: '#e8a15c', chipBg: 'rgba(232,161,92,.13)', chipBd: 'rgba(232,161,92,.4)',  on: '#fbe3c8', onBd: 'rgba(232,161,92,.6)',  onGlow: 'rgba(232,161,92,.2)',  region: '귀갓길' },
+    };
+    const v14 = V14[phase];
 
     /**
      * 국면 전환 — **확인을 받고** 바꾼다.
@@ -134,20 +142,20 @@ export default function OrderFilterStatus({ onOpenFilter, budgetToast }:
     };
 
     return (
-        <div id="filter-status" className="relative mx-3 my-2 rounded-xl border border-border-card overflow-hidden shadow-lg flex flex-col" style={{ background: "linear-gradient(180deg,#131a2b,#0f1522)", height: 158 }}>
+        <div id="filter-status" className="relative mx-3 my-2 rounded-xl border overflow-hidden shadow-lg flex flex-col" style={{ background: "linear-gradient(180deg,#131a2b,#0f1522)", height: 158, borderColor: phase === 'DEST' ? 'var(--color-border-card, #1c2436)' : `${v14.c}4d` }}>
             {/* 지금 국면 — 누르면 필터 설정 팝업.
                 v13 구조: 줄마다 독립 — [머리글 42px] / [지표 38px], 각 줄 헤어라인 (한 덩어리 금지 · 0831) */}
             <div onClick={onOpenFilter} className="cursor-pointer transition-colors hover:bg-surface-hover/40 active:scale-[0.995] flex flex-col" style={{ flex: 2 }}>
                 <div className="flex items-center" style={{ gap: 10, padding: '0 18px', flex: 1, fontSize: 14.5, borderBottom: '1px solid rgba(255,255,255,.06)' }}>
-                    <span style={{ borderRadius: 7, padding: '3px 10px', fontSize: 12, fontWeight: 800, background: 'rgba(79,141,249,.14)', border: '1px solid rgba(79,141,249,.35)' }}>{PHASE_STYLE[phase].icon}</span>
-                    <span className={`font-black whitespace-nowrap ${PHASE_STYLE[phase].accent}`}>{SHORT_NAME[phase]}</span>
+                    <span style={{ borderRadius: 7, padding: '3px 10px', fontSize: 12, fontWeight: 800, background: v14.chipBg, border: `1px solid ${v14.chipBd}` }}>{PHASE_STYLE[phase].icon}</span>
+                    <span className="font-black whitespace-nowrap" style={{ color: v14.c }}>{SHORT_NAME[phase]}</span>
                     <span className="text-text-primary font-bold truncate" style={{ fontSize: 13.5 }}>{headline(phase)}</span>
                     {/* 🔒 손으로 고친 필터는 자동 갱신이 덮어쓰지 않는다 — 자리는 안 먹는다 */}
                     {filter.userOverrides && (
                         <span title="손으로 고친 필터라 경로가 바뀌어도 자동 갱신되지 않습니다. 첫짐으로 돌아가면 풀립니다"
                             className="text-[11px] text-warning">🔒</span>
                     )}
-                    <span className={`ml-auto font-black shrink-0 ${PHASE_STYLE[phase].accent}`} style={{ fontSize: 14 }}>{label}</span>
+                    <span className="ml-auto font-black shrink-0" style={{ fontSize: 14, color: v14.c }}>{label}</span>
                     <span className="text-text-muted text-sm shrink-0">⚙️</span>
                 </div>
                 {/* ── 순서를 고정한다 (명세 §4-1) — 💰 금액 · 📍 지역 · 📦 적재 ── */}
@@ -155,7 +163,7 @@ export default function OrderFilterStatus({ onOpenFilter, budgetToast }:
                     💰 {callDiscountLabel}
                     <span className="opacity-70">(1t ≥ {oneTonRate.toLocaleString()}원/km)</span>
                     <span className="mx-1 opacity-40">·</span>
-                    📍 도착목표 {regionCount}개 동
+                    📍 {v14.region} {regionCount}개 동
                     <span className="mx-1 opacity-40">·</span>
                     📦 {slotsUsed}/{TRUCK_CAPACITY_SLOTS}박스
                 </div>
@@ -173,9 +181,11 @@ export default function OrderFilterStatus({ onOpenFilter, budgetToast }:
                             onClick={(e) => { e.stopPropagation(); goPhase(p); }}
                             disabled={isCurrent}
                             title={isCurrent ? '지금 이 국면입니다' : `${CALL_TARGET_LABEL[p]} — ${st.hint}`}
-                            style={{ borderRadius: 10, fontSize: 13.5 }}
+                            style={isCurrent
+                                ? { borderRadius: 10, fontSize: 13.5, color: V14[p].on, borderColor: V14[p].onBd, background: V14[p].chipBg, boxShadow: `0 0 14px ${V14[p].onGlow}`, cursor: 'default' }
+                                : { borderRadius: 10, fontSize: 13.5 }}
                             className={`font-black transition-all border ${isCurrent
-                                ? `${st.accent} border-current/40 bg-surface-alt cursor-default`
+                                ? ''
                                 : 'text-text-muted border-border bg-surface-alt/40 hover:bg-surface-hover hover:text-text-primary active:scale-95'}`}
                         >
                             {st.icon} {SHORT_NAME[p]}
