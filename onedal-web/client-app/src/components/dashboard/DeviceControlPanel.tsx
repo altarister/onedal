@@ -76,7 +76,7 @@ function DeviceRow({
         // 🚨 전역 isActive가 아닌, 이 기기 자체의 mode를 1순위로 검사합니다!
         // isActive = "필터가 도는가" (유저별), device.mode = "누가 누르나" (폰별)
         if (device.mode === "MANUAL") {
-            filterLabel = '대기';
+            filterLabel = '직접 모드';
             filterColor = 'bg-surface-alt text-text-muted border-border';
         } else {
             // 자동·알람은 둘 다 필터가 돈다 — 무엇을 찾고 있는지 그대로 보여준다.

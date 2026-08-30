@@ -354,7 +354,7 @@ export default function PinnedRouteCard({
                     <Badge variant="outline" className="text-[10px] font-black px-1.5 py-0 bg-warning/10 border-warning/30 text-warning flex-shrink-0 ml-2 shadow-sm rounded">👀 아직 안 잡음</Badge>
                 )}
                 {!evaluating && route.type === 'MANUAL' && route.status !== 'ORDER_COMPLETED' && (
-                    <Badge variant="outline" className="text-[10px] font-black px-1.5 py-0 bg-info/10 border-info/30 text-info flex-shrink-0 ml-2 shadow-sm rounded">수동 배차</Badge>
+                    <Badge variant="outline" className="text-[10px] font-black px-1.5 py-0 bg-info/10 border-info/30 text-info flex-shrink-0 ml-2 shadow-sm rounded">직접콜</Badge>
                 )}
                 {/* [Phase 8.3] 확정과 종료 사이의 진행 단계를 배지로 드러낸다.
                     예전에는 확정/완료 두 상태뿐이라 "지금 상차했나 아직인가"를 화면에서 알 수 없었다. */}

@@ -3,7 +3,7 @@ import { join } from 'path';
 import { DEVICE_MODES, isDeviceMode, type DeviceModeType } from '@onedal/shared';
 
 /**
- * 🎛️ **기기 모드는 셋이다 — 자동 · 알람 · 대기** (기사님 지시 2026-08-30)
+ * 🎛️ **기기 모드는 셋이다 — 자동 · 알람 · 직접** (기사님 지시 2026-08-30)
  *
  * 기사님: *"메뉴얼은 진짜 메뉴얼처럼, 필터를 통과한 콜이 리스트 맨 위에 나타나면
  * 알람을 주는 기능이야. 그러면 내가 직접 인성 리스트 첫 번째 것을 클릭하는 거지."*
@@ -14,9 +14,9 @@ import { DEVICE_MODES, isDeviceMode, type DeviceModeType } from '@onedal/shared'
  * |---|---|---|---|---|
  * | 자동 | `AUTO` | 돈다 | ✅ | — |
  * | 알람 | `ALARM` | 돈다 | ❌ | ✅ |
- * | 대기 | `MANUAL` | 돈다 | ❌ | ❌ |
+ * | 직접 (구 «대기») | `MANUAL` | 돈다 | ❌ | ❌ |
  *
- * 🔴 「대기」에 새 키를 만들지 않은 것은 **동작이 지금 `MANUAL` 과 같기 때문**이다.
+ * 🔴 「직접」(구 «대기»)에 새 키를 만들지 않은 것은 **동작이 지금 `MANUAL` 과 같기 때문**이다.
  *    키를 유지하면 기존 분기가 한 줄도 안 바뀐다.
  */
 
@@ -29,7 +29,7 @@ const web = (p: string) => readFileSync(join(__dirname, '../../../client-app/src
 const codeOnly = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 
 describe('🎛️ 모드 셋 — 값과 그 뜻', () => {
-    it('🔴 모드는 정확히 셋이다 (자동·알람·대기)', () => {
+    it('🔴 모드는 정확히 셋이다 (자동·알람·직접)', () => {
         expect([...DEVICE_MODES].sort()).toEqual(['ALARM', 'AUTO', 'MANUAL']);
     });
 
@@ -74,7 +74,7 @@ describe('🎛️ isActive 는 «필터가 도는가» 다 — «누가 누르�
      *    필터가 도는가는 `isActive`, 누가 누르는가는 앱의 `currentMode`.
      *    (누르는 쪽 잠금은 아래 「앱은 AUTO 일 때만 누른다」 가 맡는다)
      */
-    it('🔴 대기(MANUAL)는 필터를 켜지 않는다', () => {
+    it('🔴 직접(MANUAL)는 필터를 켜지 않는다', () => {
         const c = codeOnly(srv('routes/devices.ts'));
         const block = c.split('hasFilteringDevice')[1]?.slice(0, 300) ?? '';
         expect(block).not.toMatch(/mode === "MANUAL"/);

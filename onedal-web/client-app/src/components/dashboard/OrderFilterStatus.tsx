@@ -85,7 +85,7 @@ export default function OrderFilterStatus({ onOpenFilter, cancelCounts = {}, can
     const phase: CallTarget = filter.callTarget ?? 'DEST';
 
     // [V2] DispatchPhase 기반 상태 라벨 — 국면(CallTarget)과 다른 축이다
-    let label = '수동 대기';
+    let label = '직접 모드';   // 자동 탐색이 꺼져 있고 기사님이 직접 잡는다 (구 «수동 대기» · 2026-08-30 개명)
     if (filter.isActive) {
         const dPhase = filter.dispatchPhase || 'STANDBY';
         const action = filter.driverAction || 'WAITING';

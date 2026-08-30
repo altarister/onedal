@@ -991,11 +991,11 @@ export function isDeviceMode(v: unknown): v is DeviceModeType {
     return typeof v === "string" && (DEVICE_MODES as readonly string[]).includes(v);
 }
 
-/** 화면에 적히는 이름. 키를 그대로 보여 주면 기사님이 「대기」를 못 알아본다 */
+/** 화면에 적히는 이름 — MANUAL 의 화면 이름은 «직접» (기사님 확정 2026-08-30 · 구 «대기» — «쉬는 중»으로 오독되던 이름이라 직접콜 가족으로 통일) */
 export const DEVICE_MODE_LABEL: Record<DeviceModeType, string> = {
     AUTO: "자동",
     ALARM: "알람",
-    MANUAL: "대기",
+    MANUAL: "직접",
 };
 
 /**
