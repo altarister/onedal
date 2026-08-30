@@ -62,6 +62,22 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             kotlin.math.abs(fareCenterY - nodeCenterY) <= CARD_BAND_PX
 
         /**
+         * 🧲 노드가 붙을 닻 인덱스 — **가장 가까운 닻 하나에만** 붙는다 (0830 실사고 · #86).
+         * «±60 안이면 전부» 방식은 리스트 갱신 애니메이션으로 닻들이 눌리는 순간 한 노드를
+         * **두 카드에 모두** 넣었다 — 위 카드 시 + 아래 카드 동이 합쳐진 «처인 대치2»가
+         * 그렇게 태어나 지문·테두리까지 흔들었다. ±60 밖이면 -1 (어디에도 안 붙는다).
+         */
+        fun nearestAnchorIndex(anchorCentersY: List<Int>, nodeCenterY: Int): Int {
+            var best = -1
+            var bestDist = Int.MAX_VALUE
+            anchorCentersY.forEachIndexed { i, c ->
+                val d = kotlin.math.abs(c - nodeCenterY)
+                if (d < bestDist) { bestDist = d; best = i }
+            }
+            return if (bestDist <= CARD_BAND_PX) best else -1
+        }
+
+        /**
          * 🔔 **픽커 알람 판정 — 축은 셋이다** (기사님 확정 2026-08-30 · 픽커_수집.md 3단계).
          *
          *   ① 요금 ≥ 픽커 알람 하한 (원천 DB user_settings.picker_alarm_min_fare · 기본 1만)
@@ -160,16 +176,16 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
 
     override fun groupListNodes(allNodes: List<ScreenTextNode>): List<Pair<ScreenTextNode, List<String>>> {
         val sorted = allNodes.sortedWith(compareBy({ it.rect.top }, { it.rect.left }))
-        val groups = mutableListOf<Pair<ScreenTextNode, List<String>>>()
-        for (fareNode in sorted) {
-            if (!isFareAnchor(fareNode.text, (fareNode.rect.left + fareNode.rect.right) / 2)) continue
-            val fareY = (fareNode.rect.top + fareNode.rect.bottom) / 2
-            val cardTexts = sorted.filter {
-                inCardBand(fareY, (it.rect.top + it.rect.bottom) / 2)
-            }.map { it.text }
-            groups.add(Pair(fareNode, cardTexts))
+        val anchors = sorted.filter { isFareAnchor(it.text, (it.rect.left + it.rect.right) / 2) }
+        if (anchors.isEmpty()) return emptyList()
+        val anchorCenters = anchors.map { (it.rect.top + it.rect.bottom) / 2 }
+        // 🧲 각 노드를 가장 가까운 닻 하나에만 배정 — 두 카드에 겹쳐 들어가는 것을 막는다 (#86)
+        val cardTexts = List(anchors.size) { mutableListOf<String>() }
+        for (node in sorted) {
+            val i = nearestAnchorIndex(anchorCenters, (node.rect.top + node.rect.bottom) / 2)
+            if (i >= 0) cardTexts[i].add(node.text)
         }
-        return groups
+        return anchors.mapIndexed { i, fareNode -> Pair(fareNode, cardTexts[i] as List<String>) }
     }
 
     override fun parse(texts: List<String>): SimplifiedOfficeOrder {

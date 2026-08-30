@@ -184,6 +184,20 @@ class KakaoPickerParserTest {
     }
 
     @Test
+    fun `카드 묶기 - 노드는 가장 가까운 닻 하나에만 붙는다 (0830 실사고 - «처인 대치2» 이웃 섞임)`() {
+        // 22:19 실물: 리스트 갱신 애니메이션 중 좌표가 눌려 두 닻(3,000·16,478)이 가까워졌고,
+        // «±60 안이면 전부» 방식이라 사이에 낀 노드가 **두 카드 모두에** 들어갔다.
+        // 판정 로그의 «16478원·도착 처인 대치2»(위 카드 시 + 아래 카드 동)가 그 증거다.
+        val anchors = listOf(1124, 1224)          // 눌린 두 닻 중심 (평소 간격은 163)
+        // 사이에 낀 노드(1180) — 둘 다에서 60 안이지만, 가까운 쪽(1224) 하나에만 붙어야 한다
+        assertEquals(1, KakaoPickerParser.nearestAnchorIndex(anchors, 1180))
+        // 닻 자신은 늘 자기 카드다 — 남의 카드에 요금이 섞이면 덮어써진다
+        assertEquals(0, KakaoPickerParser.nearestAnchorIndex(anchors, 1124))
+        // 어느 닻에서도 ±60 밖이면 어디에도 안 붙는다
+        assertEquals(-1, KakaoPickerParser.nearestAnchorIndex(anchors, 1350))
+    }
+
+    @Test
     fun `카드 띠 판별 - 요금 중심 ±60이 한 카드다 (실측 줄 간격 ±35, 다음 카드 ±163)`() {
         assertTrue(KakaoPickerParser.inCardBand(961, 927))    // 태그줄
         assertTrue(KakaoPickerParser.inCardBand(961, 991))    // 지역줄
