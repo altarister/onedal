@@ -31,6 +31,15 @@ class AlarmSignalerSpanTest {
     }
 
     @Test
+    fun `동시 통과 여러 건이면 요금 최고 하나만 가리킨다 (기사님 확정 0830 - 상세 자동 진입의 대상)`() {
+        // 22:27 실측 — 한 스캔에 3건(16478·8316·14476)이 같이 통과했다. 테두리·상세는 하나다
+        assertEquals(0, AlarmSignaler.pickBestIndex(listOf(16478, 8316, 14476)))
+        assertEquals(2, AlarmSignaler.pickBestIndex(listOf(5600, 8316, 14476)))
+        assertEquals(0, AlarmSignaler.pickBestIndex(listOf(9000, 9000)))   // 같으면 먼저 본 콜
+        assertEquals(-1, AlarmSignaler.pickBestIndex(emptyList()))
+    }
+
+    @Test
     fun `픽커 파서는 카드 띠 반높이를 알람에 알려준다 - 묶기와 같은 값`() {
         // 카드 묶기(inCardBand)와 테두리가 딴 값을 쓰면 «묶은 카드»와 «두른 카드»가 갈라진다
         assertEquals(KakaoPickerParser.CARD_BAND_PX, KakaoPickerParser(null).alarmBandHalfPx())

@@ -104,6 +104,34 @@ class HijackService : AccessibilityService() {
 
     /** 🔔 알람 모드의 폰 쪽 신호 — 소리·진동·테두리 (`docs/지금/기기_모드.md` 2단계) */
     private val alarmSignaler by lazy { AlarmSignaler(this) }
+
+    /**
+     * 🚪 알람 상세 자동 진입의 복귀 타이머 — **ID 를 저장해 취소 가능하게** (좀비 타이머 규칙).
+     * 우리가 열어 준 상세에서 기사님이 30초 무응답이면 폰이 스스로 뒤로 나와
+     * 리스트 수집을 재개한다. 기사님이 손으로 연 상세는 이 타이머가 안 걸린다.
+     */
+    private var alarmDetailBackRunnable: Runnable? = null
+
+    private fun scheduleAlarmDetailBack() {
+        cancelAlarmDetailBack()
+        val r = Runnable {
+            alarmDetailBackRunnable = null
+            // 아직 그 상세에 있고, 여전히 알람 판(잡기 수순 없는 배차망)일 때만 나온다
+            if (telemetryManager.currentScreenContext == ScreenContext.DETAIL_PRE_CONFIRM
+                && !TargetApp.supportsCatching(currentTargetApp)
+                && telemetryManager.currentMode == "ALARM") {
+                AppLogger.i("1DAL_ALARM", "↩️ [알람 상세] 30초 무응답 — 리스트로 자동 복귀")
+                performGlobalAction(GLOBAL_ACTION_BACK)
+            }
+        }
+        alarmDetailBackRunnable = r
+        mainHandler.postDelayed(r, 30_000L)
+    }
+
+    private fun cancelAlarmDetailBack() {
+        alarmDetailBackRunnable?.let { mainHandler.removeCallbacks(it) }
+        alarmDetailBackRunnable = null
+    }
     private lateinit var collectMachine: DetailCollectMachine
     private val recentListOrders = mutableListOf<SimplifiedOfficeOrder>()
 
@@ -349,6 +377,8 @@ class HijackService : AccessibilityService() {
 
         // 🔔 리스트를 떠났다 — 남의 화면 위에 알람 테두리를 남기지 않는다 (§6-③)
         if (detected != ScreenContext.LIST) alarmSignaler.onLeaveList()
+        // 🚪 리스트로 돌아왔다(기사님이 뒤로/수락) — 자동 복귀 타이머는 일이 없어졌다
+        if (detected == ScreenContext.LIST) cancelAlarmDetailBack()
 
         // 화면별 핸들러 라우팅
         when (detected) {
@@ -433,6 +463,8 @@ class HijackService : AccessibilityService() {
         val emptySamples = mutableListOf<String>()
         /** 🔔 이번 스캔에 보인 콜 지문 → 요금 닻 위치 — 알람 테두리가 «아직 있나·어디로 갔나»를 이걸로 안다 (#83-③) */
         val scanHashes = mutableMapOf<Int, android.graphics.Rect>()
+        /** 🔔 이번 스캔의 알람 통과 콜들 — 루프 뒤에 요금 최고 하나만 울린다 (기사님 확정 0830) */
+        val alarmHits = mutableListOf<Triple<SimplifiedOfficeOrder, ScreenTextNode, Int>>()
 
         // 각 요금 노드 기준으로 텍스트 세트를 묶어 파싱
         for ((fareNode, cardTexts) in groupedNodes) {
@@ -502,14 +534,15 @@ class HijackService : AccessibilityService() {
             val wasEvaluated = tally.seen > seenBefore
 
             /**
-             * 🔔 **알람 모드 — 앱은 안 누르고, 그 줄을 가리킨다** (기사님 확정 2026-08-30 · 2단계).
+             * 🔔 **알람 모드 — 앱은 수락을 안 누르고, 그 콜을 가리킨다** (기사님 확정 2026-08-30 · 2단계).
              *
-             * 소리 두 번 + 강한 진동 + 통과한 콜 줄에 테두리. 누르는 것은 기사님이다.
+             * 소리 두 번 + 강한 진동 + 통과한 콜 줄에 테두리. 수락은 기사님이다.
              * 이미 본 콜은 위의 지문 검사(`continue`)가 걸러 주므로 **콜당 한 번만** 운다 —
-             * 서버 알람(관제웹 소리)과 같은 원리다.
+             * 서버 알람(관제웹 소리)과 같은 원리다. 여기서는 모으기만 하고, 루프 뒤에서
+             * **요금 최고 하나만** 울린다 (동시 통과 3건 실측 — 마지막 콜이 이기던 것은 우연).
              */
             if (!session.isAutoActive && telemetryManager.currentMode == "ALARM" && isTarget) {
-                alarmSignaler.fire(fareNode.rect, scrapParser.alarmBandHalfPx(), orderHash)
+                alarmHits.add(Triple(order, fareNode, orderHash))
             }
 
             // 🌟 [AUTO 실행] 콜 잡기 중이지 않고 AUTO 모드일 때만 실제 클릭 동작 수행
@@ -598,6 +631,22 @@ class HijackService : AccessibilityService() {
             val sample = if (emptySamples.isNotEmpty()) " ⤷ ${emptySamples.joinToString(" · ")}" else ""
             AppLogger.w(TAG, "👁️ [리스트 스캔] 텍스트노드 ${allNodes.size} · 콜그룹 ${groupedNodes.size} · " +
                 "통과 $picked · 요금실패 $fareFail$rect — ${lastScanReason(allNodes.size, groupedNodes.size, fareFail)}$sample")
+        }
+        /**
+         * 🔔 알람 — 통과 콜 중 **요금 최고 하나만** 울리고 가리킨다 (기사님 확정 0830).
+         * 잡기 수순 없는 배차망(픽커)은 **상세까지 이동**해 준다 — 기사님은 읽고 수락만.
+         * 수락(계약) 클릭은 여전히 없다: 상세 화면은 supportsCatching 관문이 무시한다.
+         */
+        val bestIdx = AlarmSignaler.pickBestIndex(alarmHits.map { it.first.fare })
+        if (bestIdx >= 0) {
+            val (order, fareNode, orderHash) = alarmHits[bestIdx]
+            alarmSignaler.fire(fareNode.rect, scrapParser.alarmBandHalfPx(), orderHash)
+            if (!TargetApp.supportsCatching(currentTargetApp)) {
+                AppLogger.i("1DAL_ALARM", "🚪 [알람 상세] ${order.fare}원 (${order.pickup.take(10)}→${order.dropoff.take(10)}) " +
+                    "상세로 이동 — 수락은 기사님 · 30초 무응답 시 자동 복귀")
+                touchManager.performSimulatedTouch(fareNode.node)
+                scheduleAlarmDetailBack()
+            }
         }
         // 🔔 알람 테두리 — 가리키던 콜이 이번 스캔에 없으면 걷는다 (잡혔거나 남이 가져감 · §6-③)
         alarmSignaler.onScan(scanHashes)

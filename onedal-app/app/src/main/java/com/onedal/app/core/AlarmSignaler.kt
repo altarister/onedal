@@ -23,8 +23,10 @@ import com.onedal.app.core.AppLogger
  * 🔔 **알람 모드의 폰 쪽 신호 — 소리 두 번 + 강한 진동 + 통과한 콜 줄에 테두리**
  * (기사님 확정 2026-08-30 · `docs/지금/기기_모드.md` §6-②④ · 2단계).
  *
- * 알람 모드에서 앱은 콜을 **안 누른다.** 기사님이 인성 리스트에서 직접 누르시는데,
+ * 알람 모드에서 앱은 **수락(계약)을 안 누른다.** 기사님이 직접 결정하시는데,
  * 관제웹 소리만으로는 **어느 줄인지**를 모른다 — 그래서 폰이 그 줄을 테두리로 가리킨다.
+ * 잡기 수순 없는 배차망(픽커)에서는 여기에 더해 **상세까지만 이동**해 준다
+ * (기사님 확정 2026-08-30: *"선택만 내가 하면 되니까"* — 30초 무응답이면 자동 복귀).
  *
  * 🔴 **인성앱 글자를 가리지 않고, 터치를 먹지 않는다** (기사님 확정).
  *    - 채우기 없는 **테두리만** 그린다 (`Paint.Style.STROKE`)
@@ -66,6 +68,18 @@ class AlarmSignaler(private val service: AccessibilityService) {
             val centerY = (anchorTop + anchorBottom) / 2
             val half = maxOf((anchorBottom - anchorTop) / 2, bandHalfPx)
             return Pair(centerY - half, centerY + half)
+        }
+
+        /**
+         * 🥇 한 스캔에서 여러 콜이 통과하면 **요금 최고 하나만** 가리킨다 (기사님 확정 0830).
+         * 테두리도 상세 자동 진입도 이 하나다 — 같으면 먼저 본 콜, 빈 목록이면 -1.
+         * (실측 22:27 — 한 스캔에 3건 동시 통과. 마지막 콜이 이기던 옛 동작은 우연이었다)
+         */
+        fun pickBestIndex(fares: List<Int>): Int {
+            var best = -1
+            var bestFare = Int.MIN_VALUE
+            fares.forEachIndexed { i, f -> if (f > bestFare) { bestFare = f; best = i } }
+            return best
         }
     }
 

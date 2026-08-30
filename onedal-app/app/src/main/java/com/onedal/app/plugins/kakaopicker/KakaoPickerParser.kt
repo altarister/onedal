@@ -248,8 +248,9 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
 
     /**
      * 🔔 알람 판정 위임 — 조건은 피기백 필터(원천 DB)에서 읽는다.
-     * true 여도 **클릭은 일어나지 않는다** (supportsCatching=false 가 입구 6곳에서 차단) —
-     * 알람 모드에서 소리·진동·테두리만 울린다. 지문 기억 덕에 콜당 한 번이다 (#79 배선).
+     * true 면 소리·진동·테두리 + **상세까지 이동** (기사님 확정 0830 — 요금 최고 콜 하나,
+     * 30초 무응답 시 자동 복귀). **수락(계약) 클릭은 없다** — 상세 화면의 잡기 수순은
+     * supportsCatching=false 가 입구에서 차단한다. 지문 기억 덕에 콜당 한 번이다 (#79 배선).
      */
     override fun shouldClick(order: SimplifiedOfficeOrder, tally: FilterTally?): Boolean {
         val c = alarmConfig()
