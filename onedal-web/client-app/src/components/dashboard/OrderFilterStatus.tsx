@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
-import { TRUCK_CAPACITY_SLOTS, CALL_TARGET_LABEL, CANCEL_BUDGET_PER_ROUND } from "@onedal/shared";
+import { TRUCK_CAPACITY_SLOTS, CALL_TARGET_LABEL } from "@onedal/shared";
 import type { CallTarget } from "@onedal/shared";
 import { socket } from "../../lib/socket";
 import { logRoadmapEvent } from "../../lib/roadmapLogger";
@@ -36,7 +36,8 @@ const PHASE_STYLE: Record<CallTarget, { icon: string; accent: string; hint: stri
     HOME:  { icon: '🏠', accent: 'text-accent',     hint: '집 방향 콜 — 합짐 최대한' },
 };
 
-export default function OrderFilterStatus({ onOpenFilter, cancelCounts = {}, cancelRounds = {}, budgetToast }:
+// 취소 카운트 props 는 받되 안 그린다 (v13 확정안 — 경고가 필요해지면 ⚙️ 팝업으로)
+export default function OrderFilterStatus({ onOpenFilter, budgetToast }:
     {
         onOpenFilter: () => void;
         cancelCounts?: Record<string, number>;
@@ -48,8 +49,6 @@ export default function OrderFilterStatus({ onOpenFilter, cancelCounts = {}, can
     const { filter } = useFilterConfig();
     const [toast, setToast] = useState<string | null>(null);
 
-    /** 두 망 중 더 많이 쓴 쪽으로 색을 정한다 — 하나만 위험해도 위험한 것이다 */
-    const worstCancel = Math.max(cancelCounts['insung'] ?? 0, cancelCounts['hwamul24'] ?? 0);
 
     /**
      * 🔴 **스캔 성적표(`👁️ …건 → 통과 …`)는 여기 없다** — 폰 카드로 옮겼다 (기사님 지적 2026-08-23).
@@ -107,7 +106,7 @@ export default function OrderFilterStatus({ onOpenFilter, cancelCounts = {}, can
         const city = filter.destinationCity || '목적지 미정';
         if (p === 'LOCAL') return <>이 동네(<b className="text-text-primary">{city}</b>) 안에서 끝나는 콜 찾기</>;
         if (p === 'HOME') return <>여기서부터 <b className="text-text-primary">집({city})</b> 방향으로 필터링</>;
-        return <>여기서 반경 <b className="text-text-primary">{filter.pickupRadiusKm}km</b> → <b className="text-text-primary">{city} {filter.destinationRadiusKm ?? 0}km</b> 반경</>;
+        return <>여기서 <b className="text-text-primary">{filter.pickupRadiusKm}km</b> → <b className="text-text-primary">{city} {filter.destinationRadiusKm ?? 0}km</b></>;
     };
 
     /**
@@ -138,43 +137,30 @@ export default function OrderFilterStatus({ onOpenFilter, cancelCounts = {}, can
                 onClick={onOpenFilter}
                 className="flex items-center justify-between gap-2 px-4 pt-3 pb-2 cursor-pointer transition-colors hover:bg-surface-hover/40 active:scale-[0.995]"
             >
+                {/* ── v13 확정안 (기사님 0831): 심사석과 같은 머리글 문법 —
+                    왼쪽 «국면명 + 방향», 오른쪽 «상태». 취소 카운트는 뺐다(확정안 — 80% 경고가
+                    필요해지면 ⚙️ 팝업이나 폰 영역으로 옮긴다). 지표는 💰📍📦 셋만. ── */}
                 <div className="flex flex-col leading-tight overflow-hidden min-w-0 flex-1">
-                    <span className={`text-[12px] font-black truncate ${PHASE_STYLE[phase].accent}`}>
-                        {PHASE_STYLE[phase].icon} {headline(phase)}
-                        <span className="ml-1.5 text-[9.5px] font-bold text-text-muted align-middle whitespace-nowrap">
-                            {label}
-                        </span>
+                    <span className="text-[14px] font-black truncate flex items-baseline gap-1.5">
+                        <span className={PHASE_STYLE[phase].accent}>{PHASE_STYLE[phase].icon} {CALL_TARGET_LABEL[phase]}</span>
+                        <span className="text-text-primary font-bold text-[13.5px]">{headline(phase)}</span>
                         {/* 🔒 손으로 고친 필터는 자동 갱신이 덮어쓰지 않는다 — 자리는 안 먹는다 */}
                         {filter.userOverrides && (
                             <span title="손으로 고친 필터라 경로가 바뀌어도 자동 갱신되지 않습니다. 첫짐으로 돌아가면 풀립니다"
-                                className="ml-1 text-[10px] text-warning align-middle">🔒</span>
+                                className="text-[11px] text-warning">🔒</span>
                         )}
                     </span>
                     {/* ── 순서를 고정한다 (명세 §4-1) — 💰 금액 · 📍 지역 · 📦 적재 ── */}
-                    <span className="text-[11px] text-text-muted font-medium truncate mt-0.5">
+                    <span className="text-[12.5px] text-text-muted font-medium truncate mt-1 tabular-nums">
                         💰 {callDiscountLabel}
                         <span className="opacity-70"> (1t ≥ {oneTonRate.toLocaleString()}원/km)</span>
                         <span className="mx-1.5 opacity-40">·</span>
-                        📍 {regionCount}개 동
+                        📍 도착목표 {regionCount}개 동
                         <span className="mx-1.5 opacity-40">·</span>
                         📦 {slotsUsed}/{TRUCK_CAPACITY_SLOTS}박스
-                        {/* 🚫 취소 예산 — 한 판 CANCEL_BUDGET_PER_ROUND 회. 소진 속도가
-                            "필터를 조여라"의 신호라 늘 보인다. 한도의 80%부터 빨강.
-                            판수(N판째)는 2판 이상일 때만 붙인다 — 첫 판에 군더더기를 안 만든다.
-                            🔴 한도를 여기 숫자로 적지 않는다. 서버가 "다 썼다"를 판정하려면
-                               같은 값을 봐야 하고, 두 벌이면 갈라진다 (규칙 ⑤-4 ①) */}
-                        <span className="mx-1.5 opacity-40">·</span>
-                        <span className={
-                            worstCancel >= CANCEL_BUDGET_PER_ROUND * 0.8 ? 'text-danger font-bold'
-                            : worstCancel >= CANCEL_BUDGET_PER_ROUND * 0.5 ? 'text-warning font-bold'
-                            : ''
-                        }>🚫 인성 {cancelCounts['insung'] ?? 0}/{CANCEL_BUDGET_PER_ROUND}
-                            {(cancelRounds['insung'] ?? 1) > 1 && ` (${cancelRounds['insung']}판)`}
-                            <span className="mx-1 opacity-40">·</span>
-                            24시 {cancelCounts['hwamul24'] ?? 0}/{CANCEL_BUDGET_PER_ROUND}
-                            {(cancelRounds['hwamul24'] ?? 1) > 1 && ` (${cancelRounds['hwamul24']}판)`}</span>
                     </span>
                 </div>
+                <span className={`text-[13px] font-black shrink-0 ${PHASE_STYLE[phase].accent}`}>{label}</span>
                 <span className="text-text-muted text-sm shrink-0">⚙️</span>
             </div>
 
@@ -190,7 +176,7 @@ export default function OrderFilterStatus({ onOpenFilter, cancelCounts = {}, can
                             onClick={(e) => { e.stopPropagation(); goPhase(p); }}
                             disabled={isCurrent}
                             title={isCurrent ? '지금 이 국면입니다' : `${CALL_TARGET_LABEL[p]} — ${st.hint}`}
-                            className={`py-1.5 rounded-lg text-[11px] font-black transition-all border ${isCurrent
+                            className={`py-2 rounded-lg text-[13px] font-black transition-all border ${isCurrent
                                 ? `${st.accent} border-current/40 bg-surface-alt cursor-default`
                                 : 'text-text-muted border-border bg-surface-alt/40 hover:bg-surface-hover hover:text-text-primary active:scale-95'}`}
                         >
