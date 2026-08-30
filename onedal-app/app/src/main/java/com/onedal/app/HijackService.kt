@@ -673,7 +673,12 @@ class HijackService : AccessibilityService() {
     private fun handlePreConfirmScreen(rootNode: AccessibilityNodeInfo, screenTexts: List<String>, rawScreenStr: String) {
         // 🚧 시퀀스 플러그인 경계 — 여기부터 detail 전송·복귀 감지까지가 «인성 잡기 수순»이다.
         //    수순 없는 배차망(픽커)이 이 문에 들어오면 엉뚱한 화면을 누르게 된다 — 원천 차단.
-        if (!TargetApp.supportsCatching(currentTargetApp)) return
+        if (!TargetApp.supportsCatching(currentTargetApp)) {
+            // 👁️ 다만 «수락 전 상세에 무엇이 보이는가»는 판정 설계의 문제지다 (기사님 질문 0830:
+            //    "상세 열었으면 그걸로 판단해 줄 수 있는 거 아냐?") — 클릭 없이 글자만 남긴다.
+            AppLogger.i("1DAL_PICKER", "📄 [상세 실물] ${screenTexts.joinToString(" | ").take(500)}")
+            return
+        }
 
         // 잔상 방어: 팝업이 아직 닫히지 않았으면 무시
         if (isPopupResidue(rawScreenStr)) return
