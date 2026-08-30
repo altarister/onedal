@@ -7,6 +7,16 @@ import {
     type OrderStatus
 } from './index';
 
+describe('isManualLineage — 직접 갈래 판별은 한 곳에서만', () => {
+    it('확정 전(MANUAL_CLICK)·승격 후(MANUAL) 둘 다 직접 갈래다', async () => {
+        const { isManualLineage } = await import('./index');
+        expect(isManualLineage('MANUAL')).toBe(true);
+        expect(isManualLineage('MANUAL_CLICK')).toBe(true);   // === 'MANUAL' 비교가 세 번 놓친 표기
+        expect(isManualLineage('AUTO_CLICK')).toBe(false);
+        expect(isManualLineage(undefined)).toBe(false);
+    });
+});
+
 describe('OrderStatus Helpers', () => {
     describe('isEvaluating', () => {
         it('EVALUATING_STATUSES에 포함된 상태들은 true를 반환한다', () => {

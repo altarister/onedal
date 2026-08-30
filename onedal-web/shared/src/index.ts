@@ -394,6 +394,15 @@ export function isTerminal(status?: string): boolean {
     return TERMINAL_STATUSES.includes(status as OrderStatus);
 }
 
+/**
+ * 직접 갈래(기사님이 잡은 콜)인가 — `type` 은 확정 전 «MANUAL_CLICK» → 승격 후 «MANUAL»
+ * **두 표기**다. `=== 'MANUAL'` 비교가 0830~31 하룻밤에 배지 누락·결재 버튼 잔상을
+ * 세 번 만들었다 — «직접 갈래인가»는 여기서만 답한다 (한 값 두 표기 클래스 봉쇄).
+ */
+export function isManualLineage(type?: string | null): boolean {
+    return !!type?.startsWith('MANUAL');
+}
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // [계층 1] 기사 행동 상태 — 기사님이 직접 버튼을 눌러 전환
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

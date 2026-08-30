@@ -12,8 +12,11 @@
   🔴 2026-08-12 에 `updateFilter` 가 **항상** baseFilter 에도 낙관적 반영을 해서
   새로고침하면 두 값이 갈라졌다 (*"설정에는 파주인데 필터를 열면 용인"*)
 
-- **MANUAL 콜에는 KEEP/CANCEL 버튼을 띄우지 않는다** (`PinnedRouteCard` 의 `route.type !== 'MANUAL'`).
-  기사님이 직접 잡은 콜은 서버가 이미 확정했다. 결재는 전화로 한다
+- **직접 갈래(MANUAL·MANUAL_CLICK) 콜에는 KEEP/CANCEL 버튼을 띄우지 않는다**
+  (`PinnedRouteCard` 의 `!isManualLineage(route.type)` — 판별은 shared 의 `isManualLineage` 한 곳).
+  기사님이 직접 잡은 콜은 서버가 이미 확정했다. 결재는 전화로 한다.
+  🔴 `=== 'MANUAL'` 문자열 비교를 새로 쓰지 말 것 — type 이 두 표기(확정 전 `MANUAL_CLICK`)라
+  0830~31 하룻밤에 배지 누락·버튼 잔상을 세 번 만들었다
 
 - **저장된 값이 목록에 없으면 다른 항목을 대신 보여주지 않는다.**
   `<select>` 는 값이 안 맞으면 **첫 항목**을 그린다 — 화면이 조용히 거짓말한다.

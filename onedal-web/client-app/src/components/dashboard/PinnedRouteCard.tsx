@@ -1,6 +1,6 @@
 import { verdictOf, BUTTON_BG } from '../../lib/verdict';
 import { useState, useEffect } from 'react';
-import { isEvaluating, isTerminal, isDeliveredCall, minRouteBuffer, derivationInputsOf, stopTimeOfRecords } from "@onedal/shared";
+import { isEvaluating, isTerminal, isManualLineage, isDeliveredCall, minRouteBuffer, derivationInputsOf, stopTimeOfRecords } from "@onedal/shared";
 import type { SecuredOrder } from "@onedal/shared";
 import { socket } from "../../lib/socket";
 import { getAddressLabel, getMinuteDiff , telHref } from "../../lib/routeUtils";
@@ -306,7 +306,7 @@ export default function PinnedRouteCard({
                     {route.scheduleText && <span className="text-warning font-bold">🕒 {route.scheduleText}</span>}
                     {/* 🧭 어떻게 잡았나 — 덱 머리글에도 단다 (0830 실측: 배지가 리스트 헤더에만 살아서
                         기사님이 보는 덱에는 영영 안 나왔다). 알람 듣고 잡음=알람콜 · 손=직접콜 */}
-                    {!evaluating && route.type?.startsWith('MANUAL') && route.status !== 'ORDER_COMPLETED' && (
+                    {!evaluating && isManualLineage(route.type) && route.status !== 'ORDER_COMPLETED' && (
                         <span className="px-1.5 py-0.5 rounded bg-info/15 text-info text-[10px] font-black">
                             {route.capturedVia === 'ALARM' ? '🔔 알람콜' : '직접콜'}
                         </span>
@@ -364,7 +364,7 @@ export default function PinnedRouteCard({
                     둘 다 matchType 은 MANUAL 이라 이 배지가 유일한 구분이다 (6하원칙의 «어떻게»). */}
                 {/* type 은 확정 전 «MANUAL_CLICK» → 승격 후 «MANUAL» 로 갈린다 — 둘 다 직접 갈래다.
                     === 'MANUAL' 만 보면 확정 직후(동기화 전)의 카드에서 배지가 빠진다 (0830 실측). */}
-                {!evaluating && route.type?.startsWith('MANUAL') && route.status !== 'ORDER_COMPLETED' && (
+                {!evaluating && isManualLineage(route.type) && route.status !== 'ORDER_COMPLETED' && (
                     <Badge variant="outline" className="text-[10px] font-black px-1.5 py-0 bg-info/10 border-info/30 text-info flex-shrink-0 ml-2 shadow-sm rounded">
                         {route.capturedVia === 'ALARM' ? '🔔 알람콜' : '직접콜'}
                     </Badge>
@@ -409,7 +409,7 @@ export default function PinnedRouteCard({
                     {/* 🔴 type 은 확정 전 «MANUAL_CLICK» — !== 'MANUAL' 로 거르면 직접·알람 콜의
                         평가 순간에 결재 버튼이 잠깐 그려진다 (0831 실측 «킵 버튼 잔상»).
                         결정은 스캔앱에서만 — 직접 갈래(MANUAL*)에는 버튼 자체를 안 만든다. */}
-                    {!route.isPreview && !route.type?.startsWith('MANUAL') && evaluating && onDecision && (
+                    {!route.isPreview && !isManualLineage(route.type) && evaluating && onDecision && (
                         <>
                             <div className="mt-1 flex gap-3">
                                 <Button 
