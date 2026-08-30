@@ -141,11 +141,11 @@ export function buildDefaultCallOptions(): CallOption[] {
     VEHICLE_OPTIONS.forEach((v, i) => {
         const boxes = VEHICLE_CAPACITY[v] ?? null;
         const perPallet = CARGO_UNIT_POINTS['파레트'];
-        const 파레트로 = boxes != null && boxes >= perPallet * 2;
+        const asPallet = boxes != null && boxes >= perPallet * 2;
         out.push(opt({
             category: 'vehicle', key: v, num1: boxes,
-            num2: boxes == null ? null : (파레트로 ? Math.round(boxes / perPallet) : boxes),
-            refKey: 파레트로 ? '파레트' : '라면박스',
+            num2: boxes == null ? null : (asPallet ? Math.round(boxes / perPallet) : boxes),
+            refKey: asPallet ? '파레트' : '라면박스',
             unitLabel: '박스', sortOrder: i, minValue: 0, maxValue: 3000,
             why: '통화 전에 이 분량을 미리 눌러 둔다 (규칙 ⑤-2)',
         }));
@@ -235,18 +235,18 @@ export function dwellRatesOf(options: readonly CallOption[]): {
     perBoxMin?: { forkliftMin: number; manualMin: number };
     afterworkMin?: Record<string, number>;
 } {
-    const 방법 = options.filter(o => o.category === 'handling');
-    const 지게차 = 방법.find(o => o.key === '지게차')?.num2;
-    const 수작업 = 방법.find(o => o.key === '수작업')?.num2;
+    const handlingOpts = options.filter(o => o.category === 'handling');
+    const forkliftMin = handlingOpts.find(o => o.key === '지게차')?.num2;
+    const manualMin = handlingOpts.find(o => o.key === '수작업')?.num2;
 
-    const 후작업 = options.filter(o => o.category === 'afterwork' && o.num1 != null);
-    const afterworkMin = 후작업.length
-        ? Object.fromEntries(후작업.map(o => [o.key, o.num1 as number]))
+    const afterworkOpts = options.filter(o => o.category === 'afterwork' && o.num1 != null);
+    const afterworkMin = afterworkOpts.length
+        ? Object.fromEntries(afterworkOpts.map(o => [o.key, o.num1 as number]))
         : undefined;
 
     return {
-        ...(지게차 != null && 수작업 != null
-            ? { perBoxMin: { forkliftMin: 지게차, manualMin: 수작업 } } : {}),
+        ...(forkliftMin != null && manualMin != null
+            ? { perBoxMin: { forkliftMin: forkliftMin, manualMin: manualMin } } : {}),
         ...(afterworkMin ? { afterworkMin } : {}),
     };
 }

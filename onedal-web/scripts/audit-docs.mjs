@@ -63,7 +63,7 @@ const DOCS = ALL.filter(p => {
  *    («`scoreDryRun` 은 철거됐다»)에 이름이 남아 있으면 «코드에 있다»로 봤다.
  *    그래서 문서가 철거된 함수를 가리켜도 감사가 통과했다.
  */
-const 코드만보기 = (t) => t.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
+const codeOnlyView = (t) => t.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
 /**
  * 🔴 **검사 파일도 뺀다** (2026-08-29). 검사가 «이 이름이 코드에 없어야 한다» 고
  *    정규식으로 적어 두면, 그 글자 때문에 **철거된 이름이 «살아 있다»로 보인다.**
@@ -72,7 +72,7 @@ const 코드만보기 = (t) => t.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*
 const CODE = ALL
     .filter(p => /\.(ts|tsx|kt|mjs|cjs|js)$/.test(p) && !p.includes('/dist/')
                  && !/[\\/]tests?[\\/]|\.test\./.test(p))
-    .map(p => { try { return 코드만보기(readFileSync(p, 'utf8')); } catch { return ''; } })
+    .map(p => { try { return codeOnlyView(readFileSync(p, 'utf8')); } catch { return ''; } })
     .join('\n');
 
 let problems = 0;
@@ -137,9 +137,9 @@ say('② 사라진 식별자', '문서가 말하는 상수·상태값·칸이 �
         //    (①·③·④ 는 그대로 건다 — «없는 파일을 가리키는 것»과 «옛말»은 거기서도 문제다)
         if (r.startsWith('docs/기획/') || r === 'todo.md') continue;
         const s = readFileSync(d, 'utf8');
-        const 이름들 = new Set([...s.matchAll(re)].map(x => x[1]));
-        for (const m of [...s.matchAll(reFn)].map(x => x[1])) 이름들.add(m);
-        for (const m of 이름들) {
+        const names = new Set([...s.matchAll(re)].map(x => x[1]));
+        for (const m of [...s.matchAll(reFn)].map(x => x[1])) names.add(m);
+        for (const m of names) {
             if (CODE.includes(m) || NOT_OURS.some(p => p.test(m))) continue;
             // 대응표·역사 서술·«앞으로 만들 것»·«지울 것» 은 코드에 없는 게 맞다.
             // 그 이름이 나오는 줄이 **전부** 그런 문맥이면 문서가 맞는 것이다
@@ -253,7 +253,7 @@ say('⑤ 손 뗀 자리', '문서가 «이 파일이 한다»는 일을 그 파�
      *    그래서 **그 파일이 내놓은 이름을 제품이 실제로 부르는가**를 본다.
      *    통(`index.ts`)과 자기 자신은 세지 않는다.
      */
-    const 쓰이는가 = (file) => {
+    const isUsed = (file) => {
         const src = readFileSync(file, 'utf8');
         const names = [...src.matchAll(/^export\s+(?:async\s+)?(?:function|const)\s+(\w+)/gm)].map(x => x[1]);
         if (!names.length) return true;                        // 타입만 있는 파일은 판단하지 않는다
@@ -263,16 +263,16 @@ say('⑤ 손 뗀 자리', '문서가 «이 파일이 한다»는 일을 그 파�
          *    `app.use` 하는 곳)까지 빠져 **멀쩡한 `routes/health.ts` 를 «손 뗀 자리»** 라 했다.
          *    통은 «export * from» 만 하는 파일이다 — 그것으로 가른다.
          */
-        const 재수출통 = (p) => /^\s*export\s+\*\s+from/m.test(readFileSync(p, 'utf8'));
-        const 남들 = PROD.filter(p => p !== file && !재수출통(p));
+        const isBarrel = (p) => /^\s*export\s+\*\s+from/m.test(readFileSync(p, 'utf8'));
+        const others = PROD.filter(p => p !== file && !isBarrel(p));
         /**
          * 🔴 **«부른다»만 보면 안 된다** (2026-08-29 두 번째 오탐).
          *    `CRITERIA` 는 부르는 게 아니라 `judge(CRITERIA, …)` 로 **넘기는 값**이다.
          *    이름이 코드에 **나오는지**를 본다 — 주석은 걷어낸다 (주석은 역사일 수 있다).
          */
-        const 코드만 = (t) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
-        return 남들.some(p => {
-            const t = 코드만(readFileSync(p, 'utf8'));
+        const codeOnly = (t) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+        return others.some(p => {
+            const t = codeOnly(readFileSync(p, 'utf8'));
             return names.some(n => new RegExp(`\\b${n}\\b`).test(t));
         });
     };
@@ -286,7 +286,7 @@ say('⑤ 손 뗀 자리', '문서가 «이 파일이 한다»는 일을 그 파�
             const full = [m, `server/src/${m}`, `shared/src/${m}`, `client-app/src/${m}`]
                 .map(x => join(WEB, x)).find(existsSync);
             if (!full) continue;                       // ① 이 이미 잡는다
-            if (쓰이는가(full)) continue;
+            if (isUsed(full)) continue;
             problems++; bad++;
             console.log(`  ${C.r}⚠${C.x} ${rel(d)} ${C.d}→ \`${m}\` 가 내놓은 것을 제품이 아무도 안 부른다 (손 뗀 자리)${C.x}`);
         }

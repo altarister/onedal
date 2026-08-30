@@ -28,7 +28,7 @@ import { execSync } from 'node:child_process';
  */
 
 /** 판을 깔 때 살아 있으면 안 되는 것들 — 전부 콜·기기·포트를 건드린다 */
-const 시험도구 = ['rehearsal.mjs', 'drive.mjs', 'scenario.mjs', 'appLoop.mjs', 'lifecycle.mjs'];
+const TEST_TOOLS = ['rehearsal.mjs', 'drive.mjs', 'scenario.mjs', 'appLoop.mjs', 'lifecycle.mjs'];
 
 const ps = () => {
     try { return execSync('ps -axo pid=,command=', { encoding: 'utf8' }); }
@@ -47,8 +47,8 @@ export function strayScripts() {
         .map(l => { const i = l.indexOf(' '); return { pid: l.slice(0, i), cmd: l.slice(i + 1) }; })
         .filter(p => p.pid !== me
             && !p.cmd.includes('preflight.mjs')
-            && 시험도구.some(t => p.cmd.includes(`scripts/${t}`)))
-        .map(p => ({ ...p, name: 시험도구.find(t => p.cmd.includes(`scripts/${t}`)) }));
+            && TEST_TOOLS.some(t => p.cmd.includes(`scripts/${t}`)))
+        .map(p => ({ ...p, name: TEST_TOOLS.find(t => p.cmd.includes(`scripts/${t}`)) }));
 }
 
 /**

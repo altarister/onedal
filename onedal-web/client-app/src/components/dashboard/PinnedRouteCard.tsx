@@ -47,8 +47,8 @@ function PromiseLines({ route, timeline, records }: {
 }) {
     const hhmm = (ms: number) => new Date(ms).toLocaleTimeString('ko-KR',
         { hour: '2-digit', minute: '2-digit', hour12: false });
-    const 줄 = (['pickup', 'dropoff'] as const).map(stop => {
-        const 이름 = getAddressLabel(stop === 'pickup' ? route.pickup : route.dropoff);
+    const rows = (['pickup', 'dropoff'] as const).map(stop => {
+        const stopLabel = getAddressLabel(stop === 'pickup' ? route.pickup : route.dropoff);
         const e = timeline?.find(x => x.orderId === route.id && x.stopType === stop);
         if (!e?.promisedUntil) {
             /**
@@ -58,36 +58,36 @@ function PromiseLines({ route, timeline, records }: {
              */
             const t = stopTimeOfRecords(records.reports, records.milestones, stop);
             if (!t) return null;
-            return { stop, 이름, 원래: null, 지금: hhmm(t.ms), 밀림: 0,
+            return { stop, stopLabel, 원래: null, nowMs: hhmm(t.ms), shiftMin: 0,
                      확정: true, 다녀옴: t.kind === 'actual', 지각: 0 };
         }
-        const 지금 = Date.parse(e.promisedUntil);
-        const 밀림 = e.dwellShiftMinutes ?? 0;
+        const nowMs = Date.parse(e.promisedUntil);
+        const shiftMin = e.dwellShiftMinutes ?? 0;
         return {
-            stop, 이름,
-            원래: 밀림 !== 0 ? hhmm(지금 - 밀림 * 60_000) : null,
-            지금: hhmm(지금),
-            밀림, 확정: e.promiseConfirmed, 다녀옴: e.arrived, 지각: e.lateMinutes ?? 0,
+            stop, stopLabel,
+            원래: shiftMin !== 0 ? hhmm(nowMs - shiftMin * 60_000) : null,
+            nowMs: hhmm(nowMs),
+            shiftMin, 확정: e.promiseConfirmed, 다녀옴: e.arrived, 지각: e.lateMinutes ?? 0,
         };
     }).filter(Boolean);
-    if (!줄.length) return null;
+    if (!rows.length) return null;
 
     return (
         <div className="mb-3 rounded-md border border-border/60 bg-surface-alt/30 px-2.5 py-2 space-y-1">
-            {줄.map(r => (
+            {rows.map(r => (
                 <div key={r!.stop} className="flex items-baseline gap-2 text-[12px] tabular-nums">
                     <span className="w-[26px] shrink-0 font-bold text-text-muted">
                         {r!.stop === 'pickup' ? '상차' : '하차'}
                     </span>
-                    <span className="truncate max-w-[7em] text-text-primary">{r!.이름}</span>
+                    <span className="truncate max-w-[7em] text-text-primary">{r!.stopLabel}</span>
                     {r!.원래 && <><span className="text-text-muted line-through">{r!.원래}</span>
                         <span className="text-text-muted">→</span></>}
                     <span className={`font-bold ${r!.다녀옴 ? 'text-text-muted' : 'text-text-primary'}`}>
-                        {r!.확정 || r!.다녀옴 ? '' : '~'}{r!.지금}
+                        {r!.확정 || r!.다녀옴 ? '' : '~'}{r!.nowMs}
                     </span>
-                    {r!.밀림 !== 0 && (
+                    {r!.shiftMin !== 0 && (
                         <span className="text-text-muted">
-                            ({r!.밀림 > 0 ? '+' : ''}{r!.밀림}분)
+                            ({r!.shiftMin > 0 ? '+' : ''}{r!.shiftMin}분)
                         </span>
                     )}
                     {r!.다녀옴 && <span className="text-text-muted">다녀옴</span>}
@@ -159,14 +159,14 @@ export default function PinnedRouteCard({
      * `etaMap` 은 **지금 경로**에서 만든다. 끝난 콜은 경로에 없어 통째로 비었다 —
      * 그런데 장부에는 «몇 시에 갔는지»가 남아 있다. 규칙은 `stopTimeOfRecords` 하나다.
      */
-    const 장부시각 = (stop: 'pickup' | 'dropoff') => {
+    const ledgerTimeOf = (stop: 'pickup' | 'dropoff') => {
         const t = stopTimeOfRecords(records.reports, records.milestones, stop);
         return t ? new Date(t.ms).toTimeString().substring(0, 5) : undefined;
     };
     const fromRoute = etaMap.get(route.id);
     const etas = {
-        pickupEta: fromRoute?.pickupEta ?? 장부시각('pickup'),
-        dropoffEta: fromRoute?.dropoffEta ?? 장부시각('dropoff'),
+        pickupEta: fromRoute?.pickupEta ?? ledgerTimeOf('pickup'),
+        dropoffEta: fromRoute?.dropoffEta ?? ledgerTimeOf('dropoff'),
     };
     const visitOrder = visitOrderMap.get(route.id);
 

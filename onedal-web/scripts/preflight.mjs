@@ -120,16 +120,16 @@ async function main() {
     // ── ④ 비었는지 확인한다 ──────────────────────────
     say('\n── ③ 정말 비었나 (말만 하지 않고 확인한다)');
     const db = new Database(join(ROOT, 'server/local.db'), { readonly: true });
-    const 남은콜 = db.prepare(`SELECT COUNT(*) c FROM orders`).get().c;
-    const 궤적 = db.prepare(`SELECT COUNT(*) c FROM gps_tracks`).get().c;
+    const ordersLeft = db.prepare(`SELECT COUNT(*) c FROM orders`).get().c;
+    const trackPoints = db.prepare(`SELECT COUNT(*) c FROM gps_tracks`).get().c;
     const home = db.prepare(`SELECT home_address, home_x, home_y FROM user_settings
                              WHERE home_x IS NOT NULL AND home_x != 0 LIMIT 1`).get();
-    const 기기 = db.prepare(`SELECT COUNT(*) c FROM user_devices`).get().c;
+    const deviceCount = db.prepare(`SELECT COUNT(*) c FROM user_devices`).get().c;
     db.close();
 
-    (남은콜 === 0 ? ok : bad)('장부의 콜', `${남은콜}건`);
-    ok('궤적', `${궤적}점 (지우지 않는다 — 지난 주행 기록이다)`);
-    (기기 > 0 ? ok : bad)('등록된 기기', `${기기}대${기기 ? '' : ' — 관제웹에서 PIN 연동이 필요합니다'}`);
+    (ordersLeft === 0 ? ok : bad)('장부의 콜', `${ordersLeft}건`);
+    ok('궤적', `${trackPoints}점 (지우지 않는다 — 지난 주행 기록이다)`);
+    (deviceCount > 0 ? ok : bad)('등록된 기기', `${deviceCount}대${deviceCount ? '' : ' — 관제웹에서 PIN 연동이 필요합니다'}`);
     if (home) ok('설정의 집', `${home.home_address} (${home.home_x.toFixed(4)}, ${home.home_y.toFixed(4)})`);
     else bad('설정의 집이 비어 있다 — 접근 주행·복귀 계산이 통째로 안 섭니다');
 

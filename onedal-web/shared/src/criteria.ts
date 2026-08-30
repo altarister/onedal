@@ -48,7 +48,7 @@ export interface MoneyFacts {
  * 🔴 **여기가 돈을 보는 유일한 곳이다.** 규칙 ⑤-1 — 돈은 앱이 이미 걸렀다.
  *    다른 기준이 요금을 다시 보면 같은 사실을 두 번 세는 것이다.
  */
-export const 돈 = defineCriterion<MoneyFacts>({
+export const MONEY = defineCriterion<MoneyFacts>({
     key: 'money', name: '돈', asks: '이 시간 써서 얼마 버나',
     weightKey: 'revenueDetour',
     measure(f, cfg) {
@@ -58,8 +58,8 @@ export const 돈 = defineCriterion<MoneyFacts>({
         if (f.extraMinutes <= 0) return scored(100, `우회 ${f.extraMinutes}분 — 길목`);
 
         const hourly = (f.fare / f.extraMinutes) * 60;
-        const 만 = (n: number) => (n / 10_000).toFixed(1);
-        const why = `${만(f.fare)}만 ÷ ${f.extraMinutes}분 = ${만(hourly)}만/h`;
+        const toManwon = (n: number) => (n / 10_000).toFixed(1);
+        const why = `${toManwon(f.fare)}만 ÷ ${f.extraMinutes}분 = ${toManwon(hourly)}만/h`;
 
         /**
          * 🔴 **하한가 미달은 색을 «무조건 빨간불»로 만들지 않는다** (규칙 ①).
@@ -68,7 +68,7 @@ export const 돈 = defineCriterion<MoneyFacts>({
          */
         const base = (hourly / cfg.target.hourlyKrw) * 100;
         if (f.minAcceptableKrw && f.fare < f.minAcceptableKrw) {
-            return scored(base * 0.6, `${why} · 평소 하한(${만(f.minAcceptableKrw)}만) 미달`);
+            return scored(base * 0.6, `${why} · 평소 하한(${toManwon(f.minAcceptableKrw)}만) 미달`);
         }
         return scored(base, why);
     },
@@ -98,15 +98,15 @@ export interface PromiseFacts {
  * 곡선은 옛 채점기 그대로다 (30분 이상 100 · 0분 40 · 음수 0) — 구조만 옮기고
  * **값은 안 바꾼다.** 같이 움직이면 «구조 때문인지 값 때문인지» 못 가린다.
  */
-export const 약속 = defineCriterion<PromiseFacts>({
+export const PROMISE = defineCriterion<PromiseFacts>({
     key: 'promise', name: '약속', asks: '이미 잡은 콜에 늦지 않나',
     weightKey: 'promiseGuard',
     measure(f, cfg) {
         if (!f || !Array.isArray(f.lateStops)) return unmeasurable('경로 타임라인을 못 받았습니다');
         if (!f.hasExistingCalls) return nothing('잡아 둔 콜이 없습니다');
         if (f.lateStops.length) {
-            const 왜 = f.lateStops.map(s => s.lateMinutes == null ? s.label : `${s.label} ${s.lateMinutes}분 늦음`).join(' · ');
-            return scored(0, 왜, true);          // 🔴 이건 «잡으면 사고»다
+            const whyText = f.lateStops.map(s => s.lateMinutes == null ? s.label : `${s.label} ${s.lateMinutes}분 늦음`).join(' · ');
+            return scored(0, whyText, true);          // 🔴 이건 «잡으면 사고»다
         }
         if (f.bufferAfterMin == null) return unmeasurable('남는 여유를 못 쟀습니다');
         /**
@@ -114,9 +114,9 @@ export const 약속 = defineCriterion<PromiseFacts>({
          *    예전엔 `30분 만점 · 0분 40점` 이 여기 박혀 있어 기사님이 못 고쳤다.
          *    값은 그대로다 — 자리만 옮겼다.
          */
-        const 만점 = cfg.slack.fullMin, 영점 = cfg.slack.zeroScore;
+        const fullMin = cfg.slack.fullMin, zeroScore = cfg.slack.zeroScore;
         const a = f.bufferAfterMin;
-        const s = a >= 만점 ? 100 : a >= 0 ? 영점 + ((100 - 영점) / 만점) * a : 0;
+        const s = a >= fullMin ? 100 : a >= 0 ? zeroScore + ((100 - zeroScore) / fullMin) * a : 0;
         return scored(s, `최소 ${a >= 0 ? '+' : ''}${a}분`);
     },
 });
@@ -152,7 +152,7 @@ export interface SpaceFacts {
  * ⚠️ **빈 차의 자리는 안 센다.** 첫짐은 늘 100 이라 다른 기준을 희석한다
  *    (옛 채점기 주석에 남아 있던 교훈).
  */
-export const 공간 = defineCriterion<SpaceFacts>({
+export const SPACE = defineCriterion<SpaceFacts>({
     key: 'space', name: '공간', asks: '실을 자리 있나',
     weightKey: 'slots',
     measure(f) {
@@ -182,7 +182,7 @@ export interface NatureFacts {
     hasLoad: boolean;
 }
 
-export const 성질 = defineCriterion<NatureFacts>({
+export const NATURE = defineCriterion<NatureFacts>({
     key: 'nature', name: '성질', asks: '같이 실어도 되는 짐인가',
     weightKey: 'cargoCompat',
     measure(f) {
@@ -195,8 +195,8 @@ export const 성질 = defineCriterion<NatureFacts>({
         }
         if (!f.hasLoad) return nothing('실린 짐이 없습니다');
         if (f.conflicts.length) {
-            const 왜 = f.conflicts.map(([a, b]) => `${a}+${b}`).join(' · ');
-            return scored(0, `같이 못 실음 — ${왜}`, true);
+            const whyText = f.conflicts.map(([a, b]) => `${a}+${b}`).join(' · ');
+            return scored(0, `같이 못 실음 — ${whyText}`, true);
         }
         return scored(100, '문제 없음');
     },
@@ -226,7 +226,7 @@ export interface GeographyFacts {
  *    죽인다(목적지에서 멀어지면 그 자리에서 합짐을 못 잡는다). 그런데 **그걸 잴 값이
  *    아직 없다.** 근거가 생기면 기사님이 판정 기준 탭에서 켜시면 된다.
  */
-export const 지리 = defineCriterion<GeographyFacts>({
+export const GEOGRAPHY = defineCriterion<GeographyFacts>({
     key: 'geography', name: '지리', asks: '가는 길 위에 있나',
     weightKey: 'geography',
     measure(f) {
@@ -241,7 +241,7 @@ export const 지리 = defineCriterion<GeographyFacts>({
  * 🔴 **판정 기준의 목록은 여기 하나다.** 더하거나 빼려면 이 배열만 고친다.
  *    순서가 곧 **화면에 보이는 순서**다.
  */
-export const CRITERIA: Array<Criterion<any>> = [돈, 약속, 공간, 성질, 지리];
+export const CRITERIA: Array<Criterion<any>> = [MONEY, PROMISE, SPACE, NATURE, GEOGRAPHY];
 
 /** 사실 꾸러미 — 칸 이름이 기준의 `key` 와 같다. 각 기준은 **자기 칸만** 본다 */
 export type JudgeFacts = {

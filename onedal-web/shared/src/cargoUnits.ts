@@ -188,6 +188,6 @@ export function afterworkMinutes(
      */
     override?: Record<string, number>,
 ): number {
-    const 표 = override ?? AFTERWORK_MINUTES;
-    return (list ?? []).reduce((a, k) => a + ((표 as Record<string, number>)[k] ?? 0), 0);
+    const table = override ?? AFTERWORK_MINUTES;
+    return (list ?? []).reduce((a, k) => a + ((table as Record<string, number>)[k] ?? 0), 0);
 }

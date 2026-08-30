@@ -152,7 +152,7 @@ function MinuteBadge({ minutes, unit, onEdit }: { minutes: number; unit?: string
         </span>
     );
     const stepBy = draft < 5 ? 0.5 : 5;
-    const 닫기 = (저장: boolean) => { setOpen(false); if (저장 && draft !== minutes) onEdit(draft); };
+    const close = (save: boolean) => { setOpen(false); if (save && draft !== minutes) onEdit(draft); };
     /**
      * 🔴 **버튼이 움직이면 운전 중에 못 누른다** (기사님 실측 2026-08-30).
      *
@@ -176,7 +176,7 @@ function MinuteBadge({ minutes, unit, onEdit }: { minutes: number; unit?: string
             <button className="px-2 py-0.5 rounded bg-black/25 text-[13px] leading-none font-bold"
                 onClick={() => setDraft(d => +(d + stepBy).toFixed(2))}>+</button>
             <button className="px-2 py-0.5 rounded bg-success text-white text-[11px] leading-none font-bold"
-                onClick={() => 닫기(true)}>✓</button>
+                onClick={() => close(true)}>✓</button>
         </span>
     );
 }
@@ -418,7 +418,7 @@ function SlotGrid({ r, pick, onPick, stopKind, driveMin }: {
                         ? <>무통보 상차 한계(잡음+잠정) 밖 — 주선사·화주와 통화로 미룹니다</>
                         : <>배달 데드라인(상차 완료+주행×150%) 밖 — 화주와 합의하면 미뤄집니다</>} · </>}
                 {pick?.touched
-                    ? <>기사님이 고른 값 — 통화 완료 때 <b>약속으로 저장</b>됩니다</>
+                    ? <>기사님이 고른 값 — 통화 완료 때 <b>약속으로 save</b>됩니다</>
                     : repromise
                     ? <>🔄 <b>약속이 지나 지금 기준으로 다시 폈습니다</b> — 저장된{' '}
                         {storedPromise
@@ -753,7 +753,7 @@ function LiveDone({ orderId, r, step, codAmount }: {
                 {done && (
                     <button type="button" title="현장 내용만 다시 저장" onClick={saveActual}
                         className="w-[20%] shrink-0 py-2.5 rounded-md border border-border bg-surface-alt/60 text-text-primary text-[12px] font-bold">
-                        💾 저장
+                        💾 save
                     </button>
                 )}
                 <button type="button" onClick={fire}

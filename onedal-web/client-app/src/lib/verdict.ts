@@ -33,10 +33,10 @@ export interface Verdict {
 type Judgment = NonNullable<SecuredOrder['judgment']>;
 type Judged = { kakaoTimeExt?: string; judgment?: Judgment };
 
-const 깨진조건 = (j: Judgment) =>
+const brokenGates = (j: Judgment) =>
     (j.gates ?? []).filter(g => !g.pass).map(g => g.why ?? g.name);
 
-const 못쟀나 = (j: Judgment) =>
+const isUnmeasurable = (j: Judgment) =>
     (j.tags ?? []).some(t => t.startsWith('잴 수 없음'));
 
 export function verdictOf(order: Judged): Verdict {
@@ -50,9 +50,9 @@ export function verdictOf(order: Judged): Verdict {
          *    🔴 못 쟀다는 것은 **나쁘다는 뜻이 아니다** (규칙 ⑤).
          */
         if (j.color === '사고') {
-            const 깨짐 = 깨진조건(j);
-            if (깨짐.length) return { color: '사고', title: '잡으면 사고', reason: `🔴 잡지 마세요 — ${깨짐.join(' · ')}`, source: '값' };
-            if (못쟀나(j)) return { color: '사고', title: '판단 불가', reason: '🔴 재료가 없어 점수를 못 냈습니다 — 나쁘다는 뜻이 아닙니다', source: '값' };
+            const broken = brokenGates(j);
+            if (broken.length) return { color: '사고', title: '잡으면 사고', reason: `🔴 잡지 마세요 — ${broken.join(' · ')}`, source: '값' };
+            if (isUnmeasurable(j)) return { color: '사고', title: '판단 불가', reason: '🔴 재료가 없어 점수를 못 냈습니다 — 나쁘다는 뜻이 아닙니다', source: '값' };
             return { color: '사고', title: '잡으면 사고', reason: '🔴 잡지 마세요 — 조건 위반', source: '값' };
         }
         if (j.color === '꿀') return { color: '꿀', title: '유지 확정', reason: '🍯 꿀콜', source: '값' };

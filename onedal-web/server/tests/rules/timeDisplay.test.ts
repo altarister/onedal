@@ -107,11 +107,11 @@ describe('🕐 펼친 카드 — 안 A (원래 값과 지금 값을 둘 다)', (
      */
     it('🔴 원래 값은 지금 값에서 밀린 분을 빼서 만든다 — 두 벌로 저장하지 않는다', () => {
         expect(카드).toMatch(/dwellShiftMinutes/);
-        expect(카드).toMatch(/지금 - 밀림 \* 60_000/);
+        expect(카드).toMatch(/nowMs - shiftMin \* 60_000/);
     });
 
     it('🔴 안 움직였으면 화살표를 안 그린다 — 움직인 것처럼 읽힌다', () => {
-        expect(카드).toMatch(/밀림 !== 0 \? hhmm/);
+        expect(카드).toMatch(/shiftMin !== 0 \? hhmm/);
     });
 
     it('상차·하차를 글자로 밝힌다 (기사님 지적 — 자리만으론 모른다)', () => {

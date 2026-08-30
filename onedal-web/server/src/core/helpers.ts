@@ -374,7 +374,7 @@ export function buildOrderSync(session: { userId?: string; myOrders: MyOrder[]; 
     const pendingInRoute = secStops
         ? [...new Set(secStops.filter(st => !activeIds.has(st.orderId)).map(st => st.orderId))]
         : [];
-    const 짝짓기 = (
+    const pairUp = (
         st: Array<{ orderId: string; stopType: string }> | undefined,
         mn: Array<number | null> | undefined,
     ) => st && mn && st.length === mn.length
@@ -392,8 +392,8 @@ export function buildOrderSync(session: { userId?: string; myOrders: MyOrder[]; 
     const snapUsable = !!snapMins?.sectionStops
         && snapMins.sectionStops.every(st => activeIds.has(st.orderId));
     const minByKey = pendingInRoute.length === 0
-        ? 짝짓기(secStops, mins)
-        : snapUsable ? 짝짓기(snapMins!.sectionStops, snapMins!.sectionDriveMin) : null;
+        ? pairUp(secStops, mins)
+        : snapUsable ? pairUp(snapMins!.sectionStops, snapMins!.sectionDriveMin) : null;
     const routeComputedAt = holder?.routeComputedAt
         ?? [...activeCalls].reverse().find(c => c.routeComputedAt)?.routeComputedAt ?? null;
     const routeStops = stops.map((st, i) => ({

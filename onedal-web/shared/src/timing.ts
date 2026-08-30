@@ -106,10 +106,10 @@ export function dwellMinutes(
     if (points <= 0) return unknown;
     const extra = stop === 'pickup' ? protectionMinutes(protections) : afterworkMinutes(afterworks, unk?.afterworkMin);
     /** 🔴 판정 기준 탭 값이 있으면 그것, 없으면 옛 상수 (되돌리는 길) */
-    const 박스당 = handling === '지게차' ? unk?.perBoxMin?.forkliftMin
+    const perBoxMin = handling === '지게차' ? unk?.perBoxMin?.forkliftMin
                  : handling === '수작업' ? unk?.perBoxMin?.manualMin
                  : undefined;
-    return Math.round(base + points * (박스당 ?? DWELL_PER_POINT[handling] ?? 1) + extra);
+    return Math.round(base + points * (perBoxMin ?? DWELL_PER_POINT[handling] ?? 1) + extra);
 }
 
 export interface StopTiming {
@@ -1017,12 +1017,12 @@ export function stopTimeOfRecords(
     milestones: { milestone: string; occurredAt?: string }[],
     stopType: 'pickup' | 'dropoff',
 ): StopTimeView | null {
-    const 실제 = arrivedMs(milestones, stopType);
-    if (실제 != null) return { ms: 실제, kind: 'actual' };
-    const 약속 = reports.find(r =>
+    const actualMs = arrivedMs(milestones, stopType);
+    if (actualMs != null) return { ms: actualMs, kind: 'actual' };
+    const promisedReport = reports.find(r =>
         r.stopType === stopType && r.kind === 'DECLARED' && (r as any).promisedArrivalAt);
-    if (약속) {
-        const t = Date.parse((약속 as any).promisedArrivalAt);
+    if (promisedReport) {
+        const t = Date.parse((promisedReport as any).promisedArrivalAt);
         if (Number.isFinite(t)) return { ms: t, kind: 'confirmed' };
     }
     return null;

@@ -30,14 +30,14 @@ import { getActiveCalls } from "../helpers";
  * 「잴 게 없음」·「잴 수 없음」도 그대로 보인다. 그게 기사님이 말씀하신 «조건 전수»다.
  * 🔴 못 쟀으면 **«0점»이라 쓰지 않는다** — 0 은 «나쁘다»로 읽힌다.
  */
-function 판정줄(v: JudgmentSnapshot): string {
+function verdictLine(v: JudgmentSnapshot): string {
     const emoji = v.color === '꿀' ? '🔵' : v.color === '보통' ? '🟢' : v.color === '똥' ? '🟡' : '🔴';
-    const 깨짐 = v.gates.filter(g => !g.pass).map(g => g.why ?? g.name);
-    const head = 깨짐.length ? `${emoji} 잡으면 사고 — ${깨짐.join(' · ')}`
+    const brokenGates = v.gates.filter(g => !g.pass).map(g => g.why ?? g.name);
+    const head = brokenGates.length ? `${emoji} 잡으면 사고 — ${brokenGates.join(' · ')}`
         : v.score == null ? `${emoji} 잴 수 없음` : `${emoji} ${v.score}점`;
-    const 기준 = v.axes.map(a => `${a.name} ${a.raw}${a.raw.startsWith('—') || a.raw.startsWith('⚠️') ? '' : `(${a.score})`}`).join(' · ');
-    const 딱지 = v.tags.length ? ` · 딱지: ${v.tags.join(' · ')}` : '';
-    return `${head}${기준 ? ` — ${기준}` : ''}${딱지}`;
+    const axisText = v.axes.map(a => `${a.name} ${a.raw}${a.raw.startsWith('—') || a.raw.startsWith('⚠️') ? '' : `(${a.score})`}`).join(' · ');
+    const tagText = v.tags.length ? ` · 딱지: ${v.tags.join(' · ')}` : '';
+    return `${head}${axisText ? ` — ${axisText}` : ''}${tagText}`;
 }
 
 export class OrderEvaluator {
@@ -224,7 +224,7 @@ export class OrderEvaluator {
                                 `실제 ${securedOrder.fare.toLocaleString()}원 < 하한 ${previewRate!.minAcceptable.toLocaleString()}원)`);
                             dry.color = '똥';
                         }
-                        console.log(`   - 🎨 [판정] ${판정줄(dry)}`);
+                        console.log(`   - 🎨 [판정] ${verdictLine(dry)}`);
                         // 🧪 도달 반경 dryRun (구현 4 계측) — 거르지 않는다, 설정 반경과 견주기만
                         console.log(`   - 🧪 [도달 반경 dryRun] 빈 차 — 시계 ${judgmentCfg.unknown.pickupOffsetMin}분 ` +
                             `≈ ${reachRadiusKm(judgmentCfg.unknown.pickupOffsetMin)}km (설정 ${session.activeFilter.pickupRadiusKm}km · 계수 잠정 ${REACH_COEF_MIN_PER_KM_TEMP}분/km)`);
@@ -299,7 +299,7 @@ export class OrderEvaluator {
                                 : [];
                             // 🔴 손으로 다시 만들지 않는다 — 판정 기준 → 파생 입력은 한 곳이다 (규칙 ③).
                             //    여기서 따로 조립하면 배송 속도 같은 새 칸이 조용히 빠진다 (2026-08-26).
-                            const 파생 = derivationInputsOf(judgmentCfg, dwellRatesFor(userId));
+                            const derivation = derivationInputsOf(judgmentCfg, dwellRatesFor(userId));
                             // ⏱️ 실측 정차와 판정 기준 값을 **함께** 넘긴다 — 넷이 같은 재료를 써야 한다
                             const dwellLedgerOf = (id: string) => dwellLedgerFor(id);
                             // 후보를 **포함한** 경로의 타임라인 — 기존 콜 약속이 어떻게 되는지가 문지기다
@@ -307,7 +307,7 @@ export class OrderEvaluator {
                                 ? deriveRouteTimeline(stopsAfter as any, [...activeCalls, securedOrder] as any,
                                     id => stepRecordsOf(id).reports as any,       // 🔄 파생 치환 ②
                                     id => stepRecordsOf(id).milestones as any,
-                                    Date.now(), new Date().toISOString(), 파생.rules, 파생.unk, dwellLedgerOf)
+                                    Date.now(), new Date().toISOString(), derivation.rules, derivation.unk, dwellLedgerOf)
                                 : [];
                             const existing = tlAfter.filter(e => e.orderId !== securedOrder.id);
                             const late = existing.filter(e => e.lateMinutes > 0);
@@ -366,7 +366,7 @@ export class OrderEvaluator {
                              *    합짐 콜은 단독 경로를 안 재므로 배송거리 ÷ 속도로 채운다.
                              *    숫자만 쓰고 «추정»을 안 적으면 그게 규칙 ④ 위반이 된다.
                              */
-                            if (soloMinutesOf(securedOrder as any, 파생.rules).estimated) {
+                            if (soloMinutesOf(securedOrder as any, derivation.rules).estimated) {
                                 tags.push('배송주행 추정(일반값)');
                             }
                             if (!bufAfter) tags.push('버퍼 잴 약속 없음');
@@ -380,7 +380,7 @@ export class OrderEvaluator {
                                     ? (Math.max(0, slotsTotal - slotsUsed) / slotsTotal) * 100 : null,
                                 gates, conflicts, tags,
                             }), judgmentCfg));
-                            console.log(`   - 🎨 [판정] ${판정줄(dry)}`);
+                            console.log(`   - 🎨 [판정] ${verdictLine(dry)}`);
                             // 🧪 도달 반경 dryRun (구현 4 계측) — 앞 일이 많을수록 버퍼가 줄어 반경이 준다 (16-3)
                             if (bufAfter) console.log(`   - 🧪 [도달 반경 dryRun] 버퍼 ${Math.max(0, bufAfter.minutes)}분 ` +
                                 `≈ ${reachRadiusKm(Math.max(0, bufAfter.minutes))}km (설정 ${session.activeFilter.pickupRadiusKm}km · 계수 잠정)`);

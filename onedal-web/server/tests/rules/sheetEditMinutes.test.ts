@@ -319,7 +319,7 @@ describe('✏️ 화면이 그 규칙을 지키는가', () => {
      */
     it('🔴 ± 는 초안만 바꾸고, 저장은 ✓ 를 누를 때 한 번이다', () => {
         expect(시트).toMatch(/setDraft\(d =>/);
-        expect(시트).toMatch(/닫기\(true\)/);
+        expect(시트).toMatch(/close\(true\)/);
         // ± 버튼이 곧바로 onEdit 을 부르지 않는다
         expect(시트).not.toMatch(/onClick=\{\(\) => onEdit\(/);
     });

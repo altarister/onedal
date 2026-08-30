@@ -228,19 +228,19 @@ export function registerSocketHandlers(io: Server) {
          */
         safeOn(socket, "save-call-options", (list: unknown) => {
             if (!Array.isArray(list) || list.length === 0) return;
-            const 고친것 = list as Array<{ category: string; key: string; num1?: number | null; num2?: number | null }>;
+            const edited = list as Array<{ category: string; key: string; num1?: number | null; num2?: number | null }>;
             db.transaction(() => {
                 const st = db.prepare(
                     `UPDATE call_options SET num1 = ?, num2 = ?, updated_at = ?
                      WHERE user_id = ? AND category = ? AND key = ?`);
                 const now = new Date().toISOString();
-                for (const o of 고친것) st.run(o.num1 ?? null, o.num2 ?? null, now, userId, o.category, o.key);
+                for (const o of edited) st.run(o.num1 ?? null, o.num2 ?? null, now, userId, o.category, o.key);
             })();
 
             forgetCallOptions(userId);                       // ② 서버 판정이 새 값을 쓰게
             const session = getUserSession(userId);
             session.callOptions = loadCallOptions(userId);   // ③ 세션도 새 값으로
-            console.log(`🎛️ [콜 옵션 저장] ${고친것.length}개 · 정차 값을 다시 읽었습니다`);
+            console.log(`🎛️ [콜 옵션 저장] ${edited.length}개 · 정차 값을 다시 읽었습니다`);
             io.to(userId).emit("call-options-init", session.callOptions);
         });
 

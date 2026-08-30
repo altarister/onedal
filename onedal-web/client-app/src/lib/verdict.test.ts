@@ -29,28 +29,28 @@ import { verdictOf } from './verdict';
  * 값이 안 오는 경우가 있을 수 있어 한 번에 갈아치우지 않는다 (규칙 ②: 겹쳐 둔다).
  */
 
-const 문구 = (s: string) => ({ kakaoTimeExt: s });
-const 값 = (color: string, over: any = {}) =>
+const phraseOf = (s: string) => ({ kakaoTimeExt: s });
+const valueOf_ = (color: string, over: any = {}) =>
     ({ kakaoTimeExt: `'${color}' 어쩌고 저쩌고`, judgment: { color, score: 80, axes: [], gates: [], tags: [], ...over } });
 
 describe('🎨 색은 값에서 온다', () => {
     it('값이 오면 값을 쓴다', () => {
-        expect(verdictOf(값('꿀') as any).color).toBe('꿀');
-        expect(verdictOf(값('똥') as any).color).toBe('똥');
-        expect(verdictOf(값('보통') as any).color).toBe('보통');
+        expect(verdictOf(valueOf_('꿀') as any).color).toBe('꿀');
+        expect(verdictOf(valueOf_('똥') as any).color).toBe('똥');
+        expect(verdictOf(valueOf_('보통') as any).color).toBe('보통');
     });
 
     /** 🔴 이게 이 고침의 핵심 — 문장이 뭐라 하든 값이 이긴다 */
     it('🔴 문장과 값이 다르면 **값이 이긴다**', () => {
-        const 어긋남 = { kakaoTimeExt: "'똥' 이라고 적혀 있지만", judgment: { color: '꿀', score: 90, axes: [], gates: [], tags: [] } };
-        expect(verdictOf(어긋남 as any).color).toBe('꿀');
-        expect(verdictOf(어긋남 as any).source).toBe('값');
+        const mismatch = { kakaoTimeExt: "'똥' 이라고 적혀 있지만", judgment: { color: '꿀', score: 90, axes: [], gates: [], tags: [] } };
+        expect(verdictOf(mismatch as any).color).toBe('꿀');
+        expect(verdictOf(mismatch as any).source).toBe('값');
     });
 
     /** 🔴 문구를 다듬으면 색이 바뀌던 그 상황 — 값이 있으면 안 흔들린다 */
     it('🔴 따옴표를 빼도 색이 안 바뀐다 — 예전엔 「보통」으로 떨어졌다', () => {
-        const 다듬은문구 = { kakaoTimeExt: '꿀콜입니다 총 87분', judgment: { color: '꿀', score: 83, axes: [], gates: [], tags: [] } };
-        expect(verdictOf(다듬은문구 as any).color).toBe('꿀');
+        const trimmedPhrase = { kakaoTimeExt: '꿀콜입니다 총 87분', judgment: { color: '꿀', score: 83, axes: [], gates: [], tags: [] } };
+        expect(verdictOf(trimmedPhrase as any).color).toBe('꿀');
     });
 
     /**
@@ -62,29 +62,29 @@ describe('🎨 색은 값에서 온다', () => {
      * 🚨 `(사고)` 도 마찬가지 — **잡으면 사고인 콜이 초록**으로 보였다.
      */
     it('🔴 재탐색이 쓰는 「🍯 (꿀)」 모양에서도 색이 안 흔들린다', () => {
-        const 재탐색 = { kakaoTimeExt: '[최단시간] +3.2km, +12분 🍯 (꿀) ',
+        const researched = { kakaoTimeExt: '[최단시간] +3.2km, +12분 🍯 (꿀) ',
                        judgment: { color: '꿀', score: 83, axes: [], gates: [], tags: [] } };
-        expect(verdictOf(재탐색 as any).color).toBe('꿀');
+        expect(verdictOf(researched as any).color).toBe('꿀');
         // 값이 없던 예전에는 이 문구가 「보통」으로 떨어졌다 — 그게 이 고침의 이유다
-        expect(verdictOf({ kakaoTimeExt: 재탐색.kakaoTimeExt } as any).color).toBe('보통');
+        expect(verdictOf({ kakaoTimeExt: researched.kakaoTimeExt } as any).color).toBe('보통');
     });
 
     it('사유에 「똥」이 섞여도 꿀은 꿀이다', () => {
-        const 섞임 = { kakaoTimeExt: "'꿀' — 앞 콜이 '똥' 이라 뺐습니다", judgment: { color: '꿀', score: 85, axes: [], gates: [], tags: [] } };
-        expect(verdictOf(섞임 as any).color).toBe('꿀');
+        const mixed = { kakaoTimeExt: "'꿀' — 앞 콜이 '똥' 이라 뺐습니다", judgment: { color: '꿀', score: 85, axes: [], gates: [], tags: [] } };
+        expect(verdictOf(mixed as any).color).toBe('꿀');
     });
 });
 
 describe('🔴 두 가지 빨강을 가른다 — 딱지가 가른다 (3단계에서 깔아 둔 것)', () => {
     it('조건이 깨진 것은 「잡으면 사고」', () => {
-        const v = verdictOf(값('사고', { gates: [{ key: 'routePromiseGuard', name: '약속 보존', pass: false, why: '7분 깨집니다' }] }) as any);
+        const v = verdictOf(valueOf_('사고', { gates: [{ key: 'routePromiseGuard', name: '약속 보존', pass: false, why: '7분 깨집니다' }] }) as any);
         expect(v.color).toBe('사고');
         expect(v.title).toBe('잡으면 사고');
         expect(v.reason).toContain('7분 깨집니다');
     });
 
     it('못 잰 것은 「판단 불가」 — 나쁘다는 뜻이 아니다', () => {
-        const v = verdictOf(값('사고', { tags: ['잴 수 없음 — 재료가 없어 점수를 못 냅니다'] }) as any);
+        const v = verdictOf(valueOf_('사고', { tags: ['잴 수 없음 — 재료가 없어 점수를 못 냅니다'] }) as any);
         expect(v.color).toBe('사고');
         expect(v.title).toBe('판단 불가');
         expect(v.reason).toContain('못');
@@ -93,14 +93,14 @@ describe('🔴 두 가지 빨강을 가른다 — 딱지가 가른다 (3단계�
 
 describe('값이 없으면 예전처럼 문장을 뒤진다 (겹쳐 둔다 · 규칙 ②)', () => {
     it("'꿀' · '똥' · '사고' 를 그대로 읽는다", () => {
-        expect(verdictOf(문구("'꿀' 총 87분") as any).color).toBe('꿀');
-        expect(verdictOf(문구("'똥' 총 87분") as any).color).toBe('똥');
-        expect(verdictOf(문구("'사고' 총 87분") as any).color).toBe('사고');
-        expect(verdictOf(문구("'보통' 총 87분") as any).source).toBe('문장');
+        expect(verdictOf(phraseOf("'꿀' 총 87분") as any).color).toBe('꿀');
+        expect(verdictOf(phraseOf("'똥' 총 87분") as any).color).toBe('똥');
+        expect(verdictOf(phraseOf("'사고' 총 87분") as any).color).toBe('사고');
+        expect(verdictOf(phraseOf("'보통' 총 87분") as any).source).toBe('문장');
     });
 
     it('카카오가 터졌으면 판단 불가다', () => {
-        const v = verdictOf(문구('카카오 연산 실패: timeout') as any);
+        const v = verdictOf(phraseOf('카카오 연산 실패: timeout') as any);
         expect(v.color).toBe('사고');
         expect(v.title).toBe('판단 불가');
     });

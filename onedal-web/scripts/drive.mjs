@@ -86,18 +86,18 @@ const say = m => console.log(m);
  *    여기만 손으로 적는 이유는 `drive` 가 **빈 DB 로 시작**하기 때문이다 — 설정이 없다.
  *    집 주소를 옮기면 이 줄도 함께 고쳐야 한다.
  */
-const 집 = { x: 127.294440, y: 37.376687 };
-const 모다 = { x: 127.312587, y: 37.363298 };     // 모다아울렛 곤지암점    — 첫짐 상차
-const 성당 = { x: 127.348642, y: 37.346213 };     // 곤지암성당            — 합짐1 상차
-const 신둔 = { x: 127.401207, y: 37.309733 };     // 신둔농협하나로마트 본점 — 첫짐 하차
-const 이조 = { x: 127.416293, y: 37.294522 };     // 이조갈비함흥냉면       — 합짐2 상차
-const 제일 = { x: 127.429230, y: 37.285068 };     // 이천제일식자재마트      — 합짐1 하차
-const 터미널 = { x: 127.446936, y: 37.277421 };   // 이천터미널            — 합짐2 하차
+const HOME = { x: 127.294440, y: 37.376687 };
+const MODA = { x: 127.312587, y: 37.363298 };     // 모다아울렛 곤지암점    — 첫짐 상차
+const CHURCH = { x: 127.348642, y: 37.346213 };     // 곤지암성당            — 합짐1 상차
+const SINDUN = { x: 127.401207, y: 37.309733 };     // 신둔농협하나로마트 본점 — 첫짐 하차
+const IJO = { x: 127.416293, y: 37.294522 };     // 이조갈비함흥냉면       — 합짐2 상차
+const JEIL = { x: 127.429230, y: 37.285068 };     // 이천제일식자재마트      — 합짐1 하차
+const TERMINAL = { x: 127.446936, y: 37.277421 };   // 이천터미널            — 합짐2 하차
 
 /** 합짐1 이 붙는 지점 — 모다에서 상차하고 성당 쪽으로 가는 길 */
-const 주행중1 = { x: 127.330, y: 37.355 };
+const ENROUTE1 = { x: 127.330, y: 37.355 };
 /** 합짐2 가 붙는 지점 — 신둔 하차지 2.4km 앞 */
-const 주행중2 = { x: 127.380, y: 37.323 };
+const ENROUTE2 = { x: 127.380, y: 37.323 };
 
 // ─────────────────────────── 서버 ───────────────────────────
 function seed() {
@@ -152,7 +152,7 @@ const token = async () => (await (await fetch(`http://localhost:${PORT}/api/auth
  *    실제로 그렇게 짰다가 방문 순서가 통째로 비었다 (2026-08-29).
  *    **콜이 들어온다 = 앱이 올린다** — 그 문으로 들어가야 주행 중 합짐이 재현된다.
  */
-async function 앱이올린다(deviceId, id, pk, dp, label) {
+async function appUploads(deviceId, id, pk, dp, label) {
     const order = {
         id, pickup: `모의-${label}-상차`, dropoff: `모의-${label}-하차`,
         fare: 50000, vehicleType: '다마스', paymentType: '신용',
@@ -170,7 +170,7 @@ async function 앱이올린다(deviceId, id, pk, dp, label) {
 }
 
 /** 기기를 등록한다 — 미등록 기기의 보고는 서버가 막는다 (실제 앱도 PIN 연동을 거친다) */
-function 기기등록(dbPath, userId, deviceId) {
+function registerDevice(dbPath, userId, deviceId) {
     const c = new Database(dbPath);
     c.prepare(`INSERT OR IGNORE INTO user_devices (user_id, device_id, device_name) VALUES (?,?,?)`)
         .run(userId, deviceId, '모의폰');
@@ -187,7 +187,7 @@ async function main() {
         const me = JSON.parse(Buffer.from(tok.split('.')[1], 'base64').toString());
 
         const DEVICE = '모의폰-drive';
-        기기등록(dbPath, me.id, DEVICE);
+        registerDevice(dbPath, me.id, DEVICE);
         const st = { arrived: [], approaching: [], routeStops: [], evaluated: new Set() };
         const s = io(`http://localhost:${PORT}`, { auth: { token: tok }, transports: ['websocket'] });
         await new Promise((res, rej) => {
@@ -202,16 +202,16 @@ async function main() {
         s.on('sync-active-orders', p => { if (p?.routeStops) st.routeStops = p.routeStops; });
         s.on('order-evaluated', o => st.evaluated.add(o.id));
 
-        const 순서 = () => st.routeStops.map(r => `${r.orderId}:${r.stopType}`);
-        const 보이기 = () => say(`     방문 순서: ${순서().join(' → ') || '(없음)'}`);
+        const stopOrder = () => st.routeStops.map(r => `${r.orderId}:${r.stopType}`);
+        const showOrder = () => say(`     방문 순서: ${stopOrder().join(' → ') || '(없음)'}`);
         /** 🗼 관제웹이 KEEP 을 누른다 — 판정이 끝나기를 기다렸다가 */
-        const 결재 = async (id) => {
+        const decide = async (id) => {
             for (let i = 0; i < 20 && !st.evaluated.has(id); i++) await wait(400);
             s.emit('decision', { orderId: id, action: 'ORDER_CONFIRMED' });
             await wait(1800);
         };
         /** 그 자리에 서서 도착을 찍는다 (mock 은 정지로 본다) */
-        const 도착하기 = async (to) => {
+        const arriveAt = async (to) => {
             s.emit('dashboard-gps-update', { lat: to.y + 0.02, lng: to.x, source: 'mock' });  // 2km 앞
             await wait(400);
             s.emit('dashboard-gps-update', { lat: to.y, lng: to.x, source: 'mock' });
@@ -222,75 +222,75 @@ async function main() {
 
         // ── ① 아침: 첫짐을 잡는다 ────────────────────────────
         say('═══ ① 아침 — 첫짐 (모다아울렛 상차 → 신둔농협 하차) ═══');
-        s.emit('dashboard-gps-update', { lat: 집.y, lng: 집.x, source: 'mock' });
+        s.emit('dashboard-gps-update', { lat: HOME.y, lng: HOME.x, source: 'mock' });
         await wait(600);
-        await 앱이올린다(DEVICE, '첫짐', 모다, 신둔, '첫짐');
-        await 결재('첫짐');
-        check('첫짐이 세션에 실렸다', 순서().length === 2, 순서().join(' → '));
-        보이기();
+        await appUploads(DEVICE, '첫짐', MODA, SINDUN, '첫짐');
+        await decide('첫짐');
+        check('첫짐이 세션에 실렸다', stopOrder().length === 2, stopOrder().join(' → '));
+        showOrder();
 
         // ── ② 모다에서 싣는다 ───────────────────────────────
         say('\n═══ ② 모다아울렛에서 상차 ═══');
         let before = st.arrived.length;
-        await 도착하기(모다);
+        await arriveAt(MODA);
         check('첫짐 상차지 도착', st.arrived.length > before, `누적 ${st.arrived.length}회`);
         s.emit('report-milestone', { orderId: '첫짐', milestone: 'PICKED_UP' });
         await wait(900);
-        check('상차 완료 뒤 상차지가 경로에서 빠졌다', !순서().includes('첫짐:pickup'));
-        보이기();
+        check('상차 완료 뒤 상차지가 경로에서 빠졌다', !stopOrder().includes('첫짐:pickup'));
+        showOrder();
 
         // ── ③ 가는 길에 합짐1 이 붙는다 ─────────────────────
         say('\n═══ ③ 신둔으로 가는 길 — 합짐1 이 붙는다 (성당 상차 → 제일 하차) ═══');
-        s.emit('dashboard-gps-update', { lat: 주행중1.y, lng: 주행중1.x, source: 'mock' });
+        s.emit('dashboard-gps-update', { lat: ENROUTE1.y, lng: ENROUTE1.x, source: 'mock' });
         await wait(900);
-        await 앱이올린다(DEVICE, '합짐1', 성당, 제일, '합짐1');
-        await 결재('합짐1');
-        보이기();
+        await appUploads(DEVICE, '합짐1', CHURCH, JEIL, '합짐1');
+        await decide('합짐1');
+        showOrder();
         check('합짐1 의 상차(성당)가 첫짐 하차(신둔)보다 앞이다 — 가는 길목이다',
-            순서().indexOf('합짐1:pickup') >= 0 &&
-            순서().indexOf('합짐1:pickup') < 순서().indexOf('첫짐:dropoff'),
-            순서().join(' → '));
+            stopOrder().indexOf('합짐1:pickup') >= 0 &&
+            stopOrder().indexOf('합짐1:pickup') < stopOrder().indexOf('첫짐:dropoff'),
+            stopOrder().join(' → '));
 
         // ── ④ 성당에서 싣는다 ───────────────────────────────
         say('\n═══ ④ 곤지암성당에서 상차 (2콜 적재) ═══');
         before = st.arrived.length;
-        await 도착하기(성당);
+        await arriveAt(CHURCH);
         check('합짐1 상차지 도착', st.arrived.length > before, `누적 ${st.arrived.length}회`);
         s.emit('report-milestone', { orderId: '합짐1', milestone: 'PICKED_UP' });
         await wait(900);
-        보이기();
+        showOrder();
 
         // ── ⑤ 🔴 신둔 코앞에서 합짐2 가 붙는다 ──────────────
         say('\n═══ ⑤ 🔴 신둔 하차지 2.4km 앞 — 합짐2 가 붙는다 (이조 상차 → 터미널 하차) ═══');
         say('     여기가 순서가 갈리는 자리다.');
-        s.emit('dashboard-gps-update', { lat: 주행중2.y, lng: 주행중2.x, source: 'mock' });
+        s.emit('dashboard-gps-update', { lat: ENROUTE2.y, lng: ENROUTE2.x, source: 'mock' });
         await wait(900);
-        await 앱이올린다(DEVICE, '합짐2', 이조, 터미널, '합짐2');
-        await 결재('합짐2');
-        s.emit('dashboard-gps-update', { lat: 주행중2.y, lng: 주행중2.x, source: 'mock' });
+        await appUploads(DEVICE, '합짐2', IJO, TERMINAL, '합짐2');
+        await decide('합짐2');
+        s.emit('dashboard-gps-update', { lat: ENROUTE2.y, lng: ENROUTE2.x, source: 'mock' });
         await wait(1500);
-        보이기();
+        showOrder();
 
-        const 지금 = 순서();
+        const nowOrder = stopOrder();
         check('🔴 2.4km 앞 하차지(신둔)를 두고 먼 상차지로 먼저 가지 않는다',
-            지금[0] === '첫짐:dropoff', `첫 정거장 ${지금[0] ?? '(없음)'}`);
+            nowOrder[0] === '첫짐:dropoff', `첫 정거장 ${nowOrder[0] ?? '(없음)'}`);
         check('합짐2 의 하차는 그 상차보다 뒤다',
-            지금.indexOf('합짐2:dropoff') > 지금.indexOf('합짐2:pickup'));
+            nowOrder.indexOf('합짐2:dropoff') > nowOrder.indexOf('합짐2:pickup'));
         check('🔴 3콜이 모두 경로에 있다 (다마스 30박스 ×3 = 90/100)',
-            new Set(지금.map(k => k.split(':')[0])).size === 3, `${지금.length}개 정거장`);
+            new Set(nowOrder.map(k => k.split(':')[0])).size === 3, `${nowOrder.length}개 정거장`);
         say('     길목부터 7.9km  vs  상차먼저 13.3km — 5.4km 차이다');
 
         // ── ⑥ 남은 정거장을 순서대로 ────────────────────────
         say('\n═══ ⑥ 남은 정거장을 순서대로 — 도착이 다 찍히는가 ═══');
-        const 좌표 = { '첫짐:dropoff': 신둔, '합짐1:pickup': 성당, '합짐1:dropoff': 제일,
-                       '합짐2:pickup': 이조, '합짐2:dropoff': 터미널 };
-        for (const key of 지금) {
-            const to = 좌표[key];
+        const coordOf = { '첫짐:dropoff': SINDUN, '합짐1:pickup': CHURCH, '합짐1:dropoff': JEIL,
+                       '합짐2:pickup': IJO, '합짐2:dropoff': TERMINAL };
+        for (const key of nowOrder) {
+            const to = coordOf[key];
             if (!to) { say(`     ⚠️ ${key} 좌표를 모른다 — 건너뜀`); continue; }
             before = st.arrived.length;
-            await 도착하기(to);
-            const 찍힘 = st.arrived.length > before;
-            check(`${key} 도착`, 찍힘, 찍힘 ? `누적 ${st.arrived.length}회` : '발화 없음');
+            await arriveAt(to);
+            const marked = st.arrived.length > before;
+            check(`${key} 도착`, marked, marked ? `누적 ${st.arrived.length}회` : '발화 없음');
             if (key.endsWith(':pickup')) {
                 s.emit('report-milestone', { orderId: key.split(':')[0], milestone: 'PICKED_UP' });
                 await wait(700);

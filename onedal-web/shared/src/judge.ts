@@ -176,7 +176,7 @@ export function judge(criteria: Array<Criterion<any>>, facts: Facts, cfg: Judgme
  * 🔴 **점수는 못 쟀으면 `null` 이다.** 0 으로 바꾸지 않는다 (0 은 «나쁘다»로 읽힌다).
  */
 export function toSnapshot(v: Judgment) {
-    const 점 = (o: Outcome) => (o.kind === 'scored' ? o.score : null);
+    const scoreOf = (o: Outcome) => (o.kind === 'scored' ? o.score : null);
     return {
         color: v.color,
         score: v.score,
@@ -184,7 +184,7 @@ export function toSnapshot(v: Judgment) {
             key: c.key, name: c.name,
             // 🔴 못 잰 기준은 **null** 이다 — 위 주석대로. `?? 0` 이었을 때
             //    첫짐 카드가 「약속 — 잡아 둔 콜이 없습니다 (0점)」 로 그려졌다
-            score: 점(c.outcome),
+            score: scoreOf(c.outcome),
             weight: c.weight,
             // 점수를 못 낸 기준은 **숫자 대신 이유**가 보인다
             raw: c.outcome.kind === 'scored' ? c.outcome.why
