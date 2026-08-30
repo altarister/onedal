@@ -122,6 +122,11 @@ data class DispatchBasicRequest(
     val matchType: String = "AUTO",
     val targetApp: String = "insung",
     /**
+     * 🖱️ 잡은 방식(자동·알람·직접) — 6하원칙 «어떻게», 원장 기록 전용 (기사님 확정 2026-08-30).
+     * 🔴 보호 분기는 matchType 만 본다 — 파생은 SessionManager.capturedVia 한 곳뿐 (#75).
+     */
+    val capturedVia: String? = null,
+    /**
      * 👀 **미리보기 콜** — 기사님이 확정을 누르기 전에 팝업 3장을 읽어 판정만 받아 보는 콜
      * (기사님 확정 2026-08-22 · 용어집 §9). 아직 안 잡은 콜이라 인성에는 아무 일도
      * 일어나지 않았으므로 **서버가 취소 카운트에서 뺀다.**

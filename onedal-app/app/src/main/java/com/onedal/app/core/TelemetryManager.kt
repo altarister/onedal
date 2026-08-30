@@ -173,8 +173,7 @@ class TelemetryManager(
         }
 
         val prefs = context?.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
-        val targetApp = prefs?.getString("targetApp", "인성콜") ?: "인성콜"
-        val appCode = if (targetApp == "24시") "hwamul24" else "insung"
+        val appCode = TargetApp.codeOf(prefs?.getString("targetApp", null))   // 매핑은 TargetApp 한 곳뿐
 
         val payload = ScrapPayload(
             deviceId = apiClient.getDeviceId(),

@@ -12,6 +12,7 @@ import com.onedal.app.core.AlarmSignaler
 import com.onedal.app.core.AutoTouchManager
 import com.onedal.app.core.CallMemory
 import com.onedal.app.core.ScrapParser
+import com.onedal.app.core.TargetApp
 import com.onedal.app.plugins.insung.InsungParser
 import com.onedal.app.core.ScreenKeywords
 import com.onedal.app.core.ScreenTextNode
@@ -160,7 +161,7 @@ class HijackService : AccessibilityService() {
 
         val prefs = getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
         val targetApp = prefs.getString("targetApp", "인성콜") ?: "인성콜"
-        currentTargetApp = if (targetApp == "24시") "hwamul24" else "insung"
+        currentTargetApp = TargetApp.codeOf(targetApp)   // 매핑은 TargetApp 한 곳뿐
 
         keywords = if (targetApp == "24시") {
             Hwamul24Keywords.TWENTYFOUR
@@ -900,6 +901,8 @@ class HijackService : AccessibilityService() {
                 capturedAt = order.timestamp,
                 matchType = actualMatchType,
                 targetApp = currentTargetApp,
+                // 잡은 방식(자동·알람·직접) — 원장 기록 전용, 파생은 SessionManager 한 곳 (#75)
+                capturedVia = session.capturedVia(telemetryManager.currentMode),
                 isPreview = session.isPreview,
             )
         )

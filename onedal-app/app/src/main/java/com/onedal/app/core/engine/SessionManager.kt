@@ -42,6 +42,22 @@ class SessionManager {
     val clickOrigin: String
         get() = if (isAutoActive) "AUTO" else "MANUAL"
 
+    /**
+     * 🖱️ **잡은 방식 — 6하원칙의 «어떻게», 기록 전용** (기사님 확정 2026-08-30).
+     *
+     * 원장(`orders.capturedVia`)에 자동·알람·직접 셋으로 남긴다 — 일지가
+     * *"알람 모드가 실제로 벌어줬나"* 를 답하게 하기 위해서다.
+     *
+     * 🔴 **보호 분기에는 절대 쓰지 않는다.** 서버의 직접콜 보호는 `clickOrigin`(둘)이
+     *    만든 matchType 만 본다 — 모드 이름이 출신으로 새어 기사님 콜이 취소된 #75 를
+     *    기록 칸이 다시 밟으면 안 된다. 파생은 여기 한 곳뿐이다.
+     */
+    fun capturedVia(currentMode: String): String = when {
+        isAutoActive -> "AUTO"
+        currentMode == "ALARM" -> "ALARM"
+        else -> "MANUAL"
+    }
+
     /** 이미 /confirm을 보냈는지 (중복 전송 방지) */
     var isDetailScrapSent: Boolean = false
 
