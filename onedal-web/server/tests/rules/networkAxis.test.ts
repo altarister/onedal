@@ -53,6 +53,19 @@ describe('«어떻게 잡았나» — 기록 전용 칸', () => {
         expect(isCapturedVia('ALARM_CLICK')).toBe(false);   // #75 의 그 딱지는 값이 아니다
     });
 
+    it('🚧 잡기 수순의 입구마다 수문이 있다 — 수순 없는 배차망은 클릭 못 한다', () => {
+        /**
+         * 시퀀스 플러그인 경계 (픽커_수집.md §3-확장): 인성 잡기 수순(리스트 자동클릭 ·
+         * 확정 전/후 화면 · 팝업 3종)의 입구는 supportsCatching 수문을 지나야 한다.
+         * 수문이 하나라도 빠지면 픽커 화면에서 인성 수순이 돌아 엉뚱한 걸 누른다.
+         * 이 금이 곧 «잡기 시작하는 날» 인성 수순을 떼어낼 절단선이다.
+         */
+        const hijack = readFileSync(join(__dirname,
+            '../../../../onedal-app/app/src/main/java/com/onedal/app/HijackService.kt'), 'utf8');
+        const gates = hijack.match(/TargetApp\.supportsCatching\(currentTargetApp\)/g) ?? [];
+        expect(gates.length).toBeGreaterThanOrEqual(6);
+    });
+
     it('🔴 보호 분기는 capturedVia 를 읽지 않는다 — #75 재발 방지', () => {
         // 직접콜 보호(강제 취소 면제·즉시 KEEP)는 matchType/type 만 본다.
         // capturedVia 가 보호 조건에 등장하면 기록이 판단으로 새는 것이다.

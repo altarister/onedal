@@ -512,7 +512,9 @@ class HijackService : AccessibilityService() {
             }
 
             // 🌟 [AUTO 실행] 콜 잡기 중이지 않고 AUTO 모드일 때만 실제 클릭 동작 수행
-            if (!session.isAutoActive && telemetryManager.currentMode == "AUTO") {
+            // 🚧 시퀀스 플러그인 경계 — 잡기 수순이 없는 배차망(픽커)에서는 어떤 모드여도 클릭하지 않는다
+            if (!session.isAutoActive && telemetryManager.currentMode == "AUTO"
+                && TargetApp.supportsCatching(currentTargetApp)) {
                 if (isTarget) {
                     AppLogger.roadmap("🎯 [Current Page: LIST] 1차 필터 통과 → AUTO 타겟 발견, 강제 터치 진행", telemetryManager.currentScreenContext.name)
                     AppLogger.d(TAG, "💥 [AUTO] 꿀콜 조건 통과! 대상 콜 강제 터치 진행!")
@@ -619,6 +621,10 @@ class HijackService : AccessibilityService() {
     // ════════════════════════════════════════════════════════════════
 
     private fun handlePreConfirmScreen(rootNode: AccessibilityNodeInfo, screenTexts: List<String>, rawScreenStr: String) {
+        // 🚧 시퀀스 플러그인 경계 — 여기부터 detail 전송·복귀 감지까지가 «인성 잡기 수순»이다.
+        //    수순 없는 배차망(픽커)이 이 문에 들어오면 엉뚱한 화면을 누르게 된다 — 원천 차단.
+        if (!TargetApp.supportsCatching(currentTargetApp)) return
+
         // 잔상 방어: 팝업이 아직 닫히지 않았으면 무시
         if (isPopupResidue(rawScreenStr)) return
 
@@ -823,6 +829,8 @@ class HijackService : AccessibilityService() {
     // ════════════════════════════════════════════════════════════════
 
     private fun handleConfirmedScreen(rootNode: AccessibilityNodeInfo, screenTexts: List<String>, rawScreenStr: String) {
+        // 🚧 시퀀스 플러그인 경계 — 인성 잡기 수순 (픽커_수집.md §3-확장)
+        if (!TargetApp.supportsCatching(currentTargetApp)) return
         // 잔상 방어
         if (isPopupResidue(rawScreenStr)) return
 
@@ -932,6 +940,8 @@ class HijackService : AccessibilityService() {
     // ════════════════════════════════════════════════════════════════
 
     private fun handleMemoPopup(rootNode: AccessibilityNodeInfo, screenTexts: List<String>) {
+        // 🚧 시퀀스 플러그인 경계 — 인성 잡기 수순 (픽커_수집.md §3-확장)
+        if (!TargetApp.supportsCatching(currentTargetApp)) return
         collectMachine.handleMemoPopup(rootNode, session, screenTexts)
     }
 
@@ -940,6 +950,8 @@ class HijackService : AccessibilityService() {
     // ════════════════════════════════════════════════════════════════
 
     private fun handlePickupPopup(rootNode: AccessibilityNodeInfo, screenTexts: List<String>) {
+        // 🚧 시퀀스 플러그인 경계 — 인성 잡기 수순 (픽커_수집.md §3-확장)
+        if (!TargetApp.supportsCatching(currentTargetApp)) return
         collectMachine.handlePickupPopup(rootNode, session, screenTexts)
     }
 
@@ -948,6 +960,8 @@ class HijackService : AccessibilityService() {
     // ════════════════════════════════════════════════════════════════
 
     private fun handleDropoffPopup(rootNode: AccessibilityNodeInfo, screenTexts: List<String>) {
+        // 🚧 시퀀스 플러그인 경계 — 인성 잡기 수순 (픽커_수집.md §3-확장)
+        if (!TargetApp.supportsCatching(currentTargetApp)) return
         val multilineScreenStr = screenTexts.joinToString("\n")
 
         // ═══════════════════════════════════════════════════════════

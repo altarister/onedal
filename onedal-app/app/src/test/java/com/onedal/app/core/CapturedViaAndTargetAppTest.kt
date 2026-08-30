@@ -15,6 +15,15 @@ import org.junit.Test
 class CapturedViaAndTargetAppTest {
 
     @Test
+    fun `🚧 잡기 수순 능력 - 픽커는 어떤 모드여도 클릭하지 않는다 (수집·알람 전용)`() {
+        // 인성 잡기 수순(상세→팝업3장→확정)이 픽커에서 돌면 엉뚱한 화면을 누른다 —
+        // 픽커는 수락한 뒤에야 주소가 나오는 딴 수순이다 (픽커_수집.md §3-확장)
+        assertEquals(false, TargetApp.supportsCatching(TargetApp.KAKAOPICKER))
+        assertEquals(true, TargetApp.supportsCatching(TargetApp.INSUNG))
+        assertEquals(true, TargetApp.supportsCatching(TargetApp.HWAMUL24))
+    }
+
+    @Test
     fun `라벨 매핑 - 인성콜·24시·픽커, 모르는 라벨은 인성`() {
         assertEquals("insung", TargetApp.codeOf("인성콜"))
         assertEquals("hwamul24", TargetApp.codeOf("24시"))
