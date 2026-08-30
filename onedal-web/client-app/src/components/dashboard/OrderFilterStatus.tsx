@@ -31,7 +31,7 @@ import { logRoadmapEvent } from "../../lib/roadmapLogger";
 const PHASES: CallTarget[] = ['DEST', 'LOCAL', 'HOME'];
 
 /** v13 짧은 국면명 — 머리글·버튼 공용 (긴 설명은 hint·확인창에 산다) */
-const SHORT_NAME: Record<CallTarget, string> = { DEST: '노선행', LOCAL: '관내', HOME: '복귀행' };
+const SHORT_NAME: Record<CallTarget, string> = { DEST: '노선', LOCAL: '관내', HOME: '복귀' };
 
 const PHASE_STYLE: Record<CallTarget, { icon: string; accent: string; hint: string }> = {
     DEST:  { icon: '🎯', accent: 'text-info',       hint: '목적지로 가는 콜 — 첫짐·합짐' },
@@ -147,9 +147,8 @@ export default function OrderFilterStatus({ onOpenFilter, budgetToast }:
                 v13 구조: 줄마다 독립 — [머리글 42px] / [지표 38px], 각 줄 헤어라인 (한 덩어리 금지 · 0831) */}
             <div onClick={onOpenFilter} className="cursor-pointer transition-colors hover:bg-surface-hover/40 active:scale-[0.995] flex flex-col" style={{ flex: 2 }}>
                 <div className="flex items-center" style={{ gap: 10, padding: '0 18px', flex: 1, fontSize: 14.5, borderBottom: '1px solid rgba(255,255,255,.06)' }}>
-                    <span style={{ borderRadius: 7, padding: '3px 10px', fontSize: 12, fontWeight: 800, background: v14.chipBg, border: `1px solid ${v14.chipBd}` }}>{PHASE_STYLE[phase].icon}</span>
-                    <span className="font-black whitespace-nowrap" style={{ color: v14.c }}>{SHORT_NAME[phase]}</span>
-                    <span className="text-text-primary font-bold truncate" style={{ fontSize: 13.5 }}>{headline(phase)}</span>
+                    {/* 국면명·아이콘은 아래 버튼이 이미 말한다 — 머리글은 방향 문장부터 (중복 제거 · 기사님 0831) */}
+                    <span className="text-text-primary font-bold truncate" style={{ fontSize: 14 }}>{headline(phase)}</span>
                     {/* 🔒 손으로 고친 필터는 자동 갱신이 덮어쓰지 않는다 — 자리는 안 먹는다 */}
                     {filter.userOverrides && (
                         <span title="손으로 고친 필터라 경로가 바뀌어도 자동 갱신되지 않습니다. 첫짐으로 돌아가면 풀립니다"
@@ -195,7 +194,8 @@ export default function OrderFilterStatus({ onOpenFilter, budgetToast }:
             </div>
 
             {toast && (
-                <span className="absolute right-3 top-2 z-10 text-[10px] font-black px-2 py-0.5 rounded-md bg-accent/15 border border-accent/40 text-accent">
+                <span className="absolute right-3 top-2 text-[12px] font-black px-2.5 py-1 rounded-md border"
+                    style={{ zIndex: 50, background: '#0f1522', borderColor: v14.c, color: v14.c, boxShadow: `0 4px 16px rgba(0,0,0,.5), 0 0 12px ${v14.onGlow}` }}>
                     {toast}
                 </span>
             )}
