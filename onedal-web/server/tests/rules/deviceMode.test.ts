@@ -302,9 +302,13 @@ describe('🔔 2단계 — 스캐너 폰이 스스로 알린다 (기사님 확�
     it('🔴 알람은 ALARM 모드 + 필터 통과에서만 난다 (자동·대기는 조용하다)', () => {
         const s = codeOnly(app('HijackService.kt'));
         const scan = s.split('private fun handleListScreen')[1]?.split('\n    private fun ')[0] ?? '';
+        // 2026-08-30 개편: 통과 콜을 모았다가(alarmHits) 루프 뒤에 요금 최고 하나만 울린다.
+        // 불변식은 그대로다 — «모으는 곳»이 ALARM+통과 조건 아래여야 하고, fire 는 그 그릇에서만 나온다
+        const addLine = scan.split('alarmHits.add')[0].slice(-400);
+        expect(addLine).toMatch(/currentMode == "ALARM"/);
+        expect(addLine).toMatch(/isTarget/);
         const fireLine = scan.split('alarmSignaler.fire')[0].slice(-400);
-        expect(fireLine).toMatch(/currentMode == "ALARM"/);
-        expect(fireLine).toMatch(/isTarget/);
+        expect(fireLine).toMatch(/pickBestIndex|alarmHits/);
     });
 
     /**

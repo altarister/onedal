@@ -42,6 +42,12 @@ describe('«어떻게 잡았나» — 기록 전용 칸', () => {
         expect(orders).toMatch(/capturedVia: isCapturedVia\(/);
     });
 
+    it('🔴 재시작 복원이 capturedVia 를 되살린다 — 빠지면 재부팅마다 갈래 배지가 사라진다', () => {
+        // 복원 경로(dispatchEngine 되살리기)는 칸을 하나씩 옮겨 담는다 — 새 칸을 만들면 여기도 실어야 한다
+        const engine = strip('../../src/services/dispatchEngine.ts');
+        expect(engine).toMatch(/capturedVia: row\.capturedVia/);
+    });
+
     it('🔴 원장 저장(upsert)에 capturedVia 가 실리고, 재확정 때 지워지지 않는다', () => {
         const repo = readFileSync(join(__dirname, '../../src/repositories/OrderRepository.ts'), 'utf8');
         expect(repo).toMatch(/capturedVia/);
