@@ -304,6 +304,13 @@ export default function PinnedRouteCard({
                     </span>
                     {route.commissionRate && <><span>·</span><span>수수료 {route.commissionRate}</span></>}
                     {route.scheduleText && <span className="text-warning font-bold">🕒 {route.scheduleText}</span>}
+                    {/* 🧭 어떻게 잡았나 — 덱 머리글에도 단다 (0830 실측: 배지가 리스트 헤더에만 살아서
+                        기사님이 보는 덱에는 영영 안 나왔다). 알람 듣고 잡음=알람콜 · 손=직접콜 */}
+                    {!evaluating && route.type?.startsWith('MANUAL') && route.status !== 'ORDER_COMPLETED' && (
+                        <span className="px-1.5 py-0.5 rounded bg-info/15 text-info text-[10px] font-black">
+                            {route.capturedVia === 'ALARM' ? '🔔 알람콜' : '직접콜'}
+                        </span>
+                    )}
                     {evaluating && <span className="text-warning font-black animate-pulse">평가중</span>}
                     {/* 💰 돈은 이 줄 맨 오른쪽 (기사님 2026-08-19) — 콜 요약 줄에서 옮겨 왔다 */}
                     <span className="ml-auto text-[14px] font-black text-text-primary tabular-nums">
