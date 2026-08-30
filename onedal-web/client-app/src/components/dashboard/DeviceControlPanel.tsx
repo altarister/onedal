@@ -84,16 +84,16 @@ function DeviceRow({
             const action = currentFilter.driverAction || 'WAITING';
 
             if (action === 'UNLOADING') {
-                filterLabel = '하차 대기';
+                filterLabel = '하차';
                 filterColor = 'bg-surface-alt text-text-muted border-border';
             } else if (phase === 'GATHERING') {
-                filterLabel = '합짐 탐색';
+                filterLabel = '합짐';
                 filterColor = 'bg-info-alt/20 text-info-alt border-info-alt/30';
             } else if (phase === 'DELIVERING') {
-                filterLabel = '경로 탐색';
+                filterLabel = '경로';
                 filterColor = 'bg-accent-alt/20 text-accent-alt border-accent-alt/30';
             } else {
-                filterLabel = '첫짐 탐색';
+                filterLabel = '첫짐';
                 filterColor = 'bg-success/20 text-success border-success/30';
             }
 
@@ -141,14 +141,11 @@ function DeviceRow({
                     </span>
                     {/* 🌐 이 폰이 지금 어느 배차망을 보나 — 픽커 판을 돌리면 여기서 갈린다 (픽커_수집.md §6-전).
                         구앱(미전송)은 표시를 비운다 — 기본값을 지어내지 않는다. 아이콘은 나중에(기사님), 지금은 텍스트. */}
-                    {!isDisconnected && device.targetApp && (
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0 bg-surface-alt text-text-muted border-border">
-                            {TARGET_APP_LABEL[device.targetApp] ?? device.targetApp}
-                        </Badge>
-                    )}
-                    {screenInfo && (
-                        <Badge variant="outline" className={`text-[10px] px-1.5 py-0 shrink-0 ${screenInfo.color}`}>
-                            {screenInfo.label}
+                    {/* 배차망 + 화면을 한 배지로 — «인성 콜리스트» (영역 절약 · 기사님 0831) */}
+                    {(screenInfo || (!isDisconnected && device.targetApp)) && (
+                        <Badge variant="outline" className={`text-[10px] px-1.5 py-0 shrink-0 ${screenInfo?.color ?? 'bg-surface-alt text-text-muted border-border'}`}>
+                            {[!isDisconnected && device.targetApp ? (TARGET_APP_LABEL[device.targetApp] ?? device.targetApp) : null,
+                              screenInfo?.label.replace(' ', '') ?? null].filter(Boolean).join(' ')}
                         </Badge>
                     )}
                     {!isDisconnected && currentFilter && (
