@@ -67,6 +67,15 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
          * **두 카드에 모두** 넣었다 — 위 카드 시 + 아래 카드 동이 합쳐진 «처인 대치2»가
          * 그렇게 태어나 지문·테두리까지 흔들었다. ±60 밖이면 -1 (어디에도 안 붙는다).
          */
+        /**
+         * 🔴 이 카드를 **자동 클릭해도 되는가** — 오더카드와 상세 잔상은 금지 (0830 실물).
+         * 오더카드(제안 카드)는 요금 숫자가 **수락 버튼 안에** 있어서, 요금 닻을 탭하는
+         * 자동 진입이 그대로 **계약 클릭**이 된다. 상세 화면 잔상을 리스트로 오인한 유령
+         * 카드(«수락하기» 포함)도 같다. «수락»이 띠 안에 보이면 알람은 울리되 **손은 대지 않는다** —
+         * 수락은 어떤 경우에도 기사님 손가락이다.
+         */
+        fun clickSafe(rawText: String?): Boolean = rawText?.contains("수락") != true
+
         fun nearestAnchorIndex(anchorCentersY: List<Int>, nodeCenterY: Int): Int {
             var best = -1
             var bestDist = Int.MAX_VALUE

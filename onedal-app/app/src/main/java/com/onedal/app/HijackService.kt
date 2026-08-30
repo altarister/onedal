@@ -641,7 +641,9 @@ class HijackService : AccessibilityService() {
         if (bestIdx >= 0) {
             val (order, fareNode, orderHash) = alarmHits[bestIdx]
             alarmSignaler.fire(fareNode.rect, scrapParser.alarmBandHalfPx(), orderHash)
-            if (!TargetApp.supportsCatching(currentTargetApp)) {
+            // 🔴 «수락»이 보이는 카드는 손대지 않는다 — 오더카드의 요금 닻은 곧 계약 버튼이다 (clickSafe)
+            if (!TargetApp.supportsCatching(currentTargetApp)
+                && com.onedal.app.plugins.kakaopicker.KakaoPickerParser.clickSafe(order.rawText)) {
                 AppLogger.i("1DAL_ALARM", "🚪 [알람 상세] ${order.fare}원 (${order.pickup.take(10)}→${order.dropoff.take(10)}) " +
                     "상세로 이동 — 수락은 기사님 · 30초 무응답 시 자동 복귀")
                 touchManager.performSimulatedTouch(fareNode.node)

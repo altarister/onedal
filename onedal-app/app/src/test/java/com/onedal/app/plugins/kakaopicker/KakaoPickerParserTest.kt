@@ -109,6 +109,19 @@ class KakaoPickerParserTest {
     }
 
     @Test
+    fun `오더카드는 절대 자동 클릭하지 않는다 - 요금 닻이 곧 수락(계약) 버튼이다`() {
+        // 실물(21:52 스크린샷): 오더카드의 «15,785»는 초록 수락 버튼 안 글자다 — 탭 = 계약.
+        // 상세 화면 잔상(«수락하기» 포함)을 리스트로 오인한 유령 카드도 같은 관문에 걸린다.
+        val offerCard = parser.parse(listOf("퀵", "승", "중형", "광주", "쌍령", "3.0km", "광주", "광남2", "4.3km", "15,785", "수락"))
+        assertFalse(KakaoPickerParser.clickSafe(offerCard.rawText))
+        val detailGhost = parser.parse(listOf("픽업지", "경기 성남시 수정구 위례동", "7,280", "넘기기", "수락하기"))
+        assertFalse(KakaoPickerParser.clickSafe(detailGhost.rawText))
+        // 평범한 리스트 줄은 눌러도 상세로 갈 뿐이다
+        val listRow = parser.parse(listOf("퀵", "단거리", "준비 완료", "소형", "광주", "2,529", "4.7km", "광주", "경안", "경안"))
+        assertTrue(KakaoPickerParser.clickSafe(listRow.rawText))
+    }
+
+    @Test
     fun `0830 실물 - 오더카드(수락 버튼)의 «수락»을 지역으로 오인하지 않는다`() {
         // 화면 위쪽에 뜨는 퀵 오더카드 — 상차·하차 km 둘 다 있고 초록 «수락» 버튼이 있다
         val texts = listOf("퀵", "승", "중형", "광주", "쌍령", "3.0km", "광주", "광남2", "4.3km", "15,785", "수락")
