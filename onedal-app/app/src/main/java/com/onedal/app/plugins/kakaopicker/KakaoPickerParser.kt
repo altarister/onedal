@@ -46,8 +46,8 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             "카드설정", "수요지도",                       // 하단 메뉴 (맨 아래 카드 띠에 걸침)
             "리스트 설정", "추천순", "높은 가격순", "낮은 가격순", "가까운순",  // 상단 헤더
         )
-        /** 카드 띠의 반높이 — 요금 중심에서 태그줄·지역줄까지 실측 ±35, 여유 포함 */
-        private const val CARD_BAND_PX = 60
+        /** 카드 띠의 반높이 — 요금 중심에서 태그줄·지역줄까지 실측 ±35, 여유 포함 (알람 테두리도 같은 값 · #83) */
+        const val CARD_BAND_PX = 60
         /** 요금은 화면 오른쪽에 정렬된다 — 왼쪽의 km·거리 숫자와 구분 */
         private const val FARE_MIN_CENTER_X = 600
 
@@ -174,8 +174,15 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
      */
     override fun shouldClick(order: SimplifiedOfficeOrder, tally: FilterTally?): Boolean {
         val (minFare, pickupRadiusKm) = alarmConfig()
-        return decide(order, minFare, pickupRadiusKm, tally)
+        val pass = decide(order, minFare, pickupRadiusKm, tally)
+        // 👁️ 축별 판정을 한 줄 남긴다 — «왜 안 울었나»를 로그로 답하기 위해 (첫 실검증 때 수집 데이터로 역추적했다)
+        com.onedal.app.core.AppLogger.d("1DAL_PICKER",
+            "🔔 [알람 판정] ${order.fare}원·픽업 ${order.pickupDistance ?: "?"}km — 하한 ${minFare}·반경 ${pickupRadiusKm}km → ${if (pass) "통과" else "탈락"}")
+        return pass
     }
+
+    /** 알람 테두리는 요금 닻이 아니라 **카드 띠 전체**를 두른다 — 묶기(inCardBand)와 같은 값 (#83) */
+    override fun alarmBandHalfPx(): Int = CARD_BAND_PX
 
     override fun parsePickupDistance(rawText: String): Double? =
         Regex("""(\d+(?:\.\d+)?)km""").find(rawText)?.groupValues?.get(1)?.toDoubleOrNull()

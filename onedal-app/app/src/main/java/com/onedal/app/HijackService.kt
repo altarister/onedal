@@ -431,8 +431,8 @@ class HijackService : AccessibilityService() {
         var emptyCard = 0
         var emptyRectAnchor = 0
         val emptySamples = mutableListOf<String>()
-        /** 🔔 이번 스캔에 보인 콜 지문 — 알람 테두리가 «그 콜이 아직 있나»를 이걸로 안다 */
-        val scanHashes = mutableSetOf<Int>()
+        /** 🔔 이번 스캔에 보인 콜 지문 → 요금 닻 위치 — 알람 테두리가 «아직 있나·어디로 갔나»를 이걸로 안다 (#83-③) */
+        val scanHashes = mutableMapOf<Int, android.graphics.Rect>()
 
         // 각 요금 노드 기준으로 텍스트 세트를 묶어 파싱
         for ((fareNode, cardTexts) in groupedNodes) {
@@ -472,7 +472,7 @@ class HijackService : AccessibilityService() {
             }
 
             val orderHash = (order.pickup + order.dropoff + order.fare.toString()).hashCode()
-            scanHashes += orderHash   // 🔔 이미 본 콜도 «아직 화면에 있다»는 사실은 남긴다
+            scanHashes[orderHash] = fareNode.rect   // 🔔 이미 본 콜도 «아직 화면에 있다 + 지금 여기 있다»는 사실은 남긴다
             /**
              * ⏭️ **건너뛰었다는 사실을 남긴다** (2026-08-25 · 시험 두 판을 여기서 잃었다).
              *
@@ -509,7 +509,7 @@ class HijackService : AccessibilityService() {
              * 서버 알람(관제웹 소리)과 같은 원리다.
              */
             if (!session.isAutoActive && telemetryManager.currentMode == "ALARM" && isTarget) {
-                alarmSignaler.fire(fareNode.rect, orderHash)
+                alarmSignaler.fire(fareNode.rect, scrapParser.alarmBandHalfPx(), orderHash)
             }
 
             // 🌟 [AUTO 실행] 콜 잡기 중이지 않고 AUTO 모드일 때만 실제 클릭 동작 수행

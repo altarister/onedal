@@ -36,4 +36,11 @@ interface IScrapParser {
      * @return 요금 노드(클릭 대상)와 해당 콜을 구성하는 전체 텍스트들의 리스트 쌍(Pair)
      */
     fun groupListNodes(allNodes: List<ScreenTextNode>): List<Pair<ScreenTextNode, List<String>>>
+
+    /**
+     * 🔔 알람 테두리가 요금 닻 중심에서 위아래로 몇 px 을 더 둘러야 **카드 전체**인가.
+     * 0 이면 닻 줄만 두른다 (인성 — 요금 줄이 곧 카드 한 줄). 픽커는 요금이 태그줄과
+     * 지역줄 **사이**에 껴 있어서 띠 반높이(±60)를 알려줘야 카드가 다 들어온다 (#83).
+     */
+    fun alarmBandHalfPx(): Int = 0
 }
