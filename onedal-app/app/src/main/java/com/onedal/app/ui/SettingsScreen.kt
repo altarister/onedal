@@ -148,6 +148,12 @@ fun SettingsScreen(viewModel: MainViewModel) {
                         onClick = { viewModel.saveTargetApp(context, "24시") }
                     )
                     Text("24시 (준비중)")
+                    Spacer(modifier = Modifier.width(16.dp))
+                    RadioButton(
+                        selected = viewModel.targetApp == "픽커",
+                        onClick = { viewModel.saveTargetApp(context, "픽커") }
+                    )
+                    Text("픽커 (수집만)")
                 }
             }
         }

@@ -8,6 +8,7 @@ import android.view.accessibility.AccessibilityNodeInfo
 import com.onedal.app.api.ApiClient
 import com.onedal.app.plugins.hwamul24.Hwamul24Keywords
 import com.onedal.app.plugins.insung.InsungKeywords
+import com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords
 import com.onedal.app.core.AlarmSignaler
 import com.onedal.app.core.AutoTouchManager
 import com.onedal.app.core.CallMemory
@@ -163,10 +164,10 @@ class HijackService : AccessibilityService() {
         val targetApp = prefs.getString("targetApp", "인성콜") ?: "인성콜"
         currentTargetApp = TargetApp.codeOf(targetApp)   // 매핑은 TargetApp 한 곳뿐
 
-        keywords = if (targetApp == "24시") {
-            Hwamul24Keywords.TWENTYFOUR
-        } else {
-            InsungKeywords.INSUNG
+        keywords = when (targetApp) {
+            "24시" -> Hwamul24Keywords.TWENTYFOUR
+            "픽커" -> KakaoPickerKeywords.PICKER
+            else -> InsungKeywords.INSUNG
         }
 
         apiClient = ApiClient(this)

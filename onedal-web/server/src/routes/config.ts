@@ -24,7 +24,9 @@ const router = Router();
 router.get("/keywords", (req, res) => {
     try {
         const appName = req.query.app as string || "인성콜";
-        const fileName = appName === "24시" ? "keywords_24.json" : "keywords_inseong.json";
+        const fileName = appName === "24시" ? "keywords_24.json"
+            : appName === "픽커" ? "keywords_picker.json"
+            : "keywords_inseong.json";
         
         // __dirname은 src/routes (tsx 실행) 또는 dist/routes (빌드 실행).
         // 두 경우 모두 2단계 위가 server/ 이고, 설정 파일은 server/config/ 에 있다.

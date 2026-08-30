@@ -67,7 +67,7 @@ router.post("/", (req, res) => {
         // 2. 비동기 Write Queue를 통해 밀려들어오는 데이터를 오류 없이 INSERT
         data.forEach(item => {
             dbQueue.runAsync(
-                "INSERT INTO intel (user_id, device_id, type, pickup, dropoff, fare, timestamp, targetApp) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO intel (user_id, device_id, type, pickup, dropoff, fare, timestamp, targetApp, itemSize, pickupDistanceKm, tagsText) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 userId === "ADMIN_USER" ? null : userId,
                 deviceId || null,
                 "INTEL_BULK",
@@ -75,7 +75,11 @@ router.post("/", (req, res) => {
                 plugin.normalizeAddress(item.dropoff),
                 item.fare || 0,
                 timestamp,
-                targetApp
+                targetApp,
+                // 🌐 픽커 수집 필드 셋 — 인성·24시 콜은 안 보내므로 null (픽커_수집.md §5-①)
+                (item as any).itemSize ?? null,
+                (item as any).pickupDistance ?? null,
+                (item as any).tagsText ?? null
             );
         });
 

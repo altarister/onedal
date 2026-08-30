@@ -72,7 +72,11 @@ data class SimplifiedOfficeOrder(
      * 단가 판정(fare ≥ deliveryDistance × ratePerKm[차종])의 입력 —
      * 예전에는 파싱하고 버렸다 (2026-08-13 필터 재설계에서 보존).
      */
-    val deliveryDistance: Double? = null
+    val deliveryDistance: Double? = null,
+    /** 🌐 픽커 전용 — 물품 크기(초소형/소형…). 차종 칸에 섞어 싣지 않는다 (규칙 ⑤-4 ⑤) */
+    val itemSize: String? = null,
+    /** 🌐 픽커 전용 — 태그 원문(급송·예약 17:00·준비 29분…) */
+    val tagsText: String? = null
 )
 
 // ────────────────────────────────────────────────

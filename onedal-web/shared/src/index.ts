@@ -446,6 +446,10 @@ export interface LocationDetailInfo {
 
 // 1. [목록 위젯] 매크로가 0.01초만에 읽어야 하는 겉표면 텍스트
 export interface SimplifiedOfficeOrder {
+    /** 🌐 픽커 전용 — 물품 크기(초소형/소형…). 차종 칸에 섞지 않는다 (규칙 ⑤-4 ⑤) */
+    itemSize?: string | null;
+    /** 🌐 픽커 전용 — 태그 원문(급송·예약 17:00·준비 29분…) */
+    tagsText?: string | null;
     id: string;                       // 스캐너 앱 쪽 고유 ID
     type: EventType;                  // NEW_ORDER 등 통신 규격
     pickup: string;                   // 예: "경기 광주 오포"

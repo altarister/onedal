@@ -1,0 +1,8 @@
+{
+  "appName": "픽커",
+  "uiNoiseWords": ["리스트 설정", "높은 가격순", "추천순", "가까운순", "시작하기", "미션", "더보기", "서포트 모드", "픽업 장소", "물품 정보", "최종 수익", "배송비", "프로모션", "오더 직접 등록"],
+  "confirmButtonText": "수락하기",
+  "cancelButtonText": "넘기기",
+  "pickupButtonText": "픽업 장소",
+  "dropoffButtonText": "도착지"
+}

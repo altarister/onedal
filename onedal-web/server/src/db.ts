@@ -654,7 +654,9 @@ db.exec(`
     )
 `);
 // 기존 DB 에는 CREATE 가 안 도니 여기서 붙인다 — **CREATE 뒤여야 한다** (위 [3] 끝 주석 참조)
-ensureColumns('intel', { targetApp: 'TEXT' });
+ensureColumns('intel', { targetApp: 'TEXT',
+    // 🌐 픽커 수집 필드 셋 (기사님 확정 2026-08-30 · 픽커_수집.md §5-①) — 인성 콜은 null
+    itemSize: 'TEXT', pickupDistanceKm: 'REAL', tagsText: 'TEXT' });
 
 // ═══════════════════════════════════════
 // [8] 카카오 지오코딩 영구 캐시 (장소 사전)
