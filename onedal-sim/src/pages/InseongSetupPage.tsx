@@ -62,7 +62,8 @@ export function InseongSetupPage() {
    * 🧱 **채움 콜 수** — 시간을 만드는 «못 잡는 콜»을 몇 개나 흘릴지 (기사님 확정 2026-08-26).
    * 잡는 콜과 국면 전용 축은 여기서 안 줄어든다. 집 3개 · 차 20개.
    */
-  const [fillers, setFillers] = useState(20);
+  // 채움 콜 수 기본 0 — 기사님 확정 2026-08-30. 필요할 때만 올린다
+  const [fillers, setFillers] = useState(0);
 
   // ── 랜덤콜 ──
   const [maxPickupKm, setMaxPickupKm] = useState(15);
