@@ -355,7 +355,9 @@ export default function PinnedRouteCard({
                 )}
                 {/* 🧭 어떻게 잡았나(capturedVia) — 알람 듣고 잡은 콜과 손으로 잡은 콜을 가른다.
                     둘 다 matchType 은 MANUAL 이라 이 배지가 유일한 구분이다 (6하원칙의 «어떻게»). */}
-                {!evaluating && route.type === 'MANUAL' && route.status !== 'ORDER_COMPLETED' && (
+                {/* type 은 확정 전 «MANUAL_CLICK» → 승격 후 «MANUAL» 로 갈린다 — 둘 다 직접 갈래다.
+                    === 'MANUAL' 만 보면 확정 직후(동기화 전)의 카드에서 배지가 빠진다 (0830 실측). */}
+                {!evaluating && route.type?.startsWith('MANUAL') && route.status !== 'ORDER_COMPLETED' && (
                     <Badge variant="outline" className="text-[10px] font-black px-1.5 py-0 bg-info/10 border-info/30 text-info flex-shrink-0 ml-2 shadow-sm rounded">
                         {route.capturedVia === 'ALARM' ? '🔔 알람콜' : '직접콜'}
                     </Badge>
