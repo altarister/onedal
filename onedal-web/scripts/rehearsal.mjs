@@ -474,9 +474,9 @@ const distKm = (a, b) => {
  */
 function watchDriving(sock) {
     sock.on('next-stop-approaching', (d) => {
-        const 이름 = d?.stopType === 'pickup' ? '상차지' : '하차지';
+        const stopLabel = d?.stopType === 'pickup' ? '상차지' : '하차지';
         console.log(`\n  👁️ ────────────────────────────────────────────`);
-        console.log(`  👁️  다음 정거장(${이름}) ${d?.distanceKm ?? '?'}km 앞 — **지금이 합짐을 올릴 자리다**`);
+        console.log(`  👁️  다음 정거장(${stopLabel}) ${d?.distanceKm ?? '?'}km 앞 — **지금이 합짐을 올릴 자리다**`);
         console.log(`  👁️ ────────────────────────────────────────────\n`);
     });
 }
@@ -647,11 +647,11 @@ function prompt() { process.stdout.write('선택> '); }
  * 선택> t                취소 (예약을 전부 지운다)
  * ```
  */
-let 예약 = [];
+let scheduled = [];
 function cancelSchedule(quiet = false) {
-    const n = 예약.length;
-    예약.forEach(clearTimeout);
-    예약 = [];
+    const n = scheduled.length;
+    scheduled.forEach(clearTimeout);
+    scheduled = [];
     if (n && !quiet) console.log(`  🧹 예약 ${n}건을 지웠습니다`);
     return n;
 }
@@ -665,21 +665,21 @@ function parseSchedule(line) {
 
 function schedule(keys, gapSec) {
     cancelSchedule(true);
-    const 계획 = [];
+    const plan = [];
     keys.forEach((k, i) => {
         const t = PRESETS.find(p => p.key === k);
         // 🔴 없는 번호를 **조용히 건너뛰지 않는다** — 안 온 콜을 «안 잡힌 콜»로 오진한다
         if (!t) { console.log(`  ⚠️ [${k}] 는 없는 문제지입니다 — 예약하지 않습니다`); return; }
         const sec = i * gapSec;
-        계획.push(`[${k}] ${sec === 0 ? '지금' : `+${sec}초`}`);
-        예약.push(setTimeout(async () => {
+        plan.push(`[${k}] ${sec === 0 ? '지금' : `+${sec}초`}`);
+        scheduled.push(setTimeout(async () => {
             console.log(`\n⏱️ [예약 발송 ${sec === 0 ? '지금' : `+${sec}초`}] ${t.label}`);
             try { await inject(t); } catch (e) { console.log(`  🚨 발송 실패: ${e?.message || e}`); }
             prompt();
         }, sec * 1000));
     });
-    if (!계획.length) { console.log('  예약할 것이 없습니다'); return; }
-    console.log(`  ⏱️ 예약 ${계획.length}건 — ${계획.join(' · ')}`);
+    if (!plan.length) { console.log('  예약할 것이 없습니다'); return; }
+    console.log(`  ⏱️ 예약 ${plan.length}건 — ${plan.join(' · ')}`);
     console.log(`  \x1b[2m취소하려면 t\x1b[0m`);
 }
 
@@ -720,8 +720,8 @@ async function preflight() {
     const kst = ms => new Date(ms + 9 * 3600e3).toISOString().slice(5, 16).replace('T', ' ');
 
     if (srcMs > bootMs) {
-        const 뒤처짐 = Math.round((srcMs - bootMs) / 60000);
-        console.log(`\n🔴 **서버가 옛 코드로 돌고 있습니다** — 소스가 ${뒤처짐}분 더 새것입니다`);
+        const behindMin = Math.round((srcMs - bootMs) / 60000);
+        console.log(`\n🔴 **서버가 옛 코드로 돌고 있습니다** — 소스가 ${behindMin}분 더 새것입니다`);
         console.log(`   서버 기동 ${kst(bootMs)} · 소스 수정 ${kst(srcMs)}`);
         const r = await restartServer({ base: BASE, entry: join(ROOT, 'server/src/index.ts') });
         if (!r.restarted) {

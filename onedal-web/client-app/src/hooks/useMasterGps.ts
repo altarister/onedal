@@ -28,22 +28,32 @@ const REAL_GPS_STALE_MS = 15_000;
 const SIMULATOR_AVAILABLE = import.meta.env.DEV;
 
 /**
- * 🐢 **모의 주행 속도 — URL 로 늦출 수 있다** (기사님 확정 2026-08-29).
+ * 🐢🐇 **모의 주행 속도 — URL 로 늦추거나 높인다** (기사님 확정 2026-08-29 · 상한 개정 08-30).
  *
- * 기본 15배속은 **3km 를 6초에** 지난다. 그래서 리허설에서 «하차지 3km 앞» 신호를 받고
- * 합짐을 올리려 해도 **그 사이에 이미 도착해 버렸다** (2026-08-29 실측:
- * 근접 예고 12:26:24 → 도착 12:26:30, 6초). 화면을 보며 판단할 틈이 없다.
+ *   http://localhost:3000/?speed=3      3배속 — 3km 를 약 30초에 (느리게 보고 싶을 때)
+ *   http://localhost:3000/?speed=200    빠르게 — 17.6km 6정거장을 약 17초에
  *
- *   http://localhost:3000/?speed=3     3배속 — 3km 를 약 30초에 지난다
+ * ⚠️ **켜지 않으면 기본 15배속 그대로다.** 개발 빌드에서만 읽는다 (`SIMULATOR_AVAILABLE` 뒤).
  *
- * ⚠️ **켜지 않으면 기본 15배속 그대로다** — 평소 시뮬레이션은 빠른 편이 낫다.
- *    개발 빌드에서만 읽는다 (`SIMULATOR_AVAILABLE` 뒤).
+ * 🔴 **상한이 60 이었던 이유와, 그 이유가 없어진 경위** (기사님 지시 2026-08-30)
+ *
+ * 08-29 에는 리허설이 «다음 정거장 3km 앞» 신호를 보고 **사람이 손으로** 합짐을 올렸다.
+ * 15배속이면 3km 를 6초에 지나가 반응할 틈이 없어서, 늦추는 손잡이를 만들고 상한을 낮게 뒀다.
+ *
+ * 기사님: *"3km 앞에서 콜을 주는 거 하지 말고 **그냥 타이머로** 하라고."*
+ * → 투입 시점은 이제 예약 발송(`19,20,21@90`)이 정한다. **사람이 반응할 틈을 벌어 줄
+ *   이유가 사라졌으므로** 상한을 푼다. 반복 테스트에서 주행은 기다림일 뿐이다.
+ *
+ * ⚠️ **정거장은 배속과 무관하게 다 들른다** — `useMockGpsSimulator` 가 이번 걸음에
+ *    지나치는 정거장을 먼저 찍고 간다(`due`). 그래서 빨라져도 도착 감지는 발화한다.
+ *    다만 **궤적은 성겨진다** — 경로 이탈·우회량을 볼 때는 낮은 배속으로 돌린다.
  */
+const MOCK_SPEED_MAX = 300;
 function mockSpeedMultiplier(): number {
     if (!SIMULATOR_AVAILABLE) return 15;
     try {
         const n = Number(new URLSearchParams(window.location.search).get('speed'));
-        return Number.isFinite(n) && n >= 1 && n <= 60 ? n : 15;
+        return Number.isFinite(n) && n >= 1 && n <= MOCK_SPEED_MAX ? n : 15;
     } catch {
         return 15;
     }
