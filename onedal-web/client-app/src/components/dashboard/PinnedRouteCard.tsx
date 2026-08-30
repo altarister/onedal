@@ -406,7 +406,10 @@ export default function PinnedRouteCard({
                         아직 배차망에서 안 잡은 콜이라 여기서 KEEP 을 눌러도 잡히지 않는다 —
                         결재는 **인성 앱의 확정 버튼**으로 한다. 관제웹은 판정 색만 보여준다.
                         (MANUAL 콜에 버튼을 안 띄우는 것과 같은 이유의 연장이다) */}
-                    {!route.isPreview && route.type !== 'MANUAL' && evaluating && onDecision && (
+                    {/* 🔴 type 은 확정 전 «MANUAL_CLICK» — !== 'MANUAL' 로 거르면 직접·알람 콜의
+                        평가 순간에 결재 버튼이 잠깐 그려진다 (0831 실측 «킵 버튼 잔상»).
+                        결정은 스캔앱에서만 — 직접 갈래(MANUAL*)에는 버튼 자체를 안 만든다. */}
+                    {!route.isPreview && !route.type?.startsWith('MANUAL') && evaluating && onDecision && (
                         <>
                             <div className="mt-1 flex gap-3">
                                 <Button 
