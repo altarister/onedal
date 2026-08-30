@@ -1,4 +1,4 @@
-import { isTerminal } from "@onedal/shared";
+import { isTerminal, isEvaluating } from "@onedal/shared";
 import { mergeOrderViews } from "../lib/orderMerge";
 import Header from "../components/layout/Header";
 import DeviceControlPanel from "../components/dashboard/DeviceControlPanel";
@@ -261,11 +261,15 @@ export default function Dashboard() {
                 {/* 🎛️ 앱폰 제어 패널 */}
                 <DeviceControlPanel />
 
-                {/* ⚙️ 오더 필터 한 줄 현황판 (클릭 시 설정 모달 띄움) */}
+                {/* ⚙️ 오더 필터 한 줄 현황판 (클릭 시 설정 모달 띄움)
+                    🪧 심사 중엔 숨긴다 (기사님 확정 0831) — 그 자리에 PinnedRoute 의 심사석(판정 카드)이
+                    뜬다. 심사 동안 필터는 어차피 선점 잠금이라, 안 도는 필터를 보여줄 이유가 없다 */}
+                {!activeRoute.some(o => !isTerminal(o.status) && (isEvaluating(o.status) || o.isPreview)) && (<>
                 <OrderFilterStatus onOpenFilter={() => setIsFilterModalOpen(true)} cancelCounts={cancelCounts} cancelRounds={cancelRounds} budgetToast={cancelBudgetToast} />
 
                 {/* 🚚 내 차 정보 및 적재/이동 상태 패널 */}
                 <VehicleStatusPanel liveCalls={liveCalls} />
+                </>)}
 
                 {/* 🏆 배차 확정 콜 (및 안전취소 연산 구역)
                     🔴 결재 카드가 터져도 관제탑 전체가 죽지 않게 경계를 둔다 —

@@ -156,6 +156,15 @@ export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, 
     const safeRoute = activeRoute || [];
     const allEvaluating = safeRoute.some(r => isEvaluating(r.status));
 
+    /**
+     * 🪧 **심사석** (기사님 확정 2026-08-31) — 평가·미리보기 중인 콜 하나를 화면 **최상단
+     * 같은 자리**에 고정한다. 평상시엔 그 자리에 필터 현황판이 살고(Dashboard 가 숨김을
+     * 맡는다), 콜이 오면 이 카드로 바뀐다 — 스크롤 없이, 버튼·색이 늘 같은 자리다.
+     * 심사 중엔 서버가 어차피 필터를 잠그므로(선점 잠금) 필터 자리를 내주는 게 상태와도 맞다.
+     * 한 번에 하나만 평가하므로(규칙 ⑥ 계열) 자리는 하나면 된다.
+     */
+    const judging = safeRoute.find(r => !isTerminal(r.status) && (isEvaluating(r.status) || r.isPreview));
+
     const toggleExpand = (id: string) => {
         setExpandedIds(prev => {
             const newSet = new Set(prev);
@@ -286,6 +295,27 @@ export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, 
 
     return (
         <section id="confirmed-route" className="flex flex-col">
+            {/* 🪧 심사석 — 필터 현황판 자리에 뜨는 판정 카드 (아래 덱에는 이 콜을 안 그린다) */}
+            {judging && (
+                <div className="border-b-2 border-info/40">
+                    <PinnedRouteCard
+                        route={judging}
+                        isExpanded
+                        onToggle={toggleExpand}
+                        onDecision={onDecision}
+                        processingId={processingId}
+                        setProcessingId={setProcessingId}
+                        etaMap={etaMap}
+                        visitOrderMap={visitOrderMap}
+                        indexNum={chronologicalIds.indexOf(judging.id) + 1}
+                        records={stepRecords.get(judging.id) ?? EMPTY_RECORDS}
+                        timeline={routeTimeline}
+                        routeStops={routeStops}
+                        routeComputedAt={routeComputedAt}
+                        variant="deck"
+                    />
+                </div>
+            )}
             {safeRoute.length > 0 && (
                 <div className="flex justify-between items-center px-4 py-2 border-b border-border-card">
                     <h2 className="text-[13px] font-bold text-text-primary flex items-center gap-1.5">
@@ -513,7 +543,7 @@ export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, 
                     /* 순서는 잡은 시간순으로 고정한다 — 새 콜은 뒤에 붙기만 해서
                        기존 위치가 안 밀린다. 근거는 deckOrder() 주석 참고.
                        🔄 하차한 콜도 사이클이 끝날 때까지 함께 있다 (deckOfCycle) */
-                    orders={deckOrder(cycleDeck)}
+                    orders={deckOrder(cycleDeck).filter(o => o.id !== judging?.id)}
                     renderCard={(route) => (
                         <PinnedRouteCard
                             route={route}
