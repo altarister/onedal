@@ -24,6 +24,9 @@ class CallMemory(
     /** 평가 기억의 크기 — «이미 본 콜» 로그가 찍는 숫자 */
     val evaluatedCount: Int get() = evaluated.size
 
+    /** 🔄 배차망 전환 — 남의 배차망 지문이 남으면 «이미 본 콜»로 삼킨다 (0831) */
+    fun clear() { evaluated.clear(); reported.clear() }
+
     /** ① 이 콜은 평가를 마쳤는가 — 맞으면 스캔 루프가 건너뛴다 */
     fun alreadyEvaluated(hash: Int): Boolean = hash in evaluated
 

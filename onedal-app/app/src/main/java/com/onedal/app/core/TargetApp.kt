@@ -21,6 +21,25 @@ object TargetApp {
         else -> INSUNG
     }
 
+    /** 코드 → 설정 라벨 (자동 전환이 라디오·프리퍼런스를 같은 말로 되돌릴 때) */
+    fun labelOf(code: String): String = when (code) {
+        HWAMUL24 -> "24시"
+        KAKAOPICKER -> "픽커"
+        else -> "인성콜"
+    }
+
+    /**
+     * 🌐 **화면 패키지 → 배차망** (기사님 확정 2026-08-31 · 규칙 ③ 파생).
+     * «어느 배차망인가»의 진짜 원천은 라디오가 아니라 지금 보고 있는 화면이다.
+     * 모르는 패키지는 null — 지어내지 않는다 (카톡·설정 화면 등은 배차망이 아니다).
+     */
+    fun codeOfPackage(pkg: String?): String? = when (pkg) {
+        "com.kakaomobility.flexer" -> KAKAOPICKER            // 카카오T픽커 (0830 실측)
+        "com.onedal.simulator" -> INSUNG                     // 우리 인성 시뮬레이터
+        "com.insungdata.smartorder1" -> INSUNG               // 인성 실앱 (미실측 — 설치 후 확인)
+        else -> null
+    }
+
     /**
      * 🚧 **이 배차망에 «잡기 시퀀스»가 있는가** (기사님 확정 2026-08-30 · 픽커_수집.md §3-확장).
      *

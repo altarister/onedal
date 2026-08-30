@@ -64,3 +64,22 @@ class CapturedViaAndTargetAppTest {
         assertEquals("ALARM", s.capturedVia("ALARM"))
     }
 }
+
+/**
+ * 🌐 화면 패키지 → 배차망 — «어느 배차망인가»의 진짜 원천은 라디오가 아니라
+ * **지금 보고 있는 화면**이다 (기사님 확정 2026-08-31 · 규칙 ③ 파생).
+ * 어긋나면 파서가 남의 화면을 읽어 쓰레기 콜을 만든다 — 그 사고를 여기서 막는다.
+ */
+class PackageToNetworkTest {
+    @org.junit.Test
+    fun `아는 패키지는 배차망으로 파생된다`() {
+        org.junit.Assert.assertEquals(TargetApp.KAKAOPICKER, TargetApp.codeOfPackage("com.kakaomobility.flexer"))
+        org.junit.Assert.assertEquals(TargetApp.INSUNG, TargetApp.codeOfPackage("com.onedal.simulator"))
+    }
+
+    @org.junit.Test
+    fun `모르는 패키지는 null - 지어내지 않는다 (규칙 4)`() {
+        org.junit.Assert.assertNull(TargetApp.codeOfPackage("com.kakao.talk"))
+        org.junit.Assert.assertNull(TargetApp.codeOfPackage(null))
+    }
+}

@@ -93,6 +93,30 @@ class HijackService : AccessibilityService() {
     private var currentTargetApp = "insung"
 
     /**
+     * 🎯 배차망 적용 — 라디오(부팅)와 자동 전환(2단계)이 **같은 길**을 탄다.
+     * 파서·키워드·코드가 한 번에 갈아타고, 전환이면 지문·세션도 새로 시작한다
+     * (남의 배차망 지문이 남으면 «이미 본 콜»로 삼킨다).
+     */
+    private fun applyTargetApp(label: String, isSwitch: Boolean = false) {
+        currentTargetApp = TargetApp.codeOf(label)
+        keywords = when (label) {
+            "24시" -> Hwamul24Keywords.TWENTYFOUR
+            "픽커" -> KakaoPickerKeywords.PICKER
+            else -> InsungKeywords.INSUNG
+        }
+        scrapParser = ScrapParser(this, label)
+        if (isSwitch) {
+            callMemory.clear()
+            resetSessionState()
+        }
+        AppLogger.i(TAG, "🎯 타겟 앱 ${if (isSwitch) "자동 전환" else "설정"} 완료: $label")
+    }
+    /** ⚠️ 배차망 불일치 경고의 중복 방지 — 같은 조합은 한 번만 운다 */
+    private var lastMismatchWarn: String? = null
+    /** 불일치가 시작된 시각 — 4초 안정되면 화면을 따라 전환한다 */
+    private var mismatchSince = 0L
+
+    /**
      * 👁️ 리스트를 떠난 시각 (0 = 지금 리스트를 보고 있다).
      * 상세에 머무는 동안은 배차망 리스트를 못 읽으므로, 그 길이를 재서 복귀할 때 남긴다.
      * **놓친 콜과 걸러낸 콜을 구분하는 유일한 근거다.**
@@ -190,19 +214,10 @@ class HijackService : AccessibilityService() {
 
         val prefs = getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
         val targetApp = prefs.getString("targetApp", "인성콜") ?: "인성콜"
-        currentTargetApp = TargetApp.codeOf(targetApp)   // 매핑은 TargetApp 한 곳뿐
-
-        keywords = when (targetApp) {
-            "24시" -> Hwamul24Keywords.TWENTYFOUR
-            "픽커" -> KakaoPickerKeywords.PICKER
-            else -> InsungKeywords.INSUNG
-        }
+        applyTargetApp(targetApp)
 
         apiClient = ApiClient(this)
         telemetryManager = TelemetryManager(apiClient, this)  // [GPS 텔레메트리] context 전달하여 위치 조회 가능하도록
-        scrapParser = ScrapParser(this, targetApp)
-        
-        AppLogger.i(TAG, "🎯 타겟 앱 설정 완료: $targetApp")
 
         touchManager = AutoTouchManager(this)
         collectMachine = DetailCollectMachine(touchManager)
@@ -381,6 +396,32 @@ class HijackService : AccessibilityService() {
         //    🔴 «지금 LIST냐»가 아니라 «상세에서 돌아왔느냐»다 (직전 화면을 본다 — 2026-08-12 규칙).
         //    클릭 직후 화면이 넘어가기 전의 LIST 이벤트(실측 23:02:12.961)가 타이머를 죽이던 자리.
         if (detected == ScreenContext.LIST && previous == ScreenContext.DETAIL_PRE_CONFIRM) cancelAlarmDetailBack()
+
+        /**
+         * 🌐 **배차망 불일치 관문** (기사님 확정 2026-08-31 · 1단계).
+         * 보는 화면(패키지)이 아는 배차망인데 선택(라디오)과 다르면 — 이 판을 통째로 버린다.
+         * 안 버리면 남의 화면을 남의 파서로 읽어 쓰레기 콜이 올라간다 (잔상 사고와 같은 계열).
+         * 모르는 패키지(카톡 등)는 관문 대상이 아니다 — 어차피 UNKNOWN 화면으로 흐른다.
+         */
+        val screenNetwork = TargetApp.codeOfPackage(rootNode.packageName?.toString())
+        if (screenNetwork != null && screenNetwork != currentTargetApp) {
+            val key = "$screenNetwork≠$currentTargetApp"
+            if (lastMismatchWarn != key) {
+                lastMismatchWarn = key
+                mismatchSince = android.os.SystemClock.elapsedRealtime()
+                AppLogger.w(TAG, "⚠️ [배차망 불일치] 화면은 ${screenNetwork}인데 선택은 $currentTargetApp — 판을 버리며 4초 지켜봅니다")
+            } else if (android.os.SystemClock.elapsedRealtime() - mismatchSince >= 4_000) {
+                // 🔄 2단계: 같은 배차망 화면이 4초 이상 안정 — 화면이 원천이다 (규칙 ③ 파생)
+                val label = TargetApp.labelOf(screenNetwork)
+                getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE).edit().putString("targetApp", label).apply()
+                applyTargetApp(label, isSwitch = true)
+                lastMismatchWarn = null
+                AppLogger.i(TAG, "🔄 [배차망 자동 전환] 화면을 따라 $label 판으로 — 라디오는 표시만 따라온다")
+            }
+            rootNode.recycle()
+            return
+        }
+        if (screenNetwork == currentTargetApp) lastMismatchWarn = null
 
         // 화면별 핸들러 라우팅
         when (detected) {
