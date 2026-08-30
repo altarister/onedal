@@ -77,6 +77,15 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
          */
         fun clickSafe(rawText: String?): Boolean = rawText?.contains("수락") != true
 
+        /**
+         * 👻 이 리스트 스캔이 **상세 화면 잔상**인가 (0830 23:04 실측 — 복귀 직후 첫 스캔에
+         * 상세 글자가 남아 카드 도착지에 «픽업지 경기 성남시…»가 섞였다).
+         * 판별자는 «수락하기» — 상세에만 있는 버튼이다 (리스트·오더카드의 버튼은 «수락»,
+         * 노드 단위 completeness 로 구분). 잔상이면 그 판은 통째로 버린다 — 인성 팝업
+         * 잔상 방어(isPopupResidue)와 같은 계열이다.
+         */
+        fun isDetailResidue(texts: List<String>): Boolean = texts.any { it.contains("수락하기") }
+
         fun nearestAnchorIndex(anchorCentersY: List<Int>, nodeCenterY: Int): Int {
             var best = -1
             var bestDist = Int.MAX_VALUE

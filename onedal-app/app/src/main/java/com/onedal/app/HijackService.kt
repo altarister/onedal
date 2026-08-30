@@ -377,8 +377,10 @@ class HijackService : AccessibilityService() {
 
         // 🔔 리스트를 떠났다 — 남의 화면 위에 알람 테두리를 남기지 않는다 (§6-③)
         if (detected != ScreenContext.LIST) alarmSignaler.onLeaveList()
-        // 🚪 리스트로 돌아왔다(기사님이 뒤로/수락) — 자동 복귀 타이머는 일이 없어졌다
-        if (detected == ScreenContext.LIST) cancelAlarmDetailBack()
+        // 🚪 상세에서 리스트로 **돌아왔다**(기사님이 뒤로/수락) — 자동 복귀 타이머는 일이 없어졌다.
+        //    🔴 «지금 LIST냐»가 아니라 «상세에서 돌아왔느냐»다 (직전 화면을 본다 — 2026-08-12 규칙).
+        //    클릭 직후 화면이 넘어가기 전의 LIST 이벤트(실측 23:02:12.961)가 타이머를 죽이던 자리.
+        if (detected == ScreenContext.LIST && previous == ScreenContext.DETAIL_PRE_CONFIRM) cancelAlarmDetailBack()
 
         // 화면별 핸들러 라우팅
         when (detected) {
@@ -416,6 +418,13 @@ class HijackService : AccessibilityService() {
      */
 
     private fun handleListScreen(rootNode: AccessibilityNodeInfo, screenTexts: List<String>) {
+        // 👻 상세→리스트 복귀 직후 잔상 방어 (0830 23:04 실측) — 상세 글자가 남은 판은 버린다.
+        //    다음 스캔(1초 안)은 깨끗하다. 인성 팝업 잔상 방어와 같은 계열, 픽커(잡기 수순 없음)만.
+        if (!TargetApp.supportsCatching(currentTargetApp)
+            && com.onedal.app.plugins.kakaopicker.KakaoPickerParser.isDetailResidue(screenTexts)) {
+            AppLogger.d(TAG, "👻 [상세 잔상] 리스트 스캔에 상세 글자 잔류 — 이 판은 버린다")
+            return
+        }
         /**
          * 🔚 **여기서 세션을 지우지 않는다** (기사님 확정 2026-08-23).
          *

@@ -189,6 +189,15 @@ class KakaoPickerParserTest {
     }
 
     @Test
+    fun `상세 잔상 판별 - «수락하기»가 보이는 리스트 스캔은 버린다 (0830 실측 23시04분)`() {
+        // 상세→리스트 복귀 직후 첫 스캔에 상세 글자가 남아 카드에 섞였다
+        // (실물: 도착이 «픽업지 경기 성남시 수정구 위례동 kotlin.Unit 삼성2»로 저장될 뻔)
+        assertTrue(KakaoPickerParser.isDetailResidue(listOf("퀵", "3,300", "픽업지 경기 성남시", "넘기기", "수락하기")))
+        // 평범한 리스트에는 «수락하기»가 없다 — 오더카드의 버튼도 «수락»이라 안 걸린다
+        assertFalse(KakaoPickerParser.isDetailResidue(listOf("퀵", "단거리", "소형", "광주", "2,529", "4.7km", "경안", "수락")))
+    }
+
+    @Test
     fun `요금 닻 판별 - 오른쪽 정렬 쉼표 숫자만`() {
         assertTrue(KakaoPickerParser.isFareAnchor("2,529", 981))
         assertTrue(KakaoPickerParser.isFareAnchor("14,168", 965))
