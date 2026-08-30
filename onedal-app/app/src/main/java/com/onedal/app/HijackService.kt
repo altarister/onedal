@@ -8,6 +8,7 @@ import android.view.accessibility.AccessibilityNodeInfo
 import com.onedal.app.api.ApiClient
 import com.onedal.app.plugins.hwamul24.Hwamul24Keywords
 import com.onedal.app.plugins.insung.InsungKeywords
+import com.onedal.app.core.AlarmSignaler
 import com.onedal.app.core.AutoTouchManager
 import com.onedal.app.core.ScrapParser
 import com.onedal.app.plugins.insung.InsungParser
@@ -95,6 +96,9 @@ class HijackService : AccessibilityService() {
 
     // ── 세션 상태 (SessionManager로 통합) ──
     private val session = SessionManager()
+
+    /** 🔔 알람 모드의 폰 쪽 신호 — 소리·진동·테두리 (`docs/지금/기기_모드.md` 2단계) */
+    private val alarmSignaler by lazy { AlarmSignaler(this) }
     private lateinit var collectMachine: DetailCollectMachine
     private val recentListOrders = mutableListOf<SimplifiedOfficeOrder>()
 
@@ -338,6 +342,9 @@ class HijackService : AccessibilityService() {
         AppLogger.d(TAG, "-------------------------------")
         AppLogger.roadmap("📡 화면 변경 감지 | 화면: ${detected.value} | 모드: ${telemetryManager.currentMode}", telemetryManager.currentScreenContext.name)
 
+        // 🔔 리스트를 떠났다 — 남의 화면 위에 알람 테두리를 남기지 않는다 (§6-③)
+        if (detected != ScreenContext.LIST) alarmSignaler.onLeaveList()
+
         // 화면별 핸들러 라우팅
         when (detected) {
             ScreenContext.LIST -> handleListScreen(rootNode, screenTexts)
@@ -419,6 +426,8 @@ class HijackService : AccessibilityService() {
         var emptyCard = 0
         var emptyRectAnchor = 0
         val emptySamples = mutableListOf<String>()
+        /** 🔔 이번 스캔에 보인 콜 지문 — 알람 테두리가 «그 콜이 아직 있나»를 이걸로 안다 */
+        val scanHashes = mutableSetOf<Int>()
 
         // 각 요금 노드 기준으로 텍스트 세트를 묶어 파싱
         for ((fareNode, cardTexts) in groupedNodes) {
@@ -458,6 +467,7 @@ class HijackService : AccessibilityService() {
             }
 
             val orderHash = (order.pickup + order.dropoff + order.fare.toString()).hashCode()
+            scanHashes += orderHash   // 🔔 이미 본 콜도 «아직 화면에 있다»는 사실은 남긴다
             /**
              * ⏭️ **건너뛰었다는 사실을 남긴다** (2026-08-25 · 시험 두 판을 여기서 잃었다).
              *
@@ -477,6 +487,17 @@ class HijackService : AccessibilityService() {
 
             // 🌟 [항시 인터셉터] 콜 필터 매칭 검사 (디버그 로그를 위해 MANUAL/AUTO 무관하게 항시 실행)
             val isTarget = scrapParser.shouldClick(order, tally)
+
+            /**
+             * 🔔 **알람 모드 — 앱은 안 누르고, 그 줄을 가리킨다** (기사님 확정 2026-08-30 · 2단계).
+             *
+             * 소리 두 번 + 강한 진동 + 통과한 콜 줄에 테두리. 누르는 것은 기사님이다.
+             * 이미 본 콜은 위의 지문 검사(`continue`)가 걸러 주므로 **콜당 한 번만** 운다 —
+             * 서버 알람(관제웹 소리)과 같은 원리다.
+             */
+            if (!session.isAutoActive && telemetryManager.currentMode == "ALARM" && isTarget) {
+                alarmSignaler.fire(fareNode.rect, orderHash)
+            }
 
             // 🌟 [AUTO 실행] 콜 잡기 중이지 않고 AUTO 모드일 때만 실제 클릭 동작 수행
             if (!session.isAutoActive && telemetryManager.currentMode == "AUTO") {
@@ -551,6 +572,9 @@ class HijackService : AccessibilityService() {
             AppLogger.w(TAG, "👁️ [리스트 스캔] 텍스트노드 ${allNodes.size} · 콜그룹 ${groupedNodes.size} · " +
                 "통과 $picked · 요금실패 $fareFail$rect — ${lastScanReason(allNodes.size, groupedNodes.size, fareFail)}$sample")
         }
+        // 🔔 알람 테두리 — 가리키던 콜이 이번 스캔에 없으면 걷는다 (잡혔거나 남이 가져감 · §6-③)
+        alarmSignaler.onScan(scanHashes)
+
         telemetryManager.screenNodeCount = allNodes.size
         /**
          * 👁️ **성적표를 서버로 넘긴다.** 앱 안에서만 알면 화면은 여전히 모른다 —

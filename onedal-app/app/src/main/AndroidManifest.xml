@@ -6,6 +6,8 @@
     <!-- 배터리 최적화 제외 권한 (접근성 서비스 유지용) -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 🔔 알람 모드의 강한 진동 (기기_모드.md 2단계). 설치 시 자동 승인 — 기사님이 켤 것 없음 -->
+    <uses-permission android:name="android.permission.VIBRATE" />
 
     <application
         android:allowBackup="true"

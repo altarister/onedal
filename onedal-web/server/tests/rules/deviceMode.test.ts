@@ -275,6 +275,51 @@ describe('🔔 알람이 관제웹까지 가는 길', () => {
     });
 });
 
+describe('🔔 2단계 — 스캐너 폰이 스스로 알린다 (기사님 확정 §6-②④)', () => {
+    /**
+     * 관제웹 소리만으로는 부족하다 — 기사님이 보는 화면은 **인성 리스트**다.
+     * 폰이 소리 두 번 + 강한 진동을 내고, 통과한 콜 줄에 테두리를 그린다.
+     */
+    it('🔴 진동 권한이 매니페스트에 있다 (없으면 SecurityException 으로 조용히 죽는다)', () => {
+        const m = readFileSync(join(APP, '../../../../AndroidManifest.xml'), 'utf8');
+        expect(m).toMatch(/android\.permission\.VIBRATE/);
+    });
+
+    it('🔴 테두리는 접근성 오버레이 창이다 — 「다른 앱 위에 표시」 권한을 요구하지 않는다', () => {
+        const s = codeOnly(app('core/AlarmSignaler.kt'));
+        expect(s).toMatch(/TYPE_ACCESSIBILITY_OVERLAY/);
+        expect(s).not.toMatch(/TYPE_APPLICATION_OVERLAY|SYSTEM_ALERT_WINDOW/);
+    });
+
+    /**
+     * 🔴 **터치를 먹으면 안 된다** — 그 줄을 눌러야 하므로 (기사님 확정 §6-④).
+     */
+    it('🔴 테두리가 터치를 먹지 않는다 (FLAG_NOT_TOUCHABLE)', () => {
+        const s = codeOnly(app('core/AlarmSignaler.kt'));
+        expect(s).toMatch(/FLAG_NOT_TOUCHABLE/);
+    });
+
+    it('🔴 알람은 ALARM 모드 + 필터 통과에서만 난다 (자동·대기는 조용하다)', () => {
+        const s = codeOnly(app('HijackService.kt'));
+        const scan = s.split('private fun handleListScreen')[1]?.split('\n    private fun ')[0] ?? '';
+        const fireLine = scan.split('alarmSignaler.fire')[0].slice(-400);
+        expect(fireLine).toMatch(/currentMode == "ALARM"/);
+        expect(fireLine).toMatch(/isTarget/);
+    });
+
+    /**
+     * 🔇 «먼저 오는 것»으로 그친다 (§6-③): 그 콜이 리스트에서 사라짐 / 10초.
+     *    리스트가 아닌 화면으로 가도 걷는다 — 남의 화면 위에 테두리가 떠돌면 안 된다.
+     */
+    it('🔴 10초가 지나거나 콜이 리스트에서 사라지면 걷는다', () => {
+        const s = codeOnly(app('core/AlarmSignaler.kt'));
+        expect(s).toMatch(/10_000|10000/);
+        expect(s).toMatch(/fun onScan/);
+        const svc = codeOnly(app('HijackService.kt'));
+        expect(svc).toMatch(/alarmSignaler\.onScan\(/);
+    });
+});
+
 describe('🎛️ 관제웹 — 버튼 셋과 알람', () => {
     it('🔴 관제웹이 알람을 듣고 소리를 낸다', () => {
         const c = codeOnly(web('hooks/useSystemAlerts.ts'));
