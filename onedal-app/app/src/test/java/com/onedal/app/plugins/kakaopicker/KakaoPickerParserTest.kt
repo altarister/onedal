@@ -82,12 +82,39 @@ class KakaoPickerParserTest {
         // 도착 «강동 천호3» — 도착목표가 성남·분당이면 방향이 달라 안 울린다
         val good = parser.parse(listOf("퀵", "반나절", "승", "강동", "14,466", "19.6km", "하남", "신장2", "천호3"))
         val t1 = FilterTally()
-        assertFalse(KakaoPickerParser.decide(good, 10000, 20, listOf("성남", "분당"), emptyMap(), t1))
+        assertFalse(KakaoPickerParser.decide(good, 10000, 20, listOf("성남", "분당"), emptyMap(), tally = t1))
         assertEquals(1, t1.region)
         // 도착목표에 강동이 있으면 울린다
         assertTrue(KakaoPickerParser.decide(good, 10000, 20, listOf("강동", "송파"), emptyMap()))
         // 도착목표가 비어 있으면(관내 등) 제한 없음 — 지금까지의 동작 그대로
         assertTrue(KakaoPickerParser.decide(good, 10000, 20, emptyList(), emptyMap()))
+    }
+
+    @Test
+    fun `알람 판정 - 픽커 줄임 동 표기가 «~동» 도착목표와 만난다 (0830 실사고 - 성남행 전부 탈락)`() {
+        // 목적지 성남시의 실제 키워드 꼴: «~동» 전체 이름 + 시 별칭. 픽커는 «수내3»처럼 줄인다
+        val seongnamDongs = listOf("정자동", "수내동", "금광동", "태평동", "신흥동")
+        val aliases = listOf("성남", "수정구", "분당구", "중원구")
+        // «분당 수내3» — 수내동인데 부분 문자열로는 «수내동»과 안 만난다 → 정규화 대조로 통과해야 한다
+        val sungnam = parser.parse(listOf("퀵", "승", "예약", "내일", "강남", "16,478", "15.1km", "분당", "수내3", "수내3"))
+        assertTrue(KakaoPickerParser.decide(sungnam, 10000, 20, seongnamDongs, emptyMap(), aliases))
+        // 도착이 구 이름뿐인 카드(«수정») — 시 별칭 «수정구»로 통과해야 한다
+        val guOnly = parser.parse(listOf("퀵", "소형", "수정", "12,000", "16.3km", "수정", "위례", "수정"))
+        assertTrue(KakaoPickerParser.decide(guOnly, 10000, 20, seongnamDongs, emptyMap(), aliases))
+        // 성남이 아닌 곳은 여전히 걸러진다
+        val yongin = parser.parse(listOf("퀵", "단거리", "준비 완료", "소형", "기흥", "8,650", "16.9km", "기흥", "동백2", "동백2"))
+        val t = FilterTally()
+        assertFalse(KakaoPickerParser.decide(yongin, 5000, 20, seongnamDongs, emptyMap(), aliases, tally = t))
+        assertEquals(1, t.region)
+    }
+
+    @Test
+    fun `0830 실물 - 오더카드(수락 버튼)의 «수락»을 지역으로 오인하지 않는다`() {
+        // 화면 위쪽에 뜨는 퀵 오더카드 — 상차·하차 km 둘 다 있고 초록 «수락» 버튼이 있다
+        val texts = listOf("퀵", "승", "중형", "광주", "쌍령", "3.0km", "광주", "광남2", "4.3km", "15,785", "수락")
+        val o = parser.parse(texts)
+        assertEquals(15785, o.fare)
+        assertFalse("수락이 지역으로 들어감: ${o.rawText}", o.pickup.contains("수락") || o.dropoff.contains("수락"))
     }
 
     @Test

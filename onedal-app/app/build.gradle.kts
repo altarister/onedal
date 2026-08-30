@@ -15,8 +15,8 @@ android {
         targetSdk = 35
         // 어떤 빌드가 폰에 깔려 있는지 눈으로 구분하기 위한 버전 표기.
         // 앱 대시보드 상단과 서비스 기동 로그에 그대로 노출된다.
-        versionCode = 21
-        versionName = "2.5.3-alarm-band"
+        versionCode = 22
+        versionName = "2.5.4-alarm-dong"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

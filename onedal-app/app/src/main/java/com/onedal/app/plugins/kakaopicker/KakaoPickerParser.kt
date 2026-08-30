@@ -46,6 +46,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         private val NOISE_WORDS = setOf(
             "카드설정", "수요지도",                       // 하단 메뉴 (맨 아래 카드 띠에 걸침)
             "리스트 설정", "추천순", "높은 가격순", "낮은 가격순", "가까운순",  // 상단 헤더
+            "수락",                                       // 오더카드(화면 위 제안 카드)의 초록 버튼 (0830 실물)
         )
         /** 카드 띠의 반높이 — 요금 중심에서 태그줄·지역줄까지 실측 ±35, 여유 포함 (알람 테두리도 같은 값 · #83) */
         const val CARD_BAND_PX = 60
@@ -73,18 +74,36 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
          * 예약·내일 콜도 울린다 (기사님 확정 08-30 — 미리 확보할 가치가 있다).
          * 🔴 이 판정은 «알람을 울릴까»만 정한다 — 클릭은 supportsCatching 이 원천 차단한다.
          */
+        /**
+         * 🗺️ 픽커 줄임 표기 ↔ 도착목표 정규화 대조 (0830 실사고 — 성남행 전부 탈락).
+         * 서버 키워드는 «정자동»·«수정구» 같은 전체 이름인데 픽커 화면은 «정자3»·«수정»으로
+         * 줄인다 — 부분 문자열(RegionMatch)로는 영영 안 만난다. 양쪽에서 행정 접미(동·구)와
+         * 꼬리 숫자를 벗겨 **토큰 단위로 똑같은지** 본다. 토큰 단위라 «남동구» 류의
+         * 부분 문자열 오탐은 없고, 남는 오탐은 동명이동뿐 — 알람은 느슨한 쪽이 맞다 (규칙 ⑤).
+         */
+        fun normalizeRegion(s: String): String =
+            s.removeSuffix("동").removeSuffix("구").trimEnd { it.isDigit() }
+
+        private fun dongTokenMatch(dropoff: String, keys: List<String>): Boolean {
+            val normKeys = keys.map(::normalizeRegion).filter { it.length >= 2 }.toSet()
+            return dropoff.split(' ').map { normalizeRegion(it.trim()) }
+                .any { it.length >= 2 && it in normKeys }
+        }
+
         fun decide(
             order: SimplifiedOfficeOrder,
             minFare: Int,
             pickupRadiusKm: Int,
             destKeywords: List<String> = emptyList(),
             keywordTraps: Map<String, List<String>> = emptyMap(),
+            cityAliases: List<String> = emptyList(),
             tally: FilterTally? = null,
         ): Boolean {
             val fareOk = order.fare >= minFare
             val pickupOk = order.pickupDistance == null || order.pickupDistance <= pickupRadiusKm
             val destOk = destKeywords.isEmpty() || order.dropoff.isBlank() ||
-                com.onedal.app.plugins.RegionMatch.anyHit(order.dropoff, destKeywords, keywordTraps)
+                com.onedal.app.plugins.RegionMatch.anyHit(order.dropoff, destKeywords, keywordTraps) ||
+                dongTokenMatch(order.dropoff, destKeywords + cityAliases)
             val pass = fareOk && pickupOk && destOk
             tally?.let { t ->
                 t.seen++
@@ -105,6 +124,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         val pickupRadiusKm: Int = 10,
         val destKeywords: List<String> = emptyList(),   // 비면 도착지 제한 없음 (관내·구서버)
         val keywordTraps: Map<String, List<String>> = emptyMap(),
+        val cityAliases: List<String> = emptyList(),    // 시 별칭(customCityFilters) — «수정»처럼 구만 남는 카드용
     )
 
     /** 피기백 필터에서 알람 조건을 읽는다 — 못 읽으면 기본값 (서버 미응답 안전망) */
@@ -123,11 +143,15 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
                     else (0 until arr.length()).map { arr.getString(it) }
                 }
             } ?: emptyMap()
+            val aliases = json.optJSONArray("customCityFilters")?.let { arr ->
+                (0 until arr.length()).map { arr.getString(it) }.filter { it.isNotEmpty() }
+            } ?: emptyList()
             AlarmConfig(
                 minFare = json.optInt("pickerAlarmMinFare", 10000),
                 pickupRadiusKm = json.optInt("pickupRadiusKm", 10),
                 destKeywords = keywords,
                 keywordTraps = traps,
+                cityAliases = aliases,
             )
         } catch (e: Exception) {
             AlarmConfig()
@@ -213,7 +237,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
      */
     override fun shouldClick(order: SimplifiedOfficeOrder, tally: FilterTally?): Boolean {
         val c = alarmConfig()
-        val pass = decide(order, c.minFare, c.pickupRadiusKm, c.destKeywords, c.keywordTraps, tally)
+        val pass = decide(order, c.minFare, c.pickupRadiusKm, c.destKeywords, c.keywordTraps, c.cityAliases, tally)
         // 👁️ 축별 판정을 한 줄 남긴다 — «왜 안 울었나»를 로그로 답하기 위해 (첫 실검증 때 수집 데이터로 역추적했다)
         com.onedal.app.core.AppLogger.d("1DAL_PICKER",
             "🔔 [알람 판정] ${order.fare}원·픽업 ${order.pickupDistance ?: "?"}km·도착 ${order.dropoff.ifEmpty { "?" }} — " +
