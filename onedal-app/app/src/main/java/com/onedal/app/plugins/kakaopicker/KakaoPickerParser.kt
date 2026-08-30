@@ -39,6 +39,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             "승",            // 배송수단 표시 (승용차)
             "내일", "오늘",  // 예약 콜의 날짜 표식 (시각 노드와 별개)
             "서포트모드",    // 서포트 모드 관련 배지
+            "착불",          // 결제 배지 — 실수집에서 도착동으로 오인됐다 («착불 분당»)
         )
         private val ITEM_SIZES = setOf("초소형", "소형", "중형", "대형", "특대형")
         /** 화면 붙박이 UI 낱말 — 카드 띠에 섞여 들어와 지역으로 오인되던 것들 (0830 실수집에서 발견) */
@@ -60,40 +61,76 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             kotlin.math.abs(fareCenterY - nodeCenterY) <= CARD_BAND_PX
 
         /**
-         * 🔔 **픽커 알람 판정 — 축은 둘뿐이다** (기사님 확정 2026-08-30 · 픽커_수집.md 3단계).
+         * 🔔 **픽커 알람 판정 — 축은 셋이다** (기사님 확정 2026-08-30 · 픽커_수집.md 3단계).
          *
          *   ① 요금 ≥ 픽커 알람 하한 (원천 DB user_settings.picker_alarm_min_fare · 기본 1만)
          *   ② 픽업거리 ≤ 상차 반경 (기존 국면 값 재사용 — 뜻이 같다)
+         *   ③ 도착 구·동 ↔ 국면의 도착목표 (destinationKeywords·keywordTraps 재사용 —
+         *      노선 국면이면 그 방향만, 도착목표가 비면 제한 없음. RegionMatch 는 인성과 같은 규약)
          *
-         * 픽커엔 배송거리가 없어 단가식이 불가능하고(§2), 차종·도착지·경로 축도 없다.
-         * 픽업거리를 모르면 **막지 않는다** (규칙 ⑤ — 모르는 값으로 거르지 않는다).
+         * 픽커엔 배송거리가 없어 단가식이 불가능하고(§2), 차종·경로 순서 축도 없다.
+         * 픽업거리·도착지를 **모르면 막지 않는다** (규칙 ⑤ — 모르는 값으로 거르지 않는다).
+         * 예약·내일 콜도 울린다 (기사님 확정 08-30 — 미리 확보할 가치가 있다).
          * 🔴 이 판정은 «알람을 울릴까»만 정한다 — 클릭은 supportsCatching 이 원천 차단한다.
          */
-        fun decide(order: SimplifiedOfficeOrder, minFare: Int, pickupRadiusKm: Int, tally: FilterTally? = null): Boolean {
+        fun decide(
+            order: SimplifiedOfficeOrder,
+            minFare: Int,
+            pickupRadiusKm: Int,
+            destKeywords: List<String> = emptyList(),
+            keywordTraps: Map<String, List<String>> = emptyMap(),
+            tally: FilterTally? = null,
+        ): Boolean {
             val fareOk = order.fare >= minFare
             val pickupOk = order.pickupDistance == null || order.pickupDistance <= pickupRadiusKm
-            val pass = fareOk && pickupOk
+            val destOk = destKeywords.isEmpty() || order.dropoff.isBlank() ||
+                com.onedal.app.plugins.RegionMatch.anyHit(order.dropoff, destKeywords, keywordTraps)
+            val pass = fareOk && pickupOk && destOk
             tally?.let { t ->
                 t.seen++
                 when {
                     pass -> t.passed++
                     !fareOk -> t.fare++      // 첫 번째로 걸린 축에만 센다 (인성과 같은 규칙)
-                    else -> t.pickup++
+                    !pickupOk -> t.pickup++
+                    else -> t.region++
                 }
             }
             return pass
         }
     }
 
-    /** 피기백 필터에서 알람 조건 두 값을 읽는다 — 못 읽으면 기본값 (서버 미응답 안전망) */
-    private fun alarmConfig(): Pair<Int, Int> {
+    /** 알람 조건 묶음 — 피기백 필터에서 읽는다. 기본값은 서버 미응답 시 안전망 */
+    private data class AlarmConfig(
+        val minFare: Int = 10000,
+        val pickupRadiusKm: Int = 10,
+        val destKeywords: List<String> = emptyList(),   // 비면 도착지 제한 없음 (관내·구서버)
+        val keywordTraps: Map<String, List<String>> = emptyMap(),
+    )
+
+    /** 피기백 필터에서 알람 조건을 읽는다 — 못 읽으면 기본값 (서버 미응답 안전망) */
+    private fun alarmConfig(): AlarmConfig {
         val prefs = context?.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
-            ?: return Pair(10000, 10)
+            ?: return AlarmConfig()
         return try {
-            val json = JSONObject(prefs.getString("activeFilter", null) ?: return Pair(10000, 10))
-            Pair(json.optInt("pickerAlarmMinFare", 10000), json.optInt("pickupRadiusKm", 10))
+            val json = JSONObject(prefs.getString("activeFilter", null) ?: return AlarmConfig())
+            val keywords = json.optJSONArray("destinationKeywords")?.let { arr ->
+                (0 until arr.length()).map { arr.getString(it) }.filter { it.isNotEmpty() }
+            } ?: emptyList()
+            val traps = json.optJSONObject("keywordTraps")?.let { obj ->
+                obj.keys().asSequence().associateWith { k ->
+                    val arr = obj.optJSONArray(k)
+                    if (arr == null) emptyList()
+                    else (0 until arr.length()).map { arr.getString(it) }
+                }
+            } ?: emptyMap()
+            AlarmConfig(
+                minFare = json.optInt("pickerAlarmMinFare", 10000),
+                pickupRadiusKm = json.optInt("pickupRadiusKm", 10),
+                destKeywords = keywords,
+                keywordTraps = traps,
+            )
         } catch (e: Exception) {
-            Pair(10000, 10)
+            AlarmConfig()
         }
     }
 
@@ -129,6 +166,8 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
                 t.startsWith("준비 ") -> tags.add(t)                 // «준비 29분»
                 TIME_REGEX.matches(t) -> { scheduleTime = t; tags.add(t) }   // «예약» 뒤의 «17:00»
                 t in NOISE_WORDS -> { /* 화면 UI 낱말 — 콜 정보가 아니다, 버린다 */ }
+                // «내일 착불» 처럼 태그 여럿이 한 노드로 붙어 오는 판 — 낱낱이 전부 태그면 태그다
+                t.contains(' ') && t.split(' ').all { it in TAG_WORDS } -> tags.addAll(t.split(' '))
                 t.endsWith("km") -> { /* «20km» 같은 헤더 반경 — 콜 정보가 아니다 */ }
                 t.isNotEmpty() -> locations.add(t)
             }
@@ -173,11 +212,12 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
      * 알람 모드에서 소리·진동·테두리만 울린다. 지문 기억 덕에 콜당 한 번이다 (#79 배선).
      */
     override fun shouldClick(order: SimplifiedOfficeOrder, tally: FilterTally?): Boolean {
-        val (minFare, pickupRadiusKm) = alarmConfig()
-        val pass = decide(order, minFare, pickupRadiusKm, tally)
+        val c = alarmConfig()
+        val pass = decide(order, c.minFare, c.pickupRadiusKm, c.destKeywords, c.keywordTraps, tally)
         // 👁️ 축별 판정을 한 줄 남긴다 — «왜 안 울었나»를 로그로 답하기 위해 (첫 실검증 때 수집 데이터로 역추적했다)
         com.onedal.app.core.AppLogger.d("1DAL_PICKER",
-            "🔔 [알람 판정] ${order.fare}원·픽업 ${order.pickupDistance ?: "?"}km — 하한 ${minFare}·반경 ${pickupRadiusKm}km → ${if (pass) "통과" else "탈락"}")
+            "🔔 [알람 판정] ${order.fare}원·픽업 ${order.pickupDistance ?: "?"}km·도착 ${order.dropoff.ifEmpty { "?" }} — " +
+            "하한 ${c.minFare}·반경 ${c.pickupRadiusKm}km·도착목표 ${c.destKeywords.size}개 → ${if (pass) "통과" else "탈락"}")
         return pass
     }
 

@@ -60,21 +60,53 @@ class KakaoPickerParserTest {
     }
 
     @Test
-    fun `알람 판정 - 요금 하한과 상차 반경 두 축뿐이다`() {
+    fun `알람 판정 - 요금 하한·상차 반경·도착지 세 축이다`() {
         val good = parser.parse(listOf("퀵", "반나절", "승", "강동", "14,466", "19.6km", "하남", "신장2", "천호3"))
         // 반경 20km 면 통과 → 알람 대상
         val t1 = FilterTally()
-        assertTrue(KakaoPickerParser.decide(good, 10000, 20, t1))
+        assertTrue(KakaoPickerParser.decide(good, 10000, 20, tally = t1))
         assertEquals(1, t1.passed)
         // 같은 콜도 반경 15km 면 픽업거리 축에서 떨어진다
         val t2 = FilterTally()
-        assertFalse(KakaoPickerParser.decide(good, 10000, 15, t2))
+        assertFalse(KakaoPickerParser.decide(good, 10000, 15, tally = t2))
         assertEquals(1, t2.pickup)
         // 요금 미달은 요금 축
         val cheap = parser.parse(listOf("퀵", "소형", "광주", "3,000", "1.0km", "광주", "경안", "경안"))
         val t3 = FilterTally()
-        assertFalse(KakaoPickerParser.decide(cheap, 10000, 20, t3))
+        assertFalse(KakaoPickerParser.decide(cheap, 10000, 20, tally = t3))
         assertEquals(1, t3.fare)
+    }
+
+    @Test
+    fun `알람 판정 - 도착지 축은 국면의 도착목표를 재사용한다 (기사님 확정 0830)`() {
+        // 도착 «강동 천호3» — 도착목표가 성남·분당이면 방향이 달라 안 울린다
+        val good = parser.parse(listOf("퀵", "반나절", "승", "강동", "14,466", "19.6km", "하남", "신장2", "천호3"))
+        val t1 = FilterTally()
+        assertFalse(KakaoPickerParser.decide(good, 10000, 20, listOf("성남", "분당"), emptyMap(), t1))
+        assertEquals(1, t1.region)
+        // 도착목표에 강동이 있으면 울린다
+        assertTrue(KakaoPickerParser.decide(good, 10000, 20, listOf("강동", "송파"), emptyMap()))
+        // 도착목표가 비어 있으면(관내 등) 제한 없음 — 지금까지의 동작 그대로
+        assertTrue(KakaoPickerParser.decide(good, 10000, 20, emptyList(), emptyMap()))
+    }
+
+    @Test
+    fun `알람 판정 - 도착지를 못 읽은 카드는 막지 않는다 (규칙 5 - 모르는 값으로 거르지 않는다)`() {
+        // 화면 끝에 걸린 카드 — 도착 동이 안 잡혀 dropoff 가 빈다 (실수집 4건)
+        val edge = parser.parse(listOf("퀵", "소형", "12,000", "5.0km", "태평1"))
+        assertTrue(edge.dropoff.isEmpty())
+        assertTrue(KakaoPickerParser.decide(edge, 10000, 20, listOf("성남"), emptyMap()))
+    }
+
+    @Test
+    fun `0830 실수집 - 착불 배지와 «내일 착불» 겹노드를 지역으로 오인하지 않는다`() {
+        // 실수집에서 pickup="내일 착불", dropoff="착불 분당" 으로 저장됐던 그 모양
+        // (21:26 실물 스크린샷의 «강남 대치2 · 16,478 · 착불» 카드)
+        val texts = listOf("퀵", "승", "예약", "내일 착불", "강남", "16,478", "15.1km", "분당", "수내3", "대치2")
+        val o = parser.parse(texts)
+        assertEquals("분당 수내3", o.pickup)
+        assertEquals("강남 대치2", o.dropoff)
+        assertTrue(o.tagsText!!.contains("착불"))
     }
 
     @Test
