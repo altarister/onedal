@@ -131,11 +131,11 @@ export default function OrderFilterStatus({ onOpenFilter, budgetToast }:
     };
 
     return (
-        <div id="filter-status" className="relative border-b border-border-card bg-bg-base">
+        <div id="filter-status" className="relative mx-3 my-2 rounded-xl border border-border-card overflow-hidden shadow-lg" style={{ background: "linear-gradient(180deg,#131a2b,#0f1522)" }}>
             {/* 지금 국면 — 누르면 필터 설정 팝업 */}
             <div
                 onClick={onOpenFilter}
-                className="flex items-center justify-between gap-2 px-4 pt-3 pb-2 cursor-pointer transition-colors hover:bg-surface-hover/40 active:scale-[0.995]"
+                className="flex items-center justify-between gap-2 px-4 pt-3 pb-2.5 cursor-pointer transition-colors hover:bg-surface-hover/40 active:scale-[0.995] border-b border-white/5"
             >
                 {/* ── v13 확정안 (기사님 0831): 심사석과 같은 머리글 문법 —
                     왼쪽 «국면명 + 방향», 오른쪽 «상태». 취소 카운트는 뺐다(확정안 — 80% 경고가
@@ -166,7 +166,7 @@ export default function OrderFilterStatus({ onOpenFilter, budgetToast }:
 
             {/* 국면 버튼 — 지금 것은 눌리지 않고, 다른 것은 확인을 받고 바뀐다.
                 하루 흐름 순서(노선행 → 이 동네 → 복귀행)로 나열한다 */}
-            <div className="grid grid-cols-3 gap-1 px-3 pb-2.5">
+            <div className="grid grid-cols-3 gap-2 px-3 py-2.5">
                 {PHASES.map(p => {
                     const st = PHASE_STYLE[p];
                     const isCurrent = p === phase;

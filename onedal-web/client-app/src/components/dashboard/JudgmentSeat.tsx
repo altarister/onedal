@@ -82,7 +82,7 @@ export default function JudgmentSeat({ route, confirmedActive, onDecision, proce
     // ── 직접·알람: 물든 판 (보기만) ──
     if (manual) {
         return (
-            <div className="relative overflow-hidden border-b-2" style={{ borderColor: c ? `${c.bar}70` : '#2a3450' }}>
+            <div className="relative overflow-hidden mx-3 my-2 rounded-xl border shadow-lg" style={{ borderColor: c ? `${c.bar}70` : '#2a3450', background: 'linear-gradient(180deg,#131a2b,#0f1522)' }}>
                 {judged && <div className="absolute inset-0 z-0" style={{ background: `linear-gradient(165deg, ${c!.tint} 0%, transparent 75%)` }} />}
                 <div className="absolute left-0 top-0 bottom-0 w-[5px] z-10" style={{ background: c?.bar ?? '#3a4358', boxShadow: c ? `2px 0 14px ${c.glow}` : undefined }} />
                 {watermark(true)}
@@ -119,7 +119,7 @@ export default function JudgmentSeat({ route, confirmedActive, onDecision, proce
 
     // ── 자동콜: 아래 전체가 버튼 (35:65) ──
     return (
-        <div className="relative overflow-hidden border-b-2 border-info/40">
+        <div className="relative overflow-hidden mx-3 my-2 rounded-xl border border-info/40 shadow-lg" style={{ background: 'linear-gradient(180deg,#131a2b,#0f1522)' }}>
             {header}
             <div className="flex gap-2.5 px-3.5 pt-2 pb-3 relative z-10">
                 <button disabled={!judged || busy}
