@@ -256,3 +256,27 @@ export function parseDetailedRawText(rawText: string): any {
     return result;
 }
 
+
+/**
+ * 📍 **팝업 상세의 «위치»를 콜 주소로 승격한다 — 유일한 자리** (2026-08-30 · 버그 대장 #77).
+ *
+ * 리스트가 주는 주소는 법정동 한 칸(«곤지암읍»)이거나, 오파싱 가드에 막혀
+ * «수집중(상세확인필요)» 일 수 있다. 팝업 상세의 «위치» 칸이 온전한 전체 주소이므로
+ * 있으면 그것이 이긴다 — 지오코딩·경로·progressKm 가 전부 이 주소 위에 선다.
+ *
+ * 🔴 예전에는 이 승격이 **심사(OrderEvaluator) 안에만** 있었다. 직접콜은 규칙 ①
+ *    (심사하지 않는다)로 그 문을 안 지나 승격을 못 받았고, 알람 모드 첫 실전에서
+ *    주소 없는 콜이 경로를 오염시켜 미탐 2·오탐 1 을 만들었다 (7지점 문제지 · 12:59 실측).
+ *    → detail 수신 직후(분기 전)와 심사가 **같은 이 함수**를 쓴다 (규칙 ③).
+ *
+ * ⚠️ «위치»가 없으면 아무것도 하지 않는다 — 없는 주소를 지어내지 않는다 (규칙 ④).
+ */
+export function promoteDetailAddresses(order: {
+    pickup?: string; dropoff?: string;
+    pickupDetails?: LocationDetailInfo[]; dropoffDetails?: LocationDetailInfo[];
+}): void {
+    const pickupAddr = order.pickupDetails?.[0]?.addressDetail;
+    if (pickupAddr) order.pickup = pickupAddr;
+    const dropoffAddr = order.dropoffDetails?.[0]?.addressDetail;
+    if (dropoffAddr) order.dropoff = dropoffAddr;
+}

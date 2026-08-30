@@ -5,7 +5,7 @@
 import { Router } from "express";
 import type { DispatchConfirmRequest, OrderStatus, PendingOrder, SecuredOrder } from "@onedal/shared";
 import { isTerminal } from "@onedal/shared";
-import { parseLocationDetails, parseMockupFare, parseMockupDistance, parseMockupVehicleType, parseDetailedRawText } from "../utils/parser";
+import { parseLocationDetails, promoteDetailAddresses, parseMockupFare, parseMockupDistance, parseMockupVehicleType, parseDetailedRawText } from "../utils/parser";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { DISPATCH_CONFIG } from "../config/dispatchConfig";
 import { getUserSession } from "../state/userSessionStore";
@@ -64,6 +64,15 @@ router.post("/", async (req, res) => {
 
             pendingOrder.pickupDetails = parseLocationDetails(rawText, "[출발지상세]");
             pendingOrder.dropoffDetails = parseLocationDetails(rawText, "[도착지상세]");
+
+            /**
+             * 📍 **주소 승격은 분기 «앞» 여기 한 번이다** (2026-08-30 · 버그 대장 #77).
+             *
+             * 예전에는 심사 안에만 있어서 직접콜(즉시 KEEP)·«수집중» 콜이 주소 없이
+             * 장부에 남았고, 알람 모드 첫 실전에서 그 콜이 경로·progressKm 를 오염시켜
+             * 미탐 2·오탐 1 을 만들었다. 필터콜·직접콜·미리보기가 **같은 문**으로 받는다.
+             */
+            promoteDetailAddresses(pendingOrder);
 
             if (!pendingOrder.fare || pendingOrder.fare <= 0) {
                 pendingOrder.fare = parseMockupFare(rawText) || 0;
