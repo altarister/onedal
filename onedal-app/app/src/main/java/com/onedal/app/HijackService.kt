@@ -10,10 +10,12 @@ import com.onedal.app.plugins.hwamul24.Hwamul24Keywords
 import com.onedal.app.plugins.insung.InsungKeywords
 import com.onedal.app.core.AlarmSignaler
 import com.onedal.app.core.AutoTouchManager
+import com.onedal.app.core.CallMemory
 import com.onedal.app.core.ScrapParser
 import com.onedal.app.plugins.insung.InsungParser
 import com.onedal.app.core.ScreenKeywords
 import com.onedal.app.core.ScreenTextNode
+import com.onedal.app.core.engine.PreConfirmGate
 import com.onedal.app.core.engine.ScreenDetector
 import com.onedal.app.core.engine.SessionManager
 import com.onedal.app.core.engine.DetailCollectMachine
@@ -84,7 +86,8 @@ class HijackService : AccessibilityService() {
     private lateinit var keywords: ScreenKeywords
     private val screenDetector = ScreenDetector()
     private var lastScreenFingerprint = 0
-    private val processedOrderHashes = mutableSetOf<Int>()
+    // 👁️ «본 콜» 장부 — «평가했다»와 «보고했다»를 딴 그릇으로 (#79 · CallMemory 주석 참고)
+    private val callMemory = CallMemory(MAX_ORDER_HASH_CACHE, ORDER_HASH_KEEP_COUNT)
     private var currentTargetApp = "insung"
 
     /**
@@ -479,14 +482,22 @@ class HijackService : AccessibilityService() {
              * 조용히 건너뛰었고, **서버를 고쳤는지조차 확인 못 했다.**
              * (캐시는 접근성 토글로 서비스가 새로 만들어져야 비워진다 — 앱을 밀어내도 안 된다)
              */
-            if (processedOrderHashes.contains(orderHash)) {
+            if (callMemory.alreadyEvaluated(orderHash)) {
                 AppLogger.d(TAG, "⏭️ [이미 본 콜] ${order.pickup.take(14)} → ${order.dropoff.take(14)} " +
-                    "${order.fare}원 (지문 $orderHash · 기억 ${processedOrderHashes.size}개)")
+                    "${order.fare}원 (지문 $orderHash · 기억 ${callMemory.evaluatedCount}개)")
                 continue
             }
 
             // 🌟 [항시 인터셉터] 콜 필터 매칭 검사 (디버그 로그를 위해 MANUAL/AUTO 무관하게 항시 실행)
+            /**
+             * 🔒 **평가가 실제로 돌았는지는 성적표가 답한다** (#79 · 2026-08-30).
+             * `decide()` 는 필터가 잠겨 있으면(선점 중·대기) 첫 줄에서 돌아서며
+             * `tally.seen` 을 올리지 않는다 — 앞뒤 차이가 «평가했다»의 유일한 원천이다.
+             * 여기서 필터를 다시 읽어 판단하면 decide 와 두 벌이 된다 (규칙 ③).
+             */
+            val seenBefore = tally.seen
             val isTarget = scrapParser.shouldClick(order, tally)
+            val wasEvaluated = tally.seen > seenBefore
 
             /**
              * 🔔 **알람 모드 — 앱은 안 누르고, 그 줄을 가리킨다** (기사님 확정 2026-08-30 · 2단계).
@@ -507,7 +518,7 @@ class HijackService : AccessibilityService() {
                     
                     // 🚀 [지뢰 탐지기] 2차 똥콜 판명 후 리스트로 튕겨나왔을 때 또 누르는 것을 방지하기 위해 터치 직전에 지문 선(先)등재!
                     AppLogger.d(TAG, "📝 [AUTO] 2차 검증 반송(취소)에 대비해 해당 콜 지문 선(先)기록 완료 (해시: $orderHash)")
-                    processedOrderHashes.add(orderHash)
+                    callMemory.markEvaluated(orderHash)
                     
                     val appLabel = keywords.appLabel
                     AppLogger.roadmap("리스트에서 바뀐 text 감지 후 text 추출", telemetryManager.currentScreenContext.name)
@@ -535,10 +546,22 @@ class HijackService : AccessibilityService() {
                 }
             }
 
-            // 4) 신규 콜 → 서버에 텔레메트리 보고
-            processedOrderHashes.add(orderHash)
-            telemetryManager.enqueue(order)
-            recentListOrders.add(order)
+            // 4) 신규 콜 → 서버에 텔레메트리 보고 — **보고는 콜당 한 번** (평가와 딴 그릇 · #79)
+            if (callMemory.markReportedOnce(orderHash)) {
+                telemetryManager.enqueue(order)
+                recentListOrders.add(order)
+            }
+            /**
+             * 🔒 평가가 안 돈 콜(선점 잠금·대기)은 **기억에 남기지 않는다** (#79).
+             * 잠금이 풀리는 다음 스캔에서 처음처럼 평가된다 — 콜을 잡는 10~30초 사이에
+             * 나타난 콜을 영영 삼키던 사고의 수리 지점이다. 로그를 남기는 이유는 08-25 와
+             * 같다: 침묵하면 «필터가 막았나/잠겼나/못 읽었나»를 가릴 수 없다.
+             */
+            callMemory.onScanned(orderHash, wasEvaluated)
+            if (!wasEvaluated) {
+                AppLogger.d(TAG, "🔒 [평가 보류] ${order.pickup.take(14)} → ${order.dropoff.take(14)} " +
+                    "${order.fare}원 — 필터 잠김(선점 중·대기), 다음 스캔에서 다시 본다")
+            }
         }
 
         /**
@@ -582,12 +605,7 @@ class HijackService : AccessibilityService() {
          */
         telemetryManager.filterTally = tally
 
-        // 메모리 관리
-        if (processedOrderHashes.size > MAX_ORDER_HASH_CACHE) {
-            val keepers = processedOrderHashes.toList().takeLast(ORDER_HASH_KEEP_COUNT)
-            processedOrderHashes.clear()
-            processedOrderHashes.addAll(keepers)
-        }
+        // 메모리 관리 (지문 장부는 CallMemory 가 스스로 자른다)
         if (recentListOrders.size > MAX_ORDER_HASH_CACHE) {
             val keepers = recentListOrders.takeLast(ORDER_HASH_KEEP_COUNT)
             recentListOrders.clear()
@@ -603,7 +621,8 @@ class HijackService : AccessibilityService() {
         // 잔상 방어: 팝업이 아직 닫히지 않았으면 무시
         if (isPopupResidue(rawScreenStr)) return
 
-        if (session.isDetailScrapSent) return // 이미 전송/결정함
+        // 이미 전송/결정함 — 단, 3단계에서 돌아와 확정/취소를 마저 눌러야 하면 계속 간다 (#82)
+        if (PreConfirmGate.shouldSkip(session.isDetailScrapSent, session.cautionAction)) return
 
         ensureSessionId()
         
@@ -693,8 +712,40 @@ class HijackService : AccessibilityService() {
             return
         }
 
+        /**
+         * ── [3단계 팝업에서 돌아온 경우] **예약된 클릭만 한다 — 재평가하지 않는다** (#82).
+         *
+         * 평가는 1차 진입에서 끝났다. 이 시점에는 **자기 /confirm 이 만든 선점 잠금**
+         * (피기백 isActive=false)이 이미 폰에 내려와 있어, 2차 필터를 다시 돌리면
+         * «탈락»으로 오판해 방금 통과한 콜을 취소해 버린다. 8판 실측(16:54:21 피기백)이
+         * 그 증거다. 여기서는 팝업 검증의 결론(확정/취소)을 집행만 한다.
+         */
+        if (session.isAutoActive) {
+            when (session.cautionAction) {
+                "ACCEPT" -> {
+                    session.cautionAction = null
+                    AppLogger.d(TAG, "✅ [3단계 통과] 진짜 우리 동네! 확정 클릭!")
+                    AppLogger.roadmap("상세페이지에서 확정 버튼 클릭 (동명이동 3단계 검증 통과)", telemetryManager.currentScreenContext.name)
+                    AppLogger.roadmap("[${keywords.appLabel}] 콜 확정 완료", telemetryManager.currentScreenContext.name)
+                    clickFirstMatchingButton(rootNode, keywords.confirmKeywords)
+                    return
+                }
+                "CANCEL" -> {
+                    session.cautionAction = null
+                    AppLogger.w(TAG, "❌ [3단계 적발] 동명이동! 패널티 없이 취소!")
+                    AppLogger.roadmap("상세페이지에서 '${keywords.cancelKeyword}' 클릭 (동명이동 3단계 적발)", telemetryManager.currentScreenContext.name)
+                    if (!touchManager.findAndClickByText(rootNode, keywords.cancelKeyword, isStartsWith = true)) {
+                        touchManager.performBack()
+                    }
+                    AppLogger.roadmap("리스트 페이지 진입 (동명이동 회피 성공)", telemetryManager.currentScreenContext.name)
+                    resetSessionState()
+                    return
+                }
+            }
+        }
+
         AppLogger.roadmap("상세페이지 텍스트 추출 및 2차 필터(적요 등) 통과 확인", telemetryManager.currentScreenContext.name)
-        
+
         val isTarget = scrapParser.shouldClick(finalOrder)
 
         if (!session.isAutoActive || isTarget) {
@@ -713,63 +764,40 @@ class HijackService : AccessibilityService() {
             
             // ⚡ AUTO 모드 확정 버튼 처리 (자동 콜 잡기 중일 때만)
             if (session.isAutoActive) {
-                // 앱별 확정/취소 버튼 텍스트 가져오기
+                // 앱별 확정 버튼 텍스트 가져오기 (취소 클릭은 #82 이후 함수 첫머리 CANCEL 집행부에 있다)
                 val confirmBtnTexts = keywords.confirmKeywords
-                val cancelBtnText = keywords.cancelKeyword
                 val appLabel = keywords.appLabel
 
-                // ── [3단계 팝업에서 돌아온 경우] ──
-                when (session.cautionAction) {
-                    "ACCEPT" -> {
-                        session.cautionAction = null
-                        AppLogger.d(TAG, "✅ [3단계 통과] 진짜 우리 동네! 확정 클릭!")
-                        AppLogger.roadmap("상세페이지에서 확정 버튼 클릭 (동명이동 3단계 검증 통과)", telemetryManager.currentScreenContext.name)
+                // ── [최초 진입] 도착지가 동명이동 주의 동네인지 확인 ──
+                //    (3단계에서 돌아온 ACCEPT/CANCEL 은 이 함수 첫머리가 재평가 없이 집행한다 · #82)
+                val dropoffWords = finalOrder.dropoff.split("\\s+".toRegex())
+                val isCautionDong = CautionDongVerifier.CAUTION_DONGS.any { dong -> dropoffWords.any { it == dong } }
+
+                if (isCautionDong) {
+                    // [2단계] 화면에 상위 지역이 이미 보이는지 확인
+                    val cityFilters = cautionVerifier.loadCityFilters()
+                    val screenStr = screenTexts.joinToString(" ")
+                    val hasCityOnScreen = cityFilters.any { screenStr.contains(it, ignoreCase = true) }
+
+                    if (hasCityOnScreen) {
+                        // 2단계 통과! 화면에 상위 지역이 이미 적혀있음 → 즉시 확정
+                        AppLogger.d(TAG, "✅ [2단계 통과] 화면에서 상위 지역 확인! 즉시 확정!")
+                        AppLogger.roadmap("상세페이지에서 확정 버튼 클릭 (동명이동 2단계 통과)", telemetryManager.currentScreenContext.name)
                         AppLogger.roadmap("[$appLabel] 콜 확정 완료", telemetryManager.currentScreenContext.name)
                         clickFirstMatchingButton(rootNode, confirmBtnTexts)
-                    }
-                    "CANCEL" -> {
-                        session.cautionAction = null
-                        AppLogger.w(TAG, "❌ [3단계 적발] 동명이동! 패널티 없이 취소!")
-                        AppLogger.roadmap("상세페이지에서 '$cancelBtnText' 클릭 (동명이동 3단계 적발)", telemetryManager.currentScreenContext.name)
-                        if (!touchManager.findAndClickByText(rootNode, cancelBtnText, isStartsWith = true)) {
-                            touchManager.performBack()
-                        }
-                        AppLogger.roadmap("리스트 페이지 진입 (동명이동 회피 성공)", telemetryManager.currentScreenContext.name)
-                        resetSessionState()
+                    } else {
+                        // 2단계 보류 → 3단계(팝업) 돌입!
+                        AppLogger.w(TAG, "⚠️ [3단계 돌입] 화면에 상위 지역 없음! 도착지 팝업 호출!")
+                        session.cautionAction = "VERIFY"
+                        touchManager.findAndClickByText(rootNode, "도착지", isStartsWith = true)
                         return
                     }
-                    else -> {
-                        // ── [최초 진입] 도착지가 동명이동 주의 동네인지 확인 ──
-                        val dropoffWords = finalOrder.dropoff.split("\\s+".toRegex())
-                        val isCautionDong = CautionDongVerifier.CAUTION_DONGS.any { dong -> dropoffWords.any { it == dong } }
-
-                        if (isCautionDong) {
-                            // [2단계] 화면에 상위 지역이 이미 보이는지 확인
-                            val cityFilters = cautionVerifier.loadCityFilters()
-                            val screenStr = screenTexts.joinToString(" ")
-                            val hasCityOnScreen = cityFilters.any { screenStr.contains(it, ignoreCase = true) }
-
-                            if (hasCityOnScreen) {
-                                // 2단계 통과! 화면에 상위 지역이 이미 적혀있음 → 즉시 확정
-                                AppLogger.d(TAG, "✅ [2단계 통과] 화면에서 상위 지역 확인! 즉시 확정!")
-                                AppLogger.roadmap("상세페이지에서 확정 버튼 클릭 (동명이동 2단계 통과)", telemetryManager.currentScreenContext.name)
-                                AppLogger.roadmap("[$appLabel] 콜 확정 완료", telemetryManager.currentScreenContext.name)
-                                clickFirstMatchingButton(rootNode, confirmBtnTexts)
-                            } else {
-                                // 2단계 보류 → 3단계(팝업) 돌입!
-                                AppLogger.w(TAG, "⚠️ [3단계 돌입] 화면에 상위 지역 없음! 도착지 팝업 호출!")
-                                session.cautionAction = "VERIFY"
-                                touchManager.findAndClickByText(rootNode, "도착지", isStartsWith = true)
-                                return
-                            }
-                        } else {
-                            // 일반 콜: 기존처럼 확정 버튼을 즉시 누른다 (선점필승)
-                            AppLogger.d(TAG, "🚀 [AUTO] 확정 버튼 즉시 클릭 (배차 시도)")
-                            AppLogger.roadmap("상세페이지에서 확정 버튼 클릭", telemetryManager.currentScreenContext.name)
-                            AppLogger.roadmap("[$appLabel] 콜 확정 완료", telemetryManager.currentScreenContext.name)
-                            clickFirstMatchingButton(rootNode, confirmBtnTexts)
-                        }
-                    }
+                } else {
+                    // 일반 콜: 기존처럼 확정 버튼을 즉시 누른다 (선점필승)
+                    AppLogger.d(TAG, "🚀 [AUTO] 확정 버튼 즉시 클릭 (배차 시도)")
+                    AppLogger.roadmap("상세페이지에서 확정 버튼 클릭", telemetryManager.currentScreenContext.name)
+                    AppLogger.roadmap("[$appLabel] 콜 확정 완료", telemetryManager.currentScreenContext.name)
+                    clickFirstMatchingButton(rootNode, confirmBtnTexts)
                 }
             }
         } else {
