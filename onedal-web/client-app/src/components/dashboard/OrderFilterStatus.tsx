@@ -30,6 +30,9 @@ import { logRoadmapEvent } from "../../lib/roadmapLogger";
  */
 const PHASES: CallTarget[] = ['DEST', 'LOCAL', 'HOME'];
 
+/** v13 짧은 국면명 — 머리글·버튼 공용 (긴 설명은 hint·확인창에 산다) */
+const SHORT_NAME: Record<CallTarget, string> = { DEST: '노선행', LOCAL: '관내', HOME: '복귀행' };
+
 const PHASE_STYLE: Record<CallTarget, { icon: string; accent: string; hint: string }> = {
     DEST:  { icon: '🎯', accent: 'text-info',       hint: '목적지로 가는 콜 — 첫짐·합짐' },
     LOCAL: { icon: '🏘️', accent: 'text-accent-alt', hint: '같은 시 안에서 끝나는 콜' },
@@ -131,12 +134,13 @@ export default function OrderFilterStatus({ onOpenFilter, budgetToast }:
     };
 
     return (
-        <div id="filter-status" className="relative mx-3 my-2 rounded-xl border border-border-card overflow-hidden shadow-lg" style={{ background: "linear-gradient(180deg,#131a2b,#0f1522)" }}>
+        <div id="filter-status" className="relative mx-3 my-2 rounded-xl border border-border-card overflow-hidden shadow-lg flex flex-col" style={{ background: "linear-gradient(180deg,#131a2b,#0f1522)", height: 158 }}>
             {/* 지금 국면 — 누르면 필터 설정 팝업.
                 v13 구조: 줄마다 독립 — [머리글 42px] / [지표 38px], 각 줄 헤어라인 (한 덩어리 금지 · 0831) */}
-            <div onClick={onOpenFilter} className="cursor-pointer transition-colors hover:bg-surface-hover/40 active:scale-[0.995]">
-                <div className="flex items-center" style={{ gap: 10, padding: '0 16px', minHeight: 42, fontSize: 14, borderBottom: '1px solid rgba(255,255,255,.06)' }}>
-                    <span className={`font-black whitespace-nowrap ${PHASE_STYLE[phase].accent}`}>{PHASE_STYLE[phase].icon} {CALL_TARGET_LABEL[phase]}</span>
+            <div onClick={onOpenFilter} className="cursor-pointer transition-colors hover:bg-surface-hover/40 active:scale-[0.995] flex flex-col" style={{ flex: 2 }}>
+                <div className="flex items-center" style={{ gap: 10, padding: '0 18px', flex: 1, fontSize: 14.5, borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+                    <span style={{ borderRadius: 7, padding: '3px 10px', fontSize: 12, fontWeight: 800, background: 'rgba(79,141,249,.14)', border: '1px solid rgba(79,141,249,.35)' }}>{PHASE_STYLE[phase].icon}</span>
+                    <span className={`font-black whitespace-nowrap ${PHASE_STYLE[phase].accent}`}>{SHORT_NAME[phase]}</span>
                     <span className="text-text-primary font-bold truncate" style={{ fontSize: 13.5 }}>{headline(phase)}</span>
                     {/* 🔒 손으로 고친 필터는 자동 갱신이 덮어쓰지 않는다 — 자리는 안 먹는다 */}
                     {filter.userOverrides && (
@@ -147,7 +151,7 @@ export default function OrderFilterStatus({ onOpenFilter, budgetToast }:
                     <span className="text-text-muted text-sm shrink-0">⚙️</span>
                 </div>
                 {/* ── 순서를 고정한다 (명세 §4-1) — 💰 금액 · 📍 지역 · 📦 적재 ── */}
-                <div className="flex items-center text-text-muted font-medium tabular-nums truncate" style={{ gap: 8, padding: '0 16px', minHeight: 38, fontSize: 12.5, borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+                <div className="flex items-center text-text-muted font-medium tabular-nums truncate" style={{ gap: 8, padding: '0 18px', flex: 1, fontSize: 13, borderBottom: '1px solid rgba(255,255,255,.06)' }}>
                     💰 {callDiscountLabel}
                     <span className="opacity-70">(1t ≥ {oneTonRate.toLocaleString()}원/km)</span>
                     <span className="mx-1 opacity-40">·</span>
@@ -159,7 +163,7 @@ export default function OrderFilterStatus({ onOpenFilter, budgetToast }:
 
             {/* 국면 버튼 — 지금 것은 눌리지 않고, 다른 것은 확인을 받고 바뀐다.
                 하루 흐름 순서(노선행 → 이 동네 → 복귀행)로 나열한다 */}
-            <div className="grid grid-cols-3 gap-2 px-3 py-2.5">
+            <div className="grid grid-cols-3" style={{ gap: 8, padding: "8px 14px 12px", flex: 1 }}>
                 {PHASES.map(p => {
                     const st = PHASE_STYLE[p];
                     const isCurrent = p === phase;
@@ -169,12 +173,12 @@ export default function OrderFilterStatus({ onOpenFilter, budgetToast }:
                             onClick={(e) => { e.stopPropagation(); goPhase(p); }}
                             disabled={isCurrent}
                             title={isCurrent ? '지금 이 국면입니다' : `${CALL_TARGET_LABEL[p]} — ${st.hint}`}
-                            className={`py-2 rounded-lg text-[13px] font-black transition-all border ${isCurrent
+                            style={{ borderRadius: 10, fontSize: 13.5 }}
+                            className={`font-black transition-all border ${isCurrent
                                 ? `${st.accent} border-current/40 bg-surface-alt cursor-default`
                                 : 'text-text-muted border-border bg-surface-alt/40 hover:bg-surface-hover hover:text-text-primary active:scale-95'}`}
                         >
-                            {st.icon} {CALL_TARGET_LABEL[p]}
-                            {isCurrent && <span className="ml-1 opacity-60">●</span>}
+                            {st.icon} {SHORT_NAME[p]}
                         </button>
                     );
                 })}

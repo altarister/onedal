@@ -88,7 +88,7 @@ export default function JudgmentSeat({ route, confirmedActive, onDecision, proce
     // ── 직접·알람: 물든 판 (보기만) — v13 .soak ──
     if (manual) {
         return (
-            <div className="relative overflow-hidden" style={{ margin: '8px 12px', borderRadius: 14, border: `1px solid ${c ? `${c.bar}73` : '#2a3450'}`, background: CARD_BG, boxShadow: '0 8px 28px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.04)' }}>
+            <div className="relative overflow-hidden flex flex-col" style={{ margin: '8px 12px', borderRadius: 14, border: `1px solid ${c ? `${c.bar}73` : '#2a3450'}`, background: CARD_BG, boxShadow: '0 8px 28px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.04)', height: open ? 'auto' : 158, minHeight: 158 }}>
                 {judged && <div className="absolute inset-0 z-0" style={{ background: `linear-gradient(165deg, ${c!.tint} 0%, rgba(0,0,0,0) 45%, transparent 100%)` }} />}
                 <div className="absolute left-0 top-0 bottom-0 z-10" style={{ width: 5, background: c ? `linear-gradient(180deg, ${c.bar}, ${c.bar}59)` : '#3a4358', boxShadow: c ? `2px 0 14px ${c.glow}` : undefined }} />
                 {/* v13 .wm — 158px · right 2 · bottom -34 */}
@@ -132,12 +132,12 @@ export default function JudgmentSeat({ route, confirmedActive, onDecision, proce
 
     // ── 자동콜: 아래 전체가 버튼 35:65 — v13 .btns ──
     return (
-        <div className="relative overflow-hidden" style={{ margin: '8px 12px', borderRadius: 14, border: '1px solid rgba(79,141,249,.35)', background: CARD_BG, boxShadow: '0 8px 28px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.04)' }}>
+        <div className="relative overflow-hidden flex flex-col" style={{ margin: '8px 12px', borderRadius: 14, border: '1px solid rgba(79,141,249,.35)', background: CARD_BG, boxShadow: '0 8px 28px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.04)', height: 158 }}>
             {header}
-            <div className="flex relative z-10" style={{ gap: 9, padding: '8px 13px 13px' }}>
+            <div className="flex relative z-10" style={{ gap: 9, padding: '8px 13px 13px', flex: 1, minHeight: 0 }}>
                 <button disabled={!judged || busy}
                     onClick={() => { setProcessingId?.(route.id); onDecision?.(route.id, 'SAFE_CANCEL'); }}
-                    className="text-left disabled:opacity-40"
+                    className="text-left disabled:opacity-40 overflow-hidden"
                     style={{ flex: 35, borderRadius: 11, padding: '8px 12px', fontSize: 13.5, fontWeight: 700, lineHeight: 1.7,
                              background: 'linear-gradient(180deg,#3a1518,#2c1013)', color: '#e79aa2', border: '1px solid rgba(224,85,99,.35)' }}>
                     {judged ? (negatives.length ? negatives.map(r => `❌ ${r}`).join('\n') : '거절') : '❌ —'}
@@ -163,7 +163,7 @@ export default function JudgmentSeat({ route, confirmedActive, onDecision, proce
                                 {hourly != null ? <>{hourly.toFixed(1)}만<span style={{ fontSize: 13, fontWeight: 800, opacity: .75 }}>/h</span></> : `${score ?? ''}점`}
                             </div>
                             <div style={{ fontSize: 13.5, fontWeight: 800, marginTop: 2 }}>{routeLine(route.distanceKm, routeText)}</div>
-                            <div style={{ fontSize: 12, fontWeight: 700, opacity: .8, marginTop: 1 }}>{positives.length ? positives.join(' · ') : '걸리는 것 없음'}</div>
+                            <div className="truncate" style={{ fontSize: 12, fontWeight: 700, opacity: .8, marginTop: 1 }}>{positives.length ? positives.join(' · ') : '걸리는 것 없음'}</div>
                         </>) : <span style={{ fontSize: 14, fontWeight: 900 }}>좌표 분석 중…</span>}
                     </div>
                 </button>
