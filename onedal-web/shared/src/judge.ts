@@ -49,14 +49,14 @@ import type { JudgmentConfig } from './judgment';
 
 export type Outcome =
     /** 쟀다. `hardFail` 이면 점수와 무관하게 «잡으면 사고» — 가중치가 0 이면 이것도 안 본다 */
-    | { kind: 'scored'; score: number; why: string; hardFail?: boolean }
+    | { kind: 'scored'; score: number; why: string; hardFail?: boolean; value?: number }
     /** 잴 **대상**이 없다 — 첫짐엔 지킬 약속이 없고, 빈 차엔 자리 문제가 없다 */
     | { kind: 'nothing'; why: string }
     /** 잴 **재료**가 없다 — 카카오가 터졌다, 주소를 못 찾았다 */
     | { kind: 'unmeasurable'; why: string };
 
-export const scored = (score: number, why: string, hardFail = false): Outcome =>
-    ({ kind: 'scored', score: Math.max(0, Math.min(100, Math.round(score))), why, hardFail });
+export const scored = (score: number, why: string, hardFail = false, value?: number): Outcome =>
+    ({ kind: 'scored', score: Math.max(0, Math.min(100, Math.round(score))), why, hardFail, value });
 export const nothing = (why: string): Outcome => ({ kind: 'nothing', why });
 export const unmeasurable = (why: string): Outcome => ({ kind: 'unmeasurable', why });
 
@@ -190,6 +190,8 @@ export function toSnapshot(v: Judgment) {
             raw: c.outcome.kind === 'scored' ? c.outcome.why
                 : c.outcome.kind === 'nothing' ? `— ${c.outcome.why}`
                 : `⚠️ ${c.outcome.why}`,
+            // 🔢 축의 대표값 — 화면이 문장을 안 뒤지고 숫자를 그리게 (돈 축: 시급 만원/h)
+            value: c.outcome.kind === 'scored' ? c.outcome.value : undefined,
         })),
         /** 「잡으면 사고」로 색을 덮은 기준만 — 화면이 빨간 줄로 그린다 */
         gates: v.criteria

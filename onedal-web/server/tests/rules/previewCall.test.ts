@@ -136,9 +136,15 @@ describe('✋ 미리보기 콜 — 확정 전에는 잡지 않는다', () => {
      *    잡히지 않는다 — 결재는 **인성 앱의 확정 버튼**으로 한다. 관제웹은 색만 보여준다.
      */
     it('🔴 미리보기 카드에는 결재 버튼이 없다', () => {
+        // 0831 개편: 직접 갈래 판별이 isManualLineage 한 곳으로 갔다 — 불변식은 같다
         const card = code(read('client-app/src/components/dashboard/PinnedRouteCard.tsx'));
-        const line = card.split('\n').find(l => l.includes("route.type !== 'MANUAL' && evaluating")) ?? '';
+        const line = card.split('\n').find(l => l.includes('!isManualLineage(route.type)') && l.includes('onDecision')) ?? '';
         expect(line).toMatch(/!route\.isPreview/);
+        // 심사석(JudgmentSeat)의 직접·알람 판에도 결재 버튼이 없다 — 버튼은 자동 갈래(else)에만 산다
+        const seat = code(read('client-app/src/components/dashboard/JudgmentSeat.tsx'));
+        expect(seat).toMatch(/if \(manual\)/);
+        // 직접·알람 갈래(if (manual) 반환문)에는 결재 호출이 없다 — 자동 갈래(border-info/40 래퍼부터)에만 있다
+        expect(seat.split('if (manual)')[1]?.split('border-info/40')[0] ?? '').not.toMatch(/onDecision\?\.\(/);
     });
 });
 

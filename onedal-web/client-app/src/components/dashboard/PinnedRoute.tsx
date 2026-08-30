@@ -5,6 +5,7 @@ import { socket } from '../../lib/socket';
 import { logRoadmapEvent , logStateChange } from '../../lib/roadmapLogger';
 import PinnedRouteCanvas, { type RoutePoint } from './PinnedRouteCanvas';
 import PinnedRouteCard from './PinnedRouteCard';
+import JudgmentSeat from './JudgmentSeat';
 import type { EtaCell } from './PinnedRouteCard';
 import CallDeck from './CallDeck';
 import DepartureCountdown from './DepartureCountdown';
@@ -295,26 +296,15 @@ export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, 
 
     return (
         <section id="confirmed-route" className="flex flex-col">
-            {/* 🪧 심사석 — 필터 현황판 자리에 뜨는 판정 카드 (아래 덱에는 이 콜을 안 그린다) */}
+            {/* 🪧 심사석 — 필터 현황판 자리에 뜨는 판정 카드 (아래 덱에는 이 콜을 안 그린다 · v13 확정안) */}
             {judging && (
-                <div className="border-b-2 border-info/40">
-                    <PinnedRouteCard
-                        route={judging}
-                        isExpanded
-                        onToggle={toggleExpand}
-                        onDecision={onDecision}
-                        processingId={processingId}
-                        setProcessingId={setProcessingId}
-                        etaMap={etaMap}
-                        visitOrderMap={visitOrderMap}
-                        indexNum={chronologicalIds.indexOf(judging.id) + 1}
-                        records={stepRecords.get(judging.id) ?? EMPTY_RECORDS}
-                        timeline={routeTimeline}
-                        routeStops={routeStops}
-                        routeComputedAt={routeComputedAt}
-                        variant="deck"
-                    />
-                </div>
+                <JudgmentSeat
+                    route={judging}
+                    confirmedActive={cycleDeck.filter(o => o.id !== judging.id).length}
+                    onDecision={onDecision}
+                    processingId={processingId}
+                    setProcessingId={setProcessingId}
+                />
             )}
             {safeRoute.length > 0 && (
                 <div className="flex justify-between items-center px-4 py-2 border-b border-border-card">

@@ -580,7 +580,7 @@ export interface JudgmentSnapshot {
     /** 🔴 못 쟀으면 `null` — **0 이 아니다** (0 은 «나쁘다»로 읽힌다) */
     score: number | null;
     /** 🔴 못 잰 기준은 `score` 가 `null` 이다 — 0 은 «나쁘다»로 읽힌다 */
-    axes: Array<{ key: string; name: string; score: number | null; weight: number; raw: string }>;
+    axes: Array<{ key: string; name: string; score: number | null; weight: number; raw: string; value?: number }>;
     gates: Array<{ key: string; name: string; pass: boolean; why: string | null }>;
     tags: string[];
 }

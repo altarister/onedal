@@ -68,9 +68,9 @@ export const MONEY = defineCriterion<MoneyFacts>({
          */
         const base = (hourly / cfg.target.hourlyKrw) * 100;
         if (f.minAcceptableKrw && f.fare < f.minAcceptableKrw) {
-            return scored(base * 0.6, `${why} · 평소 하한(${toManwon(f.minAcceptableKrw)}만) 미달`);
+            return scored(base * 0.6, `${why} · 평소 하한(${toManwon(f.minAcceptableKrw)}만) 미달`, false, hourly / 10_000);
         }
-        return scored(base, why);
+        return scored(base, why, false, hourly / 10_000);
     },
 });
 
