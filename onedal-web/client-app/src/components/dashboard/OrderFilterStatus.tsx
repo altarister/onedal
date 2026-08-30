@@ -132,36 +132,29 @@ export default function OrderFilterStatus({ onOpenFilter, budgetToast }:
 
     return (
         <div id="filter-status" className="relative mx-3 my-2 rounded-xl border border-border-card overflow-hidden shadow-lg" style={{ background: "linear-gradient(180deg,#131a2b,#0f1522)" }}>
-            {/* 지금 국면 — 누르면 필터 설정 팝업 */}
-            <div
-                onClick={onOpenFilter}
-                className="flex items-center justify-between gap-2 px-4 pt-3 pb-2.5 cursor-pointer transition-colors hover:bg-surface-hover/40 active:scale-[0.995] border-b border-white/5"
-            >
-                {/* ── v13 확정안 (기사님 0831): 심사석과 같은 머리글 문법 —
-                    왼쪽 «국면명 + 방향», 오른쪽 «상태». 취소 카운트는 뺐다(확정안 — 80% 경고가
-                    필요해지면 ⚙️ 팝업이나 폰 영역으로 옮긴다). 지표는 💰📍📦 셋만. ── */}
-                <div className="flex flex-col leading-tight overflow-hidden min-w-0 flex-1">
-                    <span className="text-[14px] font-black truncate flex items-baseline gap-1.5">
-                        <span className={PHASE_STYLE[phase].accent}>{PHASE_STYLE[phase].icon} {CALL_TARGET_LABEL[phase]}</span>
-                        <span className="text-text-primary font-bold text-[13.5px]">{headline(phase)}</span>
-                        {/* 🔒 손으로 고친 필터는 자동 갱신이 덮어쓰지 않는다 — 자리는 안 먹는다 */}
-                        {filter.userOverrides && (
-                            <span title="손으로 고친 필터라 경로가 바뀌어도 자동 갱신되지 않습니다. 첫짐으로 돌아가면 풀립니다"
-                                className="text-[11px] text-warning">🔒</span>
-                        )}
-                    </span>
-                    {/* ── 순서를 고정한다 (명세 §4-1) — 💰 금액 · 📍 지역 · 📦 적재 ── */}
-                    <span className="text-[12.5px] text-text-muted font-medium truncate mt-1 tabular-nums">
-                        💰 {callDiscountLabel}
-                        <span className="opacity-70"> (1t ≥ {oneTonRate.toLocaleString()}원/km)</span>
-                        <span className="mx-1.5 opacity-40">·</span>
-                        📍 도착목표 {regionCount}개 동
-                        <span className="mx-1.5 opacity-40">·</span>
-                        📦 {slotsUsed}/{TRUCK_CAPACITY_SLOTS}박스
-                    </span>
+            {/* 지금 국면 — 누르면 필터 설정 팝업.
+                v13 구조: 줄마다 독립 — [머리글 42px] / [지표 38px], 각 줄 헤어라인 (한 덩어리 금지 · 0831) */}
+            <div onClick={onOpenFilter} className="cursor-pointer transition-colors hover:bg-surface-hover/40 active:scale-[0.995]">
+                <div className="flex items-center" style={{ gap: 10, padding: '0 16px', minHeight: 42, fontSize: 14, borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+                    <span className={`font-black whitespace-nowrap ${PHASE_STYLE[phase].accent}`}>{PHASE_STYLE[phase].icon} {CALL_TARGET_LABEL[phase]}</span>
+                    <span className="text-text-primary font-bold truncate" style={{ fontSize: 13.5 }}>{headline(phase)}</span>
+                    {/* 🔒 손으로 고친 필터는 자동 갱신이 덮어쓰지 않는다 — 자리는 안 먹는다 */}
+                    {filter.userOverrides && (
+                        <span title="손으로 고친 필터라 경로가 바뀌어도 자동 갱신되지 않습니다. 첫짐으로 돌아가면 풀립니다"
+                            className="text-[11px] text-warning">🔒</span>
+                    )}
+                    <span className={`ml-auto font-black shrink-0 ${PHASE_STYLE[phase].accent}`} style={{ fontSize: 14 }}>{label}</span>
+                    <span className="text-text-muted text-sm shrink-0">⚙️</span>
                 </div>
-                <span className={`text-[13px] font-black shrink-0 ${PHASE_STYLE[phase].accent}`}>{label}</span>
-                <span className="text-text-muted text-sm shrink-0">⚙️</span>
+                {/* ── 순서를 고정한다 (명세 §4-1) — 💰 금액 · 📍 지역 · 📦 적재 ── */}
+                <div className="flex items-center text-text-muted font-medium tabular-nums truncate" style={{ gap: 8, padding: '0 16px', minHeight: 38, fontSize: 12.5, borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+                    💰 {callDiscountLabel}
+                    <span className="opacity-70">(1t ≥ {oneTonRate.toLocaleString()}원/km)</span>
+                    <span className="mx-1 opacity-40">·</span>
+                    📍 도착목표 {regionCount}개 동
+                    <span className="mx-1 opacity-40">·</span>
+                    📦 {slotsUsed}/{TRUCK_CAPACITY_SLOTS}박스
+                </div>
             </div>
 
             {/* 국면 버튼 — 지금 것은 눌리지 않고, 다른 것은 확인을 받고 바뀐다.
