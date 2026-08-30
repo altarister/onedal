@@ -20,6 +20,7 @@ export default function GeneralSettingsTab({ onClose }: Props) {
   const [isActive, setIsActive] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(false);
   const [volume, setVolume] = useState(50);
+  const [pickerAlarmMinFare, setPickerAlarmMinFare] = useState(10000);
 
   useEffect(() => {
     loadSettings();
@@ -36,6 +37,7 @@ export default function GeneralSettingsTab({ onClose }: Props) {
       setHomeCoords(null);
       setGeocodeError(null);
       setIsActive(data.isActive || false);
+      setPickerAlarmMinFare(data.pickerAlarmMinFare ?? 10000);
     } catch (e) {
       console.error("Failed to load settings:", e);
     } finally {
@@ -65,7 +67,8 @@ export default function GeneralSettingsTab({ onClose }: Props) {
       await apiClient.put('/settings', {
         vehicleType, defaultPriority, homeAddress,
         homeX: homeCoords?.x, homeY: homeCoords?.y,
-        isActive
+        isActive,
+        pickerAlarmMinFare
       });
       onClose();
     } catch (e) {
@@ -164,6 +167,18 @@ export default function GeneralSettingsTab({ onClose }: Props) {
             <p className="text-[10px] text-destructive font-semibold">❌ {geocodeError}</p>
           )}
         </div>
+      </div>
+
+      {/* 🔔 픽커 알람 하한 — 픽커는 배송거리가 없어 단가식이 안 되는 판이라 하한 하나로 거른다 (픽커_수집.md 3단계) */}
+      <div className="space-y-1 pt-2 border-t">
+        <label className="text-sm font-semibold text-text-muted">픽커 알람 요금 하한 (원)</label>
+        <input
+          type="number" min="0" step="1000"
+          value={pickerAlarmMinFare}
+          onChange={(e) => setPickerAlarmMinFare(parseInt(e.target.value) || 0)}
+          className="w-full h-9 px-2 rounded border border-border bg-surface text-sm"
+        />
+        <p className="text-[10px] text-text-muted">이 금액 이상인 픽커 콜만 알람이 울립니다. 상차 반경은 필터 국면 탭의 값을 함께 씁니다.</p>
       </div>
 
       {/* 볼륨 */}

@@ -132,6 +132,7 @@ db.exec(`
  */
 ensureColumns('user_devices', { mode: `TEXT` });
 
+
 // user_devices: 하나의 물리 기기(UUID)는 오직 한 명의 기사 계정에만 귀속되도록 강제
 db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_device_id_unique ON user_devices(device_id)`);
 
@@ -156,6 +157,10 @@ db.exec(`
         FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     )
 `);
+// 🔔 픽커 알람 요금 하한 (기사님 확정 2026-08-30 · 픽커_수집.md 3단계).
+//    인성 min_fare 를 재사용하지 않는다 — 그건 인성 폴백 판정의 값이라 한 값에 두 역할이 된다 (⑤-4 ⑤).
+//    픽커는 배송거리가 없어 단가식이 불가능한 판이라 «하한 입력 안 함» 원칙의 전제 밖이다.
+ensureColumns('user_settings', { picker_alarm_min_fare: 'INTEGER DEFAULT 10000' });
 
 // ═══════════════════════════════════════
 // [5] 콜 콜 잡기용 필터 정보

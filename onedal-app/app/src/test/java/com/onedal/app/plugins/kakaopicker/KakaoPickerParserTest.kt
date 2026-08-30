@@ -60,8 +60,32 @@ class KakaoPickerParserTest {
     }
 
     @Test
-    fun `수집 전용 - 절대 잡지 않되, 평가는 했다고 센다`() {
-        // 잡기·알람 없음 (1차 확정). tally.seen 을 올려야 지문 기억이 콜당 한 번만 보고 조용해진다 (#79)
+    fun `알람 판정 - 요금 하한과 상차 반경 두 축뿐이다`() {
+        val good = parser.parse(listOf("퀵", "반나절", "승", "강동", "14,466", "19.6km", "하남", "신장2", "천호3"))
+        // 반경 20km 면 통과 → 알람 대상
+        val t1 = FilterTally()
+        assertTrue(KakaoPickerParser.decide(good, 10000, 20, t1))
+        assertEquals(1, t1.passed)
+        // 같은 콜도 반경 15km 면 픽업거리 축에서 떨어진다
+        val t2 = FilterTally()
+        assertFalse(KakaoPickerParser.decide(good, 10000, 15, t2))
+        assertEquals(1, t2.pickup)
+        // 요금 미달은 요금 축
+        val cheap = parser.parse(listOf("퀵", "소형", "광주", "3,000", "1.0km", "광주", "경안", "경안"))
+        val t3 = FilterTally()
+        assertFalse(KakaoPickerParser.decide(cheap, 10000, 20, t3))
+        assertEquals(1, t3.fare)
+    }
+
+    @Test
+    fun `알람 판정 - 픽업거리를 모르면 막지 않는다 (규칙 5)`() {
+        val o = parser.parse(listOf("퀵", "소형", "분당", "12,000", "분당", "야탑1", "이매1"))   // km 노드 없음
+        assertTrue(KakaoPickerParser.decide(o, 10000, 10))
+    }
+
+    @Test
+    fun `Context 없는 판(유닛 테스트)에서 shouldClick 은 기본값으로 판정한다 - 평가는 반드시 센다`() {
+        // 기본 하한 1만 — 콜당 한 번만 울리는 근거(tally.seen → 지문 기억)가 유지되는지 (#79)
         val o = parser.parse(listOf("퀵", "소형", "광주", "3,000", "1.0km", "광주", "경안", "경안"))
         val tally = FilterTally()
         assertFalse(parser.shouldClick(o, tally))

@@ -282,6 +282,8 @@ data class FilterConfig(
     val pickupRadiusKm: Int = 10,
     /** 서버 기본값과 동일. 0 으로 두면 하한이 사라져 아무 콜이나 잡는다 */
     val minFare: Int = 30000,
+    /** 🔔 픽커 알람 요금 하한 — 원천 DB(user_settings.picker_alarm_min_fare) → 피기백 (2026-08-30) */
+    val pickerAlarmMinFare: Int = 10000,
     val maxFare: Int = 1000000,
     /**
      * 차종별 하한 단가(원/km) — 단가 판정 모델 (docs/지금/필터.md).

@@ -1,6 +1,7 @@
 package com.onedal.app.plugins.kakaopicker
 
 import android.content.Context
+import org.json.JSONObject
 import com.onedal.app.core.IScrapParser
 import com.onedal.app.core.ScreenTextNode
 import com.onedal.app.models.FilterTally
@@ -22,8 +23,8 @@ import com.onedal.app.models.SimplifiedOfficeOrder
  *    직전까지를 카드로 자르는» 순차 분할을 쓰면 카드가 반 토막 난다.
  *    → 요금 노드를 닻으로 **위아래 ±60픽셀 띠**를 한 카드로 묶는다 (실측 줄 간격 ±35).
  */
-// Context 는 안 쓴다(파서가 prefs 를 안 읽는다) — 유닛 테스트가 null 로 만들 수 있게 nullable
-class KakaoPickerParser(@Suppress("UNUSED_PARAMETER") context: Context?) : IScrapParser {
+// Context 는 알람 조건(프리퍼런스의 피기백 필터)을 읽을 때만 쓴다 — 유닛 테스트는 null (그때 decide 를 직접 부른다)
+class KakaoPickerParser(private val context: Context?) : IScrapParser {
 
     companion object {
         /** 픽커 요금은 «2,529» 꼴 (원 표기 없음 · 쉼표 필수 — 실측 전 카드 일치) */
@@ -57,6 +58,43 @@ class KakaoPickerParser(@Suppress("UNUSED_PARAMETER") context: Context?) : IScra
         /** 같은 카드 띠인가 — 요금 중심에서 ±60픽셀 (실측 줄 간격 ±35 · 다음 카드 ±163) */
         fun inCardBand(fareCenterY: Int, nodeCenterY: Int): Boolean =
             kotlin.math.abs(fareCenterY - nodeCenterY) <= CARD_BAND_PX
+
+        /**
+         * 🔔 **픽커 알람 판정 — 축은 둘뿐이다** (기사님 확정 2026-08-30 · 픽커_수집.md 3단계).
+         *
+         *   ① 요금 ≥ 픽커 알람 하한 (원천 DB user_settings.picker_alarm_min_fare · 기본 1만)
+         *   ② 픽업거리 ≤ 상차 반경 (기존 국면 값 재사용 — 뜻이 같다)
+         *
+         * 픽커엔 배송거리가 없어 단가식이 불가능하고(§2), 차종·도착지·경로 축도 없다.
+         * 픽업거리를 모르면 **막지 않는다** (규칙 ⑤ — 모르는 값으로 거르지 않는다).
+         * 🔴 이 판정은 «알람을 울릴까»만 정한다 — 클릭은 supportsCatching 이 원천 차단한다.
+         */
+        fun decide(order: SimplifiedOfficeOrder, minFare: Int, pickupRadiusKm: Int, tally: FilterTally? = null): Boolean {
+            val fareOk = order.fare >= minFare
+            val pickupOk = order.pickupDistance == null || order.pickupDistance <= pickupRadiusKm
+            val pass = fareOk && pickupOk
+            tally?.let { t ->
+                t.seen++
+                when {
+                    pass -> t.passed++
+                    !fareOk -> t.fare++      // 첫 번째로 걸린 축에만 센다 (인성과 같은 규칙)
+                    else -> t.pickup++
+                }
+            }
+            return pass
+        }
+    }
+
+    /** 피기백 필터에서 알람 조건 두 값을 읽는다 — 못 읽으면 기본값 (서버 미응답 안전망) */
+    private fun alarmConfig(): Pair<Int, Int> {
+        val prefs = context?.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
+            ?: return Pair(10000, 10)
+        return try {
+            val json = JSONObject(prefs.getString("activeFilter", null) ?: return Pair(10000, 10))
+            Pair(json.optInt("pickerAlarmMinFare", 10000), json.optInt("pickupRadiusKm", 10))
+        } catch (e: Exception) {
+            Pair(10000, 10)
+        }
     }
 
     override fun groupListNodes(allNodes: List<ScreenTextNode>): List<Pair<ScreenTextNode, List<String>>> {
@@ -130,13 +168,13 @@ class KakaoPickerParser(@Suppress("UNUSED_PARAMETER") context: Context?) : IScra
     }
 
     /**
-     * 🔴 **수집 전용이라 늘 false 다** — 잡지도, 알람도 아직 없다 (1차 확정).
-     * 다만 `tally.seen` 은 올린다: «평가가 돌았다»는 사실이 있어야 지문 기억(CallMemory)이
-     * 콜을 한 번만 보고 조용해진다 — 안 올리면 매 스캔마다 «평가 보류»가 반복된다 (#79 배선).
+     * 🔔 알람 판정 위임 — 조건은 피기백 필터(원천 DB)에서 읽는다.
+     * true 여도 **클릭은 일어나지 않는다** (supportsCatching=false 가 입구 6곳에서 차단) —
+     * 알람 모드에서 소리·진동·테두리만 울린다. 지문 기억 덕에 콜당 한 번이다 (#79 배선).
      */
     override fun shouldClick(order: SimplifiedOfficeOrder, tally: FilterTally?): Boolean {
-        tally?.let { it.seen++ }
-        return false
+        val (minFare, pickupRadiusKm) = alarmConfig()
+        return decide(order, minFare, pickupRadiusKm, tally)
     }
 
     override fun parsePickupDistance(rawText: String): Double? =

@@ -51,6 +51,7 @@ router.get("/", requireAuth, (req, res) => {
             homeX: row.home_x || null,
             homeY: row.home_y || null,
             alarmVolume: row.alarm_volume ?? 50,
+            pickerAlarmMinFare: row.picker_alarm_min_fare ?? 10000,
             isActive: Boolean(row.is_active),
         });
     } catch (e) {
@@ -98,7 +99,8 @@ router.put("/", requireAuth, async (req, res) => {
                 fuel_efficiency = COALESCE(@fuelEfficiency, fuel_efficiency),
                 default_priority = COALESCE(@defaultPriority, default_priority),
                 avoid_toll = COALESCE(@avoidToll, avoid_toll),
-                alarm_volume = COALESCE(@alarmVolume, alarm_volume)
+                alarm_volume = COALESCE(@alarmVolume, alarm_volume),
+                picker_alarm_min_fare = COALESCE(@pickerAlarmMinFare, picker_alarm_min_fare)
             WHERE user_id = @userId
         `);
 
@@ -111,7 +113,8 @@ router.put("/", requireAuth, async (req, res) => {
             fuelEfficiency: payload.fuelEfficiency ?? null,
             defaultPriority: payload.defaultPriority ?? null,
             avoidToll: payload.avoidToll !== undefined ? (payload.avoidToll ? 1 : 0) : null,
-            alarmVolume: payload.alarmVolume ?? null
+            alarmVolume: payload.alarmVolume ?? null,
+            pickerAlarmMinFare: payload.pickerAlarmMinFare ?? null
         });
 
         if (result.changes === 0) {
