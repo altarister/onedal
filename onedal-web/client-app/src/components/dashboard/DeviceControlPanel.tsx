@@ -1,8 +1,8 @@
 import { useDevices } from "../../hooks/useDevices";
-import type { DeviceSession, ScreenContextType } from "@onedal/shared";
-import { isDeviceBlind } from "@onedal/shared";
+import type { DeviceSession, ScreenContextType, DeviceModeType } from "@onedal/shared";
+import { isDeviceBlind, DEVICE_MODES, DEVICE_MODE_LABEL } from "@onedal/shared";
 import { useSystemAlerts } from "../../hooks/useSystemAlerts";
-import type { EmergencyAlert, SafeCancelWarning } from "../../hooks/useSystemAlerts";
+import type { EmergencyAlert, SafeCancelWarning, FilterPassAlarm } from "../../hooks/useSystemAlerts";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
 import { summarizeTally } from "../../lib/filterTally";
 import { formatClock } from "../../lib/clock";
@@ -42,15 +42,17 @@ function DeviceRow({
     deviceWarnings,
     onDismissAlert,
     onDismissWarning,
-    currentFilter
+    currentFilter,
+    filterAlarm
 }: {
     device: DeviceSession;
-    onModeChange: (id: string, mode: "AUTO" | "MANUAL") => void;
+    onModeChange: (id: string, mode: DeviceModeType) => void;
     deviceAlerts: EmergencyAlert[];
     deviceWarnings: SafeCancelWarning[];
     onDismissAlert: (timestamp: string) => void;
     onDismissWarning: (orderId: string) => void;
     currentFilter: AutoDispatchFilter | null;
+    filterAlarm: FilterPassAlarm | null;
 }) {
     const isDisconnected = device.status === "OFFLINE";
     const screenInfo = device.screenContext ? SCREEN_LABELS[device.screenContext] : null;
@@ -72,12 +74,12 @@ function DeviceRow({
     let filterColor = 'bg-surface-alt text-text-muted border-border';
     if (currentFilter) {
         // 🚨 전역 isActive가 아닌, 이 기기 자체의 mode를 1순위로 검사합니다!
-        // isActive = "작전 활성화" (유저별), device.mode = "사격 허가" (폰별)
+        // isActive = "필터가 도는가" (유저별), device.mode = "누가 누르나" (폰별)
         if (device.mode === "MANUAL") {
-            filterLabel = '수동 대기';
+            filterLabel = '대기';
             filterColor = 'bg-surface-alt text-text-muted border-border';
         } else {
-            // 기기가 AUTO 모드일 때만 전역 콜 잡기 페이즈를 따라갑니다.
+            // 자동·알람은 둘 다 필터가 돈다 — 무엇을 찾고 있는지 그대로 보여준다.
             const phase = currentFilter.dispatchPhase || 'STANDBY';
             const action = currentFilter.driverAction || 'WAITING';
 
@@ -93,6 +95,17 @@ function DeviceRow({
             } else {
                 filterLabel = '첫짐 탐색';
                 filterColor = 'bg-success/20 text-success border-success/30';
+            }
+
+            /**
+             * 🔴 **알람은 «찾는다»까지만이고 «잡는다»가 아니다** (기사님 확정 2026-08-30).
+             *
+             * 같은 배지를 그대로 두면 화면이 *"앱이 이 콜을 잡는다"* 고 말한다 —
+             * 실제로는 기사님이 직접 누르실 때까지 아무 일도 안 일어난다.
+             * 그 한 글자 차이가 «왜 안 잡았지?» 를 만든다 (규칙 ⑤-4 ④ 화면).
+             */
+            if (device.mode === "ALARM") {
+                filterLabel = `🔔 ${filterLabel}`;
             }
         }
     }
@@ -162,7 +175,17 @@ function DeviceRow({
                             {scanSummary && (
                                 <span className={scanSummary.passed === 0 ? 'text-warning font-bold' : ''}>
                                     <span className="mx-1 opacity-40">·</span>
-                                    훑음 {scanSummary.seen}→{scanSummary.passed}
+                                    {/**
+                                      * 🔴 **새 낱말을 만들지 않고 풀어쓴다** (기사님 확정 2026-08-30).
+                                      *
+                                      * 예전에는 `훑음 8→2` 였다. 기사님: *"이거가 뭐고 어디서 볼 수 있어?
+                                      * 우리 용어집에 담아야 해? 내가 모르는 단어인데?"* — 화면에 있는 말인데
+                                      * **용어집에 없었고 확정을 받은 적도 없었다.**
+                                      *
+                                      * 기사님 확정: *"그렇게 쓰면 용어집에 올릴 필요도 없어."*
+                                      * → 일상어로 적으면 **등재할 것이 없고, 처음 보는 사람도 안 물어본다.**
+                                      */}
+                                    본 {scanSummary.seen} · 통과 {scanSummary.passed}
                                     {/* 가장 많이 걸린 축 하나만 — 무엇을 풀어야 하는지가 그 한 칸에 있다 */}
                                     {scanSummary.rejects[0] && ` ${scanSummary.rejects[0][0]}${scanSummary.rejects[0][1]}`}
                                 </span>
@@ -170,21 +193,55 @@ function DeviceRow({
                         </span>
                     </div>
                 </div>
-                <div className="shrink-0 ml-2">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onModeChange(device.deviceId, device.mode === "AUTO" ? "MANUAL" : "AUTO")}
-                        className={`h-6 px-2 text-[10px] font-black transition-colors ${device.mode === "AUTO"
-                            ? "bg-success/10 text-success border-success/30 hover:bg-success/20"
-                            : "bg-warning/10 text-warning border-warning/30 hover:bg-warning/20"
-                            }`}
-                    >
-                        {device.mode}
-                        {device.isHolding && <span className="ml-1">처리중</span>}
-                    </Button>
+                {/**
+                  * 🎛️ **모드 셋을 버튼 셋으로 그린다** (기사님 확정 2026-08-30).
+                  *
+                  * 🔴 **한 버튼으로 돌려 쓰지 않는다.** 값이 둘일 땐 토글이 맞았지만, 셋이 되면
+                  *    한 번 잘못 누를 때 되돌아오는 데 두 번을 더 눌러야 한다. 그리고 지금
+                  *    무엇인지가 «다음에 무엇이 되는지»와 섞여 읽힌다.
+                  *    셋을 나란히 두면 **지금 상태가 곧 화면**이다 (규칙 ⑤-4 ④).
+                  *
+                  * 색은 판정 색(🔵🟢🟡🔴)과 겨루지 않는다 — 켜진 것만 진하게 (규칙 ⑤-3).
+                  */}
+                <div className="shrink-0 ml-2 flex items-center gap-0.5">
+                    {DEVICE_MODES.map(m => (
+                        <Button
+                            key={m}
+                            variant="outline"
+                            size="sm"
+                            onClick={() => onModeChange(device.deviceId, m)}
+                            className={`h-6 px-1.5 text-[10px] font-black transition-colors ${device.mode === m
+                                ? (m === "AUTO" ? "bg-success/20 text-success border-success/40"
+                                    : m === "ALARM" ? "bg-info/20 text-info border-info/40"
+                                        : "bg-warning/20 text-warning border-warning/40")
+                                : "bg-transparent text-text-muted border-border opacity-50 hover:opacity-100"
+                                }`}
+                        >
+                            {DEVICE_MODE_LABEL[m]}
+                        </Button>
+                    ))}
+                    {device.isHolding && <span className="ml-1 text-[10px] font-black text-text-muted">처리중</span>}
                 </div>
             </div>
+
+            {/**
+              * 🔔 **알람 — «지금 인성 리스트에서 누르십시오»** (기사님 확정 2026-08-30).
+              *
+              * 🔴 소리만 나고 화면에 아무것도 없으면 *"방금 그게 무슨 소리였지"* 가 된다.
+              *    운전 중에는 먼발치로 1~2초에 읽혀야 하므로 **글자를 크게, 한 줄로** 적는다.
+              * 🔇 10초 뒤 스스로 사라진다 — 손으로 끄게 하지 않는다 (무입력에도 일이 되게).
+              */}
+            {filterAlarm && (
+                <div className="mx-1 mt-1 rounded border border-info/40 bg-info/15 px-2 py-1.5 flex items-center gap-2 animate-pulse">
+                    <span className="text-base leading-none">🔔</span>
+                    <span className="text-info font-black text-[13px] tracking-tight">
+                        필터 통과 {filterAlarm.passed}건 — 인성 리스트에서 직접 누르십시오
+                    </span>
+                    <span className="ml-auto text-[10px] text-info/70 font-bold tabular-nums shrink-0">
+                        본 {filterAlarm.seen}
+                    </span>
+                </div>
+            )}
 
             {/* 🚨 개별 폰 비상/경고 알림 렌더링 (사람 개입 필요한 경우만 노출) */}
             {(criticalAlerts.length > 0 || deviceWarnings.length > 0) && (
@@ -223,7 +280,7 @@ function DeviceRow({
 }
 
 export default function DeviceControlPanel() {
-    const { alerts, warnings, dismissAlert, dismissWarning } = useSystemAlerts();
+    const { alerts, warnings, filterAlarm, dismissAlert, dismissWarning } = useSystemAlerts();
     const { devices, changeDeviceMode } = useDevices();
     const { filter } = useFilterConfig();
 
@@ -247,6 +304,8 @@ export default function DeviceControlPanel() {
                                 onDismissAlert={dismissAlert}
                                 onDismissWarning={dismissWarning}
                                 currentFilter={filter}
+                                /** 🔔 알람은 **그 폰의 것**이다 — 폰이 둘이면 어느 쪽이 울렸는지 갈려야 한다 */
+                                filterAlarm={filterAlarm?.deviceId === device.deviceId ? filterAlarm : null}
                             />
                         ))
                     )}

@@ -107,10 +107,30 @@ db.exec(`
         device_id TEXT NOT NULL,
         device_name TEXT,
         registered_at TEXT DEFAULT (datetime('now', 'localtime')),
+        mode TEXT,
         FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
         UNIQUE(user_id, device_id)
     )
 `);
+
+/**
+ * 🎛️ **기기 모드는 DB 에 산다** (기사님 확정 2026-08-30 · `docs/지금/기기_모드.md` §6-①).
+ *
+ * 예전엔 메모리 두 곳(`activeDevices` · `deviceModePreference`)에만 있었고, 값이 둘일 때는
+ * 재시작 후 `activeFilter.isActive` 로 되살렸다. 값이 셋이 되면서 그게 안 된다 —
+ * `isActive === false` 에서 **「대기」와 「알람」을 못 가른다.**
+ *
+ * 🔴 그러면 **알람이 말없이 대기로 떨어진다.** 화면도 필터 성적표도 멀쩡하고
+ *    **알람만 안 울린다** — 이 레포가 여러 번 당한 「조용한 실패」 그대로다.
+ *
+ * 🔴 **비워 둘 수 있어야 한다 (`NULL` 허용).** `NULL` 은 «아직 한 번도 안 골랐다»는 뜻이고,
+ *    그때만 옛 추론(`activeFilter.isActive ? AUTO : MANUAL`)이 돈다. 기본값을 박으면
+ *    그 구분이 사라져 **콜 필터를 켠 채 새 폰을 붙여도 대기로 앉는다** (규칙 ④ — 0 이 아니라 null).
+ *
+ * ⚠️ `CHECK` 를 걸지 않는다. 모드 값은 `shared` 의 `DEVICE_MODES` 가 유일한 원천이고,
+ *    낡은 `CHECK` 는 새 값을 **런타임에서만** 조용히 거부한다 (server/CLAUDE.md 함정).
+ */
+ensureColumns('user_devices', { mode: `TEXT` });
 
 // user_devices: 하나의 물리 기기(UUID)는 오직 한 명의 기사 계정에만 귀속되도록 강제
 db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_device_id_unique ON user_devices(device_id)`);
@@ -470,13 +490,13 @@ export function loadCallOptions(userId: string): CallOption[] {
  *    표를 매번 읽지 않게 사람마다 기억해 둔다 — 저장하면 `forgetCallOptions` 로 버린다.
  *    🔴 만드는 곳이 여기 하나다 (규칙 ③) — 서버의 모든 정차 계산이 이걸 쓴다.
  */
-const 정차값기억 = new Map<string, ReturnType<typeof dwellRatesOf>>();
+const dwellRatesCache = new Map<string, ReturnType<typeof dwellRatesOf>>();
 export function dwellRatesFor(userId: string) {
-    let v = 정차값기억.get(userId);
-    if (!v) { v = dwellRatesOf(loadCallOptions(userId)); 정차값기억.set(userId, v); }
+    let v = dwellRatesCache.get(userId);
+    if (!v) { v = dwellRatesOf(loadCallOptions(userId)); dwellRatesCache.set(userId, v); }
     return v;
 }
-export function forgetCallOptions(userId: string) { 정차값기억.delete(userId); }
+export function forgetCallOptions(userId: string) { dwellRatesCache.delete(userId); }
 
 export function seedCallOptions(userId: string) {
     const rows = buildDefaultCallOptions();

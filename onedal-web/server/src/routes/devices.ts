@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { FilterTally, DeviceSession, DeviceStatusType, DeviceModeType, ScreenContextType, isListScreen, BLIND_GRACE_MS } from "@onedal/shared";
+import { FilterTally, DeviceSession, DeviceStatusType, DeviceModeType, isDeviceMode, ScreenContextType, isListScreen, BLIND_GRACE_MS } from "@onedal/shared";
 import { forceCancelEvaluatingOrder } from "../services/dispatchEngine";
 import { getUserSession } from "../state/userSessionStore";
 import { generatePin, consumePin } from "../state/pairingStore";
@@ -14,18 +14,36 @@ const router = Router();
 const activeDevices = new Map<string, DeviceSession>();
 
 /**
- * [Phase 1.5] 관제탑에서 사용자가 명시적으로 지정한 모드(AUTO/MANUAL).
+ * 🎛️ **기사님이 고른 모드를 DB 에 적는다** (기사님 확정 2026-08-30 · `docs/지금/기기_모드.md` §6-①).
  *
- * activeDevices의 session.mode는 통신 두절/오프라인 보고로 인해 덮어써지지만,
- * 이 맵은 "기사님의 의도"만 담으며 그런 이벤트에 영향받지 않습니다.
- * 기기가 다시 온라인이 되거나 세션이 재생성될 때 이 값으로 복원합니다.
+ * `activeDevices` 의 `session.mode` 는 통신 두절·오프라인 보고로 덮어써지지만,
+ * 이 칸은 **"기사님의 의도"** 만 담으며 그런 사건에 흔들리지 않는다.
+ *
+ * 🔴 **예전엔 메모리 맵이었다.** 값이 둘일 때는 서버가 다시 떠도 `activeFilter.isActive`
+ *    로 되살릴 수 있었는데, 셋이 되면서 `isActive === false` 에서 **「대기」와 「알람」을
+ *    못 가른다.** 그러면 알람이 말없이 대기로 떨어지고 **화면은 멀쩡한 채 알람만 안 울린다.**
+ *
+ * 🔴 **`user_id` 로 반드시 거른다** (2026-08-30 코드리뷰). `requireAuth` 는
+ *    *"로그인했는가"* 만 답한다 — *"이 폰이 네 것인가"* 는 안 본다. 기기 해제(DELETE)는
+ *    거르는데 여기만 안 걸렀다. 구멍은 전부터 있었지만 **메모리라 재시작에 사라졌고**,
+ *    DB 로 내리면서 영구화될 뻔했다.
+ *
+ * @returns 갱신된 행 수. **0 이면 등록 안 됐거나 남의 폰이다**
  */
-const deviceModePreference = new Map<string, DeviceModeType>();
+function saveModePreference(deviceId: string, userId: string, mode: DeviceModeType): number {
+    return db.prepare("UPDATE user_devices SET mode = ? WHERE device_id = ? AND user_id = ?")
+        .run(mode, deviceId, userId).changes;
+}
 
-/** 기기의 기본 모드 결정: 사용자가 지정한 값 > 필터 활성 여부 기반 추론 */
+/**
+ * 기기의 기본 모드: **DB 에 적힌 기사님의 선택 > 필터 활성 여부 추론**.
+ *
+ * 🔴 추론은 «아직 한 번도 안 고른 기기»를 위한 폴백일 뿐이다. 값이 셋이라 추론으로는
+ *    `ALARM` 이 절대 안 나온다 — 알람은 **기사님이 명시적으로 고를 때만** 켜진다.
+ */
 function resolveDefaultMode(deviceId: string, userId: string): DeviceModeType {
-    const preferred = deviceModePreference.get(deviceId);
-    if (preferred) return preferred;
+    const row = db.prepare("SELECT mode FROM user_devices WHERE device_id = ?").get(deviceId) as { mode?: string } | undefined;
+    if (isDeviceMode(row?.mode)) return row.mode;
     return getUserSession(userId).activeFilter?.isActive ? "AUTO" : "MANUAL";
 }
 
@@ -175,6 +193,30 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
          *    그 물음이 곧 *"지금 훑고 있는 것이 맞나"* 다.
          */
         session.filterTallyAt = session.lastSeen;
+
+        /**
+         * 🔔 **알람 모드 — 필터를 통과한 콜이 떴다** (기사님 확정 2026-08-30 · `docs/지금/기기_모드.md`).
+         *
+         * 앱은 이 모드에서 **누르지 않는다.** 기사님이 인성 리스트에서 직접 누르므로,
+         * 서버가 할 일은 *"통과한 콜이 지금 리스트에 있다"* 를 관제웹에 알리는 것뿐이다.
+         *
+         * 🟢 **앱을 안 고쳐도 된다** — 성적표(`passed`)가 이미 이 자리로 온다.
+         *    그리고 앱은 이미 본 콜을 지문(`processedOrderHashes`)으로 건너뛰므로
+         *    `passed` 는 **이번에 새로 본** 통과 콜만 센다 → 같은 콜에 두 번 안 울린다.
+         *
+         * 🔴 **여기 안에서만 본다.** `filterTally` 가 함께 온 보고, 즉 «방금 리스트를 훑었다»
+         *    일 때만 참이다. 밖으로 빼면 하트비트마다 옛 숫자로 다시 울린다.
+         */
+        if (session.mode === "ALARM" && filterTally.passed > 0 && io) {
+            io.to(userId).emit("filter-pass-alarm", {
+                deviceId,
+                deviceName: session.deviceName,
+                passed: filterTally.passed,
+                seen: filterTally.seen,
+                at: session.lastSeen,
+            });
+            console.log(`🔔 [알람] ${deviceId} — 본 ${filterTally.seen}건 중 통과 ${filterTally.passed}건. 기사님이 직접 누르십니다`);
+        }
     }
     activeDevices.set(deviceId, session);
 
@@ -342,9 +384,8 @@ router.delete("/:deviceId", requireAuth, (req, res) => {
             return res.status(404).json({ error: "해당 기기를 찾을 수 없거나 권한이 없습니다." });
         }
 
-        // 메모리에서도 제거
+        // 메모리에서도 제거 (모드는 지워진 행과 함께 사라진다 — 따로 지울 것이 없다)
         activeDevices.delete(deviceId);
-        deviceModePreference.delete(deviceId);
 
         console.log(`🗑️ [기기 해제] User: ${userId} → Device: ${deviceId} 연동 해제 완료`);
         res.json({ success: true });
@@ -408,27 +449,42 @@ router.post("/:deviceId/offline", (req, res) => {
 
 /**
  * POST /api/devices/:deviceId/mode
- * 관제 웹에서 특정 기기의 모드(AUTO/MANUAL)를 변경할 때 사용
+ * 관제 웹에서 특정 기기의 모드(자동 `AUTO` · 알람 `ALARM` · 대기 `MANUAL`)를 바꿀 때 쓴다.
+ * 값 목록의 원천은 `shared` 의 `DEVICE_MODES` 하나다 — 여기서 나열하지 않는다.
  */
 router.post("/:deviceId/mode", requireAuth, (req, res) => {
     try {
         const deviceId = req.params.deviceId as string;
         const { mode } = req.body as { mode: DeviceModeType };
 
-        if (mode !== "AUTO" && mode !== "MANUAL") {
+        /**
+         * 🔴 **값을 손으로 나열하지 않는다** — `isDeviceMode` 한 곳이 목록의 원천이다.
+         *    예전엔 `mode !== "AUTO" && mode !== "MANUAL"` 이라, 모드가 늘 때 여기를
+         *    같이 안 고치면 **새 모드가 400 으로 조용히 막혔다** (규칙 ③).
+         */
+        if (!isDeviceMode(mode)) {
             return res.status(400).json({ error: "올바르지 않은 모드입니다." });
         }
 
+        const userId = req.user!.id;
         let session = activeDevices.get(deviceId);
 
-        // [Phase 1.5] 사용자의 명시적 선택을 기록해 둡니다.
-        // 통신 두절이나 오프라인 보고로 session.mode가 덮어써지더라도,
-        // 복귀 시 이 값으로 되돌립니다.
-        deviceModePreference.set(deviceId, mode);
+        /**
+         * 기사님의 명시적 선택을 DB 에 적는다. 통신 두절·오프라인 보고로 `session.mode` 가
+         * 덮어써져도 복귀 시(그리고 서버가 다시 떠도) 이 값으로 되돌린다.
+         *
+         * 🔴 **0행이면 내 폰이 아니다.** 조용히 200 을 주면 관제웹은 «바꿨다»고 그리는데
+         *    실제로는 아무것도 안 바뀐다 — 화면이 거짓말한다 (규칙 ⑤-4 ④).
+         */
+        const changes = saveModePreference(deviceId, userId, mode);
+        if (changes === 0) {
+            console.warn(`⛔ [모드 거절] 기기(${deviceId}) 는 유저(${userId}) 의 폰이 아닙니다`);
+            return res.status(404).json({ error: "등록되지 않았거나 내 기기가 아닙니다." });
+        }
 
         if (!session) {
             // 서버 재시작 직후 하트비트가 아직 안 왔을 수도 있음.
-            // DB에 등록된 기기인지 확인하고, 맞다면 선제적으로 세션을 생성합니다.
+            // 위에서 소유권까지 확인됐으므로 여기서는 이름만 읽어 선제 세션을 만든다.
             const registered = db.prepare("SELECT device_name FROM user_devices WHERE device_id = ?").get(deviceId) as any;
             if (!registered) {
                 return res.status(404).json({ error: "등록되지 않은 기기입니다." });
@@ -450,18 +506,43 @@ router.post("/:deviceId/mode", requireAuth, (req, res) => {
         session.mode = mode;
         activeDevices.set(deviceId, session);
 
-        // [다중 폰 안전] 이 유저의 소유 기기 중 AUTO인 폰이 1대라도 있으면 isActive=true 유지 (자동 파생)
-        // 다른 유저의 기기 상태가 간섭하지 않도록 userDeviceIds로 필터링 (Cross-user leakage 방지)
-        const userId = req.user!.id;
+        /**
+         * 🔴 **`isActive` 는 «누가 누르나»가 아니라 «필터가 도는가» 다** (2026-08-30 · 모드 셋).
+         *
+         * 값이 둘일 때는 그 둘이 같은 말이었다 — AUTO 면 필터가 돌고 앱이 누른다.
+         * **알람이 생기면서 갈라진다**: 알람은 필터가 돌아야 하는데 앱은 안 누른다.
+         *
+         * 앱의 `decide()` 는 맨 앞에서 `if (!filter.isActive) return false` 로 끊는다
+         * (`InsungParser`). 여기서 AUTO 만 세면 **알람 모드에서 필터가 아예 안 돌아
+         * 아무것도 안 울린다.**
+         *
+         * 두 사실을 두 곳이 나눠 답한다 — 섞으면 한쪽이 다른 쪽을 조용히 덮는다 (규칙 ③):
+         *   · 필터가 도는가  → `isActive` (자동 · 알람)
+         *   · 앱이 누르는가  → 앱의 `currentMode == "AUTO"` (자동만)
+         *
+         * ⚠️ 안전장치는 그대로 겹쳐 있다 (규칙 ②). `scrap.ts` 가 부트스트랩 중·적재 만석·
+         *    관제탑 미접속·필터 고장일 때 `isActive=false` 로 덮는데, **그 넷은 알람도
+         *    울리면 안 되는 경우**라 그대로 맞다.
+         *
+         * [다중 폰 안전] 다른 유저의 기기가 간섭하지 않도록 userDeviceIds 로 거른다.
+         */
         const io = req.app.get("io");
-        
+
         const userDeviceIds = db.prepare("SELECT device_id FROM user_devices WHERE user_id = ?").all(userId).map((r: any) => r.device_id);
-        const hasAnyAutoDevice = Array.from(activeDevices.values()).some(d => 
-            userDeviceIds.includes(d.deviceId) && d.mode === "AUTO"
+        const hasFilteringDevice = Array.from(activeDevices.values()).some(d =>
+            userDeviceIds.includes(d.deviceId) && (d.mode === "AUTO" || d.mode === "ALARM")
         );
-        
-        updateActiveFilter(userId, { isActive: hasAnyAutoDevice }, io);
-        console.log(`⚙️ [모드 전환] 기기(${deviceId}) → ${mode} | 유저(${userId}) AUTO 기기 존재: ${hasAnyAutoDevice} → filter.isActive → ${hasAnyAutoDevice}`);
+
+        /**
+         * 🔴 **의도를 세션에 먼저 적는다** (2026-08-30 코드리뷰).
+         *
+         * `updateActiveFilter` 안의 불변식이 *"선점 중인 콜 0건이면 다시 켠다"* 로
+         * `isActive` 를 되켠다. 이 칸이 없으면 「대기」로 바꿔도 **곧바로 도로 켜져**
+         * «대기 = 필터 꺼짐» 이 거짓이 된다 — 그 거짓을 용어집에 적을 뻔했다.
+         */
+        getUserSession(userId).filterEnabledByMode = hasFilteringDevice;
+        updateActiveFilter(userId, { isActive: hasFilteringDevice }, io);
+        console.log(`⚙️ [모드 전환] 기기(${deviceId}) → ${mode} | 유저(${userId}) 필터 도는 기기 존재: ${hasFilteringDevice} → filter.isActive → ${hasFilteringDevice}`);
 
         res.json({ success: true, mode });
     } catch (error) {

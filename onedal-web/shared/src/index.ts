@@ -953,7 +953,47 @@ export interface DispatchConfirmResponse {
  * 📱 관제 기기 관리 관련 타입 (Device Telemetry)
  */
 export type DeviceStatusType = "ONLINE" | "OFFLINE";
-export type DeviceModeType = "AUTO" | "MANUAL";
+
+/**
+ * 🎛️ **기기 모드 셋 — 자동 · 알람 · 대기** (기사님 확정 2026-08-30 · [docs/지금/기기_모드.md]).
+ *
+ * | 화면 이름 | 키 | 필터 | 앱이 누르나 | 알람 |
+ * |---|---|---|---|---|
+ * | 자동 | `AUTO` | 돈다 | ✅ | — |
+ * | 알람 | `ALARM` | 돈다 | ❌ | ✅ |
+ * | 대기 | `MANUAL` | 돈다 (기록용) | ❌ | ❌ |
+ *
+ * 🔴 **「대기」에 새 키를 만들지 않았다.** 동작이 지금 `MANUAL` 과 완전히 같아서,
+ *    키를 유지하면 서버·앱의 기존 분기가 한 줄도 안 바뀐다. 바뀌는 것은 화면 이름뿐이다.
+ *
+ * 🔴 **`STANDBY` 를 쓰지 않는다** — `dispatchPhase` 가 이미 그 낱말로 「첫짐 탐색」을
+ *    가리킨다. 같은 말에 두 뜻을 주면 로그를 읽을 때 어느 쪽인지 모른다.
+ *
+ * 🔴 **«필터가 도는가» 와 «앱이 누르는가» 는 다른 물음이다** (2026-08-30 에 갈랐다).
+ *    자동·알람은 둘 다 필터가 돈다(`hasFilteringDevice` → `isActive`). 누르는 것은 자동뿐이다
+ *    (앱의 `currentMode == "AUTO"`). 값이 둘이던 시절엔 그 둘이 같은 말이라 한 값으로 썼는데,
+ *    앱의 `decide()` 가 `isActive` 로 끊으므로 **섞어 두면 알람에서 필터가 통째로 죽는다.**
+ *
+ * 🔴 **모드 이름을 다른 값으로 조립하지 않는다.** 앱이 `"${mode}_CLICK"` 으로 딱지를 만들어
+ *    `"ALARM_CLICK"` 이 태어났고, 서버의 직접콜 보호가 그걸 못 알아봐 **기사님 콜이 강제
+ *    취소**됐다. 콜의 출신은 `SessionManager.clickOrigin`(누가 눌렀나) 한 곳에서만 파생한다.
+ *
+ * 알람·대기로 잡은 콜은 기사님이 직접 누른 것이라 **직접콜**이고 심사하지 않는다 (규칙 ①).
+ */
+export const DEVICE_MODES = ["AUTO", "ALARM", "MANUAL"] as const;
+export type DeviceModeType = typeof DEVICE_MODES[number];
+
+/** 모르는 값을 모드로 받지 않는다 — 값이 늘어도 여기 한 곳만 본다 (규칙 ③) */
+export function isDeviceMode(v: unknown): v is DeviceModeType {
+    return typeof v === "string" && (DEVICE_MODES as readonly string[]).includes(v);
+}
+
+/** 화면에 적히는 이름. 키를 그대로 보여 주면 기사님이 「대기」를 못 알아본다 */
+export const DEVICE_MODE_LABEL: Record<DeviceModeType, string> = {
+    AUTO: "자동",
+    ALARM: "알람",
+    MANUAL: "대기",
+};
 
 /**
  * 🛡️ Safety Mode V3: 앱폰 화면 상태 타입

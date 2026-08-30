@@ -142,6 +142,26 @@ class SoundManager {
     }
 
     /**
+     * 🔔 **콜 필터 알람 — 짧게 두 번 + 강한 진동** (기사님 확정 2026-08-30).
+     *
+     * 「알람」 모드에서 필터를 통과한 콜이 리스트에 떴을 때 울린다.
+     * 기사님은 이 소리를 듣고 **인성 리스트에서 직접 누른다** (`docs/지금/기기_모드.md`).
+     *
+     * 🔴 **무한 반복(`playCallRinging`)을 쓰지 않는다.** 그 콜은 이미 남에게 갔을 수도
+     *    있는데 계속 울면 «틀어졌다»는 신호가 소음이 된다. 대신 **진동을 세게** 준다 —
+     *    운전 중에는 네비 소리·음악이 깔려 있어 짧은 소리 하나가 묻히기 때문이다.
+     *
+     * ⚠️ 두 번째 소리는 첫 소리가 **끝난 뒤**에 나야 «두 번»으로 들린다.
+     *    `currentTime = 0` 으로 같은 오디오를 곧바로 되감으면 한 번으로 뭉개진다.
+     */
+    public async playFilterAlarm() {
+        Haptics.notification({ type: NotificationType.Warning }).catch(() => {});
+        await this.playBeep();
+        await new Promise(r => setTimeout(r, 220));
+        await this.playBeep();
+    }
+
+    /**
      * 3. 안전취소/비상 알림 시 울리는 경고 사이렌
      */
     public async playEmergencyAlarm() {

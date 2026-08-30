@@ -1102,9 +1102,9 @@ class HijackService : AccessibilityService() {
         }
     }
 
-    /** 세션 ID가 없으면 새로 생성 */
+    /** 세션 ID가 없으면 새로 생성 — 접두사는 **출신**이지 기기 모드가 아니다 */
     private fun ensureSessionId() {
-        session.ensureOrderId(telemetryManager.currentMode)
+        session.ensureOrderId()
     }
 
     /** 팝업 잔상이 화면에 남아있는지 검사 */
@@ -1138,10 +1138,18 @@ class HijackService : AccessibilityService() {
     /** 화면 텍스트에서 SimplifiedOfficeOrder 를 생성하는 공통 로직 */
     private fun buildOrderFromScreen(screenTexts: List<String>): SimplifiedOfficeOrder {
         val tempOrder = scrapParser.parse(screenTexts)
-        val mode = telemetryManager.currentMode
+        /**
+         * 🔴 **출신은 스위치가 아니라 «누가 눌렀나» 다** (2026-08-30 · 규칙 ③).
+         *
+         * 예전엔 여기서 `telemetryManager.currentMode` 를 썼다. 이 길은 **손으로 확정한
+         * 콜**의 길인데(앱이 잡았으면 `lastDetailOrder` 가 이미 있다) 스위치를 찍는 바람에,
+         * 자동 스위치인 채 손으로 확정하면 `"AUTO_CLICK"` 이 됐다 —
+         * 서버의 직접콜 보호가 안 걸려 **리스트 복귀 때 기사님의 콜이 강제 취소**됐다.
+         * 알람 모드에서는 서버가 모르는 `"ALARM_CLICK"` 까지 태어났다.
+         */
         return SimplifiedOfficeOrder(
             id = session.currentOrderId,
-            type = "${mode}_CLICK",
+            type = "${session.clickOrigin}_CLICK",
             /**
              * 🔴 **상세 화면 글자를 리스트 파서 결과 그대로 믿지 않는다** (2026-08-25 실측).
              *

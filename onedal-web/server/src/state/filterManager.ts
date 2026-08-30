@@ -894,10 +894,17 @@ export function updateActiveFilter(
      * ⚠️ `pendingOrdersData.size` 로 세면 안 된다 — 그 캐시에는 **종료된 콜도 남아 있다**
      *    (`buildOrderSync` 가 거기서 terminated 를 뽑는다). 세어야 할 것은 **아직 끝나지 않은**
      *    콜이다. 2026-08-14 재현에서 이걸 틀려 한 번 헛돌았다.
+     *
+     * 🔴 **그런데 이 불변식은 «선점 잠금»만 푸는 것이다** (2026-08-30 코드리뷰).
+     *    기사님이 기기를 「대기」로 두어 끈 것까지 되켜면 안 된다 —
+     *    실제로 그래서 **«대기 = 필터 꺼짐» 이 거짓**이었고, 그 거짓을 용어집에 적을 뻔했다.
+     *    `filterEnabledByMode` 가 «기사님 의도» 이고, 이 불변식은 그것을 **넘지 않는다**.
+     *    (`undefined` 는 «켬» — 모드를 한 번도 안 고른 사용자는 예전 그대로 돈다)
      */
     const evaluating = Array.from(session.pendingOrdersData.values())
         .filter((o: any) => !isTerminal(o.status));
-    if (!session.activeFilter.isActive && evaluating.length === 0) {
+    if (!session.activeFilter.isActive && evaluating.length === 0
+        && session.filterEnabledByMode !== false) {
         console.log(`🔗 [불변식] isActive false → true (선점 중인 콜 0건 — 콜 잡기를 다시 켠다)`);
         session.activeFilter.isActive = true;
     }

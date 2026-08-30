@@ -23,6 +23,25 @@ class SessionManager {
     /** AUTO 매크로가 클릭해서 시작된 세션인지 여부 */
     var isAutoActive: Boolean = false
 
+    /**
+     * 🔴 **콜의 출신 — «누가 눌렀나» 를 파생하는 유일한 자리** (용어집 §9 · 규칙 ③).
+     *
+     * 기기 모드(자동·알람·대기)는 **스위치**이고, 출신은 **실제로 누른 주체**다.
+     * 켠 채 기사님이 끼어들어 누르는 경우가 있어서 둘이 갈린다.
+     *
+     * 🔴 2026-08-30 코드리뷰 — 이 판단이 **두 벌**이었다:
+     *    `handleDetailScreen` 은 `isAutoActive` 를 봤고,
+     *    `buildOrderFromScreen`·`ensureOrderId` 는 **스위치**(`currentMode`)를 봤다.
+     *    그래서 «자동 스위치인 채 손으로 확정» 하면 `"AUTO_CLICK"` 이 찍혔고,
+     *    서버의 직접콜 보호(`type.startsWith("MANUAL")`)가 안 걸려
+     *    **리스트로 돌아오는 순간 기사님의 콜이 강제 취소**됐다 (규칙 ① 위반).
+     *
+     * 🔴 모드가 셋이 되며 더 커졌다 — 알람 모드에서는 서버가 모르는 `"ALARM_CLICK"` 이
+     *    태어난다. **여기서 파생하면 모드 값이 몇 개로 늘든 출신은 늘 둘이다.**
+     */
+    val clickOrigin: String
+        get() = if (isAutoActive) "AUTO" else "MANUAL"
+
     /** 이미 /confirm을 보냈는지 (중복 전송 방지) */
     var isDetailScrapSent: Boolean = false
 
@@ -71,11 +90,14 @@ class SessionManager {
     }
 
     /**
-     * 세션 ID가 없으면 모드+타임스탬프로 자동 생성합니다.
+     * 세션 ID가 없으면 **출신**+타임스탬프로 자동 생성합니다.
+     *
+     * ⚠️ 예전엔 기기 모드를 인자로 받았다. 모드가 셋이 되며 `"ALARM-…"` 이라는
+     *    서버가 모르는 id 가 생겼다 — 출신(`clickOrigin`)은 늘 둘뿐이다.
      */
-    fun ensureOrderId(mode: String) {
+    fun ensureOrderId() {
         if (currentOrderId.isEmpty()) {
-            currentOrderId = "$mode-${System.currentTimeMillis()}"
+            currentOrderId = "$clickOrigin-${System.currentTimeMillis()}"
         }
     }
 
