@@ -409,6 +409,9 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
      * rawText에서 상차지 직선거리를 파싱합니다.
      * 화물24시 거리 표시 패턴: "11Km", "15Km", "20Km" (정수 + Km)
      */
+    /** 24시도 요금 줄 기준 — 카드 띠 실측 전까지 닻 줄 그대로 (#84) */
+    override fun alarmBandHalfPx(): Int = 0
+
     override fun parsePickupDistance(rawText: String): Double? {
         // 패턴1: "숫자Km" 또는 "숫자 Km"
         val kmPattern = Regex("""(\d+\.?\d*)\s*[Kk]m""")

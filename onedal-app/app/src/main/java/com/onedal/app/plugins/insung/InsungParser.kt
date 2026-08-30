@@ -603,6 +603,9 @@ class InsungParser(private val context: Context) : IScrapParser {
      * 또는 "2.3km" 형태
      * @return 상차지 직선거리 (km), 파싱 불가 시 null
      */
+    /** 인성 리스트는 요금 줄이 곧 콜 한 줄이다 — 알람 테두리는 닻 줄 그대로 (#84) */
+    override fun alarmBandHalfPx(): Int = 0
+
     override fun parsePickupDistance(rawText: String): Double? {
         // 패턴1: "숫자 / 숫자" (슬래시 구분, 첫 번째가 상차 직선거리)
         val slashPattern = Regex("""(\d+\.?\d*)\s*/\s*(\d+\.?\d*)""")

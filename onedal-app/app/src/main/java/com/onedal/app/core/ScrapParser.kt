@@ -37,4 +37,8 @@ class ScrapParser(private val context: Context, targetApp: String) : IScrapParse
     override fun groupListNodes(allNodes: List<ScreenTextNode>): List<Pair<ScreenTextNode, List<String>>> {
         return delegate.groupListNodes(allNodes)
     }
+
+    // 🔴 #84 — 이 줄이 빠진 채 인터페이스 기본값 0 이 답해서, 픽커 테두리가 카드 반 토막이었다.
+    //    지금은 기본값을 없애 컴파일러가 누락을 잡는다 (IScrapParser 주석 참조)
+    override fun alarmBandHalfPx(): Int = delegate.alarmBandHalfPx()
 }
