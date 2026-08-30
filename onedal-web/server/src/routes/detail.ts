@@ -4,7 +4,7 @@
 
 import { Router } from "express";
 import type { DispatchConfirmRequest, OrderStatus, PendingOrder, SecuredOrder } from "@onedal/shared";
-import { isTerminal } from "@onedal/shared";
+import { isTerminal, isTargetApp, DEFAULT_TARGET_APP } from "@onedal/shared";
 import { parseLocationDetails, promoteDetailAddresses, parseMockupFare, parseMockupDistance, parseMockupVehicleType, parseDetailedRawText } from "../utils/parser";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { DISPATCH_CONFIG } from "../config/dispatchConfig";
@@ -174,7 +174,8 @@ router.post("/", async (req, res) => {
         const isPreviewCall = !!(payload as any).isPreview;
         const isManual = !isPreviewCall
             && (pendingOrder.type?.includes("MANUAL") || payload.matchType === "MANUAL");
-        const targetApp = (payload as any).targetApp || 'insung';
+        const rawTargetApp = (payload as any).targetApp;
+        const targetApp = isTargetApp(rawTargetApp) ? rawTargetApp : DEFAULT_TARGET_APP;   // 값 표준은 shared 한 벌
 
         if (isManual) {
             pendingOrder.type = 'MANUAL';  // 프론트엔드 배지 표시를 위해 명시적 설정

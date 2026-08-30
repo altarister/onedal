@@ -543,7 +543,7 @@ for (const t of STEP_TABLES) {
     ensureColumns(t.table, Object.fromEntries(t.columns.map(([, c, ty]) => [c, ty])));
 }
 
-// 어느 배차망에서 온 콜인가 (insung/hwamul24) — 배차망별 콜 검색·분석의 근거 (기사님 2026-08-17)
+// 어느 배차망에서 온 콜인가 (insung/hwamul24/kakaopicker) — 배차망별 콜 검색·분석의 근거 (기사님 2026-08-17)
 ensureColumns('orders', { targetApp: 'TEXT',
     /**
      * 🗺️ **한 번 잰 경로를 다시 재지 않는다** (기사님 확정 2026-08-23).
@@ -559,6 +559,8 @@ ensureColumns('orders', { targetApp: 'TEXT',
     routePolyline: 'TEXT',
     // ⚓ 타임라인 추정 약속의 닻 — 메모리에만 두면 서버 재시작에 모든 추정이 지금 시각으로 리셋된다
     routeComputedAt: 'TEXT',
+    // 🖱️ 잡은 방식(자동·알람·직접) — 6하원칙 «어떻게», 기록 전용 (보호는 matchType · #75 · 픽커_수집.md §6-전)
+    capturedVia: 'TEXT',
     /**
      * 🚚 **배송거리** — 앱이 인성 화면에서 읽어 보내는 값 (리스트 두 번째 숫자).
      *    합짐 콜의 단독 주행 추정 입력이다 (`soloMinutesOf`).

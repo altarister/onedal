@@ -14,7 +14,7 @@
 
 import { Router } from "express";
 import type { DispatchConfirmRequest, PendingOrder, OrderStatus } from "@onedal/shared";
-import { RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, restoreWindow, isEvaluating } from "@onedal/shared";
+import { RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, restoreWindow, isEvaluating, isTargetApp, DEFAULT_TARGET_APP, isCapturedVia } from "@onedal/shared";
 import db from "../db";
 import { getUserSession } from "../state/userSessionStore";
 import { forceCancelEvaluatingOrder, handleDecision } from "../services/dispatchEngine";
@@ -121,7 +121,14 @@ router.post("/confirm", (req, res) => {
             status: 'ORDER_PRE_SECURED' as OrderStatus,
             capturedDeviceId: payload.deviceId,
             capturedAt: payload.capturedAt || new Date().toISOString(),
-            targetApp: (payload as any).targetApp || 'insung',   // 어느 배차망에서 온 콜인가 — 원장에 남긴다
+            // 어느 배차망에서 온 콜인가 — 원장에 남긴다 (값 표준은 shared 한 벌 · 픽커_수집.md §6-전)
+            targetApp: isTargetApp((payload as any).targetApp) ? (payload as any).targetApp : DEFAULT_TARGET_APP,
+            /**
+             * 🖱️ 잡은 방식 — 6하원칙의 «어떻게» (기사님 확정 2026-08-30).
+             * 🔴 기록 전용. 직접콜 보호는 여전히 matchType 만 본다 (#75 재발 방지) —
+             *    모르는 값·구앱(미전송)은 null 로 남긴다. 지어내지 않는다 (규칙 ④).
+             */
+            capturedVia: isCapturedVia((payload as any).capturedVia) ? (payload as any).capturedVia : null,
             /**
              * 👀 **미리보기 콜** — 확정 전에 팝업 3장을 읽어 판정만 받아 보는 콜 (용어집 §9).
              *

@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { callFilterBlocker } from "@onedal/shared";
-import type { SimplifiedOfficeOrder, ScreenContextType } from "@onedal/shared";
+import { callFilterBlocker, isTargetApp, DEFAULT_TARGET_APP } from "@onedal/shared";
+import type { SimplifiedOfficeOrder, ScreenContextType, TargetAppType } from "@onedal/shared";
 import db from "../db";
 import { capacityFullHold, filterVersionOf } from "../core/helpers";
 import { getUserSession, clearOrderTimers } from "../state/userSessionStore";
@@ -58,7 +58,9 @@ router.post("/", (req, res) => {
 
         const timestamp = new Date().toISOString();
 
-        const targetApp = (req.body as any).targetApp || 'insung';
+        // 배차망 코드는 shared 표준 한 벌만 믿는다 — 모르는 값은 기본값으로 (픽커_수집.md §6-전)
+        const targetApp = isTargetApp((req.body as any).targetApp)
+            ? (req.body as any).targetApp as TargetAppType : DEFAULT_TARGET_APP;
         const plugin = PluginFactory.getPlugin(targetApp);
 
         // logRoadmapEvent("서버", "방대한 스크랩 배열값을 intel 테이블 DB 저장");
@@ -89,7 +91,7 @@ router.post("/", (req, res) => {
         let deviceMode = "MANUAL";
         if (deviceId) {
             const io = req.app.get("io");
-            deviceMode = touchDeviceSession(deviceId, userId, data.length, screenContext, io, isHolding, lat, lng, (req.body as any).screenNodeCount, (req.body as any).isScreenOn, (req.body as any).filterTally);
+            deviceMode = touchDeviceSession(deviceId, userId, data.length, screenContext, io, isHolding, lat, lng, (req.body as any).screenNodeCount, (req.body as any).isScreenOn, (req.body as any).filterTally, targetApp);
         }
 
         // logRoadmapEvent("서버", "관제탑에게 실시간 마커용 GPS(device-sessions-updated) 정보 전달");

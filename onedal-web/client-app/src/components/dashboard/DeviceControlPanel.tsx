@@ -1,6 +1,6 @@
 import { useDevices } from "../../hooks/useDevices";
 import type { DeviceSession, ScreenContextType, DeviceModeType } from "@onedal/shared";
-import { isDeviceBlind, DEVICE_MODES, DEVICE_MODE_LABEL } from "@onedal/shared";
+import { isDeviceBlind, DEVICE_MODES, DEVICE_MODE_LABEL, TARGET_APP_LABEL } from "@onedal/shared";
 import { useSystemAlerts } from "../../hooks/useSystemAlerts";
 import type { EmergencyAlert, SafeCancelWarning, FilterPassAlarm } from "../../hooks/useSystemAlerts";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
@@ -139,6 +139,13 @@ function DeviceRow({
                     <span className={`font-black text-[10px] px-1.5 rounded truncate shrink-0 ${isDisconnected ? 'bg-danger/20 text-danger animate-pulse' : 'text-success'}`}>
                         {device.deviceName || device.deviceId.slice(0, 8)}
                     </span>
+                    {/* 🌐 이 폰이 지금 어느 배차망을 보나 — 픽커 판을 돌리면 여기서 갈린다 (픽커_수집.md §6-전).
+                        구앱(미전송)은 표시를 비운다 — 기본값을 지어내지 않는다. 아이콘은 나중에(기사님), 지금은 텍스트. */}
+                    {!isDisconnected && device.targetApp && (
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0 bg-surface-alt text-text-muted border-border">
+                            {TARGET_APP_LABEL[device.targetApp] ?? device.targetApp}
+                        </Badge>
+                    )}
                     {screenInfo && (
                         <Badge variant="outline" className={`text-[10px] px-1.5 py-0 shrink-0 ${screenInfo.color}`}>
                             {screenInfo.label}

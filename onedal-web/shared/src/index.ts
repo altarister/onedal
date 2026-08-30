@@ -510,9 +510,12 @@ export interface DetailedOfficeOrder {
 // (FilterConfig removed in favor of AutoDispatchFilter)
 // 3. [오더 풀스팩] 배차 확정 후, 들어가서 스크래핑해올 구체적 데이터
 export interface OfficeOrder extends SimplifiedOfficeOrder, DetailedOfficeOrder {
-    /** 어느 배차망에서 온 콜인가 — 'insung' | 'hwamul24' (앱 confirm 페이로드가 싣는다).
+    /** 어느 배차망에서 온 콜인가 — TARGET_APPS 표준값 (앱 confirm 페이로드가 싣는다).
      *  🔴 원장(orders.targetApp)에 저장 — 배차망별 콜 검색·분석의 근거 (기사님 2026-08-17) */
-    targetApp?: string; }
+    targetApp?: string;
+    /** 🖱️ 잡은 방식 — 6하원칙의 «어떻게» (CAPTURED_VIA · 기록 전용, 보호 분기는 matchType).
+     *  구앱·모르는 값은 null — 지어내지 않는다 (기사님 확정 2026-08-30) */
+    capturedVia?: string | null; }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // [계층 2-A] 심사 중 오더 — 서버 메모리 전용 (아직 내 퀵이 아님)
@@ -996,6 +999,59 @@ export const DEVICE_MODE_LABEL: Record<DeviceModeType, string> = {
 };
 
 /**
+ * 🌐 **배차망 값 표준 — 여기 한 벌뿐이다** (기사님 확정 2026-08-30 · 픽커_수집.md §6-전).
+ *
+ * «어느 배차망에서 온 것인가»는 6하원칙의 **어디서**다. 앱이 모든 요청에 싣고,
+ * 원장(orders·intel)의 `targetApp` 열에 저장되며, 화면 배지와 통계 필터가 읽는다.
+ *
+ * 🔴 예전엔 이 값의 매핑·폴백이 앱 4곳 + 서버 3곳에 흩어져 있었다 — 배차망을 하나
+ *    더할 때마다 일곱 곳이 각자 갈라질 판이었다 (#76~#82 «한 값 여러 곳» 클래스).
+ *    코드값·라벨·기본값 전부 **여기서만** 늘린다. (앱은 Kotlin 이라 이 파일을 못 읽는다 —
+ *    앱 쪽 한 곳은 `core/TargetApp.kt` 이고, 값이 어긋나면 서버 수신이 기본값으로
+ *    떨어져 로그에 남는다)
+ */
+export const TARGET_APPS = ["insung", "hwamul24", "kakaopicker"] as const;
+export type TargetAppType = typeof TARGET_APPS[number];
+export const DEFAULT_TARGET_APP: TargetAppType = "insung";
+
+export function isTargetApp(v: unknown): v is TargetAppType {
+    return typeof v === "string" && (TARGET_APPS as readonly string[]).includes(v);
+}
+
+/** 화면 배지용 이름 — 지금은 텍스트만 (기사님: 아이콘은 나중에) */
+export const TARGET_APP_LABEL: Record<TargetAppType, string> = {
+    insung: "인성",
+    hwamul24: "24시",
+    kakaopicker: "픽커",
+};
+
+/**
+ * 🖱️ **잡은 방식 — 6하원칙의 «어떻게»** (기사님 확정 2026-08-30).
+ *
+ * 원장 `orders.capturedVia` 에 기록만 한다: `AUTO`(앱이 누름) · `ALARM`(알람 듣고
+ * 기사님이 누름) · `MANUAL`(기사님이 직접 골라 누름).
+ *
+ * 🔴 **기록이지 판단이 아니다.** 서버의 직접콜 보호(심사 없음·강제취소 없음)는
+ *    여전히 `matchType`(AUTO/MANUAL 둘)만 본다 — #75 에서 모드 이름이 출신으로 새어
+ *    기사님 콜이 취소된 사고 그대로, 이 값을 보호 분기에 쓰면 같은 사고가 재발한다.
+ *    알람·직접은 보호상 똑같은 «기사님이 누른 콜»이고, 여기서는 일지가 그 둘을
+ *    가려 보게 할 뿐이다 (⑤-4 ⑤: 읽는 곳 — 일지·통계만).
+ */
+export const CAPTURED_VIA = ["AUTO", "ALARM", "MANUAL"] as const;
+export type CapturedViaType = typeof CAPTURED_VIA[number];
+
+export function isCapturedVia(v: unknown): v is CapturedViaType {
+    return typeof v === "string" && (CAPTURED_VIA as readonly string[]).includes(v);
+}
+
+/** 일지·화면용 이름 */
+export const CAPTURED_VIA_LABEL: Record<CapturedViaType, string> = {
+    AUTO: "자동",
+    ALARM: "알람",
+    MANUAL: "직접",
+};
+
+/**
  * 🛡️ Safety Mode V3: 앱폰 화면 상태 타입
  * 앱폰이 현재 보고 있는 화면을 서버에 실시간 보고합니다.
  * 판별 기준 키워드는 서버의 config/inseong.json에서 관리됩니다.
@@ -1092,6 +1148,12 @@ export interface DeviceSession {
     lastSeen: number;       // 밀리초 타임스탬프
     status: DeviceStatusType;
     mode: DeviceModeType;
+    /**
+     * 🌐 이 폰이 지금 **어느 배차망을 보고 있나** (기사님 확정 2026-08-30).
+     * scrap 마다 갱신되는 실시간 상태다 — 저장하지 않는다(원장은 orders·intel 의
+     * targetApp). 없으면(구앱) 화면은 표시를 비운다 — 기본값을 지어내지 않는다.
+     */
+    targetApp?: TargetAppType;
     screenContext?: ScreenContextType;  // [Safety Mode V3] 현재 화면 상태 (물리적 페이지)
     isHolding?: boolean;    // [Page/Hold 분리] 콜 처리 중 여부 (확정 클릭 ~ 리스트 복귀)
     lat?: number;           // [GPS 텔레메트리] 앱폰(차량) 위도

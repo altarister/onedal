@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { FilterTally, DeviceSession, DeviceStatusType, DeviceModeType, isDeviceMode, ScreenContextType, isListScreen, BLIND_GRACE_MS } from "@onedal/shared";
+import { FilterTally, DeviceSession, DeviceStatusType, DeviceModeType, isDeviceMode, ScreenContextType, isListScreen, BLIND_GRACE_MS, TargetAppType } from "@onedal/shared";
 import { forceCancelEvaluatingOrder } from "../services/dispatchEngine";
 import { getUserSession } from "../state/userSessionStore";
 import { generatePin, consumePin } from "../state/pairingStore";
@@ -116,7 +116,7 @@ function applyBlindSignal(session: DeviceSession, screenNodeCount?: number, isSc
  * App에서 화면이 변경되거나 주기적으로 스크랩 데이터를 전송할 때 세션 갱신
  * @returns 현재 기기의 관제 모드 (AUTO | MANUAL)
  */
-export const touchDeviceSession = (deviceId: string, userId: string, addedPollCount: number = 0, screenContext?: ScreenContextType, io?: any, isHolding?: boolean, lat?: number, lng?: number, screenNodeCount?: number, isScreenOn?: boolean, filterTally?: FilterTally): DeviceModeType => {
+export const touchDeviceSession = (deviceId: string, userId: string, addedPollCount: number = 0, screenContext?: ScreenContextType, io?: any, isHolding?: boolean, lat?: number, lng?: number, screenNodeCount?: number, isScreenOn?: boolean, filterTally?: FilterTally, targetApp?: TargetAppType): DeviceModeType => {
     let session = activeDevices.get(deviceId);
 
     if (!session) {
@@ -130,6 +130,7 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
             lastSeen: Date.now(),
             status: "ONLINE",
             mode: defaultMode,
+            targetApp,
             screenContext: screenContext || 'UNKNOWN',
             isHolding: isHolding ?? false,
             lat,
@@ -160,6 +161,10 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
         session.stats.polled += addedPollCount;
         if (screenContext) {
             session.screenContext = screenContext;
+        }
+        // 🌐 이 폰이 지금 어느 배차망을 보나 — scrap 마다 갱신되는 실시간 상태 (픽커_수집.md §6-전)
+        if (targetApp) {
+            session.targetApp = targetApp;
         }
         if (isHolding !== undefined) {
             session.isHolding = isHolding;
