@@ -28,6 +28,14 @@ const cleanRoute = (t?: string) => (t ?? '')
     .replace(/'(꿀|똥|콜|보통|사고)'/g, '').replace(/\[(추천|최단거리|최단시간)\]/g, '')
     .replace(/[🚙💩🍯]/g, '').replace(/\s{2,}/g, ' ').trim();
 
+/** v13 둘째 줄 리듬 «11.5km · 15분 (상차 10분)» — 못 읽으면 서버 원문 그대로 (지어내지 않는다) */
+function routeLine(distanceKm: number | undefined, ext: string): string {
+    const mins = ext.match(/소요\s*(\d+)분/)?.[1];
+    const approach = ext.match(/상차지?까지\s*(\d+)분/)?.[1];
+    if (distanceKm && mins) return `${distanceKm}km · ${mins}분${approach ? ` (상차 ${approach}분)` : ''}`;
+    return ext;
+}
+
 /** 호칭 — 타겟명 + 첫짐(생략)/합짐N + 후보콜 (용어집 조합 규칙) */
 export function candidateName(target: CallTarget, confirmedActive: number): string {
     const t = TARGET_NAME[target];
@@ -98,7 +106,7 @@ export default function JudgmentSeat({ route, confirmedActive, onDecision, proce
                             {hourly != null ? <>{hourly.toFixed(1)}만<span style={{ fontSize: 14, color: '#7d879c', fontWeight: 700 }}>/h</span></> : <span style={{ fontSize: 15 }}>{v.reason}</span>}
                         </div>
                         {/* v13 .l2 — 14.5px */}
-                        <div style={{ fontSize: 14.5, fontWeight: 700, letterSpacing: '-.2px', marginTop: 5 }}>{routeText || '경로 계산됨'}</div>
+                        <div style={{ fontSize: 14.5, fontWeight: 700, letterSpacing: '-.2px', marginTop: 5 }}>{routeLine(route.distanceKm, routeText) || '경로 계산됨'}</div>
                         {/* v13 .l3 — 12.5px · 걸리는 것만 */}
                         <div style={{ fontSize: 12.5, fontWeight: 600, marginTop: 4, color: negatives.length ? c!.text : '#59627a' }}>
                             {negatives.length ? negatives.join(' · ') : '걸리는 것 없음'} · 근거 {open ? '▴' : '▾'}
@@ -112,7 +120,6 @@ export default function JudgmentSeat({ route, confirmedActive, onDecision, proce
                                 {route.judgment.axes.map(a => <div key={a.key}><b>{a.name}</b> {a.raw} <span className="text-text-muted">({a.score ?? '—'}점{a.weight !== 1 ? ` ×${a.weight}` : ''})</span></div>)}
                             </div>
                         )}
-                        <div style={{ fontSize: 11, color: '#59627a', marginTop: 6 }}>결정은 인성 화면에서 — 수락하거나 뒤로</div>
                     </>) : (<>
                         <div style={{ fontSize: 13, fontWeight: 800, color: '#7d879c' }}>📄 상세 읽는 중 — 판정을 기다립니다</div>
                         <div className="animate-pulse" style={{ height: 12, width: 230, borderRadius: 6, background: 'rgba(255,255,255,.07)', marginTop: 8 }} />
@@ -155,7 +162,7 @@ export default function JudgmentSeat({ route, confirmedActive, onDecision, proce
                             <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-.6px' }}>
                                 {hourly != null ? <>{hourly.toFixed(1)}만<span style={{ fontSize: 13, fontWeight: 800, opacity: .75 }}>/h</span></> : `${score ?? ''}점`}
                             </div>
-                            <div style={{ fontSize: 13.5, fontWeight: 800, marginTop: 2 }}>{routeText}</div>
+                            <div style={{ fontSize: 13.5, fontWeight: 800, marginTop: 2 }}>{routeLine(route.distanceKm, routeText)}</div>
                             <div style={{ fontSize: 12, fontWeight: 700, opacity: .8, marginTop: 1 }}>{positives.length ? positives.join(' · ') : '걸리는 것 없음'}</div>
                         </>) : <span style={{ fontSize: 14, fontWeight: 900 }}>좌표 분석 중…</span>}
                     </div>
