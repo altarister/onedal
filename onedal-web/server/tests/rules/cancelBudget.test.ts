@@ -37,9 +37,14 @@ describe('🚫 한도는 한 곳에서 정한다', () => {
         expect(code(shared())).toMatch(/CANCEL_BUDGET_PER_ROUND/);
     });
 
-    it('🔴 관제웹이 그 값을 쓴다 (10 을 다시 적지 않는다)', () => {
+    /**
+     * 🔄 0831 개정 (기사님): 필터 현황판의 **상시 취소 카운트 표시를 뺐다** («인성 4/10 필요 없어»).
+     *    남은 독자는 «한 판 소진 토스트»(budgetToast) — 그 경로가 살아 있음을 잠근다.
+     *    상시 표시가 되살아나야 하면 그때 CANCEL_BUDGET_PER_ROUND 를 다시 읽게 하고 이 검사를 되돌린다.
+     */
+    it('🔴 관제웹은 한 판 소진 토스트로 알린다 (상시 카운트는 0831 개정으로 뺐다)', () => {
         expect(code(client('components/dashboard/OrderFilterStatus.tsx')))
-            .toMatch(/CANCEL_BUDGET_PER_ROUND/);
+            .toMatch(/budgetToast/);
     });
 });
 
