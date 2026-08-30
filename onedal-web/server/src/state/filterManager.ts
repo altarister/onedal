@@ -18,8 +18,8 @@ import { OrderRepository } from "../repositories/OrderRepository";
 import { SettingsRepository } from "../repositories/SettingsRepository";
 import { getUserSession } from "./userSessionStore";
 import type { AutoDispatchFilter, PhaseKey, PhaseSettings } from "@onedal/shared";
-import { DEFAULT_DETOUR_RADIUS_KM, isTerminal, isDeliveredCall, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, resolvePhaseKey, applyPhaseToFilter, normalizePhaseSettings,
-         PHASE_KEYS, FILTER_FIELDS, phaseRowOf, phaseOfRow } from "@onedal/shared";
+import { DEFAULT_DETOUR_RADIUS_KM, isDeliveredCall, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, resolvePhaseKey, applyPhaseToFilter, normalizePhaseSettings,
+         PHASE_KEYS, FILTER_FIELDS, phaseRowOf, phaseOfRow, EVALUATING_STATUSES } from "@onedal/shared";
 import type { PhaseSettingsMap } from "@onedal/shared";
 
 // ─────────────────────────────────────────────────────────────
@@ -294,9 +294,11 @@ export function trimTraveled(userId: string, io?: any): void {
  */
 export function rememberDetourProgress(
     session: ReturnType<typeof getUserSession>,
-    regions: { progressKm?: Record<string, number>; flat?: string[] } | null,
+    regions: { progressKm?: Record<string, number>; orderKm?: Record<string, number>; flat?: string[] } | null,
 ) {
     session.detourProgressKm = regions?.progressKm ?? null;
+    // 순서용 한 벌도 같은 순간에 — 트림용과 갈라지면 #78 이 되살아난다
+    session.detourOrderKm = regions?.orderKm ?? null;
     /**
      * 🛣️ 경로 위 동 목록도 함께 기억한다 (2026-08-25).
      * ⚠️ **여기에는 경유만 넣는다.** 도착 목표에서 온 동을 섞으면 상차지 축이 뚫린다
@@ -311,17 +313,18 @@ export function rememberDetourProgress(
  * 실사고: 파주 도착 직전에 `초월읍(광주) → 금촌동(파주)` 콜이 앱 필터를 통과했다
  * (2026-08-18 08:50). 앱은 하차지만 보고 상차지를 아무도 안 봐서 — 78km 역주행 콜이었다.
  *
- * · 키를 **지금 목록(destinationKeywords)으로 좁힌다** — 세션의 detourProgressKm 은
- *   지나온 동도 계속 들고 있어(트림 비교용), 그대로 보내면 지나온 동이 "경로 위"로 남는다
+ * · 키를 **지금 목록(destinationKeywords)으로 좁힌다** — 세션의 순서 맵은
+ *   지나온 동도 계속 들고 있어, 그대로 보내면 지나온 동이 "경로 위"로 남는다
  * · 값 없음(스냅 실패)은 **null** — "순서를 모른다"는 뜻이고 앱은 모르면 막지 않는다
  * · 경로가 없으면(첫짐) **빈 객체** — 앱이 순서 검사를 통째로 건너뛴다
  *
- * 🔴 **`Infinity` 를 null 로 보내면 판정이 통째로 죽는다** (2026-08-18 실측으로 발견).
- *    `Infinity` 는 *하차지 원 안의 동*이라는 뜻인데, **트림에서만** 쓰는 표식이다
- *    ("도착이 가까워도 이 동네는 빼지 마라"). 순서로는 무한대가 아니라 **경로의 끝**이다.
- *    처음에 null 로 바꿔 보냈더니 운행중(경유 0km) 목록 7개가 **전부 하차지 원 안**이라
- *    7개 다 null 이 됐고, 앱은 "순서를 모른다"며 하나도 못 걸렀다.
- *    → 하차지 원 안 동은 **경로 총 길이**를 준다. 뜻도 그게 맞다.
+ * 🔴 **읽는 것은 `detourOrderKm`(순서 전용 · 순수 스냅점)이다** (#78 · 2026-08-30).
+ *    전에는 트림용 `detourProgressKm` 을 그대로 썼다 — pad 가 하차원 판정까지 부풀려
+ *    곤지암읍(실제 6km 길목)이 «Infinity → 경로 끝 19.2km»가 됐고, 성당→이천제일이
+ *    "2.2km 후진"으로 차단됐다 (7지점 실폰 2회 재현 · `routeOrderKm.test.ts`).
+ *    순서용에는 Infinity 가 없으므로 옛 «Infinity → 경로 끝» 치환도 함께 사라졌다 —
+ *    하차원 안 동들도 각자의 실제 위치를 가져 서로의 순서가 살아 있다 (2026-08-18 에
+ *    null 로 보내 판정이 죽었던 그 자리 — 지금은 유한한 실수가 나가므로 그 일이 없다).
  */
 export function buildAppProgressKm(
     session: ReturnType<typeof getUserSession>,
@@ -333,14 +336,8 @@ export function buildAppProgressKm(
      * 원천(경로)이 없으면 파생도 빈 것이다 (규칙 ③).
      */
     if (getActiveCalls(session).length === 0) return {};
-    const progress = session.detourProgressKm;
-    if (!progress) return {};
-
-    // 경로의 끝 = 마지막 점의 진행도. 못 구하면 하차지 원 동은 null 로 남긴다 (지어내지 않는다)
-    const poly = getActivePolyline(session);
-    const endKm = poly && poly.length >= 2
-        ? progressAlongPolyline(poly, poly[poly.length - 1])
-        : null;
+    const order = session.detourOrderKm;
+    if (!order) return {};
 
     // 경로 위 동 목록 — 없으면(옛 세션) 거르지 않는다. 지금까지의 동작 그대로다
     const onRoute = session.detourFlat ? new Set(session.detourFlat) : null;
@@ -357,14 +354,14 @@ export function buildAppProgressKm(
          * «상차지 순서 미상 — 통과» 로 읽어 **그 동에서 싣는 콜을 허용한다** —
          * 2026-08-18 파주 사고(78km 뒤로 돌아가 싣기)와 같은 형태다.
          *
-         * ⚠️ **`progress` 의 키로 거르면 안 된다.** `centroid` 가 없어 스냅에 실패한 동은
-         *    경로 위인데도 진행도 맵에 없다. 그 동은 `null`(«순서 미상 — 통과»)로 나가야
+         * ⚠️ **`order` 의 키로 거르면 안 된다.** `centroid` 가 없어 스냅에 실패한 동은
+         *    경로 위인데도 순서 맵에 없다. 그 동은 `null`(«순서 미상 — 통과»)로 나가야
          *    맞다 — «모르는 것»과 «경로 밖»은 다르다. 그래서 경유 목록으로 거른다.
          */
         if (onRoute && !onRoute.has(dong)) continue;
-        const v = progress[dong];
-        out[dong] = Number.isFinite(v) ? (v as number)
-            : (v === Infinity ? endKm : null);
+        const v = order[dong];
+        // 유한하지 않은 값이 섞여 들면 «순서 미상 — 통과» — 느슨한 쪽이 안전하다 (규칙 ⑤)
+        out[dong] = Number.isFinite(v) ? (v as number) : null;
     }
     return out;
 }
@@ -645,6 +642,7 @@ export const recalculateDetourFilter = (userId: string, detourRadiusKm: number, 
                  *    그 동에서 싣는 콜을 허용한다 (2026-08-18 파주 사고와 같은 형태).
                  */
                 progressKm: detour.progressKm,
+                orderKm: detour.orderKm,
                 flat: detour.flat,
             };
         }
@@ -892,8 +890,15 @@ export function updateActiveFilter(
      * 관제웹은 이 값을 보내지 않으므로(기사님이 손으로 끄는 스위치가 아니다) 안전하다.
      *
      * ⚠️ `pendingOrdersData.size` 로 세면 안 된다 — 그 캐시에는 **종료된 콜도 남아 있다**
-     *    (`buildOrderSync` 가 거기서 terminated 를 뽑는다). 세어야 할 것은 **아직 끝나지 않은**
-     *    콜이다. 2026-08-14 재현에서 이걸 틀려 한 번 헛돌았다.
+     *    (`buildOrderSync` 가 거기서 terminated 를 뽑는다).
+     *
+     * 🔴 **«끝나지 않은 콜»로 세도 안 된다** (#80 · 2026-08-30). KEEP 된 콜은 캐시에
+     *    **일부러 남는데**(dispatchEngine 승격 덮어쓰기 — 롤백 방지) 끝난 콜이 아니라서,
+     *    그렇게 세면 콜을 하나라도 보유한 순간부터 이 불변식이 벙어리가 된다.
+     *    실측 16:23:19 — 01·03 보유 중에 깨진 05를 강제 정리하자 **콜 잡기가 영영
+     *    잠겼고**, 06·07은 «평가 보류»만 반복했다. 세어야 할 것은 **심사 중**
+     *    (선점~결재 사이 · `EVALUATING_STATUSES`)뿐이다 — 확정 콜은 끝나지도 않았지만
+     *    선점 중도 아니다 («한 값이 두 사실» — #76·#78·#79 와 같은 병).
      *
      * 🔴 **그런데 이 불변식은 «선점 잠금»만 푸는 것이다** (2026-08-30 코드리뷰).
      *    기사님이 기기를 「대기」로 두어 끈 것까지 되켜면 안 된다 —
@@ -902,7 +907,7 @@ export function updateActiveFilter(
      *    (`undefined` 는 «켬» — 모드를 한 번도 안 고른 사용자는 예전 그대로 돈다)
      */
     const evaluating = Array.from(session.pendingOrdersData.values())
-        .filter((o: any) => !isTerminal(o.status));
+        .filter((o: any) => (EVALUATING_STATUSES as readonly string[]).includes(o.status));
     if (!session.activeFilter.isActive && evaluating.length === 0
         && session.filterEnabledByMode !== false) {
         console.log(`🔗 [불변식] isActive false → true (선점 중인 콜 0건 — 콜 잡기를 다시 켠다)`);

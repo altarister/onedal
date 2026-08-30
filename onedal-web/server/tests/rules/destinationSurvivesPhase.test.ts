@@ -55,7 +55,8 @@ function session(over: { keywords?: string[] } = {}) {
     s.activeFilter.destinationKeywords = over.keywords ?? ['초월읍', '부발읍', '가남읍'];
     // 경유 — 여기 있는 동만 «경로 위»다. 스냅에 실패한 동(산북면)도 경로 위이므로 목록엔 있다
     s.detourFlat = ['초월읍', '부발읍', '가남읍', '산북면'];
-    s.detourProgressKm = { 초월읍: 16.5, 부발읍: 40.2, 가남읍: 48.5 };   // 산북면은 스냅 실패
+    // 앱에 내려가는 순서의 원천은 순서 전용 detourOrderKm 이다 (#78 — 트림용과 갈라짐)
+    s.detourOrderKm = { 초월읍: 16.5, 부발읍: 40.2, 가남읍: 48.5 };   // 산북면은 스냅 실패
     s.myOrders = [{
         id: 'A', status: 'ORDER_CONFIRMED', capturedAt: new Date().toISOString(),
         routePolyline: [{ x: 127.1, y: 37.4 }, { x: 127.5, y: 37.2 }],

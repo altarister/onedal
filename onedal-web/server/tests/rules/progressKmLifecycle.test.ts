@@ -15,7 +15,8 @@ const sessionLike = (over: Record<string, unknown>) => ({
     myOrders: [],
     pendingOrdersData: new Map(),
     activeFilter: { destinationKeywords: ['금촌동', '문산읍'], dispatchPhase: 'STANDBY' },
-    detourProgressKm: { '금촌동': 12.3 },
+    // 앱에 내려가는 순서의 원천은 순서 전용 detourOrderKm 이다 (#78 — 트림용과 갈라짐)
+    detourOrderKm: { '금촌동': 12.3 },
     ...over,
 }) as any;
 

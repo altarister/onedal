@@ -536,11 +536,9 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
         // ✅ 콜 배정이 끝난 뒤 경유 재계산 (경로 기반 키워드 갱신)
         //    ⚠️ 예전 주석은 `mainCallState/subCalls 할당 완료 후` 였다 — 그 필드는 V2 에서
         //       사라졌고 지금 배정은 myOrders 로 한다 (2026-08-29 정정)
-        let destinationKeywords = session.activeFilter.destinationKeywords;
         if (cachedOrder && cachedOrder.routePolyline) {
             syncDetourFilter(userId, io);
-            destinationKeywords = session.activeFilter.destinationKeywords;
-            console.log(`🗺️ [경유 갱신] KEEP 후 destinationKeywords ${destinationKeywords.length}개로 재계산 완료`);
+            console.log(`🗺️ [경유 갱신] KEEP 후 destinationKeywords ${session.activeFilter.destinationKeywords.length}개로 재계산 완료`);
         }
         /**
          * ↩️ **KEEP 했으면 되돌릴 일이 없다** — 보관본을 버린다.
@@ -634,7 +632,8 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
             console.warn(`⚠️ [적재 용량] 차종 인식 실패 ${unknownVehicles.length}건 [${unknownVehicles.join(', ')}] → 만재로 간주(보수적). 합짐 범위가 실제보다 좁아집니다.`);
         }
 
-        const transition = StateMachine.advanceOnKeep(session, cachedOrder, destinationKeywords, sharedVehicleTypes);
+        // 경유 한 벌은 위의 syncDetourFilter 가 이미 넣었다 — 전이는 국면·차종만 (#81)
+        const transition = StateMachine.advanceOnKeep(session, sharedVehicleTypes);
         if (transition.changed && transition.newFilter) {
             updateActiveFilter(userId, transition.newFilter, io);
             console.log(`🔄 [State Machine] ${transition.reason}`);
@@ -698,7 +697,12 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
         await recalculateActiveKakaoRoute(userId, io);
     }
 
-    console.log(`🛡️ [서버] 결재 완료(Keep/Cancel) 직후: 캐시 된 해당 오더(${orderId}) 메모리의 생명주기(TTL) 만료 및 가비지 컬렉션(GC) 삭제 처리 완료`);
+    /**
+     * ⚠️ 예전 로그는 *"캐시 GC 삭제 처리 완료"* 였다 — **거짓말이었다.** 여기서는 아무것도
+     * 지우지 않는다. KEEP 은 오히려 승격본을 캐시에 **덮어써 남긴다**(위 `set` — 롤백 방지).
+     * 그 거짓 로그가 #80(좀비 잠금) 진단을 30분 늦췄다. 로그는 하는 일만 말한다.
+     */
+    console.log(`🛡️ [서버] 결재 처리 완료 (${orderId} · ${status}) — 심사 캐시는 KEEP 승격본으로 유지된다`);
     return { success: true, action: status };
 }
 

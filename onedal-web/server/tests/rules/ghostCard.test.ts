@@ -190,11 +190,15 @@ describe('콜 잡기 재개 — 끄는 곳이 있으면 켜는 곳도 있다', (
         expect(inv).toMatch(/isActive = true/);
     });
 
-    it('🔴 종료된 콜은 "선점 중"이 아니다 — 캐시에는 종료 콜도 남아 있다', () => {
+    it('🔴 «심사 중»만 선점 중이다 — 종료 콜도, 보유(확정) 콜도 아니다', () => {
         // pendingOrdersData.size 로 세면 영영 0 이 안 된다 (buildOrderSync 가 거기서 terminated 를 뽑는다).
-        // 2026-08-14 재현에서 이걸 틀려 한 번 헛돌았다
+        // 2026-08-14 재현에서 이걸 틀려 한 번 헛돌았다.
+        // 🔴 «끝나지 않은 콜»(!isTerminal)로 세도 안 된다 (#80 · 2026-08-30) —
+        //    KEEP 된 콜이 캐시에 일부러 남아, 보유 중이면 불변식이 벙어리가 됐다.
+        //    행동 검사는 securedLockInvariant.test.ts 가 세 갈래로 지킨다.
         const inv = fm.slice(fm.indexOf('const evaluating ='), fm.indexOf('const derivedShared'));
-        expect(inv).toMatch(/!isTerminal\(o\.status\)/);
+        expect(inv).toMatch(/EVALUATING_STATUSES/);
+        expect(inv).not.toMatch(/isTerminal/);
         expect(inv).not.toMatch(/pendingOrdersData\.size === 0/);
     });
 

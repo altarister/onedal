@@ -170,13 +170,29 @@ export interface DetourRegions {
     grouped: Record<string, string[]>;
     customCityFilters: string[];
     /**
-     * 동마다 **경로 몇 km 지점인가** (출발점 기준 누적 거리).
+     * 동마다 **경로 몇 km 지점인가** (출발점 기준 누적 거리) — **트림 전용**.
      *
      * 🔴 이게 있으면 이동할 때 경유를 **다시 그리지 않아도 된다.**
      *    지나온 구간 제거가 "숫자 비교"가 되기 때문이다 — 실측 173ms → 0.14ms.
      *    키워드와 **같은 입력에서 같이** 만든다. 따로 만들면 갈라진다(경유 4벌 사고).
+     *
+     * ⚠️ 동의 반지름(pad)을 더하고, 하차원 안이면 Infinity 다 — «늦게 빼기 위한»
+     *    안전 방향이라 트림에는 맞다. **순서 판정에 쓰면 지리가 뒤집힌다** — 그건
+     *    아래 `orderKm` 의 일이다 (버그 대장 #78).
      */
     progressKm: Record<string, number>;
+    /**
+     * 동마다 **경로 몇 km 지점인가 — 순서 전용** (순수 스냅점 · pad 없음 · Infinity 없음).
+     *
+     * 🔴 #78 (2026-08-30): 한 값(progressKm)이 두 사실(트림 안전 시점 / 경로상 위치)을
+     *    답하다가 순서가 뒤집혔다 — 곤지암읍은 pad(수 km)가 하차원 판정까지 부풀려
+     *    «Infinity → 경로 끝(19.2km)»이 됐고, 실제 6km 길목이 경로 끝보다 뒤가 되어
+     *    성당→이천제일(순방향)이 "2.2km 후진"으로 차단됐다 (#76 «한 값이 여러 사실» 동형).
+     *
+     * 같은 이름의 동이 여럿이면 **경로에 가장 가까운 것**을 남긴다 — 목록에 든 이유가
+     * 경로와의 근접이므로, 순서의 주인공도 그 동이다 (트림은 반대로 «가장 늦은 것»).
+     */
+    orderKm: Record<string, number>;
 }
 
 export function getDetourRegions(polyline: Array<{x: number; y: number}>, detourRadiusKm: number, destinationRadiusKm?: number): DetourRegions | null {
@@ -239,6 +255,9 @@ export function getDetourRegions(polyline: Array<{x: number; y: number}>, detour
      * 늦게 빼는 쪽이 안전하다.
      */
     const progressKm: Record<string, number> = {};
+    const orderKm: Record<string, number> = {};
+    // 순서용 동명이인 판정에만 쓴다 — 스냅점이 경로에서 얼마나 떨어져 있었나
+    const orderSnapDistKm: Record<string, number> = {};
 
     /**
      * 🔴 **하차지 주변으로 들어온 동은 트림에서 빼지 않는다** (2026-08-14 실측으로 발견).
@@ -296,6 +315,15 @@ export function getDetourRegions(polyline: Array<{x: number; y: number}>, detour
                         const val = inDest ? Infinity : at + pad;
                         // 같은 이름의 동이 여럿이면 **가장 늦은 것**을 남긴다 (역시 늦게 빼기 위해)
                         if (prev === undefined || val > prev) progressKm[regionName] = val;
+
+                        // 순서용은 순수 스냅점 — pad·Infinity 없음 (#78 · 인터페이스 주석 참고).
+                        // 동명이인은 경로에 가장 가까운 것이 이긴다
+                        const snapDist = (snapped.properties?.dist as number) ?? Infinity;
+                        const prevDist = orderSnapDistKm[regionName];
+                        if (prevDist === undefined || snapDist < prevDist) {
+                            orderKm[regionName] = at;
+                            orderSnapDistKm[regionName] = snapDist;
+                        }
                     } catch { /* 스냅 실패는 진행도만 비운다 — 그 동은 안 빠질 뿐이다 */ }
                 }
             }
@@ -346,6 +374,7 @@ export function getDetourRegions(polyline: Array<{x: number; y: number}>, detour
         grouped: resultGroups,
         customCityFilters: Array.from(customCitySet),
         progressKm,
+        orderKm,
     };
 }
 
