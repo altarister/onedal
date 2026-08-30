@@ -5,7 +5,6 @@ import { socket } from '../../lib/socket';
 import { logRoadmapEvent , logStateChange } from '../../lib/roadmapLogger';
 import PinnedRouteCanvas, { type RoutePoint } from './PinnedRouteCanvas';
 import PinnedRouteCard from './PinnedRouteCard';
-import JudgmentSeat from './JudgmentSeat';
 import type { EtaCell } from './PinnedRouteCard';
 import CallDeck from './CallDeck';
 import DepartureCountdown from './DepartureCountdown';
@@ -296,16 +295,6 @@ export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, 
 
     return (
         <section id="confirmed-route" className="flex flex-col">
-            {/* 🪧 심사석 — 필터 현황판 자리에 뜨는 판정 카드 (아래 덱에는 이 콜을 안 그린다 · v13 확정안) */}
-            {judging && (
-                <JudgmentSeat
-                    route={judging}
-                    confirmedActive={cycleDeck.filter(o => o.id !== judging.id).length}
-                    onDecision={onDecision}
-                    processingId={processingId}
-                    setProcessingId={setProcessingId}
-                />
-            )}
             {safeRoute.length > 0 && (
                 <div className="flex justify-between items-center px-4 py-2 border-b border-border-card">
                     <h2 className="text-[13px] font-bold text-text-primary flex items-center gap-1.5">

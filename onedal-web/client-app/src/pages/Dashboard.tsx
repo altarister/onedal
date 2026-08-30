@@ -1,8 +1,9 @@
-import { isTerminal, isEvaluating } from "@onedal/shared";
+import { isTerminal, isEvaluating, deckOfCycle } from "@onedal/shared";
 import { mergeOrderViews } from "../lib/orderMerge";
 import Header from "../components/layout/Header";
 import DeviceControlPanel from "../components/dashboard/DeviceControlPanel";
 import OrderFilterStatus from "../components/dashboard/OrderFilterStatus";
+import JudgmentSeat from "../components/dashboard/JudgmentSeat";
 import OrderFilterModal from "../components/dashboard/OrderFilterModal";
 import VehicleStatusPanel from "../components/dashboard/VehicleStatusPanel";
 import PinnedRoute from "../components/dashboard/PinnedRoute";
@@ -20,6 +21,8 @@ import { useOrderEngine } from "../hooks/useOrderEngine";
 
 export default function Dashboard() {
     const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+    // 🪧 심사석 결재 버튼의 처리 중 표시 (자동콜 갈래)
+    const [seatProcessingId, setSeatProcessingId] = useState<string | null>(null);
     /**
      * 🎯 판정 기준을 **탭이 아니라 여기서** 구독한다 (2026-08-16).
      *    탭에서만 구독하면 서버의 첫 `judgment-init` 을 놓쳐 폼이 잠긴다.
@@ -261,15 +264,25 @@ export default function Dashboard() {
                 {/* 🎛️ 앱폰 제어 패널 */}
                 <DeviceControlPanel />
 
-                {/* ⚙️ 오더 필터 한 줄 현황판 (클릭 시 설정 모달 띄움)
-                    🪧 심사 중엔 숨긴다 (기사님 확정 0831) — 그 자리에 PinnedRoute 의 심사석(판정 카드)이
-                    뜬다. 심사 동안 필터는 어차피 선점 잠금이라, 안 도는 필터를 보여줄 이유가 없다 */}
-                {!activeRoute.some(o => !isTerminal(o.status) && (isEvaluating(o.status) || o.isPreview)) && (<>
-                <OrderFilterStatus onOpenFilter={() => setIsFilterModalOpen(true)} cancelCounts={cancelCounts} cancelRounds={cancelRounds} budgetToast={cancelBudgetToast} />
+                {/* ⚙️ 오더 필터 한 줄 현황판 ↔ 🪧 심사석 — **같은 슬롯 1:1 치환** (기사님 확정 0831).
+                    둘 다 158px 고정이라 아래 내용이 한 픽셀도 안 밀린다. 차량 패널은 늘 그 자리 —
+                    예전엔 심사 때 차량 패널까지 숨겨서 전환마다 아래가 출렁였다. */}
+                {(() => {
+                    const judging = activeRoute.find(o => !isTerminal(o.status) && (isEvaluating(o.status) || o.isPreview));
+                    if (judging) return (
+                        <JudgmentSeat
+                            route={judging}
+                            confirmedActive={deckOfCycle(activeRoute).filter(o => o.id !== judging.id).length}
+                            onDecision={handleDecision}
+                            processingId={seatProcessingId}
+                            setProcessingId={setSeatProcessingId}
+                        />
+                    );
+                    return <OrderFilterStatus onOpenFilter={() => setIsFilterModalOpen(true)} cancelCounts={cancelCounts} cancelRounds={cancelRounds} budgetToast={cancelBudgetToast} />;
+                })()}
 
-                {/* 🚚 내 차 정보 및 적재/이동 상태 패널 */}
+                {/* 🚚 내 차 정보 및 적재/이동 상태 패널 — 심사 중에도 그대로 (치환은 필터 슬롯만) */}
                 <VehicleStatusPanel liveCalls={liveCalls} />
-                </>)}
 
                 {/* 🏆 배차 확정 콜 (및 안전취소 연산 구역)
                     🔴 결재 카드가 터져도 관제탑 전체가 죽지 않게 경계를 둔다 —
