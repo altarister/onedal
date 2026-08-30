@@ -19,7 +19,7 @@
  * 실행:  cd onedal-web && pnpm rehearsal
  */
 import { createInterface } from 'node:readline';
-import { readdirSync, statSync } from 'node:fs';
+import { readdirSync, statSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { restartServer } from './lib/restartServer.mjs';
@@ -594,6 +594,23 @@ async function freshStart() {
     }
     src.close();
     console.log(`  백업: ${backup.split('/').pop()} · intel·places·설정은 그대로`);
+
+    /**
+     * 🧹 **백업은 최근 3일만 남긴다** (기사님 확정 2026-08-30).
+     * 리셋마다 3~4MB 씩 쌓여 한 달 만에 114개(수백 MB)가 됐다. 테스트 단계라
+     * 마이그레이션도 안 하는 데이터다 — 3일이면 «방금 판을 되짚는» 용도로 충분하다.
+     */
+    const keepMs = 3 * 24 * 60 * 60 * 1000;
+    const serverDir = join(ROOT, 'server');
+    let pruned = 0;
+    for (const f of readdirSync(serverDir)) {
+        if (!f.startsWith('local.db.backup-')) continue;
+        if (statSync(join(serverDir, f)).mtimeMs < Date.now() - keepMs) {
+            rmSync(join(serverDir, f));
+            pruned++;
+        }
+    }
+    if (pruned) console.log(`  🧹 백업 정리: 3일 지난 ${pruned}개 삭제`);
 
     /**
      * 🔴 **장부를 비웠으면 메모리도 함께 비운다 — 한 동작이다** (2026-08-22 · 버그 대장 #40).

@@ -321,8 +321,15 @@ async function main() {
          */
         proc.kill('SIGKILL');
         try {
+            /**
+             * 🔴 **자기 자신은 빼고 죽인다** (2026-08-30 발견). `lsof -ti :포트` 는 그 포트에
+             * 물린 **양쪽 끝**을 다 낸다 — 서버(듣는 쪽)뿐 아니라 이 스크립트(붙은 쪽)도.
+             * 그래서 kill -9 가 자기를 죽여 **요약·실패 판정·종료코드가 영영 안 나왔다** —
+             * 모든 ✅ 뒤에서 조용히 137 로 죽는 검사는 «실패를 알릴 수 없는 검사»다.
+             */
             const pids = execSync(`lsof -ti :${PORT} || true`, { encoding: 'utf8' }).trim();
-            if (pids) execSync(`kill -9 ${pids.split('\n').join(' ')}`);
+            const others = pids ? pids.split('\n').filter(p => Number(p) !== process.pid) : [];
+            if (others.length) execSync(`kill -9 ${others.join(' ')}`);
         } catch { /* lsof 없는 환경 */ }
         for (const f of [dbPath, `${dbPath}-wal`, `${dbPath}-shm`]) if (existsSync(f)) rmSync(f);
     }
