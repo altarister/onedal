@@ -263,13 +263,17 @@ export function useRouteDerivations(
         // 출발 전에는 매번 새로 — 합짐이 붙으면 갈 순서가 진짜로 바뀐다
         const m = isDriving ? stopNoRef.current : new Map<string, number>();
         let next = m.size + 1;
-        for (const st of routeStops) {
-            const k = keyOf(st.orderId, st.stopType as 'pickup' | 'dropoff');
-            if (!m.has(k)) m.set(k, next++);
-        }
-        // 경로에서 이미 빠진(다녀온) 정거장 — 번호를 잃지 않는다
+        /**
+         * 🔴 **다녀온 것을 먼저 매긴다** — 그것이 시간상 앞이다.
+         *    새로고침을 달리는 중에 하면 기억이 비어 있는데, 남은 것부터 매기면
+         *    **이미 지나온 정거장이 더 큰 번호**를 받는다 (✓4 → ①②③ 처럼 뒤집힌다).
+         */
         for (const v of visitedTrail) {
             const k = keyOf(v.orderId, v.type === '상차' ? 'pickup' : 'dropoff');
+            if (!m.has(k)) m.set(k, next++);
+        }
+        for (const st of routeStops) {
+            const k = keyOf(st.orderId, st.stopType as 'pickup' | 'dropoff');
             if (!m.has(k)) m.set(k, next++);
         }
         stopNoRef.current = m;
