@@ -1,5 +1,6 @@
 import React, { useRef, useCallback, useEffect } from 'react';
 import type { SecuredOrder } from "@onedal/shared";
+import { isEvaluating } from "@onedal/shared";
 import sidoDataRaw from '../../mapData/sidoData.json';
 import { getDistanceKm } from '../../lib/routeUtils';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -62,6 +63,8 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         // 진행 중인 콜만 받으므로 여기서 거를 것이 없다
         const lastValidOrderWithPolyline = [...liveRoute].reverse().find(r => r.routePolyline && r.routePolyline.length > 0);
         const currentPolyline = lastValidOrderWithPolyline?.routePolyline || [];
+        // 🟡 S4 — 평가 중 후보를 붙인 경로는 «미리보기»다. 확정 경로인 척하면 안 된다 (#64)
+        const isPreviewRoute = !!lastValidOrderWithPolyline && isEvaluating(lastValidOrderWithPolyline.status);
         const hasPolyline = currentPolyline.length > 0;
 
         const validPolyline = currentPolyline.filter((p: any) => typeof p.x === 'number' && typeof p.y === 'number' && !isNaN(p.x) && !isNaN(p.y));
@@ -197,7 +200,8 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         // 1. 카카오 실제 도로 궤적(폴리라인) 렌더링
         if (hasPolyline && validPolyline.length > 0) {
             ctx.beginPath();
-            ctx.strokeStyle = mapColors.routeLine;
+            ctx.strokeStyle = isPreviewRoute ? '#e6b422' : mapColors.routeLine;
+            if (isPreviewRoute) ctx.setLineDash([10, 8]);   // 노란 점선 = 아직 결재 전 (v23 Ⅱ)
             ctx.lineWidth = 3 * zoomRef.current;
             ctx.lineJoin = 'round';
             ctx.lineCap = 'round';
@@ -208,6 +212,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
                 else ctx.lineTo(cx, cy);
             });
             ctx.stroke();
+            ctx.setLineDash([]);
         }
 
         // 2. 노드 렌더링

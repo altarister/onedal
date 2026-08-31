@@ -59,13 +59,25 @@ export default function StageView(props: Props) {
      */
     useEffect(() => {
         const onConfirmed = (orderId: string) => {
-            useGpsFocusStore.setState({ gpsFocus: { orderId, tick: Date.now() } });
+            useGpsFocusStore.setState({ gpsFocus: { orderId, tick: Date.now(), kind: 'arrive' } });
             userHoldUntil.current = Date.now() + 30_000;   // 통화하는 동안 자동 전환 유예
             setSnap('full');
         };
         socket.on('order-confirmed', onConfirmed);
         return () => { socket.off('order-confirmed', onConfirmed); };
     }, []);
+
+    /**
+     * 🏁 S7 — 정거장 도착: 시트 전체로 마중 (v23 Ⅲ · 신고 시트가 기다린다).
+     * 예고(approach)는 덱 카드만 따라간다 — 주행 중 시트가 지도를 가리면 안 된다 (S3).
+     */
+    const gpsFocus = derived.gpsFocus;
+    useEffect(() => {
+        if (!gpsFocus || gpsFocus.kind !== 'arrive') return;
+        if (Date.now() < userHoldUntil.current) return;   // 손이 이긴다
+        setSnap('full');
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [gpsFocus?.tick]);
 
     /* 🗺️ 다음 정거장 이름표 재료 — 서버 경로 순서(routeStops)에서 첫 미방문 (v22 S3) */
     const next = (() => {
@@ -105,7 +117,7 @@ export default function StageView(props: Props) {
                         <div className="absolute left-3 top-3 z-10 rounded-xl border px-3 py-2 tabular-nums cursor-pointer active:scale-95 transition-transform"
                              onClick={() => {
                                  // S6 — 정거장 이름표 탭 = 그 콜·그 단계로 (지도는 장부의 목차)
-                                 useGpsFocusStore.setState({ gpsFocus: { orderId: next.orderId, tick: Date.now() } });
+                                 useGpsFocusStore.setState({ gpsFocus: { orderId: next.orderId, tick: Date.now(), kind: 'arrive' } });
                                  userHoldUntil.current = Date.now() + 30_000;
                                  setSnap('full');
                              }}

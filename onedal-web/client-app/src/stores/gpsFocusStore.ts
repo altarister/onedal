@@ -6,16 +6,17 @@ import { socket } from '../lib/socket';
  * 훅 안에 socket.on 을 두면 훅을 쓰는 컴포넌트 수만큼 구독이 늘어난다 —
  * judgmentStore 와 같은 패턴으로 여기서 한 번만 건다.
  */
-interface GpsFocus { orderId: string; tick: number }
+interface GpsFocus { orderId: string; tick: number; kind: 'approach' | 'arrive' }
 export const useGpsFocusStore = create<{ gpsFocus: GpsFocus | null }>(() => ({ gpsFocus: null }));
 
 let subscribed = false;
 export function ensureGpsFocusSubscribed() {
     if (subscribed) return;
     subscribed = true;
-    const focus = (d: { orderId?: string }) => {
-        if (d?.orderId) useGpsFocusStore.setState({ gpsFocus: { orderId: d.orderId, tick: Date.now() } });
+    // 예고(2km)와 도착은 다른 일이다 — 예고는 카드만 따라가고, 도착(S7)은 시트가 마중 나간다
+    const focus = (kind: 'approach' | 'arrive') => (d: { orderId?: string }) => {
+        if (d?.orderId) useGpsFocusStore.setState({ gpsFocus: { orderId: d.orderId, tick: Date.now(), kind } });
     };
-    socket.on('next-stop-approaching', focus);
-    socket.on('auto-arrived', focus);
+    socket.on('next-stop-approaching', focus('approach'));
+    socket.on('auto-arrived', focus('arrive'));
 }
