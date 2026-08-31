@@ -24,6 +24,8 @@ interface Props {
     callColors?: Map<string, string>;
     /** 🖐️ 마커 탭 — 그 콜 카드로 (S6 문법: 지나온 곳은 확인·수정) */
     onStopTap?: (orderId: string) => void;
+    /** 👣 이번 사이클에 실제로 달린 자취 — 연한 선으로 남는다 (표시 전용) */
+    drivenTrail?: Array<{ x: number; y: number }>;
     unifiedRoutePoints: RoutePoint[];
     /** **진행 중인 콜만** 넘긴다. 종료된 콜을 여기서 거르지 않는다 —
      *  계약을 좁히면 거르기를 잊을 자리가 없어진다 (2026-08-10 전수조사) */
@@ -34,7 +36,7 @@ interface Props {
     fill?: boolean;
 }
 
-export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLocation, children, fill, visitedTrail, callColors, onStopTap }: Props) {
+export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLocation, children, fill, visitedTrail, callColors, onStopTap, drivenTrail }: Props) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const { theme } = useTheme();
     const mapColors = MAP_THEME_COLORS[theme];
@@ -78,7 +80,8 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
 
         const validPolyline = currentPolyline.filter((p: any) => typeof p.x === 'number' && typeof p.y === 'number' && !isNaN(p.x) && !isNaN(p.y));
         const trail = (visitedTrail ?? []).filter(p => Number.isFinite(p.x) && Number.isFinite(p.y));
-        const allCoords = [...validPoints, ...validPolyline, ...trail] as { x: number, y: number }[];
+        const driven = (drivenTrail ?? []).filter(p => Number.isFinite(p.x) && Number.isFinite(p.y));
+        const allCoords = [...validPoints, ...validPolyline, ...trail, ...driven] as { x: number, y: number }[];
         if (myLocation) allCoords.push(myLocation);
 
         if (allCoords.length === 0) {
@@ -207,6 +210,20 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             ctx.fillText(text, midX, midY - 1);
         }
 
+        // 0.9. 👣 달린 자취 — 연한 선. 파란 경로선(앞길)이 잘려나가도 이건 사이클 끝까지 남는다
+        if (driven.length > 1) {
+            ctx.beginPath();
+            ctx.strokeStyle = withAlpha(mapColors.routeLine, 0.35);
+            ctx.lineWidth = 2 * zoomRef.current;
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            driven.forEach((p, i) => {
+                const { cx, cy } = getScreenPt(p);
+                if (i === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
+            });
+            ctx.stroke();
+        }
+
         // 1. 카카오 실제 도로 궤적(폴리라인) 렌더링
         if (hasPolyline && validPolyline.length > 0) {
             ctx.beginPath();
@@ -309,7 +326,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             ctx.textAlign = 'center';
             ctx.fillText("현위치", cx, cy + 22);
         }
-    }, [unifiedRoutePoints, liveRoute, myLocation, visitedTrail, theme, mapColors]);
+    }, [unifiedRoutePoints, liveRoute, myLocation, visitedTrail, drivenTrail, theme, mapColors]);
 
     useEffect(() => {
         drawMap();

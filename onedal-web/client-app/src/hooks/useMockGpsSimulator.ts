@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { simStep, initialSimState, type SimState } from './simStep';
 
 /**
  * 폴리라인에서 **지금 자리와 가장 가까운 지점**의 인덱스.
@@ -70,8 +71,10 @@ export function useMockGpsSimulator({
     const routeRef = useRef(routePolyline);
     /** 이 경로를 끝까지 달렸나 — **끝났으면 다시 출발하지 않는다** */
     const finishedRef = useRef(false);
-    /** 이미 들른 정거장 — 같은 자리를 두 번 찍지 않는다 */
-    const visitedStopsRef = useRef(new Set<string>());
+    /** 🎭 걸음 각본 상태 — 들른 정거장·정차 연기가 여기 산다 (simStep) */
+    const simRef = useRef<SimState>(initialSimState());
+    /** stops 는 방문할 때마다 줄어드는 목록이라 최신 것을 본다 (클로저 굳음 방지) */
+    const stopsRef = useRef(stops);
     /** 지금 어디쯤 있나 — 경로가 갈릴 때 이어붙일 기준 (클로저가 굳지 않게 ref) */
     const hereRef = useRef<{ x: number; y: number } | null>(null);
 
@@ -95,9 +98,12 @@ export function useMockGpsSimulator({
      *
      * 경로가 갈리면 **지금 자리에서 가장 가까운 지점**으로 이어붙인다. 뒤로 안 돌아가니까.
      */
+    useEffect(() => { stopsRef.current = stops; }, [stops]);
+
     useEffect(() => {
         if (routeRef.current?.length !== routePolyline?.length) {
             indexRef.current = nearestIndex(routePolyline, hereRef.current);
+            simRef.current.idx = indexRef.current;   // 갈아탄 경로에서도 이어 달린다 (visited 는 유지)
             finishedRef.current = false;
         }
         routeRef.current = routePolyline;
@@ -132,7 +138,16 @@ export function useMockGpsSimulator({
             const path = routeRef.current;
             if (!path || path.length === 0) return;
 
-            if (indexRef.current >= path.length) {
+            /**
+             * 🎭 걸음은 전부 simStep 각본이 정한다 (2026-08-31 — 기사님: «시뮬이 연기를 해야
+             * 상태 기계가 밟힌다»): 정거장 1km 앞 감속 · 도착하면 실초 12초 정차(정차 감지
+             * 10초가 진짜로 발화) · 재출발. 배속은 순항에만 곱한다 — 정차는 실초.
+             * 정거장 좌표 찍기(도로에서 떨어진 물류센터 601m)도 각본 안에 있다.
+             */
+            const r = simStep(simRef.current, path, stopsRef.current ?? [], speedMultiplier);
+            indexRef.current = simRef.current.idx;
+
+            if (r.finished) {
                 clearInterval(intervalRef.current!);
                 intervalRef.current = null;
                 finishedRef.current = true;   // 다시 켜져도 재출발하지 않는다
@@ -142,41 +157,12 @@ export function useMockGpsSimulator({
                 onFinished?.();
                 return;
             }
-
-            /**
-             * 🏁 **이번 걸음에 지나치는 정거장이 있으면 그 자리를 먼저 찍는다** (2026-08-25).
-             *
-             * 배속 주행은 한 걸음이 수백 m~수 km 다 (실측 최대 **3,523m**). 도착 반경은
-             * 500m 라, 정거장 옆을 스쳐도 **원을 통째로 뛰어넘는다.** 게다가 물류센터는
-             * 도로에서 떨어져 있어(곤지암 601m · 부발 525m) 폴리라인만 달리면 애초에
-             * 닿지도 않는다.
-             *
-             * 실제 기사님은 시설 안까지 들어가므로, 모의 주행도 **그 좌표를 한 번 찍고**
-             * 다음 걸음으로 간다. 안 그러면 «지나쳤는데 하차가 안 된 콜」이 남아
-             * 경로가 나중에 되돌아간다 (2026-08-25 실측: 곤지암으로 서쪽 70km).
-             */
-            const from = indexRef.current;
-            const to = Math.min(from + speedMultiplier, path.length);
-            const due = (stops ?? []).find(st => {
-                const k = `${st.x},${st.y}`;
-                if (visitedStopsRef.current.has(k)) return false;
-                const i = nearestIndex(path, st);
-                return i >= from && i < to;
-            });
-            if (due) {
-                visitedStopsRef.current.add(`${due.x},${due.y}`);
-                console.log(`🏁 [Mock GPS] 정거장에 들름: x=${due.x}, y=${due.y} (도로에서 떨어져 있어도 닿는다)`);
-                hereRef.current = { x: due.x, y: due.y };
-                setMockLocation({ x: due.x, y: due.y });
-                return;   // 이번 틱은 정거장에 머문다 — 다음 틱에 경로로 복귀
-            }
-
-            const pt = path[indexRef.current];
-            console.log(`📍 [Mock GPS] 이동 중: x=${pt.x}, y=${pt.y} (진척도: ${indexRef.current}/${path.length})`);
-            hereRef.current = { x: pt.x, y: pt.y };
-            setMockLocation({ x: pt.x, y: pt.y });
-
-            indexRef.current += speedMultiplier;
+            if (!r.loc) return;
+            if (r.stoppedAt) console.log(`🏁 [Mock GPS] 정거장 도착 — 12초 정차 연기 (정차 감지가 발화할 시간)`);
+            else if (simRef.current.phase === 'dwell') { /* 정차 중 — 같은 자리 재송신 */ }
+            else console.log(`📍 [Mock GPS] 이동 중: x=${r.loc.x}, y=${r.loc.y} (진척도: ${simRef.current.idx}/${path.length})`);
+            hereRef.current = { x: r.loc.x, y: r.loc.y };
+            setMockLocation({ x: r.loc.x, y: r.loc.y });
         }, 1000);
 
         return () => {

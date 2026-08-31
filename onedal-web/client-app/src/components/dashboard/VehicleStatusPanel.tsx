@@ -28,14 +28,19 @@ import { Badge } from "../ui/badge";
 export function useDriveMotion(): 'drive' | 'idle' {
     const [mode, setMode] = useState<'drive' | 'idle'>('idle');
     useEffect(() => {
-        let speed = 0; let mock = false;
+        let speed = 0;
         let last: { lat: number; lng: number; time: number } | null = null;
         let driveSince = 0; let idleSince = 0;
+        /**
+         * 🔴 mock 도 실 GPS 와 똑같이 **속도를 재서** 판단한다 (2026-08-31).
+         *    예전엔 mock = 무조건 주행이라, 모의 주행에서 정차 상태(S2·S7)가
+         *    구조적으로 한 번도 안 나왔다 — 시뮬이 정차 연기(12초 같은 자리)를
+         *    하게 됐으므로 측정으로 충분하다. 출처 특례는 판단을 죽인다.
+         */
         const onGps = (e: Event) => {
             const loc = (e as CustomEvent<{ lat: number, lng: number, source?: string }>).detail;
-            mock = loc.source === 'mock';
             const now = Date.now();
-            if (!mock && last) {
+            if (last) {
                 const h = (now - last.time) / 3_600_000;
                 if (h > 0) speed = (speed * 0.7) + ((getDistanceKm(last.lat, last.lng, loc.lat, loc.lng) / h) * 0.3);
             }
@@ -43,8 +48,8 @@ export function useDriveMotion(): 'drive' | 'idle' {
         };
         const tick = setInterval(() => {
             const now = Date.now();
-            const fast = mock || speed >= 20;
-            const slow = !mock && speed <= 5;
+            const fast = speed >= 20;
+            const slow = speed <= 5;
             if (fast) { idleSince = 0; if (!driveSince) driveSince = now; if (now - driveSince >= 10_000) setMode('drive'); }
             else driveSince = 0;
             if (slow) { if (!idleSince) idleSince = now; if (now - idleSince >= 10_000) setMode('idle'); }

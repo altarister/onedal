@@ -93,6 +93,7 @@ export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDe
                     liveRoute={liveRoute}
                     myLocation={myLocation}
                     visitedTrail={d.visitedTrail}
+                    drivenTrail={d.drivenTrail}
                 >
                     {/* 좌측 상단 글로벌 상시 경로 재탐색 파이프라인 (맵 캔버스 내재화 플로팅 컨트롤) */}
                     {liveRoute.length > 0 && onRecalculate && (() => {

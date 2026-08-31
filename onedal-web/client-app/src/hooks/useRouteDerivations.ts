@@ -5,6 +5,7 @@ import { EMPTY_RECORDS } from './records';
 import { useStepRecords } from './useStepRecords';
 import { useJudgmentStore } from '../stores/judgmentStore';
 import { useGpsFocusStore, ensureGpsFocusSubscribed } from '../stores/gpsFocusStore';
+import { useDrivenTrailStore, ensureDrivenTrailSubscribed, clearDrivenTrail } from '../stores/drivenTrailStore';
 import { useFilterConfig } from './useFilterConfig';
 import { useMasterGps } from './useMasterGps';
 import { apiClient } from '../api/apiClient';
@@ -104,8 +105,12 @@ export function useRouteDerivations(
      * 🖥️ 다음 정거장에 가까워지면 그 콜 화면으로 (기사님 2026-08-19).
      * 구독은 스토어 모듈에서 한 번 — 훅 호출자가 몇이어도 안 늘어난다 (ghostCard 규칙).
      */
-    useEffect(() => { ensureGpsFocusSubscribed(); }, []);
+    useEffect(() => { ensureGpsFocusSubscribed(); ensureDrivenTrailSubscribed(); }, []);
     const gpsFocus = useGpsFocusStore(st => st.gpsFocus);
+
+    /** 👣 이번 사이클의 주행 자취 — 사이클이 끝나면(덱이 비면) 접는다 */
+    const drivenTrail = useDrivenTrailStore(st => st.points);
+    useEffect(() => { if (cycleDeck.length === 0) clearDrivenTrail(); }, [cycleDeck.length]);
 
     const safeRoute = activeRoute || [];
     const allEvaluating = safeRoute.some(r => isEvaluating(r.status));
@@ -234,6 +239,6 @@ export function useRouteDerivations(
     return {
         stepRecords, liveRoute, cycleDeck, activePolyline, isDriving, mockStops,
         currentGps, gpsSource, myLocation, safeRoute, allEvaluating, judging, gpsFocus,
-        routeTimeline, unifiedRoutePoints, etaMap, visitOrderMap, chronologicalIds, visitedTrail, callColors,
+        routeTimeline, unifiedRoutePoints, etaMap, visitOrderMap, chronologicalIds, visitedTrail, callColors, drivenTrail,
     };
 }
