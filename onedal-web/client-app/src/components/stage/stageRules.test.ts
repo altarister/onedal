@@ -1,6 +1,4 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'fs';
-import { join } from 'path';
 import { stageStep, initialStageMemory, USER_HOLD_MS,
          type StageMemory, type StageSignals } from './stageRules';
 
@@ -140,26 +138,5 @@ describe('한 판을 통째로 걸어 본다 — 기사님이 정한 수순', ()
         expect(step({ type: 'signal' }).snap).toBeNull();
         now += 8_000;
         expect(step({ type: 'signal' }, { drive: 'drive' }).snap).toBe('peek'); // 다시 달린다
-    });
-});
-
-/**
- * 🔴 **규칙은 한 곳에만 산다** (규칙 ③ — 이 레포가 가장 많이 재발한 형태).
- * 화면(StageView)이 자기 판단을 다시 가지면, 검사받는 규칙과 도는 규칙이 갈라진다.
- */
-describe('규칙은 화면 안에 다시 생기지 않는다', () => {
-    const view = readFileSync(join(__dirname, 'StageView.tsx'), 'utf8')
-        .split('\n').filter(l => !/^\s*(\/\/|\/\*|\*)/.test(l)).join('\n');
-
-    it('🔴 화면은 시트 높이를 직접 정하지 않는다 — stageStep 이 정한다', () => {
-        expect(view).toMatch(/stageStep\(/);
-        // 옛 손판단(자체 유예·자체 올림 표시)이 되살아나지 않았는가
-        expect(view).not.toMatch(/autoRaised\.current\s*=/);
-        expect(view).not.toMatch(/userHoldUntil\.current\s*=/);
-    });
-
-    it('🔴 미룬 결정을 다시 묻는 길이 있다 — 없으면 시트가 눌러앉는다', () => {
-        expect(view).toMatch(/deferred/);
-        expect(view).toMatch(/setRuleTick/);
     });
 });

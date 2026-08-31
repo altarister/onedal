@@ -70,8 +70,8 @@ describe('계획 짐값 → 타임라인 정차 (규칙 ③ — 입력 한 곳)'
     it('계획 신고는 통화가 아니다 — promiseConfirmed 는 여전히 false', () => {
         const p = run().find(e => e.stopType === 'pickup')!;
         expect(p.promiseConfirmed).toBe(false);
-        // 상차 추정 약속도 그대로 — max(도착 예상 13:36, 시계 13:08) = 13:36
-        expect(kst(Date.parse(p.promisedUntil!))).toBe('13:36');
+        // 상차 약속 = 잡은 시각 + 20분 = 12:58 (0831 확정 — 도착 예상을 따라가지 않는다)
+        expect(kst(Date.parse(p.promisedUntil!))).toBe('12:58');
     });
 
     /**

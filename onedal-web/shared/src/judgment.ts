@@ -73,7 +73,7 @@ export interface JudgmentConfig {
          *    근거: 소숙 실측 — 35분부터 "늦음" 취급, 전부 통화로 방어 (§16-2 ④).
          *    ~~여유30 · 휴게30 · +60 완료 규칙~~ 은 이 값으로 대체되어 폐기됐다.
          */
-        pickupOffsetMin: number;
+        pickupPromiseMin: number;
     };
     /**
      * 요소별 가중치. **상대값**이다 — 3 과 1 은 "3배 중요"라는 뜻이고 합이 10 일 필요는 없다.
@@ -141,7 +141,7 @@ export interface JudgmentConfig {
 export const DEFAULT_JUDGMENT: JudgmentConfig = {
     // 🧪 판정색 확정안 v2 (기사님 확정 2026-08-21) — 절대치 문턱(merge 4칸) 폐기,
     //    가중치 통합(revenueDetour), 목표 시급은 문제지 캘리브레이션으로 확정(3.0만).
-    unknown: { pickupDwellMin: 15, dropoffDwellMin: 10, pickupOffsetMin: 30 },
+    unknown: { pickupDwellMin: 15, dropoffDwellMin: 10, pickupPromiseMin: 20 },
     speed: { shortKmh: 25, midKmh: 46, longKmh: 56 },
     weights: { revenueDetour: 1, bufferCost: 1, slots: 1, promiseGuard: 1, cargoCompat: 1, geography: 0 },
     target: { hourlyKrw: 30_000 },
@@ -195,9 +195,9 @@ export const JUDGMENT_FIELDS: readonly JudgmentField[] = [
      *    *"여유"* 는 입력값이 아니라 **마감에서 계산해 나오는 값**이다 — 상수로 두면 안 된다.
      *    상차지 여유(콜 대기)와 하차지 여유(배송)는 성격이 달라 하나로 퉁칠 수도 없다.
      */
-    { col: 'unknown_pickup_offset_minutes', path: ['unknown', 'pickupOffsetMin'], group: '데드라인',
-      label: '상차 시계 잠정', unit: '분', min: 0, max: 240, int: true,
-      why: '잡은 시각 + 이만큼 = 무통보로 봐주는 상차 한계. 소숙 실측: 35분부터 늦음 취급 (잠정 — 도로에서 조정)' },
+    { col: 'pickup_promise_minutes', path: ['unknown', 'pickupPromiseMin'], group: '데드라인',
+      label: '상차 약속', unit: '분', min: 0, max: 240, int: true,
+      why: '콜을 잡으면 이만큼 안에 그 상차지에 도착한다 (기사님 확정 2026-08-31). 통화 약속·적요 시각이 있으면 그것이 이긴다' },
 
     // 🧪 옛 가중치 둘(추가 주행 · 우회 거리)은 **우회 시급 하나로 통합**됐다
     //    (기사님 확정 ② — 같은 40분 우회라도 요금이 가른다)

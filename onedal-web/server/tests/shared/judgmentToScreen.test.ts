@@ -27,10 +27,10 @@ const codeOnly = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/
 describe('판정 기준 → 화면 파생 (시간 4칸)', () => {
     it('🔴 derivationInputsOf — 탭 값에서 rules 와 정차 일반값을 한 곳에서 만든다', () => {
         const cfg = { ...DEFAULT_JUDGMENT,
-            unknown: { pickupDwellMin: 40, dropoffDwellMin: 35, pickupOffsetMin: 45 },
+            unknown: { pickupDwellMin: 40, dropoffDwellMin: 35, pickupPromiseMin: 45 },
             deadline: { ratioPct: 200 } };
         const { rules, unk } = derivationInputsOf(cfg);
-        expect(rules.pickupOffsetMinutes).toBe(45);
+        expect(rules.pickupPromiseMinutes).toBe(45);
         expect(rules.deadlineRatioPct).toBe(200);
         expect(unk.pickupDwellMin).toBe(40);
         expect(unk.dropoffDwellMin).toBe(35);
@@ -39,7 +39,7 @@ describe('판정 기준 → 화면 파생 (시간 4칸)', () => {
     it('🔴 미확인 정차가 탭 값을 따라온다 — deriveCallTiming (심사 버퍼의 파생)', () => {
         const order = { id: 'X', capturedAt: ANCHOR, totalDurationMin: 60, kakaoSoloDurationMin: 40 } as any;
         const { rules, unk } = derivationInputsOf({ ...DEFAULT_JUDGMENT,
-            unknown: { pickupDwellMin: 40, dropoffDwellMin: 35, pickupOffsetMin: 30 } });
+            unknown: { pickupDwellMin: 40, dropoffDwellMin: 35, pickupPromiseMin: 30 } });
         const t = deriveCallTiming(order, [], [], NOW, rules, unk);
         expect(t.pickupDwell).toBe(40);      // 기본 15가 아니라 탭 값
         expect(t.dropoffDwell).toBe(35);     // 기본 10이 아니라 탭 값
@@ -52,7 +52,7 @@ describe('판정 기준 → 화면 파생 (시간 4칸)', () => {
         ] as any;
         const orders = [{ id: 'X', capturedAt: ANCHOR, totalDurationMin: 50, kakaoSoloDurationMin: 40 }] as any;
         const { rules, unk } = derivationInputsOf({ ...DEFAULT_JUDGMENT,
-            unknown: { pickupDwellMin: 40, dropoffDwellMin: 35, pickupOffsetMin: 45 },
+            unknown: { pickupDwellMin: 40, dropoffDwellMin: 35, pickupPromiseMin: 45 },
             deadline: { ratioPct: 150 } });
         const tl = deriveRouteTimeline(stops, orders, () => [], () => [], NOW, ANCHOR, rules, unk);
         const p = tl.find(e => e.stopType === 'pickup')!;

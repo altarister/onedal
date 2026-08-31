@@ -168,8 +168,8 @@ describe('콜 잡은 시각 — 시간대를 잘못 붙인 값도 읽어낸다',
         const 결과 = ['2026-08-16T09:10:12Z', '2026-08-16T09:10:12+09:00', '2026-08-16T00:10:12Z']
             .map(cap => t(deriveCallTiming({ ...base, capturedAt: cap }, [], [], NOW).pickupDeadlineAt));
         expect(new Set(결과).size).toBe(1);
-        // ⏱️ 두 시계(⑯): 약속 = max(도착 예상 +13, 상차 시계 +30) = +30 · + 상차 미확인 15 = 완료
-        expect(결과[0]).toBe(new Date(new Date('2026-08-16T09:10:12+09:00').getTime() + (30 + 15) * 60_000).toISOString());
+        // ⏱️ 상차 약속 = 잡은 시각 + 20분 (0831 확정) · + 상차 미확인 15 = 완료
+        expect(결과[0]).toBe(new Date(new Date('2026-08-16T09:10:12+09:00').getTime() + (20 + 15) * 60_000).toISOString());
     });
 
     it('값이 없거나 이상하면 null (지어내지 않는다)', () => {
@@ -216,7 +216,8 @@ describe('시트 상태 — 콜마다 새로 선다', () => {
     it('🔴 주행을 몰라도 약속 폴백이 행에 저장된다 — 시딩이 한다', () => {
         const seeder = readFileSync(join(__dirname, '../../src/services/stepSeeder.ts'), 'utf8');
         // 상차 시계 잠정(30)이 통화 전 추정 약속의 폴백이다 (⑯)
-        expect(seeder).toMatch(/pickupOffsetMin \?\? 30/);
+        // 0831 — 상차 약속은 «잡은 시각 + 20분» 하나가 근거다 (30분·60분 가정치 폐기)
+        expect(seeder).toMatch(/pickupPromiseMin \?\? 20/);
     });
 
     /**

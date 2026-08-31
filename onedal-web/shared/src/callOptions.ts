@@ -181,16 +181,10 @@ export function buildDefaultCallOptions(): CallOption[] {
 
     // ── 시간 규칙
     out.push(opt({
-        category: 'timing', key: 'arrival_margin', label: '도착 약속 여유',
-        num1: DEFAULT_DEADLINE_RULES.arrivalMarginMinutes ?? 30,
-        unitLabel: '분', sortOrder: 0, minValue: 0, maxValue: 120,
-        why: '통화 전 추정 약속 = 도착 예상 + 이만큼 (기사님 2026-08-18)',
-    }));
-    out.push(opt({
-        category: 'timing', key: 'pickup_offset', label: '상차 마감 폴백',
-        num1: DEFAULT_DEADLINE_RULES.pickupOffsetMinutes ?? 60,
+        category: 'timing', key: 'pickup_promise', label: '상차 약속',
+        num1: DEFAULT_DEADLINE_RULES.pickupPromiseMinutes,
         unitLabel: '분', sortOrder: 1, minValue: 0, maxValue: 240,
-        why: '접근 주행을 모를 때만 쓰는 옛 규칙 (콜 잡은 시각 + 이만큼)',
+        why: '콜을 잡으면 이만큼 안에 그 상차지에 도착한다 (기사님 확정 2026-08-31)',
     }));
     out.push(opt({
         category: 'timing', key: 'rest_margin', label: '휴게 여유',

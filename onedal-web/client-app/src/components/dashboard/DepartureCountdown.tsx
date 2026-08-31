@@ -101,7 +101,7 @@ export default function DepartureCountdown({ orders, records, routeStops, routeC
                 ? `주행 ${binding.driveMinutes}${binding.leadMinutes > 0 ? `, 앞 정차 ${binding.leadMinutes}` : ''}`
                 : null,
             waitMin: minutesUntil(new Date(binding.departByMs!).toISOString(), now),
-            basis: binding.stopType === 'pickup' ? `상차 시계(잡음+잠정 ${rules.pickupOffsetMinutes}분)` : `배달 데드라인(상차 완료+${rules.deadlineRatioPct}%)`,
+            basis: binding.stopType === 'pickup' ? `상차 약속(잡은 시각 + ${rules.pickupPromiseMinutes}분)` : `배달 데드라인(상차 완료+${rules.deadlineRatioPct}%)`,
             // 시각을 같이 적는다 — 상차지가 둘 다 "경안동"이면 이름만으로는 어느 약속인지 모른다
             boundBy: o ? `${getAddressLabel(binding.stopType === 'pickup' ? o.pickup : o.dropoff)} ${binding.stopType === 'pickup' ? '상차' : '하차'} ${binding.promisedUntil ? new Date(binding.promisedUntil).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }) : ''}`.trim() : null,
         };

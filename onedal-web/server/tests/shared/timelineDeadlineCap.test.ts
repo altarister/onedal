@@ -3,10 +3,14 @@ import { deriveRouteTimeline } from '@onedal/shared';
 /**
  * ⏱️ **타임라인도 두 시계다** (시간체계 ⑯ · 기사님 확정 2026-08-21)
  *
- * 시딩(d257f90)은 두 시계로 갔는데 타임라인이 옛 식(예상+여유30 · 잡은-기산 캡)이면
- * 카운트다운·덱이 새 시트와 **또 두 목소리**를 낸다. 추정을 만드는 규칙은 하나다:
+ * 시딩(d257f90)은 두 시계로 갔는데 타임라인이 옛 식이면 카운트다운·덱이 새 시트와
+ * **또 두 목소리**를 낸다. 추정을 만드는 규칙은 하나다:
  *
- *   상차 추정 약속 = max(도착 예상, 상차 시계)     상차 시계 = 적요 상차 시각 > 잡음+잠정 30
+ * 🔄 **2026-08-31 기사님 확정으로 상차 쪽이 바뀌었다** — 상차 약속은 도착 예상을 따라가지
+ *    않는다. «잡은 시각 + 20분»으로 못박고, 못 지키면 **여유가 음수**로 드러난다.
+ *    (옛 식 `max(도착 예상, 잡음+30)` 은 늦는 것을 0으로 눌러 감췄다)
+ *
+ *   상차 추정 약속 = 통화 약속 > 적요 상차 시각 > 콜 잡은 시각 + 20분
  *   하차 추정 약속 = 배달 데드라인                 데드라인 = 상차 완료(실제/예정) + 배송×150%
  *   배송 주행을 모르면(합짐) 하차 추정 없음 — 지어내지 않는다 (규칙 ④)
  *   🔴 통화로 굳힌 약속(DECLARED)은 어느 쪽도 안 깎는다 — 화주 합의가 면책
@@ -32,31 +36,42 @@ const run = (orders = order(), reportsOf: (id: string) => any = () => [],
     deriveRouteTimeline(stops, orders, reportsOf, milestonesOf, NOW, ANCHOR);
 
 describe('타임라인 두 시계 — 추정 약속의 규칙은 하나다', () => {
-    it('🔴 상차 추정 약속 = max(도착 예상, 잡음+30) — 여유30 이 아니다', () => {
+    it('🔴 상차 추정 약속 = 콜 잡은 시각 + 20분 (0831 확정)', () => {
         const p = run().find(e => e.stopType === 'pickup')!;
-        // 예상 15:06 · 시계 15:25 → 15:25 (옛 식이면 15:36 이었다)
-        expect(kst(Date.parse(p.promisedUntil!))).toBe('15:25');
+        // 잡음 14:55 + 20 = 15:15. 도착 예상 15:06 이라 여유 +9분
+        expect(kst(Date.parse(p.promisedUntil!))).toBe('15:15');
         expect(p.promiseConfirmed).toBe(false);
     });
 
-    it('🔴 접근이 시계를 넘으면 약속 = 도착 예상 (불가능한 약속 금지 — 캡 바닥)', () => {
+    it('🔴 상차지가 멀어 20분을 못 지켜도 약속은 그대로 — 늦는 것이 음수로 드러난다', () => {
+        /**
+         * 🔄 옛 검사는 «약속 = 도착 예상»(캡 바닥)으로 늦음을 0으로 눌렀다.
+         *    기사님 확정 2026-08-31: 약속은 «잡은 시각 + 20분»이고, 못 지키면 늦은 것이다 —
+         *    그걸 알아야 그 상차지에 전화를 건다. 감추면 전화할 기회를 뺏는다.
+         */
         const tl = deriveRouteTimeline(
             [{ orderId: 'S', stopType: 'pickup', driveMinutes: 75 },
              { orderId: 'S', stopType: 'dropoff', driveMinutes: 100 }] as any,
             order({ totalDurationMin: 100 }), () => [], () => [], NOW, ANCHOR);
         const p = tl.find(e => e.stopType === 'pickup')!;
-        expect(kst(Date.parse(p.promisedUntil!))).toBe('16:10');   // 예상(+75) 그대로
+        expect(kst(Date.parse(p.promisedUntil!))).toBe('15:15');           // 약속은 20분 그대로
+        expect(kst(p.etaMs!)).toBe('16:10');                               // 도착 예상은 75분 뒤
+        expect(Math.round((Date.parse(p.promisedUntil!) - p.etaMs!) / 60_000)).toBe(-55);
     });
 
     it('🔴 적요의 상차 시각이 상차 시계를 대체한다 (소숙 콜③ 예약)', () => {
         const p = run(order({ detailMemo: '16:00상차 예약' })).find(e => e.stopType === 'pickup')!;
-        expect(kst(Date.parse(p.promisedUntil!))).toBe('16:00');   // 잡음+30(15:25)이 아니라 적요
+        expect(kst(Date.parse(p.promisedUntil!))).toBe('16:00');   // 잡은시각+20(15:15)이 아니라 적요
     });
 
     it('🔴 하차 추정 약속 = 배달 데드라인 (상차 완료 예정 + 배송×150%)', () => {
         const d = run().find(e => e.stopType === 'dropoff')!;
-        // 상차 약속 15:25 + 정차 15 = 완료 15:40 · + 25×1.5 = 16:17:30
-        expect(kst(Date.parse(d.promisedUntil!))).toBe('16:17');
+        /**
+         * 🔴 하차 마감의 기산점은 «약속»이 아니라 **떠날 수 있는 가장 이른 시각**이다
+         *    (도착 예상 15:06 과 약속 15:15 중 늦은 쪽) + 정차 15 = 완료 15:30 · +25×1.5 = 16:07:30.
+         *    약속을 그대로 기산점으로 쓰면 20분 약속이 하차 마감까지 앞당겨 억울한 지각이 된다.
+         */
+        expect(kst(Date.parse(d.promisedUntil!))).toBe('16:07');
     });
 
     it('🔴 상차를 실제로 마쳤으면 데드라인은 실측 기산 (두 시계의 기산점)', () => {

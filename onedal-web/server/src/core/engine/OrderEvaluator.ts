@@ -179,7 +179,7 @@ export class OrderEvaluator {
                             ? securedOrder.totalDurationMin + dwell.dwell : null;
                         const tags: string[] = [];
                         if (securedOrder.approachDurationMin != null
-                            && securedOrder.approachDurationMin > judgmentCfg.unknown.pickupOffsetMin)
+                            && securedOrder.approachDurationMin > judgmentCfg.unknown.pickupPromiseMin)
                             tags.push('통화 필수 — 무통보 상차 한계 밖');
                         if (dwell.hasUnknown) tags.push('정차 미확인(일반값)');
 
@@ -225,8 +225,8 @@ export class OrderEvaluator {
                         }
                         console.log(`   - 🎨 [판정] ${verdictLine(dry)}`);
                         // 🧪 도달 반경 dryRun (구현 4 계측) — 거르지 않는다, 설정 반경과 견주기만
-                        console.log(`   - 🧪 [도달 반경 dryRun] 빈 차 — 시계 ${judgmentCfg.unknown.pickupOffsetMin}분 ` +
-                            `≈ ${reachRadiusKm(judgmentCfg.unknown.pickupOffsetMin)}km (설정 ${session.activeFilter.pickupRadiusKm}km · 계수 잠정 ${REACH_COEF_MIN_PER_KM_TEMP}분/km)`);
+                        console.log(`   - 🧪 [도달 반경 dryRun] 빈 차 — 시계 ${judgmentCfg.unknown.pickupPromiseMin}분 ` +
+                            `≈ ${reachRadiusKm(judgmentCfg.unknown.pickupPromiseMin)}km (설정 ${session.activeFilter.pickupRadiusKm}km · 계수 잠정 ${REACH_COEF_MIN_PER_KM_TEMP}분/km)`);
                         (dry.color === '똥' || dry.color === '사고' ? reasons : pros)
                             .push(`총점 ${dry.score}점 — ${dry.axes.map(a => `${a.name} ${a.raw}`).join(' · ')}`);
 
@@ -357,7 +357,7 @@ export class OrderEvaluator {
                             const marginalKm = distDiff;
                             const tags = [`우회 ${marginal > 0 ? '+' : ''}${marginal}분 · ${marginalKm > 0 ? '+' : ''}${marginalKm}km`];
                             const candPickup = tlAfter.find(e => e.orderId === securedOrder.id && e.stopType === 'pickup');
-                            const clockMs = Date.now() + judgmentCfg.unknown.pickupOffsetMin * 60_000;
+                            const clockMs = Date.now() + judgmentCfg.unknown.pickupPromiseMin * 60_000;
                             if (candPickup?.etaMs != null && candPickup.etaMs > clockMs) tags.push('통화 필수 — 무통보 상차 한계 밖');
                             if (cost.hasUnknown) tags.push('정차 미확인(일반값)');
                             /**

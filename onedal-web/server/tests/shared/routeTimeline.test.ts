@@ -64,11 +64,11 @@ describe('deriveRouteTimeline — 경로 위에서 누적한다', () => {
         expect(d1.etaMs! - p2.etaMs!).toBe((60 - 20 + p2.dwellMinutes) * 60_000);
     });
 
-    it('추정 약속 = max(도착 예상, 상차 시계) — 여유30 폐기 (⑯), 확정 아님 표시', () => {
+    it('추정 약속 = 콜 잡은 시각 + 20분 (0831 확정) · 확정 아님 표시', () => {
         const tl = run();
         const p1 = tl[0];
-        // A 잡음 03:50 + 잠정 30 = 상차 시계 04:20 · 도착 예상 04:12 → 04:20
-        expect(new Date(Date.parse(p1.promisedUntil!)).toISOString()).toBe('2026-08-19T04:20:00.000Z');
+        // A 잡음 03:50 + 20분 = 04:10. 도착 예상(04:12)을 따라가지 않는다 — 여유 −2분이 드러난다
+        expect(new Date(Date.parse(p1.promisedUntil!)).toISOString()).toBe('2026-08-19T04:10:00.000Z');
         expect(p1.promiseConfirmed).toBe(false);
     });
 
@@ -95,7 +95,7 @@ describe('deriveRouteTimeline — 경로 위에서 누적한다', () => {
         const aPick = tl.find(e => e.orderId === 'A' && e.stopType === 'pickup')!;
         expect(aPick.etaMs).toBeNull();
         // A 는 콜별 파생 폴백 — 두 시계: max(잡음+접근 04:02, 상차 시계 04:20) = 04:20
-        expect(aPick.promisedUntil).toBe('2026-08-19T04:20:00.000Z');
+        expect(aPick.promisedUntil).toBe('2026-08-19T04:10:00.000Z');
     });
 
     it('경로에 없는 콜의 정거장은 만들지 않는다', () => {
@@ -109,7 +109,8 @@ describe('deriveRouteTimeline — 경로 위에서 누적한다', () => {
 describe('pickBindingDeparture — 어떤 콜이건 가장 빨리 나가야 하는 것', () => {
     it('🔴 합짐의 출발마감이 첫짐보다 이르면 합짐이 기준이 된다', () => {
         // 실측 사고: 카운트다운이 첫짐(1:20:57)만 보고 있었다
-        const ARRIVE = '2026-08-19T04:40:00.000Z';   // B 상차를 빡빡하게 확정
+        // 0831: A 의 추정 약속이 20분 룰로 10분 당겨졌으므로 B 도 그만큼 빡빡해야 «B 가 기준»이 된다
+        const ARRIVE = '2026-08-19T04:30:00.000Z';   // B 상차를 빡빡하게 확정
         const reportsOf = (id: string) => id === 'B'
             ? [{ stopType: 'pickup', kind: 'DECLARED', promisedArrivalAt: ARRIVE }] as any
             : [];

@@ -145,7 +145,7 @@ describe('추천 근거 문구 — 실제 계산 그대로', () => {
         const c = readFileSync(join(__dirname,
             '../../../client-app/src/components/dashboard/DepartureCountdown.tsx'), 'utf8');
         // 숫자는 판정 기준 탭 값을 그대로 말한다 (하드코딩 30·150 금지 — 필터 확정안 구현 1)
-        expect(c).toMatch(/상차 시계\(잡음\+잠정 \$\{rules\.pickupOffsetMinutes\}분\)/);
+        expect(c).toMatch(/상차 약속\(잡은 시각 \+ \$\{rules\.pickupPromiseMinutes\}분\)/);
         expect(c).toMatch(/배달 데드라인\(상차 완료\+\$\{rules\.deadlineRatioPct\}%\)/);
         expect(c).not.toMatch(/도착 예상 \+30분/);
     });

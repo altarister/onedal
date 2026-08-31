@@ -141,7 +141,7 @@ function computeChain(o: any, born: Partial<Record<StepId, any>>, judgment?: Jud
         const t = Date.parse(`${kstDay}T${hints.promisedAt}:00+09:00`);
         return Number.isFinite(t) && t >= capturedMs ? t : null;  // 과거 시각이면 무시
     })();
-    const pickupClockMs = memoPickupMs ?? capturedMs + (cfg.unknown.pickupOffsetMin ?? 30) * 60_000;
+    const pickupClockMs = memoPickupMs ?? capturedMs + (cfg.unknown.pickupPromiseMin ?? 20) * 60_000;
     const pickupPromise = ms(callP?.status !== 'PLANNED' ? callP?.promised_arrival_at : null)
         ?? (pickupEta != null ? Math.max(pickupEta, pickupClockMs) : pickupClockMs);
     const departMs = ms(born.LOADED?.occurred_at) ?? pickupPromise + pickupDwell * 60_000;
@@ -546,7 +546,7 @@ export function stepsView(orderId: string, judgment?: JudgmentConfig,
     //    실측(2026-08-21): 약속을 기준 삼으니 경로 유무에 따라 값이 흔들렸다
     const capturedMs2 = Date.parse(o.capturedAt ?? '');
     const clockMs = Number.isFinite(capturedMs2)
-        ? pickupClockMsOf(o, capturedMs2, (judgment ?? DEFAULT_JUDGMENT).unknown.pickupOffsetMin ?? 30) : null;
+        ? pickupClockMsOf(o, capturedMs2, (judgment ?? DEFAULT_JUDGMENT).unknown.pickupPromiseMin ?? 20) : null;
     const deadlineOf = (step: StepId) =>
         step === 'CALL_DROPOFF' ? (dl != null ? new Date(dl).toISOString() : null)
         : step === 'CALL_PICKUP' ? (clockMs != null ? new Date(clockMs).toISOString() : null)

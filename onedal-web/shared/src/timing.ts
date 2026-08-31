@@ -341,13 +341,11 @@ export function defaultDropoffDeadline(nowMs: number, travelMinutes: number): st
  *    포함해야 해. 이건 그냥 룰이라고 생각하고 너의 관념에 픽스시켜."*
  *    그래서 출발 시각을 역산할 때 **상차 정차도 함께 뺀다** (`departureDeadline` 참조).
  *
- * 기본값은 **30분**이다 (`DEFAULT_DEADLINE_RULES.pickupOffsetMinutes`) —
+ * 기본값은 **20분**이다 (`DEFAULT_DEADLINE_RULES.pickupPromiseMinutes`) —
  * 숫자를 여기 적지 않고 그 표를 본다 (규칙 ③).
  *
- * ⚠️ 예전 주석은 *"기본 60분인 이유 — 업계는 교통량 여유를 포함해 한 시간 안에 실어
- *    보낼 수 있다고 본다"* 였다. 그 값은 **60 → 30 으로 재해석되며 바뀌었는데**
- *    (같은 파일 `DEFAULT_DEADLINE_RULES` 주석) 근거 문장까지 옛 값 그대로 남아,
- *    읽는 사람이 60 으로 되돌리고 싶어지게 만들었다 (2026-08-29 정정).
+ * ⚠️ 예전에는 이 값이 60분·30분으로 흔들렸다. 둘 다 **배송 원칙을 알기 전의 가정치**라
+ *    2026-08-31 에 기사님이 20분으로 확정하며 지웠다.
  */
 export function defaultPickupDeadline(capturedAtMs: number, offsetMinutes: number): string {
     return new Date(capturedAtMs + offsetMinutes * 60_000).toISOString();
@@ -615,29 +613,34 @@ export interface CallTiming {
  * 기사님이 관제웹 「판정 기준」 탭에서 도로 위에서 바꾸실 수 있다.
  */
 export interface DeadlineRules {
-    /** 콜 잡은 시각 + 이만큼 = 상차 마감 (콜 대기 여유) */
-    pickupOffsetMinutes: number;
-    /** 통화 전 추정 도착 약속 = 도착 예상 + 이 여유(분) */
-    arrivalMarginMinutes?: number;
+    /**
+     * ⏱️ **상차 약속 = 콜 잡은 시각 + 이만큼** (기사님 확정 2026-08-31).
+     *    그 시각까지 **그 콜의 상차지에 도착**한다는 뜻이다.
+     *    우선순위: 통화 약속 > 적요 상차 시각 > 이 값 (용어집).
+     */
+    pickupPromiseMinutes: number;
     /** 상차 마감 + 단독 주행 + 이만큼 = 하차 마감 (휴식 여유) */
     restMarginMinutes: number;
-    /** ⏱️ 시한 = 잡은 시각 + 배송 주행 × (이 배율/100) + 픽업 보정 — 업계 관행의 상한 (2026-08-21) */
+    /** ⏱️ 하차 마감 = 상차 완료 + 배송 주행 × (이 배율/100) — 배차망 관행 */
     deadlineRatioPct?: number;
-    deadlinePickupMinutes?: number;
     /** 🚚 배송 주행을 모를 때 쓰는 속도 (km/h) — 판정 기준 탭에서 온다 */
     speedShortKmh?: number;
     speedMidKmh?: number;
     speedLongKmh?: number;
 }
 export const DEFAULT_DEADLINE_RULES: DeadlineRules = {
-    /** ⏱️ 상차 시계 잠정 (⑯ · 2026-08-21) — 잡은 시각 + 이만큼 = 무통보 상차 한계.
-     *  옛 뜻("+60 = 완료 마감")에서 재해석·값 60→30 (근거: 소숙 실측 §16-2④) */
-    pickupOffsetMinutes: 30,
+    /**
+     * ⏱️ **20분** (기사님 확정 2026-08-31) — 콜을 잡았으면 20분 안에 그 상차지에 닿는다.
+     * 🔴 이전의 30분·60분은 **배송 원칙(20분 룰)을 알기 전에 만든 가정치**라 지웠다.
+     *    30분짜리 옛 식은 `max(상차지 도착 예상, 잡은 시각+30분)` 이어서,
+     *    상차지 도착 예상이 30분보다 늦기만 하면 **상차 여유가 늘 0**이 됐다
+     *    (2026-08-31 판정 원장의 «약속 최소 +0분» 반복이 그것). 늦는 것도 0으로 가렸다.
+     */
+    pickupPromiseMinutes: 20,
     /** 🏗️ 잔재 — 여유30·휴게30·픽업 보정은 두 시계로 폐기됐다(⑯). 옛 판정 경로
      *  (deriveCallTiming 마감 사슬)만 아직 읽는다 — dryRun 대체 때 함께 제거 */
     restMarginMinutes: 30,
-    arrivalMarginMinutes: 30,
-    deadlineRatioPct: 150, deadlinePickupMinutes: 20,
+    deadlineRatioPct: 150,
     // 카카오 실측 45건 중앙값 (2026-08-26). 근거는 judgment.ts 의 speed 절에
     speedShortKmh: 25, speedMidKmh: 46, speedLongKmh: 56,
 };
@@ -651,7 +654,7 @@ export const DEFAULT_DEADLINE_RULES: DeadlineRules = {
  *    갈라지는 잠복 두 목소리(#33 클래스). 조립도 소비도 이 함수 하나를 거친다.
  */
 export function derivationInputsOf(cfg: {
-    unknown: { pickupDwellMin: number; dropoffDwellMin: number; pickupOffsetMin: number };
+    unknown: { pickupDwellMin: number; dropoffDwellMin: number; pickupPromiseMin: number };
     deadline: { ratioPct: number };
     speed?: { shortKmh: number; midKmh: number; longKmh: number };
 }, /**
@@ -665,7 +668,7 @@ export function derivationInputsOf(cfg: {
     return {
         rules: {
             ...DEFAULT_DEADLINE_RULES,
-            pickupOffsetMinutes: cfg.unknown.pickupOffsetMin,
+            pickupPromiseMinutes: cfg.unknown.pickupPromiseMin,
             deadlineRatioPct: cfg.deadline.ratioPct,
             ...(cfg.speed ? {
                 speedShortKmh: cfg.speed.shortKmh,
@@ -850,12 +853,12 @@ export function deriveCallTiming(
     if (!pickupDeadlineAt && capturedMs != null) {
         // ⏱️ 두 시계 (⑯) — 추정 상차 약속 = max(도착 예상, 상차 시계). 여유30 은 폐기됐다.
         if (approachMinutes != null) {
-            const clock = pickupClockMsOf(order, capturedMs, rules.pickupOffsetMinutes ?? 30);
+            const clock = pickupClockMsOf(order, capturedMs, rules.pickupPromiseMinutes ?? 20);
             pickupPromisedArrivalAt = new Date(
                 Math.max(capturedMs + approachMinutes * 60_000, clock)).toISOString();
             pickupDeadlineAt = addMin(pickupPromisedArrivalAt, pickupDwell);
         } else {
-            pickupDeadlineAt = defaultPickupDeadline(capturedMs, rules.pickupOffsetMinutes);
+            pickupDeadlineAt = defaultPickupDeadline(capturedMs, rules.pickupPromiseMinutes);
         }
         deadlineEstimated = true;
     }
@@ -1150,8 +1153,14 @@ export function deriveRouteTimeline(
         const estMs = (() => {
             if (st.stopType === 'pickup') {
                 if (capturedMs2 == null) return etaMs;
-                const clock = pickupClockMsOf(order, capturedMs2, rules.pickupOffsetMinutes ?? 30);
-                return etaMs != null ? Math.max(etaMs, clock) : clock;
+                /**
+                 * 🔴 **약속은 도착 예상을 따라가지 않는다** (기사님 확정 2026-08-31).
+                 *    옛 식은 `max(도착 예상, 시계)` 라, 상차지 도착 예상이 시계보다 늦기만 하면
+                 *    약속이 도착 예상과 같아져 **상차 여유가 구조적으로 늘 0**이었다.
+                 *    게다가 음수를 0으로 눌러 «늦는다»는 사실 자체를 감췄다 —
+                 *    늦는 것을 알아야 기사님이 그 상차지에 전화를 거신다.
+                 */
+                return pickupClockMsOf(order, capturedMs2, rules.pickupPromiseMinutes ?? 20);
             }
             /**
              * 🚚 **상차지에 도착하면 «상차 완료 예정»을 잃고 있었다** (기사님 실측 2026-08-26).
@@ -1244,10 +1253,21 @@ export function deriveRouteTimeline(
          *   도착예상 · "부터"(일찍 가도 소용없음) · 확정 "까지"(그때 시작한다) 중 가장 늦은 것 + 정차
          */
         /**
-         * 🚚 **화면이 말하는 출발** — 다녀왔으면 실제 시각, 아니면 약속(확정 > 추정),
-         *    둘 다 없으면 도착예상. 거기에 이 정거장의 정차를 더한다.
+         * 🚚 **화면이 말하는 출발** — 다녀왔으면 실제 시각, 아니면 «도착해서 실을 수 있는
+         *    가장 이른 시각». 거기에 이 정거장의 정차를 더한다.
+         *
+         * 🔴 **약속과 출발은 다른 질문의 답이다** (기사님 확정 2026-08-31 · 규칙 ⑤-4 ⑤).
+         *    약속은 «몇 시까지 오겠다고 한 것»(잡은 시각 + 20분)이라 **늦으면 음수**가 되어야
+         *    한다. 그런데 출발은 «언제 떠날 수 있나»라서 **도착보다 이를 수 없다** —
+         *    예약콜이면 그 시각 전에는 못 싣기도 한다. 그래서 여기서만 늦은 쪽을 택한다.
+         *    한 값으로 쓰면 20분 약속이 하차 마감(상차 완료 + 배송×150%)까지 앞당겨,
+         *    멀쩡한 하차가 억울하게 늦은 것으로 나온다.
          */
-        const leaveBase = actualMs ?? (promisedUntil ? Date.parse(promisedUntil) : etaMs);
+        const leaveBase = actualMs ?? (() => {
+            const p = promisedUntil ? Date.parse(promisedUntil) : null;
+            if (p == null) return etaMs;
+            return etaMs != null ? Math.max(etaMs, p) : p;
+        })();
         prevDepartMs = leaveBase != null ? leaveBase + dwell * 60_000 : null;
         prevDriveMin = st.driveMinutes;
         // ⏱️ 이 콜의 상차 완료 예정 — 하차 데드라인의 기산점 (실측 PICKED_UP 이 있으면 그쪽이 이김)

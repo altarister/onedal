@@ -665,8 +665,8 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                         {shown.pickupRadiusKm === 'input' && (
                             <p className="text-[10px] text-text-muted leading-relaxed">
                                 <b className={TAB_STYLE[tab].text}>상차 반경</b>은 곧 <b className="text-text-primary">도달 시간</b>에서
-                                자동으로 정해집니다 — 무통보 상차 한계(잡음+{judgmentCfg.unknown.pickupOffsetMin}분) 안에 닿는 거리
-                                ≈ {reachRadiusKm(judgmentCfg.unknown.pickupOffsetMin)}km <span className="opacity-70">(잠정 계수 — 실측 수집 중, 아직 거르지 않습니다)</span>
+                                자동으로 정해집니다 — 상차 약속(잡은 시각 + {judgmentCfg.unknown.pickupPromiseMin}분) 안에 닿는 거리
+                                ≈ {reachRadiusKm(judgmentCfg.unknown.pickupPromiseMin)}km <span className="opacity-70">(잠정 계수 — 실측 수집 중, 아직 거르지 않습니다)</span>
                             </p>
                         )}
 

@@ -37,18 +37,18 @@ describe('도착 약속 (promisedArrivalAt)', () => {
         expect(t.pickupDeadlineAt).toBe('2026-08-18T05:43:00.000Z');
     });
 
-    it('통화 전 추정 — 도착 약속 = max(도착 예상, 상차 시계) · 여유30 폐기 (⑯)', () => {
+    it('통화 전 추정 — 상차 약속 = 콜 잡은 시각 + 20분 (기사님 확정 0831)', () => {
         const t = deriveCallTiming(order, [], [], NOW);
-        // 도착 예상 05:14 · 상차 시계 = 잡음 + 잠정 30 = 05:30 → 05:30
-        expect(t.pickupPromisedArrivalAt).toBe('2026-08-18T05:30:00.000Z');
+        // 잡음 05:00 + 20분 = 05:20. 도착 예상(05:14)을 따라가지 않는다 — max 폐기
+        expect(t.pickupPromisedArrivalAt).toBe('2026-08-18T05:20:00.000Z');
         expect(t.deadlineEstimated).toBe(true);
     });
 
-    it('접근 주행을 모르면 상차 시계(잡음+잠정 30)로 폴백 — 지어내지 않는다', () => {
-        // 옛 규칙 "+60 완료"는 두 시계에서 상차 시계 잠정 30 으로 재해석됐다 (⑯-2 ④)
+    it('상차지까지 몇 분인지 몰라도 약속은 «잡은 시각 + 20분» 그대로다', () => {
+        // 30분·60분은 20분 룰을 모를 때의 가정치라 폐기 (기사님 확정 2026-08-31)
         const noApproach = { ...order, approachDurationMin: null, totalDistanceKm: null };
         const t = deriveCallTiming(noApproach, [], [], NOW);
-        expect(t.pickupDeadlineAt).toBe('2026-08-18T05:30:00.000Z');
+        expect(t.pickupDeadlineAt).toBe('2026-08-18T05:20:00.000Z');
     });
 
     it('옛 행 호환 — promisedArrivalAt 없이 deadlineAt 만 있으면 그 값을 완료로 쓴다', () => {

@@ -76,3 +76,23 @@ describe('모의 주행 — 사이클이 닫히면 방문 장부를 비운다', 
         expect(sim).toMatch(/if \(!stops\?\.length\) simRef\.current = initialSimState\(\)/);
     });
 });
+
+/**
+ * 🔴 **시트 규칙은 한 곳에만 산다** (규칙 ③ · 2026-08-31에 순수 함수로 뺀 자리).
+ * 화면(StageView)이 자기 판단을 다시 가지면, 검사받는 규칙과 실제로 도는 규칙이 갈라진다.
+ * (관제웹 검사에 두면 파일을 읽을 수 없어 여기 둔다 — 노드 환경은 서버 쪽뿐)
+ */
+describe('무대 — 시트 규칙이 화면 안에 다시 생기지 않는다', () => {
+    const view = codeOnly(read('components/stage/StageView.tsx'));
+
+    it('🔴 화면은 시트 높이를 직접 정하지 않는다 — stageStep 이 정한다', () => {
+        expect(view).toMatch(/stageStep\(/);
+        expect(view).not.toMatch(/autoRaised\.current\s*=/);
+        expect(view).not.toMatch(/userHoldUntil\.current\s*=/);
+    });
+
+    it('🔴 미룬 결정을 다시 묻는 길이 있다 — 없으면 시트가 눌러앉는다', () => {
+        expect(view).toMatch(/deferred/);
+        expect(view).toMatch(/setRuleTick/);
+    });
+});
