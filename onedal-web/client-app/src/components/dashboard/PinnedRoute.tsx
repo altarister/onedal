@@ -23,9 +23,12 @@ interface Props {
     onRecalculate?: (id: string, priority: string) => void;
     viewFilter: 'ACTIVE' | 'COMPLETED' | 'CANCELED' | 'RELEASED' | 'ALL';
     setViewFilter: (filter: 'ACTIVE' | 'COMPLETED' | 'CANCELED' | 'RELEASED' | 'ALL') => void;
+    /** 🎭 무대의 시트 내용물로 쓰일 때 — 제목줄·지도·요약줄은 무대가 그리므로 뺀다 (개편 2단계) */
+    sheetOnly?: boolean;
 }
 
-export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, onDecision, onRecalculate, viewFilter, setViewFilter }: Props) {
+/** 몸통 — 파생은 밖(기본 내보내기 또는 무대)에서 받아온다. 훅을 안 부르므로 어디에도 담길 수 있다 */
+export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDecision, onRecalculate, viewFilter, setViewFilter, sheetOnly, d }: Props & { d: ReturnType<typeof useRouteDerivations> }) {
     /**
      * 🏭 파생은 전부 **제조소 훅** 한 곳에서 (화면개편 1단계 · 2026-08-31).
      * 이 컴포넌트에는 화면 상태(펼침·탭·처리중)만 남는다.
@@ -33,7 +36,7 @@ export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, 
     const {
         stepRecords, liveRoute, cycleDeck, myLocation, safeRoute, allEvaluating, judging,
         routeTimeline, unifiedRoutePoints, etaMap, visitOrderMap, chronologicalIds, gpsFocus,
-    } = useRouteDerivations(activeRoute, routeStops, routeComputedAt);
+    } = d;
 
     const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
     /** 콜을 다루기 시작하면 탭 바를 화면 맨 위로 끌어올린다 */
@@ -59,7 +62,7 @@ export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, 
 
     return (
         <section id="confirmed-route" className="flex flex-col">
-            {safeRoute.length > 0 && (
+            {!sheetOnly && safeRoute.length > 0 && (
                 <div className="flex justify-between items-center px-4 py-2 border-b border-border-card">
                     <h2 className="text-[13px] font-bold text-text-primary flex items-center gap-1.5">
                         <span className={`w-1.5 h-1.5 rounded-full ${allEvaluating ? 'bg-warning animate-pulse' : 'bg-success'}`} />
@@ -71,6 +74,7 @@ export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, 
                 </div>
             )}
 
+            {!sheetOnly && (
             <div id="routing-timeline" className="border-b border-border-card">
                 {/* 캔버스 미니맵 (분리된 컴포넌트) */}
                 <PinnedRouteCanvas
@@ -215,6 +219,7 @@ export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, 
                     </div>
                 )}
             </div>
+            )}
 
             {/* [Phase 8.5] 뷰 필터 탭 — **화면 맨 위에 붙는다**
                 기사님: "콜을 선택하면 자동으로 스크롤하여 진행중·완료·취소/방출·전체가
@@ -376,4 +381,11 @@ export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, 
             )}
         </section>
     );
+}
+
+
+/** 기본 내보내기 — 파생 제조소를 부르고 몸통에 준다 (옛 화면 경로 · 토글 꺼짐일 때) */
+export default function PinnedRoute(props: Props) {
+    const d = useRouteDerivations(props.activeRoute, props.routeStops, props.routeComputedAt);
+    return <PinnedRouteBody {...props} d={d} />;
 }

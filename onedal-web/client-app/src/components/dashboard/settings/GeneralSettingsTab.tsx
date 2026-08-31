@@ -181,7 +181,21 @@ export default function GeneralSettingsTab({ onClose }: Props) {
         <p className="text-[10px] text-text-muted">이 금액 이상인 픽커 콜만 알람이 울립니다. 상차 반경은 필터 국면 탭의 값을 함께 씁니다.</p>
       </div>
 
-      {/* 볼륨 */}
+      {/* 🎭 새 화면 미리보기 (화면개편 2단계) — 켜면 지도 배경+3단 시트 무대, 끄면 즉시 옛 화면 */}
+            <div className="flex items-center justify-between pt-2 border-t">
+                <div>
+                    <label className="text-sm font-semibold text-text-muted">🎭 새 화면 미리보기</label>
+                    <p className="text-[10px] text-text-muted">지도 배경 + 끌어올리는 시트 — 비교 운행용. 언제든 꺼서 옛 화면으로</p>
+                </div>
+                <input type="checkbox" className="w-5 h-5 accent-blue-500"
+                    defaultChecked={localStorage.getItem('stagePreview') === '1'}
+                    onChange={(e) => {
+                        localStorage.setItem('stagePreview', e.target.checked ? '1' : '0');
+                        window.dispatchEvent(new Event('stage-preview-changed'));
+                    }} />
+            </div>
+
+            {/* 볼륨 */}
       <div className="space-y-2 pt-2 border-t">
         <div className="flex justify-between items-center">
           <label className="text-sm font-semibold text-text-muted">시스템 알림 볼륨</label>

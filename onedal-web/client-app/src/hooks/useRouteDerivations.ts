@@ -4,13 +4,13 @@ import type { SecuredOrder, RouteStopInfo } from '@onedal/shared';
 import { EMPTY_RECORDS } from './records';
 import { useStepRecords } from './useStepRecords';
 import { useJudgmentStore } from '../stores/judgmentStore';
+import { useGpsFocusStore, ensureGpsFocusSubscribed } from '../stores/gpsFocusStore';
 import { useFilterConfig } from './useFilterConfig';
 import { useMasterGps } from './useMasterGps';
 import { apiClient } from '../api/apiClient';
 import { getAddressLabel } from '../lib/routeUtils';
 import { buildVisitOrderMap } from '../lib/routeOptimizer';
 import { logStateChange } from '../lib/roadmapLogger';
-import { socket } from '../lib/socket';
 import type { RoutePoint } from '../components/dashboard/PinnedRouteCanvas';
 import type { EtaCell } from '../components/dashboard/PinnedRouteCard';
 
@@ -102,20 +102,10 @@ export function useRouteDerivations(
 
     /**
      * 🖥️ 다음 정거장에 가까워지면 그 콜 화면으로 (기사님 2026-08-19).
-     * 근접 예고·도착 이벤트에 orderId 가 실려 온다 — 덱이 그 카드로 넘어간다.
+     * 구독은 스토어 모듈에서 한 번 — 훅 호출자가 몇이어도 안 늘어난다 (ghostCard 규칙).
      */
-    const [gpsFocus, setGpsFocus] = useState<{ orderId: string; tick: number } | null>(null);
-    useEffect(() => {
-        const focus = (d: { orderId?: string }) => {
-            if (d?.orderId) setGpsFocus({ orderId: d.orderId, tick: Date.now() });
-        };
-        socket.on('next-stop-approaching', focus);
-        socket.on('auto-arrived', focus);
-        return () => {
-            socket.off('next-stop-approaching', focus);
-            socket.off('auto-arrived', focus);
-        };
-    }, []);
+    useEffect(() => { ensureGpsFocusSubscribed(); }, []);
+    const gpsFocus = useGpsFocusStore(st => st.gpsFocus);
 
     const safeRoute = activeRoute || [];
     const allEvaluating = safeRoute.some(r => isEvaluating(r.status));

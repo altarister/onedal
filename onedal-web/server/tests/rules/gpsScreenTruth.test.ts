@@ -38,7 +38,7 @@ describe('적재 요약 — 상차는 추측하지 않는다', () => {
 describe('덱 — 근접·도착한 정거장의 콜로 화면이 따라간다', () => {
     it('🔴 PinnedRoute 가 근접/도착 이벤트를 받아 덱에 넘긴다', () => {
         // 0831 개편: 근접/도착 구독은 파생 제조소로 이사 — 불변식은 그대로다
-        const c = code('components/dashboard/PinnedRoute.tsx') + code('hooks/useRouteDerivations.ts');
+        const c = code('components/dashboard/PinnedRoute.tsx') + code('hooks/useRouteDerivations.ts') + code('stores/gpsFocusStore.ts');
         expect(c).toMatch(/next-stop-approaching/);
         expect(c).toMatch(/auto-arrived/);
     });

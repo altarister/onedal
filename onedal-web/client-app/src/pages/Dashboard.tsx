@@ -4,6 +4,7 @@ import Header from "../components/layout/Header";
 import DeviceControlPanel from "../components/dashboard/DeviceControlPanel";
 import OrderFilterStatus from "../components/dashboard/OrderFilterStatus";
 import JudgmentSeat from "../components/dashboard/JudgmentSeat";
+import StageView from "../components/stage/StageView";
 import OrderFilterModal from "../components/dashboard/OrderFilterModal";
 import PinnedRoute from "../components/dashboard/PinnedRoute";
 import { ErrorBoundary } from "../components/common/ErrorBoundary";
@@ -22,6 +23,13 @@ export default function Dashboard() {
     const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
     // 🪧 심사석 결재 버튼의 처리 중 표시 (자동콜 갈래)
     const [seatProcessingId, setSeatProcessingId] = useState<string | null>(null);
+    // 🎭 새 화면 미리보기 토글 (화면개편 · 기사님 확정 0831) — 표시만 바뀐다, 상태는 공용
+    const [stagePreview, setStagePreview] = useState(() => localStorage.getItem('stagePreview') === '1');
+    useEffect(() => {
+        const on = () => setStagePreview(localStorage.getItem('stagePreview') === '1');
+        window.addEventListener('stage-preview-changed', on);
+        return () => window.removeEventListener('stage-preview-changed', on);
+    }, []);
     /**
      * 🎯 판정 기준을 **탭이 아니라 여기서** 구독한다 (2026-08-16).
      *    탭에서만 구독하면 서버의 첫 `judgment-init` 을 놓쳐 폼이 잠긴다.
@@ -286,7 +294,15 @@ export default function Dashboard() {
                     🔴 결재 카드가 터져도 관제탑 전체가 죽지 않게 경계를 둔다 —
                        운행 중이면 여기가 KEEP/CANCEL 을 하는 유일한 창구다 */}
                 <ErrorBoundary label="결재 카드">
-                    <PinnedRoute 
+                    {stagePreview ? <StageView
+                        routeStops={routeStops}
+                        routeComputedAt={routeComputedAt}
+                        activeRoute={activeRoute}
+                        onDecision={handleDecision}
+                        onRecalculate={handleRecalculate}
+                        viewFilter={viewFilter}
+                        setViewFilter={setViewFilter}
+                    /> : <PinnedRoute 
                         routeStops={routeStops}
                         routeComputedAt={routeComputedAt}
                         activeRoute={activeRoute} 
@@ -294,7 +310,7 @@ export default function Dashboard() {
                         onRecalculate={handleRecalculate} 
                         viewFilter={viewFilter}
                         setViewFilter={setViewFilter}
-                    />
+                    />}
                 </ErrorBoundary>
             </div>
 
