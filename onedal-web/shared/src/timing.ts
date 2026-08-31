@@ -1184,8 +1184,18 @@ export function deriveRouteTimeline(
                 ?? pickupDoneOf.get(st.orderId)
                 ?? (arrivedPickupMs != null ? arrivedPickupMs + pickupDwellUsed * 60_000 : null);
             if (loadedBase == null || t.soloMinutes == null) return null;
-            const deadline = loadedBase + t.soloMinutes * (rules.deadlineRatioPct ?? 150) / 100 * 60_000;
-            return etaMs != null ? Math.max(etaMs, deadline) : deadline;
+            /**
+             * 🔴 **하차 약속도 도착 예상을 따라가지 않는다** (기사님 확정 2026-08-31).
+             *    옛 식은 `max(도착 예상, 마감)` 이라, **150%를 넘겨도 여유가 0**으로 보였다 —
+             *    상차에서 없앤 그 눌림이 하차에 남아 있었다 (같은 날 리뷰에서 잡힘).
+             *    기사님: *"상차는 좀 늦어도 되지만 상차하고는 150%를 꼭 지켜야 한다."*
+             *    그러니 못 지키는 것이야말로 드러나야 한다 — 여유가 음수로 나온다.
+             * ⚠️ **딸려 오는 것**: 마감이 도착 예상보다 이르면, 통화 시트가 미리 눌러 두는
+             *    시각도 그 이른 시각이 된다 — 그대로 말하면 못 지킬 약속을 하게 된다.
+             *    지금은 «말할 시각»을 따로 두지 않는다. 필요해지면 그때 값을 하나 더 만든다
+             *    (규칙 ⑤-4 — 만들기 전에 다섯 가지를 정한다).
+             */
+            return loadedBase + t.soloMinutes * (rules.deadlineRatioPct ?? 150) / 100 * 60_000;
         })();
         const promisedUntil: string | null = declared?.promisedArrivalAt
             ?? (estMs != null ? new Date(estMs).toISOString() : null);
