@@ -104,9 +104,7 @@ function DeviceRow({
              * 실제로는 기사님이 직접 누르실 때까지 아무 일도 안 일어난다.
              * 그 한 글자 차이가 «왜 안 잡았지?» 를 만든다 (규칙 ⑤-4 ④ 화면).
              */
-            if (device.mode === "ALARM") {
-                filterLabel = `🔔 ${filterLabel}`;
-            }
+            // (0831) 🔔 접두는 뺐다 — 알람 여부는 모드 배지가 말하고, 국면 배지는 낱말만
         }
     }
 
@@ -136,41 +134,43 @@ function DeviceRow({
         <div className="flex flex-col border-b border-border last:border-0 py-1 px-1">
             <div className="flex items-center justify-between hover:bg-surface-alt/30 transition-colors rounded px-1">
                 <div className={`flex items-center gap-2 flex-1 min-w-0`}>
-                    <span className={`font-black text-[10px] px-1.5 rounded truncate shrink-0 ${isDisconnected ? 'bg-danger/20 text-danger animate-pulse' : 'text-success'}`}>
+                    <span className={`font-black text-[12px] px-1.5 rounded truncate shrink-0 ${isDisconnected ? 'bg-danger/20 text-danger animate-pulse' : 'text-success'}`}>
                         {device.deviceName || device.deviceId.slice(0, 8)}
                     </span>
                     {/* 🌐 이 폰이 지금 어느 배차망을 보나 — 픽커 판을 돌리면 여기서 갈린다 (픽커_수집.md §6-전).
                         구앱(미전송)은 표시를 비운다 — 기본값을 지어내지 않는다. 아이콘은 나중에(기사님), 지금은 텍스트. */}
                     {/* 배차망 + 화면을 한 배지로 — «인성 콜리스트» (영역 절약 · 기사님 0831) */}
                     {(screenInfo || (!isDisconnected && device.targetApp)) && (
-                        <Badge variant="outline" className={`text-[10px] px-1.5 py-0 shrink-0 ${screenInfo?.color ?? 'bg-surface-alt text-text-muted border-border'}`}>
-                            {[!isDisconnected && device.targetApp ? (TARGET_APP_LABEL[device.targetApp] ?? device.targetApp) : null,
-                              screenInfo?.label.replace(' ', '') ?? null].filter(Boolean).join(' ')}
+                        <Badge variant="outline" className={`text-[11.5px] px-1.5 py-0 shrink-0 ${screenInfo?.color ?? 'bg-surface-alt text-text-muted border-border'}`}>
+                            {!isDisconnected && device.targetApp && (
+                                <span className="text-info font-black mr-1">{TARGET_APP_LABEL[device.targetApp] ?? device.targetApp}</span>
+                            )}
+                            {screenInfo?.label.replace(' ', '')}
                         </Badge>
                     )}
                     {!isDisconnected && currentFilter && (
-                        <Badge variant="outline" className={`text-[10px] font-extrabold px-1.5 py-0 rounded shadow-sm shrink-0 border ${filterColor}`}>
+                        <Badge variant="outline" className={`text-[11.5px] font-extrabold px-1.5 py-0 rounded shadow-sm shrink-0 border ${filterColor}`}>
                             {filterLabel}
                         </Badge>
                     )}
                     {/* 💤 폰 화면이 꺼져 있다 — 앱은 살아 있지만 배차망을 못 본다 (콜을 못 잡는다).
                         기사님 확정: "화면꺼짐이 그대로 보이는 것이 맞을 것 같아." */}
                     {device.isScreenOn === false && !isDisconnected && (
-                        <Badge variant="outline" className="text-[10px] font-black px-1.5 py-0 shrink-0 bg-warning/15 text-warning border-warning/30">
+                        <Badge variant="outline" className="text-[11.5px] font-black px-1.5 py-0 shrink-0 bg-warning/15 text-warning border-warning/30">
                             💤 화면 꺼짐
                         </Badge>
                     )}
                     {/* 👁️ 화면은 켜져 있는데 접근성이 막혀 못 읽는다 — 연결됐다고 읽고 있는 건 아니다.
                         기사님 확정: "접근성 스크래핑이 꺼진 건지, 화면이 꺼진 건지 구분이 되면 더 좋고." */}
                     {isBlind && !isDisconnected && device.isScreenOn !== false && (
-                        <Badge variant="outline" className="text-[10px] font-black px-1.5 py-0 shrink-0 bg-danger/15 text-danger border-danger/30 animate-pulse">
+                        <Badge variant="outline" className="text-[11.5px] font-black px-1.5 py-0 shrink-0 bg-danger/15 text-danger border-danger/30 animate-pulse">
                             👁️ 화면 못 읽음
                         </Badge>
                     )}
                     {/* 🕐 **마지막으로 이 폰이 보고한 시각**을 숫자 앞에 붙인다 (기사님 형식 확정 2026-08-23).
                         기사님: *"`20:39:13(수집:16 수락:3 취소:1)` 이렇게 표시하면 한 줄로 나올 듯."*
                         숫자만 있으면 "지금 그런 것"과 "아까 그러고 멈춘 것"이 똑같이 보인다. */}
-                    <div className="flex items-center gap-1 text-[10px] text-text-muted font-medium ml-1 truncate tabular-nums">
+                    <div className="flex items-center gap-1 text-[11.5px] text-text-muted font-medium ml-1 truncate tabular-nums">
                         {lastSeenAt && <span className="opacity-70">{lastSeenAt}</span>}
                         <span>
                             (수집:{device.stats.polled} 수락:{device.stats.grabbed} 취소:{device.stats.canceled}
