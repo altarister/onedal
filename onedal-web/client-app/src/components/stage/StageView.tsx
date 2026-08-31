@@ -37,7 +37,7 @@ interface Props {
 export default function StageView(props: Props) {
     const { activeRoute, routeStops, routeComputedAt, routeHolderId } = props;
     const derived = useRouteDerivations(activeRoute, routeStops, routeComputedAt, routeHolderId);
-    const { liveRoute, unifiedRoutePoints, myLocation, visitOrderMap } = derived;
+    const { liveRoute, cycleDeck, unifiedRoutePoints, myLocation, visitOrderMap } = derived;
     const [snap, setSnap] = useState<SheetSnap>('half');
     const { filter, updateFilter } = useFilterConfig();
 
@@ -141,9 +141,16 @@ export default function StageView(props: Props) {
         if (idx < 0) return null;
         const st = routeStops[idx];
         const o = liveRoute.find(r => r.id === st.orderId)!;
-        const callNo = liveRoute.findIndex(r => r.id === st.orderId) + 1;
+        /**
+         * 🔴 **콜 번호는 색과 같은 것을 센다** (기사님 확정 2026-08-31 · 리뷰에서 잡힘).
+         *    예전엔 `liveRoute`(지금 실린 콜)로 셌다. 그런데 콜 색은 `cycleDeck`(이번 사이클,
+         *    하차 완료해도 끝까지 남는 목록) 기준이라, **하차를 하나 끝내는 순간 지도의
+         *    «N번 콜»만 앞당겨져** 색과 번호가 다른 답을 했다. 색만 보고 1~2초에 누르는
+         *    화면에서 그 둘이 어긋나면 안 된다 (규칙 ⑤-3).
+         */
+        const callNo = cycleDeck.findIndex(r => r.id === st.orderId) + 1;
         return {
-            idx, total: routeStops.length, orderId: st.orderId,
+            orderId: st.orderId,   // idx·total 은 «N/M 정거장»과 함께 뺐다 (읽는 곳이 없다)
             x: st.stopType === 'pickup' ? o.pickupX : o.dropoffX,
             y: st.stopType === 'pickup' ? o.pickupY : o.dropoffY,
             name: getAddressLabel(st.stopType === 'pickup' ? o.pickup : o.dropoff),
@@ -248,7 +255,10 @@ export default function StageView(props: Props) {
                                 {next.visitNo}. {next.name}{next.driveMinutes != null ? ` · ~${next.driveMinutes}분` : ''}
                             </div>
                             <div className="text-[11px] font-bold text-text-muted flex items-center gap-2">
-                                {next.callNo}번 콜 · {next.stopLabel} · {next.idx + 1}/{next.total} 정거장 <MovingBadge />
+                                {/* 🔴 «N/M 정거장»을 뺐다 (0831 리뷰) — 앞의 번호와 재료가 달라
+                                    «5. 신둔면 · 3/7 정거장» 처럼 어긋났다. 어디까지 왔는지는
+                                    앞 번호와 자막 줄이 이미 말한다 — 같은 것을 두 번 세지 않는다. */}
+                                {next.callNo}번 콜 · {next.stopLabel} <MovingBadge />
                             </div>
                         </div>
                     )}
