@@ -5,6 +5,7 @@ import type { SecuredOrder, RouteStopInfo } from '@onedal/shared';
 import type { CallRecords } from '../../hooks/records';
 import { getAddressLabel } from '../../lib/routeUtils';
 import { EMPTY_RECORDS } from '../../hooks/records';
+import { useFilterConfig } from '../../hooks/useFilterConfig';
 import { useJudgmentStore } from '../../stores/judgmentStore';
 
 /**
@@ -30,6 +31,14 @@ interface Props {
 }
 
 export default function DepartureCountdown({ orders, records, routeStops, routeComputedAt }: Props) {
+    /**
+     * 🚀 **출발했으면 사라진다** (기사님 확정 2026-08-31).
+     *    이건 «언제 나가야 하나»를 세는 자리다 — 이미 달리는 중이면 답이 끝난 질문이라
+     *    «출발 시각이 지났습니다» 만 계속 붉게 남아 화면을 잡아먹는다.
+     *    달리는 중의 같은 정보(도착 예상·버퍼)는 콜 카드가 이미 말한다.
+     */
+    const { filter } = useFilterConfig();
+    const departed = filter?.dispatchPhase === 'DELIVERING';
     // 카운트다운이므로 초 단위로 다시 그린다. 화면에 이것 하나뿐이라 부담이 없다
     const [now, setNow] = useState(Date.now());
     useEffect(() => {
@@ -117,7 +126,7 @@ export default function DepartureCountdown({ orders, records, routeStops, routeC
         }
     }
 
-    if (!soonest) return null;
+    if (departed || !soonest) return null;
 
     const left = minutesUntil(soonest.at, now)!;
     const text = formatCountdown(soonest.at, now)!;
