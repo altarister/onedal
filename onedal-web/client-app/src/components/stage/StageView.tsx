@@ -180,12 +180,37 @@ export default function StageView(props: Props) {
         ? derived.visitedTrail[derived.visitedTrail.length - 1] : null;
     const peekBar = (() => {
         if (liveRoute.length === 0) return '진행 중인 경로 없음 · 새 콜 대기';
+        if (judging) return '🪧 새 콜 판정 중 — 지도가 후보 경로를 보여 줍니다';
         if (!next) return '이번 사이클 정거장을 모두 지났습니다';
-        const from = lastVisited ? `✅${lastVisited.no} ${lastVisited.name}` : '출발지';
-        const dist = (myLocation && next.x != null && next.y != null)
-            ? getDistanceKm(myLocation.y, myLocation.x, next.y, next.x) : null;
-        return `${from} → ${next.visitNo} ${next.name} ${drive === 'drive' ? '이동 중' : '대기 중'}`
-            + (dist != null ? ` · ~${dist < 10 ? dist.toFixed(1) : Math.round(dist)}km 남음` : '');
+        const distTo = (p: { x?: number | null; y?: number | null }) =>
+            (myLocation && p?.x != null && p?.y != null)
+                ? getDistanceKm(myLocation.y, myLocation.x, p.y, p.x) : null;
+        const km = (d: number) => (d < 10 ? d.toFixed(1) : String(Math.round(d)));
+
+        /**
+         * 🚚 **달리는 중** — 어디서 어디로, 얼마 남았나. 직선거리라 `~` 를 붙인다 (규칙 ⑤-2).
+         */
+        if (drive === 'drive') {
+            const from = lastVisited ? `${lastVisited.no} ${lastVisited.name}` : '출발지';
+            const d = distTo(next);
+            return `${from} → ${next.visitNo} ${next.name} 이동 중`
+                + (d != null ? ` · ~${km(d)}km 남음` : '');
+        }
+
+        /**
+         * 🏁 **서 있는 중** — 기사님: *"지금은 정차한 건지 운행 중인지 모르겠어."*
+         *    이동 문구가 그대로 남아 있어서다. 서 있으면 **도착한 지명 + 정차 중**으로 말한다.
+         *    시트를 열고 닫는 신호(주행/정차·도착)와 **같은 재료**를 쓰므로 문구와 시트가
+         *    따로 놀지 않는다 (기사님 확정 2026-08-31).
+         * ⚠️ 신호 대기처럼 정거장이 아닌 곳에서 선 것과 구분한다 — 다녀온 정거장 1km 안일 때만
+         *    «도착»이라고 한다. 아니면 그냥 «정차 중»이다 (없는 말을 지어내지 않는다 · 규칙 ④).
+         */
+        const dLast = lastVisited ? distTo(lastVisited) : null;
+        if (lastVisited && dLast != null && dLast <= 1) {
+            return `🏁 ${lastVisited.no} ${lastVisited.name} 도착 · 정차 중 — 다음 ${next.visitNo} ${next.name}`;
+        }
+        const d = distTo(next);
+        return `⏸️ 정차 중 · 다음 ${next.visitNo} ${next.name}` + (d != null ? ` ~${km(d)}km` : '');
     })();
 
     /**
