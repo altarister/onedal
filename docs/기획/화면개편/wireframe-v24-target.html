@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>v24 — 목표 포함관계</title>
+<style>
+  body { background:#0e1219; color:#dfe5ef; font-family:-apple-system,'Apple SD Gothic Neo',sans-serif; padding:30px; margin:0; }
+  h1 { font-size:16px; font-weight:800; margin:0 0 6px; }
+  p.note { font-size:12px; color:#8a93a8; margin:0 0 16px; max-width:720px; line-height:1.6; }
+  .root { width:660px; }
+  .comp { border:1.5px solid #4f8df9; border-radius:10px; margin:6px; padding:7px 10px; background:#11161f; }
+  .hookb { border:1.5px solid #35c3a9; border-radius:10px; margin:6px; padding:7px 10px; background:#101a17; }
+  .slot { border:1.5px solid #e6b422; border-radius:10px; margin:6px; padding:7px 10px; }
+  .adapter { border:1.5px dashed #4f8df9; border-radius:10px; margin:6px; padding:7px 10px; }
+  .name { font-size:13px; font-weight:900; color:#9db9ff; }
+  .hookb .name { color:#8fe6d5; } .slot .name { color:#f0d27a; }
+  .desc { font-size:11px; color:#8a93a8; margin-top:1px; line-height:1.55; }
+  .gone { font-size:11px; color:#d99aaa; margin:10px 6px 0; }
+</style>
+</head>
+<body>
+<h1>v24 — 목표 포함관계 (v23 을 코드 구조로)</h1>
+<p class="note">원칙: <b style="color:#8fe6d5;">민트 = 훅(로직·상태, 화면 없음)</b> · <b style="color:#9db9ff;">파랑 = 화면 부품</b> · <b style="color:#f0d27a;">노랑 = 치환 슬롯</b> ·
+점선 = 어댑터(갈아끼울 수 있는 자리). 인라인 조각 0개 — v18 의 점선 5개가 전부 제집을 갖는다.</p>
+
+<div class="root">
+<div class="comp"><span class="name">Dashboard (조립만 — 로직 없음)</span>
+  <div class="hookb"><span class="name">useRouteDerivations (경로 파생 제조소)</span><div class="desc">liveRoute · cycleDeck · 타임라인 · 순번 · 지도점 · GPS · 신고 장부 — 만드는 곳 한 곳</div></div>
+  <div class="hookb"><span class="name">useDriveMotion (주행/정차 신호)</span><div class="desc">20↑10초 / 5↓10초 히스테리시스</div></div>
+  <div class="hookb"><span class="name">useStageRules (상태 규칙 표 Ⅲ)</span><div class="desc">신호들 → { 시트높이 · 지도모드 · focus } — v23 표가 곧 이 훅</div></div>
+
+  <div class="comp"><span class="name">Header (머리띠)</span>
+    <div class="comp"><span class="name">VehicleSummary (내 차 요약)</span><div class="desc">제집으로 이사 (지금은 남의 파일 셋방)</div></div>
+    <div class="comp"><span class="name">SettingsModal (설정 팝업) + 탭 4</span></div>
+  </div>
+  <div class="comp"><span class="name">DeviceControlPanel (폰 영역)</span></div>
+  <div class="slot"><span class="name">SeatSlot (치환 슬롯 158px)</span>
+    <div class="comp"><span class="name">OrderFilterStatus (필터 현황판)</span></div>
+    <div class="comp"><span class="name">JudgmentSeat (심사석)</span></div>
+  </div>
+  <div class="comp"><span class="name">BannerLayer (배너 층)</span><div class="desc">신고 불일치 · 서버 복구 · 접근 알림 — 필요할 때만 한 줄</div></div>
+
+  <div class="comp"><span class="name">Stage (무대 — 남는 높이 100%)</span>
+    <div class="comp"><span class="name">RouteMap (지도 층)</span>
+      <div class="adapter"><span class="name">배경 어댑터: CanvasMap | KakaoMap</span><div class="desc">투두 — 카카오 타일 교체 실험 자리</div></div>
+      <div class="comp"><span class="name">StopOverlay (정거장·이름표·후보 점선)</span><div class="desc">탭 → focus={콜,단계} · 📞 · 판정 미리보기(S4)</div></div>
+    </div>
+    <div class="comp"><span class="name">StageSheet (3단 스냅 그릇 — 웹 자작)</span>
+      <div class="comp"><span class="name">PeekBar (엿보기 줄)</span><div class="desc">상태별 자막 — Ⅲ표의 열</div></div>
+      <div class="comp"><span class="name">CallSheetContent (시트 내용물)</span>
+        <div class="comp"><span class="name">CallTabs (탭 바)</span></div>
+        <div class="comp"><span class="name">DepartureCountdown (출발 카운트다운)</span></div>
+        <div class="comp"><span class="name">CallDeck (콜 덱 — 요약줄+카드 한 몸 유지)</span>
+          <div class="comp"><span class="name">PinnedRouteCard (콜 카드) + StepSheet (단계 시트)</span><div class="desc">focus 오면 그 콜·그 단계 펼침</div></div>
+        </div>
+        <div class="comp"><span class="name">HistoryList (아코디언 — 종료 콜)</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+<p class="gone">사라지는 것: PinnedRoute(껍데기 해체 — Dashboard 직결) · VehicleStatusPanel 본체(셋방 정리) · 인라인 조각 5개(전부 승격)</p>
+</div>
+</body>
+</html>

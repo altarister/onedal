@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>v21 — 지도 배경 + 3단 스냅 시트</title>
+<style>
+  :root { --bg:#0a0e17; --line:#1c2436; --txt:#e8ecf4; --mut:#7d879c; --dim:#59627a; --honey:#4f8df9; }
+  * { box-sizing:border-box; }
+  body { background:radial-gradient(1200px 800px at 70% -10%, #101a30 0%, var(--bg) 55%);
+         color:var(--txt); font-family:-apple-system,'SF Pro','Apple SD Gothic Neo',sans-serif; padding:34px 30px; margin:0; }
+  h1 { font-size:17px; font-weight:800; margin:0 0 5px; }
+  p.note { font-size:12px; color:var(--mut); margin:0 0 22px; line-height:1.65; max-width:980px; }
+  .frames { display:flex; gap:26px; flex-wrap:wrap; align-items:flex-start; }
+  .frame { width:392px; }
+  .frame h2 { font-size:11px; color:var(--dim); margin:0 0 9px 2px; font-weight:800; letter-spacing:.12em; }
+  .num { font-variant-numeric:tabular-nums; }
+  .caption { font-size:11px; color:var(--dim); margin-top:8px; line-height:1.65; }
+  .phone { border:1px solid var(--line); border-radius:18px; overflow:hidden; height:700px;
+           background:#0d1220; display:flex; flex-direction:column; box-shadow:0 10px 30px rgba(0,0,0,.4); }
+  .fixed { border-bottom:1px solid rgba(255,255,255,.07); padding:7px 14px; font-size:11.5px; color:var(--dim); }
+  .fixed b { color:var(--mut); }
+  .stage { flex:1; position:relative; overflow:hidden; }
+  .map { position:absolute; inset:0;
+         background:linear-gradient(140deg,#141b2e 0%,#0f1626 60%),repeating-linear-gradient(60deg, transparent 0 60px, rgba(255,255,255,.02) 60px 61px); }
+  .road { position:absolute; left:22%; top:4%; width:7px; height:70%; border-radius:8px;
+          background:linear-gradient(180deg,#4f8df9,#2557b0); transform:rotate(18deg); }
+  .stop { position:absolute; width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+          font-size:11px; font-weight:900; color:#101318; border:2px solid rgba(255,255,255,.5); }
+  .me { position:absolute; width:15px; height:15px; border-radius:50%; background:#7fb0ff; border:3px solid #fff; box-shadow:0 0 16px rgba(127,176,255,.8); }
+  .tag { position:absolute; background:rgba(13,18,32,.92); border:1.5px solid var(--honey); border-radius:11px;
+         padding:7px 11px; font-size:11.5px; box-shadow:0 6px 20px rgba(0,0,0,.5); }
+  .tag .t1 { color:#9db9ff; font-weight:900; font-size:13px; }
+  .tag .t2 { color:var(--mut); font-size:10.5px; }
+  /* 시트 */
+  .sheet { position:absolute; left:0; right:0; bottom:0; background:#11182a;
+           border-top:1px solid rgba(79,141,249,.35); border-radius:16px 16px 0 0;
+           box-shadow:0 -10px 30px rgba(0,0,0,.5); }
+  .grip { width:44px; height:5px; border-radius:3px; background:#3a4358; margin:8px auto 4px; }
+  .srow { border-bottom:1px solid rgba(255,255,255,.06); padding:9px 14px; font-size:12px; color:var(--mut); }
+  .srow b { color:var(--txt); }
+  .card { margin:8px 10px; border:1px solid var(--line); border-radius:12px; padding:10px 12px; background:#0f1522; font-size:12px; }
+  .card.open { border-color:rgba(79,141,249,.6); box-shadow:0 0 18px rgba(79,141,249,.18); }
+  .step { display:flex; gap:6px; margin-top:8px; }
+  .step span { flex:1; height:8px; border-radius:4px; background:rgba(255,255,255,.08); }
+  .step .done { background:#2f9e6e; } .step .now { background:#4f8df9; outline:2px solid rgba(79,141,249,.6); outline-offset:1px; }
+  .sheetbox { margin-top:9px; border:1.5px dashed rgba(79,141,249,.5); border-radius:10px; padding:9px 11px; font-size:11.5px; color:#9db9ff; }
+</style>
+</head>
+<body>
+<h1>v21 — 교대 대신 «지도 배경 + 끌어올리는 시트» (구글맵·우버·도어대시 문법)</h1>
+<p class="note">기사 앱들의 표준: 지도는 <b style="color:var(--txt)">늘 배경</b>이고, 콜 목록은 <b style="color:var(--txt)">3단 스냅 바텀시트</b>로 오르내립니다.
+전환 버튼을 배울 필요가 없습니다 — <b style="color:#9db9ff;">드래그 자체가 사용자 의사</b>이고, 자동(주행/정차)은 시트 높이를 바꿔 줄 뿐입니다.
+정차해도 지도 맥락을 잃지 않고, 조작은 전부 하단 엄지 존입니다.</p>
+
+<div class="frames">
+
+  <div class="frame">
+    <h2>A. 🚗 주행 — 시트 «엿보기» (자동으로 내려감)</h2>
+    <div class="phone">
+      <div class="fixed num"><b>1t 상차1·예약1</b> · 폰영역 · [필터↔심사석 슬롯]</div>
+      <div class="stage">
+        <div class="map">
+          <div class="road"></div>
+          <div class="me" style="left:30%; top:10%;"></div>
+          <div class="stop" style="left:36%; top:22%; background:#2f9e6e;">①</div>
+          <div class="stop" style="left:46%; top:40%; background:#4f8df9; width:30px; height:30px; box-shadow:0 0 18px rgba(79,141,249,.7);">②</div>
+          <div class="stop" style="left:58%; top:56%; background:#8892a8;">③</div>
+          <div class="tag" style="left:18%; top:46%;">
+            <div class="t1">② 사음동 2.8km·5분 <span style="font-size:14px;">📞</span></div>
+            <div class="t2">2번 콜 · 상차 — 탭하면 시트가 올라옴</div>
+          </div>
+        </div>
+        <div class="sheet" style="height:86px;">
+          <div class="grip"></div>
+          <div class="srow num"><b>다음 ② 사음동 · 상차</b> · 남음 18.4km/총 27.2 <span style="float:right; color:#4f8df9;">● 58km/h · 10.0만원</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">주행 10초 → 시트가 스르륵 «엿보기»(한 줄)로. 그 한 줄이 곧 손잡이 — 언제든 위로 끌면 콜 목록.</div>
+  </div>
+
+  <div class="frame">
+    <h2>B. 🅿️ 정차 — 시트 «반» (자동으로 올라옴)</h2>
+    <div class="phone">
+      <div class="fixed num"><b>1t 상차1·예약1</b> · 폰영역 · [필터↔심사석 슬롯]</div>
+      <div class="stage">
+        <div class="map">
+          <div class="road" style="height:40%;"></div>
+          <div class="me" style="left:30%; top:8%;"></div>
+          <div class="stop" style="left:44%; top:26%; background:#4f8df9;">②</div>
+        </div>
+        <div class="sheet" style="height:62%;">
+          <div class="grip"></div>
+          <div class="srow"><b>진행 중 (2)</b> · 완료 · 취소 · 방출 · 전체</div>
+          <div class="srow num">⏱ 2:59:33 뒤에는 출발 · 버퍼 +213분~</div>
+          <div class="card num">1 · ① 초월읍 ~12:14 → ③ 신둔면 ~12:59</div>
+          <div class="card num">2 · ② 사음동 ~12:40 → ④ 중리동 ~13:06</div>
+          <div class="srow" style="color:var(--dim);">(위로 더 끌면 전체 — 카드·시트·아코디언)</div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">정차 10초 → 시트가 «반»으로. 지도 윗부분이 남아 <b>지금 어디쯤인지 맥락 유지</b> — v20 교대의 단점 해소.</div>
+  </div>
+
+  <div class="frame">
+    <h2>C. 이름표 탭 (또는 끝까지 올림) — «전체» + 그 콜·그 단계</h2>
+    <div class="phone">
+      <div class="fixed num"><b>1t 상차1·예약1</b> · 폰영역 · [필터↔심사석 슬롯]</div>
+      <div class="stage">
+        <div class="sheet" style="height:97%;">
+          <div class="grip"></div>
+          <div class="srow"><b>진행 중 (2)</b> · 완료 · 취소 · 방출 · 전체</div>
+          <div class="card num">1 · ① 초월읍 ~12:14 → ③ 신둔면 ~12:59</div>
+          <div class="card open num">
+            <b>2번 콜 · 노선콜</b> · 사음동 → 중리동 · <b style="color:#9db9ff;">꿀 93</b> · 5.0만원
+            <div class="step"><span class="done"></span><span class="done"></span><span class="now"></span><span></span><span></span><span></span></div>
+            <div class="sheetbox">📦 상차 단계 시트 — 단위·수량·상차방법 (완료 저장하면 시트가 도로 내려감)</div>
+          </div>
+          <div class="srow" style="color:var(--dim);">(내부 스크롤)</div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">지도 이름표 탭 = 시트 전체 + 그 콜·그 단계 열림. <b>완료 행동이 시트를 도로 내림</b> — 갔다가 못 돌아오는 문제가 구조적으로 없음.</div>
+  </div>
+
+</div>
+</body>
+</html>

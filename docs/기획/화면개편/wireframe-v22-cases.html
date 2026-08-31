@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>v22 — 경우별 한 장씩</title>
+<style>
+  :root { --bg:#0a0e17; --line:#1c2436; --txt:#e8ecf4; --mut:#7d879c; --dim:#59627a; --honey:#4f8df9; --poop:#e6b422; }
+  * { box-sizing:border-box; }
+  body { background:radial-gradient(1200px 800px at 70% -10%, #101a30 0%, var(--bg) 55%);
+         color:var(--txt); font-family:-apple-system,'SF Pro','Apple SD Gothic Neo',sans-serif; padding:30px; margin:0; }
+  h1 { font-size:17px; font-weight:800; margin:0 0 5px; }
+  p.note { font-size:12px; color:var(--mut); margin:0 0 20px; line-height:1.65; max-width:1040px; }
+  .frames { display:flex; gap:22px; flex-wrap:wrap; align-items:flex-start; }
+  .frame { width:330px; }
+  .frame h2 { font-size:11px; color:var(--dim); margin:0 0 8px 2px; font-weight:800; letter-spacing:.1em; }
+  .num { font-variant-numeric:tabular-nums; }
+  .caption { font-size:10.5px; color:var(--dim); margin-top:6px; line-height:1.6; }
+  .phone { border:1px solid var(--line); border-radius:16px; overflow:hidden; height:580px;
+           background:#0d1220; display:flex; flex-direction:column; box-shadow:0 10px 30px rgba(0,0,0,.4); }
+  /* 고정부 박스 */
+  .bx { border-bottom:1px solid rgba(255,255,255,.08); padding:6px 12px; font-size:11px; color:var(--mut); }
+  .bx b { color:var(--txt); font-size:11.5px; }
+  .slotF { background:rgba(79,141,249,.05); }
+  .slotJ { background:rgba(79,141,249,.16); border-left:4px solid var(--honey); }
+  .slotJy { background:rgba(230,180,34,.14); border-left:4px solid var(--poop); }
+  .stage { flex:1; position:relative; overflow:hidden; }
+  .map { position:absolute; inset:0;
+         background:linear-gradient(140deg,#141b2e 0%,#0f1626 60%),repeating-linear-gradient(60deg, transparent 0 60px, rgba(255,255,255,.02) 60px 61px); }
+  .road { position:absolute; left:24%; top:6%; width:6px; height:64%; border-radius:6px;
+          background:linear-gradient(180deg,#4f8df9,#2557b0); transform:rotate(18deg); }
+  .road.ghost { background:repeating-linear-gradient(180deg,#e6b422 0 10px, transparent 10px 18px); left:38%; transform:rotate(32deg); }
+  .stop { position:absolute; width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+          font-size:10px; font-weight:900; color:#101318; border:2px solid rgba(255,255,255,.5); }
+  .me { position:absolute; width:13px; height:13px; border-radius:50%; background:#7fb0ff; border:2.5px solid #fff; box-shadow:0 0 14px rgba(127,176,255,.8); }
+  .tag { position:absolute; background:rgba(13,18,32,.92); border:1.5px solid var(--honey); border-radius:9px;
+         padding:5px 9px; font-size:10.5px; }
+  .tag .t1 { color:#9db9ff; font-weight:900; font-size:11.5px; }
+  .sheet { position:absolute; left:0; right:0; bottom:0; background:#11182a;
+           border-top:1px solid rgba(79,141,249,.35); border-radius:14px 14px 0 0; box-shadow:0 -8px 24px rgba(0,0,0,.5); }
+  .grip { width:38px; height:4px; border-radius:3px; background:#3a4358; margin:6px auto 3px; }
+  .srow { border-bottom:1px solid rgba(255,255,255,.06); padding:7px 12px; font-size:11px; color:var(--mut); }
+  .srow b { color:var(--txt); }
+  .card { margin:6px 8px; border:1px solid var(--line); border-radius:10px; padding:8px 10px; background:#0f1522; font-size:11px; }
+  .card.open { border-color:rgba(79,141,249,.6); box-shadow:0 0 14px rgba(79,141,249,.18); }
+  .callbox { border:1.5px dashed rgba(79,141,249,.5); border-radius:9px; padding:7px 9px; font-size:10.5px; color:#9db9ff; margin-top:7px; }
+</style>
+</head>
+<body>
+<h1>v22 — 경우별 한 장씩 (고정부 포함 · 시트는 고정부까지만)</h1>
+<p class="note"><b style="color:var(--txt)">시트 최대 높이 = 고정부 바로 아래까지.</b> 헤더(시계·내차)·폰영역·필터↔심사석 슬롯은 어떤 순간에도 안 가립니다 —
+심사석엔 30초 결재·색이 살고, 그건 시트가 덮으면 안 되는 정보라서입니다. 화면이 바뀌는 경우는 아래 7장 + 배너 계열(신고 불일치·서버 복구·접근 알림)이 전부입니다.</p>
+
+<div class="frames">
+
+  <div class="frame">
+    <h2>S1. 평시 · 콜 없음</h2>
+    <div class="phone">
+      <div class="bx num"><b>헤더</b> — 1t 예약 0건 · 09:05 · 아바타</div>
+      <div class="bx num"><b>폰영역</b> — 1234 · 인성 콜리스트 · 첫짐 · 자동</div>
+      <div class="bx slotF" style="min-height:64px;"><b>필터 현황판</b> — 노선 · 여기서 15km → 이천시 · 지표 · [노선|관내|복귀]</div>
+      <div class="stage">
+        <div class="map"><div class="me" style="left:46%; top:36%;"></div></div>
+        <div class="sheet" style="height:56px;"><div class="grip"></div>
+          <div class="srow">진행 중인 경로 없음 · 새 콜 대기 중</div></div>
+      </div>
+    </div>
+    <div class="caption">지도는 현위치만. 시트는 엿보기 한 줄 — 끌어올리면 종료 콜 이력(완료/취소 탭).</div>
+  </div>
+
+  <div class="frame">
+    <h2>S2. 평시 · 콜 있음 · 정차</h2>
+    <div class="phone">
+      <div class="bx num"><b>헤더</b> — 1t 예약 2건 (다마스) 추정</div>
+      <div class="bx num"><b>폰영역</b> — 합짐 · 알람</div>
+      <div class="bx slotF" style="min-height:64px;"><b>필터 현황판</b> (합짐 탐색중)</div>
+      <div class="stage">
+        <div class="map"><div class="road"></div>
+          <div class="me" style="left:28%; top:8%;"></div>
+          <div class="stop" style="left:36%; top:20%; background:#4f8df9;">①</div>
+          <div class="stop" style="left:48%; top:38%; background:#8892a8;">②</div></div>
+        <div class="sheet" style="height:58%;"><div class="grip"></div>
+          <div class="srow"><b>진행 중 (2)</b> · 완료 · 취소 · 방출 · 전체</div>
+          <div class="srow num">⏱ 2:59 뒤 출발 · 버퍼 +213분~</div>
+          <div class="card num">1 · ① 초월읍 ~12:14 → ③ 신둔면 ~12:59</div>
+          <div class="card num">2 · ② 사음동 ~12:40 → ④ 중리동 ~13:06</div></div>
+      </div>
+    </div>
+    <div class="caption">정차 10초 → 시트 반. 지도 윗부분으로 맥락 유지.</div>
+  </div>
+
+  <div class="frame">
+    <h2>S3. 주행</h2>
+    <div class="phone">
+      <div class="bx num"><b>헤더</b></div>
+      <div class="bx num"><b>폰영역</b></div>
+      <div class="bx slotF" style="min-height:64px;"><b>필터 현황판</b> (경로상 탐색중)</div>
+      <div class="stage">
+        <div class="map"><div class="road"></div>
+          <div class="me" style="left:28%; top:8%;"></div>
+          <div class="stop" style="left:40%; top:26%; background:#4f8df9; width:26px; height:26px; box-shadow:0 0 14px rgba(79,141,249,.7);">②</div>
+          <div class="stop" style="left:54%; top:46%; background:#8892a8;">③</div>
+          <div class="tag" style="left:14%; top:34%;"><div class="t1">② 사음동 2.8km·5분 📞</div><div>2번 콜 · 상차</div></div></div>
+        <div class="sheet" style="height:56px;"><div class="grip"></div>
+          <div class="srow num"><b>다음 ② 사음동·상차</b> · 남음 18.4/총 27.2km <span style="float:right; color:#4f8df9;">● 58km/h</span></div></div>
+      </div>
+    </div>
+    <div class="caption">주행 10초 → 시트 엿보기. 이름표(📞 포함)가 지도의 주인공.</div>
+  </div>
+
+  <div class="frame">
+    <h2>S4. 새 콜 평가 중 — 지도가 판정을 돕는다</h2>
+    <div class="phone">
+      <div class="bx num"><b>헤더</b></div>
+      <div class="bx num"><b>폰영역</b> — 처리중</div>
+      <div class="bx slotJ" style="min-height:88px;"><b>🪧 심사석</b> — 노선 합짐1 후보콜 · 꿀 93 · 5.0만원<br>
+        <span style="font-size:10.5px;">14.3만/h · +8km +16분 · [거절 | 잡기+장막] (자동콜일 때)</span></div>
+      <div class="stage">
+        <div class="map">
+          <div class="road"></div>
+          <div class="road ghost"></div>
+          <div class="me" style="left:28%; top:8%;"></div>
+          <div class="stop" style="left:36%; top:22%; background:#4f8df9;">①</div>
+          <div class="stop" style="left:52%; top:34%; background:#e6b422; box-shadow:0 0 14px rgba(230,180,34,.7);">N</div>
+          <div class="tag" style="left:44%; top:48%; border-color:#e6b422;"><div class="t1" style="color:#f0d27a;">+ 후보 상차 사음동</div><div>붙이면 +8km · +16분</div></div>
+        </div>
+        <div class="sheet" style="height:40px;"><div class="grip"></div></div>
+      </div>
+    </div>
+    <div class="caption"><b>후보를 붙인 경로 미리보기</b> — 기존 경로(파랑) 위에 새 구간을 노란 점선으로.
+    지도 전체가 판정 근거가 됨 (시트는 자동으로 최소).</div>
+  </div>
+
+  <div class="frame">
+    <h2>S5. KEEP 직후 — 전화 유도</h2>
+    <div class="phone">
+      <div class="bx num"><b>헤더</b> — 예약 3건</div>
+      <div class="bx num"><b>폰영역</b></div>
+      <div class="bx slotF" style="min-height:64px;"><b>필터 현황판</b> (복귀 — 심사석 내려감)</div>
+      <div class="stage">
+        <div class="map" style="opacity:.5;"><div class="road"></div></div>
+        <div class="sheet" style="height:78%;"><div class="grip"></div>
+          <div class="card open num"><b>방금 잡은 콜 · 노선 합짐1콜</b> · 사음동 → 중리동 · 5.0만원
+            <div class="callbox">📞 <b>상차지 통화</b> — 최팀장 010-4637-4824 · «몇 시까지 갈게요» (KEEP 직후 바로 통화 — 취소 판단과 다음 필터가 여기서 갈린다)</div>
+          </div>
+          <div class="srow" style="color:var(--dim);">통화 완료/스킵 → 시트가 도로 내려감</div></div>
+      </div>
+    </div>
+    <div class="caption">킵 = 시트가 자동으로 올라오며 <b>그 콜의 통화 스텝</b>이 열림. 완료 행동이 시트를 내림.</div>
+  </div>
+
+  <div class="frame">
+    <h2>S6. 정거장 탭 — 그 콜·그 단계</h2>
+    <div class="phone">
+      <div class="bx num"><b>헤더</b></div>
+      <div class="bx num"><b>폰영역</b></div>
+      <div class="bx slotF" style="min-height:64px;"><b>필터 현황판</b></div>
+      <div class="stage">
+        <div class="sheet" style="height:97%;"><div class="grip"></div>
+          <div class="srow"><b>진행 중 (2)</b></div>
+          <div class="card open num"><b>2번 콜</b> · 사음동 → 중리동 · 꿀 93
+            <div class="callbox">📦 상차 단계 시트 (지도 ② 탭으로 도착 — 저장하면 내려감)</div></div></div>
+      </div>
+    </div>
+    <div class="caption">어느 정거장이든 = 장부의 목차. 지나온 곳은 확인·수정, 남은 곳은 미리보기.</div>
+  </div>
+
+  <div class="frame">
+    <h2>S7. 상차지 도착 · 정차 — 콜이 마중</h2>
+    <div class="phone">
+      <div class="bx num"><b>헤더</b></div>
+      <div class="bx num"><b>폰영역</b></div>
+      <div class="bx slotF" style="min-height:64px;"><b>필터 현황판</b> (합짐 탐색중 — 이 자리서 더 잡기)</div>
+      <div class="stage">
+        <div class="map" style="opacity:.6;"><div class="stop" style="left:44%; top:20%; background:#4f8df9; width:26px; height:26px;">②</div></div>
+        <div class="sheet" style="height:72%;"><div class="grip"></div>
+          <div class="card open num"><b>2번 콜 · 상차지 도착</b> (GPS 500m 감지)
+            <div class="callbox">📦 상차 신고 시트 — 단위·수량·방법 (도착 정차 = 자동으로 이 시트가 마중)</div></div></div>
+      </div>
+    </div>
+    <div class="caption">정거장 반경 안 정차 → focus 자동 = 그 콜·그 단계. 지도 탭(S6)과 같은 문법의 자동판.</div>
+  </div>
+
+</div>
+</body>
+</html>

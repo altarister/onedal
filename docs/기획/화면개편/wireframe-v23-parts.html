@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>v23 — 부품 정의서 + 상태 규칙 표 (확정판)</title>
+<style>
+  :root { --bg:#0a0e17; --line:#1c2436; --txt:#e8ecf4; --mut:#7d879c; --dim:#59627a; --honey:#4f8df9; --mint:#35c3a9; --amber:#e6b422; }
+  body { background:radial-gradient(1200px 800px at 70% -10%, #101a30 0%, var(--bg) 55%);
+         color:var(--txt); font-family:-apple-system,'SF Pro','Apple SD Gothic Neo',sans-serif; padding:34px; margin:0; }
+  h1 { font-size:18px; font-weight:800; margin:0 0 4px; }
+  h2 { font-size:13px; color:#9db9ff; font-weight:900; margin:26px 0 8px; letter-spacing:.06em; }
+  p.note { font-size:12px; color:var(--mut); margin:0 0 8px; line-height:1.65; max-width:1000px; }
+  table { border-collapse:collapse; font-size:12px; margin:6px 0 14px; }
+  td, th { border:1px solid #2a3450; padding:7px 12px; text-align:left; color:#aab3c5; vertical-align:top; }
+  th { color:var(--txt); background:rgba(255,255,255,.04); white-space:nowrap; }
+  td b { color:var(--txt); }
+  .h { color:#9db9ff; font-weight:800; }
+  .y { color:#f0d27a; } .m { color:#8fe6d5; }
+  code { background:rgba(255,255,255,.06); border-radius:5px; padding:1px 6px; font-size:11px; }
+</style>
+</head>
+<body>
+<h1>v23 — 부품 정의서 + 상태 규칙 표</h1>
+<p class="note">v1~v22 의 최종 정리본. 앞으로 새 경우는 <b style="color:var(--txt)">그림을 새로 그리지 않고 이 표에 한 줄</b> 추가한다.
+구현 시 이 문서가 곧 명세다.</p>
+
+<h2>Ⅰ. 화면 뼈대 (위→아래 · 고정부는 어떤 순간에도 안 가림)</h2>
+<table>
+  <tr><th>부품</th><th>정의</th><th>비고</th></tr>
+  <tr><td><b>헤더</b></td><td>내 차 요약(로고 자리·테마 토글) · 소리끔 · 시계 · 아바타</td><td>고정 52px</td></tr>
+  <tr><td><b>폰 영역</b></td><td>기기 · 배차망+화면 · 국면 · 성적표 · 자동/알람/직접</td><td>고정 44px</td></tr>
+  <tr><td><b>치환 슬롯</b></td><td>필터 현황판 ↔ 심사석 — 한 자리 158px (콜 심사 여부가 스위치)</td><td>고정 158px</td></tr>
+  <tr><td><b>배너 층</b></td><td>신고 불일치 · 서버 복구 · 접근 알림 — 필요할 때만 한 줄 끼어듦</td><td>가변 (평소 0)</td></tr>
+  <tr><td><b>무대</b></td><td>남는 높이 100% = 지도(배경, 늘 있음) + 시트(위에 뜸)</td><td>시트 최대 = 무대 100%</td></tr>
+</table>
+
+<h2>Ⅱ. 무대 부품</h2>
+<table>
+  <tr><th>부품</th><th>정의</th><th>상태(변형)</th></tr>
+  <tr><td><b>지도</b> (배경)</td><td>한 사이클 전체 — 모든 정거장 + 현위치 + 경로선</td>
+      <td>정거장 색: <b>지나옴 초록 · 지금 목표 파랑(크게+빛) · 남음 회색 · 후보 노랑</b><br>평가 중엔 후보 구간을 <span class="y">노란 점선</span>으로 겹침</td></tr>
+  <tr><td><b>이름표</b></td><td>지금 목표 정거장에 «⑨ 동이름 · 거리·분 · N번 콜 · 단계 · 📞»</td>
+      <td>탭 → <code>focus={콜,단계}</code> + 시트 전체<br>접근 알림(2km) 오면 강조·통화 유도</td></tr>
+  <tr><td><b>시트</b> (그릇)</td><td>3단 스냅: <b>엿보기(1줄) · 반(무대 60%) · 전체(무대 100%)</b>. 드래그 손잡이 상단</td>
+      <td>웹 자작 (React — OS·RN 아님) · 한 번 만들어 계속 씀</td></tr>
+  <tr><td><b>엿보기 줄</b></td><td>🔴 <b>상태에 따라 내용이 바뀌는 한 줄</b> — 시트가 내려가 있어도 이 줄이 무대의 자막</td>
+      <td>아래 Ⅲ 표의 «엿보기 줄» 열이 정의</td></tr>
+  <tr><td><b>콜 카드 + 스텝 시트</b></td><td>시트 안 내용물 — 지금 콜 덱 그대로 (요약줄·카드·6단계·신고 시트)</td>
+      <td><code>focus</code> 가 오면 그 콜·그 단계 펼친 채 그림</td></tr>
+</table>
+
+<h2>Ⅲ. 상태 규칙 표 — 이 표가 제품이다</h2>
+<table>
+  <tr><th>상태 (신호)</th><th>슬롯</th><th>시트 높이</th><th>엿보기 줄</th><th>지도</th></tr>
+  <tr><td><b>S1 콜 없음</b></td><td>필터</td><td>엿보기</td><td>«진행 중인 경로 없음 · 새 콜 대기»</td><td>현위치만</td></tr>
+  <tr><td><b>S2 정차·콜 있음</b> (5km/h↓ 10초)</td><td>필터</td><td class="h">반</td><td>(목록이 올라와 있음)</td><td>사이클 상단부</td></tr>
+  <tr><td><b>S3 주행</b> (20km/h↑ 10초)</td><td>필터</td><td class="h">엿보기</td><td>다음 정거장·단계 · 남음/총 · 속도</td><td>사이클 전체 + 이름표</td></tr>
+  <tr><td><b>S4 새 콜 평가</b> (심사 시작)</td><td class="h">심사석</td><td class="h">최소</td><td>—</td><td class="y">후보 붙인 미리보기 (노란 점선 · +km +분)</td></tr>
+  <tr><td><b>S5 KEEP 직후</b></td><td>필터 복귀</td><td class="h">전체 (자동)</td><td>—</td><td>흐림</td></tr>
+  <tr><td colspan="5" style="color:var(--dim);">　→ 그 콜의 <b style="color:#9db9ff;">상차지 통화 스텝</b>이 열린 채 — 통화 완료/스킵이 시트를 도로 내림 (킵 직후 바로 통화 원칙)</td></tr>
+  <tr><td><b>S6 정거장 탭</b> (지도)</td><td>그대로</td><td class="h">전체</td><td>—</td><td>—</td></tr>
+  <tr><td colspan="5" style="color:var(--dim);">　→ <code>focus={그 콜, 그 단계}</code> — 지나온 곳은 확인·수정, 남은 곳은 미리보기. 저장이 시트를 내림</td></tr>
+  <tr><td><b>S7 정거장 도착·정차</b> (GPS 500m)</td><td>필터</td><td class="h">전체 (자동)</td><td>—</td><td>그 정거장 확대</td></tr>
+  <tr><td colspan="5" style="color:var(--dim);">　→ 그 콜의 신고 시트가 마중 — S6 과 같은 문법의 자동판</td></tr>
+  <tr><td><b>취소/타임아웃</b></td><td>필터 복귀</td><td>이전 상태로</td><td>—</td><td>미리보기 걷힘</td></tr>
+</table>
+
+<h2>Ⅳ. 전환 원칙</h2>
+<table>
+  <tr><td><b>자동이 안전한 이유</b></td><td>시트 높이·지도는 <b>표시만</b> — 필터·콜 상태를 안 바꾼다 (국면 전환과 다름)</td></tr>
+  <tr><td><b>사용자 손이 이긴다</b></td><td>드래그가 곧 의사 표현 — 터치 후 30초는 자동 전환 유예</td></tr>
+  <tr><td><b>완료 행동이 문을 닫는다</b></td><td>통화 완료·시트 저장 → focus 해제 + 시트 자동 복귀 (뒤로가기를 찾을 일 없음)</td></tr>
+  <tr><td><b>통신은 부모를 통해</b></td><td>패널 간 직접 통신 없음 — <code>stage(시트높이) · focus(콜·단계) · 파생 제조소</code> 세 상태를 Dashboard 가 들고 모두가 바라봄</td></tr>
+</table>
+
+<h2>Ⅴ. 구현 지도 (승인 후)</h2>
+<table>
+  <tr><th>순서</th><th>일</th><th>성격</th></tr>
+  <tr><td>1</td><td><code>useRouteDerivations</code> — PinnedRoute 파생 ~150줄을 훅으로</td><td>이동 (로직 불변)</td></tr>
+  <tr><td>2</td><td><code>StageSheet</code> — 3단 스냅 시트 그릇 (웹 자작)</td><td>신규 (작음)</td></tr>
+  <tr><td>3</td><td>지도 = 무대 배경 + 정거장·이름표 오버레이 · 콜 덱 = 시트 내용물</td><td>재배치</td></tr>
+  <tr><td>4</td><td>상태 규칙 표(Ⅲ) → <code>useStageRules</code> 하나로</td><td>신규 — 표가 곧 코드</td></tr>
+  <tr><td>5</td><td>S4 후보 미리보기 · S5 킵 통화 · S7 도착 마중</td><td>연결 (기존 신호 재사용)</td></tr>
+</table>
+</body>
+</html>
