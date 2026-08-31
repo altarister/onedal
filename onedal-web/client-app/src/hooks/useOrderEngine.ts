@@ -28,6 +28,8 @@ export function useOrderEngine() {
     /** 🧭 서버가 내려준 경로 순서 — 방문 순서의 유일한 원천 (기사님 동의 2026-08-19) */
     const [routeStops, setRouteStops] = useState<RouteStopInfo[]>([]);
     const [routeComputedAt, setRouteComputedAt] = useState<string | null>(null);
+    /** 🧭 경로를 든 콜 — 서버가 고른 답. 지도·시뮬이 추측하지 않는다 (0831) */
+    const [routeHolderId, setRouteHolderId] = useState<string | null>(null);
     // 🚫 취소 예산 — 한 판에서 몇 번 썼나. 서버가 장부에서 파생해 sync 에 싣는다
     const [cancelCounts, setCancelCounts] = useState<Record<string, number>>({});
     // 🚫 몇 판째인가 — 판수가 남으므로 총량은 사라지지 않는다 (필터_정의 §2 의 취지)
@@ -300,6 +302,7 @@ export function useOrderEngine() {
             // 옛 서버는 이 필드가 없다 → 빈 배열 (화면은 번호 없이 콜만 그린다)
             setRouteStops(payload.routeStops ?? []);
             setRouteComputedAt(payload.routeComputedAt ?? null);
+            setRouteHolderId(payload.routeHolderId ?? null);
             if (payload.cancelCounts) setCancelCounts(payload.cancelCounts);
             if (payload.cancelRounds) setCancelRounds(payload.cancelRounds);
 
@@ -365,6 +368,7 @@ export function useOrderEngine() {
         orders,
         routeStops,
         routeComputedAt,
+        routeHolderId,
         cancelCounts,
         cancelRounds,
         cancelBudgetToast,

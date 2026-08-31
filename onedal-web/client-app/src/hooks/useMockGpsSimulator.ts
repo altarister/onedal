@@ -110,7 +110,15 @@ export function useMockGpsSimulator({
      *
      * 경로가 갈리면 **지금 자리에서 가장 가까운 지점**으로 이어붙인다. 뒤로 안 돌아가니까.
      */
-    useEffect(() => { stopsRef.current = stops; }, [stops]);
+    useEffect(() => {
+        stopsRef.current = stops;
+        /**
+         * 🧹 **사이클이 닫히면 방문 장부도 비운다** (기사님 실측 2026-08-31).
+         *    7지점 문제지는 판마다 **좌표가 같아서**, 지난 판에 들른 정거장을 이번 판에도
+         *    «들렀다»고 보고 정차를 건너뛰었다 — 어제 상태가 오늘 되살아나면 안 된다 (규칙 ③).
+         */
+        if (!stops?.length) simRef.current = initialSimState();
+    }, [stops]);
 
     useEffect(() => {
         if (routeRef.current?.length !== routePolyline?.length) {

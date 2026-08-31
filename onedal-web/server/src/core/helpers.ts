@@ -445,6 +445,13 @@ export function buildOrderSync(session: { userId?: string; myOrders: MyOrder[]; 
         terminated: all.filter(o => isTerminal(o.status)).map(stripPolyline),
         routeStops,
         routeComputedAt,
+        /**
+         * 🧭 **경로를 든 콜의 이름** (기사님 확정 2026-08-31 · 잔상 수리).
+         *    관제웹 지도·캔버스·시뮬이 각자 «마지막 폴리라인 가진 콜»을 추측하고 있었다 —
+         *    판정이 세 벌이라 KEEP 직후처럼 갈리는 순간에 **직전 콜의 옛 선**을 그렸다.
+         *    이미 여기서 고른 답을 이름으로 보낸다 — 추측을 없앤다 (규칙 ③).
+         */
+        routeHolderId: holder?.id ?? null,
         cancelRounds,
         cancelCounts,
     };

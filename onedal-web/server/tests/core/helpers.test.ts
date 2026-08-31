@@ -45,7 +45,8 @@ describe('buildOrderSync — 진행/종료 분리', () => {
     });
 
     it('빈 세션도 안전하다', () => {
-        expect(buildOrderSync(makeSession([]))).toEqual({ active: [], terminated: [], routeStops: [], routeComputedAt: null, cancelCounts: {}, cancelRounds: {} });
+        // 0831 — 경로 홀더 이름이 봉투에 들어왔다 (빈 세션이면 null · 잔상 수리)
+        expect(buildOrderSync(makeSession([]))).toEqual({ active: [], terminated: [], routeStops: [], routeComputedAt: null, routeHolderId: null, cancelCounts: {}, cancelRounds: {} });
     });
 });
 

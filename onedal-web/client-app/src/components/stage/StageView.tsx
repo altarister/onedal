@@ -25,6 +25,8 @@ interface Props {
     activeRoute: SecuredOrder[];
     routeStops: RouteStopInfo[];
     routeComputedAt: string | null;
+    /** 🧭 경로를 든 콜 — 서버가 고른 답 (0831) */
+    routeHolderId?: string | null;
     onDecision?: (id: string, action: 'ORDER_CONFIRMED' | 'SAFE_CANCEL' | 'ORDER_RELEASED_BY_ME' | 'ORDER_RELEASED_BY_OFFICE') => void;
     onRecalculate?: (id: string, priority: string) => void;
     viewFilter: 'ACTIVE' | 'COMPLETED' | 'CANCELED' | 'RELEASED' | 'ALL';
@@ -32,8 +34,8 @@ interface Props {
 }
 
 export default function StageView(props: Props) {
-    const { activeRoute, routeStops, routeComputedAt } = props;
-    const derived = useRouteDerivations(activeRoute, routeStops, routeComputedAt);
+    const { activeRoute, routeStops, routeComputedAt, routeHolderId } = props;
+    const derived = useRouteDerivations(activeRoute, routeStops, routeComputedAt, routeHolderId);
     const { liveRoute, unifiedRoutePoints, myLocation, visitOrderMap } = derived;
     const [snap, setSnap] = useState<SheetSnap>('half');
     const { filter, updateFilter } = useFilterConfig();
@@ -164,6 +166,7 @@ export default function StageView(props: Props) {
                     myLocation={myLocation}
                     visitedTrail={derived.visitedTrail}
                     drivenTrail={derived.drivenTrail}
+                    routeHolder={derived.routeHolder}
                     callColors={derived.callColors}
                     onStopTap={focusCall}
                 >

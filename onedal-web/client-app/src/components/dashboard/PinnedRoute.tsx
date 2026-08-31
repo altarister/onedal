@@ -19,6 +19,8 @@ interface Props {
     routeStops: RouteStopInfo[];
     /** 경로를 계산한 시점 — 타임라인 추정 약속의 닻 */
     routeComputedAt: string | null;
+    /** 🧭 경로를 든 콜 — 서버가 고른 답 (0831) */
+    routeHolderId?: string | null;
     onDecision?: (id: string, action: 'ORDER_CONFIRMED' | 'SAFE_CANCEL' | 'ORDER_RELEASED_BY_ME' | 'ORDER_RELEASED_BY_OFFICE') => void;
     onRecalculate?: (id: string, priority: string) => void;
     viewFilter: 'ACTIVE' | 'COMPLETED' | 'CANCELED' | 'RELEASED' | 'ALL';
@@ -94,6 +96,7 @@ export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDe
                     myLocation={myLocation}
                     visitedTrail={d.visitedTrail}
                     drivenTrail={d.drivenTrail}
+                    routeHolder={d.routeHolder}
                 >
                     {/* 좌측 상단 글로벌 상시 경로 재탐색 파이프라인 (맵 캔버스 내재화 플로팅 컨트롤) */}
                     {liveRoute.length > 0 && onRecalculate && (() => {
@@ -401,6 +404,6 @@ export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDe
 
 /** 기본 내보내기 — 파생 제조소를 부르고 몸통에 준다 (옛 화면 경로 · 토글 꺼짐일 때) */
 export default function PinnedRoute(props: Props) {
-    const d = useRouteDerivations(props.activeRoute, props.routeStops, props.routeComputedAt);
+    const d = useRouteDerivations(props.activeRoute, props.routeStops, props.routeComputedAt, props.routeHolderId);
     return <PinnedRouteBody {...props} d={d} />;
 }

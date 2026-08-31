@@ -28,6 +28,8 @@ export function useRouteDerivations(
     activeRoute: SecuredOrder[],
     routeStops: RouteStopInfo[],
     routeComputedAt: string | null,
+    /** 🧭 경로를 든 콜 — 서버가 고른 답 (0831 잔상 수리). 없으면 그릴 선이 없다 */
+    routeHolderId?: string | null,
 ) {
     /**
      * 🔄 파생 치환 ① (기사님 승인 2026-08-21) — 타임라인·카운트다운의 재료를
@@ -46,15 +48,20 @@ export function useRouteDerivations(
      */
     const cycleDeck = useMemo(() => deckOfCycle(activeRoute || []), [activeRoute]);
 
-    // 현재 활성 폴리라인 (진행 중인 오더에서만 추출, 완료된 stale 궤적 무시)
-    const activePolyline = useMemo(() => {
-        if (liveRoute.length === 0) return null;
-        for (let i = liveRoute.length - 1; i >= 0; i--) {
-            const r = liveRoute[i];
-            if (r && r.routePolyline && r.routePolyline.length > 0) return r.routePolyline;
-        }
-        return null;
-    }, [liveRoute]);
+    /**
+     * 🧭 **경로를 든 콜 — 추측하지 않는다** (기사님 확정 2026-08-31 · 잔상 수리).
+     *
+     * 예전엔 «진행 중 콜 중 폴리라인 가진 마지막 것»으로 **추측**했다. 서버의 판정
+     * (`buildOrderSync` 의 holder)과 규칙이 달라, KEEP 직후처럼 둘이 갈리는 순간에
+     * **직전 콜의 옛 선**을 그렸다 — 잔상의 뿌리. 이제 서버가 이름을 준다 (규칙 ③).
+     * 🔴 홀더가 없으면 **아무 선도 안 그린다** — 낡은 선을 그리는 것보다 낫다 (규칙 ④).
+     */
+    const routeHolder = useMemo(
+        () => (routeHolderId ? liveRoute.find(r => r.id === routeHolderId) ?? null : null),
+        [liveRoute, routeHolderId]);
+    const activePolyline = useMemo(
+        () => (routeHolder?.routePolyline?.length ? routeHolder.routePolyline : null),
+        [routeHolder]);
 
     const isDriving = filter?.dispatchPhase === 'DELIVERING';
 
@@ -250,7 +257,7 @@ export function useRouteDerivations(
     }, [safeRoute]);
 
     return {
-        stepRecords, liveRoute, cycleDeck, activePolyline, isDriving, mockStops,
+        stepRecords, liveRoute, cycleDeck, activePolyline, routeHolder, isDriving, mockStops,
         currentGps, gpsSource, myLocation, safeRoute, allEvaluating, judging, gpsFocus,
         routeTimeline, unifiedRoutePoints, etaMap, visitOrderMap, chronologicalIds, visitedTrail, callColors, drivenTrail,
     };

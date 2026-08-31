@@ -71,6 +71,7 @@ export default function Dashboard() {
         handleRecalculate,
         routeStops,
         routeComputedAt,
+        routeHolderId,
         cancelCounts,
         cancelRounds,
         cancelBudgetToast,
@@ -316,6 +317,7 @@ export default function Dashboard() {
                     {stagePreview ? <StageView
                         routeStops={routeStops}
                         routeComputedAt={routeComputedAt}
+                        routeHolderId={routeHolderId}
                         activeRoute={activeRoute}
                         onDecision={handleDecision}
                         onRecalculate={handleRecalculate}
@@ -324,6 +326,7 @@ export default function Dashboard() {
                     /> : <PinnedRoute 
                         routeStops={routeStops}
                         routeComputedAt={routeComputedAt}
+                        routeHolderId={routeHolderId}
                         activeRoute={activeRoute} 
                         onDecision={handleDecision} 
                         onRecalculate={handleRecalculate} 

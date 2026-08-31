@@ -26,6 +26,8 @@ interface Props {
     onStopTap?: (orderId: string) => void;
     /** 👣 이번 사이클에 실제로 달린 자취 — 연한 선으로 남는다 (표시 전용) */
     drivenTrail?: Array<{ x: number; y: number }>;
+    /** 🧭 경로를 든 콜 — 서버가 고른 답. 여기서 다시 찾지 않는다 (0831 잔상 수리) */
+    routeHolder?: SecuredOrder | null;
     unifiedRoutePoints: RoutePoint[];
     /** **진행 중인 콜만** 넘긴다. 종료된 콜을 여기서 거르지 않는다 —
      *  계약을 좁히면 거르기를 잊을 자리가 없어진다 (2026-08-10 전수조사) */
@@ -36,7 +38,7 @@ interface Props {
     fill?: boolean;
 }
 
-export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLocation, children, fill, visitedTrail, callColors, onStopTap, drivenTrail }: Props) {
+export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLocation, children, fill, visitedTrail, callColors, onStopTap, drivenTrail, routeHolder }: Props) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const { theme } = useTheme();
     const mapColors = MAP_THEME_COLORS[theme];
@@ -71,11 +73,10 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
 
         const validPoints = unifiedRoutePoints.filter(p => typeof p.x === 'number' && typeof p.y === 'number') as (RoutePoint & { x: number, y: number })[];
 
-        // 진행 중인 콜만 받으므로 여기서 거를 것이 없다
-        const lastValidOrderWithPolyline = [...liveRoute].reverse().find(r => r.routePolyline && r.routePolyline.length > 0);
-        const currentPolyline = lastValidOrderWithPolyline?.routePolyline || [];
+        // 🧭 경로선의 주인은 서버가 정한다 — 여기서 추측하면 판정이 세 벌이 된다 (0831)
+        const currentPolyline = routeHolder?.routePolyline || [];
         // 🟡 S4 — 평가 중 후보를 붙인 경로는 «미리보기»다. 확정 경로인 척하면 안 된다 (#64)
-        const isPreviewRoute = !!lastValidOrderWithPolyline && isEvaluating(lastValidOrderWithPolyline.status);
+        const isPreviewRoute = !!routeHolder && isEvaluating(routeHolder.status);
         const hasPolyline = currentPolyline.length > 0;
 
         const validPolyline = currentPolyline.filter((p: any) => typeof p.x === 'number' && typeof p.y === 'number' && !isNaN(p.x) && !isNaN(p.y));
@@ -326,7 +327,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             ctx.textAlign = 'center';
             ctx.fillText("현위치", cx, cy + 22);
         }
-    }, [unifiedRoutePoints, liveRoute, myLocation, visitedTrail, drivenTrail, theme, mapColors]);
+    }, [unifiedRoutePoints, liveRoute, myLocation, visitedTrail, drivenTrail, routeHolder, theme, mapColors]);
 
     useEffect(() => {
         drawMap();
