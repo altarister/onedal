@@ -10,6 +10,7 @@ import type { MyOrder } from '@onedal/shared';
  */
 import { shouldStoreGpsPoint, bufferGpsPoint, type GpsPoint } from './gpsTrackStore';
 import type { UserSession } from '../state/userSessionStore';
+import { SettingsRepository } from '../repositories/SettingsRepository';
 /**
  * 배럴(`@turf/turf`) 대신 **쓰는 것만** 가져온다.
  *
@@ -758,6 +759,39 @@ export function dropStaleLocation(
     console.log(`📍 [현위치 낡음] ${age}분 전 좌표라 «지금 위치»로 쓰지 않습니다 — 내 주소 기준으로 계산합니다`);
     session.driverLocation = null;
     session.driverLocationAt = null;
+}
+
+/**
+ * 📍 **비움과 메움은 한 몸이다** (버그: 합짐 전부 빨강 · 2026-08-31).
+ *
+ * `dropStaleLocation` 은 «비우면 내 주소 폴백이 받는다»고 약속했지만, 메우기는
+ * **로그인 부트스트랩에만** 있었다. 그래서 세션 중간에 좌표가 낡아 비워지면(실측 251분)
+ * 심사가 origin 없이 카카오를 불렀고 — 구간 주행분 전부 null → 도착예상 없음 →
+ * 버퍼 못 잼 → 약속 축 «잴 수 없음» → **합짐 후보 전부 🔴 사고**로 나왔다.
+ *
+ * 그래서 경로·심사가 현위치를 읽기 전에는 이 함수 하나만 부른다 (규칙 ③ — 입력 한 곳).
+ * **GPS 가 들어오면 그 값이 언제나 이긴다** — 싱싱하면 DB 도 안 읽는다.
+ * 내 주소조차 없으면 null 로 둔다 — 없는 숫자를 지어내지 않는다 (규칙 ④).
+ */
+export function ensureDriverOrigin(
+    userId: string,
+    session: {
+        driverLocation: { x: number; y: number } | null;
+        driverLocationAt: number | null;
+        driverLocationIsFallback: boolean;
+    },
+    nowMs: number = Date.now(),
+): void {
+    dropStaleLocation(session, nowMs);
+    if (session.driverLocation) return;
+    const home = SettingsRepository.getHomeLocation(userId);
+    if (home) {
+        session.driverLocation = { x: home.x, y: home.y };
+        session.driverLocationIsFallback = true;
+        console.log(`📍 [출발지 대체] GPS 미수신 — 내 주소(${home.address}) 기준으로 경로를 계산합니다`);
+    } else {
+        console.warn(`⚠️ [출발지 없음] GPS 도 내 주소도 없습니다 — 접근 구간을 계산할 수 없습니다 (설정에서 내 주소를 넣어 주세요)`);
+    }
 }
 
 /**

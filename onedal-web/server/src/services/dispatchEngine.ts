@@ -9,7 +9,7 @@ import { geocodeAddress, calculateSoloRoute, calculateDetourRoute, compareDirect
 import { fetchRealWorldRoute } from "../routes/osrmUtil";
 import { getUserSession, clearOrderTimers } from "../state/userSessionStore";
 import { updateActiveFilter, rememberDetourProgress, recalculateDetourFilter } from "../state/filterManager";
-import { getDetourRegions, getCityRegionsWithRadius, reverseGeocodeToRegion, haversineKm, dropStaleLocation } from "../services/geoService";
+import { getDetourRegions, getCityRegionsWithRadius, reverseGeocodeToRegion, haversineKm, ensureDriverOrigin } from "../services/geoService";
 import { composeMergedRoute, applyRoute, applySoloRoute, pickRouteHolder, toKm, toMin, hasVisitedStop, snapshotRoute, restoreRouteSnapshot, parsePolyline } from "./routeComposer";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { DISPATCH_CONFIG } from "../config/dispatchConfig";
@@ -139,10 +139,10 @@ export async function recalculateActiveKakaoRoute(userId: string, io: any) {
     const session = getUserSession(userId);
 
     /**
-     * 📍 낡은 현위치는 «지금 위치»가 아니다 — 비우면 «내 주소» 폴백이 받는다 (2026-08-25).
-     *    판단은 `dropStaleLocation` 한 곳에만 있다 (규칙 ③).
+     * 📍 낡은 현위치는 «지금 위치»가 아니다 — 비우고 «내 주소»로 메운다 (2026-08-31).
+     *    비움 단독은 금지 — 메우는 길이 부트스트랩에만 있어 심사가 origin 없이 돌았다.
      */
-    dropStaleLocation(session);
+    ensureDriverOrigin(userId, session);
 
     // 완료되지 않은 활성 콜만 추출 (On-the-fly 필터링)
     const activeCalls = getActiveCalls(session);
@@ -364,10 +364,10 @@ export const syncDetourFilter = (userId: string, io: any) => {
     const session = getUserSession(userId);
 
     /**
-     * 📍 낡은 현위치는 «지금 위치»가 아니다 — 비우면 «내 주소» 폴백이 받는다 (2026-08-25).
-     *    판단은 `dropStaleLocation` 한 곳에만 있다 (규칙 ③).
+     * 📍 낡은 현위치는 «지금 위치»가 아니다 — 비우고 «내 주소»로 메운다 (2026-08-31).
+     *    비움 단독은 금지 — 메우는 길이 부트스트랩에만 있어 심사가 origin 없이 돌았다.
      */
-    dropStaleLocation(session);
+    ensureDriverOrigin(userId, session);
     let polylineToUse = null;
 
     // 완료되지 않은 활성 콜만 추출하여 최신 폴리라인을 가져옵니다.
@@ -752,16 +752,7 @@ export async function bootstrapUserSession(userId: string, io: any): Promise<voi
          * **GPS 가 들어오면 그 값이 언제나 이긴다** (dashboard-gps-update).
          * 추정으로 계산했다는 사실은 `driverLocationIsFallback` 으로 숨기지 않는다.
          */
-        if (!session.driverLocation) {
-            const home = SettingsRepository.getHomeLocation(userId);
-            if (home) {
-                session.driverLocation = { x: home.x, y: home.y };
-                session.driverLocationIsFallback = true;
-                console.log(`📍 [출발지 대체] GPS 미수신 — 내 주소(${home.address}) 기준으로 경로를 계산합니다`);
-            } else {
-                console.warn(`⚠️ [출발지 없음] GPS 도 내 주소도 없습니다 — 접근 구간을 계산할 수 없습니다 (설정에서 내 주소를 넣어 주세요)`);
-            }
-        }
+        ensureDriverOrigin(userId, session);   // 비움+메움 한 곳 (geoService)
 
         await restoreAndRecalculateSession(userId, io);   // ②③④ (DB 로드 → 카카오 노선 → 상태 파생)
         rebuildDestinationKeywords(userId, io);           // ⑤ (활성 콜 유무로 경유/도시 분기)

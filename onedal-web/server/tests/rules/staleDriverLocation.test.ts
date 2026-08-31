@@ -87,7 +87,10 @@ describe('낡은 현위치 — 경로 기점으로 쓰지 않는다', () => {
         for (const f of ['../../src/services/dispatchEngine.ts', '../../src/core/engine/OrderEvaluator.ts']) {
             expect(code(f)).not.toMatch(/driverLocationAt\s*[<>]/);   // 직접 비교 금지
         }
-        expect(code('../../src/services/dispatchEngine.ts')).toMatch(/dropStaleLocation\(/);
+        // 2026-08-31 — 비움 단독(dropStaleLocation)은 «내 주소 메우기»가 안 따라와
+        //   합짐이 전부 🔴 로 나왔다. 호출부는 비움+메움 한 몸(ensureDriverOrigin)만 부른다.
+        //   불변식은 그대로다 — 낡음 판단은 여전히 dropStaleLocation 안 한 곳뿐이다.
+        expect(code('../../src/services/dispatchEngine.ts')).toMatch(/ensureDriverOrigin\(/);
     });
 
     it('🔴 좌표를 받을 때 시각을 남긴다', () => {
