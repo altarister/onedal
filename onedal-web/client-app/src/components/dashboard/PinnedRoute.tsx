@@ -41,7 +41,8 @@ export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDe
     const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
     /** 콜을 다루기 시작하면 탭 바를 화면 맨 위로 끌어올린다 */
     const tabBarRef = useRef<HTMLDivElement>(null);
-    const scrollToCalls = () => tabBarRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // 시트 안(sheetOnly)에서는 부드러운 스크롤이 매 탭 클릭마다 출렁임이 된다 — 즉시 정렬 (기사님 0831)
+    const scrollToCalls = () => tabBarRef.current?.scrollIntoView({ behavior: sheetOnly ? 'auto' : 'smooth', block: 'start' });
     const [processingId, setProcessingId] = useState<string | null>(null);
     const { filter, updateFilter } = useFilterConfig();
     // 서버 통신 완료 시 (상태가 변하거나 삭제될 때) 로딩 상태 즉각 해제
