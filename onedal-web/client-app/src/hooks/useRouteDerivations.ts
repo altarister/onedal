@@ -240,46 +240,48 @@ export function useRouteDerivations(
     }, [cycleDeck]);
 
     /**
-     * 🔢 **정거장 번호 — 출발할 때 한 번 정해지고 얼어붙는다** (기사님 확정 2026-08-31).
+     * 🔢 **정거장 번호 = 가는 순서다** (기사님 확정 2026-09-01).
      *
-     * 기사님: *"출발할 때 순서가 한 번 정해지고, 지나갈 때마다 번호가 사라지는 것이 아니고…"*
-     * 그리고 실측: *"신둔면이 6이었다가 3이었다가 막 바뀐다."*
+     * 번호가 답하는 질문은 하나다 — *"지금 몇 번째로 가는 곳인가."*
+     * 그러므로 **다녀온 것 + 남은 것을 시간 순서로 이어 붙인 자리**가 곧 번호다.
      *
-     * ── 왜 흔들렸나 ──
-     * 번호를 «지금 남은 정거장 목록의 몇 번째»로 매번 새로 셌다. 서버가 경로를 다시 세울
-     * 때마다 남은 것들의 자리가 바뀌니 번호도 같이 뛰었다. 게다가 다녀온 정거장을 목록에서
-     * 빼자 **그 콜의 번호가 통째로 사라졌다**(요약줄의 «초월읍 → 신둔면» 앞 번호).
+     * ── 왜 두 번 고쳤나 ──
+     * ① 처음엔 «지금 남은 목록의 몇 번째»로 매번 새로 셌다. 서버가 경로를 다시 세울 때마다
+     *    남은 것들의 자리가 바뀌어 번호가 뛰었고(실측: *"신둔면이 6이었다가 3이었다가"*),
+     *    다녀온 정거장을 목록에서 빼자 **그 콜의 번호가 통째로 사라졌다.**
+     * ② 그래서 «출발하면 얼린다»로 바꿨다. 흔들림은 멎었는데(0901 실측 0회) 이번엔
+     *    합짐이 **출발 뒤에** 들어오면 자기 상차·하차를 **끝에 이어 붙였다** —
+     *    실제로는 `1 → 3 → 2 → 5 → 4 → 6` 순서로 다니게 됐다.
+     *    번호가 안 바뀌는 대신 **순서를 못 말하게 된 것**이라, 값이 자기 질문에 답하지 못했다.
      *
-     * ── 규칙 ──
-     *   출발 전(국면이 운행 중이 아님) — 경로 순서대로 **다시 매긴다** (합짐이 붙으면 재정렬)
-     *   출발 후                        — **얼린다.** 새 정거장만 뒤에 붙는다
-     *   사이클이 닫히면 비운다
-     * 다녀온 정거장도 번호를 그대로 갖는다 — 발자취(✓)와 요약줄이 같은 번호를 쓴다.
+     * ── 지금 규칙 ──
+     *   다녀온 것 — 다녀온 시각 순. 한 번 받은 번호가 그대로 남는다 (발자취 ✓ 와 요약줄이 공유)
+     *   남은 것   — **지금 갈 순서대로** 이어서 매긴다. 합짐이 중간에 끼면 그 뒤만 한 칸씩 밀린다
+     *
+     * 🔴 **기억(ref)을 두지 않는다** (규칙 ③). 다녀온 목록과 남은 목록에서 매번 파생시키면
+     *    ①의 흔들림은 구조적으로 못 생긴다 — 정거장 하나를 다녀오면 남은 목록에서 빠지는
+     *    동시에 다녀온 목록에 들어가므로 **자리 번호가 변하지 않는다.**
+     *    번호가 바뀌는 경우는 «갈 순서가 진짜로 바뀌었을 때» 하나뿐이고, 그때는 바뀌는 게 맞다.
+     *
+     * 🔴 세는 재료는 **화면이 그리는 그 목록**(`routePointsRaw`)이다. 다른 목록으로 세면
+     *    이름표와 지도가 어긋난다 — 0901 에 캔버스가 따로 세다 그렇게 갈렸다.
      */
-    const stopNoRef = useRef<Map<string, number>>(new Map());
     const stopNoOf = useMemo(() => {
-        const keyOf = (orderId: string, stopType: 'pickup' | 'dropoff') => `${orderId}:${stopType}`;
-        if (cycleDeck.length === 0) { stopNoRef.current = new Map(); return stopNoRef.current; }
-        // 출발 전에는 매번 새로 — 합짐이 붙으면 갈 순서가 진짜로 바뀐다
-        const m = isDriving ? stopNoRef.current : new Map<string, number>();
-        let next = m.size + 1;
+        const m = new Map<string, number>();
+        if (cycleDeck.length === 0) return m;
+        let next = 1;
         /**
          * 🔴 **다녀온 것을 먼저 매긴다** — 그것이 시간상 앞이다.
-         *    새로고침을 달리는 중에 하면 기억이 비어 있는데, 남은 것부터 매기면
-         *    **이미 지나온 정거장이 더 큰 번호**를 받는다 (✓4 → ①②③ 처럼 뒤집힌다).
+         *    남은 것부터 매기면 **이미 지나온 정거장이 더 큰 번호**를 받는다 (✓4 → ①②③).
          */
-        for (const v of visitedTrail) {
-            const k = keyOf(v.orderId, v.type === '상차' ? 'pickup' : 'dropoff');
+        for (const v of visitedTrail)
+            m.set(`${v.orderId}:${v.type === '상차' ? 'pickup' : 'dropoff'}`, next++);
+        for (const p of routePointsRaw) {
+            const k = `${p.routeId}:${p.type === '상차' ? 'pickup' : 'dropoff'}`;
             if (!m.has(k)) m.set(k, next++);
         }
-        for (const st of routeStops) {
-            const k = keyOf(st.orderId, st.stopType as 'pickup' | 'dropoff');
-            if (!m.has(k)) m.set(k, next++);
-        }
-        stopNoRef.current = m;
         return m;
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [routeStops, visitedTrail, cycleDeck.length, isDriving]);
+    }, [routePointsRaw, visitedTrail, cycleDeck.length]);
 
     /** 👣 발자취 — 번호는 위 지도에서 붙인다 (세는 곳 하나) */
     const visitedTrailNumbered = useMemo(
