@@ -324,6 +324,14 @@ export async function calculateDetourRoute(
      *    안 넘기면 예전처럼 «첫짐 단독»으로 잰다 (기존 콜이 하나면 같은 값이다).
      */
     basePlan?: { waypoints: Array<{ x: number; y: number }>; dest: { x: number; y: number } } | null,
+    /**
+     * 🗄️ **이미 잰 base 가 있으면 그것을 쓴다 — 카카오를 부르지 않는다** (C단계 · 0901).
+     *
+     * 🔴 **«쓸 수 있는가»를 여기서 판정하지 않는다.** 기점이 얼마나 움직였는지·정거장
+     *    목록이 같은지는 **조립 규약**이라 `routeComposer` 가 답한다 (이 파일은 호출만 한다).
+     *    여기서 또 판정하면 규약이 두 벌이 된다 — 이 레포가 반복해 당한 형태다 (규칙 ③).
+     */
+    cachedBase?: RouteResult | null,
 ): Promise<DetourResult> {
     const headers = getHeaders();
 
@@ -365,8 +373,7 @@ export async function calculateDetourRoute(
     if (baseWaypoints) {
         baseUrl += `&waypoints=${baseWaypoints}`;
     }
-    const baseRes = await fetch(baseUrl, { headers });
-    const baseData = await baseRes.json();
+    const baseData = cachedBase ? null : await (await fetch(baseUrl, { headers })).json();
     const baseSummary = baseData?.routes?.[0]?.summary;
 
     // 2. 합짐(경유) 연산 (다중 경유지 POST API 사용 - 최대 30개 지원)
@@ -422,8 +429,9 @@ export async function calculateDetourRoute(
     
     const mergedSummary = mergedData.routes[0]?.summary;
 
-    const baseDuration = baseSummary?.duration || 0;
-    const baseDistance = baseSummary?.distance || 0;
+    // 🗄️ 되쓴 base 가 있으면 우회 비용(timeDiffMin)도 그 값에서 나와야 한다
+    const baseDuration = cachedBase ? cachedBase.duration : (baseSummary?.duration || 0);
+    const baseDistance = cachedBase ? cachedBase.distance : (baseSummary?.distance || 0);
     const mergedDuration = mergedSummary?.duration || 0;
     const mergedDistance = mergedSummary?.distance || 0;
 
@@ -442,7 +450,8 @@ export async function calculateDetourRoute(
     }
 
     return {
-        base: { 
+        // 되쓴 base 는 **그대로** 돌려준다 — 0 으로 채운 껍데기를 만들면 우회 비용이 거짓이 된다
+        base: cachedBase ?? { 
             duration: baseDuration, distance: baseDistance, 
             approachDuration: baseApproachDuration, approachDistance: baseApproachDistance, 
             raw: baseSummary, polyline: extractPolyline(baseData?.routes),

@@ -10,7 +10,7 @@ import { fetchRealWorldRoute } from "../routes/osrmUtil";
 import { getUserSession, clearOrderTimers } from "../state/userSessionStore";
 import { updateActiveFilter, rememberDetourProgress, recalculateDetourFilter } from "../state/filterManager";
 import { getDetourRegions, getCityRegionsWithRadius, reverseGeocodeToRegion, haversineKm, ensureDriverOrigin } from "../services/geoService";
-import { composeMergedRoute, applyRoute, applySoloRoute, pickRouteHolder, toKm, toMin, hasVisitedStop, snapshotRoute, restoreRouteSnapshot, parsePolyline } from "./routeComposer";
+import { composeMergedRoute, applyRoute, applySoloRoute, measureSoloDelivery, pickRouteHolder, toKm, toMin, hasVisitedStop, snapshotRoute, restoreRouteSnapshot, parsePolyline } from "./routeComposer";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { DISPATCH_CONFIG } from "../config/dispatchConfig";
 import db from "../db";
@@ -514,8 +514,9 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
                         const activeMain = activeCalls[0];
                         const activeSubs = activeCalls.slice(1);
                         
+                        const routingOptions = SettingsRepository.getKakaoRoutingOptions(userId);
+
                         if (activeSubs.length > 0) {
-                            const routingOptions = SettingsRepository.getKakaoRoutingOptions(userId);
                             const calcResult = await composeMergedRoute({
                                 calls: activeCalls,
                                 driverLocation: session.driverLocation,
@@ -524,6 +525,30 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
                             });
                             if (calcResult) {
                                 applyRoute(pickRouteHolder(activeCalls, activeMain), calcResult.merged);
+                            }
+                        }
+
+                        /**
+                         * 🚚 **A단계 — 방금 잡은 콜의 «상차지 → 하차지»를 한 번 잰다** (기사님 확정 0901).
+                         *
+                         * 하차 마감이 `상차 완료 + 단독 배송주행 × 150%` 인데, 합짐은 병합 경로만
+                         * 재느라 그 주행을 **구조적으로 가질 수 없었다** — 그래서 합짐마다
+                         * «배송주행 추정(일반값)» 딱지가 붙고 마감이 거리 환산 위에 섰다.
+                         *
+                         * ⚠️ **판결은 이미 큐에 실렸다**(위쪽 피기백 등록). 그러니 이 기다림이
+                         *    기사님 폰의 KEEP 을 늦추지 않는다 — 바로 위 병합 연산과 같은 자리다.
+                         *
+                         * 🔴 승격본(`confirmedOrder`·myOrders)과 캐시본(`cachedOrder`·아래 DB 기록)이
+                         *    **다른 객체**라 둘 다 적는다. 한쪽만 적으면 화면과 장부가 갈린다.
+                         */
+                        const solo = await measureSoloDelivery(confirmedOrder as any, {
+                            priority: routingOptions.defaultPriority,
+                            carType: routingOptions.carType,
+                        });
+                        if (solo) {
+                            for (const o of [confirmedOrder, cachedOrder] as any[]) {
+                                o.kakaoSoloDistanceKm = solo.km;
+                                o.kakaoSoloDurationMin = solo.minutes;
                             }
                         }
                     }

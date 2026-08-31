@@ -864,6 +864,37 @@ export default function PinnedRouteCard({
                                     </div>
                                     )}
 
+                                    {/* 🚚 **배송 주행과 하차 마감 — 접지 않는다** (B단계 · 기사님 확정 2026-09-01)
+                                        하차 마감은 `상차 완료 + 배송 주행 × 150%` 라 **이 줄이 곧 마감의 근거**다.
+                                        기사님이 «독촉 전화가 오면 카카오를 근거로 대응»하시는 값이므로 판정 근거
+                                        서랍에 넣지 않는다. 실측인지 어림인지를 함께 적는다 (규칙 ⑤-2 — 일반값을
+                                        쓰되 «미확인»을 화면이 말해야 한다. 표시 없이 값만 쓰면 위반이다). */}
+                                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-bold mb-2 px-0.5">
+                                        <span className="text-text-muted">🚚 배송 주행</span>
+                                        {timing.soloMinutes != null ? (
+                                            <>
+                                                <span className="tabular-nums">{timing.soloMinutes}분
+                                                    {timing.soloKm != null ? ` · ${Number(timing.soloKm).toFixed(1)}km` : ''}</span>
+                                                <span className={timing.soloEstimated ? 'text-warning' : 'text-success'}>
+                                                    {timing.soloEstimated ? '(추정)' : '(실측)'}
+                                                </span>
+                                            </>
+                                        ) : (
+                                            /* 지어내지 않는다 — 모르면 모른다고 적는다 (규칙 ④) */
+                                            <span className="text-text-muted">아직 못 쟀습니다</span>
+                                        )}
+                                        {timing.dropoffDeadlineAt && (
+                                            <>
+                                                <span className="text-text-muted">·</span>
+                                                <span className="text-text-muted">하차 마감</span>
+                                                <span className="text-danger tabular-nums">
+                                                    {new Date(timing.dropoffDeadlineAt).toLocaleTimeString('ko-KR',
+                                                        { hour: '2-digit', minute: '2-digit', hour12: false })}
+                                                </span>
+                                            </>
+                                        )}
+                                    </div>
+
                                     {/* ── 접힘 — 문제가 생겼을 때만 ──
                                         🔴 단독 경로·요금·수수료 한 줄이 카드 본문에 떠 있었다 (2026-08-11).
                                         덱 헤더가 이미 같은 값을 띄우므로 중복이고, 세로만 잡아먹었다.

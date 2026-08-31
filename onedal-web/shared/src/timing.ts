@@ -565,6 +565,16 @@ export interface CallTiming {
     /** 상차지 → 하차지 (단독 구간) */
     soloKm: number | null;
     soloMinutes: number | null;
+    /**
+     * 🚚 **이 배송 주행이 «추정»인가** (A·B단계 · 기사님 확정 2026-09-01).
+     *
+     * `soloMinutesOf` 는 실측(카카오)이 없으면 배송거리를 구간 속도로 환산해 낸다.
+     * 그 사실을 **화면이 말해야 한다** — 규칙 ⑤-2 는 일반값을 쓰는 것을 허락하되
+     * *"미확인으로 표시한다"* 를 조건으로 걸었다. 값만 내보내고 표시가 없으면 위반이다.
+     * 하차 마감이 이 값 위에 서 있으므로(상차 완료 + 배송주행 × 150%), 기사님은
+     * «이 마감이 실측인가 어림인가»를 알고 전화를 거셔야 한다.
+     */
+    soloEstimated: boolean;
     /** 현위치 → 상차지. 따로 저장하지 않으므로 총거리에서 단독을 빼서 구한다 */
     approachKm: number | null;
     approachMinutes: number | null;
@@ -877,7 +887,7 @@ export function deriveCallTiming(
 
     return {
         pickupPromisedArrivalAt, dropoffPromisedArrivalAt,
-        soloKm, soloMinutes, approachKm, approachMinutes,
+        soloKm, soloMinutes, soloEstimated: solo.estimated, approachKm, approachMinutes,
         pickupDwell, dropoffDwell,
         arrivedPickup, pickedUp, arrivedDropoff,
         toPickup, toDropoff,

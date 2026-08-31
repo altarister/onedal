@@ -1,7 +1,7 @@
 import type { MyOrder, PendingOrder } from "@onedal/shared";
 import { isAlreadyLoaded, hasVisitedStop } from "@onedal/shared";
 import { haversineKm } from "./geoService";
-import { calculateDetourRoute } from "./kakaoService";
+import { calculateDetourRoute, calculateSoloRoute } from "./kakaoService";
 import { optimizeWaypoints } from "../utils/routeOptimizer";
 
 /**
@@ -235,6 +235,123 @@ export { isAlreadyLoaded, hasVisitedStop };
  * 활성 콜들로 TSP 경유지를 짜서 카카오 합짐 경로를 계산한다.
  * 좌표가 온전한 콜이 하나도 없으면 `null`을 준다 (호출부가 조용히 건너뛸 수 있게).
  */
+/**
+ * 🚚 **그 콜의 «상차지 → 하차지»를 한 번만 재서 남긴다** (A단계 · 기사님 확정 2026-09-01).
+ *
+ * 기사님: *"KEEP 직후 그 콜의 단독 배송주행을 카카오로 한 번 재서 저장 후 각 콜마다
+ * 디스플레이한다."*
+ *
+ * ── 왜 필요한가 ──
+ * 하차 마감은 `상차 완료 + 단독 배송주행 × 150%` 다. 그런데 **합짐 콜은 그 주행을 가질
+ * 수 없었다** — 합짐은 병합 경로만 재고, 단독 경로는 첫짐 분기에서만 쟀기 때문이다.
+ * 그래서 합짐마다 «배송주행 추정(일반값)» 딱지가 붙었고, 마감이 거리 환산 위에 섰다.
+ * 이 함수가 그 구멍 하나만 메운다.
+ *
+ * 🔴 **`applySoloRoute` 를 쓰지 않는다.** 저것은 폴리라인·구간 주행분·닻까지 전부 덮어쓴다 —
+ *    합짐 홀더에 대고 부르면 **지금 그리고 있는 병합 경로가 단독 경로로 바뀐다.**
+ *    여기서 만지는 것은 딱 두 칸이다.
+ *
+ * 🔴 **기점은 현위치가 아니라 상차지다.** «단독 배송 주행»이 답하는 질문은
+ *    *"상차하고 나서 하차까지 얼마나 걸리나"* 하나뿐이다 — 지금 어디 있느냐가 섞이면
+ *    차가 움직일 때마다 마감이 흔들린다. 그래서 잰 값이 **낡지 않는다.**
+ *
+ * 🔴 **한 콜에 한 번.** 이미 잰 값이 있으면 카카오를 부르지 않는다 (호출은 돈이다).
+ *    통화로 실제 시각을 들으면 그것이 이기므로(약속 사다리) 다시 잴 이유도 없다.
+ *
+ * 읽는 곳은 `soloMinutesOf`(shared/timing) 하나다 — 거기서 «실측이면 그것이 이긴다»가
+ * 이미 정해져 있어, 이 값이 채워지는 순간 추정이 물러난다 (규칙 ③).
+ */
+export async function measureSoloDelivery(
+    call: {
+        id: string;
+        pickupX?: number | null; pickupY?: number | null;
+        dropoffX?: number | null; dropoffY?: number | null;
+        kakaoSoloDistanceKm?: number | null;
+        kakaoSoloDurationMin?: number | null;
+    },
+    opts: { priority?: string; carType?: number } = {},
+): Promise<{ km: number; minutes: number } | null> {
+    if (call.kakaoSoloDurationMin != null && call.kakaoSoloDurationMin > 0) return null;   // 이미 잰 콜
+    const { pickupX, pickupY, dropoffX, dropoffY } = call;
+    if (pickupX == null || pickupY == null || dropoffX == null || dropoffY == null) return null;
+
+    try {
+        /** 기점을 안 넘긴다 → 카카오의 origin 이 상차지가 된다 (접근 구간이 애초에 없다) */
+        const r = await calculateSoloRoute(
+            pickupX, pickupY, dropoffX, dropoffY, null,
+            opts.priority ?? 'RECOMMEND', opts.carType ?? 1, false,
+        );
+        const km = toKm(r.distance);
+        const minutes = toMin(r.duration);
+        if (!(minutes > 0)) return null;   // 0 분짜리 배송은 없다 — 지어내지 않는다 (규칙 ④)
+        console.log(`🚚 [단독 배송 실측] ${call.id.slice(-6)} · 상차지 → 하차지 ${km}km · ${minutes}분 (하차 마감의 근거)`);
+        return { km, minutes };
+    } catch (e) {
+        // 못 쟀으면 추정이 그대로 일한다 — 없는 숫자를 지어내지 않는다 (규칙 ④)
+        console.warn(`⚠️ [단독 배송 실측 실패] ${call.id.slice(-6)} — 추정값(거리 환산)으로 갑니다:`, (e as Error).message);
+        return null;
+    }
+}
+
+/**
+ * 🗄️ **base 경로 캐시 — 한 자리에서 합짐을 여러 번 볼 때 카카오를 아낀다** (C단계 · 기사님 확정 2026-09-01)
+ *
+ * 기사님: *"보통 한 자리에서 합짐 하나까지 하니까 base 까지 보내는 건 이동 중 합짐이
+ * 들어올 때만 하는 것이 좋겠다. 그러므로 조건은 기점이 200m 안까지만 사용."*
+ *
+ * base 는 «후보를 뺀 기존 콜 전부» 경로다. 후보가 연달아 뜰 때 **기존 콜도 기점도 그대로**면
+ * 그 경로는 같은 답이다 — 그런데 후보마다 카카오를 한 번씩 더 불렀다.
+ *
+ * ── 되쓰는 조건 (둘 다 참일 때만) ──
+ *   ① 남은 정거장 목록·종점·우선순위·차종이 **똑같다**
+ *   ② 기점이 **200m 안**에 있다  ← 달리기 시작하면 바로 깨진다
+ *
+ * 🔴 **시각은 따지지 않는다** (기사님 지시). *"이건 호출한 시간만 다르고 나머지는 모두 같은
+ *    거 아닌가? 시간까지 따지는 건 비효율적이다."* 대신 되쓸 때 **나이를 로그에 적는다** —
+ *    판정이 이상할 때 «몇 분 묵은 base 였나»를 사후에 볼 수 있어야 한다.
+ *    (기사님도 아신다: *"한 번 잰 값은 낡습니다. 그건 맞아 하지만 더 빨라질 수도 있는 거지."*)
+ *
+ * 🔴 **사용자별로 나누지 않는다.** 열쇠가 좌표·옵션 전부라, 같은 열쇠면 누가 물어도 같은 답이다.
+ *    (세션을 섞는 것이 아니라 «같은 질문»을 두 번 안 하는 것이다)
+ */
+const BASE_CACHE_RADIUS_KM = 0.2;
+const BASE_CACHE_MAX = 8;
+type BaseCacheEntry = { key: string; origin: Coord; at: number; base: any };
+const baseRouteCache: BaseCacheEntry[] = [];
+
+/** 되쓸 수 있는 열쇠 — «무엇을 묻는가»가 전부 들어간다 (기점은 따로, 200m 로 잰다) */
+function baseCacheKey(
+    basePlan: { waypoints: Array<Coord>; mergedDest: Coord } | null,
+    priority: string | undefined, carType: number | undefined,
+): string | null {
+    if (!basePlan) return null;
+    const pt = (c: Coord) => `${c.x.toFixed(5)},${c.y.toFixed(5)}`;
+    return JSON.stringify([basePlan.waypoints.map(pt), pt(basePlan.mergedDest), priority ?? '', carType ?? '']);
+}
+
+/** 이 자리·이 질문으로 이미 잰 base 가 있나 */
+function reusableBase(key: string | null, origin: Coord | null | undefined): any | null {
+    if (!key || !origin) return null;   // 기점을 모르면 «200m 안»을 잴 수 없다 — 되쓰지 않는다
+    const hit = baseRouteCache.find(e =>
+        e.key === key && haversineKm(origin.x, origin.y, e.origin.x, e.origin.y) <= BASE_CACHE_RADIUS_KM);
+    if (!hit) return null;
+    const ageSec = Math.round((Date.now() - hit.at) / 1000);
+    const movedM = Math.round(haversineKm(origin.x, origin.y, hit.origin.x, hit.origin.y) * 1000);
+    console.log(`🗄️ [base 되씀] ${ageSec}초 전에 잰 값 · 기점 ${movedM}m 이동 · 카카오 호출 1회 아낌`);
+    return hit.base;
+}
+
+function rememberBase(key: string | null, origin: Coord | null | undefined, base: any): void {
+    if (!key || !origin || !base) return;
+    const i = baseRouteCache.findIndex(e => e.key === key);
+    if (i >= 0) baseRouteCache.splice(i, 1);
+    baseRouteCache.unshift({ key, origin: { x: origin.x, y: origin.y }, at: Date.now(), base });
+    if (baseRouteCache.length > BASE_CACHE_MAX) baseRouteCache.length = BASE_CACHE_MAX;
+}
+
+/** 🧪 검사용 — 판 사이에 장부가 넘어가지 않게 비운다 */
+export function clearBaseRouteCache(): void { baseRouteCache.length = 0; }
+
 export async function composeMergedRoute(params: ComposeMergedRouteParams) {
     const { calls, extra, driverLocation, priority, carType } = params;
 
@@ -257,6 +374,10 @@ export async function composeMergedRoute(params: ComposeMergedRouteParams) {
     }
     const basePlan = planMergedStops(calls, null, driverLocation);
 
+    // 🗄️ 같은 질문·같은 자리면 base 를 다시 묻지 않는다 (C단계)
+    const bKey = baseCacheKey(basePlan, priority, carType);
+    const cachedBase = reusableBase(bKey, driverLocation);
+
     const result = await calculateDetourRoute(
         plan.origin.dropoff.x, plan.origin.dropoff.y,
         plan.origin.pickup.x, plan.origin.pickup.y,
@@ -266,7 +387,9 @@ export async function composeMergedRoute(params: ComposeMergedRouteParams) {
         priority,
         carType,
         basePlan ? { waypoints: basePlan.waypoints, dest: basePlan.mergedDest } : null,
+        cachedBase,
     );
+    if (!cachedBase) rememberBase(bKey, driverLocation, result?.base);
     /**
      * 🧭 **구간의 주인 — 방금 카카오에 보낸 그 순서다** (`plan.orderedStops`).
      *
