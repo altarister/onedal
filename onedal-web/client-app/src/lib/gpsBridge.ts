@@ -84,7 +84,16 @@ export function publishLocation(
  */
 export function endMockDriving(): void {
     lastMockAt = 0;
-    if (!lastReal) return;
+    if (!lastReal) {
+        /**
+         * 🧹 실좌표가 없다(책상 테스트) — 되돌릴 곳이 없으면 **걷어내라고 알린다** (2026-08-31).
+         * 이 반쪽이 빠져서 가상 위치(직전 하차지)가 서버에 5분 잔류했고, 다음 첫짐
+         * 경로가 거기서 빙 둘러 그려졌다 (기사님 실측 — 중리동 기점 · «시뮬이
+         * 끝났으면 거기 있는 게 아니다» 원칙의 빠진 반쪽).
+         */
+        socket.emit('mock-driving-ended');
+        return;
+    }
     lastSent = null;   // 같은 좌표라도 다시 보내야 서버가 되돌아간다
     publishLocation(lastReal.lat, lastReal.lng, lastReal.source);
 }
