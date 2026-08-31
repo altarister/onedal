@@ -64,7 +64,7 @@ export default function StageSheet({ snap, onSnapChange, onUserDrag, children }:
             >
                 <div className="mx-auto rounded-full" style={{ width: 44, height: 5, background: 'var(--color-border-hover, #3a4358)' }} />
             </div>
-            <div className="flex-1 overflow-y-auto min-h-0">{children}</div>
+            <div data-sheet-scroll className="flex-1 overflow-y-auto min-h-0">{children}</div>
         </div>
     );
 }

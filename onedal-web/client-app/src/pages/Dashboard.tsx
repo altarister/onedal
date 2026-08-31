@@ -194,7 +194,10 @@ export default function Dashboard() {
     return (
         <main className={stagePreview
             ? "h-dvh overflow-hidden flex flex-col bg-bg-base font-sans"      /* 🎭 무대: 화면 = 상자, 스크롤은 시트 안 */
-            : "min-h-screen bg-bg-base font-sans pb-24"}>
+            : "min-h-screen bg-bg-base font-sans pb-24"}
+            /* 🛡️ overflow-hidden 이어도 프로그램 스크롤(scrollIntoView·포커스)은 민다 —
+               무대에서 어떤 경로로든 밀리면 즉시 0 으로 (상단 날아감 재발 방지) */
+            onScroll={stagePreview ? (e) => { e.currentTarget.scrollTop = 0; e.currentTarget.scrollLeft = 0; } : undefined}>
 
             {/* 📍 공통 헤더 컴포넌트 */}
             <Header isConnected={isConnected} liveCalls={liveCalls} />

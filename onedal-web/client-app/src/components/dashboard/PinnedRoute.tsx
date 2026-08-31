@@ -41,8 +41,18 @@ export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDe
     const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
     /** 콜을 다루기 시작하면 탭 바를 화면 맨 위로 끌어올린다 */
     const tabBarRef = useRef<HTMLDivElement>(null);
-    // 시트 안(sheetOnly)에서는 부드러운 스크롤이 매 탭 클릭마다 출렁임이 된다 — 즉시 정렬 (기사님 0831)
-    const scrollToCalls = () => tabBarRef.current?.scrollIntoView({ behavior: sheetOnly ? 'auto' : 'smooth', block: 'start' });
+    // 🔴 시트 안에서는 scrollIntoView 를 쓰지 않는다 — 스크롤 가능한 **모든 조상**(overflow-hidden
+    //    main 포함)을 밀어서 상단(폰 영역)이 날아갔다 (기사님 실측 0831). 시트 스크롤통만 만진다.
+    const scrollToCalls = () => {
+        const el = tabBarRef.current;
+        if (!el) return;
+        if (sheetOnly) {
+            const sc = el.closest('[data-sheet-scroll]') as HTMLElement | null;
+            if (sc) sc.scrollTop = el.offsetTop - sc.offsetTop;
+            return;
+        }
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
     const [processingId, setProcessingId] = useState<string | null>(null);
     const { filter, updateFilter } = useFilterConfig();
     // 서버 통신 완료 시 (상태가 변하거나 삭제될 때) 로딩 상태 즉각 해제
