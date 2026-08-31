@@ -42,7 +42,11 @@ export default function StageView(props: Props) {
     const secRef = useRef<HTMLElement | null>(null);
     const [stageH, setStageH] = useState<number>(480);
     useEffect(() => {
-        const fit = () => { const t = secRef.current?.getBoundingClientRect().top ?? 0; setStageH(Math.max(420, window.innerHeight - t)); };
+        const fit = () => {
+            const t = secRef.current?.getBoundingClientRect().top ?? 0;
+            const h = Math.max(420, window.innerHeight - t);
+            setStageH(prev => (Math.abs(prev - h) > 24 ? h : prev));   // 미세 변동은 무시 — 들썩임 방지
+        };
         fit();
         window.addEventListener('resize', fit);
         const id = setInterval(fit, 1_000);   // 배너가 끼거나 빠질 때 따라간다
@@ -103,6 +107,7 @@ export default function StageView(props: Props) {
             {/* 지도 배경 — 캔버스 재사용 (배경 어댑터 자리: 훗날 카카오 타일 실험) */}
             <div className="absolute inset-0">
                 <PinnedRouteCanvas
+                    fill
                     unifiedRoutePoints={unifiedRoutePoints}
                     liveRoute={liveRoute}
                     myLocation={myLocation}

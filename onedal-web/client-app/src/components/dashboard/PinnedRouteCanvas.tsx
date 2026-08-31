@@ -23,9 +23,11 @@ interface Props {
     liveRoute: SecuredOrder[];
     myLocation: { x: number, y: number } | null;
     children?: React.ReactNode;
+    /** 🎭 무대 배경일 때 — 부모를 가득 채운다 (기본 h-64는 옛 화면용) */
+    fill?: boolean;
 }
 
-export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLocation, children }: Props) {
+export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLocation, children, fill }: Props) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const { theme } = useTheme();
     const mapColors = MAP_THEME_COLORS[theme];
@@ -363,7 +365,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
     };
 
     return (
-        <div style={{ backgroundColor: mapColors.fill }} className="relative w-full h-64 cursor-grab active:cursor-grabbing overflow-hidden">
+        <div style={{ backgroundColor: mapColors.fill }} className={`relative w-full ${fill ? "h-full" : "h-64"} cursor-grab active:cursor-grabbing overflow-hidden`}>
             <canvas
                 ref={canvasRef}
                 className="absolute inset-0 w-full h-full touch-none"
