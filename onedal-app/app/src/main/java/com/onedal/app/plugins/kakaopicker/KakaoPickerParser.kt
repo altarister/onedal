@@ -30,6 +30,8 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
         /** 픽커 요금은 «2,529» 꼴 (원 표기 없음 · 쉼표 필수 — 실측 전 카드 일치) */
         private val FARE_REGEX = Regex("""^\d{1,3}(,\d{3})+$""")
         private val KM_REGEX = Regex("""^(\d+(?:\.\d+)?)km$""")
+        /** 1km 미만 픽업거리는 «581m» 로 온다 (0831 실측) — km 만 알면 거리가 도착지로 샌다 */
+        private val M_REGEX = Regex("""^(\d+)m$""")
         private val TIME_REGEX = Regex("""^\d{1,2}:\d{2}$""")
         /** 태그줄에 오는 낱말들 — 지역 이름과 구분하는 근거 (덤프 전수에서 수집) */
         private val TAG_WORDS = setOf(
@@ -220,6 +222,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
             when {
                 t.matches(FARE_REGEX) -> fare = t.replace(",", "").toIntOrNull() ?: 0
                 KM_REGEX.matches(t) -> pickupKm = KM_REGEX.find(t)?.groupValues?.get(1)?.toDoubleOrNull()
+                M_REGEX.matches(t) -> pickupKm = M_REGEX.find(t)?.groupValues?.get(1)?.toDoubleOrNull()?.div(1000)
                 t in ITEM_SIZES -> itemSize = t
                 t in TAG_WORDS -> tags.add(t)
                 t.startsWith("준비 ") -> tags.add(t)                 // «준비 29분»

@@ -229,3 +229,14 @@ class KakaoPickerParserTest {
         assertFalse(KakaoPickerParser.inCardBand(961, 795))   // 헤더
     }
 }
+
+/** 0831 실측 — 픽커는 1km 미만 픽업거리를 «581m»로 적는다. km 만 알면 거리가 도착지로 샌다 */
+class MeterUnitTest {
+    private val parser = KakaoPickerParser(null)
+    @org.junit.Test
+    fun `미터 표기를 픽업거리로 읽는다 - 도착지에 새지 않는다`() {
+        val o = parser.parse(listOf("퀵", "단거리", "소형", "광주", "15,400", "581m", "광주", "초월읍", "쌍동2"))
+        org.junit.Assert.assertEquals(0.581, o.pickupDistance!!, 0.001)
+        org.junit.Assert.assertFalse(o.dropoff.contains("581m"))
+    }
+}
