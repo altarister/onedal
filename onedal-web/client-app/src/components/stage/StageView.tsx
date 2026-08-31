@@ -100,25 +100,32 @@ export default function StageView(props: Props) {
 
     /**
      * 🏁 S7 — 정거장 도착: 시트 전체로 마중 (v23 Ⅲ · 신고 시트가 기다린다).
-     * 예고(approach)는 덱 카드만 따라간다 — 주행 중 시트가 지도를 가리면 안 된다 (S3).
+     *
+     * 🔴 **도착은 «사건»이라 소켓에서 직접 받는다** (기사님 실측 2026-08-31 · 도착 6번 중
+     *    시트가 2번만 올라감). 예전엔 포커스 그릇(gpsFocus)의 `kind` 를 보고 알았는데,
+     *    같은 그릇에 «달리는 중 덱 따라가기»(approach)도 담긴다. 도착 직후 다음 정거장이
+     *    바뀌면서 그 신호가 **도착을 덮어써** 효과가 읽기도 전에 사라졌다.
+     *    KEEP(order-confirmed)이 늘 정확했던 이유가 소켓을 직접 듣기 때문이다 — 같게 만든다.
      */
-    const gpsFocus = derived.gpsFocus;
     useEffect(() => {
-        if (!gpsFocus || gpsFocus.kind !== 'arrive') return;
-        const arrived = feed({ type: 'arrive' });
-        if (!arrived.snap) return;   // 손 유예 중이면 마중도 미룬다
-        /**
-         * 🪜 **마중은 «그 콜의 지금 단계»를 보여 주는 것까지다** (기사님 수순 ⑥ · 2026-08-31).
-         *    덱은 이미 그 콜로 옮겨 간다(gpsFocus). 남은 것은 시트 안 스크롤 — 지난 판에서
-         *    시트만 올라오고 내용이 아래에 남아 있으면 결국 손으로 찾아야 했다.
-         *    단계 블록은 카드 안에서 늘 열려 있으므로 맨 위로 올리면 덱·단계가 함께 보인다.
-         */
-        requestAnimationFrame(() => {
-            const sc = document.querySelector('[data-sheet-scroll]') as HTMLElement | null;
-            if (sc) sc.scrollTop = 0;
-        });
+        const onArrived = (d: { orderId?: string }) => {
+            if (!d?.orderId) return;
+            const r = feed({ type: 'arrive' });
+            if (!r.snap) return;                       // 손 유예 중이면 마중도 미룬다
+            useGpsFocusStore.setState({ gpsFocus: { orderId: d.orderId, tick: Date.now(), kind: 'focus' } });
+            /**
+             * 🪜 마중은 «그 콜의 지금 단계»를 보여 주는 것까지다 (기사님 수순 ⑥).
+             *    단계 블록은 카드 안에서 늘 열려 있으므로 맨 위로 올리면 덱·단계가 함께 보인다.
+             */
+            requestAnimationFrame(() => {
+                const sc = document.querySelector('[data-sheet-scroll]') as HTMLElement | null;
+                if (sc) sc.scrollTop = 0;
+            });
+        };
+        socket.on('auto-arrived', onArrived);
+        return () => { socket.off('auto-arrived', onArrived); };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [gpsFocus?.tick]);
+    }, []);
 
     /**
      * 🚀 **국면이 «운행 중»으로 바뀌면 시트를 내린다** (기사님 수순 ④ · 2026-08-31).

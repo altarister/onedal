@@ -10,7 +10,6 @@ import { useFilterConfig } from './useFilterConfig';
 import { useMasterGps } from './useMasterGps';
 import { apiClient } from '../api/apiClient';
 import { getAddressLabel } from '../lib/routeUtils';
-import { buildVisitOrderMap } from '../lib/routeOptimizer';
 import { logStateChange } from '../lib/roadmapLogger';
 import type { RoutePoint } from '../components/dashboard/PinnedRouteCanvas';
 import type { EtaCell } from '../components/dashboard/PinnedRouteCard';
@@ -237,33 +236,74 @@ export function useRouteDerivations(
                            at: r.arrivedDropoffAt ? Date.parse(r.arrivedDropoffAt) : null });
         }
         out.sort((a, b) => (a.at ?? Infinity) - (b.at ?? Infinity));
-        // 🔒 번호 동결 — 방문 순서가 곧 그 정거장의 영원한 번호다 (기사님 확정 2026-08-31)
-        out.forEach((v, i) => { v.no = i + 1; });
-        return out;
+        return out;   // 번호는 아래 stopNoOf 가 붙인다 — 세는 곳은 한 곳이다 (규칙 ③)
     }, [cycleDeck]);
 
-    // 지도 상의 방문 순번을 콜 ID별 상/하차지로 매핑.
-    // 🔒 남은 정거장은 «방문한 개수 + 1» 부터 — 지나간 번호는 동결이라 재사용하지 않는다 (①)
-    const visitOrderMap = useMemo(() => {
-        const m = buildVisitOrderMap(unifiedRoutePoints);
-        const k = visitedTrail.length;
-        if (k > 0) for (const v of m.values()) {
-            if (v.pickupIdx > 0) v.pickupIdx += k;
-            if (v.dropoffIdx > 0) v.dropoffIdx += k;
+    /**
+     * 🔢 **정거장 번호 — 출발할 때 한 번 정해지고 얼어붙는다** (기사님 확정 2026-08-31).
+     *
+     * 기사님: *"출발할 때 순서가 한 번 정해지고, 지나갈 때마다 번호가 사라지는 것이 아니고…"*
+     * 그리고 실측: *"신둔면이 6이었다가 3이었다가 막 바뀐다."*
+     *
+     * ── 왜 흔들렸나 ──
+     * 번호를 «지금 남은 정거장 목록의 몇 번째»로 매번 새로 셌다. 서버가 경로를 다시 세울
+     * 때마다 남은 것들의 자리가 바뀌니 번호도 같이 뛰었다. 게다가 다녀온 정거장을 목록에서
+     * 빼자 **그 콜의 번호가 통째로 사라졌다**(요약줄의 «초월읍 → 신둔면» 앞 번호).
+     *
+     * ── 규칙 ──
+     *   출발 전(국면이 운행 중이 아님) — 경로 순서대로 **다시 매긴다** (합짐이 붙으면 재정렬)
+     *   출발 후                        — **얼린다.** 새 정거장만 뒤에 붙는다
+     *   사이클이 닫히면 비운다
+     * 다녀온 정거장도 번호를 그대로 갖는다 — 발자취(✓)와 요약줄이 같은 번호를 쓴다.
+     */
+    const stopNoRef = useRef<Map<string, number>>(new Map());
+    const stopNoOf = useMemo(() => {
+        const keyOf = (orderId: string, stopType: 'pickup' | 'dropoff') => `${orderId}:${stopType}`;
+        if (cycleDeck.length === 0) { stopNoRef.current = new Map(); return stopNoRef.current; }
+        // 출발 전에는 매번 새로 — 합짐이 붙으면 갈 순서가 진짜로 바뀐다
+        const m = isDriving ? stopNoRef.current : new Map<string, number>();
+        let next = m.size + 1;
+        for (const st of routeStops) {
+            const k = keyOf(st.orderId, st.stopType as 'pickup' | 'dropoff');
+            if (!m.has(k)) m.set(k, next++);
         }
+        // 경로에서 이미 빠진(다녀온) 정거장 — 번호를 잃지 않는다
+        for (const v of visitedTrail) {
+            const k = keyOf(v.orderId, v.type === '상차' ? 'pickup' : 'dropoff');
+            if (!m.has(k)) m.set(k, next++);
+        }
+        stopNoRef.current = m;
         return m;
-    }, [unifiedRoutePoints, visitedTrail.length]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [routeStops, visitedTrail, cycleDeck.length, isDriving]);
 
+    /** 👣 발자취 — 번호는 위 지도에서 붙인다 (세는 곳 하나) */
+    const visitedTrailNumbered = useMemo(
+        () => visitedTrail.map(v => ({
+            ...v, no: stopNoOf.get(`${v.orderId}:${v.type === '상차' ? 'pickup' : 'dropoff'}`) ?? 0,
+        })),
+        [visitedTrail, stopNoOf]);
 
     /**
-     * 🎨 **콜 색 — 사이클 안에서 콜마다 고유 색 하나** (기사님 확정 2026-08-31 ②).
+     * 🎨 **콜 색 — 사이클 안에서 콜마다 고유 색 하나** (기사님 확정 ②).
      *    지도 마커 테두리·덱 카드 점이 같은 색을 봐서 «③이 몇 번 콜이었나»가 색으로 읽힌다.
-     *    기준은 덱 순서(cycleDeck) — 하차해도 사이클 끝까지 색이 안 바뀐다.
      */
     const callColors = useMemo(() => {
         const PALETTE = ['#4f8df9', '#f59e0b', '#a78bfa', '#ef4444', '#22d3ee', '#ec4899', '#a3e635'];
         return new Map(cycleDeck.map((r, i) => [r.id, PALETTE[i % PALETTE.length]] as const));
     }, [cycleDeck]);
+
+    /** 콜별 상·하차 번호 — 화면(요약줄·카드·지도)이 전부 이 하나를 읽는다 (규칙 ③) */
+    const visitOrderMap = useMemo(() => {
+        const m = new Map<string, { pickupIdx: number; dropoffIdx: number }>();
+        for (const [k, no] of stopNoOf) {
+            const [orderId, stopType] = [k.slice(0, k.lastIndexOf(':')), k.slice(k.lastIndexOf(':') + 1)];
+            const cur = m.get(orderId) ?? { pickupIdx: 0, dropoffIdx: 0 };
+            if (stopType === 'pickup') cur.pickupIdx = no; else cur.dropoffIdx = no;
+            m.set(orderId, cur);
+        }
+        return m;
+    }, [stopNoOf]);
 
     const chronologicalIds = useMemo(() => {
         return [...safeRoute]
@@ -278,6 +318,7 @@ export function useRouteDerivations(
     return {
         stepRecords, liveRoute, cycleDeck, activePolyline, routeHolder, isDriving, mockStops,
         currentGps, gpsSource, myLocation, safeRoute, allEvaluating, judging, gpsFocus,
-        routeTimeline, unifiedRoutePoints, etaMap, visitOrderMap, chronologicalIds, visitedTrail, callColors, drivenTrail,
+        routeTimeline, unifiedRoutePoints, etaMap, visitOrderMap, chronologicalIds, callColors, drivenTrail, stopNoOf,
+        visitedTrail: visitedTrailNumbered,
     };
 }
