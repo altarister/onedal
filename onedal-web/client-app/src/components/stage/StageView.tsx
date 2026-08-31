@@ -58,14 +58,24 @@ export default function StageView(props: Props) {
     };
     useEffect(() => { logStateChange("주행신호", drive, "무대"); }, [drive]);
 
+    /**
+     * 🔁 유예 중 온 전환은 버리지 않고 **유예가 끝나면 다시 평가한다** (0831 3판).
+     *    예전엔 유예에 걸린 전환이 그냥 사라져서 — 도착 유예 중 출발(주행 신호)이
+     *    오면 시트가 전체에 눌러앉았다. 열었다 닫혔다가 «작동»하려면 이 되새김이 필요하다.
+     */
+    const [ruleTick, setRuleTick] = useState(0);
     useEffect(() => {
-        if (Date.now() < userHoldUntil.current) return;
+        const wait = userHoldUntil.current - Date.now();
+        if (wait > 0) {
+            const t = setTimeout(() => setRuleTick(x => x + 1), wait + 200);
+            return () => clearTimeout(t);
+        }
         if (judging) { snapTo('peek', '판정중'); return; }        // S4 — 지도가 판정 근거
         if (drive === 'drive') { snapTo('peek', '주행'); return; } // S3 — 주행: 지도 주인공
         if (liveRoute.length > 0) snapTo('half', '정차');           // S2 — 정차: 콜 목록
         else snapTo('peek', '콜없음');                              // S1
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [drive, judging ? judging.id : null, liveRoute.length]);
+    }, [drive, judging ? judging.id : null, liveRoute.length, ruleTick]);
 
     /**
      * 📞 S5 — KEEP 직후: 시트 전체 + 그 콜 포커스 (킵 직후 바로 통화 원칙).
@@ -89,6 +99,8 @@ export default function StageView(props: Props) {
     useEffect(() => {
         if (!gpsFocus || gpsFocus.kind !== 'arrive') return;
         if (Date.now() < userHoldUntil.current) return;   // 손이 이긴다
+        // 마중은 30초 유예 — 10초 뒤 정차 전환(half)이 신고 시트를 끌어내리지 않게 (0831 3판)
+        userHoldUntil.current = Date.now() + 30_000;
         snapTo('full', '도착');
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [gpsFocus?.tick]);

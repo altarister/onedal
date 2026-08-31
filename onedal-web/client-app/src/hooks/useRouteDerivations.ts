@@ -149,6 +149,12 @@ export function useRouteDerivations(
             const r = byId.get(st.orderId);
             if (!r) continue;                          // 좀비 정거장 (취소 후 재계산 전) — 그리지 않는다
             covered.add(`${st.orderId}:${st.stopType}`);
+            /**
+             * 🚏 다녀온 정거장은 여기서도 뺀다 (기사님 실측 0831 — 숫자가 하나씩 밀림).
+             *    도착 직후 서버 재계산 전까지 routeStops 에 남아 있어, 발자취(✅번호)와
+             *    남은 목록에 **이중으로** 세어졌다. 표시는 발자취가 이어받는다.
+             */
+            if (hasVisitedStop(r, st.stopType)) continue;
             const isP = st.stopType === 'pickup';
             pts.push({ type: isP ? '상차' : '하차', name: getAddressLabel(isP ? r.pickup : r.dropoff),
                        isEvaluating: isEvaluating(r.status),

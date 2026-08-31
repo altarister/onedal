@@ -213,8 +213,8 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         // 0.9. 👣 달린 자취 — 연한 선. 파란 경로선(앞길)이 잘려나가도 이건 사이클 끝까지 남는다
         if (driven.length > 1) {
             ctx.beginPath();
-            ctx.strokeStyle = withAlpha(mapColors.routeLine, 0.35);
-            ctx.lineWidth = 2 * zoomRef.current;
+            ctx.strokeStyle = withAlpha(mapColors.routeLine, 0.55);
+            ctx.lineWidth = 2.5 * zoomRef.current;
             ctx.lineJoin = 'round';
             ctx.lineCap = 'round';
             driven.forEach((p, i) => {
