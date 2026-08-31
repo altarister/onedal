@@ -31,6 +31,16 @@ export default function Dashboard() {
         return () => window.removeEventListener('stage-preview-changed', on);
     }, []);
     /**
+     * 🎭 무대 모드 — **문서 스크롤을 잠근다** (기사님 0831: 헤더 빼고 다 같이 움직여 들썩).
+     * 고정부(헤더·폰영역·슬롯)는 붙박이, 스크롤은 시트 안(overflow-y)에서만 일어난다.
+     */
+    useEffect(() => {
+        if (!stagePreview) return;
+        const prev = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => { document.body.style.overflow = prev; };
+    }, [stagePreview]);
+    /**
      * 🎯 판정 기준을 **탭이 아니라 여기서** 구독한다 (2026-08-16).
      *    탭에서만 구독하면 서버의 첫 `judgment-init` 을 놓쳐 폼이 잠긴다.
      *    구독 자체는 스토어가 한 번만 건다 — 여기서 불러도 중복되지 않는다.
