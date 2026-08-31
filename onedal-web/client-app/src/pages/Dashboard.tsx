@@ -199,8 +199,11 @@ export default function Dashboard() {
             {/* 📍 공통 헤더 컴포넌트 */}
             <Header isConnected={isConnected} liveCalls={liveCalls} />
 
-            <div className={`flex flex-col max-w-2xl mx-auto w-full ${stagePreview ? "flex-1 min-h-0" : ""}`}>
+            <div className={`relative flex flex-col max-w-2xl mx-auto w-full ${stagePreview ? "flex-1 min-h-0" : ""}`}>
 
+                {/* 📢 배너 층 (v24) — 무대에서는 흐름 밖으로 띄운다. 흐름 안에 두면 뜰 때마다
+                    아래 전부(슬롯·지도)가 밀려 화면이 들썩인다 (기사님 실측 0831) */}
+                <div className={stagePreview ? "absolute left-0 right-0 z-40" : "contents"}>
                 {/* 🏁 도착 감지 · 📣 근접 예고 (도착전 통화) — 잠깐 떴다 사라진다 */}
                 {gpsNotice && (
                     <div className="mx-3 mt-3 rounded-xl border border-primary/40 bg-primary/10 px-4 py-2.5 flex items-center gap-2 text-sm">
@@ -279,6 +282,7 @@ export default function Dashboard() {
 
                 {/* 🚨 신고 불일치 — 경고에서 사무실 전화·수행 판단까지 한 카드에서 */}
                 <CargoMismatchBanner orders={activeRoute} />
+                </div>
 
                 {/* 🎛️ 앱폰 제어 패널 */}
                 <DeviceControlPanel />
