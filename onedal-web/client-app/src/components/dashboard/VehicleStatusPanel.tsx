@@ -12,6 +12,36 @@ import { Badge } from "../ui/badge";
 // 예전에는 mainCall/subCalls(종료된 콜 포함)를 받아 스스로 걸렀는데, 그 필터를
 // 빠뜨려 "예약 7건 (오토바이, 오토바이, ... 라보)" 처럼 취소한 콜까지 적재 중으로
 // 표시됐다. 이제 애초에 살아 있는 콜만 받는다 — 거를 것이 없으면 잊을 수도 없다.
+/**
+ * 🚚 **로고 자리 요약** (기사님 0831) — 헤더의 1DAL 로고를 대신한다. 같은 파생
+ * (isAlreadyLoaded·capacityConfidence)을 쓰는 압축판 — 파생 두 벌을 만들지 않는다.
+ */
+export function VehicleLogoSummary({ liveCalls }: { liveCalls: SecuredOrder[] }) {
+    const { filter } = useFilterConfig();
+    const [dbVehicleType, setDbVehicleType] = useState<string | null>(null);
+    useEffect(() => {
+        apiClient.get('/settings').then(({ data }) => { if (data?.vehicleType) setDbVehicleType(data.vehicleType); }).catch(() => {});
+    }, []);
+    const myVehicle = dbVehicleType || filter?.allowedVehicleTypes?.[0] || '1t';
+    const reserved = liveCalls.filter(o => !isAlreadyLoaded(o));
+    const loaded = liveCalls.filter(o => isAlreadyLoaded(o));
+    const part = (items: typeof liveCalls, prefix: string) =>
+        items.length ? `${prefix} ${items.length}건 (${items.map(i => i.vehicleType || i.itemDescription || '짐').join(', ')})` : null;
+    const text = [part(loaded, '상차'), part(reserved, '예약')].filter(Boolean).join(', ') || '예약 0건';
+    return (
+        <span className="flex items-baseline gap-1.5 whitespace-nowrap">
+            <span className="text-[17px] font-black text-text-primary">{myVehicle}</span>
+            <span className={`text-[12.5px] font-bold ${loaded.length ? 'text-success' : reserved.length ? 'text-info' : 'text-text-muted'}`}>{text}</span>
+            {liveCalls.length > 0 && filter?.capacityConfidence && (
+                <span className={`text-[10px] font-black px-1 py-0.5 rounded ${
+                    filter.capacityConfidence === 'CONFIRMED' ? 'bg-success/15 text-success'
+                    : filter.capacityConfidence === 'DECLARED' ? 'bg-info/15 text-info'
+                    : 'bg-warning/15 text-warning'}`}>{CAPACITY_CONFIDENCE_LABEL[filter.capacityConfidence]}</span>
+            )}
+        </span>
+    );
+}
+
 export default function VehicleStatusPanel({ liveCalls }: { liveCalls: SecuredOrder[] }) {
     const { filter } = useFilterConfig();
 

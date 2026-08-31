@@ -1,13 +1,15 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import SettingsModal from "../dashboard/SettingsModal";
+import { VehicleLogoSummary } from "../dashboard/VehicleStatusPanel";
+import type { SecuredOrder } from "@onedal/shared";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useSoundManager } from "../../hooks/useSoundManager";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Button } from "../ui/button";
 
 
-export default function Header({ isConnected }: { isConnected: boolean }) {
+export default function Header({ isConnected, liveCalls }: { isConnected: boolean; liveCalls?: SecuredOrder[] }) {
     const [time, setTime] = useState<Date>(new Date());
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const { user } = useAuth();
@@ -42,10 +44,12 @@ export default function Header({ isConnected }: { isConnected: boolean }) {
             <header ref={headerRef} className="sticky top-0 z-20 bg-bg-base/95 backdrop-blur-sm border-b border-border-card px-4 py-2.5">
                 <div className="flex items-center justify-between max-w-2xl mx-auto">
                     <div className="flex items-center gap-2">
-                        <button onClick={toggleTheme} className="focus:outline-none active:scale-95 transition-transform">
-                            <h1 className="text-2xl font-black tracking-tighter text-text-primary">
-                                1DAL
-                            </h1>
+                        {/* 🚚 로고 자리 = 내 차 상황 (기사님 0831: "로고는 테마 전환 역할뿐 — 영역을 아끼자").
+                            누르면 여전히 테마 전환. liveCalls 없는 화면(로그인 등)은 1DAL 그대로 */}
+                        <button onClick={toggleTheme} className="focus:outline-none active:scale-95 transition-transform text-left">
+                            {liveCalls ? <VehicleLogoSummary liveCalls={liveCalls} /> : (
+                                <h1 className="text-2xl font-black tracking-tighter text-text-primary">1DAL</h1>
+                            )}
                         </button>
                     </div>
                     <div className="flex gap-2 items-center">

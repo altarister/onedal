@@ -5,7 +5,6 @@ import DeviceControlPanel from "../components/dashboard/DeviceControlPanel";
 import OrderFilterStatus from "../components/dashboard/OrderFilterStatus";
 import JudgmentSeat from "../components/dashboard/JudgmentSeat";
 import OrderFilterModal from "../components/dashboard/OrderFilterModal";
-import VehicleStatusPanel from "../components/dashboard/VehicleStatusPanel";
 import PinnedRoute from "../components/dashboard/PinnedRoute";
 import { ErrorBoundary } from "../components/common/ErrorBoundary";
 import { ensureJudgmentSocketSubscribed } from "../stores/judgmentStore";
@@ -178,7 +177,7 @@ export default function Dashboard() {
         <main className="min-h-screen bg-bg-base font-sans pb-24">
 
             {/* 📍 공통 헤더 컴포넌트 */}
-            <Header isConnected={isConnected} />
+            <Header isConnected={isConnected} liveCalls={liveCalls} />
 
             <div className="flex flex-col max-w-2xl mx-auto">
 
@@ -281,8 +280,7 @@ export default function Dashboard() {
                     return <OrderFilterStatus onOpenFilter={() => setIsFilterModalOpen(true)} cancelCounts={cancelCounts} cancelRounds={cancelRounds} budgetToast={cancelBudgetToast} />;
                 })()}
 
-                {/* 🚚 내 차 정보 및 적재/이동 상태 패널 — 심사 중에도 그대로 (치환은 필터 슬롯만) */}
-                <VehicleStatusPanel liveCalls={liveCalls} />
+                {/* 🚚 내 차 요약은 헤더 로고 자리로 이사 (기사님 0831 — 영역 절약). 패널 줄은 뺐다 */}
 
                 {/* 🏆 배차 확정 콜 (및 안전취소 연산 구역)
                     🔴 결재 카드가 터져도 관제탑 전체가 죽지 않게 경계를 둔다 —
