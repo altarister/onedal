@@ -188,6 +188,26 @@ export default function StageView(props: Props) {
             + (dist != null ? ` · ~${dist < 10 ? dist.toFixed(1) : Math.round(dist)}km 남음` : '');
     })();
 
+    /**
+     * 🧭 **달리는 중에는 덱도 «향해가는 콜»을 본다** (기사님 실측 2026-08-31 4판).
+     *
+     * 기사님: *"신둔면에서 사음동 간다고 되어 있는데 펼쳐져 있는 건 초월-신둔면이야."*
+     * 자막 줄·지도 이름표는 다음 정거장(사음동)을 가리키는데 **덱만 방금 끝낸 콜**을
+     * 들고 있었다 — 도착 마중이 잡아 둔 포커스가 그대로 남아서다.
+     *
+     * 서버의 근접 예고(3km)가 오면 옮겨 가긴 한다. 그런데 **다음 정거장이 3km 밖이면
+     * 그 구간 내내** 끝난 콜을 보게 된다 (이번 판은 2.9km 라 4초 뒤에 옮겨 갔다).
+     * 정차 중엔 방금 도착한 콜이 맞고, **달리기 시작하면 향해가는 콜**이 맞다.
+     *
+     * 🔴 시트는 건드리지 않는다 — `kind: 'approach'` 는 덱만 옮긴다 (주행 중 지도가 주인공).
+     */
+    useEffect(() => {
+        if (drive !== 'drive' || !next) return;
+        if (Date.now() < userHoldUntil.current) return;   // 손이 이긴다
+        useGpsFocusStore.setState({ gpsFocus: { orderId: next.orderId, tick: Date.now(), kind: 'approach' } });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [drive, next?.orderId]);
+
     /** 🖐️ 마커 탭 → 그 콜 카드 (S6 문법 — 지나온 곳도 확인·수정) */
     const focusCall = (orderId: string) => {
         useGpsFocusStore.setState({ gpsFocus: { orderId, tick: Date.now(), kind: 'arrive' } });
