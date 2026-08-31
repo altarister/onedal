@@ -38,20 +38,6 @@ export default function StageView(props: Props) {
     const [snap, setSnap] = useState<SheetSnap>('half');
     const { filter, updateFilter } = useFilterConfig();
 
-    /* 📏 무대 = 화면 남은 높이 전부 (기사님: 지도가 전체화면이 아님) — 상단 고정부 아래부터 바닥까지 */
-    const secRef = useRef<HTMLElement | null>(null);
-    const [stageH, setStageH] = useState<number>(480);
-    useEffect(() => {
-        const fit = () => {
-            const t = secRef.current?.getBoundingClientRect().top ?? 0;
-            const h = Math.max(420, window.innerHeight - t);
-            setStageH(prev => (Math.abs(prev - h) > 24 ? h : prev));   // 미세 변동은 무시 — 들썩임 방지
-        };
-        fit();
-        window.addEventListener('resize', fit);
-        const id = setInterval(fit, 1_000);   // 배너가 끼거나 빠질 때 따라간다
-        return () => { window.removeEventListener('resize', fit); clearInterval(id); };
-    }, []);
 
     /**
      * 🧠 상태 규칙 (v23 Ⅲ표 · 3단계) — 자동은 시트 높이만 바꾼다 (표시 전용이라 안전).
@@ -103,7 +89,9 @@ export default function StageView(props: Props) {
     })();
 
     return (
-        <section id="stage-view" ref={secRef} className="relative" style={{ height: stageH }}>
+                // 📏 높이는 실측하지 않는다 — 부모(flex 사슬)가 준다. 실측(rect.top)은 페이지 스크롤과
+        //    되먹임을 만들어 «로딩 후 상단이 밀려 숨는» 사고를 냈다 (기사님 실측 0831)
+        <section id="stage-view" className="relative flex-1 min-h-0">
             {/* 지도 배경 — 캔버스 재사용 (배경 어댑터 자리: 훗날 카카오 타일 실험) */}
             <div className="absolute inset-0">
                 <PinnedRouteCanvas

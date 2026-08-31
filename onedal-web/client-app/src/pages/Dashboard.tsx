@@ -192,12 +192,14 @@ export default function Dashboard() {
     }, []);
 
     return (
-        <main className="min-h-screen bg-bg-base font-sans pb-24">
+        <main className={stagePreview
+            ? "h-dvh overflow-hidden flex flex-col bg-bg-base font-sans"      /* 🎭 무대: 화면 = 상자, 스크롤은 시트 안 */
+            : "min-h-screen bg-bg-base font-sans pb-24"}>
 
             {/* 📍 공통 헤더 컴포넌트 */}
             <Header isConnected={isConnected} liveCalls={liveCalls} />
 
-            <div className="flex flex-col max-w-2xl mx-auto">
+            <div className={`flex flex-col max-w-2xl mx-auto w-full ${stagePreview ? "flex-1 min-h-0" : ""}`}>
 
                 {/* 🏁 도착 감지 · 📣 근접 예고 (도착전 통화) — 잠깐 떴다 사라진다 */}
                 {gpsNotice && (
