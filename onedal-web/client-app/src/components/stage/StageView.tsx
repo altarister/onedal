@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { SecuredOrder, RouteStopInfo } from '@onedal/shared';
 import { hasVisitedStop } from '@onedal/shared';
 import { useRouteDerivations } from '../../hooks/useRouteDerivations';
@@ -6,7 +6,9 @@ import { getAddressLabel } from '../../lib/routeUtils';
 import PinnedRouteCanvas from '../dashboard/PinnedRouteCanvas';
 import StageSheet, { type SheetSnap } from './StageSheet';
 import { PinnedRouteBody } from '../dashboard/PinnedRoute';
-import { MovingBadge } from '../dashboard/VehicleStatusPanel';
+import { MovingBadge, useDriveMotion } from '../dashboard/VehicleStatusPanel';
+import { useGpsFocusStore } from '../../stores/gpsFocusStore';
+import { socket } from '../../lib/socket';
 
 /**
  * 🎭 **무대 — 지도 배경 + 3단 시트** (화면개편 2단계 · v23/v24 · 기사님 확정 2026-08-31).
@@ -33,6 +35,34 @@ export default function StageView(props: Props) {
     const { liveRoute, unifiedRoutePoints, myLocation, visitOrderMap } = derived;
     const [snap, setSnap] = useState<SheetSnap>('half');
 
+    /**
+     * 🧠 상태 규칙 (v23 Ⅲ표 · 3단계) — 자동은 시트 높이만 바꾼다 (표시 전용이라 안전).
+     * 손(드래그)이 이긴다 — 터치 후 30초 유예 (v23 Ⅳ).
+     */
+    const drive = useDriveMotion();
+    const userHoldUntil = useRef(0);
+    const judging = derived.judging;
+    useEffect(() => {
+        if (Date.now() < userHoldUntil.current) return;
+        if (judging) { setSnap('peek'); return; }          // S4 — 지도가 판정 근거 (후보 정거장이 지도에 뜬다)
+        if (drive === 'drive') { setSnap('peek'); return; } // S3 — 주행: 지도 주인공
+        setSnap(liveRoute.length > 0 ? 'half' : 'peek');    // S2/S1 — 정차: 콜 목록 / 대기 한 줄
+    }, [drive, judging ? judging.id : null, liveRoute.length]);
+
+    /**
+     * 📞 S5 — KEEP 직후: 시트 전체 + 그 콜 포커스 (킵 직후 바로 통화 원칙).
+     * 포커스 전달은 기존 근접 포커스와 같은 그릇(gpsFocusStore) — 덱이 이미 읽는다.
+     */
+    useEffect(() => {
+        const onConfirmed = (orderId: string) => {
+            useGpsFocusStore.setState({ gpsFocus: { orderId, tick: Date.now() } });
+            userHoldUntil.current = Date.now() + 30_000;   // 통화하는 동안 자동 전환 유예
+            setSnap('full');
+        };
+        socket.on('order-confirmed', onConfirmed);
+        return () => { socket.off('order-confirmed', onConfirmed); };
+    }, []);
+
     /* 🗺️ 다음 정거장 이름표 재료 — 서버 경로 순서(routeStops)에서 첫 미방문 (v22 S3) */
     const next = (() => {
         const idx = routeStops.findIndex(st => {
@@ -44,7 +74,7 @@ export default function StageView(props: Props) {
         const o = liveRoute.find(r => r.id === st.orderId)!;
         const callNo = liveRoute.findIndex(r => r.id === st.orderId) + 1;
         return {
-            idx, total: routeStops.length,
+            idx, total: routeStops.length, orderId: st.orderId,
             name: getAddressLabel(st.stopType === 'pickup' ? o.pickup : o.dropoff),
             stopLabel: st.stopType === 'pickup' ? '상차' : '하차',
             callNo, driveMinutes: st.driveMinutes,
@@ -65,7 +95,13 @@ export default function StageView(props: Props) {
                 >
                     {/* 🏷️ 다음 정거장 이름표 — «어느 콜의 어떤 단계» (v22 S3 · 탭 동선은 4단계에서) */}
                     {next && (
-                        <div className="absolute left-3 top-3 z-10 rounded-xl border px-3 py-2 tabular-nums"
+                        <div className="absolute left-3 top-3 z-10 rounded-xl border px-3 py-2 tabular-nums cursor-pointer active:scale-95 transition-transform"
+                             onClick={() => {
+                                 // S6 — 정거장 이름표 탭 = 그 콜·그 단계로 (지도는 장부의 목차)
+                                 useGpsFocusStore.setState({ gpsFocus: { orderId: next.orderId, tick: Date.now() } });
+                                 userHoldUntil.current = Date.now() + 30_000;
+                                 setSnap('full');
+                             }}
                              style={{ background: 'color-mix(in srgb, var(--color-surface) 92%, transparent)', borderColor: '#4f8df9', backdropFilter: 'blur(3px)' }}>
                             <div className="text-[14px] font-black" style={{ color: '#9db9ff' }}>
                                 {next.visitNo}. {next.name}{next.driveMinutes != null ? ` · ~${next.driveMinutes}분` : ''}

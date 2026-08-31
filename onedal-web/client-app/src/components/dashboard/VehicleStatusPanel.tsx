@@ -20,6 +20,42 @@ import { Badge } from "../ui/badge";
  * 🚗 **이동/정차 배지** (기사님 0831 — 지도 요약 줄로 이사). 차량 패널의 GPS 파생을
  * 그대로 쓰는 압축판 — local-gps-update 하나로 속도·시뮬 여부를 읽는다.
  */
+/**
+ * 🚗 **주행/정차 뷰 신호** (v23 Ⅲ · 기사님 확정 0831) — 표시만 바꾸므로 자동이 안전.
+ * 이동 20km/h↑ 10초 → drive · 5km/h↓ 10초 → idle (신호대기 한 번이 콜 확인 시간).
+ * 시뮬 GPS 는 drive. 파생은 MovingBadge 와 같은 이벤트 하나다.
+ */
+export function useDriveMotion(): 'drive' | 'idle' {
+    const [mode, setMode] = useState<'drive' | 'idle'>('idle');
+    useEffect(() => {
+        let speed = 0; let mock = false;
+        let last: { lat: number; lng: number; time: number } | null = null;
+        let driveSince = 0; let idleSince = 0;
+        const onGps = (e: Event) => {
+            const loc = (e as CustomEvent<{ lat: number, lng: number, source?: string }>).detail;
+            mock = loc.source === 'mock';
+            const now = Date.now();
+            if (!mock && last) {
+                const h = (now - last.time) / 3_600_000;
+                if (h > 0) speed = (speed * 0.7) + ((getDistanceKm(last.lat, last.lng, loc.lat, loc.lng) / h) * 0.3);
+            }
+            last = { lat: loc.lat, lng: loc.lng, time: now };
+        };
+        const tick = setInterval(() => {
+            const now = Date.now();
+            const fast = mock || speed >= 20;
+            const slow = !mock && speed <= 5;
+            if (fast) { idleSince = 0; if (!driveSince) driveSince = now; if (now - driveSince >= 10_000) setMode('drive'); }
+            else driveSince = 0;
+            if (slow) { if (!idleSince) idleSince = now; if (now - idleSince >= 10_000) setMode('idle'); }
+            else idleSince = 0;
+        }, 1_000);
+        window.addEventListener('local-gps-update', onGps);
+        return () => { clearInterval(tick); window.removeEventListener('local-gps-update', onGps); };
+    }, []);
+    return mode;
+}
+
 export function MovingBadge() {
     const [currentSpeed, setCurrentSpeed] = useState<number>(0);
     const [gpsIsMock, setGpsIsMock] = useState(false);
