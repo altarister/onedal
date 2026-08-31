@@ -112,7 +112,8 @@ describe('GPS 시뮬레이터 — 반복하지 않는다', () => {
      */
     it('경로가 바뀌면 완료 표시를 푼다 · 다만 처음부터가 아니라 가까운 자리에서', () => {
         const onRoute = sim.slice(sim.indexOf('routeRef.current?.length !== routePolyline?.length'));
-        const body = onRoute.slice(0, 220);
+        // 2026-08-31 연기 각본에서 simRef.idx 동기화 한 줄이 끼어 창을 넓혔다 — 불변식은 그대로
+        const body = onRoute.slice(0, 320);
         expect(body).toMatch(/finishedRef\.current = false/);
         expect(body).toMatch(/nearestIndex\(/);
         expect(body).not.toMatch(/indexRef\.current = 0/);
@@ -215,9 +216,14 @@ describe('가상 위치는 남지 않는다', () => {
         expect(fn).toMatch(/publishLocation\(lastReal\.lat, lastReal\.lng/);
     });
 
-    it('🔴 실제 좌표를 한 번도 못 받았으면 아무것도 하지 않는다 (가짜로 채우지 않는다)', () => {
+    it('🔴 실제 좌표가 없으면 가짜로 채우지 않는다 — 대신 걷어내라고 알린다 (0831)', () => {
         const fn = bridge.slice(bridge.indexOf('export function endMockDriving'));
-        expect(fn).toMatch(/if \(!lastReal\) return/);
+        // 되돌릴 실좌표가 없으면 publishLocation 없이 서버에 정리 신호만 — 가상 위치가
+        // 서버에 잔류해 다음 첫짐이 직전 하차지에서 빙 돌던 사고의 수리 형태다
+        const noReal = fn.slice(fn.indexOf('if (!lastReal)'), fn.indexOf('lastSent = null'));
+        expect(noReal).toMatch(/socket\.emit\('mock-driving-ended'\)/);
+        expect(noReal).toMatch(/return/);
+        expect(noReal).not.toMatch(/publishLocation\(/);
     });
 
     it('시뮬레이터가 경로 끝에 닿으면 알린다', () => {
@@ -251,7 +257,8 @@ describe('시뮬레이터 — 경로가 갈리면 가장 가까운 자리에서 
     });
 
     it('🔴 달린 자리를 기억한다 — 없으면 이어붙일 기준이 없다', () => {
-        expect(src).toMatch(/hereRef\.current = \{ x: pt\.x, y: pt\.y \}/);
+        // 2026-08-31 연기 각본(simStep) 도입 — 걸음의 결과(r.loc)를 기억한다. 불변식 동일
+        expect(src).toMatch(/hereRef\.current = \{ x: r\.loc\.x, y: r\.loc\.y \}/);
     });
 
     it('nearestIndex — 가장 가까운 지점을 고른다', () => {

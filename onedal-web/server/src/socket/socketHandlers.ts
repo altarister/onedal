@@ -38,7 +38,7 @@ function routeTlOf(userId: string): RouteTl | undefined {
     } catch { return undefined; }
 }
 import { updateActiveFilter, ensureBusinessDay, saveBaseFilter, savePhaseSettings, trimTraveled } from "../state/filterManager";
-import { processDriverMovement, getCityRegionsWithRadius, GPS_ARRIVAL, ensureDriverOrigin } from "../services/geoService";
+import { processDriverMovement, getCityRegionsWithRadius, GPS_ARRIVAL, clearMockLocation } from "../services/geoService";
 
 
 
@@ -351,13 +351,7 @@ export function registerSocketHandlers(io: Server) {
          * 가상 위치를 계속 «지금 위치»로 믿으면 다음 첫짐 경로가 직전 하차지에서
          * 빙 둘러 그려진다 (기사님 실측). 걷어내고 내 주소로 메운다 — 비움+메움 한 몸.
          */
-        socket.on("mock-driving-ended", () => {
-            if (!session.driverLocation || session.driverLocationIsFallback) return;
-            console.log(`🧹 [모의 종료] 가상 위치를 걷어냅니다 — 내 주소 기준으로 복귀`);
-            session.driverLocation = null;
-            session.driverLocationAt = null;
-            ensureDriverOrigin(userId, session);
-        });
+        socket.on("mock-driving-ended", () => clearMockLocation(userId, session));
 
         // ━━━ [관제웹 Master GPS 수신부] ━━━
         socket.on("dashboard-gps-update", (loc: { lat: number, lng: number, source?: string }) => {

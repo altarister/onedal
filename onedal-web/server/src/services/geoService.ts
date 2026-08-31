@@ -773,6 +773,23 @@ export function dropStaleLocation(
  * **GPS 가 들어오면 그 값이 언제나 이긴다** — 싱싱하면 DB 도 안 읽는다.
  * 내 주소조차 없으면 null 로 둔다 — 없는 숫자를 지어내지 않는다 (규칙 ④).
  */
+/**
+ * 🧹 **모의 주행 종료 — 되돌릴 실좌표가 없을 때** (2026-08-31 · 개발 빌드만 부른다).
+ * 가상 위치를 계속 «지금 위치»로 믿으면 다음 첫짐 경로가 직전 하차지에서 빙 둘러
+ * 그려진다 (기사님 실측 — 중리동 기점). 걷어내고 내 주소로 메운다.
+ * 🔴 소켓 핸들러가 세션 위치를 직접 만지지 않도록 여기(위치의 집)에 산다 (workUnit 규칙).
+ */
+export function clearMockLocation(
+    userId: string,
+    session: Parameters<typeof ensureDriverOrigin>[1],
+): void {
+    if (!session.driverLocation || session.driverLocationIsFallback) return;
+    console.log(`🧹 [모의 종료] 가상 위치를 걷어냅니다 — 내 주소 기준으로 복귀`);
+    session.driverLocation = null;
+    session.driverLocationAt = null;
+    ensureDriverOrigin(userId, session);
+}
+
 export function ensureDriverOrigin(
     userId: string,
     session: {
