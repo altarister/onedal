@@ -20,7 +20,8 @@ const SOAK: Record<VerdictColor, { tint: string; bar: string; text: string; glow
     '똥':   { tint: 'rgba(230,180,34,.30)', bar: '#e6b422', text: '#f0d27a', glow: 'rgba(230,180,34,.45)', wm: 'rgba(230,180,34,.15)' },
     '사고': { tint: 'rgba(224,85,99,.30)',  bar: '#e05563', text: '#f09aa4', glow: 'rgba(224,85,99,.45)',  wm: 'rgba(224,85,99,.15)' },
 };
-const CARD_BG = 'linear-gradient(180deg,#131a2b,#0f1522)';
+// 테마를 따른다 — 다크 고정색은 라이트 테마에서 이질적이었다 (기사님 0831)
+const CARD_BG = 'linear-gradient(180deg, var(--color-surface-alt), var(--color-surface))';
 /** 호칭의 타겟명 — 용어집 조합 규칙 (노선/관내/복귀) */
 const TARGET_NAME: Record<CallTarget, string> = { DEST: '노선', LOCAL: '관내', HOME: '복귀' };
 
@@ -67,17 +68,17 @@ export default function JudgmentSeat({ route, confirmedActive, onDecision, proce
 
     /* ── v13 .row: 42px · 0 16px · gap 10 · 14px ── */
     const header = (
-        <div className="flex items-center relative z-10" style={{ gap: 10, padding: '0 16px', minHeight: 42, fontSize: 14, borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+        <div className="flex items-center relative z-10" style={{ gap: 10, padding: '0 16px', minHeight: 42, fontSize: 14, borderBottom: '1px solid var(--color-border-card)' }}>
             {manual && <span style={{ borderRadius: 7, padding: '3px 10px', fontSize: 12, fontWeight: 800, background: 'rgba(79,141,249,.14)', color: '#9db9ff', border: '1px solid rgba(79,141,249,.35)' }}>
                 {route.capturedVia === 'ALARM' ? '🔔' : '✋'}</span>}
             <span style={{ fontWeight: 900, fontSize: 14.5, letterSpacing: '-.3px' }} className="whitespace-nowrap">{name}</span>
-            <span className="truncate" style={{ color: '#7d879c', fontSize: 12.5, fontWeight: 700 }}>
+            <span className="truncate" style={{ color: 'var(--color-text-muted)', fontSize: 12.5, fontWeight: 700 }}>
                 {getAddressLabel(route.pickup)} → {getAddressLabel(route.dropoff)}
             </span>
             <span className="ml-auto flex items-baseline shrink-0" style={{ gap: 10 }}>
                 {judged
                     ? <span style={{ fontSize: 27, fontWeight: 900, letterSpacing: '-.5px', color: c!.text, textShadow: `0 0 18px ${c!.glow}` }}>{v.color}</span>
-                    : <span className="animate-pulse" style={{ color: '#7d879c', fontSize: 13, fontWeight: 800 }}>판정 중…</span>}
+                    : <span className="animate-pulse" style={{ color: 'var(--color-text-muted)', fontSize: 13, fontWeight: 800 }}>판정 중…</span>}
                 <span className="tabular-nums" style={{ fontSize: 19, fontWeight: 900 }}>
                     {route.fare > 0 ? `${(route.fare / 10000).toFixed(1)}만원` : '금액미상'}
                 </span>
@@ -94,7 +95,7 @@ export default function JudgmentSeat({ route, confirmedActive, onDecision, proce
                 {/* v13 .wm — 158px · right 2 · bottom -34 */}
                 <div className="absolute z-0 font-black leading-none select-none pointer-events-none tabular-nums"
                      style={{ right: 2, bottom: -34, fontSize: 158, letterSpacing: '-5px',
-                              color: judged ? c!.wm : 'rgba(255,255,255,.06)', textShadow: judged ? `0 0 60px ${c!.glow.replace('.5', '.25')}` : 'none',
+                              color: judged ? c!.wm : 'color-mix(in srgb, var(--color-text-primary) 8%, transparent)', textShadow: judged ? `0 0 60px ${c!.glow.replace('.5', '.25')}` : 'none',
                               ...(judged ? {} : { animation: 'pulse 1.2s ease-in-out infinite' }) }}>
                     {judged ? score ?? '' : '?'}
                 </div>
@@ -103,16 +104,16 @@ export default function JudgmentSeat({ route, confirmedActive, onDecision, proce
                     {judged ? (<>
                         {/* v13 .core .l1 — 27px */}
                         <div style={{ fontSize: 27, fontWeight: 900, letterSpacing: '-.5px', lineHeight: 1.15 }}>
-                            {hourly != null ? <>{hourly.toFixed(1)}만<span style={{ fontSize: 14, color: '#7d879c', fontWeight: 700 }}>/h</span></> : <span style={{ fontSize: 15 }}>{v.reason}</span>}
+                            {hourly != null ? <>{hourly.toFixed(1)}만<span style={{ fontSize: 14, color: 'var(--color-text-muted)', fontWeight: 700 }}>/h</span></> : <span style={{ fontSize: 15 }}>{v.reason}</span>}
                         </div>
                         {/* v13 .l2 — 14.5px */}
                         <div style={{ fontSize: 14.5, fontWeight: 700, letterSpacing: '-.2px', marginTop: 5 }}>{routeLine(route.distanceKm, routeText) || '경로 계산됨'}</div>
                         {/* v13 .l3 — 12.5px · 걸리는 것만 */}
-                        <div style={{ fontSize: 12.5, fontWeight: 600, marginTop: 4, color: negatives.length ? c!.text : '#59627a' }}>
+                        <div style={{ fontSize: 12.5, fontWeight: 600, marginTop: 4, color: negatives.length ? c!.text : 'var(--color-text-muted)' }}>
                             {negatives.length ? negatives.join(' · ') : '걸리는 것 없음'} · 근거 {open ? '▴' : '▾'}
                         </div>
                         {open && positives.length > 0 && (
-                            <div style={{ marginTop: 4, fontSize: 12, color: '#7d879c' }}>✅ {positives.join(' · ')}</div>
+                            <div style={{ marginTop: 4, fontSize: 12, color: 'var(--color-text-muted)' }}>✅ {positives.join(' · ')}</div>
                         )}
                         {open && route.judgment && (
                             <div className="mt-2 flex flex-col gap-1 rounded-md border border-border bg-surface-alt/40 px-2.5 py-2" style={{ fontSize: 12 }}>
@@ -121,9 +122,9 @@ export default function JudgmentSeat({ route, confirmedActive, onDecision, proce
                             </div>
                         )}
                     </>) : (<>
-                        <div style={{ fontSize: 13, fontWeight: 800, color: '#7d879c' }}>📄 상세 읽는 중 — 판정을 기다립니다</div>
-                        <div className="animate-pulse" style={{ height: 12, width: 230, borderRadius: 6, background: 'rgba(255,255,255,.07)', marginTop: 8 }} />
-                        <div className="animate-pulse" style={{ height: 12, width: 180, borderRadius: 6, background: 'rgba(255,255,255,.07)', marginTop: 8 }} />
+                        <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--color-text-muted)' }}>📄 상세 읽는 중 — 판정을 기다립니다</div>
+                        <div className="animate-pulse" style={{ height: 12, width: 230, borderRadius: 6, background: 'color-mix(in srgb, var(--color-text-primary) 8%, transparent)', marginTop: 8 }} />
+                        <div className="animate-pulse" style={{ height: 12, width: 180, borderRadius: 6, background: 'color-mix(in srgb, var(--color-text-primary) 8%, transparent)', marginTop: 8 }} />
                     </>)}
                 </div>
             </div>
@@ -147,10 +148,10 @@ export default function JudgmentSeat({ route, confirmedActive, onDecision, proce
                     className="text-left relative overflow-hidden tabular-nums disabled:opacity-60"
                     style={judged
                         ? { flex: 65, borderRadius: 11, padding: '8px 12px', background: `linear-gradient(180deg, ${c!.bar}, ${c!.bar}cc)`, color: '#181818', boxShadow: `0 0 24px ${c!.glow}, inset 0 1px 0 rgba(255,255,255,.35)` }
-                        : { flex: 65, borderRadius: 11, padding: '8px 12px', background: 'linear-gradient(180deg,#232c42,#1b2234)', color: '#7d879c', border: '1px solid #1c2436' }}>
+                        : { flex: 65, borderRadius: 11, padding: '8px 12px', background: 'linear-gradient(180deg,#232c42,#1b2234)', color: 'var(--color-text-muted)', border: '1px solid #1c2436' }}>
                     {/* v13 .bwm — 124px · right 0 · bottom -26 */}
                     <div className="absolute z-0 font-black leading-none select-none tabular-nums"
-                         style={{ right: 0, bottom: -26, fontSize: 124, letterSpacing: '-4px', color: judged ? 'rgba(0,0,0,.18)' : 'rgba(255,255,255,.06)' }}>
+                         style={{ right: 0, bottom: -26, fontSize: 124, letterSpacing: '-4px', color: judged ? 'rgba(0,0,0,.18)' : 'color-mix(in srgb, var(--color-text-primary) 8%, transparent)' }}>
                         {judged ? score ?? '' : '?'}
                     </div>
                     {/* ⏳ 안전취소 장막 — 30초 차오르면 자동취소 */}

@@ -16,6 +16,40 @@ import { Badge } from "../ui/badge";
  * 🚚 **로고 자리 요약** (기사님 0831) — 헤더의 1DAL 로고를 대신한다. 같은 파생
  * (isAlreadyLoaded·capacityConfidence)을 쓰는 압축판 — 파생 두 벌을 만들지 않는다.
  */
+/**
+ * 🚗 **이동/정차 배지** (기사님 0831 — 지도 요약 줄로 이사). 차량 패널의 GPS 파생을
+ * 그대로 쓰는 압축판 — local-gps-update 하나로 속도·시뮬 여부를 읽는다.
+ */
+export function MovingBadge() {
+    const [currentSpeed, setCurrentSpeed] = useState<number>(0);
+    const [gpsIsMock, setGpsIsMock] = useState(false);
+    const lastGpsRef = useRef<{ lat: number; lng: number; time: number } | null>(null);
+    useEffect(() => {
+        const onGpsUpdate = (e: Event) => {
+            const loc = (e as CustomEvent<{ lat: number, lng: number, source?: string }>).detail;
+            const isMock = loc.source === 'mock';
+            const now = Date.now();
+            setGpsIsMock(isMock);
+            if (isMock) { setCurrentSpeed(0); lastGpsRef.current = { ...loc, time: now }; }
+            else if (lastGpsRef.current) {
+                const distKm = getDistanceKm(lastGpsRef.current.lat, lastGpsRef.current.lng, loc.lat, loc.lng);
+                const h = (now - lastGpsRef.current.time) / 3_600_000;
+                if (h > 0) setCurrentSpeed(prev => (prev * 0.7) + ((distKm / h) * 0.3));
+            }
+            if (!isMock) lastGpsRef.current = { ...loc, time: now };
+        };
+        window.addEventListener("local-gps-update", onGpsUpdate);
+        return () => window.removeEventListener("local-gps-update", onGpsUpdate);
+    }, []);
+    const isMoving = gpsIsMock || currentSpeed > 5;
+    return (
+        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[10.5px] font-black ${isMoving ? 'border-info/30 bg-info/10 text-info' : 'border-border bg-surface-alt text-text-muted'}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${isMoving ? 'bg-info animate-pulse' : 'bg-text-muted'}`}></span>
+            {gpsIsMock ? '시뮬 주행' : isMoving ? `이동 중 ${Math.round(currentSpeed)}km/h` : '정차 중'}
+        </span>
+    );
+}
+
 export function VehicleLogoSummary({ liveCalls }: { liveCalls: SecuredOrder[] }) {
     const { filter } = useFilterConfig();
     const [dbVehicleType, setDbVehicleType] = useState<string | null>(null);

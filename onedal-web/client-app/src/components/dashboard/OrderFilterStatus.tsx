@@ -142,11 +142,11 @@ export default function OrderFilterStatus({ onOpenFilter, budgetToast }:
     };
 
     return (
-        <div id="filter-status" className="relative mx-3 my-2 rounded-xl border overflow-hidden shadow-lg flex flex-col" style={{ background: "linear-gradient(180deg,#131a2b,#0f1522)", height: 158, borderColor: phase === 'DEST' ? 'var(--color-border-card, #1c2436)' : `${v14.c}4d` }}>
+        <div id="filter-status" className="relative mx-3 my-2 rounded-xl border overflow-hidden shadow-lg flex flex-col" style={{ background: "linear-gradient(180deg, var(--color-surface-alt), var(--color-surface))", height: 158, borderColor: phase === 'DEST' ? 'var(--color-border-card, #1c2436)' : `${v14.c}4d` }}>
             {/* 지금 국면 — 누르면 필터 설정 팝업.
                 v13 구조: 줄마다 독립 — [머리글 42px] / [지표 38px], 각 줄 헤어라인 (한 덩어리 금지 · 0831) */}
             <div onClick={onOpenFilter} className="cursor-pointer transition-colors hover:bg-surface-hover/40 active:scale-[0.995] flex flex-col" style={{ flex: 2 }}>
-                <div className="flex items-center" style={{ gap: 10, padding: '0 18px', flex: 1, fontSize: 14.5, borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+                <div className="flex items-center" style={{ gap: 10, padding: '0 18px', flex: 1, fontSize: 14.5, borderBottom: '1px solid var(--color-border-card)' }}>
                     {/* 국면명·아이콘은 아래 버튼이 이미 말한다 — 머리글은 방향 문장부터 (중복 제거 · 기사님 0831) */}
                     <span className="text-text-primary font-bold truncate" style={{ fontSize: 14 }}>{headline(phase)}</span>
                     {/* 🔒 손으로 고친 필터는 자동 갱신이 덮어쓰지 않는다 — 자리는 안 먹는다 */}
@@ -158,7 +158,7 @@ export default function OrderFilterStatus({ onOpenFilter, budgetToast }:
                     <span className="text-text-muted text-sm shrink-0">⚙️</span>
                 </div>
                 {/* ── 순서를 고정한다 (명세 §4-1) — 💰 금액 · 📍 지역 · 📦 적재 ── */}
-                <div className="flex items-center text-text-muted font-medium tabular-nums truncate" style={{ gap: 8, padding: '0 18px', flex: 1, fontSize: 13, borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+                <div className="flex items-center text-text-muted font-medium tabular-nums truncate" style={{ gap: 8, padding: '0 18px', flex: 1, fontSize: 13, borderBottom: '1px solid var(--color-border-card)' }}>
                     💰 {callDiscountLabel}
                     <span className="opacity-70">(1t ≥ {oneTonRate.toLocaleString()}원/km)</span>
                     <span className="mx-1 opacity-40">·</span>
@@ -195,7 +195,7 @@ export default function OrderFilterStatus({ onOpenFilter, budgetToast }:
 
             {toast && (
                 <span className="absolute right-3 top-2 text-[12px] font-black px-2.5 py-1 rounded-md border"
-                    style={{ zIndex: 50, background: '#0f1522', borderColor: v14.c, color: v14.c, boxShadow: `0 4px 16px rgba(0,0,0,.5), 0 0 12px ${v14.onGlow}` }}>
+                    style={{ zIndex: 50, background: 'var(--color-surface)', borderColor: v14.c, color: v14.c, boxShadow: `0 4px 16px rgba(0,0,0,.5), 0 0 12px ${v14.onGlow}` }}>
                     {toast}
                 </span>
             )}

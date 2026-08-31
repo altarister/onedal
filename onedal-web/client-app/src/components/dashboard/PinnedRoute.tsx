@@ -9,6 +9,7 @@ import type { EtaCell } from './PinnedRouteCard';
 import CallDeck from './CallDeck';
 import DepartureCountdown from './DepartureCountdown';
 import { EMPTY_RECORDS } from '../../hooks/records';
+import { MovingBadge } from './VehicleStatusPanel';
 import { useStepRecords } from '../../hooks/useStepRecords';
 import { useJudgmentStore } from '../../stores/judgmentStore';
 import { deckOrder } from '../../lib/deckFocus';
@@ -432,6 +433,7 @@ export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, 
                                         if (hasFailure) return `카카오 경로 연산 실패`;
                                         return `카카오 경로 연산 중...`;
                                     })()}
+                                    {' '}<MovingBadge />
                                 </span>
                             </div>
                         </a>
