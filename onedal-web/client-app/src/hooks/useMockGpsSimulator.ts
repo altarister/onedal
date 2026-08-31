@@ -45,7 +45,7 @@ interface MockGpsSimulatorProps {
      * 🔴 **실제 주행은 시설 안까지 들어간다.** 모의 주행만 도로를 안 벗어났던 것이다.
      *    그러니 이건 판정을 느슨하게 푸는 게 아니라 **모의 주행을 현실에 맞추는 것**이다.
      */
-    stops?: PolylinePoint[];
+    stops?: Array<PolylinePoint & { visited?: boolean }>;
     speedMultiplier?: number;
     /** 경로 끝에 닿았을 때. 남은 가상 위치를 걷어내라는 신호다 */
     onFinished?: () => void;
@@ -143,6 +143,11 @@ export function useMockGpsSimulator({
          * 멈췄다 켜지는 것은 **이어 달리는 것**이어야 한다.
          */
         if (finishedRef.current) return;
+
+        // 🚏 이미 다녀온 정거장은 장부에 이식 — 목록은 안 줄이되 다시 서지도 않는다 (0831)
+        for (const st of stopsRef.current ?? []) {
+            if (st.visited) simRef.current.visited.add(`${st.x},${st.y}`);
+        }
 
         console.log(`🚀 [Mock GPS] ${indexRef.current > 0 ? `이어 달림 (${indexRef.current}번째 지점부터)` : '가동 시작'} — 총 ${routeRef.current?.length || 0} 포인트`);
 

@@ -63,12 +63,19 @@ export function useRouteDerivations(
      * 물류센터는 떨어져 있다 (실측 곤지암 601m). 다녀온 곳은 뺀다 — 판단은 hasVisitedStop 하나.
      */
     const mockStops = useMemo(() => {
-        const out: Array<{ x: number; y: number }> = [];
+        /**
+         * 🔴 **목록에서 빼지 않고 «방문»을 표시한다** (2026-08-31 실측 — 감속 중 증발).
+         *    예전엔 다녀온 정거장을 목록에서 뺐는데, 시뮬이 감속하며 다가가는 사이
+         *    서버 도착 감지(500m)가 먼저 찍혀 **목표가 눈앞에서 사라졌다** — 정차 연기가
+         *    영영 안 밟힌 이유. 다녀온 곳을 안 가는 것은 시뮬 내부 장부(simStep.visited,
+         *    가동 시 이 표시를 이식)가 지킨다 — 판단은 여전히 hasVisitedStop 하나다.
+         */
+        const out: Array<{ x: number; y: number; visited: boolean }> = [];
         for (const r of liveRoute) {
-            if (r.pickupX != null && r.pickupY != null && !hasVisitedStop(r, 'pickup'))
-                out.push({ x: r.pickupX, y: r.pickupY });
-            if (r.dropoffX != null && r.dropoffY != null && !hasVisitedStop(r, 'dropoff'))
-                out.push({ x: r.dropoffX, y: r.dropoffY });
+            if (r.pickupX != null && r.pickupY != null)
+                out.push({ x: r.pickupX, y: r.pickupY, visited: hasVisitedStop(r, 'pickup') });
+            if (r.dropoffX != null && r.dropoffY != null)
+                out.push({ x: r.dropoffX, y: r.dropoffY, visited: hasVisitedStop(r, 'dropoff') });
         }
         return out;
     }, [liveRoute]);
