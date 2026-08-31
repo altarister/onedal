@@ -8,6 +8,8 @@ import StageSheet, { type SheetSnap } from './StageSheet';
 import { PinnedRouteBody } from '../dashboard/PinnedRoute';
 import { MovingBadge, useDriveMotion } from '../dashboard/VehicleStatusPanel';
 import { useGpsFocusStore } from '../../stores/gpsFocusStore';
+import { useFilterConfig } from '../../hooks/useFilterConfig';
+import { logRoadmapEvent } from '../../lib/roadmapLogger';
 import { socket } from '../../lib/socket';
 
 /**
@@ -34,6 +36,18 @@ export default function StageView(props: Props) {
     const derived = useRouteDerivations(activeRoute, routeStops, routeComputedAt);
     const { liveRoute, unifiedRoutePoints, myLocation, visitOrderMap } = derived;
     const [snap, setSnap] = useState<SheetSnap>('half');
+    const { filter, updateFilter } = useFilterConfig();
+
+    /* 📏 무대 = 화면 남은 높이 전부 (기사님: 지도가 전체화면이 아님) — 상단 고정부 아래부터 바닥까지 */
+    const secRef = useRef<HTMLElement | null>(null);
+    const [stageH, setStageH] = useState<number>(480);
+    useEffect(() => {
+        const fit = () => { const t = secRef.current?.getBoundingClientRect().top ?? 0; setStageH(Math.max(420, window.innerHeight - t)); };
+        fit();
+        window.addEventListener('resize', fit);
+        const id = setInterval(fit, 1_000);   // 배너가 끼거나 빠질 때 따라간다
+        return () => { window.removeEventListener('resize', fit); clearInterval(id); };
+    }, []);
 
     /**
      * 🧠 상태 규칙 (v23 Ⅲ표 · 3단계) — 자동은 시트 높이만 바꾼다 (표시 전용이라 안전).
@@ -85,7 +99,7 @@ export default function StageView(props: Props) {
     })();
 
     return (
-        <section id="stage-view" className="relative" style={{ height: 'calc(100dvh - 300px)', minHeight: 420 }}>
+        <section id="stage-view" ref={secRef} className="relative" style={{ height: stageH }}>
             {/* 지도 배경 — 캔버스 재사용 (배경 어댑터 자리: 훗날 카카오 타일 실험) */}
             <div className="absolute inset-0">
                 <PinnedRouteCanvas
@@ -111,11 +125,20 @@ export default function StageView(props: Props) {
                             </div>
                         </div>
                     )}
+                    {/* 🚀 지금 출발 — 옛 지도와 같은 자리·같은 동작 (짐 있고 출발 전일 때만) */}
+                    {filter && filter.dispatchPhase !== 'DELIVERING' && liveRoute.length > 0 && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); logRoadmapEvent("웹", "무대 지도 🚀 지금 출발 클릭 → 운행 중 국면"); updateFilter({ driverAction: 'DRIVING' }); }}
+                            className="absolute left-3 bottom-20 z-10 rounded-xl px-4 py-2.5 text-[14px] font-black text-white active:scale-95 transition-transform"
+                            style={{ background: 'linear-gradient(180deg,#5b8cff,#3f6fe0)', boxShadow: '0 6px 18px rgba(79,141,249,.4)' }}>
+                            🚀 지금 출발
+                        </button>
+                    )}
                 </PinnedRouteCanvas>
             </div>
 
             {/* 3단 시트 — 내용물은 기존 콜 화면 그대로 (sheetOnly) */}
-            <StageSheet snap={snap} onSnapChange={setSnap}>
+            <StageSheet snap={snap} onSnapChange={setSnap} onUserDrag={() => { userHoldUntil.current = Date.now() + 30_000; }}>
                 <PinnedRouteBody {...props} sheetOnly d={derived} />
             </StageSheet>
         </section>

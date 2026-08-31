@@ -231,7 +231,7 @@ export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDe
             {safeRoute.length > 0 && (
                 <div
                     ref={tabBarRef}
-                    className="flex border-b border-border-card sticky z-[9] bg-bg-base/95 backdrop-blur-sm"
+                    className={`flex border-b border-border-card bg-bg-base/95 backdrop-blur-sm ${sheetOnly ? "" : "sticky z-[9]"}`}
                     style={{ top: 'var(--header-h, 0px)', scrollMarginTop: 'var(--header-h, 0px)' }}
                 >
                     <button

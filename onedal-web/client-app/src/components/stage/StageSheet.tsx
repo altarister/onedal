@@ -26,6 +26,7 @@ interface Props {
 export default function StageSheet({ snap, onSnapChange, onUserDrag, children }: Props) {
     const startY = useRef<number | null>(null);
     const startSnap = useRef<SheetSnap>(snap);
+    const dragged = useRef(false);   // 드래그로 한 단 움직였으면 이어지는 click 을 무시 (되튐 버그)
 
     const order: SheetSnap[] = ['peek', 'half', 'full'];
     const move = (dir: 1 | -1) => {
@@ -47,15 +48,15 @@ export default function StageSheet({ snap, onSnapChange, onUserDrag, children }:
         >
             {/* 손잡이 — 터치 시작점 대비 60px 이상 끌면 한 단 이동 */}
             <div
-                className="shrink-0 cursor-grab active:cursor-grabbing py-2"
-                onPointerDown={(e) => { startY.current = e.clientY; startSnap.current = snap; (e.target as HTMLElement).setPointerCapture(e.pointerId); }}
+                className="shrink-0 cursor-grab active:cursor-grabbing py-3"
+                onPointerDown={(e) => { startY.current = e.clientY; startSnap.current = snap; dragged.current = false; (e.target as HTMLElement).setPointerCapture(e.pointerId); }}
                 onPointerMove={(e) => {
                     if (startY.current == null) return;
                     const dy = startY.current - e.clientY;
-                    if (Math.abs(dy) > 60) { move(dy > 0 ? 1 : -1); startY.current = null; }
+                    if (Math.abs(dy) > 40) { dragged.current = true; move(dy > 0 ? 1 : -1); startY.current = null; }
                 }}
                 onPointerUp={() => { startY.current = null; }}
-                onClick={() => { /* 탭 = 한 단 올리기 (peek→half→full), full 이면 half 로 */
+                onClick={() => { if (dragged.current) { dragged.current = false; return; }   // 드래그 직후 click 무시
                     startSnap.current = snap; move(snap === 'full' ? -1 : 1); }}
             >
                 <div className="mx-auto rounded-full" style={{ width: 44, height: 5, background: 'var(--color-border-hover, #3a4358)' }} />
