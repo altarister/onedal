@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from "react-router-dom";
 import { ServerSwitch } from './components/ServerSwitch'
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 import Dashboard from "./pages/Dashboard";
 import Settlement from "./pages/Settlement";
 import Login from "./pages/Login";
@@ -31,6 +31,13 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 // Navigation Wrapper
 function AppLayout() {
   const location = useLocation();
+  // 🎭 무대 토글 즉시 반영 — localStorage 만 읽으면 다음 렌더까지 옛 값이 남는다
+  const [stageOn, setStageOn] = useState(() => localStorage.getItem('stagePreview') === '1');
+  useEffect(() => {
+    const on = () => setStageOn(localStorage.getItem('stagePreview') === '1');
+    window.addEventListener('stage-preview-changed', on);
+    return () => window.removeEventListener('stage-preview-changed', on);
+  }, []);
 
   // 네이티브 GPS 추적 시작 (앱: 고정밀 GPS, 브라우저: navigator.geolocation 폴백)
   useNativeLocation();
@@ -52,7 +59,7 @@ function AppLayout() {
       {/* 하단 네비게이션 — 🎭 무대(새 화면)에서는 숨김 (기사님 0831: 시트가 그 자리를 쓴다).
           정산은 헤더 아바타 → 설정 경로가 아니라 «토글 끄면» 다시 보인다 — 비교 운행용 임시 규칙,
           새 화면 확정 시 정산 가는 길을 다시 정한다 (아바타 메뉴 등). */}
-      {!(location.pathname === "/" && localStorage.getItem('stagePreview') === '1') && (
+      {!(location.pathname === "/" && stageOn) && (
       <nav className="fixed bottom-0 left-0 right-0 bg-surface/95 backdrop-blur-xl flex z-50 rounded-t-2xl shadow-[0_-4px_30px_rgba(0,0,0,0.08)]">
         <Link
           to="/"
