@@ -34,7 +34,7 @@ export function useDriveMotion(): 'drive' | 'idle' {
         /**
          * 🔴 mock 도 실 GPS 와 똑같이 **속도를 재서** 판단한다 (2026-08-31).
          *    예전엔 mock = 무조건 주행이라, 모의 주행에서 정차 상태(S2·S7)가
-         *    구조적으로 한 번도 안 나왔다 — 시뮬이 정차 연기(12초 같은 자리)를
+         *    구조적으로 한 번도 안 나왔다 — 시뮬이 정차 연기(18초 같은 자리)를
          *    하게 됐으므로 측정으로 충분하다. 출처 특례는 판단을 죽인다.
          */
         const onGps = (e: Event) => {
@@ -78,25 +78,35 @@ export function MovingBadge() {
     useEffect(() => {
         const onGpsUpdate = (e: Event) => {
             const loc = (e as CustomEvent<{ lat: number, lng: number, source?: string }>).detail;
+            /**
+             * 🔴 **모의도 실제와 같은 잣대로 잰다** (0831 리뷰에서 잡힘).
+             *    예전엔 `if (isMock) 속도 0` + `isMoving = isMock || …` 라 **모의는 무조건
+             *    «시뮬 주행»** 이었다. 같은 날 `useDriveMotion` 에서는 그 특례를 지웠는데
+             *    여기만 남아, 무대 자막이 «정차 중»인 옆에서 배지가 «시뮬 주행»이라고
+             *    반대말을 했다 (시뮬 정차 연기 18초마다). 판정은 한 잣대여야 한다.
+             */
             const isMock = loc.source === 'mock';
             const now = Date.now();
             setGpsIsMock(isMock);
-            if (isMock) { setCurrentSpeed(0); lastGpsRef.current = { ...loc, time: now }; }
-            else if (lastGpsRef.current) {
+            if (lastGpsRef.current) {
                 const distKm = getDistanceKm(lastGpsRef.current.lat, lastGpsRef.current.lng, loc.lat, loc.lng);
                 const h = (now - lastGpsRef.current.time) / 3_600_000;
-                if (h > 0) setCurrentSpeed(prev => (prev * 0.7) + ((distKm / h) * 0.3));
+                // 내려갈 땐 즉시, 올라갈 땐 평활 — useDriveMotion 과 같은 규칙
+                if (h > 0) {
+                    const measured = Math.min(250, distKm / h);
+                    setCurrentSpeed(prev => (measured < 5 ? measured : (prev * 0.7) + (measured * 0.3)));
+                }
             }
-            if (!isMock) lastGpsRef.current = { ...loc, time: now };
+            lastGpsRef.current = { ...loc, time: now };
         };
         window.addEventListener("local-gps-update", onGpsUpdate);
         return () => window.removeEventListener("local-gps-update", onGpsUpdate);
     }, []);
-    const isMoving = gpsIsMock || currentSpeed > 5;
+    const isMoving = currentSpeed > 5;
     return (
         <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[10.5px] font-black ${isMoving ? 'border-info/30 bg-info/10 text-info' : 'border-border bg-surface-alt text-text-muted'}`}>
             <span className={`w-1.5 h-1.5 rounded-full ${isMoving ? 'bg-info animate-pulse' : 'bg-text-muted'}`}></span>
-            {gpsIsMock ? '시뮬 주행' : isMoving ? `이동 중 ${Math.round(currentSpeed)}km/h` : '정차 중'}
+            {isMoving ? `${gpsIsMock ? '시뮬 ' : ''}이동 중 ${Math.round(currentSpeed)}km/h` : `${gpsIsMock ? '시뮬 ' : ''}정차 중`}
         </span>
     );
 }
@@ -203,7 +213,7 @@ export default function VehicleStatusPanel({ liveCalls }: { liveCalls: SecuredOr
 
 
     // 시뮬레이션 중에는 "달리고 있다"는 사실만 참이다 — 속도는 모른다
-    const isMoving = gpsIsMock || currentSpeed > 5;
+    const isMoving = currentSpeed > 5;
     const totalCount = liveCalls.length;
 
     /**

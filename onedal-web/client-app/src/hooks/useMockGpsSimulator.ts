@@ -165,7 +165,7 @@ export function useMockGpsSimulator({
 
             /**
              * 🎭 걸음은 전부 simStep 각본이 정한다 (2026-08-31 — 기사님: «시뮬이 연기를 해야
-             * 상태 기계가 밟힌다»): 정거장 1km 앞 감속 · 도착하면 실초 12초 정차(정차 감지
+             * 상태 기계가 밟힌다»): 정거장 1km 앞 감속 · 도착하면 실초 18초 정차(정차 감지
              * 10초가 진짜로 발화) · 재출발. 배속은 순항에만 곱한다 — 정차는 실초.
              * 정거장 좌표 찍기(도로에서 떨어진 물류센터 601m)도 각본 안에 있다.
              */
@@ -183,7 +183,7 @@ export function useMockGpsSimulator({
                 return;
             }
             if (!r.loc) return;
-            if (r.stoppedAt) console.log(`🏁 [Mock GPS] 정거장 도착 — 12초 정차 연기 (정차 감지가 발화할 시간)`);
+            if (r.stoppedAt) console.log(`🏁 [Mock GPS] 정거장 도착 — 18초 정차 연기 (정차 감지가 발화할 시간)`);
             else if (simRef.current.phase === 'dwell') { /* 정차 중 — 같은 자리 재송신 */ }
             else console.log(`📍 [Mock GPS] 이동 중: x=${r.loc.x}, y=${r.loc.y} (진척도: ${simRef.current.idx}/${path.length})`);
             hereRef.current = { x: r.loc.x, y: r.loc.y };

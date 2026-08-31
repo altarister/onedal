@@ -134,7 +134,7 @@ describe('한 판을 통째로 걸어 본다 — 기사님이 정한 수순', ()
         now += 60_000;
         expect(step({ type: 'arrive' }).snap).toBe('full');                    // 상차지 도착
         now += 12_000;
-        // 12초 정차 연기 중 정차 감지가 와도 신고 시트는 유지
+        // 18초 정차 연기 중 정차 감지가 와도 신고 시트는 유지
         expect(step({ type: 'signal' }).snap).toBeNull();
         now += 8_000;
         expect(step({ type: 'signal' }, { drive: 'drive' }).snap).toBe('peek'); // 다시 달린다

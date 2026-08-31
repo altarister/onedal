@@ -1,4 +1,4 @@
-import { isTerminal, isEvaluating, deckOfCycle } from "@onedal/shared";
+import { isTerminal, deckOfCycle, judgingCallOf } from "@onedal/shared";
 import { mergeOrderViews } from "../lib/orderMerge";
 import Header from "../components/layout/Header";
 import DeviceControlPanel from "../components/dashboard/DeviceControlPanel";
@@ -77,6 +77,7 @@ export default function Dashboard() {
         cancelBudgetToast,
     } = useOrderEngine();
 
+
     // [2026-08-10] 서버가 진행/종료를 **나눠서** 보낸다. 예전에는 한 배열로 와서
     // 받는 쪽마다 isTerminal 을 기억해야 했고, 잊으면 조용히 틀렸다 (AA·BB·DD).
     //
@@ -88,6 +89,8 @@ export default function Dashboard() {
     //    서버의 복구 쿼리 두 곳과 합쳐 같은 목록이 세 군데 손으로 적혀 있었다.
     //    `mergeOrderViews` 로 뽑아 한 곳에서 정하고, 렌더 없이 테스트한다.
     const activeRoute = mergeOrderViews(orders as any, terminatedOrders, liveCalls);
+    /** 🪧 심사 중인 콜 — 술어는 shared 한 곳에서 (규칙 ③) */
+    const judgingCall = judgingCallOf(activeRoute);
     // 취소·방출·완료된 귀가콜은 "진행 중"이 아니다.
     // 걸러내지 않으면 한 번 귀가콜을 만들었다 취소한 뒤로 다시 만들 수 없게 된다.
     const hasHomeReturnActive = activeRoute.some(
@@ -295,7 +298,8 @@ export default function Dashboard() {
                     둘 다 158px 고정이라 아래 내용이 한 픽셀도 안 밀린다. 차량 패널은 늘 그 자리 —
                     예전엔 심사 때 차량 패널까지 숨겨서 전환마다 아래가 출렁였다. */}
                 {(() => {
-                    const judging = activeRoute.find(o => !isTerminal(o.status) && (isEvaluating(o.status) || o.isPreview));
+                    // 🔴 술어를 여기서 다시 쓰지 않는다 — «심사석에 뜬 콜»과 «덱에서 빠진 콜»이 갈린다 (0831 리뷰)
+                    const judging = judgingCall;
                     if (judging) return (
                         <JudgmentSeat
                             route={judging}

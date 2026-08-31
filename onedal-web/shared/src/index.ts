@@ -1281,6 +1281,20 @@ export function hasVisitedStop(
 }
 
 /**
+ * 🪧 **심사석에 앉힐 콜** — 평가·미리보기 중인 것 하나 (덱에서는 뺀다).
+ *
+ * 🔴 **술어는 여기 하나다** (0831 리뷰에서 잡힘). 파생 제조소와 대시보드가 글자까지 같은
+ *    식을 각자 들고 있었다 — 한쪽에 조건이 붙는 순간 «심사석에 뜬 콜»과 «덱에서 빠진 콜»이
+ *    달라진다. 그 둘은 반드시 같은 콜이어야 한다 (규칙 ③).
+ */
+export function judgingCallOf<T extends { status?: string | null; isPreview?: boolean }>(
+    calls: T[],
+): T | undefined {
+    return calls.find(c => !isTerminal(c.status ?? undefined)
+        && (isEvaluating(c.status ?? undefined) || !!c.isPreview));
+}
+
+/**
  * 🔄 **이번 운행에서 "한 일"인가** — 하차·정산 완료만이다.
  *    취소·방출은 종결(`isTerminal`)이지만 **없던 일**이라 여기 안 든다.
  */

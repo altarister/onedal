@@ -91,7 +91,7 @@ export default function StageView(props: Props) {
      */
     useEffect(() => {
         const onConfirmed = (orderId: string) => {
-            useGpsFocusStore.setState({ gpsFocus: { orderId, tick: Date.now(), kind: 'arrive' } });
+            useGpsFocusStore.setState({ gpsFocus: { orderId, tick: Date.now(), kind: 'focus' } });
             feed({ type: 'keep' });
         };
         socket.on('order-confirmed', onConfirmed);
@@ -218,7 +218,7 @@ export default function StageView(props: Props) {
 
     /** 🖐️ 마커 탭 → 그 콜 카드 (S6 문법 — 지나온 곳도 확인·수정) */
     const focusCall = (orderId: string) => {
-        useGpsFocusStore.setState({ gpsFocus: { orderId, tick: Date.now(), kind: 'arrive' } });
+        useGpsFocusStore.setState({ gpsFocus: { orderId, tick: Date.now(), kind: 'focus' } });
         feed({ type: 'tap' });
     };
 
@@ -276,7 +276,7 @@ export default function StageView(props: Props) {
             </div>
 
             {/* 3단 시트 — 내용물은 기존 콜 화면 그대로 (sheetOnly) */}
-            <StageSheet snap={snap} onSnapChange={(s) => feed({ type: 'drag', to: s })} peekBar={peekBar} onUserDrag={() => { /* 손이 끈 것은 아래 onSnapChange 가 규칙에 알린다 */ }}>
+            <StageSheet snap={snap} onSnapChange={(s) => feed({ type: 'drag', to: s })} peekBar={peekBar}>
                 <PinnedRouteBody {...props} sheetOnly d={derived} />
             </StageSheet>
         </section>

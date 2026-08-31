@@ -48,7 +48,10 @@ describe('도착 약속 (promisedArrivalAt)', () => {
         // 30분·60분은 20분 룰을 모를 때의 가정치라 폐기 (기사님 확정 2026-08-31)
         const noApproach = { ...order, approachDurationMin: null, totalDistanceKm: null };
         const t = deriveCallTiming(noApproach, [], [], NOW);
-        expect(t.pickupDeadlineAt).toBe('2026-08-18T05:20:00.000Z');
+        // 약속은 «도착» 시각 — 주행을 몰라도 잡은 시각 + 20분 그대로다
+        expect(t.pickupPromisedArrivalAt).toBe('2026-08-18T05:20:00.000Z');
+        // 마감은 «실어 보내는» 시각이라 상차 정차(15분)를 더한다 — 두 갈래 모두 같은 뜻이어야 한다
+        expect(t.pickupDeadlineAt).toBe('2026-08-18T05:35:00.000Z');
     });
 
     it('옛 행 호환 — promisedArrivalAt 없이 deadlineAt 만 있으면 그 값을 완료로 쓴다', () => {

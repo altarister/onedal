@@ -130,20 +130,17 @@ function computeChain(o: any, born: Partial<Record<StepId, any>>, judgment?: Jud
         ?? tlEta('pickup')
         ?? (approach != null ? capturedMs + approach * 60_000 : null);
     /**
-     * ⏱️ **상차 시계** (주선사의 시계 · ⑯) — 통화 전 추정 상차 약속의 원천:
-     *    적요의 상차 시각 > (통화 약속 — 굳었으면 아래에서 이김) > 잡은 시각 + 잠정 30분.
-     *    🔴 **캡 바닥** (리허설 13번 버그): 시계가 도착 예상보다 일러도 도착 전 시각을
-     *    약속으로 지어내지 않는다 — 약속 = 도착 예상, 모자람은 상차버퍼 음수로 보인다.
+     * ⏱️ **상차 약속** — 통화 약속 > 적요의 상차 시각 > 콜 잡은 시각 + 20분 (용어집).
+     *
+     * 🔴 **여기서 손으로 다시 만들지 않는다** (0831 리뷰). 예전엔 적요 파싱과 KST 날짜
+     *    조립을 이 파일이 한 벌 더 갖고 있었고, 게다가 `max(도착 예상, 시계)` 로 눌러
+     *    **장부에 저장되는 약속**이 타임라인의 약속과 다른 시각을 말했다.
+     *    약속을 만드는 자리는 `pickupClockMsOf` 하나다 (규칙 ③).
+     * 🔴 약속은 도착 예상을 따라가지 않는다 — 늦으면 상차버퍼가 음수로 드러나야 한다.
      */
-    const memoPickupMs = (() => {
-        if (!hints.promisedAt) return null;                       // "12:42상차" → HH:MM
-        const kstDay = new Date(capturedMs + 9 * 3600_000).toISOString().slice(0, 10);
-        const t = Date.parse(`${kstDay}T${hints.promisedAt}:00+09:00`);
-        return Number.isFinite(t) && t >= capturedMs ? t : null;  // 과거 시각이면 무시
-    })();
-    const pickupClockMs = memoPickupMs ?? capturedMs + (cfg.unknown.pickupPromiseMin ?? 20) * 60_000;
+    const pickupClockMs = pickupClockMsOf(o, capturedMs, cfg.unknown.pickupPromiseMin ?? 20);
     const pickupPromise = ms(callP?.status !== 'PLANNED' ? callP?.promised_arrival_at : null)
-        ?? (pickupEta != null ? Math.max(pickupEta, pickupClockMs) : pickupClockMs);
+        ?? pickupClockMs;
     const departMs = ms(born.LOADED?.occurred_at) ?? pickupPromise + pickupDwell * 60_000;
     const dropoffEta = ms(born.ARRIVE_DROPOFF?.occurred_at)
         ?? tlEta('dropoff')

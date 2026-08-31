@@ -333,23 +333,6 @@ export function defaultDropoffDeadline(nowMs: number, travelMinutes: number): st
     return new Date(Math.max(arrival, Math.min(preferred, hard))).toISOString();
 }
 
-/**
- * **상차 마감 — 콜 잡은 시각 + N분.** 통화 전에도 있어야 여유를 셀 수 있다.
- *
- * 🔴 **이 시각은 "상차지 도착"이 아니라 "물건을 실어 *보내는*" 시각이다** (기사님 2026-08-16):
- *    *"화주의 생각은 보통 **여기서 물건 실어서 몇 시에 보낼 수 있을까**야. 그러니 상차 시간을
- *    포함해야 해. 이건 그냥 룰이라고 생각하고 너의 관념에 픽스시켜."*
- *    그래서 출발 시각을 역산할 때 **상차 정차도 함께 뺀다** (`departureDeadline` 참조).
- *
- * 기본값은 **20분**이다 (`DEFAULT_DEADLINE_RULES.pickupPromiseMinutes`) —
- * 숫자를 여기 적지 않고 그 표를 본다 (규칙 ③).
- *
- * ⚠️ 예전에는 이 값이 60분·30분으로 흔들렸다. 둘 다 **배송 원칙을 알기 전의 가정치**라
- *    2026-08-31 에 기사님이 20분으로 확정하며 지웠다.
- */
-export function defaultPickupDeadline(capturedAtMs: number, offsetMinutes: number): string {
-    return new Date(capturedAtMs + offsetMinutes * 60_000).toISOString();
-}
 
 /**
  * 🔴 **앱이 한국 시각에 `Z` 를 붙여 보내던 것을 바로잡는다** (2026-08-16).
@@ -574,7 +557,7 @@ export interface CallTiming {
     /**
      * 🕒 **도착 약속** — 통화로 정한 "몇 시까지 갈게요" (기사님 확정 2026-08-18).
      * 상차 소요와 분리된 저장값이며, 완료(deadlineAt)는 여기에 소요를 더해 파생한다.
-     * 통화 전엔 추정(도착 예상 + 여유 30분) · 접근 주행을 모르면 null.
+     * 통화 전엔 추정(콜 잡은 시각 + 20분).
      */
     pickupPromisedArrivalAt: string | null;
     dropoffPromisedArrivalAt: string | null;
@@ -845,21 +828,24 @@ export function deriveCallTiming(
      *
      *    이제 **상차에서 순산**한다 (기사님 모델):
      * ```
-     *    상차 마감 = 콜 잡은 시각 + 60분      (콜 대기 여유 · 실어 **보내는** 시각)
-     *    하차 마감 = 상차 마감 + 단독 주행 + 30분  (휴식 여유)
+     *    상차 약속 = 콜 잡은 시각 + 20분      (그 시각까지 상차지 도착 · 0831 확정)
+     *    상차 마감 = 상차 약속 + 상차 정차       (실어 **보내는** 시각)
+     *    하차 마감 = 상차 완료 + 배송 주행 × 150%
      * ```
      */
     const capturedMs = parseCapturedAt(order.capturedAt, nowMs);
     if (!pickupDeadlineAt && capturedMs != null) {
-        // ⏱️ 두 시계 (⑯) — 추정 상차 약속 = max(도착 예상, 상차 시계). 여유30 은 폐기됐다.
-        if (approachMinutes != null) {
-            const clock = pickupClockMsOf(order, capturedMs, rules.pickupPromiseMinutes ?? 20);
-            pickupPromisedArrivalAt = new Date(
-                Math.max(capturedMs + approachMinutes * 60_000, clock)).toISOString();
-            pickupDeadlineAt = addMin(pickupPromisedArrivalAt, pickupDwell);
-        } else {
-            pickupDeadlineAt = defaultPickupDeadline(capturedMs, rules.pickupPromiseMinutes);
-        }
+        /**
+         * ⏱️ **상차 약속 = 콜 잡은 시각 + 20분** (기사님 확정 2026-08-31).
+         * 🔴 옛 식은 `max(상차지 도착 예상, 시계)` 라 **약속이 도착 예상을 따라갔다** —
+         *    상차 여유가 구조적으로 늘 0이고 늦는 것도 0으로 눌렸다.
+         *    `deriveRouteTimeline` 만 고치고 여기를 빼먹어, 심사 카드(잡기 전)와
+         *    덱·카운트다운(잡은 뒤)이 **같은 콜에 두 숫자**를 말했다 (0831 리뷰에서 잡힘).
+         * 🔴 «마감»은 실어 **보내는** 시각이라 약속에 상차 정차를 더한다 — 두 갈래 모두.
+         */
+        pickupPromisedArrivalAt = new Date(
+            pickupClockMsOf(order, capturedMs, rules.pickupPromiseMinutes ?? 20)).toISOString();
+        pickupDeadlineAt = addMin(pickupPromisedArrivalAt, pickupDwell);
         deadlineEstimated = true;
     }
     if (!dropoffDeadlineAt) {
@@ -1140,7 +1126,7 @@ export function deriveRouteTimeline(
         ) as any;
         /**
          * ⏱️ **추정 약속은 두 시계다** (⑯ · 2026-08-21 — 시딩 d257f90 과 같은 규칙).
-         *    상차 = max(도착 예상, 상차 시계) — 캡 바닥: 도착 전 시각을 권하지 않는다
+         *    상차 = 상차 약속 그 자체 (잡은 시각 + 20분) — 늦으면 버퍼가 음수로 드러난다
          *    하차 = 배달 데드라인 = 상차 완료(실제 PICKED_UP > 이 경로의 상차 약속+정차) + 배송×150%
          *    배송 주행을 모르면(합짐) 하차 추정 없음 — 지어내지 않는다 (규칙 ④).
          *    🔴 통화로 굳힌 약속(declared)은 어느 쪽도 안 깎는다 — 화주 합의가 면책.

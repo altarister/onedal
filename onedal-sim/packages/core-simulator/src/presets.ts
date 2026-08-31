@@ -523,12 +523,25 @@ export const PRESETS: Record<string, PresetProblem[]> = {
 
 /** 문제 하나를 생성기가 먹을 수 있는 강제 쌍으로 — 주소를 못 찾으면 null (지어내지 않는다) */
 export function toForcedPair(p: PresetProblem, ctx?: RelativeContext): ForcedPair | null {
+    /**
+     * 🔴 **주소가 비었으면 «못 찾음»이다** (0831 리뷰). `findMockEntry('')` 는
+     *    `includes('')` 라 **항상 참** — 첫 주소를 조용히 집어온다. 오늘 주소를 옵셔널로
+     *    바꾸면서 «지어내지 않는다»(규칙 ④)가 깨질 뻔했다: 띠도 주소도 없는 문제가
+     *    건너뛰는 대신 **엉뚱한 곳으로 출제**된다.
+     */
+    const byName = (part?: string) => (part ? findMockEntry(part) : undefined);
     const pickup = p.pickupBand
         ? pickByBand(p.pickupBand, ctx, `${p.label} 상차`)
-        : (findMockEntry(p.pickup ?? '') ?? p.pickupFallback);
+        : (byName(p.pickup) ?? p.pickupFallback);
+    /**
+     * 🔴 하차 띠는 **상차지에서** 잰다 — 요금/단가 축이 먹는 값은 «상차→하차» 거리다
+     *    (0831 리뷰). 현위치에서 재면 같은 문제의 정답이 기사님 위치에 따라 흔들려,
+     *    «어디서 돌려도 정답이 같다»는 이 문제지의 약속이 깨진다.
+     */
     const dropoff = p.dropoffBand
-        ? pickByBand(p.dropoffBand, ctx, `${p.label} 하차`, pickup)
-        : (findMockEntry(p.dropoff ?? '') ?? p.dropoffFallback);
+        ? pickByBand(p.dropoffBand, pickup ? { ...ctx!, driverLon: pickup.lon, driverLat: pickup.lat } : ctx,
+                     `${p.label} 하차`, pickup)
+        : (byName(p.dropoff) ?? p.dropoffFallback);
     if (!pickup || !dropoff) {
         console.warn(`🎯 [문제지] "${p.label}" 의 주소를 모의 데이터에서 못 찾았습니다 — 건너뜁니다`);
         return null;

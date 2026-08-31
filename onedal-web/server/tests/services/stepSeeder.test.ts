@@ -81,12 +81,18 @@ maybe('출생 모델 — KEEP 은 첫 행만 낳는다', () => {
      *    도착 전 시각을 약속으로 지어내지 않는다. 약속 = 도착 예상(현실)이 되고,
      *    모자람은 상차버퍼 음수(통화 필수)로 보인다.
      */
-    it('🔴 접근이 상차 시계를 넘는 콜 — 약속은 도착 예상까지 (불가능한 약속 금지)', () => {
-        putOrder({ totalDurationMin: 153, kakaoSoloDurationMin: 78 });   // 접근 75분 (노하우 13 재현)
+    it('🔴 상차지가 멀어 20분을 못 지켜도 약속은 그대로 — 늦음은 버퍼 음수로 드러난다', () => {
+        /**
+         * 🔄 옛 검사는 «약속 = 도착 예상»(불가능한 약속 금지)이었다. 기사님 확정 2026-08-31 로
+         *    뒤집혔다 — 약속은 «잡은 시각 + 20분»이고, 못 지키면 늦은 것이다.
+         *    그걸 알아야 그 상차지에 전화를 건다. 감추면 전화할 기회를 뺏는다.
+         *    (같은 이유로 `tests/shared/timelineDeadlineCap.test.ts` 도 함께 뒤집혔다)
+         */
+        putOrder({ totalDurationMin: 153, kakaoSoloDurationMin: 78 });   // 상차지까지 75분
         birthFirstStep(USER, ORDER_ID);
         const r = of('CALL_PICKUP').row;
-        expect(kst(r.predicted_at)).toBe('17:24');           // 16:09 + 75
-        expect(kst(r.promised_arrival_at)).toBe('17:24');    // 시계(16:39)가 아니라 도착 예상
+        expect(kst(r.predicted_at)).toBe('17:24');           // 도착 예상 16:09 + 75
+        expect(kst(r.promised_arrival_at)).toBe('16:29');    // 약속은 잡은 시각 + 20분 그대로
     });
 
     /** ⏱️ 적요의 상차 시각이 상차 시계를 대체한다 (소숙 콜③ — 10시 예약) */

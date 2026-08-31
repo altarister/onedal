@@ -18,14 +18,12 @@ const HEIGHT: Record<SheetSnap, string> = {
 interface Props {
     snap: SheetSnap;
     onSnapChange: (s: SheetSnap) => void;
-    /** 사용자가 드래그로 바꿨다 — 자동 전환 유예의 신호 (v22 규칙: 손이 이긴다) */
-    onUserDrag?: () => void;
     /** 🎬 자막 줄 — 시트가 내려가 있어도 이 한 줄이 무대의 상태를 말한다 (v23 엿보기 줄) */
     peekBar?: React.ReactNode;
     children: React.ReactNode;
 }
 
-export default function StageSheet({ snap, onSnapChange, onUserDrag, peekBar, children }: Props) {
+export default function StageSheet({ snap, onSnapChange, peekBar, children }: Props) {
     const startY = useRef<number | null>(null);
     const startSnap = useRef<SheetSnap>(snap);
     const dragged = useRef(false);   // 드래그로 한 단 움직였으면 이어지는 click 을 무시 (되튐 버그)
@@ -35,7 +33,8 @@ export default function StageSheet({ snap, onSnapChange, onUserDrag, peekBar, ch
         const i = order.indexOf(startSnap.current) + dir;
         const next = order[Math.max(0, Math.min(2, i))];
         startSnap.current = next;   // 한 제스처로 여러 단 — 기준점을 딛고 계속 끈다
-        if (next !== snap) { onUserDrag?.(); onSnapChange(next); }
+        // 손이 이긴다는 유예는 규칙(stageStep)이 `drag` 사건에서 건다 — 여기서 또 알리지 않는다
+        if (next !== snap) onSnapChange(next);
     };
 
     return (

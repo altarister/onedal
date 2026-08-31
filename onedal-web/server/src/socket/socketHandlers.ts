@@ -1,6 +1,6 @@
 import { Server, Socket } from "socket.io";
 import jwt from "jsonwebtoken";
-import { jwtSecret } from "../config/env";
+import { jwtSecret, isLiveServer } from "../config/env";
 import { isKnownUser } from "../middlewares/authMiddleware";
 import { getUserDevicesSnapshot } from "../routes/devices";
 import { getRegionsByCity } from "../geoResolver";
@@ -351,7 +351,11 @@ export function registerSocketHandlers(io: Server) {
          * 가상 위치를 계속 «지금 위치»로 믿으면 다음 첫짐 경로가 직전 하차지에서
          * 빙 둘러 그려진다 (기사님 실측). 걷어내고 내 주소로 메운다 — 비움+메움 한 몸.
          */
-        socket.on("mock-driving-ended", () => clearMockLocation(userId, session));
+        socket.on("mock-driving-ended", () => {
+            // 🔴 클라가 개발 빌드에서만 쏘지만 서버도 한 겹 막는다 (규칙 ② — 겹쳐 둔다)
+            if (isLiveServer()) return;
+            clearMockLocation(userId, session);
+        });
 
         // ━━━ [관제웹 Master GPS 수신부] ━━━
         socket.on("dashboard-gps-update", (loc: { lat: number, lng: number, source?: string }) => {

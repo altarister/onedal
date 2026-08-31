@@ -71,7 +71,10 @@ describe('시뮬 전용 문 — 개발 빌드에서만 열린다', () => {
     const route = readFileSync(join(__dirname, '../../src/routes/sim.ts'), 'utf8');
 
     it('🔴 운영에서는 404', () => {
-        expect(route).toMatch(/process\.env\.NODE_ENV !== "production"/);
+        // 🔴 «라이브인가»를 혼자 판정하지 않는다 — 레포의 두 신호 판정(isLiveServer)을 쓴다.
+        //    NODE_ENV 하나만 보면 그 설정이 빠진 날 조용히 열린다 (0831 리뷰에서 잡힘)
+        expect(route).toMatch(/isLiveServer\(\)/);
+        expect(route).not.toMatch(/process\.env\.NODE_ENV/);
         expect(route).toMatch(/return res\.status\(404\)/);
     });
 

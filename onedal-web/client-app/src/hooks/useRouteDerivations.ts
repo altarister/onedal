@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
-import { isEvaluating, isTerminal, hasVisitedStop, isDeliveredCall, deriveRouteTimeline, derivationInputsOf, deckOfCycle } from '@onedal/shared';
+import { isEvaluating, isTerminal, hasVisitedStop, isDeliveredCall, judgingCallOf, deriveRouteTimeline, derivationInputsOf, deckOfCycle } from '@onedal/shared';
 import type { SecuredOrder, RouteStopInfo } from '@onedal/shared';
 import { EMPTY_RECORDS } from './records';
 import { useStepRecords } from './useStepRecords';
@@ -144,7 +144,7 @@ export function useRouteDerivations(
     const allEvaluating = safeRoute.some(r => isEvaluating(r.status));
 
     /** 🪧 심사석 대상 — 평가·미리보기 중인 콜 하나 (덱에서는 뺀다) */
-    const judging = safeRoute.find(r => !isTerminal(r.status) && (isEvaluating(r.status) || r.isPreview));
+    const judging = judgingCallOf(safeRoute);
 
     /**
      * 🗺️ 타임라인도 **여기서 한 번** 만든다 (규칙 ③) — 카운트다운·덱과 같은 값을
@@ -218,20 +218,25 @@ export function useRouteDerivations(
      *    취소·방출은 없던 일이라 안 남는다 (deckOfCycle 과 같은 기준).
      */
     const visitedTrail = useMemo(() => {
-        const out: Array<{ x: number; y: number; type: '상차' | '하차'; at: number;
+        /**
+         * 🔴 `at` 이 `null` 인 것 — 버튼으로만 보고해 **도착 시각을 모르는** 정거장이다.
+         *    예전엔 0 을 넣었는데, 0 은 «아주 옛날»이라 정렬 맨 앞으로 가서 ✓1 을 훔쳤다
+         *    (규칙 ④ — 0 이 아니라 null · 0831 리뷰에서 잡힘). 시각을 모르면 **뒤로** 놓는다.
+         */
+        const out: Array<{ x: number; y: number; type: '상차' | '하차'; at: number | null;
                            orderId: string; name: string; no: number }> = [];
         for (const r of cycleDeck) {
             if (isTerminal(r.status) && !isDeliveredCall(r)) continue;
             if (hasVisitedStop(r, 'pickup') && r.pickupX != null && r.pickupY != null)
                 out.push({ x: r.pickupX, y: r.pickupY, type: '상차', orderId: r.id, no: 0,
                            name: getAddressLabel(r.pickup),
-                           at: r.arrivedPickupAt ? Date.parse(r.arrivedPickupAt) : 0 });
+                           at: r.arrivedPickupAt ? Date.parse(r.arrivedPickupAt) : null });
             if (hasVisitedStop(r, 'dropoff') && r.dropoffX != null && r.dropoffY != null)
                 out.push({ x: r.dropoffX, y: r.dropoffY, type: '하차', orderId: r.id, no: 0,
                            name: getAddressLabel(r.dropoff),
-                           at: r.arrivedDropoffAt ? Date.parse(r.arrivedDropoffAt) : 0 });
+                           at: r.arrivedDropoffAt ? Date.parse(r.arrivedDropoffAt) : null });
         }
-        out.sort((a, b) => a.at - b.at);
+        out.sort((a, b) => (a.at ?? Infinity) - (b.at ?? Infinity));
         // 🔒 번호 동결 — 방문 순서가 곧 그 정거장의 영원한 번호다 (기사님 확정 2026-08-31)
         out.forEach((v, i) => { v.no = i + 1; });
         return out;
