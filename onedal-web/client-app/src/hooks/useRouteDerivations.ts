@@ -171,9 +171,6 @@ export function useRouteDerivations(
         return m;
     }, [routeTimeline]);
 
-    // 지도 상의 방문 순번(1, 2, 3...)을 콜(주문) ID별 상/하차지로 매핑
-    const visitOrderMap = useMemo(() => buildVisitOrderMap(unifiedRoutePoints), [unifiedRoutePoints]);
-
     /**
      * 👣 **지나온 발자취 — 사이클이 끝날 때까지 지도에 남는다** (기사님 2026-08-31).
      *    다녀온 정거장은 경로·순번에서 빠지는 게 맞지만(다시 안 간다), 화면에서
@@ -182,17 +179,46 @@ export function useRouteDerivations(
      *    취소·방출은 없던 일이라 안 남는다 (deckOfCycle 과 같은 기준).
      */
     const visitedTrail = useMemo(() => {
-        const out: Array<{ x: number; y: number; type: '상차' | '하차'; at: number }> = [];
+        const out: Array<{ x: number; y: number; type: '상차' | '하차'; at: number;
+                           orderId: string; name: string; no: number }> = [];
         for (const r of cycleDeck) {
             if (isTerminal(r.status) && !isDeliveredCall(r)) continue;
             if (hasVisitedStop(r, 'pickup') && r.pickupX != null && r.pickupY != null)
-                out.push({ x: r.pickupX, y: r.pickupY, type: '상차',
+                out.push({ x: r.pickupX, y: r.pickupY, type: '상차', orderId: r.id, no: 0,
+                           name: getAddressLabel(r.pickup),
                            at: r.arrivedPickupAt ? Date.parse(r.arrivedPickupAt) : 0 });
             if (hasVisitedStop(r, 'dropoff') && r.dropoffX != null && r.dropoffY != null)
-                out.push({ x: r.dropoffX, y: r.dropoffY, type: '하차',
+                out.push({ x: r.dropoffX, y: r.dropoffY, type: '하차', orderId: r.id, no: 0,
+                           name: getAddressLabel(r.dropoff),
                            at: r.arrivedDropoffAt ? Date.parse(r.arrivedDropoffAt) : 0 });
         }
-        return out.sort((a, b) => a.at - b.at);
+        out.sort((a, b) => a.at - b.at);
+        // 🔒 번호 동결 — 방문 순서가 곧 그 정거장의 영원한 번호다 (기사님 확정 2026-08-31)
+        out.forEach((v, i) => { v.no = i + 1; });
+        return out;
+    }, [cycleDeck]);
+
+    // 지도 상의 방문 순번을 콜 ID별 상/하차지로 매핑.
+    // 🔒 남은 정거장은 «방문한 개수 + 1» 부터 — 지나간 번호는 동결이라 재사용하지 않는다 (①)
+    const visitOrderMap = useMemo(() => {
+        const m = buildVisitOrderMap(unifiedRoutePoints);
+        const k = visitedTrail.length;
+        if (k > 0) for (const v of m.values()) {
+            if (v.pickupIdx > 0) v.pickupIdx += k;
+            if (v.dropoffIdx > 0) v.dropoffIdx += k;
+        }
+        return m;
+    }, [unifiedRoutePoints, visitedTrail.length]);
+
+
+    /**
+     * 🎨 **콜 색 — 사이클 안에서 콜마다 고유 색 하나** (기사님 확정 2026-08-31 ②).
+     *    지도 마커 테두리·덱 카드 점이 같은 색을 봐서 «③이 몇 번 콜이었나»가 색으로 읽힌다.
+     *    기준은 덱 순서(cycleDeck) — 하차해도 사이클 끝까지 색이 안 바뀐다.
+     */
+    const callColors = useMemo(() => {
+        const PALETTE = ['#4f8df9', '#f59e0b', '#a78bfa', '#ef4444', '#22d3ee', '#ec4899', '#a3e635'];
+        return new Map(cycleDeck.map((r, i) => [r.id, PALETTE[i % PALETTE.length]] as const));
     }, [cycleDeck]);
 
     const chronologicalIds = useMemo(() => {
@@ -208,6 +234,6 @@ export function useRouteDerivations(
     return {
         stepRecords, liveRoute, cycleDeck, activePolyline, isDriving, mockStops,
         currentGps, gpsSource, myLocation, safeRoute, allEvaluating, judging, gpsFocus,
-        routeTimeline, unifiedRoutePoints, etaMap, visitOrderMap, chronologicalIds, visitedTrail,
+        routeTimeline, unifiedRoutePoints, etaMap, visitOrderMap, chronologicalIds, visitedTrail, callColors,
     };
 }

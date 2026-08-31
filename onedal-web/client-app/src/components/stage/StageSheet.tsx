@@ -10,7 +10,7 @@ import { useRef } from 'react';
 export type SheetSnap = 'peek' | 'half' | 'full';
 
 const HEIGHT: Record<SheetSnap, string> = {
-    peek: '64px',
+    peek: '72px',
     half: '58%',
     full: '100%',
 };
@@ -20,10 +20,12 @@ interface Props {
     onSnapChange: (s: SheetSnap) => void;
     /** 사용자가 드래그로 바꿨다 — 자동 전환 유예의 신호 (v22 규칙: 손이 이긴다) */
     onUserDrag?: () => void;
+    /** 🎬 자막 줄 — 시트가 내려가 있어도 이 한 줄이 무대의 상태를 말한다 (v23 엿보기 줄) */
+    peekBar?: React.ReactNode;
     children: React.ReactNode;
 }
 
-export default function StageSheet({ snap, onSnapChange, onUserDrag, children }: Props) {
+export default function StageSheet({ snap, onSnapChange, onUserDrag, peekBar, children }: Props) {
     const startY = useRef<number | null>(null);
     const startSnap = useRef<SheetSnap>(snap);
     const dragged = useRef(false);   // 드래그로 한 단 움직였으면 이어지는 click 을 무시 (되튐 버그)
@@ -64,6 +66,10 @@ export default function StageSheet({ snap, onSnapChange, onUserDrag, children }:
             >
                 <div className="mx-auto rounded-full" style={{ width: 44, height: 5, background: 'var(--color-border-hover, #3a4358)' }} />
             </div>
+            {peekBar && (
+                <div className="shrink-0 px-4 pb-2 text-[13px] font-bold tabular-nums truncate"
+                     style={{ color: 'var(--color-text-primary, #dfe5ef)' }}>{peekBar}</div>
+            )}
             <div data-sheet-scroll className="flex-1 overflow-y-auto min-h-0">{children}</div>
         </div>
     );

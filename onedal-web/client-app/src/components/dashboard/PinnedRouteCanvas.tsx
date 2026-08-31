@@ -18,8 +18,12 @@ export interface RoutePoint {
 }
 
 interface Props {
-    /** 👣 지나온 발자취 — 표시 전용, 방문 시각순 (사이클 끝까지 남는다) */
-    visitedTrail?: Array<{ x: number; y: number; type: '상차' | '하차' }>;
+    /** 👣 지나온 발자취 — 표시 전용. no = 방문 순서로 동결된 사이클 번호표 (①) */
+    visitedTrail?: Array<{ x: number; y: number; type: '상차' | '하차'; orderId: string; name: string; no: number }>;
+    /** 🎨 콜 ID → 고유 색 — 마커 테두리와 덱 카드 점이 같은 색을 본다 (②) */
+    callColors?: Map<string, string>;
+    /** 🖐️ 마커 탭 — 그 콜 카드로 (S6 문법: 지나온 곳은 확인·수정) */
+    onStopTap?: (orderId: string) => void;
     unifiedRoutePoints: RoutePoint[];
     /** **진행 중인 콜만** 넘긴다. 종료된 콜을 여기서 거르지 않는다 —
      *  계약을 좁히면 거르기를 잊을 자리가 없어진다 (2026-08-10 전수조사) */
@@ -30,7 +34,7 @@ interface Props {
     fill?: boolean;
 }
 
-export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLocation, children, fill, visitedTrail }: Props) {
+export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLocation, children, fill, visitedTrail, callColors, onStopTap }: Props) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const { theme } = useTheme();
     const mapColors = MAP_THEME_COLORS[theme];
@@ -41,6 +45,9 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
     const isDragging = useRef(false);
     const lastPos = useRef({ x: 0, y: 0 });
     const lastDist = useRef(0);
+    /** 마지막으로 그린 마커의 화면 좌표 — 탭 히트 판정용 (그릴 때마다 갱신) */
+    const markerHits = useRef<Array<{ cx: number; cy: number; orderId: string }>>([]);
+    const movedPx = useRef(0);   // 팬과 탭을 가른다
 
     // 캔버스 미니맵 렌더링 (단독 함수로 분리하여 제스처 시 즉각 호출)
     const drawMap = useCallback(() => {
@@ -218,29 +225,30 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             ctx.setLineDash([]);
         }
 
-        // 1.7. 👣 지나온 발자취 — 사이클 끝까지 남는다 (표시 전용 · 방문 시각순 ✓번호)
-        trail.forEach((p, i) => {
+        // 1.7. 👣 지나온 발자취 — 번호는 방문 순서로 동결, 테두리 색 = 콜 색 (①·②)
+        markerHits.current = [];
+        trail.forEach((p) => {
             const { cx, cy } = getScreenPt(p);
+            markerHits.current.push({ cx, cy, orderId: p.orderId });
             ctx.beginPath();
-            ctx.arc(cx, cy, 8, 0, 2 * Math.PI);
-            ctx.fillStyle = withAlpha('#35c3a9', 0.35);
+            ctx.arc(cx, cy, 9, 0, 2 * Math.PI);
+            ctx.fillStyle = withAlpha('#35c3a9', 0.4);       // 초록 채움 = 다녀옴
             ctx.fill();
-            ctx.lineWidth = 1.5;
-            ctx.strokeStyle = '#35c3a9';
+            ctx.lineWidth = 2.5;
+            ctx.strokeStyle = callColors?.get(p.orderId) ?? '#35c3a9';   // 테두리 = 콜 색
             ctx.stroke();
-            ctx.fillStyle = '#35c3a9';
+            ctx.fillStyle = '#d7f5ee';
             ctx.font = 'bold 10px sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(String(i + 1), cx, cy);
-            ctx.font = '9px sans-serif';
-            ctx.fillText(p.type === '상차' ? '✓상' : '✓하', cx, cy - 14);
+            ctx.fillText(String(p.no), cx, cy + 0.5);
         });
 
         // 2. 노드 렌더링
         validPoints.forEach((p, i) => {
             const { cx, cy } = getScreenPt(p);
 
+            if (p.routeId) markerHits.current.push({ cx, cy, orderId: p.routeId });
             ctx.beginPath();
             ctx.arc(cx, cy, 10, 0, 2 * Math.PI);
             ctx.fillStyle = p.type === '상차' ? mapColors.nodePickup : mapColors.nodeDropoff;
@@ -251,7 +259,8 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
                 ctx.strokeStyle = mapColors.nodeStrokeEvaluating;
             } else {
                 ctx.lineWidth = 2.5;
-                ctx.strokeStyle = mapColors.nodeStrokeRegular;
+                // 🎨 테두리 = 콜 색 (②) — 어느 콜의 정거장인지 색으로 읽힌다
+                ctx.strokeStyle = (p.routeId && callColors?.get(p.routeId)) || mapColors.nodeStrokeRegular;
             }
             ctx.fill();
             ctx.stroke();
@@ -260,7 +269,8 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             ctx.font = 'bold 11px sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText((i + 1).toString(), cx, cy + 1);
+            // 🔒 번호는 방문한 개수 다음부터 — 지나간 번호를 재사용하지 않는다 (①)
+            ctx.fillText((trail.length + i + 1).toString(), cx, cy + 1);
 
             const textWidth = ctx.measureText(p.name).width;
             ctx.fillStyle = withAlpha(theme === 'light' ? mapColors.textBgLight : mapColors.textBgDark, theme === 'light' ? 0.8 : 0.45);
@@ -308,6 +318,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
     // 제스처 핸들러 (드래그 팬 & 줌)
     const handlePointerDown = (e: any) => {
         isDragging.current = true;
+        movedPx.current = 0;
         if (e.touches && e.touches.length === 1) {
             lastPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
         } else if (e.clientX !== undefined) {
@@ -350,13 +361,22 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
 
         panRef.current.x += deltaX;
         panRef.current.y += deltaY;
+        movedPx.current += Math.abs(deltaX) + Math.abs(deltaY);
 
         lastPos.current = { x: clientX, y: clientY };
         drawMap();
     };
 
-    const handlePointerUp = () => {
+    const handlePointerUp = (e?: any) => {
         isDragging.current = false;
+        if (!onStopTap || movedPx.current > 8) return;   // 팬이었다 — 탭 아님
+        const canvas = canvasRef.current;
+        const pt = e?.changedTouches?.[0] ?? e;
+        if (!canvas || pt?.clientX == null) return;
+        const rect = canvas.getBoundingClientRect();
+        const x = pt.clientX - rect.left, y = pt.clientY - rect.top;
+        const hit = markerHits.current.find(h => Math.hypot(h.cx - x, h.cy - y) <= 20);
+        if (hit) onStopTap(hit.orderId);
     };
 
     const handleZoomClick = (zoomDelta: number) => {

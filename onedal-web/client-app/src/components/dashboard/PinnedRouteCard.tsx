@@ -108,6 +108,8 @@ interface Props {
     etaMap: Map<string, EtaCell>;
     visitOrderMap: Map<string, { pickupIdx: number, dropoffIdx: number }>;
     indexNum: number;
+    /** 🎨 콜 색 — 지도 마커 테두리와 같은 색 점 (한눈 대응 · 기사님 확정 0831 ②) */
+    accentColor?: string;
     /** 이 콜의 서버 기록 (통화·현장 신고 + 마일스톤). 위에서 한 번에 받아 내려준다 */
     records: CallRecords;
     /** 🗺️ 경로 타임라인 — 덱·카운트다운과 같은 값을 통화 시트도 본다 (규칙 ③) */
@@ -131,6 +133,7 @@ export default function PinnedRouteCard({
     etaMap,
     visitOrderMap,
     indexNum,
+    accentColor,
     records,
     timeline,
     variant = 'list',
@@ -289,6 +292,7 @@ export default function PinnedRouteCard({
                    → 요약 줄에 없는 것만 남긴다: 몇 번째 콜인가 · 언제 잡았나 · 수수료 · 예약. */}
             {isDeck && (
                 <div className="px-4 pt-2.5 pb-1 flex flex-wrap items-center gap-x-2 text-[11px] text-text-muted tabular-nums">
+                    {accentColor && <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: accentColor }} />}
                     <span className="font-black text-text-primary">{indexNum}.</span>
                     {/* 🔄 이번 운행에서 **끝낸** 콜 — 사이클이 도는 동안 카드가 남는다 (2026-08-19).
                         마지막 하차를 마치면 이 카드들이 한꺼번에 완료됨 탭으로 간다 */}

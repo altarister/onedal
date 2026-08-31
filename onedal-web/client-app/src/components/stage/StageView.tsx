@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import type { SecuredOrder, RouteStopInfo } from '@onedal/shared';
 import { hasVisitedStop } from '@onedal/shared';
 import { useRouteDerivations } from '../../hooks/useRouteDerivations';
-import { getAddressLabel } from '../../lib/routeUtils';
+import { getAddressLabel, getDistanceKm } from '../../lib/routeUtils';
 import PinnedRouteCanvas from '../dashboard/PinnedRouteCanvas';
 import StageSheet, { type SheetSnap } from './StageSheet';
 import { PinnedRouteBody } from '../dashboard/PinnedRoute';
@@ -91,6 +91,8 @@ export default function StageView(props: Props) {
         const callNo = liveRoute.findIndex(r => r.id === st.orderId) + 1;
         return {
             idx, total: routeStops.length, orderId: st.orderId,
+            x: st.stopType === 'pickup' ? o.pickupX : o.dropoffX,
+            y: st.stopType === 'pickup' ? o.pickupY : o.dropoffY,
             name: getAddressLabel(st.stopType === 'pickup' ? o.pickup : o.dropoff),
             stopLabel: st.stopType === 'pickup' ? '상차' : '하차',
             callNo, driveMinutes: st.driveMinutes,
@@ -99,6 +101,29 @@ export default function StageView(props: Props) {
                 return (st.stopType === 'pickup' ? vo?.pickupIdx : vo?.dropoffIdx) ?? idx + 1; })(),
         };
     })();
+
+    /**
+     * 🎬 자막 줄 (v23 엿보기 줄 · 기사님 확정 ③) — «✅2 초월 → 3 곤지암 이동 중 · ~20km 남음».
+     *    거리는 GPS→다음 정거장 직선이라 ~ 를 붙인다 (규칙 ⑤-2 — 추정은 추정이라 말한다).
+     */
+    const lastVisited = derived.visitedTrail.length > 0
+        ? derived.visitedTrail[derived.visitedTrail.length - 1] : null;
+    const peekBar = (() => {
+        if (liveRoute.length === 0) return '진행 중인 경로 없음 · 새 콜 대기';
+        if (!next) return '이번 사이클 정거장을 모두 지났습니다';
+        const from = lastVisited ? `✅${lastVisited.no} ${lastVisited.name}` : '출발지';
+        const dist = (myLocation && next.x != null && next.y != null)
+            ? getDistanceKm(myLocation.y, myLocation.x, next.y, next.x) : null;
+        return `${from} → ${next.visitNo} ${next.name} ${drive === 'drive' ? '이동 중' : '대기 중'}`
+            + (dist != null ? ` · ~${dist < 10 ? dist.toFixed(1) : Math.round(dist)}km 남음` : '');
+    })();
+
+    /** 🖐️ 마커 탭 → 그 콜 카드 (S6 문법 — 지나온 곳도 확인·수정) */
+    const focusCall = (orderId: string) => {
+        useGpsFocusStore.setState({ gpsFocus: { orderId, tick: Date.now(), kind: 'arrive' } });
+        userHoldUntil.current = Date.now() + 30_000;
+        setSnap('full');
+    };
 
     return (
                 // 📏 높이는 실측하지 않는다 — 부모(flex 사슬)가 준다. 실측(rect.top)은 페이지 스크롤과
@@ -112,16 +137,13 @@ export default function StageView(props: Props) {
                     liveRoute={liveRoute}
                     myLocation={myLocation}
                     visitedTrail={derived.visitedTrail}
+                    callColors={derived.callColors}
+                    onStopTap={focusCall}
                 >
                     {/* 🏷️ 다음 정거장 이름표 — «어느 콜의 어떤 단계» (v22 S3 · 탭 동선은 4단계에서) */}
                     {next && (
                         <div className="absolute left-3 top-3 z-10 rounded-xl border px-3 py-2 tabular-nums cursor-pointer active:scale-95 transition-transform"
-                             onClick={() => {
-                                 // S6 — 정거장 이름표 탭 = 그 콜·그 단계로 (지도는 장부의 목차)
-                                 useGpsFocusStore.setState({ gpsFocus: { orderId: next.orderId, tick: Date.now(), kind: 'arrive' } });
-                                 userHoldUntil.current = Date.now() + 30_000;
-                                 setSnap('full');
-                             }}
+                             onClick={() => focusCall(next.orderId) /* S6 — 그 콜·그 단계로 */}
                              style={{ background: 'color-mix(in srgb, var(--color-surface) 92%, transparent)', borderColor: '#4f8df9', backdropFilter: 'blur(3px)' }}>
                             <div className="text-[14px] font-black" style={{ color: '#9db9ff' }}>
                                 {next.visitNo}. {next.name}{next.driveMinutes != null ? ` · ~${next.driveMinutes}분` : ''}
@@ -144,7 +166,7 @@ export default function StageView(props: Props) {
             </div>
 
             {/* 3단 시트 — 내용물은 기존 콜 화면 그대로 (sheetOnly) */}
-            <StageSheet snap={snap} onSnapChange={setSnap} onUserDrag={() => { userHoldUntil.current = Date.now() + 30_000; }}>
+            <StageSheet snap={snap} onSnapChange={setSnap} peekBar={peekBar} onUserDrag={() => { userHoldUntil.current = Date.now() + 30_000; }}>
                 <PinnedRouteBody {...props} sheetOnly d={derived} />
             </StageSheet>
         </section>

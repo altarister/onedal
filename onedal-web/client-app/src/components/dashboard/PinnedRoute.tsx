@@ -316,6 +316,7 @@ export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDe
                             etaMap={etaMap}
                             visitOrderMap={visitOrderMap}
                             indexNum={chronologicalIds.indexOf(route.id) + 1}
+                            accentColor={d.callColors.get(route.id)}
                             records={stepRecords.get(route.id) ?? EMPTY_RECORDS}
                             timeline={routeTimeline}
                             routeStops={routeStops}
@@ -382,6 +383,7 @@ export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDe
                                     etaMap={etaMap}
                                     visitOrderMap={visitOrderMap}
                                     indexNum={indexNum}
+                                    accentColor={d.callColors.get(route.id)}
                                     records={stepRecords.get(route.id) ?? EMPTY_RECORDS}
                                     timeline={routeTimeline}
                                     routeStops={routeStops}
