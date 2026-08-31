@@ -18,6 +18,8 @@ export interface RoutePoint {
 }
 
 interface Props {
+    /** 👣 지나온 발자취 — 표시 전용, 방문 시각순 (사이클 끝까지 남는다) */
+    visitedTrail?: Array<{ x: number; y: number; type: '상차' | '하차' }>;
     unifiedRoutePoints: RoutePoint[];
     /** **진행 중인 콜만** 넘긴다. 종료된 콜을 여기서 거르지 않는다 —
      *  계약을 좁히면 거르기를 잊을 자리가 없어진다 (2026-08-10 전수조사) */
@@ -28,7 +30,7 @@ interface Props {
     fill?: boolean;
 }
 
-export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLocation, children, fill }: Props) {
+export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLocation, children, fill, visitedTrail }: Props) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const { theme } = useTheme();
     const mapColors = MAP_THEME_COLORS[theme];
@@ -68,7 +70,8 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         const hasPolyline = currentPolyline.length > 0;
 
         const validPolyline = currentPolyline.filter((p: any) => typeof p.x === 'number' && typeof p.y === 'number' && !isNaN(p.x) && !isNaN(p.y));
-        const allCoords = [...validPoints, ...validPolyline] as { x: number, y: number }[];
+        const trail = (visitedTrail ?? []).filter(p => Number.isFinite(p.x) && Number.isFinite(p.y));
+        const allCoords = [...validPoints, ...validPolyline, ...trail] as { x: number, y: number }[];
         if (myLocation) allCoords.push(myLocation);
 
         if (allCoords.length === 0) {
@@ -215,6 +218,25 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             ctx.setLineDash([]);
         }
 
+        // 1.7. 👣 지나온 발자취 — 사이클 끝까지 남는다 (표시 전용 · 방문 시각순 ✓번호)
+        trail.forEach((p, i) => {
+            const { cx, cy } = getScreenPt(p);
+            ctx.beginPath();
+            ctx.arc(cx, cy, 8, 0, 2 * Math.PI);
+            ctx.fillStyle = withAlpha('#35c3a9', 0.35);
+            ctx.fill();
+            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = '#35c3a9';
+            ctx.stroke();
+            ctx.fillStyle = '#35c3a9';
+            ctx.font = 'bold 10px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(String(i + 1), cx, cy);
+            ctx.font = '9px sans-serif';
+            ctx.fillText(p.type === '상차' ? '✓상' : '✓하', cx, cy - 14);
+        });
+
         // 2. 노드 렌더링
         validPoints.forEach((p, i) => {
             const { cx, cy } = getScreenPt(p);
@@ -277,7 +299,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             ctx.textAlign = 'center';
             ctx.fillText("현위치", cx, cy + 22);
         }
-    }, [unifiedRoutePoints, liveRoute, myLocation, theme, mapColors]);
+    }, [unifiedRoutePoints, liveRoute, myLocation, visitedTrail, theme, mapColors]);
 
     useEffect(() => {
         drawMap();

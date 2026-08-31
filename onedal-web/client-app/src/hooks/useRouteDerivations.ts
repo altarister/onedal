@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
-import { isEvaluating, isTerminal, hasVisitedStop, deriveRouteTimeline, derivationInputsOf, deckOfCycle } from '@onedal/shared';
+import { isEvaluating, isTerminal, hasVisitedStop, isDeliveredCall, deriveRouteTimeline, derivationInputsOf, deckOfCycle } from '@onedal/shared';
 import type { SecuredOrder, RouteStopInfo } from '@onedal/shared';
 import { EMPTY_RECORDS } from './records';
 import { useStepRecords } from './useStepRecords';
@@ -174,6 +174,27 @@ export function useRouteDerivations(
     // 지도 상의 방문 순번(1, 2, 3...)을 콜(주문) ID별 상/하차지로 매핑
     const visitOrderMap = useMemo(() => buildVisitOrderMap(unifiedRoutePoints), [unifiedRoutePoints]);
 
+    /**
+     * 👣 **지나온 발자취 — 사이클이 끝날 때까지 지도에 남는다** (기사님 2026-08-31).
+     *    다녀온 정거장은 경로·순번에서 빠지는 게 맞지만(다시 안 간다), 화면에서
+     *    통째로 사라지니 «내가 어디를 돌았는지»를 잃었다. 경로 재료가 아니라
+     *    **표시 전용** 목록이다 — 방문 시각(arrivedAt)순으로 ✓1 ✓2 … 를 단다.
+     *    취소·방출은 없던 일이라 안 남는다 (deckOfCycle 과 같은 기준).
+     */
+    const visitedTrail = useMemo(() => {
+        const out: Array<{ x: number; y: number; type: '상차' | '하차'; at: number }> = [];
+        for (const r of cycleDeck) {
+            if (isTerminal(r.status) && !isDeliveredCall(r)) continue;
+            if (hasVisitedStop(r, 'pickup') && r.pickupX != null && r.pickupY != null)
+                out.push({ x: r.pickupX, y: r.pickupY, type: '상차',
+                           at: r.arrivedPickupAt ? Date.parse(r.arrivedPickupAt) : 0 });
+            if (hasVisitedStop(r, 'dropoff') && r.dropoffX != null && r.dropoffY != null)
+                out.push({ x: r.dropoffX, y: r.dropoffY, type: '하차',
+                           at: r.arrivedDropoffAt ? Date.parse(r.arrivedDropoffAt) : 0 });
+        }
+        return out.sort((a, b) => a.at - b.at);
+    }, [cycleDeck]);
+
     const chronologicalIds = useMemo(() => {
         return [...safeRoute]
             .sort((a, b) => {
@@ -187,6 +208,6 @@ export function useRouteDerivations(
     return {
         stepRecords, liveRoute, cycleDeck, activePolyline, isDriving, mockStops,
         currentGps, gpsSource, myLocation, safeRoute, allEvaluating, judging, gpsFocus,
-        routeTimeline, unifiedRoutePoints, etaMap, visitOrderMap, chronologicalIds,
+        routeTimeline, unifiedRoutePoints, etaMap, visitOrderMap, chronologicalIds, visitedTrail,
     };
 }

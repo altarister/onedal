@@ -111,6 +111,7 @@ export default function StageView(props: Props) {
                     unifiedRoutePoints={unifiedRoutePoints}
                     liveRoute={liveRoute}
                     myLocation={myLocation}
+                    visitedTrail={derived.visitedTrail}
                 >
                     {/* 🏷️ 다음 정거장 이름표 — «어느 콜의 어떤 단계» (v22 S3 · 탭 동선은 4단계에서) */}
                     {next && (
