@@ -30,6 +30,7 @@ import logbookPlacesRouter from "./routes/logbook/places";
 import logbookFilterDaysRouter from "./routes/logbook/filterDays";
 import logbookGpsTrackRouter from "./routes/logbook/gpsTrack";
 import healthRouter, { logServerIdentity } from "./routes/health";
+import simRouter from "./routes/sim";   // 🧪 배차망 시뮬레이터 전용 (개발 빌드에서만 답한다)
 import logsRouter from "./routes/logs";
 import { validateEnv } from "./config/env";
 
@@ -84,6 +85,7 @@ app.use("/api/emergency", emergencyRouter);  // [Safety Mode V3] 앱폰 비상 �
 app.use("/api/config", configRouter); // 타겟 앱 키워드 연동
 app.use("/api/auth", authRouter); // OAuth 로그인/인증 라우터
 app.use("/api/settings", settingsRouter); // 개인화 설정 라우터
+app.use("/api/sim", simRouter); // 🧪 시뮬레이터가 «지금 어디»를 묻는 문 — 운영에서는 404
 // [2026-08-12] GET/PUT /api/filters 제거 — 관제웹·앱·운행일지 전수 grep 결과 **호출부 0건**.
 //   PUT 은 소켓 `update-filter` 와 똑같이 updateActiveFilter 를 부르는 두 번째 입구였고,
 //   GET 은 필터 필드를 손으로 다시 나열해 새 필드(customCityFilters 등)가 빠진 채 굳어 있었다.
