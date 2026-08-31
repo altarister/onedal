@@ -411,30 +411,64 @@ export async function composeMergedRoute(params: ComposeMergedRouteParams) {
 }
 
 /**
+ * 🔒 **동점 근처에서는 직전 순서가 이긴다 — 버티는 폭** (기사님 승인 2026-09-01).
+ *
+ * 20%: 4.4km 떨어진 두 하차지 사이를 지날 때 기점이 300m 움직이면 «가장 가까운 곳»이
+ * 뒤집히는데, 그때 두 길의 **총 거리 차이는 3% 남짓**이다 — 첫 걸음만 보는 탐욕법이
+ * 만드는 착시다. 20% 는 그 착시를 덮고, 진짜로 다른 길(실측 사고: 2km 앞 하차지 vs
+ * 30km 밖 상차지)은 넉넉히 통과시킨다.
+ */
+const STOP_ORDER_HYSTERESIS = 1.20;
+
+/**
  * 🧭 **방문 순서 — 지나가는 길목부터** (기사님 실측 2026-08-25).
  *
  * 한 통에 넣고 가까운 순으로 돌되 **한 가지만 지킨다** — 제 짐을 싣기 전에는 못 내린다.
  * 순수 함수라 폰·카카오 없이 검사된다 (`tests/rules/stopOrderNearest.test.ts`).
+ *
+ * 🔴 **직전 순서를 «동점 근처에서만» 편든다** (2026-09-01 · `tests/rules/stopOrderStability.test.ts`).
+ *
+ * 이 함수는 1초 동기화와 GPS 매 틱이 부른다 — 기사님이 달리는 동안 **기점이 매초 바뀐다.**
+ * 첫 걸음만 보는 탐욕법이라 두 후보가 엇비슷하면 몇백 미터 움직인 것만으로 1번이 바뀌고,
+ * 화면에서는 번호가 춤춘다 (실측 0901: 한 판에 9번, 두 순서를 오감).
+ * 그런데 그렇게 뒤집혀도 **총 거리는 사실상 같다** — 뒤집힐 이유가 없었던 것이다.
+ *
+ * ⚠️ **얼리는 것이 아니다.** 직전 순서를 그대로 되쓰는 안을 먼저 만들었다가 `pnpm drive` 가
+ *    잡았다: 2.4km 앞 하차지를 두고 먼 상차지로 갔고, **도착 하나가 아예 안 찍혔다**
+ *    (도착 감시는 «안 찍힌 첫 정거장» 하나만 보므로, 얼린 순서가 실제 동선과 어긋나면
+ *    그 정거장이 «다음»이 될 차례가 안 온다). 그래서 편들되 **넘어서면 진다.**
  */
 function orderByNearest<T extends Coord & { orderId: string; stopType: 'pickup' | 'dropoff' }>(
     startLoc: Coord, pickups: T[], dropoffs: T[],
+    /** 직전에 정한 순서 (`holder.sectionStops`) — 없으면 예전 그대로 «가장 가까운 곳부터» */
+    previous?: Array<{ orderId: string; stopType: string }> | null,
 ): T[] {
     const pool = [...pickups, ...dropoffs];
     const notLoaded = new Set(pickups.map(p => p.orderId));   // 아직 안 실은 콜
     const out: T[] = [];
     let here: Coord = startLoc;
 
+    /** 직전 순서에서 몇 번째였나 — 없던 정거장은 맨 뒤로 (편들 근거가 없다) */
+    const rankOf = new Map<string, number>();
+    previous?.forEach((s, i) => rankOf.set(`${s.orderId}|${s.stopType}`, i));
+
     while (pool.length > 0) {
         let bestIdx = -1, bestD = Infinity;
+        /** 직전 순서가 «다음»이라고 말하는 곳 — 갈 수 있는 것 중 가장 앞선 것 */
+        let incIdx = -1, incRank = Infinity, incD = Infinity;
         for (let i = 0; i < pool.length; i++) {
             const st = pool[i];
             if (st.stopType === 'dropoff' && notLoaded.has(st.orderId)) continue;
             const d = haversineKm(here.y, here.x, st.y, st.x);
             if (d < bestD) { bestD = d; bestIdx = i; }
+            const r = rankOf.get(`${st.orderId}|${st.stopType}`);
+            if (r != null && r < incRank) { incRank = r; incIdx = i; incD = d; }
         }
         // 갈 수 있는 곳이 없다 = 남은 것이 전부 «상차 안 한 콜의 하차» → 순서대로 붙인다
         if (bestIdx === -1) { out.push(...pool); break; }
-        const best = pool.splice(bestIdx, 1)[0];
+        // 근소한 차이면 직전 순서를 지킨다 — 넘어서면 진다 (얼리지 않는다)
+        const pick = (incIdx >= 0 && incD <= bestD * STOP_ORDER_HYSTERESIS) ? incIdx : bestIdx;
+        const best = pool.splice(pick, 1)[0];
         if (best.stopType === 'pickup') notLoaded.delete(best.orderId);
         out.push(best);
         here = best;
@@ -564,7 +598,12 @@ export function planMergedStops(
      *    감시와 화면만 경로에서 떨어졌고, 구간 주행분이 남의 이름에 붙는 결함이 됐다
      *    (버그 대장 #60). 규칙을 **경로를 만드는 이 자리**로 옮기고, 도착 계획은 이걸 되쓴다.
      */
-    const ordered = orderByNearest(startLoc, allPickups, allDropoffs);
+    /**
+     * 🔒 직전 순서는 **경로를 실제로 잰 그 콜**이 들고 있다 (`sectionStops`).
+     *    편드는 재료를 여기서 새로 만들지 않는다 — 만들면 또 두 벌이 된다 (규칙 ③).
+     */
+    const previousOrder = [...calls].reverse().find(c => c.sectionStops?.length)?.sectionStops ?? null;
+    const ordered = orderByNearest(startLoc, allPickups, allDropoffs, previousOrder);
     const mergedDest = ordered.pop()!;
     const waypoints = ordered;
     /**
