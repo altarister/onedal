@@ -209,7 +209,7 @@ describe('단독 경로 — 다녀온 상차지를 경유하지 않는다', () =
 describe('관제웹 폴백 — 정의가 서버와 같다', () => {
     it('🔴 PinnedRoute 폴백이 hasVisitedStop 을 쓴다 (isAlreadyLoaded 가 아니라)', () => {
         const src = readFileSync(join(__dirname,
-            '../../../client-app/src/components/dashboard/PinnedRoute.tsx'), 'utf8');
+            '../../../client-app/src/hooks/useRouteDerivations.ts'), 'utf8');   // 폴백은 파생 제조소로 이사 (0831)
         const code = src.split('\n').filter(l => !/^\s*(\/\/|\/\*|\*)/.test(l)).join('\n');
         expect(code).toMatch(/hasVisitedStop\(r, 'pickup'\)/);
         expect(code).toMatch(/hasVisitedStop\(r, 'dropoff'\)/);

@@ -144,7 +144,8 @@ describe('🚚 하차 시각이 관제웹까지 온다', () => {
  */
 describe('경계 — 완료분이 계산에 섞이지 않는다', () => {
     const route = () => readFileSync(join(__dirname,
-        '../../../client-app/src/components/dashboard/PinnedRoute.tsx'), 'utf8');
+        '../../../client-app/src/components/dashboard/PinnedRoute.tsx'), 'utf8')
+        + readFileSync(join(__dirname, '../../../client-app/src/hooks/useRouteDerivations.ts'), 'utf8');
     const code = () => route().split('\n')
         .filter(l => !/^\s*(\/\/|\/\*|\*)/.test(l)).join('\n');
 

@@ -64,7 +64,7 @@ describe('판정 기준 → 화면 파생 (시간 4칸)', () => {
     });
 
     it('🔴 관제웹 세 화면이 판정 기준 스토어의 파생 입력을 쓴다 (기본값 상수가 아니라)', () => {
-        for (const rel of ['components/dashboard/PinnedRoute.tsx',
+        for (const rel of ['hooks/useRouteDerivations.ts',
                            'components/dashboard/DepartureCountdown.tsx',
                            'components/dashboard/PinnedRouteCard.tsx']) {
             const src = codeOnly(read(join(CLIENT, rel)));

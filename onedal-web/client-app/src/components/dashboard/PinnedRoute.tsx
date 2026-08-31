@@ -1,24 +1,17 @@
-import { isEvaluating, isTerminal, hasVisitedStop, deriveRouteTimeline, derivationInputsOf, deckOfCycle, isDeliveredCall } from "@onedal/shared";
+import { isEvaluating, isDeliveredCall } from "@onedal/shared";
 import type { SecuredOrder } from "@onedal/shared";
-import { useState, useEffect, useMemo, useRef } from 'react';
-import { socket } from '../../lib/socket';
-import { logRoadmapEvent , logStateChange } from '../../lib/roadmapLogger';
-import PinnedRouteCanvas, { type RoutePoint } from './PinnedRouteCanvas';
+import { useState, useEffect, useRef } from 'react';
+import { useRouteDerivations } from '../../hooks/useRouteDerivations';
+import { logRoadmapEvent } from '../../lib/roadmapLogger';
+import PinnedRouteCanvas from './PinnedRouteCanvas';
 import PinnedRouteCard from './PinnedRouteCard';
-import type { EtaCell } from './PinnedRouteCard';
 import CallDeck from './CallDeck';
 import DepartureCountdown from './DepartureCountdown';
 import { EMPTY_RECORDS } from '../../hooks/records';
 import { MovingBadge } from './VehicleStatusPanel';
-import { useStepRecords } from '../../hooks/useStepRecords';
-import { useJudgmentStore } from '../../stores/judgmentStore';
 import { deckOrder } from '../../lib/deckFocus';
-import { apiClient } from '../../api/apiClient';
-import { getAddressLabel } from '../../lib/routeUtils';
-import { buildVisitOrderMap } from '../../lib/routeOptimizer';
 import type { RouteStopInfo } from '@onedal/shared';
 import { useFilterConfig } from '../../hooks/useFilterConfig';
-import { useMasterGps } from '../../hooks/useMasterGps';
 
 interface Props {
     activeRoute: SecuredOrder[];
@@ -33,21 +26,15 @@ interface Props {
 }
 
 export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, onDecision, onRecalculate, viewFilter, setViewFilter }: Props) {
-    // [2026-08-12] 콜별 기록을 **여기서 한 번에** 받는다.
-    // 카드가 각자 불러오면 화면 밖 카드의 진행 상황을 알 수 없어
-    // 덱 위에 요약 줄을 띄울 수가 없었다 (기사님 지적).
     /**
-     * 🔄 파생 치환 완주 (2026-08-21) — 덱·카드·타임라인·카운트다운 전부 새 장부
-     * (여섯 단계 행) 하나를 읽는다. 옛 장부 훅(useCallProgress)은 소비자가 없어져
-     * 철거 대기 — 옛 테이블(stop_cargo_reports·order_milestones)과 함께 걷는다 (확인 후).
+     * 🏭 파생은 전부 **제조소 훅** 한 곳에서 (화면개편 1단계 · 2026-08-31).
+     * 이 컴포넌트에는 화면 상태(펼침·탭·처리중)만 남는다.
      */
-    /**
-     * 🔄 **파생 치환 ①** (기사님 승인 2026-08-21) — 타임라인·카운트다운의 재료를
-     * 새 장부(여섯 단계 행)에서 읽는다. 계산은 그대로, 출처만 바뀐다.
-     * `callRecords`(옛 장부)는 판정 근거의 이력 표시 등 남은 독자용으로 아직 둔다 —
-     * 옛 테이블 철거 때 함께 걷는다.
-     */
-    const stepRecords = useStepRecords(activeRoute.map(o => o.id));
+    const {
+        stepRecords, liveRoute, cycleDeck, myLocation, safeRoute, allEvaluating, judging,
+        routeTimeline, unifiedRoutePoints, etaMap, visitOrderMap, chronologicalIds, gpsFocus,
+    } = useRouteDerivations(activeRoute, routeStops, routeComputedAt);
+
     const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
     /** 콜을 다루기 시작하면 탭 바를 화면 맨 위로 끌어올린다 */
     const tabBarRef = useRef<HTMLDivElement>(null);
@@ -59,113 +46,6 @@ export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, 
         setProcessingId(null);
     }, [activeRoute]);
 
-    // 지도 렌더링용: 완료된 콜 제외한 현재 진행 중인 오더만 추출
-    const liveRoute = useMemo(() => (activeRoute || []).filter(r => !isTerminal(r.status)), [activeRoute]);
-
-    /**
-     * 🔄 **이번 운행의 카드 목록** — 하차해도 사이클이 끝날 때까지 남는다 (기사님 2026-08-19).
-     *
-     * 🔴 `liveRoute`(진행 중)와 **엄격히 갈라 둔다.** 이 목록은 **덱 화면 전용**이고,
-     *    경로·적재·운임·카운트다운·타임라인은 전부 `liveRoute` 를 쓴다 —
-     *    완료분이 섞이면 하차한 짐이 계속 실려 있는 것으로 세어진다.
-     */
-    const cycleDeck = useMemo(() => deckOfCycle(activeRoute || []), [activeRoute]);
-
-    // 현재 활성 폴리라인 (진행 중인 오더에서만 추출, 완료된 stale 궤적 무시)
-    const activePolyline = useMemo(() => {
-        if (liveRoute.length === 0) return null;
-        for (let i = liveRoute.length - 1; i >= 0; i--) {
-            const r = liveRoute[i];
-            if (r && r.routePolyline && r.routePolyline.length > 0) {
-                return r.routePolyline;
-            }
-        }
-        return null;
-    }, [liveRoute]);
-
-    const isDriving = filter?.dispatchPhase === 'DELIVERING';
-
-    /**
-     * 🏁 **모의 주행이 들러야 할 정거장** (2026-08-25).
-     *
-     * 폴리라인은 도로 위만 지나는데 물류센터는 떨어져 있다 — 실측 곤지암 601m ·
-     * 부발 525m. 도착 반경 500m 라 모의 주행이 **영영 못 닿았고**, 하차가 안 된 콜이
-     * 남아 경로가 나중에 되돌아갔다. 실제 기사님은 시설 안까지 들어가므로 좌표를 준다.
-     *
-     * ⚠️ 다녀온 곳은 뺀다 — 판단은 서버와 같은 `hasVisitedStop` 하나다.
-     */
-    const mockStops = useMemo(() => {
-        const out: Array<{ x: number; y: number }> = [];
-        for (const r of liveRoute) {
-            if (r.pickupX != null && r.pickupY != null && !hasVisitedStop(r, 'pickup'))
-                out.push({ x: r.pickupX, y: r.pickupY });
-            if (r.dropoffX != null && r.dropoffY != null && !hasVisitedStop(r, 'dropoff'))
-                out.push({ x: r.dropoffX, y: r.dropoffY });
-        }
-        return out;
-    }, [liveRoute]);
-
-    // 📡 마스터 GPS 엔진 연결 (Real / Mock 자동 스위칭)
-    const { currentGps, gpsSource } = useMasterGps(isDriving, activePolyline || null, mockStops);
-
-    /**
-     * 📡 **화면이 무엇을 그리고 있었나** — 주행 뒤에 돌아볼 수 있게 남긴다
-     *    (필드테스트 ④ · 2026-08-25). 어제 문서 §4-2 가 모른다고 적어 둔 둘 중 하나다.
-     *
-     * ⚠️ **바뀔 때만** 남긴다. 관제앱 웹뷰가 초당 5.5회 다시 그리는데 그걸 다 남기면
-     *    정작 사건이 묻힌다 (`logStateChange` 가 직전 값과 같으면 버린다).
-     */
-    useEffect(() => {
-        logStateChange("국면", filter?.dispatchPhase ?? "없음", "진행중경로");
-    }, [filter?.dispatchPhase]);
-    useEffect(() => {
-        logStateChange("진행중 콜", `${liveRoute.length}건`, "진행중경로");
-    }, [liveRoute.length]);
-    useEffect(() => {
-        logStateChange("GPS 출처", gpsSource, "진행중경로");
-    }, [gpsSource]);
-
-    /**
-     * 지도와 TSP 의 출발점. GPS 가 잡히면 아래 useEffect 가 곧바로 덮어쓴다.
-     *
-     * [2026-08-12] GPS 가 안 잡히는 동안에는 **사용자 설정의 '내 주소'** 를 쓴다.
-     * 예전에는 좌표를 여기 박아 뒀는데(주석엔 "판교"라 적혀 있었지만 실은 집 주소였다),
-     * 기사님이 이미 설정에 넣어 둔 값이 있으므로 그것을 읽는다. 이사하면 설정만 바꾸면 된다.
-     * 서버도 같은 값을 쓴다 (`SettingsRepository.getHomeLocation`).
-     */
-    const [myLocation, setMyLocation] = useState<{ x: number, y: number } | null>(null);
-
-    useEffect(() => {
-        let alive = true;
-        apiClient.get('/settings')
-            .then(({ data }: { data: { homeX?: number; homeY?: number } }) => {
-                const x = data?.homeX, y = data?.homeY;
-                if (!alive || x == null || y == null) return;
-                // GPS 가 이미 들어왔으면 건드리지 않는다 — 진짜 위치가 언제나 이긴다
-                setMyLocation(prev => prev ?? { x, y });
-            })
-            .catch(() => {});
-        return () => { alive = false; };
-    }, []);
-
-    useEffect(() => {
-        if (currentGps) {
-            setMyLocation({ x: currentGps.lng, y: currentGps.lat });
-        }
-    }, [currentGps]);
-
-    const safeRoute = activeRoute || [];
-    const allEvaluating = safeRoute.some(r => isEvaluating(r.status));
-
-    /**
-     * 🪧 **심사석** (기사님 확정 2026-08-31) — 평가·미리보기 중인 콜 하나를 화면 **최상단
-     * 같은 자리**에 고정한다. 평상시엔 그 자리에 필터 현황판이 살고(Dashboard 가 숨김을
-     * 맡는다), 콜이 오면 이 카드로 바뀐다 — 스크롤 없이, 버튼·색이 늘 같은 자리다.
-     * 심사 중엔 서버가 어차피 필터를 잠그므로(선점 잠금) 필터 자리를 내주는 게 상태와도 맞다.
-     * 한 번에 하나만 평가하므로(규칙 ⑥ 계열) 자리는 하나면 된다.
-     */
-    const judging = safeRoute.find(r => !isTerminal(r.status) && (isEvaluating(r.status) || r.isPreview));
-
     const toggleExpand = (id: string) => {
         setExpandedIds(prev => {
             const newSet = new Set(prev);
@@ -174,123 +54,6 @@ export default function PinnedRoute({ activeRoute, routeStops, routeComputedAt, 
             return newSet;
         });
     };
-
-    /**
-     * 🧭 **방문 순서는 서버가 내려준 routeStops 하나다** (기사님 동의 2026-08-19).
-     *
-     * 예전에는 여기서 자기 TSP(`optimizeRouteOrder`)를 돌렸다 — 서버도 `optimizeWaypoints`
-     * 로 순서를 만드는데 관제웹이 **한 벌 더** 만들어 인덱스로 끼워 맞추고 있었다.
-     * 두 순서가 어긋나면 ETA 가 엉뚱한 정거장에 붙는다 ("파생값 두 벌" 사고 클래스).
-     *
-     * routeStops 에 없는 활성 콜(심사 중 후보 · 경로 연산 전/실패)은 **번호 순서 뒤에
-     * 덧붙인다** — 지도에서 사라지면 안 되지만, 아직 경로가 아닌 것도 사실이기 때문이다.
-     */
-    /**
-     * 🖥️ **다음 정거장에 가까워지면 그 콜 화면으로** (기사님 2026-08-19).
-     * 근접 예고·도착 이벤트에 orderId 가 실려 온다 — 덱이 그 카드로 넘어간다.
-     * 운행 중에는 지금 다가가는 정거장의 카드가 "지금 필요한 화면"이다.
-     */
-    const [gpsFocus, setGpsFocus] = useState<{ orderId: string; tick: number } | null>(null);
-    useEffect(() => {
-        const focus = (d: { orderId?: string }) => {
-            if (d?.orderId) setGpsFocus({ orderId: d.orderId, tick: Date.now() });
-        };
-        socket.on('next-stop-approaching', focus);
-        socket.on('auto-arrived', focus);
-        return () => {
-            socket.off('next-stop-approaching', focus);
-            socket.off('auto-arrived', focus);
-        };
-    }, []);
-
-    /**
-     * 🗺️ 타임라인도 **여기서 한 번** 만든다 (규칙 ③) — 카운트다운·덱과 같은 값을
-     * 카드(통화 시트)도 봐야 한다. 실측: 덱은 합짐 하차 ~05:56 을 아는데 시트는
-     * "주행 시간을 모릅니다"라며 03:28 을 추천했다 — 한 화면이 두 세상을 보고 있었다.
-     */
-    // 🎛️ 판정 기준 탭의 시간 4칸이 화면 파생까지 — 조립은 derivationInputsOf 한 곳 (서버와 같은 함수)
-    const judgmentCfg = useJudgmentStore(st => st.judgment);
-    const routeTimeline = useMemo(() => {
-        const { rules, unk } = derivationInputsOf(judgmentCfg);
-        const dwellLedgerOf = (id: string) => (stepRecords.get(id) ?? EMPTY_RECORDS).dwell;
-        return deriveRouteTimeline(
-            routeStops, liveRoute,
-            (id) => (stepRecords.get(id) ?? EMPTY_RECORDS).reports,
-            (id) => (stepRecords.get(id) ?? EMPTY_RECORDS).milestones,
-            Date.now(), routeComputedAt, rules, unk, dwellLedgerOf,
-        );
-    }, [routeStops, liveRoute, stepRecords, routeComputedAt, judgmentCfg]);
-
-    const unifiedRoutePoints: RoutePoint[] = useMemo(() => {
-        const byId = new Map(liveRoute.map(r => [r.id, r]));
-        const pts: RoutePoint[] = [];
-        const covered = new Set<string>();
-        for (const st of routeStops) {
-            const r = byId.get(st.orderId);
-            if (!r) continue;                          // 좀비 정거장 (취소 후 재계산 전) — 그리지 않는다
-            covered.add(`${st.orderId}:${st.stopType}`);
-            const isP = st.stopType === 'pickup';
-            pts.push({ type: isP ? '상차' : '하차', name: getAddressLabel(isP ? r.pickup : r.dropoff),
-                       isEvaluating: isEvaluating(r.status),
-                       x: isP ? r.pickupX : r.dropoffX, y: isP ? r.pickupY : r.dropoffY, routeId: r.id });
-        }
-        for (const r of liveRoute) {
-            /**
-             * 🚏 **다녀온 정거장은 폴백에서도 되살리지 않는다** (기사님 실측 2026-08-19).
-             *    서버가 ①로 뺀 상차지를 여기서 `isAlreadyLoaded`(상차 완료 버튼)로 판단해
-             *    **도로 넣고 있었다.** 그것도 콜 순서대로라 `⑴상차 ⑵하차 ⑶상차…` 로
-             *    번갈아 매겨져 번호가 뒤죽박죽이 됐다.
-             *    판단은 서버와 같은 `hasVisitedStop` 하나여야 한다.
-             */
-            if (!covered.has(`${r.id}:pickup`) && !hasVisitedStop(r, 'pickup'))
-                pts.push({ type: '상차', name: getAddressLabel(r.pickup), isEvaluating: isEvaluating(r.status),
-                           x: r.pickupX, y: r.pickupY, routeId: r.id });
-            if (!covered.has(`${r.id}:dropoff`) && !hasVisitedStop(r, 'dropoff'))
-                pts.push({ type: '하차', name: getAddressLabel(r.dropoff), isEvaluating: isEvaluating(r.status),
-                           x: r.dropoffX, y: r.dropoffY, routeId: r.id });
-        }
-        return pts;
-    }, [liveRoute, routeStops]);
-
-    /**
-     * 🕐 **콜별 상하차 예상 시각 — 재료는 타임라인 하나다** (기사님 질문 2026-08-30).
-     *
-     * 기사님: *"여기에 표시되고 있는 시간이 어떻게 산출되었는지 알면 좋겠어."*
-     *
-     * 🔴 예전엔 카카오의 `sectionEtas`(= 경로 계산 시각 + 구간 주행 누적)를 그대로 썼다.
-     *    그래서 **정차가 한 번도 안 들어갔다** — 칩은 `~21:48` 이라 적는데 같은 화면의
-     *    시트는 상차 14분을 세어 `~22:02` 를 말했다. **한 화면이 두 시각을 말한 것**이다
-     *    (이 레포가 네 번 겪은 「두 목소리」 클래스).
-     *
-     * 지금은 `routeTimeline` 에서 받는다 — 정차·확정 약속·실측 밀림이 전부 들어간
-     * 그 값이다. 시각을 만드는 곳이 하나가 됐다 (규칙 ③).
-     */
-    const etaMap = useMemo(() => {
-        const m = new Map<string, EtaCell>();
-        for (const e of routeTimeline) {
-            if (e.etaMs == null) continue;          // 주행을 모르면 안 적는다 (규칙 ④)
-            const hhmm = new Date(e.etaMs).toTimeString().substring(0, 5);
-            const cur = m.get(e.orderId) ?? {};
-            // ⏱️ 앞 정거장 실측이 밀어낸 분 — 화면의 「+5분」 (0 이면 안 그린다)
-            m.set(e.orderId, e.stopType === 'pickup'
-                ? { ...cur, pickupEta: hhmm, pickupShift: e.dwellShiftMinutes }
-                : { ...cur, dropoffEta: hhmm, dropoffShift: e.dwellShiftMinutes });
-        }
-        return m;
-    }, [routeTimeline]);
-
-    // 지도 상의 방문 순번(1, 2, 3...)을 콜(주문) ID별 상/하차지로 매핑
-    const visitOrderMap = useMemo(() => buildVisitOrderMap(unifiedRoutePoints), [unifiedRoutePoints]);
-
-    const chronologicalIds = useMemo(() => {
-        return [...safeRoute]
-            .sort((a, b) => {
-                const timeA = a.capturedAt ? new Date(a.capturedAt).getTime() : 0;
-                const timeB = b.capturedAt ? new Date(b.capturedAt).getTime() : 0;
-                return timeA - timeB;
-            })
-            .map(r => r.id);
-    }, [safeRoute]);
 
     // if (!safeRoute || safeRoute.length === 0) return null; // 삭제됨: 라우트가 없어도 맵은 항상 표시
 

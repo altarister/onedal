@@ -66,7 +66,7 @@ describe('관제웹 로그 — 주행이 끝나도 남는다', () => {
     /** 어제 문서 §4-2 가 모른다고 적어 둔 둘 — 이제 남는다 */
     it('🔴 소켓 끊김과 화면 상태를 실제로 남긴다', () => {
         expect(code(read('hooks/useOrderEngine.ts'))).toMatch(/logStateChange\("소켓"/);
-        const pinned = code(read('components/dashboard/PinnedRoute.tsx'));
+        const pinned = code(read('components/dashboard/PinnedRoute.tsx')) + code(read('hooks/useRouteDerivations.ts'));
         expect(pinned).toMatch(/logStateChange\("국면"/);
         expect(pinned).toMatch(/logStateChange\("GPS 출처"/);
     });

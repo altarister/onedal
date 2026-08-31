@@ -147,7 +147,7 @@ describe('🕐 시각을 만드는 네 곳이 같은 재료를 쓴다', () => {
         '../../src/core/engine/OrderEvaluator.ts',
         '../../src/socket/socketHandlers.ts',
         '../../../client-app/src/components/dashboard/DepartureCountdown.tsx',
-        '../../../client-app/src/components/dashboard/PinnedRoute.tsx',
+        '../../../client-app/src/hooks/useRouteDerivations.ts',   // ← PinnedRoute 에서 이사 (0831 개편 1단계)
     ];
     /** 호출 한 덩어리를 통째로 떠온다 — 인자가 여러 줄에 걸쳐 있다 */
     const 호출들 = (src: string) => {
