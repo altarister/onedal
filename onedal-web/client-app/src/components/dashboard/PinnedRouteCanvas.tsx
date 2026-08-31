@@ -15,6 +15,12 @@ export interface RoutePoint {
     x?: number;
     y?: number;
     routeId?: string;
+    /**
+     * 🔢 이 정거장의 사이클 번호 — **밖에서 실어 준다**(`stopNoOf`).
+     * 🔴 캔버스가 «남은 목록의 몇 번째»로 세면 안 된다 — 2026-09-01 실측:
+     *    이름표는 «1. 곤지암읍», 지도 마커는 «2 곤지암읍» 이라 한 화면이 두 답을 했다.
+     */
+    no?: number;
 }
 
 interface Props {
@@ -263,7 +269,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         });
 
         // 2. 노드 렌더링
-        validPoints.forEach((p, i) => {
+        validPoints.forEach((p) => {
             const { cx, cy } = getScreenPt(p);
 
             if (p.routeId) markerHits.current.push({ cx, cy, orderId: p.routeId });
@@ -288,7 +294,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             // 🔒 번호는 방문한 개수 다음부터 — 지나간 번호를 재사용하지 않는다 (①)
-            ctx.fillText((trail.length + i + 1).toString(), cx, cy + 1);
+            ctx.fillText(String(p.no ?? ''), cx, cy + 1);   // 번호는 stopNoOf 하나에서 온다
 
             const textWidth = ctx.measureText(p.name).width;
             ctx.fillStyle = withAlpha(theme === 'light' ? mapColors.textBgLight : mapColors.textBgDark, theme === 'light' ? 0.8 : 0.45);

@@ -161,7 +161,7 @@ export function useRouteDerivations(
         );
     }, [routeStops, liveRoute, stepRecords, routeComputedAt, judgmentCfg]);
 
-    const unifiedRoutePoints: RoutePoint[] = useMemo(() => {
+    const routePointsRaw: RoutePoint[] = useMemo(() => {
         const byId = new Map(liveRoute.map(r => [r.id, r]));
         const pts: RoutePoint[] = [];
         const covered = new Set<string>();
@@ -296,6 +296,19 @@ export function useRouteDerivations(
         const PALETTE = ['#4f8df9', '#f59e0b', '#a78bfa', '#ef4444', '#22d3ee', '#ec4899', '#a3e635'];
         return new Map(cycleDeck.map((r, i) => [r.id, PALETTE[i % PALETTE.length]] as const));
     }, [cycleDeck]);
+
+    /**
+     * 🗺️ 지도에 그릴 점 — **번호를 실어서** 보낸다. 캔버스가 «남은 목록의 몇 번째»로
+     *    스스로 세면 이름표와 다른 답을 한다 (2026-09-01 실측: 이름표 «1. 곤지암읍» ·
+     *    마커 «2 곤지암읍»). 세는 곳은 stopNoOf 하나다 (규칙 ③).
+     */
+    const unifiedRoutePoints: RoutePoint[] = useMemo(
+        () => routePointsRaw.map(p => ({
+            ...p, no: p.routeId
+                ? stopNoOf.get(`${p.routeId}:${p.type === '상차' ? 'pickup' : 'dropoff'}`)
+                : undefined,
+        })),
+        [routePointsRaw, stopNoOf]);
 
     /** 콜별 상·하차 번호 — 화면(요약줄·카드·지도)이 전부 이 하나를 읽는다 (규칙 ③) */
     const visitOrderMap = useMemo(() => {

@@ -59,14 +59,25 @@ export function publishLocation(
         return { sent: false, reason: 'mock-running' };
     }
 
-    // 같은 자리를 다시 보내지 않는다 (두 훅이 같은 스토어를 읽던 흔적)
+    /**
+     * 🖥️ **화면에는 «아직 여기 있다»도 알린다** (기사님 실측 2026-09-01).
+     *
+     * 아래 중복 거르기는 **서버로 두 번 보내던 것**을 막으려고 만든 것이다(두 훅이 같은
+     * 스토어를 읽던 흔적). 그런데 화면 알림까지 함께 막는 바람에, 시뮬이 정거장에서
+     * 18초를 서 있는 동안 **좌표 알림이 한 번도 안 나갔다** — 속도계가 마지막 주행값에
+     * 얼어붙어 «도착했는데 이동 중 87km/h» 가 됐다.
+     * 🔴 정지는 «사건이 없는 것»이 아니라 **«같은 자리에 있다»는 사실**이다 (규칙 ④).
+     * ⚠️ 실 GPS 는 좌표가 미세하게 흔들려 이 거르기에 걸리지 않는다 — 모의 주행에서만 났다.
+     */
+    window.dispatchEvent(new CustomEvent('local-gps-update', { detail: { lat, lng, source } }));
+
+    // 서버로는 같은 자리를 다시 보내지 않는다
     if (lastSent && lastSent.lat === lat && lastSent.lng === lng) {
         return { sent: false, reason: 'same-position' };
     }
     lastSent = { lat, lng };
 
     socket.emit('dashboard-gps-update', { lat, lng, source, accuracy: extra?.accuracy, timestamp: now });
-    window.dispatchEvent(new CustomEvent('local-gps-update', { detail: { lat, lng, source } }));
     return { sent: true };
 }
 

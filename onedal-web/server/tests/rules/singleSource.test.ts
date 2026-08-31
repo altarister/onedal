@@ -77,6 +77,19 @@ describe('«달리는가»를 판정하는 곳은 하나 — 모의 특례는 �
     });
 });
 
+describe('정지도 사건이다 — 화면이 «아직 여기 있다»를 듣는다', () => {
+    /**
+     * 2026-09-01 실측: 정거장에 18초 서 있는데 배지가 «이동 중 87km/h» 였다.
+     * 서버 중복 거르기가 **화면 알림까지** 막아, 정차 동안 좌표 알림이 한 번도 안 나갔다.
+     * 정지는 «사건이 없는 것»이 아니라 «같은 자리에 있다»는 사실이다 (규칙 ④).
+     */
+    it('🔴 같은 자리라도 화면에는 알린다 (서버로만 안 보낸다)', () => {
+        const bridge = codeOnly(read('client-app/src/lib/gpsBridge.ts'));
+        const beforeDedupe = bridge.slice(0, bridge.indexOf('reason: \'same-position\''));
+        expect(beforeDedupe).toMatch(/dispatchEvent\(new CustomEvent\('local-gps-update'/);
+    });
+});
+
 describe('도착은 사건이라 덮이지 않는다', () => {
     /**
      * 2026-08-31 야간 판: 도착 6번 중 시트가 2번만 올라갔다. 도착을 포커스 그릇(gpsFocus)에
@@ -114,5 +127,16 @@ describe('정거장 번호를 세는 곳은 하나', () => {
 
     it('🔴 출발하면 얼린다 — 재계산으로 번호가 바뀌지 않는다', () => {
         expect(der).toMatch(/isDriving \? stopNoRef\.current : new Map/);
+    });
+
+    it('🔴 지도 캔버스가 스스로 세지 않는다 — 번호는 실려 온다', () => {
+        /**
+         * 2026-09-01 실측: 이름표는 «1. 곤지암읍», 지도 마커는 «2 곤지암읍» —
+         * 캔버스가 «다녀온 개수 + 남은 목록 인덱스»로 **또** 세고 있었다 (네 번째 벌).
+         * 이 검사를 처음 쓸 때 파생만 보고 캔버스를 안 봐서 놓쳤다.
+         */
+        const canvas = codeOnly(read('client-app/src/components/dashboard/PinnedRouteCanvas.tsx'));
+        expect(canvas).not.toMatch(/trail\.length \+ i \+ 1/);
+        expect(canvas).toMatch(/p\.no/);
     });
 });
