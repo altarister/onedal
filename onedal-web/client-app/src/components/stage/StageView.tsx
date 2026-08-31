@@ -5,6 +5,7 @@ import { useRouteDerivations } from '../../hooks/useRouteDerivations';
 import { getAddressLabel, getDistanceKm } from '../../lib/routeUtils';
 import PinnedRouteCanvas from '../dashboard/PinnedRouteCanvas';
 import StageSheet, { type SheetSnap } from './StageSheet';
+import { stageStep, initialStageMemory, type StageEvent } from './stageRules';
 import { PinnedRouteBody } from '../dashboard/PinnedRoute';
 import { MovingBadge, useDriveMotion } from '../dashboard/VehicleStatusPanel';
 import { useGpsFocusStore } from '../../stores/gpsFocusStore';
@@ -42,25 +43,14 @@ export default function StageView(props: Props) {
 
 
     /**
-     * 🧠 상태 규칙 (v23 Ⅲ표 · 3단계) — 자동은 시트 높이만 바꾼다 (표시 전용이라 안전).
-     * 손(드래그)이 이긴다 — 터치 후 30초 유예 (v23 Ⅳ).
+     * 🧠 **상태 규칙은 `stageRules.stageStep` 한 곳에 있다** (v23 Ⅲ표 · 검사 14건).
+     *
+     * 여기(화면)는 **신호를 재서 넣고, 결과를 그릴 뿐**이다. 규칙을 화면 안에 두면
+     * 검사할 수가 없어서, 2026-08-31 하루에 다섯 번 뒤집는 동안 전부 손으로 확인했다.
+     * 규칙을 옮긴 지금은 «짧은 구간에서 안 내려가던 것» 같은 사고가 책상에서 잡힌다.
      */
     const drive = useDriveMotion();
-    /** 🖐️ 손(드래그)이 이기는 유예 — 모든 자동 전환을 30초 막는다 (v23 Ⅳ) */
-    const userHoldUntil = useRef(0);
-    /**
-     * 🪜 **자동으로 올린 시트(KEEP·도착)는 «정차»에는 이기고 «주행»에는 진다**
-     *    (기사님 실측 2026-08-31 3판).
-     *
-     * 예전엔 KEEP·도착도 손과 같은 30초 유예를 썼다. 그런데 정거장이 가까우면 구간이
-     * 30초보다 짧아 **유예가 다음 구간을 통째로 덮었다** — 로그 그대로다:
-     *   17:56:29 KEEP(full) · 17:56:31 주행 감지 · **17:56:59 에야 내려감**(유예 만료)
-     * 기사님이 *"너무 가까워서 이동 중이라도 시트가 올라와 있었다"* 고 보신 게 이것이다.
-     *
-     * 유예로 막으려던 것은 **10초 뒤 오는 «정차» 전환**이지 주행이 아니었다. 그래서
-     * 시간이 아니라 **무엇에 지는가**로 가른다 — 달리기 시작하면 즉시 내려간다.
-     */
-    const autoRaised = useRef(false);
+    const mem = useRef(initialStageMemory());
     const judging = derived.judging;
 
     /**
@@ -68,33 +58,30 @@ export default function StageView(props: Props) {
      *    서버 로그에 중계되므로(관제웹 로그 릴레이) GPS 궤적(gps_tracks)과 시각을
      *    맞대 «언제 내려가고 올라왔어야 했나»를 사후 검증할 수 있다.
      */
-    const snapTo = (next: SheetSnap, reason: string) => {
-        logStateChange("시트", `${next}·${reason}`, "무대");
-        setSnap(next);
+    const [ruleTick, setRuleTick] = useState(0);
+    const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    /** 규칙에 한 걸음 먹인다 — 결과(높이·사유·미룸)를 화면에 옮기는 것이 여기 할 일의 전부 */
+    const feed = (ev: StageEvent) => {
+        const now = Date.now();
+        const r = stageStep(mem.current, {
+            nowMs: now, calls: liveRoute.length, judging: !!judging, drive,
+        }, ev);
+        mem.current = r.mem;
+        if (r.snap) { logStateChange("시트", `${r.snap}·${r.reason}`, "무대"); setSnap(r.snap); }
+        /**
+         * 🔁 미룬 결정은 **유예가 끝나면 다시 묻는다** — 안 그러면 유예 중에 온 전환이
+         *    영영 사라져 시트가 전체에 눌러앉는다 (0831 3판 실측).
+         */
+        if (r.deferred) {
+            if (holdTimer.current) clearTimeout(holdTimer.current);
+            holdTimer.current = setTimeout(() => setRuleTick(x => x + 1), (r.mem.userHoldUntil - now) + 200);
+        }
+        return r;
     };
     useEffect(() => { logStateChange("주행신호", drive, "무대"); }, [drive]);
+    useEffect(() => () => { if (holdTimer.current) clearTimeout(holdTimer.current); }, []);
 
-    /**
-     * 🔁 유예 중 온 전환은 버리지 않고 **유예가 끝나면 다시 평가한다** (0831 3판).
-     *    예전엔 유예에 걸린 전환이 그냥 사라져서 — 도착 유예 중 출발(주행 신호)이
-     *    오면 시트가 전체에 눌러앉았다. 열었다 닫혔다가 «작동»하려면 이 되새김이 필요하다.
-     */
-    const [ruleTick, setRuleTick] = useState(0);
-    useEffect(() => {
-        const wait = userHoldUntil.current - Date.now();
-        if (wait > 0) {
-            const t = setTimeout(() => setRuleTick(x => x + 1), wait + 200);
-            return () => clearTimeout(t);
-        }
-        if (judging) { autoRaised.current = false; snapTo('peek', '판정중'); return; }   // S4
-        if (drive === 'drive') {                                    // S3 — 주행: 지도 주인공
-            autoRaised.current = false;                             //   달리면 마중은 끝난다
-            snapTo('peek', '주행');
-            return;
-        }
-        if (autoRaised.current) return;              // 🪜 KEEP·도착으로 올라간 시트 — 정차가 못 끌어내린다
-        if (liveRoute.length > 0) snapTo('half', '정차');           // S2 — 정차: 콜 목록
-        else snapTo('peek', '콜없음');                              // S1
+    useEffect(() => { feed({ type: 'signal' });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [drive, judging ? judging.id : null, liveRoute.length, ruleTick]);
 
@@ -105,8 +92,7 @@ export default function StageView(props: Props) {
     useEffect(() => {
         const onConfirmed = (orderId: string) => {
             useGpsFocusStore.setState({ gpsFocus: { orderId, tick: Date.now(), kind: 'arrive' } });
-            autoRaised.current = true;   // 통화하는 동안 정차 전환이 못 끌어내린다 (주행에는 진다)
-            snapTo('full', 'KEEP');
+            feed({ type: 'keep' });
         };
         socket.on('order-confirmed', onConfirmed);
         return () => { socket.off('order-confirmed', onConfirmed); };
@@ -119,9 +105,8 @@ export default function StageView(props: Props) {
     const gpsFocus = derived.gpsFocus;
     useEffect(() => {
         if (!gpsFocus || gpsFocus.kind !== 'arrive') return;
-        if (Date.now() < userHoldUntil.current) return;   // 손이 이긴다
-        autoRaised.current = true;   // 신고하는 동안 정차 전환이 못 끌어내린다 (달리면 내려간다)
-        snapTo('full', '도착');
+        const arrived = feed({ type: 'arrive' });
+        if (!arrived.snap) return;   // 손 유예 중이면 마중도 미룬다
         /**
          * 🪜 **마중은 «그 콜의 지금 단계»를 보여 주는 것까지다** (기사님 수순 ⑥ · 2026-08-31).
          *    덱은 이미 그 콜로 옮겨 간다(gpsFocus). 남은 것은 시트 안 스크롤 — 지난 판에서
@@ -143,9 +128,7 @@ export default function StageView(props: Props) {
     const phase = filter?.dispatchPhase;
     useEffect(() => {
         if (phase !== 'DELIVERING') return;
-        if (Date.now() < userHoldUntil.current) return;
-        autoRaised.current = false;
-        snapTo('peek', '운행 시작');
+        feed({ type: 'depart' });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [phase]);
 
@@ -228,7 +211,7 @@ export default function StageView(props: Props) {
      */
     useEffect(() => {
         if (drive !== 'drive' || !next) return;
-        if (Date.now() < userHoldUntil.current) return;   // 손이 이긴다
+        if (Date.now() < mem.current.userHoldUntil) return;   // 손이 이긴다
         useGpsFocusStore.setState({ gpsFocus: { orderId: next.orderId, tick: Date.now(), kind: 'approach' } });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [drive, next?.orderId]);
@@ -236,8 +219,7 @@ export default function StageView(props: Props) {
     /** 🖐️ 마커 탭 → 그 콜 카드 (S6 문법 — 지나온 곳도 확인·수정) */
     const focusCall = (orderId: string) => {
         useGpsFocusStore.setState({ gpsFocus: { orderId, tick: Date.now(), kind: 'arrive' } });
-        userHoldUntil.current = Date.now() + 30_000;   // 손짓이다 — 30초는 아무것도 못 바꾼다
-        snapTo('full', '탭');
+        feed({ type: 'tap' });
     };
 
     return (
@@ -283,8 +265,7 @@ export default function StageView(props: Props) {
                                  *    기다리면 그 사이 시트가 지도를 가린다. 손이 이긴다(유예 30초)는
                                  *    규칙 위에서, 이 손짓만은 내리는 쪽으로 쓴다.
                                  */
-                                autoRaised.current = false;   // 달릴 참이다 — 마중은 끝난다
-                                snapTo('peek', '출발');
+                                feed({ type: 'depart' });
                             }}
                             className="absolute left-3 bottom-20 z-10 rounded-xl px-4 py-2.5 text-[14px] font-black text-white active:scale-95 transition-transform"
                             style={{ background: 'linear-gradient(180deg,#5b8cff,#3f6fe0)', boxShadow: '0 6px 18px rgba(79,141,249,.4)' }}>
@@ -295,7 +276,7 @@ export default function StageView(props: Props) {
             </div>
 
             {/* 3단 시트 — 내용물은 기존 콜 화면 그대로 (sheetOnly) */}
-            <StageSheet snap={snap} onSnapChange={(s) => snapTo(s, '손')} peekBar={peekBar} onUserDrag={() => { userHoldUntil.current = Date.now() + 30_000; autoRaised.current = false; }}>
+            <StageSheet snap={snap} onSnapChange={(s) => feed({ type: 'drag', to: s })} peekBar={peekBar} onUserDrag={() => { /* 손이 끈 것은 아래 onSnapChange 가 규칙에 알린다 */ }}>
                 <PinnedRouteBody {...props} sheetOnly d={derived} />
             </StageSheet>
         </section>
