@@ -104,8 +104,31 @@ export default function StageView(props: Props) {
         // 마중은 30초 유예 — 10초 뒤 정차 전환(half)이 신고 시트를 끌어내리지 않게 (0831 3판)
         userHoldUntil.current = Date.now() + 30_000;
         snapTo('full', '도착');
+        /**
+         * 🪜 **마중은 «그 콜의 지금 단계»를 보여 주는 것까지다** (기사님 수순 ⑥ · 2026-08-31).
+         *    덱은 이미 그 콜로 옮겨 간다(gpsFocus). 남은 것은 시트 안 스크롤 — 지난 판에서
+         *    시트만 올라오고 내용이 아래에 남아 있으면 결국 손으로 찾아야 했다.
+         *    단계 블록은 카드 안에서 늘 열려 있으므로 맨 위로 올리면 덱·단계가 함께 보인다.
+         */
+        requestAnimationFrame(() => {
+            const sc = document.querySelector('[data-sheet-scroll]') as HTMLElement | null;
+            if (sc) sc.scrollTop = 0;
+        });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [gpsFocus?.tick]);
+
+    /**
+     * 🚀 **국면이 «운행 중»으로 바뀌면 시트를 내린다** (기사님 수순 ④ · 2026-08-31).
+     *    버튼을 눌렀을 때는 위에서 이미 내렸고, 이 줄은 **라이브에서 이동이 감지되어
+     *    서버가 국면을 바꿨을 때**를 받는다 — 손을 안 대도 같은 수순이 된다.
+     */
+    const phase = filter?.dispatchPhase;
+    useEffect(() => {
+        if (phase !== 'DELIVERING') return;
+        if (Date.now() < userHoldUntil.current) return;
+        snapTo('peek', '운행 시작');
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [phase]);
 
     /* 🗺️ 다음 정거장 이름표 재료 — 서버 경로 순서(routeStops)에서 첫 미방문 (v22 S3) */
     const next = (() => {
@@ -186,7 +209,19 @@ export default function StageView(props: Props) {
                     {/* 🚀 지금 출발 — 옛 지도와 같은 자리·같은 동작 (짐 있고 출발 전일 때만) */}
                     {filter && filter.dispatchPhase !== 'DELIVERING' && liveRoute.length > 0 && (
                         <button
-                            onClick={(e) => { e.stopPropagation(); logRoadmapEvent("웹", "무대 지도 🚀 지금 출발 클릭 → 운행 중 국면"); updateFilter({ driverAction: 'DRIVING' }); }}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                logRoadmapEvent("웹", "무대 지도 🚀 지금 출발 클릭 → 운행 중 국면");
+                                updateFilter({ driverAction: 'DRIVING' });
+                                /**
+                                 * 🚀 **출발을 누르면 시트가 내려간다** (기사님 수순 확정 2026-08-31).
+                                 *    누르는 순간이 «이제 달린다»는 의사 표현이다 — 주행 감지(10초)를
+                                 *    기다리면 그 사이 시트가 지도를 가린다. 손이 이긴다(유예 30초)는
+                                 *    규칙 위에서, 이 손짓만은 내리는 쪽으로 쓴다.
+                                 */
+                                userHoldUntil.current = Date.now() + 30_000;
+                                snapTo('peek', '출발');
+                            }}
                             className="absolute left-3 bottom-20 z-10 rounded-xl px-4 py-2.5 text-[14px] font-black text-white active:scale-95 transition-transform"
                             style={{ background: 'linear-gradient(180deg,#5b8cff,#3f6fe0)', boxShadow: '0 6px 18px rgba(79,141,249,.4)' }}>
                             🚀 지금 출발
