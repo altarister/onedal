@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { isEvaluating, isTerminal, hasVisitedStop, isDeliveredCall, deriveRouteTimeline, derivationInputsOf, deckOfCycle } from '@onedal/shared';
 import type { SecuredOrder, RouteStopInfo } from '@onedal/shared';
 import { EMPTY_RECORDS } from './records';
@@ -100,16 +100,30 @@ export function useRouteDerivations(
      * 진짜 위치(GPS)가 언제나 이긴다. 서버도 같은 값을 쓴다 (SettingsRepository.getHomeLocation).
      */
     const [myLocation, setMyLocation] = useState<{ x: number, y: number } | null>(null);
+    /** 🏠 설정의 «내 주소» — 모의 주행이 끝나면 여기로 돌아온다 (서버와 같은 규칙) */
+    const homeLocation = useRef<{ x: number; y: number } | null>(null);
     useEffect(() => {
         let alive = true;
         apiClient.get('/settings')
             .then(({ data }: { data: { homeX?: number; homeY?: number } }) => {
                 const x = data?.homeX, y = data?.homeY;
                 if (!alive || x == null || y == null) return;
+                homeLocation.current = { x, y };
                 setMyLocation(prev => prev ?? { x, y });
             })
             .catch(() => {});
         return () => { alive = false; };
+    }, []);
+    /**
+     * 🧹 **모의 주행이 끝나면 화면의 현위치도 집으로** (기사님 실측 2026-08-31).
+     *    서버는 이미 가상 위치를 걷어내고 내 주소로 돌아간다(`clearMockLocation`).
+     *    화면만 마지막 모의 좌표를 들고 있으면 **같은 사실을 두 곳이 다르게 말한다** —
+     *    다음 판의 기점이 이천으로 보이고, 시뮬 문제지도 그 좌표로 출제된다.
+     */
+    useEffect(() => {
+        const onMockEnd = () => { if (homeLocation.current) setMyLocation(homeLocation.current); };
+        window.addEventListener('mock-driving-ended', onMockEnd);
+        return () => window.removeEventListener('mock-driving-ended', onMockEnd);
     }, []);
     useEffect(() => {
         if (currentGps) setMyLocation({ x: currentGps.lng, y: currentGps.lat });

@@ -92,6 +92,12 @@ export function endMockDriving(): void {
          * 끝났으면 거기 있는 게 아니다» 원칙의 빠진 반쪽).
          */
         socket.emit('mock-driving-ended');
+        /**
+         * 🖥️ **화면도 함께 되돌린다** (기사님 실측 0831: *"내 위치가 이천에 있는 것 같은데?"*).
+         *    서버는 가상 위치를 걷어내고 내 주소로 돌아가는데, 관제웹의 `myLocation` 은
+         *    마지막 모의 좌표를 그대로 들고 있었다 — 같은 사실을 두 곳이 다르게 말한다.
+         */
+        window.dispatchEvent(new CustomEvent('mock-driving-ended'));
         return;
     }
     lastSent = null;   // 같은 좌표라도 다시 보내야 서버가 되돌아간다
