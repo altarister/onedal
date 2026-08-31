@@ -750,7 +750,7 @@ export const DRIVER_LOCATION_STALE_MS = 5 * 60 * 1000;
  * ⚠️ **받은 시각을 모르면 건드리지 않는다** — 없는 값으로 지우지 않는다 (규칙 ④).
  */
 export function dropStaleLocation(
-    session: { driverLocation: { x: number; y: number } | null; driverLocationAt: number | null },
+    session: { driverLocation: { x: number; y: number } | null; driverLocationAt: number | null; driverLocationIsMock?: boolean },
     nowMs: number = Date.now(),
 ): void {
     if (!session.driverLocation || session.driverLocationAt == null) return;
@@ -759,6 +759,7 @@ export function dropStaleLocation(
     console.log(`📍 [현위치 낡음] ${age}분 전 좌표라 «지금 위치»로 쓰지 않습니다 — 내 주소 기준으로 계산합니다`);
     session.driverLocation = null;
     session.driverLocationAt = null;
+    session.driverLocationIsMock = false;   // 좌표를 지웠으면 그 좌표의 표식도 함께 지운다
 }
 
 /**
@@ -787,7 +788,41 @@ export function clearMockLocation(
     console.log(`🧹 [모의 종료] 가상 위치를 걷어냅니다 — 내 주소 기준으로 복귀`);
     session.driverLocation = null;
     session.driverLocationAt = null;
+    session.driverLocationIsMock = false;
     ensureDriverOrigin(userId, session);
+}
+
+/**
+ * 🧟 **가상 좌표는 운행 국면 안에서만 «지금 위치»다** (기사님 실측 2026-09-01).
+ *
+ * 판이 끝나고 2분 뒤 잡은 첫짐의 경로가 집(초월읍)이 아니라 **이천에서** 시작했다.
+ * 지난 판 마지막에 흘러든 가상 좌표 하나가 세션에 남아 기점 노릇을 하고 있었다 —
+ * 낡음(5분)에 걸리기엔 싱싱했고(1분 48초), 걷어내는 손은 시뮬이 폴리라인 끝에 닿는
+ * **한 갈래에만** 달려 있었다(`clearMockLocation` ← `mock-driving-ended`).
+ * 실제로 판이 끝나는 길은 여럿이다 — 마지막 하차로 활성 콜이 0건이 되거나, 탭을 닫거나,
+ * 새로고침하거나. 그 길들에는 손이 없었다.
+ *
+ * 🔴 **끝났다는 «사건»을 기다리지 않고, 읽는 자리에서 «아직 유효한가»를 묻는다** (규칙 ③).
+ *    모의 GPS 가 도는 조건이 곧 유효 조건이다 — 관제웹 `useMasterGps` 의 `useMock` 은
+ *    `isDriving`(= `dispatchPhase === 'DELIVERING'`) 없이는 한 좌표도 만들지 않는다.
+ *    그러니 국면이 그걸 벗어났다면 남은 가상 좌표는 **정의상** 지난 판의 것이다.
+ *    시각을 재는 추측이 아니라 만드는 조건 그대로라, 어느 길로 끝나도 함께 걷힌다.
+ *
+ * 🔴 **실 GPS 는 건드리지 않는다.** 차를 세워 국면이 STANDBY 여도 기사님은 진짜 거기 계신다.
+ *    걷어내는 이유는 «가짜라서»지 «안 달려서»가 아니다.
+ */
+function dropOffDutyMockLocation(session: {
+    driverLocation: { x: number; y: number } | null;
+    driverLocationAt: number | null;
+    driverLocationIsMock?: boolean;
+    activeFilter?: { dispatchPhase?: string | null };
+}): void {
+    if (!session.driverLocation || !session.driverLocationIsMock) return;
+    if (session.activeFilter?.dispatchPhase === 'DELIVERING') return;
+    console.log(`🧟 [가상 좌표 만료] 운행 국면(DELIVERING)이 아닌데 시뮬 좌표가 남아 있습니다 — 걷어내고 내 주소 기준으로 계산합니다`);
+    session.driverLocation = null;
+    session.driverLocationAt = null;
+    session.driverLocationIsMock = false;
 }
 
 export function ensureDriverOrigin(
@@ -796,10 +831,13 @@ export function ensureDriverOrigin(
         driverLocation: { x: number; y: number } | null;
         driverLocationAt: number | null;
         driverLocationIsFallback: boolean;
+        driverLocationIsMock?: boolean;
+        activeFilter?: { dispatchPhase?: string | null };
     },
     nowMs: number = Date.now(),
 ): void {
     dropStaleLocation(session, nowMs);
+    dropOffDutyMockLocation(session);
     if (session.driverLocation) return;
     const home = SettingsRepository.getHomeLocation(userId);
     if (home) {
@@ -925,6 +963,7 @@ export function processDriverMovement(
 
     session.driverLocation = currentGPS;
     session.driverLocationAt = Date.now();   // 낡음을 재려면 «언제 받았나»가 있어야 한다
+    session.driverLocationIsMock = src === 'mock';   // 가짜는 운행 국면 밖에서 못 산다
 
     // [V2] dispatchPhase 기반으로 체크
     const isDelivering = session.activeFilter.dispatchPhase === 'DELIVERING';

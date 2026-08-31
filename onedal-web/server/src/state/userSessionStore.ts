@@ -78,6 +78,15 @@ export interface UserSession {
      * GPS 가 들어오면 false 로 돌아간다 (진짜 위치가 언제나 이긴다).
      */
     driverLocationIsFallback: boolean;
+    /**
+     * `driverLocation` 이 **시뮬레이터가 만든 가상 좌표**인가 (2026-09-01 신설).
+     *
+     * 가상 좌표는 «지금 위치»로 쓸 수 있는 기간이 **운행 국면 안»으로 한정된다 —
+     * 관제웹 시뮬은 `dispatchPhase === 'DELIVERING'` 일 때만 도므로, 국면이 그걸
+     * 벗어난 순간 남은 가상 좌표는 정의상 지난 판의 잔상이다 (`ensureDriverOrigin`).
+     * 실 GPS 에는 이 제한이 없다 — 세워 둬도 기사님은 진짜 거기 계신다.
+     */
+    driverLocationIsMock: boolean;
     /** 🔒 모의 GPS 임자 소켓 — 관제웹 둘이 시뮬을 겹쳐 쏘면 궤적이 섞인다 (2026-08-31) */
     mockGpsOwner?: { socketId: string; at: number; warned: boolean } | null;
     /**
@@ -252,6 +261,7 @@ function createDefaultSession(userId: string): UserSession {
         callOptions: [],
         driverLocation: null,
         driverLocationIsFallback: false,
+        driverLocationIsMock: false,
         mockGpsOwner: null,
         driverLocationAt: null,
         userVehicleType: '1t',
