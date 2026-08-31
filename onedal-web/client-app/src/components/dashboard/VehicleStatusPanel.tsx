@@ -42,7 +42,17 @@ export function useDriveMotion(): 'drive' | 'idle' {
             const now = Date.now();
             if (last) {
                 const h = (now - last.time) / 3_600_000;
-                if (h > 0) speed = (speed * 0.7) + ((getDistanceKm(last.lat, last.lng, loc.lat, loc.lng) / h) * 0.3);
+                if (h > 0) {
+                    /**
+                     * 🔴 **내려갈 땐 즉시, 올라갈 땐 평활** (기사님 실측 0831 2판).
+                     *    양방향 EWMA 는 모의 순항(수천 km/h)에서 0 으로 내려오는 데만
+                     *    ~17초 — 12초 정차 안에 «5km/h↓ 10초»가 영영 안 찬다.
+                     *    실운행도 같다: 신호 정지의 속도 0 은 잡음이 아니라 사실이다.
+                     *    상한 250 은 GPS 튐(순간 수백 km/h)이 문턱을 흔들지 않게 한다.
+                     */
+                    const measured = Math.min(250, getDistanceKm(last.lat, last.lng, loc.lat, loc.lng) / h);
+                    speed = measured < 5 ? measured : (speed * 0.7) + (measured * 0.3);
+                }
             }
             last = { lat: loc.lat, lng: loc.lng, time: now };
         };

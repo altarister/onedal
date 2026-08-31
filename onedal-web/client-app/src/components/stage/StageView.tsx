@@ -9,7 +9,7 @@ import { PinnedRouteBody } from '../dashboard/PinnedRoute';
 import { MovingBadge, useDriveMotion } from '../dashboard/VehicleStatusPanel';
 import { useGpsFocusStore } from '../../stores/gpsFocusStore';
 import { useFilterConfig } from '../../hooks/useFilterConfig';
-import { logRoadmapEvent } from '../../lib/roadmapLogger';
+import { logRoadmapEvent, logStateChange } from '../../lib/roadmapLogger';
 import { socket } from '../../lib/socket';
 
 /**
@@ -46,11 +46,25 @@ export default function StageView(props: Props) {
     const drive = useDriveMotion();
     const userHoldUntil = useRef(0);
     const judging = derived.judging;
+
+    /**
+     * 📡 **시트 전환은 전부 사유와 함께 로그로 남긴다** (기사님 지시 0831 2판).
+     *    서버 로그에 중계되므로(관제웹 로그 릴레이) GPS 궤적(gps_tracks)과 시각을
+     *    맞대 «언제 내려가고 올라왔어야 했나»를 사후 검증할 수 있다.
+     */
+    const snapTo = (next: SheetSnap, reason: string) => {
+        logStateChange("시트", `${next}·${reason}`, "무대");
+        setSnap(next);
+    };
+    useEffect(() => { logStateChange("주행신호", drive, "무대"); }, [drive]);
+
     useEffect(() => {
         if (Date.now() < userHoldUntil.current) return;
-        if (judging) { setSnap('peek'); return; }          // S4 — 지도가 판정 근거 (후보 정거장이 지도에 뜬다)
-        if (drive === 'drive') { setSnap('peek'); return; } // S3 — 주행: 지도 주인공
-        setSnap(liveRoute.length > 0 ? 'half' : 'peek');    // S2/S1 — 정차: 콜 목록 / 대기 한 줄
+        if (judging) { snapTo('peek', '판정중'); return; }        // S4 — 지도가 판정 근거
+        if (drive === 'drive') { snapTo('peek', '주행'); return; } // S3 — 주행: 지도 주인공
+        if (liveRoute.length > 0) snapTo('half', '정차');           // S2 — 정차: 콜 목록
+        else snapTo('peek', '콜없음');                              // S1
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [drive, judging ? judging.id : null, liveRoute.length]);
 
     /**
@@ -61,7 +75,7 @@ export default function StageView(props: Props) {
         const onConfirmed = (orderId: string) => {
             useGpsFocusStore.setState({ gpsFocus: { orderId, tick: Date.now(), kind: 'arrive' } });
             userHoldUntil.current = Date.now() + 30_000;   // 통화하는 동안 자동 전환 유예
-            setSnap('full');
+            snapTo('full', 'KEEP');
         };
         socket.on('order-confirmed', onConfirmed);
         return () => { socket.off('order-confirmed', onConfirmed); };
@@ -75,7 +89,7 @@ export default function StageView(props: Props) {
     useEffect(() => {
         if (!gpsFocus || gpsFocus.kind !== 'arrive') return;
         if (Date.now() < userHoldUntil.current) return;   // 손이 이긴다
-        setSnap('full');
+        snapTo('full', '도착');
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [gpsFocus?.tick]);
 
@@ -122,7 +136,7 @@ export default function StageView(props: Props) {
     const focusCall = (orderId: string) => {
         useGpsFocusStore.setState({ gpsFocus: { orderId, tick: Date.now(), kind: 'arrive' } });
         userHoldUntil.current = Date.now() + 30_000;
-        setSnap('full');
+        snapTo('full', '탭');
     };
 
     return (
@@ -167,7 +181,7 @@ export default function StageView(props: Props) {
             </div>
 
             {/* 3단 시트 — 내용물은 기존 콜 화면 그대로 (sheetOnly) */}
-            <StageSheet snap={snap} onSnapChange={setSnap} peekBar={peekBar} onUserDrag={() => { userHoldUntil.current = Date.now() + 30_000; }}>
+            <StageSheet snap={snap} onSnapChange={(s) => snapTo(s, '손')} peekBar={peekBar} onUserDrag={() => { userHoldUntil.current = Date.now() + 30_000; }}>
                 <PinnedRouteBody {...props} sheetOnly d={derived} />
             </StageSheet>
         </section>

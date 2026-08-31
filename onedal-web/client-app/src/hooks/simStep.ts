@@ -37,8 +37,8 @@ export const initialSimState = (idx = 0): SimState =>
 
 /** 정거장 접근으로 치는 반경(km) — 이 안에서는 감속 연기 */
 export const APPROACH_KM = 1;
-/** 도착 정차 연기(실초) — 정차 감지 10초보다 길어야 한다 */
-export const DWELL_TICKS = 12;
+/** 도착 정차 연기(실초) — 정차 감지 10초 + 시트가 올라온 것을 «볼» 여유 */
+export const DWELL_TICKS = 18;
 
 export function simStep(
     st: SimState,
