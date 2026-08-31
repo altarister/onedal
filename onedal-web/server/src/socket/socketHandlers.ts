@@ -355,6 +355,24 @@ export function registerSocketHandlers(io: Server) {
 
         // ━━━ [관제웹 Master GPS 수신부] ━━━
         socket.on("dashboard-gps-update", (loc: { lat: number, lng: number, source?: string }) => {
+            /**
+             * 🔒 **모의 GPS 는 한 소켓만** (2026-08-31 실측). 관제웹이 두 개 붙어 있으면
+             * (폰 + 데스크톱) 시뮬 두 대가 좌표를 섞어 쏜다 — 옛 번들 탭이 끼면 정차 연기
+             * 없는 궤적이 이겨 «각본이 안 돈다»로 보인다. 먼저 달리기 시작한 소켓이 임자,
+             * 5초 조용하면 넘겨준다. 실 GPS 는 제한 없음 (진짜는 어차피 한 몸이다).
+             */
+            if (loc.source === 'mock') {
+                const now = Date.now();
+                const owner = session.mockGpsOwner;
+                if (owner && owner.socketId !== socket.id && now - owner.at < 5_000) {
+                    if (!owner.warned) {
+                        owner.warned = true;
+                        console.warn(`🔒 [모의 GPS 충돌] 관제웹 두 곳이 동시에 모의 주행 중 — 뒤에 온 쪽(${socket.id.slice(0, 6)})을 무시합니다. 탭을 하나만 여세요`);
+                    }
+                    return;
+                }
+                session.mockGpsOwner = { socketId: socket.id, at: now, warned: owner?.warned ?? false };
+            }
             session.driverLocationIsFallback = false;   // 진짜 GPS 가 임시 출발지를 이긴다
             processDriverMovement(userId, loc.lat, loc.lng, session,
                 (uid, filterUpdate) => updateActiveFilter(uid, filterUpdate, io),

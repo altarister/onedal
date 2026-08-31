@@ -78,6 +78,8 @@ export interface UserSession {
      * GPS 가 들어오면 false 로 돌아간다 (진짜 위치가 언제나 이긴다).
      */
     driverLocationIsFallback: boolean;
+    /** 🔒 모의 GPS 임자 소켓 — 관제웹 둘이 시뮬을 겹쳐 쏘면 궤적이 섞인다 (2026-08-31) */
+    mockGpsOwner?: { socketId: string; at: number; warned: boolean } | null;
     /**
      * 📍 **`driverLocation` 을 받은 시각** (epoch ms · 2026-08-25 신설).
      *
@@ -250,6 +252,7 @@ function createDefaultSession(userId: string): UserSession {
         callOptions: [],
         driverLocation: null,
         driverLocationIsFallback: false,
+        mockGpsOwner: null,
         driverLocationAt: null,
         userVehicleType: '1t',
         capacityConfidence: 'ESTIMATED',

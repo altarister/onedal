@@ -66,6 +66,18 @@ export function useMockGpsSimulator({
     onFinished,
 }: MockGpsSimulatorProps) {
     const [mockLocation, setMockLocation] = useState<{ x: number; y: number } | null>(null);
+    /**
+     * 👁️ **보이는 탭에서만 달린다** (2026-08-31 실측). 숨은 탭의 setInterval 은 브라우저가
+     * 분당 1회로 조여서 절뚝이는 좌표를 쏘고, 다른 탭의 시뮬과 섞인다 — 관제웹 두 개가
+     * 붙었던 판에서 «각본이 안 돈다»의 절반이 이것이었다. 숨으면 멈추고(이어 달림은
+     * ref 가 지킨다) 다시 보이면 그 자리에서 계속 간다.
+     */
+    const [visible, setVisible] = useState(typeof document === 'undefined' || !document.hidden);
+    useEffect(() => {
+        const onVis = () => setVisible(!document.hidden);
+        document.addEventListener('visibilitychange', onVis);
+        return () => document.removeEventListener('visibilitychange', onVis);
+    }, []);
     const indexRef = useRef(0);
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const routeRef = useRef(routePolyline);
@@ -110,7 +122,7 @@ export function useMockGpsSimulator({
     }, [routePolyline]);
 
     useEffect(() => {
-        if (!isActive) {
+        if (!isActive || !visible) {
             if (intervalRef.current) {
                 clearInterval(intervalRef.current);
                 intervalRef.current = null;
@@ -171,7 +183,7 @@ export function useMockGpsSimulator({
                 intervalRef.current = null;
             }
         };
-    }, [isActive, speedMultiplier]);
+    }, [isActive, visible, speedMultiplier]);
 
     return mockLocation;
 }
