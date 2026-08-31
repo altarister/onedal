@@ -1,11 +1,14 @@
 package com.onedal.simulator
 
+import android.Manifest
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.text.InputType
 import android.view.KeyEvent
+import android.webkit.GeolocationPermissions
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -69,11 +72,28 @@ class MainActivity : Activity() {
             // 모바일 User-Agent 강제 (데스크탑 모드 방지)
             settings.userAgentString = settings.userAgentString.replace("; wv", "")
 
+            /**
+             * 📍 **웹뷰가 위치를 물으면 허락한다** (2026-08-31).
+             * 시뮬 문제지가 «현위치 → 상차지» 거리를 여기서 잰다. 이 폰이 곧 기사님이므로
+             * 되물을 것이 없다 — 대신 안드로이드 권한이 없으면 아래에서 한 번 요청한다.
+             */
+            settings.setGeolocationEnabled(true)
+
             // 외부 브라우저로 이탈 방지
             webViewClient = WebViewClient()
-            webChromeClient = WebChromeClient()
+            webChromeClient = object : WebChromeClient() {
+                override fun onGeolocationPermissionsShowPrompt(
+                    origin: String?, callback: GeolocationPermissions.Callback?,
+                ) { callback?.invoke(origin, true, false) }
+            }
 
             loadUrl(currentUrl())
+        }
+
+        // 📍 위치 권한이 없으면 한 번 청한다 — 거부해도 시뮬은 돈다 (서버·고정 좌표로 폴백)
+        if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 1001)
         }
     }
 

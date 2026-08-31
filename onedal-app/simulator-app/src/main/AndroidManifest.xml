@@ -2,6 +2,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 📍 시뮬 문제지가 «현위치 기준»으로 출제하기 위해 (2026-08-31 · 기사님 확정).
+         책상 판은 서버가 가상 위치를 주지만, 필드(서울 나들이)에서는 라이브 서버가
+         그 문을 닫아 두므로 **이 폰의 진짜 위치**가 유일한 출처다.
+         2026-08-23 구로 판에서 33.5km 뒤 상차지가 «0.2km»로 나가 필터를 통과했다. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <application
         android:allowBackup="false"

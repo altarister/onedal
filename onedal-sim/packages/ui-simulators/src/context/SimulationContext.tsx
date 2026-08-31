@@ -63,28 +63,47 @@ export const SimulationProvider = ({ children, initialDriver, initialConfig }: S
   const [simConfig, setSimConfig] = useState<SimulationConfig>(initialConfig);
 
   /**
-   * 📍 **기사님 현위치를 따라간다** (기사님 확정 2026-08-31).
+   * 📍 **기사님 현위치를 따라간다 — 두 출처, 순서가 있다** (기사님 확정 2026-08-31).
    *
-   * 콜의 «현위치 → 상차지 N KM» 은 이 좌표에서 잰다. 예전엔 URL 로 한 번 고른 뒤
-   * **움직이지 않아서**, 기사님은 달리는데 숫자는 그대로였다 — 상차 반경 축이
-   * 실제 지리와 무관한 값으로 채점됐다 (실측: 적요 7.2km · 실제 11.4km · 22.4km 뒤
-   * 상차지가 통과). 실제 인성은 배차망이 매번 계산해 띄운다. 여기도 같게 만든다.
+   * 콜의 «현위치 → 상차지 N KM» 과 축 문제지의 «거리 띠»가 이 좌표에서 나온다. 예전엔
+   * URL 로 한 번 고른 뒤 **움직이지 않아서**, 2026-08-23 구로 필드테스트에서 33.5km 뒤
+   * 상차지가 «0.2km» 로 적혀 나가 **먼 콜이 필터를 통과**했다. 앱은 잘못이 없었다.
    *
-   * 🔴 **못 받으면 있던 값을 그대로 쓴다** — 서버가 꺼져 있어도 시뮬은 돌아야 한다.
-   *    (폰이 이 화면을 열 때 서버는 같은 맥의 :4000 이므로 호스트만 빌린다)
+   *   ① **서버**(`/api/sim/driver-location`) — 책상 판의 정답. 모의 주행 중이면 그 **가상
+   *      위치**를 준다. 폰 GPS 를 쓰면 책상에 앉아 있는 좌표가 나와 주행이 반영되지 않는다
+   *   ② **폰 GPS** — 서버가 못 답할 때(필드에서 라이브 서버는 이 문을 닫아 둔다). 시뮬
+   *      화면은 폰 안에서 도니 그 폰의 위치가 곧 기사님 위치다
+   *
+   * 🔴 **둘 다 없으면 있던 좌표를 그대로 쓴다** — 시뮬은 어떤 경우에도 돌아야 한다.
+   * 서버 주소는 `?api=` 로 바꿀 수 있다 (기본은 같은 호스트의 :4000 — 폰이 맥을 본다).
    */
   useEffect(() => {
     let alive = true;
-    const api = `http://${window.location.hostname}:4000/api/sim/driver-location`;
+    const params = new URLSearchParams(window.location.search);
+    const api = params.get('api') || `http://${window.location.hostname}:4000`;
+    const apply = (lon: number, lat: number, name: string) => {
+      if (!alive) return;
+      setDriverLocation(prev => (prev.lon === lon && prev.lat === lat) ? prev : { lon, lat, name });
+    };
+    /** 폰 GPS — 서버가 못 답할 때만. 실패해도 조용히 넘어간다 */
+    const fromPhone = () => {
+      if (!navigator.geolocation) return;
+      navigator.geolocation.getCurrentPosition(
+        pos => apply(pos.coords.longitude, pos.coords.latitude, '기사님 현위치(폰)'),
+        () => { /* 권한 거부·실패 — 있던 좌표를 쓴다 */ },
+        { enableHighAccuracy: true, maximumAge: 10_000, timeout: 5_000 },
+      );
+    };
     const pull = async () => {
       try {
-        const r = await fetch(api);
+        const r = await fetch(`${api}/api/sim/driver-location`);
         const d = await r.json();
-        if (!alive || !d?.ok || typeof d.x !== 'number' || typeof d.y !== 'number') return;
-        setDriverLocation(prev =>
-          (prev.lon === d.x && prev.lat === d.y) ? prev
-            : { lon: d.x, lat: d.y, name: d.isFallback ? '기사님 내 주소' : '기사님 현위치' });
-      } catch { /* 서버가 없으면 고정 좌표로 계속 — 조용히 넘어간다 */ }
+        if (d?.ok && typeof d.x === 'number' && typeof d.y === 'number') {
+          apply(d.x, d.y, d.isFallback ? '기사님 내 주소' : '기사님 현위치');
+          return;
+        }
+      } catch { /* 서버가 없다 — 폰에게 묻는다 */ }
+      fromPhone();
     };
     pull();
     const t = setInterval(pull, 3000);

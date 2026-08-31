@@ -66,7 +66,12 @@ export const useSimStreaming = ({
       const p = cfg.preset[presetIdxRef.current];
       if (!p) return null;
       presetIdxRef.current += 1;
-      const forced = toForcedPair(p);
+      // 📍 띠 문제는 «지금 어디»에서 푼다 — 출제 순간의 좌표라야 정답이 어디서든 같다 (0831)
+      const forced = toForcedPair(p, {
+          driverLon: cfg.config.driverLon,
+          driverLat: cfg.config.driverLat,
+          maxPickupKm: cfg.config.maxPickupKm,
+      });
       if (!forced) return null;
       console.log(`🎯 [문제지] ${p.label} — 앱이 ${p.expect === 'BLOCK' ? '걸러야' : '올려야'} 한다 · ${p.why}`);
       return generateSimCall(cfg.config, forced);

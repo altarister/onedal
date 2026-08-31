@@ -10,7 +10,8 @@ import mockDataRaw from './data/mockLocationData.json';
 
 // 좌표가 포함된 모의 데이터
 export type MockEntry = LocationDetailInfo & { lon: number; lat: number };
-const MOCK_DATA = mockDataRaw as MockEntry[];
+/** 🎯 문제지가 «거리 띠»로 주소를 고를 때도 같은 데이터를 쓴다 (한 곳 · 규칙 ③) */
+export const MOCK_DATA = mockDataRaw as MockEntry[];
 
 /** 주소 조각으로 모의 데이터를 찾는다 — 프리셋(문제지)이 실제 좌표를 쓰기 위한 창구 */
 export function findMockEntry(addressPart: string): MockEntry | undefined {

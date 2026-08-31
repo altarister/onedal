@@ -23,6 +23,9 @@ import { join } from 'path';
  */
 const SIM = join(__dirname, '../../../../onedal-sim');
 const read = (rel: string) => readFileSync(join(SIM, rel), 'utf8');
+/** 주석은 뺀다 — 사고 이력을 적어 둔 문장이 «코드에 있다»로 오독되면 안 된다 */
+const codeOnly = (src: string) =>
+    src.split('\n').filter(l => !/^\s*(\/\/|\/\*|\*)/.test(l)).join('\n');
 
 describe('시뮬 — 현위치를 따라간다', () => {
     it('🔴 서버에 «지금 어디»를 묻고 기사 좌표를 갱신한다', () => {
@@ -31,10 +34,26 @@ describe('시뮬 — 현위치를 따라간다', () => {
         expect(ctx).toMatch(/setDriverLocation\(/);
     });
 
-    it('🔴 서버가 없어도 시뮬은 돈다 — 못 받으면 있던 좌표를 쓴다', () => {
-        const ctx = read('packages/ui-simulators/src/context/SimulationContext.tsx');
-        const eff = ctx.slice(ctx.indexOf('/api/sim/driver-location'));
-        expect(eff.slice(0, 600)).toMatch(/catch/);
+    it('🔴 서버가 못 답하면 폰 GPS 로 넘어간다 (필드에서는 라이브 서버 문이 닫혀 있다)', () => {
+        const ctx = codeOnly(read('packages/ui-simulators/src/context/SimulationContext.tsx'));
+        expect(ctx).toMatch(/catch \{[\s\S]{0,40}\}\s*\n?\s*fromPhone\(\)/);
+        expect(ctx).toMatch(/navigator\.geolocation\.getCurrentPosition/);
+    });
+
+    it('🔴 폰 GPS 도 실패하면 있던 좌표를 쓴다 — 시뮬은 어떤 경우에도 돈다', () => {
+        const ctx = codeOnly(read('packages/ui-simulators/src/context/SimulationContext.tsx'));
+        const fn = ctx.slice(ctx.indexOf('const fromPhone')).slice(0, 500);
+        // 성공 경로에서만 좌표를 바꾼다 — 실패 콜백은 아무것도 안 한다
+        expect((fn.match(/apply\(/g) ?? []).length).toBe(1);
+    });
+
+    it('🔴 시뮬레이터 앱이 웹뷰의 위치 요청을 허락한다 (APK 권한 · 0831 신설)', () => {
+        const app = join(__dirname, '../../../../onedal-app/simulator-app/src/main');
+        expect(readFileSync(join(app, 'AndroidManifest.xml'), 'utf8'))
+            .toMatch(/ACCESS_FINE_LOCATION/);
+        const act = readFileSync(join(app, 'java/com/onedal/simulator/MainActivity.kt'), 'utf8');
+        expect(act).toMatch(/setGeolocationEnabled\(true\)/);
+        expect(act).toMatch(/onGeolocationPermissionsShowPrompt/);
     });
 
     it('거리는 그 좌표에서 잰다 — 문제지에 숫자를 박지 않는다', () => {

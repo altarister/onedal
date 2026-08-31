@@ -11,13 +11,27 @@
  *    BLOCK 인데 콜을 잡으면 오탐(잘못 잡음), PASS 인데 안 잡으면 미탐(놓침).
  *    미탐이 오탐보다 아프다 (규칙 ⑤ — 앱의 목적은 놓치지 않는 것).
  */
-import { findMockEntry, type MockEntry, type ForcedPair } from './generator';
+import { findMockEntry, MOCK_DATA, type MockEntry, type ForcedPair } from './generator';
+import { calculateDistanceKm } from './geo';
 
 export interface PresetProblem {
     label: string;
     /** 상차·하차 주소 조각 — 모의 데이터(mockLocationData)에서 찾는다 */
-    pickup: string;
-    dropoff: string;
+    pickup?: string;
+    dropoff?: string;
+    /**
+     * 📍 **주소 대신 «거리 띠»로 낸다 — 어디서 돌리든 같은 정답** (기사님 확정 2026-08-31).
+     *
+     * 주소를 박아 두면 그 동네에서만 참인 문제가 된다. 2026-08-23 구로 필드테스트가 증거다 —
+     * 상차지 «경안동»이 실제로는 33.5km 뒤였는데 시뮬이 고정 좌표에서 0.2km 로 재 보내
+     * **먼 콜이 필터를 통과**했다. 띠로 내면 서울이든 부산이든 같은 축을 시험한다.
+     *
+     *   near — 상차 반경 **안** (설정의 절반쯤)
+     *   far  — 상차 반경 **밖** (설정 + 5km 이상)
+     */
+    pickupBand?: 'near' | 'far';
+    /** 하차지 거리 띠 — 배송거리(요금/단가 축의 입력)를 만든다 */
+    dropoffBand?: 'near' | 'far';
     /** 모의 데이터에 없는 곳은 여기에 직접 (좌표의 출처를 주석으로 밝힌다) */
     pickupFallback?: MockEntry;
     dropoffFallback?: MockEntry;
@@ -63,6 +77,71 @@ const GWANGJU_NAMDONG: MockEntry = {
 };
 
 export const PRESETS: Record<string, PresetProblem[]> = {
+    /**
+     * 📍 **축 문제지 — 어디서 돌려도 정답이 같다** (기사님 확정 2026-08-31).
+     *
+     * 기사님: *"내가 서울 나들이 갈 때마다 테스트할 건데, 그때마다 문제의 지역과 내
+     * 현위치의 거리를 환산해야 문제가 정확해질 듯해."*
+     *
+     * 주소를 박은 문제지는 **그 동네에서만** 참이다. 2026-08-23 구로 필드테스트가 그
+     * 증거다 — 상차지 «경안동»이 실제로는 33.5km 뒤였는데, 시뮬이 고정 좌표에서 0.2km 로
+     * 재 보내 **먼 콜이 필터를 통과**했다. 앱은 잘못한 게 없다. 문제지가 거짓말을 했다.
+     *
+     * 여기서는 주소 대신 **거리 띠**로 낸다 — 출제 순간 현위치에서 그 거리의 실제 주소를
+     * 고른다. 그래서 서울이든 부산이든 **같은 축을 시험하고 정답이 안 바뀐다.**
+     *
+     * 🔴 **주행 코스 문제지(칠지점·초월이천)와 섞지 않는다.** 그쪽은 GPS·경로·도착 감지를
+     *    보는 판이라 **실측 좌표가 고정이어야** 한다 (`pnpm drive` 와 같은 지점).
+     *    이 문제지는 **콜 필터가 맞게 거르나**만 본다 (버그 대장 #29~35 — 둘을 섞으면 하루가 간다).
+     *
+     * ⚠️ **도착지 축은 여기 없다.** 그 축의 정답은 기사님이 설정한 도착목표에 달렸는데
+     *    시뮬은 그 목록을 모른다 — 모르는 것으로 정답을 만들지 않는다 (규칙 ④).
+     */
+    '축': [
+        {
+            label: '① 상차 반경 밖 — 걸러야 한다',
+            pickupBand: 'far', dropoffBand: 'near',
+            fare: 60000, vehicleType: '1t',
+            expect: 'BLOCK',
+            why: '상차 반경 축 — 설정+5km 밖이다. 구로 사고(0831 확인)가 이 축을 뚫고 지나갔다',
+        },
+        {
+            label: '② 상차 반경 안 — 올려야 한다',
+            pickupBand: 'near', dropoffBand: 'near',
+            fare: 60000, vehicleType: '1t',
+            expect: 'PASS',
+            why: '반경 안의 평범한 콜 — 문제지가 필터를 통째로 막지 않았음을 확인한다',
+        },
+        {
+            label: '③ 차종 5t — 걸러야 한다',
+            pickupBand: 'near', dropoffBand: 'near',
+            fare: 150000, vehicleType: '5t',
+            expect: 'BLOCK',
+            why: '차종 축 — 내 차로 못 싣는다. 거리·요금은 통과할 값으로 둬 축을 하나만 시험한다',
+        },
+        {
+            label: '④ 요금 미달 — 걸러야 한다',
+            pickupBand: 'near', dropoffBand: 'far',
+            fare: 5000, vehicleType: '1t',
+            expect: 'BLOCK',
+            why: '요금/단가 축 — 배송거리는 먼데 요금이 5천원이다 (단가식 미달)',
+        },
+        {
+            label: '⑤ 먼 배송 · 제값 — 올려야 한다',
+            pickupBand: 'near', dropoffBand: 'far',
+            fare: 120000, vehicleType: '1t',
+            expect: 'PASS',
+            why: '④와 같은 거리인데 요금만 제값 — 걸린 것이 «거리»가 아니라 «단가»였음을 가른다',
+        },
+        {
+            label: '⑥ 반경 밖 + 제값 — 그래도 걸러야 한다',
+            pickupBand: 'far', dropoffBand: 'near',
+            fare: 200000, vehicleType: '1t',
+            expect: 'BLOCK',
+            why: '돈이 좋아도 상차 반경은 안 뚫린다 — 축끼리 서로를 덮지 않는지 본다',
+        },
+    ],
+
     /**
      * 🗺️ **오탐 문제지** — 2026-08-22 실사고의 재현 (버그 대장 · 사전 확장 매칭 ④).
      * 복귀행(집=광주) 키워드 "남동"이 "인천 **남동**구"에 부분 일치해 인천행이 통과했다.
@@ -443,9 +522,13 @@ export const PRESETS: Record<string, PresetProblem[]> = {
 };
 
 /** 문제 하나를 생성기가 먹을 수 있는 강제 쌍으로 — 주소를 못 찾으면 null (지어내지 않는다) */
-export function toForcedPair(p: PresetProblem): ForcedPair | null {
-    const pickup = findMockEntry(p.pickup) ?? p.pickupFallback;
-    const dropoff = findMockEntry(p.dropoff) ?? p.dropoffFallback;
+export function toForcedPair(p: PresetProblem, ctx?: RelativeContext): ForcedPair | null {
+    const pickup = p.pickupBand
+        ? pickByBand(p.pickupBand, ctx, `${p.label} 상차`)
+        : (findMockEntry(p.pickup ?? '') ?? p.pickupFallback);
+    const dropoff = p.dropoffBand
+        ? pickByBand(p.dropoffBand, ctx, `${p.label} 하차`, pickup)
+        : (findMockEntry(p.dropoff ?? '') ?? p.dropoffFallback);
     if (!pickup || !dropoff) {
         console.warn(`🎯 [문제지] "${p.label}" 의 주소를 모의 데이터에서 못 찾았습니다 — 건너뜁니다`);
         return null;
@@ -453,9 +536,48 @@ export function toForcedPair(p: PresetProblem): ForcedPair | null {
     return { pickup, dropoff, fare: p.fare, vehicleType: p.vehicleType };
 }
 
+/** 띠를 풀려면 «지금 어디»와 «반경이 얼마»를 알아야 한다 */
+export interface RelativeContext {
+    driverLon: number;
+    driverLat: number;
+    /** 앱의 상차 반경 설정 — 띠의 경계가 여기서 나온다 */
+    maxPickupKm: number;
+}
+
+/**
+ * 📍 **띠 안의 실제 주소 하나를 고른다** (현위치 기준).
+ * 🔴 없으면 `undefined` — 지어내지 않는다 (규칙 ④). 문제는 건너뛰고 그 사실을 로그로 남긴다.
+ */
+function pickByBand(
+    band: 'near' | 'far', ctx: RelativeContext | undefined, what: string, avoid?: MockEntry,
+): MockEntry | undefined {
+    if (!ctx) {
+        console.warn(`🎯 [문제지] ${what} — 현위치를 몰라 거리 띠를 풀 수 없습니다 (건너뜁니다)`);
+        return undefined;
+    }
+    const here: [number, number] = [ctx.driverLon, ctx.driverLat];
+    const inner = Math.max(1, ctx.maxPickupKm * 0.5);      // 반경 안 — 넉넉히 통과
+    const outer = ctx.maxPickupKm + 5;                     // 반경 밖 — 확실히 차단
+    const pool = MOCK_DATA
+        .filter(m => m.lon && m.lat && m !== avoid)
+        .map(m => ({ m, d: calculateDistanceKm(here, [m.lon, m.lat]) }))
+        .filter(x => band === 'near' ? x.d <= inner : x.d >= outer)
+        .sort((a, b) => a.d - b.d);
+    if (!pool.length) {
+        console.warn(`🎯 [문제지] ${what} — 현위치에서 ${band === 'near' ? `${inner.toFixed(1)}km 안` : `${outer.toFixed(1)}km 밖`}에 모의 주소가 없습니다 (건너뜁니다)`);
+        return undefined;
+    }
+    // 경계에 가까운 다섯 중 하나 — 매 판 같은 곳만 나오지 않게
+    const slice = pool.slice(0, Math.min(5, pool.length));
+    const chosen = slice[Math.floor(Math.random() * slice.length)];
+    console.log(`🎯 [문제지] ${what} — 현위치에서 ${chosen.d.toFixed(1)}km (${band}) · ${chosen.m.addressDetail}`);
+    return chosen.m;
+}
+
 /** 폰에서 URL 을 손으로 칠 때 한글이 번거롭다 — 영문 별칭도 받는다 */
 const ALIASES: Record<string, string> = {
     ohtam: '오탐', mismatch: '오탐',
+    axis: '축', axes: '축',
     seven: '칠지점', '7': '칠지점',
 };
 
@@ -468,6 +590,8 @@ export const PRESET_MENU: Array<{ key: string; title: string; desc: string }> = 
       desc: '7문제 — 정지 상태 정답: 알람 2번(01·03). 05는 주행 중에만 잡힌다. 채움 없음' },
     { key: '초월이천', title: '🚗 초월(집) → 이천 롯데아울렛 · 갈 때 (2026-08-26)',
       desc: '29문제 · 잡는 콜 3(03 첫짐 · 07 합짐→출발 · 28 주행중) · 나머지 26은 막혀야 한다. 간격 하나로 끝 — 사이는 못 잡는 콜이 채운다' },
+    { key: '축', title: '📍 축 문제지 · 어디서든 (현위치 기준 · 서울 나들이용)',
+      desc: '6문제 — 상차반경 2 · 차종 1 · 요금/단가 2 · 축 간섭 1. 주소가 아니라 «거리 띠»라 어디서 돌려도 정답이 같다. 정답: 올려야 하는 것 ②⑤ 둘뿐' },
     { key: '오탐', title: '오탐 확인용',
       desc: '걸러져야 하는 것만 모았다' },
 ];
