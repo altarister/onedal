@@ -182,14 +182,18 @@ describe('속도 표시 — 시뮬레이터 점프를 실제 속도로 말하지
 
     const panel = codeOnly(read('components/dashboard/VehicleStatusPanel.tsx'));
 
-    it('🔴 시뮬레이션이면 속도를 재지 않는다', () => {
-        expect(panel).toMatch(/loc\.source === 'mock'/);
-        expect(panel).toMatch(/if \(isMock\)/);
-    });
-
-    it('🔴 시뮬레이션이면 km/h 를 띄우지 않는다', () => {
-        expect(panel).toMatch(/isMoving && !gpsIsMock/);
-        expect(panel).toMatch(/시뮬레이션 주행/);
+    /**
+     * 🔄 **2026-09-01 에 뒤집혔다** (기사님 확정). 옛 규칙은 «시뮬이면 속도를 재지 않는다»였다 —
+     *    시뮬이 순간이동하던 시절의 방어다. 지금 시뮬은 **연기를 한다**(감속·18초 정차·재출발)
+     *    라서, 특례를 두면 그 정차가 통째로 묻히고 무대 자막(«정차 중») 옆에서 배지가
+     *    «시뮬 주행»이라고 반대말을 한다. 출처가 아니라 **속도**가 답한다.
+     *    (튐 방어는 특례가 아니라 상한 250km/h 로 한다)
+     */
+    it('🔴 모의도 실제와 같은 잣대로 잰다 — 출처 특례가 없다', () => {
+        expect(panel).toMatch(/loc\.source === 'mock'/);      // 출처는 «시뮬» 표시에만 쓴다
+        expect(panel).not.toMatch(/if \(isMock\)\s*\{/);
+        expect(panel).not.toMatch(/isMoving && !gpsIsMock/);
+        expect(panel).toMatch(/Math\.min\(250,/);            // 튐은 상한으로 막는다
     });
 });
 

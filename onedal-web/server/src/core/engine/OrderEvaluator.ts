@@ -357,8 +357,17 @@ export class OrderEvaluator {
                             const marginalKm = distDiff;
                             const tags = [`우회 ${marginal > 0 ? '+' : ''}${marginal}분 · ${marginalKm > 0 ? '+' : ''}${marginalKm}km`];
                             const candPickup = tlAfter.find(e => e.orderId === securedOrder.id && e.stopType === 'pickup');
-                            const clockMs = Date.now() + judgmentCfg.unknown.pickupPromiseMin * 60_000;
-                            if (candPickup?.etaMs != null && candPickup.etaMs > clockMs) tags.push('통화 필수 — 무통보 상차 한계 밖');
+                            /**
+                             * 📞 **상차 약속을 못 지키면 통화가 필요하다** — 그 약속은 타임라인이
+                             *    이미 만들어 놨다(`promisedUntil`: 통화 > 적요 > 잡은 시각 + 20분).
+                             * 🔴 예전엔 여기서 `지금 + 설정분` 으로 **다시 만들었다** — 기준이
+                             *    «콜 잡은 시각»이 아니라 «지금»이었고, 적요·통화 갈래가 통째로
+                             *    빠진 반쪽이었다 (2026-09-01 단일 원천 검사가 잡음 · 규칙 ③).
+                             */
+                            const candPromiseMs = candPickup?.promisedUntil
+                                ? Date.parse(candPickup.promisedUntil) : null;
+                            if (candPickup?.etaMs != null && candPromiseMs != null
+                                && candPickup.etaMs > candPromiseMs) tags.push('통화 필수 — 무통보 상차 한계 밖');
                             if (cost.hasUnknown) tags.push('정차 미확인(일반값)');
                             /**
                              * 🚚 **추정으로 채웠으면 화면이 그렇게 말해야 한다** (규칙 ⑤-2 · 2026-08-26).

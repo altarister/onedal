@@ -182,25 +182,24 @@ export default function VehicleStatusPanel({ liveCalls }: { liveCalls: SecuredOr
         const onGpsUpdate = (e: Event) => {
             const customEvent = e as CustomEvent<{ lat: number, lng: number, source?: string }>;
             const loc = customEvent.detail;
+            /**
+             * 🔴 **모의도 실제와 같은 잣대로 잰다** (0901 검사가 잡음 — 이것이 **셋째 벌**이었다).
+             *    2026-08-31 에 `useDriveMotion` 과 `MovingBadge` 의 특례를 지우면서 여기를
+             *    또 빠뜨렸다. 같은 «달리는가»를 세 곳이 각자 판정하고 있었다 (규칙 ③).
+             */
             const isMock = loc.source === 'mock';
-
             const now = Date.now();
-
             setGpsIsMock(isMock);
-            if (isMock) {
-                // 시뮬레이터 점프로 속도를 재지 않는다. 옛 값도 남기지 않는다
-                setCurrentSpeed(0);
-                lastGpsRef.current = { ...loc, time: now };
-            } else if (lastGpsRef.current) {
+            if (lastGpsRef.current) {
                 const distKm = getDistanceKm(lastGpsRef.current.lat, lastGpsRef.current.lng, loc.lat, loc.lng);
                 const timeHours = (now - lastGpsRef.current.time) / (1000 * 60 * 60);
                 if (timeHours > 0) {
-                    const speed = distKm / timeHours;
-                    // 순간적인 튐 방지 및 부드러운 속도 반영 (간단한 이동 평균)
-                    setCurrentSpeed(prev => (prev * 0.7) + (speed * 0.3));
+                    // 내려갈 땐 즉시, 올라갈 땐 평활 — useDriveMotion 과 같은 규칙
+                    const measured = Math.min(250, distKm / timeHours);
+                    setCurrentSpeed(prev => (measured < 5 ? measured : (prev * 0.7) + (measured * 0.3)));
                 }
             }
-            if (!isMock) lastGpsRef.current = { ...loc, time: now };
+            lastGpsRef.current = { ...loc, time: now };
 
         };
 
@@ -280,9 +279,11 @@ export default function VehicleStatusPanel({ liveCalls }: { liveCalls: SecuredOr
                 <Badge variant="outline" className={`gap-1.5 px-2 py-0.5 rounded-full ${isMoving ? 'border-info/30 bg-info/10 text-info' : 'border-border bg-surface-alt text-text-muted'}`}>
                     <span className={`w-1.5 h-1.5 rounded-full ${isMoving ? 'bg-info animate-pulse' : 'bg-text-muted'}`}></span>
                     <span className="text-[11px] font-black tracking-wider">
-                        {gpsIsMock ? '시뮬레이션 주행' : isMoving ? '이동 중' : '정차 중'}
+                        {/* 🔴 «달리는가»는 속도가 답한다 — 모의라고 무조건 주행이라 하지 않는다.
+                            시뮬 정차 연기(18초)가 여기서 묻히면 무대 자막과 반대말을 하게 된다 */}
+                        {gpsIsMock ? '시뮬 ' : ''}{isMoving ? '이동 중' : '정차 중'}
                     </span>
-                    {isMoving && !gpsIsMock && (
+                    {isMoving && (
                         <span className="text-[10px] font-mono text-info/70 ml-1">{Math.round(currentSpeed)} km/h</span>
                     )}
                 </Badge>

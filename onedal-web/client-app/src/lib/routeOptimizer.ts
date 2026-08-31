@@ -26,22 +26,3 @@ export interface RoutePoint {
  *    말했다. 재료가 사라진 게 아니라 **시각을 만드는 자리가 하나로 합쳐진 것**이다.
  */
 
-/**
- * 지도 상의 방문 순번(1, 2, 3...)을 콜 ID별 상/하차지로 매핑
- */
-export function buildVisitOrderMap(
-    unifiedPoints: RoutePoint[]
-): Map<string, { pickupIdx: number; dropoffIdx: number }> {
-    const result = new Map<string, { pickupIdx: number; dropoffIdx: number }>();
-    unifiedPoints.forEach((pt, idx) => {
-        if (!pt.routeId) return;
-        const existing = result.get(pt.routeId) || { pickupIdx: 0, dropoffIdx: 0 };
-        if (pt.type === '상차') {
-            existing.pickupIdx = idx + 1;
-        } else {
-            existing.dropoffIdx = idx + 1;
-        }
-        result.set(pt.routeId, existing);
-    });
-    return result;
-}
