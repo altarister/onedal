@@ -4,6 +4,7 @@ import { useFilterConfig } from "../../hooks/useFilterConfig";
 import type { SecuredOrder } from "@onedal/shared";
 import { CAPACITY_CONFIDENCE_LABEL , isAlreadyLoaded } from "@onedal/shared";
 import { apiClient } from "../../api/apiClient";
+import { logStateChange } from '../../lib/roadmapLogger';
 import { getDistanceKm } from "../../lib/routeUtils";
 
 import { Badge } from "../ui/badge";
@@ -56,13 +57,24 @@ export function useDriveMotion(): 'drive' | 'idle' {
             }
             last = { lat: loc.lat, lng: loc.lng, time: now };
         };
+        /**
+         * 📡 **판정이 바뀌면 그때의 속도와 함께 남긴다** (기사님 지시 2026-09-01).
+         *    «도착했는데 이동 중»을 눈이 아니라 로그로 잡기 위해서다 — 판이 끝난 뒤
+         *    GPS 정지 구간과 맞대면 «몇 초 만에 정차로 바뀌었나»가 숫자로 나온다.
+         */
+        const apply = (next: 'drive' | 'idle') => {
+            setMode(prev => {
+                if (prev !== next) logStateChange("주행판정", `${next} ${Math.round(speed)}km/h`, "차량");
+                return next;
+            });
+        };
         const tick = setInterval(() => {
             const now = Date.now();
             const fast = speed >= 20;
             const slow = speed <= 5;
-            if (fast) { idleSince = 0; if (!driveSince) driveSince = now; if (now - driveSince >= 10_000) setMode('drive'); }
+            if (fast) { idleSince = 0; if (!driveSince) driveSince = now; if (now - driveSince >= 10_000) apply('drive'); }
             else driveSince = 0;
-            if (slow) { if (!idleSince) idleSince = now; if (now - idleSince >= 10_000) setMode('idle'); }
+            if (slow) { if (!idleSince) idleSince = now; if (now - idleSince >= 10_000) apply('idle'); }
             else idleSince = 0;
         }, 1_000);
         window.addEventListener('local-gps-update', onGps);

@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
-import { isEvaluating, isTerminal, hasVisitedStop, isDeliveredCall, judgingCallOf, deriveRouteTimeline, derivationInputsOf, deckOfCycle } from '@onedal/shared';
+import { isEvaluating, isTerminal, hasVisitedStop, isDeliveredCall, judgingCallOf, deriveRouteTimeline, derivationInputsOf, deckOfCycle, minRouteBuffer } from '@onedal/shared';
 import type { SecuredOrder, RouteStopInfo } from '@onedal/shared';
 import { EMPTY_RECORDS } from './records';
 import { useStepRecords } from './useStepRecords';
@@ -321,6 +321,34 @@ export function useRouteDerivations(
         }
         return m;
     }, [stopNoOf]);
+
+    /**
+     * 📡 **여유와 번호를 로그로 남긴다** (기사님 지시 2026-09-01 — *"눈으로 확인하지 말고
+     *    로그로 확인하자"*). 관제웹 로그는 서버로 중계되므로, 판이 끝난 뒤 GPS 궤적과
+     *    맞대 «그때 여유가 얼마였나 · 번호가 흔들렸나»를 사후에 셀 수 있다.
+     *    `logStateChange` 는 **값이 바뀔 때만** 찍는다 — 초당 재그림에도 로그가 안 밀린다.
+     */
+    useEffect(() => {
+        const b = minRouteBuffer(routeTimeline);
+        if (!b) { logStateChange("여유", "없음", "진행중경로"); return; }
+        const o = liveRoute.find(r => r.id === b.orderId);
+        const name = o ? getAddressLabel(b.stopType === 'pickup' ? o.pickup : o.dropoff) : b.orderId.slice(-6);
+        logStateChange("여유",
+            `${b.minutes >= 0 ? '+' : ''}${b.minutes}분 · ${name} ${b.stopType === 'pickup' ? '상차' : '하차'}` +
+            `${b.firm ? ' (확정)' : ' (추정)'}`, "진행중경로");
+    }, [routeTimeline, liveRoute]);
+
+    useEffect(() => {
+        if (stopNoOf.size === 0) return;
+        const nameOf = (k: string) => {
+            const [id, kind] = [k.slice(0, k.lastIndexOf(':')), k.slice(k.lastIndexOf(':') + 1)];
+            const o = cycleDeck.find(r => r.id === id);
+            return o ? `${getAddressLabel(kind === 'pickup' ? o.pickup : o.dropoff)}${kind === 'pickup' ? '상' : '하'}` : id.slice(-6);
+        };
+        logStateChange("번호",
+            [...stopNoOf.entries()].sort((a, b) => a[1] - b[1]).map(([k, n]) => `${n}${nameOf(k)}`).join(' · '),
+            "진행중경로");
+    }, [stopNoOf, cycleDeck]);
 
     const chronologicalIds = useMemo(() => {
         return [...safeRoute]
