@@ -32,6 +32,7 @@ export default function StageSheet({ snap, onSnapChange, onUserDrag, children }:
     const move = (dir: 1 | -1) => {
         const i = order.indexOf(startSnap.current) + dir;
         const next = order[Math.max(0, Math.min(2, i))];
+        startSnap.current = next;   // 한 제스처로 여러 단 — 기준점을 딛고 계속 끈다
         if (next !== snap) { onUserDrag?.(); onSnapChange(next); }
     };
 
@@ -46,14 +47,16 @@ export default function StageSheet({ snap, onSnapChange, onUserDrag, children }:
                 transition: 'height .25s ease',
             }}
         >
-            {/* 손잡이 — 터치 시작점 대비 60px 이상 끌면 한 단 이동 */}
+            {/* 손잡이 — 40px 끌 때마다 한 단씩. touch-action:none 이 없으면 폰에서
+                브라우저가 스크롤 제스처로 가로채 드래그가 죽는다 (기사님 실측 0831: 내려지지 않음) */}
             <div
                 className="shrink-0 cursor-grab active:cursor-grabbing py-3"
+                style={{ touchAction: 'none' }}
                 onPointerDown={(e) => { startY.current = e.clientY; startSnap.current = snap; dragged.current = false; (e.target as HTMLElement).setPointerCapture(e.pointerId); }}
                 onPointerMove={(e) => {
                     if (startY.current == null) return;
                     const dy = startY.current - e.clientY;
-                    if (Math.abs(dy) > 40) { dragged.current = true; move(dy > 0 ? 1 : -1); startY.current = null; }
+                    if (Math.abs(dy) > 40) { dragged.current = true; move(dy > 0 ? 1 : -1); startY.current = e.clientY; }
                 }}
                 onPointerUp={() => { startY.current = null; }}
                 onClick={() => { if (dragged.current) { dragged.current = false; return; }   // 드래그 직후 click 무시
