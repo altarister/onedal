@@ -5,8 +5,84 @@ import sidoDataRaw from '../../mapData/sidoData.json';
 import { getDistanceKm } from '../../lib/routeUtils';
 import { useTheme } from '../../contexts/ThemeContext';
 import { MAP_THEME_COLORS, withAlpha } from '../../styles/themes';
+import {
+    TILE_SIZE, TILE_MAX_ZOOM, anchorBaseOf, computeViewport, toScreenPoint, panAfterZoom,
+    type Viewport,
+} from '../../lib/mapProjection';
 
 const sidoData = sidoDataRaw as any; // GeoJSON FeatureCollection
+
+/**
+ * 🗺️ **배경 타일 — 회색조로 연하게** (기사님 확정 2026-09-01 · 세 안 비교 후 C 채택).
+ *
+ * 지도한테 빌리는 것은 **«어느 동네 어느 도로인가» 하나뿐**이다. 마커·경로선·발자취·
+ * 이름표·탭 판정은 전부 우리가 그린다 — 그래서 SDK 를 들이지 않는다. SDK 를 쓰면
+ * 줌·팬의 임자를 통째로 내줘야 하는데, 그건 «배경만»이 아니게 된다.
+ *
+ * 🔴 **키가 없다.** 카카오 지도는 JS 키 + 도메인 등록 + 관제앱(Capacitor)의
+ *    `localhost` 오리진 처리가 붙는다. 배경 한 장 때문에 치를 값이 아니다.
+ *    표기 의무(© OpenStreetMap)는 캔버스 우하단에 그린다.
+ */
+/** 타일 이미지 캐시 — 컴포넌트가 다시 떠도 산다 (재요청 = OSM 서버에 대한 결례) */
+const tileCache = new Map<string, HTMLImageElement>();
+const TILE_CACHE_MAX = 600;
+
+/** `ctx.filter` 는 옛 사파리에 없다 — 없으면 색 그대로 깔리되 투명도로만 눌린다 */
+const supportsCanvasFilter = (ctx: CanvasRenderingContext2D) => typeof ctx.filter === 'string';
+
+/**
+ * 🖼️ **지금 화면에 걸치는 타일을 모아 준다** — 아직 안 온 것은 요청만 하고 빼놓는다.
+ *
+ * 🔴 «없으면 안 그린다»가 맞다. 반쯤 온 배경 위에 시·도 외곽선을 겹쳐 그리면
+ *    두 배경이 비쳐 지저분해진다 — 하나라도 오면 타일, 아니면 외곽선(부르는 쪽에서 가른다).
+ */
+function collectTiles(
+    v: Viewport, width: number, height: number, onTileReady: () => void,
+): Array<{ img: HTMLImageElement; cx: number; cy: number; size: number }> {
+    const { worldSize, anchorX, anchorY, centerNx, centerNy } = v;
+    const z = Math.max(0, Math.min(TILE_MAX_ZOOM, Math.round(Math.log2(worldSize / TILE_SIZE))));
+    const count = Math.pow(2, z);
+    const tileScreenSize = worldSize / count;
+    if (!Number.isFinite(tileScreenSize) || tileScreenSize <= 0) return [];
+
+    /** 화면 모서리를 정규 좌표로 되돌린다 — 어느 타일이 걸치는지 알려면 */
+    const toNx = (screenX: number) => (screenX - anchorX) / worldSize + centerNx;
+    const toNy = (screenY: number) => (screenY - anchorY) / worldSize + centerNy;
+
+    const txFrom = Math.floor(toNx(0) * count), txTo = Math.floor(toNx(width) * count);
+    const tyFrom = Math.floor(toNy(0) * count), tyTo = Math.floor(toNy(height) * count);
+
+    // 🛟 화면이 아주 넓게 축소되면 타일 수가 폭발한다 — 그럴 땐 외곽선으로 떨어진다
+    if ((txTo - txFrom + 1) * (tyTo - tyFrom + 1) > 120) return [];
+
+    const ready: Array<{ img: HTMLImageElement; cx: number; cy: number; size: number }> = [];
+    for (let tx = txFrom; tx <= txTo; tx++) {
+        for (let ty = tyFrom; ty <= tyTo; ty++) {
+            if (tx < 0 || ty < 0 || tx >= count || ty >= count) continue;
+            const key = `${z}/${tx}/${ty}`;
+            let img = tileCache.get(key);
+            if (!img) {
+                if (tileCache.size >= TILE_CACHE_MAX) {
+                    const oldest = tileCache.keys().next().value;      // 들어온 순서대로 버린다
+                    if (oldest) tileCache.delete(oldest);
+                }
+                img = new Image();
+                img.onload = onTileReady;
+                img.onerror = () => { (img as any).failed = true; };   // 실패해도 다시 안 조른다
+                img.src = `https://tile.openstreetmap.org/${z}/${tx}/${ty}.png`;
+                tileCache.set(key, img);
+            }
+            if (!img.complete || !img.naturalWidth || (img as any).failed) continue;
+            ready.push({
+                img,
+                cx: (tx / count - centerNx) * worldSize + anchorX,
+                cy: (ty / count - centerNy) * worldSize + anchorY,
+                size: tileScreenSize,
+            });
+        }
+    }
+    return ready;
+}
 
 export interface RoutePoint {
     type: string;
@@ -58,6 +134,11 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
     /** 마지막으로 그린 마커의 화면 좌표 — 탭 히트 판정용 (그릴 때마다 갱신) */
     const markerHits = useRef<Array<{ cx: number; cy: number; orderId: string }>>([]);
     const movedPx = useRef(0);   // 팬과 탭을 가른다
+    /**
+     * 🖼️ 타일이 늦게 도착하면 **그때 다시 그린다** — 이미지 `onload` 가 부를 최신 `drawMap`.
+     *    `drawMap` 은 매번 새 함수라 `onload` 에 직접 걸면 옛 함수가 박힌다.
+     */
+    const drawRef = useRef<() => void>(() => { });
 
     // 캔버스 미니맵 렌더링 (단독 함수로 분리하여 제스처 시 즉각 호출)
     const drawMap = useCallback(() => {
@@ -100,44 +181,24 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             return;
         }
 
-        const xs = allCoords.map(p => p.x);
-        const ys = allCoords.map(p => p.y);
-        const minX = Math.min(...xs);
-        const maxX = Math.max(...xs);
-        const minY = Math.min(...ys);
-        const maxY = Math.max(...ys);
+        // 🔭 시점(視點)은 한 곳에서 — 제스처도 같은 `anchorBaseOf` 를 본다 (규칙 ③)
+        const viewport = computeViewport(allCoords, width, height, zoomRef.current, panRef.current);
+        const getScreenPt = (p: { x: number, y: number }) => toScreenPoint(p, viewport);
 
-        const paddingLeft = 70; // 좌측 버튼 여백 (추천, 시간, 거리)
-        const paddingRight = 60; // 우측 버튼 여백 (+, -, 초기화)
-        const paddingTop = 50; 
-        const paddingBottom = 40; 
-
-        const drawWidth = width - (paddingLeft + paddingRight);
-        const drawHeight = height - (paddingTop + paddingBottom);
-
-        let rangeX = maxX - minX;
-        let rangeY = maxY - minY;
-
-        // 좌표가 1개뿐이거나 모든 좌표가 동일한 경우 기본 줌 레벨 (약 20km 반경)
-        if (rangeX < 0.01) rangeX = 0.2;
-        if (rangeY < 0.01) rangeY = 0.2;
-
-        // 비율 잠금 (Isotropic Scaling)
-        const scale = Math.min(drawWidth / rangeX, drawHeight / rangeY);
-
-        const contentWidth = rangeX * scale;
-        const contentHeight = rangeY * scale;
-
-        const offsetX = paddingLeft + (drawWidth - contentWidth) / 2;
-        const offsetY = paddingTop + (drawHeight - contentHeight) / 2;
-
-        const getScreenPt = (p: { x: number, y: number }) => ({
-            cx: (offsetX + (p.x - minX) * scale) * zoomRef.current + panRef.current.x,
-            cy: (offsetY + (maxY - p.y) * scale) * zoomRef.current + panRef.current.y
-        });
-
-        // 0. 시도/배경 그리기 (GeoJSON 연동)
-        if (sidoData.features) {
+        // 0. 🗺️ 배경 — 타일이 왔으면 타일, 아직 없으면 시·도 외곽선 (터널·음영에서도 빈 화면이 안 된다)
+        const readyTiles = collectTiles(viewport, width, height, () => drawRef.current());
+        if (readyTiles.length > 0) {
+            ctx.save();
+            // 🎨 회색조·연하게 — 배경이 시끄러우면 색이 안 읽힌다 (규칙 ⑤-3: 색을 틀리는 것이 가장 큰 사고)
+            if (supportsCanvasFilter(ctx)) ctx.filter = 'grayscale(1) brightness(1.06) contrast(0.72)';
+            ctx.globalAlpha = theme === 'dark' ? 0.5 : 0.75;
+            readyTiles.forEach(t => ctx.drawImage(t.img, t.cx, t.cy, t.size + 1, t.size + 1));
+            ctx.restore();
+            if (theme === 'dark') {
+                ctx.fillStyle = 'rgba(10, 14, 22, 0.35)';   // 어두운 테마에서 한 겹 더 눌러 준다
+                ctx.fillRect(0, 0, width, height);
+            }
+        } else if (sidoData.features) {
             const sortedFeatures = [...sidoData.features].sort((a: any, b: any) =>
                 (a.properties?.isGyeonggiSigungu ? 1 : 0) - (b.properties?.isGyeonggiSigungu ? 1 : 0)
             );
@@ -333,9 +394,19 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             ctx.textAlign = 'center';
             ctx.fillText("현위치", cx, cy + 22);
         }
+
+        // 4. © 표기 — 타일을 쓴 화면에만. 빌린 것은 빌렸다고 적는다 (OSM 라이선스)
+        if (readyTiles.length > 0) {
+            ctx.font = '9px sans-serif';
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'bottom';
+            ctx.fillStyle = withAlpha(mapColors.textMuted, 0.7);
+            ctx.fillText('© OpenStreetMap', width - 4, height - 3);
+        }
     }, [unifiedRoutePoints, liveRoute, myLocation, visitedTrail, drivenTrail, routeHolder, theme, mapColors]);
 
     useEffect(() => {
+        drawRef.current = drawMap;   // 늦게 온 타일이 부를 최신 그리기
         drawMap();
     }, [drawMap]);
 
@@ -403,36 +474,37 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         if (hit) onStopTap(hit.orderId);
     };
 
-    const handleZoomClick = (zoomDelta: number) => {
+    /**
+     * 🔍 **누른 자리를 붙잡은 채 배율만 바꾼다.**
+     *
+     * 🔴 기준점은 `anchorBaseOf` 다 — 예전 공식은 화면 원점(0,0)을 기준으로 삼았는데,
+     *    실제 원점은 버튼 여백만큼 밀려 있어 **확대할수록 지도가 옆으로 흘렀다.**
+     */
+    const zoomAround = (screenX: number, screenY: number, zoomDelta: number) => {
         const rect = canvasRef.current?.getBoundingClientRect();
         if (!rect) return;
 
-        const x = rect.width / 2;
-        const y = rect.height / 2;
-
         const newZoom = Math.max(0.5, Math.min(10, zoomRef.current * zoomDelta));
-        panRef.current.x = x - (x - panRef.current.x) * (newZoom / zoomRef.current);
-        panRef.current.y = y - (y - panRef.current.y) * (newZoom / zoomRef.current);
+        const ratio = newZoom / zoomRef.current;
+        const base = anchorBaseOf(rect.width, rect.height);
+
+        panRef.current.x = panAfterZoom(screenX, base.x, panRef.current.x, ratio);
+        panRef.current.y = panAfterZoom(screenY, base.y, panRef.current.y, ratio);
 
         zoomRef.current = newZoom;
         drawMap();
     };
 
+    const handleZoomClick = (zoomDelta: number) => {
+        const rect = canvasRef.current?.getBoundingClientRect();
+        if (!rect) return;
+        zoomAround(rect.width / 2, rect.height / 2, zoomDelta);
+    };
+
     const handleWheel = (e: any) => {
         const rect = canvasRef.current?.getBoundingClientRect();
         if (!rect) return;
-
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-
-        const zoomDelta = e.deltaY > 0 ? 0.9 : 1.1;
-        const newZoom = Math.max(0.5, Math.min(10, zoomRef.current * zoomDelta));
-
-        panRef.current.x = x - (x - panRef.current.x) * (newZoom / zoomRef.current);
-        panRef.current.y = y - (y - panRef.current.y) * (newZoom / zoomRef.current);
-
-        zoomRef.current = newZoom;
-        drawMap();
+        zoomAround(e.clientX - rect.left, e.clientY - rect.top, e.deltaY > 0 ? 0.9 : 1.1);
     };
 
     return (
