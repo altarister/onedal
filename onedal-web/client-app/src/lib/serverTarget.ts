@@ -29,7 +29,7 @@ export type ServerTarget = 'live' | 'local';
 /** 🔴 값의 원천. 로컬 IP 가 바뀌면 여기만 고친다 */
 export const TARGETS: Record<ServerTarget, { label: string; api: string }> = {
     live:  { label: '라이브', api: 'https://1dal.altari.com/api' },
-    local: { label: '로컬',   api: 'http://172.30.1.58:4000/api' },
+    local: { label: '로컬',   api: 'http://172.30.1.72:4000/api' },
 };
 
 const KEY = 'apiBase';
