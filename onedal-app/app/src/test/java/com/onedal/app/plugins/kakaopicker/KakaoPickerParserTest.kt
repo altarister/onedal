@@ -240,3 +240,67 @@ class MeterUnitTest {
         org.junit.Assert.assertFalse(o.dropoff.contains("581m"))
     }
 }
+
+/**
+ * 🖥️ **화면 판별 — 리스트 / 수락 전 상세 / 수락 후** (2026-09-02 신설).
+ *
+ * 어제 두 가지가 생겼다: ⑴ 픽커 «확정 전 상세»에서 미리보기 콜을 서버에 올린다
+ * ⑵ 기사님이 「수락하기」를 누르면 그 화면을 알아보고 잡은 콜로 올린다.
+ * 둘 다 **화면을 맞게 가르는 것**이 전제라, 여기서 그걸 잠근다.
+ *
+ * 🔴 **가장 위험한 오인은 «리스트를 상세로 읽는 것»이다.** 화면 판별이 상세를 리스트보다
+ *    **먼저** 보기 때문에(`ScreenDetector` 우선순위 4 → 5), 리스트에 상세 낱말이 하나라도
+ *    섞이면 리스트가 통째로 상세로 잡힌다. 그래서 실물 덤프 10종(리스트 7 · 상세 2 · 홈 1)
+ *    으로 «리스트에는 «픽업»이 없다»를 확인하고 그 사실을 여기 박아 둔다.
+ */
+class PickerScreenDetectTest {
+    private val kw = KakaoPickerKeywords.PICKER
+    private val detector = com.onedal.app.core.engine.ScreenDetector()
+
+    /** 실물 덤프 `화면덤프_0830/02_리스트.xml` 의 상단 낱말들 */
+    private val 리스트 = "퀵 배송 도보배송 대리 한차배송 퀵 서포트 모드 1장 받기 " +
+        "퀵 오더카드 대기 중 리스트 설정 높은 가격순 20km 퀵 소형 과천 15.2km 분당 서현1 중앙 16,870"
+
+    /** 실물 덤프 `03_상세.xml` — 수락 전 (넘기기/수락하기) */
+    private val 수락전상세 = "퀵 비즈 경기 성남시 분당구 서현1동 분당스퀘어 픽업 15.2km " +
+        "경기 과천시 중앙동 배송 13.6km 물품정보 소형 최종 수익 16,870 넘기기 수락하기"
+
+    /** ⚠️ 2023 자료 기준 추정 — 실물 캡처가 오면 이 문자열을 바꾼다 */
+    private val 수락후 = "픽업 완료해주세요 15:03까지 픽업완료 픽업지 1.2km " +
+        "충남 보령시 보령북로 16 복사 물품 정보 초소형 총 수익 27,280 길안내 픽업 완료하기"
+
+    @Test
+    fun `리스트는 리스트로 읽는다 - 상세로 오인하지 않는다`() {
+        assertEquals(com.onedal.app.models.ScreenContext.LIST, detector.detect(리스트, kw))
+    }
+
+    @Test
+    fun `수락 전 상세는 PRE_CONFIRM - 아직 계약 전이다`() {
+        assertEquals(com.onedal.app.models.ScreenContext.DETAIL_PRE_CONFIRM, detector.detect(수락전상세, kw))
+    }
+
+    @Test
+    fun `수락 후 화면은 CONFIRMED - 수락하기 글자가 사라진 것이 표식이다`() {
+        assertEquals(com.onedal.app.models.ScreenContext.DETAIL_CONFIRMED, detector.detect(수락후, kw))
+    }
+
+    /**
+     * 🔴 실물 덤프 10종 전수 — 리스트 계열에 «픽업»이 하나도 없다는 사실을 잠근다.
+     * 이게 깨지면 `detailKeywords = ["픽업"]` 전제가 무너지므로 판별을 다시 짜야 한다.
+     */
+    @Test
+    fun `리스트 계열에는 픽업이라는 낱말이 없다 - 실물 덤프 10종 근거`() {
+        listOf(
+            "퀵 배송 도보배송 리스트 설정 추천순 20km 퀵 승 3.0km 광주 쌍령 광주 광남2 15,785",
+            "리스트 설정 높은 가격순 20km 퀵 단거리 준비 완료 소형 기흥 동백2 8,650",
+            "퀵 오더카드 대기 중 리스트 설정 20km 퀵 반나절 중형 17.4km 수지 죽전2 영통3 22,166",
+        ).forEach { assertFalse("리스트에 «픽업»이 있으면 상세로 오인한다", it.contains("픽업")) }
+    }
+
+    /** 수락 후 낱말 목록이 비면 «잡았다»를 영영 못 알아본다 — 빈 목록 방어 */
+    @Test
+    fun `수락 후 낱말 목록이 비어 있지 않다`() {
+        assertTrue(KakaoPickerKeywords.ACCEPTED_SCREEN_WORDS.isNotEmpty())
+        assertTrue(KakaoPickerKeywords.ACCEPTED_SCREEN_WORDS.any { 수락후.contains(it) })
+    }
+}

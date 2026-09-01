@@ -56,6 +56,22 @@ class HijackService : AccessibilityService() {
 
     companion object {
         private const val TAG = "1DAL_MVP"
+
+        /**
+         * 🚚 **픽커 콜에 넣는 차종 — 픽커에 차종 축이 없어서 하나로 통일한다**
+         * (기사님 확정 2026-09-02: *"차종, 짐 등등.. 그건 하나로 통일해서 임의로 넣고"*).
+         *
+         * 픽커는 **물품 크기**(초소형·소형·중형)로 가르고 차종 칸이 아예 없다. 그런데 서버
+         * 판정·장부는 차종 칸을 쓰므로 빈칸으로 두면 그 아래가 전부 «모름»이 된다.
+         *
+         * 🔴 **지어내는 것이 아니다 — 일반값이다** (규칙 ⑤-2). 실측 표본 316건에서 소형이
+         *    95% 라 승용차·다마스 급이 가장 흔하다. 그리고 **반드시 «미확인»을 함께 표시**한다
+         *    (`PICKER_VEHICLE_UNKNOWN_TAG`) — 표시 없이 값만 쓰면 규칙 ④ 위반이다.
+         */
+        const val PICKER_ASSUMED_VEHICLE = "다마스"
+
+        /** 🏷️ 위 차종이 실제 값이 아니라 일반값임을 화면·장부가 알아보게 하는 표시 */
+        const val PICKER_VEHICLE_UNKNOWN_TAG = "차종미확인"
         /**
          * 🔴 **시각에는 시간대를 함께 실어 보낸다** (2026-08-16).
          *
@@ -596,7 +612,9 @@ class HijackService : AccessibilityService() {
             }
 
             // 🌟 [AUTO 실행] 콜 잡기 중이지 않고 AUTO 모드일 때만 실제 클릭 동작 수행
-            // 🚧 시퀀스 플러그인 경계 — 잡기 수순이 없는 배차망(픽커)에서는 어떤 모드여도 클릭하지 않는다
+            // 🚧 인성 전용 구간 — 잡기 수순 없는 배차망(픽커)은 **AUTO 자동 클릭을 안 한다**.
+            //    ⚠️ «아무것도 안 누른다»가 아니다 — 알람일 때는 상세까지 들어간다(아래 알람 절).
+            //    막는 것은 계약 버튼 하나뿐이고 그건 `KakaoPickerParser.clickSafe` 가 본다 (0902 기사님 교정)
             if (!session.isAutoActive && telemetryManager.currentMode == "AUTO"
                 && TargetApp.supportsCatching(currentTargetApp)) {
                 if (isTarget) {
@@ -685,17 +703,24 @@ class HijackService : AccessibilityService() {
         /**
          * 🔔 알람 — 통과 콜 중 **요금 최고 하나만** 울리고 가리킨다 (기사님 확정 0830).
          * 잡기 수순 없는 배차망(픽커)은 **상세까지 이동**해 준다 — 기사님은 읽고 수락만.
-         * 수락(계약) 클릭은 여전히 없다: 상세 화면은 supportsCatching 관문이 무시한다.
+         * 수락(계약) 클릭은 여전히 없다: 상세 화면 처리는 잡기 차단 검사가 건너뛴다.
          */
         val bestIdx = AlarmSignaler.pickBestIndex(alarmHits.map { it.first.fare })
         if (bestIdx >= 0) {
             val (order, fareNode, orderHash) = alarmHits[bestIdx]
             alarmSignaler.fire(fareNode.rect, scrapParser.alarmBandHalfPx(), orderHash)
-            // 🔴 «수락»이 보이는 카드는 손대지 않는다 — 오더카드의 요금 닻은 곧 계약 버튼이다 (clickSafe)
+            // 🔴 «수락»이 보이는 카드는 손대지 않는다 — 그 글자가 곧 계약 버튼이다 (clickSafe)
             if (!TargetApp.supportsCatching(currentTargetApp)
                 && com.onedal.app.plugins.kakaopicker.KakaoPickerParser.clickSafe(order.rawText)) {
                 AppLogger.i("1DAL_ALARM", "🚪 [알람 상세] ${order.fare}원 (${order.pickup.take(10)}→${order.dropoff.take(10)}) " +
                     "상세로 이동 — 수락은 기사님 · 30초 무응답 시 자동 복귀")
+                /**
+                 * 📎 **리스트에서 읽은 원본을 쥐고 들어간다** (2026-09-02).
+                 * AUTO 가 인성에서 하는 것과 **같은 수단**이다(`lastDetailOrder`) — 상세 화면
+                 * 글자를 다시 파싱해 역추적하지 않아도 된다. 요금·구·동·물품크기·태그가
+                 * 리스트에서 이미 제대로 읽혔고, 상세는 그 위에 원문만 덧댄다.
+                 */
+                session.lastDetailOrder = order
                 touchManager.performSimulatedTouch(fareNode.node)
                 scheduleAlarmDetailBack()
             }
@@ -723,12 +748,13 @@ class HijackService : AccessibilityService() {
     // ════════════════════════════════════════════════════════════════
 
     private fun handlePreConfirmScreen(rootNode: AccessibilityNodeInfo, screenTexts: List<String>, rawScreenStr: String) {
-        // 🚧 시퀀스 플러그인 경계 — 여기부터 detail 전송·복귀 감지까지가 «인성 잡기 수순»이다.
+        // 🚧 인성 전용 구간 — 여기부터 detail 전송·복귀 감지까지가 «인성 잡기 수순»이다.
         //    수순 없는 배차망(픽커)이 이 문에 들어오면 엉뚱한 화면을 누르게 된다 — 원천 차단.
         if (!TargetApp.supportsCatching(currentTargetApp)) {
             // 👁️ 다만 «수락 전 상세에 무엇이 보이는가»는 판정 설계의 문제지다 (기사님 질문 0830:
             //    "상세 열었으면 그걸로 판단해 줄 수 있는 거 아냐?") — 클릭 없이 글자만 남긴다.
             AppLogger.i("1DAL_PICKER", "📄 [상세 실물] ${screenTexts.joinToString(" | ").take(500)}")
+            sendPickerPreview(rawScreenStr)
             return
         }
 
@@ -936,8 +962,11 @@ class HijackService : AccessibilityService() {
     // ════════════════════════════════════════════════════════════════
 
     private fun handleConfirmedScreen(rootNode: AccessibilityNodeInfo, screenTexts: List<String>, rawScreenStr: String) {
-        // 🚧 시퀀스 플러그인 경계 — 인성 잡기 수순 (픽커_수집.md §3-확장)
-        if (!TargetApp.supportsCatching(currentTargetApp)) return
+        // 🚧 인성 전용 구간 — 인성 잡기 수순 (픽커_수집.md §3-확장)
+        if (!TargetApp.supportsCatching(currentTargetApp)) {
+            reportPickerAccepted(rawScreenStr)
+            return
+        }
         // 잔상 방어
         if (isPopupResidue(rawScreenStr)) return
 
@@ -995,6 +1024,76 @@ class HijackService : AccessibilityService() {
     }
 
     /**
+     * 👀 **픽커 «확정 전 상세» → 미리보기 콜로 서버에 올린다** (기사님 확정 2026-09-02).
+     *
+     * 기사님: *"갈래 b 를 선택하고 픽커에서 confirm 을 보내 오면 빈 값이 있을 거고..
+     * 차종, 짐 등등.. 그건 하나로 통일해서 임의로 넣고, 나머지 픽커의 고유 값들은 따로 보관한다."*
+     *
+     * **인성 코드를 그대로 쓴다** — `sendConfirmOnce` 하나. 다른 것은 셋뿐이다:
+     *   ① `isPreview = true` — 계약 전이라 서버가 결재 버튼을 안 띄우고 자동 취소도 안 한다
+     *   ② 차종을 **고정값**으로 채운다 (픽커에 차종 축이 없다 — 아래 ⑤-2)
+     *   ③ 상세 화면 글자를 **원문 그대로** 실어 보낸다 (서버가 `intel.rawDetailText` 로 보관)
+     *
+     * 🔴 **계약은 하지 않는다.** 이 함수는 서버에 «이런 콜을 보고 있습니다» 라고 알릴 뿐이고,
+     *    「수락하기」를 누르는 것은 기사님 손가락이다. 픽커는 되돌릴 창이 없다
+     *    (버튼 취소 없음 · 전화만 · 하루 5번).
+     *
+     * ⚠️ 리스트에서 읽어 둔 원본이 없으면 **보내지 않는다** — 상세 화면 글자만으로 주소를
+     *    지어내지 않는다 (규칙 ④). 원본은 알람이 상세로 들어갈 때 쥐어 준다.
+     */
+    /**
+     * ✅ **픽커에서 기사님이 「수락하기」를 누르셨다 — 잡은 콜로 올린다** (2026-09-02 신설).
+     *
+     * 화면이 «수락 후»로 바뀌면(「픽업 완료하기」·「픽업지로 이동하세요」 …) 여기로 온다.
+     * **인성이 «미리보기 → 확정»에서 쓰는 수단 그대로다** — `isPreview` 딱지를 벗기고
+     * `sendDetail` 하나를 보낸다. 새로 만든 길이 아니다.
+     *
+     * 🔴 **딱지는 벗겨지기만 한다.** 잡은 콜을 안 잡은 것으로 되돌리면 취소 카운트가 새고,
+     *    픽커는 되돌릴 창이 없어(전화만 · 하루 5번) 그 오차가 그대로 손해다.
+     *
+     * ⚠️ **화면 낱말은 2023년 남의 자료로 만든 추정이다** (`KakaoPickerKeywords.ACCEPTED_SCREEN_WORDS`).
+     *    실물 캡처가 오면 그 목록만 갈아끼운다 — 이 함수는 안 고쳐도 된다.
+     */
+    private fun reportPickerAccepted(rawScreenStr: String) {
+        if (!session.isPreview) return          // 이미 올렸거나, 미리보기를 보낸 적이 없다
+        val order = session.lastDetailOrder ?: return
+        session.isPreview = false
+        session.accumulatedDetailText = rawScreenStr   // 수락 후 화면 글자(주소 전문이 여기 있다)
+        AppLogger.i("1DAL_PICKER", "✅ [수락 확인] 기사님이 「수락하기」를 누르셨다 — 잡은 콜로 올린다")
+        AppLogger.roadmap("👀 [미리보기 → 확정] 픽커 수락 화면 감지 — 딱지를 벗고 서버에 알린다",
+            telemetryManager.currentScreenContext.name)
+        sendDetail(order)
+    }
+
+    private fun sendPickerPreview(rawScreenStr: String) {
+        if (session.isDetailScrapSent) return          // 한 콜에 한 번만
+        val base = session.lastDetailOrder
+        if (base == null) {
+            AppLogger.w("1DAL_PICKER", "👀 [미리보기 보류] 리스트 원본이 없다 — 주소를 지어내지 않는다")
+            return
+        }
+        ensureSessionId()
+        session.isPreview = true
+        sendConfirmOnce(
+            base.copy(
+                id = session.currentOrderId,
+                type = "MANUAL_CLICK",                 // 계약은 기사님 손가락 — 직접 갈래다
+                /**
+                 * 🚚 **차종은 픽커에 없는 축이다 — 일반값을 넣고 «미확인»으로 표시한다** (규칙 ⑤-2).
+                 * 픽커는 물품 크기(초소형·소형·중형)로 가르고 차종 칸이 아예 없다.
+                 * 실측 표본 316건에서 소형이 95% 라 승용차·다마스 급이 일반값이다.
+                 * 🔴 **표시 없이 값만 쓰면 규칙 ④ 위반이다** — `tagsText` 에 «차종미확인»을 함께 싣는다.
+                 */
+                vehicleType = PICKER_ASSUMED_VEHICLE,
+                tagsText = listOfNotNull(base.tagsText, PICKER_VEHICLE_UNKNOWN_TAG).joinToString(" "),
+                rawText = rawScreenStr,                // 📄 상세 원문 — 칸 나누기는 실물 캡처 뒤에
+            ),
+            rawScreenStr,
+        )
+        AppLogger.i("1DAL_PICKER", "👀 [미리보기 전송] ${base.fare}원 · ${rawScreenStr.length}자 — 수락은 기사님")
+    }
+
+    /**
      * 📤 **1차 선점을 보낸다 — 한 콜에 한 번만.**
      *
      * 두 곳에서 부른다. 필터콜은 상세 진입 즉시(선점), **미리보기 콜은 팝업 3장을 읽은 뒤**
@@ -1047,7 +1146,7 @@ class HijackService : AccessibilityService() {
     // ════════════════════════════════════════════════════════════════
 
     private fun handleMemoPopup(rootNode: AccessibilityNodeInfo, screenTexts: List<String>) {
-        // 🚧 시퀀스 플러그인 경계 — 인성 잡기 수순 (픽커_수집.md §3-확장)
+        // 🚧 인성 전용 구간 — 인성 잡기 수순 (픽커_수집.md §3-확장)
         if (!TargetApp.supportsCatching(currentTargetApp)) return
         collectMachine.handleMemoPopup(rootNode, session, screenTexts)
     }
@@ -1057,7 +1156,7 @@ class HijackService : AccessibilityService() {
     // ════════════════════════════════════════════════════════════════
 
     private fun handlePickupPopup(rootNode: AccessibilityNodeInfo, screenTexts: List<String>) {
-        // 🚧 시퀀스 플러그인 경계 — 인성 잡기 수순 (픽커_수집.md §3-확장)
+        // 🚧 인성 전용 구간 — 인성 잡기 수순 (픽커_수집.md §3-확장)
         if (!TargetApp.supportsCatching(currentTargetApp)) return
         collectMachine.handlePickupPopup(rootNode, session, screenTexts)
     }
@@ -1067,7 +1166,7 @@ class HijackService : AccessibilityService() {
     // ════════════════════════════════════════════════════════════════
 
     private fun handleDropoffPopup(rootNode: AccessibilityNodeInfo, screenTexts: List<String>) {
-        // 🚧 시퀀스 플러그인 경계 — 인성 잡기 수순 (픽커_수집.md §3-확장)
+        // 🚧 인성 전용 구간 — 인성 잡기 수순 (픽커_수집.md §3-확장)
         if (!TargetApp.supportsCatching(currentTargetApp)) return
         val multilineScreenStr = screenTexts.joinToString("\n")
 

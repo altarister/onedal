@@ -59,12 +59,12 @@ describe('«어떻게 잡았나» — 기록 전용 칸', () => {
         expect(isCapturedVia('ALARM_CLICK')).toBe(false);   // #75 의 그 딱지는 값이 아니다
     });
 
-    it('🚧 잡기 수순의 입구마다 수문이 있다 — 수순 없는 배차망은 클릭 못 한다', () => {
+    it('🚧 잡기 수순의 입구마다 잡기 차단 검사가 있다 — 수순 없는 배차망은 클릭 못 한다', () => {
         /**
-         * 시퀀스 플러그인 경계 (픽커_수집.md §3-확장): 인성 잡기 수순(리스트 자동클릭 ·
-         * 확정 전/후 화면 · 팝업 3종)의 입구는 supportsCatching 수문을 지나야 한다.
-         * 수문이 하나라도 빠지면 픽커 화면에서 인성 수순이 돌아 엉뚱한 걸 누른다.
-         * 이 금이 곧 «잡기 시작하는 날» 인성 수순을 떼어낼 절단선이다.
+         * 인성 전용 구간 (픽커_수집.md §3-확장): 인성 잡기 수순(리스트 자동클릭 ·
+         * 확정 전/후 화면 · 팝업 3종)의 입구는 supportsCatching 잡기 차단 검사를 지나야 한다.
+         * 이 검사가 하나라도 빠지면 픽커 화면에서 인성 수순이 돌아 엉뚱한 걸 누른다.
+         * 이 표시가 곧 «잡기 시작하는 날» 인성 수순을 떼어낼 자리다.
          */
         const hijack = readFileSync(join(__dirname,
             '../../../../onedal-app/app/src/main/java/com/onedal/app/HijackService.kt'), 'utf8');
@@ -81,5 +81,33 @@ describe('«어떻게 잡았나» — 기록 전용 칸', () => {
         for (const src of [engine, detail, devices]) {
             expect(src).not.toMatch(/capturedVia\s*===|===\s*.{0,20}capturedVia/);
         }
+    });
+});
+
+/**
+ * 📄 **픽커 상세 원문 보관 — 인성에는 새지 않는다** (기사님 확정 2026-09-02 · 갈래 ⓑ).
+ *
+ * 픽커 «확정 전 상세»에는 리스트에 없는 것이 다 있다 — 배송 km · 「17:04까지 픽업」·
+ * 물품 규격 · 수익 분해. **어떤 칸으로 나눌지는 수락 뒤 화면을 실물로 본 다음에 정하므로**
+ * (기사님: *"다녀와서 그걸 어떻게 테이블 구분을 할 건지 다시 고민한다"*), 지금은
+ * `intel.rawDetailText` 한 칸에 **원문으로** 받는다.
+ *
+ * 🔴 여기서 지키는 것은 하나다 — **인성 콜은 이 칸에 안 들어간다.** 들어가면
+ *    표본이 섞여 인성 판정이 오염된다 (규칙 ⑤-4 ⑤ «누가 이 값을 읽는가»).
+ */
+describe('픽커 상세 원문 보관', () => {
+    it('🔴 픽커일 때만 저장한다 — targetApp 관문이 소스에 있다', () => {
+        const src = readFileSync(join(__dirname, '../../src/routes/orders.ts'), 'utf8');
+        expect(src).toMatch(/targetApp === 'kakaopicker'/);
+        // 원문이 없으면 빈 줄을 만들지 않는다 (규칙 ④ — 지어내지 않는다)
+        expect(src).toMatch(/rawText\b/);
+        expect(src).toMatch(/PICKER_DETAIL/);        // 리스트 훑기(INTEL_BULK)와 갈라 둔다
+    });
+
+    it('칸이 스키마에 있다 — 기존 DB 에도 소급 적용된다', () => {
+        const db = readFileSync(join(__dirname, '../../src/db.ts'), 'utf8');
+        expect(db).toMatch(/rawDetailText:\s*'TEXT'/);
+        // ensureColumns 로 붙여야 기존 1,500여 건이 살아 있는 채로 칸만 생긴다
+        expect(db).toMatch(/ensureColumns\('intel'/);
     });
 });

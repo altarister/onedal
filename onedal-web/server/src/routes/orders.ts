@@ -22,6 +22,7 @@ import { parsePolyline } from "../services/routeComposer";
 import { updateActiveFilter } from "../state/filterManager";
 import { requireAuth } from "../middlewares/authMiddleware";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
+import { dbQueue } from "../utils/dbQueue";
 
 const router = Router();
 
@@ -92,6 +93,37 @@ router.post("/confirm", (req, res) => {
             return res.status(401).json({ error: "UNREGISTERED_DEVICE", message: "미등록 기기입니다. PIN 연동을 먼저 진행해주세요." });
         }
         const userId = deviceRow.user_id;
+
+        /**
+         * 📄 **픽커 상세 화면의 글자를 통째로 남긴다** (기사님 확정 2026-09-02).
+         *
+         * 픽커 상세에는 리스트에 없는 것이 다 있다 — 배송 km · 「17:04까지 픽업」·
+         * 「17:18까지 배송」· 물품 규격 · 수익 분해 · 오더번호. **어떤 칸으로 나눌지는
+         * 수락 뒤 화면을 실물로 본 다음에 정한다**(내일 캡처) — 그때까지 원문으로 받아 둔다.
+         *
+         * ⚠️ **인성은 여기 안 걸린다** — `targetApp` 이 픽커일 때만이다. 인성은 상세를
+         *    팝업 3장으로 따로 모으므로 이 칸이 늘 null 이다 (규칙 ④ — 지어내지 않는다).
+         * ⚠️ 저장은 «기록»이지 판정 입력이 아니다 — 비동기 큐라 실패해도 선점을 안 막는다.
+         */
+        if ((payload as any).targetApp === 'kakaopicker' && payload.order?.rawText) {
+            dbQueue.runAsync(
+                "INSERT INTO intel (user_id, device_id, type, pickup, dropoff, fare, timestamp, targetApp, itemSize, pickupDistanceKm, tagsText, rawDetailText) " +
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                userId === "ADMIN_USER" ? null : userId,
+                payload.deviceId,
+                "PICKER_DETAIL",          // 리스트 훑기(INTEL_BULK)와 갈라 둔다
+                payload.order.pickup ?? "",
+                payload.order.dropoff ?? "",
+                payload.order.fare ?? 0,
+                new Date().toISOString(),
+                'kakaopicker',
+                (payload.order as any).itemSize ?? null,
+                (payload.order as any).pickupDistance ?? null,
+                (payload.order as any).tagsText ?? null,
+                payload.order.rawText,
+            );
+            console.log(`📄 [픽커 상세 보관] ${payload.order.fare ?? 0}원 · ${payload.order.rawText.length}자 — 칸 나누기는 실물 캡처 뒤에`);
+        }
 
         const io = req.app.get("io");
 
