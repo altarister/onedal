@@ -89,7 +89,7 @@ export function applySoloRoute(holder: RouteHolder, r: RouteResult): void {
                 : [{ orderId: holder.id, stopType: 'pickup' }, { orderId: holder.id, stopType: 'dropoff' }];
         holder.sectionStops = own.length === r.sectionDriveMin.length ? own : undefined;
     }
-    holder.routeComputedAt = new Date().toISOString();   // 타임라인 추정 약속의 닻
+    holder.routeComputedAt = new Date().toISOString();   // 타임라인 추정 약속의 기준 = 카카오호출시점
 
     holder.kakaoSoloDistanceKm = toKm(Math.max(0, r.distance - approachM));
     holder.kakaoSoloDurationMin = toMin(Math.max(0, r.duration - approachSec));
@@ -198,7 +198,7 @@ export function applyRoute(holder: RouteHolder, r: RouteResult): void {
         holder.sectionStops = r.sectionDriveMin && (r as any).sectionStops.length === r.sectionDriveMin.length
             ? (r as any).sectionStops : undefined;
     }
-    holder.routeComputedAt = new Date().toISOString();   // 타임라인 추정 약속의 닻
+    holder.routeComputedAt = new Date().toISOString();   // 타임라인 추정 약속의 기준 = 카카오호출시점
     // 통화 대본의 "여기서 N분 걸립니다" — 예전에는 계산해 놓고 로그만 찍고 버렸다
     if (r.approachDuration) holder.approachDurationMin = toMin(r.approachDuration);
 }
@@ -247,7 +247,7 @@ export { isAlreadyLoaded, hasVisitedStop };
  * 그래서 합짐마다 «배송주행 추정(일반값)» 딱지가 붙었고, 마감이 거리 환산 위에 섰다.
  * 이 함수가 그 구멍 하나만 메운다.
  *
- * 🔴 **`applySoloRoute` 를 쓰지 않는다.** 저것은 폴리라인·구간 주행분·닻까지 전부 덮어쓴다 —
+ * 🔴 **`applySoloRoute` 를 쓰지 않는다.** 저것은 폴리라인·구간 주행분·카카오호출시점까지 전부 덮어쓴다 —
  *    합짐 홀더에 대고 부르면 **지금 그리고 있는 병합 경로가 단독 경로로 바뀐다.**
  *    여기서 만지는 것은 딱 두 칸이다.
  *

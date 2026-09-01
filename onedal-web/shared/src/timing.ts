@@ -916,7 +916,7 @@ export function deriveCallTiming(
  *
  * 🔴 기준시각은 **경로를 계산한 시점**(routeComputedAt)이다. nowMs 를 쓰면 추정 약속이
  *    매초 미래로 밀려 카운트다운이 영원히 "30분 남음"에 머문다 — 약속은 잡히면 고정이다.
- *    (콜별 파생이 capturedAt 에 닻을 내리는 것과 같은 이유)
+ *    (콜별 파생이 capturedAt 을 기준으로 삼는 것과 같은 이유)
  *
  * 정차·폴백 약속은 deriveCallTiming 에서 그대로 가져온다 (규칙 ③ — 파생 한 곳).
  */
@@ -953,7 +953,7 @@ export interface RouteTimelineEntry {
      */
     dwellShiftMinutes: number;
     /**
-     * 🚚 **앞 정거장에서 여기까지의 주행(분)** — `driveMinutes` 는 닻부터의 **누적**이라
+     * 🚚 **앞 정거장에서 여기까지의 주행(분)** — `driveMinutes` 는 카카오호출시점부터의 **누적**이라
      * 통화 문장에 쓰면 접근 주행을 **두 번** 센다 (기사님 실측 2026-08-20: `주행 129분`,
      * 참값 113분). 첫 정거장은 앞이 없으므로 누적과 같다. 모르면 `null`.
      */
@@ -1074,7 +1074,7 @@ export function deriveRouteTimeline(
      *     확정 약속으로 생긴 지연은 **줄일 수 없다** — 그 시각까지 거기 있어야 한다.
      *   "부터" 대기는 여전히 안 뺀다 — 늦게 떠나면 저절로 줄어드는 시간이다.
      */
-    let carriedMs: number | null = null;   // 앞 정거장을 떠나는 시각 (없으면 닻 기준)
+    let carriedMs: number | null = null;   // 앞 정거장을 떠나는 시각 (없으면 카카오호출시점 기준)
     /** ⏱️ 콜별 상차 완료 예정(약속+정차) — 그 콜의 하차 데드라인 기산점 (두 시계) */
     const pickupDoneOf = new Map<string, number>();
     // 화면이 말하는 값 — 위 `carriedMs` 와 뜻이 다르다 (RouteTimelineEntry.departPrevMs 주석)
@@ -1284,7 +1284,7 @@ export function deriveRouteTimeline(
         const startMs = actualMs ?? Math.max(etaMs ?? 0, fromAt ?? 0, confirmedUntil ?? 0);
         if (etaMs != null) {
             carriedMs = startMs + dwell * 60_000;
-            // 다음 정거장의 도착예상 = 닻 + (누적 주행 + beforeMin) 이므로,
+            // 다음 정거장의 도착예상 = 카카오호출시점 + (누적 주행 + beforeMin) 이므로,
             // 떠나는 시각과의 차이를 beforeMin 에 실어 보낸다 (누적 축은 하나로 둔다)
             beforeMin = Math.round((carriedMs - anchorMs) / 60_000) - st.driveMinutes!;
             // 출발마감용 — 확정 약속 때문에 **반드시** 늦어지는 만큼만 더한다

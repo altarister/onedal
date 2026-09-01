@@ -17,7 +17,7 @@ interface Props {
     activeRoute: SecuredOrder[];
     /** 🧭 서버가 내려준 경로 순서 — 방문 순서의 유일한 원천 (기사님 동의 2026-08-19) */
     routeStops: RouteStopInfo[];
-    /** 경로를 계산한 시점 — 타임라인 추정 약속의 닻 */
+    /** 경로를 계산한 시점 — 타임라인 추정 약속의 기준 = 카카오호출시점 */
     routeComputedAt: string | null;
     /** 🧭 경로를 든 콜 — 서버가 고른 답 (0831) */
     routeHolderId?: string | null;

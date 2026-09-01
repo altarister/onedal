@@ -91,8 +91,8 @@ describe('약속 실현가능성', () => {
     });
 });
 
-/** 🪝 닻이 메모리에만 있으면 서버 재시작에 모든 추정 약속이 리셋된다 */
-describe('routeComputedAt — 닻은 장부에 남는다', () => {
+/** 🪝 카카오호출시점이 메모리에만 있으면 서버 재시작에 모든 추정 약속이 리셋된다 */
+describe('routeComputedAt — 카카오호출시점은 장부에 남는다', () => {
     it('🔴 orders 테이블에 컬럼이 있다', () => {
         expect(readFileSync(join(__dirname, '../../src/db.ts'), 'utf8'))
             .toMatch(/ensureColumns\('orders'[\s\S]{0,200}routeComputedAt/);

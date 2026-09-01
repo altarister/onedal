@@ -248,7 +248,7 @@ function logRouteStops(
     const body = routeStops.map((st, i) =>
         `${circled[i] ?? `(${i + 1})`} ${st.orderId.slice(-6)} ${st.stopType === 'pickup' ? '상차' : '하차'} ` +
         `${st.driveMinutes != null ? `누적 ${st.driveMinutes}분` : '주행모름'}`).join(' ');
-    const anchor = routeComputedAt
+    const kakaoCalledAt = routeComputedAt
         ? new Date(routeComputedAt).toLocaleTimeString('ko-KR', { hour12: false })
         : '없음';
     // 어긋나면 주행분이 전부 null 로 나간다 — 그 사실 자체가 원인일 수 있으므로 함께 적는다
@@ -257,7 +257,7 @@ function logRouteStops(
     const pending = pendingInRoute.length
         ? ` ⚠️ 후보 포함 경로(${pendingInRoute.map(id => id.slice(-6)).join(' · ')}) → 주행분 안 씀`
         : '';
-    console.log(`🧭 [경로 순서] 닻 ${anchor} · 홀더 ${holderId?.slice(-6) ?? '없음'} · ${body}${mismatch}${pending}`);
+    console.log(`🧭 [경로 순서] 카카오호출시점 ${kakaoCalledAt} · 홀더 ${holderId?.slice(-6) ?? '없음'} · ${body}${mismatch}${pending}`);
 }
 
 /**
@@ -342,7 +342,7 @@ export function buildOrderSync(session: { userId?: string; myOrders: MyOrder[]; 
      * 때마다 길이가 어긋나 **주행분 전체가 null** 이 됐다 — 운행 내내 타임라인이 죽었다
      * (예산 줄·검산 문장·카운트다운이 전부 이 값을 먹는다).
      *
-     * 남은 정거장의 누적 주행분은 여전히 옳다 — 닻에서 잰 상대값이라 낡지 않는다.
+     * 남은 정거장의 누적 주행분은 여전히 옳다 — 카카오호출시점에서 잰 상대값이라 낡지 않는다.
      * 죽은 것은 값이 아니라 **인덱스 맞추기**였다. 경로 연산이 남긴 `sectionStops`
      * (구간마다 어느 정거장인가)로 조회하면, 다녀온 곳은 안 찾아질 뿐이고
      * 계산에 없던 새 정거장만 null 이 된다 (규칙 ④ — 모르는 것만 모른다).

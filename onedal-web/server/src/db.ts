@@ -562,7 +562,7 @@ ensureColumns('orders', { targetApp: 'TEXT',
      * JSON 문자열로 넣는다 — 좌표 배열이라 칸을 쪼갤 이유가 없고, 읽는 쪽은 한 곳뿐이다.
      */
     routePolyline: 'TEXT',
-    // ⚓ 타임라인 추정 약속의 닻 — 메모리에만 두면 서버 재시작에 모든 추정이 지금 시각으로 리셋된다
+    // ⚓ 타임라인 추정 약속의 기준 = 카카오호출시점 — 메모리에만 두면 서버 재시작에 모든 추정이 지금 시각으로 리셋된다
     routeComputedAt: 'TEXT',
     // 🖱️ 잡은 방식(자동·알람·직접) — 6하원칙 «어떻게», 기록 전용 (보호는 matchType · #75 · 픽커_수집.md §6-전)
     capturedVia: 'TEXT',

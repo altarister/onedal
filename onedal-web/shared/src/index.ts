@@ -554,7 +554,7 @@ export interface PendingOrder extends OfficeOrder {
     sectionDriveMin?: Array<number | null>;       // 출발점 기준 정거장별 **누적 주행(분)** — 시계가 아니라 상대값이라 낡지 않는다
     /** 🧭 구간마다 어느 정거장인가 — sectionDriveMin 과 같은 길이. 도착으로 정거장이 빠져도 이름으로 맞춘다 (2026-08-21) */
     sectionStops?: Array<{ orderId: string; stopType: 'pickup' | 'dropoff' }>;
-    routeComputedAt?: string;         // 이 경로를 계산한 시점 — 타임라인 추정 약속의 닻
+    routeComputedAt?: string;         // 이 경로를 계산한 시점 — 타임라인 추정 약속의 기준 = 카카오호출시점
     arrivedPickupAt?: string;         // 🚏 상차지에 실제로 도착한 시각 — 경로에서 뺄지의 근거 (hasVisitedStop)
     arrivedDropoffAt?: string;        // 🚏 하차지에 실제로 도착한 시각
     pickupEta?: string;               // 카카오 궤적 연산 기반 상차지 예상 도착 시간
@@ -613,7 +613,7 @@ export interface MyOrder extends OfficeOrder {
     sectionDriveMin?: Array<number | null>;       // 출발점 기준 정거장별 **누적 주행(분)** — 시계가 아니라 상대값이라 낡지 않는다
     /** 🧭 구간마다 어느 정거장인가 — sectionDriveMin 과 같은 길이. 도착으로 정거장이 빠져도 이름으로 맞춘다 (2026-08-21) */
     sectionStops?: Array<{ orderId: string; stopType: 'pickup' | 'dropoff' }>;
-    routeComputedAt?: string;         // 이 경로를 계산한 시점 — 타임라인 추정 약속의 닻
+    routeComputedAt?: string;         // 이 경로를 계산한 시점 — 타임라인 추정 약속의 기준 = 카카오호출시점
     arrivedPickupAt?: string;         // 🚏 상차지에 실제로 도착한 시각 — 경로에서 뺄지의 근거 (hasVisitedStop)
     arrivedDropoffAt?: string;        // 🚏 하차지에 실제로 도착한 시각
     pickupEta?: string;               // 카카오 궤적 연산 기반 상차지 예상 도착 시간
@@ -1466,7 +1466,7 @@ export interface OrderSyncPayload {
      */
     routeStops?: RouteStopInfo[];
     /**
-     * 경로를 계산한 시점 — 타임라인 추정 약속의 **닻**. 지금 시각을 닻으로 쓰면
+     * 경로를 계산한 시점 — 타임라인 추정 약속의 기준 = **카카오호출시점**. 지금 시각을 기준으로 쓰면
      * 추정 약속이 매초 미래로 밀려 카운트다운이 영원히 "30분 남음"에 머문다.
      */
     routeComputedAt?: string | null;

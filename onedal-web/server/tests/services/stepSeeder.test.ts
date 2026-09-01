@@ -258,7 +258,7 @@ maybe('출생 모델 — 단계가 끝나면 다음이 앞 값을 물려받아 �
         ] as any;
         birthFirstStep(USER, ORDER_ID, undefined, routeTl);
         const r = of('CALL_PICKUP').row;
-        expect(kst(r.predicted_at)).toBe('16:13');                 // 닻 + 4분 (경로가 앎)
+        expect(kst(r.predicted_at)).toBe('16:13');                 // 카카오호출시점 + 4분 (경로가 앎)
         expect(kst(r.promised_arrival_at)).toBe('16:29');          // 상차 시계 (잡음+30)
     });
 

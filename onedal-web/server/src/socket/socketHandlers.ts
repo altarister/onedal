@@ -599,7 +599,7 @@ export function registerSocketHandlers(io: Server) {
              *
              * → 관제웹이 그 순간 실제로 쓴 재료(`_diag`)를 그대로 찍는다.
              *   서버 로그의 `🧭 [경로 순서]` 줄과 나란히 놓으면 갈린다:
-             *     · 두 주행분이 같다  → 관제웹의 **더하는 방식**이 틀렸다 (닻·기준시각)
+             *     · 두 주행분이 같다  → 관제웹의 **더하는 방식**이 틀렸다 (카카오호출시점·기준시각)
              *     · 다르다            → 시트가 **경로가 아닌 값**(콜별 파생 폴백)을 썼다
              *
              * ⚠️ `_diag` 는 로그로만 쓰고 **저장하지 않는다** — 장부에 남기려면 규칙 ⑤-4 의
@@ -615,7 +615,7 @@ export function registerSocketHandlers(io: Server) {
                     diag ? `시트가 쓴 값 → 주행 ${diag.driveMinutes ?? '모름'} + 선행 ${diag.leadMinutes ?? '-'}` : null,
                     diag ? `출처 ${diag.source ?? '?'}` : null,
                     // 시트는 "기준시각 + 주행" 으로 도착 예상을 만든다. 그 기준시각이 무엇이었나
-                    diag ? `기준 ${hhmm(diag.baseAt)} · 닻 ${hhmm(diag.routeComputedAt)}` : null,
+                    diag ? `기준 ${hhmm(diag.baseAt)} · 카카오호출시점 ${hhmm(diag.routeComputedAt)}` : null,
                     diag?.suggestedAt ? `추천 ${hhmm(diag.suggestedAt)}` : null,
                     diag?.touched != null ? (diag.touched ? '기사님이 누름' : '자동 추천 그대로') : null,
                 ].filter(Boolean);

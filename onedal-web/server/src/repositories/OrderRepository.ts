@@ -55,7 +55,7 @@ export class OrderRepository {
             cachedOrder.kakaoSoloDistanceKm || null,
             cachedOrder.kakaoSoloDurationMin || null,
             cachedOrder.kakaoTimeExt || null,
-            (cachedOrder as any).routeComputedAt || null,   // ⚓ 타임라인 추정 약속의 닻
+            (cachedOrder as any).routeComputedAt || null,   // ⚓ 타임라인 추정 약속의 기준 = 카카오호출시점
             /**
              * 🗺️ **궤적도 함께 남긴다** (기사님 확정 2026-08-23).
              * 없으면 서버가 재시작할 때마다 카카오를 다시 부른다. 좌표 배열이라 JSON 으로 넣는다.
