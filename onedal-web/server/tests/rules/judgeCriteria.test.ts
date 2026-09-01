@@ -1,5 +1,9 @@
 import { judge, describe as 설명, defineCriterion, scored, nothing, unmeasurable, DEFAULT_JUDGMENT } from '@onedal/shared';
-import { CRITERIA, 돈, 약속, 공간, 성질, 지리 } from '@onedal/shared';
+// 🔴 예전에는 `돈·약속·공간·성질·지리` 를 함께 들여왔다. 2026-08-30 개명(식별자는 영문만)으로
+//    그 이름들이 `MONEY·PROMISE…` 가 되었는데 이 줄만 안 따라와, 이 파일이 **컴파일조차 안 된 채
+//    조용히 사라져 있었다** — 실패가 아니라 «없는 것»이라 게이트는 계속 초록불이었다 (2026-09-02 되살림).
+//    본문이 그 이름들을 값으로 쓰지 않으므로 목록만 들여온다.
+import { CRITERIA } from '@onedal/shared';
 import type { JudgeFacts, JudgmentConfig, Criterion } from '@onedal/shared';
 
 /**
