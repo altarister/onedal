@@ -75,7 +75,7 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
          * 자동 진입이 그대로 **계약 클릭**이 된다. 상세 화면 잔상을 리스트로 오인한 유령
          * 카드(«수락하기» 포함)도 같다. «수락»이 띠 안에 보이면 알람은 울리되 **손은 대지 않는다**.
          * ⚠️ 범위는 알람 경로다 (기사님 교정 0830) — 훗날 픽커 잡기 판(자동 선점)에서는
-         *    수락 클릭이 곧 목적이므로, 이 관문을 그 경로에 끌어다 쓰지 말 것.
+         *    수락 클릭이 곧 목적이므로, 이 검사를 그 경로에 끌어다 쓰지 말 것.
          */
         fun clickSafe(rawText: String?): Boolean = rawText?.contains("수락") != true
 
