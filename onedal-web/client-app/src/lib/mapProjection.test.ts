@@ -94,6 +94,59 @@ describe('computeViewport — 처음 화면(배율 1·팬 0)', () => {
     });
 });
 
+/**
+ * 🪟 **시트가 덮은 자리를 피한다** (기사님 요청 2026-09-01 — *"반쯤 열리면 같이 볼 수 있을 것 같은데"*).
+ * 시트는 무대의 58% 를 덮는다. 그 상태에서 경로가 **위쪽 42% 안에** 들어와야 둘을 같이 본다.
+ */
+describe('시트 연동 — 가려진 자리에 경로를 그리지 않는다', () => {
+    const SHEET = H * 0.58;   // half 일 때 시트가 덮는 높이
+
+    it('시트를 반쯤 열면 모든 정거장이 시트 위에 남는다', () => {
+        const v = computeViewport(STOPS, W, H, 1, NO_PAN, SHEET);
+        const sheetTop = H - SHEET;
+        STOPS.forEach(s => {
+            const p = toScreenPoint(s, v);
+            expect(p.cy).toBeLessThanOrEqual(sheetTop);
+            expect(p.cy).toBeGreaterThanOrEqual(PADDING_TOP - 0.001);
+        });
+    });
+
+    /** 🔴 이 검사가 «연동 안 함»을 잡는다 — 가림을 무시하면 아래 정거장이 시트 뒤로 숨는다 */
+    it('가림을 모르면 시트 뒤로 숨는 정거장이 생긴다', () => {
+        const v = computeViewport(STOPS, W, H, 1, NO_PAN);           // occludedBottom 없음
+        const sheetTop = H - SHEET;
+        const hidden = STOPS.filter(s => toScreenPoint(s, v).cy > sheetTop);
+        expect(hidden.length).toBeGreaterThan(0);
+    });
+
+    it('시트가 열릴수록 경로가 위로 올라온다', () => {
+        const centerY = (occluded: number) => {
+            const v = computeViewport(STOPS, W, H, 1, NO_PAN, occluded);
+            const ys = STOPS.map(s => toScreenPoint(s, v).cy);
+            return (Math.min(...ys) + Math.max(...ys)) / 2;
+        };
+        expect(centerY(SHEET)).toBeLessThan(centerY(72));       // half 가 peek 보다 위
+        expect(centerY(72)).toBeLessThan(centerY(0));           // peek 이 시트 없음보다 위
+    });
+
+    it('시트가 다 덮어도 지도가 무너지지 않는다 — 최소 자리를 남긴다', () => {
+        const v = computeViewport(STOPS, W, H, 1, NO_PAN, H);    // 화면 전체를 덮는 값
+        STOPS.forEach(s => {
+            const p = toScreenPoint(s, v);
+            expect(Number.isFinite(p.cx)).toBe(true);
+            expect(Number.isFinite(p.cy)).toBe(true);
+        });
+        expect(v.worldSize).toBeGreaterThan(0);
+    });
+
+    it('시트가 없으면 옛 화면 그대로다 — 기본값은 가림 0', () => {
+        const a = computeViewport(STOPS, W, H, 1, NO_PAN);
+        const b = computeViewport(STOPS, W, H, 1, NO_PAN, 0);
+        expect(a.anchorY).toBeCloseTo(b.anchorY, 10);
+        expect(a.worldSize).toBeCloseTo(b.worldSize, 10);
+    });
+});
+
 describe('확대 — 누른 자리가 붙잡혀 있다', () => {
     const zoomAt = (screenX: number, screenY: number, from: number, ratio: number, pan: { x: number; y: number }) => {
         const base = anchorBaseOf(W, H);

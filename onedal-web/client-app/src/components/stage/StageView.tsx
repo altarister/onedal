@@ -244,6 +244,8 @@ export default function StageView(props: Props) {
             <div className="absolute inset-0">
                 <PinnedRouteCanvas
                     fill
+                    /* 🪟 시트가 올라온 만큼 지도가 위로 비켜 준다 — 반쯤 열면 둘을 같이 본다 (기사님 0901) */
+                    sheetSnap={snap}
                     unifiedRoutePoints={unifiedRoutePoints}
                     liveRoute={liveRoute}
                     myLocation={myLocation}

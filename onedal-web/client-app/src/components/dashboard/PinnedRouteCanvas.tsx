@@ -9,6 +9,7 @@ import {
     TILE_SIZE, TILE_MAX_ZOOM, anchorBaseOf, computeViewport, toScreenPoint, panAfterZoom,
     type Viewport,
 } from '../../lib/mapProjection';
+import { sheetOccludedPx, type SheetSnap } from '../stage/StageSheet';
 
 const sidoData = sidoDataRaw as any; // GeoJSON FeatureCollection
 
@@ -118,9 +119,15 @@ interface Props {
     children?: React.ReactNode;
     /** 🎭 무대 배경일 때 — 부모를 가득 채운다 (기본 h-64는 옛 화면용) */
     fill?: boolean;
+    /**
+     * 🪟 **지금 시트가 어디까지 올라와 있나** — 그만큼 지도가 위로 비켜 준다
+     * (기사님 요청 2026-09-01: *"반쯤 열리면 같이 볼 수 있을 것 같은데"*).
+     * 옛 화면은 시트가 없으므로 넘기지 않는다 — 그때는 화면 전체가 지도다.
+     */
+    sheetSnap?: SheetSnap;
 }
 
-export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLocation, children, fill, visitedTrail, callColors, onStopTap, drivenTrail, routeHolder }: Props) {
+export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLocation, children, fill, visitedTrail, callColors, onStopTap, drivenTrail, routeHolder, sheetSnap }: Props) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const { theme } = useTheme();
     const mapColors = MAP_THEME_COLORS[theme];
@@ -139,6 +146,15 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
      *    `drawMap` 은 매번 새 함수라 `onload` 에 직접 걸면 옛 함수가 박힌다.
      */
     const drawRef = useRef<() => void>(() => { });
+    /**
+     * 🪟 **시트를 따라 «미끄러져» 간다** — 지금 반영 중인 가림 높이(px).
+     *
+     * 시트는 `height .25s ease` 로 움직인다. 지도가 목표값으로 **한 번에 튀면** 시트가
+     * 아직 오는 중인데 경로만 먼저 뛰어 두 개가 따로 논다. 매 프레임 남은 거리의 일부만
+     * 좁혀 같은 시간에 함께 도착하게 한다. `null` 은 «아직 한 번도 안 그렸다» —
+     * 첫 그림은 애니메이션 없이 제자리에서 시작한다.
+     */
+    const occludedNow = useRef<number | null>(null);
 
     // 캔버스 미니맵 렌더링 (단독 함수로 분리하여 제스처 시 즉각 호출)
     const drawMap = useCallback(() => {
@@ -181,8 +197,19 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             return;
         }
 
+        // 🪟 시트가 덮은 높이 — 목표를 향해 매 프레임 조금씩 좁힌다 (한 번에 튀면 시트와 따로 논다)
+        const occludedTarget = sheetSnap ? sheetOccludedPx(sheetSnap, height) : 0;
+        if (occludedNow.current == null) occludedNow.current = occludedTarget;   // 첫 그림은 제자리에서
+        const gap = occludedTarget - occludedNow.current;
+        if (Math.abs(gap) > 0.5) {
+            occludedNow.current += gap * 0.22;                                   // ≈ 시트의 .25s 와 맞는 속도
+            requestAnimationFrame(() => drawRef.current());
+        } else {
+            occludedNow.current = occludedTarget;
+        }
+
         // 🔭 시점(視點)은 한 곳에서 — 제스처도 같은 `anchorBaseOf` 를 본다 (규칙 ③)
-        const viewport = computeViewport(allCoords, width, height, zoomRef.current, panRef.current);
+        const viewport = computeViewport(allCoords, width, height, zoomRef.current, panRef.current, occludedNow.current);
         const getScreenPt = (p: { x: number, y: number }) => toScreenPoint(p, viewport);
 
         // 0. 🗺️ 배경 — 타일이 왔으면 타일, 아직 없으면 시·도 외곽선 (터널·음영에서도 빈 화면이 안 된다)
@@ -403,7 +430,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             ctx.fillStyle = withAlpha(mapColors.textMuted, 0.7);
             ctx.fillText('© OpenStreetMap', width - 4, height - 3);
         }
-    }, [unifiedRoutePoints, liveRoute, myLocation, visitedTrail, drivenTrail, routeHolder, theme, mapColors]);
+    }, [unifiedRoutePoints, liveRoute, myLocation, visitedTrail, drivenTrail, routeHolder, theme, mapColors, sheetSnap]);
 
     useEffect(() => {
         drawRef.current = drawMap;   // 늦게 온 타일이 부를 최신 그리기
@@ -486,7 +513,8 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
 
         const newZoom = Math.max(0.5, Math.min(10, zoomRef.current * zoomDelta));
         const ratio = newZoom / zoomRef.current;
-        const base = anchorBaseOf(rect.width, rect.height);
+        // 🪟 그리는 쪽이 지금 쓰고 있는 가림 높이를 그대로 본다 — 두 벌이면 확대점이 어긋난다
+        const base = anchorBaseOf(rect.width, rect.height, occludedNow.current ?? 0);
 
         panRef.current.x = panAfterZoom(screenX, base.x, panRef.current.x, ratio);
         panRef.current.y = panAfterZoom(screenY, base.y, panRef.current.y, ratio);

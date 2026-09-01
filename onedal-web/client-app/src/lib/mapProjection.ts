@@ -37,13 +37,32 @@ export function projectMercator(lng: number, lat: number): { nx: number; ny: num
 }
 
 /**
- * 📍 **경로 중심이 놓이는 자리** (팬 이전의 기준점).
- * 🔴 좌우 여백이 달라 **화면 한가운데가 아니다.**
+ * 🪟 **시트에 가려도 최소한 이만큼은 지도로 남긴다** (px).
+ * 이 아래로 내려가면 경로가 뭉개져 아무것도 못 읽으므로, 가림을 그만 반영한다.
  */
-export function anchorBaseOf(width: number, height: number): { x: number; y: number } {
+const MIN_VISIBLE_HEIGHT = 140;
+
+/**
+ * 📐 **지도가 실제로 보이는 세로 길이** — 위 여백과 **시트가 덮은 아래쪽**을 뺀 것.
+ * 🔴 여기 하나가 «보이는 자리»를 정한다. 맞춤(fit)과 중심(anchor)이 같은 답을 봐야 한다.
+ */
+function visibleHeightOf(height: number, occludedBottom: number): number {
+    const free = height - PADDING_TOP - PADDING_BOTTOM - Math.max(0, occludedBottom);
+    return Math.max(MIN_VISIBLE_HEIGHT, free);
+}
+
+/**
+ * 📍 **경로 중심이 놓이는 자리** (팬 이전의 기준점).
+ *
+ * 🔴 좌우 여백이 달라 **화면 한가운데가 아니다.**
+ * 🔴 그리고 **시트가 아래를 덮으면 그만큼 위로 올라온다** (기사님 요청 2026-09-01).
+ *    시트를 반쯤 열었을 때 «지도와 시트를 같이 보는» 것이 목적이라, 경로는 남은 위쪽
+ *    자리의 한가운데에 와야 한다. 가림을 모르면 경로 아랫부분이 시트 뒤에 숨는다.
+ */
+export function anchorBaseOf(width: number, height: number, occludedBottom = 0): { x: number; y: number } {
     return {
         x: PADDING_LEFT + (width - PADDING_LEFT - PADDING_RIGHT) / 2,
-        y: PADDING_TOP + (height - PADDING_TOP - PADDING_BOTTOM) / 2,
+        y: PADDING_TOP + visibleHeightOf(height, occludedBottom) / 2,
     };
 }
 
@@ -63,6 +82,8 @@ export interface Viewport {
 export function computeViewport(
     coords: GeoPoint[], width: number, height: number,
     zoom: number, pan: { x: number; y: number },
+    /** 🪟 시트가 아래에서 덮은 높이(px) — 맞춤도 중심도 «보이는 자리» 안에서 한다 */
+    occludedBottom = 0,
 ): Viewport {
     const projected = coords.map(p => projectMercator(p.x, p.y));
     const nxs = projected.map(n => n.nx);
@@ -71,7 +92,7 @@ export function computeViewport(
     const minNy = Math.min(...nys), maxNy = Math.max(...nys);
 
     const drawWidth = width - (PADDING_LEFT + PADDING_RIGHT);
-    const drawHeight = height - (PADDING_TOP + PADDING_BOTTOM);
+    const drawHeight = visibleHeightOf(height, occludedBottom);
 
     // 0.2도 ≈ 정규 좌표 0.2/360 (등방이라 가로·세로 어느 쪽이든 같은 폭이다)
     let rangeNx = maxNx - minNx;
@@ -79,7 +100,7 @@ export function computeViewport(
     if (rangeNx < 0.01 / 360) rangeNx = 0.2 / 360;
     if (rangeNy < 0.01 / 360) rangeNy = 0.2 / 360;
 
-    const base = anchorBaseOf(width, height);
+    const base = anchorBaseOf(width, height, occludedBottom);
     return {
         worldSize: Math.min(drawWidth / rangeNx, drawHeight / rangeNy) * zoom,
         anchorX: base.x + pan.x,

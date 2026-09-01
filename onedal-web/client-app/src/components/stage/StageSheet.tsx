@@ -15,6 +15,24 @@ const HEIGHT: Record<SheetSnap, string> = {
     full: '100%',
 };
 
+/**
+ * 🗺️ **시트가 무대 아래쪽을 몇 px 덮는가** — 지도가 «보이는 자리»에 경로를 맞추려면 필요하다
+ * (기사님 요청 2026-09-01: *"반쯤 열리면 같이 볼 수 있을 것 같은데."*).
+ *
+ * 🔴 **높이의 원천은 위의 `HEIGHT` 하나다.** 지도가 «58%» 를 따로 적으면 시트 높이를
+ *    고칠 때 한쪽만 고쳐진다 (규칙 ③ — 이 레포가 반복해 당한 형태다).
+ *
+ * 🔴 **`full` 은 `half` 와 같은 값으로 답한다.** 시트가 무대를 다 덮으면 지도는 어차피
+ *    안 보이므로 «정확한 가림 높이»가 아무 뜻이 없고, 그 값을 그대로 쓰면 보이는 자리가
+ *    0이 되어 지도가 무너진다. 같은 값을 두면 **full → half 로 내려올 때 지도가 이미
+ *    제자리에 있어 튀지 않는다** — 내려오는 순간이 기사님이 지도를 다시 보는 순간이다.
+ */
+export function sheetOccludedPx(snap: SheetSnap, stageHeight: number): number {
+    const raw = HEIGHT[snap === 'full' ? 'half' : snap];
+    const n = parseFloat(raw);
+    return raw.endsWith('%') ? stageHeight * n / 100 : n;
+}
+
 interface Props {
     snap: SheetSnap;
     onSnapChange: (s: SheetSnap) => void;
