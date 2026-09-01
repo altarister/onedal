@@ -30,9 +30,9 @@ jobs:
             # 1. 원달 프로젝트 폴더로 이동 (폴더가 없으면 에러)
             cd ~/onedal/onedal/onedal-web || exit 1
             
-            # 💾 [0/4] 코드를 갈아끼우기 **전에** DB 를 뜬다 (되돌릴 자리 확보)
+            # 💾 [0/5] 코드를 갈아끼우기 **전에** DB 를 뜬다 (되돌릴 자리 확보)
             #    손으로 하면 잊는다. 배포마다 자동으로 남긴다 — 최근 5개만 보관.
-            echo "💾 [0/4] 배포 전 DB 백업"
+            echo "💾 [0/5] 배포 전 DB 백업"
             if [ -f server/data.db ]; then
                 # 🔴 **세 파일을 다 뜬다** (2026-08-23 실전에서 걸린 결함).
                 #    SQLite 는 WAL 모드라 **최근 데이터가 data.db-wal 에 있다.** 본체만 뜨면
@@ -51,51 +51,95 @@ jobs:
                 echo "ℹ️ data.db 가 없습니다 — 첫 배포이거나 이미 지운 상태"
             fi
 
-            echo "🚀 [1/4] 최신 코드 가져오기"
+            echo "🚀 [1/5] 최신 코드 가져오기"
             git fetch --all
             git reset --hard origin/main
             git pull origin main
             
-            echo "💾 [1.5/4] 메모리 기절 방지용 가상 메모리(Swap 2GB) 세팅"
-            if [ ! -f /swapfile ]; then
-                sudo fallocate -l 2G /swapfile
-                sudo chmod 600 /swapfile
-                sudo mkswap /swapfile
-                sudo swapon /swapfile
+            # 🔴 **파일이 있는가가 아니라 «켜져 있는가»를 본다** (2026-09-01 사고).
+            #    옛 조건은 `[ ! -f /swapfile ]` 이라 파일만 보고 건너뛰었다. 재부팅하면
+            #    swapon 은 풀리는데 파일은 남으므로 **영영 꺼진 채**가 된다 — 그 상태로
+            #    vite 빌드가 OOM 으로 죽었고(exit 137) 거기서 사슬이 시작됐다.
+            #    fstab 에 넣어 재부팅에도 살아남게 한다.
+            echo "💾 [1.5/5] 가상 메모리(Swap 2GB) — 켜져 있는지까지 본다"
+            if ! swapon --show | grep -q .; then
+                if [ ! -f /swapfile ]; then
+                    sudo fallocate -l 2G /swapfile
+                    sudo chmod 600 /swapfile
+                    sudo mkswap /swapfile
+                fi
+                sudo swapon /swapfile || true
+                grep -q '^/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
                 echo "✅ 가상 메모리 확보 완료!"
             fi
+            free -h
+
+            # 🔌 있으면 두고 없을 때만 넣는다 — 옛 코드는 `-A` 만 해서 21벌까지 쌓였다
+            echo "🔌 [1.6/5] 포트포워딩 복구 (재부팅 대비)"
+            sudo iptables -t nat -C PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 4000 2>/dev/null \
+                || sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 4000 || true
             
-            echo "🔌 [1.6/4] 포트포워딩 복구 (재부팅 대비)"
-            sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 4000 || true
-            
-            echo "📦 [2/4] 핵심 패키지 재설치 (SQLite C++ 빌드 포함)"
+            echo "📦 [2/5] 핵심 패키지 재설치 (SQLite C++ 빌드 포함)"
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # nvm 로드
             
             pnpm install
             pnpm rebuild better-sqlite3 esbuild
             
-            echo "🔨 [3/4] 클라이언트 프론트엔드 빌드"
-            # 프론트엔드 빌드 (정적 파일 생성)
-            cd client-app && pnpm build && cd ..
+            # 🔴 **서브셸로 들어간다** (2026-09-01 사고의 심장).
+            #    옛 코드는 `cd client-app && pnpm build && cd ..` 였다. 빌드가 죽으면
+            #    `&&` 사슬이 끊겨 **`cd ..` 이 실행되지 않는데 스크립트는 계속 갔다** —
+            #    그 뒤 모든 명령이 client-app/ 안에서 돌아 `ecosystem.config.cjs` 도
+            #    `../onedal-sim` 도 «없다»가 됐다. 실패가 **작업 폴더를 오염시켰다.**
+            #    괄호 안의 cd 는 밖으로 새지 않으므로 이 종류가 구조적으로 못 생긴다.
+            #
+            # 🔴 그리고 **빌드가 깨지면 여기서 멈춘다.** 깨진 채로 배포 단계까지 가면
+            #    돌던 서버를 새것으로 갈아치우려다 아무것도 없는 상태가 된다.
+            echo "🔨 [3/5] 클라이언트 프론트엔드 빌드"
+            ( cd client-app && pnpm build ) || {
+                echo "❌ 클라이언트 빌드 실패 — 배포를 중단한다 (돌던 서버는 그대로 둔다)"
+                exit 1
+            }
 
-            # 🎯 [3.5/4] 리허설 배차망(onedal-sim) 빌드 — rehearsal.altari.com 이 이걸 서빙한다.
+            # 🎯 [3.5/5] 리허설 배차망(onedal-sim) 빌드 — rehearsal.altari.com 이 이걸 서빙한다.
             #    ⚠️ onedal-sim 은 **별도 워크스페이스**다 (onedal-web 에 안 들어 있다).
             #       그래서 pnpm install 을 따로 돌려야 한다.
             #    ⚠️ 실패해도 배포를 멈추지 않는다 — 리허설은 시험용이고, 이것 때문에
             #       관제 서버가 안 뜨면 본말전도다. 서버는 dist 가 없으면 건너뛴다.
-            echo "🎯 [3.5/4] 리허설 배차망 빌드"
+            echo "🎯 [3.5/5] 리허설 배차망 빌드"
             ( cd ../onedal-sim && pnpm install && pnpm build && echo "✅ 리허설 배차망 준비 완료" ) \
                 || echo "⚠️ 리허설 배차망 빌드 실패 — 건너뜁니다 (관제 서버는 정상 배포)"
             
             # 백엔드는 tsx로 실행되므로 빌드 생략
             
-            echo "🔄 [4/4] PM2 서버 재시작 (무중단 갱신)"
-            pm2 reload ecosystem.config.cjs --env production || {
-                echo "⚠️ reload 실패 → 전체 재시작 (최초 배포 시)"
-                pm2 delete all || true
+            # 🔴 **`pm2 delete all` 을 하지 않는다** (2026-09-01 사고의 직접 원인).
+            #    옛 코드는 reload 가 실패하면 **돌던 서버까지 지운 뒤** start 를 걸었다.
+            #    그날은 작업 폴더가 어긋나 설정 파일을 못 찾았으므로 start 도 같은 이유로
+            #    실패했고, **살아 있던 서버만 잃고 5시간 40분 동안 라이브가 죽어 있었다.**
+            #    띄우지 못할 상황이라면 **옛것이 계속 도는 편이 언제나 낫다.**
+            echo "🔄 [4/5] PM2 서버 재시작 (무중단 갱신)"
+            if pm2 describe onedal-web-server > /dev/null 2>&1; then
+                pm2 reload ecosystem.config.cjs --env production
+            else
+                echo "ℹ️ 돌고 있는 서버가 없다 — 새로 띄운다"
                 pm2 start ecosystem.config.cjs --env production
-            }
+            fi
             pm2 save
-            
-            echo "✅ 배포 완료!"
+
+            # 🩺 **«배포 완료»는 echo 가 아니라 서버가 말해야 한다** (2026-09-01 사고의 은폐 경로).
+            #    옛 스크립트의 마지막 줄이 `echo` 였다. ssh-action 은 **마지막 명령의 종료
+            #    코드**로 성공을 판정하므로 echo 는 **언제나 0** — 그래서 서버가 사라진
+            #    배포도 초록불이었고, 201번의 초록은 «잘 됐다»가 아니라 «안 봤다»였다.
+            echo "🩺 [5/5] 살아났는지 확인"
+            for i in $(seq 1 15); do
+                if curl -sf localhost:4000/api/health > /dev/null; then
+                    echo "✅ 배포 완료 — 서버 응답 확인:"
+                    curl -s localhost:4000/api/health
+                    exit 0
+                fi
+                sleep 2
+            done
+            echo "❌ 30초를 기다려도 서버가 응답하지 않는다 — 아래는 마지막 로그다"
+            pm2 status
+            pm2 logs --lines 40 --nostream || true
+            exit 1
