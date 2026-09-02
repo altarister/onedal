@@ -1,4 +1,5 @@
-import type { ScreenContextType, TargetAppType } from './index';
+import { TARGET_APP_LABEL, DEVICE_OFFLINE_LABEL } from './index';
+import type { ScreenContextType, TargetAppType, DeviceOfflineReason } from './index';
 
 /**
  * 🏷️ **화면 이름표 — 배차망마다 따로 둔다** (기사님 설계 2026-09-02).
@@ -112,4 +113,73 @@ export function screenLabelsOf(targetApp?: string | null) {
 export function screenLabelOf(targetApp: string | null | undefined, screen?: ScreenContextType | null): ScreenLabel | null {
     if (!screen) return null;
     return screenLabelsOf(targetApp)[screen] ?? { label: "알 수 없는 화면", color: RED_BLINK };
+}
+
+/** 💤 화면이 꺼졌을 때의 색 — 배지 하나가 통째로 이 색이 된다 (경고지 오류가 아니다) */
+const SLEEP = "text-warning bg-warning/15 border-warning/30";
+/** 화면명도 배차망도 못 그릴 때의 무채색 — «아직 모른다»이지 «고장»이 아니다 */
+const MUTED = "bg-surface-alt text-text-muted border-border";
+
+/** 🖥️ 폰 상태 바의 **한 배지** — 배차망·화면명·화면 꺼짐이 여기서 하나로 골라진다 */
+export interface DeviceScreenBadge {
+    /** 배차망 이름(«인성»·«픽커») — 붙일 이유가 없으면 `null` */
+    network: string | null;
+    /** 화면명. 배차망만 아는 폰이면 빈 문자열 */
+    label: string;
+    color: string;
+}
+
+/**
+ * 🖥️ **6번(화면 켜짐)과 9번(화면명)을 한 배지로 고른다** (기사님과 확정 2026-09-02 ·
+ * `docs/기획/폰_상태바.md` §2).
+ *
+ * 포함 관계가 이렇게 서 있다 — **위가 꺼지면 아래는 뜻이 없다.**
+ * ```
+ * 2 살아있나 → 6 화면 켜짐 → 7 접근성 → 8 배차망 → 9 화면명
+ * ```
+ * 그래서 화면이 꺼진 폰에 «픽커 홈»을 그리면 **읽지도 않고 단언하는 것**이다 —
+ * 그 값은 화면이 꺼지기 **전에** 읽은 것이고, 그 사이 기사님이 무엇을 하셨는지 앱은 모른다.
+ * (2026-09-02 오전에 같은 병으로 세 자리를 고쳤다 · `tests/rules/screenTruth.test.ts`)
+ *
+ * 🔴 **표시를 합치는 것이지 값을 합치는 것이 아니다.** `isScreenOn`·`screenContext` 는
+ *    서버·검사가 각자 쓰던 그대로 남는다 (규칙 ⑤-4 ⑤ — 읽는 곳이 늘어난 것이 아니다).
+ * 🔴 **끊김이 화면 꺼짐보다 위다.** 말이 없는 폰에 «화면이 꺼졌다»고 적으면 그것도 단언이다 —
+ *    마지막으로 들은 말이 그랬을 뿐이다. 끊김은 폰 이름의 빨간 깜빡임이 말한다.
+ * ⚠️ 화면 켜짐을 안 싣는 구앱은 `isScreenOn` 이 `undefined` 다. **모름을 «꺼짐»으로 읽지 않는다.**
+ */
+export function deviceScreenBadge(device: {
+    status?: string | null;
+    targetApp?: string | null;
+    screenContext?: ScreenContextType | null;
+    isScreenOn?: boolean;
+    offlineReason?: DeviceOfflineReason;
+}): DeviceScreenBadge | null {
+    const disconnected = device.status === "OFFLINE";
+
+    /**
+     * 📵 **말이 없는 폰의 화면 이름은 그리지 않는다** (기사님 지적 2026-09-02).
+     *
+     * 그 값은 폰이 마지막으로 말해 준 «아까 그것»이라, 계속 그리면 화면이
+     * *"지금 이 화면이다"* 라고 **단언**한다. 대신 **왜 끊겼는지**를 적는다 —
+     * 접근성을 켜야 하는 것과 폰·통신을 봐야 하는 것은 기사님이 하실 일이 다르다.
+     * ⚠️ 까닭을 못 들었으면 «연결 끊김» 이다 — 못 들은 것을 «접근성 꺼짐»으로 지어내지 않는다.
+     */
+    if (disconnected) {
+        const why = device.offlineReason ? DEVICE_OFFLINE_LABEL[device.offlineReason] : "연결 끊김";
+        return { network: null, label: why, color: MUTED };
+    }
+
+    if (device.isScreenOn === false) {
+        return { network: null, label: "💤 화면 꺼짐", color: SLEEP };
+    }
+
+    const screen = screenLabelOf(device.targetApp, device.screenContext);
+    const network = device.targetApp
+        ? (TARGET_APP_LABEL[device.targetApp as TargetAppType] ?? device.targetApp)
+        : null;
+
+    if (!screen && !network) return null;
+    // 폭을 아끼려고 화면명의 낱말 사이를 붙인다 — «인성 콜리스트» (기사님 0831).
+    // 💤 은 이 함수가 지은 말이라 그대로 둔다 (붙이면 «💤화면 꺼짐» 이 된다)
+    return { network, label: screen?.label.replace(" ", "") ?? "", color: screen?.color ?? MUTED };
 }

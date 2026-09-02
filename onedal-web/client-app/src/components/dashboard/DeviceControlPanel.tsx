@@ -1,6 +1,7 @@
+import { useEffect, useState } from "react";
 import { useDevices } from "../../hooks/useDevices";
 import type { DeviceSession, DeviceModeType } from "@onedal/shared";
-import { isDeviceBlind, DEVICE_MODES, DEVICE_MODE_LABEL, TARGET_APP_LABEL, screenLabelOf } from "@onedal/shared";
+import { isDeviceBlind, DEVICE_MODES, DEVICE_MODE_LABEL, deviceScreenBadge, workStageLabel, isModeApplying } from "@onedal/shared";
 import { useSystemAlerts } from "../../hooks/useSystemAlerts";
 import type { EmergencyAlert, SafeCancelWarning, FilterPassAlarm } from "../../hooks/useSystemAlerts";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
@@ -52,7 +53,38 @@ function DeviceRow({
     filterAlarm: FilterPassAlarm | null;
 }) {
     const isDisconnected = device.status === "OFFLINE";
-    const screenInfo = screenLabelOf(device.targetApp, device.screenContext);
+    /**
+     * 🖥️ **배차망·화면명·화면 꺼짐은 배지 하나다** (기사님과 확정 2026-09-02 · `docs/기획/폰_상태바.md` §2).
+     * 고르는 일은 `shared` 가 한다 — 여기서는 그리기만 한다 (운행일지도 같은 것을 물을 수 있다).
+     */
+    const screenBadge = deviceScreenBadge(device);
+    /** 🚦 지금 무슨 일을 하는 중인가 — 낱말은 `shared` 가 짓는다 (구앱이면 `null`) */
+    const stageLabel = workStageLabel(device);
+
+    /**
+     * 🎛️ **「적용중」 — 누른 것이 폰에 닿았나** (기사님 확정 2026-09-02 · 0단계 ②③).
+     *
+     * 🔴 예전에는 누르는 순간 바뀐 것처럼 그렸다(«낙관적 업데이트»). 폰이 받았는지
+     *    모르면서 단언한 것이라, 오전에 고친 «읽지 않고 단언»과 같은 병이었다.
+     * 🔴 **10초가 지나면 버튼만 다시 눌리게 한다** — 「적용중」 표시는 그대로 두되
+     *    기사님이 다시 누르실 수 있어야 한다. 글자는 «반영 안 됨»이라 쓰지 않는다:
+     *    홈에 있는 폰은 실제로 나중에 반영되므로 그건 거짓말이 된다 (**사실만** 적는다).
+     */
+    const applying = isModeApplying(device);
+    const [applyingSince, setApplyingSince] = useState<number | null>(null);
+    const [now, setNow] = useState(() => Date.now());
+    useEffect(() => {
+        setApplyingSince(prev => (applying ? (prev ?? Date.now()) : null));
+    }, [applying]);
+    useEffect(() => {
+        if (!applying) return;
+        const t = setInterval(() => setNow(Date.now()), 1000);
+        return () => clearInterval(t);
+    }, [applying]);
+    const applyingSec = applyingSince ? Math.floor((now - applyingSince) / 1000) : 0;
+    /** 10초를 넘겼으면 버튼은 푼다 — 기다림이 길어져도 기사님 손을 묶지 않는다 */
+    const buttonsLocked = applying && applyingSec < 10;
+    const lastHeardSec = device.lastSeen ? Math.max(0, Math.floor((now - device.lastSeen) / 1000)) : null;
 
     /**
      * 👁️ **앱은 켜져 있는데 화면을 못 읽는 중** (기사님 확정 2026-08-22 · 크리티컬).
@@ -134,15 +166,20 @@ function DeviceRow({
                     <span className={`font-black text-[12px] px-1.5 rounded truncate shrink-0 ${isDisconnected ? 'bg-danger/20 text-danger animate-pulse' : 'text-success'}`}>
                         {device.deviceName || device.deviceId.slice(0, 8)}
                     </span>
-                    {/* 🌐 이 폰이 지금 어느 배차망을 보나 — 픽커 판을 돌리면 여기서 갈린다 (픽커_수집.md §6-전).
-                        구앱(미전송)은 표시를 비운다 — 기본값을 지어내지 않는다. 아이콘은 나중에(기사님), 지금은 텍스트. */}
-                    {/* 배차망 + 화면을 한 배지로 — «인성 콜리스트» (영역 절약 · 기사님 0831) */}
-                    {(screenInfo || (!isDisconnected && device.targetApp)) && (
-                        <Badge variant="outline" className={`text-[11.5px] px-1.5 py-0 shrink-0 ${screenInfo?.color ?? 'bg-surface-alt text-text-muted border-border'}`}>
-                            {!isDisconnected && device.targetApp && (
-                                <span className="text-info font-black mr-1">{TARGET_APP_LABEL[device.targetApp] ?? device.targetApp}</span>
+                    {/* 📦 고친 것이 이 폰에 실제로 들어갔나 — 칸은 예전부터 있었는데 아무도 안 채웠다 */}
+                    {!isDisconnected && device.version && (
+                        <span className="text-[10px] text-text-muted opacity-70 shrink-0 tabular-nums">
+                            {device.version}
+                        </span>
+                    )}
+                    {/* 🌐 배차망 + 화면 + 화면 꺼짐을 한 배지로 — «인성 콜리스트» · «💤 화면 꺼짐».
+                        화면이 꺼진 폰의 화면명은 «아까 그것»이라 함께 그리지 않는다 (포함 관계 · 규칙 ⑤-4 ④). */}
+                    {screenBadge && (
+                        <Badge variant="outline" className={`text-[11.5px] px-1.5 py-0 shrink-0 ${screenBadge.color}`}>
+                            {screenBadge.network && (
+                                <span className="text-info font-black mr-1">{screenBadge.network}</span>
                             )}
-                            {screenInfo?.label.replace(' ', '')}
+                            {screenBadge.label}
                         </Badge>
                     )}
                     {!isDisconnected && currentFilter && (
@@ -150,11 +187,11 @@ function DeviceRow({
                             {filterLabel}
                         </Badge>
                     )}
-                    {/* 💤 폰 화면이 꺼져 있다 — 앱은 살아 있지만 배차망을 못 본다 (콜을 못 잡는다).
-                        기사님 확정: "화면꺼짐이 그대로 보이는 것이 맞을 것 같아." */}
-                    {device.isScreenOn === false && !isDisconnected && (
-                        <Badge variant="outline" className="text-[11.5px] font-black px-1.5 py-0 shrink-0 bg-warning/15 text-warning border-warning/30">
-                            💤 화면 꺼짐
+                    {/* 🚦 앱이 지금 무슨 일을 하는 중인가 — «어디서 멈췄나»가 이 한 칸에서 보인다.
+                        구앱은 안 보내므로 아무것도 안 그린다 (규칙 ④). */}
+                    {!isDisconnected && stageLabel && (
+                        <Badge variant="outline" className="text-[11.5px] font-bold px-1.5 py-0 shrink-0 bg-surface-alt text-text-muted border-border">
+                            {stageLabel}
                         </Badge>
                     )}
                     {/* 👁️ 화면은 켜져 있는데 접근성이 막혀 못 읽는다 — 연결됐다고 읽고 있는 건 아니다.
@@ -210,18 +247,24 @@ function DeviceRow({
                             key={m}
                             variant="outline"
                             size="sm"
+                            disabled={buttonsLocked}
                             onClick={() => onModeChange(device.deviceId, m)}
                             className={`h-6 px-1.5 text-[10px] font-black transition-colors ${device.mode === m
                                 ? (m === "AUTO" ? "bg-success/20 text-success border-success/40"
                                     : m === "ALARM" ? "bg-info/20 text-info border-info/40"
                                         : "bg-warning/20 text-warning border-warning/40")
                                 : "bg-transparent text-text-muted border-border opacity-50 hover:opacity-100"
-                                }`}
+                                } ${applying ? "opacity-40" : ""}`}
                         >
                             {DEVICE_MODE_LABEL[m]}
                         </Button>
                     ))}
-                    {device.isHolding && <span className="ml-1 text-[10px] font-black text-text-muted">처리중</span>}
+                    {/* 🎛️ 누른 것이 아직 폰에 안 닿았다 — **사실만** 적는다 («반영 안 됨»은 거짓말이 될 수 있다) */}
+                    {applying && (
+                        <span className="ml-1 text-[10px] font-black text-warning tabular-nums whitespace-nowrap">
+                            적용중{lastHeardSec != null && ` · 마지막 통신 ${lastHeardSec}초 전`}
+                        </span>
+                    )}
                 </div>
             </div>
 

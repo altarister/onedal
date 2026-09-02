@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { FilterTally, DeviceSession, DeviceStatusType, DeviceModeType, isDeviceMode, ScreenContextType, isListScreen, BLIND_GRACE_MS, TargetAppType } from "@onedal/shared";
+import { FilterTally, DeviceSession, DeviceStatusType, DeviceModeType, isDeviceMode, ScreenContextType, isListScreen, BLIND_GRACE_MS, TargetAppType, screenLabelOf, isDeviceOfflineReason, DEVICE_OFFLINE_LABEL } from "@onedal/shared";
 import { forceCancelEvaluatingOrder } from "../services/dispatchEngine";
 import { getUserSession } from "../state/userSessionStore";
 import { generatePin, consumePin } from "../state/pairingStore";
@@ -116,7 +116,20 @@ function applyBlindSignal(session: DeviceSession, screenNodeCount?: number, isSc
  * App에서 화면이 변경되거나 주기적으로 스크랩 데이터를 전송할 때 세션 갱신
  * @returns 현재 기기의 관제 모드 (AUTO | MANUAL)
  */
-export const touchDeviceSession = (deviceId: string, userId: string, addedPollCount: number = 0, screenContext?: ScreenContextType, io?: any, isHolding?: boolean, lat?: number, lng?: number, screenNodeCount?: number, isScreenOn?: boolean, filterTally?: FilterTally, targetApp?: TargetAppType): DeviceModeType => {
+/**
+ * 📦🚦🎛️ **폰 상태 바가 쓰는 셋** (2026-09-02 · `docs/기획/폰_상태바.md` 3단계).
+ * 앱 안엔 있었는데 여태 안 올라오던 값들이다 — 서버는 **받아 적기만** 한다.
+ * ⚠️ 구앱은 안 보낸다 → `undefined` 로 남고, 화면이 아무것도 안 그린다 (규칙 ④).
+ */
+export interface DeviceStatusExtras {
+    appVersion?: string;
+    workStage?: string;
+    workStageStep?: number;
+    workStageSeconds?: number;
+    appliedMode?: string;
+}
+
+export const touchDeviceSession = (deviceId: string, userId: string, addedPollCount: number = 0, screenContext?: ScreenContextType, io?: any, isHolding?: boolean, lat?: number, lng?: number, screenNodeCount?: number, isScreenOn?: boolean, filterTally?: FilterTally, targetApp?: TargetAppType, extras?: DeviceStatusExtras): DeviceModeType => {
     let session = activeDevices.get(deviceId);
 
     if (!session) {
@@ -156,10 +169,42 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
             session.mode = restored;
         }
 
+        /**
+         * ⏱️ **덮기 전에 직전 보고 시각을 챙긴다** (기사님 확정 2026-09-02 · `docs/기획/폰_상태바.md` 3번).
+         *
+         * 앱은 **화면에 일이 생기면 그때** 보내고, 아무 일도 없으면 **60초마다** 살아있다고만
+         * 알린다. 그래서 «마지막 두 보고의 간격»이 곧 *"그 사이에 일이 있었나"* 다 —
+         * 관제웹이 누른 모드·필터가 **1~2초에 닿을지 최대 60초를 기다릴지**가 거기서 갈린다.
+         *
+         * 🔴 `lastSeen` 을 덮으면 옛 값이 사라져 **영영 물을 수 없다.** 이 한 줄이 전부다.
+         * ⚠️ 침묵 처리(0)된 폰은 옮기지 않는다 — 0 과의 간격은 «모른다»가 맞다 (규칙 ④).
+         */
+        session.prevSeen = session.lastSeen > 0 ? session.lastSeen : undefined;
         session.lastSeen = Date.now();
         session.status = "ONLINE"; // 데이터가 왔으므로 다시 활성화
+        // 📵 다시 말을 걸어왔다 — 옛 «왜 끊겼나»는 이제 거짓말이다
+        session.offlineReason = undefined;
         session.stats.polled += addedPollCount;
         if (screenContext) {
+            /**
+             * 🖥️ **화면이 바뀐 보고만 한 줄 남긴다** (기사님 지시 2026-09-02:
+             * *"페이지 바뀌거나 할 때 post 로 서버로 값을 보내는 거지? 그때 콘솔을 꼭 넣어서
+             * 트래킹 할 수 있게 해 줘."*).
+             *
+             * 🔴 **간격을 함께 적는다.** 그 숫자가 *"앱이 알아채는 데 얼마나 걸렸나"* 를 말한다 —
+             *    2026-09-02 에 정지 화면에서 18.3초가 걸린다는 것을 이 숫자로 알았다.
+             * ⚠️ **판정을 적지 않고 사실만 적는다** — «조용/움직임»을 여기서 정하면
+             *    같은 값을 두 곳이 각자 판정하게 된다 (규칙 ⑤-4 ⑤ · 판정은 `isDeviceQuiet` 하나).
+             */
+            if (session.screenContext !== screenContext) {
+                const gap = session.prevSeen ? `${((session.lastSeen - session.prevSeen) / 1000).toFixed(1)}초 만` : '첫 보고';
+                // 배차망은 이 보고에 실려 온 것이 먼저다 — 아래에서 갱신되기 전이라 옛 값을 쓰면
+                // 픽커로 바꾼 첫 보고가 인성 이름표로 찍힌다 («읽지 않고 단언한다» 와 같은 결)
+                const net = targetApp ?? session!.targetApp;
+                const name = (c?: ScreenContextType) => screenLabelOf(net, c)?.label ?? c ?? '모름';
+                console.log(`🖥️ [화면 바뀜] ${session.deviceName || deviceId} · ` +
+                    `${name(session.screenContext)} → ${name(screenContext)} · 직전 보고와 ${gap}`);
+            }
             session.screenContext = screenContext;
         }
         // 🌐 이 폰이 지금 어느 배차망을 보나 — scrap 마다 갱신되는 실시간 상태 (픽커_수집.md §6-전)
@@ -174,6 +219,19 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
             session.lng = lng;
         }
     }
+
+    /**
+     * 📦🚦🎛️ **받아 적기만 한다** — 서버가 해석하지 않는다 (규칙 ⑤ · 원천은 앱이다).
+     * 🔴 안 온 값으로 옛 값을 지우지 않는다. 구앱이 섞이면 화면이 깜빡인다.
+     */
+    if (extras?.appVersion) session.version = extras.appVersion;
+    if (extras?.workStage) {
+        session.workStage = extras.workStage;
+        // 숫자는 **그 칸이 쓰는 것만** 남긴다 — 옛 «팝업 2»가 «안전취소»에 붙으면 거짓말이다
+        session.workStageStep = extras.workStageStep;
+        session.workStageSeconds = extras.workStageSeconds;
+    }
+    if (extras?.appliedMode) session.appliedMode = extras.appliedMode;
 
     // 새 세션이든 갱신이든 **한 곳에서** 본다 — 두 갈래에 나눠 적으면 한쪽만 고쳐진다
     applyBlindSignal(session, screenNodeCount, isScreenOn);
@@ -444,7 +502,15 @@ router.post("/:deviceId/offline", (req, res) => {
             // 사라진 것은 아니며, 복귀 시 touchDeviceSession이 다시 복원합니다.
             session.status = "OFFLINE";
             session.lastSeen = 0; // 데드맨 스위치 완전 침묵 처리
-            console.log(`📵 [즉각 오프라인 마킹] 기기(${deviceId})가 자체 보고를 통해 오프라인 전환 완료`);
+            /**
+             * 📵 **왜 내려갔는지를 앱한테 그대로 받아 적는다** (기사님 지적 2026-09-02).
+             * 서버가 추측하지 않는다 — 앱만이 «접근성이 꺼졌다»를 사실로 안다.
+             * 모르면 비워 둔다(«연결 끊김»으로 그려진다) — 지어내지 않는다 (규칙 ④).
+             */
+            const reason = (req.body as any)?.reason;
+            session.offlineReason = isDeviceOfflineReason(reason) ? reason : undefined;
+            const why = session.offlineReason ? DEVICE_OFFLINE_LABEL[session.offlineReason] : "까닭 모름";
+            console.log(`📵 [즉각 오프라인 마킹] 기기(${deviceId})가 자체 보고를 통해 오프라인 전환 완료 — ${why}`);
         }
         res.json({ success: true });
     } catch (error) {

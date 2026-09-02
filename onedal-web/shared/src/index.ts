@@ -970,6 +970,18 @@ export interface DispatchConfirmResponse {
  */
 export type DeviceStatusType = "ONLINE" | "OFFLINE";
 
+/** 📵 오프라인이 된 까닭 — 앱이 스스로 말해 준 것만 담는다 (모르면 `undefined`) */
+export const DEVICE_OFFLINE_REASONS = ["ACCESSIBILITY_OFF", "APP_SHUTDOWN"] as const;
+export type DeviceOfflineReason = typeof DEVICE_OFFLINE_REASONS[number];
+export function isDeviceOfflineReason(v: unknown): v is DeviceOfflineReason {
+    return typeof v === "string" && (DEVICE_OFFLINE_REASONS as readonly string[]).includes(v);
+}
+/** 📵 화면에 적을 말 — 기사님이 **무엇을 하셔야 하는지**가 갈리므로 낱말도 가른다 */
+export const DEVICE_OFFLINE_LABEL: Record<DeviceOfflineReason, string> = {
+    ACCESSIBILITY_OFF: "접근성 꺼짐",
+    APP_SHUTDOWN: "앱 꺼짐",
+};
+
 /**
  * 🎛️ **기기 모드 셋 — 자동 · 알람 · 대기** (기사님 확정 2026-08-30 · [docs/지금/기기_모드.md]).
  *
@@ -1156,6 +1168,40 @@ export function isDeviceBlind(session: { blindSince?: number }, now: number = Da
     return !!session.blindSince && now - session.blindSince >= BLIND_GRACE_MS;
 }
 
+/**
+ * 🚦 **작업 단계의 이름은 여기 한 곳에서 짓는다** (기사님 확정 2026-09-02 ·
+ * `docs/기획/폰_상태바.md` 0단계 ①).
+ *
+ * 앱은 **칸과 숫자만** 보낸다. 한글을 앱에도 두면 낱말이 두 벌이 되고 한쪽만 고쳐진다.
+ * ⚠️ 안 보내는 구앱은 `null` 이다 — «대기»로 지어내지 않는다 (규칙 ④).
+ */
+export function workStageLabel(d: {
+    workStage?: string; workStageStep?: number; workStageSeconds?: number;
+}): string | null {
+    switch (d.workStage) {
+        case "IDLE": return "대기";
+        case "DETAIL": return "상세";
+        case "POPUP": return d.workStageStep ? `팝업 ${d.workStageStep}/3` : "팝업";
+        case "AWAITING_VERDICT": return "판결 대기";
+        case "SAFE_CANCEL":
+            return d.workStageSeconds != null ? `안전취소 ${d.workStageSeconds}초` : "안전취소";
+        default: return null;
+    }
+}
+
+/**
+ * 🎛️ **모드가 아직 폰에 안 닿았나** — 저장하지 않고 **대조로 파생**시킨다 (규칙 ③).
+ *
+ * 🔴 여태 관제웹은 버튼을 누르는 순간 바뀐 것처럼 그렸다(«낙관적 업데이트») —
+ *    폰이 받았는지 모르면서. 오전에 고친 «읽지 않고 단언»과 같은 병이었다.
+ * ⚠️ 대답을 안 싣는 구앱(`undefined`)은 «적용중»이라 하지 않는다 — 모름을
+ *    «안 됐다»로 읽으면 영원히 안 풀리는 딤드가 된다 (규칙 ④).
+ */
+export function isModeApplying(d: { mode?: string; appliedMode?: string }): boolean {
+    if (!d.appliedMode) return false;
+    return d.mode !== d.appliedMode;
+}
+
 export function isListScreen(screenContext?: string | null): boolean {
     return !!screenContext && (LIST_SCREENS as string[]).includes(screenContext);
 }
@@ -1197,6 +1243,21 @@ export interface DeviceSession {
     deviceId: string;
     deviceName?: string;    // 기기 별명 (PIN 페어링 시 등록, 예: "메인폰", "서브폰")
     lastSeen: number;       // 밀리초 타임스탬프
+    /**
+     * 📵 **왜 오프라인인가** (기사님 지적 2026-09-02: *"'접근성 꺼짐' 이렇게 표현되면 좋겠는데"*).
+     *
+     * 접근성을 끄면 앱은 죽기 **전에** «나 오프라인이다»를 스스로 보낸다(`onDestroy`).
+     * 그때 자기 서비스가 «켜진 접근성 목록»에 없으면 그건 추측이 아니라 **사실**이다.
+     * 아무 말 없이 끊긴 것(데드맨)과는 기사님이 하실 일이 다르므로 갈라 둔다.
+     * ⚠️ 다시 보고가 오면 지운다 — 옛 이유가 살아 있으면 화면이 거짓말한다.
+     */
+    offlineReason?: DeviceOfflineReason;
+    /**
+     * ⏱️ **직전 보고 시각** (밀리초) — `lastSeen` 과의 간격이 «그 사이에 일이 있었나»를 답한다.
+     * 지금 읽는 곳은 서버의 `🖥️ [화면 바뀜]` 로그 하나뿐이다 («직전 보고와 N초 만»).
+     * 첫 보고에는 없다(«모른다»).
+     */
+    prevSeen?: number;
     status: DeviceStatusType;
     mode: DeviceModeType;
     /**
@@ -1261,6 +1322,23 @@ export interface DeviceSession {
         canceled: number;   // 취소 통보 횟수
     };
     version?: string;       // 앱/인성앱 버전 등 추가 정보용
+    /**
+     * 🚦 **지금 무슨 일을 하는 중인가** — 앱이 보낸 다섯 칸 중 하나
+     * (`IDLE`·`DETAIL`·`POPUP`·`AWAITING_VERDICT`·`SAFE_CANCEL`).
+     * 여태 `isHolding` 불리언 하나라 «어디서 멈췄는지»를 관제웹이 몰랐다.
+     * ⚠️ 이름(한글)은 `workStageLabel` 이 짓는다 — 앱은 칸과 숫자만 보낸다.
+     */
+    workStage?: string;
+    /** 🚦 팝업이 몇 장째인가 (`POPUP` 일 때만) */
+    workStageStep?: number;
+    /** 🚦 안전취소가 몇 초 남았나 (`SAFE_CANCEL` 일 때만) */
+    workStageSeconds?: number;
+    /**
+     * 🎛️ **폰이 «나 지금 이 모드다»라고 대답한 값** (기사님 확정 2026-09-02).
+     * `mode`(관제가 정한 목표)와 **대조**하면 「적용중」이 파생된다 (규칙 ③).
+     * ⚠️ 안 싣는 구앱은 `undefined` — 그걸 «적용 안 됨»으로 읽지 않는다 (규칙 ④).
+     */
+    appliedMode?: string;
 }
 
 
