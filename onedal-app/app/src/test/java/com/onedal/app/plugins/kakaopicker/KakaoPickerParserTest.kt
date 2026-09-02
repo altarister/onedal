@@ -431,10 +431,35 @@ class PickerStageTest {
         assertNull(K.stageOf(""))
     }
 
-    /** 🔴 «수락됨» 판정의 원천은 `stageOf` 하나다 — 목록을 손으로 또 적지 않는다 (규칙 ③) */
+    /**
+     * 🏠 **홈 — 「시작하기」 버튼이 표식이다** (기사님 확정 2026-09-02:
+     * *"'시작하기' 이 버튼이 있어야 홈화면이야"*).
+     * 실물 덤프 17종 전수 — 홈 3종에만 있고 리스트·상세 14종엔 하나도 없다.
+     */
     @Test
-    fun `수락됨 판정은 단계표에서 파생된다`() {
-        assertEquals(K.STAGE_WORDS.flatMap { it.second }, K.ACCEPTED_SCREEN_WORDS)
+    fun `홈은 시작하기 버튼으로 안다`() {
+        val 홈 = "카카오 T 픽커 및 퀵/도보배송 이용 약관 개정 안내 미션 6 " +
+            "이런 일거리 어떤가요? 프로필 등록 시작하기"
+        assertEquals(KakaoPickerKeywords.Stage.HOME, K.stageOf(홈))
+    }
+
+    /**
+     * 🔴 **홈의 미션 문구가 배송 단계를 품고 있다.** 「퀵 1건 배송완료하고」가 홈에 있어
+     * 홈을 먼저 보지 않으면 「까지 배송완료」 규칙에 걸려 «배송지 도착»으로 읽힌다 —
+     * 그러면 홈 화면이 콜을 «잡은 콜»로 승격시킨다.
+     */
+    @Test
+    fun `홈의 미션 문구를 배송 단계로 읽지 않는다`() {
+        val 홈_미션 = "미션 퀵 1건 배송완료하고 프로단독배정권 1장 받기 시작하기"
+        assertEquals(KakaoPickerKeywords.Stage.HOME, K.stageOf(홈_미션))
+        assertFalse("홈은 계약이 아니다", K.isAcceptedScreen(홈_미션))
+    }
+
+    /** 🔴 «수락됨» 목록은 단계표에서 파생되고, 홈 낱말은 거기 새지 않는다 (규칙 ③) */
+    @Test
+    fun `수락됨 목록에 홈 낱말이 새지 않는다`() {
+        val 홈낱말 = K.STAGE_WORDS.first { it.first == KakaoPickerKeywords.Stage.HOME }.second
+        홈낱말.forEach { assertFalse(K.ACCEPTED_SCREEN_WORDS.contains(it)) }
         assertTrue(K.STAGE_WORDS.size == KakaoPickerKeywords.Stage.values().size)
     }
 }

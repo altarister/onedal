@@ -443,29 +443,6 @@ class HijackService : AccessibilityService() {
             reportPickerAccepted(rawScreenStr)
         }
 
-        /**
-         * 🚚 **운행 단계를 로그로 남긴다** (기사님 지시 2026-09-02:
-         * *"페이지만 만들어 두면 오늘 저녁 들어올 때 훨씬 잘 구분할 거야"*).
-         *
-         * 낱말이 2023 자료 추정이라 **오늘은 인식과 기록만 한다** — 장부(마일스톤)에는
-         * 아직 잇지 않는다. 틀린 낱말로 장부에 쓰면 되돌릴 수 없다 (규칙 ④).
-         *
-         * 🔴 **못 알아본 화면은 글자를 남긴다.** 저녁에 이 줄들을 모으면 «어느 낱말이
-         *    빠졌는지»를 실물로 고를 수 있다 — 그게 오늘 판의 산출물이다.
-         */
-        if (!TargetApp.supportsCatching(currentTargetApp) && detected != ScreenContext.LIST) {
-            val stage = com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.stageOf(rawScreenStr)
-            if (stage != null) {
-                if (stage != lastPickerStage) {
-                    AppLogger.i("1DAL_PICKER", "🚚 [운행 단계] ${lastPickerStage ?: "없음"} → $stage")
-                    lastPickerStage = stage
-                }
-            } else if (detected == ScreenContext.UNKNOWN) {
-                // 못 알아본 픽커 화면 — 낱말을 고르려면 글자가 있어야 한다
-                AppLogger.w("1DAL_PICKER", "❓ [모르는 화면] ${rawScreenStr.take(300)}")
-            }
-        }
-        if (detected == ScreenContext.LIST) lastPickerStage = null   // 리스트로 나오면 초기화
 
         /**
          * 🌐 **배차망 불일치 관문** (기사님 확정 2026-08-31 · 1단계).
@@ -491,6 +468,39 @@ class HijackService : AccessibilityService() {
             rootNode.recycle()
             return
         }
+
+        /**
+         * 🚚 **운행 단계를 로그로 남긴다** (기사님 지시 2026-09-02:
+         * *"페이지만 만들어 두면 오늘 저녁 들어올 때 훨씬 잘 구분할 거야"*).
+         *
+         * 낱말이 2023 자료 추정이라 **오늘은 인식과 기록만 한다** — 장부(마일스톤)에는
+         * 아직 잇지 않는다. 틀린 낱말로 장부에 쓰면 되돌릴 수 없다 (규칙 ④).
+         *
+         * 🔴 **못 알아본 화면은 글자를 남긴다.** 저녁에 이 줄들을 모으면 «어느 낱말이
+         *    빠졌는지»를 실물로 고를 수 있다 — 그게 오늘 판의 산출물이다.
+         */
+        /**
+         * 🔴 **픽커 화면일 때만 본다** — 패키지로 가른다 (2026-09-02 실측 수리).
+         *
+         * 처음엔 «픽커 모드이고 리스트가 아니면» 으로 걸었더니 **잠금화면·런처까지**
+         * 「모르는 화면」으로 찍혔다(`잠금해제 패턴을 그리세요` · `셀 1 추가됨…`).
+         * 저녁에 볼 로그가 그걸로 덮인다 — 「어느 낱말이 빠졌나」를 못 고른다.
+         *
+         * «지금 보는 화면이 어느 배차망인가»는 이미 한 곳이 안다 (`codeOfPackage` · 규칙 ③).
+         */
+        if (screenNetwork == TargetApp.KAKAOPICKER && detected != ScreenContext.LIST) {
+            val stage = com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.stageOf(rawScreenStr)
+            if (stage != null) {
+                if (stage != lastPickerStage) {
+                    AppLogger.i("1DAL_PICKER", "🚚 [운행 단계] ${lastPickerStage ?: "없음"} → $stage")
+                    lastPickerStage = stage
+                }
+            } else if (detected == ScreenContext.UNKNOWN) {
+                // 못 알아본 픽커 화면 — 낱말을 고르려면 글자가 있어야 한다
+                AppLogger.w("1DAL_PICKER", "❓ [모르는 화면] ${rawScreenStr.take(300)}")
+            }
+        }
+        if (detected == ScreenContext.LIST) lastPickerStage = null   // 리스트로 나오면 초기화
         if (screenNetwork == currentTargetApp) lastMismatchWarn = null
 
         // 화면별 핸들러 라우팅

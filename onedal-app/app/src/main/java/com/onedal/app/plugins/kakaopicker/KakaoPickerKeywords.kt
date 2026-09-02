@@ -31,6 +31,7 @@ object KakaoPickerKeywords {
      *    안 고쳐도 된다 (기사님 방침: *"그 단어만 바꿔치기 하면 되니까"*).
      */
     enum class Stage {
+        HOME,         // 🏠 출근 전 홈 — 아직 일을 시작하지 않았다  (실물 덤프 01·02)
         TO_PICKUP,    // 픽업지로 이동 중            (자료 01)
         AT_PICKUP,    // 픽업지 도착 — 픽업 완료 대기  (자료 02·03)
         TO_DROPOFF,   // 배송지로 이동 중            (자료 04)
@@ -48,6 +49,20 @@ object KakaoPickerKeywords {
      *    «완료»가 붙어야 이 단계다 — 수락 전 상세가 여기 걸리지 않게 하는 경계다.
      */
     val STAGE_WORDS: List<Pair<Stage, List<String>>> = listOf(
+        /**
+         * 🏠 **홈은 「시작하기」 버튼으로 안다** (기사님 확정 2026-09-02:
+         * *"'시작하기' 이 버튼이 있어야 홈화면이야"*).
+         *
+         * 실물 덤프 17종 전수로 확인했다 — **홈 3종에만 있고 리스트·상세 14종엔 하나도 없다.**
+         *
+         * 🔴 처음엔 「어떤 일을 시작할까요」·「미션」도 넣었다가 기사님이 잡으셨다. 특히
+         *    「미션」이 나빴다 — 그 목록에 **「퀵 1건 배송완료하고」** 같은 문구가 있어,
+         *    홈을 먼저 보지 않으면 「까지 배송완료」 규칙에 걸려 «배송지 도착»으로 읽힌다.
+         *    버튼 하나가 화면을 정한다 — 안내 문구는 바뀌지만 버튼은 그 화면의 뼈대다.
+         *
+         * ⚠️ 홈이 **맨 앞**인 이유도 그것이다. 미션 문구가 다른 규칙에 걸리기 전에 먼저 잡는다.
+         */
+        Stage.HOME       to listOf("시작하기"),
         Stage.DONE       to listOf("물품이 안전하게 전달"),
         Stage.TO_DROPOFF to listOf("배송지로 이동"),                                    // 헤더 먼저
         Stage.TO_PICKUP  to listOf("픽업지로 이동"),                                    // 헤더 먼저
@@ -71,11 +86,23 @@ object KakaoPickerKeywords {
         return STAGE_WORDS.firstOrNull { (_, words) -> words.any { t.contains(it) } }?.first
     }
 
-    /** ✅ 수락한 뒤인가 — 잡은 콜로 승격해도 되는가. 원천은 `stageOf` 하나다 (규칙 ③) */
-    fun isAcceptedScreen(rawText: String?): Boolean = stageOf(rawText) != null
+    /**
+     * 🔴 **«알아본 화면»과 «수락한 뒤»는 다른 것이다** (2026-09-02 · 홈을 넣으며 갈랐다).
+     *
+     * `Stage` 는 «이 화면이 무엇인가»를 답하고, 여기는 «계약이 성립했는가»를 답한다.
+     * **홈은 알아보지만 수락한 게 아니다** — 안 가르면 홈 화면이 콜을 «잡은 콜»로
+     * 승격시킨다. 한 값이 두 사실을 답하게 두지 않는다 (규칙 ⑤-4 ⑤).
+     */
+    private val ACCEPTED_STAGES = setOf(
+        Stage.TO_PICKUP, Stage.AT_PICKUP, Stage.TO_DROPOFF, Stage.AT_DROPOFF, Stage.DONE,
+    )
+
+    /** ✅ 수락한 뒤인가 — 잡은 콜로 승격해도 되는가 */
+    fun isAcceptedScreen(rawText: String?): Boolean = stageOf(rawText) in ACCEPTED_STAGES
 
     /** 🔴 원천은 `STAGE_WORDS` 하나다 — 손으로 또 적으면 두 벌이 된다 (규칙 ③) */
-    val ACCEPTED_SCREEN_WORDS: List<String> = STAGE_WORDS.flatMap { it.second }
+    val ACCEPTED_SCREEN_WORDS: List<String> =
+        STAGE_WORDS.filter { it.first in ACCEPTED_STAGES }.flatMap { it.second }
 
     // ══════════════════════════════════════════════════════════════
     //  화면 판별 사전

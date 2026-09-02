@@ -15,8 +15,8 @@ android {
         targetSdk = 35
         // 어떤 빌드가 폰에 깔려 있는지 눈으로 구분하기 위한 버전 표기.
         // 앱 대시보드 상단과 서비스 기동 로그에 그대로 노출된다.
-        versionCode = 32
-        versionName = "2.7.2-picker-stage"
+        versionCode = 33
+        versionName = "2.7.3-picker-home"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
