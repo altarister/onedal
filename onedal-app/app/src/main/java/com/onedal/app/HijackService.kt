@@ -20,6 +20,8 @@ import com.onedal.app.plugins.insung.handleDropoffPopup
 import com.onedal.app.plugins.insung.handlePickupPopup
 import com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords
 import com.onedal.app.core.AlarmSignaler
+import com.onedal.app.core.NetworkSwitchGate
+import com.onedal.app.core.WorkStage
 import com.onedal.app.core.AutoTouchManager
 import com.onedal.app.core.CallMemory
 import com.onedal.app.core.ScrapParser
@@ -123,10 +125,43 @@ class HijackService : AccessibilityService(), ScanContext {
         }
         AppLogger.i(TAG, "🎯 타겟 앱 ${if (isSwitch) "자동 전환" else "설정"} 완료: $label")
     }
-    /** ⚠️ 배차망 불일치 경고의 중복 방지 — 같은 조합은 한 번만 운다 */
-    private var lastMismatchWarn: String? = null
-    /** 불일치가 시작된 시각 — 4초 안정되면 화면을 따라 전환한다 */
-    private var mismatchSince = 0L
+
+    /**
+     * 🔄 **화면을 따라 판을 갈아탄다** — 이벤트로 왔든 타이머로 왔든 **길은 하나다.**
+     * (두 갈래로 적으면 한쪽만 고쳐진다 — 이 레포가 여러 번 당한 모양이다)
+     */
+    private fun switchNetworkTo(network: String) {
+        val label = TargetApp.labelOf(network)
+        getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE).edit().putString("targetApp", label).apply()
+        applyTargetApp(label, isSwitch = true)
+        /**
+         * 🔴 **지문을 비운다.** 화면 글자는 그대로인데 **읽는 파서만** 바뀌었으므로,
+         * 지문을 그대로 두면 «같은 화면»이라며 다음 이벤트를 통째로 건너뛴다
+         * (`onAccessibilityEvent` 첫머리의 지문 비교) — 갈아타고도 영영 안 읽는다.
+         */
+        lastScreenFingerprint = 0
+        AppLogger.i(TAG, "🔄 [배차망 자동 전환] 화면을 따라 $label 판으로 — 라디오는 표시만 따라온다")
+        refreshScreenContextAfterSwitch()
+    }
+
+    /**
+     * 🔄 **갈아탄 직후 «지금 무슨 화면인가»만 다시 매긴다** — 읽기만 한다(터치·수집 없음).
+     *
+     * 정지 화면(픽커 홈 등)에서는 갈아탄 뒤 **다음 이벤트가 영영 안 올 수 있다.** 그러면
+     * 판은 픽커인데 화면 이름은 «알 수 없는 화면»으로 굳은 채 60초 생존신고만 나간다.
+     *
+     * ⚠️ 이것은 2026-09-02 에 실패한 «몇 박자 뒤 다시 읽기»와 **다르다.** 그때는 화면이
+     *    바뀌기를 기대하며 다시 읽었고, 접근성 캐시가 아까 화면을 돌려줘 실패했다.
+     *    여기서 필요한 것은 **바뀐 화면이 아니라 바뀐 파서**다 — 캐시가 주는 그 화면이
+     *    바로 지금 화면이고, 그것을 새 파서로 읽으면 된다.
+     */
+    private fun refreshScreenContextAfterSwitch() {
+        val node = rootInActiveWindow ?: return
+        val texts = mutableListOf<String>()
+        gatherNodeTexts(node, texts)
+        node.recycle()
+        updateScreenContext(detectScreenContext(texts.joinToString(" ")))
+    }
 
     /**
      * 👁️ 리스트를 떠난 시각 (0 = 지금 리스트를 보고 있다).
@@ -249,7 +284,30 @@ class HijackService : AccessibilityService(), ScanContext {
         telemetryManager.isScreenOn =
             (getSystemService(Context.POWER_SERVICE) as android.os.PowerManager).isInteractive
 
+        /**
+         * 🚦📦 **폰 상태 바가 쓸 것 둘을 꽂는다** (2026-09-02 · `docs/기획/폰_상태바.md` 2단계).
+         * 단계는 **보낼 때마다 여기서 새로 계산**한다 — 복사본을 두면 갱신을 빠뜨린 자리가
+         * 옛 단계를 계속 말한다.
+         */
+        telemetryManager.appVersion = com.onedal.app.core.AppInfo.versionLabel(this)
+        telemetryManager.workStageProvider = {
+            WorkStage.of(
+                isAutoActive = session.isAutoActive,
+                isWaitingForDecision = session.isWaitingForDecision,
+                safeCancelRemainSec = safeCancelTimer.remainSec,
+                collectState = session.collectState,
+                isDetailScrapSent = session.isDetailScrapSent,
+            )
+        }
         telemetryManager.start()
+        /**
+         * 🟢 **붙자마자 한 번 쏜다** (기사님 실측 2026-09-02: *"폰이랑 서버랑 연결이 안 되는데?"*).
+         *
+         * `start()` 는 **60초 생존신고 시계만** 건다. 그래서 앱이 떠도 첫 보고가 1분 뒤였고,
+         * 그동안 관제웹에서는 이 폰이 **아예 없는 것처럼** 보였다. 접근성을 껐다 켜면 그
+         * 시계가 처음부터 다시 시작하므로, 실측에서는 세 번 토글하는 사이 1분 넘게 조용했다.
+         */
+        telemetryManager.forceHeartbeat()
         apiClient.fetchKeywords()
 
         /**
@@ -330,7 +388,18 @@ class HijackService : AccessibilityService(), ScanContext {
         unregisterReceiver(screenOffReceiver)
         telemetryManager.stop()
         cancelSafeCancelTimer()
-        apiClient.sendOffline() // 앱 종료 시 오프라인 통보
+        /**
+         * 📵 **왜 내려가는지 지금 알 수 있다** (기사님 지적 2026-09-02).
+         * 접근성 스위치를 끄면 안드로이드가 이 서비스를 죽인다. 그 순간 «켜진 접근성
+         * 목록»에 우리가 **없으면** 그건 추측이 아니라 사실이다 — 기사님이 끄신 것이다.
+         * 목록에 아직 있으면 앱·시스템 사정으로 내려가는 것이라 «앱 꺼짐»이다.
+         */
+        val enabled = android.provider.Settings.Secure.getString(
+            contentResolver, android.provider.Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+        ) ?: ""
+        val reason = if (enabled.contains(packageName)) "APP_SHUTDOWN" else "ACCESSIBILITY_OFF"
+        AppLogger.w(TAG, "📵 [오프라인 통보] 까닭: $reason")
+        apiClient.sendOffline(reason) // 앱 종료 시 오프라인 통보 — 까닭을 함께
         apiClient.shutdown()
         AppLogger.roadmap("🛑 1DAL 서비스 완전 종료 (앱 파괴)", "SHUTDOWN")
         AppLogger.w(TAG, "🛑 1DAL Service Destroyed! (완전 종료)")
@@ -536,20 +605,12 @@ class HijackService : AccessibilityService(), ScanContext {
          * 모르는 패키지(카톡 등)는 관문 대상이 아니다 — 어차피 UNKNOWN 화면으로 흐른다.
          */
         val screenNetwork = TargetApp.codeOfPackage(rootNode.packageName?.toString())
-        if (screenNetwork != null && screenNetwork != currentTargetApp) {
-            val key = "$screenNetwork≠$currentTargetApp"
-            if (lastMismatchWarn != key) {
-                lastMismatchWarn = key
-                mismatchSince = android.os.SystemClock.elapsedRealtime()
-                AppLogger.w(TAG, "⚠️ [배차망 불일치] 화면은 ${screenNetwork}인데 선택은 $currentTargetApp — 판을 버리며 4초 지켜봅니다")
-            } else if (android.os.SystemClock.elapsedRealtime() - mismatchSince >= 4_000) {
-                // 🔄 2단계: 같은 배차망 화면이 4초 이상 안정 — 화면이 원천이다 (규칙 ③ 파생)
-                val label = TargetApp.labelOf(screenNetwork)
-                getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE).edit().putString("targetApp", label).apply()
-                applyTargetApp(label, isSwitch = true)
-                lastMismatchWarn = null
-                AppLogger.i(TAG, "🔄 [배차망 자동 전환] 화면을 따라 $label 판으로 — 라디오는 표시만 따라온다")
-            }
+        NetworkSwitchGate.switchTargetFor(screenNetwork, currentTargetApp)?.let { target ->
+            // 🔄 **기다리지 않는다** (기사님 확정 2026-09-02: "4초 지워").
+            //    기다리는 동안 앱은 판을 버려 콜을 한 건도 안 읽는데, 얻는 것이 없었다.
+            switchNetworkTo(target)
+            // 갈아탄 파서로 이 판을 다시 읽는다 — 다음 이벤트를 기다리지 않는다
+            //    (정지 화면이면 그 «다음»이 영영 안 온다 — 2026-09-02 실측 2분)
             rootNode.recycle()
             return
         }
@@ -586,7 +647,6 @@ class HijackService : AccessibilityService(), ScanContext {
             }
         }
         if (detected == ScreenContext.LIST) lastPickerStage = null   // 리스트로 나오면 초기화
-        if (screenNetwork == currentTargetApp) lastMismatchWarn = null
 
         // 화면별 핸들러 라우팅
         when (detected) {

@@ -27,6 +27,24 @@ class TelemetryManager(
     }
 
     private val scrapBuffer = mutableListOf<SimplifiedOfficeOrder>()
+
+    /**
+     * 🐢 **«예약한 발사가 제때 깨어났나»를 재는 자리** (기사님 실측 2026-09-02).
+     *
+     * 같은 «리스트 → 홈» 전환인데 어떤 때는 0.23초, 어떤 때는 **8.1초**가 걸렸다.
+     * 그 8초 동안 앱 로그가 한 줄도 없어서, **늦게 깨어난 것인지 깨어나서 안에서
+     * 걸린 것인지 구분할 수가 없었다** — flush 첫머리에 로그가 없었기 때문이다.
+     * 후보 넷(GPS 조회·로그 전송·이벤트 폭주·시계 어긋남)은 이미 지웠다.
+     */
+    private var flushScheduledAt = 0L
+    private var flushRequestedDelayMs = 0L
+
+    private fun scheduleFlush(delayMs: Long) {
+        handler.removeCallbacks(eventFlushRunnable)
+        flushScheduledAt = android.os.SystemClock.elapsedRealtime()
+        flushRequestedDelayMs = delayMs
+        handler.postDelayed(eventFlushRunnable, delayMs)
+    }
     private val handler = Handler(Looper.getMainLooper())
     private var isRunning = false
 
@@ -131,16 +149,31 @@ class TelemetryManager(
         }
         
         // 데이터가 들어오면 300ms 뒤에 한꺼번에 쏘도록 디바운스 세팅
-        handler.removeCallbacks(eventFlushRunnable)
-        handler.postDelayed(eventFlushRunnable, DEBOUNCE_MS)
+        scheduleFlush(DEBOUNCE_MS)
     }
 
-    // [추가] 이벤트 화면 변경 시 200ms 디바운스를 적용하여 전송
-    // 안드로이드 화면의 로딩 애니메이션 잔상으로 인해 강제 전송이 폭격(Spam)되는 것을 방지합니다.
+    /**
+     * 👀 **화면이 바뀐 보고는 예약하지 않는다 — 그 자리에서 보낸다** (2026-09-02 실측으로 확정).
+     *
+     * 예전엔 200ms 뒤로 예약했다(로딩 잔상으로 폭격되는 것을 막으려고). 그런데 **안드로이드가
+     * 그 예약을 제때 안 깨워 준다** — 계측 결과:
+     * ```
+     * 🐢 [발사 지연] 200ms 뒤로 예약했는데  2174ms 만에 깨어났다
+     * 🐢 [발사 지연] 200ms 뒤로 예약했는데 13396ms 만에 깨어났다
+     * ```
+     * 「발사 준비 지연」은 한 줄도 안 나왔다 — **flush 안이 느린 게 아니라 깨어나기가 늦다.**
+     * 안드로이드를 못 고치니 **예약을 안 한다.**
+     *
+     * 🟢 폭격 걱정은 없다 — 화면 보고는 `updateScreenContext` 가 **바뀔 때만** 부른다.
+     * ⚠️ 콜 수집(`enqueue`)의 300ms 는 그대로 둔다 — 여러 콜을 한 번에 모아 보내는 것이라
+     *    뜻이 있고, 그 길은 리스트가 움직이는 동안이라 «깨어나기»가 늦지 않는다.
+     */
     fun forceFlushEvent() {
         if (!isRunning) return
+        // 예약해 둔 것이 있으면 거둔다 — 두 번 보내지 않게
         handler.removeCallbacks(eventFlushRunnable)
-        handler.postDelayed(eventFlushRunnable, 200)
+        flushScheduledAt = 0L
+        flush(isHeartbeat = false)
     }
 
     // [추가] 폰 화면이 켜졌을 때 즉각 생존(ONLINE) 신고를 쏘기 위한 함수
@@ -150,10 +183,52 @@ class TelemetryManager(
         handler.post(heartbeatRunnable)
     }
 
+    /**
+     * 🎛️ **서버한테 한 번도 못 들었으면 «잡지 않음»으로 시작한다** (2026-09-02 실측 사고).
+     *
+     * 예전 기본값은 `"AUTO"` 였다. 그래서 **앱을 새로 깐 직후**, 서버가 «알람»이라고
+     * 답하기 전에 앱이 스스로 «자동»이라 믿고 콜을 눌렀다:
+     * ```
+     * 15:35:40.0  모드: AUTO        ← 아직 서버 말을 못 들음
+     * 15:35:40.1  💥 [AUTO] 꿀콜 조건 통과! 강제 터치!
+     * 15:35:40.4  🔔 [알람] … 기사님이 직접 누르십니다   ← 서버 대답은 이때 왔다
+     * ```
+     * 그날 그 창은 **50초**였다(화면이 안 바뀌어 첫 통신이 60초 생존신고였다).
+     * 🔴 픽커에서 같은 일이 나면 「수락하기」가 눌리고 **되돌릴 창이 없다.**
+     *
+     * ⚠️ 앱 기본값은 «서버 미응답 시의 오프라인 안전망»이라 일부러 두는 것이지만
+     *    (CLAUDE.md 규칙 ③), 안전망은 **안전한 쪽**으로 틀어야 한다.
+     *    모르면 잡지 않는다 — 첫 응답이 오면 그때부터 서버 말을 따른다.
+     */
     @Volatile
-    var currentMode: String = "AUTO"
+    var currentMode: String = "MANUAL"
+
+    /**
+     * 🚦 **«지금 무슨 일을 하는 중인가»를 보낼 때마다 물어본다** (2026-09-02 · 0단계 ①).
+     *
+     * 🔴 값을 여기 복사해 두고 여러 곳에서 갱신하게 하지 않는다 — 갱신을 한 군데라도
+     *    빠뜨리면 화면이 **옛 단계를 계속 말한다**(오늘 오전에 고친 «읽지 않고 단언»과
+     *    같은 병). 보낼 때 물으면 **늘 지금 것**이다 (규칙 ③).
+     */
+    @Volatile
+    var workStageProvider: (() -> WorkStage.Stage)? = null
+
+    /** 📦 이 폰에 깔린 앱 버전 — 서비스가 뜰 때 한 번 채운다 (설치할 때만 바뀐다) */
+    @Volatile
+    var appVersion: String? = null
 
     private fun flush(isHeartbeat: Boolean) {
+        // 🐢 깨어난 순간을 **가장 먼저** 찍는다 — 이 아래 한 줄이라도 지나면 재는 뜻이 없다
+        val wokeAt = android.os.SystemClock.elapsedRealtime()
+        if (!isHeartbeat && flushScheduledAt > 0L) {
+            val actual = wokeAt - flushScheduledAt
+            val late = actual - flushRequestedDelayMs
+            if (late >= 1_000) {
+                AppLogger.w(TAG, "🐢 [발사 지연] ${flushRequestedDelayMs}ms 뒤로 예약했는데 " +
+                        "${actual}ms 만에 깨어났다 (${late}ms 늦음) — 늦은 것은 «깨어나기»다")
+            }
+        }
+        flushScheduledAt = 0L
         val snapshot: List<SimplifiedOfficeOrder>
         synchronized(scrapBuffer) {
             snapshot = scrapBuffer.toList()
@@ -183,6 +258,9 @@ class TelemetryManager(
             // 위치 권한 없으면 무시 (lat/lng = null로 전송)
         }
 
+        // 🚦 보내는 그 순간의 단계를 묻는다 — 복사본을 들고 있지 않는다
+        val stage = workStageProvider?.invoke()
+
         val prefs = context?.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
         val appCode = TargetApp.codeOf(prefs?.getString("targetApp", null))   // 매핑은 TargetApp 한 곳뿐
 
@@ -197,6 +275,12 @@ class TelemetryManager(
             lat = lat,                                   // [GPS 텔레메트리] 앱폰 위도
             lng = lng,                                   // [GPS 텔레메트리] 앱폰 경도
             targetApp = appCode,
+            // 📦🚦🎛️ 폰 상태 바가 쓸 셋 — 앱 안엔 있었는데 여태 안 보내던 것들
+            appVersion = appVersion,
+            workStage = stage?.stage,
+            workStageStep = stage?.step,
+            workStageSeconds = stage?.seconds,
+            appliedMode = currentMode,
             // 🧭 [피기백 v2] 들고 있는 필터 버전 — 같으면 서버가 본문을 생략한다.
             // ⚠️ null 이면 Gson 이 필드를 통째로 빼서 서버가 구앱으로 오인한다 —
             //    아직 버전이 없으면 빈 문자열("전체 주세요")을 보낸다
@@ -216,6 +300,9 @@ class TelemetryManager(
          */
         filterTally = null
 
+        // 🐢 깨어난 뒤 여기까지(위치 조회·페이로드 만들기) 걸린 시간 — 이게 크면 «안에서» 걸린 것이다
+        val prepMs = android.os.SystemClock.elapsedRealtime() - wokeAt
+        if (prepMs >= 1_000) AppLogger.w(TAG, "🐢 [발사 준비 지연] 깨어난 뒤 ${prepMs}ms — 늦은 것은 «flush 안»이다")
         val triggerStr = if (isHeartbeat) "⏱️ 타이머 생존신고" else "👀 화면 변경 감지"
         // [앱폰] /api/scrap 전송 직전: 중복 해시값(출발지+도착지+요금) 검사 및 디바운스(300ms) 완료 로그
         AppLogger.i(TAG, "🛡️ 파싱된 콜 객체의 (출발지+도착지+요금) 해시값 검사 및 디바운스(300ms) 완료. /api/scrap 전송 직전!")

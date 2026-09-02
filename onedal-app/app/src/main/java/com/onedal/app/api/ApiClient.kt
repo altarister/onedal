@@ -484,7 +484,15 @@ class ApiClient(private val context: Context) {
      * 화면이 꺼지거나 권한이 해제될 때 서버로 즉시 쏘고 종료.
      * 빠른 종료를 위해 readTimeout을 굉장히 짧게 주어 서버 응답을 기다리지 않습니다.
      */
-    fun sendOffline() {
+    /**
+     * 📵 **왜 내려가는지를 함께 보낸다** (기사님 지적 2026-09-02:
+     * *"'접근성 꺼짐' 이렇게 표현되면 좋겠는데"*).
+     *
+     * 관제웹은 지금까지 끊긴 폰에도 **마지막으로 본 화면 이름**을 계속 그렸다 —
+     * 그 폰은 아무 말도 안 하는데 *"지금 이 화면이다"* 라고 단언한 셈이다.
+     * 까닭을 아는 것은 **앱뿐**이므로 죽기 전에 실어 보낸다.
+     */
+    fun sendOffline(reason: String? = null) {
         telemetryExecutor.submit {
             var conn: java.net.HttpURLConnection? = null
             try {
@@ -496,6 +504,10 @@ class ApiClient(private val context: Context) {
                 conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
                 conn.connectTimeout = 3000
                 conn.readTimeout = 1000 // 서버 응답을 안기다리고 폭파
+                if (reason != null) {
+                    conn.doOutput = true
+                    conn.outputStream.use { it.write("{\"reason\":\"$reason\"}".toByteArray(Charsets.UTF_8)) }
+                }
 
                 val code = conn.responseCode
                 AppLogger.d(TAG, "🔌 [오프라인 통보] 전송 완료 (코드: $code)")
