@@ -363,3 +363,78 @@ class PickerScreenDetectTest {
         assertFalse(KakaoPickerKeywords.isAcceptedScreen(""))
     }
 }
+
+/**
+ * 🚚 **수락한 뒤의 운행 단계 다섯** (2026-09-02 신설 · 기사님 지시 *"23년도 자료로 지금 만들자"*).
+ *
+ * 문제지는 [`ex_images/카카오픽커/참고_2023_출처불명/`] 여섯 장에서 읽은 글자다.
+ * ⚠️ **2023년 남의 자료라 낱말은 추정**이다 — 실물 캡처가 오면 `STAGE_WORDS` 만 갈아끼운다.
+ * 여기서 잠그는 것은 **낱말이 아니라 구조**다: 헤더가 버튼을 이기고, 수락 전은 절대 안 걸린다.
+ */
+class PickerStageTest {
+    private val K = KakaoPickerKeywords
+
+    /** 자료 01 — 헤더 「픽업지로 이동하세요」인데 버튼은 이미 「밀어서 픽업 완료」 */
+    @Test
+    fun `이동 중에는 버튼이 아니라 헤더를 본다 - 도착으로 오인하지 않는다`() {
+        val 화면 = "픽업지로 이동하세요 파리바게뜨 오더 정보 배송 물품 픽업하러 왔습니다 밀어서 픽업 완료"
+        assertEquals(KakaoPickerKeywords.Stage.TO_PICKUP, K.stageOf(화면))
+    }
+
+    /** 자료 02 — 「픽업 완료해주세요 / 15:03까지 픽업완료 / 픽업 완료하기」 */
+    @Test
+    fun `픽업지 도착은 AT_PICKUP`() {
+        val 화면 = "픽업 완료해주세요 15:03까지 픽업완료 픽업지 1.2km 충남 보령시 보령북로 16 길안내 픽업 완료하기"
+        assertEquals(KakaoPickerKeywords.Stage.AT_PICKUP, K.stageOf(화면))
+    }
+
+    /** 자료 04 — 「배송지로 이동하세요 / 밀어서 배송 인증」 */
+    @Test
+    fun `배송지로 이동은 TO_DROPOFF`() {
+        val 화면 = "배송지로 이동하세요 오더 정보 오더 번호 2206 고객 요청 밀어서 배송 인증"
+        assertEquals(KakaoPickerKeywords.Stage.TO_DROPOFF, K.stageOf(화면))
+    }
+
+    /** 자료 05 — 「16:27까지 배송완료 / 배송 완료하기」 */
+    @Test
+    fun `배송지 도착은 AT_DROPOFF`() {
+        val 화면 = "16:27까지 배송완료 배송지 28.7km 총 수익 27,280 오더 수행을 위한 팁 길안내 배송 완료하기"
+        assertEquals(KakaoPickerKeywords.Stage.AT_DROPOFF, K.stageOf(화면))
+    }
+
+    /** 자료 06 — 「배송 완료 / 물품이 안전하게 전달되었습니다」 */
+    @Test
+    fun `배송을 마치면 DONE`() {
+        val 화면 = "배송 완료 2,000 물품이 안전하게 전달되었습니다 오늘 배송 건수 1건 오더 목록 보기"
+        assertEquals(KakaoPickerKeywords.Stage.DONE, K.stageOf(화면))
+    }
+
+    /**
+     * 🔴 **수락 전 상세는 어떤 단계도 아니다.** 실물(2026) 상세에는 「17:04까지 픽업」·
+     * 「17:18까지 배송」이 있는데, 단계 낱말은 «완료»가 붙은 「까지 픽업완료」다 —
+     * 그 한 글자가 경계다. 「수락하기」가 보이는 것만으로도 무조건 걸러진다.
+     */
+    @Test
+    fun `수락 전 상세는 단계가 아니다 - 계약 전이다`() {
+        val 상세 = "퀵 단거리 배송 31분 남음 준비 17분 포함 경기 성남시 중원구 은행2동 픽업 14.6km " +
+            "17:04까지 픽업 경기 성남시 중원구 중앙동 배송 2.1km 17:18까지 배송 넘기기 수락하기"
+        assertNull(K.stageOf(상세))
+        assertFalse(K.isAcceptedScreen(상세))
+    }
+
+    /** 🔴 리스트·잔상은 단계가 아니다 (0902 실사고 재현) */
+    @Test
+    fun `리스트와 상세 잔상은 단계가 아니다`() {
+        assertNull(K.stageOf("리스트 설정 가까운순 20km 퀵 반나절 소형 15.4km 중원 도촌 영등포 여의 14,010"))
+        assertNull(K.stageOf("픽업지 경기 성남시 분당구 야탑3동 메종드자스민 리스트 설정 가까운순 20km"))
+        assertNull(K.stageOf(null))
+        assertNull(K.stageOf(""))
+    }
+
+    /** 🔴 «수락됨» 판정의 원천은 `stageOf` 하나다 — 목록을 손으로 또 적지 않는다 (규칙 ③) */
+    @Test
+    fun `수락됨 판정은 단계표에서 파생된다`() {
+        assertEquals(K.STAGE_WORDS.flatMap { it.second }, K.ACCEPTED_SCREEN_WORDS)
+        assertTrue(K.STAGE_WORDS.size == KakaoPickerKeywords.Stage.values().size)
+    }
+}

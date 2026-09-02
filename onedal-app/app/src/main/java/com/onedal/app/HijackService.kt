@@ -152,6 +152,13 @@ class HijackService : AccessibilityService() {
      */
     private var alarmDetailBackRunnable: Runnable? = null
 
+    /**
+     * 🚚 마지막으로 알아본 픽커 운행 단계 — **바뀔 때만 로그를 남기려고** 들고 있다.
+     * 매 스캔(1초)마다 찍으면 로그가 그 줄로 덮여 다른 줄을 묻는다
+     * (`planMergedStops` 가 08-29 에 당한 것과 같은 계열).
+     */
+    private var lastPickerStage: com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.Stage? = null
+
     private fun scheduleAlarmDetailBack() {
         cancelAlarmDetailBack()
         val r = Runnable {
@@ -435,6 +442,30 @@ class HijackService : AccessibilityService() {
             && !com.onedal.app.plugins.kakaopicker.KakaoPickerParser.isDetailResidue(screenTexts)) {
             reportPickerAccepted(rawScreenStr)
         }
+
+        /**
+         * 🚚 **운행 단계를 로그로 남긴다** (기사님 지시 2026-09-02:
+         * *"페이지만 만들어 두면 오늘 저녁 들어올 때 훨씬 잘 구분할 거야"*).
+         *
+         * 낱말이 2023 자료 추정이라 **오늘은 인식과 기록만 한다** — 장부(마일스톤)에는
+         * 아직 잇지 않는다. 틀린 낱말로 장부에 쓰면 되돌릴 수 없다 (규칙 ④).
+         *
+         * 🔴 **못 알아본 화면은 글자를 남긴다.** 저녁에 이 줄들을 모으면 «어느 낱말이
+         *    빠졌는지»를 실물로 고를 수 있다 — 그게 오늘 판의 산출물이다.
+         */
+        if (!TargetApp.supportsCatching(currentTargetApp) && detected != ScreenContext.LIST) {
+            val stage = com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.stageOf(rawScreenStr)
+            if (stage != null) {
+                if (stage != lastPickerStage) {
+                    AppLogger.i("1DAL_PICKER", "🚚 [운행 단계] ${lastPickerStage ?: "없음"} → $stage")
+                    lastPickerStage = stage
+                }
+            } else if (detected == ScreenContext.UNKNOWN) {
+                // 못 알아본 픽커 화면 — 낱말을 고르려면 글자가 있어야 한다
+                AppLogger.w("1DAL_PICKER", "❓ [모르는 화면] ${rawScreenStr.take(300)}")
+            }
+        }
+        if (detected == ScreenContext.LIST) lastPickerStage = null   // 리스트로 나오면 초기화
 
         /**
          * 🌐 **배차망 불일치 관문** (기사님 확정 2026-08-31 · 1단계).
