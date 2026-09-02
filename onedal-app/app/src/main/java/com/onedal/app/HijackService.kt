@@ -8,6 +8,7 @@ import android.view.accessibility.AccessibilityNodeInfo
 import com.onedal.app.api.ApiClient
 import com.onedal.app.plugins.hwamul24.Hwamul24Keywords
 import com.onedal.app.plugins.insung.InsungKeywords
+import com.onedal.app.plugins.insung.handleMemoPopup
 import com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords
 import com.onedal.app.core.AlarmSignaler
 import com.onedal.app.core.AutoTouchManager
@@ -19,6 +20,7 @@ import com.onedal.app.core.ScreenKeywords
 import com.onedal.app.core.ScreenTextNode
 import com.onedal.app.core.engine.PreConfirmGate
 import com.onedal.app.core.engine.ScreenDetector
+import com.onedal.app.core.engine.ScanContext
 import com.onedal.app.core.engine.SessionManager
 import com.onedal.app.core.engine.DetailCollectMachine
 import com.onedal.app.core.engine.SafeCancelTimer
@@ -52,7 +54,7 @@ import java.util.Locale
  *   기능 4 — 확정 화면 자동 상세 수집 (팝업을 넘기며 출발지·도착지·적요를 읽는다)
  *   기능 6 — 상세 진입(PRE_CONFIRM) 시 /confirm 브리핑 전송
  */
-class HijackService : AccessibilityService() {
+class HijackService : AccessibilityService(), ScanContext {
 
     companion object {
         private const val TAG = "1DAL_MVP"
@@ -96,17 +98,17 @@ class HijackService : AccessibilityService() {
 
     // ── 4대 엔진 ──
     private lateinit var apiClient: ApiClient
-    private lateinit var telemetryManager: TelemetryManager
-    private lateinit var scrapParser: ScrapParser
-    private lateinit var touchManager: AutoTouchManager
+    override lateinit var telemetryManager: TelemetryManager
+    override lateinit var scrapParser: ScrapParser
+    override lateinit var touchManager: AutoTouchManager
 
     // ── 설정 ──
-    private lateinit var keywords: ScreenKeywords
+    override lateinit var keywords: ScreenKeywords
     private val screenDetector = ScreenDetector()
     private var lastScreenFingerprint = 0
     // 👁️ «본 콜» 장부 — «평가했다»와 «보고했다»를 딴 그릇으로 (#79 · CallMemory 주석 참고)
     private val callMemory = CallMemory(MAX_ORDER_HASH_CACHE, ORDER_HASH_KEEP_COUNT)
-    private var currentTargetApp = "insung"
+    override var currentTargetApp = "insung"
 
     /**
      * 🎯 배차망 적용 — 라디오(부팅)와 자동 전환(2단계)이 **같은 길**을 탄다.
@@ -140,7 +142,7 @@ class HijackService : AccessibilityService() {
     private var listBlindSinceMs = 0L
 
     // ── 세션 상태 (SessionManager로 통합) ──
-    private val session = SessionManager()
+    override val session = SessionManager()
 
     /** 🔔 알람 모드의 폰 쪽 신호 — 소리·진동·테두리 (`docs/지금/기기_모드.md` 2단계) */
     private val alarmSignaler by lazy { AlarmSignaler(this) }
@@ -179,13 +181,13 @@ class HijackService : AccessibilityService() {
         alarmDetailBackRunnable?.let { mainHandler.removeCallbacks(it) }
         alarmDetailBackRunnable = null
     }
-    private lateinit var collectMachine: DetailCollectMachine
-    private val recentListOrders = mutableListOf<SimplifiedOfficeOrder>()
+    override lateinit var collectMachine: DetailCollectMachine
+    override val recentListOrders = mutableListOf<SimplifiedOfficeOrder>()
 
     // ── AUTO 모드 타이머 ──
-    private val mainHandler = Handler(Looper.getMainLooper())
+    override val mainHandler = Handler(Looper.getMainLooper())
     private val safeCancelTimer = SafeCancelTimer()
-    private lateinit var cautionVerifier: CautionDongVerifier
+    override lateinit var cautionVerifier: CautionDongVerifier
 
     // [Safety Mode V3] SharedPreference에서 안전취소 타이머 값 읽기
     private fun getSafeCancelTimeout(): Long {
@@ -1174,7 +1176,7 @@ class HijackService : AccessibilityService() {
      * 🔴 `isDetailScrapSent` 가 중복 전송을 막는다 — 미리보기 상세 수집이 끝나 상세 화면으로
      *    돌아왔을 때 이 함수가 다시 불리지 않게 하는 자물쇠이기도 하다.
      */
-    private fun sendConfirmOnce(order: SimplifiedOfficeOrder, rawScreenStr: String) {
+    override fun sendConfirmOnce(order: SimplifiedOfficeOrder, rawScreenStr: String) {
         if (session.isDetailScrapSent) return
 
         // ✅ [Phase 2] 매크로가 실제로 클릭한 경우만 AUTO, 나머지는 전부 MANUAL
@@ -1217,11 +1219,7 @@ class HijackService : AccessibilityService() {
     //  기능 4 (팝업 핸들링): 적요 팝업 스크래핑
     // ════════════════════════════════════════════════════════════════
 
-    private fun handleMemoPopup(rootNode: AccessibilityNodeInfo, screenTexts: List<String>) {
-        // 🚧 인성 전용 구간 — 인성 잡기 수순 (픽커_수집.md §3-확장)
-        if (!TargetApp.supportsCatching(currentTargetApp)) return
-        collectMachine.handleMemoPopup(rootNode, session, screenTexts)
-    }
+
 
     // ════════════════════════════════════════════════════════════════
     //  기능 4 (팝업 핸들링): 출발지 팝업 스크래핑
@@ -1291,7 +1289,7 @@ class HijackService : AccessibilityService() {
      * (그때는 팝업을 다시 열지 않고 모아 둔 텍스트를 그대로 다시 보낸다).
      * 같은 요청을 두 벌로 적으면 한쪽만 고쳐져 갈라지므로 여기 하나만 둔다.
      */
-    private fun sendDetail(order: SimplifiedOfficeOrder) {
+    override fun sendDetail(order: SimplifiedOfficeOrder) {
         run {
             val payload = DispatchDetailedRequest(
                 step = "DETAILED",
@@ -1440,7 +1438,7 @@ class HijackService : AccessibilityService() {
     // ════════════════════════════════════════════════════════════════
 
     /** 세션 상태 전체 초기화 (리스트 복귀 시 호출) */
-    private fun resetSessionState() {
+    override fun resetSessionState() {
         session.reset {
             cancelSafeCancelTimer()
             telemetryManager.isHolding = false  // [Page/Hold 분리] 리스트 복귀 → 콜 잡기 모드
@@ -1450,7 +1448,7 @@ class HijackService : AccessibilityService() {
     }
 
     /** 세션 ID가 없으면 새로 생성 — 접두사는 **출신**이지 기기 모드가 아니다 */
-    private fun ensureSessionId() {
+    override fun ensureSessionId() {
         session.ensureOrderId()
     }
 
@@ -1466,7 +1464,7 @@ class HijackService : AccessibilityService() {
      * 목록은 배차망 플러그인의 `confirmKeywords` 가 정한다 — 여기 손으로 적지 않는다.
      * ⚠️ 예전 주석은 *"인성콜: 확정 하나만"* 이라 했는데 실제로는 둘이다("확정"·"배차").
      */
-    private fun clickFirstMatchingButton(rootNode: AccessibilityNodeInfo, buttonTexts: List<String>): Boolean {
+    override fun clickFirstMatchingButton(rootNode: AccessibilityNodeInfo, buttonTexts: List<String>): Boolean {
         for (btnText in buttonTexts) {
             if (touchManager.findAndClickByText(rootNode, btnText, isStartsWith = true)) {
                 AppLogger.d(TAG, "✅ 버튼 '$btnText' 클릭 성공!")
@@ -1478,7 +1476,7 @@ class HijackService : AccessibilityService() {
     }
 
     /** 현재 ISO 타임스탬프 생성 */
-    private fun nowTimestamp(): String {
+    override fun nowTimestamp(): String {
         return SimpleDateFormat(ISO_TIMESTAMP_FORMAT, Locale.getDefault()).format(Date())
     }
 
