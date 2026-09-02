@@ -1,6 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  🪟 «내용이 바뀜»과 «창이 바뀜» 둘 다 받는다 (2026-09-02 · 기사님 실측 제보로 추가).
+
+  · typeWindowContentChanged — 같은 창에서 «내용»이 바뀜 (리스트 갱신)
+  · typeWindowStateChanged   — «창» 자체가 바뀜 (다이얼로그 닫힘 · 화면 전환)
+
+  🔴 예전엔 앞의 것만 받았다. 그래서 「나가시겠습니까」 알럿을 닫고 홈으로 돌아와도
+     OS 가 아무 이벤트도 안 보냈고, 관제웹은 알럿 화면이던 «알 수 없는 화면»에
+     1분 넘게 그대로 남아 있었다. **안 오는 이벤트는 코드로 못 고친다.**
+     (중복은 `HijackService` 의 지문 비교가 거른다 — 스캔이 늘어도 처리는 안 는다)
+-->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
-    android:accessibilityEventTypes="typeWindowContentChanged"
+    android:accessibilityEventTypes="typeWindowContentChanged|typeWindowStateChanged"
     android:accessibilityFeedbackType="feedbackGeneric"
     android:accessibilityFlags="flagDefault|flagRetrieveInteractiveWindows|flagIncludeNotImportantViews"
     android:canRetrieveWindowContent="true"

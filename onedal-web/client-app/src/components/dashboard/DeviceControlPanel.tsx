@@ -1,6 +1,6 @@
 import { useDevices } from "../../hooks/useDevices";
-import type { DeviceSession, ScreenContextType, DeviceModeType } from "@onedal/shared";
-import { isDeviceBlind, DEVICE_MODES, DEVICE_MODE_LABEL, TARGET_APP_LABEL } from "@onedal/shared";
+import type { DeviceSession, DeviceModeType } from "@onedal/shared";
+import { isDeviceBlind, DEVICE_MODES, DEVICE_MODE_LABEL, TARGET_APP_LABEL, screenLabelOf } from "@onedal/shared";
 import { useSystemAlerts } from "../../hooks/useSystemAlerts";
 import type { EmergencyAlert, SafeCancelWarning, FilterPassAlarm } from "../../hooks/useSystemAlerts";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
@@ -20,20 +20,17 @@ const EMERGENCY_LABELS: Record<string, string> = {
     APP_CRASH: "💀 앱 비정상 종료 후 재시작",
 };
 
-/** ScreenContext → 한국어 라벨 + 색상 매핑 (물리적 화면 상태만 표시, 홀드는 isHolding으로 분리) */
-const SCREEN_LABELS: Record<ScreenContextType, { label: string; color: string }> = {
-    LIST: { label: "콜 리스트", color: "text-success bg-success/15 border-success/20" },
-    // 완료 리스트도 "콜에서 손을 뗀" 화면이다 — 앱이 여기로 빠져나가면 서버가 콜을 놓는다.
-    // 예전에는 이 값이 shared 타입에 없어서, 앱만 보내고 아무도 못 읽었다 (유령 카드 사고)
-    LIST_COMPLETED: { label: "완료 리스트", color: "text-success bg-success/15 border-success/20" },
-    DETAIL_PRE_CONFIRM: { label: "상세페이지", color: "text-info bg-info/15 border-info/20" },
-    DETAIL_CONFIRMED: { label: "확정페이지", color: "text-warning bg-warning/15 border-warning/20" },
-    POPUP_PICKUP: { label: "출발지 팝업", color: "text-info bg-info/15 border-info/20" },
-    POPUP_DROPOFF: { label: "도착지 팝업", color: "text-info bg-info/15 border-info/20" },
-    POPUP_MEMO: { label: "적요 팝업", color: "text-accent-alt bg-accent-alt/15 border-accent-alt/20" },
-    POPUP_ERROR: { label: "취소 불가 팝업", color: "text-danger bg-danger/20 animate-pulse border-danger/30" },
-    UNKNOWN: { label: "알 수 없는 화면", color: "text-danger bg-danger/20 animate-pulse border-danger/30" },
-};
+/**
+ * 🏷️ **화면 이름표는 배차망마다 다르다 — 여기서는 «고르기»만 한다** (기사님 설계 2026-09-02).
+ *
+ * 기사님: *"`SCREEN_LABELS` 가 인성·픽커·화물24 이렇게 따로따로 있어야 할 것 같아.
+ * 이 파일에 있으면 안 되고, 각 라벨들을 import 해 와서 망에 따라 바꿔서 보일 수 있도록."*
+ *
+ * 예전에는 이 파일 안에 이름표 아홉 개가 있었는데 **전부 인성 화면**이었다. 픽커를 돌리면
+ * 운행 중 다섯이 갈 자리가 없어 **«알 수 없는 화면»(빨간 깜빡임)** 으로 떴다 —
+ * 기사님이 가장 알고 싶은 순간에 관제가 가장 모르는 상태였다.
+ * 목록은 `shared/screenLabels.ts` 에 배차망별로 있고, **이 파일은 공통으로 남는다.**
+ */
 
 function DeviceRow({
     device,
@@ -55,7 +52,7 @@ function DeviceRow({
     filterAlarm: FilterPassAlarm | null;
 }) {
     const isDisconnected = device.status === "OFFLINE";
-    const screenInfo = device.screenContext ? SCREEN_LABELS[device.screenContext] : null;
+    const screenInfo = screenLabelOf(device.targetApp, device.screenContext);
 
     /**
      * 👁️ **앱은 켜져 있는데 화면을 못 읽는 중** (기사님 확정 2026-08-22 · 크리티컬).

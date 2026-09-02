@@ -251,7 +251,32 @@ class HijackService : AccessibilityService(), ScanContext {
 
         telemetryManager.start()
         apiClient.fetchKeywords()
-        updateScreenContext(ScreenContext.LIST)
+
+        /**
+         * 🖥️ **첫 보고는 «본 것»이어야 한다** (2026-09-02 · 기사님 실측 제보로 수리).
+         *
+         * 기사님: *"픽커는 지금 홈에 있는데. 콜 리스트로 나오고 있어."*
+         *
+         * 예전에는 여기서 `updateScreenContext(ScreenContext.LIST)` 로 **화면을 읽지도 않고**
+         * «콜 리스트»라고 세웠다. 인성에서는 우연히 맞았다 — 스캐너를 켜는 자리가 대개
+         * 리스트니까. 픽커 홈에서 그 우연이 깨졌고, 관제웹이 계속 거짓말을 했다.
+         *
+         * 🔴 **왜 스스로 안 고쳐지나** — 홈 화면은 움직이지 않아
+         * `TYPE_WINDOW_CONTENT_CHANGED` 가 **안 온다.** 이벤트가 없으면 판별도 없고,
+         * 처음 세운 값이 그대로 굳는다. 그래서 «첫 값»이 곧 «오래 가는 값»이다.
+         *
+         * 규칙 ④(*"없는 숫자를 지어내지 않는다"*)의 화면판이다 — `0` 이 아니라 `null` 이듯,
+         * **안 본 화면은 «리스트»가 아니라 «모름»** 이다. 지금은 읽어서 답하고,
+         * 아직 화면이 없으면(`null`) 그때만 «모름»이라 한다 (규칙 ③ — 파생).
+         */
+        val firstScreen = rootInActiveWindow?.let { node ->
+            val texts = mutableListOf<String>()
+            gatherNodeTexts(node, texts)
+            node.recycle()
+            detectScreenContext(texts.joinToString(" "))
+        } ?: ScreenContext.UNKNOWN
+        AppLogger.i(TAG, "🖥️ 붙는 순간 화면: $firstScreen")
+        updateScreenContext(firstScreen)
 
         // [Piggyback V2] 서버(관제탑) 결재 수신 콜백 연결 및 고스트 응답 방어(Ghost Defense)
         telemetryManager.decisionCallback = { receivedOrderId, action ->
@@ -278,7 +303,18 @@ class HijackService : AccessibilityService(), ScanContext {
         AppLogger.i(TAG, "  📤 Telemetry  (생존신고 시작)")
         AppLogger.i(TAG, "  🔍 Parser     (${scrapParser.currentParserName()})")
         AppLogger.i(TAG, "  👆 Touch      (준비 완료)")
-        AppLogger.i(TAG, "  🎯 Keywords   (인성콜)")
+        /**
+         * 🔴 **읽어서 답한다 — 지어내지 않는다** (2026-09-02 수리).
+         *
+         * 예전엔 `"(인성콜)"` 이 박혀 있었다. 바로 윗줄 Parser 는 파생인데 이 줄만
+         * 리터럴이라, **픽커로 돌 때도 「인성콜」이라 찍혔다.** 그날 홈 화면 오보를
+         * 진단하다 이 로그를 믿고 한 번 헛짚었다.
+         *
+         * 같은 자리의 «붙는 순간 화면»(위 `firstScreen`)과 **같은 클래스**다 —
+         * 읽지 않고 단언하는 것. 인스턴스를 하나씩 고치는 대신 규칙으로 잠갔다
+         * (`tests/rules/screenTruth.test.ts`).
+         */
+        AppLogger.i(TAG, "  🎯 Keywords   (${keywords.appLabel})")
     }
 
     override fun onInterrupt() {
@@ -305,7 +341,38 @@ class HijackService : AccessibilityService(), ScanContext {
     // ════════════════════════════════════════════════════════════════
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        if (event == null || event.eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) return
+        /**
+         * 🪟 **«내용이 바뀜»과 «창이 바뀜» 둘 다 화면이 바뀐 것이다** (2026-09-02 수리).
+         *
+         * 기사님: *"「나가시겠습니까」 알럿창에 「네」 하고 홈으로 왔는데 알 수 없는 화면으로
+         * 계속 남아 있어."*
+         *
+         * 예전엔 `TYPE_WINDOW_CONTENT_CHANGED` 하나만 봤다. 다이얼로그가 닫히고 홈으로
+         * 돌아가는 것은 **창이 바뀌는 사건**이라 그 이름으로 오지 않는다 — 그래서 판별이
+         * 아예 안 돌았고, 알럿 화면이던 `UNKNOWN` 이 1분 넘게 굳었다.
+         *
+         * 🔴 앞의 «붙는 순간 화면»과 뿌리가 같다 — *화면이 안 움직이면 아무도 다시 안 본다.*
+         *    그때는 **첫 값**이 굳었고 이번엔 **마지막 값**이 굳었다.
+         *
+         * ⚠️ 인성은 안 흔들린다 — 스캔이 늘어도 아래 **지문 비교**가 같은 화면을 거른다.
+         *    오히려 팝업이 닫히는 순간을 더 정확히 본다.
+         */
+        val watched = event?.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED ||
+                event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+        if (!watched) return
+
+        /**
+         * ⏱️ **창이 바뀌면 한 번으로 안 믿는다** (2026-09-02 · 기사님 실측:
+         * *"바뀌고 나서 1분 가까이 기다려야 하는 것 같아"*).
+         *
+         * 전환 이벤트가 오는 **그 순간의 창은 아직 옛 내용**이다. 그래서 아래 지문 비교에
+         * 걸려 건너뛰고, 새 화면이 정지 화면이면 **아무도 다시 안 본다.**
+         * 실측 19초 — 그것도 프로모션 배너가 저절로 움직여 준 덕이었다.
+         *
+         * 그려질 시간을 주고 몇 박자 뒤 다시 본다. 헛읽기가 늘어도 **지문이 막아** 전송은
+         * 안 는다. 재확인은 **읽기만** 한다 — 터치하면 2026-08-12 「LIST 오탐 → 세션 리셋」
+         * 이 되살아난다.
+         */
         val rootNode = rootInActiveWindow ?: return
 
         // 핑거프린트 비교 → 화면 변경 없으면 스킵
@@ -324,6 +391,28 @@ class HijackService : AccessibilityService(), ScanContext {
         val detected = detectScreenContext(rawScreenStr)
         if (detected == ScreenContext.UNKNOWN) {
             AppLogger.w(TAG, "🔎 [UNKNOWN 화면 진단] 읽힌 텍스트(${rawScreenStr.length}자): ${rawScreenStr.take(300)}")
+            /**
+             * 🔴 **여기서 «조금 뒤 다시 보기»를 하지 않는다 — 해 봤고, 안 된다** (2026-09-02).
+             *
+             * 화면이 넘어가는 도중에는 글자가 어중간해서(「close dialog」 · 빈 화면 0자)
+             * 어느 화면인지 알 수 없다. 그래서 0.3·0.9·2초 뒤에 `rootInActiveWindow` 를
+             * 다시 읽어 보는 코드를 넣었다가 **되돌렸다.**
+             *
+             * ── 왜 안 되나 ──
+             * 안드로이드 접근성은 화면 내용을 **캐시**하고, 그 캐시는 **이벤트가 와야**
+             * 버려진다. 이벤트 없이 «지금 화면 줘»라고 하면 **아까 그 화면을 그대로 준다.**
+             * 실측: 세 번 다시 읽었는데 값이 **한 번도 안 바뀌었다**(`🔁 [다시 보기]` 로그가
+             * 한 줄도 안 찍혔다). 18.3초 → 18.3초, 전혀 나아지지 않았다.
+             *
+             * 🔴 **«내가 원할 때 다시 본다»는 것은 안드로이드가 보장하지 않는다.**
+             *    폰이 알려줄 때만 볼 수 있다. 늘리려면 **받는 이벤트 종류**를 늘리거나
+             *    (`res/xml/accessibility_service_config.xml`), 캐시를 끄는 수밖에 없다
+             *    (`setCacheEnabled(false)` · Android 12+ — 인성 전체의 배터리를 건다).
+             *
+             * ⚠️ 그리고 **실제로 늦는 것은 정지 화면뿐이다.** 리스트·상세·팝업은 계속
+             *    움직여 이벤트가 쏟아지므로 즉시 반영된다(실측). 늦는 곳은 픽커 홈이고,
+             *    거기는 일을 안 하고 있는 시간이다.
+             */
         }
         // ⚠️ 아래 복귀 판정이 **직전 화면**을 봐야 하므로 갱신 전에 붙잡아 둔다
         val previous = telemetryManager.currentScreenContext
@@ -948,8 +1037,26 @@ class HijackService : AccessibilityService(), ScanContext {
     //  화면 판별 엔진 (키워드 사전 기반)
     // ════════════════════════════════════════════════════════════════
 
-    private fun detectScreenContext(text: String): ScreenContext =
-        screenDetector.detect(text, keywords)
+    /**
+     * 🖥️ **이 화면이 무엇인가 — 한 곳에서 답한다** (규칙 ③).
+     *
+     * 낱말 판별(`screenDetector`)이 먼저 답하고, **잡기 수순이 없는 배차망**은 그 위에
+     * 자기 운행 화면을 얹는다. 픽커의 「픽업 완료해주세요」 같은 화면은 인성 목록에
+     * 없어서 `UNKNOWN` 으로 떨어지는데, 그러면 관제웹이 «알 수 없는 화면»(빨간 깜빡임)만
+     * 보여 준다 — 기사님이 가장 알고 싶은 순간에 관제가 가장 모르게 된다
+     * (기사님 지시 2026-09-02: *"관제에서는 폰의 상황을 잘 알아야 해"*).
+     *
+     * 🔴 **치환은 배차망 폴더 안에서 한다** — 여기는 «부르기»만 한다. 페이지 이름(`Stage`)은
+     *    픽커 폴더 밖으로 안 나오고, 나오는 것은 공통 화면 값 하나뿐이다.
+     *
+     * ⚠️ 인성·24시는 이 줄을 안 지난다 — `supportsCatching` 이 참이라 예전과 완전히 같다.
+     */
+    private fun detectScreenContext(text: String): ScreenContext {
+        val byKeywords = screenDetector.detect(text, keywords)
+        if (TargetApp.supportsCatching(currentTargetApp)) return byKeywords
+        val stage = com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.stageOf(text)
+        return com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.screenContextOf(stage) ?: byKeywords
+    }
 
     private fun updateScreenContext(context: ScreenContext) {
         if (telemetryManager.currentScreenContext != context) {

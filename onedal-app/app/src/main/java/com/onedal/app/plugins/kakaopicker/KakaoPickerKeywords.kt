@@ -1,6 +1,7 @@
 package com.onedal.app.plugins.kakaopicker
 
 import com.onedal.app.core.ScreenKeywords
+import com.onedal.app.models.ScreenContext
 
 /**
  * 🌐 카카오T픽커(`com.kakaomobility.flexer`) 화면 판별 사전 (2026-08-30 신설).
@@ -13,8 +14,19 @@ import com.onedal.app.core.ScreenKeywords
  *    그 판별을 사실상 끈다.
  */
 object KakaoPickerKeywords {
-    /** 픽커에 존재하지 않는 화면 판별을 끄는 표식 — 실제 화면에 절대 안 나오는 문자열 */
-    private const val NEVER = "〈픽커에는 이 화면이 없다〉"
+    /**
+     * 🚫 **그런 화면이 없다** — 확정된 사실. 실제 화면에 절대 안 나오는 문자열로 판별을 끈다.
+     *
+     * 🔴 아래 `NOT_YET_SEEN` 과 **갈라 둔다** (2026-09-02). 예전엔 한 표식(`NEVER`)이
+     *    «없다»와 «아직 못 봤다» 둘 다를 답했다 — 그러면 나중에 읽는 사람이
+     *    *"이건 채워야 하는 건가, 두는 건가"* 를 알 수 없다.
+     *    이 레포가 한 값에 두 질문을 답하게 두어 하루에 여섯 번 당한 그 형태다
+     *    (CLAUDE.md 규칙 ⑤-4 ⑤).
+     */
+    private const val NO_SUCH_SCREEN = "〈픽커에는 이 화면이 없다〉"
+
+    /** ❓ **아직 실물을 못 봤다** — 있을 수도 있다. 실물이 오면 채운다 (규칙 ④: 지어내지 않는다) */
+    private const val NOT_YET_SEEN = "〈아직 실물을 못 본 화면〉"
 
     /**
      * 🚚 **픽커 콜에 넣는 차종 — 픽커에 차종 축이 없어서 하나로 통일한다**
@@ -113,6 +125,28 @@ object KakaoPickerKeywords {
         Stage.TO_PICKUP, Stage.AT_PICKUP, Stage.TO_DROPOFF, Stage.AT_DROPOFF, Stage.DONE,
     )
 
+    /**
+     * 🖥️ **이 화면을 관제웹이 알아볼 이름으로 바꾼다** (기사님 지시 2026-09-02).
+     *
+     * 기사님: *"내가 관제앱에서 현 페이지를 확인할 수 있어야 해.. 그래야 일을 시작할 수 있지."*
+     *
+     * 🔴 **치환은 배차망 안에서 한다.** 페이지(`Stage`)는 픽커 폴더 밖으로 나가지 않고,
+     *    나가는 것은 **공통 화면 값 하나**뿐이다 — 마일스톤을 안 늘리는 것과 같은 원리다
+     *    (`docs/기획/배차망_통합.md` §2). 그래야 배차망이 늘어도 공통 목록이 안 부푼다.
+     *
+     * ⚠️ 홈은 `null` 이다 — 홈은 운행 화면이 아니고, 화면 판별이 «로딩»으로 건너뛴다.
+     */
+    fun screenContextOf(stage: Stage?): ScreenContext? = when (stage) {
+        Stage.TO_PICKUP  -> ScreenContext.RUN_TO_PICKUP
+        Stage.AT_PICKUP  -> ScreenContext.RUN_AT_PICKUP
+        Stage.TO_DROPOFF -> ScreenContext.RUN_TO_DROPOFF
+        Stage.AT_DROPOFF -> ScreenContext.RUN_AT_DROPOFF
+        Stage.DONE       -> ScreenContext.RUN_DONE
+        // 🏠 홈은 운행 화면이 아니지만 «모름»도 아니다 — 읽었고, 대기 중이다
+        Stage.HOME       -> ScreenContext.HOME
+        null             -> null              // 픽커가 아는 화면이 아니다 — 낱말 판별에 맡긴다
+    }
+
     /** ✅ 수락한 뒤인가 — 잡은 콜로 승격해도 되는가 */
     fun isAcceptedScreen(rawText: String?): Boolean = stageOf(rawText) in ACCEPTED_STAGES
 
@@ -128,7 +162,7 @@ object KakaoPickerKeywords {
         // 리스트: 상단 고정 헤더 «리스트 설정»이 이 화면에만 있다 (덤프 04~10 · 0830 전부)
         listRequired = listOf("리스트 설정"),
         // 완료/수행 내역 화면은 아직 미탐사 — 오인 방지 표식 (실물 뜨면 채운다)
-        completedListRequired = listOf(NEVER),
+        completedListRequired = listOf(NOT_YET_SEEN),
         /**
          * 🔴 **낱말 둘을 함께 요구한다 — 인성이 쓰는 방식** (2026-09-02 실사고 수리).
          *
@@ -147,13 +181,32 @@ object KakaoPickerKeywords {
          */
         detailKeywords = listOf("넘기기", "수락하기"),
         confirmKeywords = listOf("수락하기", "넘기기"),
-        pickupKeywords = listOf(NEVER),
-        dropoffKeywords = listOf(NEVER),
-        memoKeywords = listOf(NEVER),
+        pickupKeywords = listOf(NO_SUCH_SCREEN),
+        dropoffKeywords = listOf(NO_SUCH_SCREEN),
+        memoKeywords = listOf(NO_SUCH_SCREEN),
         // «이미 배정» 안내 (덤프 10 — 상세 열기 실패)
         errorKeywords = listOf("다른 기사에게 배정"),
-        // 홈(출근 전/미션 화면)은 해로울 게 없는 화면 — 조용히 넘기는 분류로 둔다
-        loadingKeywords = listOf("어떤 일을 시작할까요"),
+        /**
+         * ⏳ **비워 둔다 — 안 본 것은 안 적는다** (2026-09-02 · 기사님 실측 제보로 수리).
+         *
+         * 예전엔 `["어떤 일을 시작할까요"]` 였고 주석은 *"홈은 해로울 게 없는 화면 —
+         * 조용히 넘기는 분류로 둔다"* 고 적혀 있었다. **홈을 로딩으로 위장시켜 버린 것**이다.
+         *
+         * 그 뒤 홈을 제대로 된 화면(`Stage.HOME`)으로 만들면서 이 줄을 안 지웠고,
+         * 한 화면을 두 곳이 다르게 답하게 됐다 — 로딩이 먼저라 늘 이겼고,
+         * `HijackService` 가 홈 프레임을 **통째로 버려** 관제웹이 «알 수 없는 화면»에
+         * 굳었다 (규칙 ⑤-4 ⑤ — 읽는 곳이 둘이면 각자 다른 질문을 답하고 있는 것이다).
+         *
+         * 🔴 **로딩으로 버리는 것이 틀린 답보다 나쁘다.** 틀린 답은 다음 프레임에
+         *    고쳐지지만, 버려진 프레임은 아무것도 안 남긴다.
+         *
+         * 🔴 **픽커에는 로딩 화면이 아예 없다** (기사님 확정 2026-09-02:
+         *    *"픽커는 로딩화면이 없어 그냥 홈 화면만 있어"*).
+         *    그러니 여기는 «아직 못 봤다»가 아니라 **«없다»** 다 — 채울 날이 오지 않는다.
+         *    인성은 있다(「오더 조회」·「기다려 주십」). 배차망마다 다른 것이지
+         *    빠뜨린 것이 아니다.
+         */
+        loadingKeywords = listOf(NO_SUCH_SCREEN),
         appLabel = "픽커",
         cancelKeyword = "넘기기"
     )

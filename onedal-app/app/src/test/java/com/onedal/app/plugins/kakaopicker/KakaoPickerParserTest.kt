@@ -3,6 +3,8 @@ package com.onedal.app.plugins.kakaopicker
 import com.onedal.app.models.FilterTally
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -461,5 +463,194 @@ class PickerStageTest {
         val 홈낱말 = K.STAGE_WORDS.first { it.first == KakaoPickerKeywords.Stage.HOME }.second
         홈낱말.forEach { assertFalse(K.ACCEPTED_SCREEN_WORDS.contains(it)) }
         assertTrue(K.STAGE_WORDS.size == KakaoPickerKeywords.Stage.values().size)
+    }
+}
+
+/**
+ * 🖥️ **화면이 관제웹까지 가는가** (기사님 지시 2026-09-02:
+ * *"내가 관제앱에서 현 페이지를 확인할 수 있어야 해.. 그래야 일을 시작할 수 있지."*)
+ *
+ * 앱이 페이지를 알아봐도 **공통 화면 값으로 바꿔 올리지 않으면** 서버는 `UNKNOWN` 을 받고,
+ * 관제웹은 «알 수 없는 화면»(빨간 깜빡임)만 보여 준다 — 아침에 만든 것이 딱 그 반쪽이었다.
+ * 여기서 잠그는 것은 **치환이 빠짐없이 이어지는가**다.
+ */
+class PickerScreenContextTest {
+    private val K = KakaoPickerKeywords
+
+    @Test
+    fun `운행 단계 다섯이 모두 공통 화면 값으로 바뀐다`() {
+        listOf(
+            KakaoPickerKeywords.Stage.TO_PICKUP  to com.onedal.app.models.ScreenContext.RUN_TO_PICKUP,
+            KakaoPickerKeywords.Stage.AT_PICKUP  to com.onedal.app.models.ScreenContext.RUN_AT_PICKUP,
+            KakaoPickerKeywords.Stage.TO_DROPOFF to com.onedal.app.models.ScreenContext.RUN_TO_DROPOFF,
+            KakaoPickerKeywords.Stage.AT_DROPOFF to com.onedal.app.models.ScreenContext.RUN_AT_DROPOFF,
+            KakaoPickerKeywords.Stage.DONE       to com.onedal.app.models.ScreenContext.RUN_DONE,
+        ).forEach { (stage, screen) -> assertEquals(screen, K.screenContextOf(stage)) }
+    }
+
+    /** 🔴 홈은 운행 화면이 아니다 — 치환하면 «일하는 중»으로 보인다 */
+    /**
+     * 🏠 **홈은 «모름»이 아니다** (2026-09-02 · 기사님 제보로 갈랐다).
+     *
+     * 기사님: *"픽커는 지금 홈에 있는데. 콜 리스트로 나오고 있어."*
+     * 처음엔 홈도 `null` 로 두었더니 낱말 판별로 떨어져 엉뚱한 답이 나왔다.
+     * 읽었으면 읽었다고 답한다 — 못 읽은 것과 같은 칸에 넣지 않는다.
+     */
+    @Test
+    fun `홈은 홈이라고 답한다 - 모름과 같은 칸에 넣지 않는다`() {
+        assertEquals(com.onedal.app.models.ScreenContext.HOME, K.screenContextOf(KakaoPickerKeywords.Stage.HOME))
+    }
+
+    /** 픽커가 아는 화면이 아니면 답하지 않는다 — 낱말 판별에 맡긴다 */
+    @Test
+    fun `모르는 화면은 답하지 않는다`() {
+        assertNull(K.screenContextOf(null))
+    }
+
+    /**
+     * 🔴 **단계가 늘면 치환도 늘어야 한다.** 표만 고치고 치환을 안 고치면 새 화면이
+     * 조용히 `UNKNOWN` 으로 떨어진다 — 그게 아침에 겪은 «반쪽»이다.
+     */
+    @Test
+    fun `모든 단계가 치환된다 - 빠뜨리면 조용히 UNKNOWN 이 된다`() {
+        KakaoPickerKeywords.Stage.values()
+            .forEach { assertNotNull("$it 의 화면 값이 없다", K.screenContextOf(it)) }
+    }
+
+    /** 🔴 값 이름이 shared 와 한 글자라도 다르면 서버가 못 읽는다 */
+    @Test
+    fun `화면 값 이름이 서버 규격과 같다`() {
+        assertEquals("RUN_TO_PICKUP", com.onedal.app.models.ScreenContext.RUN_TO_PICKUP.value)
+        assertEquals("RUN_AT_PICKUP", com.onedal.app.models.ScreenContext.RUN_AT_PICKUP.value)
+        assertEquals("RUN_TO_DROPOFF", com.onedal.app.models.ScreenContext.RUN_TO_DROPOFF.value)
+        assertEquals("RUN_AT_DROPOFF", com.onedal.app.models.ScreenContext.RUN_AT_DROPOFF.value)
+        assertEquals("RUN_DONE", com.onedal.app.models.ScreenContext.RUN_DONE.value)
+    }
+}
+
+/**
+ * 🏠 **홈 화면 실물 한 장을 그대로 붙여 둔다** (2026-09-02 12:48 · 기사님 폰에서 뜬 것).
+ *
+ * ── 무엇이 있었나 ──
+ * 홈에 있는데 관제웹이 «알 수 없는 화면»에 굳어 있었다. 원인은 판별이 **틀린 것이 아니라
+ * 아예 안 돈 것**이었다 — 홈 화면 글자 「어떤 일을 시작할까요」가 `loadingKeywords` 에
+ * 들어 있어서, `HijackService` 가 로딩으로 보고 그 프레임을 통째로 버렸다.
+ *
+ * 그 줄의 주석이 자백했다: *"홈(출근 전/미션 화면)은 해로울 게 없는 화면 —
+ * 조용히 넘기는 분류로 둔다."* 홈을 **로딩으로 위장시켜** 넘긴 것이다. 그 뒤 홈을
+ * 제대로 된 화면(`Stage.HOME`)으로 만들면서 이 줄을 안 지웠고, 둘이 싸워 로딩이 이겼다.
+ * 규칙 ⑤-4 ⑤ — **한 화면을 두 곳이 다르게 답하고 있었다.**
+ *
+ * ── 왜 하필 안 걸렸나 ──
+ * 화면이 **덜 그려졌을 때만** 홈으로 보였다(185자 → `HOME`), 다 그려지면
+ * 그 문구가 생겨 버려졌다(289자 → 건너뜀). 그래서 로그에 `HOME` 이 한 번 찍힌 적이 있어
+ * «되는 줄» 알았다.
+ *
+ * 🔴 실물을 붙여 두는 이유: 낱말을 손으로 적으면 **내가 기대하는 화면**을 검사하게 된다.
+ *    이건 기사님 폰이 실제로 내놓은 글자다.
+ */
+class PickerHomeRealDumpTest {
+
+    /** 2026-09-02 12:48 · 접근성 트리가 읽은 그대로 (「어떤 일을…」 두 줄은 화면에 안 보인다) */
+    private val HOME_REAL = "김윤서님이 관심있는 일거리는 무엇인가요? 🤔 물류·포장·상하차 중장비 기술·정비·수리 " +
+        "주방 건설·현장 사무·회계·경리 서빙 전체 일거리 보기 🌟8월30일 올영세일 시작! 600원 프로모션 진행 중 " +
+        "공통 카카오 T 픽커 및 퀵/도보배송 이용 약관 개정 안내  더보기 미션 3 더보기 " +
+        "퀵 1건 배송완료하고 서포트 모드 1장 받기 퀵 3건 배송완료하고 서포트 모드 1장 받기 " +
+        "퀵 5건 배송완료하고 서포트 모드 1장 받기 어떤 일을 시작할까요? 수행하려는 일을 선택해주세요 시작하기"
+
+    /**
+     * 🔴 **로딩으로 버려지면 그 뒤 판별이 아예 안 돈다.** 「틀린 답」보다 나쁘다 —
+     * 틀린 답은 다음 프레임에 고쳐지지만, 버려진 프레임은 아무것도 안 남긴다.
+     */
+    @Test
+    fun `홈 실물이 로딩으로 버려지지 않는다`() {
+        assertFalse(
+            "홈 화면이 로딩으로 걸리면 판별 자체를 건너뛴다",
+            com.onedal.app.core.engine.ScreenDetector().isLoading(HOME_REAL, KakaoPickerKeywords.PICKER),
+        )
+    }
+
+    /** 기사님 확정 — *"하단에 파란색 바탕의 큰 「시작하기」 버튼이 있어"* */
+    @Test
+    fun `홈 실물을 홈으로 알아본다`() {
+        assertEquals(KakaoPickerKeywords.Stage.HOME, KakaoPickerKeywords.stageOf(HOME_REAL))
+        assertEquals(
+            com.onedal.app.models.ScreenContext.HOME,
+            KakaoPickerKeywords.screenContextOf(KakaoPickerKeywords.stageOf(HOME_REAL)),
+        )
+    }
+
+    /**
+     * 🔴 **「미션」 목록이 함정이다** — 「퀵 1건 **배송완료**하고」가 운행 단계 낱말
+     * 「까지 배송완료」와 닮았다. 홈에서 «배송 완료 대기»로 읽히면 안 잡은 콜이
+     * 다 끝난 것처럼 보인다.
+     */
+    @Test
+    fun `홈의 미션 목록을 배송 완료 화면으로 읽지 않는다`() {
+        assertNotEquals(KakaoPickerKeywords.Stage.AT_DROPOFF, KakaoPickerKeywords.stageOf(HOME_REAL))
+        assertNotEquals(KakaoPickerKeywords.Stage.DONE, KakaoPickerKeywords.stageOf(HOME_REAL))
+    }
+
+    /**
+     * 🔴 **콘텐츠가 바뀌어도 홈은 홈이다** (기사님 확정 2026-09-02:
+     * *"다른 문구는 컨텐츠로 언제든지 바뀔 수 있어"* · *"하단에 파란색 바탕의 큰
+     * 「시작하기」 버튼이 있어"*).
+     *
+     * 홈 화면에서 **고정된 것은 「시작하기」 버튼 하나**다. 나머지는 전부 그날의 콘텐츠다 —
+     * 미션 목록·프로모션 배너·「관심있는 일거리」 카드(우상단 X 로 **닫히는 카드**다).
+     * 그래서 실물 한 장을 통째로 기대값으로 삼으면 **다음 프로모션이 바뀔 때 헛되이
+     * 빨간불**이 뜨고, 진짜 문제와 구별이 안 된다.
+     *
+     * 여기서는 콘텐츠를 전부 갈아 끼운 홈으로도 알아보는지를 본다.
+     */
+    @Test
+    fun `콘텐츠가 전부 바뀌어도 시작하기가 있으면 홈이다`() {
+        val 다른날_홈 = "이수현님이 관심있는 일거리는 무엇인가요? 🤔 배달 청소 " +
+            "🎄12월 겨울맞이 이벤트! 1000원 프로모션 진행 중 " +
+            "공통 서비스 점검 안내 더보기 미션 5 더보기 퀵 10건 배송완료하고 쿠폰 받기 시작하기"
+        assertEquals(KakaoPickerKeywords.Stage.HOME, KakaoPickerKeywords.stageOf(다른날_홈))
+        assertFalse(com.onedal.app.core.engine.ScreenDetector().isLoading(다른날_홈, KakaoPickerKeywords.PICKER))
+    }
+
+    /**
+     * 🔴 반대쪽도 잠근다 — **콘텐츠만 닮았다고 홈이라 하지 않는다.**
+     * 「시작하기」가 없으면 홈이 아니다. 없는 것을 지어내지 않는다 (규칙 ④).
+     */
+    @Test
+    fun `시작하기가 없으면 홈이 아니다`() {
+        val 미션만 = "미션 3 더보기 퀵 1건 배송완료하고 서포트 모드 1장 받기 어떤 일을 시작할까요?"
+        assertNotEquals(KakaoPickerKeywords.Stage.HOME, KakaoPickerKeywords.stageOf(미션만))
+    }
+
+    /**
+     * 🔴 **홈을 로딩 낱말로 다시 막지 못하게 한다** — 이 사고의 클래스를 잠근다.
+     * 한 낱말이 «홈이다»와 «건너뛴다» 둘 다에 쓰이면 늘 뒤가 이긴다.
+     */
+    /**
+     * 🔴 **픽커에는 로딩 화면이 없다 — 확정** (기사님 2026-09-02:
+     * *"픽커는 로딩화면이 없어 그냥 홈 화면만 있어"*).
+     *
+     * 그러니 여기가 채워지는 일은 없어야 한다. 채우면 그 낱말이 걸리는 화면이
+     * **통째로 버려진다** — 오늘 홈이 당한 그대로다.
+     * «아직 못 봤다»(완료 리스트)와는 다른 사실이라 표식도 갈라 뒀다.
+     */
+    @Test
+    fun `로딩 화면은 없다 - 나중에 채우려 하면 걸린다`() {
+        assertEquals(1, KakaoPickerKeywords.PICKER.loadingKeywords.size)
+        assertTrue(
+            "픽커에는 로딩 화면이 없다 — 낱말을 채우면 그 화면이 통째로 버려진다",
+            KakaoPickerKeywords.PICKER.loadingKeywords.single().contains("없다"),
+        )
+    }
+
+    @Test
+    fun `화면을 알아보는 낱말이 로딩 낱말과 겹치지 않는다`() {
+        val stageWords = KakaoPickerKeywords.STAGE_WORDS.flatMap { it.second }
+        val loading = KakaoPickerKeywords.PICKER.loadingKeywords
+        stageWords.forEach { w ->
+            loading.forEach { l ->
+                assertFalse("«$w» 가 로딩 낱말 «$l» 에 걸려 화면이 통째로 버려진다", w.contains(l) || l.contains(w))
+            }
+        }
     }
 }

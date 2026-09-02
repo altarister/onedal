@@ -80,6 +80,17 @@ class TelemetryManager(
     // [Piggyback V2] 결재 수신 콜백
     var decisionCallback: ((String, String) -> Unit)? = null
 
+    /**
+     * 🔴 **여기서 «보내기 직전에 화면을 다시 읽기»를 하지 않는다 — 해 봤고, 안 된다** (2026-09-02).
+     *
+     * 앱 → 서버는 POST 뿐이라 **보내는 그 순간이 유일한 기회**다(기사님 확인:
+     * *"post 방식의 통신을 하고 있어서 요청하지 않으면 변하지 않는 것도 알고 있는 거지?"*).
+     * 그래서 여기서 화면을 다시 읽어 싣는 고리(`rescanCallback`)를 넣었다가 **되돌렸다.**
+     *
+     * 안드로이드 접근성은 화면을 캐시하고 **이벤트가 와야** 버린다 — 이벤트 없이 읽으면
+     * **아까 그 화면**을 준다. 그러니 여기서 다시 읽어도 같은 값이 실린다.
+     * 자세한 실측과 대안은 `HijackService.onAccessibilityEvent` 의 «모름» 분기 주석에.
+     */
     // 하트비트용 (주기적)
     private val heartbeatRunnable = object : Runnable {
         override fun run() {
