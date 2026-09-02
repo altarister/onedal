@@ -226,10 +226,16 @@ describe('🔴 모드 이름이 «콜의 출신»으로 새어 나가지 않는�
      *    `"AUTO_CLICK"` 이 찍혀 같은 사고가 났다. 뿌리는 판단이 두 벌이었던 것 (규칙 ③).
      */
     it('🔴 앱이 기기 모드로 딱지를 조립하지 않는다', () => {
-        const s = codeOnly(app('HijackService.kt'));
-        expect(s).not.toMatch(/\$\{mode\}_CLICK/);
-        expect(s).not.toMatch(/currentMode\)\s*$/m);          // ensureOrderId(currentMode)
-        expect(s).toMatch(/\$\{session\.clickOrigin\}_CLICK/);
+        /**
+         * 🔴 **잡기 수순이 인성 폴더로 나가고 있다** (2026-09-02 · 기획/배차망_통합.md ②).
+         *    그래서 «어느 파일에 있나»가 아니라 **«앱 어디에도 없나»** 를 본다 —
+         *    한 파일만 보면 옮기는 순간 검사가 헛돈다 (실제로 그날 이 검사가 그렇게 깨졌다).
+         */
+        const files = ['HijackService.kt', 'plugins/insung/InsungSequence.kt'];
+        const all = files.map(f => codeOnly(app(f))).join('\n');
+        expect(all).not.toMatch(/\$\{mode\}_CLICK/);
+        expect(all).not.toMatch(/currentMode\)\s*$/m);          // ensureOrderId(currentMode)
+        expect(all).toMatch(/\$\{session\.clickOrigin\}_CLICK/);   // 어느 파일이든 한 곳엔 있어야 한다
     });
 
     it('🔴 출신을 파생하는 자리가 하나다 (clickOrigin)', () => {

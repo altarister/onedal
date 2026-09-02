@@ -9,6 +9,11 @@ import com.onedal.app.api.ApiClient
 import com.onedal.app.plugins.hwamul24.Hwamul24Keywords
 import com.onedal.app.plugins.insung.InsungKeywords
 import com.onedal.app.plugins.insung.handleMemoPopup
+import com.onedal.app.plugins.insung.buildOrderFromScreen
+import com.onedal.app.plugins.insung.isPopupResidue
+import com.onedal.app.plugins.insung.advanceCollect
+import com.onedal.app.plugins.insung.handleDropoffPopup
+import com.onedal.app.plugins.insung.handlePickupPopup
 import com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords
 import com.onedal.app.core.AlarmSignaler
 import com.onedal.app.core.AutoTouchManager
@@ -104,7 +109,7 @@ class HijackService : AccessibilityService(), ScanContext {
 
     // ── 설정 ──
     override lateinit var keywords: ScreenKeywords
-    private val screenDetector = ScreenDetector()
+    override val screenDetector = ScreenDetector()
     private var lastScreenFingerprint = 0
     // 👁️ «본 콜» 장부 — «평가했다»와 «보고했다»를 딴 그릇으로 (#79 · CallMemory 주석 참고)
     private val callMemory = CallMemory(MAX_ORDER_HASH_CACHE, ORDER_HASH_KEEP_COUNT)
@@ -1200,21 +1205,6 @@ class HijackService : AccessibilityService(), ScanContext {
         telemetryManager.forceFlushEvent()  // 즉시 서버에 홀드 상태 알림
     }
 
-    /**
-     * 🏄 **상세 수집을 한 칸 진행한다** — 팝업이 닫혀 상세/확정 화면으로 돌아왔을 때.
-     *
-     * 🔴 확정 화면과 **확정 전 상세**가 같은 규칙을 쓴다. 두 곳에 나눠 적으면 한쪽만
-     *    고쳐져 갈라진다 — 이 레포가 반복해서 겪은 「목록을 손으로 나열」이다.
-     *    새 팝업 단계가 생기면 **여기에만** 더한다.
-     */
-    private fun advanceCollect(rootNode: AccessibilityNodeInfo) {
-        when (session.collectState) {
-            SessionManager.CollectState.WAITING_FOR_PICKUP_POPUP -> collectMachine.clickPickup(rootNode)
-            SessionManager.CollectState.WAITING_FOR_DROPOFF_POPUP -> collectMachine.clickDropoff(rootNode)
-            else -> {}   // IDLE·WAITING_FOR_MEMO·DONE — 여기서 할 일이 없다
-        }
-    }
-
     // ════════════════════════════════════════════════════════════════
     //  기능 4 (팝업 핸들링): 적요 팝업 스크래핑
     // ════════════════════════════════════════════════════════════════
@@ -1225,62 +1215,9 @@ class HijackService : AccessibilityService(), ScanContext {
     //  기능 4 (팝업 핸들링): 출발지 팝업 스크래핑
     // ════════════════════════════════════════════════════════════════
 
-    private fun handlePickupPopup(rootNode: AccessibilityNodeInfo, screenTexts: List<String>) {
-        // 🚧 인성 전용 구간 — 인성 잡기 수순 (픽커_수집.md §3-확장)
-        if (!TargetApp.supportsCatching(currentTargetApp)) return
-        collectMachine.handlePickupPopup(rootNode, session, screenTexts)
-    }
-
     // ════════════════════════════════════════════════════════════════
     //  기능 4 (팝업 핸들링): 도착지 팝업 스크래핑 + /detail 전송
     // ════════════════════════════════════════════════════════════════
-
-    private fun handleDropoffPopup(rootNode: AccessibilityNodeInfo, screenTexts: List<String>) {
-        // 🚧 인성 전용 구간 — 인성 잡기 수순 (픽커_수집.md §3-확장)
-        if (!TargetApp.supportsCatching(currentTargetApp)) return
-        val multilineScreenStr = screenTexts.joinToString("\n")
-
-        // ═══════════════════════════════════════════════════════════
-        // 🚨 [확정 전 3단계 검증] 도착지 팝업에서 상위 지역 대조
-        // ═══════════════════════════════════════════════════════════
-        if (session.cautionAction == "VERIFY") {
-            if (!multilineScreenStr.contains("전화1")) {
-                AppLogger.d(TAG, "거짓 이벤트 무시: 아직 도착지 팝업 데이터 로딩 안됨")
-                return
-            }
-            AppLogger.w(TAG, "⚠️ [3단계 검증] 확정 전 도착지 팝업에서 상위 지역 대조 시작!")
-            val cityFilters = cautionVerifier.loadCityFilters()
-            val isCityMatch = cautionVerifier.verifyCityMatch(multilineScreenStr, cityFilters)
-
-            if (isCityMatch) {
-                AppLogger.d(TAG, "✅ [3단계 통과] 진짜 우리 동네 확인!")
-                session.cautionAction = "ACCEPT"
-            } else {
-                AppLogger.w(TAG, "❌ [3단계 적발] 동명이동!")
-                session.cautionAction = "CANCEL"
-            }
-            touchManager.findAndClickByText(rootNode, "닫기", isStartsWith = true)
-            return  // 서버 전송 안 함. 상세 화면 복귀 대기.
-        }
-        // ═══════════════════════════════════════════════════════════
-
-        // 상세 수집 모드: 도착지 텍스트 수집 → /detail 전송
-        val collectDone = collectMachine.handleDropoffPopup(rootNode, session, screenTexts)
-        if (!collectDone) return
-
-        // /detail 서버 전송 (팝업 수집 완료)
-        session.lastDetailOrder?.let { order ->
-            /**
-             * 👀 **미리보기는 선점을 여기서 처음 보낸다** (기사님 확정 2026-08-22).
-             *
-             * 손으로 연 상세는 confirm 을 미뤄 두고 팝업 3장을 먼저 읽었다. 서버는 confirm
-             * 으로 콜을 만들고 detail 로 승급하므로 **순서가 뒤집히면 안 된다** — 여기서
-             * 먼저 보낸다. 이미 보냈으면(`isDetailScrapSent`) 아무 일도 하지 않는다.
-             */
-            sendConfirmOnce(order, session.accumulatedDetailText)
-            sendDetail(order)
-        }
-    }
 
     /**
      * 🌐 **2차 상세를 보낸다 — 팝업에서 모은 텍스트를 통째로.**
@@ -1452,13 +1389,6 @@ class HijackService : AccessibilityService(), ScanContext {
         session.ensureOrderId()
     }
 
-    /** 팝업 잔상이 화면에 남아있는지 검사 */
-    private fun isPopupResidue(rawScreenStr: String): Boolean {
-        val resid = screenDetector.isPopupResidue(rawScreenStr)
-        if (resid) AppLogger.roadmap("✋ [Race Condition 방어] 출발지/도착지 팝업 닫힘 애니메이션 잔상 대기", telemetryManager.currentScreenContext.name)
-        return resid
-    }
-
     /**
      * 앱별 확정 버튼 텍스트 리스트 중 첫 번째로 발견되는 버튼을 클릭합니다.
      * 목록은 배차망 플러그인의 `confirmKeywords` 가 정한다 — 여기 손으로 적지 않는다.
@@ -1478,44 +1408,6 @@ class HijackService : AccessibilityService(), ScanContext {
     /** 현재 ISO 타임스탬프 생성 */
     override fun nowTimestamp(): String {
         return SimpleDateFormat(ISO_TIMESTAMP_FORMAT, Locale.getDefault()).format(Date())
-    }
-
-    /** 화면 텍스트에서 SimplifiedOfficeOrder 를 생성하는 공통 로직 */
-    private fun buildOrderFromScreen(screenTexts: List<String>): SimplifiedOfficeOrder {
-        val tempOrder = scrapParser.parse(screenTexts)
-        /**
-         * 🔴 **출신은 스위치가 아니라 «누가 눌렀나» 다** (2026-08-30 · 규칙 ③).
-         *
-         * 예전엔 여기서 `telemetryManager.currentMode` 를 썼다. 이 길은 **손으로 확정한
-         * 콜**의 길인데(앱이 잡았으면 `lastDetailOrder` 가 이미 있다) 스위치를 찍는 바람에,
-         * 자동 스위치인 채 손으로 확정하면 `"AUTO_CLICK"` 이 됐다 —
-         * 서버의 직접콜 보호가 안 걸려 **리스트 복귀 때 기사님의 콜이 강제 취소**됐다.
-         * 알람 모드에서는 서버가 모르는 `"ALARM_CLICK"` 까지 태어났다.
-         */
-        return SimplifiedOfficeOrder(
-            id = session.currentOrderId,
-            type = "${session.clickOrigin}_CLICK",
-            /**
-             * 🔴 **상세 화면 글자를 리스트 파서 결과 그대로 믿지 않는다** (2026-08-25 실측).
-             *
-             * `parse()` 는 *"첫 번째 유효 지역 = 상차지, 두 번째 = 하차지"* 로 읽는데
-             * 그건 **리스트에서만 참**이다. 손으로 연 상세에서는 배치가 달라
-             * 상차지 **«다마스»** · 하차지 **«계산서필»** 이 장부에 남았다.
-             *
-             * 직접콜은 서버가 심사하지 않으므로(규칙 ①) 그 값이 **경로의 기점**이 된다.
-             * 주소 꼴이 아니면 «배차값없음» 으로 둔다 — 뒤따르는 상세 수집이 진짜 주소를
-             * 채운다. 모르면 모른다고 두는 것이 지어내는 것보다 낫다 (규칙 ④).
-             */
-            pickup = tempOrder.pickup.takeIf {
-                it.isNotBlank() && it != "배차값없음" && InsungParser.looksLikeAddress(it)
-            } ?: "배차값없음",
-            dropoff = tempOrder.dropoff.takeIf {
-                it.isNotBlank() && it != "배차값없음" && InsungParser.looksLikeAddress(it)
-            } ?: "배차값없음",
-            fare = tempOrder.fare,
-            timestamp = nowTimestamp(),
-            rawText = screenTexts.joinToString(" ")
-        )
     }
 
     // ════════════════════════════════════════════════════════════════
