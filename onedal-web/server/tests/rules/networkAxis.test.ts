@@ -111,3 +111,27 @@ describe('픽커 상세 원문 보관', () => {
         expect(db).toMatch(/ensureColumns\('intel'/);
     });
 });
+
+/**
+ * 💸 **요금 하한은 배차망마다 다르다** (기사님 확정 2026-09-02 · 실측으로 드러났다).
+ *
+ * 픽커 콜 5,544원이 **인성 하한 20,000원**에 걸려 «똥콜»로 나왔다(08:37 실측).
+ * 요금 체계가 아예 다른 판을 한 잣대로 잰 것이다 — 픽커는 앱의 알람 하한이 이미 걸렀다
+ * (규칙 ⑤-1: *"돈은 앱이 이미 걸렀다 — 서버가 다시 세지 않는다"*).
+ */
+describe('요금 하한의 배차망 축', () => {
+    it('🔴 픽커는 인성 절대하한을 타지 않는다', () => {
+        const src = readFileSync(join(__dirname, '../../src/core/engine/OrderEvaluator.ts'), 'utf8');
+        expect(src).toMatch(/targetApp === 'kakaopicker'/);
+        // 인성 경로는 살아 있어야 한다 — 픽커만 건너뛴다
+        expect(src).toMatch(/첫짐 절대하한가 미달/);
+    });
+
+    it('🔴 알람 하한을 판정에 재활용하지 않는다 — 한 값 두 역할 금지 (⑤-4 ⑤)', () => {
+        // 주석은 걷어내고 **코드만** 본다 — 설명에 그 이름이 나오는 것은 괜찮다
+        const codeOnly = (x: string) => x.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+        const src = codeOnly(readFileSync(join(__dirname, '../../src/core/engine/OrderEvaluator.ts'), 'utf8'));
+        // «울릴까»(pickerAlarmMinFare) 와 «색을 뭘로»(판정)는 다른 질문이다
+        expect(src).not.toMatch(/pickerAlarmMinFare/);
+    });
+});

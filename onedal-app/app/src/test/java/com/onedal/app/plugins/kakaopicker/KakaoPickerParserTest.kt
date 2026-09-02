@@ -279,9 +279,25 @@ class PickerScreenDetectTest {
         assertEquals(com.onedal.app.models.ScreenContext.DETAIL_PRE_CONFIRM, detector.detect(수락전상세, kw))
     }
 
+    /**
+     * 🔴 수락 후 화면은 **화면 분류로 잡지 않는다** (2026-09-02 실사고 수리).
+     * 픽커 상세를 가르는 낱말(「넘기기」·「수락하기」)이 전부 «수락 전» 표식이라
+     * 수락하면 사라진다 — 분류는 «상세 아님»으로 떨어지고, 승격은 `isAcceptedScreen` 이 한다.
+     */
     @Test
-    fun `수락 후 화면은 CONFIRMED - 수락하기 글자가 사라진 것이 표식이다`() {
-        assertEquals(com.onedal.app.models.ScreenContext.DETAIL_CONFIRMED, detector.detect(수락후, kw))
+    fun `수락 후 화면은 상세로 분류되지 않는다 - 승격은 따로 판정한다`() {
+        assertFalse("수락 전 표식이 사라졌으니 상세가 아니다",
+            detector.detect(수락후, kw) == com.onedal.app.models.ScreenContext.DETAIL_PRE_CONFIRM)
+        assertTrue("대신 승격 판정이 참이어야 한다", KakaoPickerKeywords.isAcceptedScreen(수락후))
+    }
+
+    /** 🔴 잔상 한 줄로는 상세가 되지 않는다 — 낱말 둘을 함께 요구하는 이유 */
+    @Test
+    fun `리스트에 상세 잔상 한 줄이 남아도 상세로 오인하지 않는다 - 0902 실사고`() {
+        val 잔상낀리스트 = "픽업지 경기 성남시 분당구 야탑3동 메종드자스민 " +
+            "리스트 설정 가까운순 20km 퀵 반나절 소형 예약 09:00 15.4km 중원 도촌 영등포 여의 14,010"
+        assertEquals(com.onedal.app.models.ScreenContext.LIST, detector.detect(잔상낀리스트, kw))
+        assertFalse("승격도 하지 않는다", KakaoPickerKeywords.isAcceptedScreen(잔상낀리스트))
     }
 
     /**
@@ -302,5 +318,48 @@ class PickerScreenDetectTest {
     fun `수락 후 낱말 목록이 비어 있지 않다`() {
         assertTrue(KakaoPickerKeywords.ACCEPTED_SCREEN_WORDS.isNotEmpty())
         assertTrue(KakaoPickerKeywords.ACCEPTED_SCREEN_WORDS.any { 수락후.contains(it) })
+    }
+
+    /**
+     * 🔴 **실사고 재현 (2026-09-02 08:37:17)** — 30초 자동 복귀가 도는 순간,
+     * 상세에서 리스트로 넘어가는 **중간 프레임**에 「수락하기」만 먼저 사라지고
+     * 「픽업」이 남았다. 판별이 그걸 «수락됨»으로 읽어 **안 누른 콜이 잡은 콜로 승격**됐다:
+     *
+     * ```
+     * 08:36:46.884  DETAIL_PRE_CONFIRM   상세 진입 · 미리보기 전송 (정상)
+     * 08:37:17.305  DETAIL_CONFIRMED     ← 30초 뒤, 아무도 안 눌렀는데
+     * 08:37:17.306  ✅ [수락 확인] …     → sendDetail → 서버가 ORDER_CONFIRMED 로 승격
+     * ```
+     *
+     * → **«수락하기가 없다»는 근거가 못 된다.** 수락 후 화면에만 있는 낱말을
+     *    **적극적으로** 확인해야 한다 (`ACCEPTED_SCREEN_WORDS`).
+     */
+    @Test
+    fun `상세에서 낱말이 부분만 남은 프레임을 수락으로 읽지 않는다 - 0902 실사고`() {
+        // 실사고 그 화면: 「수락하기」가 사라지고 픽업지 줄만 남은 찰나
+        val 중간프레임 = "픽업지 경기 성남시 분당구 야탑3동 메종드자스민 물품 정보 중형"
+        assertTrue("사고 재현 전제 — 수락하기가 없고 픽업만 있다",
+            !중간프레임.contains("수락하기") && 중간프레임.contains("픽업"))
+        // 🔴 화면 분류는 여전히 «확정»으로 볼 수 있다 — 그래서 승격 판정을 따로 둔 것이다
+        assertFalse("수락 후 표식이 없으면 승격하지 않는다",
+            KakaoPickerKeywords.isAcceptedScreen(중간프레임))
+    }
+
+    @Test
+    fun `진짜 수락 후 화면은 승격한다`() {
+        assertTrue(KakaoPickerKeywords.isAcceptedScreen(수락후))
+    }
+
+    @Test
+    fun `수락하기가 아직 보이면 승격하지 않는다 - 수락 전이다`() {
+        assertFalse(KakaoPickerKeywords.isAcceptedScreen(수락전상세))
+        // 두 표식이 한 화면에 겹쳐 보이는 찰나도 «아직 전»으로 본다 (안전한 쪽)
+        assertFalse(KakaoPickerKeywords.isAcceptedScreen("픽업 완료하기 수락하기"))
+    }
+
+    @Test
+    fun `빈 화면은 승격하지 않는다`() {
+        assertFalse(KakaoPickerKeywords.isAcceptedScreen(null))
+        assertFalse(KakaoPickerKeywords.isAcceptedScreen(""))
     }
 }

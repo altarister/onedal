@@ -414,6 +414,29 @@ class HijackService : AccessibilityService() {
         if (detected == ScreenContext.LIST && previous == ScreenContext.DETAIL_PRE_CONFIRM) cancelAlarmDetailBack()
 
         /**
+         * ✅ **픽커에서 기사님이 「수락하기」를 누르셨나** — 화면 분류가 아니라 **직접 확인**한다
+         * (2026-09-02 실사고 수리 · 기사님 지시 *"페이지를 정확히 인지하는 것이 중요하겠다"*).
+         *
+         * 🔴 **왜 화면 분류에 얹지 않는가** — 실물 덤프 12종을 훑어 보니 픽커 상세를 가르는
+         *    낱말은 「넘기기」·「수락하기」 **둘뿐**인데, 그 둘 다 **수락 «전»의 표식**이다.
+         *    수락하면 사라지므로, 수락 후 화면은 분류로는 «상세»가 아니게 된다.
+         *    그래서 «상세인데 수락하기가 없으면 수락됨»으로 갈랐다가 사고가 났다 —
+         *    리스트에 상세 잔상 한 줄(「픽업지 …」)이 남은 판을 «수락됨»으로 읽어
+         *    **아무도 안 누른 콜이 잡은 콜로 승격**됐다 (08:37:17 · 관제웹 유령 콜).
+         *
+         * → 인성이 쓰는 방어 넷을 그대로 옮긴다:
+         *   ① 수락 후에만 있는 낱말이 **실제로 보여야** 한다 (`isAcceptedScreen` — 있음을 본다)
+         *   ② **잔상이면 그 판을 통째로 버린다** (`isDetailResidue` — 인성 팝업 잔상 방어와 같은 계열)
+         *   ③ **직전 화면이 «수락 전 상세»였을 때만** — 한 프레임으로 정하지 않는다
+         *   ④ 미리보기를 올린 적이 있어야 한다 (`reportPickerAccepted` 안에서 본다)
+         */
+        if (!TargetApp.supportsCatching(currentTargetApp)
+            && previous == ScreenContext.DETAIL_PRE_CONFIRM
+            && !com.onedal.app.plugins.kakaopicker.KakaoPickerParser.isDetailResidue(screenTexts)) {
+            reportPickerAccepted(rawScreenStr)
+        }
+
+        /**
          * 🌐 **배차망 불일치 관문** (기사님 확정 2026-08-31 · 1단계).
          * 보는 화면(패키지)이 아는 배차망인데 선택(라디오)과 다르면 — 이 판을 통째로 버린다.
          * 안 버리면 남의 화면을 남의 파서로 읽어 쓰레기 콜이 올라간다 (잔상 사고와 같은 계열).
@@ -963,10 +986,9 @@ class HijackService : AccessibilityService() {
 
     private fun handleConfirmedScreen(rootNode: AccessibilityNodeInfo, screenTexts: List<String>, rawScreenStr: String) {
         // 🚧 인성 전용 구간 — 인성 잡기 수순 (픽커_수집.md §3-확장)
-        if (!TargetApp.supportsCatching(currentTargetApp)) {
-            reportPickerAccepted(rawScreenStr)
-            return
-        }
+        // 🚧 인성 전용 구간 — 픽커의 «수락됨» 판정은 여기가 아니라 화면 판별 직후에 있다
+        //    (실물 덤프상 픽커 상세 낱말은 전부 «수락 전» 표식이라 분류로는 못 잡는다)
+        if (!TargetApp.supportsCatching(currentTargetApp)) return
         // 잔상 방어
         if (isPopupResidue(rawScreenStr)) return
 
@@ -1056,6 +1078,15 @@ class HijackService : AccessibilityService() {
      */
     private fun reportPickerAccepted(rawScreenStr: String) {
         if (!session.isPreview) return          // 이미 올렸거나, 미리보기를 보낸 적이 없다
+        /**
+         * 🔴 **화면 분류만 믿지 않는다 — 수락 후 표식이 실제로 보여야 한다** (0902 실사고).
+         * 30초 자동 복귀가 도는 순간 상세→리스트 중간 프레임에서 「수락하기」만 먼저
+         * 사라졌고, 화면 분류가 그걸 «확정»으로 읽어 **안 누른 콜이 잡은 콜로 승격**됐다.
+         */
+        if (!KakaoPickerKeywords.isAcceptedScreen(rawScreenStr)) {
+            AppLogger.d("1DAL_PICKER", "↩️ [승격 보류] 수락 후 표식이 없다 — 화면 넘어가는 중으로 본다")
+            return
+        }
         val order = session.lastDetailOrder ?: return
         session.isPreview = false
         session.accumulatedDetailText = rawScreenStr   // 수락 후 화면 글자(주소 전문이 여기 있다)
