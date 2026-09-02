@@ -34,7 +34,13 @@ const app = (p: string) => readFileSync(join(APP, p), 'utf8');
 const code = (src: string) =>
     src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 
-const src = () => code(app('HijackService.kt'));
+/**
+ * 🔴 **잡기 수순이 인성 폴더로 나가고 있다** (2026-09-02 · 기획/배차망_통합.md ②).
+ * 세션을 지우는 자리 여섯 중 **둘이 `InsungSequence.kt` 로 옮겨갔다** — 한 파일만 세면
+ * «넷»이 되어 검사가 깨진다. 지키려는 뜻은 «앱 전체에서 여섯 곳»이므로 함께 읽는다.
+ */
+const SEQUENCE_FILES = ['HijackService.kt', 'plugins/insung/InsungSequence.kt'];
+const src = () => SEQUENCE_FILES.map(f => code(app(f))).join('\n');
 const fnOf = (name: string) => {
     const s = src();
     return s.split(`private fun ${name}`)[1]?.split('\n    private fun ')[0] ?? '';

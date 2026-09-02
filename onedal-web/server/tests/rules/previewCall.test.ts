@@ -27,7 +27,33 @@ import { join } from 'path';
 const WEB = join(__dirname, '../../..');
 const APP = join(__dirname, '../../../../onedal-app/app/src/main/java/com/onedal/app');
 const read = (p: string) => readFileSync(join(WEB, p), 'utf8');
-const app = (p: string) => readFileSync(join(APP, p), 'utf8');
+/**
+ * 🔴 **«어느 파일에 있나»가 아니라 «앱 어디에 있나»를 본다** (2026-09-02).
+ *
+ * 인성 잡기 수순이 `HijackService` 에서 `plugins/insung/InsungSequence.kt` 로 나가고 있다
+ * (기획/배차망_통합.md ②). 한 파일만 읽는 검사는 **옮기는 순간 헛돈다** —
+ * 실제로 그날 이 파일의 검사 셋이 그렇게 깨졌다.
+ *
+ * 그래서 `HijackService.kt` 를 물으면 **잡기 수순 파일을 함께** 읽어 이어 붙인다.
+ * 검사가 지키려는 뜻(«앱 어딘가에 이 규칙이 있다»)은 그대로다.
+ */
+/**
+ * 🔪 함수 본문만 잘라낸다 — **선언 모양에 매이지 않는다** (2026-09-02).
+ * 잡기 수순이 인성 폴더로 나가며 `private fun x(` 가 `fun ScanContext.x(` 로 바뀌었다.
+ * 선언 모양으로 자르면 옮기는 순간 «빈 문자열»이 되어 검사가 조용히 통과한다 —
+ * 그게 «있는 검사가 안 불리면 없는 것»이다.
+ */
+const sliceFn = (src: string, name: string): string => {
+    const m = src.match(new RegExp(`(?:private fun|fun ScanContext\\.)\\s*${name}\\(`));
+    if (!m) return '';
+    const rest = src.slice(m.index! + m[0].length);
+    const next = rest.search(/\n(?:    )?(?:private fun|fun ScanContext\.)/);
+    return next < 0 ? rest : rest.slice(0, next);
+};
+
+const SEQUENCE_FILES = ['HijackService.kt', 'plugins/insung/InsungSequence.kt'];
+const app = (p: string) => (p === 'HijackService.kt' ? SEQUENCE_FILES : [p])
+    .map(f => readFileSync(join(APP, f), 'utf8')).join('\n');
 /** 주석은 검사에서 뺀다 — "이렇게 하자"고 적어 둔 글이 구현으로 세어지면 안 된다 */
 const code = (src: string) => src.split('\n').filter(l => !/^\s*(\/\/|\/\*|\*)/.test(l)).join('\n');
 
@@ -218,13 +244,13 @@ describe('🏄 상세 수집 — 손으로 연 상세는 읽고 나서 올린다
     it('🔴 확정 전 상세에서도 상세 수집을 시작한다', () => {
         const src = code(app('HijackService.kt'));
         // handlePreConfirmScreen 안에서 상세 수집을 거는 자리가 있어야 한다
-        const fn = src.split('private fun handlePreConfirmScreen')[1]?.split('private fun ')[0] ?? '';
+        const fn = sliceFn(src, 'handlePreConfirmScreen');
         expect(fn).toMatch(/startCollect|surfPreConfirm/);
     });
 
     it('🔴 필터콜(앱이 누른 것)은 지금 그대로 — 광클을 늦추지 않는다', () => {
         const src = code(app('HijackService.kt'));
-        const fn = src.split('private fun handlePreConfirmScreen')[1]?.split('private fun ')[0] ?? '';
+        const fn = sliceFn(src, 'handlePreConfirmScreen');
         // 상세 수집은 isAutoActive == false 인 갈래에서만 걸린다
         expect(fn).toMatch(/!session\.isAutoActive/);
     });
@@ -248,7 +274,7 @@ describe('🏄 상세 수집 — 손으로 연 상세는 읽고 나서 올린다
      */
     it('🔴 확정 화면에 들어가면 딱지를 벗고 다시 보낸다', () => {
         const src = code(app('HijackService.kt'));
-        const fn = src.split('private fun handleConfirmedScreen')[1]?.split('private fun ')[0] ?? '';
+        const fn = sliceFn(src, 'handleConfirmedScreen');
         expect(fn).toMatch(/isPreview/);     // 딱지를 벗는 자리가 여기다
         expect(fn).toMatch(/sendDetail/);    // 서버에 알린다
     });
@@ -269,7 +295,7 @@ describe('🏄 상세 수집 — 손으로 연 상세는 읽고 나서 올린다
      */
     it('🔴 확정할 때 선점 보고를 다시 하지 않는다', () => {
         const src = code(app('HijackService.kt'));
-        const fn = src.split('private fun handleConfirmedScreen')[1]?.split('private fun ')[0] ?? '';
+        const fn = sliceFn(src, 'handleConfirmedScreen');
         expect(fn).not.toMatch(/sendConfirmOnce/);
     });
 });
