@@ -50,6 +50,77 @@ export default function Navi() {
     /** 🔒 위치를 못 읽는 진짜 까닭이 «http» 일 때, 옮겨 갈 곳을 손에 쥐여 준다 */
     const secure = typeof window !== 'undefined' ? httpsUpgradeUrl(window.location.href) : null;
 
+    /**
+     * 📍 **위치 안내는 «경로가 있을 때»만 나오면 안 된다** (기사님 2026-09-03: *"위치 요청 어떻게 해?"*).
+     *
+     * 예전에는 이 덩어리가 `stops.length > 0` 가지 **안에** 있어서, KEEP 한 콜이 없으면
+     * 「아직 보낼 경로가 없습니다」만 뜨고 **권한을 켤 버튼이 화면에 아예 없었다.**
+     * 그런데 권한은 **출발 전 미리** 켜 두는 것이 맞다 — 콜이 붙은 뒤에 운전석에서
+     * 권한 팝업을 만지는 것이 가장 나쁘다 (「운전 중에는 입력을 못 한다」).
+     */
+    const locationHelp = (
+                    /**
+                     * 위치를 모르면 «어디서부터»가 없다 — 지어내지 않고 **왜 없는지**를 적는다 (규칙 ④).
+                     * 🔴 위치는 **이 기기**가 잰다(서버가 주는 게 아니다). 그래서 못 받는 까닭도 여기에 있다:
+                     *    ① 브라우저 위치 권한을 안 줬다  ② `http` 라 브라우저가 막았다(위치는 https 에서만)
+                     */
+                    <div className="text-[14px] text-warning font-bold leading-relaxed">
+                        이 기기의 위치를 아직 못 읽었습니다 — 링크는 <b>지금 여기서 출발</b>로 만듭니다.
+
+                        {/* 🔴 **브라우저가 준 사유를 그대로 보여 준다** (기사님 실물 2026-09-03).
+                            화면이 «권한을 허용해 주세요»라고만 하면, 사유가 그게 아닐 때
+                            **찾을 데가 없다.** 사유는 이미 `useLocationStore.error` 에 있었는데
+                            이 화면이 안 읽고 있었다 (규칙 ⑤ «읽는 곳»이 비어 있던 자리). */}
+                        {gpsError && (
+                            <p className="mt-2 font-medium text-[13px] text-danger">
+                                브라우저가 준 사유: <b>{gpsError}</b>
+                            </p>
+                        )}
+                        {!gpsError && isTracking && (
+                            <p className="mt-2 font-medium text-[13px] text-text-muted">
+                                위치를 찾는 중입니다… (실내면 시간이 걸립니다)
+                            </p>
+                        )}
+                        {secure ? (
+                            /* 🔴 «권한을 허용해 주세요»는 이때 **손댈 데가 없는 안내**다 —
+                               권한 문제가 아니라 주소 문제이므로, 옮겨 갈 곳을 눌러서 준다 */
+                            <>
+                                <p className="mt-2 font-medium text-[13px] text-text-muted">
+                                    지금 <b>http</b> 로 열려 있습니다. 브라우저는 <b>https</b> 에서만 위치를 줍니다.
+                                </p>
+                                <a href={secure}
+                                   className="mt-3 block rounded-2xl px-6 py-5 text-center text-[18px] font-black text-white active:scale-95 transition-transform"
+                                   style={{ background: 'linear-gradient(180deg,#f0a02a,#d8821a)' }}>
+                                    🔒 https 로 다시 열기
+                                </a>
+                            </>
+                        ) : (
+                            <>
+                                <ul className="mt-2 font-medium text-[13px] list-disc pl-5 text-text-muted">
+                                    <li>아래 버튼을 누르면 브라우저가 <b>위치 권한</b>을 묻습니다</li>
+                                    <li>왼쪽 위에 <b>✕</b> 가 있으면 <b>다른 앱 안의 브라우저</b>입니다 —
+                                        그 안에서는 위치를 안 주는 경우가 많으니 <b>사파리</b>로 여세요
+                                        (공유 → «사파리로 열기»)</li>
+                                    <li>한 번 거절했다면 주소창의 <b>ⓘ / 자물쇠</b>에서 다시 켭니다</li>
+                                </ul>
+                                <button
+                                    onClick={() => {
+                                        setError(null);
+                                        navigator.geolocation.getCurrentPosition(
+                                            (pos) => setLocation(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy || 0),
+                                            (e) => setError(e.message),
+                                            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+                                        );
+                                    }}
+                                    className="mt-3 w-full rounded-2xl px-6 py-5 text-center text-[18px] font-black text-white active:scale-95 transition-transform"
+                                    style={{ background: 'linear-gradient(180deg,#f0a02a,#d8821a)' }}>
+                                    📍 위치 다시 요청
+                                </button>
+                            </>
+                        )}
+                    </div>
+    );
+
     return (
         <div className="min-h-screen bg-surface text-text px-5 py-6 flex flex-col gap-5">
             <div className="flex items-center justify-between">
@@ -93,70 +164,12 @@ export default function Navi() {
                                 경유 {Math.min(stops.length - 1, KAKAO_MAX_VIA)}곳 · 도착 {stops[Math.min(stops.length, KAKAO_MAX_VIA + 1) - 1].label}
                             </span>
                         </a>
-                    ) : (
-                        /**
-                         * 위치를 모르면 «어디서부터»가 없다 — 지어내지 않고 **왜 없는지**를 적는다 (규칙 ④).
-                         * 🔴 위치는 **이 기기**가 잰다(서버가 주는 게 아니다). 그래서 못 받는 까닭도 여기에 있다:
-                         *    ① 브라우저 위치 권한을 안 줬다  ② `http` 라 브라우저가 막았다(위치는 https 에서만)
-                         */
-                        <div className="text-[14px] text-warning font-bold leading-relaxed">
-                            이 기기의 위치를 아직 못 읽었습니다 — 링크는 <b>지금 여기서 출발</b>로 만듭니다.
-
-                            {/* 🔴 **브라우저가 준 사유를 그대로 보여 준다** (기사님 실물 2026-09-03).
-                                화면이 «권한을 허용해 주세요»라고만 하면, 사유가 그게 아닐 때
-                                **찾을 데가 없다.** 사유는 이미 `useLocationStore.error` 에 있었는데
-                                이 화면이 안 읽고 있었다 (규칙 ⑤ «읽는 곳»이 비어 있던 자리). */}
-                            {gpsError && (
-                                <p className="mt-2 font-medium text-[13px] text-danger">
-                                    브라우저가 준 사유: <b>{gpsError}</b>
-                                </p>
-                            )}
-                            {!gpsError && isTracking && (
-                                <p className="mt-2 font-medium text-[13px] text-text-muted">
-                                    위치를 찾는 중입니다… (실내면 시간이 걸립니다)
-                                </p>
-                            )}
-                            {secure ? (
-                                /* 🔴 «권한을 허용해 주세요»는 이때 **손댈 데가 없는 안내**다 —
-                                   권한 문제가 아니라 주소 문제이므로, 옮겨 갈 곳을 눌러서 준다 */
-                                <>
-                                    <p className="mt-2 font-medium text-[13px] text-text-muted">
-                                        지금 <b>http</b> 로 열려 있습니다. 브라우저는 <b>https</b> 에서만 위치를 줍니다.
-                                    </p>
-                                    <a href={secure}
-                                       className="mt-3 block rounded-2xl px-6 py-5 text-center text-[18px] font-black text-white active:scale-95 transition-transform"
-                                       style={{ background: 'linear-gradient(180deg,#f0a02a,#d8821a)' }}>
-                                        🔒 https 로 다시 열기
-                                    </a>
-                                </>
-                            ) : (
-                                <>
-                                    <ul className="mt-2 font-medium text-[13px] list-disc pl-5 text-text-muted">
-                                        <li>아래 버튼을 누르면 브라우저가 <b>위치 권한</b>을 묻습니다</li>
-                                        <li>왼쪽 위에 <b>✕</b> 가 있으면 <b>다른 앱 안의 브라우저</b>입니다 —
-                                            그 안에서는 위치를 안 주는 경우가 많으니 <b>사파리</b>로 여세요
-                                            (공유 → «사파리로 열기»)</li>
-                                        <li>한 번 거절했다면 주소창의 <b>ⓘ / 자물쇠</b>에서 다시 켭니다</li>
-                                    </ul>
-                                    <button
-                                        onClick={() => {
-                                            setError(null);
-                                            navigator.geolocation.getCurrentPosition(
-                                                (pos) => setLocation(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy || 0),
-                                                (e) => setError(e.message),
-                                                { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
-                                            );
-                                        }}
-                                        className="mt-3 w-full rounded-2xl px-6 py-5 text-center text-[18px] font-black text-white active:scale-95 transition-transform"
-                                        style={{ background: 'linear-gradient(180deg,#f0a02a,#d8821a)' }}>
-                                        📍 위치 다시 요청
-                                    </button>
-                                </>
-                            )}
-                        </div>
-                    )}
+                    ) : null}
                 </>
             )}
+
+            {/* 🔴 경로가 있든 없든 — 좌표가 없으면 켜는 길을 보여 준다 */}
+            {!here && locationHelp}
 
             <p className="mt-auto text-[12px] text-text-muted leading-relaxed">
                 이 화면은 <b>위치를 보내지 않습니다</b> — 관제폰의 트래킹과 섞이지 않게 일부러 꺼 뒀습니다.
