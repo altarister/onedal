@@ -3,6 +3,7 @@ import { ServerSwitch } from './components/ServerSwitch'
 import { useState, useEffect } from "react";
 import Dashboard from "./pages/Dashboard";
 import Navi from "./pages/Navi";
+import SheetMockup from "./pages/SheetMockup";
 import Settlement from "./pages/Settlement";
 import Login from "./pages/Login";
 import { logRoadmapEvent } from "./lib/roadmapLogger";
@@ -147,6 +148,10 @@ export default function App() {
       <ServerSwitch />
       <Routes>
         <Route path="/login" element={<Login />} />
+        {/* 🪗 **시트 아코디언 목업** — 로그인 밖에 둔다 (기사님 요청 2026-09-04).
+            고정값만 그리고 서버·소켓·GPS 를 안 쓴다. 디자인을 두 테마로 보는 자리다.
+            생김새의 원본은 docs/기획/화면개편/wireframe-v25-accordion.html */}
+        <Route path="/mockup/sheet" element={<SheetMockup />} />
         <Route 
           path="/*" 
           element={
