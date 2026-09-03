@@ -32,6 +32,14 @@ interface Props {
 /** 몸통 — 파생은 밖(기본 내보내기 또는 무대)에서 받아온다. 훅을 안 부르므로 어디에도 담길 수 있다 */
 export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDecision, onRecalculate, viewFilter, setViewFilter, sheetOnly, d }: Props & { d: ReturnType<typeof useRouteDerivations> }) {
     /**
+     * 🪗 **시트에는 «진행 중»만 산다** (기사님 확정 2026-09-03 실주행 뒤):
+     * *"올라오는 시트에 진행중, 완료됨.. 그 라인은 거의 필요 없는 것 같아.
+     * 그건 어디 따로 봐야 할 것 같아."*
+     * 탭 줄을 시트에서 빼고 view 를 고정한다 — 완료됨·취소·방출은 옛 화면(토글 꺼짐)에
+     * 그대로 있고, **새 자리는 기사님과 정한다** (todo 0-G · 아직 미정).
+     */
+    const view = sheetOnly ? 'ACTIVE' : viewFilter;
+    /**
      * 🏭 파생은 전부 **제조소 훅** 한 곳에서 (화면개편 1단계 · 2026-08-31).
      * 이 컴포넌트에는 화면 상태(펼침·탭·처리중)만 남는다.
      */
@@ -244,7 +252,7 @@ export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDe
                 ⚠️ Header 가 이미 `sticky top-0` 이므로 `top-0` 으로 두면 **헤더 밑에 파묻힌다.**
                    Header 가 내보내는 `--header-h` 만큼 내려 붙인다 (하드코딩하면 폰트·세이프에어리어에서 깨짐).
                    scroll-margin-top 도 같은 값이어야 자동 스크롤이 헤더에 가리지 않는다. */}
-            {safeRoute.length > 0 && (
+            {!sheetOnly && safeRoute.length > 0 && (
                 <div
                     ref={tabBarRef}
                     className={`flex border-b border-border-card bg-bg-base/95 backdrop-blur-sm ${sheetOnly ? "" : "sticky z-[9]"}`}
@@ -290,13 +298,14 @@ export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDe
                 분기가 한 군데뿐이라, 문제가 생기면 이 조건 하나만 되돌리면 옛 화면으로 복귀한다. */}
             {/* 최소 출발 시각 카운트다운 — 그 남은 시간이 곧 **대기 예산**이다.
                 기사님: *"첫 콜을 잡았다면 최소 출발 시간이 카운트다운하면 좋을 듯하다."* */}
-            {viewFilter === 'ACTIVE' && liveRoute.length > 0 && (
+            {view === 'ACTIVE' && liveRoute.length > 0 && (
                 <DepartureCountdown orders={liveRoute} records={stepRecords}
                     routeStops={routeStops} routeComputedAt={routeComputedAt} />
             )}
 
-            {viewFilter === 'ACTIVE' && cycleDeck.length > 0 && (
+            {view === 'ACTIVE' && cycleDeck.length > 0 && (
                 <CallDeck
+                    accordion={sheetOnly}
                     records={stepRecords}
                     /* 🗺️ 타임라인은 여기서 만든 것 하나 (새 장부 stepRecords 기반) — 덱이
                        옛 장부로 한 벌 더 파생하면 정차가 갈라져 두 데드라인이 된다 (2026-08-21) */
@@ -330,7 +339,7 @@ export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDe
                     )}
                 />
             )}
-            {viewFilter === 'ACTIVE' && cycleDeck.length === 0 && safeRoute.length > 0 && (
+            {view === 'ACTIVE' && cycleDeck.length === 0 && safeRoute.length > 0 && (
                 <div className="mx-4 my-6 py-8 px-4 text-center border border-dashed border-border rounded-xl text-text-muted text-[13px]">
                     진행 중인 콜이 없습니다
                     <div className="text-[11px] mt-1 opacity-80">첫짐 필터로 돌아가 새 콜을 기다립니다</div>
@@ -338,21 +347,21 @@ export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDe
             )}
 
             {/* 오더 관리 아코디언 리스트 (완료됨 · 취소/방출 · 전체) */}
-            {viewFilter !== 'ACTIVE' && safeRoute.length > 0 && (
+            {view !== 'ACTIVE' && safeRoute.length > 0 && (
                 <div className="flex flex-col">
                     {[...activeRoute]
                         .filter(route => {
                             // ACTIVE 는 위 덱이 담당하므로 여기 오지 않는다
-                            if (viewFilter === 'COMPLETED') {
+                            if (view === 'COMPLETED') {
                                 // 하차 보고(ORDER_DELIVERED)가 곧 배송 완료다 (Phase 8.3)
                                 // 🔄 다만 사이클이 도는 동안에는 진행 중 탭에 남아 있다 —
                                 //    같은 콜이 두 탭에 동시에 보이지 않게 여기서 뺀다
                                 return isDeliveredCall(route) && !cycleDeck.some(c => c.id === route.id);
                             }
-                            if (viewFilter === 'CANCELED') {
+                            if (view === 'CANCELED') {
                                 return route.status === 'SAFE_CANCEL';
                             }
-                            if (viewFilter === 'RELEASED') {
+                            if (view === 'RELEASED') {
                                 return route.status === 'ORDER_RELEASED_BY_ME' || route.status === 'ORDER_RELEASED_BY_OFFICE';
                             }
                             return true; // ALL

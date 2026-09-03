@@ -42,9 +42,23 @@ interface Props {
     timeline: RouteTimelineEntry[];
     /** 🛰️ 근접/도착한 정거장의 콜 — 이 값이 바뀌면 그 카드로 넘어간다 (기사님 2026-08-19) */
     gpsFocus?: { orderId: string; tick: number } | null;
+    /**
+     * 🪗 **아코디언 모드** (기사님 확정 2026-09-03 실주행 뒤 · S23 캡처와 함께):
+     * *"시트에 콜리스트 3개 아래로 관련된 스텝이 보이고 있는데.. 그러니까 뭘 보고 있는지
+     * 어려워. 아코디언으로 만들고, 아코디언 헤더는 무조건 화면에 노출하고,
+     * 컨텐츠 영역에 스크롤할 수 있게 하는 것이 어떨까?"*
+     *
+     * · 요약 줄(콜 한 줄)이 **헤더**다 — 접혀도 늘 보이게 sticky 로 붙인다
+     * · 가로 스와이프 트랙 대신 **고른 콜 하나**를 세로로 그린다 — 스크롤이 콜 경계를
+     *   안 넘으니 «지금 뭘 보고 있는지»가 안 헷갈린다
+     * · 줄 그리는 코드는 두 모드가 **한 벌**을 쓴다 (규칙 ③ — 갈라지면 다른 말을 한다)
+     *
+     * ⚠️ 옛 화면(토글 꺼짐)은 스와이프 덱 그대로다 — 기사님 지적은 «폰 시트»에 대한 것이다.
+     */
+    accordion?: boolean;
 }
 
-export default function CallDeck({ orders, renderCard, records, visitOrderMap, timeline, gpsFocus }: Props) {
+export default function CallDeck({ orders, renderCard, records, visitOrderMap, timeline, gpsFocus, accordion }: Props) {
     const trackRef = useRef<HTMLDivElement>(null);
 
     /**
@@ -212,7 +226,9 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
                 영역이 생겼다 없어지면 화면이 튀고, 무엇보다 **첫 콜에서도 지금 뭘 해야 하는지**를
                 같은 자리에서 봐야 한다. **1건이든 2건이든 줄의 생김새는 같다.** */}
             {orders.length > 0 && (
-                <div className="flex flex-col gap-1 px-3 pt-2 pb-1">
+                <div className={`flex flex-col gap-1 px-3 pt-2 pb-1 ${accordion ? 'sticky top-0 z-10' : ''}`}
+                     /* 🪗 헤더가 콘텐츠 위에 뜨므로 바닥색이 없으면 글자가 비쳐 겹친다 */
+                     style={accordion ? { background: 'var(--color-surface)' } : undefined}>
                     {orders.map((o, i) => {
                         const r = records.get(o.id) ?? EMPTY_RECORDS;
                         const p = deriveCallStep(r.milestones, r.reports);
@@ -294,6 +310,12 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
                 </div>
             )}
 
+            {accordion ? (
+                /* 🪗 콘텐츠 — 시트의 스크롤 그릇 안에서 헤더(sticky) 밑으로 흐른다.
+                   가로 트랙이 없으므로 scrollToIndex 는 자연히 no-op 이고(trackRef null),
+                   자동 이동(평가중·GPS 근접)은 setCurId 만으로 이 자리가 바뀐다. */
+                <div>{orders[cur] ? renderCard(orders[cur]) : null}</div>
+            ) : (
             <div
                 ref={trackRef}
                 onScroll={onScroll}
@@ -314,6 +336,7 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
                     </div>
                 ))}
             </div>
+            )}
 
             {/* 하단 페이저 점은 없앴다 — 위 요약 줄이 위치(번호·테두리)와 진행을 함께 보여주므로
                 같은 정보를 두 번 그리며 세로만 잡아먹었다. 폰 한 화면이 목표다. */}
