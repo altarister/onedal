@@ -63,3 +63,25 @@ export function buildKakaoRouteUrl(origin: NaviPoint | null | undefined, stops: 
 export function isRouteTruncated(stops: NaviPoint[]): boolean {
     return stops.length > KAKAO_MAX_VIA + 1;
 }
+
+/**
+ * 🔒 **위치를 못 읽는 까닭이 «http» 인가** — 그렇다면 옮겨 갈 https 주소를 돌려준다.
+ *
+ * 브라우저는 **보안 문맥(https)** 에서만 위치를 준다. 2026-09-03 실물에서 기사님이
+ * `http://1dal.altari.com/navi` 로 여셨고, 화면은 «위치 권한을 허용해 주세요»라고만 해서
+ * **손댈 데가 없는 안내**가 됐다 (권한 문제가 아니라 주소 문제였다).
+ *
+ * 🔴 **`localhost` 는 http 여도 위치를 준다** — 옮길 이유가 없으므로 `null` 이다.
+ * 🔴 **포트는 그대로 둔다** — 없는 주소를 지어내지 않는다 (규칙 ④).
+ */
+export function httpsUpgradeUrl(href: string): string | null {
+    let u: URL;
+    try { u = new URL(href); } catch { return null; }
+    if (u.protocol !== 'http:') return null;
+
+    const h = u.hostname;
+    if (h === 'localhost' || h === '127.0.0.1' || h === '[::1]' || h.endsWith('.localhost')) return null;
+
+    u.protocol = 'https:';
+    return u.toString();
+}

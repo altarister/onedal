@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useNaviRoute } from '../hooks/useNaviRoute';
 import { useLocationStore } from '../stores/useLocationStore';
-import { buildKakaoRouteUrl, isRouteTruncated, KAKAO_MAX_VIA, type NaviPoint } from '@onedal/shared';
+import { buildKakaoRouteUrl, httpsUpgradeUrl, isRouteTruncated, KAKAO_MAX_VIA, type NaviPoint } from '@onedal/shared';
 import { getAddressLabel } from '../lib/routeUtils';
 
 /**
@@ -47,6 +47,8 @@ export default function Navi() {
     const here: NaviPoint | null = lat != null && lng != null ? { x: lng, y: lat } : null;
     const url = buildKakaoRouteUrl(here, stops);
     const cut = isRouteTruncated(stops);
+    /** 🔒 위치를 못 읽는 진짜 까닭이 «http» 일 때, 옮겨 갈 곳을 손에 쥐여 준다 */
+    const secure = typeof window !== 'undefined' ? httpsUpgradeUrl(window.location.href) : null;
 
     return (
         <div className="min-h-screen bg-surface text-text px-5 py-6 flex flex-col gap-5">
@@ -99,10 +101,25 @@ export default function Navi() {
                          */
                         <div className="text-[14px] text-warning font-bold leading-relaxed">
                             이 기기의 위치를 아직 못 읽었습니다 — 링크는 <b>지금 여기서 출발</b>로 만듭니다.
-                            <ul className="mt-2 font-medium text-[13px] list-disc pl-5 text-text-muted">
-                                <li>브라우저에 <b>위치 권한</b>을 허용해 주세요</li>
-                                <li>주소가 <b>http</b> 면 브라우저가 위치를 막습니다 — <b>https</b> 로 여세요</li>
-                            </ul>
+                            {secure ? (
+                                /* 🔴 «권한을 허용해 주세요»는 이때 **손댈 데가 없는 안내**다 —
+                                   권한 문제가 아니라 주소 문제이므로, 옮겨 갈 곳을 눌러서 준다 */
+                                <>
+                                    <p className="mt-2 font-medium text-[13px] text-text-muted">
+                                        지금 <b>http</b> 로 열려 있습니다. 브라우저는 <b>https</b> 에서만 위치를 줍니다.
+                                    </p>
+                                    <a href={secure}
+                                       className="mt-3 block rounded-2xl px-6 py-5 text-center text-[18px] font-black text-white active:scale-95 transition-transform"
+                                       style={{ background: 'linear-gradient(180deg,#f0a02a,#d8821a)' }}>
+                                        🔒 https 로 다시 열기
+                                    </a>
+                                </>
+                            ) : (
+                                <ul className="mt-2 font-medium text-[13px] list-disc pl-5 text-text-muted">
+                                    <li>브라우저에 <b>위치 권한</b>을 허용해 주세요</li>
+                                    <li>한 번 거절했다면 주소창의 자물쇠에서 다시 켤 수 있습니다</li>
+                                </ul>
+                            )}
                         </div>
                     )}
                 </>
