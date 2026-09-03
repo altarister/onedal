@@ -7,7 +7,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { MAP_THEME_COLORS, withAlpha } from '../../styles/themes';
 import { callNodeFill, callNodeStroke, callNodeText } from '../../styles/callPalette';
 import {
-    TILE_SIZE, TILE_MAX_ZOOM, anchorBaseOf, computeViewport, toScreenPoint, panAfterZoom, pinchStep,
+    TILE_SIZE, TILE_MAX_ZOOM, anchorBaseOf, computeViewport, toScreenPoint, panAfterZoom, pinchStep, mapTileTone,
     type Viewport } from '../../lib/mapProjection';
 import { sheetOccludedPx, type SheetSnap } from '../stage/StageSheet';
 
@@ -232,9 +232,12 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         const readyTiles = collectTiles(viewport, width, height, () => drawRef.current());
         if (readyTiles.length > 0) {
             ctx.save();
-            // 🎨 회색조·연하게 — 배경이 시끄러우면 색이 안 읽힌다 (규칙 ⑤-3: 색을 틀리는 것이 가장 큰 사고)
-            if (supportsCanvasFilter(ctx)) ctx.filter = 'grayscale(1) brightness(1.06) contrast(0.72)';
-            ctx.globalAlpha = theme === 'dark' ? 0.5 : 0.75;
+            /* 🎨 회색조·연하게 — 배경이 시끄러우면 색이 안 읽힌다 (규칙 ⑤-3).
+               🔍 다만 **확대하면 서서히 제 색을 되찾는다** — 확대는 «지도를 보겠다»는
+                  손짓이다 (기사님 2026-09-04 · `mapTileTone`). */
+            const tone = mapTileTone(zoomRef.current, theme === 'dark' ? 0.5 : 0.75);
+            if (supportsCanvasFilter(ctx) && tone.filter) ctx.filter = tone.filter;
+            ctx.globalAlpha = tone.alpha;
             readyTiles.forEach(t => ctx.drawImage(t.img, t.cx, t.cy, t.size + 1, t.size + 1));
             ctx.restore();
             if (theme === 'dark') {

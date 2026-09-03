@@ -165,3 +165,44 @@ export function pinchStep(
         },
     };
 }
+
+/**
+ * 🔍 **확대하면 지도가 제 색을 되찾는다** (기사님 확정 2026-09-04).
+ *
+ * 기사님(실주행 09-03): *"줌인이 되면 지도의 색이 투명해도 될 것 같아.
+ * **지도를 보겠다는 의지가 있었던 거니까.**"*
+ *
+ * ── 왜 평소엔 흐린가 ──
+ * 배경이 시끄러우면 그 위의 **판정 색·마커 색이 안 읽힌다** (규칙 ⑤-3: 색을 틀리는 것이
+ * 가장 큰 사고). 그래서 평소에는 회색조로 눌러 둔다.
+ *
+ * ── 왜 확대하면 풀어도 되나 ──
+ * 확대는 **«여기가 어디인지 보겠다»는 손짓**이다. 그 순간에는 지도가 주인공이고,
+ * 마커는 이미 화면에서 커져 있어 배경에 안 묻힌다.
+ *
+ * 🔴 **한 번에 바뀌지 않는다.** `FROM`~`TO` 사이에서 서서히 풀린다 —
+ *    계단처럼 튀면 «화면이 깜빡였다»로 읽히고, 그건 운전 중에 시선을 뺏는다.
+ * 🔴 **두 값을 함께 움직인다** — 색(회색조)만 돌아오고 연한 채로면 색이 탁해 보이고,
+ *    진하기만 돌아오고 회색이면 «흑백을 키운 것»이 된다.
+ *
+ * @param zoom  지금 배율 (1 = 기본)
+ * @param dim   평소의 진하기 (테마마다 다르다 — 어두운 테마 0.5 · 밝은 테마 0.75)
+ */
+export const TILE_CLEAR_FROM = 2;   // 여기서부터 풀리기 시작한다
+export const TILE_CLEAR_TO = 4;     // 여기서 원본 그대로
+
+export function mapTileTone(zoom: number, dim: number): { alpha: number; filter: string | null } {
+    const span = TILE_CLEAR_TO - TILE_CLEAR_FROM;
+    const t = Math.max(0, Math.min(1, (zoom - TILE_CLEAR_FROM) / span));   // 0 = 평소 · 1 = 원본
+    if (t >= 1) return { alpha: 1, filter: null };
+
+    const alpha = dim + (1 - dim) * t;
+    // 회색조·대비도 같은 비율로 되돌린다 — 1 이면 원본, 0 이면 평소 값
+    const gray = 1 - t;
+    const bright = 1 + 0.06 * (1 - t);
+    const contrast = 0.72 + 0.28 * t;
+    return {
+        alpha,
+        filter: `grayscale(${gray.toFixed(3)}) brightness(${bright.toFixed(3)}) contrast(${contrast.toFixed(3)})`,
+    };
+}
