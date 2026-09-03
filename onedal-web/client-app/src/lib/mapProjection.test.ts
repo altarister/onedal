@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-    projectMercator, anchorBaseOf, computeViewport, toScreenPoint, panAfterZoom,
+    projectMercator, anchorBaseOf, computeViewport, toScreenPoint, panAfterZoom, pinchStep,
     PADDING_LEFT, PADDING_RIGHT, PADDING_TOP, PADDING_BOTTOM,
     type GeoPoint,
 } from './mapProjection';
@@ -215,5 +215,67 @@ describe('확대 — 누른 자리가 붙잡혀 있다', () => {
         expect(zoom).toBeCloseTo(1, 10);
         expect(endPt.cx).toBeCloseTo(startPt.cx, 6);
         expect(endPt.cy).toBeCloseTo(startPt.cy, 6);
+    });
+});
+
+/**
+ * 🤏 **핀치 줌 — 두 손가락 중간이 제자리에 남는다** (기사님 실주행 지적 2026-09-03)
+ *
+ * 기사님: *"손가락 중간을 기준점으로 줌인이 될 거라 생각했는데..
+ * 한쪽 방향으로 치우쳐서 줌인되었어."*
+ *
+ * 뿌리 — 휠·버튼은 `zoomAround` 가 기준점을 잡고 팬을 보정했는데,
+ * **핀치만 배율만 바꾸고 팬을 안 건드렸다.** 09-01 수리가 이 갈래를 안 지났다.
+ */
+describe('🤏 핀치 — 두 손가락 중간이 붙잡혀 있다', () => {
+    const base = anchorBaseOf(W, H);
+    const NO = { x: 0, y: 0 };
+
+    /**
+     * 그 화면 좌표에 있던 지점이 확대 뒤에도 같은 자리에 있는가.
+     * ⚠️ `toScreenPoint` 는 `{cx, cy}` 를 준다 — 제스처 좌표 `{x, y}` 로 옮겨 넘긴다.
+     */
+    const heldStays = (which: number, prev: number, now: number) => {
+        const before = computeViewport(STOPS, W, H, 1, NO);
+        const held = toScreenPoint(STOPS[which], before);
+        const step = pinchStep(prev, now, { x: held.cx, y: held.cy }, base, 1, NO);
+        const after = computeViewport(STOPS, W, H, step.zoom, step.pan);
+        const moved = toScreenPoint(STOPS[which], after);
+        return Math.hypot(moved.cx - held.cx, moved.cy - held.cy);
+    };
+
+    it('확대해도 손가락 중간의 지점이 안 움직인다', () => {
+        expect(heldStays(2, 100, 260)).toBeLessThan(0.5);
+    });
+
+    it('축소해도 마찬가지다', () => {
+        expect(heldStays(2, 260, 100)).toBeLessThan(0.5);
+    });
+
+    it('배율은 거리의 «비»다 — 두 배 벌리면 두 배', () => {
+        const r = pinchStep(100, 200, { x: 300, y: 180 }, base, 1, NO);
+        expect(r.zoom).toBeCloseTo(2, 6);
+    });
+
+    it('🔴 중간점이 화면 가운데가 아니어도 그 자리가 붙잡힌다 — 쏠림의 정체', () => {
+        // 왼쪽 위 구석을 잡고 확대한다. 팬을 안 고치면 여기가 크게 밀린다
+        const before = computeViewport(STOPS, W, H, 1, NO);
+        const corner = { x: 60, y: 50 };
+        const step = pinchStep(100, 300, corner, base, 1, NO);
+        const after = computeViewport(STOPS, W, H, step.zoom, step.pan);
+        // 그 화면점이 가리키던 세상 좌표가 그대로여야 한다 — 정거장으로 대신 잰다
+        expect(heldStays(0, 100, 300)).toBeLessThan(0.5);
+        expect(after.worldSize).toBeGreaterThan(before.worldSize);
+    });
+
+    it('상한에 걸리면 팬도 안 흔들린다 — 더 벌려도 그림이 안 튄다', () => {
+        const r = pinchStep(100, 400, { x: 300, y: 180 }, base, 10, { x: 12, y: -7 });
+        expect(r.zoom).toBe(10);
+        expect(r.pan).toEqual({ x: 12, y: -7 });
+    });
+
+    it('손가락 거리가 0 이면 아무것도 안 바꾼다 (규칙 ④)', () => {
+        const r = pinchStep(0, 120, { x: 10, y: 10 }, base, 2, { x: 5, y: 5 });
+        expect(r).toEqual({ zoom: 2, pan: { x: 5, y: 5 } });
     });
 });

@@ -126,3 +126,42 @@ export function toScreenPoint(p: GeoPoint, v: Viewport): { cx: number; cy: numbe
 export function panAfterZoom(screen: number, base: number, pan: number, ratio: number): number {
     return (screen - base) - ((screen - base) - pan) * ratio;
 }
+
+/**
+ * 🤏 **핀치 한 틱 — 두 손가락의 중간을 붙잡은 채 배율만 바꾼다** (2026-09-04 신설).
+ *
+ * 🔴 **핀치만 이 계산을 안 하고 있었다.** 휠·버튼은 `zoomAround` 가 기준점을 잡고
+ *    팬을 보정했는데, 핀치는 `zoomRef += scaleDiff` 로 **배율만** 바꿨다.
+ *    그래서 확대의 중심이 «두 손가락 중간»이 아니라 화면이 원래 잡고 있던 중심이었고,
+ *    손가락이 가운데서 벗어날수록 **한쪽으로 쏠렸다**
+ *    (기사님 실주행 2026-09-03: *"손가락 중간을 기준점으로 줌인이 될 거라 생각했는데..
+ *    한쪽 방향으로 치우쳐서 줌인되었어"*).
+ *
+ * 🔴 **배율은 거리의 «비»로 잡는다.** 예전 `(dist - last) * 0.01` 은 **더하기**라
+ *    화면 크기·손가락 간격에 따라 체감이 달라졌다. 비로 잡으면 «두 배 벌리면 두 배»다.
+ *
+ * @param prev  직전 두 손가락 거리 (px)
+ * @param now   지금 두 손가락 거리 (px)
+ * @param mid   지금 두 손가락의 중간점 — **캔버스 안 좌표**
+ * @param base  `anchorBaseOf` 가 준 기준점 (그리는 쪽과 같은 값이어야 한다)
+ */
+export function pinchStep(
+    prev: number, now: number,
+    mid: { x: number; y: number },
+    base: { x: number; y: number },
+    zoom: number, pan: { x: number; y: number },
+    min = 0.5, max = 10,
+): { zoom: number; pan: { x: number; y: number } } {
+    // 손가락이 겹치거나 값이 이상하면 아무것도 바꾸지 않는다 (규칙 ④ — 지어내지 않는다)
+    if (!(prev > 0) || !(now > 0)) return { zoom, pan };
+
+    const next = Math.max(min, Math.min(max, zoom * (now / prev)));
+    const ratio = next / zoom;   // 상한에 걸리면 ratio 가 1 이 되어 팬도 안 움직인다
+    return {
+        zoom: next,
+        pan: {
+            x: panAfterZoom(mid.x, base.x, pan.x, ratio),
+            y: panAfterZoom(mid.y, base.y, pan.y, ratio),
+        },
+    };
+}

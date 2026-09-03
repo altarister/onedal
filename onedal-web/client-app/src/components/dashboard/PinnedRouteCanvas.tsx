@@ -7,9 +7,8 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { MAP_THEME_COLORS, withAlpha } from '../../styles/themes';
 import { callNodeFill, callNodeStroke, callNodeText } from '../../styles/callPalette';
 import {
-    TILE_SIZE, TILE_MAX_ZOOM, anchorBaseOf, computeViewport, toScreenPoint, panAfterZoom,
-    type Viewport,
-} from '../../lib/mapProjection';
+    TILE_SIZE, TILE_MAX_ZOOM, anchorBaseOf, computeViewport, toScreenPoint, panAfterZoom, pinchStep,
+    type Viewport } from '../../lib/mapProjection';
 import { sheetOccludedPx, type SheetSnap } from '../stage/StageSheet';
 
 const sidoData = sidoDataRaw as any; // GeoJSON FeatureCollection
@@ -493,11 +492,31 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
                 clientX = e.touches[0].clientX;
                 clientY = e.touches[0].clientY;
             } else if (e.touches.length === 2) {
+                /**
+                 * 🤏 **두 손가락 «중간»을 붙잡은 채 배율만 바꾼다** (기사님 지적 2026-09-03:
+                 * *"손가락 중간을 기준점으로 줌인이 될 거라 생각했는데.. 한쪽 방향으로
+                 * 치우쳐서 줌인되었어"*).
+                 *
+                 * 🔴 예전에는 `zoomRef += scaleDiff` 로 **배율만** 바꾸고 팬을 안 건드렸다.
+                 *    그래서 확대의 중심이 화면이 원래 잡고 있던 곳이었고, 손가락이
+                 *    가운데서 벗어날수록 쏠렸다. 09-01 의 «기준점» 수리가 이 갈래를 안 지났다.
+                 * 🔴 계산은 `pinchStep` 하나에 있다 — 휠·버튼(`zoomAround`)과 **같은 공식**이다.
+                 */
+                const rect = canvasRef.current?.getBoundingClientRect();
+                if (!rect) return;
                 const dx = e.touches[0].clientX - e.touches[1].clientX;
                 const dy = e.touches[0].clientY - e.touches[1].clientY;
                 const dist = Math.hypot(dx, dy);
-                const scaleDiff = (dist - lastDist.current) * 0.01;
-                zoomRef.current = Math.max(0.5, Math.min(10, zoomRef.current + scaleDiff));
+                // 중간점은 **캔버스 안 좌표**여야 한다 — 화면 좌표 그대로면 여백만큼 어긋난다
+                const mid = {
+                    x: (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left,
+                    y: (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top,
+                };
+                // 🪟 그리는 쪽이 지금 쓰는 가림 높이를 그대로 본다 — 두 벌이면 확대점이 어긋난다
+                const base = anchorBaseOf(rect.width, rect.height, occludedNow.current ?? 0);
+                const step = pinchStep(lastDist.current, dist, mid, base, zoomRef.current, panRef.current);
+                zoomRef.current = step.zoom;
+                panRef.current = step.pan;
                 lastDist.current = dist;
                 drawMap();
                 return;
