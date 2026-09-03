@@ -22,7 +22,7 @@ import { getAddressLabel } from '../lib/routeUtils';
  */
 export default function Navi() {
     const { routeStops, calls, isConnected } = useNaviRoute();
-    const { lat, lng } = useLocationStore();
+    const { lat, lng, error: gpsError, isTracking, setLocation, setError } = useLocationStore();
 
     /**
      * 🧭 **순서는 서버가 정한 것을 그대로 쓴다** — 관제웹은 자기 TSP 를 돌리지 않는다 (규칙 ③).
@@ -101,6 +101,21 @@ export default function Navi() {
                          */
                         <div className="text-[14px] text-warning font-bold leading-relaxed">
                             이 기기의 위치를 아직 못 읽었습니다 — 링크는 <b>지금 여기서 출발</b>로 만듭니다.
+
+                            {/* 🔴 **브라우저가 준 사유를 그대로 보여 준다** (기사님 실물 2026-09-03).
+                                화면이 «권한을 허용해 주세요»라고만 하면, 사유가 그게 아닐 때
+                                **찾을 데가 없다.** 사유는 이미 `useLocationStore.error` 에 있었는데
+                                이 화면이 안 읽고 있었다 (규칙 ⑤ «읽는 곳»이 비어 있던 자리). */}
+                            {gpsError && (
+                                <p className="mt-2 font-medium text-[13px] text-danger">
+                                    브라우저가 준 사유: <b>{gpsError}</b>
+                                </p>
+                            )}
+                            {!gpsError && isTracking && (
+                                <p className="mt-2 font-medium text-[13px] text-text-muted">
+                                    위치를 찾는 중입니다… (실내면 시간이 걸립니다)
+                                </p>
+                            )}
                             {secure ? (
                                 /* 🔴 «권한을 허용해 주세요»는 이때 **손댈 데가 없는 안내**다 —
                                    권한 문제가 아니라 주소 문제이므로, 옮겨 갈 곳을 눌러서 준다 */
@@ -115,10 +130,28 @@ export default function Navi() {
                                     </a>
                                 </>
                             ) : (
-                                <ul className="mt-2 font-medium text-[13px] list-disc pl-5 text-text-muted">
-                                    <li>브라우저에 <b>위치 권한</b>을 허용해 주세요</li>
-                                    <li>한 번 거절했다면 주소창의 자물쇠에서 다시 켤 수 있습니다</li>
-                                </ul>
+                                <>
+                                    <ul className="mt-2 font-medium text-[13px] list-disc pl-5 text-text-muted">
+                                        <li>아래 버튼을 누르면 브라우저가 <b>위치 권한</b>을 묻습니다</li>
+                                        <li>왼쪽 위에 <b>✕</b> 가 있으면 <b>다른 앱 안의 브라우저</b>입니다 —
+                                            그 안에서는 위치를 안 주는 경우가 많으니 <b>사파리</b>로 여세요
+                                            (공유 → «사파리로 열기»)</li>
+                                        <li>한 번 거절했다면 주소창의 <b>ⓘ / 자물쇠</b>에서 다시 켭니다</li>
+                                    </ul>
+                                    <button
+                                        onClick={() => {
+                                            setError(null);
+                                            navigator.geolocation.getCurrentPosition(
+                                                (pos) => setLocation(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy || 0),
+                                                (e) => setError(e.message),
+                                                { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+                                            );
+                                        }}
+                                        className="mt-3 w-full rounded-2xl px-6 py-5 text-center text-[18px] font-black text-white active:scale-95 transition-transform"
+                                        style={{ background: 'linear-gradient(180deg,#f0a02a,#d8821a)' }}>
+                                        📍 위치 다시 요청
+                                    </button>
+                                </>
                             )}
                         </div>
                     )}
