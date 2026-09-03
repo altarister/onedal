@@ -5,6 +5,7 @@ import sidoDataRaw from '../../mapData/sidoData.json';
 import { getDistanceKm } from '../../lib/routeUtils';
 import { useTheme } from '../../contexts/ThemeContext';
 import { MAP_THEME_COLORS, withAlpha } from '../../styles/themes';
+import { callNodeFill, callNodeStroke, callNodeText } from '../../styles/callPalette';
 import {
     TILE_SIZE, TILE_MAX_ZOOM, anchorBaseOf, computeViewport, toScreenPoint, panAfterZoom,
     type Viewport,
@@ -98,6 +99,13 @@ export interface RoutePoint {
      *    이름표는 «1. 곤지암읍», 지도 마커는 «2 곤지암읍» 이라 한 화면이 두 답을 했다.
      */
     no?: number;
+    /**
+     * 🌈 **몇 번 콜인가** — 색상(hue)이 이걸로 정해진다 (`rainbowNodes` 켤 때만 쓴다).
+     * 🔴 정거장 번호(`no`)와 **다른 값**이다 — 콜 하나가 정거장 둘을 갖는다 (규칙 ⑤ «읽는 곳»).
+     */
+    callNo?: number;
+    /** 👣 이미 다녀온 정거장인가 — 테두리가 흰색↔회색으로 갈린다 */
+    visited?: boolean;
 }
 
 interface Props {
@@ -125,9 +133,18 @@ interface Props {
      * 옛 화면은 시트가 없으므로 넘기지 않는다 — 그때는 화면 전체가 지도다.
      */
     sheetSnap?: SheetSnap;
+    /**
+     * 🌈 **콜 색표로 그린다** (기사님 확정 2026-09-04 · `styles/callPalette.ts`).
+     * 색상=콜 · 채도=상차/하차 · 테두리=다녀왔나.
+     *
+     * 🔴 **기본은 꺼져 있다** — 실물은 예전대로 그리고, 목업(`/mockup/sheet`)만 켠다.
+     *    기사님이 «이걸로 가자» 하시면 그때 기본값을 뒤집고 이 프롭을 지운다
+     *    (화면개편의 «토글 병행»과 같은 방식).
+     */
+    rainbowNodes?: boolean;
 }
 
-export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLocation, children, fill, visitedTrail, callColors, onStopTap, drivenTrail, routeHolder, sheetSnap }: Props) {
+export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLocation, children, fill, visitedTrail, callColors, onStopTap, drivenTrail, routeHolder, sheetSnap, rainbowNodes }: Props) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const { theme } = useTheme();
     const mapColors = MAP_THEME_COLORS[theme];
@@ -362,13 +379,25 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
 
             if (p.routeId) markerHits.current.push({ cx, cy, orderId: p.routeId });
             ctx.beginPath();
+            /* 🔍 마커는 **목록 동그라미와 같은 크기**다 (기사님 2026-09-04:
+               *"지도에 순번도 리스트에 있는 사이즈로 같이 만들자 지도를 너무 많이 가리는 것 같다"*).
+               한 화면에서 같은 것이 두 크기로 보이면 다른 것처럼 읽힌다. */
             ctx.arc(cx, cy, 10, 0, 2 * Math.PI);
-            ctx.fillStyle = p.type === '상차' ? mapColors.nodePickup : mapColors.nodeDropoff;
+            const stopKind = p.type === '상차' ? 'pickup' : 'dropoff';
+            /* 🌈 색상=콜 · 밝기=상차/하차 (기사님 2026-09-04) */
+            const rainbowFill = rainbowNodes && p.callNo ? callNodeFill(p.callNo, stopKind, theme) : null;
+            ctx.fillStyle = rainbowFill
+                ?? (p.type === '상차' ? mapColors.nodePickup : mapColors.nodeDropoff);
 
             if (p.isEvaluating) {
                 ctx.fillStyle = mapColors.nodeEvaluating;
                 ctx.lineWidth = 2.5;
                 ctx.strokeStyle = mapColors.nodeStrokeEvaluating;
+            } else if (rainbowFill) {
+                /* 🖊️ 다녀온 곳에 **동그라미를 친다** — 안 간 곳은 바탕색이라 링이 안 보인다.
+                   1px 로 얇게 — 목록 동그라미와 같은 두께다 (기사님 2026-09-04) */
+                ctx.lineWidth = 1;
+                ctx.strokeStyle = callNodeStroke(!!p.visited, rainbowFill);
             } else {
                 ctx.lineWidth = 2.5;
                 // 🎨 테두리 = 콜 색 (②) — 어느 콜의 정거장인지 색으로 읽힌다
@@ -377,8 +406,10 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             ctx.fill();
             ctx.stroke();
 
-            ctx.fillStyle = mapColors.textBody;
-            ctx.font = 'bold 11px sans-serif';
+            ctx.fillStyle = rainbowNodes && p.callNo ? callNodeText(stopKind, theme) : mapColors.textBody;
+            /* 🔍 정거장 번호 — 달리면서 먼발치로 읽는 숫자다 (기사님 2026-09-04:
+               *"글자가 커져야 하는데 원만 커진 것 같아"*) */
+            ctx.font = rainbowNodes ? 'bold 12.5px sans-serif' : 'bold 11px sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             // 🔒 번호는 방문한 개수 다음부터 — 지나간 번호를 재사용하지 않는다 (①)
@@ -430,7 +461,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             ctx.fillStyle = withAlpha(mapColors.textMuted, 0.7);
             ctx.fillText('© OpenStreetMap', width - 4, height - 3);
         }
-    }, [unifiedRoutePoints, liveRoute, myLocation, visitedTrail, drivenTrail, routeHolder, theme, mapColors, sheetSnap]);
+    }, [unifiedRoutePoints, liveRoute, myLocation, visitedTrail, drivenTrail, routeHolder, theme, mapColors, sheetSnap, rainbowNodes]);
 
     useEffect(() => {
         drawRef.current = drawMap;   // 늦게 온 타일이 부를 최신 그리기

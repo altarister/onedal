@@ -215,6 +215,113 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
 
     if (orders.length === 0) return null;
 
+    /**
+     * 🪗 **아코디언 헤더 한 줄의 높이** — 위·아래로 붙이는 계산의 **원천 하나** (규칙 ③).
+     * 이 값이 곧 «몇 px 위에 붙는가»라서, 줄 높이를 CSS 로만 바꾸면 층이 어긋난다.
+     */
+    const ROW_H = 32;
+
+    /**
+     * 콜 한 줄(요약 줄)을 만든다 — **두 모드가 이 함수 하나를 쓴다.**
+     * 스와이프에서는 위에 모아 놓고, 아코디언에서는 **내용 사이사이에 끼워** 넣는다.
+     *
+     * 🪗 아코디언에서는 줄이 **자기 자리에 붙는다**(sticky) —
+     *    고른 콜보다 위는 **위쪽**에, 아래는 **아래쪽**에 붙어 **전부 늘 보인다.**
+     *    그래서 내용이 «누구 것인지» 짐작할 필요가 없다 — 바로 위 줄이 그 주인이다.
+     */
+    const rowOf = (o: SecuredOrder, i: number) => {
+
+            const r = records.get(o.id) ?? EMPTY_RECORDS;
+            const p = deriveCallStep(r.milestones, r.reports);
+            const vo = visitOrderMap.get(o.id);
+            // 타임라인에 있으면 그것이 약속이다. 없으면(경로 밖 — 심사 중 후보 등)
+            // 콜별 파생으로 폴백 — 시각이 아예 사라지는 것보다는 혼자 간 값이 낫다
+            const tle = (stop: 'pickup' | 'dropoff') =>
+                timeline.find(e => e.orderId === o.id && e.stopType === stop);
+            const jd = derivationInputsOf(useJudgmentStore.getState().judgment);
+            const fallback = timeline.length ? null : deriveCallTiming(o, r.reports, r.milestones, Date.now(), jd.rules, jd.unk);
+            const promiseOf = (stop: 'pickup' | 'dropoff') => tle(stop)?.promisedUntil
+                ?? (stop === 'pickup' ? fallback?.pickupPromisedArrivalAt : fallback?.dropoffPromisedArrivalAt)
+                ?? null;
+            /** ⚠️ 못 지키는 약속 — 경로가 바뀌었거나 앞 약속이 늦춰진 것 */
+            const lateOf = (stop: 'pickup' | 'dropoff') => tle(stop)?.lateMinutes ?? 0;
+            /** ⏱️ 앞 정거장 실측이 밀어낸 분 — 「+5분」 (경로 밖 후보는 0) */
+            const shiftOf = (stop: 'pickup' | 'dropoff') => tle(stop)?.dwellShiftMinutes ?? 0;
+            const confirmed = (stop: 'pickup' | 'dropoff') => tle(stop)?.promiseConfirmed
+                ?? r.reports.some(rep =>
+                    rep.stopType === stop && rep.kind === 'DECLARED' && rep.promisedArrivalAt);
+            const isCur = i === cur;
+            /**
+             * 🪗 **줄이 붙는 자리** — 고른 콜 «위»는 위쪽에, «아래»는 아래쪽에 층으로 붙는다.
+             * 그래야 내용을 스크롤해도 **모든 줄이 화면에 남는다** (기사님: *"무조건 화면에 노출"*).
+             * 붙는 줄은 내용 위에 뜨므로 **불투명 바닥**이 필수다 — 없으면 글자가 비쳐 겹친다.
+             */
+            const stick: React.CSSProperties | undefined = !accordion ? undefined
+                : i <= cur
+                    ? { position: 'sticky', top: i * ROW_H, zIndex: 30 - i, height: ROW_H }
+                    : { position: 'sticky', bottom: (orders.length - 1 - i) * ROW_H, zIndex: 10 + i, height: ROW_H };
+            return (
+                <button
+                    key={o.id}
+                    type="button"
+                    onClick={() => goTo(i)}
+                    aria-current={isCur}
+                    style={stick}
+                    className={`w-full flex items-center gap-2 px-2 rounded-md border text-left transition-colors ${
+                        accordion ? 'shrink-0' : 'py-1.5'
+                    } ${
+                        isCur ? (accordion ? 'bg-info/20 border-info/60' : 'bg-info/10 border-info/45')
+                              : (accordion ? 'bg-surface border-border/60' : 'bg-surface-alt/30 border-border/60')
+                    }`}
+                >
+                    {/* 🔴 2026-08-12 — 1건일 때 번호와 경로를 뺐다가 되돌렸다.
+                        "카드 헤더가 이미 경로를 말하니 중복"이라 봤는데, 기사님:
+                        *"진행과 하차지 통화로만 나오고 있는데 **어떤 콜이었는지 알 수 있는**
+                          이전 버전이 그 부분은 더 좋은 것 같아."*
+                        맞다. 이 줄은 **어느 콜인지 고르는 자리**라 이름이 없으면 고를 수가 없다.
+                        그리고 1건과 2건의 생김새가 다르면, 합짐이 붙는 순간 화면이 또 바뀐다 —
+                        영역을 항상 띄우기로 한 이유(화면이 튀지 않게)와 같은 이야기다. */}
+                    {/* 🔍 크기: 기사님 2026-08-19 — "~(추정 물결)가 마이너스로 읽힐 만큼 작다. 키워 달라" */}
+                    <span className={`text-[14px] font-black shrink-0 tabular-nums ${
+                        isCur ? 'text-info' : 'text-text-muted'
+                    }`}>{i + 1}</span>
+                    {/* 🔴 2026-08-19 — 정거장마다 **몇 번째로, 몇 시까지 가기로 했는가**.
+                        예전엔 여기에 `(87.2km·64분·1t)` 가 있었는데, 그건 이 콜 **혼자** 갔을 때의
+                        값이라 여러 콜을 엮은 지금 순서에 대해서는 아무 말도 못 한다. */}
+                    {/* 순서: **⑴ 지명 시각** (기사님 2026-08-19) — 번호가 지명 앞에 와야
+                        "몇 번째로 어디" 로 읽힌다. 예전엔 지명 뒤에 붙어 시각과 엉겼다 */}
+                    <span className="text-[14px] font-bold text-text-primary truncate min-w-0 flex-1">
+                        <StopMark at={vo?.pickupIdx} kind="pickup" evaluating={isEvaluating(o.status)}
+                            time={promiseOf('pickup')} confirmed={confirmed('pickup')}
+                            late={lateOf('pickup')} shift={shiftOf('pickup')}
+                            name={getAddressLabel(o.pickup)} />
+                        <span className="text-text-muted font-normal mx-1">→</span>
+                        <StopMark at={vo?.dropoffIdx} kind="dropoff" evaluating={isEvaluating(o.status)}
+                            time={promiseOf('dropoff')} confirmed={confirmed('dropoff')}
+                            late={lateOf('dropoff')} shift={shiftOf('dropoff')}
+                            name={getAddressLabel(o.dropoff)} />
+                    </span>
+
+                    {/* 6단계를 한눈에 — 카드 안 진행 점과 같은 규칙 */}
+                    <span className="flex gap-0.5 shrink-0" aria-hidden>
+                        {CALL_STEPS.map((st, k) => (
+                            <span key={st.id} className={`block h-1.5 w-3 rounded-full ${
+                                k === p.index ? 'bg-info'
+                                : p.done[k] ? 'bg-success'
+                                : k < p.index ? 'bg-success/35'
+                                : st.optional ? 'ring-1 ring-inset ring-border'
+                                : 'bg-surface-hover'
+                            }`} />
+                        ))}
+                    </span>
+
+                    {/* 🔴 금액은 여기서 뺐다 (기사님 2026-08-19) — 아래 `콜잡은시간` 줄
+                        오른쪽으로 옮겼다. 이 줄은 **어느 콜이 어디까지 갔나**를 보는 자리이고,
+                        폭을 비워야 경로명·시각이 잘리지 않는다. */}
+                </button>
+            );
+    };
+
     // 🗺️ 시각의 원천은 "지금 경로" 하나다 (기사님 동의 2026-08-19) — 타임라인은
     //    PinnedRoute 가 새 장부(stepRecords)로 만든 것을 prop 으로 받는다 (Props 주석)
     return (
@@ -232,116 +339,50 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
                 없다가 합짐이 생기면 2줄로 노출된다. 콜이 들어오면 디폴트로 표시되어야 할 것 같다."*
                 영역이 생겼다 없어지면 화면이 튀고, 무엇보다 **첫 콜에서도 지금 뭘 해야 하는지**를
                 같은 자리에서 봐야 한다. **1건이든 2건이든 줄의 생김새는 같다.** */}
-            {orders.length > 0 && (
-                /* 🪗 sticky 헤더는 바닥색(bg-surface)이 있어야 밑으로 흐르는 글자가 안 비친다 */
-                <div className={`flex flex-col gap-1 px-3 pt-2 pb-1 ${accordion ? 'sticky top-0 z-10 bg-surface' : ''}`}>
-                    {orders.map((o, i) => {
-                        const r = records.get(o.id) ?? EMPTY_RECORDS;
-                        const p = deriveCallStep(r.milestones, r.reports);
-                        const vo = visitOrderMap.get(o.id);
-                        // 타임라인에 있으면 그것이 약속이다. 없으면(경로 밖 — 심사 중 후보 등)
-                        // 콜별 파생으로 폴백 — 시각이 아예 사라지는 것보다는 혼자 간 값이 낫다
-                        const tle = (stop: 'pickup' | 'dropoff') =>
-                            timeline.find(e => e.orderId === o.id && e.stopType === stop);
-                        const jd = derivationInputsOf(useJudgmentStore.getState().judgment);
-                        const fallback = timeline.length ? null : deriveCallTiming(o, r.reports, r.milestones, Date.now(), jd.rules, jd.unk);
-                        const promiseOf = (stop: 'pickup' | 'dropoff') => tle(stop)?.promisedUntil
-                            ?? (stop === 'pickup' ? fallback?.pickupPromisedArrivalAt : fallback?.dropoffPromisedArrivalAt)
-                            ?? null;
-                        /** ⚠️ 못 지키는 약속 — 경로가 바뀌었거나 앞 약속이 늦춰진 것 */
-                        const lateOf = (stop: 'pickup' | 'dropoff') => tle(stop)?.lateMinutes ?? 0;
-                        /** ⏱️ 앞 정거장 실측이 밀어낸 분 — 「+5분」 (경로 밖 후보는 0) */
-                        const shiftOf = (stop: 'pickup' | 'dropoff') => tle(stop)?.dwellShiftMinutes ?? 0;
-                        const confirmed = (stop: 'pickup' | 'dropoff') => tle(stop)?.promiseConfirmed
-                            ?? r.reports.some(rep =>
-                                rep.stopType === stop && rep.kind === 'DECLARED' && rep.promisedArrivalAt);
-                        const isCur = i === cur;
-                        return (
-                            <button
-                                key={o.id}
-                                type="button"
-                                onClick={() => goTo(i)}
-                                aria-current={isCur}
-                                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md border text-left transition-colors ${
-                                    isCur ? 'bg-info/10 border-info/45' : 'bg-surface-alt/30 border-border/60'
-                                }`}
-                            >
-                                {/* 🔴 2026-08-12 — 1건일 때 번호와 경로를 뺐다가 되돌렸다.
-                                    "카드 헤더가 이미 경로를 말하니 중복"이라 봤는데, 기사님:
-                                    *"진행과 하차지 통화로만 나오고 있는데 **어떤 콜이었는지 알 수 있는**
-                                      이전 버전이 그 부분은 더 좋은 것 같아."*
-                                    맞다. 이 줄은 **어느 콜인지 고르는 자리**라 이름이 없으면 고를 수가 없다.
-                                    그리고 1건과 2건의 생김새가 다르면, 합짐이 붙는 순간 화면이 또 바뀐다 —
-                                    영역을 항상 띄우기로 한 이유(화면이 튀지 않게)와 같은 이야기다. */}
-                                {/* 🔍 크기: 기사님 2026-08-19 — "~(추정 물결)가 마이너스로 읽힐 만큼 작다. 키워 달라" */}
-                                <span className={`text-[14px] font-black shrink-0 tabular-nums ${
-                                    isCur ? 'text-info' : 'text-text-muted'
-                                }`}>{i + 1}</span>
-                                {/* 🔴 2026-08-19 — 정거장마다 **몇 번째로, 몇 시까지 가기로 했는가**.
-                                    예전엔 여기에 `(87.2km·64분·1t)` 가 있었는데, 그건 이 콜 **혼자** 갔을 때의
-                                    값이라 여러 콜을 엮은 지금 순서에 대해서는 아무 말도 못 한다. */}
-                                {/* 순서: **⑴ 지명 시각** (기사님 2026-08-19) — 번호가 지명 앞에 와야
-                                    "몇 번째로 어디" 로 읽힌다. 예전엔 지명 뒤에 붙어 시각과 엉겼다 */}
-                                <span className="text-[14px] font-bold text-text-primary truncate min-w-0 flex-1">
-                                    <StopMark at={vo?.pickupIdx} kind="pickup" evaluating={isEvaluating(o.status)}
-                                        time={promiseOf('pickup')} confirmed={confirmed('pickup')}
-                                        late={lateOf('pickup')} shift={shiftOf('pickup')}
-                                        name={getAddressLabel(o.pickup)} />
-                                    <span className="text-text-muted font-normal mx-1">→</span>
-                                    <StopMark at={vo?.dropoffIdx} kind="dropoff" evaluating={isEvaluating(o.status)}
-                                        time={promiseOf('dropoff')} confirmed={confirmed('dropoff')}
-                                        late={lateOf('dropoff')} shift={shiftOf('dropoff')}
-                                        name={getAddressLabel(o.dropoff)} />
-                                </span>
-
-                                {/* 6단계를 한눈에 — 카드 안 진행 점과 같은 규칙 */}
-                                <span className="flex gap-0.5 shrink-0" aria-hidden>
-                                    {CALL_STEPS.map((st, k) => (
-                                        <span key={st.id} className={`block h-1.5 w-3 rounded-full ${
-                                            k === p.index ? 'bg-info'
-                                            : p.done[k] ? 'bg-success'
-                                            : k < p.index ? 'bg-success/35'
-                                            : st.optional ? 'ring-1 ring-inset ring-border'
-                                            : 'bg-surface-hover'
-                                        }`} />
-                                    ))}
-                                </span>
-
-                                {/* 🔴 금액은 여기서 뺐다 (기사님 2026-08-19) — 아래 `콜잡은시간` 줄
-                                    오른쪽으로 옮겼다. 이 줄은 **어느 콜이 어디까지 갔나**를 보는 자리이고,
-                                    폭을 비워야 경로명·시각이 잘리지 않는다. */}
-                            </button>
-                        );
-                    })}
+            {accordion ? (
+                /* 🪗 **아코디언** — 줄 · 그 콜의 내용 · 줄 · … 로 **끼워** 그린다.
+                   내용이 자기 헤더 바로 밑에 오므로 «이건 누구 것인가»가 안 생긴다.
+                   (기사님 확정 2026-09-03: *"아코디언 헤더는 무조건 화면에 노출하고
+                    컨텐츠 영역에 스크롤할 수 있게"*) */
+                <div className="flex flex-col gap-1 px-3 pt-2 pb-1">
+                    {orders.map((o, i) => (
+                        <div key={o.id} className="flex flex-col gap-1">
+                            {rowOf(o, i)}
+                            {/* 🔴 접힌 콜도 **마운트한 채** 숨긴다 — 언마운트하면 통화 중 적던
+                                단위·수량이 날아가고 카드가 서버에 단계를 다시 청한다 (버그 대장 #95) */}
+                            <div hidden={i !== cur}>{renderCard(o)}</div>
+                        </div>
+                    ))}
                 </div>
-            )}
-
-            {/* 🪗 아코디언도 **카드를 전부 마운트한 채** 고른 것만 보인다 (`hidden`).
-                🔴 고른 카드만 그리면 콜을 바꿀 때마다 카드가 언마운트된다 — 통화 중 적던
-                   단위·수량이 날아가고, 카드가 mount 마다 서버에 단계를 다시 청한다.
-                   «카드는 사라지지 않으므로 입력값 자체는 남는다»(위 자동 이동 주석)는
-                   보장이 두 모드 모두에서 지켜져야 한다. 그리는 길도 하나가 된다 (규칙 ③). */}
-            <div
-                ref={trackRef}
-                onScroll={onScroll}
-                /* 손가락이 닿는 순간 프로그램 이동을 포기한다.
-                   안 그러면 애니메이션이 끝날 때까지(최대 0.9초) 스와이프가 먹힌다 —
-                   손이 항상 코드보다 우선이다 */
-                onPointerDown={releasePending}
-                onTouchStart={releasePending}
-                className={accordion ? '' : "flex overflow-x-auto snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"}
-                /* 🔴 scrollBehavior:'smooth' 를 CSS 로 걸면 `behavior:'auto'` 가 무시되어
-                   위치 복구까지 애니메이션이 되고, 스와이프 중이면 그게 손가락과 부딪힌다.
-                   부드러움이 필요한 곳(명시적 이동)에서만 옵션으로 준다. */
-                style={accordion ? undefined : { overscrollBehaviorX: 'contain' }}
-            >
-                {orders.map((o, i) => (
-                    <div key={o.id} hidden={accordion && i !== cur}
-                         className={accordion ? undefined : 'shrink-0 w-full snap-center'}>
-                        {renderCard(o)}
+            ) : (
+                <>
+                    {/* ══ 콜 요약 줄 — **스와이프하지 않아도 보인다** ══
+                        기사님: *"2개 있다면 각각 어디까지 진행되고 있는지 모두 스와이핑해야만
+                        보인다. 그건 문제가 있다."* — 그래서 줄을 덱 **위**에 모아 둔다. */}
+                    <div className="flex flex-col gap-1 px-3 pt-2 pb-1">
+                        {orders.map((o, i) => rowOf(o, i))}
                     </div>
-                ))}
-            </div>
+                    <div
+                        ref={trackRef}
+                        onScroll={onScroll}
+                        /* 손가락이 닿는 순간 프로그램 이동을 포기한다.
+                           안 그러면 애니메이션이 끝날 때까지(최대 0.9초) 스와이프가 먹힌다 —
+                           손이 항상 코드보다 우선이다 */
+                        onPointerDown={releasePending}
+                        onTouchStart={releasePending}
+                        className="flex overflow-x-auto snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                        /* 🔴 scrollBehavior:'smooth' 를 CSS 로 걸면 `behavior:'auto'` 가 무시되어
+                           위치 복구까지 애니메이션이 되고, 스와이프 중이면 그게 손가락과 부딪힌다. */
+                        style={{ overscrollBehaviorX: 'contain' }}
+                    >
+                        {orders.map(o => (
+                            <div key={o.id} className="shrink-0 w-full snap-center">
+                                {renderCard(o)}
+                            </div>
+                        ))}
+                    </div>
+                </>
+            )}
 
             {/* 하단 페이저 점은 없앴다 — 위 요약 줄이 위치(번호·테두리)와 진행을 함께 보여주므로
                 같은 정보를 두 번 그리며 세로만 잡아먹었다. 폰 한 화면이 목표다. */}
