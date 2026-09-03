@@ -419,6 +419,22 @@ export async function composeMergedRoute(params: ComposeMergedRouteParams) {
  * 30km 밖 상차지)은 넉넉히 통과시킨다.
  */
 const STOP_ORDER_HYSTERESIS = 1.20;
+/**
+ * 🧭 **«근소»의 진짜 잣대 — 몇 km 차이인가** (기사님 실측 2026-09-03).
+ *
+ * 비율만 보면 두 경우를 못 가른다. 오히려 **거꾸로** 나온다:
+ * ```
+ * 번호가 춤추던 자리(#90)   2.03 vs 2.39km → 비율 1.18 · 차이 0.36km   ← 편들어야 한다
+ * 되돌아가던 자리(0903)     19.2 vs 21.7km → 비율 1.13 · 차이 2.5km    ← 편들면 안 된다
+ * ```
+ * 실측 0903: 직전 순서를 편들었더니 **+15.0km · +52분** 을 더 갔다
+ * (가산동까지 올라갔다 안양으로 내려온 뒤 구로동으로 다시 올라간다).
+ *
+ * 그래서 **비율 안 «그리고» 절대 차이도 이만큼 이내**일 때만 편든다.
+ * 값의 근거: 위 두 실측 사이(0.36km ↔ 2.5km)를 가른다. 번호가 춤추는 것은 늘
+ * **수백 미터** 차이에서 일어나고, 되돌아가는 것은 **km 단위**에서 일어난다.
+ */
+const STOP_ORDER_TIE_KM = 0.5;
 
 /**
  * 🧭 **방문 순서 — 지나가는 길목부터** (기사님 실측 2026-08-25).
@@ -467,7 +483,11 @@ function orderByNearest<T extends Coord & { orderId: string; stopType: 'pickup' 
         // 갈 수 있는 곳이 없다 = 남은 것이 전부 «상차 안 한 콜의 하차» → 순서대로 붙인다
         if (bestIdx === -1) { out.push(...pool); break; }
         // 근소한 차이면 직전 순서를 지킨다 — 넘어서면 진다 (얼리지 않는다)
-        const pick = (incIdx >= 0 && incD <= bestD * STOP_ORDER_HYSTERESIS) ? incIdx : bestIdx;
+        // 🔴 비율만으로는 «번호 춤»과 «되돌아가기»를 못 가른다 — 절대 차이를 함께 본다
+        const tie = incIdx >= 0
+            && incD <= bestD * STOP_ORDER_HYSTERESIS
+            && incD - bestD <= STOP_ORDER_TIE_KM;
+        const pick = tie ? incIdx : bestIdx;
         const best = pool.splice(pick, 1)[0];
         if (best.stopType === 'pickup') notLoaded.delete(best.orderId);
         out.push(best);

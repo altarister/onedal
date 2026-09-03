@@ -3,6 +3,7 @@ import path from 'path';
 import { getActiveCalls } from '../core/helpers';
 import { planArrivalStops, type ArrivalStop } from './routeComposer';
 import type { MyOrder } from '@onedal/shared';
+import { DEFAULT_JUDGMENT } from '@onedal/shared';
 /**
  * 🔴 **타입만 가져온다** (`import type`). 런타임 값을 가져오면 순환 참조가 되어 부팅이 막힌다.
  *    예전에 이 파라미터가 `any` 라, 세션에서 사라진 필드를 읽는 함수가 **몇 달째 null 만
@@ -704,8 +705,12 @@ export const GPS_ARRIVAL = {
     HOLD_SEC: 30,
     NOTICE_KM: 3,
     /**
-     * 🚚 **떠남 판정** — 하차지에 도착했다가 이만큼 멀어지면 «내리고 갔다»로 본다
-     *    (기사님 확정 2026-08-25: *"2km 로 정하고 진행해 보자"*).
+     * 🚚 **떠남 판정(옛 규칙)** — 하차지에 **도착이 찍힌 뒤** 이만큼 멀어지면 «내리고 갔다».
+     *    (기사님 확정 2026-08-25: *"2km 로 정하고 진행해 보자"*)
+     *
+     * ⚠️ 2026-09-03 부터 **지나침 판정**(`evaluatePassTick` · 진입 300m → 이탈 400m)이
+     *    상차·하차 둘 다를 **도착과 무관하게** 처리한다. 이 2km 규칙은 그보다 늦게
+     *    걸리므로 사실상 예비다 — 지나침이 먼저 찍으면 여기는 할 일이 없다.
      *
      * 기사님: *"곤지암과 부발에서 멀어진 거면 하차를 했는데 버튼을 못 누른 걸로 봐야
      * 하지 않을까… 운행 중에 클릭 못 할 거라 말이지."*
@@ -853,6 +858,30 @@ export function ensureDriverOrigin(
  * 도착 판정 한 틱 — **순수 함수** (L2 검증용).
  * 속도를 모르면(null) 정지로 치지 않는다 — 없는 숫자를 지어내지 않는다 (규칙 ④).
  */
+/**
+ * 🚚 **지나침 판정 한 틱 — 순수 함수** (기사님 확정 2026-09-03).
+ *
+ * 기사님: *"운전중에 그걸 누르는건 너무 위험하다. 실 업무를 진행하면 도착을 못 읽는 경우가
+ * 있을 거야. 지나온 목적지를 벗어나면 도착과 상차완료를 순차적으로 종료시켜 주는 것이 맞다."*
+ *
+ * ── 도착 감지로는 왜 부족한가 ──
+ * 도착은 «500m + 정지 30초»다. 안 서고 지나치면 **사슬이 첫 칸부터 시작을 못 한다** —
+ * 도착이 없으니 떠남 감시도 안 걸린다. 그래서 이 판정은 **도착과 무관하게 혼자 선다.**
+ *
+ * 🔴 **들어온 적이 없으면 절대 안 찍는다.** 안 그러면 남의 정거장을 스쳐만 가도 찍힌다.
+ * 🔴 **이탈 거리가 진입보다 크지 않으면 안 찍는다** — 설정이 뒤집히면 들어오자마자 찍힌다.
+ */
+export function evaluatePassTick(
+    distKm: number,
+    nearKm: number,
+    awayKm: number,
+    entered: boolean,
+): { entered: boolean; passed: boolean } {
+    const nowEntered = entered || distKm <= nearKm;
+    const sane = awayKm > nearKm;
+    return { entered: nowEntered, passed: sane && nowEntered && distKm >= awayKm };
+}
+
 export function evaluateArrivalTick(
     heldSinceMs: number | null,
     distKm: number,
@@ -891,6 +920,8 @@ export function processDriverMovement(
     onApproaching?: (uid: string, stop: ArrivalStop, distKm: number) => void,
     /** 하차지에서 2km 멀어졌을 때 — 하차 완료로 넘긴다 */
     onDeparted?: (uid: string, orderId: string) => void,
+    /** 🚚 정거장을 **지나쳤을** 때 — 도착·완료를 순차로 찍는다 (2026-09-03) */
+    onPassed?: (uid: string, stop: ArrivalStop) => void,
 ) {
     if (!lat || !lng) return;
     
@@ -1002,7 +1033,7 @@ export function processDriverMovement(
      *    · 한 정거장당 발화 1회 (`arrivalFired`) · 점프 틱은 판단하지 않는다
      *    · DELIVERING 게이트 밖이다 — 출발 버튼 전에 상차지에 닿는 경우도 실재한다
      */
-    watchArrival(userId, session, currentGPS, speedKmh, jumped, src, applyFilterCb, onArrival, onApproaching, onDeparted);
+    watchArrival(userId, session, currentGPS, speedKmh, jumped, src, applyFilterCb, onArrival, onApproaching, onDeparted, onPassed);
 }
 
 /** 정거장 키 — 발화·예고 플래그의 단위 */
@@ -1065,6 +1096,8 @@ function watchArrival(
     onApproaching?: (uid: string, stop: ArrivalStop, distKm: number) => void,
     /** 하차지에서 멀어졌다 — «내리고 갔다»로 본다 (기사님 확정 2026-08-25) */
     onDeparted?: (uid: string, orderId: string) => void,
+    /** 🚚 정거장을 지나쳤다 — 도착·완료를 순차로 찍는다 (기사님 확정 2026-09-03) */
+    onPassed?: (uid: string, stop: ArrivalStop) => void,
 ) {
     const active = getActiveCalls(session);
     if (active.length === 0) return;
@@ -1095,6 +1128,27 @@ function watchArrival(
         }
     }
 
+    /**
+     * 🚚 **지나침 이탈** — 진입했던 정거장에서 설정 거리만큼 멀어지면 도착·완료를 순차로 찍는다.
+     * 🔴 «다음 정거장»과 무관하게 **감시 목록 전체**를 돈다 — 도착이 먼저 찍혀 그 정거장이
+     *    «다녀온 곳»이 되어도 여기는 계속 본다 (그러지 않으면 완료를 영영 못 찍는다).
+     */
+    if (session.passWatch.size > 0 && onPassed) {
+        const passCfg = session.judgment?.pass ?? DEFAULT_JUDGMENT.pass;
+        for (const [k, w] of [...session.passWatch]) {
+            const away = haversineKm(gps.y, gps.x, w.y, w.x);
+            const t = evaluatePassTick(away, passCfg.nearM / 1000, passCfg.awayM / 1000, w.entered);
+            // 아직 진입 반경 안에 못 들어왔다면 여기서 «들어왔다»만 갱신한다
+            if (t.entered && !w.entered) { w.entered = true; }
+            if (t.passed) {
+                session.passWatch.delete(k);
+                console.log(`🚚 [지나침] ${w.stopType === 'pickup' ? '상차지' : '하차지'}에서 ` +
+                    `${(away * 1000).toFixed(0)}m 멀어졌습니다 — 도착·완료를 순차로 찍습니다 (${w.orderId.slice(0, 8)})`);
+                onPassed(userId, { orderId: w.orderId, stopType: w.stopType, x: w.x, y: w.y } as ArrivalStop);
+            }
+        }
+    }
+
     // 🧭 궤적 저장과 **같은 함수**에서 온다 — 두 벌이 되면 답이 갈라진다 (규칙 ③)
     const next = nextStopOf(session, gps);
     if (!next) return;
@@ -1102,6 +1156,22 @@ function watchArrival(
     const key = stopKeyOf(next);
     const distKm = haversineKm(gps.y, gps.x, next.y, next.x);
     const label = next.stopType === 'pickup' ? '상차지' : '하차지';
+
+    /**
+     * 🚚 **지나침 판정** — 안 서고 지나쳐도 도착·완료를 대신 찍는다 (기사님 확정 2026-09-03).
+     *
+     * 🔴 도착(500m + 정지 30초)과 **무관하게 혼자 선다.** 실 업무에서는 안 서고 지나치는 일이
+     *    흔한데, 그러면 도착이 안 찍히고 → 떠남 감시도 안 걸려 → 사슬이 통째로 멈춘다.
+     * 🔴 거리 둘은 **판정 기준 탭에서 고친다** (`user_judgment.pass_near_m`·`pass_away_m`).
+     *    코드에 상수로 박지 않는다 (규칙 ③ — 기본값의 원천은 DB).
+     */
+    const pass = session.judgment?.pass ?? DEFAULT_JUDGMENT.pass;
+    if (evaluatePassTick(distKm, pass.nearM / 1000, pass.awayM / 1000, false).entered
+        && !session.passWatch.has(key)) {
+        session.passWatch.set(key, { orderId: next.orderId, stopType: next.stopType, x: next.x, y: next.y, entered: true });
+        console.log(`👣 [지나침 감시 시작] ${label} ${(distKm * 1000).toFixed(0)}m — ` +
+            `${pass.awayM}m 벗어나면 도착·완료를 찍습니다 (${next.orderId.slice(0, 8)})`);
+    }
 
     // 근접 예고 — 도착전 통화 시점 (정거장당 1회)
     if (distKm < GPS_ARRIVAL.NOTICE_KM && !session.arrivalNoticed.has(key)) {
@@ -1123,8 +1193,31 @@ function watchArrival(
         applyFilterCb(userId, {
             driverAction: 'UNLOADING',    // 하차 중으로 자동 전환 (이제 1회만)
         });
-        // 🚚 여기서부터 «멀어지는지»를 본다 — 2km 벗어나면 내리고 간 것으로 친다
+        // 🚚 여기서부터 «멀어지는지»를 본다 — 2km 벗어나면 내리고 간 것으로 친다 (옛 규칙·예비)
         session.departWatch.set(key, { orderId: next.orderId, x: next.x, y: next.y });
+    }
+    /**
+     * 🚚 **도착이 찍힌 정거장도 지나침 감시에 넣는다** (2026-09-03 실측으로 메운 구멍).
+     *
+     * 🔴 진입(300m) 등록은 «다음 정거장»을 볼 때만 일어난다. 그런데 도착이 먼저 찍히면
+     *    그 정거장은 그 순간 **«다녀온 곳»이 되어 다음 정거장에서 빠진다** — 등록 기회를
+     *    영영 잃는다. 시뮬(mock)은 500m 근접만으로 도착이 찍히므로 **늘 그렇게 된다**
+     *    (12:34~12:36 실측: 상차지 도착 3건이 다 찍혔는데 지나침은 한 번도 안 걸렸다).
+     *
+     * 도착이 찍혔든 아니든 «떠나면 완료»는 같다 — 그래서 여기서도 건다.
+     */
+    if (!session.passWatch.has(key)) {
+        /**
+         * 🔴 **`entered` 를 지금 거리로 정직하게 적는다.** 도착 반경(500m)이 진입(300m)보다
+         *    넓어서, 도착만으로 «들어왔다»로 치면 450m 에서 도착한 콜이 **다음 틱에 400m
+         *    이탈**로 곧바로 완료가 된다 — 짐을 싣기도 전에. 아직 안 들어왔으면 감시만
+         *    걸어 두고, 진짜로 300m 안에 들어올 때 이탈 루프가 표시를 올린다.
+         */
+        const passNearKm = (session.judgment?.pass ?? DEFAULT_JUDGMENT.pass).nearM / 1000;
+        session.passWatch.set(key, {
+            orderId: next.orderId, stopType: next.stopType, x: next.x, y: next.y,
+            entered: distKm <= passNearKm,
+        });
     }
     onArrival?.(userId, next);
 }
@@ -1274,4 +1367,3 @@ export function unionRegions(
         customCityFilters: Array.from(new Set([...detour.customCityFilters, ...city.customCityFilters])),
     };
 }
-

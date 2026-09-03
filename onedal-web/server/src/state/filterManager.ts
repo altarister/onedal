@@ -797,6 +797,8 @@ export function updateActiveFilter(
         session.departedAt = null;   // 사이클이 끝났다 — 다음 운행은 다시 모으기부터
         session.arrivalFired.clear();      // 도착 감지 상태도 같은 수명이다 —
         session.arrivalNoticed.clear();    // 어제 찍은 정거장이 오늘 되살아나지 않는다
+        // 👣 지나침 감시도 함께 비운다 — 남으면 다음 사이클 첫 틱에 **죽은 콜**로 발화한다
+        session.passWatch.clear();
         session.arrivalWatch = null;
         recalculateDerivedFields(session, {}, userId);
         console.log(`[FilterManager] STANDBY 복귀: 합짐 파생값만 되돌림 ` +

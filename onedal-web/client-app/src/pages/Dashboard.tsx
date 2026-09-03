@@ -131,6 +131,15 @@ export default function Dashboard() {
             setGpsNotice(`🚚 ${data.message}`);
             setTimeout(() => setGpsNotice(null), 15_000);
         };
+        /**
+         * 🚚 **지나침 — 도착·완료를 대신 찍었다** (기사님 확정 2026-09-03).
+         * 운전 중에는 못 누르므로 서버가 대신 찍는다. 화면은 **무엇을 했는지 알리기만** 한다 —
+         * 틀렸으면 단계에서 되돌린다 (단계 표는 그 자리에서 고칠 수 있다).
+         */
+        const onAutoPassed = (data: { orderId: string, stopType: 'pickup' | 'dropoff', message: string }) => {
+            setGpsNotice(`🚚 ${data.message}`);
+            setTimeout(() => setGpsNotice(null), 15_000);
+        };
         const onApproaching = (data: { stopType: 'pickup' | 'dropoff', distanceKm: number }) => {
             const label = data.stopType === 'pickup' ? '상차지' : '하차지';
             setGpsNotice(`📣 다음 정거장(${label}) ${data.distanceKm}km 앞 — 도착전 통화를 걸어 주세요`);
@@ -160,12 +169,14 @@ export default function Dashboard() {
 
         socket.on("auto-arrived", onAutoArrived);
         socket.on("auto-delivered", onAutoDelivered);
+        socket.on("auto-passed", onAutoPassed);
         socket.on("next-stop-approaching", onApproaching);
         socket.on("target-auto-switched", onTargetSwitched);
         socket.on("order-evaluating", onNewCall);
         return () => {
             socket.off("auto-arrived", onAutoArrived);
             socket.off("auto-delivered", onAutoDelivered);
+            socket.off("auto-passed", onAutoPassed);
             socket.off("next-stop-approaching", onApproaching);
             socket.off("target-auto-switched", onTargetSwitched);
             socket.off("order-evaluating", onNewCall);

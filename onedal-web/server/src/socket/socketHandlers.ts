@@ -385,8 +385,11 @@ export function registerSocketHandlers(io: Server) {
                 loc.source,
                 /**
                  * 도착 확정 → 마일스톤 자동 기록 (2026-08-17 재설계).
-                 * 🔴 GPS 가 기록하는 마일스톤은 **ARRIVED_* 둘뿐**이다 — 상차·하차 완료는
-                 *    물리 행위라 GPS 가 모른다. 절대 자동으로 찍지 않는다.
+                 * ⚠️ ~~GPS 가 기록하는 마일스톤은 ARRIVED_* 둘뿐이다 — 절대 자동으로 찍지 않는다~~
+                 *    **2026-09-03 폐기** (기사님: *"이 명제는 이제 유효하지 않다 삭제하는 것이
+                 *    맞아. 지나가면 실었다가 맞아."*). 지금은 «지나침 판정»이 상차·하차 완료를
+                 *    둘 다 자동으로 찍는다 — 아래 `onPassed` 갈래.
+                 *    여기(도착 확정)는 여전히 ARRIVED_* 만 찍는다.
                  * 역행·중복은 reportMilestone 안에서 걸러진다 (canReportMilestone + DB UNIQUE).
                  */
                 async (uid, stop) => {
@@ -429,9 +432,8 @@ export function registerSocketHandlers(io: Server) {
                  *    GPS 도착 3건이 다 찍혔는데 손으로 눌러야 하는 네 단계가 전부 비어 있었다 —
                  *    적재가 안 풀려 다음 콜이 차종에서 막혔다.
                  *
-                 * ⚠️ **상차 완료(PICKED_UP)는 여전히 자동으로 안 찍는다.** 상차지는 짐을 실었는지
-                 *    안 실었는지 GPS 로 구분할 수 없고, 못 실었는데 실은 것으로 치면 적재가 거짓이
-                 *    된다. 하차는 반대다 — 안 내렸으면 그 자리를 뜨지 않는다.
+                 * ⚠️ ~~상차 완료(PICKED_UP)는 여전히 자동으로 안 찍는다~~ — **2026-09-03 폐기.**
+                 *    기사님: *"지나가면 실었다가 맞아."* 지나침 판정이 상차도 찍는다.
                  *
                  * 되돌릴 수 있다: 단계 표는 `UNIQUE(orderId)` + `INSERT OR REPLACE` 라 그 단계에서
                  * 고칠 수 있고, 하차 완료된 콜은 `TERMINAL_STATUSES` 라 다른 콜과 관계가 끊긴다.
@@ -452,6 +454,52 @@ export function registerSocketHandlers(io: Server) {
                             message: `하차지를 ${GPS_ARRIVAL.DEPARTED_KM}km 벗어나 하차 완료로 기록했습니다 (GPS)`,
                         });
                     }
+                },
+                /**
+                 * 🚚 **지나침 → 도착·완료를 순차로** (기사님 확정 2026-09-03).
+                 *
+                 * 기사님: *"운전중에 그걸 누르는건 너무 위험하다. 실 업무를 진행하면 도착을
+                 * 못 읽는 경우가 있을 거야 … 지나온 목적지를 벗어나면 도착과 상차완료를
+                 * 순차적으로 종료시켜 주는 것이 맞을 것 같다."*
+                 *
+                 * 🔴 **순서를 지킨다** — 도착을 먼저 찍고 완료를 찍는다. `reportMilestone` 이
+                 *    역행을 거르므로 순서가 뒤집히면 완료가 조용히 버려진다 (규칙 ⑥ — 시퀀스를
+                 *    압축하지 않는다).
+                 * ⚠️ 통화 단계는 **안 찍는다** — 통화는 물리 행위이고, 안 한 통화를 했다고
+                 *    적으면 화면이 거짓말한다. 비면 빈 대로 둔다 (규칙 ④).
+                 */
+                async (uid, stop) => {
+                    const arrived = stop.stopType === 'pickup' ? 'ARRIVED_PICKUP' as const : 'ARRIVED_DROPOFF' as const;
+                    const done = stop.stopType === 'pickup' ? 'PICKED_UP' as const : 'DELIVERED' as const;
+                    const label = stop.stopType === 'pickup' ? '상차지' : '하차지';
+                    /**
+                     * 🔴 **하나도 안 써졌으면 알리지 않는다** (2026-09-03 코드 리뷰가 잡음).
+                     *    예전에는 성공 여부와 무관하게 «기록했습니다»를 띄웠다 — 아무것도
+                     *    안 적혔는데 화면이 적혔다고 말하는 자리다 (규칙 ④).
+                     */
+                    let wrote = false;
+                    for (const m of [arrived, done]) {
+                        const r = await reportMilestone(uid, stop.orderId, m, 'GPS', io);
+                        if (!r.success || r.duplicated) continue;
+                        wrote = true;
+                        try {
+                            bridgeMilestone(uid, stop.orderId, m, 'GPS', undefined, undefined,
+                                getUserSession(uid)?.judgment, routeTlOf(uid));
+                        } catch (e) {
+                            console.error(`🌉 [단계 다리 실패] ${stop.orderId.slice(-6)} ${m}:`, (e as Error).message);
+                        }
+                    }
+                    if (!wrote) {
+                        console.log(`↩️ [지나침 무시] ${stop.orderId.slice(0, 8)} — 이미 찍혔거나 없는 콜입니다`);
+                        return;
+                    }
+                    io.to(uid).emit("steps-synced", { orderId: stop.orderId, steps: stepsView(stop.orderId, getUserSession(uid)?.judgment) });
+                    console.log(`📤 [Socket 푸시] auto-passed (${stop.orderId.slice(0, 8)} · ${stop.stopType})`);
+                    io.to(uid).emit("auto-passed", {
+                        orderId: stop.orderId,
+                        stopType: stop.stopType,
+                        message: `${label}를 지나쳐 도착·완료로 기록했습니다 (GPS)`,
+                    });
                 },
             );
         });

@@ -63,6 +63,19 @@ export interface JudgmentConfig {
         /** 10~25km — 국도 섞임. 실측 46.1 */ midKmh: number;
         /** 25km 이상 — 고속·국도. 실측 56.0 */ longKmh: number;
     };
+    /**
+     * 🚚 **지나침 판정** — 정거장을 지나치면 도착·완료를 대신 찍는다 (기사님 확정 2026-09-03).
+     *
+     * 기사님: *"운전중에 그걸 누르는건 너무 위험하다 … 지나온 목적지를 벗어나면 도착과
+     * 상차완료를 순차적으로 종료시켜 주는 것이 맞을 것 같다."*
+     *
+     * 🔴 **«상차·하차 완료는 절대 자동으로 찍지 않는다»는 폐기됐다** (기사님 확정 2026-09-03:
+     *    *"이 명제는 이제 유효하지 않다 … 지나가면 실었다가 맞아"*).
+     */
+    pass: {
+        /** 이만큼 가까이 가면 «그 앞을 지났다» — 도착 반경(500m)보다 좁다 */ nearM: number;
+        /** 그 뒤 이만큼 멀어지면 «지나왔다» — 진입보다 커야 한다 */ awayM: number;
+    };
     unknown: {
         /** 상차 방법 미확인 — 찾기 + 상차 + **결박** */ pickupDwellMin: number;
         /** 하차 방법 미확인 — 찾기 + 하차 */ dropoffDwellMin: number;
@@ -142,6 +155,7 @@ export const DEFAULT_JUDGMENT: JudgmentConfig = {
     // 🧪 판정색 확정안 v2 (기사님 확정 2026-08-21) — 절대치 문턱(merge 4칸) 폐기,
     //    가중치 통합(revenueDetour), 목표 시급은 문제지 캘리브레이션으로 확정(3.0만).
     unknown: { pickupDwellMin: 15, dropoffDwellMin: 10, pickupPromiseMin: 20 },
+    pass: { nearM: 300, awayM: 400 },
     speed: { shortKmh: 25, midKmh: 46, longKmh: 56 },
     weights: { revenueDetour: 1, bufferCost: 1, slots: 1, promiseGuard: 1, cargoCompat: 1, geography: 0 },
     target: { hourlyKrw: 30_000 },
@@ -171,7 +185,7 @@ export const DEFAULT_JUDGMENT: JudgmentConfig = {
 export interface JudgmentField {
     /** DB 컬럼 이름 = 폼의 키 */ col: string;
     /** `JudgmentConfig` 안의 자리 */ path: [keyof JudgmentConfig, string];
-    group: '합짐' | '첫짐' | '모를 때' | '가중치' | '색 경계' | '데드라인' | '정차·여유';
+    group: '합짐' | '첫짐' | '모를 때' | '가중치' | '색 경계' | '데드라인' | '정차·여유' | '지나침';
     label: string;
     unit: string;
     min: number;
@@ -198,6 +212,13 @@ export const JUDGMENT_FIELDS: readonly JudgmentField[] = [
     { col: 'pickup_promise_minutes', path: ['unknown', 'pickupPromiseMin'], group: '데드라인',
       label: '상차 약속', unit: '분', min: 0, max: 240, int: true,
       why: '콜을 잡으면 이만큼 안에 그 상차지에 도착한다 (기사님 확정 2026-08-31). 통화 약속·적요 시각이 있으면 그것이 이긴다' },
+
+    { col: 'pass_near_m', path: ['pass', 'nearM'], group: '지나침',
+      label: '지나침 진입', unit: 'm', min: 50, max: 2000, int: true,
+      why: '이만큼 가까이 가면 «그 앞을 지났다». 도착 반경 500m 는 주차·GPS 오차용이라 넓다 — 여기는 «진짜 그 앞»이라 좁게 (기사님 확정 2026-09-03)' },
+    { col: 'pass_away_m', path: ['pass', 'awayM'], group: '지나침',
+      label: '지나침 이탈', unit: 'm', min: 100, max: 5000, int: true,
+      why: '진입한 뒤 이만큼 멀어지면 도착·완료를 순차로 찍는다. **진입보다 커야 한다** — 작으면 들어오자마자 찍힌다 (안전장치가 막는다)' },
 
     // 🧪 옛 가중치 둘(추가 주행 · 우회 거리)은 **우회 시급 하나로 통합**됐다
     //    (기사님 확정 ② — 같은 40분 우회라도 요금이 가른다)

@@ -76,6 +76,47 @@ const GWANGJU_NAMDONG: MockEntry = {
     lat: 37.3950,
 };
 
+// ══════════════════════════════════════════════════════════════════════
+//  🚚 서진(西進) 합짐 — 초월 → 강서 (기사님 실주행 2026-09-03 02:30 출발)
+//  좌표는 전부 카카오에서 확인했다 (`주소검증` 스킬 · 2026-09-03).
+//  🔴 이름으로 찾으면 폴백이 엉뚱한 곳을 문다 — 「진일텍푸라」는 오산 쪽(37.13)을 물어왔다.
+//     그래서 **주소로** 박는다.
+//  🔴 `region` 은 **반드시 «동» 이름이다** (2026-09-03 실사고). 처음에 «강서구»라 적었더니
+//     도착 목표 «서울»이 만드는 키워드 359개가 **전부 동 이름**이라 셋 다 도착지 축에서
+//     떨어졌다 — `도착지(359중 강서구)=❌`. 실제 동은 카카오 역지오코딩으로 확인했다:
+//     서부간선=가산동 · 진일텍푸라=구로동 · 장례식장=방화동 (셋 다 키워드에 있다).
+// ══════════════════════════════════════════════════════════════════════
+const SB_CHOWOL: MockEntry = {
+    customerName: '스타벅스 경기광주초월역DT점', contactName: '점장', phone1: '010-0000-0101',
+    region: '초월읍', addressDetail: '경기 광주시 초월읍 스타벅스 경기광주초월역DT점',
+    lon: 127.298238, lat: 37.374409,
+};
+const SN_TAXI: MockEntry = {
+    customerName: '성남시 택시쉼터', contactName: '관리인', phone1: '010-0000-0102',
+    region: '여수동', addressDetail: '경기 성남시 중원구 여수동 성남시 택시쉼터',
+    lon: 127.122541, lat: 37.422620,
+};
+const AY_OIL: MockEntry = {
+    customerName: '안양석유주유소', contactName: '소장', phone1: '010-0000-0103',
+    region: '석수동', addressDetail: '경기 안양시 만안구 석수동 안양석유주유소',
+    lon: 126.904770, lat: 37.429537,
+};
+const SEOBU_TOLL: MockEntry = {
+    customerName: '서부간선영업소', contactName: '담당', phone1: '010-0000-0104',
+    region: '가산동', addressDetail: '서울 금천구 가산동 서서울도시고속도로 서부간선영업소',
+    lon: 126.883619, lat: 37.468967,
+};
+const JININ_TEX: MockEntry = {
+    customerName: '진일텍푸라', contactName: '사장', phone1: '010-0000-0105',
+    region: '구로동', addressDetail: '서울 구로구 구로동 경인로53길 111 진일텍푸라',
+    lon: 126.874476, lat: 37.505685,
+};
+const GS_FUNERAL: MockEntry = {
+    customerName: '강서개화장례식장', contactName: '실장', phone1: '010-0000-0106',
+    region: '방화동', addressDetail: '서울 강서구 방화동 양천로 35 지층 강서개화장례식장',
+    lon: 126.807692, lat: 37.572971,
+};
+
 export const PRESETS: Record<string, PresetProblem[]> = {
     /**
      * 📍 **축 문제지 — 어디서 돌려도 정답이 같다** (기사님 확정 2026-08-31).
@@ -147,6 +188,73 @@ export const PRESETS: Record<string, PresetProblem[]> = {
      * 복귀행(집=광주) 키워드 "남동"이 "인천 **남동**구"에 부분 일치해 인천행이 통과했다.
      * 1번을 거르고 2번을 올려야 통과다 — 한쪽만 되면 반쪽짜리 수리다.
      */
+    /**
+     * 🚚 **서진 합짐 — 초월에서 강서까지 한 방향으로만 간다** (기사님 실주행 2026-09-03).
+     *
+     * 방문 순서: 집 → ①스타벅스 → ②택시쉼터 → ③안양주유소 → ④서부간선 → ⑤진일텍푸라 → ⑥장례식장
+     * 상차 셋을 다 싣고 하차를 순서대로 — **되돌아가는 구간이 하나도 없다.**
+     *
+     * 🟢 **이 문제지가 노리는 것: «우회 비용이 거의 0인 합짐»을 판정이 알아보는가.**
+     * ```
+     * 1콜만 단독으로   64.4km
+     * 셋을 합쳐도      65.0km      ← 0.6km 더 가고 콜 두 개를 더 싣는다
+     * ```
+     * 카카오 실측 (2026-09-03 · `주소검증`·directions):
+     * ```
+     * ① 스타벅스 → 장례식장   64.4km / 70분 / 통행료 4,700원   (기사님 재측정 64.3km·1시간10분과 일치)
+     * ② 택시쉼터 → 서부간선   27.3km / 33분 / 통행료 1,900원
+     * ③ 안양주유소 → 진일텍   9.5km / 23분 / 통행료 0원
+     * ```
+     * ⚠️ **요금과 차종은 내가 정한 값이다** — 기사님이 안 주셔서 실제 시세를 모른다.
+     *    다마스 단가(554원/km)로 필터를 넉넉히 넘게 잡았다. 실제와 다르면 여기만 고친다.
+     * ⚠️ 하차지가 **강서·구로·금천**이다 — 도착지 키워드가 «광주시»로 잡혀 있으면 셋 다 막힌다.
+     *    이 문제지를 돌리기 전에 **도착지 축을 서울 서부로 바꾸거나 꺼야** 한다.
+     */
+    '서진': [
+        {
+            label: '① ⭕ 첫짐 · 스타벅스 초월역DT → 강서개화장례식장 · 64.4km',
+            pickup: '스타벅스 경기광주초월역DT점', dropoff: '강서개화장례식장',
+            pickupFallback: SB_CHOWOL, dropoffFallback: GS_FUNERAL,
+            fare: 90000, vehicleType: '다마스', expect: 'PASS',
+            why: '🔵 **KEEP 하세요. 이 콜이 경로를 정합니다** — 집에서 1.1km 상차, 서쪽 끝까지 가는 긴 다리다',
+        },
+        {
+            label: '② ⭕ 합짐1 · 성남시택시쉼터 → 서부간선영업소 · 27.3km',
+            pickup: '성남시 택시쉼터', dropoff: '서부간선영업소',
+            pickupFallback: SN_TAXI, dropoffFallback: SEOBU_TOLL,
+            fare: 45000, vehicleType: '다마스', expect: 'PASS',
+            why: '🔵 **①의 경로 위에 그대로 얹힌다** — 상차 17.7km 지점, 하차도 가는 길. 우회가 거의 없다',
+        },
+        {
+            label: '③ ⭕ 합짐2 · 안양석유주유소 → 진일텍푸라 · 9.5km',
+            pickup: '안양석유주유소', dropoff: '진일텍푸라',
+            pickupFallback: AY_OIL, dropoffFallback: JININ_TEX,
+            fare: 35000, vehicleType: '다마스', expect: 'PASS',
+            why: '🔵 **②의 하차 직전에 상차하고 직후에 하차한다** — 셋 중 가장 짧지만 경로를 한 뼘도 안 늘린다',
+        },
+        {
+            label: '·· 채움 1 — ✖ 요금 · 스타벅스 → 장례식장 · 8천원',
+            pickup: '스타벅스 경기광주초월역DT점', dropoff: '강서개화장례식장',
+            pickupFallback: SB_CHOWOL, dropoffFallback: GS_FUNERAL,
+            fare: 8000, vehicleType: '다마스', expect: 'BLOCK', filler: true,
+            why: '①과 똑같은 구간인데 요금만 8천원 — **요금/단가 축 하나로** 떨어져야 한다',
+        },
+        {
+            label: '·· 채움 2 — ✖ 차종 · 택시쉼터 → 서부간선 · 5t',
+            pickup: '성남시 택시쉼터', dropoff: '서부간선영업소',
+            pickupFallback: SN_TAXI, dropoffFallback: SEOBU_TOLL,
+            fare: 200000, vehicleType: '5t', expect: 'BLOCK', filler: true,
+            why: '②와 똑같은 구간 — 오직 **차종**으로 떨어진다 (다마스에 5t 짐은 못 싣는다)',
+        },
+        {
+            label: '·· 채움 3 — ✖ 역주행 · 장례식장 → 스타벅스 초월역',
+            pickup: '강서개화장례식장', dropoff: '스타벅스 경기광주초월역DT점',
+            pickupFallback: GS_FUNERAL, dropoffFallback: SB_CHOWOL,
+            fare: 90000, vehicleType: '다마스', expect: 'BLOCK', filler: true,
+            why: '①을 **거꾸로** 가는 콜 — 요금·차종은 멀쩡한데 **가던 방향의 반대**다',
+        },
+    ],
+
     '오탐': [
         {
             label: '① 인천 남동구 — 걸러야 한다',
@@ -599,6 +707,10 @@ const ALIASES: Record<string, string> = {
  * 여기 없는 것은 URL 로만 들어간다 (`?preset=…`).
  */
 export const PRESET_MENU: Array<{ key: string; title: string; desc: string }> = [
+    { key: '서진', title: '🚚 서진 합짐 · 초월(집)→성남→안양→서부간선→구로→강서 (2026-09-03)',
+      desc: '6문제 · 잡는 콜 3(① 첫짐 64.4km · ② 합짐1 27.3km · ③ 합짐2 9.5km) · 채움 3(요금·차종·역주행). ' +
+            '되돌아가는 구간이 없어 **우회 비용이 거의 0인 합짐**이다 — 단독 64.4km ↔ 셋 합쳐 65.0km. ' +
+            '🔴 하차지가 강서·구로·금천이라 도착지 축을 서울 서부로 바꾸고 돌린다' },
     { key: '칠지점', title: '🚚 7지점 한 바퀴 · 집→모다→성당→신둔→이조→제일→터미널',
       desc: '7문제 — 정지 상태 정답: 알람 2번(01·03). 05는 주행 중에만 잡힌다. 채움 없음' },
     { key: '초월이천', title: '🚗 초월(집) → 이천 롯데아울렛 · 갈 때 (2026-08-26)',

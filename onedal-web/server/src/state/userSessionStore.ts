@@ -183,6 +183,24 @@ export interface UserSession {
      * `arrivalFired` 와 같은 수명이다 — 사이클이 끝나면 함께 비운다.
      */
     departWatch: Map<string, { orderId: string; x: number; y: number }>;
+    /**
+     * 🚚 **지나침 감시 — «진입 반경 안에 들어온» 정거장과 그 좌표** (2026-09-03 신설).
+     *
+     * 들어온 적이 있어야 «지나왔다»가 성립한다 — 없으면 남의 정거장을 스쳐만 가도 찍힌다.
+     * 🔴 **좌표를 들고 있는다.** «다음 정거장»만 보면, 도착이 먼저 찍혀 그 정거장이
+     *    «다녀온 곳»이 되는 순간 감시에서 빠져 **완료를 영영 못 찍는다**
+     *    (시뮬은 근접만으로 도착이 찍히므로 늘 그렇게 된다).
+     * 찍고 나면 지운다 — 되돌아와도 다시 안 걸린다 (`departWatch` 와 같은 결).
+     */
+    passWatch: Map<string, {
+        orderId: string; stopType: 'pickup' | 'dropoff'; x: number; y: number;
+        /**
+         * 🔴 **진입 반경 안에 실제로 들어왔나.** 도착(500m)이 진입(300m)보다 넓어서,
+         * 도착만 보고 «들어왔다»로 치면 **450m 에서 도착 → 다음 틱에 400m 이탈**로
+         * 곧바로 완료가 찍힌다 (짐을 싣기도 전에). 그래서 진입은 따로 센다.
+         */
+        entered: boolean;
+    }>;
 
     /**
      * 마지막으로 위치를 받은 시각(ms). **속도를 재는 데만 쓴다.**
@@ -283,6 +301,7 @@ function createDefaultSession(userId: string): UserSession {
         lastGpsAt: undefined,
         arrivalFired: new Set(),
         departWatch: new Map(),
+        passWatch: new Map(),
         arrivalWatch: null,
         arrivalNoticed: new Set(),
     };
