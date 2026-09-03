@@ -381,36 +381,46 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             }
         }
 
-        // 0.9. 👣 달린 자취 — 연한 선. 파란 경로선(앞길)이 잘려나가도 이건 사이클 끝까지 남는다
-        if (driven.length > 1) {
+        /**
+         * 1. 🛣️👣 **두 선을 겹쳐 «얼마나 벗어났나»를 보여 준다** (기사님 안 2026-09-04).
+         *
+         * 기사님: *"카카오에서 받아온 걸 **아래** 두고 내가 간 걸 **위**에 두는 거지..
+         * 그럼 얼마나 경로 이탈한 건지 한눈에 볼 수 있겠다. 둘 다 **투명도를 50%씩** 주면
+         * 정확히 지나가면 지도를 가릴 거고 아니면 지도가 보이니 좋을 듯싶다."*
+         *
+         * 🔴 **같은 색이라 겹치면 진해진다.** 반 투명 둘이 포개지면 유효 불투명도가
+         *    0.5 → 0.75 로 오른다. 그래서 **진한 곳 = 계획대로 갔다**,
+         *    **연한 두 줄 = 벗어났다** 로 읽힌다 — 범례 없이 눈이 바로 안다.
+         * 🔴 순서가 뜻이다 — 계획이 **아래**, 실제가 **위**. 실제가 계획을 덮는다.
+         */
+        const drawPath = (pts: Array<{ x: number; y: number }>, alpha: number, dash?: number[]) => {
+            if (pts.length < 2) return;
+            ctx.save();
+            ctx.globalAlpha = alpha;
             ctx.beginPath();
-            ctx.strokeStyle = withAlpha(mapColors.routeLine, 0.55);
-            ctx.lineWidth = 2.5 * zoomRef.current;
+            ctx.lineWidth = 3 * zoomRef.current;
             ctx.lineJoin = 'round';
             ctx.lineCap = 'round';
-            driven.forEach((p, i) => {
+            if (dash) ctx.setLineDash(dash);
+            pts.forEach((p, i) => {
                 const { cx, cy } = getScreenPt(p);
                 if (i === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
             });
             ctx.stroke();
+            ctx.restore();
+        };
+
+        // ① 아래 — 카카오가 준 계획선
+        if (hasPolyline && validPolyline.length > 0) {
+            ctx.strokeStyle = isPreviewRoute ? '#e6b422' : mapColors.routeLine;
+            // 노란 점선 = 아직 결재 전 (v23 Ⅱ) — 그때는 «계획»이라 진하게 둔다
+            drawPath(validPolyline, isPreviewRoute ? 0.85 : 0.5, isPreviewRoute ? [10, 8] : undefined);
         }
 
-        // 1. 카카오 실제 도로 궤적(폴리라인) 렌더링
-        if (hasPolyline && validPolyline.length > 0) {
-            ctx.beginPath();
-            ctx.strokeStyle = isPreviewRoute ? '#e6b422' : mapColors.routeLine;
-            if (isPreviewRoute) ctx.setLineDash([10, 8]);   // 노란 점선 = 아직 결재 전 (v23 Ⅱ)
-            ctx.lineWidth = 3 * zoomRef.current;
-            ctx.lineJoin = 'round';
-            ctx.lineCap = 'round';
-
-            validPolyline.forEach((p: any, _i: number) => {
-                const { cx, cy } = getScreenPt(p);
-                if (_i === 0) ctx.moveTo(cx, cy);
-                else ctx.lineTo(cx, cy);
-            });
-            ctx.stroke();
-            ctx.setLineDash([]);
+        // ② 위 — 내가 실제로 달린 자취
+        if (driven.length > 1) {
+            ctx.strokeStyle = mapColors.routeLine;
+            drawPath(driven, 0.5);
         }
 
         // 1.7. 👣 지나온 발자취 — 번호는 방문 순서로 동결, 테두리 색 = 콜 색 (①·②)
