@@ -180,13 +180,16 @@ function MockFilterPanelFull() {
  * 좌표는 2026-09-03 실주행 그 지점들이다.
  */
 const MAP_STOPS: RoutePoint[] = [
-    /* callNo = 몇 번 «콜»인가 (색상) · no = 몇 번째 «정거장»인가 (번호) — 다른 값이다 */
-    { type: '상차', name: '초월읍', isEvaluating: false, x: 127.2945, y: 37.3766, no: 1, routeId: 'c10', callNo: 1, visited: true },
-    { type: '상차', name: '여수동', isEvaluating: false, x: 127.1387, y: 37.4218, no: 2, routeId: 'c12', callNo: 2 },
-    { type: '상차', name: '석수동', isEvaluating: false, x: 126.9048, y: 37.4128, no: 3, routeId: 'c13', callNo: 3 },
-    { type: '하차', name: '가산동', isEvaluating: false, x: 126.8829, y: 37.4682, no: 4, routeId: 'c12', callNo: 2 },
-    { type: '하차', name: '구로동', isEvaluating: false, x: 126.8885, y: 37.5023, no: 5, routeId: 'c13', callNo: 3 },
-    { type: '하차', name: '방화동', isEvaluating: false, x: 126.8130, y: 37.5735, no: 6, routeId: 'c10', callNo: 1 },
+    /* 🔴 **좌표를 지어내지 않았다** — 09-03 DB `geocode_cache` 의 실제 값이다 (규칙 ④).
+       처음엔 내가 어림한 값을 넣었다가 석수동이 1.9km, 구로동이 1.4km 어긋나
+       경로선 밖에 떨어져 보였다 (기사님 2026-09-04: *"석수동 위치가 생각과 좀 다르다"*).
+       callNo = 몇 번 «콜»인가 (색상) · no = 몇 번째 «정거장»인가 (번호) — 다른 값이다 */
+    { type: '상차', name: '초월읍', isEvaluating: false, x: 127.29823839640528, y: 37.374408707605994, no: 1, routeId: 'c10', callNo: 1, visited: true },
+    { type: '상차', name: '여수동', isEvaluating: false, x: 127.122540815164, y: 37.422619533567, no: 2, routeId: 'c12', callNo: 2 },
+    { type: '상차', name: '석수동', isEvaluating: false, x: 126.90476957579095, y: 37.429537468876326, no: 3, routeId: 'c13', callNo: 3 },
+    { type: '하차', name: '가산동', isEvaluating: false, x: 126.883619010738, y: 37.4689667062309, no: 4, routeId: 'c12', callNo: 2 },
+    { type: '하차', name: '구로동', isEvaluating: false, x: 126.874476183809, y: 37.5056847560909, no: 5, routeId: 'c13', callNo: 3 },
+    { type: '하차', name: '방화동', isEvaluating: false, x: 126.807691849796, y: 37.5729712404467, no: 6, routeId: 'c10', callNo: 1 },
 ];
 /**
  * 🛣️ **카카오가 준 진짜 경로선** — 2026-09-03 14:51 판, 3콜 합짐 (68.0km / 106분).
@@ -306,7 +309,7 @@ const DRIVEN_TRAIL: Array<{ x: number; y: number }> = ([
 
 /** 👣 이미 다녀온 정거장 번호 — 지도와 목록이 **같은 값**을 본다 (규칙 ③) */
 const VISITED_STOPS = new Set(MAP_STOPS.filter(p => p.visited).map(p => p.no!));
-const MY_LOCATION = { x: 127.2945, y: 37.3766 };   // 초월읍 — 1번 상차지에 도착해 정차 중
+const MY_LOCATION = { x: 127.294001101745, y: 37.3771779756748 };   // 집(동광뷰엘) — geocode_cache 실측   // 초월읍 — 1번 상차지에 도착해 정차 중
 
 /* ─────────────────────────────────────────────
    콜 자료 — 2026-09-03 실주행 캡처의 실제 값

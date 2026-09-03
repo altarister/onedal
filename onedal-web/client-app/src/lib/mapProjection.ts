@@ -206,3 +206,23 @@ export function mapTileTone(zoom: number, dim: number): { alpha: number; filter:
         filter: `grayscale(${gray.toFixed(3)}) brightness(${bright.toFixed(3)}) contrast(${contrast.toFixed(3)})`,
     };
 }
+
+/**
+ * 🖊️ **경로선 두께 — 확대해도 도로를 덮지 않는다** (기사님 지적 2026-09-04).
+ *
+ * 기사님: *"라인이 너무 두꺼워 길을 잘 간 건지 모르겠어. 줌에 따라 두께가 달라져야 할 것 같아."*
+ *
+ * 🔴 예전 식은 `3 * zoom` 이었다 — **배율에 그대로 곱했다.** 10배로 확대하면 30px 짜리
+ *    띠가 되어 도로를 통째로 덮었고, «계획선과 궤적이 겹쳤나»를 볼 수가 없었다.
+ *    확대는 «자세히 보겠다»는 손짓인데 선이 오히려 자세함을 가린 셈이다.
+ *
+ * 🔴 **화면 픽셀 기준으로 잡는다.** 확대해도 조금만 굵어지고 상한에서 멈춘다 —
+ *    지도 앱이 도로를 그리는 방식과 같다. 그래야 확대할수록 «두 선의 틈»이 벌어져 보인다.
+ */
+export const ROUTE_WIDTH_BASE = 3;
+export const ROUTE_WIDTH_MAX = 2;   // 기본의 몇 배까지
+
+export function routeLineWidth(zoom: number): number {
+    const grow = Math.min(ROUTE_WIDTH_MAX, Math.sqrt(Math.max(0.1, zoom)));
+    return ROUTE_WIDTH_BASE * grow;
+}

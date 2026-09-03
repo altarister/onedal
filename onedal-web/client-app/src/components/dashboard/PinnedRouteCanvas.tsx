@@ -7,7 +7,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { MAP_THEME_COLORS, withAlpha } from '../../styles/themes';
 import { callNodeFill, callNodeStroke, callNodeText } from '../../styles/callPalette';
 import {
-    TILE_SIZE, TILE_MAX_ZOOM, anchorBaseOf, computeViewport, toScreenPoint, panAfterZoom, pinchStep, mapTileTone,
+    TILE_SIZE, TILE_MAX_ZOOM, anchorBaseOf, computeViewport, toScreenPoint, panAfterZoom, pinchStep, mapTileTone, routeLineWidth,
     type Viewport } from '../../lib/mapProjection';
 import { sheetOccludedPx, type SheetSnap } from '../stage/StageSheet';
 
@@ -398,7 +398,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             ctx.save();
             ctx.globalAlpha = alpha;
             ctx.beginPath();
-            ctx.lineWidth = 3 * zoomRef.current;
+            ctx.lineWidth = routeLineWidth(zoomRef.current);
             ctx.lineJoin = 'round';
             ctx.lineCap = 'round';
             if (dash) ctx.setLineDash(dash);

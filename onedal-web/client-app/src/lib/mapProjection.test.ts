@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-    projectMercator, anchorBaseOf, computeViewport, toScreenPoint, panAfterZoom, pinchStep, mapTileTone, TILE_CLEAR_FROM, TILE_CLEAR_TO,
+    projectMercator, anchorBaseOf, computeViewport, toScreenPoint, panAfterZoom, pinchStep, mapTileTone, TILE_CLEAR_FROM, TILE_CLEAR_TO, routeLineWidth,
     PADDING_LEFT, PADDING_RIGHT, PADDING_TOP, PADDING_BOTTOM,
     type GeoPoint,
 } from './mapProjection';
@@ -321,5 +321,34 @@ describe('🔍 확대하면 지도가 제 색을 되찾는다', () => {
 
     it('밝은 테마는 자기 평소값에서 출발한다 — 값을 지어내지 않는다', () => {
         expect(mapTileTone(1, 0.75).alpha).toBeCloseTo(0.75, 6);
+    });
+});
+
+/**
+ * 🖊️ **경로선 두께 — 확대해도 도로를 덮지 않는다** (기사님 지적 2026-09-04)
+ *
+ * 기사님: *"라인이 너무 두꺼워 길을 잘 간 건지 모르겠어. 줌에 따라 두께가 달라져야 할 것 같아."*
+ * 옛 식 `3 * zoom` 은 10배에서 30px 띠가 되어 도로를 통째로 덮었다.
+ */
+describe('🖊️ 경로선 두께', () => {
+    it('기본 배율에서는 3px', () => {
+        expect(routeLineWidth(1)).toBeCloseTo(3, 6);
+    });
+
+    it('🔴 확대해도 배율만큼 굵어지지 않는다 — 옛 식이면 10배에서 30px 였다', () => {
+        expect(routeLineWidth(10)).toBeLessThan(10);
+    });
+
+    it('확대하면 조금은 굵어진다 — 아주 고정이면 확대한 보람이 없다', () => {
+        expect(routeLineWidth(4)).toBeGreaterThan(routeLineWidth(1));
+    });
+
+    it('상한에서 멈춘다 — 더 확대해도 그대로', () => {
+        expect(routeLineWidth(9)).toBeCloseTo(routeLineWidth(100), 6);
+    });
+
+    it('축소해도 사라지지 않는다', () => {
+        expect(routeLineWidth(0.5)).toBeGreaterThan(1);
+        expect(routeLineWidth(0)).toBeGreaterThan(0);
     });
 });
