@@ -24,6 +24,8 @@ export const MAP_THEME_COLORS = {
         sidoFill: 'rgb(100, 116, 139)',
         sidoStroke: 'rgb(100, 116, 139)',
         routeLine: 'rgb(59, 130, 246)',
+        /** 👣 내가 실제로 달린 자취 — 계획선(routeLine)과 **다른 색**이어야 어느 쪽인지 갈린다 */
+        drivenLine: 'rgb(248, 250, 252)',
         nodePickup: 'rgb(16, 185, 129)',
         nodeDropoff: 'rgb(244, 63, 94)',
         nodeEvaluating: 'rgb(245, 158, 11)',
@@ -54,6 +56,8 @@ export const MAP_THEME_COLORS = {
         sidoFill: 'rgb(100, 116, 139)',
         sidoStroke: 'rgb(100, 116, 139)',
         routeLine: 'rgb(37, 99, 235)', // blue-600
+        /** 👣 밝은 테마에서는 어두운 선이 회색조 지도 위에서 산다 */
+        drivenLine: 'rgb(30, 41, 59)',
         nodePickup: 'rgb(5, 150, 105)', // emerald-600
         nodeDropoff: 'rgb(225, 29, 72)', // rose-600
         nodeEvaluating: 'rgb(217, 119, 6)', // amber-600

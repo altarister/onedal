@@ -388,17 +388,23 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
          * 그럼 얼마나 경로 이탈한 건지 한눈에 볼 수 있겠다. 둘 다 **투명도를 50%씩** 주면
          * 정확히 지나가면 지도를 가릴 거고 아니면 지도가 보이니 좋을 듯싶다."*
          *
-         * 🔴 **같은 색이라 겹치면 진해진다.** 반 투명 둘이 포개지면 유효 불투명도가
-         *    0.5 → 0.75 로 오른다. 그래서 **진한 곳 = 계획대로 갔다**,
-         *    **연한 두 줄 = 벗어났다** 로 읽힌다 — 범례 없이 눈이 바로 안다.
+         * 🔴 **색을 나눈다. 투명도로 겹치게 하지 않는다** (기사님 재확인 2026-09-04:
+         *    *"이렇게 보니 경로와 내가 간 길하고 어떤 것이 맞는 건지 모르겠다..
+         *    투명도를 빼고 색을 달리 하자"*).
+         *    처음엔 «같은 색 반 투명 둘이 포개지면 진해진다»로 만들었는데 —
+         *    «따라갔나»는 보여 줘도 **«어느 쪽이 뭔지»를 못 갈랐다.**
+         *
+         *      파란 굵은 선   카카오가 준 **가야 할 길**   (아래)
+         *      흰 얇은 선     내가 **실제로 간 길**        (위)
+         *
+         *    벗어나면 흰 선이 파란 길 밖으로 나간다 — 그게 이탈이다.
          * 🔴 순서가 뜻이다 — 계획이 **아래**, 실제가 **위**. 실제가 계획을 덮는다.
          */
-        const drawPath = (pts: Array<{ x: number; y: number }>, alpha: number, dash?: number[]) => {
+        const drawPath = (pts: Array<{ x: number; y: number }>, widthScale: number, dash?: number[]) => {
             if (pts.length < 2) return;
             ctx.save();
-            ctx.globalAlpha = alpha;
             ctx.beginPath();
-            ctx.lineWidth = routeLineWidth(zoomRef.current);
+            ctx.lineWidth = routeLineWidth(zoomRef.current) * widthScale;
             ctx.lineJoin = 'round';
             ctx.lineCap = 'round';
             if (dash) ctx.setLineDash(dash);
@@ -410,17 +416,17 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             ctx.restore();
         };
 
-        // ① 아래 — 카카오가 준 계획선
+        // ① 아래 — 카카오가 준 «가야 할 길». 굵고 파랗다
         if (hasPolyline && validPolyline.length > 0) {
             ctx.strokeStyle = isPreviewRoute ? '#e6b422' : mapColors.routeLine;
-            // 노란 점선 = 아직 결재 전 (v23 Ⅱ) — 그때는 «계획»이라 진하게 둔다
-            drawPath(validPolyline, isPreviewRoute ? 0.85 : 0.5, isPreviewRoute ? [10, 8] : undefined);
+            // 노란 점선 = 아직 결재 전 (v23 Ⅱ)
+            drawPath(validPolyline, 1, isPreviewRoute ? [10, 8] : undefined);
         }
 
-        // ② 위 — 내가 실제로 달린 자취
+        // ② 위 — 내가 «실제로 간 길». 얇고 밝다. 파란 길 밖으로 나가면 그게 이탈이다
         if (driven.length > 1) {
-            ctx.strokeStyle = mapColors.routeLine;
-            drawPath(driven, 0.5);
+            ctx.strokeStyle = mapColors.drivenLine;
+            drawPath(driven, 0.55);
         }
 
         // 1.7. 👣 지나온 발자취 — 번호는 방문 순서로 동결, 테두리 색 = 콜 색 (①·②)
