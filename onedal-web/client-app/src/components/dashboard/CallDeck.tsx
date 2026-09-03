@@ -101,6 +101,7 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
     useEffect(() => releasePending, []);
 
     const scrollToIndex = (i: number, smooth = true) => {
+        if (accordion) return;   // 🪗 아코디언엔 가로 트랙이 없다 — 불변식을 주석이 아니라 코드로 못박는다
         const el = trackRef.current;
         if (!el || !el.clientWidth) return;
         const already = Math.round(el.scrollLeft / el.clientWidth) === i;
@@ -132,6 +133,7 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
      *    **스크롤을 옮기는 것은 명시적 이동과 목록 변경뿐이다.**
      */
     const onScroll = () => {
+        if (accordion) return;
         const el = trackRef.current;
         if (!el || !el.clientWidth) return;
         const i = Math.round(el.scrollLeft / el.clientWidth);
@@ -226,9 +228,8 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
                 영역이 생겼다 없어지면 화면이 튀고, 무엇보다 **첫 콜에서도 지금 뭘 해야 하는지**를
                 같은 자리에서 봐야 한다. **1건이든 2건이든 줄의 생김새는 같다.** */}
             {orders.length > 0 && (
-                <div className={`flex flex-col gap-1 px-3 pt-2 pb-1 ${accordion ? 'sticky top-0 z-10' : ''}`}
-                     /* 🪗 헤더가 콘텐츠 위에 뜨므로 바닥색이 없으면 글자가 비쳐 겹친다 */
-                     style={accordion ? { background: 'var(--color-surface)' } : undefined}>
+                /* 🪗 sticky 헤더는 바닥색(bg-surface)이 있어야 밑으로 흐르는 글자가 안 비친다 */
+                <div className={`flex flex-col gap-1 px-3 pt-2 pb-1 ${accordion ? 'sticky top-0 z-10 bg-surface' : ''}`}>
                     {orders.map((o, i) => {
                         const r = records.get(o.id) ?? EMPTY_RECORDS;
                         const p = deriveCallStep(r.milestones, r.reports);
@@ -310,12 +311,11 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
                 </div>
             )}
 
-            {accordion ? (
-                /* 🪗 콘텐츠 — 시트의 스크롤 그릇 안에서 헤더(sticky) 밑으로 흐른다.
-                   가로 트랙이 없으므로 scrollToIndex 는 자연히 no-op 이고(trackRef null),
-                   자동 이동(평가중·GPS 근접)은 setCurId 만으로 이 자리가 바뀐다. */
-                <div>{orders[cur] ? renderCard(orders[cur]) : null}</div>
-            ) : (
+            {/* 🪗 아코디언도 **카드를 전부 마운트한 채** 고른 것만 보인다 (`hidden`).
+                🔴 고른 카드만 그리면 콜을 바꿀 때마다 카드가 언마운트된다 — 통화 중 적던
+                   단위·수량이 날아가고, 카드가 mount 마다 서버에 단계를 다시 청한다.
+                   «카드는 사라지지 않으므로 입력값 자체는 남는다»(위 자동 이동 주석)는
+                   보장이 두 모드 모두에서 지켜져야 한다. 그리는 길도 하나가 된다 (규칙 ③). */}
             <div
                 ref={trackRef}
                 onScroll={onScroll}
@@ -324,19 +324,19 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
                    손이 항상 코드보다 우선이다 */
                 onPointerDown={releasePending}
                 onTouchStart={releasePending}
-                className="flex overflow-x-auto snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                className={accordion ? '' : "flex overflow-x-auto snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"}
                 /* 🔴 scrollBehavior:'smooth' 를 CSS 로 걸면 `behavior:'auto'` 가 무시되어
                    위치 복구까지 애니메이션이 되고, 스와이프 중이면 그게 손가락과 부딪힌다.
                    부드러움이 필요한 곳(명시적 이동)에서만 옵션으로 준다. */
-                style={{ overscrollBehaviorX: 'contain' }}
+                style={accordion ? undefined : { overscrollBehaviorX: 'contain' }}
             >
-                {orders.map(o => (
-                    <div key={o.id} className="shrink-0 w-full snap-center">
+                {orders.map((o, i) => (
+                    <div key={o.id} hidden={accordion && i !== cur}
+                         className={accordion ? undefined : 'shrink-0 w-full snap-center'}>
                         {renderCard(o)}
                     </div>
                 ))}
             </div>
-            )}
 
             {/* 하단 페이저 점은 없앴다 — 위 요약 줄이 위치(번호·테두리)와 진행을 함께 보여주므로
                 같은 정보를 두 번 그리며 세로만 잡아먹었다. 폰 한 화면이 목표다. */}

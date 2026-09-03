@@ -54,14 +54,8 @@ export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDe
     // 🔴 시트 안에서는 scrollIntoView 를 쓰지 않는다 — 스크롤 가능한 **모든 조상**(overflow-hidden
     //    main 포함)을 밀어서 상단(폰 영역)이 날아갔다 (기사님 실측 0831). 시트 스크롤통만 만진다.
     const scrollToCalls = () => {
-        const el = tabBarRef.current;
-        if (!el) return;
-        if (sheetOnly) {
-            const sc = el.closest('[data-sheet-scroll]') as HTMLElement | null;
-            if (sc) sc.scrollTop = el.offsetTop - sc.offsetTop;
-            return;
-        }
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // 부르는 곳은 탭 버튼뿐이고 탭은 시트 밖에서만 그려진다 — 시트 갈래는 죽어서 지웠다 (2026-09-03 리뷰)
+        tabBarRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     };
     const [processingId, setProcessingId] = useState<string | null>(null);
     const { filter, updateFilter } = useFilterConfig();
@@ -255,7 +249,7 @@ export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDe
             {!sheetOnly && safeRoute.length > 0 && (
                 <div
                     ref={tabBarRef}
-                    className={`flex border-b border-border-card bg-bg-base/95 backdrop-blur-sm ${sheetOnly ? "" : "sticky z-[9]"}`}
+                    className="flex border-b border-border-card bg-bg-base/95 backdrop-blur-sm sticky z-[9]"
                     style={{ top: 'var(--header-h, 0px)', scrollMarginTop: 'var(--header-h, 0px)' }}
                 >
                     <button
