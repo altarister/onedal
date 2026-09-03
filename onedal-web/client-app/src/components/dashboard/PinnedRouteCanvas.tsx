@@ -277,6 +277,45 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             });
         }
 
+        /**
+         * 0.5. 🗺️ **경계선 — 타일 위에도 얹는다** (기사님 확정 2026-09-04).
+         *
+         * 기사님: *"지도가 보기 좋기는 한데.. 구역이 나뉘어 있지 않으니까
+         * **서울로 간 건지 성남으로 간 건지 잘 모르겠어.**"*
+         *
+         * 자료는 이미 있었다(`sidoData` 60구역 — 서울특별시 + 경기도 시·군·구).
+         * 그런데 **타일이 없을 때만** 그리고 있었다 — 있는 것을 안 쓰고 있었던 셈이다.
+         *
+         * 🔴 **선만 얹는다. 면은 안 칠한다** — 채우면 회색조 지도가 또 한 겹 탁해져
+         *    판정 색이 안 읽힌다 (규칙 ⑤-3).
+         * 🔴 **배율과 무관하게 선명도를 유지한다** (기사님 2026-09-04: *"라인은 지도에도
+         *    표시가 없어. 라인은 선명도를 유지하는 걸로 해줘"*).
+         *    처음엔 «확대하면 타일에 경계가 나오니 물러나자» 고 만들었는데 — **틀렸다.**
+         *    이 타일에는 행정 경계가 없다. 물러나면 그냥 사라진다.
+         */
+        if (readyTiles.length > 0 && sidoData.features) {
+            ctx.save();
+            ctx.strokeStyle = withAlpha(mapColors.sidoStroke, 0.55);
+            ctx.lineWidth = 1;
+            sidoData.features.forEach((feature: any) => {
+                const geom = feature.geometry;
+                if (!geom) return;
+                const polygons: number[][][][] =
+                    geom.type === 'Polygon' ? [geom.coordinates]
+                        : geom.type === 'MultiPolygon' ? geom.coordinates : [];
+                polygons.forEach(polygon => polygon.forEach(ring => {
+                    ctx.beginPath();
+                    ring.forEach((pt, i) => {
+                        const m = getScreenPt({ x: pt[0], y: pt[1] });
+                        if (i === 0) ctx.moveTo(m.cx, m.cy); else ctx.lineTo(m.cx, m.cy);
+                    });
+                    ctx.closePath();
+                    ctx.stroke();
+                }));
+            });
+            ctx.restore();
+        }
+
         // 1.5. 기초 연결선 렌더링 (노드들을 잇는 보조 점선 및 직선거리)
         ctx.beginPath();
         ctx.strokeStyle = withAlpha(mapColors.sidoStroke, 0.4);
@@ -303,25 +342,43 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // 현위치 - 첫 상차지 간 회색 점선 지점에 직선거리(km) 표기
-        if (myLocation && validPoints.length > 0) {
+        /**
+         * 현위치 - 첫 상차지 간 회색 점선 지점에 직선거리(km) 표기
+         *
+         * 🔴 **경로선이 있으면 안 그린다** (기사님 2026-09-04: *"우리에게 직선 거리가
+         *    중요할까? 아닌 것 같은데"*). 맞다 — 기사님은 **도로**를 달리지 직선을 달리지 않는다.
+         *    카카오가 준 «주행 68.0km / 106분» 이 더 정확하고, **버퍼·데드라인이 전부 그 값**을 쓴다.
+         *    둘을 나란히 두면 한 화면이 **두 답**을 한다.
+         *
+         *    다만 **경로가 아직 없거나 계산이 실패했을 때**는 «대충 얼마나 먼가»의 유일한
+         *    답이다 — 그때만 남긴다 (규칙 ④: 모르면 모른다고 하되, 아는 만큼은 말한다).
+         *
+         * 🔴 **두 점이 가까워도 안 그린다.** 이 글자는 두 점의 **중간**에 놓여서, 둘이 붙으면
+         *    중간점이 **마커 위에 올라앉아** 현위치와 이름표를 함께 덮는다
+         *    (기사님 실물 확대 캡처 2026-09-04).
+         */
+        const MIN_GAP_PX = 90;   // 이보다 가까우면 글자가 마커를 덮는다
+        if (myLocation && validPoints.length > 0 && validPolyline.length < 2) {
             const startPt = getScreenPt(myLocation);
             const endPt = getScreenPt(validPoints[0]);
             const distKm = getDistanceKm(myLocation.y, myLocation.x, validPoints[0].y, validPoints[0].x);
 
             const midX = Math.round((startPt.cx + endPt.cx) / 2);
             const midY = Math.round((startPt.cy + endPt.cy) / 2);
+            const gapPx = Math.hypot(endPt.cx - startPt.cx, endPt.cy - startPt.cy);
+            /* ⚠️ `return` 을 쓰면 **뒤의 마커까지 통째로 안 그려진다** — 조건으로만 감싼다 */
+            if (gapPx >= MIN_GAP_PX) {
+                const text = `직선 ${distKm.toFixed(1)}km`;
+                ctx.font = 'bold 11px sans-serif';
+                ctx.textAlign = 'center';
+                const tWidth = ctx.measureText(text).width;
 
-            const text = `직선 ${distKm.toFixed(1)}km`;
-            ctx.font = 'bold 11px sans-serif';
-            ctx.textAlign = 'center';
-            const tWidth = ctx.measureText(text).width;
+                ctx.fillStyle = withAlpha(theme === 'light' ? mapColors.textBgLight : mapColors.textBgDark, theme === 'light' ? 0.8 : 0.7);
+                ctx.fillRect(midX - (tWidth / 2) - 4, midY - 14, tWidth + 8, 18);
 
-            ctx.fillStyle = withAlpha(theme === 'light' ? mapColors.textBgLight : mapColors.textBgDark, theme === 'light' ? 0.8 : 0.7);
-            ctx.fillRect(midX - (tWidth / 2) - 4, midY - 14, tWidth + 8, 18);
-
-            ctx.fillStyle = mapColors.stroke; // '#94a3b8' 
-            ctx.fillText(text, midX, midY - 1);
+                ctx.fillStyle = mapColors.stroke;
+                ctx.fillText(text, midX, midY - 1);
+            }
         }
 
         // 0.9. 👣 달린 자취 — 연한 선. 파란 경로선(앞길)이 잘려나가도 이건 사이클 끝까지 남는다
