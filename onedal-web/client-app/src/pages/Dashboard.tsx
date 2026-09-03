@@ -19,6 +19,18 @@ import { useOrderEngine } from "../hooks/useOrderEngine";
 
 
 
+/**
+ * ⏱️ **배너는 10초 뒤 스스로 사라진다** (기사님 지시 2026-09-03: *"토스트 팝업이 10초후
+ * 닫히도록 해야 할꺼 같아 화면을 다 가려"*).
+ *
+ * 예전에는 10·15·20초가 섞여 있었고 **서버 재시작 복구 알림은 아예 안 닫혔다** —
+ * 손으로 닫기 전까지 남아 폰 화면을 덮었다. 운전 중에는 그 닫기 버튼을 못 누른다
+ * (「운전 중에는 입력을 못 한다」 — 무입력에도 일이 되어야 한다).
+ *
+ * 🔴 **한 값으로 묶는다** — 배너마다 다른 숫자를 손으로 적으면 또 갈라진다 (규칙 ③).
+ */
+const NOTICE_MS = 10_000;
+
 export default function Dashboard() {
     const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
     // 🪧 심사석 결재 버튼의 처리 중 표시 (자동콜 갈래)
@@ -53,6 +65,12 @@ export default function Dashboard() {
     const [viewFilter, setViewFilter] = useState<'ACTIVE' | 'COMPLETED' | 'CANCELED' | 'RELEASED' | 'ALL'>('ACTIVE');
     // [이슈 W] 서버 재시작으로 진행 중 콜이 복구됐을 때 표시할 배너
     const [restoredInfo, setRestoredInfo] = useState<{ restoredCount: number; dispatchPhase: string } | null>(null);
+    // ⏱️ 복구 알림도 스스로 닫힌다 — 예전에는 손으로 닫기 전까지 남아 화면을 덮었다
+    useEffect(() => {
+        if (!restoredInfo) return;
+        const t = setTimeout(() => setRestoredInfo(null), NOTICE_MS);
+        return () => clearTimeout(t);
+    }, [restoredInfo]);
     // [T5] 3일이 지나 복구에서 빠진 미완료 콜 — **조용히 사라지게 두지 않는다**
     const [staleDropped, setStaleDropped] = useState<{
         count: number; days: number;
@@ -116,7 +134,7 @@ export default function Dashboard() {
     useEffect(() => {
         const onAutoArrived = (data: { stopType: 'pickup' | 'dropoff', message: string }) => {
             setGpsNotice(`🏁 ${data.message}`);
-            setTimeout(() => setGpsNotice(null), 10_000);
+            setTimeout(() => setGpsNotice(null), NOTICE_MS);
         };
         /**
          * 🚚 **떠남 → 하차 완료** (기사님 확정 2026-08-25).
@@ -129,7 +147,7 @@ export default function Dashboard() {
          */
         const onAutoDelivered = (data: { orderId: string, message: string }) => {
             setGpsNotice(`🚚 ${data.message}`);
-            setTimeout(() => setGpsNotice(null), 15_000);
+            setTimeout(() => setGpsNotice(null), NOTICE_MS);
         };
         /**
          * 🚚 **지나침 — 도착·완료를 대신 찍었다** (기사님 확정 2026-09-03).
@@ -138,19 +156,19 @@ export default function Dashboard() {
          */
         const onAutoPassed = (data: { orderId: string, stopType: 'pickup' | 'dropoff', message: string }) => {
             setGpsNotice(`🚚 ${data.message}`);
-            setTimeout(() => setGpsNotice(null), 15_000);
+            setTimeout(() => setGpsNotice(null), NOTICE_MS);
         };
         const onApproaching = (data: { stopType: 'pickup' | 'dropoff', distanceKm: number }) => {
             const label = data.stopType === 'pickup' ? '상차지' : '하차지';
             setGpsNotice(`📣 다음 정거장(${label}) ${data.distanceKm}km 앞 — 도착전 통화를 걸어 주세요`);
-            setTimeout(() => setGpsNotice(null), 20_000);
+            setTimeout(() => setGpsNotice(null), NOTICE_MS);
         };
         // 타겟 자동 순환 — 미리 눌러 둔 것이니 스와이프로 언제든 뒤집을 수 있다
         const onTargetSwitched = (d: { from: string, to: string }) => {
             setGpsNotice(d.to === 'HOME'
                 ? '🏠 복귀행으로 바꿔 뒀습니다 — 시간이 남으면 관내로 스와이프'
                 : '🎯 집에 도착했습니다 — 노선행으로 돌아갑니다');
-            setTimeout(() => setGpsNotice(null), 20_000);
+            setTimeout(() => setGpsNotice(null), NOTICE_MS);
         };
         /**
          * 🔔 **새 콜이 뜨면 보이는 탭으로 데려온다** (기사님 실측 2026-08-19).
