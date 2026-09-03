@@ -11,11 +11,13 @@ import { publishLocation } from '../lib/gpsBridge';
  * 
  * 서버는 이 좌표를 받아 앱폰들에게 하달할 다이나믹 반경 필터를 계산합니다.
  */
-export function useGpsTelemetry() {
+export function useGpsTelemetry(enabled = true) {
     const { lat, lng, accuracy } = useLocationStore();
     const lastSentRef = useRef<{ lat: number; lng: number; time: number } | null>(null);
 
     useEffect(() => {
+        // 🧭 내비 화면(개인 폰)은 좌표를 안 보낸다 — 두 폰이 섞이면 도착 판정이 흔들린다
+        if (!enabled) return;
         if (lat === null || lng === null) return;
 
         const now = Date.now();

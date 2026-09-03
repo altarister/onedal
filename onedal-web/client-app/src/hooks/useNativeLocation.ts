@@ -10,12 +10,19 @@ import { KeepAwake } from '@capacitor-community/keep-awake';
  * 
  * 획득한 좌표는 Zustand useLocationStore에 자동으로 캐싱됩니다.
  */
-export function useNativeLocation() {
+export function useNativeLocation(enabled = true) {
     const { setLocation, setTracking, setError } = useLocationStore();
     const watchIdRef = useRef<number | null>(null);
     const isInitializedRef = useRef(false);
 
     useEffect(() => {
+        /**
+         * 🧭 **내비 화면은 위치를 «받기만» 한다** (기사님 지적 2026-09-03).
+         * 개인 폰(아이폰)에서 이 화면을 열면 관제폰과 좌표가 **한 차량으로 섞인다** —
+         * 위치 점프로 찍히고 도착·지나침 판정이 통째로 흔들린다.
+         * 훅은 조건부로 못 부르므로 **인자로 끈다** (호출 자리를 옮기지 않는 가장 단순한 길).
+         */
+        if (!enabled) return;
         if (isInitializedRef.current) return;
         isInitializedRef.current = true;
 

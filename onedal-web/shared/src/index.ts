@@ -1648,3 +1648,4 @@ export * from './criteria';
 
 /** 🏷️ 화면 이름표 — 배차망별로 갈라 둔다 (기사님 설계 2026-09-02) */
 export * from './screenLabels';
+export * from './naviLink';
