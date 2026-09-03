@@ -9,9 +9,11 @@ import { logRoadmapEvent } from "./lib/roadmapLogger";
 import { useAuth } from "./contexts/AuthContext";
 import { useNativeLocation } from "./hooks/useNativeLocation";
 import { useGpsTelemetry } from "./hooks/useGpsTelemetry";
+import { isNaviDevice, markNaviDevice, clearNaviDevice } from "./lib/naviDevice";
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
+  const location = useLocation();
   
   if (isLoading) {
     return (
@@ -23,7 +25,13 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   }
   
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    /**
+     * 🔴 **가려던 곳을 들고 간다** (기사님 지적 2026-09-03).
+     * 예전에는 로그인이 끝나면 **무조건 홈**이었다 — 개인 폰이 `/navi` 를 열어도
+     * 로그인 뒤에는 **관제 화면**에 서 있었고, 그 화면은 좌표를 서버로 보낸다.
+     * 「관제가 2개」가 로그인 한 번으로 생기던 자리다.
+     */
+    return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />;
   }
   
   return <>{children}</>;
@@ -53,13 +61,23 @@ function AppLayout() {
    */
   const naviOnly = location.pathname.startsWith('/navi');
   /**
+   * 🔴 **주소만으로 끄면 홈에 닿는 순간 켜진다** (기사님 지적 2026-09-03:
+   *    *"우리 페이지가 로그인 하면 리다이렉트 해서 홈으로 가. 그거서는 허용하면 안되잖아."*).
+   *    로그인 리다이렉트·뒤로 가기·잘못 누른 링크 — 홈에 닿는 길은 여럿이다.
+   *    그래서 **기기에 표시를 남겨** 그 뒤로도 계속 끈다 (규칙 ② 안전장치는 겹쳐 둔다).
+   */
+  const [naviDevice, setNaviDevice] = useState(isNaviDevice);
+  useEffect(() => {
+    if (naviOnly && !naviDevice) { markNaviDevice(); setNaviDevice(true); }
+  }, [naviOnly, naviDevice]);
+  /**
    * 🟢 **위치는 «쓰되 보내지 않는다».** 개인 폰도 차 안에 있으니 좌표는 같다 —
    *    그 좌표로 «지금 여기서 출발»하는 링크를 만든다. 서버로 **안 보내므로** 관제폰과
    *    섞이지 않는다. 보내는 자리는 `useGpsTelemetry` 하나뿐이라 그것만 끄면 된다.
    */
   useNativeLocation();
   // GPS 좌표 변경 시 서버에 소켓으로 텔레메트리 전송 — 🧭 내비 화면에서는 끈다
-  useGpsTelemetry(!naviOnly);
+  useGpsTelemetry(!naviOnly && !naviDevice);
 
   useEffect(() => {
     logRoadmapEvent("웹", "1DAL 웹(관제웹) 로그인됨");
@@ -67,6 +85,20 @@ function AppLayout() {
 
   return (
     <div className="min-h-screen">
+      {/* 🧭 **조용히 끄지 않는다** — 이 브라우저를 나중에 관제로 쓸 때
+          «왜 궤적이 안 남지»를 헤매지 않도록 화면이 먼저 말한다 (관제웹 규칙:
+          «저장된 값이 목록에 없으면 다른 항목을 대신 보여주지 않는다» 와 같은 결). */}
+      {naviDevice && !naviOnly && (
+        <div className="mx-3 mt-3 rounded-xl border border-warning/40 bg-warning/10 px-3 py-2.5 text-[13px] font-bold text-warning flex items-center gap-2">
+          <span className="flex-1 leading-snug">🧭 이 브라우저는 <b>내비 폰</b>으로 표시돼 있어 위치를 서버로 <b>보내지 않습니다</b>.</span>
+          <button
+            onClick={() => { clearNaviDevice(); setNaviDevice(false); }}
+            className="shrink-0 rounded-lg bg-warning/20 px-2.5 py-1.5 text-[12px] font-black">
+            관제폰으로 쓰기
+          </button>
+        </div>
+      )}
+
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/settlement" element={<Settlement />} />

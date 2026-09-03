@@ -1,13 +1,29 @@
 import { useState, useEffect } from 'react';
 import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate, Navigate, useLocation } from 'react-router-dom';
 import { logRoadmapEvent } from '../lib/roadmapLogger';
 import { isNativeApp, nativeGoogleIdToken } from '../lib/nativeGoogleAuth';
 
 export default function Login() {
   const { loginWithGoogle, loginBypass, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  /**
+   * 🧭 **로그인 뒤에는 «가려던 곳»으로 돌아간다** (기사님 지적 2026-09-03:
+   *    *"우리 페이지가 로그인 하면 리다이렉트 해서 홈으로 가. 그거서는 허용하면 안되잖아."*)
+   *
+   * 예전에는 무조건 홈이었다 — 개인 폰이 `/navi` 를 열어도 로그인이 끝나면
+   * **관제 화면**에 서 있었고, 그 화면은 좌표를 서버로 보낸다.
+   * 「관제가 2개」가 로그인 한 번으로 생기던 자리다.
+   *
+   * 🔴 **밖에서 온 주소로 튀지 않게** 우리 안의 경로(`/`로 시작)만 받는다.
+   */
+  const location = useLocation();
+  const from = (() => {
+    const raw = (location.state as { from?: string } | null)?.from;
+    // 🔴 «//evil.com» 은 브라우저가 **다른 사이트**로 읽는다 — 두 번째 글자까지 본다
+    return typeof raw === 'string' && raw.startsWith('/') && raw[1] !== '/' ? raw : '/';
+  })();
   const [googleLoadFailed, setGoogleLoadFailed] = useState(false);
   /** 🔐 앱이면 구글 웹 버튼이 **영영 안 뜬다** — 네이티브 계정 선택창으로 간다 */
   const [native] = useState(isNativeApp);
@@ -34,7 +50,7 @@ export default function Login() {
       logRoadmapEvent("웹", "앱에서 네이티브 구글 로그인 시작");
       const idToken = await nativeGoogleIdToken();
       await loginWithGoogle(idToken);
-      navigate('/');
+      navigate(from);
     } catch (e: any) {
       // 🔴 무엇이 잘못됐는지 화면에 그대로 적는다 — 앱 로그는 주행 뒤 사라진다
       alert(`구글 로그인 실패\n\n${e?.message ?? e}`);
@@ -44,7 +60,7 @@ export default function Login() {
   };
 
   if (isAuthenticated) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={from} replace />;
   }
 
   const handleSuccess = async (credentialResponse: any) => {
@@ -52,7 +68,7 @@ export default function Login() {
       logRoadmapEvent("웹", "유저가 구글 로그인 버튼 클릭 ");
       try {
         await loginWithGoogle(credentialResponse.credential);
-        navigate('/');
+        navigate(from);
       } catch (error) {
         alert("로그인에 실패했습니다.");
       }
@@ -106,7 +122,7 @@ export default function Login() {
                 onClick={async () => {
                     try {
                         await loginBypass();
-                        navigate('/');
+                        navigate(from);
                     } catch (e: any) {
                         alert(`우회 접속 실패: ${e.message}\n(서버 꺼짐 또는 같은 와이파이 아님)`);
                     }

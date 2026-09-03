@@ -22,7 +22,7 @@ describe('🧭 내비 화면은 좌표를 서버로 보내지 않는다', () => 
     const app = () => codeOnly(read('App.tsx'));
 
     it('보내는 훅(useGpsTelemetry)은 내비 화면에서 꺼진다', () => {
-        expect(app()).toMatch(/useGpsTelemetry\(\s*!naviOnly\s*\)/);
+        expect(app()).toMatch(/useGpsTelemetry\(\s*!naviOnly\s*&&\s*!naviDevice\s*\)/);
     });
 
     it('«내비 화면인가»는 주소로 정한다 — 다른 화면은 영향이 없다', () => {
@@ -51,5 +51,39 @@ describe('🧭 내비 화면은 좌표를 서버로 보내지 않는다', () => 
     it('내비 화면은 자기 전용 읽기 훅을 쓴다 — 관제 엔진을 끌어오지 않는다', () => {
         expect(codeOnly(read('pages/Navi.tsx'))).not.toMatch(/useOrderEngine/);
         expect(codeOnly(read('hooks/useNaviRoute.ts'))).toMatch(/socket\.on\('sync-active-orders'/);
+    });
+});
+
+/**
+ * 🔴 **주소만으로 끄면 홈에 닿는 순간 켜진다** (기사님 지적 2026-09-03:
+ *    *"우리 페이지가 로그인 하면 리다이렉트 해서 홈으로 가. 그거서는 허용하면 안되잖아."*)
+ *
+ * 홈에 닿는 길은 여럿이다 — 로그인 리다이렉트 · 뒤로 가기 · 잘못 누른 링크.
+ * 그중 **로그인 한 번**으로 「관제가 2개」가 생기던 것이 실제로 있었다.
+ * 그래서 막는 자리를 **둘로 겹친다** (규칙 ② 안전장치는 겹쳐 둔다).
+ */
+describe('🧭 내비 폰은 홈에 닿아도 좌표를 안 보낸다', () => {
+    const app = () => codeOnly(read('App.tsx'));
+    const login = () => codeOnly(read('pages/Login.tsx'));
+
+    it('① 로그인은 «가려던 곳»을 들고 간다 — 무조건 홈이 아니다', () => {
+        expect(app()).toMatch(/state=\{\{\s*from:/);
+        expect(login()).not.toMatch(/navigate\(['"]\/['"]\)/);
+        expect(login()).toMatch(/navigate\(from\)/);
+    });
+
+    it('① 밖에서 온 주소로는 튀지 않는다 — 우리 안의 경로만 받는다', () => {
+        expect(login()).toMatch(/startsWith\(['"]\/['"]\)/);
+        expect(login()).toMatch(/raw\[1\]\s*!==/);   // «//evil.com» 은 다른 사이트다
+    });
+
+    it('② 한 번 내비로 쓴 브라우저는 기기에 표시가 남는다', () => {
+        expect(app()).toMatch(/markNaviDevice\(\)/);
+        expect(codeOnly(read('lib/naviDevice.ts'))).toMatch(/localStorage\.setItem/);
+    });
+
+    it('🔴 그 표시를 «조용히» 두지 않는다 — 화면이 말하고, 되돌릴 수 있다', () => {
+        expect(app()).toMatch(/clearNaviDevice\(\)/);
+        expect(read('App.tsx')).toMatch(/내비 폰/);
     });
 });
