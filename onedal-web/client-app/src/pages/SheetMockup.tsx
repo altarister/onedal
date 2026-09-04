@@ -720,7 +720,17 @@ export default function SheetMockup() {
         const n = SCENARIO.find(x => x.no === no);
         if (!n) { setPlaying(false); return; }
         setStepNo(n.no); setOpenIdx(-1); setQrPeek(0);
-        setSnap(n.qr ? 'peek' : n.phase === '정차' ? 'full' : n.phase === '심사' ? 'half' : 'peek');
+        /**
+         * 🔴 **시트 높이를 건드리지 않는다** (기사님 2026-09-05:
+         *    *"지도가 위아래로 움직이는 것이 불편해"*).
+         *
+         * 전에는 장면마다 peek/half/full 로 갈아 끼웠다 — 그래서 넘길 때마다 지도가
+         * 뛰었다. **시트 높이는 기사님이 정하는 것**이지 시나리오가 정할 것이 아니다
+         * (규칙 ③ — 손잡이가 둘이면 갈라진다). 기사님이 둔 높이 그대로 장면만 바뀐다.
+         *
+         * 🟢 그래도 심사는 놓치지 않는다 — ⓐ 는 필터 자리(위)라 시트와 무관하고,
+         *    ⓑ 는 시트가 내려가 있어도 **상태바가 한 줄 심사석**이 된다. 그러라고 두 단이다.
+         */
         setLog(`${why ? `${why} → ` : ''}${n.title} — ${n.what}`);
     };
 
@@ -1119,7 +1129,7 @@ export default function SheetMockup() {
                         onClick={() => {
                             if (playing) { setPlaying(false); setLog('⏸ 멈췄습니다 — 「다음 ▶」으로 손수 넘기실 수 있습니다.'); return; }
                             setPlaying(true); setReasked(false);
-                            goStep(SCENARIO[0].no, '▶️ 처음부터 재생합니다 (4초에 한 칸)');
+                            goStep(SCENARIO[0].no, '▶️ 처음부터 재생합니다 (4초에 한 칸 · 시트 높이는 안 건드립니다)');
                         }}
                         className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${playing
                             ? 'bg-warning/15 border-warning/55 text-warning'
@@ -1180,7 +1190,7 @@ export default function SheetMockup() {
                 <div className="flex gap-1.5 flex-wrap">
                     {([3, 4, 5] as const).map(n => (
                         <button key={n} type="button"
-                            onClick={() => { setPlanSize(n); setVisitedCount(1); setOpenIdx(-1); setQrPeek(0); setReasked(false); setSnap('half');
+                            onClick={() => { setPlanSize(n); setVisitedCount(1); setOpenIdx(-1); setQrPeek(0); setReasked(false);
                                 setLog(`${n}콜 판 — 정거장 ${MOCK_PLANS[n].stops.length}개 · ${MOCK_PLANS[n].totalKm}km / ${MOCK_PLANS[n].totalMin}분. ${MOCK_PLANS[n].source}`); }}
                             className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${planSize === n
                                 ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-surface text-text-primary hover:border-info'}`}>
@@ -1262,7 +1272,7 @@ export default function SheetMockup() {
                         누르는 목적이 «그 구간을 보는 것»이니 이름도 그렇게 불러야 한다 */}
                     {plan.stops.slice(0, -1).map((st, i) => (
                         <button key={st.no} type="button"
-                            onClick={() => { setVisitedCount(i + 1); setSnap('peek'); setLog(`「현구간」은 ${st.no}~${plan.stops[i + 1]!.no} — ${st.name} → ${plan.stops[i + 1]!.name} 입니다.`); }}
+                            onClick={() => { setVisitedCount(i + 1); setLog(`「현구간」은 ${st.no}~${plan.stops[i + 1]!.no} — ${st.name} → ${plan.stops[i + 1]!.name} 입니다.`); }}
                             className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${safeVisited === i + 1
                                 ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-surface text-text-primary hover:border-info'}`}>
                             {st.no}~{plan.stops[i + 1]!.no} {st.name}
@@ -1280,7 +1290,7 @@ export default function SheetMockup() {
                 {!step && cost && (<>
                 <h2 className="mt-6 text-[12.5px] font-black tracking-wide text-info mb-2">⟳ 다시 물으면 어떻게 되나 <span className="text-text-muted font-bold">(Q8)</span></h2>
                 <button type="button"
-                    onClick={() => { setReasked(r => !r); setOpenIdx(-1); setQrPeek(0); setSnap('half');
+                    onClick={() => { setReasked(r => !r); setOpenIdx(-1); setQrPeek(0);
                         setLog(reasked ? '⟲ 원래 순서로 되돌렸습니다.'
                             : `⟳ ${planSize}콜 판을 다시 물었습니다 — ${cost.asIs} → ${cost.reasked}. 지도의 번호와 콜 목록이 함께 바뀝니다.`); }}
                     className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${reasked
@@ -1332,7 +1342,7 @@ export default function SheetMockup() {
                 <div className="flex gap-1.5 flex-wrap">
                     {([[true, '새 색표 (색상=콜)'], [false, '예전 (초록=상차·로즈=하차)']] as [boolean, string][]).map(([k, t]) => (
                         <button key={t} type="button"
-                            onClick={() => { setRainbow(k); setSnap('half'); setLog(`${t} — 지도와 목록을 같이 보세요. 같은 색이 같은 콜입니다.`); }}
+                            onClick={() => { setRainbow(k); setLog(`${t} — 지도와 목록을 같이 보세요. 같은 색이 같은 콜입니다.`); }}
                             className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${rainbow === k
                                 ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-surface text-text-primary hover:border-info'}`}>
                             {t}
@@ -1349,7 +1359,7 @@ export default function SheetMockup() {
                 <div className="grid grid-cols-2 gap-2">
                     {([['sheet', 'ⓐ 눌러서 크게'], ['always', 'ⓑ 늘 작게 떠 있게']] as const).map(([k, t]) => (
                         <button key={k} type="button"
-                            onClick={() => { setQrStyle(k); setQrOpen(false); setSnap('peek');
+                            onClick={() => { setQrStyle(k); setQrOpen(false);
                                 setLog(k === 'sheet'
                                     ? 'ⓐ 지도 우하단 「QR 코드」를 누르면 QR 이 화면을 덮습니다 — 큽니다. 탭 2번(열고·닫고).'
                                     : 'ⓑ 지도 우하단에 QR 이 늘 떠 있습니다 — 누를 필요가 없습니다. 대신 작아서 안 찍힐 수 있습니다.'); }}
@@ -1424,10 +1434,9 @@ export default function SheetMockup() {
                                 if (k === 'sheet') setFilterCompact(true);
                                 const judging = SCENARIO.find(x => x.seat);
                                 if (!step?.seat && judging) goStep(judging.no);
-                                setSnap(k === 'sheet' ? 'peek' : 'half');
                                 setLog(k === 'filter'
                                     ? 'ⓐ 심사석이 필터 자리(위)에 뜹니다 — 기사님 확정 0831. 늘 보이지만 엄지에서 멉니다.'
-                                    : 'ⓑ 시트가 내려가 있으면 상태바가 «한 줄 심사석»이 됩니다 — 색·점수·두 버튼. 올리면 목록 맨 위에 전체가 얹힙니다. 필터도 함께 접었습니다.'); }}
+                                    : 'ⓑ 필터를 접었습니다. 아래 「시트 높이」로 «엿보기»를 눌러 보십시오 — 상태바가 «한 줄 심사석»이 됩니다. 올리면 목록 맨 위에 전체가 얹힙니다.'); }}
                             className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${seatPlace === k
                                 ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-surface text-text-primary hover:border-info'}`}>
                             {t}
@@ -1450,7 +1459,7 @@ export default function SheetMockup() {
                 <div className="flex gap-1.5 flex-wrap">
                     {([[false, '안 A · 펼침 150px'], [true, '안 B · 접힘 38px']] as [boolean, string][]).map(([k, t]) => (
                         <button key={t} type="button"
-                            onClick={() => { setFilterCompact(k); setSnap('peek'); setLog(`${t} — 시트를 내려 지도를 봅니다. 지도 높이가 ${k ? '112px 더 큽니다' : '기본입니다'}.`); }}
+                            onClick={() => { setFilterCompact(k); setLog(`${t} — 지도 높이가 ${k ? '112px 더 큽니다' : '기본입니다'}. 시트를 내려 보시면 차이가 큽니다.`); }}
                             className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${filterCompact === k
                                 ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-surface text-text-primary hover:border-info'}`}>
                             {t}
@@ -1462,7 +1471,12 @@ export default function SheetMockup() {
                     접힌 줄을 누르면 다시 펼쳐집니다.
                 </p>
 
-                <h2 className="mt-6 text-[12.5px] font-black tracking-wide text-info mb-2">시트 높이 (손잡이를 끌거나 눌러도 됩니다)</h2>
+                {/* 🔴 **높이를 바꾸는 곳은 여기 하나다** (기사님 2026-09-05:
+                    *"지도가 위아래로 움직이는 것이 불편해"*). 다른 버튼들이 곁다리로
+                    시트를 올렸다 내렸다 해서 누를 때마다 지도가 뛰었다 — 다 걷어냈다.
+                    ⚠️ 「운행 한 바퀴」의 국면만 예외다 — «주행 중 = 지도만 보인다»가
+                       그 국면의 뜻 자체라서 높이가 곧 그 장면이다. */}
+                <h2 className="mt-6 text-[12.5px] font-black tracking-wide text-info mb-2">시트 높이 — 여기서만 바뀝니다</h2>
                 <div className="flex gap-1.5 flex-wrap">
                     {([['peek', '엿보기 72px'], ['half', '반 58%'], ['full', '전체 100%']] as [SheetSnap, string][]).map(([k, t]) => (
                         <button key={k} type="button"
