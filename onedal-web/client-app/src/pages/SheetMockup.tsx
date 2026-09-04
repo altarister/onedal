@@ -580,7 +580,13 @@ export default function SheetMockup() {
      */
     const [qrStyle, setQrStyle] = useState<'sheet' | 'always'>('sheet');
     const [qrOpenRaw, setQrOpenRaw] = useState(false);
-    const [qrKind, setQrKind] = useState<QrKind>('navi');
+    /**
+     * 🧭 카카오내비로 고정한다. 덮개의 「카카오맵으로 바꾸기」는 걷어냈다
+     * (기사님 2026-09-05: *"카카오맵으로 는 모두 필요 없다"*).
+     * ⚠️ 되돌아갈 길이 사라진 것은 아니다 — 카카오내비가 별로면 **여기 한 글자**를
+     *    `'map'` 으로 바꿔 같은 자리에서 견줘 본다 (경로.md §4-3).
+     */
+    const qrKind: QrKind = 'navi';
     /**
      * 🔴 **QR 안에서 정거장을 앞뒤로 넘긴다 — 「보는 것」이지 「찍는 것」이 아니다.**
      *
@@ -933,12 +939,19 @@ export default function SheetMockup() {
                                         onClick={(e) => { e.stopPropagation(); setQrOpen(false); setQrPeek(0); }}
                                         className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/15 text-white text-[17px] font-black">✕</button>
 
-                                    {/* ① 어디를 거쳐 어디로 가나 — 경유는 →, 도착지는 / 뒤에 */}
-                                    <p className="text-center text-[17px] font-black text-white leading-relaxed">
-                                        {qrVia.map(v => v.name).join(' → ')}
-                                        {qrVia.length > 0 && <span className="text-white/45"> / </span>}
-                                        <span>{qrStop?.name}</span>
-                                    </p>
+                                    {/**
+                                      * ① 어디를 거쳐 어디로 가나 — **두 줄이다** (기사님 2026-09-05).
+                                      * 🔴 **거쳐 가는 곳은 작게, 목적지는 크게.** 한 줄에 다 적으면
+                                      *    눈이 «어디로 가는가»를 매번 찾아야 한다 — 목적지가 중요하다.
+                                      */}
+                                    <div className="text-center">
+                                        {qrVia.length > 0 && (
+                                            <p className="text-[13px] font-bold text-white/55 leading-snug mb-1">
+                                                {qrVia.map(v => v.name).join(' → ')}
+                                            </p>
+                                        )}
+                                        <p className="text-[24px] font-black text-white leading-tight">{qrStop?.name}</p>
+                                    </div>
 
                                     {/* ② QR */}
                                     <NaviQr {...qrArgs} size={210} />
@@ -946,29 +959,17 @@ export default function SheetMockup() {
                                     {/* ③ 무엇을 하라 */}
                                     <p className="text-[15px] font-black text-white/85">카메라로 찍어 네비를 켜세요</p>
 
-                                    {/* ── 여기부터는 목업 도구 — 실물에는 없다 ── */}
-                                    <div className="mt-1 flex flex-col items-center gap-1.5 opacity-45 hover:opacity-100 transition-opacity"
-                                         onClick={(e) => e.stopPropagation()}>
-                                        <div className="flex items-center gap-2">
-                                            <button type="button" disabled={!!step || qrPeek === 0}
-                                                onClick={() => { setQrPeek(n => Math.max(0, n - 1)); setLog('◀ 앞 정거장 QR — 장부는 안 건드립니다.'); }}
-                                                className="w-7 h-7 rounded-full bg-white/15 text-white text-[13px] font-black disabled:opacity-25">◀</button>
-                                            <span className="min-w-[92px] text-center text-[11px] font-bold text-white/60 tabular-nums">
-                                                {step ? '시나리오가 정함' : qrPeek === 0 ? '다음 정거장' : `${qrPeek}칸 뒤`}
-                                            </span>
-                                            <button type="button" disabled={!!step || qrPeek >= remaining.length - 1}
-                                                onClick={() => { setQrPeek(n => Math.min(remaining.length - 1, n + 1)); setLog('▶ 다음 정거장 QR — 도착 감지가 늦어도 이걸로 갑니다.'); }}
-                                                className="w-7 h-7 rounded-full bg-white/15 text-white text-[13px] font-black disabled:opacity-25">▶</button>
-                                            <button type="button"
-                                                onClick={() => { const k = qrKind === 'navi' ? 'map' : 'navi'; setQrKind(k); setLog(`${k === 'navi' ? '🧭 카카오내비' : '🗺️ 카카오맵'} QR 로 바꿨습니다.`); }}
-                                                className="ml-1 text-[11px] font-bold text-white/70 underline underline-offset-2">
-                                                {qrKind === 'navi' ? '카카오맵으로' : '카카오내비로'}
-                                            </button>
-                                        </div>
-                                        <p className="max-w-[80%] text-[8px] leading-snug text-white/30 break-all text-center select-all">
-                                            {naviQrText(qrArgs)}
-                                        </p>
-                                    </div>
+                                    {/**
+                                      * ── 목업 도구 — 실물에는 없다 ──
+                                      * 🔴 앞뒤 화살표·「시나리오가 정함」·「카카오맵으로」를 걷어냈다
+                                      *    (기사님 2026-09-05: *"모두 필요 없다"*). 찍으라고 띄우는
+                                      *    화면에 **읽을 일 없는 것**을 두면 그만큼 목적지가 늦게 읽힌다.
+                                      * 🔴 주소 원문만 남긴다 — QR 이 안 열릴 때 **눈으로 볼 유일한 자리**다.
+                                      */}
+                                    <p className="max-w-[80%] text-[8px] leading-snug text-white/25 break-all text-center select-all"
+                                       onClick={(e) => e.stopPropagation()}>
+                                        {naviQrText(qrArgs)}
+                                    </p>
                                 </div>
                             )}
 
