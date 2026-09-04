@@ -97,10 +97,17 @@ interface Props {
      *    엉뚱한 자리에 떴다 (기사님 2026-09-05). 재서 알리는 것이 유일한 원천이다 (규칙 ③).
      */
     onHeightChange?: (px: number) => void;
+    /**
+     * ✋ **끌 것이 없을 때** — 콜이 하나도 없으면 「다」로 갈 수 없다(열 것이 없다).
+     *    그런데 손잡이가 그대로면 **끌었는데 아무 일이 없어 고장처럼 보인다**
+     *    (기사님 2026-09-05: *"이때 시트가 위아래로 드래그 되지 않아"*).
+     * 🔴 **할 수 없는 일은 할 수 없게 보여야 한다** — 손잡이를 흐리게 하고 손을 막는다.
+     */
+    dragDisabled?: boolean;
     children: React.ReactNode;
 }
 
-export default function StageSheet({ snap, onSnapChange, peekBar, topBox, bottomBox, onHeightChange, children }: Props) {
+export default function StageSheet({ snap, onSnapChange, peekBar, topBox, bottomBox, onHeightChange, dragDisabled, children }: Props) {
     const startY = useRef<number | null>(null);
     const startSnap = useRef<SheetSnap>(snap);
     const dragged = useRef(false);   // 드래그로 한 단 움직였으면 이어지는 click 을 무시 (되튐 버그)
@@ -174,19 +181,22 @@ export default function StageSheet({ snap, onSnapChange, peekBar, topBox, bottom
             {/* 손잡이 — 40px 끌 때마다 한 단씩. touch-action:none 이 없으면 폰에서
                 브라우저가 스크롤 제스처로 가로채 드래그가 죽는다 (기사님 실측 0831: 내려지지 않음) */}
             <div
-                className="shrink-0 cursor-grab active:cursor-grabbing py-3"
+                className={`shrink-0 py-3 ${dragDisabled ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'}`}
                 style={{ touchAction: 'none' }}
-                onPointerDown={(e) => { startY.current = e.clientY; startSnap.current = snap; dragged.current = false; (e.target as HTMLElement).setPointerCapture(e.pointerId); }}
+                onPointerDown={(e) => { if (dragDisabled) return; startY.current = e.clientY; startSnap.current = snap; dragged.current = false; (e.target as HTMLElement).setPointerCapture(e.pointerId); }}
                 onPointerMove={(e) => {
-                    if (startY.current == null) return;
+                    if (dragDisabled || startY.current == null) return;
                     const dy = startY.current - e.clientY;
                     if (Math.abs(dy) > 40) { dragged.current = true; move(dy > 0 ? 1 : -1); startY.current = e.clientY; }
                 }}
                 onPointerUp={() => { startY.current = null; }}
-                onClick={() => { if (dragged.current) { dragged.current = false; return; }   // 드래그 직후 click 무시
+                onClick={() => { if (dragDisabled) return;
+                    if (dragged.current) { dragged.current = false; return; }   // 드래그 직후 click 무시
                     startSnap.current = snap; move(snap === 'full' ? -1 : 1); }}
             >
-                <div className="mx-auto rounded-full" style={{ width: 44, height: 5, background: 'var(--color-border-hover, #3a4358)' }} />
+                {/* ✋ 끌 것이 없으면 손잡이가 흐려진다 — «지금은 끌 수 없다»를 스스로 말한다 */}
+                <div className="mx-auto rounded-full transition-opacity"
+                     style={{ width: 44, height: 5, background: 'var(--color-border-hover, #3a4358)', opacity: dragDisabled ? .25 : 1 }} />
             </div>
             {peekBar && (
                 /* 🔴 **높이가 늘 같다** (기사님 2026-09-05: *"상태바의 높이도 항상 일정했으면"*).

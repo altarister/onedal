@@ -62,3 +62,26 @@ describe('어느 길로 가도 «있을 수 없는 화면»이 안 나온다', (
         }
     });
 });
+
+describe('✋ 끌 것이 없을 때 (2026-09-05)', () => {
+    /**
+     * 기사님: *"이때 시트가 위아래로 드래그 되지 않아."* — 「① 콜 대기」에서다.
+     *
+     * 🔴 **그게 맞는 동작이다** — 콜이 없으면 「다」의 정의(«하나 열린 상태»)를 채울 수
+     *    없으니 갈 곳이 없다. 문제는 **화면이 그 말을 안 한 것**이다.
+     *    할 수 없는 일은 **할 수 없게 보여야 한다** — 손잡이가 흐려진다.
+     */
+    it('콜이 없으면 어느 단으로 가려 해도 나에 머문다', () => {
+        for (const to of ['peek', 'list', 'full'] as const) {
+            const r = sheetTransition(to, { openIdx: -1, callCount: 0 });
+            // 「다」만은 갈 수 없다 — 열 것이 없다
+            if (to === 'full') expect(r.snap).toBe('list');
+            else expect(r.snap).toBe(to);
+            expect(r.openIdx).toBe(-1);
+        }
+    });
+
+    it('콜이 하나라도 있으면 다로 갈 수 있다', () => {
+        expect(sheetTransition('full', { openIdx: -1, callCount: 1 }).snap).toBe('full');
+    });
+});

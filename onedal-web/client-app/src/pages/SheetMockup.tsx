@@ -1081,6 +1081,8 @@ export default function SheetMockup() {
 
                     {/* ── 3단 시트 — **진짜 컴포넌트**. 손잡이를 끌거나 눌러서 가↔나↔다 ── */}
                     <StageSheet snap={snap} onSnapChange={(next) => changeSnap(next)}
+                        /* ✋ 콜이 없으면 끌 것이 없다 — 「다」는 «하나 열린 상태»라 갈 수가 없다 */
+                        dragDisabled={CALLS.length === 0}
                         onHeightChange={setSheetPx}
                         /* 🔴 위 라인을 빼 둔다 (기사님 2026-09-05) — 심사석이 이미
                            자기 테두리를 갖고 있어 줄이 하나 더 그어지면 칸이 둘로 보인다 */
