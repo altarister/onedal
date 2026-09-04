@@ -137,6 +137,11 @@ interface Props {
      */
     sheetSnap?: SheetSnap;
     /**
+     * 📏 **시트가 실제로 덮는 px** — `list` 는 내용에서 나와 미리 셀 수 없다 (2026-09-05).
+     *    있으면 이 값이 이긴다. 없으면 `sheetSnap` 으로 어림한다.
+     */
+    sheetPx?: number;
+    /**
      * 🌈 **콜 색표로 그린다** (기사님 확정 2026-09-04 · `styles/callPalette.ts`).
      * 색상=콜 · 채도=상차/하차 · 테두리=다녀왔나.
      *
@@ -147,7 +152,7 @@ interface Props {
     rainbowNodes?: boolean;
 }
 
-export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLocation, children, fill, visitedTrail, callColors, onStopTap, drivenTrail, routeHolder, sheetSnap, rainbowNodes }: Props) {
+export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLocation, children, fill, visitedTrail, callColors, onStopTap, drivenTrail, routeHolder, sheetSnap, sheetPx, rainbowNodes }: Props) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const { theme } = useTheme();
     const mapColors = MAP_THEME_COLORS[theme];
@@ -224,7 +229,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         }
 
         // 🪟 시트가 덮은 높이 — 목표를 향해 매 프레임 조금씩 좁힌다 (한 번에 튀면 시트와 따로 논다)
-        const occludedTarget = sheetSnap ? sheetOccludedPx(sheetSnap, height) : 0;
+        const occludedTarget = sheetSnap ? sheetOccludedPx(sheetSnap, height, sheetPx) : 0;
         if (occludedNow.current == null) occludedNow.current = occludedTarget;   // 첫 그림은 제자리에서
         const gap = occludedTarget - occludedNow.current;
         if (Math.abs(gap) > 0.5) {
@@ -581,7 +586,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             ctx.fillStyle = withAlpha(mapColors.textMuted, 0.7);
             ctx.fillText('© OpenStreetMap', width - 4, height - 3);
         }
-    }, [unifiedRoutePoints, liveRoute, myLocation, visitedTrail, drivenTrail, routeHolder, theme, mapColors, sheetSnap, rainbowNodes, viewMode]);
+    }, [unifiedRoutePoints, liveRoute, myLocation, visitedTrail, drivenTrail, routeHolder, theme, mapColors, sheetSnap, sheetPx, rainbowNodes, viewMode]);
 
     useEffect(() => {
         drawRef.current = drawMap;   // 늦게 온 타일이 부를 최신 그리기

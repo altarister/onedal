@@ -38,7 +38,7 @@ export default function StageView(props: Props) {
     const { activeRoute, routeStops, routeComputedAt, routeHolderId } = props;
     const derived = useRouteDerivations(activeRoute, routeStops, routeComputedAt, routeHolderId);
     const { liveRoute, cycleDeck, unifiedRoutePoints, myLocation, visitOrderMap } = derived;
-    const [snap, setSnap] = useState<SheetSnap>('half');
+    const [snap, setSnap] = useState<SheetSnap>('list');
     const { filter, updateFilter } = useFilterConfig();
 
 

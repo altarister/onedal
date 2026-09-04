@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { stageStep, initialStageMemory, USER_HOLD_MS,
          type StageMemory, type StageSignals } from './stageRules';
+import { SHEET_HEIGHT, SHEET_FIXED_HEIGHT, sheetOccludedPx, type SheetSnap } from './StageSheet';
 
 /**
  * 🧠 **v23 Ⅲ표를 검사로** (기사님 지시 2026-08-31 — *"구멍부터 처리하자"*).
@@ -23,7 +24,7 @@ describe('Ⅲ표 — 신호가 정하는 높이', () => {
     });
 
     it('S2 정차·콜 있음 → 반', () => {
-        expect(tick(initialStageMemory(), sig()).snap).toBe('half');
+        expect(tick(initialStageMemory(), sig()).snap).toBe('list');
     });
 
     it('S3 주행 → 엿보기 (지도가 주인공)', () => {
@@ -138,5 +139,44 @@ describe('한 판을 통째로 걸어 본다 — 기사님이 정한 수순', ()
         expect(step({ type: 'signal' }).snap).toBeNull();
         now += 8_000;
         expect(step({ type: 'signal' }, { drive: 'drive' }).snap).toBe('peek'); // 다시 달린다
+    });
+});
+
+describe('🪟 시트의 세 단 — 기사님이 다시 정의하셨다 (2026-09-05)', () => {
+    /**
+     * | 가 `peek` | 시트 상태바만 |
+     * | 나 `list` | 상태바 + **아코디언 타이틀 전부** (+ 판정 영역이 있으면 그만큼) |
+     * | 다 `full` | 지도 자리까지 다 쓰고 **하나만 열린** 상태 |
+     *
+     * 🔴 **「반 58%」라는 고정 숫자가 사라진 것이 핵심이다** — 콜이 하나면 낮고
+     *    셋이면 높다. 남는 자리는 전부 지도다.
+     * 🔴 **손으로 끌어도 딱 이 셋뿐이다** — 중간 높이가 없다.
+     */
+    it('세 단뿐이다 — 중간이 없다', () => {
+        const snaps: SheetSnap[] = ['peek', 'list', 'full'];
+        for (const s of snaps) expect(SHEET_HEIGHT[s]).toBeTruthy();
+        expect(Object.keys(SHEET_HEIGHT)).toHaveLength(3);
+    });
+
+    it('나(list)는 숫자가 아니라 «내용만큼»이다', () => {
+        expect(SHEET_HEIGHT.list).toBe('auto');
+        // 미리 셀 수 있는 것은 가·다 둘뿐이다
+        expect(Object.keys(SHEET_FIXED_HEIGHT).sort()).toEqual(['full', 'peek']);
+    });
+
+    it('가는 상태바만, 다는 다 쓴다', () => {
+        expect(SHEET_HEIGHT.peek).toBe('72px');
+        expect(SHEET_HEIGHT.full).toBe('100%');
+    });
+
+    /** 📏 잰 값이 있으면 그것이 이긴다 — `list` 는 미리 셀 수 없다 */
+    it('지도의 가림 높이는 «잰 값»이 이긴다', () => {
+        expect(sheetOccludedPx('list', 800, 300)).toBe(300);
+        expect(sheetOccludedPx('peek', 800)).toBe(72);
+    });
+
+    /** 🔴 시트가 무대를 다 덮으면 지도가 무너진다 — 가림은 58% 를 안 넘는다 */
+    it('아무리 높아도 지도가 볼 자리를 남긴다', () => {
+        expect(sheetOccludedPx('full', 800, 800)).toBeLessThanOrEqual(800 * 0.58);
     });
 });

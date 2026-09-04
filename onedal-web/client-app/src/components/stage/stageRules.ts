@@ -14,7 +14,8 @@
  *   · 자동으로 올린 시트(KEEP·도착)는 «정차»에는 이기고 «주행»에는 진다
  *   · 자동은 **높이만** 바꾼다 — 콜·필터 상태는 건드리지 않으므로 안전하다 (v23 Ⅳ)
  */
-export type Snap = 'peek' | 'half' | 'full';
+/** 🪟 시트의 세 단 — 이름의 원천은 `StageSheet` 의 `SheetSnap` 이다 (규칙 ③) */
+export type Snap = 'peek' | 'list' | 'full';
 
 /** 지금 무대가 받는 신호 — 전부 밖에서 재서 넣는다 */
 export interface StageSignals {
@@ -115,7 +116,7 @@ export function stageStep(mem: StageMemory, sig: StageSignals, ev: StageEvent): 
             }
             // 🪜 KEEP·도착으로 올라간 시트는 «정차»가 끌어내리지 못한다
             if (mem.autoRaised) return out(mem, null, '마중 유지');
-            if (sig.calls > 0) return out(mem, 'half', '정차');   // S2 — 콜 목록
+            if (sig.calls > 0) return out(mem, 'list', '정차');   // S2 — 콜 목록
             return out(mem, 'peek', '콜없음');                     // S1
     }
 }

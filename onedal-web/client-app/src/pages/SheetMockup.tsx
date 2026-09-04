@@ -777,6 +777,17 @@ export default function SheetMockup() {
     const open = (i: number, why?: string) => {
         const next = i === openIdx ? -1 : i;
         setOpenIdx(next);
+        /**
+         * 🪟 **여는 것이 곧 «다», 닫는 것이 곧 «나»다** (기사님 정의 2026-09-05).
+         *
+         * | 다 | 지도 자리까지 다 쓰고 **하나만 열린** 상태 |
+         * | 나 | 상태바 + 타이틀 전부 (+ 판정) |
+         *
+         * 🔴 여기서 높이를 정하는 것은 **곁다리가 아니다** — «열었다»가 곧 «다 보겠다»는
+         *    뜻이라, 높이가 그 행동의 결과다. (지도가 뛰지 않게 걷어낸 곁다리들과 다르다.)
+         * ⚠️ 엿보기(가)에 계셨다면 안 올린다 — 주행 중이라 지도를 덮으면 안 된다.
+         */
+        if (snap !== 'peek') setSnap(next >= 0 ? 'full' : 'list');
         if (!why) return;
         const closed = openIdx >= 0 ? `${openIdx + 1}번 접고 ` : '';
         setLog(next < 0
@@ -837,6 +848,7 @@ export default function SheetMockup() {
                             fill
                             /* 🪟 시트가 올라온 만큼 지도가 위로 비켜 준다 — 반쯤 열면 둘을 같이 본다 (기사님 0901) */
                             sheetSnap={snap}
+                            sheetPx={sheetPx}
                             rainbowNodes={rainbow}
                             unifiedRoutePoints={remaining}
                             visitedTrail={visited}
@@ -1036,9 +1048,17 @@ export default function SheetMockup() {
                     </div>
 
                     {/* ── 3단 시트 — **진짜 컴포넌트**. 손잡이를 끌거나 눌러서 peek↔half↔full ── */}
-                    <StageSheet snap={snap} onSnapChange={setSnap}
-                        /* 📏 ⓑ 는 «내용만큼»이다 — 여백을 두지 않는다 (기사님 안) */
-                        fitContent={seatPlace === 'sheet'}
+                    <StageSheet snap={snap}
+                        onSnapChange={(next) => {
+                            setSnap(next);
+                            /* 🔴 «다»는 **하나가 열린 상태**다 (기사님 정의). 손으로 끌어 올렸는데
+                               열린 것이 없으면 빈 자리가 지도를 덮으므로, 다음 갈 콜을 연다.
+                               반대로 «나»로 내리면 열린 것을 닫는다 — 그것이 «나»의 정의다. */
+                            if (next === 'full' && openIdx < 0 && CALLS.length > 0) {
+                                setOpenIdx(nextStop ? nextStop.callNo! - 1 : 0);
+                            }
+                            if (next !== 'full' && openIdx >= 0) setOpenIdx(-1);
+                        }}
                         onHeightChange={setSheetPx}
                         /* 🔴 위 라인을 빼 둔다 (기사님 2026-09-05) — 심사석이 이미
                            자기 테두리를 갖고 있어 줄이 하나 더 그어지면 칸이 둘로 보인다 */
@@ -1126,7 +1146,7 @@ export default function SheetMockup() {
                         {/* 📏 «내용만큼» 모드에서는 `h-full` 을 빼야 한다 —
                             부모 높이가 내용에서 나오는데 자식이 부모를 채우려 들면 서로를 문다 */}
                         <div className={`flex flex-col gap-1.5 px-2.5 pt-1 pb-2.5 overflow-hidden ${
-                            seatPlace === 'sheet' ? '' : 'h-full'}`}>
+                            snap === 'list' ? '' : 'h-full'}`}>
                             {/**
                               * 🪧 **안 ⓑ — 후보콜이 목록 맨 위에 얹힌다.**
                               * 🔴 합짐은 «기존 콜들 사이에 끼는 것»이다. 목록 위에 얹히는 모양이
@@ -1134,7 +1154,7 @@ export default function SheetMockup() {
                               */}
                             {CALLS.map((call, i) => (
                                 <CallItem key={call.no} call={call} i={i} rainbow={rainbow} visitedNos={visitedNos}
-                                    fit={seatPlace === 'sheet'}
+                                    fit={snap === 'list'}
                                     open={openIdx === i} onToggle={() => open(i, '헤더를 눌렀습니다')} />
                             ))}
                         </div>
@@ -1277,7 +1297,7 @@ export default function SheetMockup() {
                                    그래서 여기서만 덮개가 열린다. 달리기 시작하면 닫힌다. */
                                 if (k === '출발') { setPhase('주행'); setSnap('peek'); setOpenIdx(-1); setQrOpen(qrReady); }
                                 if (k === '주행') { setPhase('주행'); setSnap('peek'); setOpenIdx(-1); setQrOpen(false); }
-                                if (k === '접근') { setPhase('주행'); setSnap('half'); setQrOpen(false); if (nextStop) open(nextStop.callNo! - 1); }
+                                if (k === '접근') { setPhase('주행'); setSnap('list'); setQrOpen(false); if (nextStop) open(nextStop.callNo! - 1); }
                                 if (k === '도착') { setPhase('정차'); setSnap('full'); setQrOpen(false); if (nextStop) open(nextStop.callNo! - 1); }
                                 if (k === '통화') { setPhase('정차'); setSnap('full'); setQrOpen(false); open(0); }
                                 setLog(`${t} — ${why}`);
@@ -1539,7 +1559,7 @@ export default function SheetMockup() {
                        그 국면의 뜻 자체라서 높이가 곧 그 장면이다. */}
                 <h2 className="mt-6 text-[12.5px] font-black tracking-wide text-info mb-2">시트 높이 — 여기서만 바뀝니다</h2>
                 <div className="flex gap-1.5 flex-wrap">
-                    {([['peek', '엿보기 72px'], ['half', '반 58%'], ['full', '전체 100%']] as [SheetSnap, string][]).map(([k, t]) => (
+                    {([['peek', '가 · 상태바만'], ['list', '나 · 목록만큼'], ['full', '다 · 다 쓰기']] as [SheetSnap, string][]).map(([k, t]) => (
                         <button key={k} type="button"
                             onClick={() => { setSnap(k); setLog(`시트를 «${t}» 로 올렸습니다 — 지도가 그만큼 비켜 줍니다.`); }}
                             className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${snap === k

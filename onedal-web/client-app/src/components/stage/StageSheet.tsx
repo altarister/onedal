@@ -7,7 +7,19 @@ import { useEffect, useRef, useState } from 'react';
  * 내용물은 모른다 — children 을 담을 뿐. 드래그가 곧 사용자 의사 표현이라
  * 별도 내비 버튼이 없다 (v21 확정). 자동(주행/정차)은 snap 프롭으로 밖에서 바꾼다.
  */
-export type SheetSnap = 'peek' | 'half' | 'full';
+/**
+ * 🪟 **세 단 — 기사님이 2026-09-05 에 다시 정의하셨다.**
+ *
+ * | 가 `peek` | 시트 상태바만 |
+ * | 나 `list` | 상태바 + **아코디언 타이틀 전부** (+ 판정 영역이 있으면 그만큼) |
+ * | 다 `full` | 지도 자리까지 다 쓰고 **하나만 열린** 상태 |
+ *
+ * 🔴 **「반 58%」라는 고정 숫자가 사라진 것이 이 정의의 핵심이다.**
+ *    콜이 하나면 낮고 셋이면 높다 — 남는 자리는 전부 지도다.
+ *    *"콜을 적게 가질수록 지도가 넓은 영역을 가지게 되는 거지"* (기사님).
+ * 🔴 **손으로 끌어도 딱 이 셋뿐이다** — 중간 높이가 없다 (기사님 확정).
+ */
+export type SheetSnap = 'peek' | 'list' | 'full';
 
 /**
  * 🪟 **시트가 차지하는 높이 — 이 표가 원천이다** (규칙 ③).
@@ -16,7 +28,14 @@ export type SheetSnap = 'peek' | 'half' | 'full';
  */
 export const SHEET_HEIGHT: Record<SheetSnap, string> = {
     peek: '72px',
-    half: '58%',
+    /** 🔴 **숫자가 아니라 «내용만큼»이다** — 타이틀 전부 + 판정. 넘치면 `full` 에서 멈춘다 */
+    list: 'auto',
+    full: '100%',
+};
+
+/** 📏 `list` 는 내용에서 나오므로 미리 셀 수 없다 — 잴 수 있는 것만 여기서 답한다 */
+export const SHEET_FIXED_HEIGHT: Partial<Record<SheetSnap, string>> = {
+    peek: '72px',
     full: '100%',
 };
 
@@ -32,8 +51,10 @@ export const SHEET_HEIGHT: Record<SheetSnap, string> = {
  *    0이 되어 지도가 무너진다. 같은 값을 두면 **full → half 로 내려올 때 지도가 이미
  *    제자리에 있어 튀지 않는다** — 내려오는 순간이 기사님이 지도를 다시 보는 순간이다.
  */
-export function sheetOccludedPx(snap: SheetSnap, stageHeight: number): number {
-    const raw = SHEET_HEIGHT[snap === 'full' ? 'half' : snap];
+export function sheetOccludedPx(snap: SheetSnap, stageHeight: number, measuredPx?: number): number {
+    /* 📏 **잰 값이 있으면 그것이 이긴다** — `list` 는 내용에서 나와 미리 셀 수 없다 (2026-09-05) */
+    if (measuredPx != null && measuredPx > 0) return Math.min(measuredPx, stageHeight * 0.58);
+    const raw = SHEET_FIXED_HEIGHT[snap === 'full' ? 'peek' : snap] ?? '58%';
     const n = parseFloat(raw);
     return raw.endsWith('%') ? stageHeight * n / 100 : n;
 }
@@ -69,17 +90,6 @@ interface Props {
      */
     bottomBox?: React.ReactNode;
     /**
-     * 📏 **내용만큼만 연다** (기사님 안 2026-09-05:
-     * *"시트가 올라가는 높이는 판정영역 + 지금 가진 콜 리스트 + 시트상태바 만큼만"*).
-     *
-     * 🔴 **여백을 두지 않는다.** 콜이 하나면 낮게, 셋이면 높게 — 그만큼만 열린다.
-     *    남는 자리는 전부 지도다. 지금처럼 58%/100% 로 고정하면 콜이 하나여도
-     *    화면 절반이 빈 채로 지도를 덮는다.
-     * ⚠️ 그래도 `snap` 이 정한 높이는 **넘지 않는다** — 콜이 많아지면 목록이 그 안에서
-     *    스크롤되고, 상태바와 판정은 붙박이라 안 밀린다.
-     */
-    fitContent?: boolean;
-    /**
      * 📏 **시트가 실제로 몇 px 을 차지하는가** — 지도 위 버튼들이 이걸 봐야 안 가린다.
      *
      * 🔴 `aboveSheet()` 는 «snap 이 정한 높이»를 답한다. `fitContent` 로 시트가
@@ -90,12 +100,12 @@ interface Props {
     children: React.ReactNode;
 }
 
-export default function StageSheet({ snap, onSnapChange, peekBar, topBox, bottomBox, fitContent, onHeightChange, children }: Props) {
+export default function StageSheet({ snap, onSnapChange, peekBar, topBox, bottomBox, onHeightChange, children }: Props) {
     const startY = useRef<number | null>(null);
     const startSnap = useRef<SheetSnap>(snap);
     const dragged = useRef(false);   // 드래그로 한 단 움직였으면 이어지는 click 을 무시 (되튐 버그)
 
-    const order: SheetSnap[] = ['peek', 'half', 'full'];
+    const order: SheetSnap[] = ['peek', 'list', 'full'];
     const move = (dir: 1 | -1) => {
         const i = order.indexOf(startSnap.current) + dir;
         const next = order[Math.max(0, Math.min(2, i))];
@@ -150,10 +160,10 @@ export default function StageSheet({ snap, onSnapChange, peekBar, topBox, bottom
             ref={selfRef}
             className="absolute left-0 right-0 bottom-0 z-20 flex flex-col rounded-t-2xl border-t"
             style={{
-                /* 📏 내용만큼 열되 `snap` 이 정한 높이는 안 넘는다.
-                   엿보기(peek)는 «상태바만»이 그 뜻이라 언제나 고정 높이다. */
-                ...(fitContent && snap !== 'peek'
-                    ? { height: 'auto', maxHeight: `calc(${SHEET_HEIGHT[snap]} - ${topH}px)` }
+                /* 📏 `list` 는 **내용만큼** 서고 `full` 을 넘지 않는다.
+                   `peek`(상태바만)·`full`(다 쓴다)은 고정값이다. */
+                ...(snap === 'list'
+                    ? { height: 'auto', maxHeight: `calc(100% - ${topH}px)` }
                     : { height: topBox ? `calc(${SHEET_HEIGHT[snap]} - ${topH}px)` : SHEET_HEIGHT[snap] }),
                 background: 'var(--color-surface)',
                 borderColor: 'color-mix(in srgb, var(--color-border-card) 60%, #4f8df9)',
