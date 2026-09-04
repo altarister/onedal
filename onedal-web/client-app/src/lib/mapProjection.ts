@@ -18,6 +18,11 @@ export const PADDING_RIGHT = 60;   // 우측 버튼 여백 (+, -, 초기화)
 export const PADDING_TOP = 50;
 export const PADDING_BOTTOM = 40;
 
+/** 한 점만 있을 때 보여 줄 폭 — 0.01° ≈ 1.1km (주변이 보이는 정도) */
+export const SINGLE_POINT_SPAN = 0.01 / 360;
+/** 끝점이 가장자리에 딱 붙지 않게 두는 여유 — 마커 반지름과 이름표 자리 */
+export const FIT_MARGIN = 0.9;
+
 export interface GeoPoint { x: number; y: number }   // x = 경도, y = 위도
 
 /**
@@ -94,15 +99,33 @@ export function computeViewport(
     const drawWidth = width - (PADDING_LEFT + PADDING_RIGHT);
     const drawHeight = visibleHeightOf(height, occludedBottom);
 
-    // 0.2도 ≈ 정규 좌표 0.2/360 (등방이라 가로·세로 어느 쪽이든 같은 폭이다)
-    let rangeNx = maxNx - minNx;
-    let rangeNy = maxNy - minNy;
-    if (rangeNx < 0.01 / 360) rangeNx = 0.2 / 360;
-    if (rangeNy < 0.01 / 360) rangeNy = 0.2 / 360;
+    const rangeNx = maxNx - minNx;
+    const rangeNy = maxNy - minNy;
+
+    /**
+     * 🔴 **짧은 축을 «22km»로 갈아치우지 않는다** (기사님 실측 2026-09-04:
+     *    *"4~5 가산동은 다른 지점이 보일 만큼 줌 아웃 되어 있어"*).
+     *
+     *    예전 식은 `범위 < 0.01°(1.1km) 면 0.2°(22km) 로` 였다. 그래서 **세로로 뻗은 구간**은
+     *    가로가 짧다는 이유로 22km 짜리 가로 범위를 뒤집어썼고, `min()` 이 그 축을 골라
+     *    화면이 통째로 축소됐다. 실측: ④→⑤ 가로 1.0km 가 22.2km 로 부풀었다.
+     *
+     *    🟢 짧은 축은 **«제약이 없다»** 로 두면 된다 — `min()` 이 알아서 다른 축을 고른다.
+     *       두 축이 다 0 일 때(한 점)만 기본 폭을 준다.
+     */
+    const EPS = 1e-12;
+    const byWidth = rangeNx > EPS ? drawWidth / rangeNx : Infinity;
+    const byHeight = rangeNy > EPS ? drawHeight / rangeNy : Infinity;
+    let fitted = Math.min(byWidth, byHeight);
+    if (!Number.isFinite(fitted)) fitted = drawWidth / SINGLE_POINT_SPAN;   // 한 점뿐일 때
 
     const base = anchorBaseOf(width, height, occludedBottom);
     return {
-        worldSize: Math.min(drawWidth / rangeNx, drawHeight / rangeNy) * zoom,
+        /**
+         * 🔴 **가장자리에 딱 붙이지 않는다** — 마커는 반지름이 있고 이름표는 그 아래 붙는다.
+         *    딱 맞추면 끝점의 이름표가 잘린다 (기사님: *"3석수동이 화면에 보이지 않아"*).
+         */
+        worldSize: fitted * FIT_MARGIN * zoom,
         anchorX: base.x + pan.x,
         anchorY: base.y + pan.y,
         centerNx: (minNx + maxNx) / 2,

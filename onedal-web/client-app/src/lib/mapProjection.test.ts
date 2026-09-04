@@ -433,3 +433,50 @@ describe('🔭 실제 배율', () => {
         expect(effectiveZoom(4000, 0)).toBe(1);
     });
 });
+
+/**
+ * 🔭 **짧은 축 때문에 통째로 줌아웃되던 것** (기사님 실측 2026-09-04)
+ *
+ * 기사님: *"4~5 가산동은 다른 지점이 보일 만큼 줌 아웃 되어 있어."* ·
+ * *"지도가 보이는 영역에 지점이 꽉 차서 보여야 하는데.. 그렇지 못해."*
+ *
+ * 옛 식은 «범위 < 0.01°(1.1km) 면 0.2°(22km) 로» 였다 — 세로로 뻗은 구간은 가로가
+ * 짧다는 이유로 22km 를 뒤집어썼고 `min()` 이 그 축을 골라 화면이 통째로 축소됐다.
+ */
+describe('🔭 뷰포트 맞춤 — 짧은 축이 화면을 줄이지 않는다', () => {
+    const W = 400, H = 560, OCC = 72, NO = { x: 0, y: 0 };
+    /** ④가산동 → ⑤구로동 — 가로 1.0km · 세로 4.1km 의 «세로 구간» (09-03 실제 좌표) */
+    const VERTICAL = [{ x: 126.883619010738, y: 37.4689667062309 },
+                      { x: 126.874476183809, y: 37.5056847560909 }];
+
+    it('🔴 세로 구간이 세로에 맞춰진다 — 두 점이 화면에서 멀리 벌어진다', () => {
+        const v = computeViewport(VERTICAL, W, H, 1, NO, OCC);
+        const a = toScreenPoint(VERTICAL[0], v), b = toScreenPoint(VERTICAL[1], v);
+        // 옛 식에서는 세로 간격이 60px 남짓이었다 (가로 22km 가 배율을 눌렀다)
+        expect(Math.abs(a.cy - b.cy)).toBeGreaterThan(250);
+    });
+
+    it('두 점이 모두 그리는 영역 안에 있다 — 가장자리에 딱 붙지 않는다', () => {
+        const v = computeViewport(VERTICAL, W, H, 1, NO, OCC);
+        for (const p of VERTICAL) {
+            const s = toScreenPoint(p, v);
+            expect(s.cx).toBeGreaterThan(PADDING_LEFT * 0.5);
+            expect(s.cx).toBeLessThan(W - PADDING_RIGHT * 0.5);
+            expect(s.cy).toBeGreaterThan(PADDING_TOP * 0.9);
+            expect(s.cy).toBeLessThan(H - OCC - PADDING_BOTTOM * 0.5);
+        }
+    });
+
+    it('가로 구간도 마찬가지다 — 짧은 세로가 배율을 안 누른다', () => {
+        const HORIZONTAL = [{ x: 126.90, y: 37.45 }, { x: 127.20, y: 37.452 }];
+        const v = computeViewport(HORIZONTAL, W, H, 1, NO, OCC);
+        const a = toScreenPoint(HORIZONTAL[0], v), b = toScreenPoint(HORIZONTAL[1], v);
+        expect(Math.abs(a.cx - b.cx)).toBeGreaterThan(200);
+    });
+
+    it('한 점뿐이면 주변이 보이는 폭으로 — 0 으로 나누지 않는다', () => {
+        const v = computeViewport([{ x: 127.0, y: 37.4 }], W, H, 1, NO, OCC);
+        expect(Number.isFinite(v.worldSize)).toBe(true);
+        expect(v.worldSize).toBeGreaterThan(0);
+    });
+});
