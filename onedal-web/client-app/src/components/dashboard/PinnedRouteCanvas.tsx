@@ -7,7 +7,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { MAP_THEME_COLORS, withAlpha } from '../../styles/themes';
 import { callNodeFill, callNodeStroke, callNodeText } from '../../styles/callPalette';
 import {
-    TILE_SIZE, TILE_MAX_ZOOM, anchorBaseOf, computeViewport, toScreenPoint, panAfterZoom, pinchStep, mapTileTone, routeLineWidth, viewCoordsFor, nextViewMode, effectiveZoom, type MapViewMode,
+    TILE_SIZE, TILE_MAX_ZOOM, anchorBaseOf, computeViewport, toScreenPoint, panAfterZoom, pinchStep, mapTileTone, routeLineWidth, viewCoordsFor, effectiveZoom, type MapViewMode,
     type Viewport } from '../../lib/mapProjection';
 import { sheetOccludedPx, type SheetSnap } from '../stage/StageSheet';
 
@@ -716,6 +716,32 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
                 onWheel={handleWheel}
             />
 
+            {/**
+              * 🗺️ **위는 지도, 아래는 콜** (기사님 확정 2026-09-04).
+              *   좌상단 무엇에 맞출까 · 우상단 배율 · 좌하단 내비 · 우하단 콜 이름표.
+              *   자리가 뜻을 나누면 운전 중에 **손이 기억한다.**
+              *
+              * 🔴 셋을 **풀어서** 놓는다 — 순환 버튼은 «지금 뭐지»를 눌러 봐야 알았다.
+              * 🔴 켜진 것은 **바탕을 안 뒤집는다** — 테두리·글자만 파랗게.
+              *    (기사님: *"현위치에서는 색이 반전되어 잘 보이지 않아"*)
+              */}
+            <div className="absolute top-3 left-3 flex gap-1.5 z-10">
+                {([['all', '전체'], ['leg', '구간'], ['follow', '현위치']] as [MapViewMode, string][]).map(([m, label]) => (
+                    <button
+                        key={m}
+                        onClick={() => { setViewMode(m); zoomRef.current = 1; panRef.current = { x: 0, y: 0 }; }}
+                        title={m === 'all' ? '정거장·경로가 다 보이게' : m === 'leg' ? '지금 가는 구간에 맞춰' : '내 위치 둘레를 크게'}
+                        className={`h-8 px-2.5 flex items-center justify-center bg-surface-alt/80 hover:bg-surface-hover rounded-md shadow-lg backdrop-blur-sm text-[11px] font-black transition-all ${
+                            viewMode === m
+                                ? 'border border-info text-info'
+                                : 'border border-border text-text-primary opacity-80 hover:opacity-100'
+                        }`}
+                    >
+                        {label}
+                    </button>
+                ))}
+            </div>
+
             <div className="absolute top-3 right-3 flex flex-col space-y-2 z-10">
                 <button
                     onClick={() => handleZoomClick(1.2)}
@@ -734,20 +760,6 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
                     className="w-8 h-8 flex items-center justify-center bg-surface-alt/80 hover:bg-surface-hover rounded-md shadow-lg text-text-primary border border-border backdrop-blur-sm text-[10px] font-bold opacity-80 hover:opacity-100 transition-all"
                 >
                     초기화
-                </button>
-                {/* 🔭 **무엇에 맞출까** — 버튼 하나로 돈다. 운전 중에는 손가락 하나,
-                    자리 하나가 낫다 (기사님 09-03: *"지금 가고 있는 곳만 볼 수 있으면 좋겠어"*).
-                    🔴 지금 무엇인지 **글자로** 말한다 — 아이콘만이면 눌러 봐야 안다 */}
-                <button
-                    onClick={() => { setViewMode(nextViewMode(viewMode)); zoomRef.current = 1; panRef.current = { x: 0, y: 0 }; }}
-                    title="지도를 무엇에 맞출까 — 전체 · 이번 구간 · 현위치"
-                    /* 🔴 **색을 바꾸지 않는다** (기사님 2026-09-04: *"버튼 색은 그냥 두어야
-                       할 것 같아. 현위치에서는 색이 반전되어 잘 보이지 않아"*).
-                       지금 무엇인지는 **글자가 이미 말한다**(전체/구간/현위치) —
-                       거기에 색까지 얹으면 지도 위에서 오히려 안 읽힌다. */
-                    className="w-8 h-8 flex items-center justify-center bg-surface-alt/80 hover:bg-surface-hover rounded-md shadow-lg text-text-primary border border-border backdrop-blur-sm text-[10px] font-black opacity-80 hover:opacity-100 transition-all"
-                >
-                    {viewMode === 'all' ? '전체' : viewMode === 'leg' ? '구간' : '현위치'}
                 </button>
             </div>
             {children}

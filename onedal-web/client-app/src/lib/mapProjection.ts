@@ -13,10 +13,11 @@ export const TILE_SIZE = 256;
 /** OSM 이 제공하는 최대 확대 단계 */
 export const TILE_MAX_ZOOM = 19;
 
-export const PADDING_LEFT = 70;    // 좌측 버튼 여백 (추천, 시간, 거리)
-export const PADDING_RIGHT = 60;   // 우측 버튼 여백 (+, -, 초기화)
+export const PADDING_LEFT = 70;    // 좌측 버튼 여백 (전체·구간·현위치 · 내비)
+export const PADDING_RIGHT = 60;   // 우측 버튼 여백 (+, -, 초기화 · 이름표)
 export const PADDING_TOP = 50;
-export const PADDING_BOTTOM = 40;
+/** 🔴 아래 두 모서리에 «콜» 버튼이 산다 (좌: 내비 · 우: 지금 갈 곳) — 그만큼 비운다 */
+export const PADDING_BOTTOM = 56;
 
 /** 한 점만 있을 때 보여 줄 폭 — 0.01° ≈ 1.1km (주변이 보이는 정도) */
 export const SINGLE_POINT_SPAN = 0.01 / 360;
@@ -319,11 +320,6 @@ export function viewCoordsFor(
     return allCoords;
 }
 
-/** 🔁 버튼 하나로 돈다 — 운전 중에는 손가락 하나, 자리 하나가 낫다 */
-export const MAP_VIEW_ORDER: MapViewMode[] = ['all', 'leg', 'follow'];
-export function nextViewMode(m: MapViewMode): MapViewMode {
-    return MAP_VIEW_ORDER[(MAP_VIEW_ORDER.indexOf(m) + 1) % MAP_VIEW_ORDER.length];
-}
 
 /**
  * 🔭 **실제 배율** — 지금 뷰포트가 «전체 보기»보다 몇 배 크게 그리고 있나.

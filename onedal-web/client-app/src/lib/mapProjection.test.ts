@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-    projectMercator, anchorBaseOf, computeViewport, toScreenPoint, panAfterZoom, pinchStep, mapTileTone, TILE_CLEAR_FROM, TILE_CLEAR_TO, routeLineWidth, viewCoordsFor, nextViewMode, FOLLOW_RADIUS_KM, effectiveZoom,
+    projectMercator, anchorBaseOf, computeViewport, toScreenPoint, panAfterZoom, pinchStep, mapTileTone, TILE_CLEAR_FROM, TILE_CLEAR_TO, routeLineWidth, viewCoordsFor, FOLLOW_RADIUS_KM, effectiveZoom,
     PADDING_LEFT, PADDING_RIGHT, PADDING_TOP, PADDING_BOTTOM,
     type GeoPoint,
 } from './mapProjection';
@@ -407,12 +407,6 @@ describe('🔭 지도 보기 — 전체 · 이번 구간 · 현위치', () => {
         expect(viewCoordsFor('leg', ALL, null, null, null)).toEqual(ALL);
         expect(viewCoordsFor('leg', ALL, ME, null)).toEqual(ALL);
         expect(viewCoordsFor('follow', ALL, null, NEXT)).toEqual(ALL);
-    });
-
-    it('버튼 하나로 돈다 — 전체 → 구간 → 현위치 → 전체', () => {
-        expect(nextViewMode('all')).toBe('leg');
-        expect(nextViewMode('leg')).toBe('follow');
-        expect(nextViewMode('follow')).toBe('all');
     });
 });
 

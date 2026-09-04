@@ -67,6 +67,6 @@ describe('🔭 지도 맞춤 — 끌어도 배율이 유지된다', () => {
 
     it('«맞춰 달라»는 버튼을 누를 때만 팬·줌을 되돌린다', () => {
         const c = codeOnly(src());
-        expect(c).toMatch(/setViewMode\(nextViewMode\(viewMode\)\);[\s\S]{0,120}?panRef\.current = \{ x: 0, y: 0 \}/);
+        expect(c).toMatch(/setViewMode\(m\);[\s\S]{0,120}?panRef\.current = \{ x: 0, y: 0 \}/);
     });
 });

@@ -735,16 +735,28 @@ export default function SheetMockup() {
                             liveRoute={[]}
                             myLocation={myLocation}
                         >
-                            {/* 🏷️ 다음 정거장 이름표 — 실물과 같은 자리 */}
-                            <div className="absolute left-3 top-3 z-10 rounded-xl border px-3 py-2 tabular-nums"
-                                style={{ background: 'color-mix(in srgb, var(--color-surface) 92%, transparent)', borderColor: 'var(--color-info)', backdropFilter: 'blur(3px)' }}>
-                                <div className="text-[14px] font-black text-info">
-                                    {nextStop ? `${nextStop.no}. ${nextStop.name}` : '남은 정거장 없음'}
+                            {/**
+                              * 🗺️ **아래쪽은 «콜 관련»** (기사님 확정 2026-09-04:
+                              * *"위쪽은 지도 관련 아래쪽은 콜 관련 버튼이 있는 거지"*).
+                              *   좌하단 내비 연동 · 우하단 지금 갈 곳.
+                              */}
+                            <button type="button"
+                                onClick={() => setLog(`🧭 «${nextStop?.name ?? '다음 정거장'}» 을 내비로 보냅니다 — 실물에서는 카카오내비가 열립니다.`)}
+                                className="absolute left-3 bottom-3 z-10 flex items-center gap-1.5 rounded-xl px-3 py-2.5
+                                           text-[13px] font-black text-white active:scale-95 transition-transform"
+                                style={{ background: 'linear-gradient(180deg,#5b8cff,#3f6fe0)', boxShadow: '0 6px 18px rgba(79,141,249,.4)' }}>
+                                🧭 내비
+                            </button>
+
+                            {nextStop && (
+                                <div className="absolute right-3 bottom-3 z-10 rounded-xl border px-3 py-2 tabular-nums text-right"
+                                    style={{ background: 'color-mix(in srgb, var(--color-surface) 92%, transparent)', borderColor: 'var(--color-info)', backdropFilter: 'blur(3px)' }}>
+                                    <div className="text-[14px] font-black text-info">{nextStop.no}. {nextStop.name}</div>
+                                    <div className="text-[11px] font-bold text-text-muted">
+                                        {nextStop.callNo}번 콜 · {nextStop.type} · 정차 중
+                                    </div>
                                 </div>
-                                <div className="text-[11px] font-bold text-text-muted">
-                                    {nextStop ? `${nextStop.callNo}번 콜 · ${nextStop.type} · 정차 중` : '사이클 끝'}
-                                </div>
-                            </div>
+                            )}
                         </PinnedRouteCanvas>
                     </div>
 
