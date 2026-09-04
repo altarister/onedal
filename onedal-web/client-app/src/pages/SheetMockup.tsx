@@ -842,7 +842,9 @@ export default function SheetMockup() {
                                                 {b.naviLabel}
                                             </button>
                                         ))}
-                                        {locked && <span className="text-[9px] font-black text-text-muted leading-none pl-1">🔒 합짐 뒤라 잠김</span>}
+                                        {/* 🔴 «잠겼다»는 **버튼 하나만 남은 것으로 이미 보인다** —
+                                            글자를 덧붙이지 않는다 (기사님 2026-09-05).
+                                            실물도 그렇게 한다 (`PinnedRoute` — 고른 것만 남기고 끝). */}
                                     </div>
                                 );
                             })()}
