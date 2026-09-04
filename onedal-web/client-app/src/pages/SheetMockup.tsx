@@ -4,6 +4,7 @@ import { MAP_THEME_COLORS } from '../styles/themes';
 import { callNodeFill, callNodeStroke, callNodeText } from '../styles/callPalette';
 import PinnedRouteCanvas from '../components/dashboard/PinnedRouteCanvas';
 import StageSheet, { type SheetSnap } from '../components/stage/StageSheet';
+import { sheetTransition } from '../components/stage/sheetTransition';
 import NaviQr, { naviQrText, type QrKind } from '../components/dashboard/NaviQr';
 import { sheetStatus, sheetStatusLine } from '../lib/sheetStatus';
 import { MOCK_PLANS, scenarioPlan, splitStops, myLocationAt, routeHolderOf, reaskedPlan, reaskCost, type Call } from './mockPlans';
@@ -774,6 +775,24 @@ export default function SheetMockup() {
     }, [playing, stepNo]);
 
     /** 열리는 것은 하나 — 이미 열린 것을 누르면 접는다 (i 가 -1 이면 전부 접기) */
+    /**
+     * 🪟 **높이를 바꾸는 길은 여기 하나다** (기사님 2026-09-05:
+     *    *"이 화면은 있을 수 없는 경우의 수다"*).
+     *
+     * 🔴 시트를 끌 때와 조작판에서 누를 때가 **각자** 높이를 정하고 있었고, 조작판 쪽은
+     *    전이 규칙을 **건너뛰었다.** 그래서 «시트는 100% 인데 아코디언이 다 닫혀
+     *    아래가 텅 빈» 화면이 나왔다 — «다»의 정의에 «하나 열린»이 들어 있으니
+     *    그런 상태는 **정의상 없어야 한다** (규칙 ③ — 손잡이가 둘이면 갈라진다).
+     */
+    const changeSnap = (next: SheetSnap, why?: string) => {
+        const r = sheetTransition(next, {
+            openIdx, callCount: CALLS.length,
+            preferIdx: nextStop ? nextStop.callNo! - 1 : undefined,
+        });
+        setSnap(r.snap); setOpenIdx(r.openIdx);
+        if (why) setLog(why);
+    };
+
     const open = (i: number, why?: string) => {
         const next = i === openIdx ? -1 : i;
         setOpenIdx(next);
@@ -787,7 +806,11 @@ export default function SheetMockup() {
          *    뜻이라, 높이가 그 행동의 결과다. (지도가 뛰지 않게 걷어낸 곁다리들과 다르다.)
          * ⚠️ 엿보기(가)에 계셨다면 안 올린다 — 주행 중이라 지도를 덮으면 안 된다.
          */
-        if (snap !== 'peek') setSnap(next >= 0 ? 'full' : 'list');
+        if (snap !== 'peek') {
+            const r = sheetTransition(next >= 0 ? 'full' : 'list',
+                { openIdx: next, callCount: CALLS.length, preferIdx: next });
+            setSnap(r.snap);
+        }
         if (!why) return;
         const closed = openIdx >= 0 ? `${openIdx + 1}번 접고 ` : '';
         setLog(next < 0
@@ -1047,18 +1070,8 @@ export default function SheetMockup() {
                         </PinnedRouteCanvas>
                     </div>
 
-                    {/* ── 3단 시트 — **진짜 컴포넌트**. 손잡이를 끌거나 눌러서 peek↔half↔full ── */}
-                    <StageSheet snap={snap}
-                        onSnapChange={(next) => {
-                            setSnap(next);
-                            /* 🔴 «다»는 **하나가 열린 상태**다 (기사님 정의). 손으로 끌어 올렸는데
-                               열린 것이 없으면 빈 자리가 지도를 덮으므로, 다음 갈 콜을 연다.
-                               반대로 «나»로 내리면 열린 것을 닫는다 — 그것이 «나»의 정의다. */
-                            if (next === 'full' && openIdx < 0 && CALLS.length > 0) {
-                                setOpenIdx(nextStop ? nextStop.callNo! - 1 : 0);
-                            }
-                            if (next !== 'full' && openIdx >= 0) setOpenIdx(-1);
-                        }}
+                    {/* ── 3단 시트 — **진짜 컴포넌트**. 손잡이를 끌거나 눌러서 가↔나↔다 ── */}
+                    <StageSheet snap={snap} onSnapChange={(next) => changeSnap(next)}
                         onHeightChange={setSheetPx}
                         /* 🔴 위 라인을 빼 둔다 (기사님 2026-09-05) — 심사석이 이미
                            자기 테두리를 갖고 있어 줄이 하나 더 그어지면 칸이 둘로 보인다 */
@@ -1114,9 +1127,15 @@ export default function SheetMockup() {
                             <button type="button"
                                 onClick={() => {
                                     if (!nextStop) return;
-                                    setSnap('full');
-                                    open(nextStop.callNo! - 1);
-                                    setLog(`시트 상태바의 버튼을 눌렀습니다 → 시트를 올리고 ${nextStop.callNo}번 콜을 «${STEPS[CALLS[nextStop.callNo! - 1].now].k}» 단계로 엽니다.`);
+                                    /**
+                                     * 🔴 **이 줄을 누른 것은 «열어서 보겠다»는 뜻이다** — 주행 중
+                                     *    (엿보기)에도 올라간다. 자동으로 안 올리는 것과 다르다:
+                                     *    자동은 지도를 뺏는 것이고, 이건 **손이 시킨 것**이다.
+                                     * 🔴 «다»로 가는 길은 `changeSnap` 하나뿐이다 — 여는 것까지
+                                     *    그 안에서 함께 정해진다 (규칙 ③).
+                                     */
+                                    changeSnap('full',
+                                        `시트 상태바의 버튼을 눌렀습니다 → 시트를 올리고 ${nextStop.callNo}번 콜을 «${STEPS[CALLS[nextStop.callNo! - 1].now].k}» 단계로 엽니다.`);
                                 }}
                                 className="w-full flex items-center gap-1.5 text-left min-h-[30px] active:opacity-70 transition-opacity">
                                 <span className="shrink-0">{bar.mark}</span>
@@ -1248,7 +1267,8 @@ export default function SheetMockup() {
                 <div className="flex gap-1.5 flex-wrap">
                     {([3, 4, 5] as const).map(n => (
                         <button key={n} type="button"
-                            onClick={() => { setPlanSize(n); setVisitedCount(1); setOpenIdx(-1); setQrPeek(0); setReasked(false);
+                            onClick={() => { setPlanSize(n); setStepNo(null); setPlaying(false);
+                                setVisitedCount(1); setOpenIdx(-1); setQrPeek(0); setReasked(false);
                                 setLog(`${n}콜 판 — 정거장 ${MOCK_PLANS[n].stops.length}개 · ${MOCK_PLANS[n].totalKm}km / ${MOCK_PLANS[n].totalMin}분. ${MOCK_PLANS[n].source}`); }}
                             className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${planSize === n
                                 ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-surface text-text-primary hover:border-info'}`}>
@@ -1295,11 +1315,11 @@ export default function SheetMockup() {
                                 /* 🔴 «출발»은 **QR 을 찍는 순간**이다 — 결재를 마치고 나서면서
                                    관제폰이 QR 을 띄우고 개인폰 카메라로 찍는다 (경로.md §4-0-1).
                                    그래서 여기서만 덮개가 열린다. 달리기 시작하면 닫힌다. */
-                                if (k === '출발') { setPhase('주행'); setSnap('peek'); setOpenIdx(-1); setQrOpen(qrReady); }
-                                if (k === '주행') { setPhase('주행'); setSnap('peek'); setOpenIdx(-1); setQrOpen(false); }
-                                if (k === '접근') { setPhase('주행'); setSnap('list'); setQrOpen(false); if (nextStop) open(nextStop.callNo! - 1); }
-                                if (k === '도착') { setPhase('정차'); setSnap('full'); setQrOpen(false); if (nextStop) open(nextStop.callNo! - 1); }
-                                if (k === '통화') { setPhase('정차'); setSnap('full'); setQrOpen(false); open(0); }
+                                if (k === '출발') { setPhase('주행'); changeSnap('peek'); setQrOpen(qrReady); }
+                                if (k === '주행') { setPhase('주행'); changeSnap('peek'); setQrOpen(false); }
+                                if (k === '접근') { setPhase('주행'); setQrOpen(false); if (nextStop) open(nextStop.callNo! - 1); }
+                                if (k === '도착') { setPhase('정차'); setQrOpen(false); if (nextStop) open(nextStop.callNo! - 1); }
+                                if (k === '통화') { setPhase('정차'); setQrOpen(false); open(0); }
                                 setLog(`${t} — ${why}`);
                             }}
                             className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${scene === k
@@ -1561,7 +1581,7 @@ export default function SheetMockup() {
                 <div className="flex gap-1.5 flex-wrap">
                     {([['peek', '가 · 상태바만'], ['list', '나 · 목록만큼'], ['full', '다 · 다 쓰기']] as [SheetSnap, string][]).map(([k, t]) => (
                         <button key={k} type="button"
-                            onClick={() => { setSnap(k); setLog(`시트를 «${t}» 로 올렸습니다 — 지도가 그만큼 비켜 줍니다.`); }}
+                            onClick={() => changeSnap(k, `시트를 «${t}» 로 옮겼습니다 — 지도가 그만큼 비켜 줍니다.`)}
                             className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${snap === k
                                 ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-surface text-text-primary hover:border-info'}`}>
                             {t}
