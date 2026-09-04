@@ -767,7 +767,21 @@ export default function SheetMockup() {
                              * 🔴 번호는 **지도 핀과 같은 색**이다 — 자막의 «⑤»와 지도의 «⑤»가
                              *    한눈에 이어진다.
                              */
-                            <span className="flex items-center gap-1.5">
+                            /**
+                             * 🖐️ **누르면 그 콜로 데려간다** — 지도 우하단 버튼이 하던 일이다
+                             * (기사님 2026-09-04: *"그 버튼은 클릭하면 시트를 최대로 올리고
+                             * 그 콜의 아코디언을 열고 해당 스텝을 보여주는 기능을 가지고 있었거든"*).
+                             * 자막이 그 자리를 물려받았으니 **기능도 함께** 물려받는다 —
+                             * 자리만 옮기고 일을 흘리면 기사님 손이 갈 데가 없어진다.
+                             */
+                            <button type="button"
+                                onClick={() => {
+                                    if (!nextStop) return;
+                                    setSnap('full');
+                                    open(nextStop.callNo! - 1);
+                                    setLog(`자막을 눌렀습니다 → 시트를 전체로 올리고 ${nextStop.callNo}번 콜을 «${STEPS[CALLS[nextStop.callNo! - 1].now].k}» 단계로 엽니다.`);
+                                }}
+                                className="w-full flex items-center gap-1.5 text-left">
                                 <span className="shrink-0">⏸ 정차 중</span>
                                 {nextStop ? (
                                     <>
@@ -785,7 +799,7 @@ export default function SheetMockup() {
                                         </span>
                                     </>
                                 ) : <span className="text-text-muted font-semibold">· 사이클 끝</span>}
-                            </span>
+                            </button>
                         }>
                         <div className="h-full flex flex-col gap-1.5 px-2.5 pt-1 pb-2.5">
                             {CALLS.map((call, i) => (
@@ -827,7 +841,7 @@ export default function SheetMockup() {
                         누르는 목적이 «그 구간을 보는 것»이니 이름도 그렇게 불러야 한다 */}
                     {MAP_STOPS.slice(0, 5).map((p, i) => (
                         <button key={p.no} type="button"
-                            onClick={() => { setVisitedCount(i + 1); setSnap('peek'); setLog(`「구간」은 ${p.no}~${MAP_STOPS[i + 1]!.no} — ${p.name} → ${MAP_STOPS[i + 1]!.name} 입니다.`); }}
+                            onClick={() => { setVisitedCount(i + 1); setSnap('peek'); setLog(`「현구간」은 ${p.no}~${MAP_STOPS[i + 1]!.no} — ${p.name} → ${MAP_STOPS[i + 1]!.name} 입니다.`); }}
                             className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${visitedCount === i + 1
                                 ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-surface text-text-primary hover:border-info'}`}>
                             {p.no}~{MAP_STOPS[i + 1]!.no} {p.name}
@@ -835,7 +849,7 @@ export default function SheetMockup() {
                     ))}
                 </div>
                 <p className="mt-2 text-[12px] leading-relaxed text-text-muted">
-                    고른 구간까지 다녀온 것으로 칩니다 — 지도 오른쪽 <b className="text-text-primary">「구간」</b> 버튼을 누르면
+                    고른 구간까지 다녀온 것으로 칩니다 — 지도 왼쪽 위 <b className="text-text-primary">「현구간」</b> 버튼을 누르면
                     그 구간에 맞춰집니다. <b className="text-text-primary">4~5 가산동</b>은 거의 수직인 구간이라
                     «짧은 축이 화면을 줄이지 않는가»를 보기 좋습니다.
                 </p>

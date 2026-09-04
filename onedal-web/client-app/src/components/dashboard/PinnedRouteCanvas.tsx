@@ -718,7 +718,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
 
             {/**
               * 🗺️ **위는 지도, 아래는 콜** (기사님 확정 2026-09-04).
-              *   좌상단 무엇에 맞출까 · 우상단 배율 · 좌하단 내비 · 우하단 콜 이름표.
+              *   좌상단 무엇에 맞출까(전체·현구간·현위치) · 우상단 배율 · 좌하단 내비.
               *   자리가 뜻을 나누면 운전 중에 **손이 기억한다.**
               *
               * 🔴 셋을 **풀어서** 놓는다 — 순환 버튼은 «지금 뭐지»를 눌러 봐야 알았다.
@@ -726,11 +726,11 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
               *    (기사님: *"현위치에서는 색이 반전되어 잘 보이지 않아"*)
               */}
             <div className="absolute top-3 left-3 flex gap-1.5 z-10">
-                {([['all', '전체'], ['leg', '구간'], ['follow', '현위치']] as [MapViewMode, string][]).map(([m, label]) => (
+                {([['all', '전체'], ['leg', '현구간'], ['follow', '현위치']] as [MapViewMode, string][]).map(([m, label]) => (
                     <button
                         key={m}
                         onClick={() => { setViewMode(m); zoomRef.current = 1; panRef.current = { x: 0, y: 0 }; }}
-                        title={m === 'all' ? '정거장·경로가 다 보이게' : m === 'leg' ? '지금 가는 구간에 맞춰' : '내 위치 둘레를 크게'}
+                        title={m === 'all' ? '정거장·경로가 다 보이게' : m === 'leg' ? '지금 가는 구간이 다 보이게' : '내 위치 둘레를 크게'}
                         className={`h-8 px-2.5 flex items-center justify-center bg-surface-alt/80 hover:bg-surface-hover rounded-md shadow-lg backdrop-blur-sm text-[11px] font-black transition-all ${
                             viewMode === m
                                 ? 'border border-info text-info'
