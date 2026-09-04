@@ -684,6 +684,7 @@ function CallItem({ call, i, open, onToggle, rainbow, visitedNos }: {
 }
 
 export default function SheetMockup() {
+    const { theme } = useTheme();
     const [openIdx, setOpenIdx] = useState<number>(-1);
     /** 🪟 시트 높이 — 실물과 같은 3단 (peek 72px · half 58% · full 100%) */
     const [snap, setSnap] = useState<SheetSnap>('full');
@@ -749,24 +750,43 @@ export default function SheetMockup() {
                                 🧭 내비
                             </button>
 
-                            {nextStop && (
-                                <div className="absolute right-3 z-10 rounded-xl border px-3 py-2 tabular-nums text-right"
-                                    style={{ bottom: aboveSheet(snap), background: 'color-mix(in srgb, var(--color-surface) 92%, transparent)', borderColor: 'var(--color-info)', backdropFilter: 'blur(3px)' }}>
-                                    <div className="text-[14px] font-black text-info">{nextStop.no}. {nextStop.name}</div>
-                                    <div className="text-[11px] font-bold text-text-muted">
-                                        {nextStop.callNo}번 콜 · {nextStop.type} · 정차 중
-                                    </div>
-                                </div>
-                            )}
                         </PinnedRouteCanvas>
                     </div>
 
                     {/* ── 3단 시트 — **진짜 컴포넌트**. 손잡이를 끌거나 눌러서 peek↔half↔full ── */}
                     <StageSheet snap={snap} onSnapChange={setSnap}
-                        peekBar={<>🏁 {visitedCount} {MAP_STOPS[visitedCount - 1]?.name ?? '집'} 도착 · 정차 중{' '}
-                            <span className="font-semibold text-text-muted">
-                                {nextStop ? `— 다음 ${nextStop.no} ${nextStop.name}` : '— 사이클 끝'}
-                            </span></>}>
+                        peekBar={
+                            /**
+                             * 🎬 **자막 한 줄이 «지금 상태 + 다음 갈 곳»을 혼자 맡는다**
+                             * (기사님 2026-09-04: *"지도 오른쪽 하단 버튼과 시트의 현 상태가
+                             * 중복 같은데 둘을 합쳐서 시트 상태바에 넣는 것이 맞을 것 같지 않아?"*).
+                             *
+                             * 🔴 예전엔 지도 우하단 이름표가 같은 말을 했다 — 두 벌이면
+                             *    갈라지고, 갈라지면 «어느 쪽이 참인가»를 묻게 된다 (규칙 ③).
+                             *    시트가 내려가 있어도 이 줄은 늘 보인다 — 그게 이 줄의 존재 이유다.
+                             * 🔴 번호는 **지도 핀과 같은 색**이다 — 자막의 «⑤»와 지도의 «⑤»가
+                             *    한눈에 이어진다.
+                             */
+                            <span className="flex items-center gap-1.5">
+                                <span className="shrink-0">⏸ 정차 중</span>
+                                {nextStop ? (
+                                    <>
+                                        <span className="text-text-muted font-semibold">· 다음</span>
+                                        <span className="shrink-0 w-[19px] h-[19px] rounded-full grid place-items-center text-[12px] font-black leading-none"
+                                            style={rainbow ? {
+                                                background: callNodeFill(nextStop.callNo!, nextStop.type === '상차' ? 'pickup' : 'dropoff', theme),
+                                                color: callNodeText('pickup', theme),
+                                            } : { background: 'var(--color-info)', color: '#fff' }}>
+                                            {nextStop.no}
+                                        </span>
+                                        <span className="truncate">{nextStop.name}</span>
+                                        <span className="ml-auto shrink-0 text-text-muted font-semibold">
+                                            {nextStop.callNo}번 콜 · {nextStop.type}
+                                        </span>
+                                    </>
+                                ) : <span className="text-text-muted font-semibold">· 사이클 끝</span>}
+                            </span>
+                        }>
                         <div className="h-full flex flex-col gap-1.5 px-2.5 pt-1 pb-2.5">
                             {CALLS.map((call, i) => (
                                 <CallItem key={call.no} call={call} i={i} rainbow={rainbow} visitedNos={visitedNos}
