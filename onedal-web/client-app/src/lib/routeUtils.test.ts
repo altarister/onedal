@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getDistanceKm, getMinuteDiff, getAddressLabel } from './routeUtils';
+import { getDistanceKm, getMinuteDiff, getAddressLabel, shortStopLabel } from './routeUtils';
 
 describe('getDistanceKm (Haversine Formula)', () => {
     it('같은 좌표의 거리는 0km이다', () => {
@@ -55,5 +55,38 @@ describe('getAddressLabel', () => {
     it('빈 문자열이나 1단어 주소는 그대로 반환한다', () => {
         expect(getAddressLabel('')).toBe('배차값없음');
         expect(getAddressLabel('서울')).toBe('서울');
+    });
+});
+
+/**
+ * ✂️ **시트 상태바에 넣을 만큼만 자른 지명** (기사님 확정 2026-09-04)
+ *
+ * 09-03 실제 자료: 지명 72종 · 평균 3.5자 · 최장 10자(`경기광주자연앤자이점`).
+ * 한 줄이 약 56칸인데 최장 문장이 71칸이라 두 경우가 넘쳤다.
+ */
+describe('✂️ 지명 줄이기', () => {
+    it('짧은 지명은 그대로다 — 대부분이 여기 든다', () => {
+        expect(shortStopLabel('초월읍')).toBe('초월읍');
+        expect(shortStopLabel('가산동')).toBe('가산동');
+        expect(shortStopLabel('남한산성면')).toBe('남한산성면');
+    });
+
+    it('긴 지명은 자른다 — 실제로 넘치던 값들', () => {
+        expect(shortStopLabel('경기광주자연앤자이점')).toBe('경기광주자연…');
+        expect(shortStopLabel('더샵오포센트럴포레')).toBe('더샵오포센트…');
+    });
+
+    it('🔴 자르면 «잘렸다»고 말한다 — 말없이 자르면 그게 이름 전부로 읽힌다 (규칙 ④)', () => {
+        expect(shortStopLabel('경기광주자연앤자이점').endsWith('…')).toBe(true);
+        expect(shortStopLabel('초월읍').endsWith('…')).toBe(false);
+    });
+
+    it('경계에서 안 자른다 — 딱 맞으면 그대로', () => {
+        expect(shortStopLabel('가나다라마바')).toBe('가나다라마바');
+        expect(shortStopLabel('가나다라마바사')).toBe('가나다라마바…');
+    });
+
+    it('빈 값에 손대지 않는다', () => {
+        expect(shortStopLabel('')).toBe('');
     });
 });

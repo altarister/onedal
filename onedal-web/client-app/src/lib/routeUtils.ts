@@ -50,3 +50,20 @@ export function hhmm(iso?: string | null): string {
     const d = new Date(iso);
     return Number.isNaN(d.getTime()) ? '' : d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
+
+/**
+ * ✂️ **시트 상태바에 넣을 만큼만 자른 지명** (기사님 확정 2026-09-04).
+ *
+ * 지명은 대개 3~4자(`초월읍`·`가산동`)인데, 아파트·상호가 그 자리에 들어오면
+ * `경기광주자연앤자이점`(10자)·`더샵오포센트럴포레`(9자)처럼 길어진다 —
+ * 실제 09-03 자료에서 72종 중 평균 3.5자, 최장 10자였다.
+ * 한 줄(폰 400px)이 약 56칸인데 최장이 71칸이라 **두 경우가 넘쳤다.**
+ *
+ * 🔴 **자르되 잘렸다고 말한다** — `…` 를 붙인다. 말없이 자르면 «저게 이름 전부»로 읽힌다 (규칙 ④).
+ */
+export const STOP_LABEL_MAX = 6;
+
+export function shortStopLabel(name: string, max = STOP_LABEL_MAX): string {
+    if (!name) return name;
+    return name.length <= max ? name : name.slice(0, max) + '…';
+}

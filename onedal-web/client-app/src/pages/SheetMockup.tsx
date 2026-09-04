@@ -4,6 +4,7 @@ import { MAP_THEME_COLORS } from '../styles/themes';
 import { callNodeFill, callNodeStroke, callNodeText } from '../styles/callPalette';
 import PinnedRouteCanvas, { type RoutePoint } from '../components/dashboard/PinnedRouteCanvas';
 import StageSheet, { aboveSheet, type SheetSnap } from '../components/stage/StageSheet';
+import { sheetStatus } from '../lib/sheetStatus';
 
 /**
  * 🪗 **시트 아코디언 목업 — 앱 안에서, 앱의 재료로** (기사님 요청 2026-09-04)
@@ -191,6 +192,23 @@ const MAP_STOPS: RoutePoint[] = [
     { type: '하차', name: '구로동', isEvaluating: false, x: 126.874476183809, y: 37.5056847560909, no: 5, routeId: 'c13', callNo: 3 },
     { type: '하차', name: '방화동', isEvaluating: false, x: 126.807691849796, y: 37.5729712404467, no: 6, routeId: 'c10', callNo: 1 },
 ];
+/**
+ * ⏱️ **구간별 남은 주행(분)** — 정거장 번호 → 앞 정거장에서 여기까지.
+ *
+ * 기사님(2026-09-04): *"이 부분은 카카오에서 값을 안 준 거야?"* — **준다.**
+ * `kakaoService.ts` 가 `sections[0].duration`·`.distance` 를 받아
+ * `approachDuration`·`approachDistance` 로 싣고, 그게 `StopLead.driveMinutes`·`driveKm` 다.
+ * 그러니 상태바의 **직선 거리**는 빼는 게 아니라 **이 값으로 갈아끼우는 것**이 맞다.
+ *
+ * 🔴 목업의 이 숫자는 **지어낸 것이 아니다** — 아래 `ROUTE_POLYLINE`(그날 카카오가 준
+ *    236점, 재 보면 67.9km 로 DB 기록 68.0km 와 맞는다)의 구간 길이를 그날 총 106분에
+ *    비례 배분한 값이다. 합이 정확히 106분이다. 실물은 카카오 값을 그대로 쓴다.
+ *
+ * ⚠️ **실물에서 이 값은 늙는다.** `driveMinutes` 는 «카카오 호출 시점부터의 누적»이라
+ *    (`shared/src/timing.ts` `StopLead` 주석) 30분 달린 뒤에도 같은 수를 말한다.
+ *    살아 있는 «남은 분»으로 바꾸는 판은 `todo.md` 「0-H」 에 있다.
+ */
+const LEG_MINUTES: Record<number, number> = { 1: 2, 2: 31, 3: 34, 4: 8, 5: 7, 6: 24 };
 /**
  * 🛣️ **카카오가 준 진짜 경로선** — 2026-09-03 14:51 판, 3콜 합짐 (68.0km / 106분).
  *
@@ -724,6 +742,18 @@ export default function SheetMockup() {
     const { visited, remaining } = splitStops(visitedCount);
     const myLocation = myLocationAt(visitedCount);
     const nextStop = remaining[0];
+    /**
+     * 🎬 **시트 상태바 한 줄** — 무엇을 적을지는 `sheetStatus` 한 곳이 정한다 (규칙 ③).
+     *    화면에 흩어 두면 «한 줄에 드는가»를 검사할 수가 없다 (`lib/sheetStatus.test.ts`).
+     */
+    const bar = sheetStatus({
+        moving: false,   // 목업은 «정차 중» 고정 — 실물은 GPS 가 말한다
+        next: nextStop ? {
+            visitNo: nextStop.no!, name: nextStop.name, callNo: nextStop.callNo,
+            stop: nextStop.type as '상차' | '하차',
+        } : null,
+        driveMinutes: nextStop ? LEG_MINUTES[nextStop.no!] ?? null : null,
+    });
     const visitedNos = new Set(visited.map(v => v.no));
     const [log, setLog] = useState('헤더를 누르거나 아래 «운행 이벤트»를 눌러 보세요.');
 
@@ -803,10 +833,9 @@ export default function SheetMockup() {
                                     setLog(`시트 상태바의 버튼을 눌렀습니다 → 시트를 올리고 ${nextStop.callNo}번 콜을 «${STEPS[CALLS[nextStop.callNo! - 1].now].k}» 단계로 엽니다.`);
                                 }}
                                 className="w-full flex items-center gap-1.5 text-left min-h-[30px] active:opacity-70 transition-opacity">
-                                <span className="shrink-0">⏸ 정차 중</span>
+                                <span className="shrink-0">{bar.mark}</span>
                                 {nextStop ? (
                                     <>
-                                        <span className="text-text-muted font-semibold shrink-0">· 다음</span>
                                         {/* 🔢 번호는 **지도 핀과 같은 색** — 이 줄의 ⑤와 지도의 ⑤가 이어진다 */}
                                         <span className="shrink-0 w-[19px] h-[19px] rounded-full grid place-items-center text-[12px] font-black leading-none"
                                             style={rainbow ? {
@@ -815,13 +844,12 @@ export default function SheetMockup() {
                                             } : { background: 'var(--color-info)', color: '#fff' }}>
                                             {nextStop.no}
                                         </span>
-                                        <span className="truncate">{nextStop.name}</span>
-                                        <span className="ml-auto shrink-0 text-text-muted font-semibold">
-                                            {nextStop.callNo}번 콜 · {nextStop.type}
-                                        </span>
+                                        <span className="shrink-0">{bar.name}</span>
+                                        {bar.lead && <span className="shrink-0 text-text-muted font-semibold">{bar.lead}</span>}
+                                        <span className="ml-auto shrink-0 text-text-muted font-semibold truncate">{bar.tail}</span>
                                         <span className="shrink-0 text-text-muted">›</span>
                                     </>
-                                ) : <span className="text-text-muted font-semibold">· 사이클 끝</span>}
+                                ) : <span className="text-text-muted font-semibold">· {bar.notice}</span>}
                             </button>
                         }>
                         {/**
