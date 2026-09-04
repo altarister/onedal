@@ -14,7 +14,11 @@ import { useFilterConfig } from '../../hooks/useFilterConfig';
  * 판정 전엔 무채색 — 색을 지어내지 않는다 (규칙 ④). 결정: 직접·알람은 스캔앱, 자동은 버튼 35:65.
  */
 
-const SOAK: Record<VerdictColor, { tint: string; bar: string; text: string; glow: string; wm: string }> = {
+/**
+ * 🎨 **판정색 한 벌** — 심사석과 «한 줄 심사석»이 같은 색을 쓴다 (2026-09-05).
+ *    색이 곧 기사님의 결정이라(규칙 ⑤-3), 자리마다 색이 다르면 그게 가장 큰 사고다.
+ */
+export const SOAK: Record<VerdictColor, { tint: string; bar: string; text: string; glow: string; wm: string }> = {
     '꿀':   { tint: 'rgba(79,141,249,.30)', bar: '#4f8df9', text: '#9db9ff', glow: 'rgba(79,141,249,.5)',  wm: 'rgba(79,141,249,.16)' },
     '보통': { tint: 'rgba(47,158,110,.28)', bar: '#2f9e6e', text: '#7fd8ab', glow: 'rgba(47,158,110,.45)', wm: 'rgba(47,158,110,.15)' },
     '똥':   { tint: 'rgba(230,180,34,.30)', bar: '#e6b422', text: '#f0d27a', glow: 'rgba(230,180,34,.45)', wm: 'rgba(230,180,34,.15)' },

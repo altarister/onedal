@@ -10,6 +10,7 @@ import { MOCK_PLANS, scenarioPlan, splitStops, myLocationAt, routeHolderOf, reas
 import { SCENARIO, SEAT_CALLS } from './scenario';
 import { ROUTE_PRIORITIES, PRIORITY_SAMPLE, isPriorityLocked, type RoutePriority } from '../lib/routePriority';
 import JudgmentSeat from '../components/dashboard/JudgmentSeat';
+import JudgmentBar from '../components/dashboard/JudgmentBar';
 
 /**
  * 🪗 **시트 아코디언 목업 — 앱 안에서, 앱의 재료로** (기사님 요청 2026-09-04)
@@ -546,6 +547,15 @@ export default function SheetMockup() {
      */
     const [priority, setPriority] = useState<RoutePriority>('RECOMMEND');
     /**
+     * 🪧 **판정보드를 어디에 둘까 — 두 안** (2026-09-05 · 기사님이 받으신 의견에서).
+     *
+     *   ⓐ **필터 자리**(위) — 지금. 기사님 확정 0831. 늘 보이지만 엄지에서 멀다
+     *   ⓑ **콜 영역**(시트) — 합짐은 «기존 콜 사이에 끼는 것»이라 목록 위에 얹히는 모양이
+     *      그 일과 맞고, 엄지에 가깝다. 대신 **시트가 내려가 있으면 안 보인다.**
+     *      그래서 두 단이다 — 내려가 있으면 상태바가 «한 줄 심사석»이 되고, 올리면 전체.
+     */
+    const [seatPlace, setSeatPlace] = useState<'filter' | 'sheet'>('filter');
+    /**
      * 🚚 **지금 어느 국면인가** — 목업이 오래 «정차 중»에 고정돼 있었다
      * (기사님 2026-09-04: *"운행 이벤트 시늉에서 주행중일때, 출발 할때가 없어"*).
      *
@@ -765,7 +775,7 @@ export default function SheetMockup() {
                   * 🔴 KEEP·거절을 **실제로 누르실 수 있다.** 누르면 다음 장면으로 넘어간다 —
                   *    기사님이 *"첫짐킵을 추가해주면 좋겠어"* 하신 그 손이다 (2026-09-05).
                   */}
-                {step?.seat ? (
+                {step?.seat && seatPlace === 'filter' ? (
                     <div className="shrink-0">
                         <JudgmentSeat
                             route={SEAT_CALLS[step.seat] as never}
@@ -995,6 +1005,24 @@ export default function SheetMockup() {
                     <StageSheet snap={snap} onSnapChange={setSnap}
                         peekBar={
                             /**
+                             * 🪧 **안 ⓑ — 시트가 내려가 있어도 심사가 보인다.**
+                             *    주행 중에는 시트가 peek 라 판정보드가 시트 안에만 있으면
+                             *    **아무것도 안 뜬다.** 심사는 30초짜리라 놓치면 자동 취소된다.
+                             *    그렇다고 시트를 저절로 올리면 운전 중에 지도를 덮는다.
+                             *    → 색·점수·두 버튼만 한 줄로. 누르면 올라가 전체를 본다.
+                             */
+                            (step?.seat && seatPlace === 'sheet') ? (
+                                <JudgmentBar
+                                    route={SEAT_CALLS[step.seat] as never}
+                                    onOpen={() => { setSnap('full'); setLog('시트를 올려 «왜 그 색인지»를 봅니다 — 사유·근거·게이트.'); }}
+                                    onDecision={(_id, action) => {
+                                        setPlaying(false);
+                                        if (action === 'ORDER_CONFIRMED') goStep(step.no + 1, '🟢 한 줄 심사석에서 KEEP');
+                                        else setLog('❌ 거절하셨습니다 — 목업이라 여기서 멈춥니다.');
+                                    }}
+                                />
+                            ) : (
+                            /**
                              * 🎬 **시트 상태바** (용어집 확정 2026-09-04) — 읽는 줄.
                              *    그 안에서 누르는 부분이 «시트 상태바의 버튼»이다.
                              *
@@ -1032,13 +1060,31 @@ export default function SheetMockup() {
                                     </>
                                 ) : <span className="text-text-muted font-semibold">· {bar.notice}</span>}
                             </button>
-                        }>
+                        )}>
                         {/**
                          * 🪗 아코디언 그릇 — 시트 높이를 그대로 쓰고 **넘치지 않는다.**
                          * 🔴 헤더는 `shrink-0`(각 콜 안에서), 펼친 판만 남는 자리를 먹는다.
                          *    그릇이 넘치면 시트가 세로로 스크롤되어 «헤더가 늘 보인다»가 깨진다.
                          */}
                         <div className="h-full flex flex-col gap-1.5 px-2.5 pt-1 pb-2.5 overflow-hidden">
+                            {/**
+                              * 🪧 **안 ⓑ — 후보콜이 목록 맨 위에 얹힌다.**
+                              * 🔴 합짐은 «기존 콜들 사이에 끼는 것»이다. 목록 위에 얹히는 모양이
+                              *    그 일과 맞는다 — **잡으면 어디에 끼는지가 같은 화면에서 보인다.**
+                              */}
+                            {step?.seat && seatPlace === 'sheet' && (
+                                <div className="shrink-0 -mx-2.5">
+                                    <JudgmentSeat
+                                        route={SEAT_CALLS[step.seat] as never}
+                                        confirmedActive={step.grabbed}
+                                        onDecision={(_id, action) => {
+                                            setPlaying(false);
+                                            if (action === 'ORDER_CONFIRMED') goStep(step.no + 1, '🟢 KEEP 을 누르셨습니다');
+                                            else setLog('❌ 거절하셨습니다 — 목업이라 여기서 멈춥니다.');
+                                        }}
+                                    />
+                                </div>
+                            )}
                             {CALLS.map((call, i) => (
                                 <CallItem key={call.no} call={call} i={i} rainbow={rainbow} visitedNos={visitedNos}
                                     open={openIdx === i} onToggle={() => open(i, '헤더를 눌렀습니다')} />
@@ -1366,6 +1412,38 @@ export default function SheetMockup() {
                     <b className="text-text-primary"> 콜이 늘수록 벌어집니다.</b>
                     <br />🧭 지금 고른 것({qrSpan === 1 ? '한 곳씩' : '경유 3개씩'})으로는
                     <b className="text-text-primary"> {qrTrips}번</b> 찍습니다.
+                </p>
+
+                {/* 🪧 **판정보드 자리** — 기사님이 받으신 의견에서 (2026-09-05) */}
+                <h2 className="mt-6 text-[12.5px] font-black tracking-wide text-info mb-2">🪧 판정보드 자리 — 두 안 비교</h2>
+                <div className="grid grid-cols-2 gap-2">
+                    {([['filter', 'ⓐ 필터 자리 (지금)'], ['sheet', 'ⓑ 콜 영역 (두 단)']] as const).map(([k, t]) => (
+                        <button key={k} type="button"
+                            onClick={() => {
+                                setSeatPlace(k);
+                                if (k === 'sheet') setFilterCompact(true);
+                                const judging = SCENARIO.find(x => x.seat);
+                                if (!step?.seat && judging) goStep(judging.no);
+                                setSnap(k === 'sheet' ? 'peek' : 'half');
+                                setLog(k === 'filter'
+                                    ? 'ⓐ 심사석이 필터 자리(위)에 뜹니다 — 기사님 확정 0831. 늘 보이지만 엄지에서 멉니다.'
+                                    : 'ⓑ 시트가 내려가 있으면 상태바가 «한 줄 심사석»이 됩니다 — 색·점수·두 버튼. 올리면 목록 맨 위에 전체가 얹힙니다. 필터도 함께 접었습니다.'); }}
+                            className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${seatPlace === k
+                                ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-surface text-text-primary hover:border-info'}`}>
+                            {t}
+                        </button>
+                    ))}
+                </div>
+                <p className="mt-2 text-[12px] leading-relaxed text-text-muted">
+                    🔴 <b className="text-text-primary">ⓑ 의 위험은 «주행 중엔 시트가 내려가 있다»</b> 입니다 —
+                    심사는 30초짜리라 못 보면 자동 취소되고, 시트를 저절로 올리면 운전 중에 지도를 덮습니다.
+                    그래서 <b className="text-text-primary">두 단</b>으로 나눴습니다:
+                    <br />· 내려가 있을 때 — <b className="text-text-primary">상태바 한 줄</b>(색·점수·시급·거절/KEEP). 지도를 안 덮습니다
+                    <br />· 올리면 — 심사석 전체(사유·근거·게이트)
+                    <br />근거는 기사님 말씀입니다 — <i>"KEEP 버튼의 내용보다는 파란색, 녹색이면 바로 잡을 거야."</i>
+                    색과 점수만 보고 1~2초에 누르신다면 <b className="text-text-primary">한 줄이면 충분합니다.</b>
+                    <br />⚠️ 심사석이 «필터 자리를 빌려 쓴다»는 <b className="text-text-primary">기사님이 0831 에 정하신 것</b>입니다 —
+                    뒤집기 전에 그때 이유를 확인해 주십시오.
                 </p>
 
                 <h2 className="mt-6 text-[12.5px] font-black tracking-wide text-info mb-2">필터 영역 — 두 안 비교</h2>
