@@ -97,3 +97,34 @@ describe('🧭 카카오내비 링크', () => {
         expect(buildKakaoNaviUrl({ key: KEY, origin: ORG, dest: { name: 'x', x: NaN, y: 37 } })).toBeNull();
     });
 });
+
+/**
+ * 🔴 **`via` 를 넘겼는데 안 받는 일이 실제로 났다** (2026-09-04).
+ *
+ * 목업이 `{...qrArgs}` 로 펼쳐 넘겼는데 받는 쪽 `Props` 에 `via` 가 없었다.
+ * **펼침 연산자는 남는 칸을 타입 검사가 안 잡는다** — 컴파일은 통과하고
+ * **경유지만 조용히 사라졌을** 것이다. `via_list` 를 틀린 이름으로 보낸 것과 같은 병이다.
+ */
+describe('🧭 경유지를 넘기면 실제로 실린다 — 조용히 사라지지 않는다', () => {
+    const yeosu2: NaviStop = { name: '여수동', x: 127.122541, y: 37.422620 };
+    const seoksu: NaviStop = { name: '석수동', x: 126.904770, y: 37.429537 };
+    const gasan:  NaviStop = { name: '가산동', x: 126.883619, y: 37.468967 };
+
+    it('경유 3개 + 도착 1 = 네 곳이 한 URL 에 담긴다', () => {
+        const url = buildKakaoNaviUrl({
+            key: KEY, origin: ORG, dest: gasan, via: [chowol, yeosu2, seoksu],
+        })!;
+        const m = url.match(/[?&]param=([^&]+)/)!;
+        const p = JSON.parse(decodeURIComponent(m[1]));
+        expect(p.via_list.map((v: any) => v.name)).toEqual(['초월읍', '여수동', '석수동']);
+        expect(p.destination.name).toBe('가산동');
+    });
+
+    /** ⚠️ QR 이 촘촘해지면 카메라가 못 읽는다 — 길이를 눈으로 재 둔다 */
+    it('네 곳을 담아도 QR 이 읽히는 길이다 (오류정정 L 한도 ~2,900자)', () => {
+        const url = buildKakaoNaviUrl({
+            key: KEY, origin: ORG, dest: gasan, via: [chowol, yeosu2, seoksu],
+        })!;
+        expect(url.length).toBeLessThan(1200);
+    });
+});

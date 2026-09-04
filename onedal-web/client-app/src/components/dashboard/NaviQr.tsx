@@ -30,8 +30,13 @@ import { buildKakaoNaviUrl, buildKakaoRouteUrl, type NaviStop } from '@onedal/sh
 export type QrKind = 'navi' | 'map';
 
 interface Props {
-    /** 다음 정거장. 없으면 아무것도 안 그린다 */
+    /** **마지막**으로 갈 곳(도착지). 없으면 아무것도 안 그린다 */
     stop: NaviStop | null;
+    /**
+     * 그 앞에 들를 곳들 — **최대 3개** (카카오내비 한도).
+     * ⚠️ 비워 두면 «다음 한 곳»만 보낸다. 그러면 «지나면 넘어가나»를 물을 것이 없다.
+     */
+    via?: NaviStop[];
     /** 지금 위치 — 카카오맵 링크에만 쓴다 (카카오내비는 생략하면 현위치에서 시작) */
     here?: { x: number; y: number } | null;
     kind: QrKind;
@@ -50,13 +55,17 @@ interface Props {
  */
 export function naviQrText(p: Omit<Props, 'size' | 'onKindChange'>): string | null {
     if (!p.stop) return null;
+    const via = p.via ?? [];
     if (p.kind === 'map') {
-        return buildKakaoRouteUrl(p.here ?? null, [{ x: p.stop.x, y: p.stop.y }]);
+        // 카카오맵은 «경유들 + 도착» 순서로 한 배열에 담는다 (경유 최대 5)
+        return buildKakaoRouteUrl(p.here ?? null,
+            [...via.map(v => ({ x: v.x, y: v.y })), { x: p.stop.x, y: p.stop.y }]);
     }
     return buildKakaoNaviUrl({
         key: p.naviKey ?? '',
         origin: p.naviOrigin ?? '',
         dest: p.stop,
+        via,
         vehicleType: p.vehicleType,
     });
 }

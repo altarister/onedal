@@ -768,6 +768,19 @@ export default function SheetMockup() {
      * 🟢 덤: «다음 다음»을 미리 보고 싶을 때도 쓸모 있다.
      */
     const [qrPeek, setQrPeek] = useState(0);          // 0 = 다음 정거장
+    /**
+     * 🔴 **한 번에 몇 곳을 보낼까** (기사님 지적 2026-09-04:
+     * *"매번 내비를 찍는 것이 기사에게 너무 부담스러울 것 같아"*).
+     *
+     * 내가 「한 구간씩」을 밀어붙인 것은 **가정 ①②③(경유지로 안내하나·지나면 넘어가나·
+     * 재탐색이 순서를 지키나)을 피하려고**였다. 확인할 방법이 없어서 피한 것이다.
+     * **이제 QR 로 확인할 수 있다** — `via_list` 가 먹히는 것은 이미 봤다.
+     *
+     * | | 6정거장이면 | 동작 |
+     * | 한 곳씩 | 6번 | 관제폰 6 + 카메라 6 = **12** |
+     * | 경유 3개씩 | **2번** | 4 |
+     */
+    const [qrSpan, setQrSpan] = useState<1 | 4>(1);   // 1 = 다음 한 곳 · 4 = 경유3 + 도착1
 
     /**
      * ⟳ **경로 새로 받기** (09-03 요청 F-① — *"관제앱에 새로 고침 버튼이 있어야 하겠어"*,
@@ -789,10 +802,20 @@ export default function SheetMockup() {
      */
     const NAVI_ORIGIN = (import.meta.env.VITE_KAKAO_JS_ORIGIN as string | undefined)
         ?? 'https://1dal.altari.com';
-    const qrTarget = remaining[Math.min(qrPeek, Math.max(0, remaining.length - 1))] ?? nextStop;
-    const qrStop = qrTarget && typeof qrTarget.x === 'number' && typeof qrTarget.y === 'number'
-        ? { name: `${qrTarget.name} ${qrTarget.type}`, x: qrTarget.x, y: qrTarget.y } : null;
-    const qrArgs = { stop: qrStop, here: myLocation, kind: qrKind,
+    /**
+     * 🧭 이번에 보낼 정거장들 — `qrPeek` 만큼 밀고 `qrSpan` 만큼 자른다.
+     * **마지막이 도착지, 앞의 것들이 경유지**다 (카카오내비 경유지는 최대 3개).
+     */
+    const qrSlice = remaining.slice(
+        Math.min(qrPeek, Math.max(0, remaining.length - 1)),
+        Math.min(qrPeek, Math.max(0, remaining.length - 1)) + qrSpan,
+    );
+    const toNaviStop = (p: typeof MAP_STOPS[number]) =>
+        (typeof p?.x === 'number' && typeof p?.y === 'number')
+            ? { name: `${p.name} ${p.type}`, x: p.x, y: p.y } : null;
+    const qrStop = toNaviStop(qrSlice[qrSlice.length - 1]);
+    const qrVia = qrSlice.slice(0, -1).map(toNaviStop).filter(Boolean) as { name: string; x: number; y: number }[];
+    const qrArgs = { stop: qrStop, via: qrVia, here: myLocation, kind: qrKind,
                      naviKey: NAVI_KEY, naviOrigin: NAVI_ORIGIN };
     const qrReady = naviQrText(qrArgs) != null;
 
@@ -877,7 +900,8 @@ export default function SheetMockup() {
                                                text-[13px] font-black text-white active:scale-95 transition-transform"
                                     /* 🔼 시트 바로 위에 — 높이는 StageSheet 가 원천이다 (규칙 ③) */
                                     style={{ bottom: aboveSheet(snap), background: 'linear-gradient(180deg,#5b8cff,#3f6fe0)', boxShadow: '0 6px 18px rgba(79,141,249,.4)' }}>
-                                    🧭 다음 {nextStop?.no} {nextStop?.name}
+                                    🧭 다음 {qrSlice[0]?.no} {qrSlice[0]?.name}
+                                    {qrVia.length > 0 && <span className="opacity-70"> 외 {qrVia.length}</span>}
                                 </button>
                             )}
 
@@ -904,9 +928,16 @@ export default function SheetMockup() {
                                         onClick={(e) => { e.stopPropagation(); setQrOpen(false); setQrPeek(0); }}
                                         className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/15 text-white text-[17px] font-black">✕</button>
                                     <NaviQr {...qrArgs} size={196} />
-                                    <div className="text-center">
+                                    <div className="text-center px-6">
+                                        {qrVia.length > 0 && (
+                                            <p className="text-[12px] font-bold text-white/45 leading-snug">
+                                                {qrVia.map(v => v.name).join(' → ')} →
+                                            </p>
+                                        )}
                                         <p className="text-[15px] font-black text-white">{qrStop?.name}</p>
-                                        <p className="text-[12px] font-bold text-white/60 mt-0.5">개인폰 카메라로 찍으세요</p>
+                                        <p className="text-[12px] font-bold text-white/60 mt-0.5">
+                                            {qrVia.length > 0 ? `경유 ${qrVia.length}곳 · ` : ''}개인폰 카메라로 찍으세요
+                                        </p>
                                     </div>
 
                                     {/**
@@ -1088,6 +1119,25 @@ export default function SheetMockup() {
                     {!NAVI_KEY && <span className="block mt-1 text-warning font-bold">
                         ⚠️ <code>.env</code> 에 <b>VITE_KAKAO_JS_KEY</b> 가 안 보입니다 — 개발 서버를 다시 띄워야 읽힙니다.
                     </span>}
+                </p>
+
+                <h2 className="mt-5 text-[12.5px] font-black tracking-wide text-info mb-2">한 번에 몇 곳을 보낼까</h2>
+                <div className="grid grid-cols-2 gap-2">
+                    {([[1, '다음 한 곳'], [4, '경유 3개 + 도착']] as const).map(([n, t]) => (
+                        <button key={n} type="button"
+                            onClick={() => { setQrSpan(n); setQrPeek(0); setQrOpen(true);
+                                setLog(n === 1
+                                    ? '한 곳씩 — 6정거장이면 6번 찍어야 합니다 (관제폰 6 + 카메라 6 = 12동작).'
+                                    : '경유 3개 + 도착 1 = 4곳 — 6정거장이면 2번이면 됩니다. 🔴 카카오내비가 주행 중에 경유지를 지키는지 봐야 합니다.'); }}
+                            className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${qrSpan === n
+                                ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-surface text-text-primary hover:border-info'}`}>
+                            {t}
+                        </button>
+                    ))}
+                </div>
+                <p className="mt-2 text-[12px] leading-relaxed text-text-muted">
+                    🔴 <b className="text-text-primary">확인할 것 둘</b> — ① 카카오내비가 경유지를 <b className="text-text-primary">받는가</b>(지금 5분) ·
+                    ② <b className="text-text-primary">주행 중에 지키는가</b>(나가실 때). ②가 되면 <b className="text-text-primary">12동작이 4동작</b>이 됩니다.
                 </p>
 
                 <h2 className="mt-6 text-[12.5px] font-black tracking-wide text-info mb-2">필터 영역 — 두 안 비교</h2>
