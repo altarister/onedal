@@ -741,11 +741,11 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
                 <button
                     onClick={() => { setViewMode(nextViewMode(viewMode)); zoomRef.current = 1; panRef.current = { x: 0, y: 0 }; }}
                     title="지도를 무엇에 맞출까 — 전체 · 이번 구간 · 현위치"
-                    className={`w-8 h-8 flex items-center justify-center rounded-md shadow-lg border backdrop-blur-sm text-[10px] font-black transition-all ${
-                        viewMode === 'all'
-                            ? 'bg-surface-alt/80 hover:bg-surface-hover text-text-primary border-border opacity-80 hover:opacity-100'
-                            : 'bg-info/25 text-info border-info/60'
-                    }`}
+                    /* 🔴 **색을 바꾸지 않는다** (기사님 2026-09-04: *"버튼 색은 그냥 두어야
+                       할 것 같아. 현위치에서는 색이 반전되어 잘 보이지 않아"*).
+                       지금 무엇인지는 **글자가 이미 말한다**(전체/구간/현위치) —
+                       거기에 색까지 얹으면 지도 위에서 오히려 안 읽힌다. */
+                    className="w-8 h-8 flex items-center justify-center bg-surface-alt/80 hover:bg-surface-hover rounded-md shadow-lg text-text-primary border border-border backdrop-blur-sm text-[10px] font-black opacity-80 hover:opacity-100 transition-all"
                 >
                     {viewMode === 'all' ? '전체' : viewMode === 'leg' ? '구간' : '현위치'}
                 </button>

@@ -184,7 +184,7 @@ const MAP_STOPS: RoutePoint[] = [
        처음엔 내가 어림한 값을 넣었다가 석수동이 1.9km, 구로동이 1.4km 어긋나
        경로선 밖에 떨어져 보였다 (기사님 2026-09-04: *"석수동 위치가 생각과 좀 다르다"*).
        callNo = 몇 번 «콜»인가 (색상) · no = 몇 번째 «정거장»인가 (번호) — 다른 값이다 */
-    { type: '상차', name: '초월읍', isEvaluating: false, x: 127.29823839640528, y: 37.374408707605994, no: 1, routeId: 'c10', callNo: 1, visited: true },
+    { type: '상차', name: '초월읍', isEvaluating: false, x: 127.29823839640528, y: 37.374408707605994, no: 1, routeId: 'c10', callNo: 1 },
     { type: '상차', name: '여수동', isEvaluating: false, x: 127.122540815164, y: 37.422619533567, no: 2, routeId: 'c12', callNo: 2 },
     { type: '상차', name: '석수동', isEvaluating: false, x: 126.90476957579095, y: 37.429537468876326, no: 3, routeId: 'c13', callNo: 3 },
     { type: '하차', name: '가산동', isEvaluating: false, x: 126.883619010738, y: 37.4689667062309, no: 4, routeId: 'c12', callNo: 2 },
@@ -314,16 +314,25 @@ const DRIVEN_TRAIL: Array<{ x: number; y: number }> = ([
  *    그러면 지도가 «다음 정거장»을 `validPoints[0]` = **이미 다녀온 ①초월읍**으로 읽어,
  *    「구간」이 «초월읍 → 초월읍»으로 접혔다 (기사님: *"구간이 수정되지 않았어"*).
  *    실물은 다녀온 것을 `visitedTrail` 로, 남은 것을 `unifiedRoutePoints` 로 준다.
+ *
+ * 🎛️ 목업에서는 **«몇 개까지 다녀왔나»를 조작판에서 고른다** — 그래야 어느 구간이든
+ *    확인할 수 있다 (기사님 2026-09-04: *"구간을 4,5로 만들어 주고 다시 확인해 보자.
+ *    그 부분은 세로로 되어 있어서 볼 가치가 있을 거야"*).
  */
-const VISITED = MAP_STOPS.filter(p => p.visited).map(p => ({
-    x: p.x!, y: p.y!, type: p.type as '상차' | '하차',
-    orderId: p.routeId!, name: p.name, no: p.no!, callNo: p.callNo,
-}));
-const REMAINING = MAP_STOPS.filter(p => !p.visited);
+function splitStops(visitedCount: number) {
+    const visited = MAP_STOPS.slice(0, visitedCount).map(p => ({
+        x: p.x!, y: p.y!, type: p.type as '상차' | '하차',
+        orderId: p.routeId!, name: p.name, no: p.no!, callNo: p.callNo,
+    }));
+    return { visited, remaining: MAP_STOPS.slice(visitedCount) };
+}
 
-/** 👣 이미 다녀온 정거장 번호 — 지도와 목록이 **같은 값**을 본다 (규칙 ③) */
-const VISITED_STOPS = new Set(VISITED.map(p => p.no));
-const MY_LOCATION = { x: 127.294001101745, y: 37.3771779756748 };   // 집(동광뷰엘) — geocode_cache 실측   // 초월읍 — 1번 상차지에 도착해 정차 중
+/** 🔴 현위치는 **마지막으로 다녀온 정거장**에서 나온다 — 두 값이 갈리면 구간이 어긋난다 (규칙 ③) */
+const HOME = { x: 127.294001101745, y: 37.3771779756748 };   // 집(동광뷰엘) — geocode_cache 실측
+function myLocationAt(visitedCount: number) {
+    const last = MAP_STOPS[visitedCount - 1];
+    return last ? { x: last.x!, y: last.y! } : HOME;
+}   // 초월읍 — 1번 상차지에 도착해 정차 중
 
 /* ─────────────────────────────────────────────
    콜 자료 — 2026-09-03 실주행 캡처의 실제 값
@@ -500,15 +509,16 @@ function PaneBody({ call, si }: { call: Call; si: number }) {
 }
 
 /** 🪗 한 콜 — 헤더(접힘) + 펼친 판(위 덩어리 · 아래 스텝 스와이프) */
-function CallItem({ call, i, open, onToggle, rainbow }: {
+function CallItem({ call, i, open, onToggle, rainbow, visitedNos }: {
     call: Call; i: number; open: boolean; onToggle: () => void; rainbow: boolean;
+    visitedNos: Set<number>;
 }) {
     const { theme } = useTheme();
     const c = MAP_THEME_COLORS[theme];
     const trackRef = useRef<HTMLDivElement>(null);
     const [at, setAt] = useState(call.now);
-    /** 👣 이미 다녀온 정거장 — 지도의 `visited` 와 같은 값이어야 한다 */
-    const visitedStops = VISITED_STOPS;
+    /** 👣 이미 다녀온 정거장 — 지도가 보는 값과 **같은 곳**에서 온다 (규칙 ③) */
+    const visitedStops = visitedNos;
 
     /** 열면 «지금 할 단계»로 바로 간다 — 스와이프해서 찾게 하지 않는다 */
     useEffect(() => {
@@ -681,6 +691,12 @@ export default function SheetMockup() {
     const [filterCompact, setFilterCompact] = useState(false);
     /** 🌈 콜 색표 — 색상=콜 · 채도=상차/하차 · 테두리=다녀왔나 (기사님 안 2026-09-04) */
     const [rainbow, setRainbow] = useState(true);
+    /** 🎛️ 어디까지 다녀왔나 — 구간(다녀온 마지막 → 다음)을 바꿔 가며 본다 */
+    const [visitedCount, setVisitedCount] = useState(1);
+    const { visited, remaining } = splitStops(visitedCount);
+    const myLocation = myLocationAt(visitedCount);
+    const nextStop = remaining[0];
+    const visitedNos = new Set(visited.map(v => v.no));
     const [log, setLog] = useState('헤더를 누르거나 아래 «운행 이벤트»를 눌러 보세요.');
 
     /** 열리는 것은 하나 — 이미 열린 것을 누르면 접는다 (i 가 -1 이면 전부 접기) */
@@ -712,28 +728,35 @@ export default function SheetMockup() {
                             /* 🪟 시트가 올라온 만큼 지도가 위로 비켜 준다 — 반쯤 열면 둘을 같이 본다 (기사님 0901) */
                             sheetSnap={snap}
                             rainbowNodes={rainbow}
-                            unifiedRoutePoints={REMAINING}
-                            visitedTrail={VISITED}
+                            unifiedRoutePoints={remaining}
+                            visitedTrail={visited}
                             routeHolder={ROUTE_HOLDER}
                             drivenTrail={DRIVEN_TRAIL}
                             liveRoute={[]}
-                            myLocation={MY_LOCATION}
+                            myLocation={myLocation}
                         >
                             {/* 🏷️ 다음 정거장 이름표 — 실물과 같은 자리 */}
                             <div className="absolute left-3 top-3 z-10 rounded-xl border px-3 py-2 tabular-nums"
                                 style={{ background: 'color-mix(in srgb, var(--color-surface) 92%, transparent)', borderColor: 'var(--color-info)', backdropFilter: 'blur(3px)' }}>
-                                <div className="text-[14px] font-black text-info">2. 여수동 · ~30분</div>
-                                <div className="text-[11px] font-bold text-text-muted">2번 콜 · 상차 · 정차 중</div>
+                                <div className="text-[14px] font-black text-info">
+                                    {nextStop ? `${nextStop.no}. ${nextStop.name}` : '남은 정거장 없음'}
+                                </div>
+                                <div className="text-[11px] font-bold text-text-muted">
+                                    {nextStop ? `${nextStop.callNo}번 콜 · ${nextStop.type} · 정차 중` : '사이클 끝'}
+                                </div>
                             </div>
                         </PinnedRouteCanvas>
                     </div>
 
                     {/* ── 3단 시트 — **진짜 컴포넌트**. 손잡이를 끌거나 눌러서 peek↔half↔full ── */}
                     <StageSheet snap={snap} onSnapChange={setSnap}
-                        peekBar={<>🏁 1 초월읍 도착 · 정차 중 <span className="font-semibold text-text-muted">— 다음 2 여수동 ~30분</span></>}>
+                        peekBar={<>🏁 {visitedCount} {MAP_STOPS[visitedCount - 1]?.name ?? '집'} 도착 · 정차 중{' '}
+                            <span className="font-semibold text-text-muted">
+                                {nextStop ? `— 다음 ${nextStop.no} ${nextStop.name}` : '— 사이클 끝'}
+                            </span></>}>
                         <div className="h-full flex flex-col gap-1.5 px-2.5 pt-1 pb-2.5">
                             {CALLS.map((call, i) => (
-                                <CallItem key={call.no} call={call} i={i} rainbow={rainbow}
+                                <CallItem key={call.no} call={call} i={i} rainbow={rainbow} visitedNos={visitedNos}
                                     open={openIdx === i} onToggle={() => open(i, '헤더를 눌렀습니다')} />
                             ))}
                         </div>
@@ -763,6 +786,22 @@ export default function SheetMockup() {
                         ✋ 전부 접기
                     </button>
                 </div>
+
+                <h2 className="mt-6 text-[12.5px] font-black tracking-wide text-info mb-2">어디까지 다녀왔나 — 구간을 바꿔 본다</h2>
+                <div className="flex gap-1.5 flex-wrap">
+                    {MAP_STOPS.slice(0, 5).map((p, i) => (
+                        <button key={p.no} type="button"
+                            onClick={() => { setVisitedCount(i + 1); setSnap('peek'); setLog(`${p.no} ${p.name} 까지 다녀왔습니다 — 「구간」은 ${p.no}→${MAP_STOPS[i + 1]?.no} 입니다.`); }}
+                            className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${visitedCount === i + 1
+                                ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-surface text-text-primary hover:border-info'}`}>
+                            {p.no} {p.name}
+                        </button>
+                    ))}
+                </div>
+                <p className="mt-2 text-[12px] leading-relaxed text-text-muted">
+                    누른 곳까지 다녀온 것으로 칩니다 — 지도 오른쪽 <b className="text-text-primary">「구간」</b> 버튼을 누르면
+                    그 다음 구간에 맞춰집니다. <b className="text-text-primary">4 가산동</b>을 고르면 ④→⑤ 세로 구간을 볼 수 있습니다.
+                </p>
 
                 <h2 className="mt-6 text-[12.5px] font-black tracking-wide text-info mb-2">🌈 콜 색표 — 예전 색과 비교</h2>
                 <div className="flex gap-1.5 flex-wrap">
