@@ -550,9 +550,11 @@ export default function SheetMockup() {
      * 🪧 **판정보드를 어디에 둘까 — 두 안** (2026-09-05 · 기사님이 받으신 의견에서).
      *
      *   ⓐ **필터 자리**(위) — 지금. 기사님 확정 0831. 늘 보이지만 엄지에서 멀다
-     *   ⓑ **콜 영역**(시트) — 합짐은 «기존 콜 사이에 끼는 것»이라 목록 위에 얹히는 모양이
-     *      그 일과 맞고, 엄지에 가깝다. 대신 **시트가 내려가 있으면 안 보인다.**
-     *      그래서 두 단이다 — 내려가 있으면 상태바가 «한 줄 심사석»이 되고, 올리면 전체.
+     *   ⓑ **콜 영역**(시트 맨 아래 · 기사님 안 2026-09-05) —
+     *      «시트 상태바 + 지금 가진 콜 + 판정» 이 위에서 아래로 놓이고, **시트는 딱 그만큼만
+     *      열린다.** 판정이 **맨 아래**라 엄지에 가장 가깝고, 콜 목록 바로 밑이라
+     *      KEEP 하면 **바로 위로 올라가는 것**이 보인다. 여백이 없어 남는 자리는 전부 지도다.
+     *      시트가 내려가 있을 때는 상태바가 «한 줄 심사석»이 된다.
      *   ⓒ **시트 위 붙박이** (기사님 안 2026-09-05: *"나는 심사가 매번 한 곳에서 노출
      *      되었으면 좋겠어. 그 자리에서 항상 나타난다는 것이 중요하게 생각되거든"*).
      *      🔴 **자리가 고정되는 것이 값어치다** — 색만 보고 1~2초에 누르는 일이라
@@ -1021,6 +1023,21 @@ export default function SheetMockup() {
 
                     {/* ── 3단 시트 — **진짜 컴포넌트**. 손잡이를 끌거나 눌러서 peek↔half↔full ── */}
                     <StageSheet snap={snap} onSnapChange={setSnap}
+                        /* 📏 ⓑ 는 «내용만큼»이다 — 여백을 두지 않는다 (기사님 안) */
+                        fitContent={seatPlace === 'sheet'}
+                        bottomBox={step?.seat && seatPlace === 'sheet' ? (
+                            <div className="border-t border-border-card">
+                                <JudgmentSeat
+                                    route={SEAT_CALLS[step.seat] as never}
+                                    confirmedActive={step.grabbed}
+                                    onDecision={(_id, action) => {
+                                        setPlaying(false);
+                                        if (action === 'ORDER_CONFIRMED') goStep(step.no + 1, '🟢 판정 영역에서 KEEP');
+                                        else setLog('❌ 거절하셨습니다 — 목업이라 여기서 멈춥니다.');
+                                    }}
+                                />
+                            </div>
+                        ) : undefined}
                         topBox={step?.seat && seatPlace === 'pinned' ? (
                             <JudgmentSeat
                                 route={SEAT_CALLS[step.seat] as never}
@@ -1095,25 +1112,15 @@ export default function SheetMockup() {
                          * 🔴 헤더는 `shrink-0`(각 콜 안에서), 펼친 판만 남는 자리를 먹는다.
                          *    그릇이 넘치면 시트가 세로로 스크롤되어 «헤더가 늘 보인다»가 깨진다.
                          */}
-                        <div className="h-full flex flex-col gap-1.5 px-2.5 pt-1 pb-2.5 overflow-hidden">
+                        {/* 📏 «내용만큼» 모드에서는 `h-full` 을 빼야 한다 —
+                            부모 높이가 내용에서 나오는데 자식이 부모를 채우려 들면 서로를 문다 */}
+                        <div className={`flex flex-col gap-1.5 px-2.5 pt-1 pb-2.5 overflow-hidden ${
+                            seatPlace === 'sheet' ? '' : 'h-full'}`}>
                             {/**
                               * 🪧 **안 ⓑ — 후보콜이 목록 맨 위에 얹힌다.**
                               * 🔴 합짐은 «기존 콜들 사이에 끼는 것»이다. 목록 위에 얹히는 모양이
                               *    그 일과 맞는다 — **잡으면 어디에 끼는지가 같은 화면에서 보인다.**
                               */}
-                            {step?.seat && seatPlace === 'sheet' && (
-                                <div className="shrink-0 -mx-2.5">
-                                    <JudgmentSeat
-                                        route={SEAT_CALLS[step.seat] as never}
-                                        confirmedActive={step.grabbed}
-                                        onDecision={(_id, action) => {
-                                            setPlaying(false);
-                                            if (action === 'ORDER_CONFIRMED') goStep(step.no + 1, '🟢 KEEP 을 누르셨습니다');
-                                            else setLog('❌ 거절하셨습니다 — 목업이라 여기서 멈춥니다.');
-                                        }}
-                                    />
-                                </div>
-                            )}
                             {CALLS.map((call, i) => (
                                 <CallItem key={call.no} call={call} i={i} rainbow={rainbow} visitedNos={visitedNos}
                                     open={openIdx === i} onToggle={() => open(i, '헤더를 눌렀습니다')} />
@@ -1465,7 +1472,19 @@ export default function SheetMockup() {
                     ))}
                 </div>
                 <p className="mt-2 text-[12px] leading-relaxed text-text-muted">
-                    🟢 <b className="text-text-primary">ⓒ 는 기사님 안입니다</b> —
+                    🟢 <b className="text-text-primary">ⓑ 가 기사님 안입니다</b> — 위에서 아래로
+                    <b className="text-text-primary"> 시트 상태바 → 지금 가진 콜 → 판정</b>이 놓이고,
+                    시트는 <b className="text-text-primary">딱 그만큼만</b> 열립니다. 여백이 없어 남는 자리는 전부 지도입니다.
+                    <br />· 판정이 <b className="text-text-primary">맨 아래</b>라 엄지에 가장 가깝고, 자리가 늘 같습니다
+                    <br />· 콜 목록 바로 밑이라 KEEP 하면 <b className="text-text-primary">바로 위로 올라가는 것</b>이 보입니다
+                    <br />· 콜이 하나면 낮게, 셋이면 높게 — <b className="text-text-primary">지도가 위아래로 덜 움직입니다</b>
+                    <br />🔴 걱정하신 <b className="text-text-primary">높이 계산은 부담이 아니었습니다</b> —
+                    시트가 «내용만큼» 서고, 넘치면 목록만 그 안에서 스크롤합니다. 상태바와 판정은 붙박이라 안 밀립니다.
+                    <br />⚠️ 심사 중에는 <b className="text-text-primary">지도가 그만큼 줄어듭니다.</b>
+                    30초짜리라 견딜 만하다고 보지만 <b className="text-text-primary">실주행에서 봐야 압니다.</b>
+                    <br /><br />🔸 <b className="text-text-primary">ⓒ 는 제가 먼저 만든 것</b>입니다 — 판정이 시트 «위»에 붙습니다.
+                    기사님 안(아래)과 견주어 보십시오.
+                    <br /><br />🔴 <b className="text-text-primary">한 줄 심사석</b>도 ⓑ 에 남겼습니다 —
                     <i>"심사가 매번 한 곳에서 노출되었으면 좋겠어. 그 자리에서 항상 나타난다는 것이 중요해."</i>
                     <b className="text-text-primary"> 자리가 고정되면 «어디에 떴나»를 찾는 시간이 0</b>이 됩니다.
                     KEEP 하면 <b className="text-text-primary">바로 아래 목록으로 들어가는 것</b>이 손짓으로 보이고,

@@ -59,10 +59,30 @@ interface Props {
      * 🟢 시트가 내려가 있어도 **이것은 보인다** — 주행 중에도 심사를 놓치지 않는다.
      */
     topBox?: React.ReactNode;
+    /**
+     * 🪧 **시트 맨 아래 붙박이** — 판정이 여기 산다 (기사님 안 2026-09-05).
+     *
+     * 🔴 **엄지에 가장 가까운 자리다.** 그리고 «심사는 언제나 화면 맨 아래 거기»라
+     *    찾는 시간이 0이 된다 (규칙 ⑤-3).
+     * 🔴 위(`topBox`)가 아니라 **아래**인 것이 기사님 안의 핵심이다 —
+     *    콜 목록 바로 밑에 붙어, KEEP 하면 **바로 위 목록으로 올라가는 것**이 보인다.
+     */
+    bottomBox?: React.ReactNode;
+    /**
+     * 📏 **내용만큼만 연다** (기사님 안 2026-09-05:
+     * *"시트가 올라가는 높이는 판정영역 + 지금 가진 콜 리스트 + 시트상태바 만큼만"*).
+     *
+     * 🔴 **여백을 두지 않는다.** 콜이 하나면 낮게, 셋이면 높게 — 그만큼만 열린다.
+     *    남는 자리는 전부 지도다. 지금처럼 58%/100% 로 고정하면 콜이 하나여도
+     *    화면 절반이 빈 채로 지도를 덮는다.
+     * ⚠️ 그래도 `snap` 이 정한 높이는 **넘지 않는다** — 콜이 많아지면 목록이 그 안에서
+     *    스크롤되고, 상태바와 판정은 붙박이라 안 밀린다.
+     */
+    fitContent?: boolean;
     children: React.ReactNode;
 }
 
-export default function StageSheet({ snap, onSnapChange, peekBar, topBox, children }: Props) {
+export default function StageSheet({ snap, onSnapChange, peekBar, topBox, bottomBox, fitContent, children }: Props) {
     const startY = useRef<number | null>(null);
     const startSnap = useRef<SheetSnap>(snap);
     const dragged = useRef(false);   // 드래그로 한 단 움직였으면 이어지는 click 을 무시 (되튐 버그)
@@ -109,7 +129,11 @@ export default function StageSheet({ snap, onSnapChange, peekBar, topBox, childr
         <div
             className="absolute left-0 right-0 bottom-0 z-20 flex flex-col rounded-t-2xl border-t"
             style={{
-                height: topBox ? `calc(${SHEET_HEIGHT[snap]} - ${topH}px)` : SHEET_HEIGHT[snap],
+                /* 📏 내용만큼 열되 `snap` 이 정한 높이는 안 넘는다.
+                   엿보기(peek)는 «상태바만»이 그 뜻이라 언제나 고정 높이다. */
+                ...(fitContent && snap !== 'peek'
+                    ? { height: 'auto', maxHeight: `calc(${SHEET_HEIGHT[snap]} - ${topH}px)` }
+                    : { height: topBox ? `calc(${SHEET_HEIGHT[snap]} - ${topH}px)` : SHEET_HEIGHT[snap] }),
                 background: 'var(--color-surface)',
                 borderColor: 'color-mix(in srgb, var(--color-border-card) 60%, #4f8df9)',
                 boxShadow: '0 -10px 30px rgba(0,0,0,.45)',
@@ -138,6 +162,8 @@ export default function StageSheet({ snap, onSnapChange, peekBar, topBox, childr
                      style={{ color: 'var(--color-text-primary, #dfe5ef)' }}>{peekBar}</div>
             )}
             <div data-sheet-scroll className="flex-1 overflow-y-auto min-h-0">{children}</div>
+            {/* 🪧 맨 아래 붙박이 — 목록이 아무리 길어도 여기는 안 밀린다 */}
+            {bottomBox && <div className="shrink-0">{bottomBox}</div>}
         </div>
         </>
     );
