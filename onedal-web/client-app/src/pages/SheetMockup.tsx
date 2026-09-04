@@ -756,6 +756,30 @@ export default function SheetMockup() {
     const [qrStyle, setQrStyle] = useState<'sheet' | 'always'>('sheet');
     const [qrOpen, setQrOpen] = useState(false);
     const [qrKind, setQrKind] = useState<QrKind>('navi');
+    /**
+     * 🔴 **QR 안에서 정거장을 앞뒤로 넘긴다 — 「보는 것」이지 「찍는 것」이 아니다.**
+     *
+     * 왜 필요한가: 터널·기지국 좌표로 **도착 감지가 실패하면** QR 이 **이미 다녀온 곳**을
+     * 가리킨다 (09-03 에 실제로 흔들렸다). 그때 손으로 다음 것을 봐야 한다.
+     *
+     * 🔴 **도착을 찍게 하지 않는다.** 그건 장부에 남는 큰 결정이라 시트의 스텝에서 한다
+     *    (규칙 ⑥ 시퀀스를 압축하지 않는다). 여기서는 **QR 만** 바꾼다 —
+     *    장부는 도착 감지나 손으로 찍을 때 따로 맞춰진다.
+     * 🟢 덤: «다음 다음»을 미리 보고 싶을 때도 쓸모 있다.
+     */
+    const [qrPeek, setQrPeek] = useState(0);          // 0 = 다음 정거장
+
+    /**
+     * ⟳ **경로 새로 받기** (09-03 요청 F-① — *"관제앱에 새로 고침 버튼이 있어야 하겠어"*,
+     * 뒤에 *"새로 고침은 **지도의 경로** 이야기였어"* 로 좁혀졌다).
+     *
+     * 🔴 **«이탈» 때문이 아니라 «늙어서» 필요하다.** 실측으로 같은 구간이 30분 만에
+     *    104분/1,900원 → 114분/3,800원이 됐다. **벗어나지 않아도 낡는다.**
+     * 🔴 그리고 경로는 **필터의 경유 지역을 먹인다** — 낡으면 엉뚱한 동네에서 콜을 모은다.
+     *    지금은 **하차 완료 때만** 갱신되어 09-03 실측 **최대 67분** 안 바뀌었다.
+     * ⚠️ 목업이라 진짜로 안 부른다 — **무엇이 달라 보이는지**만 보여 준다.
+     */
+    const [routeAge, setRouteAge] = useState(31);     // 지금 화면이 말하는 여수동까지 분
     /** 🔴 키는 `.env` 에서 온다 — 코드에 안 적는다. 없으면 카카오맵 QR 로 떨어진다 */
     const NAVI_KEY = import.meta.env.VITE_KAKAO_JS_KEY as string | undefined;
     /**
@@ -765,8 +789,9 @@ export default function SheetMockup() {
      */
     const NAVI_ORIGIN = (import.meta.env.VITE_KAKAO_JS_ORIGIN as string | undefined)
         ?? 'https://1dal.altari.com';
-    const qrStop = nextStop && typeof nextStop.x === 'number' && typeof nextStop.y === 'number'
-        ? { name: `${nextStop.name} ${nextStop.type}`, x: nextStop.x, y: nextStop.y } : null;
+    const qrTarget = remaining[Math.min(qrPeek, Math.max(0, remaining.length - 1))] ?? nextStop;
+    const qrStop = qrTarget && typeof qrTarget.x === 'number' && typeof qrTarget.y === 'number'
+        ? { name: `${qrTarget.name} ${qrTarget.type}`, x: qrTarget.x, y: qrTarget.y } : null;
     const qrArgs = { stop: qrStop, here: myLocation, kind: qrKind,
                      naviKey: NAVI_KEY, naviOrigin: NAVI_ORIGIN };
     const qrReady = naviQrText(qrArgs) != null;
@@ -777,7 +802,14 @@ export default function SheetMockup() {
             visitNo: nextStop.no!, name: nextStop.name, callNo: nextStop.callNo,
             stop: nextStop.type as '상차' | '하차',
         } : null,
-        driveMinutes: nextStop ? LEG_MINUTES[nextStop.no!] ?? null : null,
+        /**
+         * ⏱️ 목업에서는 「⟳ 경로」를 누르면 이 값이 움직인다 — **살아 있는 값의 모습**이다.
+         * 🔴 실물에서는 GPS 마다 «선 위 남은 거리»를 다시 재서 줄어든다 (경로.md §5-3).
+         *    지금 상태바는 «카카오에 물어본 그 순간부터의 누적»이라 30분을 달려도 안 변한다.
+         */
+        driveMinutes: nextStop
+            ? (nextStop.no === 2 ? routeAge : LEG_MINUTES[nextStop.no!] ?? null)
+            : null,
     });
     const visitedNos = new Set(visited.map(v => v.no));
     const [log, setLog] = useState('헤더를 누르거나 아래 «운행 이벤트»를 눌러 보세요.');
@@ -823,6 +855,20 @@ export default function SheetMockup() {
                               * *"위쪽은 지도 관련 아래쪽은 콜 관련 버튼이 있는 거지"*).
                               *   좌하단 내비 연동 · 우하단 지금 갈 곳.
                               */}
+                            {/**
+                              * ⟳ **경로 새로 받기** — 위는 지도 관련이라 우상단 줌 아래에 둔다.
+                              * 🔴 **초기화(⟲)와 다른 일이다** — 초기화는 «보기를 되돌린다»,
+                              *    이건 «카카오에 다시 물어 경로를 받는다». 그래서 **글씨로 적는다.**
+                              */}
+                            <button type="button"
+                                onClick={() => { const n = routeAge + 3; setRouteAge(n);
+                                    setLog(`⟳ 경로를 다시 받았습니다 — 여수동 ${routeAge}분 → ${n}분. 지도 선·남은 분·필터 경유 지역이 함께 바뀝니다.`); }}
+                                className="absolute top-[118px] right-3 z-10 flex items-center gap-1 rounded-md
+                                           bg-surface-alt/80 hover:bg-surface-hover border border-border backdrop-blur-sm
+                                           px-2 h-8 text-[11px] font-black text-text-primary opacity-80 hover:opacity-100 transition-all">
+                                ⟳ 경로
+                            </button>
+
                             {/* ⓐ **덮개** — 누르면 화면을 덮고 크게 */}
                             {qrStyle === 'sheet' && qrReady && (
                                 <button type="button"
@@ -853,14 +899,30 @@ export default function SheetMockup() {
                             {qrOpen && qrReady && (
                                 <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3
                                                 bg-black/85 backdrop-blur-sm"
-                                     onClick={() => setQrOpen(false)}>
+                                     onClick={() => { setQrOpen(false); setQrPeek(0); }}>
                                     <button type="button"
-                                        onClick={(e) => { e.stopPropagation(); setQrOpen(false); }}
+                                        onClick={(e) => { e.stopPropagation(); setQrOpen(false); setQrPeek(0); }}
                                         className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/15 text-white text-[17px] font-black">✕</button>
                                     <NaviQr {...qrArgs} size={196} />
                                     <div className="text-center">
                                         <p className="text-[15px] font-black text-white">{qrStop?.name}</p>
                                         <p className="text-[12px] font-bold text-white/60 mt-0.5">개인폰 카메라로 찍으세요</p>
+                                    </div>
+
+                                    {/**
+                                      * ◀ ▶ **정거장 넘기기** — 도착 감지가 실패해도 손으로 다음을 본다.
+                                      * 🔴 **도착을 찍지 않는다** — 장부는 안 건드리고 QR 만 바뀐다.
+                                      */}
+                                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                        <button type="button" disabled={qrPeek === 0}
+                                            onClick={() => { setQrPeek(n => Math.max(0, n - 1)); setLog('◀ 앞 정거장 QR 로 돌아갑니다 — 장부는 안 건드립니다.'); }}
+                                            className="w-9 h-9 rounded-full bg-white/15 text-white text-[15px] font-black disabled:opacity-25">◀</button>
+                                        <span className="min-w-[104px] text-center text-[12px] font-bold text-white/70 tabular-nums">
+                                            {qrPeek === 0 ? '다음 정거장' : `${qrPeek}칸 뒤`}
+                                        </span>
+                                        <button type="button" disabled={qrPeek >= remaining.length - 1}
+                                            onClick={() => { setQrPeek(n => Math.min(remaining.length - 1, n + 1)); setLog('▶ 다음 정거장 QR 을 봅니다 — 도착 감지가 늦어도 이걸로 갑니다. 장부는 안 건드립니다.'); }}
+                                            className="w-9 h-9 rounded-full bg-white/15 text-white text-[15px] font-black disabled:opacity-25">▶</button>
                                     </div>
                                     {/* 🔍 **주소를 보여 준다** — 안 열릴 때 눈으로 볼 자리가 없으면
                                         QR 은 그냥 네모라 아무것도 알 수 없다 (2026-09-04) */}
