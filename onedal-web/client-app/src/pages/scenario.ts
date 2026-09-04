@@ -105,27 +105,32 @@ export const SCENARIO: ScenarioStep[] = [
         what: '네 곳을 한 장에 담습니다 — 앞 셋이 경유지, 마지막이 도착지입니다.',
     },
     {
-        no: 10, title: '⑩ 주행 중 합짐2 심사', grabbed: 2, visited: 0, phase: '심사', color: '똥',
+        no: 10, title: '⑩ 주행 중', grabbed: 2, visited: 0, phase: '주행', priorityLocked: true,
+        what: 'QR 을 찍고 달립니다. 시트가 내려가 지도만 남습니다 — 손이 갈 데가 없고, '
+            + '맨 아래 한 줄만 먼발치에서 읽힙니다. 이것이 이 제품의 본 화면입니다 (점검표 #31).',
+    },
+    {
+        no: 11, title: '⑪ 주행 중 합짐2 심사', grabbed: 2, visited: 0, phase: '심사', color: '똥',
         seat: '합짐2', priorityLocked: true,
         what: '가다가 합짐2가 왔습니다. 잡으면 순서가 「출발 → ①초월읍 → ②여수동 → ③석수동 → '
             + '④가산동 → ⑤구로동 → ⑥방화동」으로 다시 짜입니다 — 앞에 낄 ①초월읍만큼 뒤가 전부 '
             + '밀립니다. 밀려도 데드라인 150%는 다 지킬 수 있어 🟡 노랑입니다.',
     },
     {
-        no: 11, title: '⑪ 합짐2 확정 + 전화', grabbed: 3, visited: 0, phase: '정차', priorityLocked: true,
+        no: 12, title: '⑫ 합짐2 확정 + 전화', grabbed: 3, visited: 0, phase: '정차', priorityLocked: true,
         what: '기사님이 합짐2를 감수하고 KEEP → 순서가 확정됩니다. 초월읍이 맨 앞에 끼어들어 뒤가 한 칸씩 '
             + '밀렸습니다. 밀린 상차지 둘에 전화할지 판단해서, 많이 늦을 곳에만 겁니다 — '
             + '다행히 늦어도 된다고 합니다.',
         gap: '«어느 상차지에 전화해야 하는가»를 화면이 골라 주는 것은 아직 없습니다.',
     },
     {
-        no: 12, title: '⑫ 멈춰서 QR 다시', grabbed: 3, visited: 0, phase: '정차',
+        no: 13, title: '⑬ 멈춰서 QR 다시', grabbed: 3, visited: 0, phase: '정차',
         priorityLocked: true, qr: ['초월읍', '여수동', '석수동', '가산동'],
         what: '가는 길에 경로가 바뀌었으니 잠깐 멈춰 QR 을 다시 찍습니다. '
             + '정차할 곳이 먼저 있었다면 거기 도착해서 찍었을 것입니다.',
     },
     {
-        no: 13, title: '⑬ 내비가 길을 다시 잡음', grabbed: 3, visited: 3, phase: '주행',
+        no: 14, title: '⑭ 내비가 길을 다시 잡음', grabbed: 3, visited: 3, phase: '주행',
         priorityLocked: true,
         what: '①②③을 지나 ④가산동으로 가는 중, 실시간 경로 변경으로 내비가 길을 다시 잡았습니다. '
             + '지나온 자리는 빼고 현위치 → ④가산동만 바뀝니다. '
@@ -133,7 +138,7 @@ export const SCENARIO: ScenarioStep[] = [
         gap: '주행 중에 합짐 필터가 **바뀐 길** 기준으로 갱신되지는 않습니다 — 지금은 하차 완료 때만 갱신됩니다 (09-03 실측 최대 67분).',
     },
     {
-        no: 14, title: '⑭ 길을 잘못 들었다', grabbed: 3, visited: 3, phase: '주행',
+        no: 15, title: '⑮ 길을 잘못 들었다', grabbed: 3, visited: 3, phase: '주행',
         priorityLocked: true,
         what: '길을 잘못 들었습니다. 지나온 경로는 저장돼 있으니 남은 것만(현위치 → ④ → ⑤ → ⑥) '
             + '다시 물어, 지금 가고 있는 길과 가장 닮은 경로를 고릅니다. '
@@ -141,18 +146,18 @@ export const SCENARIO: ScenarioStep[] = [
         gap: '«가장 닮은 경로를 고른다»와 «겹친 부분만 덮어쓴다»는 아직 없습니다. 지금은 전체를 다시 그립니다.',
     },
     {
-        no: 15, title: '⑮ ④가산동 도착', grabbed: 3, visited: 4, phase: '정차',
+        no: 16, title: '⑯ ④가산동 도착', grabbed: 3, visited: 4, phase: '정차',
         priorityLocked: true,
         what: '④가산동에 도착해 하차를 마쳤습니다. 그런데 내비가 «경유지»가 아니라 '
             + '«목적지에 도착하였습니다»라고 합니다 — QR 한 장에 담았던 네 곳을 다 쓴 것입니다.',
     },
     {
-        no: 16, title: '⑯ 나머지 QR', grabbed: 3, visited: 4, phase: '정차',
+        no: 17, title: '⑰ 나머지 QR', grabbed: 3, visited: 4, phase: '정차',
         priorityLocked: true, qr: ['구로동', '방화동'],
         what: '남은 두 곳을 QR 로 다시 받습니다. 이번엔 경유 하나 + 도착 하나입니다.',
     },
     {
-        no: 17, title: '⑰ 사이클 끝', grabbed: 3, visited: 6, phase: '정차',
+        no: 18, title: '⑱ 사이클 끝', grabbed: 3, visited: 6, phase: '정차',
         priorityLocked: true,
         what: '⑤구로동 · ⑥방화동까지 마치고 한 사이클이 끝났습니다.',
     },
