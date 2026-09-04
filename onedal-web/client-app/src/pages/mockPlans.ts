@@ -821,14 +821,24 @@ export function scenarioPlan(grabbed: number): MockPlan {
         .map((s, i) => ({ ...s, no: i + 1 }));
     const legMinutes: Record<number, number> = {};
     for (const s of stops) legMinutes[s.no!] = PLAN3_LEG[PLAN3_STOPS.find(o => o.name === s.name)!.no!];
+    /**
+     * 🔴 **콜이 없으면 지도에 그릴 것도 없다** (규칙 ④ · 2026-09-05).
+     *    처음엔 경로선·궤적을 그대로 넘겨서, 「① 콜 대기」인데 **정거장 하나 없는 지도에
+     *    선만 그려져** 있었다 — 있을 수 없는 화면이다.
+     */
+    const empty = active.length === 0;
     return {
         calls: active.length,
         stops,
         legMinutes,
-        polyline: PLAN3_LINE,
-        drivenTrail: PLAN3_TRAIL,
-        totalKm: MOCK_PLANS[3].totalKm, totalMin: MOCK_PLANS[3].totalMin, toll: MOCK_PLANS[3].toll,
+        polyline: empty ? [] : PLAN3_LINE,
+        drivenTrail: empty ? [] : PLAN3_TRAIL,
+        totalKm: empty ? 0 : MOCK_PLANS[3].totalKm,
+        totalMin: empty ? 0 : MOCK_PLANS[3].totalMin,
+        toll: empty ? 0 : MOCK_PLANS[3].toll,
         callList: callsFor(stops),
-        source: `시나리오 — 지금까지 ${active.length}콜을 잡았다 (09-03 실주행 3콜에서 골랐다)`,
+        source: empty
+            ? '시나리오 — 아직 아무 콜도 안 잡았다. 지도에도 시트에도 아무것도 없다'
+            : `시나리오 — 지금까지 ${active.length}콜을 잡았다 (09-03 실주행 3콜에서 골랐다)`,
     };
 }

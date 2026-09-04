@@ -248,3 +248,35 @@ describe('🎨 지도의 색과 목록의 색은 같은 곳에서 온다 (2026-0
         }
     });
 });
+
+describe('🔴 콜이 없으면 지도에 그릴 것도 없다 (2026-09-05)', () => {
+    /**
+     * 처음엔 경로선·궤적을 그대로 넘겨서, 「① 콜 대기」인데 **정거장 하나 없는 지도에
+     * 선만 그려져** 있었다. 없는 것을 그리지 않는다 (규칙 ④).
+     */
+    it('0콜 판은 정거장도 선도 궤적도 없다', () => {
+        const p = scenarioPlan(0);
+        expect(p.stops).toHaveLength(0);
+        expect(p.polyline).toHaveLength(0);
+        expect(p.drivenTrail).toHaveLength(0);
+        expect(p.callList).toHaveLength(0);
+    });
+
+    it('0콜 판은 거리·시간·통행료를 지어내지 않는다', () => {
+        const p = scenarioPlan(0);
+        expect(p.totalKm).toBe(0);
+        expect(p.totalMin).toBe(0);
+        expect(p.toll).toBe(0);
+    });
+
+    it('0콜 판도 «어디서 온 값인지»는 말한다', () => {
+        expect(scenarioPlan(0).source).toMatch(/아직|없다/);
+    });
+
+    it('콜이 하나라도 있으면 선과 궤적이 돌아온다', () => {
+        for (const n of [1, 2, 3] as const) {
+            expect(scenarioPlan(n).polyline.length, `${n}콜`).toBeGreaterThan(100);
+            expect(scenarioPlan(n).totalKm, `${n}콜`).toBeGreaterThan(0);
+        }
+    });
+});

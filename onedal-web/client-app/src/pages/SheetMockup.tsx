@@ -512,7 +512,8 @@ export default function SheetMockup() {
     const { theme } = useTheme();
     const [openIdx, setOpenIdx] = useState<number>(-1);
     /** 🪟 시트 높이 — 실물과 같은 3단 (peek 72px · half 58% · full 100%) */
-    const [snap, setSnap] = useState<SheetSnap>('full');
+    /** 🪟 콜이 없으니 «나」가 곧 한 줄이다 — 지도가 가장 넓게 열린다 */
+    const [snap, setSnap] = useState<SheetSnap>('list');
     /**
      * 📏 **시트가 실제로 덮는 높이** — 지도 위 버튼(경로 방침 · QR 코드)이 이걸 본다.
      *
@@ -538,7 +539,15 @@ export default function SheetMockup() {
      * 🔴 **켜지면 시나리오가 판·국면·QR 을 다 정한다** — 손잡이가 둘이면 갈라진다 (규칙 ③).
      *    끄면 예전처럼 판(3·4·5콜)을 손으로 고르는 자리로 돌아온다.
      */
-    const [stepNo, setStepNo] = useState<number | null>(null);
+    /**
+     * 🎬 **처음 열면 「① 콜 대기」다** (기사님 2026-09-05:
+     *    *"처음 새로고침 하면 모든 콜이 없는 걸로 시작하면 좋겠고"*).
+     *
+     * 🔴 이 목업은 **한 사이클을 보는 자리**다. 콜 셋이 이미 놓인 채로 열리면
+     *    «어떻게 거기까지 갔는지»가 통째로 빠진다 — 그 흐름이 이 화면의 전부다.
+     *    빈 화면에서 시작해 콜이 하나씩 붙는 것을 보는 것이 맞다.
+     */
+    const [stepNo, setStepNo] = useState<number | null>(1);
     const step = stepNo != null ? SCENARIO.find(x => x.no === stepNo) ?? null : null;
     /**
      * ▶️ **저절로 흘러가게** (기사님 2026-09-05: *"처음에 콜이 없다가 하나씩 생기면 좋겠는데"*).
