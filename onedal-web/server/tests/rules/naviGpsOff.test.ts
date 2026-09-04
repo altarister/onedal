@@ -26,7 +26,8 @@ describe('🧭 내비 화면은 좌표를 서버로 보내지 않는다', () => 
     });
 
     it('«내비 화면인가»는 주소로 정한다 — 다른 화면은 영향이 없다', () => {
-        expect(app()).toMatch(/naviOnly\s*=\s*location\.pathname\.startsWith\(['"]\/navi['"]\)/);
+        // 2026-09-04: `/navi` 를 지우고 `/go` 문턱으로 옮겼다 (경로.md §4-0-1)
+        expect(app()).toMatch(/naviOnly\s*=\s*location\.pathname\.startsWith\(['"]\/go['"]\)/);
     });
 
     it('🟢 읽는 훅(useNativeLocation)은 끄지 않는다 — 출발지가 있어야 링크가 선다', () => {
@@ -38,20 +39,21 @@ describe('🧭 내비 화면은 좌표를 서버로 보내지 않는다', () => 
         expect(codeOnly(read('hooks/useNativeLocation.ts'))).not.toMatch(/publishLocation/);
     });
 
-    /** 🔴 관제 화면의 부품을 끌어오면 그 안에서 또 보낼 수 있다 */
-    it('내비 화면은 모의주행·마스터 GPS·결재를 안 쓴다', () => {
-        const navi = codeOnly(read('pages/Navi.tsx'));
-        expect(navi).not.toMatch(/useMasterGps|useMockGpsSimulator|publishLocation|handleDecision/);
-    });
-
     /**
-     * 🔴 `useOrderEngine` 은 소켓 구독을 **자기가** 들고 있다 — 두 화면이 함께 쓰면
-     *    구독이 두 벌이 된다 (`ghostCard.test.ts` 가 잡는 그 규칙).
+     * 🔴 **아래 둘은 `/go` 문턱을 만들 때 되살린다** (2026-09-04).
+     *
+     * 기사님이 `/navi` 를 지우라고 하셨다 — *"그거 있으면 너가 또 딴소리해."*
+     * 어제 급하게 만든 임시방편이라 그 위에 계획을 올리는 것을 막으려는 것이다.
+     * **그런데 그 화면이 지키던 규칙 둘은 여전히 참이다:**
+     *   ① 받는 화면은 **관제 부품(모의주행·마스터 GPS·결재)을 끌어오지 않는다**
+     *   ② 받는 화면은 **`useOrderEngine` 을 안 쓴다** — 소켓 구독이 두 벌이 된다
+     *
+     * 🔴 **지우지 않고 `todo` 로 남긴다.** 이 레포는 「사라진 검사」로 여러 번 당했다
+     *    (CLAUDE.md: *"있는 검사가 안 불리면 없는 것이다"*). 파일이 없어 지금은 못 돌지만,
+     *    **`/go` 를 만드는 사람이 여기서 걸려야 한다.**
      */
-    it('내비 화면은 자기 전용 읽기 훅을 쓴다 — 관제 엔진을 끌어오지 않는다', () => {
-        expect(codeOnly(read('pages/Navi.tsx'))).not.toMatch(/useOrderEngine/);
-        expect(codeOnly(read('hooks/useNaviRoute.ts'))).toMatch(/socket\.on\('sync-active-orders'/);
-    });
+    it.todo('🔜 [/go 문턱] 받는 화면은 모의주행·마스터 GPS·결재를 안 쓴다');
+    it.todo('🔜 [/go 문턱] 받는 화면은 useOrderEngine 을 안 쓴다 — 소켓 구독이 두 벌이 된다');
 });
 
 /**

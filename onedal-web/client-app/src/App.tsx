@@ -2,7 +2,6 @@ import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from "react
 import { ServerSwitch } from './components/ServerSwitch'
 import { useState, useEffect } from "react";
 import Dashboard from "./pages/Dashboard";
-import Navi from "./pages/Navi";
 import SheetMockup from "./pages/SheetMockup";
 import Settlement from "./pages/Settlement";
 import Login from "./pages/Login";
@@ -28,7 +27,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   if (!isAuthenticated) {
     /**
      * 🔴 **가려던 곳을 들고 간다** (기사님 지적 2026-09-03).
-     * 예전에는 로그인이 끝나면 **무조건 홈**이었다 — 개인 폰이 `/navi` 를 열어도
+     * 예전에는 로그인이 끝나면 **무조건 홈**이었다 — 개인 폰이 내비 문턱을 열어도
      * 로그인 뒤에는 **관제 화면**에 서 있었고, 그 화면은 좌표를 서버로 보낸다.
      * 「관제가 2개」가 로그인 한 번으로 생기던 자리다.
      */
@@ -50,7 +49,7 @@ function AppLayout() {
   }, []);
 
   /**
-   * 🧭 **내비 화면(`/navi`)에서는 위치를 안 보낸다** (기사님 지적 2026-09-03).
+   * 🧭 **내비 문턱(`/go`)에서는 위치를 안 보낸다** (기사님 지적 2026-09-03).
    *
    * 기사님: *"관제가 2개 열리면 안된다고 한것 같은데."* — 맞다. 개인 폰(아이폰)에서
    * 이 웹을 열면 **관제폰과 좌표가 한 차량으로 섞인다.** 서버는 두 위치를 오가는 것으로
@@ -60,7 +59,15 @@ function AppLayout() {
    *    바뀐다. **가장 단순한 길**로 여기서 끈다 (기사님 «가장 간단한걸로 하자»).
    *    `naviGpsOff.test.ts` 가 이 한 줄이 사라지는 것을 막는다.
    */
-  const naviOnly = location.pathname.startsWith('/navi');
+  /**
+   * ⚠️ **`/navi` 는 2026-09-04 에 지웠다** (기사님: *"지워버려, 그거 있으면 너가 또 딴소리해"*).
+   *    어제 급하게 만든 임시방편이었고, 그 위에 계획을 올리는 것을 막으려 지웠다.
+   *    **개인폰이 받는 자리는 `/go` 문턱으로 새로 만든다** — 문자로 온 https 주소를
+   *    받아 카카오내비 스킴으로 즉시 넘기는 한 줄짜리 화면
+   *    (기획: docs/기획/경로.md §4-0-1).
+   * 🔴 **그때까지도 이 줄은 살아 있어야 한다** — 개인폰이 좌표를 보내면 관제폰과 섞인다.
+   */
+  const naviOnly = location.pathname.startsWith('/go');
   /**
    * 🔴 **주소만으로 끄면 홈에 닿는 순간 켜진다** (기사님 지적 2026-09-03:
    *    *"우리 페이지가 로그인 하면 리다이렉트 해서 홈으로 가. 그거서는 허용하면 안되잖아."*).
@@ -105,7 +112,6 @@ function AppLayout() {
         <Route path="/settlement" element={<Settlement />} />
         {/* 🧭 내비 한 장 — 개인 폰(아이폰)이 여는 화면. 지도·콜·결재 없이 큰 버튼 하나.
             위치는 위에서 껐다 (관제폰과 좌표가 섞이면 도착 판정이 흔들린다) */}
-        <Route path="/navi" element={<Navi />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 
