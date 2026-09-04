@@ -639,15 +639,19 @@ function CallItem({ call, i, open, onToggle, rainbow, visitedNos }: {
 
                     {/* 아래 — 스텝. 좌우로 스와이프한다 */}
                     <div className="flex-1 min-h-0 flex flex-col">
-                        <div className="shrink-0 flex items-center gap-1.5 px-3 py-2 border-b border-border-card">
-                            <span className="text-[12.5px] font-black text-text-primary">{STEPS[at].k}</span>
-                            <span className="flex gap-1">
+                        {/* 🔴 **점은 가운데 고정** (기사님 2026-09-04: *"단어에 따라 스와이프
+                            네비게이션이 덜컹거려. 그냥 가운데 정렬하면 어떨까?"*).
+                            단계 이름 길이가 달라(「상차지 통화」 ↔ 「상차 완료」) 점이 좌우로 밀렸다.
+                            양옆을 `1fr` 로 같게 잡으면 가운데 칸은 이름 길이와 무관하게 제자리다. */}
+                        <div className="shrink-0 grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 px-3 py-2 border-b border-border-card">
+                            <span className="text-[12.5px] font-black text-text-primary truncate">{STEPS[at].k}</span>
+                            <span className="flex gap-1 justify-self-center">
                                 {STEPS.map((s, k) => (
                                     <button key={k} type="button" onClick={() => goStep(k)} aria-label={s.k}
                                         className={`w-4 h-1.5 rounded-full transition-colors ${k === at ? 'bg-info' : k < call.now ? 'bg-success' : 'bg-surface-hover'}`} />
                                 ))}
                             </span>
-                            <span className="ml-auto text-[11px] text-text-muted tabular-nums">{at + 1}/6</span>
+                            <span className="justify-self-end text-[11px] text-text-muted tabular-nums">{at + 1}/6</span>
                         </div>
 
                         {/* 🔴 애니메이션을 얹지 않는다 — 넘어가는 부드러움은 scroll-snap 이 하고,
