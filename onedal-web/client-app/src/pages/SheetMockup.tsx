@@ -10,7 +10,6 @@ import { MOCK_PLANS, scenarioPlan, splitStops, myLocationAt, routeHolderOf, reas
 import { SCENARIO, SEAT_CALLS } from './scenario';
 import { ROUTE_PRIORITIES, PRIORITY_SAMPLE, isPriorityLocked, type RoutePriority } from '../lib/routePriority';
 import JudgmentSeat from '../components/dashboard/JudgmentSeat';
-import JudgmentBar from '../components/dashboard/JudgmentBar';
 
 /**
  * 🪗 **시트 아코디언 목업 — 앱 안에서, 앱의 재료로** (기사님 요청 2026-09-04)
@@ -287,9 +286,14 @@ function PaneBody({ call, si }: { call: Call; si: number }) {
 }
 
 /** 🪗 한 콜 — 헤더(접힘) + 펼친 판(위 덩어리 · 아래 스텝 스와이프) */
-function CallItem({ call, i, open, onToggle, rainbow, visitedNos }: {
+function CallItem({ call, i, open, onToggle, rainbow, visitedNos, fit }: {
     call: Call; i: number; open: boolean; onToggle: () => void; rainbow: boolean;
     visitedNos: Set<number>;
+    /**
+     * 📏 **시트가 «내용만큼» 설 때** — 펼친 판이 `flex-1`(= `flex:1 1 0%`)이면
+     *    남는 공간이 없어 **높이 0 으로 찌부러진다.** 그때는 내용만큼(`flex:1 1 auto`) 서야 한다.
+     */
+    fit?: boolean;
 }) {
     const { theme } = useTheme();
     const c = MAP_THEME_COLORS[theme];
@@ -389,7 +393,7 @@ function CallItem({ call, i, open, onToggle, rainbow, visitedNos }: {
                  * 🟢 다만 **잘라 감추지 않고 스크롤**한다 — 위 덩어리는 다 보여야 하고,
                  *    모자라면 손으로 내려 보는 것이 «없는 것»보다 낫다 (규칙 ④).
                  */
-                <div className="flex-1 min-h-0 mt-1.5 flex flex-col overflow-y-auto rounded-b-[10px] border border-t-0 border-border-card bg-bg-base">
+                <div className={`${fit ? 'flex-auto max-h-[46vh]' : 'flex-1 min-h-0'} mt-1.5 flex flex-col overflow-y-auto rounded-b-[10px] border border-t-0 border-border-card bg-bg-base`}>
 
                     {/**
                      * 위 — 콜 전체를 아우르는 것. 스텝이 넘어가도 안 바뀐다.
@@ -1051,23 +1055,16 @@ export default function SheetMockup() {
                         ) : undefined}
                         peekBar={
                             /**
-                             * 🪧 **안 ⓑ — 시트가 내려가 있어도 심사가 보인다.**
-                             *    주행 중에는 시트가 peek 라 판정보드가 시트 안에만 있으면
-                             *    **아무것도 안 뜬다.** 심사는 30초짜리라 놓치면 자동 취소된다.
-                             *    그렇다고 시트를 저절로 올리면 운전 중에 지도를 덮는다.
-                             *    → 색·점수·두 버튼만 한 줄로. 누르면 올라가 전체를 본다.
+                             * 🔴 **상태바는 언제나 이 한 줄이다** (기사님 2026-09-05:
+                             *    *"기존에 있던 거 넣어줘. 상태바의 높이도 항상 일정했으면 좋겠어"*).
+                             *
+                             * 한때 심사 중에 여기가 «한 줄 심사석»(색·점수·거절/KEEP)으로 바뀌었다.
+                             * 그러면 **줄의 높이가 장면마다 달라지고**, 늘 같은 자리에서 같은 것을
+                             * 읽던 눈이 매번 다시 맞춰야 한다. 심사는 **판정 영역**이 맡는다 —
+                             * 이 줄은 «지금 어디로 가는가»만 말한다 (규칙 ⑤-4 ⑤ — 한 자리가
+                             * 두 질문을 답하지 않는다).
                              */
-                            (step?.seat && seatPlace === 'sheet') ? (
-                                <JudgmentBar
-                                    route={SEAT_CALLS[step.seat] as never}
-                                    onOpen={() => { setSnap('full'); setLog('시트를 올려 «왜 그 색인지»를 봅니다 — 사유·근거·게이트.'); }}
-                                    onDecision={(_id, action) => {
-                                        setPlaying(false);
-                                        if (action === 'ORDER_CONFIRMED') goStep(step.no + 1, '🟢 한 줄 심사석에서 KEEP');
-                                        else setLog('❌ 거절하셨습니다 — 목업이라 여기서 멈춥니다.');
-                                    }}
-                                />
-                            ) : (
+
                             /**
                              * 🎬 **시트 상태바** (용어집 확정 2026-09-04) — 읽는 줄.
                              *    그 안에서 누르는 부분이 «시트 상태바의 버튼»이다.
@@ -1106,7 +1103,7 @@ export default function SheetMockup() {
                                     </>
                                 ) : <span className="text-text-muted font-semibold">· {bar.notice}</span>}
                             </button>
-                        )}>
+                        }>
                         {/**
                          * 🪗 아코디언 그릇 — 시트 높이를 그대로 쓰고 **넘치지 않는다.**
                          * 🔴 헤더는 `shrink-0`(각 콜 안에서), 펼친 판만 남는 자리를 먹는다.
@@ -1123,6 +1120,7 @@ export default function SheetMockup() {
                               */}
                             {CALLS.map((call, i) => (
                                 <CallItem key={call.no} call={call} i={i} rainbow={rainbow} visitedNos={visitedNos}
+                                    fit={seatPlace === 'sheet'}
                                     open={openIdx === i} onToggle={() => open(i, '헤더를 눌렀습니다')} />
                             ))}
                         </div>

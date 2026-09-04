@@ -158,8 +158,11 @@ export default function StageSheet({ snap, onSnapChange, peekBar, topBox, bottom
                 <div className="mx-auto rounded-full" style={{ width: 44, height: 5, background: 'var(--color-border-hover, #3a4358)' }} />
             </div>
             {peekBar && (
-                <div className="shrink-0 px-4 pb-2 text-[13px] font-bold tabular-nums truncate"
-                     style={{ color: 'var(--color-text-primary, #dfe5ef)' }}>{peekBar}</div>
+                /* 🔴 **높이가 늘 같다** (기사님 2026-09-05: *"상태바의 높이도 항상 일정했으면"*).
+                   내용에 따라 줄이 커졌다 작아졌다 하면, 늘 같은 자리에서 같은 것을 읽던
+                   눈이 매번 다시 맞춰야 한다 — 달리면서 1~2초에 읽는 줄이다. */
+                <div className="shrink-0 flex items-center px-4 pb-2 text-[13px] font-bold tabular-nums truncate"
+                     style={{ color: 'var(--color-text-primary, #dfe5ef)', height: 38, boxSizing: 'content-box' }}>{peekBar}</div>
             )}
             <div data-sheet-scroll className="flex-1 overflow-y-auto min-h-0">{children}</div>
             {/* 🪧 맨 아래 붙박이 — 목록이 아무리 길어도 여기는 안 밀린다 */}
