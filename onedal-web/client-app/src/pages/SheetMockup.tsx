@@ -3,7 +3,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { MAP_THEME_COLORS } from '../styles/themes';
 import { callNodeFill, callNodeStroke, callNodeText } from '../styles/callPalette';
 import PinnedRouteCanvas from '../components/dashboard/PinnedRouteCanvas';
-import StageSheet, { aboveSheet, type SheetSnap } from '../components/stage/StageSheet';
+import StageSheet, { type SheetSnap } from '../components/stage/StageSheet';
 import NaviQr, { naviQrText, type QrKind } from '../components/dashboard/NaviQr';
 import { sheetStatus, sheetStatusLine } from '../lib/sheetStatus';
 import { MOCK_PLANS, scenarioPlan, splitStops, myLocationAt, routeHolderOf, reaskedPlan, reaskCost, type Call } from './mockPlans';
@@ -512,6 +512,15 @@ export default function SheetMockup() {
     const [openIdx, setOpenIdx] = useState<number>(-1);
     /** 🪟 시트 높이 — 실물과 같은 3단 (peek 72px · half 58% · full 100%) */
     const [snap, setSnap] = useState<SheetSnap>('full');
+    /**
+     * 📏 **시트가 실제로 덮는 높이** — 지도 위 버튼(경로 방침 · QR 코드)이 이걸 본다.
+     *
+     * 🔴 `aboveSheet(snap)` 은 «snap 이 정한 높이»를 답한다. 시트가 «내용만큼» 서기
+     *    시작하면서 **그 값과 실제가 갈라졌고**, 버튼들이 엉뚱한 자리에 떴다
+     *    (기사님 2026-09-05). 시트가 재서 알려 주는 값 하나만 본다 (규칙 ③).
+     */
+    const [sheetPx, setSheetPx] = useState(0);
+    const aboveSheetPx = `${sheetPx + 12}px`;
     /** 🎯 필터 영역 — 안 A(펼침 150px) ↔ 안 B(접힘 38px). 비교해서 고른다 */
     const [filterCompact, setFilterCompact] = useState(true);   // ⓑ 가 기본이라 필터도 접힌 채로 연다
     /** 🌈 콜 색표 — 색상=콜 · 채도=상차/하차 · 테두리=다녀왔나 (기사님 안 2026-09-04) */
@@ -856,7 +865,7 @@ export default function SheetMockup() {
                                     /* 🔴 **좌하단** (기사님 2026-09-05). 시트 바로 위에 붙는다 —
                                        높이는 `StageSheet` 가 원천이다 (규칙 ③) */
                                     <div className="absolute left-3 z-10 flex flex-col gap-1.5 items-start"
-                                         style={{ bottom: aboveSheet(snap) }}>
+                                         style={{ bottom: aboveSheetPx }}>
                                         {ROUTE_PRIORITIES.filter(b => !locked || b.key === priority).map(b => (
                                             <button key={b.key} type="button"
                                                 onClick={() => {
@@ -942,7 +951,7 @@ export default function SheetMockup() {
                                        높이는 StageSheet 가 원천이다 (규칙 ③).
                                        🔴 **치수는 왼쪽 방침 버튼과 같다** — 아래 두 귀퉁이가
                                           한 짝으로 읽혀야 한다 (기사님 2026-09-05) */
-                                    style={{ bottom: aboveSheet(snap), background: 'linear-gradient(180deg,#5b8cff,#3f6fe0)', boxShadow: '0 4px 12px rgba(79,141,249,.35)' }}>
+                                    style={{ bottom: aboveSheetPx, background: 'linear-gradient(180deg,#5b8cff,#3f6fe0)', boxShadow: '0 4px 12px rgba(79,141,249,.35)' }}>
                                     {/**
                                       * 🔴 **「QR 코드」다** (기사님 2026-09-05 재정정).
                                       *    한때 「다음 2 여수동 외 3 · 앞으로 3번」이었다가 「출발하기」가 됐는데,
@@ -961,7 +970,7 @@ export default function SheetMockup() {
                                     onClick={() => { setQrOpen(true); setLog('🔍 작아서 안 찍히면 눌러서 크게 볼 수 있습니다.'); }}
                                     className="absolute right-3 z-10 flex flex-col items-center gap-0.5 rounded-xl bg-white p-1.5
                                                active:scale-95 transition-transform shadow-lg"
-                                    style={{ bottom: aboveSheet(snap) }}>
+                                    style={{ bottom: aboveSheetPx }}>
                                     <NaviQr {...qrArgs} size={78} />
                                     <span className="text-[9px] font-black text-black leading-none pb-0.5">
                                         {nextStop?.no} {nextStop?.name}
@@ -1018,7 +1027,7 @@ export default function SheetMockup() {
                             {!qrReady && (
                                 <div className="absolute right-3 z-10 rounded-xl bg-warning/15 border border-warning/40 px-3 py-2
                                                 text-[11px] font-bold text-warning leading-snug max-w-[190px]"
-                                     style={{ bottom: aboveSheet(snap) }}>
+                                     style={{ bottom: aboveSheetPx }}>
                                     🔑 QR 을 못 만듭니다 —<br /><code>.env</code> 의 <b>VITE_KAKAO_JS_KEY</b> 를 확인하세요
                                 </div>
                             )}
@@ -1030,6 +1039,7 @@ export default function SheetMockup() {
                     <StageSheet snap={snap} onSnapChange={setSnap}
                         /* 📏 ⓑ 는 «내용만큼»이다 — 여백을 두지 않는다 (기사님 안) */
                         fitContent={seatPlace === 'sheet'}
+                        onHeightChange={setSheetPx}
                         /* 🔴 위 라인을 빼 둔다 (기사님 2026-09-05) — 심사석이 이미
                            자기 테두리를 갖고 있어 줄이 하나 더 그어지면 칸이 둘로 보인다 */
                         bottomBox={step?.seat && seatPlace === 'sheet' ? (

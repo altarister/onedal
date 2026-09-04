@@ -79,10 +79,18 @@ interface Props {
      *    스크롤되고, 상태바와 판정은 붙박이라 안 밀린다.
      */
     fitContent?: boolean;
+    /**
+     * 📏 **시트가 실제로 몇 px 을 차지하는가** — 지도 위 버튼들이 이걸 봐야 안 가린다.
+     *
+     * 🔴 `aboveSheet()` 는 «snap 이 정한 높이»를 답한다. `fitContent` 로 시트가
+     *    «내용만큼» 서기 시작한 순간 **그 값과 실제가 갈라졌고**, 지도 버튼들이
+     *    엉뚱한 자리에 떴다 (기사님 2026-09-05). 재서 알리는 것이 유일한 원천이다 (규칙 ③).
+     */
+    onHeightChange?: (px: number) => void;
     children: React.ReactNode;
 }
 
-export default function StageSheet({ snap, onSnapChange, peekBar, topBox, bottomBox, fitContent, children }: Props) {
+export default function StageSheet({ snap, onSnapChange, peekBar, topBox, bottomBox, fitContent, onHeightChange, children }: Props) {
     const startY = useRef<number | null>(null);
     const startSnap = useRef<SheetSnap>(snap);
     const dragged = useRef(false);   // 드래그로 한 단 움직였으면 이어지는 click 을 무시 (되튐 버그)
@@ -117,6 +125,18 @@ export default function StageSheet({ snap, onSnapChange, peekBar, topBox, bottom
         return () => ro.disconnect();
     }, [topBox]);
 
+    /* 📏 자기 높이를 재서 알린다 — 붙박이(topBox)까지 합친 «실제로 덮는 높이»다 */
+    const selfRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        const el = selfRef.current;
+        if (!el || !onHeightChange) return;
+        const tell = () => onHeightChange(el.offsetHeight + topH);
+        const ro = new ResizeObserver(tell);
+        ro.observe(el);
+        tell();
+        return () => ro.disconnect();
+    }, [onHeightChange, topH, snap]);
+
     return (
         <>
         {topBox && (
@@ -127,6 +147,7 @@ export default function StageSheet({ snap, onSnapChange, peekBar, topBox, bottom
             </div>
         )}
         <div
+            ref={selfRef}
             className="absolute left-0 right-0 bottom-0 z-20 flex flex-col rounded-t-2xl border-t"
             style={{
                 /* 📏 내용만큼 열되 `snap` 이 정한 높이는 안 넘는다.
