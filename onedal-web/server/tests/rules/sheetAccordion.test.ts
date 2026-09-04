@@ -38,9 +38,25 @@ describe('🪗 시트 아코디언 — 기사님 확정 2026-09-03', () => {
         expect(route()).toMatch(/accordion=\{sheetOnly\}/);
     });
 
-    it('아코디언 헤더(콜 요약 줄)는 무조건 화면에 남는다 — sticky + 불투명 바닥', () => {
-        // 바닥색(bg-surface)까지 잠근다 — 빠지면 밑으로 흐르는 글자가 헤더에 비쳐 겹친다
-        expect(deck()).toMatch(/accordion \? 'sticky top-0 z-10 bg-surface'/);
+    it('헤더는 «내용 사이사이»에 끼워 그린다 — 내용이 자기 헤더 바로 밑에 온다', () => {
+        // 🔴 첫 판은 헤더를 위에 몰고 내용을 그 아래 따로 그렸다 — «누구 것인가»가 또 생겼다
+        expect(deck()).toMatch(/\{rowOf\(o, i\)\}\s*\n[\s\S]{0,240}?hidden=\{i !== cur\}>\{renderCard\(o\)\}/);
+    });
+
+    it('헤더는 고른 콜 위·아래로 «층»으로 붙어 전부 화면에 남는다', () => {
+        const d = deck();
+        expect(d).toMatch(/i <= cur/);
+        expect(d).toMatch(/position: 'sticky', top: i \* ROW_H/);
+        expect(d).toMatch(/position: 'sticky', bottom: \(orders\.length - 1 - i\) \* ROW_H/);
+        // 붙는 줄은 내용 위에 뜨므로 불투명 바닥이 필수다
+        expect(d).toMatch(/accordion \? 'bg-surface border-border\/60'/);
+    });
+
+    it('층 높이의 원천은 한 곳이다 (규칙 ③) — ROW_H', () => {
+        const d = deck();
+        expect(d).toMatch(/const ROW_H = \d+;/);
+        // 32 같은 숫자를 sticky 계산에 손으로 또 적으면 층이 어긋난다
+        expect(d).not.toMatch(/top: i \* 32/);
     });
 
     /**
@@ -48,8 +64,8 @@ describe('🪗 시트 아코디언 — 기사님 확정 2026-09-03', () => {
      *    언마운트된다. 통화 중 적던 단위·수량이 날아가고 mount 마다 서버에 단계를 다시 청한다.
      *    그래서 **전부 마운트한 채 `hidden` 으로 숨긴다** — 입력값 보존은 두 모드의 약속이다.
      */
-    it('아코디언도 카드를 전부 마운트한다 — 고른 것만 «보일» 뿐 (입력값 보존)', () => {
-        expect(deck()).toMatch(/hidden=\{accordion && i !== cur\}/);
+    it('아코디언도 카드를 전부 마운트한다 — 고른 것만 «보일» 뿐 (입력값 보존 · 버그 대장 #95)', () => {
+        expect(deck()).toMatch(/hidden=\{i !== cur\}/);
         // 고른 카드 하나만 골라 그리는 갈래가 되살아나면 안 된다
         expect(deck()).not.toMatch(/orders\[cur\] \? renderCard/);
     });
@@ -59,12 +75,12 @@ describe('🪗 시트 아코디언 — 기사님 확정 2026-09-03', () => {
         expect(deck()).toMatch(/onScroll = \(\) => \{\s*\n\s*if \(accordion\) return;/);
     });
 
-    it('줄 그리는 코드는 두 모드가 한 벌을 쓴다 (규칙 ③) — 카드를 그리는 자리는 하나뿐', () => {
-        // renderCard 호출부가 하나면 카드 렌더 경로가 갈라질 수 없다
-        const calls = deck().match(/renderCard\(o\)/g) ?? [];
-        expect(calls.length).toBe(1);
-        // 콜 고르는 줄(헤더)도 하나 — aria-current 를 다는 버튼이 그것이다
-        const rows = deck().match(/aria-current/g) ?? [];
-        expect(rows.length).toBe(1);
+    it('줄 그리는 코드는 두 모드가 한 벌을 쓴다 (규칙 ③) — rowOf 하나', () => {
+        const d = deck();
+        // 줄을 만드는 함수는 하나로 정의되고, 두 모드가 그것을 부른다
+        expect(d.match(/const rowOf = /g) ?? []).toHaveLength(1);
+        expect(d.match(/aria-current/g) ?? []).toHaveLength(1);
+        expect(d).toMatch(/orders\.map\(\(o, i\) => rowOf\(o, i\)\)/);   // 스와이프
+        expect(d).toMatch(/\{rowOf\(o, i\)\}/);                            // 아코디언
     });
 });
