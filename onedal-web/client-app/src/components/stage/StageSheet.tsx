@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 /**
  * 🪟 **3단 스냅 시트 — 그릇** (화면개편 2단계 · v23 Ⅱ · 기사님 확정 2026-08-31).
@@ -48,10 +48,21 @@ interface Props {
      * ~~«자막»~~ 은 «무대» 비유가 낳은 말이라 버렸다.
      */
     peekBar?: React.ReactNode;
+    /**
+     * 🪧 **시트 위에 붙박이로 얹히는 것** — 지금은 심사석이 쓴다 (기사님 안 2026-09-05:
+     * *"콜리스트 영역박스를 하단에 추가하고 그 높이까지만 시트가 올라가도록"*).
+     *
+     * 🔴 **자리가 고정되는 것이 값어치다.** 심사는 색만 보고 1~2초에 누르는 일이라
+     *    «어디에 뜨나»를 찾는 시간이 0이어야 한다 (규칙 ⑤-3).
+     * 🔴 **시트는 이것을 덮지 않는다** — 그만큼 낮게 선다. 계산은 여기 갇혀 있고,
+     *    바깥은 «얹을 것»만 넘긴다 (규칙 ③).
+     * 🟢 시트가 내려가 있어도 **이것은 보인다** — 주행 중에도 심사를 놓치지 않는다.
+     */
+    topBox?: React.ReactNode;
     children: React.ReactNode;
 }
 
-export default function StageSheet({ snap, onSnapChange, peekBar, children }: Props) {
+export default function StageSheet({ snap, onSnapChange, peekBar, topBox, children }: Props) {
     const startY = useRef<number | null>(null);
     const startSnap = useRef<SheetSnap>(snap);
     const dragged = useRef(false);   // 드래그로 한 단 움직였으면 이어지는 click 을 무시 (되튐 버그)
@@ -65,11 +76,40 @@ export default function StageSheet({ snap, onSnapChange, peekBar, children }: Pr
         if (next !== snap) onSnapChange(next);
     };
 
+    /**
+     * 🪧 **붙박이가 있으면 시트가 그만큼 낮게 선다** (기사님 안 2026-09-05).
+     *
+     * 🔴 **계산은 여기 갇힌다.** 바깥은 «얹을 것»만 넘기고 높이를 모른다 (규칙 ③) —
+     *    바깥이 «심사석은 158px» 같은 숫자를 알면 심사석 모양을 고칠 때 한쪽만 고쳐진다.
+     * 🔴 시트가 붙박이를 덮으면 **자리 고정이라는 값어치가 통째로 사라진다** —
+     *    그러라고 있는 것이라 이 뺄셈이 이 안의 전부다.
+     */
+    const topRef = useRef<HTMLDivElement>(null);
+    const [topH, setTopH] = useState(0);
+    /* 🔴 **붙박이가 얼마나 높은지는 재서 안다 — 숫자를 손으로 적지 않는다** (규칙 ③·④).
+       «심사석은 158px» 처럼 적어 두면 심사석 모양을 고칠 때 이쪽이 안 따라온다. */
+    useEffect(() => {
+        const el = topRef.current;
+        if (!el) { setTopH(0); return; }
+        const ro = new ResizeObserver(() => setTopH(el.offsetHeight));
+        ro.observe(el);
+        setTopH(el.offsetHeight);
+        return () => ro.disconnect();
+    }, [topBox]);
+
     return (
+        <>
+        {topBox && (
+            /* 🪧 시트 바로 위 — 시트가 어느 높이에 있든 **늘 그 자리**다 */
+            <div ref={topRef} className="absolute left-0 right-0 z-20"
+                 style={{ bottom: `calc(${SHEET_HEIGHT[snap]} - ${topH}px)`, transition: 'bottom .25s ease' }}>
+                {topBox}
+            </div>
+        )}
         <div
             className="absolute left-0 right-0 bottom-0 z-20 flex flex-col rounded-t-2xl border-t"
             style={{
-                height: SHEET_HEIGHT[snap],
+                height: topBox ? `calc(${SHEET_HEIGHT[snap]} - ${topH}px)` : SHEET_HEIGHT[snap],
                 background: 'var(--color-surface)',
                 borderColor: 'color-mix(in srgb, var(--color-border-card) 60%, #4f8df9)',
                 boxShadow: '0 -10px 30px rgba(0,0,0,.45)',
@@ -99,6 +139,7 @@ export default function StageSheet({ snap, onSnapChange, peekBar, children }: Pr
             )}
             <div data-sheet-scroll className="flex-1 overflow-y-auto min-h-0">{children}</div>
         </div>
+        </>
     );
 }
 
