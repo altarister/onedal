@@ -109,7 +109,11 @@ export interface RoutePoint {
 
 interface Props {
     /** 👣 지나온 발자취 — 표시 전용. no = 방문 순서로 동결된 사이클 번호표 (①) */
-    visitedTrail?: Array<{ x: number; y: number; type: '상차' | '하차'; orderId: string; name: string; no: number }>;
+    visitedTrail?: Array<{
+        x: number; y: number; type: '상차' | '하차'; orderId: string; name: string; no: number;
+        /** 🌈 몇 번 콜인가 — 색표를 켜면 남은 정거장과 같은 규칙으로 그린다 */
+        callNo?: number;
+    }>;
     /** 🎨 콜 ID → 고유 색 — 마커 테두리와 덱 카드 점이 같은 색을 본다 (②) */
     callColors?: Map<string, string>;
     /** 🖐️ 마커 탭 — 그 콜 카드로 (S6 문법: 지나온 곳은 확인·수정) */
@@ -447,20 +451,31 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             drawPath(driven, 0.55);
         }
 
-        // 1.7. 👣 지나온 발자취 — 번호는 방문 순서로 동결, 테두리 색 = 콜 색 (①·②)
+        /**
+         * 1.7. 👣 지나온 발자취 — 번호는 방문 순서로 동결 (①)
+         *
+         * 🔴 **색표를 켜면 남은 정거장과 같은 규칙으로 그린다** (2026-09-04).
+         *    예전에는 여기만 «초록 채움 + 콜색 테두리»라, 같은 화면에서 **다녀온 곳과
+         *    남은 곳이 다른 문법**으로 그려졌다. 색표의 뜻(색상=콜 · 밝기=상차/하차 ·
+         *    흰 링=다녀옴)이 절반만 적용되던 셈이다.
+         */
         markerHits.current = [];
         trail.forEach((p) => {
             const { cx, cy } = getScreenPt(p);
             markerHits.current.push({ cx, cy, orderId: p.orderId });
+            const kind = p.type === '상차' ? 'pickup' : 'dropoff';
+            const fill = rainbowNodes && p.callNo ? callNodeFill(p.callNo, kind, theme) : null;
             ctx.beginPath();
-            ctx.arc(cx, cy, 9, 0, 2 * Math.PI);
-            ctx.fillStyle = withAlpha('#35c3a9', 0.4);       // 초록 채움 = 다녀옴
+            ctx.arc(cx, cy, fill ? 10 : 9, 0, 2 * Math.PI);
+            ctx.fillStyle = fill ?? withAlpha('#35c3a9', 0.4);       // 초록 채움 = 다녀옴 (옛 문법)
             ctx.fill();
-            ctx.lineWidth = 2.5;
-            ctx.strokeStyle = callColors?.get(p.orderId) ?? '#35c3a9';   // 테두리 = 콜 색
+            ctx.lineWidth = fill ? 1 : 2.5;
+            ctx.strokeStyle = fill
+                ? callNodeStroke(true, fill)                          // 다녀왔으니 «동그라미»를 친다
+                : (callColors?.get(p.orderId) ?? '#35c3a9');
             ctx.stroke();
-            ctx.fillStyle = '#d7f5ee';
-            ctx.font = 'bold 10px sans-serif';
+            ctx.fillStyle = fill ? callNodeText(kind, theme) : '#d7f5ee';
+            ctx.font = fill ? 'bold 12.5px sans-serif' : 'bold 10px sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(String(p.no), cx, cy + 0.5);

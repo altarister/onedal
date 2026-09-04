@@ -307,8 +307,22 @@ const DRIVEN_TRAIL: Array<{ x: number; y: number }> = ([
     [126.80443,37.57243]
 ] as [number, number][]).map(([x, y]) => ({ x, y }));
 
+/**
+ * 👣 **다녀온 정거장은 실물과 같은 방식으로 갈라 넘긴다** (2026-09-04 정정).
+ *
+ * 🔴 처음엔 여섯을 전부 `unifiedRoutePoints` 에 넣고 `visited` 표시만 달았다.
+ *    그러면 지도가 «다음 정거장»을 `validPoints[0]` = **이미 다녀온 ①초월읍**으로 읽어,
+ *    「구간」이 «초월읍 → 초월읍»으로 접혔다 (기사님: *"구간이 수정되지 않았어"*).
+ *    실물은 다녀온 것을 `visitedTrail` 로, 남은 것을 `unifiedRoutePoints` 로 준다.
+ */
+const VISITED = MAP_STOPS.filter(p => p.visited).map(p => ({
+    x: p.x!, y: p.y!, type: p.type as '상차' | '하차',
+    orderId: p.routeId!, name: p.name, no: p.no!, callNo: p.callNo,
+}));
+const REMAINING = MAP_STOPS.filter(p => !p.visited);
+
 /** 👣 이미 다녀온 정거장 번호 — 지도와 목록이 **같은 값**을 본다 (규칙 ③) */
-const VISITED_STOPS = new Set(MAP_STOPS.filter(p => p.visited).map(p => p.no!));
+const VISITED_STOPS = new Set(VISITED.map(p => p.no));
 const MY_LOCATION = { x: 127.294001101745, y: 37.3771779756748 };   // 집(동광뷰엘) — geocode_cache 실측   // 초월읍 — 1번 상차지에 도착해 정차 중
 
 /* ─────────────────────────────────────────────
@@ -698,7 +712,8 @@ export default function SheetMockup() {
                             /* 🪟 시트가 올라온 만큼 지도가 위로 비켜 준다 — 반쯤 열면 둘을 같이 본다 (기사님 0901) */
                             sheetSnap={snap}
                             rainbowNodes={rainbow}
-                            unifiedRoutePoints={MAP_STOPS}
+                            unifiedRoutePoints={REMAINING}
+                            visitedTrail={VISITED}
                             routeHolder={ROUTE_HOLDER}
                             drivenTrail={DRIVEN_TRAIL}
                             liveRoute={[]}
