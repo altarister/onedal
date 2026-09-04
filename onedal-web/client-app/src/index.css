@@ -97,10 +97,15 @@
   /* ── 1DAL Seamless Design Tokens — Light Mode ── */
   --theme-bg-base: #F3F4F6;       /* Gray-100: 앱 전체 바탕 */
   --theme-surface: #FFFFFF;        /* 카드/패널 바탕 */
-  --theme-surface-alt: #F3F4F6;    /* 버튼/구분 요소 */
-  --theme-surface-hover: #E5E7EB;  /* 호버 상태 */
-  --theme-border-card: rgba(0, 0, 0, 0.04);
-  --theme-border-hover: rgba(0, 0, 0, 0.08);
+  /* 🔴 **밝은 테마는 경계가 안 보였다** (기사님 실물 2026-09-04:
+     *"전체적으로 너무 밝고 구분이 조금 어렵다"*).
+     · `border-card` 가 4% 라 흰 바탕에서 사실상 없는 선이었다 → 헤더·판·카드가 뭉쳐 보였다
+     · `surface-alt` 가 `bg-base` 와 **같은 값**이라 버튼이 배경에 잠겼다
+     어두운 테마는 흰색 6%가 검은 바탕에서 잘 보여 이 문제가 안 드러났다. */
+  --theme-surface-alt: #E8EAEE;    /* 버튼/구분 요소 — bg-base 보다 한 단 어둡게 */
+  --theme-surface-hover: #DCDFE4;  /* 호버 상태 */
+  --theme-border-card: rgba(0, 0, 0, 0.11);
+  --theme-border-hover: rgba(0, 0, 0, 0.20);
   --theme-text-primary: #111827;   /* Gray-900 */
   --theme-text-muted: #6B7280;     /* Gray-500 */
 

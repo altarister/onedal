@@ -257,7 +257,8 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             /* 🎨 회색조·연하게 — 배경이 시끄러우면 색이 안 읽힌다 (규칙 ⑤-3).
                🔍 다만 **확대하면 서서히 제 색을 되찾는다** — 확대는 «지도를 보겠다»는
                   손짓이다 (기사님 2026-09-04 · `mapTileTone`). */
-            const tone = mapTileTone(shownZoom, theme === 'dark' ? 0.5 : 0.75);
+            /* 🔆 밝은 테마는 지도가 흰 바탕 위라 더 밝게 뜬다 — 조금 더 눌러 준다 (기사님 2026-09-04) */
+            const tone = mapTileTone(shownZoom, theme === 'dark' ? 0.5 : 0.62);
             if (supportsCanvasFilter(ctx) && tone.filter) ctx.filter = tone.filter;
             ctx.globalAlpha = tone.alpha;
             readyTiles.forEach(t => ctx.drawImage(t.img, t.cx, t.cy, t.size + 1, t.size + 1));
@@ -338,7 +339,16 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             ctx.restore();
         }
 
-        // 1.5. 기초 연결선 렌더링 (노드들을 잇는 보조 점선 및 직선거리)
+        /**
+         * 1.5. 기초 연결선 — 정거장을 **직선으로** 잇는 보조 점선.
+         *
+         * 🔴 **경로선이 있으면 안 그린다** (기사님 실물 2026-09-04:
+         *    *"지도에서 궤적이 있으면 직선을 표시하지 않는다고 한 것 같은데 점선이 남아 있어"*).
+         *    맞다 — 그때 없앤 것은 «직선 N km» **글자**였고 이 **선**은 그대로 남아 있었다.
+         *    카카오가 준 실제 도로 경로가 있는데 그 위에 직선을 겹치면 **길이 두 개**로 보인다.
+         *    경로가 아직 없거나 실패했을 때만 «대충 이 방향»으로 남긴다 (규칙 ④).
+         */
+        if (validPolyline.length >= 2) { /* 경로선이 대신 말한다 */ } else {
         ctx.beginPath();
         ctx.strokeStyle = withAlpha(mapColors.sidoStroke, 0.4);
         ctx.lineWidth = 2;
@@ -363,6 +373,8 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         });
         ctx.stroke();
         ctx.setLineDash([]);
+
+        }
 
         /**
          * 현위치 - 첫 상차지 간 회색 점선 지점에 직선거리(km) 표기
