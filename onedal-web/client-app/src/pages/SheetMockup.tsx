@@ -5,7 +5,7 @@ import { callNodeFill, callNodeStroke, callNodeText } from '../styles/callPalett
 import PinnedRouteCanvas from '../components/dashboard/PinnedRouteCanvas';
 import StageSheet, { aboveSheet, type SheetSnap } from '../components/stage/StageSheet';
 import NaviQr, { naviQrText, type QrKind } from '../components/dashboard/NaviQr';
-import { sheetStatus } from '../lib/sheetStatus';
+import { sheetStatus, sheetStatusLine } from '../lib/sheetStatus';
 import { MOCK_PLANS, splitStops, myLocationAt, routeHolderOf, reaskedPlan, reaskCost, type Call } from './mockPlans';
 
 /**
@@ -516,6 +516,18 @@ export default function SheetMockup() {
      * (전제 점검표 3부 Q8). 전에는 분만 늘어서 **좋아지는 것처럼만** 보였다.
      */
     const [reasked, setReasked] = useState(false);
+    /**
+     * 🚚 **지금 어느 국면인가** — 목업이 오래 «정차 중»에 고정돼 있었다
+     * (기사님 2026-09-04: *"운행 이벤트 시늉에서 주행중일때, 출발 할때가 없어"*).
+     *
+     * 🔴 **주행 중이 이 제품의 본 화면이다** — 기사님은 그때 **손을 못 쓴다**(전제 점검표 #31).
+     *    그런데 목업이 그 화면을 못 보여 주고 있었으니, «먼발치 1~2초에 읽히는가»를
+     *    **아무도 확인한 적이 없다.**
+     */
+    const [phase, setPhase] = useState<'주행' | '정차'>('정차');
+    const moving = phase === '주행';
+    /** 🎬 조작판에서 **마지막으로 누른 장면** — 어느 버튼이 눌려 있나를 보여 준다 */
+    const [scene, setScene] = useState<'출발' | '주행' | '접근' | '도착' | '통화' | null>(null);
     const basePlan = MOCK_PLANS[planSize];
     const plan = reasked ? reaskedPlan(basePlan) : basePlan;
     const cost = reaskCost(basePlan);
@@ -618,7 +630,7 @@ export default function SheetMockup() {
     const qrReady = naviQrText(qrArgs) != null;
 
     const bar = sheetStatus({
-        moving: false,   // 목업은 «정차 중» 고정 — 실물은 GPS 가 말한다
+        moving,   // 🔴 조작판의 국면에서 온다 — 실물은 GPS 가 말한다
         next: nextStop ? {
             visitNo: nextStop.no!, name: nextStop.name, callNo: nextStop.callNo,
             stop: nextStop.type as '상차' | '하차',
@@ -921,24 +933,63 @@ export default function SheetMockup() {
                     </span>}
                 </p>
 
-                <h2 className="mt-6 text-[12.5px] font-black tracking-wide text-info mb-2">운행 이벤트 시늉</h2>
+                {/**
+                  * 🎬 **한 절로 합쳤다** (기사님 2026-09-04: *"지금 어느 국면인가 와 운행 이벤트
+                  *    시늉은 같은거라 같이 나란히 있으면 될 거 같은데?"*).
+                  *
+                  * 🔴 맞다 — **둘 다 «지금 무슨 상황인가»를 고르는 버튼**이었다. 이벤트를 눌러도
+                  *    국면이 함께 바뀌니 두 벌이면 갈라진다 (규칙 ③). 버튼 하나가 곧 한 장면이다.
+                  * 🔴 문구는 **다음 정거장에서 파생**시킨다 — 「2번 콜 도착」처럼 박아 두면
+                  *    판이나 구간을 바꿨을 때 화면이 조용히 거짓말을 한다.
+                  */}
+                <h2 className="text-[12.5px] font-black tracking-wide text-info mb-2">운행 한 바퀴 — 지금 무슨 상황인가</h2>
                 <div className="flex gap-1.5 flex-wrap">
-                    {[
-                        { i: 1, t: '🏁 2번 콜 상차지 도착' },
-                        { i: 2, t: '🛰️ 3번 콜 2km 접근' },
-                        { i: 0, t: '📞 1번 콜 하차 통화 때' },
-                    ].map(b => (
-                        <button key={b.i} type="button" onClick={() => open(b.i, `${b.t} 이벤트`)}
-                            className="px-3 py-2 rounded-[9px] border border-border-hover bg-surface text-[12.5px] font-black hover:border-info">
-                            {b.t}
+                    {([
+                        ['출발', `🚚 출발`,
+                            'QR 을 띄워 개인폰으로 찍는 순간입니다 — 이때만 폰 둘을 만집니다. 시트는 내려갑니다.'],
+                        ['주행', `▶ 주행 중`,
+                            '달리는 중 — 손이 갈 데가 없습니다. 상태바 한 줄만 먼발치에서 읽힙니다.'],
+                        ['접근', `🛰️ ${nextStop?.no ?? ''} ${nextStop?.name ?? ''} 2km 앞`,
+                            '곧 도착합니다 — 시트를 반쯤 올려 그 콜을 미리 봅니다. 아직 달리는 중입니다.'],
+                        ['도착', `🏁 ${nextStop?.no ?? ''} ${nextStop?.name ?? ''} 도착`,
+                            '멈춰 섰습니다 — 이때만 시트를 올려 결재합니다.'],
+                        ['통화', `📞 1번 콜 하차 통화`,
+                            '정차 중에 화주와 통화합니다 — KEEP 직후 바로 거는 그 전화입니다.'],
+                    ] as const).map(([k, t, why]) => (
+                        <button key={k} type="button"
+                            onClick={() => {
+                                setScene(k);
+                                /* 🔴 «출발»은 **QR 을 찍는 순간**이다 — 결재를 마치고 나서면서
+                                   관제폰이 QR 을 띄우고 개인폰 카메라로 찍는다 (경로.md §4-0-1).
+                                   그래서 여기서만 덮개가 열린다. 달리기 시작하면 닫힌다. */
+                                if (k === '출발') { setPhase('주행'); setSnap('peek'); setOpenIdx(-1); setQrOpen(qrReady); }
+                                if (k === '주행') { setPhase('주행'); setSnap('peek'); setOpenIdx(-1); setQrOpen(false); }
+                                if (k === '접근') { setPhase('주행'); setSnap('half'); setQrOpen(false); if (nextStop) open(nextStop.callNo! - 1); }
+                                if (k === '도착') { setPhase('정차'); setSnap('full'); setQrOpen(false); if (nextStop) open(nextStop.callNo! - 1); }
+                                if (k === '통화') { setPhase('정차'); setSnap('full'); setQrOpen(false); open(0); }
+                                setLog(`${t} — ${why}`);
+                            }}
+                            className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${scene === k
+                                ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-surface text-text-primary hover:border-info'}`}>
+                            {t}
                         </button>
                     ))}
-                    <button type="button" onClick={() => { setOpenIdx(-1); setLog('전부 접기 → 헤더 세 줄만 남습니다.'); }}
+                    <button type="button" onClick={() => { setOpenIdx(-1); setLog('전부 접기 → 헤더 줄만 남습니다.'); }}
                         className="px-3 py-2 rounded-[9px] border border-border-hover bg-surface text-[12.5px] font-black hover:border-info">
                         ✋ 전부 접기
                     </button>
                 </div>
-
+                <p className="mt-2 text-[12px] leading-relaxed text-text-muted">
+                    🔴 <b className="text-text-primary">주행 중이 이 제품의 본 화면입니다</b> — 그때 기사님은
+                    <b className="text-text-primary"> 손을 못 씁니다</b>(점검표 #31). 시트를 내린 채로
+                    <b className="text-text-primary"> 맨 아래 한 줄</b>만 보고 «지금 어디로 가는가»가 읽혀야 합니다.
+                    <br />🔴 <b className="text-text-primary">도착하면 상태바가 ⏸ 로 돌아와야 합니다</b> —
+                    멈췄는데 ▶ 로 남아 있으면 화면이 거짓말을 합니다. 그래서 버튼 하나가 국면까지 함께 정합니다.
+                    <span className="block mt-1 text-text-primary font-bold tabular-nums">
+                        지금 상태바: {sheetStatusLine(bar)}
+                        {moving && <span className="text-warning"> — 먼발치에서 1~2초에 읽히십니까?</span>}
+                    </span>
+                </p>
                 <h2 className="mt-6 text-[12.5px] font-black tracking-wide text-info mb-2">어느 구간을 볼까</h2>
                 <div className="flex gap-1.5 flex-wrap">
                     {/* 🔴 라벨은 «어디까지 왔나»가 아니라 **«어느 구간을 볼까»** 로 적는다
