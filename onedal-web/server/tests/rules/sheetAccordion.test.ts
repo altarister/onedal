@@ -88,3 +88,39 @@ describe('🪗 시트 아코디언 — 기사님 확정 2026-09-03', () => {
         expect(d).toMatch(/\{rowOf\(o, i\)\}/);                            // 아코디언
     });
 });
+
+/**
+ * 🪗 **세로 사슬 — 넘친 것이 밖으로 그려지지 않는다** (기사님 실물 2026-09-04:
+ * *"시트 반만 열기에서만 겹침이 발생해"*)
+ *
+ * 시트 높이가 줄면 자리가 모자란다. 그때 **줄어들 수 있는 것과 없는 것**이 정해져 있지
+ * 않으면, 안 줄어드는 쪽이 버티다가 상자를 넘어 **다음 콜 헤더 위에 올라탄다.**
+ *
+ * | 층 | 규칙 |
+ * |---|---|
+ * | 아코디언 그릇 | 시트 높이만 쓰고 **넘치지 않는다** — 넘치면 헤더가 밀려 «늘 보인다»가 깨진다 |
+ * | 펼친 판 | **상자 밖으로 안 그린다** |
+ * | 위 덩어리(콜 전체) | 좁으면 **스스로 줄고 그 안에서 스크롤** |
+ * | 아래(스텝) | **최소 높이를 지킨다** — 이 화면의 목적이라 0 으로 찌그러지면 안 된다 |
+ */
+describe('🪗 시트가 좁아져도 겹치지 않는다', () => {
+    const mock = () => codeOnly(readFileSync(join(CLIENT, 'pages/SheetMockup.tsx'), 'utf8'));
+
+    it('아코디언 그릇이 넘치지 않는다', () => {
+        expect(mock()).toMatch(/h-full flex flex-col gap-1\.5[^"]*overflow-hidden/);
+    });
+
+    it('펼친 판이 상자 밖으로 안 그린다', () => {
+        expect(mock()).toMatch(/flex-1 min-h-0 mt-1\.5 flex flex-col overflow-hidden/);
+    });
+
+    it('🔴 위 덩어리는 좁으면 줄어든다 — `shrink-0` 이면 버티다가 넘친다', () => {
+        const m = mock();
+        expect(m).toMatch(/min-h-0 shrink overflow-y-auto px-3 pt-2\.5 pb-3/);
+        expect(m).not.toMatch(/shrink-0 px-3 pt-2\.5 pb-3 border-b/);
+    });
+
+    it('아래(스텝)는 최소 높이를 지킨다 — 이 화면의 목적이다', () => {
+        expect(mock()).toMatch(/flex-1 min-h-\[\d+px\] flex flex-col/);
+    });
+});

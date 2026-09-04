@@ -563,6 +563,8 @@ function CallItem({ call, i, open, onToggle, rainbow, visitedNos }: {
     );
 
     return (
+        /* 🔴 닫힌 콜은 자기 높이만(flex-none) · 펼친 콜이 남는 자리를 다 먹는다(flex-1).
+           헤더 자체는 아래에서 `shrink-0` 이라 어느 쪽에서도 안 줄어든다 */
         <div className={`flex flex-col min-h-0 ${open ? 'flex-1' : 'flex-none'}`}>
             {/* ── 헤더: 접혀도 늘 보인다. 눌러서 토글 ── */}
             <button
@@ -597,10 +599,21 @@ function CallItem({ call, i, open, onToggle, rainbow, visitedNos }: {
 
             {/* ── 펼친 판 = 위·아래 두 덩어리 ── */}
             {open && (
-                <div className="flex-1 min-h-0 mt-1.5 flex flex-col rounded-b-[10px] border border-t-0 border-border-card bg-bg-base">
+                /**
+                 * 🔴 **넘친 것이 밖으로 그려지지 않게 한다** (기사님 실물 2026-09-04:
+                 *    *"시트 반만 열기에서만 겹침이 발생해"*).
+                 *    판이 `overflow` 없이 열려 있어, 자리가 모자라면 내용이 상자를 넘어
+                 *    **다음 콜 헤더 위에 올라탔다.** 상자 밖으로는 안 그린다.
+                 */
+                <div className="flex-1 min-h-0 mt-1.5 flex flex-col overflow-hidden rounded-b-[10px] border border-t-0 border-border-card bg-bg-base">
 
-                    {/* 위 — 콜 전체를 아우르는 것. 스텝이 넘어가도 안 바뀐다 */}
-                    <div className="shrink-0 px-3 pt-2.5 pb-3 border-b border-border-card">
+                    {/**
+                     * 위 — 콜 전체를 아우르는 것. 스텝이 넘어가도 안 바뀐다.
+                     * 🔴 **줄어들 수 있어야 한다.** `shrink-0` 이면 «반만 열기»처럼 자리가
+                     *    좁을 때 버티다가 넘친다. 좁으면 스스로 줄고 그 안에서 스크롤한다 —
+                     *    그때 기사님께 필요한 건 «지금 할 일»(아래)이지 적요가 아니다.
+                     */}
+                    <div className="min-h-0 shrink overflow-y-auto px-3 pt-2.5 pb-3 border-b border-border-card">
                         <div className="flex items-center gap-1.5 flex-wrap text-[11.5px] text-text-muted">
                             <span>{call.no}.</span>
                             <span>콜잡은시간 {call.grabbed}</span>
@@ -637,8 +650,12 @@ function CallItem({ call, i, open, onToggle, rainbow, visitedNos }: {
                         <p className="mt-2.5 text-[11.5px] leading-relaxed text-text-muted">{call.memo}</p>
                     </div>
 
-                    {/* 아래 — 스텝. 좌우로 스와이프한다 */}
-                    <div className="flex-1 min-h-0 flex flex-col">
+                    {/**
+                     * 아래 — 스텝. 좌우로 스와이프한다.
+                     * 🔴 **최소 높이를 준다** — 없으면 자리가 좁을 때 0 으로 찌그러져
+                     *    «지금 할 일»이 통째로 사라진다. 이 영역이 이 화면의 목적이다.
+                     */}
+                    <div className="flex-1 min-h-[150px] flex flex-col">
                         {/* 🔴 **점은 가운데 고정** (기사님 2026-09-04: *"단어에 따라 스와이프
                             네비게이션이 덜컹거려. 그냥 가운데 정렬하면 어떨까?"*).
                             단계 이름 길이가 달라(「상차지 통화」 ↔ 「상차 완료」) 점이 좌우로 밀렸다.
@@ -800,7 +817,12 @@ export default function SheetMockup() {
                                 ) : <span className="text-text-muted font-semibold">· 사이클 끝</span>}
                             </button>
                         }>
-                        <div className="h-full flex flex-col gap-1.5 px-2.5 pt-1 pb-2.5">
+                        {/**
+                         * 🪗 아코디언 그릇 — 시트 높이를 그대로 쓰고 **넘치지 않는다.**
+                         * 🔴 헤더는 `shrink-0`(각 콜 안에서), 펼친 판만 남는 자리를 먹는다.
+                         *    그릇이 넘치면 시트가 세로로 스크롤되어 «헤더가 늘 보인다»가 깨진다.
+                         */}
+                        <div className="h-full flex flex-col gap-1.5 px-2.5 pt-1 pb-2.5 overflow-hidden">
                             {CALLS.map((call, i) => (
                                 <CallItem key={call.no} call={call} i={i} rainbow={rainbow} visitedNos={visitedNos}
                                     open={openIdx === i} onToggle={() => open(i, '헤더를 눌렀습니다')} />
