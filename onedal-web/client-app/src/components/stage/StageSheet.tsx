@@ -41,11 +41,7 @@ export function sheetOccludedPx(snap: SheetSnap, stageHeight: number): number {
 interface Props {
     snap: SheetSnap;
     onSnapChange: (s: SheetSnap) => void;
-    /**
-     * 🎬 **지도 자막 버튼** — 시트가 내려가 있어도 늘 보이는 한 줄 (용어집 확정 2026-09-04).
-     * 지도(무대)에서 벌어지는 일을 말로 옮기고, **누르면 그 콜로 데려간다** —
-     * 읽는 줄이자 누르는 곳이다. ~~«자막»~~ 만으로는 «무엇의 자막인지»가 안 보여 이름을 늘렸다.
-     */
+    /** 🎬 자막 줄 — 시트가 내려가 있어도 이 한 줄이 무대의 상태를 말한다 (v23 엿보기 줄) */
     peekBar?: React.ReactNode;
     children: React.ReactNode;
 }
