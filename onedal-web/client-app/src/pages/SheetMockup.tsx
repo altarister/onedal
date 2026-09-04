@@ -646,12 +646,23 @@ export default function SheetMockup() {
      * 🧭 이번에 보낼 정거장들.
      * 🔴 시나리오가 켜져 있으면 **시나리오가 정한다** — 손잡이가 둘이면 갈라진다 (규칙 ③).
      */
-    const qrSlice = step
-        ? (step.qr ?? []).map(nm => plan.stops.find(st => st.name === nm)).filter(Boolean) as typeof plan.stops
-        : remaining.slice(
-            Math.min(qrPeek, Math.max(0, remaining.length - 1)),
-            Math.min(qrPeek, Math.max(0, remaining.length - 1)) + qrSpan,
-        );
+    const autoSlice = remaining.slice(
+        Math.min(qrPeek, Math.max(0, remaining.length - 1)),
+        Math.min(qrPeek, Math.max(0, remaining.length - 1)) + qrSpan,
+    );
+    /**
+     * 🔴 **덮개가 안 뜨는 장면에도 「출발하기」는 살아 있다** (2026-09-05 정정).
+     *
+     * 처음엔 `step.qr` 이 없으면 담을 곳도 비워서, 「⑥ 출발 전 — 합짐 대기」에서
+     * **버튼이 통째로 사라졌다.** 기사님: *"첫짐만 잡고 출발할 수 있으니까
+     * qr은 첫짐 잡은 경로를 가리키는 큐알 버튼이 있어야 해."*
+     *
+     * 그래서 «덮개가 열린 장면»에서만 시나리오가 정하고, 그 밖에는 **남은 정거장에서
+     * 저절로** 잡는다 — 콜을 잡은 뒤라면 언제든 떠나실 수 있어야 한다 (규칙 ①).
+     */
+    const qrSlice = step?.qr
+        ? step.qr.map(nm => plan.stops.find(st => st.name === nm)).filter(Boolean) as typeof plan.stops
+        : autoSlice;
     const toNaviStop = (p: typeof plan.stops[number]) =>
         (typeof p?.x === 'number' && typeof p?.y === 'number')
             ? { name: `${p.name} ${p.type}`, x: p.x, y: p.y } : null;

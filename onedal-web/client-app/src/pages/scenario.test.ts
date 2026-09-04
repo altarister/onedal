@@ -286,3 +286,48 @@ describe('🪧 심사석 — 눌러야 넘어가는 자리', () => {
         expect(next.grabbed).toBeGreaterThanOrEqual(s.grabbed);
     });
 });
+
+describe('🧭 「출발하기」는 콜을 잡은 뒤라면 늘 있다 (2026-09-05)', () => {
+    /**
+     * 🔴 **무엇이 잘못됐었나** — 시나리오가 QR 을 정하게 만들면서 «덮개가 열린 장면»에만
+     *    목적지가 잡히게 했더니, 「⑥ 출발 전 — 합짐 대기」에서 **버튼이 통째로 사라졌다.**
+     *
+     *    기사님: *"첫짐만 잡고 출발할 수 있으니까 qr은 첫짐 잡은 경로를 가리키는
+     *    큐알 버튼이 있어야 해."* — 맞다. 합짐을 기다리는 것은 **기사님 선택**이지
+     *    떠나지 못하는 상태가 아니다 (규칙 ① 콜의 주인은 기사님이다).
+     */
+    it('사이클이 끝나기 전까지는 갈 곳이 있다 — 덮개가 안 떠도 버튼이 가리킬 데가 있다', () => {
+        /* 🔴 마지막 장면(⑰ 사이클 끝)은 다 돌았으니 남은 곳이 0 이 **맞다** —
+           검사가 그것까지 잡길래 여기서 갈랐다. 갈 곳이 없으면 버튼도 없어야 한다. */
+        for (const s of SCENARIO.filter(x => x.grabbed > 0 && x.no < SCENARIO.length)) {
+            const left = scenarioPlan(s.grabbed).stops.length - s.visited;
+            expect(left, `${s.title} 에 남은 정거장`).toBeGreaterThan(0);
+        }
+    });
+
+    it('마지막 장면은 갈 곳이 없다 — 버튼도 없는 것이 맞다', () => {
+        const last = SCENARIO.at(-1)!;
+        expect(scenarioPlan(last.grabbed).stops.length - last.visited).toBe(0);
+    });
+
+    it('콜을 하나도 안 잡은 장면에서는 갈 곳이 없다 — 버튼도 없어야 맞다', () => {
+        for (const s of SCENARIO.filter(x => x.grabbed === 0)) {
+            expect(scenarioPlan(s.grabbed).stops).toHaveLength(0);
+        }
+    });
+
+    /** 🔴 ⑥ 은 **아직 출발 전**이다 — 합짐을 하나 더 잡아 보려고 서 있는 것이다 */
+    it('⑥ 은 주행이 아니라 정차다', () => {
+        const six = SCENARIO.find(s => s.no === 6)!;
+        expect(six.phase).toBe('정차');
+        expect(six.title).toMatch(/출발 전/);
+        expect(six.what).toMatch(/출발하지 않|출발 전|떠나셔도/);
+    });
+
+    /** 🔴 처음 «주행»이 나오는 것은 합짐2가 오는 ⑩ 부터다 — 그 전엔 서 있다 */
+    it('주행 장면은 합짐2 뒤에만 있다', () => {
+        const firstDriving = SCENARIO.find(s => s.phase === '주행');
+        expect(firstDriving).toBeDefined();
+        expect(firstDriving!.no).toBeGreaterThan(9);
+    });
+});
