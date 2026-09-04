@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-    projectMercator, anchorBaseOf, computeViewport, toScreenPoint, panAfterZoom, pinchStep, mapTileTone, TILE_CLEAR_FROM, TILE_CLEAR_TO, routeLineWidth,
+    projectMercator, anchorBaseOf, computeViewport, toScreenPoint, panAfterZoom, pinchStep, mapTileTone, TILE_CLEAR_FROM, TILE_CLEAR_TO, routeLineWidth, viewCoordsFor, nextViewMode, FOLLOW_RADIUS_KM,
     PADDING_LEFT, PADDING_RIGHT, PADDING_TOP, PADDING_BOTTOM,
     type GeoPoint,
 } from './mapProjection';
@@ -350,5 +350,49 @@ describe('🖊️ 경로선 두께', () => {
     it('축소해도 사라지지 않는다', () => {
         expect(routeLineWidth(0.5)).toBeGreaterThan(1);
         expect(routeLineWidth(0)).toBeGreaterThan(0);
+    });
+});
+
+/**
+ * 🔭 **지도가 무엇에 맞춰지나 — 세 가지** (기사님 실주행 09-03)
+ *
+ * *"지금 가고 있는 곳만 볼 수 있으면 좋겠어"* · *"네비처럼 현위치가 가운데 있는 옵션도"*
+ * 새 기계 없이 «무엇을 주느냐»만 바꾼다.
+ */
+describe('🔭 지도 보기 — 전체 · 이번 구간 · 현위치', () => {
+    const ALL = [{ x: 127.0, y: 37.4 }, { x: 126.8, y: 37.6 }, { x: 127.3, y: 37.3 }];
+    const ME = { x: 127.29, y: 37.37 };
+    const NEXT = { x: 127.12, y: 37.42 };
+
+    it('전체 — 주는 것이 그대로다', () => {
+        expect(viewCoordsFor('all', ALL, ME, NEXT)).toEqual(ALL);
+    });
+
+    it('이번 구간 — 현위치와 다음 정거장 둘뿐이다', () => {
+        expect(viewCoordsFor('leg', ALL, ME, NEXT)).toEqual([ME, NEXT]);
+    });
+
+    it('현위치 — 그 둘레 상자다. 가운데가 현위치다', () => {
+        const box = viewCoordsFor('follow', ALL, ME, NEXT);
+        expect(box).toHaveLength(2);
+        expect((box[0].x + box[1].x) / 2).toBeCloseTo(ME.x, 9);
+        expect((box[0].y + box[1].y) / 2).toBeCloseTo(ME.y, 9);
+    });
+
+    it('현위치 상자는 반경만큼이다 — 위도로 재면 ±1.5km', () => {
+        const box = viewCoordsFor('follow', ALL, ME, NEXT);
+        expect((box[1].y - box[0].y) * 111 / 2).toBeCloseTo(FOLLOW_RADIUS_KM, 3);
+    });
+
+    it('🔴 재료가 없으면 전체로 떨어진다 — 빈 지도를 보여주지 않는다', () => {
+        expect(viewCoordsFor('leg', ALL, null, NEXT)).toEqual(ALL);
+        expect(viewCoordsFor('leg', ALL, ME, null)).toEqual(ALL);
+        expect(viewCoordsFor('follow', ALL, null, NEXT)).toEqual(ALL);
+    });
+
+    it('버튼 하나로 돈다 — 전체 → 구간 → 현위치 → 전체', () => {
+        expect(nextViewMode('all')).toBe('leg');
+        expect(nextViewMode('leg')).toBe('follow');
+        expect(nextViewMode('follow')).toBe('all');
     });
 });

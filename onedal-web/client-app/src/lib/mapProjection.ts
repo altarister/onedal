@@ -226,3 +226,52 @@ export function routeLineWidth(zoom: number): number {
     const grow = Math.min(ROUTE_WIDTH_MAX, Math.sqrt(Math.max(0.1, zoom)));
     return ROUTE_WIDTH_BASE * grow;
 }
+
+/**
+ * 🔭 **지도가 무엇에 맞춰지나 — 세 가지** (기사님 실주행 09-03 · 만듦 2026-09-04).
+ *
+ * 기사님: *"네비와 전체 경로가 같이 보이니까 그건 좋았는데. **지금 가고 있는 곳만**
+ * 볼 수 있으면 좋겠어. 상황판에 나온 경로만 줌으로 보여주는 거지."*
+ * 그리고: *"지도에서 **네비처럼 현위치가 가운데** 있는 옵션도 있어야 할 것 같아."*
+ *
+ * 🟢 **새 기계가 필요 없다.** 지도는 «주어진 좌표들이 다 보이게» 뷰포트를 잡는다
+ *    (`computeViewport`). 그러니 **무엇을 주느냐**만 바꾸면 세 가지가 다 된다.
+ *
+ * | | 무엇을 주나 | 언제 쓰나 |
+ * |---|---|---|
+ * | `all` | 정거장·경로·궤적 전부 | 하루를 조망할 때 (지금 기본) |
+ * | `leg` | **현위치 + 다음 정거장** | 달리는 중 — 지금 구간만 크게 |
+ * | `follow` | 현위치 둘레 상자 | 내비처럼 — 현위치가 가운데 |
+ *
+ * 🔴 **재료가 없으면 `all` 로 떨어진다.** 현위치를 못 읽거나 다음 정거장이 없을 때
+ *    빈 지도를 보여주지 않는다 (규칙 ④ — 없는 것을 지어내지 않되, 아는 만큼은 보여 준다).
+ */
+export type MapViewMode = 'all' | 'leg' | 'follow';
+
+/** `follow` 에서 현위치 둘레로 잡는 반경 (km) — 내비 느낌의 배율 */
+export const FOLLOW_RADIUS_KM = 1.5;
+
+export function viewCoordsFor(
+    mode: MapViewMode,
+    allCoords: Array<{ x: number; y: number }>,
+    myLocation: { x: number; y: number } | null,
+    nextStop: { x: number; y: number } | null,
+): Array<{ x: number; y: number }> {
+    if (mode === 'leg' && myLocation && nextStop) return [myLocation, nextStop];
+    if (mode === 'follow' && myLocation) {
+        // 위도 1° ≈ 111km · 경도는 위도에 따라 좁아진다
+        const dy = FOLLOW_RADIUS_KM / 111;
+        const dx = dy / Math.max(0.2, Math.cos(myLocation.y * Math.PI / 180));
+        return [
+            { x: myLocation.x - dx, y: myLocation.y - dy },
+            { x: myLocation.x + dx, y: myLocation.y + dy },
+        ];
+    }
+    return allCoords;
+}
+
+/** 🔁 버튼 하나로 돈다 — 운전 중에는 손가락 하나, 자리 하나가 낫다 */
+export const MAP_VIEW_ORDER: MapViewMode[] = ['all', 'leg', 'follow'];
+export function nextViewMode(m: MapViewMode): MapViewMode {
+    return MAP_VIEW_ORDER[(MAP_VIEW_ORDER.indexOf(m) + 1) % MAP_VIEW_ORDER.length];
+}

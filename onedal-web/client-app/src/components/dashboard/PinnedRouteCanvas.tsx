@@ -7,7 +7,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { MAP_THEME_COLORS, withAlpha } from '../../styles/themes';
 import { callNodeFill, callNodeStroke, callNodeText } from '../../styles/callPalette';
 import {
-    TILE_SIZE, TILE_MAX_ZOOM, anchorBaseOf, computeViewport, toScreenPoint, panAfterZoom, pinchStep, mapTileTone, routeLineWidth,
+    TILE_SIZE, TILE_MAX_ZOOM, anchorBaseOf, computeViewport, toScreenPoint, panAfterZoom, pinchStep, mapTileTone, routeLineWidth, viewCoordsFor, nextViewMode, type MapViewMode,
     type Viewport } from '../../lib/mapProjection';
 import { sheetOccludedPx, type SheetSnap } from '../stage/StageSheet';
 
@@ -149,6 +149,12 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
     const mapColors = MAP_THEME_COLORS[theme];
 
     // 초경량 성능을 위한 퓨어 줌/팬 상태 (React State 대신 Ref 사용으로 60fps 보장)
+    /**
+     * 🔭 **지도가 무엇에 맞춰지나** — 전체 / 이번 구간 / 현위치 (기사님 실주행 09-03).
+     * 🔴 **손이 이긴다** — 팬·줌을 하면 `all` 로 풀린다. 손으로 옮겨 놓은 화면을
+     *    다음 그림에서 코드가 도로 끌어가면 «내 손이 안 먹는다»가 된다.
+     */
+    const [viewMode, setViewMode] = React.useState<MapViewMode>('all');
     const zoomRef = useRef(1);
     const panRef = useRef({ x: 0, y: 0 });
     const isDragging = useRef(false);
@@ -225,7 +231,10 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         }
 
         // 🔭 시점(視點)은 한 곳에서 — 제스처도 같은 `anchorBaseOf` 를 본다 (규칙 ③)
-        const viewport = computeViewport(allCoords, width, height, zoomRef.current, panRef.current, occludedNow.current);
+        /* 🔭 무엇에 맞출지만 고른다 — 뷰포트 기계는 그대로다 (규칙 ③) */
+        const nextStop = validPoints[0] ?? null;
+        const fitCoords = viewCoordsFor(viewMode, allCoords, myLocation ?? null, nextStop);
+        const viewport = computeViewport(fitCoords, width, height, zoomRef.current, panRef.current, occludedNow.current);
         const getScreenPt = (p: { x: number, y: number }) => toScreenPoint(p, viewport);
 
         // 0. 🗺️ 배경 — 타일이 왔으면 타일, 아직 없으면 시·도 외곽선 (터널·음영에서도 빈 화면이 안 된다)
@@ -536,7 +545,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             ctx.fillStyle = withAlpha(mapColors.textMuted, 0.7);
             ctx.fillText('© OpenStreetMap', width - 4, height - 3);
         }
-    }, [unifiedRoutePoints, liveRoute, myLocation, visitedTrail, drivenTrail, routeHolder, theme, mapColors, sheetSnap, rainbowNodes]);
+    }, [unifiedRoutePoints, liveRoute, myLocation, visitedTrail, drivenTrail, routeHolder, theme, mapColors, sheetSnap, rainbowNodes, viewMode]);
 
     useEffect(() => {
         drawRef.current = drawMap;   // 늦게 온 타일이 부를 최신 그리기
@@ -590,6 +599,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
                 };
                 // 🪟 그리는 쪽이 지금 쓰는 가림 높이를 그대로 본다 — 두 벌이면 확대점이 어긋난다
                 const base = anchorBaseOf(rect.width, rect.height, occludedNow.current ?? 0);
+                setViewMode('all');   // ✋ 손이 이긴다
                 const step = pinchStep(lastDist.current, dist, mid, base, zoomRef.current, panRef.current);
                 zoomRef.current = step.zoom;
                 panRef.current = step.pan;
@@ -607,6 +617,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         const deltaX = clientX - lastPos.current.x;
         const deltaY = clientY - lastPos.current.y;
 
+        setViewMode('all');   // ✋ 손이 이긴다 — 끌면 «맞춤»이 풀린다
         panRef.current.x += deltaX;
         panRef.current.y += deltaY;
         movedPx.current += Math.abs(deltaX) + Math.abs(deltaY);
@@ -690,10 +701,24 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
                     -
                 </button>
                 <button
-                    onClick={() => { zoomRef.current = 1; panRef.current = { x: 0, y: 0 }; drawMap(); }}
+                    onClick={() => { zoomRef.current = 1; panRef.current = { x: 0, y: 0 }; setViewMode('all'); drawMap(); }}
                     className="w-8 h-8 flex items-center justify-center bg-surface-alt/80 hover:bg-surface-hover rounded-md shadow-lg text-text-primary border border-border backdrop-blur-sm text-[10px] font-bold opacity-80 hover:opacity-100 transition-all"
                 >
                     초기화
+                </button>
+                {/* 🔭 **무엇에 맞출까** — 버튼 하나로 돈다. 운전 중에는 손가락 하나,
+                    자리 하나가 낫다 (기사님 09-03: *"지금 가고 있는 곳만 볼 수 있으면 좋겠어"*).
+                    🔴 지금 무엇인지 **글자로** 말한다 — 아이콘만이면 눌러 봐야 안다 */}
+                <button
+                    onClick={() => { setViewMode(nextViewMode(viewMode)); zoomRef.current = 1; panRef.current = { x: 0, y: 0 }; }}
+                    title="지도를 무엇에 맞출까 — 전체 · 이번 구간 · 현위치"
+                    className={`w-8 h-8 flex items-center justify-center rounded-md shadow-lg border backdrop-blur-sm text-[10px] font-black transition-all ${
+                        viewMode === 'all'
+                            ? 'bg-surface-alt/80 hover:bg-surface-hover text-text-primary border-border opacity-80 hover:opacity-100'
+                            : 'bg-info/25 text-info border-info/60'
+                    }`}
+                >
+                    {viewMode === 'all' ? '전체' : viewMode === 'leg' ? '구간' : '현위치'}
                 </button>
             </div>
             {children}
