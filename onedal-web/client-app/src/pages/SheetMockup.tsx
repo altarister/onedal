@@ -7,7 +7,8 @@ import StageSheet, { aboveSheet, type SheetSnap } from '../components/stage/Stag
 import NaviQr, { naviQrText, type QrKind } from '../components/dashboard/NaviQr';
 import { sheetStatus, sheetStatusLine } from '../lib/sheetStatus';
 import { MOCK_PLANS, scenarioPlan, splitStops, myLocationAt, routeHolderOf, reaskedPlan, reaskCost, type Call } from './mockPlans';
-import { SCENARIO } from './scenario';
+import { SCENARIO, SEAT_CALLS } from './scenario';
+import JudgmentSeat from '../components/dashboard/JudgmentSeat';
 
 /**
  * 🪗 **시트 아코디언 목업 — 앱 안에서, 앱의 재료로** (기사님 요청 2026-09-04)
@@ -674,19 +675,29 @@ export default function SheetMockup() {
     const [log, setLog] = useState('헤더를 누르거나 아래 «운행 이벤트»를 눌러 보세요.');
 
     /**
+     * 🎬 **다음 장면으로** — 재생 타이머도, 「다음 ▶」도, 심사석의 KEEP 도 여기로 온다.
+     *    세 곳이 각자 넘기면 그 자리에서 갈라진다 (규칙 ③).
+     */
+    const goStep = (no: number, why?: string) => {
+        const n = SCENARIO.find(x => x.no === no);
+        if (!n) { setPlaying(false); return; }
+        setStepNo(n.no); setOpenIdx(-1); setQrPeek(0);
+        setSnap(n.qr ? 'peek' : n.phase === '정차' ? 'full' : n.phase === '심사' ? 'half' : 'peek');
+        setLog(`${why ? `${why} → ` : ''}${n.title} — ${n.what}`);
+    };
+
+    /**
      * ▶️ 재생 — 4초마다 한 칸. 🔴 **타이머 id 를 붙들어 반드시 치운다** (좀비 타이머 · 규칙 ②).
      *    마지막 장면에 닿으면 **스스로 멈춘다** — 처음으로 되감지 않는다 (한 사이클이니까).
      */
     useEffect(() => {
         if (!playing || stepNo == null) return;
         if (stepNo >= SCENARIO.length) { setPlaying(false); return; }
-        const t = setTimeout(() => {
-            const next = SCENARIO.find(x => x.no === stepNo + 1);
-            if (!next) { setPlaying(false); return; }
-            setStepNo(next.no); setOpenIdx(-1); setQrPeek(0);
-            setSnap(next.qr ? 'peek' : next.phase === '정차' ? 'full' : next.phase === '심사' ? 'half' : 'peek');
-            setLog(`${next.title} — ${next.what}`);
-        }, 4000);
+        /* 🔴 **심사 장면에서는 저절로 안 넘어간다** — 거기서 누르는 것이 기사님 몫이기
+           때문이다 (규칙 ① 콜의 주인은 기사님이다). 재생이 대신 눌러 버리면 «색만 보고
+           1~2초에 누른다»는 이 제품의 핵심을 목업이 건너뛰게 된다. */
+        if (SCENARIO.find(x => x.no === stepNo)?.seat) return;
+        const t = setTimeout(() => goStep(stepNo + 1), 4000);
         return () => clearTimeout(t);
     }, [playing, stepNo]);
 
@@ -718,7 +729,32 @@ export default function SheetMockup() {
 
                 <MockHeader />
                 <MockDevicePanel />
-                <MockFilterPanel compact={filterCompact} onExpand={() => setFilterCompact(false)} />
+                {/**
+                  * 🪧 **심사석은 필터 자리를 빌려 쓴다** — 실물과 같은 자리다
+                  *    (`JudgmentSeat` 머리주석 · 기사님 확정 0831).
+                  * 🔴 **목업용으로 다시 그리지 않고 실물 컴포넌트를 그대로 쓴다** (규칙 ③).
+                  *    자료만 먹인다 — 그래야 여기서 정한 것이 실물과 안 갈라진다.
+                  * 🔴 KEEP·거절을 **실제로 누르실 수 있다.** 누르면 다음 장면으로 넘어간다 —
+                  *    기사님이 *"첫짐킵을 추가해주면 좋겠어"* 하신 그 손이다 (2026-09-05).
+                  */}
+                {step?.seat ? (
+                    <div className="shrink-0">
+                        <JudgmentSeat
+                            route={SEAT_CALLS[step.seat] as never}
+                            confirmedActive={step.grabbed - 1}
+                            onDecision={(_id, action) => {
+                                setPlaying(false);
+                                if (action === 'ORDER_CONFIRMED') {
+                                    goStep(step.no + 1, '🟢 KEEP 을 누르셨습니다');
+                                } else {
+                                    setLog('❌ 거절하셨습니다 — 목업이라 여기서 멈춥니다. 실물이라면 이 콜이 사라지고 다시 대기로 돌아갑니다.');
+                                }
+                            }}
+                        />
+                    </div>
+                ) : (
+                    <MockFilterPanel compact={filterCompact} onExpand={() => setFilterCompact(false)} />
+                )}
 
                 {/* ══ 무대 — 지도가 배경이고 시트가 그 위에 뜬다 (실제 StageView 와 같은 모양) ══ */}
                 <section className="relative flex-1 min-h-0">
@@ -974,10 +1010,8 @@ export default function SheetMockup() {
                     <button type="button"
                         onClick={() => {
                             if (playing) { setPlaying(false); setLog('⏸ 멈췄습니다 — 「다음 ▶」으로 손수 넘기실 수 있습니다.'); return; }
-                            const first = SCENARIO[0];
-                            setStepNo(first.no); setPlaying(true); setOpenIdx(-1); setQrPeek(0); setReasked(false);
-                            setSnap('peek');
-                            setLog(`▶️ 처음부터 재생합니다 (4초에 한 칸) — ${first.title} · ${first.what}`);
+                            setPlaying(true); setReasked(false);
+                            goStep(SCENARIO[0].no, '▶️ 처음부터 재생합니다 (4초에 한 칸)');
                         }}
                         className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${playing
                             ? 'bg-warning/15 border-warning/55 text-warning'
@@ -992,9 +1026,7 @@ export default function SheetMockup() {
                     </button>
                     {SCENARIO.map(sc => (
                         <button key={sc.no} type="button"
-                            onClick={() => { setStepNo(sc.no); setPlaying(false); setOpenIdx(-1); setQrPeek(0); setReasked(false);
-                                setSnap(sc.qr ? 'peek' : sc.phase === '정차' ? 'full' : sc.phase === '심사' ? 'half' : 'peek');
-                                setLog(`${sc.title} — ${sc.what}${sc.gap ? `  🔴 아직 없는 것: ${sc.gap}` : ''}`); }}
+                            onClick={() => { setPlaying(false); setReasked(false); goStep(sc.no); }}
                             className={`px-2.5 py-2 rounded-[9px] border text-[12px] font-black ${stepNo === sc.no
                                 ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-surface text-text-primary hover:border-info'}`}>
                             {sc.title}
@@ -1027,13 +1059,10 @@ export default function SheetMockup() {
                         )}
                         <div className="mt-2 flex gap-1.5">
                             <button type="button" disabled={step.no <= 1}
-                                onClick={() => setStepNo(step.no - 1)}
+                                onClick={() => { setPlaying(false); goStep(step.no - 1); }}
                                 className="px-2.5 py-1 rounded-[7px] border border-border-hover bg-surface text-[12px] font-black disabled:opacity-30">◀ 앞</button>
                             <button type="button" disabled={step.no >= SCENARIO.length}
-                                onClick={() => { const n = SCENARIO.find(x => x.no === step.no + 1)!;
-                                    setStepNo(n.no); setOpenIdx(-1);
-                                    setSnap(n.qr ? 'peek' : n.phase === '정차' ? 'full' : n.phase === '심사' ? 'half' : 'peek');
-                                    setLog(`${n.title} — ${n.what}`); }}
+                                onClick={() => { setPlaying(false); goStep(step.no + 1); }}
                                 className="px-2.5 py-1 rounded-[7px] border border-info/50 bg-info/10 text-info text-[12px] font-black disabled:opacity-30">다음 ▶</button>
                         </div>
                     </div>

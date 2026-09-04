@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { SCENARIO } from './scenario';
+import { SCENARIO, SEAT_CALLS } from './scenario';
 import { scenarioPlan, SCENARIO_CALL_ORDER, reaskCost, reaskedPlan } from './mockPlans';
 
 /**
@@ -202,5 +202,63 @@ describe('▶️ 저절로 흘러갈 때 — 콜이 하나씩 붙는 것이 보�
             if (s.grabbed > last) expect(s.what, s.title).toMatch(/콜|합짐/);
             last = s.grabbed;
         }
+    });
+});
+
+describe('🪧 심사석 — 눌러야 넘어가는 자리', () => {
+    /**
+     * 기사님 2026-09-05: *"첫심사에 심사 목업 ui가 있으면 좋겠고, 첫짐킵을 추가해주면
+     * 좋겠어, 합짐킵도 있고 주행중 합짐킵도 만들어줘."*
+     */
+    it('심사석이 뜨는 장면은 넷 — 첫콜 · 경로변경 · 합짐1 · 주행 중 합짐2', () => {
+        expect(SCENARIO.filter(s => s.seat).map(s => s.seat))
+            .toEqual(['첫콜', '첫콜_경로변경', '합짐1', '합짐2']);
+    });
+
+    it('심사석이 뜨는 장면은 모두 «심사» 국면이다', () => {
+        for (const s of SCENARIO.filter(x => x.seat)) expect(s.phase, s.title).toBe('심사');
+    });
+
+    it('심사 국면인데 심사석이 없는 장면은 없다 — 심사인데 볼 것이 없으면 안 된다', () => {
+        for (const s of SCENARIO.filter(x => x.phase === '심사')) expect(s.seat, s.title).toBeTruthy();
+    });
+
+    it('심사석 콜 넷이 다 있고, 색과 점수를 갖는다', () => {
+        for (const k of ['첫콜', '첫콜_경로변경', '합짐1', '합짐2'] as const) {
+            const c = SEAT_CALLS[k];
+            expect(c.judgment.color, k).toBeTruthy();
+            expect(c.judgment.score, k).toBeGreaterThan(0);
+            expect(c.fare, k).toBeGreaterThan(0);
+        }
+    });
+
+    /** 🔴 심사석의 색은 그 장면이 말하는 색과 같아야 한다 — 갈라지면 화면이 거짓말을 한다 */
+    it.each(SCENARIO.filter(s => s.seat))('$title — 장면의 색과 심사석의 색이 같다', (s) => {
+        expect(SEAT_CALLS[s.seat!].judgment.color).toBe(s.color);
+    });
+
+    /**
+     * 🔴 **주행 중 합짐2는 노랑이다** — 뒤가 밀리는데도 데드라인 150% 안에 든다.
+     *    기사님이 «감수하고 KEEP» 하시는 자리라, 걸리는 것이 적혀 있어야 한다.
+     */
+    it('합짐2는 노랑이고 걸리는 것이 적혀 있다', () => {
+        expect(SEAT_CALLS.합짐2.judgment.color).toBe('똥');
+        expect(SEAT_CALLS.합짐2.rejectionReasons.length).toBeGreaterThan(0);
+    });
+
+    /** 🔴 경로를 바꾸면 **멀어지고 색이 내려간다** — 기사님 시나리오의 ③ 이 그것이다 */
+    it('경로를 바꾸면 거리가 늘고 색이 내려간다', () => {
+        expect(SEAT_CALLS.첫콜_경로변경.distanceKm).toBeGreaterThan(SEAT_CALLS.첫콜.distanceKm);
+        expect(SEAT_CALLS.첫콜.judgment.color).toBe('꿀');
+        expect(SEAT_CALLS.첫콜_경로변경.judgment.color).toBe('보통');
+        // 같은 콜이다 — 요금·주소가 그대로여야 «경로만 바뀐 것»이다
+        expect(SEAT_CALLS.첫콜_경로변경.fare).toBe(SEAT_CALLS.첫콜.fare);
+        expect(SEAT_CALLS.첫콜_경로변경.pickup).toBe(SEAT_CALLS.첫콜.pickup);
+    });
+
+    /** 🔴 심사석 다음 장면은 **그 콜이 붙은 뒤**여야 한다 — KEEP 을 누르면 콜이 는다 */
+    it.each(SCENARIO.filter(s => s.seat && s.no < 17))('$title — KEEP 하면 콜 수가 유지되거나 는다', (s) => {
+        const next = SCENARIO.find(x => x.no === s.no + 1)!;
+        expect(next.grabbed).toBeGreaterThanOrEqual(s.grabbed);
     });
 });

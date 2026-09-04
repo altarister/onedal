@@ -42,6 +42,11 @@ export type ScenarioStep = {
     priorityLocked?: boolean;
     /** 🔴 **아직 코드에 없는 것** — 이 장면이 «되어야 할 모습»을 그리는 부분 */
     gap?: string;
+    /**
+     * 🪧 **심사석에 올라 있는 콜** — 있으면 필터 자리에 심사석이 뜬다 (실물과 같은 자리).
+     *    기사님이 거기서 **KEEP 을 실제로 누르시면** 다음 장면으로 넘어간다.
+     */
+    seat?: '첫콜' | '첫콜_경로변경' | '합짐1' | '합짐2';
 };
 
 export const SCENARIO: ScenarioStep[] = [
@@ -53,12 +58,14 @@ export const SCENARIO: ScenarioStep[] = [
         no: 2, title: '② 첫콜 심사', grabbed: 1, visited: 0, phase: '심사', color: '꿀',
         what: '첫콜이 필터를 통과해 서버로 왔습니다. 서버가 카카오에 경로를 한 번(추천) 물어 '
             + '그 경로로 심사합니다 → 🔵 꿀 91. 안전취소 30초가 흐릅니다.',
+        seat: '첫콜',
     },
     {
         no: 3, title: '③ 경로를 바꿔 본다', grabbed: 1, visited: 0, phase: '심사', color: '보통',
         what: '기사님이 지도 좌상단에서 「시간」(고속도로 우선)을 누르셨습니다. 서버가 그 방침으로 '
             + '다시 물어 경로가 바뀝니다 — 멀어지고 km당 단가가 달라져 🟢 보통이 됐습니다. 그래도 좋습니다.',
         gap: '「고속도로 우선」이라는 이름의 버튼은 아직 없습니다 — 지금은 「시간」이 그 자리입니다 (경로.md §2-2).',
+        seat: '첫콜_경로변경',
     },
     {
         no: 4, title: '④ 첫콜 KEEP', grabbed: 1, visited: 0, phase: '정차',
@@ -79,6 +86,7 @@ export const SCENARIO: ScenarioStep[] = [
         what: '첫짐 경로에서 산출된 합짐이 필터를 통과했습니다. 서버가 설정의 기본 방침으로 '
             + '전체 경로를 받아 지도에 그리고, 그 경로로 심사합니다 → 🟢 보통. '
             + '합짐은 점수를 따로 손대지 않고 그대로 심사합니다.',
+        seat: '합짐1',
     },
     {
         no: 8, title: '⑧ 합짐1 KEEP', grabbed: 2, visited: 0, phase: '정차', priorityLocked: true,
@@ -96,6 +104,7 @@ export const SCENARIO: ScenarioStep[] = [
         what: '가다가 합짐2가 왔습니다. 순서가 「출발 → ①초월읍 → ②여수동 → ③석수동 → ④가산동 → '
             + '⑤구로동 → ⑥방화동」으로 다시 짜입니다 — 앞에 낀 ①초월읍만큼 뒤가 전부 밀립니다. '
             + '밀려도 데드라인 150%는 다 지킬 수 있어 🟡 노랑입니다.',
+        seat: '합짐2',
     },
     {
         no: 11, title: '⑪ 합짐2 KEEP + 전화', grabbed: 3, visited: 0, phase: '정차', priorityLocked: true,
@@ -142,3 +151,78 @@ export const SCENARIO: ScenarioStep[] = [
         what: '⑤구로동 · ⑥방화동까지 마치고 한 사이클이 끝났습니다.',
     },
 ];
+
+/* ═════════════════════════════════════════════
+   🪧 심사석에 올라가는 콜 — **실물 컴포넌트에 그대로 먹인다**
+
+   기사님(2026-09-05): *"첫심사에 심사 목업 ui가 있으면 좋겠고, 첫짐킵을 추가해주면
+   좋겠어, 합짐킵도 있고 주행중 합짐킵도 만들어줘."*
+
+   🔴 **목업용 심사석을 따로 그리지 않는다** — 지도와 같은 원칙이다 (규칙 ③).
+      실물 `JudgmentSeat` 에 자료만 먹인다. 그래야 목업에서 정한 것이 실물과 안 갈라진다.
+   🔴 **판정색·점수는 시늉이다** — 실제 판정은 서버가 낸다.
+      주소·요금·거리는 09-03 실측 그대로다 (`local.db` 의 그 콜들).
+   ═════════════════════════════════════════════ */
+
+/** 심사석이 읽는 것만 담는다 — 콜 전체를 흉내 내지 않는다 */
+export type SeatCall = {
+    id: string;
+    type: string;
+    status: string;
+    pickup: string;
+    dropoff: string;
+    fare: number;
+    distanceKm: number;
+    kakaoTimeExt: string;
+    capturedDeviceId: string;
+    capturedAt: string;
+    judgment: {
+        color: '꿀' | '보통' | '똥' | '사고';
+        score: number | null;
+        axes: Array<{ key: string; name: string; score: number | null; weight: number; raw: string; value?: number }>;
+        gates: Array<{ key: string; name: string; pass: boolean; why: string | null }>;
+        tags: string[];
+    };
+    approvalReasons: string[];
+    rejectionReasons: string[];
+};
+
+const seat = (
+    id: string, pickup: string, dropoff: string, fare: number, km: number, min: number,
+    color: SeatCall['judgment']['color'], score: number, hourly: number,
+    good: string[], bad: string[],
+): SeatCall => ({
+    id, type: 'AUTO', status: 'PENDING_EVALUATION',
+    pickup, dropoff, fare, distanceKm: km,
+    kakaoTimeExt: `추천거리 ${km}km, 소요 ${min}분`,
+    capturedDeviceId: 'mock', capturedAt: '2026-09-03T13:50:11.000Z',
+    judgment: {
+        color, score,
+        axes: [{ key: 'money', name: '시급', score, weight: 1, raw: `${hourly.toFixed(1)}만/h`, value: hourly }],
+        gates: bad.length
+            ? bad.map((why, i) => ({ key: `g${i}`, name: why, pass: false, why }))
+            : [{ key: 'ok', name: '걸리는 것 없음', pass: true, why: null }],
+        tags: [],
+    },
+    approvalReasons: good, rejectionReasons: bad,
+});
+
+/** 🪧 심사석에 오르는 넷 — 시나리오 ② ③ ⑦ ⑩ 에서 쓴다 */
+export const SEAT_CALLS: Record<'첫콜' | '첫콜_경로변경' | '합짐1' | '합짐2', SeatCall> = {
+    첫콜: seat('s-first', '경기 성남시 중원구 여수동 성남시 택시쉼터',
+        '서울 금천구 가산동 서서울도시고속도로 서부간선영업소',
+        45000, 29.3, 55, '꿀', 91, 4.9,
+        ['가는 길에 있음', '상차버퍼 넉넉'], []),
+    첫콜_경로변경: seat('s-first', '경기 성남시 중원구 여수동 성남시 택시쉼터',
+        '서울 금천구 가산동 서서울도시고속도로 서부간선영업소',
+        45000, 33.1, 48, '보통', 62, 3.7,
+        ['시간은 7분 빠름'], ['3.8km 멀어짐 — km당 단가가 내려감']),
+    합짐1: seat('s-merge1', '경기 안양시 만안구 석수동 안양석유주유소',
+        '서울 구로구 구로동 경인로53길 111 진일텍푸라',
+        35000, 19.0, 34, '보통', 58, 3.2,
+        ['우회 8분'], []),
+    합짐2: seat('s-merge2', '경기 광주시 초월읍 스타벅스 경기광주초월역DT점',
+        '서울 강서구 방화동 양천로 35 강서개화장례식장',
+        90000, 52.8, 79, '똥', 41, 2.6,
+        ['금액이 큼 9.0만'], ['앞에 끼어 뒤가 34분 밀림', '데드라인 150% 안에는 들어옴']),
+};
