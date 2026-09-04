@@ -6,7 +6,7 @@ import PinnedRouteCanvas from '../components/dashboard/PinnedRouteCanvas';
 import StageSheet, { aboveSheet, type SheetSnap } from '../components/stage/StageSheet';
 import NaviQr, { naviQrText, type QrKind } from '../components/dashboard/NaviQr';
 import { sheetStatus } from '../lib/sheetStatus';
-import { MOCK_PLANS, splitStops, myLocationAt, routeHolderOf, type Call } from './mockPlans';
+import { MOCK_PLANS, splitStops, myLocationAt, routeHolderOf, reaskedPlan, reaskCost, type Call } from './mockPlans';
 
 /**
  * 🪗 **시트 아코디언 목업 — 앱 안에서, 앱의 재료로** (기사님 요청 2026-09-04)
@@ -26,8 +26,13 @@ import { MOCK_PLANS, splitStops, myLocationAt, routeHolderOf, type Call } from '
  *    **두 테마가 저절로 갈린다** — 오른쪽 위 버튼으로 그 자리에서 확인한다.
  * 🟢 그리고 확정되면 이식이 **번역이 아니라 옮기기**가 된다 — 같은 클래스, 같은 토큰.
  *
- * ⚠️ **기능은 없다.** 값은 전부 2026-09-03 실주행 캡처의 고정값이고, 서버·소켓·GPS 를
- *    쓰지 않는다. 디자인만 보는 자리다.
+ * ⚠️ **기능은 없다.** 서버·소켓·GPS 를 쓰지 않는다. 디자인만 보는 자리다.
+ *
+ * ── 이 판이 참이라고 보는 전제 ──
+ * 🔴 **원천은 [docs/지금/전제_점검표.md] 다.** 조작판 맨 아래에 **화면에도 적어 두었다** —
+ *    문서에만 적으면 목업을 보는 자리에서는 안 읽힌다. 이 목업이 오래 **3콜에 박혀 있던 것**도
+ *    전제가 어디에도 안 적혀 있었기 때문이다 (점검표 5부 · 기사님 2026-09-04).
+ *    전제가 틀린 것이 보이면 **점검표가 먼저 고쳐지고** 그다음에 이 화면이 고쳐진다.
  */
 
 /* ═════════════════════════════════════════════
@@ -506,7 +511,14 @@ export default function SheetMockup() {
      * 판을 갈아 끼워야 보인다.**
      */
     const [planSize, setPlanSize] = useState<3 | 4 | 5>(3);
-    const plan = MOCK_PLANS[planSize];
+    /**
+     * ⟳ **다시 물었나** — 눌렀을 때 «순서가 춤추는 것»을 보여 주기 위한 것이다
+     * (전제 점검표 3부 Q8). 전에는 분만 늘어서 **좋아지는 것처럼만** 보였다.
+     */
+    const [reasked, setReasked] = useState(false);
+    const basePlan = MOCK_PLANS[planSize];
+    const plan = reasked ? reaskedPlan(basePlan) : basePlan;
+    const cost = reaskCost(basePlan);
     const CALLS = plan.callList;
     /** 🎛️ 어디까지 다녀왔나 — 구간(다녀온 마지막 → 다음)을 바꿔 가며 본다 */
     const [visitedCount, setVisitedCount] = useState(1);
@@ -570,7 +582,6 @@ export default function SheetMockup() {
      *    지금은 **하차 완료 때만** 갱신되어 09-03 실측 **최대 67분** 안 바뀌었다.
      * ⚠️ 목업이라 진짜로 안 부른다 — **무엇이 달라 보이는지**만 보여 준다.
      */
-    const [routeAge, setRouteAge] = useState(31);     // 지금 화면이 말하는 여수동까지 분
     /** 🔴 키는 `.env` 에서 온다 — 코드에 안 적는다. 없으면 카카오맵 QR 로 떨어진다 */
     const NAVI_KEY = import.meta.env.VITE_KAKAO_JS_KEY as string | undefined;
     /**
@@ -613,13 +624,12 @@ export default function SheetMockup() {
             stop: nextStop.type as '상차' | '하차',
         } : null,
         /**
-         * ⏱️ 목업에서는 「⟳ 경로」를 누르면 이 값이 움직인다 — **살아 있는 값의 모습**이다.
+         * ⏱️ **판이 준 구간 분** — 카카오 `sections[i].duration` 실측이다.
+         *    「⟳ 경로」를 누르면 순서가 바뀌면서 이 값도 **통째로 갈린다** (지어낸 증감이 아니다).
          * 🔴 실물에서는 GPS 마다 «선 위 남은 거리»를 다시 재서 줄어든다 (경로.md §5-3).
          *    지금 상태바는 «카카오에 물어본 그 순간부터의 누적»이라 30분을 달려도 안 변한다.
          */
-        driveMinutes: nextStop
-            ? (nextStop.no === 2 ? routeAge : plan.legMinutes[nextStop.no!] ?? null)
-            : null,
+        driveMinutes: nextStop ? (plan.legMinutes[nextStop.no!] ?? null) : null,
     });
     const visitedNos = new Set(visited.map(v => v.no));
     const [log, setLog] = useState('헤더를 누르거나 아래 «운행 이벤트»를 눌러 보세요.');
@@ -671,13 +681,41 @@ export default function SheetMockup() {
                               *    이건 «카카오에 다시 물어 경로를 받는다». 그래서 **글씨로 적는다.**
                               */}
                             <button type="button"
-                                onClick={() => { const n = routeAge + 3; setRouteAge(n);
-                                    setLog(`⟳ 경로를 다시 받았습니다 — 여수동 ${routeAge}분 → ${n}분. 지도 선·남은 분·필터 경유 지역이 함께 바뀝니다.`); }}
+                                onClick={() => {
+                                    const on = !reasked; setReasked(on); setOpenIdx(-1); setQrPeek(0);
+                                    setLog(on
+                                        ? `⟳ 다시 물었습니다 — 정거장 순서가 «${reaskedPlan(basePlan).stops.map(st => st.name).join(' → ')}» 로 바뀌었습니다. `
+                                          + `${cost.asIs} → ${cost.reasked} (${cost.km >= 0 ? '+' : ''}${cost.km}km / ${cost.min >= 0 ? '+' : ''}${cost.min}분). `
+                                          + `지도 선·번호·콜 목록이 **함께** 바뀝니다 — 합짐 뒤라면 화주와 한 약속이 흔들립니다.`
+                                        : '⟳ 원래 순서로 되돌렸습니다.'); }}
                                 className="absolute top-[118px] right-3 z-10 flex items-center gap-1 rounded-md
                                            bg-surface-alt/80 hover:bg-surface-hover border border-border backdrop-blur-sm
                                            px-2 h-8 text-[11px] font-black text-text-primary opacity-80 hover:opacity-100 transition-all">
-                                ⟳ 경로
+                                {reasked ? '⟲ 되돌리기' : '⟳ 경로'}
                             </button>
+
+                            {/**
+                              * 🔴 **다시 물으면 무엇이 달라지는지 그 자리에서 말한다.**
+                              *    Q8 은 «자동으로 다시 부를 것인가»인데, 그 답은 **얼마나
+                              *    나빠지는지를 보고** 나오는 것이다 (전제 점검표 3부 Q8).
+                              */}
+                            {reasked && (
+                                <div className={`absolute top-[154px] right-3 z-10 max-w-[228px] rounded-lg px-2.5 py-2
+                                                 border backdrop-blur-sm text-[11px] font-bold leading-snug ${
+                                    cost.km > 5 ? 'bg-danger/20 border-danger/50 text-danger'
+                                                : 'bg-surface-alt/85 border-border text-text-primary'}`}>
+                                    <b className="text-[12px]">순서가 바뀌었습니다</b><br />
+                                    <span className="tabular-nums opacity-80">{cost.asIs} → {cost.reasked}</span><br />
+                                    <span className="tabular-nums font-black">
+                                        {cost.km >= 0 ? '+' : ''}{cost.km}km · {cost.min >= 0 ? '+' : ''}{cost.min}분
+                                    </span>
+                                    <span className="block mt-1 font-semibold opacity-75">
+                                        {cost.km > 5
+                                            ? '합짐 뒤라면 화주와 한 약속이 흔들립니다'
+                                            : '이 판에서는 손해가 작습니다 — 판마다 다릅니다'}
+                                    </span>
+                                </div>
+                            )}
 
                             {/* ⓐ **덮개** — 누르면 화면을 덮고 크게 */}
                             {qrStyle === 'sheet' && qrReady && (
@@ -865,7 +903,7 @@ export default function SheetMockup() {
                 <div className="flex gap-1.5 flex-wrap">
                     {([3, 4, 5] as const).map(n => (
                         <button key={n} type="button"
-                            onClick={() => { setPlanSize(n); setVisitedCount(1); setOpenIdx(-1); setQrPeek(0); setSnap('half');
+                            onClick={() => { setPlanSize(n); setVisitedCount(1); setOpenIdx(-1); setQrPeek(0); setReasked(false); setSnap('half');
                                 setLog(`${n}콜 판 — 정거장 ${MOCK_PLANS[n].stops.length}개 · ${MOCK_PLANS[n].totalKm}km / ${MOCK_PLANS[n].totalMin}분. ${MOCK_PLANS[n].source}`); }}
                             className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${planSize === n
                                 ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-surface text-text-primary hover:border-info'}`}>
@@ -919,6 +957,56 @@ export default function SheetMockup() {
                     고른 구간까지 다녀온 것으로 칩니다 — 지도 왼쪽 위 <b className="text-text-primary">「현구간」</b> 버튼을 누르면
                     그 구간에 맞춰집니다. <b className="text-text-primary">4~5 가산동</b>은 거의 수직인 구간이라
                     «짧은 축이 화면을 줄이지 않는가»를 보기 좋습니다.
+                </p>
+
+                {/* ⟳ **Q8 을 판단하실 재료** — 전제 점검표 3부 (2026-09-04) */}
+                <h2 className="mt-6 text-[12.5px] font-black tracking-wide text-info mb-2">⟳ 다시 물으면 어떻게 되나 <span className="text-text-muted font-bold">(Q8)</span></h2>
+                <button type="button"
+                    onClick={() => { setReasked(r => !r); setOpenIdx(-1); setQrPeek(0); setSnap('half');
+                        setLog(reasked ? '⟲ 원래 순서로 되돌렸습니다.'
+                            : `⟳ ${planSize}콜 판을 다시 물었습니다 — ${cost.asIs} → ${cost.reasked}. 지도의 번호와 콜 목록이 함께 바뀝니다.`); }}
+                    className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${reasked
+                        ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-surface text-text-primary hover:border-info'}`}>
+                    {reasked ? '⟲ 원래 순서로' : '⟳ 다시 물어 보기'}
+                </button>
+                <p className="mt-2 text-[12px] leading-relaxed text-text-muted">
+                    🔴 <b className="text-text-primary">전에는 이 버튼이 분만 늘렸습니다</b> — 좋아지는 것처럼만 보였습니다.
+                    진짜 위험은 <b className="text-text-primary">정거장 순서가 뒤바뀌는 것</b>입니다
+                    (09-01 한 판에 9번 · 09-03 +15km·+52분).
+                    <br />아래는 <b className="text-text-primary">2026-09-04 에 카카오에 실제로 물은 값</b>입니다 —
+                    같은 시각에 두 순서를 물어 비교했습니다.
+                </p>
+                <div className="mt-2 rounded-[9px] border border-border-card overflow-hidden">
+                    <table className="w-full text-[12px] tabular-nums">
+                        <thead className="bg-surface-alt/60 text-text-muted">
+                            <tr><th className="text-left font-black px-2 py-1.5">판</th>
+                                <th className="text-right font-black px-2">지금 순서</th>
+                                <th className="text-right font-black px-2">다시 물으면</th>
+                                <th className="text-right font-black px-2 pr-2.5">차이</th></tr>
+                        </thead>
+                        <tbody>
+                            {([3, 4, 5] as const).map(n => {
+                                const c = reaskCost(MOCK_PLANS[n]);
+                                return (
+                                    <tr key={n} className={`border-t border-border-card ${planSize === n ? 'bg-info/8' : ''}`}>
+                                        <td className="px-2 py-1.5 font-black text-text-primary">{n}콜</td>
+                                        <td className="px-2 text-right text-text-muted">{c.asIs}</td>
+                                        <td className="px-2 text-right text-text-muted">{c.reasked}</td>
+                                        <td className={`px-2 pr-2.5 text-right font-black ${c.km > 5 ? 'text-danger' : 'text-text-primary'}`}>
+                                            {c.km >= 0 ? '+' : ''}{c.km}km · {c.min >= 0 ? '+' : ''}{c.min}분
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+                <p className="mt-2 text-[12px] leading-relaxed text-text-muted">
+                    🔴 <b className="text-text-primary">실측이 제 예상을 깼습니다</b> — 순서가 흔들리면 늘 나빠지는 줄 알았는데
+                    <b className="text-text-primary"> 4콜 판에서는 2분이 줄었습니다</b>. 크게 나빠지는 것은 3콜 판(+15.6km)입니다.
+                    <br />👉 그래서 Q8 의 답은 «재호출은 늘 위험하다»가 아니라
+                    <b className="text-text-primary"> «얼마나 나빠지는지는 판마다 다르다»</b> 입니다.
+                    <b className="text-text-primary"> 결론은 기사님이 내십니다.</b>
                 </p>
 
                 <h2 className="mt-6 text-[12.5px] font-black tracking-wide text-info mb-2">🌈 콜 색표 — 예전 색과 비교</h2>
@@ -1014,6 +1102,52 @@ export default function SheetMockup() {
                     ))}
                 </div>
                 <p className="mt-2.5 pt-2.5 border-t border-border-card text-[12px] leading-relaxed text-text-muted tabular-nums">{log}</p>
+
+                {/**
+                  * 🔴 **판을 시작할 때 전제를 적고 번호를 가리킨다** (전제 점검표 5부 · 2026-09-04).
+                  *    기사님: *"값어치는 «지금 맞추는 것»이 아니라 «다음에 내가 틀린 전제로
+                  *    판을 짜기 전에 여기서 걸리는 것»이다."*
+                  * 🔴 **화면에 적는 이유** — 문서에만 적으면 목업을 보는 자리에서는 안 읽힌다.
+                  *    이 목업이 3콜에 박혀 있던 것도 «전제가 어디에도 안 적혀» 있었기 때문이다.
+                  */}
+                <h2 className="mt-7 pt-5 border-t border-border-card text-[12.5px] font-black tracking-wide text-info mb-1">
+                    이 목업이 참이라고 보는 전제
+                </h2>
+                <p className="text-[11.5px] text-text-muted mb-2.5">
+                    원천은 <b className="text-text-primary">docs/지금/전제_점검표.md</b> 입니다.
+                    틀린 것이 보이면 <b className="text-text-primary">여기가 먼저 고쳐지고</b> 그다음에 화면이 고쳐집니다.
+                </p>
+                <ul className="space-y-1 text-[12px] leading-relaxed">
+                    {[
+                        ['✅', '3콜은 상한이 아니다 — 시간·공간이 되면 더 잡는다', '1부 ① · #4', '판 셋(3·4·5콜)이 여기서 나왔다'],
+                        ['✅', '어떤 콜이건 판정색은 낸다 (30초 자동 판결만 직접콜에 안 건다)', '1부 ③ · #11', '카드마다 색이 있다'],
+                        ['✅', '모르는 값은 일반값으로 계산하고 «미확인»으로 표시한다', 'CLAUDE.md ⑤-2', '얹은 두 콜의 「🧪 시늉」 배지'],
+                        ['✅', '운전 중에는 입력을 못 한다 — 먼발치 1~2초에 읽혀야 한다', '#31', '시트 상태바 한 줄 · 색만 보고 누른다'],
+                        ['✅', '폰 셋 — 개인폰(내비) · 관제폰(관제앱) · 스캔폰(원달앱)', '#35', 'QR 은 관제폰이 띄우고 개인폰이 찍는다'],
+                        ['✅', '경유지가 먹혔는지는 「물방울」로 판정한다', '경로.md §4-1', '목록에 이름만 남으면 안 들른다'],
+                        ['⏳', 'Q8 — 벗어나면 카카오에 다시 물을 것인가', '3부 · 미결', '⟳ 버튼이 그 대가를 실측으로 보여 준다'],
+                        ['⏳', '카카오내비가 주행 중에 경유지 순서를 지키는가', '경로.md §4-1 ②③', '주행에서만 보인다 — 안 되면 「한 곳씩」으로 되돌린다'],
+                        ['🔴', '6콜은 «목표»지 «구조»가 아니다', '#5', '시스템이 6콜을 채우도록 밀어붙이지 않는다'],
+                    ].map(([mark, what, ref, how]) => (
+                        <li key={what} className="flex gap-1.5">
+                            <span className="shrink-0">{mark}</span>
+                            <span className="min-w-0">
+                                <b className="text-text-primary">{what}</b>
+                                <span className="text-text-muted"> — {how}</span>
+                                <span className="ml-1 text-[11px] text-info/80 font-bold">［{ref}］</span>
+                            </span>
+                        </li>
+                    ))}
+                </ul>
+
+                <h2 className="mt-6 text-[12.5px] font-black tracking-wide text-warning mb-2">이 목업이 아직 못 보여 주는 것</h2>
+                <ul className="pl-5 list-disc text-[12px] leading-relaxed text-text-muted">
+                    <li><b className="text-text-primary">시스템이 뒤채우는 모습</b> — 안 눌러도 상차지통화·도착이 순차 완료되는 것
+                        (전제 점검표 #8). 지금은 단계 점이 고정값이다</li>
+                    <li><b className="text-text-primary">4·5콜 판의 궤적</b> — 그 판으로 달린 적이 없다. 없는 것을 그리지 않는다</li>
+                    <li><b className="text-text-primary">판정 점수</b> — 얹은 두 콜은 «보통 —» 이다. 판정은 서버가 내는 것이라 목업이 지어내지 않는다</li>
+                    <li><b className="text-text-primary">살아 있는 남은 분</b> — 지금 값은 카카오에 물은 순간의 것이다 (경로.md §5-3 「뺄셈」이 그 판)</li>
+                </ul>
 
                 <h2 className="mt-6 text-[12.5px] font-black tracking-wide text-info mb-2">이 목업이 원본과 다른 점</h2>
                 <ul className="pl-5 list-disc text-[12.5px] leading-relaxed text-text-muted">

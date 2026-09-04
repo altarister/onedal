@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { MOCK_PLANS, splitStops, myLocationAt, routeHolderOf, HOME } from './mockPlans';
+import { MOCK_PLANS, splitStops, myLocationAt, routeHolderOf, reaskedPlan, reaskCost, HOME } from './mockPlans';
 
 /**
  * 🧪 **목업의 판 셋이 스스로 어긋나지 않는가**
@@ -135,5 +135,67 @@ describe('경로를 든 콜 — 판의 값을 그대로 싣는다', () => {
         expect(holder.totalDistanceKm).toBe(plan.totalKm);
         expect(holder.totalDurationMin).toBe(plan.totalMin);
         expect(plan.polyline.length).toBeGreaterThan(100);
+    });
+});
+
+describe('⟳ 다시 물은 순서 — 무엇이 갈리고 무엇이 안 갈리나 (Q8)', () => {
+    it.each(PLANS)('%i콜 판 — 다시 물어도 정거장 수·콜 수는 그대로다', (n) => {
+        const base = MOCK_PLANS[n];
+        const re = reaskedPlan(base);
+        expect(re.stops).toHaveLength(base.stops.length);
+        expect(re.callList).toHaveLength(base.callList.length);
+        expect(re.calls).toBe(n);
+    });
+
+    /** 🔴 순서가 흔들려도 **상차 없이 하차하는 판**이 나오면 안 된다 */
+    it.each(PLANS)('%i콜 판 — 다시 물은 순서도 상차가 하차보다 먼저다', (n) => {
+        const re = reaskedPlan(MOCK_PLANS[n]);
+        for (const call of re.callList) {
+            const [pickupNo, dropoffNo] = call.nodes;
+            expect(pickupNo, `${call.no}번 콜`).toBeLessThan(dropoffNo);
+            expect(re.stops[pickupNo - 1].type).toBe('상차');
+            expect(re.stops[dropoffNo - 1].type).toBe('하차');
+        }
+    });
+
+    /**
+     * 🔴 **이 검사가 잡는 것** — 순서가 바뀌면 정거장 번호가 밀린다.
+     *    콜의 번호를 함께 다시 파생시키지 않으면 지도의 ⑤ 와 목록의 ⑤ 가 **다른 곳**을 말한다.
+     */
+    it.each(PLANS)('%i콜 판 — 다시 물으면 콜이 가리키는 번호도 함께 바뀐다', (n) => {
+        const re = reaskedPlan(MOCK_PLANS[n]);
+        for (const stop of re.stops) {
+            expect(re.callList[stop.callNo! - 1].nodes).toContain(stop.no);
+        }
+    });
+
+    it.each(PLANS)('%i콜 판 — 순서가 실제로 달라진다 (안 바뀌면 보여 줄 것이 없다)', (n) => {
+        const base = MOCK_PLANS[n];
+        const re = reaskedPlan(base);
+        expect(re.stops.map(s => s.name)).not.toEqual(base.stops.map(s => s.name));
+        // 같은 곳들을 다른 차례로 도는 것이다 — 정거장이 사라지거나 생기지 않는다
+        expect([...re.stops.map(s => s.name)].sort()).toEqual([...base.stops.map(s => s.name)].sort());
+    });
+
+    /**
+     * 🔴 **비교는 같은 시각에 물은 두 순서끼리 한다** — 09-03 값(68.0km/106분)과
+     *    09-04 값을 견주면 «순서 때문»인지 «시각 때문»인지가 섞인다.
+     */
+    it.each(PLANS)('%i콜 판 — 차이는 같은 시각에 물은 두 순서에서 나온다', (n) => {
+        const c = reaskCost(MOCK_PLANS[n]);
+        const [reKm, reMin] = [parseFloat(c.reasked), parseInt(c.reasked.split('/ ')[1])];
+        const [asKm, asMin] = [parseFloat(c.asIs), parseInt(c.asIs.split('/ ')[1])];
+        expect(c.km).toBeCloseTo(reKm - asKm, 1);
+        expect(c.min).toBe(reMin - asMin);
+    });
+
+    /**
+     * 🔴 **실측이 예상을 깼다** — 순서가 흔들리면 늘 나빠지는 줄 알았는데
+     *    4콜 판에서는 2분이 줄었다. 이 검사는 그 사실을 **화면이 계속 말하도록** 잠근다:
+     *    누군가 «항상 나빠진다»는 문구를 넣으면 여기서 깨진다.
+     */
+    it('나빠지는 정도는 판마다 다르다 — 4콜 판은 시간이 줄어든다', () => {
+        expect(reaskCost(MOCK_PLANS[3]).km).toBeGreaterThan(5);
+        expect(reaskCost(MOCK_PLANS[4]).min).toBeLessThan(0);
     });
 });
