@@ -191,6 +191,12 @@ export function pinchStep(
 export const TILE_CLEAR_FROM = 2;   // 여기서부터 풀리기 시작한다
 export const TILE_CLEAR_TO = 4;     // 여기서 원본 그대로
 
+/**
+ * 🔴 **여기 들어오는 `zoom` 은 «손으로 더한 배율»이 아니라 «실제 배율»이다** (2026-09-04 정정).
+ *    「현위치」로 크게 당겨 놓아도 `zoomRef` 는 1 이라, 손 배율만 보면 **딤이 안 걷혔다.**
+ *    그래서 `effectiveZoom(viewport, baseWorldSize)` 로 **화면에 실제로 얼마나 크게
+ *    그려지는가**를 재서 넘긴다 — 어느 길로 확대했든 답이 같아진다 (규칙 ③).
+ */
 export function mapTileTone(zoom: number, dim: number): { alpha: number; filter: string | null } {
     const span = TILE_CLEAR_TO - TILE_CLEAR_FROM;
     const t = Math.max(0, Math.min(1, (zoom - TILE_CLEAR_FROM) / span));   // 0 = 평소 · 1 = 원본
@@ -248,16 +254,36 @@ export function routeLineWidth(zoom: number): number {
  */
 export type MapViewMode = 'all' | 'leg' | 'follow';
 
-/** `follow` 에서 현위치 둘레로 잡는 반경 (km) — 내비 느낌의 배율 */
-export const FOLLOW_RADIUS_KM = 1.5;
+/**
+ * `follow` 에서 현위치 둘레로 잡는 반경 (km).
+ * 🔴 «주변을 살펴보려는 의도»라 **골목 이름이 읽히는 배율**이어야 한다
+ *    (기사님 2026-09-04: *"지도가 잘 보이는 구간까지 줌이 더 되어야 할 것 같아"*).
+ *    처음 1.5km 는 동네가 통째로 들어와 «살펴보기»가 안 됐다.
+ */
+export const FOLLOW_RADIUS_KM = 0.6;
 
 export function viewCoordsFor(
     mode: MapViewMode,
     allCoords: Array<{ x: number; y: number }>,
     myLocation: { x: number; y: number } | null,
     nextStop: { x: number; y: number } | null,
+    /** 👣 직전에 다녀온 정거장 — 구간의 **시작점**이다 (없으면 현위치가 시작점) */
+    prevStop?: { x: number; y: number } | null,
 ): Array<{ x: number; y: number }> {
-    if (mode === 'leg' && myLocation && nextStop) return [myLocation, nextStop];
+    if (mode === 'leg' && nextStop) {
+        /**
+         * 🔴 **구간은 «직전 정거장 → 다음 정거장»이다** (기사님 2026-09-04:
+         *    *"구간은 지금 진행하고 있는 구간이 다 보여야 해"*).
+         *    처음엔 «현위치 → 다음 정거장»으로 잡았는데 — 그러면 달릴수록 둘이 가까워져
+         *    **화면이 계속 확대된다.** 구간은 달리는 동안 **가만히 있어야** 한다.
+         * 🔴 현위치도 함께 넣는다 — 길을 벗어났을 때 내가 화면 밖으로 나가면 안 된다.
+         * 🟢 배율은 «고정»이 아니라 **구간 길이에서 나온다** — 멀면 축소, 짧으면 확대.
+         *    `computeViewport` 가 주어진 좌표를 화면에 맞추므로 저절로 그렇게 된다.
+         */
+        const leg = [prevStop ?? myLocation, nextStop, myLocation]
+            .filter(Boolean) as Array<{ x: number; y: number }>;
+        if (leg.length >= 2) return leg;
+    }
     if (mode === 'follow' && myLocation) {
         // 위도 1° ≈ 111km · 경도는 위도에 따라 좁아진다
         const dy = FOLLOW_RADIUS_KM / 111;
@@ -274,4 +300,15 @@ export function viewCoordsFor(
 export const MAP_VIEW_ORDER: MapViewMode[] = ['all', 'leg', 'follow'];
 export function nextViewMode(m: MapViewMode): MapViewMode {
     return MAP_VIEW_ORDER[(MAP_VIEW_ORDER.indexOf(m) + 1) % MAP_VIEW_ORDER.length];
+}
+
+/**
+ * 🔭 **실제 배율** — 지금 뷰포트가 «전체 보기»보다 몇 배 크게 그리고 있나.
+ *
+ * 손으로 확대하든(`zoomRef`), 「구간」·「현위치」로 맞춰 확대되든 **답이 하나여야 한다.**
+ * 그래야 «확대하면 지도가 제 색을 되찾는다»가 어느 길로 확대했든 똑같이 작동한다.
+ */
+export function effectiveZoom(worldSize: number, baseWorldSize: number): number {
+    if (!(baseWorldSize > 0)) return 1;
+    return worldSize / baseWorldSize;
 }

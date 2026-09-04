@@ -7,7 +7,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { MAP_THEME_COLORS, withAlpha } from '../../styles/themes';
 import { callNodeFill, callNodeStroke, callNodeText } from '../../styles/callPalette';
 import {
-    TILE_SIZE, TILE_MAX_ZOOM, anchorBaseOf, computeViewport, toScreenPoint, panAfterZoom, pinchStep, mapTileTone, routeLineWidth, viewCoordsFor, nextViewMode, type MapViewMode,
+    TILE_SIZE, TILE_MAX_ZOOM, anchorBaseOf, computeViewport, toScreenPoint, panAfterZoom, pinchStep, mapTileTone, routeLineWidth, viewCoordsFor, nextViewMode, effectiveZoom, type MapViewMode,
     type Viewport } from '../../lib/mapProjection';
 import { sheetOccludedPx, type SheetSnap } from '../stage/StageSheet';
 
@@ -233,8 +233,17 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         // 🔭 시점(視點)은 한 곳에서 — 제스처도 같은 `anchorBaseOf` 를 본다 (규칙 ③)
         /* 🔭 무엇에 맞출지만 고른다 — 뷰포트 기계는 그대로다 (규칙 ③) */
         const nextStop = validPoints[0] ?? null;
-        const fitCoords = viewCoordsFor(viewMode, allCoords, myLocation ?? null, nextStop);
+        /* 👣 구간의 시작점 = 직전에 다녀온 정거장. 없으면(첫 구간) 현위치가 시작점이다 */
+        const prevStop = trail.length > 0 ? trail[trail.length - 1] : null;
+        const fitCoords = viewCoordsFor(viewMode, allCoords, myLocation ?? null, nextStop, prevStop);
         const viewport = computeViewport(fitCoords, width, height, zoomRef.current, panRef.current, occludedNow.current);
+        /**
+         * 🔭 **실제 배율** — 손으로 확대했든 「구간」·「현위치」로 맞춰 확대됐든 하나의 답.
+         * 「전체 보기 · 손 안 댐」을 1 로 삼고 지금이 몇 배인지 잰다.
+         * 딤이 걷히는 규칙(`mapTileTone`)이 이 값을 본다 — 어느 길로 확대했든 같아야 한다.
+         */
+        const baseViewport = computeViewport(allCoords, width, height, 1, { x: 0, y: 0 }, occludedNow.current);
+        const shownZoom = effectiveZoom(viewport.worldSize, baseViewport.worldSize);
         const getScreenPt = (p: { x: number, y: number }) => toScreenPoint(p, viewport);
 
         // 0. 🗺️ 배경 — 타일이 왔으면 타일, 아직 없으면 시·도 외곽선 (터널·음영에서도 빈 화면이 안 된다)
@@ -244,7 +253,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             /* 🎨 회색조·연하게 — 배경이 시끄러우면 색이 안 읽힌다 (규칙 ⑤-3).
                🔍 다만 **확대하면 서서히 제 색을 되찾는다** — 확대는 «지도를 보겠다»는
                   손짓이다 (기사님 2026-09-04 · `mapTileTone`). */
-            const tone = mapTileTone(zoomRef.current, theme === 'dark' ? 0.5 : 0.75);
+            const tone = mapTileTone(shownZoom, theme === 'dark' ? 0.5 : 0.75);
             if (supportsCanvasFilter(ctx) && tone.filter) ctx.filter = tone.filter;
             ctx.globalAlpha = tone.alpha;
             readyTiles.forEach(t => ctx.drawImage(t.img, t.cx, t.cy, t.size + 1, t.size + 1));
@@ -413,7 +422,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             if (pts.length < 2) return;
             ctx.save();
             ctx.beginPath();
-            ctx.lineWidth = routeLineWidth(zoomRef.current) * widthScale;
+            ctx.lineWidth = routeLineWidth(shownZoom) * widthScale;
             ctx.lineJoin = 'round';
             ctx.lineCap = 'round';
             if (dash) ctx.setLineDash(dash);

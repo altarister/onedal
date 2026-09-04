@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-    projectMercator, anchorBaseOf, computeViewport, toScreenPoint, panAfterZoom, pinchStep, mapTileTone, TILE_CLEAR_FROM, TILE_CLEAR_TO, routeLineWidth, viewCoordsFor, nextViewMode, FOLLOW_RADIUS_KM,
+    projectMercator, anchorBaseOf, computeViewport, toScreenPoint, panAfterZoom, pinchStep, mapTileTone, TILE_CLEAR_FROM, TILE_CLEAR_TO, routeLineWidth, viewCoordsFor, nextViewMode, FOLLOW_RADIUS_KM, effectiveZoom,
     PADDING_LEFT, PADDING_RIGHT, PADDING_TOP, PADDING_BOTTOM,
     type GeoPoint,
 } from './mapProjection';
@@ -368,8 +368,27 @@ describe('🔭 지도 보기 — 전체 · 이번 구간 · 현위치', () => {
         expect(viewCoordsFor('all', ALL, ME, NEXT)).toEqual(ALL);
     });
 
-    it('이번 구간 — 현위치와 다음 정거장 둘뿐이다', () => {
-        expect(viewCoordsFor('leg', ALL, ME, NEXT)).toEqual([ME, NEXT]);
+    const PREV = { x: 127.298, y: 37.374 };
+
+    it('이번 구간 — **직전 정거장 → 다음 정거장**이 다 보인다 (현위치도 함께)', () => {
+        expect(viewCoordsFor('leg', ALL, ME, NEXT, PREV)).toEqual([PREV, NEXT, ME]);
+    });
+
+    /**
+     * 🔴 처음엔 «현위치 → 다음 정거장»으로 잡았다 — 그러면 달릴수록 둘이 가까워져
+     *    **화면이 계속 확대된다.** 구간은 달리는 동안 가만히 있어야 한다.
+     */
+    it('🔴 달려도 구간이 안 좁아진다 — 시작점이 «직전 정거장»이라 안 움직인다', () => {
+        const start = viewCoordsFor('leg', ALL, ME, NEXT, PREV);
+        const almostThere = viewCoordsFor('leg', ALL, { x: NEXT.x + 0.001, y: NEXT.y }, NEXT, PREV);
+        // 어디까지 갔든 구간의 두 끝은 그대로다
+        expect(almostThere).toContainEqual(PREV);
+        expect(almostThere).toContainEqual(NEXT);
+        expect(start).toContainEqual(PREV);
+    });
+
+    it('직전 정거장이 없으면(첫 구간) 현위치가 시작점이다', () => {
+        expect(viewCoordsFor('leg', ALL, ME, NEXT, null)).toEqual([ME, NEXT, ME]);
     });
 
     it('현위치 — 그 둘레 상자다. 가운데가 현위치다', () => {
@@ -379,13 +398,13 @@ describe('🔭 지도 보기 — 전체 · 이번 구간 · 현위치', () => {
         expect((box[0].y + box[1].y) / 2).toBeCloseTo(ME.y, 9);
     });
 
-    it('현위치 상자는 반경만큼이다 — 위도로 재면 ±1.5km', () => {
+    it('현위치 상자는 반경만큼이다 — 위도로 재면 ±0.6km (골목이 읽히는 배율)', () => {
         const box = viewCoordsFor('follow', ALL, ME, NEXT);
         expect((box[1].y - box[0].y) * 111 / 2).toBeCloseTo(FOLLOW_RADIUS_KM, 3);
     });
 
     it('🔴 재료가 없으면 전체로 떨어진다 — 빈 지도를 보여주지 않는다', () => {
-        expect(viewCoordsFor('leg', ALL, null, NEXT)).toEqual(ALL);
+        expect(viewCoordsFor('leg', ALL, null, null, null)).toEqual(ALL);
         expect(viewCoordsFor('leg', ALL, ME, null)).toEqual(ALL);
         expect(viewCoordsFor('follow', ALL, null, NEXT)).toEqual(ALL);
     });
@@ -394,5 +413,23 @@ describe('🔭 지도 보기 — 전체 · 이번 구간 · 현위치', () => {
         expect(nextViewMode('all')).toBe('leg');
         expect(nextViewMode('leg')).toBe('follow');
         expect(nextViewMode('follow')).toBe('all');
+    });
+});
+
+/**
+ * 🔭 **실제 배율** — 손으로 확대하든 「구간」·「현위치」로 맞춰 확대되든 답이 하나여야 한다.
+ * 그래야 «확대하면 지도가 제 색을 되찾는다»가 어느 길로 확대했든 똑같이 작동한다.
+ */
+describe('🔭 실제 배율', () => {
+    it('전체 보기와 같으면 1 배다', () => {
+        expect(effectiveZoom(1000, 1000)).toBeCloseTo(1, 9);
+    });
+
+    it('맞춤으로 크게 그려지면 그만큼 커진다 — 손을 안 댔어도', () => {
+        expect(effectiveZoom(4000, 1000)).toBeCloseTo(4, 9);
+    });
+
+    it('기준이 없으면 1 로 둔다 — 지어내지 않는다 (규칙 ④)', () => {
+        expect(effectiveZoom(4000, 0)).toBe(1);
     });
 });
