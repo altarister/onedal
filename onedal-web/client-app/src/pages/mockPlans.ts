@@ -761,3 +761,50 @@ export function myLocationAt(plan: MockPlan, visitedCount: number) {
     const last = plan.stops[visitedCount - 1];
     return last ? { x: last.x!, y: last.y! } : HOME;
 }   // 아직 아무 데도 안 갔으면 집이다
+
+/* ═════════════════════════════════════════════
+   🎬 시나리오용 — **콜이 하나씩 붙는 판**
+
+   기사님이 2026-09-05 에 한 사이클을 통째로 적어 주셨다. 그 안에서는 콜이
+   **첫콜 → 합짐1 → 합짐2** 순으로 늘어나고, 그때마다 정거장과 경로가 다시 그려진다.
+
+   🔴 **09-03 실주행 3콜이 정확히 그 모양이다** — 새 주소를 지어낼 일이 없었다:
+
+     출발(집)   합1        1        2        3        4        합2
+              초월읍 → 여수동 → 석수동 → 가산동 → 구로동 → 방화동
+              합짐2상   첫콜상   합짐1상  첫콜하   합짐1하  합짐2하
+
+   그래서 시나리오의 콜 차례는 **callNo [2, 3, 1]** 이다.
+   ═════════════════════════════════════════════ */
+
+/** 🎬 시나리오가 콜을 부르는 차례 — 첫콜 · 합짐1 · 합짐2 */
+export const SCENARIO_CALL_ORDER = [2, 3, 1] as const;
+
+/**
+ * 🎬 **지금까지 잡은 콜만 남긴 판** — 정거장 번호를 처음부터 다시 매긴다.
+ *
+ * 🔴 번호를 다시 매기는 것이 핵심이다. 합짐2가 붙으면 초월읍이 맨 앞(①)으로 들어와
+ *    **뒤의 것이 전부 한 칸씩 밀린다** — 기사님 말씀 그대로다
+ *    (*"1 - 2 - 3 - 4 가 합1 을 수행하는 시간만큼 뒤로 밀려"*).
+ * 🔴 경로선은 **3콜 판의 것을 그대로 쓴다.** 콜이 하나·둘일 때의 선을 카카오에 따로
+ *    물어 두지 않았기 때문이다 — 그렇다고 지어내지는 않는다 (규칙 ④).
+ *    지도의 선은 «세 콜을 다 잡았을 때의 길»이고, **정거장과 번호만 단계를 따른다.**
+ */
+export function scenarioPlan(grabbed: number): MockPlan {
+    const active = SCENARIO_CALL_ORDER.slice(0, Math.max(0, Math.min(3, grabbed)));
+    const stops = PLAN3_STOPS
+        .filter(s => active.includes(s.callNo as (typeof SCENARIO_CALL_ORDER)[number]))
+        .map((s, i) => ({ ...s, no: i + 1 }));
+    const legMinutes: Record<number, number> = {};
+    for (const s of stops) legMinutes[s.no!] = PLAN3_LEG[PLAN3_STOPS.find(o => o.name === s.name)!.no!];
+    return {
+        calls: active.length,
+        stops,
+        legMinutes,
+        polyline: PLAN3_LINE,
+        drivenTrail: PLAN3_TRAIL,
+        totalKm: MOCK_PLANS[3].totalKm, totalMin: MOCK_PLANS[3].totalMin, toll: MOCK_PLANS[3].toll,
+        callList: callsFor(stops),
+        source: `시나리오 — 지금까지 ${active.length}콜을 잡았다 (09-03 실주행 3콜에서 골랐다)`,
+    };
+}

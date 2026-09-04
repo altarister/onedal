@@ -6,7 +6,8 @@ import PinnedRouteCanvas from '../components/dashboard/PinnedRouteCanvas';
 import StageSheet, { aboveSheet, type SheetSnap } from '../components/stage/StageSheet';
 import NaviQr, { naviQrText, type QrKind } from '../components/dashboard/NaviQr';
 import { sheetStatus, sheetStatusLine } from '../lib/sheetStatus';
-import { MOCK_PLANS, splitStops, myLocationAt, routeHolderOf, reaskedPlan, reaskCost, type Call } from './mockPlans';
+import { MOCK_PLANS, scenarioPlan, splitStops, myLocationAt, routeHolderOf, reaskedPlan, reaskCost, type Call } from './mockPlans';
+import { SCENARIO } from './scenario';
 
 /**
  * 🪗 **시트 아코디언 목업 — 앱 안에서, 앱의 재료로** (기사님 요청 2026-09-04)
@@ -510,6 +511,14 @@ export default function SheetMockup() {
      * 콜이 넷이면 정거장 8개, 다섯이면 10개다 — **QR 이 몇 번인지도, 아코디언이 넘치는지도
      * 판을 갈아 끼워야 보인다.**
      */
+    /**
+     * 🎬 **시나리오 단계** — 기사님이 2026-09-05 에 적어 주신 한 사이클 (scenario.ts).
+     *
+     * 🔴 **켜지면 시나리오가 판·국면·QR 을 다 정한다** — 손잡이가 둘이면 갈라진다 (규칙 ③).
+     *    끄면 예전처럼 판(3·4·5콜)을 손으로 고르는 자리로 돌아온다.
+     */
+    const [stepNo, setStepNo] = useState<number | null>(null);
+    const step = stepNo != null ? SCENARIO.find(x => x.no === stepNo) ?? null : null;
     const [planSize, setPlanSize] = useState<3 | 4 | 5>(3);
     /**
      * ⟳ **다시 물었나** — 눌렀을 때 «순서가 춤추는 것»을 보여 주기 위한 것이다
@@ -525,17 +534,17 @@ export default function SheetMockup() {
      *    **아무도 확인한 적이 없다.**
      */
     const [phase, setPhase] = useState<'주행' | '정차'>('정차');
-    const moving = phase === '주행';
+    const moving = step ? step.phase === '주행' : phase === '주행';
     /** 🎬 조작판에서 **마지막으로 누른 장면** — 어느 버튼이 눌려 있나를 보여 준다 */
     const [scene, setScene] = useState<'출발' | '주행' | '접근' | '도착' | '통화' | null>(null);
-    const basePlan = MOCK_PLANS[planSize];
-    const plan = reasked ? reaskedPlan(basePlan) : basePlan;
+    const basePlan = step ? scenarioPlan(step.grabbed) : MOCK_PLANS[planSize];
+    const plan = (reasked && !step) ? reaskedPlan(basePlan) : basePlan;
     const cost = reaskCost(basePlan);
     const CALLS = plan.callList;
     /** 🎛️ 어디까지 다녀왔나 — 구간(다녀온 마지막 → 다음)을 바꿔 가며 본다 */
     const [visitedCount, setVisitedCount] = useState(1);
     /** 🔴 판을 바꾸면 정거장 수가 달라진다 — 넘치는 구간을 붙들고 있으면 «없는 정거장»을 가리킨다 */
-    const safeVisited = Math.min(visitedCount, plan.stops.length - 1);
+    const safeVisited = Math.min(step ? step.visited : visitedCount, Math.max(0, plan.stops.length - 1));
     const { visited, remaining } = splitStops(plan, safeVisited);
     const myLocation = myLocationAt(plan, safeVisited);
     const nextStop = remaining[0];
@@ -550,7 +559,7 @@ export default function SheetMockup() {
      *   ⓑ 늘 띄우기 — 지도 구석에 **작게 항상**. 탭 0번. 대신 작아서 못 읽을 수 있다
      */
     const [qrStyle, setQrStyle] = useState<'sheet' | 'always'>('sheet');
-    const [qrOpen, setQrOpen] = useState(false);
+    const [qrOpenRaw, setQrOpenRaw] = useState(false);
     const [qrKind, setQrKind] = useState<QrKind>('navi');
     /**
      * 🔴 **QR 안에서 정거장을 앞뒤로 넘긴다 — 「보는 것」이지 「찍는 것」이 아니다.**
@@ -607,10 +616,16 @@ export default function SheetMockup() {
      * 🧭 이번에 보낼 정거장들 — `qrPeek` 만큼 밀고 `qrSpan` 만큼 자른다.
      * **마지막이 도착지, 앞의 것들이 경유지**다 (카카오내비 경유지는 최대 3개).
      */
-    const qrSlice = remaining.slice(
-        Math.min(qrPeek, Math.max(0, remaining.length - 1)),
-        Math.min(qrPeek, Math.max(0, remaining.length - 1)) + qrSpan,
-    );
+    /**
+     * 🧭 이번에 보낼 정거장들.
+     * 🔴 시나리오가 켜져 있으면 **시나리오가 정한다** — 손잡이가 둘이면 갈라진다 (규칙 ③).
+     */
+    const qrSlice = step
+        ? (step.qr ?? []).map(nm => plan.stops.find(st => st.name === nm)).filter(Boolean) as typeof plan.stops
+        : remaining.slice(
+            Math.min(qrPeek, Math.max(0, remaining.length - 1)),
+            Math.min(qrPeek, Math.max(0, remaining.length - 1)) + qrSpan,
+        );
     const toNaviStop = (p: typeof plan.stops[number]) =>
         (typeof p?.x === 'number' && typeof p?.y === 'number')
             ? { name: `${p.name} ${p.type}`, x: p.x, y: p.y } : null;
@@ -626,8 +641,12 @@ export default function SheetMockup() {
      *    이제 **남은 정거장에서 세어** 판이 바뀌면 숫자도 따라 바뀐다.
      * 동작 = 관제폰에서 띄우기 N + 개인폰 카메라 N.
      */
-    const qrTrips = Math.max(1, Math.ceil(remaining.length / qrSpan));
+    const tripsFor = (span: number) => Math.max(1, Math.ceil(remaining.length / span));
+    const qrTrips = tripsFor(qrSpan);
     const qrReady = naviQrText(qrArgs) != null;
+    /** 🔴 시나리오가 켜져 있으면 «이 장면에 QR 이 떠 있나»도 시나리오가 정한다 */
+    const qrOpen = step ? (step.qr != null && qrReady) : qrOpenRaw;
+    const setQrOpen = (v: boolean) => { if (!step) setQrOpenRaw(v); };
 
     const bar = sheetStatus({
         moving,   // 🔴 조작판의 국면에서 온다 — 실물은 GPS 가 말한다
@@ -737,9 +756,14 @@ export default function SheetMockup() {
                                                text-[13px] font-black text-white active:scale-95 transition-transform"
                                     /* 🔼 시트 바로 위에 — 높이는 StageSheet 가 원천이다 (규칙 ③) */
                                     style={{ bottom: aboveSheet(snap), background: 'linear-gradient(180deg,#5b8cff,#3f6fe0)', boxShadow: '0 6px 18px rgba(79,141,249,.4)' }}>
-                                    🧭 다음 {qrSlice[0]?.no} {qrSlice[0]?.name}
-                                    {qrVia.length > 0 && <span className="opacity-70"> 외 {qrVia.length}</span>}
-                                    {qrTrips > 1 && <span className="opacity-60"> · 앞으로 {qrTrips}번</span>}
+                                    {/**
+                                      * 🔴 **「출발하기」 한 마디다** (기사님 2026-09-05).
+                                      *    전에는 「다음 2 여수동 외 3 · 앞으로 3번」이었는데,
+                                      *    한 줄에 **서로 다른 3 이 둘** 들어 있어 기사님이
+                                      *    *"어디서든 뒤 3개의 경로를 포함해서…?"* 로 읽으셨다.
+                                      *    담긴 곳은 **덮개를 열면 그 줄이 말한다** — 버튼은 «누르면 뭐가 되나»만 말한다.
+                                      */}
+                                    🧭 출발하기
                                 </button>
                             )}
 
@@ -757,82 +781,64 @@ export default function SheetMockup() {
                                 </button>
                             )}
 
-                            {/* 🔳 **QR 덮개** — 크게. 찍으라고 띄우는 화면이라 다른 건 안 넣는다 */}
+                            {/**
+                              * 🔳 **QR 덮개 — 세 줄이면 끝난다** (기사님 2026-09-05:
+                              *    *"qr레이어가 떠 너무 많은 정보가 있는 거 같아. 그냥
+                              *    「여수동 상차 / 구로동 하차 / 카메라로 찍어 네비를 켜세요」
+                              *    이렇게 나오면 될 듯"*).
+                              *
+                              * 🔴 **여기는 찍으라고 띄우는 화면이다.** 배지·경고·주소 원문·모드
+                              *    토글이 다 얹혀 있었는데, 그건 전부 **읽을 일이 없는 것**이었다.
+                              *    남긴 것은 셋뿐 — **어디를 거쳐 어디로 가나 · QR · 무엇을 하라**.
+                              * 🔴 «몇 곳 담았나»도 뺐다 — **줄 자체가 곧 그 답**이다
+                              *    (「여수동 상차 → 석수동 상차 → 가산동 하차 / 구로동 하차」).
+                              * ⚠️ 목업에서만 쓰는 도구(주소 원문·카카오맵 전환·앞뒤 넘기기)는
+                              *    **맨 아래 작게** 접어 두었다 — 실물 화면에는 안 나간다.
+                              */}
                             {qrOpen && qrReady && (
-                                <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3
-                                                bg-black/85 backdrop-blur-sm"
+                                <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-4
+                                                bg-black/85 backdrop-blur-sm px-6"
                                      onClick={() => { setQrOpen(false); setQrPeek(0); }}>
                                     <button type="button"
                                         onClick={(e) => { e.stopPropagation(); setQrOpen(false); setQrPeek(0); }}
                                         className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/15 text-white text-[17px] font-black">✕</button>
-                                    {/**
-                                      * 🔴 **이 QR 이 몇 곳을 담았는지 크게 말한다** (2026-09-04).
-                                      *    안 적어 뒀더니 「한 곳」 모드로 찍고 «경유지가 안 보인다»고
-                                      *    하시게 됐다 — **화면이 자기가 무엇인지 말해야 한다.**
-                                      */}
-                                    <div className={`px-3 py-1 rounded-full text-[12px] font-black ${
-                                        qrVia.length > 0 ? 'bg-success/25 text-success' : 'bg-white/15 text-white/80'}`}>
-                                        {qrVia.length > 0 ? `이 QR 에 ${qrVia.length + 1}곳 (경유 ${qrVia.length})` : '이 QR 에 1곳 — 경유지 없음'}
-                                    </div>
-                                    {/**
-                                      * 🔴 **물방울 마커가 판정 기준이다** (기사님 2026-09-04:
-                                      * *"물방울 모양으로 나와야 인지하는 거야.. 그거 아니면
-                                      * 그냥 지나쳐 버려 카카오맵처럼"*).
-                                      * 목록에 이름이 남는 것만으로는 **안 들른다** — 09-03 에 그랬다.
-                                      */}
-                                    {qrVia.length > 0 && (
-                                        <p className="text-[11px] font-bold text-warning text-center px-8 leading-snug">
-                                            찍은 뒤 <b>물방울 「경유 1·2·3」</b> 이 보여야 합니다 —<br />
-                                            안 보이면 그냥 지나쳐 버립니다
-                                        </p>
-                                    )}
-                                    <NaviQr {...qrArgs} size={196} />
-                                    <div className="text-center px-6">
-                                        {qrVia.length > 0 && (
-                                            <p className="text-[12px] font-bold text-white/45 leading-snug">
-                                                {qrVia.map(v => v.name).join(' → ')} →
-                                            </p>
-                                        )}
-                                        <p className="text-[15px] font-black text-white">{qrStop?.name}</p>
-                                        <p className="text-[12px] font-bold text-white/60 mt-0.5">
-                                            {qrVia.length > 0 ? `경유 ${qrVia.length}곳 · ` : ''}개인폰 카메라로 찍으세요
-                                        </p>
-                                    </div>
 
-                                    {/**
-                                      * ◀ ▶ **정거장 넘기기** — 도착 감지가 실패해도 손으로 다음을 본다.
-                                      * 🔴 **도착을 찍지 않는다** — 장부는 안 건드리고 QR 만 바뀐다.
-                                      */}
-                                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                                        <button type="button" disabled={qrPeek === 0}
-                                            onClick={() => { setQrPeek(n => Math.max(0, n - 1)); setLog('◀ 앞 정거장 QR 로 돌아갑니다 — 장부는 안 건드립니다.'); }}
-                                            className="w-9 h-9 rounded-full bg-white/15 text-white text-[15px] font-black disabled:opacity-25">◀</button>
-                                        <span className="min-w-[104px] text-center text-[12px] font-bold text-white/70 tabular-nums">
-                                            {qrPeek === 0 ? '다음 정거장' : `${qrPeek}칸 뒤`}
-                                        </span>
-                                        <button type="button" disabled={qrPeek >= remaining.length - 1}
-                                            onClick={() => { setQrPeek(n => Math.min(remaining.length - 1, n + 1)); setLog('▶ 다음 정거장 QR 을 봅니다 — 도착 감지가 늦어도 이걸로 갑니다. 장부는 안 건드립니다.'); }}
-                                            className="w-9 h-9 rounded-full bg-white/15 text-white text-[15px] font-black disabled:opacity-25">▶</button>
-                                    </div>
-                                    {/* 🔁 덮개 안에서 바로 바꾼다 — 조종판까지 안 내려가도 된다 */}
-                                    <button type="button"
-                                        onClick={(e) => { e.stopPropagation(); const n = qrSpan === 1 ? 4 : 1; setQrSpan(n);
-                                            setLog(n === 4 ? '경유 3개 + 도착 1 = 4곳을 담았습니다. 다시 찍어 보세요.' : '다음 한 곳만 담았습니다.'); }}
-                                        className="px-3 py-1.5 rounded-lg bg-white/15 text-white text-[12px] font-black">
-                                        {qrSpan === 1 ? '↕ 경유 3개까지 담기' : '↕ 다음 한 곳만 담기'}
-                                    </button>
-
-                                    {/* 🔍 **주소를 보여 준다** — 안 열릴 때 눈으로 볼 자리가 없으면
-                                        QR 은 그냥 네모라 아무것도 알 수 없다 (2026-09-04) */}
-                                    <p className="max-w-[85%] text-[8.5px] leading-snug text-white/35 break-all text-center select-all">
-                                        {naviQrText(qrArgs)}
+                                    {/* ① 어디를 거쳐 어디로 가나 — 경유는 →, 도착지는 / 뒤에 */}
+                                    <p className="text-center text-[17px] font-black text-white leading-relaxed">
+                                        {qrVia.map(v => v.name).join(' → ')}
+                                        {qrVia.length > 0 && <span className="text-white/45"> / </span>}
+                                        <span>{qrStop?.name}</span>
                                     </p>
-                                    {/* 🗺️ 되돌아갈 길 — 카카오내비가 별로면 같은 자리에서 바꾼다 */}
-                                    <button type="button"
-                                        onClick={(e) => { e.stopPropagation(); const k = qrKind === 'navi' ? 'map' : 'navi'; setQrKind(k); setLog(`${k === 'navi' ? '🧭 카카오내비' : '🗺️ 카카오맵'} QR 로 바꿨습니다.`); }}
-                                        className="text-[12px] font-bold text-white/70 underline underline-offset-4">
-                                        {qrKind === 'navi' ? '🗺️ 카카오맵으로 바꾸기' : '🧭 카카오내비로 되돌리기'}
-                                    </button>
+
+                                    {/* ② QR */}
+                                    <NaviQr {...qrArgs} size={210} />
+
+                                    {/* ③ 무엇을 하라 */}
+                                    <p className="text-[15px] font-black text-white/85">카메라로 찍어 네비를 켜세요</p>
+
+                                    {/* ── 여기부터는 목업 도구 — 실물에는 없다 ── */}
+                                    <div className="mt-1 flex flex-col items-center gap-1.5 opacity-45 hover:opacity-100 transition-opacity"
+                                         onClick={(e) => e.stopPropagation()}>
+                                        <div className="flex items-center gap-2">
+                                            <button type="button" disabled={!!step || qrPeek === 0}
+                                                onClick={() => { setQrPeek(n => Math.max(0, n - 1)); setLog('◀ 앞 정거장 QR — 장부는 안 건드립니다.'); }}
+                                                className="w-7 h-7 rounded-full bg-white/15 text-white text-[13px] font-black disabled:opacity-25">◀</button>
+                                            <span className="min-w-[92px] text-center text-[11px] font-bold text-white/60 tabular-nums">
+                                                {step ? '시나리오가 정함' : qrPeek === 0 ? '다음 정거장' : `${qrPeek}칸 뒤`}
+                                            </span>
+                                            <button type="button" disabled={!!step || qrPeek >= remaining.length - 1}
+                                                onClick={() => { setQrPeek(n => Math.min(remaining.length - 1, n + 1)); setLog('▶ 다음 정거장 QR — 도착 감지가 늦어도 이걸로 갑니다.'); }}
+                                                className="w-7 h-7 rounded-full bg-white/15 text-white text-[13px] font-black disabled:opacity-25">▶</button>
+                                            <button type="button"
+                                                onClick={() => { const k = qrKind === 'navi' ? 'map' : 'navi'; setQrKind(k); setLog(`${k === 'navi' ? '🧭 카카오내비' : '🗺️ 카카오맵'} QR 로 바꿨습니다.`); }}
+                                                className="ml-1 text-[11px] font-bold text-white/70 underline underline-offset-2">
+                                                {qrKind === 'navi' ? '카카오맵으로' : '카카오내비로'}
+                                            </button>
+                                        </div>
+                                        <p className="max-w-[80%] text-[8px] leading-snug text-white/30 break-all text-center select-all">
+                                            {naviQrText(qrArgs)}
+                                        </p>
+                                    </div>
                                 </div>
                             )}
 
@@ -910,8 +916,76 @@ export default function SheetMockup() {
                 <h2 className="text-[15px] font-black text-text-primary mb-1">🎛️ 목업 조작판</h2>
                 <p className="text-[12px] text-text-muted mb-5">실제 화면에는 없습니다 — 여기서 눌러 보며 비교하는 자리입니다.</p>
 
-                {/* 🔴 **몇 콜 판인가** — 전제 점검표 1부 ① 이 «3콜 상한»을 뒤집어서 생겼다 */}
-                <h2 className="text-[12.5px] font-black tracking-wide text-info mb-2">몇 콜을 잡은 판인가</h2>
+                {/**
+                  * 🎬 **한 사이클 시나리오** (기사님이 2026-09-05 에 통째로 적어 주신 것).
+                  *
+                  * 🔴 이 목업이 지금까지 **장면 하나하나**만 보여 줬다. 그런데 어려운 것은
+                  *    장면이 아니라 **차례**다 — 콜이 붙을 때마다 번호가 밀리고, QR 이 담는 곳이
+                  *    달라지고, 방침 버튼이 잠긴다. **순서대로 못 보면 확인할 수가 없다.**
+                  * 🔴 켜지면 **시나리오가 판·국면·QR 을 다 정한다** (규칙 ③).
+                  */}
+                <h2 className="text-[12.5px] font-black tracking-wide text-info mb-1">🎬 한 사이클 시나리오</h2>
+                <p className="text-[11.5px] text-text-muted mb-2">
+                    기사님이 적어 주신 순서 그대로입니다 — 누르면 화면이 그 장면이 됩니다.
+                    켜져 있는 동안은 <b className="text-text-primary">시나리오가 판·국면·QR 을 정합니다.</b>
+                </p>
+                <div className="flex gap-1.5 flex-wrap">
+                    <button type="button"
+                        onClick={() => { setStepNo(null); setLog('시나리오를 껐습니다 — 판과 국면을 손으로 고르는 자리로 돌아옵니다.'); }}
+                        className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${stepNo == null
+                            ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-surface text-text-primary hover:border-info'}`}>
+                        ✋ 끄기
+                    </button>
+                    {SCENARIO.map(sc => (
+                        <button key={sc.no} type="button"
+                            onClick={() => { setStepNo(sc.no); setOpenIdx(-1); setQrPeek(0); setReasked(false);
+                                setSnap(sc.qr ? 'peek' : sc.phase === '정차' ? 'full' : sc.phase === '심사' ? 'half' : 'peek');
+                                setLog(`${sc.title} — ${sc.what}${sc.gap ? `  🔴 아직 없는 것: ${sc.gap}` : ''}`); }}
+                            className={`px-2.5 py-2 rounded-[9px] border text-[12px] font-black ${stepNo === sc.no
+                                ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-surface text-text-primary hover:border-info'}`}>
+                            {sc.title}
+                        </button>
+                    ))}
+                </div>
+                {step && (
+                    <div className="mt-2.5 rounded-[10px] border border-info/35 bg-info/8 px-3 py-2.5">
+                        <div className="flex items-center gap-1.5 flex-wrap text-[11px] font-black mb-1.5">
+                            <span className="px-1.5 py-0.5 rounded-[5px] bg-surface-alt text-text-primary">잡은 콜 {step.grabbed}</span>
+                            <span className="px-1.5 py-0.5 rounded-[5px] bg-surface-alt text-text-primary">다녀온 곳 {step.visited}</span>
+                            <span className="px-1.5 py-0.5 rounded-[5px] bg-surface-alt text-text-primary">{step.phase}</span>
+                            {step.color && <span className={`px-1.5 py-0.5 rounded-[5px] ${
+                                step.color === '꿀' ? 'bg-info/25 text-info'
+                                : step.color === '보통' ? 'bg-success/25 text-success' : 'bg-warning/25 text-warning'}`}>
+                                {step.color === '꿀' ? '🔵' : step.color === '보통' ? '🟢' : '🟡'} {step.color}
+                            </span>}
+                            {step.priorityLocked
+                                ? <span className="px-1.5 py-0.5 rounded-[5px] bg-surface-alt text-text-muted">🔒 방침 잠김</span>
+                                : <span className="px-1.5 py-0.5 rounded-[5px] bg-surface-alt text-text-muted">🔓 방침 바꿀 수 있음</span>}
+                            {step.qr && <span className="px-1.5 py-0.5 rounded-[5px] bg-surface-alt text-text-primary">🧭 QR {step.qr.length}곳</span>}
+                        </div>
+                        <p className="text-[12px] leading-relaxed text-text-primary">{step.what}</p>
+                        {/* 🔴 «되어야 할 모습»과 «지금 코드»가 다른 자리는 그 장면에서 바로 말한다 */}
+                        {step.gap && (
+                            <p className="mt-1.5 px-2 py-1 rounded-[6px] bg-warning/12 border border-warning/35
+                                          text-[11.5px] font-bold text-warning leading-snug">
+                                🔴 아직 코드에 없습니다 — {step.gap}
+                            </p>
+                        )}
+                        <div className="mt-2 flex gap-1.5">
+                            <button type="button" disabled={step.no <= 1}
+                                onClick={() => setStepNo(step.no - 1)}
+                                className="px-2.5 py-1 rounded-[7px] border border-border-hover bg-surface text-[12px] font-black disabled:opacity-30">◀ 앞</button>
+                            <button type="button" disabled={step.no >= SCENARIO.length}
+                                onClick={() => { const n = SCENARIO.find(x => x.no === step.no + 1)!;
+                                    setStepNo(n.no); setOpenIdx(-1);
+                                    setSnap(n.qr ? 'peek' : n.phase === '정차' ? 'full' : n.phase === '심사' ? 'half' : 'peek');
+                                    setLog(`${n.title} — ${n.what}`); }}
+                                className="px-2.5 py-1 rounded-[7px] border border-info/50 bg-info/10 text-info text-[12px] font-black disabled:opacity-30">다음 ▶</button>
+                        </div>
+                    </div>
+                )}
+
+                <h2 className="mt-7 pt-5 border-t border-border-card text-[12.5px] font-black tracking-wide text-info mb-2">몇 콜을 잡은 판인가</h2>
                 <div className="flex gap-1.5 flex-wrap">
                     {([3, 4, 5] as const).map(n => (
                         <button key={n} type="button"
@@ -1105,7 +1179,7 @@ export default function SheetMockup() {
                     {([[1, '다음 한 곳'], [4, '경유 3개 + 도착']] as const).map(([n, t]) => (
                         <button key={n} type="button"
                             onClick={() => { setQrSpan(n); setQrPeek(0); setQrOpen(true);
-                                const t = Math.max(1, Math.ceil(remaining.length / n));
+                                const t = tripsFor(n);
                                 setLog(n === 1
                                     ? `한 곳씩 — 남은 정거장 ${remaining.length}곳이면 ${t}번 찍습니다 (관제폰 ${t} + 카메라 ${t} = ${t * 2}동작).`
                                     : `경유 3개 + 도착 1 — 남은 ${remaining.length}곳을 ${t}번에 담습니다 (${t * 2}동작). 🔴 카카오내비가 주행 중에 경유지를 지키는지 봐야 합니다.`); }}
@@ -1120,9 +1194,11 @@ export default function SheetMockup() {
                     <b className="text-text-primary"> 안 들릅니다</b>. 지도에 <b className="text-text-primary">물방울 「경유 1·2·3」</b> 이 찍혀야 인식된 것입니다.
                     <br />① 물방울이 뜨는가(지금) · ② <b className="text-text-primary">주행 중에 지키는가</b>(나가실 때).
                     <br />🔢 <b className="text-text-primary">지금 판({planSize}콜 · 남은 {remaining.length}곳)</b>이면 —
-                    한 곳씩 <b className="text-text-primary">{remaining.length * 2}동작</b> ↔
-                    경유 3개씩 <b className="text-text-primary">{Math.max(1, Math.ceil(remaining.length / 4)) * 2}동작</b>.
+                    한 곳씩 <b className="text-text-primary">{tripsFor(1) * 2}동작</b> ↔
+                    경유 3개씩 <b className="text-text-primary">{tripsFor(4) * 2}동작</b>.
                     <b className="text-text-primary"> 콜이 늘수록 벌어집니다.</b>
+                    <br />🧭 지금 고른 것({qrSpan === 1 ? '한 곳씩' : '경유 3개씩'})으로는
+                    <b className="text-text-primary"> {qrTrips}번</b> 찍습니다.
                 </p>
 
                 <h2 className="mt-6 text-[12.5px] font-black tracking-wide text-info mb-2">필터 영역 — 두 안 비교</h2>
