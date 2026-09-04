@@ -959,17 +959,6 @@ export default function SheetMockup() {
                                     {/* ③ 무엇을 하라 */}
                                     <p className="text-[15px] font-black text-white/85">카메라로 찍어 네비를 켜세요</p>
 
-                                    {/**
-                                      * ── 목업 도구 — 실물에는 없다 ──
-                                      * 🔴 앞뒤 화살표·「시나리오가 정함」·「카카오맵으로」를 걷어냈다
-                                      *    (기사님 2026-09-05: *"모두 필요 없다"*). 찍으라고 띄우는
-                                      *    화면에 **읽을 일 없는 것**을 두면 그만큼 목적지가 늦게 읽힌다.
-                                      * 🔴 주소 원문만 남긴다 — QR 이 안 열릴 때 **눈으로 볼 유일한 자리**다.
-                                      */}
-                                    <p className="max-w-[80%] text-[8px] leading-snug text-white/25 break-all text-center select-all"
-                                       onClick={(e) => e.stopPropagation()}>
-                                        {naviQrText(qrArgs)}
-                                    </p>
                                 </div>
                             )}
 
@@ -1315,6 +1304,25 @@ export default function SheetMockup() {
                         ⚠️ <code>.env</code> 에 <b>VITE_KAKAO_JS_KEY</b> 가 안 보입니다 — 개발 서버를 다시 띄워야 읽힙니다.
                     </span>}
                 </p>
+
+                {/**
+                  * 🔍 **주소 원문은 여기 접어 둔다** (기사님 2026-09-05: *"이 코드가 필요한가?
+                  *    지워도 될 것 같은데"*). 맞다 — 2026-09-04 에 카카오가 QR 을 거부하던
+                  *    원인(등록 주소 불일치)을 눈으로 찾으려고 덮개에 띄웠던 것인데,
+                  *    **그 문제는 해결됐고 지금은 잘 돈다.** 찍는 화면에 남길 이유가 없다.
+                  * 🔴 그래도 아주 없애지는 않는다 — QR 이 안 열리면 **이것이 유일한 단서**다.
+                  *    조작판은 실물에 없는 자리라 여기서는 군더더기가 아니다.
+                  */}
+                {qrReady && (
+                    <details className="mt-2">
+                        <summary className="text-[11.5px] font-bold text-text-muted cursor-pointer select-none">
+                            🔍 QR 안에 실제로 들어간 주소 (안 열릴 때만 봅니다)
+                        </summary>
+                        <p className="mt-1 text-[9px] leading-snug text-text-muted break-all select-all">
+                            {naviQrText(qrArgs)}
+                        </p>
+                    </details>
+                )}
 
                 <h2 className="mt-5 text-[12.5px] font-black tracking-wide text-info mb-2">한 번에 몇 곳을 보낼까</h2>
                 <div className="grid grid-cols-2 gap-2">
