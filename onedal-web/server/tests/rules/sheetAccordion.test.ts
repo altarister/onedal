@@ -43,20 +43,24 @@ describe('🪗 시트 아코디언 — 기사님 확정 2026-09-03', () => {
         expect(deck()).toMatch(/\{rowOf\(o, i\)\}\s*\n[\s\S]{0,240}?hidden=\{i !== cur\}>\{renderCard\(o\)\}/);
     });
 
-    it('헤더는 고른 콜 위·아래로 «층»으로 붙어 전부 화면에 남는다', () => {
+    /**
+     * 🔴 **붙이지(sticky) 않는다** — 기사님 실물 2026-09-04: *"여기 겹침이 발생했어."*
+     *    시트가 100% 고정이고 스크롤은 펼친 판 안에서만 일어나므로 헤더는 밀리지 않는다.
+     *    붙여 두면 오히려 펼친 판 위로 떠올라 단계 줄과 겹친다.
+     */
+    it('헤더를 붙이지 않는다 — 겹침의 원인이었다', () => {
         const d = deck();
-        expect(d).toMatch(/i <= cur/);
-        expect(d).toMatch(/position: 'sticky', top: i \* ROW_H/);
-        expect(d).toMatch(/position: 'sticky', bottom: \(orders\.length - 1 - i\) \* ROW_H/);
-        // 붙는 줄은 내용 위에 뜨므로 불투명 바닥이 필수다
-        expect(d).toMatch(/accordion \? 'bg-surface border-border\/60'/);
+        expect(d).not.toMatch(/position: 'sticky', top: i \* ROW_H/);
+        expect(d).not.toMatch(/position: 'sticky', bottom:/);
+        // 높이만 고정한다 — 접힘/펼침에 줄 높이가 안 흔들리게
+        expect(d).toMatch(/accordion \? \{ height: ROW_H \}/);
     });
 
     it('층 높이의 원천은 한 곳이다 (규칙 ③) — ROW_H', () => {
         const d = deck();
         expect(d).toMatch(/const ROW_H = \d+;/);
-        // 32 같은 숫자를 sticky 계산에 손으로 또 적으면 층이 어긋난다
-        expect(d).not.toMatch(/top: i \* 32/);
+        // 32 를 손으로 또 적으면 줄 높이가 갈라진다
+        expect(d).not.toMatch(/height: 32/);
     });
 
     /**

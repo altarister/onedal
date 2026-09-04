@@ -53,7 +53,7 @@ interface Props {
      * 어려워. 아코디언으로 만들고, 아코디언 헤더는 무조건 화면에 노출하고,
      * 컨텐츠 영역에 스크롤할 수 있게 하는 것이 어떨까?"*
      *
-     * · 요약 줄(콜 한 줄)이 **헤더**다 — 접혀도 늘 보이게 sticky 로 붙인다
+     * · 요약 줄(콜 한 줄)이 **헤더**다 — 시트가 100% 고정이라 접혀도 늘 보인다
      * · 가로 스와이프 트랙 대신 **고른 콜 하나**를 세로로 그린다 — 스크롤이 콜 경계를
      *   안 넘으니 «지금 뭘 보고 있는지»가 안 헷갈린다
      * · 줄 그리는 코드는 두 모드가 **한 벌**을 쓴다 (규칙 ③ — 갈라지면 다른 말을 한다)
@@ -225,9 +225,9 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
      * 콜 한 줄(요약 줄)을 만든다 — **두 모드가 이 함수 하나를 쓴다.**
      * 스와이프에서는 위에 모아 놓고, 아코디언에서는 **내용 사이사이에 끼워** 넣는다.
      *
-     * 🪗 아코디언에서는 줄이 **자기 자리에 붙는다**(sticky) —
-     *    고른 콜보다 위는 **위쪽**에, 아래는 **아래쪽**에 붙어 **전부 늘 보인다.**
-     *    그래서 내용이 «누구 것인지» 짐작할 필요가 없다 — 바로 위 줄이 그 주인이다.
+     * 🪗 아코디언에서는 줄이 **밀리지 않는다** — 시트가 100% 고정이고 스크롤은
+     *    펼친 판 안에서만 일어나기 때문이다. 그래서 세 줄이 늘 제자리에 있고,
+     *    내용은 **자기 헤더 바로 밑**에 온다 (기사님 설계 2026-09-03).
      */
     const rowOf = (o: SecuredOrder, i: number) => {
 
@@ -256,10 +256,17 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
              * 그래야 내용을 스크롤해도 **모든 줄이 화면에 남는다** (기사님: *"무조건 화면에 노출"*).
              * 붙는 줄은 내용 위에 뜨므로 **불투명 바닥**이 필수다 — 없으면 글자가 비쳐 겹친다.
              */
-            const stick: React.CSSProperties | undefined = !accordion ? undefined
-                : i <= cur
-                    ? { position: 'sticky', top: i * ROW_H, zIndex: 30 - i, height: ROW_H }
-                    : { position: 'sticky', bottom: (orders.length - 1 - i) * ROW_H, zIndex: 10 + i, height: ROW_H };
+            /**
+             * 🔴 **붙이지(sticky) 않는다** (기사님 실물 2026-09-04: *"여기 겹침이 발생했어"*).
+             *
+             *    처음엔 «시트 전체가 스크롤되니 헤더를 층으로 붙이자»고 만들었다. 그런데
+             *    기사님 설계는 **시트가 100% 고정이고 펼친 판 안에서만 스크롤**하는 것이라,
+             *    헤더는 **애초에 밀리지 않는다** — 붙일 이유가 없다.
+             *    붙여 두니 오히려 펼친 판 위로 **떠올라 단계 줄과 겹쳤다.**
+             *
+             *    🟢 높이만 고정한다 — 그래야 접힘/펼침에 줄 높이가 안 흔들린다.
+             */
+            const stick: React.CSSProperties | undefined = accordion ? { height: ROW_H } : undefined;
             return (
                 <button
                     key={o.id}
