@@ -677,10 +677,19 @@ export default function SheetMockup() {
     };
 
     return (
-        <div className="min-h-dvh bg-bg-base text-text-primary flex flex-col items-center">
+        /**
+         * 🖥️ **넓은 화면에서는 좌우로 나눈다** (기사님 2026-09-05).
+         *    폰 쪽은 **붙박이(sticky)** 로 두고 조작판만 스크롤한다 — 조작판 아래쪽 버튼을
+         *    누르면서도 **화면이 어떻게 바뀌는지 계속 보인다.** 시나리오를 한 칸씩 넘기며
+         *    보는 자리라 그것이 이 화면의 전부다.
+         * ⚠️ 좁은 화면(폰)에서는 예전 그대로 **위아래**다 — `lg:` 밖의 클래스는 안 건드렸다.
+         */
+        <div className="min-h-dvh bg-bg-base text-text-primary flex flex-col items-center
+                        lg:flex-row lg:items-start lg:justify-center lg:gap-6 lg:px-6">
             {/* 폰 폭으로 묶는다 — 실제 폰에서는 화면을 꽉 채운다.
-                조작판은 **아래**에 둔다 (기사님 2026-09-04: *"아냐 거기 좋아"*) */}
-            <div className="w-full max-w-[400px] h-dvh flex flex-col">
+                조작판은 좁은 화면에서 **아래**, 넓은 화면에서 **오른쪽**이다
+                (기사님 2026-09-04 *"아냐 거기 좋아"* · 2026-09-05 *"pc에서는 우측에"*) */}
+            <div className="w-full max-w-[400px] h-dvh flex flex-col shrink-0 lg:sticky lg:top-0">
 
                 <MockHeader />
                 <MockDevicePanel />
@@ -912,7 +921,9 @@ export default function SheetMockup() {
             </div>
 
             {/* ── 목업 조작판 — 실제 화면에는 없다 ── */}
-            <div className="w-full max-w-[560px] px-4 py-5 border-t border-border-card">
+            {/* 🖥️ 넓은 화면에서는 오른쪽 칸 — 여기만 스크롤한다 */}
+            <div className="w-full max-w-[560px] px-4 py-5 border-t border-border-card
+                            lg:border-t-0 lg:border-l lg:h-dvh lg:overflow-y-auto lg:py-6">
                 <h2 className="text-[15px] font-black text-text-primary mb-1">🎛️ 목업 조작판</h2>
                 <p className="text-[12px] text-text-muted mb-5">실제 화면에는 없습니다 — 여기서 눌러 보며 비교하는 자리입니다.</p>
 
