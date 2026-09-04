@@ -24,10 +24,14 @@ describe('다(full) — 하나가 열려 있어야 한다', () => {
             .toEqual({ snap: 'full', openIdx: 2 });
     });
 
-    /** 🔴 콜이 없으면 «다»가 될 수 없다 — 빈 자리가 지도를 덮을 뿐이다 */
-    it('콜이 하나도 없으면 다로 안 간다 — 나에 선다', () => {
+    /**
+     * 🔴 **콜이 없어도 올라간다** (기사님 확정 2026-09-05) — 빈 상태를 보여 준다.
+     *    막아 두면 끌었는데 아무 일이 없어 **고장처럼 보인다.**
+     *    관행(iOS·안드로이드 기본 시트)도 단은 내용과 무관하게 늘 있다.
+     */
+    it('콜이 하나도 없어도 다로 갈 수 있다 — 빈 채로 올라간다', () => {
         expect(sheetTransition('full', { openIdx: -1, callCount: 0 }))
-            .toEqual({ snap: 'list', openIdx: -1 });
+            .toEqual({ snap: 'full', openIdx: -1 });
     });
 
     it('없는 자리를 가리키면 첫 콜로 떨어진다', () => {
@@ -55,8 +59,13 @@ describe('어느 길로 가도 «있을 수 없는 화면»이 안 나온다', (
             for (const openIdx of [-1, 0, 1, 2]) {
                 for (const callCount of [0, 1, 3]) {
                     const r = sheetTransition(to, { openIdx, callCount });
-                    if (r.snap === 'full') expect(r.openIdx, `${to}/${openIdx}/${callCount}`).toBeGreaterThanOrEqual(0);
-                    else expect(r.openIdx, `${to}/${openIdx}/${callCount}`).toBe(-1);
+                    /* 🔴 «다»는 **콜이 있으면** 하나가 열려 있어야 한다.
+                       콜이 없으면 빈 채로 서는 것이 맞다 (기사님 확정). */
+                    if (r.snap === 'full' && callCount > 0) {
+                        expect(r.openIdx, `${to}/${openIdx}/${callCount}`).toBeGreaterThanOrEqual(0);
+                    } else {
+                        expect(r.openIdx, `${to}/${openIdx}/${callCount}`).toBe(-1);
+                    }
                 }
             }
         }
@@ -71,12 +80,10 @@ describe('✋ 끌 것이 없을 때 (2026-09-05)', () => {
      *    없으니 갈 곳이 없다. 문제는 **화면이 그 말을 안 한 것**이다.
      *    할 수 없는 일은 **할 수 없게 보여야 한다** — 손잡이가 흐려진다.
      */
-    it('콜이 없으면 어느 단으로 가려 해도 나에 머문다', () => {
+    it('콜이 없어도 세 단을 다 오간다 — 열린 것만 없을 뿐이다', () => {
         for (const to of ['peek', 'list', 'full'] as const) {
             const r = sheetTransition(to, { openIdx: -1, callCount: 0 });
-            // 「다」만은 갈 수 없다 — 열 것이 없다
-            if (to === 'full') expect(r.snap).toBe('list');
-            else expect(r.snap).toBe(to);
+            expect(r.snap).toBe(to);
             expect(r.openIdx).toBe(-1);
         }
     });

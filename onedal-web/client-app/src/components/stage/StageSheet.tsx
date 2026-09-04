@@ -97,23 +97,10 @@ interface Props {
      *    엉뚱한 자리에 떴다 (기사님 2026-09-05). 재서 알리는 것이 유일한 원천이다 (규칙 ③).
      */
     onHeightChange?: (px: number) => void;
-    /**
-     * ✋ **끌 것이 없을 때 — 손잡이를 아예 안 그린다** (기사님 확정 2026-09-05).
-     *
-     * 콜이 하나도 없으면 「다」로 갈 수 없다(열 것이 없다). 그런데 손잡이가 그대로면
-     * **끌었는데 아무 일이 없어 고장처럼 보인다** (*"시트가 위아래로 드래그 되지 않아"*).
-     *
-     * 🔴 흐리게 남기는 길도 있었지만 **없는 것은 안 그린다** — 흐린 손잡이는 «비활성»이라
-     *    여전히 «왜 안 되지»를 묻게 만든다. 콜이 생기면 손잡이가 나타난다.
-     * ⚠️ 관행은 «빈 상태로 올라간다»(iOS·안드로이드 기본 시트)에 가깝다. 여기서 다른 길을
-     *    고른 이유는 **올려서 볼 것이 정말로 없고**, 그 순간의 일이 «콜을 기다리는 것»이라
-     *    **지도가 넓은 것이 곧 맞는 화면**이기 때문이다.
-     */
-    dragDisabled?: boolean;
     children: React.ReactNode;
 }
 
-export default function StageSheet({ snap, onSnapChange, peekBar, topBox, bottomBox, onHeightChange, dragDisabled, children }: Props) {
+export default function StageSheet({ snap, onSnapChange, peekBar, topBox, bottomBox, onHeightChange, children }: Props) {
     const startY = useRef<number | null>(null);
     const startSnap = useRef<SheetSnap>(snap);
     const dragged = useRef(false);   // 드래그로 한 단 움직였으면 이어지는 click 을 무시 (되튐 버그)
@@ -186,8 +173,9 @@ export default function StageSheet({ snap, onSnapChange, peekBar, topBox, bottom
         >
             {/* 손잡이 — 40px 끌 때마다 한 단씩. touch-action:none 이 없으면 폰에서
                 브라우저가 스크롤 제스처로 가로채 드래그가 죽는다 (기사님 실측 0831: 내려지지 않음).
-                ✋ **끌 것이 없으면 아예 안 그린다** (기사님 확정 2026-09-05) */}
-            {dragDisabled ? <div className="shrink-0 pt-3" /> : (
+                ✋ **손잡이는 언제나 있다** (기사님 확정 2026-09-05) — 콜이 없어도 올라간다.
+                막아 두면 끌었는데 아무 일이 없어 고장처럼 보인다. 관행(iOS·안드로이드 기본
+                시트)도 단은 내용과 무관하게 늘 있고, 안에 «아직 없습니다»를 보여 준다 */}
             <div
                 className="shrink-0 py-3 cursor-grab active:cursor-grabbing"
                 style={{ touchAction: 'none' }}
@@ -204,7 +192,6 @@ export default function StageSheet({ snap, onSnapChange, peekBar, topBox, bottom
                 <div className="mx-auto rounded-full"
                      style={{ width: 44, height: 5, background: 'var(--color-border-hover, #3a4358)' }} />
             </div>
-            )}
             {peekBar && (
                 /* 🔴 **높이가 늘 같다** (기사님 2026-09-05: *"상태바의 높이도 항상 일정했으면"*).
                    내용에 따라 줄이 커졌다 작아졌다 하면, 늘 같은 자리에서 같은 것을 읽던

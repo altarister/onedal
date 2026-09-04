@@ -30,9 +30,16 @@ export function sheetTransition(
     const { openIdx, callCount } = now;
 
     if (next === 'full') {
-        /* 🔴 열 것이 하나도 없으면 «다»가 될 수 없다 — 빈 자리가 지도를 덮을 뿐이다.
-           콜이 없는 판(콜 대기 등)에서는 «나»에 선다. */
-        if (callCount <= 0) return { snap: 'list', openIdx: -1 };
+        /**
+         * 🔴 **콜이 없어도 올라간다 — 빈 상태를 보여 준다** (기사님 확정 2026-09-05).
+         *
+         * 한때 «열 것이 없으면 «나»에 선다»로 막았다. 그러면 끌었는데 아무 일이 없어
+         * **고장처럼 보인다.** 관행(iOS·안드로이드 기본 시트)은 **단이 내용과 무관하게
+         * 늘 있고**, 안에 «아직 없습니다»를 보여 주는 쪽이다. 그 길로 간다.
+         *
+         * 그러니 «다»의 정의는 «**콜이 있으면** 하나 열린 상태»로 좁혀진다.
+         */
+        if (callCount <= 0) return { snap: 'full', openIdx: -1 };
         if (openIdx >= 0) return { snap: 'full', openIdx };
         /* 열린 것이 없으면 **다음 갈 콜**을 연다 — 없으면 첫 콜 */
         const pick = now.preferIdx != null && now.preferIdx >= 0 && now.preferIdx < callCount

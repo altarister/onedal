@@ -1081,8 +1081,6 @@ export default function SheetMockup() {
 
                     {/* ── 3단 시트 — **진짜 컴포넌트**. 손잡이를 끌거나 눌러서 가↔나↔다 ── */}
                     <StageSheet snap={snap} onSnapChange={(next) => changeSnap(next)}
-                        /* ✋ 콜이 없으면 끌 것이 없다 — 「다」는 «하나 열린 상태»라 갈 수가 없다 */
-                        dragDisabled={CALLS.length === 0}
                         onHeightChange={setSheetPx}
                         /* 🔴 위 라인을 빼 둔다 (기사님 2026-09-05) — 심사석이 이미
                            자기 테두리를 갖고 있어 줄이 하나 더 그어지면 칸이 둘로 보인다 */
@@ -1182,6 +1180,23 @@ export default function SheetMockup() {
                               * 🔴 합짐은 «기존 콜들 사이에 끼는 것»이다. 목록 위에 얹히는 모양이
                               *    그 일과 맞는다 — **잡으면 어디에 끼는지가 같은 화면에서 보인다.**
                               */}
+                            {/**
+                              * 🈳 **빈 상태** (기사님 확정 2026-09-05 · 관행을 따른다).
+                              * 🔴 시트는 콜이 없어도 올라간다 — 막아 두면 끌었는데 아무 일이
+                              *    없어 고장처럼 보인다. 대신 **«아직 없다»고 말해 준다.**
+                              * 🔴 «기다리는 중»이라고 적는 것이 중요하다 — 빈 화면은 «고장»과
+                              *    «일이 없음»을 구별해 주지 않는다.
+                              */}
+                            {CALLS.length === 0 && (
+                                <div className="flex-1 min-h-[88px] grid place-items-center text-center px-6">
+                                    <div>
+                                        <p className="text-[13px] font-black text-text-primary">아직 잡은 콜이 없습니다</p>
+                                        <p className="mt-1 text-[12px] font-semibold text-text-muted leading-snug">
+                                            필터에 맞는 콜이 오면 여기 쌓입니다 —<br />지금은 지도를 넓게 보시면 됩니다
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
                             {CALLS.map((call, i) => (
                                 <CallItem key={call.no} call={call} i={i} rainbow={rainbow} visitedNos={visitedNos}
                                     fit={snap === 'list'}
