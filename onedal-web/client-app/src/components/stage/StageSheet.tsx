@@ -9,7 +9,12 @@ import { useRef } from 'react';
  */
 export type SheetSnap = 'peek' | 'half' | 'full';
 
-const HEIGHT: Record<SheetSnap, string> = {
+/**
+ * 🪟 **시트가 차지하는 높이 — 이 표가 원천이다** (규칙 ③).
+ * 지도 위에 얹는 버튼도 이 값을 봐야 시트에 안 가린다
+ * (기사님 2026-09-04: *"하단 버튼이 하나도 안 보여 가려져 있나 봐"*).
+ */
+export const SHEET_HEIGHT: Record<SheetSnap, string> = {
     peek: '72px',
     half: '58%',
     full: '100%',
@@ -28,7 +33,7 @@ const HEIGHT: Record<SheetSnap, string> = {
  *    제자리에 있어 튀지 않는다** — 내려오는 순간이 기사님이 지도를 다시 보는 순간이다.
  */
 export function sheetOccludedPx(snap: SheetSnap, stageHeight: number): number {
-    const raw = HEIGHT[snap === 'full' ? 'half' : snap];
+    const raw = SHEET_HEIGHT[snap === 'full' ? 'half' : snap];
     const n = parseFloat(raw);
     return raw.endsWith('%') ? stageHeight * n / 100 : n;
 }
@@ -59,7 +64,7 @@ export default function StageSheet({ snap, onSnapChange, peekBar, children }: Pr
         <div
             className="absolute left-0 right-0 bottom-0 z-20 flex flex-col rounded-t-2xl border-t"
             style={{
-                height: HEIGHT[snap],
+                height: SHEET_HEIGHT[snap],
                 background: 'var(--color-surface)',
                 borderColor: 'color-mix(in srgb, var(--color-border-card) 60%, #4f8df9)',
                 boxShadow: '0 -10px 30px rgba(0,0,0,.45)',
@@ -90,4 +95,16 @@ export default function StageSheet({ snap, onSnapChange, peekBar, children }: Pr
             <div data-sheet-scroll className="flex-1 overflow-y-auto min-h-0">{children}</div>
         </div>
     );
+}
+
+/**
+ * 🔼 **시트 바로 위에 무엇을 놓을 때의 `bottom` 값** (2026-09-04 신설).
+ *
+ * 지도 아래 모서리의 «콜» 버튼들이 시트에 가려지던 것을 막는다.
+ * 🔴 시트 높이를 손으로 또 적지 않는다 — `SHEET_HEIGHT` 가 바뀌면 여기도 따라온다 (규칙 ③).
+ *    (실물의 「🚀 지금 출발」이 `bottom-20`(80px)이라는 **손으로 적은 숫자**를 쓰고 있다.
+ *     그건 엿보기(72px)에만 맞는 값이라, 반쯤 열면 가려진다 — 나중에 이걸로 옮길 것)
+ */
+export function aboveSheet(snap: SheetSnap, gapPx = 12): string {
+    return `calc(${SHEET_HEIGHT[snap]} + ${gapPx}px)`;
 }
