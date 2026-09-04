@@ -936,6 +936,18 @@ export default function SheetMockup() {
                                         qrVia.length > 0 ? 'bg-success/25 text-success' : 'bg-white/15 text-white/80'}`}>
                                         {qrVia.length > 0 ? `이 QR 에 ${qrVia.length + 1}곳 (경유 ${qrVia.length})` : '이 QR 에 1곳 — 경유지 없음'}
                                     </div>
+                                    {/**
+                                      * 🔴 **물방울 마커가 판정 기준이다** (기사님 2026-09-04:
+                                      * *"물방울 모양으로 나와야 인지하는 거야.. 그거 아니면
+                                      * 그냥 지나쳐 버려 카카오맵처럼"*).
+                                      * 목록에 이름이 남는 것만으로는 **안 들른다** — 09-03 에 그랬다.
+                                      */}
+                                    {qrVia.length > 0 && (
+                                        <p className="text-[11px] font-bold text-warning text-center px-8 leading-snug">
+                                            찍은 뒤 <b>물방울 「경유 1·2·3」</b> 이 보여야 합니다 —<br />
+                                            안 보이면 그냥 지나쳐 버립니다
+                                        </p>
+                                    )}
                                     <NaviQr {...qrArgs} size={196} />
                                     <div className="text-center px-6">
                                         {qrVia.length > 0 && (
@@ -1153,8 +1165,10 @@ export default function SheetMockup() {
                     ))}
                 </div>
                 <p className="mt-2 text-[12px] leading-relaxed text-text-muted">
-                    🔴 <b className="text-text-primary">확인할 것 둘</b> — ① 카카오내비가 경유지를 <b className="text-text-primary">받는가</b>(지금 5분) ·
-                    ② <b className="text-text-primary">주행 중에 지키는가</b>(나가실 때). ②가 되면 <b className="text-text-primary">12동작이 4동작</b>이 됩니다.
+                    🔴 <b className="text-text-primary">판정 기준은 「물방울」입니다</b> — 목록에 이름이 남는 것만으로는
+                    <b className="text-text-primary"> 안 들릅니다</b>. 지도에 <b className="text-text-primary">물방울 「경유 1·2·3」</b> 이 찍혀야 인식된 것입니다.
+                    <br />① 물방울이 뜨는가(지금) · ② <b className="text-text-primary">주행 중에 지키는가</b>(나가실 때).
+                    ②까지 되면 <b className="text-text-primary">12동작이 4동작</b>이 됩니다.
                 </p>
 
                 <h2 className="mt-6 text-[12.5px] font-black tracking-wide text-info mb-2">필터 영역 — 두 안 비교</h2>
