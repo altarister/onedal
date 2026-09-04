@@ -112,15 +112,27 @@ export interface NaviStop extends NaviPoint {
 export interface KakaoNaviLinkInput {
     /** 카카오 **JavaScript** 앱 키 (`VITE_KAKAO_JS_KEY`). REST 키가 아니다 */
     key: string;
-    /** 콘솔의 «JavaScript SDK 도메인»에 등록한 주소. 다르면 카카오가 막는다 */
+    /**
+     * 🔴 **콘솔의 «JavaScript SDK 도메인»에 등록한 주소를 그대로 넣는다.**
+     *    `window.location.origin` 을 넣으면 안 된다 — 목업·로컬은 `http://localhost:3000`
+     *    이라 등록한 것과 달라 **카카오가 거부한다**
+     *    (2026-09-04 실측: *"죄송합니다. 서비스 오류로 대응중입니다"*).
+     *    그래서 `VITE_KAKAO_JS_ORIGIN` 으로 **고정해서** 넘긴다.
+     */
     origin: string;
     /** 이번에 갈 곳 — 우리는 **«다음 한 곳»** 만 보낸다 */
     dest: NaviStop;
     /** 경유지. **우리는 안 쓴다** — 값과 이름은 실측으로 확정해 뒀으니 필요해지면 그때 */
     via?: NaviStop[];
-    /** 경로 기준 — 추천 `100` · 무료도로 `2` · 고속도로우선 `6` (기본 추천) */
+    /**
+     * ⚠️ **아직 안 보낸다** — 경로 기준(추천 100 · 무료도로 2 · 고속도로우선 6)과
+     *    차종(1~7)은 **JS SDK 의 파라미터 이름**으로만 문서에 있고, **URL 의 `param.option`
+     *    안에서 어떤 이름인지는 모른다.** 카카오 데모 URL 의 `option` 에는
+     *    `coord_type` **하나뿐**이었다.
+     * 🔴 모르는 칸을 넣었다가 2026-09-04 에 거부당했다 — **모르면 안 보낸다** (규칙 ④).
+     *    쓰려면 `coord_type` 처럼 **밑줄 이름인지 먼저 폰에서 가른다.**
+     */
     rpOption?: number;
-    /** 차종 1~7. `mapVehicleToKakaoCarType()` 이 준 값을 그대로 넣는다 */
     vehicleType?: number;
 }
 
@@ -146,9 +158,15 @@ export function buildKakaoNaviUrl(input: KakaoNaviLinkInput): string | null {
     const { key, origin, dest, via, rpOption, vehicleType } = input;
     if (!key || !origin || !validStop(dest)) return null;
 
+    /**
+     * 🔴 **`option` 에는 `coord_type` 만 넣는다.** 카카오 데모 URL 이 그랬다.
+     *    2026-09-04 에 `vehicleType` 을 넣었다가 카카오내비가 거부했다
+     *    (*"죄송합니다. 서비스 오류로 대응중입니다"*). 모르는 칸을 넣지 않는다 (규칙 ④).
+     * ⚠️ `rpOption`·`vehicleType` 은 받아 두되 **아직 URL 에 안 싣는다** —
+     *    칸 이름을 폰에서 가른 뒤에 잇는다.
+     */
+    void rpOption; void vehicleType;
     const option: Record<string, unknown> = { coord_type: 'wgs84' };
-    if (rpOption != null) option.rpOption = rpOption;
-    if (vehicleType != null) option.vehicleType = vehicleType;
 
     const param: Record<string, unknown> = { destination: asPoint(dest), option };
 
@@ -156,7 +174,8 @@ export function buildKakaoNaviUrl(input: KakaoNaviLinkInput): string | null {
     const vias = (via ?? []).filter(validStop).slice(0, KAKAO_NAVI_MAX_VIA);
     if (vias.length > 0) param.via_list = vias.map(asPoint);
 
-    const extras = { KA: `sdk/1.43.5 os/javascript lang/ko-KR origin/${origin}` };
+    /** 카카오 데모 URL 의 형태를 그대로 따른다 — `device/` 까지 포함해서 */
+    const extras = { KA: `sdk/1.43.5 os/javascript lang/ko-KR device/web origin/${origin}` };
     const enc = (o: unknown) => encodeURIComponent(JSON.stringify(o));
     return `kakaonavi-sdk://navigate?appkey=${key}&apiver=1.0`
          + `&extras=${enc(extras)}&param=${enc(param)}`;

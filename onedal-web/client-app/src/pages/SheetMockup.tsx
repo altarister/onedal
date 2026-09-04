@@ -758,11 +758,17 @@ export default function SheetMockup() {
     const [qrKind, setQrKind] = useState<QrKind>('navi');
     /** 🔴 키는 `.env` 에서 온다 — 코드에 안 적는다. 없으면 카카오맵 QR 로 떨어진다 */
     const NAVI_KEY = import.meta.env.VITE_KAKAO_JS_KEY as string | undefined;
-    const NAVI_ORIGIN = typeof window !== 'undefined' ? window.location.origin : '';
+    /**
+     * 🔴 **여기에 `window.location.origin` 을 넣으면 안 된다** — 목업은 `localhost:3000`
+     *    이라 콘솔에 등록한 주소와 달라 카카오가 거부한다 (2026-09-04 실측).
+     *    **등록한 주소를 고정으로 넘긴다.**
+     */
+    const NAVI_ORIGIN = (import.meta.env.VITE_KAKAO_JS_ORIGIN as string | undefined)
+        ?? 'https://1dal.altari.com';
     const qrStop = nextStop && typeof nextStop.x === 'number' && typeof nextStop.y === 'number'
         ? { name: `${nextStop.name} ${nextStop.type}`, x: nextStop.x, y: nextStop.y } : null;
     const qrArgs = { stop: qrStop, here: myLocation, kind: qrKind,
-                     naviKey: NAVI_KEY, naviOrigin: NAVI_ORIGIN, vehicleType: 1 };
+                     naviKey: NAVI_KEY, naviOrigin: NAVI_ORIGIN };
     const qrReady = naviQrText(qrArgs) != null;
 
     const bar = sheetStatus({
@@ -856,6 +862,11 @@ export default function SheetMockup() {
                                         <p className="text-[15px] font-black text-white">{qrStop?.name}</p>
                                         <p className="text-[12px] font-bold text-white/60 mt-0.5">개인폰 카메라로 찍으세요</p>
                                     </div>
+                                    {/* 🔍 **주소를 보여 준다** — 안 열릴 때 눈으로 볼 자리가 없으면
+                                        QR 은 그냥 네모라 아무것도 알 수 없다 (2026-09-04) */}
+                                    <p className="max-w-[85%] text-[8.5px] leading-snug text-white/35 break-all text-center select-all">
+                                        {naviQrText(qrArgs)}
+                                    </p>
                                     {/* 🗺️ 되돌아갈 길 — 카카오내비가 별로면 같은 자리에서 바꾼다 */}
                                     <button type="button"
                                         onClick={(e) => { e.stopPropagation(); const k = qrKind === 'navi' ? 'map' : 'navi'; setQrKind(k); setLog(`${k === 'navi' ? '🧭 카카오내비' : '🗺️ 카카오맵'} QR 로 바꿨습니다.`); }}
