@@ -110,17 +110,22 @@ describe('🪗 시트가 좁아져도 겹치지 않는다', () => {
         expect(mock()).toMatch(/h-full flex flex-col gap-1\.5[^"]*overflow-hidden/);
     });
 
-    it('펼친 판이 상자 밖으로 안 그린다', () => {
-        expect(mock()).toMatch(/flex-1 min-h-0 mt-1\.5 flex flex-col overflow-hidden/);
+    it('펼친 판은 자리가 모자라면 **스크롤**한다 — 잘라서 감추지 않는다 (규칙 ④)', () => {
+        expect(mock()).toMatch(/flex-1 min-h-0 mt-1\.5 flex flex-col overflow-y-auto/);
     });
 
-    it('🔴 위 덩어리는 좁으면 줄어든다 — `shrink-0` 이면 버티다가 넘친다', () => {
+    /**
+     * 🔴 **위 덩어리가 이긴다** (기사님 2026-09-04: *"위 덩어리는 내용이 다 보여야 해.
+     *    지금 시트를 반만 열었다는 건 전체적으로 어떤 콜이 있는지 보기 위함"*).
+     *    한 번 거꾸로 잡았다 — 좁을 때 여기를 줄였더니 **정작 볼 것이 사라졌다.**
+     */
+    it('위 덩어리는 안 줄어든다 — 반만 열기의 목적이 여기다', () => {
         const m = mock();
-        expect(m).toMatch(/min-h-0 shrink overflow-y-auto px-3 pt-2\.5 pb-3/);
-        expect(m).not.toMatch(/shrink-0 px-3 pt-2\.5 pb-3 border-b/);
+        expect(m).toMatch(/shrink-0 px-3 pt-2\.5 pb-3 border-b/);
+        expect(m).not.toMatch(/min-h-0 shrink overflow-y-auto px-3 pt-2\.5 pb-3/);
     });
 
-    it('아래(스텝)는 최소 높이를 지킨다 — 이 화면의 목적이다', () => {
-        expect(mock()).toMatch(/flex-1 min-h-\[\d+px\] flex flex-col/);
+    it('아래(스텝)는 최소 높이를 지키고 아래로 밀린다 — 필요하면 시트를 전체로 올린다', () => {
+        expect(mock()).toMatch(/shrink-0 flex-1 min-h-\[\d+px\] flex flex-col/);
     });
 });

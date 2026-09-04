@@ -603,17 +603,21 @@ function CallItem({ call, i, open, onToggle, rainbow, visitedNos }: {
                  * 🔴 **넘친 것이 밖으로 그려지지 않게 한다** (기사님 실물 2026-09-04:
                  *    *"시트 반만 열기에서만 겹침이 발생해"*).
                  *    판이 `overflow` 없이 열려 있어, 자리가 모자라면 내용이 상자를 넘어
-                 *    **다음 콜 헤더 위에 올라탔다.** 상자 밖으로는 안 그린다.
+                 *    **다음 콜 헤더 위에 올라탔다.**
+                 * 🟢 다만 **잘라 감추지 않고 스크롤**한다 — 위 덩어리는 다 보여야 하고,
+                 *    모자라면 손으로 내려 보는 것이 «없는 것»보다 낫다 (규칙 ④).
                  */
-                <div className="flex-1 min-h-0 mt-1.5 flex flex-col overflow-hidden rounded-b-[10px] border border-t-0 border-border-card bg-bg-base">
+                <div className="flex-1 min-h-0 mt-1.5 flex flex-col overflow-y-auto rounded-b-[10px] border border-t-0 border-border-card bg-bg-base">
 
                     {/**
                      * 위 — 콜 전체를 아우르는 것. 스텝이 넘어가도 안 바뀐다.
-                     * 🔴 **줄어들 수 있어야 한다.** `shrink-0` 이면 «반만 열기»처럼 자리가
-                     *    좁을 때 버티다가 넘친다. 좁으면 스스로 줄고 그 안에서 스크롤한다 —
-                     *    그때 기사님께 필요한 건 «지금 할 일»(아래)이지 적요가 아니다.
+                     * 🔴 **절대 안 줄어든다** (기사님 2026-09-04: *"위 덩어리는 내용이 다 보여야 해.
+                     *    반만 열었다는 건 전체적으로 어떤 콜이 있는지 보기 위함"*).
+                     *    반만 여는 목적이 «어떤 콜이 있나»라서 여기가 잘리면 그 목적이 무너진다.
+                     *    ⚠️ 한 번 거꾸로 잡았다 — 좁을 때 여기를 줄였더니 정작 볼 것이 사라졌다.
+                     * 🔴 자리가 모자라면 **판이 세로로 스크롤**한다 — 잘라서 감추지 않는다 (규칙 ④).
                      */}
-                    <div className="min-h-0 shrink overflow-y-auto px-3 pt-2.5 pb-3 border-b border-border-card">
+                    <div className="shrink-0 px-3 pt-2.5 pb-3 border-b border-border-card">
                         <div className="flex items-center gap-1.5 flex-wrap text-[11.5px] text-text-muted">
                             <span>{call.no}.</span>
                             <span>콜잡은시간 {call.grabbed}</span>
@@ -652,10 +656,12 @@ function CallItem({ call, i, open, onToggle, rainbow, visitedNos }: {
 
                     {/**
                      * 아래 — 스텝. 좌우로 스와이프한다.
-                     * 🔴 **최소 높이를 준다** — 없으면 자리가 좁을 때 0 으로 찌그러져
-                     *    «지금 할 일»이 통째로 사라진다. 이 영역이 이 화면의 목적이다.
+                     * 🔴 **양보하지 않는다** — 최소 높이를 지키고, 자리가 모자라면 판이 스크롤한다.
+                     *    반만 열었을 때는 위 덩어리가 먼저 보이고 스텝은 **아래로 밀린다** —
+                     *    그때 보시려는 건 «어떤 콜이 있나»이지 «지금 할 일»이 아니다.
+                     *    스텝이 필요하면 시트를 **전체로** 올린다.
                      */}
-                    <div className="flex-1 min-h-[150px] flex flex-col">
+                    <div className="shrink-0 flex-1 min-h-[220px] flex flex-col">
                         {/* 🔴 **점은 가운데 고정** (기사님 2026-09-04: *"단어에 따라 스와이프
                             네비게이션이 덜컹거려. 그냥 가운데 정렬하면 어떨까?"*).
                             단계 이름 길이가 달라(「상차지 통화」 ↔ 「상차 완료」) 점이 좌우로 밀렸다.
