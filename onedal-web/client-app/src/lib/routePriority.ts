@@ -1,0 +1,50 @@
+/**
+ * 🛣️ **경로 방침 — 무엇을 고를 수 있고, 언제 잠기나** (2026-09-05 신설)
+ *
+ * ── 왜 뽑았나 ──
+ * 「추천 / 시간 / 거리」 버튼과 그 잠금 규칙이 `PinnedRoute` 안에 인라인으로만 있었다.
+ * 목업이 «경로를 바꿔 본다» 장면을 그리려니 **같은 규칙을 한 벌 더 적어야 했다** —
+ * 그러면 실물이 바뀔 때 목업이 조용히 옛 규칙을 그린다 (규칙 ③).
+ * 그래서 **규칙만** 여기로 뽑았다. 그리는 것은 각자 한다.
+ */
+
+export type RoutePriority = 'RECOMMEND' | 'TIME' | 'DISTANCE';
+
+export const ROUTE_PRIORITIES: Array<{ key: RoutePriority; label: string; long: string }> = [
+    { key: 'RECOMMEND', label: '추천', long: '내비추천' },
+    { key: 'TIME', label: '시간', long: '고속도로 우선(근사)' },
+    { key: 'DISTANCE', label: '거리', long: '최단거리' },
+];
+
+/**
+ * 🔒 **합짐 중에는 경로 방침을 바꿀 수 없다** (기사님 확정 2026-08-19 · 재확인 2026-09-05).
+ *
+ * *"2건 이상이면 선택되지 못한 버튼을 숨긴다 — 어떤 것이 선택돼 있는지는 보이고,
+ *   경로는 바꿀 수 없게."* · *"합짐 잡기 전까지 바꿀 수 있어야 해."*
+ *
+ * 방침은 도로 선택을 바꾼다 — 순서는 안 바뀌지만 주행 시간이 변해 **이미 잡은 약속들과
+ * 어긋날 수 있다.** 그래서 콜 하나일 때만 고른다.
+ *
+ * 🔓 **심사 중(안전취소 30초)에는 열어 둔다** — *"이 콜을 붙이면 어떤 경로가 되나"* 를
+ *    바꿔 보는 것이 결재의 재료다. 결재가 끝나 확정 2건 이상만 남으면 그때 잠근다.
+ *
+ * @param activeCount 화면에 올라 있는 콜 수
+ * @param anyEvaluating 그중 심사 중(안전취소)인 것이 있나
+ */
+export function isPriorityLocked(activeCount: number, anyEvaluating: boolean): boolean {
+    return activeCount >= 2 && !anyEvaluating;
+}
+
+/**
+ * 🛣️ **방침을 바꾸면 실제로 무엇이 달라지나** — 09-03 실측 (경로.md §2-1 · `car_type=1`).
+ *    집(초월읍) → 가산동. 🔴 **지어낸 값이 아니다.**
+ *
+ * 🔴 **추천과 시간이 같다.** 09-03 여덟 구간을 전부 재서 **7/8 에서 같았다**
+ *    (경로.md §2-2). 우리 길찾기 API 에 「고속도로 우선」에 딱 맞는 값이 없어
+ *    `TIME` 으로 근사하기 때문이다 — 갈리는 구간에서만 달라진다.
+ */
+export const PRIORITY_SAMPLE: Record<RoutePriority, { km: number; min: number; toll: number }> = {
+    RECOMMEND: { km: 47.5, min: 104, toll: 1900 },
+    TIME:      { km: 47.5, min: 104, toll: 1900 },
+    DISTANCE:  { km: 44.8, min: 111, toll: 1900 },
+};

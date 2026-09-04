@@ -8,6 +8,7 @@ import NaviQr, { naviQrText, type QrKind } from '../components/dashboard/NaviQr'
 import { sheetStatus, sheetStatusLine } from '../lib/sheetStatus';
 import { MOCK_PLANS, scenarioPlan, splitStops, myLocationAt, routeHolderOf, reaskedPlan, reaskCost, type Call } from './mockPlans';
 import { SCENARIO, SEAT_CALLS } from './scenario';
+import { ROUTE_PRIORITIES, PRIORITY_SAMPLE, isPriorityLocked, type RoutePriority } from '../lib/routePriority';
 import JudgmentSeat from '../components/dashboard/JudgmentSeat';
 
 /**
@@ -539,6 +540,12 @@ export default function SheetMockup() {
      */
     const [reasked, setReasked] = useState(false);
     /**
+     * 🛣️ **고른 경로 방침** (기사님 2026-09-05: *"경로를 바꿔본다가 구현되어 있지 않아
+     * 어떻게 경로를 바꿔보지?"*). 맞다 — 실물에는 지도 좌상단에 있는데 목업엔 없었다.
+     * 목업이 `PinnedRouteCanvas` 를 직접 쓰고, 그 버튼은 `PinnedRoute` 가 그리기 때문이다.
+     */
+    const [priority, setPriority] = useState<RoutePriority>('RECOMMEND');
+    /**
      * 🚚 **지금 어느 국면인가** — 목업이 오래 «정차 중»에 고정돼 있었다
      * (기사님 2026-09-04: *"운행 이벤트 시늉에서 주행중일때, 출발 할때가 없어"*).
      *
@@ -782,6 +789,42 @@ export default function SheetMockup() {
                               * *"위쪽은 지도 관련 아래쪽은 콜 관련 버튼이 있는 거지"*).
                               *   좌하단 내비 연동 · 우하단 지금 갈 곳.
                               */}
+                            {/**
+                              * 🛣️ **경로 방침 — 실물과 같은 좌상단** (`PinnedRoute` 의 그 자리).
+                              *
+                              * 🔴 **잠금 규칙은 `lib/routePriority` 하나에서 온다** (규칙 ③) —
+                              *    콜이 2건 이상이고 심사 중이 아니면 **고른 것만 남는다.**
+                              *    기사님: *"합짐 잡기 전까지 바꿀 수 있어야 해."*
+                              * 🔴 값은 **09-03 실측**이다 (경로.md §2-1) — 지어내지 않았다.
+                              */}
+                            {plan.stops.length > 0 && (() => {
+                                const locked = isPriorityLocked(plan.calls, !!step?.seat);
+                                return (
+                                    <div className="absolute top-3 left-3 z-10 flex flex-col gap-1.5">
+                                        {ROUTE_PRIORITIES.filter(b => !locked || b.key === priority).map(b => (
+                                            <button key={b.key} type="button"
+                                                onClick={() => {
+                                                    if (locked) { setLog('🔒 합짐이 붙어 방침이 잠겼습니다 — 콜 하나일 때만 바꿉니다.'); return; }
+                                                    setPriority(b.key);
+                                                    const v = PRIORITY_SAMPLE[b.key];
+                                                    setLog(`🛣️ 「${b.long}」 으로 다시 받았습니다 — ${v.km}km / ${v.min}분 / 통행료 ${v.toll.toLocaleString()}원. `
+                                                        + (b.key === 'TIME'
+                                                            ? '🔴 이 구간에서는 추천과 값이 같습니다 — 09-03 여덟 구간 중 일곱이 그랬습니다 (경로.md §2-2).'
+                                                            : b.key === 'DISTANCE'
+                                                            ? '2.7km 짧지만 7분 더 걸립니다.'
+                                                            : '기본값입니다.')); }}
+                                                className={`w-8 h-8 rounded-md text-[11px] font-black border backdrop-blur-sm transition-all ${
+                                                    priority === b.key
+                                                        ? 'bg-info/90 text-white border-info'
+                                                        : 'bg-surface-alt/80 text-text-primary border-border hover:bg-surface-hover'}`}>
+                                                {b.label}
+                                            </button>
+                                        ))}
+                                        {locked && <span className="text-[9px] font-black text-text-muted text-center leading-none">🔒</span>}
+                                    </div>
+                                );
+                            })()}
+
                             {/**
                               * ⟳ **경로 새로 받기** — 위는 지도 관련이라 우상단 줌 아래에 둔다.
                               * 🔴 **초기화(⟲)와 다른 일이다** — 초기화는 «보기를 되돌린다»,
@@ -1032,7 +1075,7 @@ export default function SheetMockup() {
                     </button>
                     {SCENARIO.map(sc => (
                         <button key={sc.no} type="button"
-                            onClick={() => { setPlaying(false); setReasked(false); goStep(sc.no); }}
+                            onClick={() => { setPlaying(false); setReasked(false); setPriority('RECOMMEND'); goStep(sc.no); }}
                             className={`px-2.5 py-2 rounded-[9px] border text-[12px] font-black ${stepNo === sc.no
                                 ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-surface text-text-primary hover:border-info'}`}>
                             {sc.title}

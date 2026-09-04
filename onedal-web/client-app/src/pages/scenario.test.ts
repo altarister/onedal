@@ -265,15 +265,19 @@ describe('🪧 심사석 — 눌러야 넘어가는 자리', () => {
         expect(SEAT_CALLS.합짐2.rejectionReasons.length).toBeGreaterThan(0);
     });
 
-    /** 🔴 경로를 바꾸면 **멀어지고 색이 내려간다** — 확정 뒤 장면(④)이 그것이다 */
-    it('④ 경로를 바꿔 본다 — 색이 꿀에서 보통으로 내려간다', () => {
-        const before = SCENARIO.find(s => s.seat === '첫콜')!;
+    /**
+     * 🔴 **여기서 시나리오와 실측이 갈렸다** (2026-09-05).
+     *    기사님 시나리오는 «고속도로 우선을 누르면 멀어지고 녹색이 된다»였는데,
+     *    09-03 실측에서 **추천과 TIME 이 여덟 구간 중 일곱에서 같았다** (경로.md §2-2).
+     *    그래서 ④ 는 색을 말하지 않고, **어긋난다는 사실을 gap 으로 밝힌다.**
+     *    ⚠️ 색을 지어내 «녹색이 됐다»고 적으면 그게 «없는 것을 있다고 하는» 그 사고다.
+     */
+    it('④ 경로를 바꿔 본다 — 색을 지어내지 않고 어긋남을 밝힌다', () => {
         const after = SCENARIO.find(s => s.title.includes('경로를 바꿔'))!;
-        expect(before.color).toBe('꿀');
-        expect(after.color).toBe('보통');
-        // 🔴 그런데 지금 코드는 판정을 다시 매기지 않는다 — 그 사실을 밝혀야 한다
+        expect(after.color).toBeUndefined();
         expect(after.gap).toBeTruthy();
         expect(after.gap).toMatch(/불변|다시 매/);
+        expect(after.gap).toMatch(/실측|같습니다/);
     });
 
     /** 🔴 심사석 다음 장면은 **그 콜이 붙은 뒤**여야 한다 — KEEP 을 누르면 콜이 는다 */

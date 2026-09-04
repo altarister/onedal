@@ -12,6 +12,7 @@ import { MovingBadge } from './VehicleStatusPanel';
 import { deckOrder } from '../../lib/deckFocus';
 import type { RouteStopInfo } from '@onedal/shared';
 import { useFilterConfig } from '../../hooks/useFilterConfig';
+import { isPriorityLocked } from '../../lib/routePriority';
 
 interface Props {
     activeRoute: SecuredOrder[];
@@ -122,7 +123,10 @@ export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDe
                         // 🔓 심사 중(안전취소 30초)에는 열어 둔다 (기사님 보완 2026-08-19) —
                         //    "이 콜을 붙이면 어떤 경로가 되나"를 바꿔 보는 것이 결재의 재료다.
                         //    결재가 끝나 확정 2건 이상만 남으면 그때 잠근다.
-                        const priorityLocked = liveRoute.length >= 2 && !liveRoute.some(o => isEvaluating(o.status));
+                        /* 🔴 **잠금 규칙은 `lib/routePriority` 하나에서 온다** (2026-09-05).
+                           목업이 같은 규칙을 한 벌 더 적어야 했는데, 그러면 실물이 바뀔 때
+                           목업이 조용히 옛 규칙을 그린다 (규칙 ③). 그리는 것만 각자 한다. */
+                        const priorityLocked = isPriorityLocked(liveRoute.length, liveRoute.some(o => isEvaluating(o.status)));
                         const buttons = [
                             { key: 'RECOMMEND', label: '추천', on: isRecommend, onCls: 'bg-info/90 text-white border border-info' },
                             { key: 'TIME', label: '시간', on: isTime, onCls: 'bg-accent/90 text-white border border-accent' },
