@@ -352,7 +352,7 @@ function CallItem({ call, i, open, onToggle, rainbow, visitedNos, fit }: {
     return (
         /* 🔴 닫힌 콜은 자기 높이만(flex-none) · 펼친 콜이 남는 자리를 다 먹는다(flex-1).
            헤더 자체는 아래에서 `shrink-0` 이라 어느 쪽에서도 안 줄어든다 */
-        <div className={`flex flex-col min-h-0 ${open ? 'flex-1' : 'flex-none'}`}>
+        <div className={`flex flex-col min-h-0 ${open ? (fit ? 'flex-auto' : 'flex-1') : 'flex-none'}`}>
             {/* ── 헤더: 접혀도 늘 보인다. 눌러서 토글 ── */}
             <button
                 type="button" onClick={onToggle} aria-expanded={open}
@@ -1188,7 +1188,7 @@ export default function SheetMockup() {
                               *    «일이 없음»을 구별해 주지 않는다.
                               */}
                             {CALLS.length === 0 && (
-                                <div className="flex-1 min-h-[88px] grid place-items-center text-center px-6">
+                                <div className="shrink-0 py-7 grid place-items-center text-center px-6">
                                     <div>
                                         <p className="text-[13px] font-black text-text-primary">아직 잡은 콜이 없습니다</p>
                                         <p className="mt-1 text-[12px] font-semibold text-text-muted leading-snug">

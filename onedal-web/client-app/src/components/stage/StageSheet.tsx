@@ -199,7 +199,14 @@ export default function StageSheet({ snap, onSnapChange, peekBar, topBox, bottom
                 <div className="shrink-0 flex items-center px-4 pb-2 text-[13px] font-bold tabular-nums truncate"
                      style={{ color: 'var(--color-text-primary, #dfe5ef)', height: 38, boxSizing: 'content-box' }}>{peekBar}</div>
             )}
-            <div data-sheet-scroll className="flex-1 overflow-y-auto min-h-0">{children}</div>
+            {/**
+              * 📏 **「나」에서는 내용만큼 선다** — `flex-1`(= `flex: 1 1 0%`)은 남는 공간이
+              *    없으면 **높이 0 으로 찌부러진다.** 시트가 «내용만큼» 서면 남는 공간이라는
+              *    것이 없으니, 그대로 두면 목록이 사라지고 아래 판정이 제자리를 잃는다
+              *    (기사님 2026-09-05: *"그 상태에서 화면 밖에다 판정을 그린다"*).
+              */}
+            <div data-sheet-scroll
+                 className={`${snap === 'list' ? 'flex-auto' : 'flex-1'} overflow-y-auto min-h-0`}>{children}</div>
             {/* 🪧 맨 아래 붙박이 — 목록이 아무리 길어도 여기는 안 밀린다 */}
             {bottomBox && <div className="shrink-0">{bottomBox}</div>}
         </div>
