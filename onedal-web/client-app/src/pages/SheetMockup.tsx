@@ -784,7 +784,8 @@ export default function SheetMockup() {
                     <StageSheet snap={snap} onSnapChange={setSnap}
                         peekBar={
                             /**
-                             * 🎬 **시트 버튼** (용어집 확정 2026-09-04) — 읽는 줄이자 누르는 곳.
+                             * 🎬 **시트 상태바** (용어집 확정 2026-09-04) — 읽는 줄.
+                             *    그 안에서 누르는 부분이 «시트 상태바의 버튼»이다.
                              *
                              * 🔴 지도 위에 같은 말을 하던 「다음 정거장 버튼」을 **여기로 합쳤다.**
                              *    같은 말을 두 곳에서 하면 갈라진다 (규칙 ③).
@@ -799,7 +800,7 @@ export default function SheetMockup() {
                                     if (!nextStop) return;
                                     setSnap('full');
                                     open(nextStop.callNo! - 1);
-                                    setLog(`시트 버튼을 눌렀습니다 → 시트를 올리고 ${nextStop.callNo}번 콜을 «${STEPS[CALLS[nextStop.callNo! - 1].now].k}» 단계로 엽니다.`);
+                                    setLog(`시트 상태바의 버튼을 눌렀습니다 → 시트를 올리고 ${nextStop.callNo}번 콜을 «${STEPS[CALLS[nextStop.callNo! - 1].now].k}» 단계로 엽니다.`);
                                 }}
                                 className="w-full flex items-center gap-1.5 text-left min-h-[30px] active:opacity-70 transition-opacity">
                                 <span className="shrink-0">⏸ 정차 중</span>
