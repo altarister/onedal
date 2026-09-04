@@ -4,6 +4,7 @@ import { MAP_THEME_COLORS } from '../styles/themes';
 import { callNodeFill, callNodeStroke, callNodeText } from '../styles/callPalette';
 import PinnedRouteCanvas, { type RoutePoint } from '../components/dashboard/PinnedRouteCanvas';
 import StageSheet, { aboveSheet, type SheetSnap } from '../components/stage/StageSheet';
+import NaviQr, { naviQrText, type QrKind } from '../components/dashboard/NaviQr';
 import { sheetStatus } from '../lib/sheetStatus';
 
 /**
@@ -746,6 +747,24 @@ export default function SheetMockup() {
      * 🎬 **시트 상태바 한 줄** — 무엇을 적을지는 `sheetStatus` 한 곳이 정한다 (규칙 ③).
      *    화면에 흩어 두면 «한 줄에 드는가»를 검사할 수가 없다 (`lib/sheetStatus.test.ts`).
      */
+    /**
+     * 🧭 **QR 을 어떤 모양으로 띄울까** — 기사님이 눈으로 고르시라고 **둘 다** 만들었다
+     * (기사님 2026-09-04: *"이게 최선의 UI 인 거야?"* — 나도 확신이 없었다).
+     *   ⓐ 덮개 — 버튼을 누르면 화면을 덮고 **크게**. 탭 2번(열고·닫고)
+     *   ⓑ 늘 띄우기 — 지도 구석에 **작게 항상**. 탭 0번. 대신 작아서 못 읽을 수 있다
+     */
+    const [qrStyle, setQrStyle] = useState<'sheet' | 'always'>('sheet');
+    const [qrOpen, setQrOpen] = useState(false);
+    const [qrKind, setQrKind] = useState<QrKind>('navi');
+    /** 🔴 키는 `.env` 에서 온다 — 코드에 안 적는다. 없으면 카카오맵 QR 로 떨어진다 */
+    const NAVI_KEY = import.meta.env.VITE_KAKAO_JS_KEY as string | undefined;
+    const NAVI_ORIGIN = typeof window !== 'undefined' ? window.location.origin : '';
+    const qrStop = nextStop && typeof nextStop.x === 'number' && typeof nextStop.y === 'number'
+        ? { name: `${nextStop.name} ${nextStop.type}`, x: nextStop.x, y: nextStop.y } : null;
+    const qrArgs = { stop: qrStop, here: myLocation, kind: qrKind,
+                     naviKey: NAVI_KEY, naviOrigin: NAVI_ORIGIN, vehicleType: 1 };
+    const qrReady = naviQrText(qrArgs) != null;
+
     const bar = sheetStatus({
         moving: false,   // 목업은 «정차 중» 고정 — 실물은 GPS 가 말한다
         next: nextStop ? {
@@ -798,14 +817,62 @@ export default function SheetMockup() {
                               * *"위쪽은 지도 관련 아래쪽은 콜 관련 버튼이 있는 거지"*).
                               *   좌하단 내비 연동 · 우하단 지금 갈 곳.
                               */}
-                            <button type="button"
-                                onClick={() => setLog(`🧭 «${nextStop?.name ?? '다음 정거장'}» 을 내비로 보냅니다 — 실물에서는 카카오내비가 열립니다.`)}
-                                className="absolute left-3 z-10 flex items-center gap-1.5 rounded-xl px-3 py-2.5
-                                           text-[13px] font-black text-white active:scale-95 transition-transform"
-                                /* 🔼 시트 바로 위에 — 높이는 StageSheet 가 원천이다 (규칙 ③) */
-                                style={{ bottom: aboveSheet(snap), background: 'linear-gradient(180deg,#5b8cff,#3f6fe0)', boxShadow: '0 6px 18px rgba(79,141,249,.4)' }}>
-                                🧭 내비
-                            </button>
+                            {/* ⓐ **덮개** — 누르면 화면을 덮고 크게 */}
+                            {qrStyle === 'sheet' && qrReady && (
+                                <button type="button"
+                                    onClick={() => { setQrOpen(true); setLog(`🧭 QR 을 띄웠습니다 — 개인폰 카메라로 찍으면 «${qrStop?.name}» 으로 카카오내비가 열립니다.`); }}
+                                    className="absolute left-3 z-10 flex items-center gap-1.5 rounded-xl px-3 py-2.5
+                                               text-[13px] font-black text-white active:scale-95 transition-transform"
+                                    /* 🔼 시트 바로 위에 — 높이는 StageSheet 가 원천이다 (규칙 ③) */
+                                    style={{ bottom: aboveSheet(snap), background: 'linear-gradient(180deg,#5b8cff,#3f6fe0)', boxShadow: '0 6px 18px rgba(79,141,249,.4)' }}>
+                                    🧭 다음 {nextStop?.no} {nextStop?.name}
+                                </button>
+                            )}
+
+                            {/* ⓑ **늘 띄우기** — 누를 필요가 없다. 도착하면 그냥 개인폰을 들이댄다 */}
+                            {qrStyle === 'always' && qrReady && (
+                                <button type="button"
+                                    onClick={() => { setQrOpen(true); setLog('🔍 작아서 안 찍히면 눌러서 크게 볼 수 있습니다.'); }}
+                                    className="absolute left-3 z-10 flex flex-col items-center gap-0.5 rounded-xl bg-white p-1.5
+                                               active:scale-95 transition-transform shadow-lg"
+                                    style={{ bottom: aboveSheet(snap) }}>
+                                    <NaviQr {...qrArgs} size={78} />
+                                    <span className="text-[9px] font-black text-black leading-none pb-0.5">
+                                        {nextStop?.no} {nextStop?.name}
+                                    </span>
+                                </button>
+                            )}
+
+                            {/* 🔳 **QR 덮개** — 크게. 찍으라고 띄우는 화면이라 다른 건 안 넣는다 */}
+                            {qrOpen && qrReady && (
+                                <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3
+                                                bg-black/85 backdrop-blur-sm"
+                                     onClick={() => setQrOpen(false)}>
+                                    <button type="button"
+                                        onClick={(e) => { e.stopPropagation(); setQrOpen(false); }}
+                                        className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/15 text-white text-[17px] font-black">✕</button>
+                                    <NaviQr {...qrArgs} size={196} />
+                                    <div className="text-center">
+                                        <p className="text-[15px] font-black text-white">{qrStop?.name}</p>
+                                        <p className="text-[12px] font-bold text-white/60 mt-0.5">개인폰 카메라로 찍으세요</p>
+                                    </div>
+                                    {/* 🗺️ 되돌아갈 길 — 카카오내비가 별로면 같은 자리에서 바꾼다 */}
+                                    <button type="button"
+                                        onClick={(e) => { e.stopPropagation(); const k = qrKind === 'navi' ? 'map' : 'navi'; setQrKind(k); setLog(`${k === 'navi' ? '🧭 카카오내비' : '🗺️ 카카오맵'} QR 로 바꿨습니다.`); }}
+                                        className="text-[12px] font-bold text-white/70 underline underline-offset-4">
+                                        {qrKind === 'navi' ? '🗺️ 카카오맵으로 바꾸기' : '🧭 카카오내비로 되돌리기'}
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* 🔴 키가 없으면 **버튼을 아예 안 보인다** — 깨진 QR 을 띄우느니 없는 게 낫다 (규칙 ④) */}
+                            {!qrReady && (
+                                <div className="absolute left-3 z-10 rounded-xl bg-warning/15 border border-warning/40 px-3 py-2
+                                                text-[11px] font-bold text-warning leading-snug max-w-[190px]"
+                                     style={{ bottom: aboveSheet(snap) }}>
+                                    🔑 QR 을 못 만듭니다 —<br /><code>.env</code> 의 <b>VITE_KAKAO_JS_KEY</b> 를 확인하세요
+                                </div>
+                            )}
 
                         </PinnedRouteCanvas>
                     </div>
@@ -924,6 +991,30 @@ export default function SheetMockup() {
                 <p className="mt-2 text-[12px] leading-relaxed text-text-muted">
                     <b className="text-text-primary">색상</b>=몇 번 콜 · <b className="text-text-primary">채도</b>=상차(진함)/하차(흐림) ·
                     <b className="text-text-primary"> 테두리</b>=아직(흰색)/지나감(회색). 1번 상차지(초월읍)는 다녀와서 테두리가 회색입니다.
+                </p>
+
+                {/* 🧭 **QR 두 안** — 기사님이 눈으로 고르실 자리 (2026-09-04) */}
+                <h2 className="mt-6 text-[12.5px] font-black tracking-wide text-info mb-2">🧭 내비 QR — 두 안 비교</h2>
+                <div className="grid grid-cols-2 gap-2">
+                    {([['sheet', 'ⓐ 눌러서 크게'], ['always', 'ⓑ 늘 작게 떠 있게']] as const).map(([k, t]) => (
+                        <button key={k} type="button"
+                            onClick={() => { setQrStyle(k); setQrOpen(false); setSnap('peek');
+                                setLog(k === 'sheet'
+                                    ? 'ⓐ 지도 좌하단 버튼을 누르면 QR 이 화면을 덮습니다 — 큽니다. 탭 2번(열고·닫고).'
+                                    : 'ⓑ 지도 좌하단에 QR 이 늘 떠 있습니다 — 누를 필요가 없습니다. 대신 작아서 안 찍힐 수 있습니다.'); }}
+                            className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${qrStyle === k
+                                ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-surface text-text-primary hover:border-info'}`}>
+                            {t}
+                        </button>
+                    ))}
+                </div>
+                <p className="mt-2 text-[12px] leading-relaxed text-text-muted">
+                    🔴 <b className="text-text-primary">진짜 QR 입니다</b> — 개인폰 카메라로 찍어 보세요.
+                    카카오내비가 «{qrStop?.name ?? '다음 정거장'}» 으로 열려야 맞습니다.
+                    덮개 안의 <b className="text-text-primary">「카카오맵으로 바꾸기」</b>로 되돌아갈 길도 볼 수 있습니다.
+                    {!NAVI_KEY && <span className="block mt-1 text-warning font-bold">
+                        ⚠️ <code>.env</code> 에 <b>VITE_KAKAO_JS_KEY</b> 가 안 보입니다 — 개발 서버를 다시 띄워야 읽힙니다.
+                    </span>}
                 </p>
 
                 <h2 className="mt-6 text-[12.5px] font-black tracking-wide text-info mb-2">필터 영역 — 두 안 비교</h2>

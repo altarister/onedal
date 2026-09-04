@@ -85,3 +85,79 @@ export function httpsUpgradeUrl(href: string): string | null {
     u.protocol = 'https:';
     return u.toString();
 }
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  🧭 카카오내비 — QR 안에 들어가는 글자 한 줄 (2026-09-04)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * 🔴 **위의 `kakaomap://` 과 좌표 차례가 반대다.** 섞지 않는다:
+ *
+ * | | 차례 | 우리 DB 와 |
+ * |---|---|---|
+ * | `kakaomap://` | **`위도,경도`** 문자열 | `pair()` 로 **뒤집는다** |
+ * | `kakaonavi-sdk://` | JSON `x`=경도 `y`=위도 | **그대로** — `pair()` 를 안 부른다 |
+ *
+ * ⚠️ 한 파일에 반대 규칙 둘이 산다. `kakaoNaviLink.test.ts` 가 섞이는 것을 막는다.
+ */
+
+/** 카카오내비가 받는 경유지 최대 개수 — 앱의 «+ 경유»도 같은 3개다 */
+export const KAKAO_NAVI_MAX_VIA = 3;
+
+/** 카카오내비에 넣는 한 점 — 🔴 **이름이 필수다** (카카오맵은 좌표만으로 됐다) */
+export interface NaviStop extends NaviPoint {
+    name: string;
+}
+
+export interface KakaoNaviLinkInput {
+    /** 카카오 **JavaScript** 앱 키 (`VITE_KAKAO_JS_KEY`). REST 키가 아니다 */
+    key: string;
+    /** 콘솔의 «JavaScript SDK 도메인»에 등록한 주소. 다르면 카카오가 막는다 */
+    origin: string;
+    /** 이번에 갈 곳 — 우리는 **«다음 한 곳»** 만 보낸다 */
+    dest: NaviStop;
+    /** 경유지. **우리는 안 쓴다** — 값과 이름은 실측으로 확정해 뒀으니 필요해지면 그때 */
+    via?: NaviStop[];
+    /** 경로 기준 — 추천 `100` · 무료도로 `2` · 고속도로우선 `6` (기본 추천) */
+    rpOption?: number;
+    /** 차종 1~7. `mapVehicleToKakaoCarType()` 이 준 값을 그대로 넣는다 */
+    vehicleType?: number;
+}
+
+const validStop = (s: NaviStop | undefined | null): boolean =>
+    !!s && !!s.name && Number.isFinite(s.x) && Number.isFinite(s.y);
+
+/** JSON 을 그대로 쓴다 — 칸 이름·차례를 손대지 않는다 (카카오가 정한 것) */
+const asPoint = (s: NaviStop) => ({ name: s.name, x: s.x, y: s.y });
+
+/**
+ * 🧭 **카카오내비를 여는 주소 한 줄.** 못 만들면 `null` (규칙 ④).
+ *
+ * SDK 를 안 깐다 — SDK 도 속을 보면 이 URL 을 만들어 여는 것뿐이다.
+ * 이 글자가 **QR 안에 들어가고**, 개인폰 카메라가 읽어 카카오내비를 연다.
+ *
+ * 🔴 **`coord_type` 기본이 `katec` 이다.** 안 넣으면 우리 wgs84 좌표를 katec 으로 읽어
+ *    **조용히 엉뚱한 데로 안내한다.** 그래서 언제나 넣는다.
+ * 🔴 **경유지 칸 이름은 `via_list` 다.** `viaPoints` 로 보내면 **에러 없이 무시된다**
+ *    (2026-09-04 기사님 폰 실측 — 「경유 1」 마커가 사라졌다).
+ * 🔴 **못 만들면 «없다»가 낫다** — 깨진 QR 을 띄우느니 버튼을 안 보이게 한다.
+ */
+export function buildKakaoNaviUrl(input: KakaoNaviLinkInput): string | null {
+    const { key, origin, dest, via, rpOption, vehicleType } = input;
+    if (!key || !origin || !validStop(dest)) return null;
+
+    const option: Record<string, unknown> = { coord_type: 'wgs84' };
+    if (rpOption != null) option.rpOption = rpOption;
+    if (vehicleType != null) option.vehicleType = vehicleType;
+
+    const param: Record<string, unknown> = { destination: asPoint(dest), option };
+
+    // ⚠️ 빈 배열이면 칸 자체를 안 만든다 — «경유 없음»과 «경유 0개»는 다르게 읽힐 수 있다
+    const vias = (via ?? []).filter(validStop).slice(0, KAKAO_NAVI_MAX_VIA);
+    if (vias.length > 0) param.via_list = vias.map(asPoint);
+
+    const extras = { KA: `sdk/1.43.5 os/javascript lang/ko-KR origin/${origin}` };
+    const enc = (o: unknown) => encodeURIComponent(JSON.stringify(o));
+    return `kakaonavi-sdk://navigate?appkey=${key}&apiver=1.0`
+         + `&extras=${enc(extras)}&param=${enc(param)}`;
+}
