@@ -519,6 +519,14 @@ export default function SheetMockup() {
      */
     const [stepNo, setStepNo] = useState<number | null>(null);
     const step = stepNo != null ? SCENARIO.find(x => x.no === stepNo) ?? null : null;
+    /**
+     * ▶️ **저절로 흘러가게** (기사님 2026-09-05: *"처음에 콜이 없다가 하나씩 생기면 좋겠는데"*).
+     *
+     * 🔴 단계를 손으로 누르면 «콜이 붙는 순간»이 안 보인다 — 누른 사람은 다음 화면을
+     *    이미 알고 보기 때문이다. 저절로 넘어가야 **빈 화면에 콜이 하나 생기고, 또 하나가
+     *    끼어들어 번호가 밀리는 것**이 눈에 들어온다.
+     */
+    const [playing, setPlaying] = useState(false);
     const [planSize, setPlanSize] = useState<3 | 4 | 5>(3);
     /**
      * ⟳ **다시 물었나** — 눌렀을 때 «순서가 춤추는 것»을 보여 주기 위한 것이다
@@ -665,6 +673,23 @@ export default function SheetMockup() {
     const visitedNos = new Set(visited.map(v => v.no));
     const [log, setLog] = useState('헤더를 누르거나 아래 «운행 이벤트»를 눌러 보세요.');
 
+    /**
+     * ▶️ 재생 — 4초마다 한 칸. 🔴 **타이머 id 를 붙들어 반드시 치운다** (좀비 타이머 · 규칙 ②).
+     *    마지막 장면에 닿으면 **스스로 멈춘다** — 처음으로 되감지 않는다 (한 사이클이니까).
+     */
+    useEffect(() => {
+        if (!playing || stepNo == null) return;
+        if (stepNo >= SCENARIO.length) { setPlaying(false); return; }
+        const t = setTimeout(() => {
+            const next = SCENARIO.find(x => x.no === stepNo + 1);
+            if (!next) { setPlaying(false); return; }
+            setStepNo(next.no); setOpenIdx(-1); setQrPeek(0);
+            setSnap(next.qr ? 'peek' : next.phase === '정차' ? 'full' : next.phase === '심사' ? 'half' : 'peek');
+            setLog(`${next.title} — ${next.what}`);
+        }, 4000);
+        return () => clearTimeout(t);
+    }, [playing, stepNo]);
+
     /** 열리는 것은 하나 — 이미 열린 것을 누르면 접는다 (i 가 -1 이면 전부 접기) */
     const open = (i: number, why?: string) => {
         const next = i === openIdx ? -1 : i;
@@ -720,6 +745,10 @@ export default function SheetMockup() {
                               * 🔴 **초기화(⟲)와 다른 일이다** — 초기화는 «보기를 되돌린다»,
                               *    이건 «카카오에 다시 물어 경로를 받는다». 그래서 **글씨로 적는다.**
                               */}
+                            {/* 🔴 **시나리오가 켜져 있으면 안 그린다** — 경로를 정하는 손잡이가
+                                둘이 되면 갈라진다 (규칙 ③). 「다시 물은 순서」를 안 받아 둔
+                                판(콜 0·1·2개)에서도 안 그린다 — 보여 줄 값이 없다 (규칙 ④). */}
+                            {!step && cost && (
                             <button type="button"
                                 onClick={() => {
                                     const on = !reasked; setReasked(on); setOpenIdx(-1); setQrPeek(0);
@@ -733,13 +762,14 @@ export default function SheetMockup() {
                                            px-2 h-8 text-[11px] font-black text-text-primary opacity-80 hover:opacity-100 transition-all">
                                 {reasked ? '⟲ 되돌리기' : '⟳ 경로'}
                             </button>
+                            )}
 
                             {/**
                               * 🔴 **다시 물으면 무엇이 달라지는지 그 자리에서 말한다.**
                               *    Q8 은 «자동으로 다시 부를 것인가»인데, 그 답은 **얼마나
                               *    나빠지는지를 보고** 나오는 것이다 (전제 점검표 3부 Q8).
                               */}
-                            {reasked && (
+                            {reasked && cost && (
                                 <div className={`absolute top-[154px] right-3 z-10 max-w-[228px] rounded-lg px-2.5 py-2
                                                  border backdrop-blur-sm text-[11px] font-bold leading-snug ${
                                     cost.km > 5 ? 'bg-danger/20 border-danger/50 text-danger'
@@ -942,14 +972,27 @@ export default function SheetMockup() {
                 </p>
                 <div className="flex gap-1.5 flex-wrap">
                     <button type="button"
-                        onClick={() => { setStepNo(null); setLog('시나리오를 껐습니다 — 판과 국면을 손으로 고르는 자리로 돌아옵니다.'); }}
+                        onClick={() => {
+                            if (playing) { setPlaying(false); setLog('⏸ 멈췄습니다 — 「다음 ▶」으로 손수 넘기실 수 있습니다.'); return; }
+                            const first = SCENARIO[0];
+                            setStepNo(first.no); setPlaying(true); setOpenIdx(-1); setQrPeek(0); setReasked(false);
+                            setSnap('peek');
+                            setLog(`▶️ 처음부터 재생합니다 (4초에 한 칸) — ${first.title} · ${first.what}`);
+                        }}
+                        className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${playing
+                            ? 'bg-warning/15 border-warning/55 text-warning'
+                            : 'bg-info/15 border-info/55 text-info hover:border-info'}`}>
+                        {playing ? '⏸ 멈춤' : '▶️ 처음부터 재생'}
+                    </button>
+                    <button type="button"
+                        onClick={() => { setStepNo(null); setPlaying(false); setLog('시나리오를 껐습니다 — 판과 국면을 손으로 고르는 자리로 돌아옵니다.'); }}
                         className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${stepNo == null
                             ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-surface text-text-primary hover:border-info'}`}>
                         ✋ 끄기
                     </button>
                     {SCENARIO.map(sc => (
                         <button key={sc.no} type="button"
-                            onClick={() => { setStepNo(sc.no); setOpenIdx(-1); setQrPeek(0); setReasked(false);
+                            onClick={() => { setStepNo(sc.no); setPlaying(false); setOpenIdx(-1); setQrPeek(0); setReasked(false);
                                 setSnap(sc.qr ? 'peek' : sc.phase === '정차' ? 'full' : sc.phase === '심사' ? 'half' : 'peek');
                                 setLog(`${sc.title} — ${sc.what}${sc.gap ? `  🔴 아직 없는 것: ${sc.gap}` : ''}`); }}
                             className={`px-2.5 py-2 rounded-[9px] border text-[12px] font-black ${stepNo === sc.no
@@ -1095,7 +1138,9 @@ export default function SheetMockup() {
                     «짧은 축이 화면을 줄이지 않는가»를 보기 좋습니다.
                 </p>
 
-                {/* ⟳ **Q8 을 판단하실 재료** — 전제 점검표 3부 (2026-09-04) */}
+                {/* ⟳ **Q8 을 판단하실 재료** — 전제 점검표 3부 (2026-09-04).
+                    🔴 시나리오가 켜져 있으면 안 보인다 — 경로를 정하는 곳이 둘이면 갈라진다 */}
+                {!step && cost && (<>
                 <h2 className="mt-6 text-[12.5px] font-black tracking-wide text-info mb-2">⟳ 다시 물으면 어떻게 되나 <span className="text-text-muted font-bold">(Q8)</span></h2>
                 <button type="button"
                     onClick={() => { setReasked(r => !r); setOpenIdx(-1); setQrPeek(0); setSnap('half');
@@ -1122,7 +1167,7 @@ export default function SheetMockup() {
                         </thead>
                         <tbody>
                             {([3, 4, 5] as const).map(n => {
-                                const c = reaskCost(MOCK_PLANS[n]);
+                                const c = reaskCost(MOCK_PLANS[n])!;   // 3·4·5 판은 언제나 있다
                                 return (
                                     <tr key={n} className={`border-t border-border-card ${planSize === n ? 'bg-info/8' : ''}`}>
                                         <td className="px-2 py-1.5 font-black text-text-primary">{n}콜</td>
@@ -1144,6 +1189,7 @@ export default function SheetMockup() {
                     <b className="text-text-primary"> «얼마나 나빠지는지는 판마다 다르다»</b> 입니다.
                     <b className="text-text-primary"> 결론은 기사님이 내십니다.</b>
                 </p>
+                </>)}
 
                 <h2 className="mt-6 text-[12.5px] font-black tracking-wide text-info mb-2">🌈 콜 색표 — 예전 색과 비교</h2>
                 <div className="flex gap-1.5 flex-wrap">

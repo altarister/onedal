@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { SCENARIO } from './scenario';
-import { scenarioPlan, SCENARIO_CALL_ORDER } from './mockPlans';
+import { scenarioPlan, SCENARIO_CALL_ORDER, reaskCost, reaskedPlan } from './mockPlans';
 
 /**
  * 🧪 **기사님이 적어 주신 한 사이클이 스스로 어긋나지 않는가** (2026-09-05)
@@ -135,5 +135,72 @@ describe('시나리오 — 아직 없는 것을 있다고 말하지 않는다', 
 
     it('모든 단계가 무슨 일인지 말한다', () => {
         for (const s of SCENARIO) expect(s.what.length, s.title).toBeGreaterThan(20);
+    });
+});
+
+describe('🔴 다시 물은 순서가 없는 판 — 터지지 않는다 (2026-09-05 버그)', () => {
+    /**
+     * 🔴 **무엇이 터졌나** — 시나리오 「① 콜 대기」를 누르면 흰 화면이 됐다:
+     *    `Cannot read properties of undefined (reading 'totalKm')`.
+     *
+     * 🔴 **왜** — `reaskCost` 가 «판의 콜 수»를 열쇠로 «다시 물은 순서»를 찾는데,
+     *    그 표는 **3·4·5콜만** 갖고 있다. 시나리오 판은 콜이 0·1·2 개일 수 있다.
+     *    `plan.calls` 하나가 «몇 콜인가»와 «어느 재요청 결과를 쓰나» **두 질문을 답하고
+     *    있었다** — CLAUDE.md ⑤-4 ⑤ 가 잡으라는 바로 그 모양이다.
+     *
+     * 🔴 고치는 방향은 «없으면 null» 이다 — 없는 값을 지어내지 않는다 (규칙 ④).
+     */
+    it.each([0, 1, 2] as const)('%i콜 판에서 reaskCost 가 터지지 않고 null 을 준다', (n) => {
+        expect(() => reaskCost(scenarioPlan(n))).not.toThrow();
+        expect(reaskCost(scenarioPlan(n))).toBeNull();
+    });
+
+    it.each([0, 1, 2] as const)('%i콜 판에서 reaskedPlan 은 판을 그대로 돌려준다', (n) => {
+        const plan = scenarioPlan(n);
+        expect(() => reaskedPlan(plan)).not.toThrow();
+        expect(reaskedPlan(plan).stops.map(s => s.name)).toEqual(plan.stops.map(s => s.name));
+    });
+
+    it('3콜 판은 지금처럼 값을 준다 — 고치면서 되던 것을 죽이지 않는다', () => {
+        expect(reaskCost(scenarioPlan(3))).not.toBeNull();
+        expect(reaskCost(scenarioPlan(3))!.km).toBeGreaterThan(5);
+    });
+
+    /** 🔴 시나리오의 **모든** 단계가 터지지 않아야 한다 — ① 만 고치고 끝내지 않는다 */
+    it.each(SCENARIO)('$title — 이 단계의 판으로 ⟳ 를 물어도 터지지 않는다', (s) => {
+        expect(() => reaskCost(scenarioPlan(s.grabbed))).not.toThrow();
+        expect(() => reaskedPlan(scenarioPlan(s.grabbed))).not.toThrow();
+    });
+});
+
+describe('▶️ 저절로 흘러갈 때 — 콜이 하나씩 붙는 것이 보이는가', () => {
+    /**
+     * 기사님 2026-09-05: *"처음에 콜이 없다가 하나씩 생기면 좋겠는데."*
+     * 그러려면 **시작이 빈 화면**이어야 하고, 붙는 자리가 **한 번에 하나씩**이어야 한다.
+     */
+    it('첫 장면은 콜이 하나도 없다', () => {
+        expect(SCENARIO[0].grabbed).toBe(0);
+        expect(scenarioPlan(SCENARIO[0].grabbed).stops).toHaveLength(0);
+    });
+
+    it('콜은 한 번에 하나씩만 붙는다 — 둘이 한꺼번에 생기지 않는다', () => {
+        let last = 0;
+        for (const s of SCENARIO) {
+            expect(s.grabbed - last, `${s.title} 에서 ${s.grabbed - last}개가 한꺼번에`).toBeLessThanOrEqual(1);
+            last = s.grabbed;
+        }
+    });
+
+    it('마지막에는 세 콜이 다 붙어 있다', () => {
+        expect(SCENARIO.at(-1)!.grabbed).toBe(3);
+    });
+
+    /** 🔴 붙는 순간이 **눈에 보이려면** 그 장면이 무슨 일인지 말해야 한다 */
+    it('콜이 붙는 장면마다 무슨 콜인지 적혀 있다', () => {
+        let last = 0;
+        for (const s of SCENARIO) {
+            if (s.grabbed > last) expect(s.what, s.title).toMatch(/콜|합짐/);
+            last = s.grabbed;
+        }
     });
 });

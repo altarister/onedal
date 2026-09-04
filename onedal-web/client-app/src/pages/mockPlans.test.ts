@@ -182,7 +182,7 @@ describe('⟳ 다시 물은 순서 — 무엇이 갈리고 무엇이 안 갈리�
      *    09-04 값을 견주면 «순서 때문»인지 «시각 때문»인지가 섞인다.
      */
     it.each(PLANS)('%i콜 판 — 차이는 같은 시각에 물은 두 순서에서 나온다', (n) => {
-        const c = reaskCost(MOCK_PLANS[n]);
+        const c = reaskCost(MOCK_PLANS[n])!;
         const [reKm, reMin] = [parseFloat(c.reasked), parseInt(c.reasked.split('/ ')[1])];
         const [asKm, asMin] = [parseFloat(c.asIs), parseInt(c.asIs.split('/ ')[1])];
         expect(c.km).toBeCloseTo(reKm - asKm, 1);
@@ -195,7 +195,7 @@ describe('⟳ 다시 물은 순서 — 무엇이 갈리고 무엇이 안 갈리�
      *    누군가 «항상 나빠진다»는 문구를 넣으면 여기서 깨진다.
      */
     it('나빠지는 정도는 판마다 다르다 — 4콜 판은 시간이 줄어든다', () => {
-        expect(reaskCost(MOCK_PLANS[3]).km).toBeGreaterThan(5);
-        expect(reaskCost(MOCK_PLANS[4]).min).toBeLessThan(0);
+        expect(reaskCost(MOCK_PLANS[3])!.km).toBeGreaterThan(5);
+        expect(reaskCost(MOCK_PLANS[4])!.min).toBeLessThan(0);
     });
 });

@@ -705,6 +705,10 @@ const REASKED: Record<3 | 4 | 5, ReaskedOrder> = {
  */
 export function reaskedPlan(plan: MockPlan): MockPlan {
     const r = REASKED[plan.calls as 3 | 4 | 5];
+    /* 🔴 **다시 물은 순서를 안 받아 둔 판이면 그대로 돌려준다** (2026-09-05 버그).
+       시나리오 판은 콜이 0·1·2 개일 수 있는데 이 표는 3·4·5 만 갖고 있다.
+       없는 것을 지어내지 않는다 (규칙 ④) — «바꿀 것이 없다»가 정직한 답이다. */
+    if (!r) return plan;
     return {
         ...plan,
         stops: r.stops, legMinutes: r.legMinutes, polyline: r.polyline,
@@ -715,9 +719,18 @@ export function reaskedPlan(plan: MockPlan): MockPlan {
     };
 }
 
-/** ⟳ 를 누르면 **무엇이 달라지는가** — 같은 시각에 물은 두 순서의 차이다 */
+/**
+ * ⟳ 를 누르면 **무엇이 달라지는가** — 같은 시각에 물은 두 순서의 차이다.
+ *
+ * 🔴 **없는 판이면 `null` 이다** (2026-09-05 버그 · 규칙 ④). 처음엔 이 자리가
+ *    `REASKED[plan.calls]` 를 그냥 읽어서, 콜 0개인 「① 콜 대기」에 들어가자마자
+ *    `Cannot read properties of undefined` 로 **화면이 통째로 하얘졌다.**
+ * 🔴 뿌리는 `plan.calls` 가 **두 질문을 답한 것**이다 — «몇 콜인가»와
+ *    «어느 재요청 결과를 쓰나». 읽는 곳이 둘이면 그 자리에서 의심한다 (CLAUDE.md ⑤-4 ⑤).
+ */
 export function reaskCost(plan: MockPlan) {
     const r = REASKED[plan.calls as 3 | 4 | 5];
+    if (!r) return null;
     return {
         km: +(r.totalKm - r.asIsKm).toFixed(1),
         min: r.totalMin - r.asIsMin,
