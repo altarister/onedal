@@ -12,7 +12,7 @@ import { MovingBadge } from './VehicleStatusPanel';
 import { deckOrder } from '../../lib/deckFocus';
 import type { RouteStopInfo } from '@onedal/shared';
 import { useFilterConfig } from '../../hooks/useFilterConfig';
-import { isPriorityLocked } from '../../lib/routePriority';
+import { isPriorityLocked, PRIORITY_LABEL } from '../../lib/routePriority';
 
 interface Props {
     activeRoute: SecuredOrder[];
@@ -128,9 +128,13 @@ export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDe
                            목업이 조용히 옛 규칙을 그린다 (규칙 ③). 그리는 것만 각자 한다. */
                         const priorityLocked = isPriorityLocked(liveRoute.length, liveRoute.some(o => isEvaluating(o.status)));
                         const buttons = [
-                            { key: 'RECOMMEND', label: '추천', on: isRecommend, onCls: 'bg-info/90 text-white border border-info' },
-                            { key: 'TIME', label: '시간', on: isTime, onCls: 'bg-accent/90 text-white border border-accent' },
-                            { key: 'DISTANCE', label: '거리', on: isDistance, onCls: 'bg-success/90 text-white border border-success' },
+                            /* 🔴 이름은 `lib/routePriority` 에서 온다 — 두 벌로 적지 않는다 (규칙 ③).
+                               ⚠️ 여기는 아직 짧은 이름(`label`)이다. 목업이 카카오내비 화면의 이름
+                               (`naviLabel` — 「내비추천 · 큰길 우선 · 최단거리」)으로 크기까지 함께
+                               정하는 중이라, 확정되면 그때 옮긴다 (todo.md). */
+                            { key: 'RECOMMEND', label: PRIORITY_LABEL.RECOMMEND, on: isRecommend, onCls: 'bg-info/90 text-white border border-info' },
+                            { key: 'TIME', label: PRIORITY_LABEL.TIME, on: isTime, onCls: 'bg-accent/90 text-white border border-accent' },
+                            { key: 'DISTANCE', label: PRIORITY_LABEL.DISTANCE, on: isDistance, onCls: 'bg-success/90 text-white border border-success' },
                         ].filter(b => !priorityLocked || b.on);
 
                         return (

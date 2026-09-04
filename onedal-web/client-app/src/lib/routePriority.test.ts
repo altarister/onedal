@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isPriorityLocked, ROUTE_PRIORITIES, PRIORITY_SAMPLE } from './routePriority';
+import { isPriorityLocked, ROUTE_PRIORITIES, PRIORITY_SAMPLE, PRIORITY_LABEL } from './routePriority';
 
 /**
  * 🧪 **경로 방침 — 언제 잠기나** (2026-09-05)
@@ -55,5 +55,30 @@ describe('🛣️ 고를 수 있는 셋', () => {
 
     it('통행료는 셋 다 같다 — 이 구간에서는 유료도로를 안 피한다', () => {
         for (const p of ROUTE_PRIORITIES) expect(PRIORITY_SAMPLE[p.key].toll).toBe(1900);
+    });
+});
+
+describe('🏷️ 이름 — 기사님이 개인폰에서 보는 말과 같아야 한다', () => {
+    /**
+     * 기사님 2026-09-05: *"이 아이콘을 내비에서 보던 것과 같은 text로 해야 할 것 같아."*
+     *
+     * 🔴 폰 둘을 오가며 쓰는 제품이다. 관제폰이 「시간」이라 하고 개인폰 카카오내비가
+     *    「큰길 우선」이라 하면 **같은 것을 다르게 부르는 것**이라 그 자리에서 헷갈린다.
+     */
+    it('카카오내비 화면의 이름을 그대로 쓴다', () => {
+        expect(ROUTE_PRIORITIES.map(p => p.naviLabel))
+            .toEqual(['내비추천', '큰길 우선', '최단거리']);
+    });
+
+    /**
+     * ⚠️ **이름만 맞추고 근사라는 사실은 안 감춘다** — 우리가 보내는 값은 여전히 `TIME`
+     *    이고, 「큰길 우선」에 딱 맞는 값이 없어 근사한 것이다 (경로.md §2-2).
+     */
+    it('「큰길 우선」이 근사라는 것을 설명이 말한다', () => {
+        expect(ROUTE_PRIORITIES.find(p => p.key === 'TIME')!.long).toMatch(/근사/);
+    });
+
+    it('짧은 이름 사전은 같은 목록에서 나온다 — 두 벌로 적지 않는다', () => {
+        for (const p of ROUTE_PRIORITIES) expect(PRIORITY_LABEL[p.key]).toBe(p.label);
     });
 });

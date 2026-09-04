@@ -785,9 +785,10 @@ export default function SheetMockup() {
                             myLocation={myLocation}
                         >
                             {/**
-                              * 🗺️ **아래쪽은 «콜 관련»** (기사님 확정 2026-09-04:
-                              * *"위쪽은 지도 관련 아래쪽은 콜 관련 버튼이 있는 거지"*).
-                              *   좌하단 내비 연동 · 우하단 지금 갈 곳.
+                              * 🗺️ **아래 두 귀퉁이** (기사님 2026-09-05 재배치):
+                              *   **좌하단** 경로 방침(내비추천·큰길 우선·최단거리) ·
+                              *   **우하단** 「출발하기」(QR).
+                              *   위쪽은 지도 관련이 남는다 — 우상단 「⟳ 경로」.
                               */}
                             {/**
                               * 🛣️ **경로 방침 — 실물과 같은 좌상단** (`PinnedRoute` 의 그 자리).
@@ -800,7 +801,10 @@ export default function SheetMockup() {
                             {plan.stops.length > 0 && (() => {
                                 const locked = isPriorityLocked(plan.calls, !!step?.seat);
                                 return (
-                                    <div className="absolute top-3 left-3 z-10 flex flex-col gap-1.5">
+                                    /* 🔴 **좌하단** (기사님 2026-09-05). 시트 바로 위에 붙는다 —
+                                       높이는 `StageSheet` 가 원천이다 (규칙 ③) */
+                                    <div className="absolute left-3 z-10 flex flex-col gap-1.5 items-start"
+                                         style={{ bottom: aboveSheet(snap) }}>
                                         {ROUTE_PRIORITIES.filter(b => !locked || b.key === priority).map(b => (
                                             <button key={b.key} type="button"
                                                 onClick={() => {
@@ -813,14 +817,15 @@ export default function SheetMockup() {
                                                             : b.key === 'DISTANCE'
                                                             ? '2.7km 짧지만 7분 더 걸립니다.'
                                                             : '기본값입니다.')); }}
-                                                className={`w-8 h-8 rounded-md text-[11px] font-black border backdrop-blur-sm transition-all ${
+                                                className={`px-2.5 h-8 rounded-md text-[11.5px] font-black border backdrop-blur-sm
+                                                            whitespace-nowrap transition-all ${
                                                     priority === b.key
                                                         ? 'bg-info/90 text-white border-info'
                                                         : 'bg-surface-alt/80 text-text-primary border-border hover:bg-surface-hover'}`}>
-                                                {b.label}
+                                                {b.naviLabel}
                                             </button>
                                         ))}
-                                        {locked && <span className="text-[9px] font-black text-text-muted text-center leading-none">🔒</span>}
+                                        {locked && <span className="text-[9px] font-black text-text-muted leading-none pl-1">🔒 합짐 뒤라 잠김</span>}
                                     </div>
                                 );
                             })()}
@@ -876,9 +881,10 @@ export default function SheetMockup() {
                             {qrStyle === 'sheet' && qrReady && (
                                 <button type="button"
                                     onClick={() => { setQrOpen(true); setLog(`🧭 QR 을 띄웠습니다 — 개인폰 카메라로 찍으면 «${qrStop?.name}» 으로 카카오내비가 열립니다.`); }}
-                                    className="absolute left-3 z-10 flex items-center gap-1.5 rounded-xl px-3 py-2.5
+                                    className="absolute right-3 z-10 flex items-center gap-1.5 rounded-xl px-3 py-2.5
                                                text-[13px] font-black text-white active:scale-95 transition-transform"
-                                    /* 🔼 시트 바로 위에 — 높이는 StageSheet 가 원천이다 (규칙 ③) */
+                                    /* 🔼 **우하단** (기사님 2026-09-05) · 시트 바로 위에 —
+                                       높이는 StageSheet 가 원천이다 (규칙 ③) */
                                     style={{ bottom: aboveSheet(snap), background: 'linear-gradient(180deg,#5b8cff,#3f6fe0)', boxShadow: '0 6px 18px rgba(79,141,249,.4)' }}>
                                     {/**
                                       * 🔴 **「출발하기」 한 마디다** (기사님 2026-09-05).
@@ -895,7 +901,7 @@ export default function SheetMockup() {
                             {qrStyle === 'always' && qrReady && (
                                 <button type="button"
                                     onClick={() => { setQrOpen(true); setLog('🔍 작아서 안 찍히면 눌러서 크게 볼 수 있습니다.'); }}
-                                    className="absolute left-3 z-10 flex flex-col items-center gap-0.5 rounded-xl bg-white p-1.5
+                                    className="absolute right-3 z-10 flex flex-col items-center gap-0.5 rounded-xl bg-white p-1.5
                                                active:scale-95 transition-transform shadow-lg"
                                     style={{ bottom: aboveSheet(snap) }}>
                                     <NaviQr {...qrArgs} size={78} />
@@ -968,7 +974,7 @@ export default function SheetMockup() {
 
                             {/* 🔴 키가 없으면 **버튼을 아예 안 보인다** — 깨진 QR 을 띄우느니 없는 게 낫다 (규칙 ④) */}
                             {!qrReady && (
-                                <div className="absolute left-3 z-10 rounded-xl bg-warning/15 border border-warning/40 px-3 py-2
+                                <div className="absolute right-3 z-10 rounded-xl bg-warning/15 border border-warning/40 px-3 py-2
                                                 text-[11px] font-bold text-warning leading-snug max-w-[190px]"
                                      style={{ bottom: aboveSheet(snap) }}>
                                     🔑 QR 을 못 만듭니다 —<br /><code>.env</code> 의 <b>VITE_KAKAO_JS_KEY</b> 를 확인하세요

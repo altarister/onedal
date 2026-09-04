@@ -10,10 +10,27 @@
 
 export type RoutePriority = 'RECOMMEND' | 'TIME' | 'DISTANCE';
 
-export const ROUTE_PRIORITIES: Array<{ key: RoutePriority; label: string; long: string }> = [
-    { key: 'RECOMMEND', label: '추천', long: '내비추천' },
-    { key: 'TIME', label: '시간', long: '고속도로 우선(근사)' },
-    { key: 'DISTANCE', label: '거리', long: '최단거리' },
+/**
+ * 🔴 **이름은 카카오내비 화면에서 그대로 가져온다** (기사님 2026-09-05:
+ *    *"내비에서 보던 것과 같은 text로 해야 할 것 같아"*).
+ *
+ * 카카오내비 하단에 「내비추천 · 큰길 우선 · 최단거리 …」로 적혀 있다 (2026-09-04 실물 확인).
+ * 🔴 **기사님이 개인폰에서 보는 말과 관제폰에서 보는 말이 달라선 안 된다** — 폰 둘을
+ *    오가며 쓰는 제품이라, 같은 것을 다르게 부르면 그 자리에서 헷갈린다.
+ * ⚠️ 우리가 보내는 값은 여전히 `TIME` 이다 — 「큰길 우선」에 딱 맞는 값이 없어
+ *    근사한 것이다 (경로.md §2-2). **이름만 맞추고 근사라는 사실은 안 감춘다.**
+ */
+export const ROUTE_PRIORITIES: Array<{
+    key: RoutePriority;
+    /** 지금 실물 지도가 쓰는 짧은 이름 (32px 정사각 버튼) */
+    label: string;
+    /** 🔴 카카오내비 화면의 이름 — 목업이 쓰는 것. 확정되면 실물도 이것으로 간다 */
+    naviLabel: string;
+    long: string;
+}> = [
+    { key: 'RECOMMEND', label: '추천', naviLabel: '내비추천', long: '내비추천' },
+    { key: 'TIME', label: '시간', naviLabel: '큰길 우선', long: '큰길 우선 (우리는 TIME 으로 근사한다)' },
+    { key: 'DISTANCE', label: '거리', naviLabel: '최단거리', long: '최단거리' },
 ];
 
 /**
@@ -48,3 +65,7 @@ export const PRIORITY_SAMPLE: Record<RoutePriority, { km: number; min: number; t
     TIME:      { km: 47.5, min: 104, toll: 1900 },
     DISTANCE:  { km: 44.8, min: 111, toll: 1900 },
 };
+
+/** 지금 실물 지도가 쓰는 짧은 이름 — 한 곳에서 온다 (규칙 ③) */
+export const PRIORITY_LABEL: Record<RoutePriority, string> =
+    Object.fromEntries(ROUTE_PRIORITIES.map(p => [p.key, p.label])) as Record<RoutePriority, string>;
