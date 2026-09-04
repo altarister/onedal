@@ -599,7 +599,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
                 };
                 // 🪟 그리는 쪽이 지금 쓰는 가림 높이를 그대로 본다 — 두 벌이면 확대점이 어긋난다
                 const base = anchorBaseOf(rect.width, rect.height, occludedNow.current ?? 0);
-                setViewMode('all');   // ✋ 손이 이긴다
+                /* ✋ 핀치도 모드를 안 푼다 — 배율은 기준 위에 곱해진다 */
                 const step = pinchStep(lastDist.current, dist, mid, base, zoomRef.current, panRef.current);
                 zoomRef.current = step.zoom;
                 panRef.current = step.pan;
@@ -617,7 +617,12 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         const deltaX = clientX - lastPos.current.x;
         const deltaY = clientY - lastPos.current.y;
 
-        setViewMode('all');   // ✋ 손이 이긴다 — 끌면 «맞춤»이 풀린다
+        /* ✋ **끌어도 모드를 안 푼다** (기사님 2026-09-04: *"구간, 현위치를 선택한 후
+           드래그하면 줌이 유지되어야 할 것 같아"*).
+           🔴 처음엔 여기서 `setViewMode('all')` 을 했다 — «손이 이긴다»를 지키려는
+              뜻이었는데, 층을 헷갈렸다. 모드는 **기준 배율**을 정하고 팬·줌은 그 **위에
+              더해지는 값**이라, 모드를 풀면 기준이 통째로 바뀌어 **화면이 튀어나갔다.**
+              팬은 모드와 무관하게 그대로 쌓이므로 **안 풀어도 손은 이미 이긴다.** */
         panRef.current.x += deltaX;
         panRef.current.y += deltaY;
         movedPx.current += Math.abs(deltaX) + Math.abs(deltaY);

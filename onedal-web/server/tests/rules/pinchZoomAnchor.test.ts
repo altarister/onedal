@@ -46,3 +46,27 @@ describe('🤏 핀치 줌 — 컴포넌트가 기준점 계산을 부른다', ()
         expect(codeOnly(src())).toMatch(/anchorBaseOf\([\s\S]{0,120}?occludedNow\.current/);
     });
 });
+
+/**
+ * 🔭 **맞춤 모드와 손은 층이 다르다** (기사님 지적 2026-09-04)
+ *
+ * 기사님: *"구간, 현위치를 선택한 후 드래그하면 줌이 유지되어야 할 것 같아."*
+ *
+ * 모드는 **기준 배율**을 정하고(`viewCoordsFor` → `computeViewport`),
+ * 팬·줌은 그 **위에 더해지는 값**이다. 처음엔 드래그에서 `setViewMode('all')` 을 불렀는데 —
+ * 그러면 기준이 통째로 바뀌어 **손가락을 조금만 움직여도 화면이 전체로 튀어나갔다.**
+ * 팬은 모드와 무관하게 쌓이므로 **안 풀어도 손은 이미 이긴다.**
+ */
+describe('🔭 지도 맞춤 — 끌어도 배율이 유지된다', () => {
+    it('드래그·핀치가 모드를 되돌리지 않는다', () => {
+        const c = codeOnly(src());
+        // 제스처 갈래(팬 누적 · 핀치)에서 setViewMode 를 부르면 기준이 바뀌어 화면이 튄다
+        expect(c).not.toMatch(/setViewMode\('all'\);\s*\n\s*panRef\.current\.x \+=/);
+        expect(c).not.toMatch(/setViewMode\('all'\);\s*\n\s*const step = pinchStep/);
+    });
+
+    it('«맞춰 달라»는 버튼을 누를 때만 팬·줌을 되돌린다', () => {
+        const c = codeOnly(src());
+        expect(c).toMatch(/setViewMode\(nextViewMode\(viewMode\)\);[\s\S]{0,120}?panRef\.current = \{ x: 0, y: 0 \}/);
+    });
+});
