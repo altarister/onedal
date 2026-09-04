@@ -927,6 +927,15 @@ export default function SheetMockup() {
                                     <button type="button"
                                         onClick={(e) => { e.stopPropagation(); setQrOpen(false); setQrPeek(0); }}
                                         className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/15 text-white text-[17px] font-black">✕</button>
+                                    {/**
+                                      * 🔴 **이 QR 이 몇 곳을 담았는지 크게 말한다** (2026-09-04).
+                                      *    안 적어 뒀더니 「한 곳」 모드로 찍고 «경유지가 안 보인다»고
+                                      *    하시게 됐다 — **화면이 자기가 무엇인지 말해야 한다.**
+                                      */}
+                                    <div className={`px-3 py-1 rounded-full text-[12px] font-black ${
+                                        qrVia.length > 0 ? 'bg-success/25 text-success' : 'bg-white/15 text-white/80'}`}>
+                                        {qrVia.length > 0 ? `이 QR 에 ${qrVia.length + 1}곳 (경유 ${qrVia.length})` : '이 QR 에 1곳 — 경유지 없음'}
+                                    </div>
                                     <NaviQr {...qrArgs} size={196} />
                                     <div className="text-center px-6">
                                         {qrVia.length > 0 && (
@@ -955,6 +964,14 @@ export default function SheetMockup() {
                                             onClick={() => { setQrPeek(n => Math.min(remaining.length - 1, n + 1)); setLog('▶ 다음 정거장 QR 을 봅니다 — 도착 감지가 늦어도 이걸로 갑니다. 장부는 안 건드립니다.'); }}
                                             className="w-9 h-9 rounded-full bg-white/15 text-white text-[15px] font-black disabled:opacity-25">▶</button>
                                     </div>
+                                    {/* 🔁 덮개 안에서 바로 바꾼다 — 조종판까지 안 내려가도 된다 */}
+                                    <button type="button"
+                                        onClick={(e) => { e.stopPropagation(); const n = qrSpan === 1 ? 4 : 1; setQrSpan(n);
+                                            setLog(n === 4 ? '경유 3개 + 도착 1 = 4곳을 담았습니다. 다시 찍어 보세요.' : '다음 한 곳만 담았습니다.'); }}
+                                        className="px-3 py-1.5 rounded-lg bg-white/15 text-white text-[12px] font-black">
+                                        {qrSpan === 1 ? '↕ 경유 3개까지 담기' : '↕ 다음 한 곳만 담기'}
+                                    </button>
+
                                     {/* 🔍 **주소를 보여 준다** — 안 열릴 때 눈으로 볼 자리가 없으면
                                         QR 은 그냥 네모라 아무것도 알 수 없다 (2026-09-04) */}
                                     <p className="max-w-[85%] text-[8.5px] leading-snug text-white/35 break-all text-center select-all">
