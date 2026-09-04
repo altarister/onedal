@@ -177,9 +177,20 @@ export type Call = {
     now: number; stamp: string[];
     /** 🔴 **실측이 아닌 칸이 있으면 여기에 근거를 적는다** — 화면이 「시늉」 배지로 말한다 (규칙 ⑤-2) */
     mock?: string;
+    /**
+     * 🎨 **몇 번 콜인가 — 색의 입력이다** (2026-09-05).
+     *
+     * 🔴 전에는 목록이 **자기 인덱스**로 색을 정했다. 3콜 판에서는 목록이 [1,2,3] 순이라
+     *    우연히 맞았지만, 시나리오 판은 콜이 [2,3,1] 차례로 붙어 **첫 장면의 목록 0번째가
+     *    callNo 2** 다 — 지도는 2로, 목록은 1로 칠해 **같은 콜이 두 색**이 됐다
+     *    (기사님: *"지금 색이 지도랑 리스트가 같지 않아"*).
+     * 🔴 색이 곧 결정이다 (규칙 ⑤-3). 입력을 하나로 못박는다 (규칙 ③).
+     */
+    callNo: number;
 };
 
-const PLAN3_CALLS: Call[] = [
+/** 🔴 `callNo` 는 여기 없다 — `callsFor` 가 판에서 채운다 (파생을 손으로 적지 않는다) */
+const PLAN3_CALLS: Array<Omit<Call, 'callNo'>> = [
     {
         no: 10, grabbed: '09:41:08', fare: '9.0만원', rush: false,
         color: { tone: 'honey', text: '꿀 91' },
@@ -383,7 +394,7 @@ const PLAN5_LINE: Array<{ x: number; y: number }> = ([
  * 🔴 **전화번호는 비운다.** 없는 번호를 지어내면 **남의 전화가 울린다** —
  *    이것만은 «일반값»으로도 채우지 않는다.
  */
-const MERGED_CALLS: Record<'c14' | 'c15', Call> = {
+const MERGED_CALLS: Record<'c14' | 'c15', Omit<Call, 'callNo'>> = {
     c14: {
         no: 14, grabbed: '14:05:22', fare: '5.5만원', rush: false,
         color: { tone: 'normal', text: '보통 —' },
@@ -425,7 +436,7 @@ const MERGED_CALLS: Record<'c14' | 'c15', Call> = {
  *    4콜 판의 정거장이 콜 14 를 말하는데 목록에 없으면 그 자리에서 갈라진다.
  */
 function callsFor(stops: RoutePoint[]): Call[] {
-    const byCallNo = new Map<number, Call>([
+    const byCallNo = new Map<number, Omit<Call, 'callNo'>>([
         [1, PLAN3_CALLS[0]], [2, PLAN3_CALLS[1]], [3, PLAN3_CALLS[2]],
         [4, MERGED_CALLS.c14], [5, MERGED_CALLS.c15],
     ]);
@@ -444,8 +455,8 @@ function callsFor(stops: RoutePoint[]): Call[] {
         const pickup = mine.find(s => s.type === '상차');
         const dropoff = mine.find(s => s.type === '하차');
         return (pickup && dropoff)
-            ? { ...base, nodes: [pickup.no!, dropoff.no!] as [number, number] }
-            : base;
+            ? { ...base, callNo: n, nodes: [pickup.no!, dropoff.no!] as [number, number] }
+            : { ...base, callNo: n };
     }).filter(Boolean);
 }
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { MOCK_PLANS, splitStops, myLocationAt, routeHolderOf, reaskedPlan, reaskCost, HOME } from './mockPlans';
+import { MOCK_PLANS, scenarioPlan, splitStops, myLocationAt, routeHolderOf, reaskedPlan, reaskCost, HOME } from './mockPlans';
 
 /**
  * 🧪 **목업의 판 셋이 스스로 어긋나지 않는가**
@@ -197,5 +197,54 @@ describe('⟳ 다시 물은 순서 — 무엇이 갈리고 무엇이 안 갈리�
     it('나빠지는 정도는 판마다 다르다 — 4콜 판은 시간이 줄어든다', () => {
         expect(reaskCost(MOCK_PLANS[3])!.km).toBeGreaterThan(5);
         expect(reaskCost(MOCK_PLANS[4])!.min).toBeLessThan(0);
+    });
+});
+
+describe('🎨 지도의 색과 목록의 색은 같은 곳에서 온다 (2026-09-05)', () => {
+    /**
+     * 🔴 **무엇이 어긋났나** (기사님: *"지금 색이 지도랑 리스트가 같지 않아"*)
+     *
+     * 목록은 `callNodeFill(i + 1, …)` 로 **목록에서 몇 번째인가**를 쓰고,
+     * 지도와 시트 상태바는 `callNo` 를 쓴다. 3콜 판에서는 목록이 [1,2,3] 순이라
+     * `i + 1 === callNo` 로 **우연히 맞았다.** 시나리오 판에서는 콜이 [2,3,1] 차례로
+     * 붙어 첫 장면의 목록이 «callNo 2» 하나뿐인데 목록 인덱스는 0 이라 **색이 갈린다.**
+     *
+     * 🔴 색이 곧 기사님의 결정이다 (규칙 ⑤-3). 같은 콜이 지도와 목록에서 다른 색이면
+     *    «같은 콜인가»를 눈으로 못 잇는다. 그래서 **입력을 하나로 못박는다** (규칙 ③).
+     */
+    it('콜 목록이 자기 callNo 를 들고 다닌다 — 목록 순서로 색을 정하지 않는다', () => {
+        for (const n of [3, 4, 5] as const) {
+            for (const call of MOCK_PLANS[n].callList) {
+                expect(call.callNo, `${n}콜 판의 ${call.no}번 콜`).toBeGreaterThan(0);
+            }
+        }
+    });
+
+    it('목록의 callNo 는 그 콜의 정거장이 말하는 callNo 와 같다', () => {
+        for (const n of [3, 4, 5] as const) {
+            const plan = MOCK_PLANS[n];
+            for (const call of plan.callList) {
+                const mine = plan.stops.filter(s => call.nodes.includes(s.no!));
+                for (const st of mine) expect(st.callNo, `${call.no}번 콜의 ${st.name}`).toBe(call.callNo);
+            }
+        }
+    });
+
+    /** 🔴 시나리오 판에서 **실제로 갈라진다** — 이 검사가 그 사실을 붙들어 둔다 */
+    it('시나리오 첫 콜은 목록에서 0번째인데 callNo 는 2 다 — 인덱스로 칠하면 틀린다', () => {
+        const one = scenarioPlan(1);
+        expect(one.callList).toHaveLength(1);
+        expect(one.callList[0].callNo).toBe(2);
+        // 목록 인덱스(0)+1 = 1 이라, 인덱스로 칠했다면 지도(2)와 달랐을 것이다
+        expect(one.callList[0].callNo).not.toBe(1);
+    });
+
+    it.each([1, 2, 3] as const)('시나리오 %i콜 — 정거장과 목록이 같은 callNo 를 말한다', (g) => {
+        const plan = scenarioPlan(g);
+        for (const st of plan.stops) {
+            const owner = plan.callList.find(c => c.nodes.includes(st.no!));
+            expect(owner, `${st.name} 의 주인`).toBeDefined();
+            expect(owner!.callNo, `${st.name}`).toBe(st.callNo);
+        }
     });
 });

@@ -325,7 +325,11 @@ function CallItem({ call, i, open, onToggle, rainbow, visitedNos }: {
               **전역 유틸리티(.text-[14px])를 덮지 않고** 이 자리에만 준다 (다른 화면이 조용히 바뀐다). */
         <span className="shrink-0 w-[20px] h-[20px] rounded-full grid place-items-center text-[12.5px] font-black leading-none"
             style={(() => {
-                const fill = callNodeFill(i + 1, kind === 'p' ? 'pickup' : 'dropoff', theme);
+                /* 🔴 **목록 인덱스가 아니라 `callNo` 로 칠한다** (2026-09-05).
+                   인덱스로 칠했더니 시나리오 판에서 **지도와 목록이 다른 색**이 됐다
+                   (기사님: *"지금 색이 지도랑 리스트가 같지 않아"*). 지도·상태바가 쓰는
+                   입력과 같아야 «같은 콜»이 눈으로 이어진다 (규칙 ③ · ⑤-3). */
+                const fill = callNodeFill(call.callNo, kind === 'p' ? 'pickup' : 'dropoff', theme);
                 return {
                     background: fill,
                     color: callNodeText(kind === 'p' ? 'pickup' : 'dropoff', theme),
@@ -741,7 +745,9 @@ export default function SheetMockup() {
                     <div className="shrink-0">
                         <JudgmentSeat
                             route={SEAT_CALLS[step.seat] as never}
-                            confirmedActive={step.grabbed - 1}
+                            /* 🔴 `grabbed` 는 **이미 확정한 콜 수**다 — 심사 중인 이 콜은 아직 안 센다.
+                               그래서 그대로 넘긴다(호칭이 「노선 후보콜 / 노선 합짐1 후보콜」로 갈린다). */
+                            confirmedActive={step.grabbed}
                             onDecision={(_id, action) => {
                                 setPlaying(false);
                                 if (action === 'ORDER_CONFIRMED') {

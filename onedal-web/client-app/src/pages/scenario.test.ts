@@ -210,9 +210,21 @@ describe('🪧 심사석 — 눌러야 넘어가는 자리', () => {
      * 기사님 2026-09-05: *"첫심사에 심사 목업 ui가 있으면 좋겠고, 첫짐킵을 추가해주면
      * 좋겠어, 합짐킵도 있고 주행중 합짐킵도 만들어줘."*
      */
-    it('심사석이 뜨는 장면은 넷 — 첫콜 · 경로변경 · 합짐1 · 주행 중 합짐2', () => {
+    /**
+     * 🔴 **심사석은 «아직 안 잡은 콜»의 자리다** (기사님 2026-09-05 정정:
+     *    *"첫콜 심사는 콜리스트에 값이 없고 지도도 그리면 안 된다"*).
+     *    경로를 바꿔 보는 것은 **확정 뒤**라 심사석이 아니라 지도의 방침 버튼이 한다.
+     */
+    it('심사석이 뜨는 장면은 셋 — 첫콜 · 합짐1 · 주행 중 합짐2', () => {
         expect(SCENARIO.filter(s => s.seat).map(s => s.seat))
-            .toEqual(['첫콜', '첫콜_경로변경', '합짐1', '합짐2']);
+            .toEqual(['첫콜', '합짐1', '합짐2']);
+    });
+
+    it('심사 중인 콜은 아직 안 잡힌 것이다 — 다음 장면에서 딱 하나 는다', () => {
+        for (const s of SCENARIO.filter(x => x.seat)) {
+            const next = SCENARIO.find(x => x.no === s.no + 1)!;
+            expect(next.grabbed - s.grabbed, `${s.title} 다음`).toBe(1);
+        }
     });
 
     it('심사석이 뜨는 장면은 모두 «심사» 국면이다', () => {
@@ -223,8 +235,8 @@ describe('🪧 심사석 — 눌러야 넘어가는 자리', () => {
         for (const s of SCENARIO.filter(x => x.phase === '심사')) expect(s.seat, s.title).toBeTruthy();
     });
 
-    it('심사석 콜 넷이 다 있고, 색과 점수를 갖는다', () => {
-        for (const k of ['첫콜', '첫콜_경로변경', '합짐1', '합짐2'] as const) {
+    it('심사석 콜 셋이 다 있고, 색과 점수를 갖는다', () => {
+        for (const k of ['첫콜', '합짐1', '합짐2'] as const) {
             const c = SEAT_CALLS[k];
             expect(c.judgment.color, k).toBeTruthy();
             expect(c.judgment.score, k).toBeGreaterThan(0);
@@ -237,6 +249,13 @@ describe('🪧 심사석 — 눌러야 넘어가는 자리', () => {
         expect(SEAT_CALLS[s.seat!].judgment.color).toBe(s.color);
     });
 
+    /** 🔴 심사석이 뜬 장면에는 **아직 지도·목록에 그 콜이 없다** */
+    it.each(SCENARIO.filter(s => s.seat))('$title — 심사 중인 콜은 아직 판에 없다', (s) => {
+        const names = scenarioPlan(s.grabbed).stops.map(st => st.name);
+        expect(names).not.toContain(SEAT_CALLS[s.seat!].pickup.includes('여수동') ? '여수동'
+            : SEAT_CALLS[s.seat!].pickup.includes('석수동') ? '석수동' : '초월읍');
+    });
+
     /**
      * 🔴 **주행 중 합짐2는 노랑이다** — 뒤가 밀리는데도 데드라인 150% 안에 든다.
      *    기사님이 «감수하고 KEEP» 하시는 자리라, 걸리는 것이 적혀 있어야 한다.
@@ -246,14 +265,15 @@ describe('🪧 심사석 — 눌러야 넘어가는 자리', () => {
         expect(SEAT_CALLS.합짐2.rejectionReasons.length).toBeGreaterThan(0);
     });
 
-    /** 🔴 경로를 바꾸면 **멀어지고 색이 내려간다** — 기사님 시나리오의 ③ 이 그것이다 */
-    it('경로를 바꾸면 거리가 늘고 색이 내려간다', () => {
-        expect(SEAT_CALLS.첫콜_경로변경.distanceKm).toBeGreaterThan(SEAT_CALLS.첫콜.distanceKm);
-        expect(SEAT_CALLS.첫콜.judgment.color).toBe('꿀');
-        expect(SEAT_CALLS.첫콜_경로변경.judgment.color).toBe('보통');
-        // 같은 콜이다 — 요금·주소가 그대로여야 «경로만 바뀐 것»이다
-        expect(SEAT_CALLS.첫콜_경로변경.fare).toBe(SEAT_CALLS.첫콜.fare);
-        expect(SEAT_CALLS.첫콜_경로변경.pickup).toBe(SEAT_CALLS.첫콜.pickup);
+    /** 🔴 경로를 바꾸면 **멀어지고 색이 내려간다** — 확정 뒤 장면(④)이 그것이다 */
+    it('④ 경로를 바꿔 본다 — 색이 꿀에서 보통으로 내려간다', () => {
+        const before = SCENARIO.find(s => s.seat === '첫콜')!;
+        const after = SCENARIO.find(s => s.title.includes('경로를 바꿔'))!;
+        expect(before.color).toBe('꿀');
+        expect(after.color).toBe('보통');
+        // 🔴 그런데 지금 코드는 판정을 다시 매기지 않는다 — 그 사실을 밝혀야 한다
+        expect(after.gap).toBeTruthy();
+        expect(after.gap).toMatch(/불변|다시 매/);
     });
 
     /** 🔴 심사석 다음 장면은 **그 콜이 붙은 뒤**여야 한다 — KEEP 을 누르면 콜이 는다 */
