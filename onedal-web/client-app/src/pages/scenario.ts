@@ -77,15 +77,15 @@ export const SCENARIO: ScenarioStep[] = [
            + '색이 다시 매겨지지 않습니다.',
     },
     {
-        no: 5, title: '⑤ 출발하기', grabbed: 1, visited: 0, phase: '정차',
+        no: 5, title: '⑤ QR 코드로 내비 켜기', grabbed: 1, visited: 0, phase: '정차',
         qr: ['여수동', '가산동'],
-        what: '「출발하기」를 누르면 QR 이 뜹니다 — 개인폰 카메라로 찍으면 카카오내비가 켜집니다.',
+        what: '「QR 코드」를 누르면 QR 이 뜹니다 — 개인폰 카메라로 찍으면 카카오내비가 켜집니다.',
     },
     {
         no: 6, title: '⑥ 출발 전 — 합짐 대기', grabbed: 1, visited: 0, phase: '정차',
         what: 'QR 을 닫고 아직 출발하지 않은 채 기다립니다 — 합짐 필터가 걸려 있어 '
             + '가는 길의 콜을 하나 더 잡아 보려는 것입니다. '
-            + '🔴 그래도 「출발하기」는 눌러 둔 채입니다 — 첫짐만 잡고 그냥 떠나셔도 됩니다.',
+            + '🔴 그래도 「QR 코드」는 그대로 있습니다 — 첫짐만 잡고 그냥 떠나셔도 됩니다.',
     },
     {
         no: 7, title: '⑦ 합짐1 심사', grabbed: 1, visited: 0, phase: '심사', color: '보통',
@@ -100,7 +100,7 @@ export const SCENARIO: ScenarioStep[] = [
             + '콜 목록 제목에 넣습니다. 🔒 이제 콜이 2건이라 방침 버튼이 잠깁니다.',
     },
     {
-        no: 9, title: '⑨ 출발하기', grabbed: 2, visited: 0, phase: '정차', priorityLocked: true,
+        no: 9, title: '⑨ QR 코드로 내비 켜기', grabbed: 2, visited: 0, phase: '정차', priorityLocked: true,
         qr: ['여수동', '석수동', '가산동', '구로동'],
         what: '네 곳을 한 장에 담습니다 — 앞 셋이 경유지, 마지막이 도착지입니다.',
     },

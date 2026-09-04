@@ -651,7 +651,7 @@ export default function SheetMockup() {
         Math.min(qrPeek, Math.max(0, remaining.length - 1)) + qrSpan,
     );
     /**
-     * 🔴 **덮개가 안 뜨는 장면에도 「출발하기」는 살아 있다** (2026-09-05 정정).
+     * 🔴 **덮개가 안 뜨는 장면에도 「QR 코드」 버튼은 살아 있다** (2026-09-05 정정).
      *
      * 처음엔 `step.qr` 이 없으면 담을 곳도 비워서, 「⑥ 출발 전 — 합짐 대기」에서
      * **버튼이 통째로 사라졌다.** 기사님: *"첫짐만 잡고 출발할 수 있으니까
@@ -804,7 +804,7 @@ export default function SheetMockup() {
                             {/**
                               * 🗺️ **아래 두 귀퉁이** (기사님 2026-09-05 재배치):
                               *   **좌하단** 경로 방침(내비추천·큰길 우선·최단거리) ·
-                              *   **우하단** 「출발하기」(QR).
+                              *   **우하단** 「QR 코드」 — 왼쪽과 같은 치수다.
                               *   위쪽은 지도 관련이 남는다 — 우상단 「⟳ 경로」.
                               */}
                             {/**
@@ -900,19 +900,23 @@ export default function SheetMockup() {
                             {qrStyle === 'sheet' && qrReady && (
                                 <button type="button"
                                     onClick={() => { setQrOpen(true); setLog(`🧭 QR 을 띄웠습니다 — 개인폰 카메라로 찍으면 «${qrStop?.name}» 으로 카카오내비가 열립니다.`); }}
-                                    className="absolute right-3 z-10 flex items-center gap-1.5 rounded-xl px-3 py-2.5
-                                               text-[13px] font-black text-white active:scale-95 transition-transform"
+                                    className="absolute right-3 z-10 flex items-center gap-1 rounded-md px-2.5 h-8
+                                               text-[11.5px] font-black text-white whitespace-nowrap
+                                               active:scale-95 transition-transform"
                                     /* 🔼 **우하단** (기사님 2026-09-05) · 시트 바로 위에 —
-                                       높이는 StageSheet 가 원천이다 (규칙 ③) */
-                                    style={{ bottom: aboveSheet(snap), background: 'linear-gradient(180deg,#5b8cff,#3f6fe0)', boxShadow: '0 6px 18px rgba(79,141,249,.4)' }}>
+                                       높이는 StageSheet 가 원천이다 (규칙 ③).
+                                       🔴 **치수는 왼쪽 방침 버튼과 같다** — 아래 두 귀퉁이가
+                                          한 짝으로 읽혀야 한다 (기사님 2026-09-05) */
+                                    style={{ bottom: aboveSheet(snap), background: 'linear-gradient(180deg,#5b8cff,#3f6fe0)', boxShadow: '0 4px 12px rgba(79,141,249,.35)' }}>
                                     {/**
-                                      * 🔴 **「출발하기」 한 마디다** (기사님 2026-09-05).
-                                      *    전에는 「다음 2 여수동 외 3 · 앞으로 3번」이었는데,
-                                      *    한 줄에 **서로 다른 3 이 둘** 들어 있어 기사님이
-                                      *    *"어디서든 뒤 3개의 경로를 포함해서…?"* 로 읽으셨다.
-                                      *    담긴 곳은 **덮개를 열면 그 줄이 말한다** — 버튼은 «누르면 뭐가 되나»만 말한다.
+                                      * 🔴 **「QR 코드」다** (기사님 2026-09-05 재정정).
+                                      *    한때 「다음 2 여수동 외 3 · 앞으로 3번」이었다가 「출발하기」가 됐는데,
+                                      *    **주행 중에도 있는 버튼**이라 «출발»이 말이 안 됐다
+                                      *    (*"주행중인데 출발하기 버튼이 있으니 이상하다"*).
+                                      *    이 버튼이 늘 하는 일은 하나다 — **QR 을 띄운다.**
+                                      *    어디로 가는지는 **덮개를 열면 그 두 줄이 말한다.**
                                       */}
-                                    🧭 출발하기
+                                    🧭 QR 코드
                                 </button>
                             )}
 
@@ -1301,8 +1305,8 @@ export default function SheetMockup() {
                         <button key={k} type="button"
                             onClick={() => { setQrStyle(k); setQrOpen(false); setSnap('peek');
                                 setLog(k === 'sheet'
-                                    ? 'ⓐ 지도 좌하단 버튼을 누르면 QR 이 화면을 덮습니다 — 큽니다. 탭 2번(열고·닫고).'
-                                    : 'ⓑ 지도 좌하단에 QR 이 늘 떠 있습니다 — 누를 필요가 없습니다. 대신 작아서 안 찍힐 수 있습니다.'); }}
+                                    ? 'ⓐ 지도 우하단 「QR 코드」를 누르면 QR 이 화면을 덮습니다 — 큽니다. 탭 2번(열고·닫고).'
+                                    : 'ⓑ 지도 우하단에 QR 이 늘 떠 있습니다 — 누를 필요가 없습니다. 대신 작아서 안 찍힐 수 있습니다.'); }}
                             className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${qrStyle === k
                                 ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-surface text-text-primary hover:border-info'}`}>
                             {t}
