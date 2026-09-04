@@ -49,13 +49,22 @@ export function candidateName(target: CallTarget, confirmedActive: number): stri
 
 interface Props {
     route: SecuredOrder;
+    /**
+     * 📐 **바깥 여백은 놓는 쪽이 정한다** (기사님 2026-09-05:
+     * *"일반 콜리스트와 거리를 둔 이유가 있어? 그냥 콜리스트와 같은 간격이면 좋겠어"*).
+     *
+     * 🔴 컴포넌트가 자기 여백을 들고 다니면 **어디에 놓든 그 여백이 따라와** 옆의 것과
+     *    간격이 어긋난다. 판정이 콜 목록 바로 아래 붙는 자리에서는 **목록과 같은 값**이라야
+     *    한 표처럼 읽힌다. 안 주면 지금까지의 값 그대로다 (실물은 안 바뀐다).
+     */
+    inset?: string;
     confirmedActive: number;
     onDecision?: (id: string, action: 'ORDER_CONFIRMED' | 'SAFE_CANCEL' | 'ORDER_RELEASED_BY_ME' | 'ORDER_RELEASED_BY_OFFICE') => void;
     processingId?: string | null;
     setProcessingId?: (id: string | null) => void;
 }
 
-export default function JudgmentSeat({ route, confirmedActive, onDecision, processingId, setProcessingId }: Props) {
+export default function JudgmentSeat({ route, confirmedActive, inset, onDecision, processingId, setProcessingId }: Props) {
     const [open, setOpen] = useState(false);
     const { filter } = useFilterConfig();
     const v = verdictOf(route);
@@ -107,7 +116,7 @@ export default function JudgmentSeat({ route, confirmedActive, onDecision, proce
     // ── 직접·알람: 물든 판 (보기만) — v13 .soak ──
     if (manual) {
         return (
-            <div className="relative overflow-hidden flex flex-col" style={{ margin: '8px 12px', borderRadius: 14, border: `1px solid ${c ? `${c.bar}73` : '#2a3450'}`, background: CARD_BG, boxShadow: '0 8px 28px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.04)', height: open ? 'auto' : 158, minHeight: 158 }}>
+            <div className="relative overflow-hidden flex flex-col" style={{ margin: inset ?? '8px 12px', borderRadius: 14, border: `1px solid ${c ? `${c.bar}73` : '#2a3450'}`, background: CARD_BG, boxShadow: '0 8px 28px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.04)', height: open ? 'auto' : 158, minHeight: 158 }}>
                 {judged && <div className="absolute inset-0 z-0" style={{ background: `linear-gradient(165deg, ${c!.tint} 0%, rgba(0,0,0,0) 45%, transparent 100%)` }} />}
                 <div className="absolute left-0 top-0 bottom-0 z-10" style={{ width: 5, background: c ? `linear-gradient(180deg, ${c.bar}, ${c.bar}59)` : '#3a4358', boxShadow: c ? `2px 0 14px ${c.glow}` : undefined }} />
                 {/* v13 .wm — 158px · right 2 · bottom -34 */}
@@ -151,7 +160,7 @@ export default function JudgmentSeat({ route, confirmedActive, onDecision, proce
 
     // ── 자동콜: 아래 전체가 버튼 35:65 — v13 .btns ──
     return (
-        <div className="relative overflow-hidden flex flex-col" style={{ margin: '8px 12px', borderRadius: 14, border: '1px solid rgba(79,141,249,.35)', background: CARD_BG, boxShadow: '0 8px 28px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.04)', height: 158 }}>
+        <div className="relative overflow-hidden flex flex-col" style={{ margin: inset ?? '8px 12px', borderRadius: 14, border: '1px solid rgba(79,141,249,.35)', background: CARD_BG, boxShadow: '0 8px 28px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.04)', height: 158 }}>
             {header}
             <div className="flex relative z-10" style={{ gap: 9, padding: '8px 13px 13px', flex: 1, minHeight: 0 }}>
                 <button disabled={!judged || busy}

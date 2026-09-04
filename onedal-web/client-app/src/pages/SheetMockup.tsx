@@ -513,7 +513,7 @@ export default function SheetMockup() {
     /** 🪟 시트 높이 — 실물과 같은 3단 (peek 72px · half 58% · full 100%) */
     const [snap, setSnap] = useState<SheetSnap>('full');
     /** 🎯 필터 영역 — 안 A(펼침 150px) ↔ 안 B(접힘 38px). 비교해서 고른다 */
-    const [filterCompact, setFilterCompact] = useState(false);
+    const [filterCompact, setFilterCompact] = useState(true);   // ⓑ 가 기본이라 필터도 접힌 채로 연다
     /** 🌈 콜 색표 — 색상=콜 · 채도=상차/하차 · 테두리=다녀왔나 (기사님 안 2026-09-04) */
     const [rainbow, setRainbow] = useState(true);
     /**
@@ -568,7 +568,8 @@ export default function SheetMockup() {
      *      ⚠️ 심사 중에는 지도가 그만큼 줄어든다. 30초짜리라 견딜 만하다고 보지만
      *         **실주행에서 봐야 안다.**
      */
-    const [seatPlace, setSeatPlace] = useState<'filter' | 'sheet' | 'pinned'>('filter');
+    /** 🔴 **기본은 ⓑ 콜 영역**이다 (기사님 2026-09-05) — 기사님 안이 기본값이 된다 */
+    const [seatPlace, setSeatPlace] = useState<'filter' | 'sheet' | 'pinned'>('sheet');
     /**
      * 🚚 **지금 어느 국면인가** — 목업이 오래 «정차 중»에 고정돼 있었다
      * (기사님 2026-09-04: *"운행 이벤트 시늉에서 주행중일때, 출발 할때가 없어"*).
@@ -1033,6 +1034,9 @@ export default function SheetMockup() {
                            자기 테두리를 갖고 있어 줄이 하나 더 그어지면 칸이 둘로 보인다 */
                         bottomBox={step?.seat && seatPlace === 'sheet' ? (
                             <JudgmentSeat
+                                /* 📐 콜 목록과 **같은 간격** — 위 6 · 좌우 10 · 아래 10.
+                                   아코디언 그릇의 `gap-1.5 px-2.5 pb-2.5` 와 같은 값이다 */
+                                inset="6px 10px 10px"
                                 route={SEAT_CALLS[step.seat] as never}
                                 confirmedActive={step.grabbed}
                                 onDecision={(_id, action) => {
