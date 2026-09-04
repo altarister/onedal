@@ -1029,18 +1029,18 @@ export default function SheetMockup() {
                     <StageSheet snap={snap} onSnapChange={setSnap}
                         /* 📏 ⓑ 는 «내용만큼»이다 — 여백을 두지 않는다 (기사님 안) */
                         fitContent={seatPlace === 'sheet'}
+                        /* 🔴 위 라인을 빼 둔다 (기사님 2026-09-05) — 심사석이 이미
+                           자기 테두리를 갖고 있어 줄이 하나 더 그어지면 칸이 둘로 보인다 */
                         bottomBox={step?.seat && seatPlace === 'sheet' ? (
-                            <div className="border-t border-border-card">
-                                <JudgmentSeat
-                                    route={SEAT_CALLS[step.seat] as never}
-                                    confirmedActive={step.grabbed}
-                                    onDecision={(_id, action) => {
-                                        setPlaying(false);
-                                        if (action === 'ORDER_CONFIRMED') goStep(step.no + 1, '🟢 판정 영역에서 KEEP');
-                                        else setLog('❌ 거절하셨습니다 — 목업이라 여기서 멈춥니다.');
-                                    }}
-                                />
-                            </div>
+                            <JudgmentSeat
+                                route={SEAT_CALLS[step.seat] as never}
+                                confirmedActive={step.grabbed}
+                                onDecision={(_id, action) => {
+                                    setPlaying(false);
+                                    if (action === 'ORDER_CONFIRMED') goStep(step.no + 1, '🟢 판정 영역에서 KEEP');
+                                    else setLog('❌ 거절하셨습니다 — 목업이라 여기서 멈춥니다.');
+                                }}
+                            />
                         ) : undefined}
                         topBox={step?.seat && seatPlace === 'pinned' ? (
                             <JudgmentSeat

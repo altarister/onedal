@@ -75,14 +75,28 @@ export default function JudgmentSeat({ route, confirmedActive, onDecision, proce
         <div className="flex items-center relative z-10" style={{ gap: 10, padding: '0 16px', minHeight: 42, fontSize: 14, borderBottom: '1px solid var(--color-border-card)' }}>
             {manual && <span style={{ borderRadius: 7, padding: '3px 10px', fontSize: 12, fontWeight: 800, background: 'rgba(79,141,249,.14)', color: '#9db9ff', border: '1px solid rgba(79,141,249,.35)' }}>
                 {route.capturedVia === 'ALARM' ? '🔔' : '✋'}</span>}
+            {/**
+              * 🔢 **잡으면 목록의 몇 번이 되나** (기사님 2026-09-05:
+              *    *"이걸 클릭하면 2번이 될 거라고 보이면 좋겠어"*).
+              * 🔴 목록의 순번과 **같은 모양·같은 자리**로 둔다 — 그래야 눈이
+              *    «이게 저기 들어간다»를 잇는다. 확정된 콜 수 + 1 이 그 번호다.
+              */}
+            <span className="shrink-0 tabular-nums" style={{ width: 12, fontSize: 13.5, fontWeight: 900, color: c ? c.text : 'var(--color-text-muted)' }}>
+                {confirmedActive + 1}
+            </span>
             <span style={{ fontWeight: 900, fontSize: 14.5, letterSpacing: '-.3px' }} className="whitespace-nowrap">{name}</span>
             <span className="truncate" style={{ color: 'var(--color-text-muted)', fontSize: 12.5, fontWeight: 700 }}>
                 {getAddressLabel(route.pickup)} → {getAddressLabel(route.dropoff)}
             </span>
             <span className="ml-auto flex items-baseline shrink-0" style={{ gap: 10 }}>
-                {judged
-                    ? <span style={{ fontSize: 27, fontWeight: 900, letterSpacing: '-.5px', color: c!.text, textShadow: `0 0 18px ${c!.glow}` }}>{v.color}</span>
-                    : <span className="animate-pulse" style={{ color: 'var(--color-text-muted)', fontSize: 13, fontWeight: 800 }}>판정 중…</span>}
+                {/**
+                  * 🔴 **«꿀 · 보통 · 똥»을 글자로 안 적는다** (기사님 2026-09-05:
+                  *    *"우린 색으로 구분하면 되니까"*).
+                  *    색은 왼쪽 띠·워터마크·KEEP 버튼이 **이미 세 번** 말하고 있었다.
+                  *    같은 것을 네 번째로 적으면 그만큼 금액이 늦게 읽힌다 (규칙 ⑤-3).
+                  * ⚠️ 판정 **전**에는 적는다 — 그건 색이 아직 없어서 아무도 말해 주지 않는다.
+                  */}
+                {!judged && <span className="animate-pulse" style={{ color: 'var(--color-text-muted)', fontSize: 13, fontWeight: 800 }}>판정 중…</span>}
                 <span className="tabular-nums" style={{ fontSize: 19, fontWeight: 900 }}>
                     {route.fare > 0 ? `${(route.fare / 10000).toFixed(1)}만원` : '금액미상'}
                 </span>
@@ -155,7 +169,9 @@ export default function JudgmentSeat({ route, confirmedActive, onDecision, proce
                         : { flex: 65, borderRadius: 11, padding: '8px 12px', background: 'linear-gradient(180deg,#232c42,#1b2234)', color: 'var(--color-text-muted)', border: '1px solid #1c2436' }}>
                     {/* v13 .bwm — 124px · right 0 · bottom -26 */}
                     <div className="absolute z-0 font-black leading-none select-none tabular-nums"
-                         style={{ right: 0, bottom: -26, fontSize: 124, letterSpacing: '-4px', color: judged ? 'rgba(0,0,0,.18)' : 'color-mix(in srgb, var(--color-text-primary) 8%, transparent)' }}>
+                         /* 🔴 **-25px** (기사님 2026-09-05). 숫자가 서로 겹칠 만큼 뭉쳐야
+                            «읽는 값»이 아니라 «바탕»으로 물러난다 — 앞의 시급이 먼저 읽힌다 */
+                         style={{ right: 0, bottom: -26, fontSize: 124, letterSpacing: '-25px', color: judged ? 'rgba(0,0,0,.18)' : 'color-mix(in srgb, var(--color-text-primary) 8%, transparent)' }}>
                         {judged ? score ?? '' : '?'}
                     </div>
                     {/* ⏳ 안전취소 장막 — 30초 차오르면 자동취소 */}
