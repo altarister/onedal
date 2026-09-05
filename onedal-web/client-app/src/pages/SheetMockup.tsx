@@ -578,17 +578,13 @@ export default function SheetMockup() {
      *      열린다.** 판정이 **맨 아래**라 엄지에 가장 가깝고, 콜 목록 바로 밑이라
      *      KEEP 하면 **바로 위로 올라가는 것**이 보인다. 여백이 없어 남는 자리는 전부 지도다.
      *      시트가 내려가 있을 때는 상태바가 «한 줄 심사석»이 된다.
-     *   ⓒ **시트 위 붙박이** (기사님 안 2026-09-05: *"나는 심사가 매번 한 곳에서 노출
-     *      되었으면 좋겠어. 그 자리에서 항상 나타난다는 것이 중요하게 생각되거든"*).
-     *      🔴 **자리가 고정되는 것이 값어치다** — 색만 보고 1~2초에 누르는 일이라
-     *         «어디에 뜨나»를 찾는 시간이 0이어야 한다 (규칙 ⑤-3).
-     *      🟢 KEEP 하면 **바로 아래 목록으로 들어가는 것**이 손짓으로 보인다.
-     *      🟢 시트 위라 **주행 중에도 보인다** — ⓑ 가 두 단으로 풀려던 위험이 그냥 없어진다.
-     *      ⚠️ 심사 중에는 지도가 그만큼 줄어든다. 30초짜리라 견딜 만하다고 보지만
-     *         **실주행에서 봐야 안다.**
+     *
+     * ⚠️ 한때 ⓒ(**시트 위** 붙박이)도 있었다 — 내가 먼저 만든 것이다. 기사님 안은
+     *    **맨 아래**였고 그것이 옳았다: 콜 목록 바로 밑이라 KEEP 하면 **바로 위로
+     *    올라가는 것**이 보이고, 엄지에 가장 가깝다. ⓒ 는 걷어냈다 (2026-09-05).
      */
     /** 🔴 **기본은 ⓑ 콜 영역**이다 (기사님 2026-09-05) — 기사님 안이 기본값이 된다 */
-    const [seatPlace, setSeatPlace] = useState<'filter' | 'sheet' | 'pinned'>('sheet');
+    const [seatPlace, setSeatPlace] = useState<'filter' | 'sheet'>('sheet');
     /**
      * 🚚 **지금 어느 국면인가** — 목업이 오래 «정차 중»에 고정돼 있었다
      * (기사님 2026-09-04: *"운행 이벤트 시늉에서 주행중일때, 출발 할때가 없어"*).
@@ -1129,17 +1125,6 @@ export default function SheetMockup() {
                                 }}
                             />
                         ) : undefined}
-                        topBox={step?.seat && seatPlace === 'pinned' ? (
-                            <JudgmentSeat
-                                route={SEAT_CALLS[step.seat] as never}
-                                confirmedActive={step.grabbed}
-                                onDecision={(_id, action) => {
-                                    setPlaying(false);
-                                    if (action === 'ORDER_CONFIRMED') goStep(step.no + 1, '🟢 붙박이 심사석에서 KEEP');
-                                    else setLog('❌ 거절하셨습니다 — 목업이라 여기서 멈춥니다.');
-                                }}
-                            />
-                        ) : undefined}
                         peekBar={
                             /**
                              * 🔴 **상태바는 언제나 이 한 줄이다** (기사님 2026-09-05:
@@ -1564,19 +1549,17 @@ export default function SheetMockup() {
 
                 {/* 🪧 **판정보드 자리** — 기사님이 받으신 의견에서 (2026-09-05) */}
                 <h2 className="mt-6 text-[12.5px] font-black tracking-wide text-info mb-2">🪧 판정보드 자리 — 두 안 비교</h2>
-                <div className="grid grid-cols-3 gap-2">
-                    {([['filter', 'ⓐ 필터 자리'], ['sheet', 'ⓑ 콜 영역 (두 단)'], ['pinned', 'ⓒ 시트 위 붙박이']] as const).map(([k, t]) => (
+                <div className="grid grid-cols-2 gap-2">
+                    {([['filter', 'ⓐ 필터 자리 — 지금 실물'], ['sheet', 'ⓑ 콜 영역 — 기사님 안']] as const).map(([k, t]) => (
                         <button key={k} type="button"
                             onClick={() => {
                                 setSeatPlace(k);
-                                if (k !== 'filter') setFilterCompact(true);
+                                setFilterCompact(k === 'sheet');
                                 const judging = SCENARIO.find(x => x.seat);
                                 if (!step?.seat && judging) goStep(judging.no);
                                 setLog(k === 'filter'
                                     ? 'ⓐ 심사석이 필터 자리(위)에 뜹니다 — 기사님 확정 0831. 늘 보이지만 엄지에서 멉니다.'
-                                    : k === 'sheet'
-                                    ? 'ⓑ 필터를 접었습니다. 아래 「시트 높이」로 «엿보기»를 눌러 보십시오 — 상태바가 «한 줄 심사석»이 됩니다. 올리면 목록 맨 위에 전체가 얹힙니다.'
-                                    : 'ⓒ 심사석이 시트 바로 위에 붙박입니다 — 시트를 올리든 내리든 «늘 그 자리»입니다. KEEP 하면 바로 아래 목록으로 들어갑니다. 시트 높이를 바꿔 보십시오.'); }}
+                                    : 'ⓑ 판정이 시트 맨 아래에 붙습니다 — 콜 목록 바로 밑이라 KEEP 하면 바로 위로 올라갑니다. 필터도 함께 접었습니다.'); }}
                             className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${seatPlace === k
                                 ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-surface text-text-primary hover:border-info'}`}>
                             {t}
@@ -1594,8 +1577,6 @@ export default function SheetMockup() {
                     시트가 «내용만큼» 서고, 넘치면 목록만 그 안에서 스크롤합니다. 상태바와 판정은 붙박이라 안 밀립니다.
                     <br />⚠️ 심사 중에는 <b className="text-text-primary">지도가 그만큼 줄어듭니다.</b>
                     30초짜리라 견딜 만하다고 보지만 <b className="text-text-primary">실주행에서 봐야 압니다.</b>
-                    <br /><br />🔸 <b className="text-text-primary">ⓒ 는 제가 먼저 만든 것</b>입니다 — 판정이 시트 «위»에 붙습니다.
-                    기사님 안(아래)과 견주어 보십시오.
                     <br /><br />🔴 <b className="text-text-primary">한 줄 심사석</b>도 ⓑ 에 남겼습니다 —
                     <i>"심사가 매번 한 곳에서 노출되었으면 좋겠어. 그 자리에서 항상 나타난다는 것이 중요해."</i>
                     <b className="text-text-primary"> 자리가 고정되면 «어디에 떴나»를 찾는 시간이 0</b>이 됩니다.

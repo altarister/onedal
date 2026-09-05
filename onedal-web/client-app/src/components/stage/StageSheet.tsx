@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 
 /**
  * 🪟 **3단 스냅 시트 — 그릇** (화면개편 2단계 · v23 Ⅱ · 기사님 확정 2026-08-31).
@@ -70,17 +70,6 @@ interface Props {
      */
     peekBar?: React.ReactNode;
     /**
-     * 🪧 **시트 위에 붙박이로 얹히는 것** — 지금은 심사석이 쓴다 (기사님 안 2026-09-05:
-     * *"콜리스트 영역박스를 하단에 추가하고 그 높이까지만 시트가 올라가도록"*).
-     *
-     * 🔴 **자리가 고정되는 것이 값어치다.** 심사는 색만 보고 1~2초에 누르는 일이라
-     *    «어디에 뜨나»를 찾는 시간이 0이어야 한다 (규칙 ⑤-3).
-     * 🔴 **시트는 이것을 덮지 않는다** — 그만큼 낮게 선다. 계산은 여기 갇혀 있고,
-     *    바깥은 «얹을 것»만 넘긴다 (규칙 ③).
-     * 🟢 시트가 내려가 있어도 **이것은 보인다** — 주행 중에도 심사를 놓치지 않는다.
-     */
-    topBox?: React.ReactNode;
-    /**
      * 🪧 **시트 맨 아래 붙박이** — 판정이 여기 산다 (기사님 안 2026-09-05).
      *
      * 🔴 **엄지에 가장 가까운 자리다.** 그리고 «심사는 언제나 화면 맨 아래 거기»라
@@ -100,7 +89,7 @@ interface Props {
     children: React.ReactNode;
 }
 
-export default function StageSheet({ snap, onSnapChange, peekBar, topBox, bottomBox, onHeightChange, children }: Props) {
+export default function StageSheet({ snap, onSnapChange, peekBar, bottomBox, onHeightChange, children }: Props) {
     const startY = useRef<number | null>(null);
     const startSnap = useRef<SheetSnap>(snap);
     const dragged = useRef(false);   // 드래그로 한 단 움직였으면 이어지는 click 을 무시 (되튐 버그)
@@ -122,40 +111,19 @@ export default function StageSheet({ snap, onSnapChange, peekBar, topBox, bottom
      * 🔴 시트가 붙박이를 덮으면 **자리 고정이라는 값어치가 통째로 사라진다** —
      *    그러라고 있는 것이라 이 뺄셈이 이 안의 전부다.
      */
-    const topRef = useRef<HTMLDivElement>(null);
-    const [topH, setTopH] = useState(0);
-    /* 🔴 **붙박이가 얼마나 높은지는 재서 안다 — 숫자를 손으로 적지 않는다** (규칙 ③·④).
-       «심사석은 158px» 처럼 적어 두면 심사석 모양을 고칠 때 이쪽이 안 따라온다. */
-    useEffect(() => {
-        const el = topRef.current;
-        if (!el) { setTopH(0); return; }
-        const ro = new ResizeObserver(() => setTopH(el.offsetHeight));
-        ro.observe(el);
-        setTopH(el.offsetHeight);
-        return () => ro.disconnect();
-    }, [topBox]);
-
-    /* 📏 자기 높이를 재서 알린다 — 붙박이(topBox)까지 합친 «실제로 덮는 높이»다 */
+    /* 📏 자기 높이를 재서 알린다 — 지도 위 버튼들이 이 값을 보고 시트를 피한다 */
     const selfRef = useRef<HTMLDivElement>(null);
     useEffect(() => {
         const el = selfRef.current;
         if (!el || !onHeightChange) return;
-        const tell = () => onHeightChange(el.offsetHeight + topH);
+        const tell = () => onHeightChange(el.offsetHeight);
         const ro = new ResizeObserver(tell);
         ro.observe(el);
         tell();
         return () => ro.disconnect();
-    }, [onHeightChange, topH, snap]);
+    }, [onHeightChange, snap]);
 
     return (
-        <>
-        {topBox && (
-            /* 🪧 시트 바로 위 — 시트가 어느 높이에 있든 **늘 그 자리**다 */
-            <div ref={topRef} className="absolute left-0 right-0 z-20"
-                 style={{ bottom: `calc(${SHEET_HEIGHT[snap]} - ${topH}px)`, transition: 'bottom .25s ease' }}>
-                {topBox}
-            </div>
-        )}
         <div
             ref={selfRef}
             className="absolute left-0 right-0 bottom-0 z-20 flex flex-col rounded-t-2xl border-t"
@@ -163,8 +131,8 @@ export default function StageSheet({ snap, onSnapChange, peekBar, topBox, bottom
                 /* 📏 `list` 는 **내용만큼** 서고 `full` 을 넘지 않는다.
                    `peek`(상태바만)·`full`(다 쓴다)은 고정값이다. */
                 ...(snap === 'list'
-                    ? { height: 'auto', maxHeight: `calc(100% - ${topH}px)` }
-                    : { height: topBox ? `calc(${SHEET_HEIGHT[snap]} - ${topH}px)` : SHEET_HEIGHT[snap] }),
+                    ? { height: 'auto', maxHeight: '100%' }
+                    : { height: SHEET_HEIGHT[snap] }),
                 background: 'var(--color-surface)',
                 borderColor: 'color-mix(in srgb, var(--color-border-card) 60%, #4f8df9)',
                 boxShadow: '0 -10px 30px rgba(0,0,0,.45)',
@@ -210,7 +178,6 @@ export default function StageSheet({ snap, onSnapChange, peekBar, topBox, bottom
             {/* 🪧 맨 아래 붙박이 — 목록이 아무리 길어도 여기는 안 밀린다 */}
             {bottomBox && <div className="shrink-0">{bottomBox}</div>}
         </div>
-        </>
     );
 }
 
