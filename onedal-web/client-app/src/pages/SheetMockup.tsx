@@ -7,6 +7,7 @@ import StageSheet, { type SheetSnap } from '../components/stage/StageSheet';
 import { sheetTransition, snapOnJudging, snapAfterJudging } from '../components/stage/sheetTransition';
 import NaviQr, { naviQrText, type QrKind } from '../components/dashboard/NaviQr';
 import { sheetStatus, sheetStatusLine } from '../lib/sheetStatus';
+import StepSheetMock from '../components/dashboard/StepSheetMock';
 import { pushClock, gapTone } from '../lib/pushedTime';
 import { MOCK_PLANS, scenarioPlan, splitStops, myLocationAt, routeHolderOf, reaskedPlan, reaskCost, type Call } from './mockPlans';
 import { SCENARIO, SEAT_CALLS } from './scenario';
@@ -184,108 +185,31 @@ function MockFilterPanelFull() {
    조작판에서 갈아 끼운다. 한 곳에서만 만든다 (규칙 ③). */
 
 /** 6단계 — 한 장에 «그 단계에서 할 일 하나»만 둔다 */
+/**
+ * 🌱 **6단계 — 실물 단계 시트를 그대로 쓴다** (기사님 2026-09-05:
+ *    *"콜의 스텝의 모든 요소를 목업으로 가져와"*).
+ *
+ * 🔴 **목업용 스텝을 따로 그리지 않는다** — 지도·심사석과 같은 원칙이다 (규칙 ③).
+ *    `StepSheetMock` 은 이미 여섯 단계가 다 살아 있다: 적재 단위·개수·방법·보호·후작업·
+ *    성질·도착 사유·약속 격자·계획 대 실측까지.
+ * 🔴 **`orderId` 를 안 준다** — 그러면 저장이 안 나가고 **그리기만** 한다.
+ *    목업에서 누른 것이 실제 콜을 건드리면 안 된다.
+ *
+ * `step` 은 실물이 갈래를 나누는 코드다 — 통화/도착/완료와 상차/하차가 여기서 갈린다.
+ */
 const STEPS = [
-    { k: '상차지 통화', side: 'p', kind: 'call' },
-    { k: '상차지 도착', side: 'p', kind: 'arrive' },
-    { k: '상차 완료', side: 'p', kind: 'load' },
-    { k: '하차지 통화', side: 'd', kind: 'call' },
-    { k: '하차지 도착', side: 'd', kind: 'arrive' },
-    { k: '하차 완료', side: 'd', kind: 'unload' },
+    { k: '상차지 통화', side: 'p', kind: 'call',   step: 'CALL_PICKUP' },
+    { k: '상차지 도착', side: 'p', kind: 'arrive', step: 'ARRIVE_PICKUP' },
+    { k: '상차 완료',   side: 'p', kind: 'load',   step: 'LOADED' },
+    { k: '하차지 통화', side: 'd', kind: 'call',   step: 'CALL_DROPOFF' },
+    { k: '하차지 도착', side: 'd', kind: 'arrive', step: 'ARRIVE_DROPOFF' },
+    { k: '하차 완료',   side: 'd', kind: 'unload', step: 'DELIVERED' },
 ] as const;
 
 /* ── 작은 부품 — 원본의 생김새를 토큰으로 옮긴 것 ── */
 
-function Pick({ on, children }: { on?: boolean; children: React.ReactNode }) {
-    return (
-        <span className={`px-2.5 py-1.5 rounded-lg border text-[12.5px] font-black ${on
-            ? 'bg-info/20 border-info/50 text-info'
-            : 'bg-surface-alt/40 border-border-card text-text-muted'}`}>{children}</span>
-    );
-}
 
-function Label({ children }: { children: React.ReactNode }) {
-    return <div className="mt-3 mb-1.5 text-[11px] font-black tracking-wide text-text-muted">{children}</div>;
-}
 
-function Site({ nm, addr, tel }: { nm: string; addr: string; tel: string }) {
-    return (
-        <div className="p-2.5 rounded-xl border border-success/35 bg-success/10">
-            <b className="block text-[13.5px] font-black text-text-primary">{nm}</b>
-            <span className="text-[11.5px] text-text-muted">{addr}</span>
-            <span className="block mt-1.5 text-[13px] font-black text-success tabular-nums">📞 {tel}</span>
-        </div>
-    );
-}
-
-/** 한 스텝 장 — 단계 성격에 따라 몸통이 다르다 */
-function PaneBody({ call, si }: { call: Call; si: number }) {
-    const st = STEPS[si];
-    const [nm, addr, tel] = call.site[st.side];
-    const promise = call.stops[st.side === 'p' ? 0 : 1];
-
-    if (st.kind === 'call') return (
-        <>
-            <Site nm={nm} addr={addr} tel={tel} />
-            <Label>약속</Label>
-            <div className="flex gap-1.5 flex-wrap">
-                <Pick on>{promise.now}</Pick><Pick>15분 뒤</Pick><Pick>30분 뒤</Pick><Pick>직접</Pick>
-            </div>
-            <Label>단위 · 수량</Label>
-            <div className="flex gap-1.5 flex-wrap">
-                <Pick>파레트</Pick><Pick on>라면박스</Pick><Pick>마대</Pick><Pick>서류봉투</Pick>
-            </div>
-            <div className="flex gap-1.5 flex-wrap mt-1.5">
-                <Pick on>20</Pick><Pick>30</Pick><Pick>40</Pick><Pick>50</Pick>
-            </div>
-            <div className="mt-3 flex gap-1.5">
-                <b className="flex-1 text-center py-2.5 rounded-[10px] text-[13.5px] font-black border bg-info/20 border-info/60 text-info">통화 기록</b>
-                <b className="flex-1 text-center py-2.5 rounded-[10px] text-[13.5px] font-black border bg-surface-alt/40 border-border-card text-text-muted">건너뜀</b>
-            </div>
-        </>
-    );
-
-    if (st.kind === 'arrive') return (
-        <>
-            <Site nm={nm} addr={addr} tel={tel} />
-            <p className="mt-3 text-[11.5px] leading-relaxed text-text-muted">
-                GPS 가 잡으면 저절로 찍힙니다 — 못 잡으면 여기서 찍습니다 (터널·지하차도에서는 못 잡습니다).
-            </p>
-            <div className="mt-3 flex">
-                <b className="flex-1 text-center py-2.5 rounded-[10px] text-[13.5px] font-black border bg-info/20 border-info/60 text-info">도착 찍기</b>
-            </div>
-        </>
-    );
-
-    if (st.kind === 'load') return (
-        <>
-            <Label>상차 방법</Label>
-            <div className="flex gap-1.5 flex-wrap"><Pick>지게차</Pick><Pick on>수작업</Pick></div>
-            <Label>실은 양</Label>
-            <div className="flex gap-1.5 flex-wrap"><Pick on>라면박스 20</Pick><Pick>고침</Pick></div>
-            <div className="mt-3 flex">
-                <b className="flex-1 text-center py-2.5 rounded-[10px] text-[13.5px] font-black border bg-info/20 border-info/60 text-info">상차 완료</b>
-            </div>
-            <p className="mt-3 text-[11.5px] leading-relaxed text-text-muted">
-                지나치면 도착·완료가 순서대로 저절로 찍힙니다 (300m 들어왔다 400m 벗어날 때).
-            </p>
-        </>
-    );
-
-    return (
-        <>
-            <Label>하차 방법</Label>
-            <div className="flex gap-1.5 flex-wrap"><Pick>지게차</Pick><Pick on>수작업</Pick></div>
-            <Label>후작업</Label>
-            <div className="flex gap-1.5 flex-wrap"><Pick>정리 1분</Pick><Pick on>검수 60분</Pick><Pick>합 1분</Pick></div>
-            <Label>하차 문제</Label>
-            <div className="flex gap-1.5 flex-wrap"><Pick>검수 지연</Pick><Pick>인수 거부</Pick><Pick>기타</Pick></div>
-            <div className="mt-3 flex gap-1.5">
-                <b className="flex-1 text-center py-2.5 rounded-[10px] text-[13.5px] font-black border bg-info/20 border-info/60 text-info">하차 완료</b>
-                <b className="flex-1 text-center py-2.5 rounded-[10px] text-[13.5px] font-black border bg-surface-alt/40 border-border-card text-text-muted">취소</b>
-            </div>
-        </>
-    );
-}
 
 /**
  * 🎨 **시각이 «달라졌음»을 색으로 말한다** (2026-09-05).
@@ -300,7 +224,53 @@ function clockTone(gap?: string): string {
     return tone === 'bad' ? 'text-warning' : tone === 'good' ? 'text-success' : 'text-text-muted';
 }
 
-/** 🪗 한 콜 — 헤더(접힘) + 펼친 판(위 덩어리 · 아래 스텝 스와이프) */
+/**
+ * 🌱 **한 스텝 장 — 실물 단계 시트를 그대로 쓴다** (기사님 2026-09-05)
+ *
+ * 🔴 **목업용 스텝을 따로 그리지 않는다.** 예전에는 여기서 칩 몇 개를 흉내 냈는데,
+ *    실물(`StepSheetMock`)에는 그보다 훨씬 많은 것이 이미 살아 있다 —
+ *    적재 단위·개수·방법·🔒보호·🧹후작업·성질 딱지·도착 사유·약속 격자·
+ *    **계획 대 실측**(«14분 예측 → 19분 실제»)까지.
+ *    흉내를 유지하면 목업에서 정한 것이 실물과 갈라진다 (규칙 ③).
+ *
+ * 🔴 **`orderId` 를 안 준다** — 그러면 저장이 소켓으로 안 나가고 **그리기만** 한다.
+ *    목업에서 누른 것이 실제 콜을 건드리면 안 된다.
+ * 🔴 **`row` 는 09-03 실측에서 온다** — 지어낸 값을 넣지 않는다 (규칙 ④).
+ *    아직 신고가 없는 칸은 **비운다** — 그러면 실물이 «아직 안 정해졌다»로 그린다.
+ */
+function PaneBody({ call, si }: { call: Call; si: number }) {
+    const st = STEPS[si];
+    const [nm, addr, tel] = call.site[st.side];
+    const promise = call.stops[st.side === 'p' ? 0 : 1];
+    /** 🕒 목업은 «오늘»이 없다 — 09-03 그날의 시각을 ISO 로 만든다 */
+    const iso = (hhmm: string) => {
+        const m = hhmm.match(/(\d{1,2}):(\d{2})/);
+        return m ? `2026-09-03T${m[1].padStart(2, '0')}:${m[2]}:00+09:00` : undefined;
+    };
+    return (
+        <StepSheetMock
+            view={{
+                step: st.step,
+                label: st.k,
+                born: true,
+                row: {
+                    status: si < call.now ? 'DONE' : 'PLANNED',
+                    occurred_at: call.stamp[si] ? iso(call.stamp[si]) : null,
+                    source: call.stamp[si]?.includes('자동') ? 'AUTO' : call.stamp[si] ? 'MANUAL' : null,
+                    predicted_at: iso(promise.now),
+                    promised_arrival_at: iso(promise.now),
+                    /* 📦 배차망이 말한 품목만 있다 — 신고(단위·개수·방법)는 아직 없다.
+                       비워 두면 실물이 «아직 안 정해졌다»로 그린다 (규칙 ④) */
+                    planned_source: call.item ? 'MEMO' : null,
+                },
+            }}
+            place={{ name: nm, address: addr, phone: tel }}
+            prevName={st.side === 'd' ? call.p : null}
+        />
+    );
+}
+
+
 function CallItem({ call, i, open, onToggle, rainbow, visitedNos, fit, push }: {
     call: Call; i: number; open: boolean; onToggle: () => void; rainbow: boolean;
     visitedNos: Set<number>;
