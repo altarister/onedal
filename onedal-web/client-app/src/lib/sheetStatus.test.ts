@@ -69,10 +69,10 @@ describe('🔴 심사 중이라고 「어디로 가는가」를 지우지 않는
      * 합짐이 오면** 달리면서 그 줄을 보고 있는데 «다음 갈 곳»이 사라진다.
      * 판정은 **판정 영역**이 말한다 — 이 줄은 «지금 어디로 가는가»만 말한다.
      */
-    const 다음 = { visitNo: 4, name: '가산동', callNo: 2, stop: '하차' as const };
+    const nextStop = { visitNo: 4, name: '가산동', callNo: 2, stop: '하차' as const };
 
     it('주행 중에 심사가 와도 다음 갈 곳을 말한다', () => {
-        const s = sheetStatus({ judging: true, moving: true, next: 다음, driveMinutes: 13 });
+        const s = sheetStatus({ judging: true, moving: true, next: nextStop, driveMinutes: 13 });
         expect(s.notice).toBeNull();
         expect(s.mark).toBe('▶');
         expect(s.name).toBe('가산동');

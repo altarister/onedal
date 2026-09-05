@@ -233,9 +233,9 @@ describe('🪧 심사석 — 눌러야 넘어가는 자리', () => {
      *    국면은 «몸이 무엇을 하나»(대기·주행·정차)이고, 심사 중인지는 `seat` 가 말한다.
      */
     it('심사 중에도 국면은 «몸이 무엇을 하나»를 말한다', () => {
-        const 주행중심사 = SCENARIO.find(s => s.title.includes('주행 중 합짐2'))!;
-        expect(주행중심사.seat).toBeTruthy();
-        expect(주행중심사.phase).toBe('주행');
+        const judgingWhileDriving = SCENARIO.find(s => s.title.includes('주행 중 합짐2'))!;
+        expect(judgingWhileDriving.seat).toBeTruthy();
+        expect(judgingWhileDriving.phase).toBe('주행');
     });
 
     it('서서 심사하는 장면은 정차다', () => {

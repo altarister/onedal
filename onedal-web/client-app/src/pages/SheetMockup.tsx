@@ -187,7 +187,7 @@ interface DeviceOne {
     id: string; name: string; net: string | null; screen: string; seenAt: string;
     mode: string;
     /** 🎯 지금 무엇을 찾나 — 국면·모드에서 **파생**된다 (폰_상태바.md 13번) */
-    hunting: string;
+    filterBadge: string;
     quiet?: boolean; stuck?: boolean; dead?: boolean; blind?: boolean;
 }
 
@@ -199,20 +199,20 @@ interface DeviceOne {
  */
 const DEVICE_SETS: Record<string, DeviceOne[]> = {
     '1대': [
-        { id: 'a', name: 'A24', net: '인성', screen: '콜리스트', seenAt: '13:19', mode: '자동', hunting: '첫짐' },
+        { id: 'a', name: 'A24', net: '인성', screen: '콜리스트', seenAt: '13:19', mode: '자동', filterBadge: '첫짐' },
     ],
     '2대': [
-        { id: 'a', name: 'A24', net: '인성', screen: '콜리스트', seenAt: '13:19', mode: '자동', hunting: '첫짐' },
-        { id: 'b', name: 'B12', net: '픽커', screen: '홈', seenAt: '13:19', mode: '알람', hunting: '합짐' },
+        { id: 'a', name: 'A24', net: '인성', screen: '콜리스트', seenAt: '13:19', mode: '자동', filterBadge: '첫짐' },
+        { id: 'b', name: 'B12', net: '픽커', screen: '홈', seenAt: '13:19', mode: '알람', filterBadge: '합짐' },
     ],
     '3대': [
-        { id: 'a', name: 'A24', net: '인성', screen: '콜리스트', seenAt: '13:19', mode: '자동', hunting: '첫짐' },
-        { id: 'b', name: 'B12', net: '픽커', screen: '홈', seenAt: '13:19', mode: '알람', hunting: '합짐' },
-        { id: 'c', name: 'C7', net: '24시', screen: '콜리스트', seenAt: '13:18', mode: '자동', hunting: '첫짐', quiet: true },
+        { id: 'a', name: 'A24', net: '인성', screen: '콜리스트', seenAt: '13:19', mode: '자동', filterBadge: '첫짐' },
+        { id: 'b', name: 'B12', net: '픽커', screen: '홈', seenAt: '13:19', mode: '알람', filterBadge: '합짐' },
+        { id: 'c', name: 'C7', net: '24시', screen: '콜리스트', seenAt: '13:18', mode: '자동', filterBadge: '첫짐', quiet: true },
     ],
     '2대 · 하나 끊김': [
-        { id: 'a', name: 'A24', net: '인성', screen: '콜리스트', seenAt: '13:19', mode: '자동', hunting: '첫짐' },
-        { id: 'b', name: 'B12', net: null, screen: '접근성 꺼짐', seenAt: '12:58', mode: '알람', hunting: '합짐', dead: true },
+        { id: 'a', name: 'A24', net: '인성', screen: '콜리스트', seenAt: '13:19', mode: '자동', filterBadge: '첫짐' },
+        { id: 'b', name: 'B12', net: null, screen: '접근성 꺼짐', seenAt: '12:58', mode: '알람', filterBadge: '합짐', dead: true },
     ],
 };
 
@@ -333,7 +333,7 @@ function DeviceOneRow({ d, mode, pending, open, more, onPick, onOpen, onMore }: 
                   */}
                 {d.blind && <span className="shrink-0 text-[12.5px]" title="접근성이 막혀 못 읽는다">👁️</span>}
                 <span className="shrink-0 px-1.5 rounded border border-info/40 bg-info/10
-                                 text-[12.5px] font-extrabold text-info">{d.hunting}</span>
+                                 text-[12.5px] font-extrabold text-info">{d.filterBadge}</span>
                 <span className="shrink-0 text-[12.5px] text-text-muted tabular-nums">{d.seenAt}</span>
                 {d.quiet && <span className="shrink-0 text-[12.5px]" title="30초 넘게 말이 없다">⏱️</span>}
                 {d.stuck && (
