@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { socket } from "../../lib/socket";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
 import type { SecuredOrder } from "@onedal/shared";
-import { CAPACITY_CONFIDENCE_LABEL , isAlreadyLoaded } from "@onedal/shared";
+import { CAPACITY_CONFIDENCE_LABEL, isAlreadyLoaded, TRUCK_CAPACITY_SLOTS } from "@onedal/shared";
 import { apiClient } from "../../api/apiClient";
 import { logStateChange } from '../../lib/roadmapLogger';
 import { getDistanceKm } from "../../lib/routeUtils";
@@ -132,13 +132,29 @@ export function VehicleLogoSummary({ liveCalls }: { liveCalls: SecuredOrder[] })
     const myVehicle = dbVehicleType || filter?.allowedVehicleTypes?.[0] || '1t';
     const reserved = liveCalls.filter(o => !isAlreadyLoaded(o));
     const loaded = liveCalls.filter(o => isAlreadyLoaded(o));
+    /**
+     * 🧮 **괄호 목록을 뺐다** (목업 이식 2026-09-05).
+     *
+     * 🔴 `예약 4건 (다마스, 다마스, 다마스, 1t)` — **차종을 콜 수만큼 늘어놓고 있었다.**
+     *    콜이 넷이면 한 줄이 넘치고, 달리면서 읽을 것은 «몇 건인가» 하나다.
+     *    무엇을 싣는지는 **콜 카드의 📦 칩**이 콜마다 말한다 (규칙 ③ — 한 사실 한 곳).
+     * 🟢 대신 **적재량과 확신**을 옆에 둔다 — 그게 «내 트럭 상태»의 답이다.
+     */
     const part = (items: typeof liveCalls, prefix: string) =>
-        items.length ? `${prefix} ${items.length}건 (${items.map(i => i.vehicleType || i.itemDescription || '짐').join(', ')})` : null;
-    const text = [part(loaded, '상차'), part(reserved, '예약')].filter(Boolean).join(', ') || '예약 0건';
+        items.length ? `${prefix} ${items.length}` : null;
+    const text = [part(loaded, '상차'), part(reserved, '예약')].filter(Boolean).join(' · ') || '예약 0건';
     return (
         <span className="flex items-baseline gap-1.5 whitespace-nowrap">
             <span className="text-[17px] font-black text-text-primary">{myVehicle}</span>
             <span className={`text-[12.5px] font-bold ${loaded.length ? 'text-success' : reserved.length ? 'text-info' : 'text-text-muted'}`}>{text}</span>
+            {/* 📦 **내 트럭이 얼마나 찼나** — 필터 줄의 같은 숫자와 «읽는 질문»이 다르다
+                (저기는 «필터가 보는 적재», 여기는 «내 차 상태»). 콜이 없으면 안 그린다 */}
+            {liveCalls.length > 0 && filter?.slotsUsed != null && (
+                <span className={`shrink-0 text-[12px] font-black tabular-nums ${
+                    filter.slotsUsed >= 85 ? 'text-warning' : 'text-text-muted'}`}>
+                    📦{Math.round(filter.slotsUsed)}/{TRUCK_CAPACITY_SLOTS}
+                </span>
+            )}
             {liveCalls.length > 0 && filter?.capacityConfidence && (
                 <span className={`text-[10px] font-black px-1 py-0.5 rounded ${
                     filter.capacityConfidence === 'CONFIRMED' ? 'bg-success/15 text-success'
