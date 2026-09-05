@@ -106,7 +106,7 @@ export default function Dashboard() {
     //    `isTerminal(s) || s === 'ORDER_CONFIRMED'` 라 **ORDER_PICKED_UP 을 버렸다.**
     //    서버의 복구 쿼리 두 곳과 합쳐 같은 목록이 세 군데 손으로 적혀 있었다.
     //    `mergeOrderViews` 로 뽑아 한 곳에서 정하고, 렌더 없이 테스트한다.
-    const activeRoute = mergeOrderViews(orders as any, terminatedOrders, liveCalls);
+    const activeRoute = mergeOrderViews(orders, terminatedOrders, liveCalls);
     /** 🪧 심사 중인 콜 — 술어는 shared 한 곳에서 (규칙 ③) */
     const judgingCall = judgingCallOf(activeRoute);
     // 취소·방출·완료된 귀가콜은 "진행 중"이 아니다.

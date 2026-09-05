@@ -16,9 +16,22 @@
  * 그 모양의 **유일한 생산자**가 된다.
  */
 
-/** 서버 `stepsView()` 가 주는 한 단계 (관제웹 `steps-synced` 페이로드와 같다) */
+/**
+ * 서버 `stepsView()` 가 주는 한 단계 (관제웹 `steps-synced` 페이로드와 같다).
+ *
+ * 🔴 **`label`·`table` 이 빠져 있었다** (2026-09-05 고침). 서버 `stepSeeder.stepsView()`
+ *    는 **처음부터 넷을 보내고 있었는데** 여기 선언은 둘뿐이라, 관제웹이 `any[]` 로
+ *    받아 `.label` 을 읽고 있었다 — `any` 가 «타입이 실제보다 좁다»를 덮은 것이다.
+ *    타입을 조이자마자 `tsc` 가 그 자리를 두 곳 짚어 줬다.
+ * ⚠️ 타입은 실행 시점에 사라진다 — 이건 «서버가 이렇게 준다»는 **우리 기대**를 적은
+ *    것이지 보증이 아니다. 서버가 바꾸면 여기도 함께 고쳐야 한다.
+ */
 export interface StepViewRow {
     step: string;
+    /** 화면에 적는 단계 이름 — 서버가 `STEP_TABLE` 에서 골라 보낸다 */
+    label?: string;
+    /** 이 단계가 어느 표에서 나왔나 (진단용) */
+    table?: string;
     born?: boolean;
     row: Record<string, any>;
 }

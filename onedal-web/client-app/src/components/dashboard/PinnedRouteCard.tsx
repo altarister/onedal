@@ -1,7 +1,7 @@
 import { verdictOf, BUTTON_BG } from '../../lib/verdict';
 import { useState, useEffect } from 'react';
 import { isEvaluating, isTerminal, isManualLineage, isDeliveredCall, minRouteBuffer, derivationInputsOf, stopTimeOfRecords } from "@onedal/shared";
-import type { SecuredOrder } from "@onedal/shared";
+import type { SecuredOrder, StepViewRow } from "@onedal/shared";
 import { socket } from "../../lib/socket";
 import { getAddressLabel, getMinuteDiff , telHref } from "../../lib/routeUtils";
 import { logRoadmapEvent } from '../../lib/roadmapLogger';
@@ -205,11 +205,11 @@ export default function PinnedRouteCard({
      * 기사님 구조를 **눈으로 확인**하기 위한 임시 블록이다.
      * 기존 흐름(통화 시트 · 마일스톤)은 그대로 두고, 옆에 나란히 세워 값을 견준다.
      */
-    const [seededSteps, setSeededSteps] = useState<any[] | null>(null);
+    const [seededSteps, setSeededSteps] = useState<StepViewRow[] | null>(null);
     /** 🌱 단계 네비게이션 — 기존 카드와 같은 문법: null 이면 현재 단계, 숫자면 되돌아보는 중 */
     const [stepNav, setStepNav] = useState<number | null>(null);
     useEffect(() => {
-        const onSynced = (p: { orderId: string; steps: any[] }) => {
+        const onSynced = (p: { orderId: string; steps: StepViewRow[] }) => {
             if (p.orderId === route.id) setSeededSteps(p.steps);
         };
         socket.on('steps-synced', onSynced);
@@ -217,7 +217,8 @@ export default function PinnedRouteCard({
         if (!isEvaluating(route.status)) socket.emit('request-steps', { orderId: route.id });
         return () => { socket.off('steps-synced', onSynced); };
     }, [route.id, route.status]);
-    const stepDone = (x: any) => x?.born !== false && (x?.row?.status === 'DONE' || x?.row?.status === 'SKIPPED');
+    /** ✅ 이 단계가 끝났나 — 모양은 `shared/stepRecords` 의 `StepViewRow` 하나에서 온다 */
+    const stepDone = (x?: StepViewRow) => x?.born !== false && (x?.row?.status === 'DONE' || x?.row?.status === 'SKIPPED');
     /**
      * 🔴 현재 단계 = "첫 미완료"가 아니라 **증거 최전방** (기사님 실측 2026-08-21).
      *
@@ -960,7 +961,7 @@ export default function PinnedRouteCard({
                                                 kakaoSoloDistanceKm: route.kakaoSoloDistanceKm,
                                                 kakaoSoloDurationMin: route.kakaoSoloDurationMin,
                                                 // 🚚 실측이 없으면 배송거리로 추정한다 — 그 입력을 함께 보여 준다
-                                                deliveryDistance: (route as any).deliveryDistance,
+                                                deliveryDistance: route.deliveryDistance,
                                             }).map(([k, v]) => (
                                                 <div key={k} className="flex bg-surface-alt/40 p-1 rounded text-[10px]">
                                                     <span className="w-[120px] flex-shrink-0 text-text-muted font-bold select-all">route.{k} :</span>

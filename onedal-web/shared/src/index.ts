@@ -545,6 +545,16 @@ export interface PendingOrder extends OfficeOrder {
     routePolyline?: Array<{ x: number; y: number }>;  // 카카오 실제 궤적 좌표들
     totalDistanceKm?: number;         // 통합 연산된 전체 총 주행 거리
     totalDurationMin?: number;        // 통합 연산된 전체 총 주행 시간
+    /**
+     * 🚚 **배송거리** (상차지 → 하차지, km) — 앱이 리스트에서 긁어 온 값.
+     *
+     * 🔴 **타입에만 없었다** (2026-09-05 고침). `orders` 테이블에 `deliveryDistance REAL`
+     *    로 살고 `GET /orders` 가 그대로 보내는데 여기 선언이 없어서, 관제웹이
+     *    `(route as any).deliveryDistance` 로 읽고 있었다 — **`as any` 가 «타입이
+     *    실제보다 좁다»는 사실을 덮고 있었다.**
+     *    같은 이름이 `SimplifiedOfficeOrder` 에도 있다 (앱이 올려 주는 쪽).
+     */
+    deliveryDistance?: number;
     kakaoSoloDistanceKm?: number;     // 카카오가 연산한 해당 콜만의 '단독' 주행 거리
     kakaoSoloDurationMin?: number;    // 카카오가 연산한 해당 콜만의 '단독' 소요 시간
     /** 현위치 → 상차지 소요 시간(분). 통화 대본의 "여기서 N분 걸립니다"가 이 값이다 */
@@ -604,6 +614,16 @@ export interface MyOrder extends OfficeOrder {
     routePolyline?: Array<{ x: number; y: number }>;  // 카카오 실제 궤적 좌표들
     totalDistanceKm?: number;         // 통합 연산된 전체 총 주행 거리
     totalDurationMin?: number;        // 통합 연산된 전체 총 주행 시간
+    /**
+     * 🚚 **배송거리** (상차지 → 하차지, km) — 앱이 리스트에서 긁어 온 값.
+     *
+     * 🔴 **타입에만 없었다** (2026-09-05 고침). `orders` 테이블에 `deliveryDistance REAL`
+     *    로 살고 `GET /orders` 가 그대로 보내는데 여기 선언이 없어서, 관제웹이
+     *    `(route as any).deliveryDistance` 로 읽고 있었다 — **`as any` 가 «타입이
+     *    실제보다 좁다»는 사실을 덮고 있었다.**
+     *    같은 이름이 `SimplifiedOfficeOrder` 에도 있다 (앱이 올려 주는 쪽).
+     */
+    deliveryDistance?: number;
     kakaoSoloDistanceKm?: number;     // 카카오가 연산한 해당 콜만의 '단독' 주행 거리
     kakaoSoloDurationMin?: number;    // 카카오가 연산한 해당 콜만의 '단독' 소요 시간
     /** 현위치 → 상차지 소요 시간(분). 통화 대본의 "여기서 N분 걸립니다"가 이 값이다 */

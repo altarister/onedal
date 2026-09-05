@@ -2,14 +2,23 @@ import { verdictOf } from '../lib/verdict';
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { socket } from "../lib/socket";
 import { apiBase } from "../lib/serverTarget";   // 🎯 주소를 정하는 곳은 하나다 (규칙 ③)
-import type { SimplifiedOfficeOrder, SecuredOrder, OrderSyncPayload, RouteStopInfo } from "@onedal/shared";
+import type { SecuredOrder, OrderSyncPayload, RouteStopInfo } from "@onedal/shared";
 import { isEvaluating, isTerminal } from "@onedal/shared";
 import { logRoadmapEvent, logStateChange } from "../lib/roadmapLogger";
 import { soundManager } from "../lib/soundManager";
 import { autoKeepEnabled, autoKeepLoadedCount, logAutoKeep } from "../lib/autoKeep";
 
 export function useOrderEngine() {
-    const [orders, setOrders] = useState<SimplifiedOfficeOrder[]>([]);
+    /**
+     * 📒 **장부에서 되살린 콜들** — `GET /orders` 가 `orders` 테이블 행을 그대로 준다.
+     *
+     * 🔴 **`SimplifiedOfficeOrder` 로 적혀 있었다** (2026-09-05 고침). 그 타입에는
+     *    `status` 가 없는데 `mergeOrderViews` 는 `o.status` 를 읽는다 — 그래서 부르는
+     *    쪽이 `as any` 로 풀고 있었다. **선언이 실제로 오는 것과 달랐던 것**이고,
+     *    `as any` 가 그 어긋남을 덮고 있었다.
+     *    테이블에는 `status`·`capturedDeviceId`·`capturedAt` 이 다 있다 (`db.ts` orders).
+     */
+    const [orders, setOrders] = useState<SecuredOrder[]>([]);
     const [isConnected, setIsConnected] = useState(socket.connected);
     const [activeOrders, setActiveOrders] = useState<SecuredOrder[]>([]);
     /**
