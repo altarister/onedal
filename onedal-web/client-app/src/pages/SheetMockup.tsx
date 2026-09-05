@@ -7,7 +7,7 @@ import StageSheet, { type SheetSnap } from '../components/stage/StageSheet';
 import { sheetTransition, snapOnJudging, snapAfterJudging } from '../components/stage/sheetTransition';
 import NaviQr, { naviQrText, type QrKind } from '../components/dashboard/NaviQr';
 import { sheetStatus, sheetStatusLine } from '../lib/sheetStatus';
-import { pushClock, gapLabel, gapTone } from '../lib/pushedTime';
+import { pushClock, gapTone } from '../lib/pushedTime';
 import { MOCK_PLANS, scenarioPlan, splitStops, myLocationAt, routeHolderOf, reaskedPlan, reaskCost, type Call } from './mockPlans';
 import { SCENARIO, SEAT_CALLS } from './scenario';
 import { ROUTE_PRIORITIES, PRIORITY_SAMPLE, isPriorityLocked, type RoutePriority } from '../lib/routePriority';
@@ -287,6 +287,19 @@ function PaneBody({ call, si }: { call: Call; si: number }) {
     );
 }
 
+/**
+ * 🎨 **시각이 «달라졌음»을 색으로 말한다** (2026-09-05).
+ *
+ * 펼친 판의 상차·하차 줄을 지우면서(타이틀과 중복) **옛 시각과 차이**가 갈 곳이 없어졌다.
+ * 🔴 옛 시각은 **지나간 값**이라 안 보여도 된다. 남은 것은 «달라졌나»뿐이고
+ *    그것은 **색이 답한다** — 밀리면 노랑, 당겨지면 초록, 그대로면 무채색.
+ * 🔴 몇 분인지는 심사 중이면 **심사석 위 한 줄**이 이미 말한다 (규칙 ③ — 두 번 안 적는다).
+ */
+function clockTone(gap?: string): string {
+    const tone = gapTone(parseFloat(gap ?? '') || 0);
+    return tone === 'bad' ? 'text-warning' : tone === 'good' ? 'text-success' : 'text-text-muted';
+}
+
 /** 🪗 한 콜 — 헤더(접힘) + 펼친 판(위 덩어리 · 아래 스텝 스와이프) */
 function CallItem({ call, i, open, onToggle, rainbow, visitedNos, fit, push }: {
     call: Call; i: number; open: boolean; onToggle: () => void; rainbow: boolean;
@@ -380,14 +393,14 @@ function CallItem({ call, i, open, onToggle, rainbow, visitedNos, fit, push }: {
                     <span className="w-[4em] shrink-0 truncate">{call.p}</span>
                     <span className="w-[3.5em] shrink-0 text-[12px] tabular-nums text-right">
                         {push ? <span className="text-warning">{pushClock(call.headAt[0], push)}</span>
-                              : <span className="text-text-muted">{call.headAt[0]}</span>}
+                              : <span className={clockTone(call.stops[0].gap)}>{call.headAt[0]}</span>}
                     </span>
                     <span className="shrink-0 text-text-muted/70 px-0.5">→</span>
                     {node(call.nodes[1], 'd')}
                     <span className="w-[4em] shrink-0 truncate">{call.d}</span>
                     <span className="w-[3.5em] shrink-0 text-[12px] tabular-nums text-right">
                         {push ? <span className="text-warning">{pushClock(call.headAt[1], push)}</span>
-                              : <span className="text-text-muted">{call.headAt[1]}</span>}
+                              : <span className={clockTone(call.stops[1].gap)}>{call.headAt[1]}</span>}
                     </span>
                 </span>
                 <span className="shrink-0 flex gap-[2px]" aria-hidden>
@@ -420,8 +433,12 @@ function CallItem({ call, i, open, onToggle, rainbow, visitedNos, fit, push }: {
                     <div className="shrink-0 px-3 pt-2.5 pb-3 border-b border-border-card">
                         <div className="flex items-center gap-1.5 flex-wrap text-[11.5px] text-text-muted">
                             <span>{call.no}.</span>
-                            <span>콜잡은시간 {call.grabbed}</span>
-                            <span>수수료 23%</span>
+                            <span>{call.grabbed}</span>
+                            {/* 🚚 **이 콜이 부르는 차종** — 단가가 여기서 나온다 (내 차종은 폴백일 뿐) */}
+                            <span className="px-1.5 rounded-[5px] text-[11px] font-black border
+                                             bg-surface-alt border-border-card text-text-primary">{call.vehicle}</span>
+                            {/* 💸 **콜마다 다른 값이다** — 오래 「23%」로 박혀 있어 어느 콜을 펼쳐도 같았다 */}
+                            <span>수수료 {call.commission}</span>
                             {call.rush && <span className="px-1.5 rounded-[5px] text-[11px] font-black border bg-warning/15 border-warning/40 text-warning">급송</span>}
                             <span className={`px-1.5 rounded-[5px] text-[11px] font-black border ${call.color.tone === 'honey'
                                 ? 'bg-info/15 border-info/40 text-info'
@@ -440,31 +457,30 @@ function CallItem({ call, i, open, onToggle, rainbow, visitedNos, fit, push }: {
                             </p>
                         )}
 
-                        <dl className="mt-2 grid grid-cols-[auto_auto_1fr] gap-x-2.5 gap-y-0.5 text-[13px] items-baseline">
-                            {call.stops.map(s => (
-                                <div key={s.kind} className="contents">
-                                    <dt className="font-bold text-text-muted">{s.kind}</dt>
-                                    <dd className="text-text-primary">{s.place}</dd>
-                                    {/**
-                                      * ⏱️ **밀리면 «옛 → 새 (+N분)»** (기사님 «심사 중에 미리»).
-                                      * 🔴 차이를 늘 초록으로 적으면 **「+34분」이 좋은 일로 읽힌다** —
-                                      *    밀림은 나쁜 일이라 색을 가른다 (규칙 ⑤-3).
-                                      */}
-                                    <dd>
-                                        {push
-                                            ? <><span className="line-through tabular-nums text-text-muted/60">{s.now}</span>{' → '}
-                                                <span className="font-black tabular-nums text-warning">{pushClock(s.now, push)}</span>
-                                                <span className="ml-1 text-[11.5px] font-bold text-warning">{gapLabel(push)}</span></>
-                                            : <>{s.was && <><span className="line-through tabular-nums text-text-muted/60">{s.was}</span>{' → '}</>}
-                                                <span className="font-black tabular-nums text-text-primary">{s.now}</span>
-                                                {s.gap && <span className={`ml-1 text-[11.5px] ${
-                                                    gapTone(parseFloat(s.gap) || 0) === 'bad' ? 'text-warning' : 'text-success'}`}>{s.gap}</span>}</>}
-                                    </dd>
-                                </div>
-                            ))}
-                        </dl>
-
+                        {/**
+                          * 🔴 **상차·하차 줄을 지웠다** (기사님 2026-09-05: *"타이틀하고 중복인 것
+                          *    같은데 이걸 지우고 타이틀에 다 표현할 수 있지?"*).
+                          *
+                          * 타이틀이 이미 «① 석수동 ~14:17 → ③ 구로동 ~15:31» 을 다 그린다.
+                          * 여기에만 있던 것은 **옛 시각(취소선)과 차이(-4분)** 둘뿐이었는데:
+                          *   · 옛 시각은 **지나간 값**이다 — 지금 몇 시인지만 알면 된다
+                          *   · 차이는 **색**이 말한다 (밀리면 노랑·당겨지면 초록).
+                          *     몇 분인지는 심사 중이면 심사석 위 한 줄이 이미 말한다
+                          * 🟢 세 줄이 줄었다.
+                          */}
                         <div className="mt-2.5 flex gap-1.5 flex-wrap text-[11px] font-black">
+                            {/**
+                              * 📦 **짐을 칩으로** (기사님 2026-09-05) — 적요 문장 속에 묻혀 있었다.
+                              * 🔴 이것은 **배차망이 말한 품목**(`itemDescription`)이지 적재 계산의
+                              *    근거가 아니다. 그것은 통화·신고로 채워지는 `CargoReport` 이고
+                              *    헤더의 `📦 90/100` 이 그 결과다 — **신고가 오면 그것이 이긴다.**
+                              * 🔴 없으면 안 그린다 — 적요에서 짜내지 않는다 (규칙 ④).
+                              */}
+                            {call.item && (
+                                <span className="px-2 py-1 rounded-md border bg-surface-alt/60 border-border-card text-text-primary">
+                                    📦 {call.item}
+                                </span>
+                            )}
                             {call.buf.map(b => (
                                 <b key={b.text} className={`px-1.5 py-0.5 rounded-md border ${b.tone === 'ok' ? 'bg-success/12 border-success/40 text-success'
                                     : b.tone === 'bad' ? 'bg-danger/12 border-danger/40 text-danger'

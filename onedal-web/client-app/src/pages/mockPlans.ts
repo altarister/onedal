@@ -178,6 +178,27 @@ export type Call = {
     /** 🔴 **실측이 아닌 칸이 있으면 여기에 근거를 적는다** — 화면이 「시늉」 배지로 말한다 (규칙 ⑤-2) */
     mock?: string;
     /**
+     * 🚚 **이 콜이 부르는 차종** — 내 차종이 아니다 (2026-09-05).
+     * 🔴 **단가가 여기서 나온다** — `PricingEngine` 이 «적정 금액 = 거리 × **차종 단가** ×
+     *    (1 − 수수료율)» 로 센다. 내 차종은 콜에 값이 없을 때 쓰는 폴백일 뿐이다.
+     */
+    vehicle: string;
+    /**
+     * 💸 **그 콜의 알선 수수료율** — 배차망 화면에서 긁은 값(`commissionRate`).
+     * 🔴 **콜마다 다르다.** 목업이 오래 「23%」를 고정 문자열로 적어 두어 어느 콜을
+     *    펼쳐도 같은 값이었다 — 화면이 조용히 거짓말을 한 자리다 (2026-09-05 정정).
+     * ⚠️ `"*%"`(모름)도 온다 — 그때는 그대로 적는다. 지어내지 않는다 (규칙 ④)
+     */
+    commission: string;
+    /**
+     * 📦 **배차망이 말한 품목** (`itemDescription`) — 「서류봉투」·「쇼핑백 2개」.
+     *
+     * 🔴 **적재 계산의 근거가 아니다.** 그것은 통화·신고로 채워지는 `CargoReport`
+     *    (`unit`·`quantity`·`handling`)이고, 헤더의 `📦 90/100` 이 그 결과다.
+     *    여기는 «배차망이 뭐라고 했나»일 뿐 — **신고가 오면 그것이 이긴다.**
+     */
+    item?: string;
+    /**
      * 🎨 **몇 번 콜인가 — 색의 입력이다** (2026-09-05).
      *
      * 🔴 전에는 목록이 **자기 인덱스**로 색을 정했다. 3콜 판에서는 목록이 [1,2,3] 순이라
@@ -193,6 +214,7 @@ export type Call = {
 const PLAN3_CALLS: Array<Omit<Call, 'callNo'>> = [
     {
         no: 10, grabbed: '09:41:08', fare: '9.0만원', rush: false,
+        vehicle: '다마스', commission: '23%', item: '서류봉투',
         color: { tone: 'honey', text: '꿀 91' },
         nodes: [1, 6], p: '초월읍', d: '방화동', headAt: ['', '~02:32'],
         stops: [
@@ -200,7 +222,7 @@ const PLAN3_CALLS: Array<Omit<Call, 'callNo'>> = [
             { kind: '하차', place: '방화동', was: '02:36', now: '~02:32', gap: '-4분' },
         ],
         buf: [{ tone: 'ok', text: '경유버퍼 +108분~' }, { tone: 'plain', text: '데드라인 02:32' }],
-        memo: '적요 : 라면박스 20개 / *카고 입니다. 세금계산서필. 현위치 → 상차지 0.4KM. 상차지 → 하차지 52.8KM',
+        memo: '*카고 입니다. 세금계산서필 12:16상차. 마스크 카톤서류봉투명세서폐기 · 현위치 → 상차지 0.4KM · 상차지 → 하차지 52.8KM',
         site: {
             p: ['초월 스타벅스 경기광주초월역DT점', '경기 광주시 초월읍 경충대로', '031-798-1234'],
             d: ['강서개화장례식장 · 지층', '서울 강서구 양천로 35', '02-2666-4114'],
@@ -209,6 +231,7 @@ const PLAN3_CALLS: Array<Omit<Call, 'callNo'>> = [
     },
     {
         no: 12, grabbed: '13:50:11', fare: '4.5만원', rush: true,
+        vehicle: '다마스', commission: '23%', item: '서류봉투',
         color: { tone: 'honey', text: '꿀 88' },
         nodes: [2, 4], p: '여수동', d: '가산동', headAt: ['~17:54', ''],
         stops: [
@@ -220,7 +243,7 @@ const PLAN3_CALLS: Array<Omit<Call, 'callNo'>> = [
             { tone: 'ok', text: '경유버퍼 +42분~' },
             { tone: 'plain', text: '데드라인 19:09' },
         ],
-        memo: '적요 : 쇼핑백 2개 / *카고 입니다. 마스크 카톤쇼핑백 2개. 현위치 → 상차지 6.5KM. 상차지 → 하차지 29.3KM',
+        memo: '*카고 입니다. 세금계산서필 12:44상차. 마스크 카톤서류봉투명세서폐기 · 현위치 → 상차지 6.5KM · 상차지 → 하차지 29.3KM',
         site: {
             p: ['성남시 택시쉼터', '경기 성남시 중원구 여수동', '031-729-8100'],
             d: ['서서울도시고속도로 서부간선영업소', '서울 금천구 가산동', '02-2101-7000'],
@@ -229,6 +252,7 @@ const PLAN3_CALLS: Array<Omit<Call, 'callNo'>> = [
     },
     {
         no: 13, grabbed: '13:57:40', fare: '3.5만원', rush: false,
+        vehicle: '다마스', commission: '23%', item: '쇼핑백 2개',
         color: { tone: 'normal', text: '보통 53' },
         nodes: [3, 5], p: '석수동', d: '구로동', headAt: ['~14:17', ''],
         stops: [
@@ -236,7 +260,7 @@ const PLAN3_CALLS: Array<Omit<Call, 'callNo'>> = [
             { kind: '하차', place: '구로동', was: null, now: '~15:31', gap: '' },
         ],
         buf: [{ tone: 'bad', text: '상차버퍼 -60분~' }, { tone: 'plain', text: '데드라인 15:31' }],
-        memo: '적요 : 라면박스 12개 / 안양석유주유소 사무실. 현위치 → 상차지 34.9KM',
+        memo: '*카고 입니다. 세금계산서필 12:16상차. 마스크 카톤쇼핑백 2개명세서 · 현위치 → 상차지 34.9KM',
         site: {
             p: ['안양석유주유소', '경기 안양시 만안구 석수동', '031-471-2233'],
             d: ['진일텍푸라', '서울 구로구 경인로53길 111', '02-2618-4400'],
@@ -397,6 +421,7 @@ const PLAN5_LINE: Array<{ x: number; y: number }> = ([
 const MERGED_CALLS: Record<'c14' | 'c15', Omit<Call, 'callNo'>> = {
     c14: {
         no: 14, grabbed: '14:05:22', fare: '5.5만원', rush: false,
+        vehicle: '다마스', commission: '23%',
         color: { tone: 'normal', text: '보통 —' },
         nodes: [3, 7], p: '판교', d: '문래동', headAt: ['~14:25', ''],
         stops: [
@@ -414,6 +439,7 @@ const MERGED_CALLS: Record<'c14' | 'c15', Omit<Call, 'callNo'>> = {
     },
     c15: {
         no: 15, grabbed: '14:12:03', fare: '3.8만원', rush: false,
+        vehicle: '다마스', commission: '23%',
         color: { tone: 'normal', text: '보통 —' },
         nodes: [5, 9], p: '광명역', d: '양평동', headAt: ['~14:52', ''],
         stops: [

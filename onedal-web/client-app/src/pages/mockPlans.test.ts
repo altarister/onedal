@@ -332,3 +332,51 @@ describe('🔴 콜 목록의 순서는 «잡은 순서»다 — 절대 안 바�
         expect(three.callList[0].nodes[0]).toBe(2);
     });
 });
+
+describe('📋 콜 내용이 실측과 맞는가 (2026-09-05)', () => {
+    /**
+     * 기사님이 «아코디언 컨텐츠를 맞춰 보자» 하셔서 09-03 `local.db` 와 대조했다.
+     * 🔴 목업이 「라면박스 20개」를 적고 있었는데 **실측은 「서류봉투」였다** —
+     *    어디선가 지어낸 값이 남아 있던 것이다 (규칙 ④).
+     */
+    it('실측 3콜은 차종과 수수료를 갖는다', () => {
+        for (const call of MOCK_PLANS[3].callList) {
+            expect(call.vehicle, `${call.no}번`).toBe('다마스');
+            expect(call.commission, `${call.no}번`).toBe('23%');
+        }
+    });
+
+    /**
+     * 🔴 **수수료는 콜마다 다른 값이다** — 오래 「23%」가 화면에 박혀 있어 어느 콜을
+     *    펼쳐도 같았다. 09-03 은 셋 다 23% 인 것이 **실측이라서** 같은 것이다.
+     */
+    it('수수료는 콜이 들고 다닌다 — 화면에 박힌 문자열이 아니다', () => {
+        for (const n of [3, 4, 5] as const) {
+            for (const call of MOCK_PLANS[n].callList) {
+                expect(call.commission, `${n}콜 판의 ${call.no}번`).toMatch(/%$/);
+            }
+        }
+    });
+
+    it('품목은 배차망이 말한 그대로다', () => {
+        const byNo = new Map(MOCK_PLANS[3].callList.map(c => [c.no, c]));
+        expect(byNo.get(10)!.item).toBe('서류봉투');
+        expect(byNo.get(12)!.item).toBe('서류봉투');
+        expect(byNo.get(13)!.item).toBe('쇼핑백 2개');
+    });
+
+    /** 🔴 신고가 없으면 품목도 없다 — 적요에서 짜내지 않는다 (규칙 ④) */
+    it('얹은 두 콜은 품목이 없다 — 실측이 아니라서다', () => {
+        for (const call of MOCK_PLANS[5].callList.filter(c => c.no >= 14)) {
+            expect(call.item, `${call.no}번`).toBeUndefined();
+        }
+    });
+
+    it('적요에 지어낸 「라면박스」가 남아 있지 않다', () => {
+        for (const n of [3, 4, 5] as const) {
+            for (const call of MOCK_PLANS[n].callList) {
+                expect(call.memo, `${call.no}번`).not.toMatch(/라면박스/);
+            }
+        }
+    });
+});
