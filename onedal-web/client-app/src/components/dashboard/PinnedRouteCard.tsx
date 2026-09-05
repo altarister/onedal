@@ -43,6 +43,20 @@ export interface EtaCell {
  */
 const SHOW_ORDER_ACTIONS = false as boolean;
 
+/**
+ * 🚫 **「배송 주행 · 하차 마감」과 「판정 근거 · 원본 데이터」를 잠시 내렸다**
+ *    (기사님 2026-09-05: *"판정근거·원본데이터 이것도 모두 주석처리 해줘.
+ *    아코디언 컨텐츠 부분의 엘리먼트를 목업과 같이 만들고 같지 않은 것들은 주석처리 하고
+ *    스타일만 가져오면 일단 같게 작동시킬 수 있지 않을까?"*).
+ *
+ * 🔴 **지운 것이 아니다.** 목업의 위 덩어리는 넷이다 — 한 줄 · 시늉 · 칩(짐+버퍼) · 적요.
+ *    이 둘은 그 밖이라 카드를 늘렸고, 스텝이 자리를 못 받아 **본문이 통째로 스크롤**됐다.
+ * ⚠️ **되돌릴 자리다** — 하차 마감은 *"독촉 전화가 오면 카카오를 근거로 대응"* 하시는 값이고
+ *    (기사님 확정 2026-09-01), 판정 근거는 *"왜 똥콜이고 꿀콜인지 최대한 보여 줘야 한다"*
+ *    (0831)는 자리다. 어디에 둘지 정하면 `true` 로 되돌린다.
+ */
+const SHOW_CARD_EVIDENCE = false as boolean;
+
 /* 🏗️ **`PromiseLines`(상차·하차 약속 줄)는 2026-09-05 에 철거했다.**
    기사님: *"타이틀하고 중복인 것 같은데 이걸 지우고 타이틀에 다 표현할 수 있지?"*
    ⚠️ 08-30 의 «안 A»(펼치면 원래 값과 지금 값을 둘 다 적는다)를 개정한 것이다 —
@@ -636,7 +650,11 @@ export default function PinnedRouteCard({
                            본문에 펼쳐져 있었다. 폰에서 세로 16덩이가 되어
                            "한 화면에 들어온다"는 목표가 깨졌다.
                        ══════════════════════════════════════════════════════════ */}
-                    <div className="flex flex-col gap-2 text-[13px] leading-tight mt-3">
+                    {/* 📏 **사슬을 잇는다** — 여기가 auto 면 아래 스텝의 `flex-1` 이 기댈 곳이
+                        없어 **내용대로 609px 까지 자란다**(실측 0905). 그러면 본문이 넘쳐
+                        «콜 컨텐츠 전체»가 스크롤된다 — 기사님이 «스텝만 스크롤»이라 하신 것과 다르다. */}
+                    <div className={`flex flex-col gap-2 text-[13px] leading-tight mt-3 ${
+                        isDeck ? 'flex-1 min-h-0' : ''}`}>
                         {(() => {
                             /* 🏗️ pDetail/dDetail/phonesOf 는 새 단계 화면이 자기 자리에서 꺼낸다 */
 
@@ -792,7 +810,8 @@ export default function PinnedRouteCard({
                                             {memoText || <span className="text-text-muted font-normal">상세 정보 없음 (파싱 대기 중)</span>}
                                         </span>
                                     </div>
-                                        <div className="mt-1 mb-2">
+                                        {/* 📏 사슬 — 여기가 auto 면 아래 트랙이 내용대로 자란다 (0905) */}
+                                        <div className={`mt-1 mb-2 ${isDeck ? 'flex-1 min-h-0 flex flex-col' : ''}`}>
                                             {/* KEEP 이 만든다 (기사님 2026-08-20) — 여기는 보기만. 이 기능 전에 잡은 콜은 행이 없다 */}
                                             {!seededSteps && (
                                                 <div className="text-[10px] text-text-muted">아직 없습니다 — KEEP 하면 만들어집니다</div>
@@ -826,7 +845,8 @@ export default function PinnedRouteCard({
                                                         planned_quantity: x.row.planned_quantity ?? cargo.planned_quantity } };
                                                 };
                                                 return (
-                                                    <div className="mt-1" onClick={e => e.stopPropagation()}>
+                                                    <div className={`mt-1 ${isDeck ? 'flex-1 min-h-0 flex flex-col' : ''}`}
+                                                         onClick={e => e.stopPropagation()}>
                                                         {/**
                                                           * 🌱 **머리 — 단계명 · 가운데 점 · n/6** (목업 이식 0905).
                                                           * 🔴 **점은 가운데 고정** (기사님 2026-09-04: *"단어에 따라
@@ -931,6 +951,7 @@ export default function PinnedRouteCard({
                                     </div>
                                     )}
 
+                                    {SHOW_CARD_EVIDENCE && (<>
                                     {/* 🚚 **배송 주행과 하차 마감 — 접지 않는다** (B단계 · 기사님 확정 2026-09-01)
                                         하차 마감은 `상차 완료 + 배송 주행 × 150%` 라 **이 줄이 곧 마감의 근거**다.
                                         기사님이 «독촉 전화가 오면 카카오를 근거로 대응»하시는 값이므로 판정 근거
@@ -1044,6 +1065,7 @@ export default function PinnedRouteCard({
                                             </div>
                                         </div>
                                     </details>
+                                    </>)}
                                 </>
                             );
                         })()}
