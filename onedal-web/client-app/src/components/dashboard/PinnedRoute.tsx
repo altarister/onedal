@@ -87,7 +87,7 @@ export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDe
          * ⚠️ 옛 화면(무대 아님)은 안 물려준다 — 거기는 문서 스크롤이 정상이다.
          */
         <section id="confirmed-route"
-                 className={`flex flex-col ${sheetOnly ? 'h-full min-h-0' : ''}`}>
+                 className={`flex flex-col ${sheetOnly ? 'flex-1 min-h-0' : ''}`}>
             {!sheetOnly && safeRoute.length > 0 && (
                 <div className="flex justify-between items-center px-4 py-2 border-b border-border-card">
                     <h2 className="text-[13px] font-bold text-text-primary flex items-center gap-1.5">

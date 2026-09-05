@@ -122,6 +122,18 @@ try {
         await sleep(Number(process.env.AFTER_CLICK ?? 1200));
     }
 
+    /**
+     * 📏 **재 본다** — `EVAL='…'` 로 화면의 실제 치수를 물어본다.
+     *    «화면 밖으로 나간다» 류는 **눈으로 못 고른다** — 부모 사슬의 높이를 재야 안다.
+     */
+    if (process.env.EVAL) {
+        const r = await send('Runtime.evaluate', {
+            expression: process.env.EVAL, returnByValue: true,
+        });
+        console.log(typeof r.result?.value === 'string'
+            ? r.result.value : JSON.stringify(r.result?.value, null, 2));
+    }
+
     const { data } = await send('Page.captureScreenshot', { format: 'png' });
     writeFileSync(OUT, Buffer.from(data, 'base64'));
     console.log(`📸 ${OUT}  (${WIDTH}×${HEIGHT})  ${PATHNAME}${token ? '  · 로그인됨' : '  · 토큰 없음'}`);

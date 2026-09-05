@@ -342,7 +342,11 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
     // 🗺️ 시각의 원천은 "지금 경로" 하나다 (기사님 동의 2026-08-19) — 타임라인은
     //    PinnedRoute 가 새 장부(stepRecords)로 만든 것을 prop 으로 받는다 (Props 주석)
     return (
-        <div className="flex flex-col">
+        /* 📏 **아코디언은 시트가 준 자리를 그대로 쓴다** (기사님 0905 «타이틀이 화면 밖으로»).
+              감싸개가 auto 로 서면 안쪽 `flex-1` 이 기댈 곳이 없어 내용대로 자란다 —
+              그러면 콜 줄이 위로 밀려 나간다. 사슬은 **한 칸도 끊기면 안 된다.**
+           ⚠️ 아코디언이 아닐 때(옛 화면)는 그대로 auto 다 — 거기는 문서 스크롤이 정상이다. */
+        <div className={`flex flex-col ${accordion ? 'flex-1 min-h-0' : ''}`}>
             {/* ══ 콜 요약 줄 — **스와이프하지 않아도 보인다** ══
                 기사님: *"2개 있다면 각각 어디까지 진행되고 있는지 모두 스와이핑해야만 보인다.
                 그건 문제가 있다. 스와이프 영역 위에 콜마다의 진행 상황이 노출되어야

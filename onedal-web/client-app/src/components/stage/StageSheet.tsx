@@ -191,8 +191,21 @@ export default function StageSheet({ snap, onSnapChange, peekBar, bottomBox, onH
               *    것이 없으니, 그대로 두면 목록이 사라지고 아래 판정이 제자리를 잃는다
               *    (기사님 2026-09-05: *"그 상태에서 화면 밖에다 판정을 그린다"*).
               */}
+            {/**
+              * 📏 **스크롤러를 flex 상자로 둔다** (기사님 2026-09-05: *"아코디언 타이틀이
+              *    화면 밖으로 나간다"*).
+              *
+              * 🔴 예전엔 그냥 스크롤 상자였다. 자식이 «상자만큼»(100%) 서려 해도
+              *    **백분율 높이는 부모의 `height` 가 auto 면 auto 로 풀린다** —
+              *    flex 아이템은 계산된 높이만 있고 `height` 는 auto 라 그 조건에 안 맞는다.
+              *    그래서 자식이 내용대로 1181px 까지 자랐고(상자는 304px),
+              *    **콜 줄이 위로 밀려 화면 밖으로 나갔다.**
+              * 🟢 상자를 `flex flex-col` 로 두면 자식이 `flex-1` 로 **상자에 맞춰 선다** —
+              *    백분율이 아니라 flex 라 부모의 `height` 를 안 따진다.
+              * ⚠️ 스크롤은 그대로 남는다 — 자식이 스스로 늘어나면(옛 화면) 여기서 스크롤한다.
+              */}
             <div data-sheet-scroll
-                 className={`${snap === 'list' ? 'flex-auto' : 'flex-1'} overflow-y-auto min-h-0`}>{children}</div>
+                 className={`${snap === 'list' ? 'flex-auto' : 'flex-1'} overflow-y-auto min-h-0 flex flex-col`}>{children}</div>
             {/* 🪧 맨 아래 붙박이 — 목록이 아무리 길어도 여기는 안 밀린다 */}
             {bottomBox && <div className="shrink-0">{bottomBox}</div>}
         </div>
