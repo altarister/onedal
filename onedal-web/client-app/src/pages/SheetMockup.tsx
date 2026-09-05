@@ -129,9 +129,17 @@ function MockDevicePanel({ mode, pending, onPick, onOpen, open }: {
                     </span>
                 )}
 
-                {/* 🔽 **그 자리에** 열린다 — 눌린 자리에서 셋이 나온다 */}
+                {/**
+                  * 🔽 **버튼을 덮고 열린다** (기사님 2026-09-05:
+                  *    *"버튼을 가리고 레이어가 뜨길 희망했는데 버튼 아래에 노출되고 있어"*).
+                  *
+                  * 🔴 아래로 열면 «다른 것이 하나 더 생긴» 것으로 읽힌다. 덮고 열려야
+                  *    **«이 자리에서 고르는 것»** 이 된다 — 고르고 나면 그 자리에 결과가 남는다.
+                  * 🔴 세로 가운데를 맞춰 위아래로 고르게 넘친다 — 한쪽으로만 자라면
+                  *    누른 자리가 밀려 보인다.
+                  */}
                 {open && (
-                    <span className="absolute top-full right-0 mt-1 z-30 flex gap-1 p-1 rounded-lg
+                    <span className="absolute top-1/2 -translate-y-1/2 right-0 z-30 flex gap-1 p-1 rounded-lg
                                      bg-surface border border-border shadow-lg">
                         {['자동', '알람', '직접'].map(m => (
                             <button key={m} type="button" onClick={() => onPick(m)}
@@ -963,7 +971,9 @@ export default function SheetMockup() {
                     onOpen={setModeOpen}
                     onPick={(m) => {
                         setModeOpen(false);
-                        if (m === deviceMode) { setLog(`📱 이미 «${m}» 입니다.`); return; }
+                        /* 🔴 **같은 것을 고르면 조용히 닫는다** — «이미 그것입니다» 같은
+                           당연한 말을 적지 않는다 (기사님 확인 2026-09-05) */
+                        if (m === deviceMode) return;
                         setModePending(m);
                         setLog(`📱 «${m}» 으로 바꾸라고 보냈습니다 — 스캔폰이 가져갈 때까지 «적용중»입니다. `
                              + `아래 조작판에서 「📱 앱이 받았다」를 누르면 그때 값이 바뀝니다. `
