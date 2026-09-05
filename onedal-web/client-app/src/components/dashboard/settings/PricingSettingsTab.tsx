@@ -27,10 +27,6 @@ export default function PricingSettingsTab({ onClose }: Props) {
   const [newKeyword, setNewKeyword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    loadPricing();
-  }, []);
-
   const loadPricing = async () => {
     try {
       setIsLoading(true);
@@ -44,6 +40,11 @@ export default function PricingSettingsTab({ onClose }: Props) {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadPricing();
+  }, []);
+
 
   const handleSavePricing = async () => {
     try {

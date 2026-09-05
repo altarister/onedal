@@ -26,10 +26,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
-    useEffect(() => {
-        checkAuth();
-    }, []);
-
     const checkAuth = async () => {
         try {
             const token = localStorage.getItem("access_token");
@@ -46,6 +42,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setIsLoading(false);
         }
     };
+
+    useEffect(() => {
+        checkAuth();
+    }, []);
+
 
     const loginWithGoogle = async (credential: string) => {
         try {

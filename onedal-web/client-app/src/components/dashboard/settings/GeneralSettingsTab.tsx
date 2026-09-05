@@ -22,11 +22,6 @@ export default function GeneralSettingsTab({ onClose }: Props) {
   const [volume, setVolume] = useState(50);
   const [pickerAlarmMinFare, setPickerAlarmMinFare] = useState(10000);
 
-  useEffect(() => {
-    loadSettings();
-    setVolume(Math.round(soundManager.getVolume() * 100));
-  }, []);
-
   const loadSettings = async () => {
     try {
       setIsLoading(true);
@@ -44,6 +39,12 @@ export default function GeneralSettingsTab({ onClose }: Props) {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadSettings();
+    setVolume(Math.round(soundManager.getVolume() * 100));
+  }, []);
+
 
   const handleVerifyAddress = async () => {
     if (!homeAddress.trim()) return;
