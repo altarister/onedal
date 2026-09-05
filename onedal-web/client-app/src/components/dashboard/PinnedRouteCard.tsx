@@ -30,6 +30,19 @@ export interface EtaCell {
     pickupShift?: number; dropoffShift?: number;
 }
 
+/**
+ * 🚫 **「이 콜 처리」(방출 · 사무실 취소)를 잠시 내렸다** (기사님 2026-09-05).
+ *
+ * 기사님: *"취소를 주석 처리하고 콜의 내용 부분 요소를 목업과 똑같이 만들어 주고
+ * 하단 스텝도 똑같이 스타일을 적용해 주면 될 것 같아."*
+ *
+ * 🔴 **지운 것이 아니다.** 카드는 «위 덩어리 + 스텝» 둘로 서야 하는데 스텝 **아래에**
+ *    이 서랍이 붙어 카드가 길어졌고, 그래서 **스크롤 막대가 두 개**로 보였다.
+ * ⚠️ **되돌릴 자리다** — 사무실 취소는 기사님이 실제로 쓰시는 길이다
+ *    (규칙 ① — 콜의 주인은 기사님이다). 자리를 정하면 이 값을 `true` 로 되돌린다.
+ */
+const SHOW_ORDER_ACTIONS = false as boolean;
+
 /* 🏗️ **`PromiseLines`(상차·하차 약속 줄)는 2026-09-05 에 철거했다.**
    기사님: *"타이틀하고 중복인 것 같은데 이걸 지우고 타이틀에 다 표현할 수 있지?"*
    ⚠️ 08-30 의 «안 A»(펼치면 원래 값과 지금 값을 둘 다 적는다)를 개정한 것이다 —
@@ -376,8 +389,20 @@ export default function PinnedRouteCard({
                  * 🟢 잘라 감추지 않고 **여기서 스크롤**한다 — 목업의 «자리가 모자라면 판이
                  *    스크롤한다»와 같은 성질이다. 콜 줄(헤더)은 밖에 있어 계속 보인다.
                  */
+                /**
+                 * 📏 **본문은 «위 덩어리 + 스텝» 둘로 선다** (기사님 정리 2026-09-05).
+                 *
+                 * 기사님: *"상단은 콜의 내용을, 하단은 콜의 스텝을 이야기하는 영역이다.
+                 * 합짐을 많이 해서 콜 내용만 보이는 경우 **콜 컨텐츠 전체에 스크롤**이 적용되고,
+                 * 그렇지 않고 스텝 영역까지 보이면 **스텝만 스크롤**되는 구조야."*
+                 *
+                 * 🔴 그래서 **본문은 스크롤하지 않는다** — 스크롤은 둘 중 하나에서만 난다:
+                 *      · 자리가 모자라면 **판**(아코디언의 펼친 칸)이 스크롤
+                 *      · 자리가 있으면 스텝이 `flex-1` 로 서고 **장 안에서** 스크롤
+                 *    본문에 스크롤을 걸면 **두 겹**이 되어 막대가 둘 보인다 (기사님 캡처 0905).
+                 */
                 <div className={`px-4 pb-4 pt-2 text-sm border-t border-border bg-surface ${
-                    isDeck ? 'flex-1 min-h-0 overflow-y-auto' : ''}`}>
+                    isDeck ? 'flex-1 min-h-0 flex flex-col overflow-y-auto' : ''}`}>
 
                     {/* 🕐 **안 A — 펼치면 원래 값과 지금 값을 둘 다 적는다** (기사님 확정 2026-08-30)
                         원천: docs/지금/시각_표시.md
@@ -676,7 +701,10 @@ export default function PinnedRouteCard({
                                         저장된 단계 행만 그린다 — 화면에는 계산이 없다 (규칙 ③).
                                         🔴 KEEP 뒤에만 보인다 — 그 전에는 `orders` 에 행이 없어 FK 가 걸린다. */}
                                     {!isEvaluating(route.status) && (
-                                    <div onClick={e => e.stopPropagation()}>
+                                    /* 📏 **아래 덩어리 — 스텝**. 남는 자리를 먹되 최소 220px 은
+                                       지킨다 (목업). 그 안에서 장이 스스로 스크롤한다 */
+                                    <div onClick={e => e.stopPropagation()}
+                                         className={isDeck ? 'flex-1 min-h-[220px] flex flex-col' : ''}>
                                         {/* 💰 **예산 줄** (기사님 모델 2026-08-20) — `여유 = 약속 − 지금 예상`.
                                             약속은 통화로만 굳고, 합짐이 붙으면 예상만 민다. 그래서 이 뺄셈이
                                             곧 **"합짐에 쓸 수 있는 시간"**이다. 우회가 이 안에 들어와야 잡는 콜.
@@ -1026,7 +1054,19 @@ export default function PinnedRouteCard({
                         주 버튼(도착·완료)과 같은 자리에 두면 잘못 눌러 콜을 잃는다.
                         ⚠️ decision 은 서버에서 멱등이 아니므로 누른 즉시 잠근다 —
                            processingId 는 1초 동기화마다 풀려 방어가 되지 않는다. */}
-                    {(route.status === 'ORDER_CONFIRMED' || route.status === 'ORDER_PICKED_UP') && onDecision && (
+                    {/**
+                      * 🚫 **「이 콜 처리」(방출 · 사무실 취소)를 잠시 내렸다** (기사님 2026-09-05).
+                      *
+                      * 기사님: *"취소를 주석 처리하고 콜의 내용 부분 요소를 목업과 똑같이
+                      * 만들어 주고 하단 스텝도 똑같이 스타일을 적용해 주면 될 것 같아."*
+                      *
+                      * 🔴 **지운 것이 아니다** — 조건만 껐다. 카드는 «위 덩어리 + 스텝» 둘로
+                      *    서야 하는데 스텝 **아래에** 이 서랍이 붙어 카드가 길어졌고,
+                      *    그래서 **스크롤이 두 겹**(본문 + 스텝)으로 보였다.
+                      * ⚠️ **되돌릴 자리다** — 사무실 취소는 기사님이 실제로 쓰시는 길이다
+                      *    (규칙 ① — 콜의 주인은 기사님이다). 자리를 정하면 `false` 를 지운다.
+                      */}
+                    {SHOW_ORDER_ACTIONS && (route.status === 'ORDER_CONFIRMED' || route.status === 'ORDER_PICKED_UP') && onDecision && (
                         <details className="mt-3 group" onClick={(e) => e.stopPropagation()}>
                             <summary className="list-none cursor-pointer text-[11px] font-bold text-text-muted py-1.5 select-none">
                                 <span className="group-open:hidden">⋯ 이 콜 처리 (방출 · 사무실 취소)</span>
@@ -1039,7 +1079,7 @@ export default function PinnedRouteCard({
                                     onClick={(e: React.MouseEvent) => {
                                         e.stopPropagation();
                                         setLocked(true); setProcessingId(route.id);
-                                        onDecision(route.id, 'ORDER_RELEASED_BY_ME');
+                                        onDecision?.(route.id, 'ORDER_RELEASED_BY_ME');
                                     }}
                                     className="flex-1 py-3 text-sm font-bold bg-warning/10 hover:bg-warning/20 text-warning border-warning/30"
                                 >
@@ -1051,7 +1091,7 @@ export default function PinnedRouteCard({
                                     onClick={(e: React.MouseEvent) => {
                                         e.stopPropagation();
                                         setLocked(true); setProcessingId(route.id);
-                                        onDecision(route.id, 'ORDER_RELEASED_BY_OFFICE');
+                                        onDecision?.(route.id, 'ORDER_RELEASED_BY_OFFICE');
                                     }}
                                     className="flex-1 py-3 text-sm font-bold shadow-sm"
                                 >

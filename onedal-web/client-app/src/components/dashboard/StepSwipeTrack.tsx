@@ -71,10 +71,12 @@ export default function StepSwipeTrack({ count, shownIdx, onShow, renderPane }: 
              * 🔴 제약이 없으면 **가장 긴 장의 높이**만큼 트랙이 늘어난다 —
              *    실측에서 카드 내용이 **961px** 이 되어 «카드 전체»가 스크롤됐다.
              *    목업은 **장 안에서** 스크롤한다 (판 435 · 내용 435 · 스크롤 0).
-             * 🔴 **최소 220px 은 지킨다** — 그보다 낮으면 한 장에 아무것도 안 들어간다.
+             * 🟢 **남는 자리를 먹는다**(`flex-1`) — 최소 높이는 **부모**가 정한다(220px).
              *    자리가 모자라면 **장이 스스로 스크롤**한다 (잘라 감추지 않는다 · 규칙 ④).
+             * ⚠️ 여기에 `max-h` 를 박으면 «가장 긴 장»이 그 값까지 늘어나 카드가 길어지고,
+             *    본문과 장이 **둘 다** 스크롤된다 (기사님 캡처 0905 — 막대가 두 개).
              */
-            className="flex min-h-[220px] max-h-[46vh] overflow-x-auto overflow-y-hidden snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="flex flex-1 min-h-0 overflow-x-auto overflow-y-hidden snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             style={{ overscrollBehaviorX: 'contain' }}
         >
             {Array.from({ length: count }, (_, k) => renderPane(k))}
