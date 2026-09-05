@@ -52,7 +52,16 @@ export interface SheetStatus {
 export function sheetStatus(i: SheetStatusInput): SheetStatus {
     const none = { mark: '', state: '', no: null, name: '', tail: '', lead: '' };
     if (i.idle) return { ...none, notice: '진행 중인 콜 없음 · 새 콜 대기' };
-    if (i.judging) return { ...none, notice: '새 콜 판정 중' };
+    /**
+     * 🔴 **심사 중이라고 «어디로 가는가»를 지우지 않는다** (2026-09-05 정정).
+     *
+     * 예전에는 판정 중이면 이 줄이 통째로 「새 콜 판정 중」이 됐다. 그런데
+     * **주행 중에 합짐이 오면** 달리면서 그 줄을 보고 있는데 «다음 갈 곳»이 사라진다 —
+     * 기사님이 «시트 상태바가 제대로 표현되지 못했다»고 하신 자리다.
+     * 판정은 **판정 영역**이 말한다. 이 줄은 «지금 어디로 가는가»만 말한다.
+     * 갈 곳이 없을 때만 판정 중이라고 적는다.
+     */
+    if (i.judging && !i.next) return { ...none, notice: '새 콜 판정 중' };
     if (!i.next) return { ...none, notice: '이번 사이클 끝' };
 
     const n = i.next;

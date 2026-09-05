@@ -126,7 +126,12 @@ export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDe
                         /* 🔴 **잠금 규칙은 `lib/routePriority` 하나에서 온다** (2026-09-05).
                            목업이 같은 규칙을 한 벌 더 적어야 했는데, 그러면 실물이 바뀔 때
                            목업이 조용히 옛 규칙을 그린다 (규칙 ③). 그리는 것만 각자 한다. */
-                        const priorityLocked = isPriorityLocked(liveRoute.length, liveRoute.some(o => isEvaluating(o.status)));
+                        /* 🔴 **확정된 콜만 센다** (2026-09-05 정정). 예전에는 `liveRoute.length`
+                           전체를 넘기고 «심사 중이면 열어 둔다»로 풀었는데, 그러면 **이미 둘을
+                           잡고 셋째를 심사할 때도 열렸다** — 그때 방침을 바꾸면 이미 잡은 두 콜의
+                           약속이 흔들린다. 심사 중인 콜은 아직 확정이 아니니 빼고 센다. */
+                        const priorityLocked = isPriorityLocked(
+                            liveRoute.filter(o => !isEvaluating(o.status)).length);
                         const buttons = [
                             /* 🔴 이름은 `lib/routePriority` 에서 온다 — 두 벌로 적지 않는다 (규칙 ③).
                                ⚠️ 여기는 아직 짧은 이름(`label`)이다. 목업이 카카오내비 화면의 이름

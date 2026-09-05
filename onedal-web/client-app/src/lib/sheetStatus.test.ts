@@ -60,3 +60,35 @@ describe('🎬 시트 상태바', () => {
         }
     });
 });
+
+describe('🔴 심사 중이라고 「어디로 가는가」를 지우지 않는다 (2026-09-05)', () => {
+    /**
+     * 기사님: *"주행 중 합짐2 심사 … 시트 상태바가 제대로 표현되지 못했어."*
+     *
+     * 예전에는 판정 중이면 이 줄이 통째로 「새 콜 판정 중」이 됐다. 그런데 **주행 중에
+     * 합짐이 오면** 달리면서 그 줄을 보고 있는데 «다음 갈 곳»이 사라진다.
+     * 판정은 **판정 영역**이 말한다 — 이 줄은 «지금 어디로 가는가»만 말한다.
+     */
+    const 다음 = { visitNo: 4, name: '가산동', callNo: 2, stop: '하차' as const };
+
+    it('주행 중에 심사가 와도 다음 갈 곳을 말한다', () => {
+        const s = sheetStatus({ judging: true, moving: true, next: 다음, driveMinutes: 13 });
+        expect(s.notice).toBeNull();
+        expect(s.mark).toBe('▶');
+        expect(s.name).toBe('가산동');
+        expect(s.lead).toBe('~13분');
+    });
+
+    it('갈 곳이 없을 때만 「새 콜 판정 중」이다 — 첫콜 심사가 그렇다', () => {
+        const s = sheetStatus({ judging: true, next: null });
+        expect(s.notice).toBe('새 콜 판정 중');
+    });
+
+    it('아무 일도 없으면 대기라고 말한다 — 「사이클 끝」이 아니다', () => {
+        expect(sheetStatus({ idle: true, next: null }).notice).toBe('진행 중인 콜 없음 · 새 콜 대기');
+    });
+
+    it('잡은 콜이 있고 갈 곳이 없을 때만 「이번 사이클 끝」이다', () => {
+        expect(sheetStatus({ next: null }).notice).toBe('이번 사이클 끝');
+    });
+});

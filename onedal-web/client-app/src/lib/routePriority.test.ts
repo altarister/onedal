@@ -24,12 +24,15 @@ describe('🔒 합짐이 붙으면 방침이 잠긴다', () => {
     });
 
     /**
-     * 🔓 심사 중(안전취소 30초)에는 열어 둔다 — *"이 콜을 붙이면 어떤 경로가 되나"* 를
-     *    바꿔 보는 것이 결재의 재료다 (기사님 보완 2026-08-19).
+     * 🔓 심사 중인 콜은 **세지 않는다** — 아직 확정이 아니다. 그래야
+     *    *"이 콜을 붙이면 어떤 경로가 되나"* 를 바꿔 보는 자리가 남는다 (기사님 0819).
+     *
+     * ⚠️ **세는 쪽의 몫이다** — 부르는 곳이 심사 중인 콜을 빼고 넘겨야 한다.
+     *    예전에는 여기에 «심사 중이면 열어 준다»는 예외가 있었는데, 그것이
+     *    **이미 둘을 잡고 셋째를 심사할 때까지 열어 버렸다** (2026-09-05 정정).
      */
-    it('2건이라도 심사 중이면 열려 있다', () => {
-        expect(isPriorityLocked(2, true)).toBe(false);
-        expect(isPriorityLocked(5, true)).toBe(false);
+    it('심사 중인 콜을 빼고 세면 1건이라 열려 있다', () => {
+        expect(isPriorityLocked(1, true)).toBe(false);
     });
 });
 
@@ -80,5 +83,36 @@ describe('🏷️ 이름 — 기사님이 개인폰에서 보는 말과 같아�
 
     it('짧은 이름 사전은 같은 목록에서 나온다 — 두 벌로 적지 않는다', () => {
         for (const p of ROUTE_PRIORITIES) expect(PRIORITY_LABEL[p.key]).toBe(p.label);
+    });
+});
+
+describe('🔴 확정된 콜이 둘이면 심사 중이어도 잠긴다 (2026-09-05)', () => {
+    /**
+     * 기사님: *"주행 중 합짐2 심사 여기서는 경로 변경을 할 수 없어야 하고."*
+     *
+     * 🔴 **규칙이 «심사 중이면 무조건 열어 둔다»로 되어 있었다.** 그래서 이미 콜 둘을
+     *    잡고 셋째를 심사할 때도 방침이 열려 있었다 — 그때 방침을 바꾸면 **이미 잡은
+     *    두 콜의 약속이 흔들린다.** 잠그는 이유가 바로 그것이었는데 심사가 그것을 뚫었다.
+     *
+     * 바른 규칙: **확정된 콜이 2건 이상이면 잠긴다.** 심사 중인 콜은 아직 «확정»이
+     * 아니라 세지 않는다 — 그래야 «이 콜을 붙이면 어떤 경로가 되나»를 보는 자리가 남는다.
+     */
+    it('확정 1 + 심사 1 → 열려 있다 (첫콜/합짐1 심사)', () => {
+        expect(isPriorityLocked(1, true)).toBe(false);
+    });
+
+    it('확정 2 + 심사 1 → 잠긴다 (주행 중 합짐2 심사)', () => {
+        expect(isPriorityLocked(2, true)).toBe(true);
+    });
+
+    it('확정 2, 심사 없음 → 잠긴다 (그대로)', () => {
+        expect(isPriorityLocked(2, false)).toBe(true);
+    });
+
+    it('확정 0·1 은 심사 여부와 무관하게 열려 있다', () => {
+        for (const evaluating of [true, false]) {
+            expect(isPriorityLocked(0, evaluating)).toBe(false);
+            expect(isPriorityLocked(1, evaluating)).toBe(false);
+        }
     });
 });

@@ -227,12 +227,21 @@ describe('🪧 심사석 — 눌러야 넘어가는 자리', () => {
         }
     });
 
-    it('심사석이 뜨는 장면은 모두 «심사» 국면이다', () => {
-        for (const s of SCENARIO.filter(x => x.seat)) expect(s.phase, s.title).toBe('심사');
+    /**
+     * 🔴 **«심사»는 국면이 아니다** (2026-09-05 정정). 한때 국면에 섞어 뒀더니
+     *    「⑪ 주행 중 합짐2 심사」가 **정차로 읽혀** 상태바가 ⏸ 를 달았다 — 달리는 중인데.
+     *    국면은 «몸이 무엇을 하나»(대기·주행·정차)이고, 심사 중인지는 `seat` 가 말한다.
+     */
+    it('심사 중에도 국면은 «몸이 무엇을 하나»를 말한다', () => {
+        const 주행중심사 = SCENARIO.find(s => s.title.includes('주행 중 합짐2'))!;
+        expect(주행중심사.seat).toBeTruthy();
+        expect(주행중심사.phase).toBe('주행');
     });
 
-    it('심사 국면인데 심사석이 없는 장면은 없다 — 심사인데 볼 것이 없으면 안 된다', () => {
-        for (const s of SCENARIO.filter(x => x.phase === '심사')) expect(s.seat, s.title).toBeTruthy();
+    it('서서 심사하는 장면은 정차다', () => {
+        for (const s of SCENARIO.filter(x => x.seat && !x.title.includes('주행'))) {
+            expect(s.phase, s.title).toBe('정차');
+        }
     });
 
     it('심사석 콜 셋이 다 있고, 색과 점수를 갖는다', () => {

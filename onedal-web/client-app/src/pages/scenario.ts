@@ -33,7 +33,15 @@ export type ScenarioStep = {
     grabbed: 0 | 1 | 2 | 3;
     /** 몇 정거장을 **다녀왔나** */
     visited: number;
-    phase: '대기' | '심사' | '주행' | '정차';
+    /**
+     * 🚚 **몸이 지금 무엇을 하고 있나** — 서 있나 달리나.
+     *
+     * 🔴 **«심사»는 여기 들어오면 안 된다** (2026-09-05 정정). 한때 국면에 섞어 뒀더니
+     *    「⑪ 주행 중 합짐2 심사」가 **정차로 읽혀** 상태바가 ⏸ 를 달았다 — 달리는 중인데.
+     *    심사 중인지는 `seat` 가 이미 말한다. **한 값이 두 질문을 답하지 않는다**
+     *    (CLAUDE.md ⑤-4 ⑤).
+     */
+    phase: '대기' | '주행' | '정차';
     /** 🧭 QR 이 떠 있나 — 담은 곳들의 **정거장 이름**. 마지막이 도착지다 */
     qr?: string[];
     /** 이 장면에서 새로 나온 판정색 */
@@ -55,7 +63,7 @@ export const SCENARIO: ScenarioStep[] = [
         what: '앉아서 콜을 기다립니다. 진행 중인 콜이 없어 시트에도 지도에도 아무것도 없습니다.',
     },
     {
-        no: 2, title: '② 첫콜 심사', grabbed: 0, visited: 0, phase: '심사', color: '꿀',
+        no: 2, title: '② 첫콜 심사', grabbed: 0, visited: 0, phase: '정차', color: '꿀',
         seat: '첫콜',
         what: '첫콜이 필터를 통과해 서버로 왔습니다. 서버가 카카오에 경로를 한 번(추천) 물어 '
             + '그 경로로 심사합니다 → 🔵 꿀 91. 안전취소 30초가 흐릅니다. '
@@ -88,7 +96,7 @@ export const SCENARIO: ScenarioStep[] = [
             + '🔴 그래도 「QR 코드」는 그대로 있습니다 — 첫짐만 잡고 그냥 떠나셔도 됩니다.',
     },
     {
-        no: 7, title: '⑦ 합짐1 심사', grabbed: 1, visited: 0, phase: '심사', color: '보통',
+        no: 7, title: '⑦ 합짐1 심사', grabbed: 1, visited: 0, phase: '정차', color: '보통',
         seat: '합짐1',
         what: '첫짐 경로에서 산출된 합짐이 필터를 통과했습니다. 서버가 설정의 기본 방침으로 '
             + '전체 경로를 받아 지도에 그리고, 그 경로로 심사합니다 → 🟢 보통. '
@@ -110,7 +118,7 @@ export const SCENARIO: ScenarioStep[] = [
             + '맨 아래 한 줄만 먼발치에서 읽힙니다. 이것이 이 제품의 본 화면입니다 (점검표 #31).',
     },
     {
-        no: 11, title: '⑪ 주행 중 합짐2 심사', grabbed: 2, visited: 0, phase: '심사', color: '똥',
+        no: 11, title: '⑪ 주행 중 합짐2 심사', grabbed: 2, visited: 0, phase: '주행', color: '똥',
         seat: '합짐2', priorityLocked: true,
         what: '가다가 합짐2가 왔습니다. 잡으면 순서가 「출발 → ①초월읍 → ②여수동 → ③석수동 → '
             + '④가산동 → ⑤구로동 → ⑥방화동」으로 다시 짜입니다 — 앞에 낄 ①초월읍만큼 뒤가 전부 '
