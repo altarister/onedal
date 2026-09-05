@@ -4,7 +4,7 @@ import { MAP_THEME_COLORS } from '../styles/themes';
 import { callNodeFill, callNodeStroke, callNodeText } from '../styles/callPalette';
 import PinnedRouteCanvas from '../components/dashboard/PinnedRouteCanvas';
 import StageSheet, { type SheetSnap } from '../components/stage/StageSheet';
-import { sheetTransition } from '../components/stage/sheetTransition';
+import { sheetTransition, snapOnJudging, snapAfterJudging } from '../components/stage/sheetTransition';
 import NaviQr, { naviQrText, type QrKind } from '../components/dashboard/NaviQr';
 import { sheetStatus, sheetStatusLine } from '../lib/sheetStatus';
 import { MOCK_PLANS, scenarioPlan, splitStops, myLocationAt, routeHolderOf, reaskedPlan, reaskCost, type Call } from './mockPlans';
@@ -807,6 +807,29 @@ export default function SheetMockup() {
         const t = setTimeout(() => goStep(stepNo + 1), 4000);
         return () => clearTimeout(t);
     }, [playing, stepNo]);
+
+    /**
+     * 🪧 **심사가 들어오면 시트가 「나」까지 올라온다** (기사님 2026-09-05).
+     *
+     * 🔴 「가」는 상태바만 보이는 높이(72px)라 **판정이 들어갈 자리가 없다.** 그대로 두면
+     *    주행 중에 합짐 심사가 와도 화면에 아무것도 안 뜨고, **30초가 흘러 자동 취소된다.**
+     * 🔴 **«지도가 뛰지 않게» 걷어낸 곁다리들과 다르다** — 이건 이유가 있는 움직임이다.
+     *    «지금 봐야 할 것이 생겼다»는 신호이고, 끝나면 제자리로 돌아간다.
+     * 🔴 타이머가 아니라 **판정이 있고 없음**을 따른다 — 시간이 아니라 사실을 본다.
+     */
+    const raisedFrom = useRef<SheetSnap | null>(null);
+    useEffect(() => {
+        if (screen.judging) {
+            const next = snapOnJudging(snap);
+            if (next !== snap) { raisedFrom.current = snap; setSnap(next); }
+        } else if (raisedFrom.current) {
+            const back = snapAfterJudging(snap, raisedFrom.current);
+            raisedFrom.current = null;
+            if (back !== snap) setSnap(back);
+        }
+        // 🔴 `snap` 은 일부러 뺀다 — 올린 뒤 기사님이 손으로 옮기신 것을 되돌리면 안 된다
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [screen.judging]);
 
     /** 열리는 것은 하나 — 이미 열린 것을 누르면 접는다 (i 가 -1 이면 전부 접기) */
     /**

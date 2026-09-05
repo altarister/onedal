@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sheetTransition } from './sheetTransition';
+import { sheetTransition, snapOnJudging, snapAfterJudging } from './sheetTransition';
 
 /**
  * 🧪 **«있을 수 없는 화면»을 만들지 않는다** (기사님 2026-09-05)
@@ -90,5 +90,36 @@ describe('✋ 끌 것이 없을 때 (2026-09-05)', () => {
 
     it('콜이 하나라도 있으면 다로 갈 수 있다', () => {
         expect(sheetTransition('full', { openIdx: -1, callCount: 1 }).snap).toBe('full');
+    });
+});
+
+describe('🪧 심사가 들어오면 시트가 올라온다 (2026-09-05)', () => {
+    /**
+     * 기사님: *"심사가 들어오면 시트가 2단계로 올라와야 한다. 이거 있어?"* — 없었다.
+     *
+     * 🔴 「가」는 상태바만 보이는 높이라 **판정이 들어갈 자리가 없다.** 주행 중에 합짐
+     *    심사가 와도 화면에 아무것도 안 뜨고, 30초가 흘러 자동 취소된다.
+     */
+    it('가(주행 중)에 있으면 나로 올라온다', () => {
+        expect(snapOnJudging('peek')).toBe('list');
+    });
+
+    it('이미 보이는 자리면 건드리지 않는다', () => {
+        expect(snapOnJudging('list')).toBe('list');
+        expect(snapOnJudging('full')).toBe('full');
+    });
+
+    /** 🔴 주행 중이었으면 다시 내려가야 한다 — 심사 하나로 남은 주행 내내 지도가 가리면 안 된다 */
+    it('심사가 끝나면 올려 온 자리로 되돌아간다', () => {
+        expect(snapAfterJudging('list', 'peek')).toBe('peek');
+    });
+
+    it('올린 적이 없으면 그대로 둔다 — 손으로 올려 두신 것을 뺏지 않는다', () => {
+        expect(snapAfterJudging('list', null)).toBe('list');
+        expect(snapAfterJudging('full', null)).toBe('full');
+    });
+
+    it('심사 중에 손으로 더 올리셨으면 그것도 안 뺏는다', () => {
+        expect(snapAfterJudging('full', 'peek')).toBe('full');
     });
 });
