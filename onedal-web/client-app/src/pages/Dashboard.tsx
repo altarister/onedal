@@ -331,7 +331,12 @@ export default function Dashboard() {
                 {(() => {
                     // 🔴 술어를 여기서 다시 쓰지 않는다 — «심사석에 뜬 콜»과 «덱에서 빠진 콜»이 갈린다 (0831 리뷰)
                     const judging = judgingCall;
-                    if (judging) return (
+                    /**
+                     * 🪧 **무대에서는 판정석이 시트 맨 아래다** (기사님 확정 2026-09-05 · 안 ⓑ).
+                     *    그래서 이 자리는 **늘 필터**다 — 둘이 같은 슬롯을 다투지 않는다.
+                     * ⚠️ 옛 화면(무대 아님)은 그대로 1:1 치환이다 (0831 확정) — 거기는 시트가 없다.
+                     */
+                    if (judging && !stagePreview) return (
                         <JudgmentSeat
                             route={judging}
                             confirmedActive={deckOfCycle(activeRoute).filter(o => o.id !== judging.id).length}

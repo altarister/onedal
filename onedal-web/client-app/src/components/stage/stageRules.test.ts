@@ -33,12 +33,24 @@ describe('Ⅲ표 — 신호가 정하는 높이', () => {
         expect(r.reason).toBe('주행');
     });
 
-    it('S4 판정 중이면 주행·정차보다 먼저다 — 지도가 판정의 근거다', () => {
+    /**
+     * 🪧 **개정 2026-09-05 — 판정석이 «시트 맨 아래»로 갔다** (기사님 확정 · 안 ⓑ).
+     *
+     * 🔴 예전 규칙은 «판정 중이면 내린다»(peek) 였다 — «지도가 판정의 근거다»를 지키려던 것.
+     *    그런데 결재 버튼이 시트 안으로 들어오면서, 내리면 **누를 것이 안 보인다.**
+     *    실물에 콜을 올려 **찍어 보고서야** 드러났다.
+     * 🟢 **둘 다 지킨다** — 「나」는 58% 상한이라 지도가 절반 남는다.
+     *    후보 경로(노란 점선)를 보면서 아래에서 결재한다.
+     * ⚠️ 이미 「다」면 그대로 — 손이 이긴다 (`snapOnJudging`).
+     */
+    it('S4 판정 중이면 주행·정차보다 먼저다 — 「나」로 올려 결재를 보인다', () => {
         for (const drive of ['drive', 'idle'] as const) {
-            const r = tick(initialStageMemory(), sig({ judging: true, drive }));
-            expect(r.snap).toBe('peek');
+            const r = tick(initialStageMemory(), sig({ judging: true, drive, snap: 'peek' }));
+            expect(r.snap).toBe('list');
             expect(r.reason).toBe('판정중');
         }
+        // 손으로 「다」까지 올려 두셨으면 안 내린다
+        expect(tick(initialStageMemory(), sig({ judging: true, snap: 'full' })).snap).toBe('full');
     });
 });
 
@@ -127,7 +139,8 @@ describe('한 판을 통째로 걸어 본다 — 기사님이 정한 수순', ()
         };
         expect(step({ type: 'keep' }).snap).toBe('full');                      // 첫짐 잡음
         now += 20_000;
-        expect(step({ type: 'signal' }, { judging: true }).snap).toBe('peek');  // 합짐 후보 판정
+        /* 🪧 0905 개정 — 판정석이 시트 맨 아래라 «나»로 올려야 결재가 보인다 (지도는 절반 남는다) */
+        expect(step({ type: 'signal' }, { judging: true, snap: 'peek' }).snap).toBe('list');  // 합짐 후보 판정
         now += 10_000;
         expect(step({ type: 'keep' }).snap).toBe('full');                      // 합짐 KEEP
         now += 5_000;

@@ -77,7 +77,17 @@ export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDe
     // if (!safeRoute || safeRoute.length === 0) return null; // 삭제됨: 라우트가 없어도 맵은 항상 표시
 
     return (
-        <section id="confirmed-route" className="flex flex-col">
+        /**
+         * 📏 **높이를 물려준다** (기사님 화면 대조 2026-09-05).
+         *
+         * 🔴 여기가 **auto** 면 아래 아코디언의 백분율 높이가 **조용히 auto 로 풀린다** —
+         *    그러면 시트가 화면보다 길어져 **맨 아래 붙박이(판정석)가 화면 밖으로 나간다.**
+         *    실제로 그랬다: 콜을 하나 올려 찍어 보니 카드 아래가 통째로 잘렸다.
+         * 🟢 사슬: 시트(고정) → 스크롤러(flex-1·min-h-0) → **여기(h-full)** → 아코디언(flex-1)
+         * ⚠️ 옛 화면(무대 아님)은 안 물려준다 — 거기는 문서 스크롤이 정상이다.
+         */
+        <section id="confirmed-route"
+                 className={`flex flex-col ${sheetOnly ? 'h-full min-h-0' : ''}`}>
             {!sheetOnly && safeRoute.length > 0 && (
                 <div className="flex justify-between items-center px-4 py-2 border-b border-border-card">
                     <h2 className="text-[13px] font-bold text-text-primary flex items-center gap-1.5">

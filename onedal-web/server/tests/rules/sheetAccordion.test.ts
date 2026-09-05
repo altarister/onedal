@@ -40,7 +40,7 @@ describe('🪗 시트 아코디언 — 기사님 확정 2026-09-03', () => {
 
     it('헤더는 «내용 사이사이»에 끼워 그린다 — 내용이 자기 헤더 바로 밑에 온다', () => {
         // 🔴 첫 판은 헤더를 위에 몰고 내용을 그 아래 따로 그렸다 — «누구 것인가»가 또 생겼다
-        expect(deck()).toMatch(/\{rowOf\(o, i\)\}\s*\n[\s\S]{0,240}?hidden=\{i !== cur\}>\{renderCard\(o\)\}/);
+        expect(deck()).toMatch(/\{rowOf\(o, i\)\}[\s\S]{0,600}?renderCard\(o\)/);
     });
 
     /**
@@ -69,7 +69,7 @@ describe('🪗 시트 아코디언 — 기사님 확정 2026-09-03', () => {
      *    그래서 **전부 마운트한 채 `hidden` 으로 숨긴다** — 입력값 보존은 두 모드의 약속이다.
      */
     it('아코디언도 카드를 전부 마운트한다 — 고른 것만 «보일» 뿐 (입력값 보존 · 버그 대장 #95)', () => {
-        expect(deck()).toMatch(/hidden=\{i !== cur\}/);
+        expect(deck()).toMatch(/hidden=\{[\s\S]{0,120}?renderCard\(o\)/);
         // 고른 카드 하나만 골라 그리는 갈래가 되살아나면 안 된다
         expect(deck()).not.toMatch(/orders\[cur\] \? renderCard/);
     });

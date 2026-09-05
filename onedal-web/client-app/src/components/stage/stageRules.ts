@@ -15,6 +15,8 @@
  *   · 자동은 **높이만** 바꾼다 — 콜·필터 상태는 건드리지 않으므로 안전하다 (v23 Ⅳ)
  */
 /** 🪟 시트의 세 단 — 이름의 원천은 `StageSheet` 의 `SheetSnap` 이다 (규칙 ③) */
+/* 🪧 심사 때 시트를 올리는 규칙은 여기 한 곳이 안다 (규칙 ③) */
+import { snapOnJudging } from './sheetTransition';
 export type Snap = 'peek' | 'list' | 'full';
 
 /** 지금 무대가 받는 신호 — 전부 밖에서 재서 넣는다 */
@@ -26,6 +28,11 @@ export interface StageSignals {
     judging: boolean;
     /** 주행/정차 — GPS 속도의 히스테리시스 결과 */
     drive: 'drive' | 'idle';
+    /**
+     * 🪧 **지금 시트 높이** — 심사가 뜰 때 «올릴까»를 정하는 데 쓴다.
+     *    규칙은 `snapOnJudging` 하나가 안다 (엿보기면 올리고, 나머지는 그대로).
+     */
+    snap?: 'peek' | 'list' | 'full';
 }
 
 /** 규칙이 기억하는 것 — 이것도 밖에 두고 넣고 받는다 (숨은 상태 없음) */
@@ -107,8 +114,18 @@ export function stageStep(mem: StageMemory, sig: StageSignals, ev: StageEvent): 
         default:
             if (holding) return out(mem, null, '손 유예 중', true);
             if (sig.judging) {
-                // S4 — 지도가 판정의 근거다 (후보 경로가 노란 점선으로 겹쳐 뜬다)
-                return out({ ...mem, autoRaised: false }, 'peek', '판정중');
+                /**
+                 * 🪧 **심사가 뜨면 시트를 「나」로 올린다** (기사님 확정 2026-09-05 · 안 ⓑ).
+                 *
+                 * 🔴 예전에는 **내렸다**(peek) — «지도가 판정의 근거다»(S4)를 지키려던 것이다.
+                 *    그런데 판정석이 **시트 맨 아래**로 오면서 내리면 **결재 버튼이 안 보인다.**
+                 *    실물에 콜을 하나 올려 찍어 보고서야 드러났다.
+                 * 🟢 **둘 다 지킨다** — 「나」는 58% 상한이라 **지도가 절반 남는다.**
+                 *    후보 경로(노란 점선)를 보면서 아래에서 결재한다.
+                 * ⚠️ 이미 「다」로 올려 두셨으면 그대로다 — 손이 이긴다 (`snapOnJudging`).
+                 * 🔴 규칙은 `sheetTransition` 한 곳이 안다 — 여기서 다시 적지 않는다 (규칙 ③).
+                 */
+                return out({ ...mem, autoRaised: false }, snapOnJudging(sig.snap ?? 'peek'), '판정중');
             }
             if (sig.drive === 'drive') {
                 // S3 — 달리면 지도가 주인공. 자동으로 올라간 시트도 여기서는 진다

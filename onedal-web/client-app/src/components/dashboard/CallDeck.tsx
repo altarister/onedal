@@ -361,15 +361,27 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
                    내용이 자기 헤더 바로 밑에 오므로 «이건 누구 것인가»가 안 생긴다.
                    (기사님 확정 2026-09-03: *"아코디언 헤더는 무조건 화면에 노출하고
                     컨텐츠 영역에 스크롤할 수 있게"*) */
-                <div className="flex flex-col gap-1 px-3 pt-2 pb-1">
-                    {orders.map((o, i) => (
-                        <div key={o.id} className="flex flex-col gap-1">
+                /**
+                 * 🪗 **그릇은 시트 높이를 그대로 쓰고 넘치지 않는다** (기사님 확정 09-03).
+                 *    넘치면 시트가 통째로 길어져 **헤더도, 맨 아래 판정석도 화면 밖으로 나간다.**
+                 */
+                <div className="flex flex-col gap-1.5 px-2.5 pt-1 pb-2.5 overflow-hidden min-h-0 flex-1">
+                    {orders.map((o, i) => {
+                        const open = i === cur;
+                        return (
+                        /* 🔴 닫힌 콜은 **자기 높이만**(flex-none) · 펼친 콜이 남는 자리를 다 먹는다 */
+                        <div key={o.id} className={`flex flex-col min-h-0 ${open ? 'flex-1' : 'flex-none'}`}>
                             {rowOf(o, i)}
                             {/* 🔴 접힌 콜도 **마운트한 채** 숨긴다 — 언마운트하면 통화 중 적던
-                                단위·수량이 날아가고 카드가 서버에 단계를 다시 청한다 (버그 대장 #95) */}
-                            <div hidden={i !== cur}>{renderCard(o)}</div>
+                                단위·수량이 날아가고 카드가 서버에 단계를 다시 청한다 (버그 대장 #95)
+                                🟢 **잘라 감추지 않고 스크롤한다** — 모자라면 손으로 내려 보는 것이
+                                   «없는 것»보다 낫다 (규칙 ④) */}
+                            <div hidden={!open} className="flex-1 min-h-0 mt-1.5 overflow-y-auto">
+                                {renderCard(o)}
+                            </div>
                         </div>
-                    ))}
+                        );
+                    })}
                 </div>
             ) : (
                 <>

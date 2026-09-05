@@ -15,6 +15,7 @@ import { socket } from '../../lib/socket';
 /* 🗺️ 지도 아래 두 귀퉁이 — 규칙과 이름은 한 곳에서 온다 (규칙 ③) */
 import { ROUTE_PRIORITIES, isPriorityLocked } from '../../lib/routePriority';
 import NaviQr from '../dashboard/NaviQr';
+import JudgmentSeat from '../dashboard/JudgmentSeat';
 
 /**
  * 🎭 **무대 — 지도 배경 + 3단 시트** (화면개편 2단계 · v23/v24 · 기사님 확정 2026-08-31).
@@ -49,6 +50,8 @@ export default function StageView(props: Props) {
     const [sheetPx, setSheetPx] = useState(0);
     /** 🧭 QR 덮개 — «눌러서 크게» (기사님 확정 2026-09-05 · 작게 늘 띄우면 못 찍힌다) */
     const [qrOpen, setQrOpen] = useState(false);
+    /** 🪧 결재 처리 중인 콜 — 두 번 눌리는 것을 막는다 (판정석이 스스로 재우지 않는다) */
+    const [seatProcessingId, setSeatProcessingId] = useState<string | null>(null);
     const NAVI_KEY = import.meta.env.VITE_KAKAO_JS_KEY as string | undefined;
     const NAVI_ORIGIN = (import.meta.env.VITE_KAKAO_JS_ORIGIN as string | undefined)
         ?? 'https://1dal.altari.com';
@@ -91,6 +94,8 @@ export default function StageView(props: Props) {
         const now = Date.now();
         const r = stageStep(mem.current, {
             nowMs: now, calls: liveRoute.length, judging: !!judging, drive,
+            /* 🪧 심사가 뜰 때 «올릴까»는 지금 높이에 달렸다 (`snapOnJudging`) */
+            snap,
         }, ev);
         mem.current = r.mem;
         if (r.snap) { logStateChange("시트", `${r.snap}·${r.reason}`, "무대"); setSnap(r.snap); }
@@ -396,7 +401,26 @@ export default function StageView(props: Props) {
 
             {/* 3단 시트 — 내용물은 기존 콜 화면 그대로 (sheetOnly) */}
             <StageSheet snap={snap} onSnapChange={(s) => feed({ type: 'drag', to: s })}
-                        onHeightChange={setSheetPx} peekBar={peekBar}>
+                        onHeightChange={setSheetPx} peekBar={peekBar}
+                        /**
+                         * 🪧 **판정석은 시트 맨 아래다** (기사님 확정 2026-09-05 · 안 ⓑ).
+                         *
+                         * 🔴 예전 자리(필터 줄·위쪽)는 늘 보이지만 **엄지에서 멀다.**
+                         *    여기는 **콜 목록 바로 밑**이라 KEEP 을 누르면 그 콜이 바로 위
+                         *    목록으로 올라간다 — 위에서 아래로 읽는 순서와 손이 맞는다.
+                         * 🔴 **맨 아래 붙박이**라 목록이 아무리 길어도 안 밀린다.
+                         * ⚠️ 주행 중 시트가 내려가 있어도 **상태바가 한 줄 심사석**이 된다 —
+                         *    그러라고 시트가 3단이다 (놓치지 않는다).
+                         */
+                        bottomBox={derived.judging ? (
+                            <JudgmentSeat
+                                route={derived.judging}
+                                confirmedActive={cycleDeck.filter(o => o.id !== derived.judging!.id).length}
+                                onDecision={props.onDecision}
+                                processingId={seatProcessingId}
+                                setProcessingId={setSeatProcessingId}
+                            />
+                        ) : undefined}>
                 <PinnedRouteBody {...props} sheetOnly d={derived} />
             </StageSheet>
         </section>
