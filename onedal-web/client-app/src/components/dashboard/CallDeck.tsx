@@ -319,7 +319,8 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
                         그리고 1건과 2건의 생김새가 다르면, 합짐이 붙는 순간 화면이 또 바뀐다 —
                         영역을 항상 띄우기로 한 이유(화면이 튀지 않게)와 같은 이야기다. */}
                     {/* 🔍 크기: 기사님 2026-08-19 — "~(추정 물결)가 마이너스로 읽힐 만큼 작다. 키워 달라" */}
-                    <span className={`text-[14px] font-black shrink-0 tabular-nums ${
+                    {/* 🔤 목업과 같은 크기 — 번호·지명·화살표가 한 벌이다 (재서 맞춤 0905) */}
+                    <span className={`w-3 text-[13.5px] font-black shrink-0 tabular-nums ${
                         isCur ? 'text-info' : 'text-text-muted'
                     }`}>{i + 1}</span>
                     {/* 🔴 2026-08-19 — 정거장마다 **몇 번째로, 몇 시까지 가기로 했는가**.
@@ -327,7 +328,7 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
                         값이라 여러 콜을 엮은 지금 순서에 대해서는 아무 말도 못 한다. */}
                     {/* 순서: **⑴ 지명 시각** (기사님 2026-08-19) — 번호가 지명 앞에 와야
                         "몇 번째로 어디" 로 읽힌다. 예전엔 지명 뒤에 붙어 시각과 엉겼다 */}
-                    <span className="text-[14px] font-bold text-text-primary truncate min-w-0 flex-1">
+                    <span className="text-[13.5px] font-bold text-text-primary truncate min-w-0 flex-1">
                         <StopMark at={vo?.pickupIdx} kind="pickup" evaluating={isEvaluating(o.status)}
                             /* 🌈 색은 **콜 번호**로 — 지도가 쓰는 것과 같은 입력이다 */
                             callNo={callNoOf?.(o.id)} visited={confirmed('pickup')}

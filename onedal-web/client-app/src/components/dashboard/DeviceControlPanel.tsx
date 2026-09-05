@@ -180,7 +180,8 @@ function DeviceRow({
                       */}
                     <button type="button" onClick={() => setMore(v => !v)}
                         title="누르면 작업 단계·누적·취소 한도·버전이 열립니다"
-                        className={`font-black text-[12px] px-1.5 rounded truncate shrink-0 ${
+                        /* 🔤 목업과 같은 크기 — 폰 이름이 이 줄의 머리다 (재서 맞춤 0905) */
+                        className={`font-black text-[14px] px-1.5 rounded truncate shrink-0 ${
                             isDisconnected ? 'bg-danger/20 text-danger animate-pulse' : 'text-success'
                         } ${more ? 'underline underline-offset-2' : ''}`}>
                         {device.deviceName || device.deviceId.slice(0, 8)}
@@ -188,15 +189,16 @@ function DeviceRow({
                     {/* 🌐 배차망 + 화면 + 화면 꺼짐을 한 배지로 — «인성 콜리스트» · «💤 화면 꺼짐».
                         화면이 꺼진 폰의 화면명은 «아까 그것»이라 함께 그리지 않는다 (포함 관계 · 규칙 ⑤-4 ④). */}
                     {screenBadge && (
-                        <Badge variant="outline" className={`text-[11.5px] px-1.5 py-0 shrink-0 ${screenBadge.color}`}>
+                        <Badge variant="outline" className={`text-[13px] px-1.5 py-0 shrink-0 ${screenBadge.color}`}>
                             {screenBadge.network && (
                                 <span className="text-info font-black mr-1">{screenBadge.network}</span>
                             )}
                             {screenBadge.label}
                         </Badge>
                     )}
+                    {/* 🔤 필터 배지(첫짐·합짐) — 목업 12.5 (재서 맞춤 0905) */}
                     {!isDisconnected && currentFilter && (
-                        <Badge variant="outline" className={`text-[11.5px] font-extrabold px-1.5 py-0 rounded shadow-sm shrink-0 border ${filterColor}`}>
+                        <Badge variant="outline" className={`text-[12.5px] font-extrabold px-1.5 py-0 rounded shadow-sm shrink-0 border ${filterColor}`}>
                             {filterLabel}
                         </Badge>
                     )}
@@ -212,7 +214,8 @@ function DeviceRow({
                     {/* 🕐 **마지막으로 이 폰이 보고한 시각**을 숫자 앞에 붙인다 (기사님 형식 확정 2026-08-23).
                         기사님: *"`20:39:13(수집:16 수락:3 취소:1)` 이렇게 표시하면 한 줄로 나올 듯."*
                         숫자만 있으면 "지금 그런 것"과 "아까 그러고 멈춘 것"이 똑같이 보인다. */}
-                    <div className="flex items-center gap-1 text-[11.5px] text-text-muted font-medium ml-1 truncate tabular-nums">
+                    {/* 🔤 시각·성적표 — 목업 12.5 */}
+                    <div className="flex items-center gap-1 text-[12.5px] text-text-muted font-medium ml-1 truncate tabular-nums">
                         {/* 🕐 **분까지만** 적는다 (목업 0905) — 초는 달리면서 쓸모가 없다.
                             ⚠️ 버리지는 않는다 — 손대면 초까지 보인다 (진단에 쓴다) */}
                         {lastSeenAt && (

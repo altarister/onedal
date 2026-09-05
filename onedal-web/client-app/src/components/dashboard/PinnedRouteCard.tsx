@@ -235,14 +235,15 @@ export default function PinnedRouteCard({
                 🔴 2026-08-18 — 경로·금액·거리·분·차종을 두 줄로 쓰고 있었는데,
                    그 다섯은 **바로 위 덱 요약 줄이 이미 말한다.** 기사님: *"UI 영역을 아껴 써야 한다."*
                    → 요약 줄에 없는 것만 남긴다: 몇 번째 콜인가 · 언제 잡았나 · 수수료 · 예약. */}
+            {/* 🔤 목업과 같은 크기 — 머리 줄 11.5 · 칩 11 (재서 맞춤 0905) */}
             {isDeck && (
-                <div className="px-4 pt-2.5 pb-1 flex flex-wrap items-center gap-x-2 text-[11px] text-text-muted tabular-nums">
+                <div className="px-4 pt-2.5 pb-1 flex flex-wrap items-center gap-x-2 text-[11.5px] text-text-muted tabular-nums">
                     {accentColor && <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: accentColor }} />}
                     <span className="font-black text-text-primary">{indexNum}.</span>
                     {/* 🔄 이번 운행에서 **끝낸** 콜 — 사이클이 도는 동안 카드가 남는다 (2026-08-19).
                         마지막 하차를 마치면 이 카드들이 한꺼번에 완료됨 탭으로 간다 */}
                     {isDeliveredCall(route) && (
-                        <span className="px-1.5 py-0.5 rounded bg-success/15 text-success text-[10px] font-black">✅ 완료</span>
+                        <span className="px-1.5 py-0.5 rounded bg-success/15 text-success text-[11px] font-black">✅ 완료</span>
                     )}
                     {/* 🕐 라벨을 뺐다 — 시각 하나면 «언제 잡았나»로 읽힌다 (목업 0905) */}
                     <span>
@@ -257,7 +258,7 @@ export default function PinnedRouteCard({
                       *    조회용 리스트 헤더에는 첫 글자만 있어서 **덱에서는 영영 안 보였다.**
                       */}
                     {route.vehicleType && (
-                        <span className="px-1.5 rounded-[5px] text-[10px] font-black border
+                        <span className="px-1.5 rounded-[5px] text-[11px] font-black border
                                          bg-surface-alt border-border-card text-text-primary">{route.vehicleType}</span>
                     )}
                     {/**
@@ -266,7 +267,7 @@ export default function PinnedRouteCard({
                       *    급송은 단가도 긴급도도 다르다.
                       */}
                     {route.orderForm === '급송' && (
-                        <span className="px-1.5 rounded-[5px] text-[10px] font-black border
+                        <span className="px-1.5 rounded-[5px] text-[11px] font-black border
                                          bg-warning/15 border-warning/40 text-warning">급송</span>
                     )}
                     {route.commissionRate && <><span>·</span><span>수수료 {route.commissionRate}</span></>}
@@ -274,7 +275,7 @@ export default function PinnedRouteCard({
                     {/* 🧭 어떻게 잡았나 — 덱 머리글에도 단다 (0830 실측: 배지가 리스트 헤더에만 살아서
                         기사님이 보는 덱에는 영영 안 나왔다). 알람 듣고 잡음=알람콜 · 손=직접콜 */}
                     {!evaluating && isManualLineage(route.type) && route.status !== 'ORDER_COMPLETED' && (
-                        <span className="px-1.5 py-0.5 rounded bg-info/15 text-info text-[10px] font-black">
+                        <span className="px-1.5 py-0.5 rounded bg-info/15 text-info text-[11px] font-black">
                             {route.capturedVia === 'ALARM' ? '🔔 알람콜' : '직접콜'}
                         </span>
                     )}
@@ -286,7 +287,7 @@ export default function PinnedRouteCard({
                         const v = verdictOf(route);
                         if (!v.color) return null;
                         return (
-                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-black text-white ${BUTTON_BG[v.color]}`}>
+                            <span className={`px-1.5 py-0.5 rounded text-[11px] font-black text-white ${BUTTON_BG[v.color]}`}>
                                 {v.color}{route.judgment?.score != null ? ` ${route.judgment.score}` : ''}
                             </span>
                         );
