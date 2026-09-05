@@ -6,6 +6,8 @@ import { getAddressLabel, getDistanceKm } from '../../lib/routeUtils';
 import PinnedRouteCanvas from '../dashboard/PinnedRouteCanvas';
 import StageSheet, { type SheetSnap } from './StageSheet';
 import { stageStep, initialStageMemory, type StageEvent } from './stageRules';
+/* 🪟 높이와 «열린 것»을 함께 정하는 규칙 — 한 곳에만 산다 (규칙 ③) */
+import { sheetTransition } from './sheetTransition';
 import { PinnedRouteBody } from '../dashboard/PinnedRoute';
 import { useDriveMotion } from '../dashboard/VehicleStatusPanel';
 import { useGpsFocusStore } from '../../stores/gpsFocusStore';
@@ -52,6 +54,11 @@ export default function StageView(props: Props) {
     const [qrOpen, setQrOpen] = useState(false);
     /** 🪧 결재 처리 중인 콜 — 두 번 눌리는 것을 막는다 (판정석이 스스로 재우지 않는다) */
     const [seatProcessingId, setSeatProcessingId] = useState<string | null>(null);
+    /**
+     * 🪗 **열린 줄** — `-1` 은 «전부 닫힘»이다.
+     * 🔴 콜이 없으면 열 것도 없다. 있으면 처음엔 «다음 갈 콜»을 연다 (S3).
+     */
+    const [openIdx, setOpenIdx] = useState<number>(0);
     const NAVI_KEY = import.meta.env.VITE_KAKAO_JS_KEY as string | undefined;
     const NAVI_ORIGIN = (import.meta.env.VITE_KAKAO_JS_ORIGIN as string | undefined)
         ?? 'https://1dal.altari.com';
@@ -421,7 +428,34 @@ export default function StageView(props: Props) {
                                 setProcessingId={setSeatProcessingId}
                             />
                         ) : undefined}>
-                <PinnedRouteBody {...props} sheetOnly d={derived} />
+                <PinnedRouteBody {...props} sheetOnly d={derived}
+                    openIdx={openIdx}
+                    onOpenIdx={(i) => {
+                        /**
+                         * 🪟 **여는 것이 곧 「다」, 닫는 것이 곧 「나」다** (기사님 정의 2026-09-05).
+                         *
+                         * | 다 | 지도 자리까지 다 쓰고 **하나만 열린** 상태 |
+                         * | 나 | 상태바 + 타이틀 전부 (+ 판정) |
+                         *
+                         * 🔴 여기서 높이를 정하는 것은 **곁다리가 아니다** — «열었다»가 곧
+                         *    «다 보겠다»는 뜻이라 **높이가 그 행동의 결과다.**
+                         * 🔴 같은 줄을 다시 누르면 **닫힌다** — 닫을 길이 없으면 손으로
+                         *    「나」로 돌아갈 수가 없다.
+                         * ⚠️ 엿보기(가)에 계셨다면 안 올린다 — 주행 중이라 지도를 덮으면 안 된다.
+                         * 🔴 높이 규칙은 `sheetTransition` 한 곳이 안다 (규칙 ③).
+                         */
+                        const next = i === openIdx ? -1 : i;
+                        /* 손으로 한 일이므로 규칙에 «탭»으로 먹여 유예까지 함께 얻는다 (S11) */
+                        const r = feed({ type: 'tap' });
+                        setOpenIdx(next);
+                        if (!r.snap) return;                      // 유예 중이면 높이는 그대로
+                        if (snap !== 'peek') {
+                            const mv = sheetTransition(next >= 0 ? 'full' : 'list',
+                                { openIdx: next, callCount: cycleDeck.length, preferIdx: next });
+                            setSnap(mv.snap);
+                            setOpenIdx(mv.openIdx);
+                        }
+                    }} />
             </StageSheet>
         </section>
     );

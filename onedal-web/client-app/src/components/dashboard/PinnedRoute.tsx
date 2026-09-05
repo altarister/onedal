@@ -28,10 +28,13 @@ interface Props {
     setViewFilter: (filter: 'ACTIVE' | 'COMPLETED' | 'CANCELED' | 'RELEASED' | 'ALL') => void;
     /** 🎭 무대의 시트 내용물로 쓰일 때 — 제목줄·지도·요약줄은 무대가 그리므로 뺀다 (개편 2단계) */
     sheetOnly?: boolean;
+    /** 🪗 열린 줄 — 무대가 정한다 (여는 일과 시트 높이를 한 손이 함께 정한다) */
+    openIdx?: number | null;
+    onOpenIdx?: (i: number) => void;
 }
 
 /** 몸통 — 파생은 밖(기본 내보내기 또는 무대)에서 받아온다. 훅을 안 부르므로 어디에도 담길 수 있다 */
-export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDecision, onRecalculate, viewFilter, setViewFilter, sheetOnly, d }: Props & { d: ReturnType<typeof useRouteDerivations> }) {
+export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDecision, onRecalculate, viewFilter, setViewFilter, sheetOnly, openIdx, onOpenIdx, d }: Props & { d: ReturnType<typeof useRouteDerivations> }) {
     /**
      * 🪗 **시트에는 «진행 중»만 산다** (기사님 확정 2026-09-03 실주행 뒤):
      * *"올라오는 시트에 진행중, 완료됨.. 그 라인은 거의 필요 없는 것 같아.
@@ -324,6 +327,7 @@ export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDe
                 <CallDeck
                     accordion={sheetOnly}
                     callNoOf={callNoOf}
+                    openIdx={openIdx} onOpenIdx={onOpenIdx}
                     records={stepRecords}
                     /* 🗺️ 타임라인은 여기서 만든 것 하나 (새 장부 stepRecords 기반) — 덱이
                        옛 장부로 한 벌 더 파생하면 정차가 갈라져 두 데드라인이 된다 (2026-08-21) */

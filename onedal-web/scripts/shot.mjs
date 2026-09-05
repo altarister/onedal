@@ -128,7 +128,8 @@ try {
      */
     if (process.env.EVAL) {
         const r = await send('Runtime.evaluate', {
-            expression: process.env.EVAL, returnByValue: true,
+            /* ⏳ Promise 를 돌려주면 기다린다 — 눌러 보고 재는 식이 대부분 비동기다 */
+            expression: process.env.EVAL, returnByValue: true, awaitPromise: true,
         });
         console.log(typeof r.result?.value === 'string'
             ? r.result.value : JSON.stringify(r.result?.value, null, 2));

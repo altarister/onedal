@@ -55,6 +55,15 @@ interface Props {
      */
     callNoOf?: (orderId: string) => number | null;
     /**
+     * 🪗 **열린 줄 — 밖에서 정한다** (기사님 정의 2026-09-05).
+     *
+     * 🔴 «열었다»가 곧 «다 보겠다»라 **높이가 그 행동의 결과다.** 그러니 여는 일과
+     *    시트 높이를 **한 손이 함께** 정해야 한다 — 덱이 혼자 기억하면 둘이 갈린다 (규칙 ③).
+     * 🔴 **`-1` 은 «전부 닫힘»이다** — 「나」(타이틀만 보이는 높이)의 정의가 그것이다.
+     */
+    openIdx?: number | null;
+    onOpenIdx?: (i: number) => void;
+    /**
      * 🪗 **아코디언 모드** (기사님 확정 2026-09-03 실주행 뒤 · S23 캡처와 함께):
      * *"시트에 콜리스트 3개 아래로 관련된 스텝이 보이고 있는데.. 그러니까 뭘 보고 있는지
      * 어려워. 아코디언으로 만들고, 아코디언 헤더는 무조건 화면에 노출하고,
@@ -70,7 +79,7 @@ interface Props {
     accordion?: boolean;
 }
 
-export default function CallDeck({ orders, renderCard, records, visitOrderMap, timeline, gpsFocus, accordion, callNoOf }: Props) {
+export default function CallDeck({ orders, renderCard, records, visitOrderMap, timeline, gpsFocus, accordion, callNoOf, openIdx, onOpenIdx }: Props) {
     const trackRef = useRef<HTMLDivElement>(null);
 
     /**
@@ -86,7 +95,11 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
      */
     const [curId, setCurId] = useState<string | null>(null);
     const idx = orders.findIndex(o => o.id === curId);
-    const cur = idx >= 0 ? idx : 0;
+    /* 🪗 밖에서 정해 주면 그것이 이긴다 — 여는 일과 높이를 한 손이 정한다 */
+    const controlled = openIdx != null;
+    const cur = controlled ? openIdx : (idx >= 0 ? idx : 0);
+    /** 🪗 **전부 닫힘** — 「나」의 정의다. 타이틀만 보이고 카드는 하나도 안 열린다 */
+    const noneOpen = cur < 0;
 
     /**
      * 프로그램이 스크롤을 미는 중인 목표 인덱스.
@@ -131,7 +144,10 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
 
     /** 명시적 이동 — 요약 줄 클릭과 자동 이동만 쓴다. 사용자의 스와이프는 절대 여기 안 온다 */
     const goTo = (i: number) => {
-        const next = Math.max(0, Math.min(orders.length - 1, i));
+        /* 🪗 **«전부 닫힘»(-1)을 막지 않는다** — 0 으로 끌어올리면 같은 줄을 다시 눌러도
+           안 닫히고, 손으로 「나」(타이틀만)로 돌아갈 길이 없어진다 (기사님 0905) */
+        const next = i < 0 ? -1 : Math.min(orders.length - 1, i);
+        if (controlled && onOpenIdx) { onOpenIdx(next); return; }
         scrollToIndex(next);
         setCurId(orders[next]?.id ?? null);
     };
@@ -371,7 +387,7 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
                  */
                 <div className="flex flex-col gap-1.5 px-2.5 pt-1 pb-2.5 overflow-hidden min-h-0 flex-1">
                     {orders.map((o, i) => {
-                        const open = i === cur;
+                        const open = !noneOpen && i === cur;
                         return (
                         /* 🔴 닫힌 콜은 **자기 높이만**(flex-none) · 펼친 콜이 남는 자리를 다 먹는다 */
                         <div key={o.id} className={`flex flex-col min-h-0 ${open ? 'flex-1' : 'flex-none'}`}>
