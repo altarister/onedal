@@ -917,7 +917,17 @@ export default function SheetMockup() {
      *    «어떻게 거기까지 갔는지»가 통째로 빠진다 — 그 흐름이 이 화면의 전부다.
      *    빈 화면에서 시작해 콜이 하나씩 붙는 것을 보는 것이 맞다.
      */
-    const [stepNo, setStepNo] = useState<number | null>(1);
+    /**
+     * 🔗 **장면을 주소로 고른다** — `?step=12` (2026-09-05).
+     * 🔴 화면을 **찍어서 대조**하려면 손으로 조작판을 누를 수가 없다. 링크로 열리면
+     *    같은 장면을 목업·실물 양쪽에서 나란히 띄울 수 있다 (이식의 유일한 판정 수단).
+     * 🟢 덤: 기사님께 «12번 장면 보세요» 를 **링크로** 드릴 수 있다.
+     */
+    const [stepNo, setStepNo] = useState<number | null>(() => {
+        const q = new URLSearchParams(window.location.search).get('step');
+        const n = q == null ? NaN : Number(q);
+        return Number.isFinite(n) && SCENARIO.some(x => x.no === n) ? n : 1;
+    });
     const step = stepNo != null ? SCENARIO.find(x => x.no === stepNo) ?? null : null;
     /**
      * ▶️ **저절로 흘러가게** (기사님 2026-09-05: *"처음에 콜이 없다가 하나씩 생기면 좋겠는데"*).
