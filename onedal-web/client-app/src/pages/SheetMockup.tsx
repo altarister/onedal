@@ -153,8 +153,8 @@ function caseWidth(over: Record<string, unknown>): number {
  *    **없는 것과 같다.** 관제의 물음이 «어느 폰이 문제인가»인데 그 폰이 화면 밖이면
  *    답을 못 한다. **세로로 쌓으면 몇 대든 전부 한눈에 든다.**
  *
- * 한 줄의 짜임: 이름 · 배지 · 👁️ · 시각 · ⏱️ · 성적표 ―――― 모드 · ⋯
- * **모드와 ⋯ 는 오른쪽 끝에 고정**한다 — 폰마다 자리가 같아야 눈이 안 헤맨다.
+ * 한 줄의 짜임: **이름(누르면 열린다)** · 배지 · 👁️ · 시각 · ⏱️ · 성적표 ―――― 모드
+ * **모드는 오른쪽 끝에 고정**한다 — 폰마다 자리가 같아야 눈이 안 헤맨다.
  *
  * 🔴 **접힌 넷도 폰마다 하나씩**이라 그 폰 줄 **바로 아래**에 편다.
  *    한군데 몰아 두면 «누구 것인지»를 다시 읽어야 한다.
@@ -202,13 +202,22 @@ function DeviceOneRow({ d, mode, pending, open, more, onPick, onOpen, onMore }: 
           * 🔴 **한 대가 한 덩어리다** (기사님 2026-09-05: *"폰이 덩어리감이 없어
           *    한 줄 더보기 하면 어디가 어딘지 모르겠어"*).
           *
-          * 줄 사이에 선을 긋고 바탕을 엇갈리는 것으로는 모자랐다 — 「⋯」 를 펴는 순간
+          * 줄 사이에 선을 긋고 바탕을 엇갈리는 것으로는 모자랐다 — 접힌 줄을 펴는 순간
           * **두 줄이 이웃 폰과 섞였다.** 테두리로 **묶어야** 편 줄이 누구 것인지 보인다.
           */
         <div className="rounded-lg border border-border-card bg-surface-alt/30 overflow-hidden">
             <div className="flex items-center gap-1.5 px-2.5 py-1">
-                <span className={`shrink-0 text-[14px] font-black ${
-                    d.dead ? 'text-danger animate-pulse' : d.blind ? 'text-text-muted' : 'text-success'}`}>{d.name}</span>
+                {/**
+                  * 🔴 **이름이 곧 손잡이다** (기사님 2026-09-05: *"폰 이름을 클릭하면
+                  *    하단 열림하면 「⋯」 은 필요 없을 것 같다.. **공간을 아껴야 해**"*).
+                  *    「⋯」 는 «여기를 누르세요»만 말하는 칸이었다 — 이름이 이미 그 폰을
+                  *    가리키므로 **한 칸을 통째로 돌려받는다.**
+                  * 🔴 열려 있음은 **이름 색과 밑줄**이 말한다 — 새 칸을 안 쓴다.
+                  */}
+                <button type="button" onClick={() => onMore(!more)}
+                    className={`shrink-0 text-[14px] font-black ${
+                        d.dead ? 'text-danger animate-pulse' : d.blind ? 'text-text-muted' : 'text-success'} ${
+                        more ? 'underline underline-offset-2' : ''}`}>{d.name}</button>
                 <span className={`shrink-0 px-1.5 rounded border text-[13px] whitespace-nowrap ${
                     d.dead ? 'border-border bg-surface-alt/40 text-text-muted' : 'border-border-card text-text-primary'}`}>
                     {d.net && <span className="text-info font-black mr-1">{d.net}</span>}{d.screen}
@@ -263,9 +272,6 @@ function DeviceOneRow({ d, mode, pending, open, more, onPick, onOpen, onMore }: 
                     )}
                 </span>
 
-                <button type="button" onClick={() => onMore(!more)}
-                    className={`shrink-0 px-1 rounded text-[14px] font-black ${
-                        more ? 'text-info' : 'text-text-muted hover:text-text-primary'}`}>⋯</button>
             </div>
 
             {/* 접힌 셋 — **그 폰 카드 안**에 편다. 선 하나로 «같은 폰의 아랫단»임을 말한다 */}
@@ -765,7 +771,7 @@ export default function SheetMockup() {
     const [deviceModes, setDeviceModes] = useState<Record<string, string>>({});
     const [modePendings, setModePendings] = useState<Record<string, string>>({});
     const [modeOpenId, setModeOpenId] = useState<string | null>(null);
-    /** ⋯ 접힌 넷 (누적·버전·작업 단계·필터 배지) */
+    /** 📂 접힌 셋 (작업 단계·누적·취소 한도·버전) — 폰 이름을 누르면 열린다 */
     const [deviceMore, setDeviceMore] = useState<string | null>(null);
     /**
      * 📱 **지금 어느 상황인가** — 값은 `DEVICE_CASES` 한 곳에서 온다 (규칙 ③).
@@ -1848,13 +1854,14 @@ export default function SheetMockup() {
                     <br />처음엔 가로로 이었는데 3대면 ≈73칸이라 넘쳤고, 밀려난 폰은 <b className="text-text-primary">없는 것과 같았습니다</b>.
                     관제의 물음이 «어느 폰이 문제인가»인데 그 폰이 화면 밖이면 답을 못 합니다.
                     <br />· 값은 <b className="text-text-primary">높이</b>로 치릅니다 — 한 대 34px · <b className="text-text-primary">세 대 110px</b>
-                    <br />· <b className="text-text-primary">모드와 ⋯ 는 오른쪽 끝 고정</b>입니다 — 폰마다 자리가 같아야 눈이 안 헤맵니다
+                    <br />· <b className="text-text-primary">모드는 오른쪽 끝 고정</b>입니다 — 폰마다 자리가 같아야 눈이 안 헤맵니다
                     <br />· 세로로 쌓으니 <b className="text-text-primary">폭이 남아 글씨를 키웠습니다</b> (이름 14px · 배지 13px)
-                    <br />· <b className="text-text-primary">한 대가 한 덩어리(카드)</b>입니다 — 「⋯」 를 펴면 <b className="text-text-primary">그 카드 안</b>에 들어갑니다
+                    <br />· <b className="text-text-primary">한 대가 한 덩어리(카드)</b>입니다 — 펴면 <b className="text-text-primary">그 카드 안</b>에 들어갑니다
                     <br />· 모드를 열면 <b className="text-text-primary">선택된 칸이 닫혔을 때 그 자리에 그대로 얹힙니다</b> — 눌러도 배지가 안 움직입니다
                     <br />🔴 <b className="text-text-primary">모드는 폰마다 하나씩</b>입니다 —
                     픽커만 대기로 두고 싶을 때가 있으니 «셋 다 바꾸기»로 묶지 않았습니다.
-                    <br />⚠️ 「⋯」 는 <b className="text-text-primary">그 폰 줄 바로 아래</b>에 펴집니다 — 한 번에 한 대만 열립니다.
+                    <br />· <b className="text-text-primary">폰 이름을 누르면</b> 접힌 셋이 그 카드 안에 펴집니다 —
+                    「⋯」 를 없앴습니다 («여기를 누르세요»만 말하는 칸이라 공간만 먹었습니다). 한 번에 한 대만 열립니다.
                 </p>
 
                 <h2 className="mt-6 text-[12.5px] font-black tracking-wide text-info mb-2">📱 모드 — 앱이 받는 순간</h2>
