@@ -802,8 +802,30 @@ function MemoRow({ r }: { r: Record<string, any> }) {
 /** 헤더에 그릴 장소 — 카드가 경로에서 꺼내 준다 (행에는 없는 값) */
 export interface StepPlace { name?: string; address?: string; phone?: string }
 
-export default function StepSheetMock({ view, orderId, codAmount, place, prevName, leadMinutes, departPrevMs, segmentDriveMinutes }: {
+/**
+ * 🎛️ **모양만이던 버튼을 목업에서만 누를 수 있게 한다** (기사님 2026-09-05).
+ *
+ * 🔴 이 시트는 `orderId` 가 없으면 «아직 이식 안 된 자리»로 보고 버튼을 `<span>` 으로
+ *    그렸다. 그런데 목업은 **저장을 내보내면 안 되므로** `orderId` 를 안 준다 —
+ *    그래서 **눌러도 아무 일이 없었다.** 「끌었는데 아무 일이 없는」 손잡이와 같은 병이다.
+ *
+ * 🔴 **실물은 한 줄도 안 바뀐다** — `onMock` 을 안 주면 예전 그대로 `<span>` 이다.
+ *    목업만 이 문을 열어 «눌러 보는» 자리를 얻는다.
+ */
+function MockBtn({ cls, label, onMock, children }: {
+    cls: string; label: string; onMock?: (what: string) => void; children: React.ReactNode;
+}) {
+    if (!onMock) return <span className={cls}>{children}</span>;
+    return <button type="button" className={cls} onClick={() => onMock(label)}>{children}</button>;
+}
+
+export default function StepSheetMock({ view, orderId, codAmount, place, prevName, leadMinutes, departPrevMs, segmentDriveMinutes, onMock }: {
     view: StepViewLike; orderId?: string; codAmount?: number | null;
+    /**
+     * 🎛️ **목업에서만 준다** — 모양만이던 버튼이 눌리고, 무엇을 눌렀는지 알려 준다.
+     *    저장은 여전히 안 나간다 (그건 `orderId` 가 있을 때만).
+     */
+    onMock?: (what: string) => void;
     place?: StepPlace;
     /** 하차 문장의 앞 정거장 이름 · 상차 정차(분) — 타임라인·상차 행에서 온다 */
     prevName?: string | null; leadMinutes?: number | null;
@@ -854,8 +876,8 @@ export default function StepSheetMock({ view, orderId, codAmount, place, prevNam
                     <MemoRow r={r} />
                     <SlotGrid r={r} stopKind={pickup ? 'pickup' : 'dropoff'} />
                     <div className="flex gap-2">
-                        <span className={skipBtn}>통화 스킵</span>
-                        <span className={`${mainBtn} text-center`}>통화 완료</span>
+                        <MockBtn cls={skipBtn} label="통화 스킵" onMock={onMock}>통화 스킵</MockBtn>
+                        <MockBtn cls={`${mainBtn} text-center`} label="통화 완료" onMock={onMock}>통화 완료</MockBtn>
                     </div>
                 </>
             ))}
@@ -873,8 +895,8 @@ export default function StepSheetMock({ view, orderId, codAmount, place, prevNam
                     )}
                     <ReasonRows step={step} r={r} />
                     <div className="flex gap-1.5">
-                        <span className={`${skipSmall} text-center`}>⏭️ 건너뛰기</span>
-                        <span className={`${arriveBtn} text-center`}>📍 도착</span>
+                        <MockBtn cls={`${skipSmall} text-center`} label="건너뛰기" onMock={onMock}>⏭️ 건너뛰기</MockBtn>
+                        <MockBtn cls={`${arriveBtn} text-center`} label="도착" onMock={onMock}>📍 도착</MockBtn>
                     </div>
                 </>
             )}
@@ -906,8 +928,8 @@ export default function StepSheetMock({ view, orderId, codAmount, place, prevNam
                     <CargoForm r={r} pickup />
                     <ReasonRows step={step} r={r} />
                     <div className="flex gap-1.5">
-                        <span className={`${doneBtn} text-center`}>📦 상차 완료</span>
-                        <span className="w-[20%] shrink-0 py-2.5 rounded-md border border-danger/40 bg-danger/10 text-danger text-[12px] font-bold text-center">✕ 취소</span>
+                        <MockBtn cls={`${doneBtn} text-center`} label="상차 완료" onMock={onMock}>📦 상차 완료</MockBtn>
+                        <MockBtn cls="w-[20%] shrink-0 py-2.5 rounded-md border border-danger/40 bg-danger/10 text-danger text-[12px] font-bold text-center" label="취소" onMock={onMock}>✕ 취소</MockBtn>
                     </div>
                     <div className="text-[10px] text-text-muted">상차 취소는 방출로 처리되고, 이 장소에 사유가 기록됩니다</div>
                 </>
@@ -919,7 +941,7 @@ export default function StepSheetMock({ view, orderId, codAmount, place, prevNam
                     <CargoForm r={r} pickup={false} />
                     <ReasonRows step={step} r={r} />
                     <div className="flex gap-1.5">
-                        <span className={`${doneBtn} text-center`}>🏁 하차 완료</span>
+                        <MockBtn cls={`${doneBtn} text-center`} label="하차 완료" onMock={onMock}>🏁 하차 완료</MockBtn>
                     </div>
                 </>
             )}

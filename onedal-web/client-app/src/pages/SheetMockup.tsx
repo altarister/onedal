@@ -238,7 +238,7 @@ function clockTone(gap?: string): string {
  * 🔴 **`row` 는 09-03 실측에서 온다** — 지어낸 값을 넣지 않는다 (규칙 ④).
  *    아직 신고가 없는 칸은 **비운다** — 그러면 실물이 «아직 안 정해졌다»로 그린다.
  */
-function PaneBody({ call, si }: { call: Call; si: number }) {
+function PaneBody({ call, si, onMock }: { call: Call; si: number; onMock?: (what: string) => void }) {
     const st = STEPS[si];
     const [nm, addr, tel] = call.site[st.side];
     const promise = call.stops[st.side === 'p' ? 0 : 1];
@@ -266,14 +266,19 @@ function PaneBody({ call, si }: { call: Call; si: number }) {
             }}
             place={{ name: nm, address: addr, phone: tel }}
             prevName={st.side === 'd' ? call.p : null}
+            /* 🎛️ **목업에서만 눌린다** — 저장은 안 나간다(`orderId` 를 안 주므로).
+               「눌러도 아무 일 없는」 화면을 만들지 않는다 (기사님 2026-09-05) */
+            onMock={onMock}
         />
     );
 }
 
 
-function CallItem({ call, i, open, onToggle, rainbow, visitedNos, fit, push }: {
+function CallItem({ call, i, open, onToggle, rainbow, visitedNos, fit, push, onMock }: {
     call: Call; i: number; open: boolean; onToggle: () => void; rainbow: boolean;
     visitedNos: Set<number>;
+    /** 🎛️ 목업에서만 — 스텝 버튼을 눌렀을 때 (저장은 안 나간다) */
+    onMock?: (what: string) => void;
     /**
      * ⏱️ **심사 중인 콜이 앞에 끼면 이 콜이 몇 분 밀리나** (기사님 «심사 중에 미리»).
      *    🔴 **아직 안 잡은 콜 때문에 바뀌는 값**이라, 화면이 «옛 시각 → 새 시각»을
@@ -506,7 +511,7 @@ function CallItem({ call, i, open, onToggle, rainbow, visitedNos, fit, push }: {
                                             {k < call.now ? `마쳤습니다 · ${call.stamp[k]}` : k === call.now ? '지금 할 것' : '아직'}
                                         </em>
                                     </h3>
-                                    <PaneBody call={call} si={k} />
+                                    <PaneBody call={call} si={k} onMock={onMock} />
                                 </section>
                             ))}
                         </div>
@@ -1287,6 +1292,7 @@ export default function SheetMockup() {
                                     /* ⏱️ 심사 중인 콜이 앞에 끼면 **이미 잡은 콜들이** 밀린다 —
                                        잡기 전에 보여야 «감수하고 KEEP» 이 판단이 된다 */
                                     push={step?.seat ? step.pushMinutes : undefined}
+                                    onMock={(what) => setLog(`🎛️ 「${what}」 을 눌렀습니다 — 목업이라 **저장은 안 나갑니다.** 실물에서는 이 자리에서 장부에 적힙니다.`)}
                                     open={openIdx === i} onToggle={() => open(i, '헤더를 눌렀습니다')} />
                             ))}
                         </div>
