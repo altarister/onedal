@@ -55,6 +55,14 @@ export type ScenarioStep = {
      *    기사님이 거기서 **KEEP 을 실제로 누르시면** 다음 장면으로 넘어간다.
      */
     seat?: '첫콜' | '합짐1' | '합짐2';
+    /**
+     * ⏱️ **이 콜을 잡으면 뒤가 몇 분 밀리나** (기사님 확정 2026-09-05 · «심사 중에 미리»).
+     *
+     * 🔴 잡기 **전에** 보여야 «감수하고 KEEP» 하시는 판단이 선다. 잡고 나서 알면 늦다 —
+     *    시나리오 원문도 *"이걸 고려해서 서버는 판정을 해"* 였다.
+     * ⚠️ 합짐이 **앞에 낄 때만** 생긴다. 뒤에만 붙으면 아무것도 안 밀린다.
+     */
+    pushMinutes?: number;
 };
 
 export const SCENARIO: ScenarioStep[] = [
@@ -119,7 +127,7 @@ export const SCENARIO: ScenarioStep[] = [
     },
     {
         no: 11, title: '⑪ 주행 중 합짐2 심사', grabbed: 2, visited: 0, phase: '주행', color: '똥',
-        seat: '합짐2', priorityLocked: true,
+        seat: '합짐2', priorityLocked: true, pushMinutes: 34,
         what: '가다가 합짐2가 왔습니다. 잡으면 순서가 「출발 → ①초월읍 → ②여수동 → ③석수동 → '
             + '④가산동 → ⑤구로동 → ⑥방화동」으로 다시 짜입니다 — 앞에 낄 ①초월읍만큼 뒤가 전부 '
             + '밀립니다. 밀려도 데드라인 150%는 다 지킬 수 있어 🟡 노랑입니다.',

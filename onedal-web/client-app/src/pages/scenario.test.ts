@@ -340,3 +340,45 @@ describe('🧭 「출발하기」는 콜을 잡은 뒤라면 늘 있다 (2026-09
         expect(firstDriving!.no).toBeGreaterThan(9);
     });
 });
+
+describe('⏱️ 밀림은 잡기 전에 보인다 (기사님 확정 2026-09-05 · «가» 안)', () => {
+    /**
+     * 🔴 **«감수하고 KEEP» 하시는 판단의 재료**라 잡기 전에 보여야 한다.
+     *    시나리오 원문: *"이걸 고려해서 서버는 판정을 해."*
+     */
+    it('합짐2 심사에서 뒤가 34분 밀린다', () => {
+        const s = SCENARIO.find(x => x.seat === '합짐2')!;
+        expect(s.pushMinutes).toBe(34);
+    });
+
+    /** ⚠️ 합짐이 **앞에 낄 때만** 밀린다 — 뒤에만 붙으면 아무것도 안 밀린다 */
+    it('첫콜·합짐1 심사에서는 밀림이 없다', () => {
+        for (const k of ['첫콜', '합짐1'] as const) {
+            const s = SCENARIO.find(x => x.seat === k)!;
+            expect(s.pushMinutes, k).toBeUndefined();
+        }
+    });
+
+    it('심사석이 없는 장면에는 밀림도 없다 — 잡을 콜이 없으면 밀 것도 없다', () => {
+        for (const s of SCENARIO.filter(x => !x.seat)) {
+            expect(s.pushMinutes, s.title).toBeUndefined();
+        }
+    });
+
+    /**
+     * 🔴 **밀림이 있으면 그 장면의 판정색이 좋을 수 없다.** 뒤가 34분 밀리는데
+     *    🔵 꿀이면 화면이 거짓말을 한다 — 색이 곧 결정이다 (규칙 ⑤-3).
+     */
+    it('밀리는 장면은 색이 꿀이 아니다', () => {
+        for (const s of SCENARIO.filter(x => x.pushMinutes)) {
+            expect(s.color, s.title).not.toBe('꿀');
+        }
+    });
+
+    /** 그 사실이 심사석 사유에도 적혀 있어야 한다 — 두 곳이 같은 말을 한다 */
+    it('밀림이 심사석의 걸리는 것에도 적혀 있다', () => {
+        const s = SCENARIO.find(x => x.pushMinutes)!;
+        const seat = SEAT_CALLS[s.seat!];
+        expect(seat.rejectionReasons.join(' ')).toMatch(/밀림|밀린/);
+    });
+});

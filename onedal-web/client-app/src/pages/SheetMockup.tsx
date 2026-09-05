@@ -7,6 +7,7 @@ import StageSheet, { type SheetSnap } from '../components/stage/StageSheet';
 import { sheetTransition, snapOnJudging, snapAfterJudging } from '../components/stage/sheetTransition';
 import NaviQr, { naviQrText, type QrKind } from '../components/dashboard/NaviQr';
 import { sheetStatus, sheetStatusLine } from '../lib/sheetStatus';
+import { pushClock, gapLabel, gapTone } from '../lib/pushedTime';
 import { MOCK_PLANS, scenarioPlan, splitStops, myLocationAt, routeHolderOf, reaskedPlan, reaskCost, type Call } from './mockPlans';
 import { SCENARIO, SEAT_CALLS } from './scenario';
 import { ROUTE_PRIORITIES, PRIORITY_SAMPLE, isPriorityLocked, type RoutePriority } from '../lib/routePriority';
@@ -287,9 +288,15 @@ function PaneBody({ call, si }: { call: Call; si: number }) {
 }
 
 /** 🪗 한 콜 — 헤더(접힘) + 펼친 판(위 덩어리 · 아래 스텝 스와이프) */
-function CallItem({ call, i, open, onToggle, rainbow, visitedNos, fit }: {
+function CallItem({ call, i, open, onToggle, rainbow, visitedNos, fit, push }: {
     call: Call; i: number; open: boolean; onToggle: () => void; rainbow: boolean;
     visitedNos: Set<number>;
+    /**
+     * ⏱️ **심사 중인 콜이 앞에 끼면 이 콜이 몇 분 밀리나** (기사님 «심사 중에 미리»).
+     *    🔴 **아직 안 잡은 콜 때문에 바뀌는 값**이라, 화면이 «옛 시각 → 새 시각»을
+     *       나란히 적어 **무엇이 달라지는지**를 그대로 보인다.
+     */
+    push?: number;
     /**
      * 📏 **시트가 «내용만큼» 설 때** — 펼친 판이 `flex-1`(= `flex:1 1 0%`)이면
      *    남는 공간이 없어 **높이 0 으로 찌부러진다.** 그때는 내용만큼(`flex:1 1 auto`) 서야 한다.
@@ -371,11 +378,17 @@ function CallItem({ call, i, open, onToggle, rainbow, visitedNos, fit }: {
                 <span className="flex-1 min-w-0 flex items-center gap-1 text-[13.5px] font-bold text-text-primary">
                     {node(call.nodes[0], 'p')}
                     <span className="w-[4em] shrink-0 truncate">{call.p}</span>
-                    <span className="w-[3.5em] shrink-0 text-[12px] text-text-muted tabular-nums text-right">{call.headAt[0]}</span>
+                    <span className="w-[3.5em] shrink-0 text-[12px] tabular-nums text-right">
+                        {push ? <span className="text-warning">{pushClock(call.headAt[0], push)}</span>
+                              : <span className="text-text-muted">{call.headAt[0]}</span>}
+                    </span>
                     <span className="shrink-0 text-text-muted/70 px-0.5">→</span>
                     {node(call.nodes[1], 'd')}
                     <span className="w-[4em] shrink-0 truncate">{call.d}</span>
-                    <span className="w-[3.5em] shrink-0 text-[12px] text-text-muted tabular-nums text-right">{call.headAt[1]}</span>
+                    <span className="w-[3.5em] shrink-0 text-[12px] tabular-nums text-right">
+                        {push ? <span className="text-warning">{pushClock(call.headAt[1], push)}</span>
+                              : <span className="text-text-muted">{call.headAt[1]}</span>}
+                    </span>
                 </span>
                 <span className="shrink-0 flex gap-[2px]" aria-hidden>
                     {STEPS.map((_, k) => (
@@ -432,10 +445,20 @@ function CallItem({ call, i, open, onToggle, rainbow, visitedNos, fit }: {
                                 <div key={s.kind} className="contents">
                                     <dt className="font-bold text-text-muted">{s.kind}</dt>
                                     <dd className="text-text-primary">{s.place}</dd>
+                                    {/**
+                                      * ⏱️ **밀리면 «옛 → 새 (+N분)»** (기사님 «심사 중에 미리»).
+                                      * 🔴 차이를 늘 초록으로 적으면 **「+34분」이 좋은 일로 읽힌다** —
+                                      *    밀림은 나쁜 일이라 색을 가른다 (규칙 ⑤-3).
+                                      */}
                                     <dd>
-                                        {s.was && <><span className="line-through tabular-nums text-text-muted/60">{s.was}</span>{' → '}</>}
-                                        <span className="font-black tabular-nums text-text-primary">{s.now}</span>
-                                        {s.gap && <span className="ml-1 text-[11.5px] text-success">{s.gap}</span>}
+                                        {push
+                                            ? <><span className="line-through tabular-nums text-text-muted/60">{s.now}</span>{' → '}
+                                                <span className="font-black tabular-nums text-warning">{pushClock(s.now, push)}</span>
+                                                <span className="ml-1 text-[11.5px] font-bold text-warning">{gapLabel(push)}</span></>
+                                            : <>{s.was && <><span className="line-through tabular-nums text-text-muted/60">{s.was}</span>{' → '}</>}
+                                                <span className="font-black tabular-nums text-text-primary">{s.now}</span>
+                                                {s.gap && <span className={`ml-1 text-[11.5px] ${
+                                                    gapTone(parseFloat(s.gap) || 0) === 'bad' ? 'text-warning' : 'text-success'}`}>{s.gap}</span>}</>}
                                     </dd>
                                 </div>
                             ))}
@@ -1161,6 +1184,18 @@ export default function SheetMockup() {
                         /* 🔴 위 라인을 빼 둔다 (기사님 2026-09-05) — 심사석이 이미
                            자기 테두리를 갖고 있어 줄이 하나 더 그어지면 칸이 둘로 보인다 */
                         bottomBox={step?.seat && seatPlace === 'sheet' ? (
+                            <>
+                            {/**
+                              * ⏱️ **«잡으면 이만큼 밀린다»를 한 줄로** (기사님 확정 2026-09-05).
+                              * 🔴 위 목록의 시각이 왜 노랗게 바뀌었는지를 이 줄이 말한다 —
+                              *    안 적으면 «시각이 저 혼자 바뀐» 것으로 읽힌다.
+                              */}
+                            {step.pushMinutes ? (
+                                <p className="mx-2.5 mb-1 px-2 py-1 rounded-[6px] text-[11.5px] font-bold leading-snug
+                                              bg-warning/12 border border-warning/35 text-warning">
+                                    ⏱️ 잡으면 앞에 끼어 <b>뒤가 {step.pushMinutes}분 밀립니다</b> — 위 시각이 그 결과입니다
+                                </p>
+                            ) : null}
                             <JudgmentSeat
                                 /* 📐 콜 목록과 **같은 간격** — 위 6 · 좌우 10 · 아래 10.
                                    아코디언 그릇의 `gap-1.5 px-2.5 pb-2.5` 와 같은 값이다 */
@@ -1173,6 +1208,7 @@ export default function SheetMockup() {
                                     else setLog('❌ 거절하셨습니다 — 목업이라 여기서 멈춥니다.');
                                 }}
                             />
+                            </>
                         ) : undefined}
                         peekBar={
                             /**
@@ -1262,6 +1298,9 @@ export default function SheetMockup() {
                             {CALLS.map((call, i) => (
                                 <CallItem key={call.no} call={call} i={i} rainbow={rainbow} visitedNos={visitedNos}
                                     fit={snap === 'list'}
+                                    /* ⏱️ 심사 중인 콜이 앞에 끼면 **이미 잡은 콜들이** 밀린다 —
+                                       잡기 전에 보여야 «감수하고 KEEP» 이 판단이 된다 */
+                                    push={step?.seat ? step.pushMinutes : undefined}
                                     open={openIdx === i} onToggle={() => open(i, '헤더를 눌렀습니다')} />
                             ))}
                         </div>
