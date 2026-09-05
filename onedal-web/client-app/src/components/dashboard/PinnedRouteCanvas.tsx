@@ -8,7 +8,7 @@ import { MAP_THEME_COLORS, withAlpha } from '../../styles/themes';
 import { callNodeFill, callNodeStroke, callNodeText } from '../../styles/callPalette';
 import {
     TILE_SIZE, TILE_MAX_ZOOM, anchorBaseOf, computeViewport, toScreenPoint, panAfterZoom, pinchStep, mapTileTone, routeLineWidth, viewCoordsFor, effectiveZoom, type MapViewMode,
-    type Viewport } from '../../lib/mapProjection';
+    type Viewport, pickViewMode } from '../../lib/mapProjection';
 import { occludedPx as occludedOf } from '../../lib/stageLayout';
 
 const sidoData = sidoDataRaw as any; // GeoJSON FeatureCollection
@@ -749,7 +749,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
                 {([['all', '전체'], ['leg', '현구간'], ['follow', '현위치']] as [MapViewMode, string][]).map(([m, label]) => (
                     <button
                         key={m}
-                        onClick={() => { setViewMode(m); zoomRef.current = 1; panRef.current = { x: 0, y: 0 }; }}
+                        onClick={() => pickViewMode(m, { setViewMode, zoom: zoomRef, pan: panRef, draw: drawMap })}
                         title={m === 'all' ? '정거장·경로가 다 보이게' : m === 'leg' ? '지금 가는 구간이 다 보이게' : '내 위치 둘레를 크게'}
                         className={`h-8 px-2.5 flex items-center justify-center bg-surface-alt/80 hover:bg-surface-hover rounded-md shadow-lg backdrop-blur-sm text-[11px] font-black transition-all ${
                             viewMode === m
@@ -776,7 +776,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
                     -
                 </button>
                 <button
-                    onClick={() => { zoomRef.current = 1; panRef.current = { x: 0, y: 0 }; setViewMode('all'); drawMap(); }}
+                    onClick={() => pickViewMode('all', { setViewMode, zoom: zoomRef, pan: panRef, draw: drawMap })}
                     className="w-8 h-8 flex items-center justify-center bg-surface-alt/80 hover:bg-surface-hover rounded-md shadow-lg text-text-primary border border-border backdrop-blur-sm text-[10px] font-bold opacity-80 hover:opacity-100 transition-all"
                 >
                     초기화

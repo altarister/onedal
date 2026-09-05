@@ -2,8 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
     projectMercator, anchorBaseOf, computeViewport, toScreenPoint, panAfterZoom, pinchStep, mapTileTone, TILE_CLEAR_FROM, TILE_CLEAR_TO, routeLineWidth, viewCoordsFor, FOLLOW_RADIUS_KM, effectiveZoom,
     PADDING_LEFT, PADDING_RIGHT, PADDING_TOP, PADDING_BOTTOM,
-    type GeoPoint,
-} from './mapProjection';
+    type GeoPoint, pickViewMode } from './mapProjection';
 
 /**
  * 🧭 **지도 투영·시점 검사** — 2026-09-01 배경 타일을 들이며 신설.
@@ -472,5 +471,56 @@ describe('🔭 뷰포트 맞춤 — 짧은 축이 화면을 줄이지 않는다'
         const v = computeViewport([{ x: 127.0, y: 37.4 }], W, H, 1, NO, OCC);
         expect(Number.isFinite(v.worldSize)).toBe(true);
         expect(v.worldSize).toBeGreaterThan(0);
+    });
+});
+
+/**
+ * 🔭 **보기 버튼 — 언제나 되돌리고 언제나 다시 그린다** (버그 2026-09-05)
+ *
+ * 기사님: *"현위치에서 드래그하고 **다시 현위치를 누르면 현위치로 안 와.**"*
+ *
+ * 🔴 버튼이 `setViewMode` 만 부르고 그리기는 **리렌더에 얹어** 있었다. 이미 그 모드면
+ *    리액트가 상태를 안 바꾸므로 리렌더가 없고, 따라서 **그리기도 없다.**
+ *    ref 인 `zoom`·`pan` 만 조용히 되돌아가고 **화면은 옛 자리에 남았다.**
+ */
+describe('🔭 보기 버튼을 눌렀다 — pickViewMode', () => {
+    const ctx = () => {
+        const seen: string[] = [];
+        return {
+            seen,
+            setViewMode: (m: string) => seen.push(`mode:${m}`),
+            zoom: { current: 3.4 },
+            pan: { current: { x: -120, y: 55 } },
+            draw: () => { seen.push('draw'); },
+        };
+    };
+
+    it('손으로 만진 것(팬·줌)을 되돌린다', () => {
+        const o = ctx();
+        pickViewMode('follow', o);
+        expect(o.zoom.current).toBe(1);
+        expect(o.pan.current).toEqual({ x: 0, y: 0 });
+    });
+
+    it('🔴 **같은 모드를 다시 눌러도** 다시 그린다 — 이것이 그 버그다', () => {
+        const o = ctx();
+        pickViewMode('follow', o);          // 이미 follow 였다고 치자
+        expect(o.seen).toContain('draw');
+    });
+
+    it('되돌린 **뒤에** 그린다 — 순서가 뒤집히면 옛 팬으로 한 번 그려진다', () => {
+        const o = ctx();
+        let panWhenDrawn: { x: number; y: number } | null = null;
+        o.draw = () => { panWhenDrawn = { ...o.pan.current }; };
+        pickViewMode('all', o);
+        expect(panWhenDrawn).toEqual({ x: 0, y: 0 });
+    });
+
+    it('어느 모드로 눌러도 같다', () => {
+        for (const m of ['all', 'leg', 'follow'] as const) {
+            const o = ctx();
+            pickViewMode(m, o);
+            expect(o.seen).toEqual([`mode:${m}`, 'draw']);
+        }
     });
 });

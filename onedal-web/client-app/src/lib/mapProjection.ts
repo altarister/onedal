@@ -286,6 +286,35 @@ export type MapViewMode = 'all' | 'leg' | 'follow';
  */
 export const FOLLOW_RADIUS_KM = 0.6;
 
+/**
+ * 🔭 **보기 버튼을 눌렀다** — 모드를 세우고 **손으로 만진 것을 되돌린 뒤 다시 그린다.**
+ *
+ * 🔴 **«다시 그린다»가 빠져 있었다** (기사님 실측 2026-09-05:
+ *    *"현위치에서 드래그하고 다시 현위치를 누르면 현위치로 안 와."*)
+ *
+ *    버튼은 `setViewMode(m)` 만 부르고 그리기는 **리렌더에 얹어** 있었다. 그런데
+ *    **이미 그 모드면 리액트가 상태를 안 바꾼다** — 리렌더가 없으니 그리기도 없다.
+ *    `zoom`·`pan` 은 ref 라 조용히 1·0 으로 돌아갔는데 **화면만 옛 자리에 남았다.**
+ *    (같은 화면의 「초기화」 버튼은 `drawMap()` 을 부르고 있었다 — **한쪽만 불렀다.**)
+ *
+ * 🔴 그래서 **모드를 바꾸는 일과 다시 그리는 일을 한 함수에 묶는다** (규칙 ③).
+ *    부르는 쪽이 «이번엔 그려야 하나»를 판단하지 않는다 — **언제나 그린다.**
+ */
+export function pickViewMode(
+    mode: MapViewMode,
+    o: {
+        setViewMode: (m: MapViewMode) => void;
+        zoom: { current: number };
+        pan: { current: { x: number; y: number } };
+        draw: () => void;
+    },
+): void {
+    o.setViewMode(mode);
+    o.zoom.current = 1;
+    o.pan.current = { x: 0, y: 0 };
+    o.draw();
+}
+
 export function viewCoordsFor(
     mode: MapViewMode,
     allCoords: Array<{ x: number; y: number }>,
