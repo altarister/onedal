@@ -87,6 +87,17 @@ try {
 
     await send('Page.enable');
     await send('Runtime.enable');
+    /**
+     * 📏 **폰 폭을 실제로 강제한다** (2026-09-05 정정).
+     *
+     * 🔴 `--window-size` 는 **창** 크기라 headless 에서 뷰포트에 안 먹는다 —
+     *    그래서 그날 찍은 것이 전부 **500px** 였고, 목업만 `max-w-[400px]` 덕에
+     *    400 으로 보였다. **비교가 공정하지 않았다.**
+     * 🟢 `Emulation.setDeviceMetricsOverride` 라야 뷰포트가 진짜로 바뀐다.
+     */
+    await send('Emulation.setDeviceMetricsOverride', {
+        width: WIDTH, height: HEIGHT, deviceScaleFactor: 1, mobile: true,
+    });
 
     /* 🔴 토큰은 **그 origin 에서** 심어야 한다 — 먼저 관제웹을 한 번 연다 */
     const token = await devToken();

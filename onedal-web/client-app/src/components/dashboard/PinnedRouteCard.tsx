@@ -237,7 +237,10 @@ export default function PinnedRouteCard({
                    → 요약 줄에 없는 것만 남긴다: 몇 번째 콜인가 · 언제 잡았나 · 수수료 · 예약. */}
             {/* 🔤 목업과 같은 크기 — 머리 줄 11.5 · 칩 11 (재서 맞춤 0905) */}
             {isDeck && (
-                <div className="px-4 pt-2.5 pb-1 flex flex-wrap items-center gap-x-2 text-[11.5px] text-text-muted tabular-nums">
+                /* 🔤 **한 줄로 선다** (기사님 2026-09-05: *"두 줄로 되어서 자리를 너무 많이
+                    차지하고 있어"*). 간격을 6px 로 좁히고 줄바꿈을 막는다 — 넘치면 요금이
+                   아니라 **가운데가** 줄어야 한다 (요금·번호는 흘깃 보는 값이다) */
+                <div className="px-3 pt-2.5 pb-1 flex items-center gap-x-1.5 text-[11.5px] text-text-muted tabular-nums whitespace-nowrap">
                     {accentColor && <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: accentColor }} />}
                     <span className="font-black text-text-primary">{indexNum}.</span>
                     {/* 🔄 이번 운행에서 **끝낸** 콜 — 사이클이 도는 동안 카드가 남는다 (2026-08-19).

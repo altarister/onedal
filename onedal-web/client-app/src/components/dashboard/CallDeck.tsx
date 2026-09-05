@@ -304,7 +304,7 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
                     onClick={() => goTo(i)}
                     aria-current={isCur}
                     style={stick}
-                    className={`w-full flex items-center gap-2 px-2 rounded-md border text-left transition-colors ${
+                    className={`w-full flex items-center gap-1.5 px-2.5 rounded-md border text-left transition-colors ${
                         accordion ? 'shrink-0' : 'py-1.5'
                     } ${
                         isCur ? (accordion ? 'bg-info/20 border-info/60' : 'bg-info/10 border-info/45')
@@ -344,9 +344,10 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
                     </span>
 
                     {/* 6단계를 한눈에 — 카드 안 진행 점과 같은 규칙 */}
-                    <span className="flex gap-0.5 shrink-0" aria-hidden>
+                    {/* 🔤 목업 치수 — 점이 크면 지명이 잘린다 (400px 실측 0905) */}
+                    <span className="flex gap-[2px] shrink-0" aria-hidden>
                         {CALL_STEPS.map((st, k) => (
-                            <span key={st.id} className={`block h-1.5 w-3 rounded-full ${
+                            <span key={st.id} className={`block h-[5px] w-[7px] rounded-full ${
                                 k === p.index ? 'bg-info'
                                 : p.done[k] ? 'bg-success'
                                 : k < p.index ? 'bg-success/35'
