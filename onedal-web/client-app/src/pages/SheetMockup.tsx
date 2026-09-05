@@ -962,16 +962,32 @@ export default function SheetMockup() {
                               * 🔴 값은 **09-03 실측**이다 (경로.md §2-1) — 지어내지 않았다.
                               */}
                             {plan.stops.length > 0 && (() => {
-                                const locked = isPriorityLocked(plan.calls, !!step?.seat);
+                                /* 🔴 **심사 중인 콜도 센다** — 합짐은 «첫짐 경로 위에서 산출된» 콜이라,
+                                   심사 중에 경로를 바꾸면 자기를 불러온 근거가 사라진다 (기사님 0905) */
+                                const locked = isPriorityLocked(plan.calls + (step?.seat ? 1 : 0));
                                 return (
                                     /* 🔴 **좌하단** (기사님 2026-09-05). 시트 바로 위에 붙는다 —
                                        높이는 `StageSheet` 가 원천이다 (규칙 ③) */
                                     <div className="absolute left-3 z-10 flex flex-col gap-1.5 items-start"
                                          style={{ bottom: aboveSheetPx }}>
-                                        {ROUTE_PRIORITIES.filter(b => !locked || b.key === priority).map(b => (
+                                        {/**
+                                          * 🔴 **못 바꿀 때는 버튼이 아니라 글자다** (기사님 2026-09-05:
+                                          *    *"내비 경로 관련 버튼은 변경이 불가능할 때 그 자리에
+                                          *    text 로 표현한다"*).
+                                          * 🔴 눌리지 않는 버튼은 **누르게 만든다** — 눌러 보고서야
+                                          *    «안 되는구나»를 안다. 글자는 처음부터 안 부른다.
+                                          *    무엇이 골라져 있는지는 그대로 보인다.
+                                          */}
+                                        {locked && (
+                                            <span className="px-2.5 h-8 grid place-items-center rounded-md
+                                                             text-[11.5px] font-black whitespace-nowrap
+                                                             text-text-muted bg-surface-alt/60 backdrop-blur-sm">
+                                                {ROUTE_PRIORITIES.find(b => b.key === priority)?.naviLabel}
+                                            </span>
+                                        )}
+                                        {!locked && ROUTE_PRIORITIES.map(b => (
                                             <button key={b.key} type="button"
                                                 onClick={() => {
-                                                    if (locked) { setLog('🔒 합짐이 붙어 방침이 잠겼습니다 — 콜 하나일 때만 바꿉니다.'); return; }
                                                     setPriority(b.key);
                                                     const v = PRIORITY_SAMPLE[b.key];
                                                     setLog(`🛣️ 「${b.long}」 으로 다시 받았습니다 — ${v.km}km / ${v.min}분 / 통행료 ${v.toll.toLocaleString()}원. `

@@ -8,34 +8,6 @@ import { isPriorityLocked, ROUTE_PRIORITIES, PRIORITY_SAMPLE, PRIORITY_LABEL } f
  * 적어야 했다.** 그러면 실물이 바뀔 때 목업이 조용히 옛 규칙을 그린다 (규칙 ③).
  * 규칙을 뽑았으니 여기서 잠근다.
  */
-describe('🔒 합짐이 붙으면 방침이 잠긴다', () => {
-    it('콜이 하나면 언제나 바꿀 수 있다 — «합짐 잡기 전까지» (기사님 2026-09-05)', () => {
-        expect(isPriorityLocked(1, false)).toBe(false);
-        expect(isPriorityLocked(1, true)).toBe(false);
-    });
-
-    it('콜이 없어도 잠기지 않는다', () => {
-        expect(isPriorityLocked(0, false)).toBe(false);
-    });
-
-    it('콜이 2건 이상이면 잠긴다', () => {
-        expect(isPriorityLocked(2, false)).toBe(true);
-        expect(isPriorityLocked(3, false)).toBe(true);
-    });
-
-    /**
-     * 🔓 심사 중인 콜은 **세지 않는다** — 아직 확정이 아니다. 그래야
-     *    *"이 콜을 붙이면 어떤 경로가 되나"* 를 바꿔 보는 자리가 남는다 (기사님 0819).
-     *
-     * ⚠️ **세는 쪽의 몫이다** — 부르는 곳이 심사 중인 콜을 빼고 넘겨야 한다.
-     *    예전에는 여기에 «심사 중이면 열어 준다»는 예외가 있었는데, 그것이
-     *    **이미 둘을 잡고 셋째를 심사할 때까지 열어 버렸다** (2026-09-05 정정).
-     */
-    it('심사 중인 콜을 빼고 세면 1건이라 열려 있다', () => {
-        expect(isPriorityLocked(1, true)).toBe(false);
-    });
-});
-
 describe('🛣️ 고를 수 있는 셋', () => {
     it('추천 · 시간 · 거리', () => {
         expect(ROUTE_PRIORITIES.map(p => p.key)).toEqual(['RECOMMEND', 'TIME', 'DISTANCE']);
@@ -86,33 +58,39 @@ describe('🏷️ 이름 — 기사님이 개인폰에서 보는 말과 같아�
     });
 });
 
-describe('🔴 확정된 콜이 둘이면 심사 중이어도 잠긴다 (2026-09-05)', () => {
+describe('🔴 합짐이 화면에 오르는 순간부터 잠긴다 (기사님 2026-09-05 정정)', () => {
     /**
-     * 기사님: *"주행 중 합짐2 심사 여기서는 경로 변경을 할 수 없어야 하고."*
+     * 기사님: *"합짐1 심사 때 경로를 바꿀 수 없다 — 이미 그 경로로 들어온 콜일 테니까."*
      *
-     * 🔴 **규칙이 «심사 중이면 무조건 열어 둔다»로 되어 있었다.** 그래서 이미 콜 둘을
-     *    잡고 셋째를 심사할 때도 방침이 열려 있었다 — 그때 방침을 바꾸면 **이미 잡은
-     *    두 콜의 약속이 흔들린다.** 잠그는 이유가 바로 그것이었는데 심사가 그것을 뚫었다.
+     * 🔴 **이유가 결정적이다.** 합짐은 **첫짐 경로 위에서 산출된 콜**이다. 그 경로를
+     *    바꾸면 «가는 길에 있다»는 산출 근거 자체가 사라진다. 심사 중이라고 열어 두면
+     *    **자기를 불러온 경로를 자기가 지우는** 꼴이다.
      *
-     * 바른 규칙: **확정된 콜이 2건 이상이면 잠긴다.** 심사 중인 콜은 아직 «확정»이
-     * 아니라 세지 않는다 — 그래야 «이 콜을 붙이면 어떤 경로가 되나»를 보는 자리가 남는다.
+     * 그래서 세는 것은 «확정»이 아니라 **«화면에 올라 있는 콜»** 이다 — 심사 중인 것도 센다.
+     *
+     *   첫콜 심사   0 + 1 = 1  🔓 열림 — 붙일 콜이 하나뿐이니 경로를 골라 본다
+     *   첫콜 확정   1 + 0 = 1  🔓 열림 — *"합짐 잡기 전까지 바꿀 수 있어야 해"*
+     *   합짐1 심사  1 + 1 = 2  🔒 **잠김** ← 여기가 이번에 좁혀진 자리
+     *   합짐1 확정  2 + 0 = 2  🔒 잠김
+     *
+     * ⚠️ 실물이 원래 `liveRoute.length >= 2`(심사 포함)였다. 거기 붙어 있던
+     *    `&& !anyEvaluating` 예외가 이 구멍을 냈다 — 0819 의 «심사 중에는 열어 둔다»는
+     *    **첫콜 심사**를 말한 것이었다.
      */
-    it('확정 1 + 심사 1 → 열려 있다 (첫콜/합짐1 심사)', () => {
-        expect(isPriorityLocked(1, true)).toBe(false);
+    it('첫콜 심사 — 열려 있다', () => {
+        expect(isPriorityLocked(1)).toBe(false);
     });
 
-    it('확정 2 + 심사 1 → 잠긴다 (주행 중 합짐2 심사)', () => {
-        expect(isPriorityLocked(2, true)).toBe(true);
+    it('합짐1 심사 — 잠긴다 (확정 1 + 심사 1)', () => {
+        expect(isPriorityLocked(2)).toBe(true);
     });
 
-    it('확정 2, 심사 없음 → 잠긴다 (그대로)', () => {
-        expect(isPriorityLocked(2, false)).toBe(true);
+    it('주행 중 합짐2 심사 — 잠긴다 (확정 2 + 심사 1)', () => {
+        expect(isPriorityLocked(3)).toBe(true);
     });
 
-    it('확정 0·1 은 심사 여부와 무관하게 열려 있다', () => {
-        for (const evaluating of [true, false]) {
-            expect(isPriorityLocked(0, evaluating)).toBe(false);
-            expect(isPriorityLocked(1, evaluating)).toBe(false);
-        }
+    it('콜이 없거나 하나뿐이면 열려 있다', () => {
+        expect(isPriorityLocked(0)).toBe(false);
+        expect(isPriorityLocked(1)).toBe(false);
     });
 });
