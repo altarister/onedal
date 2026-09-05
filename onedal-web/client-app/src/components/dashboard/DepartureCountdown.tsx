@@ -151,35 +151,39 @@ export default function DepartureCountdown({ orders, records, routeStops, routeC
                         {soonest.boundBy && <span className="text-text-muted font-normal"> · {soonest.boundBy} 약속 기준</span>}
                     </span>
                 </div>
-                <div className="text-[11px] text-text-muted break-keep">
-                    {late
-                        ? '지금 출발해도 상차 약속보다 늦습니다 — 상차지에 알리세요'
-                        : `그 사이 여기서 콜을 더 잡을 수 있습니다`}
-                    {/* 🔴 내역을 적는다 (기사님 2026-08-16): `09:25까지 출발 (주행 20, 대기 25분)`.
-                        빼는 값이 분기마다 다르므로 문구는 `detail` 이 이미 만들어 왔다. */}
-                    {soonest.detail && (
-                        <span className="ml-1 opacity-80">
-                            ({soonest.detail}
-                            {soonest.waitMin != null && !late && `, 대기 ${soonest.waitMin}`}분)
-                        </span>
+                {/**
+                  * 📏 **두 줄로 끝낸다** (기사님 2026-09-05: *"이걸 2줄로 만들어 줘"*).
+                  *
+                  * 🔴 예전에는 설명 줄이 세 줄로 접히고 버퍼가 한 줄 더 붙어 **시트의 3분의 1**을
+                  *    먹었다. 달리면서 읽는 값은 «얼마나 늦었나 · 무엇을 해야 하나 · 예산» 셋이다.
+                  * 🔴 **버리지 않는다** — 근거(주행·정차 내역 · 추정 기준 · 어느 약속이 묶는지)는
+                  *    `title` 로 옮겼다. 손대면 전문이 나온다 (규칙 ④ — 잘라 감추지 않는다).
+                  */}
+                <div className="text-[11px] text-text-muted truncate"
+                     title={[
+                         late ? '지금 출발해도 상차 약속보다 늦습니다 — 상차지에 알리세요'
+                              : '그 사이 여기서 콜을 더 잡을 수 있습니다',
+                         soonest.detail ? `(${soonest.detail}${soonest.waitMin != null && !late ? `, 대기 ${soonest.waitMin}` : ''}분)` : '',
+                         soonest.estimated ? `통화 전이라 추정입니다 (${soonest.basis})` : '',
+                         minBuf ? `버퍼 최소 ${minBuf.minutes >= 0 ? '+' : ''}${minBuf.minutes}분${minBuf.firm ? '' : '~'} — ${
+                             minBufOrder ? getAddressLabel(minBuf.stopType === 'pickup' ? minBufOrder.pickup : minBufOrder.dropoff) : ''
+                         } ${minBuf.stopType === 'pickup' ? '상차' : '하차'} 약속이 묶습니다${minBuf.firm ? '' : ' (통화 전 추정)'}` : '',
+                     ].filter(Boolean).join(' · ')}>
+                    {late ? '상차지에 알리세요' : '그 사이 콜을 더 잡을 수 있습니다'}
+                    {soonest.detail && <span className="ml-1 opacity-80">· {soonest.detail}분</span>}
+                    {/* 🧮 예산 — 합짐 심사가 실제로 쓸 수 있는 시간. 색이 곧 답이다 */}
+                    {minBuf && (
+                        <>
+                            <span className="mx-1 opacity-40">·</span>
+                            <span className={`font-bold tabular-nums ${
+                                minBuf.minutes >= 30 ? 'text-success'
+                                : minBuf.minutes >= 10 ? 'text-info'
+                                : minBuf.minutes >= 0 ? 'text-warning' : 'text-danger'
+                            }`}>버퍼 {minBuf.minutes >= 0 ? '+' : ''}{minBuf.minutes}분{minBuf.firm ? '' : '~'}</span>
+                        </>
                     )}
-                    {soonest.estimated && (
-                        <span className="ml-1 opacity-80">· 통화 전이라 <b>추정</b>입니다 ({soonest.basis})</span>
-                    )}
+                    {soonest.estimated && <span className="ml-1 opacity-70">· ~추정</span>}
                 </div>
-                {/* 🧮 경로 최소 버퍼 — 합짐 심사가 실제로 쓸 수 있는 예산. 어느 약속이 묶는지 함께 적는다 */}
-                {minBuf && (
-                    <div className="text-[11px] mt-0.5">
-                        <span className={`font-bold tabular-nums ${
-                            minBuf.minutes >= 30 ? 'text-success'
-                            : minBuf.minutes >= 10 ? 'text-info'
-                            : minBuf.minutes >= 0 ? 'text-warning' : 'text-danger'
-                        }`}>
-                            버퍼 최소 {minBuf.minutes >= 0 ? '+' : ''}{minBuf.minutes}분{minBuf.firm ? '' : '~'}
-                        </span>
-                        <span className="text-text-muted"> — {minBufOrder ? getAddressLabel(minBuf.stopType === 'pickup' ? minBufOrder.pickup : minBufOrder.dropoff) : ''} {minBuf.stopType === 'pickup' ? '상차' : '하차'} 약속이 묶습니다{minBuf.firm ? '' : ' (통화 전 추정)'}</span>
-                    </div>
-                )}
             </div>
         </div>
     );
