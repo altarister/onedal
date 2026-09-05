@@ -692,14 +692,6 @@ export default function SheetMockup() {
     const [deviceModes, setDeviceModes] = useState<Record<string, string>>({});
     const [modePendings, setModePendings] = useState<Record<string, string>>({});
     const [modeOpenId, setModeOpenId] = useState<string | null>(null);
-    /** 📱 지금 폰이 몇 대인가 */
-    const [deviceSet, setDeviceSet] = useState('1대');
-    /**
-     * 🔴 **상황은 «첫 폰»에만 덮는다** — 폰 수와 무관하다. 그래야 «2대인데 하나가
-     *    끊겼다» 같은 것을 상황 버튼 하나로 볼 수 있다 (손잡이를 둘로 두지 않는다).
-     */
-    const devices = (DEVICE_SETS[deviceSet] ?? DEVICE_SETS['1대'])
-        .map((d, i) => (i === 0 ? { ...d, ...deviceOver } : d)) as DeviceOne[];
     /** ⋯ 접힌 넷 (누적·버전·작업 단계·필터 배지) */
     const [deviceMore, setDeviceMore] = useState(false);
     /**
@@ -708,6 +700,14 @@ export default function SheetMockup() {
      */
     const [deviceCase, setDeviceCase] = useState('평소');
     const deviceOver = DEVICE_CASES.find(c => c.k === deviceCase)?.over ?? {};
+    /** 📱 지금 폰이 몇 대인가 */
+    const [deviceSet, setDeviceSet] = useState('1대');
+    /**
+     * 🔴 **상황은 «첫 폰»에만 덮는다** — 폰 수와 무관하다. 그래야 «2대인데 하나가
+     *    끊겼다» 같은 것을 상황 버튼 하나로 볼 수 있다 (손잡이를 둘로 두지 않는다).
+     */
+    const devices = (DEVICE_SETS[deviceSet] ?? DEVICE_SETS['1대'])
+        .map((d, i) => (i === 0 ? { ...d, ...deviceOver } : d)) as DeviceOne[];
     /**
      * 🔴 **몇 콜 판인가** — 3콜은 **상한이 아니다** (전제 점검표 1부 ① · 기사님 2026-09-04:
      * *"최대한 많이 합짐하면 매출이 많아진다"*).
