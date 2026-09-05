@@ -79,6 +79,37 @@ function MockHeader() {
 }
 
 /** 📱 폰 영역 — 스캔폰 한 대의 상태 한 줄 + 모드 셋 */
+/** 📱 폰 한 대가 들고 있는 것 — 여럿이 되니 «줄»과 «한 대»를 갈랐다 (2026-09-05) */
+interface DeviceOne {
+    id: string; name: string; net: string | null; screen: string; seenAt: string;
+    mode: string; quiet?: boolean; stuck?: boolean; dead?: boolean; blind?: boolean;
+}
+
+/**
+ * 📱 **폰이 몇 대인가** — 배차망마다 스캔폰이 하나씩 붙는다 (인성·24시·픽커).
+ *
+ * 🔴 **폰이 늘면 물음이 바뀐다** — 한 대일 때는 «이 폰이 일하나»지만
+ *    여러 대면 «**어느 폰이 문제인가**»다. 정상인 것은 볼 이유가 없다.
+ */
+const DEVICE_SETS: Record<string, DeviceOne[]> = {
+    '1대': [
+        { id: 'a', name: 'A24', net: '인성', screen: '콜리스트', seenAt: '13:19', mode: '자동' },
+    ],
+    '2대': [
+        { id: 'a', name: 'A24', net: '인성', screen: '콜리스트', seenAt: '13:19', mode: '자동' },
+        { id: 'b', name: 'B12', net: '픽커', screen: '홈', seenAt: '13:19', mode: '알람' },
+    ],
+    '3대': [
+        { id: 'a', name: 'A24', net: '인성', screen: '콜리스트', seenAt: '13:19', mode: '자동' },
+        { id: 'b', name: 'B12', net: '픽커', screen: '홈', seenAt: '13:19', mode: '알람' },
+        { id: 'c', name: 'C7', net: '24시', screen: '콜리스트', seenAt: '13:18', mode: '자동', quiet: true },
+    ],
+    '2대 · 하나 끊김': [
+        { id: 'a', name: 'A24', net: '인성', screen: '콜리스트', seenAt: '13:19', mode: '자동' },
+        { id: 'b', name: 'B12', net: null, screen: '접근성 꺼짐', seenAt: '12:58', mode: '알람', dead: true },
+    ],
+};
+
 /**
  * 📱 **폰이 처할 수 있는 상황들** (기사님 2026-09-05: *"상황별로 버튼을 만들어
  *    눌러 보게 만들어 줄 수 있어?"*).
@@ -112,6 +143,62 @@ function caseWidth(over: Record<string, unknown>): number {
 }
 
 /**
+ * 📱 **폰 한 대** — 이름 · 배지 · 시각 · (조용) · (성적표) · 모드.
+ *
+ * 🔴 여럿이 되면서 «줄»에서 «한 대»를 뽑았다 (2026-09-05). 그 전에는 줄이 곧 한 대라
+ *    값이 박혀 있었는데, 폰이 둘이 되는 순간 **두 벌을 그려야 했다** (규칙 ③).
+ */
+function DeviceOneRow({ d, mode, pending, open, onPick, onOpen }: {
+    d: DeviceOne; mode: string; pending: string | null; open: boolean;
+    onPick: (m: string) => void; onOpen: (v: boolean) => void;
+}) {
+    return (
+        <span className="shrink-0 flex items-center gap-1.5">
+            <span className={`shrink-0 text-[12px] font-black ${
+                d.dead ? 'text-danger animate-pulse' : d.blind ? 'text-text-muted' : 'text-success'}`}>{d.name}</span>
+            <span className={`shrink-0 px-1.5 rounded border text-[11.5px] whitespace-nowrap ${
+                d.dead ? 'border-border bg-surface-alt/40 text-text-muted' : 'border-border-card text-text-primary'}`}>
+                {d.net && <span className="text-info font-black mr-1">{d.net}</span>}{d.screen}
+            </span>
+            {d.blind && <span className="shrink-0 text-[11px]" title="접근성이 막혀 못 읽는다">👁️</span>}
+            <span className="shrink-0 text-[11px] text-text-muted tabular-nums">{d.seenAt}</span>
+            {d.quiet && <span className="shrink-0 text-[11px]" title="30초 넘게 말이 없다">⏱️</span>}
+            {d.stuck && (
+                <span className="shrink-0 text-[10.5px] font-bold text-warning tabular-nums whitespace-nowrap">
+                    본 42 · 통과 0 <b>요금12</b>
+                </span>
+            )}
+            {/* 🎛️ 모드는 **폰마다 하나씩** — 픽커만 대기로 두고 싶을 때가 있다 */}
+            <span className="shrink-0 relative">
+                <button type="button" onClick={() => onOpen(!open)}
+                    className={`relative px-2 py-0.5 rounded-md text-[11.5px] font-black border transition-opacity ${
+                        pending ? 'opacity-40' : ''} bg-warning/15 border-warning/45 text-warning`}>
+                    {mode}
+                </button>
+                {pending && (
+                    <span className="absolute inset-0 grid place-items-center pointer-events-none">
+                        <span className="w-3.5 h-3.5 rounded-full border-2 border-warning/30 border-t-warning animate-spin" />
+                    </span>
+                )}
+                {open && (
+                    <span className="absolute top-1/2 -translate-y-1/2 right-0 z-30 flex gap-1 p-1 rounded-lg
+                                     bg-surface border border-border shadow-lg">
+                        {['자동', '알람', '직접'].map(m => (
+                            <button key={m} type="button" onClick={() => onPick(m)}
+                                className={`px-2 py-1 rounded-md text-[11.5px] font-black border whitespace-nowrap ${
+                                    m === mode ? 'bg-warning/15 border-warning/45 text-warning'
+                                               : 'bg-surface-alt/40 border-border-card text-text-primary hover:border-warning/45'}`}>
+                                {m}
+                            </button>
+                        ))}
+                    </span>
+                )}
+            </span>
+        </span>
+    );
+}
+
+/**
  * 📱 **폰 줄 — 자리값 하는 것만 늘 보인다** (엄선 확정 2026-09-05 · 폰_상태바.md §4-4)
  *
  * ── 관제가 답해야 하는 물음은 셋이다 ──
@@ -128,89 +215,42 @@ function caseWidth(over: Record<string, unknown>): number {
  *
  * ⚠️ 접힌 넷은 「⋯」 로 펼친다 — **없앤 것이 아니라 접은 것**이다.
  */
-function MockDevicePanel({ mode, pending, onPick, onOpen, open, quiet, stuck, more, onMore,
-    name = 'A24', net = '인성', screen = '콜리스트', seenAt = '13:19', dead, blind }: {
-    mode: string; pending: string | null; open: boolean;
-    quiet: boolean; stuck: boolean; more: boolean;
-    onPick: (m: string) => void; onOpen: (v: boolean) => void; onMore: (v: boolean) => void;
-    /* 🎛️ 상황을 여럿 그리려고 값을 밖에서 받는다 — 하드코딩이면 한 모양밖에 못 본다 */
-    name?: string; net?: string | null; screen?: string; seenAt?: string;
-    /** 🔴 끊긴 폰 — 폰 이름이 붉게 깜빡이고 **배차망이 사라진다** */
-    dead?: boolean;
-    /** 👁️ 화면은 켜져 있는데 접근성이 막혀 못 읽는다 */
-    blind?: boolean;
+function MockDevicePanel({ devices, modeOf, pendingOf, openId, onPick, onOpen, more, onMore }: {
+    devices: DeviceOne[];
+    modeOf: (id: string) => string; pendingOf: (id: string) => string | null;
+    openId: string | null; onPick: (id: string, m: string) => void; onOpen: (id: string | null) => void;
+    more: boolean; onMore: (v: boolean) => void;
 }) {
     return (
         <div className="shrink-0 border-b border-border-card">
-            <div className="flex items-center gap-1.5 px-3 py-1.5">
-                <div className="flex-1 min-w-0 flex items-center gap-1.5 overflow-hidden">
-                    {/* 1 폰 이름 — 🔴 **접근성은 이 색으로만 말한다** (글자가 없다 · 0칸) */}
-                    <span className={`shrink-0 text-[12px] font-black ${
-                        dead ? 'text-danger animate-pulse' : blind ? 'text-text-muted' : 'text-success'}`}>{name}</span>
-
-                    {/* 3 배지 — 배차망 + 화면명. 끊기면 **왜 끊겼는지**가 이 자리에 온다 */}
-                    <span className={`shrink-0 px-1.5 rounded border text-[11.5px] whitespace-nowrap ${
-                        dead ? 'border-border bg-surface-alt/40 text-text-muted' : 'border-border-card text-text-primary'}`}>
-                        {net && <span className="text-info font-black mr-1">{net}</span>}{screen}
-                    </span>
-                    {/* 👁️ 화면은 켜져 있는데 못 읽는다 — 연결됐다고 읽고 있는 건 아니다 (15초 유예 뒤) */}
-                    {blind && <span className="shrink-0 text-[11px]" title="접근성이 막혀 못 읽는다">👁️</span>}
-
-                    {/* 7 마지막 보고 — 폰이 죽었는지는 이것 하나로 안다 */}
-                    <span className="shrink-0 text-[11px] text-text-muted tabular-nums">{seenAt}</span>
-
-                    {/* 8 조용한가 — 🔴 **조용할 때만** (평소 0칸) */}
-                    {quiet && <span className="shrink-0 text-[11px]" title="30초 넘게 말이 없다">⏱️</span>}
-
-                    {/* 10 성적표 — 🔴 **통과가 0일 때만.** 「왜 안 잡나」는 안 잡힐 때만 묻는다 */}
-                    {stuck && (
-                        <span className="shrink-0 text-[10.5px] font-bold text-warning tabular-nums whitespace-nowrap">
-                            본 42 · 통과 0 <b>요금12</b>
-                        </span>
-                    )}
-
-                    {/* ⋯ 접힌 넷 — **없앤 것이 아니라 접은 것**이다 */}
-                    <button type="button" onClick={() => onMore(!more)}
-                        className={`shrink-0 px-1 rounded text-[11px] font-black ${
-                            more ? 'text-info' : 'text-text-muted hover:text-text-primary'}`}>⋯</button>
-                </div>
-
-                <span className="shrink-0 relative">
-                    <button type="button" onClick={() => onOpen(!open)}
-                        className={`relative px-2 py-0.5 rounded-md text-[11.5px] font-black border transition-opacity ${
-                            pending ? 'opacity-40' : ''} bg-warning/15 border-warning/45 text-warning`}>
-                        {mode}
-                    </button>
-                    {pending && (
-                        <span className="absolute inset-0 grid place-items-center pointer-events-none">
-                            <span className="w-3.5 h-3.5 rounded-full border-2 border-warning/30 border-t-warning animate-spin" />
-                        </span>
-                    )}
-                    {open && (
-                        <span className="absolute top-1/2 -translate-y-1/2 right-0 z-30 flex gap-1 p-1 rounded-lg
-                                         bg-surface border border-border shadow-lg">
-                            {['자동', '알람', '직접'].map(m => (
-                                <button key={m} type="button" onClick={() => onPick(m)}
-                                    className={`px-2 py-1 rounded-md text-[11.5px] font-black border whitespace-nowrap ${
-                                        m === mode ? 'bg-warning/15 border-warning/45 text-warning'
-                                                   : 'bg-surface-alt/40 border-border-card text-text-primary hover:border-warning/45'}`}>
-                                    {m}
-                                </button>
-                            ))}
-                        </span>
-                    )}
-                </span>
+            {/**
+              * 🔴 **가로로 흐르게 둔다** — 폰이 둘이면 아슬아슬하게 한 줄에 들고(≈50칸),
+              *    셋이면 넘친다(≈73칸). **넘치는 것을 눈으로 봐야** 접을지 정할 수 있다.
+              *    지금은 넘치면 가로로 스크롤한다 — 숨기지 않는다 (규칙 ④).
+              */}
+            <div className="flex items-center gap-2 px-3 py-1.5 overflow-x-auto">
+                {devices.map(d => (
+                    <DeviceOneRow key={d.id} d={d}
+                        mode={modeOf(d.id)} pending={pendingOf(d.id)}
+                        open={openId === d.id}
+                        onOpen={(v) => onOpen(v ? d.id : null)}
+                        onPick={(m) => onPick(d.id, m)} />
+                ))}
+                <button type="button" onClick={() => onMore(!more)}
+                    className={`shrink-0 px-1 rounded text-[11px] font-black ${
+                        more ? 'text-info' : 'text-text-muted hover:text-text-primary'}`}>⋯</button>
             </div>
 
-            {/* 접힌 넷 — 펼치면 아래 줄에 */}
-            {more && (
-                <div className="flex items-center gap-2 px-3 pb-1.5 text-[10.5px] text-text-muted tabular-nums flex-wrap">
+            {/* 접힌 넷 — 폰마다 하나씩이라 여럿이면 이만큼 더 는다 */}
+            {more && devices.map(d => (
+                <div key={d.id} className="flex items-center gap-2 px-3 pb-1.5 text-[10.5px] text-text-muted tabular-nums flex-wrap">
+                    <b className="text-text-primary">{d.name}</b>
                     <span className="px-1.5 rounded border border-info/40 bg-info/10 font-extrabold text-info">합짐</span>
                     <span className="px-1.5 rounded border border-border bg-surface-alt font-bold">대기</span>
                     <span>수집1234 수락5 취소2</span>
                     <span className="opacity-70">2.9.1-hello (49)</span>
                 </div>
-            )}
+            ))}
         </div>
     );
 }
@@ -648,13 +688,18 @@ export default function SheetMockup() {
      *      `modePending` 관제가 보냈고 **아직 대답을 못 들은 것**
      * 🔴 보낸 값을 미리 그리면 화면이 «벌써 됐다»고 거짓말한다.
      */
-    const [deviceMode, setDeviceMode] = useState('자동');
-    const [modePending, setModePending] = useState<string | null>(null);
-    const [modeOpen, setModeOpen] = useState(false);
-    /** 📱 폰이 조용한가 (30초 넘게 말이 없나) — 🔴 **조용할 때만 그린다** */
-    const [deviceQuiet, setDeviceQuiet] = useState(false);
-    /** 📱 하나도 안 잡히나 — 🔴 **그때만 성적표가 자리를 얻는다** */
-    const [deviceStuck, setDeviceStuck] = useState(false);
+    /** 🔴 **폰마다 하나씩** — 픽커만 대기로 두고 싶을 때가 있다 (2026-09-05) */
+    const [deviceModes, setDeviceModes] = useState<Record<string, string>>({});
+    const [modePendings, setModePendings] = useState<Record<string, string>>({});
+    const [modeOpenId, setModeOpenId] = useState<string | null>(null);
+    /** 📱 지금 폰이 몇 대인가 */
+    const [deviceSet, setDeviceSet] = useState('1대');
+    /**
+     * 🔴 **상황은 «첫 폰»에만 덮는다** — 폰 수와 무관하다. 그래야 «2대인데 하나가
+     *    끊겼다» 같은 것을 상황 버튼 하나로 볼 수 있다 (손잡이를 둘로 두지 않는다).
+     */
+    const devices = (DEVICE_SETS[deviceSet] ?? DEVICE_SETS['1대'])
+        .map((d, i) => (i === 0 ? { ...d, ...deviceOver } : d)) as DeviceOne[];
     /** ⋯ 접힌 넷 (누적·버전·작업 단계·필터 배지) */
     const [deviceMore, setDeviceMore] = useState(false);
     /**
@@ -1038,21 +1083,20 @@ export default function SheetMockup() {
 
                 <MockHeader />
                 <MockDevicePanel
-                    mode={deviceMode} pending={modePending} open={modeOpen}
-                    quiet={deviceQuiet} stuck={deviceStuck} more={deviceMore}
-                    onOpen={setModeOpen} onMore={setDeviceMore}
-                    /* 📱 고른 상황이 이 줄을 덮는다 — 「조용/안 잡힘」 스위치보다 뒤에 온다 */
-                    {...deviceOver}
-                    onPick={(m) => {
-                        setModeOpen(false);
-                        /* 🔴 **같은 것을 고르면 조용히 닫는다** — «이미 그것입니다» 같은
-                           당연한 말을 적지 않는다 (기사님 확인 2026-09-05) */
-                        if (m === deviceMode) return;
-                        setModePending(m);
-                        setLog(`📱 «${m}» 으로 바꾸라고 보냈습니다 — 스캔폰이 가져갈 때까지 «적용중»입니다. `
-                             + `아래 조작판에서 「📱 앱이 받았다」를 누르면 그때 값이 바뀝니다. `
-                             + `🔴 실물에서는 10초가 지나면 버튼이 다시 눌립니다 — 앱이 영영 안 받을 수도 있으니까요.`);
+                    devices={devices}
+                    modeOf={(id) => deviceModes[id] ?? devices.find(d => d.id === id)?.mode ?? '자동'}
+                    pendingOf={(id) => modePendings[id] ?? null}
+                    openId={modeOpenId} onOpen={setModeOpenId}
+                    more={deviceMore} onMore={setDeviceMore}
+                    onPick={(id, m) => {
+                        setModeOpenId(null);
+                        const now = deviceModes[id] ?? devices.find(d => d.id === id)?.mode ?? '자동';
+                        if (m === now) return;
+                        setModePendings(p => ({ ...p, [id]: m }));
+                        setLog(`📱 ${devices.find(d => d.id === id)?.name} 을 «${m}» 으로 바꾸라고 보냈습니다 — `
+                             + `스캔폰이 가져갈 때까지 «적용중»입니다. 아래 「📱 앱이 받았다」를 누르면 그때 바뀝니다.`);
                     }} />
+
                 {/**
                   * 🪧 **심사석은 필터 자리를 빌려 쓴다** — 실물과 같은 자리다
                   *    (`JudgmentSeat` 머리주석 · 기사님 확정 0831).
@@ -1713,73 +1757,53 @@ export default function SheetMockup() {
                     <br />· <b className="text-text-primary">👁️ 눈 가림</b>은 화면이 켜져 있는데 못 읽는 것이라 배지는 그대로입니다
                 </p>
 
-                {/* 📱 **폰이 이상해지면 무엇이 나타나나** — 엄선의 값어치를 눈으로 본다 */}
-                <h2 className="mt-6 text-[12.5px] font-black tracking-wide text-info mb-2">📱 폰 상태 — 이상할 때만 나온다</h2>
+                <h2 className="mt-6 text-[12.5px] font-black tracking-wide text-info mb-2">📱 폰이 몇 대인가</h2>
                 <div className="flex gap-1.5 flex-wrap">
-                    {([
-                        ['quiet', deviceQuiet, '⏱️ 조용해졌다', '30초 넘게 말이 없습니다. 평소엔 이 자리가 비어 있습니다 — 「👀 잘 돈다」를 그릴 이유가 없으니까요.'],
-                        ['stuck', deviceStuck, '🔴 하나도 안 잡힌다', '성적표가 나타납니다 — 「본 42 · 통과 0 요금12」. 요금 축에서 12개가 걸렸다는 뜻이라 콜할인율을 만질 때입니다.'],
-                    ] as const).map(([k, on, t, why]) => (
+                    {Object.keys(DEVICE_SETS).map(k => (
                         <button key={k} type="button"
-                            onClick={() => {
-                                const next = !on;
-                                if (k === 'quiet') setDeviceQuiet(next); else setDeviceStuck(next);
-                                setLog(next ? `${t} — ${why}` : `${t} 을 껐습니다 — 그 자리가 다시 비었습니다.`);
-                            }}
-                            className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${on
-                                ? 'bg-warning/15 border-warning/55 text-warning' : 'border-border-hover bg-surface text-text-primary hover:border-warning'}`}>
-                            {t}
+                            onClick={() => { setDeviceSet(k); setModeOpenId(null);
+                                const n = DEVICE_SETS[k].length;
+                                setLog(`📱 ${k} — 폰 하나가 12~17칸입니다. ${n}대면 ${n === 1 ? '한 줄에 넉넉히 듭니다' :
+                                    n === 2 ? '아슬아슬하게 한 줄에 듭니다 (≈50칸 / 56칸)' : '한 줄을 넘칩니다 (≈73칸) — 지금은 가로로 밀립니다'}.`); }}
+                            className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${deviceSet === k
+                                ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-surface text-text-primary hover:border-info'}`}>
+                            {k}
                         </button>
                     ))}
-                    <button type="button" onClick={() => { setDeviceMore(!deviceMore);
-                        setLog(deviceMore ? '⋯ 접었습니다.' : '⋯ 접어 둔 넷을 펼쳤습니다 — 필터 배지·작업 단계·누적·앱 버전. 합이 58칸이라 늘 두면 한 줄이 두 배가 됩니다.'); }}
-                        className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${deviceMore
-                            ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-surface text-text-primary hover:border-info'}`}>
-                        ⋯ 접은 넷
-                    </button>
                 </div>
                 <p className="mt-2 text-[12px] leading-relaxed text-text-muted">
-                    🔴 <b className="text-text-primary">한 줄에 다 넣으면 116칸인데 폰 한 줄은 56칸입니다</b> (폰_상태바.md §4-2 실측).
-                    그래서 <b className="text-text-primary">넷을 접었습니다</b> — 누적 20 · 버전 16 · 작업 단계 13 · 필터 배지 9.
-                    <b className="text-text-primary"> 그 넷이 한 줄을 두 배로 만들던 몫입니다.</b>
-                    <br />· 늘 보이는 것: 폰 이름 · <b className="text-text-primary">배지</b> · 마지막 보고 · 모드 — <b className="text-text-primary">약 26칸</b>
-                    · <b className="text-text-primary">접근성은 폰 이름의 색</b>이라 0칸입니다
-                    <br />· 조용하면 <b className="text-text-primary">⏱️</b> 가 붙고(+4칸), 안 잡히면 <b className="text-text-primary">성적표</b>가 붙습니다(+21칸)
-                    <br />🔴 <b className="text-text-primary">「왜 안 잡나」는 안 잡힐 때만 묻는 물음입니다</b> —
-                    잘 잡히는 동안 21칸을 쓰고 있을 이유가 없습니다.
+                    🔴 <b className="text-text-primary">폰 하나가 12~17칸</b>입니다 (이름 + 배지 + 시각 + 모드).
+                    <br />· <b className="text-text-primary">2대 ≈ 50칸</b> — 아슬아슬하게 한 줄에 듭니다
+                    <br />· <b className="text-text-primary">3대 ≈ 73칸</b> — 넘칩니다. <b className="text-text-primary">지금은 가로로 밀립니다</b> —
+                    숨기지 않고 **넘치는 것을 눈으로 보시라고** 그렇게 뒀습니다
+                    <br />🔴 <b className="text-text-primary">모드는 폰마다 하나씩</b>입니다 —
+                    픽커만 대기로 두고 싶을 때가 있으니 «셋 다 바꾸기»로 묶지 않았습니다.
+                    <br />⚠️ 「⋯」 를 펼치면 접힌 넷이 <b className="text-text-primary">폰 수만큼</b> 늘어납니다 — 3대면 세 줄입니다.
                 </p>
 
-                {/* 📱 **모드의 왕복을 눈으로 본다** (기사님 안 2026-09-05) */}
                 <h2 className="mt-6 text-[12.5px] font-black tracking-wide text-info mb-2">📱 모드 — 앱이 받는 순간</h2>
                 <div className="flex gap-1.5 flex-wrap">
-                    <button type="button" disabled={!modePending}
-                        onClick={() => {
-                            if (!modePending) return;
-                            setDeviceMode(modePending); setModePending(null);
-                            setLog(`📱 스캔폰이 «${modePending}» 을 가져갔습니다 — 이제 그것이 참입니다. 딤드와 로딩이 풀립니다.`);
-                        }}
-                        className="px-3 py-2 rounded-[9px] border border-border-hover bg-surface text-[12.5px] font-black
-                                   hover:border-info disabled:opacity-30">
-                        📱 앱이 받았다
-                    </button>
-                    <button type="button" disabled={!modePending}
-                        onClick={() => { setModePending(null); setLog('📱 대답이 안 왔습니다 — 보낸 것을 물렸습니다. 화면은 앱이 말한 값 그대로입니다.'); }}
-                        className="px-3 py-2 rounded-[9px] border border-border-hover bg-surface text-[12.5px] font-black
-                                   hover:border-warning disabled:opacity-30">
-                        ⏳ 대답이 안 온다
-                    </button>
+                    {devices.map(d => (
+                        <button key={d.id} type="button" disabled={!modePendings[d.id]}
+                            onClick={() => {
+                                const m = modePendings[d.id];
+                                setDeviceModes(v => ({ ...v, [d.id]: m }));
+                                setModePendings(v => { const n = { ...v }; delete n[d.id]; return n; });
+                                setLog(`📱 ${d.name} 이 «${m}» 을 가져갔습니다 — 이제 그것이 참입니다.`);
+                            }}
+                            className="px-3 py-2 rounded-[9px] border border-border-hover bg-surface text-[12.5px] font-black
+                                       hover:border-info disabled:opacity-30">
+                            📱 {d.name} 이 받았다
+                        </button>
+                    ))}
                 </div>
                 <p className="mt-2 text-[12px] leading-relaxed text-text-muted">
-                    🔴 <b className="text-text-primary">모드는 관제가 바꾸는 유일한 것이고, 왕복입니다</b> —
-                    관제 → 앱 → 관제. <b className="text-text-primary">앱이 가져가야 참이 됩니다.</b>
-                    <br />· 평소에는 <b className="text-text-primary">고른 것 하나만</b> 보입니다 (셋을 늘어놓으면 14칸, 하나면 4칸)
-                    <br />· 누르면 <b className="text-text-primary">그 자리에</b> 셋이 열립니다
-                    <br />· 고르면 <b className="text-text-primary">이전 값이 딤드되고 그 위에 로딩</b>이 돕니다 —
-                    새 값을 미리 그리면 화면이 «벌써 됐다»고 거짓말합니다
-                    <br />🔴 실물에서는 <b className="text-text-primary">10초가 지나면 버튼이 다시 눌립니다</b> (0단계 확정).
-                    로딩은 계속 돌되 손이 묶이지 않습니다 — <b className="text-text-primary">앱이 영영 안 받을 수도 있습니다.</b>
-                    <br />🔴 「곧 됩니다」 같은 말은 안 적습니다. 적을 수 있는 것은 «적용중»과
-                    «마지막 통신 N초 전» 같은 <b className="text-text-primary">사실</b>뿐입니다.
+                    🔴 <b className="text-text-primary">모드는 왕복입니다</b> — 관제 → 앱 → 관제.
+                    <b className="text-text-primary"> 앱이 가져가야 참이 됩니다.</b>
+                    고르면 <b className="text-text-primary">이전 값이 딤드되고 그 위에 로딩</b>이 돕니다 —
+                    새 값을 미리 그리면 화면이 «벌써 됐다»고 거짓말합니다.
+                    <br />🔴 실물에서는 <b className="text-text-primary">10초가 지나면 버튼이 다시 눌립니다</b> —
+                    로딩은 계속 돌되 손이 묶이지 않습니다.
                 </p>
 
                 <h2 className="mt-6 text-[12.5px] font-black tracking-wide text-info mb-2">🌈 콜 색표 — 예전 색과 비교</h2>
