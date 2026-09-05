@@ -53,7 +53,15 @@ function uptime() {
  * "재기동됐는가"를 판별하는 데는 bootedAt 하나면 충분하므로 나머지는 인증 뒤로 옮겼다.
  */
 router.get("/", (_req, res) => {
-    res.json({ ok: true, bootedAt: BOOTED_AT.toISOString(), ...uptime() });
+    /**
+     * 🕐 **`now` 는 관제웹이 「서버 시계」를 맞추는 데 쓴다** (기사님 2026-09-05:
+     *    *"폰 시계가 아니고 서버 시계로 만들어야 해.. 그래야 서버 시간으로 우리가 계산하지."*)
+     *
+     * 🔴 헤더의 시계가 `new Date()` — **폰 시계**였다. 그런데 상차 마감·안전취소 30초는
+     *    **서버 시각**으로 재므로, 폰 시계가 틀어져 있으면 화면과 판정이 갈라진다.
+     * 🔴 인증 뒤(`/detail`)가 아니라 **여기**에 둔다 — 로그인 전에도 맞춰야 한다.
+     */
+    res.json({ ok: true, now: Date.now(), bootedAt: BOOTED_AT.toISOString(), ...uptime() });
 });
 
 /** GET /api/health/detail — 로그인 필요. 배포 진단용 상세 정보 */

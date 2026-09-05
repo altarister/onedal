@@ -4,20 +4,32 @@ import SettingsModal from "../dashboard/SettingsModal";
 import { VehicleLogoSummary } from "../dashboard/VehicleStatusPanel";
 import type { SecuredOrder } from "@onedal/shared";
 import { useTheme } from "../../contexts/ThemeContext";
+import { useServerClock } from "../../hooks/useServerClock";
+import { serverNow, isSynced, isDrifting } from "../../lib/serverClock";
+import { formatClock } from "../../lib/clock";
 import { useSoundManager } from "../../hooks/useSoundManager";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Button } from "../ui/button";
 
 
 export default function Header({ isConnected, liveCalls }: { isConnected: boolean; liveCalls?: SecuredOrder[] }) {
-    const [time, setTime] = useState<Date>(new Date());
+    /**
+     * 🕐 **서버 시계다 — 폰 시계가 아니다** (기사님 2026-09-05:
+     *    *"폰 시계가 아니고 서버 시계로 만들어야 해.. 그래야 서버 시간으로 우리가 계산하지."*)
+     *
+     * 🔴 여기는 **서버 연결 점 바로 옆**이라 «서버가 말한 시각»으로 읽힌다. 그런데
+     *    `new Date()` 였다 — 상차 마감·안전취소 30초는 서버 시각으로 재는데
+     *    폰 시계가 틀어져 있으면 화면과 판정이 갈라지고 **아무 신호가 없었다.**
+     */
+    const clock = useServerClock();
+    const [tick, setTick] = useState(() => Date.now());
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const { user } = useAuth();
     const { toggleTheme } = useTheme();
     const { isRinging, stopAll } = useSoundManager();
 
     useEffect(() => {
-        const timer = setInterval(() => setTime(new Date()), 1000);
+        const timer = setInterval(() => setTick(Date.now()), 1000);
         return () => clearInterval(timer);
     }, []);
 
@@ -66,8 +78,21 @@ export default function Header({ isConnected, liveCalls }: { isConnected: boolea
                         )}
                         <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full shadow-soft ${isConnected ? "bg-surface" : "bg-danger/10"}`}>
                             <span className={`w-1.5 h-1.5 rounded-full ${isConnected ? "bg-success animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.4)]" : "bg-danger"}`} />
+                            {/**
+                              * 🔴 **맞췄는지를 화면이 말한다.** 못 맞췄으면 지금 보이는 것은
+                              *    **폰 시계**이고, 30초 넘게 틀어졌으면 폰 시계가 그만큼 어긋나 있다.
+                              *    말 안 하면 화면이 조용히 거짓말한다.
+                              */}
+                            {isConnected && !isSynced(clock) && (
+                                <span className="text-[10px] font-black text-warning" title="서버 시계를 못 맞췄습니다 — 지금은 폰 시계입니다">📵</span>
+                            )}
+                            {isConnected && isDrifting(clock) && (
+                                <span className="text-[10px] font-black text-warning"
+                                      title={`폰 시계가 서버와 ${Math.round((clock?.offsetMs ?? 0) / 1000)}초 어긋나 있습니다`}>⚠️</span>
+                            )}
                             <span className="text-xs font-mono font-bold text-text-muted tracking-wide">
-                                {isConnected ? (time.toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })) : "연결끊김"}
+                                {/* ⚠️ 포맷은 `lib/clock` 하나에 있다 — 여기서 또 만들면 같은 화면에 두 모양이 뜬다 */}
+                                {isConnected ? formatClock(serverNow(clock, tick)) : "연결끊김"}
                             </span>
                         </div>
 
