@@ -53,7 +53,7 @@ export default function Header({ isConnected, liveCalls }: { isConnected: boolea
 
     return (
         <>
-            <header ref={headerRef} className="sticky top-0 z-20 bg-bg-base/95 backdrop-blur-sm border-b border-border-card px-4 py-2.5">
+            <header ref={headerRef} className="sticky top-0 z-20 bg-bg-base/95 backdrop-blur-sm border-b border-border-card px-3 py-2.5">
                 <div className="flex items-center justify-between max-w-2xl mx-auto">
                     <div className="flex items-center gap-2">
                         {/* 🚚 로고 자리 = 내 차 상황 (기사님 0831: "로고는 테마 전환 역할뿐 — 영역을 아끼자").

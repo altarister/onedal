@@ -61,6 +61,13 @@ interface Props {
      *    시트 높이를 **한 손이 함께** 정해야 한다 — 덱이 혼자 기억하면 둘이 갈린다 (규칙 ③).
      * 🔴 **`-1` 은 «전부 닫힘»이다** — 「나」(타이틀만 보이는 높이)의 정의가 그것이다.
      */
+    /**
+     * 📏 **시트가 «내용만큼» 서는가** (「나」 높이).
+     * 🔴 그때는 `flex-1`(= `flex:1 1 0%`)이 **높이 0 으로 찌부러진다** — 남는 공간이라는
+     *    것이 없기 때문이다. `flex-auto` + 상한이라야 한다 (목업이 찾은 값).
+     * ⚠️ 아코디언이 혼자 짐작하지 않는다 — 높이를 정하는 무대가 알려 준다 (규칙 ③).
+     */
+    fit?: boolean;
     openIdx?: number | null;
     onOpenIdx?: (i: number) => void;
     /**
@@ -79,7 +86,7 @@ interface Props {
     accordion?: boolean;
 }
 
-export default function CallDeck({ orders, renderCard, records, visitOrderMap, timeline, gpsFocus, accordion, callNoOf, openIdx, onOpenIdx }: Props) {
+export default function CallDeck({ orders, renderCard, records, visitOrderMap, timeline, gpsFocus, accordion, callNoOf, openIdx, onOpenIdx, fit }: Props) {
     const trackRef = useRef<HTMLDivElement>(null);
 
     /**
@@ -385,18 +392,20 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
                  * 🪗 **그릇은 시트 높이를 그대로 쓰고 넘치지 않는다** (기사님 확정 09-03).
                  *    넘치면 시트가 통째로 길어져 **헤더도, 맨 아래 판정석도 화면 밖으로 나간다.**
                  */
-                <div className="flex flex-col gap-1.5 px-2.5 pt-1 pb-2.5 overflow-hidden min-h-0 flex-1">
+                <div className={`flex flex-col gap-1.5 px-2.5 pt-1 pb-2.5 overflow-hidden min-h-0 ${fit ? "" : "flex-1"}`}>
                     {orders.map((o, i) => {
                         const open = !noneOpen && i === cur;
                         return (
                         /* 🔴 닫힌 콜은 **자기 높이만**(flex-none) · 펼친 콜이 남는 자리를 다 먹는다 */
-                        <div key={o.id} className={`flex flex-col min-h-0 ${open ? 'flex-1' : 'flex-none'}`}>
+                        <div key={o.id} className={`flex flex-col min-h-0 ${
+                            open ? (fit ? 'flex-auto' : 'flex-1') : 'flex-none'}`}>
                             {rowOf(o, i)}
                             {/* 🔴 접힌 콜도 **마운트한 채** 숨긴다 — 언마운트하면 통화 중 적던
                                 단위·수량이 날아가고 카드가 서버에 단계를 다시 청한다 (버그 대장 #95)
                                 🟢 **잘라 감추지 않고 스크롤한다** — 모자라면 손으로 내려 보는 것이
                                    «없는 것»보다 낫다 (규칙 ④) */}
-                            <div hidden={!open} className="flex-1 min-h-0 mt-1.5 overflow-y-auto">
+                            <div hidden={!open}
+                                 className={`${fit ? 'flex-auto max-h-[46vh]' : 'flex-1 min-h-0'} mt-1.5 overflow-y-auto`}>
                                 {renderCard(o)}
                             </div>
                         </div>

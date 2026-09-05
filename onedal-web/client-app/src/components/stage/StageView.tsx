@@ -58,7 +58,13 @@ export default function StageView(props: Props) {
      * 🪗 **열린 줄** — `-1` 은 «전부 닫힘»이다.
      * 🔴 콜이 없으면 열 것도 없다. 있으면 처음엔 «다음 갈 콜»을 연다 (S3).
      */
-    const [openIdx, setOpenIdx] = useState<number>(0);
+    /**
+     * 🔴 **처음은 «전부 닫힘»(-1)이다** — 「나」의 정의가 그것이다
+     *    (*"목록만큼 보일 때는 콜의 아코디언 제목만 보인다"* · L4).
+     * ⚠️ `0` 으로 두면 **「나」인데 하나가 열려** 남는 자리가 없어 그 카드가
+     *    높이 19px 로 찌부러진다 (2026-09-05 실측). 여는 것은 「다」의 일이다.
+     */
+    const [openIdx, setOpenIdx] = useState<number>(-1);
     const NAVI_KEY = import.meta.env.VITE_KAKAO_JS_KEY as string | undefined;
     const NAVI_ORIGIN = (import.meta.env.VITE_KAKAO_JS_ORIGIN as string | undefined)
         ?? 'https://1dal.altari.com';
@@ -429,6 +435,8 @@ export default function StageView(props: Props) {
                             />
                         ) : undefined}>
                 <PinnedRouteBody {...props} sheetOnly d={derived}
+                    /* 📏 «내용만큼» 서는 판인가 — 아코디언의 높이 문법이 갈린다 */
+                    fit={snap === 'list'}
                     openIdx={openIdx}
                     onOpenIdx={(i) => {
                         /**

@@ -167,9 +167,12 @@ function DeviceRow({
     const isScanFresh = device.filterTallyAt != null && device.filterTallyAt === device.lastSeen;
     const scanSummary = isScanFresh ? summarizeTally(device.filterTally, device.filterTallyAt) : null;
 
+    /* 🧱 **폰 하나가 한 덩어리로 보이게** — 줄이 아니라 **카드**다 (목업 이식 0905).
+       기사님: *"폰이 덩어리감이 없어 한 줄 더보기 하면 어디가 어딘지 모르겠어."*
+       접힌 셋이 열릴 때 **어느 폰의 아랫단인지**가 테두리로 답해진다. */
     return (
-        <div className="flex flex-col border-b border-border last:border-0 py-1 px-1">
-            <div className="flex items-center justify-between hover:bg-surface-alt/30 transition-colors rounded px-1">
+        <div className="flex flex-col rounded-lg border border-border-card bg-surface-alt/30 overflow-hidden mb-1">
+            <div className="flex items-center justify-between hover:bg-surface-hover/30 transition-colors px-2.5 py-1">
                 <div className={`flex items-center gap-2 flex-1 min-w-0`}>
                     {/**
                       * 📱 **폰 이름이 곧 손잡이다** (기사님 2026-09-05: *"⋯ 은 필요없을 것 같다.
@@ -396,7 +399,10 @@ export default function DeviceControlPanel() {
 
     return (
         <div className="border-b border-border-card">
-            <div className="px-4 py-2">
+            {/* 📐 **왼쪽 세로선을 맞춘다** (기사님 2026-09-05: *"타이틀 폰 필터 그리드를 맞춰줘"*).
+                헤더·필터가 12px 에서 시작하는데 여기만 16px 이라 셋이 갈려 있었다 —
+                재서 확인했다 (타이틀 16 · 폰 24 · 필터 12). 목업은 12/19/12 로 맞아 있다. */}
+            <div className="px-3 py-2">
                 <div className="flex flex-col">
                     {devices.length === 0 ? (
                         <div className="text-center text-xs text-text-muted py-4 opacity-80 font-bold tracking-tight">
