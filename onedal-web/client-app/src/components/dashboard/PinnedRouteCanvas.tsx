@@ -9,7 +9,7 @@ import { callNodeFill, callNodeStroke, callNodeText } from '../../styles/callPal
 import {
     TILE_SIZE, TILE_MAX_ZOOM, anchorBaseOf, computeViewport, toScreenPoint, panAfterZoom, pinchStep, mapTileTone, routeLineWidth, viewCoordsFor, effectiveZoom, type MapViewMode,
     type Viewport } from '../../lib/mapProjection';
-import { sheetOccludedPx, type SheetSnap } from '../stage/StageSheet';
+import { occludedPx as occludedOf } from '../../lib/stageLayout';
 
 const sidoData = sidoDataRaw as any; // GeoJSON FeatureCollection
 
@@ -135,12 +135,15 @@ interface Props {
      * (기사님 요청 2026-09-01: *"반쯤 열리면 같이 볼 수 있을 것 같은데"*).
      * 옛 화면은 시트가 없으므로 넘기지 않는다 — 그때는 화면 전체가 지도다.
      */
-    sheetSnap?: SheetSnap;
     /**
-     * 📏 **시트가 실제로 덮는 px** — `list` 는 내용에서 나와 미리 셀 수 없다 (2026-09-05).
-     *    있으면 이 값이 이긴다. 없으면 `sheetSnap` 으로 어림한다.
+     * 🗺️ **아래가 몇 px 가려졌나** (2026-09-05 · 부품 결합을 끊으며 바뀐 이름).
+     *
+     * 🔴 예전에는 `sheetSnap`·`sheetPx` 로 **«시트»를 받았다.** 그러면 지도가
+     *    «시트라는 것이 있고 세 단을 갖는다»를 알게 되어, **시트를 갈아치우는 날
+     *    지도가 함께 깨진다.** 지도가 알아야 할 것은 «아래가 얼마나 가려졌나» 하나다.
+     * ⚠️ 상한(무대의 58%)은 `lib/stageLayout` 이 건다 — 여기서 또 자르지 않는다.
      */
-    sheetPx?: number;
+    occludedPx?: number;
     /**
      * 🌈 **콜 색표로 그린다** (기사님 확정 2026-09-04 · `styles/callPalette.ts`).
      * 색상=콜 · 채도=상차/하차 · 테두리=다녀왔나.
@@ -152,7 +155,7 @@ interface Props {
     rainbowNodes?: boolean;
 }
 
-export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLocation, children, fill, visitedTrail, callColors, onStopTap, drivenTrail, routeHolder, sheetSnap, sheetPx, rainbowNodes }: Props) {
+export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLocation, children, fill, visitedTrail, callColors, onStopTap, drivenTrail, routeHolder, occludedPx, rainbowNodes }: Props) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const { theme } = useTheme();
     const mapColors = MAP_THEME_COLORS[theme];
@@ -229,7 +232,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         }
 
         // 🪟 시트가 덮은 높이 — 목표를 향해 매 프레임 조금씩 좁힌다 (한 번에 튀면 시트와 따로 논다)
-        const occludedTarget = sheetSnap ? sheetOccludedPx(sheetSnap, height, sheetPx) : 0;
+        const occludedTarget = occludedOf(height, occludedPx);
         if (occludedNow.current == null) occludedNow.current = occludedTarget;   // 첫 그림은 제자리에서
         const gap = occludedTarget - occludedNow.current;
         if (Math.abs(gap) > 0.5) {
@@ -586,7 +589,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             ctx.fillStyle = withAlpha(mapColors.textMuted, 0.7);
             ctx.fillText('© OpenStreetMap', width - 4, height - 3);
         }
-    }, [unifiedRoutePoints, liveRoute, myLocation, visitedTrail, drivenTrail, routeHolder, theme, mapColors, sheetSnap, sheetPx, rainbowNodes, viewMode]);
+    }, [unifiedRoutePoints, liveRoute, myLocation, visitedTrail, drivenTrail, routeHolder, theme, mapColors, occludedPx, rainbowNodes, viewMode]);
 
     useEffect(() => {
         drawRef.current = drawMap;   // 늦게 온 타일이 부를 최신 그리기

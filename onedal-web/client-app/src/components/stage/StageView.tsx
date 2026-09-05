@@ -39,6 +39,11 @@ export default function StageView(props: Props) {
     const derived = useRouteDerivations(activeRoute, routeStops, routeComputedAt, routeHolderId);
     const { liveRoute, cycleDeck, unifiedRoutePoints, myLocation, visitOrderMap } = derived;
     const [snap, setSnap] = useState<SheetSnap>('list');
+    /**
+     * 🗺️ **시트가 아래를 몇 px 덮고 있나** — 시트가 재서 알려 준다 (2026-09-05).
+     *    지도는 «시트»를 모르고 이 숫자만 받는다 — 부품끼리 얽히지 않게 (규칙 ③).
+     */
+    const [sheetPx, setSheetPx] = useState(0);
     const { filter, updateFilter } = useFilterConfig();
 
 
@@ -245,7 +250,9 @@ export default function StageView(props: Props) {
                 <PinnedRouteCanvas
                     fill
                     /* 🪟 시트가 올라온 만큼 지도가 위로 비켜 준다 — 반쯤 열면 둘을 같이 본다 (기사님 0901) */
-                    sheetSnap={snap}
+                    /* 🗺️ 지도는 «시트»를 모른다 — **아래가 얼마나 가려졌나**만 받는다
+                       (2026-09-05 · 부품 결합을 끊었다) */
+                    occludedPx={sheetPx}
                     unifiedRoutePoints={unifiedRoutePoints}
                     liveRoute={liveRoute}
                     myLocation={myLocation}
@@ -295,7 +302,8 @@ export default function StageView(props: Props) {
             </div>
 
             {/* 3단 시트 — 내용물은 기존 콜 화면 그대로 (sheetOnly) */}
-            <StageSheet snap={snap} onSnapChange={(s) => feed({ type: 'drag', to: s })} peekBar={peekBar}>
+            <StageSheet snap={snap} onSnapChange={(s) => feed({ type: 'drag', to: s })}
+                        onHeightChange={setSheetPx} peekBar={peekBar}>
                 <PinnedRouteBody {...props} sheetOnly d={derived} />
             </StageSheet>
         </section>

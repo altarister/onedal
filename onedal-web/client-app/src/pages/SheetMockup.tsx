@@ -960,8 +960,8 @@ export default function SheetMockup() {
                         <PinnedRouteCanvas
                             fill
                             /* 🪟 시트가 올라온 만큼 지도가 위로 비켜 준다 — 반쯤 열면 둘을 같이 본다 (기사님 0901) */
-                            sheetSnap={snap}
-                            sheetPx={sheetPx}
+                            /* 🗺️ 지도는 «시트»를 모른다 — **아래가 얼마나 가려졌나**만 받는다 */
+                            occludedPx={sheetPx}
                             rainbowNodes={rainbow}
                             unifiedRoutePoints={remaining}
                             visitedTrail={visited}

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { STAGE_MAX_OCCLUDE_RATIO, STAGE_MAX_OCCLUDE_CSS, occludedPx } from '../../lib/stageLayout';
 
 /**
  * 🪟 **3단 스냅 시트 — 그릇** (화면개편 2단계 · v23 Ⅱ · 기사님 확정 2026-08-31).
@@ -44,8 +45,8 @@ export const SHEET_HEIGHT: Record<SheetSnap, string> = {
  *    «시트가 덮는 높이»와 «지도가 비켜 주는 높이»가 안 갈라진다 (규칙 ③).
  * ⚠️ 「다」는 «다 쓴다»가 정의라 100% 그대로다 — 상한은 「나」에만 건다.
  */
-export const SHEET_MAX_RATIO = 0.58;
-export const SHEET_LIST_MAX = `${SHEET_MAX_RATIO * 100}%`;
+export const SHEET_MAX_RATIO = STAGE_MAX_OCCLUDE_RATIO;
+export const SHEET_LIST_MAX = STAGE_MAX_OCCLUDE_CSS;
 
 /** 📏 `list` 는 내용에서 나오므로 미리 셀 수 없다 — 잴 수 있는 것만 여기서 답한다 */
 export const SHEET_FIXED_HEIGHT: Partial<Record<SheetSnap, string>> = {
@@ -66,11 +67,11 @@ export const SHEET_FIXED_HEIGHT: Partial<Record<SheetSnap, string>> = {
  *    제자리에 있어 튀지 않는다** — 내려오는 순간이 기사님이 지도를 다시 보는 순간이다.
  */
 export function sheetOccludedPx(snap: SheetSnap, stageHeight: number, measuredPx?: number): number {
-    /* 📏 **잰 값이 있으면 그것이 이긴다** — `list` 는 내용에서 나와 미리 셀 수 없다 (2026-09-05) */
-    if (measuredPx != null && measuredPx > 0) return Math.min(measuredPx, stageHeight * SHEET_MAX_RATIO);
+    /* 📏 셈은 `lib/stageLayout` 하나에 있다 — 지도도 **거기를** 본다 (규칙 ③) */
     const raw = SHEET_FIXED_HEIGHT[snap === 'full' ? 'peek' : snap] ?? SHEET_LIST_MAX;
     const n = parseFloat(raw);
-    return raw.endsWith('%') ? stageHeight * n / 100 : n;
+    const fallback = raw.endsWith('%') ? stageHeight * n / 100 : n;
+    return occludedPx(stageHeight, measuredPx, fallback);
 }
 
 interface Props {
