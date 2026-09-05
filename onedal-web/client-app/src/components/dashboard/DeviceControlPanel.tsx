@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useDevices } from "../../hooks/useDevices";
 import type { DeviceSession, DeviceModeType } from "@onedal/shared";
-import { isDeviceBlind, DEVICE_MODES, DEVICE_MODE_LABEL, deviceScreenBadge, workStageLabel, isModeApplying } from "@onedal/shared";
+import { isDeviceBlind, DEVICE_MODES, DEVICE_MODE_LABEL, deviceScreenBadge, workStageLabel, isModeApplying, isDeviceQuiet } from "@onedal/shared";
 import { useSystemAlerts } from "../../hooks/useSystemAlerts";
 import type { EmergencyAlert, SafeCancelWarning, FilterPassAlarm } from "../../hooks/useSystemAlerts";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
@@ -206,6 +206,19 @@ function DeviceRow({
                         숫자만 있으면 "지금 그런 것"과 "아까 그러고 멈춘 것"이 똑같이 보인다. */}
                     <div className="flex items-center gap-1 text-[11.5px] text-text-muted font-medium ml-1 truncate tabular-nums">
                         {lastSeenAt && <span className="opacity-70">{lastSeenAt}</span>}
+                        {/**
+                          * ⏱️ **조용할 때만 붙는다** (기사님 확정 2026-09-05:
+                          *    *"조용한가는 조용할 때만 나오면 될 것 같고"*).
+                          *
+                          * 🔴 **`👀`(잘 돈다)는 안 그린다.** 잘 돌 때 자리를 쓰면 이상할 때가
+                          *    눈에 안 띈다 — 폰 한 줄은 56칸뿐이다.
+                          * 🔴 **화면이 꺼져 있어도 그린다** — 최대 60초를 기다려야 하는 것이
+                          *    바로 그때다 (폰_상태바.md ④).
+                          * 🔴 판정은 `isDeviceQuiet` **하나**에서 온다 — 여기서 다시 세지 않는다.
+                          */}
+                        {isDeviceQuiet(device.prevSeen, device.lastSeen) && (
+                            <span title="30초 넘게 말이 없습니다">⏱️</span>
+                        )}
                         <span>
                             (수집:{device.stats.polled} 수락:{device.stats.grabbed} 취소:{device.stats.canceled}
                             {/* 👁️ 지금 훑고 있을 때만 뒤에 붙는다 — 낡으면 이 조각째로 사라진다.

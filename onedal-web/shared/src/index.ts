@@ -1259,6 +1259,33 @@ export interface ScrapResponse {
     dispatchEngineArgs?: AutoDispatchFilter;
 }
 
+/**
+ * ⏱️ **폰이 조용한가** — 직전 보고와 이번 보고 사이가 이만큼 벌어졌나.
+ *
+ * 🔴 값 **30초** (기사님 확정 2026-09-02). 지어낸 값이 아니라 **생존신고 60초의 절반**이다 —
+ *    앱은 일이 생기면 그때 보내고(수초) 아무 일도 없으면 60초마다 보내므로,
+ *    간격이 그 중간값으로 나오는 일이 **거의 없다.** 그래서 30초가 둘을 가장 잘 가른다.
+ */
+export const DEVICE_QUIET_MS = 30_000;
+
+/**
+ * ⏱️ **판정은 여기 하나다** (규칙 ⑤-4 ⑤ — 읽는 곳이 둘이면 각자 다른 질문을 답한다).
+ *
+ * 🔴 이 함수는 **2026-09-05 까지 없었다.** 폰_상태바.md 는 ✅ 로 적어 뒀고
+ *    `devices.ts` 주석은 *"판정은 `isDeviceQuiet` 하나"* 라며 **없는 이름을 가리켰다** —
+ *    「계획을 완료로 적는」 사고의 다섯 번째다.
+ *
+ * 🔴 **첫 보고(모름)를 «조용»으로 세지 않는다** (규칙 ④). 모르는 것과 조용한 것은
+ *    다르다 — 방금 켠 폰에 «말이 없다»고 적으면 그것이 곧 거짓말이다.
+ *
+ * ⚠️ 읽는 곳은 **관제웹의 `⏱️` 배지 하나뿐**이다. 서버 판정도 앱도 안 읽는다 —
+ *    «콜을 줄까»를 이걸로 정하기 시작하면 한 값이 두 사실을 답하게 된다.
+ */
+export function isDeviceQuiet(prevSeen: number | undefined, lastSeen: number): boolean {
+    if (prevSeen === undefined) return false;   // 첫 보고 — 모른다
+    return lastSeen - prevSeen > DEVICE_QUIET_MS;
+}
+
 export interface DeviceSession {
     deviceId: string;
     deviceName?: string;    // 기기 별명 (PIN 페어링 시 등록, 예: "메인폰", "서브폰")
