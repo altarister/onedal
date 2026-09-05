@@ -72,6 +72,8 @@ function DeviceRow({
      */
     const applying = isModeApplying(device);
     const [applyingSince, setApplyingSince] = useState<number | null>(null);
+    /** 🎛️ 모드 고르는 레이어가 열렸나 — **폰마다 하나씩**이라 여기(줄 안)에 산다 */
+    const [modeOpen, setModeOpen] = useState(false);
     const [now, setNow] = useState(() => Date.now());
     useEffect(() => {
         setApplyingSince(prev => (applying ? (prev ?? Date.now()) : null));
@@ -254,28 +256,51 @@ function DeviceRow({
                   *
                   * 색은 판정 색(🔵🟢🟡🔴)과 겨루지 않는다 — 켜진 것만 진하게 (규칙 ⑤-3).
                   */}
-                <div className="shrink-0 ml-2 flex items-center gap-0.5">
-                    {DEVICE_MODES.map(m => (
-                        <Button
-                            key={m}
-                            variant="outline"
-                            size="sm"
-                            disabled={buttonsLocked}
-                            onClick={() => onModeChange(device.deviceId, m)}
-                            className={`h-6 px-1.5 text-[10px] font-black transition-colors ${device.mode === m
-                                ? (m === "AUTO" ? "bg-success/20 text-success border-success/40"
-                                    : m === "ALARM" ? "bg-info/20 text-info border-info/40"
-                                        : "bg-warning/20 text-warning border-warning/40")
-                                : "bg-transparent text-text-muted border-border opacity-50 hover:opacity-100"
-                                } ${applying ? "opacity-40" : ""}`}
-                        >
-                            {DEVICE_MODE_LABEL[m]}
-                        </Button>
-                    ))}
-                    {/* 🎛️ 누른 것이 아직 폰에 안 닿았다 — **사실만** 적는다 («반영 안 됨»은 거짓말이 될 수 있다) */}
+                {/**
+                  * 🎛️ **모드는 지금 것 하나만 보인다 — 누르면 셋이 펼쳐진다** (목업 이식 0905).
+                  *
+                  * 🔴 셋을 늘 늘어놓으니 **한 줄의 절반을 모드가 먹었다.** 달리면서 읽을 것은
+                  *    «지금 뭘 하고 있나» 하나이고, 바꾸는 일은 **정차했을 때** 한다.
+                  * 🔴 **펼침은 왼쪽으로 자란다** — 오른쪽으로 열면 화면 밖으로 나간다
+                  *    (기사님이 잡아 주신 것: *"순서를 바꿔서 왼쪽 정렬하면 될 것 같은데"*).
+                  *    그래서 **고른 것을 맨 뒤에** 두고 나머지를 앞에 붙인다 — 제자리에서 편다.
+                  * ⚠️ 누른 것이 아직 폰에 안 닿았으면 **돌아가는 표시**로 말한다 —
+                  *    «반영 안 됨»이라고 적으면 거짓말이 될 수 있다 (왕복이라 앱이 가져가야 참이다).
+                  */}
+                <div className="shrink-0 ml-2 relative">
+                    <button type="button" disabled={buttonsLocked}
+                        /* ⏱️ «마지막 통신 N초 전»은 화면에서 뺐다 — 줄이 좁다.
+                           진단에 필요한 값이라 **버리지 않고** 손댈 때 보이게 둔다 */
+                        title={applying
+                            ? `적용중${lastHeardSec != null ? ` · 마지막 통신 ${lastHeardSec}초 전` : ''}`
+                            : '모드를 바꾸려면 누릅니다'}
+                        onClick={() => setModeOpen(v => !v)}
+                        className={`w-[48px] py-0.5 rounded-md text-[13px] font-black border transition-opacity ${
+                            applying ? 'opacity-40' : ''
+                        } ${device.mode === 'AUTO' ? 'bg-success/20 text-success border-success/40'
+                            : device.mode === 'ALARM' ? 'bg-info/20 text-info border-info/40'
+                            : 'bg-warning/20 text-warning border-warning/40'}`}>
+                        {DEVICE_MODE_LABEL[device.mode]}
+                    </button>
                     {applying && (
-                        <span className="ml-1 text-[10px] font-black text-warning tabular-nums whitespace-nowrap">
-                            적용중{lastHeardSec != null && ` · 마지막 통신 ${lastHeardSec}초 전`}
+                        <span className="absolute inset-0 grid place-items-center pointer-events-none">
+                            <span className="w-3.5 h-3.5 rounded-full border-2 border-warning/30 border-t-warning animate-spin" />
+                        </span>
+                    )}
+                    {modeOpen && (
+                        <span style={{ right: -5 }}
+                            className="absolute top-1/2 -translate-y-1/2 z-30 flex gap-1 p-1 rounded-lg
+                                       bg-surface border border-border shadow-lg">
+                            {[...DEVICE_MODES.filter(m => m !== device.mode), device.mode].map(m => (
+                                <button key={m} type="button"
+                                    onClick={() => { setModeOpen(false); onModeChange(device.deviceId, m); }}
+                                    className={`w-[48px] py-0.5 rounded-md text-[13px] font-black border whitespace-nowrap ${
+                                        m === device.mode
+                                            ? 'bg-warning/15 border-warning/45 text-warning'
+                                            : 'bg-surface-alt/40 border-border-card text-text-primary hover:border-warning/45'}`}>
+                                    {DEVICE_MODE_LABEL[m]}
+                                </button>
+                            ))}
                         </span>
                     )}
                 </div>
