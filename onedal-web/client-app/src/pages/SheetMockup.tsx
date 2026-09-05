@@ -729,7 +729,36 @@ export default function SheetMockup() {
     const qrOpen = step ? (step.qr != null && qrReady) : qrOpenRaw;
     const setQrOpen = (v: boolean) => { if (!step) setQrOpenRaw(v); };
 
+    /**
+     * 🖥️ **지금 화면이 어떤 상태인가 — 한 곳에서 만든다** (2026-09-05 · 규칙 ③)
+     *
+     * 🔴 **무엇이 엉켜 있었나** (기사님: *"뭘 고치면 뭐가 안 되고… 구조적으로 뭐가
+     *    문제인지 봐 달라"*). 화면 조각들이 «심사 중인가»를 **각자 짐작**하고 있었다:
+     *
+     *    | 상태바   | 정거장이 없다 → 「이번 사이클 끝」   | ❌ 심사 중인데 |
+     *    | 빈 상태  | 콜이 0 → 「아직 잡은 콜이 없습니다」 | ❌ 판정이 떠 있는데 |
+     *    | QR 경고  | 목적지가 없다 → 「키를 확인하세요」  | ❌ 키는 멀쩡한데 |
+     *    | 판정     | `step.seat` 를 본다                | ✅ 혼자만 안다 |
+     *
+     *    조각마다 «없다»의 뜻이 달랐고, 하나를 고치면 다른 하나가 틀렸다.
+     *    **사실을 여기서 한 번 정하고 모두가 그것을 읽는다.**
+     */
+    const screen = {
+        /** 🪧 심사석에 콜이 올라와 있나 */
+        judging: !!step?.seat,
+        /** 📋 이미 잡은 콜 수 */
+        held: CALLS.length,
+        /** 💤 **정말 아무 일도 없나** — 잡은 것도 없고 심사 중도 아니다 */
+        idle: CALLS.length === 0 && !step?.seat,
+        /** 🔑 카카오 키가 있나 — «갈 곳이 없다»와 다른 사실이다 */
+        hasNaviKey: !!NAVI_KEY,
+    };
+
     const bar = sheetStatus({
+        /* 🔴 «없다»의 두 뜻을 갈라 넘긴다 — 안 넘기면 상태바가 「이번 사이클 끝」이라
+           말한다 (갈 곳이 없으니). 대기와 심사는 «끝»이 아니다. */
+        idle: screen.idle,
+        judging: screen.judging,
         moving,   // 🔴 조작판의 국면에서 온다 — 실물은 GPS 가 말한다
         next: nextStop ? {
             visitNo: nextStop.no!, name: nextStop.name, callNo: nextStop.callNo,
@@ -1068,7 +1097,9 @@ export default function SheetMockup() {
                             )}
 
                             {/* 🔴 키가 없으면 **버튼을 아예 안 보인다** — 깨진 QR 을 띄우느니 없는 게 낫다 (규칙 ④) */}
-                            {!qrReady && (
+                            {/* 🔴 **«키가 없다»와 «갈 곳이 없다»는 다른 사실이다.**
+                                갈 곳이 없을 때까지 이 경고를 띄우면 멀쩡한 키를 의심하게 된다. */}
+                            {!screen.hasNaviKey && (
                                 <div className="absolute right-3 z-10 rounded-xl bg-warning/15 border border-warning/40 px-3 py-2
                                                 text-[11px] font-bold text-warning leading-snug max-w-[190px]"
                                      style={{ bottom: aboveSheetPx }}>
@@ -1187,14 +1218,11 @@ export default function SheetMockup() {
                               * 🔴 «기다리는 중»이라고 적는 것이 중요하다 — 빈 화면은 «고장»과
                               *    «일이 없음»을 구별해 주지 않는다.
                               */}
-                            {CALLS.length === 0 && (
-                                <div className="shrink-0 py-7 grid place-items-center text-center px-6">
-                                    <div>
-                                        <p className="text-[13px] font-black text-text-primary">아직 잡은 콜이 없습니다</p>
-                                        <p className="mt-1 text-[12px] font-semibold text-text-muted leading-snug">
-                                            필터에 맞는 콜이 오면 여기 쌓입니다 —<br />지금은 지도를 넓게 보시면 됩니다
-                                        </p>
-                                    </div>
+                            {/* 🔴 **시트에 뭐라도 있으면 사라진다** (기사님 2026-09-05).
+                                판정이 떠 있는데 «없습니다»라고 하면 화면이 거짓말을 한다. */}
+                            {screen.idle && (
+                                <div className="shrink-0 py-6 text-center text-[13px] font-black text-text-muted">
+                                    아직 잡은 콜이 없습니다
                                 </div>
                             )}
                             {CALLS.map((call, i) => (
@@ -1337,6 +1365,10 @@ export default function SheetMockup() {
                     ] as const).map(([k, t, why]) => (
                         <button key={k} type="button"
                             onClick={() => {
+                                /* 🔴 **시나리오를 끈다** — 켜져 있으면 국면을 시나리오가 정해
+                                   (`moving = step.phase === '주행'`) 이 버튼이 **먹통이었다.**
+                                   판 버튼과 같은 이유다 — 한 축을 두 곳에서 정하지 않는다 (규칙 ③) */
+                                setStepNo(null); setPlaying(false);
                                 setScene(k);
                                 /* 🔴 «출발»은 **QR 을 찍는 순간**이다 — 결재를 마치고 나서면서
                                    관제폰이 QR 을 띄우고 개인폰 카메라로 찍는다 (경로.md §4-0-1).
@@ -1376,7 +1408,9 @@ export default function SheetMockup() {
                         누르는 목적이 «그 구간을 보는 것»이니 이름도 그렇게 불러야 한다 */}
                     {plan.stops.slice(0, -1).map((st, i) => (
                         <button key={st.no} type="button"
-                            onClick={() => { setVisitedCount(i + 1); setLog(`「현구간」은 ${st.no}~${plan.stops[i + 1]!.no} — ${st.name} → ${plan.stops[i + 1]!.name} 입니다.`); }}
+                            /* 🔴 시나리오가 켜져 있으면 «다녀온 곳»도 시나리오가 정한다 —
+                               끄지 않으면 이 버튼이 먹통이다 (규칙 ③) */
+                            onClick={() => { setStepNo(null); setPlaying(false); setVisitedCount(i + 1); setLog(`「현구간」은 ${st.no}~${plan.stops[i + 1]!.no} — ${st.name} → ${plan.stops[i + 1]!.name} 입니다.`); }}
                             className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${safeVisited === i + 1
                                 ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-surface text-text-primary hover:border-info'}`}>
                             {st.no}~{plan.stops[i + 1]!.no} {st.name}
