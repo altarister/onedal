@@ -74,6 +74,12 @@ function DeviceRow({
     const [applyingSince, setApplyingSince] = useState<number | null>(null);
     /** 🎛️ 모드 고르는 레이어가 열렸나 — **폰마다 하나씩**이라 여기(줄 안)에 산다 */
     const [modeOpen, setModeOpen] = useState(false);
+    /**
+     * 📂 **접힌 셋** — 작업 단계 · 누적(수집·수락) · 취소 한도 · 버전.
+     * 🔴 넷 다 **달리면서 볼 것이 아니다.** 줄에 늘어놓으면 «지금 뭘 하고 있나»가 묻힌다
+     *    (기사님 목업: 115칸 → 41칸). 폰 이름을 누르면 그 폰 카드 안에서 열린다.
+     */
+    const [more, setMore] = useState(false);
     const [now, setNow] = useState(() => Date.now());
     useEffect(() => {
         setApplyingSince(prev => (applying ? (prev ?? Date.now()) : null));
@@ -165,15 +171,17 @@ function DeviceRow({
         <div className="flex flex-col border-b border-border last:border-0 py-1 px-1">
             <div className="flex items-center justify-between hover:bg-surface-alt/30 transition-colors rounded px-1">
                 <div className={`flex items-center gap-2 flex-1 min-w-0`}>
-                    <span className={`font-black text-[12px] px-1.5 rounded truncate shrink-0 ${isDisconnected ? 'bg-danger/20 text-danger animate-pulse' : 'text-success'}`}>
+                    {/**
+                      * 📱 **폰 이름이 곧 손잡이다** (기사님 2026-09-05: *"⋯ 은 필요없을 것 같다.
+                      *    공간을 아껴야 해"*). 누르면 **접힌 셋**이 그 폰 카드 안에서 열린다.
+                      */}
+                    <button type="button" onClick={() => setMore(v => !v)}
+                        title="누르면 작업 단계·누적·취소 한도·버전이 열립니다"
+                        className={`font-black text-[12px] px-1.5 rounded truncate shrink-0 ${
+                            isDisconnected ? 'bg-danger/20 text-danger animate-pulse' : 'text-success'
+                        } ${more ? 'underline underline-offset-2' : ''}`}>
                         {device.deviceName || device.deviceId.slice(0, 8)}
-                    </span>
-                    {/* 📦 고친 것이 이 폰에 실제로 들어갔나 — 칸은 예전부터 있었는데 아무도 안 채웠다 */}
-                    {!isDisconnected && device.version && (
-                        <span className="text-[10px] text-text-muted opacity-70 shrink-0 tabular-nums">
-                            {device.version}
-                        </span>
-                    )}
+                    </button>
                     {/* 🌐 배차망 + 화면 + 화면 꺼짐을 한 배지로 — «인성 콜리스트» · «💤 화면 꺼짐».
                         화면이 꺼진 폰의 화면명은 «아까 그것»이라 함께 그리지 않는다 (포함 관계 · 규칙 ⑤-4 ④). */}
                     {screenBadge && (
@@ -191,11 +199,6 @@ function DeviceRow({
                     )}
                     {/* 🚦 앱이 지금 무슨 일을 하는 중인가 — «어디서 멈췄나»가 이 한 칸에서 보인다.
                         구앱은 안 보내므로 아무것도 안 그린다 (규칙 ④). */}
-                    {!isDisconnected && stageLabel && (
-                        <Badge variant="outline" className="text-[11.5px] font-bold px-1.5 py-0 shrink-0 bg-surface-alt text-text-muted border-border">
-                            {stageLabel}
-                        </Badge>
-                    )}
                     {/* 👁️ 화면은 켜져 있는데 접근성이 막혀 못 읽는다 — 연결됐다고 읽고 있는 건 아니다.
                         기사님 확정: "접근성 스크래핑이 꺼진 건지, 화면이 꺼진 건지 구분이 되면 더 좋고." */}
                     {isBlind && !isDisconnected && device.isScreenOn !== false && (
@@ -207,7 +210,13 @@ function DeviceRow({
                         기사님: *"`20:39:13(수집:16 수락:3 취소:1)` 이렇게 표시하면 한 줄로 나올 듯."*
                         숫자만 있으면 "지금 그런 것"과 "아까 그러고 멈춘 것"이 똑같이 보인다. */}
                     <div className="flex items-center gap-1 text-[11.5px] text-text-muted font-medium ml-1 truncate tabular-nums">
-                        {lastSeenAt && <span className="opacity-70">{lastSeenAt}</span>}
+                        {/* 🕐 **분까지만** 적는다 (목업 0905) — 초는 달리면서 쓸모가 없다.
+                            ⚠️ 버리지는 않는다 — 손대면 초까지 보인다 (진단에 쓴다) */}
+                        {lastSeenAt && (
+                            <span className="opacity-70" title={`마지막 보고 ${lastSeenAt}`}>
+                                {lastSeenAt.slice(0, 5)}
+                            </span>
+                        )}
                         {/**
                           * ⏱️ **조용할 때만 붙는다** (기사님 확정 2026-09-05:
                           *    *"조용한가는 조용할 때만 나오면 될 것 같고"*).
@@ -221,29 +230,23 @@ function DeviceRow({
                         {isDeviceQuiet(device.prevSeen, device.lastSeen) && (
                             <span title="30초 넘게 말이 없습니다">⏱️</span>
                         )}
-                        <span>
-                            (수집:{device.stats.polled} 수락:{device.stats.grabbed} 취소:{device.stats.canceled}
-                            {/* 👁️ 지금 훑고 있을 때만 뒤에 붙는다 — 낡으면 이 조각째로 사라진다.
-                                통과 0 이면 굵은 주황. 잘 돌 때는 조용해야 아무도 안 지나친다. */}
-                            {scanSummary && (
-                                <span className={scanSummary.passed === 0 ? 'text-warning font-bold' : ''}>
-                                    <span className="mx-1 opacity-40">·</span>
-                                    {/**
-                                      * 🔴 **새 낱말을 만들지 않고 풀어쓴다** (기사님 확정 2026-08-30).
-                                      *
-                                      * 예전에는 `훑음 8→2` 였다. 기사님: *"이거가 뭐고 어디서 볼 수 있어?
-                                      * 우리 용어집에 담아야 해? 내가 모르는 단어인데?"* — 화면에 있는 말인데
-                                      * **용어집에 없었고 확정을 받은 적도 없었다.**
-                                      *
-                                      * 기사님 확정: *"그렇게 쓰면 용어집에 올릴 필요도 없어."*
-                                      * → 일상어로 적으면 **등재할 것이 없고, 처음 보는 사람도 안 물어본다.**
-                                      */}
-                                    본 {scanSummary.seen} · 통과 {scanSummary.passed}
-                                    {/* 가장 많이 걸린 축 하나만 — 무엇을 풀어야 하는지가 그 한 칸에 있다 */}
-                                    {scanSummary.rejects[0] && ` ${scanSummary.rejects[0][0]}${scanSummary.rejects[0][1]}`}
-                                </span>
-                            )})
-                        </span>
+                        {/**
+                          * 👁️ **성적표는 «막혔을 때만» 줄에 뜬다** (목업 이식 2026-09-05).
+                          *
+                          * 🔴 누적(수집·수락·취소)은 **달리면서 볼 것이 아니다** — 폰 이름을
+                          *    누르면 열리는 접힌 셋으로 내렸다. 줄에 늘 있으면 «지금 뭘 하고
+                          *    있나»가 그 숫자에 묻힌다 (기사님 목업: 115칸 → 41칸).
+                          * 🟢 **통과가 0 이면 다르다** — 그건 «콜이 안 잡히고 있다»는 신호이고,
+                          *    무엇에 걸렸는지(가장 많이 걸린 축 하나)가 곧 풀 열쇠다.
+                          *    잘 돌 때는 조용해야 아무도 안 지나친다.
+                          * ⚠️ 낱말을 만들지 않고 풀어쓴다 (기사님 확정 2026-08-30 — «훑음 8→2» 폐기).
+                          */}
+                        {scanSummary && scanSummary.passed === 0 && (
+                            <span className="text-warning font-bold truncate">
+                                본 {scanSummary.seen} · 통과 0
+                                {scanSummary.rejects[0] && ` ${scanSummary.rejects[0][0]}${scanSummary.rejects[0][1]}`}
+                            </span>
+                        )}
                     </div>
                 </div>
                 {/**
@@ -305,6 +308,31 @@ function DeviceRow({
                     )}
                 </div>
             </div>
+            {/**
+              * 📂 **접힌 셋 — 폰 이름을 눌러야 열린다** (목업 이식 2026-09-05).
+              *
+              * 🔴 넷 다 **달리면서 볼 것이 아니다** — 작업 단계 · 누적 · 취소 한도 · 버전.
+              *    줄에 늘어놓으니 «지금 뭘 하고 있나»가 묻혔다 (115칸 → 41칸).
+              * 🔴 **빌드 번호 자리에 «취소 N»을 넣는다** — 빌드는 하루에 한 번 볼까 말까고,
+              *    취소는 **한도가 있는 값**이라 남은 판을 알아야 한다 (기사님 2026-09-05).
+              * 🟢 **그 폰 카드 안**에 편다 — 선 하나로 «같은 폰의 아랫단»임을 말한다.
+              */}
+            {more && (
+                <div className="flex items-center gap-2 px-2.5 py-1 mt-1 border-t border-border-card
+                                bg-surface/40 text-[12px] text-text-muted tabular-nums flex-wrap">
+                    {stageLabel && (
+                        <span className="px-1.5 rounded border border-border bg-surface-alt font-bold">{stageLabel}</span>
+                    )}
+                    <span>수집{device.stats.polled} 수락{device.stats.grabbed}</span>
+                    <span className={`px-1.5 rounded border font-extrabold ${
+                        device.stats.canceled > 0
+                            ? 'border-warning/40 bg-warning/10 text-warning'
+                            : 'border-border bg-surface-alt'}`}>
+                        취소 {device.stats.canceled}
+                    </span>
+                    {device.version && <span className="opacity-70">{device.version}</span>}
+                </div>
+            )}
 
             {/**
               * 🔔 **알람 — «지금 인성 리스트에서 누르십시오»** (기사님 확정 2026-08-30).
