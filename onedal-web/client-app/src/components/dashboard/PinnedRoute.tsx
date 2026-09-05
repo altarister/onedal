@@ -321,17 +321,11 @@ export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDe
             {/* 최소 출발 시각 카운트다운 — 그 남은 시간이 곧 **대기 예산**이다.
                 기사님: *"첫 콜을 잡았다면 최소 출발 시간이 카운트다운하면 좋을 듯하다."* */}
             {/**
-              * 🚫 **출발 카운트다운을 무대에서 잠시 내렸다** (기사님 2026-09-05).
-              *
-              * 🔴 **지운 것이 아니다.** 목업 시트는 «상태바 + 콜 줄 + (판정)» 셋뿐인데
-              *    이 카드가 **시트의 3분의 1**을 먹어, 펼친 판이 292px 밖에 못 받았다.
-              *    그래서 스텝이 자리를 못 얻고 **본문이 통째로 스크롤**됐다.
-              * ⚠️ **되돌릴 자리다** — *"첫 콜을 잡았다면 최소 출발 시간이 카운트다운하면
-              *    좋을 듯하다"*(기사님)는 값이다. 상태바에 한 줄로 넣을지 정하면 되살린다.
-              * 🟢 옛 화면에는 그대로 있다 — 거기는 자리가 넉넉하다.
+              * 🚩 **출발 카운트다운 — 시트 맨 위** (기사님 2026-09-05 «상단으로 이동»).
+              *    *"첫 콜을 잡았다면 최소 출발 시간이 카운트다운하면 좋을 듯하다"* 는 값이라
+              *    콜 목록보다 **먼저** 읽힌다. 자리가 모자라면 아래가 스크롤한다.
               */}
-            {!sheetOnly && view === 'ACTIVE' && liveRoute.length > 0 && (
-                <DepartureCountdown orders={liveRoute} records={stepRecords}
+            {view === 'ACTIVE' && liveRoute.length > 0 && (                <DepartureCountdown orders={liveRoute} records={stepRecords}
                     routeStops={routeStops} routeComputedAt={routeComputedAt} />
             )}
 

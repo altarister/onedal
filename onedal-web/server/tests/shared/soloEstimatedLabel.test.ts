@@ -70,9 +70,15 @@ describe('규칙: 콜 카드가 실측/추정과 하차 마감을 접지 않고 
     });
 
     it('🔴 판정 근거 서랍(details) 안으로 접어 넣지 않는다', () => {
+        /**
+         * 🔴 **성질을 본다** — «서랍 **안**에 있나»다. 파일 안 거리로 재면 자리를 옮길 때마다
+         *    깨진다 (2026-09-05 에 셋을 위 덩어리로 올리며 그랬다).
+         */
         const line = codeOnly.indexOf('🚚 배송 주행');
-        const drawer = codeOnly.indexOf('판정 근거 · 원본 데이터');
         expect(line).toBeGreaterThan(0);
-        expect(line).toBeLessThan(drawer);   // 서랍보다 앞 = 펼치지 않아도 보인다
+        const open = codeOnly.indexOf('<details', codeOnly.indexOf('판정 근거 · 원본 데이터') - 600);
+        const close = codeOnly.indexOf('</details>', open);
+        const 서랍안 = open > 0 && line > open && line < close;
+        expect(서랍안).toBe(false);          // 펼치지 않아도 보인다
     });
 });

@@ -30,32 +30,10 @@ export interface EtaCell {
     pickupShift?: number; dropoffShift?: number;
 }
 
-/**
- * 🚫 **「이 콜 처리」(방출 · 사무실 취소)를 잠시 내렸다** (기사님 2026-09-05).
- *
- * 기사님: *"취소를 주석 처리하고 콜의 내용 부분 요소를 목업과 똑같이 만들어 주고
- * 하단 스텝도 똑같이 스타일을 적용해 주면 될 것 같아."*
- *
- * 🔴 **지운 것이 아니다.** 카드는 «위 덩어리 + 스텝» 둘로 서야 하는데 스텝 **아래에**
- *    이 서랍이 붙어 카드가 길어졌고, 그래서 **스크롤 막대가 두 개**로 보였다.
- * ⚠️ **되돌릴 자리다** — 사무실 취소는 기사님이 실제로 쓰시는 길이다
- *    (규칙 ① — 콜의 주인은 기사님이다). 자리를 정하면 이 값을 `true` 로 되돌린다.
- */
-const SHOW_ORDER_ACTIONS = false as boolean;
-
-/**
- * 🚫 **「배송 주행 · 하차 마감」과 「판정 근거 · 원본 데이터」를 잠시 내렸다**
- *    (기사님 2026-09-05: *"판정근거·원본데이터 이것도 모두 주석처리 해줘.
- *    아코디언 컨텐츠 부분의 엘리먼트를 목업과 같이 만들고 같지 않은 것들은 주석처리 하고
- *    스타일만 가져오면 일단 같게 작동시킬 수 있지 않을까?"*).
- *
- * 🔴 **지운 것이 아니다.** 목업의 위 덩어리는 넷이다 — 한 줄 · 시늉 · 칩(짐+버퍼) · 적요.
- *    이 둘은 그 밖이라 카드를 늘렸고, 스텝이 자리를 못 받아 **본문이 통째로 스크롤**됐다.
- * ⚠️ **되돌릴 자리다** — 하차 마감은 *"독촉 전화가 오면 카카오를 근거로 대응"* 하시는 값이고
- *    (기사님 확정 2026-09-01), 판정 근거는 *"왜 똥콜이고 꿀콜인지 최대한 보여 줘야 한다"*
- *    (0831)는 자리다. 어디에 둘지 정하면 `true` 로 되돌린다.
- */
-const SHOW_CARD_EVIDENCE = false as boolean;
+/* 🔼 **2026-09-05 — 내렸던 셋을 «위 덩어리»로 올려 되살렸다** (기사님 지시).
+   「이 콜 처리」(방출·사무실 취소) · 「배송 주행 · 하차 마감」 · 「판정 근거 · 원본 데이터」.
+   🔴 문제는 «있다/없다»가 아니라 **자리**였다 — 스텝 **아래**에 있어 카드가 셋으로 서고
+      스크롤 막대가 두 개가 됐다. 위 덩어리 안으로 오니 콜을 설명하는 값들끼리 모인다. */
 
 /* 🏗️ **`PromiseLines`(상차·하차 약속 줄)는 2026-09-05 에 철거했다.**
    기사님: *"타이틀하고 중복인 것 같은데 이걸 지우고 타이틀에 다 표현할 수 있지?"*
@@ -719,10 +697,10 @@ export default function PinnedRouteCard({
                                         저장된 단계 행만 그린다 — 화면에는 계산이 없다 (규칙 ③).
                                         🔴 KEEP 뒤에만 보인다 — 그 전에는 `orders` 에 행이 없어 FK 가 걸린다. */}
                                     {!isEvaluating(route.status) && (
-                                    /* 📏 **아래 덩어리 — 스텝**. 남는 자리를 먹되 최소 220px 은
-                                       지킨다 (목업). 그 안에서 장이 스스로 스크롤한다 */
+                                    /* 📏 이 상자는 «위 덩어리 + 스텝»을 함께 담는다 —
+                                       **최소 높이는 스텝 것**이라 여기 두면 위 덩어리가 그 몫을 먹는다 */
                                     <div onClick={e => e.stopPropagation()}
-                                         className={isDeck ? 'flex-1 min-h-[220px] flex flex-col' : ''}>
+                                         className={isDeck ? 'flex-1 min-h-0 flex flex-col' : ''}>
                                         {/* 💰 **예산 줄** (기사님 모델 2026-08-20) — `여유 = 약속 − 지금 예상`.
                                             약속은 통화로만 굳고, 합짐이 붙으면 예상만 민다. 그래서 이 뺄셈이
                                             곧 **"합짐에 쓸 수 있는 시간"**이다. 우회가 이 안에 들어와야 잡는 콜.
@@ -810,8 +788,169 @@ export default function PinnedRouteCard({
                                             {memoText || <span className="text-text-muted font-normal">상세 정보 없음 (파싱 대기 중)</span>}
                                         </span>
                                     </div>
+                                    {/**
+                                      * 🔼 **셋을 위 덩어리로 올렸다** (기사님 2026-09-05).
+                                      *
+                                      * 🔴 예전에는 **스텝 아래**에 있었다. 카드는 «위 덩어리 + 스텝» 둘로
+                                      *    서야 하는데 셋이 되니 길어졌고, 스텝이 자리를 못 받아
+                                      *    **스크롤 막대가 두 개**로 보였다.
+                                      * 🟢 여기(적요 아래)는 **위 덩어리 안**이다 — 콜을 설명하는 값들끼리 모인다.
+                                      *    자리가 모자라면 위 덩어리가 스크롤하고, 스텝은 자기 몫(220px)을 지킨다.
+                                      */}
+                                    {/* 🚚 **배송 주행과 하차 마감 — 접지 않는다** (B단계 · 기사님 확정 2026-09-01)
+                                        하차 마감은 `상차 완료 + 배송 주행 × 150%` 라 **이 줄이 곧 마감의 근거**다.
+                                        기사님이 «독촉 전화가 오면 카카오를 근거로 대응»하시는 값이므로 판정 근거
+                                        서랍에 넣지 않는다. 실측인지 어림인지를 함께 적는다 (규칙 ⑤-2 — 일반값을
+                                        쓰되 «미확인»을 화면이 말해야 한다. 표시 없이 값만 쓰면 위반이다). */}
+                                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-bold mb-2 px-0.5">
+                                        <span className="text-text-muted">🚚 배송 주행</span>
+                                        {timing.soloMinutes != null ? (
+                                            <>
+                                                <span className="tabular-nums">{timing.soloMinutes}분
+                                                    {timing.soloKm != null ? ` · ${Number(timing.soloKm).toFixed(1)}km` : ''}</span>
+                                                <span className={timing.soloEstimated ? 'text-warning' : 'text-success'}>
+                                                    {timing.soloEstimated ? '(추정)' : '(실측)'}
+                                                </span>
+                                            </>
+                                        ) : (
+                                            /* 지어내지 않는다 — 모르면 모른다고 적는다 (규칙 ④) */
+                                            <span className="text-text-muted">아직 못 쟀습니다</span>
+                                        )}
+                                        {timing.dropoffDeadlineAt && (
+                                            <>
+                                                <span className="text-text-muted">·</span>
+                                                <span className="text-text-muted">하차 마감</span>
+                                                <span className="text-danger tabular-nums">
+                                                    {new Date(timing.dropoffDeadlineAt).toLocaleTimeString('ko-KR',
+                                                        { hour: '2-digit', minute: '2-digit', hour12: false })}
+                                                </span>
+                                            </>
+                                        )}
+                                    </div>
+
+                                    {/* ── 접힘 — 문제가 생겼을 때만 ──
+                                        🔴 단독 경로·요금·수수료 한 줄이 카드 본문에 떠 있었다 (2026-08-11).
+                                        덱 헤더가 이미 같은 값을 띄우므로 중복이고, 세로만 잡아먹었다.
+                                        판단에 참고하는 값이지 **지금 할 일**이 아니라 여기로 내린다. */}
+                                    <details className="group" onClick={e => e.stopPropagation()}>
+                                        <summary className="cursor-pointer list-none text-[11px] font-bold text-text-muted py-1 select-none">
+                                            <span className="group-open:hidden">▸ 판정 근거 · 원본 데이터</span>
+                                            <span className="hidden group-open:inline">▾ 판정 근거 · 원본 데이터</span>
+                                        </summary>
+
+                                        <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-text-muted px-0.5 mt-1 mb-2">
+                                            <span>단독 {soloKm ? `${Number(soloKm).toFixed(1)}km / ${soloMin || 0}분` : '연산 중'}</span>
+                                            <span>·</span>
+                                            <span>{route.fare?.toLocaleString()}원{route.paymentType ? `(${route.paymentType})` : ''}</span>
+                                            {route.commissionRate && <><span>·</span><span>수수료 {route.commissionRate}</span></>}
+                                            {route.scheduleText && <><span>·</span><span className="text-warning font-bold">🕒 {route.scheduleText}</span></>}
+                                        </div>
+
+                                        {/* 마일스톤 이력 — 진행 점이 이미 "어디까지 왔나"를 보여주므로
+                                            **실제 시각과 예상 오차**가 궁금할 때만 편다 */}
+                                        {milestoneLog.length > 0 && (
+                                            <div className="mb-2 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-text-muted">
+                                                {milestoneLog.map(m => (
+                                                    <span key={m.milestone}>
+                                                        {MILESTONE_LABEL[m.milestone as keyof typeof MILESTONE_LABEL]} {m.occurredAt?.slice(11, 16)}
+                                                        {(() => {
+                                                            const err = timingError(m.predictedAt, m.occurredAt);
+                                                            if (err === null) return null;
+                                                            return <b className={err > 5 ? 'text-danger ml-1' : 'text-success ml-1'}>
+                                                                {err > 0 ? `+${err}분` : err < 0 ? `${err}분` : '정시'}
+                                                            </b>;
+                                                        })()}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {(route.approvalReasons?.length || route.rejectionReasons?.length) ? (
+                                            <div className="flex flex-col gap-1 mb-2 mt-1">
+                                                {route.approvalReasons?.map((r, i) => (
+                                                    <div key={`a${i}`} className="text-[11px] text-success">👍 {r}</div>
+                                                ))}
+                                                {route.rejectionReasons?.map((r, i) => (
+                                                    <div key={`r${i}`} className="text-[11px] text-danger">💩 {r}</div>
+                                                ))}
+                                            </div>
+                                        ) : null}
+
+                                        <div className="max-h-56 overflow-y-auto pr-1 flex flex-col gap-1 select-text font-mono">
+                                            {Object.entries({
+                                                id: route.id, type: route.type, status: route.status,
+                                                receiptStatus: route.receiptStatus, itemDescription: route.itemDescription,
+                                                vehicleType: route.vehicleType, commissionRate: route.commissionRate,
+                                                tollFare: route.tollFare, paymentType: route.paymentType,
+                                                billingType: route.billingType, tripType: route.tripType,
+                                                orderForm: route.orderForm, distanceKm: route.distanceKm,
+                                                dispatcherName: route.dispatcherName, dispatcherPhone: route.dispatcherPhone,
+                                                companyName: route.companyName, pickup: route.pickup, dropoff: route.dropoff,
+                                                fare: route.fare, timestamp: route.timestamp, postTime: route.postTime,
+                                                scheduleText: route.scheduleText, pickupTime: route.pickupTime,
+                                                detailMemo: route.detailMemo,
+                                                approachDurationMin: route.approachDurationMin,
+                                                kakaoSoloDistanceKm: route.kakaoSoloDistanceKm,
+                                                kakaoSoloDurationMin: route.kakaoSoloDurationMin,
+                                                // 🚚 실측이 없으면 배송거리로 추정한다 — 그 입력을 함께 보여 준다
+                                                deliveryDistance: route.deliveryDistance,
+                                            }).map(([k, v]) => (
+                                                <div key={k} className="flex bg-surface-alt/40 p-1 rounded text-[10px]">
+                                                    <span className="w-[120px] flex-shrink-0 text-text-muted font-bold select-all">route.{k} :</span>
+                                                    <span className="text-text-muted truncate flex-1">{v?.toString() || '-'}</span>
+                                                </div>
+                                            ))}
+                                            <div className="flex flex-col bg-surface-alt/40 p-1 rounded text-[10px]">
+                                                <span className="text-text-muted font-bold mb-1 select-all">route.pickupDetails :</span>
+                                                <span className="text-text-muted break-all whitespace-pre-wrap leading-snug">{JSON.stringify(route.pickupDetails, null, 2) || '-'}</span>
+                                            </div>
+                                            <div className="flex flex-col bg-surface-alt/40 p-1 rounded text-[10px]">
+                                                <span className="text-text-muted font-bold mb-1 select-all">route.dropoffDetails :</span>
+                                                <span className="text-text-muted break-all whitespace-pre-wrap leading-snug">{JSON.stringify(route.dropoffDetails, null, 2) || '-'}</span>
+                                            </div>
+                                        </div>
+                                    </details>
+                    {(route.status === 'ORDER_CONFIRMED' || route.status === 'ORDER_PICKED_UP') && onDecision && (
+                        <details className="mt-3 group" onClick={(e) => e.stopPropagation()}>
+                            <summary className="list-none cursor-pointer text-[11px] font-bold text-text-muted py-1.5 select-none">
+                                <span className="group-open:hidden">⋯ 이 콜 처리 (방출 · 사무실 취소)</span>
+                                <span className="hidden group-open:inline">× 닫기</span>
+                            </summary>
+                            <div className="flex gap-2 pt-1">
+                                <Button
+                                    variant="outline"
+                                    disabled={locked}
+                                    onClick={(e: React.MouseEvent) => {
+                                        e.stopPropagation();
+                                        setLocked(true); setProcessingId(route.id);
+                                        onDecision?.(route.id, 'ORDER_RELEASED_BY_ME');
+                                    }}
+                                    className="flex-1 py-3 text-sm font-bold bg-warning/10 hover:bg-warning/20 text-warning border-warning/30"
+                                >
+                                    🙋‍♂️ 배차 방출
+                                </Button>
+                                <Button
+                                    variant="destructive"
+                                    disabled={locked}
+                                    onClick={(e: React.MouseEvent) => {
+                                        e.stopPropagation();
+                                        setLocked(true); setProcessingId(route.id);
+                                        onDecision?.(route.id, 'ORDER_RELEASED_BY_OFFICE');
+                                    }}
+                                    className="flex-1 py-3 text-sm font-bold shadow-sm"
+                                >
+                                    🏢 사무실 취소
+                                </Button>
+                            </div>
+                            <div className="text-[10px] text-text-muted mt-1.5">
+                                되돌릴 수 없습니다. 방출은 그 장소에 사유가 기록됩니다.
+                            </div>
+                        </details>
+                    )}
                                         {/* 📏 사슬 — 여기가 auto 면 아래 트랙이 내용대로 자란다 (0905) */}
-                                        <div className={`mt-1 mb-2 ${isDeck ? 'flex-1 min-h-0 flex flex-col' : ''}`}>
+                                        {/* 📏 **여기가 스텝 영역이다** — 남는 자리를 먹되 **220px 은 지킨다**
+                                            (목업). 자리가 모자라면 위 덩어리가 스크롤하고, 스텝은 제 몫을 지킨다 */}
+                                        <div className={`mt-1 mb-2 ${isDeck ? 'flex-1 min-h-[220px] flex flex-col' : ''}`}>
                                             {/* KEEP 이 만든다 (기사님 2026-08-20) — 여기는 보기만. 이 기능 전에 잡은 콜은 행이 없다 */}
                                             {!seededSteps && (
                                                 <div className="text-[10px] text-text-muted">아직 없습니다 — KEEP 하면 만들어집니다</div>
@@ -951,121 +1090,6 @@ export default function PinnedRouteCard({
                                     </div>
                                     )}
 
-                                    {SHOW_CARD_EVIDENCE && (<>
-                                    {/* 🚚 **배송 주행과 하차 마감 — 접지 않는다** (B단계 · 기사님 확정 2026-09-01)
-                                        하차 마감은 `상차 완료 + 배송 주행 × 150%` 라 **이 줄이 곧 마감의 근거**다.
-                                        기사님이 «독촉 전화가 오면 카카오를 근거로 대응»하시는 값이므로 판정 근거
-                                        서랍에 넣지 않는다. 실측인지 어림인지를 함께 적는다 (규칙 ⑤-2 — 일반값을
-                                        쓰되 «미확인»을 화면이 말해야 한다. 표시 없이 값만 쓰면 위반이다). */}
-                                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-bold mb-2 px-0.5">
-                                        <span className="text-text-muted">🚚 배송 주행</span>
-                                        {timing.soloMinutes != null ? (
-                                            <>
-                                                <span className="tabular-nums">{timing.soloMinutes}분
-                                                    {timing.soloKm != null ? ` · ${Number(timing.soloKm).toFixed(1)}km` : ''}</span>
-                                                <span className={timing.soloEstimated ? 'text-warning' : 'text-success'}>
-                                                    {timing.soloEstimated ? '(추정)' : '(실측)'}
-                                                </span>
-                                            </>
-                                        ) : (
-                                            /* 지어내지 않는다 — 모르면 모른다고 적는다 (규칙 ④) */
-                                            <span className="text-text-muted">아직 못 쟀습니다</span>
-                                        )}
-                                        {timing.dropoffDeadlineAt && (
-                                            <>
-                                                <span className="text-text-muted">·</span>
-                                                <span className="text-text-muted">하차 마감</span>
-                                                <span className="text-danger tabular-nums">
-                                                    {new Date(timing.dropoffDeadlineAt).toLocaleTimeString('ko-KR',
-                                                        { hour: '2-digit', minute: '2-digit', hour12: false })}
-                                                </span>
-                                            </>
-                                        )}
-                                    </div>
-
-                                    {/* ── 접힘 — 문제가 생겼을 때만 ──
-                                        🔴 단독 경로·요금·수수료 한 줄이 카드 본문에 떠 있었다 (2026-08-11).
-                                        덱 헤더가 이미 같은 값을 띄우므로 중복이고, 세로만 잡아먹었다.
-                                        판단에 참고하는 값이지 **지금 할 일**이 아니라 여기로 내린다. */}
-                                    <details className="group" onClick={e => e.stopPropagation()}>
-                                        <summary className="cursor-pointer list-none text-[11px] font-bold text-text-muted py-1 select-none">
-                                            <span className="group-open:hidden">▸ 판정 근거 · 원본 데이터</span>
-                                            <span className="hidden group-open:inline">▾ 판정 근거 · 원본 데이터</span>
-                                        </summary>
-
-                                        <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-text-muted px-0.5 mt-1 mb-2">
-                                            <span>단독 {soloKm ? `${Number(soloKm).toFixed(1)}km / ${soloMin || 0}분` : '연산 중'}</span>
-                                            <span>·</span>
-                                            <span>{route.fare?.toLocaleString()}원{route.paymentType ? `(${route.paymentType})` : ''}</span>
-                                            {route.commissionRate && <><span>·</span><span>수수료 {route.commissionRate}</span></>}
-                                            {route.scheduleText && <><span>·</span><span className="text-warning font-bold">🕒 {route.scheduleText}</span></>}
-                                        </div>
-
-                                        {/* 마일스톤 이력 — 진행 점이 이미 "어디까지 왔나"를 보여주므로
-                                            **실제 시각과 예상 오차**가 궁금할 때만 편다 */}
-                                        {milestoneLog.length > 0 && (
-                                            <div className="mb-2 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-text-muted">
-                                                {milestoneLog.map(m => (
-                                                    <span key={m.milestone}>
-                                                        {MILESTONE_LABEL[m.milestone as keyof typeof MILESTONE_LABEL]} {m.occurredAt?.slice(11, 16)}
-                                                        {(() => {
-                                                            const err = timingError(m.predictedAt, m.occurredAt);
-                                                            if (err === null) return null;
-                                                            return <b className={err > 5 ? 'text-danger ml-1' : 'text-success ml-1'}>
-                                                                {err > 0 ? `+${err}분` : err < 0 ? `${err}분` : '정시'}
-                                                            </b>;
-                                                        })()}
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        )}
-
-                                        {(route.approvalReasons?.length || route.rejectionReasons?.length) ? (
-                                            <div className="flex flex-col gap-1 mb-2 mt-1">
-                                                {route.approvalReasons?.map((r, i) => (
-                                                    <div key={`a${i}`} className="text-[11px] text-success">👍 {r}</div>
-                                                ))}
-                                                {route.rejectionReasons?.map((r, i) => (
-                                                    <div key={`r${i}`} className="text-[11px] text-danger">💩 {r}</div>
-                                                ))}
-                                            </div>
-                                        ) : null}
-
-                                        <div className="max-h-56 overflow-y-auto pr-1 flex flex-col gap-1 select-text font-mono">
-                                            {Object.entries({
-                                                id: route.id, type: route.type, status: route.status,
-                                                receiptStatus: route.receiptStatus, itemDescription: route.itemDescription,
-                                                vehicleType: route.vehicleType, commissionRate: route.commissionRate,
-                                                tollFare: route.tollFare, paymentType: route.paymentType,
-                                                billingType: route.billingType, tripType: route.tripType,
-                                                orderForm: route.orderForm, distanceKm: route.distanceKm,
-                                                dispatcherName: route.dispatcherName, dispatcherPhone: route.dispatcherPhone,
-                                                companyName: route.companyName, pickup: route.pickup, dropoff: route.dropoff,
-                                                fare: route.fare, timestamp: route.timestamp, postTime: route.postTime,
-                                                scheduleText: route.scheduleText, pickupTime: route.pickupTime,
-                                                detailMemo: route.detailMemo,
-                                                approachDurationMin: route.approachDurationMin,
-                                                kakaoSoloDistanceKm: route.kakaoSoloDistanceKm,
-                                                kakaoSoloDurationMin: route.kakaoSoloDurationMin,
-                                                // 🚚 실측이 없으면 배송거리로 추정한다 — 그 입력을 함께 보여 준다
-                                                deliveryDistance: route.deliveryDistance,
-                                            }).map(([k, v]) => (
-                                                <div key={k} className="flex bg-surface-alt/40 p-1 rounded text-[10px]">
-                                                    <span className="w-[120px] flex-shrink-0 text-text-muted font-bold select-all">route.{k} :</span>
-                                                    <span className="text-text-muted truncate flex-1">{v?.toString() || '-'}</span>
-                                                </div>
-                                            ))}
-                                            <div className="flex flex-col bg-surface-alt/40 p-1 rounded text-[10px]">
-                                                <span className="text-text-muted font-bold mb-1 select-all">route.pickupDetails :</span>
-                                                <span className="text-text-muted break-all whitespace-pre-wrap leading-snug">{JSON.stringify(route.pickupDetails, null, 2) || '-'}</span>
-                                            </div>
-                                            <div className="flex flex-col bg-surface-alt/40 p-1 rounded text-[10px]">
-                                                <span className="text-text-muted font-bold mb-1 select-all">route.dropoffDetails :</span>
-                                                <span className="text-text-muted break-all whitespace-pre-wrap leading-snug">{JSON.stringify(route.dropoffDetails, null, 2) || '-'}</span>
-                                            </div>
-                                        </div>
-                                    </details>
-                                    </>)}
                                 </>
                             );
                         })()}
@@ -1088,43 +1112,6 @@ export default function PinnedRouteCard({
                       * ⚠️ **되돌릴 자리다** — 사무실 취소는 기사님이 실제로 쓰시는 길이다
                       *    (규칙 ① — 콜의 주인은 기사님이다). 자리를 정하면 `false` 를 지운다.
                       */}
-                    {SHOW_ORDER_ACTIONS && (route.status === 'ORDER_CONFIRMED' || route.status === 'ORDER_PICKED_UP') && onDecision && (
-                        <details className="mt-3 group" onClick={(e) => e.stopPropagation()}>
-                            <summary className="list-none cursor-pointer text-[11px] font-bold text-text-muted py-1.5 select-none">
-                                <span className="group-open:hidden">⋯ 이 콜 처리 (방출 · 사무실 취소)</span>
-                                <span className="hidden group-open:inline">× 닫기</span>
-                            </summary>
-                            <div className="flex gap-2 pt-1">
-                                <Button
-                                    variant="outline"
-                                    disabled={locked}
-                                    onClick={(e: React.MouseEvent) => {
-                                        e.stopPropagation();
-                                        setLocked(true); setProcessingId(route.id);
-                                        onDecision?.(route.id, 'ORDER_RELEASED_BY_ME');
-                                    }}
-                                    className="flex-1 py-3 text-sm font-bold bg-warning/10 hover:bg-warning/20 text-warning border-warning/30"
-                                >
-                                    🙋‍♂️ 배차 방출
-                                </Button>
-                                <Button
-                                    variant="destructive"
-                                    disabled={locked}
-                                    onClick={(e: React.MouseEvent) => {
-                                        e.stopPropagation();
-                                        setLocked(true); setProcessingId(route.id);
-                                        onDecision?.(route.id, 'ORDER_RELEASED_BY_OFFICE');
-                                    }}
-                                    className="flex-1 py-3 text-sm font-bold shadow-sm"
-                                >
-                                    🏢 사무실 취소
-                                </Button>
-                            </div>
-                            <div className="text-[10px] text-text-muted mt-1.5">
-                                되돌릴 수 없습니다. 방출은 그 장소에 사유가 기록됩니다.
-                            </div>
-                        </details>
-                    )}
                 </div>
             )}
         </div>
