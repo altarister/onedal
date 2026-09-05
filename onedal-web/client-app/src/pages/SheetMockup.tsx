@@ -80,6 +80,38 @@ function MockHeader() {
 
 /** 📱 폰 영역 — 스캔폰 한 대의 상태 한 줄 + 모드 셋 */
 /**
+ * 📱 **폰이 처할 수 있는 상황들** (기사님 2026-09-05: *"상황별로 버튼을 만들어
+ *    눌러 보게 만들어 줄 수 있어?"*).
+ *
+ * 🔴 **한 곳에 둔다** — 버튼도 폰 줄도 여기를 본다. 두 벌이면 «버튼은 있는데 화면이
+ *    안 바뀌는» 자리가 생긴다 (규칙 ③).
+ * 🔴 값은 **폰_상태바.md §4-1 의 실측 목록**에서 왔다 — 지어낸 조합이 아니다.
+ */
+const DEVICE_CASES: Array<{ k: string; t: string; why: string; over: Record<string, unknown> }> = [
+    { k: '평소', t: '평소', why: '늘 보이는 것만 — 접근성은 폰 이름의 색이라 0칸', over: {} },
+    { k: '짧게', t: '가장 짧게', why: '픽커 홈. 이보다 짧을 수 없다', over: { name: 'A1', net: '픽커', screen: '홈' } },
+    { k: '조용', t: '⏱️ 조용하다', why: '30초 넘게 말이 없다 — ⏱️ 만 붙는다', over: { quiet: true } },
+    { k: '안잡힘', t: '🔴 안 잡힌다', why: '통과 0 — 성적표가 그때만 자리를 얻는다', over: { stuck: true } },
+    { k: '눈가림', t: '👁️ 눈이 가렸다', why: '화면은 켜져 있는데 접근성이 막혀 못 읽는다 (15초 유예 뒤)', over: { blind: true } },
+    { k: '화면꺼짐', t: '💤 화면 꺼짐', why: '배차망·화면명이 함께 사라진다 — 배지가 이것 하나뿐', over: { net: null, screen: '💤 화면 꺼짐' } },
+    { k: '두절', t: '📵 통신 두절', why: '이름이 붉게 깜빡이고 왜 끊겼는지가 화면 이름 대신 온다', over: { dead: true, net: null, screen: '연결 끊김', seenAt: '13:02' } },
+    { k: '접근성', t: '📵 접근성 꺼짐', why: '끊긴 까닭을 들었을 때 — 하실 일이 다르다', over: { dead: true, net: null, screen: '접근성 꺼짐', seenAt: '12:58' } },
+    { k: '가장길게', t: '🔴 가장 길게', why: '알 수 없는 화면 + 조용 + 성적표. 동시에 참이기 어렵다 — 화면을 모르면 스캔도 못 한다',
+      over: { name: '1234', net: '픽커', screen: '알수 없는 화면', quiet: true, stuck: true } },
+];
+
+/** 📏 그 상황에서 한 줄이 몇 칸인가 — 폰 한 줄은 56칸 */
+function caseWidth(over: Record<string, unknown>): number {
+    return textWidth([
+        (over.name as string) ?? 'A24',
+        `${over.net === null ? '' : ((over.net as string) ?? '인성')}${(over.screen as string) ?? '콜리스트'}`,
+        (over.seenAt as string) ?? '13:19',
+        over.quiet ? '⏱️' : '', over.blind ? '👁️' : '',
+        over.stuck ? '본 42 · 통과 0 요금12' : '', '자동',
+    ].filter(Boolean).join(' '));
+}
+
+/**
  * 📱 **폰 줄 — 자리값 하는 것만 늘 보인다** (엄선 확정 2026-09-05 · 폰_상태바.md §4-4)
  *
  * ── 관제가 답해야 하는 물음은 셋이다 ──
@@ -626,6 +658,12 @@ export default function SheetMockup() {
     /** ⋯ 접힌 넷 (누적·버전·작업 단계·필터 배지) */
     const [deviceMore, setDeviceMore] = useState(false);
     /**
+     * 📱 **지금 어느 상황인가** — 값은 `DEVICE_CASES` 한 곳에서 온다 (규칙 ③).
+     *    조작판 버튼이 이것만 바꾸면 폰 줄이 따라온다.
+     */
+    const [deviceCase, setDeviceCase] = useState('평소');
+    const deviceOver = DEVICE_CASES.find(c => c.k === deviceCase)?.over ?? {};
+    /**
      * 🔴 **몇 콜 판인가** — 3콜은 **상한이 아니다** (전제 점검표 1부 ① · 기사님 2026-09-04:
      * *"최대한 많이 합짐하면 매출이 많아진다"*).
      * 콜이 넷이면 정거장 8개, 다섯이면 10개다 — **QR 이 몇 번인지도, 아코디언이 넘치는지도
@@ -1003,6 +1041,8 @@ export default function SheetMockup() {
                     mode={deviceMode} pending={modePending} open={modeOpen}
                     quiet={deviceQuiet} stuck={deviceStuck} more={deviceMore}
                     onOpen={setModeOpen} onMore={setDeviceMore}
+                    /* 📱 고른 상황이 이 줄을 덮는다 — 「조용/안 잡힘」 스위치보다 뒤에 온다 */
+                    {...deviceOver}
                     onPick={(m) => {
                         setModeOpen(false);
                         /* 🔴 **같은 것을 고르면 조용히 닫는다** — «이미 그것입니다» 같은
@@ -1639,61 +1679,38 @@ export default function SheetMockup() {
                 </>)}
 
                 {/**
-                  * 📱 **상황별로 나란히** (기사님 2026-09-05: *"옆에 여러 가지 상황을 만들어줘 —
-                  *    가장 긴 글씨 들어가는 거, 짧은 거, 통신두절 등등"*).
+                  * 📱 **상황을 눌러 본다** (기사님 2026-09-05).
                   *
-                  * 🔴 **폰 폭(400px) 안에서 봐야 한다** — 조작판은 560px 이라 여기서 멀쩡해 보여도
-                  *    폰에서는 넘친다. 그래서 상자째로 400px 을 잡는다.
-                  * 🔴 폭(칸)을 함께 적는다 — 한글 2칸 · 그 밖 1칸 (`textWidth`). 폰 한 줄은 **56칸**.
+                  * 🔴 나란히 아홉 줄을 늘어놓기도 해 봤는데, **진짜 화면에서 보는 것**이 낫다 —
+                  *    조작판은 560px 이라 거기서 멀쩡해도 폰(400px)에서는 넘친다.
+                  *    누르면 **맨 위 폰 줄**이 그 상황이 된다.
+                  * 🔴 값과 폭은 `DEVICE_CASES` 한 곳에서 온다 — 버튼과 화면이 갈라지지 않게 (규칙 ③).
                   */}
-                <h2 className="mt-6 text-[12.5px] font-black tracking-wide text-info mb-1">📱 폰 줄 — 상황별로 나란히</h2>
+                <h2 className="mt-6 text-[12.5px] font-black tracking-wide text-info mb-1">📱 폰 줄 — 상황을 눌러 본다</h2>
                 <p className="text-[11.5px] text-text-muted mb-2">
-                    폰 폭 <b className="text-text-primary">400px</b> 그대로입니다 — 여기서 안 넘치면 폰에서도 안 넘칩니다.
+                    누르면 <b className="text-text-primary">맨 위 폰 줄</b>이 그 상황이 됩니다.
+                    괄호 안은 그때의 <b className="text-text-primary">한 줄 폭</b> — 폰 한 줄은 <b className="text-text-primary">56칸</b>입니다.
                 </p>
-                <div className="w-[400px] max-w-full rounded-lg border border-border-card overflow-hidden">
-                    {([
-                        ['평소', { }, '늘 보이는 것만 — 접근성은 폰 이름의 색이라 0칸'],
-                        ['가장 짧게', { name: 'A1', net: '픽커', screen: '홈' }, '픽커 홈. 이보다 짧을 수 없다'],
-                        ['조용하다', { quiet: true }, '30초 넘게 말이 없다 — ⏱️ 만 붙는다'],
-                        ['안 잡힌다', { stuck: true }, '통과 0 — 성적표가 그때만 자리를 얻는다'],
-                        ['눈이 가렸다', { blind: true, screen: '콜리스트' }, '화면은 켜져 있는데 접근성이 막혀 못 읽는다 (15초 유예 뒤)'],
-                        ['화면 꺼짐', { net: null, screen: '💤 화면 꺼짐' }, '배차망·화면명이 **함께 사라진다** — 배지가 이것 하나뿐'],
-                        ['통신 두절', { dead: true, net: null, screen: '연결 끊김', seenAt: '13:02' }, '이름이 붉게 깜빡이고 **왜 끊겼는지**가 화면 이름 대신 온다'],
-                        ['접근성 꺼짐', { dead: true, net: null, screen: '접근성 꺼짐', seenAt: '12:58' }, '끊긴 까닭을 들었을 때 — 하실 일이 다르다'],
-                        ['🔴 가장 길게', { name: '1234', net: '픽커', screen: '알수 없는 화면', quiet: true, stuck: true },
-                            '알 수 없는 화면 + 조용 + 성적표. **동시에 참이기 어렵다** — 화면을 모르면 스캔도 못 한다'],
-                    ] as const).map(([title, over, why], i) => {
-                        const o = over as Record<string, unknown>;
-                        const line = [
-                            (o.name as string) ?? 'A24',
-                            `${o.net === null ? '' : ((o.net as string) ?? '인성')}${(o.screen as string) ?? '콜리스트'}`,
-                            (o.seenAt as string) ?? '13:19',
-                            o.quiet ? '⏱️' : '', o.blind ? '👁️' : '',
-                            o.stuck ? '본 42 · 통과 0 요금12' : '', '자동',
-                        ].filter(Boolean).join(' ');
+                <div className="flex gap-1.5 flex-wrap">
+                    {DEVICE_CASES.map(c => {
+                        const n = caseWidth(c.over);
                         return (
-                            <div key={title} className={i > 0 ? 'border-t border-border-card' : ''}>
-                                <div className="flex items-baseline gap-2 px-2 pt-1.5">
-                                    <b className="text-[11px] font-black text-info">{title}</b>
-                                    <span className="text-[10.5px] tabular-nums text-text-muted">{textWidth(line)}칸</span>
-                                    <span className="text-[10.5px] text-text-muted truncate">{why}</span>
-                                </div>
-                                <MockDevicePanel
-                                    mode="자동" pending={null} open={false} more={false}
-                                    quiet={false} stuck={false}
-                                    onPick={() => {}} onOpen={() => {}} onMore={() => {}}
-                                    {...(over as object)} />
-                            </div>
+                            <button key={c.k} type="button"
+                                onClick={() => { setDeviceCase(c.k); setLog(`📱 ${c.t} — ${c.why} (한 줄 ${n}칸 / 56칸)`); }}
+                                className={`px-2.5 py-2 rounded-[9px] border text-[12px] font-black ${deviceCase === c.k
+                                    ? 'bg-info/15 border-info/55 text-info'
+                                    : 'border-border-hover bg-surface text-text-primary hover:border-info'}`}>
+                                {c.t} <span className={`font-bold tabular-nums ${n > 56 ? 'text-danger' : 'text-text-muted'}`}>({n})</span>
+                            </button>
                         );
                     })}
                 </div>
                 <p className="mt-2 text-[12px] leading-relaxed text-text-muted">
-                    🔴 <b className="text-text-primary">폰 한 줄은 56칸</b>입니다 (400px · 13px 기준).
-                    맨 아래 「가장 길게」가 그 선에 가장 가깝습니다 —
-                    다만 <b className="text-text-primary">알 수 없는 화면인데 성적표가 온다는 것은 동시에 참이기 어렵습니다</b>
+                    🔴 <b className="text-text-primary">「가장 길게」가 그 선에 가장 가깝습니다</b> —
+                    다만 알 수 없는 화면인데 성적표가 온다는 것은 <b className="text-text-primary">동시에 참이기 어렵습니다</b>
                     (화면을 모르면 스캔도 못 하니까요).
-                    <br />⚠️ <b className="text-text-primary">여기 「⋯」 는 안 눌립니다</b> — 보여 주는 자리라 손을 뺐습니다.
-                    눌러 보시려면 맨 위 진짜 폰 줄에서 하십시오.
+                    <br />· <b className="text-text-primary">💤 화면 꺼짐 · 📵 통신 두절</b>에서는 배차망이 사라져 오히려 짧아집니다
+                    <br />· <b className="text-text-primary">👁️ 눈 가림</b>은 화면이 켜져 있는데 못 읽는 것이라 배지는 그대로입니다
                 </p>
 
                 {/* 📱 **폰이 이상해지면 무엇이 나타나나** — 엄선의 값어치를 눈으로 본다 */}
