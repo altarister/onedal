@@ -198,8 +198,15 @@ function DeviceOneRow({ d, mode, pending, open, more, onPick, onOpen, onMore }: 
     onPick: (m: string) => void; onOpen: (v: boolean) => void; onMore: (v: boolean) => void;
 }) {
     return (
-        <div>
-            <div className="flex items-center gap-1.5 px-3 py-1">
+        /**
+          * 🔴 **한 대가 한 덩어리다** (기사님 2026-09-05: *"폰이 덩어리감이 없어
+          *    한 줄 더보기 하면 어디가 어딘지 모르겠어"*).
+          *
+          * 줄 사이에 선을 긋고 바탕을 엇갈리는 것으로는 모자랐다 — 「⋯」 를 펴는 순간
+          * **두 줄이 이웃 폰과 섞였다.** 테두리로 **묶어야** 편 줄이 누구 것인지 보인다.
+          */
+        <div className="rounded-lg border border-border-card bg-surface-alt/30 overflow-hidden">
+            <div className="flex items-center gap-1.5 px-2.5 py-1">
                 <span className={`shrink-0 text-[14px] font-black ${
                     d.dead ? 'text-danger animate-pulse' : d.blind ? 'text-text-muted' : 'text-success'}`}>{d.name}</span>
                 <span className={`shrink-0 px-1.5 rounded border text-[13px] whitespace-nowrap ${
@@ -261,9 +268,10 @@ function DeviceOneRow({ d, mode, pending, open, more, onPick, onOpen, onMore }: 
                         more ? 'text-info' : 'text-text-muted hover:text-text-primary'}`}>⋯</button>
             </div>
 
-            {/* 접힌 넷 — **그 폰 줄 바로 아래**에 편다 */}
+            {/* 접힌 셋 — **그 폰 카드 안**에 편다. 선 하나로 «같은 폰의 아랫단»임을 말한다 */}
             {more && (
-                <div className="flex items-center gap-2 px-3 pb-1.5 text-[12px] text-text-muted tabular-nums flex-wrap">
+                <div className="flex items-center gap-2 px-2.5 py-1 border-t border-border-card
+                                bg-surface/40 text-[12px] text-text-muted tabular-nums flex-wrap">
                     <span className="px-1.5 rounded border border-border bg-surface-alt font-bold">대기</span>
                     <span>수집1234 수락5</span>
                     {/**
@@ -307,16 +315,14 @@ function MockDevicePanel({ devices, modeOf, pendingOf, openId, onPick, onOpen, m
     moreId: string | null; onMore: (id: string | null) => void;
 }) {
     return (
-        <div className="shrink-0 border-b border-border-card divide-y divide-border-card">
-            {devices.map((d, i) => (
-                <div key={d.id} className={i % 2 ? 'bg-surface-alt/25' : ''}>
-                <DeviceOneRow d={d}
+        <div className="shrink-0 border-b border-border-card px-2 py-1.5 space-y-1">
+            {devices.map(d => (
+                <DeviceOneRow key={d.id} d={d}
                     mode={modeOf(d.id)} pending={pendingOf(d.id)}
                     open={openId === d.id} more={moreId === d.id}
                     onOpen={(v) => onOpen(v ? d.id : null)}
                     onMore={(v) => onMore(v ? d.id : null)}
                     onPick={(m) => onPick(d.id, m)} />
-                </div>
             ))}
         </div>
     );
@@ -1830,7 +1836,7 @@ export default function SheetMockup() {
                         <button key={k} type="button"
                             onClick={() => { setDeviceSet(k); setModeOpenId(null);
                                 const n = DEVICE_SETS[k].length;
-                                setLog(`📱 ${k} — 폰 하나가 한 줄입니다. ${n}대면 ${n * 26}px 를 씁니다 (한 대 26px).`); }}
+                                setLog(`📱 ${k} — 폰 하나가 한 덩어리입니다. ${n}대면 ${n * 34 + 8}px 를 씁니다.`); }}
                             className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${deviceSet === k
                                 ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-surface text-text-primary hover:border-info'}`}>
                             {k}
@@ -1841,9 +1847,10 @@ export default function SheetMockup() {
                     🔴 <b className="text-text-primary">폰 하나가 한 줄</b>입니다 (기사님 확정 2026-09-05).
                     <br />처음엔 가로로 이었는데 3대면 ≈73칸이라 넘쳤고, 밀려난 폰은 <b className="text-text-primary">없는 것과 같았습니다</b>.
                     관제의 물음이 «어느 폰이 문제인가»인데 그 폰이 화면 밖이면 답을 못 합니다.
-                    <br />· 값은 <b className="text-text-primary">높이</b>로 치릅니다 — 한 대 30px · <b className="text-text-primary">세 대 90px</b>
+                    <br />· 값은 <b className="text-text-primary">높이</b>로 치릅니다 — 한 대 34px · <b className="text-text-primary">세 대 110px</b>
                     <br />· <b className="text-text-primary">모드와 ⋯ 는 오른쪽 끝 고정</b>입니다 — 폰마다 자리가 같아야 눈이 안 헤맵니다
                     <br />· 세로로 쌓으니 <b className="text-text-primary">폭이 남아 글씨를 키웠습니다</b> (이름 14px · 배지 13px)
+                    <br />· <b className="text-text-primary">한 대가 한 덩어리(카드)</b>입니다 — 「⋯」 를 펴면 <b className="text-text-primary">그 카드 안</b>에 들어갑니다
                     <br />· 모드를 열면 <b className="text-text-primary">선택된 칸이 닫혔을 때 그 자리에 그대로 얹힙니다</b> — 눌러도 배지가 안 움직입니다
                     <br />🔴 <b className="text-text-primary">모드는 폰마다 하나씩</b>입니다 —
                     픽커만 대기로 두고 싶을 때가 있으니 «셋 다 바꾸기»로 묶지 않았습니다.
