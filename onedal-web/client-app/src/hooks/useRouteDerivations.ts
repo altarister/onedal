@@ -284,11 +284,25 @@ export function useRouteDerivations(
     }, [routePointsRaw, visitedTrail, cycleDeck.length]);
 
     /** 👣 발자취 — 번호는 위 지도에서 붙인다 (세는 곳 하나) */
+    /**
+     * 🔢 **콜 번호 — 세는 곳은 여기 하나다** (기사님 확정 색표 이식 · 2026-09-05).
+     *
+     * 🔴 **색과 번호가 같은 자리를 센다.** 갈리면 «색 = 번호»가 깨지고, 색만 보고
+     *    1~2초에 누르는 화면에서 그것이 가장 큰 사고다 (규칙 ⑤-3).
+     * ⚠️ 목록에 없는 콜은 `0` 이 아니라 **`null`** 이다 — 지어내지 않는다 (규칙 ④).
+     */
+    const callNoOf = useMemo(() => {
+        const at = new Map(cycleDeck.map((r, i) => [r.id, i + 1] as const));
+        return (orderId: string): number | null => at.get(orderId) ?? null;
+    }, [cycleDeck]);
+
     const visitedTrailNumbered = useMemo(
         () => visitedTrail.map(v => ({
             ...v, no: stopNoOf.get(`${v.orderId}:${v.type === '상차' ? 'pickup' : 'dropoff'}`) ?? 0,
+            /* 🌈 다녀온 곳도 **같은 색**이라야 «저게 몇 번 콜이었나»가 이어진다 */
+            callNo: callNoOf(v.orderId) ?? undefined,
         })),
-        [visitedTrail, stopNoOf]);
+        [visitedTrail, stopNoOf, callNoOf]);
 
     /**
      * 🎨 **콜 색 — 사이클 안에서 콜마다 고유 색 하나** (기사님 확정 ②).
@@ -309,8 +323,16 @@ export function useRouteDerivations(
             ...p, no: p.routeId
                 ? stopNoOf.get(`${p.routeId}:${p.type === '상차' ? 'pickup' : 'dropoff'}`)
                 : undefined,
+            /**
+             * 🌈 **몇 번 콜인가** — 색상(hue)이 이걸로 정해진다 (09-04 색표).
+             * 🔴 정거장 번호(`no`)와 **다른 값**이다 — 콜 하나가 정거장 둘을 갖는다.
+             * ⚠️ 안 실으면 캔버스가 조용히 옛 문법(상차 초록·하차 로즈)으로 떨어진다.
+             */
+            callNo: p.routeId ? callNoOf(p.routeId) ?? undefined : undefined,
+            /* 👣 남은 목록에 있으니 «아직»이다 — 다녀온 것은 발자취로 넘어간다 */
+            visited: false,
         })),
-        [routePointsRaw, stopNoOf]);
+        [routePointsRaw, stopNoOf, callNoOf]);
 
     /** 콜별 상·하차 번호 — 화면(요약줄·카드·지도)이 전부 이 하나를 읽는다 (규칙 ③) */
     const visitOrderMap = useMemo(() => {
@@ -365,7 +387,7 @@ export function useRouteDerivations(
     return {
         stepRecords, liveRoute, cycleDeck, activePolyline, routeHolder, isDriving, mockStops,
         currentGps, gpsSource, myLocation, safeRoute, allEvaluating, judging, gpsFocus,
-        routeTimeline, unifiedRoutePoints, etaMap, visitOrderMap, chronologicalIds, callColors, drivenTrail, stopNoOf,
+        routeTimeline, unifiedRoutePoints, etaMap, visitOrderMap, chronologicalIds, callColors, callNoOf, drivenTrail, stopNoOf,
         visitedTrail: visitedTrailNumbered,
     };
 }

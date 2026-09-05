@@ -37,6 +37,8 @@ export default function Dashboard() {
     const [seatProcessingId, setSeatProcessingId] = useState<string | null>(null);
     // 🎭 새 화면 미리보기 토글 (화면개편 · 기사님 확정 0831) — 표시만 바뀐다, 상태는 공용
     const [stagePreview, setStagePreview] = useState(() => localStorage.getItem('stagePreview') === '1');
+    /** 🎯 필터 줄 — 무대에서는 접힌 채로 시작한다 (기사님 확정 0905). 눌러 펼치면 그 판만 유지 */
+    const [filterCompact, setFilterCompact] = useState(true);
     useEffect(() => {
         const on = () => setStagePreview(localStorage.getItem('stagePreview') === '1');
         window.addEventListener('stage-preview-changed', on);
@@ -338,7 +340,17 @@ export default function Dashboard() {
                             setProcessingId={setSeatProcessingId}
                         />
                     );
-                    return <OrderFilterStatus onOpenFilter={() => setIsFilterModalOpen(true)} cancelCounts={cancelCounts} cancelRounds={cancelRounds} budgetToast={cancelBudgetToast} />;
+                    return <OrderFilterStatus
+                        onOpenFilter={() => setIsFilterModalOpen(true)}
+                        /**
+                         * 🎯 **무대에서는 접힌 채로 선다** (기사님 확정 2026-09-05).
+                         *    펼친 판이 먹던 158px 이 지도와 시트로 간다. 누르면 펼쳐진다.
+                         * ⚠️ 옛 화면(무대 아님)은 그대로 펼친 판이다 — 거기는 조회용이라 넓다.
+                         * 🔴 기억하지 않는다 — 새로고침하면 다시 접힌다 (어제 상태가 오늘 되살아나지 않는다).
+                         */
+                        compact={stagePreview && filterCompact}
+                        onExpand={() => setFilterCompact(false)}
+                        cancelCounts={cancelCounts} cancelRounds={cancelRounds} budgetToast={cancelBudgetToast} />;
                 })()}
 
                 {/* 🚚 내 차 요약은 헤더 로고 자리로 이사 (기사님 0831 — 영역 절약). 패널 줄은 뺐다 */}

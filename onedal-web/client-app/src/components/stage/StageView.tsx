@@ -7,7 +7,7 @@ import PinnedRouteCanvas from '../dashboard/PinnedRouteCanvas';
 import StageSheet, { type SheetSnap } from './StageSheet';
 import { stageStep, initialStageMemory, type StageEvent } from './stageRules';
 import { PinnedRouteBody } from '../dashboard/PinnedRoute';
-import { MovingBadge, useDriveMotion } from '../dashboard/VehicleStatusPanel';
+import { useDriveMotion } from '../dashboard/VehicleStatusPanel';
 import { useGpsFocusStore } from '../../stores/gpsFocusStore';
 import { useFilterConfig } from '../../hooks/useFilterConfig';
 import { logRoadmapEvent, logStateChange } from '../../lib/roadmapLogger';
@@ -263,21 +263,17 @@ export default function StageView(props: Props) {
                     onStopTap={focusCall}
                 >
                     {/* 🏷️ 다음 정거장 이름표 — «어느 콜의 어떤 단계» (v22 S3 · 탭 동선은 4단계에서) */}
-                    {next && (
-                        <div className="absolute left-3 top-3 z-10 rounded-xl border px-3 py-2 tabular-nums cursor-pointer active:scale-95 transition-transform"
-                             onClick={() => focusCall(next.orderId) /* S6 — 그 콜·그 단계로 */}
-                             style={{ background: 'color-mix(in srgb, var(--color-surface) 92%, transparent)', borderColor: '#4f8df9', backdropFilter: 'blur(3px)' }}>
-                            <div className="text-[14px] font-black" style={{ color: '#9db9ff' }}>
-                                {next.visitNo}. {next.name}{next.driveMinutes != null ? ` · ~${next.driveMinutes}분` : ''}
-                            </div>
-                            <div className="text-[11px] font-bold text-text-muted flex items-center gap-2">
-                                {/* 🔴 «N/M 정거장»을 뺐다 (0831 리뷰) — 앞의 번호와 재료가 달라
-                                    «5. 신둔면 · 3/7 정거장» 처럼 어긋났다. 어디까지 왔는지는
-                                    앞 번호와 자막 줄이 이미 말한다 — 같은 것을 두 번 세지 않는다. */}
-                                {next.callNo}번 콜 · {next.stopLabel} <MovingBadge />
-                            </div>
-                        </div>
-                    )}
+                    {/**
+                      * 🗺️ **지도 위 이름표는 뺐다** (기사님 화면 대조 2026-09-05).
+                      *
+                      * 🔴 이 이름표가 지도 좌상단 `전체·현구간·현위치` 버튼과 **같은 자리**라
+                      *    셋을 통째로 덮고 있었다. 화면을 찍어 보고서야 드러났다 —
+                      *    코드만 읽으면 «둘 다 있다»로 보인다.
+                      * 🔴 게다가 **같은 사실을 두 곳이 말했다** — 시트 상태바가 이미
+                      *    «다음 1 초월읍 ~2.3km» 를 말한다 (`lib/sheetStatus` · 규칙 ③).
+                      *    목업도 그 한 곳에만 둔다.
+                      */}
+
                     {/* 🚀 지금 출발 — 옛 지도와 같은 자리·같은 동작 (짐 있고 출발 전일 때만) */}
                     {filter && filter.dispatchPhase !== 'DELIVERING' && liveRoute.length > 0 && (
                         <button

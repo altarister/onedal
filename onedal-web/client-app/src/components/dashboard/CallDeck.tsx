@@ -6,6 +6,8 @@ import { pickAutoFocus, scrollSettle } from '../../lib/deckFocus';
 import { getAddressLabel, hhmm } from '../../lib/routeUtils';
 import { useTheme } from '../../contexts/ThemeContext';
 import { MAP_THEME_COLORS } from '../../styles/themes';
+/* 🌈 지도와 **같은 색표**를 읽는다 — 두 벌이면 지도와 목록이 다른 말을 한다 (규칙 ③) */
+import { callNodeFill, callNodeStroke, callNodeText } from '../../styles/callPalette';
 import type { CallRecords } from '../../hooks/records';
 import { EMPTY_RECORDS } from '../../hooks/records';
 import { useJudgmentStore } from '../../stores/judgmentStore';
@@ -48,6 +50,11 @@ interface Props {
     /** 🛰️ 근접/도착한 정거장의 콜 — 이 값이 바뀌면 그 카드로 넘어간다 (기사님 2026-08-19) */
     gpsFocus?: { orderId: string; tick: number } | null;
     /**
+     * 🔢 **몇 번 콜인가** — 세는 곳은 파생 한 곳이다 (`useRouteDerivations`).
+     *    지도 마커와 **같은 입력**이라야 «색 = 번호»가 성립한다 (규칙 ③ · ⑤-3).
+     */
+    callNoOf?: (orderId: string) => number | null;
+    /**
      * 🪗 **아코디언 모드** (기사님 확정 2026-09-03 실주행 뒤 · S23 캡처와 함께):
      * *"시트에 콜리스트 3개 아래로 관련된 스텝이 보이고 있는데.. 그러니까 뭘 보고 있는지
      * 어려워. 아코디언으로 만들고, 아코디언 헤더는 무조건 화면에 노출하고,
@@ -63,7 +70,7 @@ interface Props {
     accordion?: boolean;
 }
 
-export default function CallDeck({ orders, renderCard, records, visitOrderMap, timeline, gpsFocus, accordion }: Props) {
+export default function CallDeck({ orders, renderCard, records, visitOrderMap, timeline, gpsFocus, accordion, callNoOf }: Props) {
     const trackRef = useRef<HTMLDivElement>(null);
 
     /**
@@ -299,11 +306,14 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
                         "몇 번째로 어디" 로 읽힌다. 예전엔 지명 뒤에 붙어 시각과 엉겼다 */}
                     <span className="text-[14px] font-bold text-text-primary truncate min-w-0 flex-1">
                         <StopMark at={vo?.pickupIdx} kind="pickup" evaluating={isEvaluating(o.status)}
+                            /* 🌈 색은 **콜 번호**로 — 지도가 쓰는 것과 같은 입력이다 */
+                            callNo={callNoOf?.(o.id)} visited={confirmed('pickup')}
                             time={promiseOf('pickup')} confirmed={confirmed('pickup')}
                             late={lateOf('pickup')} shift={shiftOf('pickup')}
                             name={getAddressLabel(o.pickup)} />
                         <span className="text-text-muted font-normal mx-1">→</span>
                         <StopMark at={vo?.dropoffIdx} kind="dropoff" evaluating={isEvaluating(o.status)}
+                            callNo={callNoOf?.(o.id)} visited={confirmed('dropoff')}
                             time={promiseOf('dropoff')} confirmed={confirmed('dropoff')}
                             late={lateOf('dropoff')} shift={shiftOf('dropoff')}
                             name={getAddressLabel(o.dropoff)} />
@@ -408,8 +418,16 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
  * 표시 없이 값만 쓰면 규칙 ④(지어내지 않는다) 위반이다.
  * 번호도 시각도 없으면 아무것도 그리지 않는다 (`(3 --:--)` 를 만들지 않는다).
  */
-function StopMark({ at, time, confirmed, kind, evaluating, name, late = 0, shift = 0 }: {
+function StopMark({ at, time, confirmed, kind, evaluating, name, late = 0, shift = 0, callNo, visited }: {
     at?: number; time?: string | null; confirmed?: boolean;
+    /**
+     * 🌈 **몇 번 콜인가** — 동그라미 색이 이걸로 정해진다 (09-04 색표 · 이식 0905).
+     * 🔴 정거장 번호(`at`)와 **다른 값**이다. 목록 자리로 칠하면 심사 중인 콜이 앞에
+     *    있을 때 **지도와 색이 어긋난다** (덱은 심사 콜을 뺀다).
+     */
+    callNo?: number | null;
+    /** 👣 다녀왔나 — 테두리가 «완료 동그라미»(흰 링)가 된다 */
+    visited?: boolean;
     kind: 'pickup' | 'dropoff'; evaluating?: boolean; name: string; late?: number;
     /**
      * ⏱️ **앞 정거장이 예측과 달라 이 시각이 밀린 분** — 접힌 줄에서는 **기호로만** 말한다.
@@ -432,9 +450,23 @@ function StopMark({ at, time, confirmed, kind, evaluating, name, late = 0, shift
                 <span
                     className="inline-flex items-center justify-center w-[19px] h-[19px] rounded-full text-[11px] font-black leading-none shrink-0"
                     style={{
-                        backgroundColor: evaluating ? c.nodeEvaluating : kind === 'pickup' ? c.nodePickup : c.nodeDropoff,
-                        border: `1.5px solid ${evaluating ? c.nodeStrokeEvaluating : c.nodeStrokeRegular}`,
-                        color: c.textBody,
+                        ...(evaluating || !callNo ? {
+                            /* 🔴 번호를 모르면 **색을 지어내지 않는다** (규칙 ④) — 옛 초록으로
+                               칠하면 «1번 콜»로 읽힌다. 중립으로 둔다 */
+                            backgroundColor: evaluating ? c.nodeEvaluating : c.nodeStrokeRegular,
+                            border: `1.5px solid ${evaluating ? c.nodeStrokeEvaluating : c.nodeStrokeRegular}`,
+                            color: c.textBody,
+                        } : (() => {
+                            /* 🌈 **지도와 같은 색표** (`callPalette`) — 색상=콜 · 밝기=상차/하차 ·
+                               테두리=다녀왔나. 그래야 «저 동그라미가 목록의 몇 번 줄인가»가 이어진다
+                               (기사님 09-03: *"지도 아이콘 색과 콜 리스트가 괴리가 크다"*) */
+                            const fill = callNodeFill(callNo, kind, theme);
+                            return {
+                                backgroundColor: fill,
+                                border: `1.5px solid ${callNodeStroke(!!visited, fill)}`,
+                                color: callNodeText(kind, theme),
+                            };
+                        })()),
                     }}
                 >{at}</span>
             )}

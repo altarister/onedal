@@ -45,7 +45,7 @@ export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDe
      * 이 컴포넌트에는 화면 상태(펼침·탭·처리중)만 남는다.
      */
     const {
-        stepRecords, liveRoute, cycleDeck, myLocation, safeRoute, allEvaluating, judging,
+        stepRecords, liveRoute, cycleDeck, myLocation, safeRoute, allEvaluating, judging, callNoOf,
         routeTimeline, unifiedRoutePoints, etaMap, visitOrderMap, chronologicalIds, gpsFocus,
     } = d;
 
@@ -313,6 +313,7 @@ export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDe
             {view === 'ACTIVE' && cycleDeck.length > 0 && (
                 <CallDeck
                     accordion={sheetOnly}
+                    callNoOf={callNoOf}
                     records={stepRecords}
                     /* 🗺️ 타임라인은 여기서 만든 것 하나 (새 장부 stepRecords 기반) — 덱이
                        옛 장부로 한 벌 더 파생하면 정차가 갈라져 두 데드라인이 된다 (2026-08-21) */

@@ -40,7 +40,7 @@ const PHASE_STYLE: Record<CallTarget, { icon: string; accent: string; hint: stri
 };
 
 // 취소 카운트 props 는 받되 안 그린다 (v13 확정안 — 경고가 필요해지면 ⚙️ 팝업으로)
-export default function OrderFilterStatus({ onOpenFilter, budgetToast }:
+export default function OrderFilterStatus({ onOpenFilter, budgetToast, compact, onExpand }:
     {
         onOpenFilter: () => void;
         cancelCounts?: Record<string, number>;
@@ -48,6 +48,16 @@ export default function OrderFilterStatus({ onOpenFilter, budgetToast }:
         cancelRounds?: Record<string, number>;
         /** 🚫 한 판을 다 쓴 순간 서버가 보낸 알림 — 뜨면 토스트로 한 번 보여 준다 */
         budgetToast?: { app: string; used: number; limit: number; round: number } | null;
+        /**
+         * 🎯 **접힘(38px) ↔ 펼침(158px)** — 기사님이 목업에서 «접힘»을 고르셨다 (2026-09-05).
+         *
+         * 🔴 펼친 판은 세로를 **158px** 먹는데, 그 자리는 지도와 시트가 쓸 자리다.
+         *    달리면서 필요한 답은 «지금 어느 국면이고 어디서 어디로»뿐이라 **한 줄로 선다.**
+         * ⚠️ 조작판이 아니다 — 누르면 펼쳐지고, 거기서 국면을 바꾼다 (⑥ 시퀀스는 그대로).
+         */
+        compact?: boolean;
+        /** 접힌 줄을 눌렀다 — 펼치는 일은 부르는 쪽이 정한다 (상태를 여기 두지 않는다) */
+        onExpand?: () => void;
     }) {
     const { filter } = useFilterConfig();
     const [toast, setToast] = useState<string | null>(null);
@@ -140,6 +150,29 @@ export default function OrderFilterStatus({ onOpenFilter, budgetToast }:
         setToast(`${CALL_TARGET_LABEL[next]} 전환됨`);
         setTimeout(() => setToast(null), 2000);
     };
+
+    /**
+     * 🎯 **접힌 한 줄** (목업 안 B · 기사님 확정 2026-09-05).
+     *    `🎯 노선 · 여기서 10km → 서울 1km · 📦 90/100`
+     * 🔴 값은 **펼친 판과 같은 곳**에서 온다 (`useFilterConfig`) — 두 벌이면 갈라진다 (규칙 ③).
+     */
+    if (compact) return (
+        <button type="button" onClick={onExpand ?? onOpenFilter}
+            className="shrink-0 h-[38px] w-full flex items-center gap-2 px-3 border-b border-border-card text-left
+                       bg-surface-alt/30 hover:bg-surface-hover/40 transition-colors">
+            <span className="shrink-0 text-[13px] font-black" style={{ color: v14.c }}>{PHASE_STYLE[phase].icon} {CALL_TARGET_LABEL[phase]}</span>
+            <span className="shrink-0 opacity-40">·</span>
+            <span className="flex-1 min-w-0 truncate text-[12.5px] font-bold text-text-muted">
+                여기서 <b className="text-text-primary">{filter.pickupRadiusKm ?? 0}km</b>
+                {' → '}
+                {/* 🔴 «어디로»는 **도착 도시**다 — `region`(도착목표·관내·귀갓길)은 국면 이름이라 여기선 답이 안 된다 */}
+                <b className="text-text-primary">{filter.destinationCity || v14.region} {filter.destinationRadiusKm ?? 0}km</b>
+                <span className="mx-1.5 opacity-40">·</span>
+                <b className="text-text-primary tabular-nums">📦 {slotsUsed}/{TRUCK_CAPACITY_SLOTS}</b>
+            </span>
+            <span className="shrink-0 text-sm text-text-muted">⚙️</span>
+        </button>
+    );
 
     return (
         <div id="filter-status" className="relative mx-3 my-2 rounded-xl border overflow-hidden shadow-lg flex flex-col" style={{ background: "linear-gradient(180deg, var(--color-surface-alt), var(--color-surface))", height: 158, borderColor: phase === 'DEST' ? 'var(--color-border-card, #1c2436)' : `${v14.c}4d` }}>

@@ -152,10 +152,15 @@ interface Props {
      *    기사님이 «이걸로 가자» 하시면 그때 기본값을 뒤집고 이 프롭을 지운다
      *    (화면개편의 «토글 병행»과 같은 방식).
      */
+    /**
+     * 🌈 **09-04 색표를 쓰는가** — 기본이 «쓴다»다 (기사님 확정 2026-09-05).
+     * 🔴 기본이 꺼짐이면 **안 넘기는 화면이 조용히 옛 문법**(상차 초록·하차 로즈)으로 그린다.
+     *    끄는 자리는 목업 조작판 하나뿐이다 (옛 색과 나란히 보려고 남긴다).
+     */
     rainbowNodes?: boolean;
 }
 
-export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLocation, children, fill, visitedTrail, callColors, onStopTap, drivenTrail, routeHolder, occludedPx, rainbowNodes }: Props) {
+export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLocation, children, fill, visitedTrail, callColors, onStopTap, drivenTrail, routeHolder, occludedPx, rainbowNodes = true }: Props) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const { theme } = useTheme();
     const mapColors = MAP_THEME_COLORS[theme];
