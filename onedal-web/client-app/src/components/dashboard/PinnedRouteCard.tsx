@@ -30,74 +30,10 @@ export interface EtaCell {
     pickupShift?: number; dropoffShift?: number;
 }
 
-/**
- * 🕐 **안 A — 원래 값과 지금 값을 둘 다** (기사님 확정 2026-08-30 · docs/지금/시각_표시.md)
- *
- * ```
- * 상차 초월읍   2:20 → 2:33  다녀옴
- * 하차 신둔면   3:15 → 3:20 (+5)
- * ```
- *
- * 🔴 **원래 값을 따로 저장하지 않는다** — 지금 값에서 밀린 분을 빼면 나온다 (규칙 ③).
- *    `dwellShiftMinutes` 가 그 밀림이고, 그 값이 곧 접힌 줄의 `▲▼` 다.
- *    둘이 같은 재료를 쓰므로 **한 화면이 두 말을 할 수 없다.**
- * 🔴 밀림이 0 이면 화살표를 안 그린다 — 안 움직인 값에 화살표를 붙이면 움직인 것처럼 읽힌다.
- */
-function PromiseLines({ route, timeline, records }: {
-    route: SecuredOrder; timeline?: RouteTimelineEntry[]; records: CallRecords;
-}) {
-    const hhmm = (ms: number) => new Date(ms).toLocaleTimeString('ko-KR',
-        { hour: '2-digit', minute: '2-digit', hour12: false });
-    const rows = (['pickup', 'dropoff'] as const).map(stop => {
-        const stopLabel = getAddressLabel(stop === 'pickup' ? route.pickup : route.dropoff);
-        const e = timeline?.find(x => x.orderId === route.id && x.stopType === stop);
-        if (!e?.promisedUntil) {
-            /**
-             * 🔴 **경로에 없으면 장부에서 읽는다** (기사님 발견 2026-08-30).
-             *    다녀온 정거장은 경로에서 빠지고 끝난 콜은 통째로 빠진다. 예전에는
-             *    거기서 포기해 **시각이 통째로 사라졌다** — 장부에는 다 있었다.
-             */
-            const t = stopTimeOfRecords(records.reports, records.milestones, stop);
-            if (!t) return null;
-            return { stop, stopLabel, 원래: null, nowMs: hhmm(t.ms), shiftMin: 0,
-                     확정: true, 다녀옴: t.kind === 'actual', 지각: 0 };
-        }
-        const nowMs = Date.parse(e.promisedUntil);
-        const shiftMin = e.dwellShiftMinutes ?? 0;
-        return {
-            stop, stopLabel,
-            원래: shiftMin !== 0 ? hhmm(nowMs - shiftMin * 60_000) : null,
-            nowMs: hhmm(nowMs),
-            shiftMin, 확정: e.promiseConfirmed, 다녀옴: e.arrived, 지각: e.lateMinutes ?? 0,
-        };
-    }).filter(Boolean);
-    if (!rows.length) return null;
-
-    return (
-        <div className="mb-3 rounded-md border border-border/60 bg-surface-alt/30 px-2.5 py-2 space-y-1">
-            {rows.map(r => (
-                <div key={r!.stop} className="flex items-baseline gap-2 text-[12px] tabular-nums">
-                    <span className="w-[26px] shrink-0 font-bold text-text-muted">
-                        {r!.stop === 'pickup' ? '상차' : '하차'}
-                    </span>
-                    <span className="truncate max-w-[7em] text-text-primary">{r!.stopLabel}</span>
-                    {r!.원래 && <><span className="text-text-muted line-through">{r!.원래}</span>
-                        <span className="text-text-muted">→</span></>}
-                    <span className={`font-bold ${r!.다녀옴 ? 'text-text-muted' : 'text-text-primary'}`}>
-                        {r!.확정 || r!.다녀옴 ? '' : '~'}{r!.nowMs}
-                    </span>
-                    {r!.shiftMin !== 0 && (
-                        <span className="text-text-muted">
-                            ({r!.shiftMin > 0 ? '+' : ''}{r!.shiftMin}분)
-                        </span>
-                    )}
-                    {r!.다녀옴 && <span className="text-text-muted">다녀옴</span>}
-                    {r!.지각 > 0 && <span className="text-danger font-bold">⚠️{r!.지각}분</span>}
-                </div>
-            ))}
-        </div>
-    );
-}
+/* 🏗️ **`PromiseLines`(상차·하차 약속 줄)는 2026-09-05 에 철거했다.**
+   기사님: *"타이틀하고 중복인 것 같은데 이걸 지우고 타이틀에 다 표현할 수 있지?"*
+   ⚠️ 08-30 의 «안 A»(펼치면 원래 값과 지금 값을 둘 다 적는다)를 개정한 것이다 —
+      옛 시각은 지나간 값이고, «달라졌나»는 **색**이 답한다 (`docs/지금/시각_표시.md`). */
 
 interface Props {
     route: SecuredOrder;
@@ -301,7 +237,8 @@ export default function PinnedRouteCard({
                     {isDeliveredCall(route) && (
                         <span className="px-1.5 py-0.5 rounded bg-success/15 text-success text-[10px] font-black">✅ 완료</span>
                     )}
-                    <span>콜잡은시간{' '}
+                    {/* 🕐 라벨을 뺐다 — 시각 하나면 «언제 잡았나»로 읽힌다 (목업 0905) */}
+                    <span>
                         <b className="text-text-primary font-bold">
                             {route.capturedAt
                                 ? new Date(route.capturedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
@@ -435,7 +372,16 @@ export default function PinnedRouteCard({
                         원천: docs/지금/시각_표시.md
                         접힌 줄(덱)은 «틀어졌나»만 기호로 답하고(안 C), 몇 시였는지는 여기서 답한다.
                         통화의 대사가 이 줄에서 나온다 — *"원래 3시 15분이라 했는데 20분쯤 되겠습니다."* */}
-                    <PromiseLines route={route} timeline={timeline} records={records} />
+                    {/**
+                      * 🔴 **상차·하차 줄을 지웠다** (기사님 2026-09-05:
+                      *    *"타이틀하고 중복인 것 같은데 이걸 지우고 타이틀에 다 표현할 수 있지?"*).
+                      *
+                      *    콜 줄이 이미 «① 초월읍 ~23:23 → ③ 신둔면 ~00:38» 을 다 그린다.
+                      *    여기에만 있던 것은 **옛 시각(취소선)과 차이** 둘뿐이었는데:
+                      *      · 옛 시각은 **지나간 값**이다 — 지금 몇 시인지만 알면 된다
+                      *      · 차이는 **색**이 말한다 (밀리면 노랑·당겨지면 초록)
+                      *    몇 분인지는 심사 중이면 심사석 위 한 줄이 이미 말한다 (규칙 ③).
+                      */}
 
                     {/* 👀 **미리보기 콜에는 결재 버튼을 띄우지 않는다** (기사님 확정 2026-08-22 · 용어집 §9).
                         아직 배차망에서 안 잡은 콜이라 여기서 KEEP 을 눌러도 잡히지 않는다 —
@@ -675,26 +621,6 @@ export default function PinnedRouteCard({
 
                             return (
                                 <>
-                                    {/* ── 적요 — 통화 전에 읽어야 하는 유일한 텍스트 ──
-                                        🔴 '지금 할 일' **아래**에 있었다 (2026-08-11).
-                                        적요를 읽고 전화를 거는 순서인데 화면은 반대였다.
-                                        시안(`buildCard`)도 적요를 지금 할 일 위에 뒀다. */}
-                                    {/* 배경 박스를 뺐다 — 한 줄이면 라벨만으로 충분히 구분된다 (UI 영역 아끼기) */}
-                                    {/* 📦 **무엇을 싣나** — 없으면 안 그린다 (적요에서 짜내지 않는다 · 규칙 ④) */}
-                                    {route.itemDescription && (
-                                        <div className="flex">
-                                            <span className="px-2 py-1 rounded-md border text-[11px] font-black
-                                                             bg-surface-alt/60 border-border-card text-text-primary">
-                                                📦 {route.itemDescription}
-                                            </span>
-                                        </div>
-                                    )}
-                                    <div className="flex gap-1.5 items-baseline">
-                                        <span className="shrink-0 text-[11px] font-bold text-text-muted">적요 :</span>
-                                        <span className="font-bold leading-snug break-keep text-[12px]">
-                                            {memoText || <span className="text-text-muted font-normal">상세 정보 없음 (파싱 대기 중)</span>}
-                                        </span>
-                                    </div>
 
                                     {/* 착불 경고 — 놓치면 현금을 못 받는다 */}
                                     {isCod && (
@@ -761,7 +687,18 @@ export default function PinnedRouteCard({
                                                 .filter(x => x.b != null) as Array<{ k: 'pickup' | 'dropoff'; b: { min: number; firm: boolean } }>;
                                             if (!chips.length) return null;
                                             return (
-                                                <div className="flex items-center gap-1.5 text-[11px] mb-1">
+                                                <div className="flex items-center gap-1.5 flex-wrap text-[11px] mb-1">
+                                                    {/**
+                                                      * 📦 **짐과 버퍼는 한 줄이다** (목업 이식 2026-09-05).
+                                                      *    둘 다 «이 콜이 어떤 콜인가»의 답이라 눈이 한 번에 훑는다.
+                                                      * 🔴 짐이 없으면 안 그린다 — 적요에서 짜내지 않는다 (규칙 ④).
+                                                      */}
+                                                    {route.itemDescription && (
+                                                        <span className="px-2 py-0.5 rounded-md border font-black
+                                                                         bg-surface-alt/60 border-border-card text-text-primary">
+                                                            📦 {route.itemDescription}
+                                                        </span>
+                                                    )}
                                                     <span className="text-text-muted font-bold">버퍼</span>
                                                     {chips.map(({ k, b }) => (
                                                         <span key={k} className={`px-1.5 py-0.5 rounded font-bold tabular-nums ${
@@ -800,6 +737,22 @@ export default function PinnedRouteCard({
                                                 </div>
                                             );
                                         })()}
+                                        {/**
+                                          * 📄 **적요는 맨 아래다** (목업 이식 2026-09-05).
+                                          *    위의 한 줄(번호·차종·수수료·판정·요금)과 칩 줄(짐·버퍼)이 «어떤 콜인가»를
+                                          *    답하고 나면, 그다음이 **읽을 문장**이다. 통화 전에 읽는 유일한 텍스트다.
+                                          */}
+                                    {/* ── 적요 — 통화 전에 읽어야 하는 유일한 텍스트 ──
+                                        🔴 '지금 할 일' **아래**에 있었다 (2026-08-11).
+                                        적요를 읽고 전화를 거는 순서인데 화면은 반대였다.
+                                        시안(`buildCard`)도 적요를 지금 할 일 위에 뒀다. */}
+                                    {/* 배경 박스를 뺐다 — 한 줄이면 라벨만으로 충분히 구분된다 (UI 영역 아끼기) */}
+                                    <div className="flex gap-1.5 items-baseline">
+                                        <span className="shrink-0 text-[11px] font-bold text-text-muted">적요 :</span>
+                                        <span className="font-bold leading-snug break-keep text-[12px]">
+                                            {memoText || <span className="text-text-muted font-normal">상세 정보 없음 (파싱 대기 중)</span>}
+                                        </span>
+                                    </div>
                                         <div className="mt-1 mb-2">
                                             {/* KEEP 이 만든다 (기사님 2026-08-20) — 여기는 보기만. 이 기능 전에 잡은 콜은 행이 없다 */}
                                             {!seededSteps && (
