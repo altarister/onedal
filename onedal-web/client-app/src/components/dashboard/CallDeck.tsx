@@ -448,7 +448,7 @@ function StopMark({ at, time, confirmed, kind, evaluating, name, late = 0, shift
         <span className="inline-flex items-center gap-1 align-middle">
             {!!at && (
                 <span
-                    className="inline-flex items-center justify-center w-[19px] h-[19px] rounded-full text-[11px] font-black leading-none shrink-0"
+                    className="inline-flex items-center justify-center w-[20px] h-[20px] rounded-full text-[12.5px] font-black leading-none shrink-0"
                     style={{
                         ...(evaluating || !callNo ? {
                             /* 🔴 번호를 모르면 **색을 지어내지 않는다** (규칙 ④) — 옛 초록으로
@@ -470,22 +470,32 @@ function StopMark({ at, time, confirmed, kind, evaluating, name, late = 0, shift
                     }}
                 >{at}</span>
             )}
-            {/* 지각 표시가 붙으면 폭이 모자란다 — 잘릴 것은 지명이지 시각·경고가 아니다 */}
-            <span className="truncate max-w-[5.5em]">{name}</span>
-            {time && (
-                /* ~ = 통화 전 추정. 12px 아래에서는 물결이 마이너스로 읽혔다 (기사님 2026-08-19) */
-                <span className={`text-[13px] font-bold tabular-nums shrink-0 ${late > 0 ? 'text-danger' : 'text-text-muted'}`}>
-                    {confirmed ? hhmm(time) : `~${hhmm(time)}`}
-                    {/* ⚠️ 못 지키는 약속 — 색만으로는 이유를 모르니 분을 적는다 */}
-                    {late > 0 && <span className="ml-0.5">⚠️{late}분</span>}
-                    {shift !== 0 && (
-                        <span className="ml-0.5 opacity-80"
-                              title={`앞 정거장이 예측과 달라 ${Math.abs(shift)}분 ${shift > 0 ? '밀렸습니다' : '당겨졌습니다'} — 몇 분인지는 카드를 펼치면 나옵니다`}>
-                            {shift > 0 ? '▲' : '▼'}
-                        </span>
-                    )}
-                </span>
-            )}
+            {/**
+              * 📐 **열을 고정한다** (기사님 2026-09-04: *"일단 라인에 맞춰야 할 것 같아"*).
+              *    지명이 내용만큼 늘어나면 **줄마다 시각의 자리가 달라져**, 달리면서 훑을 때
+              *    눈이 매번 다시 찾는다. 폭을 고정하면 세 줄이 **한 표**처럼 읽힌다.
+              * 🔴 **잘릴 것은 지명이다** — 못 읽어도 «어느 줄»은 번호·색이 답한다.
+              *    시각을 자르면 답이 없다.
+              */}
+            <span className="w-[4em] shrink-0 truncate">{name}</span>
+            {/**
+              * 📐 **시각 칸은 비어도 자리를 지킨다.** 그게 열을 만드는 값이다 —
+              *    시각 없는 콜에서 칸이 사라지면 **아래 줄이 통째로 당겨진다.**
+              * ⚠️ `min-w` 다 — 지각·밀림이 붙는 드문 줄만 넓어지고 평소 줄은 다 같다.
+              */}
+            <span className={`min-w-[3.5em] shrink-0 text-[12px] font-bold tabular-nums text-right ${
+                late > 0 ? 'text-danger' : 'text-text-muted'
+            }`}>
+                {time ? (confirmed ? hhmm(time) : `~${hhmm(time)}`) : ''}
+                {/* ⚠️ 못 지키는 약속 — 색만으로는 이유를 모르니 분을 적는다 */}
+                {late > 0 && <span className="ml-0.5">⚠️{late}분</span>}
+                {shift !== 0 && (
+                    <span className="ml-0.5 opacity-80"
+                          title={`앞 정거장이 예측과 달라 ${Math.abs(shift)}분 ${shift > 0 ? '밀렸습니다' : '당겨졌습니다'} — 몇 분인지는 카드를 펼치면 나옵니다`}>
+                        {shift > 0 ? '▲' : '▼'}
+                    </span>
+                )}
+            </span>
         </span>
     );
 }

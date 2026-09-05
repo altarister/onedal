@@ -12,6 +12,9 @@ import { useGpsFocusStore } from '../../stores/gpsFocusStore';
 import { useFilterConfig } from '../../hooks/useFilterConfig';
 import { logRoadmapEvent, logStateChange } from '../../lib/roadmapLogger';
 import { socket } from '../../lib/socket';
+/* 🗺️ 지도 아래 두 귀퉁이 — 규칙과 이름은 한 곳에서 온다 (규칙 ③) */
+import { ROUTE_PRIORITIES, isPriorityLocked } from '../../lib/routePriority';
+import NaviQr from '../dashboard/NaviQr';
 
 /**
  * 🎭 **무대 — 지도 배경 + 3단 시트** (화면개편 2단계 · v23/v24 · 기사님 확정 2026-08-31).
@@ -44,6 +47,24 @@ export default function StageView(props: Props) {
      *    지도는 «시트»를 모르고 이 숫자만 받는다 — 부품끼리 얽히지 않게 (규칙 ③).
      */
     const [sheetPx, setSheetPx] = useState(0);
+    /** 🧭 QR 덮개 — «눌러서 크게» (기사님 확정 2026-09-05 · 작게 늘 띄우면 못 찍힌다) */
+    const [qrOpen, setQrOpen] = useState(false);
+    const NAVI_KEY = import.meta.env.VITE_KAKAO_JS_KEY as string | undefined;
+    const NAVI_ORIGIN = (import.meta.env.VITE_KAKAO_JS_ORIGIN as string | undefined)
+        ?? 'https://1dal.altari.com';
+    /**
+     * 🧭 **이번에 건넬 정거장** — 다음 하나와 그 앞의 경유지들.
+     * 🔴 카카오내비가 경유지를 **3개까지** 받는다 — 그래서 넷을 넘겨 자르지 않는다
+     *    (`buildKakaoNaviUrl` 이 규격을 안다 · 규칙 ③).
+     * ⚠️ 좌표가 없는 정거장은 **빼지 않고 멈춘다** — 지어내면 엉뚱한 데로 안내한다 (규칙 ④).
+     */
+    const qrSlice = derived.unifiedRoutePoints.slice(0, 4);
+    const toNaviStop = (p: { name: string; x?: number; y?: number; type?: string }) =>
+        (typeof p?.x === 'number' && typeof p?.y === 'number')
+            ? { name: `${p.name}${p.type ? ` ${p.type}` : ''}`, x: p.x, y: p.y } : null;
+    const qrStop = qrSlice.length ? toNaviStop(qrSlice[qrSlice.length - 1]) : null;
+    const qrVia = qrSlice.slice(0, -1).map(toNaviStop)
+        .filter(Boolean) as { name: string; x: number; y: number }[];
     const { filter, updateFilter } = useFilterConfig();
 
 
@@ -294,8 +315,84 @@ export default function StageView(props: Props) {
                             🚀 지금 출발
                         </button>
                     )}
+                    {/**
+                      * 🗺️ **아래 두 귀퉁이** (기사님 확정 2026-09-05 · 목업 이식):
+                      *   **좌하단** 경로 방침 — 내비추천 · 큰길 우선 · 최단거리
+                      *   **우하단** 「QR 코드」 — **치수가 왼쪽과 같다.** 두 귀퉁이가 한 짝으로 읽힌다
+                      * 🔴 **시트가 잰 높이 위에 뜬다** (`sheetPx`) — 시트가 «내용만큼» 서면
+                      *    snap 이 정한 높이와 실제가 갈라져 버튼이 엉뚱한 자리에 뜬다 (규칙 ③).
+                      */}
+                    {liveRoute.length > 0 && (() => {
+                        /* 🔴 **화면에 올라 있는 콜을 센다 — 심사 중인 것도 함께** (기사님 0905).
+                           합짐은 «첫짐 경로 위에서 산출된» 콜이라, 심사 중에 경로를 바꾸면
+                           «가는 길에 있다»는 산출 근거 자체가 사라진다. */
+                        const locked = isPriorityLocked(liveRoute.length);
+                        const holder = derived.routeHolder ?? liveRoute[liveRoute.length - 1];
+                        /**
+                         * 🔴 **지금 방침은 «다시 물은 결과 문구»에서 읽는다** — 콜에 방침 칸이 없다.
+                         *    `kakaoTimeExt` 에 `[최단시간]`·`[최단거리]` 가 붙는다 (`PinnedRoute` 와 같은 법).
+                         * ⚠️ 둘 다 없으면 기본값 «내비추천»이다.
+                         */
+                        const ext = holder?.kakaoTimeExt || '';
+                        const now = ext.includes('[최단시간]') ? 'TIME'
+                                  : ext.includes('[최단거리]') ? 'DISTANCE' : 'RECOMMEND';
+                        const shown = ROUTE_PRIORITIES.filter(b => !locked || b.key === now);
+                        return (
+                            <div className="absolute left-3 z-10 flex flex-col gap-1.5 items-start"
+                                 style={{ bottom: sheetPx + 12 }}>
+                                {shown.map(b => (
+                                    <button key={b.key} type="button"
+                                        onClick={() => holder && props.onRecalculate?.(holder.id, b.key)}
+                                        disabled={locked}
+                                        className={`px-2.5 h-8 rounded-md text-[11.5px] font-black border backdrop-blur-sm
+                                                    whitespace-nowrap transition-all ${
+                                            now === b.key
+                                                ? 'bg-info/90 text-white border-info'
+                                                : 'bg-surface-alt/80 text-text-primary border-border hover:bg-surface-hover'}`}>
+                                        {b.naviLabel}
+                                    </button>
+                                ))}
+                                {/* 🔴 «잠겼다»는 **버튼 하나만 남은 것으로 이미 보인다** —
+                                    글자를 덧붙이지 않는다 (기사님 2026-09-05) */}
+                            </div>
+                        );
+                    })()}
+
+                    {/* 🧭 **「QR 코드」** — 이 버튼이 늘 하는 일은 하나다. 어디로 가는지는
+                        **덮개를 열면 그 두 줄이 말한다** (주행 중에도 있는 버튼이라 «출발»이 아니다) */}
+                    {qrStop && (
+                        <button type="button" onClick={() => setQrOpen(true)}
+                            className="absolute right-3 z-10 flex items-center gap-1 rounded-md px-2.5 h-8
+                                       text-[11.5px] font-black text-white whitespace-nowrap
+                                       active:scale-95 transition-transform"
+                            style={{ bottom: sheetPx + 12, background: 'linear-gradient(180deg,#5b8cff,#3f6fe0)',
+                                     boxShadow: '0 4px 12px rgba(79,141,249,.35)' }}>
+                            🧭 QR 코드
+                        </button>
+                    )}
                 </PinnedRouteCanvas>
             </div>
+
+            {/**
+              * 🔳 **QR 덮개 — 세 줄이면 끝난다** (기사님 2026-09-05:
+              *    *"그냥 「여수동 상차 / 구로동 하차 / 카메라로 찍어 네비를 켜세요」 이렇게"*).
+              * 🔴 **눌러서 크게**를 고르셨다 (2026-09-05) — 작게 늘 띄우면 못 찍힌다.
+              */}
+            {qrOpen && qrStop && (
+                <div onClick={() => setQrOpen(false)}
+                     className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-4 bg-black/85 backdrop-blur-sm p-6">
+                    <div className="text-center">
+                        <p className="text-[13px] font-black text-info">다음 정거장</p>
+                        <p className="text-[24px] font-black text-white leading-tight">{qrStop.name}</p>
+                    </div>
+                    <div className="rounded-xl bg-white p-3">
+                        <NaviQr stop={qrStop} via={qrVia} here={myLocation} kind="navi"
+                                size={210} naviKey={NAVI_KEY} naviOrigin={NAVI_ORIGIN} />
+                    </div>
+                    <p className="text-[14px] font-bold text-white/90">카메라로 찍어 내비를 켜세요</p>
+                    <p className="text-[12px] text-white/50">아무 데나 누르면 닫힙니다</p>
+                </div>
+            )}
 
             {/* 3단 시트 — 내용물은 기존 콜 화면 그대로 (sheetOnly) */}
             <StageSheet snap={snap} onSnapChange={(s) => feed({ type: 'drag', to: s })}
