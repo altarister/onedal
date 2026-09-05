@@ -355,6 +355,8 @@ export default function Dashboard() {
                          */
                         compact={stagePreview && filterCompact}
                         onExpand={() => setFilterCompact(false)}
+                        /* 🪗 머리글을 다시 누르면 한 줄로 — 콜 아코디언과 같은 문법 (0905) */
+                        onCollapse={stagePreview ? () => setFilterCompact(true) : undefined}
                         cancelCounts={cancelCounts} cancelRounds={cancelRounds} budgetToast={cancelBudgetToast} />;
                 })()}
 

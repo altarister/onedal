@@ -40,7 +40,7 @@ const PHASE_STYLE: Record<CallTarget, { icon: string; accent: string; hint: stri
 };
 
 // 취소 카운트 props 는 받되 안 그린다 (v13 확정안 — 경고가 필요해지면 ⚙️ 팝업으로)
-export default function OrderFilterStatus({ onOpenFilter, budgetToast, compact, onExpand }:
+export default function OrderFilterStatus({ onOpenFilter, budgetToast, compact, onExpand, onCollapse }:
     {
         onOpenFilter: () => void;
         cancelCounts?: Record<string, number>;
@@ -58,6 +58,12 @@ export default function OrderFilterStatus({ onOpenFilter, budgetToast, compact, 
         compact?: boolean;
         /** 접힌 줄을 눌렀다 — 펼치는 일은 부르는 쪽이 정한다 (상태를 여기 두지 않는다) */
         onExpand?: () => void;
+        /**
+         * 🪗 **펼친 판의 머리글을 눌렀다 — 도로 접는다** (기사님 2026-09-05).
+         *    콜 아코디언과 **같은 문법**이다 — 머리를 누르면 열리고 다시 누르면 닫힌다.
+         * ⚠️ `⚙️` 는 그 안에서 **따로** 산다 — 설정 팝업은 접기와 다른 일이다.
+         */
+        onCollapse?: () => void;
     }) {
     const { filter } = useFilterConfig();
     const [toast, setToast] = useState<string | null>(null);
@@ -178,7 +184,11 @@ export default function OrderFilterStatus({ onOpenFilter, budgetToast, compact, 
         <div id="filter-status" className="relative mx-3 my-2 rounded-xl border overflow-hidden shadow-lg flex flex-col" style={{ background: "linear-gradient(180deg, var(--color-surface-alt), var(--color-surface))", height: 158, borderColor: phase === 'DEST' ? 'var(--color-border-card, #1c2436)' : `${v14.c}4d` }}>
             {/* 지금 국면 — 누르면 필터 설정 팝업.
                 v13 구조: 줄마다 독립 — [머리글 42px] / [지표 38px], 각 줄 헤어라인 (한 덩어리 금지 · 0831) */}
-            <div onClick={onOpenFilter} className="cursor-pointer transition-colors hover:bg-surface-hover/40 active:scale-[0.995] flex flex-col" style={{ flex: 2 }}>
+            {/* 🪗 **머리글을 누르면 접힌다** — 콜 아코디언과 같은 문법 (기사님 0905).
+                예전엔 여기가 설정 팝업이었는데, 그러면 **펼친 뒤 도로 접을 길이 없다.** */}
+            <div onClick={onCollapse ?? onOpenFilter}
+                 title={onCollapse ? '누르면 한 줄로 접힙니다' : '필터 설정'}
+                 className="cursor-pointer transition-colors hover:bg-surface-hover/40 active:scale-[0.995] flex flex-col" style={{ flex: 2 }}>
                 <div className="flex items-center" style={{ gap: 10, padding: '0 18px', flex: 1, fontSize: 14.5, borderBottom: '1px solid var(--color-border-card)' }}>
                     {/* 국면명·아이콘은 아래 버튼이 이미 말한다 — 머리글은 방향 문장부터 (중복 제거 · 기사님 0831) */}
                     <span className="text-text-primary font-bold truncate" style={{ fontSize: 14 }}>{headline(phase)}</span>
@@ -188,7 +198,10 @@ export default function OrderFilterStatus({ onOpenFilter, budgetToast, compact, 
                             className="text-[11px] text-warning">🔒</span>
                     )}
                     <span className="ml-auto font-black shrink-0" style={{ fontSize: 14, color: v14.c }}>{label}</span>
-                    <span className="text-text-muted text-sm shrink-0">⚙️</span>
+                    {/* ⚙️ **설정은 따로 산다** — 접기와 다른 일이라 여기서 멈춘다 */}
+                    <button type="button" title="필터 설정"
+                        onClick={(e) => { e.stopPropagation(); onOpenFilter(); }}
+                        className="text-text-muted text-sm shrink-0 px-0.5 active:scale-90 transition-transform">⚙️</button>
                 </div>
                 {/* ── 순서를 고정한다 (명세 §4-1) — 💰 금액 · 📍 지역 · 📦 적재 ── */}
                 <div className="flex items-center text-text-muted font-medium tabular-nums truncate" style={{ gap: 8, padding: '0 18px', flex: 1, fontSize: 13, borderBottom: '1px solid var(--color-border-card)' }}>
