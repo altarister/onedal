@@ -82,7 +82,10 @@ function MockHeader() {
 /** 📱 폰 한 대가 들고 있는 것 — 여럿이 되니 «줄»과 «한 대»를 갈랐다 (2026-09-05) */
 interface DeviceOne {
     id: string; name: string; net: string | null; screen: string; seenAt: string;
-    mode: string; quiet?: boolean; stuck?: boolean; dead?: boolean; blind?: boolean;
+    mode: string;
+    /** 🎯 지금 무엇을 찾나 — 국면·모드에서 **파생**된다 (폰_상태바.md 13번) */
+    hunting: string;
+    quiet?: boolean; stuck?: boolean; dead?: boolean; blind?: boolean;
 }
 
 /**
@@ -93,20 +96,20 @@ interface DeviceOne {
  */
 const DEVICE_SETS: Record<string, DeviceOne[]> = {
     '1대': [
-        { id: 'a', name: 'A24', net: '인성', screen: '콜리스트', seenAt: '13:19', mode: '자동' },
+        { id: 'a', name: 'A24', net: '인성', screen: '콜리스트', seenAt: '13:19', mode: '자동', hunting: '첫짐' },
     ],
     '2대': [
-        { id: 'a', name: 'A24', net: '인성', screen: '콜리스트', seenAt: '13:19', mode: '자동' },
-        { id: 'b', name: 'B12', net: '픽커', screen: '홈', seenAt: '13:19', mode: '알람' },
+        { id: 'a', name: 'A24', net: '인성', screen: '콜리스트', seenAt: '13:19', mode: '자동', hunting: '첫짐' },
+        { id: 'b', name: 'B12', net: '픽커', screen: '홈', seenAt: '13:19', mode: '알람', hunting: '합짐' },
     ],
     '3대': [
-        { id: 'a', name: 'A24', net: '인성', screen: '콜리스트', seenAt: '13:19', mode: '자동' },
-        { id: 'b', name: 'B12', net: '픽커', screen: '홈', seenAt: '13:19', mode: '알람' },
-        { id: 'c', name: 'C7', net: '24시', screen: '콜리스트', seenAt: '13:18', mode: '자동', quiet: true },
+        { id: 'a', name: 'A24', net: '인성', screen: '콜리스트', seenAt: '13:19', mode: '자동', hunting: '첫짐' },
+        { id: 'b', name: 'B12', net: '픽커', screen: '홈', seenAt: '13:19', mode: '알람', hunting: '합짐' },
+        { id: 'c', name: 'C7', net: '24시', screen: '콜리스트', seenAt: '13:18', mode: '자동', hunting: '첫짐', quiet: true },
     ],
     '2대 · 하나 끊김': [
-        { id: 'a', name: 'A24', net: '인성', screen: '콜리스트', seenAt: '13:19', mode: '자동' },
-        { id: 'b', name: 'B12', net: null, screen: '접근성 꺼짐', seenAt: '12:58', mode: '알람', dead: true },
+        { id: 'a', name: 'A24', net: '인성', screen: '콜리스트', seenAt: '13:19', mode: '자동', hunting: '첫짐' },
+        { id: 'b', name: 'B12', net: null, screen: '접근성 꺼짐', seenAt: '12:58', mode: '알람', hunting: '합짐', dead: true },
     ],
 };
 
@@ -167,24 +170,51 @@ const MODES = ['자동', '알람', '직접'];
  *    닫힌 버튼도 같은 폭이라 레이어가 열려도 **그 칸이 그대로 덮인다.**
  */
 const MODE_W = 48;            // 버튼 한 칸
-const MODE_GAP = 4;           // gap-1
 const MODE_PAD = 5;           // 레이어 안쪽 여백 p-1(4) + 테두리(1)
+
+/**
+ * 🔴 **레이어는 «그걸 눌렀다»는 자리다** (기사님 2026-09-05)
+ *
+ * *"버튼 레이어는 그걸 눌렀다는 거고, **순서를 바꿔서** 정렬하면 될 것 같은데."*
+ *
+ * 셋을 다 만족시키려다 한 번 헛디뎠다 —
+ * | 가 | 배지 자리가 **폰마다 같다** | 눈으로 훑는다 |
+ * | 나 | 열어도 **선택된 것이 안 움직인다** | 방금 본 글자가 제자리 |
+ * | 다 | 레이어가 **화면 안에 있다** | 누를 수 있다 |
+ *
+ * 처음엔 순서를 고정한 채 레이어를 **선택 순번만큼 밀었다** — 「자동」에서 104px 이
+ * 화면 밖으로 나갔다. 버튼이 이미 오른쪽 끝이라 **밀 자리가 없다.**
+ *
+ * 기사님 해법이 그 매듭을 푼다 — **순서를 바꾸면 밀 필요가 없다.**
+ * **선택된 것을 끝에 두고** 레이어는 그 자리에 붙인 채 **나머지가 왼쪽으로 펴진다.**
+ * ⚠️ 기사님은 «왼쪽 정렬»이라 하셨는데, 버튼이 **오른쪽 끝**이라 오른쪽으로 펴면
+ *    90px 이 또 나간다. **같은 발상을 좌우만 뒤집어** 붙였다.
+ *
+ * 👉 셋이 다 선다.
+ */
 
 function DeviceOneRow({ d, mode, pending, open, more, onPick, onOpen, onMore }: {
     d: DeviceOne; mode: string; pending: string | null; open: boolean; more: boolean;
     onPick: (m: string) => void; onOpen: (v: boolean) => void; onMore: (v: boolean) => void;
 }) {
-    const idx = Math.max(0, MODES.indexOf(mode));
     return (
         <div>
-            <div className="flex items-center gap-1.5 px-3 py-[3px]">
+            <div className="flex items-center gap-1.5 px-3 py-1">
                 <span className={`shrink-0 text-[14px] font-black ${
                     d.dead ? 'text-danger animate-pulse' : d.blind ? 'text-text-muted' : 'text-success'}`}>{d.name}</span>
                 <span className={`shrink-0 px-1.5 rounded border text-[13px] whitespace-nowrap ${
                     d.dead ? 'border-border bg-surface-alt/40 text-text-muted' : 'border-border-card text-text-primary'}`}>
                     {d.net && <span className="text-info font-black mr-1">{d.net}</span>}{d.screen}
                 </span>
+                {/**
+                  * 🔴 **필터 배지를 접힘에서 끌어올렸다** (기사님 2026-09-05: *"합짐 첫짐
+                  *    이것만 위로 올려줘"*). 자리는 **화면명 바로 뒤 · 시각 앞**이다
+                  *    (기사님이 순서까지 지정하셨다) — «어느 화면에서 **무엇을** 찾나»가
+                  *    한 문장으로 이어지고, 시각부터는 «언제·어떤가»로 갈린다.
+                  */}
                 {d.blind && <span className="shrink-0 text-[12.5px]" title="접근성이 막혀 못 읽는다">👁️</span>}
+                <span className="shrink-0 px-1.5 rounded border border-info/40 bg-info/10
+                                 text-[12.5px] font-extrabold text-info">{d.hunting}</span>
                 <span className="shrink-0 text-[12.5px] text-text-muted tabular-nums">{d.seenAt}</span>
                 {d.quiet && <span className="shrink-0 text-[12.5px]" title="30초 넘게 말이 없다">⏱️</span>}
                 {d.stuck && (
@@ -210,11 +240,11 @@ function DeviceOneRow({ d, mode, pending, open, more, onPick, onOpen, onMore }: 
                         </span>
                     )}
                     {open && (
-                        /* 🔴 **선택된 칸이 닫힌 버튼 자리에 그대로 얹힌다** — 왼쪽으로 펴진다 */
-                        <span style={{ right: -(MODE_PAD + (MODES.length - 1 - idx) * (MODE_W + MODE_GAP)) }}
+                        /* 🔴 오른쪽 끝을 맞추고 **왼쪽으로** 펴진다 — 화면 밖으로 안 나간다 */
+                        <span style={{ right: -MODE_PAD }}
                             className="absolute top-1/2 -translate-y-1/2 z-30 flex gap-1 p-1 rounded-lg
                                        bg-surface border border-border shadow-lg">
-                            {MODES.map(m => (
+                            {[...MODES.filter(m => m !== mode), mode].map(m => (
                                 <button key={m} type="button" onClick={() => onPick(m)} style={{ width: MODE_W }}
                                     className={`py-0.5 rounded-md text-[13px] font-black border whitespace-nowrap ${
                                         m === mode ? 'bg-warning/15 border-warning/45 text-warning'
@@ -234,10 +264,18 @@ function DeviceOneRow({ d, mode, pending, open, more, onPick, onOpen, onMore }: 
             {/* 접힌 넷 — **그 폰 줄 바로 아래**에 편다 */}
             {more && (
                 <div className="flex items-center gap-2 px-3 pb-1.5 text-[12px] text-text-muted tabular-nums flex-wrap">
-                    <span className="px-1.5 rounded border border-info/40 bg-info/10 font-extrabold text-info">합짐</span>
                     <span className="px-1.5 rounded border border-border bg-surface-alt font-bold">대기</span>
-                    <span>수집1234 수락5 취소2</span>
-                    <span className="opacity-70">2.9.1-hello (49)</span>
+                    <span>수집1234 수락5</span>
+                    {/**
+                      * 🔴 **빌드 번호를 빼고 «취소 한도»를 넣었다** (기사님 2026-09-05).
+                      *    `(49)` 는 버전명이 이미 답하는 것이라 자리를 두 번 쓰고 있었다.
+                      *    배차망 **취소 10회**는 걸리면 그 폰이 **그날 일을 못 하는** 한도다
+                      *    (용어집 §2-1) — 누적 안에 `취소2` 로 묻혀 있어 한도가 안 보였다.
+                      */}
+                    <span className="px-1.5 rounded border border-warning/40 bg-warning/10 font-extrabold text-warning">
+                        취소 2/10
+                    </span>
+                    <span className="opacity-70">2.9.1-hello</span>
                 </div>
             )}
         </div>
@@ -269,14 +307,16 @@ function MockDevicePanel({ devices, modeOf, pendingOf, openId, onPick, onOpen, m
     moreId: string | null; onMore: (id: string | null) => void;
 }) {
     return (
-        <div className="shrink-0 border-b border-border-card divide-y divide-border-card/50">
-            {devices.map(d => (
-                <DeviceOneRow key={d.id} d={d}
+        <div className="shrink-0 border-b border-border-card divide-y divide-border-card">
+            {devices.map((d, i) => (
+                <div key={d.id} className={i % 2 ? 'bg-surface-alt/25' : ''}>
+                <DeviceOneRow d={d}
                     mode={modeOf(d.id)} pending={pendingOf(d.id)}
                     open={openId === d.id} more={moreId === d.id}
                     onOpen={(v) => onOpen(v ? d.id : null)}
                     onMore={(v) => onMore(v ? d.id : null)}
                     onPick={(m) => onPick(d.id, m)} />
+                </div>
             ))}
         </div>
     );
