@@ -21,15 +21,25 @@ describe('판 셋 — 정거장과 콜 목록이 갈라지지 않는다', () => 
     });
 
     /**
-     * 🔴 **이 검사가 잡는 것** — 목록을 «정거장 순»으로 세우면 4콜 판이 [1,2,4,3] 이 되어
-     *    `callList[callNo - 1]` 로 여는 자리(시트 상태바 버튼)가 **다른 콜을 연다.**
+     * 🔴 **콜은 번호로 찾는다 — 뺄셈으로 찾지 않는다** (2026-09-05 정정).
+     *    한때 목록을 번호순으로 정렬해 두고 `callList[callNo - 1]` 로 찾았다. 그런데
+     *    목록은 **잡은 순서**라야 해서(기사님) 정렬을 걷어냈고, 뺄셈은 그 순간 틀렸다.
      */
-    it.each(PLANS)('%i콜 판 — callList[callNo - 1] 이 그 콜을 연다', (n) => {
+    it.each(PLANS)('%i콜 판 — callNo 로 찾으면 그 콜이 나온다', (n) => {
         const plan = MOCK_PLANS[n];
         for (const stop of plan.stops) {
-            const opened = plan.callList[stop.callNo! - 1];
-            expect(opened, `정거장 ${stop.no} ${stop.name}`).toBeDefined();
-            expect(opened.nodes).toContain(stop.no);
+            const owner = plan.callList.find(c => c.callNo === stop.callNo);
+            expect(owner, `정거장 ${stop.no} ${stop.name}`).toBeDefined();
+            expect(owner!.nodes).toContain(stop.no);
+        }
+    });
+
+    it.each([1, 2, 3] as const)('시나리오 %i콜 — 번호로 찾기가 잡은 순서에서도 맞는다', (g) => {
+        const plan = scenarioPlan(g);
+        for (const stop of plan.stops) {
+            const owner = plan.callList.find(c => c.callNo === stop.callNo);
+            expect(owner, `${stop.name}`).toBeDefined();
+            expect(owner!.nodes).toContain(stop.no);
         }
     });
 
@@ -278,5 +288,47 @@ describe('🔴 콜이 없으면 지도에 그릴 것도 없다 (2026-09-05)', ()
             expect(scenarioPlan(n).polyline.length, `${n}콜`).toBeGreaterThan(100);
             expect(scenarioPlan(n).totalKm, `${n}콜`).toBeGreaterThan(0);
         }
+    });
+});
+
+describe('🔴 콜 목록의 순서는 «잡은 순서»다 — 절대 안 바뀐다 (2026-09-05)', () => {
+    /**
+     * 기사님: *"콜 인덱스가 갑자기 변했어. 3번 콜이 1번으로 들어왔어. 그건 오류야.
+     * 최하단에 들어가야 해. 콜 순서는 변함이 없고 콜 안에 들어가 있는 상하차지의
+     * 번호만 바뀌어야 해."*
+     *
+     * 🔴 **두 순서가 있고 서로 다르다:**
+     *    · **콜 목록** — 잡은 순서. 새 콜은 **맨 아래**에 붙는다. 뒤집히지 않는다
+     *    · **정거장 번호** — 경로 순서. 합짐이 앞에 끼면 뒤가 밀린다
+     *
+     * ⚠️ 내가 `callList[callNo - 1]` 로 찾기 편하려고 **번호순으로 정렬**해 뒀고,
+     *    검사까지 그것을 잠그고 있었다. 편의가 도메인 사실을 이긴 자리다.
+     */
+    it('시나리오 판 — 콜이 잡은 차례대로 놓인다', () => {
+        // 잡는 차례는 첫콜(2) → 합짐1(3) → 합짐2(1)
+        expect(scenarioPlan(1).callList.map(c => c.callNo)).toEqual([2]);
+        expect(scenarioPlan(2).callList.map(c => c.callNo)).toEqual([2, 3]);
+        expect(scenarioPlan(3).callList.map(c => c.callNo)).toEqual([2, 3, 1]);
+    });
+
+    it('새로 잡은 콜은 맨 아래에 붙는다 — 앞의 것들은 자리를 안 뺏긴다', () => {
+        for (const n of [1, 2] as const) {
+            const before = scenarioPlan(n).callList.map(c => c.callNo);
+            const after = scenarioPlan(n + 1).callList.map(c => c.callNo);
+            expect(after.slice(0, before.length)).toEqual(before);
+            expect(after).toHaveLength(before.length + 1);
+        }
+    });
+
+    /** 🔴 **정거장 번호는 바뀐다** — 그것이 «콜 안의 번호만 바뀐다»는 뜻이다 */
+    it('합짐2가 붙으면 콜 순서는 그대로인데 정거장 번호가 밀린다', () => {
+        const two = scenarioPlan(2);
+        const three = scenarioPlan(3);
+        // 첫콜은 여전히 맨 위
+        expect(two.callList[0].callNo).toBe(2);
+        expect(three.callList[0].callNo).toBe(2);
+        // 그런데 그 콜의 상차지 번호는 ①에서 ②로 밀렸다
+        expect(two.callList[0].nodes[0]).toBe(1);
+        expect(three.callList[0].nodes[0]).toBe(2);
     });
 });

@@ -818,10 +818,20 @@ export default function SheetMockup() {
      *    아래가 텅 빈» 화면이 나왔다 — «다»의 정의에 «하나 열린»이 들어 있으니
      *    그런 상태는 **정의상 없어야 한다** (규칙 ③ — 손잡이가 둘이면 갈라진다).
      */
+    /**
+     * 🔢 **콜 번호로 목록 자리를 찾는다** (2026-09-05).
+     *
+     * 🔴 전에는 `callNo - 1` 로 뺄셈했다. 목록을 **번호순으로 정렬**해 뒀기에 맞았던 것인데,
+     *    목록은 **잡은 순서**라야 한다(기사님). 정렬을 걷어내니 뺄셈이 **다른 콜을 연다** —
+     *    시나리오 3콜 목록은 [첫콜(2), 합짐1(3), 합짐2(1)] 이라 `2 - 1 = 1` 이 합짐1 이다.
+     */
+    const idxOfCall = (callNo?: number | null) =>
+        callNo == null ? -1 : CALLS.findIndex(c => c.callNo === callNo);
+
     const changeSnap = (next: SheetSnap, why?: string) => {
         const r = sheetTransition(next, {
             openIdx, callCount: CALLS.length,
-            preferIdx: nextStop ? nextStop.callNo! - 1 : undefined,
+            preferIdx: nextStop ? idxOfCall(nextStop.callNo) : undefined,
         });
         setSnap(r.snap); setOpenIdx(r.openIdx);
         if (why) setLog(why);
@@ -1160,7 +1170,7 @@ export default function SheetMockup() {
                                      *    그 안에서 함께 정해진다 (규칙 ③).
                                      */
                                     changeSnap('full',
-                                        `시트 상태바의 버튼을 눌렀습니다 → 시트를 올리고 ${nextStop.callNo}번 콜을 «${STEPS[CALLS[nextStop.callNo! - 1].now].k}» 단계로 엽니다.`);
+                                        `시트 상태바의 버튼을 눌렀습니다 → 시트를 올리고 ${nextStop.callNo}번 콜을 «${STEPS[CALLS[idxOfCall(nextStop.callNo)]?.now ?? 0].k}» 단계로 엽니다.`);
                                 }}
                                 className="w-full flex items-center gap-1.5 text-left min-h-[30px] active:opacity-70 transition-opacity">
                                 <span className="shrink-0">{bar.mark}</span>
@@ -1360,8 +1370,8 @@ export default function SheetMockup() {
                                    그래서 여기서만 덮개가 열린다. 달리기 시작하면 닫힌다. */
                                 if (k === '출발') { setPhase('주행'); changeSnap('peek'); setQrOpen(qrReady); }
                                 if (k === '주행') { setPhase('주행'); changeSnap('peek'); setQrOpen(false); }
-                                if (k === '접근') { setPhase('주행'); setQrOpen(false); if (nextStop) open(nextStop.callNo! - 1); }
-                                if (k === '도착') { setPhase('정차'); setQrOpen(false); if (nextStop) open(nextStop.callNo! - 1); }
+                                if (k === '접근') { setPhase('주행'); setQrOpen(false); if (nextStop) open(idxOfCall(nextStop.callNo)); }
+                                if (k === '도착') { setPhase('정차'); setQrOpen(false); if (nextStop) open(idxOfCall(nextStop.callNo)); }
                                 if (k === '통화') { setPhase('정차'); setQrOpen(false); open(0); }
                                 setLog(`${t} — ${why}`);
                             }}

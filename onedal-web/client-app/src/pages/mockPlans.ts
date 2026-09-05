@@ -435,17 +435,32 @@ const MERGED_CALLS: Record<'c14' | 'c15', Omit<Call, 'callNo'>> = {
  * 🔴 **콜 목록은 정거장에서 파생시킨다** — 두 벌로 적지 않는다 (규칙 ③).
  *    4콜 판의 정거장이 콜 14 를 말하는데 목록에 없으면 그 자리에서 갈라진다.
  */
-function callsFor(stops: RoutePoint[]): Call[] {
+function callsFor(stops: RoutePoint[], grabOrder?: readonly number[]): Call[] {
     const byCallNo = new Map<number, Omit<Call, 'callNo'>>([
         [1, PLAN3_CALLS[0]], [2, PLAN3_CALLS[1]], [3, PLAN3_CALLS[2]],
         [4, MERGED_CALLS.c14], [5, MERGED_CALLS.c15],
     ]);
     const seen: number[] = [];
     for (const s of stops) if (s.callNo && !seen.includes(s.callNo)) seen.push(s.callNo);
-    /* 🔴 **콜 번호 순으로 세운다** — 목록은 «잡은 순», 지도는 «정거장 순»이다.
-       정거장 순으로 두면 4콜 판에서 목록이 [1,2,4,3] 이 되어 `callList[callNo - 1]`
-       로 찾는 자리가 **다른 콜을 연다.** 두 순서를 섞지 않는다. */
-    return seen.sort((a, b) => a - b).map(n => {
+    /**
+     * 🔴 **목록은 «잡은 순서»다 — 정거장 순이 아니다** (기사님 2026-09-05:
+     *    *"콜 순서는 변함이 없고 콜 안에 들어가 있는 상하차지의 번호만 바뀌어야 해"*).
+     *
+     * 두 순서가 있고 **서로 다르다:**
+     *   · 콜 목록 — **잡은 순서.** 새 콜은 **맨 아래**에 붙는다. 뒤집히지 않는다
+     *   · 정거장 번호 — 경로 순서. 합짐이 앞에 끼면 뒤가 밀린다
+     *
+     * ⚠️ 한때 여기서 **번호순으로 정렬**했다 — `callList[callNo - 1]` 로 찾기 편해서다.
+     *    그러면 마지막에 잡은 합짐2(callNo 1)가 **맨 위로 올라온다.**
+     *    찾을 때는 `callNo` 로 찾는다 — 편의가 도메인 사실을 이기게 두지 않는다.
+     *
+     * `grabOrder` 를 주면 그 순서로 세운다(시나리오). 없으면 «다 잡은 판»이라
+     * 잡은 순서를 알 길이 없어 콜 번호 순으로 둔다.
+     */
+    const ordered = grabOrder
+        ? grabOrder.filter(n => seen.includes(n))
+        : [...seen].sort((a, b) => a - b);
+    return ordered.map(n => {
         const base = byCallNo.get(n)!;
         /* 🔴 **정거장 번호는 콜에 박아 두지 않는다 — 판에서 다시 뽑는다** (규칙 ③).
            같은 콜이라도 판이 커지면 번호가 밀린다: 방화동은 3콜 판의 ⑥ 이지만
@@ -836,7 +851,7 @@ export function scenarioPlan(grabbed: number): MockPlan {
         totalKm: empty ? 0 : MOCK_PLANS[3].totalKm,
         totalMin: empty ? 0 : MOCK_PLANS[3].totalMin,
         toll: empty ? 0 : MOCK_PLANS[3].toll,
-        callList: callsFor(stops),
+        callList: callsFor(stops, active),
         source: empty
             ? '시나리오 — 아직 아무 콜도 안 잡았다. 지도에도 시트에도 아무것도 없다'
             : `시나리오 — 지금까지 ${active.length}콜을 잡았다 (09-03 실주행 3콜에서 골랐다)`,
