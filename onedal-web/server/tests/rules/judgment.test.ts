@@ -205,7 +205,9 @@ describe('시트 상태 — 콜마다 새로 선다', () => {
         const at = card.indexOf('<StepSheetMock');
         expect(at).toBeGreaterThan(-1);
         const props = card.slice(at, at + 300);
-        expect(props).toMatch(/key=\{`\$\{route\.id\}:\$\{sv\.step\}`\}/);
+        /* 🔴 **성질을 본다** — key 에 «콜 id»와 «단계»가 함께 든다.
+              변수 이름은 갈릴 수 있다 (0905 에 `sv` → `x`). */
+        expect(props).toMatch(/key=\{`\$\{route\.id\}:\$\{\w+\.step\}`\}/);
     });
 
     /**

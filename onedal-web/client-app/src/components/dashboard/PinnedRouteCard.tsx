@@ -9,6 +9,7 @@ import { logRoadmapEvent } from '../../lib/roadmapLogger';
 
 import { Badge } from "../ui/badge";
 import StepSheetMock from './StepSheetMock';
+import StepSwipeTrack from './StepSwipeTrack';
 import type { CallRecords } from "../../hooks/records";
 import { MILESTONE_LABEL, timingError, buildArrivalSlots,
          deriveCallTiming } from "@onedal/shared";
@@ -307,6 +308,23 @@ export default function PinnedRouteCard({
                                 : '-'}
                         </b>
                     </span>
+                    {/**
+                      * 🚚 **이 콜이 부르는 차종** — 단가가 여기서 나온다 (내 차종은 폴백일 뿐).
+                      *    조회용 리스트 헤더에는 첫 글자만 있어서 **덱에서는 영영 안 보였다.**
+                      */}
+                    {route.vehicleType && (
+                        <span className="px-1.5 rounded-[5px] text-[10px] font-black border
+                                         bg-surface-alt border-border-card text-text-primary">{route.vehicleType}</span>
+                    )}
+                    {/**
+                      * 🚨 **급송(독차)** — 서버는 `orderForm === '급송'` 을 DB(`isExpress`)에
+                      *    넣고 있었는데 **관제웹 어디에도 그리는 곳이 없었다.**
+                      *    급송은 단가도 긴급도도 다르다.
+                      */}
+                    {route.orderForm === '급송' && (
+                        <span className="px-1.5 rounded-[5px] text-[10px] font-black border
+                                         bg-warning/15 border-warning/40 text-warning">급송</span>
+                    )}
                     {route.commissionRate && <><span>·</span><span>수수료 {route.commissionRate}</span></>}
                     {route.scheduleText && <span className="text-warning font-bold">🕒 {route.scheduleText}</span>}
                     {/* 🧭 어떻게 잡았나 — 덱 머리글에도 단다 (0830 실측: 배지가 리스트 헤더에만 살아서
@@ -330,7 +348,7 @@ export default function PinnedRouteCard({
                         );
                     })()}
                     {/* 💰 돈은 이 줄 맨 오른쪽 (기사님 2026-08-19) — 콜 요약 줄에서 옮겨 왔다 */}
-                    <span className="ml-auto text-[14px] font-black text-text-primary tabular-nums">
+                    <span className="ml-auto text-[17px] font-black text-text-primary tabular-nums">
                         {route.fare > 0 ? `${(route.fare / 10000).toFixed(1)}만원` : '금액미상'}
                     </span>
                 </div>
@@ -644,7 +662,15 @@ export default function PinnedRouteCard({
                             const quickPhone = quickName.match(/\d{2,3}-\d{3,4}-\d{4}/)?.[0] || route.dispatcherPhone || '';
                             const quickClean = quickName.replace(quickPhone, '').trim() || route.dispatcherName || '퀵사무실';
 
-                            const itemAndMemo = [route.itemDescription, route.detailMemo].filter(Boolean).join(' / ');
+                            /**
+                             * 📦 **짐은 적요에서 뺐다** (기사님 2026-09-05 — 목업에서 칩으로 세우셨다).
+                             *    예전에는 `품목 / 적요` 를 한 문장으로 이어 붙여, **무엇을 싣는지가
+                             *    긴 문장 안에 묻혔다.**
+                             * 🔴 이것은 **배차망이 말한 품목**이지 적재 계산의 근거가 아니다 —
+                             *    그것은 통화·신고로 채워지는 `CargoReport` 이고, 헤더의 `📦 90/100`
+                             *    이 그 결과다. **신고가 오면 그것이 이긴다.**
+                             */
+                            const memoText = route.detailMemo;
                             const isCod = route.paymentType === '착불';
 
                             return (
@@ -654,10 +680,19 @@ export default function PinnedRouteCard({
                                         적요를 읽고 전화를 거는 순서인데 화면은 반대였다.
                                         시안(`buildCard`)도 적요를 지금 할 일 위에 뒀다. */}
                                     {/* 배경 박스를 뺐다 — 한 줄이면 라벨만으로 충분히 구분된다 (UI 영역 아끼기) */}
+                                    {/* 📦 **무엇을 싣나** — 없으면 안 그린다 (적요에서 짜내지 않는다 · 규칙 ④) */}
+                                    {route.itemDescription && (
+                                        <div className="flex">
+                                            <span className="px-2 py-1 rounded-md border text-[11px] font-black
+                                                             bg-surface-alt/60 border-border-card text-text-primary">
+                                                📦 {route.itemDescription}
+                                            </span>
+                                        </div>
+                                    )}
                                     <div className="flex gap-1.5 items-baseline">
                                         <span className="shrink-0 text-[11px] font-bold text-text-muted">적요 :</span>
                                         <span className="font-bold leading-snug break-keep text-[12px]">
-                                            {itemAndMemo || <span className="text-text-muted font-normal">상세 정보 없음 (파싱 대기 중)</span>}
+                                            {memoText || <span className="text-text-muted font-normal">상세 정보 없음 (파싱 대기 중)</span>}
                                         </span>
                                     </div>
 
@@ -800,24 +835,34 @@ export default function PinnedRouteCard({
                                                 };
                                                 return (
                                                     <div className="mt-1" onClick={e => e.stopPropagation()}>
-                                                        {/* 진행 막대 — 위 기존 카드의 막대와 같은 옷. 초록 함 · 노랑 건너뜀 · 파랑 보는 곳 · 회색 예정 */}
-                                                        <div className="flex items-center gap-1">
-                                                            {seededSteps.map((x, i) => (
-                                                                <button key={x.step} type="button" title={x.label}
-                                                                    onClick={() => setStepNav(i === stepCurIdx ? null : i)}
-                                                                    className="flex-1 pt-1.5 pb-1">
-                                                                    <span className={`block h-1 rounded-full ${
-                                                                        i === shownIdx ? 'bg-info'
-                                                                        : x.row?.status === 'SKIPPED' ? 'bg-warning/70'
-                                                                        : stepDone(x) ? 'bg-success'
-                                                                        : i < stepCurIdx ? 'bg-warning/40'   /* 지나쳤는데 안 함 — 빠뜨림이 보인다 */
-                                                                        : 'bg-surface-hover'
-                                                                    }`} />
-                                                                </button>
-                                                            ))}
+                                                        {/**
+                                                          * 🌱 **머리 — 단계명 · 가운데 점 · n/6** (목업 이식 0905).
+                                                          * 🔴 **점은 가운데 고정** (기사님 2026-09-04: *"단어에 따라
+                                                          *    스와이프 네비게이션이 덜컹거려"*). 단계 이름 길이가 달라
+                                                          *    («상차지 통화» ↔ «상차 완료») 점이 좌우로 밀렸다 —
+                                                          *    양옆을 `1fr` 로 같게 잡으면 제자리다.
+                                                          * 🔴 «몇 번째»를 **숫자로도** 적는다 — 점만으로는 세어야 한다.
+                                                          */}
+                                                        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 py-1">
+                                                            <span className="text-[12.5px] font-black text-text-primary truncate">{sv.label}</span>
+                                                            <span className="flex gap-1 justify-self-center">
+                                                                {seededSteps.map((x, i) => (
+                                                                    <button key={x.step} type="button" title={x.label} aria-label={x.label}
+                                                                        onClick={() => setStepNav(i === stepCurIdx ? null : i)}
+                                                                        className={`w-4 h-1.5 rounded-full transition-colors ${
+                                                                            i === shownIdx ? 'bg-info'
+                                                                            : x.row?.status === 'SKIPPED' ? 'bg-warning/70'
+                                                                            : stepDone(x) ? 'bg-success'
+                                                                            : i < stepCurIdx ? 'bg-warning/40'   /* 지나쳤는데 안 함 — 빠뜨림이 보인다 */
+                                                                            : 'bg-surface-hover'
+                                                                        }`} />
+                                                                ))}
+                                                            </span>
+                                                            <span className="justify-self-end text-[11px] text-text-muted tabular-nums">
+                                                                {shownIdx + 1}/{seededSteps.length}
+                                                            </span>
                                                         </div>
-                                                        <div className="flex items-center gap-2 text-[11px] py-1">
-                                                            <span className="font-bold text-text-primary">{sv.label}</span>
+                                                        <div className="flex items-center gap-2 text-[11px] pb-1">
                                                             <span className={`px-1 rounded text-[10px] ${
                                                                 !born ? 'bg-surface-hover text-text-muted'
                                                                 : r.status === 'DONE' ? 'bg-success/15 text-success'
@@ -836,28 +881,57 @@ export default function PinnedRouteCard({
                                                             )}
                                                             {allDone && <span className="text-success text-[10px] font-bold">운행 완료 · 6단계를 모두 마쳤습니다</span>}
                                                         </div>
-                                                        {(() => {
-                                                            /* 헤더·문장 재료 — 행에 없는 값(장소·전화·구간 주행)은 경로·타임라인이 준다 */
-                                                            const svPickup = sv.step === 'CALL_PICKUP' || sv.step === 'ARRIVE_PICKUP' || sv.step === 'LOADED';
-                                                            const dd = svPickup ? route.pickupDetails?.[0] : route.dropoffDetails?.[0];
-                                                            const svTl = timeline?.find(e => e.orderId === route.id
-                                                                && e.stopType === (svPickup ? 'pickup' : 'dropoff'));
-                                                            const callPRow = seededSteps.find(y => y.step === 'CALL_PICKUP')?.row;
-                                                            return (
-                                                                <StepSheetMock key={`${route.id}:${sv.step}`} orderId={route.id}
-                                                                    codAmount={route.paymentType === '착불' ? route.fare : null}
-                                                                    place={{
-                                                                        name: dd?.contactName || dd?.customerName || undefined,
-                                                                        address: dd?.addressDetail || (svPickup ? route.pickup : route.dropoff),
-                                                                        phone: [dd?.phone1, dd?.phone2].find(v => !!v && v !== '*') || undefined,
-                                                                    }}
-                                                                    prevName={route.pickupDetails?.[0]?.contactName || route.pickupDetails?.[0]?.customerName}
-                                                                    leadMinutes={callPRow?.planned_dwell_min ?? null}
-                                                                    departPrevMs={svTl?.departPrevMs ?? null}
-                                                                    segmentDriveMinutes={svTl?.segmentDriveMinutes ?? null}
-                                                                    view={viewOf(sv)} />
-                                                            );
-                                                        })()}
+                                                        {/**
+                                                          * 🌱 **가로 트랙 — 한 장씩 넘긴다.**
+                                                          * ⚠️ 08-21 확정(«한 번에 하나»)은 그대로다 — 손짓만 늘었다.
+                                                          */}
+                                                        <StepSwipeTrack
+                                                            count={seededSteps.length}
+                                                            shownIdx={shownIdx}
+                                                            onShow={k => setStepNav(k === stepCurIdx ? null : k)}
+                                                            renderPane={(k) => {
+                                                                const x = seededSteps[k];
+                                                                /* 헤더·문장 재료 — 행에 없는 값(장소·전화·구간 주행)은 경로·타임라인이 준다 */
+                                                                const xPickup = x.step === 'CALL_PICKUP' || x.step === 'ARRIVE_PICKUP' || x.step === 'LOADED';
+                                                                const dd = xPickup ? route.pickupDetails?.[0] : route.dropoffDetails?.[0];
+                                                                const xTl = timeline?.find(e => e.orderId === route.id
+                                                                    && e.stopType === (xPickup ? 'pickup' : 'dropoff'));
+                                                                const callPRow = seededSteps.find(y => y.step === 'CALL_PICKUP')?.row;
+                                                                const xr = x.row || {};
+                                                                const xBorn = x.born !== false;
+                                                                return (
+                                                                    <section key={x.step} aria-label={x.label}
+                                                                        className="shrink-0 w-full min-w-0 snap-center overflow-y-auto pr-0.5">
+                                                                        <h3 className="mb-1.5 flex items-center gap-1.5 text-[13px] font-black text-text-primary">
+                                                                            {k + 1}. {x.label}
+                                                                            <em className={`not-italic px-1.5 py-0.5 rounded-[5px] text-[10px] font-black border ${
+                                                                                !xBorn ? 'border-border-card text-text-muted'
+                                                                                : xr.status === 'DONE' ? 'bg-success/12 border-success/40 text-success'
+                                                                                : xr.status === 'SKIPPED' ? 'bg-warning/12 border-warning/40 text-warning'
+                                                                                : k === stepCurIdx ? 'bg-info/15 border-info/50 text-info'
+                                                                                : 'border-border-card text-text-muted'
+                                                                            }`}>
+                                                                                {!xBorn ? '아직'
+                                                                                    : xr.status === 'DONE' ? '마쳤습니다'
+                                                                                    : xr.status === 'SKIPPED' ? '건너뜀'
+                                                                                    : k === stepCurIdx ? '지금 할 것' : '아직'}
+                                                                            </em>
+                                                                        </h3>
+                                                                        <StepSheetMock key={`${route.id}:${x.step}`} orderId={route.id}
+                                                                            codAmount={route.paymentType === '착불' ? route.fare : null}
+                                                                            place={{
+                                                                                name: dd?.contactName || dd?.customerName || undefined,
+                                                                                address: dd?.addressDetail || (xPickup ? route.pickup : route.dropoff),
+                                                                                phone: [dd?.phone1, dd?.phone2].find(v => !!v && v !== '*') || undefined,
+                                                                            }}
+                                                                            prevName={route.pickupDetails?.[0]?.contactName || route.pickupDetails?.[0]?.customerName}
+                                                                            leadMinutes={callPRow?.planned_dwell_min ?? null}
+                                                                            departPrevMs={xTl?.departPrevMs ?? null}
+                                                                            segmentDriveMinutes={xTl?.segmentDriveMinutes ?? null}
+                                                                            view={viewOf(x)} />
+                                                                    </section>
+                                                                );
+                                                            }} />
                                                     </div>
                                                 );
                                             })()}

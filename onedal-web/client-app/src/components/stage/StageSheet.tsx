@@ -161,6 +161,8 @@ export default function StageSheet({ snap, onSnapChange, peekBar, bottomBox, onH
                 막아 두면 끌었는데 아무 일이 없어 고장처럼 보인다. 관행(iOS·안드로이드 기본
                 시트)도 단은 내용과 무관하게 늘 있고, 안에 «아직 없습니다»를 보여 준다 */}
             <div
+                /* 📸 화면을 찍어 대조할 때 이 손잡이를 눌러 단을 올린다 (`scripts/shot.mjs`) */
+                data-sheet-handle
                 className="shrink-0 py-3 cursor-grab active:cursor-grabbing"
                 style={{ touchAction: 'none' }}
                 onPointerDown={(e) => { startY.current = e.clientY; startSnap.current = snap; dragged.current = false; (e.target as HTMLElement).setPointerCapture(e.pointerId); }}

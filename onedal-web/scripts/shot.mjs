@@ -108,6 +108,20 @@ try {
     await send('Page.navigate', { url: `${WEB}${PATHNAME}` });
     await sleep(Number(process.env.WAIT ?? 5000));
 
+    /**
+     * 🖐️ **눌러 보고 찍는다** — `CLICK='[data-sheet-handle]' CLICKS=2`
+     *    시트를 「다」까지 올려야 보이는 것(펼친 카드·단계 시트)이 있다.
+     */
+    if (process.env.CLICK) {
+        for (let i = 0; i < Number(process.env.CLICKS ?? 1); i++) {
+            await send('Runtime.evaluate', {
+                expression: `document.querySelector(${JSON.stringify(process.env.CLICK)})?.click()`,
+            });
+            await sleep(600);
+        }
+        await sleep(Number(process.env.AFTER_CLICK ?? 1200));
+    }
+
     const { data } = await send('Page.captureScreenshot', { format: 'png' });
     writeFileSync(OUT, Buffer.from(data, 'base64'));
     console.log(`📸 ${OUT}  (${WIDTH}×${HEIGHT})  ${PATHNAME}${token ? '  · 로그인됨' : '  · 토큰 없음'}`);

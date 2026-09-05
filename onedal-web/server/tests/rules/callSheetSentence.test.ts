@@ -116,8 +116,10 @@ describe('통화 시트 — 경로 타임라인 연결', () => {
     it('🔴 카드가 시트 주행값을 경로 타임라인에서 뽑는다', () => {
         const card = readFileSync(
             join(__dirname, '../../../client-app/src/components/dashboard/PinnedRouteCard.tsx'), 'utf8');
-        expect(card).toMatch(/departPrevMs=\{svTl\?\.departPrevMs/);
-        expect(card).toMatch(/segmentDriveMinutes=\{svTl\?\.segmentDriveMinutes/);
+        /* 🔴 성질 — 두 값이 «타임라인에서 찾은 그 정거장»에서 온다 (이름은 갈릴 수 있다) */
+        expect(card).toMatch(/departPrevMs=\{\w+\?\.departPrevMs/);
+        expect(card).toMatch(/timeline\?\.find\(e => e\.orderId === route\.id/);
+        expect(card).toMatch(/segmentDriveMinutes=\{\w+\?\.segmentDriveMinutes/);
         expect(card).toMatch(/timeline/);
     });
 });
