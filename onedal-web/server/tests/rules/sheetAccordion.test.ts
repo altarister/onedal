@@ -106,12 +106,29 @@ describe('🪗 시트 아코디언 — 기사님 확정 2026-09-03', () => {
 describe('🪗 시트가 좁아져도 겹치지 않는다', () => {
     const mock = () => codeOnly(readFileSync(join(CLIENT, 'pages/SheetMockup.tsx'), 'utf8'));
 
+    /**
+     * 🔴 **클래스 «글자»가 아니라 «뜻»을 본다** (2026-09-05 고침)
+     *
+     * 이 둘은 클래스 문자열을 통째로 맞추고 있었다. 그런데 기사님이 시트의 세 단을
+     * 다시 정하시면서(「나」= 내용만큼) 두 그릇이 **모양을 바꿔야 했다** —
+     * · `h-full` 은 「나」에서 빼야 한다 (부모 높이가 내용에서 나오는데 자식이 부모를
+     *   채우려 들면 서로를 문다)
+     * · `flex-1` 은 auto 높이에서 0 으로 주저앉아 `flex-auto` 와 갈라 써야 한다
+     *
+     * **동작은 그대로인데 검사만 빨간불이었다.** 그렇게 뜬 빨간불은 사람이 «또 그거네»
+     * 하고 넘기기 시작하고, 그러면 **진짜 빨간불도 함께 묻힌다.**
+     * 그래서 «넘치지 않는가»·«스크롤하는가»라는 **지켜야 할 성질**만 본다.
+     */
     it('아코디언 그릇이 넘치지 않는다', () => {
-        expect(mock()).toMatch(/h-full flex flex-col gap-1\.5[^"]*overflow-hidden/);
+        const box = mock().match(/flex flex-col gap-1\.5 px-2\.5[^`]*/)?.[0] ?? '';
+        expect(box).toMatch(/overflow-hidden/);
     });
 
     it('펼친 판은 자리가 모자라면 **스크롤**한다 — 잘라서 감추지 않는다 (규칙 ④)', () => {
-        expect(mock()).toMatch(/flex-1 min-h-0 mt-1\.5 flex flex-col overflow-y-auto/);
+        const open = mock().match(/mt-1\.5 flex flex-col overflow-y-auto[^`]*/)?.[0] ?? '';
+        expect(open).toBeTruthy();
+        // 남는 자리를 먹되(둘 중 하나) **0 으로 주저앉지 않는다**
+        expect(mock()).toMatch(/(flex-auto|flex-1 min-h-0)[^`]*mt-1\.5 flex flex-col overflow-y-auto/);
     });
 
     /**

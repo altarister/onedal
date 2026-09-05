@@ -188,14 +188,34 @@ describe('합짐 중 경로 우선순위 잠금', () => {
     });
 
     /**
-     * 기사님(2026-08-19 보완): *"안전취소 30초 동안은 경로를 바꿔 볼 수 있어야
-     * 잡을지 말지를 결정할 수 있을 것 같아."*
-     * 심사 중에는 "이 콜을 붙이면 어떤 경로가 되나"를 보는 것이 결재의 재료다.
+     * 🔴 **심사 중에도 잠근다** (기사님 2026-09-05 정정 — 목업에서 이 장면을 보다 나왔다)
+     *
+     * 예전에는 반대였다 (2026-08-19: *"안전취소 30초 동안은 경로를 바꿔 볼 수 있어야
+     * 잡을지 말지를 결정할 수 있을 것 같아"*). 그래서 `&& !anyEvaluating` 예외가 있었다.
+     *
+     * 기사님이 목업을 보며 뒤집으셨다: *"합짐1 심사 때 경로를 바꿀 수 없다 —
+     * **이미 그 경로로 들어온 콜**일 테니까."*
+     *
+     * 🔴 **그 한 줄이 규칙의 뿌리다.** 합짐은 **첫짐 경로 위에서 산출된 콜**이다.
+     *    그 경로를 바꾸면 «가는 길에 있다»는 **산출 근거 자체가 사라진다** —
+     *    바꿔 보라고 열어 둔 것이 오히려 결재의 재료를 무너뜨리고 있었다.
+     *
+     * ⚠️ 그러므로 **심사 중인 콜도 센다.** 규칙은 `lib/routePriority.ts` 한 곳에 있다.
      */
-    it('🔴 심사 중(평가 콜 존재)에는 잠그지 않는다 — 결재의 재료다', () => {
+    it('🔴 심사 중인 콜도 «화면의 콜»로 센다 — 예외를 두지 않는다', () => {
         const route = readFileSync(join(__dirname,
             '../../../client-app/src/components/dashboard/PinnedRoute.tsx'), 'utf8');
         const lock = route.match(/const priorityLocked = [^;]+;/)?.[0] ?? '';
-        expect(lock).toMatch(/isEvaluating/);
+        // 규칙은 한 곳(lib/routePriority)에서 온다 — 여기서 다시 세지 않는다
+        expect(lock).toMatch(/isPriorityLocked\(/);
+        // 🔴 옛 예외가 되살아나면 빨간불
+        expect(lock).not.toMatch(/isEvaluating|anyEvaluating/);
+    });
+
+    it('세는 규칙 자체는 `lib/routePriority` 하나에 있다 (규칙 ③)', () => {
+        const lib = readFileSync(join(__dirname,
+            '../../../client-app/src/lib/routePriority.ts'), 'utf8');
+        expect(lib).toMatch(/export function isPriorityLocked/);
+        expect(lib).toMatch(/callsOnScreen >= 2/);
     });
 });
