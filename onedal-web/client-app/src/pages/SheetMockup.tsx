@@ -48,31 +48,134 @@ import JudgmentSeat from '../components/dashboard/JudgmentSeat';
    ═════════════════════════════════════════════ */
 
 /** 🚚 헤더 — 로고 자리가 «내 차 상황»이다 (기사님 0831: 로고는 테마 전환 역할뿐) */
-function MockHeader() {
-    const { theme, toggleTheme } = useTheme();
+/**
+ * 🧑‍✈️ **헤더가 답하는 것 — 「내 지금 상태」** (기사님 2026-09-05 · 원천 `docs/기획/헤더.md`)
+ *
+ * 기사님: *"머리 부분은 **내 현상태**를 표현하고 싶었어. 로그인도 있고 **내 설정을
+ * 불러오는 것**도 있고 내 차도, 내 차의 상황도.. 서버랑의 통신도.."*
+ *
+ * ── 다섯을 말씀하셨고, 그중 하나가 통째로 빈칸이었다 ──
+ * | 로그인 | 아바타 | ✅ |
+ * | **설정을 불러왔나** | ⚙️ / ⚠️ | 🔴 **없었다** — `GET /settings` 가 `.catch(()=>{})` 로 조용히 삼킨다 |
+ * | 내 차 | `1t` | ✅ |
+ * | 내 차 상황 | 상차·예약 · 적재 · 확신도 | 🟡 건수만 있었다 |
+ * | 서버 통신 | 점 + 시계 | ✅ (⚠️ 시계는 **폰 시계**다) |
+ *
+ * 🔴 **테마 아이콘을 뺐다** (기사님 확정). 원래도 아이콘은 없고 **차 이름이 곧 테마
+ *    버튼**이었는데, 그건 «내 차»라는 뜻과 «테마»라는 손이 **한 칸에 겹친 것**이다.
+ *    이제 **차를 누르면 설정창**이고 테마는 그 안에 있다 —
+ *    자주 보는 것이 자리를 갖고, 가끔 만지는 것은 그 안으로 들어간다.
+ *
+ * 🔴 **괄호 안 차종 목록을 지웠다.** 실물은 `예약 3건 (다마스, 다마스, 다마스)` 라
+ *    그것만 **34칸**인데 폰 한 줄이 56칸이다 (헤더.md §1 실측 — 가장 바쁠 때 60칸).
+ *    그 목록은 **콜 목록이 이미 말하고 있다** (규칙 ③).
+ */
+interface HeaderState {
+    /** 🚚 차종 — `user_settings.vehicle_type` */
+    car: string;
+    /** 📦 상차한 콜 수 · 예약(아직 안 실은) 콜 수 — `liveCalls` 에서 파생 */
+    loaded: number;
+    reserved: number;
+    /** 📦 적재 — `filter.slotsUsed` / 라면박스 100 */
+    slots: number;
+    /** 적재 확신도 — 추정 · 신고 · 확정 */
+    confidence: '추정' | '신고' | '확정';
+    /** ⚙️ 설정을 불러왔나 — 정상이면 **안 그린다** */
+    settings: 'ok' | 'loading' | 'failed';
+    /** 🔌 서버와 이어져 있나 */
+    online: boolean;
+    clock: string;
+    /** 🔔 알람이 울리고 있나 */
+    ringing?: boolean;
+}
+
+const HEADER_NORMAL: HeaderState = {
+    car: '1t', loaded: 0, reserved: 0, slots: 0, confidence: '추정',
+    settings: 'ok', online: true, clock: '14:17:22',
+};
+
+/**
+ * 🎬 **헤더 상황** — 눌러 보고 폭이 터지는 자리를 찾는다.
+ * 🔴 실측(헤더.md §1): 평소 20칸 · **가장 바쁠 때 60칸 > 56칸**.
+ */
+const HEADER_CASES: Array<{ k: string; t: string; why: string; over: Partial<HeaderState> }> = [
+    { k: '평소', t: '평소 — 콜 없음', why: '앉아서 기다리는 중. 20칸', over: {} },
+    { k: '예약', t: '예약만 3건', why: '잡았고 아직 상차 전', over: { reserved: 3, slots: 30 } },
+    { k: '섞임', t: '상차2 · 예약1', why: '실물이 34칸을 쓰던 자리 — 건수만 남겼다', over: { loaded: 2, reserved: 1, slots: 70, confidence: '신고' } },
+    { k: '가득', t: '📦 적재 가득', why: '90/100 — 더 못 싣는다', over: { loaded: 3, reserved: 1, slots: 90, confidence: '확정' } },
+    { k: '설정중', t: '⚙️ 설정 불러오는 중', why: '로그인 직후. 차종이 아직 기본값일 수 있다', over: { settings: 'loading' } },
+    { k: '설정실패', t: '⚠️ 설정 못 읽음', why: '🔴 지금은 조용히 삼킨다 — 틀린 차종으로 필터가 돈다', over: { settings: 'failed' } },
+    { k: '끊김', t: '📵 서버 끊김', why: '시계 자리가 «연결끊김»이 된다', over: { online: false } },
+    { k: '알람', t: '🔔 알람이 운다', why: 'STOP SOUND 가 10칸을 밀고 들어온다', over: { ringing: true, reserved: 1, slots: 20 } },
+    { k: '최악', t: '🔴 다 겹쳤다', why: '섞임 + 알람 + 설정 실패 — 실물이라면 60칸', over: { loaded: 2, reserved: 1, slots: 88, confidence: '신고', ringing: true, settings: 'failed' } },
+];
+
+function MockHeader({ st, onCar }: { st: HeaderState; onCar: () => void }) {
+    const busy = st.loaded + st.reserved;
     return (
         <header className="shrink-0 bg-bg-base/95 backdrop-blur-sm border-b border-border-card px-3 py-2.5">
-            <div className="flex items-center justify-between">
-                <button type="button" onClick={toggleTheme} className="text-left active:scale-95 transition-transform">
-                    <span className="flex items-baseline gap-1.5 whitespace-nowrap">
-                        <span className="text-[17px] font-black text-text-primary">1t</span>
-                        <span className="text-[12.5px] font-bold text-info">예약 3건 (다마스, 다마스, 다마스)</span>
-                        <span className="text-[10px] font-black px-1 py-0.5 rounded bg-warning/15 text-warning">추정</span>
-                    </span>
+            <div className="flex items-center gap-1.5">
+                {/* 🚚 내 차 + 내 차 상황 — 누르면 **설정창** (테마는 그 안에) */}
+                <button type="button" onClick={onCar}
+                    className="min-w-0 flex items-baseline gap-1.5 text-left active:scale-95 transition-transform">
+                    <span className="shrink-0 text-[17px] font-black text-text-primary">{st.car}</span>
+                    {busy === 0 ? (
+                        <span className="text-[12.5px] font-bold text-text-muted whitespace-nowrap">예약 0건</span>
+                    ) : (
+                        <span className="text-[12.5px] font-bold whitespace-nowrap">
+                            {st.loaded > 0 && <span className="text-success">상차 {st.loaded}</span>}
+                            {st.loaded > 0 && st.reserved > 0 && <span className="opacity-40 mx-1">·</span>}
+                            {st.reserved > 0 && <span className="text-info">예약 {st.reserved}</span>}
+                        </span>
+                    )}
+                    {busy > 0 && (
+                        <>
+                            {/* 📦 적재 — 지금은 필터 줄에 있다. 여기로 «옮기면» 두 곳이 안 그린다 */}
+                            <span className={`shrink-0 text-[12px] font-black tabular-nums ${
+                                st.slots >= 85 ? 'text-warning' : 'text-text-muted'}`}>📦{st.slots}/100</span>
+                            <span className={`shrink-0 text-[10px] font-black px-1 py-0.5 rounded ${
+                                st.confidence === '확정' ? 'bg-success/15 text-success'
+                                : st.confidence === '신고' ? 'bg-info/15 text-info'
+                                : 'bg-warning/15 text-warning'}`}>{st.confidence}</span>
+                        </>
+                    )}
                 </button>
-                <div className="flex gap-2 items-center">
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface shadow-soft">
-                        {/* 🔴 실물은 여기에 animate-pulse 가 있다 — 그것이 초당 100회 재그리기의 원인 중 하나다.
-                            목업에서는 **일부러 뺐다**. 지금 이 판에서 볼 것은 생김새이지 깜빡임이 아니다 */}
-                        <span className="w-1.5 h-1.5 rounded-full bg-success" />
-                        <span className="text-xs font-mono font-bold text-text-muted tracking-wide tabular-nums">14:17:22</span>
-                    </div>
-                    <span className="w-7 h-7 rounded-full border border-border-card bg-info grid place-items-center text-white text-xs font-bold">알</span>
-                    <button type="button" onClick={toggleTheme}
-                        className="px-2 py-1 rounded-lg border border-border-card bg-surface-alt/40 text-[11.5px] font-black text-text-muted">
-                        {theme === 'dark' ? '☀️' : '🌙'}
+
+                <span className="flex-1 min-w-0" />
+
+                {/* ⚙️ 설정을 불러왔나 — **정상이면 안 그린다** (이상할 때만 자리를 쓴다) */}
+                {st.settings !== 'ok' && (
+                    <span className={`shrink-0 text-[11.5px] font-black px-1.5 py-0.5 rounded border whitespace-nowrap ${
+                        st.settings === 'failed'
+                            ? 'border-danger/50 bg-danger/10 text-danger'
+                            : 'border-border-card bg-surface-alt/50 text-text-muted'}`}>
+                        {st.settings === 'failed' ? '⚠️ 설정 못 읽음' : '⚙️ 불러오는 중'}
+                    </span>
+                )}
+
+                {st.ringing && (
+                    <button type="button"
+                        className="shrink-0 h-7 px-2 rounded-md bg-danger text-white text-[10px] font-black tracking-tighter">
+                        STOP SOUND
                     </button>
+                )}
+
+                {/* 🔌 서버와 이어져 있나 + 시계 */}
+                <div className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-full ${
+                    st.online ? 'bg-surface' : 'bg-danger/10'}`}>
+                    {/* 🔴 실물은 여기에 animate-pulse 가 있다 — 목업에서는 일부러 뺐다.
+                        지금 볼 것은 생김새이지 깜빡임이 아니다 */}
+                    <span className={`w-1.5 h-1.5 rounded-full ${st.online ? 'bg-success' : 'bg-danger'}`} />
+                    <span className="text-xs font-mono font-bold text-text-muted tracking-wide tabular-nums">
+                        {st.online ? st.clock : '연결끊김'}
+                    </span>
                 </div>
+
+                {/* 🧑 로그인 — 누르면 설정창 */}
+                <button type="button" onClick={onCar}
+                    className="shrink-0 w-7 h-7 rounded-full border border-border-card bg-info grid place-items-center text-white text-xs font-bold">
+                    알
+                </button>
             </div>
         </header>
     );
@@ -777,6 +880,13 @@ export default function SheetMockup() {
      * 📱 **지금 어느 상황인가** — 값은 `DEVICE_CASES` 한 곳에서 온다 (규칙 ③).
      *    조작판 버튼이 이것만 바꾸면 폰 줄이 따라온다.
      */
+    /** 🧑‍✈️ 헤더가 지금 무슨 상황인가 (원천 `docs/기획/헤더.md`) */
+    const [headerCase, setHeaderCase] = useState('평소');
+    const header: HeaderState = {
+        ...HEADER_NORMAL,
+        ...(HEADER_CASES.find(c => c.k === headerCase)?.over ?? {}),
+    };
+
     const [deviceCase, setDeviceCase] = useState('평소');
     const deviceOver = DEVICE_CASES.find(c => c.k === deviceCase)?.over ?? {};
     /** 📱 지금 폰이 몇 대인가 */
@@ -1160,7 +1270,10 @@ export default function SheetMockup() {
                 (기사님 2026-09-04 *"아냐 거기 좋아"* · 2026-09-05 *"pc에서는 우측에"*) */}
             <div className="w-full max-w-[400px] h-dvh flex flex-col shrink-0 lg:sticky lg:top-0">
 
-                <MockHeader />
+                <MockHeader st={header} onCar={() => setLog(
+                    '⚙️ 설정창을 엽니다 — **테마 변경이 그 안에 있습니다.** '
+                    + '헤더에서 아이콘을 뺐습니다: 원래도 아이콘은 없고 «차 이름»이 곧 테마 버튼이었는데, '
+                    + '«내 차»라는 뜻과 «테마»라는 손이 한 칸에 겹쳐 있었습니다.')} />
                 <MockDevicePanel
                     devices={devices}
                     modeOf={(id) => deviceModes[id] ?? devices.find(d => d.id === id)?.mode ?? '자동'}
@@ -1800,6 +1913,39 @@ export default function SheetMockup() {
                     <b className="text-text-primary"> 결론은 기사님이 내십니다.</b>
                 </p>
                 </>)}
+
+                {/**
+                  * 🧑‍✈️ **헤더 — 「내 지금 상태」** (기사님 2026-09-05 · 원천 `docs/기획/헤더.md`)
+                  *
+                  * 값과 폭은 `HEADER_CASES` 한 곳에서 온다 — 버튼과 화면이 갈라지지 않게 (규칙 ③).
+                  */}
+                <h2 className="mt-6 text-[12.5px] font-black tracking-wide text-info mb-1">🧑‍✈️ 헤더 — 상황을 눌러 본다</h2>
+                <p className="text-[12px] text-text-muted mb-2 leading-relaxed">
+                    기사님이 <b className="text-text-primary">다섯</b>을 말씀하셨습니다 — 로그인 · <b className="text-text-primary">설정을 불러오는 것</b> ·
+                    내 차 · 내 차 상황 · 서버 통신. 그중 <b className="text-text-primary">「설정을 불러왔나」가 통째로 빈칸</b>이었습니다.
+                </p>
+                <div className="flex gap-1.5 flex-wrap">
+                    {HEADER_CASES.map(c => (
+                        <button key={c.k} type="button"
+                            onClick={() => { setHeaderCase(c.k); setLog(`🧑‍✈️ ${c.t} — ${c.why}`); }}
+                            className={`px-2.5 py-2 rounded-[9px] border text-[12px] font-black ${headerCase === c.k
+                                ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-surface text-text-primary hover:border-info'}`}>
+                            {c.t}
+                        </button>
+                    ))}
+                </div>
+                <p className="mt-2 text-[12px] leading-relaxed text-text-muted">
+                    🔴 <b className="text-text-primary">실물은 가장 바쁠 때 60칸</b>인데 폰 한 줄은 56칸입니다 (헤더.md §1 실측).
+                    터지는 것은 <b className="text-text-primary">괄호 안 차종 목록</b> 하나 때문입니다 —
+                    <code className="text-text-primary">예약 3건 (다마스, 다마스, 다마스)</code> 가 그것만 27칸입니다.
+                    <br />· <b className="text-text-primary">그 목록을 지웠습니다</b> — 콜 목록이 이미 말하고 있습니다 (규칙 ③)
+                    <br />· 대신 <b className="text-text-primary">📦 적재</b>와 <b className="text-text-primary">확신도</b>를 올렸습니다.
+                    ⚠️ 지금 필터 줄에도 있으므로 <b className="text-text-primary">올리는 것이 아니라 «옮기는» 것</b>이라야 합니다 — 별도 판입니다
+                    <br />🔴 <b className="text-text-primary">테마 아이콘을 뺐습니다.</b> 차 이름을 누르면 설정창이고 테마는 그 안입니다
+                    <br />🔴 <b className="text-text-primary">설정 배지는 정상이면 안 그립니다</b> — 이상할 때만 자리를 씁니다
+                    <br />⚠️ <b className="text-text-primary">시계는 「폰 시계」입니다</b>(<code>new Date()</code>). 서버 연결 점 옆에 있어
+                    «서버가 말한 시각»으로 읽히는데, 판정은 <b className="text-text-primary">서버 시각</b> 기준입니다
+                </p>
 
                 {/**
                   * 📱 **상황을 눌러 본다** (기사님 2026-09-05).
