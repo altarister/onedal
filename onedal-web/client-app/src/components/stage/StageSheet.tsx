@@ -33,6 +33,20 @@ export const SHEET_HEIGHT: Record<SheetSnap, string> = {
     full: '100%',
 };
 
+/**
+ * 🗺️ **시트가 무대를 덮을 수 있는 최대** — 지도가 볼 자리를 남긴다 (기사님 확정 2026-09-05).
+ *
+ * 🔴 *"판정 시트나 시트 아래 나타날 때 시트는 「나」 위치로 가기 때문에 **모두 보여야
+ *    한다**"* — 판정이 보이는 것만으로 모자란다. **후보 경로를 지도에서 보는 것이
+ *    판정의 재료**다 (실물이 판정 중에 시트를 내렸던 이유가 그것이다).
+ * 🔴 「나」가 «내용만큼» 서기 시작하면서 **콜이 많으면 화면을 다 덮었다.**
+ *    여기 하나에서 값이 나온다 — 가림 계산(`sheetOccludedPx`)과 **같은 값**이라야
+ *    «시트가 덮는 높이»와 «지도가 비켜 주는 높이»가 안 갈라진다 (규칙 ③).
+ * ⚠️ 「다」는 «다 쓴다»가 정의라 100% 그대로다 — 상한은 「나」에만 건다.
+ */
+export const SHEET_MAX_RATIO = 0.58;
+export const SHEET_LIST_MAX = `${SHEET_MAX_RATIO * 100}%`;
+
 /** 📏 `list` 는 내용에서 나오므로 미리 셀 수 없다 — 잴 수 있는 것만 여기서 답한다 */
 export const SHEET_FIXED_HEIGHT: Partial<Record<SheetSnap, string>> = {
     peek: '72px',
@@ -53,8 +67,8 @@ export const SHEET_FIXED_HEIGHT: Partial<Record<SheetSnap, string>> = {
  */
 export function sheetOccludedPx(snap: SheetSnap, stageHeight: number, measuredPx?: number): number {
     /* 📏 **잰 값이 있으면 그것이 이긴다** — `list` 는 내용에서 나와 미리 셀 수 없다 (2026-09-05) */
-    if (measuredPx != null && measuredPx > 0) return Math.min(measuredPx, stageHeight * 0.58);
-    const raw = SHEET_FIXED_HEIGHT[snap === 'full' ? 'peek' : snap] ?? '58%';
+    if (measuredPx != null && measuredPx > 0) return Math.min(measuredPx, stageHeight * SHEET_MAX_RATIO);
+    const raw = SHEET_FIXED_HEIGHT[snap === 'full' ? 'peek' : snap] ?? SHEET_LIST_MAX;
     const n = parseFloat(raw);
     return raw.endsWith('%') ? stageHeight * n / 100 : n;
 }
@@ -131,7 +145,8 @@ export default function StageSheet({ snap, onSnapChange, peekBar, bottomBox, onH
                 /* 📏 `list` 는 **내용만큼** 서고 `full` 을 넘지 않는다.
                    `peek`(상태바만)·`full`(다 쓴다)은 고정값이다. */
                 ...(snap === 'list'
-                    ? { height: 'auto', maxHeight: '100%' }
+                    /* 🗺️ **지도가 볼 자리를 남긴다** — 넘치면 목록이 안에서 스크롤한다 */
+                    ? { height: 'auto', maxHeight: SHEET_LIST_MAX }
                     : { height: SHEET_HEIGHT[snap] }),
                 background: 'var(--color-surface)',
                 borderColor: 'color-mix(in srgb, var(--color-border-card) 60%, #4f8df9)',

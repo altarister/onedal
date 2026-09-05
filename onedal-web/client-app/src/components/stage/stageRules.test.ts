@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { stageStep, initialStageMemory, USER_HOLD_MS,
          type StageMemory, type StageSignals } from './stageRules';
-import { SHEET_HEIGHT, SHEET_FIXED_HEIGHT, sheetOccludedPx, type SheetSnap } from './StageSheet';
+import { SHEET_HEIGHT, SHEET_FIXED_HEIGHT, SHEET_MAX_RATIO, SHEET_LIST_MAX, sheetOccludedPx, type SheetSnap } from './StageSheet';
 
 /**
  * 🧠 **v23 Ⅲ표를 검사로** (기사님 지시 2026-08-31 — *"구멍부터 처리하자"*).
@@ -178,5 +178,37 @@ describe('🪟 시트의 세 단 — 기사님이 다시 정의하셨다 (2026-0
     /** 🔴 시트가 무대를 다 덮으면 지도가 무너진다 — 가림은 58% 를 안 넘는다 */
     it('아무리 높아도 지도가 볼 자리를 남긴다', () => {
         expect(sheetOccludedPx('full', 800, 800)).toBeLessThanOrEqual(800 * 0.58);
+    });
+});
+
+describe('🗺️ 「나」도 지도가 볼 자리를 남긴다 (기사님 확정 2026-09-05)', () => {
+    /**
+     * 기사님: *"판정 시트나 시트 아래 나타날 때 시트는 「나」 위치로 가기 때문에
+     * **모두 보여야 한다.**"*
+     *
+     * 🔴 **판정이 보이는 것만으로 모자란다** — 후보 경로를 지도에서 보는 것이
+     *    **판정의 재료**다 (실물이 판정 중에 시트를 내렸던 이유가 그것이다).
+     *    그런데 「나」의 상한이 `100%` 라 **콜이 많으면 시트가 화면을 다 덮었다.**
+     * 🔴 값은 `SHEET_MAX_RATIO` 하나에서 온다 — 가림 계산(S8)과 **같은 값**이라야
+     *    «시트가 덮는 높이»와 «지도가 비켜 주는 높이»가 안 갈라진다 (규칙 ③).
+     */
+    it('「나」의 상한과 가림 상한이 같은 값에서 온다', () => {
+        expect(SHEET_LIST_MAX).toBe(`${SHEET_MAX_RATIO * 100}%`);
+    });
+
+    it('지도가 적어도 42%는 남는다', () => {
+        expect(SHEET_MAX_RATIO).toBeLessThanOrEqual(0.58);
+        expect(1 - SHEET_MAX_RATIO).toBeGreaterThanOrEqual(0.42);
+    });
+
+    it('아무리 내용이 많아도 가림은 그 비율을 안 넘는다', () => {
+        for (const measured of [100, 500, 900, 5000]) {
+            expect(sheetOccludedPx('list', 800, measured)).toBeLessThanOrEqual(800 * SHEET_MAX_RATIO);
+        }
+    });
+
+    /** 🔴 「다」는 «다 쓴다»가 정의라 100% 다 — 상한은 「나」에만 건다 */
+    it('「다」는 100% 그대로다 — 정의가 «다 쓴다»이다', () => {
+        expect(SHEET_HEIGHT.full).toBe('100%');
     });
 });
