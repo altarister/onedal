@@ -79,11 +79,33 @@ function MockHeader() {
 }
 
 /** 📱 폰 영역 — 스캔폰 한 대의 상태 한 줄 + 모드 셋 */
-function MockDevicePanel() {
+/**
+ * 📱 **모드 — 고른 것만 보이고, 바꾸면 «적용중»이 된다** (기사님 안 2026-09-05)
+ *
+ * ```
+ * 평소     [자동]                  ← 선택된 것만
+ * 누르면   [자동][알람][직접]        ← 그 자리에 레이어
+ * 고르면   [자̶동̶] ⟳                ← **이전 값**이 딤드 + 로딩
+ * 받으면   [알람]                   ← 앱이 가져가면 새 값으로
+ * ```
+ *
+ * 🔴 **왜 딤드가 «이전 값»인가** — 관제가 바꾼 것은 **아직 참이 아니다.**
+ *    앱이 가져가기 전까지 폰은 여전히 옛 모드로 돈다. 새 값을 미리 그리면
+ *    화면이 «벌써 됐다»고 거짓말한다 (폰_상태바.md §12 — 관제 → 앱 → 관제 **왕복**).
+ * 🔴 **10초가 지나면 버튼이 다시 눌린다** (기사님 «10초쯤» · 0단계 확정).
+ *    로딩은 계속 돌되 **손이 묶이지 않는다** — 앱이 영영 안 받을 수도 있다.
+ * 🔴 **「곧 됩니다」 같은 말을 안 적는다** — 언제 될지 우리가 모른다.
+ *    적을 수 있는 것은 «적용중»과 «마지막 통신 N초 전» 같은 **사실**뿐이다.
+ *
+ * ⚠️ 폭이 크게 준다 — 셋을 늘어놓으면 14칸인데 하나면 **4칸**이다 (폰_상태바.md §4).
+ */
+function MockDevicePanel({ mode, pending, onPick, onOpen, open }: {
+    mode: string; pending: string | null; open: boolean;
+    onPick: (m: string) => void; onOpen: (v: boolean) => void;
+}) {
     return (
         <div className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 border-b border-border-card">
-            {/* 🔴 왼쪽 묶음이 **먼저 줄어든다** — 모드(자동/알람/직접)는 손으로 누르는 것이라
-                잘리면 안 된다. 예전에는 이 줄이 통째로 넘쳐 «직접»이 화면 밖으로 나갔다 */}
+            {/* 🔴 왼쪽 묶음이 **먼저 줄어든다** — 모드는 손으로 누르는 것이라 잘리면 안 된다 */}
             <div className="flex-1 min-w-0 flex items-center gap-1.5 overflow-hidden">
                 <span className="shrink-0 text-[12px] font-black text-success">A24</span>
                 <span className="shrink-0 px-1.5 rounded border border-border-card text-[11.5px] text-text-primary whitespace-nowrap">
@@ -93,29 +115,40 @@ function MockDevicePanel() {
                 <span className="shrink-0 px-1.5 rounded border border-border bg-surface-alt text-[11.5px] font-bold text-text-muted">대기</span>
                 <span className="text-[10px] text-text-muted opacity-70 tabular-nums truncate">2.9.1-hello (49)</span>
             </div>
-            <span className="shrink-0 flex gap-1">
-                {[['자동', true], ['알람', false], ['직접', false]].map(([m, on]) => (
-                    <span key={m as string} className={`px-2 py-0.5 rounded-md text-[11.5px] font-black border ${on
-                        ? 'bg-warning/15 border-warning/45 text-warning'
-                        : 'bg-surface-alt/40 border-border-card text-text-muted'}`}>{m}</span>
-                ))}
+
+            <span className="shrink-0 relative">
+                {/* 🎛️ 지금 값 — 적용중이면 **이전 값이 딤드되고 그 위에 로딩** */}
+                <button type="button" onClick={() => onOpen(!open)}
+                    className={`relative px-2 py-0.5 rounded-md text-[11.5px] font-black border transition-opacity ${
+                        pending ? 'opacity-40' : ''} bg-warning/15 border-warning/45 text-warning`}>
+                    {mode}
+                </button>
+                {pending && (
+                    <span className="absolute inset-0 grid place-items-center pointer-events-none">
+                        <span className="w-3.5 h-3.5 rounded-full border-2 border-warning/30 border-t-warning animate-spin" />
+                    </span>
+                )}
+
+                {/* 🔽 **그 자리에** 열린다 — 눌린 자리에서 셋이 나온다 */}
+                {open && (
+                    <span className="absolute top-full right-0 mt-1 z-30 flex gap-1 p-1 rounded-lg
+                                     bg-surface border border-border shadow-lg">
+                        {['자동', '알람', '직접'].map(m => (
+                            <button key={m} type="button" onClick={() => onPick(m)}
+                                className={`px-2 py-1 rounded-md text-[11.5px] font-black border whitespace-nowrap ${
+                                    m === mode ? 'bg-warning/15 border-warning/45 text-warning'
+                                               : 'bg-surface-alt/40 border-border-card text-text-primary hover:border-warning/45'}`}>
+                                {m}
+                            </button>
+                        ))}
+                    </span>
+                )}
             </span>
         </div>
     );
 }
 
-/**
- * 🎯 필터 영역 — **두 안을 나란히 두고 고른다** (기사님과 비교 중 2026-09-04)
- *
- * | | 자리 | 국면 바꾸기 |
- * |---|---|---|
- * | **안 A** 펼침 | 150px — 화면의 18% | 한 번에 누른다 |
- * | **안 B** 접힘 | **38px** — 지도가 112px 커진다 | 줄을 눌러 펼친 뒤 (두 번) |
- *
- * 🔴 고를 잣대: **국면 버튼을 하루에 몇 번 누르나** 대 **지도를 얼마나 크게 보고 싶나.**
- *    기사님 09-03: *"줌이 한계가 있어서 여기가 어디인지 보고 싶은데 볼 수가 없었어."*
- *    — 그 답의 절반이 여기 있다.
- */
+
 function MockFilterPanel({ compact, onExpand }: { compact: boolean; onExpand: () => void }) {
     if (compact) return (
         /* ── 안 B · 접힘 — 한 줄. 누르면 펼쳐진다 ── */
@@ -542,6 +575,16 @@ export default function SheetMockup() {
     /** 🌈 콜 색표 — 색상=콜 · 채도=상차/하차 · 테두리=다녀왔나 (기사님 안 2026-09-04) */
     const [rainbow, setRainbow] = useState(true);
     /**
+     * 📱 **모드는 왕복이다** — 관제가 바꿔도 **앱이 가져가야 참이 된다**
+     *    (폰_상태바.md §12). 그래서 값이 둘이다:
+     *      `deviceMode`  앱이 마지막으로 «나 이거다»라고 말한 것 — **화면이 그리는 값**
+     *      `modePending` 관제가 보냈고 **아직 대답을 못 들은 것**
+     * 🔴 보낸 값을 미리 그리면 화면이 «벌써 됐다»고 거짓말한다.
+     */
+    const [deviceMode, setDeviceMode] = useState('자동');
+    const [modePending, setModePending] = useState<string | null>(null);
+    const [modeOpen, setModeOpen] = useState(false);
+    /**
      * 🔴 **몇 콜 판인가** — 3콜은 **상한이 아니다** (전제 점검표 1부 ① · 기사님 2026-09-04:
      * *"최대한 많이 합짐하면 매출이 많아진다"*).
      * 콜이 넷이면 정거장 8개, 다섯이면 10개다 — **QR 이 몇 번인지도, 아코디언이 넘치는지도
@@ -915,7 +958,17 @@ export default function SheetMockup() {
             <div className="w-full max-w-[400px] h-dvh flex flex-col shrink-0 lg:sticky lg:top-0">
 
                 <MockHeader />
-                <MockDevicePanel />
+                <MockDevicePanel
+                    mode={deviceMode} pending={modePending} open={modeOpen}
+                    onOpen={setModeOpen}
+                    onPick={(m) => {
+                        setModeOpen(false);
+                        if (m === deviceMode) { setLog(`📱 이미 «${m}» 입니다.`); return; }
+                        setModePending(m);
+                        setLog(`📱 «${m}» 으로 바꾸라고 보냈습니다 — 스캔폰이 가져갈 때까지 «적용중»입니다. `
+                             + `아래 조작판에서 「📱 앱이 받았다」를 누르면 그때 값이 바뀝니다. `
+                             + `🔴 실물에서는 10초가 지나면 버튼이 다시 눌립니다 — 앱이 영영 안 받을 수도 있으니까요.`);
+                    }} />
                 {/**
                   * 🪧 **심사석은 필터 자리를 빌려 쓴다** — 실물과 같은 자리다
                   *    (`JudgmentSeat` 머리주석 · 기사님 확정 0831).
@@ -1540,6 +1593,39 @@ export default function SheetMockup() {
                     <b className="text-text-primary"> 결론은 기사님이 내십니다.</b>
                 </p>
                 </>)}
+
+                {/* 📱 **모드의 왕복을 눈으로 본다** (기사님 안 2026-09-05) */}
+                <h2 className="mt-6 text-[12.5px] font-black tracking-wide text-info mb-2">📱 모드 — 앱이 받는 순간</h2>
+                <div className="flex gap-1.5 flex-wrap">
+                    <button type="button" disabled={!modePending}
+                        onClick={() => {
+                            if (!modePending) return;
+                            setDeviceMode(modePending); setModePending(null);
+                            setLog(`📱 스캔폰이 «${modePending}» 을 가져갔습니다 — 이제 그것이 참입니다. 딤드와 로딩이 풀립니다.`);
+                        }}
+                        className="px-3 py-2 rounded-[9px] border border-border-hover bg-surface text-[12.5px] font-black
+                                   hover:border-info disabled:opacity-30">
+                        📱 앱이 받았다
+                    </button>
+                    <button type="button" disabled={!modePending}
+                        onClick={() => { setModePending(null); setLog('📱 대답이 안 왔습니다 — 보낸 것을 물렸습니다. 화면은 앱이 말한 값 그대로입니다.'); }}
+                        className="px-3 py-2 rounded-[9px] border border-border-hover bg-surface text-[12.5px] font-black
+                                   hover:border-warning disabled:opacity-30">
+                        ⏳ 대답이 안 온다
+                    </button>
+                </div>
+                <p className="mt-2 text-[12px] leading-relaxed text-text-muted">
+                    🔴 <b className="text-text-primary">모드는 관제가 바꾸는 유일한 것이고, 왕복입니다</b> —
+                    관제 → 앱 → 관제. <b className="text-text-primary">앱이 가져가야 참이 됩니다.</b>
+                    <br />· 평소에는 <b className="text-text-primary">고른 것 하나만</b> 보입니다 (셋을 늘어놓으면 14칸, 하나면 4칸)
+                    <br />· 누르면 <b className="text-text-primary">그 자리에</b> 셋이 열립니다
+                    <br />· 고르면 <b className="text-text-primary">이전 값이 딤드되고 그 위에 로딩</b>이 돕니다 —
+                    새 값을 미리 그리면 화면이 «벌써 됐다»고 거짓말합니다
+                    <br />🔴 실물에서는 <b className="text-text-primary">10초가 지나면 버튼이 다시 눌립니다</b> (0단계 확정).
+                    로딩은 계속 돌되 손이 묶이지 않습니다 — <b className="text-text-primary">앱이 영영 안 받을 수도 있습니다.</b>
+                    <br />🔴 「곧 됩니다」 같은 말은 안 적습니다. 적을 수 있는 것은 «적용중»과
+                    «마지막 통신 N초 전» 같은 <b className="text-text-primary">사실</b>뿐입니다.
+                </p>
 
                 <h2 className="mt-6 text-[12.5px] font-black tracking-wide text-info mb-2">🌈 콜 색표 — 예전 색과 비교</h2>
                 <div className="flex gap-1.5 flex-wrap">
