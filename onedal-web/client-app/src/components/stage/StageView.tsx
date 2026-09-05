@@ -2,12 +2,16 @@ import { useState, useEffect, useRef } from 'react';
 import type { SecuredOrder, RouteStopInfo } from '@onedal/shared';
 import { hasVisitedStop } from '@onedal/shared';
 import { useRouteDerivations } from '../../hooks/useRouteDerivations';
-import { getAddressLabel, getDistanceKm } from '../../lib/routeUtils';
+import { getAddressLabel } from '../../lib/routeUtils';
 import PinnedRouteCanvas from '../dashboard/PinnedRouteCanvas';
 import StageSheet, { type SheetSnap } from './StageSheet';
 import { stageStep, initialStageMemory, type StageEvent } from './stageRules';
 /* 🪟 높이와 «열린 것»을 함께 정하는 규칙 — 한 곳에만 산다 (규칙 ③) */
 import { sheetTransition } from './sheetTransition';
+/* 🎬 상태바 문구는 여기 한 곳이 정한다 — 화면은 그리기만 한다 (규칙 ③) */
+import { sheetStatus } from '../../lib/sheetStatus';
+import { callNodeFill, callNodeText } from '../../styles/callPalette';
+import { useTheme } from '../../contexts/ThemeContext';
 import { PinnedRouteBody } from '../dashboard/PinnedRoute';
 import { useDriveMotion } from '../dashboard/VehicleStatusPanel';
 import { useGpsFocusStore } from '../../stores/gpsFocusStore';
@@ -54,6 +58,8 @@ export default function StageView(props: Props) {
     const [qrOpen, setQrOpen] = useState(false);
     /** 🪧 결재 처리 중인 콜 — 두 번 눌리는 것을 막는다 (판정석이 스스로 재우지 않는다) */
     const [seatProcessingId, setSeatProcessingId] = useState<string | null>(null);
+    /* 🎨 상태바 동그라미가 지도·목록과 같은 색을 쓴다 */
+    const { theme } = useTheme();
     /**
      * 🪗 **열린 줄** — `-1` 은 «전부 닫힘»이다.
      * 🔴 콜이 없으면 열 것도 없다. 있으면 처음엔 «다음 갈 콜»을 연다 (S3).
@@ -217,42 +223,26 @@ export default function StageView(props: Props) {
      * 🎬 자막 줄 (v23 엿보기 줄 · 기사님 확정 ③) — «✅2 초월 → 3 곤지암 이동 중 · ~20km 남음».
      *    거리는 GPS→다음 정거장 직선이라 ~ 를 붙인다 (규칙 ⑤-2 — 추정은 추정이라 말한다).
      */
-    const lastVisited = derived.visitedTrail.length > 0
-        ? derived.visitedTrail[derived.visitedTrail.length - 1] : null;
-    const peekBar = (() => {
-        if (liveRoute.length === 0) return '진행 중인 경로 없음 · 새 콜 대기';
-        if (judging) return '🪧 새 콜 판정 중 — 지도가 후보 경로를 보여 줍니다';
-        if (!next) return '이번 사이클 정거장을 모두 지났습니다';
-        const distTo = (p: { x?: number | null; y?: number | null }) =>
-            (myLocation && p?.x != null && p?.y != null)
-                ? getDistanceKm(myLocation.y, myLocation.x, p.y, p.x) : null;
-        const km = (d: number) => (d < 10 ? d.toFixed(1) : String(Math.round(d)));
-
-        /**
-         * 🚚 **달리는 중** — 어디서 어디로, 얼마 남았나. 직선거리라 `~` 를 붙인다 (규칙 ⑤-2).
-         */
-        if (drive === 'drive') {
-            const from = lastVisited ? `${lastVisited.no} ${lastVisited.name}` : '출발지';
-            const d = distTo(next);
-            return `${from} → ${next.visitNo} ${next.name} 이동 중`
-                + (d != null ? ` · ~${km(d)}km 남음` : '');
-        }
-
-        /**
-         * 🏁 **서 있는 중** — 기사님: *"지금은 정차한 건지 운행 중인지 모르겠어."*
-         *    이동 문구가 그대로 남아 있어서다. 서 있으면 **도착한 지명 + 정차 중**으로 말한다.
-         *    시트를 열고 닫는 신호(주행/정차·도착)와 **같은 재료**를 쓰므로 문구와 시트가
-         *    따로 놀지 않는다 (기사님 확정 2026-08-31).
-         * ⚠️ 신호 대기처럼 정거장이 아닌 곳에서 선 것과 구분한다 — 다녀온 정거장 1km 안일 때만
-         *    «도착»이라고 한다. 아니면 그냥 «정차 중»이다 (없는 말을 지어내지 않는다 · 규칙 ④).
-         */
-        const dLast = lastVisited ? distTo(lastVisited) : null;
-        if (lastVisited && dLast != null && dLast <= 1) {
-            return `🏁 ${lastVisited.no} ${lastVisited.name} 도착 · 정차 중 — 다음 ${next.visitNo} ${next.name}`;
-        }
-        const d = distTo(next);
-        return `⏸️ 정차 중 · 다음 ${next.visitNo} ${next.name}` + (d != null ? ` ~${km(d)}km` : '');
-    })();
+    /**
+     * 🎬 **시트 상태바** (용어집 확정 2026-09-04) — 읽는 줄. 누르는 부분이 «시트 상태바의 버튼».
+     *
+     * 🔴 **문구를 여기서 만들지 않는다** (규칙 ③ · 2026-09-05 정정).
+     *    `lib/sheetStatus` 가 **요소별로** 돌려준다 — 기호 · 번호 · 지명 · ~분 · 꼬리.
+     *    예전엔 이 화면이 자기 문장을 따로 지었고(`⏸️ 정차 중 · 다음 1 초월읍 ~2.3km`),
+     *    그 사이 규칙 파일은 **목업과 검사만 쓰고 있었다** — #96·#97 과 같은 병이다.
+     * 🔴 거리(km)가 아니라 **주행 분**이다 — 기사님이 읽는 값은 «얼마나 걸리나»다.
+     *    직선 km 는 도로를 안 따르므로 이 줄에서 뺐다.
+     */
+    const bar = sheetStatus({
+        idle: liveRoute.length === 0,
+        judging: !!judging,
+        moving: drive === 'drive',
+        next: next ? {
+            visitNo: next.visitNo, name: next.name,
+            callNo: next.callNo, stop: next.stopLabel as '상차' | '하차',
+        } : null,
+        driveMinutes: next?.driveMinutes ?? null,
+    });
 
     /**
      * 🧭 **달리는 중에는 덱도 «향해가는 콜»을 본다** (기사님 실측 2026-08-31 4판).
@@ -414,7 +404,46 @@ export default function StageView(props: Props) {
 
             {/* 3단 시트 — 내용물은 기존 콜 화면 그대로 (sheetOnly) */}
             <StageSheet snap={snap} onSnapChange={(s) => feed({ type: 'drag', to: s })}
-                        onHeightChange={setSheetPx} peekBar={peekBar}
+                        onHeightChange={setSheetPx}
+                        /**
+                         * 🎬 **요소별로 그린다** — 목업과 같은 모양 (이식 2026-09-05).
+                         *    `▶ ①여수동 ~31분        2번 콜 · 상차 ›`
+                         * 🔴 번호 동그라미는 **지도·목록과 같은 색표**다 — 색이 «몇 번 콜»을 말한다.
+                         * 🔴 누르면 **「다」로 올라가며 그 콜이 열린다** — 이 줄을 누른 것은
+                         *    «열어서 보겠다»는 뜻이라, 주행 중(엿보기)에도 올라간다.
+                         *    자동으로 안 올리는 것과 다르다 — **손이 시킨 것**이다.
+                         */
+                        peekBar={
+                            <button type="button"
+                                onClick={() => {
+                                    if (!next) return;
+                                    const i = cycleDeck.findIndex(o => o.id === next.orderId);
+                                    const mv = sheetTransition('full',
+                                        { openIdx: i, callCount: cycleDeck.length, preferIdx: i });
+                                    setSnap(mv.snap);
+                                    setOpenIdx(mv.openIdx);
+                                }}
+                                className="w-full flex items-center gap-1.5 text-left min-h-[30px] active:opacity-70 transition-opacity">
+                                <span className="shrink-0">{bar.mark}</span>
+                                {bar.notice ? (
+                                    <span className="text-text-muted font-semibold">· {bar.notice}</span>
+                                ) : (
+                                    <>
+                                        <span className="shrink-0 w-[19px] h-[19px] rounded-full grid place-items-center text-[12px] font-black leading-none"
+                                            style={next?.callNo ? {
+                                                background: callNodeFill(next.callNo, next.stopLabel === '상차' ? 'pickup' : 'dropoff', theme),
+                                                color: callNodeText(next.stopLabel === '상차' ? 'pickup' : 'dropoff', theme),
+                                            } : { background: 'var(--color-info)', color: '#fff' }}>
+                                            {bar.no}
+                                        </span>
+                                        <span className="shrink-0">{bar.name}</span>
+                                        {bar.lead && <span className="shrink-0 text-text-muted font-semibold">{bar.lead}</span>}
+                                        <span className="ml-auto shrink-0 text-text-muted font-semibold truncate">{bar.tail}</span>
+                                        <span className="shrink-0 text-text-muted">›</span>
+                                    </>
+                                )}
+                            </button>
+                        }
                         /**
                          * 🪧 **판정석은 시트 맨 아래다** (기사님 확정 2026-09-05 · 안 ⓑ).
                          *

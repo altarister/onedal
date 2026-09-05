@@ -65,7 +65,16 @@ export default function StepSwipeTrack({ count, shownIdx, onShow, renderPane }: 
                 const k = Math.round(t.scrollLeft / t.clientWidth);
                 if (k !== shownIdx) onShow(k);
             }}
-            className="flex overflow-x-auto overflow-y-hidden snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            /**
+             * 📏 **트랙이 높이를 스스로 정한다** (목업 이식 2026-09-05 · 재서 잡았다).
+             *
+             * 🔴 제약이 없으면 **가장 긴 장의 높이**만큼 트랙이 늘어난다 —
+             *    실측에서 카드 내용이 **961px** 이 되어 «카드 전체»가 스크롤됐다.
+             *    목업은 **장 안에서** 스크롤한다 (판 435 · 내용 435 · 스크롤 0).
+             * 🔴 **최소 220px 은 지킨다** — 그보다 낮으면 한 장에 아무것도 안 들어간다.
+             *    자리가 모자라면 **장이 스스로 스크롤**한다 (잘라 감추지 않는다 · 규칙 ④).
+             */
+            className="flex min-h-[220px] max-h-[46vh] overflow-x-auto overflow-y-hidden snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             style={{ overscrollBehaviorX: 'contain' }}
         >
             {Array.from({ length: count }, (_, k) => renderPane(k))}

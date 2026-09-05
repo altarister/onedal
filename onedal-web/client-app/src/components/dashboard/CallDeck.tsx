@@ -405,7 +405,9 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
                                 🟢 **잘라 감추지 않고 스크롤한다** — 모자라면 손으로 내려 보는 것이
                                    «없는 것»보다 낫다 (규칙 ④) */}
                             <div hidden={!open}
-                                 className={`${fit ? 'flex-auto max-h-[46vh]' : 'flex-1 min-h-0'} mt-1.5 overflow-y-auto`}>
+                                 /* 📏 **flex 상자로 둔다** — 카드가 «판만큼» 서야 위 덩어리는
+                                    고정되고 **단계만 스크롤**한다 (목업 동작 · 재서 잡았다) */
+                                 className={`${fit ? 'flex-auto max-h-[46vh]' : 'flex-1 min-h-0'} mt-1.5 flex flex-col overflow-y-auto`}>
                                 {renderCard(o)}
                             </div>
                         </div>

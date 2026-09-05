@@ -219,7 +219,9 @@ export default function PinnedRouteCard({
     const soloMin = timing.soloMinutes;
 
     return (
-        <div className={`flex flex-col relative overflow-hidden transition-all duration-300 ${evaluating ? 'bg-warning/10' : 'hover:bg-surface-hover/50'} border-b border-border-card ${isTerminal(route.status) ? 'opacity-50 grayscale' : ''}`}>
+        /* 📏 **무대에서는 카드가 «판만큼» 선다** (목업 이식 0905) — 그래야 위 덩어리는
+           고정되고 아래 단계만 스크롤한다. 옛 화면(조회용)은 그대로 내용만큼 자란다. */
+        <div className={`flex flex-col relative overflow-hidden transition-all duration-300 ${isDeck ? 'flex-1 min-h-0' : ''} ${evaluating ? 'bg-warning/10' : 'hover:bg-surface-hover/50'} border-b border-border-card ${isTerminal(route.status) ? 'opacity-50 grayscale' : ''}`}>
             {(route.status === 'ORDER_SECURED_EVALUATING' || route.status === 'ORDER_AWAITING_DECISION') && (
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-warning/5 to-transparent -translate-x-full animate-[shimmer_2s_infinite] pointer-events-none" />
             )}
@@ -366,7 +368,16 @@ export default function PinnedRouteCard({
 
             {/* 2. 카드 콘텐츠 */}
             {isExpanded && (
-                <div className="px-4 pb-4 pt-2 text-sm border-t border-border bg-surface">
+                /**
+                 * 📏 **무대에서는 본문이 스크롤한다** (기사님 2026-09-05 · 재서 잡았다).
+                 *
+                 * 🔴 카드가 «판만큼» 서는데 본문이 내용대로 자라면, 카드의 `overflow-hidden` 이
+                 *    **잘라 감춘다** — 실측에서 카드 291px 에 내용 723px 이었다 (규칙 ④ 위반).
+                 * 🟢 잘라 감추지 않고 **여기서 스크롤**한다 — 목업의 «자리가 모자라면 판이
+                 *    스크롤한다»와 같은 성질이다. 콜 줄(헤더)은 밖에 있어 계속 보인다.
+                 */
+                <div className={`px-4 pb-4 pt-2 text-sm border-t border-border bg-surface ${
+                    isDeck ? 'flex-1 min-h-0 overflow-y-auto' : ''}`}>
 
                     {/* 🕐 **안 A — 펼치면 원래 값과 지금 값을 둘 다 적는다** (기사님 확정 2026-08-30)
                         원천: docs/지금/시각_표시.md
