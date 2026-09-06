@@ -9,7 +9,7 @@ import NaviQr, { naviQrText, type QrKind } from '../components/dashboard/NaviQr'
 import { sheetStatus, sheetStatusLine, textWidth } from '../lib/sheetStatus';
 import StepSheetMock from '../components/dashboard/StepSheetMock';
 import { pushClock, gapTone } from '../lib/pushedTime';
-import { MOCK_PLANS, CONE_DEMO, QUAD_DEMO, QUAD_SIHEUNG, QUAD_LEG2, BOLT_STEPS, RING_DEMO, scenarioPlan, splitStops, myLocationAt, routeHolderOf, reaskedPlan, reaskCost, type Call } from './mockPlans';
+import { MOCK_PLANS, CONE_DEMO, QUAD_DEMO, QUAD_SIHEUNG, QUAD_LEG2, BOLT_STEPS, BOLT_STEPS_30, RING_DEMO, scenarioPlan, splitStops, myLocationAt, routeHolderOf, reaskedPlan, reaskCost, type Call } from './mockPlans';
 import { SCENARIO, SEAT_CALLS } from './scenario';
 import { ROUTE_PRIORITIES, PRIORITY_SAMPLE, isPriorityLocked, type RoutePriority } from '../lib/routePriority';
 import JudgmentSeat from '../components/dashboard/JudgmentSeat';
@@ -942,6 +942,8 @@ export default function SheetMockup() {
     const [cone, setCone] = useState<'off' | 'tri' | 'quad' | 'siheung' | 'leg2'>('off');
     /** 🚚 볼트 하루 — 콜 잡은 순서대로 마름모를 다시 그린다 (−1 = 끔) */
     const [boltStep, setBoltStep] = useState(-1);
+    /** 🎚️ 출발지 각도 — 100°(여유) ↔ 30°(급함) */
+    const [tight, setTight] = useState(false);
     /**
      * ⟳ **다시 물었나** — 눌렀을 때 «순서가 춤추는 것»을 보여 주기 위한 것이다
      * (전제 점검표 3부 Q8). 전에는 분만 늘어서 **좋아지는 것처럼만** 보였다.
@@ -1344,7 +1346,7 @@ export default function SheetMockup() {
                             unifiedRoutePoints={remaining}
                             visitedTrail={visited}
                             routeHolder={routeHolderOf(plan)}
-                            coneOverlay={boltStep >= 0 ? BOLT_STEPS[boltStep]
+                            coneOverlay={boltStep >= 0 ? (tight ? BOLT_STEPS_30 : BOLT_STEPS)[boltStep]
                                 : cone === 'off' ? null
                                 : cone === 'siheung' ? QUAD_SIHEUNG
                                 : cone === 'leg2' ? QUAD_LEG2
@@ -1802,7 +1804,12 @@ export default function SheetMockup() {
                     <button type="button" onClick={() => setBoltStep(-1)}
                         className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${boltStep < 0
                             ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-surface text-text-primary hover:border-info'}`}>끄기</button>
-                    {BOLT_STEPS.map((s, i) => (
+                    <button type="button" onClick={() => setTight(v => !v)}
+                        className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${tight
+                            ? 'bg-warning/15 border-warning/55 text-warning' : 'border-border-hover bg-surface text-text-primary hover:border-warning'}`}>
+                        {tight ? '🎚️ 출발지 30° (급함)' : '🎚️ 출발지 100° (여유)'}
+                    </button>
+                    {(tight ? BOLT_STEPS_30 : BOLT_STEPS).map((s, i) => (
                         <button key={i} type="button" onClick={() => setBoltStep(i)}
                             className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${boltStep === i
                                 ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-surface text-text-primary hover:border-info'}`}>
@@ -1812,15 +1819,17 @@ export default function SheetMockup() {
                 </div>
                 {boltStep >= 0 && (
                     <p className="mt-2 text-[12px] leading-relaxed text-warning">
-                        {BOLT_STEPS[boltStep].at} · <b>{BOLT_STEPS[boltStep].where}</b> 에서 집(김포)까지 <b>{BOLT_STEPS[boltStep].baseKm}km</b> ·
-                        그물 <b>{BOLT_STEPS[boltStep].passCount}동</b> · 이때 잡은 콜 → <b>{BOLT_STEPS[boltStep].got}</b>
+                        {(tight ? BOLT_STEPS_30 : BOLT_STEPS)[boltStep].at} · <b>{(tight ? BOLT_STEPS_30 : BOLT_STEPS)[boltStep].where}</b> 에서 집(김포)까지 <b>{(tight ? BOLT_STEPS_30 : BOLT_STEPS)[boltStep].baseKm}km</b> ·
+                        그물 <b>{(tight ? BOLT_STEPS_30 : BOLT_STEPS)[boltStep].passCount}동</b> · 이때 잡은 콜 → <b>{(tight ? BOLT_STEPS_30 : BOLT_STEPS)[boltStep].got}</b> · 출발지 각도 <b>{tight ? '30°' : '100°'}</b>
                     </p>
                 )}
                 <p className="mt-2 text-[12px] leading-relaxed text-text-muted">
                     그날 볼트의 목적지는 <b className="text-text-primary">집(김포) 하나</b>였습니다(2일차 = 복귀).
                     콜을 잡을 때마다 «지금 자리 → 김포» 로 마름모를 다시 그린 것입니다.<br />
                     🔴 <b className="text-text-primary">그물이 저절로 닫힙니다</b> — 1,180 → 559동.
-                    집이 가까워질수록 작아지고, 마지막엔 목적지 둘레만 남습니다. <b className="text-text-primary">하루가 스스로 끝납니다.</b>
+                    집이 가까워질수록 작아지고, 마지막엔 목적지 둘레만 남습니다. <b className="text-text-primary">하루가 스스로 끝납니다.</b><br />
+                    🎚️ <b className="text-text-primary">출발지 각도</b> — 여유 100° ↔ 급함 30°. 성남에서 <b className="text-text-primary">756 → 466동</b> 으로 조여집니다.
+                    두 각도는 다른 질문입니다: <b className="text-text-primary">출발지 = 얼마나 돌아도 되나</b> · <b className="text-text-primary">목적지 = 둘레를 얼마나 볼까</b>
                 </p>
 
                 <h2 className="mt-7 pt-5 border-t border-border-card text-[12.5px] font-black tracking-wide text-info mb-2">몇 콜을 잡은 판인가</h2>
