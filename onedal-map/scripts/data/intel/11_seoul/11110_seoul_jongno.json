@@ -248,27 +248,14 @@
   },
   "11110120": {
     "regionCode": "11110120",
-    "name": "신문로1가",
+    "name": "신문로",
     "parentName": "서울 종로구",
     "roads": [],
     "orderVolume": "중",
     "importance": 3,
     "landmarks": [],
     "fieldTips": [
-      "신문로1가 지역 인텔 데이터 추가 필요",
-      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
-    ]
-  },
-  "11110121": {
-    "regionCode": "11110121",
-    "name": "신문로2가",
-    "parentName": "서울 종로구",
-    "roads": [],
-    "orderVolume": "중",
-    "importance": 3,
-    "landmarks": [],
-    "fieldTips": [
-      "신문로2가 지역 인텔 데이터 추가 필요",
+      "신문로 지역 인텔 데이터 추가 필요",
       "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
     ]
   },
@@ -321,19 +308,6 @@
     "landmarks": [],
     "fieldTips": [
       "중학동 지역 인텔 데이터 추가 필요",
-      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
-    ]
-  },
-  "11110126": {
-    "regionCode": "11110126",
-    "name": "종로1가",
-    "parentName": "서울 종로구",
-    "roads": [],
-    "orderVolume": "중",
-    "importance": 3,
-    "landmarks": [],
-    "fieldTips": [
-      "종로1가 지역 인텔 데이터 추가 필요",
       "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
     ]
   },
@@ -477,19 +451,6 @@
     "landmarks": [],
     "fieldTips": [
       "낙원동 지역 인텔 데이터 추가 필요",
-      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
-    ]
-  },
-  "11110138": {
-    "regionCode": "11110138",
-    "name": "종로2가",
-    "parentName": "서울 종로구",
-    "roads": [],
-    "orderVolume": "중",
-    "importance": 3,
-    "landmarks": [],
-    "fieldTips": [
-      "종로2가 지역 인텔 데이터 추가 필요",
       "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
     ]
   },
@@ -714,19 +675,6 @@
       "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
     ]
   },
-  "11110156": {
-    "regionCode": "11110156",
-    "name": "종로3가",
-    "parentName": "서울 종로구",
-    "roads": [],
-    "orderVolume": "중",
-    "importance": 3,
-    "landmarks": [],
-    "fieldTips": [
-      "종로3가 지역 인텔 데이터 추가 필요",
-      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
-    ]
-  },
   "11110157": {
     "regionCode": "11110157",
     "name": "인의동",
@@ -781,14 +729,14 @@
   },
   "11110161": {
     "regionCode": "11110161",
-    "name": "종로4가",
+    "name": "종로",
     "parentName": "서울 종로구",
     "roads": [],
     "orderVolume": "중",
     "importance": 3,
     "landmarks": [],
     "fieldTips": [
-      "종로4가 지역 인텔 데이터 추가 필요",
+      "종로 지역 인텔 데이터 추가 필요",
       "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
     ]
   },
@@ -802,32 +750,6 @@
     "landmarks": [],
     "fieldTips": [
       "효제동 지역 인텔 데이터 추가 필요",
-      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
-    ]
-  },
-  "11110163": {
-    "regionCode": "11110163",
-    "name": "종로5가",
-    "parentName": "서울 종로구",
-    "roads": [],
-    "orderVolume": "중",
-    "importance": 3,
-    "landmarks": [],
-    "fieldTips": [
-      "종로5가 지역 인텔 데이터 추가 필요",
-      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
-    ]
-  },
-  "11110164": {
-    "regionCode": "11110164",
-    "name": "종로6가",
-    "parentName": "서울 종로구",
-    "roads": [],
-    "orderVolume": "중",
-    "importance": 3,
-    "landmarks": [],
-    "fieldTips": [
-      "종로6가 지역 인텔 데이터 추가 필요",
       "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
     ]
   },
@@ -896,55 +818,16 @@
       "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
     ]
   },
-  "11110170": {
-    "regionCode": "11110170",
-    "name": "명륜1가",
-    "parentName": "서울 종로구",
-    "roads": [],
-    "orderVolume": "중",
-    "importance": 3,
-    "landmarks": [],
-    "fieldTips": [
-      "명륜1가 지역 인텔 데이터 추가 필요",
-      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
-    ]
-  },
-  "11110171": {
-    "regionCode": "11110171",
-    "name": "명륜2가",
-    "parentName": "서울 종로구",
-    "roads": [],
-    "orderVolume": "중",
-    "importance": 3,
-    "landmarks": [],
-    "fieldTips": [
-      "명륜2가 지역 인텔 데이터 추가 필요",
-      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
-    ]
-  },
   "11110172": {
     "regionCode": "11110172",
-    "name": "명륜4가",
+    "name": "명륜",
     "parentName": "서울 종로구",
     "roads": [],
     "orderVolume": "중",
     "importance": 3,
     "landmarks": [],
     "fieldTips": [
-      "명륜4가 지역 인텔 데이터 추가 필요",
-      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
-    ]
-  },
-  "11110173": {
-    "regionCode": "11110173",
-    "name": "명륜3가",
-    "parentName": "서울 종로구",
-    "roads": [],
-    "orderVolume": "중",
-    "importance": 3,
-    "landmarks": [],
-    "fieldTips": [
-      "명륜3가 지역 인텔 데이터 추가 필요",
+      "명륜 지역 인텔 데이터 추가 필요",
       "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
     ]
   },

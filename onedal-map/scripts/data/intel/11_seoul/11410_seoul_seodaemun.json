@@ -1,27 +1,14 @@
 {
   "11410101": {
     "regionCode": "11410101",
-    "name": "충정로2가",
+    "name": "충정로",
     "parentName": "서울 서대문구",
     "roads": [],
     "orderVolume": "중",
     "importance": 3,
     "landmarks": [],
     "fieldTips": [
-      "충정로2가 지역 인텔 데이터 추가 필요",
-      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
-    ]
-  },
-  "11410102": {
-    "regionCode": "11410102",
-    "name": "충정로3가",
-    "parentName": "서울 서대문구",
-    "roads": [],
-    "orderVolume": "중",
-    "importance": 3,
-    "landmarks": [],
-    "fieldTips": [
-      "충정로3가 지역 인텔 데이터 추가 필요",
+      "충정로 지역 인텔 데이터 추가 필요",
       "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
     ]
   },

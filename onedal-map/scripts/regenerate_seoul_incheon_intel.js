@@ -14,7 +14,10 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const MERGED_MAP = path.join(__dirname, '../public/mapData/merged_map.geojson');
+// 🔴 onedal-map 은 out/ 을 읽는다 (2026-09-06) — 원본(map/map)은 안 건드린다.
+const MERGED_MAP = process.env.ONEDAL_MAP_OUT
+    ? path.join(process.env.ONEDAL_MAP_OUT, 'merged_map.geojson')
+    : path.join(__dirname, '../out/merged_map.geojson');
 const INTEL_DIR = path.join(__dirname, 'data/intel');
 
 // V-World 코드 → 구 이름 (merged_map에서 자동 추출)
@@ -41,11 +44,15 @@ const GU_ENG_MAP = {
 async function run() {
   const raw = JSON.parse(await fs.readFile(MERGED_MAP, 'utf8'));
 
-  // 서울(11), 인천(28) 피처만 필터
+  // 🔴 **광역시는 구 이름에 광역명이 없다** (onedal-map 2026-09-06 실측).
+  //    SIG_KOR_NM 이 「서구」·「유성구」라 「대전」으로 조회하면 **0개**가 나온다.
+  //    그래서 광역시는 intel 의 parentName(=「대전 서구」)이 **광역명을 담는 유일한 곳**이다.
+  //    도(道)는 SIG 가 「청주시 흥덕구」라 이 문제가 없다 — 그래서 광역시만 만든다.
+  const METRO = { '11': ['서울', 'seoul'], '28': ['인천', 'incheon'], '30': ['대전', 'daejeon'] };
   const features = raw.features.filter(f => {
     const code = f.properties?.code;
     if (!code) return false;
-    if (!code.startsWith('11') && !code.startsWith('28')) return false;
+    if (!METRO[code.substring(0, 2)]) return false;
     const guCode = code.substring(0, 5);
     if (EXCLUDED_CODES.has(guCode)) return false;
     return true;
@@ -61,8 +68,7 @@ async function run() {
   }
 
   // 기존 인텔 폴더 삭제 후 재생성
-  const seoulDir = path.join(INTEL_DIR, '11_seoul');
-  const incheonDir = path.join(INTEL_DIR, '28_incheon');
+  const dirOf = (prefix) => path.join(INTEL_DIR, `${prefix}_${METRO[prefix][1]}`);
   
   // 기존 23_incheon 삭제
   const oldIncheonDir = path.join(INTEL_DIR, '23_incheon');
@@ -71,24 +77,21 @@ async function run() {
     console.log('🗑️  기존 23_incheon 폴더 삭제');
   } catch { /* 없으면 무시 */ }
 
-  // 기존 11_seoul 삭제 (코드 체계가 다르므로)
-  try {
-    await fs.rm(seoulDir, { recursive: true });
-    console.log('🗑️  기존 11_seoul 폴더 삭제 (코드 체계 갱신)');
-  } catch { /* 없으면 무시 */ }
-
-  await fs.mkdir(seoulDir, { recursive: true });
-  await fs.mkdir(incheonDir, { recursive: true });
+  // 코드 체계가 바뀌면 옛 파일이 남아 죽은 채로 쌓인다 — 광역시 폴더를 통째로 다시 만든다.
+  for (const prefix of Object.keys(METRO)) {
+    try { await fs.rm(dirOf(prefix), { recursive: true }); } catch { /* 없으면 무시 */ }
+    await fs.mkdir(dirOf(prefix), { recursive: true });
+  }
 
   let createdCount = 0;
   for (const [guCode, dongList] of Object.entries(byGu)) {
     const guName = dongList[0]?.properties?.SIG_KOR_NM || guCode;
-    const isSeoul = guCode.startsWith('11');
-    const cityName = isSeoul ? '서울' : '인천';
-    const subDir = isSeoul ? seoulDir : incheonDir;
+    const prefix = guCode.substring(0, 2);
+    const [cityName, cityEng] = METRO[prefix];
+    const subDir = dirOf(prefix);
 
     const guNameEng = GU_ENG_MAP[guCode] || guCode;
-    const fileName = `${guCode}_${isSeoul ? 'seoul' : 'incheon'}_${guNameEng}.json`;
+    const fileName = `${guCode}_${cityEng}_${guNameEng}.json`;
     const filePath = path.join(subDir, fileName);
 
     const intel = {};

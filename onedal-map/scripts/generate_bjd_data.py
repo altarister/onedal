@@ -41,6 +41,10 @@ DEFAULT_REGIONS = ['11', '28', '41']
 GA_PATTERN = re.compile(r'^(.+?)\d+가$')
 
 
+# 키를 발급할 때 등록한 서비스 URL. .env 의 `vworld_domain` 으로 덮어쓸 수 있다.
+VWORLD_DOMAIN = "http://altari.com"
+
+
 def fetch_layer(vworld_key, layer_name, attr_filter, size=1000):
     base_url = "https://api.vworld.kr/req/data"
     all_features = []
@@ -52,7 +56,13 @@ def fetch_layer(vworld_key, layer_name, attr_filter, size=1000):
             "request": "GetFeature",
             "data": layer_name,
             "key": vworld_key,
-            "domain": "http://www.altari.com",
+            # 🔴 **도메인이 키와 안 맞으면 INCORRECT_KEY 다** (onedal-map 2026-09-06 실측).
+            #    VWorld 는 키를 **등록한 서비스 URL 과 대조**한다. 원본은 www.altari.com 을
+            #    박아 뒀는데, 새로 발급한 키는 www 없이 등록돼 있어 전부 거부당했다.
+            #      http://www.altari.com → INCORRECT_KEY
+            #      http://altari.com     → OK
+            #    키를 다시 발급하면 등록 URL 을 확인해 .env 의 vworld_domain 으로 넘긴다.
+            "domain": os.environ.get('VWORLD_DOMAIN') or VWORLD_DOMAIN,
             "attrFilter": attr_filter,
             "size": str(size),
             "page": str(page),
@@ -114,6 +124,9 @@ def main():
         vworld_key = sys.argv[1]
     else:
         vworld_key = env_vars.get('vworld_kr')
+    # 도메인도 .env 에서 받는다 (없으면 위 기본값)
+    if env_vars.get('vworld_domain'):
+        os.environ.setdefault('VWORLD_DOMAIN', env_vars['vworld_domain'])
     
     if not vworld_key:
         print("❌ V-World API 키를 찾을 수 없습니다.")

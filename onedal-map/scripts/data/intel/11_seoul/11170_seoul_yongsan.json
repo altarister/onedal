@@ -14,27 +14,14 @@
   },
   "11170102": {
     "regionCode": "11170102",
-    "name": "용산동2가",
+    "name": "용산동",
     "parentName": "서울 용산구",
     "roads": [],
     "orderVolume": "중",
     "importance": 3,
     "landmarks": [],
     "fieldTips": [
-      "용산동2가 지역 인텔 데이터 추가 필요",
-      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
-    ]
-  },
-  "11170103": {
-    "regionCode": "11170103",
-    "name": "용산동4가",
-    "parentName": "서울 용산구",
-    "roads": [],
-    "orderVolume": "중",
-    "importance": 3,
-    "landmarks": [],
-    "fieldTips": [
-      "용산동4가 지역 인텔 데이터 추가 필요",
+      "용산동 지역 인텔 데이터 추가 필요",
       "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
     ]
   },
@@ -61,19 +48,6 @@
     "landmarks": [],
     "fieldTips": [
       "남영동 지역 인텔 데이터 추가 필요",
-      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
-    ]
-  },
-  "11170106": {
-    "regionCode": "11170106",
-    "name": "용산동1가",
-    "parentName": "서울 용산구",
-    "roads": [],
-    "orderVolume": "중",
-    "importance": 3,
-    "landmarks": [],
-    "fieldTips": [
-      "용산동1가 지역 인텔 데이터 추가 필요",
       "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
     ]
   },
@@ -105,66 +79,27 @@
   },
   "11170109": {
     "regionCode": "11170109",
-    "name": "청파동1가",
+    "name": "청파동",
     "parentName": "서울 용산구",
     "roads": [],
     "orderVolume": "중",
     "importance": 3,
     "landmarks": [],
     "fieldTips": [
-      "청파동1가 지역 인텔 데이터 추가 필요",
-      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
-    ]
-  },
-  "11170110": {
-    "regionCode": "11170110",
-    "name": "청파동2가",
-    "parentName": "서울 용산구",
-    "roads": [],
-    "orderVolume": "중",
-    "importance": 3,
-    "landmarks": [],
-    "fieldTips": [
-      "청파동2가 지역 인텔 데이터 추가 필요",
-      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
-    ]
-  },
-  "11170111": {
-    "regionCode": "11170111",
-    "name": "청파동3가",
-    "parentName": "서울 용산구",
-    "roads": [],
-    "orderVolume": "중",
-    "importance": 3,
-    "landmarks": [],
-    "fieldTips": [
-      "청파동3가 지역 인텔 데이터 추가 필요",
+      "청파동 지역 인텔 데이터 추가 필요",
       "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
     ]
   },
   "11170112": {
     "regionCode": "11170112",
-    "name": "원효로1가",
+    "name": "원효로",
     "parentName": "서울 용산구",
     "roads": [],
     "orderVolume": "중",
     "importance": 3,
     "landmarks": [],
     "fieldTips": [
-      "원효로1가 지역 인텔 데이터 추가 필요",
-      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
-    ]
-  },
-  "11170113": {
-    "regionCode": "11170113",
-    "name": "원효로2가",
-    "parentName": "서울 용산구",
-    "roads": [],
-    "orderVolume": "중",
-    "importance": 3,
-    "landmarks": [],
-    "fieldTips": [
-      "원효로2가 지역 인텔 데이터 추가 필요",
+      "원효로 지역 인텔 데이터 추가 필요",
       "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
     ]
   },
@@ -204,32 +139,6 @@
     "landmarks": [],
     "fieldTips": [
       "청암동 지역 인텔 데이터 추가 필요",
-      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
-    ]
-  },
-  "11170117": {
-    "regionCode": "11170117",
-    "name": "원효로3가",
-    "parentName": "서울 용산구",
-    "roads": [],
-    "orderVolume": "중",
-    "importance": 3,
-    "landmarks": [],
-    "fieldTips": [
-      "원효로3가 지역 인텔 데이터 추가 필요",
-      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
-    ]
-  },
-  "11170118": {
-    "regionCode": "11170118",
-    "name": "원효로4가",
-    "parentName": "서울 용산구",
-    "roads": [],
-    "orderVolume": "중",
-    "importance": 3,
-    "landmarks": [],
-    "fieldTips": [
-      "원효로4가 지역 인텔 데이터 추가 필요",
       "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
     ]
   },
@@ -300,66 +209,14 @@
   },
   "11170124": {
     "regionCode": "11170124",
-    "name": "한강로1가",
+    "name": "한강로",
     "parentName": "서울 용산구",
     "roads": [],
     "orderVolume": "중",
     "importance": 3,
     "landmarks": [],
     "fieldTips": [
-      "한강로1가 지역 인텔 데이터 추가 필요",
-      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
-    ]
-  },
-  "11170125": {
-    "regionCode": "11170125",
-    "name": "한강로2가",
-    "parentName": "서울 용산구",
-    "roads": [],
-    "orderVolume": "중",
-    "importance": 3,
-    "landmarks": [],
-    "fieldTips": [
-      "한강로2가 지역 인텔 데이터 추가 필요",
-      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
-    ]
-  },
-  "11170126": {
-    "regionCode": "11170126",
-    "name": "용산동3가",
-    "parentName": "서울 용산구",
-    "roads": [],
-    "orderVolume": "중",
-    "importance": 3,
-    "landmarks": [],
-    "fieldTips": [
-      "용산동3가 지역 인텔 데이터 추가 필요",
-      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
-    ]
-  },
-  "11170127": {
-    "regionCode": "11170127",
-    "name": "용산동5가",
-    "parentName": "서울 용산구",
-    "roads": [],
-    "orderVolume": "중",
-    "importance": 3,
-    "landmarks": [],
-    "fieldTips": [
-      "용산동5가 지역 인텔 데이터 추가 필요",
-      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
-    ]
-  },
-  "11170128": {
-    "regionCode": "11170128",
-    "name": "한강로3가",
-    "parentName": "서울 용산구",
-    "roads": [],
-    "orderVolume": "중",
-    "importance": 3,
-    "landmarks": [],
-    "fieldTips": [
-      "한강로3가 지역 인텔 데이터 추가 필요",
+      "한강로 지역 인텔 데이터 추가 필요",
       "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
     ]
   },
@@ -438,19 +295,6 @@
     "landmarks": [],
     "fieldTips": [
       "주성동 지역 인텔 데이터 추가 필요",
-      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
-    ]
-  },
-  "11170135": {
-    "regionCode": "11170135",
-    "name": "용산동6가",
-    "parentName": "서울 용산구",
-    "roads": [],
-    "orderVolume": "중",
-    "importance": 3,
-    "landmarks": [],
-    "fieldTips": [
-      "용산동6가 지역 인텔 데이터 추가 필요",
       "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
     ]
   },

@@ -105,53 +105,14 @@
   },
   "11200109": {
     "regionCode": "11200109",
-    "name": "금호동1가",
+    "name": "금호동",
     "parentName": "서울 성동구",
     "roads": [],
     "orderVolume": "중",
     "importance": 3,
     "landmarks": [],
     "fieldTips": [
-      "금호동1가 지역 인텔 데이터 추가 필요",
-      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
-    ]
-  },
-  "11200110": {
-    "regionCode": "11200110",
-    "name": "금호동2가",
-    "parentName": "서울 성동구",
-    "roads": [],
-    "orderVolume": "중",
-    "importance": 3,
-    "landmarks": [],
-    "fieldTips": [
-      "금호동2가 지역 인텔 데이터 추가 필요",
-      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
-    ]
-  },
-  "11200111": {
-    "regionCode": "11200111",
-    "name": "금호동3가",
-    "parentName": "서울 성동구",
-    "roads": [],
-    "orderVolume": "중",
-    "importance": 3,
-    "landmarks": [],
-    "fieldTips": [
-      "금호동3가 지역 인텔 데이터 추가 필요",
-      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
-    ]
-  },
-  "11200112": {
-    "regionCode": "11200112",
-    "name": "금호동4가",
-    "parentName": "서울 성동구",
-    "roads": [],
-    "orderVolume": "중",
-    "importance": 3,
-    "landmarks": [],
-    "fieldTips": [
-      "금호동4가 지역 인텔 데이터 추가 필요",
+      "금호동 지역 인텔 데이터 추가 필요",
       "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
     ]
   },
@@ -170,27 +131,14 @@
   },
   "11200114": {
     "regionCode": "11200114",
-    "name": "성수동1가",
+    "name": "성수동",
     "parentName": "서울 성동구",
     "roads": [],
     "orderVolume": "중",
     "importance": 3,
     "landmarks": [],
     "fieldTips": [
-      "성수동1가 지역 인텔 데이터 추가 필요",
-      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
-    ]
-  },
-  "11200115": {
-    "regionCode": "11200115",
-    "name": "성수동2가",
-    "parentName": "서울 성동구",
-    "roads": [],
-    "orderVolume": "중",
-    "importance": 3,
-    "landmarks": [],
-    "fieldTips": [
-      "성수동2가 지역 인텔 데이터 추가 필요",
+      "성수동 지역 인텔 데이터 추가 필요",
       "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
     ]
   },
