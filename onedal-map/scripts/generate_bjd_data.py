@@ -406,12 +406,30 @@ def main():
     # ============================================================
     # 5. 출력
     # ============================================================
+    # ─────────────────────────────────────────────────────────────
+    # 🔴 **빈 산출물을 쓰지 않는다** (onedal-map 추가 · 2026-09-06 실사고)
+    #
+    # VWorld 키가 만료(`EXPIRE_KEY`)돼 세 지역이 전부 실패했는데,
+    # 원본은 `continue` 로 넘어가고 **45바이트짜리 빈 FeatureCollection 을 그대로 썼다.**
+    # 이걸 map/map 에서 돌렸으면 **28MB 지도가 빈 파일로 덮였을 것**이다.
+    #
+    # 실패는 조용히 성공처럼 보이면 안 된다 — 규칙 ④ «빈 필터는 제한 없음이 아니라 고장이다».
+    # ⚠️ 지역을 **줄여서** 다시 만들 일이 생기면 ONEDAL_MAP_MIN_FEATURES 로 낮춘다.
+    # ─────────────────────────────────────────────────────────────
+    min_features = int(os.environ.get('ONEDAL_MAP_MIN_FEATURES', '1000'))
+    if len(terminal_features) < min_features:
+        print(f"\n🔴 산출물이 {len(terminal_features)}개뿐이다 (최소 {min_features}). **쓰지 않고 멈춘다.**")
+        print("   위 로그에서 실패한 지역을 확인할 것 — 인증키 만료(EXPIRE_KEY)가 가장 흔하다.")
+        sys.exit(1)
+
     out_geojson = {
         "type": "FeatureCollection",
         "features": terminal_features
     }
     
-    out_dir = os.path.join(os.path.dirname(__file__), '..', 'public', 'mapData')
+    # 🔴 onedal-map 은 산출물을 out/ 에만 쓴다 (2026-09-06).
+    #    원본(map/map)은 읽기만 하고, 비교가 끝나기 전에는 소비자에게 안 내보낸다.
+    out_dir = os.environ.get('ONEDAL_MAP_OUT') or os.path.join(os.path.dirname(__file__), '..', 'out')
     os.makedirs(out_dir, exist_ok=True)
     out_path = os.path.join(out_dir, "merged_map.geojson")
     
