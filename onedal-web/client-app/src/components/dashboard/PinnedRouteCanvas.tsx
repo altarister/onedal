@@ -122,6 +122,19 @@ interface Props {
     drivenTrail?: Array<{ x: number; y: number }>;
     /** 🧭 경로를 든 콜 — 서버가 고른 답. 여기서 다시 찾지 않는다 (0831 잔상 수리) */
     routeHolder?: SecuredOrder | null;
+    /**
+     * 🔺 **첫 콜 그물을 눈으로 본다** — 목업 전용 (기사님 2026-09-06).
+     * 꼭짓점을 «목적지»에 둔 삼각형. 출발점 쪽이 넓고 목적지로 갈수록 좁다 —
+     * 가까운 곳은 크게 돌아도 싸고, 먼 곳은 조금만 벗어나도 비싸기 때문이다.
+     * 지도 위에 겹쳐 그려서 «무엇이 들어오고 무엇이 빠지나»를 보고 이야기한다.
+     */
+    coneOverlay?: {
+        tri: Array<[number, number]>;
+        pass?: Array<{ x: number; y: number }>;
+        marks?: Array<{ name: string; x: number; y: number; inside: boolean }>;
+        /** ⭕ 꼭짓점 둘레의 원 — 좌표 배열로 받는다 (화면 픽셀이 아니라 «땅 위의 원»이라야 줌에 안 흔들린다) */
+        circles?: Array<{ name: string; ring: Array<[number, number]> }>;
+    } | null;
     unifiedRoutePoints: RoutePoint[];
     /** **진행 중인 콜만** 넘긴다. 종료된 콜을 여기서 거르지 않는다 —
      *  계약을 좁히면 거르기를 잊을 자리가 없어진다 (2026-08-10 전수조사) */
@@ -160,7 +173,7 @@ interface Props {
     rainbowNodes?: boolean;
 }
 
-export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLocation, children, fill, visitedTrail, callColors, onStopTap, drivenTrail, routeHolder, occludedPx, rainbowNodes = true }: Props) {
+export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLocation, children, fill, visitedTrail, callColors, onStopTap, drivenTrail, routeHolder, coneOverlay, occludedPx, rainbowNodes = true }: Props) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const { theme } = useTheme();
     const mapColors = MAP_THEME_COLORS[theme];
@@ -226,6 +239,8 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         const driven = (drivenTrail ?? []).filter(p => Number.isFinite(p.x) && Number.isFinite(p.y));
         const allCoords = [...validPoints, ...validPolyline, ...trail, ...driven] as { x: number, y: number }[];
         if (myLocation) allCoords.push(myLocation);
+        /* 🔺 그물을 켜면 그 삼각형까지 보이게 — 안 그러면 현위치만 확대돼 선 하나만 스쳐 간다 */
+        if (coneOverlay) for (const [x, y] of coneOverlay.tri) allCoords.push({ x, y });
 
         if (allCoords.length === 0) {
             ctx.fillStyle = mapColors.textMuted;
@@ -349,6 +364,44 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
                     ctx.stroke();
                 }));
             });
+            ctx.restore();
+        }
+
+        /* 🔺 첫 콜 그물 (목업 전용) — 통과한 동을 점으로, 삼각형을 선으로 */
+        if (coneOverlay) {
+            ctx.save();
+            for (const p of coneOverlay.pass ?? []) {
+                const { cx, cy } = getScreenPt(p);
+                ctx.fillStyle = 'rgba(56,189,248,0.30)';
+                ctx.beginPath(); ctx.arc(cx, cy, 1.6, 0, Math.PI * 2); ctx.fill();
+            }
+            for (const c of coneOverlay.circles ?? []) {
+                ctx.beginPath();
+                c.ring.forEach(([x, y], i) => {
+                    const { cx, cy } = getScreenPt({ x, y });
+                    if (i === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
+                });
+                ctx.closePath();
+                ctx.fillStyle = 'rgba(251,191,36,0.10)'; ctx.fill();
+                ctx.strokeStyle = 'rgba(251,191,36,0.85)'; ctx.lineWidth = 1.5;
+                ctx.setLineDash([5, 4]); ctx.stroke(); ctx.setLineDash([]);
+            }
+            ctx.beginPath();
+            coneOverlay.tri.forEach(([x, y], i) => {
+                const { cx, cy } = getScreenPt({ x, y });
+                if (i === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
+            });
+            ctx.closePath();
+            ctx.fillStyle = 'rgba(56,189,248,0.07)'; ctx.fill();
+            ctx.strokeStyle = 'rgba(56,189,248,0.75)'; ctx.lineWidth = 1.5; ctx.stroke();
+            for (const m of coneOverlay.marks ?? []) {
+                const { cx, cy } = getScreenPt(m);
+                ctx.fillStyle = m.inside ? '#38bdf8' : '#f87171';
+                ctx.beginPath(); ctx.arc(cx, cy, 4.5, 0, Math.PI * 2); ctx.fill();
+                ctx.font = '700 10px system-ui'; ctx.textAlign = 'center';
+                ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.lineWidth = 3;
+                ctx.strokeText(m.name, cx, cy - 8); ctx.fillText(m.name, cx, cy - 8);
+            }
             ctx.restore();
         }
 
@@ -594,7 +647,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             ctx.fillStyle = withAlpha(mapColors.textMuted, 0.7);
             ctx.fillText('© OpenStreetMap', width - 4, height - 3);
         }
-    }, [unifiedRoutePoints, liveRoute, myLocation, visitedTrail, drivenTrail, routeHolder, theme, mapColors, occludedPx, rainbowNodes, viewMode]);
+    }, [unifiedRoutePoints, liveRoute, myLocation, visitedTrail, drivenTrail, routeHolder, coneOverlay, theme, mapColors, occludedPx, rainbowNodes, viewMode]);
 
     useEffect(() => {
         drawRef.current = drawMap;   // 늦게 온 타일이 부를 최신 그리기

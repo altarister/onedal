@@ -9,7 +9,7 @@ import NaviQr, { naviQrText, type QrKind } from '../components/dashboard/NaviQr'
 import { sheetStatus, sheetStatusLine, textWidth } from '../lib/sheetStatus';
 import StepSheetMock from '../components/dashboard/StepSheetMock';
 import { pushClock, gapTone } from '../lib/pushedTime';
-import { MOCK_PLANS, scenarioPlan, splitStops, myLocationAt, routeHolderOf, reaskedPlan, reaskCost, type Call } from './mockPlans';
+import { MOCK_PLANS, CONE_DEMO, QUAD_DEMO, QUAD_SIHEUNG, QUAD_LEG2, BOLT_STEPS, RING_DEMO, scenarioPlan, splitStops, myLocationAt, routeHolderOf, reaskedPlan, reaskCost, type Call } from './mockPlans';
 import { SCENARIO, SEAT_CALLS } from './scenario';
 import { ROUTE_PRIORITIES, PRIORITY_SAMPLE, isPriorityLocked, type RoutePriority } from '../lib/routePriority';
 import JudgmentSeat from '../components/dashboard/JudgmentSeat';
@@ -938,6 +938,10 @@ export default function SheetMockup() {
      */
     const [playing, setPlaying] = useState(false);
     const [planSize, setPlanSize] = useState<3 | 4 | 5 | 7>(3);
+    /** 🔺 첫 콜 그물을 지도에 겹쳐 본다 (기사님 2026-09-06) */
+    const [cone, setCone] = useState<'off' | 'tri' | 'quad' | 'siheung' | 'leg2'>('off');
+    /** 🚚 볼트 하루 — 콜 잡은 순서대로 마름모를 다시 그린다 (−1 = 끔) */
+    const [boltStep, setBoltStep] = useState(-1);
     /**
      * ⟳ **다시 물었나** — 눌렀을 때 «순서가 춤추는 것»을 보여 주기 위한 것이다
      * (전제 점검표 3부 Q8). 전에는 분만 늘어서 **좋아지는 것처럼만** 보였다.
@@ -1340,6 +1344,11 @@ export default function SheetMockup() {
                             unifiedRoutePoints={remaining}
                             visitedTrail={visited}
                             routeHolder={routeHolderOf(plan)}
+                            coneOverlay={boltStep >= 0 ? BOLT_STEPS[boltStep]
+                                : cone === 'off' ? null
+                                : cone === 'siheung' ? QUAD_SIHEUNG
+                                : cone === 'leg2' ? QUAD_LEG2
+                                : { ...(cone === 'tri' ? CONE_DEMO : QUAD_DEMO), circles: RING_DEMO }}
                             drivenTrail={plan.drivenTrail}
                             liveRoute={[]}
                             myLocation={myLocation}
@@ -1764,6 +1773,55 @@ export default function SheetMockup() {
                         </div>
                     </div>
                 )}
+
+                <h2 className="mt-7 pt-5 border-t border-border-card text-[12.5px] font-black tracking-wide text-info mb-2">🔺 첫 콜 그물 — 어디까지 볼 것인가</h2>
+                <div className="flex gap-1.5 flex-wrap">
+                    {([['off', '🔺 끄기', 0], ['tri', '▲ 삼각형', CONE_DEMO.pass.length], ['quad', '🔷 파주', QUAD_DEMO.pass.length], ['siheung', '🔶 시흥', QUAD_SIHEUNG.pass.length], ['leg2', '🟣 용인→시흥', QUAD_LEG2.pass.length]] as const).map(([k, label, n]) => (
+                        <button key={k} type="button" onClick={() => setCone(k)}
+                            className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${cone === k
+                                ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-surface text-text-primary hover:border-info'}`}>
+                            {label}{n ? ` · ${n}동` : ''}
+                        </button>
+                    ))}
+                </div>
+                <p className="mt-2 text-[12px] leading-relaxed text-text-muted">
+                    초월(집) → 파주 · 파주에서 본 반각 <b className="text-text-primary">±50°</b>. 🔵 든 곳 · 🔴 빠진 곳<br />
+                    <b className="text-text-primary">▲ 삼각형</b> — 꼭짓점이 파주. 초월 너머로 <b className="text-text-primary">열려 있다</b>. 용인 ✅ 시흥 ❌<br />
+                    <b className="text-text-primary">🔷 마름모</b> — 초월에서도 같은 각도로 잘라 <b className="text-text-primary">뒤가 막힌다</b>. 대신 <b className="text-text-primary">용인이 빠진다</b><br />
+                    🔴 용인은 파주에서 18°인데 초월에서 70° 다 — 초월에서 23km 밖에 안 떨어져 조금만 옆이어도 각도가 커진다.<br />
+                    ⭕ <b className="text-text-primary">노란 점선 원</b> — 두 꼭짓점 각각 <b className="text-text-primary">지름 15km</b><br />
+                    🔶 <b className="text-text-primary">시흥</b> — 목적지만 바꾼 판. <b className="text-text-primary">정반대가 됩니다</b> —
+                    파주 판에서 버렸던 용인·안양이 들어오고, 담았던 파주·남양주·의정부가 빠집니다.
+                    <b className="text-text-primary">목적지를 정한다 = 무엇을 버린다</b><br />
+                    🟣 <b className="text-text-primary">용인→시흥</b> — 첫 콜(초월→용인)을 잡은 뒤. 꼭짓점이 <b className="text-text-primary">용인으로 옮겨집니다</b>.
+                    한 콜 잡았을 뿐인데 그물이 549 → {QUAD_LEG2.pass.length}동으로 줄어듭니다 — 길이 짧아졌기 때문입니다
+                </p>
+
+                <h2 className="mt-7 pt-5 border-t border-border-card text-[12.5px] font-black tracking-wide text-info mb-2">🚚 볼트 하루 — 잡을 때마다 다시 그린다</h2>
+                <div className="flex gap-1.5 flex-wrap">
+                    <button type="button" onClick={() => setBoltStep(-1)}
+                        className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${boltStep < 0
+                            ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-surface text-text-primary hover:border-info'}`}>끄기</button>
+                    {BOLT_STEPS.map((s, i) => (
+                        <button key={i} type="button" onClick={() => setBoltStep(i)}
+                            className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${boltStep === i
+                                ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-surface text-text-primary hover:border-info'}`}>
+                            {s.where} · {s.passCount}동
+                        </button>
+                    ))}
+                </div>
+                {boltStep >= 0 && (
+                    <p className="mt-2 text-[12px] leading-relaxed text-warning">
+                        {BOLT_STEPS[boltStep].at} · <b>{BOLT_STEPS[boltStep].where}</b> 에서 집(김포)까지 <b>{BOLT_STEPS[boltStep].baseKm}km</b> ·
+                        그물 <b>{BOLT_STEPS[boltStep].passCount}동</b> · 이때 잡은 콜 → <b>{BOLT_STEPS[boltStep].got}</b>
+                    </p>
+                )}
+                <p className="mt-2 text-[12px] leading-relaxed text-text-muted">
+                    그날 볼트의 목적지는 <b className="text-text-primary">집(김포) 하나</b>였습니다(2일차 = 복귀).
+                    콜을 잡을 때마다 «지금 자리 → 김포» 로 마름모를 다시 그린 것입니다.<br />
+                    🔴 <b className="text-text-primary">그물이 저절로 닫힙니다</b> — 1,180 → 559동.
+                    집이 가까워질수록 작아지고, 마지막엔 목적지 둘레만 남습니다. <b className="text-text-primary">하루가 스스로 끝납니다.</b>
+                </p>
 
                 <h2 className="mt-7 pt-5 border-t border-border-card text-[12.5px] font-black tracking-wide text-info mb-2">몇 콜을 잡은 판인가</h2>
                 <div className="flex gap-1.5 flex-wrap">
