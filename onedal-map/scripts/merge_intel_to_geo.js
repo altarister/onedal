@@ -6,7 +6,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const INTEL_DIR = path.join(__dirname, 'data/intel');
-const OUTPUT_MAP_PATH = path.join(__dirname, '../public/mapData/merged_map.geojson');
+// 🔴 onedal-map 은 out/ 에만 쓴다 (2026-09-06) — 원본(map/map)은 읽기만 한다.
+const OUTPUT_MAP_PATH = process.env.ONEDAL_MAP_OUT
+    ? path.join(process.env.ONEDAL_MAP_OUT, 'merged_map.geojson')
+    : path.join(__dirname, '../out/merged_map.geojson');
 
 /** 서브폴더까지 재귀적으로 JSON 파일 경로 목록을 반환 */
 async function collectJsonFiles(dir) {
