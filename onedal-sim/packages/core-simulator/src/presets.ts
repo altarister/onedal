@@ -375,19 +375,18 @@ export const PRESETS: Record<string, PresetProblem[]> = {
      */
     '볼첨지대전': [
         {
-            label: '03 ✖ 도착지 · 대전 갈마동 → 천안 성거읍 · 200,000 (실측 50,050)',
+            label: '03 ⭕ · 대전 갈마동 → 천안 성거읍 · 200,000 (실측 50,050)',
             pickup: '대전 갈마동 상차지', dropoff: '천안 성거읍 물류',
             pickupFallback: DJ_GALMA, dropoffFallback: CA_SEONGGEO,
-            fare: 200000, vehicleType: '다마스', expect: 'BLOCK',
-            why: '🔴 **볼첨지는 잡았다.** 도착 목표 «인천» 밖이라 우리는 못 잡는다 — ' +
-                 '그는 「북상 길 위」를 목표로 쥐고 있고 우리는 도시 하나다 (묶음 평가 없음)',
+            fare: 200000, vehicleType: '다마스', expect: 'PASS',
+            why: '🚚 **볼트가 잡은 콜이다.** 하차 주변 80km 면 천안 성거읍이 «인천» 그물에 들어온다 — 🗺️ 지도에 충청이 없으면 반경을 아무리 키워도 안 잡힌다 (지도 확장이 값을 하는 자리)',
         },
         {
-            label: '04 ✖ 도착지 · 대전 문지동 → 오산 가수동 · 200,000 (실측 38,500)',
+            label: '04 ⭕ · 대전 문지동 → 오산 가수동 · 200,000 (실측 38,500)',
             pickup: '대전 문지동 상차지', dropoff: '오산 가수동 하차지',
             pickupFallback: DJ_MUNJI, dropoffFallback: OSAN_GASU,
-            fare: 200000, vehicleType: '다마스', expect: 'BLOCK',
-            why: '🔴 **볼첨지는 잡았다.** 03 과 같은 축 — 오산은 «인천 가는 길»이지 «인천»이 아니다',
+            fare: 200000, vehicleType: '다마스', expect: 'PASS',
+            why: '🚚 **볼트가 잡은 콜이다.** 오산은 40km 부터 들어온다 — 80km 면 넉넉하다',
         },
         {
             label: '07 ⭕ 대전 → 인천 송도 · 200,000 (실측 80,000) (볼첨지는 잡았다 취소했다)',
@@ -1051,6 +1050,11 @@ export const PRESET_REQUIRES: Record<string, PresetRequires> = {
         homeAddress: '인천 남동구 남촌동', firstLoadOnly: true,
         mapSido: ['43'],          // 충북 — 이게 없으면 「청주」로 동이 0개가 된다
     },
+    /**
+     * 🎯 **80km 는 잰 값이다** — `server/tests/rules/boltDaejeon.test.ts` 가 못박는다:
+     *    0km → 1/3 · 40km → 2/3 · **80km → 3/3**. 볼트와 같아지는 지점이 80 이다.
+     *    이 숫자를 바꾸려면 그 검사부터 바꾼다 (규칙 ③ — 값은 한 곳에서 나온다).
+     */
     '볼첨지대전': {
         destinationCity: '인천', destinationRadiusKm: 80,
         homeAddress: '대전 유성구 대덕대로 480', firstLoadOnly: true,
