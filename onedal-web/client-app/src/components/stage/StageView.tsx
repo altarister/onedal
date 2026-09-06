@@ -289,7 +289,7 @@ export default function StageView(props: Props) {
                     myLocation={myLocation}
                     visitedTrail={derived.visitedTrail}
                     drivenTrail={derived.drivenTrail}
-                    routeHolder={derived.routeHolder}
+                    routeHolder={derived.drawHolder}
                     callColors={derived.callColors}
                     onStopTap={focusCall}
                 >

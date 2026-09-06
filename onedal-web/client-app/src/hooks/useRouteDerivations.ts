@@ -400,7 +400,14 @@ export function useRouteDerivations(
     }, [safeRoute]);
 
     return {
-        stepRecords, liveRoute, cycleDeck, activePolyline, routeHolder, isDriving, mockStops,
+        stepRecords, liveRoute, cycleDeck, activePolyline, routeHolder,
+        /**
+         * 🟡 **지도가 그릴 홀더** — KEEP 된 콜이 우선, 없으면 심사 중인 콜 (2026-09-06).
+         * `routeHolder`(타임라인용)와 갈라 둔다: 심사 중 30초와 재기동 직후에는
+         * 주행분이 없어 `routeHolder` 가 비는데, **그릴 궤적은 있다.**
+         * 캔버스는 이 값으로 «미리보기(노란 점선)»인지도 판정한다.
+         */
+        drawHolder, isDriving, mockStops,
         currentGps, gpsSource, myLocation, safeRoute, allEvaluating, judging, gpsFocus,
         routeTimeline, unifiedRoutePoints, etaMap, visitOrderMap, chronologicalIds, callColors, callNoOf, drivenTrail, stopNoOf,
         visitedTrail: visitedTrailNumbered,
