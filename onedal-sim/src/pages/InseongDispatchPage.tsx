@@ -13,7 +13,7 @@ import { InseongDispatchBoard } from '@altari/ui-simulators';
 import { InseongCallDetailScreen } from '@altari/ui-simulators';
 import { InseongOngoingDetailScreen } from '@altari/ui-simulators';
 import { InseongDropdownMenu } from '@altari/ui-simulators';
-import { getPreset } from '@altari/core-simulator';
+import { getPreset, PRESET_KEYS } from '@altari/core-simulator';
 import type { CallItem } from '@altari/core-simulator';
 
 function SimDispatchContent() {
@@ -55,6 +55,19 @@ function SimDispatchContent() {
    *    줄여도 시나리오가 안 깨지는 것이 이 방식의 요점이다.
    */
   const fillerLimit = Number(presetParams.get('fillers') ?? '99');
+  /**
+   * 🔴 **이름을 못 찾으면 조용히 랜덤으로 돌던 자리다** (2026-09-06 실사고).
+   *
+   * 기사님: *"시뮬레이터 값이 이상한 것이 들어 있어. 분당구 출발하는 것으로 나오고 있어."*
+   * 문제지를 넷으로 쪼개며 키가 바뀌었는데(`볼첨지` → `볼첨지대전`), 옛 URL 로 열자
+   * `getPreset` 이 `null` 을 주고 **화면은 아무 말 없이 랜덤 콜을 흘렸다.**
+   * 채점 판인 줄 알고 30분을 보면 그 30분이 통째로 헛것이다 —
+   * 「빈 필터는 제한 없음이 아니라 고장이다」(규칙 ④)와 같은 자리다.
+   *
+   * 그래서 **`?preset=` 을 줬는데 못 찾으면 콜을 아예 안 흘리고 화면에 알린다.**
+   */
+  const presetName = presetParams.get('preset');
+  const presetMissing = !!presetName && !getPreset(presetName);
   const preset = useMemo(() => {
     const all = getPreset(presetParams.get('preset'));
     if (!all) return all;
@@ -136,6 +149,28 @@ function SimDispatchContent() {
         onClose={handleCloseDetail}
         onAccept={handleAcceptCall}
       />
+    );
+  }
+
+  // 🔴 문제지 이름을 못 찾았다 — 랜덤으로 흘리지 않고 멈춘다 (위 주석 참조)
+  if (presetMissing) {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center gap-3 bg-red-50 p-6 text-center">
+        <div className="text-3xl">🎯</div>
+        <div className="text-lg font-bold text-red-700">문제지 «{presetName}» 가 없습니다</div>
+        <div className="text-sm text-red-600">
+          이름을 못 찾아서 <b>콜을 흘리지 않습니다.</b><br />
+          그대로 두면 랜덤 콜이 섞여 채점이 통째로 헛것이 됩니다.
+        </div>
+        <div className="mt-2 text-xs text-gray-700">
+          <div className="mb-1 font-bold">쓸 수 있는 이름</div>
+          <div className="flex flex-wrap justify-center gap-1">
+            {PRESET_KEYS.map(k => (
+              <code key={k} className="rounded bg-white px-2 py-0.5 border border-red-200">{k}</code>
+            ))}
+          </div>
+        </div>
+      </div>
     );
   }
 

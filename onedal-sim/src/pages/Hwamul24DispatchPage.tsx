@@ -11,7 +11,7 @@ import { SimulationProvider, useSimulationContext } from '@altari/ui-simulators'
 import { useSimStreaming } from '@altari/ui-simulators';
 import { Hwamul24DispatchBoard } from '@altari/ui-simulators';
 import { Hwamul24CallDetailScreen } from '@altari/ui-simulators';
-import { getPreset } from '@altari/core-simulator';
+import { getPreset, PRESET_KEYS } from '@altari/core-simulator';
 import type { CallItem } from '@altari/core-simulator';
 
 function Hwamul24DispatchContent() {
@@ -39,6 +39,9 @@ function Hwamul24DispatchContent() {
   // 🎯 문제지 — `?preset=오탐` (인성 페이지와 같은 규약)
   const [presetParams] = useSearchParams();
   const preset = useMemo(() => getPreset(presetParams.get('preset')), [presetParams]);
+  /** 🔴 이름을 못 찾으면 조용히 랜덤으로 돌던 자리 — 인성 페이지와 같은 규약 (2026-09-06) */
+  const presetName = presetParams.get('preset');
+  const presetMissing = !!presetName && !preset;
   /**
    * 🔁 `?loop=1` — 문제지를 다 내면 처음으로 되돌린다 (기본값 아님).
    * 채점은 한 바퀴가 한 판이라 되돌리면 흐려진다. 주행 시험처럼 오래 흘려야 할 때만 켠다.
@@ -94,6 +97,28 @@ function Hwamul24DispatchContent() {
   }
 
   // 메인 리스트
+  // 🔴 문제지 이름을 못 찾았다 — 랜덤으로 흘리지 않고 멈춘다 (인성 페이지와 같은 규약)
+  if (presetMissing) {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center gap-3 bg-red-50 p-6 text-center">
+        <div className="text-3xl">🎯</div>
+        <div className="text-lg font-bold text-red-700">문제지 «{presetName}» 가 없습니다</div>
+        <div className="text-sm text-red-600">
+          이름을 못 찾아서 <b>콜을 흘리지 않습니다.</b><br />
+          그대로 두면 랜덤 콜이 섞여 채점이 통째로 헛것이 됩니다.
+        </div>
+        <div className="mt-2 text-xs text-gray-700">
+          <div className="mb-1 font-bold">쓸 수 있는 이름</div>
+          <div className="flex flex-wrap justify-center gap-1">
+            {PRESET_KEYS.map(k => (
+              <code key={k} className="rounded bg-white px-2 py-0.5 border border-red-200">{k}</code>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative w-full h-full">
       <Hwamul24DispatchBoard
