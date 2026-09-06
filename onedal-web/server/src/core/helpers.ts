@@ -1,5 +1,5 @@
 /**
- * 공통 헬퍼 함수 — 전체 서버에서 한 곳에서만 정의합니다.
+ * 공통 헬퍼 함수  — 전체 서버에서 한 곳에서만 정의합니다.
  */
 import { isTerminal, cargoPoints, VEHICLE_CAPACITY, normalizeVehicleType,
          findTagConflicts,

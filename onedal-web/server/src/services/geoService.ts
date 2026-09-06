@@ -423,6 +423,18 @@ export function progressAlongPolyline(
  *
  * ⚠️ 예전에는 "1픽셀이라도 걸치면" 이었다. 아래 판정부의 주석 참고.
  */
+/**
+ * 🧪 **지금 지도가 담고 있는 것** — 판 점검(`/api/sim/preflight`)이 읽는다 (2026-09-06).
+ * 「1,968개」인지 「1,239개」인지가 충청 확장이 실렸는지를 한 줄로 말해 준다.
+ */
+export function mapCoverage(): { features: number; sido: string[] } {
+    const fs = mergedMapFeatureCollection?.features ?? [];
+    const sido = new Set<string>();
+    for (const f of fs) sido.add(String((f.properties as any)?.code ?? '').slice(0, 2));
+    sido.delete('');
+    return { features: fs.length, sido: [...sido].sort() };
+}
+
 export function getCityRegionsWithRadius(cityName: string, radiusKm: number): CityRegions {
     if (!mergedMapFeatureCollection || !mergedMapFeatureCollection.features) {
         return { flat: [], grouped: {}, customCityFilters: [] };

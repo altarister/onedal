@@ -73,6 +73,8 @@ export default function StageView(props: Props) {
      *    높이 19px 로 찌부러진다 (2026-09-05 실측). 여는 것은 「다」의 일이다.
      */
     const [openIdx, setOpenIdx] = useState<number>(-1);
+    /** 📞 방금 KEEP 한 콜 — 시트가 「다」로 올라갈 때 **그 콜을 연다** (2026-09-06) */
+    const keepFocusRef = useRef<string | null>(null);
     const NAVI_KEY = import.meta.env.VITE_KAKAO_JS_KEY as string | undefined;
     const NAVI_ORIGIN = (import.meta.env.VITE_KAKAO_JS_ORIGIN as string | undefined)
         ?? 'https://1dal.altari.com';
@@ -119,7 +121,30 @@ export default function StageView(props: Props) {
             snap,
         }, ev);
         mem.current = r.mem;
-        if (r.snap) { logStateChange("시트", `${r.snap}·${r.reason}`, "무대"); setSnap(r.snap); }
+        if (r.snap) {
+            logStateChange("시트", `${r.snap}·${r.reason}`, "무대");
+            /**
+             * 🔴 **자동 전환도 «높이 규칙» 한 곳을 거친다** (기사님 실물 2026-09-06).
+             *
+             * 기사님: *"킵하고 나서 전화할 수 있게 시트를 최상단으로 올리고 아코디언에
+             * 이번에 킵한 콜 정보를 담아서 열어야 하는데 열려 있지 않았어."*
+             *
+             * 예전엔 여기가 `setSnap` 만 했다. 아코디언을 여는 계산은 `sheetTransition`
+             * 안에 있는데 **손으로 끌 때만 그 길을 탔다** — KEEP·도착으로 자동으로
+             * 「다」에 올라가면 **빈 시트가 지도를 덮었다.** S3(「다」는 콜이 있으면 하나
+             * 열린 상태)와 S4(가·나로 내려오면 닫는다)가 자동 경로에서만 새고 있었다.
+             *
+             * `preferIdx` 는 **방금 KEEP 한 콜**이다 — 포커스와 같은 콜을 연다.
+             */
+            const want = ev.type === 'keep' && keepFocusRef.current
+                ? cycleDeck.findIndex(o => o.id === keepFocusRef.current) : -1;
+            const mv = sheetTransition(r.snap, {
+                openIdx, callCount: cycleDeck.length,
+                preferIdx: want >= 0 ? want : undefined,
+            });
+            setSnap(mv.snap);
+            setOpenIdx(mv.openIdx);
+        }
         /**
          * 🔁 미룬 결정은 **유예가 끝나면 다시 묻는다** — 안 그러면 유예 중에 온 전환이
          *    영영 사라져 시트가 전체에 눌러앉는다 (0831 3판 실측).
@@ -144,6 +169,7 @@ export default function StageView(props: Props) {
     useEffect(() => {
         const onConfirmed = (orderId: string) => {
             useGpsFocusStore.setState({ gpsFocus: { orderId, tick: Date.now(), kind: 'focus' } });
+            keepFocusRef.current = orderId;      // 시트가 열 콜 — feed 가 읽는다
             feed({ type: 'keep' });
         };
         socket.on('order-confirmed', onConfirmed);

@@ -107,7 +107,7 @@
 | 대상 | 확인 방법 | 어긋났을 때 |
 |---|---|---|
 | 서버 | `curl localhost:4000/api/health` → `bootedAt`, `git.commit` | 감시자(`tsx watch`)가 변경을 놓친 것. `Ctrl+C` 후 `pnpm dev` |
-| **서버가 `shared/` 변경을 실었나** | 같은 `bootedAt` — **shared 를 고친 시각보다 이른가** | 🔴 `tsx watch` 는 **node_modules 를 무시**하는데 `@onedal/shared` 가 거기 심링크로 걸려 있다. 그래서 **shared 를 고쳐도 서버가 안 뜬다** (2026-09-01 실측: 판정 규칙을 바꿨는데 6시간 묵은 서버가 옛 규칙으로 돌았다). 지금은 `dev` 가 `--include '../shared/src/**/*.ts'` 로 함께 본다 — **그래도 `bootedAt` 으로 확인한다** |
+| **서버가 `shared/` 변경을 실었나** | 같은 `bootedAt` — **shared 를 고친 시각보다 이른가** | 🔴 `tsx watch` 는 **node_modules 를 무시**하는데 `@onedal/shared` 가 거기 심링크로 걸려 있다. 그래서 **shared 를 고쳐도 서버가 안 뜬다** (2026-09-01 실측: 판정 규칙을 바꿨는데 6시간 묵은 서버가 옛 규칙으로 돌았다). 🔴 **그 고침이 더 큰 것을 깨뜨렸다** (2026-09-06 실측): `--include` 는 «추가»가 아니라 **«대체»**다. shared 를 보게 하려다 **서버 자기 소스(`src/**`)를 통째로 놓쳤다** — 그날 고친 코드가 두 번 안 돌았다. 지금은 `--include` 를 **둘** 준다. 실측: `server/src` touch → 재기동 ✅ · `shared` touch → 재기동 ✅ |
 | 앱 | 대시보드 상단 `📦 v...` 또는 `adb shell dumpsys package com.onedal.app \| grep versionName` | `adb install -r` 재설치 |
 | 관제웹 | `localhost:3000`으로 접속 | `localhost:4000`은 옛 `dist/` 빌드가 뜬다 |
 | **관제웹/앱이 보는 서버** | 서버 로그에 그 접속이 **찍히는가** (`🔌 [소켓 연결]`) | 화면은 멀쩡한데 로그가 조용하면 **다른 서버를 보는 것**이다 |

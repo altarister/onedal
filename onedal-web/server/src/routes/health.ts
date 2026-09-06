@@ -16,7 +16,8 @@ const router = Router();
  * 소스를 고쳤는데 bootedAt이 그대로면 재기동이 안 된 것이다.
  */
 
-const BOOTED_AT = new Date();
+/** 판 점검(`/api/sim/preflight`)도 이 값을 쓴다 — 「고친 코드가 도는가」의 유일한 답 */
+export const BOOTED_AT = new Date();
 
 /** 부팅 시점에 1회만 읽는다. git이 없거나 배포본이 아니면 unknown */
 const GIT_INFO = (() => {

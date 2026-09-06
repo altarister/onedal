@@ -11,9 +11,9 @@
  * **설정 화면을 거치면 날아갔다.** 그래서 폰에서 주소를 손으로 쳐야 했고,
  * 2026-08-23 주행에서 실제로 그것 때문에 문제지가 중간에 랜덤으로 바뀌었다.
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PRESET_MENU, PRESETS } from '@altari/core-simulator';
+import { PRESET_MENU, PRESETS, PRESET_REQUIRES } from '@altari/core-simulator';
 
 // 주요 시/군/구 프리셋 (mockLocationData.json 기반)
 const LOCATION_PRESETS = [
@@ -168,6 +168,11 @@ export function InseongSetupPage() {
                 </div>
               </div>
 
+              {/* 🧪 판 점검 — 고른 문제지가 요구하는 상태와 지금을 대조한다 (2026-09-06) */}
+              <Preflight presetKey={presetKey}
+                         api={new URLSearchParams(window.location.search).get('api')
+                              || `http://${window.location.hostname}:4000`} />
+
               {/* 되돌려 흘리기 */}
               <button
                 onClick={() => setLoop(v => !v)}
@@ -313,4 +318,103 @@ export function InseongSetupPage() {
       </div>
     </div>
   );
+}
+
+/**
+ * 🧪 **판 점검 — «지금 이 문제지를 채점할 수 있는 상태인가»** (기사님 지시 2026-09-06)
+ *
+ * 기사님: *"뭐가 우리 테스트에 가장 큰 문제야?"*
+ * 그날 콜이 안 올라온 것이 **일곱 번**인데 **단 한 번도 «우리가 옳게 걸렀다»가 아니었다.**
+ * 전부 판이 오염돼 있었다 — 현위치가 딴 데고, 재기동마다 도착 목표가 옛 값으로 돌아가고,
+ * 취소했는데 필터가 합짐 모드에 남았고, `tsx watch` 가 못 잡아 옛 코드가 돌았다.
+ *
+ * 🔴 **콜이 안 올라오면 둘 중 하나인데 구분할 방법이 없었다:**
+ *      ㉮ 우리 시스템이 옳게 걸렀다 (채점 결과)   ㉯ 판이 오염됐다 (잡음)
+ *    매번 ㉯였고, 알아내는 데 판마다 20~30분이 갔다.
+ *
+ * 문제지 설명에 *"도착 목표를 «인천»으로"* 라고 **글로만** 적혀 있던 것을
+ * **기계가 대조**하게 한다. `pnpm preflight` 는 «비우기»고 이건 «맞는가»다.
+ */
+function Preflight({ presetKey, api }: { presetKey: string; api: string }) {
+    const req = PRESET_REQUIRES[presetKey];
+    const [now, setNow] = useState<any>(null);
+    const [err, setErr] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!req) return;
+        let alive = true;
+        const pull = async () => {
+            try {
+                const r = await fetch(`${api}/api/sim/preflight`);
+                const d = await r.json();
+                if (!alive) return;
+                if (d?.ok) { setNow(d); setErr(null); }
+                else setErr(d?.reason || '서버가 답하지 않습니다');
+            } catch { if (alive) setErr('서버(4000)에 못 닿습니다'); }
+        };
+        pull();
+        const t = setInterval(pull, 4000);
+        return () => { alive = false; clearInterval(t); };
+    }, [req, api, presetKey]);
+
+    if (!req) return null;
+
+    /** 한 줄 = 「무엇이 · 무엇이어야 하고 · 지금 무엇인가」 */
+    const rows: Array<{ what: string; want: string; got: string; ok: boolean }> = [];
+    if (now) {
+        if (req.destinationCity != null) rows.push({
+            what: '도착 목표', want: req.destinationCity, got: String(now.destinationCity ?? '(없음)'),
+            ok: now.destinationCity === req.destinationCity,
+        });
+        if (req.destinationRadiusKm != null) rows.push({
+            what: '하차 주변', want: `${req.destinationRadiusKm}km`, got: `${now.destinationRadiusKm ?? '?'}km`,
+            ok: Number(now.destinationRadiusKm) === req.destinationRadiusKm,
+        });
+        if (req.homeAddress) rows.push({
+            what: '내 주소', want: req.homeAddress, got: String(now.homeAddress ?? '(없음)'),
+            ok: String(now.homeAddress ?? '') === req.homeAddress,
+        });
+        if (req.firstLoadOnly) rows.push({
+            what: '판', want: '첫짐 · 활성 콜 0건',
+            got: `${now.isSharedMode ? '합짐' : '첫짐'} · ${now.activeCalls}건`,
+            ok: !now.isSharedMode && now.activeCalls === 0,
+        });
+        if (req.mapSido?.length) {
+            const have: string[] = now.map?.sido ?? [];
+            const miss = req.mapSido.filter(c => !have.includes(c));
+            rows.push({
+                what: '지도', want: `시도 ${req.mapSido.join('·')} 포함`,
+                got: `동 ${now.map?.features ?? '?'}개`, ok: miss.length === 0,
+            });
+        }
+        // 🔴 오늘 두 번 당했다 — tsx watch 가 변경을 놓쳐 옛 코드가 돌았다.
+        //    「고친 코드가 도는가」의 유일한 답이 bootedAt 이다 (루트 CLAUDE.md).
+        rows.push({
+            what: '서버 기동', want: '고친 뒤에 뜬 것', got: String(now.bootedAt ?? '').slice(11, 19),
+            ok: true,
+        });
+    }
+
+    const bad = rows.filter(r => !r.ok);
+    return (
+        <div className={`rounded-lg border p-3 text-[11px] leading-relaxed ${
+            err ? 'border-amber-600 bg-amber-950/30'
+                : bad.length ? 'border-red-600 bg-red-950/30' : 'border-emerald-700 bg-emerald-950/20'}`}>
+            <div className="font-bold mb-1.5 text-[12px]">
+                {err ? `⚠️ 판 점검 — ${err}`
+                     : bad.length ? `🔴 판이 안 맞습니다 (${bad.length}개) — 이대로 돌리면 채점이 아니라 잡음입니다`
+                                  : '✅ 판이 맞습니다 — 채점해도 됩니다'}
+            </div>
+            {!err && rows.map(r => (
+                <div key={r.what} className="flex gap-1.5">
+                    <span className="w-14 shrink-0 text-slate-400">{r.what}</span>
+                    <span className="shrink-0">{r.ok ? '✅' : '🔴'}</span>
+                    <span className={r.ok ? 'text-slate-300' : 'text-red-300'}>
+                        {r.ok ? r.got : <>지금 <b>{r.got}</b> · <span className="text-slate-400">{r.want} 여야 한다</span></>}
+                    </span>
+                </div>
+            ))}
+            {!err && !now && <div className="text-slate-400">서버에 묻는 중…</div>}
+        </div>
+    );
 }

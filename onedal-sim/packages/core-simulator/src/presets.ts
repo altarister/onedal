@@ -1023,6 +1023,53 @@ function pickByBand(
 }
 
 /** 폰에서 URL 을 손으로 칠 때 한글이 번거롭다 — 영문 별칭도 받는다 */
+/**
+ * 🧪 **문제지가 요구하는 판 상태** (기사님 지시 2026-09-06)
+ *
+ * 기사님: *"뭐가 우리 테스트에 가장 큰 문제야?"* — 그날 콜이 안 올라온 것이 일곱 번인데
+ * **단 한 번도 «우리가 옳게 걸렀다»가 아니었다.** 전부 판이 오염돼 있었다.
+ * 콜이 안 올라와도 «채점 결과»인지 «잡음»인지 구분할 수가 없었다.
+ *
+ * 🔴 지금까지는 문제지 설명에 *"도착 목표를 «인천»으로 두고 돌린다"* 라고 **글로만** 적혀
+ *    있었다. 글은 아무도 대조해 주지 않는다 — **기계가 확인하게** 한다.
+ *    시뮬이 서버(`GET /api/sim/preflight`)에 물어 이 값과 맞춰 보고, 안 맞으면 화면에 세운다.
+ */
+export interface PresetRequires {
+    /** 도착 목표 (도는 필터 · 설정이 아니다) */ destinationCity?: string;
+    /** 하차 주변 반경 km — 넓혀야 들어오는 문제지가 있다 */ destinationRadiusKm?: number;
+    /** 내 주소 — 상차 반경이 이 자리에서 재어진다. 사람이 읽고 고치는 값이라 글자로 둔다 */
+    homeAddress?: string;
+    /** 첫짐 판인가 — 콜을 하나라도 잡으면 합짐 규칙으로 넘어가 정답이 달라진다 */
+    firstLoadOnly?: boolean;
+    /** 지도에 이 시도 코드가 있어야 한다 (30 대전 · 43 충북 …) */ mapSido?: string[];
+}
+
+/** 문제지 이름 → 요구 상태. 없는 문제지는 «아무 상태에서나 돈다»는 뜻이다 */
+export const PRESET_REQUIRES: Record<string, PresetRequires> = {
+    '지도청주': {
+        destinationCity: '청주', destinationRadiusKm: 0,
+        homeAddress: '인천 남동구 남촌동', firstLoadOnly: true,
+        mapSido: ['43'],          // 충북 — 이게 없으면 「청주」로 동이 0개가 된다
+    },
+    '볼첨지대전': {
+        destinationCity: '인천', destinationRadiusKm: 80,
+        homeAddress: '대전 유성구 대덕대로 480', firstLoadOnly: true,
+    },
+    '볼첨지오송': {
+        destinationCity: '인천', destinationRadiusKm: 80,
+        homeAddress: '충북 청주시 흥덕구 오송읍 오송생명로 194', firstLoadOnly: true,
+    },
+    '볼첨지천안': {
+        destinationCity: '인천', destinationRadiusKm: 80,
+        homeAddress: '충남 천안시 서북구 성거읍 삼곡리', firstLoadOnly: true,
+        mapSido: ['44'],          // 충남 — 성거읍이 지도에 있어야 한다
+    },
+    '볼첨지수도권': {
+        destinationCity: '인천', destinationRadiusKm: 80,
+        homeAddress: '서울 강남구 영동대로 513', firstLoadOnly: true,
+    },
+};
+
 const ALIASES: Record<string, string> = {
     ohtam: '오탐', mismatch: '오탐',
     axis: '축', axes: '축',

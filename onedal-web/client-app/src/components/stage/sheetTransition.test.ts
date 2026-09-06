@@ -123,3 +123,39 @@ describe('🪧 심사가 들어오면 시트가 올라온다 (2026-09-05)', () =
         expect(snapAfterJudging('full', 'peek')).toBe('full');
     });
 });
+
+/**
+ * 🔴 **자동 전환도 이 규칙을 거쳐야 한다** (기사님 실물 2026-09-06)
+ *
+ * 기사님: *"킵하고 나서 전화할 수 있게 시트를 최상단으로 올리고 아코디언에 이번에
+ * 킵한 콜 정보를 담아서 열어야 하는데 열려 있지 않았어. 그렇다는 이야기는
+ * «아코디언이 열리지 않으면 시트는 나 지점으로 간다»라는 기준도 못 지킨 거야."*
+ *
+ * 🔴 뿌리: `StageView` 의 `feed()` 가 **`setSnap` 만** 했다. 아코디언을 여닫는 계산은
+ *    `sheetTransition` 안에 있는데 **손으로 끌 때만 그 길을 탔다** —
+ *    KEEP·도착으로 자동으로 「다」에 올라가면 **빈 시트가 지도를 덮었다.**
+ *    규칙은 있었고(S3·S4) 검사도 있었는데, **자동 경로가 그 규칙을 안 불렀다.**
+ *    이 레포가 반복해 겪은 «규칙 파일을 목업·검사만 쓰고 실물이 안 부른다» 모양이다.
+ *
+ * ⚠️ 여기서 막을 수 있는 것은 **규칙 자체**뿐이다 — 「누가 부르는가」는 소스 검사로 본다.
+ *    아래 둘은 그 규칙이 **자동 경로에서 요구되는 모양**을 못박는다.
+ */
+describe('자동 전환(KEEP·도착) — 높이와 아코디언이 함께 움직인다', () => {
+    it('🔴 KEEP 으로 「다」에 올라가면 **그 콜**이 열린다', () => {
+        // 방금 KEEP 한 콜이 덱의 두 번째(idx 1)일 때
+        expect(sheetTransition('full', { openIdx: -1, callCount: 3, preferIdx: 1 }))
+            .toEqual({ snap: 'full', openIdx: 1 });
+    });
+
+    it('🔴 KEEP 한 콜을 못 찾아도 「다」는 빈 채로 서지 않는다', () => {
+        // preferIdx 를 못 구한 경우(덱에 아직 안 들어옴) — 첫 콜이라도 연다
+        const mv = sheetTransition('full', { openIdx: -1, callCount: 2 });
+        expect(mv.snap).toBe('full');
+        expect(mv.openIdx).toBeGreaterThanOrEqual(0);
+    });
+
+    it('🟢 자동으로 「나」로 내려오면 열린 것을 닫는다 (S4)', () => {
+        expect(sheetTransition('list', { openIdx: 2, callCount: 3 }))
+            .toEqual({ snap: 'list', openIdx: -1 });
+    });
+});

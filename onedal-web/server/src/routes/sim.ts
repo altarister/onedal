@@ -1,6 +1,10 @@
 import { Router } from "express";
 import { getAllActiveUserIds, getUserSession } from "../state/userSessionStore";
 import { isLiveServer } from "../config/env";
+import { getActiveCalls } from "../core/helpers";
+import { mapCoverage } from "../services/geoService";
+import { SettingsRepository } from "../repositories/SettingsRepository";
+import { BOOTED_AT } from "./health";
 
 const router = Router();
 
@@ -48,6 +52,59 @@ router.get("/driver-location", (_req, res) => {
         /** GPS 가 아니라 «내 주소»로 메운 값인가 — 시뮬이 화면에 그대로 밝힌다 */
         isFallback: !!session.driverLocationIsFallback,
         at: session.driverLocationAt ?? null,
+    });
+});
+
+/**
+ * 🧪 **판 점검 — «지금 이 문제지를 채점할 수 있는 상태인가»** (기사님 지시 2026-09-06)
+ *
+ * 기사님: *"뭐가 우리 테스트에 가장 큰 문제야?"* → 그날 콜이 안 올라온 것이 **일곱 번**인데
+ * **단 한 번도 «우리 시스템이 옳게 걸렀다»가 아니었다.** 전부 판이 오염돼 있었다 —
+ * 문제지 이름이 안 맞아 랜덤이 흐르고, 현위치가 초월이라 상차가 118km 로 잡히고,
+ * 재기동마다 도착 목표가 옛 값으로 돌아가고, 취소했는데 필터가 합짐 모드에 남았다.
+ *
+ * 🔴 **콜이 안 올라오면 둘 중 하나인데 구분할 방법이 없었다:**
+ *      ㉮ 우리 시스템이 옳게 걸렀다 (채점 결과)
+ *      ㉯ 판이 오염됐다             (잡음)
+ *    매번 ㉯였고, 알아내는 데 판마다 20~30분이 갔다.
+ *
+ * 그래서 **문제지가 요구하는 상태와 지금 상태를 기계가 대조**하게 한다.
+ * `pnpm preflight` 는 «비우기»고 이건 «맞는가»다 — 둘은 다른 일이다.
+ *
+ * 🔴 `/driver-location` 과 같은 문이다 — **개발 빌드에서만 열린다.**
+ *    기사님의 현위치·필터가 나가는 값이라 운영에서는 404 다.
+ */
+router.get("/preflight", (_req, res) => {
+    if (!isDevBuild()) return res.status(404).json({ error: "not found" });
+
+    const userIds = getAllActiveUserIds();
+    if (userIds.length !== 1) {
+        return res.json({ ok: false, reason: userIds.length ? "세션이 여럿입니다" : "접속한 세션이 없습니다" });
+    }
+    const userId = userIds[0];
+    const session = getUserSession(userId);
+    const f = session.activeFilter;
+    const home = SettingsRepository.getHomeLocation(userId);
+
+    return res.json({
+        ok: true,
+        bootedAt: BOOTED_AT.toISOString(),
+        /** 도는 필터(메모리) — 설정(DB)이 아니다. 둘이 갈라지는 것이 오늘의 사고였다 */
+        destinationCity: f?.destinationCity ?? null,
+        destinationRadiusKm: f?.destinationRadiusKm ?? null,
+        pickupRadiusKm: f?.pickupRadiusKm ?? null,
+        destinationDongCount: f?.destinationKeywords?.length ?? 0,
+        isSharedMode: !!f?.isSharedMode,
+        dispatchPhase: f?.dispatchPhase ?? null,
+        activeCalls: getActiveCalls(session).length,
+        /** 시뮬이 거리를 재는 기준 — 여기가 틀리면 상차 반경이 통째로 헛것이 된다 */
+        driverLocation: session.driverLocation
+            ? { x: session.driverLocation.x, y: session.driverLocation.y,
+                isFallback: !!session.driverLocationIsFallback }
+            : null,
+        homeAddress: home?.address ?? null,
+        /** 충청 확장이 실렸는가 — 1,968 이면 실렸고 1,239 면 옛 지도다 */
+        map: mapCoverage(),
     });
 });
 
