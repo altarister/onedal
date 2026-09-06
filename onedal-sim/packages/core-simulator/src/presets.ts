@@ -200,7 +200,106 @@ const SINDORIM: MockEntry = {
     lon: 126.878727, lat: 37.510097,
 };
 
+// ══════════════════════════════════════════════════════════════════════
+//  🗺️ 지도 확장 시험 — 「인천 남동공단에서 청주를 잡으면 몇 개인가」
+//  기사님 질문 2026-09-06 · 콜창 캡처(KT 2:43 · 8월 10일) 그대로
+//
+//  🔴 **이 문제지는 오직 «지도»만 본다.** 요금·차종·상차 반경이 걸리지 않게
+//     요금은 전부 20만원이고 상차지는 넷 다 6.2km 안이다 (캡처의 실제 값).
+//     충청 확장 전에는 「청주」로 도착 목표가 **동 0개**라 넷 다 떨어졌다.
+// ══════════════════════════════════════════════════════════════════════
+const IC_NAMDONG: MockEntry = {
+    customerName: '남동공단 상차지', contactName: '담당', phone1: '010-0000-0301',
+    region: '남촌동', addressDetail: '인천 남동구 남촌동 남동국가산업단지',
+    lon: 126.714309, lat: 37.428026,
+};
+const IC_NONHYEON2: MockEntry = {
+    customerName: '남동 논현동 상차지', contactName: '담당', phone1: '010-0000-0302',
+    region: '논현동', addressDetail: '인천 남동구 논현동',
+    lon: 126.722093, lat: 37.398184,
+};
+const SIHWA: MockEntry = {
+    customerName: '시화공단 상차지', contactName: '담당', phone1: '010-0000-0303',
+    region: '정왕동', addressDetail: '경기 시흥시 정왕동 시화국가산업단지',
+    lon: 126.721019, lat: 37.340941,
+};
+const CJ_OCHANG: MockEntry = {
+    customerName: '청주 오창읍 하차지', contactName: '담당', phone1: '010-0000-0311',
+    region: '오창읍', addressDetail: '충북 청주시 청원구 오창읍',
+    lon: 127.407401, lat: 36.733465,
+};
+const CJ_OKSAN: MockEntry = {
+    customerName: '청주 옥산면 하차지', contactName: '담당', phone1: '010-0000-0312',
+    region: '옥산면', addressDetail: '충북 청주시 흥덕구 옥산면',
+    lon: 127.370322, lat: 36.687614,
+};
+const ES_SAMSEONG: MockEntry = {
+    customerName: '음성 삼성면 하차지', contactName: '담당', phone1: '010-0000-0313',
+    region: '삼성면', addressDetail: '충북 음성군 삼성면',
+    lon: 127.499579, lat: 37.011227,
+};
+const OSAN_JIGOT: MockEntry = {
+    customerName: '오산 지곶동 하차지', contactName: '담당', phone1: '010-0000-0314',
+    region: '지곶동', addressDetail: '경기 오산시 지곶동',
+    lon: 127.025937, lat: 37.176599,
+};
+
 export const PRESETS: Record<string, PresetProblem[]> = {
+    /**
+     * 🗺️ **지도 확장 시험 — 오직 지도만 본다** (기사님 질문 2026-09-06)
+     *
+     * 기사님: *"인천 남동공단에 있다고 가정하고 이런 화면을 본다면 청주로 목표를 잡으면
+     * 몇 개를 잡을 수 있을까? 이 사람은 4개 잡아서 25만원을 이야기하고 있는데..
+     * 우리 시스템도 그렇게 작동할까?"*
+     *
+     * 🔴 **돌리기 전에 둘을 맞춘다.**
+     *   ① **도착 목표 = «청주»** (콜 필터 줄을 눌러서 — 설정은 다음 판부터다)
+     *   ② **내 주소 = «인천 남동구 남촌동»** · GPS 를 막고 PC 에서 돌린다
+     *
+     * 🔴 **확장 전에는 넷 다 떨어졌다.** 「청주」로 도착 목표를 잡으면 동이 **0개**라
+     *    `destinationKeywords` 가 비고, 빈 목록은 fail-closed 라 전부 탈락한다.
+     *    확장 뒤에는 청주 92개 동이 생긴다 — 이 문제지가 그 차이를 눈으로 보여 준다.
+     *
+     * 🔴 **볼첨지는 넷 다 잡았다(242,800원). 우리는 둘이 맞다.**
+     *    오산·음성은 «청주 주변»이 아니라 «청주 가는 길»이다 — 그건 경유 반경의 일이고
+     *    첫짐이 확정된 뒤에만 생긴다. 반경을 키워서 때울 것이 아니다.
+     *
+     * ⚠️ 요금은 전부 20만원이다 — 요금 축이 걸리면 «지도가 통과했는가»를 못 본다.
+     *    실제 운임은 라벨에 남겼다. 상차지는 넷 다 6.2km 안이다(캡처의 실제 값).
+     */
+    '지도청주': [
+        {
+            label: '① ⭕ 남동공단 → 청주 오창읍 · 200,000 (실측 77,000)',
+            pickup: '남동공단 상차지', dropoff: '청주 오창읍 하차지',
+            pickupFallback: IC_NAMDONG, dropoffFallback: CJ_OCHANG,
+            fare: 200000, vehicleType: '다마스', expect: 'PASS',
+            why: '🗺️ **이 하나가 지도 확장의 증거다.** 확장 전에는 「청주」로 동이 0개라 떨어졌다',
+        },
+        {
+            label: '② ⭕ 남동 논현동 → 청주 옥산면 · 200,000 (실측 70,000)',
+            pickup: '남동 논현동 상차지', dropoff: '청주 옥산면 하차지',
+            pickupFallback: IC_NONHYEON2, dropoffFallback: CJ_OKSAN,
+            fare: 200000, vehicleType: '다마스', expect: 'PASS',
+            why: '🗺️ 같은 청주인데 **다른 구(흥덕구)** 다 — 시 전체가 들어왔는지 본다',
+        },
+        {
+            label: '③ ✖ 남동공단 → 음성 삼성면 · 200,000 (실측 65,000)',
+            pickup: '남동공단 상차지', dropoff: '음성 삼성면 하차지',
+            pickupFallback: IC_NAMDONG, dropoffFallback: ES_SAMSEONG,
+            fare: 200000, vehicleType: '다마스', expect: 'BLOCK',
+            why: '🔴 **볼첨지는 잡았다.** 음성은 청주가 아니다 — 하차 반경을 0 으로 두면 막힌다. ' +
+                 '반경을 키워 통과시키려 하지 말 것 (그건 «청주 주변»이 아니라 «가는 길»이다)',
+        },
+        {
+            label: '④ ✖ 시화공단 → 오산 지곶동 · 200,000 (실측 30,800)',
+            pickup: '시화공단 상차지', dropoff: '오산 지곶동 하차지',
+            pickupFallback: SIHWA, dropoffFallback: OSAN_JIGOT,
+            fare: 200000, vehicleType: '다마스', expect: 'BLOCK',
+            why: '🔴 **볼첨지는 잡았다.** 오산은 청주에서 **65km 밖**이다. ' +
+                 '경유 반경(첫짐 뒤)의 일이지 도착 목표의 일이 아니다',
+        },
+    ],
+
     /**
      * 🚚 **볼첨지 이틀 — 실측을 그대로 문제지로** (2026-09-06 신설)
      *
@@ -944,6 +1043,11 @@ export const PRESET_KEYS = Object.keys(PRESETS);
  * 여기 없는 것은 URL 로만 들어간다 (`?preset=…`).
  */
 export const PRESET_MENU: Array<{ key: string; title: string; desc: string }> = [
+    { key: '지도청주', title: '🗺️ 지도 확장 시험 · 인천 남동공단 → 청주 (2026-09-06)',
+      desc: '4문제 · PASS 2(오창읍·옥산면) · BLOCK 2(음성·오산). **오직 지도만 본다** — ' +
+            '요금 20만 고정이라 요금 축이 안 걸린다. 🔴 **도착 목표 «청주» · 내 주소 «인천 남동구 남촌동»**. ' +
+            '충청 확장 전에는 「청주」로 동이 0개라 넷 다 떨어졌다 — ①이 올라오면 지도가 통과한 것이다. ' +
+            '볼첨지는 넷 다 잡아 242,800원을 만들었지만 음성·오산은 «청주 가는 길»이라 우리 도착 목표의 일이 아니다' },
     { key: '볼첨지대전', title: '🚚 볼첨지 ① 대전 아침 · 갈마동·문지동 상차 (2026-08-10)',
       desc: '3문제 · PASS 1(07) · BLOCK 2(03·04). 🔴 **내 주소를 «대전 유성구 대덕대로 480»** 로 두고 ' +
             '도착 목표는 «인천». 03·04 는 **볼첨지가 잡았는데 우리는 BLOCK 이 맞다** — ' +
