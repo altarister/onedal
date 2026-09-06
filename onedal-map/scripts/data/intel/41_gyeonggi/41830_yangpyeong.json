@@ -1,0 +1,158 @@
+{
+  "41830250": {
+    "regionCode": "41830250",
+    "name": "양평읍",
+    "parentName": "양평군",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "양평읍 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41830310": {
+    "regionCode": "41830310",
+    "name": "강상면",
+    "parentName": "양평군",
+    "roads": [],
+    "orderVolume": "하",
+    "importance": 2,
+    "landmarks": [],
+    "fieldTips": [
+      "강상면 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41830320": {
+    "regionCode": "41830320",
+    "name": "강하면",
+    "parentName": "양평군",
+    "roads": [],
+    "orderVolume": "하",
+    "importance": 2,
+    "landmarks": [],
+    "fieldTips": [
+      "강하면 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41830330": {
+    "regionCode": "41830330",
+    "name": "양서면",
+    "parentName": "양평군",
+    "roads": [],
+    "orderVolume": "하",
+    "importance": 2,
+    "landmarks": [],
+    "fieldTips": [
+      "양서면 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41830340": {
+    "regionCode": "41830340",
+    "name": "옥천면",
+    "parentName": "양평군",
+    "roads": [],
+    "orderVolume": "하",
+    "importance": 2,
+    "landmarks": [],
+    "fieldTips": [
+      "옥천면 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41830350": {
+    "regionCode": "41830350",
+    "name": "서종면",
+    "parentName": "양평군",
+    "roads": [],
+    "orderVolume": "하",
+    "importance": 2,
+    "landmarks": [],
+    "fieldTips": [
+      "서종면 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41830360": {
+    "regionCode": "41830360",
+    "name": "단월면",
+    "parentName": "양평군",
+    "roads": [],
+    "orderVolume": "하",
+    "importance": 2,
+    "landmarks": [],
+    "fieldTips": [
+      "단월면 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41830370": {
+    "regionCode": "41830370",
+    "name": "청운면",
+    "parentName": "양평군",
+    "roads": [],
+    "orderVolume": "하",
+    "importance": 2,
+    "landmarks": [],
+    "fieldTips": [
+      "청운면 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41830380": {
+    "regionCode": "41830380",
+    "name": "양동면",
+    "parentName": "양평군",
+    "roads": [],
+    "orderVolume": "하",
+    "importance": 2,
+    "landmarks": [],
+    "fieldTips": [
+      "양동면 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41830395": {
+    "regionCode": "41830395",
+    "name": "지평면",
+    "parentName": "양평군",
+    "roads": [],
+    "orderVolume": "하",
+    "importance": 2,
+    "landmarks": [],
+    "fieldTips": [
+      "지평면 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41830400": {
+    "regionCode": "41830400",
+    "name": "용문면",
+    "parentName": "양평군",
+    "roads": [],
+    "orderVolume": "하",
+    "importance": 2,
+    "landmarks": [],
+    "fieldTips": [
+      "용문면 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41830410": {
+    "regionCode": "41830410",
+    "name": "개군면",
+    "parentName": "양평군",
+    "roads": [],
+    "orderVolume": "하",
+    "importance": 2,
+    "landmarks": [],
+    "fieldTips": [
+      "개군면 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  }
+}

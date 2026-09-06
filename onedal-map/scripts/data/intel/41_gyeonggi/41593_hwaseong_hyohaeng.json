@@ -1,0 +1,80 @@
+{
+  "41593101": {
+    "regionCode": "41593101",
+    "name": "배양동",
+    "parentName": "화성시 효행구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "배양동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41593102": {
+    "regionCode": "41593102",
+    "name": "기안동",
+    "parentName": "화성시 효행구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "기안동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41593250": {
+    "regionCode": "41593250",
+    "name": "봉담읍",
+    "parentName": "화성시 효행구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "봉담읍 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41593310": {
+    "regionCode": "41593310",
+    "name": "매송면",
+    "parentName": "화성시 효행구",
+    "roads": [],
+    "orderVolume": "하",
+    "importance": 2,
+    "landmarks": [],
+    "fieldTips": [
+      "매송면 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41593320": {
+    "regionCode": "41593320",
+    "name": "비봉면",
+    "parentName": "화성시 효행구",
+    "roads": [],
+    "orderVolume": "하",
+    "importance": 2,
+    "landmarks": [],
+    "fieldTips": [
+      "비봉면 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41593330": {
+    "regionCode": "41593330",
+    "name": "정남면",
+    "parentName": "화성시 효행구",
+    "roads": [],
+    "orderVolume": "하",
+    "importance": 2,
+    "landmarks": [],
+    "fieldTips": [
+      "정남면 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  }
+}

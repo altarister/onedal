@@ -1,0 +1,145 @@
+{
+  "11380101": {
+    "regionCode": "11380101",
+    "name": "수색동",
+    "parentName": "서울 은평구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "수색동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "11380102": {
+    "regionCode": "11380102",
+    "name": "녹번동",
+    "parentName": "서울 은평구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "녹번동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "11380103": {
+    "regionCode": "11380103",
+    "name": "불광동",
+    "parentName": "서울 은평구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "불광동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "11380104": {
+    "regionCode": "11380104",
+    "name": "갈현동",
+    "parentName": "서울 은평구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "갈현동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "11380105": {
+    "regionCode": "11380105",
+    "name": "구산동",
+    "parentName": "서울 은평구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "구산동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "11380106": {
+    "regionCode": "11380106",
+    "name": "대조동",
+    "parentName": "서울 은평구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "대조동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "11380107": {
+    "regionCode": "11380107",
+    "name": "응암동",
+    "parentName": "서울 은평구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "응암동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "11380108": {
+    "regionCode": "11380108",
+    "name": "역촌동",
+    "parentName": "서울 은평구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "역촌동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "11380109": {
+    "regionCode": "11380109",
+    "name": "신사동",
+    "parentName": "서울 은평구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "신사동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "11380110": {
+    "regionCode": "11380110",
+    "name": "증산동",
+    "parentName": "서울 은평구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "증산동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "11380114": {
+    "regionCode": "11380114",
+    "name": "진관동",
+    "parentName": "서울 은평구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "진관동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  }
+}

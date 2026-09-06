@@ -1,0 +1,210 @@
+{
+  "41113126": {
+    "regionCode": "41113126",
+    "name": "세류동",
+    "parentName": "수원시 권선구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "세류동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41113127": {
+    "regionCode": "41113127",
+    "name": "평동",
+    "parentName": "수원시 권선구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "평동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41113128": {
+    "regionCode": "41113128",
+    "name": "고색동",
+    "parentName": "수원시 권선구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "고색동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41113129": {
+    "regionCode": "41113129",
+    "name": "오목천동",
+    "parentName": "수원시 권선구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "오목천동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41113130": {
+    "regionCode": "41113130",
+    "name": "평리동",
+    "parentName": "수원시 권선구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "평리동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41113131": {
+    "regionCode": "41113131",
+    "name": "서둔동",
+    "parentName": "수원시 권선구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "서둔동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41113132": {
+    "regionCode": "41113132",
+    "name": "구운동",
+    "parentName": "수원시 권선구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "구운동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41113133": {
+    "regionCode": "41113133",
+    "name": "탑동",
+    "parentName": "수원시 권선구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "탑동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41113134": {
+    "regionCode": "41113134",
+    "name": "금곡동",
+    "parentName": "수원시 권선구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "금곡동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41113135": {
+    "regionCode": "41113135",
+    "name": "호매실동",
+    "parentName": "수원시 권선구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "호매실동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41113136": {
+    "regionCode": "41113136",
+    "name": "곡반정동",
+    "parentName": "수원시 권선구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "곡반정동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41113137": {
+    "regionCode": "41113137",
+    "name": "권선동",
+    "parentName": "수원시 권선구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "권선동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41113138": {
+    "regionCode": "41113138",
+    "name": "장지동",
+    "parentName": "수원시 권선구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "장지동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41113139": {
+    "regionCode": "41113139",
+    "name": "대황교동",
+    "parentName": "수원시 권선구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "대황교동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41113140": {
+    "regionCode": "41113140",
+    "name": "입북동",
+    "parentName": "수원시 권선구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "입북동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41113141": {
+    "regionCode": "41113141",
+    "name": "당수동",
+    "parentName": "수원시 권선구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "당수동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  }
+}

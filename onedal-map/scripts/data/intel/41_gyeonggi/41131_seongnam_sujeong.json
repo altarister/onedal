@@ -1,0 +1,223 @@
+{
+  "41131101": {
+    "regionCode": "41131101",
+    "name": "신흥동",
+    "parentName": "성남시 수정구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "신흥동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41131102": {
+    "regionCode": "41131102",
+    "name": "태평동",
+    "parentName": "성남시 수정구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "태평동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41131103": {
+    "regionCode": "41131103",
+    "name": "수진동",
+    "parentName": "성남시 수정구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "수진동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41131104": {
+    "regionCode": "41131104",
+    "name": "단대동",
+    "parentName": "성남시 수정구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "단대동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41131105": {
+    "regionCode": "41131105",
+    "name": "산성동",
+    "parentName": "성남시 수정구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "산성동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41131106": {
+    "regionCode": "41131106",
+    "name": "양지동",
+    "parentName": "성남시 수정구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "양지동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41131107": {
+    "regionCode": "41131107",
+    "name": "복정동",
+    "parentName": "성남시 수정구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "복정동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41131108": {
+    "regionCode": "41131108",
+    "name": "창곡동",
+    "parentName": "성남시 수정구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "창곡동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41131109": {
+    "regionCode": "41131109",
+    "name": "신촌동",
+    "parentName": "성남시 수정구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "신촌동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41131110": {
+    "regionCode": "41131110",
+    "name": "오야동",
+    "parentName": "성남시 수정구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "오야동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41131111": {
+    "regionCode": "41131111",
+    "name": "심곡동",
+    "parentName": "성남시 수정구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "심곡동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41131112": {
+    "regionCode": "41131112",
+    "name": "고등동",
+    "parentName": "성남시 수정구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "고등동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41131113": {
+    "regionCode": "41131113",
+    "name": "상적동",
+    "parentName": "성남시 수정구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "상적동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41131114": {
+    "regionCode": "41131114",
+    "name": "둔전동",
+    "parentName": "성남시 수정구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "둔전동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41131115": {
+    "regionCode": "41131115",
+    "name": "시흥동",
+    "parentName": "성남시 수정구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "시흥동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41131116": {
+    "regionCode": "41131116",
+    "name": "금토동",
+    "parentName": "성남시 수정구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "금토동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41131117": {
+    "regionCode": "41131117",
+    "name": "사송동",
+    "parentName": "성남시 수정구",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "사송동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  }
+}

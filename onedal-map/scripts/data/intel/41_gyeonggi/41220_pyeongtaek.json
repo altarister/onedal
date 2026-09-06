@@ -1,0 +1,483 @@
+{
+  "41220101": {
+    "regionCode": "41220101",
+    "name": "서정동",
+    "parentName": "평택시",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "서정동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41220102": {
+    "regionCode": "41220102",
+    "name": "장당동",
+    "parentName": "평택시",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "장당동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41220103": {
+    "regionCode": "41220103",
+    "name": "모곡동",
+    "parentName": "평택시",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "모곡동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41220104": {
+    "regionCode": "41220104",
+    "name": "칠괴동",
+    "parentName": "평택시",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "칠괴동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41220105": {
+    "regionCode": "41220105",
+    "name": "칠원동",
+    "parentName": "평택시",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "칠원동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41220106": {
+    "regionCode": "41220106",
+    "name": "도일동",
+    "parentName": "평택시",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "도일동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41220107": {
+    "regionCode": "41220107",
+    "name": "가재동",
+    "parentName": "평택시",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "가재동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41220108": {
+    "regionCode": "41220108",
+    "name": "장안동",
+    "parentName": "평택시",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "장안동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41220109": {
+    "regionCode": "41220109",
+    "name": "이충동",
+    "parentName": "평택시",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "이충동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41220110": {
+    "regionCode": "41220110",
+    "name": "지산동",
+    "parentName": "평택시",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "지산동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41220111": {
+    "regionCode": "41220111",
+    "name": "독곡동",
+    "parentName": "평택시",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "독곡동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41220112": {
+    "regionCode": "41220112",
+    "name": "신장동",
+    "parentName": "평택시",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "신장동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41220113": {
+    "regionCode": "41220113",
+    "name": "평택동",
+    "parentName": "평택시",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "평택동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41220114": {
+    "regionCode": "41220114",
+    "name": "통복동",
+    "parentName": "평택시",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "통복동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41220115": {
+    "regionCode": "41220115",
+    "name": "군문동",
+    "parentName": "평택시",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "군문동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41220116": {
+    "regionCode": "41220116",
+    "name": "유천동",
+    "parentName": "평택시",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "유천동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41220117": {
+    "regionCode": "41220117",
+    "name": "합정동",
+    "parentName": "평택시",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "합정동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41220118": {
+    "regionCode": "41220118",
+    "name": "비전동",
+    "parentName": "평택시",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "비전동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41220119": {
+    "regionCode": "41220119",
+    "name": "동삭동",
+    "parentName": "평택시",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "동삭동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41220120": {
+    "regionCode": "41220120",
+    "name": "세교동",
+    "parentName": "평택시",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "세교동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41220121": {
+    "regionCode": "41220121",
+    "name": "지제동",
+    "parentName": "평택시",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "지제동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41220122": {
+    "regionCode": "41220122",
+    "name": "신대동",
+    "parentName": "평택시",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "신대동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41220123": {
+    "regionCode": "41220123",
+    "name": "소사동",
+    "parentName": "평택시",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "소사동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41220124": {
+    "regionCode": "41220124",
+    "name": "용이동",
+    "parentName": "평택시",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "용이동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41220125": {
+    "regionCode": "41220125",
+    "name": "월곡동",
+    "parentName": "평택시",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "월곡동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41220126": {
+    "regionCode": "41220126",
+    "name": "청룡동",
+    "parentName": "평택시",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "청룡동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41220127": {
+    "regionCode": "41220127",
+    "name": "죽백동",
+    "parentName": "평택시",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "죽백동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41220128": {
+    "regionCode": "41220128",
+    "name": "고덕동",
+    "parentName": "평택시",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "고덕동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41220250": {
+    "regionCode": "41220250",
+    "name": "팽성읍",
+    "parentName": "평택시",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "팽성읍 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41220253": {
+    "regionCode": "41220253",
+    "name": "안중읍",
+    "parentName": "평택시",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "안중읍 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41220256": {
+    "regionCode": "41220256",
+    "name": "포승읍",
+    "parentName": "평택시",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "포승읍 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41220259": {
+    "regionCode": "41220259",
+    "name": "청북읍",
+    "parentName": "평택시",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "청북읍 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41220310": {
+    "regionCode": "41220310",
+    "name": "진위면",
+    "parentName": "평택시",
+    "roads": [],
+    "orderVolume": "하",
+    "importance": 2,
+    "landmarks": [],
+    "fieldTips": [
+      "진위면 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41220320": {
+    "regionCode": "41220320",
+    "name": "서탄면",
+    "parentName": "평택시",
+    "roads": [],
+    "orderVolume": "하",
+    "importance": 2,
+    "landmarks": [],
+    "fieldTips": [
+      "서탄면 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41220330": {
+    "regionCode": "41220330",
+    "name": "고덕면",
+    "parentName": "평택시",
+    "roads": [],
+    "orderVolume": "하",
+    "importance": 2,
+    "landmarks": [],
+    "fieldTips": [
+      "고덕면 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41220340": {
+    "regionCode": "41220340",
+    "name": "오성면",
+    "parentName": "평택시",
+    "roads": [],
+    "orderVolume": "하",
+    "importance": 2,
+    "landmarks": [],
+    "fieldTips": [
+      "오성면 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41220370": {
+    "regionCode": "41220370",
+    "name": "현덕면",
+    "parentName": "평택시",
+    "roads": [],
+    "orderVolume": "하",
+    "importance": 2,
+    "landmarks": [],
+    "fieldTips": [
+      "현덕면 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  }
+}

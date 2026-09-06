@@ -1,0 +1,236 @@
+{
+  "41650101": {
+    "regionCode": "41650101",
+    "name": "신읍동",
+    "parentName": "포천시",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "신읍동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41650102": {
+    "regionCode": "41650102",
+    "name": "어룡동",
+    "parentName": "포천시",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "어룡동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41650103": {
+    "regionCode": "41650103",
+    "name": "자작동",
+    "parentName": "포천시",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "자작동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41650104": {
+    "regionCode": "41650104",
+    "name": "선단동",
+    "parentName": "포천시",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "선단동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41650105": {
+    "regionCode": "41650105",
+    "name": "설운동",
+    "parentName": "포천시",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "설운동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41650106": {
+    "regionCode": "41650106",
+    "name": "동교동",
+    "parentName": "포천시",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "동교동 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41650250": {
+    "regionCode": "41650250",
+    "name": "소흘읍",
+    "parentName": "포천시",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "소흘읍 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41650310": {
+    "regionCode": "41650310",
+    "name": "군내면",
+    "parentName": "포천시",
+    "roads": [],
+    "orderVolume": "하",
+    "importance": 2,
+    "landmarks": [],
+    "fieldTips": [
+      "군내면 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41650320": {
+    "regionCode": "41650320",
+    "name": "내촌면",
+    "parentName": "포천시",
+    "roads": [],
+    "orderVolume": "하",
+    "importance": 2,
+    "landmarks": [],
+    "fieldTips": [
+      "내촌면 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41650330": {
+    "regionCode": "41650330",
+    "name": "가산면",
+    "parentName": "포천시",
+    "roads": [],
+    "orderVolume": "하",
+    "importance": 2,
+    "landmarks": [],
+    "fieldTips": [
+      "가산면 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41650340": {
+    "regionCode": "41650340",
+    "name": "신북면",
+    "parentName": "포천시",
+    "roads": [],
+    "orderVolume": "하",
+    "importance": 2,
+    "landmarks": [],
+    "fieldTips": [
+      "신북면 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41650350": {
+    "regionCode": "41650350",
+    "name": "창수면",
+    "parentName": "포천시",
+    "roads": [],
+    "orderVolume": "하",
+    "importance": 2,
+    "landmarks": [],
+    "fieldTips": [
+      "창수면 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41650360": {
+    "regionCode": "41650360",
+    "name": "영중면",
+    "parentName": "포천시",
+    "roads": [],
+    "orderVolume": "하",
+    "importance": 2,
+    "landmarks": [],
+    "fieldTips": [
+      "영중면 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41650370": {
+    "regionCode": "41650370",
+    "name": "일동면",
+    "parentName": "포천시",
+    "roads": [],
+    "orderVolume": "하",
+    "importance": 2,
+    "landmarks": [],
+    "fieldTips": [
+      "일동면 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41650380": {
+    "regionCode": "41650380",
+    "name": "이동면",
+    "parentName": "포천시",
+    "roads": [],
+    "orderVolume": "하",
+    "importance": 2,
+    "landmarks": [],
+    "fieldTips": [
+      "이동면 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41650390": {
+    "regionCode": "41650390",
+    "name": "영북면",
+    "parentName": "포천시",
+    "roads": [],
+    "orderVolume": "하",
+    "importance": 2,
+    "landmarks": [],
+    "fieldTips": [
+      "영북면 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41650400": {
+    "regionCode": "41650400",
+    "name": "관인면",
+    "parentName": "포천시",
+    "roads": [],
+    "orderVolume": "하",
+    "importance": 2,
+    "landmarks": [],
+    "fieldTips": [
+      "관인면 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41650410": {
+    "regionCode": "41650410",
+    "name": "화현면",
+    "parentName": "포천시",
+    "roads": [],
+    "orderVolume": "하",
+    "importance": 2,
+    "landmarks": [],
+    "fieldTips": [
+      "화현면 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  }
+}

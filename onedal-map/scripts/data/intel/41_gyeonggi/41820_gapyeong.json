@@ -1,0 +1,80 @@
+{
+  "41820250": {
+    "regionCode": "41820250",
+    "name": "가평읍",
+    "parentName": "가평군",
+    "roads": [],
+    "orderVolume": "중",
+    "importance": 3,
+    "landmarks": [],
+    "fieldTips": [
+      "가평읍 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41820310": {
+    "regionCode": "41820310",
+    "name": "설악면",
+    "parentName": "가평군",
+    "roads": [],
+    "orderVolume": "하",
+    "importance": 2,
+    "landmarks": [],
+    "fieldTips": [
+      "설악면 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41820325": {
+    "regionCode": "41820325",
+    "name": "청평면",
+    "parentName": "가평군",
+    "roads": [],
+    "orderVolume": "하",
+    "importance": 2,
+    "landmarks": [],
+    "fieldTips": [
+      "청평면 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41820330": {
+    "regionCode": "41820330",
+    "name": "상면",
+    "parentName": "가평군",
+    "roads": [],
+    "orderVolume": "하",
+    "importance": 2,
+    "landmarks": [],
+    "fieldTips": [
+      "상면 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41820345": {
+    "regionCode": "41820345",
+    "name": "조종면",
+    "parentName": "가평군",
+    "roads": [],
+    "orderVolume": "하",
+    "importance": 2,
+    "landmarks": [],
+    "fieldTips": [
+      "조종면 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  },
+  "41820350": {
+    "regionCode": "41820350",
+    "name": "북면",
+    "parentName": "가평군",
+    "roads": [],
+    "orderVolume": "하",
+    "importance": 2,
+    "landmarks": [],
+    "fieldTips": [
+      "북면 지역 인텔 데이터 추가 필요",
+      "주요 도로, 랜드마크, 배달 특이사항을 입력해주세요."
+    ]
+  }
+}
