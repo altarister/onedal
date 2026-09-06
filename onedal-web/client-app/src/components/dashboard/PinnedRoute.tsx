@@ -22,6 +22,8 @@ interface Props {
     routeComputedAt: string | null;
     /** 🧭 경로를 든 콜 — 서버가 고른 답 (0831) */
     routeHolderId?: string | null;
+    /** 🟡 심사 중인 콜의 미리보기 궤적 홀더 (2026-09-06) */
+    previewRouteHolderId?: string | null;
     onDecision?: (id: string, action: 'ORDER_CONFIRMED' | 'SAFE_CANCEL' | 'ORDER_RELEASED_BY_ME' | 'ORDER_RELEASED_BY_OFFICE') => void;
     onRecalculate?: (id: string, priority: string) => void;
     viewFilter: 'ACTIVE' | 'COMPLETED' | 'CANCELED' | 'RELEASED' | 'ALL';
@@ -441,6 +443,6 @@ export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDe
 
 /** 기본 내보내기 — 파생 제조소를 부르고 몸통에 준다 (옛 화면 경로 · 토글 꺼짐일 때) */
 export default function PinnedRoute(props: Props) {
-    const d = useRouteDerivations(props.activeRoute, props.routeStops, props.routeComputedAt, props.routeHolderId);
+    const d = useRouteDerivations(props.activeRoute, props.routeStops, props.routeComputedAt, props.routeHolderId, props.previewRouteHolderId);
     return <PinnedRouteBody {...props} d={d} />;
 }

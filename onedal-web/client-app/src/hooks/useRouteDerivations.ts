@@ -29,6 +29,13 @@ export function useRouteDerivations(
     routeComputedAt: string | null,
     /** 🧭 경로를 든 콜 — 서버가 고른 답 (0831 잔상 수리). 없으면 그릴 선이 없다 */
     routeHolderId?: string | null,
+    /**
+     * 🟡 **심사 중인 콜의 미리보기 궤적 홀더** (기사님 실물 2026-09-06).
+     * KEEP 전 30초 동안은 `routeHolderId` 가 비어 있다(주행분이 아직 없다).
+     * 그 사이에도 카카오 궤적은 콜에 실려 있으므로 **그것으로 그린다** —
+     * 없으면 화면이 직선 보조선을 그린다 (*"점선으로 궤적이 나와야 하는데 또 직선"*).
+     */
+    previewRouteHolderId?: string | null,
 ) {
     /**
      * 🔄 파생 치환 ① (기사님 승인 2026-08-21) — 타임라인·카운트다운의 재료를
@@ -58,9 +65,17 @@ export function useRouteDerivations(
     const routeHolder = useMemo(
         () => (routeHolderId ? liveRoute.find(r => r.id === routeHolderId) ?? null : null),
         [liveRoute, routeHolderId]);
+    /**
+     * 🟡 **KEEP 된 콜이 우선, 없으면 심사 중인 콜의 궤적을 그린다.**
+     * 순서를 뒤집지 않는다 — 운행 중에 새 콜이 심사에 들어와도 **가고 있는 길**이 먼저다.
+     */
+    const previewHolder = useMemo(
+        () => (previewRouteHolderId ? liveRoute.find(r => r.id === previewRouteHolderId) ?? null : null),
+        [liveRoute, previewRouteHolderId]);
+    const drawHolder = routeHolder ?? previewHolder;
     const activePolyline = useMemo(
-        () => (routeHolder?.routePolyline?.length ? routeHolder.routePolyline : null),
-        [routeHolder]);
+        () => (drawHolder?.routePolyline?.length ? drawHolder.routePolyline : null),
+        [drawHolder]);
 
     const isDriving = filter?.dispatchPhase === 'DELIVERING';
 

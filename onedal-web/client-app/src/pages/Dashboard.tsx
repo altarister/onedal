@@ -92,6 +92,7 @@ export default function Dashboard() {
         routeStops,
         routeComputedAt,
         routeHolderId,
+        previewRouteHolderId,
         cancelCounts,
         cancelRounds,
         cancelBudgetToast,
@@ -370,6 +371,7 @@ export default function Dashboard() {
                         routeStops={routeStops}
                         routeComputedAt={routeComputedAt}
                         routeHolderId={routeHolderId}
+                        previewRouteHolderId={previewRouteHolderId}
                         activeRoute={activeRoute}
                         onDecision={handleDecision}
                         onRecalculate={handleRecalculate}
@@ -379,6 +381,7 @@ export default function Dashboard() {
                         routeStops={routeStops}
                         routeComputedAt={routeComputedAt}
                         routeHolderId={routeHolderId}
+                        previewRouteHolderId={previewRouteHolderId}
                         activeRoute={activeRoute} 
                         onDecision={handleDecision} 
                         onRecalculate={handleRecalculate} 

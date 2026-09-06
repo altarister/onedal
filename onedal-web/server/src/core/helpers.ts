@@ -452,6 +452,32 @@ export function buildOrderSync(session: { userId?: string; myOrders: MyOrder[]; 
          *    이미 여기서 고른 답을 이름으로 보낸다 — 추측을 없앤다 (규칙 ③).
          */
         routeHolderId: holder?.id ?? null,
+        /**
+         * 🟡 **심사 중인 콜의 «미리보기 궤적»은 홀더를 따로 둔다** (기사님 실물 2026-09-06).
+         *
+         * 기사님: *"이거 점선으로 궤적이 나와야 하는데.. 또 직선으로 나온다."*
+         *
+         * 위 `holder` 는 **`sectionDriveMin` 이 있는 콜**을 고른다 — 그 값은 KEEP 된 뒤
+         * 타임라인을 짤 때 채워지므로 **심사 중 30초 동안은 없다.** 그래서 카카오가
+         * 궤적을 1,720점이나 줘도 **아무도 안 가리켜** 화면이 직선 보조선을 그렸다.
+         *
+         * 🔴 한 값이 두 질문을 답하고 있었다 (규칙 ⑤-4 ⑤):
+         *      «타임라인을 어느 콜에서 읽나»  → `sectionDriveMin` 있는 콜
+         *      «지도에 어느 궤적을 그리나»    → `routePolyline` 있는 콜
+         *    대개 같은 콜이라 하나로 썼는데 **심사 중 30초만 갈린다** —
+         *    그 30초가 기사님이 색을 보고 누르는 시간이다.
+         *
+         * 🔴 **재기동하면 늘 이 상태가 된다** (2026-09-06 실측). `orders` 테이블에
+         *    `sectionDriveMin` **칸이 없다** — `routePolyline` 만 저장된다. 그래서 서버를
+         *    껐다 켜면 KEEP 된 콜조차 주행분을 잃고 **홀더가 통째로 빈다.**
+         *    궤적은 멀쩡히 살아 있는데 화면만 직선으로 돌아간다.
+         *    (칸을 만들어 저장하는 것은 별도 판이다 — 여기서는 **그릴 것을 잃지 않게** 한다.)
+         *
+         * ⚠️ 위 홀더를 넓히지 않는다. 심사 중 콜의 빈 `sectionDriveMin` 이 타임라인을
+         *    통째로 폴백으로 돌린 사고가 2026-08-19 에 있었다 — 그래서 **갈라 둔다**.
+         */
+        previewRouteHolderId: [...all].reverse()
+            .find(o => !isTerminal(o.status) && o.routePolyline?.length)?.id ?? null,
         cancelRounds,
         cancelCounts,
     };

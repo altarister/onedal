@@ -38,6 +38,8 @@ interface Props {
     routeComputedAt: string | null;
     /** 🧭 경로를 든 콜 — 서버가 고른 답 (0831) */
     routeHolderId?: string | null;
+    /** 🟡 심사 중인 콜의 미리보기 궤적 홀더 (2026-09-06) */
+    previewRouteHolderId?: string | null;
     onDecision?: (id: string, action: 'ORDER_CONFIRMED' | 'SAFE_CANCEL' | 'ORDER_RELEASED_BY_ME' | 'ORDER_RELEASED_BY_OFFICE') => void;
     onRecalculate?: (id: string, priority: string) => void;
     viewFilter: 'ACTIVE' | 'COMPLETED' | 'CANCELED' | 'RELEASED' | 'ALL';
@@ -45,8 +47,8 @@ interface Props {
 }
 
 export default function StageView(props: Props) {
-    const { activeRoute, routeStops, routeComputedAt, routeHolderId } = props;
-    const derived = useRouteDerivations(activeRoute, routeStops, routeComputedAt, routeHolderId);
+    const { activeRoute, routeStops, routeComputedAt, routeHolderId, previewRouteHolderId } = props;
+    const derived = useRouteDerivations(activeRoute, routeStops, routeComputedAt, routeHolderId, previewRouteHolderId);
     const { liveRoute, cycleDeck, unifiedRoutePoints, myLocation, visitOrderMap } = derived;
     const [snap, setSnap] = useState<SheetSnap>('list');
     /**

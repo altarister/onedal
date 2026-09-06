@@ -50,10 +50,23 @@ describe('경로를 든 콜 — 판정은 서버 한 곳', () => {
         expect(canvas).not.toMatch(/reverse\(\)[\s\S]{0,80}routePolyline/);
     });
 
+    /**
+     * ⚠️ **철자가 아니라 성질을 본다** (2026-09-06 개정). 예전엔 `routeHolder?.routePolyline…`
+     *    라는 **문장을 그대로** 맞췄는데, 미리보기 홀더가 생기며 이름이 `drawHolder` 로
+     *    바뀌자 **멀쩡한 코드에서 검사가 깨졌다.** 이 레포에서 열 번쯤 겪은 모양이다.
+     *    지켜야 할 것은 이름이 아니라 **«홀더가 없으면 null»** 이다.
+     */
     it('🔴 홀더가 없으면 선을 그리지 않는다 — 낡은 선을 그리지 않는다 (규칙 ④)', () => {
         const der = codeOnly(read('hooks/useRouteDerivations.ts'));
-        // activePolyline 은 홀더의 것만 — 홀더가 없으면 null
-        expect(der).toMatch(/routeHolder\?\.routePolyline\?\.length \? routeHolder\.routePolyline : null/);
+        const m = der.match(/activePolyline\s*=\s*useMemo\([\s\S]{0,240}?\)\s*;/);
+        expect(m).not.toBeNull();
+        const body = m![0];
+        // ① 홀더의 폴리라인이 **있을 때만** 쓴다
+        expect(body).toMatch(/Holder\?\.routePolyline\?\.length/);
+        // ② 없으면 null 을 준다 — 낡은 선도, 빈 배열도 아니다
+        expect(body).toMatch(/:\s*null/);
+        // ③ 홀더를 거치지 않고 아무 콜의 폴리라인을 집지 않는다
+        expect(body).not.toMatch(/liveRoute|activeRoute|\.find\(/);
     });
 
     it('🔴 폴리라인을 경로 봉투에 한 벌 더 담지 않는다 (초당 237KB 사고 재발 방지)', () => {

@@ -39,6 +39,8 @@ export function useOrderEngine() {
     const [routeComputedAt, setRouteComputedAt] = useState<string | null>(null);
     /** 🧭 경로를 든 콜 — 서버가 고른 답. 지도·시뮬이 추측하지 않는다 (0831) */
     const [routeHolderId, setRouteHolderId] = useState<string | null>(null);
+    /** 🟡 심사 중인 콜의 미리보기 궤적 홀더 (2026-09-06) — KEEP 전 30초의 그림을 살린다 */
+    const [previewRouteHolderId, setPreviewRouteHolderId] = useState<string | null>(null);
     // 🚫 취소 예산 — 한 판에서 몇 번 썼나. 서버가 장부에서 파생해 sync 에 싣는다
     const [cancelCounts, setCancelCounts] = useState<Record<string, number>>({});
     // 🚫 몇 판째인가 — 판수가 남으므로 총량은 사라지지 않는다 (필터_정의 §2 의 취지)
@@ -312,6 +314,7 @@ export function useOrderEngine() {
             setRouteStops(payload.routeStops ?? []);
             setRouteComputedAt(payload.routeComputedAt ?? null);
             setRouteHolderId(payload.routeHolderId ?? null);
+            setPreviewRouteHolderId(payload.previewRouteHolderId ?? null);
             if (payload.cancelCounts) setCancelCounts(payload.cancelCounts);
             if (payload.cancelRounds) setCancelRounds(payload.cancelRounds);
 
@@ -378,6 +381,7 @@ export function useOrderEngine() {
         routeStops,
         routeComputedAt,
         routeHolderId,
+        previewRouteHolderId,
         cancelCounts,
         cancelRounds,
         cancelBudgetToast,
