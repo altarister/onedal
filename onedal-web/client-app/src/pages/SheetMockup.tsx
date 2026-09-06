@@ -937,7 +937,7 @@ export default function SheetMockup() {
      *    끼어들어 번호가 밀리는 것**이 눈에 들어온다.
      */
     const [playing, setPlaying] = useState(false);
-    const [planSize, setPlanSize] = useState<3 | 4 | 5>(3);
+    const [planSize, setPlanSize] = useState<3 | 4 | 5 | 7>(3);
     /**
      * ⟳ **다시 물었나** — 눌렀을 때 «순서가 춤추는 것»을 보여 주기 위한 것이다
      * (전제 점검표 3부 Q8). 전에는 분만 늘어서 **좋아지는 것처럼만** 보였다.
@@ -1767,17 +1767,24 @@ export default function SheetMockup() {
 
                 <h2 className="mt-7 pt-5 border-t border-border-card text-[12.5px] font-black tracking-wide text-info mb-2">몇 콜을 잡은 판인가</h2>
                 <div className="flex gap-1.5 flex-wrap">
-                    {([3, 4, 5] as const).map(n => (
+                    {([3, 4, 5, 7] as const).map(n => (
                         <button key={n} type="button"
                             onClick={() => { setPlanSize(n); setStepNo(null); setPlaying(false);
                                 setVisitedCount(1); setOpenIdx(-1); setQrPeek(0); setReasked(false);
                                 setLog(`${n}콜 판 — 정거장 ${MOCK_PLANS[n].stops.length}개 · ${MOCK_PLANS[n].totalKm}km / ${MOCK_PLANS[n].totalMin}분. ${MOCK_PLANS[n].source}`); }}
                             className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${planSize === n
                                 ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-surface text-text-primary hover:border-info'}`}>
-                            {n}콜 · 정거장 {MOCK_PLANS[n].stops.length}
+                            {n === 7 ? '🚚 볼트 하루' : `${n}콜`} · 정거장 {MOCK_PLANS[n].stops.length}
                         </button>
                     ))}
                 </div>
+                {planSize === 7 && (
+                    <p className="mt-2 text-[12px] leading-relaxed text-warning">
+                        🚚 <b>남의 하루입니다</b> — 볼트 2026-08-10 실측(7콜 · 306,400원 · 대전→인천 278km).
+                        <b className="text-text-primary"> 좌표는 «동 주민센터»로 물은 값</b>이고 번지는 표에 없습니다.
+                        하차 넷(5·6·9·10)은 <b className="text-text-primary">시각을 몰라</b> 지리 순서로 놓았습니다 — 실측이 아닙니다.
+                    </p>
+                )}
                 <p className="mt-2 text-[12px] leading-relaxed text-text-muted">
                     🔴 <b className="text-text-primary">3콜은 상한이 아닙니다</b> — 시간과 공간이 되면 더 잡습니다
                     (전제 점검표 1부 ①). 콜이 늘면 <b className="text-text-primary">아코디언이 몇 줄인지</b>,
