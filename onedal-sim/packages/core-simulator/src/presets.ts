@@ -117,7 +117,176 @@ const GS_FUNERAL: MockEntry = {
     lon: 126.807692, lat: 37.572971,
 };
 
+// ══════════════════════════════════════════════════════════════════════
+//  🚚 볼첨지 이틀 — 실측 표를 그대로 문제지로 (2026-08-10·11 · 유튜브 자막 + 기사님 화면 캡처)
+//  원본 표: docs/자료/노하우/일하는_법/노하우_추출.md
+//
+//  🔴 **볼첨지가 정답이 아니다.** 그는 7번을 잡았다가 **취소**했고(배차망 취소 횟수를 썼다),
+//     11번은 상세를 열어 보고 **스스로 포기**했다. 표가 주는 것은 정답이 아니라 **결과**다.
+//     `expect` 는 «우리 규칙상 어떻게 해야 하는가»이고, 볼첨지가 실제로 한 것은 `why` 에 적는다.
+//     둘이 다른 자리가 **우리 시스템의 빈 곳**이다.
+//
+//  🔴 좌표는 **읍면동 중심점**이다 (`merged_map.geojson` 2026-09-06 충청 확장본에서 turf.centroid).
+//     표가 동 단위까지만 알기 때문이다 — 번지를 지어내면 2026-08-23 구로 사고가 재현된다
+//     (*"앱은 잘못한 게 없다. 문제지가 거짓말을 했다"*).
+//  🔴 `region` 은 **동 이름**이다 (2026-09-03 실사고 — 「강서구」라 적었다가 셋 다 떨어졌다).
+//  ⚠️ 「정중리」는 지도에 없다 — 리(里)는 8자리 **오송읍**으로 병합돼 있다 (REPG-001 §3.3).
+//  ⚠️ 표의 「안산 송곡」은 지도에 없다. 같은 날 화면에 `@성곡동`·`@안산성곡동` 이 찍혔으므로
+//     **성곡동(안산 단원구)** 으로 읽는다.
+//  ⚠️ 7번 상차지는 표에 «대전 구체 미상» 이다. 역주행 축만 보면 되므로 **같은 대전의 갈마동**
+//     (3번 상차지)을 대신 쓴다 — 지어낸 것이 아니라 **밝히고 대신 쓰는 것**이다.
+// ══════════════════════════════════════════════════════════════════════
+const DJ_GALMA: MockEntry = {
+    customerName: '대전 갈마동 상차지', contactName: '담당', phone1: '010-0000-0201',
+    region: '갈마동', addressDetail: '대전 서구 갈마동',
+    lon: 127.369643, lat: 36.346412,
+};
+const DJ_MUNJI: MockEntry = {
+    customerName: '대전 문지동 상차지', contactName: '담당', phone1: '010-0000-0202',
+    region: '문지동', addressDetail: '대전 유성구 문지동 문지로 188',
+    lon: 127.398192, lat: 36.390957,
+};
+const CJ_OSONG: MockEntry = {
+    customerName: '청주 오송 상차지', contactName: '담당', phone1: '010-0000-0203',
+    region: '오송읍', addressDetail: '충북 청주시 흥덕구 오송읍',
+    lon: 127.314502, lat: 36.626391,
+};
+const CA_SEONGGEO: MockEntry = {
+    customerName: '천안 성거읍 물류', contactName: '담당', phone1: '010-0000-0204',
+    region: '성거읍', addressDetail: '충남 천안시 서북구 성거읍',
+    lon: 127.185034, lat: 36.878830,
+};
+const SEONGSU: MockEntry = {
+    customerName: '성수동 상차지', contactName: '담당', phone1: '010-0000-0205',
+    region: '성수동', addressDetail: '서울 성동구 성수동2가',
+    lon: 127.047002, lat: 37.544678,
+};
+const MUNJEONG: MockEntry = {
+    customerName: '문정동 상차지', contactName: '담당', phone1: '010-0000-0206',
+    region: '문정동', addressDetail: '서울 송파구 문정동',
+    lon: 127.124098, lat: 37.484904,
+};
+// ── 하차지 ──
+const OSAN_GASU: MockEntry = {
+    customerName: '오산 가수동 하차지', contactName: '담당', phone1: '010-0000-0211',
+    region: '가수동', addressDetail: '경기 오산시 가수동 황새로 211',
+    lon: 127.056415, lat: 37.146055,
+};
+/** 🔴 「논현동」은 **서울 강남구에도 있다.** 볼첨지의 것은 **인천 남동구**다 */
+const IC_NONHYEON: MockEntry = {
+    customerName: '인천 논현동 하차지', contactName: '담당', phone1: '010-0000-0212',
+    region: '논현동', addressDetail: '인천 남동구 논현동',
+    lon: 126.722093, lat: 37.398184,
+};
+const AS_SEONGGOK: MockEntry = {
+    customerName: '안산 성곡동 하차지', contactName: '담당', phone1: '010-0000-0213',
+    region: '성곡동', addressDetail: '경기 안산시 단원구 성곡동',
+    lon: 126.761092, lat: 37.315691,
+};
+/** 🔴 인천 서구는 2026년 개편으로 **서해구**가 됐다 (2026-09-06 지도 확장에서 드러남) */
+const IC_GYEONGSEO: MockEntry = {
+    customerName: '인천 경서동 하차지', contactName: '담당', phone1: '010-0000-0214',
+    region: '경서동', addressDetail: '인천 서해구 경서동',
+    lon: 126.651880, lat: 37.557424,
+};
+const IC_SONGDO: MockEntry = {
+    customerName: '인천 송도동 하차지', contactName: '담당', phone1: '010-0000-0215',
+    region: '송도동', addressDetail: '인천 연수구 송도동',
+    lon: 126.631121, lat: 37.390040,
+};
+const SINDORIM: MockEntry = {
+    customerName: '신도림동 하차지', contactName: '담당', phone1: '010-0000-0216',
+    region: '신도림동', addressDetail: '서울 구로구 신도림동',
+    lon: 126.878727, lat: 37.510097,
+};
+
 export const PRESETS: Record<string, PresetProblem[]> = {
+    /**
+     * 🚚 **볼첨지 이틀 — 실측을 그대로 문제지로** (2026-09-06 신설)
+     *
+     * 기사님: *"이 표를 근거로 우리 시스템을 점검해 보자."*
+     *
+     * 🔴 **돌리기 전에 도착 목표를 «인천»으로 둔다.** 그날 볼첨지는 대전에서 시작해
+     *    수도권으로 북상했고, 하차지 다섯이 인천이다. 도착 목표를 안 맞추면
+     *    전부 도착지 축에서 떨어져 **문제지가 아무것도 시험하지 못한다.**
+     *
+     * 🔴 **정답지가 볼첨지와 다른 자리가 우리의 빈 곳이다.**
+     *
+     *   ① 03·04·06 — 볼첨지는 **잡았는데** 우리는 BLOCK 이 맞다.
+     *      그는 「청주·음성·오산」처럼 **목표를 여러 개** 쥐고 길 위의 것을 줍는다.
+     *      우리 `destinationCity` 는 **도시 하나**다. 이건 «묶음 평가» 축이고 아직 없다.
+     *   ② 11 — 볼첨지는 **열어 보고 포기**했고 우리도 BLOCK 이 맞는데,
+     *      **지금 앱은 PASS 한다**(오탐). 적요의 `11일(화) 09시픽업` 을 못 읽기 때문이다
+     *      (`cargoHints.ts` 에 날짜 축이 없다).
+     *   ③ 07 — 볼첨지는 **잡았다가 취소**했다(패널티). 첫짐이면 우리도 PASS 가 맞다 —
+     *      역주행은 경로가 생긴 뒤에만 보이기 때문이다. **합짐 국면에서 돌리면 BLOCK 이어야 한다.**
+     */
+    '볼첨지': [
+        {
+            label: '03 ✖ 도착지 · 대전 갈마동 → 천안 성거읍 · 50,050',
+            pickup: '대전 갈마동 상차지', dropoff: '천안 성거읍 물류',
+            pickupFallback: DJ_GALMA, dropoffFallback: CA_SEONGGEO,
+            fare: 50050, vehicleType: '다마스', expect: 'BLOCK',
+            why: '🔴 **볼첨지는 잡았다.** 도착 목표 «인천» 밖이라 우리는 못 잡는다 — ' +
+                 '그는 「북상 길 위」를 목표로 쥐고 있고 우리는 도시 하나다 (묶음 평가 없음)',
+        },
+        {
+            label: '04 ✖ 도착지 · 대전 문지동 → 오산 가수동 · 38,500',
+            pickup: '대전 문지동 상차지', dropoff: '오산 가수동 하차지',
+            pickupFallback: DJ_MUNJI, dropoffFallback: OSAN_GASU,
+            fare: 38500, vehicleType: '다마스', expect: 'BLOCK',
+            why: '🔴 **볼첨지는 잡았다.** 03 과 같은 축 — 오산은 «인천 가는 길»이지 «인천»이 아니다',
+        },
+        {
+            label: '05 ⭕ 청주 오송 → 인천 논현동 · 38,500',
+            pickup: '청주 오송 상차지', dropoff: '인천 논현동 하차지',
+            pickupFallback: CJ_OSONG, dropoffFallback: IC_NONHYEON,
+            fare: 38500, vehicleType: '다마스', expect: 'PASS',
+            why: '도착 목표 적중. 🔴 **「논현동」은 서울 강남구에도 있다** — 인천 것을 잡는지 본다',
+        },
+        {
+            label: '06 ✖ 도착지 · 청주 오송 → 안산 성곡동 · 38,500',
+            pickup: '청주 오송 상차지', dropoff: '안산 성곡동 하차지',
+            pickupFallback: CJ_OSONG, dropoffFallback: AS_SEONGGOK,
+            fare: 38500, vehicleType: '다마스', expect: 'BLOCK',
+            why: '🔴 **볼첨지는 잡았다.** 05 와 같은 상차지인데 하차만 안산이다 — ' +
+                 '도착지 축 하나로 갈리는 것을 확인한다',
+        },
+        {
+            label: '07 ⭕ 대전 → 인천 송도 · 80,000 (볼첨지는 잡았다 취소했다)',
+            pickup: '대전 갈마동 상차지', dropoff: '인천 송도동 하차지',
+            pickupFallback: DJ_GALMA, dropoffFallback: IC_SONGDO,
+            fare: 80000, vehicleType: '다마스', expect: 'PASS',
+            why: '🔴 그날 **최고 단가 8만**이고 도착지도 맞다. 첫짐이면 PASS 가 옳다 — ' +
+                 '역주행은 경로가 생겨야 보인다. **합짐 국면에서 돌리면 BLOCK 이어야 한다** ' +
+                 '(볼첨지는 북상 중에 잡았다가 대전으로 되돌아가야 해서 콜사 요청으로 취소했다)',
+        },
+        {
+            label: '09 ⭕ 천안 성거읍 → 인천 경서동 · 46,200',
+            pickup: '천안 성거읍 물류', dropoff: '인천 경서동 하차지',
+            pickupFallback: CA_SEONGGEO, dropoffFallback: IC_GYEONGSEO,
+            fare: 46200, vehicleType: '다마스', expect: 'PASS',
+            why: '🔴 **경서동은 개편으로 「인천 서해구」가 됐다** (2026-09-06 지도 확장에서 드러남). ' +
+                 '배차망이 아직 「서구」로 뿌리면 여기서 갈린다 — 그걸 보려고 넣었다',
+        },
+        {
+            label: '11 ✖ 내일 콜 · 성수동 → 인천 송도 · 42,300 (지금은 오탐이 난다)',
+            pickup: '성수동 상차지', dropoff: '인천 송도동 하차지',
+            pickupFallback: SEONGSU, dropoffFallback: IC_SONGDO,
+            fare: 42300, vehicleType: '다마스', expect: 'BLOCK',
+            why: '🔴 **적요가 `11일(화) 09시픽업 박스10개 하차는 기사님 혼자서` 다 — 내일 콜이다.** ' +
+                 '볼첨지도 열어 보고 포기했다. 그런데 우리는 `cargoHints.ts` 에 **날짜 축이 없어** ' +
+                 '지금 PASS 한다 = **오탐**. 이 문제가 초록이 되면 날짜를 읽기 시작한 것이다',
+        },
+        {
+            label: '12 ✖ 도착지 · 문정동 → 신도림동 · 30,800',
+            pickup: '문정동 상차지', dropoff: '신도림동 하차지',
+            pickupFallback: MUNJEONG, dropoffFallback: SINDORIM,
+            fare: 30800, vehicleType: '다마스', expect: 'BLOCK',
+            why: '도착 목표 «인천» 밖(서울). 적요에 `5박스/3층까지 하차요` 가 있는데 ' +
+                 '**층수 축이 우리에게 없다** — 정차를 실제보다 짧게 잡는다 (별도 판)',
+        },
+    ],
     /**
      * 📍 **축 문제지 — 어디서 돌려도 정답이 같다** (기사님 확정 2026-08-31).
      *
@@ -707,6 +876,11 @@ const ALIASES: Record<string, string> = {
  * 여기 없는 것은 URL 로만 들어간다 (`?preset=…`).
  */
 export const PRESET_MENU: Array<{ key: string; title: string; desc: string }> = [
+    { key: '볼첨지', title: '🚚 볼첨지 이틀 실측 · 대전→청주→천안→인천 (2026-08-10·11)',
+      desc: '8문제 · 정답 PASS 3(05·07·09) · BLOCK 5. 유튜브 자막 + 기사님 화면 캡처로 만든 실측 표가 원본이다. ' +
+            '🔴 **도착 목표를 «인천»으로 두고 돌린다** — 안 맞추면 전부 도착지 축에서 떨어져 아무것도 시험 못 한다. ' +
+            '🔴 볼첨지가 정답이 아니다: 03·04·06 은 그가 잡았지만 우리는 BLOCK 이 맞고(묶음 평가가 없다), ' +
+            '11 은 그도 포기했는데 우리가 PASS 한다(날짜를 못 읽는다 — 오탐)' },
     { key: '서진', title: '🚚 서진 합짐 · 초월(집)→성남→안양→서부간선→구로→강서 (2026-09-03)',
       desc: '6문제 · 잡는 콜 3(① 첫짐 64.4km · ② 합짐1 27.3km · ③ 합짐2 9.5km) · 채움 3(요금·차종·역주행). ' +
             '되돌아가는 구간이 없어 **우회 비용이 거의 0인 합짐**이다 — 단독 64.4km ↔ 셋 합쳐 65.0km. ' +
