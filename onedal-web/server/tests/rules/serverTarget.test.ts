@@ -110,4 +110,19 @@ describe('관제웹 전체 — 서버 주소를 손으로 적은 곳이 없다',
             .map(f => f.split('/client-app/')[1]);
         expect(offenders).toEqual([]);
     });
+
+    /**
+     * 🔴 **`apiBase()` 뒤에 `/api` 를 또 붙이지 않는다** (2026-09-07 · 지도 실험실 실측)
+     *
+     * `apiBase()` 는 **`/api` 를 포함해** 돌려준다 (`'/api'` 또는 `https://…/api`).
+     * 실험실이 `${apiBase()}/api/sim/route` 로 불러 **`/api/api/…`** 가 됐고, 서버는
+     * 404 — 그런데 fetch 의 catch 가 직선 폴백이라 **화면은 멀쩡히 직선을 그렸다.**
+     * 위의 리터럴 검사는 apiBase() 를 «거치기만 하면» 통과시켜서 이걸 못 잡았다.
+     */
+    it('🔴 apiBase() 뒤에 /api 를 또 붙이지 않는다 — 이미 들어 있다', () => {
+        const offenders = walk(join(CLIENT, 'src'))
+            .filter(f => /apiBase\(\)\}?\/api\b/.test(code(readFileSync(f, 'utf8'))))
+            .map(f => f.split('/client-app/')[1]);
+        expect(offenders).toEqual([]);
+    });
 });

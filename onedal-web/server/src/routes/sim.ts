@@ -5,6 +5,7 @@ import { getActiveCalls } from "../core/helpers";
 import { mapCoverage } from "../services/geoService";
 import { SettingsRepository } from "../repositories/SettingsRepository";
 import { BOOTED_AT } from "./health";
+import { calculateSoloRoute } from "../services/kakaoService";
 
 const router = Router();
 
@@ -109,3 +110,35 @@ router.get("/preflight", (_req, res) => {
 });
 
 export default router;
+
+/**
+ * 🗺️ **실험실 전용 — 정거장 점들을 실도로 곡선으로 잇는다** (기사님 2026-09-07).
+ *
+ * 지도 실험실(`/mockup/map`)이 콜을 확정해 경로가 다시 짜일 때 한 번 부른다.
+ * 다리(연속 두 점)마다 카카오 길찾기 1회 — 구간별 폴리라인을 따로 돌려줘야
+ * 실험실이 콜 색대로 구간을 칠할 수 있다. 무료 쿼터(일 1만)의 티끌이다.
+ * 운영에서는 다른 sim 문들과 같이 404 다.
+ */
+router.post("/route", async (req, res) => {
+    if (!isDevBuild()) return res.status(404).json({ error: "not found" });
+    try {
+        const points = req.body?.points as Array<{ x: number; y: number }> | undefined;
+        const valid = Array.isArray(points) && points.length >= 2 && points.length <= 24
+            && points.every(p => Number.isFinite(p?.x) && Number.isFinite(p?.y));
+        if (!valid) return res.status(400).json({ error: "points 는 2~24개의 {x,y} 배열이어야 합니다" });
+
+        const legs: Array<Array<{ x: number; y: number }>> = [];
+        let distance = 0, duration = 0;
+        for (let i = 1; i < points.length; i++) {
+            const a = points[i - 1], b = points[i];
+            // 같은 자리 두 점(하차 즉시 그 자리 상차)은 카카오를 부르지 않는다
+            if (Math.hypot((a.x - b.x) * 88.6, (a.y - b.y) * 110.574) < 0.05) { legs.push([a, b]); continue; }
+            const r = await calculateSoloRoute(a.x, a.y, b.x, b.y);
+            legs.push(r.polyline && r.polyline.length >= 2 ? r.polyline : [a, b]);
+            distance += r.distance; duration += r.duration;
+        }
+        return res.json({ legs, distance, duration });
+    } catch (e) {
+        return res.status(502).json({ error: String((e as Error)?.message ?? e) });
+    }
+});

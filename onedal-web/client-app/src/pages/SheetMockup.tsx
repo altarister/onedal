@@ -10,6 +10,7 @@ import { sheetStatus, sheetStatusLine, textWidth } from '../lib/sheetStatus';
 import StepSheetMock from '../components/dashboard/StepSheetMock';
 import { pushClock, gapTone } from '../lib/pushedTime';
 import { MOCK_PLANS, CONE_DEMO, QUAD_DEMO, QUAD_SIHEUNG, QUAD_LEG2, BOLT_STEPS, BOLT_STEPS_30, RING_DEMO, scenarioPlan, splitStops, myLocationAt, routeHolderOf, reaskedPlan, reaskCost, type Call } from './mockPlans';
+import { buildNet, buildFirstLegDemo, WAIT_PRESET, GONJIAM_DROP, GONJIAM_CALL_PATH, DONGWON_DROP, DONGWON_CALL_PATH, BORAM_DROP, BORAM_CALL_PATH, ICHEON_DROP, ICHEON_CALL_PATH, type NetParams, type NetResult } from './callNet';
 import { SCENARIO, SEAT_CALLS } from './scenario';
 import { ROUTE_PRIORITIES, PRIORITY_SAMPLE, isPriorityLocked, type RoutePriority } from '../lib/routePriority';
 import JudgmentSeat from '../components/dashboard/JudgmentSeat';
@@ -939,11 +940,37 @@ export default function SheetMockup() {
     const [playing, setPlaying] = useState(false);
     const [planSize, setPlanSize] = useState<3 | 4 | 5 | 7>(3);
     /** 🔺 첫 콜 그물을 지도에 겹쳐 본다 (기사님 2026-09-06) */
-    const [cone, setCone] = useState<'off' | 'tri' | 'quad' | 'siheung' | 'leg2'>('off');
+    const [cone, setCone] = useState<'off' | 'tri' | 'quad' | 'siheung' | 'leg2' | 'custom'>('off');
+    /**
+     * 🕸️ 그물 셋업 — 각도·지름 넷을 인풋으로 받아 동선을 실시간 계산한다 (기사님 2026-09-07).
+     * 기본값은 ⏳ 대기 프리셋(«여주를 목적지로 느긋하게»)이고, 그린 결과(사각형·통과 동·표)는
+     * customNet 하나에서 나온다 — 지도와 표가 같은 계산을 본다 (규칙 ③).
+     */
+    const [netParams, setNetParams] = useState<NetParams>(WAIT_PRESET);
+    const [customNet, setCustomNet] = useState<NetResult | null>(null);
+    /**
+     * 어느 꼭짓점 판인가 — 대기(초월→여주) · 첫 콜 뒤(곤지암성당→여주) · 둘째 콜 뒤(동원대→여주) ·
+     * 셋째 콜 뒤(보람여주→여주, 그물이 닫힌다) · 첫짐이 목적지 그 자체인 두 판(hole·detour)
+     */
+    const [netPair, setNetPair] = useState<'yeoju' | 'gonjiam' | 'dongwon' | 'boram' | 'icheon' | 'hole' | 'detour'>('yeoju');
     /** 🚚 볼트 하루 — 콜 잡은 순서대로 마름모를 다시 그린다 (−1 = 끔) */
     const [boltStep, setBoltStep] = useState(-1);
     /** 🎚️ 출발지 각도 — 100°(여유) ↔ 30°(급함) */
     const [tight, setTight] = useState(false);
+    /** 🖊️ 그리기 — 인풋 값으로 그물을 계산해 지도에 겹친다. 볼트 재생과는 배타라 그쪽을 끈다 */
+    const drawNet = (p: NetParams, pair: 'yeoju' | 'gonjiam' | 'dongwon' | 'boram' | 'icheon' | 'hole' | 'detour' = netPair) => {
+        setNetPair(pair); setNetParams(p);
+        // 콜을 쥔 판의 출발 꼭짓점은 현위치가 아니라 «경로의 마지막 하차지»다 (기사님 확정 2026-09-07)
+        const net = pair === 'hole' || pair === 'detour' ? buildFirstLegDemo(pair === 'detour')
+            : buildNet(p, pair === 'gonjiam' ? GONJIAM_DROP : pair === 'dongwon' ? DONGWON_DROP : pair === 'boram' ? BORAM_DROP : pair === 'icheon' ? ICHEON_DROP : undefined);
+        // 콜을 쥔 판은 잡은 콜들의 경로를 함께 그린다 — 그물이 어느 콜에서 나왔는지 보인다
+        setCustomNet(
+            pair === 'gonjiam' ? { ...net, callPath: GONJIAM_CALL_PATH }
+                : pair === 'dongwon' ? { ...net, callPath: DONGWON_CALL_PATH }
+                : pair === 'boram' ? { ...net, callPath: BORAM_CALL_PATH }
+                : pair === 'icheon' ? { ...net, callPath: ICHEON_CALL_PATH } : net);
+        setCone('custom'); setBoltStep(-1);
+    };
     /**
      * ⟳ **다시 물었나** — 눌렀을 때 «순서가 춤추는 것»을 보여 주기 위한 것이다
      * (전제 점검표 3부 Q8). 전에는 분만 늘어서 **좋아지는 것처럼만** 보였다.
@@ -1350,6 +1377,7 @@ export default function SheetMockup() {
                                 : cone === 'off' ? null
                                 : cone === 'siheung' ? QUAD_SIHEUNG
                                 : cone === 'leg2' ? QUAD_LEG2
+                                : cone === 'custom' ? customNet
                                 : { ...(cone === 'tri' ? CONE_DEMO : QUAD_DEMO), circles: RING_DEMO }}
                             drivenTrail={plan.drivenTrail}
                             liveRoute={[]}
@@ -1775,6 +1803,108 @@ export default function SheetMockup() {
                         </div>
                     </div>
                 )}
+
+                <h2 className="mt-7 pt-5 border-t border-border-card text-[12.5px] font-black tracking-wide text-info mb-2">🕸️ 그물 셋업 — 동선을 손으로 그린다</h2>
+                <div className="flex gap-2 flex-wrap items-end">
+                    {([['srcDiamKm', '출발지 지름㎞'], ['srcAngleDeg', '출발지 각도°'], ['dstAngleDeg', '목적지 각도°'], ['dstDiamKm', '목적지 지름㎞']] as const).map(([key, label]) => (
+                        <label key={key} className="flex flex-col gap-1 text-[11px] font-bold text-text-muted">
+                            {label}
+                            <input type="number" inputMode="numeric" value={netParams[key]} min={0} max={key.endsWith('AngleDeg') ? 170 : 120}
+                                onChange={e => setNetParams({ ...netParams, [key]: Number(e.target.value) })}
+                                className="w-[76px] px-2 py-1.5 rounded-[7px] border border-border-hover bg-surface text-[13px] font-black text-text-primary" />
+                        </label>
+                    ))}
+                    <button type="button" onClick={() => drawNet(netParams)}
+                        className="px-3 py-2 rounded-[9px] border border-info/50 bg-info/10 text-info text-[12.5px] font-black">🖊️ 그리기</button>
+                </div>
+                <div className="mt-2 flex gap-1.5 flex-wrap">
+                    <button type="button" onClick={() => drawNet(WAIT_PRESET, 'yeoju')}
+                        className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${cone === 'custom' && netPair === 'yeoju'
+                            ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-surface text-text-primary hover:border-info'}`}>
+                        ⏳ 대기 — 여주 느긋하게{cone === 'custom' && netPair === 'yeoju' && customNet ? ` · ${customNet.count}동` : ''}
+                    </button>
+                    <button type="button" onClick={() => drawNet(netParams, 'gonjiam')}
+                        className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${cone === 'custom' && netPair === 'gonjiam'
+                            ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-surface text-text-primary hover:border-info'}`}>
+                        🛍️ 곤지암성당 하차 → 여주{cone === 'custom' && netPair === 'gonjiam' && customNet ? ` · ${customNet.count}동` : ''}
+                    </button>
+                    <button type="button" onClick={() => drawNet(netParams, 'dongwon')}
+                        className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${cone === 'custom' && netPair === 'dongwon'
+                            ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-surface text-text-primary hover:border-info'}`}>
+                        🏫 동원대 하차 → 여주{cone === 'custom' && netPair === 'dongwon' && customNet ? ` · ${customNet.count}동` : ''}
+                    </button>
+                    <button type="button" onClick={() => drawNet(netParams, 'boram')}
+                        className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${cone === 'custom' && netPair === 'boram'
+                            ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-surface text-text-primary hover:border-info'}`}>
+                        🕯️ 보람여주 하차 → 여주{cone === 'custom' && netPair === 'boram' && customNet ? ` · ${customNet.count}동` : ''}
+                    </button>
+                    <button type="button" onClick={() => drawNet(netParams, 'icheon')}
+                        className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${cone === 'custom' && netPair === 'icheon'
+                            ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-surface text-text-primary hover:border-info'}`}>
+                        🏥 이천병원 하차 → 여주{cone === 'custom' && netPair === 'icheon' && customNet ? ` · ${customNet.count}동` : ''}
+                    </button>
+                    <button type="button" onClick={() => drawNet(netParams, 'hole')}
+                        className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${cone === 'custom' && netPair === 'hole'
+                            ? 'bg-warning/15 border-warning/55 text-warning' : 'border-border-hover bg-surface text-text-primary hover:border-warning'}`}>
+                        🕳️ 첫짐이 여주행 — 사각형만{cone === 'custom' && netPair === 'hole' && customNet ? ` · ${customNet.count}동` : ''}
+                    </button>
+                    <button type="button" onClick={() => drawNet(netParams, 'detour')}
+                        className={`px-3 py-2 rounded-[9px] border text-[12.5px] font-black ${cone === 'custom' && netPair === 'detour'
+                            ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-surface text-text-primary hover:border-info'}`}>
+                        🛣️ 첫짐이 여주행 — 길을 합침{cone === 'custom' && netPair === 'detour' && customNet ? ` · ${customNet.count}동` : ''}
+                    </button>
+                </div>
+                {cone === 'custom' && customNet && (
+                    <div className="mt-2 overflow-x-auto">
+                        <table className="w-full text-[12px]">
+                            <thead><tr className="text-text-muted">
+                                <th className="text-left py-1 pr-2 font-black whitespace-nowrap">시군구</th>
+                                <th className="text-left py-1 font-black">동선에 드는 읍면동 · 모두 {customNet.count}동</th>
+                            </tr></thead>
+                            <tbody>
+                                {customNet.groups.map(g => (
+                                    <tr key={g.region} className="border-t border-border-card align-top">
+                                        <td className="py-1.5 pr-2 whitespace-nowrap font-black text-text-primary">{g.region} <span className="text-info">{g.names.length}</span></td>
+                                        <td className="py-1.5 leading-relaxed text-text-muted">{g.names.join(' · ')}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+                <p className="mt-2 text-[12px] leading-relaxed text-text-muted">
+                    초월(집) → 여주 시내 32.4km. 각도·지름을 넣고 <b className="text-text-primary">그리기</b> —
+                    사각형(두 각도) + 꼭짓점 원(각도와 무관하게 담는다) · 서울 제외.
+                    ⏳ <b className="text-text-primary">대기</b> = «여주를 목적지로 느긋하게»(기사님 2026-09-07) —
+                    출발지 100° · 목적지 50° · 원 15km → 48동 (출발지 30°로 조이면 38동).<br />
+                    🔴 대기 판에서 <b className="text-text-primary">부발읍이 1° 차이로 빠집니다</b> — 목적지각 26° &gt; ±25°,
+                    여주 시내에서 12.3km 라 원(7.5km)에도 안 듭니다. 가남·대신·북내도 같은 이유 —
+                    <b className="text-text-primary">짧은 동선에서는 목적지 쪽 그물이 좁습니다</b>. 목적지 각도나 지름을 키워 보면 들어옵니다<br />
+                    🛍️ <b className="text-text-primary">곤지암성당 하차 → 여주</b> — 모다아울렛→곤지암성당 콜을 잡은 상태의 그물입니다.
+                    🔴 출발 꼭짓점은 현위치(모다아울렛)가 아니라 <b className="text-text-primary">경로의 하차지(곤지암성당)</b> —
+                    기사님: <b className="text-text-primary">«하차지에서 여주를 잇는 사각형이 되야지»</b> (2026-09-07 · 좌표는 카카오 실측).
+                    27.3km · 43동. 그리고 초월 판에서 1° 차이로 빠지던 <b className="text-text-primary">부발읍이 이 판에서는 듭니다</b>(목적지각 19°) —
+                    꼭짓점이 하차지로 옮겨지며 축이 부발 줄기 위로 온 것입니다. 각도를 안 건드리고 풀렸습니다<br />
+                    🏫 <b className="text-text-primary">동원대 하차 → 여주</b> — 둘째 콜(한국도로공사 경기광주지사→동원대학교)을 잡은 뒤.
+                    22.1km · 40동. <b className="text-text-primary">그물이 닫힙니다: 48 → 43 → 40동</b>, 광주는 곤지암읍 하나만 남고
+                    <b className="text-text-primary"> 지나온 초월읍(집)이 빠집니다</b>(출발지각 152°).
+                    곤지암읍은 각도로는 뒤(131°)인데 동원대에서 4.3km 라 <b className="text-text-primary">출발지 원이 담습니다</b> —
+                    «꼭짓점 자신은 각도를 잴 수 없다, 원이 그 답»의 실측입니다<br />
+                    🕯️ <b className="text-text-primary">보람여주 하차 → 여주</b> — 셋째 콜(르노 정비사업소→보람여주장례식장, 세종대왕면)을 잡은 뒤.
+                    하차지가 여주 시내에서 <b className="text-text-primary">3.9km</b> — 목적지 원 안입니다. 그물은 <b className="text-text-primary">25동, 전부 여주</b>:
+                    <b className="text-text-primary"> 48 → 43 → 40 → 25 — 하루가 스스로 끝납니다</b>. 부발·곤지암도 이 판부터 지나온 곳이 되어 빠집니다.
+                    경로 색: ① 장미 · ② 보라 · <b className="text-text-primary">③ 청록</b><br />
+                    🏥 <b className="text-text-primary">이천병원 하차 → 여주</b> — 넷째 콜(세종대왕면 행정복지센터→이천병원).
+                    상차는 보람여주 옆 3.2km 인데 하차가 여주 <b className="text-text-primary">반대편 서쪽</b>이라,
+                    마지막 하차지가 이천병원이 되며 <b className="text-text-primary">닫혔던 그물(25동)이 43동으로 다시 열립니다</b> —
+                    하차지가 그물을 이끈다는 것이 거꾸로도 참입니다. 경로 색 <b className="text-text-primary">④ 주황</b><br />
+                    🕳️🛣️ <b className="text-text-primary">첫짐이 여주행이면?</b> — 첫짐 자체가 초월→여주라면, 하차지 = 목적지라서
+                    <b className="text-text-primary"> 사각형이 점으로 쪼그라들고 여주 원만 남습니다</b>. 🕳️ 를 누르면 그 구멍이 보입니다 —
+                    내가 지나갈 곤지암·이천 길이 그물에서 통째로 사라집니다(25동, 전부 여주).
+                    🛣️ 를 누르면 <b className="text-text-primary">길 양옆 ±5km(경유)</b> 를 합친 모습입니다 — 곤지암·신둔·백사가 돌아옵니다(31동).
+                    <b className="text-text-primary">콜을 쥔 뒤의 그물은 «길 주변 + 사각형» 둘을 합쳐야 완성</b>입니다.
+                    (길은 직선 근사 — 부발이 직선에서 5.4km 라 여기선 빠지지만, 실제 도로는 부발을 지나므로 실물에서는 담깁니다)
+                </p>
 
                 <h2 className="mt-7 pt-5 border-t border-border-card text-[12.5px] font-black tracking-wide text-info mb-2">🔺 첫 콜 그물 — 어디까지 볼 것인가</h2>
                 <div className="flex gap-1.5 flex-wrap">

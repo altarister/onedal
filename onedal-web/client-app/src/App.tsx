@@ -3,6 +3,7 @@ import { ServerSwitch } from './components/ServerSwitch'
 import { useState, useEffect } from "react";
 import Dashboard from "./pages/Dashboard";
 import SheetMockup from "./pages/SheetMockup";
+import MapMockup from "./pages/MapMockup";
 import Settlement from "./pages/Settlement";
 import Login from "./pages/Login";
 import { logRoadmapEvent } from "./lib/roadmapLogger";
@@ -159,6 +160,9 @@ export default function App() {
             고정값만 그리고 서버·소켓·GPS 를 안 쓴다. 디자인을 두 테마로 보는 자리다.
             생김새의 원본은 docs/기획/화면개편/wireframe-v25-accordion.html */}
         <Route path="/mockup/sheet" element={<SheetMockup />} />
+        {/* 🗺️ **지도 실험실** — 필터 두 단계(영역→거리)를 지도 클릭으로 검증한다 (기사님 2026-09-07).
+            자기 캔버스로만 그리고 서버·소켓·GPS 를 안 쓴다 — 다른 화면에 영향 없음 */}
+        <Route path="/mockup/map" element={<MapMockup />} />
         <Route 
           path="/*" 
           element={

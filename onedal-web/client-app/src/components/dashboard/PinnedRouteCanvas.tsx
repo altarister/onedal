@@ -134,6 +134,9 @@ interface Props {
         marks?: Array<{ name: string; x: number; y: number; inside: boolean }>;
         /** ⭕ 꼭짓점 둘레의 원 — 좌표 배열로 받는다 (화면 픽셀이 아니라 «땅 위의 원»이라야 줌에 안 흔들린다) */
         circles?: Array<{ name: string; ring: Array<[number, number]> }>;
+        /** ⛓️ 잡은 콜의 경로 — 출발지→상차→하차를 직선으로 잇고 점마다 이름표를 단다 (기사님 2026-09-07).
+         *  `color` 는 그 점과 **그 점으로 들어오는 구간**의 색 — 기존 경로와 이번 콜을 색으로 가른다 */
+        callPath?: Array<{ x: number; y: number; label: string; color?: string }>;
     } | null;
     unifiedRoutePoints: RoutePoint[];
     /** **진행 중인 콜만** 넘긴다. 종료된 콜을 여기서 거르지 않는다 —
@@ -241,6 +244,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         if (myLocation) allCoords.push(myLocation);
         /* 🔺 그물을 켜면 그 삼각형까지 보이게 — 안 그러면 현위치만 확대돼 선 하나만 스쳐 간다 */
         if (coneOverlay) for (const [x, y] of coneOverlay.tri) allCoords.push({ x, y });
+        if (coneOverlay?.callPath) for (const p of coneOverlay.callPath) allCoords.push({ x: p.x, y: p.y });
 
         if (allCoords.length === 0) {
             ctx.fillStyle = mapColors.textMuted;
@@ -401,6 +405,25 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
                 ctx.font = '700 10px system-ui'; ctx.textAlign = 'center';
                 ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.lineWidth = 3;
                 ctx.strokeText(m.name, cx, cy - 8); ctx.fillText(m.name, cx, cy - 8);
+            }
+            /* ⛓️ 잡은 콜의 경로 — 출발지→상차→하차 직선. 이름표는 점 아래(경계 표지는 위라 안 겹친다).
+               구간 색 = 도착점의 color — 기존 경로(장미)와 이번 콜(다른 색)이 갈라 보인다 */
+            if (coneOverlay.callPath?.length) {
+                const path = coneOverlay.callPath;
+                for (let i = 1; i < path.length; i++) {
+                    const a = getScreenPt(path[i - 1]), b = getScreenPt(path[i]);
+                    ctx.beginPath(); ctx.moveTo(a.cx, a.cy); ctx.lineTo(b.cx, b.cy);
+                    ctx.strokeStyle = path[i].color ?? '#fb7185'; ctx.lineWidth = 2.5; ctx.stroke();
+                }
+                for (const p of path) {
+                    const { cx, cy } = getScreenPt(p);
+                    const tone = p.color ?? '#fb7185';
+                    ctx.fillStyle = tone; ctx.beginPath(); ctx.arc(cx, cy, 5.5, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(cx, cy, 2, 0, Math.PI * 2); ctx.fill();
+                    ctx.font = '800 10px system-ui'; ctx.textAlign = 'center';
+                    ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.lineWidth = 3;
+                    ctx.strokeText(p.label, cx, cy + 17); ctx.fillStyle = tone; ctx.fillText(p.label, cx, cy + 17);
+                }
             }
             ctx.restore();
         }
