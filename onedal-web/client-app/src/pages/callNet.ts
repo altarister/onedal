@@ -83,7 +83,9 @@ export interface NetPoint { name: string; lng: number; lat: number }
 
 /** 도시의 «시내» 좌표 — 그 시 법정동('동' 행) 평균. 여주 시내(NET_DST)와 같은 셈법이다 */
 export function cityCenter(city: string, label?: string): NetPoint {
-    const all = DONG_CENTROIDS.filter(d => d[1] === city);
+    // 구가 있는 시는 사전 표기가 «화성시 동탄구»처럼 갈라져 있다 — 정확 일치가 없으면 접두로 모은다 (2026-09-08 화성시에서 실측)
+    let all = DONG_CENTROIDS.filter(d => d[1] === city);
+    if (all.length === 0) all = DONG_CENTROIDS.filter(d => d[1].startsWith(`${city} `));
     if (all.length === 0) throw new Error(`지도에 없는 시군구: ${city}`);
     const dongs = all.filter(d => d[0].endsWith('동'));
     const use = dongs.length ? dongs : all;
@@ -510,6 +512,64 @@ export function orderStopsGreedy(
         ordered.push(s); pos = s.pt;
     }
     return ordered;
+}
+
+/**
+ * 🛣️ **판(목적지) 그룹 경로** (기사님 설계 2026-09-08: *"콜마다 잡을 당시의 목적지를 가지고
+ * 있다면 그것들끼리만 최적 경로로 바꾸면 되는 거 아닌가"*).
+ *
+ * 왜 있나 — **콜 많은 곳에서 다음 판 콜을 미리 잡아 둔다. 공백을 줄이는 방법이다** (기사님).
+ * 파주판을 달리면서 복귀판 콜을 미리 쥐면, 복귀 콜들은 파주판 약속 «뒤»에 서되
+ * **자기들끼리는 최적 순서**로 선다. 실측 사고(요요): 잡은 순서대로만 붙였더니
+ * 장암동(북)→광주(남)→상계동(북)→매산동(남)이 나왔다 — 상계동은 장암동 옆인데.
+ *
+ * 규칙:
+ *   · 그룹 = 잡은 순서에서 **목적지가 바뀔 때마다** 한 단 (파주→복귀→파주면 세 그룹)
+ *   · 그룹 사이 순서는 잡은 판 순서 — 넘나들며 섞이지 않는다
+ *   · 그룹 안은 가까운 곳 먼저(greedy) · 하차는 제 상차 뒤
+ *   · `visited`(이미 방문한 정거장)는 그 순서 그대로 고정 — 지나간 것은 사실이다.
+ *     닻이 방문 순서를 따라 움직이므로 재계산해도 꼬리가 안 흔들린다 (안정성)
+ */
+export function orderStopsGrouped(
+    start: { lng: number; lat: number },
+    calls: Array<{ pickup: { lng: number; lat: number }; drop: { lng: number; lat: number }; destName: string }>,
+    visited: Array<{ call: number; kind: '상차' | '하차' }> = [],
+): RouteStop[] {
+    const ptOf = (v: { call: number; kind: '상차' | '하차' }) =>
+        v.kind === '상차' ? calls[v.call - 1].pickup : calls[v.call - 1].drop;
+    const valid = visited.filter(v => v.call >= 1 && v.call <= calls.length);
+    const visitedKey = new Set(valid.map(v => `${v.call}-${v.kind}`));
+    const pickedUp = new Set(valid.filter(v => v.kind === '상차').map(v => v.call));
+
+    const out: RouteStop[] = valid.map(v => ({ call: v.call, kind: v.kind, pt: ptOf(v) }));
+    let pos = out.length ? out[out.length - 1].pt : start;
+
+    // 그룹: 잡은 순서 스캔 — 목적지 이름이 바뀌면 새 단
+    const groups: number[][] = [];
+    calls.forEach((c, i) => {
+        const last = groups[groups.length - 1];
+        if (last && calls[last[0] - 1].destName === c.destName) last.push(i + 1);
+        else groups.push([i + 1]);
+    });
+
+    for (const group of groups) {
+        const remaining: RouteStop[] = group.flatMap(call => ([
+            { call, kind: '상차' as const, pt: calls[call - 1].pickup },
+            { call, kind: '하차' as const, pt: calls[call - 1].drop },
+        ])).filter(s => !visitedKey.has(`${s.call}-${s.kind}`));
+        while (remaining.length) {
+            let bi = -1, bd = Infinity;
+            remaining.forEach((s, i) => {
+                if (s.kind === '하차' && !pickedUp.has(s.call)) return;
+                const d = haversineKm(pos, s.pt);
+                if (d < bd) { bd = d; bi = i; }
+            });
+            const s = remaining.splice(bi, 1)[0];
+            if (s.kind === '상차') pickedUp.add(s.call);
+            out.push(s); pos = s.pt;
+        }
+    }
+    return out;
 }
 
 /** 사각형(원뿔) 판정을 밖에서도 쓴다 — 지도 실험실이 «내 반경 ∩ 마름모»를 그릴 때 */

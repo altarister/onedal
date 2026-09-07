@@ -126,18 +126,97 @@ router.post("/route", async (req, res) => {
         const valid = Array.isArray(points) && points.length >= 2 && points.length <= 24
             && points.every(p => Number.isFinite(p?.x) && Number.isFinite(p?.y));
         if (!valid) return res.status(400).json({ error: "points 는 2~24개의 {x,y} 배열이어야 합니다" });
+        // 옵션 축 — 노선에서 고른 것(우선순위·회피)을 콜 실측·확정 경로가 따라간다 (기사님 2026-09-08)
+        const priority = ["RECOMMEND", "TIME", "DISTANCE"].includes(req.body?.priority) ? req.body.priority as string : "RECOMMEND";
+        const avoid = ["motorway", "toll"].includes(req.body?.avoid) ? req.body.avoid as string : undefined;
 
         const legs: Array<Array<{ x: number; y: number }>> = [];
+        /** 구간별 실측 — 콜 리스트 카드(거리·시간·톨비)가 읽는다 (기사님 2026-09-08) */
+        const legInfo: Array<{ distKm: number; durMin: number; tollWon: number | null }> = [];
         let distance = 0, duration = 0;
         for (let i = 1; i < points.length; i++) {
             const a = points[i - 1], b = points[i];
             // 같은 자리 두 점(하차 즉시 그 자리 상차)은 카카오를 부르지 않는다
-            if (Math.hypot((a.x - b.x) * 88.6, (a.y - b.y) * 110.574) < 0.05) { legs.push([a, b]); continue; }
-            const r = await calculateSoloRoute(a.x, a.y, b.x, b.y);
+            if (Math.hypot((a.x - b.x) * 88.6, (a.y - b.y) * 110.574) < 0.05) {
+                legs.push([a, b]); legInfo.push({ distKm: 0, durMin: 0, tollWon: 0 }); continue;
+            }
+            const r = await calculateSoloRoute(a.x, a.y, b.x, b.y, null, priority, 1, false, avoid);
             legs.push(r.polyline && r.polyline.length >= 2 ? r.polyline : [a, b]);
+            legInfo.push({
+                distKm: +(r.distance / 1000).toFixed(1),
+                durMin: Math.round(r.duration / 60),
+                tollWon: (r.raw as { fare?: { toll?: number } } | undefined)?.fare?.toll ?? null,
+            });
             distance += r.distance; duration += r.duration;
         }
-        return res.json({ legs, distance, duration });
+        return res.json({ legs, legInfo, distance, duration });
+    } catch (e) {
+        return res.status(502).json({ error: String((e as Error)?.message ?? e) });
+    }
+});
+
+/**
+ * 🛣️ **실험실 전용 — 길 찾기: 카카오 «모든 옵션»을 실시간으로, 합치지 않고 그대로**
+ * (기사님 2026-09-08: *"길찾기를 합하지 말고 카카오 모든 옵션을 뿌려주면? — 카카오 호출하자는 이야기"*).
+ *
+ * 미리 만든 길 파일과 달리 **누르는 그 시각의 소요시간**이 나온다 — 밤 출발이면 밤의 길.
+ * 옵션 5종(추천·최단시간·최단거리·고속도로 피하기·톨게이트 피하기) × 대안 경로, 중복 병합 없음.
+ * 점은 ~0.4km 간격으로 솎는다. 운영에서는 다른 sim 문들과 같이 404.
+ */
+router.post("/roads", async (req, res) => {
+    if (!isDevBuild()) return res.status(404).json({ error: "not found" });
+    try {
+        const { origin, dest, waypoints } = req.body ?? {};
+        const ok = (p: unknown): p is { x: number; y: number } =>
+            !!p && Number.isFinite((p as { x: number }).x) && Number.isFinite((p as { y: number }).y);
+        if (!ok(origin) || !ok(dest)) return res.status(400).json({ error: "origin/dest 는 {x,y} 여야 합니다" });
+        // ➕ 경유지 사슬 (기사님 2026-09-08 «두 단으로 가기») — 카카오가 «빠름» 축만 알아서
+        //    남쪽으로 도는 길을 절대 안 준다. 경유점을 지나는 조건을 걸면 그 길이 나온다
+        const wps: Array<{ x: number; y: number }> = Array.isArray(waypoints) ? waypoints.filter(ok).slice(0, 5) : [];
+        const wpParam = wps.length ? `&waypoints=${wps.map(w => `${w.x},${w.y}`).join("|")}` : "";
+
+        // 4개만, 대안 없이 (기사님 확정 2026-09-08: «추천·최단거리·최단시간·톨게이트 피하기 이렇게 4개만»)
+        const COMBOS: Array<[string, string, string]> = [
+            ["RECOMMEND", "", "추천"],
+            ["DISTANCE", "", "최단거리"],
+            ["TIME", "", "최단시간"],
+            ["RECOMMEND", "toll", "톨게이트 피하기"],
+        ];
+        const rad = (x: number) => x * Math.PI / 180;
+        const km = (a: [number, number], b: [number, number]) =>
+            Math.hypot((b[0] - a[0]) * 111.32 * Math.cos(rad(a[1])), (b[1] - a[1]) * 110.574);
+        const headers = { Authorization: `KakaoAK ${process.env.KAKAO_REST_API_KEY || ""}` };
+
+        const roads: Array<{ option: string; name: string; distKm: number; durMin: number; tollWon: number | null; line: Array<[number, number]> }> = [];
+        for (const [priority, avoid, label] of COMBOS) {
+            const url = `https://apis-navi.kakaomobility.com/v1/directions?origin=${origin.x},${origin.y}&destination=${dest.x},${dest.y}${wpParam}`
+                + `&priority=${priority}${avoid ? `&avoid=${avoid}` : ""}&alternatives=false&road_details=true&car_type=1`;
+            const r = await fetch(url, { headers });
+            if (!r.ok) continue;                              // 옵션 하나가 막혀도 나머지는 뿌린다
+            const d = await r.json() as { routes?: Array<{ result_code: number; summary: { distance: number; duration: number; fare?: { toll?: number } }; sections?: Array<{ roads?: Array<{ name?: string; distance: number; vertexes?: number[] }> }> }> };
+            (d.routes ?? []).filter(rt => rt.result_code === 0).forEach((rt, ai) => {
+                const pts: Array<[number, number]> = [];
+                const roadKm = new Map<string, number>();
+                for (const sec of rt.sections ?? []) for (const road of sec.roads ?? []) {
+                    if (road.name) roadKm.set(road.name, (roadKm.get(road.name) ?? 0) + road.distance);
+                    const v = road.vertexes ?? [];
+                    for (let i = 0; i + 1 < v.length; i += 2) pts.push([v[i], v[i + 1]]);
+                }
+                const line: Array<[number, number]> = [];
+                for (const p of pts) if (!line.length || km(line[line.length - 1], p) >= 0.4)
+                    line.push([+p[0].toFixed(5), +p[1].toFixed(5)]);
+                const top = [...roadKm.entries()].sort((a, b) => b[1] - a[1]).slice(0, 2).map(e => e[0]);
+                roads.push({
+                    option: ai === 0 ? label : `${label} 대안${ai}`,
+                    name: top.join("·") || "이름 없는 길",
+                    distKm: +(rt.summary.distance / 1000).toFixed(1),
+                    durMin: Math.round(rt.summary.duration / 60),
+                    tollWon: rt.summary.fare?.toll ?? null,
+                    line,
+                });
+            });
+        }
+        return res.json({ roads });
     } catch (e) {
         return res.status(502).json({ error: String((e as Error)?.message ?? e) });
     }

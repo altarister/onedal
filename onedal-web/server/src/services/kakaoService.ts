@@ -249,11 +249,14 @@ export function buildSoloRouteUrl(
     priority: string = "RECOMMEND",
     carType: number = 1,
     skipPickup = false,
+    /** 회피 축 (카카오 avoid: motorway·toll 등) — 노선에서 고른 옵션을 콜 실측이 따라가게 (기사님 2026-09-08) */
+    avoid?: string,
 ): string {
     const viaPickup = !!driverLoc && !skipPickup;
     const originCoord = driverLoc ? `${driverLoc.x},${driverLoc.y}` : `${pickupX},${pickupY}`;
     const waypointsQuery = viaPickup ? `&waypoints=${pickupX},${pickupY}` : "";
-    return `${KAKAO_NAV_URL}?origin=${originCoord}&destination=${dropoffX},${dropoffY}${waypointsQuery}&priority=${priority}&car_type=${carType}`;
+    const avoidQuery = avoid ? `&avoid=${avoid}` : "";
+    return `${KAKAO_NAV_URL}?origin=${originCoord}&destination=${dropoffX},${dropoffY}${waypointsQuery}&priority=${priority}&car_type=${carType}${avoidQuery}`;
 }
 
 export async function calculateSoloRoute(
@@ -263,8 +266,9 @@ export async function calculateSoloRoute(
     priority: string = "RECOMMEND",
     carType: number = 1,
     skipPickup = false,
+    avoid?: string,
 ): Promise<RouteResult> {
-    const url = buildSoloRouteUrl(pickupX, pickupY, dropoffX, dropoffY, driverLoc, priority, carType, skipPickup);
+    const url = buildSoloRouteUrl(pickupX, pickupY, dropoffX, dropoffY, driverLoc, priority, carType, skipPickup, avoid);
     
     console.log(`[Kakao Nav API (Solo)] 호출 URL: ${url}`);
     

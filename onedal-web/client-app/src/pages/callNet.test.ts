@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildNet, buildFirstLegDemo, judgeTwoStage, orderStopsGreedy, isLocalPhase, WAIT_PRESET, NET_SRC, NET_DST, GONJIAM_DROP, DONGWON_DROP, BORAM_DROP, ICHEON_DROP } from './callNet';
+import { buildNet, buildFirstLegDemo, judgeTwoStage, orderStopsGreedy, orderStopsGrouped, isLocalPhase, WAIT_PRESET, NET_SRC, NET_DST, GONJIAM_DROP, DONGWON_DROP, BORAM_DROP, ICHEON_DROP } from './callNet';
 
 /**
  * 🧪 **그물 셋업의 계산이 ⑭ 검산과 같은가**
@@ -319,3 +319,61 @@ describe('길 경유 띠 — «길을 잡아서 작동하는 노선» (기사님
         expect(net.groups.find(g => g.region === '이천시')).toBeUndefined();   // 이천을 건너뛴다
     });
 });
+
+describe('판(목적지) 그룹 경로 — 콜마다 잡을 당시 목적지를 기억한다 (기사님 설계 2026-09-08)', () => {
+    /**
+     * 기사님: *"콜마다 콜을 잡을 당시의 목적지를 가지고 있다면 그것들끼리만 최적 경로로 바꾸면
+     * 되는 거 아닌가"* — 그리고 이게 중요한 이유: *"콜 많은 곳에서 다음 갈 콜을 미리 잡아 둔다는
+     * 점에서 공백을 줄이는 좋은 방법."* 실측 사고(2026-09-08): 복귀 콜들이 잡은 순서대로 뒤에
+     * 붙어 장암동(북) → 광주(남) → 상계동(북) → 매산동(남) 요요가 나왔다.
+     */
+    const GYEONGAN = { lng: 127.255, lat: 37.399 }, JANGAM = { lng: 127.046, lat: 37.700 };
+    const MANGWOL = { lng: 127.221, lat: 37.567 }, CHOWOL_PT = { lng: 127.294, lat: 37.377 };
+    const SANGGYE = { lng: 127.073, lat: 37.660 }, MAESAN = { lng: 127.298, lat: 37.362 };
+
+    it('🔴 실측 사고 그대로 — 복귀 그룹 안에서는 최적 정렬: 장암동 다음이 상계동이다', () => {
+        const calls = [
+            { pickup: GYEONGAN, drop: JANGAM, destName: '파주 시내' },
+            { pickup: MANGWOL, drop: CHOWOL_PT, destName: '초월(집) — 복귀' },
+            { pickup: SANGGYE, drop: MAESAN, destName: '초월(집) — 복귀' },
+        ];
+        const order = orderStopsGrouped(GYEONGAN, calls, [{ call: 1, kind: '상차' }]);
+        expect(order.map(s => `${s.call}${s.kind === '상차' ? '상' : '하'}`))
+            .toEqual(['1상', '1하', '3상', '2상', '2하', '3하']);
+        // 장암(북) 하차 뒤 곧장 상계(북) 상차 — 광주까지 내려갔다 되올라오는 요요가 없다
+    });
+
+    it('같은 판이면 기존 greedy 와 같다 — 가는 길 합짐 삽입 허용', () => {
+        const calls = [
+            { pickup: GYEONGAN, drop: JANGAM, destName: '파주 시내' },
+            { pickup: MANGWOL, drop: SANGGYE, destName: '파주 시내' },
+        ];
+        const grouped = orderStopsGrouped(GYEONGAN, calls, []);
+        const greedy = orderStopsGreedy(GYEONGAN, calls);
+        expect(grouped.map(s => `${s.call}${s.kind}`)).toEqual(greedy.map(s => `${s.call}${s.kind}`));
+    });
+
+    it('판을 오가면(파주→복귀→파주) 연속 구간마다 그룹 — 잡은 판 순서를 지킨다', () => {
+        const calls = [
+            { pickup: GYEONGAN, drop: JANGAM, destName: '파주 시내' },
+            { pickup: MANGWOL, drop: CHOWOL_PT, destName: '초월(집) — 복귀' },
+            { pickup: SANGGYE, drop: MAESAN, destName: '파주 시내' },
+        ];
+        const order = orderStopsGrouped(GYEONGAN, calls, []);
+        // 그룹 경계를 넘어 섞이지 않는다: 1 → 2 → 3
+        expect(order.map(s => s.call)).toEqual([1, 1, 2, 2, 3, 3]);
+    });
+
+    it('방문한 정거장은 그 순서 그대로 고정 — 재계산해도 안 흔들린다 (안정성)', () => {
+        const calls = [
+            { pickup: GYEONGAN, drop: JANGAM, destName: '파주 시내' },
+            { pickup: MANGWOL, drop: CHOWOL_PT, destName: '초월(집) — 복귀' },
+            { pickup: SANGGYE, drop: MAESAN, destName: '초월(집) — 복귀' },
+        ];
+        const full = orderStopsGrouped(GYEONGAN, calls, [{ call: 1, kind: '상차' }]);
+        // 두 정거장을 지난 시점에서 재계산 — 앞은 그대로, 뒤도 같은 꼬리
+        const later = orderStopsGrouped(GYEONGAN, calls, full.slice(0, 3).map(s => ({ call: s.call, kind: s.kind })));
+        expect(later.map(s => `${s.call}${s.kind}`)).toEqual(full.map(s => `${s.call}${s.kind}`));
+    });
+});
+
