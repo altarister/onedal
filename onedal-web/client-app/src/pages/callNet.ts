@@ -725,3 +725,30 @@ export function activeGoals<T>(dst: T, home: T, opts: { homeOn: boolean; homeCau
     if (!opts.homeOn) return [dst];
     return opts.homeCaught ? [home] : [dst, home];
 }
+
+/**
+ * 🚗 **다음 목표 정거장 — 주행은 되돌아가지 않는다** (2026-09-09 실측으로 잡은 규칙).
+ *
+ * 경로 **전체**에서 가장 가까운 점을 고르면, 수도권처럼 경로가 제 몸을 스쳐 지나가는
+ * 곳에서 «이미 지나온 구간»이 제일 가까울 수 있다. 그러면 목표가 뒤로 뛰고 차가
+ * 되돌아간다 — 실측: «1→2→3 을 두 번 왕복»했고, 그동안 모의 시계만 흘러 65분짜리
+ * 마지막 구간을 **3시간 38분** 동안 못 끝냈다.
+ *
+ * 🔴 그래서 **아직 안 지난 구간에서만** 고른다. 점의 `seq` 는 «향하는 정거장 순번»이라,
+ *    `seq > visitedCount` 인 것부터가 앞길이다.
+ */
+export function pickNextTarget(
+    path: ReadonlyArray<{ lng: number; lat: number; seq: number }>,
+    from: { lng: number; lat: number },
+    visitedCount: number,
+): number {
+    if (path.length < 1) return 0;
+    const firstAhead = path.findIndex(p => p.seq > visitedCount);
+    const start = firstAhead < 0 ? path.length - 1 : firstAhead;
+    let best = start, bd = Infinity;
+    for (let i = start; i < path.length; i++) {
+        const d = Math.hypot((path[i].lng - from.lng) * 88.6, (path[i].lat - from.lat) * 110.574);
+        if (d < bd) { bd = d; best = i; }
+    }
+    return Math.min(best + 1, path.length - 1);
+}

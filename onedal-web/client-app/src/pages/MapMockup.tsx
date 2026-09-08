@@ -11,7 +11,7 @@ import { promiseTimes, impactOfStop, type StopStep } from './labPortMap';
 // ⏱️ 시간·정거장 이름은 한 곳에서 만든다 (labTime.test.ts 가 지킨다)
 import { circled, hhmm, cumMinutes, arrivalAt } from './labTime';
 import {
-    buildNet, buildRoadNet, roadZoneOf, judgeGoals, activeGoals, nearestDong, orderStopsInsert, cityCenter, quadTesterOf, isLocalPhase, NET_SRC, NET_DST,
+    buildNet, buildRoadNet, roadZoneOf, judgeGoals, activeGoals, nearestDong, orderStopsInsert, pickNextTarget, cityCenter, quadTesterOf, isLocalPhase, NET_SRC, NET_DST,
     GONJIAM_DROP, DONGWON_DROP, BORAM_DROP,
     GONJIAM_CALL_PATH, DONGWON_CALL_PATH, BORAM_CALL_PATH, TRAP_DONGS,
     type NetPoint, type TwoStageVerdict,
@@ -644,6 +644,7 @@ export default function MapMockup() {
     const clockNow = clockBaseRef.current + simMin * 60000;
     /** ㎞/분 — 지금 경로의 실제 속도. 못 구하면 40km/h 로 본다 */
     const paceRef = useRef(40 / 60);
+    // 🔴 주행 버튼에서 이미 켜지만, 다른 길로 주행이 시작될 때를 위한 그물이다 (한 렌더 늦다)
     useEffect(() => { if (driving) setDeparted(true); }, [driving]);
     useEffect(() => { if (confirmed.length === 0) setDeparted(false); }, [confirmed.length]);
     /** 마지막으로 계산한 방문 순서 — 방문 고정(visited)의 원천 */
@@ -1436,12 +1437,20 @@ export default function MapMockup() {
     /** 주행 목표를 지금 자리에서 다시 잡는다 — 경로가 다시 짜였거나 주행을 새로 시작할 때 */
     const retarget = () => {
         if (drivePath.length < 1) { targetIdxRef.current = 0; return; }
-        let bi = 0, bd = Infinity;
-        drivePath.forEach((p2, i) => {
-            const d = Math.hypot((p2.lng - myPosRef.current.lng) * 88.6, (p2.lat - myPosRef.current.lat) * 110.574);
-            if (d < bd) { bd = d; bi = i; }
-        });
-        targetIdxRef.current = Math.min(bi + 1, drivePath.length - 1);
+        /**
+         * 🔴 **주행은 되돌아가지 않는다 — «아직 안 지난 구간»에서만 고른다** (2026-09-09 실측).
+         *
+         * 예전엔 경로 **전체**에서 가장 가까운 점을 골랐다. 수도권에서 정거장이 예닐곱이면
+         * 경로가 **제 몸을 스쳐 지나가서**, 지금 자리에서 제일 가까운 점이 «이미 지나온 구간»
+         * 일 수 있다. 그러면 목표가 뒤로 뛰고 차가 되돌아간다.
+         * `visitedCountRef` 는 `Math.max` 라 잠긴 정거장은 안 풀리는데 **주행 목표만 되돌아가서**,
+         * 실측에서 «1→2→3 을 두 번 왕복»이 나왔다. 모의 시계는 그동안 계속 흘러서
+         * 08:19 에 다섯째를 지나고 11:57 이 되도록 65분짜리 마지막 구간을 못 끝냈다.
+         *
+         * 🔴 `retarget` 은 **`drivePath` 가 바뀔 때마다** 돈다 — 구간 곡선이 비동기로 채워질
+         *    때도 돈다. 그래서 이 제약이 없으면 주행 중에 몇 번이고 뒤로 튄다.
+         */
+        targetIdxRef.current = pickNextTarget(drivePath, myPosRef.current, visitedCountRef.current);
         setTargetSeq(drivePath[targetIdxRef.current]?.seq ?? 1);
     };
     useEffect(() => { retarget(); /* 경로(직선→실도로 포함)가 바뀌면 다음 점을 다시 찾는다 */ }, [drivePath]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -2033,7 +2042,7 @@ export default function MapMockup() {
                     <span className="text-[11px] font-black text-info">🚗</span>
                     {effPath.length > 1 ? (
                         <>
-                            <button type="button" onClick={() => { if (!driving) retarget(); setDriving(!driving); }}
+                            <button type="button" onClick={() => { if (!driving) { setDeparted(true); retarget(); } setDriving(!driving); }}
                                 className={`px-2.5 py-1.5 rounded-[8px] border text-[11.5px] font-black ${driving
                                     ? 'bg-success/15 border-success/55 text-success' : 'border-border-hover bg-background hover:border-success'}`}>
                                 {driving ? '⏸ 멈춤' : '▶️ 주행'}
