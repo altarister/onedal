@@ -884,6 +884,12 @@ export default function MapMockup() {
         };
         const beforeCum = cumOfLegs(prevChain?.legs), afterCum = cumOfLegs(chainNow?.legs);
         const orderNow = (chainNow?.legs ?? []).map(l => l.to);
+        /** 이미 있던 정거장들 — 새 콜이 «이것들을 경유하느라» 밀리는 원인이 된다 */
+        const priorStops = confirmed.flatMap((x, i) => {
+            const n = circled(baseCallCount + i + 1);
+            return [{ label: `${n}상차`, name: `${nearestDong(x.pickup).name} 상차` },
+                    { label: `${n}하차`, name: `${nearestDong(x.drop).name} 하차` }];
+        });
         /** 이번에 끼워 넣은 두 정거장 — 밀린 정거장보다 «앞에» 온 것만 원인으로 적는다 */
         const inserted = [
             { label: `${noNew}상차`, name: `${nearestDong(p).name} 상차` },
@@ -941,9 +947,26 @@ export default function MapMockup() {
                     steps: (() => {
                         // ⏰ ⑮ 가 왔다 — 직행 기준으로 약속을 세운다 (이미 선 약속은 못 박은 것이라 안 덮는다)
                         const pr = promiseTimes({ confirmedAt: t0, chainCum, direct: { approachMin: pickMin, durMin: dropMin } });
+                        /**
+                         * 🧾 **이 콜 자신도 «기존 콜 경유»만큼 밀린 채로 태어난다** (2026-09-09 실측에서 잡힘).
+                         *
+                         * 약속은 직행(⑮) 기준인데 실제로는 이미 잡아 둔 콜들을 들렀다 간다. 그 차이가
+                         * 확정 순간부터 지연으로 잡히는데, `impacts` 는 **나중에 확정된 것**만 쌓으므로
+                         * 아무도 안 적어 **「나머지(경로 이탈·교통)」로 흘러갔다.** 원인이 있는 값이다.
+                         *   경유분 = (병합 경로 누적) − (직행 누적)
+                         * 첫짐은 둘이 같아 0 이라 안 적힌다.
+                         */
+                        const via = (label: string, direct: number | null) => impactOfStop({
+                            stopLabel: label, beforeMin: direct, afterMin: label.endsWith('상차') ? chainCum.pickupMin : chainCum.dropoffMin,
+                            orderNow, inserted: priorStops, causeCallId: id, at: t0,
+                        });
+                        const vPick = via(`${noNew}상차`, pickMin);
+                        const vDrop = via(`${noNew}하차`, pickMin != null && dropMin != null ? pickMin + dropMin : null);
                         return {
-                            pickup: { ...x.steps.pickup, promisedAt: x.steps.pickup.promisedAt ?? pr.pickupAt },
-                            dropoff: { ...x.steps.dropoff, promisedAt: x.steps.dropoff.promisedAt ?? pr.dropoffAt },
+                            pickup: { ...x.steps.pickup, promisedAt: x.steps.pickup.promisedAt ?? pr.pickupAt,
+                                impacts: vPick ? [...x.steps.pickup.impacts, { ...vPick, causeLabel: `${vPick.causeLabel} 경유` }] : x.steps.pickup.impacts },
+                            dropoff: { ...x.steps.dropoff, promisedAt: x.steps.dropoff.promisedAt ?? pr.dropoffAt,
+                                impacts: vDrop ? [...x.steps.dropoff.impacts, { ...vDrop, causeLabel: `${vDrop.causeLabel} 경유` }] : x.steps.dropoff.impacts },
                         };
                     })(),
                 } : x));
@@ -2283,9 +2306,22 @@ export default function MapMockup() {
                                                               */}
                                                             {(() => {
                                                                 if (late == null || (late === 0 && !st.impacts.length)) return null;
-                                                                const mine = stopImpacts.find(r => r.stop === st.label)?.delayMin ?? null;
-                                                                const cand = pickup && drop && mine != null && mine !== 0
-                                                                    ? { name: `이 후보콜(${nearestDong(st.kind === '상차' ? pickup : drop).name})`, min: mine } : null;
+                                                                /**
+                                                                 * 🔴 후보의 원인도 **정거장 이름**으로 적는다 — 확정 뒤 쌓이는 줄과 같은 형식이어야
+                                                                 * «어느 정거장이 앞에 껴서 밀었나»가 보인다 (기사님 2026-09-09).
+                                                                 */
+                                                                const row = stopImpacts.find(r => r.stop === st.label);
+                                                                const candNo = circled(confirmed.length + 1);
+                                                                const candStops = pickup && drop ? [
+                                                                    { label: `${candNo}상차`, name: `${nearestDong(pickup).name} 상차` },
+                                                                    { label: `${candNo}하차`, name: `${nearestDong(drop).name} 하차` },
+                                                                ] : [];
+                                                                const hit = row && candStops.length ? impactOfStop({
+                                                                    stopLabel: st.label, beforeMin: row.beforeMin, afterMin: row.nowMin,
+                                                                    orderNow: (chainNow?.legs ?? []).map(l => l.to),
+                                                                    inserted: candStops, causeCallId: -1, at: 0,
+                                                                }) : null;
+                                                                const cand = hit ? { name: `${hit.causeLabel} 경유 (이 후보콜)`, min: hit.min } : null;
                                                                 const known = st.impacts.reduce((t, x) => t + x.min, 0) + (cand?.min ?? 0);
                                                                 const rest = late - known;
                                                                 const rows = [
