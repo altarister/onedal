@@ -132,7 +132,8 @@ router.post("/route", async (req, res) => {
 
         const legs: Array<Array<{ x: number; y: number }>> = [];
         /** 구간별 실측 — 콜 리스트 카드(거리·시간·톨비)가 읽는다 (기사님 2026-09-08) */
-        const legInfo: Array<{ distKm: number; durMin: number; tollWon: number | null; failed?: boolean }> = [];
+        // 🔴 못 잰 구간은 **null** 이다 — 0 도 직선 근사도 아니다 (규칙 ④). `/chain` 과 같은 규약
+        const legInfo: Array<{ distKm: number | null; durMin: number | null; tollWon: number | null; failed?: boolean }> = [];
         let distance = 0, duration = 0;
         for (let i = 1; i < points.length; i++) {
             const a = points[i - 1], b = points[i];
@@ -152,10 +153,17 @@ router.post("/route", async (req, res) => {
                 });
                 distance += r.distance; duration += r.duration;
             } catch (legErr) {
-                console.warn(`⚠️ [sim/route] 구간 ${i} 실측 실패 — 직선으로 대체:`, String((legErr as Error)?.message ?? legErr));
-                legs.push([a, b]);
-                const straightKm = +Math.hypot((a.x - b.x) * 88.6, (a.y - b.y) * 110.574).toFixed(1);
-                legInfo.push({ distKm: straightKm, durMin: 0, tollWon: null, failed: true });
+                /**
+                 * 🔴 **못 쟀으면 «못 쟀다»고 한다 — 직선 km 를 지어내지 않는다** (규칙 ④ · 2026-09-09).
+                 *
+                 * 예전엔 직선거리를 넣고 `durMin: 0` 을 붙였다. **0분은 «즉시 도착»으로 읽힌다** —
+                 * 그 값이 시급(요금 ÷ 분)에 들어가면 색이 통째로 틀린다. 같은 파일의 `/chain`
+                 * 은 이미 `null` 로 두고 있었으니 **한 서버가 같은 질문에 두 답**을 하던 셈이다.
+                 * 실물도 카카오가 실패하면 `kakaoSoloDurationMin` 을 null 로 남긴다.
+                 */
+                console.warn(`⚠️ [sim/route] 구간 ${i} 실측 실패 — 못 쟀다로 남긴다:`, String((legErr as Error)?.message ?? legErr));
+                legs.push([]);
+                legInfo.push({ distKm: null, durMin: null, tollWon: null, failed: true });
             }
         }
         return res.json({ legs, legInfo, distance, duration });
@@ -179,7 +187,7 @@ router.post("/roads", async (req, res) => {
         const ok = (p: unknown): p is { x: number; y: number } =>
             !!p && Number.isFinite((p as { x: number }).x) && Number.isFinite((p as { y: number }).y);
         if (!ok(origin) || !ok(dest)) return res.status(400).json({ error: "origin/dest 는 {x,y} 여야 합니다" });
-        // ➕ 경유지 사슬 (기사님 2026-09-08 «두 단으로 가기») — 카카오가 «빠름» 축만 알아서
+        // ➕ 경유지를 이어 붙인 경로 (기사님 2026-09-08 «두 단으로 가기») — 카카오가 «빠름» 축만 알아서
         //    남쪽으로 도는 길을 절대 안 준다. 경유점을 지나는 조건을 걸면 그 길이 나온다
         const wps: Array<{ x: number; y: number }> = Array.isArray(waypoints) ? waypoints.filter(ok).slice(0, 5) : [];
         const wpParam = wps.length ? `&waypoints=${wps.map(w => `${w.x},${w.y}`).join("|")}` : "";
@@ -232,7 +240,7 @@ router.post("/roads", async (req, res) => {
 });
 
 /**
- * 🧭 **실험실 전용 — 정거장 사슬 한 번에, 구간별로 그대로** (기사님 확정 2026-09-08).
+ * 🧭 **실험실 전용 — 정거장 전부를 한 번에, 구간별로 그대로** (기사님 확정 2026-09-08).
  *
  * 기사님 순서(②~⑥ · ⑫~⑭) 그대로다:
  *   재배치된 좌표들을 통째로 한 번 보내면 → **카카오가 구간마다 nkm/n분을 나눠서 준다.**
@@ -294,7 +302,7 @@ router.post("/chain", async (req, res) => {
         if (!route || route.result_code !== 0) {
             /**
              * 🔴 **구간 하나의 실패가 전체를 죽이지 않는다** — `/route` 와 같은 규약.
-             * 사슬이 통째로 실패하면 **정거장 쌍마다 따로** 재서 살릴 구간은 살린다.
+             * 전체 경로가 통째로 실패하면 **정거장 쌍마다 따로** 재서 살릴 구간은 살린다.
              * (2026-09-08 리뷰: 도로 밖 좌표 하나에 멀쩡한 구간까지 사라졌다)
              */
             const legs: Array<{ from: string | null; to: string | null; distKm: number | null; durMin: number | null; line: Array<{ x: number; y: number }>; failed: boolean }> = [];
@@ -312,7 +320,7 @@ router.post("/chain", async (req, res) => {
             const okLegs = legs.filter(l => !l.failed);
             return res.json({
                 legs, partial: true,
-                note: `사슬 통째 실패(${route?.result_msg ?? "경로 없음"}) — 구간별로 다시 쟀다`,
+                note: `전체 경로 통째 실패(${route?.result_msg ?? "경로 없음"}) — 구간별로 다시 쟀다`,
                 totalKm: okLegs.length ? +okLegs.reduce((t, l) => t + (l.distKm ?? 0), 0).toFixed(1) : null,
                 totalMin: okLegs.length ? okLegs.reduce((t, l) => t + (l.durMin ?? 0), 0) : null,
                 tollWon: null,

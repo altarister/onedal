@@ -461,7 +461,7 @@ export function judgeTwoStage(
     const dropInNet = zone ? zone.dropIn(drop) : inNet(drop);
     const pickupNearMe = haversineKm(me, pickup) <= pickupRadiusKm;
     /**
-     * ∩ 의 예외 둘 (2026-09-07 다섯 콜 사슬 검산에서 잡힘) — «꼭짓점 자신은 각도를 잴 수 없다»:
+     * ∩ 의 예외 둘 (2026-09-07 다섯 콜 이어 달리기 검산에서 잡힘) — «꼭짓점 자신은 각도를 잴 수 없다»:
      *   · 발밑(1.5km 안) 상차 — 부발에서 부발 상차가 각도 소음으로 잘리면 안 된다.
      *     1.5km 는 아침의 차단 사례(모다 3.8km 뒤)보다 작게 잡은 값이다
      *   · 목적지 원 안 상차 — 도착지 마무리 콜(연라동→단현동)은 방향이 무의미하다

@@ -6,6 +6,8 @@ import {
     type FieldMode, type PhaseKey, type PhaseSettings, type PhaseSettingsMap,
 } from '@onedal/shared';
 import { buildAppFilterOutput, labPhaseOf, TRUCK_CAPACITY_SLOTS } from './labFilterOutput';
+// 🚚 이식 대응표가 이 타입의 원천이다 — 실물 `step_*` 칸과 맞는지는 labPortMap.test.ts 가 지킨다
+import { promiseTimes, type StopStep } from './labPortMap';
 import {
     buildNet, buildRoadNet, roadZoneOf, judgeGoals, nearestDong, orderStopsInsert, cityCenter, quadTesterOf, isLocalPhase, NET_SRC, NET_DST,
     GONJIAM_DROP, DONGWON_DROP, BORAM_DROP,
@@ -71,7 +73,7 @@ const STAGES: Stage[] = [
 ];
 
 type Pt = { lng: number; lat: number };
-/** 사슬 한 구간 — 카카오가 나눠 준 그대로 (기사님 2026-09-08) */
+/** 전체 경로의 한 구간 — 카카오가 나눠 준 그대로 (기사님 2026-09-08) */
 type ChainLeg = {
     from: string | null; to: string | null;
     /** 🔴 못 잰 구간은 null 이다 — 0 이라고 지어내지 않는다 (서버가 구간별로 격리해 준다) */
@@ -260,14 +262,35 @@ export default function MapMockup() {
      */
     const [confirmed, setConfirmed] = useState<Array<{
         id: number; pickup: Pt; drop: Pt;
-        /** 배송(상차→하차) 실측 — 확정 순간 카카오 1회. 못 받으면 직선 km 폴백 (straight=true) */
-        distKm?: number; durMin?: number | null; tollWon?: number | null; straight?: boolean; optionUsed?: string;
+        /**
+         * 배송(상차→하차) 실측 — 확정 순간 카카오 1회.
+         * 🔴 **못 쟀으면 값이 없다** (규칙 ④ · 2026-09-09). 예전엔 직선 km 를 지어내고
+         *    `straight: true` 를 붙였는데, 그 숫자가 시급(요금 ÷ 분)에 들어가면 **색이 틀린다.**
+         *    실물도 카카오가 실패하면 `kakaoSoloDurationMin` 을 null 로 남긴다.
+         */
+        distKm?: number | null; durMin?: number | null; tollWon?: number | null; optionUsed?: string;
+        /**
+         * 🕗 **경로를 언제 쟀나** — 실물 `orders.routeComputedAt` 자리.
+         * 「아직 응답 안 옴」과 「재 봤는데 못 쟀다」를 가르는 유일한 값이다:
+         *   `null` = 아직 · 값 있고 `durMin == null` = 못 쟀다
+         */
+        routeComputedAt?: number | null;
         /**
          * 상차지까지(잡을 때의 내 위치 → 상차) 실측 — 🔴 **올릴 때 이미 잰 것을 그대로 저장한다**
          * (기사님 순서 ⑦ 2026-09-08: *"그 정보로 첫 콜 정보창에 1번 상차시간 2번 배송시간을 저장하고"*).
          * 저장을 안 해서 «그림은 그려져 있는데 기존 경로는 ?» 이 나왔다.
          */
-        approachKm?: number; approachMin?: number | null;
+        approachKm?: number | null; approachMin?: number | null;
+        /**
+         * 🔴 **최초 약속 — 확정한 순간에 못 박고 다시는 안 바꾼다** (기사님 2026-09-08:
+         * *"앞자리는 최초 약속 시간인 거고 뒤 시간은 이 콜을 받았을 때 수정될 시간"*,
+         * *"n분 늦어짐의 값이 같이 늘어나야 해"*).
+         *
+         * «분»이 아니라 **시각**으로 저장한다 — 분으로 두면 시간이 흐를수록 약속이 함께
+         * 밀려서 지연이 영영 0 으로 보인다. 합짐을 둘 셋 얹어도 지연은 이 시각을 기준으로
+         * **쌓인다.**
+         */
+        steps: { pickup: StopStep; dropoff: StopStep };
         /** 잡을 당시의 목적지 — 판 그룹 경로의 열쇠 (기사님 2026-09-08: 다음 판 콜을 미리 잡아 공백을 줄인다) */
         destName: string;
     }>>([]);
@@ -346,6 +369,8 @@ export default function MapMockup() {
     }>>([]);
     /** 🔎 팝업으로 펼쳐 볼 호출 하나 (null 이면 닫힘) */
     const [apiPeek, setApiPeek] = useState<number | null>(null);
+    /** 📋 저장된 콜 전부를 날것 그대로 — 제목을 누르면 열린다 (기사님 2026-09-09) */
+    const [callsPeek, setCallsPeek] = useState(false);
     /** 지금 심사 중인 콜의 호출 꼬리표 — 심사 영역이 «이 콜의 카카오 호출»만 골라 보여준다 */
     const [uploadTag, setUploadTag] = useState<string | null>(null);
     /** 좌표 배열은 «점 N개» 로 접는다 — 값을 보러 여는 창인데 폴리라인이 화면을 덮으면 못 본다 */
@@ -364,7 +389,7 @@ export default function MapMockup() {
                 ? `길 ${d.roads.length}개: ${d.roads.map((x: { option: string; distKm: number; durMin: number }) => `${x.option} ${x.distKm}km/${x.durMin}분`).join(' · ')}`
                 : Array.isArray(d.legs)
                 // 🔴 `/sim/route` 는 legInfo 로, `/sim/chain` 은 legs 안에 값을 담는다 —
-                //    legInfo 만 읽어서 사슬 응답이 «구간 4: » 로 텅 비어 보였다 (2026-09-08)
+                //    legInfo 만 읽어서 전체 경로 응답이 «구간 4: » 로 텅 비어 보였다 (2026-09-08)
                 ? `구간 ${d.legs.length}: ${(d.legInfo ?? d.legs).map((li: { distKm: number; durMin: number; tollWon?: number | null; failed?: boolean }) =>
                     li.failed ? '실패(직선)' : `${li.distKm}km/${li.durMin}분${li.tollWon != null ? `/톨${li.tollWon}` : ''}`).join(' · ')}`
                 : JSON.stringify(d).slice(0, 80);
@@ -381,20 +406,20 @@ export default function MapMockup() {
     /**
      * 🔴 **합짐의 «지금 경로» 미리보기** (기사님 2026-09-08: *"값은 받아 왔는데 경로를 그리지 않는다"*).
      * ⑮ 고유 호출을 «확정 뒤»로 옮기면서 `uploadedLeg`·`approachLeg` 가 **첫짐일 때만** 채워지게 됐고,
-     * 합짐은 ⑬⑭ 사슬을 받아 두고도 **그릴 그릇이 없어** 직선 점선만 남았다.
-     * 사슬은 재배치된 순서 그대로이므로 이걸 그리면 «이 콜을 끼면 이렇게 간다»가 그대로 보인다.
+     * 합짐은 ⑬⑭ 전체 경로를 받아 두고도 **그릴 그릇이 없어** 직선 점선만 남았다.
+     * 전체 경로는 재배치한 순서 그대로이므로 이걸 그리면 «이 콜을 끼면 이렇게 간다»가 그대로 보인다.
      *
      * 🔴 **⑭ 에서 전부 실선으로 그린다** (기사님 2026-09-08: *"14에서 다 그려야 하는데…
      * 점선이면 사용자가 확정을 해야 할지 취소를 해야 할지 몰라"*). ⑭-1 심사와 ⑭-2 확정은
-     * **이 그림을 보고** 하는 것이므로, 사슬이 오면 직선 점선은 걷어낸다.
+     * **이 그림을 보고** 하는 것이므로, 전체 경로가 오면 직선 점선은 걷어낸다.
      * `isNew` = 이 콜 때문에 생긴 구간 — 판정색으로 굵게, 나머지는 파랑.
      */
     const [chainPreview, setChainPreview] = useState<Array<{ line: Pt[]; isNew: boolean }> | null>(null);
     /** 🚚 «상차지까지» 구간 — 현위치→상차지. **상차 약속의 재료**다 (몇 분 뒤 도착하나) */
     const [approachLeg, setApproachLeg] = useState<Pt[] | null>(null);
-    const [approachInfo, setApproachInfo] = useState<{ distKm: number; durMin: number | null; straight?: boolean } | null>(null);
+    const [approachInfo, setApproachInfo] = useState<{ distKm: number | null; durMin: number | null; failed?: boolean } | null>(null);
     /** 올릴 때 받은 그 콜의 실측 — 확정하면 그대로 카드에 쓴다 (같은 구간을 두 번 묻지 않는다) */
-    const uploadedInfoRef = useRef<{ distKm: number; durMin: number | null; tollWon: number | null; straight: boolean } | null>(null);
+    const uploadedInfoRef = useRef<{ distKm: number | null; durMin: number | null; tollWon: number | null; failed: boolean } | null>(null);
     const [callSeenAt, setCallSeenAt] = useState<number | null>(null);
     const [nowTick, setNowTick] = useState(Date.now());
     useEffect(() => {
@@ -476,7 +501,14 @@ export default function MapMockup() {
         !routeMode && (excluded.includes(`R|${region}`) || excluded.includes(`D|${region}|${name}`));
     const [roadSearched, setRoadSearched] = useState(false);
     /** 경로 반경(경유 띠 폭) km — 길 양옆으로 콜을 받는 폭. 기본 5km(볼트 실측) */
-    const [detourKm, setDetourKm] = useState(5);
+    /**
+     * 🔴 **«우회 허용»과 다른 값이다 — 이름을 갈라 둔다** (2026-09-09 스키마 대조에서 잡힘).
+     *   여기(`detourWidthKm`)      길 **양옆으로 콜을 받는 폭** (용어집: 경유 반경)
+     *   실물(`detour_allow_km`)  카카오 **총거리 증가분** 허용치 (앱 평면 이름은 `detourRadiusKm`)
+     * 둘 다 km 라 예전 이름(`detourKm`)으로는 이식할 때 조용히 섞인다. 실물의 경유 반경은
+     * `detour_allow_km` 에서 **서버가 파생**한다 — 그 자리가 이것이다.
+     */
+    const [detourWidthKm, setDetourWidthKm] = useState(5);
     /**
      * 🔍 길 찾기 결과 — **누를 때마다 카카오 실시간, 모든 옵션 그대로** (기사님 2026-09-08
      * «합하지 말고 카카오 모든 옵션을 뿌려라 — 카카오 호출하자는 이야기»).
@@ -517,7 +549,7 @@ export default function MapMockup() {
      * 🧅 레이어 (기사님 2026-09-07 «각각 레이어 처리 — 켜고 끄고») — 그리기 순서의 켜기/끄기.
      * 모든 레이어가 한 투영(줌·원점)을 쓰므로 켜고 꺼도 드래그·줌은 그대로다.
      */
-    const [layers, setLayers] = useState({ base: true, border: true, roads: true, net: true, route: true, call: true });
+    const [layers, setLayers] = useState({ base: true, border: true, roads: true, net: true, route: true, trail: true, call: true });
     /**
      * 🔍 보기 — 자동 맞춤(내용에 맞춰 줌) ↔ 수동(드래그·휠줌). 움직이면 수동이 되고 ⌖ 가 자동으로 되돌린다.
      */
@@ -569,6 +601,21 @@ export default function MapMockup() {
      *    그물은 목적지를 보는 눈이다 — 기사님: *"목적지를 보고 있어야 해"*).
      */
     const [departed, setDeparted] = useState(false);
+    /**
+     * 🕒 **모의 시계 — 약속·예정·통과를 한 시계 위에 올린다** (기사님 2026-09-09:
+     * *"시간이 빨라진 건 지금 모의 주행이라 차 속도가 엄청 빨라서 … 아닐까?"*).
+     *
+     * 실측: «보통»이 0.2km/틱 · 120ms → **약 6000km/h**. 약속·예정은 카카오가 준 **실제 분**인데
+     * 통과만 벽시계로 찍히니 늘 «40분 빨라짐»이 나왔다 — 사실이 아니라 **시계가 둘이라서** 생긴 값이다.
+     * 그래서 주행이 나아간 거리를 그 경로의 속도(㎞/분)로 나눠 **모의 분**을 쌓고, 세 값이 모두
+     * 이 시계를 쓴다. 서 있는 동안은 시계도 선다 — 생각하는 사이에 약속이 밀리지 않는다.
+     */
+    const clockBaseRef = useRef(Date.now());
+    const simMinRef = useRef(0);
+    const [simMin, setSimMin] = useState(0);
+    const clockNow = clockBaseRef.current + simMin * 60000;
+    /** ㎞/분 — 지금 경로의 실제 속도. 못 구하면 40km/h 로 본다 */
+    const paceRef = useRef(40 / 60);
     useEffect(() => { if (driving) setDeparted(true); }, [driving]);
     useEffect(() => { if (confirmed.length === 0) setDeparted(false); }, [confirmed.length]);
     /** 마지막으로 계산한 방문 순서 — 방문 고정(visited)의 원천 */
@@ -586,8 +633,9 @@ export default function MapMockup() {
      * 키는 `①상차` 같은 정거장 이름, 값은 지난 순간의 시각. **지나기 전엔 아예 없다**
      * (0 이나 예상값으로 채우지 않는다 — 규칙 ④).
      */
-    const [passedAt, setPassedAt] = useState<Record<string, number>>({});
-    useEffect(() => { if (confirmed.length === 0) { visitedCountRef.current = 0; setPassedAt({}); } }, [confirmed.length]);
+    /** 🔎 지나는 순간 얼릴 «마지막 예상» — 키는 `콜id-상차/하차` (실물의 `predicted_at` 자리) */
+    const etaRef = useRef<Record<string, number | null>>({});
+    useEffect(() => { if (confirmed.length === 0) visitedCountRef.current = 0; }, [confirmed.length]);
     const effPath = useMemo(() => {
         const allCalls = [
             ...presetCalls.map(c => ({ ...c, destName: dst.name })),
@@ -595,7 +643,7 @@ export default function MapMockup() {
         ];
         if (allCalls.length === 0) {
             prevOrderRef.current = [];
-            return [] as Array<{ x: number; y: number; label: string; color?: string; seq?: number }>;
+            return [] as Array<{ x: number; y: number; label: string; color?: string; seq?: number; call?: number }>;
         }
         // 지나간 정거장은 사실 — 그 순서 그대로 고정 (주행 전엔 자유 재배치)
         const visited = departed ? prevOrderRef.current.slice(0, visitedCountRef.current) : [];
@@ -604,7 +652,7 @@ export default function MapMockup() {
         return [
             { x: NET_SRC.lng, y: NET_SRC.lat, label: '출발 · 초월(집)' },
             ...ordered.map((s, i) => ({
-                x: s.pt.lng, y: s.pt.lat, seq: i + 1,
+                x: s.pt.lng, y: s.pt.lat, seq: i + 1, call: s.call,
                 label: `${circled(s.call)} ${s.kind} · ${nearestDong(s.pt).name}`,
                 color: CALL_COLORS[(s.call - 1) % CALL_COLORS.length],
             })),
@@ -698,13 +746,13 @@ export default function MapMockup() {
     const goalNets = useMemo(() => goals.map(g => ({
         goal: g,
         net: routeMode && g.name === dst.name
-            ? buildRoadNet(road ? road.line : [], g, params.dstDiamKm, detourKm)
+            ? buildRoadNet(road ? road.line : [], g, params.dstDiamKm, detourWidthKm)
             : buildNet(params, anchor, g),
-    })), [goals, routeMode, road, detourKm, params, anchor, dst.name]);
+    })), [goals, routeMode, road, detourWidthKm, params, anchor, dst.name]);
     const net = goalNets[0].net;                     // 대표 하나가 필요한 자리 (자동 맞춤 등)
     const zone = useMemo(
-        () => routeMode ? roadZoneOf(road ? road.line : [], dst, params.dstDiamKm, detourKm) : undefined,
-        [routeMode, road, dst, params.dstDiamKm, detourKm]);
+        () => routeMode ? roadZoneOf(road ? road.line : [], dst, params.dstDiamKm, detourWidthKm) : undefined,
+        [routeMode, road, dst, params.dstDiamKm, detourWidthKm]);
     /** 화면·아웃풋이 읽는 영역 = **살아 있는 마름모들의 합집합** (⑮ 기준 3) */
     const areaNet = useMemo(() => {
         const seen = new Set<string>();
@@ -732,8 +780,8 @@ export default function MapMockup() {
         pickupRadiusKm: ps.pickupRadiusKm, dropoffRadiusKm: ps.dropoffRadiusKm,
         detourAllowKm: ps.detourAllowKm, discountPct: ps.discountPct,
         vehicles, excludedWords, slotsUsed, capacityConfirmed,
-        modeDesc: `🎯 ${goals.map(g => g.name).join(' ∪ ')} · ` + (road ? `길 ±${detourKm}km — ${road.name}` : routeMode ? '노선 (길 미선택 — 목적지 원만)' : localMode ? '관내 (목적지 원)' : `동선 사각형 ${params.srcAngleDeg}°/${params.dstAngleDeg}°`),
-    }), [callTarget, dispatchPhaseSim, driving, dst, areaNet, excluded, ps, vehicles, excludedWords, slotsUsed, capacityConfirmed, road, routeMode, detourKm, localMode, params, goals]);
+        modeDesc: `🎯 ${goals.map(g => g.name).join(' ∪ ')} · ` + (road ? `길 ±${detourWidthKm}km — ${road.name}` : routeMode ? '노선 (길 미선택 — 목적지 원만)' : localMode ? '관내 (목적지 원)' : `동선 사각형 ${params.srcAngleDeg}°/${params.dstAngleDeg}°`),
+    }), [callTarget, dispatchPhaseSim, driving, dst, areaNet, excluded, ps, vehicles, excludedWords, slotsUsed, capacityConfirmed, road, routeMode, detourWidthKm, localMode, params, goals]);
     /**
      * 🔴 **«짐을 실은 목적지» — 원천 하나** (2026-09-08 리뷰: 화면과 판정이 다른 답을 냈다).
      * ∩(상차 조이기)를 거는 기준이다. 판정(judgeGoals)·그리기·판정 칩이 **모두 이걸** 읽는다 —
@@ -762,17 +810,23 @@ export default function MapMockup() {
      * 콜을 **올릴 때 한 번만** 부른다 (심사 = 집은 뒤의 일).
      */
     /**
-     * 🧭 **사슬 실측 — 구간별로 그대로** (기사님 확정 2026-09-08).
+     * 🧭 **전체 경로 실측 — 구간별로 그대로** (기사님 확정 2026-09-08).
      * 카카오가 구간마다 nkm/n분을 나눠 주므로 **합치지 않는다.** 우회는 같은 구간의
      * «전(기존 경로) vs 후(합짐 낀 경로)» 차이로 여기서 낸다:
      *   우회상차 = (합짐 낀 경로의 내위치→첫콜상차) − (기존 경로의 내위치→첫콜상차)
      *   우회하차 = 하차 구간들의 합 차이
      */
-    type ChainResult = { legs: ChainLeg[]; totalKm: number | null; totalMin: number | null; partial?: boolean; note?: string };
+    /**
+     * `measuredAt` — 🔴 **이 경로를 «언제» 쟀나** (실물 `orders.routeComputedAt` 자리).
+     * 구간 분은 **잰 그 순간의 내 위치**에서 나온 값이라, 예정 시각을 낼 때 «지금»에 더하면
+     * 달릴수록 예정이 함께 뒤로 밀린다 — 실측(2026-09-09): 예정 04:42 라 해 놓고 실제로는
+     * 03:53 에 닿았다. 30분 달리면 예정도 30분 밀려 있었던 것이다.
+     */
+    type ChainResult = { legs: ChainLeg[]; totalKm: number | null; totalMin: number | null; partial?: boolean; note?: string; measuredAt?: number };
     const [chainNow, setChainNow] = useState<ChainResult | null>(null);
     const [chainBefore, setChainBefore] = useState<ChainResult | null>(null);
     /**
-     * 🗄️ **⑦ 저장 — 콜을 확정한 순간의 사슬.** 다음 합짐의 «기존 경로»가 바로 이것이다.
+     * 🗄️ **⑦ 저장 — 콜을 확정한 순간의 전체 경로.** 다음 합짐의 «기존 경로»가 바로 이것이다.
      * 다시 재지 않으므로 카카오 호출이 한 번 줄고, 실패해서 «?» 가 되는 일도 없다.
      */
     const lastChainRef = useRef<ChainResult | null>(null);
@@ -782,18 +836,46 @@ export default function MapMockup() {
         const id = ++callSeqRef.current;
         const caughtDest = goalsVerdict?.wonGoal?.name ?? dst.name;   // 통과한 목적지가 곧 판 (⑮ 기준 3)
         const merge = confirmed.length > 0;                            // 합짐인가 — 첫짐과 저장 경로가 다르다
-        const known = uploadedInfoRef.current;   // 🗄️ 첫짐: ⑤⑥ 사슬에서 이미 꺼낸 값
-        const app = approachInfo;                // 🗄️ 첫짐: 사슬의 첫 구간(내 위치→상차)
-        lastChainRef.current = chainNow;         // 🗄️ ⑦ 이 사슬이 다음 합짐의 «기존 경로»가 된다
+        const known = uploadedInfoRef.current;   // 🗄️ 첫짐: ⑤⑥ 전체 경로에서 이미 꺼낸 값
+        const app = approachInfo;                // 🗄️ 첫짐: 전체 경로의 첫 구간(내 위치→상차)
+        lastChainRef.current = chainNow;         // 🗄️ ⑦ 이 전체 경로가 다음 합짐의 «기존 경로»가 된다
+        // ⏰ 최초 약속 — 확정한 이 순간 전체 경로가 말한 도착 시각. 이후 어떤 합짐이 와도 안 바뀐다
+        const t0 = clockNow, noNew = circled(confirmed.length + 1);   // 🕒 모의 시계
+        /** 병합 경로의 그 정거장까지 누적 분 — 🔴 약속에는 안 쓴다 (`promiseTimes` 참조) */
+        const cumMin = (label: string) => {
+            let acc = 0;
+            for (const lg of chainNow?.legs ?? []) {
+                if (lg.durMin == null) return null;
+                acc += lg.durMin;
+                if (lg.to === label) return acc;
+            }
+            return null;
+        };
+        const chainCum = { pickupMin: cumMin(`${noNew}상차`), dropoffMin: cumMin(`${noNew}하차`) };
+        const mkStep = (promisedAt: number | null): StopStep => ({ promisedAt, predictedAt: null, occurredAt: null, source: null });
+        /**
+         * ⏰ 약속은 **직행 기준**이다. 첫짐은 ⑤⑥ 전체 경로가 곧 직행이라 지금 바로 서고,
+         * 합짐은 ⑮ 가 와야 선다 — 그때까지 **비워 둔다** (병합 값으로 대신 채우지 않는다).
+         */
+        const p0 = promiseTimes({ confirmedAt: t0, chainCum,
+            direct: merge ? { approachMin: null, durMin: null }
+                : { approachMin: app?.durMin ?? null, durMin: known?.durMin ?? null } });
+        const steps = { pickup: mkStep(p0.pickupAt), dropoff: mkStep(p0.dropoffAt) };
         setConfirmed(c => [...c, { id, pickup: p, drop: d, optionUsed: routeCombo.label, destName: caughtDest,
-            ...(app && !merge ? { approachKm: app.distKm, approachMin: app.durMin } : {}), ...(merge ? {} : known ?? {}) }]);
+            steps,
+            ...(app && !merge ? { approachKm: app.distKm, approachMin: app.durMin } : {}),
+            ...(merge || !known ? {} : {                     // 🔴 `failed` 는 콜의 칸이 아니다 — 골라 담는다
+                distKm: known.failed ? null : known.distKm,
+                durMin: known.failed ? null : known.durMin,
+                tollWon: known.tollWon, routeComputedAt: Date.now(),
+            }) }]);
         if (!merge && known) return;             // 첫짐은 ⑦ 이 이미 끝났다 — 더 안 묻는다
         /**
          * 🔴 **⑮⑯ 합짐 고유 배송 — 확정한 «뒤»에 한 번** (기사님 순서 개정 2026-09-08:
          * *"14-2 기사가 콜 확정을 클릭 · 15. 합짐의 고유의 배송시간을 알기 위해
          * (내위치 - 합짐상차지좌표 - 합짐하차지좌표)로 카카오 api 를 호출해"*).
          *
-         * 심사(⑭-1)는 사슬만으로 끝난다 — **안 잡을 콜에 카카오를 쓰지 않는다.**
+         * 심사(⑭-1)는 전체 경로만으로 끝난다 — **안 잡을 콜에 카카오를 쓰지 않는다.**
          * 여기서 받은 두 구간이 곧 ⑯ 의 «상차 시간·배송 시간»이다.
          */
         const from = { ...myPos };
@@ -802,16 +884,35 @@ export default function MapMockup() {
             `내 위치 ${from.lng.toFixed(4)},${from.lat.toFixed(4)} → 상차 ${p.lng.toFixed(4)},${p.lat.toFixed(4)} → 하차 ${d.lng.toFixed(4)},${d.lat.toFixed(4)}`, uploadTag ?? undefined)
             .then(res => {
                 const [ai, di] = res.legInfo ?? [];
+                const pickMin = ai && !ai.failed ? ai.durMin : null;
+                const dropMin = di && !di.failed ? di.durMin : null;
                 setConfirmed(c => c.map(x => x.id === id ? {
                     ...x,
-                    ...(ai ? { approachKm: ai.distKm, approachMin: ai.failed ? null : ai.durMin } : {}),
-                    ...(di ? { distKm: di.distKm, durMin: di.failed ? null : di.durMin, tollWon: di.tollWon, straight: !!di.failed } : {}),
+                    routeComputedAt: Date.now(),
+                    ...(ai ? { approachKm: ai.failed ? null : ai.distKm, approachMin: ai.failed ? null : ai.durMin } : {}),
+                    ...(di ? { distKm: di.failed ? null : di.distKm, durMin: di.failed ? null : di.durMin, tollWon: di.tollWon } : {}),
+                    /**
+                     * ⏰ **약속이 아직 비어 있으면 여기서 세운다** (기사님 2026-09-09:
+                     * *"각각 따로 받고 있어 — 상차지까지 시간과 하차지까지 시간. 이 둘을
+                     * 킵할 때 저장해 두는 거 아냐?"*).
+                     * 전체 경로 호출이 통째로 실패해도 이 두 구간은 따로 잰 값이라 살아 있다 —
+                     * 그러면 약속도 서야 한다. 이미 선 약속은 **덮지 않는다**(못 박은 것이다).
+                     */
+                    steps: (() => {
+                        // ⏰ ⑮ 가 왔다 — 직행 기준으로 약속을 세운다 (이미 선 약속은 못 박은 것이라 안 덮는다)
+                        const pr = promiseTimes({ confirmedAt: t0, chainCum, direct: { approachMin: pickMin, durMin: dropMin } });
+                        return {
+                            pickup: { ...x.steps.pickup, promisedAt: x.steps.pickup.promisedAt ?? pr.pickupAt },
+                            dropoff: { ...x.steps.dropoff, promisedAt: x.steps.dropoff.promisedAt ?? pr.dropoffAt },
+                        };
+                    })(),
                 } : x));
             })
             .catch(err => {
-                console.warn('[⑮ 고유 배송] 못 받아 직선 폴백:', err);
-                const straightKm = +Math.hypot((d.lng - p.lng) * 88.6, (d.lat - p.lat) * 110.574).toFixed(1);
-                setConfirmed(c => c.map(x => x.id === id ? { ...x, distKm: straightKm, durMin: null, tollWon: null, straight: true } : x));
+                // 🔴 직선 km 를 지어내지 않는다 — 「재 봤는데 못 쟀다」로 남긴다 (규칙 ④)
+                console.warn('[⑮ 고유 배송] 못 받았다 — 값 없이 남긴다:', err);
+                setConfirmed(c => c.map(x => x.id === id
+                    ? { ...x, distKm: null, durMin: null, tollWon: null, routeComputedAt: Date.now() } : x));
             });
     };
 
@@ -838,7 +939,7 @@ export default function MapMockup() {
          * *"14-1 이 정보들로 심사 진행 · 14-2 기사가 콜 확정을 클릭 · 15. 합짐의 고유의
          * 배송시간을 알기 위해 …"*).
          *
-         * 심사(⑭-1)에 쓰는 값은 **사슬이 다 준다.** 고유 배송은 «잡은 콜의 장부»에 적을 값이라
+         * 심사(⑭-1)에 쓰는 값은 **전체 경로가 다 준다.** 고유 배송은 «잡은 콜의 장부»에 적을 값이라
          * 확정한 뒤에 한 번 부르면 된다 — 안 잡을 콜에 카카오를 쓰지 않는다. `confirmCall` 참조.
          */
 
@@ -870,13 +971,13 @@ export default function MapMockup() {
         const caught = goalsVerdict?.wonGoal?.name ?? dst.name;
         const withCall = [...baseCalls, { pickup, drop, destName: caught }];
         const nowStops = chainOf(withCall)!;
-        callApi('🧭 사슬 실측(재배치 후)', '/sim/chain',
+        callApi('🧭 전체 경로 실측(재배치 후)', '/sim/chain',
             { stops: nowStops, priority: routeCombo.priority, avoid: routeCombo.avoid },
             `정거장 ${nowStops.length}: ${nowStops.map(x => x.label).join(' → ')}`, callTag)
             .then(d => {
                 if (!fresh()) return;
-                setChainNow(d);
-                const newNo = circled(confirmed.length + 1);   // 사슬 라벨은 calls 배열 순번 — 새 콜이 마지막
+                setChainNow({ ...d, measuredAt: clockBaseRef.current + simMinRef.current * 60000 });
+                const newNo = circled(confirmed.length + 1);   // 전체 경로 라벨은 calls 배열 순번 — 새 콜이 마지막
                 setChainPreview((d.legs ?? [])
                     .filter((lg: ChainLeg) => !lg.failed && lg.line.length >= 2)
                     .map((lg: ChainLeg) => ({
@@ -893,11 +994,11 @@ export default function MapMockup() {
                     if (ap && !ap.failed) {
                         const aline: Pt[] = ap.line.map(q => ({ lng: q.x, lat: q.y }));
                         setApproachLeg(aline);
-                        setApproachInfo({ distKm: ap.distKm ?? 0, durMin: ap.durMin, straight: false });
+                        setApproachInfo({ distKm: ap.distKm, durMin: ap.durMin, failed: false });
                     }
                     if (dl && !dl.failed) {
                         setUploadedLeg(dl.line.map(q => ({ lng: q.x, lat: q.y })));
-                        uploadedInfoRef.current = { distKm: dl.distKm ?? 0, durMin: dl.durMin, tollWon: d.tollWon ?? null, straight: false };
+                        uploadedInfoRef.current = { distKm: dl.distKm, durMin: dl.durMin, tollWon: d.tollWon ?? null, failed: false };
                     }
                 }
                 // 🗄️ 확정되면 이 구간들이 경로에 그대로 들어간다 — 캐시에 넣어 다시 안 묻는다
@@ -908,27 +1009,27 @@ export default function MapMockup() {
                         { line: lg.line.map(p => ({ lng: p.x, lat: p.y })), failed: false });
                 });
             })
-            .catch(err => { console.warn('[사슬] 못 받음:', err); if (fresh()) setChainNow({ legs: [], totalKm: null, totalMin: null, partial: true, note: `못 쟀다: ${String(err)}` }); });
+            .catch(err => { console.warn('[전체 경로] 못 받음:', err); if (fresh()) setChainNow({ legs: [], totalKm: null, totalMin: null, partial: true, note: `못 쟀다: ${String(err)}` }); });
         /**
-         * 🔴 **기존 경로는 다시 재지 않는다 — ⑦ 에 저장해 둔 사슬이 곧 «기존»이다**
+         * 🔴 **기존 경로는 다시 재지 않는다 — ⑦ 에 저장해 둔 전체 경로가 곧 «기존»이다**
          * (기사님 2026-09-08: *"저장하라고 했잖아 … 그림까지 그려져 있는데 모른다는 게 말이 되니"*).
          *
          * 재배치는 «가장 싸게 끼워 넣기»라 **기존 콜들의 상대 순서를 안 바꾼다** — 그래서
-         * 직전 사슬이 그대로 비교 기준이 된다. 다시 부르면 카카오 1회가 더 나가고,
+         * 직전 전체 경로가 그대로 비교 기준이 된다. 다시 부르면 카카오 1회가 더 나가고,
          * 그 호출이 실패하면 «?» 만 남았다 (그 사고를 이걸로 없앤다).
          */
         setChainBefore(confirmed.length === 0
             ? { legs: [], totalKm: null, totalMin: null, note: '첫짐 — 기존 경로가 없다' }
             : lastChainRef.current
-                ?? { legs: [], totalKm: null, totalMin: null, note: '직전 사슬을 아직 못 쟀다' });
+                ?? { legs: [], totalKm: null, totalMin: null, note: '직전 전체 경로를 아직 못 쟀다' });
     };
     /**
      * 📌 **기존 콜이 얼마나 밀리나** (기사님 2026-09-08: *"이 합짐이 기존 콜에 얼마나 영향이
      * 있는지 알아야 해 — 첫짐의 상차가 얼마나 늦어지는지, 첫짐이 하차지에 시간 안에 도착할 수
      * 있는지"*).
      *
-     * 🔴 구간을 **합치지 않고** 누적한다: 사슬의 leg 를 순서대로 더하면 정거장마다 도착까지의
-     * 분이 나온다. 같은 정거장을 두 사슬(기존 · 합짐 낀)에서 찾아 빼면 **그 정거장이 몇 분
+     * 🔴 구간을 **합치지 않고** 누적한다: 전체 경로의 구간 를 순서대로 더하면 정거장마다 도착까지의
+     * 분이 나온다. 같은 정거장을 두 경로(기존 · 합짐 낀)에서 찾아 빼면 **그 정거장이 몇 분
      * 밀리는지**가 나온다 — 총합 하나로는 «어느 약속이 깨지나»를 답할 수 없다.
      */
     /**
@@ -937,7 +1038,7 @@ export default function MapMockup() {
      * 로직은 하나다: **첫콜 하차까지의 누적을, ⑦ 에 저장한 누적과 견준다.**
      * ```
      * 저장 도착 = (저장 상차지까지) + (저장 배송)
-     * 지금 도착 = Σ 지금 사슬의  내 위치 → … → 첫콜하차   (사이에 낀 것이 몇이든 다 더한다)
+     * 지금 도착 = Σ 지금 전체 경로의  내 위치 → … → 첫콜하차   (사이에 낀 것이 몇이든 다 더한다)
      * 우회하차 = 지금 도착 − 저장 도착
      * ```
      * 🔴 **구간 하나만 보면 안 된다.** 기사님 손식은 `(합짐상차→첫콜하차) − (저장 배송)`
@@ -953,8 +1054,8 @@ export default function MapMockup() {
     const detourRows = useMemo(() => {
         if (!chainNow || confirmed.length === 0) return [];
         const first = confirmed[0], firstNo = circled(baseCallCount + 1);
-        const rows: Array<{ name: string; min: number; how: string; budget?: { limit: number; used: number } }> = [];
-        /** 지금 사슬에서 그 정거장까지의 누적 분 — 못 잰 구간이 하나라도 있으면 null */
+        const rows: Array<{ name: string; min: number; how: string; budget?: { limitAt: number; usedAt: number } }> = [];
+        /** 지금 전체 경로에서 그 정거장까지의 누적 분 — 못 잰 구간이 하나라도 있으면 null */
         const cumTo = (label: string) => {
             let acc = 0;
             for (const lg of chainNow.legs) {
@@ -964,18 +1065,144 @@ export default function MapMockup() {
             }
             return null;
         };
-        const nowPick = cumTo(`${firstNo}상차`);
-        if (first.approachMin != null && nowPick != null)
-            rows.push({ name: '우회상차', min: nowPick - first.approachMin,
-                how: `지금 ${nowPick}분 − 저장 ${first.approachMin}분` });
-        const nowDrop = cumTo(`${firstNo}하차`);
-        const savedDrop = first.approachMin != null && first.durMin != null ? first.approachMin + first.durMin : null;
-        if (savedDrop != null && nowDrop != null && first.durMin != null)
-            rows.push({ name: '우회하차', min: nowDrop - savedDrop,
-                how: `지금 ${nowDrop}분 − 저장 ${savedDrop}분(${first.approachMin}+${first.durMin})`,
-                budget: { limit: Math.round(first.durMin * 1.5) + 20, used: nowDrop } });
+        /**
+         * 🔴 **분끼리 빼지 않는다 — 시각끼리 뺀다** (2026-09-09에 잡은 버그).
+         *
+         * 예전엔 `지금 누적분 − 저장 누적분` 이었다. 그런데 «지금 누적»은 **지금 내 위치**에서
+         * 재고 «저장 누적»은 **확정하던 그 자리**에서 잰 값이다 — 기준점이 다른 두 분을 빼면
+         * **그 사이에 흐른 시간이 통째로 빠진다.** 실측: 콜 리스트는 +70분이라는데 결론줄은
+         * +40분이라고 했다(주행 30분이 사라진 것). 약속은 **절대 시각**으로 못 박아 뒀으니
+         * 지금 도착 예정도 절대 시각으로 만들어 그것끼리 견준다.
+         */
+        const base = chainNow.measuredAt ?? clockNow;   // 🕒 잰 시각 기준 (위와 같은 규약)
+        const etaOf = (label: string) => { const m = cumTo(label); return m == null ? null : base + m * 60000; };
+        const lateMin = (etaAt: number | null, promisedAt: number | null | undefined) =>
+            etaAt != null && promisedAt != null ? Math.round((etaAt - promisedAt) / 60000) : null;
+        const hhmm = (t: number) => new Date(t).toTimeString().slice(0, 5);
+
+        const pickEta = etaOf(`${firstNo}상차`), pickLate = lateMin(pickEta, first.steps.pickup.promisedAt);
+        if (pickLate != null)
+            rows.push({ name: '우회상차', min: pickLate,
+                how: `예정 ${hhmm(pickEta!)} − 약속 ${hhmm(first.steps.pickup.promisedAt!)}` });
+
+        const dropEta = etaOf(`${firstNo}하차`), dropLate = lateMin(dropEta, first.steps.dropoff.promisedAt);
+        if (dropLate != null && first.approachMin != null && first.durMin != null) {
+            // ⏳ 하차 시한도 절대 시각으로 — 확정 순간부터 «배송×1.5 + 상차 약속 20분» 까지
+            const confirmedAt = first.steps.dropoff.promisedAt! - (first.approachMin + first.durMin) * 60000;
+            const deadlineAt = confirmedAt + (Math.round(first.durMin * 1.5) + 20) * 60000;
+            rows.push({ name: '우회하차', min: dropLate,
+                how: `예정 ${hhmm(dropEta!)} − 약속 ${hhmm(first.steps.dropoff.promisedAt!)}`,
+                budget: { limitAt: deadlineAt, usedAt: dropEta! } });
+        }
         return rows;
-    }, [chainNow, confirmed, baseCallCount]);
+    }, [chainNow, confirmed, baseCallCount, clockNow]);
+    /**
+     * 📦 **콜 하나가 한 덩어리** (기사님 2026-09-08: *"좌우로 표현하지 말고 첫콜 합짐1 합짐2
+     * 이렇게 순차적으로 덩어리감 있게"*).
+     *
+     * 기존↔지금을 좌우로 놓으면 «어느 콜이 어떻게 되는가»를 눈이 스스로 짜맞춰야 했다.
+     * 콜마다 자기 상차·하차의 «기존 도착 → 지금 도착»을 들고 있게 바꾼다 — 마지막 덩어리가
+     * 지금 심사하는 후보콜이다.
+     */
+    // 🕒 모의 시계의 속도 — 지금 경로가 말하는 ㎞/분 (카카오 실측). 없으면 40km/h 를 쓴다
+    useEffect(() => {
+        const c = chainNow ?? lastChainRef.current;
+        if (c?.totalKm != null && c.totalMin) paceRef.current = c.totalKm / c.totalMin;
+    }, [chainNow]);
+    const callImpacts = useMemo(() => {
+        const cand = !!(pickup && drop);                         // 후보콜은 전체 경로에서 마지막 번호
+        const last = confirmed.length + (cand ? 1 : 0);
+        /**
+         * ⏱️ **예정 시각은 «계산»한다** (기사님 2026-09-09: *"아직 안 지났으면 언제 지날지
+         * 예정 시간을 계산해서 넣는 것이 맞아"*).
+         *
+         * 얼어붙은 약속을 그대로 베끼지 않는다 — 약속은 «그때 정한 것»이고 예정은 «지금 가면
+         * 언제 닿나»다. 남은 정거장을 방문 순서대로 걸으며 구간 분을 더한다:
+         *   구간 분 = 방금 잰 전체 경로에 있으면 그 값 · 없으면 ⑦ 에 저장해 둔 그 콜의 구간
+         * 하나라도 모르면 **거기서 멈춘다** (그 뒤는 빈칸 — 지어내지 않는다).
+         */
+        const legMin = new Map<string, number | null>();
+        for (let n = 1; n <= last; n++) {
+            const no = circled(n), c = n <= confirmed.length ? confirmed[n - 1] : null;
+            legMin.set(`${no}상차`, c ? c.approachMin ?? null : approachInfo?.durMin ?? null);
+            legMin.set(`${no}하차`, c ? c.durMin ?? null : uploadedInfoRef.current?.durMin ?? null);
+        }
+        for (const lg of chainNow?.legs ?? []) if (lg.to && lg.durMin != null) legMin.set(lg.to, lg.durMin);
+        const visitedNow = departed ? prevOrderRef.current.slice(0, visitedCountRef.current) : [];
+        const chainOrder = (chainNow?.legs ?? []).map(l => l.to).filter((x): x is string => !!x);
+        const order = chainOrder.length ? chainOrder
+            : orderStopsInsert(myPos, [
+                ...confirmed.map(c => ({ pickup: c.pickup, drop: c.drop, destName: c.destName })),
+                ...(cand ? [{ pickup: pickup!, drop: drop!, destName: goalsVerdict?.wonGoal?.name ?? dst.name }] : []),
+            ], visitedNow)
+                .filter(st => !visitedNow.some(v => v.call === st.call && v.kind === st.kind))
+                .map(st => `${circled(st.call)}${st.kind}`);
+        /**
+         * 🔢 **실제 방문 순번** — 지나온 정거장 다음에 남은 순서가 이어진다.
+         *
+         * 🔴 **겹치는 것을 빼고 잇는다.** 경로(`chainNow`)는 **주행 전에** 잰 것이라 지금
+         * 지나온 정거장까지 그대로 품고 있다. 그냥 이어 붙이면 그 수만큼 번호가 밀린다 —
+         * 실측(2026-09-09): 방문 순서 패널은 «4 관산동 · 5 지영동», 콜 리스트 배지는
+         * «⑦관산동 · ⑧지영동». 지나온 셋을 두 번 세서 정확히 +3 이었다.
+         */
+        const visitedLabels = visitedNow.map(v => `${circled(v.call)}${v.kind}`);
+        const fullOrder = [...visitedLabels, ...order.filter(l => !visitedLabels.includes(l))];
+        // 🕒 기준은 «지금»이 아니라 **이 경로를 잰 시각**이다 — 안 그러면 달릴수록 예정이 뒤로 도망간다
+        const t = chainNow?.measuredAt ?? clockNow;
+        const now = new Map<string, number>();
+        let acc = 0;
+        for (const label of order) {
+            const m = legMin.get(label);
+            if (m == null) break;                     // 모르는 구간부터는 예정을 못 낸다
+            acc += m; now.set(label, t + acc * 60000);
+        }
+        return Array.from({ length: last }, (_, i) => {
+            const n = i + 1, no = circled(n), isNew = cand && n === last;
+            const c = isNew ? null : confirmed[n - 1];
+            const from = isNew ? pickup : c!.pickup, to = isNew ? drop : c!.drop;
+            return {
+                no, disp: circled(baseCallCount + n), isNew, id: c?.id ?? null,
+                where: from && to ? `${nearestDong(from).name} → ${nearestDong(to).name}` : '',
+                stops: (['상차', '하차'] as const).map(kind => {
+                    const label = `${no}${kind}`;
+                    /**
+                     * 🔴 **줄은 값이 없어도 남긴다** (기사님 2026-09-08: *"값이 없다고 그 줄이
+                     * 없어지면 비교가 어려우니 모든 줄을 다 적어줘"*). 지나온 정거장은 전체 경로에
+                     * 없으므로 ⑦ 에 저장한 구간을 대신 적고, 없으면 `--` 로 둔다.
+                     */
+                    const fromChain = chainNow?.legs.find(l => l.to === label) ?? null;
+                    /**
+                     * 🔴 **덩어리는 «그 콜의 것»만 보인다** (기사님 2026-09-09: *"이 영역은 첫짐의
+                     * 영역이니까 첫짐이 가진 저장된 정보만 보여야 하는데"*).
+                     *
+                     * 지금 경로에서 그 정거장으로 **들어오는** 구간을 적었더니 첫짐 칸에
+                     * `②하차 → ①하차 9.4km · 21분` 같은 남의 구간이 들어왔다 — «중대동에서
+                     * 탄현동까지 21분» 으로 읽혀 거짓말이 된다. 저장한 자기 두 구간을 먼저 쓴다.
+                     */
+                    const saved = kind === '상차'
+                        ? (c?.approachKm != null ? { from: '내 위치', to: label, distKm: c.approachKm, durMin: c.approachMin ?? null } : null)
+                        : (c?.distKm != null ? { from: `${no}상차`, to: label, distKm: c.distKm, durMin: c.durMin ?? null } : null);
+                    const step = c ? (kind === '상차' ? c.steps.pickup : c.steps.dropoff) : null;
+                    const promised = step?.promisedAt ?? null;
+                    return {
+                        kind, label,
+                        leg: saved ?? fromChain, fromSaved: !!saved,
+                        seq: fullOrder.indexOf(label) + 1 || null,   // 🔢 실제 방문 순번
+                        promisedAt: promised,
+                        /**
+                         * 🔴 **지나간 정거장에 «예정»은 없다** (기사님 2026-09-09: *"이 지역을
+                         * 지나갔으면 … 지나간 시간을 적어 주는 것이 맞을 것 같아"*).
+                         * 예정은 «앞으로 언제 닿나»의 답이라, 이미 닿은 곳에서는 **빈칸이 맞다** —
+                         * 통과 시각으로 메우면 «예측»과 «사실»이 한 칸에서 섞인다.
+                         * 아직 안 지났으면 위에서 **걸으며 계산한** 예정을 쓴다.
+                         */
+                        etaAt: step?.occurredAt != null ? null : now.get(label) ?? null,
+                        passedAt: step?.occurredAt ?? null,
+                    };
+                }),
+            };
+        });
+    }, [chainNow, confirmed, baseCallCount, pickup, drop, departed, myPos, approachInfo, goalsVerdict, dst.name, clockNow]);
     const stopImpacts = useMemo(() => {
         if (!chainNow || !chainBefore) return [];
         const cumOf = (legs: ChainLeg[]) => {
@@ -1001,41 +1228,36 @@ export default function MapMockup() {
     /**
      * ⏱️ **확정 경로의 정거장 시각** (기사님 2026-09-08: 콜 리스트에 «(이동시간 − 늦어진 시간, 도착시각)»).
      * 재료는 이미 있다 — `drawLegs`(구간별 실측 곡선)와 같은 순서인 `effPath`.
-     * 구간 시간은 캐시된 사슬 값에서 오고, 지연은 «이 콜을 잡기 전 사슬»과의 차이다.
+     * 구간 시간은 캐시된 전체 경로 값에서 오고, 지연은 «이 콜을 잡기 전 경로»과의 차이다.
      * 🔴 못 잰 구간이 있으면 그 뒤는 **null** 이다 — 시각을 지어내지 않는다 (규칙 ④).
      */
+    /**
+     * ⏱️ **콜 리스트가 쓰는 정거장 시계 — `callImpacts` 에서 파생한다** (규칙 ③: 원천 하나).
+     * 두 벌로 세면 같은 정거장이 두 화면에서 다른 시각을 말한다.
+     * 다섯 값: 이동분 · 밀리는 분 · **약속**(못 박힌 것) · **예정**(지금 전체 경로) · **통과**(GPS).
+     */
+    // 🔎 지나는 순간 얼릴 «마지막 예상» 을 늘 최신으로 들고 있는다 (실물 `predicted_at` 자리)
+    useEffect(() => {
+        const m: Record<string, number | null> = {};
+        for (const ci of callImpacts) if (ci.id != null) for (const st of ci.stops) m[`${ci.id}-${st.kind}`] = st.etaAt;
+        etaRef.current = m;
+    }, [callImpacts]);
     const stopClock = useMemo(() => {
-        const out = new Map<string, { legMin: number | null; cumMin: number | null; delayMin: number | null }>();
-        /**
-         * 🔴 **지나온 정거장은 사슬에 없다 — 그래도 «모른다»고 하지 않는다** (기사님 2026-09-08:
-         * *"첫 번째 콜에 걸리는 시간·도착 시간이 안 들어갔어. 넌 분명히 그 값을 알고 있는데"*).
-         * ⑦ 에 저장한 상차지까지·배송을 그대로 깐다. 사슬에 있는 정거장은 아래에서 덮어쓴다.
-         */
-        confirmed.forEach((c, i) => {
-            const no = circled(baseCallCount + i + 1);
-            out.set(`${no}상차`, { legMin: c.approachMin ?? null, cumMin: null, delayMin: null });
-            out.set(`${no}하차`, { legMin: c.durMin ?? null, cumMin: null, delayMin: null });
-        });
-        if (!chainNow) return out;
-        const beforeCum = new Map<string, number>();
-        if (chainBefore) {
-            let acc = 0;
-            for (const lg of chainBefore.legs) {
-                if (lg.durMin == null) break;
-                acc += lg.durMin;
-                if (lg.to) beforeCum.set(lg.to, acc);
-            }
-        }
-        let cum: number | null = 0;
-        for (const lg of chainNow.legs) {
-            if (lg.durMin == null || cum == null) { cum = null; if (lg.to) out.set(lg.to, { legMin: null, cumMin: null, delayMin: null }); continue; }
-            cum += lg.durMin;
-            if (!lg.to) continue;
-            const was = beforeCum.get(lg.to);
-            out.set(lg.to, { legMin: lg.durMin, cumMin: cum, delayMin: was != null ? cum - was : null });
+        const out = new Map<string, {
+            seq: number | null; legKm: number | null; legMin: number | null; delayMin: number | null;
+            promisedAt: number | null; etaAt: number | null; passedAt: number | null;
+        }>();
+        for (const ci of callImpacts) for (const st of ci.stops) {
+            const real = st.passedAt ?? st.etaAt;
+            out.set(`${ci.disp}${st.kind}`, {
+                seq: st.seq, legKm: st.leg?.distKm ?? null,
+                legMin: st.leg?.durMin ?? null,
+                delayMin: real != null && st.promisedAt != null ? Math.round((real - st.promisedAt) / 60000) : null,
+                promisedAt: st.promisedAt, etaAt: st.etaAt, passedAt: st.passedAt,
+            });
         }
         return out;
-    }, [chainNow, chainBefore, confirmed, baseCallCount]);
+    }, [callImpacts]);
 
     /** ⛔ 제외지역에 걸린 콜 — 필터에 그 동이 안 실리므로 실전에선 애초에 안 올라온다 */
     const exclusionHit = useMemo(() => {
@@ -1081,6 +1303,8 @@ export default function MapMockup() {
         if (drivePath.length < 1) { setDriving(false); return; }
         const STEP_KM = SPEEDS[speedIdx].kmPerTick;
         const id = setInterval(() => {
+            simMinRef.current += STEP_KM / paceRef.current;   // 🕒 나아간 거리만큼 «모의 분»을 쌓는다
+            setSimMin(simMinRef.current);
             setMyPos(pos => {
                 let ti = targetIdxRef.current;
                 let remain: number = STEP_KM;
@@ -1096,13 +1320,21 @@ export default function MapMockup() {
                         //     방문 순서가 양벌→주교→신장→의정부 로 굳었다. 실제 최적은 양벌→신장→의정부→주교)
                         const passed = t.seq - 1;
                         if (passed > visitedCountRef.current) {
-                            const now = Date.now();
+                            const now = clockBaseRef.current + simMinRef.current * 60000;   // 🕒 모의 시계로 찍는다
                             const just = prevOrderRef.current.slice(visitedCountRef.current, passed);
-                            if (just.length) setPassedAt(m => {
-                                const next = { ...m };
-                                for (const v of just) next[`${circled(v.call)}${v.kind}`] = now;   // ⏱️ 지난 순간을 도장 찍는다
-                                return next;
-                            });
+                            // ⏱️ 실측(`occurredAt`)과 **그때의 마지막 예상**(`predictedAt`)을 같은 행에 남긴다
+                            if (just.length) setConfirmed(cs => cs.map((c, idx) => {
+                                const hits = just.filter(v => v.call - 1 - baseCallCount === idx);
+                                if (!hits.length) return c;
+                                const st = { ...c.steps };
+                                for (const v of hits) {
+                                    const k = v.kind === '상차' ? 'pickup' : 'dropoff';
+                                    if (st[k].occurredAt != null) continue;      // 한 번 지난 곳은 다시 안 덮는다
+                                    st[k] = { ...st[k], occurredAt: now, source: '자동(GPS)',
+                                        predictedAt: st[k].predictedAt ?? etaRef.current[`${c.id}-${v.kind}`] ?? null };
+                                }
+                                return { ...c, steps: st };
+                            }));
                             visitedCountRef.current = passed;
                         } }
                     else { cur = { lng: cur.lng + dx / d * remain / 88.6, lat: cur.lat + dy / d * remain / 110.574 }; remain = 0; }
@@ -1287,7 +1519,7 @@ export default function MapMockup() {
                         ctx.beginPath();
                         r.line.forEach(([lng, lat], i) => { const [px, py] = S(lng, lat); i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py); });
                         ctx.strokeStyle = 'rgba(29,78,216,.25)';
-                        ctx.lineWidth = Math.max(3, detourKm * 2 * pxPerKm);
+                        ctx.lineWidth = Math.max(3, detourWidthKm * 2 * pxPerKm);
                         ctx.stroke();
                     }
                     if (routeStarted) return;                     // 콜을 쥐면 중심선도 지운다
@@ -1327,12 +1559,18 @@ export default function MapMockup() {
                 ctx.fillStyle = '#dc2626'; ctx.fillText(`⛔ ${t.dong}`, px, py - 18);
             }
             // 🐾 지나온 길 — 어두운 회색 실선, 경로 아래에 깔린다. 새 경로가 와도 남는다
-            if (layers.route) for (const seg of trailRef.current) {
-                if (seg.length < 2) continue;
-                ctx.beginPath();
-                seg.forEach((p, i) => { const [px, py] = S(p.lng, p.lat); i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py); });
-                ctx.strokeStyle = 'rgba(55,65,81,.85)'; ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke();
-            }
+            /**
+             * 🎨 **구간 색 = 그 구간을 «만든» 콜** (기사님 확정 2026-09-09: *"원인색, 그러니까 콜 색"*).
+             *
+             * 예전엔 «도착하는 정거장»의 색이었다. 그러면 `②상차 → ①하차` 가 **①색**으로 칠해진다 —
+             * 도착지가 ①이니까. 그런데 그 구간을 만든 건 **②번 합짐**이다. 합짐이 어디를 늘렸는지가
+             * 색에서 사라졌다. 두 정거장 중 **나중에 잡은 콜**이 그 짝을 만든 콜이다.
+             */
+            const legColor = (i: number) => {
+                const from = effPath[i]?.call, to = effPath[i + 1]?.call;
+                const call = Math.max(from ?? to ?? 0, to ?? 0);
+                return call > 0 ? CALL_COLORS[(call - 1) % CALL_COLORS.length] : (effPath[i + 1]?.color ?? '#e11d48');
+            };
             // 잡은 콜 경로 — 구간 색 + 이름표 (레이어: 내 경로). 실도로 곡선이 오면 그걸로 잇는다
             if (layers.route) {
                 if (drawLegs) {
@@ -1340,7 +1578,7 @@ export default function MapMockup() {
                         ctx.beginPath();
                         const legPts = [{ lng: effPath[i].x, lat: effPath[i].y }, ...leg, { lng: effPath[i + 1].x, lat: effPath[i + 1].y }];
                         legPts.forEach((p, j) => { const [px, py] = S(p.lng, p.lat); j === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py); });
-                        ctx.strokeStyle = effPath[i + 1].color ?? '#e11d48'; ctx.lineWidth = 3.5; ctx.lineJoin = 'round';
+                        ctx.strokeStyle = legColor(i); ctx.lineWidth = 5; ctx.lineJoin = 'round';
                         if (legFailed[i]) ctx.setLineDash([6, 5]);      // 도로 탐색 불가 — 직선 구간은 점선
                         ctx.stroke(); ctx.setLineDash([]);
                     });
@@ -1348,9 +1586,24 @@ export default function MapMockup() {
                     for (let i = 1; i < effPath.length; i++) {
                         const a = S(effPath[i - 1].x, effPath[i - 1].y), b = S(effPath[i].x, effPath[i].y);
                         ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]);
-                        ctx.strokeStyle = effPath[i].color ?? '#e11d48'; ctx.lineWidth = 3.5; ctx.stroke();
+                        ctx.strokeStyle = legColor(i - 1); ctx.lineWidth = 5; ctx.stroke();
                     }
                 }
+            }
+            /**
+             * 🚗 **지나온 궤적은 경로 «위에», 더 가늘게** (기사님 확정 2026-09-09).
+             *
+             * 순서: 계획한 경로를 깔고 **실제 달린 길을 그 위에** 얹는다 — 나중에 일어난 일이 위다.
+             * 토글도 갈랐다(«경로» ↔ «동선») — 계획만, 실제만, 둘 다를 따로 볼 수 있어야
+             * 오차가 눈에 든다. 굵기: 경로 5px · 동선 2.5px. 🔴 **덮으면 안 된다** — 기사님이 이 두 줄을 겹쳐 두는
+             * 이유가 *"경로와 지나간 길의 오차를 확인하기 위해"* 라서, 궤적이 경로를 가리면
+             * 그 목적이 사라진다. 겹치면 색 줄 한가운데 검은 실선, 어긋나면 두 줄이 갈라져 보인다.
+             */
+            if (layers.trail) for (const seg of trailRef.current) {
+                if (seg.length < 2) continue;
+                ctx.beginPath();
+                seg.forEach((p, i) => { const [px, py] = S(p.lng, p.lat); i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py); });
+                ctx.strokeStyle = 'rgba(17,24,39,.9)'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke();
             }
             const chip = (px: number, py: number, text: string, tone: string) => {
                 ctx.font = '800 11px system-ui';
@@ -1390,7 +1643,7 @@ export default function MapMockup() {
                 //    (기사님 2026-09-08 «좀 더 시뮬레이션처럼»). 30초가 지나면 조용한 점선으로
                 const urgent = (safeCancelLeft ?? 0) > 0;
                 const blink = urgent ? 0.45 + 0.55 * Math.abs(Math.sin(nowTick / 260)) : 1;
-                // 🧭 «이 콜을 끼면 이렇게 간다» — 재배치된 사슬 전체를 먼저 깐다 (합짐의 유일한 그림)
+                // 🧭 «이 콜을 끼면 이렇게 간다» — 재배치한 전체 경로를 먼저 깐다 (합짐의 유일한 그림)
                 if (chainPreview) for (const leg of chainPreview) {
                     if (leg.line.length < 2) continue;
                     ctx.beginPath();
@@ -1402,7 +1655,7 @@ export default function MapMockup() {
                     ctx.setLineDash([]); ctx.lineJoin = 'round'; ctx.stroke();
                     ctx.globalAlpha = 1;
                 }
-                // 🚚 «상차지까지» — 내 위치 → 상차지. 사슬이 이미 그 구간을 품고 있으면 겹쳐 긋지 않는다
+                // 🚚 «상차지까지» — 내 위치 → 상차지. 전체 경로가 이미 그 구간을 품고 있으면 겹쳐 긋지 않는다
                 //    (첫짐·합짐이 **같은 로직**이어야 한다 — 기사님 2026-09-08)
                 if (!chainPreview?.length && approachLeg && approachLeg.length >= 2) {
                     ctx.beginPath();
@@ -1411,7 +1664,7 @@ export default function MapMockup() {
                 }
                 const a = S(pickup.lng, pickup.lat), b = S(drop.lng, drop.lat);
                 ctx.globalAlpha = blink;
-                // 🔴 사슬이 오면 그것이 곧 «지금 경로»다 — 직선 점선을 위에 또 긋지 않는다.
+                // 🔴 전체 경로가 오면 그것이 곧 «지금 경로»다 — 직선 점선을 위에 또 긋지 않는다.
                 //    점선은 «아직 안 재 봤다»는 표시일 뿐이라 확정을 판단할 그림이 못 된다
                 if (!chainPreview?.length) {
                     ctx.beginPath();
@@ -1442,7 +1695,7 @@ export default function MapMockup() {
         };
         drawRef.current = draw;
         draw();
-    }, [net, areaNet, goalNets, loadedGoalNames, legFailed, approachLeg, chainPreview, safeCancelLeft, nowTick, finalPass, uploadedLeg, effPath, anchor, pickup, drop, verdict, size, params, dst, routeStarted, road, roadIdx, dstIdx, view, layers, routeMode, roadSearched, destRoads, detourKm, knobs, myPos, drawLegs, excluded]);
+    }, [net, areaNet, goalNets, loadedGoalNames, legFailed, approachLeg, chainPreview, safeCancelLeft, nowTick, finalPass, uploadedLeg, effPath, anchor, pickup, drop, verdict, size, params, dst, routeStarted, road, roadIdx, dstIdx, view, layers, routeMode, roadSearched, destRoads, detourWidthKm, knobs, myPos, drawLegs, excluded]);
 
     /** 클릭 한 점을 콜/내위치로 배치 */
     const placeAt = (pt: Pt) => {
@@ -1460,6 +1713,36 @@ export default function MapMockup() {
 
     return (
         <div className="h-screen bg-background text-text-primary flex flex-col overflow-hidden">
+            {/* 📋 저장된 콜 전부 — 화면이 파생값으로 말하니, 원본도 볼 수 있어야 한다 (기사님 2026-09-09) */}
+            {callsPeek && (
+                <div className="fixed inset-0 z-50 grid place-items-center bg-black/55 p-4" onClick={() => setCallsPeek(false)}>
+                    <div className="w-full max-w-[900px] max-h-[85vh] overflow-auto rounded-[10px] border border-border-card bg-surface p-3 flex flex-col gap-2"
+                        onClick={e => e.stopPropagation()}>
+                        <div className="flex items-start justify-between gap-2">
+                            <div className="text-[12px] font-black leading-snug">
+                                📋 저장된 콜 {confirmed.length}건 — 날것 그대로
+                                <div className="text-[10.5px] font-bold text-text-muted">
+                                    화면의 괄호 다섯 값은 여기서 파생한다 · 시각은 모의 시계 기준
+                                </div>
+                            </div>
+                            <button type="button" onClick={() => setCallsPeek(false)}
+                                className="shrink-0 px-2 py-1 rounded-[8px] border border-border-card text-[11px] font-black">닫기</button>
+                        </div>
+                        {/* 🔴 **날것 그대로 찍는다** (기사님 2026-09-09: *"이런 형식으로 저장하고 있는 거 확실해?"*).
+                            보기 좋으라고 이름을 바꿔 찍었더니 «저장 형태»로 읽혔다 — 그러면 팝업이 거짓말이다.
+                            동 이름·시:분:초는 **저장된 값이 아니라 파생**이라 여기 안 넣는다. */}
+                        <div className="text-[10px] font-black text-text-muted">confirmed — 콜 배열 (그대로)</div>
+                        <pre className="text-[10px] leading-snug whitespace-pre-wrap break-all rounded-md border border-border-card bg-background p-1.5 overflow-auto">
+{JSON.stringify(confirmed, null, 2)}
+                        </pre>
+                        <div className="text-[9.5px] text-text-muted leading-snug">
+                            시각은 <b>밀리초 숫자</b>로 저장한다(모의 시계 기준) · 동 이름은 좌표에서 그때그때 찾는 값이라 저장하지 않는다 ·
+                            <b>steps</b> 는 실물의 <code>step_*</code> 여섯 표와 같은 모양이다 (약속·예상·실측·출처가 한 행에)
+                        </div>
+                        <div className="text-[9.5px] text-text-muted">null = 아직 못 잰 값. 0 으로 채우지 않는다</div>
+                    </div>
+                </div>
+            )}
             {/* 🔎 카카오 한 건의 전문 — 보낸 값 / 받은 값 (기사님 2026-09-08) */}
             {apiPeek != null && apiLog[apiPeek] && (
                 <div className="fixed inset-0 z-50 grid place-items-center bg-black/55 p-4" onClick={() => setApiPeek(null)}>
@@ -1504,7 +1787,7 @@ export default function MapMockup() {
                 </button>
                 <div className="flex items-center gap-1 flex-wrap max-w-[340px]">
                     <span className="text-[11px] font-black text-info">🧅</span>
-                    {([['base', '배경'], ['border', '경계'], ['roads', '길'], ['net', '그물'], ['route', '경로'], ['call', '시험콜']] as const).map(([k, label]) => (
+                    {([['base', '배경'], ['border', '경계'], ['roads', '길'], ['net', '그물'], ['route', '경로'], ['trail', '동선'], ['call', '시험콜']] as const).map(([k, label]) => (
                         <button key={k} type="button" onClick={() => setLayers({ ...layers, [k]: !layers[k] })}
                             className={`px-2 py-1 rounded-[7px] border text-[10.5px] font-black ${layers[k] ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-background text-text-muted'}`}>
                             {layers[k] ? '👁' : '🚫'} {label}
@@ -1520,6 +1803,10 @@ export default function MapMockup() {
                                     ? 'bg-success/15 border-success/55 text-success' : 'border-border-hover bg-background hover:border-success'}`}>
                                 {driving ? '⏸ 멈춤' : '▶️ 주행'}
                             </button>
+                            <span className="px-1.5 py-0.5 rounded-md bg-background border border-border-card text-[10.5px] font-black tabular-nums">
+                                🕒 {new Date(clockNow).toTimeString().slice(0, 5)}
+                                <span className="font-bold text-text-muted"> 모의</span>
+                            </span>
                             <button type="button" onClick={() => setSpeedIdx((speedIdx + 1) % SPEEDS.length)}
                                 className="px-2 py-1.5 rounded-[8px] border border-border-hover bg-background text-[11.5px] font-black hover:border-info whitespace-nowrap">
                                 {SPEEDS[speedIdx].label}
@@ -1606,7 +1893,7 @@ export default function MapMockup() {
 
                     {routeMode ? (
                         <>
-                            <NumRow label="경로반경㎞" value={detourKm} onChange={setDetourKm} min={1} max={30} />
+                            <NumRow label="경유 폭㎞" value={detourWidthKm} onChange={setDetourWidthKm} min={1} max={30} />
                             <NumRow label="현위치반경㎞" value={ps.pickupRadiusKm} onChange={v => patchPhase(phase, { pickupRadiusKm: v })} max={60} />
                             <NumRow label="목적지반경㎞" value={ps.dropoffRadiusKm} onChange={v => patchPhase(phase, { dropoffRadiusKm: v })} max={60} />
                             {/* 카카오 실시간 — 어느 목적지든, 원점은 내 위치, 옵션 전부 병합 없이 */}
@@ -1633,7 +1920,7 @@ export default function MapMockup() {
                             ))}
                             {road && (
                                 <p className="text-[10.5px] text-text-muted leading-snug">
-                                    ✅ 이 길 ±{detourKm}km 의 <b className="text-text-primary">{areaNet.count}동</b>이 필터
+                                    ✅ 이 길 ±{detourWidthKm}km 의 <b className="text-text-primary">{areaNet.count}동</b>이 필터
                                 </p>
                             )}
                         </>
@@ -1767,8 +2054,10 @@ export default function MapMockup() {
                             </p>
                         )}
                         {verdict && uploaded && (
-                            <div className="flex flex-col gap-1">
-                                {/* 🔎 지금 심사하는 콜이 무엇인가 — 아는 값을 다 적는다 (기사님 2026-09-08) */}
+                            <div className="flex flex-col gap-1.5">
+
+                                {/* ══ ① 후보콜에 대한 보유정보 — 지금 아는 것을 다 편다 ══ */}
+                                <div className="text-[10px] font-black text-info">① 후보콜에 대한 보유정보</div>
                                 <div className="rounded-[8px] border border-border-card bg-background px-2 py-1 text-[10.5px] leading-snug">
                                     <div className="font-black text-[11px]">
                                         {circled(baseCallCount + confirmed.length + 1)} 심사 중 —{' '}
@@ -1786,142 +2075,34 @@ export default function MapMockup() {
                                         목적지까지 <b className="text-text-primary">상차 {verdict.distPickKm}km · 하차 {verdict.distDropKm}km · 나 {verdict.distMeKm}km</b>
                                         {' — '}{verdict.distDropKm < verdict.distPickKm ? '하차가 목적지에 더 가깝다(전진)' : '하차가 상차보다 멀다(역주행)'}
                                     </div>
-                                </div>
-                                {approachInfo && (
-                                    <>
-                                        <div className="text-[10px] font-black text-text-muted">🚚 상차 약속 — 현위치 → 상차지</div>
-                                        <div className="text-[11px] font-bold tabular-nums">
-                                            상차지까지 <b className="text-info">{approachInfo.distKm}km · {approachInfo.durMin ?? '?'}분</b>
-                                            {approachInfo.straight && <b className="text-danger"> (직선 — 도로 탐색 불가)</b>}
+                                    {approachInfo && (
+                                        <div className="tabular-nums">
+                                            🚚 상차지까지 <b className="text-info">{approachInfo.distKm}km · {approachInfo.durMin ?? '?'}분</b>
+                                            {approachInfo.failed && <b className="text-danger"> (못 쟀다 — 도로 탐색 불가)</b>}
                                             {approachInfo.durMin != null && (
-                                                <> → 도착 <b className="text-info">{new Date(Date.now() + approachInfo.durMin * 60000).toTimeString().slice(0, 5)}</b>
-                                                <span className="text-text-muted font-normal"> (지금 출발 기준 · 통화로 확정)</span></>
+                                                <> → 도착 <b className="text-info">{new Date(clockNow + approachInfo.durMin * 60000).toTimeString().slice(0, 5)}</b>
+                                                <span className="text-text-muted"> (지금 출발 기준 · 통화로 확정)</span></>
                                             )}
                                         </div>
-                                    </>
+                                    )}
+                                </div>
+                                {/* 어디서 받아온 값인가 — 누르면 보낸 값·받은 값 전문 */}
+                                {uploadTag && apiLog.some(l => l.tag === uploadTag) && (
+                                    <div className="flex flex-col gap-0.5">
+                                        {apiLog.map((l, i) => ({ l, i })).filter(({ l }) => l.tag === uploadTag).map(({ l, i }) => (
+                                            <button key={i} type="button" onClick={() => setApiPeek(i)}
+                                                className={`text-left rounded-md border px-1.5 py-1 text-[10px] leading-snug ${l.ok ? 'border-border-card' : 'border-danger/55 bg-danger/10'}`}>
+                                                <div className="font-black">🛰️ {l.ok ? '✅' : '❌'} {l.who} <span className="font-bold text-text-muted">{l.path} · {l.ms}ms · {l.t}</span></div>
+                                                <div className="text-text-muted">↗ {l.req}</div>
+                                                <div className="text-text-muted">↙ {l.res}</div>
+                                            </button>
+                                        ))}
+                                    </div>
                                 )}
-                                {uploaded && (
-                                    <>
-                                        {/* 🔴 판단 한 줄 — 맨 위에 (기사님 2026-09-08: «합짐을 잡는데 어려워»).
-                                            잡을지 말지는 «기존 콜이 몇 분 밀리나»와 «순수 우회»로 정한다 */}
-                                        {chainNow && chainBefore && (() => {
-                                            const worst = stopImpacts.reduce((w, r) => (r.delayMin > (w?.delayMin ?? -Infinity) ? r : w), null as typeof stopImpacts[number] | null);
-                                            const own = uploadedInfoRef.current;
-                                            const netMin = (chainNow.totalMin != null && chainBefore.totalMin != null && own?.durMin != null)
-                                                ? chainNow.totalMin - chainBefore.totalMin - own.durMin : null;
-                                            return (
-                                                <div className="rounded-[8px] border border-warning/45 bg-warning/[0.07] px-2 py-1 text-[11.5px] font-black leading-snug">
-                                                    {worst && worst.delayMin > 0
-                                                        ? <>⚠️ 기존 콜 <b className="text-warning">{worst.stop}가 {worst.delayMin}분 늦어진다</b> — 약속 시각과 대보고 정한다</>
-                                                        : <>✅ 기존 콜은 <b className="text-success">안 밀린다</b></>}
-                                                    {netMin != null && <>
-                                                        {' · 순수 우회 '}
-                                                        <b className={netMin > 5 ? 'text-warning' : 'text-success'}>{netMin > 0 ? '+' : ''}{netMin}분</b>
-                                                    </>}
-                                                </div>
-                                            );
-                                        })()}
-                                        {detourRows.length > 0 && (
-                                            <div className="flex flex-col gap-0.5 text-[10.5px] tabular-nums">
-                                                {detourRows.map(r => (
-                                                    <div key={r.name} className="flex justify-between gap-1">
-                                                        <span className="font-black">{r.name}</span>
-                                                        <span>
-                                                            <b className={r.min > 0 ? 'text-warning' : 'text-success'}>{r.min > 0 ? '+' : ''}{r.min}분</b>
-                                                            <span className="text-text-muted font-normal"> ({r.how})</span>
-                                                            {r.budget && (r.budget.used <= r.budget.limit
-                                                                ? <b className="text-success"> · 시한 {r.budget.limit}분 안 ✅ 전화 불필요</b>
-                                                                : <b className="text-danger"> · 시한 {r.budget.limit}분 초과 ☎️ 시간을 물려야 한다</b>)}
-                                                        </span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                        {/* 🛰️ 이 콜이 부른 카카오 — 이름·보낸 요약·받은 요약. 누르면 전문이 뜬다 */}
-                                        {uploadTag && apiLog.some(l => l.tag === uploadTag) && (
-                                            <>
-                                                <div className="text-[10px] font-black text-text-muted">🛰️ 이 콜이 부른 카카오 — 누르면 보낸 값·받은 값</div>
-                                                <div className="flex flex-col gap-0.5">
-                                                    {apiLog.map((l, i) => ({ l, i })).filter(({ l }) => l.tag === uploadTag).map(({ l, i }) => (
-                                                        <button key={i} type="button" onClick={() => setApiPeek(i)}
-                                                            className={`text-left rounded-md border px-1.5 py-1 text-[10px] leading-snug ${l.ok ? 'border-border-card' : 'border-danger/55 bg-danger/10'}`}>
-                                                            <div className="font-black">{l.ok ? '✅' : '❌'} {l.who} <span className="font-bold text-text-muted">{l.path} · {l.ms}ms · {l.t}</span></div>
-                                                            <div className="text-text-muted">↗ {l.req}</div>
-                                                            <div className="text-text-muted">↙ {l.res}</div>
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            </>
-                                        )}
-                                        {/* 기존 ↔ 지금을 **나란히** — 무엇이 사라지고 무엇이 생겼는지 보여야 한다 */}
-                                        <div className="text-[10px] font-black text-text-muted">🧭 사슬 — 기존 경로 ↔ 이 콜을 낀 경로 (카카오가 나눠 준 구간 그대로)</div>
-                                        <div className="grid grid-cols-2 gap-2 text-[10px] tabular-nums">
-                                            {([['기존 경로', chainBefore], ['이 콜을 끼면', chainNow]] as const).map(([title, ch]) => (
-                                                <div key={title} className={`rounded-md border p-1 ${title === '기존 경로' ? 'border-border-card' : 'border-info/45 bg-info/[0.05]'}`}>
-                                                    <div className="font-black mb-0.5">{title}</div>
-                                                    {/* 🔴 «?» 로 끝내지 않는다 — 왜 비었는지 적고, 저장해 둔 콜별 실측을 근거로 보인다 */}
-                                                    {title === '기존 경로' && !ch?.legs.length && (
-                                                        <div className="text-text-muted leading-snug">
-                                                            {ch?.note ?? '아직 못 쟀다'}
-                                                            {confirmed.map((c, k) => (
-                                                                <div key={c.id} className="flex justify-between gap-1">
-                                                                    <span>{circled(baseCallCount + k + 1)} 저장값</span>
-                                                                    <span className="shrink-0">
-                                                                        {c.approachKm != null && `상차지까지 ${c.approachKm}km·${c.approachMin ?? '--'}분 · `}
-                                                                        배송 {c.distKm ?? '--'}km·{c.durMin ?? '--'}분
-                                                                    </span>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
-                                                    {ch?.legs.map((lg, i) => {
-                                                        const other = (title === '기존 경로' ? chainNow : chainBefore)?.legs
-                                                            .some(x => x.from === lg.from && x.to === lg.to);
-                                                        return (
-                                                            <div key={i} className={`flex justify-between gap-1 ${other ? '' : title === '기존 경로' ? 'text-text-muted line-through' : 'text-info'}`}>
-                                                                <span>{lg.from} → {lg.to}</span>
-                                                                <span className="shrink-0">{lg.distKm ?? '--'}km · {lg.durMin ?? '--'}분</span>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                    <div className="flex justify-between gap-1 border-t border-border-card mt-0.5 pt-0.5 font-black">
-                                                        <span>총</span><span>{ch?.totalKm ?? '?'}km · {ch?.totalMin ?? '?'}분</span>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                        <div className="text-[9.5px] text-text-muted leading-snug">
-                                            취소선 = 이 콜 때문에 사라진 구간(쪼개짐) · 파란 줄 = 새로 생긴 구간
-                                        </div>
-                                    </>
-                                )}
-                                {/* 📌 기존 콜이 얼마나 밀리나 — 잡을지 말지의 근거 (기사님 2026-09-08) */}
-                                {stopImpacts.length > 0 && (
-                                    <>
-                                        <div className="text-[10px] font-black text-text-muted">📌 기존 콜이 얼마나 밀리나 — 이 합짐을 잡으면</div>
-                                        <div className="flex flex-col gap-0.5 text-[10.5px] tabular-nums">
-                                            {stopImpacts.map(r => {
-                                                const eta = (min: number) => new Date(Date.now() + min * 60000).toTimeString().slice(0, 5);
-                                                const late = r.delayMin > 0;
-                                                return (
-                                                    <div key={r.stop} className="flex justify-between gap-1">
-                                                        <span><b>{r.stop}</b> 도착</span>
-                                                        <span>
-                                                            {eta(r.beforeMin)} → <b className={late ? 'text-warning' : 'text-success'}>{eta(r.nowMin)}</b>
-                                                            {late ? <b className="text-warning"> ({r.delayMin}분 늦어짐)</b>
-                                                                : r.delayMin < 0 ? <b className="text-success"> ({-r.delayMin}분 빨라짐)</b>
-                                                                : <span className="text-text-muted"> (그대로)</span>}
-                                                        </span>
-                                                    </div>
-                                                );
-                                            })}
-                                            <div className="text-[9.5px] text-text-muted leading-snug">
-                                                지금 출발 기준 주행만 (상하차 정차는 아직 안 넣었다) — 약속 시각과 대보고 잡을지 정한다
-                                            </div>
-                                        </div>
-                                    </>
-                                )}
-                                <div className="text-[10px] font-black text-text-muted">아직 못 재는 기준 — 콜에 그 재료가 없다 (지어내지 않는다)</div>
+
+                                {/* ══ ② 후보콜에 대한 추가정보 요청 — 없는 것을 «없다»고 적는다 ══ */}
+                                <div className="text-[10px] font-black text-info border-t border-border-card pt-1.5">② 후보콜에 대한 추가정보 요청</div>
+                                <div className="text-[10px] text-text-muted leading-snug">아직 못 재는 기준 — 콜에 그 재료가 없다 (지어내지 않는다). 통화로 확정한다</div>
                                 <div className="flex gap-1 flex-wrap text-[10.5px]">
                                     {(['💰 돈(요금)', '📦 공간(박스)', '🧪 성질(화물)'] as const).map(t => (
                                         <span key={t} className="px-1.5 py-0.5 rounded-md bg-background border border-border-card text-text-muted font-bold">{t} —</span>
@@ -1933,6 +2114,119 @@ export default function MapMockup() {
                                         <span className="text-text-muted font-normal"> (필터는 안 자름 — 기사님 몫)</span>
                                     </div>
                                 ))}
+
+                                {/* ══ ③ 후보콜이 미치는 영향 — 콜 하나가 한 덩어리 (좌우 비교 폐기) ══ */}
+                                <div className="text-[10px] font-black text-info border-t border-border-card pt-1.5">③ 후보콜이 미치는 영향</div>
+                                {callImpacts.length === 0
+                                    ? <div className="text-[10px] text-text-muted">아직 전체 경로를 못 받았다</div>
+                                    : <div className="flex flex-col gap-1">
+                                        {callImpacts.map(ci => (
+                                            <div key={ci.no} className={`rounded-md border p-1.5 text-[10px] tabular-nums flex flex-col gap-0.5 ${ci.isNew ? 'border-info/50 bg-info/[0.06]' : 'border-border-card'}`}>
+                                                <div className="font-black text-[10.5px]">
+                                                    {ci.disp} {ci.isNew ? '이 후보콜' : ci.no === '①' ? '첫짐' : `합짐${Number(ci.no.charCodeAt(0) - 0x2460)}`}
+                                                    <span className="font-bold text-text-muted"> · {ci.where}</span>
+                                                </div>
+                                                {ci.stops.map(st => {
+                                                    const hhmm = (t: number) => new Date(t).toTimeString().slice(0, 5);
+                                                    // 실제로 지났으면 그것이 답, 아직이면 전체 경로가 말하는 예상
+                                                    const real = st.passedAt ?? st.etaAt;
+                                                    const late = real != null && st.promisedAt != null
+                                                        ? Math.round((real - st.promisedAt) / 60000) : null;
+                                                    return (
+                                                        <div key={st.kind} className="flex flex-col">
+                                                            {/* 🔴 값이 없어도 줄은 남긴다 — 없으면 «--» 로 비교할 수 있게 */}
+                                                            <div className="flex justify-between gap-1 text-text-muted">
+                                                                <span>{st.leg ? `${st.leg.from} → ${st.leg.to}` : `? → ${st.label}`}</span>
+                                                                <span className="shrink-0">
+                                                                    {st.leg?.distKm ?? '--'}km · {st.leg?.durMin ?? '--'}분
+                                                                    {st.fromSaved && <span className="text-[9px]"> (저장)</span>}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex justify-between gap-1 font-bold">
+                                                                <span>{st.kind} 도착</span>
+                                                                <span>
+                                                                    <span className="text-text-muted">{st.promisedAt != null ? hhmm(st.promisedAt) : '--:--'} → </span>
+                                                                    <b className={late != null && late > 0 ? 'text-warning' : 'text-success'}>
+                                                                        {real != null ? hhmm(real) : '--:--'}</b>
+                                                                    {st.passedAt != null && <span className="text-success text-[9px]"> 통과</span>}
+                                                                    {late != null && (late > 0
+                                                                        ? <b className="text-warning"> ({late}분 늦어짐)</b>
+                                                                        : late < 0 ? <b className="text-success"> ({-late}분 빨라짐)</b>
+                                                                        : <span className="text-text-muted"> (그대로)</span>)}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        ))}
+                                        <div className="flex justify-between gap-1 text-[10px] font-black tabular-nums border-t border-border-card pt-1">
+                                            <span>전체</span>
+                                            <span>
+                                                <span className="text-text-muted">{chainBefore?.totalKm ?? '--'}km · {chainBefore?.totalMin ?? '--'}분 → </span>
+                                                {chainNow?.totalKm ?? '--'}km · {chainNow?.totalMin ?? '--'}분
+                                            </span>
+                                        </div>
+                                        <div className="text-[9.5px] text-text-muted leading-snug">
+                                            앞 시각 = <b>최초 약속</b>(그 콜을 확정한 순간 못 박은 것 — 안 바뀐다) · 뒤 = 이 콜을 받으면 될 시각.
+                                            합짐을 얹을수록 «늦어짐»은 이 약속을 기준으로 쌓인다. 주행만 셈 (상하차 정차는 아직 안 넣었다)
+                                        </div>
+                                    </div>}
+
+                                {/* ══ ④ 후보콜에 대한 심사 결론 — 잡을지 말지의 답 ══ */}
+                                <div className="text-[10px] font-black text-info border-t border-border-card pt-1.5">④ 후보콜에 대한 심사 결론</div>
+                                {(() => {
+                                    /**
+                                     * 🔴 **모르면 «안 밀린다»고 하지 않는다** (기사님 2026-09-09:
+                                     * *"'기존 콜은 안 밀린다'가 아니고 모른다, 카카오가 값을 잘못 줬다
+                                     * … 이렇게 표시하던가 해야 하는 거지"*).
+                                     *
+                                     * 못 잰 구간이 하나라도 있으면 뒤 정거장의 도착을 **아무도 모른다.**
+                                     * 그런데 «안 밀린다»는 초록으로 뜬다 — 기사님은 색만 보고 1~2초에 누르신다
+                                     * (규칙 ⑤-3). 모르는 것을 초록으로 칠하는 것이 이 시스템의 가장 큰 사고다.
+                                     */
+                                    const failed = (chainNow?.legs ?? []).filter(l => l.failed || l.durMin == null);
+                                    if (!chainNow || failed.length > 0 || chainNow.note) return (
+                                        <div className="rounded-[8px] border border-danger/50 bg-danger/[0.08] px-2 py-1 text-[11.5px] font-black leading-snug">
+                                            ❓ <b className="text-danger">모른다 — 못 잰 구간이 있다</b>
+                                            {failed.length > 0 && (
+                                                <div className="text-[10.5px] font-bold text-text-muted">
+                                                    못 잰 구간: {failed.map(l => `${l.from} → ${l.to}`).join(' · ')}
+                                                </div>
+                                            )}
+                                            {chainNow?.note && <div className="text-[10.5px] font-bold text-text-muted">받은 값: {chainNow.note}</div>}
+                                            {!chainNow && <div className="text-[10.5px] font-bold text-text-muted">전체 경로를 아직 못 받았다</div>}
+                                            <div className="text-[10px] font-bold text-text-muted">기존 콜이 밀리는지 판단할 수 없다 — 잡으시려면 통화로 시간을 확인하십시오</div>
+                                        </div>
+                                    );
+                                    const worst = stopImpacts.reduce((w, r) => (r.delayMin > (w?.delayMin ?? -Infinity) ? r : w), null as typeof stopImpacts[number] | null);
+                                    return (
+                                        <div className="rounded-[8px] border border-warning/45 bg-warning/[0.07] px-2 py-1 text-[11.5px] font-black leading-snug">
+                                            {worst && worst.delayMin > 0
+                                                ? <>⚠️ 기존 콜 <b className="text-warning">{worst.stop}가 {worst.delayMin}분 늦어진다</b> — 약속 시각과 대보고 정한다</>
+                                                : <>✅ 기존 콜은 <b className="text-success">안 밀린다</b></>}
+                                        </div>
+                                    );
+                                })()}
+                                {detourRows.length > 0 && (
+                                    <div className="flex flex-col gap-0.5 text-[10.5px] tabular-nums">
+                                        {detourRows.map(r => (
+                                            <div key={r.name} className="flex justify-between gap-1">
+                                                <span className="font-black">{r.name}</span>
+                                                <span>
+                                                    <b className={r.min > 0 ? 'text-warning' : 'text-success'}>{r.min > 0 ? '+' : ''}{r.min}분</b>
+                                                    <span className="text-text-muted font-normal"> ({r.how})</span>
+                                                    {r.budget && (r.budget.usedAt <= r.budget.limitAt
+                                                        ? <b className="text-success"> · 시한 {new Date(r.budget.limitAt).toTimeString().slice(0, 5)} 안 ✅ 전화 불필요</b>
+                                                        : <b className="text-danger"> · 시한 {new Date(r.budget.limitAt).toTimeString().slice(0, 5)} 초과 ☎️ 시간을 물려야 한다</b>)}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {/* ══ ⑤ 후보콜에 대한 기사 선택 — 결재는 기사님이 한다 (규칙 ①) ══ */}
+                                <div className="text-[10px] font-black text-info border-t border-border-card pt-1.5">⑤ 후보콜에 대한 기사 선택</div>
                                 <div className="flex gap-1.5 flex-wrap">
                                     <button type="button"
                                         onClick={() => { if (pickup && drop) { pushLog('확정'); confirmCall(pickup, drop); setPickup(null); setDrop(null); resumeAfterCall(); } }}
@@ -1950,10 +2244,18 @@ export default function MapMockup() {
                     </FilterPanel>
 
                     {/* 📋 콜 리스트 — 왼쪽 사이드바 맨 아래 딱 붙임 (기사님 2026-09-07: mt-auto) + 방문 순서 */}
-                    <FilterPanel title={`📋 콜 리스트${confirmed.length ? ` — ${confirmed.length}` : ''}`}>
+                    <FilterPanel title={
+                        <button type="button" onClick={() => setCallsPeek(true)} className="text-left hover:underline">
+                            📋 콜 리스트{confirmed.length ? ` — ${confirmed.length}` : ''}
+                            <span className="font-bold text-text-muted"> · 눌러서 저장값 전부 보기</span>
+                        </button>
+                    }>
                         {confirmed.length === 0 && <p className="text-[10.5px] text-text-muted">확정한 콜이 여기 쌓입니다</p>}
                         {confirmed.length > 0 && (
-                            <p className="text-[9.5px] text-text-muted leading-snug">괄호 = (이동 · 늦어짐 · 예상 도착 · <b className="text-success">실제 통과</b>)</p>
+                            <p className="text-[9.5px] text-text-muted leading-snug">
+                                괄호 = (이동분 · 밀림 · <b>약속</b> · <b className="text-info">예정</b> · <b className="text-success">통과</b>) —
+                                약속은 확정 순간에 못 박고, 예정은 지금 전체 경로, 통과는 GPS 로 실제 지난 시각
+                            </p>
                         )}
                         {confirmed.length > 0 && (
                             <>
@@ -1967,27 +2269,26 @@ export default function MapMockup() {
                                                 <span className="flex items-start gap-1.5 min-w-0 flex-wrap">
                                                     <span className="inline-block w-2.5 h-2.5 rounded-full shrink-0 mt-1" style={{ background: color }} />
                                                     <b className="shrink-0">{circled(n)}</b>
-                                                    {/* 정거장마다 (이동시간 − 늦어진 시간, 도착시각) — 기사님 2026-09-08 */}
+                                                    {/* 정거장마다 다섯 값 — 이동·밀림·약속·예정·통과 (기사님 2026-09-08) */}
                                                     {([['상차', c.pickup], ['하차', c.drop]] as const).map(([kind, pt], k) => {
                                                         const clock = stopClock.get(`${circled(n)}${kind}`);
-                                                        const eta = clock?.cumMin != null
-                                                            ? new Date(Date.now() + clock.cumMin * 60000).toTimeString().slice(0, 5) : null;
+                                                        const hhmm = (t: number | null | undefined) =>
+                                                            t != null ? new Date(t).toTimeString().slice(0, 5) : '--:--';
                                                         return (
                                                             <span key={kind} className="font-black">
                                                                 {k > 0 && <span className="text-text-muted font-bold"> → </span>}
-                                                                {circled(k + 1)}{nearestDong(pt).name}
+                                                                {/* 🔢 앞 숫자는 «몇 번째로 들르나» — 상차/하차 표시가 아니다 (기사님 2026-09-09) */}
+                                                                {clock?.seq ? circled(clock.seq) : '·'}{nearestDong(pt).name}
                                                                 <span className="font-bold text-text-muted tabular-nums">
                                                                     {' ('}{clock?.legMin ?? '--'}분
                                                                     {clock?.delayMin != null && clock.delayMin !== 0
                                                                         ? <b className={clock.delayMin > 0 ? 'text-warning' : 'text-success'}>
-                                                                            {' '}{clock.delayMin > 0 ? '−' : '+'}{Math.abs(clock.delayMin)}분</b>
+                                                                            {' '}{clock.delayMin > 0 ? '+' : '−'}{Math.abs(clock.delayMin)}분</b>
                                                                         : ' -0분'}
-                                                                    {' '}{eta ?? '--:--'}
-                                                                    {/* ⏱️ 실제로 지난 시각 — 지나야 생긴다 */}
-                                                                    {' '}<b className={passedAt[`${circled(n)}${kind}`] ? 'text-success' : ''}>
-                                                                        {passedAt[`${circled(n)}${kind}`]
-                                                                            ? new Date(passedAt[`${circled(n)}${kind}`]).toTimeString().slice(0, 5) : '--:--'}
-                                                                    </b>{')'}
+                                                                    {' '}{hhmm(clock?.promisedAt)}
+                                                                    {' '}<b className={clock?.etaAt ? 'text-info' : ''}>{hhmm(clock?.etaAt)}</b>
+                                                                    {' '}<b className={clock?.passedAt ? 'text-success' : ''}>{hhmm(clock?.passedAt)}</b>
+                                                                    {')'}
                                                                 </span>
                                                             </span>
                                                         );
@@ -1996,8 +2297,8 @@ export default function MapMockup() {
                                                 </span>
                                                 <span className="pl-4 text-[10.5px] font-bold text-text-muted tabular-nums">
                                                     {c.approachKm != null && <>상차지까지 <b className="text-info">{c.approachKm}km · {c.approachMin ?? '--'}분</b> · 배송 </>}
-                                                    {c.distKm === undefined ? '⏳ 실측 중…'
-                                                        : c.straight ? `직선 ${c.distKm}km (도로 탐색 불가·실측 실패)`
+                                                    {c.routeComputedAt == null ? '⏳ 실측 중…'
+                                                        : c.distKm == null ? '❌ 못 쟀다 (도로 탐색 불가) — 통화로 확인'
                                                         : <>{c.distKm}km · {c.durMin}분 · 톨 {(c.tollWon ?? 0).toLocaleString()}원 <span className="font-normal">· 카카오 {c.optionUsed ?? '추천'}</span></>}
                                                 </span>
                                             </li>
