@@ -942,8 +942,17 @@ export default function MapMockup() {
             { label: `${noNew}상차`, name: `${nearestDong(p).name} 상차` },
             { label: `${noNew}하차`, name: `${nearestDong(d).name} 하차` },
         ];
+        /**
+         * 🔴 **누적 «분»을 그대로 빼지 않는다 — 각자의 «0분»이 다른 자리다** (2026-09-09 리뷰).
+         * 두 경로는 잰 시각이 다르므로, 각자의 `measuredAt` 을 더해 **도착 «시각»**으로 만든 뒤 뺀다.
+         */
+        const atIn = (chain: ChainResult | null | undefined, cum: Map<string, number>, label: string) => {
+            const m = cum.get(label);
+            return m == null || chain?.measuredAt == null ? null : chain.measuredAt + m * 60000;
+        };
         const impactOf = (label: string) => impactOfStop({
-            stopLabel: label, beforeMin: beforeCum.get(label), afterMin: afterCum.get(label),
+            stopLabel: label,
+            beforeAt: atIn(prevChain, beforeCum, label), afterAt: atIn(chainNow, afterCum, label),
             orderNow, inserted, causeCallId: id, at: t0,
         });
         setConfirmed(c => [...c.map((x, i) => {
@@ -1003,10 +1012,16 @@ export default function MapMockup() {
                          *   경유분 = (병합 경로 누적) − (직행 누적)
                          * 첫짐은 둘이 같아 0 이라 안 적힌다.
                          */
-                        const via = (label: string, direct: number | null) => impactOfStop({
-                            stopLabel: label, beforeMin: direct, afterMin: label.endsWith('상차') ? chainCum.pickupMin : chainCum.dropoffMin,
-                            orderNow, inserted: priorStops, causeCallId: id, at: t0,
-                        });
+                        const via = (label: string, direct: number | null) => {
+                            // 직행은 «확정 시각» 기준, 병합은 «그 경로를 잰 시각» 기준 — 시각으로 맞춰 뺀다
+                            const merged = label.endsWith('상차') ? chainCum.pickupMin : chainCum.dropoffMin;
+                            return impactOfStop({
+                                stopLabel: label,
+                                beforeAt: direct == null ? null : t0 + direct * 60000,
+                                afterAt: merged == null || chainNow?.measuredAt == null ? null : chainNow.measuredAt + merged * 60000,
+                                orderNow, inserted: priorStops, causeCallId: id, at: t0,
+                            });
+                        };
                         const vPick = via(`${noNew}상차`, pickMin);
                         const vDrop = via(`${noNew}하차`, pickMin != null && dropMin != null ? pickMin + dropMin : null);
                         return {
@@ -1066,8 +1081,12 @@ export default function MapMockup() {
                 setConfirmed(cs => cs.map((x, k) => {
                     const no = circled(baseCallCount + k + 1);
                     /** 🔴 «앞에 있었나»는 **빠지기 전** 순서로 본다 — 지금 순서엔 그 콜이 없다 */
+                    const atIn = (chain: ChainResult | null | undefined, cum: Map<string, number>, label: string) => {
+                        const m = cum.get(label);
+                        return m == null || chain?.measuredAt == null ? null : chain.measuredAt + m * 60000;
+                    };
                     const of = (label: string) => impactOfStop({ stopLabel: label,
-                        beforeMin: beforeCum.get(label), afterMin: afterCum.get(label),
+                        beforeAt: atIn(prevChain, beforeCum, label), afterAt: atIn(after, afterCum, label),
                         orderNow: orderBefore, inserted: gone, causeCallId: last.id, at });
                     const up = of(`${no}상차`), dn = of(`${no}하차`);
                     if (!up && !dn) return x;
@@ -1372,12 +1391,16 @@ export default function MapMockup() {
             }
             return out;
         };
+        /** 🔴 두 경로는 **잰 시각이 다르다** — 각자의 기준을 더해 «시각»으로 만든 뒤 뺀다 (2026-09-09 리뷰) */
+        const bAt = chainBefore.measuredAt, nAt = chainNow.measuredAt;
+        if (bAt == null || nAt == null) return [];      // 기준 시각을 모르면 못 잰다 (지어내지 않는다)
         const before = cumOf(chainBefore.legs), now = cumOf(chainNow.legs);
-        const rows: Array<{ stop: string; beforeMin: number; nowMin: number; delayMin: number }> = [];
+        const rows: Array<{ stop: string; beforeAt: number; nowAt: number; delayMin: number }> = [];
         for (const [stop, b] of before) {
             const n = now.get(stop);
             if (n == null) continue;
-            rows.push({ stop, beforeMin: b, nowMin: n, delayMin: n - b });
+            const beforeAt = bAt + b * 60000, nowAt = nAt + n * 60000;
+            rows.push({ stop, beforeAt, nowAt, delayMin: Math.round((nowAt - beforeAt) / 60000) });
         }
         return rows;
     }, [chainNow, chainBefore]);
@@ -2411,7 +2434,7 @@ export default function MapMockup() {
                                                                     { label: `${candNo}하차`, name: `${nearestDong(drop).name} 하차` },
                                                                 ] : [];
                                                                 const hit = row && candStops.length ? impactOfStop({
-                                                                    stopLabel: st.label, beforeMin: row.beforeMin, afterMin: row.nowMin,
+                                                                    stopLabel: st.label, beforeAt: row.beforeAt, afterAt: row.nowAt,
                                                                     orderNow: (chainNow?.legs ?? []).map(l => l.to),
                                                                     inserted: candStops, causeCallId: -1, at: 0,
                                                                 }) : null;

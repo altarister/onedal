@@ -109,9 +109,16 @@ export function promiseTimes(opts: {
  *
  * 기사님: *"31분이 밀린 거라면 31분이 왜 밀린 건지 그 요소들만 딱 들어갔으면 좋겠어."*
  *
- * 분은 «확정 전 누적»과 «확정 후 누적»의 차이 — ⑯ 의 우회 정의 그대로라 카카오를
- * 더 부르지 않는다. 원인은 **이번에 끼워 넣은 정거장 중 그 정거장보다 앞에 온 것**뿐이다.
- * 뒤에 낀 것은 그 정거장을 못 민다.
+ * 분은 «확정 전이 말한 도착 시각»과 «확정 후가 말한 도착 시각»의 차이 — ⑯ 의 우회 정의
+ * 그대로라 카카오를 더 부르지 않는다. 원인은 **이번에 끼워 넣은 정거장 중 그 정거장보다
+ * 앞에 온 것**뿐이다. 뒤에 낀 것은 그 정거장을 못 민다.
+ *
+ * 🔴 **«분»이 아니라 «시각»을 받는다** (2026-09-09 리뷰에서 잡힘).
+ *    확정 전 경로와 확정 후 경로는 **잰 시각이 다르다** — 그 사이에 달렸으면 각자의 «0분»이
+ *    다른 자리다. 분끼리 빼면 그 주행 시간이 통째로 섞인다.
+ *    실측 예: 04:00 에 «+80분»(05:20), 30분 달린 뒤 04:30 에 «+65분»(05:35).
+ *    분으로 빼면 −15분(빨라졌다)이지만 실제로는 **15분 늦어졌다.**
+ *    `detourRows` 에서 한 번 잡은 것과 같은 클래스라, **단위를 시각으로 두어 못 틀리게 한다.**
  *
  * 🔴 **안 밀렸으면 안 적는다** — 0분을 쌓으면 이유 줄이 의미 없는 줄로 찬다.
  * 🔴 **못 잰 값이 섞이면 안 적는다** — 지어내지 않는다 (규칙 ④).
@@ -121,10 +128,10 @@ export function promiseTimes(opts: {
 export function impactOfStop(opts: {
     /** 밀렸는지 볼 정거장 (`①하차` 같은 라벨) */
     stopLabel: string;
-    /** 확정 «전» 경로의 그 정거장까지 누적 분 */
-    beforeMin: number | null | undefined;
-    /** 확정 «후» 경로의 그 정거장까지 누적 분 */
-    afterMin: number | null | undefined;
+    /** 확정 «전» 경로가 말한 그 정거장 도착 **시각** (그 경로를 잰 시각 + 누적) */
+    beforeAt: number | null | undefined;
+    /** 확정 «후» 경로가 말한 그 정거장 도착 **시각** */
+    afterAt: number | null | undefined;
     /** 확정 후 경로의 정거장 순서 */
     orderNow: Array<string | null>;
     /** 이번에 끼워 넣은 정거장들 */
@@ -132,8 +139,10 @@ export function impactOfStop(opts: {
     causeCallId: number;
     at: number;
 }): { causeCallId: number; causeLabel: string; min: number; at: number } | null {
-    const { stopLabel, beforeMin, afterMin, orderNow, inserted, causeCallId, at } = opts;
-    if (beforeMin == null || afterMin == null || afterMin === beforeMin) return null;
+    const { stopLabel, beforeAt, afterAt, orderNow, inserted, causeCallId, at } = opts;
+    if (beforeAt == null || afterAt == null) return null;
+    const min = Math.round((afterAt - beforeAt) / 60000);
+    if (min === 0) return null;
     const here = orderNow.indexOf(stopLabel);
     if (here < 0) return null;
     const causes = inserted.filter(x => {
@@ -141,5 +150,5 @@ export function impactOfStop(opts: {
         return i >= 0 && i < here;
     });
     if (!causes.length) return null;
-    return { causeCallId, causeLabel: causes.map(x => x.name).join(' · '), min: afterMin - beforeMin, at };
+    return { causeCallId, causeLabel: causes.map(x => x.name).join(' · '), min, at };
 }
