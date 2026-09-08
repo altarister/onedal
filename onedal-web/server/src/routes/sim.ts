@@ -132,7 +132,7 @@ router.post("/route", async (req, res) => {
 
         const legs: Array<Array<{ x: number; y: number }>> = [];
         /** 구간별 실측 — 콜 리스트 카드(거리·시간·톨비)가 읽는다 (기사님 2026-09-08) */
-        const legInfo: Array<{ distKm: number; durMin: number; tollWon: number | null }> = [];
+        const legInfo: Array<{ distKm: number; durMin: number; tollWon: number | null; failed?: boolean }> = [];
         let distance = 0, duration = 0;
         for (let i = 1; i < points.length; i++) {
             const a = points[i - 1], b = points[i];
@@ -140,14 +140,23 @@ router.post("/route", async (req, res) => {
             if (Math.hypot((a.x - b.x) * 88.6, (a.y - b.y) * 110.574) < 0.05) {
                 legs.push([a, b]); legInfo.push({ distKm: 0, durMin: 0, tollWon: 0 }); continue;
             }
-            const r = await calculateSoloRoute(a.x, a.y, b.x, b.y, null, priority, 1, false, avoid);
-            legs.push(r.polyline && r.polyline.length >= 2 ? r.polyline : [a, b]);
-            legInfo.push({
-                distKm: +(r.distance / 1000).toFixed(1),
-                durMin: Math.round(r.duration / 60),
-                tollWon: (r.raw as { fare?: { toll?: number } } | undefined)?.fare?.toll ?? null,
-            });
-            distance += r.distance; duration += r.duration;
+            // 🔴 구간 하나의 실패(예: 103 도착지점 탐색불가 — 도로 없는 자리)가 **전체를 죽이면 안 된다**
+            //    (2026-09-08 실측: 한 구간 103 에 전체가 502 → 멀쩡한 구간까지 직선 폴백 + 반복 재시도)
+            try {
+                const r = await calculateSoloRoute(a.x, a.y, b.x, b.y, null, priority, 1, false, avoid);
+                legs.push(r.polyline && r.polyline.length >= 2 ? r.polyline : [a, b]);
+                legInfo.push({
+                    distKm: +(r.distance / 1000).toFixed(1),
+                    durMin: Math.round(r.duration / 60),
+                    tollWon: (r.raw as { fare?: { toll?: number } } | undefined)?.fare?.toll ?? null,
+                });
+                distance += r.distance; duration += r.duration;
+            } catch (legErr) {
+                console.warn(`⚠️ [sim/route] 구간 ${i} 실측 실패 — 직선으로 대체:`, String((legErr as Error)?.message ?? legErr));
+                legs.push([a, b]);
+                const straightKm = +Math.hypot((a.x - b.x) * 88.6, (a.y - b.y) * 110.574).toFixed(1);
+                legInfo.push({ distKm: straightKm, durMin: 0, tollWon: null, failed: true });
+            }
         }
         return res.json({ legs, legInfo, distance, duration });
     } catch (e) {

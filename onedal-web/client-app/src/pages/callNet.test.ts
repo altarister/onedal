@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildNet, buildFirstLegDemo, judgeTwoStage, orderStopsGreedy, orderStopsGrouped, isLocalPhase, WAIT_PRESET, NET_SRC, NET_DST, GONJIAM_DROP, DONGWON_DROP, BORAM_DROP, ICHEON_DROP } from './callNet';
+import { buildNet, buildFirstLegDemo, judgeTwoStage, judgeTwoTrack, orderStopsGreedy, orderStopsGrouped, cityCenter, isLocalPhase, WAIT_PRESET, NET_SRC, NET_DST, GONJIAM_DROP, DONGWON_DROP, BORAM_DROP, ICHEON_DROP } from './callNet';
 
 /**
  * 🧪 **그물 셋업의 계산이 ⑭ 검산과 같은가**
@@ -377,3 +377,70 @@ describe('판(목적지) 그룹 경로 — 콜마다 잡을 당시 목적지를 
     });
 });
 
+
+describe('양방향(복귀 대기) 판정 — 목적지 마름모 ∪ 복귀 마름모, 우선권은 복귀 (기사님 정정 2026-09-08)', () => {
+    /**
+     * 기사님: *"내가 생각했던 건 파주로 계속 진행해야 한다는 거였어. 그래서 두 개의 마름모가
+     * 필요하다 한 건데."* — 주 트랙은 관내 원이 아니라 **기존 목적지 마름모**다.
+     * 판: 산곡동쯤(파주 가는 중간, 콜 없는 곳)에서 복귀 대기. 마름모 둘: 내위치→파주 · 내위치→집.
+     * 관내는 따로 없다 — 파주에 도착하면 파주 마름모가 퇴화해 목적지 원만 남는다(기존 규칙).
+     */
+    const PAJU = cityCenter('파주시');
+    const ME = { name: '중간(하남쯤)', lng: 127.19, lat: 37.52 };      // 집·파주 사이
+    const TO_PAJU = { lng: 126.95, lat: 37.63 };                        // 파주 방향 하차
+    const TO_HOME = { lng: 127.26, lat: 37.42 };                        // 집 방향 하차
+    const NEAR_ME = { lng: 127.19, lat: 37.51 };                        // 발밑 상차
+
+    it('파주 방향 콜 — 목적지 트랙이 살린다 → MAIN (하던 일 계속)', () => {
+        const v = judgeTwoTrack(WAIT_PRESET, ME, PAJU, NET_SRC, ME, NEAR_ME, TO_PAJU, {});
+        expect(v.main.pass).toBe(true);
+        expect(v.home.pass).toBe(false);          // 집 기준으론 역주행
+        expect(v.wonTrack).toBe('MAIN');
+    });
+
+    it('집 방향 콜 — 복귀 마름모가 살린다 → HOME', () => {
+        const v = judgeTwoTrack(WAIT_PRESET, ME, PAJU, NET_SRC, ME, NEAR_ME, TO_HOME, {});
+        expect(v.main.pass).toBe(false);          // 파주 기준으론 역주행
+        expect(v.home.pass).toBe(true);
+        expect(v.wonTrack).toBe('HOME');
+    });
+
+    it('둘 다 통과하면 복귀가 이긴다 — 복귀 콜을 잡는 것이 목표다', () => {
+        // 발밑 → 발밑 근처: 양쪽 다 각도 소음 예외로 살 수 있는 콜
+        const v = judgeTwoTrack(WAIT_PRESET, ME, PAJU, NET_SRC, ME, NEAR_ME, { lng: 127.185, lat: 37.515 }, {});
+        if (v.main.pass && v.home.pass) expect(v.wonTrack).toBe('HOME');
+        else expect(v.wonTrack).not.toBeNull();
+    });
+
+    it('🔴 복귀콜을 잡은 뒤(∩) — 파주 방향 콜은 탈락한다 (순차 진행)', () => {
+        const before = judgeTwoTrack(WAIT_PRESET, ME, PAJU, NET_SRC, ME, NEAR_ME, TO_PAJU, {});
+        expect(before.wonTrack).toBe('MAIN');
+        const after = judgeTwoTrack(WAIT_PRESET, ME, PAJU, NET_SRC, ME, NEAR_ME, TO_PAJU, { homeCaught: true });
+        expect(after.main.pass).toBe(false);      // 목적지 트랙이 집 원뿔과의 교집합만 남았다
+        expect(after.pass).toBe(false);
+    });
+
+    it('∩ 뒤에도 집 길목 콜은 산다', () => {
+        const v = judgeTwoTrack(WAIT_PRESET, ME, PAJU, NET_SRC, ME, NEAR_ME, TO_HOME, { homeCaught: true });
+        expect(v.home.pass).toBe(true);
+        expect(v.pass).toBe(true);
+    });
+
+    it('콜을 쥔 채(routeStarted)도 양방향은 계속 돈다', () => {
+        const v = judgeTwoTrack(WAIT_PRESET, ME, PAJU, NET_SRC, ME, NEAR_ME, TO_HOME, { routeStarted: true });
+        expect(v.home.pass).toBe(true);
+        expect(v.wonTrack).toBe('HOME');
+    });
+
+    it('🔴 복귀 «대기» 중에는 ∩(상차 원뿔)를 안 건다 — 미리 잡는 그물이다 (2026-09-08 실측 사고)', () => {
+        // 실측: 파주 가는 길에 복귀를 켰는데, 집에서 4.2km 하차하는 완벽한 복귀콜이
+        // «상차 사각형 밖(뒤)»로 잘렸다 — 상차가 반경 안(서쪽 9.7km)인데 집 원뿔 밖이라서.
+        // ∩ 는 복귀콜을 «잡은 뒤»(homeCaught)부터다 — 대기는 미리 잡기라 반경만 본다.
+        const W_PICKUP = { lng: 127.12, lat: 37.53 };   // 서쪽 6.2km — 반경(7.5km) 안 · 집 원뿔 밖
+        const waiting = judgeTwoTrack(WAIT_PRESET, ME, PAJU, NET_SRC, ME, W_PICKUP, TO_HOME, { routeStarted: true });
+        expect(waiting.home.pass).toBe(true);
+        expect(waiting.wonTrack).toBe('HOME');
+        const caught = judgeTwoTrack(WAIT_PRESET, ME, PAJU, NET_SRC, ME, W_PICKUP, TO_HOME, { routeStarted: true, homeCaught: true });
+        expect(caught.home.pass).toBe(false);           // 잡은 뒤에는 원뿔이 자른다
+    });
+});

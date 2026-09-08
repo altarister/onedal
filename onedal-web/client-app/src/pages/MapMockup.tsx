@@ -2,12 +2,12 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
     PHASE_KEYS, PHASE_LABEL, PHASE_FIELDS, PHASE_AUTO_SOURCE, fieldLabel,
     DEFAULT_PHASE_SETTINGS, normalizePhaseSettings, rateFloorsFrom,
-    reachRadiusKm, NET_RATE_PER_KM, VEHICLE_CAPACITY, CAPACITY_CONFIDENCE_LABEL, CALL_TARGET_LABEL,
+    reachRadiusKm, REACH_COEF_MIN_PER_KM_TEMP, NET_RATE_PER_KM, VEHICLE_CAPACITY, CAPACITY_CONFIDENCE_LABEL, CALL_TARGET_LABEL,
     type FieldMode, type PhaseKey, type PhaseSettings, type PhaseSettingsMap,
 } from '@onedal/shared';
 import { buildAppFilterOutput, labPhaseOf, TRUCK_CAPACITY_SLOTS } from './labFilterOutput';
 import {
-    buildNet, buildRoadNet, roadZoneOf, judgeTwoStage, nearestDong, orderStopsGrouped, cityCenter, quadTesterOf, isLocalPhase, NET_SRC, NET_DST,
+    buildNet, buildRoadNet, roadZoneOf, judgeTwoStage, judgeTwoTrack, nearestDong, orderStopsGrouped, cityCenter, quadTesterOf, isLocalPhase, NET_SRC, NET_DST,
     GONJIAM_DROP, DONGWON_DROP, BORAM_DROP,
     GONJIAM_CALL_PATH, DONGWON_CALL_PATH, BORAM_CALL_PATH, TRAP_DONGS,
     type NetPoint, type TwoStageVerdict,
@@ -72,7 +72,7 @@ const STAGES: Stage[] = [
 
 type Pt = { lng: number; lat: number };
 
-/** 🎯 목적지 후보 — 도시 «시내» = 그 시 법정동 평균 (여주 시내와 같은 셈법) · 집은 복귀 판 */
+/** 🎯 목적지 후보 — 도시 «시내» = 그 시 법정동 평균. 집은 목록에 없다 — 행선(복귀)으로 승격 (기사님 2026-09-08) */
 const DESTS: NetPoint[] = [
     NET_DST,
     cityCenter('이천시'),
@@ -82,7 +82,6 @@ const DESTS: NetPoint[] = [
     cityCenter('김포시'),
     cityCenter('화성시'),
     cityCenter('안산시'),
-    { ...NET_SRC, name: '초월(집) — 복귀' },
 ];
 
 /** 콜 번호별 경로 색 — ①은 프리셋 경로의 기본색과 같은 장미로 잇는다 */
@@ -130,7 +129,22 @@ function Chip({ ok, yes, no }: { ok: boolean; yes: string; no: string }) {
  * 두 사이드바가 똑같이 `FilterPanel > NumRow/TextRow` 로 조립된다. 디자인 최소 — 로직이 주인공.
  * `mode` 는 실물 `PHASE_FIELDS` 의 FieldMode 그대로: input/override = 고침, auto = 보이되 잠김, hidden = 없음.
  */
-function FilterPanel({ title, children, className = '' }: { title: ReactNode; children: ReactNode; className?: string }) {
+function FilterPanel({ title, children, className = '', tone }: {
+    title: ReactNode; children: ReactNode; className?: string;
+    /** 층을 색으로 가른다 — 'filter'(집기 전·파랑) · 'judge'(집은 뒤·주황). 없으면 평범한 구획 */
+    tone?: 'filter' | 'judge';
+}) {
+    if (tone) {
+        const c = tone === 'filter'
+            ? { box: 'border-info/45 bg-info/[0.06]', head: 'bg-info/15 text-info' }
+            : { box: 'border-warning/45 bg-warning/[0.06]', head: 'bg-warning/15 text-warning' };
+        return (
+            <div className={`shrink-0 rounded-[10px] border ${c.box} overflow-hidden ${className}`}>
+                <div className={`px-2 py-1 text-[11px] font-black ${c.head}`}>{title}</div>
+                <div className="p-2 flex flex-col gap-1">{children}</div>
+            </div>
+        );
+    }
     return (
         <div className={`border-t border-border-card pt-2 flex flex-col gap-1 ${className}`}>
             <span className="text-[10.5px] font-black text-text-muted">{title}</span>
@@ -223,7 +237,12 @@ export default function MapMockup() {
      * 오른쪽 5탭은 «어느 벌을 편집하나»일 뿐이다. 예전의 knobs 반경·discountPct·detourAllowKm
      * 낱개 상태는 이 맵으로 흡수됐다 — 같은 값을 두 그릇에 두지 않는다 (규칙 ③).
      */
-    const [phaseSettings, setPhaseSettings] = useState<PhaseSettingsMap>(() => normalizePhaseSettings(DEFAULT_PHASE_SETTINGS));
+    const [phaseSettings, setPhaseSettings] = useState<PhaseSettingsMap>(() => {
+        // 실험실 기본 반경 15/15 (기사님 2026-09-08) — 실물 기본값(10)보다 넓게 잡아 그물을 먼저 본다
+        const base = normalizePhaseSettings(DEFAULT_PHASE_SETTINGS);
+        return Object.fromEntries(Object.entries(base).map(([k, v]) =>
+            [k, { ...v, pickupRadiusKm: 15, dropoffRadiusKm: 15 }])) as PhaseSettingsMap;
+    });
     const patchPhase = (tab: PhaseKey, patch: Partial<PhaseSettings>) =>
         setPhaseSettings(m => ({ ...m, [tab]: { ...m[tab], ...patch } }));
 
@@ -250,7 +269,16 @@ export default function MapMockup() {
     /** 🎯 목적지 — 셀렉바로 고른다 (기사님 2026-09-07) */
     // 기본 목적지 = 파주 (기사님 2026-09-07 저녁 «목적지에 파주를 넣어주고» — 큰 판이라 시군구 분류·제외가 여기서 필요해진다)
     const [dstIdx, setDstIdx] = useState(Math.max(0, DESTS.findIndex(d => d.name.startsWith('파주'))));
-    const dst = DESTS[dstIdx];
+    /**
+     * ↩️ **행선 — 목적지행 ↔ 복귀** (기사님 확정 2026-09-08). 복귀를 누르면:
+     *   · 방식(노선/동선)은 그 자리에서 그대로 — 노선이면 집 방향 길 찾기를 «지금» 한다
+     *   · 그물 = 관내 원 ∪ 복귀 트랙, **콜 처리 중에도** 양방향 (복귀 콜을 미리 노린다)
+     *   · 복귀 콜을 잡으면(homeCaught) 관내는 원 ∩ 복귀 트랙(길목 조각)만 남는다
+     */
+    const [heading, setHeading] = useState<'DEST' | 'HOME'>('DEST');
+    const [homeCaught, setHomeCaught] = useState(false);
+    const HOME_DST: NetPoint = useMemo(() => ({ ...NET_SRC, name: '복귀(집)' }), []);
+    const dst = DESTS[dstIdx];   // 주 트랙 목적지 — 복귀행에서도 살아 있다 (두 마름모)
     /**
      * ⛔ 제외지역 (기사님 2026-09-07) — 그물에 들어도 필터에 안 싣는 곳.
      * 키 두 모양: `R|시군구`(통째) · `D|시군구|읍면동`(하나). 이름만 쓰면 동명이인(창전동)이 섞인다.
@@ -260,8 +288,7 @@ export default function MapMockup() {
      * 국면 규칙은 실물 원천(`PHASE_FIELDS`)을 그대로 import — 여기 다시 적지 않는다 (규칙 ③).
      * 상차 반경·하차지 주변은 왼쪽 손잡이(knobs)와 **같은 상태**를 읽는다 — 원천 하나.
      */
-    /** 실물 요약줄의 노선/관내/복귀 — 국면은 이걸로 **자동 파생**된다 (resolvePhaseKey · 수동 선택 없음) */
-    const [callTarget, setCallTarget] = useState<'DEST' | 'LOCAL' | 'HOME'>('DEST');
+    // callTarget 은 행선·도착 인지에서 파생된다 — 아래 localMode 뒤에서 계산
     const [vehicles, setVehicles] = useState<string[]>(['1t', '다마스']);             // 목업값 (DTO 예시 그대로)
     const [excludedWords, setExcludedWords] = useState<string[]>(['착불', '수거']);   // 목업값 (DTO 예시 그대로)
     const [slotsUsed, setSlotsUsed] = useState(0);
@@ -274,8 +301,60 @@ export default function MapMockup() {
      * 실물의 흐름 그대로다 — 콜이 뜨면 결재하고, 끝나면 계속 간다.
      */
     const [pausedForCall, setPausedForCall] = useState(false);
+    /**
+     * ⏱️ **안전취소 30초** — 실전에서 콜을 집으면 위약금 없이 무를 수 있는 30초가 흐르고
+     * 그 사이 서버가 심사한다. 시뮬도 그 시계를 돌려야 «주행 중 콜»이 실감난다
+     * (기사님 2026-09-08: *"좀 더 시뮬레이션처럼"*). 30초가 지나면 그냥 지나갈 뿐 —
+     * 자동으로 버리지 않는다 (규칙 ①: 콜의 주인은 기사님).
+     */
+    /**
+     * 🪜 **투 스텝** (기사님 2026-09-08): 콜을 찍으면 ① 앱 필터가 먼저 답하고,
+     * **「필터 통과 → 올린다」를 눌러야** ② 서버로 올라가 심사·경로가 시작된다 —
+     * 실물 그대로다(앱이 올린 콜만 서버가 본다). 이식 때 ①은 앱, ②는 서버로 간다.
+     */
+    const [uploaded, setUploaded] = useState(false);
+    /**
+     * 🗄️ **구간 캐시 — 한 번 그린 궤적을 두 번 그리지 않는다** (기사님 2026-09-08).
+     * 키는 «시작→끝+옵션». 올릴 때 받은 곡선을 여기 넣어 두면 확정 후 그 구간은 다시 안 묻는다.
+     */
+    const legCacheRef = useRef(new Map<string, { line: Pt[]; failed: boolean }>());
+    const legKey = (aLng: number, aLat: number, bLng: number, bLat: number) =>
+        `${aLng.toFixed(5)},${aLat.toFixed(5)}>${bLng.toFixed(5)},${bLat.toFixed(5)}|${routeCombo.priority}|${routeCombo.avoid ?? ''}`;
+    /** 올린 콜의 실도로 곡선 — 필터 통과 순간 받아온다 (서버가 심사하며 보는 그 경로) */
+    const [uploadedLeg, setUploadedLeg] = useState<Pt[] | null>(null);
+    /** 올릴 때 받은 그 콜의 실측 — 확정하면 그대로 카드에 쓴다 (같은 구간을 두 번 묻지 않는다) */
+    const uploadedInfoRef = useRef<{ distKm: number; durMin: number | null; tollWon: number | null; straight: boolean } | null>(null);
+    const uploadCall = () => {
+        if (!pickup || !drop) return;
+        setUploaded(true); setCallSeenAt(Date.now()); setNowTick(Date.now()); setUploadedLeg(null); uploadedInfoRef.current = null;
+        fetch(`${apiBase()}/sim/route`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ points: [{ x: pickup.lng, y: pickup.lat }, { x: drop.lng, y: drop.lat }], priority: routeCombo.priority, avoid: routeCombo.avoid }),
+        })
+            .then(r => (r.ok ? r.json() : Promise.reject(r.status)))
+            .then(d => {
+                const leg = d.legs?.[0];
+                if (!leg) return;
+                const line: Pt[] = leg.map((p: { x: number; y: number }) => ({ lng: p.x, lat: p.y }));
+                setUploadedLeg(line);
+                // 🗄️ 확정되면 이 구간이 경로에 그대로 들어간다 — 캐시에 미리 넣어 다시 안 묻는다
+                legCacheRef.current.set(legKey(pickup.lng, pickup.lat, drop.lng, drop.lat),
+                    { line, failed: !!d.legInfo?.[0]?.failed });
+                const li = d.legInfo?.[0];
+                if (li) uploadedInfoRef.current = { distKm: li.distKm, durMin: li.failed ? null : li.durMin, tollWon: li.tollWon, straight: !!li.failed };
+            })
+            .catch(err => console.warn('[올린 콜] 실경로 못 받음 — 직선:', err));
+    };
+    const [callSeenAt, setCallSeenAt] = useState<number | null>(null);
+    const [nowTick, setNowTick] = useState(Date.now());
+    useEffect(() => {
+        if (!callSeenAt) return;
+        const t = setInterval(() => setNowTick(Date.now()), 250);
+        return () => clearInterval(t);
+    }, [callSeenAt]);
+    const safeCancelLeft = callSeenAt ? Math.max(0, 30 - Math.floor((nowTick - callSeenAt) / 1000)) : null;
     const pauseForCall = () => { if (driving) { setDriving(false); setPausedForCall(true); } };
-    const resumeAfterCall = () => { if (pausedForCall) { setPausedForCall(false); setDriving(true); } };
+    const resumeAfterCall = () => { setCallSeenAt(null); setUploaded(false); setUploadedLeg(null); if (pausedForCall) { setPausedForCall(false); setDriving(true); } };
     const targetIdxRef = useRef(1);
     /** 지금 향하는 정거장 순번 — 왼쪽 노선 패널의 «▶ 다음» 표시용 (ref 를 화면에 비추는 거울) */
     const [targetSeq, setTargetSeq] = useState(1);
@@ -307,6 +386,16 @@ export default function MapMockup() {
     const baseCallCount = stage.path.length ? (stage.path.length - 1) / 2 : 0;
     /** 첫 콜을 잡았는가 — 프리셋 국면도 콜을 쥔 상태다. 잡았으면 상차 영역 = 내 반경 ∩ 사각형 */
     const routeStarted = confirmed.length > 0 || stage.path.length > 0;
+    /**
+     * 🏘️ 관내(도착) 인지 — 목적지 원 안 + 출발지(집) 원 밖. 반경은 **운행 중(drive) 벌**로
+     * 고정한다: 활성 벌을 읽으면 «관내 인지→국면→벌→관내 인지» 순환이 생긴다 (09-08 설계)
+     */
+    const localMode = isLocalPhase({
+        srcAngleDeg: knobs.srcAngleDeg, dstAngleDeg: knobs.dstAngleDeg,
+        srcDiamKm: phaseSettings.drive.pickupRadiusKm * 2, dstDiamKm: Math.max(6, phaseSettings.drive.dropoffRadiusKm * 2),
+    }, NET_SRC, dst, myPos);
+    /** 콜 타겟 — 행선·도착 인지에서 **파생** (수동 버튼 없음): 복귀행 / 관내 / 노선행 */
+    const callTarget: 'DEST' | 'LOCAL' | 'HOME' = heading === 'HOME' ? 'HOME' : localMode ? 'LOCAL' : 'DEST';
     /** 운행 상태 — 실험실 상태에서 파생: 콜 0 = 대기 · 콜 쥠 = 합짐 수집 · 주행 = 운행 중 */
     const dispatchPhaseSim = confirmed.length > 0 ? (driving ? 'DELIVERING' as const : 'GATHERING' as const) : 'STANDBY' as const;
     /** 국면 — 실물 그대로 resolvePhaseKey(callTarget × 운행 상태)로 **자동** 파생. 수동 선택 없음 */
@@ -320,11 +409,6 @@ export default function MapMockup() {
         srcAngleDeg: knobs.srcAngleDeg, dstAngleDeg: knobs.dstAngleDeg,
         srcDiamKm: ps.pickupRadiusKm * 2, dstDiamKm: ps.dropoffRadiusKm * 2,
     }), [knobs, ps]);
-    /**
-     * 🏘️ 관내 국면 (기사님 확정 2026-09-07) — 목적지 원 안 + 출발지(집) 원 밖이면 도착한 것.
-     * 출발지 기억 = 초월(집). 관내에서는 방향을 안 보고 «둘 다 원 안»만 본다. 복귀는 셀렉바로 수동 전환.
-     */
-    const localMode = isLocalPhase(params, NET_SRC, dst, myPos);
     /**
      * 🛣️ 길 고르기 (기사님 확정 2026-09-07 «노선은 길을 잡아서 작동») — 여주 판에서만.
      * -1 = 사각형(길 미정 — 모든 길을 담는다) · 0~ = 카카오 대안 경로 중 하나를 골라
@@ -378,7 +462,12 @@ export default function MapMockup() {
      *  ⚠️ 옵션은 카카오 «추천» 하나다 (서버 calculateSoloRoute 기본값) — 길 찾기의 5옵션과 다르다. 카드에 표기함 */
     const confirmCall = (p: Pt, d: Pt) => {
         const id = ++callSeqRef.current;
-        setConfirmed(c => [...c, { id, pickup: p, drop: d, optionUsed: routeCombo.label, destName: dst.name }]);
+        // 걸린 트랙이 곧 판 — 복귀 콜이면 그 순간 관내가 ∩ 로 조여진다 (자동, 입력 없음)
+        const caughtDest = twoTrack && twoTrack.wonTrack === 'HOME' ? HOME_DST.name : dst.name;
+        if (twoTrack?.wonTrack === 'HOME') setHomeCaught(true);
+        const known = uploadedInfoRef.current;   // 🗄️ 올릴 때 이미 잰 구간 — 다시 묻지 않는다
+        setConfirmed(c => [...c, { id, pickup: p, drop: d, optionUsed: routeCombo.label, destName: caughtDest, ...(known ?? {}) }]);
+        if (known) return;
         fetch(`${apiBase()}/sim/route`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ points: [{ x: p.lng, y: p.lat }, { x: d.lng, y: d.lat }], priority: routeCombo.priority, avoid: routeCombo.avoid }),
@@ -386,7 +475,9 @@ export default function MapMockup() {
             .then(r => (r.ok ? r.json() : Promise.reject(r.status)))
             .then(res => {
                 const info = res.legInfo?.[0];
-                if (info) setConfirmed(c => c.map(x => x.id === id ? { ...x, ...info } : x));
+                if (info) setConfirmed(c => c.map(x => x.id === id
+                    ? { ...x, distKm: info.distKm, durMin: info.failed ? null : info.durMin, tollWon: info.tollWon, straight: !!info.failed }
+                    : x));
             })
             .catch(err => {
                 console.warn('[콜 실측] 못 받아 직선 폴백:', err);
@@ -451,7 +542,7 @@ export default function MapMockup() {
      */
     const [departed, setDeparted] = useState(false);
     useEffect(() => { if (driving) setDeparted(true); }, [driving]);
-    useEffect(() => { if (confirmed.length === 0) setDeparted(false); }, [confirmed.length]);
+    useEffect(() => { if (confirmed.length === 0) { setDeparted(false); setHomeCaught(false); } }, [confirmed.length]);
     /** 마지막으로 계산한 방문 순서 — 방문 고정(visited)의 원천 */
     const prevOrderRef = useRef<Array<{ call: number; kind: '상차' | '하차' }>>([]);
     /**
@@ -494,32 +585,73 @@ export default function MapMockup() {
      * 못 받으면(서버 꺼짐 등) 직선 폴백 — 실험은 계속된다. legs[i] = effPath[i]→effPath[i+1] 구간.
      */
     const [realLegs, setRealLegs] = useState<Pt[][] | null>(null);
+    /** 구간별 실측 실패 여부 — 실패 구간은 지도에 점선(도로 탐색 불가를 화면이 말한다) */
+    const [legFailed, setLegFailed] = useState<boolean[]>([]);
     const routeFetchSeq = useRef(0);
+    /**
+     * 🔴 재요청 기준은 **내용(정거장 좌표)**이지 배열 정체성이 아니다 (2026-09-08 실측:
+     * 주행 시작 때 departed 가 켜지며 같은 내용의 새 배열이 만들어졌고, 그걸 «경로가
+     * 바뀌었다»로 오판해 재호출 — 곡선이 지워졌다 다시 그려졌다).
+     */
+    const effPathKey = useMemo(() => effPath.map(pt => `${pt.x},${pt.y}`).join('|'), [effPath]);
     useEffect(() => {
-        setRealLegs(null);
-        if (effPath.length < 2) return;
+        if (effPath.length < 2) { setRealLegs(null); setLegFailed([]); return; }
+        // ① 캐시에 있는 구간으로 **먼저** 그린다 — 화면이 비는 순간이 없다
+        const cached = effPath.slice(1).map((pt, i) => legCacheRef.current.get(legKey(effPath[i].x, effPath[i].y, pt.x, pt.y)));
+        if (cached.every(Boolean)) {
+            setRealLegs(cached.map(c => c!.line));
+            setLegFailed(cached.map(c => c!.failed));
+            return;                                   // ② 전부 있으면 카카오를 안 부른다
+        }
+        // ③ 모르는 구간만 묻는다 — 아는 구간은 캐시에서 (카카오 호출을 아낀다)
+        const missing: Array<{ i: number; a: typeof effPath[number]; b: typeof effPath[number] }> = [];
+        cached.forEach((c, i) => { if (!c) missing.push({ i, a: effPath[i], b: effPath[i + 1] }); });
         const seq = ++routeFetchSeq.current;
         // 🔴 apiBase() 가 이미 `/api` 를 포함한다 — `/api` 를 또 붙이면 404 → 직선 폴백 (2026-09-07 실측)
-        fetch(`${apiBase()}/sim/route`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ points: effPath.map(p => ({ x: p.x, y: p.y })), priority: routeCombo.priority, avoid: routeCombo.avoid }),
-        })
-            .then(r => (r.ok ? r.json() : Promise.reject(r.status)))
-            .then(d => {
-                if (seq !== routeFetchSeq.current || !Array.isArray(d.legs)) return;
-                setRealLegs(d.legs.map((leg: Array<{ x: number; y: number }>) => leg.map(p => ({ lng: p.x, lat: p.y }))));
+        Promise.all(missing.map(m =>
+            fetch(`${apiBase()}/sim/route`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ points: [{ x: m.a.x, y: m.a.y }, { x: m.b.x, y: m.b.y }], priority: routeCombo.priority, avoid: routeCombo.avoid }),
+            })
+                .then(r => (r.ok ? r.json() : Promise.reject(r.status)))
+                .then(d => ({ m, line: (d.legs?.[0] ?? []).map((p: { x: number; y: number }) => ({ lng: p.x, lat: p.y })) as Pt[], failed: !!d.legInfo?.[0]?.failed }))
+        ))
+            .then(got => {
+                if (seq !== routeFetchSeq.current) return;
+                for (const g of got) if (g.line.length >= 2)
+                    legCacheRef.current.set(legKey(g.m.a.x, g.m.a.y, g.m.b.x, g.m.b.y), { line: g.line, failed: g.failed });
+                const all = effPath.slice(1).map((pt, i) => legCacheRef.current.get(legKey(effPath[i].x, effPath[i].y, pt.x, pt.y)));
+                setRealLegs(all.map(c => c?.line ?? []));
+                setLegFailed(all.map(c => c?.failed ?? true));
             })
             // 🔴 폴백에 들어가면 반드시 소리를 낸다 — 조용한 폴백이 /api 이중 붙임 404 를
             //    «원래 직선인가 보다»로 몇 시간 살게 했다 (버그 대장 #101)
             .catch(err => console.warn('[실경로] 못 받아 직선 폴백:', err));
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [effPath, routeCombo.priority, routeCombo.avoid]);
+    }, [effPathKey, routeCombo.priority, routeCombo.avoid]);
+
+    /**
+     * 🖌️ **그릴 곡선 — 상태(realLegs)가 아니라 «캐시 우선»으로 꺼낸다** (기사님 2026-09-08:
+     * *"확정하면 직선으로 깜빡인다"*). 확정 순간 effPath 는 새 경로인데 realLegs 는 아직
+     * 옛 값/null 이라 **한 박자(0.16초) 직선**이 그려졌다 — 실측(window.__drawLog):
+     * `straight:legs=null/2` 두 프레임 뒤 `curve:legs=2/2`. 캐시에 있으면 그 프레임부터 곡선이다.
+     */
+    const drawLegs = useMemo(() => {
+        if (effPath.length < 2) return null;
+        const fresh = realLegs && realLegs.length === effPath.length - 1 ? realLegs : null;
+        // 구간마다: 캐시 → 방금 받은 값 → **그 구간만** 직선 (전체가 직선으로 떨어지지 않는다)
+        return effPath.slice(1).map((pt, i) =>
+            legCacheRef.current.get(legKey(effPath[i].x, effPath[i].y, pt.x, pt.y))?.line
+            ?? fresh?.[i]
+            ?? [{ lng: effPath[i].x, lat: effPath[i].y }, { lng: pt.x, lat: pt.y }]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [effPathKey, realLegs, routeCombo.priority, routeCombo.avoid]);
 
     /** 주행이 따라갈 점 목록 — 실도로가 오면 그 곡선, 아니면 정거장 직선. seq = 향하는 정거장 순번 */
     const drivePath = useMemo(() => {
         const out: Array<{ lng: number; lat: number; seq: number }> = [];
-        if (realLegs && realLegs.length === effPath.length - 1) {
-            realLegs.forEach((leg, i) => {
+        if (drawLegs) {
+            drawLegs.forEach((leg, i) => {
                 for (const pt of leg) out.push({ lng: pt.lng, lat: pt.lat, seq: i + 1 });
                 out.push({ lng: effPath[i + 1].x, lat: effPath[i + 1].y, seq: i + 1 });
             });
@@ -527,7 +659,7 @@ export default function MapMockup() {
             effPath.slice(1).forEach((p, i) => out.push({ lng: p.x, lat: p.y, seq: i + 1 }));
         }
         return out;
-    }, [realLegs, effPath]);
+    }, [drawLegs, effPath]);
 
     const net = useMemo(
         () => routeMode
@@ -538,6 +670,30 @@ export default function MapMockup() {
         () => routeMode ? roadZoneOf(road ? road.line : [], dst, params.dstDiamKm, detourKm) : undefined,
         [routeMode, road, dst, params.dstDiamKm, detourKm]);
     /**
+     * ↩️ 복귀 마름모 — 내 위치→집. 주 마름모(net)와 **둘이 함께** 양방향을 이룬다
+     * (기사님 정정 2026-09-08: 관내 원이 아니라 **목적지 마름모가 계속 살아야** 한다 —
+     * 콜 없는 중간 지점에서 원은 무의미. 관내는 목적지 도착 시 주 마름모가 원으로 퇴화해 충족)
+     */
+    const homeNet = useMemo(() => heading === 'HOME' ? buildNet(params, anchor, HOME_DST) : null,
+        [heading, params, anchor, HOME_DST]);
+    /** 복귀 콜을 쥔 뒤(∩) — 주 트랙을 «집 원뿔 안»으로 자르는 판정기 */
+    const homeWedge = useMemo(() => heading === 'HOME' && homeCaught
+        ? quadTesterOf(params, anchor, HOME_DST) : null,
+        [heading, homeCaught, params, anchor, HOME_DST]);
+    /** 화면·아웃풋이 읽는 영역 = 주 마름모(∩ 적용) ∪ 복귀 마름모 — 목적지행이면 net 그대로 */
+    const areaNet = useMemo(() => {
+        if (!homeNet) return { groups: net.groups, pass: net.pass, count: net.count };
+        const mainPass = homeWedge ? net.pass.filter(pt => homeWedge({ lng: pt.x, lat: pt.y })) : net.pass;
+        const seen = new Set(mainPass.map(pt => `${pt.region}|${pt.name}`));
+        const pass = [...mainPass];
+        for (const pt of homeNet.pass) { const k = `${pt.region}|${pt.name}`; if (!seen.has(k)) { seen.add(k); pass.push(pt); } }
+        const grouped = new Map<string, string[]>();
+        for (const pt of pass) grouped.set(pt.region, [...(grouped.get(pt.region) ?? []), pt.name]);
+        const groups = [...grouped.entries()].map(([region, names]) => ({ region, names }))
+            .sort((a, b) => b.names.length - a.names.length);
+        return { groups, pass, count: pass.length };
+    }, [net, homeNet, homeWedge]);
+    /**
      * 📦 **앱에 내려갈 필터 아웃풋** (기사님 2026-09-07: *"DB 도 서버통신도 없이, 필터 로직을
      * 잘 만들어 앱에 전달할 아웃풋만 만든다"*) — 실험실 상태에서 곧장 파생하는 순수 계산.
      * 🔴 필드 이름은 실물 규격(shared `AutoDispatchFilter`) 그대로 쓴다 — 이식 때
@@ -545,15 +701,49 @@ export default function MapMockup() {
      */
     const appFilterOutput = useMemo(() => buildAppFilterOutput({
         callTarget, dispatchPhase: dispatchPhaseSim, driving,
-        dstName: dst.name, groups: net.groups, pass: net.pass, excluded: routeMode ? [] : excluded,
+        dstName: dst.name, groups: areaNet.groups, pass: areaNet.pass, excluded: routeMode ? [] : excluded,
         pickupRadiusKm: ps.pickupRadiusKm, dropoffRadiusKm: ps.dropoffRadiusKm,
         detourAllowKm: ps.detourAllowKm, discountPct: ps.discountPct,
         vehicles, excludedWords, slotsUsed, capacityConfirmed,
-        modeDesc: road ? `길 ±${detourKm}km — ${road.name}` : routeMode ? '노선 (길 미선택 — 목적지 원만)' : localMode ? '관내 (목적지 원)' : `동선 사각형 ${params.srcAngleDeg}°/${params.dstAngleDeg}°`,
-    }), [callTarget, dispatchPhaseSim, driving, dst, net, excluded, ps, vehicles, excludedWords, slotsUsed, capacityConfirmed, road, routeMode, detourKm, localMode, params]);
-    const verdict: TwoStageVerdict | null = useMemo(
-        () => pickup && drop ? judgeTwoStage(params, anchor, dst, myPos, pickup, drop, routeStarted, localMode, zone) : null,
-        [pickup, drop, params, anchor, dst, myPos, routeStarted, localMode, zone]);
+        modeDesc: (heading === 'HOME' ? (homeCaught ? '↩️ 복귀행(목적지 트랙은 길목 ∩) · ' : '↩️ 양방향(목적지 ∪ 복귀 마름모) · ') : '')
+            + (road ? `길 ±${detourKm}km — ${road.name}` : routeMode ? '노선 (길 미선택 — 목적지 원만)' : localMode ? '관내 (목적지 원)' : `동선 사각형 ${params.srcAngleDeg}°/${params.dstAngleDeg}°`),
+    }), [callTarget, dispatchPhaseSim, driving, dst, areaNet, excluded, ps, vehicles, excludedWords, slotsUsed, capacityConfirmed, road, routeMode, detourKm, localMode, params, heading, homeCaught]);
+    /** ↩️ 복귀 대기의 양방향 판정 — 관내·복귀 두 트랙, 우선권은 복귀 */
+    const twoTrack = useMemo(() => heading === 'HOME' && pickup && drop
+        ? judgeTwoTrack(params, anchor, dst, HOME_DST, myPos, pickup, drop,
+            { routeStarted, mainLocal: localMode, mainZone: zone, homeCaught })
+        : null, [heading, pickup, drop, params, anchor, dst, HOME_DST, myPos, routeStarted, localMode, zone, homeCaught]);
+    const verdict: TwoStageVerdict | null = useMemo(() => {
+        if (twoTrack) return twoTrack.wonTrack === 'MAIN' ? twoTrack.main : twoTrack.home;
+        return pickup && drop ? judgeTwoStage(params, anchor, dst, myPos, pickup, drop, routeStarted, localMode, zone) : null;
+    }, [twoTrack, pickup, drop, params, anchor, dst, myPos, routeStarted, localMode, zone]);
+    /**
+     * 📐 우회 미리보기 — 판정 기준 «돈(우회)·약속(지연)» 축의 재료 (기사님 2026-09-08:
+     * *"판단 기준 5개 중 지도·경로·시간에 맞는 것만 골라 더 보여줘"*).
+     * 이 콜을 지금 경로에 붙이면 총거리가 얼마나 느나 — 직선 근사, 분 환산은 잠정 계수
+     * (실물 REACH_COEF — 근거 없는 값이라 «거르는 데는 안 쓴다», 표시만).
+     */
+    const detourPreview = useMemo(() => {
+        if (!pickup || !drop) return null;
+        const km = (a: Pt, b: Pt) => Math.hypot((a.lng - b.lng) * 88.6, (a.lat - b.lat) * 110.574);
+        const caughtDest = twoTrack && twoTrack.wonTrack === 'HOME' ? HOME_DST.name : dst.name;
+        const base = confirmed.map(c => ({ pickup: c.pickup, drop: c.drop, destName: c.destName }));
+        const withCall = [...base, { pickup, drop, destName: caughtDest }];
+        const totalKm = (calls: typeof base) => {
+            if (calls.length === 0) return 0;
+            const stops = orderStopsGrouped(NET_SRC, calls, []);
+            let pos: Pt = { lng: NET_SRC.lng, lat: NET_SRC.lat }, sum = 0;
+            for (const st of stops) { sum += km(pos, st.pt as Pt); pos = st.pt as Pt; }
+            return sum;
+        };
+        const deliverKm = km(pickup, drop);
+        const detourKm2 = Math.max(0, totalKm(withCall) - totalKm(base) - deliverKm);
+        return {
+            deliverKm: +deliverKm.toFixed(1),
+            detourKm: +detourKm2.toFixed(1),
+            detourMin: Math.round((detourKm2 + deliverKm) * REACH_COEF_MIN_PER_KM_TEMP),
+        };
+    }, [pickup, drop, confirmed, twoTrack, dst.name, HOME_DST]);
     /** ⛔ 제외지역에 걸린 콜 — 필터에 그 동이 안 실리므로 실전에선 애초에 안 올라온다 */
     const exclusionHit = useMemo(() => {
         if (!verdict) return null;
@@ -563,7 +753,7 @@ export default function MapMockup() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [verdict, excluded]);
     /** 화면·기록이 쓰는 최종 통과 — 기하 판정(verdict.pass)에 제외지역을 겹친 값 */
-    const finalPass = !!verdict && verdict.pass && !exclusionHit;
+    const finalPass = !!verdict && (twoTrack ? twoTrack.pass : verdict.pass) && !exclusionHit;
 
     /**
      * 📜 판정 기록 (기사님 요청 2026-09-07 «한 바퀴 돌고 검토») — 처리(확정/버림)된 콜만 남긴다.
@@ -724,6 +914,15 @@ export default function MapMockup() {
                 ctx.strokeStyle = 'rgba(71,85,105,.6)'; ctx.lineWidth = 1.6; ctx.stroke();
             }
 
+            // ↩️ 복귀 마름모 — 주 마름모와 **같은 급, 같은 파란 실선** (기사님 2026-09-08:
+            //    «파란 마름모 2개 — 콜마다 방향이 있으니 문제없다»). ∩ 뒤엔 주 마름모만 흐려진다
+            if (homeNet && layers.net) {
+                ctx.beginPath();
+                homeNet.tri.forEach(([lng, lat], i) => { const [px, py] = S(lng, lat); i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py); });
+                ctx.closePath();
+                ctx.fillStyle = 'rgba(14,165,233,.10)'; ctx.fill();
+                ctx.strokeStyle = '#0284c7'; ctx.lineWidth = 2.5; ctx.stroke();
+            }
             // 꼭짓점 원 — 주황 점선. 🔴 합짐(첫 콜 뒤)이면 내 위치 원은 **마름모와의 교집합만** 남긴다
             //    (기사님 2026-09-07 «원과 마름모의 교집합만 남도록 라인을 지워줘») — 상차 영역이 그 모양이니까
             const inQuadFn = quadTesterOf(params, anchor, dst);
@@ -758,8 +957,8 @@ export default function MapMockup() {
             ctx.beginPath();
             net.tri.forEach(([lng, lat], i) => { const [px, py] = S(lng, lat); i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py); });
             ctx.closePath();
-            ctx.fillStyle = 'rgba(14,165,233,.10)'; ctx.fill();
-            ctx.strokeStyle = '#0284c7'; ctx.lineWidth = 2.5; ctx.stroke();
+            ctx.fillStyle = homeCaught ? 'rgba(14,165,233,.04)' : 'rgba(14,165,233,.10)'; ctx.fill();
+            ctx.strokeStyle = homeCaught ? 'rgba(2,132,199,.35)' : '#0284c7'; ctx.lineWidth = homeCaught ? 1.5 : 2.5; ctx.stroke();
             }
             // 🛣️ 길 후보 (레이어: 길) — 목적지별 카카오 실측 길 전부. 고른 길은 굵게, 나머지는 얇게
             // 「길 찾기」 뒤에만 보이고, **경로 반경만큼 두껍게** (기사님 시나리오)
@@ -789,7 +988,7 @@ export default function MapMockup() {
                 });
             }
             // 그물에 든 동 — 파란 점 · 제외지역은 흐린 ✕ (빠졌다는 것이 지도에서 보여야 한다)
-            if (layers.net) for (const p of net.pass) {
+            if (layers.net) for (const p of areaNet.pass) {
                 const [px, py] = S(p.x, p.y);
                 if (isExcluded(p.region, p.name)) {
                     ctx.strokeStyle = 'rgba(107,114,128,.75)'; ctx.lineWidth = 1.6;
@@ -824,12 +1023,14 @@ export default function MapMockup() {
             }
             // 잡은 콜 경로 — 구간 색 + 이름표 (레이어: 내 경로). 실도로 곡선이 오면 그걸로 잇는다
             if (layers.route) {
-                if (realLegs && realLegs.length === effPath.length - 1) {
-                    realLegs.forEach((leg, i) => {
+                if (drawLegs) {
+                    drawLegs.forEach((leg, i) => {
                         ctx.beginPath();
                         const legPts = [{ lng: effPath[i].x, lat: effPath[i].y }, ...leg, { lng: effPath[i + 1].x, lat: effPath[i + 1].y }];
                         legPts.forEach((p, j) => { const [px, py] = S(p.lng, p.lat); j === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py); });
-                        ctx.strokeStyle = effPath[i + 1].color ?? '#e11d48'; ctx.lineWidth = 3.5; ctx.lineJoin = 'round'; ctx.stroke();
+                        ctx.strokeStyle = effPath[i + 1].color ?? '#e11d48'; ctx.lineWidth = 3.5; ctx.lineJoin = 'round';
+                        if (legFailed[i]) ctx.setLineDash([6, 5]);      // 도로 탐색 불가 — 직선 구간은 점선
+                        ctx.stroke(); ctx.setLineDash([]);
                     });
                 } else {
                     for (let i = 1; i < effPath.length; i++) {
@@ -872,29 +1073,46 @@ export default function MapMockup() {
             }
             // 시험 콜 — (레이어: 시험 콜)
             if (layers.call && pickup && drop) {
+                // ⏱️ 안전취소 30초 동안은 **굵게 깜빡인다** — «지금 결정해야 하는 콜»이라는 신호
+                //    (기사님 2026-09-08 «좀 더 시뮬레이션처럼»). 30초가 지나면 조용한 점선으로
+                const urgent = (safeCancelLeft ?? 0) > 0;
+                const blink = urgent ? 0.45 + 0.55 * Math.abs(Math.sin(nowTick / 260)) : 1;
                 const a = S(pickup.lng, pickup.lat), b = S(drop.lng, drop.lat);
-                ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]);
-                ctx.strokeStyle = verdict?.pass ? '#16a34a' : '#dc2626'; ctx.lineWidth = 2.5;
-                ctx.setLineDash([7, 5]); ctx.stroke(); ctx.setLineDash([]);
+                ctx.globalAlpha = blink;
+                ctx.beginPath();
+                if (uploadedLeg && uploadedLeg.length >= 2) {   // 올린 뒤 — 카카오 실도로
+                    uploadedLeg.forEach((p, i) => { const [px, py] = S(p.lng, p.lat); i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py); });
+                } else { ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); }
+                ctx.strokeStyle = finalPass ? '#16a34a' : '#dc2626'; ctx.lineWidth = urgent ? 4.5 : 2.5;
+                ctx.setLineDash(uploadedLeg ? [] : urgent ? [12, 7] : [7, 5]); ctx.stroke(); ctx.setLineDash([]);
+                if (urgent) {   // 상차 자리에 퍼지는 고리 — 새 콜이 여기 떴다
+                    const r = 12 + 10 * (1 - (safeCancelLeft ?? 0) / 30 % 1);
+                    ctx.beginPath(); ctx.arc(a[0], a[1], r, 0, Math.PI * 2);
+                    ctx.strokeStyle = finalPass ? 'rgba(22,163,74,.55)' : 'rgba(220,38,38,.55)';
+                    ctx.lineWidth = 2; ctx.stroke();
+                }
+                ctx.globalAlpha = 1;
             }
-            const tri = (x: number, y: number, up: boolean, tone: string) => {
-                ctx.fillStyle = tone; ctx.beginPath();
-                ctx.moveTo(x, y + (up ? -8 : 8)); ctx.lineTo(x - 7, y + (up ? 6 : -6)); ctx.lineTo(x + 7, y + (up ? 6 : -6));
-                ctx.closePath(); ctx.fill();
-                ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+            /** 상·하차 마커 — 원 안에 「상」「하」 (기사님 2026-09-08: 삼각형은 방향으로 오해된다) */
+            const stopDot = (x: number, y: number, label: '상' | '하', tone: string) => {
+                ctx.fillStyle = tone; ctx.beginPath(); ctx.arc(x, y, 10, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+                ctx.font = '800 11px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillStyle = '#fff'; ctx.fillText(label, x, y + 0.5);
+                ctx.textBaseline = 'alphabetic';
             };
-            if (layers.call && pickup) { const [px, py] = S(pickup.lng, pickup.lat); tri(px, py, true, '#16a34a'); }
-            if (layers.call && drop) { const [px, py] = S(drop.lng, drop.lat); tri(px, py, false, '#dc2626'); }
+            if (layers.call && pickup) { const [px, py] = S(pickup.lng, pickup.lat); stopDot(px, py, '상', '#16a34a'); }
+            if (layers.call && drop) { const [px, py] = S(drop.lng, drop.lat); stopDot(px, py, '하', '#dc2626'); }
         };
         drawRef.current = draw;
         draw();
-    }, [net, effPath, anchor, pickup, drop, verdict, size, params, dst, routeStarted, road, roadIdx, dstIdx, view, layers, routeMode, roadSearched, destRoads, detourKm, knobs, myPos, realLegs, excluded]);
+    }, [net, areaNet, homeNet, homeCaught, heading, legFailed, safeCancelLeft, nowTick, finalPass, uploadedLeg, effPath, anchor, pickup, drop, verdict, size, params, dst, routeStarted, road, roadIdx, dstIdx, view, layers, routeMode, roadSearched, destRoads, detourKm, knobs, myPos, drawLegs, excluded]);
 
     /** 클릭 한 점을 콜/내위치로 배치 */
     const placeAt = (pt: Pt) => {
         if (clickMode === 'me') { setMyPos(pt); setClickMode('call'); return; }
-        if (!pickup || (pickup && drop)) { if (pickup && drop) pushLog('버림'); pauseForCall(); setPickup(pt); setDrop(null); }
-        else setDrop(pt);
+        if (!pickup || (pickup && drop)) { if (pickup && drop) pushLog('버림'); pauseForCall(); setPickup(pt); setDrop(null); setUploaded(false); setUploadedLeg(null); setCallSeenAt(null); }
+        else { setDrop(pt); setUploadedLeg(null); }
     };
 
     const onMapClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -948,6 +1166,12 @@ export default function MapMockup() {
                             🅿️ 대기 — 콜 확정 후 주행
                         </span>
                     )}
+                    {safeCancelLeft !== null && (
+                        <span className={`px-2 py-1 rounded-[8px] border text-[11px] font-black tabular-nums ${safeCancelLeft > 0
+                            ? 'border-danger/55 bg-danger/10 text-danger' : 'border-border-hover bg-background text-text-muted'}`}>
+                            {safeCancelLeft > 0 ? `⏱️ 안전취소 ${safeCancelLeft}초` : '⏱️ 안전취소 끝 — 결재는 기사님'}
+                        </span>
+                    )}
                     {pausedForCall && !driving && (
                         <span className="px-2 py-1 rounded-[8px] border border-warning/55 bg-warning/10 text-warning text-[10.5px] font-black">
                             ⏸ 새 콜 — 처리하면 재개
@@ -958,27 +1182,39 @@ export default function MapMockup() {
 
             <div className="flex-1 min-h-0 flex">
                 {/* 🗂️ 왼쪽 — 필터 (기사님 2026-09-07 와이어프레임: 필터 → 판정 → 콜 리스트) */}
-                <aside className="w-[400px] shrink-0 border-r border-border-card bg-surface p-3 flex flex-col gap-2 overflow-y-auto">
+                <aside className="w-[460px] shrink-0 border-r border-border-card bg-surface p-3 flex flex-col gap-2 overflow-y-auto">
                     {/* 🎯 요약줄 — 실물 규격 그대로 (OrderFilterStatus: «🎯 노선행 · 여기서 10km → 서울 1km · 📦 90/100»).
                         라벨은 shared CALL_TARGET_LABEL, 값은 지금 필터 상태에서 파생 (기사님 2026-09-07) */}
                     <div className="rounded-[8px] border border-border-card bg-background px-2 py-1.5 text-[11px] font-black leading-snug">
-                        🎯 {CALL_TARGET_LABEL[callTarget]} · {callTarget === 'HOME'
-                            ? <>여기서 → 집({dst.name}) {ps.dropoffRadiusKm}km</>
+                        🎯 {CALL_TARGET_LABEL[callTarget]} · {heading === 'HOME'
+                            ? <>여기서 {ps.pickupRadiusKm}km → {dst.name} ∪ ↩️집 {ps.dropoffRadiusKm}km</>
                             : <>여기서 {ps.pickupRadiusKm}km → {dst.name} {ps.dropoffRadiusKm}km</>}
+                        {heading === 'HOME' && <b className="text-warning">{homeCaught ? ' · 길목 ∩' : ' · +🏘️ 관내'}</b>}
                         {' · 📦 '}{slotsUsed}/{TRUCK_CAPACITY_SLOTS}
                     </div>
 
-                    {/* 🎯 콜 타겟 — 필터 소속이라 왼쪽 (기사님 2026-09-07). 실물 요약줄 카드의 노선/관내/복귀 그대로 */}
+                    {/* ↩️ 행선 — 목적지행 ↔ 복귀 (기사님 확정 2026-09-08). 관내는 버튼이 아니라 자동 인지,
+                        복귀를 켜면 관내 원 ∪ 복귀 트랙 양방향이 자동으로 선다 */}
                     <div className="flex flex-col gap-1">
                         <div className="flex gap-1">
-                            {([['DEST', '🛣️ 노선'], ['LOCAL', '🏘️ 관내'], ['HOME', '🏠 복귀']] as const).map(([v, label]) => (
-                                <button key={v} type="button" onClick={() => setCallTarget(v)}
-                                    className={`flex-1 px-1.5 py-1.5 rounded-[8px] border text-[11px] font-black ${callTarget === v
-                                        ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-background text-text-muted'}`}>
-                                    {label}
-                                </button>
-                            ))}
+                            <button type="button" onClick={() => { freezeView(); setHeading('DEST'); setHomeCaught(false); }}
+                                className={`flex-1 px-1.5 py-1.5 rounded-[8px] border text-[11px] font-black ${heading === 'DEST'
+                                    ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-background text-text-muted'}`}>
+                                🎯 목적지행
+                            </button>
+                            <button type="button" onClick={() => { freezeView(); setHeading('HOME'); }}
+                                className={`flex-1 px-1.5 py-1.5 rounded-[8px] border text-[11px] font-black ${heading === 'HOME'
+                                    ? 'bg-warning/15 border-warning/55 text-warning' : 'border-border-hover bg-background text-text-muted'}`}>
+                                ↩️ 복귀
+                            </button>
                         </div>
+                        {heading === 'HOME' && (
+                            <p className="text-[10px] text-warning font-bold leading-snug">
+                                {homeCaught
+                                    ? '↩️ 복귀 콜을 쥠 — 목적지 트랙은 집 길목(∩) 조각만 남습니다'
+                                    : '↩️ 복귀 대기 — 목적지행과 복귀, 마름모 둘로 양방향을 노립니다 (콜 처리 중에도)'}
+                            </p>
+                        )}
                         {/* 국면 = 실물 resolvePhaseKey(콜타겟 × 운행상태) — 수동 선택이 아니라 파생값 (규칙 ③) */}
                         <p className="text-[10.5px] text-text-muted leading-snug">
                             운행 상태 <b className="text-text-primary">{dispatchPhaseSim === 'STANDBY' ? '대기' : dispatchPhaseSim === 'GATHERING' ? '콜 쥠' : '주행 중'}</b>
@@ -1012,7 +1248,7 @@ export default function MapMockup() {
                         </p>
                     )}
 
-                    {/* 🎯 목적지 — 노선·동선 공용 (기사님 2026-09-07: 노선도 목적지를 고른다) */}
+                    {/* 🎯 목적지 — 복귀행에서도 산다: 주 마름모의 끝점이다 (두 마름모) */}
                     <label className="flex flex-col gap-0.5 text-[10.5px] font-bold text-text-muted">
                         🎯 목적지
                         <select value={dstIdx} onChange={e => setDstIdx(Number(e.target.value))}
@@ -1050,7 +1286,7 @@ export default function MapMockup() {
                             ))}
                             {road && (
                                 <p className="text-[10.5px] text-text-muted leading-snug">
-                                    ✅ 이 길 ±{detourKm}km 의 <b className="text-text-primary">{net.count}동</b>이 필터
+                                    ✅ 이 길 ±{detourKm}km 의 <b className="text-text-primary">{areaNet.count}동</b>이 필터
                                 </p>
                             )}
                         </>
@@ -1069,7 +1305,7 @@ export default function MapMockup() {
                         <select value="" onChange={e => { const v = e.target.value; if (v) setExcluded(x => x.includes(v) ? x : [...x, v]); }}
                             className="w-full px-2 py-1 rounded-[7px] border border-border-hover bg-background text-[11px] font-bold">
                             <option value="">제외할 지역 고르기…</option>
-                            {net.groups.map(g => (
+                            {areaNet.groups.map(g => (
                                 <optgroup key={g.region} label={g.region}>
                                     <option value={`R|${g.region}`}>◼ {g.region} 전체 ({g.names.length}동)</option>
                                     {g.names.map(n => <option key={n} value={`D|${g.region}|${n}`}>{n}</option>)}
@@ -1090,7 +1326,9 @@ export default function MapMockup() {
                     </div>}
 
                     {/* 🧪 판정 — 필터와 콜 리스트 사이 (기사님 2026-09-07 와이어프레임 확정) */}
-                    <FilterPanel title={`🧪 판정 — 그물 ${net.count}동${roadMode && road ? ` · 길` : ''}`}>
+                    {/* 🔴 두 층은 완전히 격리되어 각각 따로 작동한다 (규칙: 필터=집기 전 · 심사=집은 뒤).
+                        기사님 2026-09-08: *"판정영역을 상하로 나눠서 상은 필터가 하는 일, 하는 심사가 하는 일"* */}
+                    <FilterPanel tone="filter" title={`🔍 ① 콜 필터 — 집기 전 · 앱이 하는 일 · 그물 ${areaNet.count}동${roadMode && road ? ' · 길' : ''}`}>
                         {localMode && (
                             <div className="px-2 py-1 rounded-lg bg-info/15 text-info text-[11px] font-black">
                                 🏘️ 관내 — 방향 안 봄, 둘 다 원 안만
@@ -1100,14 +1338,32 @@ export default function MapMockup() {
                         {verdict && (
                             <div className="flex flex-col gap-1">
                                 <div className="text-[11px]">▲ <b>{verdict.pickupDong.region} {verdict.pickupDong.name}</b> → ▼ <b>{verdict.dropDong.region} {verdict.dropDong.name}</b></div>
+                                {/* 찍은 좌표 — 화면만 보고 그대로 재현·검산할 수 있게 (기사님 제안 2026-09-08) */}
+                                {pickup && drop && (
+                                    <div className="text-[9.5px] font-mono text-text-muted tabular-nums leading-tight">
+                                        ▲{pickup.lng.toFixed(5)},{pickup.lat.toFixed(5)} ▼{drop.lng.toFixed(5)},{drop.lat.toFixed(5)} 📍{myPos.lng.toFixed(5)},{myPos.lat.toFixed(5)}
+                                    </div>
+                                )}
                                 <span className={`self-start px-2 py-0.5 rounded-lg text-[12px] font-black ${finalPass ? 'bg-success/20 text-success' : 'bg-danger/20 text-danger'}`}>
-                                    {finalPass ? '✅ 필터 통과' : exclusionHit ? '⛔ 제외지역' : '❌ 탈락'}
+                                    {finalPass ? '✅ 올린다 (필터 통과)' : exclusionHit ? '⛔ 제외지역 — 안 올린다' : '❌ 안 올린다'}
                                 </span>
+                                {twoTrack && (
+                                    <div className="flex gap-1 flex-wrap items-center">
+                                        <Chip ok={twoTrack.main.pass} yes="목적지 트랙" no="목적지 밖" />
+                                        <Chip ok={twoTrack.home.pass} yes="복귀 트랙" no="복귀 밖" />
+                                        {twoTrack.wonTrack && (
+                                            <span className="px-2 py-0.5 rounded-md text-[11px] font-black bg-warning/15 text-warning">
+                                                승자 {twoTrack.wonTrack === 'HOME' ? '↩️ 복귀' : '🎯 목적지'}
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
                                 {exclusionHit && (
                                     <div className="text-[10.5px] text-danger font-bold leading-snug">
                                         ⛔ {exclusionHit} — 제외한 동입니다. 필터에 안 실려 실전에선 이 콜이 안 올라옵니다.
                                     </div>
                                 )}
+                                <div className="text-[10px] font-black text-text-muted">1단계 · 영역</div>
                                 {localMode ? (
                                     <div className="flex gap-1 flex-wrap">
                                         <Chip ok={verdict.pickupNearMe} yes="상차 원 안" no="상차 원 밖" />
@@ -1120,6 +1376,7 @@ export default function MapMockup() {
                                             <Chip ok={verdict.pickupNearMe} yes="상차 반경 안" no="상차 반경 밖" />
                                             {routeStarted && <Chip ok={verdict.pickupInNet} yes={roadMode ? '상차 경유 띠 안' : '상차 사각형 안'} no={roadMode ? '상차 경유 띠 밖' : '상차 사각형 밖(뒤)'} />}
                                         </div>
+                                        <div className="text-[10px] font-black text-text-muted">2단계 · 거리(방향)</div>
                                         <div className="font-black tabular-nums text-[12.5px]">{verdict.distPickKm} : {verdict.distDropKm} : {verdict.distMeKm}
                                             <span className="text-[10px] text-text-muted font-bold"> (상차:하차:현위치→목적지)</span></div>
                                         <div className="flex gap-1 flex-wrap">
@@ -1128,6 +1385,57 @@ export default function MapMockup() {
                                         </div>
                                     </>
                                 )}
+                                {/* 🪜 스텝 1 — 앱이 «올린다». 이걸 눌러야 서버(심사)가 깨어난다 (실물 그대로) */}
+                                {!uploaded ? (
+                                    <button type="button"
+                                        onClick={uploadCall}
+                                        className={`self-start px-2.5 py-1.5 rounded-[8px] border text-[11.5px] font-black ${finalPass
+                                            ? 'border-info/55 bg-info/15 text-info' : 'border-warning/55 bg-warning/10 text-warning'}`}>
+                                        {finalPass ? '⬆️ 필터 통과 — 서버로 올린다' : '⚠️ 탈락인데 올려 보기'}
+                                    </button>
+                                ) : (
+                                    <span className="self-start px-2 py-0.5 rounded-md text-[11px] font-black bg-info/15 text-info">
+                                        ⬆️ 올렸다 — 서버가 심사 중
+                                    </span>
+                                )}
+                            </div>
+                        )}
+                    </FilterPanel>
+
+                    <div className="flex items-center gap-1.5 my-0.5">
+                        <span className="flex-1 h-px bg-border-card" />
+                        <span className="text-[9.5px] font-black text-text-muted">🔒 두 층은 서로 남남 — 따로 작동합니다</span>
+                        <span className="flex-1 h-px bg-border-card" />
+                    </div>
+
+                    {/* ⚖️ ② 심사 — 집은 뒤 (서버). 필터와 **완전히 격리**되어 따로 작동한다.
+                        실물은 안전취소 30초 안에 색(🔵🟢🟡🔴)을 낸다 — 여기는 그 재료를 보여준다 */}
+                    <FilterPanel tone="judge" title={`⚖️ ② 심사 — 집은 뒤 · 서버가 하는 일${safeCancelLeft !== null ? ` · ⏱️ ${safeCancelLeft}초` : ''}`}>
+                        {!verdict && <p className="text-[10.5px] text-text-muted leading-snug">콜을 집으면 여기서 심사 — 판정 기준 다섯이 색을 낸다</p>}
+                        {verdict && !uploaded && (
+                            <p className="text-[10.5px] text-text-muted leading-snug">
+                                🔒 아직 안 올라온 콜입니다 — 위에서 <b>필터 통과</b>를 눌러야 서버가 봅니다
+                            </p>
+                        )}
+                        {verdict && uploaded && (
+                            <div className="flex flex-col gap-1">
+                                {detourPreview && (
+                                    <>
+                                        <div className="text-[10px] font-black text-text-muted">💰 돈 · ⏱️ 약속 — 이 콜을 붙이면</div>
+                                        <div className="text-[11px] font-bold tabular-nums">
+                                            📐 배송 {detourPreview.deliverKm}km · <b className={detourPreview.detourKm > 0 ? 'text-warning' : 'text-success'}>우회 +{detourPreview.detourKm}km</b> · 이 콜에 ≈{detourPreview.detourMin}분
+                                        </div>
+                                        <div className="text-[9.5px] text-text-muted leading-snug">
+                                            잠정 계수 {REACH_COEF_MIN_PER_KM_TEMP}분/km · 직선 근사 — 실물은 카카오 경로로 잰다
+                                        </div>
+                                    </>
+                                )}
+                                <div className="text-[10px] font-black text-text-muted">아직 못 재는 기준 — 콜에 그 재료가 없다 (지어내지 않는다)</div>
+                                <div className="flex gap-1 flex-wrap text-[10.5px]">
+                                    {(['💰 돈(요금)', '📦 공간(박스)', '🧪 성질(화물)'] as const).map(t => (
+                                        <span key={t} className="px-1.5 py-0.5 rounded-md bg-background border border-border-card text-text-muted font-bold">{t} —</span>
+                                    ))}
+                                </div>
                                 {TRAP_DONGS.filter(t => t.dong === verdict.dropDong.name).map(t => (
                                     <div key={t.dong} className="text-[10.5px] text-danger font-bold leading-snug">
                                         ⛔ 가면 안 되는 지역 — {t.region} {t.dong}: {t.why}
@@ -1151,7 +1459,7 @@ export default function MapMockup() {
                     </FilterPanel>
 
                     {/* 📋 콜 리스트 — 왼쪽 사이드바 맨 아래 딱 붙임 (기사님 2026-09-07: mt-auto) + 방문 순서 */}
-                    <FilterPanel className="mt-auto" title={`📋 콜 리스트${confirmed.length ? ` — ${confirmed.length}` : ''}`}>
+                    <FilterPanel title={`📋 콜 리스트${confirmed.length ? ` — ${confirmed.length}` : ''}`}>
                         {confirmed.length === 0 && <p className="text-[10.5px] text-text-muted">확정한 콜이 여기 쌓입니다</p>}
                         {confirmed.length > 0 && (
                             <>
@@ -1170,7 +1478,7 @@ export default function MapMockup() {
                                                 </span>
                                                 <span className="pl-4 text-[10.5px] font-bold text-text-muted tabular-nums">
                                                     {c.distKm === undefined ? '⏳ 실측 중…'
-                                                        : c.straight ? `직선 ${c.distKm}km (실측 실패)`
+                                                        : c.straight ? `직선 ${c.distKm}km (도로 탐색 불가·실측 실패)`
                                                         : <>{c.distKm}km · {c.durMin}분 · 톨 {(c.tollWon ?? 0).toLocaleString()}원 <span className="font-normal">· 카카오 {c.optionUsed ?? '추천'}</span></>}
                                                 </span>
                                             </li>
@@ -1314,9 +1622,9 @@ export default function MapMockup() {
                     </FilterPanel>
 
                     <details className="border-t border-border-card pt-2">
-                        <summary className="text-[10.5px] font-black text-text-muted cursor-pointer">🗂️ 영역 — 시군구별 {net.count}동</summary>
+                        <summary className="text-[10.5px] font-black text-text-muted cursor-pointer">🗂️ 영역 — 시군구별 {areaNet.count}동</summary>
                         <div className="mt-1 flex flex-col gap-1 text-[10.5px] leading-snug">
-                            {net.groups.map(g => {
+                            {areaNet.groups.map(g => {
                                 const regionOut = excluded.includes(`R|${g.region}`);
                                 return (
                                     <div key={g.region}>

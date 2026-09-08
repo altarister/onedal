@@ -572,6 +572,48 @@ export function orderStopsGrouped(
     return out;
 }
 
+/**
+ * ↩️ **양방향(복귀 대기) 판정 — 마름모 둘** (기사님 정정 2026-09-08: *"내가 생각했던 건
+ * 파주로 계속 진행해야 한다는 거였어. 그래서 두 개의 마름모가 필요하다 한 건데"*).
+ *
+ * 복귀를 누르면 그물이 **목적지 마름모 ∪ 복귀 마름모** 가 된다 — 콜 처리 중에도 계속.
+ *   · 주 트랙 — 내 위치→기존 목적지(파주). 하던 일을 계속 잡는다. 노선이면 길 띠(mainZone)
+ *   · 복귀 트랙 — 내 위치→집 마름모
+ *   · 관내는 따로 없다 — 목적지에 도착하면 주 마름모가 퇴화해 목적지 원만 남는다 (기존 규칙)
+ *   · **우선권은 복귀** — 둘 다 통과하면 HOME. 복귀 콜을 잡는 것이 이 판의 목표다
+ *   · 복귀 콜을 잡은 뒤(homeCaught)에는 주 트랙이 **집 원뿔과의 교집합**만 남는다 (순차 진행)
+ * ⚠️ 첫 판은 주 트랙을 «관내 원»으로 잘못 세웠다 — 콜 없는 중간 지점(산곡동)에서 원은 무의미하다.
+ */
+export interface TwoTrackVerdict { main: TwoStageVerdict; home: TwoStageVerdict; pass: boolean; wonTrack: 'HOME' | 'MAIN' | null }
+export function judgeTwoTrack(
+    p: NetParams, anchor: NetPoint, mainDst: NetPoint, homeDst: NetPoint,
+    me: { lng: number; lat: number },
+    pickup: { lng: number; lat: number },
+    drop: { lng: number; lat: number },
+    opts: {
+        routeStarted?: boolean;
+        /** 주 트랙이 도착 상태(관내 — 목적지 원 규칙)인가 */
+        mainLocal?: boolean;
+        /** 주 트랙이 노선(길 띠)이면 그 판정기 */
+        mainZone?: { dropIn(pt: { lng: number; lat: number }): boolean; pickupIn(pt: { lng: number; lat: number }): boolean };
+        homeCaught?: boolean;
+    },
+): TwoTrackVerdict {
+    const main = judgeTwoStage(p, anchor, mainDst, me, pickup, drop, opts.routeStarted ?? false, opts.mainLocal ?? false, opts.mainZone);
+    // 🔴 복귀 «대기»는 미리 잡는 그물 — 상차 ∩(원뿔)는 복귀콜을 잡은 뒤(homeCaught)부터다.
+    //    (2026-09-08 실측: 파주행 중 복귀를 켰는데 집 4.2km 하차 콜이 «상차 사각형 밖(뒤)»로 잘렸다)
+    const home = judgeTwoStage(p, anchor, homeDst, me, pickup, drop, opts.homeCaught ?? false, false);
+    let mainPass = main.pass;
+    if (opts.homeCaught && mainPass) {
+        // ∩ — 상·하차 둘 다 집 원뿔 안이어야 주 트랙으로 산다 («원 포함이 아니라 원뿔만»)
+        const inHome = makeInQuad(p, anchor, homeDst);
+        mainPass = inHome(pickup) && inHome(drop);
+    }
+    const mainFinal: TwoStageVerdict = { ...main, pass: mainPass };
+    const wonTrack = home.pass ? 'HOME' as const : mainPass ? 'MAIN' as const : null;
+    return { main: mainFinal, home, pass: wonTrack !== null, wonTrack };
+}
+
 /** 사각형(원뿔) 판정을 밖에서도 쓴다 — 지도 실험실이 «내 반경 ∩ 마름모»를 그릴 때 */
 export function quadTesterOf(p: NetParams, src: NetPoint, dst: NetPoint) {
     return makeInQuad(p, src, dst);
