@@ -371,6 +371,14 @@ export default function MapMockup() {
     const [apiPeek, setApiPeek] = useState<number | null>(null);
     /** 📋 저장된 콜 전부를 날것 그대로 — 제목을 누르면 열린다 (기사님 2026-09-09) */
     const [callsPeek, setCallsPeek] = useState(false);
+    /**
+     * 📍 **정거장 상세** — 콜 리스트의 정거장을 누르면 열린다 (기사님 확정 2026-09-09).
+     *
+     * 콜 리스트 한 줄은 **달리며 훑는 자리**라 짧아야 한다(괄호 다섯 값 그대로 둔다).
+     * 라벨을 펼친 이 화면은 **서서 보는 자리** — 퀵사가 «왜 늦었어» 할 때 여는 곳이다.
+     * 3·4단계의 «이유»도 여기 들어간다.
+     */
+    const [stopPeek, setStopPeek] = useState<{ callId: number; kind: '상차' | '하차' } | null>(null);
     /** 지금 심사 중인 콜의 호출 꼬리표 — 심사 영역이 «이 콜의 카카오 호출»만 골라 보여준다 */
     const [uploadTag, setUploadTag] = useState<string | null>(null);
     /** 좌표 배열은 «점 N개» 로 접는다 — 값을 보러 여는 창인데 폴리라인이 화면을 덮으면 못 본다 */
@@ -1713,6 +1721,62 @@ export default function MapMockup() {
 
     return (
         <div className="h-screen bg-background text-text-primary flex flex-col overflow-hidden">
+            {/* 📍 정거장 상세 — 라벨을 펼친다. 퀵사가 «왜 늦었어» 할 때 여는 화면 (기사님 2026-09-09) */}
+            {stopPeek && (() => {
+                const idx = confirmed.findIndex(c => c.id === stopPeek.callId);
+                if (idx < 0) return null;
+                const c = confirmed[idx], no = circled(baseCallCount + idx + 1);
+                const pt = stopPeek.kind === '상차' ? c.pickup : c.drop;
+                const dong = nearestDong(pt);
+                const clock = stopClock.get(`${no}${stopPeek.kind}`);
+                const hhmm = (t: number | null | undefined) => t != null ? new Date(t).toTimeString().slice(0, 5) : '--:--';
+                const rows: Array<[string, string, string]> = [
+                    ['실 주행시간', clock?.legMin != null ? `${clock.legMin}분` : '--분',
+                        clock?.legKm != null ? `${clock.legKm}km` : ''],
+                    ['다른콜로 영향받는시간', clock?.delayMin != null
+                        ? `${clock.delayMin > 0 ? '+' : ''}${clock.delayMin}분` : '--분', ''],
+                    ['실주행약속시간', hhmm(clock?.promisedAt), '확정 순간에 못 박은 값'],
+                    ['도착 예정시간', hhmm(clock?.etaAt), '지금 경로가 말하는 도착'],
+                    ['도착 완료시간', hhmm(clock?.passedAt), 'GPS 로 실제 지난 시각'],
+                ];
+                return (
+                    <div className="fixed inset-0 z-50 grid place-items-center bg-black/55 p-4" onClick={() => setStopPeek(null)}>
+                        <div className="w-full max-w-[520px] max-h-[85vh] overflow-auto rounded-[10px] border border-border-card bg-surface p-3 flex flex-col gap-2"
+                            onClick={e => e.stopPropagation()}>
+                            <div className="flex items-start justify-between gap-2">
+                                <div className="text-[12px] font-black leading-snug">
+                                    📍 {no} {stopPeek.kind}지 · {dong.region} {dong.name}
+                                    <div className="text-[10.5px] font-bold text-text-muted">
+                                        담당 — · 📞 — <span className="font-normal">(목업에 없는 값 — 지어내지 않는다)</span>
+                                    </div>
+                                </div>
+                                <button type="button" onClick={() => setStopPeek(null)}
+                                    className="shrink-0 px-2 py-1 rounded-[8px] border border-border-card text-[11px] font-black">닫기</button>
+                            </div>
+                            <div className="flex flex-col gap-0.5 text-[11.5px] tabular-nums">
+                                {rows.map(([label, value, hint]) => (
+                                    <div key={label} className="flex items-baseline justify-between gap-2 border-b border-border-card/60 py-0.5">
+                                        <span className="font-bold text-text-muted shrink-0">{label}</span>
+                                        <span className="text-right">
+                                            <b className="font-black">{value}</b>
+                                            {hint && <span className="text-[9.5px] font-normal text-text-muted"> {hint}</span>}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                            {/* 🧾 이유 — 시스템이 채운 것과 기사님이 고른 것은 **다른 칸**이다 (규칙 ⑤-4 ⑤) */}
+                            <div className="text-[11px] leading-snug flex flex-col gap-0.5">
+                                {([['이유 · 시스템', '아직 안 만들었다 (3·4단계)'], ['이유 · 기사님', '아직 안 만들었다']] as const).map(([k, v]) => (
+                                    <div key={k} className="flex items-baseline gap-2">
+                                        <b className="text-text-muted shrink-0 w-[86px]">{k}</b>
+                                        <span className="text-text-muted">{v}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
             {/* 📋 저장된 콜 전부 — 화면이 파생값으로 말하니, 원본도 볼 수 있어야 한다 (기사님 2026-09-09) */}
             {callsPeek && (
                 <div className="fixed inset-0 z-50 grid place-items-center bg-black/55 p-4" onClick={() => setCallsPeek(false)}>
@@ -2278,7 +2342,10 @@ export default function MapMockup() {
                                                             <span key={kind} className="font-black">
                                                                 {k > 0 && <span className="text-text-muted font-bold"> → </span>}
                                                                 {/* 🔢 앞 숫자는 «몇 번째로 들르나» — 상차/하차 표시가 아니다 (기사님 2026-09-09) */}
-                                                                {clock?.seq ? circled(clock.seq) : '·'}{nearestDong(pt).name}
+                                                                <button type="button" onClick={() => setStopPeek({ callId: c.id, kind })}
+                                                                    className="font-black hover:underline">
+                                                                    {clock?.seq ? circled(clock.seq) : '·'}{nearestDong(pt).name}
+                                                                </button>
                                                                 <span className="font-bold text-text-muted tabular-nums">
                                                                     {' ('}{clock?.legMin ?? '--'}분
                                                                     {clock?.delayMin != null && clock.delayMin !== 0
