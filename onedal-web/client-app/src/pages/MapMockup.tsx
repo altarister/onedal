@@ -138,6 +138,45 @@ function Chip({ ok, yes, no }: { ok: boolean; yes: string; no: string }) {
  * 두 사이드바가 똑같이 `FilterPanel > NumRow/TextRow` 로 조립된다. 디자인 최소 — 로직이 주인공.
  * `mode` 는 실물 `PHASE_FIELDS` 의 FieldMode 그대로: input/override = 고침, auto = 보이되 잠김, hidden = 없음.
  */
+/**
+ * 🚚 **잡은 콜 하나** — 이식 대응표(`labPortMap`)가 이 칸들을 실물 자리와 맞물린다.
+ * 취소된 콜도 **같은 모양 그대로** 남긴다 (기록이 목적이라 값을 잘라내면 안 된다).
+ */
+type LabCall = {
+        id: number; pickup: Pt; drop: Pt;
+        /**
+         * 배송(상차→하차) 실측 — 확정 순간 카카오 1회.
+         * 🔴 **못 쟀으면 값이 없다** (규칙 ④ · 2026-09-09). 예전엔 직선 km 를 지어내고
+         *    `straight: true` 를 붙였는데, 그 숫자가 시급(요금 ÷ 분)에 들어가면 **색이 틀린다.**
+         *    실물도 카카오가 실패하면 `kakaoSoloDurationMin` 을 null 로 남긴다.
+         */
+        distKm?: number | null; durMin?: number | null; tollWon?: number | null; optionUsed?: string;
+        /**
+         * 🕗 **경로를 언제 쟀나** — 실물 `orders.routeComputedAt` 자리.
+         * 「아직 응답 안 옴」과 「재 봤는데 못 쟀다」를 가르는 유일한 값이다:
+         *   `null` = 아직 · 값 있고 `durMin == null` = 못 쟀다
+         */
+        routeComputedAt?: number | null;
+        /**
+         * 상차지까지(잡을 때의 내 위치 → 상차) 실측 — 🔴 **올릴 때 이미 잰 것을 그대로 저장한다**
+         * (기사님 순서 ⑦ 2026-09-08: *"그 정보로 첫 콜 정보창에 1번 상차시간 2번 배송시간을 저장하고"*).
+         * 저장을 안 해서 «그림은 그려져 있는데 기존 경로는 ?» 이 나왔다.
+         */
+        approachKm?: number | null; approachMin?: number | null;
+        /**
+         * 🔴 **최초 약속 — 확정한 순간에 못 박고 다시는 안 바꾼다** (기사님 2026-09-08:
+         * *"앞자리는 최초 약속 시간인 거고 뒤 시간은 이 콜을 받았을 때 수정될 시간"*,
+         * *"n분 늦어짐의 값이 같이 늘어나야 해"*).
+         *
+         * «분»이 아니라 **시각**으로 저장한다 — 분으로 두면 시간이 흐를수록 약속이 함께
+         * 밀려서 지연이 영영 0 으로 보인다. 합짐을 둘 셋 얹어도 지연은 이 시각을 기준으로
+         * **쌓인다.**
+         */
+        steps: { pickup: StopStep; dropoff: StopStep };
+        /** 잡을 당시의 목적지 — 판 그룹 경로의 열쇠 (기사님 2026-09-08: 다음 판 콜을 미리 잡아 공백을 줄인다) */
+        destName: string;
+};
+
 function FilterPanel({ title, children, className = '', tone }: {
     title: ReactNode; children: ReactNode; className?: string;
     /** 층을 색으로 가른다 — 'filter'(집기 전·파랑) · 'judge'(집은 뒤·주황). 없으면 평범한 구획 */
@@ -260,40 +299,7 @@ export default function MapMockup() {
      * 확정해도 그물은 안 움직인다 — 그물의 기점은 내 위치이고, 확정은 경로와
      * «첫 콜을 잡았다»(상차 영역이 ∩ 로 조여짐)만 바꾼다. 국면을 바꾸면 판이 새로 시작된다.
      */
-    const [confirmed, setConfirmed] = useState<Array<{
-        id: number; pickup: Pt; drop: Pt;
-        /**
-         * 배송(상차→하차) 실측 — 확정 순간 카카오 1회.
-         * 🔴 **못 쟀으면 값이 없다** (규칙 ④ · 2026-09-09). 예전엔 직선 km 를 지어내고
-         *    `straight: true` 를 붙였는데, 그 숫자가 시급(요금 ÷ 분)에 들어가면 **색이 틀린다.**
-         *    실물도 카카오가 실패하면 `kakaoSoloDurationMin` 을 null 로 남긴다.
-         */
-        distKm?: number | null; durMin?: number | null; tollWon?: number | null; optionUsed?: string;
-        /**
-         * 🕗 **경로를 언제 쟀나** — 실물 `orders.routeComputedAt` 자리.
-         * 「아직 응답 안 옴」과 「재 봤는데 못 쟀다」를 가르는 유일한 값이다:
-         *   `null` = 아직 · 값 있고 `durMin == null` = 못 쟀다
-         */
-        routeComputedAt?: number | null;
-        /**
-         * 상차지까지(잡을 때의 내 위치 → 상차) 실측 — 🔴 **올릴 때 이미 잰 것을 그대로 저장한다**
-         * (기사님 순서 ⑦ 2026-09-08: *"그 정보로 첫 콜 정보창에 1번 상차시간 2번 배송시간을 저장하고"*).
-         * 저장을 안 해서 «그림은 그려져 있는데 기존 경로는 ?» 이 나왔다.
-         */
-        approachKm?: number | null; approachMin?: number | null;
-        /**
-         * 🔴 **최초 약속 — 확정한 순간에 못 박고 다시는 안 바꾼다** (기사님 2026-09-08:
-         * *"앞자리는 최초 약속 시간인 거고 뒤 시간은 이 콜을 받았을 때 수정될 시간"*,
-         * *"n분 늦어짐의 값이 같이 늘어나야 해"*).
-         *
-         * «분»이 아니라 **시각**으로 저장한다 — 분으로 두면 시간이 흐를수록 약속이 함께
-         * 밀려서 지연이 영영 0 으로 보인다. 합짐을 둘 셋 얹어도 지연은 이 시각을 기준으로
-         * **쌓인다.**
-         */
-        steps: { pickup: StopStep; dropoff: StopStep };
-        /** 잡을 당시의 목적지 — 판 그룹 경로의 열쇠 (기사님 2026-09-08: 다음 판 콜을 미리 잡아 공백을 줄인다) */
-        destName: string;
-    }>>([]);
+    const [confirmed, setConfirmed] = useState<LabCall[]>([]);
     /**
      * 📍 내 위치 (기사님 확정 2026-09-07 오후) — **사각형의 기점은 마지막 하차지가 아니라 현위치다.**
      * 하차지 기점이면 출발 전에 내 앞길(현위치~하차지 사이) 콜을 통째로 버린다 — 실측으로 잡힌 문제.
@@ -317,8 +323,13 @@ export default function MapMockup() {
     /** 🎯 살아 있는 목적지들 — 그물·판정·화면이 전부 이 목록 하나를 읽는다 (⑮ 기준 1·2) */
     /**
      * 🏠 **복귀콜을 잡았나** — 잡은 순간부터 복귀가 «진행»된다 (기사님 확정 2026-09-09).
-     * 판(`destName`)이 집인 콜이 하나라도 있으면 잡은 것이다. 하차를 마쳐도 안 되돌린다 —
-     * 복귀는 그 판의 끝이지, 콜 하나의 상태가 아니다.
+     * 판(`destName`)이 집인 콜이 하나라도 있으면 잡은 것이다.
+     *
+     * 🔴 **되돌아가는 조건은 «취소» 하나다** (2026-09-09 리뷰 정정 — 주석이 코드와 다른 말을 했다):
+     *   · 하차를 **마쳐도** 유지된다 — 끝난 콜도 `confirmed` 에 남기 때문이고, 그게 맞다.
+     *     복귀는 그 판의 끝이지 콜 하나의 상태가 아니다
+     *   · 복귀콜을 **취소하면** 되돌아간다 — 잡은 복귀콜이 없으니 «복귀 진행»이 아니다.
+     *     그때는 목적지가 다시 살아나는 것이 맞다
      */
     const homeCaught = useMemo(() => confirmed.some(c => c.destName === HOME_DST.name), [confirmed, HOME_DST.name]);
     /** 지금 살아 있는 목적지 — 규칙은 `activeGoals()` 한 곳이고 검사가 지킨다 */
@@ -659,7 +670,13 @@ export default function MapMockup() {
      * 순서가 바뀌었나»가 사이클에서 사라진다 (기사님 2026-09-09: *"2번째 콜이 취소될 때"*).
      * `confirmed` 는 **활성 콜**만 담고, 경로·순번·판정은 그대로 그것만 본다.
      */
-    const [terminated, setTerminated] = useState<Array<{ id: number; label: string; destName: string; terminatedAt: number }>>([]);
+    const [terminated, setTerminated] = useState<Array<LabCall & { terminatedAt: number; no: string }>>([]);
+    /**
+     * 🔢 **판이 바뀐 횟수** — 확정·취소마다 오른다. 취소는 카카오 응답을 기다렸다가 적립하는데,
+     * 그 사이에 판이 또 바뀌면 **인덱스로 만든 라벨이 어긋난다.** 늦게 온 응답을 버리는 열쇠다
+     * (`uploadSeqRef` 와 같은 규약 · 2026-09-09 리뷰).
+     */
+    const planSeqRef = useRef(0);
     /** 🔎 지나는 순간 얼릴 «마지막 예상» — 키는 `콜id-상차/하차` (실물의 `predicted_at` 자리) */
     const etaRef = useRef<Record<string, number | null>>({});
     useEffect(() => { if (confirmed.length === 0) visitedCountRef.current = 0; }, [confirmed.length]);
@@ -893,6 +910,7 @@ export default function MapMockup() {
         const merge = confirmed.length > 0;                            // 합짐인가 — 첫짐과 저장 경로가 다르다
         const known = uploadedInfoRef.current;   // 🗄️ 첫짐: ⑤⑥ 전체 경로에서 이미 꺼낸 값
         const app = approachInfo;                // 🗄️ 첫짐: 전체 경로의 첫 구간(내 위치→상차)
+        planSeqRef.current++;                    // 판이 바뀌었다 — 늦게 오는 취소 적립을 무효로 만든다
         const prevChain = lastChainRef.current;   // 🔴 덮기 전에 붙잡는다 — 적립의 «전» 쪽이다
         lastChainRef.current = chainNow;         // 🗄️ ⑦ 이 전체 경로가 다음 합짐의 «기존 경로»가 된다
         // ⏰ 최초 약속 — 확정한 이 순간 전체 경로가 말한 도착 시각. 이후 어떤 합짐이 와도 안 바뀐다
@@ -1055,8 +1073,9 @@ export default function MapMockup() {
         const goneNo = circled(baseCallCount + confirmed.length);
         const gone = [{ label: `${goneNo}상차`, name: `${nearestDong(last.pickup).name} 상차` },
                       { label: `${goneNo}하차`, name: `${nearestDong(last.drop).name} 하차` }];
-        setTerminated(t => [{ id: last.id, destName: last.destName, terminatedAt: at,
-            label: `${goneNo} ${nearestDong(last.pickup).name} → ${nearestDong(last.drop).name}` }, ...t]);
+        // 🔴 **잘라내지 않는다** — 약속·통과·적립까지 그대로 남겨야 «그 콜이 어떻게 됐나»를 답한다
+        setTerminated(t => [{ ...last, terminatedAt: at, no: goneNo }, ...t]);
+        const seq = ++planSeqRef.current;
         const prevChain = lastChainRef.current;
         const stops = stopsFor(myPos, rest.map(c => ({ pickup: c.pickup, drop: c.drop, destName: c.destName })));
         if (!stops) {   // 남은 정거장이 없다 — 잴 것도 적립할 것도 없다
@@ -1069,6 +1088,7 @@ export default function MapMockup() {
             { stops, priority: routeCombo.priority, avoid: routeCombo.avoid },
             `정거장 ${stops.length}: ${stops.map(x => x.label).join(' → ')}`)
             .then(d => {
+                if (seq !== planSeqRef.current) return;   // 그 사이 판이 또 바뀌었다 — 이 적립은 어긋난다
                 const after = { ...d, measuredAt: clockBaseRef.current + simMinRef.current * 60000 };
                 setChainNow(after); setChainBefore(prevChain); lastChainRef.current = after;
                 const cum = (legs?: ChainLeg[]) => {
@@ -1997,6 +2017,12 @@ export default function MapMockup() {
                         <pre className="text-[10px] leading-snug whitespace-pre-wrap break-all rounded-md border border-border-card bg-background p-1.5 overflow-auto">
 {JSON.stringify(confirmed, null, 2)}
                         </pre>
+                        {terminated.length > 0 && (<>
+                            <div className="text-[10px] font-black text-text-muted">terminated — 취소된 콜 (같은 모양 그대로 남는다)</div>
+                            <pre className="text-[10px] leading-snug whitespace-pre-wrap break-all rounded-md border border-border-card bg-background p-1.5 overflow-auto">
+{JSON.stringify(terminated, null, 2)}
+                            </pre>
+                        </>)}
                         <div className="text-[9.5px] text-text-muted leading-snug">
                             시각은 <b>밀리초 숫자</b>로 저장한다(모의 시계 기준) · 동 이름은 좌표에서 그때그때 찾는 값이라 저장하지 않는다 ·
                             <b>steps</b> 는 실물의 <code>step_*</code> 여섯 표와 같은 모양이다 (약속·예상·실측·출처가 한 행에)
@@ -2625,7 +2651,7 @@ export default function MapMockup() {
                                 <div className="text-[10px] font-black text-text-muted">🧹 취소/방출 — {terminated.length}</div>
                                 {terminated.map(t => (
                                     <div key={t.id} className="flex justify-between gap-1 text-[10.5px] text-text-muted tabular-nums">
-                                        <span className="line-through">{t.label}</span>
+                                        <span className="line-through">{t.no} {nearestDong(t.pickup).name} → {nearestDong(t.drop).name}</span>
                                         <span className="shrink-0">{new Date(t.terminatedAt).toTimeString().slice(0, 5)} 취소</span>
                                     </div>
                                 ))}
