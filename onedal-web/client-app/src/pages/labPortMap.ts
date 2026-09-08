@@ -25,14 +25,31 @@ export type StopStep = {
     occurredAt: number | null;
     /** 어떻게 알았나 — 자동(GPS) · 직접 · 건너뜀 */
     source: string | null;
+    /**
+     * 🧾 **누가 이 정거장을 몇 분 밀었나** — 콜을 확정할 때마다 한 줄씩 **쌓는다**
+     * (기사님 확정 2026-09-09: *"31분이 왜 밀린 건지 그 요소들만 딱 들어갔으면"*).
+     *
+     * 값은 «확정 전 경로»와 «확정 후 경로»의 그 정거장까지 누적 차이 — ⑯ 의 우회 정의
+     * 그대로다. 카카오를 더 부르지 않는다.
+     *
+     * 🔴 `causeCallId` 로 적는다. `①②③` 은 콜이 취소되면 당겨지는 번호라, 번호로
+     *    적으면 나중에 **남의 콜을 가리킨다.**
+     */
+    impacts: Array<{ causeCallId: number; causeLabel: string; min: number; at: number }>;
 };
 
 /** 실물의 어느 표·어느 칸으로 가는가 (상차/하차 두 갈래가 같은 이름을 쓴다) */
-export const STOP_STEP_TO_REAL: Record<keyof StopStep, { tables: string[]; col: string }> = {
+export const STOP_STEP_TO_REAL: Record<keyof StopStep, { tables: string[]; col: string | null }> = {
     promisedAt:  { tables: ['step_call_pickup', 'step_call_dropoff'],     col: 'promised_arrival_at' },
     predictedAt: { tables: ['step_arrive_pickup', 'step_arrive_dropoff'], col: 'predicted_at' },
     occurredAt:  { tables: ['step_arrive_pickup', 'step_arrive_dropoff'], col: 'occurred_at' },
     source:      { tables: ['step_arrive_pickup', 'step_arrive_dropoff'], col: 'source' },
+    /**
+     * 🆕 실물에 **아직 없는 칸**이다 (`null`). 이식 때 `system_reasons TEXT` 로 판다.
+     * 🔴 기사님이 고르는 `reasons`(사고·문 잠김…)와 **다른 칸**이어야 한다 — 한 칸에 섞으면
+     *    나중에 «사고로 늦은 건수»를 셀 때 경유가 딸려 들어온다 (규칙 ⑤-4 ⑤).
+     */
+    impacts:     { tables: ['step_arrive_pickup', 'step_arrive_dropoff'], col: null },
 };
 
 /**
@@ -79,4 +96,44 @@ export function promiseTimes(opts: {
     const pickupAt = direct.approachMin == null ? null : confirmedAt + direct.approachMin * 60000;
     const dropoffAt = pickupAt == null || direct.durMin == null ? null : pickupAt + direct.durMin * 60000;
     return { pickupAt, dropoffAt };
+}
+
+/**
+ * 🧾 **이 확정이 그 정거장을 몇 분 밀었나 — 원인과 함께** (기사님 확정 2026-09-09).
+ *
+ * 기사님: *"31분이 밀린 거라면 31분이 왜 밀린 건지 그 요소들만 딱 들어갔으면 좋겠어."*
+ *
+ * 분은 «확정 전 누적»과 «확정 후 누적»의 차이 — ⑯ 의 우회 정의 그대로라 카카오를
+ * 더 부르지 않는다. 원인은 **이번에 끼워 넣은 정거장 중 그 정거장보다 앞에 온 것**뿐이다.
+ * 뒤에 낀 것은 그 정거장을 못 민다.
+ *
+ * 🔴 **안 밀렸으면 안 적는다** — 0분을 쌓으면 이유 줄이 의미 없는 줄로 찬다.
+ * 🔴 **못 잰 값이 섞이면 안 적는다** — 지어내지 않는다 (규칙 ④).
+ *
+ * 실물에서는 `step_arrive_*.system_reasons` 자리다.
+ */
+export function impactOfStop(opts: {
+    /** 밀렸는지 볼 정거장 (`①하차` 같은 라벨) */
+    stopLabel: string;
+    /** 확정 «전» 경로의 그 정거장까지 누적 분 */
+    beforeMin: number | null | undefined;
+    /** 확정 «후» 경로의 그 정거장까지 누적 분 */
+    afterMin: number | null | undefined;
+    /** 확정 후 경로의 정거장 순서 */
+    orderNow: Array<string | null>;
+    /** 이번에 끼워 넣은 정거장들 */
+    inserted: Array<{ label: string; name: string }>;
+    causeCallId: number;
+    at: number;
+}): { causeCallId: number; causeLabel: string; min: number; at: number } | null {
+    const { stopLabel, beforeMin, afterMin, orderNow, inserted, causeCallId, at } = opts;
+    if (beforeMin == null || afterMin == null || afterMin === beforeMin) return null;
+    const here = orderNow.indexOf(stopLabel);
+    if (here < 0) return null;
+    const causes = inserted.filter(x => {
+        const i = orderNow.indexOf(x.label);
+        return i >= 0 && i < here;
+    });
+    if (!causes.length) return null;
+    return { causeCallId, causeLabel: causes.map(x => x.name).join(' · '), min: afterMin - beforeMin, at };
 }

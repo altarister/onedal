@@ -7,7 +7,7 @@ import {
 } from '@onedal/shared';
 import { buildAppFilterOutput, labPhaseOf, TRUCK_CAPACITY_SLOTS } from './labFilterOutput';
 // 🚚 이식 대응표가 이 타입의 원천이다 — 실물 `step_*` 칸과 맞는지는 labPortMap.test.ts 가 지킨다
-import { promiseTimes, type StopStep } from './labPortMap';
+import { promiseTimes, impactOfStop, type StopStep } from './labPortMap';
 import {
     buildNet, buildRoadNet, roadZoneOf, judgeGoals, nearestDong, orderStopsInsert, cityCenter, quadTesterOf, isLocalPhase, NET_SRC, NET_DST,
     GONJIAM_DROP, DONGWON_DROP, BORAM_DROP,
@@ -846,6 +846,7 @@ export default function MapMockup() {
         const merge = confirmed.length > 0;                            // 합짐인가 — 첫짐과 저장 경로가 다르다
         const known = uploadedInfoRef.current;   // 🗄️ 첫짐: ⑤⑥ 전체 경로에서 이미 꺼낸 값
         const app = approachInfo;                // 🗄️ 첫짐: 전체 경로의 첫 구간(내 위치→상차)
+        const prevChain = lastChainRef.current;   // 🔴 덮기 전에 붙잡는다 — 적립의 «전» 쪽이다
         lastChainRef.current = chainNow;         // 🗄️ ⑦ 이 전체 경로가 다음 합짐의 «기존 경로»가 된다
         // ⏰ 최초 약속 — 확정한 이 순간 전체 경로가 말한 도착 시각. 이후 어떤 합짐이 와도 안 바뀐다
         const t0 = clockNow, noNew = circled(confirmed.length + 1);   // 🕒 모의 시계
@@ -860,7 +861,7 @@ export default function MapMockup() {
             return null;
         };
         const chainCum = { pickupMin: cumMin(`${noNew}상차`), dropoffMin: cumMin(`${noNew}하차`) };
-        const mkStep = (promisedAt: number | null): StopStep => ({ promisedAt, predictedAt: null, occurredAt: null, source: null });
+        const mkStep = (promisedAt: number | null): StopStep => ({ promisedAt, predictedAt: null, occurredAt: null, source: null, impacts: [] });
         /**
          * ⏰ 약속은 **직행 기준**이다. 첫짐은 ⑤⑥ 전체 경로가 곧 직행이라 지금 바로 서고,
          * 합짐은 ⑮ 가 와야 선다 — 그때까지 **비워 둔다** (병합 값으로 대신 채우지 않는다).
@@ -869,7 +870,38 @@ export default function MapMockup() {
             direct: merge ? { approachMin: null, durMin: null }
                 : { approachMin: app?.durMin ?? null, durMin: known?.durMin ?? null } });
         const steps = { pickup: mkStep(p0.pickupAt), dropoff: mkStep(p0.dropoffAt) };
-        setConfirmed(c => [...c, { id, pickup: p, drop: d, optionUsed: routeCombo.label, destName: caughtDest,
+        /**
+         * 🧾 **이 확정이 기존 정거장을 몇 분 밀었나 — 그 자리에 적립한다** (3단계 · 기사님 2026-09-09).
+         *
+         * «확정 전 경로»와 «확정 후 경로»의 그 정거장까지 누적 차이 — ⑯ 의 우회 정의 그대로다.
+         * 지금까지는 이 값을 심사 문단에 **띄우고 버렸다.** 버리지 않고 쌓으면 나중에
+         * *"31분이 왜 밀렸나"* 에 한 줄씩 답할 수 있다.
+         */
+        const cumOfLegs = (legs?: ChainLeg[]) => {
+            const m = new Map<string, number>(); let acc = 0;
+            for (const lg of legs ?? []) { if (lg.durMin == null) break; acc += lg.durMin; if (lg.to) m.set(lg.to, acc); }
+            return m;
+        };
+        const beforeCum = cumOfLegs(prevChain?.legs), afterCum = cumOfLegs(chainNow?.legs);
+        const orderNow = (chainNow?.legs ?? []).map(l => l.to);
+        /** 이번에 끼워 넣은 두 정거장 — 밀린 정거장보다 «앞에» 온 것만 원인으로 적는다 */
+        const inserted = [
+            { label: `${noNew}상차`, name: `${nearestDong(p).name} 상차` },
+            { label: `${noNew}하차`, name: `${nearestDong(d).name} 하차` },
+        ];
+        const impactOf = (label: string) => impactOfStop({
+            stopLabel: label, beforeMin: beforeCum.get(label), afterMin: afterCum.get(label),
+            orderNow, inserted, causeCallId: id, at: t0,
+        });
+        setConfirmed(c => [...c.map((x, i) => {
+            const no = circled(baseCallCount + i + 1);
+            const up = impactOf(`${no}상차`), dn = impactOf(`${no}하차`);
+            if (!up && !dn) return x;
+            return { ...x, steps: {
+                pickup: up ? { ...x.steps.pickup, impacts: [...x.steps.pickup.impacts, up] } : x.steps.pickup,
+                dropoff: dn ? { ...x.steps.dropoff, impacts: [...x.steps.dropoff.impacts, dn] } : x.steps.dropoff,
+            } };
+        }), { id, pickup: p, drop: d, optionUsed: routeCombo.label, destName: caughtDest,
             steps,
             ...(app && !merge ? { approachKm: app.distKm, approachMin: app.durMin } : {}),
             ...(merge || !known ? {} : {                     // 🔴 `failed` 는 콜의 칸이 아니다 — 골라 담는다

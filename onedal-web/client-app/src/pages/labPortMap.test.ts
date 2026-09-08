@@ -14,6 +14,7 @@ import { STOP_STEP_TO_REAL, LAB_CALL_TO_ORDERS } from './labPortMap';
 describe('🚚 이식 대조 — 실험실이 가리키는 실물 칸이 실제로 있는가', () => {
     it('정거장 네 값이 실물 step_* 표의 칸을 정확히 가리킨다', () => {
         for (const [labKey, { tables, col }] of Object.entries(STOP_STEP_TO_REAL)) {
+            if (col == null) continue;                       // 🆕 이식 때 파야 하는 칸 — 없는 것이 정상
             for (const table of tables) {
                 const t = STEP_TABLES.find(x => x.table === table);
                 expect(t, `실물에 없는 표: ${table} (${labKey})`).toBeTruthy();
@@ -38,6 +39,11 @@ describe('🚚 이식 대조 — 실험실이 가리키는 실물 칸이 실제�
             expect(new RegExp(`\\b${col}\\b`).test(body) || new RegExp(`${col}:`).test(ddl),
                 `orders 에 ${col} 이 없다 (실험실 ${labKey})`).toBe(true);
         }
+    });
+
+    it('정거장 쪽에서 아직 안 판 칸도 눈에 보인다', () => {
+        const todo = Object.entries(STOP_STEP_TO_REAL).filter(([, v]) => v.col === null).map(([k]) => k);
+        expect(todo).toEqual(['impacts']);                   // → 실물 `step_arrive_*.system_reasons`
     });
 
     it('아직 안 판 칸이 무엇인지 눈에 보인다 — 이식 때 여기부터 판다', () => {
