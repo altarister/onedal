@@ -515,22 +515,24 @@ export function orderStopsGreedy(
 }
 
 /**
- * 🛣️ **판(목적지) 그룹 경로** (기사님 설계 2026-09-08: *"콜마다 잡을 당시의 목적지를 가지고
- * 있다면 그것들끼리만 최적 경로로 바꾸면 되는 거 아닌가"*).
+ * 🧭 **재배치 — «가는 길에 하나 더» 끼워 넣기** (기사님 순서 ④⑫ 2026-09-08:
+ * *"콜에 있는 모든 좌표를 가지고 우리 시스템이 «최적경로»를 찾은 후 최적경로순으로 재배치해"*).
  *
- * 왜 있나 — **콜 많은 곳에서 다음 판 콜을 미리 잡아 둔다. 공백을 줄이는 방법이다** (기사님).
- * 파주판을 달리면서 복귀판 콜을 미리 쥐면, 복귀 콜들은 파주판 약속 «뒤»에 서되
- * **자기들끼리는 최적 순서**로 선다. 실측 사고(요요): 잡은 순서대로만 붙였더니
- * 장암동(북)→광주(남)→상계동(북)→매산동(남)이 나왔다 — 상계동은 장암동 옆인데.
+ * 🔴 **첫 콜을 다 끝내고 다음으로 가면 그건 합짐이 아니다** (기사님: *"가는 길에 하나 더
+ * 가져가는 거지 — 그래서 순번이 있는 것 아냐"*). 그래서 콜 단위로 묶어 나열하지 않는다.
  *
- * 규칙:
- *   · 그룹 = 잡은 순서에서 **목적지가 바뀔 때마다** 한 단 (파주→복귀→파주면 세 그룹)
- *   · 그룹 사이 순서는 잡은 판 순서 — 넘나들며 섞이지 않는다
- *   · 그룹 안은 가까운 곳 먼저(greedy) · 하차는 제 상차 뒤
- *   · `visited`(이미 방문한 정거장)는 그 순서 그대로 고정 — 지나간 것은 사실이다.
- *     닻이 방문 순서를 따라 움직이므로 재계산해도 꼬리가 안 흔들린다 (안정성)
+ * 방식은 **가장 싸게 끼워 넣기(cheapest insertion)**:
+ *   콜을 **잡은 순서대로** 하나씩, 그 콜의 상차·하차를 지금 순서의 어느 자리에 넣을 때
+ *   총 거리가 가장 짧은지 전부 재 보고 그 자리에 넣는다 (상차는 언제나 제 하차보다 앞).
+ *
+ * 이 방식을 고른 이유 — 실측(2026-09-08):
+ *   · 같은 판 두 콜   순차 76.2km → **40.6km**
+ *   · 판이 다른 세 콜 판 그룹 157.3km → **83.4km**
+ *   · 옛 요요 사고    판 그룹 83.7km → **83.4km** (되내려오는 요요도 없다)
+ * 잡은 콜들의 **상대 순서를 안 흔든다**는 것도 중요하다 — 이미 약속한 순서가 재계산마다
+ * 뒤집히면 기사님이 화면을 못 믿는다. `visited` 는 그대로 앞에 잠근다.
  */
-export function orderStopsGrouped(
+export function orderStopsInsert(
     start: { lng: number; lat: number },
     calls: Array<{ pickup: { lng: number; lat: number }; drop: { lng: number; lat: number }; destName: string }>,
     visited: Array<{ call: number; kind: '상차' | '하차' }> = [],
@@ -539,79 +541,84 @@ export function orderStopsGrouped(
         v.kind === '상차' ? calls[v.call - 1].pickup : calls[v.call - 1].drop;
     const valid = visited.filter(v => v.call >= 1 && v.call <= calls.length);
     const visitedKey = new Set(valid.map(v => `${v.call}-${v.kind}`));
-    const pickedUp = new Set(valid.filter(v => v.kind === '상차').map(v => v.call));
+    const locked: RouteStop[] = valid.map(v => ({ call: v.call, kind: v.kind, pt: ptOf(v) }));
+    const from = locked.length ? locked[locked.length - 1].pt : start;
+    const lengthOf = (seq: RouteStop[]) => {
+        let total = 0, pos = from;
+        for (const s of seq) { total += haversineKm(pos, s.pt); pos = s.pt; }
+        return total;
+    };
 
-    const out: RouteStop[] = valid.map(v => ({ call: v.call, kind: v.kind, pt: ptOf(v) }));
-    let pos = out.length ? out[out.length - 1].pt : start;
-
-    // 그룹: 잡은 순서 스캔 — 목적지 이름이 바뀌면 새 단
-    const groups: number[][] = [];
+    let seq: RouteStop[] = [];
     calls.forEach((c, i) => {
-        const last = groups[groups.length - 1];
-        if (last && calls[last[0] - 1].destName === c.destName) last.push(i + 1);
-        else groups.push([i + 1]);
-    });
-
-    for (const group of groups) {
-        const remaining: RouteStop[] = group.flatMap(call => ([
-            { call, kind: '상차' as const, pt: calls[call - 1].pickup },
-            { call, kind: '하차' as const, pt: calls[call - 1].drop },
-        ])).filter(s => !visitedKey.has(`${s.call}-${s.kind}`));
-        while (remaining.length) {
-            let bi = -1, bd = Infinity;
-            remaining.forEach((s, i) => {
-                if (s.kind === '하차' && !pickedUp.has(s.call)) return;
-                const d = haversineKm(pos, s.pt);
-                if (d < bd) { bd = d; bi = i; }
-            });
-            const s = remaining.splice(bi, 1)[0];
-            if (s.kind === '상차') pickedUp.add(s.call);
-            out.push(s); pos = s.pt;
+        const call = i + 1;
+        const pick: RouteStop = { call, kind: '상차', pt: c.pickup };
+        const dropStop: RouteStop = { call, kind: '하차', pt: c.drop };
+        const need = [pick, dropStop].filter(s => !visitedKey.has(`${s.call}-${s.kind}`));
+        if (need.length === 0) return;
+        let best: { len: number; seq: RouteStop[] } | null = null;
+        const tryIt = (candidate: RouteStop[]) => {
+            const len = lengthOf(candidate);
+            if (!best || len < best.len) best = { len, seq: candidate };
+        };
+        if (need.length === 2) {
+            for (let a = 0; a <= seq.length; a++)
+                for (let b = a; b <= seq.length; b++) {
+                    const t = [...seq];
+                    t.splice(b, 0, dropStop); t.splice(a, 0, pick);   // 하차 먼저 넣고 상차를 앞에 — 상차가 항상 앞선다
+                    tryIt(t);
+                }
+        } else {
+            for (let a = 0; a <= seq.length; a++) { const t = [...seq]; t.splice(a, 0, need[0]); tryIt(t); }
         }
-    }
-    return out;
+        seq = best!.seq;
+    });
+    return [...locked, ...seq];
 }
 
 /**
- * ↩️ **양방향(복귀 대기) 판정 — 마름모 둘** (기사님 정정 2026-09-08: *"내가 생각했던 건
- * 파주로 계속 진행해야 한다는 거였어. 그래서 두 개의 마름모가 필요하다 한 건데"*).
+ * 🎯 **목적지별 판정 — ⑮ 동선의 기준** (기사님 확정 2026-09-08:
+ * *"목적지가 하나면 하나고 둘이면 마름모가 둘. 목적지당 마름모 하나씩, 목적지는 반경의 원을 가진다"*).
  *
- * 복귀를 누르면 그물이 **목적지 마름모 ∪ 복귀 마름모** 가 된다 — 콜 처리 중에도 계속.
- *   · 주 트랙 — 내 위치→기존 목적지(파주). 하던 일을 계속 잡는다. 노선이면 길 띠(mainZone)
- *   · 복귀 트랙 — 내 위치→집 마름모
- *   · 관내는 따로 없다 — 목적지에 도착하면 주 마름모가 퇴화해 목적지 원만 남는다 (기존 규칙)
- *   · **우선권은 복귀** — 둘 다 통과하면 HOME. 복귀 콜을 잡는 것이 이 판의 목표다
- *   · 복귀 콜을 잡은 뒤(homeCaught)에는 주 트랙이 **집 원뿔과의 교집합**만 남는다 (순차 진행)
- * ⚠️ 첫 판은 주 트랙을 «관내 원»으로 잘못 세웠다 — 콜 없는 중간 지점(산곡동)에서 원은 무의미하다.
+ * 목적지 하나 = 마름모 하나. 콜은 **목적지마다 각각** 재고 **하나라도 통과하면 통과**다.
+ * 통과한 목적지가 그 콜의 판(destName)이 된다.
+ *   · 둘 다 통과하면 **복귀가 이긴다** (복귀 콜은 잡기 어려우니 우선 — 목록 순서와 무관)
+ *   · 목적지는 «기사님의 의도»라 **콜을 다 해도 안 죽는다** — 이 함수는 콜 유무를 안 본다
+ *   · 🔴 예외 장치(homeCaught·∩ 전환·주/부 트랙)는 **폐기했다.** 목적지는 각자 제 마름모로
+ *     살아 있을 뿐이고, 첫 콜 뒤 ∩ 는 각 마름모 안에서 자기 원뿔로 걸린다
  */
-export interface TwoTrackVerdict { main: TwoStageVerdict; home: TwoStageVerdict; pass: boolean; wonTrack: 'HOME' | 'MAIN' | null }
-export function judgeTwoTrack(
-    p: NetParams, anchor: NetPoint, mainDst: NetPoint, homeDst: NetPoint,
+export interface GoalVerdict { goal: NetPoint; verdict: TwoStageVerdict }
+export interface GoalsVerdict { results: GoalVerdict[]; pass: boolean; wonGoal: NetPoint | null; won: TwoStageVerdict | null }
+export function judgeGoals(
+    p: NetParams, anchor: NetPoint, goals: NetPoint[],
     me: { lng: number; lat: number },
     pickup: { lng: number; lat: number },
     drop: { lng: number; lat: number },
     opts: {
-        routeStarted?: boolean;
-        /** 주 트랙이 도착 상태(관내 — 목적지 원 규칙)인가 */
-        mainLocal?: boolean;
-        /** 주 트랙이 노선(길 띠)이면 그 판정기 */
-        mainZone?: { dropIn(pt: { lng: number; lat: number }): boolean; pickupIn(pt: { lng: number; lat: number }): boolean };
-        homeCaught?: boolean;
-    },
-): TwoTrackVerdict {
-    const main = judgeTwoStage(p, anchor, mainDst, me, pickup, drop, opts.routeStarted ?? false, opts.mainLocal ?? false, opts.mainZone);
-    // 🔴 복귀 «대기»는 미리 잡는 그물 — 상차 ∩(원뿔)는 복귀콜을 잡은 뒤(homeCaught)부터다.
-    //    (2026-09-08 실측: 파주행 중 복귀를 켰는데 집 4.2km 하차 콜이 «상차 사각형 밖(뒤)»로 잘렸다)
-    const home = judgeTwoStage(p, anchor, homeDst, me, pickup, drop, opts.homeCaught ?? false, false);
-    let mainPass = main.pass;
-    if (opts.homeCaught && mainPass) {
-        // ∩ — 상·하차 둘 다 집 원뿔 안이어야 주 트랙으로 산다 («원 포함이 아니라 원뿔만»)
-        const inHome = makeInQuad(p, anchor, homeDst);
-        mainPass = inHome(pickup) && inHome(drop);
-    }
-    const mainFinal: TwoStageVerdict = { ...main, pass: mainPass };
-    const wonTrack = home.pass ? 'HOME' as const : mainPass ? 'MAIN' as const : null;
-    return { main: mainFinal, home, pass: wonTrack !== null, wonTrack };
+        /**
+         * 🔴 **짐을 실은 목적지들** (⑮ 기준 5 · 2026-09-08 회귀에서 갈랐다).
+         * ∩(상차 조이기)는 «짐을 실었으면 되돌아가지 않는다»는 규칙이라 **그 목적지에만** 건다 —
+         * 아직 아무것도 안 실은 목적지(복귀 대기)는 원 전체가 상차 영역이다. 미리 잡는 그물을
+         * 실은 짐이 묶으면 안 된다: 파주 짐을 싣고 복귀를 켠 그 순간이 이 기능의 유일한 쓸모다.
+         */
+        loadedNames?: string[];
+        /** 이 목적지에 «도착»했는가 (관내 — 원 규칙). 목적지 이름으로 답한다 */
+        isLocal?: (goal: NetPoint) => boolean;
+        /** 노선(길 띠) 판정기 — 그 목적지의 길이 정해졌을 때 */
+        zoneOf?: (goal: NetPoint) => { dropIn(pt: { lng: number; lat: number }): boolean; pickupIn(pt: { lng: number; lat: number }): boolean } | undefined;
+        /** 우선하는 목적지 이름 (복귀). 둘 다 통과하면 이쪽이 이긴다 */
+        preferName?: string;
+    } = {},
+): GoalsVerdict {
+    const results: GoalVerdict[] = goals.map(goal => ({
+        goal,
+        verdict: judgeTwoStage(p, anchor, goal, me, pickup, drop,
+            (opts.loadedNames ?? []).includes(goal.name),        // ∩ — 짐 실은 목적지에만
+            opts.isLocal?.(goal) ?? false, opts.zoneOf?.(goal)),
+    }));
+    const passed = results.filter(r => r.verdict.pass);
+    const won = passed.find(r => r.goal.name === opts.preferName) ?? passed[0] ?? null;
+    return { results, pass: !!won, wonGoal: won?.goal ?? null, won: won?.verdict ?? null };
 }
 
 /** 사각형(원뿔) 판정을 밖에서도 쓴다 — 지도 실험실이 «내 반경 ∩ 마름모»를 그릴 때 */

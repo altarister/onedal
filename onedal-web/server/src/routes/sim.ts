@@ -230,3 +230,117 @@ router.post("/roads", async (req, res) => {
         return res.status(502).json({ error: String((e as Error)?.message ?? e) });
     }
 });
+
+/**
+ * 🧭 **실험실 전용 — 정거장 사슬 한 번에, 구간별로 그대로** (기사님 확정 2026-09-08).
+ *
+ * 기사님 순서(②~⑥ · ⑫~⑭) 그대로다:
+ *   재배치된 좌표들을 통째로 한 번 보내면 → **카카오가 구간마다 nkm/n분을 나눠서 준다.**
+ *   그 값을 **합치지 않고 그대로** 돌려준다 — 우회는 «같은 구간의 전/후 차이»로 화면이 계산한다.
+ *
+ * 🔴 `calculateDetourRoute` 를 안 쓴다: 그것은 **총합 차이(merged−base)** 만 준다.
+ *    기사님 정의는 «우회상차시간 = (출발지-첫콜상차) − (내위치-첫콜상차)» 처럼
+ *    **구간별**이라, 총합만으로는 어디서 얼마나 늘었는지 답할 수 없다 (2026-09-08 정정).
+ *
+ * 요청: `{ stops: [{x,y,label?}, ...] }` — 첫 점이 출발지(보통 내 위치)
+ * 응답: `{ legs: [{from,to,distKm,durMin,line}], totalKm, totalMin }` — legs[i] = stops[i]→stops[i+1]
+ */
+/** 폴리라인 솎기 — `/roads` 와 같은 0.4km 규약. 안 솎으면 8정거장에 154KB 가 나간다 (2026-09-08 리뷰) */
+function thinLine(pts: Array<{ x: number; y: number }>): Array<{ x: number; y: number }> {
+    const rad = (v: number) => v * Math.PI / 180;
+    const km = (a: { x: number; y: number }, b: { x: number; y: number }) =>
+        Math.hypot((b.x - a.x) * 111.32 * Math.cos(rad(a.y)), (b.y - a.y) * 110.574);
+    const out: Array<{ x: number; y: number }> = [];
+    for (const p of pts) if (!out.length || km(out[out.length - 1], p) >= 0.4) out.push({ x: +p.x.toFixed(5), y: +p.y.toFixed(5) });
+    const last = pts[pts.length - 1];
+    if (last && out.length && km(out[out.length - 1], last) > 0.05) out.push({ x: +last.x.toFixed(5), y: +last.y.toFixed(5) });
+    return out;
+}
+
+router.post("/chain", async (req, res) => {
+    if (!isDevBuild()) return res.status(404).json({ error: "not found" });
+    try {
+        const stops = req.body?.stops as Array<{ x: number; y: number; label?: string }> | undefined;
+        const valid = Array.isArray(stops) && stops.length >= 2 && stops.length <= 30
+            && stops.every(p => Number.isFinite(p?.x) && Number.isFinite(p?.y));
+        if (!valid) return res.status(400).json({ error: "stops 는 2~30개의 {x,y} 배열이어야 합니다" });
+
+        const priority = ["RECOMMEND", "TIME", "DISTANCE"].includes(req.body?.priority) ? req.body.priority as string : "RECOMMEND";
+        const avoid = ["motorway", "toll"].includes(req.body?.avoid) ? req.body.avoid as string : undefined;
+        const origin = stops[0], dest = stops[stops.length - 1], waypoints = stops.slice(1, -1);
+
+        const body = {
+            origin: { x: String(origin.x), y: String(origin.y) },
+            destination: { x: String(dest.x), y: String(dest.y) },
+            waypoints: waypoints.map((w, i) => ({ name: `wp${i}`, x: String(w.x), y: String(w.y) })),
+            priority, car_type: 1, ...(avoid ? { avoid: [avoid] } : {}),
+        };
+        const r = await fetch("https://apis-navi.kakaomobility.com/v1/waypoints/directions", {
+            method: "POST",
+            headers: { Authorization: `KakaoAK ${process.env.KAKAO_REST_API_KEY || ""}`, "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+        });
+        const d = await r.json() as {
+            code?: number; msg?: string;
+            routes?: Array<{ result_code: number; result_msg?: string; summary?: { distance: number; duration: number; fare?: { toll?: number } };
+                sections?: Array<{ distance: number; duration: number; roads?: Array<{ vertexes?: number[] }> }> }>;
+        };
+        // 🔴 «경로 없음이 아닌 실패»(키 오류·좌표 뒤바뀜·쿼터 소진)를 삼키지 않는다 —
+        //    전부 «이 경로는 불가능하다»로 읽히면 오진한다 (2026-09-08 리뷰)
+        if (!r.ok || d.code !== undefined) {
+            return res.status(502).json({ error: `카카오 오류: ${d.msg ?? `HTTP ${r.status}`}`, kakaoCode: d.code ?? null });
+        }
+        const route = d.routes?.[0];
+        if (!route || route.result_code !== 0) {
+            /**
+             * 🔴 **구간 하나의 실패가 전체를 죽이지 않는다** — `/route` 와 같은 규약.
+             * 사슬이 통째로 실패하면 **정거장 쌍마다 따로** 재서 살릴 구간은 살린다.
+             * (2026-09-08 리뷰: 도로 밖 좌표 하나에 멀쩡한 구간까지 사라졌다)
+             */
+            const legs: Array<{ from: string | null; to: string | null; distKm: number | null; durMin: number | null; line: Array<{ x: number; y: number }>; failed: boolean }> = [];
+            for (let i = 0; i + 1 < stops.length; i++) {
+                const s1 = stops[i], s2 = stops[i + 1];
+                try {
+                    const one = await calculateSoloRoute(s1.x, s1.y, s2.x, s2.y, null, priority, 1, false, avoid);
+                    legs.push({ from: s1.label ?? null, to: s2.label ?? null,
+                        distKm: +(one.distance / 1000).toFixed(1), durMin: Math.round(one.duration / 60),
+                        line: thinLine(one.polyline ?? []), failed: false });
+                } catch {
+                    legs.push({ from: s1.label ?? null, to: s2.label ?? null, distKm: null, durMin: null, line: [], failed: true });
+                }
+            }
+            const okLegs = legs.filter(l => !l.failed);
+            return res.json({
+                legs, partial: true,
+                note: `사슬 통째 실패(${route?.result_msg ?? "경로 없음"}) — 구간별로 다시 쟀다`,
+                totalKm: okLegs.length ? +okLegs.reduce((t, l) => t + (l.distKm ?? 0), 0).toFixed(1) : null,
+                totalMin: okLegs.length ? okLegs.reduce((t, l) => t + (l.durMin ?? 0), 0) : null,
+                tollWon: null,
+            });
+        }
+        // 🔴 구간을 **합치지 않는다** — 카카오가 나눠 준 그대로가 기사님이 쓰는 값이다
+        const legs = (route.sections ?? []).map((sec, i) => {
+            const line: Array<{ x: number; y: number }> = [];
+            for (const road of sec.roads ?? []) {
+                const v = road.vertexes ?? [];
+                for (let k = 0; k + 1 < v.length; k += 2) line.push({ x: v[k], y: v[k + 1] });
+            }
+            return {
+                // 🔴 라벨을 지어내지 않는다 — 클라가 이걸 구간 조인 키로 쓴다 (없으면 null)
+                from: stops[i]?.label ?? null, to: stops[i + 1]?.label ?? null,
+                distKm: +(sec.distance / 1000).toFixed(1), durMin: Math.round(sec.duration / 60),
+                line: thinLine(line), failed: false,
+            };
+        });
+        const sum = route.summary;
+        return res.json({
+            legs, partial: false,
+            // 없는 값은 null 이다 — 0.0km 라고 단언하지 않는다 (규칙 ④)
+            totalKm: sum ? +(sum.distance / 1000).toFixed(1) : null,
+            totalMin: sum ? Math.round(sum.duration / 60) : null,
+            tollWon: sum?.fare?.toll ?? null,
+        });
+    } catch (e) {
+        return res.status(502).json({ error: String((e as Error)?.message ?? e) });
+    }
+});

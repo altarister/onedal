@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildNet, buildFirstLegDemo, judgeTwoStage, judgeTwoTrack, orderStopsGreedy, orderStopsGrouped, cityCenter, isLocalPhase, WAIT_PRESET, NET_SRC, NET_DST, GONJIAM_DROP, DONGWON_DROP, BORAM_DROP, ICHEON_DROP } from './callNet';
+import { buildNet, buildFirstLegDemo, judgeTwoStage, judgeGoals, orderStopsGreedy, orderStopsInsert, cityCenter, isLocalPhase, WAIT_PRESET, NET_SRC, NET_DST, GONJIAM_DROP, DONGWON_DROP, BORAM_DROP, ICHEON_DROP } from './callNet';
 
 /**
  * 🧪 **그물 셋업의 계산이 ⑭ 검산과 같은가**
@@ -331,37 +331,57 @@ describe('판(목적지) 그룹 경로 — 콜마다 잡을 당시 목적지를 
     const MANGWOL = { lng: 127.221, lat: 37.567 }, CHOWOL_PT = { lng: 127.294, lat: 37.377 };
     const SANGGYE = { lng: 127.073, lat: 37.660 }, MAESAN = { lng: 127.298, lat: 37.362 };
 
-    it('🔴 실측 사고 그대로 — 복귀 그룹 안에서는 최적 정렬: 장암동 다음이 상계동이다', () => {
+    /**
+     * 🔴 **재배치는 «가는 길에 하나 더»다** (기사님 순서 ④⑫ 2026-09-08:
+     * *"콜에 있는 모든 좌표를 가지고 우리 시스템이 최적경로를 찾은 후 최적경로순으로 재배치해"*,
+     * *"첫 콜을 완전히 끝내고 두 번째를 하러 갑니다 — 그렇게 하려면 왜 합짐을 해"*).
+     *
+     * 방식은 **가장 싸게 끼워 넣기**: 콜을 잡은 순서대로, 그 콜의 상차·하차를 지금 순서의
+     * 어느 자리에 끼울 때 총 거리가 가장 짧은지로 넣는다. 잡은 콜들의 **상대 순서는 그대로**
+     * 두므로 이미 정한 순서가 흔들리지 않고, 되돌아가는 삽입은 비싸서 안 골린다.
+     */
+    it('🔴 가는 길 합짐 — 첫 콜 하차 전에 둘째를 끼운다 («다 끝내고 다음»이 아니다)', () => {
+        const calls = [
+            { pickup: GYEONGAN, drop: JANGAM, destName: '파주 시내' },
+            { pickup: MANGWOL, drop: SANGGYE, destName: '파주 시내' },
+        ];
+        expect(orderStopsInsert(GYEONGAN, calls, []).map(s => `${s.call}${s.kind}`))
+            .toEqual(['1상차', '2상차', '2하차', '1하차']);
+        // 순차(1상,1하,2상,2하)면 76.2km — 끼워 넣으면 40.6km. 실측으로 확인함
+    });
+
+    it('🔴 실측 사고 그대로 — 요요가 없다: 장암(북) 뒤에 광주로 되내려오지 않는다', () => {
         const calls = [
             { pickup: GYEONGAN, drop: JANGAM, destName: '파주 시내' },
             { pickup: MANGWOL, drop: CHOWOL_PT, destName: '초월(집) — 복귀' },
             { pickup: SANGGYE, drop: MAESAN, destName: '초월(집) — 복귀' },
         ];
-        const order = orderStopsGrouped(GYEONGAN, calls, [{ call: 1, kind: '상차' }]);
-        expect(order.map(s => `${s.call}${s.kind === '상차' ? '상' : '하'}`))
-            .toEqual(['1상', '1하', '3상', '2상', '2하', '3하']);
-        // 장암(북) 하차 뒤 곧장 상계(북) 상차 — 광주까지 내려갔다 되올라오는 요요가 없다
+        expect(orderStopsInsert(GYEONGAN, calls, [{ call: 1, kind: '상차' }]).map(s => `${s.call}${s.kind}`))
+            .toEqual(['1상차', '3상차', '1하차', '2상차', '2하차', '3하차']);
+        // 83.4km — 판을 갈라 넣던 옛 방식(83.7km)보다 짧다
     });
 
-    it('같은 판이면 기존 greedy 와 같다 — 가는 길 합짐 삽입 허용', () => {
-        const calls = [
-            { pickup: GYEONGAN, drop: JANGAM, destName: '파주 시내' },
-            { pickup: MANGWOL, drop: SANGGYE, destName: '파주 시내' },
-        ];
-        const grouped = orderStopsGrouped(GYEONGAN, calls, []);
-        const greedy = orderStopsGreedy(GYEONGAN, calls);
-        expect(grouped.map(s => `${s.call}${s.kind}`)).toEqual(greedy.map(s => `${s.call}${s.kind}`));
-    });
-
-    it('판을 오가면(파주→복귀→파주) 연속 구간마다 그룹 — 잡은 판 순서를 지킨다', () => {
+    it('🔴 판이 달라도 «가는 길»이면 섞는다 — 판 그룹으로 가르면 157.3km, 끼워 넣으면 83.4km', () => {
         const calls = [
             { pickup: GYEONGAN, drop: JANGAM, destName: '파주 시내' },
             { pickup: MANGWOL, drop: CHOWOL_PT, destName: '초월(집) — 복귀' },
             { pickup: SANGGYE, drop: MAESAN, destName: '파주 시내' },
         ];
-        const order = orderStopsGrouped(GYEONGAN, calls, []);
-        // 그룹 경계를 넘어 섞이지 않는다: 1 → 2 → 3
-        expect(order.map(s => s.call)).toEqual([1, 1, 2, 2, 3, 3]);
+        expect(orderStopsInsert(GYEONGAN, calls, []).map(s => `${s.call}${s.kind === '상차' ? '상' : '하'}`))
+            .toEqual(['1상', '3상', '1하', '2상', '2하', '3하']);
+    });
+
+    it('하차는 제 상차보다 뒤 — 짐을 싣기 전에 내릴 수 없다', () => {
+        const calls = [
+            { pickup: GYEONGAN, drop: JANGAM, destName: '파주 시내' },
+            { pickup: MANGWOL, drop: SANGGYE, destName: '파주 시내' },
+            { pickup: CHOWOL_PT, drop: MAESAN, destName: '파주 시내' },
+        ];
+        const o = orderStopsInsert(GYEONGAN, calls, []);
+        for (const n of [1, 2, 3]) {
+            expect(o.findIndex(s => s.call === n && s.kind === '상차'))
+                .toBeLessThan(o.findIndex(s => s.call === n && s.kind === '하차'));
+        }
     });
 
     it('방문한 정거장은 그 순서 그대로 고정 — 재계산해도 안 흔들린다 (안정성)', () => {
@@ -370,77 +390,123 @@ describe('판(목적지) 그룹 경로 — 콜마다 잡을 당시 목적지를 
             { pickup: MANGWOL, drop: CHOWOL_PT, destName: '초월(집) — 복귀' },
             { pickup: SANGGYE, drop: MAESAN, destName: '초월(집) — 복귀' },
         ];
-        const full = orderStopsGrouped(GYEONGAN, calls, [{ call: 1, kind: '상차' }]);
-        // 두 정거장을 지난 시점에서 재계산 — 앞은 그대로, 뒤도 같은 꼬리
-        const later = orderStopsGrouped(GYEONGAN, calls, full.slice(0, 3).map(s => ({ call: s.call, kind: s.kind })));
+        const full = orderStopsInsert(GYEONGAN, calls, [{ call: 1, kind: '상차' }]);
+        const later = orderStopsInsert(GYEONGAN, calls, full.slice(0, 3).map(s => ({ call: s.call, kind: s.kind })));
         expect(later.map(s => `${s.call}${s.kind}`)).toEqual(full.map(s => `${s.call}${s.kind}`));
     });
 });
 
 
-describe('양방향(복귀 대기) 판정 — 목적지 마름모 ∪ 복귀 마름모, 우선권은 복귀 (기사님 정정 2026-09-08)', () => {
+describe('⑮ 동선의 기준 — 목적지 하나당 마름모 하나 (기사님 확정 2026-09-08)', () => {
     /**
-     * 기사님: *"내가 생각했던 건 파주로 계속 진행해야 한다는 거였어. 그래서 두 개의 마름모가
-     * 필요하다 한 건데."* — 주 트랙은 관내 원이 아니라 **기존 목적지 마름모**다.
-     * 판: 산곡동쯤(파주 가는 중간, 콜 없는 곳)에서 복귀 대기. 마름모 둘: 내위치→파주 · 내위치→집.
-     * 관내는 따로 없다 — 파주에 도착하면 파주 마름모가 퇴화해 목적지 원만 남는다(기존 규칙).
+     * 기준(노선_고르는_법 ⑮):
+     *   · 목적지 = 마름모 하나. 내 위치는 공유 꼭짓점, 목적지마다 자기 원
+     *   · 목적지는 «의도»라 콜을 다 해도 안 죽는다
+     *   · 그물 = 살아 있는 마름모들의 합집합 · 판정은 각각 · 하나라도 통과하면 통과
+     *   · 둘 다 통과하면 복귀가 이긴다
+     *   · homeCaught / ∩ 전환 특례는 **폐기** — 목적지는 각자 제 마름모로 살아 있을 뿐
      */
     const PAJU = cityCenter('파주시');
-    const ME = { name: '중간(하남쯤)', lng: 127.19, lat: 37.52 };      // 집·파주 사이
-    const TO_PAJU = { lng: 126.95, lat: 37.63 };                        // 파주 방향 하차
-    const TO_HOME = { lng: 127.26, lat: 37.42 };                        // 집 방향 하차
-    const NEAR_ME = { lng: 127.19, lat: 37.51 };                        // 발밑 상차
+    const HOME = { ...NET_SRC, name: '복귀(집)' };
+    const ME = { name: '중간(하남쯤)', lng: 127.19, lat: 37.52 };
+    const NEAR_ME = { lng: 127.19, lat: 37.51 };
+    const TO_PAJU = { lng: 126.95, lat: 37.63 };
+    const TO_HOME = { lng: 127.26, lat: 37.42 };
 
-    it('파주 방향 콜 — 목적지 트랙이 살린다 → MAIN (하던 일 계속)', () => {
-        const v = judgeTwoTrack(WAIT_PRESET, ME, PAJU, NET_SRC, ME, NEAR_ME, TO_PAJU, {});
-        expect(v.main.pass).toBe(true);
-        expect(v.home.pass).toBe(false);          // 집 기준으론 역주행
-        expect(v.wonTrack).toBe('MAIN');
-    });
-
-    it('집 방향 콜 — 복귀 마름모가 살린다 → HOME', () => {
-        const v = judgeTwoTrack(WAIT_PRESET, ME, PAJU, NET_SRC, ME, NEAR_ME, TO_HOME, {});
-        expect(v.main.pass).toBe(false);          // 파주 기준으론 역주행
-        expect(v.home.pass).toBe(true);
-        expect(v.wonTrack).toBe('HOME');
-    });
-
-    it('둘 다 통과하면 복귀가 이긴다 — 복귀 콜을 잡는 것이 목표다', () => {
-        // 발밑 → 발밑 근처: 양쪽 다 각도 소음 예외로 살 수 있는 콜
-        const v = judgeTwoTrack(WAIT_PRESET, ME, PAJU, NET_SRC, ME, NEAR_ME, { lng: 127.185, lat: 37.515 }, {});
-        if (v.main.pass && v.home.pass) expect(v.wonTrack).toBe('HOME');
-        else expect(v.wonTrack).not.toBeNull();
-    });
-
-    it('🔴 복귀콜을 잡은 뒤(∩) — 파주 방향 콜은 탈락한다 (순차 진행)', () => {
-        const before = judgeTwoTrack(WAIT_PRESET, ME, PAJU, NET_SRC, ME, NEAR_ME, TO_PAJU, {});
-        expect(before.wonTrack).toBe('MAIN');
-        const after = judgeTwoTrack(WAIT_PRESET, ME, PAJU, NET_SRC, ME, NEAR_ME, TO_PAJU, { homeCaught: true });
-        expect(after.main.pass).toBe(false);      // 목적지 트랙이 집 원뿔과의 교집합만 남았다
-        expect(after.pass).toBe(false);
-    });
-
-    it('∩ 뒤에도 집 길목 콜은 산다', () => {
-        const v = judgeTwoTrack(WAIT_PRESET, ME, PAJU, NET_SRC, ME, NEAR_ME, TO_HOME, { homeCaught: true });
-        expect(v.home.pass).toBe(true);
+    it('목적지 하나 — 마름모 하나 (기존 판정과 같다)', () => {
+        const v = judgeGoals(WAIT_PRESET, ME, [PAJU], ME, NEAR_ME, TO_PAJU);
+        expect(v.results).toHaveLength(1);
         expect(v.pass).toBe(true);
+        expect(v.wonGoal?.name).toBe(PAJU.name);
     });
 
-    it('콜을 쥔 채(routeStarted)도 양방향은 계속 돈다', () => {
-        const v = judgeTwoTrack(WAIT_PRESET, ME, PAJU, NET_SRC, ME, NEAR_ME, TO_HOME, { routeStarted: true });
-        expect(v.home.pass).toBe(true);
-        expect(v.wonTrack).toBe('HOME');
+    it('목적지 둘 — 파주 방향 콜은 파주 판, 집 방향 콜은 복귀 판', () => {
+        const toPaju = judgeGoals(WAIT_PRESET, ME, [PAJU, HOME], ME, NEAR_ME, TO_PAJU);
+        expect(toPaju.wonGoal?.name).toBe(PAJU.name);
+        const toHome = judgeGoals(WAIT_PRESET, ME, [PAJU, HOME], ME, NEAR_ME, TO_HOME);
+        expect(toHome.wonGoal?.name).toBe(HOME.name);
     });
 
-    it('🔴 복귀 «대기» 중에는 ∩(상차 원뿔)를 안 건다 — 미리 잡는 그물이다 (2026-09-08 실측 사고)', () => {
-        // 실측: 파주 가는 길에 복귀를 켰는데, 집에서 4.2km 하차하는 완벽한 복귀콜이
-        // «상차 사각형 밖(뒤)»로 잘렸다 — 상차가 반경 안(서쪽 9.7km)인데 집 원뿔 밖이라서.
-        // ∩ 는 복귀콜을 «잡은 뒤»(homeCaught)부터다 — 대기는 미리 잡기라 반경만 본다.
-        const W_PICKUP = { lng: 127.12, lat: 37.53 };   // 서쪽 6.2km — 반경(7.5km) 안 · 집 원뿔 밖
-        const waiting = judgeTwoTrack(WAIT_PRESET, ME, PAJU, NET_SRC, ME, W_PICKUP, TO_HOME, { routeStarted: true });
-        expect(waiting.home.pass).toBe(true);
-        expect(waiting.wonTrack).toBe('HOME');
-        const caught = judgeTwoTrack(WAIT_PRESET, ME, PAJU, NET_SRC, ME, W_PICKUP, TO_HOME, { routeStarted: true, homeCaught: true });
-        expect(caught.home.pass).toBe(false);           // 잡은 뒤에는 원뿔이 자른다
+    it('🔴 둘 다 통과하면 복귀가 이긴다 — 목록 순서와 무관하게', () => {
+        // 두 목적지가 **같은 방향**(이천·집 모두 남동)이라 한 콜이 양쪽 다 통과한다
+        const ICHEON = cityCenter('이천시');
+        const ME2 = { name: '집 북서쪽', lng: 127.20, lat: 37.45 };
+        const PK = { lng: 127.21, lat: 37.445 }, DR = { lng: 127.29, lat: 37.38 };
+        const a = judgeGoals(WAIT_PRESET, ME2, [ICHEON, HOME], ME2, PK, DR, { preferName: HOME.name });
+        const b = judgeGoals(WAIT_PRESET, ME2, [HOME, ICHEON], ME2, PK, DR, { preferName: HOME.name });
+        expect(a.results.every(r => r.verdict.pass)).toBe(true);   // 전제가 참인지 먼저 못박는다
+        expect(a.wonGoal?.name).toBe(HOME.name);
+        expect(b.wonGoal?.name).toBe(HOME.name);                   // 순서가 바뀌어도 같은 답
+    });
+
+    it('어느 목적지로도 안 되면 탈락', () => {
+        const far = { lng: 128.6, lat: 35.9 };          // 대구쯤 — 둘 다 밖
+        const v = judgeGoals(WAIT_PRESET, ME, [PAJU, HOME], ME, NEAR_ME, far);
+        expect(v.pass).toBe(false);
+        expect(v.wonGoal).toBeNull();
+    });
+
+    it('🔴 목적지는 넘긴 만큼 그대로 잰다 — 스스로 떨어뜨리지 않는다 (⑮ 기준 2)', () => {
+        // 목적지를 셋 넘기면 결과도 셋. 판정이 «이 목적지는 볼 필요 없다»고 빼는 일이 없어야 한다
+        const ICHEON = cityCenter('이천시');
+        const v = judgeGoals(WAIT_PRESET, ME, [PAJU, HOME, ICHEON], ME, NEAR_ME, TO_PAJU);
+        expect(v.results.map(r => r.goal.name)).toEqual([PAJU.name, HOME.name, ICHEON.name]);
+    });
+
+    it('첫 콜 뒤 ∩ — 짐 실은 목적지는 등 뒤 상차를 자른다 (pass 로 확인)', () => {
+        const behind = { lng: 127.26, lat: 37.50 };     // 반경 안 · 파주 원뿔 밖(뒤)
+        const idle = judgeGoals(WAIT_PRESET, ME, [PAJU], ME, behind, TO_PAJU, { loadedNames: [] });
+        expect(idle.results[0].verdict.pickupNearMe).toBe(true);   // 반경은 들어온다
+        expect(idle.pass).toBe(true);                              // 안 실었으면 산다
+        const loaded = judgeGoals(WAIT_PRESET, ME, [PAJU], ME, behind, TO_PAJU, { loadedNames: [PAJU.name] });
+        expect(loaded.results[0].verdict.pickupInNet).toBe(false);
+        expect(loaded.pass).toBe(false);                           // 실었으면 잘린다
+    });
+
+    it('🔴 실은 짐이 없는 목적지는 ∩ 를 안 건다 — 복귀 대기의 미리 잡기 (2026-09-08 회귀)', () => {
+        // 실측 사고: 파주 짐을 싣고 가는 중 복귀를 켰는데, 집 4.2km 하차 콜이 «상차 사각형 밖»으로 잘렸다
+        const W = { lng: 127.12, lat: 37.53 };          // 반경 안 · 집 원뿔 밖
+        const v = judgeGoals(WAIT_PRESET, ME, [PAJU, HOME], ME, W, TO_HOME,
+            { loadedNames: [PAJU.name], preferName: HOME.name });
+        const home = v.results.find(r => r.goal.name === HOME.name)!;
+        expect(home.verdict.pass).toBe(true);           // 복귀는 짐이 없으니 원 전체
+        expect(v.wonGoal?.name).toBe(HOME.name);
+        // 파주는 짐을 실었으니 그 상차가 뒤면 잘린다 (같은 콜, 다른 목적지)
+        expect(v.results.find(r => r.goal.name === PAJU.name)!.verdict.pass).toBe(false);
+    });
+});
+
+describe('judgeGoals 의 배선 — 화면이 읽는 값과 목적지별 콜백 (2026-09-08 리뷰: 변이가 안 잡혔다)', () => {
+    const PAJU2 = cityCenter('파주시');
+    const HOME2 = { ...NET_SRC, name: '복귀(집)' };
+    const ME3 = { name: '집 북서쪽', lng: 127.20, lat: 37.45 };
+    const PK3 = { lng: 127.21, lat: 37.445 }, DR3 = { lng: 127.29, lat: 37.38 };
+
+    it('🔴 won 은 «이긴 목적지»의 판정이다 — 첫 결과가 아니다 (화면 판정 카드가 이걸 읽는다)', () => {
+        const ICHEON = cityCenter('이천시');
+        const v = judgeGoals(WAIT_PRESET, ME3, [ICHEON, HOME2], ME3, PK3, DR3, { preferName: HOME2.name });
+        expect(v.wonGoal?.name).toBe(HOME2.name);
+        const home = v.results.find(r => r.goal.name === HOME2.name)!.verdict;
+        // 「판 복귀(집)」 배지 밑에 이천 숫자가 깔리면 안 된다 — 승자의 값이어야 한다
+        expect(v.won).toBe(home);
+        expect(v.won?.distDropKm).toBe(home.distDropKm);
+    });
+
+    it('🔴 isLocal 을 주면 그 목적지는 관내 규칙(방향 안 봄)으로 잰다', () => {
+        // 목적지 원 밖·뒤쪽 하차 — 일반 규칙이면 탈락, 관내 규칙이면 «둘 다 원 안»만 보므로 결과가 갈린다
+        const behindDrop = { lng: 127.34, lat: 37.34 };
+        const normal = judgeGoals(WAIT_PRESET, ME3, [PAJU2], ME3, PK3, behindDrop);
+        const local = judgeGoals(WAIT_PRESET, ME3, [PAJU2], ME3, PK3, behindDrop, { isLocal: () => true });
+        expect(normal.results[0].verdict.dropBackward).toBe(true);    // 일반: 방향을 본다
+        expect(local.results[0].verdict.dropBackward).toBe(false);    // 관내: 방향을 안 본다
+    });
+
+    it('🔴 zoneOf 를 주면 그 판정기로 1단계를 잰다 (노선 길 띠)', () => {
+        // 무엇이든 통과시키는 띠 ↔ 무엇도 통과 못 시키는 띠 — 결과가 갈려야 배선이 살아 있다
+        const yes = { dropIn: () => true, pickupIn: () => true };
+        const no = { dropIn: () => false, pickupIn: () => false };
+        const far = { lng: 128.6, lat: 35.9 };                        // 그물 밖 하차
+        expect(judgeGoals(WAIT_PRESET, ME3, [PAJU2], ME3, PK3, far, { zoneOf: () => yes }).results[0].verdict.dropInNet).toBe(true);
+        expect(judgeGoals(WAIT_PRESET, ME3, [PAJU2], ME3, PK3, DR3, { zoneOf: () => no }).results[0].verdict.dropInNet).toBe(false);
     });
 });
