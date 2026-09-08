@@ -8,6 +8,8 @@ import {
 import { buildAppFilterOutput, labPhaseOf, TRUCK_CAPACITY_SLOTS } from './labFilterOutput';
 // 🚚 이식 대응표가 이 타입의 원천이다 — 실물 `step_*` 칸과 맞는지는 labPortMap.test.ts 가 지킨다
 import { promiseTimes, impactOfStop, type StopStep } from './labPortMap';
+// ⏱️ 시간·정거장 이름은 한 곳에서 만든다 (labTime.test.ts 가 지킨다)
+import { circled, hhmm, cumMinutes, arrivalAt } from './labTime';
 import {
     buildNet, buildRoadNet, roadZoneOf, judgeGoals, activeGoals, nearestDong, orderStopsInsert, cityCenter, quadTesterOf, isLocalPhase, NET_SRC, NET_DST,
     GONJIAM_DROP, DONGWON_DROP, BORAM_DROP,
@@ -95,7 +97,6 @@ const DESTS: NetPoint[] = [
 
 /** 콜 번호별 경로 색 — ①은 프리셋 경로의 기본색과 같은 장미로 잇는다 */
 const CALL_COLORS = ['#e11d48', '#a78bfa', '#2dd4bf', '#fb923c', '#facc15', '#34d399', '#60a5fa', '#f472b6'];
-const circled = (n: number) => n <= 20 ? String.fromCharCode(0x2460 + n - 1) : `(${n})`;
 
 /* ── 웹 메르카토르 — OSM 타일과 같은 투영이라야 배경과 도형이 어긋나지 않는다 ── */
 const TILE = 256;
@@ -916,16 +917,8 @@ export default function MapMockup() {
         // ⏰ 최초 약속 — 확정한 이 순간 전체 경로가 말한 도착 시각. 이후 어떤 합짐이 와도 안 바뀐다
         const t0 = clockNow, noNew = circled(confirmed.length + 1);   // 🕒 모의 시계
         /** 병합 경로의 그 정거장까지 누적 분 — 🔴 약속에는 안 쓴다 (`promiseTimes` 참조) */
-        const cumMin = (label: string) => {
-            let acc = 0;
-            for (const lg of chainNow?.legs ?? []) {
-                if (lg.durMin == null) return null;
-                acc += lg.durMin;
-                if (lg.to === label) return acc;
-            }
-            return null;
-        };
-        const chainCum = { pickupMin: cumMin(`${noNew}상차`), dropoffMin: cumMin(`${noNew}하차`) };
+        const mergedCum = cumMinutes(chainNow?.legs);
+        const chainCum = { pickupMin: mergedCum.get(`${noNew}상차`) ?? null, dropoffMin: mergedCum.get(`${noNew}하차`) ?? null };
         const mkStep = (promisedAt: number | null): StopStep => ({ promisedAt, predictedAt: null, occurredAt: null, source: null, impacts: [] });
         /**
          * ⏰ 약속은 **직행 기준**이다. 첫짐은 ⑤⑥ 전체 경로가 곧 직행이라 지금 바로 서고,
@@ -942,12 +935,6 @@ export default function MapMockup() {
          * 지금까지는 이 값을 심사 문단에 **띄우고 버렸다.** 버리지 않고 쌓으면 나중에
          * *"31분이 왜 밀렸나"* 에 한 줄씩 답할 수 있다.
          */
-        const cumOfLegs = (legs?: ChainLeg[]) => {
-            const m = new Map<string, number>(); let acc = 0;
-            for (const lg of legs ?? []) { if (lg.durMin == null) break; acc += lg.durMin; if (lg.to) m.set(lg.to, acc); }
-            return m;
-        };
-        const beforeCum = cumOfLegs(prevChain?.legs), afterCum = cumOfLegs(chainNow?.legs);
         const orderNow = (chainNow?.legs ?? []).map(l => l.to);
         /** 이미 있던 정거장들 — 새 콜이 «이것들을 경유하느라» 밀리는 원인이 된다 */
         const priorStops = confirmed.flatMap((x, i) => {
@@ -964,13 +951,9 @@ export default function MapMockup() {
          * 🔴 **누적 «분»을 그대로 빼지 않는다 — 각자의 «0분»이 다른 자리다** (2026-09-09 리뷰).
          * 두 경로는 잰 시각이 다르므로, 각자의 `measuredAt` 을 더해 **도착 «시각»**으로 만든 뒤 뺀다.
          */
-        const atIn = (chain: ChainResult | null | undefined, cum: Map<string, number>, label: string) => {
-            const m = cum.get(label);
-            return m == null || chain?.measuredAt == null ? null : chain.measuredAt + m * 60000;
-        };
         const impactOf = (label: string) => impactOfStop({
             stopLabel: label,
-            beforeAt: atIn(prevChain, beforeCum, label), afterAt: atIn(chainNow, afterCum, label),
+            beforeAt: arrivalAt(prevChain, label), afterAt: arrivalAt(chainNow, label),
             orderNow, inserted, causeCallId: id, at: t0,
         });
         setConfirmed(c => [...c.map((x, i) => {
@@ -1091,22 +1074,12 @@ export default function MapMockup() {
                 if (seq !== planSeqRef.current) return;   // 그 사이 판이 또 바뀌었다 — 이 적립은 어긋난다
                 const after = { ...d, measuredAt: clockBaseRef.current + simMinRef.current * 60000 };
                 setChainNow(after); setChainBefore(prevChain); lastChainRef.current = after;
-                const cum = (legs?: ChainLeg[]) => {
-                    const m = new Map<string, number>(); let acc = 0;
-                    for (const lg of legs ?? []) { if (lg.durMin == null) break; acc += lg.durMin; if (lg.to) m.set(lg.to, acc); }
-                    return m;
-                };
-                const beforeCum = cum(prevChain?.legs), afterCum = cum(after.legs);
                 const orderBefore = (prevChain?.legs ?? []).map(l => l.to);
                 setConfirmed(cs => cs.map((x, k) => {
                     const no = circled(baseCallCount + k + 1);
                     /** 🔴 «앞에 있었나»는 **빠지기 전** 순서로 본다 — 지금 순서엔 그 콜이 없다 */
-                    const atIn = (chain: ChainResult | null | undefined, cum: Map<string, number>, label: string) => {
-                        const m = cum.get(label);
-                        return m == null || chain?.measuredAt == null ? null : chain.measuredAt + m * 60000;
-                    };
                     const of = (label: string) => impactOfStop({ stopLabel: label,
-                        beforeAt: atIn(prevChain, beforeCum, label), afterAt: atIn(after, afterCum, label),
+                        beforeAt: arrivalAt(prevChain, label), afterAt: arrivalAt(after, label),
                         orderNow: orderBefore, inserted: gone, causeCallId: last.id, at });
                     const up = of(`${no}상차`), dn = of(`${no}하차`);
                     if (!up && !dn) return x;
@@ -1250,16 +1223,7 @@ export default function MapMockup() {
         if (!chainNow || confirmed.length === 0) return [];
         const first = confirmed[0], firstNo = circled(baseCallCount + 1);
         const rows: Array<{ name: string; min: number; how: string; budget?: { limitAt: number; usedAt: number } }> = [];
-        /** 지금 전체 경로에서 그 정거장까지의 누적 분 — 못 잰 구간이 하나라도 있으면 null */
-        const cumTo = (label: string) => {
-            let acc = 0;
-            for (const lg of chainNow.legs) {
-                if (lg.durMin == null) return null;
-                acc += lg.durMin;
-                if (lg.to === label) return acc;
-            }
-            return null;
-        };
+
         /**
          * 🔴 **분끼리 빼지 않는다 — 시각끼리 뺀다** (2026-09-09에 잡은 버그).
          *
@@ -1269,11 +1233,9 @@ export default function MapMockup() {
          * +40분이라고 했다(주행 30분이 사라진 것). 약속은 **절대 시각**으로 못 박아 뒀으니
          * 지금 도착 예정도 절대 시각으로 만들어 그것끼리 견준다.
          */
-        const base = chainNow.measuredAt ?? clockNow;   // 🕒 잰 시각 기준 (위와 같은 규약)
-        const etaOf = (label: string) => { const m = cumTo(label); return m == null ? null : base + m * 60000; };
+        const etaOf = (label: string) => arrivalAt(chainNow, label);   // 🕒 «잰 시각 + 누적» — 한 곳에서
         const lateMin = (etaAt: number | null, promisedAt: number | null | undefined) =>
             etaAt != null && promisedAt != null ? Math.round((etaAt - promisedAt) / 60000) : null;
-        const hhmm = (t: number) => new Date(t).toTimeString().slice(0, 5);
 
         const pickEta = etaOf(`${firstNo}상차`), pickLate = lateMin(pickEta, first.steps.pickup.promisedAt);
         if (pickLate != null)
@@ -1401,25 +1363,11 @@ export default function MapMockup() {
     }, [chainNow, confirmed, baseCallCount, pickup, drop, departed, myPos, approachInfo, goalsVerdict, dst.name, clockNow]);
     const stopImpacts = useMemo(() => {
         if (!chainNow || !chainBefore) return [];
-        const cumOf = (legs: ChainLeg[]) => {
-            const out = new Map<string, number>();
-            let acc = 0;
-            for (const lg of legs) {
-                if (lg.durMin == null) return out;      // 못 잰 구간부터는 누적을 못 한다 (지어내지 않는다)
-                acc += lg.durMin;
-                if (lg.to) out.set(lg.to, acc);
-            }
-            return out;
-        };
-        /** 🔴 두 경로는 **잰 시각이 다르다** — 각자의 기준을 더해 «시각»으로 만든 뒤 뺀다 (2026-09-09 리뷰) */
-        const bAt = chainBefore.measuredAt, nAt = chainNow.measuredAt;
-        if (bAt == null || nAt == null) return [];      // 기준 시각을 모르면 못 잰다 (지어내지 않는다)
-        const before = cumOf(chainBefore.legs), now = cumOf(chainNow.legs);
+        /** 🔴 두 경로는 **잰 시각이 다르다** — `arrivalAt` 이 각자의 기준을 더해 «시각»으로 낸다 */
         const rows: Array<{ stop: string; beforeAt: number; nowAt: number; delayMin: number }> = [];
-        for (const [stop, b] of before) {
-            const n = now.get(stop);
-            if (n == null) continue;
-            const beforeAt = bAt + b * 60000, nowAt = nAt + n * 60000;
+        for (const stop of cumMinutes(chainBefore.legs).keys()) {
+            const beforeAt = arrivalAt(chainBefore, stop), nowAt = arrivalAt(chainNow, stop);
+            if (beforeAt == null || nowAt == null) continue;   // 기준 시각이나 구간을 모르면 못 잰다
             rows.push({ stop, beforeAt, nowAt, delayMin: Math.round((nowAt - beforeAt) / 60000) });
         }
         return rows;
@@ -1921,7 +1869,6 @@ export default function MapMockup() {
                 const pt = stopPeek.kind === '상차' ? c.pickup : c.drop;
                 const dong = nearestDong(pt);
                 const clock = stopClock.get(`${no}${stopPeek.kind}`);
-                const hhmm = (t: number | null | undefined) => t != null ? new Date(t).toTimeString().slice(0, 5) : '--:--';
                 const rows: Array<[string, string, string]> = [
                     ['실 주행시간', clock?.legMin != null ? `${clock.legMin}분` : '--분',
                         clock?.legKm != null ? `${clock.legKm}km` : ''],
@@ -1971,7 +1918,7 @@ export default function MapMockup() {
                                                 {step.impacts.map((x, k) => (
                                                     <span key={k} className="flex justify-between gap-2">
                                                         {/* 🔴 «확정»이라 박아 두면 취소 줄이 «… 취소 (04:24 확정)» 이 된다 — 시각만 적는다 */}
-                                                        <span>{x.causeLabel} <span className="text-text-muted text-[9.5px]">({new Date(x.at).toTimeString().slice(0, 5)})</span></span>
+                                                        <span>{x.causeLabel} <span className="text-text-muted text-[9.5px]">({hhmm(x.at)})</span></span>
                                                         <b className={x.min > 0 ? 'text-warning' : 'text-success'}>{x.min > 0 ? '+' : ''}{x.min}분</b>
                                                     </span>
                                                 ))}
@@ -2092,7 +2039,7 @@ export default function MapMockup() {
                                 {driving ? '⏸ 멈춤' : '▶️ 주행'}
                             </button>
                             <span className="px-1.5 py-0.5 rounded-md bg-background border border-border-card text-[10.5px] font-black tabular-nums">
-                                🕒 {new Date(clockNow).toTimeString().slice(0, 5)}
+                                🕒 {hhmm(clockNow)}
                                 <span className="font-bold text-text-muted"> 모의</span>
                             </span>
                             <button type="button" onClick={() => setSpeedIdx((speedIdx + 1) % SPEEDS.length)}
@@ -2368,7 +2315,7 @@ export default function MapMockup() {
                                             🚚 상차지까지 <b className="text-info">{approachInfo.distKm}km · {approachInfo.durMin ?? '?'}분</b>
                                             {approachInfo.failed && <b className="text-danger"> (못 쟀다 — 도로 탐색 불가)</b>}
                                             {approachInfo.durMin != null && (
-                                                <> → 도착 <b className="text-info">{new Date(clockNow + approachInfo.durMin * 60000).toTimeString().slice(0, 5)}</b>
+                                                <> → 도착 <b className="text-info">{hhmm(clockNow + approachInfo.durMin * 60000)}</b>
                                                 <span className="text-text-muted"> (지금 출발 기준 · 통화로 확정)</span></>
                                             )}
                                         </div>
@@ -2415,7 +2362,6 @@ export default function MapMockup() {
                                                     <span className="font-bold text-text-muted"> · {ci.where}</span>
                                                 </div>
                                                 {ci.stops.map(st => {
-                                                    const hhmm = (t: number) => new Date(t).toTimeString().slice(0, 5);
                                                     // 실제로 지났으면 그것이 답, 아직이면 전체 경로가 말하는 예상
                                                     const real = st.passedAt ?? st.etaAt;
                                                     const late = real != null && st.promisedAt != null
@@ -2548,8 +2494,8 @@ export default function MapMockup() {
                                                     <b className={r.min > 0 ? 'text-warning' : 'text-success'}>{r.min > 0 ? '+' : ''}{r.min}분</b>
                                                     <span className="text-text-muted font-normal"> ({r.how})</span>
                                                     {r.budget && (r.budget.usedAt <= r.budget.limitAt
-                                                        ? <b className="text-success"> · 시한 {new Date(r.budget.limitAt).toTimeString().slice(0, 5)} 안 ✅ 전화 불필요</b>
-                                                        : <b className="text-danger"> · 시한 {new Date(r.budget.limitAt).toTimeString().slice(0, 5)} 초과 ☎️ 시간을 물려야 한다</b>)}
+                                                        ? <b className="text-success"> · 시한 {hhmm(r.budget.limitAt)} 안 ✅ 전화 불필요</b>
+                                                        : <b className="text-danger"> · 시한 {hhmm(r.budget.limitAt)} 초과 ☎️ 시간을 물려야 한다</b>)}
                                                 </span>
                                             </div>
                                         ))}
@@ -2603,8 +2549,6 @@ export default function MapMockup() {
                                                     {/* 정거장마다 다섯 값 — 이동·밀림·약속·예정·통과 (기사님 2026-09-08) */}
                                                     {([['상차', c.pickup], ['하차', c.drop]] as const).map(([kind, pt], k) => {
                                                         const clock = stopClock.get(`${circled(n)}${kind}`);
-                                                        const hhmm = (t: number | null | undefined) =>
-                                                            t != null ? new Date(t).toTimeString().slice(0, 5) : '--:--';
                                                         return (
                                                             <span key={kind} className="font-black">
                                                                 {k > 0 && <span className="text-text-muted font-bold"> → </span>}
@@ -2652,7 +2596,7 @@ export default function MapMockup() {
                                 {terminated.map(t => (
                                     <div key={t.id} className="flex justify-between gap-1 text-[10.5px] text-text-muted tabular-nums">
                                         <span className="line-through">{t.no} {nearestDong(t.pickup).name} → {nearestDong(t.drop).name}</span>
-                                        <span className="shrink-0">{new Date(t.terminatedAt).toTimeString().slice(0, 5)} 취소</span>
+                                        <span className="shrink-0">{hhmm(t.terminatedAt)} 취소</span>
                                     </div>
                                 ))}
                             </div>
