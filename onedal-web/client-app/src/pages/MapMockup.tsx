@@ -641,9 +641,33 @@ export default function MapMockup() {
      * 키는 `①상차` 같은 정거장 이름, 값은 지난 순간의 시각. **지나기 전엔 아예 없다**
      * (0 이나 예상값으로 채우지 않는다 — 규칙 ④).
      */
+    /**
+     * 🧹 **취소된 콜 — 지우지 않고 옮긴다** (관제웹 규칙 그대로: *"종료된 콜은 사라지지 않고
+     * «완료됨 · 취소/방출» 로 이동한다 — 안 보이는 것과 없어진 것은 다르다"*).
+     *
+     * 예전엔 `confirmed.slice(0, -1)` 로 **통째로 없앴다.** 그러면 «언제 무엇이 빠져서
+     * 순서가 바뀌었나»가 사이클에서 사라진다 (기사님 2026-09-09: *"2번째 콜이 취소될 때"*).
+     * `confirmed` 는 **활성 콜**만 담고, 경로·순번·판정은 그대로 그것만 본다.
+     */
+    const [terminated, setTerminated] = useState<Array<{ id: number; label: string; destName: string; terminatedAt: number }>>([]);
     /** 🔎 지나는 순간 얼릴 «마지막 예상» — 키는 `콜id-상차/하차` (실물의 `predicted_at` 자리) */
     const etaRef = useRef<Record<string, number | null>>({});
     useEffect(() => { if (confirmed.length === 0) visitedCountRef.current = 0; }, [confirmed.length]);
+    useEffect(() => { setTerminated([]); }, [stageIdx]);   // 판을 새로 열면 취소 기록도 함께 비운다
+    /**
+     * 🧭 **정거장 목록을 만드는 규칙 — 한 곳이다** (규칙 ③).
+     * 재배치하고, **지나온 곳은 뺀다.** 올릴 때(⑫)와 취소할 때가 같은 규칙을 써야
+     * 두 경로가 갈라지지 않는다. 잴 것이 없으면 `null`.
+     */
+    const stopsFor = (from: Pt, calls: Array<{ pickup: Pt; drop: Pt; destName: string }>) => {
+        if (calls.length === 0) return null;
+        const visited = departed ? prevOrderRef.current.slice(0, visitedCountRef.current) : [];
+        const stops = orderStopsInsert(from, calls, visited)
+            .filter(st => !visited.some(v => v.call === st.call && v.kind === st.kind));
+        if (stops.length === 0) return null;
+        return [{ x: from.lng, y: from.lat, label: '내 위치' },
+            ...stops.map(st => ({ x: st.pt.lng, y: st.pt.lat, label: `${circled(st.call)}${st.kind}` }))];
+    };
     const effPath = useMemo(() => {
         const allCalls = [
             ...presetCalls.map(c => ({ ...c, destName: dst.name })),
@@ -979,6 +1003,60 @@ export default function MapMockup() {
             });
     };
 
+    /**
+     * 🧹 **콜 취소 — 지우지 않고 옮긴다** (5단계 · 기사님 2026-09-09 *"2번째 콜이 취소될 때"*).
+     *
+     * 빠지면 남은 정거장이 **앞당겨진다.** 그 분을 «음수»로 적립해야 사이클이 이어진다 —
+     * 확정 때와 같은 셈(`impactOfStop`)이고, 원인은 «빠진 콜의 정거장»이다.
+     * 경로도 다시 재야 한다. 콜이 빠졌는데 옛 경로로 계속 가면 화면이 거짓말한다.
+     */
+    const cancelLastCall = () => {
+        const last = confirmed[confirmed.length - 1];
+        if (!last) return;
+        const at = clockNow, rest = confirmed.slice(0, -1);
+        const goneNo = circled(baseCallCount + confirmed.length);
+        const gone = [{ label: `${goneNo}상차`, name: `${nearestDong(last.pickup).name} 상차` },
+                      { label: `${goneNo}하차`, name: `${nearestDong(last.drop).name} 하차` }];
+        setTerminated(t => [{ id: last.id, destName: last.destName, terminatedAt: at,
+            label: `${goneNo} ${nearestDong(last.pickup).name} → ${nearestDong(last.drop).name}` }, ...t]);
+        const prevChain = lastChainRef.current;
+        const stops = stopsFor(myPos, rest.map(c => ({ pickup: c.pickup, drop: c.drop, destName: c.destName })));
+        if (!stops) {   // 남은 정거장이 없다 — 잴 것도 적립할 것도 없다
+            setConfirmed(rest); setChainNow(null); setChainBefore(null); setChainPreview(null);
+            lastChainRef.current = null;
+            return;
+        }
+        setConfirmed(rest);
+        callApi('🧹 취소 후 경로 다시 재기', '/sim/chain',
+            { stops, priority: routeCombo.priority, avoid: routeCombo.avoid },
+            `정거장 ${stops.length}: ${stops.map(x => x.label).join(' → ')}`)
+            .then(d => {
+                const after = { ...d, measuredAt: clockBaseRef.current + simMinRef.current * 60000 };
+                setChainNow(after); setChainBefore(prevChain); lastChainRef.current = after;
+                const cum = (legs?: ChainLeg[]) => {
+                    const m = new Map<string, number>(); let acc = 0;
+                    for (const lg of legs ?? []) { if (lg.durMin == null) break; acc += lg.durMin; if (lg.to) m.set(lg.to, acc); }
+                    return m;
+                };
+                const beforeCum = cum(prevChain?.legs), afterCum = cum(after.legs);
+                const orderBefore = (prevChain?.legs ?? []).map(l => l.to);
+                setConfirmed(cs => cs.map((x, k) => {
+                    const no = circled(baseCallCount + k + 1);
+                    /** 🔴 «앞에 있었나»는 **빠지기 전** 순서로 본다 — 지금 순서엔 그 콜이 없다 */
+                    const of = (label: string) => impactOfStop({ stopLabel: label,
+                        beforeMin: beforeCum.get(label), afterMin: afterCum.get(label),
+                        orderNow: orderBefore, inserted: gone, causeCallId: last.id, at });
+                    const up = of(`${no}상차`), dn = of(`${no}하차`);
+                    if (!up && !dn) return x;
+                    return { ...x, steps: {
+                        pickup: up ? { ...x.steps.pickup, impacts: [...x.steps.pickup.impacts, { ...up, causeLabel: `${up.causeLabel} 취소` }] } : x.steps.pickup,
+                        dropoff: dn ? { ...x.steps.dropoff, impacts: [...x.steps.dropoff.impacts, { ...dn, causeLabel: `${dn.causeLabel} 취소` }] } : x.steps.dropoff,
+                    } };
+                }));
+            })
+            .catch(err => console.warn('[취소 후 경로] 못 받았다 — 적립 못 함:', err));
+    };
+
     /** 🔴 올리기 경합 가드 — 늦게 온 옛 콜 응답이 새 콜 값을 덮어쓰면 안 된다 (2026-09-08 리뷰) */
     const uploadSeqRef = useRef(0);
     /**
@@ -1021,15 +1099,7 @@ export default function MapMockup() {
          * 판단은 «지금 여기서 이 콜을 붙이면»이므로 기점도 지금 자리여야 한다.
          * 지나온 정거장은 빼고 **남은 것만** 재배치한다 (그래야 «가는 길에 하나 더»가 나온다).
          */
-        const chainOf = (calls: Array<{ pickup: Pt; drop: Pt; destName: string }>) => {
-            if (calls.length === 0) return null;
-            const visited = departed ? prevOrderRef.current.slice(0, visitedCountRef.current) : [];
-            const stops = orderStopsInsert(me, calls, visited)
-                .filter(st => !visited.some(v => v.call === st.call && v.kind === st.kind));   // 지나온 곳은 뺀다
-            if (stops.length === 0) return null;      // 다 다녀왔다 — 잴 구간이 없으니 묻지 않는다
-            return [{ x: me.lng, y: me.lat, label: '내 위치' },
-                ...stops.map(st => ({ x: st.pt.lng, y: st.pt.lat, label: `${circled(st.call)}${st.kind}` }))];
-        };
+        const chainOf = (calls: Array<{ pickup: Pt; drop: Pt; destName: string }>) => stopsFor(me, calls);
         const baseCalls = confirmed.map(c => ({ pickup: c.pickup, drop: c.drop, destName: c.destName }));
         const caught = goalsVerdict?.wonGoal?.name ?? dst.name;
         const withCall = [...baseCalls, { pickup, drop, destName: caught }];
@@ -2496,11 +2566,23 @@ export default function MapMockup() {
                                         );
                                     })}
                                 </ol>
-                                <button type="button" onClick={() => setConfirmed(confirmed.slice(0, -1))}
+                                <button type="button" onClick={cancelLastCall}
                                     className="self-start px-2 py-1 rounded-[8px] border border-border-hover bg-surface text-[10.5px] font-black hover:border-danger">
                                     ↩️ 마지막 콜 취소
                                 </button>
                             </>
+                        )}
+                        {/* 🧹 취소된 콜 — **사라지지 않고 여기로 옮겨 온다** (관제웹 규칙 그대로) */}
+                        {terminated.length > 0 && (
+                            <div className="flex flex-col gap-0.5 border-t border-border-card pt-1 mt-1">
+                                <div className="text-[10px] font-black text-text-muted">🧹 취소/방출 — {terminated.length}</div>
+                                {terminated.map(t => (
+                                    <div key={t.id} className="flex justify-between gap-1 text-[10.5px] text-text-muted tabular-nums">
+                                        <span className="line-through">{t.label}</span>
+                                        <span className="shrink-0">{new Date(t.terminatedAt).toTimeString().slice(0, 5)} 취소</span>
+                                    </div>
+                                ))}
+                            </div>
                         )}
                         {effPath.length > 1 && (
                             <ol className="mt-1 flex flex-col gap-0.5 text-[10.5px] border-t border-border-card pt-1">

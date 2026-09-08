@@ -68,6 +68,12 @@ export const LAB_CALL_TO_ORDERS: Record<string, string | null> = {
     approachMin: null,                  // 🆕
     destName:    null,                  // 🆕 잡을 당시의 목적지(판)
     optionUsed:  null,                  // 🆕 카카오 어느 옵션으로 쟀나
+    /**
+     * 🆕 **취소·방출로 끝난 시각.** 실물의 `completedAt` 은 **하차 완료에만** 들어가고
+     * 취소면 오히려 NULL 로 지운다(`dispatchEngine.ts` 의 `CASE WHEN … ORDER_DELIVERED`).
+     * 그래서 «언제 빠져서 순서가 바뀌었나»를 못 잰다 — 칸이 하나 필요하다.
+     */
+    terminatedAt: null,
 };
 
 /**

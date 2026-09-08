@@ -49,6 +49,6 @@ describe('🚚 이식 대조 — 실험실이 가리키는 실물 칸이 실제�
     it('아직 안 판 칸이 무엇인지 눈에 보인다 — 이식 때 여기부터 판다', () => {
         const todo = Object.entries(LAB_CALL_TO_ORDERS).filter(([, v]) => v === null).map(([k]) => k);
         // 좌표 둘은 orderStops→places 조인이라 칸을 파는 대상이 아니다
-        expect(todo).toEqual(['pickup', 'drop', 'approachKm', 'approachMin', 'destName', 'optionUsed']);
+        expect(todo).toEqual(['pickup', 'drop', 'approachKm', 'approachMin', 'destName', 'optionUsed', 'terminatedAt']);
     });
 });
