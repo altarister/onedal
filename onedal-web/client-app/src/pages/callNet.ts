@@ -699,3 +699,29 @@ export function buildRoadNet(line: Array<[number, number]>, dst: NetPoint, dstDi
             .sort((a, b) => b.names.length - a.names.length),
     };
 }
+
+/**
+ * 🏠 **지금 살아 있는 목적지 — 복귀는 세 상태다** (기사님 확정 2026-09-09).
+ *
+ * 기사님: *"파주를 목적으로 콜을 수행하던 중 복귀콜을 누르면, 그 의미는 **복귀콜을 잡기
+ * 전까지 관내콜을 진행하다가 복귀콜을 잡으면 복귀를 진행한다** 이거야.
+ * **복귀가 진행되면 목적지를 향한 콜이 뜨면 안 되는 거고.**"*
+ *
+ * | 상태 | 살아 있는 목적지 | 뜻 |
+ * |---|---|---|
+ * | 복귀 끔 | 목적지 | 평소 |
+ * | 복귀 켬 · 복귀콜 없음 | **둘 다** | 복귀 대기 — 그동안 관내콜을 진행한다 |
+ * | 복귀 켬 · **복귀콜 잡음** | **집 하나** | 복귀 진행 — 목적지 콜은 뜨면 안 된다 |
+ *
+ * 🔴 **⑮ 기준의 «목적지는 콜을 다 해도 안 죽는다» 는 죽는 조건을 잘못 적은 것이었다**
+ *    (2026-09-09 정정). 죽는 조건은 «그 목적지 콜을 다 했나»가 아니라 **«복귀콜을 잡았나»** 다.
+ *    폐기한 것은 «파주를 집 원뿔로 자른다»(∩ 전환 특례)이지 이 규칙이 아니었는데,
+ *    둘을 한 덩어리로 묶어 같이 버렸다.
+ *
+ * 실물도 같은 말을 한다 — `PHASE_FIELDS.home.destinationCity = 'auto'`,
+ * `PHASE_AUTO_SOURCE.home = '설정의 집 주소'` (복귀 국면이면 도착 목표가 집이 된다).
+ */
+export function activeGoals<T>(dst: T, home: T, opts: { homeOn: boolean; homeCaught: boolean }): T[] {
+    if (!opts.homeOn) return [dst];
+    return opts.homeCaught ? [home] : [dst, home];
+}

@@ -9,7 +9,7 @@ import { buildAppFilterOutput, labPhaseOf, TRUCK_CAPACITY_SLOTS } from './labFil
 // 🚚 이식 대응표가 이 타입의 원천이다 — 실물 `step_*` 칸과 맞는지는 labPortMap.test.ts 가 지킨다
 import { promiseTimes, impactOfStop, type StopStep } from './labPortMap';
 import {
-    buildNet, buildRoadNet, roadZoneOf, judgeGoals, nearestDong, orderStopsInsert, cityCenter, quadTesterOf, isLocalPhase, NET_SRC, NET_DST,
+    buildNet, buildRoadNet, roadZoneOf, judgeGoals, activeGoals, nearestDong, orderStopsInsert, cityCenter, quadTesterOf, isLocalPhase, NET_SRC, NET_DST,
     GONJIAM_DROP, DONGWON_DROP, BORAM_DROP,
     GONJIAM_CALL_PATH, DONGWON_CALL_PATH, BORAM_CALL_PATH, TRAP_DONGS,
     type NetPoint, type TwoStageVerdict,
@@ -315,7 +315,15 @@ export default function MapMockup() {
     const [homeOn, setHomeOn] = useState(false);
     const dst = DESTS[dstIdx];
     /** 🎯 살아 있는 목적지들 — 그물·판정·화면이 전부 이 목록 하나를 읽는다 (⑮ 기준 1·2) */
-    const goals: NetPoint[] = useMemo(() => homeOn ? [dst, HOME_DST] : [dst], [homeOn, dst, HOME_DST]);
+    /**
+     * 🏠 **복귀콜을 잡았나** — 잡은 순간부터 복귀가 «진행»된다 (기사님 확정 2026-09-09).
+     * 판(`destName`)이 집인 콜이 하나라도 있으면 잡은 것이다. 하차를 마쳐도 안 되돌린다 —
+     * 복귀는 그 판의 끝이지, 콜 하나의 상태가 아니다.
+     */
+    const homeCaught = useMemo(() => confirmed.some(c => c.destName === HOME_DST.name), [confirmed, HOME_DST.name]);
+    /** 지금 살아 있는 목적지 — 규칙은 `activeGoals()` 한 곳이고 검사가 지킨다 */
+    const goals: NetPoint[] = useMemo(() => activeGoals(dst, HOME_DST, { homeOn, homeCaught }),
+        [homeOn, homeCaught, dst, HOME_DST]);
     /**
      * ⛔ 제외지역 (기사님 2026-09-07) — 그물에 들어도 필터에 안 싣는 곳.
      * 키 두 모양: `R|시군구`(통째) · `D|시군구|읍면동`(하나). 이름만 쓰면 동명이인(창전동)이 섞인다.
