@@ -1229,6 +1229,7 @@ export default function MapMockup() {
                         leg: saved ?? fromChain, fromSaved: !!saved,
                         seq: fullOrder.indexOf(label) + 1 || null,   // 🔢 실제 방문 순번
                         promisedAt: promised,
+                        impacts: step?.impacts ?? [],          // 🧾 앞선 확정들이 이 정거장을 민 내역
                         /**
                          * 🔴 **지나간 정거장에 «예정»은 없다** (기사님 2026-09-09: *"이 지역을
                          * 지나갔으면 … 지나간 시간을 적어 주는 것이 맞을 것 같아"*).
@@ -1797,14 +1798,39 @@ export default function MapMockup() {
                                 ))}
                             </div>
                             {/* 🧾 이유 — 시스템이 채운 것과 기사님이 고른 것은 **다른 칸**이다 (규칙 ⑤-4 ⑤) */}
-                            <div className="text-[11px] leading-snug flex flex-col gap-0.5">
-                                {([['이유 · 시스템', '아직 안 만들었다 (3·4단계)'], ['이유 · 기사님', '아직 안 만들었다']] as const).map(([k, v]) => (
-                                    <div key={k} className="flex items-baseline gap-2">
-                                        <b className="text-text-muted shrink-0 w-[86px]">{k}</b>
-                                        <span className="text-text-muted">{v}</span>
+                            {/* 🧾 이유 — 시스템이 채운 것과 기사님이 고른 것은 **다른 줄**이다 (규칙 ⑤-4 ⑤) */}
+                            {(() => {
+                                const step = stopPeek.kind === '상차' ? c.steps.pickup : c.steps.dropoff;
+                                const total = clock?.delayMin ?? null;
+                                const known = step.impacts.reduce((t, x) => t + x.min, 0);
+                                const rest = total == null ? null : total - known;
+                                return (
+                                    <div className="text-[11px] leading-snug flex flex-col gap-0.5">
+                                        <div className="flex items-baseline gap-2">
+                                            <b className="text-text-muted shrink-0 w-[86px]">이유 · 시스템</b>
+                                            <span className="flex-1 flex flex-col">
+                                                {step.impacts.map((x, k) => (
+                                                    <span key={k} className="flex justify-between gap-2">
+                                                        <span>{x.causeLabel} <span className="text-text-muted text-[9.5px]">({new Date(x.at).toTimeString().slice(0, 5)} 확정)</span></span>
+                                                        <b className={x.min > 0 ? 'text-warning' : 'text-success'}>{x.min > 0 ? '+' : ''}{x.min}분</b>
+                                                    </span>
+                                                ))}
+                                                {rest != null && rest !== 0 && (
+                                                    <span className="flex justify-between gap-2">
+                                                        <span className="text-text-muted">나머지 (경로 이탈·교통)</span>
+                                                        <b className={rest > 0 ? 'text-warning' : 'text-success'}>{rest > 0 ? '+' : ''}{rest}분</b>
+                                                    </span>
+                                                )}
+                                                {!step.impacts.length && (rest == null || rest === 0) && <span className="text-text-muted">밀린 것 없음</span>}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-baseline gap-2">
+                                            <b className="text-text-muted shrink-0 w-[86px]">이유 · 기사님</b>
+                                            <span className="text-text-muted">— <span className="text-[9.5px]">(사고·문 잠김 … 실물의 `reasons` 자리 — 목업엔 입력이 없다)</span></span>
+                                        </div>
                                     </div>
-                                ))}
-                            </div>
+                                );
+                            })()}
                         </div>
                     </div>
                 );
@@ -2251,6 +2277,36 @@ export default function MapMockup() {
                                                                         : <span className="text-text-muted"> (그대로)</span>)}
                                                                 </span>
                                                             </div>
+                                                            {/**
+                                                              * 🧾 **왜 밀렸나 — 그 자리에서 쪼갠다** (기사님 2026-09-09: *"심사 시 보면 좋을 것 같아"*).
+                                                              * 쌓아 둔 내역 + 이 후보콜이 더 밀 분 + 나머지(경로 이탈·교통). **합이 총 지연과 맞는다.**
+                                                              */}
+                                                            {(() => {
+                                                                if (late == null || (late === 0 && !st.impacts.length)) return null;
+                                                                const mine = stopImpacts.find(r => r.stop === st.label)?.delayMin ?? null;
+                                                                const cand = pickup && drop && mine != null && mine !== 0
+                                                                    ? { name: `이 후보콜(${nearestDong(st.kind === '상차' ? pickup : drop).name})`, min: mine } : null;
+                                                                const known = st.impacts.reduce((t, x) => t + x.min, 0) + (cand?.min ?? 0);
+                                                                const rest = late - known;
+                                                                const rows = [
+                                                                    ...st.impacts.map(x => ({ name: x.causeLabel, min: x.min })),
+                                                                    ...(cand ? [cand] : []),
+                                                                    ...(rest !== 0 ? [{ name: '나머지 (경로 이탈·교통)', min: rest }] : []),
+                                                                ];
+                                                                if (!rows.length) return null;
+                                                                return (
+                                                                    <div className="pl-2 flex flex-col text-[9.5px] text-text-muted">
+                                                                        {rows.map((r, k) => (
+                                                                            <div key={k} className="flex justify-between gap-1">
+                                                                                <span>· {r.name}</span>
+                                                                                <span className={r.min > 0 ? 'text-warning' : 'text-success'}>
+                                                                                    {r.min > 0 ? '+' : ''}{r.min}분
+                                                                                </span>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                );
+                                                            })()}
                                                         </div>
                                                     );
                                                 })}
