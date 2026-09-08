@@ -628,6 +628,8 @@ export default function MapMockup() {
     useEffect(() => { if (confirmed.length === 0) setDeparted(false); }, [confirmed.length]);
     /** 마지막으로 계산한 방문 순서 — 방문 고정(visited)의 원천 */
     const prevOrderRef = useRef<Array<{ call: number; kind: '상차' | '하차' }>>([]);
+    /** 재배치 기점 — **주행 전에만** 내 위치를 본다 (주행 중엔 기점이 안 쓰이고, 보면 매 틱 다시 그린다) */
+    const orderStart = departed ? null : myPos;
     /**
      * 🔴 «몇 정거장 지나왔나»는 targetSeq 로 읽으면 안 된다 (2026-09-08 실측 사고 · 규칙 ⑤-4 ⑤).
      * targetSeq 는 «주행 재개가 다음 향할 점»이고, 재개 로직이 지리적으로 가까운 정거장으로
@@ -679,10 +681,23 @@ export default function MapMockup() {
         }
         // 지나간 정거장은 사실 — 그 순서 그대로 고정 (주행 전엔 자유 재배치)
         const visited = departed ? prevOrderRef.current.slice(0, visitedCountRef.current) : [];
-        const ordered = orderStopsInsert(NET_SRC, allCalls, visited);
+        /**
+         * 🔴 **기점을 «내 위치»로 맞춘다 — 재배치가 두 벌이면 안 된다** (2026-09-09).
+         *
+         * 지도 순번은 집(`NET_SRC`), 예정 시각은 내 위치에서 각각 재고 있었다. 같은 화면이
+         * 두 순서를 말할 수 있는 자리다. 실측으로 확인한 것:
+         * `orderStopsInsert` 는 **지나온 정거장이 있으면 기점을 무시하고** 마지막 방문지에서
+         * 잇는다(`locked.length ? … : start`). 그래서 **갈리는 창은 「주행 전」뿐**이고,
+         * 그때 내 위치를 옮겨 두면 두 순서가 어긋난다. 기점을 하나로 맞춰 그 창을 닫는다.
+         *
+         * 🔴 주행 중에는 `myPos` 를 **의존성에서 뺀다** — 매 틱 경로를 다시 그리게 된다
+         * (그건 이미 한 번 겪은 사고다). 어차피 그때는 기점이 안 쓰인다.
+         */
+        const from = orderStart ?? myPosRef.current;
+        const ordered = orderStopsInsert(from, allCalls, visited);
         prevOrderRef.current = ordered.map(o => ({ call: o.call, kind: o.kind }));
         return [
-            { x: NET_SRC.lng, y: NET_SRC.lat, label: '출발 · 초월(집)' },
+            { x: from.lng, y: from.lat, label: '내 위치' },
             ...ordered.map((s, i) => ({
                 x: s.pt.lng, y: s.pt.lat, seq: i + 1, call: s.call,
                 label: `${circled(s.call)} ${s.kind} · ${nearestDong(s.pt).name}`,
@@ -690,7 +705,7 @@ export default function MapMockup() {
             })),
         ];
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [presetCalls, confirmed, departed, dst.name]);
+    }, [presetCalls, confirmed, departed, dst.name, orderStart]);
 
     const anchor: NetPoint = useMemo(() => ({ name: '내 위치', ...myPos }), [myPos]);
 
@@ -1904,7 +1919,8 @@ export default function MapMockup() {
                                             <span className="flex-1 flex flex-col">
                                                 {step.impacts.map((x, k) => (
                                                     <span key={k} className="flex justify-between gap-2">
-                                                        <span>{x.causeLabel} <span className="text-text-muted text-[9.5px]">({new Date(x.at).toTimeString().slice(0, 5)} 확정)</span></span>
+                                                        {/* 🔴 «확정»이라 박아 두면 취소 줄이 «… 취소 (04:24 확정)» 이 된다 — 시각만 적는다 */}
+                                                        <span>{x.causeLabel} <span className="text-text-muted text-[9.5px]">({new Date(x.at).toTimeString().slice(0, 5)})</span></span>
                                                         <b className={x.min > 0 ? 'text-warning' : 'text-success'}>{x.min > 0 ? '+' : ''}{x.min}분</b>
                                                     </span>
                                                 ))}
