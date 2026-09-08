@@ -652,6 +652,16 @@ export default function MapMockup() {
     /** 재배치 기점 — **주행 전에만** 내 위치를 본다 (주행 중엔 기점이 안 쓰이고, 보면 매 틱 다시 그린다) */
     const orderStart = departed ? null : myPos;
     /**
+     * 📍 **출발한 자리 — 주행이 시작되면 얼린다** (2026-09-09 실측으로 잡음).
+     *
+     * 🔴 «순서를 정하는 기점»과 «경로를 그리는 시작점»은 **다른 것**인데 같은 값을 썼다.
+     *    정거장을 지날 때마다 통과 도장을 찍느라 `setConfirmed` 이 돌고 → `confirmed` 가
+     *    새 배열이 되고 → `effPath` 가 다시 계산되면서 **시작점이 «지금 내 자리»로 따라왔다.**
+     *    그런데 첫 정거장은 여전히 `①상차` 라, «지금 자리 → ①상차» 라는 **유령 구간**이
+     *    생겨 지도에 긴 ①색 선이 그어졌다 (실측: 4번을 지나는 순간 의정부→광주 붉은 선).
+     */
+    const departPosRef = useRef<Pt>(NET_SRC);
+    /**
      * 🔴 «몇 정거장 지나왔나»는 targetSeq 로 읽으면 안 된다 (2026-09-08 실측 사고 · 규칙 ⑤-4 ⑤).
      * targetSeq 는 «주행 재개가 다음 향할 점»이고, 재개 로직이 지리적으로 가까운 정거장으로
      * 점프할 수 있다 — 그걸 방문 수로 읽자 안 지나간 정거장까지 잠겼다.
@@ -720,7 +730,7 @@ export default function MapMockup() {
          * 🔴 주행 중에는 `myPos` 를 **의존성에서 뺀다** — 매 틱 경로를 다시 그리게 된다
          * (그건 이미 한 번 겪은 사고다). 어차피 그때는 기점이 안 쓰인다.
          */
-        const from = orderStart ?? myPosRef.current;
+        const from = departed ? departPosRef.current : (orderStart ?? myPosRef.current);
         const ordered = orderStopsInsert(from, allCalls, visited);
         prevOrderRef.current = ordered.map(o => ({ call: o.call, kind: o.kind }));
         return [
@@ -2042,7 +2052,7 @@ export default function MapMockup() {
                     <span className="text-[11px] font-black text-info">🚗</span>
                     {effPath.length > 1 ? (
                         <>
-                            <button type="button" onClick={() => { if (!driving) { setDeparted(true); retarget(); } setDriving(!driving); }}
+                            <button type="button" onClick={() => { if (!driving) { departPosRef.current = { ...myPosRef.current }; setDeparted(true); retarget(); } setDriving(!driving); }}
                                 className={`px-2.5 py-1.5 rounded-[8px] border text-[11.5px] font-black ${driving
                                     ? 'bg-success/15 border-success/55 text-success' : 'border-border-hover bg-background hover:border-success'}`}>
                                 {driving ? '⏸ 멈춤' : '▶️ 주행'}
