@@ -431,6 +431,11 @@ export interface TwoStageVerdict {
      *    **잰 쪽이 그렇게 쟀다고 말해야 한다.**
      */
     local: boolean;
+    /**
+     * 🛣️ **라인(노선)으로 쟀는가** — 관내(`local`)와 같은 결이다 (2026-09-09).
+     * 화면 칩이 «지금 노선 모드인가»를 따로 보다가 판정과 갈릴 수 있는 자리라, **잰 쪽이 말한다.**
+     */
+    byLine: boolean;
     pass: boolean;
 }
 
@@ -455,7 +460,7 @@ export function judgeTwoStage(
             distPickKm: +haversineKm(dst, pickup).toFixed(1),
             distDropKm: +haversineKm(dst, drop).toFixed(1),
             distMeKm: +haversineKm(dst, me).toFixed(1),
-            dropBackward: false, pickupBackward: false, local: true,
+            dropBackward: false, pickupBackward: false, local: true, byLine: false,
             pass: pIn && dIn,
         };
     }
@@ -485,7 +490,7 @@ export function judgeTwoStage(
         pickupDong: nearestDong(pickup), dropDong: nearestDong(drop),
         dropInNet, pickupNearMe, pickupInNet,
         distPickKm: +distPickKm.toFixed(1), distDropKm: +distDropKm.toFixed(1), distMeKm: +distMeKm.toFixed(1),
-        dropBackward, pickupBackward, local: false,
+        dropBackward, pickupBackward, local: false, byLine: !!zone,
         pass: dropInNet && pickupNearMe && (!routeStarted || pickupInNet) && !dropBackward && !pickupBackward,
     };
 }

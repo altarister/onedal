@@ -309,6 +309,19 @@ describe('🏘️ 관내로 쟀는가 — 판정이 스스로 말한다', () => 
     it('관내가 아니면 거짓이다 — 화면이 관내 문구를 쓰면 안 된다', () => {
         expect(judgeTwoStage(WAIT_PRESET, NET_SRC, NET_DST, NET_SRC, A, B, false, false).local).toBe(false);
     });
+
+    /** 🛣️ 라인으로 쟀는가도 같은 결 — 화면 칩이 «모드»를 따로 보면 갈린다 */
+    it('띠(zone)를 주면 byLine 이 참, 안 주면 거짓이다', () => {
+        const zone = lineZoneOf([[NET_SRC.lng, NET_SRC.lat], [NET_DST.lng, NET_DST.lat]], 5, null, WAIT_PRESET, NET_DST);
+        expect(judgeTwoStage(WAIT_PRESET, NET_SRC, NET_DST, NET_SRC, A, B, false, false, zone).byLine).toBe(true);
+        expect(judgeTwoStage(WAIT_PRESET, NET_SRC, NET_DST, NET_SRC, A, B, false, false).byLine).toBe(false);
+    });
+
+    it('관내로 재면 라인이 아니다 — 둘이 동시에 참일 수 없다', () => {
+        const v = judgeTwoStage(WAIT_PRESET, NET_DST, NET_DST, NET_DST, A, B, true, true);
+        expect(v.local).toBe(true);
+        expect(v.byLine).toBe(false);
+    });
 });
 
 describe('라인 띠 — 길 하나가 담는 동 (2026-09-07 카카오 실측 · 수식은 lineZoneOf 로 옮겼다)', () => {

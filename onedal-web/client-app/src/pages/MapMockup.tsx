@@ -952,12 +952,19 @@ export default function MapMockup() {
      */
     const appFilterOutput = useMemo(() => buildAppFilterOutput({
         callTarget, dispatchPhase: dispatchPhaseSim, driving,
-        dstName: dst.name, groups: areaNet.groups, pass: areaNet.pass, excluded: routeMode ? [] : excluded,
+        /**
+         * 🔴 **제외지역은 노선·동선 공통이다** (기사님 확정 2026-09-09).
+         *    예전엔 `routeMode ? [] : excluded` 였다 — 노선이면 «길이 곧 선별»이라 안 썼다(09-08).
+         *    그런데 화면 판정(`isExcluded`)은 이미 공통으로 고쳤는데 **아웃풋만 안 고쳐서**,
+         *    노선일 때 «화면에서는 빠진 동이 앱에 내려갈 목록에는 그대로» 있었다.
+         */
+        dstName: dst.name, groups: areaNet.groups, pass: areaNet.pass, excluded,
         pickupRadiusKm: knobs.pickupRadiusKm, dropoffRadiusKm: knobs.dropoffRadiusKm,
         detourAllowKm: knobs.detourAllowKm, discountPct: knobs.discountPct,
         vehicles, excludedWords, slotsUsed, capacityConfirmed,
-        modeDesc: `🎯 ${goals.map(g => g.name).join(' ∪ ')} · ` + (lineOn ? `노선 — 잡은 콜 경로 ±${lineRadiusKm}km` : routeMode ? '노선 (경로 대기 — 마름모로 판단)' : localMode ? '관내 (목적지 원)' : `동선 마름모 ${params.srcAngleDeg}°/${params.dstAngleDeg}°`),
-    }), [callTarget, dispatchPhaseSim, driving, dst, areaNet, excluded, knobs, vehicles, excludedWords, slotsUsed, capacityConfirmed, lineOn, routeMode, lineRadiusKm, localMode, params, goals]);
+        // 🔴 «무엇으로 재는가»만 적는다 — 관내 여부는 콜마다 갈리므로(목적지별) 여기서 말하지 않는다
+        modeDesc: `🎯 ${goals.map(g => g.name).join(' ∪ ')} · ` + (lineOn ? `노선 — 잡은 콜 경로 ±${lineRadiusKm}km` : routeMode ? '노선 (경로 대기 — 마름모로 판단)' : `동선 마름모 ${params.srcAngleDeg}°/${params.dstAngleDeg}°`),
+    }), [callTarget, dispatchPhaseSim, driving, dst, areaNet, excluded, knobs, vehicles, excludedWords, slotsUsed, capacityConfirmed, lineOn, routeMode, lineRadiusKm, params, goals]);
     /**
      * 🔴 **«짐을 실은 목적지» — 원천 하나** (2026-09-08 리뷰: 화면과 판정이 다른 답을 냈다).
      * ∩(상차 조이기)를 거는 기준이다. 판정(judgeGoals)·그리기·판정 칩이 **모두 이걸** 읽는다 —
@@ -1569,7 +1576,7 @@ export default function MapMockup() {
         setLogs(l => [{
             t, from: verdict.pickupDong.name, to: verdict.dropDong.name,
             dists: `${verdict.distPickKm} : ${verdict.distDropKm} : ${verdict.distMeKm}`,
-            pass: finalPass, local: localMode, act,
+            pass: finalPass, local: verdict.local, act,   // 🔴 모드가 아니라 «이 콜을 관내로 쟀는가»
         }, ...l].slice(0, 40));
     };
 
@@ -2176,7 +2183,7 @@ export default function MapMockup() {
                 <div className="min-w-[150px]">
                     <h1 className="text-[14px] font-black">🗺️ 지도 실험실</h1>
                     <p className="text-[11px] font-bold text-text-muted">
-                        🎯 {dst.name} · {localMode ? '🏘️ 관내' : routeStarted ? (driving ? '🚗 주행 중' : '🛣️ 콜을 쥠') : '⏳ 대기'} · 지도 두 번 클릭 = 콜 (▲상차·▼하차)
+                        🎯 {dst.name} · {localMode ? '🏘️ 관내 자리' : routeStarted ? (driving ? '🚗 주행 중' : '🛣️ 콜을 쥠') : '⏳ 대기'} · 지도 두 번 클릭 = 콜 (▲상차·▼하차)
                     </p>
                 </div>
                 <button type="button" onClick={() => setClickMode(clickMode === 'me' ? 'call' : 'me')}
@@ -2402,8 +2409,9 @@ export default function MapMockup() {
                                         <div className="flex gap-1 flex-wrap">
                                             <Chip ok={verdict.dropInNet} yes="하차 그물 안" no="하차 그물 밖" />
                                             <Chip ok={verdict.pickupNearMe} yes="상차 반경 안" no="상차 반경 밖" />
+                                            {/* 🔴 «모드»가 아니라 판정이 말한 «무엇으로 쟀나»(byLine)를 읽는다 (2026-09-09) */}
                                             {isLoaded(goalsVerdict?.wonGoal?.name ?? dst.name) &&
-                                                <Chip ok={verdict.pickupInNet} yes={lineOn ? '상차 라인 안' : '상차 마름모 안'} no={lineOn ? '상차 라인 밖' : '상차 마름모 밖(뒤)'} />}
+                                                <Chip ok={verdict.pickupInNet} yes={verdict.byLine ? '상차 라인 안' : '상차 마름모 안'} no={verdict.byLine ? '상차 라인 밖' : '상차 마름모 밖(뒤)'} />}
                                         </div>
                                         <div className="text-[10px] font-black text-text-muted">2단계 · 거리(방향)</div>
                                         <div className="font-black tabular-nums text-[12.5px]">{verdict.distPickKm} : {verdict.distDropKm} : {verdict.distMeKm}
@@ -3007,7 +3015,7 @@ export default function MapMockup() {
                     <OutKv k="callTarget" v={`${appFilterOutput.callTarget} (${CALL_TARGET_LABEL[callTarget]})`} />
                     <OutKv k="dispatchPhase" v={appFilterOutput.dispatchPhase} />
                     {/* 🔴 국면(파생)을 뺐다 — 값이 한 벌이라 «어느 벌인가»가 없다 (2026-09-09) */}
-                    <OutKv k="그물" v={routeMode ? '노선 (라인 ∪ 남은 마름모)' : '동선 (마름모 하나)'} />
+                    <OutKv k="그물" v={lineOn ? '노선 (라인 ∪ 남은 마름모)' : routeMode ? '노선 — 경로 대기 (마름모 하나)' : '동선 (마름모 하나)'} />
                     <OutKv k="driverAction" v={appFilterOutput.driverAction} />
                     <OutKv k="isSharedMode" v={String(appFilterOutput.isSharedMode)} />
                     <OutKv k="isActive" v={String(appFilterOutput.isActive)} />
