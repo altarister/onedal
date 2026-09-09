@@ -60,7 +60,8 @@ const labDwellOf = (label: string) => dwellMinutes(null, 0, label.endsWith('하�
  *    채움을 진하게 할수록 더 도드라진다. 그래서 마름모·원을 **한 path 에 모아 한 번** 칠한다
  *    (캔버스 nonzero 규칙 — 겹쳐도 한 겹). 그러면 «영역 하나»로 보인다.
  */
-const NET_FILL = 'rgba(37,99,235,.20)';    // 그물 안 — 콜이 오는 곳
+const NET_SOLID = '#2563eb';               // 그물을 전용 캔버스에 그릴 때 쓰는 **불투명** 색
+const NET_ALPHA = 0.22;                    // 그 캔버스를 지도에 얹는 투명도 — 겹쳐도 한 겹이다
 const NET_EDGE = 'rgba(37,99,235,.85)';    // 경계선 — 지금은 «내 위치 원»(점선)에만 쓴다
 const NET_EDGE_W = 2;
 
@@ -738,6 +739,16 @@ export default function MapMockup() {
     const [lineRadiusKm, setLineRadiusKm] = useState(LAB_DEFAULTS.lineRadiusKm);
     /** 💰 단가표를 펼쳤나 — 폰 화면은 «한 줄 ↔ 펼침» 두 상태다 (기사님 2026-09-09) */
     const [rateTableOpen, setRateTableOpen] = useState(false);
+    /**
+     * 🎨 **그물 전용 캔버스** (기사님 2026-09-09: *"지금은 하나씩 그려서 겹치는 부분만 진한 색인데..
+     * 한 번에 그리면 어떨까? 많이 연산해야 해?"*).
+     *
+     * 🔴 마름모·원은 한 path 로 묶어 겹침을 없앴는데 **라인 띠는 `stroke` 라 그 path 에 못 들어간다** —
+     *    그래서 띠와 마름모가 겹치는 자리만 진하게 남았다.
+     * 그래서 그물을 **여기에 불투명으로 다 그린 뒤 통째로 한 번** 얹는다 — 겹침이 원리적으로 없다.
+     * 연산은 거의 안 는다: 같은 도형을 한 번 더 그리는 것이고, 캔버스는 재사용한다.
+     */
+    const netLayerRef = useRef<HTMLCanvasElement | null>(null);
     /** 🎚️ 지금 펼친 값 하나 — 여럿을 펼치면 폰에서 화면이 밀린다 (기사님 2026-09-09) */
     const [openKnob, setOpenKnob] = useState<string | null>(null);
     /**
@@ -1899,6 +1910,16 @@ export default function MapMockup() {
              * 목적지가 둘이면 사각형도 둘, **목적지 원도 둘**. 출발각은 각자 제 목적지를 향한다.
              * 첫 콜 뒤에는 내 위치 원을 **그 목적지 원뿔과의 교집합**만 남긴다 (기준 5).
              */
+            /**
+             * 🎨 **그물은 전용 캔버스에 불투명으로 다 그린 뒤 통째로 한 번 얹는다** (기사님 2026-09-09).
+             * 조각마다 반투명으로 칠하면 겹치는 자리가 두 겹이 되어 얼룩진다 —
+             * 마름모·원은 한 path 로 묶었지만 **라인 띠는 `stroke` 라 그 path 에 못 들어간다.**
+             */
+            const netCv = (netLayerRef.current ??= document.createElement('canvas'));
+            if (netCv.width !== cv.width || netCv.height !== cv.height) { netCv.width = cv.width; netCv.height = cv.height; }
+            const nctx = netCv.getContext('2d')!;
+            nctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            nctx.clearRect(0, 0, size.w, size.h);
             if (layers.net) for (const { goal, net: gn, usedLine } of goalNets) {
                 /**
                  * 🔴 **«노선 단추»가 아니라 «라인이 실제로 있는가»로 가른다** (기사님 지적 2026-09-09:
@@ -1917,22 +1938,22 @@ export default function MapMockup() {
                  * 🔴 **마름모 테두리는 안 그린다.** 「여기서 콜을 부른다」는 면으로 읽히면 되고,
                  *    선이 있으면 실제 경로선(콜 색)과 헷갈린다.
                  */
-                ctx.beginPath();
+                nctx.beginPath();
                 if (gn.tri.length) {
-                    gn.tri.forEach(([lng, lat]: [number, number], i: number) => { const [px, py] = S(lng, lat); i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py); });
-                    ctx.closePath();
+                    gn.tri.forEach(([lng, lat]: [number, number], i: number) => { const [px, py] = S(lng, lat); i === 0 ? nctx.moveTo(px, py) : nctx.lineTo(px, py); });
+                    nctx.closePath();
                 }
                 gn.circles.forEach((c: { ring: Array<[number, number]> }) => {
-                    c.ring.forEach(([lng, lat]: [number, number], i: number) => { const [px, py] = S(lng, lat); i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py); });
-                    ctx.closePath();
+                    c.ring.forEach(([lng, lat]: [number, number], i: number) => { const [px, py] = S(lng, lat); i === 0 ? nctx.moveTo(px, py) : nctx.lineTo(px, py); });
+                    nctx.closePath();
                 });
                 // 🔴 노선이면 내 위치 원도 그물의 일부다 — 상차 판정이 그 반경을 쓴다 (2026-09-08 리뷰)
                 if (isLine) {
                     const [mx, my] = S(myPos.lng, myPos.lat);
-                    ctx.moveTo(mx + (params.srcDiamKm / 2) * pxPerKm, my);
-                    ctx.arc(mx, my, (params.srcDiamKm / 2) * pxPerKm, 0, Math.PI * 2);
+                    nctx.moveTo(mx + (params.srcDiamKm / 2) * pxPerKm, my);
+                    nctx.arc(mx, my, (params.srcDiamKm / 2) * pxPerKm, 0, Math.PI * 2);
                 }
-                ctx.fillStyle = NET_FILL; ctx.fill();
+                nctx.fillStyle = NET_SOLID; nctx.fill();
                 /**
                  * ⭕ **내 위치 원만 테두리를 남긴다 — 점선으로** (뜻이 다르다: «지금 갈 수 있는 거리»).
                  * 나머지 면은 선 없이 색으로만 읽는다.
@@ -1955,13 +1976,15 @@ export default function MapMockup() {
              * 🔴 라인이 없으면(콜 없음 · 경로 대기 · 카카오 실패) 아무것도 안 그린다 — 그때는 마름모가 그물이다.
              */
             if (layers.roads && lineOn && routeLine) {
-                ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-                ctx.beginPath();
-                routeLine.forEach(([lng, lat], i) => { const [px, py] = S(lng, lat); i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py); });
-                ctx.strokeStyle = NET_FILL;
-                ctx.lineWidth = Math.max(3, lineRadiusKm * 2 * pxPerKm);
-                ctx.stroke();
+                nctx.lineCap = 'round'; nctx.lineJoin = 'round';
+                nctx.beginPath();
+                routeLine.forEach(([lng, lat], i) => { const [px, py] = S(lng, lat); i === 0 ? nctx.moveTo(px, py) : nctx.lineTo(px, py); });
+                nctx.strokeStyle = NET_SOLID;
+                nctx.lineWidth = Math.max(3, lineRadiusKm * 2 * pxPerKm);
+                nctx.stroke();
             }
+            // 🎨 그물 완성 — 통째로 한 번 얹는다. 이 한 줄이 «겹쳐서 진해지는 것»을 원리적으로 없앤다
+            ctx.save(); ctx.globalAlpha = NET_ALPHA; ctx.drawImage(netCv, 0, 0, size.w, size.h); ctx.restore();
             // 그물에 든 동 — 파란 점 · 제외지역은 빨간 ✕ (빠졌다는 것이 지도에서 보여야 한다)
             if (layers.net) for (const p of areaNet.pass) {
                 const [px, py] = S(p.x, p.y);
