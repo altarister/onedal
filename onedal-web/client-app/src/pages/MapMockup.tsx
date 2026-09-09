@@ -13,7 +13,7 @@ import { promiseTimes, impactOfStop, splitDropImpact, type StopStep } from './la
 // ⏱️ 시간·정거장 이름은 한 곳에서 만든다 (labTime.test.ts 가 지킨다)
 import { circled, hhmm, cumMinutes, arrivalAt } from './labTime';
 import {
-    netForGoal, lineZoneOf, judgeGoals, activeGoals, nearestDong, orderStopsInsert, pickNextTarget, cityCenter, quadTesterOf, isLocalPhase, NET_SRC, NET_DST,
+    netForGoal, lineZoneOf, judgeGoals, activeGoals, nearestDong, orderStopsInsert, pickNextTarget, cityCenter, isLocalPhase, NET_SRC, NET_DST,
     GONJIAM_DROP, DONGWON_DROP, BORAM_DROP,
     GONJIAM_CALL_PATH, DONGWON_CALL_PATH, BORAM_CALL_PATH,
     type NetPoint, type TwoStageVerdict,
@@ -55,10 +55,13 @@ const labDwellOf = (label: string) => dwellMinutes(null, 0, label.endsWith('하�
  *   · 콜이 오는 곳(마름모 · 라인 띠 · 목적지 원)  →  같은 파랑 채움 + 같은 테두리
  *   · 내가 지금 갈 수 있는 거리(내 위치 원)        →  같은 파랑이되 **점선** (뜻이 다르다)
  *
- * ⚠️ 채움은 옅게 둔다 — 겹치는 자리(마름모 ∩ 원)가 두 겹이 되어도 «다른 색»으로 안 보이게.
+ * 🔴 **면은 한 번에 칠한다** (기사님 2026-09-09 *"좀 더 진해도 될 것 같고 마름모 라인을 지울 수 있을까?"*).
+ *    조각마다 따로 칠하면 겹치는 자리(마름모 ∩ 원)가 **두 겹이 되어 얼룩진다** — 테두리를 지우고
+ *    채움을 진하게 할수록 더 도드라진다. 그래서 마름모·원을 **한 path 에 모아 한 번** 칠한다
+ *    (캔버스 nonzero 규칙 — 겹쳐도 한 겹). 그러면 «영역 하나»로 보인다.
  */
-const NET_FILL = 'rgba(37,99,235,.10)';    // 그물 안 — 콜이 오는 곳
-const NET_EDGE = 'rgba(37,99,235,.85)';    // 그물 경계
+const NET_FILL = 'rgba(37,99,235,.20)';    // 그물 안 — 콜이 오는 곳
+const NET_EDGE = 'rgba(37,99,235,.85)';    // 경계선 — 지금은 «내 위치 원»(점선)에만 쓴다
 const NET_EDGE_W = 2;
 
 /**
@@ -1908,40 +1911,38 @@ export default function MapMockup() {
                  *    그때 마름모는 «마지막 하차지 → 목적지»다. 안 그리면 그 영역이 또 숨는다.
                  */
                 const isLine = usedLine;   // 🔴 여기서 다시 판단하지 않는다 — 계산이 준 값이다
+                /**
+                 * 🎨 **면은 한 path 에 모아 한 번 칠한다** (기사님 2026-09-09 «마름모 라인을 지울 수 있을까?»).
+                 * 조각마다 칠하면 겹치는 자리가 두 겹이 되어 얼룩진다 — 테두리를 지우면 더 도드라진다.
+                 * 🔴 **마름모 테두리는 안 그린다.** 「여기서 콜을 부른다」는 면으로 읽히면 되고,
+                 *    선이 있으면 실제 경로선(콜 색)과 헷갈린다.
+                 */
+                ctx.beginPath();
                 if (gn.tri.length) {
-                    ctx.beginPath();
                     gn.tri.forEach(([lng, lat]: [number, number], i: number) => { const [px, py] = S(lng, lat); i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py); });
                     ctx.closePath();
-                    ctx.fillStyle = NET_FILL; ctx.fill();
-                    ctx.strokeStyle = NET_EDGE; ctx.lineWidth = NET_EDGE_W; ctx.stroke();
                 }
-                // 🔴 노선 그물에는 내 위치 원이 없다 — 직접 두른다. 상차 판정이 이 반경을 쓰므로
-                //    안 그리면 «화면에 없는 선이 콜을 떨어뜨린다» (2026-09-08 리뷰에서 잡힘)
+                gn.circles.forEach((c: { ring: Array<[number, number]> }) => {
+                    c.ring.forEach(([lng, lat]: [number, number], i: number) => { const [px, py] = S(lng, lat); i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py); });
+                    ctx.closePath();
+                });
+                // 🔴 노선이면 내 위치 원도 그물의 일부다 — 상차 판정이 그 반경을 쓴다 (2026-09-08 리뷰)
                 if (isLine) {
                     const [mx, my] = S(myPos.lng, myPos.lat);
+                    ctx.moveTo(mx + (params.srcDiamKm / 2) * pxPerKm, my);
+                    ctx.arc(mx, my, (params.srcDiamKm / 2) * pxPerKm, 0, Math.PI * 2);
+                }
+                ctx.fillStyle = NET_FILL; ctx.fill();
+                /**
+                 * ⭕ **내 위치 원만 테두리를 남긴다 — 점선으로** (뜻이 다르다: «지금 갈 수 있는 거리»).
+                 * 나머지 면은 선 없이 색으로만 읽는다.
+                 */
+                {
+                    const [mx, my] = S(myPos.lng, myPos.lat);
                     ctx.beginPath(); ctx.arc(mx, my, (params.srcDiamKm / 2) * pxPerKm, 0, Math.PI * 2);
-                    ctx.fillStyle = NET_FILL; ctx.fill();
                     ctx.strokeStyle = NET_EDGE; ctx.setLineDash([6, 5]); ctx.lineWidth = NET_EDGE_W; ctx.stroke();
                     ctx.setLineDash([]);
                 }
-                const inQuadFn = quadTesterOf(params, anchor, goal);
-                ctx.strokeStyle = NET_EDGE; ctx.lineWidth = NET_EDGE_W;
-                gn.circles.forEach((c: { ring: Array<[number, number]> }, ci: number) => {
-                    if (ci === 0 && isLoaded(goal.name) && !isLine) {   // ∩ 는 짐 실은 목적지에만 (원천: loadedGoalNames)
-                        for (let i = 1; i < c.ring.length; i++) {
-                            const [lng1, lat1] = c.ring[i - 1], [lng2, lat2] = c.ring[i];
-                            if (!inQuadFn({ lng: lng1, lat: lat1 }) || !inQuadFn({ lng: lng2, lat: lat2 })) continue;
-                            const a2 = S(lng1, lat1), b2 = S(lng2, lat2);
-                            ctx.beginPath(); ctx.moveTo(a2[0], a2[1]); ctx.lineTo(b2[0], b2[1]); ctx.stroke();
-                        }
-                    } else {
-                        ctx.beginPath();
-                        c.ring.forEach(([lng, lat]: [number, number], i: number) => { const [px, py] = S(lng, lat); i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py); });
-                        ctx.fillStyle = NET_FILL; ctx.fill();
-                        ctx.stroke();
-                    }
-                });
-                ctx.setLineDash([]);
                 const [gx, gy] = S(goal.lng, goal.lat);
                 ctx.fillStyle = '#d97706'; ctx.beginPath(); ctx.arc(gx, gy, 5, 0, Math.PI * 2); ctx.fill();
             }
