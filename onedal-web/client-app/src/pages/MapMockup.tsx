@@ -2548,11 +2548,25 @@ export default function MapMockup() {
                         <PickLayer label="시·군·구" value={dstSgg} options={sggList(dstSido)}
                             open={openKnob === 'dstSgg'} onToggle={() => setOpenKnob(o => o === 'dstSgg' ? null : 'dstSgg')}
                             onPick={v => { freezeView(); setDstSgg(v); }} />
-                        <button type="button" onClick={() => { freezeView(); setHomeOn(!homeOn); }} title="집을 목적지에 더한다"
-                            className={`flex flex-col items-start gap-0 px-1.5 py-1 rounded-lg border text-left ${homeOn
-                                ? 'bg-warning/15 border-warning/55 text-warning' : 'border-border-card bg-background hover:border-border-hover'}`}>
-                            <span className="text-[9.5px] font-bold text-text-muted leading-tight">↩️ 복귀</span>
-                            <span className="text-[13px] font-black leading-tight">{homeOn ? '켬' : '끔'}</span>
+                        {/**
+                          * ↩️ **복귀는 토글이다 — 켜졌는지가 한눈에** (기사님 2026-09-09:
+                          * *"복귀는 토글로 눈에 띄게 해줘. 목적지 → 복귀"*).
+                          * 고르는 값(도·시군구)과 달리 **켜고 끄는 것**이라 모양도 달라야 한다.
+                          * 켜면 목적지가 둘이 되고(가는 길에 집 방향 콜도 본다), 복귀콜을 잡으면 집만 남는다.
+                          */}
+                        <button type="button" onClick={() => { freezeView(); setHomeOn(!homeOn); }}
+                            title="켜면 집도 목적지가 된다 — 복귀콜을 잡으면 목적지가 집으로 접힌다"
+                            className={`flex flex-col items-start gap-0.5 px-1.5 py-1 rounded-lg border text-left transition-colors ${homeOn
+                                ? 'bg-warning/25 border-warning text-warning' : 'border-border-card bg-background hover:border-border-hover'}`}>
+                            <span className={`text-[9.5px] font-bold leading-tight ${homeOn ? '' : 'text-text-muted'}`}>↩️ 복귀</span>
+                            <span className="flex items-center gap-1">
+                                <span className={`w-7 h-4 rounded-full flex items-center px-0.5 transition-colors ${homeOn ? 'bg-warning justify-end' : 'bg-border-card justify-start'}`}>
+                                    <span className="w-3 h-3 rounded-full bg-surface shadow" />
+                                </span>
+                                <span className={`text-[11px] font-black leading-tight ${homeOn ? 'text-warning' : 'text-text-muted'}`}>
+                                    {homeOn ? '켬' : '끔'}
+                                </span>
+                            </span>
                         </button>
                     </div>
 
