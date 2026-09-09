@@ -2742,17 +2742,13 @@ export default function MapMockup() {
                         ) : (
                             <button type="button" onClick={() => setExListOpen(true)}
                                 className="flex items-center gap-1 min-w-0 w-full px-1.5 py-1 rounded-md border border-border-card bg-background text-left hover:border-danger">
-                                <span className="shrink-0 text-[10.5px] font-black text-danger">⛔ {excluded.length}곳</span>
+                                <span className="shrink-0 text-[10.5px] font-black text-danger">⛔ 제외 {excluded.length}곳</span>
                                 <span className="min-w-0 flex-1 truncate text-[10.5px] font-bold text-text-muted">
                                     {excluded.map(excludedLabel).join(' · ')}
                                 </span>
                                 <span className="shrink-0 text-[10px] font-black text-text-muted">▾ 전부</span>
                             </button>
                         ))}
-                        <p className="text-[9.5px] text-text-muted leading-snug">
-                            여덟 곳이 <b className="text-danger">미리 눌려</b> 있습니다 — 들어가면 빈차로 나와야 하는 곳(노하우 「이 선을 넘지 마세요」).
-                            칩을 누르면 되살아납니다. 지도의 <b className="text-success">초록 점</b>은 콜이 잘 나오는 곳 — <b>표시만</b> 하고 판정엔 안 씁니다
-                        </p>
                     </div>
 
                     {/* 🧪 판정 — 필터와 콜 리스트 사이 (기사님 2026-09-07 와이어프레임 확정) */}
