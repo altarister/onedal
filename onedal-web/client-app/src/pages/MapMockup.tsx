@@ -1832,13 +1832,26 @@ export default function MapMockup() {
                 ctx.lineWidth = Math.max(3, lineRadiusKm * 2 * pxPerKm);
                 ctx.stroke();
             }
-            // 그물에 든 동 — 파란 점 · 제외지역은 흐린 ✕ (빠졌다는 것이 지도에서 보여야 한다)
+            // 그물에 든 동 — 파란 점 · 제외지역은 빨간 ✕ (빠졌다는 것이 지도에서 보여야 한다)
             if (layers.net) for (const p of areaNet.pass) {
                 const [px, py] = S(p.x, p.y);
                 if (isExcluded(p.region, p.name)) {
-                    ctx.strokeStyle = 'rgba(107,114,128,.75)'; ctx.lineWidth = 1.6;
-                    ctx.beginPath(); ctx.moveTo(px - 3.5, py - 3.5); ctx.lineTo(px + 3.5, py + 3.5);
-                    ctx.moveTo(px + 3.5, py - 3.5); ctx.lineTo(px - 3.5, py + 3.5); ctx.stroke();
+                    /**
+                     * ⛔ **가지 않는 동 — 작게, 그러나 또렷하게** (기사님 2026-09-09:
+                     * *"남한산성 등 가지 말아야 할 곳의 ✕ 표시가 약하다. 지도를 가리지 않는 선에서 강하게"*).
+                     *
+                     * 🔴 **크기가 아니라 대비로 올린다.** 같은 자리를 흰 선으로 먼저 굵게 긋고 그 위에
+                     *    빨간 선을 얹으면, 지도의 어떤 배경(초록 산·회색 시가지·파란 그물) 위에서도 또렷하다.
+                     *    ✕ 를 키우면 그만큼 지도를 덮으므로 반지름은 5px 로 작게 둔다.
+                     */
+                    const r = 5;
+                    ctx.lineCap = 'round';
+                    ctx.beginPath();
+                    ctx.moveTo(px - r, py - r); ctx.lineTo(px + r, py + r);
+                    ctx.moveTo(px + r, py - r); ctx.lineTo(px - r, py + r);
+                    ctx.strokeStyle = 'rgba(255,255,255,.95)'; ctx.lineWidth = 5; ctx.stroke();   // 배경과 가르는 흰 테두리
+                    ctx.strokeStyle = '#dc2626'; ctx.lineWidth = 2.6; ctx.stroke();               // ⛔ 빨강
+                    ctx.lineCap = 'butt';
                     continue;
                 }
                 /**
