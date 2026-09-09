@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
     rateFloorsFrom,
-    reachRadiusKm, NET_RATE_PER_KM, VEHICLE_CAPACITY, CAPACITY_CONFIDENCE_LABEL, CALL_TARGET_LABEL,
+    NET_RATE_PER_KM, VEHICLE_CAPACITY, CAPACITY_CONFIDENCE_LABEL, CALL_TARGET_LABEL,
     dwellMinutes, DWELL_UNKNOWN_PICKUP_MINUTES, judge, CRITERIA, DEFAULT_JUDGMENT,
     type FieldMode,
 } from '@onedal/shared';
@@ -268,20 +268,6 @@ function NumRow({ label, value, onChange, min = 0, max = 999, mode = 'input', au
         </label>
     );
 }
-function TextRow({ label, value, mode = 'input', autoWhy, hint }: {
-    label: string; value: string; mode?: FieldMode; autoWhy?: string; hint?: string;
-}) {
-    if (mode === 'hidden') return null;
-    const locked = mode === 'auto';
-    return (
-        <div className="flex flex-col gap-0.5 text-[10.5px] font-bold text-text-muted">
-            <span>{label}{locked && <span className="font-normal"> · 자동{autoWhy ? ` — ${autoWhy}` : ''}</span>}</span>
-            <span className={`px-2 py-1 rounded-[6px] border border-border-card bg-background text-[13px] font-black text-text-primary ${locked ? 'opacity-60' : ''}`}>
-                {value}{hint && <span className="text-[10px] font-bold text-text-muted"> {hint}</span>}
-            </span>
-        </div>
-    );
-}
 /** 아웃풋 키-값 한 줄 — 하단 분류 표의 기본 단위. 숨김(undefined)도 «숨김»으로 보여준다 (화면이 거짓말 안 하게) */
 function OutKv({ k, v }: { k: string; v: ReactNode }) {
     const hiddenVal = v === undefined || v === null;
@@ -361,7 +347,6 @@ export default function MapMockup() {
         srcAngleDeg: 100, dstAngleDeg: 100,        // 각은 둘 다 100° (기사님 2026-09-07 — ⑭ 검산의 50° 대신)
         // 실험실 기본 반경 15/15 (기사님 2026-09-08) — 실물 기본값(10)보다 넓게 잡아 그물을 먼저 본다
         pickupRadiusKm: 15, dropoffRadiusKm: 15,
-        detourAllowKm: 5,                          // 우회 허용 — 카카오 총거리 증가분 (라인 반경과 다른 값)
         discountPct: 10,                           // 콜할인율 — 시세 대비 허용 할인
     });
     /** 값 하나를 고친다 — 국면이 없으니 «어느 벌»을 고를 일이 없다 */
@@ -960,7 +945,7 @@ export default function MapMockup() {
          */
         dstName: dst.name, groups: areaNet.groups, pass: areaNet.pass, excluded,
         pickupRadiusKm: knobs.pickupRadiusKm, dropoffRadiusKm: knobs.dropoffRadiusKm,
-        detourAllowKm: knobs.detourAllowKm, discountPct: knobs.discountPct,
+        lineRadiusKm, discountPct: knobs.discountPct,
         vehicles, excludedWords, slotsUsed, capacityConfirmed,
         // 🔴 «무엇으로 재는가»만 적는다 — 관내 여부는 콜마다 갈리므로(목적지별) 여기서 말하지 않는다
         modeDesc: `🎯 ${goals.map(g => g.name).join(' ∪ ')} · ` + (lineOn ? `노선 — 잡은 콜 경로 ±${lineRadiusKm}km` : routeMode ? '노선 (경로 대기 — 마름모로 판단)' : `동선 마름모 ${params.srcAngleDeg}°/${params.dstAngleDeg}°`),
@@ -2865,24 +2850,11 @@ export default function MapMockup() {
                 <aside className="w-[400px] shrink-0 border-l border-border-card bg-surface p-3 flex flex-col gap-2 overflow-y-auto">
                     <span className="text-[12px] font-black">🎛️ 필터 옵션 <span className="text-[10px] font-bold text-text-muted">실물 요소 · 값은 목업</span></span>
 
-                    {/* 🔴 **국면 5탭을 걷어냈다** (기사님 확정 2026-09-09).
-                        다섯 벌이 하던 일은 «값을 여러 벌 두는 것»이 아니라 «지금 안 쓰는 칸을 감추는 것»이었고,
-                        감추면 화면이 조용히 거짓말한다. 값은 한 벌이고 **여기와 왼쪽이 같은 값을 본다.**
-                        ⚠️ 실물(`user_filter_phases`)은 아직 다섯 벌이다 — 그 차이는 이식 계획에 있다. */}
-                    <FilterPanel title="🎚️ 필터 값 — 한 벌 (국면으로 안 나눈다)">
-                        <TextRow label="도착 목표" value={dst.name} mode="auto" autoWhy="왼쪽 🎯 목적지에서 고른다"
-                            hint="← 왼쪽 🎯 목적지" />
-                        <NumRow label="상차 반경(km)" value={knobs.pickupRadiusKm}
-                            onChange={v => patchKnob({ pickupRadiusKm: v })} max={100} />
-                        <p className="text-[10px] text-text-muted leading-snug">
-                            실물은 도달 시간에서 자동 — 상차 약속(잡은 시각+20분)에 닿는 거리 ≈ <b>{reachRadiusKm(20)}km</b> (잠정 계수 · 아직 안 거름)
-                        </p>
-                        <NumRow label="우회 허용(km)" value={knobs.detourAllowKm}
-                            onChange={v => patchKnob({ detourAllowKm: v })} max={200} />
-                        <NumRow label="하차지 주변(km)" value={knobs.dropoffRadiusKm}
-                            onChange={v => patchKnob({ dropoffRadiusKm: v })} max={100} />
-                    </FilterPanel>
-
+                    {/* 🔴 **«필터 값» 패널을 걷어냈다** (기사님 지시 2026-09-09 — 넷 다 삭제).
+                        · 도착 목표    왼쪽 🎯 목적지의 **읽기 전용 복사본**이었다
+                        · 상차 반경 · 하차지 주변   왼쪽 «현위㎞·목적㎞»와 **같은 값**(한 벌이라 같이 움직였다)
+                        · 우회 허용    **어디에도 안 쓰였다** — 실물에서 «경유 반경»을 파생하는 재료인데,
+                                      실험실은 그 결과(라인 반경)를 기사님이 직접 넣는다. 손잡이가 둘이었다. */}
                     <FilterPanel title="💰 콜할인율 — 시세 대비 허용 할인">
                             <div className="flex gap-1">
                                 {([['시세', 0], ['-10%', 10], ['-20%', 20], ['-30%', 30]] as const).map(([label, v]) => (

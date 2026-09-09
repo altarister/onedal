@@ -23,7 +23,7 @@ const BASE: LabFilterInputs = {
         { x: 127.49, y: 37.26, name: '부발읍', region: '이천시' },
     ],
     excluded: [],
-    pickupRadiusKm: 7.5, dropoffRadiusKm: 7.5, detourAllowKm: 10,
+    pickupRadiusKm: 7.5, dropoffRadiusKm: 7.5, lineRadiusKm: 10,
     discountPct: 0, vehicles: ['1t'], excludedWords: ['착불'],
     slotsUsed: 0, capacityConfirmed: false,
     modeDesc: '동선 사각형 100°/100°',

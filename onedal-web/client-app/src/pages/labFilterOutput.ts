@@ -41,7 +41,12 @@ export interface LabFilterInputs {
     excluded: string[];
     pickupRadiusKm: number;
     dropoffRadiusKm: number;
-    detourAllowKm: number;
+    /**
+     * 📏 **라인 반경(km)** — 길 중심선에서 한쪽으로 몇 km 까지 콜을 받나.
+     * 🔴 실물 평면의 `detourRadiusKm` 자리에 싣는다. 실물은 그 값을 «우회 허용»(총거리 증가분)에서
+     *    **서버가 파생**하는데, 실험실은 파생 결과를 기사님이 직접 넣는다 (기사님 지시 2026-09-09).
+     */
+    lineRadiusKm: number;
     discountPct: number;
     vehicles: string[];
     excludedWords: string[];
@@ -79,12 +84,12 @@ export function buildAppFilterOutput(i: LabFilterInputs) {
          *    예전엔 국면별 `PHASE_FIELDS` 로 «그 국면에서 안 쓰는 칸»을 아웃풋에서 뺐다.
          *    그런데 **지금 안 쓰는 값은 그냥 안 읽힐 뿐이다** — 빼면 받는 쪽이 «없다»와
          *    «안 쓴다»를 구별 못 하고, 화면과 아웃풋이 다른 말을 하게 된다.
-         * ⚠️ 평면(앱 피기백) 이름: detourAllowKm↔detourRadiusKm · dropoffRadiusKm↔destinationRadiusKm · discountPct↔callDiscountPct
+         * ⚠️ 평면(앱 피기백) 이름: lineRadiusKm↔detourRadiusKm · dropoffRadiusKm↔destinationRadiusKm · discountPct↔callDiscountPct
          */
         destinationCity: i.dstName,
         pickupRadiusKm: i.pickupRadiusKm,
         destinationRadiusKm: i.dropoffRadiusKm,
-        detourRadiusKm: i.detourAllowKm,
+        detourRadiusKm: i.lineRadiusKm,
         destinationKeywords: [...new Set(flat)].sort(),
         destinationGroups,
         // ── 돈 축 — 폴백 시세표(= DB 기본값과 같은 값)로 파생. 실물은 DB 요율로 같은 함수를 부른다 ──
