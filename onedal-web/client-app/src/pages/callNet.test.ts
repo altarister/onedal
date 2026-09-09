@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildNet, netForGoal, lineZoneOf, buildFirstLegDemo, judgeTwoStage, judgeGoals, orderStopsGreedy, orderStopsInsert, cityCenter, isLocalPhase, WAIT_PRESET, NET_SRC, NET_DST, GONJIAM_DROP, DONGWON_DROP, BORAM_DROP, ICHEON_DROP } from './callNet';
+import { buildNet, netForGoal, lineZoneOf, quadTesterOf, buildFirstLegDemo, judgeTwoStage, judgeGoals, orderStopsGreedy, orderStopsInsert, cityCenter, isLocalPhase, WAIT_PRESET, NET_SRC, NET_DST, GONJIAM_DROP, DONGWON_DROP, BORAM_DROP, ICHEON_DROP } from './callNet';
 
 /**
  * 🧪 **그물 셋업의 계산이 ⑭ 검산과 같은가**
@@ -64,7 +64,7 @@ describe('대기 프리셋 — «여주를 목적지로 느긋하게» (⑭ 검�
 
     it('서울은 각도가 맞아도 담지 않는다 (⑭ «서울은 뺀다»)', () => {
         // 목적지 각도를 한껏 열어도 서울 동은 0 — 필터가 각도보다 먼저다
-        const open = buildNet({ srcDiamKm: 60, srcAngleDeg: 170, dstAngleDeg: 170, dstDiamKm: 60 });
+        const open = buildNet({ srcDiamKm: 60, srcAngleDeg: 170, dstAngleDeg: 170, dstDiamKm: 60, quadRadiusKm: 120 });
         expect(open.groups.some(g => g.region.startsWith('서울'))).toBe(false);
     });
 });
@@ -301,6 +301,31 @@ describe('관내 국면 — 목적지 원 안 + 출발지 원 밖이면 방향�
  * 복귀로 목적지가 접히면 관내 규칙이 안 도는데도 «둘 다 원 안만»이라고 적었고,
  * 실제로는 「내 위치 반경 밖」인 것을 「상차 **원** 밖」이라고 읽혔다.
  */
+/**
+ * 📐 **마름모 반경 — 축에서 좌우로 몇 km** (기사님 확정 2026-09-09).
+ * *"출발각 목적각 180 이면 안 되잖아.. 좌우를 목적지 출발지의 일직선과 평행하게 좌우에 둔다면"*
+ */
+describe('📐 마름모 반경', () => {
+    const P = (angle: number, r: number) => ({ srcDiamKm: 0, dstDiamKm: 0, srcAngleDeg: angle, dstAngleDeg: angle, quadRadiusKm: r });
+    /** 초월(집)→여주 축에서 옆으로 벗어난 점 — 축 가운데쯤에서 북으로 약 11km */
+    const mid = { lng: (NET_SRC.lng + NET_DST.lng) / 2, lat: (NET_SRC.lat + NET_DST.lat) / 2 + 0.10 };
+
+    it('반경 안이면 든다', () => {
+        expect(quadTesterOf(P(180, 20), NET_SRC, NET_DST)(mid)).toBe(true);
+    });
+
+    it('🔴 반경을 좁히면 각도가 아무리 넓어도 잘린다 — 폭을 막는 것이 이 값이다', () => {
+        expect(quadTesterOf(P(180, 5), NET_SRC, NET_DST)(mid)).toBe(false);
+    });
+
+    it('각도 180 이 쓸 수 있는 값이 된다 — 축 사이 직사각형', () => {
+        const inQuad = quadTesterOf(P(180, 20), NET_SRC, NET_DST);
+        expect(inQuad(mid)).toBe(true);                                   // 축 옆 — 든다
+        // 출발지 «뒤» 는 각도 180 이어도 안 든다 (반평면 밖)
+        expect(inQuad({ lng: NET_SRC.lng - 0.3, lat: NET_SRC.lat })).toBe(false);
+    });
+});
+
 describe('🏘️ 관내로 쟀는가 — 판정이 스스로 말한다', () => {
     const A = { lng: 127.60, lat: 37.29 }, B = { lng: 127.61, lat: 37.30 };
     it('관내로 재면 local 이 참이다', () => {

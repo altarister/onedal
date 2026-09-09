@@ -202,10 +202,23 @@ export interface NetParams {
     dstAngleDeg: number;
     /** 목적지 꼭짓점 원 지름 km */
     dstDiamKm: number;
+    /**
+     * 📐 **마름모 반경 km — 축(출발지→목적지 직선)에서 좌우로 몇 km 까지** (기사님 확정 2026-09-09).
+     *
+     * 기사님: *"출발각 목적각 180 이면 안 되잖아.. 근데 그럴 수도 있어. **좌우를 목적지 출발지의
+     * 일직선과 평행하게 좌우에 둔다면** 가능할 것 같은데."*
+     *
+     * 🔴 **각도만으로는 180 을 못 쓴다** — 반각 90° 는 반평면이라 둘의 교집합이 «좌우로 끝없는 띠»가
+     *    된다. 축에 **평행한 두 선**으로 폭을 막으면 그때 직사각형이 되어 뜻이 생긴다.
+     * 🔴 각도를 **대신하는 값이 아니라 상한**이다 — 각도로 그린 모양을 이 반경으로 자른다.
+     *    노선의 «라인 반경»과 **같은 단위·같은 셈법**이다(중심선에서 몇 km) — 한쪽은 굽은 길,
+     *    한쪽은 직선 축이다.
+     */
+    quadRadiusKm: number;
 }
 
 /** ⏳ 대기 프리셋 — «여주를 목적지로 느긋하게» (기사님 2026-09-07 · ⑭ 검산 값 그대로) */
-export const WAIT_PRESET: NetParams = { srcDiamKm: 15, srcAngleDeg: 100, dstAngleDeg: 50, dstDiamKm: 15 };
+export const WAIT_PRESET: NetParams = { srcDiamKm: 15, srcAngleDeg: 100, dstAngleDeg: 50, dstDiamKm: 15, quadRadiusKm: 120 };
 
 /** 경계 표지 — 무엇이 들고 무엇이 아깝게 빠지는지 이름으로 보인다 */
 const MARK_DONGS: Array<{ name: string; dong: string; region?: string }> = [
@@ -247,11 +260,16 @@ export interface NetResult {
 
 /** 사각형(두 원뿔의 교집합)만 — 꼭짓점 원 제외. «내 반경 ∩ 마름모»의 마름모가 이것이다 */
 function makeInQuad(p: NetParams, src: NetPoint, dst: NetPoint) {
-    const srcHalf = Math.min(85, Math.max(2, p.srcAngleDeg / 2));
-    const dstHalf = Math.min(85, Math.max(2, p.dstAngleDeg / 2));
+    // 🔴 반각 90° 까지 연다(각도 180°) — 폭은 아래 «마름모 반경»이 막는다 (기사님 2026-09-09)
+    const srcHalf = Math.min(90, Math.max(2, p.srcAngleDeg / 2));
+    const dstHalf = Math.min(90, Math.max(2, p.dstAngleDeg / 2));
     const axisAB = bearingDeg(src, dst), axisBA = bearingDeg(dst, src);
+    const axis: Array<[number, number]> = [[src.lng, src.lat], [dst.lng, dst.lat]];
+    const r = Math.max(0, p.quadRadiusKm);
     return (pt: { lng: number; lat: number }) =>
-        angDiff(bearingDeg(src, pt), axisAB) <= srcHalf && angDiff(bearingDeg(dst, pt), axisBA) <= dstHalf;
+        angDiff(bearingDeg(src, pt), axisAB) <= srcHalf
+        && angDiff(bearingDeg(dst, pt), axisBA) <= dstHalf
+        && distToLineKm(pt, axis) <= r;          // 📐 축에서 좌우로 이 반경까지
 }
 
 /** 그물 소속 판정 하나를 만든다 — buildNet 과 judgeTwoStage 가 같은 식을 본다 (규칙 ③ — 원천 하나) */

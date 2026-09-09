@@ -353,6 +353,11 @@ export default function MapMockup() {
         srcAngleDeg: 100, dstAngleDeg: 100,        // 각은 둘 다 100° (기사님 2026-09-07 — ⑭ 검산의 50° 대신)
         // 실험실 기본 반경 15/15 (기사님 2026-09-08) — 실물 기본값(10)보다 넓게 잡아 그물을 먼저 본다
         pickupRadiusKm: 15, dropoffRadiusKm: 15,
+        /**
+         * 📐 마름모 반경 — 축에서 좌우로 몇 km. 기본 120 은 **안 자르는 값**이다
+         * (기사님이 줄여 가며 보실 값이라, 처음부터 좁히면 «왜 이 콜이 빠졌나»를 모른다).
+         */
+        quadRadiusKm: 120,
         discountPct: 10,                           // 콜할인율 — 시세 대비 허용 할인
     });
     /** 값 하나를 고친다 — 국면이 없으니 «어느 벌»을 고를 일이 없다 */
@@ -583,6 +588,7 @@ export default function MapMockup() {
     const localMode = isLocalPhase({
         srcAngleDeg: knobs.srcAngleDeg, dstAngleDeg: knobs.dstAngleDeg,
         srcDiamKm: knobs.pickupRadiusKm * 2, dstDiamKm: knobs.dropoffRadiusKm * 2,
+        quadRadiusKm: knobs.quadRadiusKm,
     }, NET_SRC, dst, myPos);
     /** 콜 타겟 — 행선·도착 인지에서 **파생** (수동 버튼 없음): 복귀행 / 관내 / 노선행 */
     const callTarget: 'DEST' | 'LOCAL' | 'HOME' = homeOn ? 'HOME' : localMode ? 'LOCAL' : 'DEST';
@@ -591,6 +597,7 @@ export default function MapMockup() {
     const params = useMemo(() => ({
         srcAngleDeg: knobs.srcAngleDeg, dstAngleDeg: knobs.dstAngleDeg,
         srcDiamKm: knobs.pickupRadiusKm * 2, dstDiamKm: knobs.dropoffRadiusKm * 2,
+        quadRadiusKm: knobs.quadRadiusKm,
     }), [knobs]);
     /**
      * 🧭 **노선 / 동선** (기사님 확정 2026-09-09) — 입력값은 **한 벌을 같이 쓰고**,
@@ -2311,10 +2318,11 @@ export default function MapMockup() {
                         예전엔 탭마다 다른 칸을 보였는데, 그건 «값이 여러 벌»이 아니라
                         «지금 안 쓰는 칸을 감추는 것»이었다 — 감추면 화면이 조용히 거짓말한다. */}
                     <div className="grid grid-cols-2 gap-1.5">
-                        <NumRow label="출발각°" value={knobs.srcAngleDeg} max={170} onChange={v => setKnobs({ ...knobs, srcAngleDeg: v })} />
-                        <NumRow label="목적각°" value={knobs.dstAngleDeg} max={170} onChange={v => setKnobs({ ...knobs, dstAngleDeg: v })} />
+                        <NumRow label="출발각°" value={knobs.srcAngleDeg} max={180} onChange={v => patchKnob({ srcAngleDeg: v })} />
+                        <NumRow label="목적각°" value={knobs.dstAngleDeg} max={180} onChange={v => patchKnob({ dstAngleDeg: v })} />
                         <NumRow label="현위㎞" value={knobs.pickupRadiusKm} max={60} onChange={v => patchKnob({ pickupRadiusKm: v })} />
                         <NumRow label="목적㎞" value={knobs.dropoffRadiusKm} max={60} onChange={v => patchKnob({ dropoffRadiusKm: v })} />
+                        <NumRow label="마름모반경㎞" value={knobs.quadRadiusKm} min={1} max={120} onChange={v => patchKnob({ quadRadiusKm: v })} />
                     </div>
                     {/* 📏 라인 반경 — **노선일 때만 쓰인다.** 감추지 않고 «지금 쓰는가»를 아래 줄이 말한다 */}
                     <NumRow label="라인반경㎞" value={lineRadiusKm} onChange={setLineRadiusKm} min={1} max={30} />
