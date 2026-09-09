@@ -937,6 +937,8 @@ export default function MapMockup() {
     }, [presetCalls, confirmed, departed, dst.name, orderStart]);
 
     const anchor: NetPoint = useMemo(() => ({ name: '내 위치', ...myPos }), [myPos]);
+    /** 🔴 그물을 다시 만드는 **간격** — 약 1km 격자. 매 틱 다시 만들면 동 1,968개 훑기가 120ms 마다 돈다 */
+    const myPosKey = `${Math.round(myPos.lng * 100)},${Math.round(myPos.lat * 100)}`;
 
     /**
      * 🛣️ 실도로 곡선 (기사님 2026-09-07 «콜을 잡으면 카카오에서 진짜 길찾기») —
@@ -1035,17 +1037,33 @@ export default function MapMockup() {
         const legs = effPath.slice(1).map((pt, i) => legCacheRef.current.get(legKey(effPath[i].x, effPath[i].y, pt.x, pt.y)));
         if (!legs.every(c => c && !c.failed && c.line.length >= 2)) return null;
         /**
-         * 🔴 **지나온 구간은 뺀다** (기사님 2026-09-09: *"지나간 자리는 지워줘야 할 것 같은데..
-         * 사람들이 오해의 여지가 있어"*). 이미 지난 길 옆에 그물이 남아 있으면
-         * «저기서도 콜을 잡는다»로 읽히는데, **거기로는 다시 안 간다.**
-         * 실물 서버도 같은 일을 한다 — 지나온 동을 경유 목록에서 뺀다(진행도 트림).
+         * 🔴 **지나온 자리는 뺀다 — 정거장 단위가 아니라 «지금 내 위치»부터** (기사님 2026-09-09:
+         * *"지나간 자리는 지워줘야 할 것 같은데.. 사람들이 오해의 여지가 있어"* ·
+         * *"**정거장이 길어서 효과가 없어. 지나갈 때마다 지울 수는 없는 거야?**"*).
+         *
+         * 두 단계로 자른다:
+         *   ① 지나온 **정거장**까지의 구간을 통째로 뺀다 — 되돌아 잡히는 것을 먼저 막는다
+         *      (경로가 제 몸을 스칠 때 «가장 가까운 점»이 뒤로 뛰는 사고를 이미 한 번 겪었다)
+         *   ② 남은 구간에서 **내 위치에 가장 가까운 점**부터 쓴다 — 정거장 사이가 길어도 따라온다
+         *
+         * 🔴 **1km 격자로 끊어 다시 만든다**(`myPosKey`). 매 틱 다시 만들면 그물 계산(동 1,968개를
+         *    라인과 재는 일)이 120ms 마다 돈다 — 실측 13~42ms 짜리라 화면이 버티지 못한다.
+         *    1km 는 라인 반경(6km)보다 훨씬 작아 눈에 띄는 지연이 없다.
          */
         const from = departed ? Math.min(visitedCount, legs.length - 1) : 0;
-        const out: Array<[number, number]> = [];
-        for (const c of legs.slice(from)) for (const p of c!.line) out.push([p.lng, p.lat]);
-        return out.length >= 2 ? out : null;
+        const rest: Array<[number, number]> = [];
+        for (const c of legs.slice(from)) for (const p of c!.line) rest.push([p.lng, p.lat]);
+        if (rest.length < 2) return null;
+        if (!departed) return rest;
+        let bi = 0, bd = Infinity;
+        for (let i = 0; i < rest.length; i++) {
+            const d = Math.hypot((rest[i][0] - myPos.lng) * 88.6, (rest[i][1] - myPos.lat) * 110.574);
+            if (d < bd) { bd = d; bi = i; }
+        }
+        const cut = rest.slice(bi);
+        return cut.length >= 2 ? cut : rest.slice(-2);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [effPathKey, realLegs, departed, visitedCount]);
+    }, [effPathKey, realLegs, departed, visitedCount, myPosKey]);
     /** 🛣️ 노선이면서 라인이 실제로 있는가 — 화면·판정·아웃풋이 **이 하나**를 읽는다 (규칙 ③) */
     const lineOn = routeMode && !!routeLine;
     /**
