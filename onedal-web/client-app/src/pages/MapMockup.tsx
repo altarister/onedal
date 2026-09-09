@@ -855,6 +855,12 @@ export default function MapMockup() {
      */
     const visitedCountRef = useRef(0);
     /**
+     * 🪞 **화면용 거울** — `visitedCountRef` 는 주행 루프의 값이라 다시 그리기를 안 부른다.
+     * 라인(그물)이 «지나온 구간»을 잘라내려면 화면이 이 수를 알아야 한다 (기사님 2026-09-09:
+     * *"지나간 자리는 지워줘야 할 것 같은데.. 사람들이 오해의 여지가 있어"*).
+     */
+    const [visitedCount, setVisitedCount] = useState(0);
+    /**
      * ⏱️ **실제 통과 시각** (기사님 2026-09-08: *"지금 내가 하고 있는 것은 예상 시간인 거고
      * 진짜 통과 시간도 있으면 좋겠다 — 지나간 후 값이 생기면"*).
      * 키는 `①상차` 같은 정거장 이름, 값은 지난 순간의 시각. **지나기 전엔 아예 없다**
@@ -877,7 +883,7 @@ export default function MapMockup() {
     const planSeqRef = useRef(0);
     /** 🔎 지나는 순간 얼릴 «마지막 예상» — 키는 `콜id-상차/하차` (실물의 `predicted_at` 자리) */
     const etaRef = useRef<Record<string, number | null>>({});
-    useEffect(() => { if (confirmed.length === 0) visitedCountRef.current = 0; }, [confirmed.length]);
+    useEffect(() => { if (confirmed.length === 0) { visitedCountRef.current = 0; setVisitedCount(0); } }, [confirmed.length]);
     useEffect(() => { setTerminated([]); }, [stageIdx]);   // 판을 새로 열면 취소 기록도 함께 비운다
     /**
      * 🧭 **정거장 목록을 만드는 규칙 — 한 곳이다** (규칙 ③).
@@ -1028,11 +1034,18 @@ export default function MapMockup() {
         if (effPath.length < 2) return null;
         const legs = effPath.slice(1).map((pt, i) => legCacheRef.current.get(legKey(effPath[i].x, effPath[i].y, pt.x, pt.y)));
         if (!legs.every(c => c && !c.failed && c.line.length >= 2)) return null;
+        /**
+         * 🔴 **지나온 구간은 뺀다** (기사님 2026-09-09: *"지나간 자리는 지워줘야 할 것 같은데..
+         * 사람들이 오해의 여지가 있어"*). 이미 지난 길 옆에 그물이 남아 있으면
+         * «저기서도 콜을 잡는다»로 읽히는데, **거기로는 다시 안 간다.**
+         * 실물 서버도 같은 일을 한다 — 지나온 동을 경유 목록에서 뺀다(진행도 트림).
+         */
+        const from = departed ? Math.min(visitedCount, legs.length - 1) : 0;
         const out: Array<[number, number]> = [];
-        for (const c of legs) for (const p of c!.line) out.push([p.lng, p.lat]);
+        for (const c of legs.slice(from)) for (const p of c!.line) out.push([p.lng, p.lat]);
         return out.length >= 2 ? out : null;
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [effPathKey, realLegs]);
+    }, [effPathKey, realLegs, departed, visitedCount]);
     /** 🛣️ 노선이면서 라인이 실제로 있는가 — 화면·판정·아웃풋이 **이 하나**를 읽는다 (규칙 ③) */
     const lineOn = routeMode && !!routeLine;
     /**
@@ -1779,7 +1792,7 @@ export default function MapMockup() {
                                 }
                                 return { ...c, steps: st };
                             }));
-                            visitedCountRef.current = passed;
+                            visitedCountRef.current = passed; setVisitedCount(passed);
                         } }
                     else { cur = { lng: cur.lng + dx / d * remain / 88.6, lat: cur.lat + dy / d * remain / 110.574 }; remain = 0; }
                 }
