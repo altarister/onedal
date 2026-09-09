@@ -3,10 +3,12 @@ import {
     PHASE_KEYS, PHASE_LABEL, PHASE_FIELDS, PHASE_AUTO_SOURCE, fieldLabel,
     DEFAULT_PHASE_SETTINGS, normalizePhaseSettings, rateFloorsFrom,
     reachRadiusKm, NET_RATE_PER_KM, VEHICLE_CAPACITY, CAPACITY_CONFIDENCE_LABEL, CALL_TARGET_LABEL,
-    dwellMinutes, DWELL_UNKNOWN_PICKUP_MINUTES,
+    dwellMinutes, DWELL_UNKNOWN_PICKUP_MINUTES, judge, CRITERIA, DEFAULT_JUDGMENT,
     type FieldMode, type PhaseKey, type PhaseSettings, type PhaseSettingsMap,
 } from '@onedal/shared';
 import { buildAppFilterOutput, labPhaseOf, TRUCK_CAPACITY_SLOTS } from './labFilterOutput';
+// 🎨 판정 사실을 실물 모양으로 옮기는 곳 — 채점은 실물 엔진(judge)이 한다
+import { buildLabFacts } from './labJudge';
 // 🚚 이식 대응표가 이 타입의 원천이다 — 실물 `step_*` 칸과 맞는지는 labPortMap.test.ts 가 지킨다
 import { promiseTimes, impactOfStop, splitDropImpact, type StopStep } from './labPortMap';
 // ⏱️ 시간·정거장 이름은 한 곳에서 만든다 (labTime.test.ts 가 지킨다)
@@ -315,6 +317,19 @@ export default function MapMockup() {
     const stageIdx = 0;   // 국면 프리셋 버튼은 2026-09-07 삭제(기사님) — 대기 판 고정. STAGES 데이터는 남긴다
     const [pickup, setPickup] = useState<Pt | null>(null);
     const [drop, setDrop] = useState<Pt | null>(null);
+    /**
+     * 💰📦 **후보콜의 요금과 짐** (기사님 2026-09-09 «필터를 만들어 보자» 판).
+     *
+     * 지도를 두 번 눌러 만든 콜이라 **배차망이 줄 값이 없다.** 그래서 기사님이 넣는다 —
+     * 화면의 「② 후보콜에 대한 추가정보 요청」이 원래 그 자리였고, 지금까지 «—» 로 비어 있었다.
+     *
+     * 🔴 **이 둘이 없으면 색이 안 나온다.** 돈은 «요금 ÷ 더 쓰는 시간»이고 공간은
+     *    «용량 − 쓴 박스 − 이 콜»이라, 둘 다 이 콜의 값을 필요로 한다.
+     * 기본값: 요금은 **배송거리 × 단가**(앱 필터가 통과시키는 최소선) · 짐은 **1박스**
+     *   (볼첨지 이틀 표를 정리할 때 기사님이 «모든 콜 = 1박스»로 가정하신 그 값).
+     */
+    const [candFare, setCandFare] = useState(0);
+    const [candBoxes, setCandBoxes] = useState(1);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const boxRef = useRef<HTMLDivElement>(null);
     const [size, setSize] = useState({ w: 900, h: 640 });
@@ -1439,6 +1454,36 @@ export default function MapMockup() {
             };
         });
     }, [chainNow, confirmed, baseCallCount, pickup, drop, departed, myPos, approachInfo, goalsVerdict, dst.name, clockNow]);
+
+    /**
+     * 🎨 **후보콜의 색 — 실물 엔진이 채점한다** (기사님 2026-09-09 «필터를 만들어 보자» 판).
+     *
+     * 🔴 **여기서 채점하지 않는다.** 실험실 상태를 `buildLabFacts` 가 실물이 아는 «사실»로 옮기고,
+     *    실물의 `judge(CRITERIA, …, DEFAULT_JUDGMENT)` 가 색을 낸다 — 목업이 제 채점기를 두면
+     *    실험이 거짓말이 된다 (규칙 ③).
+     *
+     * ⚠️ **합짐의 «더 쓰는 시간»은 아직 근사다.** 실물 정의는 «붙여서 **늘어나는** 시간»인데,
+     *    여기서는 «이 콜 자신의 주행 + 정차»를 쓴다. 후보콜을 낀 전체 경로는 **확정한 뒤에야**
+     *    재기 때문이다(⑮ — 안 잡을 콜에 카카오를 쓰지 않는다). 그래서 합짐에서는
+     *    **시급이 실제보다 좋게 나온다** — 화면에 그렇게 적어 둔다. 정확히 하는 것은 다음 판이다.
+     */
+    const candJudge = useMemo(() => {
+        if (!pickup || !drop) return null;
+        const approach = approachInfo?.durMin ?? null;
+        const deliver = uploadedInfoRef.current?.durMin ?? null;
+        const driveMin = approach == null || deliver == null ? null : approach + deliver;
+        const stops = callImpacts.flatMap(ci => ci.stops.map(st => ({
+            label: `${ci.no}${st.kind}`, promisedAt: st.promisedAt, etaAt: st.etaAt,
+        })));
+        const facts = buildLabFacts({
+            fare: candFare, boxes: candBoxes, driveMin,
+            dwellMin: labDwellOf('상차') + labDwellOf('하차'),
+            hasExistingCalls: confirmed.length > 0,
+            stops, slotsUsed, capacitySlots: TRUCK_CAPACITY_SLOTS,
+        });
+        return { facts, result: judge(CRITERIA, facts, DEFAULT_JUDGMENT), driveMin };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pickup, drop, candFare, candBoxes, confirmed.length, callImpacts, slotsUsed, approachInfo, chainNow]);
     const stopImpacts = useMemo(() => {
         if (!chainNow || !chainBefore) return [];
         /** 🔴 두 경로는 **잰 시각이 다르다** — `arrivalAt` 이 각자의 기준을 더해 «시각»으로 낸다 */
@@ -1939,7 +1984,19 @@ export default function MapMockup() {
     const placeAt = (pt: Pt) => {
         if (clickMode === 'me') { setMyPos(pt); setClickMode('call'); return; }
         if (!pickup || (pickup && drop)) { if (pickup && drop) pushLog('버림'); pauseForCall(); setPickup(pt); setDrop(null); setUploaded(false); setUploadedLeg(null); setApproachLeg(null); setApproachInfo(null); setChainNow(null); setChainBefore(null); setChainPreview(null); uploadedInfoRef.current = null; uploadSeqRef.current++; setCallSeenAt(null); }
-        else { setDrop(pt); setUploadedLeg(null); setApproachLeg(null); setApproachInfo(null); setChainNow(null); setChainBefore(null); setChainPreview(null); uploadedInfoRef.current = null; uploadSeqRef.current++; }
+        else {
+            setDrop(pt); setUploadedLeg(null); setApproachLeg(null); setApproachInfo(null); setChainNow(null); setChainBefore(null); setChainPreview(null); uploadedInfoRef.current = null; uploadSeqRef.current++;
+            /**
+             * 💰 **요금을 시세로 미리 눌러 둔다** (규칙: 빈칸으로 기다리지 않는다).
+             * 앱 필터가 통과시키는 **최소선**이다 — `직선 km × 하한 단가(1t)`.
+             * 🔴 «직선» 이라 실제 배송거리보다 짧다. 기사님이 화면에서 고치라고 미리 눌러 두는 값이지
+             *    이대로 믿으라는 값이 아니다 — 그래서 화면이 «기사님이 넣는다» 고 말한다.
+             */
+            const dLng = (pt.lng - pickup!.lng) * 88.6, dLat = (pt.lat - pickup!.lat) * 110.574;
+            const straightKm = Math.hypot(dLng, dLat);
+            const floor = rateFloorsFrom(ps.discountPct)['1t'] ?? 1000;
+            setCandFare(Math.round(straightKm * floor / 100) * 100);   // 100원 단위로 (음식 단가가 그렇다)
+        }
     };
 
     const onMapClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -2410,14 +2467,49 @@ export default function MapMockup() {
                                     </div>
                                 )}
 
-                                {/* ══ ② 후보콜에 대한 추가정보 요청 — 없는 것을 «없다»고 적는다 ══ */}
-                                <div className="text-[10px] font-black text-info border-t border-border-card pt-1.5">② 후보콜에 대한 추가정보 요청</div>
-                                <div className="text-[10px] text-text-muted leading-snug">아직 못 재는 기준 — 콜에 그 재료가 없다 (지어내지 않는다). 통화로 확정한다</div>
-                                <div className="flex gap-1 flex-wrap text-[10.5px]">
-                                    {(['💰 돈(요금)', '📦 공간(박스)', '🧪 성질(화물)'] as const).map(t => (
-                                        <span key={t} className="px-1.5 py-0.5 rounded-md bg-background border border-border-card text-text-muted font-bold">{t} —</span>
-                                    ))}
+                                {/* ══ ② 후보콜에 대한 추가정보 — **없다고 적던 자리를 입력으로** (기사님 2026-09-09) ══
+                                    지도를 두 번 눌러 만든 콜이라 배차망이 줄 값이 없다. 이 둘이 없으면 색이 안 나온다 */}
+                                <div className="text-[10px] font-black text-info border-t border-border-card pt-1.5">② 후보콜에 대한 추가정보</div>
+                                <div className="text-[10px] text-text-muted leading-snug">
+                                    실제 콜이면 배차망이 준다 — 실험실에서는 기사님이 넣는다. <b>이 둘이 색을 만든다</b>
                                 </div>
+                                <div className="grid grid-cols-2 gap-1.5">
+                                    <NumRow label="💰 요금(원)" value={candFare} onChange={setCandFare} max={2_000_000} />
+                                    <NumRow label="📦 짐(박스)" value={candBoxes} onChange={setCandBoxes} max={TRUCK_CAPACITY_SLOTS} />
+                                </div>
+                                {/* 🎨 색 — 기사님이 1~2초에 보는 것 (규칙 ⑤-3). 숫자는 그다음이다 */}
+                                {candJudge && (() => {
+                                    const r = candJudge.result;
+                                    const tone = r.color === '꿀' ? 'bg-info/20 text-info border-info/50'
+                                        : r.color === '보통' ? 'bg-success/20 text-success border-success/50'
+                                        : r.color === '똥' ? 'bg-warning/20 text-warning border-warning/50'
+                                        : 'bg-danger/20 text-danger border-danger/50';
+                                    const face = r.color === '꿀' ? '🔵' : r.color === '보통' ? '🟢' : r.color === '똥' ? '🟡' : '🔴';
+                                    return (
+                                        <div className="flex flex-col gap-1">
+                                            <div className={`self-start px-2.5 py-1 rounded-lg border text-[14px] font-black ${tone}`}>
+                                                {face} {r.color}{r.score != null && <span className="text-[11px] font-bold"> · {r.score}점</span>}
+                                            </div>
+                                            <div className="flex flex-col gap-0.5 text-[10px] tabular-nums">
+                                                {r.criteria.map(c => (
+                                                    <div key={c.key} className="flex gap-1">
+                                                        <span className="w-[52px] font-black">{c.name}</span>
+                                                        <span className={`w-[42px] font-black ${c.outcome.kind === 'scored' ? '' : 'text-text-muted'}`}>
+                                                            {c.outcome.kind === 'scored' ? `${Math.round(c.outcome.score)}점` : c.weight === 0 ? '안 봄' : '못 잼'}
+                                                        </span>
+                                                        <span className="flex-1 text-text-muted leading-snug">{c.outcome.why}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            {confirmed.length > 0 && (
+                                                <div className="text-[9.5px] text-warning leading-snug">
+                                                    ⚠️ 합짐의 «더 쓰는 시간»은 아직 <b>이 콜 자신의 주행 + 정차</b>다 —
+                                                    붙여서 늘어나는 시간은 확정 뒤에야 잰다. 그래서 <b>시급이 실제보다 좋게 나온다</b>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })()}
                                 {TRAP_DONGS.filter(t => t.dong === verdict.dropDong.name).map(t => (
                                     <div key={t.dong} className="text-[10.5px] text-danger font-bold leading-snug">
                                         ⛔ 가면 안 되는 지역 — {t.region} {t.dong}: {t.why}
