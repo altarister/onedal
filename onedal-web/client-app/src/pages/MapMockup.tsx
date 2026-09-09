@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
     rateFloorsFrom,
-    NET_RATE_PER_KM, VEHICLE_CAPACITY, CAPACITY_CONFIDENCE_LABEL, CALL_TARGET_LABEL,
+    NET_RATE_PER_KM, VEHICLE_CAPACITY, CALL_TARGET_LABEL,
     dwellMinutes, DWELL_UNKNOWN_PICKUP_MINUTES, judge, CRITERIA, DEFAULT_JUDGMENT,
     type FieldMode,
 } from '@onedal/shared';
@@ -198,6 +198,12 @@ function Chip({ ok, yes, no }: { ok: boolean; yes: string; no: string }) {
 type LabCall = {
         id: number; pickup: Pt; drop: Pt;
         /**
+         * 📦 **이 콜의 짐(박스)** — 적재는 **콜이 들고 있고 합은 파생된다** (기사님 2026-09-09:
+         * *"적재는 상태값이니 필요 없고"*). 실물도 같다: 서버가 잡은 콜들의 짐 점수를 더해
+         * `slotsUsed` 를 만든다 — 기사님이 손으로 넣는 값이 아니다.
+         */
+        boxes: number;
+        /**
          * 배송(상차→하차) 실측 — 확정 순간 카카오 1회.
          * 🔴 **못 쟀으면 값이 없다** (규칙 ④ · 2026-09-09). 예전엔 직선 km 를 지어내고
          *    `straight: true` 를 붙였는데, 그 숫자가 시급(요금 ÷ 분)에 들어가면 **색이 틀린다.**
@@ -358,6 +364,8 @@ export default function MapMockup() {
      * «첫 콜을 잡았다»(상차 영역이 ∩ 로 조여짐)만 바꾼다. 국면을 바꾸면 판이 새로 시작된다.
      */
     const [confirmed, setConfirmed] = useState<LabCall[]>([]);
+    /** 📦 쓴 박스 = 잡은 콜들의 짐 합 (위 주석 참조 — 손잡이가 아니라 파생이다) */
+    const slotsUsed = useMemo(() => confirmed.reduce((a, c) => a + (c.boxes ?? 0), 0), [confirmed]);
     /**
      * 📍 내 위치 (기사님 확정 2026-09-07 오후) — **사각형의 기점은 마지막 하차지가 아니라 현위치다.**
      * 하차지 기점이면 출발 전에 내 앞길(현위치~하차지 사이) 콜을 통째로 버린다 — 실측으로 잡힌 문제.
@@ -405,19 +413,29 @@ export default function MapMockup() {
     // callTarget 은 행선·도착 인지에서 파생된다 — 아래 localMode 뒤에서 계산
     const [vehicles, setVehicles] = useState<string[]>(['1t', '다마스']);             // 목업값 (DTO 예시 그대로)
     /**
-     * 🚫 **제외 단어 — 고르는 자리를 뺐다** (기사님 지시 2026-09-09: *"결과에 인지하는 것만 남겨두고 삭제"*).
+     * 🚫 **제외 단어 — 입력이 필요하다** (기사님 확정 2026-09-09: *"제외 단어는 입력이 필요하다.
+     * 펼치면 내용을 볼 수 있다"*). 실물에서는 앱이 콜 글자에서 이 단어를 찾아 거른다(여섯 축의 «블랙리스트»).
      *
-     * 실물에서는 앱이 콜 글자에서 이 단어를 찾아 거른다(여섯 축의 «블랙리스트»). 그런데 실험실 콜에는
-     * **적요가 없어** 걸릴 것이 없다 — 고르는 칩은 자리만 먹었다. 값은 아웃풋(`excludedKeywords`)에
-     * 그대로 실려 «무엇이 내려가는가»는 계속 보인다.
+     * 🔴 실험실 콜에는 적요가 없어 **여기서는 걸릴 것이 없다.** 그래도 손잡이는 필요하다 —
+     *    «무엇을 안 잡을지»는 기사님이 정하는 값이고, 아웃풋으로 앱에 내려간다.
+     *    폰 화면을 생각해 **평소엔 접어 두고 펼쳐서 고른다.**
      *
      * 💡 **기사님 아이디어 (2026-09-09 · 나중에 논의)**: 이 축이 «도착 **위치** 조건»이 될 수도 있다 —
      *    *"아파트 상가 같은?"* 지금은 단어 하나로 «안 잡는다»만 답하는데, «어떤 자리에 내리는가»는
-     *    다른 질문이다 (엘리베이터·주차·층수 …). 축을 가를지는 그때 정한다.
+     *    다른 질문이다 (엘리베이터·주차·층수 …). todo 에 있다.
      */
-    const excludedWords = ['착불', '수거'];   // 목업값 (DTO 예시 그대로)
-    const [slotsUsed, setSlotsUsed] = useState(0);
-    const [capacityConfirmed, setCapacityConfirmed] = useState(false);               // 실물 «확정» 버튼 자리
+    const [excludedWords, setExcludedWords] = useState<string[]>(['착불', '수거']);
+    const [wordsOpen, setWordsOpen] = useState(false);
+    /**
+     * 📦 **쓴 박스 — 손잡이가 아니라 파생이다** (기사님 확정 2026-09-09: *"적재는 상태값이니 필요 없고"*).
+     * 잡은 콜들의 짐을 더한다. 실물도 같은 방식이고, 그 이유가 실물 주석에 적혀 있다 —
+     * *"차종으로 다시 세면 통화로 확인한 실제 짐 양이 반영되지 않아 화면과 판정이 다른 말을 한다."*
+     */
+    /**
+     * 📦 짐을 통화로 **확정했는가** — 실험실 콜에는 짐 정보가 없으므로 늘 «추정»이다.
+     * 실물에는 기사님이 누르는 «확정» 버튼이 있다 (통화로 짐 양을 들은 뒤).
+     */
+    const capacityConfirmed = false;
     /** 🚗 모의 주행 — 경로가 있으면 내 위치가 경로를 따라간다, 없으면 대기 */
     const [driving, setDriving] = useState(false);
     const [speedIdx, setSpeedIdx] = useState(1);
@@ -1072,7 +1090,7 @@ export default function MapMockup() {
                 pickup: up ? { ...x.steps.pickup, impacts: [...x.steps.pickup.impacts, up] } : x.steps.pickup,
                 dropoff: dn ? { ...x.steps.dropoff, impacts: [...x.steps.dropoff.impacts, dn] } : x.steps.dropoff,
             } };
-        }), { id, pickup: p, drop: d, optionUsed: routeCombo.label, destName: caughtDest,
+        }), { id, pickup: p, drop: d, boxes: candBoxes, optionUsed: routeCombo.label, destName: caughtDest,
             steps,
             ...(app && !merge ? { approachKm: app.distKm, approachMin: app.durMin } : {}),
             ...(merge || !known ? {} : {                     // 🔴 `failed` 는 콜의 칸이 아니다 — 골라 담는다
@@ -2360,6 +2378,32 @@ export default function MapMockup() {
                         )}
                     </div>
 
+                    {/**
+                      * 🚚 **차종 — «어떤 짐을 받을까»다** (기사님 확정 2026-09-09).
+                      *
+                      * 내 차가 무엇인가가 아니다: *"내 차가 1톤이지만 **라보 다마스 짐만 받겠다**
+                      * 생각할 때 할 수 있다. **합짐을 위해 필요.** 승용차도 오토바이 짐만 받겠다 할 수 있다."*
+                      * → 짐이 작을수록 더 얹을 수 있으니, **합짐 국면에서 손이 가는 손잡이**다.
+                      */}
+                    <div className="mt-1 border-t border-border-card pt-2 flex flex-col gap-1">
+                        <span className="text-[10.5px] font-black text-text-muted">🚚 받을 짐 차종 <span className="font-bold">— 작을수록 더 얹는다</span></span>
+                        <ChipToggleRow options={['오토바이', '승용차', '다마스', '라보', '1t']} selected={vehicles}
+                            onToggle={v => setVehicles(x => x.includes(v) ? x.filter(o => o !== v) : [...x, v])} />
+                    </div>
+
+                    {/* 🚫 제외 단어 — 평소엔 접어 둔다 (기사님 2026-09-09 «펼치면 내용을 볼 수 있다») */}
+                    <div className="mt-1 border-t border-border-card pt-2 flex flex-col gap-1">
+                        <button type="button" onClick={() => setWordsOpen(o => !o)}
+                            className="self-start text-[10.5px] font-black text-text-muted hover:text-text-primary">
+                            {wordsOpen ? '▾' : '▸'} 🚫 제외 단어 {excludedWords.length}개
+                            <span className="font-bold"> — {excludedWords.join(' · ') || '없음'}</span>
+                        </button>
+                        {wordsOpen && (
+                            <ChipToggleRow options={['착불', '수거', '까대기', '직접운반', '왕복', '대기']} selected={excludedWords}
+                                onToggle={v => setExcludedWords(x => x.includes(v) ? x.filter(o => o !== v) : [...x, v])} />
+                        )}
+                    </div>
+
                     {/* ⛔ 제외지역 — **노선·동선 공통** (기사님 2026-09-09 «공통으로 빼») */}
                     {<div className="mt-1 border-t border-border-card pt-2 flex flex-col gap-1">
                         <span className="text-[10.5px] font-black text-danger">⛔ 제외지역</span>
@@ -2915,35 +2959,9 @@ export default function MapMockup() {
                         · 상차 반경 · 하차지 주변   왼쪽 «현위㎞·목적㎞»와 **같은 값**(한 벌이라 같이 움직였다)
                         · 우회 허용    **어디에도 안 쓰였다** — 실물에서 «경유 반경»을 파생하는 재료인데,
                                       실험실은 그 결과(라인 반경)를 기사님이 직접 넣는다. 손잡이가 둘이었다. */}
-                    <FilterPanel title="🚚 차종 (allowedVehicleTypes)">
-                        <ChipToggleRow options={['1t', '1t짐', '라보', '다마스']} selected={vehicles}
-                            onToggle={v => setVehicles(x => x.includes(v) ? x.filter(o => o !== v) : [...x, v])} />
-                    </FilterPanel>
-
-                    {/**
-                      * 🔬 **적재 — 실측이 필요한 자리** (기사님 2026-09-09: *"아 이건 유의미하네.
-                      * 화물의 종류에 따라 부피가 확확 달라지는데.. 이거 실측이 필요할 듯.
-                      * 일단 별도로 마킹해 두고 나중에 논의하자"*).
-                      *
-                      * 🔴 **실물에서는 입력이 아니다** — 서버가 잡은 콜들의 짐 점수를 더해 파생한다
-                      *    (*"차종으로 다시 세면 통화로 확인한 실제 짐 양이 반영되지 않아 화면과 판정이
-                      *    다른 말을 한다"*). 실험실에만 있는 **시뮬 손잡이**다.
-                      * 🔴 그런데 **판정의 공간 기준이 이 값을 쓴다** — 색이 바뀐다.
-                      *    라면박스 환산이 화물 종류에 얼마나 맞는지는 **실측 전까지 모른다.** todo 에 있다.
-                      */}
-                    <FilterPanel title={`🔬 적재 ${slotsUsed}/${TRUCK_CAPACITY_SLOTS}박스 · 남은 ${TRUCK_CAPACITY_SLOTS - slotsUsed} — 실측 필요`}>
-                        <div className="h-2 rounded bg-background border border-border-card overflow-hidden">
-                            <div className="h-full bg-info/60" style={{ width: `${Math.min(100, slotsUsed / TRUCK_CAPACITY_SLOTS * 100)}%` }} />
-                        </div>
-                        <div className="flex items-end gap-1.5">
-                            <div className="flex-1"><NumRow label="쓴 박스 수" value={slotsUsed} onChange={v => { setSlotsUsed(v); setCapacityConfirmed(false); }} max={TRUCK_CAPACITY_SLOTS} /></div>
-                            <button type="button" onClick={() => setCapacityConfirmed(!capacityConfirmed)}
-                                className={`px-2 py-1.5 rounded-[8px] border text-[11px] font-black ${capacityConfirmed
-                                    ? 'bg-success/15 border-success/55 text-success' : 'border-border-hover bg-background text-text-muted'}`}>
-                                {CAPACITY_CONFIDENCE_LABEL[capacityConfirmed ? 'CONFIRMED' : 'ESTIMATED']}
-                            </button>
-                        </div>
-                    </FilterPanel>
+                    {/* 🔬 **적재 패널을 걷어냈다** (기사님 2026-09-09: *"적재는 상태값이니 필요 없고"*).
+                        쓴 박스는 **잡은 콜들의 짐 합**이라 고를 값이 아니다 — 상단 요약줄에 `📦 n/100` 으로 보인다.
+                        ⚠️ 「라면박스 환산이 화물 종류에 맞는가」는 **실측이 필요하다** — todo 에 항목으로 있다. */}
 
                     <details className="border-t border-border-card pt-2">
                         <summary className="text-[10.5px] font-black text-text-muted cursor-pointer">🗂️ 영역 — 시군구별 {areaNet.count}동</summary>
