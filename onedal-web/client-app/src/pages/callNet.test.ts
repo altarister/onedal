@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildNet, netForGoal, lineZoneOf, quadTesterOf, buildFirstLegDemo, judgeTwoStage, judgeGoals, orderStopsGreedy, orderStopsInsert, cityCenter, dongList, sggList, sidoList, isLocalPhase, WAIT_PRESET, NET_SRC, NET_DST, GONJIAM_DROP, DONGWON_DROP, BORAM_DROP, ICHEON_DROP } from './callNet';
+import { buildNet, netForGoal, lineZoneOf, quadTesterOf, buildFirstLegDemo, judgeTwoStage, judgeGoals, orderStopsGreedy, orderStopsInsert, cityCenter, dongList, sggList, sidoList, sidoOf, isRegionExcluded, isWholeRegionExcluded, excludedLabel, isLocalPhase, WAIT_PRESET, NET_SRC, NET_DST, GONJIAM_DROP, DONGWON_DROP, BORAM_DROP, ICHEON_DROP } from './callNet';
 
 /**
  * 🧪 **그물 셋업의 계산이 ⑭ 검산과 같은가**
@@ -726,5 +726,40 @@ describe('🏘️ 도 → 시·군·구 → 읍·면·동', () => {
 
     it('🔴 시도 이름을 주면 빈 배열 — 시·군·구 칸으로 거르는지 잠근다', () => {
         expect(dongList('경기')).toEqual([]);
+    });
+});
+
+/**
+ * ⛔ **제외 키 세 층** (기사님 2026-09-09 *"원래 내가 원한 건 서울을 빼는 거였는데"* —
+ * 서울을 빼려고 구 25개를 하나씩 누르고 계셨다).
+ * 읽는 곳이 화면과 아웃풋 둘이라 **판정은 여기 한 벌**이다.
+ */
+describe('⛔ 제외 — 도 · 시·군·구 · 읍·면·동', () => {
+    it('시·군·구가 속한 도를 안다', () => {
+        expect(sidoOf('서울 강남구')).toBe('서울');
+        expect(sidoOf('가평군')).toBe('경기');
+        expect(sidoOf('없는시')).toBe('');
+    });
+
+    it('🔴 도를 빼면 그 안의 동이 전부 빠진다 — 구 25개를 누르지 않아도 된다', () => {
+        expect(isRegionExcluded(['S|서울'], '서울 강남구', '역삼동')).toBe(true);
+        expect(isRegionExcluded(['S|서울'], '가평군', '가평읍')).toBe(false);
+    });
+
+    it('시·군·구 통째와 읍·면·동 하나가 따로 논다', () => {
+        expect(isRegionExcluded(['R|가평군'], '가평군', '가평읍')).toBe(true);
+        expect(isRegionExcluded(['D|남양주시|수동면'], '남양주시', '수동면')).toBe(true);
+        expect(isRegionExcluded(['D|남양주시|수동면'], '남양주시', '화도읍')).toBe(false);
+    });
+
+    it('🔴 «통째»는 도와 시·군·구만이다 — 읍·면·동 하나로 그 시가 통째 빠지면 안 된다', () => {
+        expect(isWholeRegionExcluded(['D|남양주시|수동면'], '남양주시')).toBe(false);
+        expect(isWholeRegionExcluded(['S|서울'], '서울 강남구')).toBe(true);
+    });
+
+    it('키를 사람이 읽는 이름으로 옮긴다', () => {
+        expect(excludedLabel('S|서울')).toBe('서울 전체');
+        expect(excludedLabel('R|가평군')).toBe('가평군 전체');
+        expect(excludedLabel('D|남양주시|수동면')).toBe('수동면');
     });
 });

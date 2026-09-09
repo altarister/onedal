@@ -13,7 +13,7 @@ import { promiseTimes, impactOfStop, splitDropImpact, type StopStep } from './la
 // ⏱️ 시간·정거장 이름은 한 곳에서 만든다 (labTime.test.ts 가 지킨다)
 import { circled, hhmm, cumMinutes, arrivalAt } from './labTime';
 import {
-    netForGoal, lineZoneOf, progressAlongKm, sidoList, sggList, dongList, judgeGoals, activeGoals, nearestDong, orderStopsInsert, pickNextTarget, cityCenter, isLocalPhase, NET_SRC, NET_DST,
+    netForGoal, lineZoneOf, progressAlongKm, sidoList, sggList, dongList, isRegionExcluded, isWholeRegionExcluded, excludedLabel, judgeGoals, activeGoals, nearestDong, orderStopsInsert, pickNextTarget, cityCenter, isLocalPhase, NET_SRC, NET_DST,
     GONJIAM_DROP, DONGWON_DROP, BORAM_DROP,
     GONJIAM_CALL_PATH, DONGWON_CALL_PATH, BORAM_CALL_PATH,
     type NetPoint, type TwoStageVerdict,
@@ -824,8 +824,7 @@ export default function MapMockup() {
      * 2026-09-08 에는 노선에서 안 썼다 — 그때 노선은 «길 하나»라 길이 곧 선별이었다.
      * 지금은 노선에도 마름모가 함께 살아서 넓은 구간이 다시 들어온다.
      */
-    const isExcluded = (region: string, name: string) =>
-        excluded.includes(`R|${region}`) || excluded.includes(`D|${region}|${name}`);
+    const isExcluded = (region: string, name: string) => isRegionExcluded(excluded, region, name);
     /**
      * 📏 **라인 반경 km** — 길 중심선에서 **한쪽으로** 몇 km 까지 콜을 받나
      * (기사님 이름 확정 2026-09-09: *"라인 반경"*. 옛 이름 «경유 폭»).
@@ -2683,9 +2682,25 @@ export default function MapMockup() {
                       */}
                     <div className="mt-1 border-t border-border-card pt-2 flex flex-col gap-1">
                         <div className="relative grid grid-cols-3 gap-1">
-                            <PickLayer label="⛔ 제외 도" value={exSido} options={sidoList()}
+                            {/**
+                              * 🔴 **도 한 층이 없었다** (기사님 2026-09-09: *"원래 내가 원한 건 **서울을 빼는**
+                              * 거였는데.. 지금 서울을 빼고 있는데"* — 구 **25개**를 하나씩 누르고 계셨다).
+                              *
+                              * 도 칸은 **고르기**가 본업이라(도를 옮겨 다니는 일이 잦다) 누르면 그냥 옮겨 가고,
+                              * 통째 제외는 **아래 따로 난 버튼**이다. 실수로 경기도가 통째로 빠지면 안 된다.
+                              */}
+                            <PickLayer label="⛔ 제외 도" options={sidoList()}
+                                value={`${exSido}${excluded.includes(`S|${exSido}`) ? ' ⛔' : ''}`}
+                                tone="danger" selected={sidoList().filter(v => excluded.includes(`S|${v}`))}
                                 open={openKnob === 'exSido'} onToggle={() => setOpenKnob(o => o === 'exSido' ? null : 'exSido')}
-                                onPick={v => { setExSido(v); setExSgg(null); }} />
+                                onPick={v => { setExSido(v); setExSgg(null); }}
+                                foot={
+                                    <button type="button"
+                                        onClick={() => setExcluded(x => x.includes(`S|${exSido}`) ? x.filter(k => k !== `S|${exSido}`) : [...x, `S|${exSido}`])}
+                                        className={`w-full px-2 py-1.5 rounded-md border text-[11px] font-black ${excluded.includes(`S|${exSido}`)
+                                            ? 'bg-danger/15 border-danger/55 text-danger' : 'border-border-card bg-background text-text-muted hover:border-danger'}`}>
+                                        ◼ {exSido} 통째로 제외 {excluded.includes(`S|${exSido}`) ? '⛔ 켬' : '끔'}
+                                    </button>} />
                             {/**
                               * 🔴 **여기서는 여럿을 찍는다** (기사님 2026-09-09:
                               * *"시·군·구 모두 선택하고 싶은데 선택하면 레이어가 닫혀"*).
@@ -2731,7 +2746,7 @@ export default function MapMockup() {
                                         <button key={k} type="button" onClick={() => setExcluded(x => x.filter(v => v !== k))}
                                             title="누르면 되살립니다"
                                             className="px-1.5 py-0.5 rounded-md bg-danger/15 text-danger text-[10.5px] font-black">
-                                            ⛔ {k.startsWith('R|') ? `${k.slice(2)} 전체` : k.split('|')[2]} ✕
+                                            ⛔ {excludedLabel(k)} ✕
                                         </button>
                                     ))}
                                 </div>
@@ -2743,7 +2758,7 @@ export default function MapMockup() {
                                 className="flex items-center gap-1 min-w-0 w-full px-1.5 py-1 rounded-md border border-border-card bg-background text-left hover:border-danger">
                                 <span className="shrink-0 text-[10.5px] font-black text-danger">⛔ {excluded.length}곳</span>
                                 <span className="min-w-0 flex-1 truncate text-[10.5px] font-bold text-text-muted">
-                                    {excluded.map(k => k.startsWith('R|') ? `${k.slice(2)} 전체` : k.split('|')[2]).join(' · ')}
+                                    {excluded.map(excludedLabel).join(' · ')}
                                 </span>
                                 <span className="shrink-0 text-[10px] font-black text-text-muted">▾ 전부</span>
                             </button>
@@ -3286,7 +3301,7 @@ export default function MapMockup() {
                         <summary className="text-[10.5px] font-black text-text-muted cursor-pointer">🗂️ 영역 — 시군구별 {areaNet.count}동</summary>
                         <div className="mt-1 flex flex-col gap-1 text-[10.5px] leading-snug">
                             {areaNet.groups.map(g => {
-                                const regionOut = excluded.includes(`R|${g.region}`);
+                                const regionOut = isWholeRegionExcluded(excluded, g.region);
                                 return (
                                     <div key={g.region}>
                                         <b className={regionOut ? 'line-through text-text-muted' : ''}>{g.region} {g.names.length}</b>{' — '}

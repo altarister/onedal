@@ -101,6 +101,27 @@ describe('제외지역 — 목록·묶음·좌표 셋에서 같이 빠진다', (
         expect(out.excludedRegions).toEqual(['광주시']);
     });
 
+    /**
+     * 🔴 **도 통째 제외**(기사님 2026-09-09 *"원래 내가 원한 건 서울을 빼는 거였는데"*).
+     * 앱은 «서울»이라는 말을 모른다 — 여기서 **시·군·구 이름으로 펴서** 내린다.
+     */
+    it('도를 빼면 그 도의 시·군·구 이름으로 펴서 내린다', () => {
+        const out = buildAppFilterOutput({
+            ...BASE,
+            groups: [{ region: '서울 강남구', names: ['역삼동'] }, { region: '이천시', names: ['부발읍'] }],
+            pass: [
+                { x: 0, y: 0, name: '역삼동', region: '서울 강남구' },
+                { x: 1, y: 1, name: '부발읍', region: '이천시' },
+            ],
+            excluded: ['S|서울'],
+        });
+        expect(out.destinationGroups).toEqual({ '이천시': ['부발읍'] });
+        expect(out.destinationDongs.map(d => d.name)).toEqual(['부발읍']);
+        expect(out.excludedRegions).toContain('서울 강남구');
+        expect(out.excludedRegions).not.toContain('이천시');
+        expect(out.excludedRegions.length).toBe(25);   // 서울 25개 구
+    });
+
     it('읍면동 하나 제외 — 동명이인을 시군구로 가른다', () => {
         const out = buildAppFilterOutput({ ...BASE, excluded: ['D|광주시|곤지암읍'] });
         expect(out.destinationKeywords).toEqual(['부발읍', '초월읍']);

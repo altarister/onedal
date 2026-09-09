@@ -17,6 +17,8 @@ import {
     rateFloorsFrom, TRUCK_CAPACITY_SLOTS,
     type AutoDispatchFilter,
 } from '@onedal/shared';
+// ⛔ 제외 판정은 **한 벌**이다 — 화면과 아웃풋이 갈리면 «화면은 뺐는데 아웃풋은 안 뺀» 사고가 난다
+import { isRegionExcluded, isWholeRegionExcluded, sggList } from './callNet';
 
 /** 실물 DTO 에 **아직 없는** 실험실 제안 칸 — 이식 때 DTO 로 올라갈 후보들 */
 export interface LabProposedFields {
@@ -37,7 +39,7 @@ export interface LabFilterInputs {
     dstName: string;
     groups: Array<{ region: string; names: string[] }>;
     pass: Array<{ x: number; y: number; name: string; region: string }>;
-    /** 제외 키 — `R|시군구` 또는 `D|시군구|읍면동` */
+    /** 제외 키 — `S|시도` · `R|시군구` · `D|시군구|읍면동` (판정은 `callNet.isRegionExcluded`) */
     excluded: string[];
     pickupRadiusKm: number;
     dropoffRadiusKm: number;
@@ -56,13 +58,12 @@ export interface LabFilterInputs {
 }
 
 export function buildAppFilterOutput(i: LabFilterInputs) {
-    const isExcluded = (region: string, name: string) =>
-        i.excluded.includes(`R|${region}`) || i.excluded.includes(`D|${region}|${name}`);
+    const isExcluded = (region: string, name: string) => isRegionExcluded(i.excluded, region, name);
 
     const destinationGroups: Record<string, string[]> = {};
     const flat: string[] = [];
     for (const g of i.groups) {
-        if (i.excluded.includes(`R|${g.region}`)) continue;
+        if (isWholeRegionExcluded(i.excluded, g.region)) continue;
         const names = g.names.filter(n => !i.excluded.includes(`D|${g.region}|${n}`));
         if (!names.length) continue;
         destinationGroups[g.region] = names;
@@ -103,7 +104,15 @@ export function buildAppFilterOutput(i: LabFilterInputs) {
         slotsUsed: i.slotsUsed,
         capacityConfidence: i.capacityConfirmed ? 'CONFIRMED' : 'ESTIMATED',
         // ── 실험실 제안 칸 ──
-        excludedRegions: i.excluded.map(k => k.startsWith('R|') ? k.slice(2) : k.split('|')[2]),
+        /**
+         * 🔴 **앱에는 «이름»으로 내려간다 — 화면 글자(«서울 전체»)를 그대로 싣지 않는다.**
+         *    앱은 이 문자열로 지역을 맞춰 본다. 그래서 도 제외(`S|서울`)는 여기서
+         *    **그 도의 시·군·구 이름으로 펴서** 내린다 — 앱이 «서울»이라는 말을 알 필요가 없다.
+         */
+        excludedRegions: i.excluded.flatMap(k =>
+            k.startsWith('S|') ? sggList(k.slice(2))
+                : k.startsWith('R|') ? [k.slice(2)]
+                    : [k.split('|')[2]]),
         destinationDongs,
         mode: i.modeDesc,
     } satisfies Partial<AutoDispatchFilter> & LabProposedFields;

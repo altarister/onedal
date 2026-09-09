@@ -86,6 +86,34 @@ export function sggList(sido: string): string[] {
     return [...new Set(DONG_CENTROIDS.filter(d => d[4] === sido).map(d => d[1]))].sort();
 }
 
+/** 그 시·군·구가 속한 **도·특별시**. 없는 이름이면 빈 문자열 — 지어내지 않는다 */
+export function sidoOf(sgg: string): string {
+    return DONG_CENTROIDS.find(d => d[1] === sgg)?.[4] ?? '';
+}
+
+/**
+ * ⛔ **제외 키는 세 층이다** — `S|시도` · `R|시군구` · `D|시군구|읍면동`
+ * (기사님 2026-09-09: *"원래 내가 원한 건 **서울을 빼는** 거였는데 지금 서울을 빼고 있는데.."* —
+ * 서울을 빼려고 **구 25개를 하나씩** 누르고 계셨다. 도 한 층이 없었다).
+ *
+ * 🔴 **읽는 곳이 둘이라 여기 한 벌만 둔다** (규칙 ③) — 화면(`MapMockup`)과 아웃풋(`labFilterOutput`).
+ *    전에 이 판정이 두 벌이었을 때 «화면은 뺐는데 아웃풋은 안 뺀» 사고가 났다.
+ */
+export function isWholeRegionExcluded(excluded: readonly string[], region: string): boolean {
+    return excluded.includes(`R|${region}`) || excluded.includes(`S|${sidoOf(region)}`);
+}
+
+export function isRegionExcluded(excluded: readonly string[], region: string, name: string): boolean {
+    return isWholeRegionExcluded(excluded, region) || excluded.includes(`D|${region}|${name}`);
+}
+
+/** ⛔ 제외 키를 사람이 읽는 이름으로 — 칩·아웃풋이 같은 말을 쓰게 */
+export function excludedLabel(key: string): string {
+    if (key.startsWith('S|')) return `${key.slice(2)} 전체`;
+    if (key.startsWith('R|')) return `${key.slice(2)} 전체`;
+    return key.split('|')[2] ?? key;
+}
+
 /**
  * 🏘️ 그 시·군·구의 **읍·면·동 이름** (기사님 2026-09-09 · 제외지역 «마지막은 보기 버튼»).
  * 제외지역이 두 층이라 필요하다 — 강화군은 **군 통째로**, 남양주는 **수동면 하나만** 뺀다.
