@@ -226,7 +226,7 @@ const MARK_DONGS: Array<{ name: string; dong: string; region?: string }> = [
 /** 그물 판정 하나로 1,968동을 훑는다 — 서울 제외(⑭)는 여기 한 곳에서만 건다 */
 function collectDongs(inNet: (pt: { lng: number; lat: number }) => boolean) {
     // 점에 이름·시군구를 같이 싣는다 — 지도가 «어느 동을 제외했나»를 점 단위로 표현해야 한다 (기사님 2026-09-07 제외지역)
-    const pass: Array<{ x: number; y: number; name: string; region: string }> = [];
+    const pass: NetResult['pass'] = [];
     const grouped = new Map<string, string[]>();
     for (const [name, region, lng, lat] of DONG_CENTROIDS) {
         if (region.startsWith('서울')) continue;               // ⑭ «서울은 뺀다»
@@ -241,7 +241,13 @@ function collectDongs(inNet: (pt: { lng: number; lat: number }) => boolean) {
 
 export interface NetResult {
     tri: Array<[number, number]>;
-    pass: Array<{ x: number; y: number; name: string; region: string }>;
+    /**
+     * 그물에 든 동들. `progressKm` 은 **라인 시작부터 그 동까지 몇 km 지점인가** —
+     * 라인 그물일 때만 채운다 (기사님 2026-09-09: *"한 번 계산된 거 다시 쓰면 될 듯"*).
+     * 🔴 이 숫자가 있으면 **이동해도 그물을 다시 안 만든다** — «내 진행도보다 앞인가»를 숫자로 비교한다.
+     *    실물 서버가 같은 값을 같은 이유로 들고 있다 (`progressKm` · 실측 173ms → 0.14ms).
+     */
+    pass: Array<{ x: number; y: number; name: string; region: string; progressKm?: number }>;
     marks: Array<{ name: string; x: number; y: number; inside: boolean }>;
     circles: Array<{ name: string; ring: Array<[number, number]> }>;
     count: number;
@@ -693,6 +699,28 @@ export function isLocalPhase(p: NetParams, origin: { lng: number; lat: number },
 
 /* ── 🛣️ 길(경로) 경유 띠 — «길을 잡아서 작동하는 노선» (기사님 확정 2026-09-07) ── */
 
+/**
+ * 📏 **라인 위 진행도** — 점을 라인에 스냅했을 때 «시작부터 거기까지 몇 km 인가».
+ *
+ * 🔴 `distToLineKm`(옆으로 얼마나 벗어났나)과 **다른 질문**이다. 한 값으로 둘을 답하게 하면
+ *    나중에 «어느 쪽 얘긴가»를 못 묻는다 (규칙 ⑤-4 ⑤) — 실물도 경유 반경과 `progressKm` 을 따로 둔다.
+ */
+export function progressAlongKm(pt: { lng: number; lat: number }, line: Array<[number, number]>): number {
+    const KX = 111.32 * Math.cos(rad(pt.lat)), KY = 110.574;
+    let acc = 0, best = Infinity, bestAt = 0;
+    for (let i = 1; i < line.length; i++) {
+        const ax = (line[i - 1][0] - pt.lng) * KX, ay = (line[i - 1][1] - pt.lat) * KY;
+        const bx = (line[i][0] - pt.lng) * KX, by = (line[i][1] - pt.lat) * KY;
+        const dx = bx - ax, dy = by - ay;
+        const L = Math.hypot(dx, dy);
+        const t = L ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / (L * L))) : 0;
+        const d = Math.hypot(ax + t * dx, ay + t * dy);
+        if (d < best) { best = d; bestAt = acc + t * L; }
+        acc += L;
+    }
+    return bestAt;
+}
+
 /** 점 → 폴리라인 최소 거리 (km 평면 근사 — 이 스케일에서 충분) */
 function distToLineKm(pt: { lng: number; lat: number }, line: Array<[number, number]>): number {
     const KX = 111.32 * Math.cos(rad(pt.lat)), KY = 110.574;
@@ -758,9 +786,17 @@ export function buildLineNet(
     const { dropIn } = lineZoneOf(line, lineRadiusKm, lastDrop, p, dst);
     const rest = lastDrop ? buildNet(p, lastDrop, dst) : null;
     const { pass, grouped } = collectDongs(dropIn);
+    /**
+     * 📏 **동마다 «라인 몇 km 지점인가»를 여기서 한 번만 잰다** (기사님 2026-09-09:
+     * *"한 번 계산된 거 다시 쓰면 될 듯"*). 이동할 때마다 그물을 다시 만들면 동 1,968개를
+     * 계속 훑는다 — 이 숫자를 들고 있으면 «내 진행도보다 앞인가»라는 **숫자 비교**로 끝난다.
+     */
+    const withProgress = line.length >= 2
+        ? pass.map(d => ({ ...d, progressKm: progressAlongKm({ lng: d.x, lat: d.y }, line) }))
+        : pass;
     return {
         tri: rest?.tri ?? [],
-        pass,
+        pass: withProgress,
         marks: MARK_DONGS.map(m => {
             const c = centroidOfDong(m.dong, m.region);
             return { name: m.name, x: c.lng, y: c.lat, inside: dropIn(c) };

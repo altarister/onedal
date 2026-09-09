@@ -13,7 +13,7 @@ import { promiseTimes, impactOfStop, splitDropImpact, type StopStep } from './la
 // ⏱️ 시간·정거장 이름은 한 곳에서 만든다 (labTime.test.ts 가 지킨다)
 import { circled, hhmm, cumMinutes, arrivalAt } from './labTime';
 import {
-    netForGoal, lineZoneOf, judgeGoals, activeGoals, nearestDong, orderStopsInsert, pickNextTarget, cityCenter, isLocalPhase, NET_SRC, NET_DST,
+    netForGoal, lineZoneOf, progressAlongKm, judgeGoals, activeGoals, nearestDong, orderStopsInsert, pickNextTarget, cityCenter, isLocalPhase, NET_SRC, NET_DST,
     GONJIAM_DROP, DONGWON_DROP, BORAM_DROP,
     GONJIAM_CALL_PATH, DONGWON_CALL_PATH, BORAM_CALL_PATH,
     type NetPoint, type TwoStageVerdict,
@@ -855,12 +855,6 @@ export default function MapMockup() {
      */
     const visitedCountRef = useRef(0);
     /**
-     * 🪞 **화면용 거울** — `visitedCountRef` 는 주행 루프의 값이라 다시 그리기를 안 부른다.
-     * 라인(그물)이 «지나온 구간»을 잘라내려면 화면이 이 수를 알아야 한다 (기사님 2026-09-09:
-     * *"지나간 자리는 지워줘야 할 것 같은데.. 사람들이 오해의 여지가 있어"*).
-     */
-    const [visitedCount, setVisitedCount] = useState(0);
-    /**
      * ⏱️ **실제 통과 시각** (기사님 2026-09-08: *"지금 내가 하고 있는 것은 예상 시간인 거고
      * 진짜 통과 시간도 있으면 좋겠다 — 지나간 후 값이 생기면"*).
      * 키는 `①상차` 같은 정거장 이름, 값은 지난 순간의 시각. **지나기 전엔 아예 없다**
@@ -883,7 +877,7 @@ export default function MapMockup() {
     const planSeqRef = useRef(0);
     /** 🔎 지나는 순간 얼릴 «마지막 예상» — 키는 `콜id-상차/하차` (실물의 `predicted_at` 자리) */
     const etaRef = useRef<Record<string, number | null>>({});
-    useEffect(() => { if (confirmed.length === 0) { visitedCountRef.current = 0; setVisitedCount(0); } }, [confirmed.length]);
+    useEffect(() => { if (confirmed.length === 0) visitedCountRef.current = 0; }, [confirmed.length]);
     useEffect(() => { setTerminated([]); }, [stageIdx]);   // 판을 새로 열면 취소 기록도 함께 비운다
     /**
      * 🧭 **정거장 목록을 만드는 규칙 — 한 곳이다** (규칙 ③).
@@ -937,8 +931,6 @@ export default function MapMockup() {
     }, [presetCalls, confirmed, departed, dst.name, orderStart]);
 
     const anchor: NetPoint = useMemo(() => ({ name: '내 위치', ...myPos }), [myPos]);
-    /** 🔴 그물을 다시 만드는 **간격** — 약 1km 격자. 매 틱 다시 만들면 동 1,968개 훑기가 120ms 마다 돈다 */
-    const myPosKey = `${Math.round(myPos.lng * 100)},${Math.round(myPos.lat * 100)}`;
 
     /**
      * 🛣️ 실도로 곡선 (기사님 2026-09-07 «콜을 잡으면 카카오에서 진짜 길찾기») —
@@ -1037,33 +1029,27 @@ export default function MapMockup() {
         const legs = effPath.slice(1).map((pt, i) => legCacheRef.current.get(legKey(effPath[i].x, effPath[i].y, pt.x, pt.y)));
         if (!legs.every(c => c && !c.failed && c.line.length >= 2)) return null;
         /**
-         * 🔴 **지나온 자리는 뺀다 — 정거장 단위가 아니라 «지금 내 위치»부터** (기사님 2026-09-09:
-         * *"지나간 자리는 지워줘야 할 것 같은데.. 사람들이 오해의 여지가 있어"* ·
-         * *"**정거장이 길어서 효과가 없어. 지나갈 때마다 지울 수는 없는 거야?**"*).
+         * 🔴 **라인은 통째로 둔다 — 지나온 자리는 «숫자»로 뺀다** (기사님 2026-09-09:
+         * *"매 순간 다시 계산하면 동 1,968개를 계속 훑는 거 아닌가? **한 번 계산된 거 다시 쓰면
+         * 될 듯**"*).
          *
-         * 두 단계로 자른다:
-         *   ① 지나온 **정거장**까지의 구간을 통째로 뺀다 — 되돌아 잡히는 것을 먼저 막는다
-         *      (경로가 제 몸을 스칠 때 «가장 가까운 점»이 뒤로 뛰는 사고를 이미 한 번 겪었다)
-         *   ② 남은 구간에서 **내 위치에 가장 가까운 점**부터 쓴다 — 정거장 사이가 길어도 따라온다
-         *
-         * 🔴 **1km 격자로 끊어 다시 만든다**(`myPosKey`). 매 틱 다시 만들면 그물 계산(동 1,968개를
-         *    라인과 재는 일)이 120ms 마다 돈다 — 실측 13~42ms 짜리라 화면이 버티지 못한다.
-         *    1km 는 라인 반경(6km)보다 훨씬 작아 눈에 띄는 지연이 없다.
+         * 라인을 자르면 그물을 **매번 새로 만들어야** 한다 — 동 1,968개를 라인과 재는 일이라
+         * 실측 13~42ms 다. 대신 **동마다 «라인 몇 km 지점인가»를 한 번 재 두고**(`progressKm`),
+         * 이동하면 «내 진행도보다 앞인가»를 **숫자로 비교**해 거른다.
+         * 실물 서버도 같은 이유로 같은 값을 들고 있다 (실측 173ms → 0.14ms).
          */
-        const from = departed ? Math.min(visitedCount, legs.length - 1) : 0;
-        const rest: Array<[number, number]> = [];
-        for (const c of legs.slice(from)) for (const p of c!.line) rest.push([p.lng, p.lat]);
-        if (rest.length < 2) return null;
-        if (!departed) return rest;
-        let bi = 0, bd = Infinity;
-        for (let i = 0; i < rest.length; i++) {
-            const d = Math.hypot((rest[i][0] - myPos.lng) * 88.6, (rest[i][1] - myPos.lat) * 110.574);
-            if (d < bd) { bd = d; bi = i; }
-        }
-        const cut = rest.slice(bi);
-        return cut.length >= 2 ? cut : rest.slice(-2);
+        const out: Array<[number, number]> = [];
+        for (const c of legs) for (const p of c!.line) out.push([p.lng, p.lat]);
+        return out.length >= 2 ? out : null;
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [effPathKey, realLegs, departed, visitedCount, myPosKey]);
+    }, [effPathKey, realLegs]);
+    /**
+     * 📏 **내가 라인의 몇 km 지점에 있나** — 매 틱 다시 재도 싸다(라인 점 수백 개).
+     * 이 숫자 하나로 «지나온 동»이 걸러진다.
+     */
+    const myProgressKm = useMemo(
+        () => routeLine && departed ? progressAlongKm(myPos, routeLine) : 0,
+        [routeLine, myPos, departed]);
     /** 🛣️ 노선이면서 라인이 실제로 있는가 — 화면·판정·아웃풋이 **이 하나**를 읽는다 (규칙 ③) */
     const lineOn = routeMode && !!routeLine;
     /**
@@ -1109,6 +1095,12 @@ export default function MapMockup() {
         const seen = new Set<string>();
         const pass: typeof goalNets[number]['net']['pass'] = [];
         for (const { net: n } of goalNets) for (const pt of n.pass) {
+            /**
+             * 🔴 **지나온 동은 뺀다 — 숫자 비교 하나로** (기사님 2026-09-09).
+             * 그물은 라인이 바뀔 때만 만들고, 이동 중에는 이 한 줄이 «다시 안 갈 곳»을 지운다.
+             * `progressKm` 이 없는 동(마름모로 든 것)은 라인과 무관하므로 그대로 둔다.
+             */
+            if (departed && pt.progressKm != null && pt.progressKm < myProgressKm) continue;
             const k = `${pt.region}|${pt.name}`;
             if (!seen.has(k)) { seen.add(k); pass.push(pt); }
         }
@@ -1118,7 +1110,7 @@ export default function MapMockup() {
             groups: [...grouped.entries()].map(([region, names]) => ({ region, names })).sort((x, y) => y.names.length - x.names.length),
             pass, count: pass.length,
         };
-    }, [goalNets]);
+    }, [goalNets, departed, myProgressKm]);
     /**
      * 📦 **앱에 내려갈 필터 아웃풋** (기사님 2026-09-07: *"DB 도 서버통신도 없이, 필터 로직을
      * 잘 만들어 앱에 전달할 아웃풋만 만든다"*) — 실험실 상태에서 곧장 파생하는 순수 계산.
@@ -1810,7 +1802,7 @@ export default function MapMockup() {
                                 }
                                 return { ...c, steps: st };
                             }));
-                            visitedCountRef.current = passed; setVisitedCount(passed);
+                            visitedCountRef.current = passed;
                         } }
                     else { cur = { lng: cur.lng + dx / d * remain / 88.6, lat: cur.lat + dy / d * remain / 110.574 }; remain = 0; }
                 }
