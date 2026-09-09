@@ -325,6 +325,56 @@ function NumRow({ label, value, onChange, min = 0, max = 999, mode = 'input', au
         </label>
     );
 }
+/**
+ * 📋 **목록에서 하나 고르기 — 값 슬라이더와 같은 모양** (기사님 2026-09-09:
+ * *"UI 가 아래처럼 레이어 처리하면 어떨까? **통일성이 떨어진다.**"*).
+ *
+ * 평소엔 «이름 · 지금 값» 한 칸, 누르면 그 자리에 레이어가 떠서 목록을 고른다.
+ * 🔴 `<select>`(네이티브 드롭다운)를 쓰면 폰마다 생김새가 달라지고, 이 화면의 다른 입력과
+ *    조작이 갈린다. **같은 자리에서 같은 방식으로** 고르게 한다.
+ */
+function PickLayer({ label, value, options, open, onToggle, onPick }: {
+    label: string; value: string; options: string[];
+    open: boolean; onToggle: () => void; onPick: (v: string) => void;
+}) {
+    useEffect(() => {
+        if (!open) return;
+        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onToggle(); };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [open, onToggle]);
+    return (
+        <>
+            <button type="button" onClick={onToggle}
+                className={`flex flex-col items-start gap-0 px-1.5 py-1 rounded-lg border text-left min-w-0 ${
+                    open ? 'border-info/55 bg-info/10' : 'border-border-card bg-background hover:border-border-hover'}`}>
+                <span className="text-[9.5px] font-bold text-text-muted leading-tight">{label}</span>
+                <span className="w-full truncate text-[13px] font-black text-text-primary leading-tight">{value}</span>
+            </button>
+            {open && (
+                <>
+                    <div className="fixed inset-0 z-10" onClick={onToggle} />
+                    <div className="absolute left-0 right-0 top-0 z-20 rounded-xl border border-info/55 bg-surface shadow-lg p-1.5">
+                        <div className="flex items-center justify-between px-0.5 pb-1">
+                            <span className="text-[10px] font-black text-text-muted">{label}</span>
+                            <button type="button" onClick={onToggle} className="text-[10px] font-black text-text-muted px-1">✕</button>
+                        </div>
+                        <div className="flex flex-wrap gap-1 max-h-[190px] overflow-y-auto">
+                            {options.map(v => (
+                                <button key={v} type="button" onClick={() => { onPick(v); onToggle(); }}
+                                    className={`px-1.5 py-1 rounded-md border text-[11px] font-black ${v === value
+                                        ? 'bg-info/15 border-info/55 text-info' : 'border-border-card bg-background text-text-muted hover:border-border-hover'}`}>
+                                    {v}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </>
+            )}
+        </>
+    );
+}
+
 /** 🎚️ 값 하나의 정의 — 화면과 계산이 같은 목록을 읽는다 */
 type KnobDef = { key: string; label: string; unit: string; value: number; max: number; step?: number; set: (v: number) => void; dim?: boolean };
 
@@ -2491,25 +2541,18 @@ export default function MapMockup() {
                       * *"**복귀도 목적지와 같은 뎁스**니까 목적지 옆에 있는 것이 맞을 것 같아"*).
                       * 복귀는 «어디를 향하나»라는 같은 질문의 다른 답이라 같은 줄에 둔다.
                       */}
-                    <div className="flex items-end gap-1.5">
-                        <label className="flex-1 min-w-0 flex flex-col gap-0.5 text-[10.5px] font-bold text-text-muted">
-                            🎯 도
-                            <select value={dstSido} onChange={e => { const v = e.target.value; setDstSido(v); setDstSgg(sggList(v)[0]); }}
-                                className="px-2 py-1 rounded-[6px] border border-border-hover bg-background text-[13px] font-black text-text-primary">
-                                {sidoList().map(v => <option key={v} value={v}>{v}</option>)}
-                            </select>
-                        </label>
-                        <label className="flex-[1.4] min-w-0 flex flex-col gap-0.5 text-[10.5px] font-bold text-text-muted">
-                            시·군·구
-                            <select value={dstSgg} onChange={e => setDstSgg(e.target.value)}
-                                className="px-2 py-1 rounded-[6px] border border-border-hover bg-background text-[13px] font-black text-text-primary">
-                                {sggList(dstSido).map(v => <option key={v} value={v}>{v}</option>)}
-                            </select>
-                        </label>
+                    <div className="relative grid grid-cols-3 gap-1">
+                        <PickLayer label="🎯 도" value={dstSido} options={sidoList()}
+                            open={openKnob === 'dstSido'} onToggle={() => setOpenKnob(o => o === 'dstSido' ? null : 'dstSido')}
+                            onPick={v => { freezeView(); setDstSido(v); setDstSgg(sggList(v)[0]); }} />
+                        <PickLayer label="시·군·구" value={dstSgg} options={sggList(dstSido)}
+                            open={openKnob === 'dstSgg'} onToggle={() => setOpenKnob(o => o === 'dstSgg' ? null : 'dstSgg')}
+                            onPick={v => { freezeView(); setDstSgg(v); }} />
                         <button type="button" onClick={() => { freezeView(); setHomeOn(!homeOn); }} title="집을 목적지에 더한다"
-                            className={`shrink-0 px-2 py-1.5 rounded-[8px] border text-[11.5px] font-black ${homeOn
-                                ? 'bg-warning/15 border-warning/55 text-warning' : 'border-border-hover bg-background text-text-muted hover:border-warning'}`}>
-                            ↩️ 복귀{homeOn ? ' 켬' : ''}
+                            className={`flex flex-col items-start gap-0 px-1.5 py-1 rounded-lg border text-left ${homeOn
+                                ? 'bg-warning/15 border-warning/55 text-warning' : 'border-border-card bg-background hover:border-border-hover'}`}>
+                            <span className="text-[9.5px] font-bold text-text-muted leading-tight">↩️ 복귀</span>
+                            <span className="text-[13px] font-black leading-tight">{homeOn ? '켬' : '끔'}</span>
                         </button>
                     </div>
 
