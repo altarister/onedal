@@ -2340,9 +2340,18 @@ export default function MapMockup() {
                     {/* 🔴 두 층은 완전히 격리되어 각각 따로 작동한다 (규칙: 필터=집기 전 · 심사=집은 뒤).
                         기사님 2026-09-08: *"판정영역을 상하로 나눠서 상은 필터가 하는 일, 하는 심사가 하는 일"* */}
                     <FilterPanel tone="filter" title={`🔍 ① 콜 필터 — 집기 전 · 앱이 하는 일 · 그물 ${areaNet.count}동${lineOn ? ' · 라인' : ''}`}>
-                        {localMode && (
+                        {/* 🔴 «관내 모드인가»가 아니라 **«관내 규칙으로 쟀는가»** 를 읽는다 (기사님 지적 2026-09-09).
+                            관내 규칙은 그 목적지가 고른 목적지일 때만 돈다 — 복귀로 접히면 안 돈다.
+                            모드만 보고 배지를 띄웠더니 화면이 «둘 다 원 안만»이라 적으면서
+                            실제로는 라인·마름모로 재고 있었다. */}
+                        {verdict?.local && (
                             <div className="px-2 py-1 rounded-lg bg-info/15 text-info text-[11px] font-black">
                                 🏘️ 관내 — 방향 안 봄, 둘 다 원 안만
+                            </div>
+                        )}
+                        {localMode && !verdict?.local && (
+                            <div className="px-2 py-1 rounded-lg bg-warning/15 text-warning text-[10.5px] font-black leading-snug">
+                                🏘️ 관내 자리에 있지만 <b>지금 목적지는 관내가 아닙니다</b> — 라인·마름모로 잽니다
                             </div>
                         )}
                         {!verdict && <p className="text-[10.5px] text-text-muted leading-snug">지도 두 번 클릭으로 콜을 만들면 여기 판정 — 1단계(영역) 뒤 2단계(거리)</p>}
@@ -2376,7 +2385,7 @@ export default function MapMockup() {
                                     </div>
                                 )}
                                 <div className="text-[10px] font-black text-text-muted">1단계 · 영역</div>
-                                {localMode ? (
+                                {verdict.local ? (
                                     <div className="flex gap-1 flex-wrap">
                                         <Chip ok={verdict.pickupNearMe} yes="상차 원 안" no="상차 원 밖" />
                                         <Chip ok={verdict.dropInNet} yes="하차 원 안" no="하차 원 밖" />

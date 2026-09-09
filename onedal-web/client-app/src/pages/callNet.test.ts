@@ -294,6 +294,23 @@ describe('관내 국면 — 목적지 원 안 + 출발지 원 밖이면 방향�
     });
 });
 
+/**
+ * 🏘️ **«관내로 쟀는가»는 잰 쪽이 말한다** (기사님 지적 2026-09-09).
+ *
+ * 화면이 «관내 모드인가»만 보고 배지와 칩을 띄우다가 거짓말을 했다 —
+ * 복귀로 목적지가 접히면 관내 규칙이 안 도는데도 «둘 다 원 안만»이라고 적었고,
+ * 실제로는 「내 위치 반경 밖」인 것을 「상차 **원** 밖」이라고 읽혔다.
+ */
+describe('🏘️ 관내로 쟀는가 — 판정이 스스로 말한다', () => {
+    const A = { lng: 127.60, lat: 37.29 }, B = { lng: 127.61, lat: 37.30 };
+    it('관내로 재면 local 이 참이다', () => {
+        expect(judgeTwoStage(WAIT_PRESET, NET_DST, NET_DST, NET_DST, A, B, true, true).local).toBe(true);
+    });
+    it('관내가 아니면 거짓이다 — 화면이 관내 문구를 쓰면 안 된다', () => {
+        expect(judgeTwoStage(WAIT_PRESET, NET_SRC, NET_DST, NET_SRC, A, B, false, false).local).toBe(false);
+    });
+});
+
 describe('라인 띠 — 길 하나가 담는 동 (2026-09-07 카카오 실측 · 수식은 lineZoneOf 로 옮겼다)', () => {
     // 상수는 roadsYeoju.ts (생성 파일) — 여기서는 라인 띠 수식이 실측 그대로 동을 담는지 잠근다.
     // 🔴 길은 이름으로 찾는다 — «모든 길» 재생성(2026-09-07 저녁)으로 개수·순서가 바뀔 수 있다

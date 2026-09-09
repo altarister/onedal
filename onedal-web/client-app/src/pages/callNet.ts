@@ -422,6 +422,15 @@ export interface TwoStageVerdict {
     /** 2단계 갈래별 탈락 사유 */
     dropBackward: boolean;
     pickupBackward: boolean;
+    /**
+     * 🏘️ **관내 규칙으로 쟀는가** (기사님 지적 2026-09-09).
+     *
+     * 🔴 화면이 이걸 안 읽고 «관내 모드인가»만 보다가 **거짓말을 했다.** 관내 규칙은
+     *    «그 목적지가 고른 목적지일 때»만 도는데(복귀로 접히면 안 돈다), 화면은 배지도 칩도
+     *    관내 문구를 그대로 띄웠다 — 「내 위치 반경 밖」을 「상차 **원** 밖」이라고 적었다.
+     *    **잰 쪽이 그렇게 쟀다고 말해야 한다.**
+     */
+    local: boolean;
     pass: boolean;
 }
 
@@ -446,7 +455,7 @@ export function judgeTwoStage(
             distPickKm: +haversineKm(dst, pickup).toFixed(1),
             distDropKm: +haversineKm(dst, drop).toFixed(1),
             distMeKm: +haversineKm(dst, me).toFixed(1),
-            dropBackward: false, pickupBackward: false,
+            dropBackward: false, pickupBackward: false, local: true,
             pass: pIn && dIn,
         };
     }
@@ -476,7 +485,7 @@ export function judgeTwoStage(
         pickupDong: nearestDong(pickup), dropDong: nearestDong(drop),
         dropInNet, pickupNearMe, pickupInNet,
         distPickKm: +distPickKm.toFixed(1), distDropKm: +distDropKm.toFixed(1), distMeKm: +distMeKm.toFixed(1),
-        dropBackward, pickupBackward,
+        dropBackward, pickupBackward, local: false,
         pass: dropInNet && pickupNearMe && (!routeStarted || pickupInNet) && !dropBackward && !pickupBackward,
     };
 }
