@@ -2686,19 +2686,29 @@ export default function MapMockup() {
                             <PickLayer label="⛔ 제외 도" value={exSido} options={sidoList()}
                                 open={openKnob === 'exSido'} onToggle={() => setOpenKnob(o => o === 'exSido' ? null : 'exSido')}
                                 onPick={v => { setExSido(v); setExSgg(null); }} />
-                            <PickLayer label="시·군·구" value={`${exSgg ?? '고르기'}${exSgg && excluded.includes(`R|${exSgg}`) ? ' ⛔' : ''}`}
-                                options={sggList(exSido)} tone="danger"
+                            {/**
+                              * 🔴 **여기서는 여럿을 찍는다** (기사님 2026-09-09:
+                              * *"시·군·구 모두 선택하고 싶은데 선택하면 레이어가 닫혀"*).
+                              * 전에는 «고르기»만 하고 통째 제외는 아래 버튼이었다 — 두 번 눌러야 한 곳이
+                              * 빠졌고, 한 곳 찍을 때마다 레이어가 닫혔다.
+                              *
+                              * 이제 **누르면 그 시·군·구가 통째로 빠진다**(다시 누르면 되살아난다).
+                              * 그리고 **마지막에 누른 곳이 읍·면·동 칸의 대상**이 된다 — 수동면 하나만 빼려면
+                              * 남양주시를 두 번 눌러(켰다 껐다) 대상으로 삼은 뒤 옆 칸에서 고른다.
+                              */}
+                            <PickLayer label="시·군·구 ⛔ 통째" keepOpen tone="danger"
+                                value={(() => { const n = sggList(exSido).filter(g => excluded.includes(`R|${g}`)).length; return n ? `${n}곳 제외` : (exSgg ?? '고르기'); })()}
+                                options={sggList(exSido)}
                                 selected={sggList(exSido).filter(g => excluded.includes(`R|${g}`))}
                                 open={openKnob === 'exSgg'} onToggle={() => setOpenKnob(o => o === 'exSgg' ? null : 'exSgg')}
-                                onPick={v => setExSgg(v)}
-                                foot={exSgg ? (
-                                    <button type="button"
-                                        onClick={() => setExcluded(x => x.includes(`R|${exSgg}`) ? x.filter(k => k !== `R|${exSgg}`) : [...x, `R|${exSgg}`])}
-                                        className={`w-full px-2 py-1.5 rounded-md border text-[11px] font-black ${excluded.includes(`R|${exSgg}`)
-                                            ? 'bg-danger/15 border-danger/55 text-danger' : 'border-border-card bg-background text-text-muted hover:border-danger'}`}>
-                                        ◼ {exSgg} 통째로 제외 {excluded.includes(`R|${exSgg}`) ? '⛔ 켬' : '끔'}
-                                    </button>
-                                ) : <span className="text-[9.5px] font-bold text-text-muted">고르면 «통째로 제외» 버튼이 여기 뜹니다</span>} />
+                                onPick={v => {
+                                    setExSgg(v);                       // 읍·면·동 칸이 볼 곳
+                                    setExcluded(x => x.includes(`R|${v}`) ? x.filter(k => k !== `R|${v}`) : [...x, `R|${v}`]);
+                                }}
+                                foot={<span className="text-[9.5px] font-bold text-text-muted leading-snug">
+                                    누르면 <b className="text-danger">그 시·군·구가 통째로</b> 빠집니다 · 다시 누르면 되살아납니다 ·
+                                    마지막에 누른 곳이 <b>읍·면·동 칸</b>의 대상이 됩니다
+                                </span>} />
                             <PickLayer label="읍·면·동"
                                 value={exSgg ? (() => { const n = dongList(exSgg).filter(d => excluded.includes(`D|${exSgg}|${d}`)).length; return n ? `${n}개 제외` : '전부 봄'; })() : '—'}
                                 tone="danger" keepOpen options={exSgg ? dongList(exSgg) : []}
