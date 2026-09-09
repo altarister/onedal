@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildNet, buildFirstLegDemo, judgeTwoStage, judgeGoals, orderStopsGreedy, orderStopsInsert, cityCenter, isLocalPhase, WAIT_PRESET, NET_SRC, NET_DST, GONJIAM_DROP, DONGWON_DROP, BORAM_DROP, ICHEON_DROP } from './callNet';
+import { buildNet, lineZoneOf, buildFirstLegDemo, judgeTwoStage, judgeGoals, orderStopsGreedy, orderStopsInsert, cityCenter, isLocalPhase, WAIT_PRESET, NET_SRC, NET_DST, GONJIAM_DROP, DONGWON_DROP, BORAM_DROP, ICHEON_DROP } from './callNet';
 
 /**
  * 🧪 **그물 셋업의 계산이 ⑭ 검산과 같은가**
@@ -294,14 +294,15 @@ describe('관내 국면 — 목적지 원 안 + 출발지 원 밖이면 방향�
     });
 });
 
-describe('길 경유 띠 — «길을 잡아서 작동하는 노선» (기사님 확정 2026-09-07 · 카카오 실측)', () => {
-    // 상수는 roadsYeoju.ts (생성 파일) — 여기서는 경유 띠 수식이 실측 그대로 동을 담는지 잠근다.
+describe('라인 띠 — 길 하나가 담는 동 (2026-09-07 카카오 실측 · 수식은 lineZoneOf 로 옮겼다)', () => {
+    // 상수는 roadsYeoju.ts (생성 파일) — 여기서는 라인 띠 수식이 실측 그대로 동을 담는지 잠근다.
     // 🔴 길은 이름으로 찾는다 — «모든 길» 재생성(2026-09-07 저녁)으로 개수·순서가 바뀔 수 있다
     it('국도길(성남이천로·중부대로) 경유 띠 ±5km = 43동 — 이천 시내를 관통한다', async () => {
         const { YEOJU_ROADS } = await import('./roadsYeoju');
-        const { buildRoadNet } = await import('./callNet');
+        const { buildLineNet } = await import('./callNet');
         const gukdo = YEOJU_ROADS.find(r => r.name.includes('성남이천로'))!;
-        const net = buildRoadNet(gukdo.line, NET_DST, WAIT_PRESET.dstDiamKm);
+        // lastDrop 이 없으면 «라인 ∪ 목적지 원» — 2026-09-09 이전 buildRoadNet 과 같은 식이다 (숫자가 같아야 한다)
+        const net = buildLineNet(gukdo.line, 5, null, WAIT_PRESET, NET_DST);
         expect(net.count).toBe(43);
         expect(net.groups.map(g => [g.region, g.names.length])).toEqual([
             ['여주시', 25], ['이천시', 12], ['광주시', 6],
@@ -311,12 +312,64 @@ describe('길 경유 띠 — «길을 잡아서 작동하는 노선» (기사님
 
     it('⛔ 고속길(광주원주) 경유 띠에는 산북면이 든다 — 길이 함정 옆을 지난다: 35동', async () => {
         const { YEOJU_ROADS } = await import('./roadsYeoju');
-        const { buildRoadNet } = await import('./callNet');
+        const { buildLineNet } = await import('./callNet');
         const highway = YEOJU_ROADS.find(r => r.name.includes('광주원주'))!;
-        const net = buildRoadNet(highway.line, NET_DST, WAIT_PRESET.dstDiamKm);
+        const net = buildLineNet(highway.line, 5, null, WAIT_PRESET, NET_DST);
         expect(net.count).toBe(35);
         expect(net.groups.flatMap(g => g.names)).toContain('산북면');
         expect(net.groups.find(g => g.region === '이천시')).toBeUndefined();   // 이천을 건너뛴다
+    });
+});
+
+describe('노선 — «라인 ∪ 남은 마름모» (기사님 확정 2026-09-09)', () => {
+    /**
+     * 기사님 시나리오 그대로다: 광주(초월)에서 파주를 목적지로 두고, 단가 좋은 첫 콜
+     * **장지동 → 평촌**을 잡았다. 그러면 평촌까지는 **무조건 간다** — 그 구간은 길이 정해졌고,
+     * 아직 안 정한 것은 «평촌 → 파주»뿐이다.
+     *
+     * 기사님: *"초월에서 하남 가는 콜은 필터를 통과하면 노이즈야."*
+     */
+    const ME = NET_SRC;                                        // 내 위치 — 초월(집)
+    const JANGJI = { lng: 127.126, lat: 37.478 };              // 장지동 상차
+    const PYEONGCHON = { lng: 126.964, lat: 37.392 };          // 평촌 하차 = 마지막 하차지
+    const HANAM = { lng: 127.206, lat: 37.539 };               // 하남 — 라인에서 벗어난 쪽
+    const PAJU = cityCenter('파주시');
+    const LINE: Array<[number, number]> = [
+        [ME.lng, ME.lat], [JANGJI.lng, JANGJI.lat], [PYEONGCHON.lng, PYEONGCHON.lat],
+    ];
+    const LAST_DROP = { name: '평촌(하차)', ...PYEONGCHON };
+    const zone = lineZoneOf(LINE, 5, LAST_DROP, WAIT_PRESET, PAJU);
+
+    it('초월 → 하남 콜은 걸러진다 — 라인 밖이고 «평촌→파주» 마름모에도 없다', () => {
+        expect(zone.dropIn(HANAM)).toBe(false);
+    });
+
+    it('🔴 마름모를 내 위치에서 시작하면 그 하남이 들어온다 — 기점을 옮기는 이유가 이것이다', () => {
+        const fromMe = lineZoneOf([], 5, { ...ME, name: '내 위치' }, WAIT_PRESET, PAJU);
+        expect(fromMe.dropIn(HANAM)).toBe(true);
+    });
+
+    it('광주 → 파주 직행 콜은 산다 — 상차는 라인 위, 하차는 마름모 안', () => {
+        expect(zone.pickupIn({ lng: ME.lng, lat: ME.lat })).toBe(true);
+        expect(zone.dropIn(PAJU)).toBe(true);
+    });
+
+    it('상차는 라인 위만 본다 — 마름모 안(파주 쪽)이어도 상차지로는 안 친다', () => {
+        expect(zone.dropIn(PAJU)).toBe(true);
+        expect(zone.pickupIn(PAJU)).toBe(false);
+    });
+
+    it('🔴 마지막 하차지 둘레에는 원을 안 두른다 — 평촌 남쪽 6km 는 지나온 뒤라 안 담는다', () => {
+        // 기사님 지적 2026-09-09: *"중간 기착지인 평촌동도 점선 라인과 영역에 지역들을 가지고 있는데 이걸 빼야 해"*
+        // 🔴 자리를 **꼭짓점 원 안**(반경 7.5km)에 잡아야 이 검사가 뜻을 갖는다 — 원 밖에 잡으면
+        //    원을 두르든 안 두르든 거짓이라 **아무것도 안 잡는다** (처음에 10km 로 잡아 그렇게 됐다).
+        const SOUTH_OF_PYEONGCHON = { lng: 126.980, lat: 37.338 };   // 평촌에서 남쪽 6.2km — 라인(5km) 밖, 원(7.5km) 안
+        expect(zone.dropIn(SOUTH_OF_PYEONGCHON)).toBe(false);
+    });
+
+    it('라인이 비면 라인 판정은 전부 거짓이다 — 경로가 오기 전에는 마름모가 판단한다', () => {
+        const noLine = lineZoneOf([], 5, LAST_DROP, WAIT_PRESET, PAJU);
+        expect(noLine.pickupIn({ lng: JANGJI.lng, lat: JANGJI.lat })).toBe(false);
     });
 });
 

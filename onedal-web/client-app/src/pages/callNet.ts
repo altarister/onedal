@@ -434,7 +434,7 @@ export function judgeTwoStage(
     routeStarted = false,
     /** 🏘️ 관내 국면 — 방향을 안 본다. 상차·하차가 둘 다 목적지 원 안이면 통과 (isLocalPhase 로 판단해 넘긴다) */
     local = false,
-    /** 🛣️ 길 경유 띠 모드 — 주면 1단계 소속(하차·상차)을 사각형 대신 이것으로 잰다 (roadZoneOf) */
+    /** 🛣️ 노선 모드 — 주면 1단계 소속(하차·상차)을 마름모 대신 이것으로 잰다 (lineZoneOf) */
     zone?: { dropIn(pt: { lng: number; lat: number }): boolean; pickupIn(pt: { lng: number; lat: number }): boolean },
 ): TwoStageVerdict {
     if (local) {
@@ -671,28 +671,65 @@ function distToLineKm(pt: { lng: number; lat: number }, line: Array<[number, num
     return best;
 }
 
-/** 경유 띠 폭 — 볼트 궤적 실측 «라인이면 ±5km · 401동». 값을 바꿀 일이 생기면 손잡이로 뺀다 */
-export const ROAD_DETOUR_KM = 5;
-
-/** 길 경유 띠 소속 — 길 양옆 ±폭 ∪ 목적지 원. 1단계 영역을 사각형 대신 이것으로 갈아끼운다 */
-export function roadZoneOf(line: Array<[number, number]>, dst: NetPoint, dstDiamKm: number, detourKm: number = ROAD_DETOUR_KM) {
-    const ringKm = Math.max(0, dstDiamKm / 2);
-    const inZone = (pt: { lng: number; lat: number }) =>
-        haversineKm(dst, pt) <= ringKm || distToLineKm(pt, line) <= detourKm;
-    return { dropIn: inZone, pickupIn: inZone };
+/**
+ * 🧩 **노선의 그물 — 라인 ∪ 남은 구간 마름모** (기사님 확정 2026-09-09).
+ *
+ * 기사님: *"내 위치에서 평촌까지는 노선처럼 라인 반경으로 가고 마름모는 평촌에서 파주로 만들어.
+ * 그럼 쓸데없는 면적이 줄어드니까 노이즈가 줄고, 평촌부터 파주까지는 어떤 경로든 허용하고
+ * 내 위치에서 평촌까지는 계속 합짐의 기회가 있어."*
+ *
+ * ```
+ * 내 위치 ──라인 반경──▶ (잡은 콜들의 정거장) ──▶ 마지막 하차지 ──마름모──▶ 목적지
+ *         가기로 정해진 구간 = 길이 하나다      아직 안 정한 구간 = 어느 길이든 열린다
+ * ```
+ *
+ * 🔴 **상차와 하차가 보는 곳이 다르다** (기사님 확정 2026-09-09).
+ *   · 상차지 — **라인 위**만. 판정은 여기에 «내 위치 반경»을 **곱한다**(`judgeTwoStage` 의
+ *     `pickupNearMe`), 그래서 결과가 «내 위치 원 ∩ 라인»이 된다. 지금 갈 수 있는 곳에서만 싣는다
+ *   · 하차지 — **라인 ∪ 마름모 ∪ 목적지 원.** 그래야 광주에서 파주로 바로 가는 큰 콜이 산다
+ *
+ * `lastDrop` 이 없으면(콜을 아직 안 쥠) 마름모 자리는 비고 라인만 남는다 — 호출부가
+ * 그 경우 애초에 이 함수를 안 부른다(마름모 하나로 본다).
+ */
+export function lineZoneOf(
+    line: Array<[number, number]>, lineRadiusKm: number,
+    lastDrop: NetPoint | null, p: NetParams, dst: NetPoint,
+) {
+    const ringKm = Math.max(0, p.dstDiamKm / 2);
+    /**
+     * 🔴 **마름모의 시작 꼭짓점에는 원을 두르지 않는다** (기사님 지적 2026-09-09:
+     * *"중간 기착지인 평촌동도 점선 라인과 영역에 지역들을 가지고 있는데 이걸 빼야 해"*).
+     *
+     * 동선의 마름모(`makeInNet`)는 **두 꼭짓점 원 ∪ 사각형**이다. 출발 꼭짓점의 원은
+     * «내가 서 있는 자리는 방위를 잴 수 없다»를 메우려고 두른 것이라 **내 위치일 때만** 뜻이 있다.
+     * 노선에서 그 자리는 **마지막 하차지**이고, 거기는 이미 **라인의 끝**이라 라인 반경이 담는다.
+     * 원을 또 두르면 **지나온 뒤쪽까지** 담겨 노이즈가 된다 — 그래서 여기는 사각형만 쓴다.
+     */
+    const inRest = lastDrop ? makeInQuad(p, lastDrop, dst) : () => false;
+    const onLine = (pt: { lng: number; lat: number }) => line.length >= 2 && distToLineKm(pt, line) <= lineRadiusKm;
+    return {
+        dropIn: (pt: { lng: number; lat: number }) => onLine(pt) || haversineKm(dst, pt) <= ringKm || inRest(pt),
+        pickupIn: onLine,
+    };
 }
 
-/** 길 경유 띠의 동 목록 — 지도에 파란 점·표로 그릴 재료 (사각형 판의 buildNet 과 같은 꼴) */
-export function buildRoadNet(line: Array<[number, number]>, dst: NetPoint, dstDiamKm: number, detourKm: number = ROAD_DETOUR_KM): NetResult {
-    const { dropIn } = roadZoneOf(line, dst, dstDiamKm, detourKm);
+/** 노선 그물의 동 목록 — 지도에 점·표로 그릴 재료. 사각형은 «마지막 하차지 → 목적지» 것을 쓴다 */
+export function buildLineNet(
+    line: Array<[number, number]>, lineRadiusKm: number,
+    lastDrop: NetPoint | null, p: NetParams, dst: NetPoint,
+): NetResult {
+    const { dropIn } = lineZoneOf(line, lineRadiusKm, lastDrop, p, dst);
+    const rest = lastDrop ? buildNet(p, lastDrop, dst) : null;
     const { pass, grouped } = collectDongs(dropIn);
     return {
-        tri: [], pass,
+        tri: rest?.tri ?? [],
+        pass,
         marks: MARK_DONGS.map(m => {
             const c = centroidOfDong(m.dong, m.region);
             return { name: m.name, x: c.lng, y: c.lat, inside: dropIn(c) };
         }),
-        circles: [{ name: dst.name, ring: ringOf(dst, Math.max(0, dstDiamKm / 2)) }],
+        // 🔴 원은 **목적지 하나**다 — 마지막 하차지 원은 위 주석대로 안 두른다 (기사님 2026-09-09)
+        circles: [{ name: dst.name, ring: ringOf(dst, Math.max(0, p.dstDiamKm / 2)) }],
         count: pass.length,
         groups: [...grouped.entries()]
             .map(([region, names]) => ({ region, names }))

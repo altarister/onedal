@@ -11,33 +11,23 @@ import { promiseTimes, impactOfStop, type StopStep } from './labPortMap';
 // ⏱️ 시간·정거장 이름은 한 곳에서 만든다 (labTime.test.ts 가 지킨다)
 import { circled, hhmm, cumMinutes, arrivalAt } from './labTime';
 import {
-    buildNet, buildRoadNet, roadZoneOf, judgeGoals, activeGoals, nearestDong, orderStopsInsert, pickNextTarget, cityCenter, quadTesterOf, isLocalPhase, NET_SRC, NET_DST,
+    buildNet, buildLineNet, lineZoneOf, judgeGoals, activeGoals, nearestDong, orderStopsInsert, pickNextTarget, cityCenter, quadTesterOf, isLocalPhase, NET_SRC, NET_DST,
     GONJIAM_DROP, DONGWON_DROP, BORAM_DROP,
     GONJIAM_CALL_PATH, DONGWON_CALL_PATH, BORAM_CALL_PATH, TRAP_DONGS,
     type NetPoint, type TwoStageVerdict,
 } from './callNet';
 import sidoDataRaw from '../mapData/sidoData.json';
 import { apiBase } from '../lib/serverTarget';
-import { YEOJU_ROADS } from './roadsYeoju';
-import { PAJU_ROADS } from './roadsPaju';
 
-/** 🛣️ 목적지별 실측 길 (카카오 대안 경로 전부) — 없는 목적지는 노선 탭에서 «길 데이터 없음» */
-/** 길 하나 — option 은 실시간 결과에만 있다 (추천/최단시간/최단거리/고속도로 피하기/톨게이트 피하기 ×대안) */
-type LabRoad = { option?: string; name: string; distKm: number; durMin: number; tollWon?: number | null; line: Array<[number, number]> };
-/** 옵션 라벨 → 카카오 호출 축. «대안N» 꼬리는 뗀다 — 대안 번호는 그 검색에서만 유효한 번호라 다른 출발·도착에 못 옮긴다 */
-function comboOfOption(option?: string): { priority: string; avoid?: string; label: string } {
-    const base = (option ?? '추천').replace(/ 대안\d+$/, '');
-    if (base === '최단시간') return { priority: 'TIME', label: base };
-    if (base === '최단거리') return { priority: 'DISTANCE', label: base };
-    if (base === '톨게이트 피하기') return { priority: 'RECOMMEND', avoid: 'toll', label: base };
-    return { priority: 'RECOMMEND', label: '추천' };
-}
-
-/** 🛣️ 실시간 길 찾기의 **폴백** — 서버가 안 될 때만 쓴다 (2026-09-08 부터 기본은 카카오 실시간) */
-const ROADS_BY_DEST: Record<string, LabRoad[]> = {
-    '여주 시내': YEOJU_ROADS,
-    '파주 시내': PAJU_ROADS,
-};
+/**
+ * 🛣️ **카카오를 부를 때 쓰는 경로 축 — «추천» 하나다** (기사님 2026-09-09 *"길찾기는 지워"*).
+ *
+ * 2026-09-08 까지는 기사님이 「길 찾기」로 다섯 옵션(추천·최단시간·최단거리·고속도로 피하기·
+ * 톨게이트 피하기)의 대안 경로를 받아 **하나를 골랐고**, 그 길 옆이 그물이었다.
+ * 지금은 **잡은 콜들이 라인을 만들므로** 길을 미리 고를 이유가 없다.
+ * ⚠️ 그래서 «고속도로냐 국도냐»를 고르는 축이 지금은 없다 — 별건으로 낸다 (todo 0-I).
+ */
+const ROUTE_COMBO: { priority: string; avoid?: string; label: string } = { priority: 'RECOMMEND', label: '추천' };
 
 /** 시도 + 경기 시·군·구 경계 60구역 — 시트 목업 지도(PinnedRouteCanvas)와 같은 재료 */
 const SIDO = (sidoDataRaw as { features: Array<{ properties: { name: string }; geometry: { type: string; coordinates: number[][][][] | number[][][] } }> }).features;
@@ -512,64 +502,39 @@ export default function MapMockup() {
         srcDiamKm: ps.pickupRadiusKm * 2, dstDiamKm: ps.dropoffRadiusKm * 2,
     }), [knobs, ps]);
     /**
-     * 🛣️ 길 고르기 (기사님 확정 2026-09-07 «노선은 길을 잡아서 작동») — 여주 판에서만.
-     * -1 = 사각형(길 미정 — 모든 길을 담는다) · 0~ = 카카오 대안 경로 중 하나를 골라
-     * 영역이 «그 길의 경유 띠(±5km) ∪ 목적지 원»으로 바뀐다. 길 미정→확정이 ⑭의 두 국면이다.
+     * 🧭 **노선 / 동선** (기사님 확정 2026-09-09) — 입력값은 **한 벌을 같이 쓰고**,
+     * 노선일 때만 **라인 반경**을 더 쓴다.
+     *
+     * | | 그물 |
+     * |---|---|
+     * | 동선 | 마름모 하나 — 기점은 내 위치 |
+     * | 노선 | **잡은 콜들의 실제 경로 양옆 라인 반경** ∪ **마지막 하차지→목적지 마름모** |
+     *
+     * 🔴 2026-09-07~08 의 노선은 «길 찾기로 고른 직행 길»이었다. 그 길은 **잡아 둔 콜을
+     *    안 거치므로**, 콜을 쥐면 틀린 답을 냈다(그래서 잠가 뒀었다). 지금은 **콜이 라인을 만든다.**
      */
-    const [roadIdx, setRoadIdx] = useState(-1);
-    /**
-     * 🧭 오늘의 노선 모드 (기사님 시나리오 2026-09-07) — 켜면 동선(사각형)은 쉬고,
-     * 목적지 + 반경 셋(경로·현위치·목적지) → 길 찾기 → 길 선택 → 걸친 읍면동이 영역이 된다.
-     */
-    const [routeMode, setRouteMode] = useState(false);
+    const [routeMode, setRouteMode] = useState(true);   // 🛣️ 기본은 **노선**이다 (기사님 2026-09-09)
     const [excluded, setExcluded] = useState<string[]>([]);
-    /** 🔴 노선에서는 제외지역을 안 쓴다 (기사님 2026-09-08: «거기가 젤 빠른 길 — 가는 길에 주워 간다»).
-     *  동선에서는 필요하다 — 골라둔 제외는 지워지지 않고, 동선으로 돌아오면 다시 산다 */
+    /**
+     * ⛔ 제외지역은 **노선·동선 공통**이다 (기사님 2026-09-09 «공통으로 빼»).
+     * 2026-09-08 에는 노선에서 안 썼다 — 그때 노선은 «길 하나»라 길이 곧 선별이었다.
+     * 지금은 노선에도 마름모가 함께 살아서 넓은 구간이 다시 들어온다.
+     */
     const isExcluded = (region: string, name: string) =>
-        !routeMode && (excluded.includes(`R|${region}`) || excluded.includes(`D|${region}|${name}`));
-    const [roadSearched, setRoadSearched] = useState(false);
-    /** 경로 반경(경유 띠 폭) km — 길 양옆으로 콜을 받는 폭. 기본 5km(볼트 실측) */
+        excluded.includes(`R|${region}`) || excluded.includes(`D|${region}|${name}`);
     /**
-     * 🔴 **«우회 허용»과 다른 값이다 — 이름을 갈라 둔다** (2026-09-09 스키마 대조에서 잡힘).
-     *   여기(`detourWidthKm`)      길 **양옆으로 콜을 받는 폭** (용어집: 경유 반경)
-     *   실물(`detour_allow_km`)  카카오 **총거리 증가분** 허용치 (앱 평면 이름은 `detourRadiusKm`)
-     * 둘 다 km 라 예전 이름(`detourKm`)으로는 이식할 때 조용히 섞인다. 실물의 경유 반경은
-     * `detour_allow_km` 에서 **서버가 파생**한다 — 그 자리가 이것이다.
+     * 📏 **라인 반경 km** — 길 중심선에서 **한쪽으로** 몇 km 까지 콜을 받나
+     * (기사님 이름 확정 2026-09-09: *"라인 반경"*. 옛 이름 «경유 폭»).
+     *
+     * 🔴 실물의 **«우회 허용»**(`detour_allow_km` — 카카오가 재는 **총거리 증가분**)과 **다른 값이다.**
+     *    둘 다 km 라 한 이름으로 부르면 이식할 때 조용히 섞인다.
      */
-    const [detourWidthKm, setDetourWidthKm] = useState(5);
+    const [lineRadiusKm, setLineRadiusKm] = useState(5);
     /**
-     * 🔍 길 찾기 결과 — **누를 때마다 카카오 실시간, 모든 옵션 그대로** (기사님 2026-09-08
-     * «합하지 말고 카카오 모든 옵션을 뿌려라 — 카카오 호출하자는 이야기»).
-     * 원점은 내 위치(밤에 누르면 밤의 소요시간). null = 아직/호출 중, [] = 후보 없음.
-     * 서버(/api/sim/roads · 개발 전용)가 5옵션×대안을 병합 없이 준다. 못 받으면 미리 만든
-     * 파일(ROADS_BY_DEST)로 폴백 — 폴백에 들어가면 반드시 소리를 낸다 (버그 대장 #101 교훈).
+     * 🛣️ 경로 옵션 — 길 고르기를 걷어낸 뒤로 **«추천» 고정**이다 (기사님 2026-09-09 *"길찾기는 지워"*).
+     * 고속도로냐 국도냐를 고르는 축은 별건이다 (todo 0-I) — 그때 여기에 손잡이가 붙는다.
      */
-    const [liveRoads, setLiveRoads] = useState<LabRoad[] | null>(null);
-    /** 🗄️ 길 찾기 캐시 — 한 번 부르면 카카오 4회다. 같은 출발·목적지면 다시 안 묻는다 */
-    const roadsCacheRef = useRef(new Map<string, LabRoad[]>());
-    const searchRoads = async () => {
-        setRoadSearched(true); setRoadIdx(-1); setLiveRoads(null);
-        const ck = `${myPos.lng.toFixed(3)},${myPos.lat.toFixed(3)}>${dst.name}`;
-        const hit = roadsCacheRef.current.get(ck);
-        if (hit) { setLiveRoads(hit); return; }          // 캐시 — 카카오 0회
-        try {
-            const d = await callApi('🔍 길 찾기(4옵션)', '/sim/roads',
-                { origin: { x: myPos.lng, y: myPos.lat }, dest: { x: dst.lng, y: dst.lat } },
-                `내 위치 ${myPos.lng.toFixed(4)},${myPos.lat.toFixed(4)} → ${dst.name}`);
-            const roads = Array.isArray(d.roads) ? d.roads : [];
-            roadsCacheRef.current.set(ck, roads);
-            setLiveRoads(roads);
-        } catch (err) {
-            console.warn('[길 찾기] 실시간 호출 실패 — 미리 만든 길로 폴백:', err);
-            setLiveRoads(ROADS_BY_DEST[dst.name] ?? []);
-        }
-    };
-    useEffect(() => { setRoadIdx(-1); setRoadSearched(false); setLiveRoads(null); }, [routeMode, dstIdx]);
-    const destRoads = roadSearched ? liveRoads ?? undefined : undefined;
-    const road = routeMode && roadIdx >= 0 && destRoads ? destRoads[roadIdx] : null;
-    const roadMode = !!road;
-    /** 지금 고른 길의 옵션 축 — 콜 실측·확정 경로가 이걸 따라간다 (길 미선택·동선이면 추천) */
-    const routeCombo = comboOfOption(road?.option);
+    const routeCombo = ROUTE_COMBO;
     const legKey = (aLng: number, aLat: number, bLng: number, bLat: number) =>
         `${aLng.toFixed(5)},${aLat.toFixed(5)}>${bLng.toFixed(5)},${bLat.toFixed(5)}|${routeCombo.priority}|${routeCombo.avoid ?? ''}`;
     const callSeqRef = useRef(0);
@@ -826,17 +791,51 @@ export default function MapMockup() {
         return out;
     }, [drawLegs, effPath]);
 
-    /** 🎯 목적지마다 마름모 하나 — 노선(길 띠)이면 그 목적지의 띠로 (⑮ 기준 1) */
+    /**
+     * 🛣️ **라인 — 잡은 콜들이 만든 실제 경로** (기사님 확정 2026-09-09).
+     * 내 위치 → (재배치된 정거장들) → 마지막 하차지. 이 선 양옆 **라인 반경**이 노선의 그물이다.
+     *
+     * 🔴 **직선으로 지어내지 않는다** (규칙 ④). 기사님 확정 2026-09-09:
+     *    *"경로가 올 때까지는 마름모를 내 위치 기점 그대로 두고, 경로가 도착하면 그때 라인으로 바꾼다."*
+     *    그래서 카카오에서 못 받은 구간이 **하나라도 있으면 라인이 없다**(`null`).
+     *    직선을 라인으로 쓰면 산·강을 가로지르는 엉뚱한 동네가 그물에 들어온다.
+     *
+     * ⚠️ `drawLegs`(그리는 곡선)와 다르다 — 그쪽은 못 받은 구간을 **직선으로 그려서라도** 보여 준다.
+     *    보여 주는 것과 거르는 것은 다른 일이다.
+     */
+    const routeLine = useMemo<Array<[number, number]> | null>(() => {
+        if (effPath.length < 2) return null;
+        const legs = effPath.slice(1).map((pt, i) => legCacheRef.current.get(legKey(effPath[i].x, effPath[i].y, pt.x, pt.y)));
+        if (!legs.every(c => c && !c.failed && c.line.length >= 2)) return null;
+        const out: Array<[number, number]> = [];
+        for (const c of legs) for (const p of c!.line) out.push([p.lng, p.lat]);
+        return out.length >= 2 ? out : null;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [effPathKey, realLegs]);
+    /** 🛣️ 노선이면서 라인이 실제로 있는가 — 화면·판정·아웃풋이 **이 하나**를 읽는다 (규칙 ③) */
+    const lineOn = routeMode && !!routeLine;
+    /**
+     * 🏁 **마름모가 시작하는 자리 — 마지막 하차지** (기사님 확정 2026-09-09).
+     * 라인이 여기서 끝나므로, 아직 안 정한 구간은 «여기 → 목적지»다.
+     * 라인이 없으면 `null` — 그때 마름모는 내 위치에서 시작한다(동선과 같다).
+     */
+    const lastDrop = useMemo<NetPoint | null>(() => {
+        if (!lineOn || effPath.length < 2) return null;
+        const last = effPath[effPath.length - 1];
+        return { name: last.label ?? '마지막 하차지', lng: last.x, lat: last.y };
+    }, [lineOn, effPath]);
+
+    /** 🎯 목적지마다 그물 하나 — 노선이면 그 목적지 쪽은 «라인 ∪ 남은 마름모» (⑮ 기준 1) */
     const goalNets = useMemo(() => goals.map(g => ({
         goal: g,
-        net: routeMode && g.name === dst.name
-            ? buildRoadNet(road ? road.line : [], g, params.dstDiamKm, detourWidthKm)
+        net: lineOn && routeLine && g.name === dst.name
+            ? buildLineNet(routeLine, lineRadiusKm, lastDrop, params, g)
             : buildNet(params, anchor, g),
-    })), [goals, routeMode, road, detourWidthKm, params, anchor, dst.name]);
+    })), [goals, lineOn, routeLine, lineRadiusKm, lastDrop, params, anchor, dst.name]);
     const net = goalNets[0].net;                     // 대표 하나가 필요한 자리 (자동 맞춤 등)
     const zone = useMemo(
-        () => routeMode ? roadZoneOf(road ? road.line : [], dst, params.dstDiamKm, detourWidthKm) : undefined,
-        [routeMode, road, dst, params.dstDiamKm, detourWidthKm]);
+        () => lineOn && routeLine ? lineZoneOf(routeLine, lineRadiusKm, lastDrop, params, dst) : undefined,
+        [lineOn, routeLine, lineRadiusKm, lastDrop, params, dst]);
     /** 화면·아웃풋이 읽는 영역 = **살아 있는 마름모들의 합집합** (⑮ 기준 3) */
     const areaNet = useMemo(() => {
         const seen = new Set<string>();
@@ -864,8 +863,8 @@ export default function MapMockup() {
         pickupRadiusKm: ps.pickupRadiusKm, dropoffRadiusKm: ps.dropoffRadiusKm,
         detourAllowKm: ps.detourAllowKm, discountPct: ps.discountPct,
         vehicles, excludedWords, slotsUsed, capacityConfirmed,
-        modeDesc: `🎯 ${goals.map(g => g.name).join(' ∪ ')} · ` + (road ? `길 ±${detourWidthKm}km — ${road.name}` : routeMode ? '노선 (길 미선택 — 목적지 원만)' : localMode ? '관내 (목적지 원)' : `동선 사각형 ${params.srcAngleDeg}°/${params.dstAngleDeg}°`),
-    }), [callTarget, dispatchPhaseSim, driving, dst, areaNet, excluded, ps, vehicles, excludedWords, slotsUsed, capacityConfirmed, road, routeMode, detourWidthKm, localMode, params, goals]);
+        modeDesc: `🎯 ${goals.map(g => g.name).join(' ∪ ')} · ` + (lineOn ? `노선 — 잡은 콜 경로 ±${lineRadiusKm}km` : routeMode ? '노선 (경로 대기 — 마름모로 판단)' : localMode ? '관내 (목적지 원)' : `동선 마름모 ${params.srcAngleDeg}°/${params.dstAngleDeg}°`),
+    }), [callTarget, dispatchPhaseSim, driving, dst, areaNet, excluded, ps, vehicles, excludedWords, slotsUsed, capacityConfirmed, lineOn, routeMode, lineRadiusKm, localMode, params, goals]);
     /**
      * 🔴 **«짐을 실은 목적지» — 원천 하나** (2026-09-08 리뷰: 화면과 판정이 다른 답을 냈다).
      * ∩(상차 조이기)를 거는 기준이다. 판정(judgeGoals)·그리기·판정 칩이 **모두 이걸** 읽는다 —
@@ -1555,7 +1554,6 @@ export default function MapMockup() {
                 ...goalNets.flatMap(g => g.net.tri), [myPos.lng, myPos.lat],
                 ...goals.map(g => [g.lng, g.lat] as [number, number]),
             ];
-            if (road) pts.push(...road.line);
             if (realLegs) for (const leg of realLegs) for (const p of leg) pts.push([p.lng, p.lat]);
             for (const g of goalNets) for (const c of g.net.circles) pts.push(...c.ring);
             for (const p of effPath) pts.push([p.x, p.y]);
@@ -1635,17 +1633,27 @@ export default function MapMockup() {
              * 첫 콜 뒤에는 내 위치 원을 **그 목적지 원뿔과의 교집합**만 남긴다 (기준 5).
              */
             if (layers.net) for (const { goal, net: gn } of goalNets) {
-                const isRoad = routeMode && goal.name === dst.name;
-                if (!isRoad && gn.tri.length) {
+                /**
+                 * 🔴 **«노선 단추»가 아니라 «라인이 실제로 있는가»로 가른다** (기사님 지적 2026-09-09:
+                 * *"마름모 없음 — 그리지 않았을 뿐 영역은 있는 것 같음"*).
+                 * 예전 조건은 `routeMode` 였다. 그래서 노선을 누르기만 하면 라인이 없어도
+                 * **마름모가 화면에서 사라졌는데 판정은 그 마름모로 하고 있었다** —
+                 * 화면이 조용히 거짓말한 것이다 (규칙 ⑤-4 ④).
+                 *
+                 * 🔴 **라인이 있어도 마름모는 그린다.** 노선의 그물은 «라인 ∪ 남은 마름모»라,
+                 *    그때 마름모는 «마지막 하차지 → 목적지»다. 안 그리면 그 영역이 또 숨는다.
+                 */
+                const isLine = lineOn && goal.name === dst.name;
+                if (gn.tri.length) {
                     ctx.beginPath();
                     gn.tri.forEach(([lng, lat]: [number, number], i: number) => { const [px, py] = S(lng, lat); i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py); });
                     ctx.closePath();
                     ctx.fillStyle = 'rgba(14,165,233,.10)'; ctx.fill();
                     ctx.strokeStyle = '#0284c7'; ctx.lineWidth = 2.5; ctx.stroke();
                 }
-                // 🔴 노선(길 띠)의 그물에는 내 위치 원이 없다 — 직접 두른다. 판정은 이 반경을 쓰므로
+                // 🔴 노선 그물에는 내 위치 원이 없다 — 직접 두른다. 상차 판정이 이 반경을 쓰므로
                 //    안 그리면 «화면에 없는 선이 콜을 떨어뜨린다» (2026-09-08 리뷰에서 잡힘)
-                if (isRoad) {
+                if (isLine) {
                     const [mx, my] = S(myPos.lng, myPos.lat);
                     ctx.strokeStyle = 'rgba(217,119,6,.85)'; ctx.setLineDash([6, 5]); ctx.lineWidth = 2;
                     ctx.beginPath(); ctx.arc(mx, my, (params.srcDiamKm / 2) * pxPerKm, 0, Math.PI * 2); ctx.stroke();
@@ -1654,7 +1662,7 @@ export default function MapMockup() {
                 const inQuadFn = quadTesterOf(params, anchor, goal);
                 ctx.strokeStyle = '#d97706'; ctx.setLineDash([6, 5]); ctx.lineWidth = 2;
                 gn.circles.forEach((c: { ring: Array<[number, number]> }, ci: number) => {
-                    if (ci === 0 && isLoaded(goal.name) && !isRoad) {   // ∩ 는 짐 실은 목적지에만 (원천: loadedGoalNames)
+                    if (ci === 0 && isLoaded(goal.name) && !isLine) {   // ∩ 는 짐 실은 목적지에만 (원천: loadedGoalNames)
                         for (let i = 1; i < c.ring.length; i++) {
                             const [lng1, lat1] = c.ring[i - 1], [lng2, lat2] = c.ring[i];
                             if (!inQuadFn({ lng: lng1, lat: lat1 }) || !inQuadFn({ lng: lng2, lat: lat2 })) continue;
@@ -1671,32 +1679,21 @@ export default function MapMockup() {
                 const [gx, gy] = S(goal.lng, goal.lat);
                 ctx.fillStyle = '#d97706'; ctx.beginPath(); ctx.arc(gx, gy, 5, 0, Math.PI * 2); ctx.fill();
             }
-            // 🛣️ 길 후보 (레이어: 길) — 목적지별 카카오 실측 길 전부. 고른 길은 굵게, 나머지는 얇게
-            // 「길 찾기」 뒤에만 보이고, **경로 반경만큼 두껍게** (기사님 시나리오)
-            // 🔴 첫 콜을 잡으면 길 «라인»은 지운다 (기사님 2026-09-07 밤: *"길찾기 했을 때 정해진
-            //    라인이지 가는 경로가 아니다"*) — 실제 경로는 콜 색 곡선이 따로 그린다.
-            //    고른 길의 **띠(±경로반경)는 남긴다** — 그건 장식이 아니라 필터 영역이다.
-            if (layers.roads && routeMode && roadSearched && destRoads) {
-                destRoads.forEach((r, ri) => {
-                    const sel = ri === roadIdx;
-                    if (routeStarted && !sel) return;             // 콜을 쥐면 안 고른 후보는 통째로 지운다
-                    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-                    // 경유 띠 — **고른 길에만** 두른다 (기사님 2026-09-08: 후보 전부가 띠를 그리면 지도가 뒤덮인다)
-                    if (sel) {
-                        ctx.beginPath();
-                        r.line.forEach(([lng, lat], i) => { const [px, py] = S(lng, lat); i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py); });
-                        ctx.strokeStyle = 'rgba(29,78,216,.25)';
-                        ctx.lineWidth = Math.max(3, detourWidthKm * 2 * pxPerKm);
-                        ctx.stroke();
-                    }
-                    if (routeStarted) return;                     // 콜을 쥐면 중심선도 지운다
-                    // 중심선 — 후보는 얇게, 고른 길은 굵게
-                    ctx.beginPath();
-                    r.line.forEach(([lng, lat], i) => { const [px, py] = S(lng, lat); i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py); });
-                    ctx.strokeStyle = sel ? '#1d4ed8' : 'rgba(71,85,105,.65)';
-                    ctx.lineWidth = sel ? 3.5 : 1.5;
-                    ctx.stroke();
-                });
+            /**
+             * 🛣️ **라인 띠** (레이어: 길) — **잡은 콜들이 만든 실제 경로** 양옆 라인 반경.
+             * 노선일 때 콜을 거르는 영역이 이것이라, 장식이 아니라 **필터를 눈으로 본 것**이다.
+             *
+             * 🔴 중심선은 여기서 안 그린다 — 그건 아래 «콜 색 곡선»이 이미 그린다.
+             *    같은 선을 두 곳에서 그리면 한쪽만 고쳐져 어긋난다 (2026-09-07 유령 선 사고와 같은 클래스).
+             * 🔴 라인이 없으면(콜 없음 · 경로 대기 · 카카오 실패) 아무것도 안 그린다 — 그때는 마름모가 그물이다.
+             */
+            if (layers.roads && lineOn && routeLine) {
+                ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+                ctx.beginPath();
+                routeLine.forEach(([lng, lat], i) => { const [px, py] = S(lng, lat); i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py); });
+                ctx.strokeStyle = 'rgba(29,78,216,.22)';
+                ctx.lineWidth = Math.max(3, lineRadiusKm * 2 * pxPerKm);
+                ctx.stroke();
             }
             // 그물에 든 동 — 파란 점 · 제외지역은 흐린 ✕ (빠졌다는 것이 지도에서 보여야 한다)
             if (layers.net) for (const p of areaNet.pass) {
@@ -1862,7 +1859,7 @@ export default function MapMockup() {
         };
         drawRef.current = draw;
         draw();
-    }, [net, areaNet, goalNets, loadedGoalNames, legFailed, approachLeg, chainPreview, safeCancelLeft, nowTick, finalPass, uploadedLeg, effPath, anchor, pickup, drop, verdict, size, params, dst, routeStarted, road, roadIdx, dstIdx, view, layers, routeMode, roadSearched, destRoads, detourWidthKm, knobs, myPos, drawLegs, excluded]);
+    }, [net, areaNet, goalNets, loadedGoalNames, legFailed, approachLeg, chainPreview, safeCancelLeft, nowTick, finalPass, uploadedLeg, effPath, anchor, pickup, drop, verdict, size, params, dst, routeStarted, dstIdx, view, layers, routeMode, lineOn, routeLine, lineRadiusKm, knobs, myPos, drawLegs, excluded]);
 
     /** 클릭 한 점을 콜/내위치로 배치 */
     const placeAt = (pt: Pt) => {
@@ -2110,31 +2107,28 @@ export default function MapMockup() {
                         </p>
                     </div>
 
-                    {/* 🔴 콜을 쥔 동안 동선→노선은 잠근다 (기사님 확정 2026-09-08: 노선은 새로 긋는 길이라
-                        이미 잡은 콜들의 경로를 인지 못한다). 노선→동선은 늘 열림 — 동선이 더 넓어 콜들을 품는다 */}
+                    {/* 🔓 **콜을 쥔 뒤에도 노선으로 갈 수 있다** (기사님 지시 2026-09-09 «노선에 락을 풀어 봐»).
+                        2026-09-08 에는 잠가 뒀다 — 노선의 띠는 «내 위치 → 목적지» 직행 길 주변이라
+                        **이미 잡은 콜들이 만든 실제 경로를 모른다**는 이유였다.
+                        🔴 그 사실은 그대로다. 푼 이유는 다르다 — 사각형은 콜을 쥔 뒤에도 그대로 넓어서
+                        **이미 잡은 콜과 무관한 콜이 통과한다**(기사님 실측: 탄벌동→고촌읍을 쥔 채 의정부 왕복 콜이 통과).
+                        띠로 좁히면 막히는지를 **화면에서 눈으로 확인하려고** 연다.
+                        ⚠️ 그러므로 여기서 켜는 띠는 아직 «직행 길 주변»이다 — 이미 잡은 콜을 거치는
+                        전체 경로 주변으로 바꾸는 것은 다음 일이다. */}
                     <div className="flex gap-1">
-                        {(() => { const lockRoute = !routeMode && confirmed.length > 0; return (
-                        <button type="button" disabled={lockRoute}
-                            title={lockRoute ? '콜을 쥔 동안은 노선으로 못 갑니다' : undefined}
+                        <button type="button"
                             onClick={() => { freezeView(); setRouteMode(true); }}
                             className={`flex-1 px-2 py-1.5 rounded-[8px] border text-[12px] font-black ${routeMode
                                 ? 'bg-warning/15 border-warning/55 text-warning'
-                                : lockRoute ? 'border-border-card bg-background text-text-muted/40 cursor-not-allowed'
                                 : 'border-border-hover bg-background text-text-muted hover:border-warning'}`}>
-                            {lockRoute ? '🔒 노선' : '🛣️ 노선'}
+                            🛣️ 노선
                         </button>
-                        ); })()}
                         <button type="button" onClick={() => { freezeView(); setRouteMode(false); }}
                             className={`flex-1 px-2 py-1.5 rounded-[8px] border text-[12px] font-black ${!routeMode
                                 ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-background text-text-muted hover:border-info'}`}>
                             🔷 동선
                         </button>
                     </div>
-                    {!routeMode && confirmed.length > 0 && (
-                        <p className="text-[10px] text-text-muted leading-snug">
-                            🔒 콜을 쥔 동안은 노선으로 못 갑니다 — 새 길은 잡아둔 콜의 경로를 모릅니다. 콜을 다 비우면 열립니다
-                        </p>
-                    )}
 
                     {/* 🎯 목적지 — 복귀행에서도 산다: 주 마름모의 끝점이다 (두 마름모) */}
                     <label className="flex flex-col gap-0.5 text-[10.5px] font-bold text-text-muted">
@@ -2145,50 +2139,33 @@ export default function MapMockup() {
                         </select>
                     </label>
 
-                    {routeMode ? (
-                        <>
-                            <NumRow label="경유 폭㎞" value={detourWidthKm} onChange={setDetourWidthKm} min={1} max={30} />
-                            <NumRow label="현위치반경㎞" value={ps.pickupRadiusKm} onChange={v => patchPhase(phase, { pickupRadiusKm: v })} max={60} />
-                            <NumRow label="목적지반경㎞" value={ps.dropoffRadiusKm} onChange={v => patchPhase(phase, { dropoffRadiusKm: v })} max={60} />
-                            {/* 카카오 실시간 — 어느 목적지든, 원점은 내 위치, 옵션 전부 병합 없이 */}
-                            <button type="button" onClick={searchRoads}
-                                className="px-2.5 py-1.5 rounded-[8px] border border-info/55 bg-info/10 text-info text-left text-[11.5px] font-black">
-                                🔍 길 찾기 (카카오 실시간){destRoads ? ` — ${destRoads.length}개` : ''}
-                            </button>
-                            {roadSearched && !destRoads && (
-                                <p className="text-[10.5px] text-text-muted font-bold">⏳ 카카오 호출 중…</p>
-                            )}
-                            {destRoads && destRoads.length === 0 && (
-                                <p className="text-[10.5px] text-warning font-bold leading-snug">후보를 못 받았습니다 — 서버 로그를 봐 주세요</p>
-                            )}
-                            {destRoads && destRoads.map((r, i) => (
-                                <button key={`${r.option ?? ''}${r.name}${i}`} type="button" onClick={() => setRoadIdx(i)}
-                                    className={`px-2.5 py-1.5 rounded-[8px] border text-left text-[11px] font-black ${roadIdx === i
-                                        ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-background hover:border-info'}`}>
-                                    {r.option && <span className="text-[9.5px] px-1 py-px rounded bg-warning/15 text-warning mr-1">{r.option}</span>}
-                                    {r.name}<br />
-                                    <span className="text-[10px] font-bold text-text-muted">
-                                        {r.distKm}km · {r.durMin}분{r.tollWon != null ? ` · 톨 ${r.tollWon.toLocaleString()}원` : ''}
-                                    </span>
-                                </button>
-                            ))}
-                            {road && (
-                                <p className="text-[10.5px] text-text-muted leading-snug">
-                                    ✅ 이 길 ±{detourWidthKm}km 의 <b className="text-text-primary">{areaNet.count}동</b>이 필터
-                                </p>
-                            )}
-                        </>
+                    {/* 🔴 **값은 한 벌이다 — 노선·동선이 같이 쓴다** (기사님 확정 2026-09-09:
+                        *"모두 꺼내 두고 노선이면 라인값을 사용하고 동선이면 사용 안 하면 되니까"*).
+                        예전엔 탭마다 다른 칸을 보였는데, 그건 «값이 여러 벌»이 아니라
+                        «지금 안 쓰는 칸을 감추는 것»이었다 — 감추면 화면이 조용히 거짓말한다. */}
+                    <div className="grid grid-cols-2 gap-1.5">
+                        <NumRow label="출발각°" value={knobs.srcAngleDeg} max={170} onChange={v => setKnobs({ ...knobs, srcAngleDeg: v })} />
+                        <NumRow label="목적각°" value={knobs.dstAngleDeg} max={170} onChange={v => setKnobs({ ...knobs, dstAngleDeg: v })} />
+                        <NumRow label="현위㎞" value={ps.pickupRadiusKm} max={60} onChange={v => patchPhase(phase, { pickupRadiusKm: v })} />
+                        <NumRow label="목적㎞" value={ps.dropoffRadiusKm} max={60} onChange={v => patchPhase(phase, { dropoffRadiusKm: v })} />
+                    </div>
+                    {/* 📏 라인 반경 — **노선일 때만 쓰인다.** 감추지 않고 «지금 쓰는가»를 아래 줄이 말한다 */}
+                    <NumRow label="라인반경㎞" value={lineRadiusKm} onChange={setLineRadiusKm} min={1} max={30} />
+                    {!routeMode ? (
+                        <p className="text-[10.5px] text-text-muted leading-snug">동선에서는 라인 반경을 안 씁니다 — 마름모 하나로 봅니다</p>
+                    ) : lineOn ? (
+                        <p className="text-[10.5px] text-text-muted leading-snug">
+                            ✅ 잡은 콜 경로 ±{lineRadiusKm}km 의 <b className="text-text-primary">{areaNet.count}동</b>이 필터
+                        </p>
                     ) : (
-                        <div className="grid grid-cols-2 gap-1.5">
-                            <NumRow label="출발각°" value={knobs.srcAngleDeg} max={170} onChange={v => setKnobs({ ...knobs, srcAngleDeg: v })} />
-                            <NumRow label="목적각°" value={knobs.dstAngleDeg} max={170} onChange={v => setKnobs({ ...knobs, dstAngleDeg: v })} />
-                            <NumRow label="현위㎞" value={ps.pickupRadiusKm} max={60} onChange={v => patchPhase(phase, { pickupRadiusKm: v })} />
-                            <NumRow label="목적㎞" value={ps.dropoffRadiusKm} max={60} onChange={v => patchPhase(phase, { dropoffRadiusKm: v })} />
-                        </div>
+                        <p className="text-[10.5px] text-warning font-bold leading-snug">
+                            {confirmed.length === 0 ? '콜을 잡으면 그 경로가 라인이 됩니다 — 지금은 마름모로 봅니다'
+                                : '⏳ 카카오 경로를 기다립니다 — 올 때까지는 마름모로 봅니다 (직선으로 지어내지 않습니다)'}
+                        </p>
                     )}
 
-                    {/* ⛔ 제외지역 — 동선에서만 (기사님 2026-09-08: 노선은 길이 곧 선별이라 필요 없다) */}
-                    {!routeMode && <div className="mt-1 border-t border-border-card pt-2 flex flex-col gap-1">
+                    {/* ⛔ 제외지역 — **노선·동선 공통** (기사님 2026-09-09 «공통으로 빼») */}
+                    {<div className="mt-1 border-t border-border-card pt-2 flex flex-col gap-1">
                         <span className="text-[10.5px] font-black text-danger">⛔ 제외지역</span>
                         <select value="" onChange={e => { const v = e.target.value; if (v) setExcluded(x => x.includes(v) ? x : [...x, v]); }}
                             className="w-full px-2 py-1 rounded-[7px] border border-border-hover bg-background text-[11px] font-bold">
@@ -2216,7 +2193,7 @@ export default function MapMockup() {
                     {/* 🧪 판정 — 필터와 콜 리스트 사이 (기사님 2026-09-07 와이어프레임 확정) */}
                     {/* 🔴 두 층은 완전히 격리되어 각각 따로 작동한다 (규칙: 필터=집기 전 · 심사=집은 뒤).
                         기사님 2026-09-08: *"판정영역을 상하로 나눠서 상은 필터가 하는 일, 하는 심사가 하는 일"* */}
-                    <FilterPanel tone="filter" title={`🔍 ① 콜 필터 — 집기 전 · 앱이 하는 일 · 그물 ${areaNet.count}동${roadMode && road ? ' · 길' : ''}`}>
+                    <FilterPanel tone="filter" title={`🔍 ① 콜 필터 — 집기 전 · 앱이 하는 일 · 그물 ${areaNet.count}동${lineOn ? ' · 라인' : ''}`}>
                         {localMode && (
                             <div className="px-2 py-1 rounded-lg bg-info/15 text-info text-[11px] font-black">
                                 🏘️ 관내 — 방향 안 봄, 둘 다 원 안만
@@ -2264,7 +2241,7 @@ export default function MapMockup() {
                                             <Chip ok={verdict.dropInNet} yes="하차 그물 안" no="하차 그물 밖" />
                                             <Chip ok={verdict.pickupNearMe} yes="상차 반경 안" no="상차 반경 밖" />
                                             {isLoaded(goalsVerdict?.wonGoal?.name ?? dst.name) &&
-                                                <Chip ok={verdict.pickupInNet} yes={roadMode ? '상차 경유 띠 안' : '상차 사각형 안'} no={roadMode ? '상차 경유 띠 밖' : '상차 사각형 밖(뒤)'} />}
+                                                <Chip ok={verdict.pickupInNet} yes={lineOn ? '상차 라인 안' : '상차 마름모 안'} no={lineOn ? '상차 라인 밖' : '상차 마름모 밖(뒤)'} />}
                                         </div>
                                         <div className="text-[10px] font-black text-text-muted">2단계 · 거리(방향)</div>
                                         <div className="font-black tabular-nums text-[12.5px]">{verdict.distPickKm} : {verdict.distDropKm} : {verdict.distMeKm}
