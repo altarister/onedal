@@ -15,7 +15,7 @@ import { circled, hhmm, cumMinutes, arrivalAt } from './labTime';
 import {
     netForGoal, lineZoneOf, judgeGoals, activeGoals, nearestDong, orderStopsInsert, pickNextTarget, cityCenter, quadTesterOf, isLocalPhase, NET_SRC, NET_DST,
     GONJIAM_DROP, DONGWON_DROP, BORAM_DROP,
-    GONJIAM_CALL_PATH, DONGWON_CALL_PATH, BORAM_CALL_PATH, TRAP_DONGS,
+    GONJIAM_CALL_PATH, DONGWON_CALL_PATH, BORAM_CALL_PATH,
     type NetPoint, type TwoStageVerdict,
 } from './callNet';
 import sidoDataRaw from '../mapData/sidoData.json';
@@ -1861,20 +1861,6 @@ export default function MapMockup() {
                 ctx.beginPath(); ctx.arc(px, py, rich ? 6 : 4, 0, Math.PI * 2); ctx.fill();
                 ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = rich ? 1.8 : 1.2; ctx.stroke();
             }
-            // ⛔ 가면 안 되는 지역 — 노하우 출처가 있는 것만 (그물과 무관하게 항상 보인다)
-            for (const t of TRAP_DONGS) {
-                const [px, py] = S(t.pt.lng, t.pt.lat);
-                if (px < -30 || px > size.w + 30 || py < -30 || py > size.h + 30) continue;
-                ctx.fillStyle = 'rgba(220,38,38,.18)';
-                ctx.beginPath(); ctx.arc(px, py, 13, 0, Math.PI * 2); ctx.fill();
-                ctx.strokeStyle = '#dc2626'; ctx.lineWidth = 2; ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(px - 5.5, py - 5.5); ctx.lineTo(px + 5.5, py + 5.5);
-                ctx.moveTo(px + 5.5, py - 5.5); ctx.lineTo(px - 5.5, py + 5.5); ctx.stroke();
-                ctx.font = '800 11px system-ui'; ctx.textAlign = 'center';
-                ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 3;
-                ctx.strokeText(`⛔ ${t.dong}`, px, py - 18);
-                ctx.fillStyle = '#dc2626'; ctx.fillText(`⛔ ${t.dong}`, px, py - 18);
-            }
             // 🐾 지나온 길 — 어두운 회색 실선, 경로 아래에 깔린다. 새 경로가 와도 남는다
             /**
              * 🎨 **구간 색 = 그 구간을 «만든» 콜** (기사님 확정 2026-09-09: *"원인색, 그러니까 콜 색"*).
@@ -2552,12 +2538,6 @@ export default function MapMockup() {
                                         </div>
                                     );
                                 })()}
-                                {TRAP_DONGS.filter(t => t.dong === verdict.dropDong.name).map(t => (
-                                    <div key={t.dong} className="text-[10.5px] text-danger font-bold leading-snug">
-                                        ⛔ 가면 안 되는 지역 — {t.region} {t.dong}: {t.why}
-                                        <span className="text-text-muted font-normal"> (필터는 안 자름 — 기사님 몫)</span>
-                                    </div>
-                                ))}
 
                                 {/* ══ ③ 후보콜이 미치는 영향 — 콜 하나가 한 덩어리 (좌우 비교 폐기) ══ */}
                                 <div className="text-[10px] font-black text-info border-t border-border-card pt-1.5">③ 후보콜이 미치는 영향</div>

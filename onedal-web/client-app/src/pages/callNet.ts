@@ -640,19 +640,6 @@ export function quadTesterOf(p: NetParams, src: NetPoint, dst: NetPoint) {
     return makeInQuad(p, src, dst);
 }
 
-/**
- * ⛔ **가면 안 되는 지역** (기사님 요청 2026-09-07 «노하우에 가면 안 되는 지역이 있거든»)
- *
- * 하차하고 나면 다음 콜이 안 떠서 갇히는 자리들 — 출처가 있는 것만 올린다 (규칙 ④).
- * 🔴 **필터가 자르지 않는다** — 콜의 주인은 기사님이다 (규칙 ①). 지도에 ⛔ 로 표시하고
- *    판정 카드에 경고만 얹는다. 목록이 자라면 places 테이블(장소 이력)로 옮길 자리다.
- */
-export interface TrapDong { dong: string; region: string; why: string; pt: { lng: number; lat: number } }
-export const TRAP_DONGS: TrapDong[] = [
-    { dong: '산북면', region: '여주시', why: '갇힘 위험 — 콜이 안 뜨는 산지 (기사님 전언 2026-09-07)', pt: centroidOfDong('산북면', '여주시') },
-    { dong: '양서면', region: '양평군', why: '두물머리 갇힘 — 볼트 실측 «이 동네 콜이 하나도 없다» (노선_고르는_법 §11-3)', pt: centroidOfDong('양서면', '양평군') },
-    { dong: '안중읍', region: '평택시', why: '«어중간하게 떨어져 콜에서 막힐 위기» — 브릿지 콜로 탈출한 자리 (§10-7)', pt: centroidOfDong('안중읍', '평택시') },
-];
 
 /**
  * 🏘️ **관내 국면 인지** (기사님 확정 2026-09-07: *"출발지에서 내 위치 거리, 목적지에서 내 위치
