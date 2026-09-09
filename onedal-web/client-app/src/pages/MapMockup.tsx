@@ -883,7 +883,14 @@ export default function MapMockup() {
      * 🧅 레이어 (기사님 2026-09-07 «각각 레이어 처리 — 켜고 끄고») — 그리기 순서의 켜기/끄기.
      * 모든 레이어가 한 투영(줌·원점)을 쓰므로 켜고 꺼도 드래그·줌은 그대로다.
      */
-    const [layers, setLayers] = useState({ base: true, border: true, roads: true, net: true, route: true, trail: true, call: true });
+    /**
+     * 🔴 **「길」 레이어를 지웠다** (기사님 2026-09-10: *"길 레이어에 라인 반경을 그리고 있는데
+     * 이유가 있어? 불필요한 길 레이어 지우고 싶어서"*).
+     * 원래 그 자리는 **길 찾기 4옵션**(`liveRoads`)을 그렸다 — 2026-09-09 에 걷어냈고 이름만 남아
+     * 라인 반경 띠를 그리고 있었다. 띠는 **그물 그 자체**(노선일 때 콜을 거르는 영역)라
+     * 「그물」이 켜고 끈다. 스위치가 둘이면 «그물 켜고 길 끄기»라는 **반쪽 상태**가 생긴다.
+     */
+    const [layers, setLayers] = useState({ base: true, border: true, net: true, route: true, trail: true, call: true });
     /**
      * 🔍 보기 — 자동 맞춤(내용에 맞춰 줌) ↔ 수동(드래그·휠줌). 움직이면 수동이 되고 ⌖ 가 자동으로 되돌린다.
      */
@@ -2107,14 +2114,14 @@ export default function MapMockup() {
                 ctx.fillStyle = '#d97706'; ctx.beginPath(); ctx.arc(gx, gy, 5, 0, Math.PI * 2); ctx.fill();
             }
             /**
-             * 🛣️ **라인 띠** (레이어: 길) — **잡은 콜들이 만든 실제 경로** 양옆 라인 반경.
+             * 🛣️ **라인 띠** (레이어: 그물) — **잡은 콜들이 만든 실제 경로** 양옆 라인 반경.
              * 노선일 때 콜을 거르는 영역이 이것이라, 장식이 아니라 **필터를 눈으로 본 것**이다.
              *
              * 🔴 중심선은 여기서 안 그린다 — 그건 아래 «콜 색 곡선»이 이미 그린다.
              *    같은 선을 두 곳에서 그리면 한쪽만 고쳐져 어긋난다 (2026-09-07 유령 선 사고와 같은 클래스).
              * 🔴 라인이 없으면(콜 없음 · 경로 대기 · 카카오 실패) 아무것도 안 그린다 — 그때는 마름모가 그물이다.
              */
-            if (layers.roads && lineOn && routeLine) {
+            if (layers.net && lineOn && routeLine) {
                 /**
                  * 🔴 **띠도 «지나온 만큼» 짧아진다** (기사님 2026-09-09: *"아직도 지나간 길 인식
                  * 못 하고 있거든"*). 판정은 동마다 든 `progressKm` 으로 이미 걸러지는데,
@@ -2501,7 +2508,7 @@ export default function MapMockup() {
                 </button>
                 <div className="flex items-center gap-1 flex-wrap max-w-[340px]">
                     <span className="text-[11px] font-black text-info">🧅</span>
-                    {([['base', '배경'], ['border', '경계'], ['roads', '길'], ['net', '그물'], ['route', '경로'], ['trail', '동선'], ['call', '시험콜']] as const).map(([k, label]) => (
+                    {([['base', '배경'], ['border', '경계'], ['net', '그물'], ['route', '경로'], ['trail', '동선'], ['call', '시험콜']] as const).map(([k, label]) => (
                         <button key={k} type="button" onClick={() => setLayers({ ...layers, [k]: !layers[k] })}
                             className={`px-2 py-1 rounded-[7px] border text-[10.5px] font-black ${layers[k] ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-background text-text-muted'}`}>
                             {layers[k] ? '👁' : '🚫'} {label}
