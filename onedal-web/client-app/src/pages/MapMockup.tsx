@@ -404,7 +404,18 @@ export default function MapMockup() {
      */
     // callTarget 은 행선·도착 인지에서 파생된다 — 아래 localMode 뒤에서 계산
     const [vehicles, setVehicles] = useState<string[]>(['1t', '다마스']);             // 목업값 (DTO 예시 그대로)
-    const [excludedWords, setExcludedWords] = useState<string[]>(['착불', '수거']);   // 목업값 (DTO 예시 그대로)
+    /**
+     * 🚫 **제외 단어 — 고르는 자리를 뺐다** (기사님 지시 2026-09-09: *"결과에 인지하는 것만 남겨두고 삭제"*).
+     *
+     * 실물에서는 앱이 콜 글자에서 이 단어를 찾아 거른다(여섯 축의 «블랙리스트»). 그런데 실험실 콜에는
+     * **적요가 없어** 걸릴 것이 없다 — 고르는 칩은 자리만 먹었다. 값은 아웃풋(`excludedKeywords`)에
+     * 그대로 실려 «무엇이 내려가는가»는 계속 보인다.
+     *
+     * 💡 **기사님 아이디어 (2026-09-09 · 나중에 논의)**: 이 축이 «도착 **위치** 조건»이 될 수도 있다 —
+     *    *"아파트 상가 같은?"* 지금은 단어 하나로 «안 잡는다»만 답하는데, «어떤 자리에 내리는가»는
+     *    다른 질문이다 (엘리베이터·주차·층수 …). 축을 가를지는 그때 정한다.
+     */
+    const excludedWords = ['착불', '수거'];   // 목업값 (DTO 예시 그대로)
     const [slotsUsed, setSlotsUsed] = useState(0);
     const [capacityConfirmed, setCapacityConfirmed] = useState(false);               // 실물 «확정» 버튼 자리
     /** 🚗 모의 주행 — 경로가 있으면 내 위치가 경로를 따라간다, 없으면 대기 */
@@ -2909,12 +2920,18 @@ export default function MapMockup() {
                             onToggle={v => setVehicles(x => x.includes(v) ? x.filter(o => o !== v) : [...x, v])} />
                     </FilterPanel>
 
-                    <FilterPanel title="🚫 제외 단어 (excludedKeywords)">
-                        <ChipToggleRow options={['착불', '수거', '까대기', '직접운반']} selected={excludedWords}
-                            onToggle={v => setExcludedWords(x => x.includes(v) ? x.filter(o => o !== v) : [...x, v])} />
-                    </FilterPanel>
-
-                    <FilterPanel title={`🧊 적재 ${slotsUsed}/${TRUCK_CAPACITY_SLOTS}박스 · 남은 ${TRUCK_CAPACITY_SLOTS - slotsUsed}`}>
+                    {/**
+                      * 🔬 **적재 — 실측이 필요한 자리** (기사님 2026-09-09: *"아 이건 유의미하네.
+                      * 화물의 종류에 따라 부피가 확확 달라지는데.. 이거 실측이 필요할 듯.
+                      * 일단 별도로 마킹해 두고 나중에 논의하자"*).
+                      *
+                      * 🔴 **실물에서는 입력이 아니다** — 서버가 잡은 콜들의 짐 점수를 더해 파생한다
+                      *    (*"차종으로 다시 세면 통화로 확인한 실제 짐 양이 반영되지 않아 화면과 판정이
+                      *    다른 말을 한다"*). 실험실에만 있는 **시뮬 손잡이**다.
+                      * 🔴 그런데 **판정의 공간 기준이 이 값을 쓴다** — 색이 바뀐다.
+                      *    라면박스 환산이 화물 종류에 얼마나 맞는지는 **실측 전까지 모른다.** todo 에 있다.
+                      */}
+                    <FilterPanel title={`🔬 적재 ${slotsUsed}/${TRUCK_CAPACITY_SLOTS}박스 · 남은 ${TRUCK_CAPACITY_SLOTS - slotsUsed} — 실측 필요`}>
                         <div className="h-2 rounded bg-background border border-border-card overflow-hidden">
                             <div className="h-full bg-info/60" style={{ width: `${Math.min(100, slotsUsed / TRUCK_CAPACITY_SLOTS * 100)}%` }} />
                         </div>
