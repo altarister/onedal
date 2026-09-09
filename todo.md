@@ -97,6 +97,8 @@ http://<PC IP>:5173/inseong/dispatch?preset=볼첨지대전
 
 ### ⬜ ① 내 차 용량이 코드 상수다 — `TRUCK_CAPACITY_SLOTS = 100`
 
+> 🔴 **기사님 확정 2026-09-09**: *"그건 문제가 있다.. **DB 값을 써야 한다.**"*
+
 `shared/src/vehicles.ts` · `users.vehicle_type` 은 DB에 있는데(기본 `'1t'`) **용량이 그걸 안 본다.**
 오토바이로 나가도 적재 판정이 **100박스로 센다.**
 
