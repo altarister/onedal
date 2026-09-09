@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildNet, netForGoal, lineZoneOf, quadTesterOf, buildFirstLegDemo, judgeTwoStage, judgeGoals, orderStopsGreedy, orderStopsInsert, cityCenter, dongList, sggList, sidoList, sidoOf, isRegionExcluded, isWholeRegionExcluded, excludedLabel, isLocalPhase, WAIT_PRESET, NET_SRC, NET_DST, GONJIAM_DROP, DONGWON_DROP, BORAM_DROP, ICHEON_DROP } from './callNet';
+import { buildNet, netForGoal, lineZoneOf, quadTesterOf, buildFirstLegDemo, judgeTwoStage, judgeGoals, orderStopsGreedy, orderStopsInsert, cityCenter, dongList, sggList, sidoList, sidoOf, isRegionExcluded, isWholeRegionExcluded, excludedLabel, mergeGoalNets, isLocalPhase, WAIT_PRESET, NET_SRC, NET_DST, GONJIAM_DROP, DONGWON_DROP, BORAM_DROP, ICHEON_DROP } from './callNet';
 
 /**
  * 🧪 **그물 셋업의 계산이 ⑭ 검산과 같은가**
@@ -761,5 +761,52 @@ describe('⛔ 제외 — 도 · 시·군·구 · 읍·면·동', () => {
         expect(excludedLabel('S|서울')).toBe('서울 전체');
         expect(excludedLabel('R|가평군')).toBe('가평군 전체');
         expect(excludedLabel('D|남양주시|수동면')).toBe('수동면');
+    });
+});
+
+/**
+ * 🕸️ **그물 합치기** — 겹침·지나온 곳·통째 제외를 한 곳에서 한다.
+ * 화면(지도 점·「그물 N동」)과 아웃풋이 **이 결과 하나**를 읽는다.
+ */
+describe('🕸️ 목적지별 그물 합치기', () => {
+    const pt = (name: string, region: string, progressKm?: number) => ({ x: 0, y: 0, name, region, progressKm });
+    const opt = { departed: false, myProgressKm: 0, excluded: [] as string[] };
+
+    it('두 목적지에 같은 동이 들면 한 번만 센다', () => {
+        const r = mergeGoalNets([{ pass: [pt('역삼동', '서울 강남구')] }, { pass: [pt('역삼동', '서울 강남구')] }], opt);
+        expect(r.count).toBe(1);
+    });
+
+    it('이름이 같아도 시·군·구가 다르면 다른 동이다', () => {
+        const r = mergeGoalNets([{ pass: [pt('중앙동', '가평군'), pt('중앙동', '이천시')] }], opt);
+        expect(r.count).toBe(2);
+    });
+
+    it('🔴 지나온 동은 뺀다 — 진행도 숫자 비교 하나로', () => {
+        const pass = [pt('뒤', '광주시', 3), pt('앞', '이천시', 20), pt('마름모', '여주시')];
+        expect(mergeGoalNets([{ pass }], { ...opt, departed: true, myProgressKm: 10 }).pass.map(p => p.name))
+            .toEqual(['앞', '마름모']);   // 진행도 없는 동(마름모)은 라인과 무관하니 그대로 둔다
+    });
+
+    it('출발 전에는 지나온 동을 안 뺀다 — 아직 아무 데도 안 갔다', () => {
+        const pass = [pt('뒤', '광주시', 3)];
+        expect(mergeGoalNets([{ pass }], { ...opt, myProgressKm: 10 }).count).toBe(1);
+    });
+
+    it('🔴 통째로 뺀 지역은 그물에서 **사라진다** — 지도에 ✕ 수백 개가 덮이면 안 된다', () => {
+        const pass = [pt('역삼동', '서울 강남구'), pt('부발읍', '이천시')];
+        const r = mergeGoalNets([{ pass }], { ...opt, excluded: ['S|서울'] });
+        expect(r.pass.map(p => p.name)).toEqual(['부발읍']);
+        expect(r.groups).toEqual([{ region: '이천시', names: ['부발읍'] }]);
+    });
+
+    it('🔴 콕 집어 뺀 읍·면·동은 **남는다** — 지도에 ⛔ 로 그려 «여기 가지 마세요»를 말한다', () => {
+        const pass = [pt('수동면', '남양주시')];
+        expect(mergeGoalNets([{ pass }], { ...opt, excluded: ['D|남양주시|수동면'] }).count).toBe(1);
+    });
+
+    it('시·군·구별 명단은 많은 순이다 — 표가 그 순서로 그려진다', () => {
+        const pass = [pt('a', '이천시'), pt('b', '광주시'), pt('c', '광주시')];
+        expect(mergeGoalNets([{ pass }], opt).groups.map(g => g.region)).toEqual(['광주시', '이천시']);
     });
 });

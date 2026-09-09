@@ -936,3 +936,42 @@ export function pickNextTarget(
     }
     return Math.min(best + 1, path.length - 1);
 }
+
+/** 여러 목적지의 그물을 합칠 때 쓰는 재료 한 점 */
+export type NetPass = NetResult['pass'][number];
+
+/**
+ * 🕸️ **목적지마다 만든 그물을 한 벌로 합친다** — 화면·아웃풋이 읽는 최종 그물.
+ *
+ * 세 가지를 여기서 한다 (읽는 곳이 여럿이라 **한 곳에 모은다** · 규칙 ③):
+ *   ① 겹치는 동은 한 번만 — 목적지가 둘이면 같은 동이 두 그물에 든다
+ *   ② **지나온 동을 뺀다** — `progressKm` 숫자 비교 하나로. 이동 중에 그물을 다시 안 만든다
+ *   ③ 🔴 **통째로 뺀 지역은 아예 없앤다** (기사님 2026-09-09:
+ *      *"지금 지도에서 서울을 뺀 거, 필터를 보고 **삭제**되도록 만들어 줘"*)
+ *
+ * 🔴 **③ 은 «통째»(도·시·군·구)만이다.** 콕 집어 뺀 읍·면·동 하나는 **남겨서 지도에 ⛔ 로 그린다** —
+ *    기사님이 *"남한산성 등 가지 말아야 할 곳의 ✕ 표시가 약하다"* 며 그 표시를 강하게 하라 하셨다.
+ *    서울처럼 통째로 뺀 곳까지 표시로 남기면 ✕ 수백 개가 지도를 덮는다. **넓게 뺀 곳은 지우고,
+ *    콕 집어 뺀 곳은 남겨 경고한다.**
+ */
+export function mergeGoalNets(
+    nets: ReadonlyArray<{ pass: ReadonlyArray<NetPass> }>,
+    o: { departed: boolean; myProgressKm: number; excluded: readonly string[] },
+) {
+    const seen = new Set<string>();
+    const pass: NetPass[] = [];
+    for (const n of nets) for (const pt of n.pass) {
+        if (o.departed && pt.progressKm != null && pt.progressKm < o.myProgressKm) continue;
+        if (isWholeRegionExcluded(o.excluded, pt.region)) continue;
+        const k = `${pt.region}|${pt.name}`;
+        if (seen.has(k)) continue;
+        seen.add(k);
+        pass.push(pt);
+    }
+    const grouped = new Map<string, string[]>();
+    for (const pt of pass) grouped.set(pt.region, [...(grouped.get(pt.region) ?? []), pt.name]);
+    return {
+        groups: [...grouped.entries()].map(([region, names]) => ({ region, names })).sort((x, y) => y.names.length - x.names.length),
+        pass, count: pass.length,
+    };
+}

@@ -13,7 +13,7 @@ import { promiseTimes, impactOfStop, splitDropImpact, type StopStep } from './la
 // ⏱️ 시간·정거장 이름은 한 곳에서 만든다 (labTime.test.ts 가 지킨다)
 import { circled, hhmm, cumMinutes, arrivalAt } from './labTime';
 import {
-    netForGoal, lineZoneOf, progressAlongKm, sidoList, sggList, dongList, isRegionExcluded, isWholeRegionExcluded, excludedLabel, judgeGoals, activeGoals, nearestDong, orderStopsInsert, pickNextTarget, cityCenter, isLocalPhase, NET_SRC, NET_DST,
+    netForGoal, lineZoneOf, progressAlongKm, sidoList, sggList, dongList, isRegionExcluded, isWholeRegionExcluded, excludedLabel, mergeGoalNets, judgeGoals, activeGoals, nearestDong, orderStopsInsert, pickNextTarget, cityCenter, isLocalPhase, NET_SRC, NET_DST,
     GONJIAM_DROP, DONGWON_DROP, BORAM_DROP,
     GONJIAM_CALL_PATH, DONGWON_CALL_PATH, BORAM_CALL_PATH,
     type NetPoint, type TwoStageVerdict,
@@ -1184,27 +1184,13 @@ export default function MapMockup() {
     const zoneOfGoal = useMemo(
         () => (g: NetPoint) => lineOn && routeLine ? lineZoneOf(routeLine, lineRadiusKm, lastDrop, params, g) : undefined,
         [lineOn, routeLine, lineRadiusKm, lastDrop, params]);
-    /** 화면·아웃풋이 읽는 영역 = **살아 있는 마름모들의 합집합** (⑮ 기준 3) */
-    const areaNet = useMemo(() => {
-        const seen = new Set<string>();
-        const pass: typeof goalNets[number]['net']['pass'] = [];
-        for (const { net: n } of goalNets) for (const pt of n.pass) {
-            /**
-             * 🔴 **지나온 동은 뺀다 — 숫자 비교 하나로** (기사님 2026-09-09).
-             * 그물은 라인이 바뀔 때만 만들고, 이동 중에는 이 한 줄이 «다시 안 갈 곳»을 지운다.
-             * `progressKm` 이 없는 동(마름모로 든 것)은 라인과 무관하므로 그대로 둔다.
-             */
-            if (departed && pt.progressKm != null && pt.progressKm < myProgressKm) continue;
-            const k = `${pt.region}|${pt.name}`;
-            if (!seen.has(k)) { seen.add(k); pass.push(pt); }
-        }
-        const grouped = new Map<string, string[]>();
-        for (const pt of pass) grouped.set(pt.region, [...(grouped.get(pt.region) ?? []), pt.name]);
-        return {
-            groups: [...grouped.entries()].map(([region, names]) => ({ region, names })).sort((x, y) => y.names.length - x.names.length),
-            pass, count: pass.length,
-        };
-    }, [goalNets, departed, myProgressKm]);
+    /**
+     * 화면·아웃풋이 읽는 영역 = **살아 있는 마름모들의 합집합** (⑮ 기준 3).
+     * 합치는 규칙(겹침·지나온 곳·통째 제외)은 `mergeGoalNets` 한 곳에 있다 — 검사가 거기서 잠근다.
+     */
+    const areaNet = useMemo(
+        () => mergeGoalNets(goalNets.map(g => g.net), { departed, myProgressKm, excluded }),
+        [goalNets, departed, myProgressKm, excluded]);
     /**
      * 📦 **앱에 내려갈 필터 아웃풋** (기사님 2026-09-07: *"DB 도 서버통신도 없이, 필터 로직을
      * 잘 만들어 앱에 전달할 아웃풋만 만든다"*) — 실험실 상태에서 곧장 파생하는 순수 계산.
