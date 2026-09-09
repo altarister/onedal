@@ -274,6 +274,56 @@ function NumRow({ label, value, onChange, min = 0, max = 999, mode = 'input', au
         </label>
     );
 }
+/** 🎚️ 값 하나의 정의 — 화면과 계산이 같은 목록을 읽는다 */
+type KnobDef = { key: string; label: string; unit: string; value: number; max: number; step?: number; set: (v: number) => void; dim?: boolean };
+
+/**
+ * 🎚️ **값 여섯을 한 묶음으로 — 누르면 슬라이더가 «레이어»로 뜬다**
+ * (기사님 2026-09-09: *"클릭하면 슬라이더가 보이는 건 어때?"* ·
+ *  *"**밀리는 것 없이 레이어로** 처리하는 것이 좋을 것 같아"* · *"한 줄에 3개도 넣을 수 있을 듯"*).
+ *
+ * 🔴 숫자 입력칸은 폰에서 나쁘다 — *"커서 확인하고 숫자 지우고 입력하고 힘들어."*
+ *    **손가락으로 끌어 크게 옮기고, ± 로 한 칸씩 다듬는다.** 숫자판을 안 띄운다.
+ * 🔴 **펼쳐도 아래가 안 밀린다** — 묶음 위에 겹쳐 뜬다. 아래로 밀면 폰에서 보던 자리가 사라진다.
+ * 🔴 레이어는 **셀이 아니라 묶음 전체 폭**을 쓴다 — 셀(1/3) 안에 슬라이더를 넣으면 못 끈다.
+ */
+function KnobGrid({ knobs, open, onOpen }: { knobs: KnobDef[]; open: string | null; onOpen: (k: string | null) => void }) {
+    const cur = knobs.find(k => k.key === open) ?? null;
+    const clamp = (k: KnobDef, v: number) => Math.min(k.max, Math.max(0, v));
+    return (
+        <div className="relative">
+            <div className="grid grid-cols-3 gap-1">
+                {knobs.map(k => (
+                    <button key={k.key} type="button" onClick={() => onOpen(open === k.key ? null : k.key)}
+                        className={`flex flex-col items-start gap-0 px-1.5 py-1 rounded-lg border text-left ${k.dim ? 'opacity-50' : ''} ${
+                            open === k.key ? 'border-info/55 bg-info/10' : 'border-border-card bg-background hover:border-border-hover'}`}>
+                        <span className="text-[9.5px] font-bold text-text-muted leading-tight">{k.label}</span>
+                        <span className="text-[14px] font-black text-text-primary tabular-nums leading-tight">
+                            {k.value}<span className="text-[9.5px] font-bold text-text-muted">{k.unit}</span>
+                        </span>
+                    </button>
+                ))}
+            </div>
+            {cur && (
+                <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 z-20 flex items-center gap-1.5
+                                rounded-xl border border-info/55 bg-surface shadow-lg px-1.5 py-2">
+                    <button type="button" onClick={() => onOpen(null)}
+                        className="shrink-0 text-[10px] font-black text-text-muted px-0.5">{cur.label} ✕</button>
+                    <button type="button" onClick={() => cur.set(clamp(cur, cur.value - (cur.step ?? 1)))}
+                        className="w-8 h-8 shrink-0 rounded-lg border border-border-hover bg-background text-[16px] font-black">−</button>
+                    <input type="range" min={0} max={cur.max} step={cur.step ?? 1} value={cur.value}
+                        onChange={e => cur.set(Number(e.target.value))}
+                        className="flex-1 min-w-0 accent-[#0284c7]" />
+                    <button type="button" onClick={() => cur.set(clamp(cur, cur.value + (cur.step ?? 1)))}
+                        className="w-8 h-8 shrink-0 rounded-lg border border-border-hover bg-background text-[16px] font-black">+</button>
+                    <span className="shrink-0 w-[48px] text-right text-[14px] font-black text-info tabular-nums">
+                        {cur.value}<span className="text-[9px] font-bold">{cur.unit}</span>
+                    </span>
+                </div>
+            )}
+        </div>
+    );
+}
 /** 아웃풋 키-값 한 줄 — 하단 분류 표의 기본 단위. 숨김(undefined)도 «숨김»으로 보여준다 (화면이 거짓말 안 하게) */
 function OutKv({ k, v }: { k: string; v: ReactNode }) {
     const hiddenVal = v === undefined || v === null;
@@ -630,6 +680,8 @@ export default function MapMockup() {
     const [lineRadiusKm, setLineRadiusKm] = useState(5);
     /** 💰 단가표를 펼쳤나 — 폰 화면은 «한 줄 ↔ 펼침» 두 상태다 (기사님 2026-09-09) */
     const [rateTableOpen, setRateTableOpen] = useState(false);
+    /** 🎚️ 지금 펼친 값 하나 — 여럿을 펼치면 폰에서 화면이 밀린다 (기사님 2026-09-09) */
+    const [openKnob, setOpenKnob] = useState<string | null>(null);
     /**
      * 🛣️ 경로 옵션 — 길 고르기를 걷어낸 뒤로 **«추천» 고정**이다 (기사님 2026-09-09 *"길찾기는 지워"*).
      * 고속도로냐 국도냐를 고르는 축은 별건이다 (todo 0-I) — 그때 여기에 손잡이가 붙는다.
@@ -2317,15 +2369,15 @@ export default function MapMockup() {
                         *"모두 꺼내 두고 노선이면 라인값을 사용하고 동선이면 사용 안 하면 되니까"*).
                         예전엔 탭마다 다른 칸을 보였는데, 그건 «값이 여러 벌»이 아니라
                         «지금 안 쓰는 칸을 감추는 것»이었다 — 감추면 화면이 조용히 거짓말한다. */}
-                    <div className="grid grid-cols-2 gap-1.5">
-                        <NumRow label="출발각°" value={knobs.srcAngleDeg} max={360} onChange={v => patchKnob({ srcAngleDeg: v })} />
-                        <NumRow label="목적각°" value={knobs.dstAngleDeg} max={360} onChange={v => patchKnob({ dstAngleDeg: v })} />
-                        <NumRow label="현위㎞" value={knobs.pickupRadiusKm} max={999} onChange={v => patchKnob({ pickupRadiusKm: v })} />
-                        <NumRow label="목적㎞" value={knobs.dropoffRadiusKm} max={999} onChange={v => patchKnob({ dropoffRadiusKm: v })} />
-                        <NumRow label="마름모반경㎞" value={knobs.quadRadiusKm} max={999} onChange={v => patchKnob({ quadRadiusKm: v })} />
-                    </div>
-                    {/* 📏 라인 반경 — **노선일 때만 쓰인다.** 감추지 않고 «지금 쓰는가»를 아래 줄이 말한다 */}
-                    <NumRow label="라인반경㎞" value={lineRadiusKm} onChange={setLineRadiusKm} max={999} />
+                    <KnobGrid open={openKnob} onOpen={setOpenKnob} knobs={[
+                        { key: 'srcAngle', label: '출발각', unit: '°', value: knobs.srcAngleDeg, max: 360, step: 10, set: v => patchKnob({ srcAngleDeg: v }) },
+                        { key: 'dstAngle', label: '목적각', unit: '°', value: knobs.dstAngleDeg, max: 360, step: 10, set: v => patchKnob({ dstAngleDeg: v }) },
+                        { key: 'quadR', label: '마름모반경', unit: 'km', value: knobs.quadRadiusKm, max: 200, set: v => patchKnob({ quadRadiusKm: v }) },
+                        { key: 'pickupR', label: '현위반경', unit: 'km', value: knobs.pickupRadiusKm, max: 100, set: v => patchKnob({ pickupRadiusKm: v }) },
+                        { key: 'dropR', label: '목적반경', unit: 'km', value: knobs.dropoffRadiusKm, max: 100, set: v => patchKnob({ dropoffRadiusKm: v }) },
+                        // 📏 라인 반경 — 노선일 때만 쓰인다. 감추지 않고 흐리게 둔다
+                        { key: 'lineR', label: '라인반경', unit: 'km', value: lineRadiusKm, max: 50, set: setLineRadiusKm, dim: !routeMode },
+                    ]} />
                     {!routeMode ? (
                         <p className="text-[10.5px] text-text-muted leading-snug">동선에서는 라인 반경을 안 씁니다 — 마름모 하나로 봅니다</p>
                     ) : lineOn ? (
