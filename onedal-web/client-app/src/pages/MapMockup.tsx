@@ -45,6 +45,37 @@ const ROUTE_COMBO: { priority: string; avoid?: string; label: string } = { prior
 const labDwellOf = (label: string) => dwellMinutes(null, 0, label.endsWith('하차') ? 'dropoff' : 'pickup');
 
 /**
+ * 🎚️ **실험실 기본값 — 여기 하나에 모은다** (기사님 지시 2026-09-09:
+ * *"사용 컴포넌트에서는 변수로 바꿔서 상단에 기본값들을 다 모아줘"*).
+ *
+ * 🔴 `useState` 초기값에 흩어져 있으면 «지금 기본이 얼마인가»를 찾으러 파일을 훑어야 한다.
+ *    값이 태어난 근거도 그 자리에 흩어진다 — 한 곳에 두고 근거를 옆에 적는다.
+ *
+ * 실물에서는 이 자리가 **DB**(`user_filter_phases` 등)다. 실험실은 DB 를 안 쓰므로
+ * 이 상수가 그 노릇을 한다 — 이식 때 여기 값이 DB 기본값으로 간다.
+ */
+const LAB_DEFAULTS = {
+    /** 🛣️ 기본은 **노선** (기사님 2026-09-09) */
+    routeMode: true,
+    /**
+     * 📐 **각 110° · 마름모 반경 25km** — 기사님이 화면에서 돌려 보고 정하셨다 (2026-09-09):
+     * *"**뒤로 많이 가는 것만 빼고 잡자** 이런 느낌으로."*
+     * 110° 는 반각 55° — 옆으로는 넉넉히 열고 **등 뒤만 닫는다.** 25km 가 그 부채꼴의
+     * 배부른 가운데를 잘라 축에서 멀어지는 콜을 막는다.
+     */
+    srcAngleDeg: 110, dstAngleDeg: 110, quadRadiusKm: 25,
+    /** 📍 상차 반경 10km · 하차지 주변 15km · 라인 반경 6km (기사님 2026-09-09) */
+    pickupRadiusKm: 10, dropoffRadiusKm: 15, lineRadiusKm: 6,
+    /** 💰 시세 대비 10% 까지 (실물 DB 기본값과 같다) */
+    discountPct: 10,
+    /** 🚚 받을 짐 차종 · 🚫 제외 단어 — DTO 예시 그대로의 목업값 */
+    vehicles: ['1t', '다마스'],
+    excludedWords: ['착불', '수거'],
+    /** 📦 후보콜의 짐 — 볼첨지 표를 셀 때 쓴 «모든 콜 = 1박스» 가정 */
+    candBoxes: 1,
+};
+
+/**
  * ⛔ **제외지역 기본값 — «들어가면 못 빠져나오는 곳»** (기사님 확정 2026-09-09 · 「다 + 가」).
  *
  * 출처는 노하우 영상 「이 선을 넘지 마세요」 —
@@ -383,7 +414,7 @@ export default function MapMockup() {
      *   (볼첨지 이틀 표를 정리할 때 기사님이 «모든 콜 = 1박스»로 가정하신 그 값).
      */
     const [candFare, setCandFare] = useState(0);
-    const [candBoxes, setCandBoxes] = useState(1);
+    const [candBoxes, setCandBoxes] = useState(LAB_DEFAULTS.candBoxes);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const boxRef = useRef<HTMLDivElement>(null);
     const [size, setSize] = useState({ w: 900, h: 640 });
@@ -413,19 +444,9 @@ export default function MapMockup() {
      * ⚠️ 실물(`user_filter_phases`)은 아직 다섯 벌이다. 그 차이는 이식 계획에 적어 뒀다.
      */
     const [knobs, setKnobs] = useState({
-        /**
-         * 📐 **각 110° · 마름모 반경 25km** (기사님 확정 2026-09-09 — 화면에서 돌려 보고 정하셨다).
-         *
-         * 기사님: *"이렇게 표현하고 싶었어. **뒤로 많이 가는 것만 빼고 잡자** 이런 느낌으로."*
-         * 110° 는 반각 55° — 옆으로는 넉넉히 열고 **등 뒤만 닫는다.** 그리고 25km 가 그 부채꼴의
-         * 배부른 가운데를 잘라, 축에서 멀어지는 콜을 막는다.
-         * (2026-09-07 의 100°/100° 와 2026-09-09 오전의 «반경 120 = 안 자름»을 대체한다)
-         */
-        srcAngleDeg: 110, dstAngleDeg: 110,
-        // 실험실 기본 반경 15/15 (기사님 2026-09-08) — 실물 기본값(10)보다 넓게 잡아 그물을 먼저 본다
-        pickupRadiusKm: 15, dropoffRadiusKm: 15,
-        quadRadiusKm: 25,
-        discountPct: 10,                           // 콜할인율 — 시세 대비 허용 할인
+        srcAngleDeg: LAB_DEFAULTS.srcAngleDeg, dstAngleDeg: LAB_DEFAULTS.dstAngleDeg,
+        pickupRadiusKm: LAB_DEFAULTS.pickupRadiusKm, dropoffRadiusKm: LAB_DEFAULTS.dropoffRadiusKm,
+        quadRadiusKm: LAB_DEFAULTS.quadRadiusKm, discountPct: LAB_DEFAULTS.discountPct,
     });
     /** 값 하나를 고친다 — 국면이 없으니 «어느 벌»을 고를 일이 없다 */
     const patchKnob = (patch: Partial<typeof knobs>) => setKnobs(k => ({ ...k, ...patch }));
@@ -483,7 +504,7 @@ export default function MapMockup() {
      * 상차 반경·하차지 주변은 왼쪽 손잡이(knobs)와 **같은 상태**를 읽는다 — 원천 하나.
      */
     // callTarget 은 행선·도착 인지에서 파생된다 — 아래 localMode 뒤에서 계산
-    const [vehicles, setVehicles] = useState<string[]>(['1t', '다마스']);             // 목업값 (DTO 예시 그대로)
+    const [vehicles, setVehicles] = useState<string[]>([...LAB_DEFAULTS.vehicles]);
     /**
      * 🚫 **제외 단어 — 입력이 필요하다** (기사님 확정 2026-09-09: *"제외 단어는 입력이 필요하다.
      * 펼치면 내용을 볼 수 있다"*). 실물에서는 앱이 콜 글자에서 이 단어를 찾아 거른다(여섯 축의 «블랙리스트»).
@@ -496,7 +517,7 @@ export default function MapMockup() {
      *    *"아파트 상가 같은?"* 지금은 단어 하나로 «안 잡는다»만 답하는데, «어떤 자리에 내리는가»는
      *    다른 질문이다 (엘리베이터·주차·층수 …). todo 에 있다.
      */
-    const [excludedWords, setExcludedWords] = useState<string[]>(['착불', '수거']);
+    const [excludedWords, setExcludedWords] = useState<string[]>([...LAB_DEFAULTS.excludedWords]);
     const [wordsOpen, setWordsOpen] = useState(false);
     /**
      * 📦 **쓴 박스 — 손잡이가 아니라 파생이다** (기사님 확정 2026-09-09: *"적재는 상태값이니 필요 없고"*).
@@ -678,7 +699,7 @@ export default function MapMockup() {
      * 🔴 2026-09-07~08 의 노선은 «길 찾기로 고른 직행 길»이었다. 그 길은 **잡아 둔 콜을
      *    안 거치므로**, 콜을 쥐면 틀린 답을 냈다(그래서 잠가 뒀었다). 지금은 **콜이 라인을 만든다.**
      */
-    const [routeMode, setRouteMode] = useState(true);   // 🛣️ 기본은 **노선**이다 (기사님 2026-09-09)
+    const [routeMode, setRouteMode] = useState(LAB_DEFAULTS.routeMode);
     const [excluded, setExcluded] = useState<string[]>(LAB_DEFAULT_EXCLUDED);
     /**
      * ⛔ 제외지역은 **노선·동선 공통**이다 (기사님 2026-09-09 «공통으로 빼»).
@@ -694,7 +715,7 @@ export default function MapMockup() {
      * 🔴 실물의 **«우회 허용»**(`detour_allow_km` — 카카오가 재는 **총거리 증가분**)과 **다른 값이다.**
      *    둘 다 km 라 한 이름으로 부르면 이식할 때 조용히 섞인다.
      */
-    const [lineRadiusKm, setLineRadiusKm] = useState(5);
+    const [lineRadiusKm, setLineRadiusKm] = useState(LAB_DEFAULTS.lineRadiusKm);
     /** 💰 단가표를 펼쳤나 — 폰 화면은 «한 줄 ↔ 펼침» 두 상태다 (기사님 2026-09-09) */
     const [rateTableOpen, setRateTableOpen] = useState(false);
     /** 🎚️ 지금 펼친 값 하나 — 여럿을 펼치면 폰에서 화면이 밀린다 (기사님 2026-09-09) */
