@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
     rateFloorsFrom,
     NET_RATE_PER_KM, VEHICLE_CAPACITY, CALL_TARGET_LABEL,
@@ -340,55 +340,67 @@ function NumRow({ label, value, onChange, min = 0, max = 999, mode = 'input', au
  * 🔴 `<select>`(네이티브 드롭다운)를 쓰면 폰마다 생김새가 달라지고, 이 화면의 다른 입력과
  *    조작이 갈린다. **같은 자리에서 같은 방식으로** 고르게 한다.
  */
-function PickLayer({ label, value, options, open, onToggle, onPick, selected, tone, foot }: {
+function PickLayer({ label, value, options, open, onToggle, onPick, selected, keepOpen, tone, foot }: {
     label: string; value: string; options: string[];
     open: boolean; onToggle: () => void; onPick: (v: string) => void;
-    /** 여러 개 고르는 자리면 그 목록 — 주면 고른 뒤에도 레이어가 안 닫힌다 */
+    /** 지금 켜져 있는 것들 — **색만** 칠한다 */
     selected?: string[];
+    /**
+     * 🔴 **여럿 고르는 칸인가** — 켜면 고른 뒤에도 레이어가 안 닫힌다.
+     *
+     * 전에는 `selected` 가 있으면 자동으로 안 닫혔다. 그래서 «어느 시·군·구를 볼까»처럼
+     * **하나만 고르는데 색은 여럿 칠하는** 칸이 눌러도 안 닫혀 «오작동»으로 보였다
+     * (기사님 2026-09-09). **색칠과 여닫이는 다른 것이다 — 갈랐다.**
+     */
+    keepOpen?: boolean;
     tone?: 'info' | 'warning' | 'danger';
     /** 레이어 아래에 덧붙일 것 (예: 할인율의 차종별 단가표) */
     foot?: ReactNode;
 }) {
-    useEffect(() => {
-        if (!open) return;
-        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onToggle(); };
-        window.addEventListener('keydown', onKey);
-        return () => window.removeEventListener('keydown', onKey);
-    }, [open, onToggle]);
+    useCloseOnOutside(open, onToggle);
     return (
         <>
-            <button type="button" onClick={onToggle}
+            <button type="button" data-pick onClick={onToggle}
                 className={`flex flex-col items-start gap-0 px-1.5 py-1 rounded-lg border text-left min-w-0 ${
                     open ? 'border-info/55 bg-info/10' : 'border-border-card bg-background hover:border-border-hover'}`}>
                 <span className="text-[9.5px] font-bold text-text-muted leading-tight">{label}</span>
                 <span className="w-full truncate text-[13px] font-black text-text-primary leading-tight">{value}</span>
             </button>
             {open && (
-                <>
-                    <div className="fixed inset-0 z-10" onClick={onToggle} />
-                    <div className="absolute left-0 right-0 top-0 z-20 rounded-xl border border-info/55 bg-surface shadow-lg p-1.5">
-                        <div className="flex items-center justify-between px-0.5 pb-1">
-                            <span className="text-[10px] font-black text-text-muted">{label}</span>
-                            <button type="button" onClick={onToggle} className="text-[10px] font-black text-text-muted px-1">✕</button>
-                        </div>
-                        <div className="flex flex-wrap gap-1 max-h-[190px] overflow-y-auto">
-                            {options.map(v => {
-                                const on = selected ? selected.includes(v) : v === value;
-                                return (
-                                    <button key={v} type="button" onClick={() => { onPick(v); if (!selected) onToggle(); }}
-                                        className={`px-1.5 py-1 rounded-md border text-[11px] font-black ${on
-                                            ? (tone === 'warning' ? 'bg-warning/15 border-warning/55 text-warning'
-                                                : tone === 'danger' ? 'bg-danger/15 border-danger/55 text-danger'
-                                                    : 'bg-info/15 border-info/55 text-info')
-                                            : 'border-border-card bg-background text-text-muted hover:border-border-hover'}`}>
-                                        {v}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                        {foot && <div className="mt-1.5 border-t border-border-card pt-1.5">{foot}</div>}
+                <div data-pick className="absolute left-0 right-0 top-0 z-20 rounded-xl border border-info/55 bg-surface shadow-lg p-1.5">
+                    <div className="flex items-center justify-between px-0.5 pb-1">
+                        <span className="text-[10px] font-black text-text-muted">{label}</span>
+                        <button type="button" onClick={onToggle} className="text-[10px] font-black text-text-muted px-1">✕</button>
                     </div>
-                </>
+                    <div className="flex flex-wrap gap-1 max-h-[190px] overflow-y-auto">
+                        {options.map(v => {
+                            const on = selected ? selected.includes(v) : v === value;
+                            return (
+                                <button key={v} type="button" onClick={() => { onPick(v); if (!keepOpen) onToggle(); }}
+                                    className={`px-1.5 py-1 rounded-md border text-[11px] font-black ${on
+                                        ? (tone === 'warning' ? 'bg-warning/15 border-warning/55 text-warning'
+                                            : tone === 'danger' ? 'bg-danger/15 border-danger/55 text-danger'
+                                                : 'bg-info/15 border-info/55 text-info')
+                                        : 'border-border-card bg-background text-text-muted hover:border-border-hover'}`}>
+                                    {v}
+                                </button>
+                            );
+                        })}
+                    </div>
+                    {foot && <div className="mt-1.5 border-t border-border-card pt-1.5">{foot}</div>}
+                    {/**
+                      * ✅ **여럿 고르는 칸에는 끝내는 버튼을 둔다** (기사님 2026-09-09
+                      * *"뭔가 선택 버튼이 필요할 것 같은데"*). 하나만 고르는 칸은 누르면 바로 닫히니
+                      * 필요 없고, **여럿 고르는 칸은 «다 골랐다»를 사람이 말해야** 끝난다.
+                      * 위의 «✕»는 작아서 운전 중에 못 누른다.
+                      */}
+                    {keepOpen && (
+                        <button type="button" onClick={onToggle}
+                            className="mt-1.5 w-full px-2 py-1.5 rounded-lg border border-info/55 bg-info/15 text-info text-[12px] font-black">
+                            ✅ 선택 완료
+                        </button>
+                    )}
+                </div>
             )}
         </>
     );
@@ -407,20 +419,41 @@ type KnobDef = { key: string; label: string; unit: string; value: number; max: n
  * 🔴 **펼쳐도 아래가 안 밀린다** — 묶음 위에 겹쳐 뜬다. 아래로 밀면 폰에서 보던 자리가 사라진다.
  * 🔴 레이어는 **셀이 아니라 묶음 전체 폭**을 쓴다 — 셀(1/3) 안에 슬라이더를 넣으면 못 끈다.
  */
-function KnobGrid({ knobs, open, onOpen }: { knobs: KnobDef[]; open: string | null; onOpen: (k: string | null) => void }) {
-    const cur = knobs.find(k => k.key === open) ?? null;
+/**
+ * 🖱️ **레이어 바깥을 눌렀을 때만 닫는다** (기사님 2026-09-09 *"지금 오작동하는 거 같아"*).
+ *
+ * 🔴 **온 화면 덮개(`fixed inset-0`)를 쓰고 있었다.** 그래서 레이어가 열려 있는 동안
+ *    **다른 칸을 누르면 그 클릭을 덮개가 삼켰다** — 첫 번째 누름은 덮개를 닫기만 하고
+ *    아무 일도 안 일어나서, 두 번 눌러야 열렸다. «느린 것»처럼 보인 것이 이것이다.
+ * 🔴 덮개는 애초에 필요 없다: 열린 칸은 `openKnob` **하나뿐**이라 다른 칸을 열면
+ *    이 칸은 저절로 닫힌다. 그러니 «칸이 아닌 곳»만 감시하면 된다 (`data-pick`).
+ */
+function useCloseOnOutside(open: boolean, close: () => void) {
     useEffect(() => {
         if (!open) return;
-        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onOpen(null); };
+        const onDown = (e: PointerEvent) => {
+            const t = e.target as HTMLElement | null;
+            if (t?.closest('[data-pick]')) return;                 // 칸·레이어 안이면 그대로 둔다
+            // 🔴 지도 위였으면 **닫기만** 하고 삼킨다 — 닫으려다 콜이 찍히면 안 된다
+            if (t?.closest('canvas')) { e.preventDefault(); e.stopPropagation(); }
+            close();
+        };
+        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
+        document.addEventListener('pointerdown', onDown, true);
         window.addEventListener('keydown', onKey);
-        return () => window.removeEventListener('keydown', onKey);
-    }, [open, onOpen]);
+        return () => { document.removeEventListener('pointerdown', onDown, true); window.removeEventListener('keydown', onKey); };
+    }, [open, close]);
+}
+
+function KnobGrid({ knobs, open, onOpen }: { knobs: KnobDef[]; open: string | null; onOpen: (k: string | null) => void }) {
+    const cur = knobs.find(k => k.key === open) ?? null;
+    useCloseOnOutside(!!cur, useCallback(() => onOpen(null), [onOpen]));
     const clamp = (k: KnobDef, v: number) => Math.min(k.max, Math.max(0, v));
     return (
         <div className="relative">
             <div className="grid grid-cols-3 gap-1">
                 {knobs.map(k => (
-                    <button key={k.key} type="button" onClick={() => onOpen(open === k.key ? null : k.key)}
+                    <button key={k.key} type="button" data-pick onClick={() => onOpen(open === k.key ? null : k.key)}
                         className={`flex flex-col items-start gap-0 px-1.5 py-1 rounded-lg border text-left ${k.dim ? 'opacity-50' : ''} ${
                             open === k.key ? 'border-info/55 bg-info/10' : 'border-border-card bg-background hover:border-border-hover'}`}>
                         <span className="text-[9.5px] font-bold text-text-muted leading-tight">{k.label}</span>
@@ -436,9 +469,8 @@ function KnobGrid({ knobs, open, onOpen }: { knobs: KnobDef[]; open: string | nu
               * 레이어가 값 버튼을 덮으므로 «같은 버튼 다시 누르기»만으로는 못 닫는다.
               * 바깥 클릭은 투명한 층으로 받는다 — 지도에 실수로 콜이 찍히는 것도 함께 막힌다.
               */}
-            {cur && <div className="fixed inset-0 z-10" onClick={() => onOpen(null)} />}
             {cur && (
-                <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 z-20 flex items-center gap-1.5
+                <div data-pick className="absolute inset-x-0 top-1/2 -translate-y-1/2 z-20 flex items-center gap-1.5
                                 rounded-xl border border-info/55 bg-surface shadow-lg px-1.5 py-2">
                     <button type="button" onClick={() => onOpen(null)}
                         className="shrink-0 text-[10px] font-black text-text-muted px-0.5">{cur.label} ✕</button>
@@ -785,6 +817,8 @@ export default function MapMockup() {
      */
     const [exSido, setExSido] = useState(DEFAULT_SIDO);
     const [exSgg, setExSgg] = useState<string | null>(null);
+    /** ⛔ 제외 목록을 펼쳤나 — 닫히면 **한 줄**, 누르면 전부 (기사님 2026-09-09) */
+    const [exListOpen, setExListOpen] = useState(false);
     /**
      * ⛔ 제외지역은 **노선·동선 공통**이다 (기사님 2026-09-09 «공통으로 빼»).
      * 2026-09-08 에는 노선에서 안 썼다 — 그때 노선은 «길 하나»라 길이 곧 선별이었다.
@@ -2627,11 +2661,11 @@ export default function MapMockup() {
                                     ))}
                                 </div>} />
                         <PickLayer label="🚚 받을 짐" value={vehicles.length ? vehicles.map(v => VEHICLE_SHORT[v] ?? v).join('·') : '모두'}
-                            options={['오토바이', '승용차', '다마스', '라보', '1t']} selected={vehicles}
+                            options={['오토바이', '승용차', '다마스', '라보', '1t']} keepOpen selected={vehicles}
                             open={openKnob === 'vehicles'} onToggle={() => setOpenKnob(o => o === 'vehicles' ? null : 'vehicles')}
                             onPick={v => setVehicles(x => x.includes(v) ? x.filter(o => o !== v) : [...x, v])} />
                         <PickLayer label="🚫 제외 단어" value={excludedWords.length ? `${excludedWords.length}개` : '없음'}
-                            options={['착불', '수거', '까대기', '직접운반', '왕복', '대기']} selected={excludedWords} tone="warning"
+                            options={['착불', '수거', '까대기', '직접운반', '왕복', '대기']} keepOpen selected={excludedWords} tone="warning"
                             open={openKnob === 'words'} onToggle={() => setOpenKnob(o => o === 'words' ? null : 'words')}
                             onPick={v => setExcludedWords(x => x.includes(v) ? x.filter(o => o !== v) : [...x, v])} />
                     </div>
@@ -2667,24 +2701,43 @@ export default function MapMockup() {
                                 ) : <span className="text-[9.5px] font-bold text-text-muted">고르면 «통째로 제외» 버튼이 여기 뜹니다</span>} />
                             <PickLayer label="읍·면·동"
                                 value={exSgg ? (() => { const n = dongList(exSgg).filter(d => excluded.includes(`D|${exSgg}|${d}`)).length; return n ? `${n}개 제외` : '전부 봄'; })() : '—'}
-                                tone="danger" options={exSgg ? dongList(exSgg) : []}
+                                tone="danger" keepOpen options={exSgg ? dongList(exSgg) : []}
                                 selected={exSgg ? dongList(exSgg).filter(d => excluded.includes(`D|${exSgg}|${d}`)) : []}
                                 open={openKnob === 'exDong'} onToggle={() => setOpenKnob(o => o === 'exDong' ? null : 'exDong')}
                                 onPick={v => { if (!exSgg) return; const key = `D|${exSgg}|${v}`; setExcluded(x => x.includes(key) ? x.filter(k => k !== key) : [...x, key]); }}
                                 foot={!exSgg ? <span className="text-[9.5px] font-bold text-text-muted">시·군·구를 먼저 고르세요</span> : null} />
                         </div>
-                        {/* 🔴 «지금 무엇이 빠져 있나»는 **늘 보인다** — 레이어를 열어야 알면 조용히 거짓말한다 */}
-                        {excluded.length > 0 && (
-                            <div className="flex flex-wrap gap-1">
-                                {excluded.map(k => (
-                                    <button key={k} type="button" onClick={() => setExcluded(x => x.filter(v => v !== k))}
-                                        title="누르면 되살립니다"
-                                        className="px-1.5 py-0.5 rounded-md bg-danger/15 text-danger text-[10.5px] font-black">
-                                        ⛔ {k.startsWith('R|') ? `${k.slice(2)} 전체` : k.split('|')[2]} ✕
-                                    </button>
-                                ))}
+                        {/**
+                          * 🔴 «지금 무엇이 빠져 있나»는 **늘 보인다** — 레이어를 열어야 알면 화면이 조용히 거짓말한다.
+                          * 다만 여덟 줄을 늘 펴 두면 폰에서 필터가 화면을 다 먹는다. 그래서
+                          * **닫히면 한 줄, 누르면 전부**다 (기사님 2026-09-09 *"결과물을 첫 줄만 보여 주고 클릭하면 다"*).
+                          * 🔴 **닫힌 줄에서는 지우지 못한다** — 잘린 글을 누르다 실수로 되살아나면 안 된다.
+                          *    펼쳐야 ✕ 가 달린 칩이 된다.
+                          */}
+                        {excluded.length > 0 && (exListOpen ? (
+                            <div className="flex flex-col gap-1">
+                                <div className="flex flex-wrap gap-1">
+                                    {excluded.map(k => (
+                                        <button key={k} type="button" onClick={() => setExcluded(x => x.filter(v => v !== k))}
+                                            title="누르면 되살립니다"
+                                            className="px-1.5 py-0.5 rounded-md bg-danger/15 text-danger text-[10.5px] font-black">
+                                            ⛔ {k.startsWith('R|') ? `${k.slice(2)} 전체` : k.split('|')[2]} ✕
+                                        </button>
+                                    ))}
+                                </div>
+                                <button type="button" onClick={() => setExListOpen(false)}
+                                    className="self-start text-[10px] font-black text-text-muted">▴ 접기</button>
                             </div>
-                        )}
+                        ) : (
+                            <button type="button" onClick={() => setExListOpen(true)}
+                                className="flex items-center gap-1 min-w-0 w-full px-1.5 py-1 rounded-md border border-border-card bg-background text-left hover:border-danger">
+                                <span className="shrink-0 text-[10.5px] font-black text-danger">⛔ {excluded.length}곳</span>
+                                <span className="min-w-0 flex-1 truncate text-[10.5px] font-bold text-text-muted">
+                                    {excluded.map(k => k.startsWith('R|') ? `${k.slice(2)} 전체` : k.split('|')[2]).join(' · ')}
+                                </span>
+                                <span className="shrink-0 text-[10px] font-black text-text-muted">▾ 전부</span>
+                            </button>
+                        ))}
                         <p className="text-[9.5px] text-text-muted leading-snug">
                             여덟 곳이 <b className="text-danger">미리 눌려</b> 있습니다 — 들어가면 빈차로 나와야 하는 곳(노하우 「이 선을 넘지 마세요」).
                             칩을 누르면 되살아납니다. 지도의 <b className="text-success">초록 점</b>은 콜이 잘 나오는 곳 — <b>표시만</b> 하고 판정엔 안 씁니다
