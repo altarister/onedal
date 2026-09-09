@@ -43,6 +43,53 @@ const ROUTE_COMBO: { priority: string; avoid?: string; label: string } = { prior
  */
 const labDwellOf = (label: string) => dwellMinutes(null, 0, label.endsWith('하차') ? 'dropoff' : 'pickup');
 
+/**
+ * ⛔ **제외지역 기본값 — «들어가면 못 빠져나오는 곳»** (기사님 확정 2026-09-09 · 「다 + 가」).
+ *
+ * 출처는 노하우 영상 「이 선을 넘지 마세요」 —
+ * `docs/자료/노하우/일하는_법/노하우_추출.md` §9 에 이유와 함께 적혀 있다.
+ *
+ * 🔴 **영상의 선을 통째로 옮기지 않았다.** 그 선은 볼트(김포) 기준이고 기사님 집은 광주 초월이라
+ *    경계가 다르다. 여기 넣은 것은 **집 위치와 무관하게 «빈차로 돌아오는»** 여덟 곳뿐이다.
+ * 🔴 **기사님이 칩을 눌러 언제든 되살린다** — 잠그는 것이 아니라 미리 눌러 둔 것이다.
+ * 🔴 `intel`(실측)이 «그 동네에서 다음 콜이 몇 분 만에 떴나»를 답하기 시작하면 이 목록은
+ *    참고가 되고 그 숫자가 원천이 된다.
+ */
+const LAB_DEFAULT_EXCLUDED = [
+    'R|인천 강화군',            // 빠져나오기 어렵다
+    'R|연천군',                 // «거의 연천이야» — 꼭대기 밖
+    'R|가평군',                 // «낚여서 가지 마세요»
+    'D|남양주시|수동면',        // 「남양주에서 피해야 될 곳」
+    'D|포천시|영북면',          // 산정호수 — «절대 안 돼»
+    'D|광주시|남한산성면',      // «올라가시는 분들 계신데 가면 안 돼요»
+    'D|화성시 만세구|서신면',   // 고수도 안 가는 곳
+    'D|화성시 만세구|송산면',   // 같은 자리
+];
+
+/**
+ * 💰 **콜이 잘 나오는 곳** (기사님 2026-09-09 *"잘 나오는 곳도 표시되면 좋을 것 같은데"*).
+ *
+ * 같은 영상에서 **콕 집어 «많다»고 한 곳**만 담았다. *"저기도 많은데"* 정도로 지나간 곳
+ * (평택·안성·인천 전역)은 안 넣는다 — 다 칠하면 표시가 뜻을 잃는다.
+ *
+ * 🔴 **이건 «가라»가 아니라 «여기서 다음 콜이 붙기 쉽다»는 표시다.** 판정에 안 쓴다 —
+ *    지도에 색으로만 뜬다 (규칙 ①: 고르는 것은 기사님이다).
+ * ⚠️ 김포 월곶·하성·통진은 **일부러 뺐다.** 영상이 *"콜이 많은 게 아니라 기사가 없어서
+ *    떠 있는 것"* 이라고 갈라 말했다 — 아침 일찍이라는 조건이 붙는다.
+ */
+const LAB_CALL_RICH = new Set([
+    'D|김포시|대곶면', 'D|김포시|양촌읍',       // «대곶·검단·양촌이 엄청 많다»
+    'R|인천 검단구', 'R|인천 서해구',           // 「인천 서구 쪽」 — 행정구역 개편 뒤 이름
+    'R|고양시 일산동구', 'R|고양시 일산서구',   // «일산은 볼 거 없어요, 그냥 다 동그라미»
+    'D|광주시|태전동',                          // «태전 근처로 나름 많이 뜬다»
+    'R|성남시 분당구',                          // «분당도 괜찮고»
+    'D|여주시|세종대왕면',                      // «세종대왕면 좋아한다 — 많이 뜬다»
+    'D|이천시|신둔면',                          // 이천~여주 사이 작은 회사·도예촌
+]);
+/** 그 동이 «잘 나오는 곳»인가 — 시군구 전체 지정과 동 지정 둘 다 본다 */
+const isCallRich = (region: string, name: string) =>
+    LAB_CALL_RICH.has(`R|${region}`) || LAB_CALL_RICH.has(`D|${region}|${name}`);
+
 /** 시도 + 경기 시·군·구 경계 60구역 — 시트 목업 지도(PinnedRouteCanvas)와 같은 재료 */
 const SIDO = (sidoDataRaw as { features: Array<{ properties: { name: string }; geometry: { type: string; coordinates: number[][][][] | number[][][] } }> }).features;
 
@@ -528,7 +575,7 @@ export default function MapMockup() {
      *    안 거치므로**, 콜을 쥐면 틀린 답을 냈다(그래서 잠가 뒀었다). 지금은 **콜이 라인을 만든다.**
      */
     const [routeMode, setRouteMode] = useState(true);   // 🛣️ 기본은 **노선**이다 (기사님 2026-09-09)
-    const [excluded, setExcluded] = useState<string[]>([]);
+    const [excluded, setExcluded] = useState<string[]>(LAB_DEFAULT_EXCLUDED);
     /**
      * ⛔ 제외지역은 **노선·동선 공통**이다 (기사님 2026-09-09 «공통으로 빼»).
      * 2026-09-08 에는 노선에서 안 썼다 — 그때 노선은 «길 하나»라 길이 곧 선별이었다.
@@ -1725,9 +1772,15 @@ export default function MapMockup() {
                     ctx.moveTo(px + 3.5, py - 3.5); ctx.lineTo(px - 3.5, py + 3.5); ctx.stroke();
                     continue;
                 }
-                ctx.fillStyle = 'rgba(2,132,199,.8)';
-                ctx.beginPath(); ctx.arc(px, py, 4, 0, Math.PI * 2); ctx.fill();
-                ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 1.2; ctx.stroke();
+                /**
+                 * 💰 **콜이 잘 나오는 곳은 초록으로 크게** (기사님 2026-09-09
+                 * *"잘 나오는 곳도 표시되면 좋을 것 같은데"*).
+                 * 🔴 판정에는 안 쓴다 — **보이기만 한다.** 고르는 것은 기사님이다 (규칙 ①).
+                 */
+                const rich = isCallRich(p.region, p.name);
+                ctx.fillStyle = rich ? 'rgba(22,163,74,.9)' : 'rgba(2,132,199,.8)';
+                ctx.beginPath(); ctx.arc(px, py, rich ? 6 : 4, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = rich ? 1.8 : 1.2; ctx.stroke();
             }
             // ⛔ 가면 안 되는 지역 — 노하우 출처가 있는 것만 (그물과 무관하게 항상 보인다)
             for (const t of TRAP_DONGS) {
@@ -2188,6 +2241,11 @@ export default function MapMockup() {
                     {/* ⛔ 제외지역 — **노선·동선 공통** (기사님 2026-09-09 «공통으로 빼») */}
                     {<div className="mt-1 border-t border-border-card pt-2 flex flex-col gap-1">
                         <span className="text-[10.5px] font-black text-danger">⛔ 제외지역</span>
+                        {/* 🔴 «왜 안 골랐는데 빠져 있나»를 화면이 말한다 — 안 적으면 조용히 거짓말한다 */}
+                        <p className="text-[9.5px] text-text-muted leading-snug">
+                            여덟 곳이 <b>미리 눌려</b> 있습니다 — 들어가면 빈차로 나와야 하는 곳(노하우 「이 선을 넘지 마세요」).
+                            칩을 누르면 되살아납니다. 지도의 <b className="text-success">초록 점</b>은 콜이 잘 나오는 곳 — <b>표시만</b> 하고 판정엔 안 씁니다
+                        </p>
                         <select value="" onChange={e => { const v = e.target.value; if (v) setExcluded(x => x.includes(v) ? x : [...x, v]); }}
                             className="w-full px-2 py-1 rounded-[7px] border border-border-hover bg-background text-[11px] font-bold">
                             <option value="">제외할 지역 고르기…</option>
