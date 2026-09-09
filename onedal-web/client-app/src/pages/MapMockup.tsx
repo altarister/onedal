@@ -592,6 +592,8 @@ export default function MapMockup() {
      *    둘 다 km 라 한 이름으로 부르면 이식할 때 조용히 섞인다.
      */
     const [lineRadiusKm, setLineRadiusKm] = useState(5);
+    /** 💰 단가표를 펼쳤나 — 폰 화면은 «한 줄 ↔ 펼침» 두 상태다 (기사님 2026-09-09) */
+    const [rateTableOpen, setRateTableOpen] = useState(false);
     /**
      * 🛣️ 경로 옵션 — 길 고르기를 걷어낸 뒤로 **«추천» 고정**이다 (기사님 2026-09-09 *"길찾기는 지워"*).
      * 고속도로냐 국도냐를 고르는 축은 별건이다 (todo 0-I) — 그때 여기에 손잡이가 붙는다.
@@ -2324,6 +2326,27 @@ export default function MapMockup() {
                             1t 하한 <b className="text-info">{rateFloorsFrom(knobs.discountPct)['1t']}원/km</b>
                             {' '}— 콜을 찍으면 이 단가로 요금을 미리 채웁니다
                         </p>
+                        {/**
+                          * 💰 **단가표를 읽는 통로** (기사님 2026-09-09: *"읽을 수 있게 통로를 열어 줘야지"*).
+                          *
+                          * 🔴 표를 오른쪽 패널에 뒀더니 **폰에서 읽을 길이 없었다** — 오른쪽은 실물로 안 간다.
+                          *    «고르는 값»이 아니라 «지금 할인율이면 얼마인가»를 보는 것이라, **평소엔 접어 두고
+                          *    누르면 펼친다.** 폰 필터가 갈 «한 줄 ↔ 펼침»과 같은 모양이다.
+                          */}
+                        <button type="button" onClick={() => setRateTableOpen(o => !o)}
+                            className="self-start px-1.5 py-0.5 rounded-md text-[10px] font-black text-text-muted hover:text-text-primary">
+                            {rateTableOpen ? '▾' : '▸'} 차종별 하한 단가 {rateTableOpen ? '접기' : '보기'}
+                        </button>
+                        {rateTableOpen && (
+                            <div className="flex flex-col gap-0.5 text-[10px] tabular-nums rounded-md bg-background border border-border-card px-1.5 py-1">
+                                {Object.entries(NET_RATE_PER_KM).map(([v, net_]) => (
+                                    <div key={v} className="flex justify-between gap-1">
+                                        <span><b>{v}</b> <span className="text-text-muted">시세 {net_} · 짐 {VEHICLE_CAPACITY[v] ?? '?'}박스</span></span>
+                                        <b className="text-info">≥ {rateFloorsFrom(knobs.discountPct)[v]}원/km</b>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     {/* ⛔ 제외지역 — **노선·동선 공통** (기사님 2026-09-09 «공통으로 빼») */}
@@ -2881,20 +2904,6 @@ export default function MapMockup() {
                         · 상차 반경 · 하차지 주변   왼쪽 «현위㎞·목적㎞»와 **같은 값**(한 벌이라 같이 움직였다)
                         · 우회 허용    **어디에도 안 쓰였다** — 실물에서 «경유 반경»을 파생하는 재료인데,
                                       실험실은 그 결과(라인 반경)를 기사님이 직접 넣는다. 손잡이가 둘이었다. */}
-                    {/* 💰 콜할인율 **버튼**은 왼쪽 필터 한 벌로 옮겼다 (기사님 2026-09-09).
-                        여기 남은 것은 **단가표** 뿐이다 — 고르는 값이 아니라 «그 할인율이면 얼마인가»를
-                        보는 표라, 폰 화면의 필터 안에 들어갈 것이 아니다. */}
-                    <FilterPanel title={`💰 하한 단가표 — 할인율 ${knobs.discountPct}% 기준 (읽기)`}>
-                            <div className="flex flex-col gap-0.5 text-[10.5px] tabular-nums">
-                                {Object.entries(NET_RATE_PER_KM).map(([v, net_]) => (
-                                    <div key={v} className="flex justify-between gap-1">
-                                        <span><b>{v}</b> <span className="text-text-muted">시세 {net_}원/km · 짐 {VEHICLE_CAPACITY[v] ?? '?'}박스</span></span>
-                                        <b className="text-info">≥ {rateFloorsFrom(knobs.discountPct)[v]}원/km</b>
-                                    </div>
-                                ))}
-                            </div>
-                    </FilterPanel>
-
                     <FilterPanel title="🚚 차종 (allowedVehicleTypes)">
                         <ChipToggleRow options={['1t', '1t짐', '라보', '다마스']} selected={vehicles}
                             onToggle={v => setVehicles(x => x.includes(v) ? x.filter(o => o !== v) : [...x, v])} />
