@@ -45,6 +45,23 @@ const ROUTE_COMBO: { priority: string; avoid?: string; label: string } = { prior
 const labDwellOf = (label: string) => dwellMinutes(null, 0, label.endsWith('하차') ? 'dropoff' : 'pickup');
 
 /**
+ * 🎨 **그물 색 — 한 벌** (기사님 지시 2026-09-09: *"선택 영역이 일관성이 없어 보여. 색도 라인도
+ * 투명도도"* · *"**사용자가 볼 때 «아 이 영역에서 콜을 부를 거구나»** 하고 생각할 수 있게"*).
+ *
+ * 🔴 예전엔 조각마다 색이 달랐다 — 마름모는 하늘색 실선에 옅은 채움, 라인 띠는 진파랑 반투명에
+ *    테두리 없음, 원 둘은 주황 점선에 채움 없음. **한 영역인데 셋으로 보였다.**
+ *
+ * 그래서 **뜻이 같으면 모양도 같게** 한다:
+ *   · 콜이 오는 곳(마름모 · 라인 띠 · 목적지 원)  →  같은 파랑 채움 + 같은 테두리
+ *   · 내가 지금 갈 수 있는 거리(내 위치 원)        →  같은 파랑이되 **점선** (뜻이 다르다)
+ *
+ * ⚠️ 채움은 옅게 둔다 — 겹치는 자리(마름모 ∩ 원)가 두 겹이 되어도 «다른 색»으로 안 보이게.
+ */
+const NET_FILL = 'rgba(37,99,235,.10)';    // 그물 안 — 콜이 오는 곳
+const NET_EDGE = 'rgba(37,99,235,.85)';    // 그물 경계
+const NET_EDGE_W = 2;
+
+/**
  * 🎚️ **실험실 기본값 — 여기 하나에 모은다** (기사님 지시 2026-09-09:
  * *"사용 컴포넌트에서는 변수로 바꿔서 상단에 기본값들을 다 모아줘"*).
  *
@@ -1895,19 +1912,20 @@ export default function MapMockup() {
                     ctx.beginPath();
                     gn.tri.forEach(([lng, lat]: [number, number], i: number) => { const [px, py] = S(lng, lat); i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py); });
                     ctx.closePath();
-                    ctx.fillStyle = 'rgba(14,165,233,.10)'; ctx.fill();
-                    ctx.strokeStyle = '#0284c7'; ctx.lineWidth = 2.5; ctx.stroke();
+                    ctx.fillStyle = NET_FILL; ctx.fill();
+                    ctx.strokeStyle = NET_EDGE; ctx.lineWidth = NET_EDGE_W; ctx.stroke();
                 }
                 // 🔴 노선 그물에는 내 위치 원이 없다 — 직접 두른다. 상차 판정이 이 반경을 쓰므로
                 //    안 그리면 «화면에 없는 선이 콜을 떨어뜨린다» (2026-09-08 리뷰에서 잡힘)
                 if (isLine) {
                     const [mx, my] = S(myPos.lng, myPos.lat);
-                    ctx.strokeStyle = 'rgba(217,119,6,.85)'; ctx.setLineDash([6, 5]); ctx.lineWidth = 2;
-                    ctx.beginPath(); ctx.arc(mx, my, (params.srcDiamKm / 2) * pxPerKm, 0, Math.PI * 2); ctx.stroke();
+                    ctx.beginPath(); ctx.arc(mx, my, (params.srcDiamKm / 2) * pxPerKm, 0, Math.PI * 2);
+                    ctx.fillStyle = NET_FILL; ctx.fill();
+                    ctx.strokeStyle = NET_EDGE; ctx.setLineDash([6, 5]); ctx.lineWidth = NET_EDGE_W; ctx.stroke();
                     ctx.setLineDash([]);
                 }
                 const inQuadFn = quadTesterOf(params, anchor, goal);
-                ctx.strokeStyle = '#d97706'; ctx.setLineDash([6, 5]); ctx.lineWidth = 2;
+                ctx.strokeStyle = NET_EDGE; ctx.lineWidth = NET_EDGE_W;
                 gn.circles.forEach((c: { ring: Array<[number, number]> }, ci: number) => {
                     if (ci === 0 && isLoaded(goal.name) && !isLine) {   // ∩ 는 짐 실은 목적지에만 (원천: loadedGoalNames)
                         for (let i = 1; i < c.ring.length; i++) {
@@ -1919,6 +1937,7 @@ export default function MapMockup() {
                     } else {
                         ctx.beginPath();
                         c.ring.forEach(([lng, lat]: [number, number], i: number) => { const [px, py] = S(lng, lat); i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py); });
+                        ctx.fillStyle = NET_FILL; ctx.fill();
                         ctx.stroke();
                     }
                 });
@@ -1938,7 +1957,7 @@ export default function MapMockup() {
                 ctx.lineCap = 'round'; ctx.lineJoin = 'round';
                 ctx.beginPath();
                 routeLine.forEach(([lng, lat], i) => { const [px, py] = S(lng, lat); i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py); });
-                ctx.strokeStyle = 'rgba(29,78,216,.22)';
+                ctx.strokeStyle = NET_FILL;
                 ctx.lineWidth = Math.max(3, lineRadiusKm * 2 * pxPerKm);
                 ctx.stroke();
             }
@@ -2500,6 +2519,21 @@ export default function MapMockup() {
                             <ChipToggleRow options={['착불', '수거', '까대기', '직접운반', '왕복', '대기']} selected={excludedWords}
                                 onToggle={v => setExcludedWords(x => x.includes(v) ? x.filter(o => o !== v) : [...x, v])} />
                         )}
+                    </div>
+
+                    {/* 🎨 지도에서 무엇이 무엇인지 — 색 한 벌의 뜻 (기사님 2026-09-09
+                        *"사용자가 볼 때 «아 이 영역에서 콜을 부를 거구나» 하고 생각할 수 있게"*) */}
+                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[9.5px] text-text-muted">
+                        <span className="inline-flex items-center gap-1">
+                            <span className="w-3 h-2.5 rounded-sm" style={{ background: 'rgba(37,99,235,.18)', border: '1.5px solid rgba(37,99,235,.85)' }} />
+                            여기서 콜을 부른다
+                        </span>
+                        <span className="inline-flex items-center gap-1">
+                            <span className="w-3 h-2.5 rounded-sm" style={{ background: 'rgba(37,99,235,.10)', border: '1.5px dashed rgba(37,99,235,.85)' }} />
+                            지금 갈 수 있는 거리
+                        </span>
+                        <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-success" />콜이 잘 나오는 곳</span>
+                        <span className="inline-flex items-center gap-1"><b className="text-danger">✕</b> 안 가는 동</span>
                     </div>
 
                     {/* ⛔ 제외지역 — **노선·동선 공통** (기사님 2026-09-09 «공통으로 빼») */}
