@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildNet, netForGoal, lineZoneOf, quadTesterOf, buildFirstLegDemo, judgeTwoStage, judgeGoals, orderStopsGreedy, orderStopsInsert, cityCenter, dongList, sggList, sidoList, sidoOf, isRegionExcluded, isWholeRegionExcluded, excludedLabel, mergeGoalNets, isLocalPhase, WAIT_PRESET, NET_SRC, NET_DST, GONJIAM_DROP, DONGWON_DROP, BORAM_DROP, ICHEON_DROP } from './callNet';
+import { buildNet, netForGoal, lineZoneOf, quadTesterOf, buildFirstLegDemo, judgeTwoStage, judgeGoals, orderStopsGreedy, orderStopsInsert, cityCenter, dongList, buildLineNet, sggList, sidoList, sidoOf, isRegionExcluded, isWholeRegionExcluded, excludedLabel, mergeGoalNets, isLocalPhase, WAIT_PRESET, NET_SRC, NET_DST, GONJIAM_DROP, DONGWON_DROP, BORAM_DROP, ICHEON_DROP } from './callNet';
 
 /**
  * 🧪 **그물 셋업의 계산이 ⑭ 검산과 같은가**
@@ -820,5 +820,45 @@ describe('🕸️ 목적지별 그물 합치기', () => {
     it('시·군·구별 명단은 많은 순이다 — 표가 그 순서로 그려진다', () => {
         const pass = [pt('a', '이천시'), pt('b', '광주시'), pt('c', '광주시')];
         expect(mergeGoalNets([{ pass }], opt).groups.map(g => g.region)).toEqual(['광주시', '이천시']);
+    });
+});
+
+/**
+ * 🔴 **복귀 마름모의 동이 «지나온 곳»으로 지워지던 것** (기사님 2026-09-10 · 지도 스크린샷).
+ *
+ * 기사님: *"파주 목표로 콜을 수행해서 목적지 영역에 들어갔다. 이후 복귀콜을 클릭했는데
+ * **과천·안양·군포·경기광주에 포인트가 없어.** 영역 안에 지역들이 있어야 하는데.."*
+ *
+ * 진행도(`progressKm`)는 **라인 띠로 들어온 동**의 값이다 — «내가 이미 지난 길인가»를 재는 것.
+ * 그런데 `buildLineNet` 이 **마름모·목적지 원으로 들어온 동에까지** 그 값을 붙이고 있었다
+ * (실측 691/691). 마름모 동은 라인에 **수직으로 멀리** 있어 진행도가 작게 나오고,
+ * 파주까지 달려온 기사님의 진행도가 크니 **앞으로 갈 곳이 통째로 «지나온 곳»으로 지워졌다.**
+ */
+describe('🏠 복귀 마름모는 진행도로 자르지 않는다', () => {
+    const params = { srcDiamKm: 10, srcAngleDeg: 110, dstAngleDeg: 110, dstDiamKm: 15, quadRadiusKm: 25 };
+    const paju = cityCenter('파주시');
+    /** 집 → 파주 로 달린 라인. 복귀를 누르면 목적지가 집이라 마름모는 «파주 → 집» */
+    const line: Array<[number, number]> = [[NET_SRC.lng, NET_SRC.lat], [paju.lng, paju.lat]];
+    const net = buildLineNet(line, 6, paju, params, NET_SRC);
+    const of = (name: string) => net.pass.find(p => p.name === name);
+
+    it('마름모로만 든 동에는 진행도가 없다 — 라인 띠 밖이라 «지났나»를 물을 값이 아니다', () => {
+        for (const nm of ['별양동', '비산동', '금정동']) {   // 과천 · 안양 · 군포
+            expect(of(nm), nm).toBeDefined();
+            expect(of(nm)?.progressKm, nm).toBeUndefined();
+        }
+    });
+
+    it('라인 띠에 든 동에는 진행도가 있다 — 그건 잘라야 한다', () => {
+        const onLine = net.pass.filter(p => p.progressKm != null);
+        expect(onLine.length).toBeGreaterThan(0);
+        expect(onLine.length).toBeLessThan(net.pass.length);   // 전부에 붙으면 그게 이 버그다
+    });
+
+    it('🔴 파주까지 달려온 뒤에도 과천·안양·군포가 남는다', () => {
+        const merged = mergeGoalNets([net], { departed: true, myProgressKm: 50, excluded: [] });
+        for (const nm of ['별양동', '비산동', '금정동']) {
+            expect(merged.pass.some(p => p.name === nm), nm).toBe(true);
+        }
     });
 });

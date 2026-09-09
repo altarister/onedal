@@ -831,6 +831,11 @@ export function lineZoneOf(
     return {
         dropIn: (pt: { lng: number; lat: number }) => onLine(pt) || haversineKm(dst, pt) <= ringKm || inRest(pt),
         pickupIn: onLine,
+        /**
+         * 🔴 **«라인 띠로만 들어왔나»** — 진행도를 붙일 자격이 여기서 갈린다.
+         *    마름모·목적지 원으로 든 동은 **아직 안 간 곳**이라 «지났나»를 물을 값이 아니다.
+         */
+        onlyByLine: (pt: { lng: number; lat: number }) => onLine(pt) && !inRest(pt) && haversineKm(dst, pt) > ringKm,
     };
 }
 
@@ -839,16 +844,25 @@ export function buildLineNet(
     line: Array<[number, number]>, lineRadiusKm: number,
     lastDrop: NetPoint | null, p: NetParams, dst: NetPoint,
 ): NetResult {
-    const { dropIn } = lineZoneOf(line, lineRadiusKm, lastDrop, p, dst);
+    const { dropIn, onlyByLine } = lineZoneOf(line, lineRadiusKm, lastDrop, p, dst);
     const rest = lastDrop ? buildNet(p, lastDrop, dst) : null;
     const { pass, grouped } = collectDongs(dropIn);
     /**
      * 📏 **동마다 «라인 몇 km 지점인가»를 여기서 한 번만 잰다** (기사님 2026-09-09:
      * *"한 번 계산된 거 다시 쓰면 될 듯"*). 이동할 때마다 그물을 다시 만들면 동 1,968개를
      * 계속 훑는다 — 이 숫자를 들고 있으면 «내 진행도보다 앞인가»라는 **숫자 비교**로 끝난다.
+     *
+     * 🔴 **라인 띠로 들어온 동에만 붙인다** (기사님 2026-09-10 · 지도 스크린샷:
+     *    *"복귀콜을 클릭했는데 **과천·안양·군포·경기광주에 포인트가 없어**"*).
+     *    전에는 **691동 전부**에 붙였다. 마름모 동은 라인에서 **수직으로 멀리** 있어 진행도가
+     *    작게 나오는데, 파주까지 달려온 진행도는 크니 **앞으로 갈 곳이 통째로 «지나온 곳»으로
+     *    지워졌다.** 진행도는 «이 길을 이미 지났나»를 재는 값이지 마름모에는 뜻이 없다
+     *    (규칙 ⑤-4 ⑤: 한 값이 두 질문을 답하게 하지 않는다).
      */
     const withProgress = line.length >= 2
-        ? pass.map(d => ({ ...d, progressKm: progressAlongKm({ lng: d.x, lat: d.y }, line) }))
+        ? pass.map(d => onlyByLine({ lng: d.x, lat: d.y })
+            ? { ...d, progressKm: progressAlongKm({ lng: d.x, lat: d.y }, line) }
+            : d)
         : pass;
     return {
         tri: rest?.tri ?? [],
