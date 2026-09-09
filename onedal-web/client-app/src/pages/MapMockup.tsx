@@ -816,7 +816,22 @@ export default function MapMockup() {
      *    안 거치므로**, 콜을 쥐면 틀린 답을 냈다(그래서 잠가 뒀었다). 지금은 **콜이 라인을 만든다.**
      */
     const [routeMode, setRouteMode] = useState(LAB_DEFAULTS.routeMode);
+    /**
+     * ⛔ **고치는 중(초안) ↔ 실제로 적용된 것** (기사님 2026-09-09:
+     * *"이걸 누르면 **너무 쉽게 삭제**되는데.. 바로바로 저장되면 안 될 것 같아.
+     * 접기 옆에 **저장 버튼**이 있어야 할 것 같아."*).
+     *
+     * 🔴 칩 하나를 잘못 누르면 그 지역이 **그 자리에서 그물에 들어왔다.** 운전 중이면 되돌릴
+     *    새도 없다. 그래서 고치는 것과 적용하는 것을 갈랐다 — 「💾 저장」을 눌러야 그물이 바뀐다.
+     * 🔴 **그물·판정·아웃풋은 `excluded`(적용본)만 읽는다.** 초안(`exDraft`)은 필터 화면만 본다.
+     */
     const [excluded, setExcluded] = useState<string[]>(LAB_DEFAULT_EXCLUDED);
+    const [exDraft, setExDraft] = useState<string[]>(LAB_DEFAULT_EXCLUDED);
+    /** 저장 안 한 고침이 있나 — 순서는 상관없다 */
+    const exDirty = useMemo(() => {
+        const a = [...excluded].sort(), b = [...exDraft].sort();
+        return a.length !== b.length || a.some((v, i) => v !== b[i]);
+    }, [excluded, exDraft]);
     /**
      * ⛔ **제외지역도 도 → 시·군·구 → 보기** (기사님 확정 2026-09-09:
      * *"도 특별시 이렇게 2개로 선택하게 하고 마지막은 보기 버튼으로 하면 어때?"*).
@@ -2684,16 +2699,16 @@ export default function MapMockup() {
                               * 통째 제외는 **아래 따로 난 버튼**이다. 실수로 경기도가 통째로 빠지면 안 된다.
                               */}
                             <PickLayer label="⛔ 제외 도" options={sidoList()}
-                                value={`${exSido}${excluded.includes(`S|${exSido}`) ? ' ⛔' : ''}`}
-                                tone="danger" selected={sidoList().filter(v => excluded.includes(`S|${v}`))}
+                                value={`${exSido}${exDraft.includes(`S|${exSido}`) ? ' ⛔' : ''}`}
+                                tone="danger" selected={sidoList().filter(v => exDraft.includes(`S|${v}`))}
                                 open={openKnob === 'exSido'} onToggle={() => setOpenKnob(o => o === 'exSido' ? null : 'exSido')}
                                 onPick={v => { setExSido(v); setExSgg(null); }}
                                 foot={
                                     <button type="button"
-                                        onClick={() => setExcluded(x => x.includes(`S|${exSido}`) ? x.filter(k => k !== `S|${exSido}`) : [...x, `S|${exSido}`])}
-                                        className={`w-full px-2 py-1.5 rounded-md border text-[11px] font-black ${excluded.includes(`S|${exSido}`)
+                                        onClick={() => setExDraft(x => x.includes(`S|${exSido}`) ? x.filter(k => k !== `S|${exSido}`) : [...x, `S|${exSido}`])}
+                                        className={`w-full px-2 py-1.5 rounded-md border text-[11px] font-black ${exDraft.includes(`S|${exSido}`)
                                             ? 'bg-danger/15 border-danger/55 text-danger' : 'border-border-card bg-background text-text-muted hover:border-danger'}`}>
-                                        ◼ {exSido} 통째로 제외 {excluded.includes(`S|${exSido}`) ? '⛔ 켬' : '끔'}
+                                        ◼ {exSido} 통째로 제외 {exDraft.includes(`S|${exSido}`) ? '⛔ 켬' : '끔'}
                                     </button>} />
                             {/**
                               * 🔴 **여기서는 여럿을 찍는다** (기사님 2026-09-09:
@@ -2706,24 +2721,24 @@ export default function MapMockup() {
                               * 남양주시를 두 번 눌러(켰다 껐다) 대상으로 삼은 뒤 옆 칸에서 고른다.
                               */}
                             <PickLayer label="시·군·구 ⛔ 통째" keepOpen tone="danger"
-                                value={(() => { const n = sggList(exSido).filter(g => excluded.includes(`R|${g}`)).length; return n ? `${n}곳 제외` : (exSgg ?? '고르기'); })()}
+                                value={(() => { const n = sggList(exSido).filter(g => exDraft.includes(`R|${g}`)).length; return n ? `${n}곳 제외` : (exSgg ?? '고르기'); })()}
                                 options={sggList(exSido)}
-                                selected={sggList(exSido).filter(g => excluded.includes(`R|${g}`))}
+                                selected={sggList(exSido).filter(g => exDraft.includes(`R|${g}`))}
                                 open={openKnob === 'exSgg'} onToggle={() => setOpenKnob(o => o === 'exSgg' ? null : 'exSgg')}
                                 onPick={v => {
                                     setExSgg(v);                       // 읍·면·동 칸이 볼 곳
-                                    setExcluded(x => x.includes(`R|${v}`) ? x.filter(k => k !== `R|${v}`) : [...x, `R|${v}`]);
+                                    setExDraft(x => x.includes(`R|${v}`) ? x.filter(k => k !== `R|${v}`) : [...x, `R|${v}`]);
                                 }}
                                 foot={<span className="text-[9.5px] font-bold text-text-muted leading-snug">
                                     누르면 <b className="text-danger">그 시·군·구가 통째로</b> 빠집니다 · 다시 누르면 되살아납니다 ·
                                     마지막에 누른 곳이 <b>읍·면·동 칸</b>의 대상이 됩니다
                                 </span>} />
                             <PickLayer label="읍·면·동"
-                                value={exSgg ? (() => { const n = dongList(exSgg).filter(d => excluded.includes(`D|${exSgg}|${d}`)).length; return n ? `${n}개 제외` : '전부 봄'; })() : '—'}
+                                value={exSgg ? (() => { const n = dongList(exSgg).filter(d => exDraft.includes(`D|${exSgg}|${d}`)).length; return n ? `${n}개 제외` : '전부 봄'; })() : '—'}
                                 tone="danger" keepOpen options={exSgg ? dongList(exSgg) : []}
-                                selected={exSgg ? dongList(exSgg).filter(d => excluded.includes(`D|${exSgg}|${d}`)) : []}
+                                selected={exSgg ? dongList(exSgg).filter(d => exDraft.includes(`D|${exSgg}|${d}`)) : []}
                                 open={openKnob === 'exDong'} onToggle={() => setOpenKnob(o => o === 'exDong' ? null : 'exDong')}
-                                onPick={v => { if (!exSgg) return; const key = `D|${exSgg}|${v}`; setExcluded(x => x.includes(key) ? x.filter(k => k !== key) : [...x, key]); }}
+                                onPick={v => { if (!exSgg) return; const key = `D|${exSgg}|${v}`; setExDraft(x => x.includes(key) ? x.filter(k => k !== key) : [...x, key]); }}
                                 foot={!exSgg ? <span className="text-[9.5px] font-bold text-text-muted">시·군·구를 먼저 고르세요</span> : null} />
                         </div>
                         {/**
@@ -2733,29 +2748,60 @@ export default function MapMockup() {
                           * 🔴 **닫힌 줄에서는 지우지 못한다** — 잘린 글을 누르다 실수로 되살아나면 안 된다.
                           *    펼쳐야 ✕ 가 달린 칩이 된다.
                           */}
-                        {excluded.length > 0 && (exListOpen ? (
+                        {/* 🔴 **다 지웠어도 줄은 남는다** — 안 그러면 「💾 저장」이 같이 사라져
+                            «전부 되살리기»를 적용할 길이 없다 */}
+                        {(exDraft.length > 0 || exDirty) && (exListOpen ? (
                             <div className="flex flex-col gap-1">
                                 <div className="flex flex-wrap gap-1">
-                                    {excluded.map(k => (
-                                        <button key={k} type="button" onClick={() => setExcluded(x => x.filter(v => v !== k))}
+                                    {exDraft.length === 0 && <span className="text-[10.5px] font-bold text-text-muted">제외한 곳이 없습니다 — 저장하면 전국이 그물에 듭니다</span>}
+                                    {exDraft.map(k => (
+                                        <button key={k} type="button" onClick={() => setExDraft(x => x.filter(v => v !== k))}
                                             title="누르면 되살립니다"
                                             className="px-1.5 py-0.5 rounded-md bg-danger/15 text-danger text-[10.5px] font-black">
                                             ⛔ {excludedLabel(k)} ✕
                                         </button>
                                     ))}
                                 </div>
-                                <button type="button" onClick={() => setExListOpen(false)}
-                                    className="self-start text-[10px] font-black text-text-muted">▴ 접기</button>
+                                {/**
+                                  * 💾 **접기 옆에 저장** (기사님 2026-09-09 그대로).
+                                  * 고친 것은 **여기를 눌러야** 그물에 들어간다 — 칩 하나 잘못 눌러
+                                  * 그 지역이 곧장 살아나던 것을 막는다. 「되돌리기」는 저장 전으로 돌린다.
+                                  */}
+                                <div className="flex items-center gap-1">
+                                    <button type="button" onClick={() => setExListOpen(false)}
+                                        className="text-[10px] font-black text-text-muted px-1">▴ 접기</button>
+                                    <button type="button" disabled={!exDirty} onClick={() => setExcluded(exDraft)}
+                                        className={`px-2 py-1 rounded-md border text-[11px] font-black ${exDirty
+                                            ? 'bg-info/15 border-info/55 text-info' : 'border-border-card bg-background text-text-muted opacity-50'}`}>
+                                        💾 저장{exDirty ? ` (${exDraft.length}곳)` : ' 완료'}
+                                    </button>
+                                    {exDirty && (
+                                        <button type="button" onClick={() => setExDraft(excluded)}
+                                            className="px-2 py-1 rounded-md border border-border-card bg-background text-[11px] font-black text-text-muted">
+                                            ↩︎ 되돌리기
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         ) : (
-                            <button type="button" onClick={() => setExListOpen(true)}
-                                className="flex items-center gap-1 min-w-0 w-full px-1.5 py-1 rounded-md border border-border-card bg-background text-left hover:border-danger">
-                                <span className="shrink-0 text-[10.5px] font-black text-danger">⛔ 제외 {excluded.length}곳</span>
-                                <span className="min-w-0 flex-1 truncate text-[10.5px] font-bold text-text-muted">
-                                    {excluded.map(excludedLabel).join(' · ')}
-                                </span>
-                                <span className="shrink-0 text-[10px] font-black text-text-muted">▾ 전부</span>
-                            </button>
+                            <div className="flex items-center gap-1">
+                                <button type="button" onClick={() => setExListOpen(true)}
+                                    className={`flex items-center gap-1 min-w-0 flex-1 px-1.5 py-1 rounded-md border bg-background text-left ${
+                                        exDirty ? 'border-warning/55' : 'border-border-card hover:border-danger'}`}>
+                                    <span className="shrink-0 text-[10.5px] font-black text-danger">⛔ 제외 {exDraft.length}곳</span>
+                                    <span className="min-w-0 flex-1 truncate text-[10.5px] font-bold text-text-muted">
+                                        {exDraft.map(excludedLabel).join(' · ')}
+                                    </span>
+                                    <span className="shrink-0 text-[10px] font-black text-text-muted">▾ 전부</span>
+                                </button>
+                                {/* 🔴 닫아 둔 채로 고쳤어도 «아직 안 들어갔다»가 보여야 한다 — 여기서 바로 저장한다 */}
+                                {exDirty && (
+                                    <button type="button" onClick={() => setExcluded(exDraft)}
+                                        className="shrink-0 px-2 py-1 rounded-md border border-info/55 bg-info/15 text-info text-[11px] font-black">
+                                        💾 저장
+                                    </button>
+                                )}
+                            </div>
                         ))}
                     </div>
 
