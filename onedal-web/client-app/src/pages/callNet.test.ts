@@ -62,10 +62,22 @@ describe('대기 프리셋 — «여주를 목적지로 느긋하게» (⑭ 검�
         expect(buildNet({ ...WAIT_PRESET, srcAngleDeg: 30 }).count).toBe(45);
     });
 
-    it('서울은 각도가 맞아도 담지 않는다 (⑭ «서울은 뺀다»)', () => {
-        // 목적지 각도를 한껏 열어도 서울 동은 0 — 필터가 각도보다 먼저다
+    /**
+     * 🔴 **«서울은 뺀다»는 이제 필터가 한다** (기사님 2026-09-09:
+     * *"필터에 서울이 없는데 서울 값들이 들어와야 할 것 같아"*).
+     * 전에는 `collectDongs` 가 `region.startsWith('서울')` 로 몰래 뺐다 — 화면 어디에도 안 보였다.
+     * ⑭ 의 판단은 그대로지만 **자리가 코드에서 «미리 눌린 제외지역»으로 옮겨졌다.**
+     */
+    it('그물 계산은 지리만 본다 — 각도가 맞으면 서울도 담는다', () => {
         const open = buildNet({ srcDiamKm: 60, srcAngleDeg: 170, dstAngleDeg: 170, dstDiamKm: 60, quadRadiusKm: 120 });
-        expect(open.groups.some(g => g.region.startsWith('서울'))).toBe(false);
+        expect(open.groups.some(g => g.region.startsWith('서울'))).toBe(true);
+    });
+
+    it('서울을 빼는 것은 제외지역이다 — 그 값을 주면 사라진다', () => {
+        const open = buildNet({ srcDiamKm: 60, srcAngleDeg: 170, dstAngleDeg: 170, dstDiamKm: 60, quadRadiusKm: 120 });
+        const merged = mergeGoalNets([open], { departed: false, myProgressKm: 0, excluded: ['S|서울'] });
+        expect(merged.groups.some(g => g.region.startsWith('서울'))).toBe(false);
+        expect(merged.count).toBeLessThan(open.count);
     });
 });
 

@@ -271,13 +271,21 @@ const MARK_DONGS: Array<{ name: string; dong: string; region?: string }> = [
     { name: '여주 대신', dong: '대신면' },
 ];
 
-/** 그물 판정 하나로 1,968동을 훑는다 — 서울 제외(⑭)는 여기 한 곳에서만 건다 */
+/**
+ * 그물 판정 하나로 1,968동을 훑는다 — **지리만 본다.**
+ *
+ * 🔴 **«서울은 뺀다»가 여기 코드로 박혀 있었다** (`region.startsWith('서울') continue`).
+ *    기사님이 화면에서 잡으셨다 (2026-09-09): *"**필터에 서울이 없는데** 서울 값들이
+ *    들어와야 할 것 같아."* — 맞다. 필터에 안 보이는 채로 코드가 몰래 빼고 있었다.
+ *    규칙 ⑤-4 ① 그대로다: **코드 상수로 태어나면 기사님이 영영 못 바꾸신다.**
+ *    이제 `S|서울` 이 **미리 눌린 제외지역**이라 화면에 「서울 전체 ✕」로 보이고 되살릴 수 있다.
+ *    ⑭ 의 판단(*"서울은 트래픽이 대단해 한 콜에 시간이 엄청 든다"*)은 그대로다 — **자리만 옮겼다.**
+ */
 function collectDongs(inNet: (pt: { lng: number; lat: number }) => boolean) {
     // 점에 이름·시군구를 같이 싣는다 — 지도가 «어느 동을 제외했나»를 점 단위로 표현해야 한다 (기사님 2026-09-07 제외지역)
     const pass: NetResult['pass'] = [];
     const grouped = new Map<string, string[]>();
     for (const [name, region, lng, lat] of DONG_CENTROIDS) {
-        if (region.startsWith('서울')) continue;               // ⑭ «서울은 뺀다»
         if (!inNet({ lng, lat })) continue;
         pass.push({ x: lng, y: lat, name, region });
         const names = grouped.get(region) ?? [];
