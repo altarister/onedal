@@ -840,6 +840,9 @@ export default function MapMockup() {
      */
     const [exSido, setExSido] = useState(DEFAULT_SIDO);
     const [exSgg, setExSgg] = useState<string | null>(null);
+    /** ⚖️ 심사창에서 접어 둔 것들 — 캘 때만 편다 (기사님 2026-09-10 «심사 부분이 너무 높이가 높아») */
+    const [judgeLogOpen, setJudgeLogOpen] = useState(false);
+    const [judgeHelpOpen, setJudgeHelpOpen] = useState(false);
     /** ⛔ 제외 목록을 펼쳤나 — 닫히면 **한 줄**, 누르면 전부 (기사님 2026-09-09) */
     const [exListOpen, setExListOpen] = useState(false);
     /**
@@ -2638,9 +2641,7 @@ export default function MapMockup() {
                         **늘 참인 말은 화면에 안 적는다** — 콜을 안 잡았으면 마름모인 건 당연하고, 동 수는
                         아래 「콜 필터」 제목이 이미 말한다. 남긴 하나는 **이상한 상태**다:
                         콜은 잡았는데 경로가 아직 안 와서 마름모인 것 — 그건 몰라선 안 된다. */}
-                    {!routeMode ? (
-                        <p className="text-[10.5px] text-text-muted leading-snug">동선에서는 라인 반경을 안 씁니다 — 마름모 하나로 봅니다</p>
-                    ) : !lineOn && confirmed.length > 0 ? (
+                    {routeMode && !lineOn && confirmed.length > 0 ? (
                         <p className="text-[10.5px] text-warning font-bold leading-snug">
                             ⏳ 카카오 경로를 기다립니다 — 올 때까지는 마름모로 봅니다 (직선으로 지어내지 않습니다)
                         </p>
@@ -2910,7 +2911,7 @@ export default function MapMockup() {
                             </p>
                         )}
                         {verdict && uploaded && (
-                            <div className="flex flex-col gap-1.5">
+                            <div className="flex flex-col gap-1">
 
                                 {/* ══ ① 후보콜에 대한 보유정보 — 지금 아는 것을 다 편다 ══ */}
                                 <div className="text-[10px] font-black text-info">① 후보콜에 대한 보유정보</div>
@@ -2927,10 +2928,10 @@ export default function MapMockup() {
                                             {uploadedInfoRef.current.tollWon != null && ` · 톨 ${uploadedInfoRef.current.tollWon.toLocaleString()}원`}
                                         </>}
                                     </div>
-                                    <div className="text-text-muted tabular-nums">
-                                        목적지까지 <b className="text-text-primary">상차 {verdict.distPickKm}km · 하차 {verdict.distDropKm}km · 나 {verdict.distMeKm}km</b>
-                                        {' — '}{verdict.distDropKm < verdict.distPickKm ? '하차가 목적지에 더 가깝다(전진)' : '하차가 상차보다 멀다(역주행)'}
-                                    </div>
+                                    {/* 🔴 «목적지까지 3거리»와 «전진/역주행»은 지웠다 — 바로 위 ① 콜 필터가
+                                        같은 숫자와 「하차 전진 / 상차 앞」 칩으로 **이미** 말한다 (기사님 2026-09-10:
+                                        *"심사 부분이 너무 높이가 높아, 불필요한 것은 지우고"*). 두 번 적으면 그만큼
+                                        아래가 밀려 정작 봐야 할 색과 영향이 화면 밖으로 나간다. */}
                                     {approachInfo && (
                                         <div className="tabular-nums">
                                             🚚 상차지까지 <b className="text-info">{approachInfo.distKm}km · {approachInfo.durMin ?? '?'}분</b>
@@ -2943,9 +2944,19 @@ export default function MapMockup() {
                                     )}
                                 </div>
                                 {/* 어디서 받아온 값인가 — 누르면 보낸 값·받은 값 전문 */}
+                                {/**
+                                  * 🛰️ **접어 둔다** — 이건 «어디서 받아온 값인가»를 캘 때만 보는 것이고,
+                                  * **실험실 전용**이라 실물 심사창에는 안 간다 (이식 계획 §5).
+                                  * 콜 하나에 서너 건이 세 줄씩 펴져 심사창을 밀어내고 있었다.
+                                  */}
                                 {uploadTag && apiLog.some(l => l.tag === uploadTag) && (
                                     <div className="flex flex-col gap-0.5">
-                                        {apiLog.map((l, i) => ({ l, i })).filter(({ l }) => l.tag === uploadTag).map(({ l, i }) => (
+                                        <button type="button" onClick={() => setJudgeLogOpen(o => !o)}
+                                            className="self-start text-[10px] font-black text-text-muted">
+                                            🛰️ 카카오 호출 {apiLog.filter(l => l.tag === uploadTag).length}건 {judgeLogOpen ? '▴' : '▾'}
+                                            {apiLog.some(l => l.tag === uploadTag && !l.ok) && <b className="text-danger"> · 실패 있음</b>}
+                                        </button>
+                                        {judgeLogOpen && apiLog.map((l, i) => ({ l, i })).filter(({ l }) => l.tag === uploadTag).map(({ l, i }) => (
                                             <button key={i} type="button" onClick={() => setApiPeek(i)}
                                                 className={`text-left rounded-md border px-1.5 py-1 text-[10px] leading-snug ${l.ok ? 'border-border-card' : 'border-danger/55 bg-danger/10'}`}>
                                                 <div className="font-black">🛰️ {l.ok ? '✅' : '❌'} {l.who} <span className="font-bold text-text-muted">{l.path} · {l.ms}ms · {l.t}</span></div>
@@ -2961,7 +2972,7 @@ export default function MapMockup() {
                                     넣을 수도 있을 것 같아서 거기에 불필요한 것은 없으면 좋겠는데"*).
                                     실제 콜은 배차망이 그 값을 주므로 **실물 심사창에는 입력이 없다** —
                                     실험실에서만 필요한 것이라 지도 위 입력창으로 옮겼다. */}
-                                <div className="text-[10px] font-black text-info border-t border-border-card pt-1.5">② 후보콜 판정</div>
+                                <div className="text-[10px] font-black text-info border-t border-border-card pt-1">② 후보콜 판정</div>
                                 {/* 🎨 색 — 기사님이 1~2초에 보는 것 (규칙 ⑤-3). 숫자는 그다음이다 */}
                                 {candJudge && (() => {
                                     const r = candJudge.result;
@@ -2999,7 +3010,7 @@ export default function MapMockup() {
                                 })()}
 
                                 {/* ══ ③ 후보콜이 미치는 영향 — 콜 하나가 한 덩어리 (좌우 비교 폐기) ══ */}
-                                <div className="text-[10px] font-black text-info border-t border-border-card pt-1.5">③ 후보콜이 미치는 영향</div>
+                                <div className="text-[10px] font-black text-info border-t border-border-card pt-1">③ 후보콜이 미치는 영향</div>
                                 {callImpacts.length === 0
                                     ? <div className="text-[10px] text-text-muted">아직 전체 경로를 못 받았다</div>
                                     : <div className="flex flex-col gap-1">
@@ -3016,16 +3027,17 @@ export default function MapMockup() {
                                                         ? Math.round((real - st.promisedAt) / 60000) : null;
                                                     return (
                                                         <div key={st.kind} className="flex flex-col">
-                                                            {/* 🔴 값이 없어도 줄은 남긴다 — 없으면 «--» 로 비교할 수 있게 */}
-                                                            <div className="flex justify-between gap-1 text-text-muted">
-                                                                <span>{st.leg ? `${st.leg.from} → ${st.leg.to}` : `? → ${st.label}`}</span>
-                                                                <span className="shrink-0">
-                                                                    {st.leg?.distKm ?? '--'}km · {st.leg?.durMin ?? '--'}분
-                                                                    {st.fromSaved && <span className="text-[9px]"> (저장)</span>}
-                                                                </span>
-                                                            </div>
+                                                            {/**
+                                                              * 🔴 **정거장 하나에 한 줄** (기사님 2026-09-10 *"심사 부분이 너무 높이가 높아"*).
+                                                              * 전에는 「구간 from → to · km · 분」이 윗줄로 따로 있었다 — 콜 셋이면 그것만
+                                                              * 여섯 줄이다. `from` 은 **바로 윗 정거장**이라 안 적어도 알고,
+                                                              * km·분은 도착 줄 옆에 붙였다. **값이 없어도 «--» 로 남긴다** — 비교해야 하니까.
+                                                              */}
                                                             <div className="flex justify-between gap-1 font-bold">
-                                                                <span>{st.kind} 도착</span>
+                                                                <span>{st.kind} 도착
+                                                                    <span className="font-normal text-text-muted"> {st.leg?.distKm ?? '--'}km·{st.leg?.durMin ?? '--'}분</span>
+                                                                    {st.fromSaved && <span className="font-normal text-text-muted text-[9px]"> (저장)</span>}
+                                                                </span>
                                                                 <span>
                                                                     <span className="text-text-muted">{st.promisedAt != null ? hhmm(st.promisedAt) : '--:--'} → </span>
                                                                     <b className={late != null && late > 0 ? 'text-warning' : 'text-success'}>
@@ -3092,15 +3104,22 @@ export default function MapMockup() {
                                                 {chainNow?.totalKm ?? '--'}km · {chainNow?.totalMin ?? '--'}분
                                             </span>
                                         </div>
-                                        <div className="text-[9.5px] text-text-muted leading-snug">
-                                            앞 시각 = <b>최초 약속</b>(그 콜을 확정한 순간 못 박은 것 — 안 바뀐다) · 뒤 = 이 콜을 받으면 될 시각.
-                                            합짐을 얹을수록 «늦어짐»은 이 약속을 기준으로 쌓인다.
-                                            주행 + 정차(상차 {DWELL_UNKNOWN_PICKUP_MINUTES}분 · 하차 {labDwellOf('①하차')}분) — <b className="text-warning">짐 미확인이라 일반값</b>
-                                        </div>
+                                        {/* 🔴 «읽는 법»은 한 번 알면 되는 것이라 접어 둔다 — 매번 세 줄을 차지했다 */}
+                                        <button type="button" onClick={() => setJudgeHelpOpen(o => !o)}
+                                            className="self-start text-[9.5px] font-black text-text-muted">
+                                            ⓘ 읽는 법 {judgeHelpOpen ? '▴' : '▾'}
+                                        </button>
+                                        {judgeHelpOpen && (
+                                            <div className="text-[9.5px] text-text-muted leading-snug">
+                                                앞 시각 = <b>최초 약속</b>(그 콜을 확정한 순간 못 박은 것 — 안 바뀐다) · 뒤 = 이 콜을 받으면 될 시각.
+                                                합짐을 얹을수록 «늦어짐»은 이 약속을 기준으로 쌓인다.
+                                                주행 + 정차(상차 {DWELL_UNKNOWN_PICKUP_MINUTES}분 · 하차 {labDwellOf('①하차')}분) — <b className="text-warning">짐 미확인이라 일반값</b>
+                                            </div>
+                                        )}
                                     </div>}
 
                                 {/* ══ ④ 후보콜에 대한 심사 결론 — 잡을지 말지의 답 ══ */}
-                                <div className="text-[10px] font-black text-info border-t border-border-card pt-1.5">④ 후보콜에 대한 심사 결론</div>
+                                <div className="text-[10px] font-black text-info border-t border-border-card pt-1">④ 후보콜에 대한 심사 결론</div>
                                 {(() => {
                                     /**
                                      * 🔴 **모르면 «안 밀린다»고 하지 않는다** (기사님 2026-09-09:
@@ -3152,7 +3171,7 @@ export default function MapMockup() {
                                 )}
 
                                 {/* ══ ⑤ 후보콜에 대한 기사 선택 — 결재는 기사님이 한다 (규칙 ①) ══ */}
-                                <div className="text-[10px] font-black text-info border-t border-border-card pt-1.5">⑤ 후보콜에 대한 기사 선택</div>
+                                <div className="text-[10px] font-black text-info border-t border-border-card pt-1">⑤ 후보콜에 대한 기사 선택</div>
                                 <div className="flex gap-1.5 flex-wrap">
                                     <button type="button"
                                         onClick={() => { if (pickup && drop) { pushLog('확정'); confirmCall(pickup, drop); setPickup(null); setDrop(null); resumeAfterCall(); } }}
