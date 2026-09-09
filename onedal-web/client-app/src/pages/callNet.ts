@@ -46,13 +46,6 @@ function rayPoint(o: { lng: number; lat: number }, brg: number, km: number) {
     };
 }
 
-/** 광선 p1→p2 와 p3→p4 의 교점 (경위도 평면 근사) */
-function intersect(p1: { lng: number; lat: number }, p2: { lng: number; lat: number }, p3: { lng: number; lat: number }, p4: { lng: number; lat: number }) {
-    const d = (p2.lng - p1.lng) * (p4.lat - p3.lat) - (p2.lat - p1.lat) * (p4.lng - p3.lng);
-    const t = ((p3.lng - p1.lng) * (p4.lat - p3.lat) - (p3.lat - p1.lat) * (p4.lng - p3.lng)) / d;
-    return { lng: p1.lng + t * (p2.lng - p1.lng), lat: p1.lat + t * (p2.lat - p1.lat) };
-}
-
 /** 꼭짓점 둘레 원 링 (지리 좌표 64점 — 화면 픽셀이 아니라 «땅 위의 원»이라야 줌에 안 흔들린다) */
 function ringOf(c: { lng: number; lat: number }, radiusKm: number): Array<[number, number]> {
     const pts: Array<[number, number]> = [];
@@ -284,13 +277,38 @@ function makeInNet(p: NetParams, src: NetPoint, dst: NetPoint) {
         haversineKm(src, pt) <= srcR || haversineKm(dst, pt) <= dstR || inQuad(pt);
 }
 
+/**
+ * ✏️ **그리는 마름모 — 판정과 **같은 셈법**으로 점을 찍는다** (기사님 실측 2026-09-09).
+ *
+ * 🔴 예전엔 두 각도 광선의 **교점**으로 꼭짓점 넷을 잡았다. 그런데 각도가 180 이면 두 광선이
+ *    **평행**해서 교점이 무한대로 날아간다 — 기사님이 180 을 넣자 그 좌표까지 담으려고
+ *    지도가 통째로 튀었다(*"작동 안 해"*). 그리고 그 모양은 «마름모 반경»도 안 봤다:
+ *    **판정은 잘라 놓고 그림은 안 잘린** 것이라, 화면이 또 다른 말을 하고 있었다.
+ *
+ * 그래서 축을 따라 걸으며 **그 자리의 폭**을 그대로 찍는다 — `makeInQuad` 와 같은 세 조건이다:
+ *   폭 = min( 출발지에서 벌어지는 폭 , 목적지에서 벌어지는 폭 , 마름모 반경 )
+ * 반각이 90 이상이면 각도 쪽은 «제한 없음»이라 반경만 남는다 → **직사각형**이 된다.
+ */
+function quadOutline(p: NetParams, src: NetPoint, dst: NetPoint): Array<{ lng: number; lat: number }> {
+    const L = haversineKm(src, dst);
+    const axisAB = bearingDeg(src, dst);
+    const srcHalf = p.srcAngleDeg / 2, dstHalf = p.dstAngleDeg / 2;
+    const spreadOf = (half: number, along: number) => half >= 90 ? Infinity : along * Math.tan(rad(Math.max(0, half)));
+    const N = 48;
+    const left: Array<{ lng: number; lat: number }> = [], right: Array<{ lng: number; lat: number }> = [];
+    for (let i = 0; i <= N; i++) {
+        const t = L * i / N;
+        const w = Math.min(spreadOf(srcHalf, t), spreadOf(dstHalf, L - t), p.quadRadiusKm);
+        const c = rayPoint(src, axisAB, t);
+        left.push(rayPoint(c, axisAB - 90, w));
+        right.push(rayPoint(c, axisAB + 90, w));
+    }
+    return [...left, ...right.reverse(), left[0]];
+}
+
 /** 동선 그물을 계산한다 — 꼭짓점 기본은 대기 판(초월→여주), 각도·지름은 인풋 */
 export function buildNet(p: NetParams, src: NetPoint = NET_SRC, dst: NetPoint = NET_DST, markDongs: Array<{ name: string; dong: string; region?: string }> = MARK_DONGS): NetResult {
-    // 🔴 넣은 값 그대로 (위 makeInQuad 주석 참조) — 그리는 꼭짓점도 판정과 같은 각을 써야 한다
-    const srcHalf = p.srcAngleDeg / 2;
-    const dstHalf = p.dstAngleDeg / 2;
     const srcR = p.srcDiamKm / 2, dstR = p.dstDiamKm / 2;
-    const axisAB = bearingDeg(src, dst), axisBA = bearingDeg(dst, src);
     const inNet = makeInNet(p, src, dst);
 
     const { pass, grouped } = collectDongs(inNet);
@@ -314,14 +332,7 @@ export function buildNet(p: NetParams, src: NetPoint = NET_SRC, dst: NetPoint = 
                 .sort((a, b) => b.names.length - a.names.length),
         };
     }
-    const far = haversineKm(src, dst) * 3;
-    const quad = [
-        src,
-        intersect(src, rayPoint(src, axisAB - srcHalf, far), dst, rayPoint(dst, axisBA + dstHalf, far)),
-        dst,
-        intersect(src, rayPoint(src, axisAB + srcHalf, far), dst, rayPoint(dst, axisBA - dstHalf, far)),
-        src,
-    ];
+    const quad = quadOutline(p, src, dst);
 
     return {
         tri: quad.map(q => [+q.lng.toFixed(5), +q.lat.toFixed(5)]),

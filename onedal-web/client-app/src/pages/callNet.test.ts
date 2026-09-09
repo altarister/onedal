@@ -305,6 +305,10 @@ describe('관내 국면 — 목적지 원 안 + 출발지 원 밖이면 방향�
  * 📐 **마름모 반경 — 축에서 좌우로 몇 km** (기사님 확정 2026-09-09).
  * *"출발각 목적각 180 이면 안 되잖아.. 좌우를 목적지 출발지의 일직선과 평행하게 좌우에 둔다면"*
  */
+/** 검사용 축 거리 — `lineZoneOf`(반경 r 띠)로 «r 안인가»를 물어 대신 잰다 */
+const distToLineKmForTest = (pt: { lng: number; lat: number }, axis: Array<[number, number]>) =>
+    lineZoneOf(axis, 10.5, null, { ...WAIT_PRESET, dstDiamKm: 0 }, NET_DST).pickupIn(pt) ? 0 : 999;
+
 describe('📐 마름모 반경', () => {
     const P = (angle: number, r: number) => ({ srcDiamKm: 0, dstDiamKm: 0, srcAngleDeg: angle, dstAngleDeg: angle, quadRadiusKm: r });
     /** 초월(집)→여주 축에서 옆으로 벗어난 점 — 축 가운데쯤에서 북으로 약 11km */
@@ -316,6 +320,29 @@ describe('📐 마름모 반경', () => {
 
     it('🔴 반경을 좁히면 각도가 아무리 넓어도 잘린다 — 폭을 막는 것이 이 값이다', () => {
         expect(quadTesterOf(P(180, 5), NET_SRC, NET_DST)(mid)).toBe(false);
+    });
+
+    /**
+     * ✏️ **그리는 모양도 같은 셈법이어야 한다** (기사님 실측 2026-09-09 *"작동 안 해"*).
+     * 각도 180 이면 옛 방식(두 광선의 교점)은 **평행이라 무한대**로 날아갔고, 그 좌표를 담으려
+     * 지도가 통째로 튀었다. 그리고 그 모양은 «마름모 반경»도 안 봤다 — 판정만 잘리고 그림은 안 잘렸다.
+     */
+    it('🔴 각도 180 이어도 그리는 모양이 화면 안에 있다 — 무한대로 안 날아간다', () => {
+        const net = buildNet({ ...P(180, 20), srcDiamKm: 15, dstDiamKm: 15 }, NET_SRC, NET_DST);
+        expect(net.tri.length).toBeGreaterThan(4);
+        for (const [lng, lat] of net.tri) {
+            expect(Number.isFinite(lng) && Number.isFinite(lat)).toBe(true);
+            expect(Math.abs(lng - NET_SRC.lng)).toBeLessThan(3);   // 한반도 안 — 튀지 않는다
+            expect(Math.abs(lat - NET_SRC.lat)).toBeLessThan(3);
+        }
+    });
+
+    it('그리는 폭이 마름모 반경을 넘지 않는다 — 판정과 같은 모양이다', () => {
+        const axis: Array<[number, number]> = [[NET_SRC.lng, NET_SRC.lat], [NET_DST.lng, NET_DST.lat]];
+        const net = buildNet({ ...P(180, 10), srcDiamKm: 0, dstDiamKm: 0 }, NET_SRC, NET_DST);
+        for (const [lng, lat] of net.tri) {
+            expect(distToLineKmForTest({ lng, lat }, axis)).toBeLessThanOrEqual(10.5);   // 0.5 는 48등분 오차
+        }
     });
 
     it('각도 180 이 쓸 수 있는 값이 된다 — 축 사이 직사각형', () => {
