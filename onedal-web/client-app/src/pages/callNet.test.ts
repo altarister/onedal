@@ -337,6 +337,21 @@ describe('📐 마름모 반경', () => {
         }
     });
 
+    /**
+     * 🔴 **180 을 넘으면 축 뒤쪽까지 담긴다 — 그림도 따라와야 한다** (기사님 확정 2026-09-09:
+     * *"180도 이상은 더 그리지 않는 이유는 뭐야?"* → 그림만 안 커지고 **판정은 커지고 있었다**).
+     */
+    it('각도를 180 → 300 으로 올리면 그린 모양이 실제로 커진다', () => {
+        const area = (tri: Array<[number, number]>) => {   // 신발끈 — 크기 비교에만 쓴다
+            let a = 0;
+            for (let i = 1; i < tri.length; i++) a += tri[i - 1][0] * tri[i][1] - tri[i][0] * tri[i - 1][1];
+            return Math.abs(a) / 2;
+        };
+        const at180 = buildNet({ ...P(180, 30), srcDiamKm: 0, dstDiamKm: 0 }, NET_SRC, NET_DST);
+        const at300 = buildNet({ ...P(300, 30), srcDiamKm: 0, dstDiamKm: 0 }, NET_SRC, NET_DST);
+        expect(area(at300.tri)).toBeGreaterThan(area(at180.tri));
+    });
+
     it('그리는 폭이 마름모 반경을 넘지 않는다 — 판정과 같은 모양이다', () => {
         const axis: Array<[number, number]> = [[NET_SRC.lng, NET_SRC.lat], [NET_DST.lng, NET_DST.lat]];
         const net = buildNet({ ...P(180, 10), srcDiamKm: 0, dstDiamKm: 0 }, NET_SRC, NET_DST);

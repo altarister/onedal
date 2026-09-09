@@ -278,32 +278,34 @@ function makeInNet(p: NetParams, src: NetPoint, dst: NetPoint) {
 }
 
 /**
- * ✏️ **그리는 마름모 — 판정과 **같은 셈법**으로 점을 찍는다** (기사님 실측 2026-09-09).
+ * ✏️ **그리는 마름모 — 판정 함수를 그대로 써서 경계를 찾는다** (기사님 확정 2026-09-09).
  *
- * 🔴 예전엔 두 각도 광선의 **교점**으로 꼭짓점 넷을 잡았다. 그런데 각도가 180 이면 두 광선이
- *    **평행**해서 교점이 무한대로 날아간다 — 기사님이 180 을 넣자 그 좌표까지 담으려고
- *    지도가 통째로 튀었다(*"작동 안 해"*). 그리고 그 모양은 «마름모 반경»도 안 봤다:
- *    **판정은 잘라 놓고 그림은 안 잘린** 것이라, 화면이 또 다른 말을 하고 있었다.
+ * 🔴 **왜 이렇게까지 하나** — 그림과 판정이 오늘 하루에 다섯 번 어긋났다. 셈을 두 벌 두면
+ *    한쪽만 고쳐지기 때문이다. **판정(`makeInQuad`)에 «여기 안이냐»를 물어서 그리면
+ *    어긋날 자리가 없다.**
  *
- * 그래서 축을 따라 걸으며 **그 자리의 폭**을 그대로 찍는다 — `makeInQuad` 와 같은 세 조건이다:
- *   폭 = min( 출발지에서 벌어지는 폭 , 목적지에서 벌어지는 폭 , 마름모 반경 )
- * 반각이 90 이상이면 각도 쪽은 «제한 없음»이라 반경만 남는다 → **직사각형**이 된다.
+ * 방법: 출발지에서 사방(2°씩)으로 광선을 쏘고, 각 방향에서 «안인 가장 먼 거리»를 이분 탐색으로
+ * 찾아 그 점을 잇는다. 밖인 방향은 출발지 자신을 찍는다(폭 0).
+ *
+ * 🔴 **각도 180 을 넘으면 축 «뒤쪽»까지 담긴다** — 기사님 선택(2026-09-09): 옛 방식(축을 따라
+ *    좌우 폭)은 뒤쪽을 못 그려서 180 이상이 전부 같은 모양이었는데, **판정은 넓어지고 있었다.**
+ *    이제 그린 모양이 판정 그대로다.
  */
 function quadOutline(p: NetParams, src: NetPoint, dst: NetPoint): Array<{ lng: number; lat: number }> {
-    const L = haversineKm(src, dst);
-    const axisAB = bearingDeg(src, dst);
-    const srcHalf = p.srcAngleDeg / 2, dstHalf = p.dstAngleDeg / 2;
-    const spreadOf = (half: number, along: number) => half >= 90 ? Infinity : along * Math.tan(rad(Math.max(0, half)));
-    const N = 48;
-    const left: Array<{ lng: number; lat: number }> = [], right: Array<{ lng: number; lat: number }> = [];
-    for (let i = 0; i <= N; i++) {
-        const t = L * i / N;
-        const w = Math.min(spreadOf(srcHalf, t), spreadOf(dstHalf, L - t), p.quadRadiusKm);
-        const c = rayPoint(src, axisAB, t);
-        left.push(rayPoint(c, axisAB - 90, w));
-        right.push(rayPoint(c, axisAB + 90, w));
+    const inQuad = makeInQuad(p, src, dst);
+    const maxKm = haversineKm(src, dst) * 3 + Math.max(0, p.quadRadiusKm) * 2 + 1;
+    const out: Array<{ lng: number; lat: number }> = [];
+    for (let brg = 0; brg < 360; brg += 2) {
+        if (!inQuad(rayPoint(src, brg, 0.3))) { out.push({ lng: src.lng, lat: src.lat }); continue; }
+        let lo = 0.3, hi = maxKm;
+        for (let k = 0; k < 18; k++) {           // 이분 탐색 — 18회면 이 스케일에서 m 단위
+            const mid = (lo + hi) / 2;
+            if (inQuad(rayPoint(src, brg, mid))) lo = mid; else hi = mid;
+        }
+        out.push(rayPoint(src, brg, lo));
     }
-    return [...left, ...right.reverse(), left[0]];
+    out.push(out[0]);
+    return out;
 }
 
 /** 동선 그물을 계산한다 — 꼭짓점 기본은 대기 판(초월→여주), 각도·지름은 인풋 */
