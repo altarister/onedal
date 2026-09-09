@@ -289,6 +289,12 @@ type KnobDef = { key: string; label: string; unit: string; value: number; max: n
  */
 function KnobGrid({ knobs, open, onOpen }: { knobs: KnobDef[]; open: string | null; onOpen: (k: string | null) => void }) {
     const cur = knobs.find(k => k.key === open) ?? null;
+    useEffect(() => {
+        if (!open) return;
+        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onOpen(null); };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [open, onOpen]);
     const clamp = (k: KnobDef, v: number) => Math.min(k.max, Math.max(0, v));
     return (
         <div className="relative">
@@ -304,6 +310,13 @@ function KnobGrid({ knobs, open, onOpen }: { knobs: KnobDef[]; open: string | nu
                     </button>
                 ))}
             </div>
+            {/**
+              * 🔴 **닫는 길을 셋 둔다** (기사님 2026-09-09 *"닫히는 것도 해줘"*):
+              *   ① 레이어의 «✕»  ② **바깥 아무 데나 누르기**  ③ Esc
+              * 레이어가 값 버튼을 덮으므로 «같은 버튼 다시 누르기»만으로는 못 닫는다.
+              * 바깥 클릭은 투명한 층으로 받는다 — 지도에 실수로 콜이 찍히는 것도 함께 막힌다.
+              */}
+            {cur && <div className="fixed inset-0 z-10" onClick={() => onOpen(null)} />}
             {cur && (
                 <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 z-20 flex items-center gap-1.5
                                 rounded-xl border border-info/55 bg-surface shadow-lg px-1.5 py-2">
