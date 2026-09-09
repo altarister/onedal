@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { impactOfStop } from './labPortMap';
+import { impactOfStop, splitDropImpact } from './labPortMap';
 
 /**
  * 🧾 **누가 이 정거장을 몇 분 밀었나** (기사님 2026-09-09).
@@ -19,7 +19,7 @@ const base = {
 describe('🧾 정거장 지연의 원인과 분', () => {
     it('앞에 낀 정거장만 원인으로 적는다 — ①하차 앞엔 ②상차만 있다', () => {
         expect(impactOfStop({ ...base, stopLabel: '①하차', beforeAt: m(80), afterAt: m(91) }))
-            .toEqual({ causeCallId: 2, causeLabel: '상대원동 상차', min: 11, at: T });
+            .toEqual({ causeCallId: 2, causeLabel: '상대원동 상차', min: 11, at: T, causeNames: ['상대원동 상차'] });
     });
 
     it('둘 다 앞에 끼면 둘 다 적는다', () => {
@@ -54,5 +54,51 @@ describe('🧾 정거장 지연의 원인과 분', () => {
 
     it('당겨졌으면 음수로 적는다 — 취소로 순서가 줄 때 쓰인다', () => {
         expect(impactOfStop({ ...base, stopLabel: '①하차', beforeAt: m(91), afterAt: m(80) })?.min).toBe(-11);
+    });
+});
+
+/**
+ * ✂️ **밀림을 «출발이 밀린 몫»과 «구간이 꺾인 몫»으로 가른다** (기사님 지시 2026-09-09
+ * *"①을 갈라 적어"* — 화면에서 «82분이나 돌아간다는데 이것이 사실이야?» 라고 물으신 뒤).
+ *
+ * 아래 숫자는 그날 기사님 화면의 실측 그대로다 (콜 넷 · 파주행).
+ */
+describe('✂️ 하차 밀림 가르기', () => {
+    const ORDER = ['①상차', '②상차', '③상차', '①하차', '③하차', '④상차', '②하차', '④하차'];
+    const INSERTED = [
+        { label: '①하차', name: '목감동 하차' },
+        { label: '③하차', name: '군자동 하차' },
+        { label: '②하차', name: '대장동 하차' },
+    ];
+    const pick = impactOfStop({ stopLabel: '④상차', beforeAt: m(22), afterAt: m(63),
+        orderNow: ORDER, inserted: INSERTED, causeCallId: 4, at: T });
+    const drop = impactOfStop({ stopLabel: '④하차', beforeAt: m(80), afterAt: m(162),
+        orderNow: ORDER, inserted: INSERTED, causeCallId: 4, at: T });
+
+    it('실측: 상차 +41분 · 하차 +82분 — 그 82분이 41 + 41 로 갈린다', () => {
+        expect(pick?.min).toBe(41);
+        expect(drop?.min).toBe(82);
+        expect(splitDropImpact(pick, drop).map(r => r.min)).toEqual([41, 41]);
+    });
+
+    it('꺾인 몫의 원인은 상차와 하차 «사이»에 낀 것뿐이다 — 대장동 하차', () => {
+        const rows = splitDropImpact(pick, drop);
+        expect(rows[0].causeLabel).toBe('목감동 하차 · 군자동 하차 경유 — 출발이 밀렸다');
+        expect(rows[1].causeLabel).toBe('대장동 하차 경유 — 이 구간이 꺾였다');
+    });
+
+    it('출발이 안 밀렸으면 한 줄만 — 전부 이 구간이 꺾인 것이다', () => {
+        const rows = splitDropImpact(null, drop);
+        expect(rows.map(r => r.min)).toEqual([82]);
+    });
+
+    it('밀림이 전부 출발 탓이면 «꺾인 몫» 줄은 안 적는다 (0 을 쌓지 않는다)', () => {
+        const same = impactOfStop({ stopLabel: '④하차', beforeAt: m(80), afterAt: m(121),
+            orderNow: ORDER, inserted: INSERTED, causeCallId: 4, at: T });
+        expect(splitDropImpact(pick, same).map(r => r.min)).toEqual([41]);
+    });
+
+    it('하차 밀림이 없으면 아무것도 안 적는다', () => {
+        expect(splitDropImpact(pick, null)).toEqual([]);
     });
 });

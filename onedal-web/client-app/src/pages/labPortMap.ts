@@ -16,6 +16,9 @@
  * 계획과 실측이 같은 자리에 있어야 조인 없이 오차를 잰다 — 실물이 옛 장부를 버리고
  * 이 모양으로 간 이유다.
  */
+/** 밀림 한 줄 — 실물 `step_arrive_*.system_reasons` 로 갈 모양 */
+export type StopImpact = { causeCallId: number; causeLabel: string; min: number; at: number };
+
 export type StopStep = {
     /** 「몇 시까지 갈게요」 — 확정한 순간 못 박고 다시는 안 바꾼다 */
     promisedAt: number | null;
@@ -35,7 +38,7 @@ export type StopStep = {
      * 🔴 `causeCallId` 로 적는다. `①②③` 은 콜이 취소되면 당겨지는 번호라, 번호로
      *    적으면 나중에 **남의 콜을 가리킨다.**
      */
-    impacts: Array<{ causeCallId: number; causeLabel: string; min: number; at: number }>;
+    impacts: StopImpact[];
 };
 
 /** 실물의 어느 표·어느 칸으로 가는가 (상차/하차 두 갈래가 같은 이름을 쓴다) */
@@ -97,10 +100,18 @@ export function promiseTimes(opts: {
     chainCum: { pickupMin: number | null; dropoffMin: number | null };
     /** ⑮ 직행 실측 — 내 위치 → 상차 → 하차 */
     direct: { approachMin: number | null; durMin: number | null };
+    /**
+     * 🧳 **상차에 머무는 분** (기사님 2026-09-09 «정차를 넣어줘»).
+     * 하차 약속은 «상차에 닿아서 → **짐을 싣고** → 달려서» 닿는 시각이다.
+     * 이걸 빼면 하차 약속이 늘 이르게 서고, 그 차이가 나중에 «다른 콜 탓»으로 잡힌다.
+     * 🔴 **상차 약속에는 안 더한다** — 그건 도착 시각이라 짐 싣기 전이다.
+     */
+    pickupDwellMin?: number;
 }): { pickupAt: number | null; dropoffAt: number | null } {
-    const { confirmedAt, direct } = opts;
+    const { confirmedAt, direct, pickupDwellMin = 0 } = opts;
     const pickupAt = direct.approachMin == null ? null : confirmedAt + direct.approachMin * 60000;
-    const dropoffAt = pickupAt == null || direct.durMin == null ? null : pickupAt + direct.durMin * 60000;
+    const dropoffAt = pickupAt == null || direct.durMin == null ? null
+        : pickupAt + (pickupDwellMin + direct.durMin) * 60000;
     return { pickupAt, dropoffAt };
 }
 
@@ -138,7 +149,7 @@ export function impactOfStop(opts: {
     inserted: Array<{ label: string; name: string }>;
     causeCallId: number;
     at: number;
-}): { causeCallId: number; causeLabel: string; min: number; at: number } | null {
+}): (StopImpact & { causeNames: string[] }) | null {
     const { stopLabel, beforeAt, afterAt, orderNow, inserted, causeCallId, at } = opts;
     if (beforeAt == null || afterAt == null) return null;
     const min = Math.round((afterAt - beforeAt) / 60000);
@@ -150,5 +161,46 @@ export function impactOfStop(opts: {
         return i >= 0 && i < here;
     });
     if (!causes.length) return null;
-    return { causeCallId, causeLabel: causes.map(x => x.name).join(' · '), min, at };
+    const causeNames = causes.map(x => x.name);
+    return { causeCallId, causeLabel: causeNames.join(' · '), min, at, causeNames };
+}
+
+/**
+ * ✂️ **하차 밀림을 둘로 가른다** (기사님 지시 2026-09-09: *"① 을 갈라 적어"*).
+ *
+ * 기사님이 화면에서 «82분이나 돌아간다는데 이것이 사실이야?» 라고 물으신 값이다.
+ * 숫자는 맞았는데 **뜻이 둘 섞여** 있었다 — 실측(2026-09-09 · 콜 넷):
+ *
+ * ```
+ * ⑧ 탄현면 +82분  =  ⑥ 노온사동 상차가 밀린 41분   ← 앞 콜들을 먼저 처리하느라 늦게 출발
+ *                    +  이 구간이 꺾인 41분        ← 노온사동→탄현면 직행 58분이 99분이 된다
+ * ```
+ *
+ * 둘은 기사님께 다른 뜻이다 — **꺾이는 것은 기름과 시간을 진짜로 더 쓰는 것**이고,
+ * 밀리는 것은 **약속 시각의 문제**다. 한 줄로 적으면 어느 쪽인지 알 수 없다.
+ *
+ * 🔴 «꺾인 몫»의 원인은 **상차와 하차 사이에 낀 정거장**뿐이다 — 상차 앞에 낀 것은
+ *    출발을 밀었을 뿐 이 구간을 꺾지 않았다. 그래서 원인 목록도 차집합으로 가른다.
+ */
+export function splitDropImpact(
+    vPick: (StopImpact & { causeNames: string[] }) | null,
+    vDrop: (StopImpact & { causeNames: string[] }) | null,
+): StopImpact[] {
+    if (!vDrop) return [];
+    const carried = vPick?.min ?? 0;
+    const own = vDrop.min - carried;
+    const rows: StopImpact[] = [];
+    if (carried !== 0 && vPick) {
+        rows.push({ ...vDrop, min: carried, causeLabel: `${vPick.causeLabel} 경유 — 출발이 밀렸다` });
+    }
+    if (own !== 0) {
+        const between = vDrop.causeNames.filter(n => !(vPick?.causeNames ?? []).includes(n));
+        rows.push({
+            ...vDrop, min: own,
+            causeLabel: between.length
+                ? `${between.join(' · ')} 경유 — 이 구간이 꺾였다`
+                : '이 구간이 길어졌다',
+        });
+    }
+    return rows;
 }

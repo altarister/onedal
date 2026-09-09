@@ -39,4 +39,22 @@ describe('⏰ 약속 시각 — 직행 기준', () => {
         expect(min(r.pickupAt)).toBe(27);
         expect(r.dropoffAt).toBeNull();
     });
+
+    /**
+     * 🧳 **하차 약속에는 «상차에 머무는 분»이 들어간다** (기사님 2026-09-09 *"정차를 넣어줘"*).
+     * 하차는 «상차에 닿아서 → 짐을 싣고 → 달려서» 닿는 자리다. 이걸 빼면 하차 약속이
+     * 늘 이르게 서고, 그 차이가 나중에 **«다른 콜 탓»으로 잘못 잡힌다.**
+     */
+    it('🧳 상차 정차 15분은 하차 약속에만 들어간다 — 상차 약속은 도착 시각이라 그대로다', () => {
+        const r = promiseTimes({ confirmedAt: T0, chainCum: { pickupMin: null, dropoffMin: null },
+            direct: { approachMin: 20, durMin: 60 }, pickupDwellMin: 15 });
+        expect(min(r.pickupAt)).toBe(20);            // 도착 — 짐 싣기 전이다
+        expect(min(r.dropoffAt)).toBe(20 + 15 + 60); // 도착 + 싣기 + 주행
+    });
+
+    it('정차를 안 주면 예전과 같은 답이다 (되돌리는 길)', () => {
+        const r = promiseTimes({ confirmedAt: T0, chainCum: { pickupMin: null, dropoffMin: null },
+            direct: { approachMin: 20, durMin: 60 } });
+        expect(min(r.dropoffAt)).toBe(80);
+    });
 });

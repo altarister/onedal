@@ -35,13 +35,27 @@ export const hhmm = (t: number | null | undefined) =>
  *    0 으로 치고 계속 더하면 뒤가 전부 이르게 나온다 (규칙 ④).
  * 🔴 이름 없는 정거장은 안 넣는다 — 열쇠가 없으면 나중에 못 찾는다.
  */
-export function cumMinutes(legs: readonly LegLike[] | undefined): Map<string, number> {
+export function cumMinutes(
+    legs: readonly LegLike[] | undefined,
+    /**
+     * 🧳 그 정거장에 **머무는 분** — 주면 다음 구간이 그만큼 늦게 출발한다 (기사님 2026-09-09 «넣어줘»).
+     *
+     * 🔴 **도착 시각에는 안 들어간다 — 그 정거장을 떠나는 시각부터 들어간다.**
+     *    「몇 시까지 갈게요」는 도착 약속이고, 짐 싣는 시간은 그 뒤에 일어나는 일이다
+     *    (루트 CLAUDE.md ⑤-5: *"저장하는 것은 도착 약속 하나"*).
+     * 안 주면 0 — 정차를 안 세던 때와 같은 답이 나온다.
+     */
+    dwellOf?: (label: string) => number,
+): Map<string, number> {
     const out = new Map<string, number>();
     let acc = 0;
     for (const lg of legs ?? []) {
         if (lg.durMin == null) break;
         acc += lg.durMin;
-        if (lg.to) out.set(lg.to, acc);
+        if (lg.to) {
+            out.set(lg.to, acc);          // 도착 — 여기까지는 정차가 안 붙는다
+            acc += dwellOf?.(lg.to) ?? 0;  // 떠나는 시각 — 다음 구간은 여기서 시작한다
+        }
     }
     return out;
 }
@@ -53,8 +67,12 @@ export function cumMinutes(legs: readonly LegLike[] | undefined): Map<string, nu
  *    분끼리 빼면 그 사이 주행 시간이 통째로 섞인다 (2026-09-09 실측으로 잡은 버그).
  * 🔴 잰 시각을 모르면 `null` — «지금»으로 대신 채우지 않는다.
  */
-export function arrivalAt(chain: ChainLike | null | undefined, label: string): number | null {
+export function arrivalAt(
+    chain: ChainLike | null | undefined, label: string,
+    /** 🧳 정거장마다 머무는 분 — `cumMinutes` 로 그대로 넘긴다 */
+    dwellOf?: (label: string) => number,
+): number | null {
     if (chain?.measuredAt == null) return null;
-    const min = cumMinutes(chain.legs).get(label);
+    const min = cumMinutes(chain.legs, dwellOf).get(label);
     return min == null ? null : chain.measuredAt + min * 60000;
 }

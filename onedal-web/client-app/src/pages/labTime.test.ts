@@ -65,3 +65,36 @@ describe('⏱️ 표시', () => {
         expect(stopLabel(3, '하차')).toBe('③하차');
     });
 });
+
+/**
+ * 🧳 **정거장에 머무는 분** (기사님 2026-09-09 *"넣어줘"*).
+ * 도착 시각에는 안 붙고 **떠나는 시각**에 붙는다 — 「몇 시까지 갈게요」는 도착 약속이고
+ * 짐 싣는 시간은 그 뒤의 일이다.
+ */
+describe('🧳 정차', () => {
+    const dwell = (label: string) => label.endsWith('하차') ? 10 : 15;
+
+    it('도착 누적에는 그 정거장 정차가 안 들어간다 — 다음 정거장부터 밀린다', () => {
+        const legs = [leg('①상차', 10), leg('②상차', 26), leg('①하차', 45)];
+        expect([...cumMinutes(legs, dwell).entries()]).toEqual([
+            ['①상차', 10],            // 10
+            ['②상차', 10 + 15 + 26],  // 상차에서 15분 머문 뒤 출발 → 51
+            ['①하차', 51 + 15 + 45],  // 또 15분 → 111
+        ]);
+    });
+
+    it('정차를 안 주면 예전과 같은 답이다 (되돌리는 길)', () => {
+        const legs = [leg('①상차', 10), leg('②상차', 26)];
+        expect([...cumMinutes(legs).values()]).toEqual([10, 36]);
+    });
+
+    it('못 잰 구간에서 멈추는 규칙은 그대로다 — 정차를 넣어도 뒤를 지어내지 않는다', () => {
+        const legs = [leg('①상차', 10), leg('②상차', null), leg('①하차', 45)];
+        expect([...cumMinutes(legs, dwell).keys()]).toEqual(['①상차']);
+    });
+
+    it('도착 시각도 정차를 반영한다', () => {
+        const chain = { legs: [leg('①상차', 10), leg('①하차', 45)], measuredAt: T };
+        expect(arrivalAt(chain, '①하차', dwell)).toBe(T + (10 + 15 + 45) * 60000);
+    });
+});

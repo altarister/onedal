@@ -3,11 +3,12 @@ import {
     PHASE_KEYS, PHASE_LABEL, PHASE_FIELDS, PHASE_AUTO_SOURCE, fieldLabel,
     DEFAULT_PHASE_SETTINGS, normalizePhaseSettings, rateFloorsFrom,
     reachRadiusKm, NET_RATE_PER_KM, VEHICLE_CAPACITY, CAPACITY_CONFIDENCE_LABEL, CALL_TARGET_LABEL,
+    dwellMinutes, DWELL_UNKNOWN_PICKUP_MINUTES,
     type FieldMode, type PhaseKey, type PhaseSettings, type PhaseSettingsMap,
 } from '@onedal/shared';
 import { buildAppFilterOutput, labPhaseOf, TRUCK_CAPACITY_SLOTS } from './labFilterOutput';
 // 🚚 이식 대응표가 이 타입의 원천이다 — 실물 `step_*` 칸과 맞는지는 labPortMap.test.ts 가 지킨다
-import { promiseTimes, impactOfStop, type StopStep } from './labPortMap';
+import { promiseTimes, impactOfStop, splitDropImpact, type StopStep } from './labPortMap';
 // ⏱️ 시간·정거장 이름은 한 곳에서 만든다 (labTime.test.ts 가 지킨다)
 import { circled, hhmm, cumMinutes, arrivalAt } from './labTime';
 import {
@@ -28,6 +29,19 @@ import { apiBase } from '../lib/serverTarget';
  * ⚠️ 그래서 «고속도로냐 국도냐»를 고르는 축이 지금은 없다 — 별건으로 낸다 (todo 0-I).
  */
 const ROUTE_COMBO: { priority: string; avoid?: string; label: string } = { priority: 'RECOMMEND', label: '추천' };
+
+/**
+ * 🧳 **정거장에 머무는 분 — 짐을 모르므로 «일반값»이다** (기사님 2026-09-09 *"넣어줘"* · 규칙 ⑤-2).
+ *
+ * 실물과 **같은 함수**(shared `dwellMinutes`)를 읽는다 — 목업이 제 셈을 따로 두면 실험이 거짓말이 된다.
+ * 지도 실험실의 콜은 지도를 두 번 눌러 만든 것이라 짐(박스 수·상하차 방법)이 없다.
+ * 그래서 방법을 `null` 로 넘기고, 함수가 일반값을 돌려준다 — **상차 15분 · 하차 10분**
+ * (상차가 긴 이유는 결박이 붙어서다).
+ *
+ * 🔴 **화면에 «짐 미확인»을 함께 적는다.** 표시 없이 값만 쓰면 규칙 ④ 위반이다 (규칙 ⑤-2).
+ * 🔴 도착 시각에는 안 붙고 **떠나는 시각**에 붙는다 — `cumMinutes` 참조.
+ */
+const labDwellOf = (label: string) => dwellMinutes(null, 0, label.endsWith('하차') ? 'dropoff' : 'pickup');
 
 /** 시도 + 경기 시·군·구 경계 60구역 — 시트 목업 지도(PinnedRouteCanvas)와 같은 재료 */
 const SIDO = (sidoDataRaw as { features: Array<{ properties: { name: string }; geometry: { type: string; coordinates: number[][][][] | number[][][] } }> }).features;
@@ -927,14 +941,14 @@ export default function MapMockup() {
         // ⏰ 최초 약속 — 확정한 이 순간 전체 경로가 말한 도착 시각. 이후 어떤 합짐이 와도 안 바뀐다
         const t0 = clockNow, noNew = circled(confirmed.length + 1);   // 🕒 모의 시계
         /** 병합 경로의 그 정거장까지 누적 분 — 🔴 약속에는 안 쓴다 (`promiseTimes` 참조) */
-        const mergedCum = cumMinutes(chainNow?.legs);
+        const mergedCum = cumMinutes(chainNow?.legs, labDwellOf);
         const chainCum = { pickupMin: mergedCum.get(`${noNew}상차`) ?? null, dropoffMin: mergedCum.get(`${noNew}하차`) ?? null };
         const mkStep = (promisedAt: number | null): StopStep => ({ promisedAt, predictedAt: null, occurredAt: null, source: null, impacts: [] });
         /**
          * ⏰ 약속은 **직행 기준**이다. 첫짐은 ⑤⑥ 전체 경로가 곧 직행이라 지금 바로 서고,
          * 합짐은 ⑮ 가 와야 선다 — 그때까지 **비워 둔다** (병합 값으로 대신 채우지 않는다).
          */
-        const p0 = promiseTimes({ confirmedAt: t0, chainCum,
+        const p0 = promiseTimes({ confirmedAt: t0, chainCum, pickupDwellMin: DWELL_UNKNOWN_PICKUP_MINUTES,
             direct: merge ? { approachMin: null, durMin: null }
                 : { approachMin: app?.durMin ?? null, durMin: known?.durMin ?? null } });
         const steps = { pickup: mkStep(p0.pickupAt), dropoff: mkStep(p0.dropoffAt) };
@@ -963,7 +977,7 @@ export default function MapMockup() {
          */
         const impactOf = (label: string) => impactOfStop({
             stopLabel: label,
-            beforeAt: arrivalAt(prevChain, label), afterAt: arrivalAt(chainNow, label),
+            beforeAt: arrivalAt(prevChain, label, labDwellOf), afterAt: arrivalAt(chainNow, label, labDwellOf),
             orderNow, inserted, causeCallId: id, at: t0,
         });
         setConfirmed(c => [...c.map((x, i) => {
@@ -1013,7 +1027,8 @@ export default function MapMockup() {
                      */
                     steps: (() => {
                         // ⏰ ⑮ 가 왔다 — 직행 기준으로 약속을 세운다 (이미 선 약속은 못 박은 것이라 안 덮는다)
-                        const pr = promiseTimes({ confirmedAt: t0, chainCum, direct: { approachMin: pickMin, durMin: dropMin } });
+                        const pr = promiseTimes({ confirmedAt: t0, chainCum, pickupDwellMin: DWELL_UNKNOWN_PICKUP_MINUTES,
+                            direct: { approachMin: pickMin, durMin: dropMin } });
                         /**
                          * 🧾 **이 콜 자신도 «기존 콜 경유»만큼 밀린 채로 태어난다** (2026-09-09 실측에서 잡힘).
                          *
@@ -1035,11 +1050,16 @@ export default function MapMockup() {
                         };
                         const vPick = via(`${noNew}상차`, pickMin);
                         const vDrop = via(`${noNew}하차`, pickMin != null && dropMin != null ? pickMin + dropMin : null);
+                        /**
+                         * ✂️ **하차 밀림은 둘로 갈라 적는다** (기사님 지시 2026-09-09).
+                         * «출발이 밀린 몫»과 «이 구간이 꺾인 몫»은 기사님께 다른 뜻이다 —
+                         * 한 줄로 적으면 82분이 어느 쪽인지 알 수 없다. 셈은 `splitDropImpact` 가 한다.
+                         */
                         return {
                             pickup: { ...x.steps.pickup, promisedAt: x.steps.pickup.promisedAt ?? pr.pickupAt,
                                 impacts: vPick ? [...x.steps.pickup.impacts, { ...vPick, causeLabel: `${vPick.causeLabel} 경유` }] : x.steps.pickup.impacts },
                             dropoff: { ...x.steps.dropoff, promisedAt: x.steps.dropoff.promisedAt ?? pr.dropoffAt,
-                                impacts: vDrop ? [...x.steps.dropoff.impacts, { ...vDrop, causeLabel: `${vDrop.causeLabel} 경유` }] : x.steps.dropoff.impacts },
+                                impacts: [...x.steps.dropoff.impacts, ...splitDropImpact(vPick, vDrop)] },
                         };
                     })(),
                 } : x));
@@ -1089,7 +1109,7 @@ export default function MapMockup() {
                     const no = circled(baseCallCount + k + 1);
                     /** 🔴 «앞에 있었나»는 **빠지기 전** 순서로 본다 — 지금 순서엔 그 콜이 없다 */
                     const of = (label: string) => impactOfStop({ stopLabel: label,
-                        beforeAt: arrivalAt(prevChain, label), afterAt: arrivalAt(after, label),
+                        beforeAt: arrivalAt(prevChain, label, labDwellOf), afterAt: arrivalAt(after, label, labDwellOf),
                         orderNow: orderBefore, inserted: gone, causeCallId: last.id, at });
                     const up = of(`${no}상차`), dn = of(`${no}하차`);
                     if (!up && !dn) return x;
@@ -1243,7 +1263,7 @@ export default function MapMockup() {
          * +40분이라고 했다(주행 30분이 사라진 것). 약속은 **절대 시각**으로 못 박아 뒀으니
          * 지금 도착 예정도 절대 시각으로 만들어 그것끼리 견준다.
          */
-        const etaOf = (label: string) => arrivalAt(chainNow, label);   // 🕒 «잰 시각 + 누적» — 한 곳에서
+        const etaOf = (label: string) => arrivalAt(chainNow, label, labDwellOf);   // 🕒 «잰 시각 + 누적(정차 포함)» — 한 곳에서
         const lateMin = (etaAt: number | null, promisedAt: number | null | undefined) =>
             etaAt != null && promisedAt != null ? Math.round((etaAt - promisedAt) / 60000) : null;
 
@@ -1322,6 +1342,7 @@ export default function MapMockup() {
             const m = legMin.get(label);
             if (m == null) break;                     // 모르는 구간부터는 예정을 못 낸다
             acc += m; now.set(label, t + acc * 60000);
+            acc += labDwellOf(label);                 // 🧳 여기 머문 뒤 다음 구간이 시작한다 (짐 미확인 — 일반값)
         }
         return Array.from({ length: last }, (_, i) => {
             const n = i + 1, no = circled(n), isNew = cand && n === last;
@@ -1375,7 +1396,7 @@ export default function MapMockup() {
         if (!chainNow || !chainBefore) return [];
         /** 🔴 두 경로는 **잰 시각이 다르다** — `arrivalAt` 이 각자의 기준을 더해 «시각»으로 낸다 */
         const rows: Array<{ stop: string; beforeAt: number; nowAt: number; delayMin: number }> = [];
-        for (const stop of cumMinutes(chainBefore.legs).keys()) {
+        for (const stop of cumMinutes(chainBefore.legs, labDwellOf).keys()) {
             const beforeAt = arrivalAt(chainBefore, stop), nowAt = arrivalAt(chainNow, stop);
             if (beforeAt == null || nowAt == null) continue;   // 기준 시각이나 구간을 모르면 못 잰다
             rows.push({ stop, beforeAt, nowAt, delayMin: Math.round((nowAt - beforeAt) / 60000) });
@@ -2442,7 +2463,8 @@ export default function MapMockup() {
                                         </div>
                                         <div className="text-[9.5px] text-text-muted leading-snug">
                                             앞 시각 = <b>최초 약속</b>(그 콜을 확정한 순간 못 박은 것 — 안 바뀐다) · 뒤 = 이 콜을 받으면 될 시각.
-                                            합짐을 얹을수록 «늦어짐»은 이 약속을 기준으로 쌓인다. 주행만 셈 (상하차 정차는 아직 안 넣었다)
+                                            합짐을 얹을수록 «늦어짐»은 이 약속을 기준으로 쌓인다.
+                                            주행 + 정차(상차 {DWELL_UNKNOWN_PICKUP_MINUTES}분 · 하차 {labDwellOf('①하차')}분) — <b className="text-warning">짐 미확인이라 일반값</b>
                                         </div>
                                     </div>}
 
