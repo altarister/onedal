@@ -1955,13 +1955,23 @@ export default function MapMockup() {
                 }
                 nctx.fillStyle = NET_SOLID; nctx.fill();
                 /**
-                 * ⭕ **내 위치 원만 테두리를 남긴다 — 점선으로** (뜻이 다르다: «지금 갈 수 있는 거리»).
-                 * 나머지 면은 선 없이 색으로만 읽는다.
+                 * ⭕ **테두리는 «원»에만 남긴다** — 마름모·라인 띠는 면으로만 읽는다
+                 * (기사님 2026-09-09: «마름모 라인을 지울 수 있을까?» · «목적지 테두리가 없어»).
+                 *   · 목적지 원   실선 — 「여기까지가 목적지 둘레」
+                 *   · 내 위치 원  점선 — 뜻이 다르다(「지금 갈 수 있는 거리」)
+                 * 🔴 테두리는 **본 캔버스**에 그린다. 그물 캔버스에 넣으면 면과 같은 투명도가 걸려 흐려진다.
                  */
+                ctx.strokeStyle = NET_EDGE; ctx.lineWidth = NET_EDGE_W;
+                gn.circles.forEach((c: { name: string; ring: Array<[number, number]> }) => {
+                    if (c.name !== goal.name) return;          // 목적지 원만 (출발 꼭짓점 원은 면으로 충분)
+                    ctx.beginPath();
+                    c.ring.forEach(([lng, lat], i) => { const [px, py] = S(lng, lat); i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py); });
+                    ctx.stroke();
+                });
                 {
                     const [mx, my] = S(myPos.lng, myPos.lat);
                     ctx.beginPath(); ctx.arc(mx, my, (params.srcDiamKm / 2) * pxPerKm, 0, Math.PI * 2);
-                    ctx.strokeStyle = NET_EDGE; ctx.setLineDash([6, 5]); ctx.lineWidth = NET_EDGE_W; ctx.stroke();
+                    ctx.setLineDash([6, 5]); ctx.stroke();
                     ctx.setLineDash([]);
                 }
                 const [gx, gy] = S(goal.lng, goal.lat);
