@@ -74,6 +74,18 @@ function centroidOfDong(name: string, region?: string) {
 /** 그물의 꼭짓점 하나 — 이름과 좌표 */
 export interface NetPoint { name: string; lng: number; lat: number }
 
+/**
+ * 🗺️ **시도 → 시군구** (기사님 2026-09-09: *"경기도 충청도 특별시 단위가 큰 것이 있을 것 같은데"*).
+ * 목적지를 «도를 고르고 시를 고르는» 두 걸음으로 만드는 재료다 — 119개를 한 목록에 늘어놓으면
+ * 폰에서 못 찾는다.
+ */
+export function sidoList(): string[] {
+    return [...new Set(DONG_CENTROIDS.map(d => d[4]))].sort();
+}
+export function sggList(sido: string): string[] {
+    return [...new Set(DONG_CENTROIDS.filter(d => d[4] === sido).map(d => d[1]))].sort();
+}
+
 /** 도시의 «시내» 좌표 — 그 시 법정동('동' 행) 평균. 여주 시내(NET_DST)와 같은 셈법이다 */
 export function cityCenter(city: string, label?: string): NetPoint {
     // 구가 있는 시는 사전 표기가 «화성시 동탄구»처럼 갈라져 있다 — 정확 일치가 없으면 접두로 모은다 (2026-09-08 화성시에서 실측)

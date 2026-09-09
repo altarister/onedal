@@ -13,7 +13,7 @@ import { promiseTimes, impactOfStop, splitDropImpact, type StopStep } from './la
 // ⏱️ 시간·정거장 이름은 한 곳에서 만든다 (labTime.test.ts 가 지킨다)
 import { circled, hhmm, cumMinutes, arrivalAt } from './labTime';
 import {
-    netForGoal, lineZoneOf, progressAlongKm, judgeGoals, activeGoals, nearestDong, orderStopsInsert, pickNextTarget, cityCenter, isLocalPhase, NET_SRC, NET_DST,
+    netForGoal, lineZoneOf, progressAlongKm, sidoList, sggList, judgeGoals, activeGoals, nearestDong, orderStopsInsert, pickNextTarget, cityCenter, isLocalPhase, NET_SRC, NET_DST,
     GONJIAM_DROP, DONGWON_DROP, BORAM_DROP,
     GONJIAM_CALL_PATH, DONGWON_CALL_PATH, BORAM_CALL_PATH,
     type NetPoint, type TwoStageVerdict,
@@ -187,17 +187,16 @@ type ChainLeg = {
     line: Array<{ x: number; y: number }>;
 };
 
-/** 🎯 목적지 후보 — 도시 «시내» = 그 시 법정동 평균. 집은 목록에 없다 — 행선(복귀)으로 승격 (기사님 2026-09-08) */
-const DESTS: NetPoint[] = [
-    NET_DST,
-    cityCenter('이천시'),
-    cityCenter('파주시'),
-    cityCenter('시흥시'),
-    cityCenter('평택시'),
-    cityCenter('김포시'),
-    cityCenter('화성시'),
-    cityCenter('안산시'),
-];
+/**
+ * 🎯 **목적지는 시군구에서 고른다 — 도를 먼저, 시를 다음** (기사님 확정 2026-09-09:
+ * *"시군구로 표기가 되어야 할 것 같고. 선택이 어려우니 **도를 선택하고 시를 선택**하게 할까?"*).
+ *
+ * 🔴 예전엔 여덟 곳만 코드에 박혀 있었다 — 나머지 111개 시군구는 **아예 못 골랐다.**
+ *    그게 «선택이 어렵다»의 실체였다. 시도가 동 표에 붙으며(2026-09-09) 두 걸음이 가능해졌다.
+ * 목적지 좌표는 그 시군구의 «시내»(법정동 평균)다 — 점 하나가 아니라 도시의 가운데라야
+ * 마름모의 끝 꼭짓점으로 뜻이 선다.
+ */
+const DEFAULT_SIDO = '경기', DEFAULT_SGG = '파주시';
 
 /** 콜 번호별 경로 색 — ①은 프리셋 경로의 기본색과 같은 장미로 잇는다 */
 const CALL_COLORS = ['#e11d48', '#a78bfa', '#2dd4bf', '#fb923c', '#facc15', '#34d399', '#60a5fa', '#f472b6'];
@@ -488,9 +487,9 @@ export default function MapMockup() {
      */
     const [myPos, setMyPos] = useState<Pt>({ lng: NET_SRC.lng, lat: NET_SRC.lat });
     const [clickMode, setClickMode] = useState<'call' | 'me'>('call');
-    /** 🎯 목적지 — 셀렉바로 고른다 (기사님 2026-09-07) */
-    // 기본 목적지 = 파주 (기사님 2026-09-07 저녁 «목적지에 파주를 넣어주고» — 큰 판이라 시군구 분류·제외가 여기서 필요해진다)
-    const [dstIdx, setDstIdx] = useState(Math.max(0, DESTS.findIndex(d => d.name.startsWith('파주'))));
+    /** 🎯 목적지 — **도를 고르고 시를 고른다** (기사님 확정 2026-09-09 · 위 DEFAULT_SIDO 주석 참조) */
+    const [dstSido, setDstSido] = useState(DEFAULT_SIDO);
+    const [dstSgg, setDstSgg] = useState<string>(DEFAULT_SGG);
     /**
      * ↩️ **행선 — 목적지행 ↔ 복귀** (기사님 확정 2026-09-08). 복귀를 누르면:
      *   · 방식(노선/동선)은 그 자리에서 그대로 — 노선이면 집 방향 길 찾기를 «지금» 한다
@@ -499,7 +498,11 @@ export default function MapMockup() {
      */
     const HOME_DST: NetPoint = useMemo(() => ({ ...NET_SRC, name: '복귀(집)' }), []);
     const [homeOn, setHomeOn] = useState(false);
-    const dst = DESTS[dstIdx];
+    /** 고른 시군구의 «시내»(법정동 평균)가 목적지 좌표다 — 이름은 시군구 그대로 쓴다 */
+    const dst = useMemo<NetPoint>(() => {
+        try { return cityCenter(dstSgg, dstSgg); }
+        catch { return NET_DST; }          // 지도에 없는 이름이면 기본으로 (조용히 틀리지 않게)
+    }, [dstSgg]);
     /** 🎯 살아 있는 목적지들 — 그물·판정·화면이 전부 이 목록 하나를 읽는다 (⑮ 기준 1·2) */
     /**
      * 🏠 **복귀콜을 잡았나** — 잡은 순간부터 복귀가 «진행»된다 (기사님 확정 2026-09-09).
@@ -2204,7 +2207,7 @@ export default function MapMockup() {
         };
         drawRef.current = draw;
         draw();
-    }, [net, areaNet, goalNets, loadedGoalNames, legFailed, approachLeg, chainPreview, safeCancelLeft, nowTick, finalPass, uploadedLeg, effPath, anchor, pickup, drop, verdict, size, params, dst, routeStarted, dstIdx, view, layers, routeMode, lineOn, routeLine, lineRadiusKm, knobs, myPos, drawLegs, excluded]);
+    }, [net, areaNet, goalNets, loadedGoalNames, legFailed, approachLeg, chainPreview, safeCancelLeft, nowTick, finalPass, uploadedLeg, effPath, anchor, pickup, drop, verdict, size, params, dst, routeStarted, dstSgg, view, layers, routeMode, lineOn, routeLine, lineRadiusKm, knobs, myPos, drawLegs, excluded]);
 
     /** 클릭 한 점을 콜/내위치로 배치 */
     const placeAt = (pt: Pt) => {
@@ -2452,11 +2455,6 @@ export default function MapMockup() {
                     {/* ↩️ 복귀 — «집»을 목적지로 **추가**한다 (⑮ 기준 2: 목적지는 의도다).
                         모드 전환이 아니라 목록에 하나 더 얹는 것 — 기존 목적지도 그대로 살아 있다 */}
                     <div className="flex flex-col gap-1">
-                        <button type="button" onClick={() => { freezeView(); setHomeOn(!homeOn); }}
-                            className={`px-2 py-1.5 rounded-[8px] border text-[12px] font-black ${homeOn
-                                ? 'bg-warning/15 border-warning/55 text-warning' : 'border-border-hover bg-background text-text-muted hover:border-warning'}`}>
-                            {homeOn ? '↩️ 복귀 켜짐 — 목적지 둘 (누르면 끔)' : '↩️ 복귀 — 집을 목적지에 추가'}
-                        </button>
                         <p className="text-[10.5px] text-text-muted leading-snug">
                             🎯 목적지 <b className="text-text-primary">{goals.map(g => g.name).join(' · ')}</b> — 마름모 {goals.length}개 ·
                             {' '}운행 <b className="text-text-primary">{dispatchPhaseSim === 'STANDBY' ? '대기' : dispatchPhaseSim === 'GATHERING' ? '콜 쥠' : '주행 중'}</b>
@@ -2487,14 +2485,33 @@ export default function MapMockup() {
                         </button>
                     </div>
 
-                    {/* 🎯 목적지 — 복귀행에서도 산다: 주 마름모의 끝점이다 (두 마름모) */}
-                    <label className="flex flex-col gap-0.5 text-[10.5px] font-bold text-text-muted">
-                        🎯 목적지
-                        <select value={dstIdx} onChange={e => setDstIdx(Number(e.target.value))}
-                            className="px-2 py-1 rounded-[6px] border border-border-hover bg-background text-[13px] font-black text-text-primary">
-                            {DESTS.map((d, i) => <option key={d.name} value={i}>{d.name}</option>)}
-                        </select>
-                    </label>
+                    {/**
+                      * 🎯 **목적지 — 도 · 시 · 복귀가 한 줄에** (기사님 확정 2026-09-09:
+                      * *"선택이 어려우니 도를 선택하고 시를 선택하게 할까?"* ·
+                      * *"**복귀도 목적지와 같은 뎁스**니까 목적지 옆에 있는 것이 맞을 것 같아"*).
+                      * 복귀는 «어디를 향하나»라는 같은 질문의 다른 답이라 같은 줄에 둔다.
+                      */}
+                    <div className="flex items-end gap-1.5">
+                        <label className="flex-1 min-w-0 flex flex-col gap-0.5 text-[10.5px] font-bold text-text-muted">
+                            🎯 도
+                            <select value={dstSido} onChange={e => { const v = e.target.value; setDstSido(v); setDstSgg(sggList(v)[0]); }}
+                                className="px-2 py-1 rounded-[6px] border border-border-hover bg-background text-[13px] font-black text-text-primary">
+                                {sidoList().map(v => <option key={v} value={v}>{v}</option>)}
+                            </select>
+                        </label>
+                        <label className="flex-[1.4] min-w-0 flex flex-col gap-0.5 text-[10.5px] font-bold text-text-muted">
+                            시·군·구
+                            <select value={dstSgg} onChange={e => setDstSgg(e.target.value)}
+                                className="px-2 py-1 rounded-[6px] border border-border-hover bg-background text-[13px] font-black text-text-primary">
+                                {sggList(dstSido).map(v => <option key={v} value={v}>{v}</option>)}
+                            </select>
+                        </label>
+                        <button type="button" onClick={() => { freezeView(); setHomeOn(!homeOn); }} title="집을 목적지에 더한다"
+                            className={`shrink-0 px-2 py-1.5 rounded-[8px] border text-[11.5px] font-black ${homeOn
+                                ? 'bg-warning/15 border-warning/55 text-warning' : 'border-border-hover bg-background text-text-muted hover:border-warning'}`}>
+                            ↩️ 복귀{homeOn ? ' 켬' : ''}
+                        </button>
+                    </div>
 
                     {/* 🔴 **값은 한 벌이다 — 노선·동선이 같이 쓴다** (기사님 확정 2026-09-09:
                         *"모두 꺼내 두고 노선이면 라인값을 사용하고 동선이면 사용 안 하면 되니까"*).
