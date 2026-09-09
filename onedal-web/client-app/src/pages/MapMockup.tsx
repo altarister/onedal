@@ -2009,12 +2009,29 @@ export default function MapMockup() {
              * 🔴 라인이 없으면(콜 없음 · 경로 대기 · 카카오 실패) 아무것도 안 그린다 — 그때는 마름모가 그물이다.
              */
             if (layers.roads && lineOn && routeLine) {
+                /**
+                 * 🔴 **띠도 «지나온 만큼» 짧아진다** (기사님 2026-09-09: *"아직도 지나간 길 인식
+                 * 못 하고 있거든"*). 판정은 동마다 든 `progressKm` 으로 이미 걸러지는데,
+                 * **그리는 띠는 전체가 그대로 칠해지고 있었다** — 라인을 통째로 두기로 하면서
+                 * 그림만 따라오지 못했다. 화면과 판정이 또 다른 말을 한 자리다.
+                 *
+                 * 라인 점을 누적 거리로 훑어 **내 진행도 뒤부터** 긋는다 (그리기는 매 프레임 도는 일이라 싸다).
+                 */
                 nctx.lineCap = 'round'; nctx.lineJoin = 'round';
                 nctx.beginPath();
-                routeLine.forEach(([lng, lat], i) => { const [px, py] = S(lng, lat); i === 0 ? nctx.moveTo(px, py) : nctx.lineTo(px, py); });
+                let acc = 0, put = 0;
+                for (let i = 0; i < routeLine.length; i++) {
+                    if (i > 0) {
+                        const [ax, ay] = routeLine[i - 1], [bx, by] = routeLine[i];
+                        acc += Math.hypot((bx - ax) * 88.6, (by - ay) * 110.574);
+                    }
+                    if (departed && acc < myProgressKm) continue;      // 지나온 자리 — 안 그린다
+                    const [px, py] = S(routeLine[i][0], routeLine[i][1]);
+                    put++ === 0 ? nctx.moveTo(px, py) : nctx.lineTo(px, py);
+                }
                 nctx.strokeStyle = NET_SOLID;
                 nctx.lineWidth = Math.max(3, lineRadiusKm * 2 * pxPerKm);
-                nctx.stroke();
+                if (put >= 2) nctx.stroke();
             }
             // 🎨 그물 완성 — 통째로 한 번 얹는다. 이 한 줄이 «겹쳐서 진해지는 것»을 원리적으로 없앤다
             ctx.save(); ctx.globalAlpha = NET_ALPHA; ctx.drawImage(netCv, 0, 0, size.w, size.h); ctx.restore();
