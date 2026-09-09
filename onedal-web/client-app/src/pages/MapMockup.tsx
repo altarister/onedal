@@ -2637,58 +2637,57 @@ export default function MapMockup() {
                     </div>
 
                     {/**
-                      * ⛔ **제외지역 — 도 · 시·군·구 · 보기** (기사님 확정 2026-09-09).
+                      * ⛔ **제외지역 — 도 · 시·군·구 · 읍·면·동** (기사님 확정 2026-09-09 · 「3단」).
                       * **노선·동선 공통**이다 («공통으로 빼»). 위의 목적지 줄과 **같은 3칸**이라 조작이 하나다.
                       *
                       * 🔴 전에는 `<select>` 팝업이었고 **지금 그물에 든 동만** 목록에 떴다 —
                       *    그물이 강화군에 닿기 전에는 강화군을 뺄 수가 없었다. 이제 **전국에서** 고른다.
                       * 🔴 제외는 **두 층**이다: 강화군은 군 통째(`R|`), 남양주는 수동면 하나(`D|`).
-                      *    그래서 「보기」 안에 «◼ 전체» 버튼과 읍·면·동 버튼이 함께 있다.
+                      *    그래서 «통째»는 시·군·구 칸 안에, «하나»는 읍·면·동 칸에 둔다.
+                      * 🔴 시·군·구 칸의 버튼은 **고르기만** 한다 — 한 버튼이 «고르기»와 «제외»를 겸하면
+                      *    누를 때마다 무슨 일이 날지 모른다. 통째 제외는 그 아래 **따로 난 버튼**이다.
                       */}
                     <div className="mt-1 border-t border-border-card pt-2 flex flex-col gap-1">
                         <div className="relative grid grid-cols-3 gap-1">
                             <PickLayer label="⛔ 제외 도" value={exSido} options={sidoList()}
                                 open={openKnob === 'exSido'} onToggle={() => setOpenKnob(o => o === 'exSido' ? null : 'exSido')}
                                 onPick={v => { setExSido(v); setExSgg(null); }} />
-                            <PickLayer label="시·군·구" value={exSgg ?? '고르기'} options={sggList(exSido)}
+                            <PickLayer label="시·군·구" value={`${exSgg ?? '고르기'}${exSgg && excluded.includes(`R|${exSgg}`) ? ' ⛔' : ''}`}
+                                options={sggList(exSido)} tone="danger"
+                                selected={sggList(exSido).filter(g => excluded.includes(`R|${g}`))}
                                 open={openKnob === 'exSgg'} onToggle={() => setOpenKnob(o => o === 'exSgg' ? null : 'exSgg')}
-                                onPick={v => setExSgg(v)} />
-                            {/* 👁️ 세 번째 칸은 **보기**다 — 여기서만 빼고 되살린다 */}
-                            <PickLayer label={`👁️ 보기${exSgg ? ` · ${exSgg}` : ''}`}
-                                value={excluded.length ? `${excluded.length}곳 제외` : '없음'} tone="danger"
-                                options={exSgg ? [`◼ ${exSgg} 전체`, ...dongList(exSgg)] : []}
-                                selected={exSgg
-                                    ? [...(excluded.includes(`R|${exSgg}`) ? [`◼ ${exSgg} 전체`] : []),
-                                        ...dongList(exSgg).filter(n => excluded.includes(`D|${exSgg}|${n}`))]
-                                    : []}
-                                open={openKnob === 'exView'} onToggle={() => setOpenKnob(o => o === 'exView' ? null : 'exView')}
-                                onPick={v => {
-                                    if (!exSgg) return;
-                                    const key = v.startsWith('◼ ') ? `R|${exSgg}` : `D|${exSgg}|${v}`;
-                                    setExcluded(x => x.includes(key) ? x.filter(k => k !== key) : [...x, key]);
-                                }}
-                                foot={
-                                    <div className="flex flex-col gap-1">
-                                        <span className="text-[9.5px] font-bold text-text-muted">
-                                            {exSgg ? '누르면 뺐다 넣었다 합니다 — «◼ 전체»는 그 시·군·구 통째' : '위에서 시·군·구를 먼저 고르세요'}
-                                        </span>
-                                        {excluded.length > 0 && (
-                                            <div className="flex flex-wrap gap-1">
-                                                {excluded.map(k => (
-                                                    <button key={k} type="button" onClick={() => setExcluded(x => x.filter(v => v !== k))}
-                                                        title="누르면 되살립니다"
-                                                        className="px-1.5 py-0.5 rounded-md bg-danger/15 text-danger text-[10.5px] font-black">
-                                                        ⛔ {k.startsWith('R|') ? `${k.slice(2)} 전체` : k.split('|')[2]} ✕
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>} />
+                                onPick={v => setExSgg(v)}
+                                foot={exSgg ? (
+                                    <button type="button"
+                                        onClick={() => setExcluded(x => x.includes(`R|${exSgg}`) ? x.filter(k => k !== `R|${exSgg}`) : [...x, `R|${exSgg}`])}
+                                        className={`w-full px-2 py-1.5 rounded-md border text-[11px] font-black ${excluded.includes(`R|${exSgg}`)
+                                            ? 'bg-danger/15 border-danger/55 text-danger' : 'border-border-card bg-background text-text-muted hover:border-danger'}`}>
+                                        ◼ {exSgg} 통째로 제외 {excluded.includes(`R|${exSgg}`) ? '⛔ 켬' : '끔'}
+                                    </button>
+                                ) : <span className="text-[9.5px] font-bold text-text-muted">고르면 «통째로 제외» 버튼이 여기 뜹니다</span>} />
+                            <PickLayer label="읍·면·동"
+                                value={exSgg ? (() => { const n = dongList(exSgg).filter(d => excluded.includes(`D|${exSgg}|${d}`)).length; return n ? `${n}개 제외` : '전부 봄'; })() : '—'}
+                                tone="danger" options={exSgg ? dongList(exSgg) : []}
+                                selected={exSgg ? dongList(exSgg).filter(d => excluded.includes(`D|${exSgg}|${d}`)) : []}
+                                open={openKnob === 'exDong'} onToggle={() => setOpenKnob(o => o === 'exDong' ? null : 'exDong')}
+                                onPick={v => { if (!exSgg) return; const key = `D|${exSgg}|${v}`; setExcluded(x => x.includes(key) ? x.filter(k => k !== key) : [...x, key]); }}
+                                foot={!exSgg ? <span className="text-[9.5px] font-bold text-text-muted">시·군·구를 먼저 고르세요</span> : null} />
                         </div>
-                        {/* 🔴 «왜 안 골랐는데 빠져 있나»를 화면이 말한다 — 안 적으면 조용히 거짓말한다 */}
+                        {/* 🔴 «지금 무엇이 빠져 있나»는 **늘 보인다** — 레이어를 열어야 알면 조용히 거짓말한다 */}
+                        {excluded.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                                {excluded.map(k => (
+                                    <button key={k} type="button" onClick={() => setExcluded(x => x.filter(v => v !== k))}
+                                        title="누르면 되살립니다"
+                                        className="px-1.5 py-0.5 rounded-md bg-danger/15 text-danger text-[10.5px] font-black">
+                                        ⛔ {k.startsWith('R|') ? `${k.slice(2)} 전체` : k.split('|')[2]} ✕
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                         <p className="text-[9.5px] text-text-muted leading-snug">
                             여덟 곳이 <b className="text-danger">미리 눌려</b> 있습니다 — 들어가면 빈차로 나와야 하는 곳(노하우 「이 선을 넘지 마세요」).
-                            「보기」에서 되살립니다. 지도의 <b className="text-success">초록 점</b>은 콜이 잘 나오는 곳 — <b>표시만</b> 하고 판정엔 안 씁니다
+                            칩을 누르면 되살아납니다. 지도의 <b className="text-success">초록 점</b>은 콜이 잘 나오는 곳 — <b>표시만</b> 하고 판정엔 안 씁니다
                         </p>
                     </div>
 
