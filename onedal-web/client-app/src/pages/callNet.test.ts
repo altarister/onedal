@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildNet, netForGoal, lineZoneOf, quadTesterOf, buildFirstLegDemo, judgeTwoStage, judgeGoals, orderStopsGreedy, orderStopsInsert, cityCenter, isLocalPhase, WAIT_PRESET, NET_SRC, NET_DST, GONJIAM_DROP, DONGWON_DROP, BORAM_DROP, ICHEON_DROP } from './callNet';
+import { buildNet, netForGoal, lineZoneOf, quadTesterOf, buildFirstLegDemo, judgeTwoStage, judgeGoals, orderStopsGreedy, orderStopsInsert, cityCenter, dongList, sggList, sidoList, isLocalPhase, WAIT_PRESET, NET_SRC, NET_DST, GONJIAM_DROP, DONGWON_DROP, BORAM_DROP, ICHEON_DROP } from './callNet';
 
 /**
  * 🧪 **그물 셋업의 계산이 ⑭ 검산과 같은가**
@@ -694,5 +694,37 @@ describe('judgeGoals 의 배선 — 화면이 읽는 값과 목적지별 콜백 
         const far = { lng: 128.6, lat: 35.9 };                        // 그물 밖 하차
         expect(judgeGoals(WAIT_PRESET, ME3, [PAJU2], ME3, PK3, far, { zoneOf: () => yes }).results[0].verdict.dropInNet).toBe(true);
         expect(judgeGoals(WAIT_PRESET, ME3, [PAJU2], ME3, PK3, DR3, { zoneOf: () => no }).results[0].verdict.dropInNet).toBe(false);
+    });
+});
+
+/**
+ * 🏘️ **제외지역이 두 층이라 세 칸이 필요하다** (기사님 2026-09-09 «도 · 시·군·구 · 보기»).
+ * 강화군은 **군 통째**, 남양주는 **수동면 하나**만 뺀다 — 그래서 읍·면·동까지 내려간다.
+ */
+describe('🏘️ 도 → 시·군·구 → 읍·면·동', () => {
+    it('시도 목록에 경기와 인천이 따로 있다', () => {
+        const s = sidoList();
+        expect(s).toContain('경기');
+        expect(s).toContain('인천');
+    });
+
+    it('🔴 인천의 시·군·구에 강화군이 있다 — 여기 없으면 미리 눌러 둔 여덟 곳을 되살릴 길이 없다', () => {
+        expect(sggList('인천')).toContain('인천 강화군');
+        expect(sggList('경기')).not.toContain('인천 강화군');
+    });
+
+    it('시·군·구의 읍·면·동을 이름순으로 낸다', () => {
+        const d = dongList('남양주시');
+        expect(d).toContain('수동면');
+        expect(d).toContain('화도읍');
+        expect([...d]).toEqual([...d].sort());
+    });
+
+    it('없는 시·군·구는 빈 배열 — 지어내지 않는다', () => {
+        expect(dongList('없는시')).toEqual([]);
+    });
+
+    it('🔴 시도 이름을 주면 빈 배열 — 시·군·구 칸으로 거르는지 잠근다', () => {
+        expect(dongList('경기')).toEqual([]);
     });
 });

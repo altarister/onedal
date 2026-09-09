@@ -13,7 +13,7 @@ import { promiseTimes, impactOfStop, splitDropImpact, type StopStep } from './la
 // ⏱️ 시간·정거장 이름은 한 곳에서 만든다 (labTime.test.ts 가 지킨다)
 import { circled, hhmm, cumMinutes, arrivalAt } from './labTime';
 import {
-    netForGoal, lineZoneOf, progressAlongKm, sidoList, sggList, judgeGoals, activeGoals, nearestDong, orderStopsInsert, pickNextTarget, cityCenter, isLocalPhase, NET_SRC, NET_DST,
+    netForGoal, lineZoneOf, progressAlongKm, sidoList, sggList, dongList, judgeGoals, activeGoals, nearestDong, orderStopsInsert, pickNextTarget, cityCenter, isLocalPhase, NET_SRC, NET_DST,
     GONJIAM_DROP, DONGWON_DROP, BORAM_DROP,
     GONJIAM_CALL_PATH, DONGWON_CALL_PATH, BORAM_CALL_PATH,
     type NetPoint, type TwoStageVerdict,
@@ -198,6 +198,13 @@ type ChainLeg = {
  */
 const DEFAULT_SIDO = '경기', DEFAULT_SGG = '파주시';
 
+/**
+ * 🚚 **받을 짐 차종을 한 자로** (기사님 2026-09-09: *"한 자씩 표현하면 될 듯. 다/라/승/오/1t"*).
+ * 칸이 화면의 1/3 이라 «1t · 다마스»가 벌써 잘린다 — **닫힌 줄에서만** 줄이고,
+ * 레이어를 열면 온전한 이름이 보인다.
+ */
+const VEHICLE_SHORT: Record<string, string> = { 오토바이: '오', 승용차: '승', 다마스: '다', 라보: '라', '1t': '1t' };
+
 /** 콜 번호별 경로 색 — ①은 프리셋 경로의 기본색과 같은 장미로 잇는다 */
 const CALL_COLORS = ['#e11d48', '#a78bfa', '#2dd4bf', '#fb923c', '#facc15', '#34d399', '#60a5fa', '#f472b6'];
 
@@ -338,7 +345,7 @@ function PickLayer({ label, value, options, open, onToggle, onPick, selected, to
     open: boolean; onToggle: () => void; onPick: (v: string) => void;
     /** 여러 개 고르는 자리면 그 목록 — 주면 고른 뒤에도 레이어가 안 닫힌다 */
     selected?: string[];
-    tone?: 'info' | 'warning';
+    tone?: 'info' | 'warning' | 'danger';
     /** 레이어 아래에 덧붙일 것 (예: 할인율의 차종별 단가표) */
     foot?: ReactNode;
 }) {
@@ -370,7 +377,9 @@ function PickLayer({ label, value, options, open, onToggle, onPick, selected, to
                                 return (
                                     <button key={v} type="button" onClick={() => { onPick(v); if (!selected) onToggle(); }}
                                         className={`px-1.5 py-1 rounded-md border text-[11px] font-black ${on
-                                            ? (tone === 'warning' ? 'bg-warning/15 border-warning/55 text-warning' : 'bg-info/15 border-info/55 text-info')
+                                            ? (tone === 'warning' ? 'bg-warning/15 border-warning/55 text-warning'
+                                                : tone === 'danger' ? 'bg-danger/15 border-danger/55 text-danger'
+                                                    : 'bg-info/15 border-info/55 text-info')
                                             : 'border-border-card bg-background text-text-muted hover:border-border-hover'}`}>
                                         {v}
                                     </button>
@@ -768,6 +777,14 @@ export default function MapMockup() {
      */
     const [routeMode, setRouteMode] = useState(LAB_DEFAULTS.routeMode);
     const [excluded, setExcluded] = useState<string[]>(LAB_DEFAULT_EXCLUDED);
+    /**
+     * ⛔ **제외지역도 도 → 시·군·구 → 보기** (기사님 확정 2026-09-09:
+     * *"도 특별시 이렇게 2개로 선택하게 하고 마지막은 보기 버튼으로 하면 어때?"*).
+     * 앞의 둘은 **어디를 볼지 좁히는 것**이고, 빼고 넣는 것은 「보기」 안에서 한다 —
+     * 한 버튼이 «고르기»와 «제외»를 겸하면 누를 때마다 무슨 일이 날지 모른다.
+     */
+    const [exSido, setExSido] = useState(DEFAULT_SIDO);
+    const [exSgg, setExSgg] = useState<string | null>(null);
     /**
      * ⛔ 제외지역은 **노선·동선 공통**이다 (기사님 2026-09-09 «공통으로 빼»).
      * 2026-09-08 에는 노선에서 안 썼다 — 그때 노선은 «길 하나»라 길이 곧 선별이었다.
@@ -2574,15 +2591,16 @@ export default function MapMockup() {
                         // 📏 라인 반경 — 노선일 때만 쓰인다. 감추지 않고 흐리게 둔다
                         { key: 'lineR', label: '라인반경', unit: 'km', value: lineRadiusKm, max: 50, set: setLineRadiusKm, dim: !routeMode },
                     ]} />
-                    {/* 🔴 «±Nkm 의 M동이 필터» 줄은 지웠다 (기사님 2026-09-09: *"이건 무슨 뜻이야
-                        불필요한 거 같은데"*). 동 수는 아래 「콜 필터」 제목이 이미 말하고, 라인이 짧아지면
-                        1동처럼 뜻 모를 숫자가 됐다. **지금 마름모로 보는 이유**만 남긴다 — 그건 몰라선 안 된다. */}
+                    {/* 🔴 설명 줄을 둘 지웠다 (기사님 2026-09-09: *"이건 무슨 뜻이야 불필요한 거 같은데"* ·
+                        *"«콜을 잡으면 그 경로가 라인이 됩니다» 이것도 필요 없어"*).
+                        **늘 참인 말은 화면에 안 적는다** — 콜을 안 잡았으면 마름모인 건 당연하고, 동 수는
+                        아래 「콜 필터」 제목이 이미 말한다. 남긴 하나는 **이상한 상태**다:
+                        콜은 잡았는데 경로가 아직 안 와서 마름모인 것 — 그건 몰라선 안 된다. */}
                     {!routeMode ? (
                         <p className="text-[10.5px] text-text-muted leading-snug">동선에서는 라인 반경을 안 씁니다 — 마름모 하나로 봅니다</p>
-                    ) : !lineOn ? (
+                    ) : !lineOn && confirmed.length > 0 ? (
                         <p className="text-[10.5px] text-warning font-bold leading-snug">
-                            {confirmed.length === 0 ? '콜을 잡으면 그 경로가 라인이 됩니다 — 지금은 마름모로 봅니다'
-                                : '⏳ 카카오 경로를 기다립니다 — 올 때까지는 마름모로 봅니다 (직선으로 지어내지 않습니다)'}
+                            ⏳ 카카오 경로를 기다립니다 — 올 때까지는 마름모로 봅니다 (직선으로 지어내지 않습니다)
                         </p>
                     ) : null}
 
@@ -2608,7 +2626,7 @@ export default function MapMockup() {
                                         </div>
                                     ))}
                                 </div>} />
-                        <PickLayer label="🚚 받을 짐" value={vehicles.length ? vehicles.join(' · ') : '모두'}
+                        <PickLayer label="🚚 받을 짐" value={vehicles.length ? vehicles.map(v => VEHICLE_SHORT[v] ?? v).join('·') : '모두'}
                             options={['오토바이', '승용차', '다마스', '라보', '1t']} selected={vehicles}
                             open={openKnob === 'vehicles'} onToggle={() => setOpenKnob(o => o === 'vehicles' ? null : 'vehicles')}
                             onPick={v => setVehicles(x => x.includes(v) ? x.filter(o => o !== v) : [...x, v])} />
@@ -2618,36 +2636,61 @@ export default function MapMockup() {
                             onPick={v => setExcludedWords(x => x.includes(v) ? x.filter(o => o !== v) : [...x, v])} />
                     </div>
 
-                    {/* ⛔ 제외지역 — **노선·동선 공통** (기사님 2026-09-09 «공통으로 빼») */}
-                    {<div className="mt-1 border-t border-border-card pt-2 flex flex-col gap-1">
-                        <span className="text-[10.5px] font-black text-danger">⛔ 제외지역</span>
+                    {/**
+                      * ⛔ **제외지역 — 도 · 시·군·구 · 보기** (기사님 확정 2026-09-09).
+                      * **노선·동선 공통**이다 («공통으로 빼»). 위의 목적지 줄과 **같은 3칸**이라 조작이 하나다.
+                      *
+                      * 🔴 전에는 `<select>` 팝업이었고 **지금 그물에 든 동만** 목록에 떴다 —
+                      *    그물이 강화군에 닿기 전에는 강화군을 뺄 수가 없었다. 이제 **전국에서** 고른다.
+                      * 🔴 제외는 **두 층**이다: 강화군은 군 통째(`R|`), 남양주는 수동면 하나(`D|`).
+                      *    그래서 「보기」 안에 «◼ 전체» 버튼과 읍·면·동 버튼이 함께 있다.
+                      */}
+                    <div className="mt-1 border-t border-border-card pt-2 flex flex-col gap-1">
+                        <div className="relative grid grid-cols-3 gap-1">
+                            <PickLayer label="⛔ 제외 도" value={exSido} options={sidoList()}
+                                open={openKnob === 'exSido'} onToggle={() => setOpenKnob(o => o === 'exSido' ? null : 'exSido')}
+                                onPick={v => { setExSido(v); setExSgg(null); }} />
+                            <PickLayer label="시·군·구" value={exSgg ?? '고르기'} options={sggList(exSido)}
+                                open={openKnob === 'exSgg'} onToggle={() => setOpenKnob(o => o === 'exSgg' ? null : 'exSgg')}
+                                onPick={v => setExSgg(v)} />
+                            {/* 👁️ 세 번째 칸은 **보기**다 — 여기서만 빼고 되살린다 */}
+                            <PickLayer label={`👁️ 보기${exSgg ? ` · ${exSgg}` : ''}`}
+                                value={excluded.length ? `${excluded.length}곳 제외` : '없음'} tone="danger"
+                                options={exSgg ? [`◼ ${exSgg} 전체`, ...dongList(exSgg)] : []}
+                                selected={exSgg
+                                    ? [...(excluded.includes(`R|${exSgg}`) ? [`◼ ${exSgg} 전체`] : []),
+                                        ...dongList(exSgg).filter(n => excluded.includes(`D|${exSgg}|${n}`))]
+                                    : []}
+                                open={openKnob === 'exView'} onToggle={() => setOpenKnob(o => o === 'exView' ? null : 'exView')}
+                                onPick={v => {
+                                    if (!exSgg) return;
+                                    const key = v.startsWith('◼ ') ? `R|${exSgg}` : `D|${exSgg}|${v}`;
+                                    setExcluded(x => x.includes(key) ? x.filter(k => k !== key) : [...x, key]);
+                                }}
+                                foot={
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-[9.5px] font-bold text-text-muted">
+                                            {exSgg ? '누르면 뺐다 넣었다 합니다 — «◼ 전체»는 그 시·군·구 통째' : '위에서 시·군·구를 먼저 고르세요'}
+                                        </span>
+                                        {excluded.length > 0 && (
+                                            <div className="flex flex-wrap gap-1">
+                                                {excluded.map(k => (
+                                                    <button key={k} type="button" onClick={() => setExcluded(x => x.filter(v => v !== k))}
+                                                        title="누르면 되살립니다"
+                                                        className="px-1.5 py-0.5 rounded-md bg-danger/15 text-danger text-[10.5px] font-black">
+                                                        ⛔ {k.startsWith('R|') ? `${k.slice(2)} 전체` : k.split('|')[2]} ✕
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>} />
+                        </div>
                         {/* 🔴 «왜 안 골랐는데 빠져 있나»를 화면이 말한다 — 안 적으면 조용히 거짓말한다 */}
                         <p className="text-[9.5px] text-text-muted leading-snug">
-                            여덟 곳이 <b>미리 눌려</b> 있습니다 — 들어가면 빈차로 나와야 하는 곳(노하우 「이 선을 넘지 마세요」).
-                            칩을 누르면 되살아납니다. 지도의 <b className="text-success">초록 점</b>은 콜이 잘 나오는 곳 — <b>표시만</b> 하고 판정엔 안 씁니다
+                            여덟 곳이 <b className="text-danger">미리 눌려</b> 있습니다 — 들어가면 빈차로 나와야 하는 곳(노하우 「이 선을 넘지 마세요」).
+                            「보기」에서 되살립니다. 지도의 <b className="text-success">초록 점</b>은 콜이 잘 나오는 곳 — <b>표시만</b> 하고 판정엔 안 씁니다
                         </p>
-                        <select value="" onChange={e => { const v = e.target.value; if (v) setExcluded(x => x.includes(v) ? x : [...x, v]); }}
-                            className="w-full px-2 py-1 rounded-[7px] border border-border-hover bg-background text-[11px] font-bold">
-                            <option value="">제외할 지역 고르기…</option>
-                            {areaNet.groups.map(g => (
-                                <optgroup key={g.region} label={g.region}>
-                                    <option value={`R|${g.region}`}>◼ {g.region} 전체 ({g.names.length}동)</option>
-                                    {g.names.map(n => <option key={n} value={`D|${g.region}|${n}`}>{n}</option>)}
-                                </optgroup>
-                            ))}
-                        </select>
-                        {excluded.length > 0 && (
-                            <div className="flex flex-wrap gap-1">
-                                {excluded.map(k => (
-                                    <button key={k} type="button" onClick={() => setExcluded(x => x.filter(v => v !== k))}
-                                        title="누르면 되살립니다"
-                                        className="px-1.5 py-0.5 rounded-md bg-danger/15 text-danger text-[10.5px] font-black">
-                                        ⛔ {k.startsWith('R|') ? `${k.slice(2)} 전체` : k.split('|')[2]} ✕
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-                    </div>}
+                    </div>
 
                     {/* 🧪 판정 — 필터와 콜 리스트 사이 (기사님 2026-09-07 와이어프레임 확정) */}
                     {/* 🔴 두 층은 완전히 격리되어 각각 따로 작동한다 (규칙: 필터=집기 전 · 심사=집은 뒤).

@@ -86,6 +86,14 @@ export function sggList(sido: string): string[] {
     return [...new Set(DONG_CENTROIDS.filter(d => d[4] === sido).map(d => d[1]))].sort();
 }
 
+/**
+ * 🏘️ 그 시·군·구의 **읍·면·동 이름** (기사님 2026-09-09 · 제외지역 «마지막은 보기 버튼»).
+ * 제외지역이 두 층이라 필요하다 — 강화군은 **군 통째로**, 남양주는 **수동면 하나만** 뺀다.
+ */
+export function dongList(sgg: string): string[] {
+    return [...new Set(DONG_CENTROIDS.filter(d => d[1] === sgg).map(d => d[0]))].sort();
+}
+
 /** 도시의 «시내» 좌표 — 그 시 법정동('동' 행) 평균. 여주 시내(NET_DST)와 같은 셈법이다 */
 export function cityCenter(city: string, label?: string): NetPoint {
     // 구가 있는 시는 사전 표기가 «화성시 동탄구»처럼 갈라져 있다 — 정확 일치가 없으면 접두로 모은다 (2026-09-08 화성시에서 실측)
