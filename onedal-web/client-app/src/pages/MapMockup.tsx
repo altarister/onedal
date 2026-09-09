@@ -333,9 +333,14 @@ function NumRow({ label, value, onChange, min = 0, max = 999, mode = 'input', au
  * 🔴 `<select>`(네이티브 드롭다운)를 쓰면 폰마다 생김새가 달라지고, 이 화면의 다른 입력과
  *    조작이 갈린다. **같은 자리에서 같은 방식으로** 고르게 한다.
  */
-function PickLayer({ label, value, options, open, onToggle, onPick }: {
+function PickLayer({ label, value, options, open, onToggle, onPick, selected, tone, foot }: {
     label: string; value: string; options: string[];
     open: boolean; onToggle: () => void; onPick: (v: string) => void;
+    /** 여러 개 고르는 자리면 그 목록 — 주면 고른 뒤에도 레이어가 안 닫힌다 */
+    selected?: string[];
+    tone?: 'info' | 'warning';
+    /** 레이어 아래에 덧붙일 것 (예: 할인율의 차종별 단가표) */
+    foot?: ReactNode;
 }) {
     useEffect(() => {
         if (!open) return;
@@ -360,14 +365,19 @@ function PickLayer({ label, value, options, open, onToggle, onPick }: {
                             <button type="button" onClick={onToggle} className="text-[10px] font-black text-text-muted px-1">✕</button>
                         </div>
                         <div className="flex flex-wrap gap-1 max-h-[190px] overflow-y-auto">
-                            {options.map(v => (
-                                <button key={v} type="button" onClick={() => { onPick(v); onToggle(); }}
-                                    className={`px-1.5 py-1 rounded-md border text-[11px] font-black ${v === value
-                                        ? 'bg-info/15 border-info/55 text-info' : 'border-border-card bg-background text-text-muted hover:border-border-hover'}`}>
-                                    {v}
-                                </button>
-                            ))}
+                            {options.map(v => {
+                                const on = selected ? selected.includes(v) : v === value;
+                                return (
+                                    <button key={v} type="button" onClick={() => { onPick(v); if (!selected) onToggle(); }}
+                                        className={`px-1.5 py-1 rounded-md border text-[11px] font-black ${on
+                                            ? (tone === 'warning' ? 'bg-warning/15 border-warning/55 text-warning' : 'bg-info/15 border-info/55 text-info')
+                                            : 'border-border-card bg-background text-text-muted hover:border-border-hover'}`}>
+                                        {v}
+                                    </button>
+                                );
+                            })}
                         </div>
+                        {foot && <div className="mt-1.5 border-t border-border-card pt-1.5">{foot}</div>}
                     </div>
                 </>
             )}
@@ -451,22 +461,6 @@ function OutKv({ k, v }: { k: string; v: ReactNode }) {
     );
 }
 
-/** 켜고 끄는 칩 목록 — 차종·제외 단어가 같은 모양을 쓴다 */
-function ChipToggleRow({ options, selected, onToggle }: {
-    options: string[]; selected: string[]; onToggle: (v: string) => void;
-}) {
-    return (
-        <div className="flex flex-wrap gap-1">
-            {options.map(o => (
-                <button key={o} type="button" onClick={() => onToggle(o)}
-                    className={`px-1.5 py-0.5 rounded-md text-[10.5px] font-black border ${selected.includes(o)
-                        ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-background text-text-muted'}`}>
-                    {o}
-                </button>
-            ))}
-        </div>
-    );
-}
 
 export default function MapMockup() {
     const stageIdx = 0;   // 국면 프리셋 버튼은 2026-09-07 삭제(기사님) — 대기 판 고정. STAGES 데이터는 남긴다
@@ -592,7 +586,6 @@ export default function MapMockup() {
      *    다른 질문이다 (엘리베이터·주차·층수 …). todo 에 있다.
      */
     const [excludedWords, setExcludedWords] = useState<string[]>([...LAB_DEFAULTS.excludedWords]);
-    const [wordsOpen, setWordsOpen] = useState(false);
     /**
      * 📦 **쓴 박스 — 손잡이가 아니라 파생이다** (기사님 확정 2026-09-09: *"적재는 상태값이니 필요 없고"*).
      * 잡은 콜들의 짐을 더한다. 실물도 같은 방식이고, 그 이유가 실물 주석에 적혀 있다 —
@@ -790,8 +783,6 @@ export default function MapMockup() {
      *    둘 다 km 라 한 이름으로 부르면 이식할 때 조용히 섞인다.
      */
     const [lineRadiusKm, setLineRadiusKm] = useState(LAB_DEFAULTS.lineRadiusKm);
-    /** 💰 단가표를 펼쳤나 — 폰 화면은 «한 줄 ↔ 펼침» 두 상태다 (기사님 2026-09-09) */
-    const [rateTableOpen, setRateTableOpen] = useState(false);
     /**
      * 🎨 **그물 전용 캔버스** (기사님 2026-09-09: *"지금은 하나씩 그려서 겹치는 부분만 진한 색인데..
      * 한 번에 그리면 어떨까? 많이 연산해야 해?"*).
@@ -2583,105 +2574,48 @@ export default function MapMockup() {
                         // 📏 라인 반경 — 노선일 때만 쓰인다. 감추지 않고 흐리게 둔다
                         { key: 'lineR', label: '라인반경', unit: 'km', value: lineRadiusKm, max: 50, set: setLineRadiusKm, dim: !routeMode },
                     ]} />
+                    {/* 🔴 «±Nkm 의 M동이 필터» 줄은 지웠다 (기사님 2026-09-09: *"이건 무슨 뜻이야
+                        불필요한 거 같은데"*). 동 수는 아래 「콜 필터」 제목이 이미 말하고, 라인이 짧아지면
+                        1동처럼 뜻 모를 숫자가 됐다. **지금 마름모로 보는 이유**만 남긴다 — 그건 몰라선 안 된다. */}
                     {!routeMode ? (
                         <p className="text-[10.5px] text-text-muted leading-snug">동선에서는 라인 반경을 안 씁니다 — 마름모 하나로 봅니다</p>
-                    ) : lineOn ? (
-                        <p className="text-[10.5px] text-text-muted leading-snug">
-                            ✅ 잡은 콜 경로 ±{lineRadiusKm}km 의 <b className="text-text-primary">{areaNet.count}동</b>이 필터
-                        </p>
-                    ) : (
+                    ) : !lineOn ? (
                         <p className="text-[10.5px] text-warning font-bold leading-snug">
                             {confirmed.length === 0 ? '콜을 잡으면 그 경로가 라인이 됩니다 — 지금은 마름모로 봅니다'
                                 : '⏳ 카카오 경로를 기다립니다 — 올 때까지는 마름모로 봅니다 (직선으로 지어내지 않습니다)'}
                         </p>
-                    )}
+                    ) : null}
 
                     {/**
-                      * 💰 **콜할인율 — 필터 한 벌 안으로** (기사님 2026-09-09 «넣어줘»).
+                      * 💰🚚🚫 **셋도 같은 3칸 레이어로** (기사님 2026-09-09: *"이 부분도 디자인에 맞춰
+                      * 이쁘게 바꿔줘"*). 위의 목적지·값들과 **같은 자리·같은 방식**이라야 조작이 하나다.
                       *
-                      * 실물에서 **끝까지 이어지는 값**이다: 기사님이 고른 % → 서버가 단가표를 만들고 →
-                      * 앱 피기백으로 내려가 → 앱이 «요금 ≥ 배송거리 × 단가»로 거른다(여섯 축의 «요금»).
-                      * 운행 중에 손이 가는 손잡이라(첫짐은 제값, 합짐은 «전부»까지) 필터 한 벌에 함께 산다.
-                      *
-                      * 🔴 폰에서 넣기 쉬운 모양이어야 한다 — 숫자 입력이 아니라 **버튼 넷**이다.
+                      * · 콜할인율   하나를 고른다. 차종별 단가표는 그 레이어 **안에** 딸려 온다
+                      * · 받을 짐 차종 · 제외 단어   **여럿**을 고른다 — 고른 뒤에도 레이어가 안 닫힌다
                       */}
-                    <div className="mt-1 border-t border-border-card pt-2 flex flex-col gap-1">
-                        <span className="text-[10.5px] font-black text-text-muted">💰 콜할인율 — 시세 대비 허용 할인</span>
-                        <div className="flex gap-1">
-                            {([['시세', 0], ['-10%', 10], ['-20%', 20], ['-30%', 30]] as const).map(([label, v]) => (
-                                <button key={v} type="button" onClick={() => patchKnob({ discountPct: v })}
-                                    className={`flex-1 px-1 py-1.5 rounded-[8px] border text-[11px] font-black ${knobs.discountPct === v
-                                        ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-background text-text-muted'}`}>
-                                    {label}
-                                </button>
-                            ))}
-                        </div>
-                        <p className="text-[10px] text-text-muted leading-snug">
-                            1t 하한 <b className="text-info">{rateFloorsFrom(knobs.discountPct)['1t']}원/km</b>
-                            {' '}— 콜을 찍으면 이 단가로 요금을 미리 채웁니다
-                        </p>
-                        {/**
-                          * 💰 **단가표를 읽는 통로** (기사님 2026-09-09: *"읽을 수 있게 통로를 열어 줘야지"*).
-                          *
-                          * 🔴 표를 오른쪽 패널에 뒀더니 **폰에서 읽을 길이 없었다** — 오른쪽은 실물로 안 간다.
-                          *    «고르는 값»이 아니라 «지금 할인율이면 얼마인가»를 보는 것이라, **평소엔 접어 두고
-                          *    누르면 펼친다.** 폰 필터가 갈 «한 줄 ↔ 펼침»과 같은 모양이다.
-                          */}
-                        <button type="button" onClick={() => setRateTableOpen(o => !o)}
-                            className="self-start px-1.5 py-0.5 rounded-md text-[10px] font-black text-text-muted hover:text-text-primary">
-                            {rateTableOpen ? '▾' : '▸'} 차종별 하한 단가 {rateTableOpen ? '접기' : '보기'}
-                        </button>
-                        {rateTableOpen && (
-                            <div className="flex flex-col gap-0.5 text-[10px] tabular-nums rounded-md bg-background border border-border-card px-1.5 py-1">
-                                {Object.entries(NET_RATE_PER_KM).map(([v, net_]) => (
-                                    <div key={v} className="flex justify-between gap-1">
-                                        <span><b>{v}</b> <span className="text-text-muted">시세 {net_} · 짐 {VEHICLE_CAPACITY[v] ?? '?'}박스</span></span>
-                                        <b className="text-info">≥ {rateFloorsFrom(knobs.discountPct)[v]}원/km</b>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
-                    {/**
-                      * 🚚 **차종 — «어떤 짐을 받을까»다** (기사님 확정 2026-09-09).
-                      *
-                      * 내 차가 무엇인가가 아니다: *"내 차가 1톤이지만 **라보 다마스 짐만 받겠다**
-                      * 생각할 때 할 수 있다. **합짐을 위해 필요.** 승용차도 오토바이 짐만 받겠다 할 수 있다."*
-                      * → 짐이 작을수록 더 얹을 수 있으니, **합짐 국면에서 손이 가는 손잡이**다.
-                      */}
-                    <div className="mt-1 border-t border-border-card pt-2 flex flex-col gap-1">
-                        <span className="text-[10.5px] font-black text-text-muted">🚚 받을 짐 차종 <span className="font-bold">— 작을수록 더 얹는다</span></span>
-                        <ChipToggleRow options={['오토바이', '승용차', '다마스', '라보', '1t']} selected={vehicles}
-                            onToggle={v => setVehicles(x => x.includes(v) ? x.filter(o => o !== v) : [...x, v])} />
-                    </div>
-
-                    {/* 🚫 제외 단어 — 평소엔 접어 둔다 (기사님 2026-09-09 «펼치면 내용을 볼 수 있다») */}
-                    <div className="mt-1 border-t border-border-card pt-2 flex flex-col gap-1">
-                        <button type="button" onClick={() => setWordsOpen(o => !o)}
-                            className="self-start text-[10.5px] font-black text-text-muted hover:text-text-primary">
-                            {wordsOpen ? '▾' : '▸'} 🚫 제외 단어 {excludedWords.length}개
-                            <span className="font-bold"> — {excludedWords.join(' · ') || '없음'}</span>
-                        </button>
-                        {wordsOpen && (
-                            <ChipToggleRow options={['착불', '수거', '까대기', '직접운반', '왕복', '대기']} selected={excludedWords}
-                                onToggle={v => setExcludedWords(x => x.includes(v) ? x.filter(o => o !== v) : [...x, v])} />
-                        )}
-                    </div>
-
-                    {/* 🎨 지도에서 무엇이 무엇인지 — 색 한 벌의 뜻 (기사님 2026-09-09
-                        *"사용자가 볼 때 «아 이 영역에서 콜을 부를 거구나» 하고 생각할 수 있게"*) */}
-                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[9.5px] text-text-muted">
-                        <span className="inline-flex items-center gap-1">
-                            <span className="w-3 h-2.5 rounded-sm" style={{ background: 'rgba(37,99,235,.18)', border: '1.5px solid rgba(37,99,235,.85)' }} />
-                            여기서 콜을 부른다
-                        </span>
-                        <span className="inline-flex items-center gap-1">
-                            <span className="w-3 h-2.5 rounded-sm" style={{ background: 'rgba(37,99,235,.10)', border: '1.5px dashed rgba(37,99,235,.85)' }} />
-                            지금 갈 수 있는 거리
-                        </span>
-                        <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-success" />콜이 잘 나오는 곳</span>
-                        <span className="inline-flex items-center gap-1"><b className="text-danger">✕</b> 안 가는 동</span>
+                    <div className="relative grid grid-cols-3 gap-1">
+                        <PickLayer label="💰 콜할인율" value={knobs.discountPct === 0 ? '시세' : `-${knobs.discountPct}%`}
+                            options={['시세', '-10%', '-20%', '-30%']}
+                            open={openKnob === 'discount'} onToggle={() => setOpenKnob(o => o === 'discount' ? null : 'discount')}
+                            onPick={v => patchKnob({ discountPct: v === '시세' ? 0 : Number(v.replace(/[-%]/g, '')) })}
+                            foot={
+                                <div className="flex flex-col gap-0.5 text-[10px] tabular-nums">
+                                    <span className="text-[9.5px] font-bold text-text-muted">차종별 하한 — 콜을 찍으면 이 단가로 요금을 미리 채웁니다</span>
+                                    {Object.entries(NET_RATE_PER_KM).map(([v, net_]) => (
+                                        <div key={v} className="flex justify-between gap-1">
+                                            <span><b>{v}</b> <span className="text-text-muted">시세 {net_} · 짐 {VEHICLE_CAPACITY[v] ?? '?'}박스</span></span>
+                                            <b className="text-info">≥ {rateFloorsFrom(knobs.discountPct)[v]}원/km</b>
+                                        </div>
+                                    ))}
+                                </div>} />
+                        <PickLayer label="🚚 받을 짐" value={vehicles.length ? vehicles.join(' · ') : '모두'}
+                            options={['오토바이', '승용차', '다마스', '라보', '1t']} selected={vehicles}
+                            open={openKnob === 'vehicles'} onToggle={() => setOpenKnob(o => o === 'vehicles' ? null : 'vehicles')}
+                            onPick={v => setVehicles(x => x.includes(v) ? x.filter(o => o !== v) : [...x, v])} />
+                        <PickLayer label="🚫 제외 단어" value={excludedWords.length ? `${excludedWords.length}개` : '없음'}
+                            options={['착불', '수거', '까대기', '직접운반', '왕복', '대기']} selected={excludedWords} tone="warning"
+                            open={openKnob === 'words'} onToggle={() => setOpenKnob(o => o === 'words' ? null : 'words')}
+                            onPick={v => setExcludedWords(x => x.includes(v) ? x.filter(o => o !== v) : [...x, v])} />
                     </div>
 
                     {/* ⛔ 제외지역 — **노선·동선 공통** (기사님 2026-09-09 «공통으로 빼») */}
