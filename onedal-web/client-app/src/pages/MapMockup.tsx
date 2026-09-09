@@ -2300,6 +2300,32 @@ export default function MapMockup() {
                         </p>
                     )}
 
+                    {/**
+                      * 💰 **콜할인율 — 필터 한 벌 안으로** (기사님 2026-09-09 «넣어줘»).
+                      *
+                      * 실물에서 **끝까지 이어지는 값**이다: 기사님이 고른 % → 서버가 단가표를 만들고 →
+                      * 앱 피기백으로 내려가 → 앱이 «요금 ≥ 배송거리 × 단가»로 거른다(여섯 축의 «요금»).
+                      * 운행 중에 손이 가는 손잡이라(첫짐은 제값, 합짐은 «전부»까지) 필터 한 벌에 함께 산다.
+                      *
+                      * 🔴 폰에서 넣기 쉬운 모양이어야 한다 — 숫자 입력이 아니라 **버튼 넷**이다.
+                      */}
+                    <div className="mt-1 border-t border-border-card pt-2 flex flex-col gap-1">
+                        <span className="text-[10.5px] font-black text-text-muted">💰 콜할인율 — 시세 대비 허용 할인</span>
+                        <div className="flex gap-1">
+                            {([['시세', 0], ['-10%', 10], ['-20%', 20], ['-30%', 30]] as const).map(([label, v]) => (
+                                <button key={v} type="button" onClick={() => patchKnob({ discountPct: v })}
+                                    className={`flex-1 px-1 py-1.5 rounded-[8px] border text-[11px] font-black ${knobs.discountPct === v
+                                        ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-background text-text-muted'}`}>
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+                        <p className="text-[10px] text-text-muted leading-snug">
+                            1t 하한 <b className="text-info">{rateFloorsFrom(knobs.discountPct)['1t']}원/km</b>
+                            {' '}— 콜을 찍으면 이 단가로 요금을 미리 채웁니다
+                        </p>
+                    </div>
+
                     {/* ⛔ 제외지역 — **노선·동선 공통** (기사님 2026-09-09 «공통으로 빼») */}
                     {<div className="mt-1 border-t border-border-card pt-2 flex flex-col gap-1">
                         <span className="text-[10.5px] font-black text-danger">⛔ 제외지역</span>
@@ -2855,17 +2881,10 @@ export default function MapMockup() {
                         · 상차 반경 · 하차지 주변   왼쪽 «현위㎞·목적㎞»와 **같은 값**(한 벌이라 같이 움직였다)
                         · 우회 허용    **어디에도 안 쓰였다** — 실물에서 «경유 반경»을 파생하는 재료인데,
                                       실험실은 그 결과(라인 반경)를 기사님이 직접 넣는다. 손잡이가 둘이었다. */}
-                    <FilterPanel title="💰 콜할인율 — 시세 대비 허용 할인">
-                            <div className="flex gap-1">
-                                {([['시세', 0], ['-10%', 10], ['-20%', 20], ['-30%', 30]] as const).map(([label, v]) => (
-                                    <button key={v} type="button" onClick={() => patchKnob({ discountPct: v })}
-                                        className={`flex-1 px-1 py-1.5 rounded-[8px] border text-[11px] font-black ${knobs.discountPct === v
-                                            ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-background text-text-muted'}`}>
-                                        {label}
-                                    </button>
-                                ))}
-                            </div>
-                            {/* 하한 단가표 — shared 폴백 시세(rateFloorsFrom)에서 파생. 실물은 같은 함수를 DB 요율로 부른다 */}
+                    {/* 💰 콜할인율 **버튼**은 왼쪽 필터 한 벌로 옮겼다 (기사님 2026-09-09).
+                        여기 남은 것은 **단가표** 뿐이다 — 고르는 값이 아니라 «그 할인율이면 얼마인가»를
+                        보는 표라, 폰 화면의 필터 안에 들어갈 것이 아니다. */}
+                    <FilterPanel title={`💰 하한 단가표 — 할인율 ${knobs.discountPct}% 기준 (읽기)`}>
                             <div className="flex flex-col gap-0.5 text-[10.5px] tabular-nums">
                                 {Object.entries(NET_RATE_PER_KM).map(([v, net_]) => (
                                     <div key={v} className="flex justify-between gap-1">
