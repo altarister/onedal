@@ -915,6 +915,13 @@ export default function MapMockup() {
      */
     const goalNets = useMemo(() => goals.map(g => ({
         goal: g,
+        /**
+         * 🔴 **«라인 그물로 만들었나»를 계산이 함께 내놓는다** (기사님 지적 2026-09-09).
+         *    그리기가 제 조건으로 다시 판단하다가 **계산과 갈라졌다** — 복귀로 목적지가
+         *    집이 되자 계산은 라인 그물인데 그리기만 마름모인 척해서, **내 위치 원이 사라지고
+         *    목적지 원이 교집합만 그려졌다.** 한 값에서 나오면 갈라질 수 없다 (규칙 ③).
+         */
+        usedLine: lineOn && !!routeLine,
         net: netForGoal(g, { line: lineOn ? routeLine : null, lineRadiusKm, lastDrop, params, anchor }),
     })), [goals, lineOn, routeLine, lineRadiusKm, lastDrop, params, anchor]);
     const net = goalNets[0].net;                     // 대표 하나가 필요한 자리 (자동 맞춤 등)
@@ -1755,7 +1762,7 @@ export default function MapMockup() {
              * 목적지가 둘이면 사각형도 둘, **목적지 원도 둘**. 출발각은 각자 제 목적지를 향한다.
              * 첫 콜 뒤에는 내 위치 원을 **그 목적지 원뿔과의 교집합**만 남긴다 (기준 5).
              */
-            if (layers.net) for (const { goal, net: gn } of goalNets) {
+            if (layers.net) for (const { goal, net: gn, usedLine } of goalNets) {
                 /**
                  * 🔴 **«노선 단추»가 아니라 «라인이 실제로 있는가»로 가른다** (기사님 지적 2026-09-09:
                  * *"마름모 없음 — 그리지 않았을 뿐 영역은 있는 것 같음"*).
@@ -1766,7 +1773,7 @@ export default function MapMockup() {
                  * 🔴 **라인이 있어도 마름모는 그린다.** 노선의 그물은 «라인 ∪ 남은 마름모»라,
                  *    그때 마름모는 «마지막 하차지 → 목적지»다. 안 그리면 그 영역이 또 숨는다.
                  */
-                const isLine = lineOn && goal.name === dst.name;
+                const isLine = usedLine;   // 🔴 여기서 다시 판단하지 않는다 — 계산이 준 값이다
                 if (gn.tri.length) {
                     ctx.beginPath();
                     gn.tri.forEach(([lng, lat]: [number, number], i: number) => { const [px, py] = S(lng, lat); i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py); });
