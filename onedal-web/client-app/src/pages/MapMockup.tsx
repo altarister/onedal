@@ -2467,16 +2467,12 @@ export default function MapMockup() {
                                     </div>
                                 )}
 
-                                {/* ══ ② 후보콜에 대한 추가정보 — **없다고 적던 자리를 입력으로** (기사님 2026-09-09) ══
-                                    지도를 두 번 눌러 만든 콜이라 배차망이 줄 값이 없다. 이 둘이 없으면 색이 안 나온다 */}
-                                <div className="text-[10px] font-black text-info border-t border-border-card pt-1.5">② 후보콜에 대한 추가정보</div>
-                                <div className="text-[10px] text-text-muted leading-snug">
-                                    실제 콜이면 배차망이 준다 — 실험실에서는 기사님이 넣는다. <b>이 둘이 색을 만든다</b>
-                                </div>
-                                <div className="grid grid-cols-2 gap-1.5">
-                                    <NumRow label="💰 요금(원)" value={candFare} onChange={setCandFare} max={2_000_000} />
-                                    <NumRow label="📦 짐(박스)" value={candBoxes} onChange={setCandBoxes} max={TRUCK_CAPACITY_SLOTS} />
-                                </div>
+                                {/* ══ ② 후보콜 판정 ══
+                                    🔴 **요금·짐 입력은 여기 없다** (기사님 2026-09-09: *"심사창은 나중에 프로젝트에
+                                    넣을 수도 있을 것 같아서 거기에 불필요한 것은 없으면 좋겠는데"*).
+                                    실제 콜은 배차망이 그 값을 주므로 **실물 심사창에는 입력이 없다** —
+                                    실험실에서만 필요한 것이라 지도 위 입력창으로 옮겼다. */}
+                                <div className="text-[10px] font-black text-info border-t border-border-card pt-1.5">② 후보콜 판정</div>
                                 {/* 🎨 색 — 기사님이 1~2초에 보는 것 (규칙 ⑤-3). 숫자는 그다음이다 */}
                                 {candJudge && (() => {
                                     const r = candJudge.result;
@@ -2798,6 +2794,33 @@ export default function MapMockup() {
                         panBy(dx, dy);
                     }}
                     onMouseUp={() => { dragRef.current.down = false; }} />
+                {/**
+                  * 💰📦 **두 점을 찍으면 지도 위에 뜨는 입력창** (기사님 2026-09-09).
+                  *
+                  * 🔴 **실험실 전용이다.** 실제 콜은 배차망이 요금과 짐을 주므로 실물에는 이 창이 없다.
+                  *    심사창에 두면 이식할 때 «실물에 필요 없는 것»이 딸려 간다 — 그래서 여기로 옮겼다.
+                  * 지도 아래 가운데에 뜬다 — 찍은 두 점을 가리지 않는 자리다.
+                  */}
+                {pickup && drop && (
+                    <div className="absolute left-1/2 -translate-x-1/2 bottom-4 z-10 flex items-end gap-2
+                                    rounded-xl border border-border-hover bg-surface/95 shadow-lg px-3 py-2 backdrop-blur">
+                        <div className="w-[112px]"><NumRow label="💰 요금(원)" value={candFare} onChange={setCandFare} max={2_000_000} /></div>
+                        <div className="w-[96px]"><NumRow label="📦 짐(박스)" value={candBoxes} onChange={setCandBoxes} max={TRUCK_CAPACITY_SLOTS} /></div>
+                        {candJudge && (() => {
+                            const r = candJudge.result;
+                            const face = r.color === '꿀' ? '🔵' : r.color === '보통' ? '🟢' : r.color === '똥' ? '🟡' : '🔴';
+                            const tone = r.color === '꿀' ? 'bg-info/20 text-info border-info/50'
+                                : r.color === '보통' ? 'bg-success/20 text-success border-success/50'
+                                : r.color === '똥' ? 'bg-warning/20 text-warning border-warning/50'
+                                : 'bg-danger/20 text-danger border-danger/50';
+                            return (
+                                <div className={`px-2.5 py-1 rounded-lg border text-[14px] font-black whitespace-nowrap ${tone}`}>
+                                    {face} {r.color}{r.score != null && <span className="text-[11px] font-bold"> {r.score}점</span>}
+                                </div>
+                            );
+                        })()}
+                    </div>
+                )}
                 {/* 🔍 줌 조작 — 드래그·휠로도 된다. ⌖ 는 자동 맞춤 복귀 */}
                 <div className="absolute right-3 top-3 flex flex-col gap-1.5">
                     {([['➕', 1], ['➖', -1]] as const).map(([label, d]) => (
