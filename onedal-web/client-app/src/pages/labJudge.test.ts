@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { judge, CRITERIA, DEFAULT_JUDGMENT } from '@onedal/shared';
-import { buildLabFacts, lateAndBuffer } from './labJudge';
+import { buildLabFacts, lateAndBuffer, extraDriveMin } from './labJudge';
 
 /**
  * 🎨 **실험실이 실물 엔진으로 색을 낸다** (기사님 2026-09-09).
@@ -39,6 +39,30 @@ describe('⏰ 늦음과 여유 — 한 값(약속 − 예정)에서 둘 다 나�
         ]);
         expect(r.lateStops).toEqual([]);
         expect(r.bufferAfterMin).toBeNull();
+    });
+});
+
+/**
+ * 🚚 **더 쓰는 시간** (기사님 순서 ⑬⑭ · 2026-09-09 정정).
+ * 처음엔 «이 콜 자신의 주행»으로 근사했다가 **합짐에서 시급이 부풀었다** —
+ * 올릴 때 이미 재 둔 «후보콜 낀 전체 경로»를 안 쓴 것이었다.
+ */
+describe('🚚 더 쓰는 시간 — 전체 경로의 전/후 차이', () => {
+    it('첫짐이면 이 콜에 쓰는 전체 시간이다', () => {
+        expect(extraDriveMin(85, null, false)).toBe(85);
+    });
+
+    it('🔴 합짐이면 «늘어나는» 시간이다 — 이 콜 자신의 주행이 아니다', () => {
+        expect(extraDriveMin(150, 100, true)).toBe(50);
+    });
+
+    it('길목이면 0 이하가 나올 수도 있다 — 그대로 넘긴다 (돈 기준이 «길목»으로 읽는다)', () => {
+        expect(extraDriveMin(98, 100, true)).toBe(-2);
+    });
+
+    it('🔴 못 쟀으면 null — 0 으로 치면 시급이 무한대가 되어 색이 통째로 틀린다', () => {
+        expect(extraDriveMin(null, 100, true)).toBeNull();
+        expect(extraDriveMin(150, null, true)).toBeNull();   // 합짐인데 기존 경로가 없다
     });
 });
 

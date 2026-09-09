@@ -7,7 +7,7 @@ import {
 } from '@onedal/shared';
 import { buildAppFilterOutput, TRUCK_CAPACITY_SLOTS } from './labFilterOutput';
 // 🎨 판정 사실을 실물 모양으로 옮기는 곳 — 채점은 실물 엔진(judge)이 한다
-import { buildLabFacts } from './labJudge';
+import { buildLabFacts, extraDriveMin } from './labJudge';
 // 🚚 이식 대응표가 이 타입의 원천이다 — 실물 `step_*` 칸과 맞는지는 labPortMap.test.ts 가 지킨다
 import { promiseTimes, impactOfStop, splitDropImpact, type StopStep } from './labPortMap';
 // ⏱️ 시간·정거장 이름은 한 곳에서 만든다 (labTime.test.ts 가 지킨다)
@@ -1486,16 +1486,13 @@ export default function MapMockup() {
      *    실물의 `judge(CRITERIA, …, DEFAULT_JUDGMENT)` 가 색을 낸다 — 목업이 제 채점기를 두면
      *    실험이 거짓말이 된다 (규칙 ③).
      *
-     * ⚠️ **합짐의 «더 쓰는 시간»은 아직 근사다.** 실물 정의는 «붙여서 **늘어나는** 시간»인데,
-     *    여기서는 «이 콜 자신의 주행 + 정차»를 쓴다. 후보콜을 낀 전체 경로는 **확정한 뒤에야**
-     *    재기 때문이다(⑮ — 안 잡을 콜에 카카오를 쓰지 않는다). 그래서 합짐에서는
-     *    **시급이 실제보다 좋게 나온다** — 화면에 그렇게 적어 둔다. 정확히 하는 것은 다음 판이다.
+     * 🔴 **«더 쓰는 시간»은 전체 경로의 전/후 차이다** (2026-09-09 정정). 처음엔 «이 콜 자신의
+     *    주행»으로 근사했는데, **올릴 때 이미 «후보콜을 낀 전체 경로»를 재고 있었다** —
+     *    있는 값을 안 쓰고 근사한 것이라 합짐에서 시급이 부풀었다. 셈은 `extraDriveMin` 이 한다.
      */
     const candJudge = useMemo(() => {
         if (!pickup || !drop) return null;
-        const approach = approachInfo?.durMin ?? null;
-        const deliver = uploadedInfoRef.current?.durMin ?? null;
-        const driveMin = approach == null || deliver == null ? null : approach + deliver;
+        const driveMin = extraDriveMin(chainNow?.totalMin, chainBefore?.totalMin, confirmed.length > 0);
         const stops = callImpacts.flatMap(ci => ci.stops.map(st => ({
             label: `${ci.no}${st.kind}`, promisedAt: st.promisedAt, etaAt: st.etaAt,
         })));
@@ -1507,7 +1504,7 @@ export default function MapMockup() {
         });
         return { facts, result: judge(CRITERIA, facts, DEFAULT_JUDGMENT), driveMin };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [pickup, drop, candFare, candBoxes, confirmed.length, callImpacts, slotsUsed, approachInfo, chainNow]);
+    }, [pickup, drop, candFare, candBoxes, confirmed.length, callImpacts, slotsUsed, chainNow, chainBefore]);
     const stopImpacts = useMemo(() => {
         if (!chainNow || !chainBefore) return [];
         /** 🔴 두 경로는 **잰 시각이 다르다** — `arrivalAt` 이 각자의 기준을 더해 «시각»으로 낸다 */
@@ -2544,10 +2541,12 @@ export default function MapMockup() {
                                                     </div>
                                                 ))}
                                             </div>
-                                            {confirmed.length > 0 && (
-                                                <div className="text-[9.5px] text-warning leading-snug">
-                                                    ⚠️ 합짐의 «더 쓰는 시간»은 아직 <b>이 콜 자신의 주행 + 정차</b>다 —
-                                                    붙여서 늘어나는 시간은 확정 뒤에야 잰다. 그래서 <b>시급이 실제보다 좋게 나온다</b>
+                                            {candJudge.driveMin != null && (
+                                                <div className="text-[9.5px] text-text-muted leading-snug">
+                                                    더 쓰는 시간 <b className="text-text-primary">{candJudge.driveMin + labDwellOf('상차') + labDwellOf('하차')}분</b>
+                                                    {confirmed.length > 0
+                                                        ? ` = 전체 경로 ${chainBefore?.totalMin ?? '--'}분 → ${chainNow?.totalMin ?? '--'}분 + 정차`
+                                                        : ` = 이 콜 주행 ${candJudge.driveMin}분 + 정차`}
                                                 </div>
                                             )}
                                         </div>

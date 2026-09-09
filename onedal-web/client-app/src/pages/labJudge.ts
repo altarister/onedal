@@ -35,6 +35,30 @@ export interface LabJudgeInput {
 }
 
 /**
+ * 🚚 **이 콜 때문에 더 달리는 분** (기사님 순서 ⑬⑭ · 2026-09-09 정정).
+ *
+ * 실물 정의는 «첫짐이면 이 콜에 쓰는 전체 시간, 합짐이면 **붙여서 늘어나는** 시간»이다.
+ *
+ * 🔴 **재료는 이미 있다.** 콜을 올릴 때 카카오를 한 번 불러 «후보콜을 낀 전체 경로»를 재고,
+ *    «기존 경로»는 직전에 저장해 둔 것을 그대로 쓴다(재배치가 기존 콜들의 상대 순서를 안 바꾸므로).
+ *    처음 색을 낼 때 이걸 안 쓰고 «이 콜 자신의 주행»으로 근사했더니 **합짐에서 시급이 부풀었다.**
+ *
+ * 🔴 **못 쟀으면 `null`** — 0 으로 치면 시급이 무한대가 되어 색이 통째로 틀린다.
+ */
+export function extraDriveMin(
+    /** 후보콜을 낀 전체 경로의 총 주행(분) */
+    nowMin: number | null | undefined,
+    /** 기존 경로의 총 주행(분). 첫짐이면 없다 */
+    beforeMin: number | null | undefined,
+    hasExistingCalls: boolean,
+): number | null {
+    if (nowMin == null) return null;
+    if (!hasExistingCalls) return nowMin;      // 첫짐 — 이 콜에 쓰는 전체 시간이 곧 그 값이다
+    if (beforeMin == null) return null;        // 합짐인데 기존 경로를 못 쟀다 — 지어내지 않는다
+    return nowMin - beforeMin;
+}
+
+/**
  * ⏰ **늦는 정거장과 가장 빠듯한 여유** — 약속과 예정의 차이 하나에서 둘 다 나온다.
  *
  * 🔴 실물 정의 그대로다: `lateStops` 는 «이 콜을 붙였을 때 늦는 약속들»,
