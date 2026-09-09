@@ -14,7 +14,7 @@ import { promiseTimes, impactOfStop, splitDropImpact, type StopStep } from './la
 // ⏱️ 시간·정거장 이름은 한 곳에서 만든다 (labTime.test.ts 가 지킨다)
 import { circled, hhmm, cumMinutes, arrivalAt } from './labTime';
 import {
-    buildNet, buildLineNet, lineZoneOf, judgeGoals, activeGoals, nearestDong, orderStopsInsert, pickNextTarget, cityCenter, quadTesterOf, isLocalPhase, NET_SRC, NET_DST,
+    netForGoal, lineZoneOf, judgeGoals, activeGoals, nearestDong, orderStopsInsert, pickNextTarget, cityCenter, quadTesterOf, isLocalPhase, NET_SRC, NET_DST,
     GONJIAM_DROP, DONGWON_DROP, BORAM_DROP,
     GONJIAM_CALL_PATH, DONGWON_CALL_PATH, BORAM_CALL_PATH, TRAP_DONGS,
     type NetPoint, type TwoStageVerdict,
@@ -901,17 +901,26 @@ export default function MapMockup() {
         return { name: last.label ?? '마지막 하차지', lng: last.x, lat: last.y };
     }, [lineOn, effPath]);
 
-    /** 🎯 목적지마다 그물 하나 — 노선이면 그 목적지 쪽은 «라인 ∪ 남은 마름모» (⑮ 기준 1) */
+    /**
+     * 🎯 **목적지마다 그물 하나 — 라인은 하나, 마름모는 목적지마다** (기사님 지적 2026-09-09).
+     *
+     * 🔴 예전엔 라인을 **노선 목적지에만** 걸었다(`g.name === dst.name`). 그래서 **복귀콜을 잡아
+     *    목적지가 «집»으로 접히는 순간 라인이 통째로 빠지고** 「내 위치 → 집」 마름모만 남았다 —
+     *    기사님이 화면에서 잡으셨다: *"복귀콜로 집에 가는 중인데 이 모습은 첫짐의 동선과 같다.
+     *    노선의 동선이 되어야 할 것 같은데."*
+     *
+     * 🔴 **라인은 목적지에서 나오지 않는다 — 잡은 콜들에서 나온다.** 목적지가 파주든 집이든
+     *    달릴 길은 하나뿐이다. 목적지마다 갈리는 것은 **마름모**(마지막 하차지 → 그 목적지)뿐이다.
+     */
     const goalNets = useMemo(() => goals.map(g => ({
         goal: g,
-        net: lineOn && routeLine && g.name === dst.name
-            ? buildLineNet(routeLine, lineRadiusKm, lastDrop, params, g)
-            : buildNet(params, anchor, g),
-    })), [goals, lineOn, routeLine, lineRadiusKm, lastDrop, params, anchor, dst.name]);
+        net: netForGoal(g, { line: lineOn ? routeLine : null, lineRadiusKm, lastDrop, params, anchor }),
+    })), [goals, lineOn, routeLine, lineRadiusKm, lastDrop, params, anchor]);
     const net = goalNets[0].net;                     // 대표 하나가 필요한 자리 (자동 맞춤 등)
-    const zone = useMemo(
-        () => lineOn && routeLine ? lineZoneOf(routeLine, lineRadiusKm, lastDrop, params, dst) : undefined,
-        [lineOn, routeLine, lineRadiusKm, lastDrop, params, dst]);
+    /** 🔴 판정에 쓰는 영역도 **목적지마다** 만든다 — 라인은 같고 마름모만 갈린다 (위 주석과 한 짝) */
+    const zoneOfGoal = useMemo(
+        () => (g: NetPoint) => lineOn && routeLine ? lineZoneOf(routeLine, lineRadiusKm, lastDrop, params, g) : undefined,
+        [lineOn, routeLine, lineRadiusKm, lastDrop, params]);
     /** 화면·아웃풋이 읽는 영역 = **살아 있는 마름모들의 합집합** (⑮ 기준 3) */
     const areaNet = useMemo(() => {
         const seen = new Set<string>();
@@ -953,10 +962,10 @@ export default function MapMockup() {
         ? judgeGoals(params, anchor, goals, myPos, pickup, drop, {
             loadedNames: loadedGoalNames,     // ∩ 는 «짐을 실은 목적지»에만 (⑮ 기준 5)
             isLocal: g => g.name === dst.name && localMode,
-            zoneOf: g => (routeMode && g.name === dst.name) ? zone : undefined,
+            zoneOf: zoneOfGoal,
             preferName: HOME_DST.name,
         })
-        : null, [pickup, drop, params, anchor, goals, myPos, loadedGoalNames, localMode, routeMode, zone, dst.name, HOME_DST.name]);
+        : null, [pickup, drop, params, anchor, goals, myPos, loadedGoalNames, localMode, zoneOfGoal, dst.name, HOME_DST.name]);
     const verdict: TwoStageVerdict | null = goalsVerdict?.won ?? goalsVerdict?.results[0]?.verdict ?? null;
 
     /**

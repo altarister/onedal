@@ -738,6 +738,32 @@ export function buildLineNet(
 }
 
 /**
+ * 🎯 **목적지 하나의 그물을 고른다 — 라인이 있으면 라인, 없으면 마름모** (기사님 지적 2026-09-09).
+ *
+ * 🔴 **이 갈림을 화면 안에 두었다가 사고가 났다.** 라인을 «노선 목적지»에만 걸어서,
+ *    복귀콜을 잡아 목적지가 «집»으로 접히는 순간 **라인이 통째로 빠졌다** —
+ *    기사님: *"복귀콜로 집에 가는 중인데 이 모습은 첫짐의 동선과 같다."*
+ *    갈림을 여기로 꺼내야 검사가 잡는다 (그 버그는 화면 안에 있어서 아무 검사도 못 봤다).
+ *
+ * 🔴 **라인은 목적지에서 나오지 않는다 — 잡은 콜들에서 나온다.** 목적지가 파주든 집이든
+ *    달릴 길은 하나뿐이고, 갈리는 것은 마름모(마지막 하차지 → 그 목적지)뿐이다.
+ */
+export function netForGoal(goal: NetPoint, o: {
+    /** 잡은 콜들이 만든 실제 경로. `null` 이면 아직 없다 — 그때는 마름모 하나다 */
+    line: Array<[number, number]> | null;
+    lineRadiusKm: number;
+    /** 마름모가 시작하는 자리 (마지막 하차지). 라인이 없으면 안 쓴다 */
+    lastDrop: NetPoint | null;
+    params: NetParams;
+    /** 라인이 없을 때 마름모의 출발 꼭짓점 — 내 위치 */
+    anchor: NetPoint;
+}): NetResult {
+    return o.line
+        ? buildLineNet(o.line, o.lineRadiusKm, o.lastDrop, o.params, goal)
+        : buildNet(o.params, o.anchor, goal);
+}
+
+/**
  * 🏠 **지금 살아 있는 목적지 — 복귀는 세 상태다** (기사님 확정 2026-09-09).
  *
  * 기사님: *"파주를 목적으로 콜을 수행하던 중 복귀콜을 누르면, 그 의미는 **복귀콜을 잡기

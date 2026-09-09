@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildNet, lineZoneOf, buildFirstLegDemo, judgeTwoStage, judgeGoals, orderStopsGreedy, orderStopsInsert, cityCenter, isLocalPhase, WAIT_PRESET, NET_SRC, NET_DST, GONJIAM_DROP, DONGWON_DROP, BORAM_DROP, ICHEON_DROP } from './callNet';
+import { buildNet, netForGoal, lineZoneOf, buildFirstLegDemo, judgeTwoStage, judgeGoals, orderStopsGreedy, orderStopsInsert, cityCenter, isLocalPhase, WAIT_PRESET, NET_SRC, NET_DST, GONJIAM_DROP, DONGWON_DROP, BORAM_DROP, ICHEON_DROP } from './callNet';
 
 /**
  * 🧪 **그물 셋업의 계산이 ⑭ 검산과 같은가**
@@ -365,6 +365,42 @@ describe('노선 — «라인 ∪ 남은 마름모» (기사님 확정 2026-09-0
         //    원을 두르든 안 두르든 거짓이라 **아무것도 안 잡는다** (처음에 10km 로 잡아 그렇게 됐다).
         const SOUTH_OF_PYEONGCHON = { lng: 126.980, lat: 37.338 };   // 평촌에서 남쪽 6.2km — 라인(5km) 밖, 원(7.5km) 안
         expect(zone.dropIn(SOUTH_OF_PYEONGCHON)).toBe(false);
+    });
+
+    /**
+     * 🔴 **라인은 목적지에서 나오지 않는다 — 잡은 콜들에서 나온다** (기사님 지적 2026-09-09).
+     *
+     * 화면에서 잡으셨다: *"복귀콜로 집에 가는 중인데 이 모습은 첫짐의 동선과 같다.
+     * 노선의 동선이 되어야 할 것 같은데."* 라인을 **노선 목적지에만** 걸어 뒀더니,
+     * 복귀콜을 잡아 목적지가 «집»으로 접히는 순간 **라인이 통째로 빠지고** 넓은 마름모만 남았다.
+     */
+    it('🔴 목적지가 집으로 바뀌어도 라인은 그대로다 — 마름모만 갈린다', () => {
+        const HOME = { name: '초월(집)', lng: NET_SRC.lng, lat: NET_SRC.lat };
+        const toPaju = lineZoneOf(LINE, 5, LAST_DROP, WAIT_PRESET, PAJU);
+        const toHome = lineZoneOf(LINE, 5, LAST_DROP, WAIT_PRESET, HOME);
+        // 라인 위 상차지는 **목적지와 무관하게** 둘 다 통과한다 — 달릴 길은 하나뿐이다
+        expect(toPaju.pickupIn(JANGJI)).toBe(true);
+        expect(toHome.pickupIn(JANGJI)).toBe(true);
+        // 갈리는 것은 마름모뿐이다 — 집으로 갈 때 파주는 그물 밖이다
+        expect(toPaju.dropIn(PAJU)).toBe(true);
+        expect(toHome.dropIn(PAJU)).toBe(false);
+    });
+
+    /**
+     * 🔴 **이 갈림이 화면 안에 있어서 아무 검사도 못 봤다** (2026-09-09).
+     * 그래서 `netForGoal` 로 꺼냈다 — 여기서 잠근다.
+     * 구별법: 마름모 그물은 원이 **둘**(출발 꼭짓점 + 목적지), 라인 그물은 **하나**(목적지만)다.
+     */
+    it('🔴 라인이 있으면 목적지가 무엇이든 라인 그물이다 — 복귀도 예외가 아니다', () => {
+        const HOME = { name: '초월(집)', lng: NET_SRC.lng, lat: NET_SRC.lat };
+        const o = { line: LINE, lineRadiusKm: 5, lastDrop: LAST_DROP, params: WAIT_PRESET, anchor: { ...ME, name: '내 위치' } };
+        expect(netForGoal(PAJU, o).circles).toHaveLength(1);
+        expect(netForGoal(HOME, o).circles).toHaveLength(1);   // ← 복귀도 라인 그물
+    });
+
+    it('라인이 없으면 마름모 그물이다 — 원이 둘(내 위치 + 목적지)', () => {
+        const o = { line: null, lineRadiusKm: 5, lastDrop: LAST_DROP, params: WAIT_PRESET, anchor: { ...ME, name: '내 위치' } };
+        expect(netForGoal(PAJU, o).circles).toHaveLength(2);
     });
 
     it('라인이 비면 라인 판정은 전부 거짓이다 — 경로가 오기 전에는 마름모가 판단한다', () => {
