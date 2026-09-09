@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildAppFilterOutput, labPhaseOf, type LabFilterInputs } from './labFilterOutput';
+import { buildAppFilterOutput, type LabFilterInputs } from './labFilterOutput';
 
 /**
  * 🧪 **아웃풋에 실물 필터의 요소가 빠지지 않았는가** (기사님 2026-09-07:
@@ -64,30 +64,31 @@ describe('구조·요소 — 실물 필터 설정의 요소가 아웃풋에 다 
     });
 });
 
-describe('국면 파생 — 실물 resolvePhaseKey 그대로 (수동 국면 없음)', () => {
-    it('대기 + 노선 = first · 콜 쥠 = merge · 주행 = drive · 관내 = local · 복귀 = home', () => {
-        expect(labPhaseOf({ callTarget: 'DEST', dispatchPhase: 'STANDBY' })).toBe('first');
-        expect(labPhaseOf({ callTarget: 'DEST', dispatchPhase: 'GATHERING' })).toBe('merge');
-        expect(labPhaseOf({ callTarget: 'DEST', dispatchPhase: 'DELIVERING' })).toBe('drive');
-        expect(labPhaseOf({ callTarget: 'LOCAL', dispatchPhase: 'STANDBY' })).toBe('local');
-        expect(labPhaseOf({ callTarget: 'HOME', dispatchPhase: 'STANDBY' })).toBe('home');
+/**
+ * 🔴 **국면을 걷어냈다** (기사님 확정 2026-09-09).
+ *
+ * 여기 있던 검사 셋은 «국면 파생(resolvePhaseKey)»과 «숨김(hidden) 칸이 아웃풋에서 빠진다»를
+ * 잠그고 있었다. 값이 **한 벌**이 되며 둘 다 뜻이 없어졌다 —
+ * 기사님: *"이제 우리에게 국면이라는 것이 없어진 것 같은데.. 원칙이 바뀐 거 아냐?"*
+ *
+ * ⚠️ 실물(`user_filter_phases` · `PHASE_FIELDS`)은 아직 다섯 벌이라 **여기서 갈린다.**
+ *    그 차이는 `docs/기획/이식_계획.md` 에 적혀 있다.
+ */
+describe('값은 한 벌 — 어느 칸도 «국면»으로 빠지지 않는다', () => {
+    it('첫짐이든 합짐이든 네 칸이 다 실린다 — 안 쓰는 값은 그냥 안 읽힐 뿐이다', () => {
+        for (const dispatchPhase of ['STANDBY', 'GATHERING', 'DELIVERING'] as const) {
+            const out = buildAppFilterOutput({ ...BASE, dispatchPhase });
+            expect(out.pickupRadiusKm).toBe(7.5);
+            expect(out.destinationRadiusKm).toBe(7.5);
+            expect(out.detourRadiusKm).toBe(10);
+            expect(out.callDiscountPct).toBe(0);
+            expect(out.destinationCity).toBe('파주 시내');
+        }
     });
 
-    it('🔴 관내·복귀는 «첫짐의 자리»다 — 콜을 쥐면 어디서 출발했든 합짐이다', () => {
-        expect(labPhaseOf({ callTarget: 'LOCAL', dispatchPhase: 'GATHERING' })).toBe('merge');
-        expect(labPhaseOf({ callTarget: 'HOME', dispatchPhase: 'DELIVERING' })).toBe('drive');
-    });
-});
-
-describe('숨김 규칙 — PHASE_FIELDS 의 hidden 칸은 아웃풋에서도 빠진다', () => {
-    it('첫짐: 우회 허용 없음 · 합짐: 상차 반경 없음', () => {
-        const first = buildAppFilterOutput(BASE);
-        expect(first.detourRadiusKm).toBeUndefined();
-        expect(first.pickupRadiusKm).toBe(7.5);
-        const merge = buildAppFilterOutput({ ...BASE, dispatchPhase: 'GATHERING' });
-        expect(merge.detourRadiusKm).toBe(10);
-        expect(merge.pickupRadiusKm).toBeUndefined();
-        expect(merge.isSharedMode).toBe(true);
+    it('«콜을 쥐었나»는 그대로 실린다 — 값이 아니라 **상태**다', () => {
+        expect(buildAppFilterOutput({ ...BASE, dispatchPhase: 'GATHERING' }).isSharedMode).toBe(true);
+        expect(buildAppFilterOutput({ ...BASE, dispatchPhase: 'STANDBY' }).isSharedMode).toBe(false);
     });
 });
 

@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
-    PHASE_KEYS, PHASE_LABEL, PHASE_FIELDS, PHASE_AUTO_SOURCE, fieldLabel,
-    DEFAULT_PHASE_SETTINGS, normalizePhaseSettings, rateFloorsFrom,
+    rateFloorsFrom,
     reachRadiusKm, NET_RATE_PER_KM, VEHICLE_CAPACITY, CAPACITY_CONFIDENCE_LABEL, CALL_TARGET_LABEL,
     dwellMinutes, DWELL_UNKNOWN_PICKUP_MINUTES, judge, CRITERIA, DEFAULT_JUDGMENT,
-    type FieldMode, type PhaseKey, type PhaseSettings, type PhaseSettingsMap,
+    type FieldMode,
 } from '@onedal/shared';
-import { buildAppFilterOutput, labPhaseOf, TRUCK_CAPACITY_SLOTS } from './labFilterOutput';
+import { buildAppFilterOutput, TRUCK_CAPACITY_SLOTS } from './labFilterOutput';
 // 🎨 판정 사실을 실물 모양으로 옮기는 곳 — 채점은 실물 엔진(judge)이 한다
 import { buildLabFacts } from './labJudge';
 // 🚚 이식 대응표가 이 타입의 원천이다 — 실물 `step_*` 칸과 맞는지는 labPortMap.test.ts 가 지킨다
@@ -342,24 +341,31 @@ export default function MapMockup() {
      * 사각형의 기점 = 내 위치라 현위치각·출발각은 같은 자리 — 각도는 둘만 받는다.
      * 현위치 반경은 그물의 출발 원이면서 **상차 반경(1단계)과 ② 여유값**까지 겸한다 — 판정과 한 값.
      */
+    /**
+     * 🎚️ **필터 값 — 한 벌이다** (기사님 확정 2026-09-09).
+     *
+     * 기사님: *"모두 꺼내 두고 노선이면 라인값을 사용하고 동선이면 사용 안 하면 되니까."*
+     *
+     * 🔴 **2026-09-08 까지는 국면 다섯 벌이었다**(`user_filter_phases` 를 그대로 흉내 냈다).
+     *    그런데 열어 보니 다섯 벌이 하는 일은 «값을 여러 벌 두는 것»이 아니라
+     *    **«지금 안 쓰는 칸을 감추는 것»**(`PHASE_FIELDS` 의 `hidden`)이었다.
+     *    감추면 화면이 조용히 거짓말하고, 국면이 바뀔 때 **다른 벌이 읽혀 값이 갈린다** —
+     *    기사님이 화면에서 잡으셨다: *"우리 설정과 다른 값을 쓰고 있고."*
+     *
+     * 🔴 **지금 안 쓰는 값은 그냥 안 읽힐 뿐이다.** 라인 반경은 노선일 때만 쓰이고,
+     *    상차 반경은 콜을 쥐면 라인이 대신 판단한다 — 값을 감추거나 벌을 나눌 이유가 없다.
+     *
+     * ⚠️ 실물(`user_filter_phases`)은 아직 다섯 벌이다. 그 차이는 이식 계획에 적어 뒀다.
+     */
     const [knobs, setKnobs] = useState({
         srcAngleDeg: 100, dstAngleDeg: 100,        // 각은 둘 다 100° (기사님 2026-09-07 — ⑭ 검산의 50° 대신)
-    });
-    /**
-     * 🎚️ **국면 다섯 벌 — 유일한 원천** (기사님 2026-09-08 «옵션에 첫짐~복귀가 필요»).
-     * 실물 그대로: `user_filter_phases` 행 = 사용자×국면, 기본값도 실물 `DEFAULT_PHASE_SETTINGS`.
-     * 반경·우회·할인율이 전부 여기 살고, **활성 국면(자동 파생)의 벌**이 지도·요약줄·아웃풋을 움직인다.
-     * 오른쪽 5탭은 «어느 벌을 편집하나»일 뿐이다. 예전의 knobs 반경·discountPct·detourAllowKm
-     * 낱개 상태는 이 맵으로 흡수됐다 — 같은 값을 두 그릇에 두지 않는다 (규칙 ③).
-     */
-    const [phaseSettings, setPhaseSettings] = useState<PhaseSettingsMap>(() => {
         // 실험실 기본 반경 15/15 (기사님 2026-09-08) — 실물 기본값(10)보다 넓게 잡아 그물을 먼저 본다
-        const base = normalizePhaseSettings(DEFAULT_PHASE_SETTINGS);
-        return Object.fromEntries(Object.entries(base).map(([k, v]) =>
-            [k, { ...v, pickupRadiusKm: 15, dropoffRadiusKm: 15 }])) as PhaseSettingsMap;
+        pickupRadiusKm: 15, dropoffRadiusKm: 15,
+        detourAllowKm: 5,                          // 우회 허용 — 카카오 총거리 증가분 (라인 반경과 다른 값)
+        discountPct: 10,                           // 콜할인율 — 시세 대비 허용 할인
     });
-    const patchPhase = (tab: PhaseKey, patch: Partial<PhaseSettings>) =>
-        setPhaseSettings(m => ({ ...m, [tab]: { ...m[tab], ...patch } }));
+    /** 값 하나를 고친다 — 국면이 없으니 «어느 벌»을 고를 일이 없다 */
+    const patchKnob = (patch: Partial<typeof knobs>) => setKnobs(k => ({ ...k, ...patch }));
 
     /**
      * ✅ 확정한 콜들 (기사님 요청 2026-09-07 «확정하면 콜 리스트로, 지도에 색·경유 번호로»).
@@ -555,28 +561,23 @@ export default function MapMockup() {
     /** 첫 콜을 잡았는가 — 프리셋 국면도 콜을 쥔 상태다. 잡았으면 상차 영역 = 내 반경 ∩ 사각형 */
     const routeStarted = confirmed.length > 0 || stage.path.length > 0;
     /**
-     * 🏘️ 관내(도착) 인지 — 목적지 원 안 + 출발지(집) 원 밖. 반경은 **운행 중(drive) 벌**로
-     * 고정한다: 활성 벌을 읽으면 «관내 인지→국면→벌→관내 인지» 순환이 생긴다 (09-08 설계)
+     * 🏘️ 관내(도착) 인지 — 목적지 원 안 + 출발지(집) 원 밖.
+     * 🔴 예전엔 **운행 중 벌로 고정**했다 — 활성 벌을 읽으면 «관내 인지 → 국면 → 벌 → 관내 인지»
+     *    순환이 생겨서다. **값이 한 벌이 되며 그 순환이 사라졌다** (2026-09-09).
+     *    같이 있던 `Math.max(6, …)` 바닥값도 걷어냈다 — 근거 없는 상수였다.
      */
     const localMode = isLocalPhase({
         srcAngleDeg: knobs.srcAngleDeg, dstAngleDeg: knobs.dstAngleDeg,
-        srcDiamKm: phaseSettings.drive.pickupRadiusKm * 2, dstDiamKm: Math.max(6, phaseSettings.drive.dropoffRadiusKm * 2),
+        srcDiamKm: knobs.pickupRadiusKm * 2, dstDiamKm: knobs.dropoffRadiusKm * 2,
     }, NET_SRC, dst, myPos);
     /** 콜 타겟 — 행선·도착 인지에서 **파생** (수동 버튼 없음): 복귀행 / 관내 / 노선행 */
     const callTarget: 'DEST' | 'LOCAL' | 'HOME' = homeOn ? 'HOME' : localMode ? 'LOCAL' : 'DEST';
     /** 운행 상태 — 실험실 상태에서 파생: 콜 0 = 대기 · 콜 쥠 = 합짐 수집 · 주행 = 운행 중 */
     const dispatchPhaseSim = confirmed.length > 0 ? (driving ? 'DELIVERING' as const : 'GATHERING' as const) : 'STANDBY' as const;
-    /** 국면 — 실물 그대로 resolvePhaseKey(callTarget × 운행 상태)로 **자동** 파생. 수동 선택 없음 */
-    const phase = labPhaseOf({ callTarget, dispatchPhase: dispatchPhaseSim });
-    /** 오른쪽 5탭 — 어느 국면의 벌을 «편집»하나. 활성 국면이 바뀌면 탭이 따라간다 */
-    const [phaseTab, setPhaseTab] = useState<PhaseKey>('first');
-    useEffect(() => { setPhaseTab(phase); }, [phase]);
-    /** 활성 국면의 벌 — 지도·요약줄·아웃풋이 읽는 유일한 값 */
-    const ps = phaseSettings[phase];
     const params = useMemo(() => ({
         srcAngleDeg: knobs.srcAngleDeg, dstAngleDeg: knobs.dstAngleDeg,
-        srcDiamKm: ps.pickupRadiusKm * 2, dstDiamKm: ps.dropoffRadiusKm * 2,
-    }), [knobs, ps]);
+        srcDiamKm: knobs.pickupRadiusKm * 2, dstDiamKm: knobs.dropoffRadiusKm * 2,
+    }), [knobs]);
     /**
      * 🧭 **노선 / 동선** (기사님 확정 2026-09-09) — 입력값은 **한 벌을 같이 쓰고**,
      * 노선일 때만 **라인 반경**을 더 쓴다.
@@ -945,11 +946,11 @@ export default function MapMockup() {
     const appFilterOutput = useMemo(() => buildAppFilterOutput({
         callTarget, dispatchPhase: dispatchPhaseSim, driving,
         dstName: dst.name, groups: areaNet.groups, pass: areaNet.pass, excluded: routeMode ? [] : excluded,
-        pickupRadiusKm: ps.pickupRadiusKm, dropoffRadiusKm: ps.dropoffRadiusKm,
-        detourAllowKm: ps.detourAllowKm, discountPct: ps.discountPct,
+        pickupRadiusKm: knobs.pickupRadiusKm, dropoffRadiusKm: knobs.dropoffRadiusKm,
+        detourAllowKm: knobs.detourAllowKm, discountPct: knobs.discountPct,
         vehicles, excludedWords, slotsUsed, capacityConfirmed,
         modeDesc: `🎯 ${goals.map(g => g.name).join(' ∪ ')} · ` + (lineOn ? `노선 — 잡은 콜 경로 ±${lineRadiusKm}km` : routeMode ? '노선 (경로 대기 — 마름모로 판단)' : localMode ? '관내 (목적지 원)' : `동선 마름모 ${params.srcAngleDeg}°/${params.dstAngleDeg}°`),
-    }), [callTarget, dispatchPhaseSim, driving, dst, areaNet, excluded, ps, vehicles, excludedWords, slotsUsed, capacityConfirmed, lineOn, routeMode, lineRadiusKm, localMode, params, goals]);
+    }), [callTarget, dispatchPhaseSim, driving, dst, areaNet, excluded, knobs, vehicles, excludedWords, slotsUsed, capacityConfirmed, lineOn, routeMode, lineRadiusKm, localMode, params, goals]);
     /**
      * 🔴 **«짐을 실은 목적지» — 원천 하나** (2026-09-08 리뷰: 화면과 판정이 다른 답을 냈다).
      * ∩(상차 조이기)를 거는 기준이다. 판정(judgeGoals)·그리기·판정 칩이 **모두 이걸** 읽는다 —
@@ -2003,7 +2004,7 @@ export default function MapMockup() {
              */
             const dLng = (pt.lng - pickup!.lng) * 88.6, dLat = (pt.lat - pickup!.lat) * 110.574;
             const straightKm = Math.hypot(dLng, dLat);
-            const floor = rateFloorsFrom(ps.discountPct)['1t'] ?? 1000;
+            const floor = rateFloorsFrom(knobs.discountPct)['1t'] ?? 1000;
             setCandFare(Math.round(straightKm * floor / 100) * 100);   // 100원 단위로 (음식 단가가 그렇다)
         }
     };
@@ -2228,7 +2229,7 @@ export default function MapMockup() {
                     {/* 🎯 요약줄 — 실물 규격 그대로 (OrderFilterStatus: «🎯 노선행 · 여기서 10km → 서울 1km · 📦 90/100»).
                         라벨은 shared CALL_TARGET_LABEL, 값은 지금 필터 상태에서 파생 (기사님 2026-09-07) */}
                     <div className="rounded-[8px] border border-border-card bg-background px-2 py-1.5 text-[11px] font-black leading-snug">
-                        🎯 {CALL_TARGET_LABEL[callTarget]} · 여기서 {ps.pickupRadiusKm}km → {goals.map(g => g.name).join(' ∪ ')} {ps.dropoffRadiusKm}km
+                        🎯 {CALL_TARGET_LABEL[callTarget]} · 여기서 {knobs.pickupRadiusKm}km → {goals.map(g => g.name).join(' ∪ ')} {knobs.dropoffRadiusKm}km
                         {' · 📦 '}{slotsUsed}/{TRUCK_CAPACITY_SLOTS}
                     </div>
 
@@ -2243,7 +2244,7 @@ export default function MapMockup() {
                         <p className="text-[10.5px] text-text-muted leading-snug">
                             🎯 목적지 <b className="text-text-primary">{goals.map(g => g.name).join(' · ')}</b> — 마름모 {goals.length}개 ·
                             {' '}운행 <b className="text-text-primary">{dispatchPhaseSim === 'STANDBY' ? '대기' : dispatchPhaseSim === 'GATHERING' ? '콜 쥠' : '주행 중'}</b>
-                            {' → 국면 '}<b className="text-info">{PHASE_LABEL[phase]}</b>
+                            {' · '}<b className="text-info">{routeMode ? '🛣️ 노선' : '🔷 동선'}</b>
                         </p>
                     </div>
 
@@ -2286,8 +2287,8 @@ export default function MapMockup() {
                     <div className="grid grid-cols-2 gap-1.5">
                         <NumRow label="출발각°" value={knobs.srcAngleDeg} max={170} onChange={v => setKnobs({ ...knobs, srcAngleDeg: v })} />
                         <NumRow label="목적각°" value={knobs.dstAngleDeg} max={170} onChange={v => setKnobs({ ...knobs, dstAngleDeg: v })} />
-                        <NumRow label="현위㎞" value={ps.pickupRadiusKm} max={60} onChange={v => patchPhase(phase, { pickupRadiusKm: v })} />
-                        <NumRow label="목적㎞" value={ps.dropoffRadiusKm} max={60} onChange={v => patchPhase(phase, { dropoffRadiusKm: v })} />
+                        <NumRow label="현위㎞" value={knobs.pickupRadiusKm} max={60} onChange={v => patchKnob({ pickupRadiusKm: v })} />
+                        <NumRow label="목적㎞" value={knobs.dropoffRadiusKm} max={60} onChange={v => patchKnob({ dropoffRadiusKm: v })} />
                     </div>
                     {/* 📏 라인 반경 — **노선일 때만 쓰인다.** 감추지 않고 «지금 쓰는가»를 아래 줄이 말한다 */}
                     <NumRow label="라인반경㎞" value={lineRadiusKm} onChange={setLineRadiusKm} min={1} max={30} />
@@ -2441,7 +2442,7 @@ export default function MapMockup() {
                                     </div>
                                     <div className="text-text-muted tabular-nums">
                                         판 <b className="text-text-primary">{goalsVerdict?.wonGoal?.name ?? dst.name}</b>
-                                        {' · 국면 '}<b className="text-text-primary">{PHASE_LABEL[phase]}</b>
+                                        {' · '}<b className="text-text-primary">{routeMode ? '노선' : '동선'}</b>
                                         {uploadedInfoRef.current?.distKm != null && <>
                                             {' · 이 콜만 '}<b className="text-text-primary">{uploadedInfoRef.current.distKm}km · {uploadedInfoRef.current.durMin ?? '?'}분</b>
                                             {uploadedInfoRef.current.tollWon != null && ` · 톨 ${uploadedInfoRef.current.tollWon.toLocaleString()}원`}
@@ -2848,48 +2849,29 @@ export default function MapMockup() {
                 <aside className="w-[400px] shrink-0 border-l border-border-card bg-surface p-3 flex flex-col gap-2 overflow-y-auto">
                     <span className="text-[12px] font-black">🎛️ 필터 옵션 <span className="text-[10px] font-bold text-text-muted">실물 요소 · 값은 목업</span></span>
 
-                    {/* 📅 국면 5탭 (기사님 2026-09-08 «첫짐~복귀가 옵션에 필요») — 실물 필터 설정 모달의 그 탭.
-                        국면마다 설정 한 벌(user_filter_phases 행)이고, ● = 지금 활성 국면(자동 파생) */}
-                    <div className="flex gap-1">
-                        {PHASE_KEYS.map(k => (
-                            <button key={k} type="button" onClick={() => setPhaseTab(k)}
-                                className={`flex-1 px-1 py-1.5 rounded-[8px] border text-[10.5px] font-black ${phaseTab === k
-                                    ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-background text-text-muted'}`}>
-                                {PHASE_LABEL[k]}{phase === k && <span className="text-success"> ●</span>}
-                            </button>
-                        ))}
-                    </div>
-                    {phaseTab !== phase && (
-                        <p className="text-[10px] text-warning font-bold leading-snug">
-                            ✍️ {PHASE_LABEL[phaseTab]} 벌을 미리 고치는 중 — 지금 판은 ● {PHASE_LABEL[phase]} 벌로 돕니다
-                        </p>
-                    )}
-
-                    <FilterPanel title={`🎚️ ${PHASE_LABEL[phaseTab]} 옵션 (user_filter_phases 한 벌)`}>
-                        <TextRow label={fieldLabel(phaseTab, 'destinationCity')} value={dst.name}
-                            mode={PHASE_FIELDS[phaseTab].destinationCity} autoWhy={PHASE_AUTO_SOURCE[phaseTab]}
+                    {/* 🔴 **국면 5탭을 걷어냈다** (기사님 확정 2026-09-09).
+                        다섯 벌이 하던 일은 «값을 여러 벌 두는 것»이 아니라 «지금 안 쓰는 칸을 감추는 것»이었고,
+                        감추면 화면이 조용히 거짓말한다. 값은 한 벌이고 **여기와 왼쪽이 같은 값을 본다.**
+                        ⚠️ 실물(`user_filter_phases`)은 아직 다섯 벌이다 — 그 차이는 이식 계획에 있다. */}
+                    <FilterPanel title="🎚️ 필터 값 — 한 벌 (국면으로 안 나눈다)">
+                        <TextRow label="도착 목표" value={dst.name} mode="auto" autoWhy="왼쪽 🎯 목적지에서 고른다"
                             hint="← 왼쪽 🎯 목적지" />
-                        <NumRow label={fieldLabel(phaseTab, 'pickupRadiusKm')} value={phaseSettings[phaseTab].pickupRadiusKm}
-                            mode={PHASE_FIELDS[phaseTab].pickupRadiusKm}
-                            onChange={v => patchPhase(phaseTab, { pickupRadiusKm: v })} max={100} />
-                        {PHASE_FIELDS[phaseTab].pickupRadiusKm !== 'hidden' && (
-                            <p className="text-[10px] text-text-muted leading-snug">
-                                실물은 도달 시간에서 자동 — 상차 약속(잡은 시각+20분)에 닿는 거리 ≈ <b>{reachRadiusKm(20)}km</b> (잠정 계수 · 아직 안 거름)
-                            </p>
-                        )}
-                        <NumRow label={fieldLabel(phaseTab, 'detourAllowKm')} value={phaseSettings[phaseTab].detourAllowKm}
-                            mode={PHASE_FIELDS[phaseTab].detourAllowKm} onChange={v => patchPhase(phaseTab, { detourAllowKm: v })} max={200} />
-                        <NumRow label={fieldLabel(phaseTab, 'dropoffRadiusKm')} value={phaseSettings[phaseTab].dropoffRadiusKm}
-                            mode={PHASE_FIELDS[phaseTab].dropoffRadiusKm}
-                            onChange={v => patchPhase(phaseTab, { dropoffRadiusKm: v })} max={100} />
+                        <NumRow label="상차 반경(km)" value={knobs.pickupRadiusKm}
+                            onChange={v => patchKnob({ pickupRadiusKm: v })} max={100} />
+                        <p className="text-[10px] text-text-muted leading-snug">
+                            실물은 도달 시간에서 자동 — 상차 약속(잡은 시각+20분)에 닿는 거리 ≈ <b>{reachRadiusKm(20)}km</b> (잠정 계수 · 아직 안 거름)
+                        </p>
+                        <NumRow label="우회 허용(km)" value={knobs.detourAllowKm}
+                            onChange={v => patchKnob({ detourAllowKm: v })} max={200} />
+                        <NumRow label="하차지 주변(km)" value={knobs.dropoffRadiusKm}
+                            onChange={v => patchKnob({ dropoffRadiusKm: v })} max={100} />
                     </FilterPanel>
 
-                    {PHASE_FIELDS[phaseTab].discountPct !== 'hidden' && (
-                        <FilterPanel title={`💰 콜할인율 (${PHASE_LABEL[phaseTab]}) — 시세 대비 허용 할인`}>
+                    <FilterPanel title="💰 콜할인율 — 시세 대비 허용 할인">
                             <div className="flex gap-1">
                                 {([['시세', 0], ['-10%', 10], ['-20%', 20], ['-30%', 30]] as const).map(([label, v]) => (
-                                    <button key={v} type="button" onClick={() => patchPhase(phaseTab, { discountPct: v })}
-                                        className={`flex-1 px-1 py-1.5 rounded-[8px] border text-[11px] font-black ${phaseSettings[phaseTab].discountPct === v
+                                    <button key={v} type="button" onClick={() => patchKnob({ discountPct: v })}
+                                        className={`flex-1 px-1 py-1.5 rounded-[8px] border text-[11px] font-black ${knobs.discountPct === v
                                             ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-background text-text-muted'}`}>
                                         {label}
                                     </button>
@@ -2900,12 +2882,11 @@ export default function MapMockup() {
                                 {Object.entries(NET_RATE_PER_KM).map(([v, net_]) => (
                                     <div key={v} className="flex justify-between gap-1">
                                         <span><b>{v}</b> <span className="text-text-muted">시세 {net_}원/km · 짐 {VEHICLE_CAPACITY[v] ?? '?'}박스</span></span>
-                                        <b className="text-info">≥ {rateFloorsFrom(phaseSettings[phaseTab].discountPct)[v]}원/km</b>
+                                        <b className="text-info">≥ {rateFloorsFrom(knobs.discountPct)[v]}원/km</b>
                                     </div>
                                 ))}
                             </div>
-                        </FilterPanel>
-                    )}
+                    </FilterPanel>
 
                     <FilterPanel title="🚚 차종 (allowedVehicleTypes)">
                         <ChipToggleRow options={['1t', '1t짐', '라보', '다마스']} selected={vehicles}
@@ -3009,7 +2990,8 @@ export default function MapMockup() {
                     <h2 className="text-[11px] font-black text-info mb-1">🧭 국면 축</h2>
                     <OutKv k="callTarget" v={`${appFilterOutput.callTarget} (${CALL_TARGET_LABEL[callTarget]})`} />
                     <OutKv k="dispatchPhase" v={appFilterOutput.dispatchPhase} />
-                    <OutKv k="국면(파생)" v={PHASE_LABEL[phase]} />
+                    {/* 🔴 국면(파생)을 뺐다 — 값이 한 벌이라 «어느 벌인가»가 없다 (2026-09-09) */}
+                    <OutKv k="그물" v={routeMode ? '노선 (라인 ∪ 남은 마름모)' : '동선 (마름모 하나)'} />
                     <OutKv k="driverAction" v={appFilterOutput.driverAction} />
                     <OutKv k="isSharedMode" v={String(appFilterOutput.isSharedMode)} />
                     <OutKv k="isActive" v={String(appFilterOutput.isActive)} />

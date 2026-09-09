@@ -6,12 +6,16 @@
  * `satisfies Partial<AutoDispatchFilter> & LabProposedFields` 로 잠갔다.
  * 실물 DTO 에 없는 키를 적으면(오타 포함) 그 자리에서 tsc 가 빨간불이다.
  *
- * 읽기 전용이다: shared 의 규칙표·수식(rateFloorsFrom·PHASE_FIELDS·resolvePhaseKey)을
- * **읽기만** 하고, 실물 코드는 이 파일을 import 하지 않는다 — 실험실 수정이 실물에 영향 없음.
+ * 읽기 전용이다: shared 의 수식(`rateFloorsFrom`)을 **읽기만** 하고, 실물 코드는 이 파일을
+ * import 하지 않는다 — 실험실 수정이 실물에 영향 없음.
+ *
+ * 🔴 **국면(`PHASE_FIELDS`·`resolvePhaseKey`)을 더는 읽지 않는다** (기사님 확정 2026-09-09).
+ *    값이 한 벌이 되며 «어느 벌인가»가 없어졌다. 실물은 아직 다섯 벌이라 **여기서 갈린다** —
+ *    이식 계획에 적어 뒀다.
  */
 import {
-    PHASE_FIELDS, resolvePhaseKey, rateFloorsFrom, TRUCK_CAPACITY_SLOTS,
-    type AutoDispatchFilter, type PhaseKey,
+    rateFloorsFrom, TRUCK_CAPACITY_SLOTS,
+    type AutoDispatchFilter,
 } from '@onedal/shared';
 
 /** 실물 DTO 에 **아직 없는** 실험실 제안 칸 — 이식 때 DTO 로 올라갈 후보들 */
@@ -25,7 +29,7 @@ export interface LabProposedFields {
 }
 
 export interface LabFilterInputs {
-    /** 실물 요약줄의 노선/관내/복귀 — 국면은 여기서 resolvePhaseKey 로 파생된다 */
+    /** 실물 요약줄의 노선/관내/복귀 */
     callTarget: 'DEST' | 'LOCAL' | 'HOME';
     /** 실험실 상태에서 파생: 콜 0 = STANDBY · 콜 쥠 = GATHERING · 주행 = DELIVERING */
     dispatchPhase: 'STANDBY' | 'GATHERING' | 'DELIVERING';
@@ -46,13 +50,7 @@ export interface LabFilterInputs {
     modeDesc: string;
 }
 
-export function labPhaseOf(i: Pick<LabFilterInputs, 'callTarget' | 'dispatchPhase'>): PhaseKey {
-    return resolvePhaseKey(i.callTarget, i.dispatchPhase);
-}
-
 export function buildAppFilterOutput(i: LabFilterInputs) {
-    const phase = labPhaseOf(i);
-    const modes = PHASE_FIELDS[phase];
     const isExcluded = (region: string, name: string) =>
         i.excluded.includes(`R|${region}`) || i.excluded.includes(`D|${region}|${name}`);
 
@@ -69,22 +67,28 @@ export function buildAppFilterOutput(i: LabFilterInputs) {
     for (const p of i.pass) if (!isExcluded(p.region, p.name)) destinationDongs.push({ name: p.name, region: p.region, lng: p.x, lat: p.y });
 
     return {
-        // ── 국면 축 — 실물 키 그대로 (callTarget × dispatchPhase → 국면은 앱·서버가 resolvePhaseKey 로 푼다) ──
+        // ── 상태 축 — 실물 키 그대로. 🔴 «국면»은 여기서 안 푼다: 값이 한 벌이라 «어느 벌인가»가 없다 ──
         callTarget: i.callTarget,
         dispatchPhase: i.dispatchPhase,
         driverAction: i.driving ? 'DRIVING' : 'WAITING',
         isActive: true,
         isSharedMode: i.dispatchPhase === 'GATHERING',
-        // ── 지역 축 — 숨김(hidden) 칸은 실물 규칙(PHASE_FIELDS)대로 아웃풋에서 빠진다 ──
-        //    ⚠️ 평면(앱 피기백) 이름: detourAllowKm↔detourRadiusKm · dropoffRadiusKm↔destinationRadiusKm · discountPct↔callDiscountPct
-        destinationCity: modes.destinationCity === 'hidden' ? undefined : i.dstName,
-        pickupRadiusKm: modes.pickupRadiusKm === 'hidden' ? undefined : i.pickupRadiusKm,
-        destinationRadiusKm: modes.dropoffRadiusKm === 'hidden' ? undefined : i.dropoffRadiusKm,
-        detourRadiusKm: modes.detourAllowKm === 'hidden' ? undefined : i.detourAllowKm,
+        /**
+         * ── 지역 축 ──
+         * 🔴 **숨김(hidden) 처리를 걷어냈다** (기사님 확정 2026-09-09 · 값은 한 벌).
+         *    예전엔 국면별 `PHASE_FIELDS` 로 «그 국면에서 안 쓰는 칸»을 아웃풋에서 뺐다.
+         *    그런데 **지금 안 쓰는 값은 그냥 안 읽힐 뿐이다** — 빼면 받는 쪽이 «없다»와
+         *    «안 쓴다»를 구별 못 하고, 화면과 아웃풋이 다른 말을 하게 된다.
+         * ⚠️ 평면(앱 피기백) 이름: detourAllowKm↔detourRadiusKm · dropoffRadiusKm↔destinationRadiusKm · discountPct↔callDiscountPct
+         */
+        destinationCity: i.dstName,
+        pickupRadiusKm: i.pickupRadiusKm,
+        destinationRadiusKm: i.dropoffRadiusKm,
+        detourRadiusKm: i.detourAllowKm,
         destinationKeywords: [...new Set(flat)].sort(),
         destinationGroups,
         // ── 돈 축 — 폴백 시세표(= DB 기본값과 같은 값)로 파생. 실물은 DB 요율로 같은 함수를 부른다 ──
-        callDiscountPct: modes.discountPct === 'hidden' ? undefined : i.discountPct,
+        callDiscountPct: i.discountPct,
         ratePerKm: rateFloorsFrom(i.discountPct),
         minFare: 30000,
         maxFare: 1000000,
