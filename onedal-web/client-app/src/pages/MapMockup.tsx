@@ -2318,14 +2318,14 @@ export default function MapMockup() {
                         예전엔 탭마다 다른 칸을 보였는데, 그건 «값이 여러 벌»이 아니라
                         «지금 안 쓰는 칸을 감추는 것»이었다 — 감추면 화면이 조용히 거짓말한다. */}
                     <div className="grid grid-cols-2 gap-1.5">
-                        <NumRow label="출발각°" value={knobs.srcAngleDeg} max={180} onChange={v => patchKnob({ srcAngleDeg: v })} />
-                        <NumRow label="목적각°" value={knobs.dstAngleDeg} max={180} onChange={v => patchKnob({ dstAngleDeg: v })} />
-                        <NumRow label="현위㎞" value={knobs.pickupRadiusKm} max={60} onChange={v => patchKnob({ pickupRadiusKm: v })} />
-                        <NumRow label="목적㎞" value={knobs.dropoffRadiusKm} max={60} onChange={v => patchKnob({ dropoffRadiusKm: v })} />
-                        <NumRow label="마름모반경㎞" value={knobs.quadRadiusKm} min={1} max={120} onChange={v => patchKnob({ quadRadiusKm: v })} />
+                        <NumRow label="출발각°" value={knobs.srcAngleDeg} max={360} onChange={v => patchKnob({ srcAngleDeg: v })} />
+                        <NumRow label="목적각°" value={knobs.dstAngleDeg} max={360} onChange={v => patchKnob({ dstAngleDeg: v })} />
+                        <NumRow label="현위㎞" value={knobs.pickupRadiusKm} max={999} onChange={v => patchKnob({ pickupRadiusKm: v })} />
+                        <NumRow label="목적㎞" value={knobs.dropoffRadiusKm} max={999} onChange={v => patchKnob({ dropoffRadiusKm: v })} />
+                        <NumRow label="마름모반경㎞" value={knobs.quadRadiusKm} max={999} onChange={v => patchKnob({ quadRadiusKm: v })} />
                     </div>
                     {/* 📏 라인 반경 — **노선일 때만 쓰인다.** 감추지 않고 «지금 쓰는가»를 아래 줄이 말한다 */}
-                    <NumRow label="라인반경㎞" value={lineRadiusKm} onChange={setLineRadiusKm} min={1} max={30} />
+                    <NumRow label="라인반경㎞" value={lineRadiusKm} onChange={setLineRadiusKm} max={999} />
                     {!routeMode ? (
                         <p className="text-[10.5px] text-text-muted leading-snug">동선에서는 라인 반경을 안 씁니다 — 마름모 하나로 봅니다</p>
                     ) : lineOn ? (

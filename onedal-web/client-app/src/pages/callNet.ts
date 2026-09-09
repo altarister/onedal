@@ -260,12 +260,16 @@ export interface NetResult {
 
 /** 사각형(두 원뿔의 교집합)만 — 꼭짓점 원 제외. «내 반경 ∩ 마름모»의 마름모가 이것이다 */
 function makeInQuad(p: NetParams, src: NetPoint, dst: NetPoint) {
-    // 🔴 반각 90° 까지 연다(각도 180°) — 폭은 아래 «마름모 반경»이 막는다 (기사님 2026-09-09)
-    const srcHalf = Math.min(90, Math.max(2, p.srcAngleDeg / 2));
-    const dstHalf = Math.min(90, Math.max(2, p.dstAngleDeg / 2));
+    /**
+     * 🔴 **넣은 값을 그대로 쓴다** (기사님 지시 2026-09-09: *"그냥 입력한 값이 적용되게 해"*).
+     *    예전엔 `Math.min(85, Math.max(2, …))` 로 잘랐다 — 기사님이 180 을 넣어도 170 으로,
+     *    0 을 넣어도 4 로 돌아서 **화면과 판정이 다른 말을 했다.** 폭은 «마름모 반경»이 막는다.
+     */
+    const srcHalf = p.srcAngleDeg / 2;
+    const dstHalf = p.dstAngleDeg / 2;
     const axisAB = bearingDeg(src, dst), axisBA = bearingDeg(dst, src);
     const axis: Array<[number, number]> = [[src.lng, src.lat], [dst.lng, dst.lat]];
-    const r = Math.max(0, p.quadRadiusKm);
+    const r = p.quadRadiusKm;
     return (pt: { lng: number; lat: number }) =>
         angDiff(bearingDeg(src, pt), axisAB) <= srcHalf
         && angDiff(bearingDeg(dst, pt), axisBA) <= dstHalf
@@ -282,9 +286,10 @@ function makeInNet(p: NetParams, src: NetPoint, dst: NetPoint) {
 
 /** 동선 그물을 계산한다 — 꼭짓점 기본은 대기 판(초월→여주), 각도·지름은 인풋 */
 export function buildNet(p: NetParams, src: NetPoint = NET_SRC, dst: NetPoint = NET_DST, markDongs: Array<{ name: string; dong: string; region?: string }> = MARK_DONGS): NetResult {
-    const srcHalf = Math.min(85, Math.max(2, p.srcAngleDeg / 2));
-    const dstHalf = Math.min(85, Math.max(2, p.dstAngleDeg / 2));
-    const srcR = Math.max(0, p.srcDiamKm / 2), dstR = Math.max(0, p.dstDiamKm / 2);
+    // 🔴 넣은 값 그대로 (위 makeInQuad 주석 참조) — 그리는 꼭짓점도 판정과 같은 각을 써야 한다
+    const srcHalf = p.srcAngleDeg / 2;
+    const dstHalf = p.dstAngleDeg / 2;
+    const srcR = p.srcDiamKm / 2, dstR = p.dstDiamKm / 2;
     const axisAB = bearingDeg(src, dst), axisBA = bearingDeg(dst, src);
     const inNet = makeInNet(p, src, dst);
 
