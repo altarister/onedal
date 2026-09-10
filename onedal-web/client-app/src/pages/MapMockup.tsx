@@ -1420,6 +1420,20 @@ export default function MapMockup() {
      *    보여 주는 것과 거르는 것은 다른 일이다.
      */
     const routeLine = useMemo<Array<[number, number]> | null>(() => {
+        /**
+         * 🕸️ **수술 3단계 — 라인 그물도 «확정 순간의 카카오 경로» 한 벌에서** (기사님 승인 2026-09-11).
+         *
+         * chain 은 «잰 순간의 내 위치 → 남은 정거장들»이라, 라인이 **남은 길**만 덮는다 —
+         * 그게 기사님 설계의 «지나온 건 빼고»의 그물 버전이다. 달리는 동안 라인 시작이
+         * 뒤에 남는 몫은 기존 `progressKm` 트림(내 진행도보다 뒤 = 지나온 동)이 그대로 자른다.
+         * 🔴 chain 이 없거나(프리셋 판 · 확정 전) 못 잰 구간이 있으면 **옛 계보로 물러난다**.
+         */
+        const cLegs = routeChain?.legs ?? null;
+        if (cLegs && cLegs.length > 0 && cLegs.every(l => !l.failed && l.line.length >= 2)) {
+            const out: Array<[number, number]> = [];
+            for (const l of cLegs) for (const p of l.line) out.push([p.x, p.y]);
+            if (out.length >= 2) return out;
+        }
         if (effPath.length < 2) return null;
         const legs = effPath.slice(1).map((pt, i) => legCacheRef.current.get(legKey(effPath[i].x, effPath[i].y, pt.x, pt.y)));
         if (!legs.every(c => c && !c.failed && c.line.length >= 2)) return null;
@@ -1437,7 +1451,7 @@ export default function MapMockup() {
         for (const c of legs) for (const p of c!.line) out.push([p.lng, p.lat]);
         return out.length >= 2 ? out : null;
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [effPathKey, realLegs]);
+    }, [effPathKey, realLegs, routeChain]);
     /**
      * 📏 **내가 라인의 몇 km 지점에 있나** — 매 틱 다시 재도 싸다(라인 점 수백 개).
      * 이 숫자 하나로 «지나온 동»이 걸러진다.
