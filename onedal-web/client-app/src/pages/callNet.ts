@@ -960,6 +960,53 @@ export function pickNextTarget(
 }
 
 /**
+ * 🧷 **순번을 chain 으로 접는다 — 수술 4단계** (기사님 실측 2026-09-11).
+ *
+ * 🔴 순번(effPath)이 정거장을 지날 때마다 남은 정거장을 **다시** 재배치해서, 확정 순간
+ *    동결된 chain 과 갈렸다 — 실측: ⑦확정 때 «④성곡→③논현»이었는데 주행 중 «③논현→④성곡»
+ *    으로 뒤집혀 **선(동결 chain)과 바퀴(새 순번)가 다른 길**을 갔다.
+ *    순서는 확정 순간 카카오와 함께 정한 것이다 — 지나간다고 다시 섞지 않는다
+ *    (`orderStopsInsert` 의 «잡은 콜들의 상대 순서를 안 흔든다»와 같은 철학).
+ *
+ * chain 구간 라벨(`②상차` 꼴)을 방문 순서로 되읽는다. `cut` = 동결 이후 지나간 정거장 수.
+ * 라벨이 하나라도 못 읽히거나, 남은 정거장 집합이 «전체 − 지나온 것»과 어긋나면
+ * (취소 직후 재측정이 아직 안 온 창 등) **null — 옛 재배치로 물러난다.**
+ */
+export function foldChainOrder(
+    chainToLabels: ReadonlyArray<string | null>,
+    calls: ReadonlyArray<{ pickup: { lng: number; lat: number }; drop: { lng: number; lat: number } }>,
+    visited: ReadonlyArray<{ call: number; kind: '상차' | '하차' }>,
+    cut: number,
+): RouteStop[] | null {
+    const stops: Array<{ call: number; kind: '상차' | '하차' }> = [];
+    for (const to of chainToLabels) {
+        if (!to) return null;
+        const call = to.codePointAt(0)! - 0x2460 + 1;
+        const kind = to.slice(1);
+        if (call < 1 || call > calls.length || (kind !== '상차' && kind !== '하차')) return null;
+        stops.push({ call, kind });
+    }
+    if (cut < 0 || cut > stops.length) return null;
+    const remaining = stops.slice(cut);
+    const key = (v: { call: number; kind: string }) => `${v.call}-${v.kind}`;
+    const visitedKeys = new Set(visited.map(key));
+    const want = new Set<string>();
+    calls.forEach((_, i) => {
+        for (const kind of ['상차', '하차'] as const) {
+            const k = `${i + 1}-${kind}`;
+            if (!visitedKeys.has(k)) want.add(k);
+        }
+    });
+    if (remaining.length !== want.size || !remaining.every(v => want.has(key(v)))) return null;
+    const ptOf = (v: { call: number; kind: '상차' | '하차' }) =>
+        v.kind === '상차' ? calls[v.call - 1].pickup : calls[v.call - 1].drop;
+    return [
+        ...visited.filter(v => v.call >= 1 && v.call <= calls.length).map(v => ({ ...v, pt: ptOf(v) })),
+        ...remaining.map(v => ({ ...v, pt: ptOf(v) })),
+    ];
+}
+
+/**
  * 🩺 **성한 구간인가** — 경로 한 벌(선·주행·라인 그물)이 chain 을 써도 되는지 구간마다 묻는 판정.
  *
  * 🔴 **같은 점 구간(1점·0km)은 «잴 것 없음»이지 «못 잼»이 아니다** (기사님 실측 2026-09-11).

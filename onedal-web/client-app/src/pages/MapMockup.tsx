@@ -36,7 +36,7 @@ import { circled, hhmm, cumMinutes, arrivalAt, visitOrder } from './labTime';
 // 🧪 콜 문제 — **화면이 버튼으로 그리고, 검사(`pnpm lab`)가 그 버튼을 누른다** (원천 하나)
 import { LAB_PROBLEMS, LAB_START, type LabProblem, type LabStep } from './labProblems';
 import {
-    netForGoal, lineZoneOf, progressAlongKm, sidoList, sggList, dongList, isRegionExcluded, isWholeRegionExcluded, excludedLabel, mergeGoalNets, judgeGoals, activeGoals, nearestDong, orderStopsInsert, pickNextTarget, legSound, cityCenter, isLocalPhase, NET_SRC, NET_DST,
+    netForGoal, lineZoneOf, progressAlongKm, sidoList, sggList, dongList, isRegionExcluded, isWholeRegionExcluded, excludedLabel, mergeGoalNets, judgeGoals, activeGoals, nearestDong, orderStopsInsert, pickNextTarget, legSound, foldChainOrder, cityCenter, isLocalPhase, NET_SRC, NET_DST,
     GONJIAM_DROP, DONGWON_DROP, BORAM_DROP,
     GONJIAM_CALL_PATH, DONGWON_CALL_PATH, BORAM_CALL_PATH,
     type NetPoint, type TwoStageVerdict,
@@ -1405,7 +1405,17 @@ export default function MapMockup() {
          * (그건 이미 한 번 겪은 사고다). 어차피 그때는 기점이 안 쓰인다.
          */
         const from = departed ? departPosRef.current : (orderStart ?? myPosRef.current);
-        const ordered = orderStopsInsert(from, allCalls, visited);
+        /**
+         * 🧷 **수술 4단계 — 순번도 «확정 순간의 chain»을 따른다** (기사님 실측 2026-09-11).
+         * 재배치를 다시 하면 지나갈 때마다 순서가 흔들려 선(동결 chain)과 바퀴가 갈렸다.
+         * chain 이 성하면 그 순서 그대로, 못 접으면(취소 재측정 전 창 등) 옛 재배치로 물러난다.
+         */
+        const chainLegs = routeChain?.legs;
+        const folded = chainLegs && chainLegs.length > 0 && chainLegs.every(legSound)
+            ? foldChainOrder(chainLegs.map(l => l.to), allCalls, visited,
+                visitedCountRef.current - routeChainFromRef.current)
+            : null;
+        const ordered = folded ?? orderStopsInsert(from, allCalls, visited);
         prevOrderRef.current = ordered.map(o => ({ call: o.call, kind: o.kind }));
         return [
             { x: from.lng, y: from.lat, label: '내 위치' },
@@ -1416,7 +1426,7 @@ export default function MapMockup() {
             })),
         ];
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [presetCalls, confirmed, departed, dst.name, orderStart]);
+    }, [presetCalls, confirmed, departed, dst.name, orderStart, routeChain]);
 
     const anchor: NetPoint = useMemo(() => ({ name: '내 위치', ...myPos }), [myPos]);
     /**
@@ -1502,11 +1512,11 @@ export default function MapMockup() {
          * `seq` 는 **절대 번호를 유지한다** (얼린 시점의 방문 수 + 구간 번호) — 통과 판정
          * (`passed = seq - 1`)과 방문 순서 패널·`pickNextTarget` 이 전부 절대 번호를 읽는다.
          *
-         * 🔴 **가드 — chain 의 정거장 순서가 옛 계보(prevOrderRef)와 글자까지 같을 때만 쓴다.**
+         * 🔴 **가드 — chain 의 정거장 순서가 순번(prevOrderRef)과 글자까지 같을 때만 쓴다.**
          *    통과 시각(`occurredAt`)을 prevOrderRef 로 매기므로, 두 순서가 갈리면 엉뚱한 정거장에
-         *    도장이 찍힌다. 갈리는 창(주행 중 · 아직 0 정거장 · 새 확정)은 드물지만 있다 —
-         *    그때는 조용히 **옛 계보로 물러난다** (되돌리는 길). 3단계에서 순번까지 한 벌로 접으면
-         *    이 가드는 사라진다.
+         *    도장이 찍힌다. 수술 4단계(foldChainOrder)로 순번이 chain 을 따르게 접은 뒤로는
+         *    평소엔 **항등**이고, 순번이 접기에 실패해 옛 재배치로 물러난 판(취소 재측정 전 창 등)
+         *    에서만 갈린다 — 그때 주행도 함께 옛 계보로 물러나 세 원천이 같은 쪽에 선다.
          */
         const legs = routeChain?.legs ?? null;
         const base = routeChainFromRef.current;
@@ -1719,7 +1729,7 @@ export default function MapMockup() {
      * 달릴수록 예정이 함께 뒤로 밀린다 — 실측(2026-09-09): 예정 04:42 라 해 놓고 실제로는
      * 03:53 에 닿았다. 30분 달리면 예정도 30분 밀려 있었던 것이다.
      */
-    type ChainResult = { legs: ChainLeg[]; totalKm: number | null; totalMin: number | null; partial?: boolean; note?: string; measuredAt?: number };
+    type ChainResult = { legs: ChainLeg[]; totalKm: number | null; totalMin: number | null; partial?: boolean; note?: string; measuredAt?: number; fromVisited?: number };
     const [chainNow, setChainNow] = useState<ChainResult | null>(null);
     const [chainBefore, setChainBefore] = useState<ChainResult | null>(null);
     /**
@@ -1755,7 +1765,7 @@ export default function MapMockup() {
         const prevChain = lastChainRef.current;   // 🔴 덮기 전에 붙잡는다 — 적립의 «전» 쪽이다
         lastChainRef.current = chainNow;         // 🗄️ ⑦ 이 전체 경로가 다음 합짐의 «기존 경로»가 된다
         setRouteChain(chainNow);                 // 🛣️ 그리기가 읽는 «남은 길»도 같은 값이다 (한 벌)
-        routeChainFromRef.current = visitedCountRef.current;
+        routeChainFromRef.current = chainNow?.fromVisited ?? visitedCountRef.current;
         // ⏰ 최초 약속 — 확정한 이 순간 전체 경로가 말한 도착 시각. 이후 어떤 합짐이 와도 안 바뀐다
         const t0 = clockNow, noNew = circled(confirmed.length + 1);   // 🕒 모의 시계
         /** 병합 경로의 그 정거장까지 누적 분 — 🔴 약속에는 안 쓴다 (`promiseTimes` 참조) */
@@ -1940,14 +1950,15 @@ export default function MapMockup() {
             return;
         }
         setConfirmed(rest);
+        const fromVisited = visitedCountRef.current;   // 🧷 잰 순간의 방문 수 — 응답이 오는 사이 주행이 지나갈 수 있다
         callApi('🧹 취소 후 경로 다시 재기', '/sim/chain',
             { stops, priority: routeCombo.priority, avoid: routeCombo.avoid },
             `정거장 ${stops.length}: ${stops.map(x => x.label).join(' → ')}`)
             .then(d => {
                 if (seq !== planSeqRef.current) return;   // 그 사이 판이 또 바뀌었다 — 이 적립은 어긋난다
-                const after = { ...d, measuredAt: clockBaseRef.current + simMinRef.current * 60000 };
+                const after = { ...d, measuredAt: clockBaseRef.current + simMinRef.current * 60000, fromVisited };
                 setChainNow(after); setChainBefore(prevChain); lastChainRef.current = after;
-                setRouteChain(after); routeChainFromRef.current = visitedCountRef.current;
+                setRouteChain(after); routeChainFromRef.current = fromVisited;
                 const orderBefore = (prevChain?.legs ?? []).map(l => l.to);
                 setConfirmed(cs => cs.map((x, k) => {
                     const no = circled(baseCallCount + k + 1);
@@ -2013,12 +2024,13 @@ export default function MapMockup() {
         const caught = goalsVerdict?.wonGoal?.name ?? dst.name;
         const withCall = [...baseCalls, { pickup, drop, destName: caught }];
         const nowStops = chainOf(withCall)!;
+        const fromVisited = visitedCountRef.current;   // 🧷 이 경로가 «몇 정거장 지나고» 잰 것인지 — 접기(수술 4단계)의 기준점
         callApi('🧭 전체 경로 실측(재배치 후)', '/sim/chain',
             { stops: nowStops, priority: routeCombo.priority, avoid: routeCombo.avoid },
             `정거장 ${nowStops.length}: ${nowStops.map(x => x.label).join(' → ')}`, callTag)
             .then(d => {
                 if (!fresh()) return;
-                setChainNow({ ...d, measuredAt: clockBaseRef.current + simMinRef.current * 60000 });
+                setChainNow({ ...d, measuredAt: clockBaseRef.current + simMinRef.current * 60000, fromVisited });
                 const newNo = circled(confirmed.length + 1);   // 전체 경로 라벨은 calls 배열 순번 — 새 콜이 마지막
                 setChainPreview((d.legs ?? [])
                     .filter((lg: ChainLeg) => legSound(lg) && lg.line.length >= 2)

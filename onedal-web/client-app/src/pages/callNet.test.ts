@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildNet, netForGoal, lineZoneOf, quadTesterOf, buildFirstLegDemo, judgeTwoStage, judgeGoals, orderStopsGreedy, orderStopsInsert, cityCenter, dongList, buildLineNet, sggList, sidoList, sidoOf, isRegionExcluded, isWholeRegionExcluded, excludedLabel, mergeGoalNets, isLocalPhase, WAIT_PRESET, NET_SRC, NET_DST, GONJIAM_DROP, DONGWON_DROP, BORAM_DROP, ICHEON_DROP , legSound } from './callNet';
+import { buildNet, netForGoal, lineZoneOf, quadTesterOf, buildFirstLegDemo, judgeTwoStage, judgeGoals, orderStopsGreedy, orderStopsInsert, cityCenter, dongList, buildLineNet, sggList, sidoList, sidoOf, isRegionExcluded, isWholeRegionExcluded, excludedLabel, mergeGoalNets, isLocalPhase, WAIT_PRESET, NET_SRC, NET_DST, GONJIAM_DROP, DONGWON_DROP, BORAM_DROP, ICHEON_DROP , legSound, foldChainOrder } from './callNet';
 
 /**
  * 🧪 **그물 셋업의 계산이 ⑭ 검산과 같은가**
@@ -891,5 +891,37 @@ describe('netForGoal — 라인이 있으면 anchor 를 안 읽는다 (2026-09-1
         });
         expect(net.pass.length).toBeGreaterThan(0);
         for (const p of net.pass) expect(Number.isFinite(p.x)).toBe(true);
+    });
+});
+
+describe('foldChainOrder — 순번을 chain 으로 접는다 (수술 4단계 · 2026-09-11)', () => {
+    const P = (n: number) => ({ lng: 127 + n / 100, lat: 36 + n / 100 });
+    const calls = [
+        { pickup: P(1), drop: P(2) },
+        { pickup: P(3), drop: P(4) },
+        { pickup: P(5), drop: P(6) },
+    ];
+    const labels = ['①상차', '②상차', '②하차', '③상차', '①하차', '③하차'];   // chain 이 정한 순서
+    it('지나온 것 + chain 잔여 그대로 — 다시 섞지 않는다', () => {
+        const out = foldChainOrder(labels, calls, [], 0)!;
+        expect(out.map(v => `${v.call}${v.kind}`)).toEqual(['1상차', '2상차', '2하차', '3상차', '1하차', '3하차']);
+        expect(out[0].pt).toEqual(P(1));
+    });
+    it('동결 뒤 지나간 만큼(cut) 잘라 붙인다', () => {
+        const visited = [{ call: 1, kind: '상차' as const }, { call: 2, kind: '상차' as const }];
+        const out = foldChainOrder(labels, calls, visited, 2)!;
+        expect(out.map(v => `${v.call}${v.kind}`)).toEqual(['1상차', '2상차', '2하차', '3상차', '1하차', '3하차']);
+    });
+    it('남은 집합이 «전체−지나온 것»과 어긋나면 null — 옛 재배치로 물러난다 (취소 재측정 전 창)', () => {
+        const visited = [{ call: 1, kind: '상차' as const }];
+        expect(foldChainOrder(labels, calls, visited, 0)).toBeNull();   // ①상차가 잔여에도 남아 겹침
+    });
+    it('라벨이 못 읽히면 null', () => {
+        expect(foldChainOrder(['①상차', null, '②하차'], calls, [], 0)).toBeNull();
+        expect(foldChainOrder(['⑨상차'], calls, [], 0)).toBeNull();     // 콜 범위 밖
+    });
+    it('cut 이 범위 밖이면 null', () => {
+        expect(foldChainOrder(labels, calls, [], -1)).toBeNull();
+        expect(foldChainOrder(labels, calls, [], 7)).toBeNull();
     });
 });
