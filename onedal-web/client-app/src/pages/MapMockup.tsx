@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
     rateFloorsFrom,
     NET_RATE_PER_KM, VEHICLE_CAPACITY, CALL_TARGET_LABEL,
@@ -231,6 +231,11 @@ const STAGES: Stage[] = [
 ];
 
 type Pt = { lng: number; lat: number };
+/**
+ * 라인 모드에서 그물의 anchor 는 안 읽힌다 (`netForGoal` — line 이 있으면 buildLineNet 만 탄다).
+ * 🔴 읽히기 시작하면 바로 티가 나도록 NaN — 검사(callNet.test «라인이 있으면 anchor 를 안 읽는다»)와 한 짝.
+ */
+const LINE_ANCHOR_UNUSED = { name: '라인-무사용', lng: NaN, lat: NaN };
 /** 전체 경로의 한 구간 — 카카오가 나눠 준 그대로 (기사님 2026-09-08) */
 type ChainLeg = {
     from: string | null; to: string | null;
@@ -707,6 +712,115 @@ function KnobGrid({ knobs, open, onOpen }: { knobs: KnobDef[]; open: string | nu
     );
 }
 /** 아웃풋 키-값 한 줄 — 하단 분류 표의 기본 단위. 숨김(undefined)도 «숨김»으로 보여준다 (화면이 거짓말 안 하게) */
+/**
+ * 📦 하단 footer — **memo 부품** (실측 2026-09-11: 틱마다 화면 전체가 재생성되며 주행이 무거웠다).
+ * 원문 JSON 의 stringify(수 KB)가 접혀 있어도 매 렌더 돌았고, 지역 목록(수백 동)도 매 틱 다시
+ * 만들어졌다. props(아웃풋 참조)가 안 바뀌면 통째로 건너뛴다 — 내용·모양은 그대로다.
+ */
+const FilterFooter = memo(function FilterFooter({ out, callTarget, lineOn, routeMode }: {
+    out: ReturnType<typeof buildAppFilterOutput>;
+    callTarget: keyof typeof CALL_TARGET_LABEL; lineOn: boolean; routeMode: boolean;
+}) {
+    return (
+        <>
+        {/* 📦 하단 — 필터로 나갈 값. 축별 6열 분류 (기사님 2026-09-07: «키우고 잘 분류해서 — 스크롤 없이») */}
+        <footer className="shrink-0 border-t border-border-card bg-surface px-3 py-2 flex gap-3 h-[400px] text-[11px]">
+            {/* 열 1 · 국면 축 */}
+            <section className="w-[200px] shrink-0 rounded-xl border border-border-card bg-background p-2.5 overflow-y-auto">
+                <h2 className="text-[11px] font-black text-info mb-1">🧭 국면 축</h2>
+                <OutKv k="callTarget" v={`${out.callTarget} (${CALL_TARGET_LABEL[callTarget]})`} />
+                <OutKv k="dispatchPhase" v={out.dispatchPhase} />
+                {/* 🔴 국면(파생)을 뺐다 — 값이 한 벌이라 «어느 벌인가»가 없다 (2026-09-09) */}
+                <OutKv k="그물" v={lineOn ? '노선 (라인 ∪ 남은 마름모)' : routeMode ? '노선 — 경로 대기 (마름모 하나)' : '동선 (마름모 하나)'} />
+                <OutKv k="driverAction" v={out.driverAction} />
+                <OutKv k="isSharedMode" v={String(out.isSharedMode)} />
+                <OutKv k="isActive" v={String(out.isActive)} />
+            </section>
+            {/* 열 2 · 어디로 (지역 손잡이) */}
+            <section className="w-[230px] shrink-0 rounded-xl border border-border-card bg-background p-2.5 overflow-y-auto">
+                <h2 className="text-[11px] font-black text-info mb-1">🎯 어디로</h2>
+                <OutKv k="destinationCity" v={out.destinationCity} />
+                <OutKv k="pickupRadiusKm" v={out.pickupRadiusKm} />
+                <OutKv k="destinationRadiusKm" v={out.destinationRadiusKm} />
+                <OutKv k="detourRadiusKm" v={out.detourRadiusKm} />
+                <OutKv k="mode" v={out.mode} />
+            </section>
+            {/* 열 3 · 돈 축 */}
+            <section className="w-[230px] shrink-0 rounded-xl border border-border-card bg-background p-2.5 overflow-y-auto">
+                <h2 className="text-[11px] font-black text-info mb-1">💰 돈 축</h2>
+                <OutKv k="callDiscountPct" v={out.callDiscountPct !== undefined ? `${out.callDiscountPct}%` : undefined} />
+                <OutKv k="minFare" v={out.minFare?.toLocaleString()} />
+                <OutKv k="maxFare" v={out.maxFare?.toLocaleString()} />
+                <div className="mt-1 text-text-muted font-bold">ratePerKm (하한 원/km)</div>
+                {Object.entries(out.ratePerKm ?? {}).map(([veh, rate]) => (
+                    <OutKv key={veh} k={veh} v={`≥ ${rate}`} />
+                ))}
+            </section>
+            {/* 열 4 · 콜 속성 축 */}
+            <section className="w-[220px] shrink-0 rounded-xl border border-border-card bg-background p-2.5 overflow-y-auto">
+                <h2 className="text-[11px] font-black text-info mb-1">📦 콜 속성 축</h2>
+                <OutKv k="allowedVehicleTypes" v={out.allowedVehicleTypes?.join(' · ') || '전체'} />
+                <OutKv k="excludedKeywords" v={out.excludedKeywords?.join(' · ') || '없음'} />
+                <OutKv k="slotsUsed" v={`${out.slotsUsed} / ${TRUCK_CAPACITY_SLOTS}`} />
+                <OutKv k="capacityConfidence" v={out.capacityConfidence} />
+            </section>
+            {/* 열 5 · 지역 목록 — 제일 크다 */}
+            <section className="flex-1 min-w-0 rounded-xl border border-border-card bg-background p-2.5 overflow-y-auto">
+                <h2 className="text-[11px] font-black text-info mb-1">
+                    🗂️ 지역 목록 — keywords {out.destinationKeywords.length} · 좌표 dongs {out.destinationDongs.length}
+                    {out.excludedRegions.length > 0 && <span className="text-danger"> · 제외 {out.excludedRegions.join(' · ')}</span>}
+                </h2>
+                <div className="flex flex-col gap-1 leading-snug">
+                    {Object.entries(out.destinationGroups).map(([region, names]) => (
+                        <div key={region}>
+                            <b>{region} {names.length}</b>
+                            <span className="text-text-muted"> — {names.join(' · ')}</span>
+                        </div>
+                    ))}
+                </div>
+            </section>
+            {/* 열 6 · 원문 JSON — 접어 두고 복사만 바로 */}
+            <section className="w-[260px] shrink-0 rounded-xl border border-warning/40 bg-background p-2.5 overflow-y-auto">
+                <div className="flex items-center justify-between mb-1">
+                    <h2 className="text-[11px] font-black text-warning">📦 원문 JSON</h2>
+                    <button type="button"
+                        onClick={() => { navigator.clipboard?.writeText(JSON.stringify(out, null, 2)).catch(() => { /* 클립보드 막힘 — 무시 */ }); }}
+                        className="text-[10.5px] font-black text-text-muted hover:text-warning">📋 복사</button>
+                </div>
+                <details>
+                    <summary className="cursor-pointer text-[10.5px] font-bold text-text-muted">펼쳐 보기 (앱 피기백 그대로)</summary>
+                    <pre className="mt-1 text-[9.5px] leading-snug whitespace-pre-wrap break-all text-text-primary">{JSON.stringify(out, null, 1)}</pre>
+                </details>
+                <p className="mt-1 text-[10px] text-text-muted leading-snug">─ 하늘 사각형 = 동선 그물 · 파란 점 = 든 동 · 색 선 = 잡은 콜 경로 · 회색 선 = 지나온 길 · 띠 = 길 경유 띠</p>
+            </section>
+        </footer>
+        </>
+    );
+});
+
+/** 🗂️ 영역 시군구별 목록 — memo 부품 (동 수백 항목이 틱마다 재생성되던 것을 끊는다 · FilterFooter 와 같은 판) */
+const RegionAreaList = memo(function RegionAreaList({ groups, excluded }: {
+    groups: ReadonlyArray<{ region: string; names: string[] }>; excluded: readonly string[];
+}) {
+    return (
+        <div className="mt-1 flex flex-col gap-1 text-[10.5px] leading-snug">
+            {groups.map(g => {
+                const regionOut = isWholeRegionExcluded(excluded, g.region);
+                return (
+                    <div key={g.region}>
+                        <b className={regionOut ? 'line-through text-text-muted' : ''}>{g.region} {g.names.length}</b>{' — '}
+                        {g.names.map((n, i) => (
+                            <span key={n} className={regionOut || isRegionExcluded(excluded, g.region, n) ? 'line-through text-text-muted' : ''}>
+                                {n}{i < g.names.length - 1 ? ' · ' : ''}
+                            </span>
+                        ))}
+                    </div>
+                );
+            })}
+        </div>
+    );
+});
+
 function OutKv({ k, v }: { k: string; v: ReactNode }) {
     const hiddenVal = v === undefined || v === null;
     return (
@@ -1305,6 +1419,14 @@ export default function MapMockup() {
     }, [presetCalls, confirmed, departed, dst.name, orderStart]);
 
     const anchor: NetPoint = useMemo(() => ({ name: '내 위치', ...myPos }), [myPos]);
+    /**
+     * 🐢 **그물용 앵커 — ~300m 격자로 스냅** (실측 2026-09-11: anchor 가 매 틱 새 객체라
+     * 그물 만들기(buildLineNet, 라인이 길면 수천만 연산)가 **매 틱** 돌았다 — 주행이 무거웠던
+     * 최대 뿌리). 그물은 km 단위 판정이라 300m 스냅은 화면·아웃풋에 안 보인다.
+     * 라인 모드에선 anchor 자체가 안 읽혀서(`netForGoal`) 위 스텁으로 참조를 고정한다.
+     */
+    const gridLng = Math.round(myPos.lng * 300) / 300, gridLat = Math.round(myPos.lat * 300) / 300;
+    const netAnchor: NetPoint = useMemo(() => ({ name: '내 위치', lng: gridLng, lat: gridLat }), [gridLng, gridLat]);
 
     /**
      * 🛣️ 실도로 곡선 (기사님 2026-09-07 «콜을 잡으면 카카오에서 진짜 길찾기») —
@@ -1472,10 +1594,18 @@ export default function MapMockup() {
      * 라인이 여기서 끝나므로, 아직 안 정한 구간은 «여기 → 목적지»다.
      * 라인이 없으면 `null` — 그때 마름모는 내 위치에서 시작한다(동선과 같다).
      */
+    const lastDropRef = useRef<NetPoint | null>(null);
     const lastDrop = useMemo<NetPoint | null>(() => {
-        if (!lineOn || effPath.length < 2) return null;
+        if (!lineOn || effPath.length < 2) return (lastDropRef.current = null);
         const last = effPath[effPath.length - 1];
-        return { name: last.label ?? '마지막 하차지', lng: last.x, lat: last.y };
+        /**
+         * 🐢 **같은 자리면 같은 객체를 돌려준다** (실측 2026-09-11). 통과 도장마다 effPath 가
+         * 재계산되는데 마지막 하차지는 그대로다 — 매번 새 객체를 주면 goalNets(그물 만들기,
+         * 라인이 대전~김포면 수천만 연산)가 통과 때마다 통째로 다시 돌았다.
+         */
+        const prev = lastDropRef.current;
+        if (prev && prev.lng === last.x && prev.lat === last.y) return prev;
+        return (lastDropRef.current = { name: last.label ?? '마지막 하차지', lng: last.x, lat: last.y });
     }, [lineOn, effPath]);
 
     /**
@@ -1489,6 +1619,8 @@ export default function MapMockup() {
      * 🔴 **라인은 목적지에서 나오지 않는다 — 잡은 콜들에서 나온다.** 목적지가 파주든 집이든
      *    달릴 길은 하나뿐이다. 목적지마다 갈리는 것은 **마름모**(마지막 하차지 → 그 목적지)뿐이다.
      */
+    /** 그물에 실제로 들어가는 앵커 — 라인 모드면 고정 스텁(안 읽힘), 동선이면 300m 격자 */
+    const anchorForNet = lineOn && routeLine ? LINE_ANCHOR_UNUSED : netAnchor;
     const goalNets = useMemo(() => goals.map(g => ({
         goal: g,
         /**
@@ -1498,8 +1630,8 @@ export default function MapMockup() {
          *    목적지 원이 교집합만 그려졌다.** 한 값에서 나오면 갈라질 수 없다 (규칙 ③).
          */
         usedLine: lineOn && !!routeLine,
-        net: netForGoal(g, { line: lineOn ? routeLine : null, lineRadiusKm, lastDrop, params, anchor }),
-    })), [goals, lineOn, routeLine, lineRadiusKm, lastDrop, params, anchor]);
+        net: netForGoal(g, { line: lineOn ? routeLine : null, lineRadiusKm, lastDrop, params, anchor: anchorForNet }),
+    })), [goals, lineOn, routeLine, lineRadiusKm, lastDrop, params, anchorForNet]);
     const net = goalNets[0].net;                     // 대표 하나가 필요한 자리 (자동 맞춤 등)
     /** 🔴 판정에 쓰는 영역도 **목적지마다** 만든다 — 라인은 같고 마름모만 갈린다 (위 주석과 한 짝) */
     const zoneOfGoal = useMemo(
@@ -1509,9 +1641,23 @@ export default function MapMockup() {
      * 화면·아웃풋이 읽는 영역 = **살아 있는 마름모들의 합집합** (⑮ 기준 3).
      * 합치는 규칙(겹침·지나온 곳·통째 제외)은 `mergeGoalNets` 한 곳에 있다 — 검사가 거기서 잠근다.
      */
+    /**
+     * 🐢 **지나온 동 «수» — 그물을 다시 합칠지 정하는 숫자 하나** (실측 2026-09-11).
+     * `myProgressKm` 은 틱(120ms)마다 바뀌어서, 그대로 의존성에 두면 그물 합치기와
+     * 그 아래 파생 전부(아웃풋·지역 목록 JSX)가 **매 틱** 다시 돌았다 — 주행이 무거웠던 뿌리.
+     * 숫자 비교(O(동))만 매 틱 하고, 실제로 동이 빠질 때만 합치기를 다시 한다. 화면 결과는 같다.
+     */
+    const cutCount = useMemo(() => {
+        if (!departed) return 0;
+        let n = 0;
+        for (const g of goalNets) for (const pt of g.net.pass)
+            if (pt.progressKm != null && pt.progressKm < myProgressKm) n++;
+        return n;
+    }, [goalNets, departed, myProgressKm]);
     const areaNet = useMemo(
         () => mergeGoalNets(goalNets.map(g => g.net), { departed, myProgressKm, excluded }),
-        [goalNets, departed, myProgressKm, excluded]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- myProgressKm 대신 cutCount: 동이 실제로 빠질 때만 (위 주석)
+        [goalNets, departed, cutCount, excluded]);
     /**
      * 📦 **앱에 내려갈 필터 아웃풋** (기사님 2026-09-07: *"DB 도 서버통신도 없이, 필터 로직을
      * 잘 만들어 앱에 전달할 아웃풋만 만든다"*) — 실험실 상태에서 곧장 파생하는 순수 계산.
@@ -3998,21 +4144,7 @@ export default function MapMockup() {
 
                     <details className="border-t border-border-card pt-2">
                         <summary className="text-[10.5px] font-black text-text-muted cursor-pointer">🗂️ 영역 — 시군구별 {netCount}동{dongOut ? ` · ⛔${dongOut}` : ''}</summary>
-                        <div className="mt-1 flex flex-col gap-1 text-[10.5px] leading-snug">
-                            {areaNet.groups.map(g => {
-                                const regionOut = isWholeRegionExcluded(excluded, g.region);
-                                return (
-                                    <div key={g.region}>
-                                        <b className={regionOut ? 'line-through text-text-muted' : ''}>{g.region} {g.names.length}</b>{' — '}
-                                        {g.names.map((n, i) => (
-                                            <span key={n} className={regionOut || isExcluded(g.region, n) ? 'line-through text-text-muted' : ''}>
-                                                {n}{i < g.names.length - 1 ? ' · ' : ''}
-                                            </span>
-                                        ))}
-                                    </div>
-                                );
-                            })}
-                        </div>
+                        <RegionAreaList groups={areaNet.groups} excluded={excluded} />
                     </details>
 
                     {/**
@@ -4251,77 +4383,7 @@ export default function MapMockup() {
                 </aside>
             </div>
 
-            {/* 📦 하단 — 필터로 나갈 값. 축별 6열 분류 (기사님 2026-09-07: «키우고 잘 분류해서 — 스크롤 없이») */}
-            <footer className="shrink-0 border-t border-border-card bg-surface px-3 py-2 flex gap-3 h-[400px] text-[11px]">
-                {/* 열 1 · 국면 축 */}
-                <section className="w-[200px] shrink-0 rounded-xl border border-border-card bg-background p-2.5 overflow-y-auto">
-                    <h2 className="text-[11px] font-black text-info mb-1">🧭 국면 축</h2>
-                    <OutKv k="callTarget" v={`${appFilterOutput.callTarget} (${CALL_TARGET_LABEL[callTarget]})`} />
-                    <OutKv k="dispatchPhase" v={appFilterOutput.dispatchPhase} />
-                    {/* 🔴 국면(파생)을 뺐다 — 값이 한 벌이라 «어느 벌인가»가 없다 (2026-09-09) */}
-                    <OutKv k="그물" v={lineOn ? '노선 (라인 ∪ 남은 마름모)' : routeMode ? '노선 — 경로 대기 (마름모 하나)' : '동선 (마름모 하나)'} />
-                    <OutKv k="driverAction" v={appFilterOutput.driverAction} />
-                    <OutKv k="isSharedMode" v={String(appFilterOutput.isSharedMode)} />
-                    <OutKv k="isActive" v={String(appFilterOutput.isActive)} />
-                </section>
-                {/* 열 2 · 어디로 (지역 손잡이) */}
-                <section className="w-[230px] shrink-0 rounded-xl border border-border-card bg-background p-2.5 overflow-y-auto">
-                    <h2 className="text-[11px] font-black text-info mb-1">🎯 어디로</h2>
-                    <OutKv k="destinationCity" v={appFilterOutput.destinationCity} />
-                    <OutKv k="pickupRadiusKm" v={appFilterOutput.pickupRadiusKm} />
-                    <OutKv k="destinationRadiusKm" v={appFilterOutput.destinationRadiusKm} />
-                    <OutKv k="detourRadiusKm" v={appFilterOutput.detourRadiusKm} />
-                    <OutKv k="mode" v={appFilterOutput.mode} />
-                </section>
-                {/* 열 3 · 돈 축 */}
-                <section className="w-[230px] shrink-0 rounded-xl border border-border-card bg-background p-2.5 overflow-y-auto">
-                    <h2 className="text-[11px] font-black text-info mb-1">💰 돈 축</h2>
-                    <OutKv k="callDiscountPct" v={appFilterOutput.callDiscountPct !== undefined ? `${appFilterOutput.callDiscountPct}%` : undefined} />
-                    <OutKv k="minFare" v={appFilterOutput.minFare?.toLocaleString()} />
-                    <OutKv k="maxFare" v={appFilterOutput.maxFare?.toLocaleString()} />
-                    <div className="mt-1 text-text-muted font-bold">ratePerKm (하한 원/km)</div>
-                    {Object.entries(appFilterOutput.ratePerKm ?? {}).map(([veh, rate]) => (
-                        <OutKv key={veh} k={veh} v={`≥ ${rate}`} />
-                    ))}
-                </section>
-                {/* 열 4 · 콜 속성 축 */}
-                <section className="w-[220px] shrink-0 rounded-xl border border-border-card bg-background p-2.5 overflow-y-auto">
-                    <h2 className="text-[11px] font-black text-info mb-1">📦 콜 속성 축</h2>
-                    <OutKv k="allowedVehicleTypes" v={appFilterOutput.allowedVehicleTypes?.join(' · ') || '전체'} />
-                    <OutKv k="excludedKeywords" v={appFilterOutput.excludedKeywords?.join(' · ') || '없음'} />
-                    <OutKv k="slotsUsed" v={`${appFilterOutput.slotsUsed} / ${TRUCK_CAPACITY_SLOTS}`} />
-                    <OutKv k="capacityConfidence" v={appFilterOutput.capacityConfidence} />
-                </section>
-                {/* 열 5 · 지역 목록 — 제일 크다 */}
-                <section className="flex-1 min-w-0 rounded-xl border border-border-card bg-background p-2.5 overflow-y-auto">
-                    <h2 className="text-[11px] font-black text-info mb-1">
-                        🗂️ 지역 목록 — keywords {appFilterOutput.destinationKeywords.length} · 좌표 dongs {appFilterOutput.destinationDongs.length}
-                        {appFilterOutput.excludedRegions.length > 0 && <span className="text-danger"> · 제외 {appFilterOutput.excludedRegions.join(' · ')}</span>}
-                    </h2>
-                    <div className="flex flex-col gap-1 leading-snug">
-                        {Object.entries(appFilterOutput.destinationGroups).map(([region, names]) => (
-                            <div key={region}>
-                                <b>{region} {names.length}</b>
-                                <span className="text-text-muted"> — {names.join(' · ')}</span>
-                            </div>
-                        ))}
-                    </div>
-                </section>
-                {/* 열 6 · 원문 JSON — 접어 두고 복사만 바로 */}
-                <section className="w-[260px] shrink-0 rounded-xl border border-warning/40 bg-background p-2.5 overflow-y-auto">
-                    <div className="flex items-center justify-between mb-1">
-                        <h2 className="text-[11px] font-black text-warning">📦 원문 JSON</h2>
-                        <button type="button"
-                            onClick={() => { navigator.clipboard?.writeText(JSON.stringify(appFilterOutput, null, 2)).catch(() => { /* 클립보드 막힘 — 무시 */ }); }}
-                            className="text-[10.5px] font-black text-text-muted hover:text-warning">📋 복사</button>
-                    </div>
-                    <details>
-                        <summary className="cursor-pointer text-[10.5px] font-bold text-text-muted">펼쳐 보기 (앱 피기백 그대로)</summary>
-                        <pre className="mt-1 text-[9.5px] leading-snug whitespace-pre-wrap break-all text-text-primary">{JSON.stringify(appFilterOutput, null, 1)}</pre>
-                    </details>
-                    <p className="mt-1 text-[10px] text-text-muted leading-snug">─ 하늘 사각형 = 동선 그물 · 파란 점 = 든 동 · 색 선 = 잡은 콜 경로 · 회색 선 = 지나온 길 · 띠 = 길 경유 띠</p>
-                </section>
-            </footer>
+            <FilterFooter out={appFilterOutput} callTarget={callTarget} lineOn={lineOn} routeMode={routeMode} />
         </div>
     );
 }

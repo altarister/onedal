@@ -881,3 +881,15 @@ describe('legSound — 같은 점 구간은 «잴 것 없음»이지 «못 잼»
         expect(legSound({ distKm: 0, line: [] })).toBe(false);
     });
 });
+
+describe('netForGoal — 라인이 있으면 anchor 를 안 읽는다 (2026-09-11 · 매 틱 그물 재계산을 끊은 근거)', () => {
+    it('anchor 가 NaN 이어도 라인 그물이 정상으로 나온다', () => {
+        const line: Array<[number, number]> = [[NET_SRC.lng, NET_SRC.lat], [NET_DST.lng, NET_DST.lat]];
+        const net = netForGoal(NET_DST, {
+            line, lineRadiusKm: 6, lastDrop: null, params: WAIT_PRESET,
+            anchor: { name: '무사용', lng: NaN, lat: NaN },
+        });
+        expect(net.pass.length).toBeGreaterThan(0);
+        for (const p of net.pass) expect(Number.isFinite(p.x)).toBe(true);
+    });
+});
