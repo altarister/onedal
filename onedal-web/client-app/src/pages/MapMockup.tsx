@@ -1228,7 +1228,22 @@ export default function MapMockup() {
     const planSeqRef = useRef(0);
     /** 🔎 지나는 순간 얼릴 «마지막 예상» — 키는 `콜id-상차/하차` (실물의 `predicted_at` 자리) */
     const etaRef = useRef<Record<string, number | null>>({});
-    useEffect(() => { if (confirmed.length === 0) visitedCountRef.current = 0; }, [confirmed.length]);
+    /**
+     * 🛣️ **확정된 콜들의 실도로 경로 — 한 벌** (수술 1단계 · 기사님 승인 2026-09-11).
+     *
+     * 기사님 설계 그대로다: *"새 경로를 요청할 때는 **새로운 콜이 필터를 타고 왔을 때**야.
+     * 그때 지나온 건 빼고 최적화로 섞어 그 값을 카카오에 요청해, 가지고 온 값을 지나온 길과 연결해."*
+     *
+     * 🔴 그 값이 **이미 와 있었다** — 콜을 올릴 때 받는 `/sim/chain` 응답에 구간별
+     *    **폴리라인(`line`)**이 들어 있는데, 화면은 분·km 만 쓰고 선은 버리고 있었다.
+     *    그리고 그리기·주행용으로는 옛 계보(`effPath`→`legCache`→`drawLegs`)를 따로 돌렸다 —
+     *    「내 위치」가 둘로 뜨고 직선이 날아다닌 뿌리가 그 **두 계보**다.
+     * 🔴 여기는 **확정 순간의 chain 을 얼려 둔다.** 콜을 올릴 때마다(=새 콜이 필터를 타고
+     *    왔을 때) 내 위치 기준으로 다시 재지니, 확정하면 그 값이 곧 «남은 길»이다.
+     *    지나온 길은 궤적(동선)이 잇는다.
+     */
+    const [routeChain, setRouteChain] = useState<ChainResult | null>(null);
+    useEffect(() => { if (confirmed.length === 0) { visitedCountRef.current = 0; setRouteChain(null); } }, [confirmed.length]);
     useEffect(() => { setTerminated([]); }, [stageIdx]);   // 판을 새로 열면 취소 기록도 함께 비운다
     /**
      * 🧭 **정거장 목록을 만드는 규칙 — 한 곳이다** (규칙 ③).
@@ -1544,6 +1559,7 @@ export default function MapMockup() {
         planSeqRef.current++;                    // 판이 바뀌었다 — 늦게 오는 취소 적립을 무효로 만든다
         const prevChain = lastChainRef.current;   // 🔴 덮기 전에 붙잡는다 — 적립의 «전» 쪽이다
         lastChainRef.current = chainNow;         // 🗄️ ⑦ 이 전체 경로가 다음 합짐의 «기존 경로»가 된다
+        setRouteChain(chainNow);                 // 🛣️ 그리기가 읽는 «남은 길»도 같은 값이다 (한 벌)
         // ⏰ 최초 약속 — 확정한 이 순간 전체 경로가 말한 도착 시각. 이후 어떤 합짐이 와도 안 바뀐다
         const t0 = clockNow, noNew = circled(confirmed.length + 1);   // 🕒 모의 시계
         /** 병합 경로의 그 정거장까지 누적 분 — 🔴 약속에는 안 쓴다 (`promiseTimes` 참조) */
@@ -1724,7 +1740,7 @@ export default function MapMockup() {
         const stops = stopsFor(myPos, rest.map(c => ({ pickup: c.pickup, drop: c.drop, destName: c.destName })));
         if (!stops) {   // 남은 정거장이 없다 — 잴 것도 적립할 것도 없다
             setConfirmed(rest); setChainNow(null); setChainBefore(null); setChainPreview(null);
-            lastChainRef.current = null;
+            lastChainRef.current = null; setRouteChain(null);
             return;
         }
         setConfirmed(rest);
@@ -1734,7 +1750,7 @@ export default function MapMockup() {
             .then(d => {
                 if (seq !== planSeqRef.current) return;   // 그 사이 판이 또 바뀌었다 — 이 적립은 어긋난다
                 const after = { ...d, measuredAt: clockBaseRef.current + simMinRef.current * 60000 };
-                setChainNow(after); setChainBefore(prevChain); lastChainRef.current = after;
+                setChainNow(after); setChainBefore(prevChain); lastChainRef.current = after; setRouteChain(after);
                 const orderBefore = (prevChain?.legs ?? []).map(l => l.to);
                 setConfirmed(cs => cs.map((x, k) => {
                     const no = circled(baseCallCount + k + 1);
@@ -2535,7 +2551,27 @@ export default function MapMockup() {
                 return call > 0 ? CALL_COLORS[(call - 1) % CALL_COLORS.length] : (effPath[i + 1]?.color ?? '#e11d48');
             };
             // 잡은 콜 경로 — 구간 색 + 이름표 (레이어: 내 경로). 실도로 곡선이 오면 그걸로 잇는다
-            if (layers.route) {
+            /**
+             * 🛣️ **수술 1단계 — 선은 «확정 순간의 카카오 경로» 한 벌로 그린다** (기사님 승인 2026-09-11).
+             *
+             * 구간마다 콜 색: «to» 정거장의 콜 번호(②상차 → 콜 2)로 칠한다.
+             * 🔴 구간 하나라도 못 쟀으면(`failed`) **통째로 옛 방식으로** 물러난다 — 반쪽 그림을
+             *    이어 붙이면 다시 두 계보가 된다 (되돌리는 길이기도 하다).
+             * 🔴 첫 구간의 시작은 «잰 순간의 내 위치»다 — 달리면 그 뒤를 내가 지나왔으므로
+             *    궤적(동선)이 자연히 덮는다. 그게 기사님이 말한 «지나온 길과 연결»이다.
+             */
+            const chainLegs = routeChain?.legs ?? null;
+            const chainDrawable = !!chainLegs && chainLegs.length > 0
+                && chainLegs.every(l => !l.failed && l.line.length >= 2);
+            if (layers.route && chainDrawable) {
+                for (const l of chainLegs!) {
+                    const no = l.to ? (l.to.codePointAt(0)! - 0x2460 + 1) : 0;
+                    ctx.beginPath();
+                    l.line.forEach((p, j) => { const [px, py] = S(p.x, p.y); j === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py); });
+                    ctx.strokeStyle = no >= 1 && no <= 40 ? CALL_COLORS[(no - 1) % CALL_COLORS.length] : '#e11d48';
+                    ctx.lineWidth = 5; ctx.lineJoin = 'round'; ctx.stroke();
+                }
+            } else if (layers.route) {
                 if (drawLegs) {
                     drawLegs.forEach((leg, i) => {
                         ctx.beginPath();
@@ -2576,7 +2612,12 @@ export default function MapMockup() {
                 ctx.beginPath(); ctx.roundRect(px - w / 2, py - 26, w, 18, 6); ctx.fill(); ctx.stroke();
                 ctx.fillStyle = '#111827'; ctx.textAlign = 'center'; ctx.fillText(text, px, py - 13);
             };
-            if (layers.route) for (const p of effPath) {
+            /**
+             * 🔴 **경로의 첫 점(«내 위치»)에는 이름표를 안 붙인다.** 바로 아래에서 지금 내 위치를
+             *    `📍 내 위치` 로 따로 그린다 — 여기서 또 그리면 주행 중 **「내 위치」가 둘**로 뜬다
+             *    (옛 자리 + 지금 자리). 출발 전에는 두 점이 겹쳐 안 보였을 뿐이다.
+             */
+            if (layers.route) for (const p of effPath.slice(1)) {
                 const [px, py] = S(p.x, p.y);
                 if (p.seq) {
                     // 방문 순번 배지 — 콜 색 원 안에 흰 번호 (기사님 2026-09-07 «경로에 번호»)
