@@ -22,12 +22,17 @@ export interface LabProblem {
     calls: Array<{
         pickup: { lng: number; lat: number };
         drop: { lng: number; lat: number };
-        fare: number;
-        boxes: number;
         /** 확정까지 갈 것인가 — `false` 면 심사창에 후보로 남는다 */
         confirm: boolean;
+        /** 🗺️ 어디였나 — 읽으려고 적는 것이지 돌릴 때 쓰는 값이 아니다 */
+        where?: string;
     }>;
 }
+
+/**
+ * 🔴 **요금·짐은 문제에 안 적는다** (기사님 확정 2026-09-10) — 늘 20만원·1박스다.
+ *    지도 클릭으로 만든 콜은 가격을 알 수 없고, 지금 보는 것은 **«가는 길에 잘 잡는가»** 다.
+ */
 
 /** 초월(집) 부근 — 기사님 자리 */
 const HOME = { lng: 127.294001, lat: 37.377178 };
@@ -38,7 +43,7 @@ export const LAB_PROBLEMS: LabProblem[] = [
         why: '첫짐 하나 — 색이 나오고, «첫짐 — 밀릴 콜이 없다»가 뜨는가',
         me: HOME,
         dst: { sido: '경기', sgg: '파주시' },
-        calls: [{ pickup: { lng: 127.2555, lat: 37.4088 }, drop: { lng: 127.1445, lat: 37.5122 }, fare: 200_000, boxes: 20, confirm: false }],
+        calls: [{ pickup: { lng: 127.2555, lat: 37.4088 }, drop: { lng: 127.1445, lat: 37.5122 }, confirm: false }],
     },
     {
         name: '② 합짐 둘',
@@ -46,8 +51,8 @@ export const LAB_PROBLEMS: LabProblem[] = [
         me: HOME,
         dst: { sido: '경기', sgg: '파주시' },
         calls: [
-            { pickup: { lng: 127.2555, lat: 37.4088 }, drop: { lng: 127.1445, lat: 37.5122 }, fare: 200_000, boxes: 20, confirm: true },
-            { pickup: { lng: 127.0620, lat: 37.5560 }, drop: { lng: 126.8900, lat: 37.6510 }, fare: 150_000, boxes: 15, confirm: false },
+            { pickup: { lng: 127.2555, lat: 37.4088 }, drop: { lng: 127.1445, lat: 37.5122 }, confirm: true },
+            { pickup: { lng: 127.0620, lat: 37.5560 }, drop: { lng: 126.8900, lat: 37.6510 }, confirm: false },
         ],
     },
     {
@@ -56,9 +61,9 @@ export const LAB_PROBLEMS: LabProblem[] = [
         me: HOME,
         dst: { sido: '경기', sgg: '파주시' },
         calls: [
-            { pickup: { lng: 127.2555, lat: 37.4088 }, drop: { lng: 127.1445, lat: 37.5122 }, fare: 200_000, boxes: 20, confirm: true },
+            { pickup: { lng: 127.2555, lat: 37.4088 }, drop: { lng: 127.1445, lat: 37.5122 }, confirm: true },
             /** 🔴 **정반대(남쪽)로 크게 도는 콜** — 앞 콜의 약속을 깨야 «늦는다»가 보인다 */
-            { pickup: { lng: 127.0500, lat: 37.1400 }, drop: { lng: 126.8300, lat: 37.0100 }, fare: 90_000, boxes: 10, confirm: false },
+            { pickup: { lng: 127.0500, lat: 37.1400 }, drop: { lng: 126.8300, lat: 37.0100 }, confirm: false },
         ],
     },
     {
@@ -67,9 +72,9 @@ export const LAB_PROBLEMS: LabProblem[] = [
         me: HOME,
         dst: { sido: '경기', sgg: '파주시' },
         calls: [
-            { pickup: { lng: 127.2555, lat: 37.4088 }, drop: { lng: 127.1445, lat: 37.5122 }, fare: 200_000, boxes: 20, confirm: true },
-            { pickup: { lng: 127.0620, lat: 37.5560 }, drop: { lng: 126.8900, lat: 37.6510 }, fare: 150_000, boxes: 15, confirm: true },
-            { pickup: { lng: 126.9800, lat: 37.6100 }, drop: { lng: 126.7700, lat: 37.7400 }, fare: 180_000, boxes: 15, confirm: true },
+            { pickup: { lng: 127.2555, lat: 37.4088 }, drop: { lng: 127.1445, lat: 37.5122 }, confirm: true },
+            { pickup: { lng: 127.0620, lat: 37.5560 }, drop: { lng: 126.8900, lat: 37.6510 }, confirm: true },
+            { pickup: { lng: 126.9800, lat: 37.6100 }, drop: { lng: 126.7700, lat: 37.7400 }, confirm: true },
         ],
     },
 ];

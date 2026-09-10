@@ -1506,6 +1506,9 @@ export default function MapMockup() {
         }));
     };
 
+    /** 좌표는 지도 표와 같은 **소수 5자리**로 굳힌다 — 더 적으면 다른 동이 된다 */
+    const at5 = (p: Pt) => ({ lng: +p.lng.toFixed(5), lat: +p.lat.toFixed(5) });
+
     const confirmCall = (p: Pt, d: Pt) => {
         const id = ++callSeqRef.current;
         const caughtDest = goalsVerdict?.wonGoal?.name ?? dst.name;   // 통과한 목적지가 곧 판 (⑮ 기준 3)
@@ -1658,6 +1661,15 @@ export default function MapMockup() {
      * 🔴 마지막 콜은 **확정하지 않고 후보로 남긴다** — 심사창이 그때 보인다.
      */
     const [problemOn, setProblemOn] = useState<LabProblem | null>(null);
+    /**
+     * 📋 **기사님이 찍은 판을 그대로 문제로 뽑는다** (기사님 2026-09-10: *"내가 찍으면
+     * **그때 걸 기억하고 넣으라고**"*).
+     *
+     * 🔴 내가 좌표를 감으로 고르면 **맥락이 없다** — 그래서 앞선 문제 넷이 규칙과 어긋났다.
+     *    문제는 **기사님이 지도에서 실제로 만든 판**이라야 뜻이 있다.
+     * 🔴 요금·짐은 안 적는다 — 늘 20만원·1박스라 «달라진 것이 길뿐»이라야 한다.
+     */
+    const [captured, setCaptured] = useState<string | null>(null);
     const runProblem = async (pr: LabProblem) => {
         setProblemOn(pr);
         setConfirmed([]); setTerminated([]); setPickup(null); setDrop(null);
@@ -1669,7 +1681,7 @@ export default function MapMockup() {
         await new Promise(r => setTimeout(r, 400));
         for (const c of pr.calls) {
             setPickup(c.pickup); setDrop(c.drop);
-            setCandFare(c.fare); setCandBoxes(c.boxes);
+            setCandFare(LAB_DEFAULTS.candFare); setCandBoxes(LAB_DEFAULTS.candBoxes);
             // ⏳ 카카오가 이 콜의 경로를 물어 오는 사이를 기다린다 — 안 기다리면 약속이 빈다
             await new Promise(r => setTimeout(r, 1600));
             if (!c.confirm) break;
@@ -2814,6 +2826,24 @@ export default function MapMockup() {
                     </div>
                 </div>
             )}
+            {/**
+              * 📋 **뽑은 판** — 이 글을 그대로 나에게 주시면 문제 목록에 넣는다.
+              * 🔴 화면 밖으로 나가는 유일한 길이라 **글로** 낸다 — 내가 기사님 브라우저를 들여다볼 수는 없다.
+              */}
+            {captured && (
+                <div className="absolute inset-x-0 top-0 z-40 m-3 rounded-xl border border-warning/55 bg-surface shadow-lg p-3 flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                        <b className="text-[12px] text-warning">📋 지금 판을 문제로 — 이 글을 그대로 주세요</b>
+                        <button type="button" onClick={() => { navigator.clipboard?.writeText(captured).catch(() => { /* 클립보드 막힘 */ }); }}
+                            className="px-2 py-1 rounded-md border border-border-hover bg-background text-[11px] font-black">📋 복사</button>
+                        <button type="button" onClick={() => setCaptured(null)}
+                            className="ml-auto px-2 py-1 text-[11px] font-black text-text-muted">✕ 닫기</button>
+                    </div>
+                    <textarea readOnly value={captured} data-captured
+                        className="w-full h-[220px] rounded-lg border border-border-card bg-background p-2 text-[10.5px] font-mono leading-snug" />
+                </div>
+            )}
+
             {/* ⚙️ 상단 — 설정 모음 (기사님 2026-09-07 «상단은 설정을 모으고») */}
             {/* ⚙️ 상단 — 설정 (필터는 왼쪽 탭으로 — 기사님 2026-09-07) */}
             <header className="shrink-0 border-b border-border-card bg-surface px-3 py-2 flex flex-wrap items-center gap-x-5 gap-y-2">
@@ -2847,6 +2877,27 @@ export default function MapMockup() {
                                 {pr.name}
                             </button>
                         ))}
+                        {/**
+                          * 📋 **지금 판을 문제로** (기사님 2026-09-10: *"내가 찍으면 **그때 걸 기억하고
+                          * 넣으라고**"*). 잡아 둔 콜들과 지금 찍어 둔 후보를 **순서 그대로** 뽑는다.
+                          * 🔴 내가 좌표를 감으로 고르면 맥락이 없다 — 문제는 **기사님이 실제로 만든 판**이라야 한다.
+                          */}
+                        <button type="button" data-capture
+                            onClick={() => {
+                                const calls = [
+                                    ...confirmed.map(c => ({ pickup: at5(c.pickup), drop: at5(c.drop), confirm: true,
+                                        where: `${nearestDong(c.pickup).name} → ${nearestDong(c.drop).name}` })),
+                                    ...(pickup && drop ? [{ pickup: at5(pickup), drop: at5(drop), confirm: false,
+                                        where: `${nearestDong(pickup).name} → ${nearestDong(drop).name}` }] : []),
+                                ];
+                                setCaptured(JSON.stringify({
+                                    name: '⑤ 기사님 판', why: '(무엇을 보려는 문제인가 — 한 줄로)',
+                                    me: at5(myPos), dst: { sido: dstSido, sgg: dstSgg }, calls,
+                                }, null, 4));
+                            }}
+                            className="px-2 py-1 rounded-[7px] border border-warning/55 bg-warning/10 text-warning text-[10.5px] font-black">
+                            📋 지금 판을 문제로
+                        </button>
                     </div>
                     {/* 🔴 «이 문제가 무엇을 보려는가»를 적는다 — 안 적으면 눌러 놓고 뭘 볼지 모른다 */}
                     <p className="text-[9.5px] text-text-muted leading-snug max-w-[420px]" data-problem-why>
