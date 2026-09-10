@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
     rateFloorsFrom,
     NET_RATE_PER_KM, VEHICLE_CAPACITY, CALL_TARGET_LABEL,
@@ -3649,11 +3649,6 @@ export default function MapMockup() {
                             {callImpacts.filter(ci => !ci.isNew).map(ci => {
                                 const n = Number(ci.no.charCodeAt(0) - 0x2460) + 1;
                                 const open = sheetOpenNo === ci.disp;
-                                const late = ci.stops.reduce((m, st) => {
-                                    const real = st.passedAt ?? st.etaAt;
-                                    const d = real != null && st.promisedAt != null ? Math.round((real - st.promisedAt) / 60000) : 0;
-                                    return Math.max(m, d);
-                                }, 0);
                                 return (
                                     <div key={ci.no} className="rounded-[8px] border border-border-card bg-background overflow-hidden">
                                         {/**
@@ -3666,73 +3661,49 @@ export default function MapMockup() {
                                           * 시트와 지도가 같은 말을 하고, 왼쪽 두 칸만큼 지명이 넓어진다.
                                           * ⚠️ 콜 번호는 **호칭**(「합짐2」)이라 안 없앤다 — 열면 나오고 심사 영역이 부른다.
                                           */}
+                                        {/**
+                                          * 🔴 **줄은 격자다 — 칸이 세로로 맞아야 한눈에 읽힌다**
+                                          * (기사님 2026-09-10: *"그리드는 맞아야 한눈에 보일 것 같고"*).
+                                          *   [번호][지명][시각][±]  →  [번호][지명][시각][±]  [▾]
+                                          * 콜이 넷이어도 **시각은 시각끼리, 밀림은 밀림끼리** 한 줄로 선다.
+                                          *
+                                          * 🔴 **밀림을 상차·하차로 갈랐다** (*"상하차가 모두 지나기 전 64분인데
+                                          *    이걸 나누어 볼 필요가 있어"*). 전에는 둘 중 **큰 것 하나**만 오른쪽 끝에
+                                          *    적었다 — 그러면 «어느 쪽이 밀렸나»를 열어 봐야 알았다.
+                                          * 🔴 **«분»을 뗐다** (*"분은 우리가 다 아는 단위이니 빼자"*). 칸이 좁아지고
+                                          *    숫자만 남아 **부호(+/−)가 먼저 읽힌다.**
+                                          * 🔴 **단계 글자(«싣고 간다»)를 지웠다** — 회색이 그것을 이미 말한다:
+                                          *    상차만 회색이면 싣고 가는 중, 둘 다 회색이면 끝난 콜이다. 같은 말을 두 번 안 적는다.
+                                          */}
                                         <button type="button" onClick={() => setSheetOpenNo(open ? null : ci.disp)}
-                                            className="w-full flex items-center gap-1 px-1.5 py-1 text-left text-[11.5px] font-black tabular-nums">
+                                            className="w-full grid items-center gap-x-1 px-1.5 py-1 text-left text-[11.5px] font-black tabular-nums"
+                                            style={{ gridTemplateColumns: '13px minmax(0,1fr) 40px 26px 9px 13px minmax(0,1fr) 40px 26px 11px' }}>
                                             {ci.stops.map(st => {
-                                              /**
-                                               * 🔴 **지나간 정거장은 시각 대신 «약속을 지켰나»만 남는다**
-                                               * (기사님 2026-09-10: *"도착했으면 원래 몇 분까지 가야 하는데
-                                               * 몇 분 늦었다가 나와야 할 것 같은데.. 자리가 부족해서"*).
-                                               *
-                                               * 🔴 **자리는 오히려 남는다.** 이미 지난 정거장의 «13:46»은 결정에 안 쓴다 —
-                                               *    거기 도착한 걸 알아서 할 일이 없다. 쓰이는 것은 **약속 대비 차이** 하나뿐이고,
-                                               *    그건 `~13:46`(6칸)보다 `+7분`(4칸)이 짧다.
-                                               * 🔴 늦은 것만 노랑, 제때·일찍은 회색 — **눈을 뺏는 것이 경고 하나뿐**이 된다
-                                               *    (기사님: *"시선을 자꾸 빼앗겨"*).
-                                               * ⚠️ 약속을 모르면 통과 시각을 회색으로 둔다 — 지어내지 않는다 (규칙 ④).
-                                               */
                                               const gone = st.passedAt != null;
-                                              const diff = gone && st.promisedAt != null
-                                                  ? Math.round((st.passedAt! - st.promisedAt) / 60000) : null;
+                                              const real = st.passedAt ?? st.etaAt;
+                                              /** ± 는 **약속과 견준 값** 하나다 — 지났든 아니든 같은 셈법이다 (규칙 ③) */
+                                              const diff = real != null && st.promisedAt != null
+                                                  ? Math.round((real - st.promisedAt) / 60000) : null;
                                               return (
-                                                <span key={st.kind} className="min-w-0 flex items-center gap-1">
-                                                    {st.kind === '하차' && <span className="shrink-0 text-text-muted">→</span>}
-                                                    {/* 🔴 동그라미를 벗겼다 — 번호가 곧 색이다 (기사님 2026-09-10).
-                                                        지명은 **기본색으로 둔다** — 실제로 읽는 것이 그것이라 가장 또렷해야 한다.
-                                                        색은 «어느 콜인가»만 말하면 되고, 그 일은 번호 한 글자로 충분하다. */}
-                                                    {/* 🔴 지나갔으면 **번호도 회색**이다 — 색이 남아 있으면 눈이 그리로 간다.
-                                                        «어느 콜인가»는 아직 안 지난 쪽 번호가 여전히 말한다 */}
-                                                    <span className={`shrink-0 text-[12px] font-black tabular-nums ${gone ? 'text-text-muted' : ''}`}
+                                                <Fragment key={st.kind}>
+                                                    {st.kind === '하차' && <span className="text-text-muted text-center">→</span>}
+                                                    {/* 지나갔으면 번호도 회색 — 색이 남으면 눈이 그리로 간다 */}
+                                                    <span className={`text-[12px] ${gone ? 'text-text-muted' : ''}`}
                                                         style={gone ? undefined : { color: callTextColor(n, st.kind === '상차' ? 'pickup' : 'dropoff', theme) }}>
                                                         {st.seq ?? '?'}
                                                     </span>
-                                                    {/**
-                                                      * 🔴 **지나간 정거장은 지명이 회색이 된다** (기사님 2026-09-10:
-                                                      * *"지나간 건 상차지 지명의 색을 회색으로 하면 쉽게 어디까지
-                                                      * 진행했는지 보이겠어"*).
-                                                      *
-                                                      * 앞서 줄 전체를 흐리게(`opacity`) 했더니 **번호 색까지 죽어**
-                                                      * «어느 콜인가»가 같이 사라졌다. 회색은 **지명 하나에만** 건다 —
-                                                      * 번호는 색을 지켜 콜을 계속 가리키고, 회색 지명이 «여기까지 왔다»를 긋는다.
-                                                      * (동그라미 테두리가 하던 「다녀왔나」의 자리다)
-                                                      */}
-                                                    <span className={`truncate ${st.passedAt != null ? 'text-text-muted font-bold' : ''}`}>
+                                                    <span className={`truncate ${gone ? 'text-text-muted' : ''}`}>
                                                         {(ci.where.split(' → ')[st.kind === '상차' ? 0 : 1]) ?? ''}
                                                     </span>
-                                                    {gone
-                                                        ? (diff == null
-                                                            ? <span className="shrink-0 text-text-muted">~{hhmm(st.passedAt)}</span>
-                                                            : diff > 0
-                                                                ? <b className="shrink-0 text-warning">+{diff}분</b>
-                                                                : <span className="shrink-0 text-text-muted">{diff === 0 ? '정시' : `${-diff}분 일찍`}</span>)
-                                                        : <span className="shrink-0 text-text-muted">~{hhmm(st.etaAt)}</span>}
-                                                </span>
+                                                    <span className="text-text-muted text-right">{real != null ? hhmm(real) : '--:--'}</span>
+                                                    {/* 늦은 것만 노랑 — 제때·일찍은 회색이라 **눈을 뺏는 것이 경고 하나**다 */}
+                                                    <span className={`text-right ${diff != null && diff > 0 ? 'text-warning' : 'text-text-muted'}`}>
+                                                        {diff == null ? '' : diff > 0 ? `+${diff}` : diff}
+                                                    </span>
+                                                </Fragment>
                                               );
                                             })}
-                                            <span className="ml-auto shrink-0 flex items-center gap-1">
-                                                {/**
-                                                  * 🔴 **이 자리는 «이 콜에서 지금 알아야 할 한 가지»다** (기사님 물음 2026-09-10:
-                                                  * *"콜의 스텝을 보는 것보다 추가된 시간을 보는 것이 더 중요하다고 보는 거구나?"*).
-                                                  * 밀리면 **밀림이 이긴다** — 약속이 깨지는 것보다 급한 소식이 없다.
-                                                  * 안 밀리면 그 자리가 비므로 **금액**을 적는다 (실물 카드 타이틀 오른쪽 끝이 금액이다).
-                                                  */}
-                                                {late > 0
-                                                    ? <b className="text-warning">+{late}분</b>
-                                                    : <span className="text-text-muted font-bold">{
-                                                        ci.stops.every(st => st.passedAt != null) ? '완료'
-                                                            : ci.stops[0]?.passedAt != null ? '싣고 간다' : '상차 전'}</span>}
-                                                <span className="text-text-muted">{open ? '▴' : '▾'}</span>
-                                            </span>
+                                            <span className="text-text-muted text-right">{open ? '▴' : '▾'}</span>
                                         </button>
                                         {open && (
                                             <div className="px-2 pb-1.5 flex flex-col gap-0.5 text-[10.5px] tabular-nums border-t border-border-card pt-1">
