@@ -3684,8 +3684,15 @@ export default function MapMockup() {
                                           *    상차만 회색이면 싣고 가는 중, 둘 다 회색이면 끝난 콜이다. 같은 말을 두 번 안 적는다.
                                           */}
                                         <button type="button" onClick={() => setSheetOpenNo(open ? null : ci.disp)}
-                                            className="w-full grid items-center gap-x-1 px-1.5 py-1 text-left text-[11.5px] font-black tabular-nums"
-                                            style={{ gridTemplateColumns: '13px minmax(0,1fr) 40px 26px 10px 13px minmax(0,1fr) 40px 26px 11px' }}>
+                                            className="w-full grid items-center px-1.5 py-1 text-left text-[11.5px] font-black tabular-nums"
+                                            /**
+                                              * 🔴 **칸 사이 틈을 0 으로 두고 여백은 칸 «안»에** — 틈이 있으면 바탕이 끊겨
+                                              *    덩어리가 아니라 **상자 넷**으로 보인다 (기사님 화면 2026-09-10).
+                                              * 🔴 **남는 폭은 가운데(1fr)로 몬다** — 지명 칸이 1fr 이면 상차 넷이 흩어져
+                                              *    «한 덩어리»가 안 된다. 지명은 `auto`(가장 긴 이름만큼)라 **칸은 여전히 세로로 맞고**,
+                                              *    남는 자리는 전부 두 덩어리 **사이의 틈**이 된다 (근접성).
+                                              */
+                                            style={{ gridTemplateColumns: '15px auto 44px 30px minmax(14px,1fr) 15px auto 44px 30px 11px' }}>
                                             {ci.stops.map(st => {
                                               const gone = st.passedAt != null;
                                               const real = st.passedAt ?? st.etaAt;
@@ -3710,20 +3717,20 @@ export default function MapMockup() {
                                                       * 🔴 선(1px)도 뺐다 — **바탕 · 틈 · 선이 셋 다 있으면 그게 «복잡함»이다.** 둘로 충분하다.
                                                       */}
                                                     {st.kind === '하차' && <span />}
-                                                    <span className={`text-[12px] rounded-l pl-0.5 py-0.5 ${gone ? 'text-text-muted' : ''}`}
+                                                    <span className={`text-[12px] rounded-l-md pl-1 py-0.5 ${gone ? 'text-text-muted' : ''}`}
                                                         style={{ ...(st.kind === '상차' ? GROUP_TINT : null),
                                                             ...(gone ? null : { color: callTextColor(n, st.kind === '상차' ? 'pickup' : 'dropoff', theme) }) }}>
                                                         {st.seq ?? '?'}
                                                     </span>
-                                                    <span className={`truncate py-0.5 ${gone ? 'text-text-muted' : ''}`}
+                                                    <span className={`truncate px-1 py-0.5 ${gone ? 'text-text-muted' : ''}`}
                                                         style={st.kind === '상차' ? GROUP_TINT : undefined}>
                                                         {(ci.where.split(' → ')[st.kind === '상차' ? 0 : 1]) ?? ''}
                                                     </span>
-                                                    <span className="text-text-muted text-right py-0.5" style={st.kind === '상차' ? GROUP_TINT : undefined}>
+                                                    <span className="text-text-muted text-right px-1 py-0.5" style={st.kind === '상차' ? GROUP_TINT : undefined}>
                                                         {real != null ? hhmm(real) : '--:--'}
                                                     </span>
                                                     {/* 늦은 것만 노랑 — 제때·일찍은 회색이라 **눈을 뺏는 것이 경고 하나**다 */}
-                                                    <span className={`text-right rounded-r pr-0.5 py-0.5 ${diff != null && diff > 0 ? 'text-warning' : 'text-text-muted'}`}
+                                                    <span className={`text-right rounded-r-md pr-1 py-0.5 ${diff != null && diff > 0 ? 'text-warning' : 'text-text-muted'}`}
                                                         style={st.kind === '상차' ? GROUP_TINT : undefined}>
                                                         {diff == null ? '' : diff > 0 ? `+${diff}` : diff}
                                                     </span>
