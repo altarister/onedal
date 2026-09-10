@@ -235,6 +235,31 @@ const DEFAULT_SIDO = '경기', DEFAULT_SGG = '파주시';
 const VEHICLE_SHORT: Record<string, string> = { 오토바이: '오', 승용차: '승', 다마스: '다', 라보: '라', '1t': '1t' };
 
 /** 콜 번호별 경로 색 — ①은 프리셋 경로의 기본색과 같은 장미로 잇는다 */
+/**
+ * ☎️ **통화로 정한 약속의 색** — 보라 (기사님 지정 2026-09-10).
+ * 판정색 넷(파랑·초록·노랑·빨강)과 안 겹치는 유일한 색이라 **다른 층의 말**로 읽힌다.
+ */
+const PROMISE_CALLED = '#a78bfa';
+
+/**
+ * ▒ **정거장 상자의 바탕 — 콜의 색** (기사님 확정 2026-09-10:
+ * *"상차와 하차 모두 박스를 만들어 넣어 줘. 색을 콜의 색으로 배경을 넣어 주고"*).
+ *
+ * 🔴 **둘 다 상자다.** 앞서 상차에만 옅은 바탕을 깔았더니 «한쪽만 상자»라 짝이 안 맞았다.
+ *    둘 다 상자면 «콜 하나 = 상자 둘»이 되어 **덩어리가 눈에 먼저** 들어온다.
+ * 🔴 **색이 콜을 가리킨다** — 지도 마커·경로와 같은 색조다(`callTone`). 상차는 밝고 하차는 깊게라
+ *    한 콜 안에서도 두 상자가 갈린다. 글자를 덮으면 안 되므로 **투명도로만** 깐다.
+ * 🔴 **지나간 정거장은 회색 상자다** — 색이 남으면 눈이 그리로 간다(흑백 원칙).
+ */
+function stopBoxBg(callNo: number, stop: 'pickup' | 'dropoff', theme: 'dark' | 'light', gone: boolean): string {
+    if (gone) return 'color-mix(in srgb, var(--color-text-primary) 7%, transparent)';
+    const t = callTone(callNo);
+    const [sat] = stop === 'pickup' ? t.pick : t.drop;
+    const light = theme === 'dark' ? (stop === 'pickup' ? 58 : 46) : (stop === 'pickup' ? 62 : 52);
+    const alpha = stop === 'pickup' ? 0.22 : 0.16;   // 상차가 조금 더 진하다 — 밝기 차와 같은 방향
+    return `hsl(${t.hue} ${sat}% ${light}% / ${alpha})`;
+}
+
 const CALL_COLORS = ['#e11d48', '#a78bfa', '#2dd4bf', '#fb923c', '#facc15', '#34d399', '#60a5fa', '#f472b6'];
 
 /* ── 웹 메르카토르 — OSM 타일과 같은 투영이라야 배경과 도형이 어긋나지 않는다 ── */
@@ -1443,6 +1468,19 @@ export default function MapMockup() {
     const lastChainRef = useRef<ChainResult | null>(null);
     /** ✅ 콜 확정 — 리스트에 넣고, 그 콜의 배송 거리·시간·톨비를 실측해 카드에 붙인다 (기사님 2026-09-08).
      *  ⚠️ 옵션은 카카오 «추천» 하나다 (서버 calculateSoloRoute 기본값) — 길 찾기의 5옵션과 다르다. 카드에 표기함 */
+    /**
+     * ☎️ **«통화로 정한 약속»을 켜고 끈다** (기사님 2026-09-10).
+     * 🔴 값은 **콜이 들고 있다** — 화면이 따로 목록을 두면 두 벌이 되어 갈린다 (규칙 ③).
+     */
+    const toggleCalled = (disp: string, kind: '상차' | '하차') => {
+        setConfirmed(list => list.map((c, i) => {
+            if (circled(baseCallCount + i + 1) !== disp) return c;
+            const key = kind === '상차' ? 'pickup' : 'dropoff';
+            const step = c.steps[key];
+            return { ...c, steps: { ...c.steps, [key]: { ...step, promiseBy: step.promiseBy === '통화' ? '추정' : '통화' } } };
+        }));
+    };
+
     const confirmCall = (p: Pt, d: Pt) => {
         const id = ++callSeqRef.current;
         const caughtDest = goalsVerdict?.wonGoal?.name ?? dst.name;   // 통과한 목적지가 곧 판 (⑮ 기준 3)
@@ -1886,11 +1924,13 @@ export default function MapMockup() {
                         : (c?.distKm != null ? { from: `${no}상차`, to: label, distKm: c.distKm, durMin: c.durMin ?? null } : null);
                     const step = c ? (kind === '상차' ? c.steps.pickup : c.steps.dropoff) : null;
                     const promised = step?.promisedAt ?? null;
+                    /** ☎️ 통화로 정한 약속인가 — 화면이 이 값 하나로 색을 낸다 */
+                    const promiseBy = step?.promiseBy ?? null;
                     return {
                         kind, label,
                         leg: saved ?? fromChain, fromSaved: !!saved,
                         seq: fullOrder.indexOf(label) + 1 || null,   // 🔢 실제 방문 순번
-                        promisedAt: promised,
+                        promisedAt: promised, promiseBy,
                         impacts: step?.impacts ?? [],          // 🧾 앞선 확정들이 이 정거장을 민 내역
                         /**
                          * 🔴 **지나간 정거장에 «예정»은 없다** (기사님 2026-09-09: *"이 지역을
@@ -3686,23 +3726,38 @@ export default function MapMockup() {
                                               /** ± 는 **약속과 견준 값** 하나다 — 지났든 아니든 같은 셈법이다 (규칙 ③) */
                                               const diff = real != null && st.promisedAt != null
                                                   ? Math.round((real - st.promisedAt) / 60000) : null;
+                                              const box = stopBoxBg(n, st.kind === '상차' ? 'pickup' : 'dropoff', theme, gone);
                                               return (
                                                 <Fragment key={st.kind}>
                                                     {st.kind === '하차' && <span />}
                                                     {/* 순번 — 지나갔으면 흑백. 색이 남아 있으면 눈이 그리로 간다 */}
-                                                    <span className={`text-[12px] ${gone ? 'text-text-muted' : ''}`}
-                                                        style={gone ? undefined : { color: callTextColor(n, st.kind === '상차' ? 'pickup' : 'dropoff', theme) }}>
+                                                    <span className={`text-[12px] rounded-l-md pl-1 py-0.5 ${gone ? 'text-text-muted' : ''}`}
+                                                        style={{ background: box, ...(gone ? null : { color: callTextColor(n, st.kind === '상차' ? 'pickup' : 'dropoff', theme) }) }}>
                                                         {st.seq ?? '?'}
                                                     </span>
-                                                    <span className={`truncate px-1 ${gone ? 'text-text-muted' : ''}`}>
+                                                    <span className={`truncate px-1 py-0.5 ${gone ? 'text-text-muted' : ''}`} style={{ background: box }}>
                                                         {(ci.where.split(' → ')[st.kind === '상차' ? 0 : 1]) ?? ''}
                                                     </span>
-                                                    {/* 약속 — **두 시점 모두** 적는다. 견줄 것이 없으면 늦었는지 알 수 없다 */}
-                                                    <span className="text-text-muted text-right px-1">{hhmm(st.promisedAt)}</span>
+                                                    {/**
+                                                      * ☎️ **직접 통화로 정한 약속은 보라색** (기사님 확정 2026-09-10:
+                                                      * *"아이콘을 넣으면 그리드가 깨진다. 그냥 직접 통화한 건 시간을 보라색으로 해 줘"*).
+                                                      *
+                                                      * 🔴 기호(🔒)를 안 쓴 이유가 그것이다 — 한 글자가 붙는 순간 칸 너비가 흔들려
+                                                      *    **격자가 깨진다.** 색은 **폭을 0 만큼** 쓴다.
+                                                      * 🔴 보라색은 «못 민다»는 뜻이다 — *"그 이상은 해선 안 되고 무조건 약속을 이행해야 한다"*.
+                                                      *    회색이면 아직 서버 추정이라 통화로 미룰 여지가 있다.
+                                                      */}
+                                                    <span className="text-right px-1 py-0.5"
+                                                        style={{ background: box, color: st.promiseBy === '통화' ? PROMISE_CALLED : 'var(--color-text-muted)' }}>
+                                                        {hhmm(st.promisedAt)}
+                                                    </span>
                                                     {/* 넷째 칸 — 지났으면 «도착», 아직이면 «예상» */}
-                                                    <span className={`text-right px-1 ${gone ? 'text-text-muted' : ''}`}>{real != null ? hhmm(real) : '--:--'}</span>
+                                                    <span className={`text-right px-1 py-0.5 ${gone ? 'text-text-muted' : ''}`} style={{ background: box }}>
+                                                        {real != null ? hhmm(real) : '--:--'}
+                                                    </span>
                                                     {/* 추가된 시간 — 늦은 것만 노랑. 지난 줄은 흑백이라 조용하다 */}
-                                                    <span className={`text-right pr-1 ${diff != null && diff > 0 && !gone ? 'text-warning' : 'text-text-muted'}`}>
+                                                    <span className={`text-right rounded-r-md pr-1 py-0.5 ${diff != null && diff > 0 && !gone ? 'text-warning' : 'text-text-muted'}`}
+                                                        style={{ background: box }}>
                                                         {diff == null ? '' : diff > 0 ? `+${diff}` : diff}
                                                     </span>
                                                 </Fragment>
@@ -3722,7 +3777,17 @@ export default function MapMockup() {
                                                                     <span className="font-normal text-text-muted"> {st.leg?.distKm ?? '--'}km·{st.leg?.durMin ?? '--'}분</span>
                                                                 </span>
                                                                 <span>
-                                                                    <span className="text-text-muted">{hhmm(st.promisedAt)} → </span>
+                                                                    {/**
+                                                                      * ☎️ **약속을 눌러 «통화로 정함»을 켠다** — 조율 통화창이 서기 전까지의 임시 손잡이가
+                                                                      * 아니라, 통화창이 결국 **이 값 하나**를 바꾼다. 여기서 그 자리를 먼저 만들어 둔다.
+                                                                      * 켜면 타이틀의 약속 시각이 보라색이 되고 «더는 못 민다»는 뜻이 된다.
+                                                                      */}
+                                                                    <button type="button" title="눌러서 «통화로 정한 약속»으로 표시"
+                                                                        onClick={e => { e.stopPropagation(); toggleCalled(ci.disp, st.kind); }}
+                                                                        style={{ color: st.promiseBy === '통화' ? PROMISE_CALLED : 'var(--color-text-muted)' }}>
+                                                                        {hhmm(st.promisedAt)}
+                                                                    </button>
+                                                                    <span className="text-text-muted"> → </span>
                                                                     <b className={d != null && d > 0 ? 'text-warning' : 'text-success'}>{hhmm(real)}</b>
                                                                     {st.passedAt != null && <span className="text-success text-[9px]"> 통과</span>}
                                                                     {d != null && d > 0 && <b className="text-warning"> +{d}분</b>}

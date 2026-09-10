@@ -43,7 +43,8 @@ describe('🚚 이식 대조 — 실험실이 가리키는 실물 칸이 실제�
 
     it('정거장 쪽에서 아직 안 판 칸도 눈에 보인다', () => {
         const todo = Object.entries(STOP_STEP_TO_REAL).filter(([, v]) => v.col === null).map(([k]) => k);
-        expect(todo).toEqual(['impacts']);                   // → 실물 `step_arrive_*.system_reasons`
+        // 🆕 `promiseBy`(약속을 통화로 정했나)가 2026-09-10 에 늘었다 — 이식 때 `step_arrive_*` 에 판다
+        expect(todo).toEqual(['promiseBy', 'impacts']);      // impacts → 실물 `step_arrive_*.system_reasons`
     });
 
     it('아직 안 판 칸이 무엇인지 눈에 보인다 — 이식 때 여기부터 판다', () => {

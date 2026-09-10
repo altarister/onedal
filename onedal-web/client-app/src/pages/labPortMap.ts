@@ -29,6 +29,16 @@ export type StopStep = {
     /** 어떻게 알았나 — 자동(GPS) · 직접 · 건너뜀 */
     source: string | null;
     /**
+     * ☎️ **약속을 어떻게 정했나** — `추정`(서버가 규칙으로 넣은 값) · `통화`(기사님이 걸어서 받은 값).
+     *
+     * 🔴 위 `source` 와 **다른 질문**이다 (규칙 ⑤-4 ⑤). `source` 는 «어떻게 **지났나**»(GPS·직접),
+     *    이 칸은 «어떻게 **정했나**»다. 한 칸에 담으면 «GPS 로 지난 통화 약속»을 못 적는다.
+     * 🔴 이 값이 화면을 바꾼다 — **통화로 정한 약속은 시각이 보라색**이고, 그건
+     *    *"그 이상은 해선 안 되고 무조건 이행해야 한다"* 는 뜻이다 (기사님 확정 2026-09-10).
+     * ⚠️ **실물에 아직 칸이 없다** — 이식 때 `step_arrive_*` 에 한 칸을 더한다.
+     */
+    promiseBy?: '추정' | '통화' | null;
+    /**
      * 🧾 **누가 이 정거장을 몇 분 밀었나** — 콜을 확정할 때마다 한 줄씩 **쌓는다**
      * (기사님 확정 2026-09-09: *"31분이 왜 밀린 건지 그 요소들만 딱 들어갔으면"*).
      *
@@ -47,6 +57,8 @@ export const STOP_STEP_TO_REAL: Record<keyof StopStep, { tables: string[]; col: 
     predictedAt: { tables: ['step_arrive_pickup', 'step_arrive_dropoff'], col: 'predicted_at' },
     occurredAt:  { tables: ['step_arrive_pickup', 'step_arrive_dropoff'], col: 'occurred_at' },
     source:      { tables: ['step_arrive_pickup', 'step_arrive_dropoff'], col: 'source' },
+    /** ⚠️ **실물에 아직 칸이 없다** — 이식 때 `step_arrive_*` 에 한 칸을 더한다 (기사님 2026-09-10) */
+    promiseBy:   { tables: ['step_arrive_pickup', 'step_arrive_dropoff'], col: null },
     /**
      * 🆕 실물에 **아직 없는 칸**이다 (`null`). 이식 때 `system_reasons TEXT` 로 판다.
      * 🔴 기사님이 고르는 `reasons`(사고·문 잠김…)와 **다른 칸**이어야 한다 — 한 칸에 섞으면
