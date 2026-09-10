@@ -2818,6 +2818,31 @@ export default function MapMockup() {
                         ? 'bg-danger/15 border-danger/55 text-danger' : 'border-border-hover bg-background hover:border-danger'}`}>
                     {clickMode === 'me' ? '📍 지도 클릭 → 내 위치…' : '📍 내 위치 찍기'}
                 </button>
+                {/**
+                  * 🧪 **콜 문제 — 상단에 둔다** (기사님 2026-09-10 *"문제 목록을 상단에 넣어 줘"*).
+                  *
+                  * 🔴 **문제는 화면에 산다.** 검사 스크립트(`pnpm lab`)는 **이 버튼을 누른다** —
+                  *    기사님이 누르는 것과 **글자 그대로 같은 것**이 돈다 (규칙 ③: 원천 하나).
+                  *    좌표를 스크립트에만 박아 두면 «나만 돌릴 수 있는 것»이 되어 문제가 아니다.
+                  * 🔴 상단은 «판을 고르는 자리»다 — 왼쪽은 필터(콜 하나하나의 조건)라 층이 다르다.
+                  */}
+                <div className="flex flex-col gap-1 min-w-[300px]">
+                    <div className="flex items-center gap-1 flex-wrap">
+                        <span className="text-[11px] font-black text-info">🧪</span>
+                        {LAB_PROBLEMS.map(pr => (
+                            <button key={pr.name} type="button" data-problem={pr.name}
+                                onClick={() => { void runProblem(pr); }}
+                                className={`px-2 py-1 rounded-[7px] border text-[10.5px] font-black ${problemOn?.name === pr.name
+                                    ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-background text-text-muted hover:border-info'}`}>
+                                {pr.name}
+                            </button>
+                        ))}
+                    </div>
+                    {/* 🔴 «이 문제가 무엇을 보려는가»를 적는다 — 안 적으면 눌러 놓고 뭘 볼지 모른다 */}
+                    <p className="text-[9.5px] text-text-muted leading-snug max-w-[420px]" data-problem-why>
+                        {problemOn ? `${problemOn.name} — ${problemOn.why}` : '콜 문제 — 누르면 그 상황이 그대로 재현됩니다 (검사 pnpm lab 이 같은 버튼을 누릅니다)'}
+                    </p>
+                </div>
                 <div className="flex items-center gap-1 flex-wrap max-w-[340px]">
                     <span className="text-[11px] font-black text-info">🧅</span>
                     {([['base', '배경'], ['border', '경계'], ['net', '그물'], ['route', '경로'], ['trail', '동선'], ['call', '시험콜']] as const).map(([k, label]) => (
@@ -2867,31 +2892,6 @@ export default function MapMockup() {
             <div className="flex-1 min-h-0 flex">
                 {/* 🗂️ 왼쪽 — 필터 (기사님 2026-09-07 와이어프레임: 필터 → 판정 → 콜 리스트) */}
                 <aside className="w-[460px] shrink-0 border-r border-border-card bg-surface p-3 flex flex-col gap-2 overflow-y-auto">
-                    {/**
-                      * 🧪 **콜 문제 — 눌러서 같은 상황을 부른다** (기사님 확정 2026-09-10:
-                      * *"콜 문제로 만들어 돌릴 수 있게"* · *"**나도 화면에서 볼 수 있게** 만들어 줘야지"*).
-                      *
-                      * 🔴 **문제는 화면에 산다.** 검사 스크립트(`pnpm lab`)는 **이 버튼을 누른다** —
-                      *    기사님이 누르는 것과 **글자 그대로 같은 것**이 돈다 (규칙 ③: 원천 하나).
-                      *    좌표를 스크립트에만 박아 두면 «나만 돌릴 수 있는 것»이 되어 문제가 아니다.
-                      */}
-                    <div className="flex flex-col gap-1">
-                        <div className="grid grid-cols-4 gap-1">
-                            {LAB_PROBLEMS.map(pr => (
-                                <button key={pr.name} type="button" data-problem={pr.name}
-                                    onClick={() => { void runProblem(pr); }}
-                                    className={`px-1 py-1 rounded-[8px] border text-[10.5px] font-black leading-tight ${problemOn?.name === pr.name
-                                        ? 'bg-info/15 border-info/55 text-info' : 'border-border-card bg-background text-text-muted hover:border-info'}`}>
-                                    {pr.name}
-                                </button>
-                            ))}
-                        </div>
-                        {/* 🔴 «이 문제가 무엇을 보려는가»를 적는다 — 안 적으면 눌러 놓고 뭘 볼지 모른다 */}
-                        <p className="text-[9.5px] text-text-muted leading-snug" data-problem-why>
-                            {problemOn ? `🧪 ${problemOn.name} — ${problemOn.why}` : '🧪 콜 문제 — 누르면 그 상황이 그대로 재현됩니다 (검사 pnpm lab 이 같은 버튼을 누릅니다)'}
-                        </p>
-                    </div>
-
                     {/* 🎯 요약줄 — 실물 규격 그대로 (OrderFilterStatus: «🎯 노선행 · 여기서 10km → 서울 1km · 📦 90/100»).
                         라벨은 shared CALL_TARGET_LABEL, 값은 지금 필터 상태에서 파생 (기사님 2026-09-07) */}
                     <div className="rounded-[8px] border border-border-card bg-background px-2 py-1.5 text-[11px] font-black leading-snug">
