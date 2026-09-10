@@ -33,6 +33,8 @@ import { buildLabFacts, extraDriveMin } from './labJudge';
 import { promiseTimes, impactOfStop, splitDropImpact, type StopStep } from './labPortMap';
 // ⏱️ 시간·정거장 이름은 한 곳에서 만든다 (labTime.test.ts 가 지킨다)
 import { circled, hhmm, cumMinutes, arrivalAt, visitOrder } from './labTime';
+// 🧪 콜 문제 — **화면이 버튼으로 그리고, 검사(`pnpm lab`)가 그 버튼을 누른다** (원천 하나)
+import { LAB_PROBLEMS, type LabProblem } from './labProblems';
 import {
     netForGoal, lineZoneOf, progressAlongKm, sidoList, sggList, dongList, isRegionExcluded, isWholeRegionExcluded, excludedLabel, mergeGoalNets, judgeGoals, activeGoals, nearestDong, orderStopsInsert, pickNextTarget, cityCenter, isLocalPhase, NET_SRC, NET_DST,
     GONJIAM_DROP, DONGWON_DROP, BORAM_DROP,
@@ -1642,6 +1644,37 @@ export default function MapMockup() {
     };
 
     /**
+     * 🧪 **콜 문제를 화면에 얹는다** (기사님 2026-09-10: *"나도 화면에서 볼 수 있게"*).
+     *
+     * 🔴 **지름길로 상태를 채우지 않는다** — 기사님이 지도를 두 번 눌러 만드는 그 길
+     *    (`setPickup` → `setCandFare` → `confirmCall`)을 **그대로 따라간다.**
+     *    상태만 몰래 채우면 «되던 것이 안 되는» 것을 문제가 못 잡는다.
+     * 🔴 마지막 콜은 **확정하지 않고 후보로 남긴다** — 심사창이 그때 보인다.
+     */
+    const [problemOn, setProblemOn] = useState<LabProblem | null>(null);
+    const runProblem = async (pr: LabProblem) => {
+        setProblemOn(pr);
+        setConfirmed([]); setTerminated([]); setPickup(null); setDrop(null);
+        // 🔴 `setLogs` 는 여기서 안 부른다 — 선언이 아래라 «선언 전에 쓴다»(화면이 하얘지는 그 규칙)다.
+        //    판정 기록은 문제를 갈아도 **남는 것이 맞다** — 무엇을 눌러 왔는지가 그 목록이다.
+        setDriving(false); setPausedForCall(false); setUploaded(false);
+        await new Promise(r => setTimeout(r, 260));
+        setMyPos(pr.me); setDstSido(pr.dst.sido); setDstSgg(pr.dst.sgg);
+        await new Promise(r => setTimeout(r, 400));
+        for (const c of pr.calls) {
+            setPickup(c.pickup); setDrop(c.drop);
+            setCandFare(c.fare); setCandBoxes(c.boxes);
+            // ⏳ 카카오가 이 콜의 경로를 물어 오는 사이를 기다린다 — 안 기다리면 약속이 빈다
+            await new Promise(r => setTimeout(r, 1600));
+            if (!c.confirm) break;
+            confirmCall(c.pickup, c.drop);
+            setPickup(null); setDrop(null);
+            await new Promise(r => setTimeout(r, 1800));
+        }
+    };
+
+
+    /**
      * 🧹 **콜 취소 — 지우지 않고 옮긴다** (5단계 · 기사님 2026-09-09 *"2번째 콜이 취소될 때"*).
      *
      * 빠지면 남은 정거장이 **앞당겨진다.** 그 분을 «음수»로 적립해야 사이클이 이어진다 —
@@ -2834,6 +2867,31 @@ export default function MapMockup() {
             <div className="flex-1 min-h-0 flex">
                 {/* 🗂️ 왼쪽 — 필터 (기사님 2026-09-07 와이어프레임: 필터 → 판정 → 콜 리스트) */}
                 <aside className="w-[460px] shrink-0 border-r border-border-card bg-surface p-3 flex flex-col gap-2 overflow-y-auto">
+                    {/**
+                      * 🧪 **콜 문제 — 눌러서 같은 상황을 부른다** (기사님 확정 2026-09-10:
+                      * *"콜 문제로 만들어 돌릴 수 있게"* · *"**나도 화면에서 볼 수 있게** 만들어 줘야지"*).
+                      *
+                      * 🔴 **문제는 화면에 산다.** 검사 스크립트(`pnpm lab`)는 **이 버튼을 누른다** —
+                      *    기사님이 누르는 것과 **글자 그대로 같은 것**이 돈다 (규칙 ③: 원천 하나).
+                      *    좌표를 스크립트에만 박아 두면 «나만 돌릴 수 있는 것»이 되어 문제가 아니다.
+                      */}
+                    <div className="flex flex-col gap-1">
+                        <div className="grid grid-cols-4 gap-1">
+                            {LAB_PROBLEMS.map(pr => (
+                                <button key={pr.name} type="button" data-problem={pr.name}
+                                    onClick={() => { void runProblem(pr); }}
+                                    className={`px-1 py-1 rounded-[8px] border text-[10.5px] font-black leading-tight ${problemOn?.name === pr.name
+                                        ? 'bg-info/15 border-info/55 text-info' : 'border-border-card bg-background text-text-muted hover:border-info'}`}>
+                                    {pr.name}
+                                </button>
+                            ))}
+                        </div>
+                        {/* 🔴 «이 문제가 무엇을 보려는가»를 적는다 — 안 적으면 눌러 놓고 뭘 볼지 모른다 */}
+                        <p className="text-[9.5px] text-text-muted leading-snug" data-problem-why>
+                            {problemOn ? `🧪 ${problemOn.name} — ${problemOn.why}` : '🧪 콜 문제 — 누르면 그 상황이 그대로 재현됩니다 (검사 pnpm lab 이 같은 버튼을 누릅니다)'}
+                        </p>
+                    </div>
+
                     {/* 🎯 요약줄 — 실물 규격 그대로 (OrderFilterStatus: «🎯 노선행 · 여기서 10km → 서울 1km · 📦 90/100»).
                         라벨은 shared CALL_TARGET_LABEL, 값은 지금 필터 상태에서 파생 (기사님 2026-09-07) */}
                     <div className="rounded-[8px] border border-border-card bg-background px-2 py-1.5 text-[11px] font-black leading-snug">
