@@ -1652,57 +1652,29 @@ export default function MapMockup() {
             });
     };
 
-    /**
-     * 🧪 **콜 문제를 화면에 얹는다** (기사님 2026-09-10: *"나도 화면에서 볼 수 있게"*).
-     *
-     * 🔴 **지름길로 상태를 채우지 않는다** — 기사님이 지도를 두 번 눌러 만드는 그 길
-     *    (`setPickup` → `setCandFare` → `confirmCall`)을 **그대로 따라간다.**
-     *    상태만 몰래 채우면 «되던 것이 안 되는» 것을 문제가 못 잡는다.
-     * 🔴 마지막 콜은 **확정하지 않고 후보로 남긴다** — 심사창이 그때 보인다.
-     */
     const [problemOn, setProblemOn] = useState<LabProblem | null>(null);
     /**
      * 📋 **기사님이 찍은 판을 그대로 문제로 뽑는다** (기사님 2026-09-10: *"내가 찍으면
-     * **그때 걸 기억하고 넣으라고**"*).
-     *
-     * 🔴 내가 좌표를 감으로 고르면 **맥락이 없다** — 그래서 앞선 문제 넷이 규칙과 어긋났다.
-     *    문제는 **기사님이 지도에서 실제로 만든 판**이라야 뜻이 있다.
-     * 🔴 요금·짐은 안 적는다 — 늘 20만원·1박스라 «달라진 것이 길뿐»이라야 한다.
+     * **그때 걸 기억하고 넣으라고**"*). 좌표가 아니라 **동 이름**으로 읽히게 «어디였나»를 함께 적는다.
      */
     const [captured, setCaptured] = useState<string | null>(null);
-    const runProblem = async (pr: LabProblem) => {
+
+    /**
+     * 🧪 **문제 버튼은 «판만 세운다» — 콜은 기사님이 누른다** (기사님 확정 2026-09-10:
+     * *"왜 자동이야. **클릭은 내가 할게. 자동 빼.**"*).
+     *
+     * 🔴 전에는 버튼 하나가 콜을 다 잡고 주행까지 했다. 그러면 **내가 돌린 것**이지
+     *    기사님이 보시는 것이 아니다 — 중간에 멈춰 보거나 다르게 눌러 볼 수가 없다.
+     *    이제 이 함수는 **판을 비우고 목적지·시작 자리만** 놓는다.
+     *    콜은 오른쪽 「🧪 콜 문제」 목록에서 **한 줄씩 눌러** 만든다 (주행도 그 줄이 함께 한다).
+     */
+    const runProblem = (pr: LabProblem) => {
         setProblemOn(pr);
         setConfirmed([]); setTerminated([]); setPickup(null); setDrop(null);
-        // 🔴 `setLogs` 는 여기서 안 부른다 — 선언이 아래라 «선언 전에 쓴다»(화면이 하얘지는 그 규칙)다.
-        //    판정 기록은 문제를 갈아도 **남는 것이 맞다** — 무엇을 눌러 왔는지가 그 목록이다.
-        setDriving(false); setPausedForCall(false); setUploaded(false);
-        setHomeOn(false);
-        setMyPos(pr.start ?? LAB_START);                    // 📍 문제가 시작 자리를 주면 거기서 (안 주면 집)
+        setDriving(false); setPausedForCall(false); setUploaded(false); setHomeOn(false);
+        setMyPos(pr.start ?? LAB_START);                    // 📍 문제가 시작 자리를 주면 거기서 (안 주면 표의 첫 자리)
         setDstSido(pr.dst.sido); setDstSgg(pr.dst.sgg);
-        await new Promise(r => setTimeout(r, 500));
-        for (const st of pr.steps) {
-            if (st.kind === 'drive') {
-                /**
-                 * 🚚 **콜과 콜 사이에 달린다** — 이게 없으면 뒤 콜이 «상차 반경 밖»이라
-                 *    필터가 떨어뜨린다. 기사님: *"한자리에서 모두 돌리면 필터에 걸려
-                 *    평가할 것도 없는 거야."* 자리는 카카오 기록의 «내 위치» 그대로다.
-                 */
-                if (st.home) setHomeOn(true);               // ↩️ 복귀는 콜을 잡기 전에 켠다
-                setMyPos(st.to);
-                await new Promise(r => setTimeout(r, 1200));
-                continue;
-            }
-            setPickup(st.from); setDrop(st.to);
-            setCandFare(LAB_DEFAULTS.candFare); setCandBoxes(LAB_DEFAULTS.candBoxes);
-            // ⏳ 카카오가 이 콜의 경로를 물어 오는 사이를 기다린다 — 안 기다리면 약속이 빈다
-            await new Promise(r => setTimeout(r, 1700));
-            if (!st.confirm) break;
-            confirmCall(st.from, st.to);
-            setPickup(null); setDrop(null);
-            await new Promise(r => setTimeout(r, 1900));
-        }
     };
-
 
     /**
      * 🧹 **콜 취소 — 지우지 않고 옮긴다** (5단계 · 기사님 2026-09-09 *"2번째 콜이 취소될 때"*).
@@ -2883,7 +2855,7 @@ export default function MapMockup() {
                         <span className="text-[11px] font-black text-info">🧪</span>
                         {LAB_PROBLEMS.map(pr => (
                             <button key={pr.name} type="button" data-problem={pr.name}
-                                onClick={() => { void runProblem(pr); }}
+                                onClick={() => runProblem(pr)}
                                 className={`px-2 py-1 rounded-[7px] border text-[10.5px] font-black ${problemOn?.name === pr.name
                                     ? 'bg-info/15 border-info/55 text-info' : 'border-border-hover bg-background text-text-muted hover:border-info'}`}>
                                 {pr.name}
@@ -2913,7 +2885,7 @@ export default function MapMockup() {
                     </div>
                     {/* 🔴 «이 문제가 무엇을 보려는가»를 적는다 — 안 적으면 눌러 놓고 뭘 볼지 모른다 */}
                     <p className="text-[9.5px] text-text-muted leading-snug max-w-[420px]" data-problem-why>
-                        {problemOn ? `${problemOn.name} — ${problemOn.why}` : '콜 문제 — 누르면 그 상황이 그대로 재현됩니다 (검사 pnpm lab 이 같은 버튼을 누릅니다)'}
+                        {problemOn ? `${problemOn.name} — ${problemOn.why}` : '콜 문제 — 누르면 판이 서고, 콜은 오른쪽 목록에서 한 줄씩 누릅니다'}
                     </p>
                 </div>
                 <div className="flex items-center gap-1 flex-wrap max-w-[340px]">
