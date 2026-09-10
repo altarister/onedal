@@ -18,6 +18,14 @@ import { buildAppFilterOutput, TRUCK_CAPACITY_SLOTS } from './labFilterOutput';
  *    아니면 «자동콜: 아래 전체가 35:65 버튼». 그래서 여기서도 둘을 나란히 띄운다.
  */
 import JudgmentSeat from '../components/dashboard/JudgmentSeat';
+/**
+ * 🎨 **정거장 동그라미 색은 실물 팔레트가 정한다** (기사님 2026-09-10:
+ * *"색 아이콘은 상차지 색, 하차지 색으로 바꾸면 영역을 확보 많이 할 것 같은데"*).
+ * 🔴 공간을 아끼는 것보다 큰 것이 있다 — **지도 마커가 이미 이 색을 쓴다.**
+ *    타이틀 줄이 같은 색을 쓰면 시트와 지도가 **같은 말**을 한다 (상차는 밝고 선명, 하차는 깊게).
+ */
+import { callNodeFill, callNodeText } from '../styles/callPalette';
+import { useTheme } from '../contexts/ThemeContext';
 import type { SecuredOrder } from '@onedal/shared';
 // 🎨 판정 사실을 실물 모양으로 옮기는 곳 — 채점은 실물 엔진(judge)이 한다
 import { buildLabFacts, extraDriveMin } from './labJudge';
@@ -989,6 +997,8 @@ export default function MapMockup() {
     const netLayerRef = useRef<HTMLCanvasElement | null>(null);
     /** 🎚️ 지금 펼친 값 하나 — 여럿을 펼치면 폰에서 화면이 밀린다 (기사님 2026-09-09) */
     const [openKnob, setOpenKnob] = useState<string | null>(null);
+    /** 🎨 상차/하차 색은 테마마다 다르다 — 실물 팔레트가 그 규칙을 쥐고 있다 */
+    const { theme } = useTheme();
     /**
      * 🛣️ 경로 옵션 — 길 고르기를 걷어낸 뒤로 **«추천» 고정**이다 (기사님 2026-09-09 *"길찾기는 지워"*).
      * 고속도로냐 국도냐를 고르는 축은 별건이다 (todo 0-I) — 그때 여기에 손잡이가 붙는다.
@@ -1990,7 +2000,8 @@ export default function MapMockup() {
         for (const ci of callImpacts) for (const st of ci.stops) {
             if (st.passedAt != null || ci.isNew) continue;      // 지난 곳 · 아직 안 잡은 후보는 건너뛴다
             const [from, to] = ci.where.split(' → ');
-            return { seq: st.seq, name: (st.kind === '상차' ? from : to) ?? st.label, callNo: ci.disp, kind: st.kind, min: st.leg?.durMin ?? null };
+            return { seq: st.seq, name: (st.kind === '상차' ? from : to) ?? st.label,
+                callNo: Number(ci.no.charCodeAt(0) - 0x2460) + 1, disp: ci.disp, kind: st.kind, min: st.leg?.durMin ?? null };
         }
         return null;
     }, [callImpacts]);
@@ -3592,13 +3603,14 @@ export default function MapMockup() {
                         <div className="flex items-center gap-1.5 px-1.5 py-1 rounded-[8px] bg-background border border-border-card text-[12px] font-black">
                             {sheetNext ? (<>
                                 <span className="shrink-0">{driving ? '▶' : '⏸'}</span>
-                                <span className="shrink-0 w-[19px] h-[19px] rounded-full grid place-items-center text-[11px] font-black text-white"
-                                    style={{ background: CALL_COLORS[(baseCallCount + confirmed.findIndex(c => circled(baseCallCount + confirmed.indexOf(c) + 1) === sheetNext.callNo)) % CALL_COLORS.length] || 'var(--color-info)' }}>
+                                <span className="shrink-0 w-[19px] h-[19px] rounded-full grid place-items-center text-[11px] font-black"
+                                    style={{ background: callNodeFill(sheetNext.callNo, sheetNext.kind === '상차' ? 'pickup' : 'dropoff', theme),
+                                        color: callNodeText(sheetNext.kind === '상차' ? 'pickup' : 'dropoff', theme) }}>
                                     {sheetNext.seq ?? '?'}
                                 </span>
                                 <span className="shrink-0">{sheetNext.name}</span>
                                 {sheetNext.min != null && <span className="shrink-0 text-text-muted font-bold">~{sheetNext.min}분</span>}
-                                <span className="ml-auto shrink-0 text-text-muted font-bold truncate">{sheetNext.callNo}번 콜 · {sheetNext.kind}</span>
+                                <span className="ml-auto shrink-0 text-text-muted font-bold truncate">{sheetNext.disp}번 콜 · {sheetNext.kind}</span>
                                 <span className="shrink-0 text-text-muted">›</span>
                             </>) : (
                                 <span className="text-text-muted font-bold">
@@ -3616,7 +3628,6 @@ export default function MapMockup() {
                             )}
                             {callImpacts.filter(ci => !ci.isNew).map(ci => {
                                 const n = Number(ci.no.charCodeAt(0) - 0x2460) + 1;
-                                const color = CALL_COLORS[(baseCallCount + n - 1) % CALL_COLORS.length];
                                 const open = sheetOpenNo === ci.disp;
                                 const late = ci.stops.reduce((m, st) => {
                                     const real = st.passedAt ?? st.etaAt;
@@ -3625,22 +3636,46 @@ export default function MapMockup() {
                                 }, 0);
                                 return (
                                     <div key={ci.no} className="rounded-[8px] border border-border-card bg-background overflow-hidden">
+                                        {/**
+                                          * 🔴 **왼쪽 점과 콜 번호를 지웠다** (기사님 2026-09-10:
+                                          * *"색 아이콘은 상차지 색·하차지 색으로 바꾸면 영역을 확보 많이 할 것 같고,
+                                          * index 번호도 순서대로 노출되니 삭제할 수 있을 것 같은데"*).
+                                          *
+                                          * 셋(점 · 콜 번호 · 정거장 번호)이 **다 «어느 콜인가»를 말하고 있었다.**
+                                          * 이제 **정거장 동그라미의 색**이 그 일을 혼자 한다 — 지도 마커와 같은 색이라
+                                          * 시트와 지도가 같은 말을 하고, 왼쪽 두 칸만큼 지명이 넓어진다.
+                                          * ⚠️ 콜 번호는 **호칭**(「합짐2」)이라 안 없앤다 — 열면 나오고 심사 영역이 부른다.
+                                          */}
                                         <button type="button" onClick={() => setSheetOpenNo(open ? null : ci.disp)}
-                                            className="w-full flex items-center gap-1.5 px-1.5 py-1 text-left text-[11.5px] font-black tabular-nums">
-                                            <span className="shrink-0 w-2.5 h-2.5 rounded-full" style={{ background: color }} />
-                                            <span className="shrink-0">{ci.disp}</span>
+                                            className="w-full flex items-center gap-1 px-1.5 py-1 text-left text-[11.5px] font-black tabular-nums">
                                             {ci.stops.map(st => (
-                                                <span key={st.kind} className="shrink-0 flex items-center gap-0.5">
-                                                    {st.kind === '하차' && <span className="text-text-muted">→</span>}
-                                                    <span className="text-text-muted">{st.seq ?? '?'}</span>
-                                                    <span>{(ci.where.split(' → ')[st.kind === '상차' ? 0 : 1]) ?? ''}</span>
-                                                    <span className={st.passedAt != null ? 'text-success' : 'text-text-muted'}>
+                                                <span key={st.kind} className="min-w-0 flex items-center gap-1">
+                                                    {st.kind === '하차' && <span className="shrink-0 text-text-muted">→</span>}
+                                                    <span className="shrink-0 w-[17px] h-[17px] rounded-full grid place-items-center text-[10px] font-black"
+                                                        style={{ background: callNodeFill(n, st.kind === '상차' ? 'pickup' : 'dropoff', theme),
+                                                            color: callNodeText(st.kind === '상차' ? 'pickup' : 'dropoff', theme),
+                                                            // 🖊️ 테두리 = 다녀왔나 (실물 문법 그대로)
+                                                            outline: st.passedAt != null ? '2px solid var(--color-text-primary)' : 'none', outlineOffset: '1px' }}>
+                                                        {st.seq ?? '?'}
+                                                    </span>
+                                                    <span className="truncate">{(ci.where.split(' → ')[st.kind === '상차' ? 0 : 1]) ?? ''}</span>
+                                                    <span className={`shrink-0 ${st.passedAt != null ? 'text-success' : 'text-text-muted'}`}>
                                                         ~{hhmm(st.passedAt ?? st.etaAt)}
                                                     </span>
                                                 </span>
                                             ))}
                                             <span className="ml-auto shrink-0 flex items-center gap-1">
-                                                {late > 0 && <b className="text-warning">+{late}분</b>}
+                                                {/**
+                                                  * 🔴 **이 자리는 «이 콜에서 지금 알아야 할 한 가지»다** (기사님 물음 2026-09-10:
+                                                  * *"콜의 스텝을 보는 것보다 추가된 시간을 보는 것이 더 중요하다고 보는 거구나?"*).
+                                                  * 밀리면 **밀림이 이긴다** — 약속이 깨지는 것보다 급한 소식이 없다.
+                                                  * 안 밀리면 그 자리가 비므로 **금액**을 적는다 (실물 카드 타이틀 오른쪽 끝이 금액이다).
+                                                  */}
+                                                {late > 0
+                                                    ? <b className="text-warning">+{late}분</b>
+                                                    : <span className="text-text-muted font-bold">{
+                                                        ci.stops.every(st => st.passedAt != null) ? '완료'
+                                                            : ci.stops[0]?.passedAt != null ? '싣고 간다' : '상차 전'}</span>}
                                                 <span className="text-text-muted">{open ? '▴' : '▾'}</span>
                                             </span>
                                         </button>
