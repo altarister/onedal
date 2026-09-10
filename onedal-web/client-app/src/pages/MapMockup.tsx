@@ -3669,7 +3669,7 @@ export default function MapMockup() {
                                         <button type="button" onClick={() => setSheetOpenNo(open ? null : ci.disp)}
                                             className="w-full flex items-center gap-1 px-1.5 py-1 text-left text-[11.5px] font-black tabular-nums">
                                             {ci.stops.map(st => (
-                                                <span key={st.kind} className={`min-w-0 flex items-center gap-1 ${st.passedAt != null ? 'opacity-55' : ''}`}>
+                                                <span key={st.kind} className="min-w-0 flex items-center gap-1">
                                                     {st.kind === '하차' && <span className="shrink-0 text-text-muted">→</span>}
                                                     {/* 🔴 동그라미를 벗겼다 — 번호가 곧 색이다 (기사님 2026-09-10).
                                                         지명은 **기본색으로 둔다** — 실제로 읽는 것이 그것이라 가장 또렷해야 한다.
@@ -3678,7 +3678,19 @@ export default function MapMockup() {
                                                         style={{ color: callTextColor(n, st.kind === '상차' ? 'pickup' : 'dropoff', theme) }}>
                                                         {st.seq ?? '?'}
                                                     </span>
-                                                    <span className="truncate">{(ci.where.split(' → ')[st.kind === '상차' ? 0 : 1]) ?? ''}</span>
+                                                    {/**
+                                                      * 🔴 **지나간 정거장은 지명이 회색이 된다** (기사님 2026-09-10:
+                                                      * *"지나간 건 상차지 지명의 색을 회색으로 하면 쉽게 어디까지
+                                                      * 진행했는지 보이겠어"*).
+                                                      *
+                                                      * 앞서 줄 전체를 흐리게(`opacity`) 했더니 **번호 색까지 죽어**
+                                                      * «어느 콜인가»가 같이 사라졌다. 회색은 **지명 하나에만** 건다 —
+                                                      * 번호는 색을 지켜 콜을 계속 가리키고, 회색 지명이 «여기까지 왔다»를 긋는다.
+                                                      * (동그라미 테두리가 하던 「다녀왔나」의 자리다)
+                                                      */}
+                                                    <span className={`truncate ${st.passedAt != null ? 'text-text-muted font-bold' : ''}`}>
+                                                        {(ci.where.split(' → ')[st.kind === '상차' ? 0 : 1]) ?? ''}
+                                                    </span>
                                                     <span className={`shrink-0 ${st.passedAt != null ? 'text-success' : 'text-text-muted'}`}>
                                                         ~{hhmm(st.passedAt ?? st.etaAt)}
                                                     </span>
