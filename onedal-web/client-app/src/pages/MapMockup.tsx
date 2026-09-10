@@ -1244,19 +1244,6 @@ export default function MapMockup() {
         return [{ x: from.lng, y: from.lat, label: '내 위치' },
             ...stops.map(st => ({ x: st.pt.lng, y: st.pt.lat, label: `${circled(st.call)}${st.kind}` }))];
     };
-    /**
-     * 🖊️ **그리는 경로의 기점** (기사님 2026-09-11: *"출발했으면 **내 위치에서 경로를 찾아야**
-     * 하는데.. 뭔가 이상하다"* · *"일단 **내 위치로 다시 호출해서 그리는 것** 해보자"*).
-     *
-     * 🔴 전에는 주행 중 기점이 **출발한 자리**(`departPosRef`)에 못 박혀 있었다. 그래서 지도에
-     *    「내 위치」 라벨이 **둘** 뜨고(옛 자리 + 지금 자리), 그 사이에 직선이 그어졌다.
-     * 🔴 **매 틱 갱신하지 않는다** — 그러면 경로를 매 틱 다시 재게 된다(이미 겪은 사고).
-     *    **출발할 때와 정거장을 지날 때만** 지금 자리로 옮긴다. 그 사이에는 내가 **그 선 위를**
-     *    달리고 있으니 어긋나지 않는다.
-     * ⚠️ 지나온 길과 잇는 것은 **아직 안 한다** (기사님: *"연결은 나중에"*) —
-     *    지금은 남은 경로만 지금 자리에서 그린다.
-     */
-    const [drawAnchor, setDrawAnchor] = useState<Pt | null>(null);
     const effPath = useMemo(() => {
         const allCalls = [
             ...presetCalls.map(c => ({ ...c, destName: dst.name })),
@@ -1288,7 +1275,7 @@ export default function MapMockup() {
         const orderFrom = departed ? departPosRef.current : (orderStart ?? myPosRef.current);
         const ordered = orderStopsInsert(orderFrom, allCalls, visited);
         prevOrderRef.current = ordered.map(o => ({ call: o.call, kind: o.kind }));
-        const from = departed ? (drawAnchor ?? orderFrom) : orderFrom;
+        const from = orderFrom;
         /** 지나온 정거장은 그리지 않는다 — 그리면 «내 위치 → 이미 지난 곳»으로 되돌아가는 선이 생긴다 */
         const skip = departed ? visitedCountRef.current : 0;
         return [
@@ -1300,7 +1287,7 @@ export default function MapMockup() {
             })),
         ];
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [presetCalls, confirmed, departed, dst.name, orderStart, drawAnchor]);
+    }, [presetCalls, confirmed, departed, dst.name, orderStart]);
 
     const anchor: NetPoint = useMemo(() => ({ name: '내 위치', ...myPos }), [myPos]);
 
@@ -2278,8 +2265,6 @@ export default function MapMockup() {
                                 return { ...c, steps: st };
                             }));
                             visitedCountRef.current = passed;
-                            // 🖊️ 정거장을 지났다 — 여기서부터 다시 그린다 (새 첫 구간은 아래 효과가 카카오로 받는다)
-                            setDrawAnchor({ ...cur });
                         } }
                     else { cur = { lng: cur.lng + dx / d * remain / 88.6, lat: cur.lat + dy / d * remain / 110.574 }; remain = 0; }
                 }
@@ -2561,11 +2546,25 @@ export default function MapMockup() {
             if (layers.route) {
                 if (drawLegs) {
                     drawLegs.forEach((leg, i) => {
+                        /**
+                         * 🖊️ **주행 중 첫 구간은 «지금 내 위치»에서 그린다** (기사님 2026-09-11:
+                         * *"출발했으면 내 위치에서 경로를 찾아야 하는데"* · *"또 날라가는데?"*).
+                         *
+                         * 🔴 순서(`effPath`)의 기점은 **출발 자리**라야 재배치가 안 흔들린다 —
+                         *    그래서 «순서»는 그대로 두고 **그리는 순간에만** 첫 점을 지금 자리로 바꾼다.
+                         *    앞서 «정거장을 지날 때만» 옮겨 봤는데, 그 사이에 옛 자리가 남아
+                         *    「내 위치」가 둘로 뜨고 직선이 뻗었다.
+                         * 🔴 그 구간은 **잰 적이 없으므로 점선**이다 — 실도로인 척하지 않는다 (규칙 ④).
+                         *    잰 구간(카카오가 준 곡선)은 그대로 실선이다.
+                         */
+                        const live = departed && i === 0;
+                        const a = live ? { lng: myPos.lng, lat: myPos.lat } : { lng: effPath[i].x, lat: effPath[i].y };
+                        const legPts = live ? [a, { lng: effPath[1].x, lat: effPath[1].y }]
+                            : [a, ...leg, { lng: effPath[i + 1].x, lat: effPath[i + 1].y }];
                         ctx.beginPath();
-                        const legPts = [{ lng: effPath[i].x, lat: effPath[i].y }, ...leg, { lng: effPath[i + 1].x, lat: effPath[i + 1].y }];
                         legPts.forEach((p, j) => { const [px, py] = S(p.lng, p.lat); j === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py); });
-                        ctx.strokeStyle = legColor(i); ctx.lineWidth = 5; ctx.lineJoin = 'round';
-                        if (legFailed[i]) ctx.setLineDash([6, 5]);      // 도로 탐색 불가 — 직선 구간은 점선
+                        ctx.strokeStyle = legColor(i); ctx.lineWidth = live ? 3 : 5; ctx.lineJoin = 'round';
+                        if (live || legFailed[i]) ctx.setLineDash([6, 5]);   // 안 잰 구간·탐색 불가 — 점선
                         ctx.stroke(); ctx.setLineDash([]);
                     });
                 } else {
@@ -2599,7 +2598,13 @@ export default function MapMockup() {
                 ctx.beginPath(); ctx.roundRect(px - w / 2, py - 26, w, 18, 6); ctx.fill(); ctx.stroke();
                 ctx.fillStyle = '#111827'; ctx.textAlign = 'center'; ctx.fillText(text, px, py - 13);
             };
-            if (layers.route) for (const p of effPath) {
+            /**
+             * 🔴 **경로의 첫 점(«내 위치»)에는 이름표를 안 붙인다** (기사님 2026-09-11 *"또 날라가는데?"*).
+             *    바로 아래에서 **지금 내 위치**를 `📍 내 위치` 로 따로 그린다 — 여기서 또 그리면
+             *    주행 중에 **「내 위치」가 둘**로 뜬다(옛 자리 + 지금 자리). 출발 전에는 두 점이
+             *    겹쳐서 안 보였을 뿐, 달리는 순간 갈라진다.
+             */
+            if (layers.route) for (const p of effPath.slice(1)) {
                 const [px, py] = S(p.x, p.y);
                 if (p.seq) {
                     // 방문 순번 배지 — 콜 색 원 안에 흰 번호 (기사님 2026-09-07 «경로에 번호»)
@@ -2951,7 +2956,7 @@ export default function MapMockup() {
                     <span className="text-[11px] font-black text-info">🚗</span>
                     {effPath.length > 1 ? (
                         <>
-                            <button type="button" onClick={() => { if (!driving) { departPosRef.current = { ...myPosRef.current }; setDrawAnchor({ ...myPosRef.current }); setDeparted(true); retarget(); } setDriving(!driving); }}
+                            <button type="button" onClick={() => { if (!driving) { departPosRef.current = { ...myPosRef.current }; setDeparted(true); retarget(); } setDriving(!driving); }}
                                 className={`px-2.5 py-1.5 rounded-[8px] border text-[11.5px] font-black ${driving
                                     ? 'bg-success/15 border-success/55 text-success' : 'border-border-hover bg-background hover:border-success'}`}>
                                 {driving ? '⏸ 멈춤' : '▶️ 주행'}
