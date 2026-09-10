@@ -2164,15 +2164,23 @@ export default function MapMockup() {
          *   구간 분 = 방금 잰 전체 경로에 있으면 그 값 · 없으면 ⑦ 에 저장해 둔 그 콜의 구간
          * 하나라도 모르면 **거기서 멈춘다** (그 뒤는 빈칸 — 지어내지 않는다).
          */
+        /**
+         * 🔴 **예정의 원천 경로 — 심사 중이면 그 경로, 아니면 «확정 순간 동결»(routeChain)** (2026-09-11).
+         * 지도 클릭으로 새 콜을 찍으면 chainNow 가 비는데, 그때 기준 시각이 «지금 시계»로
+         * 떨어져 **달리는 동안 예정·±가 매분 밀렸다** (기사님: *"추가된 시간은 콜을 받을 때만
+         * 변해야 하는데"* — 멈추면 안 늘어난 것이 증거). 동결 경로로 물러나면 기준이
+         * «콜 받은 순간»에 고정된다.
+         */
+        const baseChain = chainNow ?? routeChain;
         const legMin = new Map<string, number | null>();
         for (let n = 1; n <= last; n++) {
             const no = circled(n), c = n <= confirmed.length ? confirmed[n - 1] : null;
             legMin.set(`${no}상차`, c ? c.approachMin ?? null : approachInfo?.durMin ?? null);
             legMin.set(`${no}하차`, c ? c.durMin ?? null : uploadedInfoRef.current?.durMin ?? null);
         }
-        for (const lg of chainNow?.legs ?? []) if (lg.to && lg.durMin != null) legMin.set(lg.to, lg.durMin);
+        for (const lg of baseChain?.legs ?? []) if (lg.to && lg.durMin != null) legMin.set(lg.to, lg.durMin);
         const visitedNow = departed ? prevOrderRef.current.slice(0, visitedCountRef.current) : [];
-        const chainOrder = (chainNow?.legs ?? []).map(l => l.to).filter((x): x is string => !!x);
+        const chainOrder = (baseChain?.legs ?? []).map(l => l.to).filter((x): x is string => !!x);
         const order = chainOrder.length ? chainOrder
             : orderStopsInsert(myPos, [
                 ...confirmed.map(c => ({ pickup: c.pickup, drop: c.drop, destName: c.destName })),
@@ -2201,7 +2209,7 @@ export default function MapMockup() {
         const candLabels = cand ? [`${circled(last)}상차`, `${circled(last)}하차`] : [];
         const fullOrder = visitOrder(visitedLabels, order, candLabels);
         // 🕒 기준은 «지금»이 아니라 **이 경로를 잰 시각**이다 — 안 그러면 달릴수록 예정이 뒤로 도망간다
-        const t = chainNow?.measuredAt ?? clockNow;
+        const t = baseChain?.measuredAt ?? clockNow;
         const now = new Map<string, number>();
         let acc = 0;
         for (const label of order) {
@@ -2224,7 +2232,7 @@ export default function MapMockup() {
                      * 없어지면 비교가 어려우니 모든 줄을 다 적어줘"*). 지나온 정거장은 전체 경로에
                      * 없으므로 ⑦ 에 저장한 구간을 대신 적고, 없으면 `--` 로 둔다.
                      */
-                    const fromChain = chainNow?.legs.find(l => l.to === label) ?? null;
+                    const fromChain = baseChain?.legs.find(l => l.to === label) ?? null;
                     /**
                      * 🔴 **덩어리는 «그 콜의 것»만 보인다** (기사님 2026-09-09: *"이 영역은 첫짐의
                      * 영역이니까 첫짐이 가진 저장된 정보만 보여야 하는데"*).
@@ -2259,7 +2267,7 @@ export default function MapMockup() {
                 }),
             };
         });
-    }, [chainNow, confirmed, baseCallCount, pickup, drop, departed, myPos, approachInfo, goalsVerdict, dst.name, clockNow]);
+    }, [chainNow, routeChain, confirmed, baseCallCount, pickup, drop, departed, myPos, approachInfo, goalsVerdict, dst.name, clockNow]);
 
     /**
      * 🎨 **후보콜의 색 — 실물 엔진이 채점한다** (기사님 2026-09-09 «필터를 만들어 보자» 판).
