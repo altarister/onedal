@@ -3664,7 +3664,7 @@ export default function MapMockup() {
                                         {/**
                                           * 🔴 **줄은 격자다 — 칸이 세로로 맞아야 한눈에 읽힌다**
                                           * (기사님 2026-09-10: *"그리드는 맞아야 한눈에 보일 것 같고"*).
-                                          *   [번호][지명][시각][±]  →  [번호][지명][시각][±]  [▾]
+                                          *   [▲번호][지명][시각][±] │ [▼번호][지명][시각][±]  [▾]
                                           * 콜이 넷이어도 **시각은 시각끼리, 밀림은 밀림끼리** 한 줄로 선다.
                                           *
                                           * 🔴 **밀림을 상차·하차로 갈랐다** (*"상하차가 모두 지나기 전 64분인데
@@ -3677,7 +3677,7 @@ export default function MapMockup() {
                                           */}
                                         <button type="button" onClick={() => setSheetOpenNo(open ? null : ci.disp)}
                                             className="w-full grid items-center gap-x-1 px-1.5 py-1 text-left text-[11.5px] font-black tabular-nums"
-                                            style={{ gridTemplateColumns: '13px minmax(0,1fr) 40px 26px 9px 13px minmax(0,1fr) 40px 26px 11px' }}>
+                                            style={{ gridTemplateColumns: '19px minmax(0,1fr) 40px 26px 1px 19px minmax(0,1fr) 40px 26px 11px' }}>
                                             {ci.stops.map(st => {
                                               const gone = st.passedAt != null;
                                               const real = st.passedAt ?? st.etaAt;
@@ -3686,11 +3686,21 @@ export default function MapMockup() {
                                                   ? Math.round((real - st.promisedAt) / 60000) : null;
                                               return (
                                                 <Fragment key={st.kind}>
-                                                    {st.kind === '하차' && <span className="text-text-muted text-center">→</span>}
+                                                    {/**
+                                                      * 🔴 **한 덩어리 안의 둘을 «테두리»로 가르지 않는다** (기사님 2026-09-10:
+                                                      * *"콜에 테두리하고 그 안에 또 테두리하면 복잡해 보이고 영역을 많이 잡아먹어"*).
+                                                      *
+                                                      * 두 가지로 가른다 — **둘 다 자리를 거의 안 먹는다**:
+                                                      *   ① **▲상차 · ▼하차** — 레포가 이미 쓰는 기호다(지도 클릭 안내·판정 카드).
+                                                      *      새 약속이 아니라 **있는 말**이라 배울 것이 없다
+                                                      *   ② **인셋 구분선 1px** — «→»(9px) 자리에 들어가 오히려 **좁아졌다**.
+                                                      *      목록 UI 에서 칸을 가르는 표준이 이것이다 (Material: 카드 안 영역 나누기)
+                                                      */}
+                                                    {st.kind === '하차' && <span className="self-stretch my-0.5 border-l border-border-card" />}
                                                     {/* 지나갔으면 번호도 회색 — 색이 남으면 눈이 그리로 간다 */}
                                                     <span className={`text-[12px] ${gone ? 'text-text-muted' : ''}`}
                                                         style={gone ? undefined : { color: callTextColor(n, st.kind === '상차' ? 'pickup' : 'dropoff', theme) }}>
-                                                        {st.seq ?? '?'}
+                                                        <span className="text-[9px]">{st.kind === '상차' ? '▲' : '▼'}</span>{st.seq ?? '?'}
                                                     </span>
                                                     <span className={`truncate ${gone ? 'text-text-muted' : ''}`}>
                                                         {(ci.where.split(' → ')[st.kind === '상차' ? 0 : 1]) ?? ''}
