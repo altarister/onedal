@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type React
 import {
     rateFloorsFrom,
     NET_RATE_PER_KM, VEHICLE_CAPACITY, CALL_TARGET_LABEL,
-    dwellMinutes, DWELL_UNKNOWN_PICKUP_MINUTES, judge, CRITERIA, DEFAULT_JUDGMENT, toSnapshot,
+    dwellMinutes, judge, CRITERIA, DEFAULT_JUDGMENT, toSnapshot,
     type FieldMode,
 } from '@onedal/shared';
 import { buildAppFilterOutput, TRUCK_CAPACITY_SLOTS } from './labFilterOutput';
@@ -65,7 +65,22 @@ const ROUTE_COMBO: { priority: string; avoid?: string; label: string } = { prior
  * 🔴 **화면에 «짐 미확인»을 함께 적는다.** 표시 없이 값만 쓰면 규칙 ④ 위반이다 (규칙 ⑤-2).
  * 🔴 도착 시각에는 안 붙고 **떠나는 시각**에 붙는다 — `cumMinutes` 참조.
  */
-const labDwellOf = (label: string) => dwellMinutes(null, 0, label.endsWith('하차') ? 'dropoff' : 'pickup');
+/**
+ * 🧳 **정거장에 머무는 분 — 짐을 넘긴다** (기사님 확정 2026-09-10:
+ * *"15분(양촌읍 상차)이 잘못된 부분이구나. **볼트는 승용차로 하니까 박스 하나씩** 했을 거야"*).
+ *
+ * 🔴 전에는 `dwellMinutes(null, 0, …)` 이라 **늘 «모를 때 값»(상차 15 · 하차 10)** 이 나왔다.
+ *    그건 **1톤에 짐을 모를 때**의 값이다(*"상차에는 결박이 붙는다"*) — 승용차 박스 하나엔 과하다.
+ *    실험실은 콜마다 **박스 수를 알고 있는데**(기사님이 넣는다) 그걸 안 넘기고 있었다.
+ * 🔴 짐 다루는 법은 **«수작업»으로 본다** — 실측 78%가 수작업이다 (규칙 ⑤-2: 가장 흔한 값).
+ * ⚠️ **하한 3분을 둔다.** 실물 계수는 «기본 0분 + 수작업 박스당 20초»라 1박스면 **0분**이 된다 —
+ *    그건 «차 대고 받아서 서명하는» 시간조차 없다는 뜻이라 또 다른 거짓말이다.
+ *    3분은 **실측이 아니라 이 목업의 하한**이고, 실물 상수를 고치는 것은 별개 판이다
+ *    (`todo.md` ② 「정차 시간이 차종을 안 본다」).
+ */
+const LAB_DWELL_FLOOR_MIN = 3;
+const labDwellOfBoxes = (boxes: number, label: string) =>
+    Math.max(LAB_DWELL_FLOOR_MIN, dwellMinutes('수작업', boxes, label.endsWith('하차') ? 'dropoff' : 'pickup'));
 
 /**
  * 🎨 **그물 색 — 한 벌** (기사님 지시 2026-09-09: *"선택 영역이 일관성이 없어 보여. 색도 라인도
@@ -975,6 +990,17 @@ export default function MapMockup() {
 
     const stage = STAGES[stageIdx];
     const baseCallCount = stage.path.length ? (stage.path.length - 1) / 2 : 0;
+    /**
+     * 🧳 **그 정거장의 짐으로 정차를 낸다** — 라벨(`②상차`)의 콜 번호로 박스 수를 찾는다.
+     * 🔴 콜마다 짐이 다르므로 **한 값으로 퉁치지 않는다.** 후보콜(번호가 없는 «상차»·«하차»)은
+     *    지금 입력창의 박스 수를 쓴다 — 기사님이 그 자리에서 고치시는 값이다.
+     */
+    const labDwellOf = useCallback((label: string) => {
+        const no = label.charCodeAt(0) - 0x2460 + 1;          // ① → 1 (아니면 범위 밖 → 후보콜)
+        const i = no - baseCallCount - 1;
+        const boxes = i >= 0 && i < confirmed.length ? confirmed[i].boxes : candBoxes;
+        return labDwellOfBoxes(boxes, label);
+    }, [confirmed, candBoxes, baseCallCount]);
     /** 첫 콜을 잡았는가 — 프리셋 국면도 콜을 쥔 상태다. 잡았으면 상차 영역 = 내 반경 ∩ 사각형 */
     const routeStarted = confirmed.length > 0 || stage.path.length > 0;
     /**
@@ -1528,7 +1554,8 @@ export default function MapMockup() {
          * ⏰ 약속은 **직행 기준**이다. 첫짐은 ⑤⑥ 전체 경로가 곧 직행이라 지금 바로 서고,
          * 합짐은 ⑮ 가 와야 선다 — 그때까지 **비워 둔다** (병합 값으로 대신 채우지 않는다).
          */
-        const p0 = promiseTimes({ confirmedAt: t0, chainCum, pickupDwellMin: DWELL_UNKNOWN_PICKUP_MINUTES,
+        // 🧳 **약속에 들어가는 정차도 그 콜의 짐으로** — 15분(짐 모를 때 값)을 박아 두면 하차 약속이 늘 늦다
+        const p0 = promiseTimes({ confirmedAt: t0, chainCum, pickupDwellMin: labDwellOfBoxes(candBoxes, '상차'),
             direct: merge ? { approachMin: null, durMin: null }
                 : { approachMin: app?.durMin ?? null, durMin: known?.durMin ?? null } });
         const steps = { pickup: mkStep(p0.pickupAt), dropoff: mkStep(p0.dropoffAt) };
@@ -1607,7 +1634,7 @@ export default function MapMockup() {
                      */
                     steps: (() => {
                         // ⏰ ⑮ 가 왔다 — 직행 기준으로 약속을 세운다 (이미 선 약속은 못 박은 것이라 안 덮는다)
-                        const pr = promiseTimes({ confirmedAt: t0, chainCum, pickupDwellMin: DWELL_UNKNOWN_PICKUP_MINUTES,
+                        const pr = promiseTimes({ confirmedAt: t0, chainCum, pickupDwellMin: labDwellOfBoxes(x.boxes, '상차'),
                             direct: { approachMin: pickMin, durMin: dropMin } });
                         /**
                          * 🧾 **이 콜 자신도 «기존 콜 경유»만큼 밀린 채로 태어난다** (2026-09-09 실측에서 잡힘).
@@ -3521,7 +3548,7 @@ export default function MapMockup() {
                                             <div className="text-[9.5px] text-text-muted leading-snug">
                                                 앞 시각 = <b>최초 약속</b>(그 콜을 확정한 순간 못 박은 것 — 안 바뀐다) · 뒤 = 이 콜을 받으면 될 시각.
                                                 합짐을 얹을수록 «늦어짐»은 이 약속을 기준으로 쌓인다.
-                                                주행 + 정차(상차 {DWELL_UNKNOWN_PICKUP_MINUTES}분 · 하차 {labDwellOf('①하차')}분) — <b className="text-warning">짐 미확인이라 일반값</b>
+                                                주행 + 정차(상차 {labDwellOf('상차')}분 · 하차 {labDwellOf('하차')}분) — <b className="text-warning">짐 다루는 법은 «수작업»으로 봅니다</b>
                                             </div>
                                         )}
                                     </div>}
