@@ -34,7 +34,7 @@ import { promiseTimes, impactOfStop, splitDropImpact, type StopStep } from './la
 // ⏱️ 시간·정거장 이름은 한 곳에서 만든다 (labTime.test.ts 가 지킨다)
 import { circled, hhmm, cumMinutes, arrivalAt, visitOrder } from './labTime';
 // 🧪 콜 문제 — **화면이 버튼으로 그리고, 검사(`pnpm lab`)가 그 버튼을 누른다** (원천 하나)
-import { LAB_PROBLEMS, LAB_STEPS, LAB_START, type LabProblem } from './labProblems';
+import { LAB_PROBLEMS, LAB_STEPS, LAB_START, type LabProblem, type LabStep } from './labProblems';
 import {
     netForGoal, lineZoneOf, progressAlongKm, sidoList, sggList, dongList, isRegionExcluded, isWholeRegionExcluded, excludedLabel, mergeGoalNets, judgeGoals, activeGoals, nearestDong, orderStopsInsert, pickNextTarget, cityCenter, isLocalPhase, NET_SRC, NET_DST,
     GONJIAM_DROP, DONGWON_DROP, BORAM_DROP,
@@ -1677,7 +1677,7 @@ export default function MapMockup() {
         //    판정 기록은 문제를 갈아도 **남는 것이 맞다** — 무엇을 눌러 왔는지가 그 목록이다.
         setDriving(false); setPausedForCall(false); setUploaded(false);
         setHomeOn(false);
-        setMyPos(LAB_START);                                // 📍 하루는 집에서 시작한다
+        setMyPos(pr.start ?? LAB_START);                    // 📍 문제가 시작 자리를 주면 거기서 (안 주면 집)
         setDstSido(pr.dst.sido); setDstSgg(pr.dst.sgg);
         await new Promise(r => setTimeout(r, 500));
         for (const st of pr.steps) {
@@ -3302,13 +3302,26 @@ export default function MapMockup() {
                                     </>
                                 )}
                                 {/* 🪜 스텝 1 — 앱이 «올린다». 이걸 눌러야 서버(심사)가 깨어난다 (실물 그대로) */}
+                                {/**
+                                  * 🔴 **탈락 버튼이 없었다** (기사님 2026-09-10: *"필터에서 통과 버튼만 있어.
+                                  * **탈락 버튼도 하나** 만들고"*). 올릴 수만 있고 **버릴 수가 없어서**,
+                                  * 안 올릴 콜을 지우려면 지도를 다시 두 번 눌러야 했다.
+                                  * 앱이 하는 일은 «올린다»와 «안 올린다» 둘이다 — 화면도 둘이라야 한다.
+                                  */}
                                 {!uploaded ? (
-                                    <button type="button"
-                                        onClick={uploadCall}
-                                        className={`self-start px-2.5 py-1.5 rounded-[8px] border text-[11.5px] font-black ${finalPass
-                                            ? 'border-info/55 bg-info/15 text-info' : 'border-warning/55 bg-warning/10 text-warning'}`}>
-                                        {finalPass ? '⬆️ 필터 통과 — 서버로 올린다' : '⚠️ 탈락인데 올려 보기'}
-                                    </button>
+                                    <div className="flex gap-1.5 flex-wrap">
+                                        <button type="button"
+                                            onClick={uploadCall}
+                                            className={`px-2.5 py-1.5 rounded-[8px] border text-[11.5px] font-black ${finalPass
+                                                ? 'border-info/55 bg-info/15 text-info' : 'border-warning/55 bg-warning/10 text-warning'}`}>
+                                            {finalPass ? '⬆️ 필터 통과 — 서버로 올린다' : '⚠️ 탈락인데 올려 보기'}
+                                        </button>
+                                        <button type="button"
+                                            onClick={() => { pushLog('버림'); setPickup(null); setDrop(null); setUploaded(false); resumeAfterCall(); }}
+                                            className="px-2.5 py-1.5 rounded-[8px] border border-danger/55 bg-danger/10 text-danger text-[11.5px] font-black">
+                                            ❌ 탈락 — 안 올린다
+                                        </button>
+                                    </div>
                                 ) : (
                                     <span className="self-start px-2 py-0.5 rounded-md text-[11px] font-black bg-info/15 text-info">
                                         ⬆️ 올렸다 — 서버가 심사 중
@@ -3787,52 +3800,60 @@ export default function MapMockup() {
                       */}
                     <details className="border-t border-border-card pt-2" open>
                         <summary className="text-[10.5px] font-black text-text-muted cursor-pointer">
-                            🧪 콜 문제 — 눌러서 지도에 찍는다 <span className="font-bold">(한 바퀴 {LAB_STEPS.filter(s => s.kind === 'call').length}콜 · 주행 {LAB_STEPS.filter(s => s.kind === 'drive').length})</span>
+                            🧪 콜 문제 — 눌러서 지도에 찍는다{' '}
+                            <span className="font-bold">
+                                {problemOn?.name ?? '⑤ 한 바퀴'} · {(problemOn?.steps ?? LAB_STEPS).filter(x => x.kind === 'call').length}콜
+                            </span>
                         </summary>
                         {/**
-                          * 🔴 **좌우로 나눈다** (기사님 2026-09-10: *"콜 문제를 좌우로 나누어서
-                          *    **우측에는 콜 리스트** 넣고 **왼쪽에는 이벤트**를 넣어. 화살표로 어디서
-                          *    출발했는지 등등을 넣어"*).
-                          *    왼쪽은 **기사님이 한 일**(달렸다·복귀를 켰다), 오른쪽은 **온 콜**이다.
-                          *    둘이 한 줄기라 «달린 뒤에야 이 콜이 들어왔다»가 눈에 보인다.
+                          * 🔴 **액션과 콜을 나누지 않는다 — 한 줄이 콜 하나다** (기사님 2026-09-10:
+                          *    *"엑션과 콜을 나누지 말고 **콜에 설명을 넣어서** 4줄로 잡아 줘"*).
+                          *
+                          *    앞서 좌우 두 칸(이벤트 | 콜)으로 나눴더니 **줄이 두 배**가 되고
+                          *    빈 칸이 절반이었다. 주행은 «그 콜을 잡기 전에 해야 하는 일»이라
+                          *    **그 콜의 설명**이지 따로 선 사건이 아니다.
+                          * 🔴 **누르면 주행까지 함께 한다** — 그 콜 앞에 붙은 이동을 먼저 하고 콜을 찍는다.
+                          *    그래야 «달려야 잡히는 콜»이 실제로 잡힌다 (한자리에서는 필터가 떨어뜨린다).
                           */}
-                        <div className="mt-1 grid grid-cols-[1fr_1.15fr] gap-x-1.5 gap-y-0.5 items-center">
-                            <span className="text-[9px] font-black text-text-muted">🚚 이벤트</span>
-                            <span className="text-[9px] font-black text-text-muted">📞 콜</span>
-                            {LAB_STEPS.map((st, i) => {
-                                const callNo = LAB_STEPS.slice(0, i + 1).filter(x => x.kind === 'call').length;
-                                const done = st.kind === 'call' && callNo <= confirmed.length;
-                                return st.kind === 'drive' ? (
-                                    <Fragment key={i}>
-                                        <button type="button" data-event={i}
-                                            onClick={() => { if (st.home) setHomeOn(true); setMyPos(st.to); }}
-                                            className="w-full flex items-center gap-1 px-1.5 py-1 rounded-[7px] border border-border-card bg-background text-left text-[10.5px] font-black text-text-muted hover:border-info">
-                                            <span className="shrink-0 text-info">↳</span>
-                                            <span className="min-w-0 truncate">{st.where}</span>
-                                        </button>
-                                        <span />
-                                    </Fragment>
-                                ) : (
-                                    <Fragment key={i}>
-                                        <span />
-                                        <button type="button" data-cycle={callNo}
+                        <ol className="mt-1 flex flex-col gap-0.5">
+                            {(problemOn?.steps ?? LAB_STEPS).map((st, i, all) => {
+                                if (st.kind !== 'call') return null;
+                                const no = all.slice(0, i + 1).filter(x => x.kind === 'call').length;
+                                /** 이 콜 앞에 붙은 이동들 — 그 콜의 «설명»이 된다 */
+                                const before: string[] = [];
+                                for (let k = i - 1; k >= 0 && all[k].kind === 'drive'; k--) before.unshift((all[k] as Extract<LabStep, { kind: 'drive' }>).where);
+                                const done = no <= confirmed.length;
+                                return (
+                                    <li key={i}>
+                                        <button type="button" data-cycle={no}
                                             onClick={() => {
+                                                for (let k = i - 1; k >= 0 && all[k].kind === 'drive'; k--) {
+                                                    const d = all[k] as Extract<LabStep, { kind: 'drive' }>;
+                                                    if (d.home) setHomeOn(true);
+                                                    setMyPos(d.to);
+                                                }
                                                 pauseForCall();
                                                 setPickup(st.from); setDrop(st.to);
                                                 setCandFare(LAB_DEFAULTS.candFare); setCandBoxes(LAB_DEFAULTS.candBoxes);
                                                 setUploaded(false);
                                             }}
-                                            className={`w-full flex items-center gap-1.5 px-1.5 py-1 rounded-[7px] border text-left text-[11px] font-black ${done
-                                                ? 'border-border-card bg-background text-text-muted opacity-60'
+                                            className={`w-full flex flex-col gap-0.5 px-1.5 py-1 rounded-[7px] border text-left ${done
+                                                ? 'border-border-card bg-background opacity-60'
                                                 : 'border-border-hover bg-background hover:border-info'}`}>
-                                            <span className={done ? '' : 'text-info'}>{circled(callNo)}</span>
-                                            <span className="min-w-0 truncate">{st.where}</span>
-                                            {done && <span className="ml-auto shrink-0 text-success">✅</span>}
+                                            <span className="flex items-center gap-1.5 text-[11px] font-black">
+                                                <span className={done ? 'text-text-muted' : 'text-info'}>{circled(no)}</span>
+                                                <span className="min-w-0 truncate">{st.where}</span>
+                                                {done && <span className="ml-auto shrink-0 text-success">✅</span>}
+                                            </span>
+                                            {/* 🔴 설명 — 이 콜을 잡기 전에 **어디까지 달려야 하는가**. 없으면 앉은 자리에서 잡는다 */}
+                                            <span className="text-[9.5px] font-bold text-text-muted leading-snug">
+                                                {before.length ? `↳ ${before.join(' · ')} 뒤에 잡는다` : '앉은 자리에서 잡는다'}
+                                            </span>
                                         </button>
-                                    </Fragment>
+                                    </li>
                                 );
                             })}
-                        </div>
+                        </ol>
                     </details>
 
                     {/**
