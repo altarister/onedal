@@ -428,11 +428,12 @@ function callTextColor(callNo: number, stop: 'pickup' | 'dropoff', theme: 'dark'
 }
 
 function SheetJudgeCard({ seat, impacts, confirmedCount, safeCancelLeft, driveMin }: {
-    seat: SecuredOrder | null;
+    seat: (SecuredOrder & { soloMin?: number | null }) | null;
     impacts: Array<{ no: string; disp: string; isNew: boolean; where: string;
         stops: Array<{ kind: string; seq: number | null; label: string; promisedAt: number | null; etaAt: number | null; passedAt: number | null }> }>;
     confirmedCount: number;
     safeCancelLeft: number | null;
+    /** 🚚 이 콜 때문에 **더 쓰는** 시간 — 시급의 분모다. «이 콜만»과 다른 값이라 이름을 달리 적는다 */
     driveMin: number | null;
 }) {
     if (!seat) return (
@@ -470,8 +471,20 @@ function SheetJudgeCard({ seat, impacts, confirmedCount, safeCancelLeft, driveMi
             <div className="relative px-2 text-[19px] font-black tabular-nums leading-tight">
                 {hourly != null ? <>{hourly.toFixed(1)}만<span className="text-[11px] font-bold text-text-muted">/h</span></>
                     : <span className="text-[13px] text-text-muted">시급 못 잼</span>}
-                {driveMin != null && <span className="ml-2 text-[12px] font-black">{seat.distanceKm ?? '--'}km · {driveMin}분</span>}
+                {/**
+                  * 🔴 **km 와 분이 다른 것을 재고 있었다** (2026-09-10 화면 실측:
+                  * 실물 심사석 «70.6km · 60분» ↔ 여기 «70.6km · 154분»).
+                  * km 는 «이 콜만»(`distanceKm`)인데 분은 «전체 경로 증가분»(`driveMin`)이었다.
+                  * 🔴 **둘을 나란히 적으면 «이 콜은 70km 를 154분에 간다»로 읽힌다** — 거짓말이다.
+                  *    이 줄은 **이 콜만**으로 맞추고, «더 쓰는 시간»은 이름을 붙여 아래에 적는다.
+                  */}
+                {seat.soloMin != null && <span className="ml-2 text-[12px] font-black">{seat.distanceKm ?? '--'}km · {seat.soloMin}분</span>}
             </div>
+            {driveMin != null && (
+                <div className="relative px-2 text-[9.5px] font-bold text-text-muted">
+                    더 쓰는 시간 <b className="text-text-primary">{driveMin}분</b>{confirmedCount > 0 ? ' (전체 경로가 늘어나는 만큼)' : ''}
+                </div>
+            )}
             {/* ② 영향줄 — **밀리는 줄만** 적는다. 안 밀리는 정거장은 볼 이유가 없다 */}
             <div className="relative px-2 pt-1 flex flex-col gap-0.5 text-[10.5px] tabular-nums">
                 {impacts.filter(ci => !ci.isNew).flatMap(ci => ci.stops.map(st => {
@@ -486,9 +499,13 @@ function SheetJudgeCard({ seat, impacts, confirmedCount, safeCancelLeft, driveMi
                         </div>
                     );
                 })).filter(Boolean)}
-                {!worst || worst.min <= 0
-                    ? <div className="text-success font-bold">✅ 기존 콜은 안 밀린다</div>
-                    : null}
+                {/* 🔴 **첫짐이면 «안 밀린다»가 아니다** (2026-09-10 화면 실측) — 밀릴 콜이 없는 것이다.
+                    초록 «안 밀린다»는 «따져 봤다»로 읽히는데, 따질 것이 없었으면 그렇게 적으면 안 된다 */}
+                {confirmedCount === 0
+                    ? <div className="text-text-muted font-bold">첫짐 — 밀릴 콜이 없다</div>
+                    : !worst || worst.min <= 0
+                        ? <div className="text-success font-bold">✅ 기존 콜은 안 밀린다</div>
+                        : null}
             </div>
             {/* ③ ☎️ 줄 — 늦어짐의 결론은 «몇 분»이 아니라 «누구에게 전화하나»다 */}
             {worst && worst.min > 0 && (
@@ -1990,7 +2007,7 @@ export default function MapMockup() {
      *    여기서 색을 다시 정하면 «실물 심사석을 띄운다»는 말이 거짓이 된다 (규칙 ③).
      * 🔴 못 잰 값은 **안 싣는다** (`distanceKm` 등) — 0 으로 채우면 심사석이 «0km»라고 적는다.
      */
-    const seatOrder = useMemo<SecuredOrder | null>(() => {
+    const seatOrder = useMemo<(SecuredOrder & { soloMin?: number | null }) | null>(() => {
         if (!pickup || !drop || !candJudge) return null;
         const p = nearestDong(pickup), d = nearestDong(drop);
         const km = uploadedInfoRef.current?.distKm ?? null;
@@ -2002,11 +2019,18 @@ export default function MapMockup() {
             fare: candFare, timestamp: new Date().toISOString(),
             status: 'ORDER_AWAITING_DECISION', capturedDeviceId: 'lab', capturedAt: new Date().toISOString(),
             ...(km != null ? { distanceKm: km } : {}),
+            // 🚚 «이 콜만» 주행 분 — 시트 카드가 km 와 짝으로 쓴다 (더 쓰는 시간과 다른 값이다)
+            soloMin: min,
             // 심사석 둘째 줄이 «소요 N분 / 상차지까지 M분» 을 여기서 읽는다 — 없으면 안 적는다
             kakaoTimeExt: min != null ? `소요 ${min}분${ap != null ? ` · 상차지까지 ${ap}분` : ''}` : '',
             judgment: toSnapshot(candJudge.result),
-            rejectionReasons: candJudge.result.criteria
-                .filter(c => c.outcome.kind !== 'scored').map(c => `${c.name} ${c.outcome.why}`),
+            /**
+             * 🔴 **거절 사유는 «걸리는 것»만이다** (2026-09-10 화면 실측).
+             *    전에는 점수를 못 낸 기준을 전부 담아 심사석에
+             *    «❌ 지리 안 봄 (가중치 0)» 이 거절 사유로 떴다 — **안 보는 것은 거절이 아니다.**
+             *    실물이 «색을 덮은 기준»으로 이미 골라 둔 `gates` 를 그대로 쓴다 (규칙 ③).
+             */
+            rejectionReasons: toSnapshot(candJudge.result).gates.map(g => g.why ?? g.name),
             approvalReasons: candJudge.result.criteria
                 .filter(c => c.outcome.kind === 'scored').map(c => `${c.name} ${c.outcome.why}`),
         } as SecuredOrder;
@@ -2075,6 +2099,16 @@ export default function MapMockup() {
         }
         return null;
     }, [callImpacts]);
+
+    /**
+     * 🔢 **실제로 필터에 실리는 동 수** — 그물에서 «콕 집어 뺀 읍·면·동»을 뺀 것.
+     * 통째 제외(도·시군구)는 `mergeGoalNets` 가 이미 뺐고, 여기 남은 것은 지도에 ⛔ 로 그리려고
+     * 일부러 둔 것들이다. **제목은 앱에 실릴 수를 말해야 한다** (2026-09-10 실측: 352 ↔ 351).
+     */
+    const dongOut = useMemo(() => areaNet.pass.filter(p => isExcluded(p.region, p.name)).length,
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [areaNet, excluded]);
+    const netCount = areaNet.count - dongOut;
 
     /** ⛔ 제외지역에 걸린 콜 — 필터에 그 동이 안 실리므로 실전에선 애초에 안 올라온다 */
     const exclusionHit = useMemo(() => {
@@ -3061,7 +3095,13 @@ export default function MapMockup() {
                     {/* 🧪 판정 — 필터와 콜 리스트 사이 (기사님 2026-09-07 와이어프레임 확정) */}
                     {/* 🔴 두 층은 완전히 격리되어 각각 따로 작동한다 (규칙: 필터=집기 전 · 심사=집은 뒤).
                         기사님 2026-09-08: *"판정영역을 상하로 나눠서 상은 필터가 하는 일, 하는 심사가 하는 일"* */}
-                    <FilterPanel tone="filter" title={`🔍 ① 콜 필터 — 집기 전 · 앱이 하는 일 · 그물 ${areaNet.count}동${lineOn ? ' · 라인' : ''}`}>
+                    {/**
+                      * 🔴 **제목의 수는 «앱에 실릴 동 수»여야 한다** (2026-09-10 화면 실측).
+                      *    화면은 «그물 352동»인데 아웃풋은 «dongs 351» 이었다 — 한 곳 차이의 정체는
+                      *    **콕 집어 뺀 읍·면·동**(남한산성면)이다. 그물에는 남겨서 ⛔ 로 그리지만
+                      *    **필터에는 안 실린다.** 제목이 그걸 안 빼면 화면이 조용히 거짓말한다.
+                      */}
+                    <FilterPanel tone="filter" title={`🔍 ① 콜 필터 — 집기 전 · 앱이 하는 일 · 그물 ${netCount}동${dongOut ? ` · ⛔${dongOut}` : ''}${lineOn ? ' · 라인' : ''}`}>
                         {/* 🔴 «관내 모드인가»가 아니라 **«관내 규칙으로 쟀는가»** 를 읽는다 (기사님 지적 2026-09-09).
                             관내 규칙은 그 목적지가 고른 목적지일 때만 돈다 — 복귀로 접히면 안 돈다.
                             모드만 보고 배지를 띄웠더니 화면이 «둘 다 원 안만»이라 적으면서
@@ -3623,16 +3663,32 @@ export default function MapMockup() {
                             ? <p className="mt-1 text-[10.5px] text-text-muted leading-snug">지도 두 번 클릭으로 콜을 만들면 여기 실물 모양으로 뜹니다</p>
                             : (
                                 <div className="mt-1 flex flex-col gap-1">
+                                    {/**
+                                      * 🔴 **실물 심사석은 «폰 한 화면 폭»으로 만든 부품이다** (2026-09-10 화면 실측).
+                                      *    400px 사이드바에 그대로 넣었더니 **거절 사유 글이 158px 카드를 넘쳐**
+                                      *    아래 시트를 덮었다. 카드 높이가 고정값이라 글이 늘어도 안 늘어난다.
+                                      * 🔴 **실물을 고쳐서 맞추지 않는다** — 실물은 폰에서 옳게 서 있다.
+                                      *    여기서만 **통째로 축소**해 원래 비율 그대로 보여 준다(원본 폭 560px 기준).
+                                      *    글자·여백·워터마크가 **같은 비율로** 줄어 «실물 모양»이 유지된다.
+                                      */}
                                     <span className="text-[9.5px] font-black text-text-muted">① 직접·알람 — 물든 판 (보기만)</span>
-                                    <JudgmentSeat route={{ ...seatOrder, isPreview: true }} confirmedActive={confirmed.length} inset="0" />
+                                    <div className="overflow-hidden" style={{ height: 158 * 0.66 }}>
+                                        <div style={{ width: 560, transform: 'scale(0.66)', transformOrigin: 'top left' }}>
+                                            <JudgmentSeat route={{ ...seatOrder, isPreview: true }} confirmedActive={confirmed.length} inset="0" />
+                                        </div>
+                                    </div>
                                     <span className="text-[9.5px] font-black text-text-muted">② 자동콜 — 아래 전체가 버튼 35:65</span>
-                                    <JudgmentSeat route={seatOrder} confirmedActive={confirmed.length} inset="0" />
+                                    <div className="overflow-hidden" style={{ height: 158 * 0.66 }}>
+                                        <div style={{ width: 560, transform: 'scale(0.66)', transformOrigin: 'top left' }}>
+                                            <JudgmentSeat route={seatOrder} confirmedActive={confirmed.length} inset="0" />
+                                        </div>
+                                    </div>
                                 </div>
                             )}
                     </details>
 
                     <details className="border-t border-border-card pt-2">
-                        <summary className="text-[10.5px] font-black text-text-muted cursor-pointer">🗂️ 영역 — 시군구별 {areaNet.count}동</summary>
+                        <summary className="text-[10.5px] font-black text-text-muted cursor-pointer">🗂️ 영역 — 시군구별 {netCount}동{dongOut ? ` · ⛔${dongOut}` : ''}</summary>
                         <div className="mt-1 flex flex-col gap-1 text-[10.5px] leading-snug">
                             {areaNet.groups.map(g => {
                                 const regionOut = isWholeRegionExcluded(excluded, g.region);
@@ -3819,8 +3875,11 @@ export default function MapMockup() {
                         </div>
 
                         {/* ── ⚖️ 심사 영역 — 시트 맨 아래 붙박이 (v17 B안) ── */}
+                        {/* 🔴 **판정이 쓴 그 값을 그대로 넘긴다** (2026-09-10 화면 실측: 시트 «152분» ↔
+                            실물 카드 «÷177분»). «더 쓰는 시간 = 주행 + 정차»가 실물 정의인데
+                            시트가 주행만 적고 있었다 — 이름은 같은데 값이 달랐다 (규칙 ③). */}
                         <SheetJudgeCard seat={seatOrder} impacts={callImpacts} confirmedCount={confirmed.length}
-                            safeCancelLeft={safeCancelLeft} driveMin={candJudge?.driveMin ?? null} />
+                            safeCancelLeft={safeCancelLeft} driveMin={candJudge?.facts.money?.extraMinutes ?? null} />
                     </div>
 
                     {logs.length > 0 && (
