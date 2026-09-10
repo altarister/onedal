@@ -1244,6 +1244,19 @@ export default function MapMockup() {
         return [{ x: from.lng, y: from.lat, label: '내 위치' },
             ...stops.map(st => ({ x: st.pt.lng, y: st.pt.lat, label: `${circled(st.call)}${st.kind}` }))];
     };
+    /**
+     * 🖊️ **그리는 경로의 기점** (기사님 2026-09-11: *"출발했으면 **내 위치에서 경로를 찾아야**
+     * 하는데.. 뭔가 이상하다"* · *"일단 **내 위치로 다시 호출해서 그리는 것** 해보자"*).
+     *
+     * 🔴 전에는 주행 중 기점이 **출발한 자리**(`departPosRef`)에 못 박혀 있었다. 그래서 지도에
+     *    「내 위치」 라벨이 **둘** 뜨고(옛 자리 + 지금 자리), 그 사이에 직선이 그어졌다.
+     * 🔴 **매 틱 갱신하지 않는다** — 그러면 경로를 매 틱 다시 재게 된다(이미 겪은 사고).
+     *    **출발할 때와 정거장을 지날 때만** 지금 자리로 옮긴다. 그 사이에는 내가 **그 선 위를**
+     *    달리고 있으니 어긋나지 않는다.
+     * ⚠️ 지나온 길과 잇는 것은 **아직 안 한다** (기사님: *"연결은 나중에"*) —
+     *    지금은 남은 경로만 지금 자리에서 그린다.
+     */
+    const [drawAnchor, setDrawAnchor] = useState<Pt | null>(null);
     const effPath = useMemo(() => {
         const allCalls = [
             ...presetCalls.map(c => ({ ...c, destName: dst.name })),
@@ -1267,19 +1280,27 @@ export default function MapMockup() {
          * 🔴 주행 중에는 `myPos` 를 **의존성에서 뺀다** — 매 틱 경로를 다시 그리게 된다
          * (그건 이미 한 번 겪은 사고다). 어차피 그때는 기점이 안 쓰인다.
          */
-        const from = departed ? departPosRef.current : (orderStart ?? myPosRef.current);
-        const ordered = orderStopsInsert(from, allCalls, visited);
+        /**
+         * 🔴 **순서를 세는 기점과 그리는 기점은 다르다.**
+         *    순서(`ordered` → `prevOrderRef`)는 **출발 자리** 기준이라야 재배치가 안 흔들린다.
+         *    그리기는 **지금 내 위치**에서 시작해야 «출발했으면 내 위치에서 경로를 찾는다»가 된다.
+         */
+        const orderFrom = departed ? departPosRef.current : (orderStart ?? myPosRef.current);
+        const ordered = orderStopsInsert(orderFrom, allCalls, visited);
         prevOrderRef.current = ordered.map(o => ({ call: o.call, kind: o.kind }));
+        const from = departed ? (drawAnchor ?? orderFrom) : orderFrom;
+        /** 지나온 정거장은 그리지 않는다 — 그리면 «내 위치 → 이미 지난 곳»으로 되돌아가는 선이 생긴다 */
+        const skip = departed ? visitedCountRef.current : 0;
         return [
             { x: from.lng, y: from.lat, label: '내 위치' },
-            ...ordered.map((s, i) => ({
-                x: s.pt.lng, y: s.pt.lat, seq: i + 1, call: s.call,
+            ...ordered.slice(skip).map((s, i) => ({
+                x: s.pt.lng, y: s.pt.lat, seq: skip + i + 1, call: s.call,   // 🔢 번호는 **전체 기준**이다
                 label: `${circled(s.call)} ${s.kind} · ${nearestDong(s.pt).name}`,
                 color: CALL_COLORS[(s.call - 1) % CALL_COLORS.length],
             })),
         ];
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [presetCalls, confirmed, departed, dst.name, orderStart]);
+    }, [presetCalls, confirmed, departed, dst.name, orderStart, drawAnchor]);
 
     const anchor: NetPoint = useMemo(() => ({ name: '내 위치', ...myPos }), [myPos]);
 
@@ -2257,6 +2278,8 @@ export default function MapMockup() {
                                 return { ...c, steps: st };
                             }));
                             visitedCountRef.current = passed;
+                            // 🖊️ 정거장을 지났다 — 여기서부터 다시 그린다 (새 첫 구간은 아래 효과가 카카오로 받는다)
+                            setDrawAnchor({ ...cur });
                         } }
                     else { cur = { lng: cur.lng + dx / d * remain / 88.6, lat: cur.lat + dy / d * remain / 110.574 }; remain = 0; }
                 }
@@ -2928,7 +2951,7 @@ export default function MapMockup() {
                     <span className="text-[11px] font-black text-info">🚗</span>
                     {effPath.length > 1 ? (
                         <>
-                            <button type="button" onClick={() => { if (!driving) { departPosRef.current = { ...myPosRef.current }; setDeparted(true); retarget(); } setDriving(!driving); }}
+                            <button type="button" onClick={() => { if (!driving) { departPosRef.current = { ...myPosRef.current }; setDrawAnchor({ ...myPosRef.current }); setDeparted(true); retarget(); } setDriving(!driving); }}
                                 className={`px-2.5 py-1.5 rounded-[8px] border text-[11.5px] font-black ${driving
                                     ? 'bg-success/15 border-success/55 text-success' : 'border-border-hover bg-background hover:border-success'}`}>
                                 {driving ? '⏸ 멈춤' : '▶️ 주행'}
