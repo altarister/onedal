@@ -122,22 +122,6 @@ export function dongList(sgg: string): string[] {
     return [...new Set(DONG_CENTROIDS.filter(d => d[1] === sgg).map(d => d[0]))].sort();
 }
 
-/**
- * 📍 **동 이름 → 좌표** — 콜 문제가 이 길로 좌표를 얻는다 (기사님 2026-09-10 한 바퀴 기록).
- *
- * 🔴 **문제에 좌표를 적지 않는다.** 숫자만 적힌 문제는 읽어도 무슨 판인지 모르고,
- *    내가 감으로 고르면 규칙과 어긋난다 (*"문제가 맥락 없고 우리 룰과도 모두 틀리다"*).
- *    **이름으로 적고 좌표는 지도 표에서 뽑는다** — 원천이 하나가 된다 (규칙 ③).
- * ⚠️ 같은 이름이 여러 시·군에 있다(장지동 넷 · 가좌동 둘 · 계산동 둘 · 대화동 둘) —
- *    그때는 `시군구` 를 함께 준다. 못 찾으면 **던진다** — 조용히 엉뚱한 동으로 가면 안 된다.
- */
-export function dongPoint(name: string, region?: string): NetPoint {
-    const hits = DONG_CENTROIDS.filter(d => d[0] === name && (!region || d[1] === region));
-    if (hits.length === 0) throw new Error(`동을 못 찾았다: ${region ?? ''} ${name}`);
-    if (hits.length > 1) throw new Error(`동 이름이 여럿이다 — 시·군·구를 함께 적어라: ${name} (${hits.map(h => h[1]).join(' / ')})`);
-    return { name: hits[0][0], lng: hits[0][2], lat: hits[0][3] };
-}
-
 /** 도시의 «시내» 좌표 — 그 시 법정동('동' 행) 평균. 여주 시내(NET_DST)와 같은 셈법이다 */
 export function cityCenter(city: string, label?: string): NetPoint {
     // 구가 있는 시는 사전 표기가 «화성시 동탄구»처럼 갈라져 있다 — 정확 일치가 없으면 접두로 모은다 (2026-09-08 화성시에서 실측)
