@@ -2,10 +2,23 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import {
     rateFloorsFrom,
     NET_RATE_PER_KM, VEHICLE_CAPACITY, CALL_TARGET_LABEL,
-    dwellMinutes, DWELL_UNKNOWN_PICKUP_MINUTES, judge, CRITERIA, DEFAULT_JUDGMENT,
+    dwellMinutes, DWELL_UNKNOWN_PICKUP_MINUTES, judge, CRITERIA, DEFAULT_JUDGMENT, toSnapshot,
     type FieldMode,
 } from '@onedal/shared';
 import { buildAppFilterOutput, TRUCK_CAPACITY_SLOTS } from './labFilterOutput';
+/**
+ * ⚖️ **실물 심사석을 그대로 띄운다** (기사님 2026-09-10:
+ * *"우리 프로젝트에서 심사판 2종류 있는데 그걸 우리 목업 프로젝트 오른쪽 사이드바에 붙여 줘"* ·
+ * *"**기존 프로젝트는 건드리면 안 돼** 알지?"*).
+ *
+ * 🔴 **베끼지 않고 부른다.** 실물 `JudgmentSeat` 을 **읽기만** 하고 그 파일은 한 글자도 안 고쳤다.
+ *    베껴 두면 실물이 바뀔 때 목업만 옛 모양으로 남아 «실험이 거짓말»을 한다
+ *    (`labJudge`·`labPortMap` 과 같은 규약 — 실물이 원천이다).
+ * 🔴 실물이 그리는 판은 **둘**이다 — `isManualLineage(type) || isPreview` 면 «물든 판(보기만)»,
+ *    아니면 «자동콜: 아래 전체가 35:65 버튼». 그래서 여기서도 둘을 나란히 띄운다.
+ */
+import JudgmentSeat from '../components/dashboard/JudgmentSeat';
+import type { SecuredOrder } from '@onedal/shared';
 // 🎨 판정 사실을 실물 모양으로 옮기는 곳 — 채점은 실물 엔진(judge)이 한다
 import { buildLabFacts, extraDriveMin } from './labJudge';
 // 🚚 이식 대응표가 이 타입의 원천이다 — 실물 `step_*` 칸과 맞는지는 labPortMap.test.ts 가 지킨다
@@ -1785,6 +1798,35 @@ export default function MapMockup() {
         return { facts, result: judge(CRITERIA, facts, DEFAULT_JUDGMENT), driveMin };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [pickup, drop, candFare, candBoxes, confirmed.length, callImpacts, slotsUsed, chainNow, chainBefore]);
+    /**
+     * ⚖️ **실물 심사석에 먹일 콜 한 벌** — 실험실 상태를 실물 규격(`SecuredOrder`)으로 옮긴다.
+     *
+     * 🔴 **판정은 실물이 낸 것 그대로** 싣는다 — `toSnapshot(judge(...))` 은 서버가 쓰는 그 변환이다.
+     *    여기서 색을 다시 정하면 «실물 심사석을 띄운다»는 말이 거짓이 된다 (규칙 ③).
+     * 🔴 못 잰 값은 **안 싣는다** (`distanceKm` 등) — 0 으로 채우면 심사석이 «0km»라고 적는다.
+     */
+    const seatOrder = useMemo<SecuredOrder | null>(() => {
+        if (!pickup || !drop || !candJudge) return null;
+        const p = nearestDong(pickup), d = nearestDong(drop);
+        const km = uploadedInfoRef.current?.distKm ?? null;
+        const min = uploadedInfoRef.current?.durMin ?? null;
+        const ap = approachInfo?.durMin ?? null;
+        return {
+            id: 'lab-seat', type: 'NEW_ORDER',
+            pickup: `${p.region} ${p.name}`, dropoff: `${d.region} ${d.name}`,
+            fare: candFare, timestamp: new Date().toISOString(),
+            status: 'ORDER_AWAITING_DECISION', capturedDeviceId: 'lab', capturedAt: new Date().toISOString(),
+            ...(km != null ? { distanceKm: km } : {}),
+            // 심사석 둘째 줄이 «소요 N분 / 상차지까지 M분» 을 여기서 읽는다 — 없으면 안 적는다
+            kakaoTimeExt: min != null ? `소요 ${min}분${ap != null ? ` · 상차지까지 ${ap}분` : ''}` : '',
+            judgment: toSnapshot(candJudge.result),
+            rejectionReasons: candJudge.result.criteria
+                .filter(c => c.outcome.kind !== 'scored').map(c => `${c.name} ${c.outcome.why}`),
+            approvalReasons: candJudge.result.criteria
+                .filter(c => c.outcome.kind === 'scored').map(c => `${c.name} ${c.outcome.why}`),
+        } as SecuredOrder;
+    }, [pickup, drop, candJudge, candFare, approachInfo]);
+
     const stopImpacts = useMemo(() => {
         if (!chainNow || !chainBefore) return [];
         /** 🔴 두 경로는 **잰 시각이 다르다** — `arrivalAt` 이 각자의 기준을 더해 «시각»으로 낸다 */
@@ -3358,6 +3400,33 @@ export default function MapMockup() {
                     {/* 🔬 **적재 패널을 걷어냈다** (기사님 2026-09-09: *"적재는 상태값이니 필요 없고"*).
                         쓴 박스는 **잡은 콜들의 짐 합**이라 고를 값이 아니다 — 상단 요약줄에 `📦 n/100` 으로 보인다.
                         ⚠️ 「라면박스 환산이 화물 종류에 맞는가」는 **실측이 필요하다** — todo 에 항목으로 있다. */}
+
+                    {/**
+                      * ⚖️ **실물 심사석 두 판** (기사님 2026-09-10 «심사판 2종류를 오른쪽 사이드바에»).
+                      *
+                      * 🔴 **실물 부품을 그대로 부른다** — `components/dashboard/JudgmentSeat`.
+                      *    실물 파일은 **한 글자도 안 고쳤다** (기사님 *"기존 프로젝트는 건드리면 안 돼"*).
+                      *    베껴 두면 실물이 바뀔 때 여기만 옛 모양으로 남아 실험이 거짓말을 한다.
+                      * 🔴 판을 가르는 것은 **콜의 갈래**다 — `isManualLineage(type) || isPreview` 면
+                      *    「물든 판」(보기만 · 기사님이 직접·알람으로 잡은 콜은 서버가 이미 확정했다),
+                      *    아니면 「자동콜」(아래 전체가 ❌:KEEP = 35:65 버튼). 그래서 `isPreview` 만 바꿔 둘을 띄운다.
+                      * ⚠️ 여기 버튼은 **아무것도 안 한다** — 결재는 왼쪽 ⑤ 에서 한다. 모양을 보는 자리다.
+                      */}
+                    <details className="border-t border-border-card pt-2" open>
+                        <summary className="text-[10.5px] font-black text-text-muted cursor-pointer">
+                            ⚖️ 실물 심사석 2종 <span className="font-bold">— 실물 부품 그대로 (버튼은 안 눌림)</span>
+                        </summary>
+                        {!seatOrder
+                            ? <p className="mt-1 text-[10.5px] text-text-muted leading-snug">지도 두 번 클릭으로 콜을 만들면 여기 실물 모양으로 뜹니다</p>
+                            : (
+                                <div className="mt-1 flex flex-col gap-1">
+                                    <span className="text-[9.5px] font-black text-text-muted">① 직접·알람 — 물든 판 (보기만)</span>
+                                    <JudgmentSeat route={{ ...seatOrder, isPreview: true }} confirmedActive={confirmed.length} inset="0" />
+                                    <span className="text-[9.5px] font-black text-text-muted">② 자동콜 — 아래 전체가 버튼 35:65</span>
+                                    <JudgmentSeat route={seatOrder} confirmedActive={confirmed.length} inset="0" />
+                                </div>
+                            )}
+                    </details>
 
                     <details className="border-t border-border-card pt-2">
                         <summary className="text-[10.5px] font-black text-text-muted cursor-pointer">🗂️ 영역 — 시군구별 {areaNet.count}동</summary>
