@@ -4,7 +4,7 @@ import { initGeoService, getCityRegionsWithRadius } from '../../src/services/geo
 
 /**
  * 🗺️ **지도가 담는 범위 — 그물이 안 만들어지면 콜이 하나도 안 올라온다**
- * (기사님 질문 2026-09-06 · 볼첨지 실측 표에서 나왔다)
+ * (기사님 질문 2026-09-06 · 볼트 실측 표에서 나왔다)
  *
  * 기사님: *"인천 남동공단에 있다고 가정하고 이런 화면을 본다면 청주로 목표를 잡으면
  * 몇 개를 잡을 수 있을까? 이 사람은 4개 잡아서 25만원을 이야기하고 있는데..
@@ -36,7 +36,7 @@ beforeAll(() => {
     initGeoService();
 });
 
-/** 배차망 콜창에 실제로 떴던 하차지 — 볼첨지 2026-08-10·11 실측
+/** 배차망 콜창에 실제로 떴던 하차지 — 볼트 2026-08-10·11 실측
  *  (docs/자료/노하우/일하는_법/노하우_추출.md 의 표) */
 const REAL_DROPOFFS = {
     metro: ['상도동', '가수동', '논현동', '성곡동', '송도동', '경서동', '신도림동', '문정동'],
@@ -109,7 +109,7 @@ describe('🗺️ 지도가 담는 범위', () => {
     /**
      * 🔴 **이것이 이 판의 빨간불이다** (2026-09-06 신설 · 지도 확장 전에는 반드시 실패한다).
      *
-     * 볼첨지가 인천 남동공단에서 「청주」를 목표로 넷을 잡아 242,800원을 만들었다.
+     * 볼트가 인천 남동공단에서 「청주」를 목표로 넷을 잡아 242,800원을 만들었다.
      * 우리는 0개다 — 청주가 지도에 없어서 그물이 **빈 배열**이 되고, 빈 목록은
      * fail-closed 라 전부 탈락한다.
      *
@@ -122,7 +122,7 @@ describe('🗺️ 지도가 담는 범위', () => {
         const daejeon = new Set(getCityRegionsWithRadius('대전', 0).flat);
 
         expect(cheongju.size).toBeGreaterThan(0);
-        expect(cheongju.has('오창읍')).toBe(true);     // 볼첨지 77,000원 콜의 하차지
+        expect(cheongju.has('오창읍')).toBe(true);     // 볼트 77,000원 콜의 하차지
         expect(cheongju.has('옥산면')).toBe(true);     // 〃 70,000원
         expect(cheonan.has('성거읍')).toBe(true);      // 표 3·9번
         expect(daejeon.has('갈마동')).toBe(true);      // 표 3번 상차지

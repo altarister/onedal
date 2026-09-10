@@ -115,7 +115,7 @@ const LAB_DEFAULTS = {
     /** 🚚 받을 짐 차종 · 🚫 제외 단어 — DTO 예시 그대로의 목업값 */
     vehicles: ['1t', '다마스'],
     excludedWords: ['착불', '수거'],
-    /** 📦 후보콜의 짐 — 볼첨지 표를 셀 때 쓴 «모든 콜 = 1박스» 가정 */
+    /** 📦 후보콜의 짐 — 볼트 표를 셀 때 쓴 «모든 콜 = 1박스» 가정 */
     candBoxes: 1,
     /**
      * 💰 후보콜의 요금 — **늘 20만원** (기사님 확정 2026-09-10).
@@ -718,7 +718,7 @@ export default function MapMockup() {
      * 🔴 **이 둘이 없으면 색이 안 나온다.** 돈은 «요금 ÷ 더 쓰는 시간»이고 공간은
      *    «용량 − 쓴 박스 − 이 콜»이라, 둘 다 이 콜의 값을 필요로 한다.
      * 기본값: 요금은 **배송거리 × 단가**(앱 필터가 통과시키는 최소선) · 짐은 **1박스**
-     *   (볼첨지 이틀 표를 정리할 때 기사님이 «모든 콜 = 1박스»로 가정하신 그 값).
+     *   (볼트 이틀 표를 정리할 때 기사님이 «모든 콜 = 1박스»로 가정하신 그 값).
      */
     const [candFare, setCandFare] = useState(LAB_DEFAULTS.candFare);
     const [candBoxes, setCandBoxes] = useState(LAB_DEFAULTS.candBoxes);

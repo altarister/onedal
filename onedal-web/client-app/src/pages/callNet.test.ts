@@ -182,7 +182,7 @@ describe('필터 두 단계 — 영역(폭) 뒤에 거리(방향) (기사님 확
         expect(v.pass).toBe(false);
     });
 
-    it('상차 역주행 — 성당까지 와서 광주 시내 상차 콜을 잡으면 ②가 자른다 (볼첨지 7번 모양)', () => {
+    it('상차 역주행 — 성당까지 와서 광주 시내 상차 콜을 잡으면 ②가 자른다 (볼트 7번 모양)', () => {
         const gwangjuPickup = { lng: 127.20, lat: 37.40 };      // 광주 시내쯤 — 여주에서 41km, 현위치(27.3km)보다 뒤
         const forwardDrop = { lng: 127.49, lat: 37.26 };        // 부발 근처 — 전진 방향
         const v = judgeTwoStage(WAIT_PRESET, GONJIAM_DROP, NET_DST, GONJIAM_DROP, gwangjuPickup, forwardDrop);
