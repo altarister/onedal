@@ -76,3 +76,36 @@ export function arrivalAt(
     const min = cumMinutes(chain.legs, dwellOf).get(label);
     return min == null ? null : chain.measuredAt + min * 60000;
 }
+
+/**
+ * 🔢 **방문 순번 — 한 곳에서만 센다** (기사님 2026-09-10: *"지도의 남은 자리는 8·9·10,
+ * 콜 리스트랑 달라"* — 실측: 지도 ⑧⑨⑩ ↔ 시트 10·11·12).
+ *
+ * 🔴 **같은 사고가 세 번째다.** 2026-09-08 «targetSeq 로 지나온 수를 셌다» ·
+ *    2026-09-09 «지나온 정거장을 두 번 세서 +3» · 그리고 이번 «후보콜 둘이 번호를 밀었다».
+ *    셋 다 «순번을 세는 곳이 둘»이라서 났다 — 그래서 계산을 화면 밖으로 꺼내 여기서 잠근다 (규칙 ③).
+ *
+ * 규칙 셋:
+ *   ① 지나온 정거장이 먼저다 — 그건 사실이라 바뀌지 않는다
+ *   ② 경로에 남아 있는 지나온 정거장은 **두 번 안 센다** (경로는 주행 전에 잰 것이라 품고 있다)
+ *   ③ 🔴 **아직 안 잡은 콜(후보)의 정거장은 안 센다** — 잡아야 정거장이 된다.
+ *      지도는 후보를 «상/하» 표시로만 그리고 번호를 안 준다. 시트만 세면 그 수만큼 어긋난다.
+ */
+export function visitOrder(
+    /** 이미 지나온 정거장 이름 — 순서 그대로 */
+    visited: readonly string[],
+    /** 지금 경로가 말하는 방문 순서 */
+    planned: readonly string[],
+    /** 번호에서 뺄 정거장 (후보콜의 상·하차) */
+    exclude: readonly string[] = [],
+): string[] {
+    const drop = new Set(exclude);
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const l of [...visited, ...planned]) {
+        if (drop.has(l) || seen.has(l)) continue;
+        seen.add(l);
+        out.push(l);
+    }
+    return out;
+}

@@ -32,7 +32,7 @@ import { buildLabFacts, extraDriveMin } from './labJudge';
 // 🚚 이식 대응표가 이 타입의 원천이다 — 실물 `step_*` 칸과 맞는지는 labPortMap.test.ts 가 지킨다
 import { promiseTimes, impactOfStop, splitDropImpact, type StopStep } from './labPortMap';
 // ⏱️ 시간·정거장 이름은 한 곳에서 만든다 (labTime.test.ts 가 지킨다)
-import { circled, hhmm, cumMinutes, arrivalAt } from './labTime';
+import { circled, hhmm, cumMinutes, arrivalAt, visitOrder } from './labTime';
 import {
     netForGoal, lineZoneOf, progressAlongKm, sidoList, sggList, dongList, isRegionExcluded, isWholeRegionExcluded, excludedLabel, mergeGoalNets, judgeGoals, activeGoals, nearestDong, orderStopsInsert, pickNextTarget, cityCenter, isLocalPhase, NET_SRC, NET_DST,
     GONJIAM_DROP, DONGWON_DROP, BORAM_DROP,
@@ -1885,7 +1885,17 @@ export default function MapMockup() {
          * «⑦관산동 · ⑧지영동». 지나온 셋을 두 번 세서 정확히 +3 이었다.
          */
         const visitedLabels = visitedNow.map(v => `${circled(v.call)}${v.kind}`);
-        const fullOrder = [...visitedLabels, ...order.filter(l => !visitedLabels.includes(l))];
+        /**
+         * 🔴 **후보콜은 번호를 안 먹는다** (기사님 2026-09-10: *"지도의 남은 자리는 8·9·10,
+         *    콜 리스트랑 달라"* — 실측 지도 ⑧⑨⑩ ↔ 시트 10·11·12).
+         *
+         * `chainNow` 는 «후보콜을 낀 전체 경로»라 후보 정거장 **둘**을 품고 있다. 그대로 세면
+         * 그 뒤 정거장이 전부 **+2** 로 밀린다. 지도는 후보를 «상/하» 표시로만 그리고 번호를 안 준다 —
+         * 잡아야 정거장이 되기 때문이다. **세는 곳이 둘이라 난 사고가 이번이 세 번째**라
+         * 계산을 `labTime.visitOrder` 로 꺼내 검사로 잠갔다 (규칙 ③).
+         */
+        const candLabels = cand ? [`${circled(last)}상차`, `${circled(last)}하차`] : [];
+        const fullOrder = visitOrder(visitedLabels, order, candLabels);
         // 🕒 기준은 «지금»이 아니라 **이 경로를 잰 시각**이다 — 안 그러면 달릴수록 예정이 뒤로 도망간다
         const t = chainNow?.measuredAt ?? clockNow;
         const now = new Map<string, number>();
