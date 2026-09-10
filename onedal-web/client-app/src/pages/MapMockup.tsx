@@ -361,6 +361,109 @@ function NumRow({ label, value, onChange, min = 0, max = 999, mode = 'input', au
  * 🔴 `<select>`(네이티브 드롭다운)를 쓰면 폰마다 생김새가 달라지고, 이 화면의 다른 입력과
  *    조작이 갈린다. **같은 자리에서 같은 방식으로** 고르게 한다.
  */
+
+/**
+ * ⚖️ **심사 영역 — 시트 맨 아래 붙박이** (v17 B안 · 기사님 확정 2026-09-10).
+ *
+ * 세 가지를 **시선 세 번, 각 0.5초**로 가른다 (근거: NHTSA «한 시선 2초 이하»):
+ *   ① 색      카드가 물든 색 + KEEP 버튼 색이 곧 결정이다 (규칙 ⑤-3)
+ *   ② 영향줄  정거장 세로 목록 — **밀리는 줄만** 색으로 말한다
+ *   ③ ☎️ 줄   결론은 숫자가 아니라 **«누구에게 전화하나»** 다
+ *
+ * 🔴 **나쁜 콜이면 버튼 비율이 뒤집힌다**(35:65 → 65:35). 막는 것이 아니라 **기울이는 것**이다 —
+ *    그래도 KEEP 할 수 있다 (규칙 ①: 콜의 주인은 기사님이다).
+ * 🔴 여기 버튼은 **모양만**이다. 결재는 왼쪽 ⑤ 에서 한다.
+ */
+function SheetJudgeCard({ seat, impacts, confirmedCount, safeCancelLeft, driveMin }: {
+    seat: SecuredOrder | null;
+    impacts: Array<{ no: string; disp: string; isNew: boolean; where: string;
+        stops: Array<{ kind: string; seq: number | null; label: string; promisedAt: number | null; etaAt: number | null; passedAt: number | null }> }>;
+    confirmedCount: number;
+    safeCancelLeft: number | null;
+    driveMin: number | null;
+}) {
+    if (!seat) return (
+        <div className="rounded-[10px] border border-border-card bg-background px-2 py-2 text-[10.5px] text-text-muted leading-snug">
+            ⚖️ 심사 영역 — 지도를 두 번 클릭해 콜을 만들면 여기 뜹니다
+        </div>
+    );
+    const color = seat.judgment?.color ?? null;
+    const tone = color === '꿀' ? { bd: 'border-info/55', bg: 'from-info/25', tx: 'text-info', btn: 'bg-info text-background' }
+        : color === '보통' ? { bd: 'border-success/55', bg: 'from-success/25', tx: 'text-success', btn: 'bg-success text-background' }
+            : color === '똥' ? { bd: 'border-warning/55', bg: 'from-warning/25', tx: 'text-warning', btn: 'bg-warning text-background' }
+                : { bd: 'border-danger/55', bg: 'from-danger/25', tx: 'text-danger', btn: 'bg-danger text-background' };
+    /** 🔴 잡으면 사고인 콜 — 버튼 비율이 뒤집히는 조건 */
+    const bad = color === '사고' || color === '똥';
+    const hourly = seat.judgment?.axes?.find(a => a.key === 'money')?.value ?? null;
+    /** ☎️ 전화할 곳 — 가장 크게 밀리는 기존 정거장 하나 */
+    const worst = impacts.filter(ci => !ci.isNew).flatMap(ci => ci.stops.map(st => {
+        const real = st.passedAt ?? st.etaAt;
+        return { where: (ci.where.split(' → ')[st.kind === '상차' ? 0 : 1]) ?? st.label, seq: st.seq, kind: st.kind,
+            min: real != null && st.promisedAt != null ? Math.round((real - st.promisedAt) / 60000) : 0 };
+    })).reduce((w, x) => (x.min > (w?.min ?? 0) ? x : w), null as null | { where: string; seq: number | null; kind: string; min: number });
+    return (
+        <div className={`relative overflow-hidden rounded-[10px] border ${tone.bd} bg-background`}>
+            <div className={`absolute inset-0 bg-gradient-to-b ${tone.bg} to-transparent pointer-events-none`} />
+            {/* ① 머리줄 — 번호 · 호칭 · 상차→하차 · 금액 (실물 심사석 문법) */}
+            <div className="relative flex items-center gap-1.5 px-2 pt-1.5 text-[12px]">
+                <span className={`shrink-0 font-black ${tone.tx}`}>{confirmedCount + 1}</span>
+                <span className="shrink-0 font-black text-[12.5px]">
+                    {confirmedCount === 0 ? '노선 후보콜' : `노선 합짐${confirmedCount} 후보콜`}
+                </span>
+                <span className="min-w-0 truncate text-text-muted font-bold text-[11px]">{seat.pickup} → {seat.dropoff}</span>
+                <span className="ml-auto shrink-0 font-black text-[15px] tabular-nums">{(seat.fare / 10000).toFixed(1)}만</span>
+            </div>
+            {/* 시급 — 기사님이 가장 먼저 읽는 숫자 */}
+            <div className="relative px-2 text-[19px] font-black tabular-nums leading-tight">
+                {hourly != null ? <>{hourly.toFixed(1)}만<span className="text-[11px] font-bold text-text-muted">/h</span></>
+                    : <span className="text-[13px] text-text-muted">시급 못 잼</span>}
+                {driveMin != null && <span className="ml-2 text-[12px] font-black">{seat.distanceKm ?? '--'}km · {driveMin}분</span>}
+            </div>
+            {/* ② 영향줄 — **밀리는 줄만** 적는다. 안 밀리는 정거장은 볼 이유가 없다 */}
+            <div className="relative px-2 pt-1 flex flex-col gap-0.5 text-[10.5px] tabular-nums">
+                {impacts.filter(ci => !ci.isNew).flatMap(ci => ci.stops.map(st => {
+                    const real = st.passedAt ?? st.etaAt;
+                    const d = real != null && st.promisedAt != null ? Math.round((real - st.promisedAt) / 60000) : null;
+                    if (st.passedAt != null || d == null || d <= 0) return null;
+                    return (
+                        <div key={`${ci.no}${st.kind}`} className="flex justify-between gap-1">
+                            <span className="font-bold">{st.seq ?? '?'} {(ci.where.split(' → ')[st.kind === '상차' ? 0 : 1]) ?? ''} {st.kind}</span>
+                            <span><span className="text-text-muted">{hhmm(st.promisedAt)} → </span>
+                                <b className="text-warning">{hhmm(real)}</b> <b className="text-warning">+{d}분</b></span>
+                        </div>
+                    );
+                })).filter(Boolean)}
+                {!worst || worst.min <= 0
+                    ? <div className="text-success font-bold">✅ 기존 콜은 안 밀린다</div>
+                    : null}
+            </div>
+            {/* ③ ☎️ 줄 — 늦어짐의 결론은 «몇 분»이 아니라 «누구에게 전화하나»다 */}
+            {worst && worst.min > 0 && (
+                <div className="relative mx-2 mt-1 px-1.5 py-1 rounded-md bg-danger/12 border border-danger/40 text-[11px] font-black text-danger">
+                    ☎️ {worst.seq ?? '?'} {worst.where} {worst.kind} — {worst.min}분 늦어짐, 전화
+                </div>
+            )}
+            {/* 버튼 — 나쁜 콜이면 35:65 가 뒤집힌다 */}
+            <div className="relative flex gap-1.5 p-1.5">
+                <button type="button" disabled
+                    className={`${bad ? 'basis-[65%]' : 'basis-[35%]'} py-2 rounded-lg border border-danger/40 bg-danger/12 text-danger text-[12px] font-black`}>
+                    ❌ 취소
+                </button>
+                <button type="button" disabled
+                    className={`${bad ? 'basis-[35%]' : 'basis-[65%]'} relative overflow-hidden py-2 rounded-lg text-[12px] font-black ${bad
+                        ? 'border border-border-hover bg-background text-text-muted' : tone.btn}`}>
+                    {/* ⏳ 안전취소 30초가 줄어드는 장막 */}
+                    {safeCancelLeft != null && (
+                        <span className="absolute inset-y-0 right-0 bg-black/25 border-l-2 border-black/40"
+                            style={{ width: `${Math.max(0, 100 - (safeCancelLeft / 30) * 100)}%` }} />
+                    )}
+                    <span className="relative">{bad ? '그래도 KEEP' : 'KEEP'}{seat.judgment?.score != null ? ` ${seat.judgment.score}` : ''}</span>
+                </button>
+            </div>
+        </div>
+    );
+}
+
 function PickLayer({ label, value, options, open, onToggle, onPick, selected, keepOpen, tone, foot }: {
     label: string; value: string; options: string[];
     open: boolean; onToggle: () => void; onPick: (v: string) => void;
@@ -855,6 +958,8 @@ export default function MapMockup() {
     const [exSgg, setExSgg] = useState<string | null>(null);
     /** ⚖️ 심사창에서 접어 둔 것들 — 캘 때만 편다 (기사님 2026-09-10 «심사 부분이 너무 높이가 높아») */
     const [judgeLogOpen, setJudgeLogOpen] = useState(false);
+    /** 🪟 시트 아코디언 — **하나만 열린다** (실물 `openIdx` 와 같은 규칙) */
+    const [sheetOpenNo, setSheetOpenNo] = useState<string | null>(null);
     const [judgeHelpOpen, setJudgeHelpOpen] = useState(false);
     /** ⛔ 제외 목록을 펼쳤나 — 닫히면 **한 줄**, 누르면 전부 (기사님 2026-09-09) */
     const [exListOpen, setExListOpen] = useState(false);
@@ -1871,6 +1976,23 @@ export default function MapMockup() {
             });
         }
         return out;
+    }, [callImpacts]);
+
+    /**
+     * 🎬 **시트 상태바가 말하는 «다음 갈 곳»** (실물 `sheetStatus` 문법 그대로 —
+     * `▶ ② 진건읍 ~14분 · 2번 콜 · 하차 ›`).
+     *
+     * 🔴 실물이 정한 규칙 둘을 그대로 지킨다:
+     *   · **심사 중이라고 «어디로 가는가»를 지우지 않는다** — 판정은 판정 영역이 말한다
+     *   · 못 잰 분은 **안 적는다** (`~N분` 이 빈다) — 지어내지 않는다
+     */
+    const sheetNext = useMemo(() => {
+        for (const ci of callImpacts) for (const st of ci.stops) {
+            if (st.passedAt != null || ci.isNew) continue;      // 지난 곳 · 아직 안 잡은 후보는 건너뛴다
+            const [from, to] = ci.where.split(' → ');
+            return { seq: st.seq, name: (st.kind === '상차' ? from : to) ?? st.label, callNo: ci.disp, kind: st.kind, min: st.leg?.durMin ?? null };
+        }
+        return null;
     }, [callImpacts]);
 
     /** ⛔ 제외지역에 걸린 콜 — 필터에 그 동이 안 실리므로 실전에선 애초에 안 올라온다 */
@@ -3446,6 +3568,119 @@ export default function MapMockup() {
                             })}
                         </div>
                     </details>
+
+                    {/**
+                      * 🪟 **시트 — 실물 구조 그대로, 사이드바 하단 고정** (기사님 확정 2026-09-10:
+                      * *"제안 B 가 우리 프로젝트에 가장 적합한 것 같아. **지도의 경로, 기존 콜들의
+                      * 순서를 보면서 결정한다.**"* · *"오른쪽 사이드바 폭 400 · 하단 고정으로 UI 만"*).
+                      *
+                      * ```
+                      * 시트 상태바
+                      *   › 아코디언 콜 리스트  (콜 타이틀 + 열고 닫는 콜 컨텐츠)
+                      *     › 심사 영역
+                      * ```
+                      * 🔴 **하단 고정인 것이 핵심이다** — 심사가 **언제나 화면 맨 아래 거기**라
+                      *    찾는 시간이 0이고, 엄지에 가장 가깝다 (실물 `bottomBox` 가 그 자리다).
+                      * 🔴 **UI 만 가져왔다.** 실물 `StageSheet`·`PinnedRouteBody` 는 안 건드렸고
+                      *    부르지도 않는다 — 그쪽은 시트가 지도 위에 뜨는 그릇이라 사이드바에 못 앉는다.
+                      *    여기서 다듬은 **모양**이 확정되면 그때 실물로 옮긴다.
+                      */}
+                    <div className="mt-auto sticky bottom-0 -mx-3 -mb-3 px-3 pb-3 pt-2 bg-surface border-t border-border-hover flex flex-col gap-1">
+                        {/* ── 🎬 시트 상태바 — 시트가 내려가 있어도 늘 보이는 맨 윗줄 ──
+                            실물 `sheetStatus` 문법 그대로: ▶ ② 진건읍 ~14분 · 2번 콜 · 하차 ›
+                            🔴 **심사 중이라고 «어디로 가는가»를 지우지 않는다** — 판정은 아래 심사 영역이 말한다 */}
+                        <div className="flex items-center gap-1.5 px-1.5 py-1 rounded-[8px] bg-background border border-border-card text-[12px] font-black">
+                            {sheetNext ? (<>
+                                <span className="shrink-0">{driving ? '▶' : '⏸'}</span>
+                                <span className="shrink-0 w-[19px] h-[19px] rounded-full grid place-items-center text-[11px] font-black text-white"
+                                    style={{ background: CALL_COLORS[(baseCallCount + confirmed.findIndex(c => circled(baseCallCount + confirmed.indexOf(c) + 1) === sheetNext.callNo)) % CALL_COLORS.length] || 'var(--color-info)' }}>
+                                    {sheetNext.seq ?? '?'}
+                                </span>
+                                <span className="shrink-0">{sheetNext.name}</span>
+                                {sheetNext.min != null && <span className="shrink-0 text-text-muted font-bold">~{sheetNext.min}분</span>}
+                                <span className="ml-auto shrink-0 text-text-muted font-bold truncate">{sheetNext.callNo}번 콜 · {sheetNext.kind}</span>
+                                <span className="shrink-0 text-text-muted">›</span>
+                            </>) : (
+                                <span className="text-text-muted font-bold">
+                                    {confirmed.length === 0 ? '진행 중인 콜 없음 · 새 콜 대기' : '이번 사이클 끝'}
+                                </span>
+                            )}
+                        </div>
+
+                        {/* ── 📋 아코디언 콜 리스트 — 타이틀 한 줄, 열면 컨텐츠 ──
+                            타이틀 문법(기사님 2026-09-10): [콜번호] [정거장번호]동이름 ~시각 → [정거장번호]동이름 ~시각
+                            🔴 **하나만 열린다** — 둘이 열리면 시트가 화면을 다 먹는다 (실물 `openIdx` 규칙) */}
+                        <div className="flex flex-col gap-0.5 max-h-[240px] overflow-y-auto">
+                            {callImpacts.filter(ci => !ci.isNew).length === 0 && (
+                                <p className="text-[10.5px] text-text-muted px-1">잡은 콜이 없습니다 — 지도에서 콜을 확정하면 여기 쌓입니다</p>
+                            )}
+                            {callImpacts.filter(ci => !ci.isNew).map(ci => {
+                                const n = Number(ci.no.charCodeAt(0) - 0x2460) + 1;
+                                const color = CALL_COLORS[(baseCallCount + n - 1) % CALL_COLORS.length];
+                                const open = sheetOpenNo === ci.disp;
+                                const late = ci.stops.reduce((m, st) => {
+                                    const real = st.passedAt ?? st.etaAt;
+                                    const d = real != null && st.promisedAt != null ? Math.round((real - st.promisedAt) / 60000) : 0;
+                                    return Math.max(m, d);
+                                }, 0);
+                                return (
+                                    <div key={ci.no} className="rounded-[8px] border border-border-card bg-background overflow-hidden">
+                                        <button type="button" onClick={() => setSheetOpenNo(open ? null : ci.disp)}
+                                            className="w-full flex items-center gap-1.5 px-1.5 py-1 text-left text-[11.5px] font-black tabular-nums">
+                                            <span className="shrink-0 w-2.5 h-2.5 rounded-full" style={{ background: color }} />
+                                            <span className="shrink-0">{ci.disp}</span>
+                                            {ci.stops.map(st => (
+                                                <span key={st.kind} className="shrink-0 flex items-center gap-0.5">
+                                                    {st.kind === '하차' && <span className="text-text-muted">→</span>}
+                                                    <span className="text-text-muted">{st.seq ?? '?'}</span>
+                                                    <span>{(ci.where.split(' → ')[st.kind === '상차' ? 0 : 1]) ?? ''}</span>
+                                                    <span className={st.passedAt != null ? 'text-success' : 'text-text-muted'}>
+                                                        ~{hhmm(st.passedAt ?? st.etaAt)}
+                                                    </span>
+                                                </span>
+                                            ))}
+                                            <span className="ml-auto shrink-0 flex items-center gap-1">
+                                                {late > 0 && <b className="text-warning">+{late}분</b>}
+                                                <span className="text-text-muted">{open ? '▴' : '▾'}</span>
+                                            </span>
+                                        </button>
+                                        {open && (
+                                            <div className="px-2 pb-1.5 flex flex-col gap-0.5 text-[10.5px] tabular-nums border-t border-border-card pt-1">
+                                                {ci.stops.map(st => {
+                                                    const real = st.passedAt ?? st.etaAt;
+                                                    const d = real != null && st.promisedAt != null ? Math.round((real - st.promisedAt) / 60000) : null;
+                                                    return (
+                                                        <div key={st.kind} className="flex flex-col">
+                                                            <div className="flex justify-between gap-1 font-bold">
+                                                                <span>{st.seq ?? '?'} {st.kind}
+                                                                    <span className="font-normal text-text-muted"> {st.leg?.distKm ?? '--'}km·{st.leg?.durMin ?? '--'}분</span>
+                                                                </span>
+                                                                <span>
+                                                                    <span className="text-text-muted">{hhmm(st.promisedAt)} → </span>
+                                                                    <b className={d != null && d > 0 ? 'text-warning' : 'text-success'}>{hhmm(real)}</b>
+                                                                    {st.passedAt != null && <span className="text-success text-[9px]"> 통과</span>}
+                                                                    {d != null && d > 0 && <b className="text-warning"> +{d}분</b>}
+                                                                </span>
+                                                            </div>
+                                                            {st.impacts.map((x, k) => (
+                                                                <div key={k} className="pl-2 flex justify-between gap-1 text-[9.5px] text-text-muted">
+                                                                    <span>└ {x.causeLabel}</span><span className="text-warning">+{x.min}분</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* ── ⚖️ 심사 영역 — 시트 맨 아래 붙박이 (v17 B안) ── */}
+                        <SheetJudgeCard seat={seatOrder} impacts={callImpacts} confirmedCount={confirmed.length}
+                            safeCancelLeft={safeCancelLeft} driveMin={candJudge?.driveMin ?? null} />
+                    </div>
 
                     {logs.length > 0 && (
                         <details className="border-t border-border-card pt-2" open>
