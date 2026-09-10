@@ -1118,16 +1118,18 @@ export default function MapMockup() {
     /**
      * 🔍 보기 — 자동 맞춤(내용에 맞춰 줌) ↔ 수동(드래그·휠줌). 움직이면 수동이 되고 ⌖ 가 자동으로 되돌린다.
      */
-    const [view, setView] = useState<{ manual: boolean; z: number; center: Pt }>({ manual: false, z: 10, center: { lng: 127.46, lat: 37.33 } });
+    /** 🔴 수동 보기의 원천은 viewRef 하나다 — 상태는 «수동인가 + 다시 그려라(rev)»만 든다.
+     *  center 를 상태에도 두었더니, 마우스 이벤트가 렌더보다 우선인 탓에 뒤늦게 커밋된 draw 가
+     *  viewRef 를 한 발 전으로 되감아 이동분을 잃었다 (기사님 2026-09-11 «자꾸 당기고 튄다» — 실측 24걸음 중 3걸음 유실) */
+    const [view, setView] = useState<{ manual: boolean; rev: number }>({ manual: false, rev: 0 });
     const dragRef = useRef({ sx: 0, sy: 0, moved: false, down: false });
     /** 화면을 dx,dy px 만큼 끈다 — 수동 보기로 들어간다.
      *  🔴 viewRef 에 즉시 적는다 — 마우스 이벤트가 그리기보다 빨라서, 묵은 원점에서
      *  다시 계산하면 앞선 이동분이 사라지며 지도가 뒤로 튕긴다 (기사님 2026-09-11 «자꾸 돌아가려 한다») */
     const panBy = (dx: number, dy: number) => {
         const v = viewRef.current;
-        const originX = v.originX - dx, originY = v.originY - dy;
-        viewRef.current = { z: v.z, originX, originY };
-        setView({ manual: true, z: v.z, center: fromWorldPx(originX + size.w / 2, originY + size.h / 2, v.z) });
+        viewRef.current = { z: v.z, originX: v.originX - dx, originY: v.originY - dy };
+        setView(p => ({ manual: true, rev: p.rev + 1 }));
     };
     /**
      * 📌 지금 화면을 그대로 얼린다 (기사님 2026-09-08 «탭을 바꾸면 원점이 바뀐다») —
@@ -1135,8 +1137,7 @@ export default function MapMockup() {
      * 내 위치·목적지가 그대로면 화면도 그대로여야 한다. ⌖ 를 누르면 다시 자동 맞춤.
      */
     const freezeView = () => {
-        const v = viewRef.current;
-        setView({ manual: true, z: v.z, center: fromWorldPx(v.originX + size.w / 2, v.originY + size.h / 2, v.z) });
+        setView(p => ({ manual: true, rev: p.rev + 1 }));
     };
     /** 커서 자리를 고정한 채 줌 — 지도 앱들의 그 손맛. viewRef 즉시 갱신은 panBy 와 같은 이유 */
     const zoomAt = (px: number, py: number, delta: number) => {
@@ -1145,9 +1146,8 @@ export default function MapMockup() {
         if (z2 === v.z) return;
         const geo = fromWorldPx(v.originX + px, v.originY + py, v.z);
         const [wx, wy] = worldPx(geo.lng, geo.lat, z2);
-        const originX = wx - px, originY = wy - py;
-        viewRef.current = { z: z2, originX, originY };
-        setView({ manual: true, z: z2, center: fromWorldPx(originX + size.w / 2, originY + size.h / 2, z2) });
+        viewRef.current = { z: z2, originX: wx - px, originY: wy - py };
+        setView(p => ({ manual: true, rev: p.rev + 1 }));
     };
 
     /** 프리셋 국면의 콜들 — 경로 상수(출발 + 상차·하차 짝)에서 되꺼낸다 */
@@ -2383,10 +2383,8 @@ export default function MapMockup() {
             if (drop) pts.push([drop.lng, drop.lat]);
             let z: number, originX: number, originY: number;
             if (view.manual) {
-                // 🔍 수동 보기 — 드래그·휠줌이 정한 중심과 줌 그대로
-                z = view.z;
-                const [ccx, ccy] = worldPx(view.center.lng, view.center.lat, z);
-                originX = ccx - size.w / 2; originY = ccy - size.h / 2;
+                // 🔍 수동 보기 — 드래그·휠줌이 viewRef 에 적은 그대로 읽기만 한다 (여기서 덮어쓰면 이동분을 되감는다)
+                ({ z, originX, originY } = viewRef.current);
             } else {
                 z = 12;
                 for (; z >= 9; z--) {
@@ -2400,7 +2398,7 @@ export default function MapMockup() {
                 const cy = (Math.max(...ws.map(w => w[1])) + Math.min(...ws.map(w => w[1]))) / 2;
                 originX = cx - size.w / 2; originY = cy - size.h / 2;
             }
-            viewRef.current = { z, originX, originY };
+            if (!view.manual) viewRef.current = { z, originX, originY };
             const S = (lng: number, lat: number): [number, number] => {
                 const [x, y] = worldPx(lng, lat, z);
                 return [x - originX, y - originY];
@@ -3860,7 +3858,7 @@ export default function MapMockup() {
                             className="w-9 h-9 rounded-lg border border-border-hover bg-surface text-[15px] font-black shadow">{label}</button>
                     ))}
                     <button type="button" title="자동 맞춤으로"
-                        onClick={() => setView(v => ({ ...v, manual: false }))}
+                        onClick={() => setView(p => ({ manual: false, rev: p.rev + 1 }))}
                         className={`w-9 h-9 rounded-lg border text-[15px] font-black shadow ${view.manual ? 'border-info/55 bg-info/15 text-info' : 'border-border-hover bg-surface'}`}>⌖</button>
                 </div>
                 </div>
