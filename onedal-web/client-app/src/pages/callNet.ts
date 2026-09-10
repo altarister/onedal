@@ -959,6 +959,22 @@ export function pickNextTarget(
     return Math.min(best + 1, path.length - 1);
 }
 
+/**
+ * 🩺 **성한 구간인가** — 경로 한 벌(선·주행·라인 그물)이 chain 을 써도 되는지 구간마다 묻는 판정.
+ *
+ * 🔴 **같은 점 구간(1점·0km)은 «잴 것 없음»이지 «못 잼»이 아니다** (기사님 실측 2026-09-11).
+ *    오송 한 자리에서 세 콜을 잡으면 chain 에 «오송→오송» 구간이 생기고, 서버는 그걸
+ *    `failed:false · line 1점 · 0km` 로 성실하게 돌려준다. `line.length >= 2` 만 보던 옛 판정이
+ *    이걸 «못 잼»으로 오인해 **경로 전체가 옛 계보(직선 포함)로 물러났다** — 주행 목표가
+ *    안 지난 상차들을 건너뛰고(▶ 성거읍) «새로운 길»이 나타나던 그 증상이다.
+ *    1점인데 거리를 모르거나(null) 0 이 아니면 그건 진짜 못 잰 것이다.
+ */
+export function legSound(l: { failed?: boolean; distKm: number | null; line: ReadonlyArray<unknown> }): boolean {
+    if (l.failed) return false;
+    if (l.line.length >= 2) return true;
+    return l.line.length === 1 && l.distKm === 0;
+}
+
 /** 여러 목적지의 그물을 합칠 때 쓰는 재료 한 점 */
 export type NetPass = NetResult['pass'][number];
 

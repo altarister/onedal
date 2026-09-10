@@ -36,7 +36,7 @@ import { circled, hhmm, cumMinutes, arrivalAt, visitOrder } from './labTime';
 // 🧪 콜 문제 — **화면이 버튼으로 그리고, 검사(`pnpm lab`)가 그 버튼을 누른다** (원천 하나)
 import { LAB_PROBLEMS, LAB_START, type LabProblem, type LabStep } from './labProblems';
 import {
-    netForGoal, lineZoneOf, progressAlongKm, sidoList, sggList, dongList, isRegionExcluded, isWholeRegionExcluded, excludedLabel, mergeGoalNets, judgeGoals, activeGoals, nearestDong, orderStopsInsert, pickNextTarget, cityCenter, isLocalPhase, NET_SRC, NET_DST,
+    netForGoal, lineZoneOf, progressAlongKm, sidoList, sggList, dongList, isRegionExcluded, isWholeRegionExcluded, excludedLabel, mergeGoalNets, judgeGoals, activeGoals, nearestDong, orderStopsInsert, pickNextTarget, legSound, cityCenter, isLocalPhase, NET_SRC, NET_DST,
     GONJIAM_DROP, DONGWON_DROP, BORAM_DROP,
     GONJIAM_CALL_PATH, DONGWON_CALL_PATH, BORAM_CALL_PATH,
     type NetPoint, type TwoStageVerdict,
@@ -1389,7 +1389,7 @@ export default function MapMockup() {
         const legs = routeChain?.legs ?? null;
         const base = routeChainFromRef.current;
         const chainOk = !!legs && legs.length > 0
-            && legs.every(l => !l.failed && l.line.length >= 2)
+            && legs.every(legSound)
             && legs.every((l, i) => {
                 const v = prevOrderRef.current[base + i];
                 return v != null && l.to === `${circled(v.call)}${v.kind}`;
@@ -1435,7 +1435,7 @@ export default function MapMockup() {
          * 🔴 chain 이 없거나(프리셋 판 · 확정 전) 못 잰 구간이 있으면 **옛 계보로 물러난다**.
          */
         const cLegs = routeChain?.legs ?? null;
-        if (cLegs && cLegs.length > 0 && cLegs.every(l => !l.failed && l.line.length >= 2)) {
+        if (cLegs && cLegs.length > 0 && cLegs.every(legSound)) {
             const out: Array<[number, number]> = [];
             for (const l of cLegs) for (const p of l.line) out.push([p.x, p.y]);
             if (out.length >= 2) return out;
@@ -1875,7 +1875,7 @@ export default function MapMockup() {
                 setChainNow({ ...d, measuredAt: clockBaseRef.current + simMinRef.current * 60000 });
                 const newNo = circled(confirmed.length + 1);   // 전체 경로 라벨은 calls 배열 순번 — 새 콜이 마지막
                 setChainPreview((d.legs ?? [])
-                    .filter((lg: ChainLeg) => !lg.failed && lg.line.length >= 2)
+                    .filter((lg: ChainLeg) => legSound(lg) && lg.line.length >= 2)
                     .map((lg: ChainLeg) => ({
                         line: lg.line.map(q => ({ lng: q.x, lat: q.y })),
                         isNew: lg.from?.startsWith(newNo) === true || lg.to?.startsWith(newNo) === true,
@@ -2220,13 +2220,21 @@ export default function MapMockup() {
      *   · 못 잰 분은 **안 적는다** (`~N분` 이 빈다) — 지어내지 않는다
      */
     const sheetNext = useMemo(() => {
+        /**
+         * 🔴 **«다음»은 방문 순번(seq)이 정한다 — 콜 번호 순이 아니다** (실측 2026-09-11).
+         * 콜 번호 순으로 첫 미통과를 돌려주니, 오송 상차(방문 4·5)를 앞에 두고도
+         * 콜① 하차 성거읍(방문 6)이 «다음»으로 떴다 — 상차를 건너뛴 안내다.
+         */
+        let best: { seq: number; name: string; callNo: number; disp: string; kind: '상차' | '하차'; min: number | null } | null = null;
         for (const ci of callImpacts) for (const st of ci.stops) {
             if (st.passedAt != null || ci.isNew) continue;      // 지난 곳 · 아직 안 잡은 후보는 건너뛴다
+            if (st.seq == null) continue;                        // 순번을 모르는 정거장은 «다음»을 못 맡는다
+            if (best && st.seq >= best.seq) continue;
             const [from, to] = ci.where.split(' → ');
-            return { seq: st.seq, name: (st.kind === '상차' ? from : to) ?? st.label,
+            best = { seq: st.seq, name: (st.kind === '상차' ? from : to) ?? st.label,
                 callNo: Number(ci.no.charCodeAt(0) - 0x2460) + 1, disp: ci.disp, kind: st.kind, min: st.leg?.durMin ?? null };
         }
-        return null;
+        return best;
     }, [callImpacts]);
 
     /**
@@ -2611,7 +2619,7 @@ export default function MapMockup() {
              */
             const chainLegs = routeChain?.legs ?? null;
             const chainDrawable = !!chainLegs && chainLegs.length > 0
-                && chainLegs.every(l => !l.failed && l.line.length >= 2);
+                && chainLegs.every(legSound);
             if (layers.route && chainDrawable) {
                 for (const l of chainLegs!) {
                     const no = l.to ? (l.to.codePointAt(0)! - 0x2460 + 1) : 0;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildNet, netForGoal, lineZoneOf, quadTesterOf, buildFirstLegDemo, judgeTwoStage, judgeGoals, orderStopsGreedy, orderStopsInsert, cityCenter, dongList, buildLineNet, sggList, sidoList, sidoOf, isRegionExcluded, isWholeRegionExcluded, excludedLabel, mergeGoalNets, isLocalPhase, WAIT_PRESET, NET_SRC, NET_DST, GONJIAM_DROP, DONGWON_DROP, BORAM_DROP, ICHEON_DROP } from './callNet';
+import { buildNet, netForGoal, lineZoneOf, quadTesterOf, buildFirstLegDemo, judgeTwoStage, judgeGoals, orderStopsGreedy, orderStopsInsert, cityCenter, dongList, buildLineNet, sggList, sidoList, sidoOf, isRegionExcluded, isWholeRegionExcluded, excludedLabel, mergeGoalNets, isLocalPhase, WAIT_PRESET, NET_SRC, NET_DST, GONJIAM_DROP, DONGWON_DROP, BORAM_DROP, ICHEON_DROP , legSound } from './callNet';
 
 /**
  * 🧪 **그물 셋업의 계산이 ⑭ 검산과 같은가**
@@ -860,5 +860,24 @@ describe('🏠 복귀 마름모는 진행도로 자르지 않는다', () => {
         for (const nm of ['별양동', '비산동', '금정동']) {
             expect(merged.pass.some(p => p.name === nm), nm).toBe(true);
         }
+    });
+});
+
+describe('legSound — 같은 점 구간은 «잴 것 없음»이지 «못 잼»이 아니다 (2026-09-11 오송발 세 콜)', () => {
+    const pt = { x: 127.3, y: 36.6 };
+    it('보통 구간(2점 이상)은 성하다', () => {
+        expect(legSound({ distKm: 41.8, line: [pt, pt] })).toBe(true);
+    });
+    it('같은 점 구간(1점 · 0km)은 성하다 — 오송→오송이 경로를 옛 계보로 밀지 않는다', () => {
+        expect(legSound({ distKm: 0, line: [pt] })).toBe(true);
+    });
+    it('failed 구간은 못 잰 것이다', () => {
+        expect(legSound({ failed: true, distKm: 0, line: [pt] })).toBe(false);
+    });
+    it('1점인데 거리를 모르면(null) 못 잰 것이다', () => {
+        expect(legSound({ distKm: null, line: [pt] })).toBe(false);
+    });
+    it('점이 하나도 없으면 못 잰 것이다', () => {
+        expect(legSound({ distKm: 0, line: [] })).toBe(false);
     });
 });
