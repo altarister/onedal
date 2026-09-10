@@ -24,7 +24,7 @@ import JudgmentSeat from '../components/dashboard/JudgmentSeat';
  * 🔴 공간을 아끼는 것보다 큰 것이 있다 — **지도 마커가 이미 이 색을 쓴다.**
  *    타이틀 줄이 같은 색을 쓰면 시트와 지도가 **같은 말**을 한다 (상차는 밝고 선명, 하차는 깊게).
  */
-import { callNodeFill, callNodeText } from '../styles/callPalette';
+import { callNodeFill, callNodeText, callTone } from '../styles/callPalette';
 import { useTheme } from '../contexts/ThemeContext';
 import type { SecuredOrder } from '@onedal/shared';
 // 🎨 판정 사실을 실물 모양으로 옮기는 곳 — 채점은 실물 엔진(judge)이 한다
@@ -382,6 +382,26 @@ function NumRow({ label, value, onChange, min = 0, max = 999, mode = 'input', au
  *    그래도 KEEP 할 수 있다 (규칙 ①: 콜의 주인은 기사님이다).
  * 🔴 여기 버튼은 **모양만**이다. 결재는 왼쪽 ⑤ 에서 한다.
  */
+
+/**
+ * 🎨 **정거장 번호를 «글자 색»으로 쓸 때의 색** (기사님 2026-09-10:
+ * *"동그라미 붉은색 1 + 송정동 을 **붉은색 1 송정동**으로 하면 영역을 줄일 수 있어"*).
+ *
+ * 🔴 **마커 바탕색을 그대로 글자에 쓰면 안 읽힌다.** `callNodeFill` 은 **흰 글자를 얹으려고**
+ *    어둡게 잡은 값이다(밝기 26~47%). 어두운 바탕에 그 색으로 글자를 쓰면 초록 하차(L26)는
+ *    거의 안 보인다 — 실물 팔레트 주석이 *"값은 흰 글자 대비를 재서 잡았다"* 고 못박아 뒀다.
+ * 🔴 그래서 **색조와 채도는 그대로 두고 밝기만 올린다** — 원천은 같은 `callTone` 하나라
+ *    색이 갈라지지 않는다 (규칙 ③). 「상차는 밝고 하차는 깊게」도 그대로 산다.
+ */
+function callTextColor(callNo: number, stop: 'pickup' | 'dropoff', theme: 'dark' | 'light'): string {
+    const t = callTone(callNo);
+    const [sat] = stop === 'pickup' ? t.pick : t.drop;
+    const light = theme === 'dark'
+        ? (stop === 'pickup' ? 70 : 58)    // 어두운 바탕 — 올려서 읽히게
+        : (stop === 'pickup' ? 42 : 32);   // 밝은 바탕 — 내려서 읽히게
+    return `hsl(${t.hue} ${sat}% ${light}%)`;
+}
+
 function SheetJudgeCard({ seat, impacts, confirmedCount, safeCancelLeft, driveMin }: {
     seat: SecuredOrder | null;
     impacts: Array<{ no: string; disp: string; isNew: boolean; where: string;
@@ -3649,13 +3669,13 @@ export default function MapMockup() {
                                         <button type="button" onClick={() => setSheetOpenNo(open ? null : ci.disp)}
                                             className="w-full flex items-center gap-1 px-1.5 py-1 text-left text-[11.5px] font-black tabular-nums">
                                             {ci.stops.map(st => (
-                                                <span key={st.kind} className="min-w-0 flex items-center gap-1">
+                                                <span key={st.kind} className={`min-w-0 flex items-center gap-1 ${st.passedAt != null ? 'opacity-55' : ''}`}>
                                                     {st.kind === '하차' && <span className="shrink-0 text-text-muted">→</span>}
-                                                    <span className="shrink-0 w-[17px] h-[17px] rounded-full grid place-items-center text-[10px] font-black"
-                                                        style={{ background: callNodeFill(n, st.kind === '상차' ? 'pickup' : 'dropoff', theme),
-                                                            color: callNodeText(st.kind === '상차' ? 'pickup' : 'dropoff', theme),
-                                                            // 🖊️ 테두리 = 다녀왔나 (실물 문법 그대로)
-                                                            outline: st.passedAt != null ? '2px solid var(--color-text-primary)' : 'none', outlineOffset: '1px' }}>
+                                                    {/* 🔴 동그라미를 벗겼다 — 번호가 곧 색이다 (기사님 2026-09-10).
+                                                        지명은 **기본색으로 둔다** — 실제로 읽는 것이 그것이라 가장 또렷해야 한다.
+                                                        색은 «어느 콜인가»만 말하면 되고, 그 일은 번호 한 글자로 충분하다. */}
+                                                    <span className="shrink-0 text-[12px] font-black tabular-nums"
+                                                        style={{ color: callTextColor(n, st.kind === '상차' ? 'pickup' : 'dropoff', theme) }}>
                                                         {st.seq ?? '?'}
                                                     </span>
                                                     <span className="truncate">{(ci.where.split(' → ')[st.kind === '상차' ? 0 : 1]) ?? ''}</span>
