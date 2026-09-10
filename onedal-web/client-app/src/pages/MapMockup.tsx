@@ -1120,10 +1120,14 @@ export default function MapMockup() {
      */
     const [view, setView] = useState<{ manual: boolean; z: number; center: Pt }>({ manual: false, z: 10, center: { lng: 127.46, lat: 37.33 } });
     const dragRef = useRef({ sx: 0, sy: 0, moved: false, down: false });
-    /** 화면을 dx,dy px 만큼 끈다 — 수동 보기로 들어간다 */
+    /** 화면을 dx,dy px 만큼 끈다 — 수동 보기로 들어간다.
+     *  🔴 viewRef 에 즉시 적는다 — 마우스 이벤트가 그리기보다 빨라서, 묵은 원점에서
+     *  다시 계산하면 앞선 이동분이 사라지며 지도가 뒤로 튕긴다 (기사님 2026-09-11 «자꾸 돌아가려 한다») */
     const panBy = (dx: number, dy: number) => {
         const v = viewRef.current;
-        setView({ manual: true, z: v.z, center: fromWorldPx(v.originX + size.w / 2 - dx, v.originY + size.h / 2 - dy, v.z) });
+        const originX = v.originX - dx, originY = v.originY - dy;
+        viewRef.current = { z: v.z, originX, originY };
+        setView({ manual: true, z: v.z, center: fromWorldPx(originX + size.w / 2, originY + size.h / 2, v.z) });
     };
     /**
      * 📌 지금 화면을 그대로 얼린다 (기사님 2026-09-08 «탭을 바꾸면 원점이 바뀐다») —
@@ -1134,14 +1138,16 @@ export default function MapMockup() {
         const v = viewRef.current;
         setView({ manual: true, z: v.z, center: fromWorldPx(v.originX + size.w / 2, v.originY + size.h / 2, v.z) });
     };
-    /** 커서 자리를 고정한 채 줌 — 지도 앱들의 그 손맛 */
+    /** 커서 자리를 고정한 채 줌 — 지도 앱들의 그 손맛. viewRef 즉시 갱신은 panBy 와 같은 이유 */
     const zoomAt = (px: number, py: number, delta: number) => {
         const v = viewRef.current;
         const z2 = Math.max(8, Math.min(13, v.z + delta));
         if (z2 === v.z) return;
         const geo = fromWorldPx(v.originX + px, v.originY + py, v.z);
         const [wx, wy] = worldPx(geo.lng, geo.lat, z2);
-        setView({ manual: true, z: z2, center: fromWorldPx(wx - px + size.w / 2, wy - py + size.h / 2, z2) });
+        const originX = wx - px, originY = wy - py;
+        viewRef.current = { z: z2, originX, originY };
+        setView({ manual: true, z: z2, center: fromWorldPx(originX + size.w / 2, originY + size.h / 2, z2) });
     };
 
     /** 프리셋 국면의 콜들 — 경로 상수(출발 + 상차·하차 짝)에서 되꺼낸다 */
