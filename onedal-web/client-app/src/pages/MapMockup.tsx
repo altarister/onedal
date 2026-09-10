@@ -235,13 +235,6 @@ const DEFAULT_SIDO = '경기', DEFAULT_SGG = '파주시';
 const VEHICLE_SHORT: Record<string, string> = { 오토바이: '오', 승용차: '승', 다마스: '다', 라보: '라', '1t': '1t' };
 
 /** 콜 번호별 경로 색 — ①은 프리셋 경로의 기본색과 같은 장미로 잇는다 */
-/**
- * ▒ **공통영역(common region)의 바탕** — 상차 덩어리를 묶는 아주 옅은 톤.
- * 🔴 테마 토큰에서 섞는다 — 어두운 판·밝은 판 어느 쪽에서도 «있는 듯 없는 듯»이라야 한다.
- *    진해지면 그게 곧 테두리가 되어 기사님이 지적한 «복잡함»으로 되돌아간다.
- */
-const GROUP_TINT = { background: 'color-mix(in srgb, var(--color-text-primary) 6%, transparent)' } as const;
-
 const CALL_COLORS = ['#e11d48', '#a78bfa', '#2dd4bf', '#fb923c', '#facc15', '#34d399', '#60a5fa', '#f472b6'];
 
 /* ── 웹 메르카토르 — OSM 타일과 같은 투영이라야 배경과 도형이 어긋나지 않는다 ── */
@@ -3669,30 +3662,24 @@ export default function MapMockup() {
                                           * ⚠️ 콜 번호는 **호칭**(「합짐2」)이라 안 없앤다 — 열면 나오고 심사 영역이 부른다.
                                           */}
                                         {/**
-                                          * 🔴 **줄은 격자다 — 칸이 세로로 맞아야 한눈에 읽힌다**
-                                          * (기사님 2026-09-10: *"그리드는 맞아야 한눈에 보일 것 같고"*).
-                                          *   ▒[번호][지명][시각][±]▒     [번호][지명][시각][±]   [▾]
-                                          *    └── 상차 (옅은 바탕) ──┘  ↑넓은 틈  └──── 하차 ────┘
-                                          * 콜이 넷이어도 **시각은 시각끼리, 밀림은 밀림끼리** 한 줄로 선다.
+                                          * 🔴 **정거장 하나가 네 칸이다** (기사님 요소 정리 2026-09-10).
                                           *
-                                          * 🔴 **밀림을 상차·하차로 갈랐다** (*"상하차가 모두 지나기 전 64분인데
-                                          *    이걸 나누어 볼 필요가 있어"*). 전에는 둘 중 **큰 것 하나**만 오른쪽 끝에
-                                          *    적었다 — 그러면 «어느 쪽이 밀렸나»를 열어 봐야 알았다.
-                                          * 🔴 **«분»을 뗐다** (*"분은 우리가 다 아는 단위이니 빼자"*). 칸이 좁아지고
-                                          *    숫자만 남아 **부호(+/−)가 먼저 읽힌다.**
-                                          * 🔴 **단계 글자(«싣고 간다»)를 지웠다** — 회색이 그것을 이미 말한다:
-                                          *    상차만 회색이면 싣고 가는 중, 둘 다 회색이면 끝난 콜이다. 같은 말을 두 번 안 적는다.
+                                          * 기사님이 칸을 이렇게 갈라 주셨다:
+                                          *   예약 시점(아직 안 감) — **컬러** · 순번 · 지명 · 약속 · **예상 + 추가된 시간**
+                                          *   도착 시점(지나감)   — **흑백** · 순번 · 지명 · 약속 · **도착**
+                                          *
+                                          * 🔴 **한 줄에 둘 다 넣고 긴 지명은 말줄임한다** (기사님 2026-09-10 *"길면 말줄임해"*).
+                                          *    400px 에서 지명에 돌아가는 폭은 **한 자리에 약 4자**다(실측) —
+                                          *    「사리현동」은 「사리현…」이 된다. **줄을 늘리는 것보다 낫다**:
+                                          *    콜이 셋이면 여섯 줄이 되어 시트가 화면을 다 먹는다.
+                                          * 🔴 **잘리는 것은 지명뿐이다** — 시각과 분은 한 글자도 안 자른다.
+                                          *    열면 온전한 이름이 나오고, 지도에도 이름이 있다.
+                                          * 🔴 격자는 그대로다 — 콜이 넷이어도 **약속은 약속끼리, 예상은 예상끼리** 세로로 선다.
+                                          *    상차·하차는 **가운데 틈**으로 갈린다 (근접성).
                                           */}
                                         <button type="button" onClick={() => setSheetOpenNo(open ? null : ci.disp)}
                                             className="w-full grid items-center px-1.5 py-1 text-left text-[11.5px] font-black tabular-nums"
-                                            /**
-                                              * 🔴 **칸 사이 틈을 0 으로 두고 여백은 칸 «안»에** — 틈이 있으면 바탕이 끊겨
-                                              *    덩어리가 아니라 **상자 넷**으로 보인다 (기사님 화면 2026-09-10).
-                                              * 🔴 **남는 폭은 가운데(1fr)로 몬다** — 지명 칸이 1fr 이면 상차 넷이 흩어져
-                                              *    «한 덩어리»가 안 된다. 지명은 `auto`(가장 긴 이름만큼)라 **칸은 여전히 세로로 맞고**,
-                                              *    남는 자리는 전부 두 덩어리 **사이의 틈**이 된다 (근접성).
-                                              */
-                                            style={{ gridTemplateColumns: '15px auto 44px 30px minmax(14px,1fr) 15px auto 44px 30px 11px' }}>
+                                            style={{ gridTemplateColumns: '15px minmax(0,1fr) 41px 41px 28px 8px 15px minmax(0,1fr) 41px 41px 28px 13px' }}>
                                             {ci.stops.map(st => {
                                               const gone = st.passedAt != null;
                                               const real = st.passedAt ?? st.etaAt;
@@ -3701,37 +3688,21 @@ export default function MapMockup() {
                                                   ? Math.round((real - st.promisedAt) / 60000) : null;
                                               return (
                                                 <Fragment key={st.kind}>
-                                                    {/**
-                                                      * 🔴 **상차 덩어리 ↔ 하차 덩어리를 «테두리»로 가르지 않는다** (기사님 2026-09-10:
-                                                      * *"콜에 테두리하고 그 안에 또 테두리하면 복잡해 보이고 영역을 많이 잡아먹어"* ·
-                                                      * *"상차 하차는 오른쪽 왼쪽으로 **아이콘이 없어도 잘 보여**"*).
-                                                      *
-                                                      * 잉크를 거의 안 쓰는 두 가지로 가른다 — 게슈탈트의 오래된 답이다:
-                                                      *   ① **공통영역(common region)** — 상차 넷에만 **아주 옅은 바탕**을 깐다.
-                                                      *      *"대비되는 바탕 하나면 여러 부품이 한 덩어리로 묶인다"* (NN/g).
-                                                      *      테두리와 달리 **높이를 한 픽셀도 안 늘린다.**
-                                                      *   ② **근접성(proximity)** — 덩어리 **안**은 4px, 덩어리 **사이**는 18px.
-                                                      *      선을 긋지 않고 틈으로 가르는 것이 목록 UI 의 정석이다 (NN/g «Proximity»).
-                                                      * 🔴 **▲▼ 기호는 뺐다** — 왼쪽이 상차, 오른쪽이 하차라는 것은 **자리가 이미 말한다.**
-                                                      *    같은 말을 기호로 또 적으면 그만큼 지명이 좁아진다.
-                                                      * 🔴 선(1px)도 뺐다 — **바탕 · 틈 · 선이 셋 다 있으면 그게 «복잡함»이다.** 둘로 충분하다.
-                                                      */}
                                                     {st.kind === '하차' && <span />}
-                                                    <span className={`text-[12px] rounded-l-md pl-1 py-0.5 ${gone ? 'text-text-muted' : ''}`}
-                                                        style={{ ...(st.kind === '상차' ? GROUP_TINT : null),
-                                                            ...(gone ? null : { color: callTextColor(n, st.kind === '상차' ? 'pickup' : 'dropoff', theme) }) }}>
+                                                    {/* 순번 — 지나갔으면 흑백. 색이 남아 있으면 눈이 그리로 간다 */}
+                                                    <span className={`text-[12px] ${gone ? 'text-text-muted' : ''}`}
+                                                        style={gone ? undefined : { color: callTextColor(n, st.kind === '상차' ? 'pickup' : 'dropoff', theme) }}>
                                                         {st.seq ?? '?'}
                                                     </span>
-                                                    <span className={`truncate px-1 py-0.5 ${gone ? 'text-text-muted' : ''}`}
-                                                        style={st.kind === '상차' ? GROUP_TINT : undefined}>
+                                                    <span className={`truncate px-1 ${gone ? 'text-text-muted' : ''}`}>
                                                         {(ci.where.split(' → ')[st.kind === '상차' ? 0 : 1]) ?? ''}
                                                     </span>
-                                                    <span className="text-text-muted text-right px-1 py-0.5" style={st.kind === '상차' ? GROUP_TINT : undefined}>
-                                                        {real != null ? hhmm(real) : '--:--'}
-                                                    </span>
-                                                    {/* 늦은 것만 노랑 — 제때·일찍은 회색이라 **눈을 뺏는 것이 경고 하나**다 */}
-                                                    <span className={`text-right rounded-r-md pr-1 py-0.5 ${diff != null && diff > 0 ? 'text-warning' : 'text-text-muted'}`}
-                                                        style={st.kind === '상차' ? GROUP_TINT : undefined}>
+                                                    {/* 약속 — **두 시점 모두** 적는다. 견줄 것이 없으면 늦었는지 알 수 없다 */}
+                                                    <span className="text-text-muted text-right px-1">{hhmm(st.promisedAt)}</span>
+                                                    {/* 넷째 칸 — 지났으면 «도착», 아직이면 «예상» */}
+                                                    <span className={`text-right px-1 ${gone ? 'text-text-muted' : ''}`}>{real != null ? hhmm(real) : '--:--'}</span>
+                                                    {/* 추가된 시간 — 늦은 것만 노랑. 지난 줄은 흑백이라 조용하다 */}
+                                                    <span className={`text-right pr-1 ${diff != null && diff > 0 && !gone ? 'text-warning' : 'text-text-muted'}`}>
                                                         {diff == null ? '' : diff > 0 ? `+${diff}` : diff}
                                                     </span>
                                                 </Fragment>
