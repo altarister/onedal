@@ -159,22 +159,44 @@ try {
     ok('색이 나온다 (사고가 아니다)', color != null && color !== '사고', color);
     await shot('3-심사');
 
-    /* ── ④ 합짐 문제 ───────────────────────────────────────── */
+    /* ── ④ 합짐 ────────────────────────────────────────────── */
     console.log('\n④ ② 합짐 하나 — 쌓이고, 순번이 이어지는가');
     await problem(problems[1]); await sleep(11000);
     await press(/서버로 올린다|올려 보기/); await sleep(3000);
     await shot('4-합짐');
     const listCount = await js(`(document.body.innerText.match(/📋 콜 리스트 — (\\d+)/)||[])[1]||null`);
     ok('콜 리스트에 한 콜이 쌓인다', listCount === '1', listCount);
-    /**
-     * 🔴 **오늘(2026-09-10)의 사고가 여기 있었다** — 후보콜 정거장 둘이 번호를 밀어
-     *    지도는 ⑧⑨⑩ 인데 시트는 10·11·12 였다. 확정 콜의 순번은 **1부터 빠짐없이** 이어져야 한다.
-     */
     const seqs = await js(`(()=>{const t=document.body.innerText; const m=[...t.matchAll(/\\n\\s*(\\d+)\\s+\\S+\\s+\\d\\d:\\d\\d/g)].map(x=>+x[1]); return [...new Set(m)].sort((a,b)=>a-b)})()`);
     ok('시트 순번이 1부터 빠짐없이 이어진다', Array.isArray(seqs) && seqs.length > 0 && seqs.every((v, i) => v === i + 1), JSON.stringify(seqs));
 
+    /**
+     * 🔴 **여기가 진짜 검사다** (기사님 2026-09-10: *"너가 그렇게 e2e 테스트를 하니까
+     *    **말이 안 되고 다 통과**하지. 그리고 **잘못 설계된 테스트로 코드를 수정**하고."*).
+     *
+     * 앞의 검사들은 «찍으면 대개 참»인 것들이라 **떨어질 줄을 모른다.**
+     * 필터가 일한다는 것은 **같은 콜이 자리에 따라 갈린다**는 뜻이다 —
+     *   · 집에 서 있을 때 천현동(하남) 상차는 **내 위치 반경 10km 밖**이라 떨어져야 하고
+     *   · 성남까지 달려간 뒤에는 **들어와서 통과**해야 한다.
+     * 코드가 틀리면 둘 중 하나가 반드시 빨간불이 된다.
+     */
+    console.log('\n⑤ 🔴 같은 콜이 자리에 따라 갈리는가 (필터가 일하는가)');
+    await problem(problems[1]); await sleep(11000);          // 집 근처 · 두 콜만 잡은 판
+    const cycle3 = await js(`(()=>{const b=document.querySelector('[data-cycle="3"]'); if(!b) return false; b.click(); return true})()`);
+    await sleep(2200);
+    const before = await js(`(document.body.innerText.match(/(✅ 올린다 \\(필터 통과\\)|❌ 안 올린다|⛔ 제외지역)/)||['?'])[0]`);
+    const beforeWho = await grab(/▲\s*([^\n→]+?)\s*→/);
+    ok('집에 있을 때 ③천현동 콜은 **떨어진다** (상차 반경 밖)', cycle3 === true && before.startsWith('❌'), `${beforeWho} · ${before}`);
+
+    await js(`(()=>{const b=document.querySelector('[data-event]'); if(!b) return false; b.click(); return true})()`);   // ↳ 성남까지 달린다
+    await sleep(1500);
+    const cycle3b = await js(`(()=>{const b=document.querySelector('[data-cycle="3"]'); if(!b) return false; b.click(); return true})()`);
+    await sleep(2200);
+    const after = await js(`(document.body.innerText.match(/(✅ 올린다 \\(필터 통과\\)|❌ 안 올린다|⛔ 제외지역)/)||['?'])[0]`);
+    ok('성남까지 달린 뒤에는 같은 콜이 **통과한다**', cycle3b === true && after.startsWith('✅'), after);
+    await shot('5-주행전후');
+
     /* ── ⑤ 주행 — 지나온 자리는 조용해지는가 ───────────────── */
-    console.log('\n⑤ ④ 콜 셋 · 주행 — 지나온 정거장이 조용해지는가');
+    console.log('\n⑥ ④ 한 바퀴 — 주행까지 끼워 일곱 콜을 다 잡는가');
     // ⏳ 「④ 한 바퀴」는 일곱 콜을 순서대로 잡는다 — 카카오를 콜마다 부르므로 오래 걸린다
     await problem(problems[3] ?? problems[problems.length - 1]); await sleep(32000);
     await press(/주행|출발/);

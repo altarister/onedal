@@ -1,79 +1,79 @@
 /**
- * 🧪 **콜 문제 목록 — 기사님이 실제로 돈 한 바퀴** (2026-09-10).
+ * 🧪 **콜 문제 — 기사님이 실제로 돈 한 바퀴** (2026-09-10).
  *
- * 🔴 **내가 좌표를 감으로 고르면 맥락이 없다** — *"문제가 맥락 없고 우리 룰과도 모두 틀리다.
- *    이렇게 해서 무슨 테스트야."* 맞다. 그래서 이 목록은 지어낸 것이 하나도 없다:
- *    기사님이 지도를 두 번씩 눌러 **일곱 콜을 잡고 한 바퀴 돈 기록**에서 그대로 옮겼다
- *    (노선 다섯 + 복귀 둘 — 하루 운행 모델과 같은 모양).
- * 🔴 좌표는 **카카오 호출 기록에 찍힌 그 값**이다 (`⑮ 합짐 고유` 줄의 상차·하차).
- *    동 중심점으로 바꾸지 않았다 — **기사님이 누른 자리**라야 그때 그 판이 다시 선다.
- * 🔴 **요금·짐은 안 적는다** — 늘 20만원·1박스다. 지도 클릭으로 만든 콜은 가격을 알 수 없고,
- *    지금 보는 것은 *"가는 길에 잘 잡는가, 필터가 통과할 수 있는가"* 다.
- *    그래야 콜 사이에 **달라진 것이 «길»뿐**이 된다.
+ * 🔴 **한자리에서 일곱 콜을 다 잡는 것은 문제가 아니다** (기사님:
+ *    *"한자리에서 모두 돌리면 **필터에 걸려 평가할 것도 없는** 거야.
+ *    당연히 **주행을 넣어야** 테스트가 되는 거야. 생각을 해야지."*).
+ *    콜을 잡는 사이사이에 **기사님이 달린다** — 그래서 다음 콜이 내 위치 반경에 들어온다.
+ *    주행을 빼면 뒤 콜들은 애초에 «상차 반경 밖»이라 필터가 떨어뜨린다. 평가할 것이 없다.
  *
- * 🔴 **문제는 화면에 산다.** 실험실 상단이 버튼으로 그리고, 검사(`pnpm lab`)는 **그 버튼을 누른다** —
- *    기사님이 누르는 것과 글자 그대로 같은 것이 돈다 (규칙 ③: 원천 하나).
+ * 🔴 **주행 기록도 로그에 있었다.** 카카오 호출의 «⑮ 합짐 고유» 줄 머리가
+ *    `내 위치 x,y` 다 — **그 콜을 잡던 순간 기사님이 서 있던 자리**다. 그대로 옮겼다:
+ *      초월읍(집) → 성남 은행동 → 서울 강일동 → 고양 선유동 → 일산 풍동 → 계양 노오지동
+ *
+ * 🔴 좌표는 전부 **기록에 찍힌 값**이다 — 동 중심점으로 바꾸지 않았다.
+ *    ⚠️ 하나만 지도 표에서 뽑았다(①하차 의정부동) — 첫짐이라 «⑮» 줄이 없어 기록에 없다.
+ * 🔴 **요금·짐은 안 적는다** — 늘 20만원·1박스다. 지금 보는 것은
+ *    *"가는 길에 잘 잡는가, 필터가 통과할 수 있는가"* 라 **달라진 것이 «길»뿐**이라야 한다.
  */
+
+/** 지점 하나 */
+export interface LabPt { lng: number; lat: number }
+
+/**
+ * 한 걸음 — **달리거나(이벤트) · 콜을 잡거나** 둘 중 하나다.
+ * 화면은 이 순서 그대로 **왼쪽에 이벤트 · 오른쪽에 콜**로 늘어놓는다 (기사님 2026-09-10).
+ */
+export type LabStep =
+    | { kind: 'drive'; to: LabPt; where: string; home?: boolean }
+    | { kind: 'call'; from: LabPt; to: LabPt; where: string; confirm: boolean };
+
+/** 🏠 하루의 시작 — 집(초월) */
+export const LAB_START: LabPt = { lng: 127.29400, lat: 37.37720 };
+
+/**
+ * 🚚 **기사님 한 바퀴** — 목적지 파주, 노선 다섯 + 복귀 둘.
+ * 로그 시각 20:31:17 ~ 20:34:56 의 순서 그대로다.
+ */
+export const LAB_STEPS: LabStep[] = [
+    { kind: 'call', where: '양벌동 → 의정부동', confirm: true, from: { lng: 127.28520, lat: 37.37980 }, to: { lng: 127.04510, lat: 37.73830 } },
+    { kind: 'call', where: '장지동 → 일패동', confirm: true, from: { lng: 127.23830, lat: 37.38800 }, to: { lng: 127.18540, lat: 37.62120 } },
+
+    { kind: 'drive', where: '성남 은행동까지 달린다', to: { lng: 127.17800, lat: 37.46130 } },
+    { kind: 'call', where: '천현동 → 문봉동', confirm: true, from: { lng: 127.21380, lat: 37.52880 }, to: { lng: 126.82030, lat: 37.70180 } },
+
+    { kind: 'drive', where: '서울 강일동까지 달린다', to: { lng: 127.17350, lat: 37.56250 } },
+    { kind: 'call', where: '도농동 → 가좌동', confirm: true, from: { lng: 127.15470, lat: 37.60100 }, to: { lng: 126.72760, lat: 37.69340 } },
+
+    { kind: 'drive', where: '고양 선유동까지 달린다', to: { lng: 126.91860, lat: 37.67970 } },
+    { kind: 'call', where: '관산동 → 대화동', confirm: true, from: { lng: 126.86290, lat: 37.70150 }, to: { lng: 126.74270, lat: 37.66950 } },
+
+    { kind: 'drive', where: '일산 풍동까지 · ↩️ 복귀 켬', to: { lng: 126.80700, lat: 37.66420 }, home: true },
+    { kind: 'call', where: '법곳동 → 무지내동', confirm: true, from: { lng: 126.71530, lat: 37.66510 }, to: { lng: 126.83960, lat: 37.41410 } },
+
+    { kind: 'drive', where: '계양 노오지동까지 달린다', to: { lng: 126.75590, lat: 37.58000 } },
+    { kind: 'call', where: '계산동 → 양벌동', confirm: true, from: { lng: 126.72010, lat: 37.54000 }, to: { lng: 127.28520, lat: 37.37980 } },
+];
+
 export interface LabProblem {
-    /** 버튼에 적히는 이름 — 짧게 */
     name: string;
     /** 이 문제가 **무엇을 보려고** 있는가 — 눌렀을 때 화면에 적힌다 */
     why: string;
-    /** 🎯 목적지 (도 · 시·군·구) */
     dst: { sido: string; sgg: string };
-    /** 이 순서대로 잡는다. `confirm: false` 면 **확정하지 않고 심사창에 후보로 남긴다** */
-    calls: Array<{
-        from: { lng: number; lat: number };
-        to: { lng: number; lat: number };
-        /** 🗺️ 어디였나 — 읽으려고 적는다. 좌표만 있으면 무슨 판인지 모른다 */
-        where: string;
-        confirm: boolean;
-        /** ↩️ 이 콜부터 **복귀를 켠다** — 기사님 한 바퀴에서 여섯째부터 복귀였다 */
-        home?: boolean;
-    }>;
+    steps: LabStep[];
 }
 
-/**
- * 🚚 **기사님 한 바퀴** — 목적지 파주, 일곱 콜. 카카오 기록의 순서·좌표 그대로다.
- *
- * ⚠️ **하나만 지도 표에서 뽑았다** — 첫 콜의 하차(의정부동). 첫짐이라 «⑮ 합짐 고유» 줄이 없어
- *    좌표가 기록에 안 남았다. 나머지 열셋은 전부 기록에 찍힌 값이다.
- */
-export const LAB_CYCLE: LabProblem['calls'] = [
-    { where: '양벌동 → 의정부동', confirm: true, from: { lng: 127.28520, lat: 37.37980 }, to: { lng: 127.04510, lat: 37.73830 } },
-    { where: '장지동 → 일패동', confirm: true, from: { lng: 127.23830, lat: 37.38800 }, to: { lng: 127.18540, lat: 37.62120 } },
-    { where: '천현동 → 문봉동', confirm: true, from: { lng: 127.21380, lat: 37.52880 }, to: { lng: 126.82030, lat: 37.70180 } },
-    { where: '도농동 → 가좌동', confirm: true, from: { lng: 127.15470, lat: 37.60100 }, to: { lng: 126.72760, lat: 37.69340 } },
-    { where: '관산동 → 대화동', confirm: true, from: { lng: 126.86290, lat: 37.70150 }, to: { lng: 126.74270, lat: 37.66950 } },
-    { where: '법곳동 → 무지내동 (복귀)', confirm: true, home: true, from: { lng: 126.71530, lat: 37.66510 }, to: { lng: 126.83960, lat: 37.41410 } },
-    { where: '계산동 → 양벌동 (복귀)', confirm: true, home: true, from: { lng: 126.72010, lat: 37.54000 }, to: { lng: 127.28520, lat: 37.37980 } },
-];
-
 const PAJU = { sido: '경기', sgg: '파주시' } as const;
+/** 마지막 콜은 **확정하지 않고 후보로 남긴다** — 심사창이 그때 보인다 */
+const upTo = (n: number): LabStep[] => {
+    const cut = LAB_STEPS.slice(0, n);
+    const last = cut[cut.length - 1];
+    return last?.kind === 'call' ? [...cut.slice(0, -1), { ...last, confirm: false }] : cut;
+};
 
 export const LAB_PROBLEMS: LabProblem[] = [
-    {
-        name: '① 첫 콜',
-        why: '집 옆 양벌동에서 싣고 의정부로 — 필터를 통과하는가, 색이 나오는가 (한 바퀴의 첫째 콜)',
-        dst: PAJU,
-        calls: [{ ...LAB_CYCLE[0], confirm: false }],
-    },
-    {
-        name: '② 합짐 하나',
-        why: '첫 콜을 잡은 뒤 장지동 콜이 온다 — 기존 콜이 몇 분 밀리는지, 전화할 곳이 나오는가',
-        dst: PAJU,
-        calls: [LAB_CYCLE[0], { ...LAB_CYCLE[1], confirm: false }],
-    },
-    {
-        name: '③ 노선 다섯',
-        why: '노선으로 다섯 콜을 쌓는다 — 순번이 이어지는가, 라인이 서는가',
-        dst: PAJU,
-        calls: LAB_CYCLE.slice(0, 5),
-    },
-    {
-        name: '④ 한 바퀴',
-        why: '노선 다섯 + 복귀 둘 — 기사님이 실제로 돈 하루. 복귀로 접힐 때 그물이 어떻게 되는가',
-        dst: PAJU,
-        calls: LAB_CYCLE,
-    },
+    { name: '① 첫 콜', why: '집 옆 양벌동에서 싣고 의정부로 — 필터를 통과하는가, 색이 나오는가', dst: PAJU, steps: upTo(1) },
+    { name: '② 합짐 하나', why: '첫 콜을 잡은 뒤 장지동 콜이 온다 — 기존 콜이 몇 분 밀리는지, 전화할 곳이 나오는가', dst: PAJU, steps: upTo(2) },
+    { name: '③ 달려서 셋째', why: '🔴 성남까지 달린 뒤에야 천현동이 내 위치 반경에 든다 — 주행이 없으면 이 콜은 필터에서 떨어진다', dst: PAJU, steps: upTo(4) },
+    { name: '④ 한 바퀴', why: '노선 다섯 + 복귀 둘 · 사이사이 주행까지 — 기사님이 실제로 돈 하루 그대로', dst: PAJU, steps: LAB_STEPS },
 ];

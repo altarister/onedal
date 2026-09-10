@@ -34,7 +34,7 @@ import { promiseTimes, impactOfStop, splitDropImpact, type StopStep } from './la
 // ⏱️ 시간·정거장 이름은 한 곳에서 만든다 (labTime.test.ts 가 지킨다)
 import { circled, hhmm, cumMinutes, arrivalAt, visitOrder } from './labTime';
 // 🧪 콜 문제 — **화면이 버튼으로 그리고, 검사(`pnpm lab`)가 그 버튼을 누른다** (원천 하나)
-import { LAB_PROBLEMS, LAB_CYCLE, type LabProblem } from './labProblems';
+import { LAB_PROBLEMS, LAB_STEPS, LAB_START, type LabProblem } from './labProblems';
 import {
     netForGoal, lineZoneOf, progressAlongKm, sidoList, sggList, dongList, isRegionExcluded, isWholeRegionExcluded, excludedLabel, mergeGoalNets, judgeGoals, activeGoals, nearestDong, orderStopsInsert, pickNextTarget, cityCenter, isLocalPhase, NET_SRC, NET_DST,
     GONJIAM_DROP, DONGWON_DROP, BORAM_DROP,
@@ -1677,18 +1677,27 @@ export default function MapMockup() {
         //    판정 기록은 문제를 갈아도 **남는 것이 맞다** — 무엇을 눌러 왔는지가 그 목록이다.
         setDriving(false); setPausedForCall(false); setUploaded(false);
         setHomeOn(false);
-        setMyPos({ lng: NET_SRC.lng, lat: NET_SRC.lat });   // 📍 하루는 집에서 시작한다
+        setMyPos(LAB_START);                                // 📍 하루는 집에서 시작한다
         setDstSido(pr.dst.sido); setDstSgg(pr.dst.sgg);
         await new Promise(r => setTimeout(r, 500));
-        for (const c of pr.calls) {
-            // ↩️ 복귀는 **콜을 잡기 전에** 켠다 — 그래야 그 콜이 복귀 그물로 판정된다
-            if (c.home) setHomeOn(true);
-            setPickup(c.from); setDrop(c.to);
+        for (const st of pr.steps) {
+            if (st.kind === 'drive') {
+                /**
+                 * 🚚 **콜과 콜 사이에 달린다** — 이게 없으면 뒤 콜이 «상차 반경 밖»이라
+                 *    필터가 떨어뜨린다. 기사님: *"한자리에서 모두 돌리면 필터에 걸려
+                 *    평가할 것도 없는 거야."* 자리는 카카오 기록의 «내 위치» 그대로다.
+                 */
+                if (st.home) setHomeOn(true);               // ↩️ 복귀는 콜을 잡기 전에 켠다
+                setMyPos(st.to);
+                await new Promise(r => setTimeout(r, 1200));
+                continue;
+            }
+            setPickup(st.from); setDrop(st.to);
             setCandFare(LAB_DEFAULTS.candFare); setCandBoxes(LAB_DEFAULTS.candBoxes);
             // ⏳ 카카오가 이 콜의 경로를 물어 오는 사이를 기다린다 — 안 기다리면 약속이 빈다
             await new Promise(r => setTimeout(r, 1700));
-            if (!c.confirm) break;
-            confirmCall(c.from, c.to);
+            if (!st.confirm) break;
+            confirmCall(st.from, st.to);
             setPickup(null); setDrop(null);
             await new Promise(r => setTimeout(r, 1900));
         }
@@ -3778,32 +3787,52 @@ export default function MapMockup() {
                       */}
                     <details className="border-t border-border-card pt-2" open>
                         <summary className="text-[10.5px] font-black text-text-muted cursor-pointer">
-                            🧪 콜 문제 — 눌러서 지도에 찍는다 <span className="font-bold">(한 바퀴 {LAB_CYCLE.length}콜)</span>
+                            🧪 콜 문제 — 눌러서 지도에 찍는다 <span className="font-bold">(한 바퀴 {LAB_STEPS.filter(s => s.kind === 'call').length}콜 · 주행 {LAB_STEPS.filter(s => s.kind === 'drive').length})</span>
                         </summary>
-                        <ol className="mt-1 flex flex-col gap-0.5">
-                            {LAB_CYCLE.map((c, i) => {
-                                const done = i < confirmed.length;
-                                return (
-                                    <li key={c.where}>
-                                        <button type="button" data-cycle={i + 1}
+                        {/**
+                          * 🔴 **좌우로 나눈다** (기사님 2026-09-10: *"콜 문제를 좌우로 나누어서
+                          *    **우측에는 콜 리스트** 넣고 **왼쪽에는 이벤트**를 넣어. 화살표로 어디서
+                          *    출발했는지 등등을 넣어"*).
+                          *    왼쪽은 **기사님이 한 일**(달렸다·복귀를 켰다), 오른쪽은 **온 콜**이다.
+                          *    둘이 한 줄기라 «달린 뒤에야 이 콜이 들어왔다»가 눈에 보인다.
+                          */}
+                        <div className="mt-1 grid grid-cols-[1fr_1.15fr] gap-x-1.5 gap-y-0.5 items-center">
+                            <span className="text-[9px] font-black text-text-muted">🚚 이벤트</span>
+                            <span className="text-[9px] font-black text-text-muted">📞 콜</span>
+                            {LAB_STEPS.map((st, i) => {
+                                const callNo = LAB_STEPS.slice(0, i + 1).filter(x => x.kind === 'call').length;
+                                const done = st.kind === 'call' && callNo <= confirmed.length;
+                                return st.kind === 'drive' ? (
+                                    <Fragment key={i}>
+                                        <button type="button" data-event={i}
+                                            onClick={() => { if (st.home) setHomeOn(true); setMyPos(st.to); }}
+                                            className="w-full flex items-center gap-1 px-1.5 py-1 rounded-[7px] border border-border-card bg-background text-left text-[10.5px] font-black text-text-muted hover:border-info">
+                                            <span className="shrink-0 text-info">↳</span>
+                                            <span className="min-w-0 truncate">{st.where}</span>
+                                        </button>
+                                        <span />
+                                    </Fragment>
+                                ) : (
+                                    <Fragment key={i}>
+                                        <span />
+                                        <button type="button" data-cycle={callNo}
                                             onClick={() => {
-                                                if (c.home) setHomeOn(true);
                                                 pauseForCall();
-                                                setPickup(c.from); setDrop(c.to);
+                                                setPickup(st.from); setDrop(st.to);
                                                 setCandFare(LAB_DEFAULTS.candFare); setCandBoxes(LAB_DEFAULTS.candBoxes);
                                                 setUploaded(false);
                                             }}
                                             className={`w-full flex items-center gap-1.5 px-1.5 py-1 rounded-[7px] border text-left text-[11px] font-black ${done
                                                 ? 'border-border-card bg-background text-text-muted opacity-60'
                                                 : 'border-border-hover bg-background hover:border-info'}`}>
-                                            <span className={done ? '' : 'text-info'}>{circled(i + 1)}</span>
-                                            <span className="min-w-0 truncate">{c.where}</span>
+                                            <span className={done ? '' : 'text-info'}>{circled(callNo)}</span>
+                                            <span className="min-w-0 truncate">{st.where}</span>
                                             {done && <span className="ml-auto shrink-0 text-success">✅</span>}
                                         </button>
-                                    </li>
+                                    </Fragment>
                                 );
                             })}
-                        </ol>
+                        </div>
                     </details>
 
                     {/**
@@ -3947,7 +3976,7 @@ export default function MapMockup() {
                                           */}
                                         <button type="button" onClick={() => setSheetOpenNo(open ? null : ci.disp)}
                                             className="w-full grid items-center px-1.5 py-1 text-left text-[11.5px] font-black tabular-nums"
-                                            style={{ gridTemplateColumns: '15px minmax(0,1fr) 41px 41px 28px 8px 15px minmax(0,1fr) 41px 41px 28px 13px' }}>
+                                            style={{ gridTemplateColumns: '15px minmax(0,1fr) 41px 28px 41px 10px 15px minmax(0,1fr) 41px 28px 41px' }}>
                                             {ci.stops.map(st => {
                                               const gone = st.passedAt != null;
                                               const real = st.passedAt ?? st.etaAt;
@@ -3979,19 +4008,27 @@ export default function MapMockup() {
                                                         style={{ background: box, color: st.promiseBy === '통화' ? PROMISE_CALLED : 'var(--color-text-muted)' }}>
                                                         {hhmm(st.promisedAt)}
                                                     </span>
-                                                    {/* 넷째 칸 — 지났으면 «도착», 아직이면 «예상» */}
-                                                    <span className={`text-right px-1 py-0.5 ${gone ? 'text-text-muted' : ''}`} style={{ background: box }}>
-                                                        {real != null ? hhmm(real) : '--:--'}
-                                                    </span>
-                                                    {/* 추가된 시간 — 늦은 것만 노랑. 지난 줄은 흑백이라 조용하다 */}
-                                                    <span className={`text-right rounded-r-md pr-1 py-0.5 ${diff != null && diff > 0 && !gone ? 'text-warning' : 'text-text-muted'}`}
+                                                    {/**
+                                                      * 🔴 **약속 → 차이 → 결과 순으로 읽힌다** (기사님 2026-09-10:
+                                                      * *"이번 콜을 잡으면 의정부동에 **22:14분에 도착해야 하는데
+                                                      * +24이 걸려서 22:37에 도착 예정**이다. 이것이 좀 더 직관적인 듯하다"*).
+                                                      *
+                                                      * 전에는 «약속 · 예상 · 차이»라 **결과를 보고 다시 왼쪽으로 돌아와** 이유를 찾았다.
+                                                      * 차이를 가운데 두면 한 줄이 **문장 하나**가 된다 — 눈이 되돌아가지 않는다.
+                                                      */}
+                                                    <span className={`text-right px-1 py-0.5 ${diff != null && diff > 0 && !gone ? 'text-warning' : 'text-text-muted'}`}
                                                         style={{ background: box }}>
                                                         {diff == null ? '' : diff > 0 ? `+${diff}` : diff}
+                                                    </span>
+                                                    {/* 마지막 칸이 **결론**이다 — 지났으면 «도착», 아직이면 «예상» */}
+                                                    <span className={`text-right rounded-r-md pr-1 py-0.5 ${gone ? 'text-text-muted' : ''}`} style={{ background: box }}>
+                                                        {real != null ? hhmm(real) : '--:--'}
                                                     </span>
                                                 </Fragment>
                                               );
                                             })}
-                                            <span className="text-text-muted text-right">{open ? '▴' : '▾'}</span>
+                                            {/* 🔴 **열기 화살표를 지웠다** (기사님 2026-09-10 *"열기 아이콘은 지워 버린다"*) —
+                                                줄 전체가 이미 누르는 자리다. 화살표는 그 말을 한 번 더 할 뿐이고 칸만 먹는다 */}
                                         </button>
                                         {open && (
                                             <div className="px-2 pb-1.5 flex flex-col gap-0.5 text-[10.5px] tabular-nums border-t border-border-card pt-1">
