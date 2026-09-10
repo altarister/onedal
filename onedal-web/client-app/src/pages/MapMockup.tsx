@@ -1697,14 +1697,16 @@ export default function MapMockup() {
     const loadedGoalNames = useMemo(() => [...new Set(confirmed.map(c => c.destName))], [confirmed]);
     const isLoaded = (goalName: string) => loadedGoalNames.includes(goalName);
     /** 🎯 목적지별 판정 — 하나라도 통과하면 통과, 둘 다면 복귀 우선 (⑮ 기준 3) */
+    /** 🔴 판정의 기준점도 그물과 **같은 값**(netAnchor)이다 — 스냅 앵커와 정밀 앵커가 갈리면
+     *  경계 ±200m 에서 «그물은 든다는데 판정은 탈락»이 생긴다 (리뷰 2026-09-11 · 규칙 ③) */
     const goalsVerdict = useMemo(() => pickup && drop
-        ? judgeGoals(params, anchor, goals, myPos, pickup, drop, {
+        ? judgeGoals(params, netAnchor, goals, myPos, pickup, drop, {
             loadedNames: loadedGoalNames,     // ∩ 는 «짐을 실은 목적지»에만 (⑮ 기준 5)
             isLocal: g => g.name === dst.name && localMode,
             zoneOf: zoneOfGoal,
             preferName: HOME_DST.name,
         })
-        : null, [pickup, drop, params, anchor, goals, myPos, loadedGoalNames, localMode, zoneOfGoal, dst.name, HOME_DST.name]);
+        : null, [pickup, drop, params, netAnchor, goals, myPos, loadedGoalNames, localMode, zoneOfGoal, dst.name, HOME_DST.name]);
     const verdict: TwoStageVerdict | null = goalsVerdict?.won ?? goalsVerdict?.results[0]?.verdict ?? null;
 
     /**
@@ -1764,8 +1766,13 @@ export default function MapMockup() {
         planSeqRef.current++;                    // 판이 바뀌었다 — 늦게 오는 취소 적립을 무효로 만든다
         const prevChain = lastChainRef.current;   // 🔴 덮기 전에 붙잡는다 — 적립의 «전» 쪽이다
         lastChainRef.current = chainNow;         // 🗄️ ⑦ 이 전체 경로가 다음 합짐의 «기존 경로»가 된다
-        setRouteChain(chainNow);                 // 🛣️ 그리기가 읽는 «남은 길»도 같은 값이다 (한 벌)
-        routeChainFromRef.current = chainNow?.fromVisited ?? visitedCountRef.current;
+        // 🛣️ 그리기·주행·순번이 읽는 «남은 길»도 같은 값이다 (한 벌).
+        // 🔴 못 잰 판(빈 legs)이면 동결을 안 덮는다 — 이전 성한 경로가 남고, 순번은 집합
+        //    불일치로 재배치에 물러난다 (리뷰 2026-09-11: 독이 든 동결이 다음 판까지 살았다)
+        if (chainNow?.measuredAt != null && chainNow.legs.length > 0) {
+            setRouteChain(chainNow);
+            routeChainFromRef.current = chainNow.fromVisited ?? visitedCountRef.current;
+        }
         // ⏰ 최초 약속 — 확정한 이 순간 전체 경로가 말한 도착 시각. 이후 어떤 합짐이 와도 안 바뀐다
         const t0 = clockNow, noNew = circled(confirmed.length + 1);   // 🕒 모의 시계
         /** 병합 경로의 그 정거장까지 누적 분 — 🔴 약속에는 안 쓴다 (`promiseTimes` 참조) */
@@ -2171,7 +2178,8 @@ export default function MapMockup() {
          * 변해야 하는데"* — 멈추면 안 늘어난 것이 증거). 동결 경로로 물러나면 기준이
          * «콜 받은 순간»에 고정된다.
          */
-        const baseChain = chainNow ?? routeChain;
+        // 🔴 못 잰 응답(legs 빈 채 note 만 온 것 — measuredAt 없음)은 심사 경로로 안 친다 (리뷰 2026-09-11)
+        const baseChain = chainNow?.measuredAt != null ? chainNow : routeChain;
         const legMin = new Map<string, number | null>();
         for (let n = 1; n <= last; n++) {
             const no = circled(n), c = n <= confirmed.length ? confirmed[n - 1] : null;
