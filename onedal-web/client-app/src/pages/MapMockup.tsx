@@ -34,7 +34,7 @@ import { promiseTimes, impactOfStop, splitDropImpact, type StopStep } from './la
 // ⏱️ 시간·정거장 이름은 한 곳에서 만든다 (labTime.test.ts 가 지킨다)
 import { circled, hhmm, cumMinutes, arrivalAt, visitOrder } from './labTime';
 // 🧪 콜 문제 — **화면이 버튼으로 그리고, 검사(`pnpm lab`)가 그 버튼을 누른다** (원천 하나)
-import { LAB_PROBLEMS, type LabProblem } from './labProblems';
+import { LAB_PROBLEMS, LAB_CYCLE, type LabProblem } from './labProblems';
 import {
     netForGoal, lineZoneOf, progressAlongKm, sidoList, sggList, dongList, isRegionExcluded, isWholeRegionExcluded, excludedLabel, mergeGoalNets, judgeGoals, activeGoals, nearestDong, orderStopsInsert, pickNextTarget, cityCenter, isLocalPhase, NET_SRC, NET_DST,
     GONJIAM_DROP, DONGWON_DROP, BORAM_DROP,
@@ -1676,18 +1676,21 @@ export default function MapMockup() {
         // 🔴 `setLogs` 는 여기서 안 부른다 — 선언이 아래라 «선언 전에 쓴다»(화면이 하얘지는 그 규칙)다.
         //    판정 기록은 문제를 갈아도 **남는 것이 맞다** — 무엇을 눌러 왔는지가 그 목록이다.
         setDriving(false); setPausedForCall(false); setUploaded(false);
-        await new Promise(r => setTimeout(r, 260));
-        setMyPos(pr.me); setDstSido(pr.dst.sido); setDstSgg(pr.dst.sgg);
-        await new Promise(r => setTimeout(r, 400));
+        setHomeOn(false);
+        setMyPos({ lng: NET_SRC.lng, lat: NET_SRC.lat });   // 📍 하루는 집에서 시작한다
+        setDstSido(pr.dst.sido); setDstSgg(pr.dst.sgg);
+        await new Promise(r => setTimeout(r, 500));
         for (const c of pr.calls) {
-            setPickup(c.pickup); setDrop(c.drop);
+            // ↩️ 복귀는 **콜을 잡기 전에** 켠다 — 그래야 그 콜이 복귀 그물로 판정된다
+            if (c.home) setHomeOn(true);
+            setPickup(c.from); setDrop(c.to);
             setCandFare(LAB_DEFAULTS.candFare); setCandBoxes(LAB_DEFAULTS.candBoxes);
             // ⏳ 카카오가 이 콜의 경로를 물어 오는 사이를 기다린다 — 안 기다리면 약속이 빈다
-            await new Promise(r => setTimeout(r, 1600));
+            await new Promise(r => setTimeout(r, 1700));
             if (!c.confirm) break;
-            confirmCall(c.pickup, c.drop);
+            confirmCall(c.from, c.to);
             setPickup(null); setDrop(null);
-            await new Promise(r => setTimeout(r, 1800));
+            await new Promise(r => setTimeout(r, 1900));
         }
     };
 
@@ -2885,14 +2888,14 @@ export default function MapMockup() {
                         <button type="button" data-capture
                             onClick={() => {
                                 const calls = [
-                                    ...confirmed.map(c => ({ pickup: at5(c.pickup), drop: at5(c.drop), confirm: true,
-                                        where: `${nearestDong(c.pickup).name} → ${nearestDong(c.drop).name}` })),
-                                    ...(pickup && drop ? [{ pickup: at5(pickup), drop: at5(drop), confirm: false,
-                                        where: `${nearestDong(pickup).name} → ${nearestDong(drop).name}` }] : []),
+                                    ...confirmed.map(c => ({ where: `${nearestDong(c.pickup).name} → ${nearestDong(c.drop).name}`,
+                                        confirm: true, from: at5(c.pickup), to: at5(c.drop) })),
+                                    ...(pickup && drop ? [{ where: `${nearestDong(pickup).name} → ${nearestDong(drop).name}`,
+                                        confirm: false, from: at5(pickup), to: at5(drop) }] : []),
                                 ];
                                 setCaptured(JSON.stringify({
                                     name: '⑤ 기사님 판', why: '(무엇을 보려는 문제인가 — 한 줄로)',
-                                    me: at5(myPos), dst: { sido: dstSido, sgg: dstSgg }, calls,
+                                    dst: { sido: dstSido, sgg: dstSgg }, calls,
                                 }, null, 4));
                             }}
                             className="px-2 py-1 rounded-[7px] border border-warning/55 bg-warning/10 text-warning text-[10.5px] font-black">
@@ -3762,6 +3765,46 @@ export default function MapMockup() {
                     {/* 🔬 **적재 패널을 걷어냈다** (기사님 2026-09-09: *"적재는 상태값이니 필요 없고"*).
                         쓴 박스는 **잡은 콜들의 짐 합**이라 고를 값이 아니다 — 상단 요약줄에 `📦 n/100` 으로 보인다.
                         ⚠️ 「라면박스 환산이 화물 종류에 맞는가」는 **실측이 필요하다** — todo 에 항목으로 있다. */}
+
+                    {/**
+                      * 🧪 **콜 문제를 한 줄씩 — 눌러서 지도에 찍는다** (기사님 2026-09-10:
+                      * *"오른쪽 사이드바에 콜 리스트를 만들고 **순서대로** 넣어 놔.
+                      * **그걸 클릭해서 지도에 찍을 거니까.**"*).
+                      *
+                      * 🔴 위(상단) 문제 버튼은 «판을 통째로 부르는 것»이고, 여기는 «한 콜씩 손으로 놓는 것»이다.
+                      *    한 줄을 누르면 지도에 상차·하차가 찍히고 **필터가 판정한다** — 확정은 기사님이 하신다.
+                      * 🔴 좌표는 **기사님이 실제로 누른 자리**다 (카카오 기록에서 그대로 옮겼다).
+                      *    이미 잡은 콜은 흐려진다 — 어디까지 왔는지가 목록에서 보여야 한다.
+                      */}
+                    <details className="border-t border-border-card pt-2" open>
+                        <summary className="text-[10.5px] font-black text-text-muted cursor-pointer">
+                            🧪 콜 문제 — 눌러서 지도에 찍는다 <span className="font-bold">(한 바퀴 {LAB_CYCLE.length}콜)</span>
+                        </summary>
+                        <ol className="mt-1 flex flex-col gap-0.5">
+                            {LAB_CYCLE.map((c, i) => {
+                                const done = i < confirmed.length;
+                                return (
+                                    <li key={c.where}>
+                                        <button type="button" data-cycle={i + 1}
+                                            onClick={() => {
+                                                if (c.home) setHomeOn(true);
+                                                pauseForCall();
+                                                setPickup(c.from); setDrop(c.to);
+                                                setCandFare(LAB_DEFAULTS.candFare); setCandBoxes(LAB_DEFAULTS.candBoxes);
+                                                setUploaded(false);
+                                            }}
+                                            className={`w-full flex items-center gap-1.5 px-1.5 py-1 rounded-[7px] border text-left text-[11px] font-black ${done
+                                                ? 'border-border-card bg-background text-text-muted opacity-60'
+                                                : 'border-border-hover bg-background hover:border-info'}`}>
+                                            <span className={done ? '' : 'text-info'}>{circled(i + 1)}</span>
+                                            <span className="min-w-0 truncate">{c.where}</span>
+                                            {done && <span className="ml-auto shrink-0 text-success">✅</span>}
+                                        </button>
+                                    </li>
+                                );
+                            })}
+                        </ol>
+                    </details>
 
                     {/**
                       * ⚖️ **실물 심사석 두 판** (기사님 2026-09-10 «심사판 2종류를 오른쪽 사이드바에»).

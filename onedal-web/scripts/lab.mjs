@@ -137,7 +137,7 @@ try {
     ok('화면에 콜 문제 목록이 있다', (problems?.length ?? 0) >= 3, JSON.stringify(problems));
 
     /* ── ② 첫짐 문제 ───────────────────────────────────────── */
-    console.log('\n② ① 첫짐 20만 — 색이 나오고 «첫짐»이라고 적는가');
+    console.log('\n② ① 첫 콜 — 필터를 통과하고 색이 나오는가');
     await problem(problems[0]); await sleep(7000);
     const made = await grab(/▲\s*([^\n→]+?)\s*→/);
     ok('문제를 누르면 후보콜이 선다', !!made, made);
@@ -156,12 +156,12 @@ try {
     ok('심사석 «거절» 자리에 «안 봄»이 안 뜬다', await js(`[...document.querySelectorAll('button')]
         .filter(b => /^❌|거절/.test(b.innerText.trim())).every(b => !/안 봄|못 잼/.test(b.innerText))`) === true);
     const color = await grab(/(꿀|보통|똥|사고)\s*·\s*\d+점/);
-    ok('20만원이면 색이 나온다 (사고가 아니다)', color != null && color !== '사고', color);
+    ok('색이 나온다 (사고가 아니다)', color != null && color !== '사고', color);
     await shot('3-심사');
 
     /* ── ④ 합짐 문제 ───────────────────────────────────────── */
-    console.log('\n④ ② 합짐 둘 — 쌓이고, 순번이 이어지는가');
-    await problem(problems[1]); await sleep(10000);
+    console.log('\n④ ② 합짐 하나 — 쌓이고, 순번이 이어지는가');
+    await problem(problems[1]); await sleep(11000);
     await press(/서버로 올린다|올려 보기/); await sleep(3000);
     await shot('4-합짐');
     const listCount = await js(`(document.body.innerText.match(/📋 콜 리스트 — (\\d+)/)||[])[1]||null`);
@@ -175,7 +175,8 @@ try {
 
     /* ── ⑤ 주행 — 지나온 자리는 조용해지는가 ───────────────── */
     console.log('\n⑤ ④ 콜 셋 · 주행 — 지나온 정거장이 조용해지는가');
-    await problem(problems[3] ?? problems[problems.length - 1]); await sleep(14000);
+    // ⏳ 「④ 한 바퀴」는 일곱 콜을 순서대로 잡는다 — 카카오를 콜마다 부르므로 오래 걸린다
+    await problem(problems[3] ?? problems[problems.length - 1]); await sleep(32000);
     await press(/주행|출발/);
     await sleep(9000);
     await shot('5-주행');
