@@ -40,31 +40,6 @@ export type LabStep =
 export const LAB_START: LabPt = { lng: 127.29400, lat: 37.37720 };
 
 /**
- * 🚚 **기사님 한 바퀴** — 목적지 파주, 노선 다섯 + 복귀 둘.
- * 로그 시각 20:31:17 ~ 20:34:56 의 순서 그대로다.
- */
-export const LAB_STEPS: LabStep[] = [
-    { kind: 'call', where: '양벌동 → 의정부동', confirm: true, from: { lng: 127.28520, lat: 37.37980 }, to: { lng: 127.04510, lat: 37.73830 } },
-    { kind: 'call', where: '장지동 → 일패동', confirm: true, from: { lng: 127.23830, lat: 37.38800 }, to: { lng: 127.18540, lat: 37.62120 } },
-
-    { kind: 'drive', where: '성남 은행동까지 달린다', to: { lng: 127.17800, lat: 37.46130 } },
-    { kind: 'call', where: '천현동 → 문봉동', confirm: true, from: { lng: 127.21380, lat: 37.52880 }, to: { lng: 126.82030, lat: 37.70180 } },
-
-    { kind: 'drive', where: '서울 강일동까지 달린다', to: { lng: 127.17350, lat: 37.56250 } },
-    { kind: 'call', where: '도농동 → 가좌동', confirm: true, from: { lng: 127.15470, lat: 37.60100 }, to: { lng: 126.72760, lat: 37.69340 } },
-
-    { kind: 'drive', where: '고양 선유동까지 달린다', to: { lng: 126.91860, lat: 37.67970 } },
-    { kind: 'call', where: '관산동 → 대화동', confirm: true, from: { lng: 126.86290, lat: 37.70150 }, to: { lng: 126.74270, lat: 37.66950 } },
-
-    { kind: 'drive', where: '일산 풍동까지 · ↩️ 복귀 켬', to: { lng: 126.80700, lat: 37.66420 }, home: true },
-    { kind: 'call', where: '법곳동 → 무지내동', confirm: true, from: { lng: 126.71530, lat: 37.66510 }, to: { lng: 126.83960, lat: 37.41410 } },
-
-    { kind: 'drive', where: '계양 노오지동까지 달린다', to: { lng: 126.75590, lat: 37.58000 } },
-    { kind: 'call', where: '계산동 → 양벌동', confirm: true, from: { lng: 126.72010, lat: 37.54000 }, to: { lng: 127.28520, lat: 37.37980 } },
-];
-
-
-/**
  * 🌆 **볼트 저녁 판** — 8/10(월) 저녁, 김포 두원타워에서 시작해 용인 원삼까지 한 줄로 흘린 하루.
  *    (노하우_추출 「볼트 저녁 판 4건」 표 · 자막 `KpS4RzgFIbA` + 기사님 콜창·앱 캡처)
  *
@@ -102,32 +77,45 @@ export interface LabProblem {
     steps: LabStep[];
 }
 
-const PAJU = { sido: '경기', sgg: '파주시' } as const;
-const YONGIN = { sido: '경기', sgg: '용인시 처인구' } as const;
-/** 마지막 콜은 **확정하지 않고 후보로 남긴다** — 심사창이 그때 보인다 */
-const upTo = (n: number): LabStep[] => {
-    const cut = LAB_STEPS.slice(0, n);
-    const last = cut[cut.length - 1];
-    return last?.kind === 'call' ? [...cut.slice(0, -1), { ...last, confirm: false }] : cut;
-};
+
+/**
+ * 🌅 **볼트 오전** — 8/10(월) 대전에서 시작해 김포(집)로 올라오며 여섯 콜을 모은 판.
+ *    (노하우_추출 「볼트 이틀 실측」 표 3~10번 · 2편 `천기누설…`)
+ *
+ * 🔴 **상·하차지는 동사무소·읍사무소** (기사님 확정 2026-09-10). 자막·캡처는 동 이름까지만
+ *    말한다 — 무게중심은 산속에 찍히는 곳이 있어 카카오가 길을 못 낸다.
+ *    상호로 적힌 곳(진차이나 대전점 · 판교소프트웨어드림센터)은 **기사님이 직접 짚어 주셨다.**
+ * 🔴 **주행 이벤트를 안 적는다** (기사님 2026-09-11 *"이벤트는 적지 마"*) —
+ *    달리는 것은 기사님이 「📍 내 위치 찍기」로 직접 하신다. 문제는 **콜만** 늘어놓는다.
+ * ⚠️ **7번(취소된 콜)은 뺐다** — 상차지가 «대전 (구체 미상)»이라 좌표가 없다.
+ *    그날 유일한 취소이고 «상차지가 등 뒤»라 역주행 식이 잡아야 하는 콜이니, 자리를 알면 넣는다.
+ */
+export const LAB_MORNING_START: LabPt = { lng: 127.43654, lat: 36.35187 };   // 진차이나 대전점
+
+export const LAB_MORNING: LabStep[] = [
+    { kind: 'call', where: '대전 갈마동 → 천안 성거읍 (50,050)', confirm: true,
+        from: { lng: 127.36781, lat: 36.35079 }, to: { lng: 127.19917, lat: 36.87804 } },
+    { kind: 'call', where: '대전 문지로 188 → 오산 황새로 211 (38,500)', confirm: true,
+        from: { lng: 127.39533, lat: 36.38699 }, to: { lng: 127.06071, lat: 37.14473 } },
+    { kind: 'call', where: '오송 정중리 → 인천 논현동 (38,500)', confirm: true,
+        from: { lng: 127.29878, lat: 36.63191 }, to: { lng: 126.71637, lat: 37.40421 } },
+    { kind: 'call', where: '오송 정중리 → 안산 성곡동 (38,500)', confirm: true,
+        from: { lng: 127.29878, lat: 36.63191 }, to: { lng: 126.73685, lat: 37.30079 } },
+    { kind: 'call', where: '오송 정중리 → 분당 삼평동 (60,000)', confirm: true,
+        from: { lng: 127.29878, lat: 36.63191 }, to: { lng: 127.11115, lat: 37.39593 } },
+    { kind: 'call', where: '천안 성거읍 → 인천 경서동 (46,200)', confirm: true,
+        from: { lng: 127.19917, lat: 36.87804 }, to: { lng: 126.60383, lat: 37.55697 } },
+];
 
 export const LAB_PROBLEMS: LabProblem[] = [
-    { name: '① 첫 콜', why: '집 옆 양벌동에서 싣고 의정부로 — 필터를 통과하는가, 색이 나오는가', dst: PAJU, steps: upTo(1) },
-    { name: '② 합짐 하나', why: '첫 콜을 잡은 뒤 장지동 콜이 온다 — 기존 콜이 몇 분 밀리는지, 전화할 곳이 나오는가', dst: PAJU, steps: upTo(2) },
-    /**
-     * 🔴 **③ 과 ④ 는 한 짝이다 — 같은 콜, 자리만 다르다** (기사님 2026-09-10:
-     *    *"한자리에서 모두 돌리면 필터에 걸려 평가할 것도 없는 거야"*).
-     *    ③ 은 집에 앉은 채로 ③천현동을 찍는다 → **떨어져야 한다**(상차 반경 10km 밖).
-     *    ④ 는 성남까지 달린 뒤 같은 콜을 찍는다 → **통과해야 한다**.
-     *    필터가 일을 안 하면 둘 중 하나가 반드시 어긋난다 — 검사(`pnpm lab`)가 이 짝을 본다.
-     */
-    { name: '③ 달리기 전', why: '🔴 집에 앉은 채로 ③천현동을 찍는다 — **떨어져야 한다** (상차 반경 밖)', dst: PAJU,
-        steps: [LAB_STEPS[0], LAB_STEPS[1], { ...(LAB_STEPS[3] as Extract<LabStep, { kind: 'call' }>), confirm: false }] },
-    { name: '④ 달린 뒤', why: '🔴 성남까지 달린 뒤 **같은 콜**을 찍는다 — 이제 **통과해야 한다**', dst: PAJU, steps: upTo(4) },
-    { name: '⑤ 한 바퀴', why: '노선 다섯 + 복귀 둘 · 사이사이 주행까지 — 기사님이 실제로 돈 하루 그대로', dst: PAJU, steps: LAB_STEPS },
     {
-        name: '⑥ 볼트 저녁',
+        name: '🌅 볼트 오전',
+        why: '🌅 대전에서 시작해 김포(집)로 올라오며 여섯 콜을 모은다 — 볼트 8/10 오전 그대로 (주행은 직접)',
+        dst: { sido: '경기', sgg: '김포시' }, start: LAB_MORNING_START, steps: LAB_MORNING,
+    },
+    {
+        name: '🌆 볼트 저녁',
         why: '🌆 김포 두원타워에 **앉은 채로 셋을 동시에** 잡고, 검단양촌 IC 에서 달리며 넷째를 줍는다 — 볼트 8/10 저녁 그대로',
-        dst: YONGIN, start: LAB_EVENING_START, steps: LAB_EVENING,
+        dst: { sido: '경기', sgg: '용인시 처인구' }, start: LAB_EVENING_START, steps: LAB_EVENING,
     },
 ];

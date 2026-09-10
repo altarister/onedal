@@ -34,7 +34,7 @@ import { promiseTimes, impactOfStop, splitDropImpact, type StopStep } from './la
 // ⏱️ 시간·정거장 이름은 한 곳에서 만든다 (labTime.test.ts 가 지킨다)
 import { circled, hhmm, cumMinutes, arrivalAt, visitOrder } from './labTime';
 // 🧪 콜 문제 — **화면이 버튼으로 그리고, 검사(`pnpm lab`)가 그 버튼을 누른다** (원천 하나)
-import { LAB_PROBLEMS, LAB_STEPS, LAB_START, type LabProblem, type LabStep } from './labProblems';
+import { LAB_PROBLEMS, LAB_START, type LabProblem, type LabStep } from './labProblems';
 import {
     netForGoal, lineZoneOf, progressAlongKm, sidoList, sggList, dongList, isRegionExcluded, isWholeRegionExcluded, excludedLabel, mergeGoalNets, judgeGoals, activeGoals, nearestDong, orderStopsInsert, pickNextTarget, cityCenter, isLocalPhase, NET_SRC, NET_DST,
     GONJIAM_DROP, DONGWON_DROP, BORAM_DROP,
@@ -3801,7 +3801,7 @@ export default function MapMockup() {
                         <summary className="text-[10.5px] font-black text-text-muted cursor-pointer">
                             🧪 콜 문제 — 눌러서 지도에 찍는다{' '}
                             <span className="font-bold">
-                                {problemOn?.name ?? '⑤ 한 바퀴'} · {(problemOn?.steps ?? LAB_STEPS).filter(x => x.kind === 'call').length}콜
+                                {problemOn?.name ?? LAB_PROBLEMS[0].name} · {(problemOn?.steps ?? LAB_PROBLEMS[0].steps).filter(x => x.kind === 'call').length}콜
                             </span>
                         </summary>
                         {/**
@@ -3815,7 +3815,7 @@ export default function MapMockup() {
                           *    그래야 «달려야 잡히는 콜»이 실제로 잡힌다 (한자리에서는 필터가 떨어뜨린다).
                           */}
                         <ol className="mt-1 flex flex-col gap-0.5">
-                            {(problemOn?.steps ?? LAB_STEPS).map((st, i, all) => {
+                            {(problemOn?.steps ?? LAB_PROBLEMS[0].steps).map((st, i, all) => {
                                 if (st.kind !== 'call') return null;
                                 const no = all.slice(0, i + 1).filter(x => x.kind === 'call').length;
                                 /** 이 콜 앞에 붙은 이동들 — 그 콜의 «설명»이 된다 */
