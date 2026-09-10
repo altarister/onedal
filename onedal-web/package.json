@@ -13,6 +13,7 @@
     "audit:socket": "node scripts/audit-socket-contract.mjs",
     "scenario": "node scripts/scenario.mjs",
     "drive": "node scripts/drive.mjs",
+    "lab": "node scripts/lab.mjs",
     "e2e:app": "node scripts/appLoop.mjs",
     "lifecycle": "node scripts/lifecycle.mjs",
     "map": "node scripts/map-flow.mjs",
