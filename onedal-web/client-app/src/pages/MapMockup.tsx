@@ -1267,21 +1267,13 @@ export default function MapMockup() {
          * 🔴 주행 중에는 `myPos` 를 **의존성에서 뺀다** — 매 틱 경로를 다시 그리게 된다
          * (그건 이미 한 번 겪은 사고다). 어차피 그때는 기점이 안 쓰인다.
          */
-        /**
-         * 🔴 **순서를 세는 기점과 그리는 기점은 다르다.**
-         *    순서(`ordered` → `prevOrderRef`)는 **출발 자리** 기준이라야 재배치가 안 흔들린다.
-         *    그리기는 **지금 내 위치**에서 시작해야 «출발했으면 내 위치에서 경로를 찾는다»가 된다.
-         */
-        const orderFrom = departed ? departPosRef.current : (orderStart ?? myPosRef.current);
-        const ordered = orderStopsInsert(orderFrom, allCalls, visited);
+        const from = departed ? departPosRef.current : (orderStart ?? myPosRef.current);
+        const ordered = orderStopsInsert(from, allCalls, visited);
         prevOrderRef.current = ordered.map(o => ({ call: o.call, kind: o.kind }));
-        const from = orderFrom;
-        /** 지나온 정거장은 그리지 않는다 — 그리면 «내 위치 → 이미 지난 곳»으로 되돌아가는 선이 생긴다 */
-        const skip = departed ? visitedCountRef.current : 0;
         return [
             { x: from.lng, y: from.lat, label: '내 위치' },
-            ...ordered.slice(skip).map((s, i) => ({
-                x: s.pt.lng, y: s.pt.lat, seq: skip + i + 1, call: s.call,   // 🔢 번호는 **전체 기준**이다
+            ...ordered.map((s, i) => ({
+                x: s.pt.lng, y: s.pt.lat, seq: i + 1, call: s.call,
                 label: `${circled(s.call)} ${s.kind} · ${nearestDong(s.pt).name}`,
                 color: CALL_COLORS[(s.call - 1) % CALL_COLORS.length],
             })),
@@ -2546,25 +2538,11 @@ export default function MapMockup() {
             if (layers.route) {
                 if (drawLegs) {
                     drawLegs.forEach((leg, i) => {
-                        /**
-                         * 🖊️ **주행 중 첫 구간은 «지금 내 위치»에서 그린다** (기사님 2026-09-11:
-                         * *"출발했으면 내 위치에서 경로를 찾아야 하는데"* · *"또 날라가는데?"*).
-                         *
-                         * 🔴 순서(`effPath`)의 기점은 **출발 자리**라야 재배치가 안 흔들린다 —
-                         *    그래서 «순서»는 그대로 두고 **그리는 순간에만** 첫 점을 지금 자리로 바꾼다.
-                         *    앞서 «정거장을 지날 때만» 옮겨 봤는데, 그 사이에 옛 자리가 남아
-                         *    「내 위치」가 둘로 뜨고 직선이 뻗었다.
-                         * 🔴 그 구간은 **잰 적이 없으므로 점선**이다 — 실도로인 척하지 않는다 (규칙 ④).
-                         *    잰 구간(카카오가 준 곡선)은 그대로 실선이다.
-                         */
-                        const live = departed && i === 0;
-                        const a = live ? { lng: myPos.lng, lat: myPos.lat } : { lng: effPath[i].x, lat: effPath[i].y };
-                        const legPts = live ? [a, { lng: effPath[1].x, lat: effPath[1].y }]
-                            : [a, ...leg, { lng: effPath[i + 1].x, lat: effPath[i + 1].y }];
                         ctx.beginPath();
+                        const legPts = [{ lng: effPath[i].x, lat: effPath[i].y }, ...leg, { lng: effPath[i + 1].x, lat: effPath[i + 1].y }];
                         legPts.forEach((p, j) => { const [px, py] = S(p.lng, p.lat); j === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py); });
-                        ctx.strokeStyle = legColor(i); ctx.lineWidth = live ? 3 : 5; ctx.lineJoin = 'round';
-                        if (live || legFailed[i]) ctx.setLineDash([6, 5]);   // 안 잰 구간·탐색 불가 — 점선
+                        ctx.strokeStyle = legColor(i); ctx.lineWidth = 5; ctx.lineJoin = 'round';
+                        if (legFailed[i]) ctx.setLineDash([6, 5]);      // 도로 탐색 불가 — 직선 구간은 점선
                         ctx.stroke(); ctx.setLineDash([]);
                     });
                 } else {
@@ -2598,13 +2576,7 @@ export default function MapMockup() {
                 ctx.beginPath(); ctx.roundRect(px - w / 2, py - 26, w, 18, 6); ctx.fill(); ctx.stroke();
                 ctx.fillStyle = '#111827'; ctx.textAlign = 'center'; ctx.fillText(text, px, py - 13);
             };
-            /**
-             * 🔴 **경로의 첫 점(«내 위치»)에는 이름표를 안 붙인다** (기사님 2026-09-11 *"또 날라가는데?"*).
-             *    바로 아래에서 **지금 내 위치**를 `📍 내 위치` 로 따로 그린다 — 여기서 또 그리면
-             *    주행 중에 **「내 위치」가 둘**로 뜬다(옛 자리 + 지금 자리). 출발 전에는 두 점이
-             *    겹쳐서 안 보였을 뿐, 달리는 순간 갈라진다.
-             */
-            if (layers.route) for (const p of effPath.slice(1)) {
+            if (layers.route) for (const p of effPath) {
                 const [px, py] = S(p.x, p.y);
                 if (p.seq) {
                     // 방문 순번 배지 — 콜 색 원 안에 흰 번호 (기사님 2026-09-07 «경로에 번호»)
