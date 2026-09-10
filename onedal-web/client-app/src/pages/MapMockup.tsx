@@ -1243,6 +1243,8 @@ export default function MapMockup() {
      *    지나온 길은 궤적(동선)이 잇는다.
      */
     const [routeChain, setRouteChain] = useState<ChainResult | null>(null);
+    /** 🛣️ routeChain 을 얼린 순간 «몇 정거장 지나온 뒤»였나 — 주행 seq 를 절대 번호로 잇는 밑변 */
+    const routeChainFromRef = useRef(0);
     useEffect(() => { if (confirmed.length === 0) { visitedCountRef.current = 0; setRouteChain(null); } }, [confirmed.length]);
     useEffect(() => { setTerminated([]); }, [stageIdx]);   // 판을 새로 열면 취소 기록도 함께 비운다
     /**
@@ -1366,6 +1368,33 @@ export default function MapMockup() {
 
     /** 주행이 따라갈 점 목록 — 실도로가 오면 그 곡선, 아니면 정거장 직선. seq = 향하는 정거장 순번 */
     const drivePath = useMemo(() => {
+        /**
+         * 🚗 **수술 2단계 — 모의 주행도 «확정 순간의 카카오 경로»를 따른다** (기사님 승인 2026-09-11).
+         *
+         * `seq` 는 **절대 번호를 유지한다** (얼린 시점의 방문 수 + 구간 번호) — 통과 판정
+         * (`passed = seq - 1`)과 방문 순서 패널·`pickNextTarget` 이 전부 절대 번호를 읽는다.
+         *
+         * 🔴 **가드 — chain 의 정거장 순서가 옛 계보(prevOrderRef)와 글자까지 같을 때만 쓴다.**
+         *    통과 시각(`occurredAt`)을 prevOrderRef 로 매기므로, 두 순서가 갈리면 엉뚱한 정거장에
+         *    도장이 찍힌다. 갈리는 창(주행 중 · 아직 0 정거장 · 새 확정)은 드물지만 있다 —
+         *    그때는 조용히 **옛 계보로 물러난다** (되돌리는 길). 3단계에서 순번까지 한 벌로 접으면
+         *    이 가드는 사라진다.
+         */
+        const legs = routeChain?.legs ?? null;
+        const base = routeChainFromRef.current;
+        const chainOk = !!legs && legs.length > 0
+            && legs.every(l => !l.failed && l.line.length >= 2)
+            && legs.every((l, i) => {
+                const v = prevOrderRef.current[base + i];
+                return v != null && l.to === `${circled(v.call)}${v.kind}`;
+            });
+        if (chainOk) {
+            const out: Array<{ lng: number; lat: number; seq: number }> = [];
+            legs!.forEach((l, i) => {
+                for (const pt of l.line) out.push({ lng: pt.x, lat: pt.y, seq: base + i + 1 });
+            });
+            return out;
+        }
         const out: Array<{ lng: number; lat: number; seq: number }> = [];
         if (drawLegs) {
             drawLegs.forEach((leg, i) => {
@@ -1376,7 +1405,7 @@ export default function MapMockup() {
             effPath.slice(1).forEach((p, i) => out.push({ lng: p.x, lat: p.y, seq: i + 1 }));
         }
         return out;
-    }, [drawLegs, effPath]);
+    }, [drawLegs, effPath, routeChain]);
 
     /**
      * 🛣️ **라인 — 잡은 콜들이 만든 실제 경로** (기사님 확정 2026-09-09).
@@ -1560,6 +1589,7 @@ export default function MapMockup() {
         const prevChain = lastChainRef.current;   // 🔴 덮기 전에 붙잡는다 — 적립의 «전» 쪽이다
         lastChainRef.current = chainNow;         // 🗄️ ⑦ 이 전체 경로가 다음 합짐의 «기존 경로»가 된다
         setRouteChain(chainNow);                 // 🛣️ 그리기가 읽는 «남은 길»도 같은 값이다 (한 벌)
+        routeChainFromRef.current = visitedCountRef.current;
         // ⏰ 최초 약속 — 확정한 이 순간 전체 경로가 말한 도착 시각. 이후 어떤 합짐이 와도 안 바뀐다
         const t0 = clockNow, noNew = circled(confirmed.length + 1);   // 🕒 모의 시계
         /** 병합 경로의 그 정거장까지 누적 분 — 🔴 약속에는 안 쓴다 (`promiseTimes` 참조) */
@@ -1750,7 +1780,8 @@ export default function MapMockup() {
             .then(d => {
                 if (seq !== planSeqRef.current) return;   // 그 사이 판이 또 바뀌었다 — 이 적립은 어긋난다
                 const after = { ...d, measuredAt: clockBaseRef.current + simMinRef.current * 60000 };
-                setChainNow(after); setChainBefore(prevChain); lastChainRef.current = after; setRouteChain(after);
+                setChainNow(after); setChainBefore(prevChain); lastChainRef.current = after;
+                setRouteChain(after); routeChainFromRef.current = visitedCountRef.current;
                 const orderBefore = (prevChain?.legs ?? []).map(l => l.to);
                 setConfirmed(cs => cs.map((x, k) => {
                     const no = circled(baseCallCount + k + 1);
