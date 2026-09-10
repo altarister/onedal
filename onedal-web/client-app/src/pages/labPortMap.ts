@@ -17,6 +17,9 @@
  * 이 모양으로 간 이유다.
  */
 /** 밀림 한 줄 — 실물 `step_arrive_*.system_reasons` 로 갈 모양 */
+// ⏱️ 약속의 두 계수는 **실물 기본값을 그대로 읽는다** — 여기 숫자를 또 적지 않는다 (규칙 ③)
+import { DEFAULT_DEADLINE_RULES } from '@onedal/shared';
+
 export type StopImpact = { causeCallId: number; causeLabel: string; min: number; at: number };
 
 export type StopStep = {
@@ -115,15 +118,41 @@ export function promiseTimes(opts: {
     /**
      * 🧳 **상차에 머무는 분** (기사님 2026-09-09 «정차를 넣어줘»).
      * 하차 약속은 «상차에 닿아서 → **짐을 싣고** → 달려서» 닿는 시각이다.
-     * 이걸 빼면 하차 약속이 늘 이르게 서고, 그 차이가 나중에 «다른 콜 탓»으로 잡힌다.
      * 🔴 **상차 약속에는 안 더한다** — 그건 도착 시각이라 짐 싣기 전이다.
      */
     pickupDwellMin?: number;
 }): { pickupAt: number | null; dropoffAt: number | null } {
     const { confirmedAt, direct, pickupDwellMin = 0 } = opts;
-    const pickupAt = direct.approachMin == null ? null : confirmedAt + direct.approachMin * 60000;
+    /**
+     * ⏱️ **상차 약속 = 콜 잡은 시각 + 20분** (기사님 확정 2026-09-10).
+     *
+     * 🔴 전에는 «잡은 시각 + **접근 실측**»이었다 — 즉 **약속을 예상에 맞춰** 세웠다.
+     *    그러면 ± 가 늘 0에 가깝고, **«20분 안에 못 갔다»가 화면에 안 나온다.**
+     *    기사님: *"상차는 콜 받고 20분이 넘어 상차지에 가면 문제다. 근데 **이걸로는 20분이
+     *    넘었는지 아닌지 모른다**는 것이다. 얼마나 늦는지는 내가 알아야 할 것 같아."*
+     *    실측(볼트 저녁 판): 불로동은 직행 19분인데 앞 둘을 들르느라 42분 — **22분 초과**다.
+     *    옛 식은 그걸 «+23»(우리 약속 대비)이라고만 말해 20분 규칙과 무관했다.
+     * ⚠️ **20분은 가장 약한 폴백이다** (용어집 「상차버퍼」):
+     *    **통화 약속 > 적요 상차 시각 > 잡은 시각 + 20분.**
+     *    실험실은 적요가 없어 20분으로 서지만, 앞의 둘이 들어오면 그것이 이긴다.
+     * 🔴 접근 실측(`approachMin`)은 여전히 필요하다 — **못 쟀으면 약속도 안 세운다**
+     *    (그 콜이 아직 «잰 콜»이 아니라는 뜻이라, 지어내지 않는다 · 규칙 ④).
+     */
+    const pickupAt = direct.approachMin == null ? null
+        : confirmedAt + DEFAULT_DEADLINE_RULES.pickupPromiseMinutes * 60000;
+    /**
+     * 🚚 **하차 약속 = 상차 완료 + 배송 주행 × 150%** (용어집 「데드라인」 · 업계 관행).
+     *
+     * 🔴 전에는 **100%** 였다 — 관행이 봐주는 **여유 50%가 통째로 빠져** 모든 하차가 늦어 보였다.
+     *    실측(볼트 저녁 판): 가산동 +29 → **+8** · 원삼면 +44 → **+1** · 안양동 +7 → **−17**(여유).
+     * 🔴 이것은 «관행 상한»이 아니라 **고객과의 약속**이다 (기사님 정정 2026-09-10:
+     *    *"내가 그때까지 가져다 주겠다는 약속인 거지. 사용자도 퀵사에 그렇게 안내받을 거야 —
+     *    **지금 전달해 주시면 150% 안에 가져다 드릴게요**. 그러니 고객과의 약속이 맞아"*).
+     * 🔴 기산점이 **상차 완료**라 상차가 늦으면 이 약속도 **같이 밀린다.** 그래서 상차 지연이
+     *    하차 ± 에 **두 번 세어지지 않는다** — 상차 지연은 상차 ± 가, 배송 우회는 하차 ± 가 답한다.
+     */
     const dropoffAt = pickupAt == null || direct.durMin == null ? null
-        : pickupAt + (pickupDwellMin + direct.durMin) * 60000;
+        : pickupAt + (pickupDwellMin + Math.round(direct.durMin * (DEFAULT_DEADLINE_RULES.deadlineRatioPct ?? 150) / 100)) * 60000;
     return { pickupAt, dropoffAt };
 }
 
