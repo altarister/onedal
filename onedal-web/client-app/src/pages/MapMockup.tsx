@@ -3668,14 +3668,32 @@ export default function MapMockup() {
                                           */}
                                         <button type="button" onClick={() => setSheetOpenNo(open ? null : ci.disp)}
                                             className="w-full flex items-center gap-1 px-1.5 py-1 text-left text-[11.5px] font-black tabular-nums">
-                                            {ci.stops.map(st => (
+                                            {ci.stops.map(st => {
+                                              /**
+                                               * 🔴 **지나간 정거장은 시각 대신 «약속을 지켰나»만 남는다**
+                                               * (기사님 2026-09-10: *"도착했으면 원래 몇 분까지 가야 하는데
+                                               * 몇 분 늦었다가 나와야 할 것 같은데.. 자리가 부족해서"*).
+                                               *
+                                               * 🔴 **자리는 오히려 남는다.** 이미 지난 정거장의 «13:46»은 결정에 안 쓴다 —
+                                               *    거기 도착한 걸 알아서 할 일이 없다. 쓰이는 것은 **약속 대비 차이** 하나뿐이고,
+                                               *    그건 `~13:46`(6칸)보다 `+7분`(4칸)이 짧다.
+                                               * 🔴 늦은 것만 노랑, 제때·일찍은 회색 — **눈을 뺏는 것이 경고 하나뿐**이 된다
+                                               *    (기사님: *"시선을 자꾸 빼앗겨"*).
+                                               * ⚠️ 약속을 모르면 통과 시각을 회색으로 둔다 — 지어내지 않는다 (규칙 ④).
+                                               */
+                                              const gone = st.passedAt != null;
+                                              const diff = gone && st.promisedAt != null
+                                                  ? Math.round((st.passedAt! - st.promisedAt) / 60000) : null;
+                                              return (
                                                 <span key={st.kind} className="min-w-0 flex items-center gap-1">
                                                     {st.kind === '하차' && <span className="shrink-0 text-text-muted">→</span>}
                                                     {/* 🔴 동그라미를 벗겼다 — 번호가 곧 색이다 (기사님 2026-09-10).
                                                         지명은 **기본색으로 둔다** — 실제로 읽는 것이 그것이라 가장 또렷해야 한다.
                                                         색은 «어느 콜인가»만 말하면 되고, 그 일은 번호 한 글자로 충분하다. */}
-                                                    <span className="shrink-0 text-[12px] font-black tabular-nums"
-                                                        style={{ color: callTextColor(n, st.kind === '상차' ? 'pickup' : 'dropoff', theme) }}>
+                                                    {/* 🔴 지나갔으면 **번호도 회색**이다 — 색이 남아 있으면 눈이 그리로 간다.
+                                                        «어느 콜인가»는 아직 안 지난 쪽 번호가 여전히 말한다 */}
+                                                    <span className={`shrink-0 text-[12px] font-black tabular-nums ${gone ? 'text-text-muted' : ''}`}
+                                                        style={gone ? undefined : { color: callTextColor(n, st.kind === '상차' ? 'pickup' : 'dropoff', theme) }}>
                                                         {st.seq ?? '?'}
                                                     </span>
                                                     {/**
@@ -3691,11 +3709,16 @@ export default function MapMockup() {
                                                     <span className={`truncate ${st.passedAt != null ? 'text-text-muted font-bold' : ''}`}>
                                                         {(ci.where.split(' → ')[st.kind === '상차' ? 0 : 1]) ?? ''}
                                                     </span>
-                                                    <span className={`shrink-0 ${st.passedAt != null ? 'text-success' : 'text-text-muted'}`}>
-                                                        ~{hhmm(st.passedAt ?? st.etaAt)}
-                                                    </span>
+                                                    {gone
+                                                        ? (diff == null
+                                                            ? <span className="shrink-0 text-text-muted">~{hhmm(st.passedAt)}</span>
+                                                            : diff > 0
+                                                                ? <b className="shrink-0 text-warning">+{diff}분</b>
+                                                                : <span className="shrink-0 text-text-muted">{diff === 0 ? '정시' : `${-diff}분 일찍`}</span>)
+                                                        : <span className="shrink-0 text-text-muted">~{hhmm(st.etaAt)}</span>}
                                                 </span>
-                                            ))}
+                                              );
+                                            })}
                                             <span className="ml-auto shrink-0 flex items-center gap-1">
                                                 {/**
                                                   * 🔴 **이 자리는 «이 콜에서 지금 알아야 할 한 가지»다** (기사님 물음 2026-09-10:
