@@ -117,6 +117,12 @@ const LAB_DEFAULTS = {
     excludedWords: ['착불', '수거'],
     /** 📦 후보콜의 짐 — 볼첨지 표를 셀 때 쓴 «모든 콜 = 1박스» 가정 */
     candBoxes: 1,
+    /**
+     * 💰 후보콜의 요금 — **늘 20만원** (기사님 확정 2026-09-10).
+     * 지도 클릭으로 만든 콜은 가격을 알 수 없다. 지어낸 값이 콜마다 달라지면
+     * «필터가 통과했나»를 보려는데 **돈이 화면을 흔든다.**
+     */
+    candFare: 200_000,
 };
 
 /**
@@ -714,7 +720,7 @@ export default function MapMockup() {
      * 기본값: 요금은 **배송거리 × 단가**(앱 필터가 통과시키는 최소선) · 짐은 **1박스**
      *   (볼첨지 이틀 표를 정리할 때 기사님이 «모든 콜 = 1박스»로 가정하신 그 값).
      */
-    const [candFare, setCandFare] = useState(0);
+    const [candFare, setCandFare] = useState(LAB_DEFAULTS.candFare);
     const [candBoxes, setCandBoxes] = useState(LAB_DEFAULTS.candBoxes);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const boxRef = useRef<HTMLDivElement>(null);
@@ -2638,15 +2644,19 @@ export default function MapMockup() {
         else {
             setDrop(pt); setUploadedLeg(null); setApproachLeg(null); setApproachInfo(null); setChainNow(null); setChainBefore(null); setChainPreview(null); uploadedInfoRef.current = null; uploadSeqRef.current++;
             /**
-             * 💰 **요금을 시세로 미리 눌러 둔다** (규칙: 빈칸으로 기다리지 않는다).
-             * 앱 필터가 통과시키는 **최소선**이다 — `직선 km × 하한 단가(1t)`.
-             * 🔴 «직선» 이라 실제 배송거리보다 짧다. 기사님이 화면에서 고치라고 미리 눌러 두는 값이지
-             *    이대로 믿으라는 값이 아니다 — 그래서 화면이 «기사님이 넣는다» 고 말한다.
+             * 💰 **요금·짐은 20만원·1박스로 고정한다** (기사님 확정 2026-09-10).
+             *
+             * 기사님: *"요금은 상관없고 지금은 **가는 길에 잘 잡는가, 필터가 통과할 수 있는가**
+             * 그런 걸 봐야 하는 거야."* · *"넌 지역·거리·시간은 알지만 그 외 **가격·짐은 알 수가 없어.
+             * 그걸 20만원 박스 1개로 만들라는 거야.**"*
+             *
+             * 🔴 전에는 «직선 km × 하한 단가»로 채웠다 — **콜마다 요금이 달라져** 색이 따라 흔들렸다.
+             *    그러면 «필터가 통과했나»를 보려는데 **돈이 화면을 흔든다.**
+             *    지도 클릭으로 만든 콜은 애초에 **가격·짐을 알 수 없는 콜**이라, 지어낸 값을 넣느니
+             *    **늘 같은 값**을 넣는 것이 정직하다 — 그래야 달라진 것이 «길»뿐이다.
+             * ⚠️ 실전에서는 배차망이 그 값을 준다. 이건 **실험실이 콜을 손으로 만들기 때문**에 필요한 것이다.
              */
-            const dLng = (pt.lng - pickup!.lng) * 88.6, dLat = (pt.lat - pickup!.lat) * 110.574;
-            const straightKm = Math.hypot(dLng, dLat);
-            const floor = rateFloorsFrom(knobs.discountPct)['1t'] ?? 1000;
-            setCandFare(Math.round(straightKm * floor / 100) * 100);   // 100원 단위로 (음식 단가가 그렇다)
+            setCandFare(LAB_DEFAULTS.candFare);
         }
     };
 
