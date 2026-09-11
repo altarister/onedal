@@ -14,7 +14,7 @@ import type { CallRecords } from "../../hooks/records";
 import { MILESTONE_LABEL, timingError, buildArrivalSlots,
          deriveCallTiming } from "@onedal/shared";
 import { useJudgmentStore } from "../../stores/judgmentStore";
-import type { RouteTimelineEntry, RouteStopInfo } from "@onedal/shared";
+import type { RouteTimelineEntry, RouteStopInfo, CallTiming } from "@onedal/shared";
 import { Button } from "../ui/button";
 
 /**
@@ -792,6 +792,9 @@ export default function PinnedRouteCard({
                                             {memoText || <span className="text-text-muted font-normal">상세 정보 없음 (파싱 대기 중)</span>}
                                         </span>
                                     </div>
+                                    {/* 🧭 상·하차 줄 — 구간·밀림 (이식 A1). 부품 주석에 «왜 되살아났나» 가 있다 */}
+                                    <StopDetailBlock route={route} timeline={timeline}
+                                        visitOrder={visitOrder} timing={timing} etas={etas} />
                                     {/**
                                       * 🔼 **셋을 위 덩어리로 올렸다** (기사님 2026-09-05).
                                       *
@@ -1135,6 +1138,100 @@ export default function PinnedRouteCard({
  * 시각만 바꾸는 **좁은 경로**(`set-stop-deadline`)를 쓴다.
  * 전체 저장(`save-cargo-report`)으로 하면 넘기지 않은 짐 정보가 전부 날아간다.
  */
+/**
+ * 🧭 **펼친 카드의 상·하차 줄 — 타이틀이 못 하는 말만 한다**
+ *    (이식 A1 · 기사님 2026-09-11: *"목업에서 열리면 보이는 컨텐츠 상하차 부분은
+ *    가지고 가서 기존 거에 더하고 싶어"*).
+ *
+ * 🔴 **2026-09-05 에 철거한 `PromiseLines` 와 다른 것이다.** 그때 지운 이유는
+ *    *"타이틀과 중복"* 이었고 **그때는 옳았다** — 그 줄엔 약속·차이뿐이라 타이틀이 다 말했다.
+ *    이 줄은 **타이틀에 없는 둘**을 든다:
+ *      · **구간 거리·분** — 그 정거장으로 들어오는 구간 (내 위치→상차 · 상차→하차)
+ *      · **밀린 분** — 접힌 줄은 `▲▼` **기호로만** 말한다 (안 C). 몇 분인지는 여기에만 있다
+ *    `timeDisplay.test.ts` 가 그 둘을 «자격»으로 묻는다 — 자격 없이 되살리면 빨간불이다.
+ *
+ * ⚠️ **원인별 내역**(`└ 합짐2 경유 +7분`)은 아직 없다 — 실물에 `impactOfStop` 이 없다.
+ *    지도 실험실에는 있고, `shared` 로 올리는 것이 이식 A3 다.
+ */
+function StopDetailBlock({ route, timeline, visitOrder, timing, etas }: {
+    route: SecuredOrder;
+    timeline?: RouteTimelineEntry[];
+    visitOrder?: { pickupIdx: number; dropoffIdx: number };
+    timing: CallTiming;
+    /** 🕐 타임라인이 없을 때의 도착 예정 — 타이틀이 쓰는 그 값(`etaMap` · 장부 폴백) */
+    etas: { pickupEta?: string; dropoffEta?: string };
+}) {
+    const rows = ([
+        { kind: '상차' as const, stopType: 'pickup' as const, seq: visitOrder?.pickupIdx,
+            name: getAddressLabel(route.pickup), legKm: timing.approachKm, fallbackMin: timing.approachMinutes,
+            arrived: timing.arrivedPickup, promised: timing.pickupPromisedArrivalAt, eta: etas.pickupEta },
+        { kind: '하차' as const, stopType: 'dropoff' as const, seq: visitOrder?.dropoffIdx,
+            name: getAddressLabel(route.dropoff), legKm: timing.soloKm, fallbackMin: timing.soloMinutes,
+            arrived: timing.arrivedDropoff, promised: timing.dropoffPromisedArrivalAt, eta: etas.dropoffEta },
+    ]);
+    /** 약속 시각(ISO 문자열) → `05:08`. 없으면 `--:--` (지어내지 않는다) */
+    const clockOf = (v: string | null | undefined) =>
+        v == null ? '--:--' : new Date(v).toTimeString().slice(0, 5);
+
+    return (
+        <div className="flex flex-col gap-0.5 text-[11px] tabular-nums mb-2 px-0.5">
+            {rows.map(r => {
+                const tl = timeline?.find(e => e.orderId === route.id && e.stopType === r.stopType);
+                /** 🚚 구간 — 타임라인의 «앞 정거장 → 여기» 가 있으면 그것, 없으면 콜이 저장한 값 */
+                const legMin = tl?.segmentDriveMinutes ?? r.fallbackMin;
+                /** ⏱️ 앞 정거장 실측이 여기를 민 분 — 0 이면 안 적는다 (규칙 ④: 없는 것은 안 적는다) */
+                const shiftMin = tl?.dwellShiftMinutes ?? 0;
+                const late = tl?.lateMinutes ?? 0;
+                /**
+                 * 🔴 **약속은 타이틀과 «같은 원천»에서 온다** (규칙 ③ · 화면 실측 2026-09-11).
+                 *    처음엔 `deriveCallTiming` 만 봤더니 타이틀은 `05:27`, 이 줄은 `05:08` 로
+                 *    **한 화면이 두 말을 했다.** 타이틀(`CallDeck.promiseOf`)이 그러듯
+                 *    **타임라인의 약속을 먼저** 보고, 없을 때만 콜 파생을 쓴다.
+                 */
+                const promised = tl?.promisedUntil ?? r.promised;
+                /**
+                 * 🔴 **지난 곳에 «예정»은 없다** — 통과했으면 빈칸이 맞다 (0909 규칙).
+                 *    아직이면 타임라인의 예정을, 그것도 없으면 **타이틀이 쓰는 그 값**을 쓴다
+                 *    (`etaMap` → 장부 폴백). 둘이 다른 값을 말하면 화면이 두 말을 한다 (규칙 ③).
+                 */
+                const real = r.arrived ? null
+                    : tl?.etaMs != null ? new Date(tl.etaMs).toTimeString().slice(0, 5)
+                        : r.eta ?? null;
+                return (
+                    <div key={r.stopType} className="flex flex-col">
+                        <div className="flex justify-between gap-1 font-bold">
+                            <span className="min-w-0 truncate">
+                                {r.seq ?? '?'} {r.kind} · {r.name}
+                                <span className="font-normal text-text-muted">
+                                    {' '}{r.legKm != null ? `${Number(r.legKm).toFixed(1)}km` : '--km'}
+                                    ·{legMin != null ? `${legMin}분` : '--분'}
+                                </span>
+                            </span>
+                            <span className="shrink-0">
+                                <span className={tl?.promiseConfirmed ? 'text-accent-alt' : 'text-text-muted'}>
+                                    {clockOf(promised)}
+                                </span>
+                                <span className="text-text-muted"> → </span>
+                                <b className={late > 0 ? 'text-warning' : 'text-success'}>{real ?? '--:--'}</b>
+                                {r.arrived && <span className="text-success text-[9.5px]"> 통과</span>}
+                                {late > 0 && <b className="text-warning"> ⚠️{late}분</b>}
+                            </span>
+                        </div>
+                        {shiftMin !== 0 && (
+                            <div className="pl-2 flex justify-between gap-1 text-[10px] text-text-muted">
+                                <span>└ 앞 정거장이 예측과 달라</span>
+                                <span className={shiftMin > 0 ? 'text-warning' : 'text-success'}>
+                                    {shiftMin > 0 ? `+${shiftMin}분 밀림` : `${shiftMin}분 당겨짐`}
+                                </span>
+                            </div>
+                        )}
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
 function DeadlineChip({ orderId, stopType, eta, deadlineAt }: {
     orderId: string; stopType: 'pickup' | 'dropoff'; eta?: string; deadlineAt?: string;
 }) {
