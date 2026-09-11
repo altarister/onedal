@@ -1,7 +1,7 @@
 import { Router } from "express";
 import db from "../db";
 import { getAllActiveUserIds, getUserSession } from "../state/userSessionStore";
-import { isLiveServer } from "../config/env";
+import { isLiveServer, PROBE_EMAIL } from "../config/env";
 import { getActiveCalls } from "../core/helpers";
 import { mapCoverage } from "../services/geoService";
 import { SettingsRepository } from "../repositories/SettingsRepository";
@@ -33,6 +33,21 @@ const router = Router();
  */
 const isDevBuild = () => !isLiveServer();
 
+/**
+ * 👤 **«사람» 세션만 센다** (2026-09-12).
+ *
+ * 아래 두 문은 *"로컬 판은 기사님 한 분이다 — 세션이 여럿이면 **고르지 않는다**"* 로
+ * 지켜진다. 그 규칙의 뜻은 «둘이면 위험»이 아니라 **«누구 것인지 모르면 안 준다»** 다.
+ *
+ * 🔴 그런데 **실측 계정이 붙는 순간 세션이 둘이 되어** 시뮬레이터가 «세션이 여럿입니다»만
+ *    받는다 — **내 도구가 남의 영역을 멈춘다.** 실측 계정은 사람이 아니므로 셈에서 뺀다.
+ *    규칙을 약하게 만드는 것이 아니다: **사람이 둘이면 여전히 안 준다.**
+ */
+const humanUserIds = (): string[] => {
+    const probe = db.prepare("SELECT id FROM users WHERE email = ?").get(PROBE_EMAIL) as { id: string } | undefined;
+    return getAllActiveUserIds().filter(id => id !== probe?.id);
+};
+
 router.get("/driver-location", (_req, res) => {
     if (!isDevBuild()) return res.status(404).json({ error: "not found" });
 
@@ -40,7 +55,7 @@ router.get("/driver-location", (_req, res) => {
      * 로컬 판은 기사님 한 분이다 — 세션이 여럿이면 **고르지 않는다**(누구 위치인지 모르는
      * 값을 내주면 시뮬이 엉뚱한 거리로 출제한다 · 규칙 ④).
      */
-    const userIds = getAllActiveUserIds();
+    const userIds = humanUserIds();
     if (userIds.length !== 1) {
         return res.json({ ok: false, reason: userIds.length ? "세션이 여럿입니다" : "접속한 세션이 없습니다" });
     }
@@ -148,7 +163,7 @@ router.get("/intel", (req, res) => {
 router.get("/preflight", (_req, res) => {
     if (!isDevBuild()) return res.status(404).json({ error: "not found" });
 
-    const userIds = getAllActiveUserIds();
+    const userIds = humanUserIds();
     if (userIds.length !== 1) {
         return res.json({ ok: false, reason: userIds.length ? "세션이 여럿입니다" : "접속한 세션이 없습니다" });
     }

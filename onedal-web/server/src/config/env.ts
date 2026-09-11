@@ -71,3 +71,15 @@ export function jwtRefreshSecret(): string {
 export function isLiveServer(): boolean {
     return process.env.NODE_ENV === "production" || process.env.DB_FILE === "data.db";
 }
+
+/**
+ * 🔬 **실측 전용 계정의 주소** (2026-09-12 · 규칙 ③ — 값은 한 곳에서).
+ *
+ * CDP 화면 실측이 `/api/auth/bypass` 로 로그인하는데 그 문은 **«DB 의 첫 번째 유저»**,
+ * 곧 **기사님 계정**을 준다. 그래서 스크립트가 누른 버튼이 기사님의 오늘 필터를
+ * 실제로 날렸다 (2026-09-12 · 두 번). 그 뒤로 실측은 **이 계정으로만** 로그인한다.
+ *
+ * 🔴 **사람이 아니다.** «로컬 판은 기사님 한 분» 을 전제하는 곳(`sim.ts` 의 현위치·판점검)은
+ *    이 계정을 **세션 수에서 뺀다** — 안 그러면 내 실측이 남의 시뮬레이터를 멈춘다.
+ */
+export const PROBE_EMAIL = "probe@onedal.local";

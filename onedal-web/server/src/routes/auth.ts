@@ -1,7 +1,8 @@
 import { Router } from "express";
+import { NET_SRC } from "@onedal/shared";
 import { OAuth2Client } from "google-auth-library";
 import jwt from "jsonwebtoken";
-import { jwtSecret, jwtRefreshSecret, isLiveServer } from "../config/env";
+import { jwtSecret, jwtRefreshSecret, isLiveServer, PROBE_EMAIL } from "../config/env";
 import bcrypt from "bcrypt";
 import { v4 as uuidv4 } from "uuid";
 import db from "../db";
@@ -244,8 +245,49 @@ router.post("/bypass", async (req, res) => {
 
     try {
         logRoadmapEvent("서버", "관제탑 개발자 로컬 우회 로그인 요청 받음");
-        // DB에 있는 첫 번째 유저를 무조건 가져옴 (개발자 테스트용)
-        let userRow = db.prepare("SELECT * FROM users LIMIT 1").get() as any;
+        /**
+         * 🔬 **실측 전용 계정** (2026-09-12 · 사고 뒤 신설).
+         *
+         * 🔴 **그날 두 번, 화면 실측이 기사님의 오늘 필터를 날렸다.** CDP 스크립트가
+         *    이 문으로 로그인하는데 아래가 **«DB 의 첫 번째 유저»** — 곧 **기사님 계정**이라,
+         *    스크립트가 누른 「↩︎ 되돌리기」가 파주시와 제외 9곳을 실제로 지웠다.
+         *
+         * 🔴 **화면을 눌러 보는 일은 포기할 수 없다** — 버그 #108(사라진 폼 동기화)을
+         *    찾아낸 것이 코드 읽기가 아니라 그 실측이었다. 그러니 **도구를 고친다.**
+         *
+         * ⚠️ `probe` 를 **달고 와야만** 갈린다. 안 달면 옛 길 그대로다 —
+         *    `pnpm scenario`·`e2e:app` 이 그 길로 돌고 있어 바꾸면 그쪽이 깨진다.
+         */
+        let userRow: any;
+        if (req.body?.probe) {
+            userRow = db.prepare("SELECT * FROM users WHERE email = ?").get(PROBE_EMAIL);
+            if (!userRow) {
+                const probeId = uuidv4();
+                db.prepare(`
+                    INSERT INTO users (id, google_id, email, name, avatar, role)
+                    VALUES (?, ?, ?, ?, ?, 'ADMIN')
+                `).run(probeId, "probe_google_id", PROBE_EMAIL, "실측(자동)", "");
+                /**
+                 * 🔴 **빈 그릇은 «제한 없음»이 아니라 «고장»이다** (규칙 ④) — 행을 함께 만든다.
+                 *
+                 * 🔬 **판도 함께 심는다.** 집도 목적지도 없으면 그물이 아예 안 그려져
+                 *    («재료가 하나라도 없으면 null» · `useCallNet`) **실측이 빈 화면을 찍는다.**
+                 *    실측은 «같은 판에서 같은 답»이 나와야 쓸모가 있다.
+                 * 🔴 **좌표를 여기서 지어내지 않는다** — 집은 `shared` 의 `NET_SRC`(초월),
+                 *    곧 실험실 문제지가 나흘째 쓰는 그 지점이다 (규칙 ③ — 원천 하나).
+                 *    목적지는 거기서 15.6km 인 성남시 — «가까워서 손잡이가 죽는» 그 판이다.
+                 */
+                db.prepare(`INSERT INTO user_settings (user_id, home_address, home_x, home_y) VALUES (?, ?, ?, ?)`)
+                    .run(probeId, '경기 광주 초월 (실측 고정 판)', NET_SRC.lng, NET_SRC.lat);
+                db.prepare(`INSERT INTO user_filters (user_id, destination_city) VALUES (?, ?)`)
+                    .run(probeId, '성남시');
+                userRow = db.prepare("SELECT * FROM users WHERE id = ?").get(probeId);
+                console.log(`🔬 [실측 계정 생성] ${PROBE_EMAIL} — 기사님 계정과 분리된 판입니다`);
+            }
+        } else {
+            // DB에 있는 첫 번째 유저를 무조건 가져옴 (개발자 테스트용)
+            userRow = db.prepare("SELECT * FROM users LIMIT 1").get() as any;
+        }
         
         // 유저가 한 명도 없다면, 개발/테스트용 임시 계정을 강제 생성합니다.
         if (!userRow) {
