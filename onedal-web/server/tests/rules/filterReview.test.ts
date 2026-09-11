@@ -491,3 +491,40 @@ describe('5단계 · 레이어 열림은 한 벌 (조사 ①-10) · 죽은 도�
         expect(fs).toMatch(/FROM user_filters/);
     });
 });
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * 6단계 — 스타일 (조사 ③) : 부품 안은 같다. 갈라진 건 칸 바깥이다
+ * ══════════════════════════════════════════════════════════════════════════ */
+describe('6단계 · 칸 바깥 스타일을 목업 어휘로 (조사 ③)', () => {
+    const modal = readClient('components/dashboard/OrderFilterModal.tsx');
+    const knob = readClient('components/ui/KnobGrid.tsx');
+
+    it('🔴 섹션 사이 간격이 0 이 아니다 — 목업 aside 는 gap-2', () => {
+        const i = modal.indexOf('custom-scrollbar relative z-10">');
+        expect(i).toBeGreaterThan(-1);
+        /* 주석 한 줄이 끼어 있다 — 그 다음 여는 태그를 본다 */
+        expect(modal.slice(i, i + 400)).toMatch(/<div className="space-y-2">/);
+    });
+
+    it('🔴 머리말 규격이 하나다 — 10.5px · font-black · muted (목업 FilterPanel)', () => {
+        for (const h of ['📐 그물의 모양', '📐 반경', '🚫 제외 지역'])
+            expect(modal).toMatch(new RegExp(`text-\\[10\\.5px\\] font-black [^"]*">${h}`));
+        /* 목업은 9.5 / 10.5 / 11 / 13 / 14 만 쓴다 — 9px·10px 이 섞이지 않는다 (머리말·보조문구) */
+        expect(modal).not.toMatch(/text-\[9px\]/);
+    });
+
+    it('🔴 [자동|수동] 이 다른 토글과 같은 어휘다 — 솔리드 fill · text-white 가 아니다', () => {
+        expect(modal).not.toMatch(/'bg-info text-white'/);
+        expect(modal).toMatch(/bg-info\/15 border-info\/55 text-info/);
+    });
+
+    it('🔴 같은 버튼에 같은 토큰 — 통째 제외·노선/동선 꺼짐', () => {
+        expect(modal).not.toMatch(/'border-border bg-surface text-text-muted hover:border-danger'/);
+        expect(modal).not.toMatch(/bg-surface-alt\/40 text-text-muted hover:bg-surface-hover/);
+    });
+
+    it('🔴 공용 부품에 hex 가 없다 — 테마 토큰으로', () => {
+        expect(knob).not.toMatch(/accent-\[#/);
+        expect(knob).toMatch(/accent-info/);
+    });
+});

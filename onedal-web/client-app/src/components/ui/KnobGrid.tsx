@@ -102,7 +102,7 @@ export function KnobGrid({ knobs, open, onOpen, cols = 3 }: {
                         onChange={e => { const v = Number(e.target.value); cur.set(v); cur.onPreview?.(v); }}
                         onPointerUp={e => cur.onCommit?.(Number((e.target as HTMLInputElement).value))}
                         onKeyUp={e => cur.onCommit?.(Number((e.target as HTMLInputElement).value))}
-                        className="flex-1 min-w-0 accent-[#0284c7]" />
+                        className="flex-1 min-w-0 accent-info" />   /* 🎨 hex 가 아니라 테마 토큰 — 라이트에서도 맞는다 (조사 ③) */
                     <button type="button" onClick={() => { const v = clamp(cur, cur.value + (cur.step ?? 1)); cur.set(v); cur.onCommit?.(v); }}
                         className="w-8 h-8 shrink-0 rounded-lg border border-border-hover bg-background text-[16px] font-black">+</button>
                     <span className="shrink-0 w-[48px] text-right text-[14px] font-black text-info tabular-nums">

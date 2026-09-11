@@ -605,7 +605,8 @@ describe('관내 — 목적지를 안 잃는 파생 (C4-8b)', () => {
         const net = fm.slice(fm.indexOf('function netKeywordsOf'), fm.indexOf('function netKeywordsOf') + 3000);
         expect(net).toMatch(/srcAngleDeg: 360/);
         expect(net).toMatch(/dstAngleDeg: 360/);
-        expect(net).toMatch(/localMode \? null : line/);
+        /* 🔄 2026-09-12 — 동선(`routeMode === false`)도 라인을 끈다 (전수 조사 ①-9). 관내 분기는 그대로다 */
+        expect(net).toMatch(/\(localMode \|\| session\.activeFilter\.routeMode === false\) \? null : line/);
     });
 
     /**
@@ -1474,14 +1475,18 @@ describe('노선 ↔ 동선 — 고른 것과 실제를 가른다 (이식)', () 
     });
 
     /**
-     * 🔴 **기억하지 않는다** — 레이어(🧅)는 «보기»라 `localStorage` 에 남기지만
-     *    이것은 **판정을 바꾸는 값**이다. 어제 상태가 오늘 되살아나면 안 된다 (규칙 ③).
+     * 🔴 **`localStorage` 에 기억하지 않는다** — 레이어(🧅)는 «보기»라 거기 남기지만
+     *    이것은 **판정을 바꾸는 값**이다.
+     *
+     * 🔄 **개정 2026-09-12** (전수 조사 ①-9): 예전엔 `Dashboard` 의 `useState(true)` 라
+     *    «새로고침하면 노선으로 돌아간다»를 지켰는데, 그 탓에 **서버가 이 값을 몰라** 동선을
+     *    골라도 판정·앱 목록은 계속 노선이었다. 이제 **필터 값**(`filter.routeMode`)이다 —
+     *    지도·서버·💾 가 같은 값을 보고, 되살아나는 것은 `localStorage` 가 아니라
+     *    **기사님이 💾 로 저장한 서버 값**이다 (규칙 ③ — 원천 하나).
      */
-    it('🔴 새로고침하면 기본(노선)으로 돌아간다', () => {
-        // 상태는 이제 부모(Dashboard)가 쥔다 — 지도와 필터가 같은 값을 봐야 하므로
-        expect(dash3).toMatch(/const \[routeMode, setRouteMode\] = useState\(true\)/);
-        const at = dash3.indexOf('const [routeMode');
-        const decl = dash3.slice(at, dash3.indexOf('\n', at));
-        expect(decl).not.toMatch(/localStorage/);
+    it('🔴 노선/동선은 필터 값이다 — localStorage 가 아니라 서버 값에서 온다', () => {
+        expect(dash3).not.toMatch(/const \[routeMode, setRouteMode\] = useState/);
+        expect(dash3).toMatch(/const routeMode = filter\?\.routeMode \?\? true/);
+        expect(dash3).not.toMatch(/routeMode[^\n]*localStorage/);
     });
 });

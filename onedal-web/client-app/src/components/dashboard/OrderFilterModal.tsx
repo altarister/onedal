@@ -677,7 +677,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                         <button key={label} type="button" onClick={() => setRouteMode(on)} title={hint}
                             className={`py-2 rounded-lg border text-[12px] font-black transition-all ${routeMode === on
                                 ? (on ? 'border-warning/55 bg-warning/15 text-warning' : 'border-info/55 bg-info/15 text-info')
-                                : 'border-border bg-surface-alt/40 text-text-muted hover:bg-surface-hover hover:text-text-primary'}`}>
+                                : 'border-border-card bg-background text-text-muted hover:border-border-hover'}`}>
                             {label}
                         </button>
                     ))}
@@ -717,7 +717,8 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                      *    그래서 `overflow-y-auto` 가 있어도 넘칠 일이 없어 그냥 자란다.
                      */}
                     <div className="flex-1 min-h-0 space-y-3 overflow-y-auto pr-1 pb-1 custom-scrollbar relative z-10">
-                    <div>
+                    {/* 🎨 섹션 사이 8px — 목업 aside 의 `gap-2` (전수 조사 ③). 맨 div 라 다섯 덩이가 붙어 있었다 */}
+                    <div className="space-y-2">
                         {/**
                           * 🗂️ **순서는 목업 그대로다** (기사님 지시 2026-09-11:
                           *    *"디자인은 목업처럼 해주면 되고"* · `MapMockup.tsx:3145~3402`).
@@ -842,8 +843,8 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                             머리글 한 줄은 남긴다 — «이게 지도에 바로 보인다»는 말이 필요하다 */}
                         <div className="relative z-10 space-y-1">
                             <div className="flex items-baseline justify-between px-0.5">
-                                <span className="text-[10px] font-black text-text-primary">📐 그물의 모양</span>
-                                <span className="text-[9px] text-text-muted">지도에 바로 보입니다</span>
+                                <span className="text-[10.5px] font-black text-text-muted">📐 그물의 모양</span>
+                                <span className="text-[9.5px] font-bold text-text-muted">지도에 바로 보입니다</span>
                             </div>
                             {/**
                               * 🎚️ **숫자판이 아니라 슬라이더 레이어다** (이식 C4-1 · 2026-09-11).
@@ -909,13 +910,13 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                           *    기준 40km 의 근거는 `shared` 의 `RADIUS_BASE_KM_DEFAULT` 주석에.
                           */}
                         <div className="flex items-center justify-between gap-2 px-0.5 pb-1">
-                            <span className="text-[10px] font-black text-text-muted">📐 반경</span>
+                            <span className="text-[10.5px] font-black text-text-muted">📐 반경</span>
                             <div className="flex rounded-lg border border-border-card overflow-hidden">
                                 {([true, false] as const).map(on => (
                                     <button key={String(on)} type="button"
                                         onClick={() => updateFilter({ radiusAuto: on })}
                                         className={`px-2.5 py-0.5 text-[10.5px] font-bold ${
-                                            radiusAuto === on ? 'bg-info text-white' : 'text-text-muted'}`}>
+                                            radiusAuto === on ? 'bg-info/15 border-info/55 text-info font-black' : 'text-text-muted'}`}>
                                         {on ? '자동' : '수동'}
                                     </button>
                                 ))}
@@ -1001,7 +1002,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                     <div className="flex flex-col gap-0.5">
                                         <div className="flex items-start justify-between gap-2 pb-1 border-b border-border/50">
                                             <span className="text-[10px] font-black text-text-primary">{FLOOR_TITLE[tab]}</span>
-                                            <span className="text-[9px] text-text-muted/70 text-right whitespace-nowrap">통과 = 요금 ≥ 배송거리 × 단가</span>
+                                            <span className="text-[9.5px] text-text-muted/70 text-right whitespace-nowrap">통과 = 요금 ≥ 배송거리 × 단가</span>
                                         </div>
                                         {/* 남은 용량에 안 들어가는 차종은 흐리게 — 잡아도 못 싣는다 */}
                                         {RATE_TABLE_ORDER.map(v => {
@@ -1102,9 +1103,9 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                             «여기서부터는 빼는 것»이 선 하나로 충분히 갈린다 */}
                         <div className="relative z-20 border-t border-border-card pt-2 space-y-1">
                             <div className="flex items-baseline justify-between px-0.5">
-                                <span className="text-[10px] font-black text-danger">🚫 제외 지역</span>
+                                <span className="text-[10.5px] font-black text-danger">🚫 제외 지역</span>
                                 {/* 🔴 «국면과 무관»을 뺐다 (C4-7) — 국면이 없어졌으니 낡은 말이다 */}
-                                <span className="text-[9px] text-text-muted">
+                                <span className="text-[9.5px] font-bold text-text-muted">
                                     {exDraft.length ? `${exDraft.length}곳 제외` : '없음'}
                                 </span>
                             </div>
@@ -1117,7 +1118,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                     foot={
                                         <button type="button" onClick={() => toggleEx(`S|${exSido}`)}
                                             className={`w-full px-2 py-1.5 rounded-md border text-[11px] font-black ${exDraft.includes(`S|${exSido}`)
-                                                ? 'bg-danger/15 border-danger/55 text-danger' : 'border-border bg-surface text-text-muted hover:border-danger'}`}>
+                                                ? 'bg-danger/15 border-danger/55 text-danger' : 'border-border-card bg-background text-text-muted hover:border-danger'}`}>
                                             ◼ {exSido} 통째로 제외 {exDraft.includes(`S|${exSido}`) ? '⛔ 켬' : '끔'}
                                         </button>} />
                                 <PickLayer label="시·군·구 ⛔ 통째" keepOpen tone="danger" options={sggList(exSido)}
