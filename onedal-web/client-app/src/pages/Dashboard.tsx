@@ -244,7 +244,19 @@ export default function Dashboard() {
         return () => { socket.off("stale-orders-dropped", onStale); };
     }, []);
 
-    return (
+    /**
+     * 🔬 **곁 패널은 원본 «바깥»에 선다** (기사님 지시 2026-09-11:
+     *    *"원본에는 어떤 영향도 없어야해.. div 로 완벽하게 분리해줘"*).
+     *
+     * 🔴 **전에는 무대만 왼쪽으로 밀었다가 헤더가 어긋났다** — 헤더는 전체 폭을 쓰는데
+     *    무대만 `mr-auto` 로 당기니 둘이 따로 놀았다. 원본 **안쪽**을 건드린 탓이다.
+     *    이제 원본(`<main>`)을 통째로 왼쪽 칸에 담고 패널은 오른쪽 칸에 둔다 —
+     *    원본은 제 폭 안에서 **예전과 한 픽셀도 다르지 않게** 동작한다.
+     *
+     * 🔴 **지울 때는 이 감싸개와 패널 한 줄만** 걷어내면 된다. `body` 는 안 건드린다.
+     */
+    const withPanel = stagePreview && sidePanelRoom;
+    const body = (
         <main className={stagePreview
             ? "h-dvh overflow-hidden flex flex-col bg-bg-base font-sans"      /* 🎭 무대: 화면 = 상자, 스크롤은 시트 안 */
             : "min-h-screen bg-bg-base font-sans pb-24"}
@@ -255,10 +267,7 @@ export default function Dashboard() {
             {/* 📍 공통 헤더 컴포넌트 */}
             <Header isConnected={isConnected} liveCalls={liveCalls} />
 
-            {/* 🔴 **패널이 설 때만 무대가 왼쪽에 붙는다** (기사님 지시 2026-09-11:
-                *"왼쪽에 프로젝트 붙박이로 놓고"*). 패널이 없으면 예전처럼 가운데다 —
-                폰은 `max-w-2xl` 보다 좁아 어느 쪽이든 같다. */}
-            <div className={`relative flex flex-col max-w-2xl w-full ${stagePreview && sidePanelRoom ? "mr-auto" : "mx-auto"} ${stagePreview ? "flex-1 min-h-0" : ""}`}>
+            <div className={`relative flex flex-col max-w-2xl mx-auto w-full ${stagePreview ? "flex-1 min-h-0" : ""}`}>
 
                 {/* 📢 배너 층 (v24) — 무대에서는 흐름 밖으로 띄운다. 흐름 안에 두면 뜰 때마다
                     아래 전부(슬롯·지도)가 밀려 화면이 들썩인다 (기사님 실측 0831) */}
@@ -386,9 +395,6 @@ export default function Dashboard() {
                 {/* 🏆 배차 확정 콜 (및 안전취소 연산 구역)
                     🔴 결재 카드가 터져도 관제탑 전체가 죽지 않게 경계를 둔다 —
                        운행 중이면 여기가 KEEP/CANCEL 을 하는 유일한 창구다 */}
-                {/* 🔬 곁 패널 — 무대 왼쪽 빈 자리. 지울 때 이 두 줄이 전부다 (2026-09-11) */}
-                {stagePreview && sidePanelRoom && <SidePanel activeRoute={activeRoute} />}
-
                 <ErrorBoundary label="결재 카드">
                     {stagePreview ? <StageView
                         routeStops={routeStops}
@@ -422,5 +428,17 @@ export default function Dashboard() {
             />
 
         </main>
+    );
+
+    /* 🔴 **패널이 없으면 예전 그대로 내보낸다** — 감싸개조차 만들지 않는다 */
+    if (!withPanel) return body;
+
+    return (
+        <div className="flex h-dvh overflow-hidden">
+            {/* 🖥️ 왼쪽 — **원본 붙박이.** 폭만 정해 주고 안쪽은 손대지 않는다 */}
+            <div className="shrink-0 w-[42rem] h-full overflow-hidden border-r border-border">{body}</div>
+            {/* 🔬 오른쪽 — 곁 패널. 원본과 형제라 서로 밀지 않는다 */}
+            <div className="flex-1 min-w-0 h-full"><SidePanel activeRoute={activeRoute} /></div>
+        </div>
     );
 }

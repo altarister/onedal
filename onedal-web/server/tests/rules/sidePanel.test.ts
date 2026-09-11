@@ -45,31 +45,44 @@ describe('곁 패널 — 지우기 쉬운 모양으로 둔다', () => {
      */
     it('🔴 좁은 화면에서는 컴포넌트를 만들지 않는다 (숨기는 게 아니다)', () => {
         const dash = codeOnly(read(join(CLIENT, 'pages/Dashboard.tsx')));
-        const call = dash.slice(Math.max(0, dash.indexOf('<SidePanel') - 300), dash.indexOf('<SidePanel'));
-        expect(call).toMatch(/&&/);                       // 조건부 렌더다
-        expect(dash).toMatch(/sidePanelRoom|wideEnough/); // 자리가 되는지 재는 값이 있다
+        // 자리가 되는지 재고, 안 되면 **그 앞에서 돌아선다**
+        expect(dash).toMatch(/const withPanel = stagePreview && sidePanelRoom/);
+        expect(dash).toMatch(/if \(!withPanel\) return body;/);
     });
 
     /**
-     * 🔴 **흐름에 안 끼운다.** 패널은 `fixed` 로 얹을 뿐이라 무대의 **안쪽 배치**(지도·시트의
-     *    높이 사슬)는 그대로다. 흐름에 끼우면 지도가 밀려 운행 화면이 달라진다.
+     * 🔴 **원본과 «형제»로 선다 — 겹치지 않는다** (기사님 지시 2026-09-11:
+     *    *"원본에는 어떤 영향도 없어야해.. div 로 완벽하게 분리해줘"*).
      *
-     * ⚠️ 자리는 2026-09-11 에 왼쪽 → **오른쪽**으로 옮겼다 (기사님 지시: *"왼쪽에 프로젝트
-     *    붙박이로 놓고"*). 무대가 가운데였을 때 **오른쪽이 통째로 비어** 700px 이 놀았다.
+     * ⚠️ **전에는 `fixed` 로 원본 위에 얹었다가 헤더가 어긋났다.** 무대만 `mr-auto` 로
+     *    당겼더니 전체 폭을 쓰는 헤더와 따로 놀았다 — 원본 **안쪽**을 건드린 탓이다.
+     *    겹쳐 놓고 «안 건드린다»고 믿은 것이 틀렸다. 이제 부모가 좌우로 가르고
+     *    패널은 제 칸만 채운다.
      */
-    it('🔴 무대 레이아웃 밖에 뜬다 (흐름에 안 끼운다)', () => {
+    it('🔴 원본 위에 겹치지 않는다 (fixed 로 얹지 않는다)', () => {
         const panel = codeOnly(read(PANEL));
-        expect(panel).toMatch(/fixed/);
-        expect(panel).toMatch(/right-0/);
+        expect(panel).not.toMatch(/fixed/);
+        expect(panel).not.toMatch(/100vw/);
+        expect(panel).toMatch(/h-full w-full/);
     });
 
     /**
-     * 🔴 **패널이 설 때만 무대가 왼쪽에 붙는다.** 패널이 없으면 예전처럼 가운데여야 한다 —
-     *    조건 없이 왼쪽에 붙이면 **패널이 없는 넓은 화면**에서 무대가 구석에 처박힌다.
+     * 🔴 **원본 안쪽을 한 줄도 안 고친다.** 무대는 예전처럼 제 폭 안에서 가운데다 —
+     *    패널이 서든 안 서든 같아야 «어떤 영향도 없다»가 참이 된다.
      */
-    it('🔴 무대는 패널이 설 때만 왼쪽에 붙는다 (없으면 가운데)', () => {
+    it('🔴 원본(무대) 정렬을 안 건드린다', () => {
         const dash = codeOnly(read(join(CLIENT, 'pages/Dashboard.tsx')));
-        expect(dash).toMatch(/sidePanelRoom \? "mr-auto" : "mx-auto"/);
+        expect(dash).toMatch(/max-w-2xl mx-auto/);
+        expect(dash).not.toMatch(/mr-auto/);
+    });
+
+    /**
+     * 🔴 **패널이 없으면 감싸개조차 안 만든다** — 그래야 폰·좁은 화면의 DOM 이
+     *    예전과 글자 그대로 같다.
+     */
+    it('🔴 패널이 없으면 예전 그대로 내보낸다 (감싸개도 없다)', () => {
+        const dash = codeOnly(read(join(CLIENT, 'pages/Dashboard.tsx')));
+        expect(dash).toMatch(/if \(!withPanel\) return body;/);
     });
 
     /**
@@ -94,9 +107,12 @@ describe('곁 패널 — 지우기 쉬운 모양으로 둔다', () => {
         expect(panel).toMatch(/COLUMNS\.map/);
     });
 
-    it('높이는 창에 맞춘다 · 칸은 가로로 흐른다 (지도는 늘 보인다)', () => {
+    it('높이는 창에 맞춘다 · 칸은 가로로 흐른다 (원본은 늘 보인다)', () => {
         const panel = codeOnly(read(PANEL));
-        expect(panel).toMatch(/h-screen|100vh/);
+        expect(panel).toMatch(/h-full/);                  // 부모가 준 높이를 꽉 채운다
         expect(panel).toMatch(/overflow-x-auto/);
+        // 부모(감싸개)가 창 높이를 정한다 — 그래야 원본과 패널이 같은 높이다
+        const dash = codeOnly(read(join(CLIENT, 'pages/Dashboard.tsx')));
+        expect(dash).toMatch(/flex h-dvh overflow-hidden/);
     });
 });

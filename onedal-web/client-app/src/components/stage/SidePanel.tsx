@@ -290,14 +290,14 @@ export default function SidePanel({ activeRoute }: Props) {
     return (
         <aside
             /**
-             * 🔴 **무대는 왼쪽 붙박이, 정보는 오른쪽** (기사님 지시 2026-09-11:
-             *    *"왼쪽에 프로젝트 붙박이로 놓고 [오른]쪽에 정보를 보여줘"*).
+             * 🔴 **원본과 «형제»다** (기사님 지시 2026-09-11: *"원본에는 어떤 영향도 없어야해..
+             *    div 로 완벽하게 분리해줘"*). 부모(`Dashboard`)가 좌우로 갈라 주므로
+             *    여기서는 **제 칸만 채운다** — `fixed` 도 `calc(100vw…)` 도 쓰지 않는다.
              *
-             * 전에는 무대가 가운데(`mx-auto`)라 **오른쪽이 통째로 비었다** — 창 2078px 에서
-             * 700px 이 그냥 놀았다. 무대를 왼쪽에 붙이니 정보가 쓸 자리가 **두 배**가 된다.
+             * 🔴 전에는 `fixed` 로 원본 위에 얹었다가 **헤더가 어긋났다.** 겹쳐 놓고
+             *    «안 건드린다»고 믿은 것이 틀렸다.
              */
-            className="fixed right-0 top-0 h-screen z-30 border-l border-border bg-background/95 backdrop-blur-sm"
-            style={{ width: `calc(100vw - 42rem)` }}
+            className="h-full w-full bg-background"
         >
             <div className="h-full flex flex-col">
                 <div className="shrink-0 px-2 py-1.5 border-b border-border flex items-baseline gap-2">
