@@ -139,6 +139,25 @@ interface Props {
          *  `color` 는 그 점과 **그 점으로 들어오는 구간**의 색 — 기존 경로와 이번 콜을 색으로 가른다 */
         callPath?: Array<{ x: number; y: number; label: string; color?: string }>;
     } | null;
+    /**
+     * 🕸️ **콜 그물 — 지금 필터가 무엇을 담고 있나** (이식 B3-2 · 2026-09-11).
+     *
+     * 🔴 위 `coneOverlay` 와 **다른 것**이다. 그쪽은 시트 목업이 쓰는 옛 모양(하늘색 점·호박 원)이고,
+     *    이쪽은 **지도 실험실 모양** — 마름모·원을 한 겹으로 옅게 깔고, 라인 띠를 두르고,
+     *    든 동을 점으로 찍는다. 둘을 한 prop 으로 합치면 한쪽을 고칠 때 다른 쪽이 흔들린다.
+     * ⚠️ `usedLine` 은 **계산이 함께 내놓는다** — 그리기가 제 조건으로 다시 판단하면 갈린다
+     *    (2026-09-09 사고: 계산은 라인 그물인데 그리기만 마름모인 척했다 · 규칙 ③).
+     */
+    netOverlay?: {
+        tri: Array<[number, number]>;
+        pass: Array<{ x: number; y: number; name: string; region: string }>;
+        circles: Array<{ name: string; ring: Array<[number, number]> }>;
+        usedLine: boolean;
+        /** 라인 띠의 폭 — 경로 양옆 km */
+        lineRadiusKm: number;
+        /** 🎯 목적지 — 마름모의 끝 꼭짓점이자 지도 마커 */
+        goal: { name: string; lng: number; lat: number };
+    } | null;
     unifiedRoutePoints: RoutePoint[];
     /** **진행 중인 콜만** 넘긴다. 종료된 콜을 여기서 거르지 않는다 —
      *  계약을 좁히면 거르기를 잊을 자리가 없어진다 (2026-08-10 전수조사) */
@@ -177,7 +196,7 @@ interface Props {
     rainbowNodes?: boolean;
 }
 
-export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLocation, children, fill, visitedTrail, callColors, onStopTap, drivenTrail, routeHolder, coneOverlay, occludedPx, rainbowNodes = true }: Props) {
+export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLocation, children, fill, visitedTrail, callColors, onStopTap, drivenTrail, routeHolder, coneOverlay, netOverlay, occludedPx, rainbowNodes = true }: Props) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const { theme } = useTheme();
     const mapColors = MAP_THEME_COLORS[theme];
@@ -245,6 +264,9 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         if (myLocation) allCoords.push(myLocation);
         /* 🔺 그물을 켜면 그 삼각형까지 보이게 — 안 그러면 현위치만 확대돼 선 하나만 스쳐 간다 */
         if (coneOverlay) for (const [x, y] of coneOverlay.tri) allCoords.push({ x, y });
+        // 🕸️ 그물도 화면에 들어와야 한다 — 안 넣으면 마름모가 화면 밖으로 잘린다
+        if (netOverlay) { for (const [x, y] of netOverlay.tri) allCoords.push({ x, y });
+            for (const c of netOverlay.circles) for (const [x, y] of c.ring) allCoords.push({ x, y }); }
         if (coneOverlay?.callPath) for (const p of coneOverlay.callPath) allCoords.push({ x: p.x, y: p.y });
 
         if (allCoords.length === 0) {
@@ -369,6 +391,83 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
                     ctx.stroke();
                 }));
             });
+            ctx.restore();
+        }
+
+        /**
+         * 🕸️ **콜 그물 — 지도 실험실 모양 그대로** (이식 B3-2 · 2026-09-11).
+         *
+         * 그리는 차례가 뜻이다 — **면을 먼저 옅게 깔고**(마름모·원·라인 띠 한 겹),
+         * 그 위에 **테두리**를 얹고, 마지막에 **든 동**을 점으로 찍는다.
+         * 🔴 면을 한 겹으로 모아 칠하는 이유: 마름모와 원이 겹치는 자리가 **두 번 칠해지면**
+         *    더 진해져서 «여기가 더 안쪽»처럼 읽힌다. 실험실이 오프스크린 화포를 쓴 이유가 그것이다.
+         *    여기서는 같은 일을 `globalAlpha` 한 번으로 한다 — 한 path 에 모아 한 번 칠한다.
+         */
+        if (netOverlay) {
+            ctx.save();
+            const NET_SOLID = '#2563eb', NET_EDGE = 'rgba(37,99,235,.85)';
+            /** 📏 km → px — 이 화면에서 1km 가 몇 픽셀인가 (줌이 바뀌면 같이 바뀐다) */
+            const a = getScreenPt({ x: netOverlay.goal.lng, y: netOverlay.goal.lat });
+            const b = getScreenPt({ x: netOverlay.goal.lng + 0.01, y: netOverlay.goal.lat });
+            const pxPerKm = Math.abs(b.cx - a.cx) / (0.01 * 88.6);
+
+            // ── 면 (마름모 + 꼭짓점 원) — 한 path 에 모아 **한 번만** 칠한다
+            ctx.globalAlpha = 0.22;
+            ctx.beginPath();
+            netOverlay.tri.forEach(([x, y], i) => {
+                const { cx, cy } = getScreenPt({ x, y });
+                if (i === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
+            });
+            if (netOverlay.tri.length) ctx.closePath();
+            for (const c of netOverlay.circles) {
+                c.ring.forEach(([x, y], i) => {
+                    const { cx, cy } = getScreenPt({ x, y });
+                    if (i === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
+                });
+                ctx.closePath();
+            }
+            ctx.fillStyle = NET_SOLID; ctx.fill();
+
+            // ── 라인 띠 — 잡은 콜들이 만든 실제 경로 양옆 (노선일 때만)
+            if (netOverlay.usedLine && validPolyline.length >= 2) {
+                ctx.beginPath();
+                validPolyline.forEach((p, i) => {
+                    const { cx, cy } = getScreenPt(p);
+                    if (i === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
+                });
+                ctx.strokeStyle = NET_SOLID;
+                ctx.lineWidth = Math.max(3, netOverlay.lineRadiusKm * 2 * pxPerKm);
+                ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+                ctx.stroke();
+            }
+            ctx.globalAlpha = 1;
+
+            // ── 테두리 — 목적지 원은 실선, 내 위치 원은 점선 (기점이 어느 쪽인지 눈으로 갈린다)
+            ctx.lineWidth = 2; ctx.strokeStyle = NET_EDGE;
+            for (const c of netOverlay.circles) {
+                ctx.setLineDash(c.name === netOverlay.goal.name ? [] : [6, 5]);
+                ctx.beginPath();
+                c.ring.forEach(([x, y], i) => {
+                    const { cx, cy } = getScreenPt({ x, y });
+                    if (i === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
+                });
+                ctx.closePath(); ctx.stroke();
+            }
+            ctx.setLineDash([]);
+
+            // ── 든 동 — 파란 점. 그물에 무엇이 들었는지가 **점의 수**로 보인다
+            for (const p of netOverlay.pass) {
+                const { cx, cy } = getScreenPt(p);
+                ctx.fillStyle = 'rgba(2,132,199,.8)';
+                ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 1.2; ctx.stroke();
+            }
+
+            // ── 🎯 목적지 — 실물 지도에 없던 마커다 (자리표 B-2)
+            const g = getScreenPt({ x: netOverlay.goal.lng, y: netOverlay.goal.lat });
+            ctx.fillStyle = mapColors.nodeEvaluating;
+            ctx.beginPath(); ctx.arc(g.cx, g.cy, 6, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 1.5; ctx.stroke();
             ctx.restore();
         }
 

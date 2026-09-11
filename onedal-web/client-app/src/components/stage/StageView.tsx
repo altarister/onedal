@@ -16,6 +16,7 @@ import { PinnedRouteBody } from '../dashboard/PinnedRoute';
 import { useDriveMotion } from '../dashboard/VehicleStatusPanel';
 import { useGpsFocusStore } from '../../stores/gpsFocusStore';
 import { useFilterConfig } from '../../hooks/useFilterConfig';
+import { useCallNet } from '../../hooks/useCallNet';
 import { logRoadmapEvent, logStateChange } from '../../lib/roadmapLogger';
 import { socket } from '../../lib/socket';
 /* 🗺️ 지도 아래 두 귀퉁이 — 규칙과 이름은 한 곳에서 온다 (규칙 ③) */
@@ -92,6 +93,19 @@ export default function StageView(props: Props) {
     const qrVia = qrSlice.slice(0, -1).map(toNaviStop)
         .filter(Boolean) as { name: string; x: number; y: number }[];
     const { filter, updateFilter } = useFilterConfig();
+    /**
+     * 🕸️ **지금 필터가 무엇을 담고 있나** — 지도에 그물로 그린다 (이식 B3-2).
+     *    계산은 실험실과 **같은 함수**(`@onedal/shared` 의 `netForGoal`)다 — 두 화면이
+     *    다른 답을 내면 «화면은 든다는데 판정은 탈락»이 된다 (규칙 ③).
+     */
+    const callNet = useCallNet({
+        destinationCity: filter?.destinationCity,
+        myLocation,
+        pickupRadiusKm: filter?.pickupRadiusKm,
+        destinationRadiusKm: filter?.destinationRadiusKm,
+        lineRadiusKm: filter?.detourRadiusKm,
+        routeHolder: derived.drawHolder,
+    });
 
 
     /**
@@ -317,6 +331,10 @@ export default function StageView(props: Props) {
                     drivenTrail={derived.drivenTrail}
                     routeHolder={derived.drawHolder}
                     callColors={derived.callColors}
+                    netOverlay={callNet && {
+                        tri: callNet.net.tri, pass: callNet.net.pass, circles: callNet.net.circles,
+                        usedLine: callNet.usedLine, lineRadiusKm: filter?.detourRadiusKm ?? 6, goal: callNet.goal,
+                    }}
                     onStopTap={focusCall}
                 >
                     {/* 🏷️ 다음 정거장 이름표 — «어느 콜의 어떤 단계» (v22 S3 · 탭 동선은 4단계에서) */}
