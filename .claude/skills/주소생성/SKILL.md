@@ -36,6 +36,7 @@ description: 시뮬레이터 문제지에 쓸 실제 화물 배송지 주소를 
 | ② | 그 좌표로 **길찾기가 선다** | 103(도로 없음)이 안 난다 |
 | ③ | **도로명주소**가 있다 | 지번만 있는 곳은 도로에서 먼 경우가 많다 |
 | ④ | 화물이 실제로 **드나드는 곳** | 관광지·산·마을은 배송지가 아니다 (어제 교훈) |
+| ⑤ | `region` 이 **지도(`merged_map`)의 동 이름**이다 | 화면에 그려지는 글자다. «분당구» 같은 구 이름이면 도착 목표를 맞춰도 **전부 떨어진다** (2026-09-12) |
 
 ## 쓰는 법
 
@@ -63,8 +64,9 @@ python3 .claude/skills/주소생성/scripts/generate_addresses.py \
 | 랜덤 시뮬이 뽑는 주소 사전 | `onedal-sim/packages/core-simulator/src/data/mockLocationData.json` |
 | 문제지 (`pickup`·`dropoff`·`pickupFallback`) | `onedal-sim/packages/core-simulator/src/presets.ts` |
 
-⚠️ 기존 `mockLocationData.json` 의 `lon`·`lat` 은 **전부 `126.9401, 37.2886` 로 같은 가짜**다.
-이 스킬은 **진짜 좌표**를 넣는다 — 그래야 `presets.ts` 의 `pickupFallback` 에 그대로 쓸 수 있다.
+⚠️ 이 스킬은 **진짜 좌표**를 넣는다 — 그래야 `presets.ts` 의 `pickupFallback` 에 그대로 쓸 수 있다.
+(옛 사전이 `126.9401, 37.2886` 한 점으로 채워져 있던 시절의 경고였다. 지금 사전 337개는
+좌표가 모두 제각각이고 `region` 도 지도의 동 이름이다 — 2026-09-12 에 전수로 맞췄다.)
 
 ## 만든 뒤에는 반드시
 

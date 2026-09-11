@@ -7,7 +7,7 @@
 
 호출·캐시는 `.claude/skills/_shared/kakao.py` 한 곳에 있다.
 """
-import argparse, json, os, random, sys
+import argparse, json, os, random, re, sys
 from collections import Counter
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "_shared"))
@@ -35,35 +35,78 @@ SURNAMES = ["김", "이", "박", "최", "정", "강", "조", "윤", "장", "임"
 TITLES = ["과장", "대리", "사원", "부장", "팀장", "주임", "실장", "차장"]
 
 
+# 🗺️ 지도가 아는 동 이름 — `region` 의 **정답지**다 (lazy, 한 번만 읽는다)
+_MAP_DONG: set | None = None
+
+
+def map_dong_names() -> set:
+    """`merged_map.geojson` 의 읍면동 이름 집합.
+
+    🔴 **이 지도가 곧 도착지 키워드의 원천이다.** 서버는 도착 목표(«성남시»)를
+       이 지도의 동 이름 목록으로 풀어 앱에 내려보낸다. 그러므로 `region` 이
+       지도에 **없는 이름**이면 경로 위에 있어도 «경로 밖»으로 떨어진다.
+
+    47MB 를 통째로 파싱하지 않고 이름만 훑는다 — 필요한 것은 집합 하나뿐이다.
+    지도가 없으면 빈 집합이고, 그때는 카카오 답을 그대로 믿는다 (검사를 건너뛸 뿐
+    지어내지는 않는다).
+    """
+    global _MAP_DONG
+    if _MAP_DONG is not None:
+        return _MAP_DONG
+    root = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", ".."))
+    path = os.path.join(root, "onedal-web", "server", "mapData", "merged_map.geojson")
+    try:
+        with open(path, encoding="utf-8") as f:
+            _MAP_DONG = set(re.findall(r'"EMD_KOR_NM":"([^"]+)"', f.read()))
+    except OSError:
+        print("  ⚠️ 지도를 못 읽었습니다 — region 을 지도와 대조하지 않습니다")
+        _MAP_DONG = set()
+    return _MAP_DONG
+
+
 def region_of(road_address: str, x=None, y=None) -> str:
-    """«경기 이천시 부발읍 경충대로 2091» → «부발읍». 기존 데이터의 region 칸과 같은 꼴.
+    """그 자리의 **법정동 이름**. «경기 성남시 분당구 판교로 255» → «판교동».
 
     🔴 **`region` 이 곧 화면에 그려지는 글자다** (`SimDispatchBoard` 가 이걸 먼저 쓴다).
-       앱은 화면을 읽어 경유 목록(동 단위)과 맞추므로, 여기에 «광주시» 같은 시 이름이
-       들어가면 **경로 위에 있어도 «경로 밖»으로 떨어진다.**
+       앱은 화면을 읽어 도착지 키워드(동 단위)와 맞추므로, 여기에 «분당구» 같은
+       **구 이름**이 들어가면 도착 목표를 맞춰도 **전부 떨어진다.**
 
-    ⚠️ 2026-08-25 실측: 도로명주소에 읍·면·동이 없는 곳(«경기 광주시 고불로 264»)이
-       12개 있었고, 전부 시 이름으로 채워져 있었다. 코카콜라 태전물류는 경로에서
-       0.43km 인데 «광주시» 로 그려져 경유 목록의 «태전동» 과 못 맞았다.
+    ⚠️ 2026-09-12 실사고: 이 함수가 도로명에서 «구»로 끝나는 조각도 동으로 채택했다.
+       그래서 성남 60개가 전부 «분당구·중원구·수정구» 로 나왔고 — 좌표를 물어보는
+       코드가 **아래에 있었는데도 거기까지 가지 못했다.** 시뮬 주소 사전에서 같은 병을
+       73개(43%) 고친 날, 생성기가 그 병을 새로 찍어 내고 있었다.
+       (2026-08-25 에도 같은 자리에서 «광주시»로 12개가 채워진 적이 있다.)
 
-    → 주소에서 못 찾으면 **좌표로 법정동을 물어본다.** 시 이름으로 때우지 않는다.
+    → 그래서 **좌표를 먼저 묻는다.** 도로명 파싱은 마지막 수단이고, «구»는 안 받는다.
     """
-    parts = road_address.split(" ")
-    for p in parts[1:]:
-        if p.endswith(("읍", "면", "동", "구")):
-            return p
+    # ① 좌표 → 법정동. 가장 믿을 만하다 (도로명에는 동이 없는 경우가 많다)
+    dong = ""
     if x is not None and y is not None:
         u = f"https://dapi.kakao.com/v2/local/geo/coord2regioncode.json?x={x}&y={y}"
         try:
-            docs = kakao._get(u).get("documents", [])
-            for t in docs:
+            for t in kakao._get(u).get("documents", []):
                 if t.get("region_type") == "B":          # 법정동
                     n = (t.get("region_3depth_name") or "").strip()
                     if n:
-                        return n.split()[0]
+                        dong = n.split()[0]
+                        break
         except Exception:
             pass
-    return parts[1] if len(parts) > 1 else ""
+
+    # ② 지도와 대조. «태평로1가» 처럼 지도가 병합한 이름은 꼬리를 떼고 다시 본다
+    names = map_dong_names()
+    if dong and names and dong not in names:
+        merged = re.sub(r"\d+가$", "", dong)
+        if merged in names:
+            dong = merged
+    if dong:
+        return dong
+
+    # ③ 마지막 수단 — 도로명에서 읍·면·동만 줍는다. 🔴 «구» 는 동이 아니다
+    for p in road_address.split(" ")[1:]:
+        if p.endswith(("읍", "면", "동")):
+            return p
+    return ""
 
 
 def fake_phone(rng) -> str:
@@ -83,8 +126,12 @@ def main():
     args = p.parse_args()
 
     regions = args.regions or (COURSES.get(args.course) if args.course else None)
+    # 🔴 빈 지역을 그냥 두면 «전국»을 긁는다 — 빈 필터는 «제한 없음»이 아니라 고장이다 (규칙 ④).
+    #    2026-09-12 실측: 셸에서 배열이 안 풀려 `--regions ""` 로 불렸는데 죽지 않고
+    #    제주·부산까지 섞인 60개를 만들어 냈다. 조용히 돌아간 것이 사고였다.
+    regions = [r.strip() for r in (regions or []) if r and r.strip()]
     if not regions:
-        sys.exit("--course 또는 --regions 를 주세요.")
+        sys.exit("--course 또는 --regions 를 주세요. (빈 지역은 받지 않습니다)")
     kinds = args.kinds or DEFAULT_KINDS
 
     kakao.init_cache(use_cache=not args.no_cache)
