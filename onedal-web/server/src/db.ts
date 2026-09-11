@@ -231,7 +231,13 @@ const RADIUS_AUTO_COLS: Record<string, string> = {
     radius_auto: 'INTEGER DEFAULT 0',
     radius_base_km: `REAL DEFAULT ${RADIUS_BASE_KM_DEFAULT}`,
 };
+/**
+ * 🚚 **기사님이 «받겠다»고 고른 차종** (이식 C4-6b · 2026-09-12).
+ *    🔴 **허용 목록(`allowedVehicleTypes`)은 여기 없다** — 지금도 앞으로도 **파생**이다
+ *       (지금 실린 짐 ∩ 이 목록). 빈 배열은 «제한 없음».
+ */
 ensureColumns('user_filters', {
+    accepted_vehicle_types: "TEXT DEFAULT '[]'",
     ...QUAD_COLS,
     ...FILTER_VALUE_COLS,
     ...RADIUS_AUTO_COLS,

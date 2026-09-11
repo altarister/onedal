@@ -362,9 +362,25 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
     if (!changes.allowedVehicleTypes) {
         const myVehicle = session.userVehicleType || '1t';
         const loaded = getActiveCalls(session);
+        /**
+         * 🚚 **기사님이 «받겠다»고 고른 것으로 한 번 더 좁힌다** (이식 C4-6b · 2026-09-12).
+         *
+         * 기사님: *"내 차가 1톤이지만 **라보 다마스 짐만 받겠다** … 합짐을 위해 필요."*
+         *
+         * 🔴 **두 질문을 갈라 둔 이유가 여기 있다** (규칙 ⑤-4 ⑤):
+         *      · `acceptedVehicleTypes` 는 **기사님이 정한다** — 짐이 오가도 안 바뀐다
+         *      · `allowedVehicleTypes`  는 **서버가 파생한다** — 콜마다 다시 난다
+         *    한 칸에 겹쳐 두었더니 경유가 갱신될 때마다 기사님이 좁혀 둔 것이 풀려
+         *    *"라보 2개를 싣고도 1t 콜을 잡으러 가는"* 상태가 됐다 (2026-08-10 스모크).
+         * 🔴 **비어 있으면 «제한 없음»** — 새 칸이 생겨도 아무것도 안 바뀌는 것이 기본이다.
+         * ⚠️ **교집합이 비면 그것이 «만재»다** — 지어내서 채우지 않는다 (규칙 ④).
+         */
+        const accepted = session.activeFilter.acceptedVehicleTypes ?? [];
+        const narrow = (types: string[]) =>
+            accepted.length === 0 ? types : types.filter(t => accepted.includes(t));
 
         if (loaded.length === 0) {
-            session.activeFilter.allowedVehicleTypes = getEligibleVehicleTypes(myVehicle);
+            session.activeFilter.allowedVehicleTypes = narrow(getEligibleVehicleTypes(myVehicle));
             session.capacityConfidence = 'CONFIRMED';   // 빈 차는 확실하다
             session.activeFilter.capacityConfidence = 'CONFIRMED';
             session.activeFilter.slotsUsed = 0;
@@ -375,7 +391,7 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
             // 🔄 파생 치환 ② — 적재의 재료도 새 장부에서
             const reports = new Map(loaded.map(c => [c.id, stepRecordsOf(c.id).reports]));
             const { points, confidence } = computeLoadedPoints(loaded, myVehicle, reports);
-            session.activeFilter.allowedVehicleTypes = getRemainingCapacityTypesByPoints(myVehicle, points);
+            session.activeFilter.allowedVehicleTypes = narrow(getRemainingCapacityTypesByPoints(myVehicle, points));
             session.capacityConfidence = confidence;
             session.activeFilter.capacityConfidence = confidence;
 

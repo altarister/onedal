@@ -119,6 +119,11 @@ const TARGET_HINT: Record<CallTarget, string> = {
  */
 /* 🔴 순서도 목업 그대로 — 현위 → 목적 → 라인 (`MapMockup.tsx:3229~3232`) */
 const KNOB_FIELDS: FlatValueKey[] = ['pickupRadiusKm', 'destinationRadiusKm', 'detourRadiusKm'];
+/**
+ * 🚚 **받을 짐 — 고를 수 있는 차종** (이식 C4-6b · 목업 `MapMockup.tsx` 와 같은 다섯).
+ *    작은 것부터 — 남은 칸이 줄면 **오른쪽부터 막힌다**는 것이 눈에 보이게.
+ */
+const VEHICLE_PICKS = ['오토바이', '승용차', '다마스', '라보', '1t'] as const;
 
 interface OrderFilterModalProps {
     isOpen: boolean;
@@ -223,6 +228,21 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
     const radiusAuto = !!filter?.radiusAuto;
     /** 🔴 **지금 실제로 쓰이는 반경** — 무대 지도가 부르는 **그 함수**다 (규칙 ③) */
     const shownRadii = effectiveRadii(filter);
+
+    /**
+     * 🚚 **기사님이 «받겠다»고 고른 차종** (이식 C4-6b · 2026-09-12).
+     *    비어 있으면 **제한 없음** — 지금 동작 그대로다.
+     * ⚠️ 서버가 낸 `allowedVehicleTypes`(«지금 실을 수 있는 것»)와 **다른 값**이다.
+     *    한 칸에 겹치면 기사님이 고른 것이 짐 한 번에 지워진다 (규칙 ⑤-4 ⑤).
+     */
+    const accepted = filter?.acceptedVehicleTypes ?? [];
+    const toggleVehicle = (v: string) => {
+        /* 아무것도 안 고른 상태(=전부)에서 하나를 끄면 «나머지 전부»가 된다 */
+        const base = accepted.length === 0 ? [...VEHICLE_PICKS] : accepted;
+        const next = base.includes(v) ? base.filter(x => x !== v) : [...base, v];
+        /* 전부 고른 것과 아무것도 안 고른 것은 같은 뜻이다 — 빈 배열로 되돌린다 */
+        updateFilter({ acceptedVehicleTypes: next.length === VEHICLE_PICKS.length ? [] : next });
+    };
 
     /**
      * 🎯 **국면 전환 — 요약줄에서 이사해 왔다** (이식 C4-5 · 2026-09-11).
@@ -845,12 +865,53 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                           *    화면을 다 먹는다 (기사님: *"작은 면적에 필요한 것만 잘 디스플레이"*).
                           *    기사님 2026-09-09: *"읽을 수 있게 통로를 열어 줘야지"* — 없애지 않고 접었다.
                           *
-                          * ⚠️ **목업의 «🚚 받을 짐»은 아직 없다.** 기사님이 원하신 손잡이지만
-                          *    (*"내 차가 1톤이지만 라보 다마스 짐만 받겠다 … 합짐을 위해 필요"*),
-                          *    실물에서 `allowedVehicleTypes` 는 **지금 실린 짐에서 파생**된다 —
-                          *    손으로 보내면 서버가 제 계산을 건너뛴다 (2026-08-10 사고).
-                          *    새 손잡이라 규칙 ⑤-4 의 다섯(스키마·값·시점·화면·읽는 곳)이 먼저다. C4-6b.
+                          * ✅ **«🚚 받을 짐»이 아래에 들어왔다** (이식 C4-6b · 2026-09-12).
                           */}
+
+                        {/**
+                          * 🚚 **받을 짐 — 「고른 것」과 「막힌 것」을 나눈다** (이식 C4-6b · 2026-09-12).
+                          *
+                          * 기사님: *"내 차가 1톤이지만 **라보 다마스 짐만 받겠다** … 합짐을 위해 필요."*
+                          *
+                          * 🔴 **보내는 것은 «고른 것»뿐이다** (`acceptedVehicleTypes`).
+                          *    허용 목록(`allowedVehicleTypes`)을 손으로 보내면 서버가
+                          *    `if (!changes.allowedVehicleTypes)` 에 걸려 **제 계산을 통째로
+                          *    건너뛴다** (2026-08-10 사고).
+                          * 🔴 **용량으로 막힌 것은 감추지 않고 취소선으로 남긴다** (규칙 ⑤-2) —
+                          *    「왜 이 콜이 안 올라오나」가 화면에서 읽혀야 한다.
+                          * ⚠️ 아무것도 안 고르면 **제한 없음**이다. 새 칸이 생겨도 아무것도
+                          *    안 바뀌는 것이 기본이다.
+                          */}
+                        <div className="pt-1">
+                            <div className="flex items-center justify-between gap-2 px-0.5 pb-1">
+                                <span className="text-[10px] font-black text-text-muted">🚚 받을 짐</span>
+                                <span className="text-[9.5px] font-bold text-text-muted">
+                                    {accepted.length === 0 ? '전부' : `${accepted.length}종`}
+                                    <span className="opacity-60"> · 남은 칸 {remainSlots}</span>
+                                </span>
+                            </div>
+                            <div className="grid grid-cols-5 gap-1">
+                                {VEHICLE_PICKS.map(v => {
+                                    const on = accepted.length === 0 || accepted.includes(v);
+                                    /* 🔴 서버가 낸 허용 목록에 없으면 **지금 실을 수 없는 것**이다 */
+                                    const blocked = !(filter?.allowedVehicleTypes ?? []).includes(v);
+                                    return (
+                                        <button key={v} type="button"
+                                            onClick={() => toggleVehicle(v)}
+                                            title={blocked ? '지금 적재로는 받을 수 없습니다' : undefined}
+                                            className={`flex flex-col items-center gap-0 px-1 py-1 rounded-lg border ${
+                                                on ? 'border-info/55 bg-info/10' : 'border-border-card bg-background'
+                                            } ${blocked ? 'opacity-45' : ''}`}>
+                                            <span className={`text-[10px] font-bold ${
+                                                blocked ? 'line-through text-text-muted' : 'text-text-primary'}`}>{v}</span>
+                                            <span className="text-[9px] font-bold text-text-muted tabular-nums">
+                                                {VEHICLE_CAPACITY[v] ?? 0}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
                         <div className="relative grid grid-cols-2 gap-1">
                             <PickLayer label="💰 콜할인율"
                                 value={callDiscount >= 100 ? '전부' : callDiscount === 0 ? '시세' : `-${callDiscount}%`}

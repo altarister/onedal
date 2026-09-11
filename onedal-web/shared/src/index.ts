@@ -788,6 +788,21 @@ export interface AutoDispatchFilter {
     radiusScale?: number;
 
     /**
+     * 🚚 **기사님이 «받겠다»고 고른 차종** (이식 C4-6b · 2026-09-12).
+     *
+     * 기사님: *"내 차가 1톤이지만 **라보 다마스 짐만 받겠다** … 합짐을 위해 필요."*
+     *
+     * 🔴 **`allowedVehicleTypes` 와 답하는 질문이 다르다** (규칙 ⑤-4 ⑤):
+     *      · `acceptedVehicleTypes` «나는 어떤 짐을 **받겠다**고 했나» — **기사님**이 정한다
+     *      · `allowedVehicleTypes`  «지금 짐 때문에 어떤 것이 **막혔나**» — **서버**가 파생한다
+     *    겹쳐 두면 기사님이 고른 것이 **짐 한 번에 지워진다** (2026-08-10 사고).
+     * 🔴 **비어 있으면 «제한 없음»** — 새 칸이 생겨도 아무것도 안 바뀌는 것이 기본이다.
+     * ⚠️ **앱에 안 내려간다** (`APP_FILTER_KEYS` 밖) — 앱은 서버가 낸 교집합
+     *    (`allowedVehicleTypes`) 하나만 본다.
+     */
+    acceptedVehicleTypes?: string[];
+
+    /**
      * 🚫 **제외 지역 — 국면 밖 한 벌** (이식 C2 · 2026-09-11 · 명세 §3).
      *    *"거긴 안 간다"* 는 그 지역이지 그 국면의 사정이 아니다. DB 자리는 `user_filters`.
      *    키 문법은 `S|도` · `R|시군구` · `D|시군구|동` — 규칙은 `shared/callNet.ts` 하나다.
