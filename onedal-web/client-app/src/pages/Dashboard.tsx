@@ -5,6 +5,8 @@ import DeviceControlPanel from "../components/dashboard/DeviceControlPanel";
 import OrderFilterStatus from "../components/dashboard/OrderFilterStatus";
 import JudgmentSeat from "../components/dashboard/JudgmentSeat";
 import StageView from "../components/stage/StageView";
+/* 🔬 곁 패널 — 지울 때 이 줄과 아래 호출 한 줄만 지운다 (2026-09-11) */
+import SidePanel from "../components/stage/SidePanel";
 import OrderFilterModal from "../components/dashboard/OrderFilterModal";
 import PinnedRoute from "../components/dashboard/PinnedRoute";
 import { ErrorBoundary } from "../components/common/ErrorBoundary";
@@ -39,6 +41,21 @@ export default function Dashboard() {
     const [stagePreview, setStagePreview] = useState(() => localStorage.getItem('stagePreview') === '1');
     /** 🎯 필터 줄 — 무대에서는 접힌 채로 시작한다 (기사님 확정 0905). 눌러 펼치면 그 판만 유지 */
     const [filterCompact, setFilterCompact] = useState(true);
+    /**
+     * 🔬 **곁 패널 자리가 되나** — 무대는 `max-w-2xl`(672px) 가운데 고정이라 창이 넓으면
+     *    **왼쪽 여백**이 남는다. 그 여백이 한 칸(330px)을 담을 만큼일 때만 만든다.
+     *
+     * 🔴 **폰에서는 아예 안 만든다** (기사님 지시 2026-09-11: *"모바일일때는 컨포넌트 호출을
+     *    안하고"*). 숨기는 것(`hidden`)과 안 만드는 것은 다르다 — 숨기면 훅이 돌고 구독이
+     *    붙는다. 운행 중 화면에 무게를 얹지 않는다.
+     * 🔴 이 패널은 **언젠가 통째로 지운다** — 지우는 법은 `SidePanel.tsx` 머리에 적었다.
+     */
+    const [sidePanelRoom, setSidePanelRoom] = useState(() => (window.innerWidth - 672) / 2 >= 346);
+    useEffect(() => {
+        const onResize = () => setSidePanelRoom((window.innerWidth - 672) / 2 >= 346);
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+    }, []);
     useEffect(() => {
         const on = () => setStagePreview(localStorage.getItem('stagePreview') === '1');
         window.addEventListener('stage-preview-changed', on);
@@ -366,6 +383,9 @@ export default function Dashboard() {
                 {/* 🏆 배차 확정 콜 (및 안전취소 연산 구역)
                     🔴 결재 카드가 터져도 관제탑 전체가 죽지 않게 경계를 둔다 —
                        운행 중이면 여기가 KEEP/CANCEL 을 하는 유일한 창구다 */}
+                {/* 🔬 곁 패널 — 무대 왼쪽 빈 자리. 지울 때 이 두 줄이 전부다 (2026-09-11) */}
+                {stagePreview && sidePanelRoom && <SidePanel />}
+
                 <ErrorBoundary label="결재 카드">
                     {stagePreview ? <StageView
                         routeStops={routeStops}
