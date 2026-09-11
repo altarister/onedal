@@ -53,6 +53,23 @@ router.get("/driver-location", (_req, res) => {
         /** GPS 가 아니라 «내 주소»로 메운 값인가 — 시뮬이 화면에 그대로 밝힌다 */
         isFallback: !!session.driverLocationIsFallback,
         at: session.driverLocationAt ?? null,
+        /**
+         * 📍 **이 위치가 «어디서 왔나»** (2026-09-11 · 기사님 지시로 신설).
+         *
+         * 기사님: *"GPS 가 안 오는 건 PC 에서 테스트할 때 말고는 없는 상황이야.
+         * 그럼 오른쪽에 내 위치 넣을 수 있게 할까?"*
+         *
+         * 🔴 **값은 한 칸(`driverLocation`)이고 문만 셋이다** — 읽는 쪽은 늘 그 한 칸만 본다.
+         *    갈라지는 것을 막는 것은 **«어디서 왔는지 화면이 말하는 것»**이다 (규칙 ⑤-2).
+         *    지금까지는 «집 주소로 대신»이 **로그에만** 찍혀서, 기사님이 *"내 위치가
+         *    대전으로 박혀있나봐"* 하고 한참 헤매셨다 (2026-09-11).
+         *
+         *   `gps`    폰이 보낸 진짜 위치
+         *   `manual` 손으로 찍은 위치 (관제웹·시뮬이 `dashboard-gps-update` 로 보낸다)
+         *   `home`   아무것도 없어 **설정의 집 주소로 대신**한 것
+         */
+        source: session.driverLocationIsFallback ? 'home'
+              : session.driverLocationIsMock ? 'manual' : 'gps',
     });
 });
 
