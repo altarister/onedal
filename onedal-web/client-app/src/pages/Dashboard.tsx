@@ -387,7 +387,7 @@ export default function Dashboard() {
                     🔴 결재 카드가 터져도 관제탑 전체가 죽지 않게 경계를 둔다 —
                        운행 중이면 여기가 KEEP/CANCEL 을 하는 유일한 창구다 */}
                 {/* 🔬 곁 패널 — 무대 왼쪽 빈 자리. 지울 때 이 두 줄이 전부다 (2026-09-11) */}
-                {stagePreview && sidePanelRoom && <SidePanel />}
+                {stagePreview && sidePanelRoom && <SidePanel activeRoute={activeRoute} />}
 
                 <ErrorBoundary label="결재 카드">
                     {stagePreview ? <StageView

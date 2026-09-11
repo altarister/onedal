@@ -27,8 +27,11 @@
  *       패널은 그 오른쪽 전부를 쓴다 — `fixed` 라 무대의 안쪽 배치는 그대로다.
  */
 import { useEffect, useRef, useState } from 'react';
-import { APP_FILTER_KEYS } from '@onedal/shared';
+import { APP_FILTER_KEYS, isEvaluating, isTerminal } from '@onedal/shared';
+import type { SecuredOrder } from '@onedal/shared';
 import { useFilterConfig } from '../../hooks/useFilterConfig';
+import { useDeviceStore } from '../../stores/deviceStore';
+import { summarizeTally } from '../../lib/filterTally';
 /* 🔴 서버 주소를 손으로 적지 않는다 — `apiBase()` 를 거친다.
    2026-09-07 에 `/api` 가 두 번 붙어 실경로가 늘 직선으로 그려진 사고가 있었다 */
 import { apiBase } from '../../lib/serverTarget';
@@ -78,8 +81,15 @@ function Card({ title, note, children }: { title: string; note?: string; childre
     );
 }
 
-export default function SidePanel() {
+/**
+ * 🔴 **콜 목록은 `Dashboard` 가 쥔 것을 그대로 받는다** — 여기서 다시 만들면
+ *    «화면 둘이 다른 콜을 본다»가 된다 (규칙 ③). 지울 때 이 prop 도 함께 사라진다.
+ */
+interface Props { activeRoute?: SecuredOrder[] }
+
+export default function SidePanel({ activeRoute }: Props) {
     const { filter, baseFilter, phaseSettings } = useFilterConfig();
+    const devices = useDeviceStore(st => st.devices);
     const [health, setHealth] = useState<Health | null>(null);
     /**
      * 📏 **패널이 실제로 몇 px 인지 재서 칸 폭을 정한다.** 창이 바뀌면 따라 바뀐다 —
@@ -171,6 +181,89 @@ export default function SidePanel() {
                                  v={`${s.destinationCity || '—'} · 상차 ${s.pickupRadiusKm} · 우회 ${s.detourAllowKm} · 하차 ${s.dropoffRadiusKm} · 할인 ${s.discountPct}%`} />
                         ))
                         : <Row k="(없음)" v={undefined} />}
+                </Card>
+            ),
+        },
+        {
+            key: 'tally',
+            node: (
+                <Card title="🔍 앱이 무엇을 봤나" note={'스캔 성적표 (앱 → 서버)'}>
+                    {/* 🔴 **목업의 «① 콜 필터 판정»에 해당하는 실물 값이다.** 목업은 콜 **하나**를
+                        찍어 판정하지만, 실물은 앱이 **여러 콜을 훑고 성적표**를 보낸다 —
+                        그게 실물의 모양이다 (명세 §5 「앱이 실제로 거르는 여섯 축」). */}
+                    {devices.length === 0 && <Row k="(폰 없음)" v={undefined} />}
+                    {devices.map(d => {
+                        const fresh = d.filterTallyAt != null && d.filterTallyAt === d.lastSeen;
+                        const sum = fresh ? summarizeTally(d.filterTally, d.filterTallyAt) : null;
+                        return (
+                            <div key={d.deviceId} className="py-1 border-b border-border/40 last:border-0">
+                                <Row k="폰" v={d.deviceId.slice(-6)} />
+                                {sum
+                                    ? <>
+                                        <Row k="본 콜" v={sum.seen} />
+                                        <Row k="통과" v={sum.passed} tone={sum.passed > 0 ? 'ok' : 'warn'} />
+                                        {sum.rejects.map(([name, n]) => <Row key={name} k={`탈락 ${name}`} v={n} />)}
+                                        <Row k="잰 시각" v={sum.at} />
+                                    </>
+                                    : <Row k="성적표" v={undefined} tone="warn" />}
+                            </div>
+                        );
+                    })}
+                </Card>
+            ),
+        },
+        {
+            key: 'judging',
+            node: (
+                <Card title="⚖️ 심사 중" note={'집은 뒤 · 서버가 하는 일'}>
+                    {/* 🔴 **덱에서 빠진 그 콜이다** — 심사석과 같은 기준(`isEvaluating || isPreview`) */}
+                    {(() => {
+                        const j = (activeRoute ?? []).find(r => !isTerminal(r.status ?? undefined)
+                            && (isEvaluating(r.status ?? undefined) || !!r.isPreview));
+                        if (!j) return <Row k="(없음)" v={undefined} />;
+                        return <>
+                            <Row k="콜" v={`${j.pickup ?? '—'} → ${j.dropoff ?? '—'}`} />
+                            <Row k="status" v={j.status} />
+                            <Row k="미리보기" v={j.isPreview ? 'true' : 'false'} />
+                            <Row k="요금" v={j.fare} />
+                            {/* 🔴 **색이 곧 결정이다** (규칙 ⑤-3) — 그래서 «왜 그 색인가»까지 적는다.
+                                막은 문(gate)이 있으면 그것부터, 없으면 축 점수를 보여 준다. */}
+                            <Row k="판정" v={j.judgment ? `${j.judgment.color} ${j.judgment.score ?? '못 잼'}` : undefined}
+                                 tone={j.judgment ? (j.judgment.color === '사고' ? 'warn' : 'ok') : 'warn'} />
+                            {j.judgment?.gates?.filter(g => !g.pass).map(g => (
+                                <Row key={g.key} k={`⛔ ${g.name}`} v={g.why ?? '막혔다'} tone="warn" />
+                            ))}
+                            {j.judgment?.axes?.map(a => (
+                                <Row key={a.key} k={a.name} v={a.score == null ? `못 잼 (${a.raw})` : `${a.score} · ${a.raw}`} />
+                            ))}
+                        </>;
+                    })()}
+                </Card>
+            ),
+        },
+        {
+            key: 'deck',
+            node: (
+                <Card title="📋 콜 리스트" note={'지금 쥔 콜'}>
+                    {(activeRoute ?? []).length === 0 && <Row k="(없음)" v={undefined} />}
+                    {(activeRoute ?? []).map((r, i) => (
+                        <Row key={r.id ?? i} k={`${i + 1} ${r.status ?? ''}`}
+                             v={`${r.pickup ?? '—'} → ${r.dropoff ?? '—'}`} />
+                    ))}
+                </Card>
+            ),
+        },
+        {
+            key: 'regions',
+            node: (
+                <Card title="🗂️ 영역 — 시군구별" note={'앱이 하차지를 맞춰 보는 목록'}>
+                    {(() => {
+                        const g = filter?.destinationGroups;
+                        if (!g || Object.keys(g).length === 0) return <Row k="(없음)" v={undefined} tone="warn" />;
+                        return Object.entries(g)
+                            .sort((a, b) => b[1].length - a[1].length)
+                            .map(([region, names]) => <Row key={region} k={region} v={`${names.length}개`} />);
+                    })()}
                 </Card>
             ),
         },
