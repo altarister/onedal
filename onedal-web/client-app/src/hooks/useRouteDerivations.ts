@@ -8,6 +8,8 @@ import { useGpsFocusStore, ensureGpsFocusSubscribed } from '../stores/gpsFocusSt
 import { useDrivenTrailStore, ensureDrivenTrailSubscribed, clearDrivenTrail } from '../stores/drivenTrailStore';
 import { useFilterConfig } from './useFilterConfig';
 import { useMasterGps } from './useMasterGps';
+import { callLineColor } from '../styles/callPalette';
+import { useTheme } from '../contexts/ThemeContext';
 import { apiClient } from '../api/apiClient';
 import { getAddressLabel } from '../lib/routeUtils';
 import { logStateChange } from '../lib/roadmapLogger';
@@ -306,6 +308,7 @@ export function useRouteDerivations(
      *    1~2초에 누르는 화면에서 그것이 가장 큰 사고다 (규칙 ⑤-3).
      * ⚠️ 목록에 없는 콜은 `0` 이 아니라 **`null`** 이다 — 지어내지 않는다 (규칙 ④).
      */
+    const { theme } = useTheme();          // 🎨 콜 색은 테마를 탄다 (callPalette 한 벌)
     const callNoOf = useMemo(() => {
         const at = new Map(cycleDeck.map((r, i) => [r.id, i + 1] as const));
         return (orderId: string): number | null => at.get(orderId) ?? null;
@@ -323,10 +326,17 @@ export function useRouteDerivations(
      * 🎨 **콜 색 — 사이클 안에서 콜마다 고유 색 하나** (기사님 확정 ②).
      *    지도 마커 테두리·덱 카드 점이 같은 색을 봐서 «③이 몇 번 콜이었나»가 색으로 읽힌다.
      */
-    const callColors = useMemo(() => {
-        const PALETTE = ['#4f8df9', '#f59e0b', '#a78bfa', '#ef4444', '#22d3ee', '#ec4899', '#a3e635'];
-        return new Map(cycleDeck.map((r, i) => [r.id, PALETTE[i % PALETTE.length]] as const));
-    }, [cycleDeck]);
+    const callColors = useMemo(() =>
+        /**
+         * 🔴 **색표는 `callPalette` 한 벌이다** (기사님 확정 2026-09-11).
+         *    예전엔 여기 7색 배열이 따로 있어서 **같은 콜이 지도에선 파랑, 목록에선 빨강**이었다.
+         *    이제 마커·박스·선이 **같은 콜 번호에서 같은 색상**을 본다 («색 = 콜 번호»).
+         * 🔴 **자리(i)가 아니라 «몇 번 콜인가»(callNoOf)로 칠한다** — 목록 자리로 칠하면
+         *    콜이 하나 끝나 빠질 때 남은 콜들의 색이 통째로 밀린다 (규칙 ⑤-3).
+         */
+        // 🔴 덱에 있는 콜이므로 번호는 반드시 있다 — 그래도 없으면 1번 색으로 (지어내지 않되 안 죽는다)
+        new Map(cycleDeck.map(r => [r.id, callLineColor(callNoOf(r.id) ?? 1, theme)] as const)),
+        [cycleDeck, callNoOf, theme]);
 
     /**
      * 🗺️ 지도에 그릴 점 — **번호를 실어서** 보낸다. 캔버스가 «남은 목록의 몇 번째»로

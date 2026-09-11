@@ -19,6 +19,7 @@
  *        SEED=0 pnpm lab:both     # 이미 세워 둔 콜로 대조만
  */
 import { spawn } from 'node:child_process';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 
@@ -32,6 +33,8 @@ const API = 'http://localhost:4000';
 const SEED = process.env.SEED !== '0';
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const wait = ms => new Promise(r => setTimeout(r, ms));
+/** 📄 두 화면을 나란히 볼 수 있게 남긴다 — 글자만으로는 «모양»을 못 본다 */
+const SHOT_DIR = '/tmp/onedal-lab-both';
 
 /** 🌅 볼트 오전의 앞 두 콜 — 목업 문제지와 **같은 판**이다 (`client-app/src/pages/labProblems.ts`) */
 const CALLS = [
@@ -78,6 +81,12 @@ try {
       return rows.map(r => [...r.children].map(c => (c.textContent || '').trim()));
     })()`;
     const RULER = `JSON.stringify({vw:innerWidth, vh:innerHeight, dpr:devicePixelRatio, theme:document.documentElement.className||'(기본)'})`;
+
+    async function shotOf(tab, name) {
+        mkdirSync(SHOT_DIR, { recursive: true });
+        const { data } = await tab.S('Page.captureScreenshot', { format: 'png' });
+        writeFileSync(`${SHOT_DIR}/${name}.png`, Buffer.from(data, 'base64'));
+    }
 
     async function openTab() {
         const { targetId } = await send('Target.createTarget', { url: 'about:blank' });
@@ -150,6 +159,7 @@ try {
     }
     const realRuler = await real.js(RULER);
     const realGrid = await real.js(GRID);
+    await shotOf(real, '실물');
 
     /* ── ② 목업: 같은 문제의 ①② 를 눌러 확정 ── */
     const mock = await openTab();
@@ -165,6 +175,7 @@ try {
     }
     const mockRuler = await mock.js(RULER);
     const mockGrid = await mock.js(GRID);
+    await shotOf(mock, '목업');
 
     /* ── ③ 나란히 적고 어긋난 칸을 센다 ── */
     const COLS = ['순번', '지명', '약속', '±', '예상'];
@@ -195,11 +206,12 @@ try {
             ok(`${i + 1}번 줄 — 지명이 같다`, r.상[1] === m.상[1] && r.하[1] === m.하[1],
                 `실물 ${r.상[1]}→${r.하[1]} ↔ 목업 ${m.상[1]}→${m.하[1]}`);
         }
-        const 빈칸 = realGrid.flatMap(c => [c[3], c[4], c[9], c[10]]).filter(v => !v || v === '--:--').length;
-        ok('실물 격자의 ±·예상 칸이 채워졌다', 빈칸 === 0, `빈 칸 ${빈칸}개`);
+        const blanks = realGrid.flatMap(c => [c[3], c[4], c[9], c[10]]).filter(v => !v || v === '--:--').length;
+        ok('실물 격자의 ±·예상 칸이 채워졌다', blanks === 0, `빈 칸 ${blanks}개`);
     }
 
-    console.log(`\n${fails.length ? '🔴' : '🟢'} 대조 ${fails.length ? `실패 ${fails.length}건` : '이상 없음'}`);
+    console.log(`\n📄 두 화면: ${SHOT_DIR}/실물.png · ${SHOT_DIR}/목업.png`);
+    console.log(`${fails.length ? '🔴' : '🟢'} 대조 ${fails.length ? `실패 ${fails.length}건` : '이상 없음'}`);
     if (fails.length) process.exitCode = 1;
 } catch (e) {
     console.error('🔴', e.message);

@@ -138,3 +138,19 @@ export function callTextColor(callNo: number, stop: StopKind, theme: UiTheme): s
         : (stop === 'pickup' ? 42 : 32);   // 밝은 바탕 — 내려서 읽히게
     return `hsl(${t.hue} ${sat}% ${light}%)`;
 }
+
+/**
+ * 🌈 **콜 하나의 «선» 색** — 지도 경로선·덱 점처럼 **상·하차를 안 가르는 자리**가 쓴다.
+ *
+ * 🔴 **2026-09-11 기사님 확정 — 색표는 하나다.** 그전에는 세 벌이었다:
+ *    마커 `CALL_TONES`(4) · 지도 선 `useRouteDerivations.PALETTE`(7) · 실험실 `CALL_COLORS`(8).
+ *    그래서 **같은 콜이 지도에선 파랑, 목록에선 빨강**이었다 — 「색 = 콜 번호」가 깨진 자리다.
+ *    이제 선도 마커와 **같은 색상(hue)** 에서 나온다. 밝기만 선에 맞게 든다.
+ * ⚠️ 4색이라 다섯째 콜부터 되돌아간다 — 볼트는 한 번에 3~4콜이라 겹칠 일이 드물다 (기사님).
+ */
+export function callLineColor(callNo: number, theme: UiTheme): string {
+    const t = callTone(callNo);
+    const [sat] = t.pick;
+    // 어두운 바탕 위에서는 올리고, 밝은 바탕에서는 내려야 선이 읽힌다 (마커와 같은 방향)
+    return `hsl(${t.hue} ${sat}% ${theme === 'dark' ? 58 : 45}%)`;
+}
