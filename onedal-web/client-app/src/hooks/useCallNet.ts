@@ -54,6 +54,12 @@ export interface CallNetInput {
      *    안 주면 `NET_SHAPE_DEFAULTS` 를 쓴다 — 필터가 아직 안 온 첫 순간뿐이다.
      */
     shape?: { srcAngleDeg?: number; dstAngleDeg?: number; quadRadiusKm?: number };
+    /**
+     * 🚫 **제외 지역** — `S|도` · `R|시군구` · `D|시군구|동` (이식 C2).
+     *    🔴 **서버만 빼면 화면이 거짓말한다** — 지도가 «든다»고 그려 놓고 판정은 탈락시킨다.
+     *    2026-09-11 저녁 자리표 대조에서 바로 그 상태가 발견됐다.
+     */
+    excludedRegions?: readonly string[];
 }
 
 export interface CallNet {
@@ -66,6 +72,8 @@ export interface CallNet {
 
 export function useCallNet(i: CallNetInput): CallNet | null {
     const { destinationCity, myLocation, pickupRadiusKm, destinationRadiusKm, lineRadiusKm, routeHolder, shape } = i;
+    /** 🔴 배열을 문자로 굳혀 의존성으로 삼는다 — 매 렌더 새 배열이면 그물을 매번 다시 만든다 */
+    const excludedKey = (i.excludedRegions ?? []).join('|');
     const srcAngleDeg = shape?.srcAngleDeg ?? NET_SHAPE_DEFAULTS.srcAngleDeg;
     const dstAngleDeg = shape?.dstAngleDeg ?? NET_SHAPE_DEFAULTS.dstAngleDeg;
     const quadRadiusKm = shape?.quadRadiusKm ?? NET_SHAPE_DEFAULTS.quadRadiusKm;
@@ -101,12 +109,17 @@ export function useCallNet(i: CallNetInput): CallNet | null {
         });
         /**
          * 🔴 **합치는 규칙은 `mergeGoalNets` 한 곳이다** — 겹침·지나온 곳·통째 제외를 거기서 본다.
-         * ⚠️ 제외 지역(`excluded`)은 실물에 아직 칸이 없다 (계획서 §3 ③) — 빈 배열이다.
-         *    진행도 트림(`myProgressKm`)도 아직 안 건다 — 달리며 지나온 동을 빼는 것은 다음 판이다.
+         * 🚫 **제외 지역은 서버와 같은 목록을 본다** (이식 C2 · 2026-09-11 저녁).
+         *    전에는 `excluded: []` 였고 주석은 *"실물에 아직 칸이 없다"* 고 적혀 있었다 —
+         *    그 칸을 그날 오후에 팠는데도. **서버는 빼고 지도는 안 빼는** 상태였다.
+         * ⚠️ 진행도 트림(`myProgressKm`)은 아직 안 건다 — 달리며 지나온 동을 빼는 것은 다음 판이다.
          */
-        const merged = mergeGoalNets([net], { departed: false, myProgressKm: 0, excluded: [] });
+        const merged = mergeGoalNets([net], {
+            departed: false, myProgressKm: 0,
+            excluded: excludedKey ? excludedKey.split('|') : [],
+        });
         return { net: { ...net, pass: merged.pass, groups: merged.groups, count: merged.count }, usedLine: !!line, goal };
         // eslint-disable-next-line react-hooks/exhaustive-deps -- polyline 은 lineKey 로 굳혀 본다 (위 주석)
     }, [destinationCity, myLocation?.x, myLocation?.y, pickupRadiusKm, destinationRadiusKm, lineRadiusKm, lineKey,
-        srcAngleDeg, dstAngleDeg, quadRadiusKm]);
+        srcAngleDeg, dstAngleDeg, quadRadiusKm, excludedKey]);
 }

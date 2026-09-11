@@ -415,6 +415,22 @@ describe('그물 계산 — 서버도 실험실 것을 쓴다 (이식 C1-2)', ()
         expect(fn).toMatch(/quadShapeFrom\(/);
     });
 
+    /**
+     * 🔴 **지도도 제외를 봐야 한다** (2026-09-11 저녁 · 자리표 대조에서 나왔다).
+     *
+     * C2-2 로 제외 칸을 만들면서 **서버는 빼는데 지도는 안 빼는** 상태가 됐다 —
+     * `useCallNet` 이 `excluded: []` 를 넘기고 있었고, 그 옆 주석은 *"실물에 아직 칸이
+     * 없다"* 고 적혀 있었다(그 칸을 그날 오후에 팠는데도). **화면이 «든다»고 그려 놓고
+     * 판정은 탈락시킨다** — 규칙 ⑤-3 이 가장 크게 치는 사고다.
+     */
+    it('🔴 지도 그물도 제외 지역을 본다 (서버만 빼면 화면이 거짓말한다)', () => {
+        const hook = codeOnly(read(join(CLIENT, 'hooks/useCallNet.ts')));
+        expect(hook).not.toMatch(/excluded:\s*\[\]/);
+        expect(hook).toMatch(/excluded/);
+        const stage = codeOnly(read(join(CLIENT, 'components/stage/StageView.tsx')));
+        expect(stage).toMatch(/excludedRegions/);
+    });
+
     it('🔴 제외 지역은 여전히 pruneExcludedRegions 한 곳이 뺀다', () => {
         // 그물로 바꿔도 빼는 자리는 안 늘어난다 (규칙 ③)
         expect((fm3.match(/pruneExcludedRegions\(/g) || []).length).toBeGreaterThanOrEqual(2);
