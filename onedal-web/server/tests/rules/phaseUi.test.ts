@@ -24,33 +24,79 @@ const handlers = codeOnly(read(join(SERVER, "socket/socketHandlers.ts")));
  */
 describe('국면별 설정 — 화면은 표를 읽는다', () => {
 
-    it('🔴 필드 표시는 PHASE_FIELDS 에서 읽는다 (화면이 규칙을 또 갖지 않는다)', () => {
-        expect(modal).toMatch(/PHASE_FIELDS\[tab\]/);
-        expect(modal).toMatch(/mode === 'hidden'/);
-        expect(modal).toMatch(/mode === 'auto'/);
+    /**
+     * 🔴 **국면 탭을 걷었다** (이식 C3-3a · 기사님 확정 2026-09-11 저녁 *"그 기준은 바꿔"*).
+     *
+     * 보류의 근거는 «기사님이 국면마다 다르게 쓰신다»는 관찰이었는데, 기사님은 그 관찰이
+     * 아니라 **기준 자체를 바꾸라**고 하셨다. 2026-09-09 에 목업이 먼저 간 길이다 —
+     * *"이제 우리에게 국면이라는 것이 없어진 것 같은데.. 원칙이 바뀐 거 아냐?"*
+     *
+     * 🔴 **다섯 벌이 하던 일은 «값을 여러 벌 두는 것»이 아니라 «지금 안 쓰는 칸을 감추는
+     *    것»이었다** (기사님 2026-09-09: *"모두 꺼내 두고 노선이면 라인값을 사용하고
+     *    동선이면 사용 안 하면 되니까"*). 감추는 것을 그만두고 **다 꺼내 둔다.**
+     */
+    it('🔴 국면 탭이 없다 — 다섯 탭을 그리지 않는다', () => {
+        expect(modal).not.toMatch(/const TABS = PHASE_KEYS/);
+        expect(modal).not.toMatch(/TABS\.map\(/);
+        expect(modal).not.toMatch(/setTab\(/);
     });
 
-    it('🔴 탭 목록·라벨은 shared 에서 온다 (여기에 또 적으면 한쪽만 고쳐진다)', () => {
-        expect(modal).toMatch(/const TABS = PHASE_KEYS/);
-        expect(modal).toMatch(/PHASE_LABEL\[key\]/);
+    /**
+     * 🔴 **`PHASE_FIELDS` 는 남지만 하는 일이 바뀌었다** — «감춘다»에서 «흐리게 한다»로.
+     *
+     * 표 자체는 여전히 «그 상황에서 이 칸이 쓰이나»의 유일한 원천이다 (규칙 ③).
+     * 달라진 것은 그 답으로 **무엇을 하느냐**다: 감추면 «이 값이 어디 갔나»가 되고,
+     * 그냥 두면 «지금 쓰이는 값»으로 읽힌다. 목업은 흐리게 해서 둘 다 피한다.
+     */
+    it('🔴 «안 쓰이는 칸»을 감추지 않는다 — 표는 흐리게 하는 데만 쓴다', () => {
+        expect(modal).not.toMatch(/mode === 'hidden'/);
+        expect(modal).not.toMatch(/if \(mode === 'auto'\)/);
+        // 표를 읽되, 그 답이 dim 으로 간다
+        expect(modal).toMatch(/PHASE_FIELDS\[/);
+        expect(modal).toMatch(/dim:/);
+    });
+
+    /**
+     * 🔴 **«지금 무엇을 하나»는 남는다** (기사님 2026-09-09 가 남기라고 한 둘 중 하나).
+     *    탭이 사라진 것은 «값이 국면마다 다르다»이지 «지금 뭘 하는지 몰라도 된다»가 아니다.
+     */
+    it('🔴 «지금 무엇을 하나»는 배지로 남는다 — 라벨은 shared 에서 온다', () => {
+        expect(modal).toMatch(/PHASE_LABEL\[/);
+        expect(modal).toMatch(/resolvePhaseKey\(/);
         // 다섯 국면을 손으로 나열한 배열이 남아 있지 않다
         expect(modal).not.toMatch(/key:\s*'first',\s*label:/);
     });
 
-    it('🔴 "지금 국면" 판정은 resolvePhaseKey 하나로 한다', () => {
-        expect(modal).toMatch(/resolvePhaseKey\(/);
-        // 예전처럼 isSharedMode·driverAction 으로 국면을 직접 유추하지 않는다
-        expect(modal).not.toMatch(/driverAction === 'DRIVING' \? 'drive'/);
+    /** 🔴 폼이 하나다 — 국면마다 따로 두면 그것이 곧 다섯 벌이다 */
+    it('🔴 값은 한 벌이다 — 국면별 폼 묶음이 없다', () => {
+        expect(modal).not.toMatch(/const \[forms, setForms\]/);
+        expect(modal).not.toMatch(/forms\[tab\]/);
+        expect(modal).not.toMatch(/dirtyTabs/);
     });
 
-    it('🔴 폼은 국면별 저장값에서 채운다 (평면 필터에서 채우면 다섯 탭이 같은 값이 된다)', () => {
-        expect(modal).toMatch(/if \(phaseSettings\) setForms\(mapToForm\(phaseSettings\)\)/);
-    });
-
-    it('🔴 고친 탭만 저장한다 — 저장 버튼 하나가 다섯 국면을 덮지 않는다', () => {
-        const save = modal.slice(modal.indexOf('const handleSave'), modal.indexOf('const isSharedMode'));
-        expect(save).toMatch(/for \(const key of dirtyTabs\)/);
+    /**
+     * 🔴 **저장은 다섯 행에 «같은 값»을 쓴다 — 그게 한 벌이다** (C3-3a 의 전환 모양).
+     *
+     * ⚠️ 그릇(`user_filter_phases` 다섯 행)은 **아직 그대로다.** 다섯이 늘 같은 값이면
+     *    국면이 바뀌어도 평면 필터의 숫자 넷이 안 움직여 **동작이 한 벌과 같아진다.**
+     *    행을 실제로 걷어내는 것은 C3-3b — 서버 19곳·검사 8개라 따로 선다.
+     *
+     * 🔴 `destinationCity` 는 **첫짐에만** 간다. 실측해 보니 이미 첫짐 한 곳이 원천이고
+     *    (나머지 넷은 `auto`/`override`), 합짐·주행중의 목적지는 서버가 경로에서 파생한다.
+     *    다섯 행에 같이 쓰면 관내(`override`)가 그 값으로 덮여 자동 파생이 죽는다.
+     */
+    it('🔴 저장은 다섯 국면 전부에 같은 값을 쓴다 (전환 단계 — 그릇은 C3-3b 에서)', () => {
+        const save = modal.slice(modal.indexOf('const handleSave'), modal.indexOf('const slotsUsed'));
+        expect(save).toMatch(/for \(const key of PHASE_KEYS\)/);
         expect(save).toMatch(/savePhase\(key,/);
+        // 고친 탭만 고르던 옛 방식이 남아 있지 않다
+        expect(save).not.toMatch(/dirtyTabs/);
+    });
+
+    it('🔴 목적지는 첫짐 행에만 간다 (관내의 자동 파생을 덮지 않게)', () => {
+        const save = modal.slice(modal.indexOf('const handleSave'), modal.indexOf('const slotsUsed'));
+        // 첫짐이 아닌 행은 **제 값을 그대로 지킨다** (서버가 파생한 것을 덮지 않는다)
+        expect(save).toMatch(/key !== 'first'\) next\.destinationCity = prev\.destinationCity/);
     });
 
     it('빈 입력은 0 이 아니라 **이전 값**이다 (0 이면 "제한 없음"으로 뒤집힌다)', () => {
@@ -126,12 +172,18 @@ describe('마름모 모양 — 국면 밖 한 벌', () => {
         expect(stage).not.toMatch(/phaseSettings\[/);
     });
 
-    it('🔴 화면의 마름모 칸은 국면 탭 **밖**에 산다 (탭 안이면 «이 국면의 값»으로 읽힌다)', () => {
-        // 국면 그리드가 그리는 목록에 없다
-        const geo = modal.slice(modal.indexOf('const GEO_FIELDS'), modal.indexOf('const GEO_FIELDS') + 400);
-        for (const f of QUAD_SHAPE_KEYS) expect(geo).not.toContain(`'${f}'`);
-        // 대신 제 표로 그린다
+    /**
+     * ⚠️ **탭이 사라지며 이 검사의 뜻이 옮겨 갔다** (C3-3a). 전에는 «국면 그리드 목록에
+     *    마름모가 없다»를 봤는데, 국면 그리드 자체가 없어졌다. 지금 지키는 것은
+     *    **마름모가 제 표로만 그려진다**는 것이다 — 국면 값 묶음에 섞이면 다시 다섯 벌이 된다.
+     */
+    it('🔴 화면의 마름모는 제 표(QUAD_FIELDS)로만 그린다', () => {
         expect(modal).toMatch(/QUAD_FIELDS\.map/);
+        // 국면 값 묶음(PHASE_FIELDS/FILTER_FIELDS)에 마름모가 섞이지 않았다
+        const { FILTER_FIELDS } = require("@onedal/shared");
+        for (const f of QUAD_SHAPE_KEYS) {
+            expect(FILTER_FIELDS.some((x: any) => x.path === f)).toBe(false);
+        }
     });
 
     /**
@@ -139,10 +191,10 @@ describe('마름모 모양 — 국면 밖 한 벌', () => {
      *    값 이름을 여기서 또 적지 않고 `quadShapeFrom` 으로 통째 넘긴다 (규칙 ③).
      */
     it('🔴 저장은 평면 통로로 간다 — 국면 저장(savePhase)에 섞지 않는다', () => {
-        const save = modal.slice(modal.indexOf('const handleSave'), modal.indexOf('const isSharedMode'));
+        const save = modal.slice(modal.indexOf('const handleSave'), modal.indexOf('const slotsUsed'));
         expect(save).toMatch(/if \(quadDirty\) updateFilter\(quadShapeFrom\(quadForm\)/);
         // 국면 저장 고리 안에 마름모가 섞여 있지 않다
-        const loop = save.slice(save.indexOf('for (const key of dirtyTabs)'), save.indexOf('if (quadDirty)'));
+        const loop = save.slice(save.indexOf('for (const key of PHASE_KEYS)'), save.indexOf('if (quadDirty)'));
         for (const f of QUAD_SHAPE_KEYS) expect(loop).not.toContain(f);
     });
 
@@ -157,14 +209,10 @@ describe('마름모 모양 — 국면 밖 한 벌', () => {
      * 숫자 칸은 오래 `KM` 이 박혀 있었다 — 칸이 전부 km 였으니 맞는 말이었다.
      * 각도가 들어오면서 틀린 말이 됐다: 출발각 110 옆에 **KM** 이 붙었다.
      */
-    it('🔴 칸 옆 단위는 표에서 읽는다 — 두 그리드 어디에도 KM 을 박지 않는다', () => {
-        const geoGrid = modal.slice(modal.indexOf('GEO_FIELDS.map'), modal.indexOf("shown.pickupRadiusKm === 'input'"));
-        expect(geoGrid).not.toMatch(/>KM</);
-        /* 🔴 `QUAD_FIELDS.map` 은 폼 초기화에도 나온다 — **그리는 쪽**을 집는다 */
-        const quadGrid = modal.slice(modal.indexOf('QUAD_FIELDS.map(f => ('));
-        expect(quadGrid.slice(0, 1200)).not.toMatch(/>KM</);
-        // 각 그리드가 제 표의 unit 을 읽는다
-        expect(geoGrid).toMatch(/FILTER_FIELDS\.find/);
+    it('🔴 칸 옆 단위는 표에서 읽는다 — 화면 어디에도 KM 을 박지 않는다', () => {
+        expect(modal).not.toMatch(/>KM</);
+        // 두 묶음 다 제 표의 unit 을 넘긴다 (KnobGrid 가 그걸 그린다)
+        expect(modal).toMatch(/unit: f\.unit/);
     });
 });
 
@@ -181,8 +229,8 @@ describe('마름모 모양 — 국면 밖 한 벌', () => {
  *    `type="number"` 로 만들었다 — 기사님이 두 달 전에 «폰에서 나쁘다»고 못박은 바로 그 모양이다.
  *    목업에는 이미 답(`KnobGrid`)이 있었는데 실물에 손으로 새 칸을 판 것이다.
  *
- * ⚠️ **국면 칸 그리드(`GEO_FIELDS`)는 아직 숫자칸이다** — C3-3 에서 국면이 한 벌로 접히며
- *    같이 바뀐다. 지금 달았다가 다시 떼면 두 번 일이라 **마름모부터** 한다.
+ * ✅ **C3-3a 에서 국면 칸 넷도 따라왔다** — 탭이 걷히며 값이 한 벌이 되었으므로
+ *    이제 화면에 숫자 입력칸이 **하나도** 없다.
  */
 describe('마름모 칸 — 숫자판이 아니라 슬라이더 레이어 (C4-1)', () => {
 
@@ -201,13 +249,28 @@ describe('마름모 칸 — 숫자판이 아니라 슬라이더 레이어 (C4-1)
         expect(lab).not.toMatch(/function KnobGrid\(/);
     });
 
-    /** 🔴 기사님이 «힘들어»라고 하신 그 칸이 마름모 그리드에서 사라졌다 */
-    it('🔴 마름모 칸에 숫자 입력칸이 없다 — KnobGrid 로 그린다', () => {
-        const quadGrid = modal.slice(modal.indexOf('📐'), modal.indexOf('const TABS = PHASE_KEYS'));
-        expect(quadGrid).not.toMatch(/type="number"/);
+    /**
+     * 🔴 기사님이 «힘들어»라고 하신 그 칸이 **필터 화면에서 완전히 사라졌다**.
+     *    C4-1 에서 마름모 셋, C3-3a 에서 국면 칸 넷.
+     */
+    it('🔴 필터 화면에 숫자 입력칸이 하나도 없다 — 전부 KnobGrid 로 그린다', () => {
+        expect(modal).not.toMatch(/type="number"/);
         expect(modal).toMatch(/<KnobGrid/);
         // 라벨·단위·범위는 여전히 표 하나에서 온다 (규칙 ③)
         expect(modal).toMatch(/QUAD_FIELDS\.map/);
+        expect(modal).toMatch(/FILTER_FIELDS/);
+    });
+
+    /**
+     * 🔴 **감추지 않고 흐리게 둔다** (기사님 2026-09-09: *"모두 꺼내 두고 노선이면
+     *    라인값을 사용하고 동선이면 사용 안 하면 되니까"*).
+     *
+     * 라인반경은 **콜을 쥐어 경로가 생긴 뒤에만** 쓰인다. 감추면 «이 값이 어디 갔나»가 되고,
+     * 그냥 두면 «지금 쓰이는 값»으로 읽힌다 — 목업은 흐리게(`dim`) 해서 둘 다 피한다.
+     */
+    it('🔴 지금 안 쓰이는 칸은 감추지 않고 흐리게 둔다 (dim)', () => {
+        expect(modal).toMatch(/dim:/);
+        expect(knob).toMatch(/k\.dim \? 'opacity-50'/);
     });
 
     /**
