@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { callFilterBlocker, isTargetApp, DEFAULT_TARGET_APP } from "@onedal/shared";
+import { callFilterBlocker, isTargetApp, DEFAULT_TARGET_APP, APP_FILTER_KEYS } from "@onedal/shared";
 import type { SimplifiedOfficeOrder, ScreenContextType, TargetAppType } from "@onedal/shared";
 import db from "../db";
 import { capacityFullHold, filterVersionOf } from "../core/helpers";
@@ -167,22 +167,21 @@ router.post("/", (req, res) => {
          *    정말 교차 검증이 필요해지면 그때 **읽는 쪽과 함께** 만든다.
          */
 
-        // [Phase 3 / 이슈 A1] 앱 전송 페이로드 다이어트
-        // destinationGroups는 관제탑 UI가 "지역별 묶음"을 보여주기 위한 데이터로,
-        // 앱의 InsungParser.loadCurrentFilter()는 이 키를 파싱조차 하지 않는다.
-        // 그런데 응답의 27%(약 3.6KB)를 차지하며 매 하트비트마다 재전송되고 있었다.
-        // 관제탑은 소켓(filter-updated)으로 별도 수신하므로 여기서 빼도 영향이 없다.
-        // 🧹 앱이 파싱하지 않는 키도 함께 뺀다 (2026-08-22 앱 Kotlin 전수 대조 —
-        //    앱이 읽는 것: isActive·isSharedMode·pickupRadiusKm·min/maxFare·destinationCity·
-        //    destinationRadiusKm·excluded/destinationKeywords·customCityFilters·
-        //    allowedVehicleTypes·ratePerKm·orderKm)
-        //    📐 마름모 셋도 뗀다 — 그물 모양은 관제웹 지도만 쓴다 (이식 C3-2 · 2026-09-11)
-        const { destinationGroups, dispatchPhase, driverAction, detourRadiusKm, callDiscountPct,
-                userOverrides, capacityConfidence, slotsUsed, callTarget,
-                srcAngleDeg, dstAngleDeg, quadRadiusKm,
-                //    🚫 제외 지역도 뗀다 — 서버가 destinationKeywords 에서 이미 뺐다 (이식 C2)
-                excludedRegions,
-                ...appFilter } = session.activeFilter as any;
+        /**
+         * 📦 **앱이 읽는 키만 골라 싣는다** (이식 C5 · 2026-09-11 · 명세 §5).
+         *    표는 `shared` 의 `APP_FILTER_KEYS` 하나다.
+         *
+         * 🔴 **예전엔 «떼는 키»를 손으로 나열했다.** 그러면 새 칸이 생길 때마다 그 목록에
+         *    넣어야 하고, **안 넣으면 조용히 앱으로 간다** — 2026-09-11 하루에만 마름모 셋과
+         *    제외 지역을 그렇게 손으로 넣었다. 골라 싣는 쪽은 **기본이 «안 간다»** 라 안전하다.
+         *
+         * 여기서 안 실리는 값(`destinationGroups`·마름모·제외 지역·국면 축 …)은
+         * **관제웹이 소켓(`filter-updated`)으로 따로 받는다.** 하트비트에 실으면 낭비다 —
+         * 2026-08-22 에 `destinationGroups` 하나가 응답의 27%(약 3.6KB)였다.
+         */
+        const src = session.activeFilter as unknown as Record<string, unknown>;
+        const appFilter: Record<string, unknown> = {};
+        for (const k of APP_FILTER_KEYS) if (src[k] !== undefined) appFilter[k] = src[k];
 
         // 🧭 경로 순서 맵 — 앱의 역주행·경로 밖 상차 차단 입력 (기사님 확정 2026-08-18)
         //    첫짐(경로 없음)이면 빈 객체라 앱이 순서 검사를 건너뛴다. +2.7KB (동 211개 기준)
@@ -290,10 +289,10 @@ router.post("/", (req, res) => {
         let responseFilter: any = appFilter;
         let filterVersion: string | undefined;
         if (speaksV2) {
-            const orderKeys = appFilter.orderKm ?? {};
+            const orderKeys = (appFilter.orderKm as Record<string, unknown> | undefined) ?? {};
             responseFilter = {
                 ...appFilter,
-                destinationKeywords: (appFilter.destinationKeywords ?? [])
+                destinationKeywords: ((appFilter.destinationKeywords as string[] | undefined) ?? [])
                     .filter((k: string) => !(k in orderKeys)),
             };
             filterVersion = filterVersionOf(responseFilter);

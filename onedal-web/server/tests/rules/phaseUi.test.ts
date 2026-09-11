@@ -369,10 +369,14 @@ describe('제외 지역 — 국면 밖 한 벌, 빼는 자리는 하나', () => 
         expect(lab).not.toMatch(/function useCloseOnOutside\(/);
     });
 
+    /**
+     * 🔴 **2026-09-11 오후에 잣대가 바뀌었다** (이식 C5). 예전엔 «떼는 목록에 있나»를 봤는데,
+     *    이제 서버는 `APP_FILTER_KEYS` 로 **골라 싣는다** — 표에 없으면 안 간다.
+     *    표 ↔ 앱(Kotlin) 대조는 `appFilterKeys.test.ts` 가 따로 잠근다.
+     */
     it('제외 지역은 앱에 안 내려간다 — 서버가 목록에서 이미 뺐다 (명세 §3)', () => {
-        const scrap = codeOnly(read(join(SERVER, 'routes/scrap.ts')));
-        const strip = scrap.slice(scrap.indexOf('...appFilter } = session.activeFilter') - 600, scrap.indexOf('...appFilter } = session.activeFilter'));
-        expect(strip).toMatch(/excludedRegions/);
+        const { APP_FILTER_KEYS } = require("@onedal/shared");
+        expect((APP_FILTER_KEYS as readonly string[]).includes('excludedRegions')).toBe(false);
     });
 });
 

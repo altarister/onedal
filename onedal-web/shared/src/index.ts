@@ -797,6 +797,35 @@ export interface AutoDispatchFilter {
 }
 
 /**
+ * 📦 **앱이 필터에서 읽는 키 — 유일한 원천** (이식 C5 · 2026-09-11 · 명세 §5).
+ *
+ * 서버는 하트비트 응답에 **이 열다섯만** 싣는다 (`routes/scrap.ts`).
+ *
+ * 🔴 **골라 싣는다, 떼어내지 않는다.** 예전엔 «떼는 키»를 손으로 나열했다
+ *    (`const { destinationGroups, dispatchPhase, … } = activeFilter`). 그러면 **새 칸이
+ *    생길 때마다 그 목록에 넣어야 하고, 안 넣으면 조용히 앱으로 간다.** 2026-09-11 하루에만
+ *    마름모 셋과 제외 지역을 그렇게 손으로 넣었다 — 한 번만 잊으면 규격이 어긋난다.
+ *    골라 싣는 쪽은 **기본이 «안 간다»** 라 안전하다.
+ *
+ * ⚠️ **`orderKm`·`pickerAlarmMinFare` 는 `AutoDispatchFilter` 에 없다** — 조립할 때 얹는다
+ *    (경로 순서 맵 · 픽커 알람 하한). 그래서 이 표는 «앱이 읽는 키»이지
+ *    «평면 필터의 부분집합»이 아니다.
+ *
+ * 🔴 **표 ↔ 앱(Kotlin)이 어긋나면 `appFilterKeys.test.ts` 가 잡는다.** 앱이 읽는데
+ *    서버가 안 보내면 **조용한 고장**이고(빈 값으로 거른다), 서버가 보내는데 앱이 안 읽으면
+ *    **낭비**다 (2026-08-22 에 `destinationGroups` 하나가 응답의 27%였다).
+ */
+export const APP_FILTER_KEYS = [
+    'isActive', 'isSharedMode',
+    'pickupRadiusKm', 'destinationCity', 'destinationRadiusKm',
+    'destinationKeywords', 'customCityFilters', 'keywordTraps',
+    'excludedKeywords', 'allowedVehicleTypes',
+    'minFare', 'maxFare', 'ratePerKm',
+    /* ⬇️ 평면 필터에 없다 — 조립할 때 얹는다 */
+    'orderKm', 'pickerAlarmMinFare',
+] as const;
+
+/**
  * **하루의 국면** — 기사님이 요약줄을 스와이프해서 고른다.
  *
  *   DEST(노선행) → LOCAL(이 동네에서 찾기) → HOME(복귀행)
