@@ -50,9 +50,9 @@ export default function Dashboard() {
      *    붙는다. 운행 중 화면에 무게를 얹지 않는다.
      * 🔴 이 패널은 **언젠가 통째로 지운다** — 지우는 법은 `SidePanel.tsx` 머리에 적었다.
      */
-    const [sidePanelRoom, setSidePanelRoom] = useState(() => (window.innerWidth - 672) / 2 >= 346);
+    const [sidePanelRoom, setSidePanelRoom] = useState(() => window.innerWidth - 672 >= 346);
     useEffect(() => {
-        const onResize = () => setSidePanelRoom((window.innerWidth - 672) / 2 >= 346);
+        const onResize = () => setSidePanelRoom(window.innerWidth - 672 >= 346);
         window.addEventListener('resize', onResize);
         return () => window.removeEventListener('resize', onResize);
     }, []);
@@ -255,7 +255,10 @@ export default function Dashboard() {
             {/* 📍 공통 헤더 컴포넌트 */}
             <Header isConnected={isConnected} liveCalls={liveCalls} />
 
-            <div className={`relative flex flex-col max-w-2xl mx-auto w-full ${stagePreview ? "flex-1 min-h-0" : ""}`}>
+            {/* 🔴 **패널이 설 때만 무대가 왼쪽에 붙는다** (기사님 지시 2026-09-11:
+                *"왼쪽에 프로젝트 붙박이로 놓고"*). 패널이 없으면 예전처럼 가운데다 —
+                폰은 `max-w-2xl` 보다 좁아 어느 쪽이든 같다. */}
+            <div className={`relative flex flex-col max-w-2xl w-full ${stagePreview && sidePanelRoom ? "mr-auto" : "mx-auto"} ${stagePreview ? "flex-1 min-h-0" : ""}`}>
 
                 {/* 📢 배너 층 (v24) — 무대에서는 흐름 밖으로 띄운다. 흐름 안에 두면 뜰 때마다
                     아래 전부(슬롯·지도)가 밀려 화면이 들썩인다 (기사님 실측 0831) */}

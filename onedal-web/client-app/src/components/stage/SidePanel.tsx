@@ -23,8 +23,8 @@
  *    (루트 CLAUDE.md 「무엇이 실제로 돌고 있는가」 — 이 레포가 네 번 당한 모양).
  * ─────────────────────────────────────────────────────────────
  *
- * 자리: 무대는 `max-w-2xl`(672px) 가운데 고정이라 **왼쪽 여백이 늘 비어 있다.**
- *       거기에 `fixed` 로 띄우므로 지도·시트는 한 픽셀도 안 움직인다.
+ * 자리: 무대는 `max-w-2xl`(672px)이고 **패널이 설 때만 왼쪽에 붙는다**(`Dashboard`).
+ *       패널은 그 오른쪽 전부를 쓴다 — `fixed` 라 무대의 안쪽 배치는 그대로다.
  */
 import { useEffect, useRef, useState } from 'react';
 import { APP_FILTER_KEYS } from '@onedal/shared';
@@ -196,9 +196,15 @@ export default function SidePanel() {
 
     return (
         <aside
-            /* 🔴 무대(가운데 672px)를 한 픽셀도 안 건드린다 — 왼쪽 빈 자리에 얹을 뿐이다 */
-            className="fixed left-0 top-0 h-screen z-30 border-r border-border bg-background/95 backdrop-blur-sm"
-            style={{ width: `calc((100vw - 42rem) / 2)` }}
+            /**
+             * 🔴 **무대는 왼쪽 붙박이, 정보는 오른쪽** (기사님 지시 2026-09-11:
+             *    *"왼쪽에 프로젝트 붙박이로 놓고 [오른]쪽에 정보를 보여줘"*).
+             *
+             * 전에는 무대가 가운데(`mx-auto`)라 **오른쪽이 통째로 비었다** — 창 2078px 에서
+             * 700px 이 그냥 놀았다. 무대를 왼쪽에 붙이니 정보가 쓸 자리가 **두 배**가 된다.
+             */
+            className="fixed right-0 top-0 h-screen z-30 border-l border-border bg-background/95 backdrop-blur-sm"
+            style={{ width: `calc(100vw - 42rem)` }}
         >
             <div className="h-full flex flex-col">
                 <div className="shrink-0 px-2 py-1.5 border-b border-border flex items-baseline gap-2">
