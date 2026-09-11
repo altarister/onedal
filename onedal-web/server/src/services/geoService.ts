@@ -835,8 +835,18 @@ function dropOffDutyMockLocation(session: {
     activeFilter?: { dispatchPhase?: string | null };
 }): void {
     if (!session.driverLocation || !session.driverLocationIsMock) return;
-    if (session.activeFilter?.dispatchPhase === 'DELIVERING') return;
-    console.log(`🧟 [가상 좌표 만료] 운행 국면(DELIVERING)이 아닌데 시뮬 좌표가 남아 있습니다 — 걷어내고 내 주소 기준으로 계산합니다`);
+    /**
+     * 🔴 **콜을 쥔 동안에는 안 걷는다** (2026-09-12 · 기사님 *"출발을 해야 상차를 하지"*).
+     *    전에는 `DELIVERING` 만 살려 뒀는데, 그러면 **상차지로 가는 구간(GATHERING)에서
+     *    모의 좌표가 매번 지워져** 모의 주행이 아무 일도 못 했다 — 테스트에서 가장 필요한
+     *    구간이 그것이다.
+     * 🔴 **빈 차(STANDBY)에서는 여전히 걷는다.** 그게 이 장치의 원래 목적이다 —
+     *    2026-08-14 에 시뮬이 파주에서 멈춘 뒤 가상 좌표가 남아 다음 콜 경로가
+     *    «파주 → 광주 → 파주» 156km 로 그려졌다.
+     */
+    const phase = session.activeFilter?.dispatchPhase;
+    if (phase === 'DELIVERING' || phase === 'GATHERING') return;
+    console.log(`🧟 [가상 좌표 만료] 빈 차(STANDBY)인데 시뮬 좌표가 남아 있습니다 — 걷어내고 내 주소 기준으로 계산합니다`);
     session.driverLocation = null;
     session.driverLocationAt = null;
     session.driverLocationIsMock = false;

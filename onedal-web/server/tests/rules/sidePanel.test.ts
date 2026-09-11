@@ -175,15 +175,22 @@ describe('곁 패널 — 지우기 쉬운 모양으로 둔다', () => {
      *     가릴 일이 없어져 그 이유가 사라졌다.)
      *
      * ⚠️ 그 다음엔 **격자**(`grid`)로 했는데 **행 높이가 그 줄에서 가장 큰 칸에 맞춰져**
-     *    짧은 칸 아래가 통째로 비었다 (1280px 에서 세로 1192px). 지금은 **단**(`columns`)이라
-     *    칸이 세로로 이어 흘러 빈틈이 없다 (같은 창에서 923px — 화면에 거의 다 든다).
+     *    짧은 칸 아래가 통째로 비었다 (1280px 에서 세로 1192px). 그래서 **단**(`columns`)으로
+     *    바꿨다 — 칸이 세로로 이어 흘러 빈틈이 없었다.
+     *
+     * 🔄 **개정 2026-09-12 — 신문 단도 걷었다** (기사님: *"컨포넌트가 한줄로 있는 구조가
+     *    아니구나.. 그냥 한줄로 만들고"*). 지금은 **줄마다 한 단**(`flex flex-col`)이다.
+     *    지키는 뜻은 처음 그대로다 — **칸이 숨지 않고 가로로 안 흐른다.**
+     *    ⚠️ 그 변경으로 `columnWidth`·`breakInside` 가 사라져 이 검사가 빨간불이 됐고,
+     *       현황판 담당이 답신으로 갱신안을 보내왔다 (`docs/의뢰/현황판_모의주행_답신.md` ⑤).
+     *       기사님 확정: *"서버가 고칠것은 서버가 고친다"*.
      */
     it('칸은 아래로 흐른다 — 창이 좁아도 숨지 않는다', () => {
         const panel = codeOnly(read(PANEL));
         expect(panel).toMatch(/h-full/);                    // 부모가 준 높이를 꽉 채운다
         expect(panel).toMatch(/overflow-y-auto/);           // 세로로 흐른다
-        expect(panel).toMatch(/columnWidth/);               // 폭이 단 수를 정한다
-        expect(panel).toMatch(/breakInside: 'avoid'/);      // 칸이 단 경계에서 안 잘린다
+        expect(panel).toMatch(/flex flex-col gap-2/);       // 줄마다 한 단 — 칸이 자리를 안 옮긴다
+        expect(panel).not.toMatch(/columnWidth/);           // 신문 단을 되살리지 않는다
         expect(panel).not.toMatch(/overflow-x-auto/);       // 가로로 숨기지 않는다
         // 부모(감싸개)가 창 높이를 정한다 — 그래야 원본과 패널이 같은 높이다
         const dash = codeOnly(read(join(CLIENT, 'pages/Dashboard.tsx')));

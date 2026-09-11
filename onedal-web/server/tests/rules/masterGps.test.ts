@@ -46,6 +46,7 @@ describe('마스터 GPS — 실 GPS 와 시뮬레이터가 같은 길을 간다'
          * 🔄 **개정 2026-09-12** — 조건이 «켤 수 있나»(`canMock`)와 «켰나»(`running`)로 갈렸다.
          *    기사님: *"경로가 생기면 현황판도 알게 될 거고 그때 **버튼을 활성화해서 클릭**하도록"*.
          *    개발 빌드 게이트는 그대로 `canMock` 안에 있다 — 실 폰에서는 여전히 켜질 수 없다.
+         *    ⚠️ 2026-09-12 에 `isDriving` 은 뺐다 (상차지까지 가는 구간이 순환으로 막혀 있었다).
          */
         expect(gps).toMatch(/const canMock = SIMULATOR_AVAILABLE/);
     });
@@ -72,9 +73,18 @@ describe('마스터 GPS — 실 GPS 와 시뮬레이터가 같은 길을 간다'
         expect(Number(v![1].replace(/_/g, ''))).toBeGreaterThanOrEqual(5000);
     });
 
-    it('출발하기 전에는 시뮬레이터가 안 돈다', () => {
-        /* 🔄 2026-09-12 — «출발했나»는 `canMock` 이 든다. 거기에 «버튼을 눌렀나»가 곱해진다 */
-        expect(gps).toMatch(/const canMock = SIMULATOR_AVAILABLE && isDriving/);
+    /**
+     * 🔄 **개정 2026-09-12 — «출발 전»이 아니라 «경로가 없으면»이다.**
+     *
+     * 전에는 `dispatchPhase === 'DELIVERING'`(출발함)을 조건으로 뒀는데 **순환이었다**:
+     * DELIVERING 이 되려면 상차를 마쳐야 하고, 상차를 하려면 상차지까지 가야 하고,
+     * **가는 것이 모의 주행**이다. 기사님 2026-09-12: *"출발을 해야 상차를 하지"*.
+     *
+     * 지키려던 뜻(«빈 차인데 가짜가 달리면 안 된다»)은 그대로다 — 빈 차면 잡은 콜이 없어
+     * **경로가 없고**, 경로가 없으면 여전히 안 돈다. 조건이 더 정확해졌다.
+     */
+    it('경로가 없으면 시뮬레이터가 안 돈다 (빈 차에는 경로가 없다)', () => {
+        expect(gps).toMatch(/const canMock = SIMULATOR_AVAILABLE && !!activePolyline\?\.length/);
         expect(gps).toMatch(/const useMock = canMock && mockRunning/);
     });
 

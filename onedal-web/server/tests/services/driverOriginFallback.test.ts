@@ -86,6 +86,10 @@ describe('ensureDriverOrigin — 비움과 메움은 한 몸이다', () => {
  * 국면이 그걸 벗어난 순간 가상 좌표는 **정의상** 낡은 값이다. 시각을 재는 추측이 아니라
  * 만드는 조건 그대로다.
  *
+ * 🔄 **2026-09-12 — «만드는 조건»이 «경로가 있으면»으로 바뀌었다** (기사님 *"출발을 해야
+ *    상차를 하지"*). 그래서 걷어내는 자리도 **빈 차(STANDBY)** 하나로 좁아졌다 —
+ *    규칙은 그대로고 조건만 따라 움직인 것이다.
+ *
  * 🔴 **실 GPS 는 안 걷는다.** 차를 세워 두면 국면이 STANDBY 라도 기사님은 진짜 거기 계신다.
  *    걷어내는 것은 «가짜라서»지 «안 달려서»가 아니다.
  *
@@ -109,11 +113,28 @@ describe('가상 좌표는 운행 국면을 벗어나면 «지금 위치»가 �
         expect(s.driverLocationIsFallback).toBe(true);
     });
 
-    test('🔴 GATHERING(합짐 수집) 도 마찬가지다 — 달리지 않으면 시뮬도 안 돈다', () => {
+    /**
+     * 🔄 **개정 2026-09-12 — 전제가 바뀌었다.**
+     *
+     * 이 검사의 근거는 *"달리지 않으면 시뮬도 안 돈다"* 였다 — 당시 모의 주행은
+     * `dispatchPhase === 'DELIVERING'` 이라야 돌았으므로, GATHERING 에 가상 좌표가
+     * 남아 있으면 **정의상 낡은 값**이었다.
+     *
+     * 🔴 그런데 **그러면 상차지까지 갈 수가 없었다.** DELIVERING 이 되려면 상차를 마쳐야 하고,
+     *    상차를 하려면 상차지까지 가야 하고, **가는 것이 모의 주행**이다 —
+     *    기사님 2026-09-12: *"출발을 해야 상차를 하지"*. 그래서 조건을 «경로가 있으면»으로
+     *    바꿨고, GATHERING 에서도 시뮬이 돈다.
+     *
+     * 🔴 **규칙의 뜻은 그대로다** — «가상 좌표는 만들어지는 조건을 벗어나면 낡은 값».
+     *    만들어지는 조건이 «경로가 있음»으로 바뀌었으니, 경로를 쥔 GATHERING 에서는
+     *    **살아 있는 값**이다. 빈 차(STANDBY)는 잡은 콜이 없어 경로도 없다 — 위 검사 그대로 걷는다.
+     */
+    test('🔄 GATHERING(콜을 쥐고 상차지로 가는 중)에서는 가상 좌표가 살아 있다', () => {
         mockedHome.mockReturnValue(HOME);
         const s = mockSession('GATHERING', true);
         ensureDriverOrigin('driver-1', s as any);
-        expect(s.driverLocation).toEqual({ x: HOME.x, y: HOME.y });
+        expect(s.driverLocation).toEqual({ x: 127.406, y: 37.299 });
+        expect(mockedHome).not.toHaveBeenCalled();
     });
 
     test('운행 중(DELIVERING)이면 가상 좌표가 그대로 «지금 위치»다', () => {

@@ -115,7 +115,19 @@ export function useMasterGps(
      *    두 곳이 다른 답을 낸다 (규칙 ③). 경로가 사라지면 스토어가 돌던 것도 멈춘다.
      * ⚠️ 실 GPS 가 살아 있으면 **진짜가 이긴다** — 켜 뒀어도 가짜를 안 쓴다.
      */
-    const canMock = SIMULATOR_AVAILABLE && isDriving && !!activePolyline?.length;
+    /**
+     * 🔴 **`isDriving` 을 뺐다** (현황판 답신 · 기사님 2026-09-12 *"출발을 해야 상차를 하지"*).
+     *    전에는 `dispatchPhase === 'DELIVERING'` 이라야 켜졌는데, DELIVERING 이 되려면
+     *    상차를 마쳐야 하고 상차를 하려면 상차지까지 가야 하고 **가는 것이 모의 주행**이었다 —
+     *    테스트에서 가장 필요한 구간(콜 잡고 → 상차지까지)이 순환으로 막혀 있었다.
+     *    **«경로가 있으면 그 길을 달릴 수 있다»** 로 충분하다 — 들를 곳(`stops`)에 상차지가
+     *    이미 들어 있다(`useRouteDerivations.mockStops`).
+     * ⚠️ 짝이 있다: 서버도 `dropOffDutyMockLocation` 이 DELIVERING 아니면 가짜 좌표를
+     *    걷어냈다. 거기도 «콜을 쥔 동안»으로 넓혔다 — 한쪽만 고치면 아무 일도 안 난다.
+     * ⚠️ 아래 실 GPS 감시(`watchPosition`)는 여전히 `isDriving` 일 때만 돈다 — 그래서
+     *    GATHERING 에서 모의를 켜면 **실 GPS 로 자동 전환이 안 된다.** 테스트용이라 그대로 둔다.
+     */
+    const canMock = SIMULATOR_AVAILABLE && !!activePolyline?.length;
     const setMockAvailable = useMockDriveStore(st => st.setAvailable);
     const mockRunning = useMockDriveStore(st => st.running);
     const mockSpeed = useMockDriveStore(st => st.speed);

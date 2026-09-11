@@ -588,3 +588,50 @@ describe('8단계 · 모의 주행 — 현황판이 켜고 끈다', () => {
         expect(gps).toMatch(/SIMULATOR_AVAILABLE = import\.meta\.env\.DEV|const SIMULATOR_AVAILABLE/);
     });
 });
+
+describe('8단계 · 상차지까지도 모의 주행으로 간다 (현황판 답신 · 기사님 "출발을 해야 상차를 하지")', () => {
+    /**
+     * 🔴 **순환이었다.** 현황판이 버튼을 붙였는데 켤 수가 없었다 —
+     *
+     * ```
+     * 모의 주행을 켜려면   →  dispatchPhase === 'DELIVERING'
+     * DELIVERING 이 되려면 →  상차를 마쳐야 하고
+     * 상차를 하려면        →  상차지까지 가야 하는데
+     * 가는 것이            →  모의 주행
+     * ```
+     *
+     * 기사님이 그 자리에서 짚으셨다: *"시작 버튼 왜 안풀려?"* → *"출발을 해야 상차를 하지"*.
+     * **테스트에서 가장 필요한 구간(콜 잡고 → 상차지까지)이 정확히 막혀 있었다.**
+     *
+     * 🔴 막는 것이 **두 곳**이었다 (현황판은 앞의 하나만 봤다):
+     *   ① 관제웹 `canMock` 의 `isDriving`
+     *   ② 서버 `dropOffDutyMockLocation` — DELIVERING 이 아니면 **가짜 좌표를 걷어낸다**
+     *      → 클라만 고치면 좌표가 서버에서 지워져 아무 일도 안 난다
+     *
+     * 🔴 **STANDBY(빈 차)에서는 여전히 걷어낸다.** 그 장치의 원래 목적이다 —
+     *    2026-08-14 에 시뮬이 파주에서 멈춘 뒤 가상 좌표가 남아 다음 콜 경로가
+     *    «파주 → 광주 → 파주» 156km 로 그려졌다. 빈 차인데 가짜가 남으면 안 된다.
+     *    콜을 쥔 뒤(GATHERING·DELIVERING)는 **실제로 움직이는 중**이라 지우면 안 된다.
+     */
+    const gps = codeOnly(readClient('hooks/useMasterGps.ts'));
+    const geo = codeOnly(read('services/geoService.ts'));
+
+    it('🔴 경로가 있으면 국면과 무관하게 켤 수 있다 — 상차지로 갈 수 있어야 한다', () => {
+        const i = gps.indexOf('const canMock =');
+        const decl = gps.slice(i, gps.indexOf(';', i));
+        expect(decl).toMatch(/SIMULATOR_AVAILABLE/);
+        expect(decl).toMatch(/activePolyline/);
+        expect(decl).not.toMatch(/isDriving/);
+    });
+
+    it('🔴 서버가 콜을 쥔 동안에는 가짜 좌표를 안 걷는다 — 빈 차일 때만 걷는다', () => {
+        const i = geo.indexOf('function dropOffDutyMockLocation');
+        expect(i).toBeGreaterThan(-1);
+        /* ⚠️ 매개변수 타입이 `}` 로 닫혀 `\n}` 에서 끊긴다 — 다음 export 까지 본다 */
+        const body = geo.slice(i, geo.indexOf('\nexport ', i));
+        expect(body).toMatch(/GATHERING/);
+        expect(body).toMatch(/DELIVERING/);
+        /* 빈 차(STANDBY)에서는 여전히 걷는다 — 2026-08-14 사고 */
+        expect(body).toMatch(/driverLocation = null/);
+    });
+});
