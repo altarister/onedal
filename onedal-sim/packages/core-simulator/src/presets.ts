@@ -273,10 +273,22 @@ const SEOUL_GASAN: MockEntry = {
     region: '가산동', addressDetail: '서울 금천구 가산동',
     lon: 126.89178, lat: 37.47688,
 };
-const GP_ORYU: MockEntry = {
-    customerName: '김포 오류동 상차지', contactName: '담당', phone1: '010-0000-0405',
-    region: '오류동', addressDetail: '경기 김포시 고촌읍 오류동',
-    lon: 126.63762, lat: 37.59704,
+/**
+ * 🔴 **«김포 고촌읍» 이 아니라 «인천 오류동» 이다** (원문 대조 2026-09-12).
+ *
+ * 주소와 좌표가 서로 다른 곳을 가리키고 있었다 — 적힌 주소는 「경기 김포시 고촌읍 오류동」
+ * 인데 그 좌표(126.63762, 37.59704)를 카카오에 물으면 **인천 검단구 왕길동**이 나왔다.
+ * 카카오는 「김포 고촌읍 오류동」을 아예 모른다(인천 계양구 오류동만 나온다).
+ *
+ * 원문이 답을 갖고 있었다 — 노하우 표 「볼트 저녁 판」 ②:
+ *   *"상차지: **인천 서구 오류동** (자막의 «원창» 쪽)"*
+ * 자막의 동선도 «인천 원창 → 검단 → 가산 → 안양 → 용인» 이라 인천이 맞다.
+ * 좌표는 카카오 주소검색이 준 **오류동 중심**이다 (2026년 서구에서 검단구로 갈렸다).
+ */
+const IC_ORYU: MockEntry = {
+    customerName: '인천 오류동 상차지', contactName: '담당', phone1: '010-0000-0405',
+    region: '오류동', addressDetail: '인천 검단구 오류동',
+    lon: 126.613712, lat: 37.592490,
 };
 const YI_WONSAM: MockEntry = {
     customerName: '용인 원삼면 하차지', contactName: '담당', phone1: '010-0000-0406',
@@ -620,9 +632,9 @@ export const PRESETS: Record<string, PresetProblem[]> = {
             why: '🚚 두원타워에 **앉은 채로** 잡은 셋 중 하나 (17:46)',
         },
         {
-            label: '② 김포 오류동 → 용인 원삼면 · 200,000 (실측 46,200)',
-            pickup: '김포 오류동 상차지', dropoff: '용인 원삼면 하차지',
-            pickupFallback: GP_ORYU, dropoffFallback: YI_WONSAM,
+            label: '② 인천 오류동 → 용인 원삼면 · 200,000 (실측 46,200)',
+            pickup: '인천 오류동 상차지', dropoff: '용인 원삼면 하차지',
+            pickupFallback: IC_ORYU, dropoffFallback: YI_WONSAM,
             fare: 200000, vehicleType: '다마스',
             why: '🚚 그날의 끝까지 가는 콜 — 도착 목표가 여기서 나온다',
         },
