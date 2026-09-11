@@ -797,8 +797,6 @@ export async function bootstrapUserSession(userId: string, io: any): Promise<voi
         io.to(userId).emit("filter-init", {
             activeFilter: session.activeFilter,
             baseFilter: session.baseFilter,
-            phaseSettings: session.phaseSettings,
-            basePhaseSettings: session.basePhaseSettings,
         });
     }
 }
@@ -1403,8 +1401,9 @@ export async function setCallTarget(
         let city: string | null = null;
 
         if (phase === 'DEST') {
-            // 오늘 정한 목적지로 돌아간다 — 첫짐 국면이 기억하고 있는 도시가 먼저다
-            city = session.phaseSettings.first.destinationCity
+            /* 오늘 정한 목적지로 돌아간다 — 오늘값이 먼저, 없으면 평소값 (이식 C3-3b:
+               예전엔 «첫짐 국면이 기억하는 도시»였다. 값이 한 벌이라 그 구분이 없어졌다) */
+            city = session.activeFilter.destinationCity
                 || session.baseFilter.destinationCity
                 || null;
             /**

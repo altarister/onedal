@@ -17,11 +17,10 @@ import { stepRecordsOf } from "../services/stepSeeder";
 import { OrderRepository } from "../repositories/OrderRepository";
 import { SettingsRepository } from "../repositories/SettingsRepository";
 import { getUserSession } from "./userSessionStore";
-import type { AutoDispatchFilter, PhaseKey, PhaseSettings } from "@onedal/shared";
-import { DEFAULT_DETOUR_RADIUS_KM, isDeliveredCall, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, resolvePhaseKey, applyPhaseToFilter, normalizePhaseSettings,
-         PHASE_KEYS, FILTER_FIELDS, QUAD_FIELDS, quadShapeFrom, pruneExcludedRegions, netForGoal, cityCenter,
-         phaseRowOf, phaseOfRow, EVALUATING_STATUSES, isLocalPhase } from "@onedal/shared";
-import type { PhaseSettingsMap } from "@onedal/shared";
+import type { AutoDispatchFilter, FlatValueKey } from "@onedal/shared";
+import { DEFAULT_DETOUR_RADIUS_KM, isDeliveredCall, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, FILTER_FIELDS, filterValuesFrom, QUAD_FIELDS, quadShapeFrom, pruneExcludedRegions, netForGoal, cityCenter,
+         EVALUATING_STATUSES, isLocalPhase } from "@onedal/shared";
+import type { } from "@onedal/shared";
 
 // ─────────────────────────────────────────────────────────────
 // 🎛️ 국면 옵션 (필터 확정안 v2 · 2026-08-21 전환 완료)
@@ -126,51 +125,28 @@ function netKeywordsOf(
     return prune(grouped, true);
 }
 
-export function writePhaseRows(userId: string, map: PhaseSettingsMap): void {
-    const cols = FILTER_FIELDS.map(f => f.col);
-    const stmt = db.prepare(`
-        INSERT INTO user_filter_phases (user_id, phase, ${cols.join(', ')})
-        VALUES (?, ?, ${cols.map(() => '?').join(', ')})
-        ON CONFLICT(user_id, phase) DO UPDATE SET ${cols.map(c => `${c} = excluded.${c}`).join(', ')}
-    `);
-    const tx = db.transaction((m: PhaseSettingsMap) => {
-        for (const key of PHASE_KEYS) {
-            const row = phaseRowOf(m[key]);
-            stmt.run(userId, key, ...cols.map(c => row[c]));
-        }
-    });
-    tx(map);
-}
-
-/** 새 그릇에서 국면 옵션 읽기 — 전환 ③부터 이것이 읽기 원천이다 */
-export function readPhaseRows(userId: string): Partial<Record<PhaseKey, PhaseSettings>> {
-    const rows = db.prepare(`SELECT * FROM user_filter_phases WHERE user_id = ?`).all(userId) as any[];
-    const out: Partial<Record<PhaseKey, PhaseSettings>> = {};
-    for (const r of rows) out[r.phase as PhaseKey] = phaseOfRow(r, r.phase);
-    return out;
-}
-
 /**
- * 로그인 때 국면 옵션을 읽는다 — **원천은 행 하나다.**
- * 행이 없는 건 신규 유저뿐이다 (기존 유저는 병행 단계에서 이식 완료) —
- * 그때만 표 기본값으로 5행을 시드한다.
+ * 🥣 **국면 행을 읽고 쓰던 셋이 여기 있었다** (`writePhaseRows` · `readPhaseRows` ·
+ *    `loadPhaseRows` · 걷어냄 2026-09-11 · 이식 C3-3b).
+ *
+ * C3-3a 에서 값이 한 벌이 된 뒤로 이 셋이 하던 일은 **같은 값을 다섯 행에 쓰고
+ * 다시 다섯을 읽어 한 벌로 접는 것**뿐이었다. 기사님: *"개선되어 중복인건 그냥 삭제 할꺼야."*
+ *
+ * 🔴 값 다섯은 이제 **평면 한 행**(`user_filters`)에 산다 — 저장은 `saveBaseFilter`,
+ *    읽기는 `loadFilterValues` 하나다. 이름도 평면(앱 피기백) 것으로 통일됐다.
  */
-export function loadPhaseRows(userId: string): PhaseSettingsMap {
+export function loadFilterValues(userId: string): Record<FlatValueKey, any> {
     try {
-        const rows = readPhaseRows(userId);
-        if (Object.keys(rows).length === 0) {
-            const seeded = normalizePhaseSettings(null);
-            writePhaseRows(userId, seeded);
-            console.log(`🎛️ [국면] 행이 없어 표 기본값으로 5행 시드 (신규 유저)`);
-            return seeded;
-        }
-        return normalizePhaseSettings(rows);            // 빠진 국면은 기본값으로 메운다
+        const row = db.prepare(`SELECT * FROM user_filters WHERE user_id = ?`).get(userId) as any;
+        /* 🔴 행이 없거나 칸이 NULL 이면 표 기본값 — `Number(null) === 0` 을 안 밟는다 (#105) */
+        return filterValuesFrom(row);
     } catch (e) {
         // 세션 생성을 막지 않는다 — 기본값이면 콜 잡기는 돌고, 값은 다음 저장에서 복원된다
-        console.error(`🎛️ [국면] 행 읽기 실패 — 표 기본값으로 계속:`, (e as Error).message);
-        return normalizePhaseSettings(null);
+        console.error(`🎛️ [필터 값] 읽기 실패 — 표 기본값으로 계속:`, (e as Error).message);
+        return filterValuesFrom(null);
     }
 }
+
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { getCityRegionsWithRadius, cityAliases, getDetourRegions, unionRegions, getActivePolyline, progressAlongPolyline, trapsForKeywords } from "../services/geoService";
 
@@ -182,11 +158,15 @@ import { getCityRegionsWithRadius, cityAliases, getDetourRegions, unionRegions, 
  *    컬럼 목록은 `QUAD_FIELDS` 표에서 뽑는다 (손으로 나열하지 않는다 — 규칙 ③).
  */
 const QUAD_COLS = QUAD_FIELDS.map(f => f.col);
+/** 🎛️ 값 다섯의 컬럼 — **표가 원천이다** (손으로 나열하지 않는다 · 규칙 ③) */
+const VALUE_COLS = FILTER_FIELDS.map(f => f.col);
+
 const stmtUpdateFilter = db.prepare(`
     UPDATE user_filters SET
         min_fare = ?, max_fare = ?, excluded_keywords = ?, is_active = ?,
         excluded_regions = ?,
-        ${QUAD_COLS.map(c => `${c} = ?`).join(', ')}
+        ${QUAD_COLS.map(c => `${c} = ?`).join(', ')},
+        ${VALUE_COLS.map(c => `${c} = ?`).join(', ')}
     WHERE user_id = ?
 `);
 
@@ -598,140 +578,30 @@ function refreshDetourIfNeeded(
 }
 
 /**
- * 국면이 바뀌었으면 그 국면의 저장값을 평면 필터에 펼친다.
+ * 🥣 **국면이 바뀔 때 그 벌을 펴던 고리가 여기 있었다**
+ *    (`applyPhaseSettingsIfChanged` · 걷어냄 2026-09-11 · 이식 C3-3b).
  *
- * 국면 키가 **실제로 바뀔 때만** 편다 — 같은 국면에서 매번 덮으면 기사님이 방금 고친 값이
- * 계속 되돌아가고, 경유 재계산도 불필요하게 돈다.
+ * 국면이 바뀌면 그 국면의 값 다섯을 평면 필터에 얹었다. **값이 한 벌이 된 뒤로는
+ * 얹어도 같은 값이라** 하는 일이 없었다 — 반경이 안 바뀌니 경유 재계산도 안 돌았다.
+ *
+ * 🔴 **함께 사라진 것**: `session.appliedPhaseKey`(어느 벌을 폈나) ·
+ *    `applyPhaseToFilter`(이름 두 벌 사이 다리) · 단가표 재계산(할인율이 안 바뀐다).
+ * ⚠️ **단가표는 여전히 할인율에서 파생된다** — `updateActiveFilter` 가 할인율 변경을
+ *    볼 때 다시 만든다. 국면 전환이 아니라 **값이 바뀔 때** 도는 것이 맞다.
  */
-function applyPhaseSettingsIfChanged(
-    session: ReturnType<typeof getUserSession>,
-    changes: Partial<AutoDispatchFilter>,
-    userId: string,
-) {
-    const key = resolvePhaseKey(
-        session.activeFilter.callTarget ?? 'DEST',
-        session.activeFilter.dispatchPhase ?? 'STANDBY',
-    );
-    if (key === session.appliedPhaseKey) return;
-
-    const prev = session.appliedPhaseKey;
-    session.appliedPhaseKey = key;
-    const before = {
-        detourRadiusKm: session.activeFilter.detourRadiusKm,
-        destinationRadiusKm: session.activeFilter.destinationRadiusKm,
-        destinationCity: session.activeFilter.destinationCity,
-        excludedRegions: session.activeFilter.excludedRegions,
-    };
-
-    const patch = applyPhaseToFilter(key, session.phaseSettings[key]);
-    for (const [k, v] of Object.entries(patch)) {
-        if (v === undefined) continue;
-        // 기사님이 방금 고친 값은 그대로 둔다
-        if (k in changes) continue;
-        (session.activeFilter as any)[k] = v;
-    }
-
-    /**
-     * 🔴 반경이 바뀌었으면 **지역 목록도 다시 그린다.**
-     *
-     * 위쪽 `recalculateDerivedFields` 는 이 함수보다 **먼저** 돌았다. 그때는 아직 옛 반경이었다.
-     * 여기서 반경만 갈아 끼우고 끝내면 "하차 0km" 라고 적힌 채 **옛 7km 목록으로 거른다** —
-     * 화면과 판정이 다른 말을 하는, 조용히 틀리는 종류다.
-     */
-    refreshDetourIfNeeded(session, userId, before);
-    const geoChanged = session.activeFilter.destinationRadiusKm !== before.destinationRadiusKm
-                    || session.activeFilter.destinationCity !== before.destinationCity;
-    if (!session.activeFilter.isSharedMode && geoChanged) {
-        // ⚠️ `updateActiveFilter` 가 아니라 파생 계산만 다시 부른다 (재진입하면 무한 루프)
-        recalculateDerivedFields(session, {
-            destinationCity: session.activeFilter.destinationCity,
-            destinationRadiusKm: session.activeFilter.destinationRadiusKm,
-        }, userId);
-    }
-
-    console.log(`🧭 [국면 설정] ${prev ?? '없음'} → ${key} · ` +
-        `상차 ${session.activeFilter.pickupRadiusKm}km · 경유 ${session.activeFilter.detourRadiusKm}km · ` +
-        `하차 ${session.activeFilter.destinationRadiusKm}km · 할인 ${session.activeFilter.callDiscountPct}%`);
-
-    // 단가표는 할인율에서 파생된다 (§2-1) — 여기서 다시 만든다
-    const pricing = SettingsRepository.loadPricingConfig(userId);
-    session.activeFilter.ratePerKm = rateFloorsFrom(
-        session.activeFilter.callDiscountPct ?? 10,
-        pricing.vehicleRates,
-        pricing.agencyFeePercent,
-    );
-}
 
 /**
- * [관제탑 탭 전용] **한 국면의 설정만** 바꾼다 (§2-4).
+ * 🥣 **국면 하나만 저장하던 통로가 여기 있었다** (`savePhaseSettings` ·
+ *    걷어냄 2026-09-11 · 이식 C3-3b).
  *
- * 기사님이 합짐 탭에서 하차 반경을 1km 로 고쳤다고 해서, 지금 첫짐을 콜 잡는 중인
- * 필터가 바뀌면 안 된다 — **그 국면이 될 때** 꺼내 쓰는 값이다.
- * 다만 **지금 그 국면이라면 즉시 반영한다** (탭을 보며 고치는데 아무 일도 안 일어나면
- * 저장이 됐는지 알 수 없다).
+ * *"합짐 탭에서 하차 반경을 고쳤다고 첫짐 필터가 바뀌면 안 된다"* 는 이유로 있던 길이다.
+ * **탭이 사라지고(C3-3a) 값이 한 벌이 되면서** 「그 국면이 될 때 꺼내 쓰는 값」 자체가 없다.
  *
- * `saveAsDefault` 의 뜻은 필터 저장과 같다 — 없으면 **오늘만**, 있으면 **앞으로 계속**.
+ * 🔴 이제 값 다섯은 **평면 통로 하나**로 간다 — 오늘만이면 `updateActiveFilter`,
+ *    앞으로 계속이면 `saveBaseFilter`. 마름모·제외지역이 이미 쓰던 그 길이다.
+ *    소켓 `save-phase-settings` 도 함께 사라졌다.
  */
-export function savePhaseSettings(
-    userId: string,
-    phase: PhaseKey,
-    settings: PhaseSettings,
-    saveAsDefault: boolean,
-    io?: any,
-): void {
-    const session = getUserSession(userId);
 
-    // 한 국면만 갈아 끼운다. normalize 로 결측·비정상 값을 막는다
-    const clean = normalizePhaseSettings({ ...session.phaseSettings, [phase]: settings })[phase];
-    session.phaseSettings[phase] = clean;
-
-    if (saveAsDefault) {
-        session.basePhaseSettings[phase] = { ...clean };
-        // saveBaseFilter 가 writePhaseRows 로 행(원천)에 저장한다
-        saveBaseFilter(userId, {}, io);
-    }
-
-    const activeKey = resolvePhaseKey(
-        session.activeFilter.callTarget ?? 'DEST',
-        session.activeFilter.dispatchPhase ?? 'STANDBY',
-    );
-
-    console.log(`🧭 [국면 저장] ${phase}${saveAsDefault ? ' (앞으로 계속)' : ' (오늘만)'} · ` +
-        `상차 ${clean.pickupRadiusKm}km · 경유 ${clean.detourAllowKm}km · ` +
-        `하차 ${clean.dropoffRadiusKm}km · 할인 ${clean.discountPct}%` +
-        `${phase === activeKey ? ' → 지금 국면이라 바로 적용' : ` (지금은 ${activeKey}, 그 국면이 되면 적용)`}`);
-
-    if (phase === activeKey) {
-        const before = {
-            detourRadiusKm: session.activeFilter.detourRadiusKm,
-            destinationRadiusKm: session.activeFilter.destinationRadiusKm,
-            excludedRegions: session.activeFilter.excludedRegions,
-        };
-        /**
-         * 🔴 평면 이름 매핑은 여기서 하지 않는다 — `applyPhaseToFilter` 가 유일한 지점.
-         *
-         * `userOverrides` 를 **켜지 않는다.** 그 깃발은 자동 경유 갱신을 멈추는 것인데,
-         * 이제 기사님이 고른 반경은 국면 설정에 남아 있으므로 얼려 둘 이유가 없다.
-         * 반경은 기사님 것이고, 그 반경으로 그린 **지역 목록은 경로를 따라가야 한다.**
-         */
-        updateActiveFilter(userId, applyPhaseToFilter(phase, clean), io);
-        // 반경이 바뀌었으면 경유를 다시 그린다 (updateActiveFilter 는 도시 기반 지리만 본다)
-        refreshDetourIfNeeded(session, userId, before);
-        if (io) broadcastFilter(userId, session, io);
-    } else if (io) {
-        // 지금 국면이 아니면 필터는 그대로. 탭 값이 저장됐다는 것만 알린다
-        broadcastFilter(userId, session, io);
-    }
-}
-
-/**
- * 지금 경로 주변의 **경유 지역**을 다시 구한다 (합짐·운행중).
- *
- * 🔴 2026-08-14 에 `dispatchEngine` 에서 여기로 옮겨 왔다. 국면별 설정이 들어오면서
- *    경유를 다시 그려야 하는 자리가 셋이 됐는데(필터 저장 · 국면 설정 저장 · 국면 전환),
- *    뒤의 둘은 이 파일 안이라 dispatchEngine 을 부르면 순환 참조가 된다.
- *    경유 계산이 4벌로 갈라졌던 사고를 되풀이하지 않으려면 **구현은 하나여야 한다.**
- */
 export const recalculateDetourFilter = (userId: string, detourRadiusKm: number, destinationRadiusKm?: number) => {
     const session = getUserSession(userId);
     let polylineToUse = null;
@@ -803,9 +673,7 @@ function broadcastFilter(userId: string, session: ReturnType<typeof getUserSessi
     const payload = {
         activeFilter: session.activeFilter,
         baseFilter: session.baseFilter,
-        // 국면별 설정 (§2-4) — 관제탑의 탭이 이걸 편집한다
-        phaseSettings: session.phaseSettings,
-        basePhaseSettings: session.basePhaseSettings,
+        /* 🥣 국면별 설정 둘이 여기 실려 갔다 — 값이 한 벌이 되어 평면에 산다 (이식 C3-3b) */
     };
 
     /**
@@ -857,10 +725,11 @@ export function saveBaseFilter(
             b.isActive ? 1 : 0,
             JSON.stringify(b.excludedRegions || []),
             ...QUAD_FIELDS.map(f => quad[f.path]),
+            /* 🎛️ 값 다섯 — **같은 행에** 쓴다 (이식 C3-3b).
+               예전엔 `writePhaseRows` 로 **국면 다섯 행에 같은 값을 다섯 번** 썼다 */
+            ...(() => { const v = filterValuesFrom(b as any); return FILTER_FIELDS.map(f => v[f.path]); })(),
             userId
         );
-        // 🎛️ 국면 옵션(노선·반경·할인율)의 원천 — user_filter_phases 행
-        writePhaseRows(userId, session.basePhaseSettings);
     } catch (e) {
         console.error(`[FilterManager] DB 저장 에러 (userId: ${userId}):`, e);
     }
@@ -948,10 +817,27 @@ export function updateActiveFilter(
         console.log(`[FilterManager] STANDBY 복귀: 합짐 파생값만 되돌림 ` +
             `(오늘 필터 유지 — 도착 ${session.activeFilter.destinationCity}, 최저 ${session.activeFilter.minFare}원)`);
     } else {
+        /**
+         * 🔴 **반경이 바뀌면 지역 목록도 다시 그린다** (이식 C3-3b 에서 여기로 옮겼다).
+         *
+         * ⚠️ 예전엔 **국면이 바뀔 때**(`applyPhaseSettingsIfChanged`)와 **국면을 저장할 때**
+         *    (`savePhaseSettings`) 둘이 이 일을 했다. 값이 한 벌이 되며 그 둘이 사라졌는데,
+         *    **부르는 곳이 같이 없어져 경유가 안 다시 그려질 뻔했다** —
+         *    `phaseUi.test.ts` 의 «반경이 바뀌면 지역 목록도 다시 그린다» 가 잡았다.
+         *
+         * 🔴 안 그리면 «하차 0km» 라고 적힌 채 **옛 목록으로 거른다** — 화면과 판정이
+         *    다른 말을 하는, 조용히 틀리는 종류다.
+         */
+        const before = {
+            detourRadiusKm: session.activeFilter.detourRadiusKm,
+            destinationRadiusKm: session.activeFilter.destinationRadiusKm,
+            excludedRegions: session.activeFilter.excludedRegions,
+        };
         // 일반 변경: activeFilter에 직접 덮어쓰기
         session.activeFilter = { ...session.activeFilter, ...changes };
         // 파생 데이터 재계산
         recalculateDerivedFields(session, changes, userId);
+        refreshDetourIfNeeded(session, userId, before);
     }
 
     // 🗺️ 키워드 트랩 — 지금 키워드에서 매번 파생한다 (regionMatch 사전 확장 · 기사님 확정 ④).
@@ -1079,7 +965,6 @@ export function updateActiveFilter(
      * 🔴 **기사님이 방금 고친 값은 덮지 않는다.** `changes` 에 들어 있는 키는 건너뛴다 —
      *    안 그러면 필터 팝업에서 저장한 값이 곧바로 국면 기본값으로 되돌아간다.
      */
-    applyPhaseSettingsIfChanged(session, changes, userId);
 
     logActiveFilter(session, "실시간 변경(activeFilter)", changes);
     broadcastFilter(userId, session, io);
@@ -1164,7 +1049,7 @@ export function ensureBusinessDay(userId: string, io?: any): boolean {
      * "이 설정이 얼마를 벌었나" — 설정 스냅샷은 **리셋되기 전의 어제 오늘값**이어야
      * 하므로 아래 되돌리기보다 먼저 찍는다. 실패해도 전환은 계속 (계측이지 흐름이 아니다).
      */
-    try { recordDayResult(userId, yesterday, session.phaseSettings); }
+    try { recordDayResult(userId, yesterday, session.activeFilter); }
     catch (e) { console.error('📊 [성과 기록] 실패:', (e as Error).message); }
 
     /**
@@ -1197,17 +1082,13 @@ export function ensureBusinessDay(userId: string, io?: any): boolean {
     // 되돌리는 규칙은 shared 한 곳에만 있다 (세션 생성 때도 같은 규칙을 쓴다)
     session.activeFilter = resetToBaseFilter(session.baseFilter);
 
-    /**
-     * 국면별 오늘값도 평소값으로 되돌린다 (§2-4-7).
-     * 기사님: *"오늘 하루 동안 첫짐은 10km 로 고정되는 거지"* — 하루가 지나면 풀린다.
-     * 다시 펼치도록 `appliedPhaseKey` 를 비운다.
-     */
-    session.phaseSettings = normalizePhaseSettings(JSON.parse(JSON.stringify(session.basePhaseSettings)));
-    session.appliedPhaseKey = null;
+    /* 🥣 국면별 오늘값을 되돌리던 줄이 여기 있었다 (이식 C3-3b).
+       값이 한 벌이 되어 **위의 `resetToBaseFilter` 한 번**이 그 일을 다 한다 —
+       기사님: *"오늘 하루 동안 첫짐은 10km 로 고정되는 거지"* 는 그대로 참이다 */
     session.departedAt = null;   // 어제 출발한 것이 오늘 되살아나지 않는다
 
     console.log(`🌅 [영업일 전환] ${yesterday} → ${today} · 오늘 필터를 기본 설정으로 되돌립니다 ` +
-        `(도착 ${session.baseFilter.destinationCity}, 국면 설정 5종 포함)`);
+        `(도착 ${session.baseFilter.destinationCity})`);
     logRoadmapEvent("서버", `[영업일 전환] ${yesterday} → ${today} — activeFilter 를 baseFilter 로 리셋`);
 
     // 파생 재계산 + 관제탑 전파

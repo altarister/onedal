@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { socket } from "../lib/socket";
-import type { AutoDispatchFilter, PhaseKey, PhaseSettings } from "@onedal/shared";
+import type { AutoDispatchFilter } from "@onedal/shared";
 import { logRoadmapEvent } from "../lib/roadmapLogger";
 import { useFilterStore, ensureFilterSocketSubscribed } from "../stores/filterStore";
 
@@ -12,7 +12,7 @@ import { useFilterStore, ensureFilterSocketSubscribed } from "../stores/filterSt
  *    **5번 처리한다** (2026-08-14 실측). 이유는 `stores/filterStore.ts` 에 적어 뒀다.
  */
 export function useFilterConfig() {
-    const { filter, baseFilter, phaseSettings, basePhaseSettings, setFilter, setBaseFilter } = useFilterStore();
+    const { filter, baseFilter, setFilter, setBaseFilter } = useFilterStore();
 
     useEffect(() => { ensureFilterSocketSubscribed(); }, []);
 
@@ -51,10 +51,10 @@ export function useFilterConfig() {
      * 낙관적 반영은 하지 않는다 — 서버가 곧바로 `filter-updated` 로 확정본을 돌려준다.
      * (여기서 미리 그리면 서버가 정규화한 값과 화면이 갈라진다)
      */
-    const savePhase = (phase: PhaseKey, settings: PhaseSettings, saveAsDefault = false) => {
-        logRoadmapEvent("웹", `서버에게 save-phase-settings 전달 — ${phase} (${saveAsDefault ? '앞으로 계속' : '오늘만'})`);
-        socket.emit("save-phase-settings", { phase, settings, saveAsDefault });
-    };
-
-    return { filter, baseFilter, phaseSettings, basePhaseSettings, updateFilter, savePhase };
+    /**
+     * 🥣 **국면 전용 저장 통로(`savePhase`)가 여기 있었다** (걷어냄 2026-09-11 · 이식 C3-3b).
+     *    «어느 국면의 값인가»를 실어 보내던 길인데, 값이 한 벌이 되며 실을 것이 없어졌다.
+     *    값 다섯은 이제 `updateFilter` 하나로 간다 — 마름모·제외지역과 같은 길이다.
+     */
+    return { filter, baseFilter, updateFilter };
 }

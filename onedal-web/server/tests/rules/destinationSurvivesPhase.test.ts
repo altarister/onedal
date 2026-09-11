@@ -48,9 +48,9 @@ const USER = 'test-dest-survives';
 /** 합짐 국면 세션 — 경유은 경로 위 4개, 도착목표는 여주시 */
 function session(over: { keywords?: string[] } = {}) {
     const s = getUserSession(USER);
-    s.phaseSettings.first.destinationCity = '여주시';
-    s.phaseSettings.first.dropoffRadiusKm = 5;
+    /* 🔄 2026-09-11 — 값이 한 벌이라 평면에 바로 둔다 (이식 C3-3b) */
     s.activeFilter.destinationCity = '여주시';
+    s.activeFilter.destinationRadiusKm = 5;
     s.activeFilter.dispatchPhase = 'GATHERING';
     s.activeFilter.destinationKeywords = over.keywords ?? ['초월읍', '부발읍', '가남읍'];
     // 경유 — 여기 있는 동만 «경로 위»다. 스냅에 실패한 동(산북면)도 경로 위이므로 목록엔 있다

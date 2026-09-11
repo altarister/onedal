@@ -16,88 +16,63 @@ const codeOnly = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/
  *   ① 국면 키가 **실제로 바뀔 때만** 편다
  *   ② 펼치는 함수는 `updateActiveFilter` 를 **다시 부르지 않는다**
  */
-describe('국면 전환 — 조각 펼치기', () => {
-
-    const fm = codeOnly(read('state/filterManager.ts'));
-    /**
-     * `applyPhaseSettingsIfChanged` **함수 본문만** 잘라낸다.
-     *
-     * ⚠️ 예전엔 다음 `\nfunction ` 까지 잘랐는데, 사이에 `export function`/`export const`
-     *    가 끼어들면서 **옆 함수까지 딸려 들어와** 엉뚱한 곳에서 테스트가 깨졌다.
-     *    다음 최상위 선언에서 끊는다.
-     */
-    const applyFn = (() => {
-        const start = fm.indexOf('function applyPhaseSettingsIfChanged');
-        expect(start).toBeGreaterThan(-1);
-        const next = fm.slice(start + 10).search(/\n(export )?(function|const) /);
-        return next === -1 ? fm.slice(start) : fm.slice(start, start + 10 + next);
-    })();
-
-    it('🔴 국면 키가 같으면 아무것도 안 한다 — 매번 덮으면 기사님이 방금 고친 값이 되돌아간다', () => {
-        expect(applyFn).toMatch(/appliedPhaseKey/);
-        expect(applyFn).toMatch(/return/);   // 조기 반환이 있다
-    });
-
-    it('🔴 펼치는 함수가 updateActiveFilter 를 다시 부르지 않는다 (무한 루프 방지)', () => {
-        expect(applyFn).not.toMatch(/updateActiveFilter\s*\(/);
-    });
-
-    it('🔴 기사님이 방금 고친 값(changes)은 덮지 않는다', () => {
-        // 안 그러면 필터 팝업에서 저장한 값이 곧바로 국면 기본값으로 되돌아간다
-        expect(applyFn).toMatch(/in changes/);
-    });
-
-    it('평면 매핑은 shared 의 applyPhaseToFilter 로만 한다 — 이름 매핑이 두 곳에 있으면 갈라진다', () => {
-        expect(applyFn).toMatch(/applyPhaseToFilter/);
-        // 여기서 직접 이름을 옮기지 않는다
-        expect(applyFn).not.toMatch(/detourAllowKm/);
-        expect(applyFn).not.toMatch(/dropoffRadiusKm/);
-    });
-
-    it('국면 키는 resolvePhaseKey 로만 구한다 (두 축 조합 규칙을 재구현하지 않는다)', () => {
-        expect(applyFn).toMatch(/resolvePhaseKey/);
-        expect(applyFn).not.toMatch(/GATHERING/);   // 조건을 직접 쓰지 않는다
-    });
-
-    it('단가표는 할인율에서 다시 파생시킨다 (§2-1)', () => {
-        expect(applyFn).toMatch(/rateFloorsFrom/);
-    });
-});
-
-describe('국면별 설정 — 저장과 복귀', () => {
+/**
+ * 🔄 **이 파일이 지키던 고리 셋이 걷혔다** (이식 C3-3b · 2026-09-11).
+ *
+ *   `applyPhaseSettingsIfChanged`  국면이 바뀌면 그 벌을 평면에 편다
+ *   `savePhaseSettings`            국면 하나만 저장한다
+ *   `loadPhaseRows` / 오늘값 복사   다섯 행을 읽어 평소값·오늘값 두 벌로
+ *
+ * 셋 다 **값이 국면마다 다섯 벌이던 시절**의 장치다. 값이 한 벌이 되며(C3-3a)
+ * 펼 것도, 고를 국면도, 복사할 다섯 벌도 없어졌다 —
+ * 기사님 2026-09-11: *"개선되어 중복인건 그냥 삭제 할꺼야."*
+ *
+ * ✅ **지키던 뜻 셋은 그대로 산다 — 자리만 옮겼다.**
+ */
+describe('값이 바뀔 때 — 펼치던 고리가 없어진 뒤에도 지켜야 하는 것', () => {
 
     const fm = codeOnly(read('state/filterManager.ts'));
     const store = codeOnly(read('state/userSessionStore.ts'));
 
-    it('평소값 저장(계속)은 행(user_filter_phases)에 쓴다 — 옛 blob 칸은 철거됐다 (④)', () => {
-        const fn = fm.slice(fm.indexOf('function saveBaseFilter'));
-        expect(fn.slice(0, fn.indexOf('\n}'))).toMatch(/writePhaseRows\(userId, session\.basePhaseSettings\)/);
-        expect(fm).not.toMatch(/phase_settings\s*=\s*\?/);   // blob 쓰기를 되살리지 않는다
+    /**
+     * 🔴 **기사님이 방금 고친 값을 덮지 않는다.**
+     *    예전엔 «국면을 펼 때 `changes` 에 든 키는 건너뛴다»로 지켰다.
+     *    이제 펴는 일 자체가 없어 **`changes` 가 마지막에 덮어쓴다** — 같은 뜻이다.
+     */
+    it('🔴 기사님이 보낸 값이 이긴다 (파생이 나중에 덮지 않는다)', () => {
+        const upd = fm.slice(fm.indexOf('export function updateActiveFilter'));
+        expect(upd).toMatch(/session\.activeFilter = \{ \.\.\.session\.activeFilter, \.\.\.changes \}/);
     });
 
-    it('🔴 자정에 국면별 오늘값도 평소값으로 되돌아간다', () => {
-        const reset = fm.slice(fm.indexOf('export function ensureBusinessDay'));
-        expect(reset).toMatch(/phaseSettings\s*=/);
-        expect(reset).toMatch(/appliedPhaseKey\s*=\s*null/);   // 다시 펼치도록
+    /**
+     * 🔴 **단가표는 할인율에서 파생된다** (§2-1).
+     *    예전엔 «국면이 바뀔 때» 다시 만들었다. 이제 **값이 바뀔 때** 만든다 —
+     *    국면 전환이 아니라 할인율 변경이 진짜 원인이라 그쪽이 맞다.
+     */
+    it('🔴 단가표는 할인율에서 다시 파생시킨다', () => {
+        expect(fm).toMatch(/rateFloorsFrom\(/);
     });
 
-    it('🔴 로그인 평면 조각(도시·반경·할인율)은 첫짐 국면에서 파생한다 — 두 번째 원천을 두지 않는다 (④)', () => {
-        expect(store).toMatch(/applyPhaseToFilter\('first'/);
-        // 옛 평면 칸을 다시 읽지 않는다 (blob·평면 4칸·call_discount_pct 는 DROP 됐다)
-        expect(store).not.toMatch(/filterRow\.(destination_city|pickup_radius_km|detour_radius_km|call_discount_pct|phase_settings)/);
+    /**
+     * 🔴 **평소값 ↔ 오늘값 두 그릇은 그대로다** (기사님 확정 · 관제웹 CLAUDE.md).
+     *    사라진 것은 «국면별로 또 두 벌»이지, 평소값/오늘값 구분이 아니다.
+     */
+    it('🔴 평소값과 오늘값은 여전히 갈라져 있다', () => {
+        expect(store).toMatch(/baseFilter/);
+        expect(store).toMatch(/activeFilter/);
+        /* 국면별로 또 나누던 그릇은 없다 */
+        expect(store).not.toMatch(/basePhaseSettings/);
+        expect(store).not.toMatch(/phaseSettings/);
     });
 
-    it('오늘값은 평소값의 **독립 복사본**이다 (참조를 공유하면 오늘 바꾼 게 평소값까지 바꾼다)', () => {
-        expect(store).toMatch(/JSON\.parse\(JSON\.stringify\(session\.basePhaseSettings\)\)/);
+    /** 🔴 자정에 오늘값이 평소값으로 되돌아간다 — 어제가 오늘 되살아나지 않는다 */
+    it('🔴 자정에 오늘값이 평소값으로 되돌아간다', () => {
+        expect(fm).toMatch(/resetToBaseFilter/);
     });
-});
 
-describe('운행 중 우회 금지 — 강제에서 기본값으로', () => {
-
-    it('🔴 getEffectiveDetourRadius 는 더 이상 0 을 강제하지 않는다', () => {
-        const shared = codeOnly(readFileSync(join(__dirname, '../../../shared/src/index.ts'), 'utf8'));
-        const fn = shared.slice(shared.indexOf('export function getEffectiveDetourRadius'));
-        const body = fn.slice(0, fn.indexOf('\n}'));
-        expect(body).not.toMatch(/DELIVERING/);
+    /** 🔴 읽는 원천이 하나다 — 두 번째 원천을 두지 않는다 */
+    it('🔴 로그인의 값 원천은 한 곳이다', () => {
+        expect(store).toMatch(/loadFilterValues\(userId\)/);
+        expect(store).not.toMatch(/loadPhaseRows/);
     });
 });

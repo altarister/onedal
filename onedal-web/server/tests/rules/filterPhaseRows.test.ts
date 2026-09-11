@@ -1,77 +1,70 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { FILTER_FIELDS, phaseRowOf, phaseOfRow, phaseStoreDiff, reachRadiusKm,
-         DEFAULT_PHASE_SETTINGS, PHASE_KEYS, normalizePhaseSettings } from '@onedal/shared';
+import { FILTER_FIELDS, filterValuesFrom, DEFAULT_FILTER_VALUES, reachRadiusKm } from '@onedal/shared';
 
 /**
- * 🎛️ **국면 옵션 병행 전환** (필터 확정안 v2 · 기사님 확정 2026-08-21)
+ * 🎛️ **값 다섯의 그릇** — 컬럼·폼·기본값의 원천은 `FILTER_FIELDS` 표 하나다.
  *
- * phase_settings JSON blob → user_filter_phases 테이블(행 = 사용자×국면).
- * 전환은 병행 비교 방식: 새 그릇을 옆에 세우고 → 양쪽에 같이 쓰며 비교 →
- * 조용해지면 읽기 전환 → blob 손 철거. (여섯 단계 치환·판정 dryRun 과 같은 순서)
+ * 🔄 **개정 2026-09-11 — 그릇이 다섯 행에서 «한 행»이 됐다** (이식 C3-3b).
+ *    이 파일은 원래 «phase_settings blob → `user_filter_phases` 다섯 행» 병행 전환을
+ *    지키던 검사다 (2026-08-21). 그 전환은 끝났고, 2026-09-11 에 **값이 한 벌**이 되며
+ *    다섯 행이 통째로 걷혔다 — 기사님: *"개선되어 중복인건 그냥 삭제 할꺼야."*
  *
- * 컬럼·폼·기본값의 원천은 FILTER_FIELDS 표 하나다 (JUDGMENT_FIELDS 와 같은 문법).
+ * 🔴 **지키는 뜻은 그대로다**: 표 하나가 컬럼과 폼을 만들고, **없는 값을 지어내지 않는다.**
  */
 
 const read = (rel: string) => readFileSync(join(__dirname, '../../src', rel), 'utf8');
 const codeOnly = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 
-describe('FILTER_FIELDS — 표 하나가 컬럼·폼·비교를 다 만든다', () => {
-    it('표의 경로가 PhaseSettings 와 1:1 이다 (칸이 늘면 표에만 한 줄)', () => {
+describe('FILTER_FIELDS — 표 하나가 컬럼·폼을 다 만든다', () => {
+    it('표의 경로가 기본값과 1:1 이다 (칸이 늘면 표에만 한 줄)', () => {
         const paths = FILTER_FIELDS.map(f => f.path).sort();
-        expect(paths).toEqual(Object.keys(DEFAULT_PHASE_SETTINGS.first).sort());
+        expect(paths).toEqual(Object.keys(DEFAULT_FILTER_VALUES).sort());
         expect(new Set(FILTER_FIELDS.map(f => f.col)).size).toBe(FILTER_FIELDS.length);
     });
 
-    it('설정 ↔ 행 왕복해도 값이 안 변한다', () => {
-        for (const key of PHASE_KEYS) {
-            const s = DEFAULT_PHASE_SETTINGS[key];
-            expect(phaseOfRow(phaseRowOf(s), key)).toEqual(s);
-        }
+    /**
+     * 🔴 **이름이 «한 벌»이다** (이식 C3-3b). 예전엔 국면 그릇과 평면(앱 피기백)이
+     *    같은 값을 다르게 불러 `applyPhaseToFilter` 가 사이를 옮겼다.
+     *    표의 `path` 가 **평면 이름 그대로**라 이제 옮길 것이 없다.
+     */
+    it('🔴 표의 경로가 평면(앱 피기백) 이름이다 — 옮길 다리가 없다', () => {
+        expect(FILTER_FIELDS.map(f => f.path)).toEqual(
+            ['destinationCity', 'pickupRadiusKm', 'detourRadiusKm',
+             'destinationRadiusKm', 'callDiscountPct']);
     });
 
-    it('행 값이 없거나 이상하면 그 국면의 기본값으로 메운다 (지어내지 않는다)', () => {
-        expect(phaseOfRow(null, 'local').discountPct).toBe(DEFAULT_PHASE_SETTINGS.local.discountPct);
-        expect(phaseOfRow({ discount_pct: 'abc' }, 'first').discountPct)
-            .toBe(DEFAULT_PHASE_SETTINGS.first.discountPct);
-        expect(phaseOfRow({ discount_pct: 999 }, 'first').discountPct).toBe(100);   // 범위 자름
+    it('행 값이 없거나 이상하면 표 기본값으로 메운다 (지어내지 않는다)', () => {
+        expect(filterValuesFrom(null).callDiscountPct).toBe(DEFAULT_FILTER_VALUES.callDiscountPct);
+        expect(filterValuesFrom({ call_discount_pct: 'abc' }).callDiscountPct)
+            .toBe(DEFAULT_FILTER_VALUES.callDiscountPct);
+        expect(filterValuesFrom({ call_discount_pct: 999 }).callDiscountPct).toBe(100);   // 범위 자름
     });
 
     /**
-     * 🔴 **칸이 NULL 이면 «0» 이 아니라 «없다» 다** (2026-09-11 실측 · 이식 C3).
+     * 🔴 **칸이 NULL 이면 «0» 이 아니라 «없다» 다** (2026-09-11 실측 · 버그 대장 #105).
      *
      * `Number(null) === 0` 이고 `Number.isFinite(0)` 이라, 새로 판 칸이 NULL 인 기존 행을
      * 읽으면 **0 이 기본값을 이긴다.** 마름모 셋을 판 날 바로 드러났다 —
-     * 필터 화면에 **출발각 0° · 목적각 0°** 가 떴다. 0° 는 그물이 아예 닫히는 값이다.
-     *
-     * 🔴 **행 전체가 없을 때(`phaseOfRow(null, …)`)는 이미 기본값으로 갔다** — 그래서
-     *    위 검사는 통과하고 있었다. 갈라진 것은 **행은 있는데 칸만 비었을 때**다.
-     *    지금은 테스트 단계라 마이그레이션을 안 한다 (루트 CLAUDE.md) — 새 칸은 **늘** 이 모양으로 태어난다.
+     * 필터 화면에 **출발각 0°** 가 떴고, 0° 는 그물이 아예 닫히는 값이다.
+     * ⚠️ 지금은 테스트 단계라 마이그레이션을 안 한다 — **새 칸은 늘 이 모양으로 태어난다.**
      */
     it('🔴 행은 있는데 칸이 NULL 이면 기본값이다 — 0 으로 읽지 않는다', () => {
-        for (const key of PHASE_KEYS) {
-            const blankRow: Record<string, unknown> = { phase: key };
-            for (const f of FILTER_FIELDS) blankRow[f.col] = null;
-            expect(phaseOfRow(blankRow, key)).toEqual(DEFAULT_PHASE_SETTINGS[key]);
-        }
+        const blankRow: Record<string, unknown> = { user_id: 'x' };
+        for (const f of FILTER_FIELDS) blankRow[f.col] = null;
+        expect(filterValuesFrom(blankRow)).toEqual(DEFAULT_FILTER_VALUES);
         // 칸이 아예 없는 행(옛 스키마)도 같다
-        expect(phaseOfRow({ phase: 'first' }, 'first').srcAngleDeg).toBe(DEFAULT_PHASE_SETTINGS.first.srcAngleDeg);
-        // 🔴 진짜 0 은 여전히 0 이다 (우회 허용 0 = "가는 길 위의 콜만")
-        expect(phaseOfRow({ detour_allow_km: 0 }, 'first').detourAllowKm).toBe(0);
+        expect(filterValuesFrom({ user_id: 'x' }).pickupRadiusKm).toBe(DEFAULT_FILTER_VALUES.pickupRadiusKm);
+        // 🔴 진짜 0 은 여전히 0 이다 (라인반경 0 = "가는 길 위의 콜만")
+        expect(filterValuesFrom({ detour_radius_km: 0 }).detourRadiusKm).toBe(0);
+        // 빈 글자도 «없다» 로 읽는다
+        expect(filterValuesFrom({ destination_city: '' }).destinationCity).toBe(DEFAULT_FILTER_VALUES.destinationCity);
     });
 
-    it('🧪 병행 비교 — 어긋난 칸을 이름으로 짚는다', () => {
-        const blob = normalizePhaseSettings(null);
-        const rows = { ...blob, first: { ...blob.first, pickupRadiusKm: 99 } };
-        const diffs = phaseStoreDiff(blob, rows);
-        expect(diffs).toEqual(['first.pickup_radius_km: blob=10 행=99']);
-        expect(phaseStoreDiff(blob, blob)).toEqual([]);
-    });
-
-    it('행이 아예 없으면 "행 없음" — 이식이 안 된 것', () => {
-        const blob = normalizePhaseSettings(null);
-        const { first, ...rest } = blob as any;
-        expect(phaseStoreDiff(blob, rest)).toContain('first: 행 없음');
+    /** 🔴 평면 이름으로도, DB 컬럼 이름으로도 읽는다 — 두 그릇을 오가야 해서 */
+    it('평면 이름과 DB 컬럼 이름을 둘 다 읽는다', () => {
+        expect(filterValuesFrom({ pickupRadiusKm: 22 }).pickupRadiusKm).toBe(22);
+        expect(filterValuesFrom({ pickup_radius_km: 22 }).pickupRadiusKm).toBe(22);
     });
 });
 
@@ -92,21 +85,23 @@ describe('⏱️ 시간 축 — 계수 확정 전엔 거르지 않고 계측만 
     });
 });
 
-describe('국면 옵션의 원천은 행 하나다 (병행 전환 완료 · ④)', () => {
-    it('🔴 saveBaseFilter 가 행(user_filter_phases)에 쓴다', () => {
+describe('값 다섯의 원천은 «한 행»이다 (이식 C3-3b · 2026-09-11)', () => {
+    it('🔴 saveBaseFilter 가 값 다섯을 같은 행에 쓴다', () => {
         const fm = codeOnly(read('state/filterManager.ts'));
         const fn = fm.slice(fm.indexOf('function saveBaseFilter'));
-        expect(fn.slice(0, fn.indexOf('\n}'))).toMatch(/writePhaseRows\(/);
+        const body = fn.slice(0, fn.indexOf('\n}'));
+        expect(body).toMatch(/filterValuesFrom\(b as any\)/);
+        /* 🔴 다섯 행에 같은 값을 다섯 번 쓰던 길이 없다 */
+        expect(body).not.toMatch(/writePhaseRows/);
     });
 
-    it('🔴 로그인의 읽기 원천은 행이다 — 행이 없는 건 신규 유저뿐, 표 기본값으로 시드한다', () => {
+    it('🔴 로그인의 읽기 원천도 그 행이다 — 없으면 표 기본값 (지어내지 않는다)', () => {
         const store = codeOnly(read('state/userSessionStore.ts'));
-        // 행에서 읽은 값이 세션의 평소값이 된다
-        expect(store).toMatch(/session\.basePhaseSettings = loadPhaseRows\(/);
+        expect(store).toMatch(/loadFilterValues\(userId\)/);
+        expect(store).not.toMatch(/loadPhaseRows/);
         const fm = codeOnly(read('state/filterManager.ts'));
-        const fn = fm.slice(fm.indexOf('function loadPhaseRows'));
-        expect(fn.slice(0, fn.indexOf('\n}'))).toMatch(/normalizePhaseSettings\(rows\)/);
-        expect(fn.slice(0, fn.indexOf('\n}'))).toMatch(/writePhaseRows\(userId, seeded\)/);
+        const fn = fm.slice(fm.indexOf('function loadFilterValues'));
+        expect(fn.slice(0, fn.indexOf('\n}'))).toMatch(/filterValuesFrom\(row\)/);
     });
 
     /**
@@ -127,7 +122,9 @@ describe('국면 옵션의 원천은 행 하나다 (병행 전환 완료 · ④)
     it('🔴 컬럼 목록을 db.ts 가 손으로 적지 않는다 (FILTER_FIELDS 표에서 뽑는다)', () => {
         const db = codeOnly(read('db.ts'));
         expect(db).toMatch(/FILTER_FIELDS\.map/);
-        expect(db).toMatch(/ensureColumns\('user_filter_phases', FILTER_PHASE_COLS\)/);
+        expect(db).toMatch(/FILTER_VALUE_COLS/);
+        /* 🔴 다섯 행짜리 옛 표가 없다 */
+        expect(db).not.toMatch(/CREATE TABLE IF NOT EXISTS user_filter_phases/);
         expect(db).not.toMatch(/pickup_radius_km\s+REAL,\s*\n\s*detour_allow_km/);   // 손 나열 금지
     });
 });

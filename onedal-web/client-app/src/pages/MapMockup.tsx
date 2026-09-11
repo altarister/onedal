@@ -6,7 +6,6 @@ import {
     rateFloorsFrom,
     NET_RATE_PER_KM, VEHICLE_CAPACITY, CALL_TARGET_LABEL,
     dwellMinutes, judge, CRITERIA, DEFAULT_JUDGMENT, toSnapshot,
-    type FieldMode,
 } from '@onedal/shared';
 import { buildAppFilterOutput, TRUCK_CAPACITY_SLOTS } from './labFilterOutput';
 /**
@@ -326,7 +325,9 @@ function Chip({ ok, yes, no }: { ok: boolean; yes: string; no: string }) {
  * 🧩 **실물로 들고 갈 공용 부품** (기사님 2026-09-07: *"왼쪽 필터와 오른쪽 필터옵션은
  * 컴포넌트 단위 구조·레이아웃을 같이 — 그래야 가져가기 편하다"*).
  * 두 사이드바가 똑같이 `FilterPanel > NumRow/TextRow` 로 조립된다. 디자인 최소 — 로직이 주인공.
- * `mode` 는 실물 `PHASE_FIELDS` 의 FieldMode 그대로: input/override = 고침, auto = 보이되 잠김, hidden = 없음.
+ * `mode` — 실물에 `PHASE_FIELDS`(국면×칸 표시 규칙)가 있던 시절의 이름이다.
+ * ⚠️ 실물에서는 **값이 한 벌이 되며 그 표가 사라졌다** (이식 C3-3b · 2026-09-11) —
+ *    «지금 이 칸이 쓰이나»는 이제 상태에서 파생한다. 목업 아웃풋 표기는 그대로 둔다.
  */
 /**
  * 🚚 **잡은 콜 하나** — 이식 대응표(`labPortMap`)가 이 칸들을 실물 자리와 맞물린다.
@@ -398,7 +399,7 @@ function FilterPanel({ title, children, className = '', tone }: {
 }
 function NumRow({ label, value, onChange, min = 0, max = 999, mode = 'input', autoWhy }: {
     label: string; value: number; onChange: (v: number) => void;
-    min?: number; max?: number; mode?: FieldMode; autoWhy?: string;
+    min?: number; max?: number; mode?: 'input' | 'override' | 'auto' | 'hidden'; autoWhy?: string;
 }) {
     if (mode === 'hidden') return null;
     const locked = mode === 'auto';

@@ -1,6 +1,6 @@
 import { AutoDispatchFilter, SecuredOrder, PendingOrder, MyOrder, getEligibleVehicleTypes, businessDayKey, rateFloorsFrom,
-         normalizePhaseSettings, applyPhaseToFilter, quadShapeFrom, DEFAULT_JUDGMENT, judgmentFromRow } from "@onedal/shared";
-import type { PhaseSettingsMap, PhaseKey, JudgmentConfig } from "@onedal/shared";
+         quadShapeFrom, filterValuesFrom, DEFAULT_JUDGMENT, judgmentFromRow } from "@onedal/shared";
+import type { PhaseKey, JudgmentConfig } from "@onedal/shared";
 import type { CapacityConfidence } from "@onedal/shared";
 import db, { seedCallOptions, loadCallOptions } from "../db";
 import type { CallOption } from "@onedal/shared";
@@ -119,17 +119,13 @@ export interface UserSession {
     capacityConfidence: CapacityConfidence;
 
     /**
-     * 국면별 필터 설정 (docs/지금/필터.md §3).
+     * 🥣 **국면별 필터 설정 셋이 여기 있었다** (`basePhaseSettings` · `phaseSettings` ·
+     *    `appliedPhaseKey` · 걷어냄 2026-09-11 · 이식 C3-3b).
      *
-     * `basePhaseSettings`   평소값 — DB `user_filter_phases` 행의 사본
-     * `phaseSettings`       오늘값 — 자정에 평소값으로 되돌아간다
-     *
-     * 기존 `baseFilter`/`activeFilter` 이원 구조를 국면별로도 그대로 따른다.
+     * 값이 한 벌이 되면서(C3-3a) 다섯 벌을 담을 그릇도, «지금 어느 벌을 폈나»도 필요 없어졌다.
+     * 🔴 값 다섯은 이제 **`baseFilter`/`activeFilter` 안에** 평면 이름으로 산다 —
+     *    평소값 ↔ 오늘값의 이원 구조는 그대로다. 그릇만 하나가 됐다.
      */
-    basePhaseSettings: PhaseSettingsMap;
-    phaseSettings: PhaseSettingsMap;
-    /** 지금 어느 국면의 설정이 평면에 펼쳐져 있는가 (전환 감지용) */
-    appliedPhaseKey: PhaseKey | null;
 
     /**
      * 관제탑에 마지막으로 보낸 오더 동기화 본문. **바뀌었을 때만 보내려고** 들고 있다.
@@ -299,9 +295,6 @@ function createDefaultSession(userId: string): UserSession {
         businessDay: businessDayKey(Date.now()),
         isRestored: false,
         isBootstrapping: false,
-        basePhaseSettings: normalizePhaseSettings(null),
-        phaseSettings: normalizePhaseSettings(null),
-        appliedPhaseKey: null,
         detourProgressKm: null,
         detourOrderKm: null,
         detourFlat: null,
@@ -365,20 +358,20 @@ export function getUserSession(userId: string): UserSession {
             session.callOptions = loadCallOptions(userId);
 
             /**
-             * 🎛️ **국면 옵션의 원천은 user_filter_phases 행 하나다** (필터 확정안 v2 · ④ 완료).
-             * 옛 blob·평면 칸은 철거했다. require 지연 — filterManager ↔ 여기 순환 방지.
+             * 🎛️ **값 다섯의 원천은 `user_filters` 한 행이다** (이식 C3-3b · 2026-09-11).
+             *    예전엔 `user_filter_phases` 다섯 행을 읽어 한 벌로 접었다.
+             *    require 지연 — filterManager ↔ 여기 순환 방지.
              */
-            try {
-                const { loadPhaseRows } = require('./filterManager');
-                session.basePhaseSettings = loadPhaseRows(userId);
-            } catch (e) {
-                // createDefaultSession 이 채운 표 기본값으로 계속 — 세션 생성을 막지 않는다
-                console.error('🎛️ [국면] 행 읽기 실패 — 표 기본값으로 계속:', (e as Error).message);
-            }
-            // 오늘값 = 평소값의 독립 복사본 (자정에 되돌아간다)
-            session.phaseSettings = normalizePhaseSettings(JSON.parse(JSON.stringify(session.basePhaseSettings)));
-            // 로그인은 첫짐(STANDBY)에서 시작한다 — 평면 조각(도시·반경·할인율)은 첫짐 국면에서 파생
-            const firstPatch = applyPhaseToFilter('first', session.basePhaseSettings.first);
+            const firstPatch = (() => {
+                try {
+                    const { loadFilterValues } = require('./filterManager');
+                    return loadFilterValues(userId);
+                } catch (e) {
+                    // 세션 생성을 막지 않는다 — 표 기본값이면 콜 잡기는 돈다
+                    console.error('🎛️ [필터 값] 읽기 실패 — 표 기본값으로 계속:', (e as Error).message);
+                    return filterValuesFrom(null);
+                }
+            })();
 
             if (filterRow) {
                 // Restore saved filter into baseFilter — 국면 파생 조각 + user_filters 잔여 칸
@@ -439,7 +432,7 @@ export function getUserSession(userId: string): UserSession {
                 session.activeFilter.destinationKeywords = [];
                 session.activeFilter.allowedVehicleTypes = getEligibleVehicleTypes(userVehicleType);
 
-                // 잔여 칸 기본값을 DB에도 저장 — 국면 옵션 5행은 loadPhaseRows 가 이미 시드했다
+                // 잔여 칸 기본값을 DB에도 저장 — 값 다섯은 같은 행에 있고 표 기본값으로 읽힌다
                 db.prepare(`
                     INSERT OR IGNORE INTO user_filters (user_id, min_fare, max_fare) VALUES (?, ?, ?)
                 `).run(userId, 30000, 1000000);

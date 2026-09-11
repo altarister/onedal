@@ -1,6 +1,11 @@
 import { create } from 'zustand';
-import type { AutoDispatchFilter, PhaseSettingsMap } from '@onedal/shared';
-import { normalizePhaseSettings } from '@onedal/shared';
+import type { AutoDispatchFilter } from '@onedal/shared';
+/**
+ * 🥣 **국면 설정 둘을 담던 자리가 여기 있었다** (`phaseSettings`·`basePhaseSettings` ·
+ *    걷어냄 2026-09-11 · 이식 C3-3b).
+ *    값이 한 벌이 되며 `filter`/`baseFilter` 안에 평면 이름으로 들어갔다 —
+ *    담을 그릇이 따로 필요 없다.
+ */
 import { socket } from '../lib/socket';
 import { logRoadmapEvent } from '../lib/roadmapLogger';
 
@@ -16,27 +21,21 @@ interface FilterState {
     /** 기본 필터 (DB 저장 원본, 런타임 오버라이드 전) */
     baseFilter: AutoDispatchFilter | null;
     /** 국면별 설정 — 오늘 (§2-4). 탭이 이걸 편집한다 */
-    phaseSettings: PhaseSettingsMap | null;
     /** 국면별 설정 — 평소 (DB). "평소값" 버튼이 이걸 불러온다 */
-    basePhaseSettings: PhaseSettingsMap | null;
 
     // ── Actions ──
     setFilter: (filter: AutoDispatchFilter) => void;
     setBaseFilter: (filter: AutoDispatchFilter) => void;
     setBothFilters: (active: AutoDispatchFilter, base: AutoDispatchFilter) => void;
-    setPhaseSettings: (today: PhaseSettingsMap, base: PhaseSettingsMap) => void;
 }
 
 export const useFilterStore = create<FilterState>((set) => ({
     filter: null,
     baseFilter: null,
-    phaseSettings: null,
-    basePhaseSettings: null,
 
     setFilter: (filter) => set({ filter }),
     setBaseFilter: (filter) => set({ baseFilter: filter }),
     setBothFilters: (active, base) => set({ filter: active, baseFilter: base }),
-    setPhaseSettings: (today, base) => set({ phaseSettings: today, basePhaseSettings: base }),
 }));
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -50,7 +49,7 @@ export const useFilterStore = create<FilterState>((set) => ({
  * `useFilterConfig()` 를 부르는 컴포넌트가 5개고(`DeviceControlPanel` · `PinnedRoute` ·
  * `OrderFilterModal` · `VehicleStatusPanel` · `OrderFilterStatus`) **훅마다 `socket.on` 을
  * 걸었기 때문**이다. 달리는 동안 매초 이 일이 벌어졌다 —
- * 페이로드는 동 179개짜리라 `normalizePhaseSettings` 와 스토어 갱신이 초당 5벌 돌았다.
+ * 페이로드는 동 179개짜리라 정규화와 스토어 갱신이 초당 5벌 돌았다.
  *
  * 서버 쪽에서 "바뀐 것만 보낸다"로 줄여도 **여기서 5배로 되살아난다.**
  * 그래서 구독을 스토어로 끌어올린다 — 이 파일 맨 위 주석이 원래
@@ -63,8 +62,6 @@ let subscribed = false;
 type FilterPayload = {
     activeFilter: AutoDispatchFilter;
     baseFilter: AutoDispatchFilter;
-    phaseSettings?: PhaseSettingsMap;
-    basePhaseSettings?: PhaseSettingsMap;
 };
 
 export function ensureFilterSocketSubscribed(): void {
@@ -79,7 +76,6 @@ export function ensureFilterSocketSubscribed(): void {
     const apply = (p: FilterPayload) => {
         const st = useFilterStore.getState();
         st.setBothFilters(p.activeFilter, p.baseFilter);
-        st.setPhaseSettings(normalizePhaseSettings(p.phaseSettings), normalizePhaseSettings(p.basePhaseSettings));
     };
 
     socket.on('filter-init', (p: FilterPayload) => {

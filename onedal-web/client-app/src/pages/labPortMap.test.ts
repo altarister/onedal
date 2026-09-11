@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { STEP_TABLES, FILTER_FIELDS, DEFAULT_PHASE_SETTINGS } from '@onedal/shared';
+import { STEP_TABLES, FILTER_FIELDS, DEFAULT_FILTER_VALUES } from '@onedal/shared';
 import { STOP_STEP_TO_REAL, LAB_CALL_TO_ORDERS } from './labPortMap';
 
 /**
@@ -26,7 +26,7 @@ describe('🚚 이식 대조 — 실험실이 가리키는 실물 칸이 실제�
 
     it('국면 다섯 칸이 실물 DB 칸 목록과 하나도 어긋나지 않는다', () => {
         const dbPaths = [...FILTER_FIELDS.map(f => f.path)].sort();
-        const labKeys = Object.keys(DEFAULT_PHASE_SETTINGS.first).sort();
+        const labKeys = Object.keys(DEFAULT_FILTER_VALUES).sort();
         expect(labKeys).toEqual(dbPaths);
     });
 

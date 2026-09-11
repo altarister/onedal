@@ -49,12 +49,17 @@ describe('국면별 설정 — 화면은 표를 읽는다', () => {
      * 달라진 것은 그 답으로 **무엇을 하느냐**다: 감추면 «이 값이 어디 갔나»가 되고,
      * 그냥 두면 «지금 쓰이는 값»으로 읽힌다. 목업은 흐리게 해서 둘 다 피한다.
      */
-    it('🔴 «안 쓰이는 칸»을 감추지 않는다 — 표는 흐리게 하는 데만 쓴다', () => {
+    /**
+     * 🔄 **개정 2026-09-11 — 표가 사라지고 «상태»가 답한다** (이식 C3-3b).
+     *    `PHASE_FIELDS`(국면×칸 표시 규칙)는 값이 한 벌이 되며 없어졌다.
+     *    지키는 뜻은 그대로다: **감추지 않고 흐리게** (기사님 2026-09-09 *"모두 꺼내 두고"*).
+     */
+    it('🔴 «안 쓰이는 칸»을 감추지 않는다 — 흐리게만 한다', () => {
         expect(modal).not.toMatch(/mode === 'hidden'/);
-        expect(modal).not.toMatch(/if \(mode === 'auto'\)/);
-        // 표를 읽되, 그 답이 dim 으로 간다
-        expect(modal).toMatch(/PHASE_FIELDS\[/);
-        expect(modal).toMatch(/dim:/);
+        expect(modal).not.toMatch(/PHASE_FIELDS/);
+        // «지금 이 칸이 쓰이나»를 상태에서 파생해 dim 으로 보낸다
+        expect(modal).toMatch(/const inUse = \(path/);
+        expect(modal).toMatch(/dim: !inUse\(path\)/);
     });
 
     /**
@@ -104,38 +109,38 @@ describe('국면별 설정 — 화면은 표를 읽는다', () => {
      *    (나머지 넷은 `auto`/`override`), 합짐·주행중의 목적지는 서버가 경로에서 파생한다.
      *    다섯 행에 같이 쓰면 관내(`override`)가 그 값으로 덮여 자동 파생이 죽는다.
      */
-    it('🔴 저장은 다섯 국면 전부에 같은 값을 쓴다 (전환 단계 — 그릇은 C3-3b 에서)', () => {
+    /**
+     * 🔄 **개정 2026-09-11 — «다섯 행에 같은 값»에서 «한 곳에 한 번»으로** (이식 C3-3b).
+     *    C3-3a 의 전환 모양(다섯 번 쓰기)이 그릇이 걷히며 끝났다.
+     *    `destinationCity` 를 첫짐에만 쓰던 예외도 함께 사라졌다 — 행이 하나뿐이다.
+     */
+    it('🔴 값 다섯은 평면 통로 하나로 간다', () => {
         const save = modal.slice(modal.indexOf('const handleSave'), modal.indexOf('const slotsUsed'));
-        expect(save).toMatch(/for \(const key of PHASE_KEYS\)/);
-        expect(save).toMatch(/savePhase\(key,/);
-        // 고친 탭만 고르던 옛 방식이 남아 있지 않다
-        expect(save).not.toMatch(/dirtyTabs/);
-    });
-
-    it('🔴 목적지는 첫짐 행에만 간다 (관내의 자동 파생을 덮지 않게)', () => {
-        const save = modal.slice(modal.indexOf('const handleSave'), modal.indexOf('const slotsUsed'));
-        // 첫짐이 아닌 행은 **제 값을 그대로 지킨다** (서버가 파생한 것을 덮지 않는다)
-        expect(save).toMatch(/key !== 'first'\) next\.destinationCity = prev\.destinationCity/);
+        expect(save).toMatch(/updateFilter\(toValues\(cur,/);
+        expect(save).not.toMatch(/savePhase/);
+        expect(save).not.toMatch(/PHASE_KEYS/);
     });
 
     it('빈 입력은 0 이 아니라 **이전 값**이다 (0 이면 "제한 없음"으로 뒤집힌다)', () => {
-        const toSettings = modal.slice(modal.indexOf('const toSettings'), modal.indexOf('const mapToForm'));
-        expect(toSettings).toMatch(/Number\.isFinite\(n\) \? n : fallback/);
+        const toValues = modal.slice(modal.indexOf('const toValues'), modal.indexOf('const TARGET_HINT'));
+        expect(toValues).toMatch(/Number\.isFinite\(n\) \? n : prev\[spec\.path\]/);
     });
 
-    it('국면 저장은 전용 통로로 간다 — 평면(update-filter)으로 보내면 어느 탭인지 사라진다', () => {
-        expect(hook).toMatch(/socket\.emit\("save-phase-settings", \{ phase, settings, saveAsDefault \}\)/);
-        expect(handlers).toMatch(/safeOn\(socket, "save-phase-settings"/);
+    /**
+     * 🔄 **개정 2026-09-11 — 국면 전용 통로가 사라졌다** (이식 C3-3b).
+     *    *"합짐 탭에서 고친 값이 첫짐에 저장되면 안 된다"* 는 이유로 «어느 국면인지»를
+     *    실어 보내던 길이다. 탭이 없어지고 값이 한 벌이 되며 실을 것이 없어졌다.
+     *    🔴 지키는 뜻은 남는다 — **값이 가는 길은 하나여야 한다.**
+     */
+    it('🔄 국면 전용 통로가 없다 — 평면 하나로 간다', () => {
+        expect(hook).not.toMatch(/save-phase-settings/);
+        expect(handlers).not.toMatch(/safeOn\(socket, "save-phase-settings"/);
+        expect(hook).toMatch(/socket\.emit\("update-filter"/);
     });
 
-    it('🔴 서버는 모르는 국면 키를 받으면 무시한다 (엉뚱한 자리에 저장하지 않는다)', () => {
-        const h = handlers.slice(handlers.indexOf('"save-phase-settings"'));
-        expect(h.slice(0, 600)).toMatch(/PHASE_KEYS\.includes/);
-    });
-
-    it('filter-init / filter-updated 가 국면 설정을 함께 싣는다 (화면이 채울 근거)', () => {
-        expect(fm).toMatch(/phaseSettings: session\.phaseSettings/);
-        expect(handlers).toMatch(/phaseSettings: session\.phaseSettings/);
+    it('🔄 filter-init 이 국면 설정을 더는 싣지 않는다 (값은 평면에 있다)', () => {
+        expect(fm).not.toMatch(/phaseSettings: session\.phaseSettings/);
+        expect(handlers).not.toMatch(/phaseSettings: session\.phaseSettings/);
     });
 });
 
@@ -153,18 +158,18 @@ describe('국면별 설정 — 화면은 표를 읽는다', () => {
  */
 describe('마름모 모양 — 국면 밖 한 벌', () => {
 
-    const { PHASE_FIELDS, PHASE_KEYS, FILTER_FIELDS, QUAD_FIELDS,
+    const { FILTER_FIELDS, QUAD_FIELDS,
             DEFAULT_QUAD_SHAPE, QUAD_SHAPE_KEYS } = require("@onedal/shared");
 
-    it('🔴 국면 그릇에 마름모가 없다 — 있으면 국면마다 다른 값이 앉는다', () => {
-        for (const phase of PHASE_KEYS) {
-            for (const f of QUAD_SHAPE_KEYS) {
-                expect(`${phase}: ${f}`).toBe(`${phase}: ${PHASE_FIELDS[phase][f] === undefined ? f : '국면 그릇에 남아 있다'}`);
-            }
-        }
-        // 국면 표(FILTER_FIELDS)에도 없다 — 그 표가 `user_filter_phases` 의 컬럼을 만든다
+    /**
+     * 🔄 **개정 2026-09-11 — 국면 그릇 자체가 사라졌다** (이식 C3-3b).
+     *    지킬 것은 그대로다: **마름모는 값 표와 섞이지 않는다.** 둘은 같은 `user_filters`
+     *    행에 살지만 **표가 다르다** — 마름모는 `QUAD_FIELDS`, 값 다섯은 `FILTER_FIELDS`.
+     */
+    it('🔴 값 표에 마름모가 없다 — 섞이면 한 표가 두 가지를 답한다', () => {
         for (const f of QUAD_SHAPE_KEYS) {
-            expect(FILTER_FIELDS.find((x: any) => x.path === f)).toBeUndefined();
+            expect(`${f}: ${FILTER_FIELDS.find((x: any) => x.path === f) ? '값 표에 있다' : '없다'}`)
+                .toBe(`${f}: 없다`);
         }
     });
 
@@ -422,17 +427,19 @@ describe('목적지 — 도 · 시 2단 (C4-2)', () => {
  */
 describe('손잡이 이름 — 목업 것으로 한 벌 (C4-7)', () => {
 
-    const { PHASE_FIELD_LABEL, QUAD_FIELDS } = require("@onedal/shared");
+    const { FILTER_FIELDS, QUAD_FIELDS } = require("@onedal/shared");
+    /** 🔄 개정 2026-09-11 — 라벨의 원천이 `FILTER_FIELDS` 하나가 됐다 (이식 C3-3b) */
+    const labelOf = (path: string) => FILTER_FIELDS.find((f: any) => f.path === path)?.label;
 
     it('🔴 반경 이름이 목업 그대로다 — 현위반경 · 목적반경 · 라인반경', () => {
-        expect(PHASE_FIELD_LABEL.pickupRadiusKm).toBe('현위반경');
-        expect(PHASE_FIELD_LABEL.dropoffRadiusKm).toBe('목적반경');
-        expect(PHASE_FIELD_LABEL.detourAllowKm).toBe('라인반경');
+        expect(labelOf('pickupRadiusKm')).toBe('현위반경');
+        expect(labelOf('destinationRadiusKm')).toBe('목적반경');
+        expect(labelOf('detourRadiusKm')).toBe('라인반경');
         expect(QUAD_FIELDS.find((f: any) => f.path === 'quadRadiusKm').label).toBe('마름모반경');
     });
 
     it('🔴 목적지도 목업 이름이다', () => {
-        expect(PHASE_FIELD_LABEL.destinationCity).toBe('목적지');
+        expect(labelOf('destinationCity')).toBe('목적지');
     });
 
     /** 🔴 값이 한 벌이면 이름도 한 벌이다 — 국면별 별칭표가 남아 있지 않다 */
@@ -441,6 +448,93 @@ describe('손잡이 이름 — 목업 것으로 한 벌 (C4-7)', () => {
         expect(shared.PHASE_FIELD_LABEL_OVERRIDE).toBeUndefined();
         expect(shared.fieldLabel).toBeUndefined();
         expect(modal).not.toMatch(/fieldLabel\(/);
+    });
+});
+
+/**
+ * 🥣 **그릇도 한 벌로 — `user_filter_phases` 다섯 행을 걷는다** (이식 C3-3b · 2026-09-11).
+ *
+ * 기사님 2026-09-11: *"**개선되어 중복인건 그냥 삭제** 할꺼야."*
+ *
+ * C3-3a 가 **값**을 한 벌로 만들었다 (다섯 행에 같은 값을 쓴다). 그릇은 그대로 둔 탓에
+ * 지금은 **저장할 때마다 같은 값을 다섯 번 쓴다.** 그것만이 아니다 —
+ *
+ * 🔴 **이름이 두 벌이다.** 국면 표와 평면(앱 피기백)이 같은 값을 다르게 부른다:
+ *      `detour_allow_km`   ↔ `detourRadiusKm`
+ *      `dropoff_radius_km` ↔ `destinationRadiusKm`
+ *      `discount_pct`      ↔ `callDiscountPct`
+ *    그 사이를 잇느라 `applyPhaseToFilter` 가 있었다. **그릇이 하나면 이을 것이 없다.**
+ *    앱이 읽는 이름은 못 바꾸니 **평면 이름이 이긴다** (규칙 ③).
+ */
+describe('값 그릇 — 한 벌 (C3-3b)', () => {
+
+    const db2 = codeOnly(read(join(SERVER, 'db.ts')));
+
+    /** 🔴 값 다섯이 **평면 한 곳**에 산다 — 앱이 읽는 이름 그대로 */
+    it('🔴 평면(user_filters)에 값 칸 다섯이 있다', () => {
+        /* 🔴 컬럼 이름은 **표에서 뽑는다** — db.ts 에 손으로 나열하지 않는다 (규칙 ③) */
+        expect(db2).toMatch(/const FILTER_VALUE_COLS[\s\S]{0,200}FILTER_FIELDS\.map/);
+        expect(db2).toMatch(/ensureColumns\('user_filters', \{[\s\S]{0,200}FILTER_VALUE_COLS/);
+        const { FILTER_FIELDS } = require("@onedal/shared");
+        expect(FILTER_FIELDS.map((f: any) => f.col)).toEqual(
+            ['destination_city', 'pickup_radius_km', 'detour_radius_km',
+             'destination_radius_km', 'call_discount_pct']);
+    });
+
+    /** 🔴 국면 다섯 행이 없다 — 같은 값을 다섯 번 쓰던 자리다 */
+    it('🔴 user_filter_phases 가 없다', () => {
+        expect(db2).not.toMatch(/user_filter_phases/);
+        expect(fm).not.toMatch(/user_filter_phases/);
+    });
+
+    /**
+     * 🔴 **이름을 잇던 다리가 사라진다** — 그릇이 하나면 이을 것이 없다.
+     *    `applyPhaseToFilter` 는 `detour_allow_km` → `detourRadiusKm` 처럼
+     *    **두 벌 이름 사이**를 옮기려고 있던 함수다.
+     */
+    it('🔴 이름을 잇던 함수들이 사라졌다', () => {
+        const shared = require("@onedal/shared");
+        for (const fn of ['applyPhaseToFilter', 'phaseFromFlat', 'phaseOfRow', 'phaseRowOf',
+                          'normalizePhaseSettings', 'phaseStoreDiff', 'DEFAULT_PHASE_SETTINGS',
+                          'PHASE_FIELDS', 'PHASE_FIELD_LABEL']) {
+            expect(`${fn}: ${shared[fn] === undefined ? '없다' : '있다'}`).toBe(`${fn}: 없다`);
+        }
+    });
+
+    /**
+     * 🔴 **라벨도 한 곳이다** — `PHASE_FIELD_LABEL` 과 `FILTER_FIELDS.label` 이 **둘 다**
+     *    이름을 들고 있었다. 표가 하나면 라벨도 하나다 (규칙 ③).
+     */
+    it('🔴 라벨의 원천은 FILTER_FIELDS 하나다', () => {
+        const { FILTER_FIELDS } = require("@onedal/shared");
+        for (const f of FILTER_FIELDS) expect(typeof f.label).toBe('string');
+        expect(modal).toMatch(/FILTER_FIELDS/);
+        expect(modal).not.toMatch(/PHASE_FIELD_LABEL/);
+    });
+
+    /** 🔴 화면도 평면 통로 하나만 쓴다 — 국면 전용 통로가 없다 */
+    it('🔴 국면 전용 저장 통로가 없다', () => {
+        expect(modal).not.toMatch(/savePhase/);
+        expect(hook).not.toMatch(/save-phase-settings/);
+        expect(handlers).not.toMatch(/save-phase-settings/);
+    });
+
+    /**
+     * 🔴 **«지금 무엇을 하나»는 남는다** (기사님 2026-09-09 가 남기라 하신 둘 중 하나).
+     *    국면 «값»이 사라진 것이지 «지금 대기인지 콜 쥠인지 주행인지»가 사라진 게 아니다.
+     */
+    it('🔴 «지금 무엇을 하나»(dispatchPhase)는 그대로다', () => {
+        const shared = require("@onedal/shared");
+        expect(typeof shared.deriveDispatchPhase).toBe('function');
+        /* 문구를 고르는 장치도 남는다 — 값이 사라진 것이지 «지금 무엇을 하나»가 사라진 게 아니다 */
+        expect(typeof shared.resolvePhaseKey).toBe('function');
+        expect(shared.PHASE_LABEL).toBeDefined();
+    });
+
+    /** 🔴 관내가 파생이 된 뒤로 국면 키에도 `'local'` 이 없다 (C4-8b-2 가 남긴 마지막 자리) */
+    it('🔴 국면 키에 local 이 없다', () => {
+        const { PHASE_KEYS } = require("@onedal/shared");
+        expect(PHASE_KEYS).toEqual(['first', 'merge', 'drive', 'home']);
     });
 });
 
@@ -822,16 +916,24 @@ describe('국면 전환 — 반경은 국면 설정만이 정한다', () => {
         expect(body).toMatch(/destinationCity: city!/);
     });
 
-    it('첫짐으로 돌아갈 때의 도시는 첫짐 국면이 기억한 것이 먼저다', () => {
-        expect(body).toMatch(/phaseSettings\.first\.destinationCity/);
+    /** 🔄 개정 2026-09-11 — 값이 한 벌이라 «첫짐 국면이 기억한 것»이 없다. 오늘값이 먼저다 */
+    it('🔄 돌아갈 때의 도시는 오늘값이 먼저, 없으면 평소값', () => {
+        expect(body).toMatch(/session\.activeFilter\.destinationCity/);
+        expect(body).toMatch(/session\.baseFilter\.destinationCity/);
     });
 
+    /**
+     * 🔄 **개정 2026-09-11 — 자리가 옮겨졌다** (이식 C3-3b). 지키는 뜻은 그대로다.
+     *
+     * 🔴 **이 검사가 진짜를 잡았다.** 국면 고리 둘(`applyPhaseSettingsIfChanged` ·
+     *    `savePhaseSettings`)을 걷으면서 **`refreshDetourIfNeeded` 를 부르는 곳이 같이
+     *    사라졌다** — 반경을 바꿔도 지역 목록이 안 다시 그려질 뻔했다.
+     *    안 그리면 «하차 0km» 라고 적힌 채 **옛 목록으로 거른다.**
+     */
     it('🔴 반경이 바뀌면 지역 목록도 다시 그린다 (안 그리면 옛 목록으로 거른다)', () => {
-        const apply = fm.slice(fm.indexOf('function applyPhaseSettingsIfChanged'), fm.indexOf('export function savePhaseSettings'));
-        expect(apply).toMatch(/geoChanged/);
-        expect(apply).toMatch(/recalculateDerivedFields\(session, \{/);
-        // 재진입은 금지 — 파생 계산만 다시 부른다
-        expect(apply).not.toMatch(/updateActiveFilter\(/);
+        const upd = fm.slice(fm.indexOf('export function updateActiveFilter'));
+        expect(upd).toMatch(/refreshDetourIfNeeded\(session, userId, before\)/);
+        expect(upd).toMatch(/recalculateDerivedFields\(session, changes, userId\)/);
     });
 });
 
@@ -843,12 +945,14 @@ describe('국면 전환 — 반경은 국면 설정만이 정한다', () => {
  */
 describe('경유 갱신 — 구현은 하나여야 한다', () => {
 
-    it('국면 저장·국면 전환 둘 다 경유을 다시 그린다', () => {
-        const save = fm.slice(fm.indexOf('export function savePhaseSettings'), fm.indexOf('export const recalculateDetourFilter'));
-        expect(save).toMatch(/refreshDetourIfNeeded/);
-
-        const apply = fm.slice(fm.indexOf('function applyPhaseSettingsIfChanged'));
-        expect(apply.slice(0, 2000)).toMatch(/refreshDetourIfNeeded/);
+    /**
+     * 🔄 **개정 2026-09-11 — 둘에서 «하나»로** (이식 C3-3b).
+     *    국면 저장·국면 전환이 각자 부르던 것을, 값이 한 벌이 되며 **값이 바뀌는 한 곳**이 부른다.
+     *    길이 하나면 «한쪽만 고쳐지는» 일이 없다 (규칙 ③).
+     */
+    it('🔄 값이 바뀌면 경유를 다시 그린다 — 부르는 곳은 하나다', () => {
+        expect(fm).toMatch(/refreshDetourIfNeeded\(session, userId, before\)/);
+        expect((fm.match(/refreshDetourIfNeeded\(session/g) || []).length).toBe(1);
     });
 
     it('반경이 그대로면 다시 그리지 않는다 (지리 연산은 CPU ~7초짜리다)', () => {
@@ -1054,7 +1158,8 @@ describe('그물 계산 — 서버도 실험실 것을 쓴다 (이식 C1-2)', ()
 describe('라인반경 — 화면이 하는 말과 값이 하는 일이 같아야 한다', () => {
 
     const { FILTER_FIELDS } = require("@onedal/shared");
-    const f = FILTER_FIELDS.find((x: any) => x.path === 'detourAllowKm');
+    /* 🔄 2026-09-11 — 칸 이름도 평면과 같아졌다 (`detourAllowKm` → `detourRadiusKm` · C3-3b) */
+    const f = FILTER_FIELDS.find((x: any) => x.path === 'detourRadiusKm');
 
     it('🔴 라벨이 「라인반경」이다 (목업 이름 · 기사님 확정 2026-09-09)', () => {
         expect(f.label).toBe('라인반경');
@@ -1073,10 +1178,15 @@ describe('라인반경 — 화면이 하는 말과 값이 하는 일이 같아�
         expect(f.max).toBe(50);
     });
 
-    /** 🔴 국면 라벨 표도 같은 말을 해야 한다 — 두 곳이 다른 이름을 쓰면 그게 또 갈라짐이다 */
-    it('국면 라벨 표도 「라인반경」이다', () => {
-        const { PHASE_FIELD_LABEL } = require("@onedal/shared");
-        expect(PHASE_FIELD_LABEL.detourAllowKm).toBe('라인반경');
+    /**
+     * 🔄 **개정 2026-09-11 — 라벨 표가 하나가 됐다** (이식 C3-3b).
+     *    `PHASE_FIELD_LABEL` 이 따로 있어서 «두 곳이 다른 이름을 쓸» 위험이 있었는데,
+     *    **표를 하나로 합치며 그 위험 자체가 사라졌다.** 이제 잠글 것은 «표가 하나인가»다.
+     */
+    it('🔄 라벨의 원천이 하나다 (국면 라벨 표가 없다)', () => {
+        const shared = require("@onedal/shared");
+        expect(shared.PHASE_FIELD_LABEL).toBeUndefined();
+        expect(FILTER_FIELDS.filter((x: any) => x.label === '라인반경')).toHaveLength(1);
     });
 });
 

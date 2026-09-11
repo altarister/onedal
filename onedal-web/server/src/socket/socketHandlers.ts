@@ -5,7 +5,7 @@ import { isKnownUser } from "../middlewares/authMiddleware";
 import { getUserDevicesSnapshot } from "../routes/devices";
 import { getRegionsByCity } from "../geoResolver";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
-import type { AutoDispatchFilter, Milestone, MilestoneSource, CargoReport, CallTarget, PhaseKey, PhaseSettings, CallStepId } from "@onedal/shared";
+import type { AutoDispatchFilter, Milestone, MilestoneSource, CargoReport, CallTarget, PhaseKey, CallStepId } from "@onedal/shared";
 import { cargoMismatchRatio, DEFAULT_DETOUR_RADIUS_KM, PHASE_KEYS, judgmentFromRow, judgmentToRow, deriveRouteTimeline, derivationInputsOf, isTerminal } from "@onedal/shared";
 import db, { forgetCallOptions, loadCallOptions } from "../db";
 import { OrderRepository } from "../repositories/OrderRepository";
@@ -37,7 +37,7 @@ function routeTlOf(userId: string): RouteTl | undefined {
             Date.now(), sync.routeComputedAt, inputs?.rules, inputs?.unk, dwellLedgerOf);
     } catch { return undefined; }
 }
-import { updateActiveFilter, ensureBusinessDay, saveBaseFilter, savePhaseSettings, trimTraveled } from "../state/filterManager";
+import { updateActiveFilter, ensureBusinessDay, saveBaseFilter, trimTraveled } from "../state/filterManager";
 import { processDriverMovement, getCityRegionsWithRadius, GPS_ARRIVAL, clearMockLocation } from "../services/geoService";
 
 
@@ -153,8 +153,6 @@ export function registerSocketHandlers(io: Server) {
             socket.emit("filter-init", {
                 activeFilter: session.activeFilter,
                 baseFilter: session.baseFilter,
-                phaseSettings: session.phaseSettings,
-                basePhaseSettings: session.basePhaseSettings
             });
             logRoadmapEvent("서버", `관제탑에게 확정 필터(filter-init) 전달 — minFare=${session.activeFilter.minFare}`);
         }
@@ -255,8 +253,6 @@ export function registerSocketHandlers(io: Server) {
             socket.emit("filter-init", { 
                 activeFilter: session.activeFilter,
                 baseFilter: session.baseFilter,
-                phaseSettings: session.phaseSettings,
-                basePhaseSettings: session.basePhaseSettings
             });
             logRoadmapEvent("서버", `관제탑 요청으로 필터(filter-init) 정보 재전달\n - activeFilter(현재 콜 필터): minFare=${session.activeFilter.minFare}\n - baseFilter(기본설정): minFare=${session.baseFilter.minFare}`);
         });
@@ -322,20 +318,16 @@ export function registerSocketHandlers(io: Server) {
         });
 
         /**
-         * 국면별 필터 설정 저장 (§2-4) — **한 탭이 자기 국면만 고친다.**
+         * 🥣 **국면 저장 통로가 여기 있었다** (`save-phase-settings` ·
+         *    걷어냄 2026-09-11 · 이식 C3-3b).
          *
-         * 평면 필터(update-filter)와 통로를 나눈 이유: 관제탑이 어느 국면을 고쳤는지
-         * 알아야 하는데, 평면에는 그 정보가 없다. 평면으로 보내면 서버가 "지금 국면"으로
-         * 추측할 수밖에 없어 **합짐 탭에서 고친 값이 첫짐에 저장되는** 사고가 난다.
+         * *"합짐 탭에서 고친 값이 첫짐에 저장되면 안 된다"* 는 이유로 «어느 국면인지»를
+         * 실어 보내던 전용 길이다. **탭이 사라지고(C3-3a) 값이 한 벌이 되면서**
+         * 실어 보낼 «어느 국면»이 없어졌다.
+         *
+         * 🔴 값 다섯은 이제 **평면 통로**(`update-filter` · `save-base-filter`)로 간다 —
+         *    마름모·제외지역이 이미 쓰던 그 길이다.
          */
-        safeOn(socket, "save-phase-settings", (payload: { phase: PhaseKey, settings: PhaseSettings, saveAsDefault?: boolean }) => {
-            if (!payload?.phase || !PHASE_KEYS.includes(payload.phase)) {
-                console.warn(`⚠️ [국면 저장] 모르는 국면이라 무시합니다: ${payload?.phase}`);
-                return;
-            }
-            logRoadmapEvent("서버", `관제탑 국면 설정 저장(save-phase-settings): ${payload.phase} ${payload.saveAsDefault ? '앞으로 계속' : '오늘만'} · ${JSON.stringify(payload.settings)}`);
-            savePhaseSettings(userId, payload.phase, payload.settings, !!payload.saveAsDefault, io);
-        });
 
         // 프론트에서 현재 위치 전송 시 (지도 등 활용 및 Master GPS 용도)
         /**

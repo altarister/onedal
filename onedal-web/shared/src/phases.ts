@@ -14,15 +14,20 @@
 //  국면 (PhaseKey) — 두 축의 조합
 // ─────────────────────────────────────────────────────────────
 
-export type PhaseKey = 'first' | 'merge' | 'drive' | 'local' | 'home';
+/**
+  * 🔴 **`'local'`(관내)이 여기서 사라졌다** (이식 C3-3b · 2026-09-11).
+  *    관내는 «어디로 가나»가 아니라 **파생**이 되었고(`AutoDispatchFilter.localMode`),
+  *    값 그릇(`user_filter_phases`)도 없어져 국면으로 남을 이유가 사라졌다.
+  * ⚠️ 이 키들은 이제 **«지금 무엇을 하나»의 문구를 고르는 데만** 쓰인다 — 값은 한 벌이다.
+  */
+export type PhaseKey = 'first' | 'merge' | 'drive' | 'home';
 
-export const PHASE_KEYS: PhaseKey[] = ['first', 'merge', 'drive', 'local', 'home'];
+export const PHASE_KEYS: PhaseKey[] = ['first', 'merge', 'drive', 'home'];
 
 export const PHASE_LABEL: Record<PhaseKey, string> = {
     first: '첫짐',
     merge: '합짐',
     drive: '운행 중',
-    local: '관내',
     home: '복귀',
 };
 
@@ -69,111 +74,38 @@ export function resolvePhaseKey(callTarget: string, dispatchPhase: string): Phas
 // ─────────────────────────────────────────────────────────────
 
 /**
- * 다섯 국면이 **같은 모양**이다. 탭마다 다른 것은 표시(§PHASE_FIELDS)뿐.
+ * 🎛️ **값 다섯의 이름** — 평면(앱 피기백)과 **같은 이름**이다 (이식 C3-3b · 2026-09-11).
  *
- * ⚠️ 이름이 평면(`AutoDispatchFilter`)과 다르다. 평면은 앱 피기백 규격이라
- *    이름을 못 바꾼다 — `applyPhaseToFilter()` 가 사이를 잇는다.
- *      detourAllowKm   ↔ detourRadiusKm
- *      dropoffRadiusKm ↔ destinationRadiusKm
- *      discountPct     ↔ callDiscountPct
+ * 🔴 **여기 `PhaseSettings`(국면 값 그릇)가 있었다.** 다섯 국면이 각자 이 다섯을 들고
+ *    `user_filter_phases` 다섯 행에 살았다. C3-3a 에서 **값이 한 벌**이 된 뒤로는
+ *    같은 값을 다섯 번 쓰는 일만 남아, C3-3b 에서 그릇째 걷었다.
+ *
+ * ⚠️ 함께 사라진 것들과 **왜**:
+ *   · `PhaseSettingsMap` · `DEFAULT_PHASE_SETTINGS` · `normalizePhaseSettings`
+ *     — 다섯 벌을 담고 고르던 것
+ *   · `phaseOfRow` · `phaseRowOf` · `phaseStoreDiff` — 다섯 행을 읽고 쓰던 것
+ *   · `applyPhaseToFilter` · `phaseFromFlat` · `FlatPhasePatch`
+ *     — **이름 두 벌 사이를 옮기던 다리.** 그릇이 하나면 이을 것이 없다
+ *   · `PHASE_FIELDS`(국면×칸 표시 규칙) — 값이 한 벌이라 «어느 벌인가»가 없다.
+ *     «지금 이 칸이 쓰이나»는 **상태에서 파생**한다 (라인반경은 노선일 때만)
+ *   · `PHASE_FIELD_LABEL` — `FILTER_FIELDS.label` 하나로 모았다
+ *
+ * 🔴 **«지금 무엇을 하나»는 남는다** (기사님 2026-09-09 가 남기라 하신 둘 중 하나) —
+ *    `PhaseKey` · `PHASE_LABEL` · `PHASE_AUTO_SOURCE` · `resolvePhaseKey` 는 **문구를
+ *    고르는 장치**로 그대로 산다. 값이 사라진 것이지 상황이 사라진 게 아니다.
  */
-export interface PhaseSettings {
-    /** 도착 도시. 🖊️ `first` 만 저장한다 — 나머지는 런타임 파생 */
-    destinationCity: string;
-    /** 상차지 반경 (km) — 내 위치에서 상차지까지 */
-    pickupRadiusKm: number;
-    /** 경유 허용 (km) — 카카오 총거리 증가분. 경유 반경은 서버가 파생 */
-    detourAllowKm: number;
-    /** 하차지 반경 (km) — 도착 지점 주변 */
-    dropoffRadiusKm: number;
-    /** 단가 할인율 (%) — 시세 대비. 100 = 전부(금액 무관) */
-    discountPct: number;
-}
-
-export type PhaseSettingsMap = Record<PhaseKey, PhaseSettings>;
-
-// ─────────────────────────────────────────────────────────────
-//  국면 × 필드 — 표시 규칙 (명세 §2-4-5 그대로)
-// ─────────────────────────────────────────────────────────────
-
-/**
- * `input`     기사님이 입력한다 — 저장한다
- * `override`  **자동이 기본인데 손으로 덮을 수 있다.** 비워 두면 자동 파생값을 쓴다
- * `auto`      런타임 파생 (경로·GPS·집 주소) — **저장하지 않는다.** 화면엔 보이되 못 고친다
- * `hidden`    그 국면 판정에 쓰지 않는다 — 화면에 안 보인다
- *
- * 🔴 `override` 는 2026-08-14 에 늘렸다. 목업의 관내 **기준 지역** 이 그 모양이다 —
- *    기본은 "최종 하차지 (파주시)" 인데 다른 시를 고를 수도 있다.
- *    셋(입력/자동/숨김)만으로는 "자동인데 덮을 수 있다"를 표현할 자리가 없었다.
- */
-export type FieldMode = 'input' | 'override' | 'auto' | 'hidden';
-
-/**
- * 🔴 **이 표가 유일한 원천이다.**
- *
- * 화면은 이걸 읽어 그리고, 서버도 이걸로 "그 국면에서 안 쓰는 값"을 판정에서 뺀다.
- * 같은 규칙을 두 곳에 적으면 한쪽만 고쳐진다 — 이 레포가 반복해서 당한 사고다
- * (경유 4벌 · 상태목록 3벌 · 단가표 2벌).
- */
-/**
- * 📐 **마름모 셋은 첫짐에서만 고치고 넷은 상속한다** (이식 C3 · 2026-09-11 · 명세 §3).
- *
- * 그물의 모양은 *"어디로 가는가"* 가 정하지 *"콜을 몇 개 쥐었는가"* 가 정하지 않는다 —
- * 도착 목표가 `auto` 인 것과 같은 이유다.
- *
- * 🔴 **`auto` 라고 적었으면 상속을 실제로 해야 한다.** 표에만 적고 읽는 쪽이 제 국면 행을
- *    그대로 읽으면, 화면은 «첫짐에서 왔다»고 말하는데 지도는 손 안 댄 기본값
- *    (110°·110°·25km)으로 그린다 — 규칙 ⑤-4 ④ 가 금지하는 조용한 거짓말이다.
- *    상속은 `quadShapeOf()` 한 곳에서만 한다 (규칙 ③). `phaseUi.test.ts` 가 잠근다.
- */
-export const PHASE_FIELDS: Record<PhaseKey, Record<keyof PhaseSettings, FieldMode>> = {
-    first: { destinationCity: 'input',    pickupRadiusKm: 'input',  detourAllowKm: 'hidden', dropoffRadiusKm: 'input',  discountPct: 'input' },
-    /**
-     * 🔴 **합짐·주행중의 도착 목표는 `auto` 다 — 첫짐에서 상속한다** (기사님 확정 2026-08-25).
-     *
-     * 예전엔 `hidden` 이었다. 그런데 화면에는 «여주시」가 그대로 적혀 있는데 판정에서만
-     * 사라져서, **화면이 조용히 거짓말했다** (규칙 ⑤-4 ④). 실측 2026-08-25:
-     * 가남→세종대왕면은 잡히고 가남→점동면은 막혔다 — 둘 다 여주시인데.
-     *
-     * 노선인 동안 목적지는 안 바뀌므로 **따로 저장하지 않는다** (규칙 ③). 보이되 못 고친다.
-     */
-    merge: { destinationCity: 'auto',     pickupRadiusKm: 'hidden', detourAllowKm: 'input',  dropoffRadiusKm: 'input',  discountPct: 'input' },
-    drive: { destinationCity: 'auto',     pickupRadiusKm: 'hidden', detourAllowKm: 'input',  dropoffRadiusKm: 'hidden', discountPct: 'input' },
-    local: { destinationCity: 'override', pickupRadiusKm: 'hidden', detourAllowKm: 'hidden', dropoffRadiusKm: 'hidden', discountPct: 'input' },
-    home:  { destinationCity: 'auto',     pickupRadiusKm: 'hidden', detourAllowKm: 'input',  dropoffRadiusKm: 'hidden', discountPct: 'input' },
-};
-
-/**
- * 화면 라벨 — 기본값. **v6 목업 표기를 그대로 쓴다** (기사님 2026-08-14:
- * *"목업에 만들어둔 명칭도 그대로 사용해"*).
- */
-export const PHASE_FIELD_LABEL: Record<keyof PhaseSettings, string> = {
-    destinationCity: '목적지',
-    pickupRadiusKm: '현위반경',
-    detourAllowKm: '라인반경',
-    dropoffRadiusKm: '목적반경',
-    discountPct: '콜할인율',
-};
-
-/**
- * 🔴 **국면별 별칭표를 걷었다** (이식 C4-7 · 2026-09-11).
- *
- * 여기 `PHASE_FIELD_LABEL_OVERRIDE` 가 있었다 — 첫짐에서만 «도착 반경», 나머지는
- * «하차지 주변» 으로 부르던 표다. **값이 다섯 벌이던 때는 말이 됐다.**
- * 🔴 값이 한 벌이 된 뒤로는(C3-3a) **같은 숫자를 상황마다 다르게 부르는 것**이 되어
- *    화면이 거짓말을 한다. 같은 값은 이름도 하나다 (규칙 ③).
- *    함께 있던 `fieldLabel(phase, key)` 도 할 일이 없어져 지웠다 — 이제 `PHASE_FIELD_LABEL[key]` 다.
- *
- * ⚠️ 이름 자체는 **목업 것**으로 맞췄다 (기사님 2026-08-14: *"목업에 만들어둔 명칭도
- *    그대로 사용해"*): 상차 반경 → **현위반경** · 하차지 주변 → **목적반경** · 도착 목표 → **목적지**.
- */
+export type FlatValueKey =
+    | 'destinationCity'
+    | 'pickupRadiusKm'
+    | 'detourRadiusKm'
+    | 'destinationRadiusKm'
+    | 'callDiscountPct';
 
 /** `auto` 필드가 **무엇에서** 나오는지 — 화면이 "왜 못 고치는지" 말할 수 있어야 한다 */
 export const PHASE_AUTO_SOURCE: Record<PhaseKey, string> = {
     first: '',
     merge: '지금 실린 짐의 경로에서',
     drive: '지금 실린 짐의 경로에서',
-    local: '지금 위치(또는 최종 하차지)의 시',
     home: '설정의 집 주소',
 };
 
@@ -208,36 +140,57 @@ export interface FilterField<P extends string = string> {
     /** 왜 이 값인가 — 폼의 칸 아래 그대로 뜬다 */ why: string;
 }
 
-export const FILTER_FIELDS: readonly FilterField<keyof PhaseSettings>[] = [
+/**
+ * 🎛️ **값 다섯 — 이름이 «한 벌»이다** (이식 C3-3b · 2026-09-11).
+ *
+ * 🔴 **여기가 이름 두 벌이 만나던 자리였다.** 국면 그릇(`PhaseSettings`)과 평면(앱 피기백)이
+ *    같은 값을 다르게 불렀고, 그 사이를 `applyPhaseToFilter` 가 옮겨 주고 있었다:
+ *      `detour_allow_km`   ↔ `detourRadiusKm`
+ *      `dropoff_radius_km` ↔ `destinationRadiusKm`
+ *      `discount_pct`      ↔ `callDiscountPct`
+ *    **그릇이 하나가 되며 이을 것이 없어졌다.** 앱이 읽는 이름은 못 바꾸니
+ *    **평면 이름이 이긴다** (규칙 ③ — 값은 한 곳에서 나온다).
+ *
+ * 🔴 **라벨도 여기 하나뿐이다.** `PHASE_FIELD_LABEL` 이 따로 있었는데, 표가 하나면 라벨도 하나다.
+ *
+ * 🏷️ 이름은 **목업 것**이다 (기사님 2026-08-14: *"목업에 만들어둔 명칭도 그대로 사용해"*).
+ */
+export const FILTER_FIELDS: readonly FilterField<FlatValueKey>[] = [
     { col: 'destination_city', path: 'destinationCity', text: true,
-      label: '도착 목표', unit: '', min: 0, max: 0, int: false,
-      why: '짐이 많은 지역을 향한다 (정의서 1장②) — 첫짐만 저장, 관내는 덮어쓰기, 복귀는 자동' },
+      label: '목적지', unit: '', min: 0, max: 0, int: false,
+      why: '짐이 많은 지역을 향한다 (정의서 1장②). 합짐·복귀에서는 서버가 경로·집 주소로 채운다' },
     { col: 'pickup_radius_km', path: 'pickupRadiusKm',
-      label: '상차 반경', unit: 'km', min: 0, max: 100, int: false,
+      label: '현위반경', unit: 'km', min: 0, max: 100, int: false, step: 1,
       why: '내 위치에서 상차지까지. ⚠️ 축 개편 예정 — 도달 시간(분)에서 파생 (확정안 구현 4)' },
     /**
      * 📏 **라인반경** — 길 중심선에서 **한쪽으로** 몇 km 까지 콜을 받나
      *    (기사님 이름 확정 2026-09-09 · 목업 `MapMockup.tsx`).
      *
      * 🔴 **2026-09-11 까지 이 칸이 화면에서 거짓말했다.** 라벨은 「우회 허용」, 설명은
-     *    *"카카오 총거리가 늘어나는 만큼(100km → 105km 면 5km)"* 이었는데, 값은 실제로
-     *    **길 양옆 폭**으로 쓰인다 (`netKeywordsOf` 의 `lineRadiusKm` · turf 버퍼 반경).
-     *    목업이 그 사고를 미리 경고해 뒀다 — *"둘 다 km 라 한 이름으로 부르면 이식할 때
-     *    조용히 섞인다."* 기사님이 «5» 를 넣을 때 **화면이 말하는 뜻과 실제가 달랐다.**
-     *
-     * ⚠️ **칸 이름(`detourAllowKm`·`detour_allow_km`)은 아직 옛말이다** — DB 컬럼과 평면
-     *    이름이 얽혀 있어 별도 판이다. 고친 것은 **화면이 하는 말**이고, 값이 하는 일은 그대로다.
+     *    *"카카오 총거리가 늘어나는 만큼"* 이었는데 값은 실제로 **길 양옆 폭**으로 쓰인다.
+     *    목업이 그 사고를 미리 경고해 뒀다 — *"둘 다 km 라 한 이름으로 부르면 조용히 섞인다."*
+     * ✅ **이제 칸 이름도 평면과 같다** (`detour_allow_km` → `detour_radius_km`) —
+     *    C3-3b 에서 그릇이 하나가 되며 옛말이 사라졌다.
      */
-    { col: 'detour_allow_km', path: 'detourAllowKm',
-      label: '라인반경', unit: 'km', min: 0, max: 50, int: false,
+    { col: 'detour_radius_km', path: 'detourRadiusKm',
+      label: '라인반경', unit: 'km', min: 0, max: 50, int: false, step: 1,
       why: '길 중심선에서 한쪽으로 몇 km 까지 콜을 받나 — 노선일 때만 쓰인다 (동선이면 마름모가 판단)' },
-    { col: 'dropoff_radius_km', path: 'dropoffRadiusKm',
-      label: '하차지 주변', unit: 'km', min: 0, max: 100, int: false,
+    { col: 'destination_radius_km', path: 'destinationRadiusKm',
+      label: '목적반경', unit: 'km', min: 0, max: 100, int: false, step: 1,
       why: '도착 지점 주변 탐색 반경' },
-    { col: 'discount_pct', path: 'discountPct',
-      label: '콜할인율', unit: '%', min: 0, max: 100, int: true,
+    { col: 'call_discount_pct', path: 'callDiscountPct',
+      label: '콜할인율', unit: '%', min: 0, max: 100, int: true, step: 10,
       why: '시세 대비 허용 할인. 100 = 전부 (금액 무관 — 붙이면 늘어나는 매출). 자동으로 안 내려간다 (정의서)' },
 ] as const;
+
+/** 값 다섯의 **기본값** — DB 가 비었을 때 (기사님이 화면에서 바꾸신다) */
+export const DEFAULT_FILTER_VALUES: Record<FlatValueKey, string | number> = {
+    destinationCity: '',
+    pickupRadiusKm: 10,
+    detourRadiusKm: 6,          // 목업 기본값 (`LAB_DEFAULTS.lineRadiusKm`)
+    destinationRadiusKm: 15,    // 목업 기본값
+    callDiscountPct: 10,
+};
 
 // ─────────────────────────────────────────────────────────────
 //  📐 마름모의 모양 — **국면 밖 한 벌** (이식 C3-2 · 2026-09-11)
@@ -327,156 +280,28 @@ export function reachRadiusKm(reachMin: number, coefMinPerKm: number = REACH_COE
     return Math.round((reachMin / coefMinPerKm) * 10) / 10;
 }
 
-/** `PhaseSettings` → DB 행 값 (컬럼 이름 키) */
-export function phaseRowOf(s: PhaseSettings): Record<string, string | number> {
-    const out: Record<string, string | number> = {};
-    for (const f of FILTER_FIELDS) out[f.col] = s[f.path] as any;
-    return out;
-}
-
-/** DB 행 → `PhaseSettings`. 값이 없거나 이상하면 그 국면의 기본값으로 메운다 */
-export function phaseOfRow(row: Record<string, unknown> | undefined | null, phase: PhaseKey): PhaseSettings {
-    const d = DEFAULT_PHASE_SETTINGS[phase];
-    const out = { ...d } as PhaseSettings;
-    if (!row) return out;
+/**
+ * 🥣 **아무 그릇에서든 값 다섯을 꺼낸다** (이식 C3-3b · 2026-09-11).
+ *
+ * 🔴 **여기 함수 일곱이 있었다** — `phaseRowOf` · `phaseOfRow` · `phaseStoreDiff` ·
+ *    `DEFAULT_PHASE_SETTINGS` · `normalizePhaseSettings` · `applyPhaseToFilter` ·
+ *    `phaseFromFlat`. 다섯 행을 읽고 쓰고, **이름 두 벌 사이를 옮기던** 것들이다.
+ *    그릇이 하나가 되어 전부 할 일이 없어졌다.
+ *
+ * 🔴 **`Number(null) === 0` 을 막는다** (버그 대장 #105). 새 칸은 늘 NULL 로 태어나는데
+ *    그냥 `Number()` 를 태우면 **NULL 의 0 이 기본값을 이긴다.** `''` 도 같은 길이다.
+ */
+export function filterValuesFrom(src: Record<string, unknown> | null | undefined): Record<FlatValueKey, any> {
+    const out = { ...DEFAULT_FILTER_VALUES } as Record<FlatValueKey, any>;
+    if (!src) return out;
     for (const f of FILTER_FIELDS) {
-        const v = row[f.col];
-        if (f.text) {
-            if (typeof v === 'string') (out as any)[f.path] = v;
-        } else {
-            /**
-             * 🔴 **빈 칸은 «0» 이 아니라 «없다» 다** (2026-09-11 실측 · 이식 C3).
-             *
-             * `Number(null) === 0` 이고 `Number.isFinite(0)` 이라, 그냥 `Number()` 를 태우면
-             * **NULL 칸의 0 이 기본값을 이긴다.** 마름모 셋(`src_angle_deg`…)을 판 날 바로
-             * 드러났다 — 기존 행의 새 칸은 전부 NULL 이라 필터 화면에 **출발각 0°** 가 떴고,
-             * 0° 는 그물이 아예 닫히는 값이다. 지금은 테스트 단계라 마이그레이션을 안 하니
-             * (루트 CLAUDE.md) **새 칸은 늘 이 모양으로 태어난다.**
-             *
-             * ⚠️ 마름모만의 병이 아니었다 — 숫자 칸 **다섯 개 전부**가 같은 길로 읽혔다.
-             *    `''`(빈 문자열)도 `Number('') === 0` 이라 함께 막는다.
-             */
-            if (v !== null && v !== undefined && v !== '') {
-                const n = Number(v);
-                if (Number.isFinite(n)) (out as any)[f.path] = Math.min(f.max, Math.max(f.min, n));
-            }
-        }
+        const v = src[f.path] ?? src[f.col];
+        if (v === null || v === undefined || v === '') continue;
+        if (f.text) { if (typeof v === 'string') out[f.path] = v; continue; }
+        const n = Number(v);
+        if (Number.isFinite(n)) out[f.path] = Math.min(f.max, Math.max(f.min, n));
     }
     return out;
-}
-
-/**
- * 🧪 병행 비교 — blob 과 행이 같은 말을 하는가. 어긋난 칸 이름을 돌려준다 (빈 배열 = 일치).
- * 전환 ②단계의 계측이다 — 이 로그가 조용해야 읽기를 행으로 넘긴다.
- */
-export function phaseStoreDiff(blob: PhaseSettingsMap, rows: Partial<Record<PhaseKey, PhaseSettings>>): string[] {
-    const diffs: string[] = [];
-    for (const key of PHASE_KEYS) {
-        const b = blob[key];
-        const r = rows[key];
-        if (!r) { diffs.push(`${key}: 행 없음`); continue; }
-        for (const f of FILTER_FIELDS) {
-            if ((b[f.path] as any) !== (r[f.path] as any)) {
-                diffs.push(`${key}.${f.col}: blob=${b[f.path]} 행=${r[f.path]}`);
-            }
-        }
-    }
-    return diffs;
-}
-
-// ─────────────────────────────────────────────────────────────
-//  기본값 (명세 §2-4-5)
-// ─────────────────────────────────────────────────────────────
-
-/**
- * 국면마다 기본값이 다르다 — 하는 일이 다르기 때문이다.
- * `hidden` 칸도 값은 채워 둔다 (타입이 하나이므로). 그 국면에서 안 쓸 뿐이다.
- */
-export const DEFAULT_PHASE_SETTINGS: PhaseSettingsMap = {
-    first: { destinationCity: '', pickupRadiusKm: 10, detourAllowKm: 5,  dropoffRadiusKm: 10, discountPct: 10 },
-    merge: { destinationCity: '', pickupRadiusKm: 10, detourAllowKm: 5,  dropoffRadiusKm: 3,  discountPct: 10 },
-    drive: { destinationCity: '', pickupRadiusKm: 10, detourAllowKm: 0,  dropoffRadiusKm: 3,  discountPct: 10 },
-    local: { destinationCity: '', pickupRadiusKm: 10, detourAllowKm: 0,  dropoffRadiusKm: 0,  discountPct: 20 },
-    // 복귀 우회 10 — 목업 값. 집으로 가는 길은 멀어서 주울 여지가 크다
-    home:  { destinationCity: '', pickupRadiusKm: 10, detourAllowKm: 10, dropoffRadiusKm: 10, discountPct: 10 },
-};
-
-/** 저장된 JSON 이 비었거나 일부만 있어도 온전한 맵을 만든다 (필드 누락 방어) */
-export function normalizePhaseSettings(raw: unknown): PhaseSettingsMap {
-    const out = {} as PhaseSettingsMap;
-    const src = (raw && typeof raw === 'object') ? raw as Record<string, unknown> : {};
-    for (const key of PHASE_KEYS) {
-        const d = DEFAULT_PHASE_SETTINGS[key];
-        const v = (src[key] && typeof src[key] === 'object') ? src[key] as Record<string, unknown> : {};
-        out[key] = {
-            destinationCity: typeof v.destinationCity === 'string' ? v.destinationCity : d.destinationCity,
-            pickupRadiusKm: Number.isFinite(v.pickupRadiusKm) ? Number(v.pickupRadiusKm) : d.pickupRadiusKm,
-            detourAllowKm: Number.isFinite(v.detourAllowKm) ? Number(v.detourAllowKm) : d.detourAllowKm,
-            dropoffRadiusKm: Number.isFinite(v.dropoffRadiusKm) ? Number(v.dropoffRadiusKm) : d.dropoffRadiusKm,
-            discountPct: Number.isFinite(v.discountPct) ? Number(v.discountPct) : d.discountPct,
-        };
-    }
-    return out;
-}
-
-// ─────────────────────────────────────────────────────────────
-//  조각 → 평면
-// ─────────────────────────────────────────────────────────────
-
-/** `applyPhaseToFilter` 가 만들어 내는 평면 조각 (AutoDispatchFilter 의 부분집합) */
-export interface FlatPhasePatch {
-    pickupRadiusKm: number;
-    detourRadiusKm: number;
-    destinationRadiusKm: number;
-    callDiscountPct: number;
-    destinationCity?: string;
-}
-
-/**
- * 국면 조각을 **평면 필터 이름으로** 옮긴다.
- *
- * 평면(`AutoDispatchFilter`)은 앱 피기백 규격이라 이름을 못 바꾼다.
- * 여기가 새 이름과 옛 이름을 잇는 **유일한 지점**이다.
- *
- * `destinationCity` 는 `input` 인 국면(= first)일 때만 내보낸다.
- * `auto` 인 국면에서는 서버가 경로·GPS·집 주소로 채우므로, 저장된 값(대개 빈 문자열)이
- * 그걸 덮어쓰면 안 된다.
- */
-export function applyPhaseToFilter(phase: PhaseKey, s: PhaseSettings): FlatPhasePatch {
-    const patch: FlatPhasePatch = {
-        pickupRadiusKm: s.pickupRadiusKm,
-        detourRadiusKm: s.detourAllowKm,
-        destinationRadiusKm: s.dropoffRadiusKm,
-        callDiscountPct: s.discountPct,
-    };
-    /**
-     * `input` 은 늘 내보낸다. `override` 는 **덮어썼을 때만** 내보낸다 —
-     * 비어 있으면 "자동을 쓰겠다"는 뜻이라, 서버가 GPS 로 정한 시를 지우면 안 된다.
-     * `auto` 는 절대 내보내지 않는다 (저장된 빈 문자열이 파생값을 덮는다).
-     */
-    const cityMode = PHASE_FIELDS[phase].destinationCity;
-    if (cityMode === 'input' || (cityMode === 'override' && s.destinationCity)) {
-        patch.destinationCity = s.destinationCity;
-    }
-    return patch;
-}
-
-/** 평면 필터에서 국면 조각을 뽑는다 (마이그레이션·폼 초기화용) */
-export function phaseFromFlat(flat: {
-    pickupRadiusKm?: number; detourRadiusKm?: number;
-    destinationRadiusKm?: number; callDiscountPct?: number; destinationCity?: string;
-}, fallback: PhaseSettings): PhaseSettings {
-    return {
-        destinationCity: flat.destinationCity ?? fallback.destinationCity,
-        pickupRadiusKm: flat.pickupRadiusKm ?? fallback.pickupRadiusKm,
-        detourAllowKm: flat.detourRadiusKm ?? fallback.detourAllowKm,
-        dropoffRadiusKm: flat.destinationRadiusKm ?? fallback.dropoffRadiusKm,
-        discountPct: flat.callDiscountPct ?? fallback.discountPct,
-        /**
-         * 📐 마름모 셋은 **평면(앱 피기백)에 없다** — 앱은 그물의 모양을 모르고 «든 동 목록»만 받는다.
-         *    그러니 되돌릴 때는 **이전 값 그대로** 둔다 (0 으로 바꾸면 마름모가 접힌다 · 규칙 ④).
-         */
-    };
 }
 
 /** 복귀 전환을 생략하는 집 반경 (근거: docs/기록/결정_이력.md «타겟은 사이클이 끝나면 저절로 넘어간다») */

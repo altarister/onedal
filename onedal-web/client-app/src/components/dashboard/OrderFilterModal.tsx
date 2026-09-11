@@ -2,11 +2,11 @@ import { useState, useEffect } from "react";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
 import { logRoadmapEvent } from "../../lib/roadmapLogger";
 import { NET_RATE_PER_KM, VEHICLE_CAPACITY, TRUCK_CAPACITY_SLOTS, CAPACITY_CONFIDENCE_LABEL,
-         PHASE_KEYS, PHASE_FIELDS, FILTER_FIELDS, PHASE_FIELD_LABEL, PHASE_AUTO_SOURCE,
+         FILTER_FIELDS, PHASE_AUTO_SOURCE, filterValuesFrom, DEFAULT_FILTER_VALUES,
          QUAD_FIELDS, quadShapeFrom,
          sidoList, sggList, dongList, excludedLabel,
-         DEFAULT_PHASE_SETTINGS, resolvePhaseKey, reachRadiusKm, CALL_TARGET_LABEL } from "@onedal/shared";
-import type { PhaseKey, PhaseSettings, CallTarget } from "@onedal/shared";
+         resolvePhaseKey, reachRadiusKm, CALL_TARGET_LABEL } from "@onedal/shared";
+import type { PhaseKey, FlatValueKey, CallTarget } from "@onedal/shared";
 import { socket } from "../../lib/socket";
 import { apiClient } from "../../api/apiClient";
 import { useCityOptions, resolveCity } from "../../lib/cityOptions";
@@ -57,7 +57,6 @@ const TAB_STYLE: Record<PhaseKey, { box: string; text: string; input: string; ch
     first: { box: 'border-info-alt/30',   text: 'text-info-alt',   input: 'border-border',           chip: 'bg-info-alt/10 text-info-alt' },
     merge: { box: 'border-warning/30',    text: 'text-warning',    input: 'border-warning/30',       chip: 'bg-warning/10 text-warning' },
     drive: { box: 'border-info/30',       text: 'text-info',       input: 'border-info/30',          chip: 'bg-info/10 text-info' },
-    local: { box: 'border-accent-alt/30', text: 'text-accent-alt', input: 'border-accent-alt/30',    chip: 'bg-accent-alt/10 text-accent-alt' },
     home:  { box: 'border-accent/30',     text: 'text-accent',     input: 'border-accent/30',        chip: 'bg-accent/10 text-accent' },
 };
 
@@ -69,7 +68,6 @@ const SECTION: Record<PhaseKey, { title: string; hint: string }> = {
     first: { title: '어디로 갈까',            hint: '빈 차로 첫 짐을 찾을 때' },
     merge: { title: '얼마나 돌아갈까',        hint: '짐을 싣고 다음 짐을 찾을 때' },
     drive: { title: '가는 길만',              hint: '우회를 끊는다' },
-    local: { title: '같은 시 안에서 끝나는 콜', hint: '복귀 전 시간 때우기' },
     home:  { title: '집 방향',                hint: '최종 하차지 → 집' },
 };
 
@@ -78,7 +76,6 @@ const REGION_CARD: Record<PhaseKey, { unit: string; note: string }> = {
     first: { unit: '개 동이 걸립니다',  note: '도착 도시 주변' },
     merge: { unit: '개 동 · 경로 주변', note: '지금 실린 짐의 경로에서\n자동으로 다시 계산됩니다' },
     drive: { unit: '개 동 · 경로 주변', note: '지나온 구간은 빠집니다' },
-    local: { unit: '개 동 · 이 시 안',  note: '상차지와 하차지가\n모두 이 안이어야 통과' },
     home:  { unit: '시작하면 계산됩니다', note: '짐이 남았으면 마지막 하차지부터\n다 내렸으면 현재 위치부터' },
 };
 
@@ -87,34 +84,29 @@ const FLOOR_TITLE: Record<PhaseKey, string> = {
     first: '첫짐 하한 — 단가 기준 (합짐과 같은 식)',
     merge: '합짐 하한 — 단가 기준 (콜마다 거리가 다르니까)',
     drive: '운행 중 하한 — 단가 기준',
-    local: '관내 하한 — 단가 기준',
     home:  '복귀 하한 — 단가 기준',
 };
 
-/** 국면 설정을 폼에서 다루는 모양 — **문자열**이다 (입력 중 빈 칸을 허용하려면 숫자로는 안 된다) */
-type PhaseForm = Record<keyof PhaseSettings, string>;
+/**
+  * 값 다섯을 폼에서 다루는 모양 — **문자열**이다 (입력 중 빈 칸을 허용하려면 숫자로는 안 된다).
+  * 🔴 **이름이 평면과 같다** (이식 C3-3b) — 예전엔 국면 그릇 이름(`detourAllowKm` 등)이라
+  *    저장할 때 `applyPhaseToFilter` 로 옮겨야 했다. 이제 그대로 보낸다.
+  */
+type ValueForm = Record<FlatValueKey, string>;
 
-const toForm = (s: PhaseSettings): PhaseForm => ({
-    destinationCity: s.destinationCity,
-    pickupRadiusKm: String(s.pickupRadiusKm),
-    detourAllowKm: String(s.detourAllowKm),
-    dropoffRadiusKm: String(s.dropoffRadiusKm),
-    discountPct: String(s.discountPct),
-});
+const toForm = (v: Record<FlatValueKey, any>): ValueForm =>
+    Object.fromEntries(FILTER_FIELDS.map(f => [f.path, String(v[f.path] ?? '')])) as ValueForm;
 
 /** 빈 칸은 **이전 값 그대로**다 (0 으로 바꾸면 "제한 없음"으로 뒤집힌다 — §1) */
-const toSettings = (f: PhaseForm, prev: PhaseSettings): PhaseSettings => {
-    const num = (v: string, fallback: number) => {
-        const n = parseFloat(v);
-        return Number.isFinite(n) ? n : fallback;
-    };
-    return {
-        destinationCity: f.destinationCity,
-        pickupRadiusKm: num(f.pickupRadiusKm, prev.pickupRadiusKm),
-        detourAllowKm: num(f.detourAllowKm, prev.detourAllowKm),
-        dropoffRadiusKm: num(f.dropoffRadiusKm, prev.dropoffRadiusKm),
-        discountPct: num(f.discountPct, prev.discountPct),
-    };
+const toValues = (f: ValueForm, prev: Record<FlatValueKey, any>): Record<FlatValueKey, any> => {
+    const out = { ...prev };
+    for (const spec of FILTER_FIELDS) {
+        const raw = f[spec.path];
+        if (spec.text) { out[spec.path] = raw; continue; }
+        const n = parseFloat(raw);
+        out[spec.path] = Number.isFinite(n) ? n : prev[spec.path];
+    }
+    return out;
 };
 
 /**
@@ -132,7 +124,7 @@ const TARGET_HINT: Record<CallTarget, string> = {
  *    라벨·단위·범위·한 칸은 전부 `FILTER_FIELDS` 에서 온다 (규칙 ③).
  */
 /* 🔴 순서도 목업 그대로 — 현위 → 목적 → 라인 (`MapMockup.tsx:3229~3232`) */
-const KNOB_FIELDS: (keyof PhaseSettings)[] = ['pickupRadiusKm', 'dropoffRadiusKm', 'detourAllowKm'];
+const KNOB_FIELDS: FlatValueKey[] = ['pickupRadiusKm', 'destinationRadiusKm', 'detourRadiusKm'];
 
 interface OrderFilterModalProps {
     isOpen: boolean;
@@ -149,7 +141,7 @@ interface OrderFilterModalProps {
 
 export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive = false,
                                            routeMode, setRouteMode }: OrderFilterModalProps) {
-    const { filter, baseFilter, phaseSettings, basePhaseSettings, updateFilter, savePhase } = useFilterConfig();
+    const { filter, baseFilter, updateFilter } = useFilterConfig();
 
     // ⏱️ 시간 축 안내의 재료 — 무통보 상차 한계는 판정 기준 탭에 산다 (읽기 공유 · 확정 2)
     const judgmentCfg = useJudgmentStore(st => st.judgment);
@@ -166,7 +158,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
      *    쓴다. 다섯이 늘 같으면 국면이 바뀌어도 평면 필터가 안 움직여 동작이 한 벌과 같다.
      *    행을 실제로 걷어내는 것은 **C3-3b** (서버 19곳·검사 8개라 따로 선다).
      */
-    const [cur, setForm] = useState<PhaseForm>(() => toForm(DEFAULT_PHASE_SETTINGS.first));
+    const [cur, setForm] = useState<ValueForm>(() => toForm(DEFAULT_FILTER_VALUES));
     /**
      * 📐 **마름모의 모양 — 국면 밖 한 벌** (이식 C3-2 · 2026-09-11 · 명세 §3).
      *    국면 값 묶음과 **따로** 산다. 저장도 평면 통로(`updateFilter`)다.
@@ -217,7 +209,17 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
      * 기사님 2026-09-09: *"모두 꺼내 두고 노선이면 라인값을 사용하고 동선이면 사용 안 하면
      * 되니까."* 감추면 «이 값이 어디 갔나»가 되고, 그냥 두면 «지금 쓰이는 값»으로 읽힌다.
      */
-    const inUse = PHASE_FIELDS[tab];
+    /**
+     * 🔴 **«지금 이 칸이 쓰이나»를 상태에서 파생한다** (이식 C3-3b · 2026-09-11).
+     *
+     * 예전엔 `PHASE_FIELDS[tab]` 표가 답했다. **값이 한 벌이 되며 «어느 벌인가»가 없어져**
+     * 그 표도 사라졌다 — 이제 «지금 무엇이 도는가»가 직접 말한다.
+     *
+     * 🔴 **라인반경만 갈린다**: 경로 양옆으로 재는 값이라 **노선일 때만** 쓰인다
+     *    (목업도 `dim: !routeMode` 하나뿐이다 · `MapMockup.tsx:3232`).
+     * 🔴 **감추지 않고 흐리게** 둔다 (기사님 2026-09-09: *"모두 꺼내 두고"*).
+     */
+    const inUse = (path: FlatValueKey) => path !== 'detourRadiusKm' || routeMode;
 
     /**
      * 🎯 **국면 전환 — 요약줄에서 이사해 왔다** (이식 C4-5 · 2026-09-11).
@@ -246,7 +248,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
 
     /** 저장 안 한 변경이 있는가 — 버튼이 «누르기 전에» 말한다 (v6 설명 ② · 기사님 확정) */
     const [dirty, setDirty] = useState(false);
-    const setField = (key: keyof PhaseSettings, value: string) => {
+    const setField = (key: FlatValueKey, value: string) => {
         setForm(prev => ({ ...prev, [key]: value }));
         setDirty(true);
     };
@@ -316,7 +318,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
     const handlePreviewRegions = async (city: string) => {
         if (!city) return;
         setIsPreviewLoading(true);
-        const radius = cur.dropoffRadiusKm || '0';
+        const radius = cur.destinationRadiusKm || '0';
         try {
             const { data } = await apiClient.get(`/settings/preview-regions?city=${encodeURIComponent(city)}&destinationRadiusKm=${radius}`);
             setPreviewRegions(data.groupedRegions || {});
@@ -332,8 +334,8 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
     // 합짐 섹션: 미리보기 버튼 클릭 시 호출
     const handlePreviewDetour = async () => {
         setIsPreviewLoading(true);
-        const params = new URLSearchParams({ detourRadiusKm: cur.detourAllowKm !== '' ? cur.detourAllowKm : '10' });
-        if (cur.dropoffRadiusKm) params.set('destinationRadiusKm', cur.dropoffRadiusKm);
+        const params = new URLSearchParams({ detourRadiusKm: cur.detourRadiusKm !== '' ? cur.detourRadiusKm : '10' });
+        if (cur.destinationRadiusKm) params.set('destinationRadiusKm', cur.destinationRadiusKm);
         try {
             const { data } = await apiClient.get(`/settings/preview-detour?${params.toString()}`);
             setPreviewRegions(data.groupedRegions || {});
@@ -357,7 +359,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
              * 값이 거기 있다 (실측 2026-09-11: 김포시·22·22·0%). 저장할 때 다섯에 같은 값을
              * 쓰므로 다음부터는 어느 행을 읽어도 같지만, **처음 접히는 순간의 기준**은 첫짐이다.
              */
-            if (phaseSettings) setForm(toForm(phaseSettings.first));
+            setForm(toForm(filterValuesFrom(filter as any)));
             /* 📐 마름모는 평면 필터에 실려 온다 — 국면 밖 한 벌이라 (이식 C3-2) */
             fillQuad(filter);
             setQuadDirty(false);
@@ -378,7 +380,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
         if (!baseFilter) return;
         console.log("🔄 [OrderFilterModal] 기본 설정 불러오기 클릭 - baseFilter:", JSON.parse(JSON.stringify(baseFilter)));
         /* 평소값도 첫짐 행이 기준이다 (위 «한 벌을 첫짐 행에서» 와 같은 이유) */
-        if (basePhaseSettings) setForm(toForm(basePhaseSettings.first));
+        setForm(toForm(filterValuesFrom(baseFilter as any)));
         fillQuad(baseFilter);
         setQuadDirty(true);
         setExDraft(baseFilter.excludedRegions ?? []);
@@ -438,30 +440,21 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
         logRoadmapEvent("웹", `필터 저장 (${saveAsDefault ? '앞으로 계속' : '오늘만'}) — ${dirty ? '값 한 벌 변경' : '값 변경 없음'}`);
 
         /**
-         * 🔴 **다섯 행에 «같은 값»을 쓴다 — 그게 한 벌이다** (이식 C3-3a).
+         * 🔴 **값 다섯은 평면 통로 하나로 간다** (이식 C3-3b · 2026-09-11).
          *
-         * ⚠️ 예전엔 «고친 탭만» 저장했다 (§2-4). 국면마다 다른 값을 지키려던 것인데,
-         *    기사님이 2026-09-11 저녁에 그 기준을 바꾸셨다: *"그 기준은 바꿔."*
+         * ⚠️ 예전엔 `savePhase` 로 **국면 다섯 행에 같은 값을 다섯 번** 썼다 (C3-3a 의 전환 모양).
+         *    C3-3b 에서 그릇이 한 벌이 되어 **쓸 자리도 하나**가 됐다 —
+         *    마름모·제외지역이 이미 쓰던 그 길이다 (기사님: *"개선되어 중복인건 그냥 삭제"*).
          *
-         * 그릇(`user_filter_phases` 다섯 행)은 아직 그대로라, 다섯이 **늘 같은 값**이면
-         * 국면이 바뀌어도 `applyPhaseToFilter` 가 같은 값을 얹는다 — 동작이 한 벌과 같다.
-         * 행을 실제로 걷어내는 것은 **C3-3b**.
-         *
-         * 🔴 **`destinationCity` 는 첫짐에만 쓴다.** 나머지 넷은 `auto`/`override` 라
-         *    서버가 경로·GPS·집 주소로 채운다. 여기서 같이 덮으면 관내(`override`)가
-         *    그 값으로 굳어 **자동 파생이 죽는다** (규칙 ④ — 지어낸 값이 진짜를 덮는다).
+         * 🔴 **이름을 옮길 일이 없다.** 폼의 키가 이미 평면(앱 피기백) 이름이라
+         *    `applyPhaseToFilter` 같은 다리가 필요 없다.
          *
          * `allowedVehicleTypes` 를 **보내지 않는 이유**는 그대로다 — 허용 차종은 입력이
          * 아니라 파생값이고, 여기서 보내면 서버가 `if (!changes.allowedVehicleTypes)` 에
          * 걸려 자기 계산을 건너뛴다 (2026-08-10 사고).
          */
         if (dirty) {
-            for (const key of PHASE_KEYS) {
-                const prev = phaseSettings?.[key] ?? DEFAULT_PHASE_SETTINGS[key];
-                const next = toSettings(cur, prev);
-                if (key !== 'first') next.destinationCity = prev.destinationCity;
-                savePhase(key, next, saveAsDefault);
-            }
+            updateFilter(toValues(cur, filterValuesFrom(filter as any)), saveAsDefault);
         }
 
         /**
@@ -487,7 +480,8 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
     const slotsUsed = Math.round(filter.slotsUsed ?? 0);
     const remainSlots = Math.max(0, TRUCK_CAPACITY_SLOTS - slotsUsed);
     /** 하한표 예시 금액용 거리 — 지금 탭이 보는 대표 거리 */
-    const exampleKm = tab === 'local' ? 15 : (parseInt(cur.dropoffRadiusKm, 10) || 0) + 50;
+    /* 하한표 예시 거리 — 관내면 시 안이라 짧게 본다 (관내는 파생이다 · C4-8b) */
+    const exampleKm = filter.localMode ? 15 : (parseInt(cur.destinationRadiusKm, 10) || 0) + 50;
     const destKeywordsLimit = filter.destinationKeywords || [];
 
     /**
@@ -496,17 +490,18 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
      * 예전에는 `isSharedMode`(지금 합짐이냐) 로 갈랐는데, 그러면 첫짐을 콜 잡기하는 중에
      * 합짐 탭을 열어 미리보기를 눌러도 **첫짐 기준**이 그려졌다.
      */
-    const previewByDetour = inUse.detourAllowKm === 'input';
+    const previewByDetour = routeMode && (filter.dispatchPhase ?? 'STANDBY') !== 'STANDBY';
     /** 목적지가 «자동»인 상황에서는 서버가 정한 지금 도착 도시를 보여준다 (지어내지 않는다) */
-    const previewCity = inUse.destinationCity === 'input'
+    /* 목적지는 늘 기사님 것이다 — 합짐·복귀에서 서버가 파생하면 그 값을 비춘다 */
+    const previewCity = (filter.dispatchPhase ?? 'STANDBY') === 'STANDBY'
         ? cur.destinationCity
-        : (filter.destinationCity || '');
+        : (filter.destinationCity || cur.destinationCity || '');
 
     /** 화면에 그릴 지역 그룹 — 미리보기를 눌렀으면 그 결과, 아니면 지금 걸린 것 */
     const regionGroups = Object.entries(previewRegions ?? filter.destinationGroups ?? {});
 
     /** 지금 탭의 콜할인율(단가 할인율) — 국면마다 따로 기억한다 */
-    const callDiscount = parseFloat(cur.discountPct);
+    const callDiscount = parseFloat(cur.callDiscountPct);
 
     /**
      * 🚫 **저장은 쉼표 문자열 하나, 화면은 말 목록** (이식 C4-6).
@@ -633,8 +628,8 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                           */}
                         <div className="space-y-1">
                             <label className="block text-[10px] font-bold text-text-muted pl-1">
-                                {PHASE_FIELD_LABEL.destinationCity}
-                                {inUse.destinationCity !== 'input' && (
+                                {FILTER_FIELDS.find(f => f.path === 'destinationCity')!.label}
+                                {(filter.dispatchPhase ?? 'STANDBY') !== 'STANDBY' && (
                                     <span className="ml-1 font-normal text-text-muted/70">
                                         {/* 🔴 «왜 지금 이 칸이 안 쓰이나»를 화면이 말한다.
                                             복귀처럼 **실제 값이 있으면 그 값**을 보여 준다 (빈 말은 고장으로 보인다) */}
@@ -761,13 +756,13 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                 const f = FILTER_FIELDS.find(x => x.path === path)!;
                                 return {
                                     key: path,
-                                    label: PHASE_FIELD_LABEL[path],
+                                    label: f.label,
                                     unit: f.unit,
                                     value: Number(cur[path] ?? 0),
                                     min: f.min,
                                     max: f.max,
                                     step: f.step,
-                                    dim: inUse[path] !== 'input',
+                                    dim: !inUse(path),
                                     set: (v: number) => setField(path, String(v)),
                                 };
                             })} />
@@ -795,7 +790,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                 onToggle={() => setOpenKnob(o => o === 'discount' ? null : 'discount')}
                                 onPick={(v) => {
                                     const st = CALL_DISCOUNT_STEPS.find(x => x.label === v);
-                                    if (st) setField('discountPct', String(st.value));
+                                    if (st) setField('callDiscountPct', String(st.value));
                                 }}
                                 foot={
                                     <div className="flex flex-col gap-0.5">
@@ -930,7 +925,8 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                         {/* ⏱️ 시간 축 예고 (필터 확정안 v2 구현 4 — 계측 단계).
                             상차 반경의 축은 km → 도달 시간(분)으로 개편 예정이다. 계수(분/km)가
                             실측으로 확정되기 전에는 **거르지 않고 안내만** 한다 (기사님 확정 3). */}
-                        {inUse.pickupRadiusKm === 'input' && (
+                        {/* 🔴 현위반경은 늘 쓰인다 — 국면마다 감추던 규칙이 사라졌다 (C3-3b) */}
+                        {(
                             <p className="text-[10px] text-text-muted leading-relaxed">
                                 <b className={TAB_STYLE[tab].text}>상차 반경</b>은 곧 <b className="text-text-primary">도달 시간</b>에서
                                 자동으로 정해집니다 — 상차 약속(잡은 시각 + {judgmentCfg.unknown.pickupPromiseMin}분) 안에 닿는 거리
@@ -947,11 +943,11 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                           *    경고해 뒀다 — *"둘 다 km 라 한 이름으로 부르면 조용히 섞인다."*
                           *    기사님이 «5» 를 넣을 때 **화면이 말하는 뜻과 실제가 달랐다** (규칙 ⑤-4 ④).
                           */}
-                        {inUse.detourAllowKm === 'input' && (
+                        {inUse('detourRadiusKm') && (
                             <p className="text-[10px] text-text-muted leading-relaxed">
                                 <b className={TAB_STYLE[tab].text}>라인반경</b> = 지금 경로의 <b className="text-text-primary">길 중심선에서 한쪽으로</b> 몇 km 까지 콜을 받나.
                                 {' '}노선일 때만 쓰입니다 — 콜을 안 쥐었으면 마름모가 판단합니다.
-                                {cur.detourAllowKm === '0' && ' 0 이면 길 위의 콜만 잡습니다 — 콜 잡기를 멈추는 게 아닙니다.'}
+                                {cur.detourRadiusKm === '0' && ' 0 이면 길 위의 콜만 잡습니다 — 콜 잡기를 멈추는 게 아닙니다.'}
                             </p>
                         )}
 
@@ -988,10 +984,12 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                             </p>
                         )}
 
-                        {tab === 'local' && (
+                        {/* 🏘️ 관내는 국면이 아니라 **파생**이다 (C4-8b) — 고르는 것이 아니라 «지금 그렇다» */}
+                        {filter.localMode && (
                             <p className="text-[10px] text-text-muted leading-relaxed">
-                                상차지와 하차지가 <b className="text-text-primary">모두 같은 시</b>여야 통과합니다.
-                                <br />🏘️ 전환은 <b className="text-text-primary">요약줄 버튼</b>에 있습니다.
+                                🏘️ <b className="text-text-primary">관내로 재고 있습니다</b> —
+                                상차지와 하차지가 <b className="text-text-primary">모두 같은 시</b>여야 통과합니다
+                                (방향은 안 봅니다).
                             </p>
                         )}
 
@@ -1007,10 +1005,10 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                     onClick={() => {
                                         logRoadmapEvent("웹", "귀가콜 시작 버튼 클릭 (복귀 국면 값으로)");
                                         setHomeReturnLoading(true);
-                                        const home = toSettings(cur, phaseSettings?.home ?? DEFAULT_PHASE_SETTINGS.home);
+                                        const home = toValues(cur, filterValuesFrom(filter as any));
                                         socket.emit("create-home-return", {
-                                            detourRadiusKm: home.detourAllowKm,
-                                            destinationRadiusKm: home.dropoffRadiusKm
+                                            detourRadiusKm: home.detourRadiusKm,
+                                            destinationRadiusKm: home.destinationRadiusKm
                                         });
                                     }}
                                     disabled={homeReturnLoading || hasHomeReturnActive}
@@ -1032,7 +1030,8 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                     {previewCount > 0 ? previewCount : (tab === 'home' ? '—' : destKeywordsLimit.length)}
                                 </span>
                                 <span className="text-[11px] font-bold text-text-muted ml-1">
-                                    {tab === 'local' && previewCity
+                                    {/* 🏘️ 관내는 국면이 아니라 **파생**이다 (C4-8b) — `localMode` 가 말한다 */}
+                                    {filter.localMode && previewCity
                                         ? `개 동 · ${previewCity} 안`
                                         : REGION_CARD[tab].unit}
                                 </span>

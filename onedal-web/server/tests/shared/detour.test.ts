@@ -1,4 +1,4 @@
-import { getEffectiveDetourRadius, DEFAULT_DETOUR_RADIUS_KM, DEFAULT_PHASE_SETTINGS } from '@onedal/shared';
+import { getEffectiveDetourRadius, DEFAULT_DETOUR_RADIUS_KM } from '@onedal/shared';
 
 /**
  * 🔴 2026-08-12 — `getEffectiveDetourRadius` 는 **정의만 되어 있고 호출하는 곳이 없었다.**
@@ -37,9 +37,26 @@ describe('경유 반경은 국면 설정이 정한다', () => {
         expect(getEffectiveDetourRadius('STANDBY', 5)).toBe(5);
     });
 
-    it('🔴 "운행 중엔 우회하지 않는다" 는 **국면 기본값**이 지킨다', () => {
-        // 강제하던 자리가 여기로 옮겨 왔다. 이 값이 0 이 아니면 우회 금지가 풀린다
-        expect(DEFAULT_PHASE_SETTINGS.drive.detourAllowKm).toBe(0);
+    /**
+     * 🔴 **«운행 중엔 우회하지 않는다» 를 자동으로 지켜 주던 자리가 사라졌다**
+     *    (이식 C3-3b · 2026-09-11). 정직하게 적어 둔다.
+     *
+     * 예전엔 `DEFAULT_PHASE_SETTINGS.drive.detourAllowKm = 0` 이 그 일을 했다 —
+     * **운행 중 국면이 되면 라인반경이 저절로 0** 이 되어 우회가 끊겼다.
+     * 값이 한 벌이 되며(기사님 확정 *"그 기준은 바꿔"*) **국면마다 다른 기본값이 없다.**
+     *
+     * 🔴 **그래서 지금은 기사님이 라인반경을 직접 0 으로 두셔야 한다.**
+     *    「관내만 20% 할인」이 사라진 것과 **같은 종류의 맞바꿈**이다 (계획서 §C3-3 에 적었다).
+     * ⚠️ 값이 «저절로 0 이 되지 않는다»는 것이지, **0 을 넣으면 여전히 우회가 끊긴다** —
+     *    아래 «반경 0 은 경로 위만» 이 그것을 지킨다.
+     */
+    it('🔄 운행 중 우회 금지는 이제 «자동»이 아니다 — 기사님이 0 을 넣으신다', () => {
+        const shared = require("@onedal/shared");
+        expect(shared.DEFAULT_PHASE_SETTINGS).toBeUndefined();
+        // 값이 한 벌이라 기본 라인반경은 국면과 무관하다 (목업 기본값 6km)
+        expect(shared.DEFAULT_FILTER_VALUES.detourRadiusKm).toBe(6);
+        // 0 을 넣으면 그대로 0 이다 — 끊는 길은 살아 있다
+        expect(getEffectiveDetourRadius('DELIVERING', 0)).toBe(0);
     });
 
     it('반경 0 은 "경유 없음"이 아니라 **경로 위만** 이다', () => {

@@ -193,8 +193,8 @@ const QUAD_COLS: Record<string, string> = Object.fromEntries(
     QUAD_FIELDS.map(f => [f.col, f.int ? 'INTEGER' : 'REAL'])
 );
 
-// 🎛️ 국면 옵션(노선·반경·할인율)은 여기 없다 — 원천은 user_filter_phases 행이다
-// (필터 확정안 v2 ④ · 2026-08-21 옛 blob·평면 칸 손 DROP 완료).
+// 🎛️ 값 다섯(목적지·현위반경·라인반경·목적반경·콜할인율)은 **여기 한 행**에 산다 (이식 C3-3b).
+//    2026-08-21 에 국면 행으로 옮겼다가 2026-09-11 에 돌아왔다 — 값이 한 벌이 되었기 때문이다.
 // min_fare·max_fare 는 보류 칸 — 앱 피기백 (확정안 ①-삭제 #3, 화물24 단가식 뒤 강등)
 db.exec(`
     CREATE TABLE IF NOT EXISTS user_filters (
@@ -215,7 +215,18 @@ db.exec(`
         FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     )
 `);
-ensureColumns('user_filters', { ...QUAD_COLS, excluded_regions: "TEXT DEFAULT '[]'" });
+/**
+ * 🎛️ **값 다섯의 자리** (이식 C3-3b · 2026-09-11) — 컬럼 목록의 원천은
+ *    shared 의 `FILTER_FIELDS` 표 하나다 (표에 한 줄이 늘면 컬럼이 따라온다 · 규칙 ③).
+ */
+const FILTER_VALUE_COLS: Record<string, string> = Object.fromEntries(
+    FILTER_FIELDS.map(f => [f.col, f.text ? 'TEXT' : (f.int ? 'INTEGER' : 'REAL')])
+);
+ensureColumns('user_filters', {
+    ...QUAD_COLS,
+    ...FILTER_VALUE_COLS,
+    excluded_regions: "TEXT DEFAULT '[]'",
+});
 
 // ═══════════════════════════════════════
 // [6] (v5) 스캐너가 잡은 콜 및 장소 마스터, 배차 경유지
@@ -357,25 +368,17 @@ db.exec(`
 ensureColumns('user_judgment', JUDGMENT_COLS);
 
 /**
- * 🎛️ **국면 옵션 — 행 = 사용자×국면** (필터 확정안 v2 · 2026-08-21 전환 완료).
+ * 🥣 **국면 행 다섯이 여기 있었다** (`user_filter_phases` · 걷어냄 2026-09-11 · 이식 C3-3b).
  *
- * **국면 옵션의 유일한 원천이다** (옛 `phase_settings` blob 은 병행 비교 후 손 DROP).
- * **컬럼 목록의 원천은 shared 의 `FILTER_FIELDS` 표 하나** (user_judgment 와 같은
- * 문법 — 표에 한 줄이 늘면 컬럼·폼이 따라온다).
+ * 행 = 사용자×국면 이었다. C3-3a 에서 **값이 한 벌**이 된 뒤로는 저장할 때마다 **같은 값을
+ * 다섯 번 쓰는** 일만 남았고, 기사님 지시로 걷었다 — *"개선되어 중복인건 그냥 삭제 할꺼야."*
+ *
+ * 🔴 값 다섯은 이제 **`user_filters` 한 행**에 산다 (위 `FILTER_COLS`).
+ *    그러면서 **이름 두 벌도 사라졌다** — `detour_allow_km` → `detour_radius_km` 처럼
+ *    평면(앱 피기백) 이름으로 통일됐다.
+ * ⚠️ **지금은 테스트 단계라 마이그레이션을 안 한다** (루트 CLAUDE.md).
+ *    옛 표는 그대로 남아 있어도 **아무도 안 읽는다** — 지우는 것은 손으로, 의도적으로.
  */
-const FILTER_PHASE_COLS: Record<string, string> = Object.fromEntries(
-    FILTER_FIELDS.map(f => [f.col, f.text ? 'TEXT' : (f.int ? 'INTEGER' : 'REAL')])
-);
-db.exec(`
-    CREATE TABLE IF NOT EXISTS user_filter_phases (
-        user_id TEXT NOT NULL,
-        phase   TEXT NOT NULL CHECK(phase IN ('first','merge','drive','local','home')),
-        ${Object.entries(FILTER_PHASE_COLS).map(([c, t]) => `${c} ${t}`).join(',\n        ')},
-        PRIMARY KEY (user_id, phase),
-        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-    )
-`);
-ensureColumns('user_filter_phases', FILTER_PHASE_COLS);
 
 /**
  * 🧪 **도달 계수 표본** (필터 확정안 v2 ②값 — 잠정 1.5분/km 를 실측으로 대체하는 절차).
