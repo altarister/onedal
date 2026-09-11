@@ -20,7 +20,7 @@ import { getUserSession } from "./userSessionStore";
 import type { AutoDispatchFilter, PhaseKey, PhaseSettings } from "@onedal/shared";
 import { DEFAULT_DETOUR_RADIUS_KM, isDeliveredCall, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, resolvePhaseKey, applyPhaseToFilter, normalizePhaseSettings,
          PHASE_KEYS, FILTER_FIELDS, QUAD_FIELDS, quadShapeFrom, pruneExcludedRegions, netForGoal, cityCenter,
-         phaseRowOf, phaseOfRow, EVALUATING_STATUSES } from "@onedal/shared";
+         phaseRowOf, phaseOfRow, EVALUATING_STATUSES, isLocalPhase } from "@onedal/shared";
 import type { PhaseSettingsMap } from "@onedal/shared";
 
 // ─────────────────────────────────────────────────────────────
@@ -57,6 +57,7 @@ import type { PhaseSettingsMap } from "@onedal/shared";
  */
 function netKeywordsOf(
     session: ReturnType<typeof getUserSession>,
+    userId: string,
     city: string,
     radiusKm: number,
     line: Array<[number, number]> | null,
@@ -76,20 +77,43 @@ function netKeywordsOf(
     if (!line && !me) return fallback();        // 첫짐인데 꼭짓점이 없다
 
     const quad = quadShapeFrom(session.activeFilter as any);
+    const params = {
+        ...quad,
+        srcDiamKm: (session.activeFilter.pickupRadiusKm ?? 10) * 2,
+        dstDiamKm: radiusKm * 2,
+    };
+    /**
+     * 🏘️ **관내 — 목적지에 다 왔고 집에서는 멀어졌다** (이식 C4-8b · 2026-09-11 · 명세 §5).
+     *
+     * 기사님 2026-09-11: *"우린 집으로 갈건지 말껀지만 있어"* — 관내는 **고르는 것이 아니라
+     * 파생**이다. 목업이 그 모양이다 (`MapMockup.tsx:972`).
+     *
+     * 🔴 **판단은 `shared` 하나가 한다** (규칙 ③). 서버가 «목적지 근처인가»를 제 손으로
+     *    다시 재면 화면과 갈라진다 — 목업과 실물이 **같은 함수**를 본다.
+     * 🔴 **목적지를 안 건드린다.** 예전엔 `setCallTarget('LOCAL')` 이 `destinationCity` 를
+     *    지금 있는 시로 **갈아치웠다** — 그래서 파생으로 두면 **기사님이 정한 김포시가
+     *    저절로 성남시가 된다.** 목업은 목적지를 그대로 두고 **재는 법만** 바꾼다.
+     * ⚠️ 집 좌표가 없으면 «모른다» — 관내가 아니라고 본다 (없는 값을 지어내지 않는다 · 규칙 ④).
+     */
+    const home = SettingsRepository.getHomeLocation(userId);
+    const localMode = !!(me && home && isLocalPhase(
+        params, { lng: home.x, lat: home.y }, goal, { lng: me.x, lat: me.y }));
+
     const lastDrop = line && line.length >= 2
         ? { name: '마지막 하차지', lng: line[line.length - 1][0], lat: line[line.length - 1][1] }
         : null;
     const net = netForGoal(goal, {
-        line,
+        /* 🔴 관내는 **방향을 안 본다** (기사님: *"관내콜은 거리로 하지 말자. 그냥 상차지와
+           하차지가 같은 시도에 있으면"*). 그물에서 «방향»은 마름모의 각도이니 **360°**,
+           곧 원이다. 라인(경로 양옆)도 방향이라 함께 끈다. */
+        line: localMode ? null : line,
         lineRadiusKm: session.activeFilter.detourRadiusKm ?? DEFAULT_DETOUR_RADIUS_KM,
         lastDrop,
-        params: {
-            ...quad,
-            srcDiamKm: (session.activeFilter.pickupRadiusKm ?? 10) * 2,
-            dstDiamKm: radiusKm * 2,
-        },
+        params: localMode ? { ...params, srcAngleDeg: 360, dstAngleDeg: 360 } : params,
         anchor: me ? { name: '내 위치', lng: me.x, lat: me.y } : { name: '내 위치', lng: goal.lng, lat: goal.lat },
     });
+    /* 🩺 화면이 «지금 관내로 재고 있다»를 알아야 한다 — 판정이 달라진 이유다 (규칙 ⑤-4 ④) */
+    session.activeFilter.localMode = localMode;
     /* 🔴 그물이 아무것도 못 담으면 그것도 «고장»이다 — 물러선다 */
     if (!net.pass.length) return fallback();
 
@@ -262,7 +286,7 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
          * 🕸️ **그물이 목록을 만든다** (이식 C1-2) — 화면이 그리는 그 계산이다.
          *    제외 지역은 `netKeywordsOf` 안에서 `pruneExcludedRegions` 한 곳이 뺀다 (규칙 ③).
          */
-        const { flat, grouped, byNet, pruned } = netKeywordsOf(session, city, radius, null);
+        const { flat, grouped, byNet, pruned } = netKeywordsOf(session, userId, city, radius, null);
         const customCityFilters = getCityRegionsWithRadius(city, radius).customCityFilters;
         console.log(`🕸️ [FilterManager] ${byNet ? '그물' : '도시 둘레(물러섬)'} → 지역 ${flat.length}개`
             + (pruned > 0 ? ` (제외로 ${pruned}개 뺌)` : ''));
@@ -557,7 +581,7 @@ function refreshDetourIfNeeded(
      */
     const line = getActivePolyline(session);
     const kept = session.activeFilter.destinationCity
-        ? netKeywordsOf(session, session.activeFilter.destinationCity, dRadius,
+        ? netKeywordsOf(session, userId, session.activeFilter.destinationCity, dRadius,
             (line?.length ?? 0) >= 2 ? line!.map(p => [p.x, p.y] as [number, number]) : null)
         : (() => {
             const k = pruneExcludedRegions(regions.destinationGroups, session.activeFilter.excludedRegions ?? []);

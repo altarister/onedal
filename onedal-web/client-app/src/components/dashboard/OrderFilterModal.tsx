@@ -686,7 +686,8 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                   */}
                                 {(() => {
                                     const homeOn = (filter.callTarget ?? 'DEST') === 'HOME';
-                                    const isLocal = (filter.callTarget ?? 'DEST') === 'LOCAL';
+                                    /* 🏘️ 관내는 **서버가 파생**한다 (C4-8b) — 고르는 값이 아니라 «지금 그렇다»다 */
+                                    const isLocal = filter.localMode === true;
                                     return (
                                         <button type="button" onClick={() => goPhase(homeOn ? 'DEST' : 'HOME')}
                                             title={homeOn ? '끄면 원래 목적지로 돌아갑니다' : '켜면 집 방향 콜을 찾습니다'}

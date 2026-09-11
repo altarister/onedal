@@ -11,6 +11,7 @@ const codeOnly = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/
 const modal = codeOnly(read(join(CLIENT, "components/dashboard/OrderFilterModal.tsx")));
 const hook = codeOnly(read(join(CLIENT, "hooks/useFilterConfig.ts")));
 const fm = codeOnly(read(join(SERVER, "state/filterManager.ts")));
+const engine = codeOnly(read(join(SERVER, "services/dispatchEngine.ts")));
 const handlers = codeOnly(read(join(SERVER, "socket/socketHandlers.ts")));
 
 /**
@@ -444,6 +445,78 @@ describe('손잡이 이름 — 목업 것으로 한 벌 (C4-7)', () => {
 });
 
 /**
+ * 🏘️ **관내 — 목업처럼, 목적지를 안 잃는 파생** (이식 C4-8b · 2026-09-11).
+ *
+ * 기사님 2026-09-11: *"우린 집으로 갈건지 말껀지만 있어"* → 관내를 «고르는 것»에서 뺐다.
+ * 그러면 **들어가는 길이 없어지므로** 파생으로 만든다.
+ *
+ * 🔴 **관내와 목적지 설정은 다른 일이다** (내가 한 번 같다고 봤다가 되물림당했다):
+ *      목적지를 「성남시」로  →  성남시를 **향하는** 콜 (**방향을 본다**)
+ *      관내                  →  성남시 **안에서 끝나는** 콜 (**방향을 안 본다**)
+ *    기사님이 이미 정하신 규칙이다 — *"관내콜은 거리로 하지 말자.
+ *    그냥 상차지와 하차지가 같은 시도에 있으면."*
+ *
+ * 🔴 **목적지를 잃지 않는다.** 실물은 관내로 가느라 `destinationCity` 를 지금 시로
+ *    **바꿨다**(김포시 → 성남시). 그래서 파생으로 두면 **기사님이 정한 목적지가 저절로
+ *    바뀐다.** 목업은 목적지를 그대로 둔 채 **재는 법만** 바꾼다 — 그쪽이 맞다.
+ */
+describe('관내 — 목적지를 안 잃는 파생 (C4-8b)', () => {
+
+    /** 🔴 ② 값 — 판정은 shared 하나가 한다. 서버가 제 규칙을 또 세우지 않는다 (규칙 ③) */
+    it('🔴 관내 판정은 shared 의 isLocalPhase 하나로 한다', () => {
+        /**
+         * 🔴 **그물 «안»을 본다.** `isLocalPhase` 는 **import 줄에도** 있어서 파일 전체를
+         *    훑으면 함수에서 빼도 초록불이다 (변이로 확인했다 — 이 레포가 반복해 당한 모양).
+         */
+        const net = fm.slice(fm.indexOf('function netKeywordsOf'), fm.indexOf('function netKeywordsOf') + 3000);
+        expect(net).toMatch(/isLocalPhase\(/);
+        // 서버가 «목적지 근처인가»를 제 손으로 다시 재지 않는다
+        expect(net).not.toMatch(/haversineKm\(/);
+    });
+
+    /** 🔴 ① 스키마 — 파생값이라 **저장하지 않는다**. 저장하면 두 벌이 된다 */
+    it('🔴 localMode 는 메모리에만 산다 (DB 에 안 쌓인다)', () => {
+        const db = codeOnly(read(join(SERVER, 'db.ts')));
+        expect(db).not.toMatch(/local_mode/);
+        const shared = require("@onedal/shared");
+        expect((shared.APP_FILTER_KEYS as readonly string[]).includes('localMode')).toBe(false);
+    });
+
+    /**
+     * 🔴 ⑤ 읽는 곳 — **그물 한 곳뿐이다.** 둘이 되면 각자 다른 질문을 답하기 시작한다.
+     * 🔴 그리고 **목적지를 안 건드린다** — 그게 실물과 목업이 갈리던 자리다.
+     */
+    it('🔴 그물이 관내를 읽는다 — 목적지는 안 건드린다', () => {
+        expect(fm).toMatch(/localMode/);
+        // 관내라고 `city` 를 갈아치우지 않는다 — 넘어온 목적지를 그대로 쓴다
+        const net = fm.slice(fm.indexOf('function netKeywordsOf'), fm.indexOf('function netKeywordsOf') + 3000);
+        expect(net).not.toMatch(/city = /);
+    });
+
+    /**
+     * 🔴 **방향을 안 본다** (기사님: *"관내콜은 거리로 하지 말자. 그냥 상차지와 하차지가
+     *    같은 시도에 있으면"*). 그물에서 «방향»은 마름모의 각도다 — 관내면 **360°**,
+     *    곧 원이 된다. 라인(경로 양옆)도 안 쓴다 — 그것도 방향이다.
+     */
+    it('🔴 관내면 방향을 안 본다 — 각도 360° · 라인 없음', () => {
+        const net = fm.slice(fm.indexOf('function netKeywordsOf'), fm.indexOf('function netKeywordsOf') + 3000);
+        expect(net).toMatch(/srcAngleDeg: 360/);
+        expect(net).toMatch(/dstAngleDeg: 360/);
+        expect(net).toMatch(/localMode \? null : line/);
+    });
+
+    /**
+     * ⚠️ **`callTarget` 의 `'LOCAL'` 은 아직 남아 있다** (C4-8b-2 로 미룬다).
+     *    타입에서 걷으면 앱(Kotlin)·DB 까지 내려간다 — 이 판은 «관내로 들어가는 길»을
+     *    되살리는 데까지다. 다만 **두 길이 같은 일을 하지는 않는다**:
+     *    이제 관내는 그물이 판단하고, `setCallTarget('LOCAL')` 은 화면에서 못 부른다(C4-8a).
+     */
+    it('⚠️ 옛 LOCAL 전환은 화면에서 부르지 않는다 (타입 철거는 C4-8b-2)', () => {
+        expect(modal).not.toMatch(/'LOCAL'/);
+    });
+});
+
+/**
  * 🗂️ **디자인을 목업처럼 — 순서와 3칸 격자** (이식 C4-6 · 2026-09-11).
  *
  * 기사님 지시 2026-09-11: *"**디자인은 목업처럼 해주면 되고**"* (목업 왼쪽 패널 스크린샷과 함께).
@@ -719,7 +792,6 @@ describe('국면 전환 — 입구는 하나, 확인창을 거친다', () => {
  */
 describe('국면 전환 — 반경은 국면 설정만이 정한다', () => {
 
-    const engine = codeOnly(read(join(SERVER, 'services/dispatchEngine.ts')));
     const fn = engine.slice(engine.indexOf('export async function setCallTarget'));
     const body = fn.slice(0, fn.indexOf('\nexport '));
 
@@ -782,8 +854,7 @@ describe('경유 갱신 — 구현은 하나여야 한다', () => {
     });
 
     it('🔴 recalculateDetourFilter 의 구현은 하나다 — dispatchEngine 은 다시 내보내기만 한다', () => {
-        const engine = codeOnly(read(join(SERVER, 'services/dispatchEngine.ts')));
-        expect(engine).toMatch(/export \{ recalculateDetourFilter \} from "\.\.\/state\/filterManager"/);
+            expect(engine).toMatch(/export \{ recalculateDetourFilter \} from "\.\.\/state\/filterManager"/);
         expect(engine).not.toMatch(/export const recalculateDetourFilter/);
         // 부르는 쪽(소켓·설정 라우트)은 여전히 하나의 구현을 본다
         expect(handlers).toMatch(/recalculateDetourFilter\(/);
@@ -797,8 +868,7 @@ describe('경유 갱신 — 구현은 하나여야 한다', () => {
          *    131개 → **27개** 로 되돌렸다 (실측 12:35:50).
          *    "목적이 다르니 하나는 괜찮다"가 정확히 갈라짐의 시작이었다.
          */
-        const engine = codeOnly(read(join(SERVER, 'services/dispatchEngine.ts')));
-        expect((engine.match(/getDetourRegions\(/g) || []).length).toBe(0);
+            expect((engine.match(/getDetourRegions\(/g) || []).length).toBe(0);
     });
 });
 
