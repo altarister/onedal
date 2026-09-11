@@ -13,18 +13,19 @@
  * 🔴 **재료가 하나라도 없으면 `null` 이다** — 그물을 지어내지 않는다 (규칙 ④).
  *    목적지를 모르거나 내 위치를 모르면 그릴 것이 없다.
  *
- * ⚠️ **마름모 각도·반경은 아직 실물에 저장할 칸이 없다** (계획서 §5). 실험실 기본값을 쓴다 —
- *    기사님이 고칠 칸은 필터를 옮기는 C 단계에서 판다. 그때까지는 **화면이 이 값으로 그린다**는
- *    것을 여기 적어 둔다 (규칙 ⑤-4 ④: 화면이 조용히 거짓말하지 않게).
+ * ✅ **마름모 각도·반경은 이제 기사님이 고치신다** (2026-09-11 · 이식 C3).
+ *    `user_filter_phases` 에 칸 셋이 생겼고(출발각·목적각·마름모반경), 무대가 **지금 국면의 값**을
+ *    이 훅에 넘긴다. 화면이 그리는 값과 기사님이 고치는 값이 같아졌다 (규칙 ⑤-4 ④).
  */
 import { useMemo } from 'react';
 import { netForGoal, mergeGoalNets, cityCenter, type NetPoint, type NetResult } from '@onedal/shared';
 import type { SecuredOrder } from '@onedal/shared';
 
 /**
- * 📐 **실물에 칸이 없는 값들** — 실험실 기본값 그대로.
- * 🔴 여기 숫자를 «적당히» 고르지 않는다. 실험실에서 기사님과 맞춘 값이고,
- *    C 단계에서 `user_filter_phases` 에 칸이 생기면 **이 상수는 지운다.**
+ * 📐 **마름모의 모양을 못 받았을 때의 값** — 실험실 기본값 그대로.
+ * 🔴 ✅ **2026-09-11 (이식 C3) — 이제 기사님이 고칠 수 있다.** 칸이 `user_filter_phases` 에
+ *    생겼고(`srcAngleDeg`·`dstAngleDeg`·`quadRadiusKm`), 이 훅은 그 값을 받아 쓴다.
+ *    여기 숫자는 **아직 필터가 안 온 첫 순간**의 폴백일 뿐이다 — 화면이 빈 채로 서지 않게.
  */
 export const NET_SHAPE_DEFAULTS = {
     /** 출발지 각도(전체 °) — 얼마나 돌아도 되나 */
@@ -48,6 +49,11 @@ export interface CallNetInput {
     lineRadiusKm?: number;
     /** 🧭 경로를 든 콜 — 있으면 «노선»(라인 그물), 없으면 «동선»(마름모 하나) */
     routeHolder?: SecuredOrder | null;
+    /**
+     * 📐 **마름모의 모양** — 기사님이 필터에서 고친 값 (이식 C3 · 2026-09-11).
+     *    안 주면 `NET_SHAPE_DEFAULTS` 를 쓴다 — 필터가 아직 안 온 첫 순간뿐이다.
+     */
+    shape?: { srcAngleDeg?: number; dstAngleDeg?: number; quadRadiusKm?: number };
 }
 
 export interface CallNet {
@@ -59,7 +65,10 @@ export interface CallNet {
 }
 
 export function useCallNet(i: CallNetInput): CallNet | null {
-    const { destinationCity, myLocation, pickupRadiusKm, destinationRadiusKm, lineRadiusKm, routeHolder } = i;
+    const { destinationCity, myLocation, pickupRadiusKm, destinationRadiusKm, lineRadiusKm, routeHolder, shape } = i;
+    const srcAngleDeg = shape?.srcAngleDeg ?? NET_SHAPE_DEFAULTS.srcAngleDeg;
+    const dstAngleDeg = shape?.dstAngleDeg ?? NET_SHAPE_DEFAULTS.dstAngleDeg;
+    const quadRadiusKm = shape?.quadRadiusKm ?? NET_SHAPE_DEFAULTS.quadRadiusKm;
     const polyline = routeHolder?.routePolyline;
 
     /** 🔴 점열을 **문자로 굳혀** 의존성으로 삼는다 — 매 렌더 새 배열이면 그물을 매번 다시 만든다 */
@@ -84,7 +93,7 @@ export function useCallNet(i: CallNetInput): CallNet | null {
             lineRadiusKm: lineRadiusKm ?? 6,
             lastDrop,
             params: {
-                ...NET_SHAPE_DEFAULTS,
+                srcAngleDeg, dstAngleDeg, quadRadiusKm,
                 srcDiamKm: (pickupRadiusKm ?? 10) * 2,
                 dstDiamKm: (destinationRadiusKm ?? 15) * 2,
             },
@@ -98,5 +107,6 @@ export function useCallNet(i: CallNetInput): CallNet | null {
         const merged = mergeGoalNets([net], { departed: false, myProgressKm: 0, excluded: [] });
         return { net: { ...net, pass: merged.pass, groups: merged.groups, count: merged.count }, usedLine: !!line, goal };
         // eslint-disable-next-line react-hooks/exhaustive-deps -- polyline 은 lineKey 로 굳혀 본다 (위 주석)
-    }, [destinationCity, myLocation?.x, myLocation?.y, pickupRadiusKm, destinationRadiusKm, lineRadiusKm, lineKey]);
+    }, [destinationCity, myLocation?.x, myLocation?.y, pickupRadiusKm, destinationRadiusKm, lineRadiusKm, lineKey,
+        srcAngleDeg, dstAngleDeg, quadRadiusKm]);
 }

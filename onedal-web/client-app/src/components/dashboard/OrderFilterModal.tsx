@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
 import { logRoadmapEvent } from "../../lib/roadmapLogger";
 import { NET_RATE_PER_KM, VEHICLE_CAPACITY, TRUCK_CAPACITY_SLOTS, CAPACITY_CONFIDENCE_LABEL,
-         PHASE_KEYS, PHASE_LABEL, PHASE_FIELDS, fieldLabel, PHASE_AUTO_SOURCE,
+         PHASE_KEYS, PHASE_LABEL, PHASE_FIELDS, FILTER_FIELDS, fieldLabel, PHASE_AUTO_SOURCE,
+         quadShapeOf, QUAD_SHAPE_KEYS,
          DEFAULT_PHASE_SETTINGS, resolvePhaseKey, reachRadiusKm } from "@onedal/shared";
-import type { PhaseKey, PhaseSettings } from "@onedal/shared";
+import type { PhaseKey, PhaseSettings, QuadShapeKey } from "@onedal/shared";
 import { socket } from "../../lib/socket";
 import { apiClient } from "../../api/apiClient";
 import { useCityOptions, resolveCity } from "../../lib/cityOptions";
@@ -98,6 +99,10 @@ const toForm = (s: PhaseSettings): PhaseForm => ({
     detourAllowKm: String(s.detourAllowKm),
     dropoffRadiusKm: String(s.dropoffRadiusKm),
     discountPct: String(s.discountPct),
+    /* 📐 마름모의 모양 셋 — 지도가 그리는 «가는 길목»의 폭 (이식 C3) */
+    srcAngleDeg: String(s.srcAngleDeg),
+    dstAngleDeg: String(s.dstAngleDeg),
+    quadRadiusKm: String(s.quadRadiusKm),
 });
 
 /** 빈 칸은 **이전 값 그대로**다 (0 으로 바꾸면 "제한 없음"으로 뒤집힌다 — §1) */
@@ -112,6 +117,9 @@ const toSettings = (f: PhaseForm, prev: PhaseSettings): PhaseSettings => {
         detourAllowKm: num(f.detourAllowKm, prev.detourAllowKm),
         dropoffRadiusKm: num(f.dropoffRadiusKm, prev.dropoffRadiusKm),
         discountPct: num(f.discountPct, prev.discountPct),
+        srcAngleDeg: num(f.srcAngleDeg, prev.srcAngleDeg),
+        dstAngleDeg: num(f.dstAngleDeg, prev.dstAngleDeg),
+        quadRadiusKm: num(f.quadRadiusKm, prev.quadRadiusKm),
     };
 };
 
@@ -119,7 +127,13 @@ const mapToForm = (m: Record<PhaseKey, PhaseSettings>): PhaseFormMap =>
     Object.fromEntries(PHASE_KEYS.map(k => [k, toForm(m[k])])) as PhaseFormMap;
 
 /** 위 그리드가 그리는 칸 — **표시 순서**. 콜할인율(discountPct)는 전용 UI 가 위에서 그린다 */
-const GEO_FIELDS: (keyof PhaseSettings)[] = ['destinationCity', 'pickupRadiusKm', 'detourAllowKm', 'dropoffRadiusKm'];
+/**
+ * 🗺️ 지역 축 칸들 — 그리드로 그린다.
+ * 📐 **마름모 셋이 2026-09-11 에 들어왔다** (이식 C3) — 지도가 그리는 «가는 길목»의 폭이다.
+ *    라벨·단위·범위·설명은 `FILTER_FIELDS` 한 곳에서 온다 (규칙 ③ — 여기 또 안 적는다).
+ */
+const GEO_FIELDS: (keyof PhaseSettings)[] = ['destinationCity', 'pickupRadiusKm', 'detourAllowKm', 'dropoffRadiusKm',
+    'srcAngleDeg', 'dstAngleDeg', 'quadRadiusKm'];
 
 type TabKey = PhaseKey;
 
@@ -581,9 +595,17 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                 /* 자동 칸 — 왜 못 고치는지를 화면이 말한다 (빈 칸으로 두면 고장으로 보인다).
                                    복귀의 집 주소처럼 **실제 값이 있으면 그 값을 보여 준다** */
                                 if (mode === 'auto') {
-                                    const shownValue = f === 'destinationCity' && tab === 'home' ? homeAddress : '';
+                                    /* 📐 마름모 셋은 **첫짐 행에서 상속한다** (명세 §3 · 이식 C3).
+                                       상속하는 자리는 `quadShapeOf` 하나다 — 여기서 `forms.first[f]` 를
+                                       직접 읽으면 지도와 갈라진다 (규칙 ③). */
+                                    const quad = quadShapeOf(forms);
+                                    const inherited = QUAD_SHAPE_KEYS.includes(f as QuadShapeKey)
+                                        ? `${quad[f as QuadShapeKey]}${FILTER_FIELDS.find(x => x.path === f)?.unit ?? ''} · 첫짐에서`
+                                        : '';
+                                    const shownValue = f === 'destinationCity' && tab === 'home' ? homeAddress : inherited;
+                                    /* 도시 이름은 길어서 두 칸, 각도·반경은 «110° · 첫짐에서» 라 한 칸이면 된다 */
                                     return (
-                                        <div key={f} className="space-y-1 col-span-2">
+                                        <div key={f} className={`space-y-1 ${inherited ? '' : 'col-span-2'}`}>
                                             <label className="block text-[10px] font-bold text-text-muted pl-1">{fieldLabel(tab, f)}</label>
                                             <div className="h-9 flex items-center px-2 rounded-md bg-surface-alt/30 border border-dashed border-border text-[10px] text-text-muted/80 truncate">
                                                 {shownValue || `자동 · ${PHASE_AUTO_SOURCE[tab]}`}
@@ -642,6 +664,10 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                     );
                                 }
 
+                                /* 🔴 **단위는 표에서 읽는다** — 오래 `KM` 이 박혀 있었다.
+                                   칸이 전부 km 였을 땐 맞는 말이었는데, 각도가 들어오며
+                                   «출발각 110 KM» 이 됐다 (이식 C3 · 2026-09-11). */
+                                const spec = FILTER_FIELDS.find(x => x.path === f);
                                 return (
                                     <div key={f} className="space-y-1">
                                         <label className="block text-[10px] font-bold text-text-muted pl-1">{fieldLabel(tab, f)}</label>
@@ -652,7 +678,9 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                                 onChange={(e) => setField(f, e.target.value)}
                                                 className={`bg-surface-alt/50 ${TAB_STYLE[tab].input} pr-8 ${TAB_STYLE[tab].text} font-bold h-9 text-center`}
                                             />
-                                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted font-black pointer-events-none text-[9px]">KM</span>
+                                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted font-black pointer-events-none text-[9px]">
+                                                {spec?.unit === 'km' ? 'KM' : spec?.unit}
+                                            </span>
                                         </div>
                                     </div>
                                 );

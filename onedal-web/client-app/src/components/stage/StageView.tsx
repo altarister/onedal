@@ -17,6 +17,7 @@ import { useDriveMotion } from '../dashboard/VehicleStatusPanel';
 import { useGpsFocusStore } from '../../stores/gpsFocusStore';
 import { useFilterConfig } from '../../hooks/useFilterConfig';
 import { useCallNet } from '../../hooks/useCallNet';
+import { quadShapeOf } from '@onedal/shared';
 import { logRoadmapEvent, logStateChange } from '../../lib/roadmapLogger';
 import { socket } from '../../lib/socket';
 /* 🗺️ 지도 아래 두 귀퉁이 — 규칙과 이름은 한 곳에서 온다 (규칙 ③) */
@@ -92,13 +93,23 @@ export default function StageView(props: Props) {
     const qrStop = qrSlice.length ? toNaviStop(qrSlice[qrSlice.length - 1]) : null;
     const qrVia = qrSlice.slice(0, -1).map(toNaviStop)
         .filter(Boolean) as { name: string; x: number; y: number }[];
-    const { filter, updateFilter } = useFilterConfig();
+    const { filter, updateFilter, phaseSettings } = useFilterConfig();
     /**
      * 🕸️ **지금 필터가 무엇을 담고 있나** — 지도에 그물로 그린다 (이식 B3-2).
      *    계산은 실험실과 **같은 함수**(`@onedal/shared` 의 `netForGoal`)다 — 두 화면이
      *    다른 답을 내면 «화면은 든다는데 판정은 탈락»이 된다 (규칙 ③).
      */
+    /**
+     * 📐 **마름모 모양** — 기사님이 첫짐 탭에서 고친 값 (이식 C3).
+     *
+     * 🔴 **지금 국면의 행을 읽지 않는다.** 명세 §3 이 «첫짐에서만 고치고 나머지는 상속»이라
+     *    적었고, 그 상속을 하는 자리는 `quadShapeOf` 하나다 (규칙 ③). 여기서 국면을 세어
+     *    `phaseSettings[국면]` 을 읽으면, 합짐 탭은 「자동 · 첫짐에서」라고 적어 두고
+     *    지도는 손 안 댄 기본값으로 그린다 — 화면이 조용히 거짓말한다.
+     */
+    const netShape = phaseSettings ? quadShapeOf(phaseSettings) : undefined;
     const callNet = useCallNet({
+        shape: netShape,
         destinationCity: filter?.destinationCity,
         myLocation,
         pickupRadiusKm: filter?.pickupRadiusKm,

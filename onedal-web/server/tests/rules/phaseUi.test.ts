@@ -75,6 +75,71 @@ describe('국면별 설정 — 화면은 표를 읽는다', () => {
 });
 
 /**
+ * 📐 **마름모의 모양 셋 — 화면에 실제로 떠야 한다** (이식 C3 · 2026-09-11).
+ *
+ * 지도는 `srcAngleDeg`·`dstAngleDeg`·`quadRadiusKm` 로 «가는 길목»을 그린다.
+ * 그 칸을 `PhaseSettings` 에 파 놓고 **화면에 안 띄우면 아무것도 안 한 것과 같다** —
+ * 기사님은 여전히 못 고치시고, 화면은 110°·110°·25km 를 조용히 쓴다 (규칙 ⑤-4 ④).
+ */
+describe('마름모 모양 — 기사님이 고칠 수 있어야 한다', () => {
+
+    const { PHASE_FIELDS, PHASE_KEYS, FILTER_FIELDS } = require("@onedal/shared");
+    const QUAD = ['srcAngleDeg', 'dstAngleDeg', 'quadRadiusKm'] as const;
+
+    it('🔴 그리드 목록(GEO_FIELDS)에 셋이 들어 있다 — 없으면 화면에 칸이 안 생긴다', () => {
+        const geo = modal.slice(modal.indexOf('const GEO_FIELDS'), modal.indexOf('const GEO_FIELDS') + 400);
+        for (const f of QUAD) expect(geo).toContain(`'${f}'`);
+    });
+
+    /**
+     * 🔴 **표가 `auto` 라고 적었으면 상속이 실제로 일어나야 한다.**
+     *
+     * 명세 §3: *"첫짐에서만 고치고 나머지는 상속한다 — 그물의 모양은 «어디로 가는가»가
+     * 정하지 «콜을 몇 개 쥐었는가»가 정하지 않는다."* 표에만 적고 읽는 쪽이 제 국면 행을
+     * 그대로 읽으면, 화면은 「자동 · 첫짐에서」라고 말하는데 지도는 손 안 댄 기본값으로
+     * 그린다. 그 상속을 하는 자리는 `quadShapeOf` **하나뿐이다** (규칙 ③).
+     */
+    it('첫짐만 입력이고 나머지 넷은 첫짐에서 상속한다 (명세 §3)', () => {
+        for (const f of QUAD) expect(`first.${f}=${PHASE_FIELDS.first[f]}`).toBe(`first.${f}=input`);
+        for (const phase of PHASE_KEYS.filter((p: string) => p !== 'first')) {
+            for (const f of QUAD) expect(`${phase}.${f}=${PHASE_FIELDS[phase][f]}`).toBe(`${phase}.${f}=auto`);
+        }
+    });
+
+    it('🔴 상속은 첫짐 행에서 온다 — quadShapeOf 가 그 한 곳이다', () => {
+        const { quadShapeOf, DEFAULT_PHASE_SETTINGS } = require("@onedal/shared");
+        const all = JSON.parse(JSON.stringify(DEFAULT_PHASE_SETTINGS));
+        all.first.srcAngleDeg = 77; all.first.dstAngleDeg = 88; all.first.quadRadiusKm = 9;
+        all.merge.srcAngleDeg = 300;   // 합짐 행에 딴 값이 있어도 무시된다
+        expect(quadShapeOf(all)).toEqual({ srcAngleDeg: 77, dstAngleDeg: 88, quadRadiusKm: 9 });
+    });
+
+    it('🔴 지도는 quadShapeOf 로 모양을 받는다 (제 국면 행을 직접 읽지 않는다)', () => {
+        const stage = codeOnly(read(join(CLIENT, 'components/stage/StageView.tsx')));
+        expect(stage).toMatch(/quadShapeOf\(/);
+        expect(stage).not.toMatch(/srcAngleDeg:/);
+    });
+
+    it('🔴 자동 칸은 상속된 **실제 값**을 보여준다 (빈 칸이면 고장으로 보인다)', () => {
+        expect(modal).toMatch(/quadShapeOf\(/);
+    });
+
+    /**
+     * 🔴 **단위를 화면이 또 갖지 않는다** (규칙 ③).
+     * 숫자 칸은 오래 `KM` 이 박혀 있었다 — 칸이 전부 km 였으니 맞는 말이었다.
+     * 각도가 들어오면서 틀린 말이 됐다: 출발각 110 옆에 **KM** 이 붙는다.
+     */
+    it('🔴 칸 옆 단위는 FILTER_FIELDS 에서 읽는다 (KM 을 박아 두지 않는다)', () => {
+        const grid = modal.slice(modal.indexOf('GEO_FIELDS.map'), modal.indexOf("shown.pickupRadiusKm === 'input'"));
+        expect(grid).not.toMatch(/>KM</);
+        expect(modal).toMatch(/FILTER_FIELDS/);
+        // 각도 칸은 ° 로 뜬다 — 표가 그렇게 적어 뒀다
+        const src = FILTER_FIELDS.find((f: any) => f.path === 'srcAngleDeg');
+        expect(src.unit).toBe('°');
+    });
+});
+
+/**
  * 🔴 **국면 전환의 입구는 하나다** (명세 §4-2).
  *
  * 팝업 탭 안에 `🏘️ 이 동네에서 찾기로 전환` · `🏠 복귀행으로 전환` 을 넣었다가 뺐다.

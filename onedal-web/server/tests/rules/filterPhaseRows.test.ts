@@ -37,6 +37,29 @@ describe('FILTER_FIELDS — 표 하나가 컬럼·폼·비교를 다 만든다',
         expect(phaseOfRow({ discount_pct: 999 }, 'first').discountPct).toBe(100);   // 범위 자름
     });
 
+    /**
+     * 🔴 **칸이 NULL 이면 «0» 이 아니라 «없다» 다** (2026-09-11 실측 · 이식 C3).
+     *
+     * `Number(null) === 0` 이고 `Number.isFinite(0)` 이라, 새로 판 칸이 NULL 인 기존 행을
+     * 읽으면 **0 이 기본값을 이긴다.** 마름모 셋을 판 날 바로 드러났다 —
+     * 필터 화면에 **출발각 0° · 목적각 0°** 가 떴다. 0° 는 그물이 아예 닫히는 값이다.
+     *
+     * 🔴 **행 전체가 없을 때(`phaseOfRow(null, …)`)는 이미 기본값으로 갔다** — 그래서
+     *    위 검사는 통과하고 있었다. 갈라진 것은 **행은 있는데 칸만 비었을 때**다.
+     *    지금은 테스트 단계라 마이그레이션을 안 한다 (루트 CLAUDE.md) — 새 칸은 **늘** 이 모양으로 태어난다.
+     */
+    it('🔴 행은 있는데 칸이 NULL 이면 기본값이다 — 0 으로 읽지 않는다', () => {
+        for (const key of PHASE_KEYS) {
+            const blankRow: Record<string, unknown> = { phase: key };
+            for (const f of FILTER_FIELDS) blankRow[f.col] = null;
+            expect(phaseOfRow(blankRow, key)).toEqual(DEFAULT_PHASE_SETTINGS[key]);
+        }
+        // 칸이 아예 없는 행(옛 스키마)도 같다
+        expect(phaseOfRow({ phase: 'first' }, 'first').srcAngleDeg).toBe(DEFAULT_PHASE_SETTINGS.first.srcAngleDeg);
+        // 🔴 진짜 0 은 여전히 0 이다 (우회 허용 0 = "가는 길 위의 콜만")
+        expect(phaseOfRow({ detour_allow_km: 0 }, 'first').detourAllowKm).toBe(0);
+    });
+
     it('🧪 병행 비교 — 어긋난 칸을 이름으로 짚는다', () => {
         const blob = normalizePhaseSettings(null);
         const rows = { ...blob, first: { ...blob.first, pickupRadiusKm: 99 } };
