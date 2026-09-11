@@ -42,7 +42,12 @@ describe('마스터 GPS — 실 GPS 와 시뮬레이터가 같은 길을 간다'
      */
     it('🔴 시뮬레이터 가동 조건에 개발 빌드 여부가 걸려 있다  (실 폰에서는 켜질 수 없다)', () => {
         expect(gps).toMatch(/const SIMULATOR_AVAILABLE = import\.meta\.env\.DEV/);
-        expect(gps).toMatch(/const useMock = SIMULATOR_AVAILABLE/);
+        /**
+         * 🔄 **개정 2026-09-12** — 조건이 «켤 수 있나»(`canMock`)와 «켰나»(`running`)로 갈렸다.
+         *    기사님: *"경로가 생기면 현황판도 알게 될 거고 그때 **버튼을 활성화해서 클릭**하도록"*.
+         *    개발 빌드 게이트는 그대로 `canMock` 안에 있다 — 실 폰에서는 여전히 켜질 수 없다.
+         */
+        expect(gps).toMatch(/const canMock = SIMULATOR_AVAILABLE/);
     });
 
     it('강제 스위치(isTestMode)는 없앴다 — 🚀 출발 하나로 끝난다', () => {
@@ -68,7 +73,9 @@ describe('마스터 GPS — 실 GPS 와 시뮬레이터가 같은 길을 간다'
     });
 
     it('출발하기 전에는 시뮬레이터가 안 돈다', () => {
-        expect(gps).toMatch(/const useMock = SIMULATOR_AVAILABLE\s*\n\s*&& isDriving/);
+        /* 🔄 2026-09-12 — «출발했나»는 `canMock` 이 든다. 거기에 «버튼을 눌렀나»가 곱해진다 */
+        expect(gps).toMatch(/const canMock = SIMULATOR_AVAILABLE && isDriving/);
+        expect(gps).toMatch(/const useMock = canMock && mockRunning/);
     });
 
     it('좌표를 내보내는 자리는 실 GPS 한 곳 · 시뮬레이터 한 곳', () => {

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { publishLocation, endMockDriving } from '../lib/gpsBridge';
 import { useMockGpsSimulator } from './useMockGpsSimulator';
+import { useMockDriveStore } from '../stores/mockDriveStore';
 import { useLocationStore } from '../stores/useLocationStore';
 
 interface PolylinePoint {
@@ -27,37 +28,8 @@ const REAL_GPS_STALE_MS = 15_000;
  */
 const SIMULATOR_AVAILABLE = import.meta.env.DEV;
 
-/**
- * 🐢🐇 **모의 주행 속도 — URL 로 늦추거나 높인다** (기사님 확정 2026-08-29 · 상한 개정 08-30).
- *
- *   http://localhost:3000/?speed=3      3배속 — 3km 를 약 30초에 (느리게 보고 싶을 때)
- *   http://localhost:3000/?speed=200    빠르게 — 17.6km 6정거장을 약 17초에
- *
- * ⚠️ **켜지 않으면 기본 15배속 그대로다.** 개발 빌드에서만 읽는다 (`SIMULATOR_AVAILABLE` 뒤).
- *
- * 🔴 **상한이 60 이었던 이유와, 그 이유가 없어진 경위** (기사님 지시 2026-08-30)
- *
- * 08-29 에는 리허설이 «다음 정거장 3km 앞» 신호를 보고 **사람이 손으로** 합짐을 올렸다.
- * 15배속이면 3km 를 6초에 지나가 반응할 틈이 없어서, 늦추는 손잡이를 만들고 상한을 낮게 뒀다.
- *
- * 기사님: *"3km 앞에서 콜을 주는 거 하지 말고 **그냥 타이머로** 하라고."*
- * → 투입 시점은 이제 예약 발송(`19,20,21@90`)이 정한다. **사람이 반응할 틈을 벌어 줄
- *   이유가 사라졌으므로** 상한을 푼다. 반복 테스트에서 주행은 기다림일 뿐이다.
- *
- * ⚠️ **정거장은 배속과 무관하게 다 들른다** — `useMockGpsSimulator` 가 이번 걸음에
- *    지나치는 정거장을 먼저 찍고 간다(`due`). 그래서 빨라져도 도착 감지는 발화한다.
- *    다만 **궤적은 성겨진다** — 경로 이탈·우회량을 볼 때는 낮은 배속으로 돌린다.
- */
-const MOCK_SPEED_MAX = 300;
-function mockSpeedMultiplier(): number {
-    if (!SIMULATOR_AVAILABLE) return 15;
-    try {
-        const n = Number(new URLSearchParams(window.location.search).get('speed'));
-        return Number.isFinite(n) && n >= 1 && n <= MOCK_SPEED_MAX ? n : 15;
-    } catch {
-        return 15;
-    }
-}
+/* 🐢🐇 **속도는 스토어가 정한다** — 주소창 `?speed=` 는 `mockDriveStore` 의 **첫값**으로만
+   산다 (기사님 2026-09-12: 버튼으로 켜고 끈다). 옛 `mockSpeedMultiplier()` 는 그리로 옮겼다. */
 
 /**
  * 관제웹의 마스터 GPS — **실 GPS 와 시뮬레이터가 같은 통로를 쓴다.**
@@ -133,18 +105,31 @@ export function useMasterGps(
      * 시뮬레이터가 도는 조건 — **개발 빌드에서, 실 GPS 가 없을 때만.**
      * 실 폰 빌드에서는 `SIMULATOR_AVAILABLE` 이 false 라 절대 돌지 않는다.
      */
-    const useMock = SIMULATOR_AVAILABLE
-        && isDriving
-        && !!activePolyline?.length
-        && !realIsLive;
+    /**
+     * 🎭 **손으로 켠다** (기사님 확정 2026-09-12 — *"경로가 생기면 현황판도 알게 될 거고
+     *    그때 **버튼을 활성화해서 클릭**하도록 하면 될 듯"*).
+     *
+     * 🔴 예전엔 위 조건이 맞으면 **저절로** 시작했다. 끄는 길이 없어 «그만 보고 싶은데 계속
+     *    도는» 상태가 됐고 속도는 주소창 `?speed=` 뿐이었다. 이제 `running` 이 주인이다.
+     * 🔴 **«켤 수 있나»는 여기서 올린다** — 현황판이 «경로가 있나»를 제 손으로 다시 보면
+     *    두 곳이 다른 답을 낸다 (규칙 ③). 경로가 사라지면 스토어가 돌던 것도 멈춘다.
+     * ⚠️ 실 GPS 가 살아 있으면 **진짜가 이긴다** — 켜 뒀어도 가짜를 안 쓴다.
+     */
+    const canMock = SIMULATOR_AVAILABLE && isDriving && !!activePolyline?.length;
+    const setMockAvailable = useMockDriveStore(st => st.setAvailable);
+    const mockRunning = useMockDriveStore(st => st.running);
+    const mockSpeed = useMockDriveStore(st => st.speed);
+    useEffect(() => { setMockAvailable(canMock); }, [canMock, setMockAvailable]);
+
+    const useMock = canMock && mockRunning && !realIsLive;
 
     const mockGps = useMockGpsSimulator({
         isActive: useMock,
         routePolyline: activePolyline,
         stops,
-        speedMultiplier: mockSpeedMultiplier(),
+        speedMultiplier: mockSpeed,   // 🐢🚗🚀 스토어가 정한다 (주소창 `?speed=` 는 첫값으로만)
         // 경로 끝에 닿으면 가상 위치를 걷어내고 마지막 실제 좌표로 되돌린다
-        onFinished: () => { endMockDriving(); setSource('none'); },
+        onFinished: () => { endMockDriving(); setSource('none'); useMockDriveStore.getState().stop(); },
     });
 
     useEffect(() => {

@@ -23,8 +23,22 @@
  * | `useDeviceStore`  | 앱폰 텔레메트리 스토어 | 〃 |
  * | `summarizeTally`  | 순수 함수 (앱 성적표 → 문구) | **그대로 쓴다** |
  * | `apiBase`         | 지금 보는 서버 주소 | 어드민 주소로 |
+ * | `useMockDriveStore` | 모의 주행 스위치 (개발 전용) | 어드민에서도 같은 스위치 |
+ *
+ * 🗑️ **한때 둘이 더 있었다** (2026-09-11 → 09-12 에 걷었다) — `publishLocation`(좌표 보내기)과
+ *    `apiClient`(설정 읽기). 현황판의 «찍어서 내 위치 찾기»가 쓰던 것인데 기사님이
+ *    *"자리가 모자란다 … 버리자"* 하셔서 화면과 함께 걷었다.
+ *    🔴 되살릴 때는 **`publishLocation` 을 다시 얹는다** — 위치를 서버로 보내는 문은 그것
+ *       하나뿐이고, 여기서 `socket.emit` 을 새로 내면 2026-08-14 의 «두 곳에서 쏘던» 사고가
+ *       되살아난다 (`lib/gpsBridge.ts` 머리 참조).
  */
 export { useFilterConfig } from '../hooks/useFilterConfig';
 export { useDeviceStore } from '../stores/deviceStore';
 export { summarizeTally } from '../lib/filterTally';
 export { apiBase } from '../lib/serverTarget';
+/**
+ * 🎭 **모의 주행 스위치** (기사님 2026-09-12 — *"경로가 생기면 현황판도 알게 될 거고
+ *    그때 버튼을 활성화해서 클릭하도록"*). 현황판은 `available` 을 보고 버튼을 켜고,
+ *    `start()`·`stop()`·`setSpeed()` 를 부른다. **«경로가 있나»를 제 손으로 다시 보지 않는다.**
+ */
+export { useMockDriveStore, MOCK_DRIVE_SPEEDS } from '../stores/mockDriveStore';

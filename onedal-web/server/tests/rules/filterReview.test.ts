@@ -528,3 +528,63 @@ describe('6단계 · 칸 바깥 스타일을 목업 어휘로 (조사 ③)', () 
         expect(knob).toMatch(/accent-info/);
     });
 });
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * 8단계 — 모의 주행을 손으로 켠다 (기사님 2026-09-12)
+ * ══════════════════════════════════════════════════════════════════════════ */
+describe('8단계 · 모의 주행 — 현황판이 켜고 끈다', () => {
+    /**
+     * 기사님: *"경로가 생기면 현황판도 알게 될 거고 그때 **버튼을 활성화해서 클릭**하도록
+     * 하면 될 듯 싶은데?"* · *"이건 그냥 **테스트용** 모의 주행이야 — 라이브에서는 폰의 GPS를 쓸 거야."*
+     *
+     * 🔴 예전엔 조건이 맞으면 **저절로** 시작했다 (개발빌드 + 출발 + 경로 + 실GPS 15초 부재).
+     *    끄는 길이 없어 «그만 보고 싶은데 계속 도는» 상태가 됐고, 속도는 주소창 `?speed=` 뿐이었다.
+     * 🔴 **테스트용이라 서버까지 GPS 를 보낸다** — 폰 GPS 자리를 대신하니 그것이 하던 일
+     *    (도착·마일스톤·경로 갱신)을 그대로 밟아야 테스트가 된다. 라이브 차단은 `import.meta.env.DEV`.
+     * ⚠️ 목업의 **모의 시계는 안 가져온다** — 목업은 서버를 안 밟기에 성립하는 것이고,
+     *    서버를 밟는 주행에 넣으면 화면 시각과 서버 시각이 갈라져 약속·버퍼가 어긋난다.
+     */
+    const store = readClient('stores/mockDriveStore.ts');
+    const gps = codeOnly(readClient('hooks/useMasterGps.ts'));
+    const bridge = readClient('statusboard/bridge.ts');
+
+    it('🔴 스토어가 «켤 수 있나 · 도나 · 얼마나 빠르게» 를 든다', () => {
+        for (const k of ['available', 'running', 'speed'])
+            expect(store).toMatch(new RegExp(`${k}:`));
+        for (const f of ['setAvailable', 'start', 'stop', 'setSpeed'])
+            expect(store).toMatch(new RegExp(`${f}`));
+    });
+
+    it('🔴 «켤 수 있나» 는 관제웹이 올린다 — 현황판이 경로를 제 손으로 다시 보지 않는다', () => {
+        expect(gps).toMatch(/st\.setAvailable/);
+        /* 개발 빌드 + 경로가 있을 때만 켤 수 있다 — «켤 수 있나»를 정하는 줄을 본다 */
+        const i = gps.indexOf('const canMock =');
+        expect(i).toBeGreaterThan(-1);
+        const decl = gps.slice(i, gps.indexOf(';', i));
+        expect(decl).toMatch(/SIMULATOR_AVAILABLE/);
+        expect(decl).toMatch(/activePolyline/);
+        /* 그 값을 스토어로 올린다 */
+        expect(gps).toMatch(/setMockAvailable\(canMock\)/);
+    });
+
+    it('🔴 **손으로 눌러야 돈다** — 저절로 시작하지 않는다', () => {
+        const i = gps.indexOf('const useMock =');
+        expect(i).toBeGreaterThan(-1);
+        const decl = gps.slice(i, gps.indexOf(';', i));
+        expect(decl).toMatch(/mockRunning/);
+    });
+
+    it('🔴 속도는 스토어가 정한다 — 주소창이 아니라', () => {
+        expect(gps).toMatch(/speedMultiplier: mockSpeed/);
+        /* 주소창은 스토어의 **첫값**으로만 산다 — 훅이 매번 읽지 않는다 */
+        expect(gps).not.toMatch(/mockSpeedMultiplier\(\)/);
+    });
+
+    it('🔴 현황판이 다리로만 닿는다 — 안쪽을 직접 부르지 않는다', () => {
+        expect(bridge).toMatch(/useMockDriveStore/);
+    });
+
+    it('🔴 라이브에서는 없다 — 개발 빌드 게이트가 그대로다', () => {
+        expect(gps).toMatch(/SIMULATOR_AVAILABLE = import\.meta\.env\.DEV|const SIMULATOR_AVAILABLE/);
+    });
+});
