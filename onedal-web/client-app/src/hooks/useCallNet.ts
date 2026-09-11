@@ -83,8 +83,14 @@ export function useCallNet(i: CallNetInput): CallNet | null {
     const { destinationCity, myLocation, pickupRadiusKm, destinationRadiusKm, lineRadiusKm, routeHolder, shape } = i;
     /** 🛣️ 안 주면 «노선» — 목업 기본값과 같다 (기사님 확정 2026-09-09) */
     const routeMode = i.routeMode ?? true;
-    /** 🔴 배열을 문자로 굳혀 의존성으로 삼는다 — 매 렌더 새 배열이면 그물을 매번 다시 만든다 */
-    const excludedKey = (i.excludedRegions ?? []).join('|');
+    /**
+     * 🔴 배열을 문자로 굳혀 의존성으로 삼는다 — 매 렌더 새 배열이면 그물을 매번 다시 만든다.
+     * 🔴 **`join('|')` 이 아니다** (2026-09-12 전수 조사 4단계 실측). 키 자체가 `R|광주시`·`S|서울`
+     *    처럼 `|` 를 품고 있어 되풀 때 `["R","광주시"]` 로 깨졌다 — **지도는 제외지역을 한 번도
+     *    제대로 뺀 적이 없었다.** 서버는 173 → 148 로 뺐는데 지도 수는 176 그대로였다.
+     *    JSON 으로 굳히고 JSON 으로 되푼다 — 구분자가 키와 겹칠 수 없다.
+     */
+    const excludedKey = JSON.stringify(i.excludedRegions ?? []);
     const srcAngleDeg = shape?.srcAngleDeg ?? NET_SHAPE_DEFAULTS.srcAngleDeg;
     const dstAngleDeg = shape?.dstAngleDeg ?? NET_SHAPE_DEFAULTS.dstAngleDeg;
     const quadRadiusKm = shape?.quadRadiusKm ?? NET_SHAPE_DEFAULTS.quadRadiusKm;
@@ -128,7 +134,7 @@ export function useCallNet(i: CallNetInput): CallNet | null {
          */
         const merged = mergeGoalNets([net], {
             departed: false, myProgressKm: 0,
-            excluded: excludedKey ? excludedKey.split('|') : [],
+            excluded: JSON.parse(excludedKey) as string[],
         });
         return { net: { ...net, pass: merged.pass, groups: merged.groups, count: merged.count }, usedLine: !!line, goal };
         // eslint-disable-next-line react-hooks/exhaustive-deps -- polyline 은 lineKey 로 굳혀 본다 (위 주석)

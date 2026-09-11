@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
+import { useFilterStore } from "../../stores/filterStore";
 import { logRoadmapEvent } from "../../lib/roadmapLogger";
 import { NET_RATE_PER_KM, VEHICLE_CAPACITY, TRUCK_CAPACITY_SLOTS, CAPACITY_CONFIDENCE_LABEL,
          FILTER_FIELDS, PHASE_AUTO_SOURCE, filterValuesFrom, DEFAULT_FILTER_VALUES,
@@ -92,6 +93,10 @@ type ValueForm = Record<FlatValueKey, string>;
 const toForm = (v: Record<FlatValueKey, any>): ValueForm =>
     Object.fromEntries(FILTER_FIELDS.map(f => [f.path, String(v[f.path] ?? '')])) as ValueForm;
 
+/** 목록은 **순서가 달라도 같은 것**이다 (칩을 껐다 켜면 뒤로 간다) */
+const sameList = (a: readonly string[], b: readonly string[]) =>
+    a.length === b.length && [...a].sort().join('\u0001') === [...b].sort().join('\u0001');
+
 /** 빈 칸은 **이전 값 그대로**다 (0 으로 바꾸면 "제한 없음"으로 뒤집힌다 — §1) */
 const toValues = (f: ValueForm, prev: Record<FlatValueKey, any>): Record<FlatValueKey, any> => {
     const out = { ...prev };
@@ -137,6 +142,8 @@ interface OrderFilterModalProps {
 export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive = false,
                                            routeMode, setRouteMode }: OrderFilterModalProps) {
     const { filter, baseFilter, updateFilter, previewFilter } = useFilterConfig();
+    /** 🛣️ 무대가 «라인으로 쟀나» — ⏳ 경로 대기 문구가 본다 (store · 모르면 null) */
+    const netUsedLine = useFilterStore(st => st.netUsedLine);
 
     // ⏱️ 시간 축 안내의 재료 — 무통보 상차 한계는 판정 기준 탭에 산다 (읽기 공유 · 확정 2)
     const judgmentCfg = useJudgmentStore(st => st.judgment);
@@ -178,6 +185,21 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
     const [exSido, setExSido] = useState<string>('경기');
     const [exSgg, setExSgg] = useState<string | null>(null);
     const [exOpen, setExOpen] = useState<string | null>(null);
+    /**
+     * ⛔ **칩 줄 — 닫히면 한 줄, 누르면 전부** (목업 `MapMockup.tsx:3288~` 그대로 · 전수 조사 4단계).
+     *    기사님 2026-09-09: *"결과물을 첫 줄만 보여 주고 클릭하면 다."*
+     *    실물은 늘 전체 칩을 펼쳐 폰에서 여덟 줄이 화면을 먹었고, 실수 삭제 방지도 없었다.
+     */
+    const [exListOpen, setExListOpen] = useState(false);
+    /** 초안이 «지금 그물»에 들어가 있나 — 인라인 💾 저장의 «완료» 표시 */
+    const exApplied = sameList(exDraft, filter?.excludedRegions ?? []);
+    /**
+     * 💾 **인라인 저장 — 초안을 «그물(메모리)»에 넣는다.** 전역 💾 서버 저장(DB)과 다른 일이다.
+     *    칩 하나 잘못 눌러 그 지역이 곧장 살아나면 안 되므로 제외지역만 초안을 둔다 (목업과 같다).
+     */
+    const applyExcluded = () => {
+        updateFilter({ excludedRegions: exDraft, userOverrides: true });
+    };
     const toggleEx = (key: string) => { setExDraft(x => x.includes(key) ? x.filter(k => k !== key) : [...x, key]); setExDirty(true); };
     const fillQuad = (src: unknown) => setQuadForm(Object.fromEntries(
         QUAD_FIELDS.map(f => [f.path, String(quadShapeFrom(src as any)[f.path])])));
@@ -414,9 +436,6 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
         if (FILTER_FIELDS.some(f => cur[f.path] !== base[f.path])) return true;
         const bq = quadShapeFrom(baseFilter as any);
         if (QUAD_FIELDS.some(f => quadForm[f.path] !== String(bq[f.path]))) return true;
-        /* 목록은 **순서가 달라도 같은 것**이다 (칩을 껐다 켜면 뒤로 간다) */
-        const sameList = (a: string[], b: string[]) =>
-            a.length === b.length && [...a].sort().join('\u0001') === [...b].sort().join('\u0001');
         if (!sameList(exDraft, baseFilter.excludedRegions ?? [])) return true;
         const kw = blacklist ? blacklist.split(',').map(t => t.trim()).filter(Boolean) : [];
         if (!sameList(kw, baseFilter.excludedKeywords ?? [])) return true;
@@ -660,6 +679,29 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                         </button>
                     ))}
                 </div>
+
+                {/**
+                  * 🎯 **목적지 설명줄 — 목업 그대로** (`MapMockup.tsx:3104` · 전수 조사 4단계).
+                  *    «어디로 · 지금 무슨 국면 · 노선/동선» 을 한 줄로. 복귀를 켜면 **집 시**가 적힌다
+                  *    (`goalCity` 파생) — 기사님이 정한 목적지 칸은 그대로다.
+                  * ⚠️ 목업의 «마름모 N개»는 실물에 없는 개념(목적지가 하나)이라 **적지 않는다** (규칙 ④).
+                  */}
+                <p className="text-[10.5px] text-text-muted leading-snug px-0.5">
+                    🎯 목적지 <b className="text-text-primary">{filter?.goalCity || filter?.destinationCity || '—'}</b>
+                    {' · '}운행 <b className="text-text-primary">{filter?.dispatchPhase === 'DELIVERING' ? '주행 중' : filter?.dispatchPhase === 'GATHERING' ? '콜 쥠' : '대기'}</b>
+                    {' · '}<b className="text-info">{routeMode ? '🛣️ 노선' : '🔷 동선'}</b>
+                </p>
+                {/**
+                  * ⏳ **이상한 상태 하나만 적는다** (목업 `MapMockup.tsx:3187` · 기사님 2026-09-09
+                  *    *"«콜을 잡으면 그 경로가 라인이 됩니다» 이것도 필요 없어"*): 늘 참인 말은 안 적는다.
+                  *    남긴 하나 — 콜은 잡았는데 경로가 아직 안 와서 마름모인 것. 그건 몰라선 안 된다.
+                  *    «라인으로 쟀나»는 무대만 안다 — store(`netUsedLine`)로 받는다. 모르면(null) 안 띄운다.
+                  */}
+                {routeMode && netUsedLine === false && filter?.isSharedMode && (
+                    <p className="text-[10.5px] text-warning font-bold leading-snug px-0.5">
+                        ⏳ 카카오 경로를 기다립니다 — 올 때까지는 마름모로 봅니다 (직선으로 지어내지 않습니다)
+                    </p>
+                )}
 
                 {/**
                   * 🔴 **탭 다섯이 있던 자리다** (이식 C3-3a · 기사님 확정 2026-09-11 *"그 기준은 바꿔"*).
@@ -1091,17 +1133,63 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                     onPick={v => { if (exSgg) toggleEx(`D|${exSgg}|${v}`); }}
                                     foot={!exSgg ? <span className="text-[9.5px] font-bold text-text-muted">시·군·구를 먼저 고르세요</span> : null} />
                             </div>
-                            {/* 🔴 «지금 무엇이 빠져 있나»는 늘 보인다 — 레이어를 열어야 알면 화면이 조용히 거짓말한다 */}
-                            {exDraft.length > 0 && (
-                                <div className="flex flex-wrap gap-1">
-                                    {exDraft.map(k => (
-                                        <button key={k} type="button" onClick={() => toggleEx(k)} title="누르면 되살립니다"
-                                            className="px-1.5 py-0.5 rounded-md bg-danger/15 text-danger text-[10.5px] font-black">
-                                            ⛔ {excludedLabel(k)} ✕
+                            {/**
+                              * 🔴 «지금 무엇이 빠져 있나»는 **늘 보인다** — 레이어를 열어야 알면 화면이 조용히 거짓말한다.
+                              *    다만 여덟 줄을 늘 펴 두면 폰에서 필터가 화면을 다 먹는다. 그래서
+                              *    **닫히면 한 줄, 누르면 전부**다 (목업 그대로 · 기사님 2026-09-09).
+                              * 🔴 **닫힌 줄에서는 지우지 못한다** — 잘린 글을 누르다 실수로 되살아나면 안 된다.
+                              *    펼쳐야 ✕ 가 달린 칩이 된다.
+                              * 🔴 **다 지웠어도 줄은 남는다** — 안 그러면 「💾 저장」이 같이 사라져
+                              *    «전부 되살리기»를 적용할 길이 없다.
+                              */}
+                            {(exDraft.length > 0 || !exApplied) && (!exListOpen ? (
+                                <div className="flex items-center gap-1">
+                                    <button type="button" onClick={() => setExListOpen(true)}
+                                        className={`flex items-center gap-1 min-w-0 flex-1 px-1.5 py-1 rounded-md border bg-background text-left ${
+                                            !exApplied ? 'border-warning/55' : 'border-border-card hover:border-danger'}`}>
+                                        <span className="shrink-0 text-[10.5px] font-black text-danger">⛔ 제외 {exDraft.length}곳</span>
+                                        <span className="min-w-0 flex-1 truncate text-[10.5px] font-bold text-text-muted">
+                                            {exDraft.map(excludedLabel).join(' · ')}
+                                        </span>
+                                        <span className="shrink-0 text-[10px] font-black text-text-muted">▾ 전부</span>
+                                    </button>
+                                    {/* 🔴 닫아 둔 채로 고쳤어도 «아직 안 들어갔다»가 보여야 한다 — 여기서 바로 저장한다 */}
+                                    {!exApplied && (
+                                        <button type="button" onClick={applyExcluded}
+                                            className="shrink-0 px-2 py-1 rounded-md border border-info/55 bg-info/15 text-info text-[11px] font-black">
+                                            💾 저장
                                         </button>
-                                    ))}
+                                    )}
                                 </div>
-                            )}
+                            ) : (
+                                <div className="flex flex-col gap-1">
+                                    <div className="flex flex-wrap gap-1">
+                                        {exDraft.length === 0 && <span className="text-[10.5px] font-bold text-text-muted">제외한 곳이 없습니다 — 저장하면 전국이 그물에 듭니다</span>}
+                                        {exDraft.map(k => (
+                                            <button key={k} type="button" onClick={() => toggleEx(k)} title="누르면 되살립니다"
+                                                className="px-1.5 py-0.5 rounded-md bg-danger/15 text-danger text-[10.5px] font-black">
+                                                ⛔ {excludedLabel(k)} ✕
+                                            </button>
+                                        ))}
+                                    </div>
+                                    {/* 💾 접기 옆에 저장 (기사님 2026-09-09 그대로) — 고친 것은 여기를 눌러야 그물에 들어간다 */}
+                                    <div className="flex items-center gap-1">
+                                        <button type="button" onClick={() => setExListOpen(false)}
+                                            className="text-[10px] font-black text-text-muted px-1">▴ 접기</button>
+                                        <button type="button" disabled={exApplied} onClick={applyExcluded}
+                                            className={`px-2 py-1 rounded-md border text-[11px] font-black ${!exApplied
+                                                ? 'bg-info/15 border-info/55 text-info' : 'border-border-card bg-background text-text-muted opacity-50'}`}>
+                                            💾 저장{!exApplied ? ` (${exDraft.length}곳)` : ' 완료'}
+                                        </button>
+                                        {!exApplied && (
+                                            <button type="button" onClick={() => setExDraft(filter?.excludedRegions ?? [])}
+                                                className="px-2 py-1 rounded-md border border-border-card bg-background text-[11px] font-black text-text-muted">
+                                                ↩︎ 되돌리기
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
                         </div>
 
 
@@ -1261,7 +1349,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                         </div>
 
                         <p className="text-[10px] text-text-muted text-center mt-2">
-                            값을 만지면 <b>바로 적용</b>된다 (앱 메모리) · <b>💾 서버 저장</b>을 눌러야 내일 아침에도 남는다
+                            값을 만지면 <b>바로 적용</b>된다 (앱 메모리 · 제외 지역만 칩 줄의 💾 저장) · <b>💾 서버 저장</b>을 눌러야 내일 아침에도 남는다
                         </p>
 
                         {/* 🩺 **모니터 — 지금 앱에 내려가 있는 필터, 원본 그대로** (필터 정의 6장 ·

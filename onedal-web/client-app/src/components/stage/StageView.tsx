@@ -209,11 +209,14 @@ export default function StageView(props: Props) {
      * ⚠️ 무대가 사라지면 `null` 로 비운다 — 옛 수가 화면에 남아 거짓말하지 않게.
      */
     const setNetCount = useFilterStore(st => st.setNetCount);
+    const setNetUsedLine = useFilterStore(st => st.setNetUsedLine);
     const netCount = callNet?.net.pass.length ?? null;
+    const netUsedLine = callNet ? callNet.usedLine : null;
     useEffect(() => {
         setNetCount(netCount);
-        return () => setNetCount(null);
-    }, [netCount, setNetCount]);
+        setNetUsedLine(netUsedLine);
+        return () => { setNetCount(null); setNetUsedLine(null); };
+    }, [netCount, netUsedLine, setNetCount, setNetUsedLine]);
 
     useEffect(() => { logStateChange("주행신호", drive, "무대"); }, [drive]);
     useEffect(() => () => { if (holdTimer.current) clearTimeout(holdTimer.current); }, []);

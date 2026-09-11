@@ -330,3 +330,88 @@ describe('3단계 · 집이 있는 시는 «좌표»로 뽑는다 — 주소 글
         expect(body).not.toMatch(/split\(\/\\s\+\/\)\.find/);
     });
 });
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * 4단계 — 안 가져온 것 (조사 ②)
+ * ══════════════════════════════════════════════════════════════════════════ */
+describe('4단계 · ⛔ 제외 칩 줄 — 목업 그대로 (조사 ② · MapMockup.tsx:3288~3346)', () => {
+    /**
+     * 목업(기사님 2026-09-09 *"결과물을 첫 줄만 보여 주고 클릭하면 다"*):
+     *   · 닫히면 **한 줄** «⛔ 제외 N곳 · 잘린 목록 · ▾ 전부», 펼치면 칩 + «▴ 접기»
+     *   · **닫힌 줄에서는 못 지운다** — 잘린 글을 누르다 실수로 되살아나면 안 된다
+     *   · 펼친 줄에 **💾 저장(N곳)** · **↩︎ 되돌리기** — 고친 것은 저장을 눌러야 그물에 든다
+     *   · 다 지웠어도 줄은 남는다 — «제외한 곳이 없습니다 — 저장하면 전국이 그물에 듭니다»
+     * 실물은 늘 전체 칩만 펼쳤다 — 폰에서 여덟 줄이 화면을 먹고, 실수 삭제 방지도 없었다.
+     */
+    const modal = readClient('components/dashboard/OrderFilterModal.tsx');
+
+    it('🔴 닫히면 한 줄 — ▾ 전부 / 펼치면 ▴ 접기', () => {
+        expect(modal).toMatch(/exListOpen/);
+        expect(modal).toMatch(/▾ 전부/);
+        expect(modal).toMatch(/▴ 접기/);
+    });
+
+    it('🔴 닫힌 줄에서는 못 지운다 — 펼쳐야 ✕ 가 달린 칩이다', () => {
+        const i = modal.indexOf('▾ 전부');
+        /* 접힌 줄 블록(«▾ 전부» 앞뒤 600자)에 되살리기(toggleEx)가 없어야 한다 */
+        expect(modal.slice(i - 600, i + 200)).not.toMatch(/toggleEx\(/);
+    });
+
+    it('🔴 인라인 💾 저장이 «그물(메모리)»에 넣는다 — 전역 💾 서버 저장과 다른 일이다', () => {
+        expect(modal).toMatch(/const applyExcluded/);
+        const body = fnBody(codeOnly(modal), 'const applyExcluded');
+        expect(body).toMatch(/updateFilter\(\{ excludedRegions: exDraft/);
+        /* 인라인 되돌리기는 «지금 그물»로 — 서버 값이 아니다 */
+        expect(modal).toMatch(/setExDraft\(filter\?\.excludedRegions/);
+    });
+
+    it('🔴 다 지웠어도 줄은 남는다', () => {
+        expect(modal).toMatch(/제외한 곳이 없습니다 — 저장하면 전국이 그물에 듭니다/);
+    });
+});
+
+describe('4단계 · 목적지 설명줄 · 경로 대기 문구 · 저장 안내 (조사 ②)', () => {
+    const modal = readClient('components/dashboard/OrderFilterModal.tsx');
+    const store = readClient('stores/filterStore.ts');
+    const stage = readClient('components/stage/StageView.tsx');
+
+    it('🔴 «🎯 목적지 X · 운행 대기 · 🛣️ 노선» 한 줄이 있다 (목업 MapMockup.tsx:3104)', () => {
+        const i = modal.indexOf('🎯 목적지 <b');
+        expect(i).toBeGreaterThan(-1);
+        const body = modal.slice(i, i + 500);
+        expect(body).toMatch(/goalCity/);
+        expect(body).toMatch(/routeMode \? '🛣️ 노선' : '🔷 동선'/);
+        /* 실물에 없는 «마름모 N개»는 지어내지 않는다 (규칙 ④) */
+        expect(body).not.toMatch(/마름모 \{/);
+    });
+
+    it('🔴 «⏳ 카카오 경로를 기다립니다» — 콜은 잡았는데 라인이 없을 때만', () => {
+        /* 무대만 아는 «라인으로 쟀나»를 store 로 올린다 — 모달이 제 손으로 다시 재지 않는다 */
+        expect(store).toMatch(/netUsedLine: boolean \| null/);
+        expect(stage).toMatch(/setNetUsedLine\(/);
+        expect(modal).toMatch(/⏳ 카카오 경로를 기다립니다/);
+        const i = modal.indexOf('⏳ 카카오 경로를 기다립니다');
+        expect(modal.slice(i - 400, i)).toMatch(/netUsedLine === false/);
+    });
+
+    it('🔴 저장 안내가 참이다 — 제외 지역만 💾 를 눌러야 그물에 든다', () => {
+        expect(modal).toMatch(/값을 만지면 <b>바로 적용<\/b>된다.*제외 지역/);
+    });
+});
+
+describe('4단계 · 지도가 제외지역을 실제로 뺀다 — 키 안의 | 를 구분자로 쓰지 않는다', () => {
+    /**
+     * 실측(2026-09-12): 광주시를 통째로 뺐더니 **서버는 173 → 148**(«제외로 25개 뺌»)인데
+     * **지도 수는 176 그대로**였다. `useCallNet` 이 의존성용으로 `excludedRegions.join('|')` 를
+     * 만들고 안에서 `split('|')` 로 되푸는데, 키가 `R|광주시`·`S|서울` 처럼 **`|` 를 품고 있어**
+     * `["R","광주시"]` 로 깨졌다 — 지도는 제외를 **한 번도 제대로 적용한 적이 없었다.**
+     * 요약줄이 지도 수를 쓰기 시작해서야(C4-11b) 서버와 다른 숫자로 드러났다.
+     */
+    it('🔴 useCallNet 은 제외 목록을 JSON 으로 굳히고 그대로 되푼다', () => {
+        const cn = codeOnly(readClient('hooks/useCallNet.ts'));
+        expect(cn).not.toMatch(/excludedRegions \?\? \[\]\)\.join\('\|'\)/);
+        expect(cn).not.toMatch(/excludedKey\.split\('\|'\)/);
+        expect(cn).toMatch(/JSON\.stringify\(i\.excludedRegions/);
+        expect(cn).toMatch(/JSON\.parse\(excludedKey\)/);
+    });
+});

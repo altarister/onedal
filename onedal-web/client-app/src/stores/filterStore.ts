@@ -35,9 +35,17 @@ interface FilterState {
      *    `destinationKeywords` 수로 물러선다 (지어내지 않는다 · 규칙 ④).
      */
     netCount: number | null;
+    /**
+     * 🛣️ **무대가 그물을 «라인으로» 쟀나** — 같은 이유로 여기 올린다 (전수 조사 4단계).
+     *    필터 화면의 «⏳ 카카오 경로를 기다립니다» 가 이것을 본다: 노선인데 콜을 쥐었고
+     *    아직 라인이 없으면(false) 마름모로 재고 있는 **이상한 상태**다 — 몰라선 안 된다.
+     *    지도가 안 떠 있으면 `null`(모른다) — 그때는 문구를 안 띄운다 (규칙 ④).
+     */
+    netUsedLine: boolean | null;
 
     // ── Actions ──
     setNetCount: (n: number | null) => void;
+    setNetUsedLine: (v: boolean | null) => void;
     setFilter: (filter: AutoDispatchFilter) => void;
     setBaseFilter: (filter: AutoDispatchFilter) => void;
     setBothFilters: (active: AutoDispatchFilter, base: AutoDispatchFilter) => void;
@@ -47,8 +55,10 @@ export const useFilterStore = create<FilterState>((set) => ({
     filter: null,
     baseFilter: null,
     netCount: null,
+    netUsedLine: null,
 
     setNetCount: (n) => set({ netCount: n }),
+    setNetUsedLine: (v) => set({ netUsedLine: v }),
     setFilter: (filter) => set({ filter }),
     setBaseFilter: (filter) => set({ baseFilter: filter }),
     setBothFilters: (active, base) => set({ filter: active, baseFilter: base }),
