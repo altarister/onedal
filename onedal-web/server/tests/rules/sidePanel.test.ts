@@ -107,10 +107,25 @@ describe('곁 패널 — 지우기 쉬운 모양으로 둔다', () => {
         expect(panel).toMatch(/COLUMNS\.map/);
     });
 
-    it('높이는 창에 맞춘다 · 칸은 가로로 흐른다 (원본은 늘 보인다)', () => {
+    /**
+     * 🔴 **칸이 숨으면 안 된다** (기사님 지시 2026-09-11: *"왼쪽의 모듈들이 다 보였으면
+     *    좋겠어. 항상 윈도우를 풀사이즈로 하는건 힘들어"*).
+     *
+     * ⚠️ 처음엔 **가로 스크롤**이었다 — 창이 좁으면 칸이 옆으로 숨어 **있는 줄도 몰랐다.**
+     *    (가로로 둔 이유는 «지도를 가리지 않으려고»였는데, 원본과 형제가 된 뒤로
+     *     가릴 일이 없어져 그 이유가 사라졌다.)
+     *
+     * ⚠️ 그 다음엔 **격자**(`grid`)로 했는데 **행 높이가 그 줄에서 가장 큰 칸에 맞춰져**
+     *    짧은 칸 아래가 통째로 비었다 (1280px 에서 세로 1192px). 지금은 **단**(`columns`)이라
+     *    칸이 세로로 이어 흘러 빈틈이 없다 (같은 창에서 923px — 화면에 거의 다 든다).
+     */
+    it('칸은 아래로 흐른다 — 창이 좁아도 숨지 않는다', () => {
         const panel = codeOnly(read(PANEL));
-        expect(panel).toMatch(/h-full/);                  // 부모가 준 높이를 꽉 채운다
-        expect(panel).toMatch(/overflow-x-auto/);
+        expect(panel).toMatch(/h-full/);                    // 부모가 준 높이를 꽉 채운다
+        expect(panel).toMatch(/overflow-y-auto/);           // 세로로 흐른다
+        expect(panel).toMatch(/columnWidth/);               // 폭이 단 수를 정한다
+        expect(panel).toMatch(/breakInside: 'avoid'/);      // 칸이 단 경계에서 안 잘린다
+        expect(panel).not.toMatch(/overflow-x-auto/);       // 가로로 숨기지 않는다
         // 부모(감싸개)가 창 높이를 정한다 — 그래야 원본과 패널이 같은 높이다
         const dash = codeOnly(read(join(CLIENT, 'pages/Dashboard.tsx')));
         expect(dash).toMatch(/flex h-dvh overflow-hidden/);

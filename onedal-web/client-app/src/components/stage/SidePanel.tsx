@@ -26,7 +26,7 @@
  * 자리: 무대는 `max-w-2xl`(672px)이고 **패널이 설 때만 왼쪽에 붙는다**(`Dashboard`).
  *       패널은 그 오른쪽 전부를 쓴다 — `fixed` 라 무대의 안쪽 배치는 그대로다.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { APP_FILTER_KEYS, isEvaluating, isTerminal } from '@onedal/shared';
 import type { SecuredOrder } from '@onedal/shared';
 import { useFilterConfig } from '../../hooks/useFilterConfig';
@@ -37,14 +37,16 @@ import { summarizeTally } from '../../lib/filterTally';
 import { apiBase } from '../../lib/serverTarget';
 
 /**
- * 칸의 **최소** 폭. 실제 폭은 **남은 자리에 맞춰 늘린다** (아래 `colWidth`).
+ * 칸 하나의 **최소** 폭. 격자가 이 폭을 기준으로 «몇 열이 들어가나»를 정하고,
+ * 남는 자리는 칸들이 나눠 갖는다. 넘치는 칸은 **아래로 흐른다.**
  *
- * 🔴 **애매하게 잘리지 않게 한다** (기사님 화면 실측 2026-09-11). 폭을 못박았더니
- *    창 2078px 에서 패널이 703px 이 되어 **두 칸(704px)이 1px 넘쳐** 둘째 칸 오른쪽이
- *    잘렸다 — **잘린 글자는 없는 것과 같다.** 들어갈 수 있는 칸 수를 세서 그만큼 나눈다.
+ * 🔴 **가로 스크롤을 버렸다** (기사님 지시 2026-09-11: *"왼쪽의 모듈들이 다 보였으면
+ *    좋겠어. 항상 윈도우를 풀사이즈로 하는건 힘들어"*). 가로로만 흐르면 창이 작을 때
+ *    칸이 **숨는다** — 있는 줄도 모른다. 아래로 쌓으면 휠 한 번에 다 지나간다.
+ *    (가로 스크롤은 «지도를 가리지 않으려고» 뒀던 것인데, 원본과 형제가 된 뒤로
+ *     가릴 일이 없어져 이유가 사라졌다)
  */
-const COL_MIN = 320;
-const GAP = 8, PAD = 16;
+const COL_MIN = 280;
 
 interface Health {
     bootedAt?: string;
@@ -61,7 +63,7 @@ function Row({ k, v, tone }: { k: string; v: unknown; tone?: 'warn' | 'ok' }) {
                 : String(v);
     return (
         <div className="flex items-baseline gap-2 py-[3px] border-b border-border/40 last:border-0">
-            <span className="shrink-0 w-[104px] text-[10px] font-bold text-text-muted truncate" title={k}>{k}</span>
+            <span className="shrink-0 w-[92px] text-[10px] font-bold text-text-muted truncate" title={k}>{k}</span>
             <span className={`flex-1 min-w-0 text-[11px] font-black break-all ${tone === 'warn' ? 'text-warning' : tone === 'ok' ? 'text-success' : 'text-text-primary'}`}>
                 {text}
             </span>
@@ -69,14 +71,22 @@ function Row({ k, v, tone }: { k: string; v: unknown; tone?: 'warn' | 'ok' }) {
     );
 }
 
-function Card({ title, note, children }: { title: string; note?: string; children: React.ReactNode }) {
+/**
+ * 🔴 **긴 칸이 화면을 다 먹지 않게 한다.** 「영역 — 시군구별」은 30줄이 넘어서,
+ *    그냥 두면 그 칸 하나 때문에 아래 칸들이 저 밑으로 밀린다 — «다 보인다»가 깨진다.
+ *    넘치는 것은 **칸 안에서** 흐르게 한다.
+ */
+function Card({ title, note, children, tall }: {
+    title: string; note?: string; children: React.ReactNode;
+    /** 줄이 많아 제 안에서 흘러야 하는 칸 */ tall?: boolean;
+}) {
     return (
         <section className="rounded-lg border border-border bg-surface/70 p-2 space-y-1">
             <div className="flex items-baseline justify-between gap-2">
                 <span className="text-[11px] font-black text-text-primary">{title}</span>
                 {note && <span className="text-[9px] text-text-muted text-right leading-tight">{note}</span>}
             </div>
-            <div>{children}</div>
+            <div className={tall ? 'max-h-[228px] overflow-y-auto' : ''}>{children}</div>
         </section>
     );
 }
@@ -91,24 +101,6 @@ export default function SidePanel({ activeRoute }: Props) {
     const { filter, baseFilter, phaseSettings } = useFilterConfig();
     const devices = useDeviceStore(st => st.devices);
     const [health, setHealth] = useState<Health | null>(null);
-    /**
-     * 📏 **패널이 실제로 몇 px 인지 재서 칸 폭을 정한다.** 창이 바뀌면 따라 바뀐다 —
-     *    `calc()` 로만 두면 «몇 칸이 들어가나»를 CSS 가 모르므로 잘림이 생긴다.
-     */
-    const boxRef = useRef<HTMLDivElement>(null);
-    const [boxW, setBoxW] = useState(0);
-    useEffect(() => {
-        const el = boxRef.current;
-        if (!el) return;
-        const measure = () => setBoxW(el.clientWidth);
-        measure();
-        /* 🔴 **둘 다 듣는다** — 창을 끄는 것은 `resize`, 레이아웃이 바뀌는 것은 관찰자가 잡는다.
-           하나만 두면 한쪽 길에서 칸 폭이 옛 값으로 굳는다 (실측에서 367px 로 굳는 것을 봤다). */
-        const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
-        ro?.observe(el);
-        window.addEventListener('resize', measure);
-        return () => { ro?.disconnect(); window.removeEventListener('resize', measure); };
-    }, []);
 
     /**
      * 🖥️ **지금 무엇이 돌고 있나** — 이 레포가 반복해서 잃은 시간의 원인이다
@@ -137,7 +129,7 @@ export default function SidePanel({ activeRoute }: Props) {
         {
             key: 'app',
             node: (
-                <Card title="📦 앱에 내려갈 필터"
+                <Card title="📦 앱에 내려갈 필터" tall
                       note={`표가 정한 ${APP_FILTER_KEYS.length}개\n(shared APP_FILTER_KEYS)`}>
                     {/* 🔴 키 목록을 여기 또 적지 않는다 — 표가 유일한 원천이다 (규칙 ③).
                         `orderKm`·`pickerAlarmMinFare` 는 서버가 조립할 때 얹으므로 여기선 «—» 다. */}
@@ -215,7 +207,7 @@ export default function SidePanel({ activeRoute }: Props) {
         {
             key: 'judging',
             node: (
-                <Card title="⚖️ 심사 중" note={'집은 뒤 · 서버가 하는 일'}>
+                <Card title="⚖️ 심사 중" tall note={'집은 뒤 · 서버가 하는 일'}>
                     {/* 🔴 **덱에서 빠진 그 콜이다** — 심사석과 같은 기준(`isEvaluating || isPreview`) */}
                     {(() => {
                         const j = (activeRoute ?? []).find(r => !isTerminal(r.status ?? undefined)
@@ -244,7 +236,7 @@ export default function SidePanel({ activeRoute }: Props) {
         {
             key: 'deck',
             node: (
-                <Card title="📋 콜 리스트" note={'지금 쥔 콜'}>
+                <Card title="📋 콜 리스트" tall note={'지금 쥔 콜'}>
                     {(activeRoute ?? []).length === 0 && <Row k="(없음)" v={undefined} />}
                     {(activeRoute ?? []).map((r, i) => (
                         <Row key={r.id ?? i} k={`${i + 1} ${r.status ?? ''}`}
@@ -256,7 +248,7 @@ export default function SidePanel({ activeRoute }: Props) {
         {
             key: 'regions',
             node: (
-                <Card title="🗂️ 영역 — 시군구별" note={'앱이 하차지를 맞춰 보는 목록'}>
+                <Card title="🗂️ 영역 — 시군구별" tall note={'앱이 하차지를 맞춰 보는 목록'}>
                     {(() => {
                         const g = filter?.destinationGroups;
                         if (!g || Object.keys(g).length === 0) return <Row k="(없음)" v={undefined} tone="warn" />;
@@ -282,11 +274,6 @@ export default function SidePanel({ activeRoute }: Props) {
         },
     ];
 
-    /** 들어갈 수 있는 칸 수만큼 **꽉 채워 나눈다** — 남는 여백도 칸이 먹으므로 잘림이 없다 */
-    const usable = Math.max(0, boxW - PAD);
-    const fit = Math.max(1, Math.floor((usable + GAP) / (COL_MIN + GAP)));
-    const colWidth = boxW > 0 ? (usable - GAP * (fit - 1)) / fit : COL_MIN;
-
     return (
         <aside
             /**
@@ -302,16 +289,18 @@ export default function SidePanel({ activeRoute }: Props) {
             <div className="h-full flex flex-col">
                 <div className="shrink-0 px-2 py-1.5 border-b border-border flex items-baseline gap-2">
                     <span className="text-[11px] font-black text-text-primary">🔬 같은 것을 본다</span>
-                    <span className="text-[9px] text-text-muted">폰에서는 안 뜹니다 · 옆으로 밀면 더 있습니다 →</span>
+                    <span className="text-[9px] text-text-muted">폰에서는 안 뜹니다</span>
                 </div>
-                {/* 🔴 **가로로 흐른다** (기사님: *"왼쪽 영역만 가로스크롤을 주면 항상 프로젝트 화면을 볼수 있겠다"*) —
-                    칸이 늘어도 지도를 덮지 않는다. 칸 **안**은 세로로 흐른다. */}
-                <div ref={boxRef} className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden">
-                    <div className="h-full flex p-2" style={{ gap: GAP }}>
+                {/* 🔴 **신문 단처럼 흐른다** — 창이 좁아도 칸이 숨지 않고, **빈틈도 없다.**
+                    ⚠️ 격자(`grid`)로 했더니 **행 높이가 그 줄에서 가장 큰 칸에 맞춰져**
+                       짧은 칸 아래가 통째로 비었다 (실측 1280px 에서 세로 1192px).
+                       단(`columns`)은 칸을 세로로 이어 흘리므로 그 빈틈이 안 생긴다.
+                    열 수는 폭이 정한다 — 좁으면 한 단, 넓으면 여러 단. */}
+                <div className="flex-1 min-h-0 overflow-y-auto p-2">
+                    <div style={{ columnWidth: `${COL_MIN}px`, columnGap: 8 }}>
                         {COLUMNS.map(c => (
-                            <div key={c.key} className="h-full shrink-0 overflow-y-auto" style={{ width: colWidth }}>
-                                {c.node}
-                            </div>
+                            /* 🔴 칸이 단 경계에서 **잘리지 않게** — 반쯤 잘린 카드는 못 읽는다 */
+                            <div key={c.key} className="mb-2" style={{ breakInside: 'avoid' }}>{c.node}</div>
                         ))}
                     </div>
                 </div>
