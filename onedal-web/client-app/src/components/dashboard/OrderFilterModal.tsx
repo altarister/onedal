@@ -11,7 +11,6 @@ import { socket } from "../../lib/socket";
 import { apiClient } from "../../api/apiClient";
 import { useCityOptions, resolveCity } from "../../lib/cityOptions";
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { useJudgmentStore } from "../../stores/judgmentStore";
@@ -375,14 +374,12 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
 
     if (!filter) {
         return (
-            <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-                <DialogContent className="sm:max-w-md bg-transparent border-none shadow-none flex justify-center">
-                    <div className="flex flex-col items-center gap-2">
-                        <div className="w-8 h-8 border-4 border-info border-t-transparent rounded-full animate-spin"></div>
-                        <span className="text-info font-bold animate-pulse">동기화 대기 중...</span>
-                    </div>
-                </DialogContent>
-            </Dialog>
+            <div className="flex justify-center py-6">
+                <div className="flex flex-col items-center gap-2">
+                    <div className="w-8 h-8 border-4 border-info border-t-transparent rounded-full animate-spin"></div>
+                    <span className="text-info font-bold animate-pulse">동기화 대기 중...</span>
+                </div>
+            </div>
         );
     }
 
@@ -483,27 +480,27 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
     };
 
     return (
-        <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+        <>
             {/**
-              * 📜 **창이 화면보다 커지면 손이 안 닿는다** (기사님 실측 2026-08-26).
+              * 🪗 **팝업이 아니라 «열림»이다** (이식 C4-3 · 기사님 2026-09-09:
+              *    *"팝업을 삭제하고 한 줄과 열림만 있으면 될 것 같아."*).
               *
-              * 기사님: *"일단 필터 옵션창에 스크롤부터 넣어야겠다. 입력할 수가 없어."*
+              * 요약줄 **바로 아래**에 형제로 붙는다 — 덮지 않는다. 층이 셋(접힘 → 펼침 →
+              * 팝업)이던 것이 둘(한 줄 → 열림)이 됐다.
               *
-              * `overflow-y-auto` 는 아래에 이미 있었는데 **높이 제한이 없어서** 창이
-              * 화면 밖으로 자랐고, 바깥의 `overflow-hidden` 이 그대로 잘라 냈다.
-              * 국면 탭이 다섯이라 세로가 길다 — 라이브에 필터를 넣으려는데 입력칸에
-              * 닿지를 못했다.
-              *
-              * 🔴 `max-h-[90dvh]` — `dvh` 여야 모바일 주소창이 접혔다 펴져도 안 잘린다.
-              *    관제앱은 폰에서 보는 화면이다.
+              * 📜 **높이 제한은 그대로 필요하다** (기사님 실측 2026-08-26:
+              *    *"일단 필터 옵션창에 스크롤부터 넣어야겠다. 입력할 수가 없어."*).
+              *    🔴 `dvh` 여야 모바일 주소창이 접혔다 펴져도 안 잘린다 — 폰에서 보는 화면이다.
+              *    탭 다섯이 빠져(C3-3a) 세로가 줄었지만, 지도·시트와 자리를 나눠 쓰므로
+              *    **여기서 제 높이를 못 박는다.**
               */}
-            <DialogContent className="sm:max-w-lg max-h-[90dvh] bg-bg-base border-border shadow-2xl p-4 overflow-hidden flex flex-col gap-3">
+            <section className="relative max-h-[70dvh] bg-bg-base border border-border rounded-xl shadow-lg p-4 overflow-hidden flex flex-col gap-3">
                 <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] bg-info/10 blur-[100px] rounded-full pointer-events-none" />
                 <div className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] bg-success/10 blur-[100px] rounded-full pointer-events-none" />
 
-                {/* 슬림 타이틀바 — 한 줄. 설명 문구는 없앴다 (팝업 세로를 줄인다) */}
-                <DialogHeader className="border-b border-info/20 pb-2 relative z-10">
-                    <DialogTitle className="flex items-center gap-2 text-sm font-black">
+                {/* 슬림 머리줄 — 한 줄. 오른쪽 ✕ 가 «한 줄»로 되돌린다 (C4-3) */}
+                <div className="border-b border-info/20 pb-2 relative z-10">
+                    <h2 className="flex items-center gap-2 text-sm font-black">
                         필터 설정
                         <Badge variant="outline" className="bg-info/15 text-info border-info/30 text-[10px] font-bold">
                             오늘 콜 잡기
@@ -516,8 +513,13 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                         <Badge variant="outline" className={`bg-surface-alt/60 border-border text-[10px] font-bold ${TAB_STYLE[tab].text}`}>
                             {PHASE_LABEL[tab]} 중
                         </Badge>
-                    </DialogTitle>
-                </DialogHeader>
+                        {/* 🔴 닫는 길 — 팝업이 없어졌으니 «바깥 누르기»도 없다. 여기가 유일한 문이다 */}
+                        <button type="button" onClick={onClose} title="접기"
+                            className="ml-auto shrink-0 w-7 h-7 rounded-lg text-text-muted hover:bg-surface-hover/60 text-[14px] font-black">
+                            ✕
+                        </button>
+                    </h2>
+                </div>
 
                 {/* 🔴 제외 단어는 **탭 위**다 (v6 목업). 다섯 탭 공통인 값이 탭 **안**에 있으면
                     "이 탭에만 적용되나?" 를 화면이 잘못 말한다 — 실제로는 전부에 걸린다 */}
@@ -1045,7 +1047,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                         )}
                     </div>
                 </div>
-            </DialogContent>
-        </Dialog>
+            </section>
+        </>
     );
 }

@@ -34,7 +34,12 @@ import { useOrderEngine } from "../hooks/useOrderEngine";
 const NOTICE_MS = 10_000;
 
 export default function Dashboard() {
-    const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+    /**
+     * 🪗 **필터가 제자리에서 열린다** (이식 C4-3 · 기사님 2026-09-09:
+     *    *"팝업을 삭제하고 한 줄과 열림만 있으면 될 것 같아."*).
+     *    전에는 전면 팝업(`Dialog`)이라 이름이 `isFilterModalOpen` 이었다.
+     */
+    const [isFilterOpen, setIsFilterOpen] = useState(false);
     // 🪧 심사석 결재 버튼의 처리 중 표시 (자동콜 갈래)
     const [seatProcessingId, setSeatProcessingId] = useState<string | null>(null);
     // 🎭 새 화면 미리보기 토글 (화면개편 · 기사님 확정 0831) — 표시만 바뀐다, 상태는 공용
@@ -376,7 +381,7 @@ export default function Dashboard() {
                         />
                     );
                     return <OrderFilterStatus
-                        onOpenFilter={() => setIsFilterModalOpen(true)}
+                        onOpenFilter={() => setIsFilterOpen(o => !o)}
                         /**
                          * 🎯 **무대에서는 접힌 채로 선다** (기사님 확정 2026-09-05).
                          *    펼친 판이 먹던 158px 이 지도와 시트로 간다. 누르면 펼쳐진다.
@@ -389,6 +394,20 @@ export default function Dashboard() {
                         onCollapse={stagePreview ? () => setFilterCompact(true) : undefined}
                         cancelCounts={cancelCounts} cancelRounds={cancelRounds} budgetToast={cancelBudgetToast} />;
                 })()}
+
+                {/**
+                  * 🪗 **필터 — 요약줄 바로 아래, 제자리에서 열린다** (이식 C4-3).
+                  *    팝업이 아니라 **형제**라 덮지 않는다. 층이 셋(접힘 → 펼침 → 팝업)이던 것이
+                  *    둘(한 줄 → 열림)이 됐다 — 기사님 2026-09-09:
+                  *    *"열려 있을 때 또 팝업이 뜬다. 그 UI 가 별로다."*
+                  * 🔴 닫혀 있으면 **만들지 않는다** — 훅과 구독이 도는 것을 막는다
+                  *    (`OrderFilterModal` 안의 `if (!isOpen) return null`).
+                  */}
+                <OrderFilterModal
+                    isOpen={isFilterOpen}
+                    onClose={() => setIsFilterOpen(false)}
+                    hasHomeReturnActive={hasHomeReturnActive}
+                />
 
                 {/* 🚚 내 차 요약은 헤더 로고 자리로 이사 (기사님 0831 — 영역 절약). 패널 줄은 뺐다 */}
 
@@ -419,13 +438,6 @@ export default function Dashboard() {
                     />}
                 </ErrorBoundary>
             </div>
-
-            {/* 필터 설정 모달 */}
-            <OrderFilterModal
-                isOpen={isFilterModalOpen}
-                onClose={() => setIsFilterModalOpen(false)}
-                hasHomeReturnActive={hasHomeReturnActive}
-            />
 
         </main>
     );
