@@ -29,7 +29,7 @@ export function useCloseOnOutside(open: boolean, close: () => void) {
     }, [open, close]);
 }
 
-export function PickLayer({ label, value, options, open, onToggle, onPick, selected, keepOpen, tone, foot }: {
+export function PickLayer({ label, value, options, open, onToggle, onPick, selected, keepOpen, tone, foot, mark }: {
     label: string; value: string; options: string[];
     open: boolean; onToggle: () => void; onPick: (v: string) => void;
     /** 지금 켜져 있는 것들 — **색만** 칠한다 */
@@ -45,6 +45,14 @@ export function PickLayer({ label, value, options, open, onToggle, onPick, selec
     tone?: 'info' | 'warning' | 'danger';
     /** 레이어 아래에 덧붙일 것 (예: 할인율의 차종별 단가표) */
     foot?: ReactNode;
+    /**
+     * 🏷️ **옵션 옆에 붙일 표시** — 예: 받을 짐에서 «지금 적재로 못 받는 것»에 `✕`.
+     *
+     * 🔴 **옵션 문자열 자체에 붙이면 안 된다** (2026-09-12 실측). 실물이 `${v} ✕` 로
+     *    넘겼더니 `selected.includes(v)` 가 꾸민 글자와 비교해 **막힌 차종은 골라도
+     *    강조가 안 켜졌다.** 원문은 그대로 두고 표시만 따로 그린다.
+     */
+    mark?: Record<string, string>;
 }) {
     useCloseOnOutside(open, onToggle);
     return (
@@ -74,7 +82,7 @@ export function PickLayer({ label, value, options, open, onToggle, onPick, selec
                                             : tone === 'danger' ? 'bg-danger/15 border-danger/55 text-danger'
                                                 : 'bg-info/15 border-info/55 text-info')
                                         : 'border-border-card bg-background text-text-muted hover:border-border-hover'}`}>
-                                    {v}
+                                    {v}{mark?.[v] && <span className="ml-0.5 opacity-70">{mark[v]}</span>}
                                 </button>
                             );
                         })}

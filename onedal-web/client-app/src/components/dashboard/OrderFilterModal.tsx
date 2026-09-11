@@ -6,7 +6,7 @@ import { NET_RATE_PER_KM, VEHICLE_CAPACITY, TRUCK_CAPACITY_SLOTS, CAPACITY_CONFI
          QUAD_FIELDS, quadShapeFrom,
          sidoList, sggList, dongList, excludedLabel,
          resolvePhaseKey, reachRadiusKm, CALL_TARGET_LABEL, effectiveRadii,
-         VEHICLE_SHORT, VEHICLE_PICKS } from "@onedal/shared";
+         VEHICLE_SHORT, VEHICLE_PICKS, RADIUS_BASE_KM_DEFAULT } from "@onedal/shared";
 import type { PhaseKey, FlatValueKey, CallTarget } from "@onedal/shared";
 import { socket } from "../../lib/socket";
 import { apiClient } from "../../api/apiClient";
@@ -233,10 +233,12 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
      */
     const accepted = filter?.acceptedVehicleTypes ?? [];
     const toggleVehicle = (v: string) => {
-        /* 아무것도 안 고른 상태(=전부)에서 하나를 끄면 «나머지 전부»가 된다 */
-        const base: string[] = accepted.length === 0 ? [...VEHICLE_PICKS] : accepted;
-        const next = base.includes(v) ? base.filter(x => x !== v) : [...base, v];
-        /* 전부 고른 것과 아무것도 안 고른 것은 같은 뜻이다 — 빈 배열로 되돌린다 */
+        /**
+         * 🔴 **목업과 같은 뜻** (`MapMockup.tsx` `setVehicles`): «모두»에서 1t 을 누르면 **1t 만**.
+         *    처음엔 «1t 만 뺀 넷»으로 만들었었다 — 같은 손가락에 반대 결과 (2026-09-12 조사 ①-6).
+         * 다섯을 다 고른 것은 «모두»와 같은 뜻이라 빈 배열로 되돌린다.
+         */
+        const next = accepted.includes(v) ? accepted.filter(x => x !== v) : [...accepted, v];
         updateFilter({ acceptedVehicleTypes: next.length === VEHICLE_PICKS.length ? [] : next });
     };
 
@@ -417,8 +419,16 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
         if (!sameList(exDraft, baseFilter.excludedRegions ?? [])) return true;
         const kw = blacklist ? blacklist.split(',').map(t => t.trim()).filter(Boolean) : [];
         if (!sameList(kw, baseFilter.excludedKeywords ?? [])) return true;
+        /**
+         * 📐🚚 **오늘 판 셋** (2026-09-12 조사 ①-5) — 안 보면 바꿔도 «서버와 같음»이라
+         *    거짓말하고, ↩︎ 되돌리기 버튼이 눌리지도 않는다.
+         */
+        if (!!filter?.radiusAuto !== !!baseFilter.radiusAuto) return true;
+        if ((filter?.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT) !== (baseFilter.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT)) return true;
+        if (!sameList(filter?.acceptedVehicleTypes ?? [], baseFilter.acceptedVehicleTypes ?? [])) return true;
         return false;
-    }, [baseFilter, cur, quadForm, exDraft, blacklist]);
+    }, [baseFilter, cur, quadForm, exDraft, blacklist,
+        filter?.radiusAuto, filter?.radiusBaseKm, filter?.acceptedVehicleTypes]);
 
     /**
      * ↩︎ **되돌리기 — 서버에 저장된 값으로** (이식 C4-10).
@@ -434,11 +444,17 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
         fillQuad(baseFilter);
         setExDraft(baseFilter.excludedRegions ?? []);
         setBlacklist(baseFilter.excludedKeywords ? baseFilter.excludedKeywords.join(',') : "");
+        /* 되돌린 직후 💾 가 헛쓰기를 하지 않게 «담아 둔» 깃발도 내린다 (조사 ①-8 부수) */
+        setQuadDirty(false); setExDirty(false); setBlacklistDirty(false);
         updateFilter({
             ...toValues(v, filterValuesFrom(baseFilter as any)),
             ...quadShapeFrom(baseFilter as any),
             excludedRegions: baseFilter.excludedRegions ?? [],
             excludedKeywords: baseFilter.excludedKeywords ?? [],
+            /* 📐🚚 오늘 판 셋도 서버 값으로 (조사 ①-5) */
+            radiusAuto: !!baseFilter.radiusAuto,
+            radiusBaseKm: baseFilter.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT,
+            acceptedVehicleTypes: baseFilter.acceptedVehicleTypes ?? [],
         });
     };
 
@@ -519,6 +535,17 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                 userOverrides: true,
             }, saveAsDefault);
         }
+
+        /**
+         * 📐🚚 **오늘 판 셋은 이미 메모리에 있다 — 여기서는 DB 까지 보낸다** (조사 ①-5).
+         *    이 셋은 만지는 즉시 `updateFilter(…)` 로 갔지만 `saveAsDefault` 없이 갔다.
+         *    💾 가 안 실으면 서버 `baseFilter` 에 닿지 않아 자정에 풀린다.
+         */
+        updateFilter({
+            radiusAuto: !!filter?.radiusAuto,
+            radiusBaseKm: filter?.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT,
+            acceptedVehicleTypes: filter?.acceptedVehicleTypes ?? [],
+        }, saveAsDefault);
 
         onClose();
     };
@@ -827,8 +854,8 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                 ))}
                             </div>
                         </div>
-                        <KnobGrid open={openKnob} onOpen={setOpenKnob}
-                            knobs={KNOB_FIELDS.map(path => {
+                        <KnobGrid open={openKnob} onOpen={setOpenKnob} cols={4}
+                            knobs={[...KNOB_FIELDS.map(path => {
                                 const f = FILTER_FIELDS.find(x => x.path === path)!;
                                 /**
                                  * 🔴 **자동이면 «줄인 값»을 보여 준다** — 기사님이 정한 원값에
@@ -860,7 +887,26 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                     onCommit: radiusAuto ? undefined
                                         : (v: number) => pickField(path, String(v)),
                                 };
-                            })} />
+                            }), {
+                                /**
+                                 * 📏 **기준 거리 — «지금 값이 몇 km 갈 때 맞춘 것인가»** (기사님 2026-09-12:
+                                 *    *"7번 칸을 만들어줘"* · 조사 ①-7). DB·서버·재계산 조건까지 있는데
+                                 *    **화면에 칸이 없어** 고아였다 — 늘 40 으로만 돌았다.
+                                 * 🔴 **자동일 때만 산다.** 수동이면 흐리고, 자동이면 반대로 나머지 셋이 흐리다.
+                                 * ⚠️ 폼(`cur`)에 없는 값이다 — 끄는 동안은 `previewFilter`, 뗄 때 `updateFilter`.
+                                 */
+                                key: 'radiusBaseKm',
+                                label: '기준거리',
+                                unit: 'km',
+                                value: filter?.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT,
+                                min: 10,
+                                max: 100,
+                                step: 5,
+                                dim: !radiusAuto,
+                                set: radiusAuto ? (v: number) => previewFilter({ radiusBaseKm: v }) : () => {},
+                                onPreview: radiusAuto ? (v: number) => previewFilter({ radiusBaseKm: v }) : undefined,
+                                onCommit: radiusAuto ? (v: number) => updateFilter({ radiusBaseKm: v }) : undefined,
+                            }]} />
 
                         {/**
                           * 💰🚫 **값 둘도 같은 고르기 칸으로** (기사님 2026-09-09:
@@ -935,11 +981,14 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                               */}
                             <PickLayer label="🚚 받을 짐"
                                 value={accepted.length ? accepted.map(v => VEHICLE_SHORT[v] ?? v).join('·') : '모두'}
-                                options={VEHICLE_PICKS.map(v => blockedNow.includes(v) ? `${v} ✕` : v)}
+                                options={[...VEHICLE_PICKS]}
+                                /* 🔴 ✕ 는 옵션 글자에 안 붙인다 — 붙이면 `selected` 비교가 깨져
+                                      막힌 차종은 골라도 강조가 안 켜진다 (2026-09-12 실측) */
+                                mark={Object.fromEntries(blockedNow.map(v => [v, '✕']))}
                                 keepOpen selected={accepted}
                                 open={openKnob === 'vehicles'}
                                 onToggle={() => setOpenKnob(o => o === 'vehicles' ? null : 'vehicles')}
-                                onPick={(v) => toggleVehicle(v.replace(' ✕', ''))}
+                                onPick={toggleVehicle}
                                 foot={
                                     <div className="flex flex-col gap-0.5 text-[10px] tabular-nums">
                                         <span className="text-[9.5px] font-bold text-text-muted">

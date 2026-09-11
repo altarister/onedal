@@ -202,7 +202,8 @@ const stmtUpdateFilter = db.prepare(`
         min_fare = ?, max_fare = ?, excluded_keywords = ?, is_active = ?,
         excluded_regions = ?,
         ${QUAD_COLS.map(c => `${c} = ?`).join(', ')},
-        ${VALUE_COLS.map(c => `${c} = ?`).join(', ')}
+        ${VALUE_COLS.map(c => `${c} = ?`).join(', ')},
+        radius_auto = ?, radius_base_km = ?, accepted_vehicle_types = ?
     WHERE user_id = ?
 `);
 
@@ -784,6 +785,15 @@ export function saveBaseFilter(
             /* 🎛️ 값 다섯 — **같은 행에** 쓴다 (이식 C3-3b).
                예전엔 `writePhaseRows` 로 **국면 다섯 행에 같은 값을 다섯 번** 썼다 */
             ...(() => { const v = filterValuesFrom(b as any); return FILTER_FIELDS.map(f => v[f.path]); })(),
+            /**
+             * 📐🚚 **오늘 판 칸 셋** (2026-09-12 전수 조사 ①-5).
+             *    `db.ts` 가 컬럼을 팠는데 여기 줄을 안 더해 **판 곳과 쓰는 곳이 갈라졌다** —
+             *    💾 를 눌러도 안 남아 자정에 자동 모드와 받을 짐이 조용히 풀렸다
+             *    (허용 차종이 풀린 2026-08-10 사고와 같은 모양).
+             */
+            b.radiusAuto ? 1 : 0,
+            Number.isFinite(b.radiusBaseKm as number) ? b.radiusBaseKm : null,
+            JSON.stringify(b.acceptedVehicleTypes || []),
             userId
         );
     } catch (e) {

@@ -408,6 +408,14 @@ export function getUserSession(userId: string): UserSession {
                     ...quadShapeFrom(filterRow as any),
                     /* 🚫 제외 지역 — 국면 밖 한 벌 (이식 C2). 깨진 JSON 은 «없음»으로 (규칙 ④) */
                     excludedRegions: safeJsonArray(filterRow.excluded_regions),
+                    /**
+                     * 📐🚚 **오늘 판 칸 셋** (2026-09-12 전수 조사 ①-5) — 안 읽으면 재접속에 풀린다.
+                     *    `radius_base_km` 이 NULL 이면 **모른다**로 둔다 — 화면·서버가 기본값
+                     *    (`RADIUS_BASE_KM_DEFAULT`)으로 물러선다. 0 으로 읽지 않는다 (버그 대장 #105).
+                     */
+                    radiusAuto: Boolean(filterRow.radius_auto),
+                    radiusBaseKm: Number.isFinite(filterRow.radius_base_km) ? filterRow.radius_base_km : undefined,
+                    acceptedVehicleTypes: safeJsonArray(filterRow.accepted_vehicle_types),
                 } as AutoDispatchFilter;
 
                 // [완전 격리] activeFilter = baseFilter의 독립 복사본 (로그인 시 1회만)
