@@ -10,7 +10,7 @@ import { sheetStatus, sheetStatusLine, textWidth } from '../lib/sheetStatus';
 import StepSheetMock from '../components/dashboard/StepSheetMock';
 import { pushClock, gapTone } from '../lib/pushedTime';
 import { MOCK_PLANS, CONE_DEMO, QUAD_DEMO, QUAD_SIHEUNG, QUAD_LEG2, BOLT_STEPS, BOLT_STEPS_30, RING_DEMO, scenarioPlan, splitStops, myLocationAt, routeHolderOf, reaskedPlan, reaskCost, type Call } from './mockPlans';
-import { buildNet, buildFirstLegDemo, WAIT_PRESET, GONJIAM_DROP, GONJIAM_CALL_PATH, DONGWON_DROP, DONGWON_CALL_PATH, BORAM_DROP, BORAM_CALL_PATH, ICHEON_DROP, ICHEON_CALL_PATH, type NetParams, type NetResult } from './callNet';
+import { buildNet, buildFirstLegDemo, WAIT_PRESET, GONJIAM_DROP, GONJIAM_CALL_PATH, DONGWON_DROP, DONGWON_CALL_PATH, BORAM_DROP, BORAM_CALL_PATH, ICHEON_DROP, ICHEON_CALL_PATH, type NetParams, type NetResult } from '@onedal/shared';
 import { SCENARIO, SEAT_CALLS } from './scenario';
 import { ROUTE_PRIORITIES, PRIORITY_SAMPLE, isPriorityLocked, type RoutePriority } from '../lib/routePriority';
 import JudgmentSeat from '../components/dashboard/JudgmentSeat';

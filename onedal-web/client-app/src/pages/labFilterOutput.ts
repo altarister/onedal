@@ -18,7 +18,7 @@ import {
     type AutoDispatchFilter,
 } from '@onedal/shared';
 // ⛔ 제외 판정은 **한 벌**이다 — 화면과 아웃풋이 갈리면 «화면은 뺐는데 아웃풋은 안 뺀» 사고가 난다
-import { isRegionExcluded, isWholeRegionExcluded, sggList } from './callNet';
+import { isRegionExcluded, isWholeRegionExcluded, sggList } from '@onedal/shared';
 
 /** 실물 DTO 에 **아직 없는** 실험실 제안 칸 — 이식 때 DTO 로 올라갈 후보들 */
 export interface LabProposedFields {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { pickNextTarget } from './callNet';
+import { pickNextTarget } from '@onedal/shared';
 
 /**
  * 🚗 **주행은 되돌아가지 않는다** (2026-09-09 실측으로 잡은 규칙).

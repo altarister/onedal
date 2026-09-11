@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { activeGoals } from './callNet';
+import { activeGoals } from '@onedal/shared';
 
 /**
  * 🏠 **복귀는 세 상태다** (기사님 확정 2026-09-09).

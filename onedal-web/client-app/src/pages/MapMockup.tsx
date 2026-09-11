@@ -40,7 +40,7 @@ import {
     GONJIAM_DROP, DONGWON_DROP, BORAM_DROP,
     GONJIAM_CALL_PATH, DONGWON_CALL_PATH, BORAM_CALL_PATH,
     type NetPoint, type TwoStageVerdict,
-} from './callNet';
+} from '@onedal/shared';
 import sidoDataRaw from '../mapData/sidoData.json';
 import { apiBase } from '../lib/serverTarget';
 
