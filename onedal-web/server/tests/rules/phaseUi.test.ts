@@ -375,3 +375,44 @@ describe('제외 지역 — 국면 밖 한 벌, 빼는 자리는 하나', () => 
         expect(strip).toMatch(/excludedRegions/);
     });
 });
+
+/**
+ * 🕸️ **그물 계산은 한 벌이다** (이식 C1-2 · 2026-09-11 · 명세 §5).
+ *
+ * 기사님 확정: **«실험실 것으로 통일»**. 그 전까지 서버는 제 계산(`geoService` 의 turf
+ * 폴리곤 버퍼)을 따로 썼고 **화면과 판정이 다른 답을 냈다** — 파주 조건 일치율 11%.
+ * 「화면은 든다는데 판정은 탈락」이 거기서 났다 (규칙 ⑤-3 — 색이 곧 결정).
+ *
+ * 🔴 **`destinationKeywords` 는 «하차지가 내 그물 안인가» 하나를 답한다**
+ *    (앱 `InsungParser.kt` 의 `anyHit(pureDropoffText, …)`). 실험실의 `dropIn` 과 같은
+ *    질문이라 맞물린다 (규칙 ⑤-4 ⑤ — 읽는 곳을 먼저 확정했다).
+ */
+describe('그물 계산 — 서버도 실험실 것을 쓴다 (이식 C1-2)', () => {
+
+    const fm3 = codeOnly(read(join(SERVER, 'state/filterManager.ts')));
+
+    it('🔴 서버가 shared 의 그물 계산을 부른다', () => {
+        expect(fm3).toMatch(/netForGoal\(/);
+        expect(fm3).toMatch(/cityCenter\(/);
+    });
+
+    /**
+     * 🔴 **내 위치를 모르면 옛 방식으로 물러선다** — 첫짐 그물은 내 위치가 꼭짓점이라
+     *    없으면 못 그린다. **빈 목록은 «제한 없음»이 아니라 고장**이다 (규칙 ④).
+     */
+    it('🔴 내 위치가 없으면 도시 둘레로 물러선다 (비우지 않는다)', () => {
+        const fn = fm3.slice(fm3.indexOf('function netKeywordsOf'), fm3.indexOf('function netKeywordsOf') + 1400);
+        expect(fn).toMatch(/driverLocation/);
+        expect(fn).toMatch(/getCityRegionsWithRadius/);   // 물러설 자리
+    });
+
+    it('🔴 마름모 모양은 평면 필터에서 온다 — 화면이 그리는 그 값이다', () => {
+        const fn = fm3.slice(fm3.indexOf('function netKeywordsOf'), fm3.indexOf('function netKeywordsOf') + 1400);
+        expect(fn).toMatch(/quadShapeFrom\(/);
+    });
+
+    it('🔴 제외 지역은 여전히 pruneExcludedRegions 한 곳이 뺀다', () => {
+        // 그물로 바꿔도 빼는 자리는 안 늘어난다 (규칙 ③)
+        expect((fm3.match(/pruneExcludedRegions\(/g) || []).length).toBeGreaterThanOrEqual(2);
+    });
+});

@@ -19,7 +19,8 @@ import { SettingsRepository } from "../repositories/SettingsRepository";
 import { getUserSession } from "./userSessionStore";
 import type { AutoDispatchFilter, PhaseKey, PhaseSettings } from "@onedal/shared";
 import { DEFAULT_DETOUR_RADIUS_KM, isDeliveredCall, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, resolvePhaseKey, applyPhaseToFilter, normalizePhaseSettings,
-         PHASE_KEYS, FILTER_FIELDS, QUAD_FIELDS, quadShapeFrom, pruneExcludedRegions, phaseRowOf, phaseOfRow, EVALUATING_STATUSES } from "@onedal/shared";
+         PHASE_KEYS, FILTER_FIELDS, QUAD_FIELDS, quadShapeFrom, pruneExcludedRegions, netForGoal, cityCenter,
+         phaseRowOf, phaseOfRow, EVALUATING_STATUSES } from "@onedal/shared";
 import type { PhaseSettingsMap } from "@onedal/shared";
 
 // ─────────────────────────────────────────────────────────────
@@ -32,6 +33,75 @@ import type { PhaseSettingsMap } from "@onedal/shared";
 // ─────────────────────────────────────────────────────────────
 
 /** 국면 5행을 새 그릇에 upsert — 컬럼 목록의 원천은 FILTER_FIELDS 표 */
+/**
+ * 🕸️ **그물이 만든 하차지 목록** — 서버도 실험실과 **같은 계산**을 쓴다
+ *    (이식 C1-2 · 기사님 확정 2026-09-11 «실험실 것으로 통일» · 명세 §5).
+ *
+ * 앱이 보는 `destinationKeywords` 는 **«이 콜의 하차지가 내 그물 안인가»** 하나를 답한다
+ * (`InsungParser.kt` 의 `anyHit(pureDropoffText, …)`). 실험실의 `dropIn` 과 같은 질문이라
+ * 그대로 맞물린다 (규칙 ⑤-4 ⑤ — 읽는 곳을 먼저 확정했다).
+ *
+ * ```
+ * 첫짐   line: null  · anchor: 내 위치       → 내 위치 원 ∪ 목적지 원 ∪ 마름모
+ * 합짐   line: 지금 경로 · lastDrop: 라인 끝 → 라인 띠 ∪ 목적지 원 ∪ 마름모
+ * ```
+ *
+ * 🔴 **못 그리면 옛 방식(도시 둘레)으로 물러선다** — 목적지를 모르거나(`cityCenter` 가
+ *    좌표를 못 냄) 첫짐인데 내 위치를 모르면 그물의 꼭짓점이 없다. 그때 **비우지 않는다**:
+ *    빈 목록은 «제한 없음»이 아니라 **고장**이고(루트 CLAUDE.md), 없는 값을 지어내지도
+ *    않는다(규칙 ④). 잴 수 있는 방법으로 물러설 뿐이다.
+ *
+ * ⚠️ **잃는 것을 알고 고른 것이다** — 실험실은 동을 **중심점 하나**로 보고 옛 방식은
+ *    **폴리곤 모양**으로 봤다. 면적이 넓은 읍·면은 가장자리가 걸쳐도 중심이 밖이면 빠진다
+ *    (인천 조건 실측 45개 · 그중 30개가 읍·면). 차이는 `pnpm net:compare` 로 잰다.
+ */
+function netKeywordsOf(
+    session: ReturnType<typeof getUserSession>,
+    city: string,
+    radiusKm: number,
+    line: Array<[number, number]> | null,
+): { flat: string[]; grouped: Record<string, string[]>; byNet: boolean; pruned: number } {
+    const excluded = session.activeFilter.excludedRegions ?? [];
+    /** 🚫 제외로 **몇 개가 빠졌나** — 로그가 «왜 줄었는지»를 말할 수 있어야 한다 */
+    const prune = (grouped: Record<string, string[]>, byNet: boolean) => {
+        const before = new Set(Object.values(grouped).flat()).size;
+        const kept = pruneExcludedRegions(grouped, excluded);
+        return { ...kept, byNet, pruned: before - kept.flat.length };
+    };
+    const fallback = () => prune(getCityRegionsWithRadius(city, radiusKm).grouped, false);
+    const goal = cityCenter(city);
+    if (!Number.isFinite(goal.lng) || !Number.isFinite(goal.lat)) return fallback();
+
+    const me = session.driverLocation;
+    if (!line && !me) return fallback();        // 첫짐인데 꼭짓점이 없다
+
+    const quad = quadShapeFrom(session.activeFilter as any);
+    const lastDrop = line && line.length >= 2
+        ? { name: '마지막 하차지', lng: line[line.length - 1][0], lat: line[line.length - 1][1] }
+        : null;
+    const net = netForGoal(goal, {
+        line,
+        lineRadiusKm: session.activeFilter.detourRadiusKm ?? DEFAULT_DETOUR_RADIUS_KM,
+        lastDrop,
+        params: {
+            ...quad,
+            srcDiamKm: (session.activeFilter.pickupRadiusKm ?? 10) * 2,
+            dstDiamKm: radiusKm * 2,
+        },
+        anchor: me ? { name: '내 위치', lng: me.x, lat: me.y } : { name: '내 위치', lng: goal.lng, lat: goal.lat },
+    });
+    /* 🔴 그물이 아무것도 못 담으면 그것도 «고장»이다 — 물러선다 */
+    if (!net.pass.length) return fallback();
+
+    const grouped: Record<string, string[]> = {};
+    for (const d of net.pass) {
+        const region = d.region ?? '기타 지역';
+        (grouped[region] ??= []).push(d.name);
+    }
+    for (const k of Object.keys(grouped)) grouped[k] = [...new Set(grouped[k])].sort();
+    return prune(grouped, true);
+}
+
 export function writePhaseRows(userId: string, map: PhaseSettingsMap): void {
     const cols = FILTER_FIELDS.map(f => f.col);
     const stmt = db.prepare(`
@@ -188,14 +258,14 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
         const city = session.activeFilter.destinationCity;
         const radius = session.activeFilter.destinationRadiusKm || 0;
         console.log(`🗺️ [FilterManager] 지리 연산 트리거 (city=${city}, radius=${radius}km)`);
-        const raw = getCityRegionsWithRadius(city, radius);
         /**
-         * 🚫 **제외 지역을 여기서 뺀다** (이식 C2 · 명세 §3). 빼는 자리는 `pruneExcludedRegions`
-         *    하나다 (규칙 ③) — 키 문법(`S|`·`R|`·`D|`)을 서버가 또 뜯어보지 않는다.
-         *    `destinationKeywords` 를 **만들 때** 빼므로 앱은 제외를 몰라도 된다.
+         * 🕸️ **그물이 목록을 만든다** (이식 C1-2) — 화면이 그리는 그 계산이다.
+         *    제외 지역은 `netKeywordsOf` 안에서 `pruneExcludedRegions` 한 곳이 뺀다 (규칙 ③).
          */
-        const { flat, grouped } = pruneExcludedRegions(raw.grouped, session.activeFilter.excludedRegions ?? []);
-        const customCityFilters = raw.customCityFilters;
+        const { flat, grouped, byNet, pruned } = netKeywordsOf(session, city, radius, null);
+        const customCityFilters = getCityRegionsWithRadius(city, radius).customCityFilters;
+        console.log(`🕸️ [FilterManager] ${byNet ? '그물' : '도시 둘레(물러섬)'} → 지역 ${flat.length}개`
+            + (pruned > 0 ? ` (제외로 ${pruned}개 뺌)` : ''));
         session.activeFilter.destinationKeywords = flat;
         session.activeFilter.destinationGroups = grouped;
         /**
@@ -479,14 +549,28 @@ function refreshDetourIfNeeded(
     if (!regions) return;   // 경로가 아직 없다 — 없는 값을 지어내지 않는다
     rememberDetourProgress(session, regions);
 
-    // 셋을 **한 벌로** 넣는다. 별칭(customCityFilters)이 빠지면 앱의 2단계 필터가 조용히 꺼진다
-    /* 🚫 경로 주변도 같은 함수로 제외를 뺀다 — 한쪽만 거치면 «첫짐엔 빠지는데 합짐엔 들어온다» */
-    const kept = pruneExcludedRegions(regions.destinationGroups, session.activeFilter.excludedRegions ?? []);
+    /**
+     * 🕸️ **합짐도 그물이 만든다** (이식 C1-2) — 라인 띠 ∪ 목적지 원 ∪ 마름모.
+     *    별칭(`customCityFilters`)은 옛 계산이 내던 것을 그대로 쓴다 — 그건 «시 이름»이라
+     *    그물과 무관하고, 빠지면 앱의 2단계 필터가 조용히 꺼진다.
+     * 🔴 목적지를 모르면(합짐은 도시가 비어 있을 수 있다) 옛 경로 주변 목록으로 물러선다.
+     */
+    const line = getActivePolyline(session);
+    const kept = session.activeFilter.destinationCity
+        ? netKeywordsOf(session, session.activeFilter.destinationCity, dRadius,
+            (line?.length ?? 0) >= 2 ? line!.map(p => [p.x, p.y] as [number, number]) : null)
+        : (() => {
+            const k = pruneExcludedRegions(regions.destinationGroups, session.activeFilter.excludedRegions ?? []);
+            const before = new Set(Object.values(regions.destinationGroups).flat()).size;
+            return { ...k, byNet: false, pruned: before - k.flat.length };
+        })();
     session.activeFilter.destinationKeywords = kept.flat;
     session.activeFilter.destinationGroups = kept.grouped;
     session.activeFilter.customCityFilters = regions.customCityFilters;
-    console.log(`🛣️ [경유 갱신] 경유 ${cRadius}km · 하차 ${dRadius}km → 지역 ${kept.flat.length}개`
-        + (regions.destinationKeywords.length !== kept.flat.length ? ` (제외로 ${regions.destinationKeywords.length - kept.flat.length}개 뺌)` : ''));
+    /* 🔴 **옛 계산과 견주지 않는다** — 그물이 더 담으면 «제외로 −157개 뺌» 같은 거짓말이 나왔다 */
+    console.log(`🛣️ [경유 갱신] 경유 ${cRadius}km · 하차 ${dRadius}km → `
+        + `${kept.byNet ? '그물' : '경로 주변(물러섬)'} 지역 ${kept.flat.length}개`
+        + (kept.pruned > 0 ? ` (제외로 ${kept.pruned}개 뺌)` : ''));
 }
 
 /**
