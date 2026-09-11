@@ -327,38 +327,6 @@ export const PRESETS: Record<string, PresetProblem[]> = {
      * ⚠️ 요금은 전부 20만원이다 — 요금 축이 걸리면 «지도가 통과했는가»를 못 본다.
      *    실제 운임은 라벨에 남겼다. 상차지는 넷 다 6.2km 안이다(캡처의 실제 값).
      */
-    '지도청주': [
-        {
-            label: '① ⭕ 남동공단 → 청주 오창읍 · 200,000 (실측 77,000)',
-            pickup: '남동공단 상차지', dropoff: '청주 오창읍 하차지',
-            pickupFallback: IC_NAMDONG, dropoffFallback: CJ_OCHANG,
-            fare: 200000, vehicleType: '다마스', expect: 'PASS',
-            why: '🗺️ **이 하나가 지도 확장의 증거다.** 확장 전에는 「청주」로 동이 0개라 떨어졌다',
-        },
-        {
-            label: '② ⭕ 남동 논현동 → 청주 옥산면 · 200,000 (실측 70,000)',
-            pickup: '남동 논현동 상차지', dropoff: '청주 옥산면 하차지',
-            pickupFallback: IC_NONHYEON2, dropoffFallback: CJ_OKSAN,
-            fare: 200000, vehicleType: '다마스', expect: 'PASS',
-            why: '🗺️ 같은 청주인데 **다른 구(흥덕구)** 다 — 시 전체가 들어왔는지 본다',
-        },
-        {
-            label: '③ ✖ 남동공단 → 음성 삼성면 · 200,000 (실측 65,000)',
-            pickup: '남동공단 상차지', dropoff: '음성 삼성면 하차지',
-            pickupFallback: IC_NAMDONG, dropoffFallback: ES_SAMSEONG,
-            fare: 200000, vehicleType: '다마스', expect: 'BLOCK',
-            why: '🔴 **볼첨지는 잡았다.** 음성은 청주가 아니다 — 하차 반경을 0 으로 두면 막힌다. ' +
-                 '반경을 키워 통과시키려 하지 말 것 (그건 «청주 주변»이 아니라 «가는 길»이다)',
-        },
-        {
-            label: '④ ✖ 시화공단 → 오산 지곶동 · 200,000 (실측 30,800)',
-            pickup: '시화공단 상차지', dropoff: '오산 지곶동 하차지',
-            pickupFallback: SIHWA, dropoffFallback: OSAN_JIGOT,
-            fare: 200000, vehicleType: '다마스', expect: 'BLOCK',
-            why: '🔴 **볼첨지는 잡았다.** 오산은 청주에서 **65km 밖**이다. ' +
-                 '경유 반경(첫짐 뒤)의 일이지 도착 목표의 일이 아니다',
-        },
-    ],
 
     /**
      * 🚚 **볼첨지 이틀 — 실측을 그대로 문제지로** (2026-09-06 신설)
@@ -540,77 +508,6 @@ export const PRESETS: Record<string, PresetProblem[]> = {
         },
     ],
 
-    '볼첨지대전': [
-        {
-            label: '03 ⭕ · 대전 갈마동 → 천안 성거읍 · 200,000 (실측 50,050)',
-            pickup: '대전 갈마동 상차지', dropoff: '천안 성거읍 물류',
-            pickupFallback: DJ_GALMA, dropoffFallback: CA_SEONGGEO,
-            fare: 200000, vehicleType: '다마스', expect: 'PASS',
-            why: '🚚 **볼트가 잡은 콜이다.** 하차 주변 80km 면 천안 성거읍이 «인천» 그물에 들어온다 — 🗺️ 지도에 충청이 없으면 반경을 아무리 키워도 안 잡힌다 (지도 확장이 값을 하는 자리)',
-        },
-        {
-            label: '04 ⭕ · 대전 문지동 → 오산 가수동 · 200,000 (실측 38,500)',
-            pickup: '대전 문지동 상차지', dropoff: '오산 가수동 하차지',
-            pickupFallback: DJ_MUNJI, dropoffFallback: OSAN_GASU,
-            fare: 200000, vehicleType: '다마스', expect: 'PASS',
-            why: '🚚 **볼트가 잡은 콜이다.** 오산은 40km 부터 들어온다 — 80km 면 넉넉하다',
-        },
-        {
-            label: '07 ⭕ 대전 → 인천 송도 · 200,000 (실측 80,000) (볼첨지는 잡았다 취소했다)',
-            pickup: '대전 갈마동 상차지', dropoff: '인천 송도동 하차지',
-            pickupFallback: DJ_GALMA, dropoffFallback: IC_SONGDO,
-            fare: 200000, vehicleType: '다마스', expect: 'PASS',
-            why: '🔴 그날 **최고 단가 8만**이고 도착지도 맞다. 첫짐이면 PASS 가 옳다 — ' +
-                 '역주행은 경로가 생겨야 보인다. **합짐 국면에서 돌리면 BLOCK 이어야 한다** ' +
-                 '(볼첨지는 북상 중에 잡았다가 대전으로 되돌아가야 해서 콜사 요청으로 취소했다)',
-        },
-    ],
-    '볼첨지오송': [
-        {
-            label: '05 ⭕ 청주 오송 → 인천 논현동 · 200,000 (실측 38,500)',
-            pickup: '청주 오송 상차지', dropoff: '인천 논현동 하차지',
-            pickupFallback: CJ_OSONG, dropoffFallback: IC_NONHYEON,
-            fare: 200000, vehicleType: '다마스', expect: 'PASS',
-            why: '도착 목표 적중. 🔴 **「논현동」은 서울 강남구에도 있다** — 인천 것을 잡는지 본다',
-        },
-        {
-            label: '06 ✖ 도착지 · 청주 오송 → 안산 성곡동 · 200,000 (실측 38,500)',
-            pickup: '청주 오송 상차지', dropoff: '안산 성곡동 하차지',
-            pickupFallback: CJ_OSONG, dropoffFallback: AS_SEONGGOK,
-            fare: 200000, vehicleType: '다마스', expect: 'BLOCK',
-            why: '🔴 **볼첨지는 잡았다.** 05 와 같은 상차지인데 하차만 안산이다 — ' +
-                 '도착지 축 하나로 갈리는 것을 확인한다',
-        },
-    ],
-    '볼첨지천안': [
-        {
-            label: '09 ⭕ 천안 성거읍 → 인천 경서동 · 200,000 (실측 46,200)',
-            pickup: '천안 성거읍 물류', dropoff: '인천 경서동 하차지',
-            pickupFallback: CA_SEONGGEO, dropoffFallback: IC_GYEONGSEO,
-            fare: 200000, vehicleType: '다마스', expect: 'PASS',
-            why: '🔴 **경서동은 개편으로 「인천 서해구」가 됐다** (2026-09-06 지도 확장에서 드러남). ' +
-                 '배차망이 아직 「서구」로 뿌리면 여기서 갈린다 — 그걸 보려고 넣었다',
-        },
-    ],
-    '볼첨지수도권': [
-        {
-            label: '11 ✖ 내일 콜 · 성수동 → 인천 송도 · 200,000 (지금은 오탐이 난다)',
-            pickup: '성수동 상차지', dropoff: '인천 송도동 하차지',
-            pickupFallback: SEONGSU, dropoffFallback: IC_SONGDO,
-            fare: 200000, vehicleType: '다마스', expect: 'BLOCK',
-            why: '🔴 **적요가 `11일(화) 09시픽업 박스10개 하차는 기사님 혼자서` 다 — 내일 콜이다.** ' +
-                 '볼첨지도 열어 보고 포기했다. 그런데 우리는 `cargoHints.ts` 에 **날짜 축이 없어** ' +
-                 '지금 PASS 한다 = **오탐**. 이 문제가 초록이 되면 날짜를 읽기 시작한 것이다',
-        },
-        {
-            label: '12 ✖ 도착지 · 문정동 → 신도림동 · 200,000 (실측 30,800)',
-            pickup: '문정동 상차지', dropoff: '신도림동 하차지',
-            pickupFallback: MUNJEONG, dropoffFallback: SINDORIM,
-            fare: 200000, vehicleType: '다마스', expect: 'BLOCK',
-            why: '도착 목표 «인천» 밖(서울). 적요에 `5박스/3층까지 하차요` 가 있는데 ' +
-                 '**층수 축이 우리에게 없다** — 정차를 실제보다 짧게 잡는다 (별도 판)',
-        },
-    ],
     /**
      * 📍 **축 문제지 — 어디서 돌려도 정답이 같다** (기사님 확정 2026-08-31).
      *
@@ -631,50 +528,6 @@ export const PRESETS: Record<string, PresetProblem[]> = {
      * ⚠️ **도착지 축은 여기 없다.** 그 축의 정답은 기사님이 설정한 도착목표에 달렸는데
      *    시뮬은 그 목록을 모른다 — 모르는 것으로 정답을 만들지 않는다 (규칙 ④).
      */
-    '축': [
-        {
-            label: '① 상차 반경 밖 — 걸러야 한다',
-            pickupBand: 'far', dropoffBand: 'near',
-            fare: 60000, vehicleType: '1t',
-            expect: 'BLOCK',
-            why: '상차 반경 축 — 설정+5km 밖이다. 구로 사고(0831 확인)가 이 축을 뚫고 지나갔다',
-        },
-        {
-            label: '② 상차 반경 안 — 올려야 한다',
-            pickupBand: 'near', dropoffBand: 'near',
-            fare: 60000, vehicleType: '1t',
-            expect: 'PASS',
-            why: '반경 안의 평범한 콜 — 문제지가 필터를 통째로 막지 않았음을 확인한다',
-        },
-        {
-            label: '③ 차종 5t — 걸러야 한다',
-            pickupBand: 'near', dropoffBand: 'near',
-            fare: 150000, vehicleType: '5t',
-            expect: 'BLOCK',
-            why: '차종 축 — 내 차로 못 싣는다. 거리·요금은 통과할 값으로 둬 축을 하나만 시험한다',
-        },
-        {
-            label: '④ 요금 미달 — 걸러야 한다',
-            pickupBand: 'near', dropoffBand: 'far',
-            fare: 5000, vehicleType: '1t',
-            expect: 'BLOCK',
-            why: '요금/단가 축 — 배송거리는 먼데 요금이 5천원이다 (단가식 미달)',
-        },
-        {
-            label: '⑤ 먼 배송 · 제값 — 올려야 한다',
-            pickupBand: 'near', dropoffBand: 'far',
-            fare: 120000, vehicleType: '1t',
-            expect: 'PASS',
-            why: '④와 같은 거리인데 요금만 제값 — 걸린 것이 «거리»가 아니라 «단가»였음을 가른다',
-        },
-        {
-            label: '⑥ 반경 밖 + 제값 — 그래도 걸러야 한다',
-            pickupBand: 'far', dropoffBand: 'near',
-            fare: 200000, vehicleType: '1t',
-            expect: 'BLOCK',
-            why: '돈이 좋아도 상차 반경은 안 뚫린다 — 축끼리 서로를 덮지 않는지 본다',
-        },
-    ],
 
     /**
      * 🗺️ **오탐 문제지** — 2026-08-22 실사고의 재현 (버그 대장 · 사전 확장 매칭 ④).
@@ -703,82 +556,7 @@ export const PRESETS: Record<string, PresetProblem[]> = {
      * ⚠️ 하차지가 **강서·구로·금천**이다 — 도착지 키워드가 «광주시»로 잡혀 있으면 셋 다 막힌다.
      *    이 문제지를 돌리기 전에 **도착지 축을 서울 서부로 바꾸거나 꺼야** 한다.
      */
-    '서진': [
-        {
-            label: '① ⭕ 첫짐 · 스타벅스 초월역DT → 강서개화장례식장 · 64.4km',
-            pickup: '스타벅스 경기광주초월역DT점', dropoff: '강서개화장례식장',
-            pickupFallback: SB_CHOWOL, dropoffFallback: GS_FUNERAL,
-            fare: 90000, vehicleType: '다마스', expect: 'PASS',
-            why: '🔵 **KEEP 하세요. 이 콜이 경로를 정합니다** — 집에서 1.1km 상차, 서쪽 끝까지 가는 긴 다리다',
-        },
-        {
-            label: '② ⭕ 합짐1 · 성남시택시쉼터 → 서부간선영업소 · 27.3km',
-            pickup: '성남시 택시쉼터', dropoff: '서부간선영업소',
-            pickupFallback: SN_TAXI, dropoffFallback: SEOBU_TOLL,
-            fare: 45000, vehicleType: '다마스', expect: 'PASS',
-            why: '🔵 **①의 경로 위에 그대로 얹힌다** — 상차 17.7km 지점, 하차도 가는 길. 우회가 거의 없다',
-        },
-        {
-            label: '③ ⭕ 합짐2 · 안양석유주유소 → 진일텍푸라 · 9.5km',
-            pickup: '안양석유주유소', dropoff: '진일텍푸라',
-            pickupFallback: AY_OIL, dropoffFallback: JININ_TEX,
-            fare: 35000, vehicleType: '다마스', expect: 'PASS',
-            why: '🔵 **②의 하차 직전에 상차하고 직후에 하차한다** — 셋 중 가장 짧지만 경로를 한 뼘도 안 늘린다',
-        },
-        {
-            label: '·· 채움 1 — ✖ 요금 · 스타벅스 → 장례식장 · 8천원',
-            pickup: '스타벅스 경기광주초월역DT점', dropoff: '강서개화장례식장',
-            pickupFallback: SB_CHOWOL, dropoffFallback: GS_FUNERAL,
-            fare: 8000, vehicleType: '다마스', expect: 'BLOCK', filler: true,
-            why: '①과 똑같은 구간인데 요금만 8천원 — **요금/단가 축 하나로** 떨어져야 한다',
-        },
-        {
-            label: '·· 채움 2 — ✖ 차종 · 택시쉼터 → 서부간선 · 5t',
-            pickup: '성남시 택시쉼터', dropoff: '서부간선영업소',
-            pickupFallback: SN_TAXI, dropoffFallback: SEOBU_TOLL,
-            fare: 200000, vehicleType: '5t', expect: 'BLOCK', filler: true,
-            why: '②와 똑같은 구간 — 오직 **차종**으로 떨어진다 (다마스에 5t 짐은 못 싣는다)',
-        },
-        {
-            label: '·· 채움 3 — ✖ 역주행 · 장례식장 → 스타벅스 초월역',
-            pickup: '강서개화장례식장', dropoff: '스타벅스 경기광주초월역DT점',
-            pickupFallback: GS_FUNERAL, dropoffFallback: SB_CHOWOL,
-            fare: 90000, vehicleType: '다마스', expect: 'BLOCK', filler: true,
-            why: '①을 **거꾸로** 가는 콜 — 요금·차종은 멀쩡한데 **가던 방향의 반대**다',
-        },
-    ],
 
-    '오탐': [
-        {
-            label: '① 인천 남동구 — 걸러야 한다',
-            pickup: '경안동', dropoff: '남동구',
-            fare: 83000, vehicleType: '1t',
-            expect: 'BLOCK',
-            why: '키워드 "남동"의 부분 문자열일 뿐 — 집(광주) 방향이 아니다. 06:36 실사고',
-        },
-        {
-            label: '② 광주 남동 — 올려야 한다',
-            pickup: '경안동', dropoff: '남동 물류창고',
-            dropoffFallback: GWANGJU_NAMDONG,
-            fare: 45000, vehicleType: '1t',
-            expect: 'PASS',
-            why: '진짜 그 동이다 — 오탐을 막느라 이걸 놓치면 미탐(더 아픈 실패)',
-        },
-        {
-            label: '③ 부천 중동 — 걸러야 한다',
-            pickup: '경안동', dropoff: '중동 길주로',
-            fare: 70000, vehicleType: '1t',
-            expect: 'BLOCK',
-            why: '"중동"도 광주 인근에 있는 동명 — 같은 함정의 다른 낱말',
-        },
-        {
-            label: '④ 광주 초월읍 — 올려야 한다',
-            pickup: '경안동', dropoff: '초월읍',
-            fare: 52000, vehicleType: '1t',
-            expect: 'PASS',
-            why: '집 방향의 평범한 콜 — 문제지가 필터를 통째로 막지 않았음을 확인한다',
-        },
-    ],
     /**
      * 🚚 **7지점 한 바퀴** — 기사님이 뽑아 주신 7개 지점 그대로 (기사님 지시 2026-08-30).
      *
@@ -943,182 +721,6 @@ export const PRESETS: Record<string, PresetProblem[]> = {
      *
      * 주소는 **기사님이 찍어 주신 일곱 곳뿐이다** — 목록 밖 주소를 끼워 넣지 않는다.
      */
-    '초월이천': [
-        {
-            label: '01 ✖ 상차 반경 · 아울렛 → 인삼농협',
-            pickup: '프리미엄아울렛로 177-74', dropoff: '둔터로124번길 160',
-            fare: 60000, vehicleType: '다마스', expect: 'BLOCK',
-            why: '하차 신둔면은 이천이라 통과하는데 **상차지가 집에서 17.6km** — 첫짐 반경 15km 밖. 상차지 축 하나로 떨어진다',
-        },
-        {
-            label: '02 ✖ 도착지 · 모다아울렛 → 곤지암성당',
-            pickup: '경충대로 907', dropoff: '경충대로543번길 19',
-            fare: 30000, vehicleType: '다마스', expect: 'BLOCK',
-            why: '상차 2.2km 통과 · **앞으로 가는 방향**이라 역주행도 아니다. **하차 곤지암읍이 이천시가 아니다**',
-        },
-        {
-            label: '03 ⭕ 첫짐 · 모다아울렛 → 롯데아울렛 · 30박스',
-            pickup: '경충대로 907', dropoff: '프리미엄아울렛로 177-74',
-            fare: 62000, vehicleType: '다마스', expect: 'PASS',
-            why: '🔵 **KEEP 하세요.** 이 콜이 경로를 정합니다 — 상차 2.2km · 하차 이천. 누적 30박스',
-        },
-        {
-            label: '04 ✖ 차종 · 모다아울렛 → 롯데아울렛 · 5t',
-            pickup: '경충대로 907', dropoff: '프리미엄아울렛로 177-74',
-            fare: 210000, vehicleType: '5t', expect: 'BLOCK',
-            why: '03과 **똑같은 구간** — 오직 **차종**으로 떨어져야 한다 (1t 차에 5t 짐은 못 싣는다)',
-        },
-        {
-            label: '05 ✖ 요금 · 모다아울렛 → 롯데아울렛 · 6천원',
-            pickup: '경충대로 907', dropoff: '프리미엄아울렛로 177-74',
-            fare: 6000, vehicleType: '다마스', expect: 'BLOCK',
-            why: '03과 똑같은 구간인데 요금만 6천원 — 오직 **요금/단가**로 떨어진다',
-        },
-        {
-            label: '06 ✖ 차종 · 곤지암성당 → 예스파크 · 11t',
-            pickup: '경충대로543번길 19', dropoff: '도자예술로 72',
-            fare: 300000, vehicleType: '11t', expect: 'BLOCK',
-            why: '경로 위인데 **11t** 이다. 차종 축 — 큰 톤수가 열리지 않는지 한 번 더 본다',
-        },
-        {
-            label: '07 ⭕ 합짐 · 곤지암성당 → 인삼농협 · 30박스',
-            pickup: '경충대로543번길 19', dropoff: '둔터로124번길 160',
-            fare: 45000, vehicleType: '다마스', expect: 'PASS',
-            why: '🔵 **KEEP 하고 🚗 출발하세요.** 상차 곤지암읍·하차 신둔면 둘 다 경로 위. 누적 60박스',
-        },        {
-            label: '·· 채움 1 — ✖ 요금 · 모다아울렛 → 롯데아울렛 · 7천원',
-            pickup: '경충대로 907', dropoff: '프리미엄아울렛로 177-74',
-            fare: 7000, vehicleType: '다마스', expect: 'BLOCK', filler: true,
-            why: '경로 위 · 차종도 자리도 되는데 **15.5km 하한 8,587원**에 못 미친다 — 요금 축 하나',
-        },
-        {
-            label: '·· 채움 2 — ✖ 요금 · 곤지암성당 → 롯데아울렛 · 5천원',
-            pickup: '경충대로543번길 19', dropoff: '프리미엄아울렛로 177-74',
-            fare: 5000, vehicleType: '다마스', expect: 'BLOCK', filler: true,
-            why: '경로 위 · 차종도 자리도 되는데 **12.4km 하한 6,869원**에 못 미친다 — 요금 축 하나',
-        },
-        {
-            label: '·· 채움 3 — ✖ 차종 · 동원대 → 인삼농협 · 5t',
-            pickup: '경충대로 26', dropoff: '둔터로124번길 160',
-            fare: 152000, vehicleType: '5t', expect: 'BLOCK', filler: true,
-            why: '경로 위 · 요금도 좋다 — **5t 라서** 떨어진다 (3.3km 는 짧아 요금으론 못 막는다)',
-        },
-        {
-            label: '·· 채움 4 — ✖ 요금 · 모다아울렛 → 인삼농협 · 4천원',
-            pickup: '경충대로 907', dropoff: '둔터로124번길 160',
-            fare: 4000, vehicleType: '다마스', expect: 'BLOCK', filler: true,
-            why: '경로 위 · 차종도 자리도 되는데 **11.0km 하한 6,094원**에 못 미친다 — 요금 축 하나',
-        },
-        {
-            label: '·· 채움 5 — ✖ 요금 · 모다아울렛 → 예스파크 · 4천원',
-            pickup: '경충대로 907', dropoff: '도자예술로 72',
-            fare: 4000, vehicleType: '다마스', expect: 'BLOCK', filler: true,
-            why: '경로 위 · 차종도 자리도 되는데 **10.0km 하한 5,540원**에 못 미친다 — 요금 축 하나',
-        },
-        {
-            label: '·· 채움 6 — ✖ 차종 · 곤지암성당 → 롯데아울렛 · 11t',
-            pickup: '경충대로543번길 19', dropoff: '프리미엄아울렛로 177-74',
-            fare: 155000, vehicleType: '11t', expect: 'BLOCK', filler: true,
-            why: '경로 위 · 요금도 좋다 — **11t 라서** 떨어진다 (12.4km 는 짧아 요금으론 못 막는다)',
-        },
-        {
-            label: '·· 채움 7 — ✖ 요금 · 동원대 → 롯데아울렛 · 3천원',
-            pickup: '경충대로 26', dropoff: '프리미엄아울렛로 177-74',
-            fare: 3000, vehicleType: '다마스', expect: 'BLOCK', filler: true,
-            why: '경로 위 · 차종도 자리도 되는데 **9.6km 하한 5,318원**에 못 미친다 — 요금 축 하나',
-        },
-        {
-            label: '·· 채움 8 — ✖ 요금 · 곤지암성당 → 인삼농협 · 2천원',
-            pickup: '경충대로543번길 19', dropoff: '둔터로124번길 160',
-            fare: 2000, vehicleType: '다마스', expect: 'BLOCK', filler: true,
-            why: '경로 위 · 차종도 자리도 되는데 **7.3km 하한 4,044원**에 못 미친다 — 요금 축 하나',
-        },
-        {
-            label: '·· 채움 9 — ✖ 차종 · 동원대 → 예스파크 · 25t',
-            pickup: '경충대로 26', dropoff: '도자예술로 72',
-            fare: 158000, vehicleType: '25t', expect: 'BLOCK', filler: true,
-            why: '경로 위 · 요금도 좋다 — **25t 라서** 떨어진다 (4.4km 는 짧아 요금으론 못 막는다)',
-        },
-        {
-            label: '·· 채움 10 — ✖ 요금 · 곤지암성당 → 예스파크 · 2천원',
-            pickup: '경충대로543번길 19', dropoff: '도자예술로 72',
-            fare: 2000, vehicleType: '다마스', expect: 'BLOCK', filler: true,
-            why: '경로 위 · 차종도 자리도 되는데 **6.7km 하한 3,711원**에 못 미친다 — 요금 축 하나',
-        },
-        {
-            label: '·· 채움 11 — ✖ 요금 · 모다아울렛 → 롯데아울렛 · 4천원',
-            pickup: '경충대로 907', dropoff: '프리미엄아울렛로 177-74',
-            fare: 4000, vehicleType: '다마스', expect: 'BLOCK', filler: true,
-            why: '경로 위 · 차종도 자리도 되는데 **15.5km 하한 8,587원**에 못 미친다 — 요금 축 하나',
-        },
-        {
-            label: '·· 채움 12 — ✖ 차종 · 모다아울렛 → 예스파크 · 3.5t',
-            pickup: '경충대로 907', dropoff: '도자예술로 72',
-            fare: 161000, vehicleType: '3.5t', expect: 'BLOCK', filler: true,
-            why: '경로 위 · 요금도 좋다 — **3.5t 라서** 떨어진다 (10.0km 는 짧아 요금으론 못 막는다)',
-        },
-        {
-            label: '·· 채움 13 — ✖ 요금 · 곤지암성당 → 롯데아울렛 · 4천원',
-            pickup: '경충대로543번길 19', dropoff: '프리미엄아울렛로 177-74',
-            fare: 4000, vehicleType: '다마스', expect: 'BLOCK', filler: true,
-            why: '경로 위 · 차종도 자리도 되는데 **12.4km 하한 6,869원**에 못 미친다 — 요금 축 하나',
-        },
-        {
-            label: '·· 채움 14 — ✖ 요금 · 모다아울렛 → 인삼농협 · 3천원',
-            pickup: '경충대로 907', dropoff: '둔터로124번길 160',
-            fare: 3000, vehicleType: '다마스', expect: 'BLOCK', filler: true,
-            why: '경로 위 · 차종도 자리도 되는데 **11.0km 하한 6,094원**에 못 미친다 — 요금 축 하나',
-        },
-        {
-            label: '·· 채움 15 — ✖ 차종 · 동원대 → 인삼농협 · 11t',
-            pickup: '경충대로 26', dropoff: '둔터로124번길 160',
-            fare: 164000, vehicleType: '11t', expect: 'BLOCK', filler: true,
-            why: '경로 위 · 요금도 좋다 — **11t 라서** 떨어진다 (3.3km 는 짧아 요금으론 못 막는다)',
-        },
-        {
-            label: '·· 채움 16 — ✖ 요금 · 모다아울렛 → 예스파크 · 3천원',
-            pickup: '경충대로 907', dropoff: '도자예술로 72',
-            fare: 3000, vehicleType: '다마스', expect: 'BLOCK', filler: true,
-            why: '경로 위 · 차종도 자리도 되는데 **10.0km 하한 5,540원**에 못 미친다 — 요금 축 하나',
-        },
-        {
-            label: '·· 채움 17 — ✖ 요금 · 동원대 → 롯데아울렛 · 2천원',
-            pickup: '경충대로 26', dropoff: '프리미엄아울렛로 177-74',
-            fare: 2000, vehicleType: '다마스', expect: 'BLOCK', filler: true,
-            why: '경로 위 · 차종도 자리도 되는데 **9.6km 하한 5,318원**에 못 미친다 — 요금 축 하나',
-        },
-        {
-            label: '·· 채움 18 — ✖ 차종 · 곤지암성당 → 예스파크 · 5t',
-            pickup: '경충대로543번길 19', dropoff: '도자예술로 72',
-            fare: 167000, vehicleType: '5t', expect: 'BLOCK', filler: true,
-            why: '경로 위 · 요금도 좋다 — **5t 라서** 떨어진다 (6.7km 는 짧아 요금으론 못 막는다)',
-        },
-        {
-            label: '·· 채움 19 — ✖ 요금 · 모다아울렛 → 롯데아울렛 · 5천원',
-            pickup: '경충대로 907', dropoff: '프리미엄아울렛로 177-74',
-            fare: 5000, vehicleType: '다마스', expect: 'BLOCK', filler: true,
-            why: '경로 위 · 차종도 자리도 되는데 **15.5km 하한 8,587원**에 못 미친다 — 요금 축 하나',
-        },
-        {
-            label: '·· 채움 20 — ✖ 요금 · 곤지암성당 → 롯데아울렛 · 3천원',
-            pickup: '경충대로543번길 19', dropoff: '프리미엄아울렛로 177-74',
-            fare: 3000, vehicleType: '다마스', expect: 'BLOCK', filler: true,
-            why: '경로 위 · 차종도 자리도 되는데 **12.4km 하한 6,869원**에 못 미친다 — 요금 축 하나',
-        },
-
-        {
-            label: '08 ⭕ 주행 중 합짐 · 동원대 → 예스파크 · 30박스',
-            pickup: '경충대로 26', dropoff: '도자예술로 72',
-            fare: 38000, vehicleType: '다마스', expect: 'PASS',
-            why: '🔵 **정차했을 때 KEEP.** 상차 곤지암읍·하차 신둔면 둘 다 주행중 우회 1km 안. 누적 90박스',
-        },
-        {
-            label: '09 ✖ 역주행 · 예스파크 → 모다아울렛 · 승용차',
-            pickup: '도자예술로 72', dropoff: '경충대로 907',
-            fare: 52000, vehicleType: '승용차', expect: 'BLOCK',
-            why: '🔴 **뒤로 가는 콜.** 상차 진행도 > 하차 진행도 → 역주행 축이 잡는다. 자리(10박스)는 남으므로 **오직 역주행**으로만 떨어져야 한다',
-        },
-    ],
 
 };
 
@@ -1212,11 +814,6 @@ export interface PresetRequires {
 
 /** 문제지 이름 → 요구 상태. 없는 문제지는 «아무 상태에서나 돈다»는 뜻이다 */
 export const PRESET_REQUIRES: Record<string, PresetRequires> = {
-    '지도청주': {
-        destinationCity: '청주', destinationRadiusKm: 0,
-        homeAddress: '인천 남동구 남촌동', firstLoadOnly: true,
-        mapSido: ['43'],          // 충북 — 이게 없으면 「청주」로 동이 0개가 된다
-    },
     /**
      * 🎯 **80km 는 잰 값이다** — `server/tests/rules/boltDaejeon.test.ts` 가 못박는다:
      *    0km → 1/3 · 40km → 2/3 · **80km → 3/3**. 볼트와 같아지는 지점이 80 이다.
@@ -1239,35 +836,17 @@ export const PRESET_REQUIRES: Record<string, PresetRequires> = {
     '볼트저녁': {
         destinationCity: '용인', destinationRadiusKm: 80,
     },
-    '볼첨지대전': {
-        destinationCity: '인천', destinationRadiusKm: 80,
-        homeAddress: '대전 유성구 대덕대로 480', firstLoadOnly: true,
-    },
-    '볼첨지오송': {
-        destinationCity: '인천', destinationRadiusKm: 80,
-        homeAddress: '충북 청주시 흥덕구 오송읍 오송생명로 194', firstLoadOnly: true,
-    },
-    '볼첨지천안': {
-        destinationCity: '인천', destinationRadiusKm: 80,
-        homeAddress: '충남 천안시 서북구 성거읍 삼곡리', firstLoadOnly: true,
-        mapSido: ['44'],          // 충남 — 성거읍이 지도에 있어야 한다
-    },
-    '볼첨지수도권': {
-        destinationCity: '인천', destinationRadiusKm: 80,
-        homeAddress: '서울 강남구 영동대로 513', firstLoadOnly: true,
-    },
 };
 
 const ALIASES: Record<string, string> = {
-    ohtam: '오탐', mismatch: '오탐',
-    axis: '축', axes: '축',
     seven: '칠지점', '7': '칠지점',
-    // 🔴 볼첨지는 **자리마다 판이 다르다** (2026-09-06). 한 자리에서 여덟을 다 채점할 수
-    //    없어서 넷으로 쪼갰다 — 옛 이름 「볼첨지」는 첫 판(대전 아침)으로 보낸다.
-    //    안 그러면 이름을 못 찾아 **조용히 랜덤으로 돈다** (실제로 그렇게 당했다).
-    '볼첨지': '볼첨지대전',
-    daejeon: '볼첨지대전', osong: '볼첨지오송',
-    cheonan: '볼첨지천안', metro: '볼첨지수도권',
+    /**
+     * ⚠️ **볼첨지 넷·지도청주·축·서진·오탐·초월이천의 별칭을 함께 걷었다** (2026-09-11).
+     *    기사님 지시로 문제지를 **볼트 오전·볼트 저녁·7지점** 셋만 남겼다.
+     * 🔴 없는 이름을 가리키는 별칭을 남기면 **못 찾아서 조용히 랜덤으로 돈다** —
+     *    2026-09-06 에 실제로 그렇게 당했다. 그래서 가리킬 곳이 사라진 별칭은 같이 지운다.
+     */
+    morning: '볼트오전', evening: '볼트저녁',
 };
 
 /** 문제지 이름 목록 — 못 찾았을 때 «무엇이 있는지» 보여 주려고 쓴다 */
@@ -1278,11 +857,6 @@ export const PRESET_KEYS = Object.keys(PRESETS);
  * 여기 없는 것은 URL 로만 들어간다 (`?preset=…`).
  */
 export const PRESET_MENU: Array<{ key: string; title: string; desc: string }> = [
-    { key: '지도청주', title: '🗺️ 지도 확장 시험 · 인천 남동공단 → 청주 (2026-09-06)',
-      desc: '4문제 · PASS 2(오창읍·옥산면) · BLOCK 2(음성·오산). **오직 지도만 본다** — ' +
-            '요금 20만 고정이라 요금 축이 안 걸린다. 🔴 **도착 목표 «청주» · 내 주소 «인천 남동구 남촌동»**. ' +
-            '충청 확장 전에는 「청주」로 동이 0개라 넷 다 떨어졌다 — ①이 올라오면 지도가 통과한 것이다. ' +
-            '볼첨지는 넷 다 잡아 242,800원을 만들었지만 음성·오산은 «청주 가는 길»이라 우리 도착 목표의 일이 아니다' },
     /* 🚚 **하루 한 판** — 흩어진 볼첨지 네 조각과 달리 «오전/저녁»을 통째로 밟는다 (2026-09-11) */
     { key: '볼트오전', title: '🌅 볼트 오전 — 대전에서 김포까지 일곱 콜 (2026-08-10)',
       desc: '7문제 · 요금 20만 고정(지도·흐름을 본다). 🔴 **「📍 내 위치 찍기」로 진차이나 대전점** ' +
@@ -1293,35 +867,8 @@ export const PRESET_MENU: Array<{ key: string; title: string; desc: string }> = 
       desc: '4문제 · 요금 20만 고정. 🔴 **「📍 내 위치 찍기」로 김포 두원타워** (126.62448, 37.64492) · ' +
             '**도착 목표 «용인시 처인구»**. ①②③ 은 두원타워에 **앉은 채로 17:46 동시에** 잡은 것이고, ' +
             '④ 는 **검단양촌 나들목에서 달리며 18:10** 에 주웠다 — 사이에 주행이 하나 들어간다' },
-    { key: '볼첨지대전', title: '🚚 볼첨지 ① 대전 아침 · 갈마동·문지동 상차 (2026-08-10)',
-      desc: '3문제 · PASS 1(07) · BLOCK 2(03·04). 🔴 **내 주소를 «대전 유성구 대덕대로 480»** 로 두고 ' +
-            '도착 목표는 «인천». 03·04 는 **볼첨지가 잡았는데 우리는 BLOCK 이 맞다** — ' +
-            '그는 목표를 여럿 쥐고 길 위를 줍는데 우리 도착 목표는 도시 하나다(묶음 평가 없음). ' +
-            '07 은 그날 최고 단가 8만인데 그는 잡았다 **취소**했다 — 첫짐이면 PASS 가 옳고, 합짐 국면이면 BLOCK 이어야 한다' },
-    { key: '볼첨지오송', title: '🚚 볼첨지 ② 오송 · 정중리 상차 셋 (2026-08-10 10:45~10:58)',
-      desc: '2문제 · PASS 1(05 인천 논현동) · BLOCK 1(06 안산 성곡동). ' +
-            '🔴 **내 주소를 «충북 청주시 흥덕구 오송읍 오송생명로 194»**. 같은 상차지인데 하차만 달라 ' +
-            '**도착지 축 하나로** 갈리는 것을 본다. 🔴 「논현동」은 서울 강남구에도 있다 — 인천 것을 잡는지 확인' },
-    { key: '볼첨지천안', title: '🚚 볼첨지 ③ 천안 성거읍 → 인천 경서동 (2026-08-10 11:55)',
-      desc: '1문제 · PASS. 🔴 **내 주소를 «충남 천안시 서북구 성거읍 삼곡리»**. ' +
-            '경서동은 2026 개편으로 **«인천 서해구»** 가 됐다 — 배차망이 아직 «서구» 로 뿌리면 여기서 갈린다' },
-    { key: '볼첨지수도권', title: '🚚 볼첨지 ④ 수도권 · 성수동·문정동 (2026-08-10 13:11·13:15)',
-      desc: '2문제 · 둘 다 BLOCK. 🔴 **내 주소를 «서울 강남구 영동대로 513»**. ' +
-            '11 은 적요가 «11일(화) 09시픽업» 인 **내일 콜**이라 볼첨지도 포기했는데 ' +
-            '**지금 우리는 PASS 한다 = 오탐** (cargoHints 에 날짜 축이 없다). 초록이 되면 날짜를 읽기 시작한 것이다. ' +
-            '12 는 도착 목표 밖(서울)이고, 적요의 «3층까지 하차» 는 **층수 축이 없어** 정차를 짧게 잡는다' },
-    { key: '서진', title: '🚚 서진 합짐 · 초월(집)→성남→안양→서부간선→구로→강서 (2026-09-03)',
-      desc: '6문제 · 잡는 콜 3(① 첫짐 64.4km · ② 합짐1 27.3km · ③ 합짐2 9.5km) · 채움 3(요금·차종·역주행). ' +
-            '되돌아가는 구간이 없어 **우회 비용이 거의 0인 합짐**이다 — 단독 64.4km ↔ 셋 합쳐 65.0km. ' +
-            '🔴 하차지가 강서·구로·금천이라 도착지 축을 서울 서부로 바꾸고 돌린다' },
     { key: '칠지점', title: '🚚 7지점 한 바퀴 · 집→모다→성당→신둔→이조→제일→터미널',
       desc: '7문제 — 정지 상태 정답: 알람 2번(01·03). 05는 주행 중에만 잡힌다. 채움 없음' },
-    { key: '초월이천', title: '🚗 초월(집) → 이천 롯데아울렛 · 갈 때 (2026-08-26)',
-      desc: '29문제 · 잡는 콜 3(03 첫짐 · 07 합짐→출발 · 28 주행중) · 나머지 26은 막혀야 한다. 간격 하나로 끝 — 사이는 못 잡는 콜이 채운다' },
-    { key: '축', title: '📍 축 문제지 · 어디서든 (현위치 기준 · 서울 나들이용)',
-      desc: '6문제 — 상차반경 2 · 차종 1 · 요금/단가 2 · 축 간섭 1. 주소가 아니라 «거리 띠»라 어디서 돌려도 정답이 같다. 정답: 올려야 하는 것 ②⑤ 둘뿐' },
-    { key: '오탐', title: '오탐 확인용',
-      desc: '걸러져야 하는 것만 모았다' },
 ];
 
 export function getPreset(name?: string | null): PresetProblem[] | null {
