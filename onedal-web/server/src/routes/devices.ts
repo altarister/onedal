@@ -127,6 +127,12 @@ export interface DeviceStatusExtras {
     workStageStep?: number;
     workStageSeconds?: number;
     appliedMode?: string;
+    /**
+     * 🧬 **폰이 «들고 온» 콜 필터의 지문** (2026-09-12 · 현황판 담당 요청 ②).
+     *    서버가 내려보낸 것이 아니라 **앱이 실어 보낸 것**이다 — 그래야
+     *    «이 폰이 아직 옛 필터로 돌고 있다»가 드러난다 (`DeviceSession.filterVersion` 주석).
+     */
+    filterVersion?: string;
 }
 
 export const touchDeviceSession = (deviceId: string, userId: string, addedPollCount: number = 0, screenContext?: ScreenContextType, io?: any, isHolding?: boolean, lat?: number, lng?: number, screenNodeCount?: number, isScreenOn?: boolean, filterTally?: FilterTally, targetApp?: TargetAppType, extras?: DeviceStatusExtras): DeviceModeType => {
@@ -232,6 +238,15 @@ export const touchDeviceSession = (deviceId: string, userId: string, addedPollCo
         session.workStageSeconds = extras.workStageSeconds;
     }
     if (extras?.appliedMode) session.appliedMode = extras.appliedMode;
+    /**
+     * 🧬 **지문은 «받은 그 순간»과 함께 남긴다** (현황판 담당 요청 ②).
+     * ⚠️ 구앱은 안 보낸다 — 그때는 **건드리지 않는다**. 옛 지문이라도 «마지막으로 안 것»이
+     *    남아 있어야 화면이 «구앱이라 모른다»와 «두 판 전이다»를 가른다 (규칙 ④).
+     */
+    if (extras?.filterVersion) {
+        session.filterVersion = extras.filterVersion;
+        session.filterVersionAt = Date.now();
+    }
 
     // 새 세션이든 갱신이든 **한 곳에서** 본다 — 두 갈래에 나눠 적으면 한쪽만 고쳐진다
     applyBlindSignal(session, screenNodeCount, isScreenOn);

@@ -87,6 +87,21 @@ export interface UserSession {
      * 실 GPS 에는 이 제한이 없다 — 세워 둬도 기사님은 진짜 거기 계신다.
      */
     driverLocationIsMock: boolean;
+    /**
+     * 📍 **이 좌표가 «어디서 왔나»** (2026-09-12 · 현황판 담당 요청 ①).
+     *
+     * 🔴 **`driverLocationIsMock` 과 답하는 질문이 다르다** (규칙 ⑤-4 ⑤).
+     *      · `driverLocationIsMock`   «지어낸 좌표인가» — 모의 주행이 끝나면 **걷어낼지**를 정한다
+     *      · `driverLocationSource`   «어디서 왔나»     — **화면이 적을 말**을 정한다
+     *    한 칸으로 둘을 답하다가, 시뮬레이터로 달리는 중인데 화면이
+     *    **«손으로 찍음»** 이라고 말했다. 이름이 거짓말을 한 것이다.
+     *
+     *   `gps`    폰이 보낸 진짜 위치
+     *   `mock`   시뮬레이터 모의 주행
+     *   `manual` 사람이 현황판에서 **손으로 찍은** 위치 (그 칸은 아직 만드는 중)
+     *   `home`   아무것도 없어 **설정의 집 주소로 대신**한 것
+     */
+    driverLocationSource?: 'gps' | 'mock' | 'manual' | 'home';
     /** 🔒 모의 GPS 임자 소켓 — 관제웹 둘이 시뮬을 겹쳐 쏘면 궤적이 섞인다 (2026-08-31) */
     mockGpsOwner?: { socketId: string; at: number; warned: boolean } | null;
     /**
@@ -288,6 +303,7 @@ function createDefaultSession(userId: string): UserSession {
         driverLocation: null,
         driverLocationIsFallback: false,
         driverLocationIsMock: false,
+        driverLocationSource: undefined,
         mockGpsOwner: null,
         driverLocationAt: null,
         userVehicleType: '1t',

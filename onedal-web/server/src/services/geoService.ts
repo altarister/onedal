@@ -849,6 +849,7 @@ export function ensureDriverOrigin(
         driverLocationAt: number | null;
         driverLocationIsFallback: boolean;
         driverLocationIsMock?: boolean;
+        driverLocationSource?: 'gps' | 'mock' | 'manual' | 'home';
         activeFilter?: { dispatchPhase?: string | null };
     },
     nowMs: number = Date.now(),
@@ -860,6 +861,7 @@ export function ensureDriverOrigin(
     if (home) {
         session.driverLocation = { x: home.x, y: home.y };
         session.driverLocationIsFallback = true;
+        session.driverLocationSource = 'home';   // 📍 화면이 «집 주소로 대신» 을 말할 수 있게 (현황판 ①)
         console.log(`📍 [출발지 대체] GPS 미수신 — 내 주소(${home.address}) 기준으로 경로를 계산합니다`);
     } else {
         console.warn(`⚠️ [출발지 없음] GPS 도 내 주소도 없습니다 — 접근 구간을 계산할 수 없습니다 (설정에서 내 주소를 넣어 주세요)`);
@@ -1007,6 +1009,15 @@ export function processDriverMovement(
     session.driverLocation = currentGPS;
     session.driverLocationAt = Date.now();   // 낡음을 재려면 «언제 받았나»가 있어야 한다
     session.driverLocationIsMock = src === 'mock';   // 가짜는 운행 국면 밖에서 못 산다
+    /**
+     * 📍 **온 그대로 적는다** (2026-09-12 · 현황판 담당 요청 ①).
+     *    여기가 좌표가 들어오는 **유일한 문**이라 출처도 여기서 남긴다 (규칙 ③).
+     *    ⚠️ 모르는 말이 오면 «모른다»로 둔다 — `gps` 로 지어내면 화면이 거짓말한다 (규칙 ④).
+     */
+    session.driverLocationSource =
+        src === 'mock' || src === 'manual' ? src
+        : src === 'native' || src === 'browser' || src === 'real' ? 'gps'
+        : undefined;
 
     // [V2] dispatchPhase 기반으로 체크
     const isDelivering = session.activeFilter.dispatchPhase === 'DELIVERING';

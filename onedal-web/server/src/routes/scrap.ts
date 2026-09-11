@@ -95,12 +95,21 @@ router.post("/", (req, res) => {
         let deviceMode = "MANUAL";
         if (deviceId) {
             const io = req.app.get("io");
+            /**
+             * 🧬 **폰이 «들고 온» 필터 지문** (2026-09-12 · 현황판 담당 요청 ②).
+             *    아래 v2 게이트가 이 값을 **대조에만** 쓰고 버렸다 — 현황판이 폰 탭에서
+             *    «메인폰은 새 필터, 서브폰은 두 판 전»을 말하려면 남아 있어야 한다.
+             * 🔴 **서버가 내려보낼 값(`filterVersion`)이 아니라 «요청에 실려 온 것»이다.**
+             */
+            const appFilterVersion = typeof (req.body as any)?.filterVersion === 'string'
+                ? (req.body as any).filterVersion as string : undefined;
             deviceMode = touchDeviceSession(deviceId, userId, data.length, screenContext, io, isHolding, lat, lng, (req.body as any).screenNodeCount, (req.body as any).isScreenOn, (req.body as any).filterTally, targetApp, {
                 appVersion: (req.body as any).appVersion,
                 workStage: (req.body as any).workStage,
                 workStageStep: (req.body as any).workStageStep,
                 workStageSeconds: (req.body as any).workStageSeconds,
                 appliedMode: (req.body as any).appliedMode,
+                filterVersion: appFilterVersion,
             });
         }
 
