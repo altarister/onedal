@@ -2,8 +2,6 @@ import { useEffect, useState } from "react";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
 import { TRUCK_CAPACITY_SLOTS, CALL_TARGET_LABEL } from "@onedal/shared";
 import type { CallTarget } from "@onedal/shared";
-import { socket } from "../../lib/socket";
-import { logRoadmapEvent } from "../../lib/roadmapLogger";
 
 /**
  * 요약줄 — 관제탑에 늘 보이는 한 칸. (docs/지금/필터.md §3)
@@ -28,10 +26,7 @@ import { logRoadmapEvent } from "../../lib/roadmapLogger";
  * 하루에 두 번 하는 조작이므로 **확인 한 번이 부담이 아니다.** 편의보다 안전.
  * 같은 이유로 출발 감지도 자동 전환이 아니라 "알림만 주고 기사님이 누른다"이다.
  */
-const PHASES: CallTarget[] = ['DEST', 'LOCAL', 'HOME'];
 
-/** v13 짧은 국면명 — 머리글·버튼 공용 (긴 설명은 hint·확인창에 산다) */
-const SHORT_NAME: Record<CallTarget, string> = { DEST: '노선', LOCAL: '관내', HOME: '복귀' };
 
 const PHASE_STYLE: Record<CallTarget, { icon: string; accent: string; hint: string }> = {
     DEST:  { icon: '🎯', accent: 'text-info',       hint: '목적지로 가는 콜 — 첫짐·합짐' },
@@ -40,32 +35,18 @@ const PHASE_STYLE: Record<CallTarget, { icon: string; accent: string; hint: stri
 };
 
 // 취소 카운트 props 는 받되 안 그린다 (v13 확정안 — 경고가 필요해지면 ⚙️ 팝업으로)
-export default function OrderFilterStatus({ onOpenFilter, budgetToast, compact, onExpand, onCollapse }:
+export default function OrderFilterStatus({ onOpenFilter, budgetToast }:
     {
+        /** 🪗 누르면 **필터가 열린다** — 이 줄은 제자리에 그대로 있다 (C4-5) */
         onOpenFilter: () => void;
         cancelCounts?: Record<string, number>;
         /** 🚫 몇 판째인가 — 총량이 사라지지 않게 (필터_정의 §2 의 취지) */
         cancelRounds?: Record<string, number>;
         /** 🚫 한 판을 다 쓴 순간 서버가 보낸 알림 — 뜨면 토스트로 한 번 보여 준다 */
         budgetToast?: { app: string; used: number; limit: number; round: number } | null;
-        /**
-         * 🎯 **접힘(38px) ↔ 펼침(158px)** — 기사님이 목업에서 «접힘»을 고르셨다 (2026-09-05).
-         *
-         * 🔴 펼친 판은 세로를 **158px** 먹는데, 그 자리는 지도와 시트가 쓸 자리다.
-         *    달리면서 필요한 답은 «지금 어느 국면이고 어디서 어디로»뿐이라 **한 줄로 선다.**
-         * ⚠️ 조작판이 아니다 — 누르면 펼쳐지고, 거기서 국면을 바꾼다 (⑥ 시퀀스는 그대로).
-         */
-        compact?: boolean;
-        /** 접힌 줄을 눌렀다 — 펼치는 일은 부르는 쪽이 정한다 (상태를 여기 두지 않는다) */
-        onExpand?: () => void;
-        /**
-         * 🪗 **펼친 판의 머리글을 눌렀다 — 도로 접는다** (기사님 2026-09-05).
-         *    콜 아코디언과 **같은 문법**이다 — 머리를 누르면 열리고 다시 누르면 닫힌다.
-         * ⚠️ `⚙️` 는 그 안에서 **따로** 산다 — 설정 팝업은 접기와 다른 일이다.
-         */
-        onCollapse?: () => void;
     }) {
     const { filter } = useFilterConfig();
+    /** 🚫 취소 한도 알림만 여기 뜬다 — 국면 전환 알림은 필터로 같이 갔다 (C4-5) */
     const [toast, setToast] = useState<string | null>(null);
 
 
@@ -113,20 +94,7 @@ export default function OrderFilterStatus({ onOpenFilter, budgetToast, compact, 
         else label = '첫짐 탐색중';
     }
 
-    // ── 단가 판정 모델 표시값 ── 서버가 내려준 파생값을 그대로 쓴다
-    const callDiscount = filter.callDiscountPct ?? 10;
-    const callDiscountLabel = callDiscount >= 100 ? '전부' : (callDiscount === 0 ? '시세' : `-${callDiscount}%`);
-    const oneTonRate = filter.ratePerKm?.['1t'] ?? 0;
     const slotsUsed = Math.round(filter.slotsUsed ?? 0);
-    const regionCount = filter.destinationKeywords?.length ?? 0;
-
-    /** 지금 국면의 제목 — v14 문장 (관내는 방향이 없어 화살표 없음, 복귀는 도착지가 늘 집) */
-    const headline = (p: CallTarget) => {
-        const city = filter.destinationCity || '목적지 미정';
-        if (p === 'LOCAL') return <><b className="text-text-primary">{city}</b> 안에서 끝나는 콜</>;
-        if (p === 'HOME') return <>여기서 → <b className="text-text-primary">집({city}) {filter.destinationRadiusKm ?? 0}km</b></>;
-        return <>여기서 <b className="text-text-primary">{filter.pickupRadiusKm}km</b> → <b className="text-text-primary">{city} {filter.destinationRadiusKm ?? 0}km</b></>;
-    };
 
     /** v14 국면 색·라벨 — 노선(파랑) · 관내(민트) · 복귀(주황). 지역 라벨도 국면 따라 */
     const V14: Record<CallTarget, { c: string; chipBg: string; chipBd: string; on: string; onBd: string; onGlow: string; region: string }> = {
@@ -137,33 +105,27 @@ export default function OrderFilterStatus({ onOpenFilter, budgetToast, compact, 
     const v14 = V14[phase];
 
     /**
-     * 국면 전환 — **확인을 받고** 바꾼다.
+     * 🎯 **한 줄이 전부다** (기사님 확정 2026-09-11: *"지금은 열림에 열림이 두번이야.
+     *    **한줄에 열림 하나만 있으면 되.**"*).
      *
-     * 되돌리려면 경유를 다시 계산해야 하고, 그 사이 앱은 바뀐 필터로 콜 잡기한다.
-     * 실수로 눌렀을 때 조용히 넘어가면 안 된다.
+     *   `🎯 노선 · 여기서 10km → 서울 1km · 📦 90/100  ⚙️`
+     *
+     * ⚠️ **예전엔 «펼친 판»(158px)이 또 있었다** — 방향 문장 · 지표줄(💰📍📦) · 국면 버튼 셋.
+     *    그래서 층이 셋이었다 (접힘 → 펼침 → 팝업). C4-3 이 팝업을 걷었고, 여기서 펼침을 걷는다.
+     *    · 지표줄은 **필터 안에 같은 값이 다 있어** 중복이었다
+     *    · 국면 버튼 셋은 **필터 안으로 이사**했다 (확인창은 그대로 따라갔다)
+     *
+     * 🔴 값은 필터와 **같은 곳**에서 온다 (`useFilterConfig`) — 두 벌이면 갈라진다 (규칙 ③).
      */
-    const goPhase = (next: CallTarget) => {
-        if (next === phase) return;
-        const ok = confirm(
-            `콜 잡기 방향을 바꿉니다.\n\n` +
-            `  ${CALL_TARGET_LABEL[phase]}  →  ${CALL_TARGET_LABEL[next]}\n` +
-            `  ${PHASE_STYLE[next].hint}\n\n` +
-            `잡아 둔 콜은 그대로 있습니다 (필터만 바뀝니다).\n계속할까요?`
-        );
-        if (!ok) return;
-        logRoadmapEvent("웹", `국면 전환 버튼 (${phase} → ${next})`);
-        socket.emit("set-call-target", { phase: next });
-        setToast(`${CALL_TARGET_LABEL[next]} 전환됨`);
-        setTimeout(() => setToast(null), 2000);
-    };
-
-    /**
-     * 🎯 **접힌 한 줄** (목업 안 B · 기사님 확정 2026-09-05).
-     *    `🎯 노선 · 여기서 10km → 서울 1km · 📦 90/100`
-     * 🔴 값은 **펼친 판과 같은 곳**에서 온다 (`useFilterConfig`) — 두 벌이면 갈라진다 (규칙 ③).
-     */
-    if (compact) return (
-        <button type="button" onClick={onExpand ?? onOpenFilter}
+    return (
+        <div className="relative shrink-0">
+        {toast && (
+            <span className="absolute right-3 top-1.5 z-50 text-[12px] font-black px-2.5 py-1 rounded-md border"
+                style={{ background: 'var(--color-surface)', borderColor: v14.c, color: v14.c, boxShadow: `0 4px 16px rgba(0,0,0,.5), 0 0 12px ${v14.onGlow}` }}>
+                {toast}
+            </span>
+        )}
+        <button type="button" onClick={onOpenFilter} title="누르면 필터가 열립니다"
             className="shrink-0 h-[38px] w-full flex items-center gap-2 px-3 border-b border-border-card text-left
                        bg-surface-alt/30 hover:bg-surface-hover/40 transition-colors">
             <span className="shrink-0 text-[13px] font-black" style={{ color: v14.c }}>{PHASE_STYLE[phase].icon} {CALL_TARGET_LABEL[phase]}</span>
@@ -176,75 +138,14 @@ export default function OrderFilterStatus({ onOpenFilter, budgetToast, compact, 
                 <span className="mx-1.5 opacity-40">·</span>
                 <b className="text-text-primary tabular-nums">📦 {slotsUsed}/{TRUCK_CAPACITY_SLOTS}</b>
             </span>
+            {/* 🔒 손으로 고친 필터는 자동 갱신이 덮어쓰지 않는다 */}
+            {filter.userOverrides && (
+                <span title="손으로 고친 필터라 경로가 바뀌어도 자동 갱신되지 않습니다. 첫짐으로 돌아가면 풀립니다"
+                    className="shrink-0 text-[11px] text-warning">🔒</span>
+            )}
+            <span className="shrink-0 text-[11.5px] font-black" style={{ color: v14.c }}>{label}</span>
             <span className="shrink-0 text-sm text-text-muted">⚙️</span>
         </button>
-    );
-
-    return (
-        <div id="filter-status" className="relative mx-3 my-2 rounded-xl border overflow-hidden shadow-lg flex flex-col" style={{ background: "linear-gradient(180deg, var(--color-surface-alt), var(--color-surface))", height: 158, borderColor: phase === 'DEST' ? 'var(--color-border-card, #1c2436)' : `${v14.c}4d` }}>
-            {/* 지금 국면 — 누르면 필터 설정 팝업.
-                v13 구조: 줄마다 독립 — [머리글 42px] / [지표 38px], 각 줄 헤어라인 (한 덩어리 금지 · 0831) */}
-            {/* 🪗 **머리글을 누르면 접힌다** — 콜 아코디언과 같은 문법 (기사님 0905).
-                예전엔 여기가 설정 팝업이었는데, 그러면 **펼친 뒤 도로 접을 길이 없다.** */}
-            <div onClick={onCollapse ?? onOpenFilter}
-                 title={onCollapse ? '누르면 한 줄로 접힙니다' : '필터 설정'}
-                 className="cursor-pointer transition-colors hover:bg-surface-hover/40 active:scale-[0.995] flex flex-col" style={{ flex: 2 }}>
-                <div className="flex items-center" style={{ gap: 10, padding: '0 18px', flex: 1, fontSize: 14.5, borderBottom: '1px solid var(--color-border-card)' }}>
-                    {/* 국면명·아이콘은 아래 버튼이 이미 말한다 — 머리글은 방향 문장부터 (중복 제거 · 기사님 0831) */}
-                    <span className="text-text-primary font-bold truncate" style={{ fontSize: 14 }}>{headline(phase)}</span>
-                    {/* 🔒 손으로 고친 필터는 자동 갱신이 덮어쓰지 않는다 — 자리는 안 먹는다 */}
-                    {filter.userOverrides && (
-                        <span title="손으로 고친 필터라 경로가 바뀌어도 자동 갱신되지 않습니다. 첫짐으로 돌아가면 풀립니다"
-                            className="text-[11px] text-warning">🔒</span>
-                    )}
-                    <span className="ml-auto font-black shrink-0" style={{ fontSize: 14, color: v14.c }}>{label}</span>
-                    {/* ⚙️ **설정은 따로 산다** — 접기와 다른 일이라 여기서 멈춘다 */}
-                    <button type="button" title="필터 설정"
-                        onClick={(e) => { e.stopPropagation(); onOpenFilter(); }}
-                        className="text-text-muted text-sm shrink-0 px-0.5 active:scale-90 transition-transform">⚙️</button>
-                </div>
-                {/* ── 순서를 고정한다 (명세 §4-1) — 💰 금액 · 📍 지역 · 📦 적재 ── */}
-                <div className="flex items-center text-text-muted font-medium tabular-nums truncate" style={{ gap: 8, padding: '0 18px', flex: 1, fontSize: 13, borderBottom: '1px solid var(--color-border-card)' }}>
-                    💰 {callDiscountLabel}
-                    <span className="opacity-70">(1t ≥ {oneTonRate.toLocaleString()}원/km)</span>
-                    <span className="mx-1 opacity-40">·</span>
-                    📍 {v14.region} {regionCount}개 동
-                    <span className="mx-1 opacity-40">·</span>
-                    📦 {slotsUsed}/{TRUCK_CAPACITY_SLOTS}박스
-                </div>
-            </div>
-
-            {/* 국면 버튼 — 지금 것은 눌리지 않고, 다른 것은 확인을 받고 바뀐다.
-                하루 흐름 순서(노선행 → 이 동네 → 복귀행)로 나열한다 */}
-            <div className="grid grid-cols-3" style={{ gap: 8, padding: "8px 14px 12px", flex: 1 }}>
-                {PHASES.map(p => {
-                    const st = PHASE_STYLE[p];
-                    const isCurrent = p === phase;
-                    return (
-                        <button
-                            key={p}
-                            onClick={(e) => { e.stopPropagation(); goPhase(p); }}
-                            disabled={isCurrent}
-                            title={isCurrent ? '지금 이 국면입니다' : `${CALL_TARGET_LABEL[p]} — ${st.hint}`}
-                            style={isCurrent
-                                ? { borderRadius: 10, fontSize: 13.5, color: V14[p].on, borderColor: V14[p].onBd, background: V14[p].chipBg, boxShadow: `0 0 14px ${V14[p].onGlow}`, cursor: 'default' }
-                                : { borderRadius: 10, fontSize: 13.5 }}
-                            className={`font-black transition-all border ${isCurrent
-                                ? ''
-                                : 'text-text-muted border-border bg-surface-alt/40 hover:bg-surface-hover hover:text-text-primary active:scale-95'}`}
-                        >
-                            {st.icon} {SHORT_NAME[p]}
-                        </button>
-                    );
-                })}
-            </div>
-
-            {toast && (
-                <span className="absolute right-3 top-2 text-[12px] font-black px-2.5 py-1 rounded-md border"
-                    style={{ zIndex: 50, background: 'var(--color-surface)', borderColor: v14.c, color: v14.c, boxShadow: `0 4px 16px rgba(0,0,0,.5), 0 0 12px ${v14.onGlow}` }}>
-                    {toast}
-                </span>
-            )}
         </div>
     );
 }

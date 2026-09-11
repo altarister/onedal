@@ -5,8 +5,8 @@ import { NET_RATE_PER_KM, VEHICLE_CAPACITY, TRUCK_CAPACITY_SLOTS, CAPACITY_CONFI
          PHASE_KEYS, PHASE_LABEL, PHASE_FIELDS, FILTER_FIELDS, fieldLabel, PHASE_AUTO_SOURCE,
          QUAD_FIELDS, quadShapeFrom,
          sidoList, sggList, dongList, excludedLabel,
-         DEFAULT_PHASE_SETTINGS, resolvePhaseKey, reachRadiusKm } from "@onedal/shared";
-import type { PhaseKey, PhaseSettings } from "@onedal/shared";
+         DEFAULT_PHASE_SETTINGS, resolvePhaseKey, reachRadiusKm, CALL_TARGET_LABEL } from "@onedal/shared";
+import type { PhaseKey, PhaseSettings, CallTarget } from "@onedal/shared";
 import { socket } from "../../lib/socket";
 import { apiClient } from "../../api/apiClient";
 import { useCityOptions, resolveCity } from "../../lib/cityOptions";
@@ -121,6 +121,20 @@ const toSettings = (f: PhaseForm, prev: PhaseSettings): PhaseSettings => {
 };
 
 /**
+ * 🎯 **국면 셋 — 하루의 흐름 순서** (요약줄에서 이사 · C4-5).
+ *    기사님: *"목적지행으로 모두 수행하고 거의 도착할 즈음 '이 동네에서 찾기'로 스와이프하고,
+ *    이 동네에서 찾고 나면 복귀행으로 넘기면 모든 경우의 수를 커버할 것 같은데."*
+ */
+const TARGETS: CallTarget[] = ['DEST', 'LOCAL', 'HOME'];
+const TARGET_ICON: Record<CallTarget, string> = { DEST: '🎯', LOCAL: '🏘️', HOME: '🏠' };
+const TARGET_SHORT: Record<CallTarget, string> = { DEST: '노선', LOCAL: '관내', HOME: '복귀' };
+const TARGET_HINT: Record<CallTarget, string> = {
+    DEST:  '목적지로 가는 콜 — 첫짐·합짐',
+    LOCAL: '같은 시 안에서 끝나는 콜',
+    HOME:  '집 방향 콜 — 합짐 최대한',
+};
+
+/**
  * 🎚️ **슬라이더로 고치는 값 셋** — 목적지(글자)와 콜할인율(단계 버튼)은 제 UI 가 따로 그린다.
  *    라벨·단위·범위·한 칸은 전부 `FILTER_FIELDS` 에서 온다 (규칙 ③).
  */
@@ -130,9 +144,17 @@ interface OrderFilterModalProps {
     isOpen: boolean;
     onClose: () => void;
     hasHomeReturnActive?: boolean;
+    /**
+     * 🛣️ **노선 ↔ 🔷 동선** (기사님 지시 2026-09-11: *"노선 동선 버튼도 지도에서 필터로
+     *    이사와야해"* — **목업이 그 자리다**, `MapMockup.tsx:3171`).
+     *    상태는 부모가 쥔다 — 지도와 **같은 값**을 봐야 하므로 (규칙 ③).
+     */
+    routeMode: boolean;
+    setRouteMode: (v: boolean) => void;
 }
 
-export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive = false }: OrderFilterModalProps) {
+export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive = false,
+                                           routeMode, setRouteMode }: OrderFilterModalProps) {
     const { filter, baseFilter, phaseSettings, basePhaseSettings, updateFilter, savePhase } = useFilterConfig();
 
     // ⏱️ 시간 축 안내의 재료 — 무통보 상차 한계는 판정 기준 탭에 산다 (읽기 공유 · 확정 2)
@@ -202,6 +224,31 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
      * 되니까."* 감추면 «이 값이 어디 갔나»가 되고, 그냥 두면 «지금 쓰이는 값»으로 읽힌다.
      */
     const inUse = PHASE_FIELDS[tab];
+
+    /**
+     * 🎯 **국면 전환 — 요약줄에서 이사해 왔다** (이식 C4-5 · 2026-09-11).
+     *    기사님: *"지금은 열림에 열림이 두번이야. **한줄에 열림 하나만 있으면 되.**"*
+     *    요약줄의 펼친 판을 걷으면서 그 안에 있던 버튼 셋이 여기로 왔다.
+     *
+     * 🔴 **확인창은 그대로 따라왔다** (기사님 2026-08-14: *"이렇게 필터가 쉽게 바뀌면
+     *    오작동이 될 가능성이 있을 것 같다. 버튼을 누르게 하고 알럿창으로 확인받는 것이
+     *    안전할 듯하다"*). 되돌리려면 경유를 통째로 다시 계산해야 한다.
+     * 🔴 **닫지 않는다** — 2026-08 에 전환 버튼이 `onClose()` 를 불러 **저장 안 한 값을
+     *    조용히 버렸다.** 그 사고를 여기서 되풀이하지 않는다.
+     */
+    const goPhase = (next: CallTarget) => {
+        const now: CallTarget = filter?.callTarget ?? 'DEST';
+        if (next === now) return;
+        const ok = confirm(
+            `콜 잡기 방향을 바꿉니다.\n\n` +
+            `  ${CALL_TARGET_LABEL[now]}  →  ${CALL_TARGET_LABEL[next]}\n` +
+            `  ${TARGET_HINT[next]}\n\n` +
+            `잡아 둔 콜은 그대로 있습니다 (필터만 바뀝니다).\n계속할까요?`
+        );
+        if (!ok) return;
+        logRoadmapEvent("웹", `국면 전환 버튼 (${now} → ${next})`);
+        socket.emit("set-call-target", { phase: next });
+    };
 
     /** 저장 안 한 변경이 있는가 — 버튼이 «누르기 전에» 말한다 (v6 설명 ② · 기사님 확정) */
     const [dirty, setDirty] = useState(false);
@@ -519,6 +566,48 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                             ✕
                         </button>
                     </h2>
+                </div>
+
+                {/**
+                  * 🎯 **국면 셋 — 요약줄에서 이사해 왔다** (이식 C4-5 · 2026-09-11).
+                  *    기사님: *"한줄에 열림 하나만 있으면 되."* 요약줄의 펼친 판을 걷으면서
+                  *    그 안에 있던 버튼 셋이 여기로 왔다 — **확인창을 달고**.
+                  *    지금 국면은 눌리지 않는다 (그 자리에 있다는 표시가 곧 버튼 모양이다).
+                  */}
+                <div className="grid grid-cols-3 gap-1 relative z-10">
+                    {TARGETS.map(t => {
+                        const isNow = t === (filter.callTarget ?? 'DEST');
+                        return (
+                            <button key={t} type="button" onClick={() => goPhase(t)} disabled={isNow}
+                                title={isNow ? '지금 이 국면입니다' : `${CALL_TARGET_LABEL[t]} — ${TARGET_HINT[t]}`}
+                                className={`py-2 rounded-lg border text-[12px] font-black transition-all ${isNow
+                                    ? 'border-info/55 bg-info/15 text-info cursor-default'
+                                    : 'border-border bg-surface-alt/40 text-text-muted hover:bg-surface-hover hover:text-text-primary active:scale-95'}`}>
+                                {TARGET_ICON[t]} {TARGET_SHORT[t]}
+                            </button>
+                        );
+                    })}
+                </div>
+
+                {/**
+                  * 🛣️ **노선 ↔ 🔷 동선 — 지도에서 이사해 왔다**
+                  *    (기사님 지시 2026-09-11: *"노선 동선 버튼도 지도에서 필터로 이사와야해"*).
+                  *    **목업이 그 자리다** — 필터 맨 위, 목적지 줄 바로 위 (`MapMockup.tsx:3171`).
+                  *
+                  * 🔴 «그물을 어떤 모양으로 볼까»라 **국면(어디로 가나)과 다른 축**이다.
+                  *    노선이면 경로 양옆(라인반경), 동선이면 내 위치 → 목적지 마름모.
+                  * ⚠️ 상태는 부모가 쥔다 — 지도와 **같은 값**을 봐야 한다 (규칙 ③).
+                  */}
+                <div className="grid grid-cols-2 gap-1 relative z-10">
+                    {([[true, '🛣️ 노선', '지금 경로 양옆으로 본다'],
+                       [false, '🔷 동선', '내 위치 → 목적지 마름모로 본다']] as const).map(([on, label, hint]) => (
+                        <button key={label} type="button" onClick={() => setRouteMode(on)} title={hint}
+                            className={`py-2 rounded-lg border text-[12px] font-black transition-all ${routeMode === on
+                                ? (on ? 'border-warning/55 bg-warning/15 text-warning' : 'border-info/55 bg-info/15 text-info')
+                                : 'border-border bg-surface-alt/40 text-text-muted hover:bg-surface-hover hover:text-text-primary'}`}>
+                            {label}
+                        </button>
+                    ))}
                 </div>
 
                 {/* 🔴 제외 단어는 **탭 위**다 (v6 목업). 다섯 탭 공통인 값이 탭 **안**에 있으면

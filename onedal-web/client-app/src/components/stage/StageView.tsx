@@ -45,10 +45,18 @@ interface Props {
     onRecalculate?: (id: string, priority: string) => void;
     viewFilter: 'ACTIVE' | 'COMPLETED' | 'CANCELED' | 'RELEASED' | 'ALL';
     setViewFilter: (f: 'ACTIVE' | 'COMPLETED' | 'CANCELED' | 'RELEASED' | 'ALL') => void;
+    /**
+     * 🛣️ **노선 ↔ 🔷 동선 — 기사님이 고르는 그물 모양** (명세 §5).
+     *
+     * 🔴 **부모(`Dashboard`)가 쥔다** — 고르는 버튼은 **필터**에 있고 그리는 것은 **지도**라,
+     *    한쪽이 제 상태를 들면 «필터는 동선인데 지도는 노선»이 된다 (규칙 ③).
+     *    (기사님 지시 2026-09-11: *"노선 동선 버튼도 지도에서 필터로 이사와야해"*)
+     */
+    routeMode: boolean;
 }
 
 export default function StageView(props: Props) {
-    const { activeRoute, routeStops, routeComputedAt, routeHolderId, previewRouteHolderId } = props;
+    const { activeRoute, routeStops, routeComputedAt, routeHolderId, previewRouteHolderId, routeMode } = props;
     const derived = useRouteDerivations(activeRoute, routeStops, routeComputedAt, routeHolderId, previewRouteHolderId);
     const { liveRoute, cycleDeck, unifiedRoutePoints, myLocation, visitOrderMap } = derived;
     const [snap, setSnap] = useState<SheetSnap>('list');
@@ -93,17 +101,6 @@ export default function StageView(props: Props) {
     const qrVia = qrSlice.slice(0, -1).map(toNaviStop)
         .filter(Boolean) as { name: string; x: number; y: number }[];
     const { filter, updateFilter } = useFilterConfig();
-    /**
-     * 🛣️ **노선 ↔ 🔷 동선 — 기사님이 고르는 그물 모양** (이식 · 2026-09-11 · 명세 §5).
-     *
-     * 기사님이 *"시작점 현위치 범위설정이 노출되지 않는다"* 하신 것의 답이다 — 콜을 쥐면
-     * 그물이 라인으로 바뀌어 **현위치 원이 사라지는데** 되돌아볼 길이 없었다.
-     *
-     * 🔴 **기억하지 않는다.** 레이어(🧅)는 «보기»라 `localStorage` 에 남기지만 이것은
-     *    **판정을 바꾸는 값**이다 — 어제 상태가 오늘 되살아나면 안 된다 (규칙 ③).
-     *    기본은 «노선» (기사님 확정 2026-09-09).
-     */
-    const [routeMode, setRouteMode] = useState(true);
     /**
      * 🕸️ **지금 필터가 무엇을 담고 있나** — 지도에 그물로 그린다 (이식 B3-2).
      *    계산은 실험실과 **같은 함수**(`@onedal/shared` 의 `netForGoal`)다 — 두 화면이
@@ -395,25 +392,14 @@ export default function StageView(props: Props) {
                         </button>
                     )}
                     {/**
-                      * 🛣️ **노선 ↔ 🔷 동선** (이식 · 2026-09-11 · 명세 §5 · 목업 자리 그대로).
-                      *    레이어 토글(🧅) 아래 — 「지도에 무엇을 그릴까」 바로 다음이 「어떤 모양으로 볼까」다.
-                      *
-                      * 🔴 **«고른 것»과 «실제»를 가른다** — 노선을 골라도 경로가 아직 없으면
+                      * ⏳ **«고른 것»과 «실제»를 가른다** — 노선을 골라도 경로가 아직 없으면
                       *    마름모로 보고, 화면이 **그렇게 말한다**. 직선으로 지어내지 않는다 (규칙 ④).
+                      *
+                      * ⚠️ **고르는 버튼은 필터로 이사했다** (기사님 지시 2026-09-11:
+                      *    *"노선 동선 버튼도 지도에서 필터로 이사와야해"* — 목업이 그 자리다).
+                      *    여기 남은 것은 «지금 지도가 무엇을 그리고 있나»라 지도 자리가 맞다.
                       */}
                     <div className="absolute top-[92px] left-3 z-10 flex flex-col items-start gap-1">
-                        <div className="flex gap-1">
-                            {([[true, '🛣️ 노선'], [false, '🔷 동선']] as const).map(([on, label]) => (
-                                <button key={label} type="button" onClick={() => setRouteMode(on)}
-                                    title={on ? '지금 경로 양옆으로 본다' : '내 위치 → 목적지 마름모로 본다'}
-                                    className={`h-8 px-2.5 rounded-md shadow-lg backdrop-blur-sm text-[11px] font-black transition-all border ${
-                                        routeMode === on
-                                            ? (on ? 'border-warning bg-warning/15 text-warning' : 'border-info bg-info/15 text-info')
-                                            : 'border-border bg-surface-alt/80 text-text-muted opacity-80 hover:opacity-100'}`}>
-                                    {label}
-                                </button>
-                            ))}
-                        </div>
                         {/* 🔴 **노선인데 경로가 아직이면 말한다** — 안 그러면 «노선인데 마름모»가 조용한 거짓말이 된다 */}
                         {routeMode && liveRoute.length > 0 && callNet && !callNet.usedLine && (
                             <span className="px-2 py-1 rounded-md bg-warning/15 text-warning text-[10px] font-bold shadow-lg backdrop-blur-sm">

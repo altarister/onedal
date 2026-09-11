@@ -40,12 +40,21 @@ export default function Dashboard() {
      *    전에는 전면 팝업(`Dialog`)이라 이름이 `isFilterModalOpen` 이었다.
      */
     const [isFilterOpen, setIsFilterOpen] = useState(false);
+    /**
+     * 🛣️ **노선 ↔ 🔷 동선 — 그물을 어떤 모양으로 볼까** (기사님 지시 2026-09-11:
+     *    *"노선 동선 버튼도 지도에서 필터로 이사와야해"*).
+     *
+     * 🔴 **여기서 쥔다** — 고르는 버튼은 **필터**에, 그리는 것은 **지도**에 있다.
+     *    한쪽이 제 상태를 들면 «필터는 동선인데 지도는 노선»이 된다 (규칙 ③).
+     * 🔴 **기억하지 않는다** — 레이어(🧅)는 «보기»라 localStorage 에 남기지만 이것은
+     *    **판정을 바꾸는 값**이다. 어제 상태가 오늘 되살아나면 안 된다.
+     *    기본은 «노선» (기사님 확정 2026-09-09).
+     */
+    const [routeMode, setRouteMode] = useState(true);
     // 🪧 심사석 결재 버튼의 처리 중 표시 (자동콜 갈래)
     const [seatProcessingId, setSeatProcessingId] = useState<string | null>(null);
     // 🎭 새 화면 미리보기 토글 (화면개편 · 기사님 확정 0831) — 표시만 바뀐다, 상태는 공용
     const [stagePreview, setStagePreview] = useState(() => localStorage.getItem('stagePreview') === '1');
-    /** 🎯 필터 줄 — 무대에서는 접힌 채로 시작한다 (기사님 확정 0905). 눌러 펼치면 그 판만 유지 */
-    const [filterCompact, setFilterCompact] = useState(true);
     /**
      * 🔬 **곁 패널 자리가 되나** — 무대는 `max-w-2xl`(672px) 가운데 고정이라 창이 넓으면
      *    **왼쪽 여백**이 남는다. 그 여백이 한 칸(330px)을 담을 만큼일 때만 만든다.
@@ -382,16 +391,6 @@ export default function Dashboard() {
                     );
                     return <OrderFilterStatus
                         onOpenFilter={() => setIsFilterOpen(o => !o)}
-                        /**
-                         * 🎯 **무대에서는 접힌 채로 선다** (기사님 확정 2026-09-05).
-                         *    펼친 판이 먹던 158px 이 지도와 시트로 간다. 누르면 펼쳐진다.
-                         * ⚠️ 옛 화면(무대 아님)은 그대로 펼친 판이다 — 거기는 조회용이라 넓다.
-                         * 🔴 기억하지 않는다 — 새로고침하면 다시 접힌다 (어제 상태가 오늘 되살아나지 않는다).
-                         */
-                        compact={stagePreview && filterCompact}
-                        onExpand={() => setFilterCompact(false)}
-                        /* 🪗 머리글을 다시 누르면 한 줄로 — 콜 아코디언과 같은 문법 (0905) */
-                        onCollapse={stagePreview ? () => setFilterCompact(true) : undefined}
                         cancelCounts={cancelCounts} cancelRounds={cancelRounds} budgetToast={cancelBudgetToast} />;
                 })()}
 
@@ -407,6 +406,8 @@ export default function Dashboard() {
                     isOpen={isFilterOpen}
                     onClose={() => setIsFilterOpen(false)}
                     hasHomeReturnActive={hasHomeReturnActive}
+                    routeMode={routeMode}
+                    setRouteMode={setRouteMode}
                 />
 
                 {/* 🚚 내 차 요약은 헤더 로고 자리로 이사 (기사님 0831 — 영역 절약). 패널 줄은 뺐다 */}
@@ -416,6 +417,7 @@ export default function Dashboard() {
                        운행 중이면 여기가 KEEP/CANCEL 을 하는 유일한 창구다 */}
                 <ErrorBoundary label="결재 카드">
                     {stagePreview ? <StageView
+                        routeMode={routeMode}
                         routeStops={routeStops}
                         routeComputedAt={routeComputedAt}
                         routeHolderId={routeHolderId}

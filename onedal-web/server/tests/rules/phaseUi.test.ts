@@ -454,17 +454,72 @@ describe('필터 — 팝업이 아니라 제자리에서 열린다 (C4-3)', () =
  *   ② 전환 버튼이 `onClose()` 를 불러 **저장 안 한 값을 조용히 버렸다** —
  *      반경을 고치고 전환하면 화면의 숫자와 실제 콜 잡기 기준이 달라진다
  */
-describe('국면 전환 — 입구는 요약줄 하나', () => {
+describe('국면 전환 — 입구는 하나, 확인창을 거친다', () => {
 
     const status = codeOnly(read(join(CLIENT, 'components/dashboard/OrderFilterStatus.tsx')));
+    const dash2 = codeOnly(read(join(CLIENT, 'pages/Dashboard.tsx')));
 
-    it('🔴 필터 팝업은 국면을 전환하지 않는다', () => {
-        expect(modal).not.toMatch(/set-call-target/);
+    /**
+     * 🔴 **2026-09-11 에 «어디에 있나»에서 «무엇을 막나»로 잣대를 옮겼다** (이식 C4-5).
+     *
+     * 예전 검사는 *«필터 팝업은 국면을 전환하지 않는다»* 였다. 그런데 **팝업이 없어졌고**
+     * (C4-3), 요약줄의 펼친 판도 걷었다 — 기사님 2026-09-11: *"지금은 열림에 열림이
+     * 두번이야. **한줄에 열림 하나만 있으면 되.**"* 그래서 국면 버튼이 필터 안으로 들어왔다.
+     *
+     * ⚠️ 그렇다고 옛 검사가 틀렸던 것은 아니다. 그때 막은 **해악 둘**은 그대로 막아야 한다:
+     *   ① 팝업 버튼에 `confirm` 이 없어 기사님이 넣으신 확인 절차를 **우회**했다
+     *      (기사님: *"필터가 쉽게 바뀌면 오작동"*)
+     *   ② 전환 버튼이 `onClose()` 를 불러 **저장 안 한 값을 조용히 버렸다**
+     * 둘 다 «팝업이라서»가 아니라 «확인이 없고, 값을 버려서» 나쁜 것이다. 그걸 직접 잠근다.
+     */
+    it('🔴 국면 전환에는 확인창이 있다 (기사님 확정: 버튼 + 알럿)', () => {
+        const go = modal.slice(modal.indexOf('const goPhase'), modal.indexOf('const goPhase') + 900);
+        expect(go).toMatch(/confirm\(/);
+        expect(go).toMatch(/set-call-target/);
     });
 
-    it('요약줄만 전환한다 — 그리고 확인창을 띄운다', () => {
-        expect(status).toMatch(/set-call-target/);
-        expect(status).toMatch(/confirm\(/);
+    /** 🔴 **전환이 열린 필터를 닫지 않는다** — 저장 안 한 값이 조용히 사라지면 안 된다 */
+    it('🔴 전환이 필터를 닫지 않는다 (저장 안 한 값을 버리지 않는다)', () => {
+        const go = modal.slice(modal.indexOf('const goPhase'), modal.indexOf('const goPhase') + 900);
+        expect(go).not.toMatch(/onClose\(\)/);
+    });
+
+    /** 🔴 **입구는 하나다** — 두 곳에서 쏘면 한쪽만 확인창을 갖게 된다 (그게 ① 사고였다) */
+    it('🔴 국면을 쏘는 곳이 한 곳뿐이다', () => {
+        expect(status).not.toMatch(/set-call-target/);
+        expect((modal.match(/set-call-target/g) || []).length).toBe(1);
+    });
+
+    /**
+     * 🔴 **열림은 하나다** (기사님 2026-09-11: *"한줄에 열림 하나만 있으면 되"*).
+     *    요약줄은 **늘 한 줄**이고, 열리는 것은 필터뿐이다.
+     */
+    /**
+     * 🔴 **노선 ↔ 동선 토글이 지도에서 필터로 왔다** (기사님 지시 2026-09-11:
+     *    *"노선 동선 버튼도 지도에서 필터로 이사와야해"*). **목업이 그 자리다** —
+     *    필터 맨 위, 목적지 줄 바로 위 (`MapMockup.tsx:3171`).
+     *
+     * 🔴 **상태는 `Dashboard` 가 쥔다** — 지도와 필터가 **같은 값**을 봐야 한다.
+     *    한쪽이 제 상태를 들면 «필터는 동선인데 지도는 노선»이 된다 (규칙 ③).
+     * ⚠️ 「⏳ 경로를 기다립니다」 안내는 지도에 남는다 — 그건 «지금 지도가 무엇을
+     *    그리고 있나»라 지도 자리가 맞다.
+     */
+    it('🔴 노선/동선 토글은 필터에 있다 (지도에 없다)', () => {
+        const stage = codeOnly(read(join(CLIENT, 'components/stage/StageView.tsx')));
+        expect(modal).toMatch(/🛣️ 노선/);
+        expect(modal).toMatch(/🔷 동선/);
+        // 지도에는 버튼이 없다 — 제 상태도 안 든다
+        expect(stage).not.toMatch(/setRouteMode\(on\)/);
+        expect(stage).not.toMatch(/useState\(true\);\s*$/m);
+        // 상태는 부모(Dashboard)가 쥐고 둘에게 내린다
+        expect(dash2).toMatch(/routeMode/);
+    });
+
+    it('🔴 요약줄에 «펼친 판»이 없다 — 한 줄과 필터 열림, 둘뿐이다', () => {
+        expect(status).not.toMatch(/compact/);
+        expect(status).not.toMatch(/onExpand/);
+        expect(status).not.toMatch(/onCollapse/);
+        expect(dash2).not.toMatch(/filterCompact/);
     });
 
     it('귀가콜은 전환이 아니라 오더 생성이라 팝업에 남는다', () => {
@@ -773,11 +828,19 @@ describe('노선 ↔ 동선 — 고른 것과 실제를 가른다 (이식)', () 
 
     const stage = codeOnly(read(join(CLIENT, 'components/stage/StageView.tsx')));
     const hook = codeOnly(read(join(CLIENT, 'hooks/useCallNet.ts')));
+    const dash3 = codeOnly(read(join(CLIENT, 'pages/Dashboard.tsx')));
 
+    /**
+     * ⚠️ **손잡이가 지도에서 필터로 이사했다** (기사님 지시 2026-09-11:
+     *    *"노선 동선 버튼도 지도에서 필터로 이사와야해"* · 목업 `MapMockup.tsx:3171`).
+     *    검사의 뜻은 그대로다 — **기사님이 고르는 값이지 파생이 아니다.** 자리만 옮겼다.
+     */
     it('🔴 기사님이 고르는 손잡이가 있다 (파생이 아니다)', () => {
+        expect(modal).toMatch(/setRouteMode\(on\)/);
+        expect(modal).toMatch(/동선/);
+        expect(modal).toMatch(/노선/);
+        // 지도는 받아서 **그리기만** 한다
         expect(stage).toMatch(/routeMode/);
-        expect(stage).toMatch(/동선/);
-        expect(stage).toMatch(/노선/);
     });
 
     it('🔴 동선이면 라인을 끈다 — 그물이 마름모로 돌아온다', () => {
@@ -797,7 +860,10 @@ describe('노선 ↔ 동선 — 고른 것과 실제를 가른다 (이식)', () 
      *    이것은 **판정을 바꾸는 값**이다. 어제 상태가 오늘 되살아나면 안 된다 (규칙 ③).
      */
     it('🔴 새로고침하면 기본(노선)으로 돌아간다', () => {
-        const decl = stage.slice(stage.indexOf('routeMode'), stage.indexOf('routeMode') + 260);
+        // 상태는 이제 부모(Dashboard)가 쥔다 — 지도와 필터가 같은 값을 봐야 하므로
+        expect(dash3).toMatch(/const \[routeMode, setRouteMode\] = useState\(true\)/);
+        const at = dash3.indexOf('const [routeMode');
+        const decl = dash3.slice(at, dash3.indexOf('\n', at));
         expect(decl).not.toMatch(/localStorage/);
     });
 });
