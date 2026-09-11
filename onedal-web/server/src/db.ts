@@ -1,6 +1,6 @@
 import type { CallOption } from '@onedal/shared';
 import { dwellRatesOf, JUDGMENT_FIELDS, judgmentDefaults, CALL_OPTION_COLUMNS, buildDefaultCallOptions,
-         STEP_TABLES, FILTER_FIELDS } from "@onedal/shared";
+         STEP_TABLES, FILTER_FIELDS, QUAD_FIELDS } from "@onedal/shared";
 import Database from "better-sqlite3";
 import path from "path";
 
@@ -183,6 +183,16 @@ try {
     // 무시
 }
 
+/**
+ * 📐 **마름모의 모양 — 국면 밖 한 벌** (이식 C3-2 · 2026-09-11 · 명세 §3).
+ *
+ * 그물의 모양은 «어디로 가는가»가 정하지 «콜을 몇 개 쥐었는가»가 정하지 않는다.
+ * 국면과 무관하므로 사용자당 한 행인 여기 산다. **컬럼 목록의 원천은 `QUAD_FIELDS` 표 하나.**
+ */
+const QUAD_COLS: Record<string, string> = Object.fromEntries(
+    QUAD_FIELDS.map(f => [f.col, f.int ? 'INTEGER' : 'REAL'])
+);
+
 // 🎛️ 국면 옵션(노선·반경·할인율)은 여기 없다 — 원천은 user_filter_phases 행이다
 // (필터 확정안 v2 ④ · 2026-08-21 옛 blob·평면 칸 손 DROP 완료).
 // min_fare·max_fare 는 보류 칸 — 앱 피기백 (확정안 ①-삭제 #3, 화물24 단가식 뒤 강등)
@@ -198,9 +208,11 @@ db.exec(`
         -- driver_action TEXT DEFAULT 'WAITING', V6 유물 — 로그인이 하드코딩, 저장 안 함
         vehicle_rates TEXT DEFAULT '${defaultRates}',
         agency_fee_percent REAL DEFAULT 23.0,
+        ${Object.entries(QUAD_COLS).map(([c, t]) => `${c} ${t}`).join(',\n        ')},
         FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     )
 `);
+ensureColumns('user_filters', QUAD_COLS);
 
 // ═══════════════════════════════════════
 // [6] (v5) 스캐너가 잡은 콜 및 장소 마스터, 배차 경유지

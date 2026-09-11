@@ -75,67 +75,97 @@ describe('국면별 설정 — 화면은 표를 읽는다', () => {
 });
 
 /**
- * 📐 **마름모의 모양 셋 — 화면에 실제로 떠야 한다** (이식 C3 · 2026-09-11).
+ * 📐 **마름모의 모양은 국면 밖 한 벌이다** (이식 C3-2 · 2026-09-11 · 명세 §3).
  *
- * 지도는 `srcAngleDeg`·`dstAngleDeg`·`quadRadiusKm` 로 «가는 길목»을 그린다.
- * 그 칸을 `PhaseSettings` 에 파 놓고 **화면에 안 띄우면 아무것도 안 한 것과 같다** —
- * 기사님은 여전히 못 고치시고, 화면은 110°·110°·25km 를 조용히 쓴다 (규칙 ⑤-4 ④).
+ * 🔴 **하루 만에 자리를 옮겼다.** 아침(C3-1)에는 국면 행에 파고 «첫짐에서 상속»으로 가렸다.
+ *    그런데 다섯 행에 값이 계속 써지는 구조가 남아, 기사님이 첫짐을 120°/140°/35km 로
+ *    저장하신 직후 **합짐 행에는 110/110/25 가 앉아 있었다** — 화면은 「자동 · 첫짐에서 120°」
+ *    라고 적으면서. 상속으로 가리는 대신 **자리를 하나로** 만든 이유다 (규칙 ③).
+ *
+ * 근거는 기사님 확정 2026-09-09: *"모두 꺼내 두고 노선이면 라인값을 사용하고 동선이면
+ * 사용 안 하면 되니까."* — 다섯 벌이 하던 일은 «값을 여러 벌 두는 것»이 아니라
+ * **«지금 안 쓰는 칸을 감추는 것»**이었고, 감추는 일은 `PHASE_FIELDS` 가 계속 한다.
  */
-describe('마름모 모양 — 기사님이 고칠 수 있어야 한다', () => {
+describe('마름모 모양 — 국면 밖 한 벌', () => {
 
-    const { PHASE_FIELDS, PHASE_KEYS, FILTER_FIELDS } = require("@onedal/shared");
-    const QUAD = ['srcAngleDeg', 'dstAngleDeg', 'quadRadiusKm'] as const;
+    const { PHASE_FIELDS, PHASE_KEYS, FILTER_FIELDS, QUAD_FIELDS,
+            DEFAULT_QUAD_SHAPE, QUAD_SHAPE_KEYS } = require("@onedal/shared");
 
-    it('🔴 그리드 목록(GEO_FIELDS)에 셋이 들어 있다 — 없으면 화면에 칸이 안 생긴다', () => {
-        const geo = modal.slice(modal.indexOf('const GEO_FIELDS'), modal.indexOf('const GEO_FIELDS') + 400);
-        for (const f of QUAD) expect(geo).toContain(`'${f}'`);
-    });
-
-    /**
-     * 🔴 **표가 `auto` 라고 적었으면 상속이 실제로 일어나야 한다.**
-     *
-     * 명세 §3: *"첫짐에서만 고치고 나머지는 상속한다 — 그물의 모양은 «어디로 가는가»가
-     * 정하지 «콜을 몇 개 쥐었는가»가 정하지 않는다."* 표에만 적고 읽는 쪽이 제 국면 행을
-     * 그대로 읽으면, 화면은 「자동 · 첫짐에서」라고 말하는데 지도는 손 안 댄 기본값으로
-     * 그린다. 그 상속을 하는 자리는 `quadShapeOf` **하나뿐이다** (규칙 ③).
-     */
-    it('첫짐만 입력이고 나머지 넷은 첫짐에서 상속한다 (명세 §3)', () => {
-        for (const f of QUAD) expect(`first.${f}=${PHASE_FIELDS.first[f]}`).toBe(`first.${f}=input`);
-        for (const phase of PHASE_KEYS.filter((p: string) => p !== 'first')) {
-            for (const f of QUAD) expect(`${phase}.${f}=${PHASE_FIELDS[phase][f]}`).toBe(`${phase}.${f}=auto`);
+    it('🔴 국면 그릇에 마름모가 없다 — 있으면 국면마다 다른 값이 앉는다', () => {
+        for (const phase of PHASE_KEYS) {
+            for (const f of QUAD_SHAPE_KEYS) {
+                expect(`${phase}: ${f}`).toBe(`${phase}: ${PHASE_FIELDS[phase][f] === undefined ? f : '국면 그릇에 남아 있다'}`);
+            }
+        }
+        // 국면 표(FILTER_FIELDS)에도 없다 — 그 표가 `user_filter_phases` 의 컬럼을 만든다
+        for (const f of QUAD_SHAPE_KEYS) {
+            expect(FILTER_FIELDS.find((x: any) => x.path === f)).toBeUndefined();
         }
     });
 
-    it('🔴 상속은 첫짐 행에서 온다 — quadShapeOf 가 그 한 곳이다', () => {
-        const { quadShapeOf, DEFAULT_PHASE_SETTINGS } = require("@onedal/shared");
-        const all = JSON.parse(JSON.stringify(DEFAULT_PHASE_SETTINGS));
-        all.first.srcAngleDeg = 77; all.first.dstAngleDeg = 88; all.first.quadRadiusKm = 9;
-        all.merge.srcAngleDeg = 300;   // 합짐 행에 딴 값이 있어도 무시된다
-        expect(quadShapeOf(all)).toEqual({ srcAngleDeg: 77, dstAngleDeg: 88, quadRadiusKm: 9 });
+    it('🔴 마름모는 제 표(QUAD_FIELDS)를 갖는다 — 라벨·단위·범위의 원천 하나', () => {
+        expect(QUAD_FIELDS.map((f: any) => f.path).sort()).toEqual([...QUAD_SHAPE_KEYS].sort());
+        expect(QUAD_FIELDS.map((f: any) => f.col)).toEqual(['src_angle_deg', 'dst_angle_deg', 'quad_radius_km']);
+        // 각도는 ° · 반경은 km — 화면이 단위를 또 적지 않게
+        expect(QUAD_FIELDS.find((f: any) => f.path === 'srcAngleDeg').unit).toBe('°');
+        expect(QUAD_FIELDS.find((f: any) => f.path === 'quadRadiusKm').unit).toBe('km');
+        expect(DEFAULT_QUAD_SHAPE).toEqual({ srcAngleDeg: 110, dstAngleDeg: 110, quadRadiusKm: 25 });
     });
 
-    it('🔴 지도는 quadShapeOf 로 모양을 받는다 (제 국면 행을 직접 읽지 않는다)', () => {
+    it('🔴 «첫짐에서 상속»은 없어졌다 — 자리가 하나면 상속할 것이 없다', () => {
+        const shared = require("@onedal/shared");
+        expect(shared.quadShapeOf).toBeUndefined();
         const stage = codeOnly(read(join(CLIENT, 'components/stage/StageView.tsx')));
-        expect(stage).toMatch(/quadShapeOf\(/);
-        expect(stage).not.toMatch(/srcAngleDeg:/);
+        expect(stage).not.toMatch(/quadShapeOf/);
+        expect(modal).not.toMatch(/quadShapeOf/);
     });
 
-    it('🔴 자동 칸은 상속된 **실제 값**을 보여준다 (빈 칸이면 고장으로 보인다)', () => {
-        expect(modal).toMatch(/quadShapeOf\(/);
+    it('🔴 지도는 평면 필터에서 모양을 읽는다 (국면 그릇을 안 본다)', () => {
+        const stage = codeOnly(read(join(CLIENT, 'components/stage/StageView.tsx')));
+        expect(stage).toMatch(/filter\?\.srcAngleDeg/);
+        expect(stage).not.toMatch(/phaseSettings\[/);
+    });
+
+    it('🔴 화면의 마름모 칸은 국면 탭 **밖**에 산다 (탭 안이면 «이 국면의 값»으로 읽힌다)', () => {
+        // 국면 그리드가 그리는 목록에 없다
+        const geo = modal.slice(modal.indexOf('const GEO_FIELDS'), modal.indexOf('const GEO_FIELDS') + 400);
+        for (const f of QUAD_SHAPE_KEYS) expect(geo).not.toContain(`'${f}'`);
+        // 대신 제 표로 그린다
+        expect(modal).toMatch(/QUAD_FIELDS\.map/);
+    });
+
+    /**
+     * 🔴 **`savePhase` 에 섞으면 다시 국면마다 한 벌씩 앉는다** — 그게 아침에 갈라진 이유다.
+     *    값 이름을 여기서 또 적지 않고 `quadShapeFrom` 으로 통째 넘긴다 (규칙 ③).
+     */
+    it('🔴 저장은 평면 통로로 간다 — 국면 저장(savePhase)에 섞지 않는다', () => {
+        const save = modal.slice(modal.indexOf('const handleSave'), modal.indexOf('const isSharedMode'));
+        expect(save).toMatch(/if \(quadDirty\) updateFilter\(quadShapeFrom\(quadForm\)/);
+        // 국면 저장 고리 안에 마름모가 섞여 있지 않다
+        const loop = save.slice(save.indexOf('for (const key of dirtyTabs)'), save.indexOf('if (quadDirty)'));
+        for (const f of QUAD_SHAPE_KEYS) expect(loop).not.toContain(f);
+    });
+
+    it('🔴 DB 자리는 user_filters 다 — 표에서 컬럼을 뽑는다 (손 나열 금지)', () => {
+        const db = codeOnly(read(join(SERVER, 'db.ts')));
+        expect(db).toMatch(/QUAD_FIELDS\.map/);
+        expect(db).not.toMatch(/src_angle_deg\s+INTEGER/);
     });
 
     /**
      * 🔴 **단위를 화면이 또 갖지 않는다** (규칙 ③).
      * 숫자 칸은 오래 `KM` 이 박혀 있었다 — 칸이 전부 km 였으니 맞는 말이었다.
-     * 각도가 들어오면서 틀린 말이 됐다: 출발각 110 옆에 **KM** 이 붙는다.
+     * 각도가 들어오면서 틀린 말이 됐다: 출발각 110 옆에 **KM** 이 붙었다.
      */
-    it('🔴 칸 옆 단위는 FILTER_FIELDS 에서 읽는다 (KM 을 박아 두지 않는다)', () => {
-        const grid = modal.slice(modal.indexOf('GEO_FIELDS.map'), modal.indexOf("shown.pickupRadiusKm === 'input'"));
-        expect(grid).not.toMatch(/>KM</);
-        expect(modal).toMatch(/FILTER_FIELDS/);
-        // 각도 칸은 ° 로 뜬다 — 표가 그렇게 적어 뒀다
-        const src = FILTER_FIELDS.find((f: any) => f.path === 'srcAngleDeg');
-        expect(src.unit).toBe('°');
+    it('🔴 칸 옆 단위는 표에서 읽는다 — 두 그리드 어디에도 KM 을 박지 않는다', () => {
+        const geoGrid = modal.slice(modal.indexOf('GEO_FIELDS.map'), modal.indexOf("shown.pickupRadiusKm === 'input'"));
+        expect(geoGrid).not.toMatch(/>KM</);
+        /* 🔴 `QUAD_FIELDS.map` 은 폼 초기화에도 나온다 — **그리는 쪽**을 집는다 */
+        const quadGrid = modal.slice(modal.indexOf('QUAD_FIELDS.map(f => ('));
+        expect(quadGrid.slice(0, 1200)).not.toMatch(/>KM</);
+        // 각 그리드가 제 표의 unit 을 읽는다
+        expect(geoGrid).toMatch(/FILTER_FIELDS\.find/);
+        expect(quadGrid.slice(0, 1200)).toMatch(/f\.unit/);
     });
 });
 

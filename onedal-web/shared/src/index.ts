@@ -749,6 +749,20 @@ export interface AutoDispatchFilter {
     detourRadiusKm?: number;      // (합짐 모드) 경로 주변 이탈 허용 반경 (기본값 5km, DB설정값)
     userOverrides?: boolean;        // 기사가 팝업에서 수동으로 필터(destinationKeywords 등)를 조작했는지 여부(서버 덮어쓰기 방지용)
 
+    /**
+     * 📐 **마름모의 모양 — 국면 밖 한 벌** (이식 C3-2 · 2026-09-11 · `QuadShape`).
+     *
+     * 관제웹 지도가 «가는 길목»을 이 셋으로 그린다. 국면과 무관한 값이라 국면 그릇이 아니라
+     * 여기(사용자당 한 벌)에 실려 온다 — DB 자리는 `user_filters`.
+     *
+     * ⚠️ **앱에는 안 내려간다** (`scrap.ts` 가 뗀다) — 앱은 그물 모양을 모르고,
+     *    서버가 이미 읍·면·동으로 펼쳐 `destinationKeywords` 로 보낸다
+     *    (`detourRadiusKm`·`callDiscountPct` 와 같은 처지).
+     */
+    srcAngleDeg?: number;
+    dstAngleDeg?: number;
+    quadRadiusKm?: number;
+
     // ── 단가 판정 모델 (2026-08-13 확정 · docs/지금/필터.md) ──
     // 셋 다 optional: 구버전 앱은 이 키들을 파싱하지 않으므로 무시된다 (호환).
     // minFare/maxFare 는 구버전 앱 호환용으로 유지 — 새 앱은 ratePerKm 이 있으면 그걸 쓴다.

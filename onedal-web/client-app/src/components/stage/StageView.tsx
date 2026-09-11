@@ -17,7 +17,6 @@ import { useDriveMotion } from '../dashboard/VehicleStatusPanel';
 import { useGpsFocusStore } from '../../stores/gpsFocusStore';
 import { useFilterConfig } from '../../hooks/useFilterConfig';
 import { useCallNet } from '../../hooks/useCallNet';
-import { quadShapeOf } from '@onedal/shared';
 import { logRoadmapEvent, logStateChange } from '../../lib/roadmapLogger';
 import { socket } from '../../lib/socket';
 /* 🗺️ 지도 아래 두 귀퉁이 — 규칙과 이름은 한 곳에서 온다 (규칙 ③) */
@@ -93,21 +92,22 @@ export default function StageView(props: Props) {
     const qrStop = qrSlice.length ? toNaviStop(qrSlice[qrSlice.length - 1]) : null;
     const qrVia = qrSlice.slice(0, -1).map(toNaviStop)
         .filter(Boolean) as { name: string; x: number; y: number }[];
-    const { filter, updateFilter, phaseSettings } = useFilterConfig();
+    const { filter, updateFilter } = useFilterConfig();
     /**
      * 🕸️ **지금 필터가 무엇을 담고 있나** — 지도에 그물로 그린다 (이식 B3-2).
      *    계산은 실험실과 **같은 함수**(`@onedal/shared` 의 `netForGoal`)다 — 두 화면이
      *    다른 답을 내면 «화면은 든다는데 판정은 탈락»이 된다 (규칙 ③).
      */
     /**
-     * 📐 **마름모 모양** — 기사님이 첫짐 탭에서 고친 값 (이식 C3).
+     * 📐 **마름모 모양** — 기사님이 필터에서 고친 값 (이식 C3-2 · 2026-09-11).
      *
-     * 🔴 **지금 국면의 행을 읽지 않는다.** 명세 §3 이 «첫짐에서만 고치고 나머지는 상속»이라
-     *    적었고, 그 상속을 하는 자리는 `quadShapeOf` 하나다 (규칙 ③). 여기서 국면을 세어
-     *    `phaseSettings[국면]` 을 읽으면, 합짐 탭은 「자동 · 첫짐에서」라고 적어 두고
-     *    지도는 손 안 댄 기본값으로 그린다 — 화면이 조용히 거짓말한다.
+     * 🔴 **국면 그릇을 안 본다.** 그물의 모양은 국면과 무관한 **한 벌**이라 평면 필터에
+     *    실려 온다 (명세 §3 · DB 자리는 `user_filters`). 아침(C3-1)에는 국면 행에 두고
+     *    «첫짐에서 상속»으로 가렸는데, 다섯 행에 값이 계속 써지는 구조가 남아
+     *    **합짐 행에는 손 안 댄 110° 가 앉아 있었다** — 화면은 「첫짐에서 120°」라고 적으면서.
      */
-    const netShape = phaseSettings ? quadShapeOf(phaseSettings) : undefined;
+    const netShape = { srcAngleDeg: filter?.srcAngleDeg, dstAngleDeg: filter?.dstAngleDeg,
+                       quadRadiusKm: filter?.quadRadiusKm };
     const callNet = useCallNet({
         shape: netShape,
         destinationCity: filter?.destinationCity,

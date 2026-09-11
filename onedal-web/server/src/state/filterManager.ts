@@ -19,7 +19,7 @@ import { SettingsRepository } from "../repositories/SettingsRepository";
 import { getUserSession } from "./userSessionStore";
 import type { AutoDispatchFilter, PhaseKey, PhaseSettings } from "@onedal/shared";
 import { DEFAULT_DETOUR_RADIUS_KM, isDeliveredCall, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, resolvePhaseKey, applyPhaseToFilter, normalizePhaseSettings,
-         PHASE_KEYS, FILTER_FIELDS, phaseRowOf, phaseOfRow, EVALUATING_STATUSES } from "@onedal/shared";
+         PHASE_KEYS, FILTER_FIELDS, QUAD_FIELDS, quadShapeFrom, phaseRowOf, phaseOfRow, EVALUATING_STATUSES } from "@onedal/shared";
 import type { PhaseSettingsMap } from "@onedal/shared";
 
 // ─────────────────────────────────────────────────────────────
@@ -83,9 +83,15 @@ import { getCityRegionsWithRadius, cityAliases, getDetourRegions, unionRegions, 
 // ━━━ Prepared Statement 캐싱 (모듈 로드 시 1회만 실행) ━━━
 // 노선·반경·할인율 평면 칸은 ④에서 철거 — 그 값들은 user_filter_phases 행에 산다.
 // min_fare·max_fare 는 보류 칸 (앱 피기백 — 화물24 단가식 뒤 3단계 강등, 확정안 ①-삭제 #3)
+/**
+ * 📐 마름모 셋도 여기 산다 — **국면 밖 한 벌** (이식 C3-2 · 2026-09-11).
+ *    컬럼 목록은 `QUAD_FIELDS` 표에서 뽑는다 (손으로 나열하지 않는다 — 규칙 ③).
+ */
+const QUAD_COLS = QUAD_FIELDS.map(f => f.col);
 const stmtUpdateFilter = db.prepare(`
     UPDATE user_filters SET
-        min_fare = ?, max_fare = ?, excluded_keywords = ?, is_active = ?
+        min_fare = ?, max_fare = ?, excluded_keywords = ?, is_active = ?,
+        ${QUAD_COLS.map(c => `${c} = ?`).join(', ')}
     WHERE user_id = ?
 `);
 
@@ -708,11 +714,13 @@ export function saveBaseFilter(
         const b = session.baseFilter;
 
         stmtInsertFilter.run(userId);
+        const quad = quadShapeFrom(b as any);       // 없거나 이상하면 기본값 (0 으로 안 읽는다)
         stmtUpdateFilter.run(
             b.minFare,
             b.maxFare,
             JSON.stringify(b.excludedKeywords || []),
             b.isActive ? 1 : 0,
+            ...QUAD_FIELDS.map(f => quad[f.path]),
             userId
         );
         // 🎛️ 국면 옵션(노선·반경·할인율)의 원천 — user_filter_phases 행

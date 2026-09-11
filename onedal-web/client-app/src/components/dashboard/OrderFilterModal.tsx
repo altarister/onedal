@@ -3,9 +3,9 @@ import { useFilterConfig } from "../../hooks/useFilterConfig";
 import { logRoadmapEvent } from "../../lib/roadmapLogger";
 import { NET_RATE_PER_KM, VEHICLE_CAPACITY, TRUCK_CAPACITY_SLOTS, CAPACITY_CONFIDENCE_LABEL,
          PHASE_KEYS, PHASE_LABEL, PHASE_FIELDS, FILTER_FIELDS, fieldLabel, PHASE_AUTO_SOURCE,
-         quadShapeOf, QUAD_SHAPE_KEYS,
+         QUAD_FIELDS, quadShapeFrom,
          DEFAULT_PHASE_SETTINGS, resolvePhaseKey, reachRadiusKm } from "@onedal/shared";
-import type { PhaseKey, PhaseSettings, QuadShapeKey } from "@onedal/shared";
+import type { PhaseKey, PhaseSettings } from "@onedal/shared";
 import { socket } from "../../lib/socket";
 import { apiClient } from "../../api/apiClient";
 import { useCityOptions, resolveCity } from "../../lib/cityOptions";
@@ -99,10 +99,6 @@ const toForm = (s: PhaseSettings): PhaseForm => ({
     detourAllowKm: String(s.detourAllowKm),
     dropoffRadiusKm: String(s.dropoffRadiusKm),
     discountPct: String(s.discountPct),
-    /* 📐 마름모의 모양 셋 — 지도가 그리는 «가는 길목»의 폭 (이식 C3) */
-    srcAngleDeg: String(s.srcAngleDeg),
-    dstAngleDeg: String(s.dstAngleDeg),
-    quadRadiusKm: String(s.quadRadiusKm),
 });
 
 /** 빈 칸은 **이전 값 그대로**다 (0 으로 바꾸면 "제한 없음"으로 뒤집힌다 — §1) */
@@ -117,9 +113,6 @@ const toSettings = (f: PhaseForm, prev: PhaseSettings): PhaseSettings => {
         detourAllowKm: num(f.detourAllowKm, prev.detourAllowKm),
         dropoffRadiusKm: num(f.dropoffRadiusKm, prev.dropoffRadiusKm),
         discountPct: num(f.discountPct, prev.discountPct),
-        srcAngleDeg: num(f.srcAngleDeg, prev.srcAngleDeg),
-        dstAngleDeg: num(f.dstAngleDeg, prev.dstAngleDeg),
-        quadRadiusKm: num(f.quadRadiusKm, prev.quadRadiusKm),
     };
 };
 
@@ -129,11 +122,10 @@ const mapToForm = (m: Record<PhaseKey, PhaseSettings>): PhaseFormMap =>
 /** 위 그리드가 그리는 칸 — **표시 순서**. 콜할인율(discountPct)는 전용 UI 가 위에서 그린다 */
 /**
  * 🗺️ 지역 축 칸들 — 그리드로 그린다.
- * 📐 **마름모 셋이 2026-09-11 에 들어왔다** (이식 C3) — 지도가 그리는 «가는 길목»의 폭이다.
- *    라벨·단위·범위·설명은 `FILTER_FIELDS` 한 곳에서 온다 (규칙 ③ — 여기 또 안 적는다).
+ * 📐 **마름모 셋은 여기 없다** (이식 C3-2) — 국면 밖 한 벌이라 탭 **바깥**에 그린다.
+ *    탭 안에 두면 «이 국면의 값»으로 읽히는데 아니기 때문이다.
  */
-const GEO_FIELDS: (keyof PhaseSettings)[] = ['destinationCity', 'pickupRadiusKm', 'detourAllowKm', 'dropoffRadiusKm',
-    'srcAngleDeg', 'dstAngleDeg', 'quadRadiusKm'];
+const GEO_FIELDS: (keyof PhaseSettings)[] = ['destinationCity', 'pickupRadiusKm', 'detourAllowKm', 'dropoffRadiusKm'];
 
 type TabKey = PhaseKey;
 
@@ -161,6 +153,15 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
      */
     const [forms, setForms] = useState<PhaseFormMap>(() => mapToForm(DEFAULT_PHASE_SETTINGS));
     const cur = forms[tab];
+    /**
+     * 📐 **마름모의 모양 — 국면 밖 한 벌** (이식 C3-2 · 2026-09-11 · 명세 §3).
+     *    탭을 옮겨도 같은 값이라 `forms` 와 **따로** 산다. 저장도 평면 통로(`updateFilter`)다.
+     */
+    const [quadForm, setQuadForm] = useState<Record<string, string>>(
+        () => Object.fromEntries(QUAD_FIELDS.map(f => [f.path, String(quadShapeFrom(null)[f.path])])));
+    const [quadDirty, setQuadDirty] = useState(false);
+    const fillQuad = (src: unknown) => setQuadForm(Object.fromEntries(
+        QUAD_FIELDS.map(f => [f.path, String(quadShapeFrom(src as any)[f.path])])));
     const shown = PHASE_FIELDS[tab];
 
     /**
@@ -270,6 +271,9 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
             // 폼은 **국면별 저장값**에서 채운다 (평면 필터가 아니라).
             // 평면에는 지금 국면의 값 한 벌뿐이라, 거기서 다섯 탭을 채우면 전부 같은 값이 된다
             if (phaseSettings) setForms(mapToForm(phaseSettings));
+            /* 📐 마름모는 평면 필터에 실려 온다 — 국면 밖 한 벌이라 (이식 C3-2) */
+            fillQuad(filter);
+            setQuadDirty(false);
             // 지금 상황에 맞는 탭을 열어 준다 — 국면 판정은 shared 의 resolvePhaseKey 하나로
             setTab(activePhase);
             setBlacklist(filter.excludedKeywords ? filter.excludedKeywords.join(',') : "");
@@ -288,6 +292,8 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
         console.log("🔄 [OrderFilterModal] 기본 설정 불러오기 클릭 - baseFilter:", JSON.parse(JSON.stringify(baseFilter)));
         // 다섯 탭을 **모두** 평소값으로 되돌린다 (한 탭만 되돌리면 나머지가 오늘값으로 남아 섞인다)
         if (basePhaseSettings) setForms(mapToForm(basePhaseSettings));
+        fillQuad(baseFilter);
+        setQuadDirty(true);
         setBlacklist(baseFilter.excludedKeywords ? baseFilter.excludedKeywords.join(',') : "");
         // 폼과 서버가 달라진 상태다 — 저장을 눌러야 반영된다는 뜻으로 전부 dirty
         setDirtyTabs(new Set(PHASE_KEYS));
@@ -359,6 +365,12 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
             const prev = phaseSettings?.[key] ?? DEFAULT_PHASE_SETTINGS[key];
             savePhase(key, toSettings(forms[key], prev), saveAsDefault);
         }
+
+        /**
+         * 📐 **마름모는 국면 밖 한 벌이라 평면 통로로 간다** (이식 C3-2).
+         *    `savePhase` 에 섞으면 다시 국면마다 한 벌씩 앉는다 — 그게 아침에 갈라진 이유다.
+         */
+        if (quadDirty) updateFilter(quadShapeFrom(quadForm), saveAsDefault);
 
         // 제외 키워드만 다섯 탭 공통이라 평면 필터로 간다
         if (blacklistDirty) {
@@ -455,6 +467,36 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                         placeholder="착불, 수거"
                         className="flex-1 bg-surface-alt/60 border-danger/30 text-danger font-medium focus-visible:ring-danger/50 shadow-inner h-9"
                     />
+                </div>
+
+                {/* 📐 **마름모의 모양 — 탭 위다** (이식 C3-2 · 2026-09-11 · 명세 §3).
+                    제외 단어와 같은 이유다 — 국면과 무관한 한 벌인데 탭 **안**에 두면
+                    화면이 "이 국면의 값" 이라고 잘못 말한다. 아침(C3-1)에 탭 안에 뒀다가
+                    합짐 행에 손 안 댄 110° 가 앉는 것을 실측하고 옮겼다.
+                    라벨·단위·범위는 `QUAD_FIELDS` 한 곳에서 온다 (규칙 ③). */}
+                <div className="relative z-10 rounded-lg border border-border bg-surface-alt/30 p-2 space-y-1.5">
+                    <div className="flex items-baseline justify-between">
+                        <span className="text-[10px] font-black text-text-primary">📐 그물의 모양</span>
+                        <span className="text-[9px] text-text-muted">국면과 무관 · 지도에 바로 보입니다</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                        {QUAD_FIELDS.map(f => (
+                            <div key={f.path} className="space-y-1">
+                                <label className="block text-[10px] font-bold text-text-muted pl-1">{f.label}</label>
+                                <div className="relative">
+                                    <Input
+                                        type="number"
+                                        value={quadForm[f.path] ?? ''}
+                                        onChange={(e) => { setQuadForm(q => ({ ...q, [f.path]: e.target.value })); setQuadDirty(true); }}
+                                        className="bg-surface-alt/50 border-border pr-8 text-text-primary font-bold h-9 text-center"
+                                    />
+                                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted font-black pointer-events-none text-[9px]">
+                                        {f.unit === 'km' ? 'KM' : f.unit}
+                                    </span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
 
                 {/* 탭 다섯 — 하루의 다섯 국면. 지금 어디인지는 초록 점으로만 */}
@@ -595,17 +637,9 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                 /* 자동 칸 — 왜 못 고치는지를 화면이 말한다 (빈 칸으로 두면 고장으로 보인다).
                                    복귀의 집 주소처럼 **실제 값이 있으면 그 값을 보여 준다** */
                                 if (mode === 'auto') {
-                                    /* 📐 마름모 셋은 **첫짐 행에서 상속한다** (명세 §3 · 이식 C3).
-                                       상속하는 자리는 `quadShapeOf` 하나다 — 여기서 `forms.first[f]` 를
-                                       직접 읽으면 지도와 갈라진다 (규칙 ③). */
-                                    const quad = quadShapeOf(forms);
-                                    const inherited = QUAD_SHAPE_KEYS.includes(f as QuadShapeKey)
-                                        ? `${quad[f as QuadShapeKey]}${FILTER_FIELDS.find(x => x.path === f)?.unit ?? ''} · 첫짐에서`
-                                        : '';
-                                    const shownValue = f === 'destinationCity' && tab === 'home' ? homeAddress : inherited;
-                                    /* 도시 이름은 길어서 두 칸, 각도·반경은 «110° · 첫짐에서» 라 한 칸이면 된다 */
+                                    const shownValue = f === 'destinationCity' && tab === 'home' ? homeAddress : '';
                                     return (
-                                        <div key={f} className={`space-y-1 ${inherited ? '' : 'col-span-2'}`}>
+                                        <div key={f} className="space-y-1 col-span-2">
                                             <label className="block text-[10px] font-bold text-text-muted pl-1">{fieldLabel(tab, f)}</label>
                                             <div className="h-9 flex items-center px-2 rounded-md bg-surface-alt/30 border border-dashed border-border text-[10px] text-text-muted/80 truncate">
                                                 {shownValue || `자동 · ${PHASE_AUTO_SOURCE[tab]}`}

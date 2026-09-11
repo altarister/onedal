@@ -1,5 +1,5 @@
 import { AutoDispatchFilter, SecuredOrder, PendingOrder, MyOrder, getEligibleVehicleTypes, businessDayKey, rateFloorsFrom,
-         normalizePhaseSettings, applyPhaseToFilter, DEFAULT_JUDGMENT, judgmentFromRow } from "@onedal/shared";
+         normalizePhaseSettings, applyPhaseToFilter, quadShapeFrom, DEFAULT_JUDGMENT, judgmentFromRow } from "@onedal/shared";
 import type { PhaseSettingsMap, PhaseKey, JudgmentConfig } from "@onedal/shared";
 import type { CapacityConfidence } from "@onedal/shared";
 import db, { seedCallOptions, loadCallOptions } from "../db";
@@ -383,6 +383,8 @@ export function getUserSession(userId: string): UserSession {
                         filterRow.vehicle_rates ? JSON.parse(filterRow.vehicle_rates) : undefined,
                         filterRow.agency_fee_percent ?? 23,
                     ),
+                    // 📐 마름모의 모양 — 국면 밖 한 벌 (이식 C3-2). 칸이 비었으면 기본값 110/110/25
+                    ...quadShapeFrom(filterRow as any),
                 } as AutoDispatchFilter;
 
                 // [완전 격리] activeFilter = baseFilter의 독립 복사본 (로그인 시 1회만)

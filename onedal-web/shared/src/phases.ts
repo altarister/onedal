@@ -81,20 +81,6 @@ export interface PhaseSettings {
     dropoffRadiusKm: number;
     /** 단가 할인율 (%) — 시세 대비. 100 = 전부(금액 무관) */
     discountPct: number;
-    /**
-     * 📐 **마름모의 모양 셋** — «가는 길목»을 얼마나 넓게 볼까 (이식 C3 · 2026-09-11).
-     *
-     * 🔴 지도 실험실이 나흘 동안 기사님과 맞춘 값인데 **실물에 저장할 칸이 없었다** —
-     *    화면은 110°·110°·25km 로 그리면서 기사님은 그걸 못 고치셨다 (계획서 §5).
-     *    화면이 조용히 거짓말하지 않으려면 **고칠 수 있어야 한다** (규칙 ⑤-4 ④).
-     * ⚠️ 상차·하차 «반경»과 다른 축이다 — 반경은 **점 둘레**, 각도는 **길목의 폭**이다.
-     */
-    /** 출발 쪽 각도(전체 °) — 내 자리에서 얼마나 돌아가도 되나 */
-    srcAngleDeg: number;
-    /** 목적 쪽 각도(전체 °) — 목적지 둘레를 얼마나 넓게 볼까 */
-    dstAngleDeg: number;
-    /** 마름모 반경 km — 축(내 위치→목적지 직선)에서 좌우로 몇 km 까지 */
-    quadRadiusKm: number;
 }
 
 export type PhaseSettingsMap = Record<PhaseKey, PhaseSettings>;
@@ -134,7 +120,7 @@ export type FieldMode = 'input' | 'override' | 'auto' | 'hidden';
  *    상속은 `quadShapeOf()` 한 곳에서만 한다 (규칙 ③). `phaseUi.test.ts` 가 잠근다.
  */
 export const PHASE_FIELDS: Record<PhaseKey, Record<keyof PhaseSettings, FieldMode>> = {
-    first: { destinationCity: 'input',    pickupRadiusKm: 'input',  detourAllowKm: 'hidden', dropoffRadiusKm: 'input',  discountPct: 'input', srcAngleDeg: 'input', dstAngleDeg: 'input', quadRadiusKm: 'input' },
+    first: { destinationCity: 'input',    pickupRadiusKm: 'input',  detourAllowKm: 'hidden', dropoffRadiusKm: 'input',  discountPct: 'input' },
     /**
      * 🔴 **합짐·주행중의 도착 목표는 `auto` 다 — 첫짐에서 상속한다** (기사님 확정 2026-08-25).
      *
@@ -144,10 +130,10 @@ export const PHASE_FIELDS: Record<PhaseKey, Record<keyof PhaseSettings, FieldMod
      *
      * 노선인 동안 목적지는 안 바뀌므로 **따로 저장하지 않는다** (규칙 ③). 보이되 못 고친다.
      */
-    merge: { destinationCity: 'auto',     pickupRadiusKm: 'hidden', detourAllowKm: 'input',  dropoffRadiusKm: 'input',  discountPct: 'input', srcAngleDeg: 'auto', dstAngleDeg: 'auto', quadRadiusKm: 'auto' },
-    drive: { destinationCity: 'auto',     pickupRadiusKm: 'hidden', detourAllowKm: 'input',  dropoffRadiusKm: 'hidden', discountPct: 'input', srcAngleDeg: 'auto', dstAngleDeg: 'auto', quadRadiusKm: 'auto' },
-    local: { destinationCity: 'override', pickupRadiusKm: 'hidden', detourAllowKm: 'hidden', dropoffRadiusKm: 'hidden', discountPct: 'input', srcAngleDeg: 'auto', dstAngleDeg: 'auto', quadRadiusKm: 'auto' },
-    home:  { destinationCity: 'auto',     pickupRadiusKm: 'hidden', detourAllowKm: 'input',  dropoffRadiusKm: 'hidden', discountPct: 'input', srcAngleDeg: 'auto', dstAngleDeg: 'auto', quadRadiusKm: 'auto' },
+    merge: { destinationCity: 'auto',     pickupRadiusKm: 'hidden', detourAllowKm: 'input',  dropoffRadiusKm: 'input',  discountPct: 'input' },
+    drive: { destinationCity: 'auto',     pickupRadiusKm: 'hidden', detourAllowKm: 'input',  dropoffRadiusKm: 'hidden', discountPct: 'input' },
+    local: { destinationCity: 'override', pickupRadiusKm: 'hidden', detourAllowKm: 'hidden', dropoffRadiusKm: 'hidden', discountPct: 'input' },
+    home:  { destinationCity: 'auto',     pickupRadiusKm: 'hidden', detourAllowKm: 'input',  dropoffRadiusKm: 'hidden', discountPct: 'input' },
 };
 
 /**
@@ -160,9 +146,6 @@ export const PHASE_FIELD_LABEL: Record<keyof PhaseSettings, string> = {
     detourAllowKm: '우회 허용',
     dropoffRadiusKm: '하차지 주변',
     discountPct: '콜할인율',
-    srcAngleDeg: '출발각',
-    dstAngleDeg: '목적각',
-    quadRadiusKm: '마름모반경',
 };
 
 /**
@@ -185,30 +168,6 @@ export function fieldLabel(phase: PhaseKey, key: keyof PhaseSettings): string {
     return PHASE_FIELD_LABEL_OVERRIDE[phase]?.[key] ?? PHASE_FIELD_LABEL[key];
 }
 
-/**
- * 📐 **마름모의 모양은 언제나 첫짐 행의 것이다** (이식 C3 · 2026-09-11).
- *
- * `PHASE_FIELDS` 가 넷을 `auto` 로 적어 뒀으니 — *"첫짐에서 상속한다"* — 그 상속을
- * **실제로 하는 곳이 여기 하나다** (규칙 ③: 파생값을 두 벌 만들지 않는다).
- * 지도도, 필터 화면의 자동 칸도 이 함수를 부른다. 각자 `phaseSettings.merge.srcAngleDeg`
- * 를 직접 읽으면 그 순간 갈라진다.
- *
- * 🔴 **`first` 는 늘 저장돼 있다** (`DEFAULT_PHASE_SETTINGS.first` 로라도) — 그래서
- *    폴백이 없다. 없는 값을 지어내지 않는다 (규칙 ④).
- */
-export type QuadShapeKey = 'srcAngleDeg' | 'dstAngleDeg' | 'quadRadiusKm';
-export const QUAD_SHAPE_KEYS: QuadShapeKey[] = ['srcAngleDeg', 'dstAngleDeg', 'quadRadiusKm'];
-
-/**
- * ⚠️ **값 타입을 묶지 않는다.** 지도는 저장값(숫자 `PhaseSettings`)을 넘기고, 필터 화면은
- *    입력 중인 폼(문자열)을 넘긴다 — 화면은 기사님이 방금 친 값을 곧바로 비춰야 하니까.
- *    타입을 숫자로 못 박으면 화면이 제 상속 규칙을 따로 갖게 된다.
- */
-export function quadShapeOf<V>(all: { first: Record<QuadShapeKey, V> }): Record<QuadShapeKey, V> {
-    const f = all.first;
-    return { srcAngleDeg: f.srcAngleDeg, dstAngleDeg: f.dstAngleDeg, quadRadiusKm: f.quadRadiusKm };
-}
-
 /** `auto` 필드가 **무엇에서** 나오는지 — 화면이 "왜 못 고치는지" 말할 수 있어야 한다 */
 export const PHASE_AUTO_SOURCE: Record<PhaseKey, string> = {
     first: '',
@@ -227,9 +186,12 @@ export const PHASE_AUTO_SOURCE: Record<PhaseKey, string> = {
 //  ⚠️ 이식 단계는 현행 5칸 그대로 — 축 개편(pickup_reach_min)은 구현 4에서 한 줄 얹는다.
 // ─────────────────────────────────────────────────────────────
 
-export interface FilterField {
+export interface FilterField<P extends string = string> {
     /** DB 컬럼 이름 */ col: string;
-    /** `PhaseSettings` 안의 자리 */ path: keyof PhaseSettings;
+    /**
+     * 값 그릇 안의 자리. **그릇이 둘이라 제네릭이다** (이식 C3-2 · 2026-09-11) —
+     * 국면 칸은 `PhaseSettings`, 마름모 셋은 국면 밖 `QuadShape` 에 산다.
+     */ path: P;
     /** 문자열 칸인가 (도착 도시) — 숫자 범위 검증을 건너뛴다 */ text?: boolean;
     label: string;
     unit: string;
@@ -239,7 +201,7 @@ export interface FilterField {
     /** 왜 이 값인가 — 폼의 칸 아래 그대로 뜬다 */ why: string;
 }
 
-export const FILTER_FIELDS: readonly FilterField[] = [
+export const FILTER_FIELDS: readonly FilterField<keyof PhaseSettings>[] = [
     { col: 'destination_city', path: 'destinationCity', text: true,
       label: '도착 목표', unit: '', min: 0, max: 0, int: false,
       why: '짐이 많은 지역을 향한다 (정의서 1장②) — 첫짐만 저장, 관내는 덮어쓰기, 복귀는 자동' },
@@ -255,7 +217,42 @@ export const FILTER_FIELDS: readonly FilterField[] = [
     { col: 'discount_pct', path: 'discountPct',
       label: '콜할인율', unit: '%', min: 0, max: 100, int: true,
       why: '시세 대비 허용 할인. 100 = 전부 (금액 무관 — 붙이면 늘어나는 매출). 자동으로 안 내려간다 (정의서)' },
-    /* 📐 마름모의 모양 셋 — 지도가 그리는 «가는 길목»의 폭 (이식 C3 · 2026-09-11) */
+] as const;
+
+// ─────────────────────────────────────────────────────────────
+//  📐 마름모의 모양 — **국면 밖 한 벌** (이식 C3-2 · 2026-09-11)
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * 그물의 모양은 *"어디로 가는가"* 가 정하지 *"콜을 몇 개 쥐었는가"* 가 정하지 않는다.
+ * 국면과 무관하므로 **사용자당 한 행**(`user_filters`)에 산다.
+ *
+ * 🔴 **하루 만에 자리를 옮겼다.** 아침(C3-1)에는 국면 행에 파고 «첫짐에서 상속»으로 가렸다.
+ *    그런데 다섯 행에 값이 계속 써지는 구조가 남아, 기사님이 첫짐을 120°/140°/35km 로
+ *    저장하신 직후 **합짐 행에는 110/110/25 가 앉아 있었다** — 화면은 「자동 · 첫짐에서 120°」
+ *    라고 적으면서. **상속으로 가리는 대신 자리를 하나로 만들었다** (규칙 ③).
+ *
+ * 근거는 기사님 확정 2026-09-09: *"모두 꺼내 두고 노선이면 라인값을 사용하고 동선이면
+ * 사용 안 하면 되니까."* — 다섯 벌이 하던 일은 «값을 여러 벌 두는 것»이 아니라
+ * **«지금 안 쓰는 칸을 감추는 것»**이었고, 감추는 일은 `PHASE_FIELDS` 가 계속 한다.
+ */
+export interface QuadShape {
+    /** 출발 쪽 각도(전체 °) — 내 자리에서 얼마나 돌아가도 되나 */
+    srcAngleDeg: number;
+    /** 목적 쪽 각도(전체 °) — 목적지 둘레를 얼마나 넓게 볼까 */
+    dstAngleDeg: number;
+    /** 마름모 반경 km — 축(내 위치→목적지 직선)에서 좌우로 몇 km 까지 */
+    quadRadiusKm: number;
+}
+
+export type QuadShapeKey = keyof QuadShape;
+export const QUAD_SHAPE_KEYS: QuadShapeKey[] = ['srcAngleDeg', 'dstAngleDeg', 'quadRadiusKm'];
+
+/**
+ * 🎛️ **마름모 칸의 유일한 원천** — `FILTER_FIELDS` 와 같은 문법.
+ * DB 컬럼·화면 라벨·단위·범위·근거가 전부 여기서 나온다 (규칙 ③ — 화면이 또 안 적는다).
+ */
+export const QUAD_FIELDS: readonly FilterField<QuadShapeKey>[] = [
     { col: 'src_angle_deg', path: 'srcAngleDeg',
       label: '출발각', unit: '°', min: 0, max: 360, int: true,
       why: '내 자리에서 얼마나 돌아가도 되나. 넓히면 뒤쪽 콜까지 들어온다 — 지도의 마름모가 그만큼 벌어진다' },
@@ -266,6 +263,26 @@ export const FILTER_FIELDS: readonly FilterField[] = [
       label: '마름모반경', unit: 'km', min: 0, max: 200, int: false,
       why: '내 위치→목적지 직선에서 좌우로 몇 km 까지. 각도가 좁아도 이만큼은 담는다' },
 ] as const;
+
+/** 실험실이 나흘 동안 기사님과 맞춘 값 그대로 */
+export const DEFAULT_QUAD_SHAPE: QuadShape = { srcAngleDeg: 110, dstAngleDeg: 110, quadRadiusKm: 25 };
+
+/**
+ * 아무 그릇(평면 필터·DB 행·폼)에서 마름모 셋만 꺼낸다. 없거나 이상하면 기본값 —
+ * **0 으로 읽지 않는다** (`Number(null) === 0` · 버그 대장 #105).
+ */
+export function quadShapeFrom(src: Record<string, unknown> | null | undefined): QuadShape {
+    const out = { ...DEFAULT_QUAD_SHAPE };
+    if (!src) return out;
+    for (const f of QUAD_FIELDS) {
+        const v = src[f.path] ?? src[f.col];
+        if (v === null || v === undefined || v === '') continue;
+        const n = Number(v);
+        if (Number.isFinite(n)) (out as any)[f.path] = Math.min(f.max, Math.max(f.min, n));
+    }
+    return out;
+}
+
 
 // ─────────────────────────────────────────────────────────────
 //  ⏱️ 시간 축 — 도달 반경 파생 (필터 확정안 v2 구현 4 · 계측 단계)
@@ -356,12 +373,12 @@ export function phaseStoreDiff(blob: PhaseSettingsMap, rows: Partial<Record<Phas
  * `hidden` 칸도 값은 채워 둔다 (타입이 하나이므로). 그 국면에서 안 쓸 뿐이다.
  */
 export const DEFAULT_PHASE_SETTINGS: PhaseSettingsMap = {
-    first: { destinationCity: '', pickupRadiusKm: 10, detourAllowKm: 5,  dropoffRadiusKm: 10, discountPct: 10, srcAngleDeg: 110, dstAngleDeg: 110, quadRadiusKm: 25 },
-    merge: { destinationCity: '', pickupRadiusKm: 10, detourAllowKm: 5,  dropoffRadiusKm: 3,  discountPct: 10, srcAngleDeg: 110, dstAngleDeg: 110, quadRadiusKm: 25 },
-    drive: { destinationCity: '', pickupRadiusKm: 10, detourAllowKm: 0,  dropoffRadiusKm: 3,  discountPct: 10, srcAngleDeg: 110, dstAngleDeg: 110, quadRadiusKm: 25 },
-    local: { destinationCity: '', pickupRadiusKm: 10, detourAllowKm: 0,  dropoffRadiusKm: 0,  discountPct: 20, srcAngleDeg: 110, dstAngleDeg: 110, quadRadiusKm: 25 },
+    first: { destinationCity: '', pickupRadiusKm: 10, detourAllowKm: 5,  dropoffRadiusKm: 10, discountPct: 10 },
+    merge: { destinationCity: '', pickupRadiusKm: 10, detourAllowKm: 5,  dropoffRadiusKm: 3,  discountPct: 10 },
+    drive: { destinationCity: '', pickupRadiusKm: 10, detourAllowKm: 0,  dropoffRadiusKm: 3,  discountPct: 10 },
+    local: { destinationCity: '', pickupRadiusKm: 10, detourAllowKm: 0,  dropoffRadiusKm: 0,  discountPct: 20 },
     // 복귀 우회 10 — 목업 값. 집으로 가는 길은 멀어서 주울 여지가 크다
-    home:  { destinationCity: '', pickupRadiusKm: 10, detourAllowKm: 10, dropoffRadiusKm: 10, discountPct: 10, srcAngleDeg: 110, dstAngleDeg: 110, quadRadiusKm: 25 },
+    home:  { destinationCity: '', pickupRadiusKm: 10, detourAllowKm: 10, dropoffRadiusKm: 10, discountPct: 10 },
 };
 
 /** 저장된 JSON 이 비었거나 일부만 있어도 온전한 맵을 만든다 (필드 누락 방어) */
@@ -377,9 +394,6 @@ export function normalizePhaseSettings(raw: unknown): PhaseSettingsMap {
             detourAllowKm: Number.isFinite(v.detourAllowKm) ? Number(v.detourAllowKm) : d.detourAllowKm,
             dropoffRadiusKm: Number.isFinite(v.dropoffRadiusKm) ? Number(v.dropoffRadiusKm) : d.dropoffRadiusKm,
             discountPct: Number.isFinite(v.discountPct) ? Number(v.discountPct) : d.discountPct,
-            srcAngleDeg: Number.isFinite(v.srcAngleDeg) ? Number(v.srcAngleDeg) : d.srcAngleDeg,
-            dstAngleDeg: Number.isFinite(v.dstAngleDeg) ? Number(v.dstAngleDeg) : d.dstAngleDeg,
-            quadRadiusKm: Number.isFinite(v.quadRadiusKm) ? Number(v.quadRadiusKm) : d.quadRadiusKm,
         };
     }
     return out;
@@ -442,9 +456,6 @@ export function phaseFromFlat(flat: {
          * 📐 마름모 셋은 **평면(앱 피기백)에 없다** — 앱은 그물의 모양을 모르고 «든 동 목록»만 받는다.
          *    그러니 되돌릴 때는 **이전 값 그대로** 둔다 (0 으로 바꾸면 마름모가 접힌다 · 규칙 ④).
          */
-        srcAngleDeg: fallback.srcAngleDeg,
-        dstAngleDeg: fallback.dstAngleDeg,
-        quadRadiusKm: fallback.quadRadiusKm,
     };
 }
 

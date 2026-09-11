@@ -176,8 +176,10 @@ router.post("/", (req, res) => {
         //    앱이 읽는 것: isActive·isSharedMode·pickupRadiusKm·min/maxFare·destinationCity·
         //    destinationRadiusKm·excluded/destinationKeywords·customCityFilters·
         //    allowedVehicleTypes·ratePerKm·orderKm)
+        //    📐 마름모 셋도 뗀다 — 그물 모양은 관제웹 지도만 쓴다 (이식 C3-2 · 2026-09-11)
         const { destinationGroups, dispatchPhase, driverAction, detourRadiusKm, callDiscountPct,
                 userOverrides, capacityConfidence, slotsUsed, callTarget,
+                srcAngleDeg, dstAngleDeg, quadRadiusKm,
                 ...appFilter } = session.activeFilter as any;
 
         // 🧭 경로 순서 맵 — 앱의 역주행·경로 밖 상차 차단 입력 (기사님 확정 2026-08-18)

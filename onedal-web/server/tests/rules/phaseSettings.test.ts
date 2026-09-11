@@ -58,9 +58,8 @@ describe('국면 × 필드 표 (§2-4-5)', () => {
      *    **실물에 저장할 칸이 없어** 화면이 110°·110°·25km 로 그리면서 못 고치게 두고 있었다.
      *    🔴 명세를 먼저 고치고 이 표를 따라 고쳤다 — 반대로 하면 문서가 조용히 낡는다.
      */
-    it('다섯 국면이 **같은 8개 키**를 갖는다', () => {
-        const keys = ['destinationCity', 'pickupRadiusKm', 'detourAllowKm', 'dropoffRadiusKm', 'discountPct',
-            'srcAngleDeg', 'dstAngleDeg', 'quadRadiusKm'];
+    it('다섯 국면이 **같은 5개 키**를 갖는다', () => {
+        const keys = ['destinationCity', 'pickupRadiusKm', 'detourAllowKm', 'dropoffRadiusKm', 'discountPct'];
         for (const p of PHASE_KEYS) {
             expect(Object.keys(PHASE_FIELDS[p]).sort()).toEqual([...keys].sort());
             expect(Object.keys(DEFAULT_PHASE_SETTINGS[p]).sort()).toEqual([...keys].sort());
@@ -71,7 +70,6 @@ describe('국면 × 필드 표 (§2-4-5)', () => {
         expect(PHASE_FIELDS.first).toEqual({
             destinationCity: 'input', pickupRadiusKm: 'input',
             detourAllowKm: 'hidden', dropoffRadiusKm: 'input', discountPct: 'input',
-            srcAngleDeg: 'input', dstAngleDeg: 'input', quadRadiusKm: 'input',
         });
     });
 
@@ -89,7 +87,6 @@ describe('국면 × 필드 표 (§2-4-5)', () => {
         expect(PHASE_FIELDS.merge).toEqual({
             destinationCity: 'auto', pickupRadiusKm: 'hidden',
             detourAllowKm: 'input', dropoffRadiusKm: 'input', discountPct: 'input',
-            srcAngleDeg: 'auto', dstAngleDeg: 'auto', quadRadiusKm: 'auto',
         });
     });
 
@@ -97,7 +94,6 @@ describe('국면 × 필드 표 (§2-4-5)', () => {
         expect(PHASE_FIELDS.drive).toEqual({
             destinationCity: 'auto', pickupRadiusKm: 'hidden',
             detourAllowKm: 'input', dropoffRadiusKm: 'hidden', discountPct: 'input',
-            srcAngleDeg: 'auto', dstAngleDeg: 'auto', quadRadiusKm: 'auto',
         });
     });
 
@@ -106,7 +102,6 @@ describe('국면 × 필드 표 (§2-4-5)', () => {
         expect(PHASE_FIELDS.local).toEqual({
             destinationCity: 'override', pickupRadiusKm: 'hidden',
             detourAllowKm: 'hidden', dropoffRadiusKm: 'hidden', discountPct: 'input',
-            srcAngleDeg: 'auto', dstAngleDeg: 'auto', quadRadiusKm: 'auto',
         });
     });
 
@@ -116,7 +111,6 @@ describe('국면 × 필드 표 (§2-4-5)', () => {
         expect(PHASE_FIELDS.home).toEqual({
             destinationCity: 'auto', pickupRadiusKm: 'hidden',
             detourAllowKm: 'input', dropoffRadiusKm: 'hidden', discountPct: 'input',
-            srcAngleDeg: 'auto', dstAngleDeg: 'auto', quadRadiusKm: 'auto',
         });
     });
 
@@ -168,7 +162,6 @@ describe('조각 → 평면 매핑 (§2-4-6)', () => {
         destinationCity: '파주시', pickupRadiusKm: 7,
         detourAllowKm: 4, dropoffRadiusKm: 2, discountPct: 30,
         // 📐 마름모 셋 — 평면(앱 피기백)에는 안 실린다. 아래 «평면 → 조각» 이 그것을 지킨다
-        srcAngleDeg: 110, dstAngleDeg: 110, quadRadiusKm: 25,
     };
 
     it('🔴 새 이름 → 평면(앱 피기백) 옛 이름으로 옮긴다', () => {
@@ -202,7 +195,6 @@ describe('조각 → 평면 매핑 (§2-4-6)', () => {
              * 📐 **마름모 셋은 평면에 없다 — 폴백이 그대로 남는다** (2026-09-11 · 이식 C3).
              *    앱은 그물의 «모양»을 모르고 «든 동 목록»만 받는다. 0 으로 덮으면 마름모가 접힌다.
              */
-            srcAngleDeg: 110, dstAngleDeg: 110, quadRadiusKm: 25,
         });
     });
 
