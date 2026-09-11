@@ -29,12 +29,10 @@
 import { useEffect, useState } from 'react';
 import { APP_FILTER_KEYS, isEvaluating, isTerminal } from '@onedal/shared';
 import type { SecuredOrder } from '@onedal/shared';
-import { useFilterConfig } from '../hooks/useFilterConfig';
-import { useDeviceStore } from '../stores/deviceStore';
-import { summarizeTally } from '../lib/filterTally';
+/* 🌉 관제웹 안쪽은 **다리 하나**로만 본다 — 옮길 때 `bridge.ts` 만 새로 쓰면 된다 */
+import { useFilterConfig, useDeviceStore, summarizeTally, apiBase } from './bridge';
 /* 🔴 서버 주소를 손으로 적지 않는다 — `apiBase()` 를 거친다.
    2026-09-07 에 `/api` 가 두 번 붙어 실경로가 늘 직선으로 그려진 사고가 있었다 */
-import { apiBase } from '../lib/serverTarget';
 
 /**
  * 칸 하나의 **최소** 폭. 격자가 이 폭을 기준으로 «몇 열이 들어가나»를 정하고,
