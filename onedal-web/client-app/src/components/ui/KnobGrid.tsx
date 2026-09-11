@@ -38,6 +38,18 @@ export type KnobDef = {
     /** 한 칸이 얼마인가. 각도는 10, km 는 1 — **표가 정한다** */
     step?: number;
     set: (v: number) => void;
+    /**
+     * 🔴 **손가락을 뗄 때 한 번** — 이때 서버로 보낸다 (이식 C4-10 · 2026-09-12).
+     *
+     * `input[type=range]` 의 `onChange` 는 **끄는 동안 픽셀마다** 발화한다.
+     * 실물은 값이 바뀔 때마다 **서버가 경유 지역을 다시 그린다**(지리 연산 수 초) —
+     * 목업은 로컬이라 괜찮았지만 여기선 폭주한다.
+     * `set` 은 화면만 움직이고, 서버로 가는 것은 이 한 번이다.
+     *
+     * 🔴 **값을 함께 넘긴다.** ± 는 `set` 과 **같은 클릭 안에서** 커밋하는데, 그때 리액트는
+     *    아직 다시 그리지 않았다 — 인자 없이 부르면 받는 쪽이 **한 칸 뒤처진 값**을 읽는다.
+     */
+    onCommit?: (v: number) => void;
     /** 지금 안 쓰이는 칸 — 감추지 않고 흐리게 둔다 (감추면 화면이 조용히 거짓말한다) */
     dim?: boolean;
 };
@@ -70,12 +82,16 @@ export function KnobGrid({ knobs, open, onOpen, cols = 3 }: {
                                 rounded-xl border border-info/55 bg-surface shadow-lg px-1.5 py-2">
                     <button type="button" onClick={() => onOpen(null)}
                         className="shrink-0 text-[10px] font-black text-text-muted px-0.5">{cur.label} ✕</button>
-                    <button type="button" onClick={() => cur.set(clamp(cur, cur.value - (cur.step ?? 1)))}
+                    {/* ± 는 한 칸씩이라 **누르는 즉시** 보내도 폭주가 없다 */}
+                    <button type="button" onClick={() => { const v = clamp(cur, cur.value - (cur.step ?? 1)); cur.set(v); cur.onCommit?.(v); }}
                         className="w-8 h-8 shrink-0 rounded-lg border border-border-hover bg-background text-[16px] font-black">−</button>
+                    {/* 🔴 끄는 동안은 화면만 · **뗄 때** 서버로 (`onPointerUp`) — 키보드도 같다 */}
                     <input type="range" min={cur.min ?? 0} max={cur.max} step={cur.step ?? 1} value={cur.value}
                         onChange={e => cur.set(Number(e.target.value))}
+                        onPointerUp={e => cur.onCommit?.(Number((e.target as HTMLInputElement).value))}
+                        onKeyUp={e => cur.onCommit?.(Number((e.target as HTMLInputElement).value))}
                         className="flex-1 min-w-0 accent-[#0284c7]" />
-                    <button type="button" onClick={() => cur.set(clamp(cur, cur.value + (cur.step ?? 1)))}
+                    <button type="button" onClick={() => { const v = clamp(cur, cur.value + (cur.step ?? 1)); cur.set(v); cur.onCommit?.(v); }}
                         className="w-8 h-8 shrink-0 rounded-lg border border-border-hover bg-background text-[16px] font-black">+</button>
                     <span className="shrink-0 w-[48px] text-right text-[14px] font-black text-info tabular-nums">
                         {cur.value}<span className="text-[9px] font-bold">{cur.unit}</span>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
 import { logRoadmapEvent } from "../../lib/roadmapLogger";
 import { NET_RATE_PER_KM, VEHICLE_CAPACITY, TRUCK_CAPACITY_SLOTS, CAPACITY_CONFIDENCE_LABEL,
@@ -240,11 +240,34 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
         socket.emit("set-call-target", { phase: next });
     };
 
-    /** 저장 안 한 변경이 있는가 — 버튼이 «누르기 전에» 말한다 (v6 설명 ② · 기사님 확정) */
-    const [dirty, setDirty] = useState(false);
+    /**
+     * 💾 **저장은 두 갈래다 — 메모리와 서버** (이식 C4-10 · 2026-09-12).
+     *
+     * 기사님: *"오늘만, 계속, 평소값 **이것이 말이 안 되는것 같다**. 서버저장과 메모리 저장
+     * 뭐 이렇게만 있으면 될 것 같은데 … **그냥 닫으면 앱메모리에 자동저장** 되는거지."*
+     *
+     * 🔴 **`setField` 는 화면만 움직인다.** 서버로 보내는 것은 `commitValues` 한 번이고,
+     *    슬라이더는 **손가락을 뗄 때** 그것을 부른다 — 끄는 동안 픽셀마다 보내면
+     *    서버가 경유 지역을 매번 다시 그려(지리 연산 수 초) 폭주한다.
+     * 🔴 **«저장 안 한 변경»을 손으로 든 깃발(`dirty`)은 없앴다.** 깃발은 켜고 끄는 것을
+     *    잊는 순간 거짓말을 한다 — «서버와 다른가»는 아래 `unsaved` 가 **파생**한다 (규칙 ③).
+     */
     const setField = (key: FlatValueKey, value: string) => {
         setForm(prev => ({ ...prev, [key]: value }));
-        setDirty(true);
+    };
+    /** 지금 폼 값을 **메모리에** 넣는다 (DB 아님). 지도가 그 자리에서 바뀐다 */
+    const commitValues = (next?: ValueForm) => {
+        updateFilter(toValues(next ?? cur, filterValuesFrom(filter as any)));
+    };
+    /**
+     * 고르는 칸(목적지·할인율)은 **고르는 즉시** — 한 번뿐이라 폭주가 없다.
+     * 🔴 **값을 인자로 받아 합쳐 보낸다** — `setForm` 은 예약일 뿐이라
+     *    바로 뒤에서 `cur` 을 읽으면 **한 칸 뒤처진다** (`KnobGrid` 의 ± 가 그 모양이다).
+     */
+    const pickField = (key: FlatValueKey, value: string) => {
+        const next = { ...cur, [key]: value };
+        setForm(next);
+        commitValues(next);
     };
 
     /** 제외 키워드는 **다섯 탭 공통**이라 국면 설정이 아니라 평면 필터에 있다 */
@@ -307,20 +330,48 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
      *    *"값을 바꾼 뒤 «그럼 몇 개가 되나»를 저장 전에 확인한다"* 가 하던 일인데,
      *    **값을 만지면 지도가 그 자리에서 바뀌니** 미리 볼 것이 없어졌다.
      */
-    // "기본 설정 불러오기" — DB에 저장된 baseFilter 값으로 폼 필드를 채움
-    const handleLoadBaseFilter = () => {
+    /**
+     * 🔴 **«서버와 다른가»는 파생이다 — 깃발을 손으로 들지 않는다** (이식 C4-10 · 규칙 ③).
+     *
+     * ⚠️ 예전엔 `dirty`·`quadDirty`·`exDirty`·`blacklistDirty` 넷을 손으로 켰다.
+     *    켜는 것은 잊지 않는데 **끄는 것을 잊는다** — 되돌려 놓고도 «값 변경됨»이라
+     *    적혀 있으면 화면이 거짓말을 한다. 그래서 **서버 값과 직접 견준다.**
+     */
+    const unsaved = useMemo(() => {
+        if (!baseFilter) return false;
+        const base = toForm(filterValuesFrom(baseFilter as any));
+        if (FILTER_FIELDS.some(f => cur[f.path] !== base[f.path])) return true;
+        const bq = quadShapeFrom(baseFilter as any);
+        if (QUAD_FIELDS.some(f => quadForm[f.path] !== String(bq[f.path]))) return true;
+        /* 목록은 **순서가 달라도 같은 것**이다 (칩을 껐다 켜면 뒤로 간다) */
+        const sameList = (a: string[], b: string[]) =>
+            a.length === b.length && [...a].sort().join('\u0001') === [...b].sort().join('\u0001');
+        if (!sameList(exDraft, baseFilter.excludedRegions ?? [])) return true;
+        const kw = blacklist ? blacklist.split(',').map(t => t.trim()).filter(Boolean) : [];
+        if (!sameList(kw, baseFilter.excludedKeywords ?? [])) return true;
+        return false;
+    }, [baseFilter, cur, quadForm, exDraft, blacklist]);
+
+    /**
+     * ↩︎ **되돌리기 — 서버에 저장된 값으로** (이식 C4-10).
+     *
+     * ⚠️ 예전 이름은 「🔄 평소값 불러오기」였다. **세 번째 저장처럼 보였지만 실은
+     *    되돌리기**였다 — 이름이 셋이라 헷갈렸던 것이지 구조는 처음부터 둘이었다.
+     * 🔴 폼만 되돌리지 않고 **메모리까지** 되돌린다. 화면과 콜 잡기가 갈라지면 안 된다.
+     */
+    const handleRevert = () => {
         if (!baseFilter) return;
-        console.log("🔄 [OrderFilterModal] 기본 설정 불러오기 클릭 - baseFilter:", JSON.parse(JSON.stringify(baseFilter)));
-        /* 평소값도 첫짐 행이 기준이다 (위 «한 벌을 첫짐 행에서» 와 같은 이유) */
-        setForm(toForm(filterValuesFrom(baseFilter as any)));
+        const v = toForm(filterValuesFrom(baseFilter as any));
+        setForm(v);
         fillQuad(baseFilter);
-        setQuadDirty(true);
         setExDraft(baseFilter.excludedRegions ?? []);
-        setExDirty(true);
         setBlacklist(baseFilter.excludedKeywords ? baseFilter.excludedKeywords.join(',') : "");
-        // 폼과 서버가 달라진 상태다 — 저장을 눌러야 반영된다는 뜻
-        setDirty(true);
-        setBlacklistDirty(true);
+        updateFilter({
+            ...toValues(v, filterValuesFrom(baseFilter as any)),
+            ...quadShapeFrom(baseFilter as any),
+            excludedRegions: baseFilter.excludedRegions ?? [],
+            excludedKeywords: baseFilter.excludedKeywords ?? [],
+        });
     };
 
     // 귀가콜 소켓 이벤트 리스너
@@ -355,17 +406,19 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
     }
 
     /**
-     * @param saveAsDefault **"앞으로 계속"** — 평소 설정까지 바꾼다. 기본은 오늘만이다.
+     * 💾 **서버 저장 — 지금 메모리에 있는 것을 DB 에 박는다** (이식 C4-10 · 2026-09-12).
      *
-     * 기사님이 이 화면의 의도를 이렇게 설명하셨다:
-     *   *"디폴트 값을 저장해 두고 … 오늘 콜이 많이 나올 만한 곳으로 필터를 바꾸고,
-     *     복귀콜이나 그런 것 하면 그 값으로 돌아오게 하려는 의도였다."*
+     * ⚠️ 예전엔 저장이 **셋**이었다 (`🔄 평소값` / `🟢 오늘만` / `📌 계속`).
+     *    기사님: *"오늘만, 계속, 평소값 **이것이 말이 안 되는것 같다**."* — 맞는 말이었다.
+     *    「오늘만」은 이미 **닫기만 해도** 되는 일이고(메모리), 「평소값」은 저장이 아니라
+     *    **되돌리기**였다. 진짜 저장은 «계속» 하나뿐이었다.
      *
-     * 의도대로 만들어져 있었는데 **화면이 그 구분을 안 보여줬다.**
-     * 그래서 "왜 내일 또 원래대로냐"를 알 수 없었다.
+     * 🔴 그래서 여기는 **언제나 `saveAsDefault = true`** 다 — 메모리와 DB 를 한 번에 맞춘다.
+     *    확인창을 안 띄운다: 되돌릴 길(`↩︎ 되돌리기`)이 **옆 칸에** 있다.
      */
-    const handleSave = (saveAsDefault = false) => {
-        logRoadmapEvent("웹", `필터 저장 (${saveAsDefault ? '앞으로 계속' : '오늘만'}) — ${dirty ? '값 한 벌 변경' : '값 변경 없음'}`);
+    const handleSaveToServer = () => {
+        logRoadmapEvent("웹", `필터 서버 저장 — ${unsaved ? '값 변경 있음' : '값 변경 없음'}`);
+        const saveAsDefault = true;
 
         /**
          * 🔴 **값 다섯은 평면 통로 하나로 간다** (이식 C3-3b · 2026-09-11).
@@ -381,9 +434,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
          * 아니라 파생값이고, 여기서 보내면 서버가 `if (!changes.allowedVehicleTypes)` 에
          * 걸려 자기 계산을 건너뛴다 (2026-08-10 사고).
          */
-        if (dirty) {
-            updateFilter(toValues(cur, filterValuesFrom(filter as any)), saveAsDefault);
-        }
+        updateFilter(toValues(cur, filterValuesFrom(filter as any)), saveAsDefault);
 
         /**
          * 📐 **마름모는 국면 밖 한 벌이라 평면 통로로 간다** (이식 C3-2).
@@ -456,7 +507,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                   * 🔴 **머리줄을 걷었다** (기사님 판단 2026-09-11 — 넷을 짚으시며 *"이것이 필요한건지 판단해"*).
                   *
                   *   · «필터 설정»    요약줄을 눌러 연 것이라 **자명하다**
-                  *   · «오늘 콜 잡기» 아래 저장 버튼 셋(평소값·오늘만·계속)이 **더 정확히** 말한다
+                  *   · «오늘 콜 잡기» 아래 저장 버튼 둘(서버 저장·되돌리기)이 **더 정확히** 말한다
                   *   · «합짐 중»      **요약줄이 이미** «합짐 탐색중»이라고 말한다 — 열면 또 적는 중복
                   *
                   * 🔴 «지금 무엇을 하나»가 사라진 것이 아니다 — 요약줄이 그 일을 한다.
@@ -557,7 +608,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                         setDstSido(v);
                                         /* 🔴 도를 옮기면 시도 그 도의 것으로 따라간다 —
                                            안 그러면 «경기 + 김포시» 같은 짝이 화면에 남는다 */
-                                        setField('destinationCity', citiesOf(v)[0] ?? '');
+                                        pickField('destinationCity', citiesOf(v)[0] ?? '');
                                     }} />
                                 <PickLayer label="시·군·구"
                                     value={cur.destinationCity
@@ -568,7 +619,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                     options={citiesOf(dstSido)}
                                     open={openKnob === 'dstCity'}
                                     onToggle={() => setOpenKnob(o => o === 'dstCity' ? null : 'dstCity')}
-                                    onPick={(v) => setField('destinationCity', v)} />
+                                    onPick={(v) => pickField('destinationCity', v)} />
                                 {/**
                                   * ↩️ **복귀 — 고르는 것은 «집으로 갈지 말지» 하나다**
                                   *    (기사님 확정 2026-09-11: *"우린 집으로 갈건지 말껀지만 있어"* ·
@@ -675,6 +726,8 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                     step: f.step,
                                     dim: !inUse(path),
                                     set: (v: number) => setField(path, String(v)),
+                                    /* 🔴 끄는 동안은 화면만 · **뗄 때** 메모리로 (C4-10) */
+                                    onCommit: (v: number) => pickField(path, String(v)),
                                 };
                             })} />
 
@@ -701,7 +754,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                 onToggle={() => setOpenKnob(o => o === 'discount' ? null : 'discount')}
                                 onPick={(v) => {
                                     const st = CALL_DISCOUNT_STEPS.find(x => x.label === v);
-                                    if (st) setField('callDiscountPct', String(st.value));
+                                    if (st) pickField('callDiscountPct', String(st.value));
                                 }}
                                 foot={
                                     <div className="flex flex-col gap-0.5">
@@ -946,50 +999,34 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
 
                     {/* 콜 잡기 모드 통제 버튼 영역 (1열 5버튼 구조) */}
                     <div className="pt-2">
-                        <div className="grid grid-cols-3 gap-1.5">
-                            {/* 기본 설정 불러오기: DB(baseFilter) 값으로 폼 초기화 */}
+                        <div className="grid grid-cols-2 gap-1.5">
+                            {/* 💾 **서버 저장** — 하나뿐인 저장. 안 누르고 닫으면 «오늘만»이 된다 */}
                             <Button
-                                onClick={handleLoadBaseFilter}
-                                disabled={!baseFilter}
-                                className="h-11 rounded-xl bg-gradient-to-r from-surface-alt to-surface-hover text-text-primary font-black text-[11px] shadow-soft hover:shadow-md transition-all px-1"
-                            >
-                                🔄 평소값
-                            </Button>
-
-                            {/* 메인 액션: 오늘만 이 조건으로 콜 잡기 (자정에 평소 설정으로 복귀) */}
-                            <Button
-                                onClick={() => handleSave(false)}
-                                title="오늘만 이 조건으로 콜을 잡습니다 (자정에 평소 설정으로 돌아갑니다)"
+                                onClick={handleSaveToServer}
+                                title="지금 값을 DB에 저장합니다 (내일 아침에도 이 조건으로 시작)"
                                 className="h-11 relative group overflow-hidden rounded-xl bg-gradient-to-r from-success to-success/70 text-white font-black text-[11px] shadow-[0_0_15px_var(--theme-glow-primary)] hover:shadow-[0_0_20px_var(--theme-glow-primary)] transition-all px-1"
                             >
                                 <span className="relative z-10 drop-shadow-md tracking-wider flex flex-col leading-tight">
-                                    🟢 오늘만
+                                    💾 서버 저장
                                     <span className="text-[8px] font-bold opacity-80">
-                                        {dirty ? '값 변경됨' : '변경 없음'}
+                                        {unsaved ? '서버와 다름' : '서버와 같음'}
                                     </span>
                                 </span>
-                                <div className="absolute inset-0 bg-gradient-to-r from-success/90 to-success/60 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                             </Button>
 
-                            {/* 평소 설정까지 바꾼다 — 되돌아올 기준점 자체를 옮기는 것이라 확인을 받는다 */}
+                            {/* ↩︎ **되돌리기** — 서버에 저장된 값으로. 메모리까지 함께 되돌린다 */}
                             <Button
-                                onClick={() => {
-                                    if (confirm('평소 설정까지 바꿉니다.\n\n앞으로 매일 아침 이 조건으로 시작하고, 복귀콜 뒤에도 여기로 돌아옵니다.\n계속할까요?')) {
-                                        handleSave(true);
-                                    }
-                                }}
-                                title="평소 설정까지 바꿉니다 (내일 아침에도 이 조건으로 시작)"
-                                className="h-11 rounded-xl bg-gradient-to-r from-info-alt to-info-alt/70 text-white font-black text-[11px] shadow-soft hover:shadow-md transition-all px-1"
+                                onClick={handleRevert}
+                                disabled={!baseFilter || !unsaved}
+                                title="서버에 저장된 값으로 되돌립니다"
+                                className="h-11 rounded-xl bg-gradient-to-r from-surface-alt to-surface-hover text-text-primary font-black text-[11px] shadow-soft hover:shadow-md transition-all px-1 disabled:opacity-40"
                             >
-                                📌 계속
+                                ↩︎ 되돌리기
                             </Button>
-
-                            {/* 🚀 출발 → 지도 좌하단 플로팅 · 🏠 귀가콜 → 복귀 탭 안으로 옮겼다.
-                                여기 남는 것은 **저장** 셋뿐이다 (평소값 / 오늘만 / 계속). */}
                         </div>
 
                         <p className="text-[10px] text-text-muted text-center mt-2">
-                            <b>오늘만</b> = 자정에 평소값으로 돌아감 · <b>계속</b> = 평소값까지 변경 · <b>초기화</b> = 톱니바퀴(⚙️) 설정값 불러오기
+                            값을 만지면 <b>바로 적용</b>된다 (앱 메모리) · <b>💾 서버 저장</b>을 눌러야 내일 아침에도 남는다
                         </p>
 
                         {/* 🩺 **모니터 — 지금 앱에 내려가 있는 필터, 원본 그대로** (필터 정의 6장 ·
