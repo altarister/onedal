@@ -205,8 +205,13 @@ try {
         const seg=t.slice(i, i+600); return [...seg.matchAll(/(\\d+)\\s*[①-⑮]\\s*(상차|하차)/g)].map(m=>+m[1])})()`);
     ok('방문 순서 패널의 번호가 1부터 빠짐없이 이어진다',
         Array.isArray(panelSeq) && panelSeq.length > 0 && panelSeq.every((v, i) => v === i + 1), JSON.stringify(panelSeq));
-    const sheetSeq = await js(`(()=>{const bs=[...document.querySelectorAll('button')].filter(b=>/\\d\\d:\\d\\d/.test(b.innerText) && b.querySelectorAll('span').length>=8);
-        return bs.flatMap(b=>[...b.querySelectorAll('span')].map(s=>s.textContent.trim()).filter(x=>/^\\d+$/.test(x)).map(Number))})()`);
+    /**
+     * 🔴 **칸을 «자리»로 집는다 — 글자 모양으로 고르지 않는다.**
+     *    처음엔 «숫자인 칸»을 다 모았더니 ± 의 `0` 이 순번으로 섞여 `[1,0,2]` 가 됐다
+     *    (2026-09-11 실측). 격자는 자리가 곧 이름이므로 **0번·6번 칸**이 순번이다.
+     */
+    const sheetSeq = await js(`(()=>{const bs=[...document.querySelectorAll('button')].filter(b=>b.style.gridTemplateColumns && b.children.length>=11);
+        return bs.flatMap(b=>[0,6].map(i=>b.children[i]?.textContent.trim()).filter(x=>/^\\d+$/.test(x)).map(Number))})()`);
     ok('시트 타이틀의 순번이 방문 순서 패널과 같다',
         Array.isArray(sheetSeq) && sheetSeq.length > 0 && JSON.stringify([...new Set(sheetSeq)].sort((a,b)=>a-b)) === JSON.stringify(panelSeq),
         `시트 ${JSON.stringify(sheetSeq)} ↔ 패널 ${JSON.stringify(panelSeq)}`);

@@ -1708,3 +1708,5 @@ export * from './criteria';
 /** 🏷️ 화면 이름표 — 배차망별로 갈라 둔다 (기사님 설계 2026-09-02) */
 export * from './screenLabels';
 export * from './naviLink';
+/** ⏱️ 밀림 — 한 콜이 앞선 정거장을 몇 분 밀었나, 누가 밀었나 (2026-09-11 실험실에서 올림) */
+export * from './stopImpact';

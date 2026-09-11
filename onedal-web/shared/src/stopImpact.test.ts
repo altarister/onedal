@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { impactOfStop, splitDropImpact } from './labPortMap';
+import { impactOfStop, splitDropImpact } from './stopImpact';
 
 /**
  * 🧾 **누가 이 정거장을 몇 분 밀었나** (기사님 2026-09-09).
