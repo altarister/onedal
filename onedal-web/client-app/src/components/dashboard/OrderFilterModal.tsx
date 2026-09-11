@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
 import { logRoadmapEvent } from "../../lib/roadmapLogger";
 import { NET_RATE_PER_KM, VEHICLE_CAPACITY, TRUCK_CAPACITY_SLOTS, CAPACITY_CONFIDENCE_LABEL,
-         PHASE_KEYS, PHASE_LABEL, PHASE_FIELDS, FILTER_FIELDS, fieldLabel, PHASE_AUTO_SOURCE,
+         PHASE_KEYS, PHASE_FIELDS, FILTER_FIELDS, PHASE_FIELD_LABEL, PHASE_AUTO_SOURCE,
          QUAD_FIELDS, quadShapeFrom,
          sidoList, sggList, dongList, excludedLabel,
          DEFAULT_PHASE_SETTINGS, resolvePhaseKey, reachRadiusKm, CALL_TARGET_LABEL } from "@onedal/shared";
@@ -14,7 +14,6 @@ import { useCityOptions, resolveCity } from "../../lib/cityOptions";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { useJudgmentStore } from "../../stores/judgmentStore";
-import { Badge } from "../ui/badge";
 /* 🎛️ 고르기 칸은 목업과 **같은 부품**이다 (이식 C2-2 · 규칙 ③) */
 import { PickLayer } from "../ui/PickLayer";
 import { KnobGrid } from "../ui/KnobGrid";
@@ -136,7 +135,8 @@ const TARGET_HINT: Record<CallTarget, string> = {
  * 🎚️ **슬라이더로 고치는 값 셋** — 목적지(글자)와 콜할인율(단계 버튼)은 제 UI 가 따로 그린다.
  *    라벨·단위·범위·한 칸은 전부 `FILTER_FIELDS` 에서 온다 (규칙 ③).
  */
-const KNOB_FIELDS: (keyof PhaseSettings)[] = ['pickupRadiusKm', 'detourAllowKm', 'dropoffRadiusKm'];
+/* 🔴 순서도 목업 그대로 — 현위 → 목적 → 라인 (`MapMockup.tsx:3229~3232`) */
+const KNOB_FIELDS: (keyof PhaseSettings)[] = ['pickupRadiusKm', 'dropoffRadiusKm', 'detourAllowKm'];
 
 interface OrderFilterModalProps {
     isOpen: boolean;
@@ -550,49 +550,24 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                 <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] bg-info/10 blur-[100px] rounded-full pointer-events-none" />
                 <div className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] bg-success/10 blur-[100px] rounded-full pointer-events-none" />
 
-                {/* 슬림 머리줄 — 한 줄. 오른쪽 ✕ 가 «한 줄»로 되돌린다 (C4-3) */}
-                <div className="border-b border-info/20 pb-2 relative z-10">
-                    <h2 className="flex items-center gap-2 text-sm font-black">
-                        필터 설정
-                        <Badge variant="outline" className="bg-info/15 text-info border-info/30 text-[10px] font-bold">
-                            오늘 콜 잡기
-                        </Badge>
-                        {/**
-                          * 🔴 **«지금 무엇을 하나»는 남긴다** (기사님 2026-09-09 가 국면을 걷으며
-                          *    남기라고 한 둘 중 하나). 탭이 사라졌으므로 이 배지가 그 자리를 맡는다 —
-                          *    라벨은 `shared` 의 `PHASE_LABEL` 하나에서 온다 (규칙 ③).
-                          */}
-                        <Badge variant="outline" className={`bg-surface-alt/60 border-border text-[10px] font-bold ${TAB_STYLE[tab].text}`}>
-                            {PHASE_LABEL[tab]} 중
-                        </Badge>
-                        {/* 🔴 닫는 길 — 팝업이 없어졌으니 «바깥 누르기»도 없다. 여기가 유일한 문이다 */}
-                        <button type="button" onClick={onClose} title="접기"
-                            className="ml-auto shrink-0 w-7 h-7 rounded-lg text-text-muted hover:bg-surface-hover/60 text-[14px] font-black">
-                            ✕
-                        </button>
-                    </h2>
-                </div>
-
                 {/**
-                  * 🎯 **국면 셋 — 요약줄에서 이사해 왔다** (이식 C4-5 · 2026-09-11).
-                  *    기사님: *"한줄에 열림 하나만 있으면 되."* 요약줄의 펼친 판을 걷으면서
-                  *    그 안에 있던 버튼 셋이 여기로 왔다 — **확인창을 달고**.
-                  *    지금 국면은 눌리지 않는다 (그 자리에 있다는 표시가 곧 버튼 모양이다).
+                  * 🔴 **머리줄을 걷었다** (기사님 판단 2026-09-11 — 넷을 짚으시며 *"이것이 필요한건지 판단해"*).
+                  *
+                  *   · «필터 설정»    요약줄을 눌러 연 것이라 **자명하다**
+                  *   · «오늘 콜 잡기» 아래 저장 버튼 셋(평소값·오늘만·계속)이 **더 정확히** 말한다
+                  *   · «합짐 중»      **요약줄이 이미** «합짐 탐색중»이라고 말한다 — 열면 또 적는 중복
+                  *
+                  * 🔴 «지금 무엇을 하나»가 사라진 것이 아니다 — 요약줄이 그 일을 한다.
+                  *    한 화면에 같은 말이 두 번 있으면 **그게 거짓말이 될 자리**를 만든다 (규칙 ③).
+                  *
+                  * ✕ 만 남겨 **줄을 안 먹게** 띄운다 — 팝업이 아니라 «바깥 누르기»가 없으므로
+                  * 닫는 길은 눈에 보여야 한다.
                   */}
-                <div className="grid grid-cols-3 gap-1 relative z-10">
-                    {TARGETS.map(t => {
-                        const isNow = t === (filter.callTarget ?? 'DEST');
-                        return (
-                            <button key={t} type="button" onClick={() => goPhase(t)} disabled={isNow}
-                                title={isNow ? '지금 이 국면입니다' : `${CALL_TARGET_LABEL[t]} — ${TARGET_HINT[t]}`}
-                                className={`py-2 rounded-lg border text-[12px] font-black transition-all ${isNow
-                                    ? 'border-info/55 bg-info/15 text-info cursor-default'
-                                    : 'border-border bg-surface-alt/40 text-text-muted hover:bg-surface-hover hover:text-text-primary active:scale-95'}`}>
-                                {TARGET_ICON[t]} {TARGET_SHORT[t]}
-                            </button>
-                        );
-                    })}
-                </div>
+                <button type="button" onClick={onClose} title="접기"
+                    className="absolute top-2 right-2 z-30 w-7 h-7 rounded-lg text-text-muted
+                               hover:bg-surface-hover/60 text-[14px] font-black">
+                    ✕
+                </button>
 
                 {/**
                   * 🛣️ **노선 ↔ 🔷 동선 — 지도에서 이사해 왔다**
@@ -662,7 +637,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                           */}
                         <div className="space-y-1">
                             <label className="block text-[10px] font-bold text-text-muted pl-1">
-                                {fieldLabel('first', 'destinationCity')}
+                                {PHASE_FIELD_LABEL.destinationCity}
                                 {inUse.destinationCity !== 'input' && (
                                     <span className="ml-1 font-normal text-text-muted/70">
                                         {/* 🔴 «왜 지금 이 칸이 안 쓰이나»를 화면이 말한다.
@@ -671,7 +646,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                     </span>
                                 )}
                             </label>
-                            <div className="relative grid grid-cols-2 gap-1">
+                            <div className="relative grid grid-cols-3 gap-1">
                                 <PickLayer label="🎯 도" value={dstSido || '— 선택 —'}
                                     options={cityGroups.map(g => g.sido)}
                                     open={openKnob === 'dstSido'}
@@ -692,6 +667,31 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                     open={openKnob === 'dstCity'}
                                     onToggle={() => setOpenKnob(o => o === 'dstCity' ? null : 'dstCity')}
                                     onPick={(v) => setField('destinationCity', v)} />
+                                {/**
+                                  * 🧭 **국면 — 목적지와 «같은 뎁스»다** (기사님 확정 2026-09-09:
+                                  *    *"복귀도 목적지와 같은 뎁스니까 목적지 옆에 있는 것이 맞을 것 같아"*).
+                                  *
+                                  * 🔴 **제 줄을 따로 쓰다가 여기로 합쳤다** (2026-09-11). 위에 «🎯 노선»,
+                                  *    아래에 «🛣️ 노선» 이 **두 줄에 같은 말**로 떠서 헷갈렸다 —
+                                  *    하나는 «어디로 가나»(국면), 하나는 «어떻게 볼까»(그물 모양)인데.
+                                  *    국면은 «어디로»라서 목적지 줄이 제자리다.
+                                  *
+                                  * 🔴 **확인창은 그대로다** (기사님 2026-08-14: *"버튼을 누르게 하고
+                                  *    알럿창으로 확인받는 것이 안전할 듯하다"*). 막으려 하신 것은
+                                  *    «쉽게 바뀌는 것»이지 «버튼이 아닌 것»이 아니다.
+                                  */}
+                                <PickLayer label="🧭 국면"
+                                    value={`${TARGET_ICON[filter.callTarget ?? 'DEST']} ${CALL_TARGET_LABEL[filter.callTarget ?? 'DEST']}`}
+                                    options={TARGETS.map(t => `${TARGET_ICON[t]} ${TARGET_SHORT[t]}`)}
+                                    open={openKnob === 'target'}
+                                    onToggle={() => setOpenKnob(o => o === 'target' ? null : 'target')}
+                                    onPick={(v) => {
+                                        const t = TARGETS.find(x => v.endsWith(TARGET_SHORT[x]));
+                                        if (t) goPhase(t);
+                                    }}
+                                    foot={<span className="text-[9.5px] font-bold text-text-muted leading-snug">
+                                        {TARGET_HINT[filter.callTarget ?? 'DEST']} · 바꾸면 확인창이 뜹니다
+                                    </span>} />
                             </div>
                         </div>
 
@@ -700,10 +700,14 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                             화면이 "이 국면의 값" 이라고 잘못 말한다. 아침(C3-1)에 탭 안에 뒀다가
                             합짐 행에 손 안 댄 110° 가 앉는 것을 실측하고 옮겼다.
                             라벨·단위·범위는 `QUAD_FIELDS` 한 곳에서 온다 (규칙 ③). */}
-                        <div className="relative z-10 rounded-lg border border-border bg-surface-alt/30 p-2 space-y-1.5">
-                            <div className="flex items-baseline justify-between">
+                        {/* 🔴 **테두리 박스를 벗겼다** (C4-7) — 목업은 3칸 격자가 죽 이어진다.
+                            박스를 겹겹이 두르면 폰에서 그 선들이 자리를 먹는다
+                            (기사님: *"작은 면적에 필요한 것만 잘 디스플레이하고 싶다"*).
+                            머리글 한 줄은 남긴다 — «이게 지도에 바로 보인다»는 말이 필요하다 */}
+                        <div className="relative z-10 space-y-1">
+                            <div className="flex items-baseline justify-between px-0.5">
                                 <span className="text-[10px] font-black text-text-primary">📐 그물의 모양</span>
-                                <span className="text-[9px] text-text-muted">국면과 무관 · 지도에 바로 보입니다</span>
+                                <span className="text-[9px] text-text-muted">지도에 바로 보입니다</span>
                             </div>
                             {/**
                               * 🎚️ **숫자판이 아니라 슬라이더 레이어다** (이식 C4-1 · 2026-09-11).
@@ -741,7 +745,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                 const f = FILTER_FIELDS.find(x => x.path === path)!;
                                 return {
                                     key: path,
-                                    label: fieldLabel(tab, path),
+                                    label: PHASE_FIELD_LABEL[path],
                                     unit: f.unit,
                                     value: Number(cur[path] ?? 0),
                                     min: f.min,
@@ -839,11 +843,14 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                           * 🔴 **💾 를 눌러야 저장 대상이 된다** — 칩 하나 잘못 눌러 그 지역이
                           *    곧장 살아나면 안 된다.
                           */}
-                        <div className="relative z-20 rounded-lg border border-danger/25 bg-surface-alt/30 p-2 space-y-1.5">
-                            <div className="flex items-baseline justify-between">
+                        {/* 🔴 **박스 대신 구분선 하나** — 목업 그대로 (`MapMockup.tsx:3288`).
+                            «여기서부터는 빼는 것»이 선 하나로 충분히 갈린다 */}
+                        <div className="relative z-20 border-t border-border-card pt-2 space-y-1">
+                            <div className="flex items-baseline justify-between px-0.5">
                                 <span className="text-[10px] font-black text-danger">🚫 제외 지역</span>
+                                {/* 🔴 «국면과 무관»을 뺐다 (C4-7) — 국면이 없어졌으니 낡은 말이다 */}
                                 <span className="text-[9px] text-text-muted">
-                                    {exDraft.length ? `${exDraft.length}곳` : '없음'} · 국면과 무관
+                                    {exDraft.length ? `${exDraft.length}곳 제외` : '없음'}
                                 </span>
                             </div>
                             <div className="relative grid grid-cols-3 gap-1">
@@ -890,17 +897,18 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
 
                     </div>
 
-                    {/* ── 국면 설정 — **무엇을 보여줄지는 PHASE_FIELDS 가 정한다** (§2-4) ──
-                        다섯 탭이 같은 5개 키를 갖고, 탭마다 표시만 다르다.
-                        기사님: *"모든 탭마다 키를 가지고 있고 탭마다 디스플레이만 달리해서 숨기고 노출."*
-                        🔴 여기에 탭별 if 를 다시 쓰지 말 것 — 표가 유일한 원천이다 */}
-                    <div className={`bg-surface/60 backdrop-blur-md p-3 rounded-xl border ${TAB_STYLE[tab].box} shadow-lg space-y-2.5`}>
+                    {/**
+                      * 💬 **설명 줄들** — 손잡이는 전부 위로 갔고 여기 남은 것은 «무슨 뜻인가»다.
+                      *
+                      * 🔴 **테두리 박스를 벗겼다** (C4-7). 반경 칸이 위 3칸으로 옮겨 간 뒤
+                      *    이 박스는 **설명만 담은 빈 상자**가 됐다 — 목업에는 이런 상자가 없다.
+                      * 🔴 **제목은 «지금 무엇을 하나»를 말한다** (기사님이 국면을 걷으며 남기라 하신 둘 중 하나).
+                      *    고르는 탭이 아니라 **지금 국면**을 따라간다.
+                      */}
+                    <div className="space-y-1.5 px-0.5">
                         <div className="flex items-start justify-between gap-2">
-                            <span className={`text-[12px] font-black ${TAB_STYLE[tab].text}`}>{SECTION[tab].title}</span>
-                            <span className="text-[10px] text-text-muted/70 text-right leading-tight">
-                                {SECTION[tab].hint}
-                                {tab !== activePhase && <><br /><span className="text-[9px]">이 국면이 되면 적용됩니다</span></>}
-                            </span>
+                            <span className={`text-[11px] font-black ${TAB_STYLE[tab].text}`}>{SECTION[tab].title}</span>
+                            <span className="text-[10px] text-text-muted/70 text-right leading-tight">{SECTION[tab].hint}</span>
                         </div>
 
                         {/* ⏱️ 시간 축 예고 (필터 확정안 v2 구현 4 — 계측 단계).

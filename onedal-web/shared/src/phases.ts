@@ -141,32 +141,25 @@ export const PHASE_FIELDS: Record<PhaseKey, Record<keyof PhaseSettings, FieldMod
  * *"목업에 만들어둔 명칭도 그대로 사용해"*).
  */
 export const PHASE_FIELD_LABEL: Record<keyof PhaseSettings, string> = {
-    destinationCity: '도착 목표',
-    pickupRadiusKm: '상차 반경',
+    destinationCity: '목적지',
+    pickupRadiusKm: '현위반경',
     detourAllowKm: '라인반경',
-    dropoffRadiusKm: '하차지 주변',
+    dropoffRadiusKm: '목적반경',
     discountPct: '콜할인율',
 };
 
 /**
- * 🔴 **같은 칸이라도 국면마다 부르는 이름이 다르다.**
+ * 🔴 **국면별 별칭표를 걷었다** (이식 C4-7 · 2026-09-11).
  *
- * 목업을 그대로 읽으면 이렇다 — 첫짐의 하차지 반경은 *"도착 반경"*, 합짐에서는
- * *"하차지 주변"* 이다. 같은 숫자지만 기사님이 그 국면에서 실제로 쓰는 말이 다르다.
- * 억지로 한 이름으로 통일하면 둘 중 한 국면에서는 어색한 말이 된다.
+ * 여기 `PHASE_FIELD_LABEL_OVERRIDE` 가 있었다 — 첫짐에서만 «도착 반경», 나머지는
+ * «하차지 주변» 으로 부르던 표다. **값이 다섯 벌이던 때는 말이 됐다.**
+ * 🔴 값이 한 벌이 된 뒤로는(C3-3a) **같은 숫자를 상황마다 다르게 부르는 것**이 되어
+ *    화면이 거짓말을 한다. 같은 값은 이름도 하나다 (규칙 ③).
+ *    함께 있던 `fieldLabel(phase, key)` 도 할 일이 없어져 지웠다 — 이제 `PHASE_FIELD_LABEL[key]` 다.
  *
- * 여기 없는 칸은 위 `PHASE_FIELD_LABEL` 을 쓴다. **표는 여전히 한 곳뿐이다.**
+ * ⚠️ 이름 자체는 **목업 것**으로 맞췄다 (기사님 2026-08-14: *"목업에 만들어둔 명칭도
+ *    그대로 사용해"*): 상차 반경 → **현위반경** · 하차지 주변 → **목적반경** · 도착 목표 → **목적지**.
  */
-export const PHASE_FIELD_LABEL_OVERRIDE: Partial<Record<PhaseKey, Partial<Record<keyof PhaseSettings, string>>>> = {
-    first: { destinationCity: '도착 목표', dropoffRadiusKm: '도착 반경' },
-    local: { destinationCity: '기준 지역' },
-    home:  { destinationCity: '집 주소' },
-};
-
-/** 그 국면에서 이 칸을 뭐라고 부르는가 */
-export function fieldLabel(phase: PhaseKey, key: keyof PhaseSettings): string {
-    return PHASE_FIELD_LABEL_OVERRIDE[phase]?.[key] ?? PHASE_FIELD_LABEL[key];
-}
 
 /** `auto` 필드가 **무엇에서** 나오는지 — 화면이 "왜 못 고치는지" 말할 수 있어야 한다 */
 export const PHASE_AUTO_SOURCE: Record<PhaseKey, string> = {

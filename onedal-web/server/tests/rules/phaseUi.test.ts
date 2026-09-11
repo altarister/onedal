@@ -60,11 +60,29 @@ describe('국면별 설정 — 화면은 표를 읽는다', () => {
      * 🔴 **«지금 무엇을 하나»는 남는다** (기사님 2026-09-09 가 남기라고 한 둘 중 하나).
      *    탭이 사라진 것은 «값이 국면마다 다르다»이지 «지금 뭘 하는지 몰라도 된다»가 아니다.
      */
-    it('🔴 «지금 무엇을 하나»는 배지로 남는다 — 라벨은 shared 에서 온다', () => {
-        expect(modal).toMatch(/PHASE_LABEL\[/);
-        expect(modal).toMatch(/resolvePhaseKey\(/);
-        // 다섯 국면을 손으로 나열한 배열이 남아 있지 않다
+    /**
+     * 🔴 **늘 참인 말은 화면에 안 적는다** (기사님 판단 2026-09-11: 머리줄 넷을 짚으시며
+     *    *"이것이 필요한건지 판단해"*).
+     *
+     *   · «필터 설정»    요약줄을 눌러 연 것이라 **자명하다**
+     *   · «오늘 콜 잡기» 아래 저장 버튼 셋(평소값·오늘만·계속)이 **더 정확히** 말한다
+     *   · «합짐 중»      **요약줄이 이미** «합짐 탐색중»이라고 말한다 — 열면 또 적는 중복
+     *
+     * 🔴 «지금 무엇을 하나»가 사라진 것이 아니다 — **요약줄이 그 일을 한다.**
+     *    한 화면에 같은 말이 두 번 있으면 그게 거짓말이 될 자리를 만든다 (규칙 ③).
+     */
+    it('🔴 머리줄에 늘 참인 말이 없다 (요약줄이 이미 말한다)', () => {
+        expect(modal).not.toMatch(/필터 설정/);
+        expect(modal).not.toMatch(/오늘 콜 잡기/);
+        expect(modal).not.toMatch(/\{PHASE_LABEL\[tab\]\} 중/);
+        // 다섯 국면을 손으로 나열한 배열도 없다
         expect(modal).not.toMatch(/key:\s*'first',\s*label:/);
+    });
+
+    /** 🔴 닫는 길은 남는다 — 팝업이 아니라 «바깥 누르기»가 없다 */
+    it('🔴 닫는 ✕ 가 남아 있다', () => {
+        expect(modal).toMatch(/onClick=\{onClose\}/);
+        expect(modal).toMatch(/✕/);
     });
 
     /** 🔴 폼이 하나다 — 국면마다 따로 두면 그것이 곧 다섯 벌이다 */
@@ -390,6 +408,42 @@ describe('목적지 — 도 · 시 2단 (C4-2)', () => {
 });
 
 /**
+ * 🏷️ **이름도 목업 것으로, 그리고 한 벌로** (이식 C4-7 · 2026-09-11).
+ *
+ * 기사님 2026-08-14: *"**목업에 만들어둔 명칭도 그대로 사용해.**"*
+ * 그런데 반경 두 칸이 아직 실물 이름이었다 — 목업은 «현위반경 · 목적반경»인데
+ * 실물은 «상차 반경 · 하차지 주변»이라, **같은 손잡이를 두 화면이 다르게 부른다.**
+ *
+ * 🔴 **이름이 국면마다 달랐던 것도 걷는다.** `PHASE_FIELD_LABEL_OVERRIDE` 는 첫짐에서만
+ *    «도착 반경», 나머지는 «하차지 주변» 으로 부르던 표다. 값이 다섯 벌이던 때는 말이 됐다 —
+ *    **지금은 값이 한 벌인데 이름만 다섯이면 화면이 상황마다 다른 말을 한다** (C3-3a 이후).
+ *    같은 숫자를 가리키는 말은 하나여야 한다 (규칙 ③).
+ */
+describe('손잡이 이름 — 목업 것으로 한 벌 (C4-7)', () => {
+
+    const { PHASE_FIELD_LABEL, QUAD_FIELDS } = require("@onedal/shared");
+
+    it('🔴 반경 이름이 목업 그대로다 — 현위반경 · 목적반경 · 라인반경', () => {
+        expect(PHASE_FIELD_LABEL.pickupRadiusKm).toBe('현위반경');
+        expect(PHASE_FIELD_LABEL.dropoffRadiusKm).toBe('목적반경');
+        expect(PHASE_FIELD_LABEL.detourAllowKm).toBe('라인반경');
+        expect(QUAD_FIELDS.find((f: any) => f.path === 'quadRadiusKm').label).toBe('마름모반경');
+    });
+
+    it('🔴 목적지도 목업 이름이다', () => {
+        expect(PHASE_FIELD_LABEL.destinationCity).toBe('목적지');
+    });
+
+    /** 🔴 값이 한 벌이면 이름도 한 벌이다 — 국면별 별칭표가 남아 있지 않다 */
+    it('🔴 국면마다 다른 이름이 없다 (값이 한 벌인데 이름이 다섯이면 거짓말)', () => {
+        const shared = require("@onedal/shared");
+        expect(shared.PHASE_FIELD_LABEL_OVERRIDE).toBeUndefined();
+        expect(shared.fieldLabel).toBeUndefined();
+        expect(modal).not.toMatch(/fieldLabel\(/);
+    });
+});
+
+/**
  * 🗂️ **디자인을 목업처럼 — 순서와 3칸 격자** (이식 C4-6 · 2026-09-11).
  *
  * 기사님 지시 2026-09-11: *"**디자인은 목업처럼 해주면 되고**"* (목업 왼쪽 패널 스크린샷과 함께).
@@ -458,7 +512,13 @@ describe('필터 디자인 — 목업 순서 (C4-6)', () => {
      */
     it('🔴 순서가 목업 그대로다 — 목적지 → 그물 → 반경 → 값 → 제외지역', () => {
         const at = (re: RegExp) => { const m = modal.match(re); return m ? modal.indexOf(m[0]) : -1; };
-        const 국면 = at(/TARGETS\.map/);
+        /**
+         * 🔴 **국면은 목적지 줄 «안»으로 들어갔다** (기사님 판단 2026-09-11).
+         *    전에는 제 줄을 따로 썼는데 «🎯 노선»과 «🛣️ 노선»이 **두 줄에 같은 말**로 떠서
+         *    헷갈렸다 — 하나는 «어디로 가나», 하나는 «어떻게 볼까»인데.
+         *    기사님이 목업에서 정하신 자리가 그 답이다: *"복귀도 목적지와 같은 뎁스"*.
+         */
+        const 국면 = at(/<PickLayer label="🧭 국면"/);
         const 노선동선 = at(/🛣️ 노선/);
         const 목적지 = at(/<PickLayer label="🎯 도"/);
         /* 🔴 `QUAD_FIELDS.map` 은 폼 초기화에도 나온다 — **그리는 쪽**을 집는다 */
@@ -469,7 +529,8 @@ describe('필터 디자인 — 목업 순서 (C4-6)', () => {
         for (const [name, v] of Object.entries({ 국면, 노선동선, 목적지, 그물, 반경, 값, 제외지역 })) {
             expect(`${name}: ${v >= 0 ? '있다' : '없다'}`).toBe(`${name}: 있다`);
         }
-        const order = [국면, 노선동선, 목적지, 그물, 반경, 값, 제외지역];
+        // 국면은 목적지 줄 «안»이라 목적지 다음이다
+        const order = [노선동선, 목적지, 국면, 그물, 반경, 값, 제외지역];
         expect(order.join(' < ')).toBe([...order].sort((a, b) => a - b).join(' < '));
     });
 });
@@ -557,7 +618,11 @@ describe('국면 전환 — 입구는 하나, 확인창을 거친다', () => {
      *   ② 전환 버튼이 `onClose()` 를 불러 **저장 안 한 값을 조용히 버렸다**
      * 둘 다 «팝업이라서»가 아니라 «확인이 없고, 값을 버려서» 나쁜 것이다. 그걸 직접 잠근다.
      */
-    it('🔴 국면 전환에는 확인창이 있다 (기사님 확정: 버튼 + 알럿)', () => {
+    /**
+     * ⚠️ **모양이 버튼 셋에서 «고르기 칸 하나»로 바뀌었다** (2026-09-11) — 확인창은 그대로다.
+     *    기사님 2026-08-14 가 막으려 하신 것은 «쉽게 바뀌는 것»이지 «버튼이 아닌 것»이 아니다.
+     */
+    it('🔴 국면 전환에는 확인창이 있다 (기사님 확정: 알럿으로 확인)', () => {
         const go = modal.slice(modal.indexOf('const goPhase'), modal.indexOf('const goPhase') + 900);
         expect(go).toMatch(/confirm\(/);
         expect(go).toMatch(/set-call-target/);
