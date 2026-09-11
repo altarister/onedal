@@ -208,6 +208,31 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
      *    다음 그림에서 코드가 도로 끌어가면 «내 손이 안 먹는다»가 된다.
      */
     const [viewMode, setViewMode] = React.useState<MapViewMode>('all');
+    /**
+     * 🧅 **레이어 — 무엇을 보고 무엇을 덮을까** (이식 B4 · 2026-09-11 · 지도 실험실에서).
+     *
+     * ⚠️ **다섯이다 — 실험실은 여섯**이었다. 여섯째 «시험콜»은 *지도를 눌러 만든 콜*이라
+     *    실물에 대응이 없다 (콜은 배차망이 준다). 없는 것을 토글로 두면 눌러도 아무 일이 없다.
+     *
+     * 🔴 **한 버튼 뒤에 접어 둔다** — 이 레포가 이미 쓴 문법이다 (`a41edca` 폰 줄: *"모드를 하나로 —
+     *    누르면 셋이 펼쳐진다"*). 운전 중에는 입력을 못 하므로(실측: 안전취소 24건) 버튼 여섯이
+     *    늘 떠 있으면 지도만 좁아진다. 한 번 정해 두고 접는 값이다.
+     * 🔴 **고른 것은 기억한다** — 그물을 껐는데 다음에 켜져 있으면 또 끈다.
+     *    브라우저에만 남는 편의값이라 못 읽어도 그만이다 (읽기·쓰기 전부 try).
+     */
+    const [layers, setLayers] = React.useState<Record<string, boolean>>(() => {
+        const defaults = { base: true, border: true, net: true, route: true, trail: true };
+        try {
+            const v = localStorage.getItem('mapLayers');
+            return v ? { ...defaults, ...JSON.parse(v) } : defaults;
+        } catch { return defaults; }
+    });
+    const [layersOpen, setLayersOpen] = React.useState(false);
+    const toggleLayer = (k: string) => setLayers(prev => {
+        const next = { ...prev, [k]: !prev[k] };
+        try { localStorage.setItem('mapLayers', JSON.stringify(next)); } catch { /* 못 적어도 화면은 돈다 */ }
+        return next;
+    });
     const zoomRef = useRef(1);
     const panRef = useRef({ x: 0, y: 0 });
     const isDragging = useRef(false);
@@ -316,7 +341,8 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             const tone = mapTileTone(shownZoom, theme === 'dark' ? 0.5 : 0.62);
             if (supportsCanvasFilter(ctx) && tone.filter) ctx.filter = tone.filter;
             ctx.globalAlpha = tone.alpha;
-            readyTiles.forEach(t => ctx.drawImage(t.img, t.cx, t.cy, t.size + 1, t.size + 1));
+            // 🧅 «배경» 레이어 — 끄면 타일만 빠지고 경계·경로는 남는다
+            if (layers.base) readyTiles.forEach(t => ctx.drawImage(t.img, t.cx, t.cy, t.size + 1, t.size + 1));
             ctx.restore();
             if (theme === 'dark') {
                 ctx.fillStyle = 'rgba(10, 14, 22, 0.35)';   // 어두운 테마에서 한 겹 더 눌러 준다
@@ -371,7 +397,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
          *    처음엔 «확대하면 타일에 경계가 나오니 물러나자» 고 만들었는데 — **틀렸다.**
          *    이 타일에는 행정 경계가 없다. 물러나면 그냥 사라진다.
          */
-        if (readyTiles.length > 0 && sidoData.features) {
+        if (layers.border && readyTiles.length > 0 && sidoData.features) {   // 🧅 «경계» 레이어
             ctx.save();
             ctx.strokeStyle = withAlpha(mapColors.sidoStroke, 0.55);
             ctx.lineWidth = 1;
@@ -403,7 +429,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
          *    더 진해져서 «여기가 더 안쪽»처럼 읽힌다. 실험실이 오프스크린 화포를 쓴 이유가 그것이다.
          *    여기서는 같은 일을 `globalAlpha` 한 번으로 한다 — 한 path 에 모아 한 번 칠한다.
          */
-        if (netOverlay) {
+        if (layers.net && netOverlay) {   // 🧅 «그물» 레이어
             ctx.save();
             const NET_SOLID = '#2563eb', NET_EDGE = 'rgba(37,99,235,.85)';
             /** 📏 km → px — 이 화면에서 1km 가 몇 픽셀인가 (줌이 바뀌면 같이 바뀐다) */
@@ -650,7 +676,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
          *    색이 밀려 그려지는 것보다 한 색이 낫다 (규칙 ④: 지어내지 않는다).
          * ⚠️ 미리보기(결재 전)는 **노란 점선 한 색**을 지킨다 — «아직 내 콜이 아니다»가 색의 뜻이다.
          */
-        if (hasPolyline && validPolyline.length > 0) {
+        if (layers.route && hasPolyline && validPolyline.length > 0) {   // 🧅 «경로» 레이어
             const secStops = routeHolder?.sectionStops;
             const secLines = isPreviewRoute ? [] : sectionLinesOf(validPolyline, routeHolder?.sectionEnds);
             const canPaintPerSection = !!callColors && !!secStops
@@ -669,7 +695,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         }
 
         // ② 위 — 내가 «실제로 간 길». 얇고 밝다. 파란 길 밖으로 나가면 그게 이탈이다
-        if (driven.length > 1) {
+        if (layers.trail && driven.length > 1) {   // 🧅 «동선» 레이어
             ctx.strokeStyle = mapColors.drivenLine;
             drawPath(driven, 0.55);
         }
@@ -792,7 +818,7 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             ctx.fillStyle = withAlpha(mapColors.textMuted, 0.7);
             ctx.fillText('© OpenStreetMap', width - 4, height - 3);
         }
-    }, [unifiedRoutePoints, liveRoute, myLocation, visitedTrail, drivenTrail, routeHolder, coneOverlay, theme, mapColors, occludedPx, rainbowNodes, viewMode]);
+    }, [unifiedRoutePoints, liveRoute, myLocation, visitedTrail, drivenTrail, routeHolder, coneOverlay, netOverlay, layers, callColors, theme, mapColors, occludedPx, rainbowNodes, viewMode]);
 
     useEffect(() => {
         drawRef.current = drawMap;   // 늦게 온 타일이 부를 최신 그리기
@@ -963,6 +989,42 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
                         {label}
                     </button>
                 ))}
+            </div>
+
+            {/**
+              * 🧅 **레이어 — 한 버튼 뒤에 접어 둔다** (이식 B4 · 2026-09-11).
+              *
+              * 🔴 여섯을 늘 띄우면 400px 화면에서 지도가 그만큼 좁아진다. 그리고
+              *    **운전 중에는 입력을 못 한다**(실측: 안전취소 24건) — 한 번 정하고 접는 값이다.
+              *    이 레포가 이미 쓴 문법이다 (`a41edca` 폰 줄: *"모드를 하나로 — 누르면 셋이 펼쳐진다"*).
+              * 🔴 자리는 **좌상단** — «무엇에 맞출까»(전체·현구간·현위치) 바로 아래다.
+              *    보는 방식을 정하는 것끼리 모인다 (기사님 0904: *자리가 뜻을 나누면 손이 기억한다*).
+              */}
+            <div className="absolute top-[52px] left-3 flex flex-col items-start gap-1.5 z-10">
+                <button
+                    onClick={() => setLayersOpen(o => !o)}
+                    title="지도에 무엇을 그릴까"
+                    className={`h-8 px-2.5 flex items-center justify-center bg-surface-alt/80 hover:bg-surface-hover rounded-md shadow-lg backdrop-blur-sm text-[11px] font-black transition-all ${
+                        layersOpen ? 'border border-info text-info' : 'border border-border text-text-primary opacity-80 hover:opacity-100'
+                    }`}
+                >
+                    🧅 {Object.values(layers).filter(Boolean).length}/{Object.keys(layers).length}
+                </button>
+                {layersOpen && (
+                    <div className="flex flex-col gap-1">
+                        {([['base', '배경'], ['border', '경계'], ['net', '그물'], ['route', '경로'], ['trail', '동선']] as [string, string][]).map(([k, label]) => (
+                            <button
+                                key={k}
+                                onClick={() => toggleLayer(k)}
+                                className={`h-7 px-2 flex items-center gap-1 bg-surface-alt/80 hover:bg-surface-hover rounded-md shadow-lg backdrop-blur-sm text-[11px] font-black transition-all ${
+                                    layers[k] ? 'border border-info text-info' : 'border border-border text-text-muted opacity-70'
+                                }`}
+                            >
+                                {layers[k] ? '👁' : '🚫'} {label}
+                            </button>
+                        ))}
+                    </div>
+                )}
             </div>
 
             <div className="absolute top-3 right-3 flex flex-col space-y-2 z-10">
