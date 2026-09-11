@@ -18,7 +18,7 @@ import { OrderRepository } from "../repositories/OrderRepository";
 import { SettingsRepository } from "../repositories/SettingsRepository";
 import { getUserSession } from "./userSessionStore";
 import type { AutoDispatchFilter, FlatValueKey } from "@onedal/shared";
-import { DEFAULT_DETOUR_RADIUS_KM, isDeliveredCall, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, FILTER_FIELDS, filterValuesFrom, QUAD_FIELDS, quadShapeFrom, pruneExcludedRegions, netForGoal, cityCenter, autoRadii, radiusScaleOf, RADIUS_BASE_KM_DEFAULT,
+import { DEFAULT_DETOUR_RADIUS_KM, isDeliveredCall, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, FILTER_FIELDS, filterValuesFrom, QUAD_FIELDS, quadShapeFrom, pruneExcludedRegions, netForGoal, cityCenter, autoRadii, RADIUS_BASE_KM_DEFAULT,
          EVALUATING_STATUSES, isLocalPhase } from "@onedal/shared";
 import type { } from "@onedal/shared";
 
@@ -146,9 +146,8 @@ function netKeywordsOf(
      *    🔴 기사님이 정한 원값(`pickupRadiusKm` 등)은 **안 건드린다** (규칙 ④) —
      *       배율만 따로 실어 보내고 곱하는 것은 화면이 한다.
      */
-    session.activeFilter.radiusScale = auto
-        ? radiusScaleOf(distanceKm, session.activeFilter.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT)
-        : undefined;
+    /* 배율이 아니라 **거리**를 싣는다 — 셈은 `effectiveRadii` 한 곳 (전수 조사 2단계). 자동·수동 무관 */
+    session.activeFilter.radiusDistanceKm = Number.isFinite(distanceKm as number) ? (distanceKm as number) : undefined;
     /* 🔴 그물이 아무것도 못 담으면 그것도 «고장»이다 — 물러선다 */
     if (!net.pass.length) return fallback();
 
@@ -270,6 +269,16 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
               안 넣었다가 실측에서 «자동을 눌렀는데 164동 그대로»가 났다 (규칙 ⑤-4 ④). */
         'radiusAuto' in changes ||
         'radiusBaseKm' in changes ||
+        /**
+         * 🕸️ **그물의 재료 넷** (2026-09-12 전수 조사 ①-3). `netKeywordsOf` 가 실제로 읽는
+         *    입력인데 여기 없어서 **바꾸고 💾 해도 `destinationKeywords` 가 옛값**이었다 —
+         *    지도(클라)만 바뀌어 «지도는 든다는데 앱은 안 잡는다». 라인반경은 합짐 전용
+         *    `refreshDetourIfNeeded` 가 따로 건진다.
+         */
+        'pickupRadiusKm' in changes ||
+        'srcAngleDeg' in changes ||
+        'dstAngleDeg' in changes ||
+        'quadRadiusKm' in changes ||
         (!session.activeFilter.destinationKeywords || session.activeFilter.destinationKeywords.length === 0);
 
     if (changes.destinationKeywords) {

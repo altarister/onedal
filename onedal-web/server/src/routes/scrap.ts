@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { callFilterBlocker, isTargetApp, DEFAULT_TARGET_APP, APP_FILTER_KEYS } from "@onedal/shared";
+import { callFilterBlocker, isTargetApp, DEFAULT_TARGET_APP, APP_FILTER_KEYS, effectiveRadii } from "@onedal/shared";
 import type { SimplifiedOfficeOrder, ScreenContextType, TargetAppType } from "@onedal/shared";
 import db from "../db";
 import { capacityFullHold, filterVersionOf } from "../core/helpers";
@@ -191,6 +191,17 @@ router.post("/", (req, res) => {
         const src = session.activeFilter as unknown as Record<string, unknown>;
         const appFilter: Record<string, unknown> = {};
         for (const k of APP_FILTER_KEYS) if (src[k] !== undefined) appFilter[k] = src[k];
+        /**
+         * 📐 **앱에는 «지금 실제로 쓰이는» 반경이 간다** (2026-09-12 전수 조사 ①-4).
+         *    원값을 그대로 복사하니 자동 ON·배율 0.4 면 **서버 그물 6.2km · 지도 6.2km · 앱 15km**
+         *    — 세 벌이었다. 앱은 `pickupRadiusKm` 으로 실제로 거른다(`Hwamul24Parser.kt`).
+         *    셈은 서버·지도·필터 화면이 부르는 **그 함수**다 (규칙 ③).
+         */
+        {
+            const eff = effectiveRadii(session.activeFilter);
+            appFilter.pickupRadiusKm = eff.pickupRadiusKm;
+            appFilter.destinationRadiusKm = eff.destinationRadiusKm;
+        }
 
         // 🧭 경로 순서 맵 — 앱의 역주행·경로 밖 상차 차단 입력 (기사님 확정 2026-08-18)
         //    첫짐(경로 없음)이면 빈 객체라 앱이 순서 검사를 건너뛴다. +2.7KB (동 211개 기준)

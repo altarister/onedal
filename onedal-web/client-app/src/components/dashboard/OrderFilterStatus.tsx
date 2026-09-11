@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useFilterStore } from '../../stores/filterStore';
 import { useFilterConfig } from "../../hooks/useFilterConfig";
-import { CALL_TARGET_LABEL } from "@onedal/shared";
+import { CALL_TARGET_LABEL, effectiveRadii } from "@onedal/shared";
 import type { CallTarget } from "@onedal/shared";
 
 /**
@@ -118,6 +118,9 @@ export default function OrderFilterStatus({ onOpenFilter, budgetToast }:
         HOME:  { c: '#e8a15c', chipBg: 'rgba(232,161,92,.13)', chipBd: 'rgba(232,161,92,.4)',  on: '#fbe3c8', onBd: 'rgba(232,161,92,.6)',  onGlow: 'rgba(232,161,92,.2)',  region: '귀갓길' },
     };
     const v14 = V14[phase];
+    /* 📐 요약줄도 **줄인 반경**을 적는다 — 원값을 적으면 지도·서버와 다른 말을 한다 (조사 ①-4) */
+    const radii = effectiveRadii(filter);
+    const km1 = (n: number) => Math.round(n * 10) / 10;
 
     /**
      * 🎯 **한 줄이 전부다** (기사님 확정 2026-09-11: *"지금은 열림에 열림이 두번이야.
@@ -152,10 +155,10 @@ export default function OrderFilterStatus({ onOpenFilter, budgetToast }:
               *    잘리면 뜻이 사라진다.
               */}
             <span className="flex-1 min-w-0 flex items-baseline gap-1 text-[12.5px] font-bold text-text-muted">
-                <span className="shrink-0">여기서 <b className="text-text-primary">{filter.pickupRadiusKm ?? 0}km</b></span>
+                <span className="shrink-0">여기서 <b className="text-text-primary">{km1(radii.pickupRadiusKm)}km</b></span>
                 <span className="shrink-0 opacity-70">→</span>
                 {/* 🔴 «어디로»는 **도착 도시**다 — `region`(도착목표·관내·귀갓길)은 국면 이름이라 여기선 답이 안 된다 */}
-                <b className="min-w-0 truncate text-text-primary">{filter.destinationCity || v14.region} {filter.destinationRadiusKm ?? 0}km</b>
+                <b className="min-w-0 truncate text-text-primary">{filter.destinationCity || v14.region} {km1(radii.destinationRadiusKm)}km</b>
                 <span className="shrink-0 opacity-40">·</span>
                 {/**
                   * 🧾 **몇 개 동이 걸리나** (기사님 지시 2026-09-11 · 이식 C4-9).

@@ -218,8 +218,9 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
 
     /**
      * 📐 **반경을 거리에 맞춰 자동으로 줄이나** (이식 C4-12 · 2026-09-12).
-     *    배율은 **서버가 재서 실어 보낸다**(`radiusScale`) — 이 화면은 «내 위치 → 목적지»
-     *    거리를 모른다. 못 받았으면 `1`(손대지 않음)이다 — 지어내지 않는다 (규칙 ④).
+     *    거리(`radiusDistanceKm`)는 **서버가 재서 실어 보낸다** — 이 화면은 «내 위치 → 목적지»
+     *    를 모른다. 배율은 `effectiveRadii` 가 그 거리와 기준으로 낸다 — 그래서 기준거리를
+     *    끄는 동안에도 지도가 따라온다. 못 받았으면 손대지 않는다 (규칙 ④).
      */
     const radiusAuto = !!filter?.radiusAuto;
     /** 🔴 **지금 실제로 쓰이는 반경** — 무대 지도가 부르는 **그 함수**다 (규칙 ③) */
@@ -575,7 +576,19 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
      *    그릇을 바꾸지 않는다 — 칩을 눌러도 자유 입력칸을 고쳐도 **같은 한 곳**에 쓴다 (규칙 ③).
      */
     const blacklistWords = blacklist.split(',').map(t => t.trim()).filter(Boolean);
-    const setBlacklistWords = (words: string[]) => { setBlacklist(words.join(', ')); setBlacklistDirty(true); };
+    /* 칩은 한 번뿐이라 **누르는 즉시** 메모리로 (목업과 같다 · 전수 조사 ①-2). `blacklistDirty` 는 💾 용 */
+    const setBlacklistWords = (words: string[]) => {
+        setBlacklist(words.join(', ')); setBlacklistDirty(true);
+        updateFilter({ excludedKeywords: words, userOverrides: true });
+    };
+    /**
+     * 자유 입력칸은 **손을 뗄 때**(blur·Enter) 보낸다 — 글자마다 보내면 「착」「착불」이
+     * 차례로 앱에 내려가 그 사이 콜을 엉뚱하게 거른다.
+     */
+    const commitBlacklist = () => {
+        const words = blacklist.split(',').map(t => t.trim()).filter(Boolean);
+        updateFilter({ excludedKeywords: words, userOverrides: true });
+    };
 
     const handleBlacklistChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         let val = e.target.value;
@@ -819,8 +832,17 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                         max: f.max,
                                         step: f.step,
                                         dim: auto,
+                                        /**
+                                         * 🔴 **끌면 지도가 따라오고, 뗄 때 서버로** — 반경 셋과 같은 규칙 (전수 조사 ①-2).
+                                         *    이 셋만 `set` 이 폼만 바꿔서 «지도에 바로 보입니다»가 거짓이었다.
+                                         *    `quadDirty` 는 💾(DB) 용으로 그대로 든다.
+                                         */
                                         set: auto ? () => {}
-                                            : (v: number) => { setQuadForm(q => ({ ...q, [f.path]: String(v) })); setQuadDirty(true); },
+                                            : (v: number) => { const next = { ...quadForm, [f.path]: String(v) }; setQuadForm(next); setQuadDirty(true); previewFilter(quadShapeFrom(next)); },
+                                        onPreview: auto ? undefined
+                                            : (v: number) => previewFilter(quadShapeFrom({ ...quadForm, [f.path]: String(v) })),
+                                        onCommit: auto ? undefined
+                                            : (v: number) => updateFilter(quadShapeFrom({ ...quadForm, [f.path]: String(v) })),
                                     };
                                 })} />
                         </div>
@@ -1015,6 +1037,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                     <div className="flex flex-col gap-1">
                                         <span className="text-[9.5px] font-bold text-text-muted">목록에 없는 말은 여기에 — 쉼표로 나눕니다</span>
                                         <Input type="text" value={blacklist} onChange={handleBlacklistChange}
+                                            onBlur={commitBlacklist} onKeyDown={e => { if (e.key === 'Enter') commitBlacklist(); }}
                                             placeholder="착불, 수거"
                                             className="h-8 bg-surface-alt/50 border-border text-[12px] text-text-primary font-bold" />
                                     </div>} />

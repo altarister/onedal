@@ -379,7 +379,7 @@ export default function StageView(props: Props) {
                     callColors={derived.callColors}
                     netOverlay={callNet && {
                         tri: callNet.net.tri, pass: callNet.net.pass, circles: callNet.net.circles,
-                        usedLine: callNet.usedLine, lineRadiusKm: filter?.detourRadiusKm ?? 6, goal: callNet.goal,
+                        usedLine: callNet.usedLine, lineRadiusKm: radii.detourRadiusKm /* 줄인 값 — 그린 띠와 실제 그물 폭이 같아야 한다 (조사 ①-5) */, goal: callNet.goal,
                     }}
                     onStopTap={focusCall}
                 >

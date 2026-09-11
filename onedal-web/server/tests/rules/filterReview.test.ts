@@ -137,3 +137,93 @@ describe('1단계 · 기준 거리 칸 (조사 ①-7 · 기사님: "7번 칸을 
         expect(body).toMatch(/updateFilter\(\{ radiusBaseKm/);
     });
 });
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * 2단계 — 즉시 반영을 한 벌로 (조사 ①-2·3·4·5)
+ * ══════════════════════════════════════════════════════════════════════════ */
+describe('2단계 · 배율이 아니라 «거리»를 싣는다 — 화면이 배율을 낸다', () => {
+    /**
+     * 1단계 실측: 기준거리를 끄는 동안 지도가 **안 따라왔다.** 배율(`radiusScale`)을 서버가
+     * 재서 실어 보내니 화면은 기준거리를 바꿔도 배율을 다시 낼 수가 없었다.
+     * 서버는 **재료(마름모 축 길이)** 만 싣고, 배율은 `shared` 한 함수가 어디서든 낸다 (규칙 ③).
+     */
+    const ix = codeOnly(readFileSync(join(__dirname, '../../../shared/src/index.ts'), 'utf8'));
+    const ph = codeOnly(readFileSync(join(__dirname, '../../../shared/src/phases.ts'), 'utf8'));
+    const fm = codeOnly(read('state/filterManager.ts'));
+
+    it('🔴 DTO 는 거리를 싣고 배율은 안 싣는다', () => {
+        expect(ix).toMatch(/radiusDistanceKm\?: number/);
+        expect(ix).not.toMatch(/radiusScale\?: number/);
+    });
+
+    it('🔴 effectiveRadii 가 거리·기준으로 배율을 직접 낸다', () => {
+        const i = ph.indexOf('export function effectiveRadii');
+        /* ⚠️ 매개변수 타입이 `} | null` 로 닫혀 `\n}` 에서 끊긴다 — 다음 함수 선언까지 본다 */
+        const body = ph.slice(i, ph.indexOf('\nexport function', i + 10));
+        expect(body).toMatch(/radiusScaleOf\(/);
+        expect(body).toMatch(/radiusDistanceKm/);
+        expect(body).not.toMatch(/f\.radiusScale/);
+    });
+
+    it('🔴 서버는 거리를 싣는다 — 자동이든 수동이든 (수동→자동 미리보기가 그 자리에서 된다)', () => {
+        expect(fm).toMatch(/session\.activeFilter\.radiusDistanceKm\s*=/);
+        expect(fm).not.toMatch(/session\.activeFilter\.radiusScale\s*=/);
+    });
+});
+
+describe('2단계 · 마름모·제외단어도 만지면 바로 (조사 ①-2)', () => {
+    const modal = readClient('components/dashboard/OrderFilterModal.tsx');
+    const modalCode = codeOnly(modal);
+
+    it('🔴 마름모 셋을 끌면 지도가 따라오고 뗄 때 서버로 간다', () => {
+        const i = modal.indexOf('knobs={QUAD_FIELDS.map(');
+        expect(i).toBeGreaterThan(-1);
+        const body = modal.slice(i, modal.indexOf('})} />', i));
+        expect(body).toMatch(/onPreview:/);
+        expect(body).toMatch(/previewFilter\(quadShapeFrom\(/);
+        expect(body).toMatch(/onCommit:/);
+        expect(body).toMatch(/updateFilter\(quadShapeFrom\(/);
+    });
+
+    it('🔴 제외 단어 칩을 누르면 바로 메모리로 간다', () => {
+        const body = fnBody(modalCode, 'const setBlacklistWords');
+        expect(body === '' ? modalCode.slice(modalCode.indexOf('const setBlacklistWords'), modalCode.indexOf('const setBlacklistWords') + 300) : body)
+            .toMatch(/updateFilter\(\{ excludedKeywords/);
+    });
+
+    it('🔴 자유 입력칸은 **손을 뗄 때**(blur·Enter) 메모리로 — 글자마다 앱에 보내지 않는다', () => {
+        expect(modalCode).toMatch(/const commitBlacklist/);
+        const i = modal.indexOf('label="🚫 제외 단어"');
+        const body = modal.slice(i, i + 2200);
+        expect(body).toMatch(/onBlur=\{commitBlacklist\}/);
+    });
+});
+
+describe('2단계 · 바꾸면 앱 목록도 다시 난다 (조사 ①-3)', () => {
+    const fm = codeOnly(read('state/filterManager.ts'));
+    it('🔴 needsGeoRecalc 에 그물 재료 넷이 있다', () => {
+        const i = fm.indexOf('const needsGeoRecalc');
+        const body = fm.slice(i, fm.indexOf(';', i));
+        for (const k of ['pickupRadiusKm', 'srcAngleDeg', 'dstAngleDeg', 'quadRadiusKm'])
+            expect(body).toMatch(new RegExp(`'${k}' in changes`));
+    });
+});
+
+describe('2단계 · 줄인 반경이 앱·요약줄·지도 띠에 간다 — 세 벌을 한 벌로 (조사 ①-4·5)', () => {
+    it('🔴 앱 피기백이 effectiveRadii 를 싣는다', () => {
+        const sc = codeOnly(read('routes/scrap.ts'));
+        const i = sc.indexOf('for (const k of APP_FILTER_KEYS)');
+        expect(i).toBeGreaterThan(-1);
+        expect(sc.slice(i, i + 700)).toMatch(/effectiveRadii\(/);
+    });
+    it('🔴 요약줄이 effectiveRadii 를 적는다', () => {
+        const st = codeOnly(readClient('components/dashboard/OrderFilterStatus.tsx'));
+        expect(st).toMatch(/effectiveRadii\(/);
+        expect(st).not.toMatch(/filter\.pickupRadiusKm \?\? 0/);
+    });
+    it('🔴 지도 띠 굵기가 줄인 값이다', () => {
+        const sv = codeOnly(readClient('components/stage/StageView.tsx'));
+        expect(sv).toMatch(/lineRadiusKm: radii\.detourRadiusKm/);
+        expect(sv).not.toMatch(/lineRadiusKm: filter\?\.detourRadiusKm/);
+    });
+});

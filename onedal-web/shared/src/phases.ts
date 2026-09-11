@@ -269,8 +269,8 @@ export function radiusScaleOf(
  * 🔴 **여기가 유일한 곳이다** (규칙 ③). 필터 화면·무대 지도·서버가 **전부** 이것을 부른다.
  *    2026-09-12 실측에서 **서버는 줄였는데 지도는 안 줄어** 요약줄이 164동 그대로였다 —
  *    곱하는 코드가 두 곳이 되려는 순간이었다. 그때 이 함수를 만들었다.
- * ⚠️ 배율은 **서버가 재서 실어 보낸다**(`radiusScale`) — 화면은 «내 위치 → 목적지» 거리를
- *    모른다. 못 받았으면 `1`(손대지 않음)이다.
+ * ⚠️ 거리(`radiusDistanceKm`)는 **서버가 재서 실어 보낸다** — 화면은 «내 위치 → 목적지»를
+ *    모른다. 배율은 여기서 `radiusScaleOf` 로 낸다. 거리를 못 받았으면 `1`(손대지 않음).
  */
 export function effectiveRadii(f: {
     pickupRadiusKm?: number | null;
@@ -278,7 +278,8 @@ export function effectiveRadii(f: {
     quadRadiusKm?: number | null;
     detourRadiusKm?: number | null;
     radiusAuto?: boolean;
-    radiusScale?: number;
+    radiusDistanceKm?: number;
+    radiusBaseKm?: number;
 } | null | undefined): RadiusSet {
     const base: RadiusSet = {
         pickupRadiusKm: f?.pickupRadiusKm ?? (DEFAULT_FILTER_VALUES.pickupRadiusKm as number),
@@ -287,7 +288,7 @@ export function effectiveRadii(f: {
         detourRadiusKm: f?.detourRadiusKm ?? (DEFAULT_FILTER_VALUES.detourRadiusKm as number),
     };
     if (!f?.radiusAuto) return base;
-    const scale = Number.isFinite(f.radiusScale as number) ? (f.radiusScale as number) : 1;
+    const scale = radiusScaleOf(f.radiusDistanceKm, f.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT);
     return {
         pickupRadiusKm: base.pickupRadiusKm * scale,
         destinationRadiusKm: base.destinationRadiusKm * scale,
