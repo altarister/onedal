@@ -628,6 +628,44 @@ describe('관내 — 목적지를 안 잃는 파생 (C4-8b)', () => {
 });
 
 /**
+ * 🧾 **요약줄이 «몇 개 동이 걸리나»를 말한다 — 지역 카드를 걷는다** (이식 C4-9 · 2026-09-12).
+ *
+ * 기사님 2026-09-11: *"이건 **지도의 영역으로 표시 되는거라 없어져도 될꺼 같고**
+ * 필터 상태바에 「노선행 · 여기서 10km → 파주시 15km · **200읍면동**」 이렇게 표현해 주면
+ * 될듯 한데."*
+ *
+ * 🔴 **값을 만지면 지도가 그 자리에서 바뀐다** — 그러니 「🔍 지금 값으로 미리보기」 버튼이
+ *    할 일이 없다. 「163개 동」 카드와 시·군·구 칩도 **지도가 이미 그리는 것을 글자로 또
+ *    적는 것**이었다. 시군구별 내역이 필요하면 현황판의 「🗂️ 영역 — 시군구별」 칸에 있다.
+ */
+describe('요약줄 — 몇 개 동이 걸리나 (C4-9)', () => {
+
+    const status = codeOnly(read(join(CLIENT, 'components/dashboard/OrderFilterStatus.tsx')));
+
+    it('🔴 요약줄이 읍면동 수를 말한다', () => {
+        expect(status).toMatch(/읍면동/);
+        expect(status).toMatch(/destinationKeywords/);
+    });
+
+    /**
+     * 🔴 **적재는 맨 위 헤더에 이미 있다** (`1t 예약 3 📦 90/100`) — 두 번 적을 자리가 아니다.
+     *    한 화면에 같은 말이 두 번 있으면 그게 거짓말이 될 자리를 만든다 (규칙 ③).
+     */
+    it('🔴 요약줄에 적재가 없다 (헤더와 중복)', () => {
+        expect(status).not.toMatch(/TRUCK_CAPACITY_SLOTS/);
+        expect(status).not.toMatch(/slotsUsed/);
+    });
+
+    /** 🔴 지도가 그리는 것을 글자로 또 적지 않는다 */
+    it('🔴 필터에 지역 카드와 미리보기가 없다', () => {
+        expect(modal).not.toMatch(/미리보기/);
+        expect(modal).not.toMatch(/previewRegions/);
+        expect(modal).not.toMatch(/previewCount/);
+        expect(modal).not.toMatch(/REGION_CARD/);
+    });
+});
+
+/**
  * 🗂️ **디자인을 목업처럼 — 순서와 3칸 격자** (이식 C4-6 · 2026-09-11).
  *
  * 기사님 지시 2026-09-11: *"**디자인은 목업처럼 해주면 되고**"* (목업 왼쪽 패널 스크린샷과 함께).

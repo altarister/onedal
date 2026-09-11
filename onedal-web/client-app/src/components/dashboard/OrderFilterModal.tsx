@@ -71,13 +71,7 @@ const SECTION: Record<PhaseKey, { title: string; hint: string }> = {
     home:  { title: '집 방향',                hint: '최종 하차지 → 집' },
 };
 
-/** 지역 카드 문구 — 목업 그대로. 국면마다 "무엇의 목록인가"가 다르다 */
-const REGION_CARD: Record<PhaseKey, { unit: string; note: string }> = {
-    first: { unit: '개 동이 걸립니다',  note: '도착 도시 주변' },
-    merge: { unit: '개 동 · 경로 주변', note: '지금 실린 짐의 경로에서\n자동으로 다시 계산됩니다' },
-    drive: { unit: '개 동 · 경로 주변', note: '지나온 구간은 빠집니다' },
-    home:  { unit: '시작하면 계산됩니다', note: '짐이 남았으면 마지막 하차지부터\n다 내렸으면 현재 위치부터' },
-};
+/* 🧾 지역 카드 문구 표(`REGION_CARD`)가 여기 있었다 — 카드를 걷으며 함께 (C4-9) */
 
 /** 하한표 제목 — 목업 문구 그대로 */
 const FLOOR_TITLE: Record<PhaseKey, string> = {
@@ -293,12 +287,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
         }
     }, [cityGroups, firstCity]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // 배열 확인용 아코디언 상태
-    const [isAccordionOpen, setIsAccordionOpen] = useState(false);
-
-    // [신규] 지역 미리보기용 상태
-    const [previewRegions, setPreviewRegions] = useState<Record<string, string[]> | null>(null);
-    const [previewCount, setPreviewCount] = useState<number>(0);
+    /* 🧾 지역 카드가 쓰던 상태 셋(아코디언·미리보기 결과·개수)이 여기 있었다 (C4-9) */
 
     // 귀가콜 로딩 상태
     const [homeReturnLoading, setHomeReturnLoading] = useState(false);
@@ -312,69 +301,12 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
             .catch(() => setHomeAddress(""));   // 못 읽으면 "자동 · 설정의 집 주소" 로 남는다
     }, [isOpen]);
 
-    const [isPreviewLoading, setIsPreviewLoading] = useState(false);
-
-    // 첫짐 섹션: 미리보기 버튼 클릭 시 호출
-    const handlePreviewRegions = async (city: string) => {
-        if (!city) return;
-        setIsPreviewLoading(true);
-        const radius = cur.destinationRadiusKm || '0';
-        try {
-            const { data } = await apiClient.get(`/settings/preview-regions?city=${encodeURIComponent(city)}&destinationRadiusKm=${radius}`);
-            setPreviewRegions(data.groupedRegions || {});
-            setPreviewCount(data.totalCount || 0);
-            setIsAccordionOpen(true);
-        } catch (err) {
-            console.error("Preview fetch err:", err);
-        } finally {
-            setIsPreviewLoading(false);
-        }
-    };
-
-    // 합짐 섹션: 미리보기 버튼 클릭 시 호출
-    const handlePreviewDetour = async () => {
-        setIsPreviewLoading(true);
-        const params = new URLSearchParams({ detourRadiusKm: cur.detourRadiusKm !== '' ? cur.detourRadiusKm : '10' });
-        if (cur.destinationRadiusKm) params.set('destinationRadiusKm', cur.destinationRadiusKm);
-        try {
-            const { data } = await apiClient.get(`/settings/preview-detour?${params.toString()}`);
-            setPreviewRegions(data.groupedRegions || {});
-            setPreviewCount(data.totalCount || 0);
-            setIsAccordionOpen(true);
-        } catch (err) {
-            console.error("Detour preview err:", err);
-        } finally {
-            setIsPreviewLoading(false);
-        }
-    };
-
-    // 모달이 열리는 순간에만 activeFilter 스냅샷으로 폼을 초기화
-    useEffect(() => {
-        if (isOpen && filter) {
-            console.log("📥 [OrderFilterModal] 모달 열림 - 현재 activeFilter 스냅샷:", JSON.parse(JSON.stringify(filter)));
-/**
-             * 🔴 **한 벌을 «첫짐 행»에서 채운다** (C3-3a).
-             *
-             * 다섯 행 중 첫짐이 유일하게 모든 칸이 «입력»이고, 기사님이 실제로 손으로 넣으신
-             * 값이 거기 있다 (실측 2026-09-11: 김포시·22·22·0%). 저장할 때 다섯에 같은 값을
-             * 쓰므로 다음부터는 어느 행을 읽어도 같지만, **처음 접히는 순간의 기준**은 첫짐이다.
-             */
-            setForm(toForm(filterValuesFrom(filter as any)));
-            /* 📐 마름모는 평면 필터에 실려 온다 — 국면 밖 한 벌이라 (이식 C3-2) */
-            fillQuad(filter);
-            setQuadDirty(false);
-            setExDraft(filter.excludedRegions ?? []);
-            setExDirty(false);
-            setBlacklist(filter.excludedKeywords ? filter.excludedKeywords.join(',') : "");
-            setDirty(false);
-            setBlacklistDirty(false);
-            // 프리뷰 상태 초기화
-            setPreviewRegions(null);
-            setPreviewCount(0);
-        }
-        setIsAccordionOpen(false);
-    }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
-
+    /**
+     * 🧾 **미리보기 두 함수가 여기 있었다** (`handlePreviewRegions`·`handlePreviewDetour` ·
+     *    걷어냄 2026-09-12 · 이식 C4-9).
+     *    *"값을 바꾼 뒤 «그럼 몇 개가 되나»를 저장 전에 확인한다"* 가 하던 일인데,
+     *    **값을 만지면 지도가 그 자리에서 바뀌니** 미리 볼 것이 없어졌다.
+     */
     // "기본 설정 불러오기" — DB에 저장된 baseFilter 값으로 폼 필드를 채움
     const handleLoadBaseFilter = () => {
         if (!baseFilter) return;
@@ -389,10 +321,6 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
         // 폼과 서버가 달라진 상태다 — 저장을 눌러야 반영된다는 뜻
         setDirty(true);
         setBlacklistDirty(true);
-        // 프리뷰 초기화
-        setPreviewRegions(null);
-        setPreviewCount(0);
-        setIsAccordionOpen(false);
     };
 
     // 귀가콜 소켓 이벤트 리스너
@@ -482,23 +410,6 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
     /** 하한표 예시 금액용 거리 — 지금 탭이 보는 대표 거리 */
     /* 하한표 예시 거리 — 관내면 시 안이라 짧게 본다 (관내는 파생이다 · C4-8b) */
     const exampleKm = filter.localMode ? 15 : (parseInt(cur.destinationRadiusKm, 10) || 0) + 50;
-    const destKeywordsLimit = filter.destinationKeywords || [];
-
-    /**
-     * 미리보기가 무엇을 그릴지는 **지금 탭**이 정한다.
-     * 경유를 쓰는 탭(합짐·운행중)이면 경유, 아니면 도착 도시 주변이다.
-     * 예전에는 `isSharedMode`(지금 합짐이냐) 로 갈랐는데, 그러면 첫짐을 콜 잡기하는 중에
-     * 합짐 탭을 열어 미리보기를 눌러도 **첫짐 기준**이 그려졌다.
-     */
-    const previewByDetour = routeMode && (filter.dispatchPhase ?? 'STANDBY') !== 'STANDBY';
-    /** 목적지가 «자동»인 상황에서는 서버가 정한 지금 도착 도시를 보여준다 (지어내지 않는다) */
-    /* 목적지는 늘 기사님 것이다 — 합짐·복귀에서 서버가 파생하면 그 값을 비춘다 */
-    const previewCity = (filter.dispatchPhase ?? 'STANDBY') === 'STANDBY'
-        ? cur.destinationCity
-        : (filter.destinationCity || cur.destinationCity || '');
-
-    /** 화면에 그릴 지역 그룹 — 미리보기를 눌렀으면 그 결과, 아니면 지금 걸린 것 */
-    const regionGroups = Object.entries(previewRegions ?? filter.destinationGroups ?? {});
 
     /** 지금 탭의 콜할인율(단가 할인율) — 국면마다 따로 기억한다 */
     const callDiscount = parseFloat(cur.callDiscountPct);
@@ -1020,68 +931,18 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                         )}
                     </div>
 
-                    {/* ── 지역 카드 — **접지 않는다** (v6 목업).
-                        예전에는 아코디언에 접혀 있어서 반경을 바꿔도 **뭐가 걸리는지 안 보였다.**
-                        숫자가 바로 보여야 "10km 가 많은지 적은지"를 판단할 수 있다. */}
-                    <div className={`rounded-xl border p-3 ${TAB_STYLE[tab].box} bg-surface/60`}>
-                        <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                                <span className={`text-[19px] font-black font-mono ${TAB_STYLE[tab].text}`}>
-                                    {previewCount > 0 ? previewCount : (tab === 'home' ? '—' : destKeywordsLimit.length)}
-                                </span>
-                                <span className="text-[11px] font-bold text-text-muted ml-1">
-                                    {/* 🏘️ 관내는 국면이 아니라 **파생**이다 (C4-8b) — `localMode` 가 말한다 */}
-                                    {filter.localMode && previewCity
-                                        ? `개 동 · ${previewCity} 안`
-                                        : REGION_CARD[tab].unit}
-                                </span>
-                            </div>
-                            <div className="text-[10px] text-text-muted text-right leading-snug shrink-0 whitespace-pre-line">
-                                {REGION_CARD[tab].note}
-                            </div>
-                        </div>
-
-                        {/* 시·구별 칩 — 어디가 걸리는지 이름으로 보인다 */}
-                        {regionGroups.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-2">
-                                {regionGroups.slice(0, 4).map(([name, dongs]) => (
-                                    <span key={name} className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded ${TAB_STYLE[tab].chip}`}>
-                                        {name}<span className="font-mono opacity-70 ml-1">{dongs.length}</span>
-                                    </span>
-                                ))}
-                                {regionGroups.length > 4 && (
-                                    <button
-                                        onClick={() => setIsAccordionOpen(!isAccordionOpen)}
-                                        className="text-[9.5px] text-text-muted px-1"
-                                    >
-                                        외 {regionGroups.length - 4}개 {isAccordionOpen ? '▴' : '▾'}
-                                    </button>
-                                )}
-                            </div>
-                        )}
-
-                        {isAccordionOpen && regionGroups.length > 4 && (
-                            <div className="flex flex-wrap gap-1 mt-1.5 max-h-24 overflow-y-auto custom-scrollbar">
-                                {regionGroups.slice(4).map(([name, dongs]) => (
-                                    <span key={name} className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded ${TAB_STYLE[tab].chip}`}>
-                                        {name}<span className="font-mono opacity-70 ml-1">{dongs.length}</span>
-                                    </span>
-                                ))}
-                            </div>
-                        )}
-
-                        {/* 값을 바꾼 뒤 "그럼 몇 개가 되나"를 저장 전에 확인한다 */}
-                        {tab !== 'home' && (
-                            <Button
-                                onClick={() => previewByDetour ? handlePreviewDetour() : handlePreviewRegions(previewCity)}
-                                disabled={isPreviewLoading || (!previewByDetour && !previewCity)}
-                                size="sm"
-                                className={`w-full h-7 mt-2 text-[10px] font-bold bg-surface-alt/60 border border-border text-text-muted`}
-                            >
-                                {isPreviewLoading ? '연산 중…' : previewCount > 0 ? '🔍 다시 계산' : '🔍 지금 값으로 미리보기'}
-                            </Button>
-                        )}
-                    </div>
+                    {/**
+                      * 🧾 **지역 카드가 여기 있었다** (걷어냄 2026-09-12 · 이식 C4-9).
+                      *
+                      * 기사님 2026-09-11: *"이건 **지도의 영역으로 표시 되는거라 없어져도
+                      * 될꺼 같고** 필터 상태바에 «… · 200읍면동» 이렇게 표현해 주면 될듯."*
+                      *
+                      * 🔴 «163개 동이 걸립니다» · 시·군·구 칩 · 「🔍 지금 값으로 미리보기」 —
+                      *    셋 다 **지도가 이미 그리는 것을 글자로 또 적는 것**이었다.
+                      *    값을 만지면 지도가 그 자리에서 바뀌니 미리 볼 것도 없다.
+                      * 🔴 수는 **요약줄**이 말한다 (`OrderFilterStatus` · «200 읍면동»).
+                      * ⚠️ 시·군·구별 내역은 **현황판의 «🗂️ 영역 — 시군구별»** 칸에 있다.
+                      */}
 
                     {/* 콜 잡기 모드 통제 버튼 영역 (1열 5버튼 구조) */}
                     <div className="pt-2">

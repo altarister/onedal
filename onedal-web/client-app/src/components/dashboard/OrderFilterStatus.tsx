@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
-import { TRUCK_CAPACITY_SLOTS, CALL_TARGET_LABEL } from "@onedal/shared";
+import { CALL_TARGET_LABEL } from "@onedal/shared";
 import type { CallTarget } from "@onedal/shared";
 
 /**
@@ -93,7 +93,8 @@ export default function OrderFilterStatus({ onOpenFilter, budgetToast }:
         else label = '첫짐 탐색중';
     }
 
-    const slotsUsed = Math.round(filter.slotsUsed ?? 0);
+    /** 🧾 지금 필터에 실린 읍·면·동 수 — 앱에 내려가는 그 목록이다 (이식 C4-9) */
+    const regionCount = filter.destinationKeywords?.length ?? 0;
 
     /** v14 국면 색·라벨 — 노선(파랑) · 관내(민트) · 복귀(주황). 지역 라벨도 국면 따라 */
     const V14: Record<CallTarget, { c: string; chipBg: string; chipBd: string; on: string; onBd: string; onGlow: string; region: string }> = {
@@ -128,13 +129,30 @@ export default function OrderFilterStatus({ onOpenFilter, budgetToast }:
                        bg-surface-alt/30 hover:bg-surface-hover/40 transition-colors">
             <span className="shrink-0 text-[13px] font-black" style={{ color: v14.c }}>{PHASE_STYLE[phase].icon} {CALL_TARGET_LABEL[phase]}</span>
             <span className="shrink-0 opacity-40">·</span>
-            <span className="flex-1 min-w-0 truncate text-[12.5px] font-bold text-text-muted">
-                여기서 <b className="text-text-primary">{filter.pickupRadiusKm ?? 0}km</b>
-                {' → '}
+            {/**
+              * 🔴 **«몇 개 동»은 끝까지 보인다** (2026-09-12 실측 — 「163 …」로 잘렸다).
+              *    줄 전체에 `truncate` 를 걸면 **맨 뒤가 먼저 죽는다.** 자를 것은
+              *    길어질 수 있는 **도시 이름** 쪽이고, 수는 필터가 지금 무엇을 담고 있나라
+              *    잘리면 뜻이 사라진다.
+              */}
+            <span className="flex-1 min-w-0 flex items-baseline gap-1 text-[12.5px] font-bold text-text-muted">
+                <span className="shrink-0">여기서 <b className="text-text-primary">{filter.pickupRadiusKm ?? 0}km</b></span>
+                <span className="shrink-0 opacity-70">→</span>
                 {/* 🔴 «어디로»는 **도착 도시**다 — `region`(도착목표·관내·귀갓길)은 국면 이름이라 여기선 답이 안 된다 */}
-                <b className="text-text-primary">{filter.destinationCity || v14.region} {filter.destinationRadiusKm ?? 0}km</b>
-                <span className="mx-1.5 opacity-40">·</span>
-                <b className="text-text-primary tabular-nums">📦 {slotsUsed}/{TRUCK_CAPACITY_SLOTS}</b>
+                <b className="min-w-0 truncate text-text-primary">{filter.destinationCity || v14.region} {filter.destinationRadiusKm ?? 0}km</b>
+                <span className="shrink-0 opacity-40">·</span>
+                {/**
+                  * 🧾 **몇 개 동이 걸리나** (기사님 지시 2026-09-11 · 이식 C4-9).
+                  *
+                  * ⚠️ 여기 `📦 90/100`(적재)이 있었다 — **맨 위 헤더가 이미 말한다**
+                  *    (`1t 예약 3 📦 90/100`). 한 화면에 같은 말이 두 번 있으면
+                  *    그게 거짓말이 될 자리를 만든다 (규칙 ③).
+                  *
+                  * 🔴 대신 **필터가 지금 무엇을 담고 있나**를 적는다. 필터 안에 있던
+                  *    「163개 동이 걸립니다」 카드가 하던 말인데, 그 카드는 **지도가 이미
+                  *    그리는 것을 글자로 또 적는 것**이라 걷었다.
+                  */}
+                <b className="text-text-primary tabular-nums whitespace-nowrap">{regionCount} 읍면동</b>
             </span>
             {/* 🔒 손으로 고친 필터는 자동 갱신이 덮어쓰지 않는다 */}
             {filter.userOverrides && (
