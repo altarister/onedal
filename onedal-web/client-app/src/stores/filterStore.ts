@@ -23,7 +23,21 @@ interface FilterState {
     /** 국면별 설정 — 오늘 (§2-4). 탭이 이걸 편집한다 */
     /** 국면별 설정 — 평소 (DB). "평소값" 버튼이 이걸 불러온다 */
 
+    /**
+     * 🧾 **지도가 실제로 그린 그물의 읍·면·동 수** (이식 C4-11b · 2026-09-12).
+     *
+     * 🔴 **왜 store 에 두나 — 계산을 두 벌로 만들지 않으려고** (규칙 ③).
+     *    요약줄이 `useCallNet` 을 제 손으로 또 부르면 **다른 답**이 나온다:
+     *    그 훅이 먹는 `myLocation` 은 `useRouteDerivations` 안의 `useState` 라
+     *    훅 인스턴스마다 따로 산다. 그래서 **무대가 한 번 계산한 것**을 여기 올린다.
+     * 🔴 이 값은 **화면용 파생이지 필터의 일부가 아니다** — 서버로 안 간다.
+     * ⚠️ 지도가 안 떠 있으면 `null` 이다 — 그때 요약줄은 서버가 내려준
+     *    `destinationKeywords` 수로 물러선다 (지어내지 않는다 · 규칙 ④).
+     */
+    netCount: number | null;
+
     // ── Actions ──
+    setNetCount: (n: number | null) => void;
     setFilter: (filter: AutoDispatchFilter) => void;
     setBaseFilter: (filter: AutoDispatchFilter) => void;
     setBothFilters: (active: AutoDispatchFilter, base: AutoDispatchFilter) => void;
@@ -32,7 +46,9 @@ interface FilterState {
 export const useFilterStore = create<FilterState>((set) => ({
     filter: null,
     baseFilter: null,
+    netCount: null,
 
+    setNetCount: (n) => set({ netCount: n }),
     setFilter: (filter) => set({ filter }),
     setBaseFilter: (filter) => set({ baseFilter: filter }),
     setBothFilters: (active, base) => set({ filter: active, baseFilter: base }),

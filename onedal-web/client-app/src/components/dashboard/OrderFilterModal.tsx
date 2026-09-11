@@ -135,7 +135,7 @@ interface OrderFilterModalProps {
 
 export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive = false,
                                            routeMode, setRouteMode }: OrderFilterModalProps) {
-    const { filter, baseFilter, updateFilter } = useFilterConfig();
+    const { filter, baseFilter, updateFilter, previewFilter } = useFilterConfig();
 
     // ⏱️ 시간 축 안내의 재료 — 무통보 상차 한계는 판정 기준 탭에 산다 (읽기 공유 · 확정 2)
     const judgmentCfg = useJudgmentStore(st => st.judgment);
@@ -255,7 +255,21 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
     const setField = (key: FlatValueKey, value: string) => {
         setForm(prev => ({ ...prev, [key]: value }));
     };
-    /** 지금 폼 값을 **메모리에** 넣는다 (DB 아님). 지도가 그 자리에서 바뀐다 */
+    /**
+     * 🎚️ **끄는 동안 — 지도만 따라 움직인다** (이식 C4-11 · 2026-09-12).
+     *
+     * 기사님: *"값을 조절할때 움직일때 **영역을 바꿔 주면 좋겠어**.
+     * 그래야 그걸 보고 **한번에 조절** 하니까."*
+     *
+     * 🔴 소켓을 안 탄다 — 끄는 동안 서버로 쏘면 매번 경유 지역을 다시 파생해 **앱에까지**
+     *    내려간다. 그물은 `useCallNet` 이 **클라에서** 다시 그린다 (실측 0.9ms/회).
+     * ⚠️ 짝이 있다: 손을 뗄 때 아래 `commitValues` 가 **같은 값을 서버로** 한 번 보낸다.
+     */
+    const previewValues = (next: ValueForm) => {
+        setForm(next);
+        previewFilter(toValues(next, filterValuesFrom(filter as any)));
+    };
+    /** 지금 폼 값을 **메모리에** 넣는다 (DB 아님). 손을 뗄 때 서버까지 간다 */
     const commitValues = (next?: ValueForm) => {
         updateFilter(toValues(next ?? cur, filterValuesFrom(filter as any)));
     };
@@ -311,6 +325,35 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
     }, [cityGroups, firstCity]); // eslint-disable-line react-hooks/exhaustive-deps
 
     /* 🧾 지역 카드가 쓰던 상태 셋(아코디언·미리보기 결과·개수)이 여기 있었다 (C4-9) */
+
+    /**
+     * 📥 **열리는 순간 폼을 «지금 값»으로 채운다** (되살림 2026-09-12 · 버그 대장 #108).
+     *
+     * 🔴 **C4-9 에서 이 블록이 통째로 잘려 나갔다.** 미리보기 두 함수를 걷으며
+     *    «다음 const 까지»로 잘랐는데 그 사이에 이것이 끼어 있었다 — 이 파일에서
+     *    **같은 병이 두 번째**다(그때는 `if (!filter)` 가드를 잃었다).
+     *    **글자 수나 «다음 선언»으로 자르지 않는다. 블록의 끝을 눈으로 확인한다.**
+     *
+     * 🔴 **없으면 무슨 일이 나나** — 폼이 `DEFAULT_FILTER_VALUES` 로 서고 목적지가 **빈칸**이 된다.
+     *    그 상태에서 슬라이더를 하나만 만져도 `toValues` 가 **빈 목적지를 그대로** 실어 보낸다
+     *    («이전 값 그대로» 보호는 **숫자에만** 걸린다 — `spec.text` 는 그냥 통과).
+     *    실측 2026-09-12: 기사님이 맞춰 두신 **파주시가 메모리에서 사라졌다.**
+     *
+     * ⚠️ **열릴 때 한 번뿐이다.** `filter` 를 의존성에 넣으면 끄는 동안 `previewFilter` 가
+     *    바꾼 필터가 폼을 도로 덮어써 손가락과 화면이 싸운다 (C4-11).
+     */
+    useEffect(() => {
+        if (isOpen && filter) {
+            setForm(toForm(filterValuesFrom(filter as any)));
+            /* 📐 마름모는 평면 필터에 실려 온다 — 국면 밖 한 벌이라 (이식 C3-2) */
+            fillQuad(filter);
+            setQuadDirty(false);
+            setExDraft(filter.excludedRegions ?? []);
+            setExDirty(false);
+            setBlacklist(filter.excludedKeywords ? filter.excludedKeywords.join(',') : "");
+            setBlacklistDirty(false);
+        }
+    }, [isOpen]);   // eslint-disable-line react-hooks/exhaustive-deps -- 열릴 때 한 번 (위 ⚠️)
 
     // 귀가콜 로딩 상태
     const [homeReturnLoading, setHomeReturnLoading] = useState(false);
@@ -726,7 +769,9 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                     step: f.step,
                                     dim: !inUse(path),
                                     set: (v: number) => setField(path, String(v)),
-                                    /* 🔴 끄는 동안은 화면만 · **뗄 때** 메모리로 (C4-10) */
+                                    /* 🔴 끄는 동안은 **지도까지** 따라 온다 — 소켓은 안 탄다 (C4-11) */
+                                    onPreview: (v: number) => previewValues({ ...cur, [path]: String(v) }),
+                                    /* 🔴 **뗄 때** 서버로 (C4-10) */
                                     onCommit: (v: number) => pickField(path, String(v)),
                                 };
                             })} />

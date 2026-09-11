@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useFilterStore } from '../../stores/filterStore';
 import type { SecuredOrder, RouteStopInfo } from '@onedal/shared';
 import { hasVisitedStop } from '@onedal/shared';
 import { useRouteDerivations } from '../../hooks/useRouteDerivations';
@@ -191,6 +192,21 @@ export default function StageView(props: Props) {
         }
         return r;
     };
+    /**
+     * 🧾 **내가 그린 그물의 수를 요약줄이 읽게 올린다** (이식 C4-11b · 2026-09-12).
+     *
+     * 기사님 2026-09-12: 요약줄의 «N 읍면동» 을 **지도와 같은 수**로.
+     * 🔴 **계산은 여기 한 번뿐이다** — 요약줄이 `useCallNet` 을 또 부르면 `myLocation` 이
+     *    달라 다른 답이 나온다 (`filterStore.netCount` 주석 참조 · 규칙 ③).
+     * ⚠️ 무대가 사라지면 `null` 로 비운다 — 옛 수가 화면에 남아 거짓말하지 않게.
+     */
+    const setNetCount = useFilterStore(st => st.setNetCount);
+    const netCount = callNet?.net.pass.length ?? null;
+    useEffect(() => {
+        setNetCount(netCount);
+        return () => setNetCount(null);
+    }, [netCount, setNetCount]);
+
     useEffect(() => { logStateChange("주행신호", drive, "무대"); }, [drive]);
     useEffect(() => () => { if (holdTimer.current) clearTimeout(holdTimer.current); }, []);
 

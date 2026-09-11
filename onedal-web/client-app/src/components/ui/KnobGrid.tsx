@@ -50,6 +50,16 @@ export type KnobDef = {
      *    아직 다시 그리지 않았다 — 인자 없이 부르면 받는 쪽이 **한 칸 뒤처진 값**을 읽는다.
      */
     onCommit?: (v: number) => void;
+    /**
+     * 🎚️ **끄는 동안 한 번씩 — 화면만 바꾼다** (이식 C4-11 · 2026-09-12).
+     *
+     * 기사님: *"값을 조절할때 움직일때 **영역을 바꿔 주면 좋겠어**. 그래야 그걸 보고
+     * **한번에 조절** 하니까."* — 끌면서 지도가 따라 움직여야 한 번에 맞출 수 있다.
+     *
+     * 🔴 `set` 과 무엇이 다른가: `set` 은 **이 칸의 숫자**만 바꾸고, 이쪽은 **그물까지**
+     *    다시 그리게 한다. 소켓은 안 탄다 — 서버로 가는 것은 `onCommit` 뿐이다.
+     */
+    onPreview?: (v: number) => void;
     /** 지금 안 쓰이는 칸 — 감추지 않고 흐리게 둔다 (감추면 화면이 조용히 거짓말한다) */
     dim?: boolean;
 };
@@ -87,7 +97,7 @@ export function KnobGrid({ knobs, open, onOpen, cols = 3 }: {
                         className="w-8 h-8 shrink-0 rounded-lg border border-border-hover bg-background text-[16px] font-black">−</button>
                     {/* 🔴 끄는 동안은 화면만 · **뗄 때** 서버로 (`onPointerUp`) — 키보드도 같다 */}
                     <input type="range" min={cur.min ?? 0} max={cur.max} step={cur.step ?? 1} value={cur.value}
-                        onChange={e => cur.set(Number(e.target.value))}
+                        onChange={e => { const v = Number(e.target.value); cur.set(v); cur.onPreview?.(v); }}
                         onPointerUp={e => cur.onCommit?.(Number((e.target as HTMLInputElement).value))}
                         onKeyUp={e => cur.onCommit?.(Number((e.target as HTMLInputElement).value))}
                         className="flex-1 min-w-0 accent-[#0284c7]" />

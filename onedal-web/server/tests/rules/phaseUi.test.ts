@@ -685,6 +685,134 @@ describe('저장 — 메모리와 서버 둘 (C4-10)', () => {
 });
 
 /**
+ * 🎚️ **끄는 동안 영역이 바뀐다 — 화면과 서버를 두 갈래로** (이식 C4-11 · 2026-09-12).
+ *
+ * 기사님 2026-09-12: *"값을 조절할때 움직일때 **영역을 바꿔 주면 좋겠어**.
+ * 그래야 그걸 보고 **한번에 조절** 하니까."*
+ *
+ * 🔴 **C4-10 이 반대로 만들었던 것을 가른다.** 그때는 «서버가 경유 지역을 다시 그려
+ *    폭주한다»를 걱정해 **손 뗄 때만** 보냈는데, 실측해 보니 **지도는 서버를 안 기다린다** —
+ *    `useCallNet` 이 `netForGoal` 을 **클라에서** 부르고(실측 **0.9ms/회**), `updateFilter` 의
+ *    낙관적 `setFilter` 만으로 그 자리에서 다시 그린다.
+ * 🔴 그러니 갈라야 하는 것은 «언제 그리나»가 아니라 **«언제 소켓으로 보내나»** 다.
+ *    끄는 동안은 `previewFilter`(화면만), 뗄 때 `updateFilter`(서버로).
+ */
+describe('끄는 동안 영역이 바뀐다 (C4-11)', () => {
+    const hook = read(join(CLIENT, 'hooks/useFilterConfig.ts'));
+
+    it('🔴 «화면만» 통로가 따로 있다 — 소켓을 안 탄다', () => {
+        expect(hook).toMatch(/previewFilter/);
+        /* 그 함수 안에는 emit 이 없어야 한다 — **그 블록만 잘라** 본다 */
+        const i = hook.indexOf('const previewFilter');
+        expect(i).toBeGreaterThan(-1);
+        const body = hook.slice(i, hook.indexOf('};', i));
+        expect(body).toMatch(/setFilter\(/);
+        expect(body).not.toMatch(/socket\.emit/);
+    });
+
+    it('🔴 슬라이더는 끄는 동안 «화면만» 을 부른다', () => {
+        const i = modal.indexOf('const previewValues');
+        expect(i).toBeGreaterThan(-1);
+        /* ⚠️ **함수 끝까지만** 자른다 — 글자 수로 자르면 **다음 함수를 문다**
+              (실측: 400자에 `commitValues` 가 딸려 와 거짓 빨간불이 났다) */
+        const body = modal.slice(i, modal.indexOf('\n    };', i));
+        expect(body).toMatch(/previewFilter\(/);
+        /* 끄는 동안 서버로 보내면 폭주한다 */
+        expect(body).not.toMatch(/updateFilter\(/);
+    });
+
+    it('🔴 «뗄 때» 는 여전히 서버로 간다 — 새로고침에 안 사라진다', () => {
+        const i = modal.indexOf('const commitValues');
+        const body = modal.slice(i, modal.indexOf('\n    };', i));
+        expect(body).toMatch(/updateFilter\(/);
+    });
+
+    it('🔴 손잡이가 «끄는 동안»과 «뗄 때» 를 둘 다 받는다', () => {
+        const knob = codeOnly(read(join(CLIENT, 'components/ui/KnobGrid.tsx')));
+        expect(knob).toMatch(/onPreview\?: \(v: number\) => void/);
+        /* onChange 는 화면만 · onPointerUp 은 서버로 */
+        expect(knob).toMatch(/onChange=\{e => \{[^}]*onPreview/);
+    });
+});
+
+/**
+ * 🧾 **요약줄의 «N 읍면동» 은 지도와 같은 수다** (이식 C4-11b · 2026-09-12).
+ *
+ * 기사님 2026-09-12(질문에 답하시며): **«지도와 같은 수로 바꾼다»**.
+ *
+ * 🔴 **실측에서 잡혔다.** C4-11 로 끄는 동안 지도가 따라 움직이게 만들었는데
+ *    요약줄 숫자는 **368 에서 꿈쩍도 안 했다** — 그 숫자만 `filter.destinationKeywords`
+ *    (서버가 파생해 내려주는 목록)를 세고 있었기 때문이다. 같은 화면이 두 말을 한다.
+ * 🔴 **계산은 한 번이다** (규칙 ③). 요약줄이 `useCallNet` 을 **또 부르지 않는다** —
+ *    `myLocation` 은 `useRouteDerivations` 안의 상태라 훅을 또 부르면 **다른 인스턴스**가
+ *    된다. 무대가 이미 계산한 값을 store 에 올리고 요약줄이 그것을 읽는다.
+ * ⚠️ **지도가 안 떠 있으면 서버 값으로 물러선다** — 지어내지 않는다 (규칙 ④).
+ */
+describe('요약줄이 지도와 같은 수를 말한다 (C4-11b)', () => {
+    const status = read(join(CLIENT, 'components/dashboard/OrderFilterStatus.tsx'));
+    const store = read(join(CLIENT, 'stores/filterStore.ts'));
+    const stage = read(join(CLIENT, 'components/stage/StageView.tsx'));
+
+    it('🔴 그물 수를 담는 자리가 store 에 있다', () => {
+        expect(store).toMatch(/netCount/);
+        expect(store).toMatch(/setNetCount/);
+    });
+
+    it('🔴 무대가 제 계산을 거기에 올린다', () => {
+        expect(stage).toMatch(/setNetCount\(/);
+    });
+
+    it('🔴 요약줄은 그 수를 먼저 보고, 없을 때만 서버 값으로 물러선다', () => {
+        const i = status.indexOf('const regionCount');
+        expect(i).toBeGreaterThan(-1);
+        const line = status.slice(i, status.indexOf(';', i));
+        expect(line).toMatch(/netCount/);
+        /* 물러설 길이 남아 있어야 한다 — 지도가 안 떠 있는 판이 있다 */
+        expect(line).toMatch(/destinationKeywords/);
+    });
+});
+
+/**
+ * 📥 **필터를 열면 폼이 «지금 값»으로 채워진다** (버그 대장 #108 · 2026-09-12).
+ *
+ * 🔴 **C4-9 에서 이 `useEffect` 가 통째로 사라졌다.** 미리보기 두 함수를 걷으며
+ *    «다음 const 까지»로 잘랐는데 그 사이에 **이 블록이 끼어 있었다** —
+ *    같은 병이 이 파일에서 **두 번째**다(그때는 `if (!filter)` 가드를 잃었다).
+ *
+ * 🔴 **무엇이 터졌나**: 폼이 `DEFAULT_FILTER_VALUES` 로 서고(목적지 **빈칸**),
+ *    슬라이더를 하나만 만져도 `toValues` 가 그 빈 목적지를 그대로 실어 보낸다
+ *    (`toValues` 의 «이전 값 그대로» 보호는 **숫자에만** 걸린다 — `spec.text` 는 통과).
+ *    실측: 기사님이 맞춰 두신 **파주시가 메모리에서 사라졌다.**
+ *
+ * 🔴 **그래서 검사는 «있나»가 아니라 «무엇을 채우나»를 본다** — 한 줄만 살아남고
+ *    나머지가 빠져도 초록이 되면 이 사고를 또 못 잡는다.
+ */
+describe('필터를 열면 폼이 지금 값으로 채워진다 (#108)', () => {
+    it('🔴 모달이 열릴 때 filter 로 폼을 채우는 자리가 있다', () => {
+        expect(modal).toMatch(/isOpen && filter/);
+        expect(modal).toMatch(/setForm\(toForm\(filterValuesFrom\(filter as any\)\)\)/);
+    });
+
+    it('🔴 값 다섯뿐 아니라 마름모·제외지역·제외단어까지 함께 채운다', () => {
+        const i = modal.indexOf('if (isOpen && filter)');
+        expect(i).toBeGreaterThan(-1);
+        /* **그 블록만** 본다 — 파일 전체를 훑으면 다른 자리의 같은 글자에 걸려 거짓 초록이 된다 */
+        const body = modal.slice(i, modal.indexOf('\n    }, [isOpen', i));
+        expect(body).toMatch(/fillQuad\(filter\)/);
+        expect(body).toMatch(/setExDraft\(filter\.excludedRegions/);
+        expect(body).toMatch(/setBlacklist\(/);
+    });
+
+    it('🔴 «담아 두는» 깃발 셋을 함께 끈다 — 열자마자 «변경됨»이면 거짓말이다', () => {
+        const i = modal.indexOf('if (isOpen && filter)');
+        const body = modal.slice(i, modal.indexOf('\n    }, [isOpen', i));
+        expect(body).toMatch(/setQuadDirty\(false\)/);
+        expect(body).toMatch(/setExDirty\(false\)/);
+        expect(body).toMatch(/setBlacklistDirty\(false\)/);
+    });
+});
+
+/**
  * 🧾 **요약줄이 «몇 개 동이 걸리나»를 말한다 — 지역 카드를 걷는다** (이식 C4-9 · 2026-09-12).
  *
  * 기사님 2026-09-11: *"이건 **지도의 영역으로 표시 되는거라 없어져도 될꺼 같고**

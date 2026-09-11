@@ -42,6 +42,27 @@ export function useFilterConfig() {
     };
 
     /**
+     * 🎚️ **끄는 동안 — 화면만 바꾼다. 소켓을 안 탄다** (이식 C4-11 · 2026-09-12).
+     *
+     * 기사님: *"값을 조절할때 움직일때 **영역을 바꿔 주면 좋겠어**. 그래야 그걸 보고
+     * **한번에 조절** 하니까."*
+     *
+     * 🔴 **지도는 서버를 안 기다린다.** `useCallNet` 이 `netForGoal` 을 **클라에서** 부른다
+     *    (실측 **0.9ms/회** · 1,968개 읍·면·동을 다 훑고도). 그러니 손가락이 움직이는 동안
+     *    화면을 바꾸는 데 필요한 것은 `setFilter` 하나뿐이다.
+     * 🔴 **그런데도 소켓은 안 탄다.** 끄는 동안 픽셀마다 `update-filter` 를 쏘면 서버가
+     *    그때마다 경유 지역을 다시 파생하고(지리 연산) 그 결과를 **앱에까지** 내려보낸다.
+     *    바뀌는 것이 보여야 하는 것은 **기사님 화면**이지 앱이 아니다.
+     * ⚠️ 그래서 이것으로 바꾼 값은 **손을 뗄 때 `updateFilter` 로 한 번 더** 보내야 한다.
+     *    안 보내면 새로고침에 사라진다 — 부르는 쪽이 짝을 맞춘다.
+     */
+    const previewFilter = (newFilter: Partial<AutoDispatchFilter>) => {
+        if (filter) {
+            setFilter({ ...filter, ...newFilter });
+        }
+    };
+
+    /**
      * **한 국면의 설정만** 저장한다 (§2-4).
      *
      * 평면 필터(`updateFilter`)와 통로를 나눈 이유: 어느 탭을 고쳤는지는 평면에 안 담긴다.
@@ -56,5 +77,5 @@ export function useFilterConfig() {
      *    «어느 국면의 값인가»를 실어 보내던 길인데, 값이 한 벌이 되며 실을 것이 없어졌다.
      *    값 다섯은 이제 `updateFilter` 하나로 간다 — 마름모·제외지역과 같은 길이다.
      */
-    return { filter, baseFilter, updateFilter };
+    return { filter, baseFilter, updateFilter, previewFilter };
 }
