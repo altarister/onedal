@@ -1144,9 +1144,16 @@ describe('국면 전환 — 반경은 국면 설정만이 정한다', () => {
         expect(body).not.toMatch(/baseFilter\.destinationRadiusKm/);
     });
 
-    it('국면 전환은 "어디로 가는가"만 정한다 (도시 · callTarget)', () => {
+    /**
+     * 🔄 **개정 2026-09-12 — 도시를 안 보낸다** (전수 조사 ①-1).
+     *    예전엔 `destinationCity: city!` 를 실어 HOME 이면 **집 시로 덮어썼다.** 돌아올 때
+     *    `activeFilter || baseFilter` 가 이미 덮인 값에서 끝나 **파주가 광주로 굳었다.**
+     *    이제 그물이 향하는 시는 `filterManager.goalCityOf` 가 `callTarget` 에서 **파생**한다.
+     *    «어디로 가는가»는 여전히 여기서만 정한다 — 다만 그 답이 `callTarget` 하나다.
+     */
+    it('국면 전환은 "어디로 가는가"만 정한다 (callTarget 하나 — 도시는 파생이다)', () => {
         expect(body).toMatch(/callTarget: phase/);
-        expect(body).toMatch(/destinationCity: city!/);
+        expect(body).not.toMatch(/destinationCity: city!/);
     });
 
     /** 🔄 개정 2026-09-11 — 값이 한 벌이라 «첫짐 국면이 기억한 것»이 없다. 오늘값이 먼저다 */

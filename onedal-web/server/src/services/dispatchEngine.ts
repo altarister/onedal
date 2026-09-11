@@ -8,7 +8,7 @@ import type { SecuredOrder, AutoDispatchFilter, PricingConfig, PendingOrder, MyO
 import { geocodeAddress, calculateSoloRoute, calculateDetourRoute, compareDirections } from "./kakaoService";
 import { fetchRealWorldRoute } from "../routes/osrmUtil";
 import { getUserSession, clearOrderTimers } from "../state/userSessionStore";
-import { updateActiveFilter, rememberDetourProgress, recalculateDetourFilter } from "../state/filterManager";
+import { updateActiveFilter, rememberDetourProgress, recalculateDetourFilter, goalCityOf, homeCityOf } from "../state/filterManager";
 import { getDetourRegions, getCityRegionsWithRadius, reverseGeocodeToRegion, haversineKm, ensureDriverOrigin } from "../services/geoService";
 import { composeMergedRoute, applyRoute, applySoloRoute, measureSoloDelivery, pickRouteHolder, toKm, toMin, hasVisitedStop, snapshotRoute, restoreRouteSnapshot, parsePolyline } from "./routeComposer";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
@@ -823,7 +823,7 @@ export function rebuildDestinationKeywords(userId: string, io: any): void {
         return;
     }
 
-    const city = session.activeFilter.destinationCity || '';
+    const city = goalCityOf(session, userId) || '';   // 🎯 파생 목적지 (조사 ①-1)
     if (!city) {
         updateActiveFilter(userId, { destinationKeywords: [], destinationGroups: {} }, io);
         return;
@@ -1428,10 +1428,14 @@ export async function setCallTarget(
             if (!settings?.home_address) {
                 return { success: false, phase, message: '설정에 집 주소가 없습니다' };
             }
-            // 주소에서 시/군 조각을 뽑는다 (예: "경기 광주시 초월읍 ..." → "광주시")
-            city = settings.home_address.split(/\s+/).find((p: string) => p.endsWith('시') || p.endsWith('군')) ?? null;
+            /**
+             * 🏠 **시는 좌표로 뽑는다** (2026-09-12). 주소 글자에서 「시」를 찾던 코드는 기사님
+             *    실제 주소(`경기도 광주 초월 동광뷰엘`)에서 **실패해 복귀를 못 켰다.**
+             *    한 곳(`filterManager.homeCityOf`)이 좌표 → 시를 낸다 — `goalCityOf` 와 같은 답이다.
+             */
+            city = homeCityOf(userId);
             if (!city) {
-                return { success: false, phase, message: `집 주소에서 시/군을 찾지 못했습니다 (${settings.home_address})` };
+                return { success: false, phase, message: `집 위치에서 시/군을 찾지 못했습니다 (${settings.home_address})` };
             }
         }
 
@@ -1440,9 +1444,14 @@ export async function setCallTarget(
          * (여기서 직접 채우면 `recalculateDerivedFields` 가 자기 계산을 건너뛰어
          *  `customCityFilters` 가 안 채워진다 — 2026-08-12 에 실제로 그랬다)
          */
+        /**
+         * 🔴 **`destinationCity` 를 안 보낸다** (2026-09-12 전수 조사 ①-1).
+         *    예전엔 HOME 이면 집 시로 덮어써서 돌아올 때 원래 목적지가 없었다 — 파주가 광주로 굳었다.
+         *    이제 그물이 향하는 시는 `filterManager.goalCityOf` 가 `callTarget` 에서 **파생**한다.
+         *    위의 `city` 는 «집 주소에서 시를 뽑을 수 있나» 확인과 로그용으로만 남는다.
+         */
         updateActiveFilter(userId, {
             callTarget: phase,
-            destinationCity: city!,
             isActive: true,
         }, io);
 

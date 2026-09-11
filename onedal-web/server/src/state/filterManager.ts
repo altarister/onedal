@@ -18,7 +18,7 @@ import { OrderRepository } from "../repositories/OrderRepository";
 import { SettingsRepository } from "../repositories/SettingsRepository";
 import { getUserSession } from "./userSessionStore";
 import type { AutoDispatchFilter, FlatValueKey } from "@onedal/shared";
-import { DEFAULT_DETOUR_RADIUS_KM, isDeliveredCall, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, FILTER_FIELDS, filterValuesFrom, QUAD_FIELDS, quadShapeFrom, pruneExcludedRegions, netForGoal, cityCenter, autoRadii, RADIUS_BASE_KM_DEFAULT,
+import { DEFAULT_DETOUR_RADIUS_KM, isDeliveredCall, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, FILTER_FIELDS, filterValuesFrom, QUAD_FIELDS, quadShapeFrom, pruneExcludedRegions, netForGoal, cityCenter, nearestDong, autoRadii, RADIUS_BASE_KM_DEFAULT,
          EVALUATING_STATUSES, isLocalPhase } from "@onedal/shared";
 import type { } from "@onedal/shared";
 
@@ -32,6 +32,42 @@ import type { } from "@onedal/shared";
 // ─────────────────────────────────────────────────────────────
 
 /** 국면 5행을 새 그릇에 upsert — 컬럼 목록의 원천은 FILTER_FIELDS 표 */
+/**
+ * 🎯 **그물이 향하는 시 — «파생»이다** (2026-09-12 전수 조사 ①-1 · 규칙 ③).
+ *
+ * `callTarget` 이 HOME 이면 **집이 있는 시**, 아니면 기사님이 정한 `destinationCity`.
+ * 🔴 **`destinationCity` 를 덮어쓰지 않는다.** 예전엔 `setCallTarget('HOME')` 이 그것을
+ *    집 시로 갈아치워서, DEST 로 돌아올 때 원래 목적지가 **이미 없었다** — 파주가 광주로 굳었다.
+ *    지금은 값을 안 건드리고 «어디를 볼지»만 여기서 매번 낸다. 목적지를 읽는 자리
+ *    (첫짐 재계산·합짐 갱신·경유 조립·빈 차 경유·앱 피기백)가 **전부 이 함수**를 본다.
+ * ⚠️ 집 주소에서 시·군을 못 뽑으면 `destinationCity` 로 물러선다 — 빈 그물을 만들지 않는다.
+ */
+/**
+ * 🏠 **집이 있는 시 — «좌표»로 뽑는다** (2026-09-12 전수 조사 3단계 실측).
+ *
+ * 복귀 토글이 서버에 닿았는데 «완료» 줄이 없었다 — 집 주소에서 「시」로 끝나는 조각을
+ * 못 찾아 거부됐다. **기사님 실제 주소도 `경기도 광주 초월 동광뷰엘`** 이라 같은 모양이었다.
+ * 사람이 적는 주소는 «광주시»라고 안 적는다.
+ * 🔴 집에는 좌표가 있다(`home_x/home_y`). `nearestDong` 이 좌표에서 «광주시»를 낸다 —
+ *    그물이 이미 쓰는 그 표(`DONG_CENTROIDS`)다 (규칙 ③). 좌표가 없을 때만 주소 글자로 물러선다.
+ * ⚠️ 서울이면 «서울 영등포구»처럼 구까지 온다 — `cityCenter` 가 그 이름을 그대로 받는다.
+ */
+export function homeCityOf(userId: string): string | null {
+    const home = SettingsRepository.getHomeLocation(userId);
+    if (!home) return null;
+    if (Number.isFinite(home.x) && Number.isFinite(home.y)) {
+        const region = nearestDong({ lng: home.x, lat: home.y }).region;
+        if (region) return region;
+    }
+    return home.address?.split(/\s+/).find(p => p.endsWith('시') || p.endsWith('군')) ?? null;
+}
+
+export function goalCityOf(session: ReturnType<typeof getUserSession>, userId: string): string {
+    const mine = session.activeFilter.destinationCity ?? '';
+    if (session.activeFilter.callTarget !== 'HOME') return mine;
+    return homeCityOf(userId) ?? mine;
+}
+
 /**
  * 🕸️ **그물이 만든 하차지 목록** — 서버도 실험실과 **같은 계산**을 쓴다
  *    (이식 C1-2 · 기사님 확정 2026-09-11 «실험실 것으로 통일» · 명세 §5).
@@ -229,6 +265,8 @@ function logActiveFilter(session: ReturnType<typeof getUserSession>, actionType:
 
 // ━━━ 내부 유틸: 파생 데이터(destinationKeywords, allowedVehicleTypes) 재계산 ━━━
 function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, changes: Partial<AutoDispatchFilter>, userId: string) {
+    /* 🎯 화면·앱이 «지금 그물이 어디를 보나»를 알게 — 파생 · 읽기 전용 (조사 ①-1) */
+    session.activeFilter.goalCity = goalCityOf(session, userId) || undefined;
     /**
      * 차종별 하한 단가표는 **콜할인율에서만 파생된다** (docs/지금/필터.md §4).
      *
@@ -263,6 +301,7 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
      */
     const needsGeoRecalc =
         'destinationCity' in changes ||
+        'callTarget' in changes ||          // 🎯 타겟이 바뀌면 그물이 향하는 시가 바뀐다 (조사 ①-1)
         'destinationRadiusKm' in changes ||
         'excludedRegions' in changes ||
         /* 📐 **모드를 바꾸면 반경이 통째로 달라진다** — 그물을 다시 그려야 한다 (이식 C4-12).
@@ -307,9 +346,10 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
             }
             session.activeFilter.customCityFilters = Array.from(aliases);
         }
-    } else if (session.activeFilter.destinationCity && needsGeoRecalc) {
-        // 도시명/반경이 변경되었거나 키워드가 아직 계산되지 않은 경우에만 무거운 연산 수행
-        const city = session.activeFilter.destinationCity;
+    } else if (goalCityOf(session, userId) && needsGeoRecalc) {
+        // 도시명/반경/타겟이 변경되었거나 키워드가 아직 계산되지 않은 경우에만 무거운 연산 수행
+        /* 🎯 목적지는 «파생»이다 — HOME 이면 집 시 (조사 ①-1) */
+        const city = goalCityOf(session, userId);
         const radius = session.activeFilter.destinationRadiusKm || 0;
         console.log(`🗺️ [FilterManager] 지리 연산 트리거 (city=${city}, radius=${radius}km)`);
         /**
@@ -626,8 +666,9 @@ function refreshDetourIfNeeded(
      * 🔴 목적지를 모르면(합짐은 도시가 비어 있을 수 있다) 옛 경로 주변 목록으로 물러선다.
      */
     const line = getActivePolyline(session);
-    const kept = session.activeFilter.destinationCity
-        ? netKeywordsOf(session, userId, session.activeFilter.destinationCity, dRadius,
+    const goal = goalCityOf(session, userId);   // 🎯 파생 목적지 (조사 ①-1)
+    const kept = goal
+        ? netKeywordsOf(session, userId, goal, dRadius,
             (line?.length ?? 0) >= 2 ? line!.map(p => [p.x, p.y] as [number, number]) : null)
         : (() => {
             const k = pruneExcludedRegions(regions.destinationGroups, session.activeFilter.excludedRegions ?? []);
@@ -705,7 +746,7 @@ export const recalculateDetourFilter = (userId: string, detourRadiusKm: number, 
              */
             const merged = unionRegions(
                 detour,
-                session.activeFilter.destinationCity,
+                goalCityOf(session, userId),   // 🎯 파생 목적지 (조사 ①-1)
                 session.activeFilter.destinationRadiusKm ?? 0,
             );
             return {

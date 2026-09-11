@@ -128,7 +128,7 @@ export default function StageView(props: Props) {
     const callNet = useCallNet({
         shape: netShape,
         routeMode,
-        destinationCity: filter?.destinationCity,
+        destinationCity: filter?.goalCity ?? filter?.destinationCity,   // 🎯 복귀면 집 시 (조사 ①-1)
         myLocation,
         pickupRadiusKm: radii.pickupRadiusKm,
         destinationRadiusKm: radii.destinationRadiusKm,

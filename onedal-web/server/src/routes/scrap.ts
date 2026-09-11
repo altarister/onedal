@@ -202,6 +202,8 @@ router.post("/", (req, res) => {
             appFilter.pickupRadiusKm = eff.pickupRadiusKm;
             appFilter.destinationRadiusKm = eff.destinationRadiusKm;
         }
+        /* 🎯 앱은 «어디로 가나» 하나만 안다 — 복귀면 집 시가 간다 (조사 ①-1 · 파생 `goalCity`) */
+        if (session.activeFilter.goalCity) appFilter.destinationCity = session.activeFilter.goalCity;
 
         // 🧭 경로 순서 맵 — 앱의 역주행·경로 밖 상차 차단 입력 (기사님 확정 2026-08-18)
         //    첫짐(경로 없음)이면 빈 객체라 앱이 순서 검사를 건너뛴다. +2.7KB (동 211개 기준)

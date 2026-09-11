@@ -227,3 +227,106 @@ describe('2단계 · 줄인 반경이 앱·요약줄·지도 띠에 간다 — �
         expect(sv).not.toMatch(/lineRadiusKm: filter\?\.detourRadiusKm/);
     });
 });
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * 3단계 — 복귀 토글이 목적지를 안 잃는다 (조사 ①-1)
+ * ══════════════════════════════════════════════════════════════════════════ */
+describe('3단계 · 그물의 목적지는 «파생»이다 — 복귀를 켜도 기사님 목적지는 그대로 (조사 ①-1)', () => {
+    /**
+     * 조사가 잡은 것: HOME 으로 갈 때 `activeFilter.destinationCity` 를 **집 시로 덮어썼다.**
+     * DEST 로 돌아올 때 `activeFilter.destinationCity || baseFilter…` 가 이미 덮인 값에서
+     * 끝나 **파주시가 광주시로 굳었다.** 툴팁은 «끄면 원래 목적지로 돌아갑니다» — 거짓.
+     *
+     * 🔴 **저장하지 말고 파생시킨다** (규칙 ③). 목적지를 «기억했다 되돌리는» 대신,
+     *    그물이 볼 목적지(`goalCity`)를 `callTarget` 에서 매번 낸다 —
+     *    HOME 이면 집 시, 아니면 `destinationCity`. 기사님이 정한 값은 한 번도 안 바뀐다.
+     *    목업이 그 모양이다 — 복귀를 켜면 목적지가 **바뀌는 게 아니라 얹힌다.**
+     */
+    const fm = codeOnly(read('state/filterManager.ts'));
+    const de = codeOnly(read('services/dispatchEngine.ts'));
+    const ix = codeOnly(readFileSync(join(__dirname, '../../../shared/src/index.ts'), 'utf8'));
+
+    it('🔴 DTO 에 파생 `goalCity` 가 있다 — 읽기 전용', () => {
+        expect(ix).toMatch(/goalCity\?: string/);
+    });
+
+    it('🔴 goalCityOf 한 곳이 목적지를 낸다', () => {
+        expect(fm).toMatch(/export function goalCityOf\(/);
+        const i = fm.indexOf('export function goalCityOf(');
+        const body = fm.slice(i, fm.indexOf('\n}', i));
+        expect(body).toMatch(/'HOME'/);
+        expect(body).toMatch(/destinationCity/);
+    });
+
+    it('🔴 재계산·합짐·경유 조립이 전부 goalCityOf 를 본다 — destinationCity 를 직접 안 읽는다', () => {
+        /* 첫짐 재계산 */
+        const i = fm.indexOf('needsGeoRecalc) {');
+        expect(i).toBeGreaterThan(-1);
+        expect(fm.slice(i, i + 400)).toMatch(/goalCityOf\(/);
+        /* 합짐 갱신 */
+        /* ⚠️ `const kept =` 첫 등장은 netKeywordsOf 안의 다른 줄 — 합짐 갱신의 «goal» 줄을 집는다 */
+        const j = fm.indexOf('const goal = goalCityOf(session, userId);');
+        expect(j).toBeGreaterThan(-1);
+        expect(fm.slice(j, j + 300)).toMatch(/netKeywordsOf\(session, userId, goal/);
+        expect(fm.slice(j, j + 300)).not.toMatch(/activeFilter\.destinationCity/);
+        /* 경유 ∪ 목적지 조립 */
+        const k = fm.indexOf('const merged = unionRegions(');
+        expect(fm.slice(k, k + 200)).toMatch(/goalCityOf\(/);
+        /* 파생값을 세션에 남긴다 — 화면이 읽는다 */
+        expect(fm).toMatch(/session\.activeFilter\.goalCity\s*=/);
+    });
+
+    it('🔴 타겟을 바꾸면 그물을 다시 그린다', () => {
+        const i = fm.indexOf('const needsGeoRecalc');
+        expect(fm.slice(i, fm.indexOf(';', i))).toMatch(/'callTarget' in changes/);
+    });
+
+    it('🔴 setCallTarget 이 destinationCity 를 안 보낸다 — 덮어쓰기가 사라진다', () => {
+        const i = de.indexOf('callTarget: phase,');
+        expect(i).toBeGreaterThan(-1);
+        const body = de.slice(i - 200, i + 200);
+        expect(body).not.toMatch(/destinationCity: city/);
+        /* 빈 차 경유 도출도 파생 목적지를 본다 */
+        const j = de.indexOf('syncDetourFilter(userId, io);\n        return;');
+        expect(de.slice(j, j + 400)).toMatch(/goalCityOf\(/);
+    });
+
+    it('🔴 앱·지도·요약줄이 «그물의 목적지»를 본다', () => {
+        const sc = codeOnly(read('routes/scrap.ts'));
+        expect(sc).toMatch(/appFilter\.destinationCity\s*=.*goalCity/);
+        const sv = codeOnly(readClient('components/stage/StageView.tsx'));
+        expect(sv).toMatch(/destinationCity: filter\?\.goalCity \?\? filter\?\.destinationCity/);
+        const st = codeOnly(readClient('components/dashboard/OrderFilterStatus.tsx'));
+        expect(st).toMatch(/goalCity/);
+    });
+});
+
+describe('3단계 · 집이 있는 시는 «좌표»로 뽑는다 — 주소 글자에 기대지 않는다', () => {
+    /**
+     * 실측(2026-09-12): 복귀 토글이 서버에 두 번 닿았는데 «완료» 줄이 없었다 — 집 주소에서
+     * 「시」로 끝나는 조각을 못 찾아 거부됐다. 실측 계정의 주소가 `경기 광주 초월 …` 였는데,
+     * **기사님 실제 주소도 `경기도 광주 초월 동광뷰엘`** 이라 같은 모양이다 — 기사님도 복귀를
+     * 못 켜는 상태였다. 사람이 적는 주소는 «광주시»라고 안 적는다.
+     * 🔴 집에는 **좌표**가 있다(`home_x/home_y`). `nearestDong` 이 좌표에서 «경기 광주시»를 낸다 —
+     *    그물이 이미 쓰는 그 표(`DONG_CENTROIDS`)다. 주소 글자는 좌표가 없을 때의 물러섬이다.
+     */
+    const fm = codeOnly(read('state/filterManager.ts'));
+    const de = codeOnly(read('services/dispatchEngine.ts'));
+
+    it('🔴 homeCityOf 한 곳이 좌표로 시를 낸다', () => {
+        expect(fm).toMatch(/export function homeCityOf\(/);
+        const i = fm.indexOf('export function homeCityOf(');
+        const body = fm.slice(i, fm.indexOf('\n}', i));
+        expect(body).toMatch(/nearestDong\(/);
+        expect(body).toMatch(/home_x|\.x\b/);
+    });
+
+    it('🔴 goalCityOf 와 setCallTarget 이 그것을 쓴다 — 주소를 각자 자르지 않는다', () => {
+        const i = fm.indexOf('export function goalCityOf(');
+        expect(fm.slice(i, fm.indexOf('\n}', i))).toMatch(/homeCityOf\(/);
+        const j = de.indexOf('export async function setCallTarget');
+        const body = de.slice(j, de.indexOf('\nexport ', j + 10));
+        expect(body).toMatch(/homeCityOf\(/);
+        expect(body).not.toMatch(/split\(\/\\s\+\/\)\.find/);
+    });
+});

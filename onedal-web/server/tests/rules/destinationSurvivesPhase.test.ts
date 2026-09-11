@@ -125,7 +125,15 @@ describe('도착 목표가 국면을 넘어 살아남는다', () => {
         const end = fm.indexOf('\n};', from);            // 화살표 함수의 끝
         const fn = fm.slice(from, end === -1 ? undefined : end);
         expect(fn).toMatch(/unionRegions\(/);
-        expect(fn).toMatch(/activeFilter\.destinationCity/);
+        /**
+         * 🔄 2026-09-12 개정 — 이제 `activeFilter.destinationCity` 를 **직접** 읽지 않고
+         *    `goalCityOf(session, userId)` 를 읽는다. 그 함수가 «activeFilter 의 목적지 +
+         *    복귀면 집 시» 를 **한 곳에서** 낸다 (전수 조사 ①-1 — 복귀를 켤 때 목적지를
+         *    덮어쓰던 것을 파생으로 바꿨다). 규칙의 뜻은 그대로다: **국면 설정을 직접 뒤지지
+         *    않고 바로 윗단(activeFilter 파생) 하나만 본다.**
+         */
+        expect(fn).toMatch(/goalCityOf\(session, userId\)/);
+        expect(fn).not.toMatch(/phaseSettings/);
         expect(fn).toMatch(/activeFilter\.destinationRadiusKm/);
         // 국면 설정을 직접 읽으면 타겟(노선·관내·복귀)이 바뀌어도 안 따라간다
         expect(fn).not.toMatch(/phaseSettings/);

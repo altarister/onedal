@@ -158,7 +158,7 @@ export default function OrderFilterStatus({ onOpenFilter, budgetToast }:
                 <span className="shrink-0">여기서 <b className="text-text-primary">{km1(radii.pickupRadiusKm)}km</b></span>
                 <span className="shrink-0 opacity-70">→</span>
                 {/* 🔴 «어디로»는 **도착 도시**다 — `region`(도착목표·관내·귀갓길)은 국면 이름이라 여기선 답이 안 된다 */}
-                <b className="min-w-0 truncate text-text-primary">{filter.destinationCity || v14.region} {km1(radii.destinationRadiusKm)}km</b>
+                <b className="min-w-0 truncate text-text-primary">{filter.goalCity || filter.destinationCity || v14.region} {km1(radii.destinationRadiusKm)}km</b>
                 <span className="shrink-0 opacity-40">·</span>
                 {/**
                   * 🧾 **몇 개 동이 걸리나** (기사님 지시 2026-09-11 · 이식 C4-9).
