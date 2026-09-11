@@ -122,9 +122,6 @@ const toSettings = (f: PhaseForm, prev: PhaseSettings): PhaseSettings => {
  *    기사님: *"목적지행으로 모두 수행하고 거의 도착할 즈음 '이 동네에서 찾기'로 스와이프하고,
  *    이 동네에서 찾고 나면 복귀행으로 넘기면 모든 경우의 수를 커버할 것 같은데."*
  */
-const TARGETS: CallTarget[] = ['DEST', 'LOCAL', 'HOME'];
-const TARGET_ICON: Record<CallTarget, string> = { DEST: '🎯', LOCAL: '🏘️', HOME: '🏠' };
-const TARGET_SHORT: Record<CallTarget, string> = { DEST: '노선', LOCAL: '관내', HOME: '복귀' };
 const TARGET_HINT: Record<CallTarget, string> = {
     DEST:  '목적지로 가는 콜 — 첫짐·합짐',
     LOCAL: '같은 시 안에서 끝나는 콜',
@@ -668,30 +665,49 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                     onToggle={() => setOpenKnob(o => o === 'dstCity' ? null : 'dstCity')}
                                     onPick={(v) => setField('destinationCity', v)} />
                                 {/**
-                                  * 🧭 **국면 — 목적지와 «같은 뎁스»다** (기사님 확정 2026-09-09:
-                                  *    *"복귀도 목적지와 같은 뎁스니까 목적지 옆에 있는 것이 맞을 것 같아"*).
+                                  * ↩️ **복귀 — 고르는 것은 «집으로 갈지 말지» 하나다**
+                                  *    (기사님 확정 2026-09-11: *"우린 집으로 갈건지 말껀지만 있어"* ·
+                                  *     2026-09-09: *"복귀는 토글로 눈에 띄게 해줘. 목적지 → 복귀"*).
                                   *
-                                  * 🔴 **제 줄을 따로 쓰다가 여기로 합쳤다** (2026-09-11). 위에 «🎯 노선»,
-                                  *    아래에 «🛣️ 노선» 이 **두 줄에 같은 말**로 떠서 헷갈렸다 —
-                                  *    하나는 «어디로 가나»(국면), 하나는 «어떻게 볼까»(그물 모양)인데.
-                                  *    국면은 «어디로»라서 목적지 줄이 제자리다.
+                                  * 🔴 **목업이 그 모양이다** — 고르는 것은 `homeOn` 하나이고
+                                  *    `callTarget` 은 파생이다 (`MapMockup.tsx:978`):
+                                  *    `homeOn ? 'HOME' : localMode ? 'LOCAL' : 'DEST'`.
+                                  *
+                                  * 🔴 **고르는 값과 켜고 끄는 값은 모양도 달라야 한다** — 옆 두 칸(도·시군구)은
+                                  *    목록에서 «고르는» 것이고 이것은 «켜고 끄는» 것이다.
                                   *
                                   * 🔴 **확인창은 그대로다** (기사님 2026-08-14: *"버튼을 누르게 하고
-                                  *    알럿창으로 확인받는 것이 안전할 듯하다"*). 막으려 하신 것은
-                                  *    «쉽게 바뀌는 것»이지 «버튼이 아닌 것»이 아니다.
+                                  *    알럿창으로 확인받는 것이 안전할 듯하다"*). 되돌리려면 경유를
+                                  *    통째로 다시 계산한다 — 실수로 스친 손가락에 바뀌면 안 된다.
+                                  *
+                                  * ⚠️ **관내는 «고르는 것»에서만 뺐다.** 지금 관내면 아래에서 보여만 준다 —
+                                  *    실물의 `LOCAL`(목적지를 지금 시로 바꾼다)과 목업의 `localMode`
+                                  *    (재는 법만 바꾼다)는 **다른 물건**이라 파생으로 돌리는 것은 따로 선다.
                                   */}
-                                <PickLayer label="🧭 국면"
-                                    value={`${TARGET_ICON[filter.callTarget ?? 'DEST']} ${CALL_TARGET_LABEL[filter.callTarget ?? 'DEST']}`}
-                                    options={TARGETS.map(t => `${TARGET_ICON[t]} ${TARGET_SHORT[t]}`)}
-                                    open={openKnob === 'target'}
-                                    onToggle={() => setOpenKnob(o => o === 'target' ? null : 'target')}
-                                    onPick={(v) => {
-                                        const t = TARGETS.find(x => v.endsWith(TARGET_SHORT[x]));
-                                        if (t) goPhase(t);
-                                    }}
-                                    foot={<span className="text-[9.5px] font-bold text-text-muted leading-snug">
-                                        {TARGET_HINT[filter.callTarget ?? 'DEST']} · 바꾸면 확인창이 뜹니다
-                                    </span>} />
+                                {(() => {
+                                    const homeOn = (filter.callTarget ?? 'DEST') === 'HOME';
+                                    const isLocal = (filter.callTarget ?? 'DEST') === 'LOCAL';
+                                    return (
+                                        <button type="button" onClick={() => goPhase(homeOn ? 'DEST' : 'HOME')}
+                                            title={homeOn ? '끄면 원래 목적지로 돌아갑니다' : '켜면 집 방향 콜을 찾습니다'}
+                                            className={`flex flex-col items-start gap-0.5 px-1.5 py-1 rounded-lg border text-left transition-colors ${homeOn
+                                                ? 'bg-warning/25 border-warning text-warning'
+                                                : 'border-border-card bg-background hover:border-border-hover'}`}>
+                                            <span className={`text-[9.5px] font-bold leading-tight ${homeOn ? '' : 'text-text-muted'}`}>
+                                                {/* 🔴 관내는 «지금 그렇다»만 말한다 — 누르는 것은 여전히 복귀다 */}
+                                                {isLocal ? '🏘️ 관내 · ↩️ 복귀' : '↩️ 복귀'}
+                                            </span>
+                                            <span className="flex items-center gap-1">
+                                                <span className={`w-7 h-4 rounded-full flex items-center px-0.5 transition-colors ${homeOn ? 'bg-warning justify-end' : 'bg-border-card justify-start'}`}>
+                                                    <span className="w-3 h-3 rounded-full bg-surface shadow" />
+                                                </span>
+                                                <span className={`text-[11px] font-black leading-tight ${homeOn ? 'text-warning' : 'text-text-muted'}`}>
+                                                    {homeOn ? '켬' : '끔'}
+                                                </span>
+                                            </span>
+                                        </button>
+                                    );
+                                })()}
                             </div>
                         </div>
 
