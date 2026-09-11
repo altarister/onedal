@@ -564,6 +564,18 @@ export interface PendingOrder extends OfficeOrder {
     sectionDriveMin?: Array<number | null>;       // 출발점 기준 정거장별 **누적 주행(분)** — 시계가 아니라 상대값이라 낡지 않는다
     /** 🧭 구간마다 어느 정거장인가 — sectionDriveMin 과 같은 길이. 도착으로 정거장이 빠져도 이름으로 맞춘다 (2026-08-21) */
     sectionStops?: Array<{ orderId: string; stopType: 'pickup' | 'dropoff' }>;
+    /**
+     * 🎨 **구간이 끝나는 자리** — `routePolyline` 안에서 각 구간의 **끝 인덱스(누적)** 다
+     *    (2026-09-11 · 이식 B1). 지도가 «구간마다 그 콜의 색»으로 그리려면 경계가 필요한데
+     *    통짜 배열은 그것을 잃는다.
+     *
+     * 🔴 **선을 한 벌 더 보내지 않는다.** 2026-08-14 에 종료 콜의 폴리라인만으로 초당 474KB 가
+     *    오가 브라우저가 죽었다 — 같은 점열을 복제하면 그 사고가 되살아난다. 경계는 숫자 몇 개뿐이고
+     *    `sectionLinesOf()` 가 그것으로 잘라 준다 (파생은 한 곳 · 규칙 ③).
+     * ⚠️ `sectionStops` 가 «정거장마다»라면 이건 «정거장 사이마다»라 길이가 하나 짧다 —
+     *    카카오 `sections` 를 그대로 따른다.
+     */
+    sectionEnds?: number[];
     routeComputedAt?: string;         // 이 경로를 계산한 시점 — 타임라인 추정 약속의 기준 = 카카오호출시점
     arrivedPickupAt?: string;         // 🚏 상차지에 실제로 도착한 시각 — 경로에서 뺄지의 근거 (hasVisitedStop)
     arrivedDropoffAt?: string;        // 🚏 하차지에 실제로 도착한 시각
@@ -633,6 +645,18 @@ export interface MyOrder extends OfficeOrder {
     sectionDriveMin?: Array<number | null>;       // 출발점 기준 정거장별 **누적 주행(분)** — 시계가 아니라 상대값이라 낡지 않는다
     /** 🧭 구간마다 어느 정거장인가 — sectionDriveMin 과 같은 길이. 도착으로 정거장이 빠져도 이름으로 맞춘다 (2026-08-21) */
     sectionStops?: Array<{ orderId: string; stopType: 'pickup' | 'dropoff' }>;
+    /**
+     * 🎨 **구간이 끝나는 자리** — `routePolyline` 안에서 각 구간의 **끝 인덱스(누적)** 다
+     *    (2026-09-11 · 이식 B1). 지도가 «구간마다 그 콜의 색»으로 그리려면 경계가 필요한데
+     *    통짜 배열은 그것을 잃는다.
+     *
+     * 🔴 **선을 한 벌 더 보내지 않는다.** 2026-08-14 에 종료 콜의 폴리라인만으로 초당 474KB 가
+     *    오가 브라우저가 죽었다 — 같은 점열을 복제하면 그 사고가 되살아난다. 경계는 숫자 몇 개뿐이고
+     *    `sectionLinesOf()` 가 그것으로 잘라 준다 (파생은 한 곳 · 규칙 ③).
+     * ⚠️ `sectionStops` 가 «정거장마다»라면 이건 «정거장 사이마다»라 길이가 하나 짧다 —
+     *    카카오 `sections` 를 그대로 따른다.
+     */
+    sectionEnds?: number[];
     routeComputedAt?: string;         // 이 경로를 계산한 시점 — 타임라인 추정 약속의 기준 = 카카오호출시점
     arrivedPickupAt?: string;         // 🚏 상차지에 실제로 도착한 시각 — 경로에서 뺄지의 근거 (hasVisitedStop)
     arrivedDropoffAt?: string;        // 🚏 하차지에 실제로 도착한 시각
@@ -661,6 +685,8 @@ export interface SecuredOrder extends OfficeOrder {
     kakaoCalculatedFare?: number;
     kakaoTimeExt?: string;
     routePolyline?: Array<{ x: number; y: number }>;
+    /** 🎨 구간이 끝나는 자리 — `routePolyline` 을 콜 색으로 칠하려면 이 경계가 필요하다 (이식 B1) */
+    sectionEnds?: number[];
     totalDistanceKm?: number;
     totalDurationMin?: number;
     kakaoSoloDistanceKm?: number;
@@ -1710,3 +1736,5 @@ export * from './screenLabels';
 export * from './naviLink';
 /** ⏱️ 밀림 — 한 콜이 앞선 정거장을 몇 분 밀었나, 누가 밀었나 (2026-09-11 실험실에서 올림) */
 export * from './stopImpact';
+/** 🎨 구간별 선 — 통짜 폴리라인 + 경계로 자른다 (이식 B1) */
+export * from './sectionLine';

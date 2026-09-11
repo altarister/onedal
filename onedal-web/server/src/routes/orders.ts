@@ -18,7 +18,7 @@ import { RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, restoreWindow, isEvaluating,
 import db from "../db";
 import { getUserSession } from "../state/userSessionStore";
 import { forceCancelEvaluatingOrder, handleDecision } from "../services/dispatchEngine";
-import { parsePolyline } from "../services/routeComposer";
+import { parsePolyline, parseSectionEnds } from "../services/routeComposer";
 import { updateActiveFilter } from "../state/filterManager";
 import { requireAuth } from "../middlewares/authMiddleware";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
@@ -66,7 +66,12 @@ router.get("/", requireAuth, (req, res) => {
          * 되돌리는 규칙은 `parsePolyline` 한 곳에만 있다 (규칙 ③).
          */
         res.json({
-            orders: (rows as any[]).map(r => ({ ...r, routePolyline: parsePolyline(r.routePolyline) })),
+            orders: (rows as any[]).map(r => ({
+                ...r,
+                routePolyline: parsePolyline(r.routePolyline),
+                /** 🎨 구간 경계도 함께 편다 — 궤적과 같은 운명이라야 지도가 색을 잃지 않는다 (이식 B1) */
+                sectionEnds: parseSectionEnds(r.sectionEnds),
+            })),
         });
     } catch (error) {
         console.error("Orders GET 에러:", error);

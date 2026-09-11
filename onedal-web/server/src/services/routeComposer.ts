@@ -43,6 +43,8 @@ export interface RouteResult {
     sectionDriveMin?: Array<number | null>;
     /** 🧭 구간마다 어느 정거장인가 — `sectionDriveMin` 과 같은 길이. 자리가 아니라 이름으로 맞추는 열쇠 */
     sectionStops?: Array<{ orderId: string; stopType: 'pickup' | 'dropoff' }>;
+    /** 🎨 **구간이 끝나는 자리** — `routePolyline` 안의 누적 끝 인덱스 (이식 B1) */
+    sectionEnds?: number[];
     /** 현위치 → 첫 상차지 소요 시간(초). 카카오가 주는데 예전에는 로그만 찍고 버렸다 */
     approachDuration?: number;
     /** 현위치 → 첫 상차지 거리(미터) */
@@ -77,6 +79,7 @@ export function applySoloRoute(holder: RouteHolder, r: RouteResult): void {
     const approachM = r.approachDistance ?? 0;
 
     holder.routePolyline = r.polyline;
+    holder.sectionEnds = r.sectionEnds;        // 🎨 구간 경계 — 선은 한 벌뿐이다 (이식 B1)
     holder.totalDistanceKm = toKm(r.distance);
     holder.totalDurationMin = toMin(r.duration);
     if (r.sectionEtas) holder.sectionEtas = r.sectionEtas;
@@ -142,6 +145,18 @@ export function parsePolyline(raw: unknown): Array<{ x: number; y: number }> | u
     }
 }
 
+/**
+ * 🎨 **구간 경계를 되돌린다** — DB 에는 JSON 문자열로 산다 (`parsePolyline` 과 같은 규약).
+ *    숫자 배열이 아니면 `undefined` — 그러면 `sectionLinesOf` 가 «한 구간»으로 물러난다 (규칙 ④).
+ */
+export function parseSectionEnds(raw: unknown): number[] | undefined {
+    if (raw == null) return undefined;
+    try {
+        const v = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        return Array.isArray(v) && v.every(n => typeof n === 'number' && Number.isFinite(n)) ? v : undefined;
+    } catch { return undefined; }
+}
+
 /** 지금 모습을 그대로 뜬다 (덮어쓰기 직전에 부른다) */
 export function snapshotRoute(holder: RouteHolder & { id: string }, at: { x: number; y: number } | null): RouteSnapshot {
     return {
@@ -189,6 +204,7 @@ export function restoreRouteSnapshot(
 /** 경로 연산 결과를 콜에 기록한다. 어떤 필드를 쓰는지도 여기서만 정한다. */
 export function applyRoute(holder: RouteHolder, r: RouteResult): void {
     holder.routePolyline = r.polyline;
+    holder.sectionEnds = r.sectionEnds;        // 🎨 구간 경계 — 선은 한 벌뿐이다 (이식 B1)
     holder.totalDistanceKm = toKm(r.distance);
     holder.totalDurationMin = toMin(r.duration);
     if (r.sectionEtas) holder.sectionEtas = r.sectionEtas;

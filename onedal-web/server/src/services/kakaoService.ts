@@ -1,3 +1,4 @@
+import { sectionEndsOf } from '@onedal/shared';
 /**
  * 카카오 모빌리티 API 서비스 (kakaoUtil.ts 리팩토링)
  * 
@@ -101,6 +102,8 @@ export interface RouteResult {
     polyline?: Array<{x: number; y: number}>; // 카카오 실제 도로 곡선 데이터
     sectionEtas?: string[]; // 각 구간 도착 시점(HH:mm) 배열
     sectionDriveMin?: Array<number | null>; // 정거장별 누적 주행(분) — 상대값이라 낡지 않는다. 현위치 미상이면 null
+    /** 🎨 **구간이 끝나는 자리** — `polyline` 안의 누적 끝 인덱스. 선을 복제하지 않는다 (이식 B1) */
+    sectionEnds?: number[];
 }
 
 export interface DetourResult {
@@ -109,6 +112,8 @@ export interface DetourResult {
     timeDiffMin: number;
     distDiffKm: string;
 }
+
+// ━━━━━━━━━━ [헬퍼 함수] ━━━━━━━━━━
 
 // ━━━━━━━━━━ [헬퍼 함수] ━━━━━━━━━━
 /**
@@ -126,37 +131,59 @@ function isValidKoreaCoord(x: unknown, y: unknown): boolean {
         && y >= KOREA_BOUNDS.minY && y <= KOREA_BOUNDS.maxY;
 }
 
-function extractPolyline(routes?: any[]): Array<{x: number; y: number}> {
-    const polyline: Array<{x: number; y: number}> = [];
-    let droppedCount = 0;
-    if (!routes || !routes[0] || !routes[0].sections) {
+
+/**
+ * 🗺️ **카카오 응답에서 궤적을 뽑는다** — 구간을 이어 붙인 통짜 점열.
+ *
+ * 🔴 **`extractSectionLines` 한 벌에서 나온다** (2026-09-11 · 이식 B1). 예전에는 둘이
+ *    각자 걸었는데, 그러면 «버리는 잣대»(한반도 밖 좌표)가 한쪽만 바뀌어도 조용히 갈린다 —
+ *    그리고 `sectionLinesOf` 는 **이어 붙이면 같다**는 전제 위에 서 있다. 한 번만 걷고 잇는다.
+ */
+function extractPolyline(routes?: any[]): Array<{ x: number; y: number }> {
+    const sections = routes?.[0]?.sections;
+    if (!Array.isArray(sections)) {
         console.log(`🗺️ [extractPolyline] routes/sections 배열이 없습니다. 카카오가 넘겨준 원본 배열:`, JSON.stringify(routes));
-        return polyline;
+        return [];
     }
-    
-    console.log(`🗺️ [extractPolyline] 섹션(구간) 수: ${routes[0].sections.length}`);
-    for (let sIdx = 0; sIdx < routes[0].sections.length; sIdx++) {
-        const section = routes[0].sections[sIdx];
-        if (!section.roads) continue;
-        let sectionPoints = 0;
-        for (const road of section.roads) {
-            if (!road.vertexes) continue;
-            // vertexes is [x1, y1, x2, y2, ...] flat array
+    const lines = extractSectionLines(routes);
+    const polyline = lines.flat();
+    console.log(`🗺️ [extractPolyline] 섹션(구간) 수: ${lines.length} · 구간별 점 ${JSON.stringify(lines.map(l => l.length))}`
+        + ` · 총 ${polyline.length}점`);
+    return polyline;
+}
+
+/**
+ * 🎨 **구간마다 따로 담은 폴리라인** — `extractPolyline` 이 통째로 이은 것을 **끊어서** 준다
+ *    (2026-09-11 · 이식 B1 · `docs/기획/이식_계획_지도필터콜.md` §6 B).
+ *
+ * 🔴 **왜 필요한가** — 지도가 «구간마다 그 콜의 색»으로 그리려면 어느 점이 어느 구간인지
+ *    알아야 한다. 통짜 배열은 그 경계를 잃는다. 지도 실험실은 `/sim/chain` 이 끊어 주는
+ *    덕에 그렇게 그려 왔고, 실물은 그 경계가 없어서 **선이 한 색**이었다.
+ *
+ * 🔴 **기존 `extractPolyline` 을 안 건드린다** — 그 값을 읽는 곳이 여럿이라(궤적·경유 지역·
+ *    진행도) 모양을 바꾸면 그 전부가 흔들린다. 같은 원본에서 **한 벌 더** 뽑을 뿐이고,
+ *    이어 붙이면 통짜와 같은 점열이 된다 (검사가 그것을 잠근다).
+ *
+ * `sectionDriveMin`·`sectionStops` 와 **같은 길이 규약**이 아니다 — 저쪽은 «정거장마다»,
+ * 이쪽은 «정거장 사이마다»라 하나 짧다. 카카오 `sections` 의 길이를 그대로 따른다.
+ */
+export function extractSectionLines(routes?: any[]): Array<Array<{ x: number; y: number }>> {
+    const out: Array<Array<{ x: number; y: number }>> = [];
+    const sections = routes?.[0]?.sections;
+    if (!Array.isArray(sections)) return out;
+    for (const section of sections) {
+        const line: Array<{ x: number; y: number }> = [];
+        for (const road of section?.roads ?? []) {
+            if (!road?.vertexes) continue;
             for (let i = 0; i < road.vertexes.length; i += 2) {
-                const x = road.vertexes[i];
-                const y = road.vertexes[i + 1];
-                if (!isValidKoreaCoord(x, y)) { droppedCount++; continue; }
-                polyline.push({ x, y });
-                sectionPoints++;
+                const x = road.vertexes[i], y = road.vertexes[i + 1];
+                if (!isValidKoreaCoord(x, y)) continue;   // 통짜 쪽과 **같은 잣대**로 버린다
+                line.push({ x, y });
             }
         }
-        console.log(`   - 섹션 ${sIdx + 1} (${section.bound?.min_x || '?'},${section.bound?.min_y || '?'} -> ${section.bound?.max_x || '?'},${section.bound?.max_y || '?'}) 추출 라인 좌표수: ${sectionPoints}`);
+        out.push(line);
     }
-    if (droppedCount > 0) {
-        console.warn(`⚠️ [extractPolyline] 한반도 범위를 벗어난 좌표 ${droppedCount}개 폐기 (카카오 응답 오염). 지도 스케일 붕괴 방지.`);
-    }
-    console.log(`🗺️ [extractPolyline] 카카오 폴리라인 궤적 총 ${polyline.length}개의 포인트 추출 성공`);
-    return polyline;
+    return out;
 }
 
 /**
@@ -307,6 +334,7 @@ export async function calculateSoloRoute(
         approachDistance,
         raw: summary,
         polyline: extractPolyline(data?.routes),
+        sectionEnds: sectionEndsOf(extractSectionLines(data?.routes)),
         sectionEtas: calculateEtas(sections, !driverLoc), // 정거장 수에 맞춘 도착 예정 시각
         sectionDriveMin: calculateDriveMinutes(sections, !driverLoc)
     };
@@ -458,14 +486,14 @@ export async function calculateDetourRoute(
         base: cachedBase ?? { 
             duration: baseDuration, distance: baseDistance, 
             approachDuration: baseApproachDuration, approachDistance: baseApproachDistance, 
-            raw: baseSummary, polyline: extractPolyline(baseData?.routes),
+            raw: baseSummary, polyline: extractPolyline(baseData?.routes), sectionEnds: sectionEndsOf(extractSectionLines(baseData?.routes)),
             sectionEtas: calculateEtas(baseData?.routes?.[0]?.sections, !driverLoc),
             sectionDriveMin: calculateDriveMinutes(baseData?.routes?.[0]?.sections, !driverLoc)
         },
         merged: { 
             duration: mergedDuration, distance: mergedDistance, 
             approachDuration: mergedApproachDuration, approachDistance: mergedApproachDistance, 
-            raw: mergedSummary, polyline: extractPolyline(mergedData?.routes),
+            raw: mergedSummary, polyline: extractPolyline(mergedData?.routes), sectionEnds: sectionEndsOf(extractSectionLines(mergedData?.routes)),
             sectionEtas: calculateEtas(mergedData?.routes?.[0]?.sections, !driverLoc),
             sectionDriveMin: calculateDriveMinutes(mergedData?.routes?.[0]?.sections, !driverLoc)
         },

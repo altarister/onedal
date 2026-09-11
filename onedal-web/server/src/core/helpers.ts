@@ -306,7 +306,8 @@ export function buildOrderSync(session: { userId?: string; myOrders: MyOrder[]; 
      */
     const stripPolyline = (o: any) => {
         if (!o?.routePolyline?.length) return o;
-        const { routePolyline, ...rest } = o;
+        // 🔴 구간 경계(`sectionEnds`)도 함께 뗀다 — 선이 없으면 자를 것이 없다 (이식 B1)
+        const { routePolyline, sectionEnds, ...rest } = o;
         return rest;
     };
 
