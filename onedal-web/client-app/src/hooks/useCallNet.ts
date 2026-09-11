@@ -69,6 +69,13 @@ export interface CallNetInput {
      *    2026-09-11 저녁 자리표 대조에서 바로 그 상태가 발견됐다.
      */
     excludedRegions?: readonly string[];
+    /**
+     * 🏘️ **관내 — 서버가 파생한 값 그대로** (전수 조사 ①-8 · 2026-09-12).
+     *    서버는 관내면 각도 360°·라인 끔으로 잰다(`filterManager` C4-8b). 지도에 이 분기가
+     *    없어서 **관내 동안 요약줄 «N 읍면동»이 서버와 달랐다.** 같은 함수를 부르면서 입력이
+     *    달랐다 — 규칙 ③은 «계산»만이 아니라 **«입력»도 한 곳**이어야 한다.
+     */
+    localMode?: boolean;
 }
 
 export interface CallNet {
@@ -80,7 +87,7 @@ export interface CallNet {
 }
 
 export function useCallNet(i: CallNetInput): CallNet | null {
-    const { destinationCity, myLocation, pickupRadiusKm, destinationRadiusKm, lineRadiusKm, routeHolder, shape } = i;
+    const { destinationCity, myLocation, pickupRadiusKm, destinationRadiusKm, lineRadiusKm, routeHolder, shape, localMode } = i;
     /** 🛣️ 안 주면 «노선» — 목업 기본값과 같다 (기사님 확정 2026-09-09) */
     const routeMode = i.routeMode ?? true;
     /**
@@ -115,11 +122,14 @@ export function useCallNet(i: CallNetInput): CallNet | null {
             : null;
 
         const net = netForGoal(goal, {
-            line,
+            /* 🏘️ 관내는 방향을 안 본다 — 라인 끔 · 각도 360° (서버 `netKeywordsOf` 와 같은 분기) */
+            line: localMode ? null : line,
             lineRadiusKm: lineRadiusKm ?? 6,
             lastDrop,
             params: {
-                srcAngleDeg, dstAngleDeg, quadRadiusKm,
+                srcAngleDeg: localMode ? 360 : srcAngleDeg,
+                dstAngleDeg: localMode ? 360 : dstAngleDeg,
+                quadRadiusKm,
                 srcDiamKm: (pickupRadiusKm ?? 10) * 2,
                 dstDiamKm: (destinationRadiusKm ?? 15) * 2,
             },
@@ -139,5 +149,5 @@ export function useCallNet(i: CallNetInput): CallNet | null {
         return { net: { ...net, pass: merged.pass, groups: merged.groups, count: merged.count }, usedLine: !!line, goal };
         // eslint-disable-next-line react-hooks/exhaustive-deps -- polyline 은 lineKey 로 굳혀 본다 (위 주석)
     }, [destinationCity, myLocation?.x, myLocation?.y, pickupRadiusKm, destinationRadiusKm, lineRadiusKm, lineKey,
-        srcAngleDeg, dstAngleDeg, quadRadiusKm, excludedKey, routeMode]);
+        srcAngleDeg, dstAngleDeg, quadRadiusKm, excludedKey, routeMode, localMode]);
 }

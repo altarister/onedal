@@ -228,6 +228,8 @@ const FILTER_VALUE_COLS: Record<string, string> = Object.fromEntries(
  *    기본값 40 의 근거는 `shared` 의 `RADIUS_BASE_KM_DEFAULT` 주석에 있다 (실측 역산).
  */
 const RADIUS_AUTO_COLS: Record<string, string> = {
+    /* 🛣️🔷 노선(1)/동선(0) — 필터 값이다. 관제웹 useState 였던 것을 올렸다 (전수 조사 ①-9) */
+    route_mode: 'INTEGER DEFAULT 1',
     radius_auto: 'INTEGER DEFAULT 0',
     radius_base_km: `REAL DEFAULT ${RADIUS_BASE_KM_DEFAULT}`,
 };

@@ -3,6 +3,7 @@ import { mergeOrderViews } from "../lib/orderMerge";
 import Header from "../components/layout/Header";
 import DeviceControlPanel from "../components/dashboard/DeviceControlPanel";
 import OrderFilterStatus from "../components/dashboard/OrderFilterStatus";
+import { useFilterConfig } from "../hooks/useFilterConfig";
 import JudgmentSeat from "../components/dashboard/JudgmentSeat";
 import StageView from "../components/stage/StageView";
 /* 🔬 곁 패널 — 지울 때 이 줄과 아래 호출 한 줄만 지운다 (2026-09-11) */
@@ -50,7 +51,15 @@ export default function Dashboard() {
      *    **판정을 바꾸는 값**이다. 어제 상태가 오늘 되살아나면 안 된다.
      *    기본은 «노선» (기사님 확정 2026-09-09).
      */
-    const [routeMode, setRouteMode] = useState(true);
+    /**
+     * 🛣️🔷 **노선/동선은 필터 값이다** (전수 조사 ①-9 · 2026-09-12).
+     *    예전엔 여기 `useState(true)` 하나였다 — **서버가 몰라** «동선»을 골라도 판정·앱 목록은
+     *    계속 노선이었고, 새로고침하면 노선으로 돌아갔다. 이제 `filter.routeMode` 를 읽고
+     *    `updateFilter` 로 바꾼다 — 지도·서버·💾 가 같은 값을 본다 (규칙 ③).
+     */
+    const { filter, updateFilter } = useFilterConfig();
+    const routeMode = filter?.routeMode ?? true;
+    const setRouteMode = (v: boolean) => updateFilter({ routeMode: v });
     // 🪧 심사석 결재 버튼의 처리 중 표시 (자동콜 갈래)
     const [seatProcessingId, setSeatProcessingId] = useState<string | null>(null);
     // 🎭 새 화면 미리보기 토글 (화면개편 · 기사님 확정 0831) — 표시만 바뀐다, 상태는 공용

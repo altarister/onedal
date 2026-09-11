@@ -416,6 +416,8 @@ export function getUserSession(userId: string): UserSession {
                     radiusAuto: Boolean(filterRow.radius_auto),
                     radiusBaseKm: Number.isFinite(filterRow.radius_base_km) ? filterRow.radius_base_km : undefined,
                     acceptedVehicleTypes: safeJsonArray(filterRow.accepted_vehicle_types),
+                    /* 🛣️🔷 NULL(옛 행)은 노선 — 기본이 노선이다 (조사 ①-9) */
+                    routeMode: filterRow.route_mode == null ? true : Boolean(filterRow.route_mode),
                 } as AutoDispatchFilter;
 
                 // [완전 격리] activeFilter = baseFilter의 독립 복사본 (로그인 시 1회만)

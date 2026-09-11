@@ -415,3 +415,79 @@ describe('4단계 · 지도가 제외지역을 실제로 뺀다 — 키 안의 |
         expect(cn).toMatch(/JSON\.parse\(excludedKey\)/);
     });
 });
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * 5단계 — 이전부터 끊긴 것 (조사 ①-8·9·10·11)
+ * ══════════════════════════════════════════════════════════════════════════ */
+describe('5단계 · 관내를 지도도 안다 (조사 ①-8)', () => {
+    /**
+     * 서버는 관내면 각도 360°·라인 끔으로 재는데(`filterManager` C4-8b) 지도(`useCallNet`)는
+     * 그 분기가 없었다 → 관내 동안 요약줄 «N 읍면동»이 서버와 달랐다. 같은 함수를 부르면서
+     * **입력이 달랐다** — 규칙 ③은 «계산»만이 아니라 «입력»도 한 곳이어야 한다.
+     */
+    const cn = codeOnly(readClient('hooks/useCallNet.ts'));
+    const sv = codeOnly(readClient('components/stage/StageView.tsx'));
+    it('🔴 useCallNet 이 localMode 를 받아 각도 360°·라인 끔으로 잰다', () => {
+        expect(cn).toMatch(/localMode\?: boolean/);
+        expect(cn).toMatch(/localMode \? 360/);
+        expect(cn).toMatch(/localMode \? null : line|localMode \? null : polyline/);
+    });
+    it('🔴 무대가 서버 파생값을 그대로 넘긴다', () => {
+        expect(sv).toMatch(/localMode: filter\?\.localMode/);
+    });
+});
+
+describe('5단계 · 노선/동선은 필터 값이다 — 서버도 알고 저장도 된다 (조사 ①-9)', () => {
+    /**
+     * `routeMode` 는 `Dashboard.tsx` 의 `useState(true)` 하나뿐이었다. 서버는 그 개념이 없어
+     * «동선»을 골라도 **판정·앱 목록은 계속 노선**이었고, 새로고침하면 노선으로 돌아갔다.
+     * 목업이 그 모양이다 — 노선/동선은 그물의 모양을 정하는 **필터 값**이다.
+     */
+    const ix = codeOnly(readFileSync(join(__dirname, '../../../shared/src/index.ts'), 'utf8'));
+    const fm = codeOnly(read('state/filterManager.ts'));
+    const db = codeOnly(read('db.ts'));
+    const us = codeOnly(read('state/userSessionStore.ts'));
+    const dash = codeOnly(readClient('pages/Dashboard.tsx'));
+    const modal = codeOnly(readClient('components/dashboard/OrderFilterModal.tsx'));
+
+    it('🔴 DTO·DB·저장·로드에 routeMode 가 있다', () => {
+        expect(ix).toMatch(/routeMode\?: boolean/);
+        expect(db).toMatch(/route_mode/);
+        const i = fm.indexOf('const stmtUpdateFilter');
+        expect(fm.slice(i, fm.indexOf('`);', i))).toMatch(/route_mode = \?/);
+        const j = us.indexOf('session.baseFilter = {');
+        expect(us.slice(j, us.indexOf('} as AutoDispatchFilter', j))).toMatch(/routeMode/);
+    });
+    it('🔴 서버 그물이 동선이면 라인을 안 쓴다 · 바꾸면 다시 그린다', () => {
+        const i = fm.indexOf('const net = netForGoal(goal, {');
+        expect(fm.slice(i, i + 400)).toMatch(/routeMode === false/);
+        const k = fm.indexOf('const needsGeoRecalc');
+        expect(fm.slice(k, fm.indexOf(';', k))).toMatch(/'routeMode' in changes/);
+    });
+    it('🔴 화면은 필터 값을 읽는다 — useState 가 아니다', () => {
+        expect(dash).not.toMatch(/const \[routeMode, setRouteMode\] = useState/);
+        expect(dash).toMatch(/filter\?\.routeMode \?\? true/);
+    });
+    it('🔴 💾·되돌리기·«서버와 다름» 이 routeMode 를 본다', () => {
+        expect(fnBody(modal, 'const handleSaveToServer')).toMatch(/routeMode/);
+        expect(fnBody(modal, 'const handleRevert')).toMatch(/routeMode/);
+        expect(fnBody(modal, 'const unsaved')).toMatch(/routeMode/);
+    });
+    it('🔴 앱에는 안 내려간다 — 앱은 그물 결과(동 목록)만 본다', async () => {
+        const { APP_FILTER_KEYS } = await import('@onedal/shared');
+        expect(APP_FILTER_KEYS).not.toContain('routeMode');
+    });
+});
+
+describe('5단계 · 레이어 열림은 한 벌 (조사 ①-10) · 죽은 도구 (조사 ①-11)', () => {
+    it('🔴 exOpen 이 없다 — 제외 레이어도 openKnob 하나가 연다', () => {
+        const modal = codeOnly(readClient('components/dashboard/OrderFilterModal.tsx'));
+        expect(modal).not.toMatch(/exOpen/);
+        expect(modal).toMatch(/openKnob === 'exSido'/);
+    });
+    it('🔴 filter-show.ts 가 없어진 표를 안 읽는다', () => {
+        const fs = readFileSync(join(__dirname, '../../filter-show.ts'), 'utf8');
+        expect(fs).not.toMatch(/FROM user_filter_phases/);
+        expect(fs).toMatch(/FROM user_filters/);
+    });
+});

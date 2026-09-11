@@ -774,6 +774,15 @@ export interface AutoDispatchFilter {
      *    앱에는 **계산된 반경**이 내려간다 — 앱은 모드를 모른다.
      * ⚠️ 각도 둘은 자동이 손대지 않는다 — 거리와 무관한 «방향 허용폭»이다.
      */
+    /**
+     * 🛣️🔷 **노선 / 동선 — 그물을 어떤 모양으로 볼까** (전수 조사 ①-9 · 2026-09-12).
+     *    노선(true)은 경로 양옆(라인반경) ∪ 목적지, 동선(false)은 내 위치 → 목적지 마름모 하나.
+     * 🔴 예전엔 관제웹 `Dashboard` 의 `useState` 하나였다 — **서버가 몰라** «동선»을 골라도
+     *    판정·앱 목록은 계속 노선이었고, 새로고침하면 노선으로 돌아갔다. 목업이 그 모양이다 —
+     *    이것은 **필터 값**이다. DB 자리는 `user_filters.route_mode`.
+     * ⚠️ 앱에는 안 내려간다 — 앱은 그물의 결과(동 목록)만 본다.
+     */
+    routeMode?: boolean;
     radiusAuto?: boolean;
     /** 기준 거리 km — «지금 값이 몇 km 갈 때 맞춘 것인가». 근거는 `RADIUS_BASE_KM_DEFAULT` */
     radiusBaseKm?: number;

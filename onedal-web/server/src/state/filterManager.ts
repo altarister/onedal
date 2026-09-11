@@ -169,7 +169,9 @@ function netKeywordsOf(
         /* 🔴 관내는 **방향을 안 본다** (기사님: *"관내콜은 거리로 하지 말자. 그냥 상차지와
            하차지가 같은 시도에 있으면"*). 그물에서 «방향»은 마름모의 각도이니 **360°**,
            곧 원이다. 라인(경로 양옆)도 방향이라 함께 끈다. */
-        line: localMode ? null : line,
+        /* 🔷 **동선이면 경로를 안 본다** — 지도(`useCallNet`)와 같은 분기 (조사 ①-9).
+           예전엔 서버가 이 값을 몰라 «동선»을 골라도 판정·앱 목록은 노선이었다 */
+        line: (localMode || session.activeFilter.routeMode === false) ? null : line,
         lineRadiusKm: auto ? auto.detourRadiusKm : (session.activeFilter.detourRadiusKm ?? DEFAULT_DETOUR_RADIUS_KM),
         lastDrop,
         params: localMode ? { ...params, srcAngleDeg: 360, dstAngleDeg: 360 } : params,
@@ -238,7 +240,8 @@ const stmtUpdateFilter = db.prepare(`
         excluded_regions = ?,
         ${QUAD_COLS.map(c => `${c} = ?`).join(', ')},
         ${VALUE_COLS.map(c => `${c} = ?`).join(', ')},
-        radius_auto = ?, radius_base_km = ?, accepted_vehicle_types = ?
+        radius_auto = ?, radius_base_km = ?, accepted_vehicle_types = ?,
+        route_mode = ?
     WHERE user_id = ?
 `);
 
@@ -302,6 +305,7 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
     const needsGeoRecalc =
         'destinationCity' in changes ||
         'callTarget' in changes ||          // 🎯 타겟이 바뀌면 그물이 향하는 시가 바뀐다 (조사 ①-1)
+        'routeMode' in changes ||           // 🛣️🔷 노선/동선이 바뀌면 그물의 모양이 바뀐다 (조사 ①-9)
         'destinationRadiusKm' in changes ||
         'excludedRegions' in changes ||
         /* 📐 **모드를 바꾸면 반경이 통째로 달라진다** — 그물을 다시 그려야 한다 (이식 C4-12).
@@ -844,6 +848,7 @@ export function saveBaseFilter(
             b.radiusAuto ? 1 : 0,
             Number.isFinite(b.radiusBaseKm as number) ? b.radiusBaseKm : null,
             JSON.stringify(b.acceptedVehicleTypes || []),
+            b.routeMode === false ? 0 : 1,   // 🛣️🔷 기본은 노선 (조사 ①-9)
             userId
         );
     } catch (e) {

@@ -135,6 +135,8 @@ export default function StageView(props: Props) {
         lineRadiusKm: radii.detourRadiusKm,
         /* 🚫 지도도 서버와 **같은 제외 목록**을 본다 — 한쪽만 빼면 화면이 거짓말한다 (이식 C2) */
         excludedRegions: filter?.excludedRegions,
+        /* 🏘️ 관내 — 서버가 파생한 값을 그대로 (조사 ①-8) */
+        localMode: filter?.localMode,
         routeHolder: derived.drawHolder,
     });
 

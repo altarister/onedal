@@ -3,8 +3,12 @@
  *
  * 기사님(2026-08-25): *"첫짐 잡고 필터 보여 주고 합짐 잡고 필터 보여 주고 주행중 필터 보여줘"*
  *
- * 값은 지어내지 않는다 — 국면 설정은 **장부(user_filter_phases)** 에서, 경로는 **실제 주행에
+ * 값은 지어내지 않는다 — 필터는 **장부(`user_filters` 한 행)** 에서, 경로는 **실제 주행에
  * 저장된 폴리라인**에서 가져오고, 목록은 서버가 쓰는 함수 그대로 부른다.
+ *
+ * 🔄 2026-09-12 — `user_filter_phases` 다섯 행이 C3-3b(09-11)에 걷혔는데 이 도구가 그 표를
+ *    그대로 읽어 **실행하면 죽었다** (전수 조사 ①-11). 값이 한 벌이라 세 국면이 같은 값을 본다 —
+ *    갈리는 것은 경로(첫짐엔 없다)뿐이다.
  */
 import Database from "better-sqlite3";
 import { initGeoService, getCityRegionsWithRadius, getDetourRegions, unionRegions } from "./src/services/geoService";
@@ -12,12 +16,14 @@ import { initGeoService, getCityRegionsWithRadius, getDetourRegions, unionRegion
 initGeoService();
 const db = new Database("./local.db", { readonly: true });
 
-const rows = db.prepare(
-    `SELECT phase, destination_city AS city, pickup_radius_km AS pickup,
-            detour_allow_km AS detour, dropoff_radius_km AS dropoff, discount_pct AS discount
-     FROM user_filter_phases`
-).all() as any[];
-const P = Object.fromEntries(rows.map(r => [r.phase, r]));
+const f0 = db.prepare(
+    `SELECT destination_city AS city, pickup_radius_km AS pickup,
+            detour_radius_km AS detour, destination_radius_km AS dropoff, call_discount_pct AS discount
+     FROM user_filters LIMIT 1`
+).get() as any;
+if (!f0) { console.error("user_filters 행이 없습니다 — 관제웹에 한 번 로그인한 뒤 다시 부르세요."); process.exit(1); }
+/* 값은 한 벌 — 세 국면이 같은 행을 본다 */
+const P = { first: f0, merge: f0, drive: f0 };
 
 // 첫짐이 만든 경로 — 야탑 → 여주 가남 (실제 주행에 저장된 것)
 const row = db.prepare(`SELECT id, pickup, dropoff, routePolyline FROM orders
@@ -75,7 +81,7 @@ show("합짐 (GATHERING)", "첫 콜을 잡아 경로가 생겼다", () => {
 show("주행중 (DELIVERING)", "출발 — 경로가 좁아진다", () => {
     const { f, detour, u } = merged("drive");
     console.log(`  도착 목표   ${P.first.city} + ${P.first.dropoff}km   ← 그대로 상속`);
-    console.log(`  상차지      경로에서 ${f.detour}km 안        ← 합짐 ${P.merge.detour}km 에서 좁아짐`);
+    console.log(`  상차지      경로에서 ${f.detour}km 안        ← 값이 한 벌이라 합짐과 같다`);
     console.log(`  하차지 주변  마지막 하차지에서 ${f.dropoff}km`);
     console.log(`\n  경로 위(상차 가능) ${detour.flat.length}개`);
     dongs(detour.grouped);
@@ -87,5 +93,5 @@ show("주행중 (DELIVERING)", "출발 — 경로가 좁아진다", () => {
 
 console.log();
 line();
-console.log("상차 가능은 좁아지고, 하차 가능은 도착 목표 덕에 끝까지 유지된다.");
+console.log("값은 한 벌 — 갈리는 것은 경로(첫짐엔 없다)뿐. 하차 가능은 도착 목표 덕에 끝까지 유지된다.");
 line();

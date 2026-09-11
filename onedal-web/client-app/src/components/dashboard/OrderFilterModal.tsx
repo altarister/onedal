@@ -184,7 +184,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
     const [exDirty, setExDirty] = useState(false);
     const [exSido, setExSido] = useState<string>('경기');
     const [exSgg, setExSgg] = useState<string | null>(null);
-    const [exOpen, setExOpen] = useState<string | null>(null);
+    /* 🔴 제외 레이어도 `openKnob` 하나가 연다 — 두 벌이면 레이어 둘이 동시에 열린다 (조사 ①-10) */
     /**
      * ⛔ **칩 줄 — 닫히면 한 줄, 누르면 전부** (목업 `MapMockup.tsx:3288~` 그대로 · 전수 조사 4단계).
      *    기사님 2026-09-09: *"결과물을 첫 줄만 보여 주고 클릭하면 다."*
@@ -446,9 +446,10 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
         if (!!filter?.radiusAuto !== !!baseFilter.radiusAuto) return true;
         if ((filter?.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT) !== (baseFilter.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT)) return true;
         if (!sameList(filter?.acceptedVehicleTypes ?? [], baseFilter.acceptedVehicleTypes ?? [])) return true;
+        if ((filter?.routeMode ?? true) !== (baseFilter.routeMode ?? true)) return true;   // 🛣️🔷 (조사 ①-9)
         return false;
     }, [baseFilter, cur, quadForm, exDraft, blacklist,
-        filter?.radiusAuto, filter?.radiusBaseKm, filter?.acceptedVehicleTypes]);
+        filter?.radiusAuto, filter?.radiusBaseKm, filter?.acceptedVehicleTypes, filter?.routeMode]);
 
     /**
      * ↩︎ **되돌리기 — 서버에 저장된 값으로** (이식 C4-10).
@@ -475,6 +476,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
             radiusAuto: !!baseFilter.radiusAuto,
             radiusBaseKm: baseFilter.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT,
             acceptedVehicleTypes: baseFilter.acceptedVehicleTypes ?? [],
+            routeMode: baseFilter.routeMode ?? true,   // 🛣️🔷 (조사 ①-9)
         });
     };
 
@@ -565,6 +567,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
             radiusAuto: !!filter?.radiusAuto,
             radiusBaseKm: filter?.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT,
             acceptedVehicleTypes: filter?.acceptedVehicleTypes ?? [],
+            routeMode: filter?.routeMode ?? true,   // 🛣️🔷 필터 값이다 (조사 ①-9)
         }, saveAsDefault);
 
         onClose();
@@ -1109,7 +1112,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                 <PickLayer label="⛔ 제외 도" options={sidoList()} tone="danger"
                                     value={`${exSido}${exDraft.includes(`S|${exSido}`) ? ' ⛔' : ''}`}
                                     selected={sidoList().filter(v => exDraft.includes(`S|${v}`))}
-                                    open={exOpen === 'sido'} onToggle={() => setExOpen(o => o === 'sido' ? null : 'sido')}
+                                    open={openKnob === 'exSido'} onToggle={() => setOpenKnob(o => o === 'exSido' ? null : 'exSido')}
                                     onPick={v => { setExSido(v); setExSgg(null); }}
                                     foot={
                                         <button type="button" onClick={() => toggleEx(`S|${exSido}`)}
@@ -1120,7 +1123,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                 <PickLayer label="시·군·구 ⛔ 통째" keepOpen tone="danger" options={sggList(exSido)}
                                     value={(() => { const n = sggList(exSido).filter(g => exDraft.includes(`R|${g}`)).length; return n ? `${n}곳 제외` : (exSgg ?? '고르기'); })()}
                                     selected={sggList(exSido).filter(g => exDraft.includes(`R|${g}`))}
-                                    open={exOpen === 'sgg'} onToggle={() => setExOpen(o => o === 'sgg' ? null : 'sgg')}
+                                    open={openKnob === 'exSgg'} onToggle={() => setOpenKnob(o => o === 'exSgg' ? null : 'exSgg')}
                                     onPick={v => { setExSgg(v); toggleEx(`R|${v}`); }}
                                     foot={<span className="text-[9.5px] font-bold text-text-muted leading-snug">
                                         누르면 <b className="text-danger">그 시·군·구가 통째로</b> 빠집니다 · 다시 누르면 되살아납니다 ·
@@ -1129,7 +1132,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                 <PickLayer label="읍·면·동" keepOpen tone="danger" options={exSgg ? dongList(exSgg) : []}
                                     value={exSgg ? (() => { const n = dongList(exSgg).filter(d => exDraft.includes(`D|${exSgg}|${d}`)).length; return n ? `${n}개 제외` : '전부 봄'; })() : '—'}
                                     selected={exSgg ? dongList(exSgg).filter(d => exDraft.includes(`D|${exSgg}|${d}`)) : []}
-                                    open={exOpen === 'dong'} onToggle={() => setExOpen(o => o === 'dong' ? null : 'dong')}
+                                    open={openKnob === 'exDong'} onToggle={() => setOpenKnob(o => o === 'exDong' ? null : 'exDong')}
                                     onPick={v => { if (exSgg) toggleEx(`D|${exSgg}|${v}`); }}
                                     foot={!exSgg ? <span className="text-[9.5px] font-bold text-text-muted">시·군·구를 먼저 고르세요</span> : null} />
                             </div>
