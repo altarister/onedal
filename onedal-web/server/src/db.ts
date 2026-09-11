@@ -208,11 +208,14 @@ db.exec(`
         -- driver_action TEXT DEFAULT 'WAITING', V6 유물 — 로그인이 하드코딩, 저장 안 함
         vehicle_rates TEXT DEFAULT '${defaultRates}',
         agency_fee_percent REAL DEFAULT 23.0,
+        -- 🚫 제외 지역 — «거긴 안 간다». 국면이 아니라 그 지역의 사정이라 여기 한 벌 (이식 C2)
+        --    키 문법 S|도 · R|시군구 · D|시군구|동 — 규칙은 shared/callNet.ts 하나
+        excluded_regions TEXT DEFAULT '[]',
         ${Object.entries(QUAD_COLS).map(([c, t]) => `${c} ${t}`).join(',\n        ')},
         FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     )
 `);
-ensureColumns('user_filters', QUAD_COLS);
+ensureColumns('user_filters', { ...QUAD_COLS, excluded_regions: "TEXT DEFAULT '[]'" });
 
 // ═══════════════════════════════════════
 // [6] (v5) 스캐너가 잡은 콜 및 장소 마스터, 배차 경유지

@@ -19,7 +19,7 @@ import { SettingsRepository } from "../repositories/SettingsRepository";
 import { getUserSession } from "./userSessionStore";
 import type { AutoDispatchFilter, PhaseKey, PhaseSettings } from "@onedal/shared";
 import { DEFAULT_DETOUR_RADIUS_KM, isDeliveredCall, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, resolvePhaseKey, applyPhaseToFilter, normalizePhaseSettings,
-         PHASE_KEYS, FILTER_FIELDS, QUAD_FIELDS, quadShapeFrom, phaseRowOf, phaseOfRow, EVALUATING_STATUSES } from "@onedal/shared";
+         PHASE_KEYS, FILTER_FIELDS, QUAD_FIELDS, quadShapeFrom, pruneExcludedRegions, phaseRowOf, phaseOfRow, EVALUATING_STATUSES } from "@onedal/shared";
 import type { PhaseSettingsMap } from "@onedal/shared";
 
 // ─────────────────────────────────────────────────────────────
@@ -91,6 +91,7 @@ const QUAD_COLS = QUAD_FIELDS.map(f => f.col);
 const stmtUpdateFilter = db.prepare(`
     UPDATE user_filters SET
         min_fare = ?, max_fare = ?, excluded_keywords = ?, is_active = ?,
+        excluded_regions = ?,
         ${QUAD_COLS.map(c => `${c} = ?`).join(', ')}
     WHERE user_id = ?
 `);
@@ -180,7 +181,14 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
         const city = session.activeFilter.destinationCity;
         const radius = session.activeFilter.destinationRadiusKm || 0;
         console.log(`🗺️ [FilterManager] 지리 연산 트리거 (city=${city}, radius=${radius}km)`);
-        const { flat, grouped, customCityFilters } = getCityRegionsWithRadius(city, radius);
+        const raw = getCityRegionsWithRadius(city, radius);
+        /**
+         * 🚫 **제외 지역을 여기서 뺀다** (이식 C2 · 명세 §3). 빼는 자리는 `pruneExcludedRegions`
+         *    하나다 (규칙 ③) — 키 문법(`S|`·`R|`·`D|`)을 서버가 또 뜯어보지 않는다.
+         *    `destinationKeywords` 를 **만들 때** 빼므로 앱은 제외를 몰라도 된다.
+         */
+        const { flat, grouped } = pruneExcludedRegions(raw.grouped, session.activeFilter.excludedRegions ?? []);
+        const customCityFilters = raw.customCityFilters;
         session.activeFilter.destinationKeywords = flat;
         session.activeFilter.destinationGroups = grouped;
         /**
@@ -458,10 +466,13 @@ function refreshDetourIfNeeded(
     rememberDetourProgress(session, regions);
 
     // 셋을 **한 벌로** 넣는다. 별칭(customCityFilters)이 빠지면 앱의 2단계 필터가 조용히 꺼진다
-    session.activeFilter.destinationKeywords = regions.destinationKeywords;
-    session.activeFilter.destinationGroups = regions.destinationGroups;
+    /* 🚫 경로 주변도 같은 함수로 제외를 뺀다 — 한쪽만 거치면 «첫짐엔 빠지는데 합짐엔 들어온다» */
+    const kept = pruneExcludedRegions(regions.destinationGroups, session.activeFilter.excludedRegions ?? []);
+    session.activeFilter.destinationKeywords = kept.flat;
+    session.activeFilter.destinationGroups = kept.grouped;
     session.activeFilter.customCityFilters = regions.customCityFilters;
-    console.log(`🛣️ [경유 갱신] 경유 ${cRadius}km · 하차 ${dRadius}km → 지역 ${regions.destinationKeywords.length}개`);
+    console.log(`🛣️ [경유 갱신] 경유 ${cRadius}km · 하차 ${dRadius}km → 지역 ${kept.flat.length}개`
+        + (regions.destinationKeywords.length !== kept.flat.length ? ` (제외로 ${regions.destinationKeywords.length - kept.flat.length}개 뺌)` : ''));
 }
 
 /**
@@ -720,6 +731,7 @@ export function saveBaseFilter(
             b.maxFare,
             JSON.stringify(b.excludedKeywords || []),
             b.isActive ? 1 : 0,
+            JSON.stringify(b.excludedRegions || []),
             ...QUAD_FIELDS.map(f => quad[f.path]),
             userId
         );

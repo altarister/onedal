@@ -107,6 +107,37 @@ export function isRegionExcluded(excluded: readonly string[], region: string, na
     return isWholeRegionExcluded(excluded, region) || excluded.includes(`D|${region}|${name}`);
 }
 
+/**
+ * 🚫 **제외 지역을 실제로 빼는 자리 — 여기 하나다** (이식 C2 · 2026-09-11 · 명세 §3).
+ *
+ * 위 `isRegionExcluded` 는 «이 동이 제외인가»만 답한다. 그걸 받아 **목록에서 빼는 일**은
+ * 여태 부르는 쪽마다 따로 있었다 — 실험실 아웃풋이 자기 안에서 걸렀고, 서버는 아예 몰랐다.
+ * 실물에 칸을 파면서 그 일을 여기로 모은다 (규칙 ③): 서버의 파생 두 자리(도시 둘레 ·
+ * 경로 주변)와 실험실이 **같은 함수**를 부른다. 각자 또 쓰면 «화면은 뺐는데 판정은 안 뺀다».
+ *
+ * 🔴 **빈 묶음을 남기지 않는다.** 한 시·군·구의 동을 다 빼면 그 시·군·구도 사라진다 —
+ *    `destinationGroups` 는 화면이 «이 시에서 N개 동」이라고 읽는 곳이라, 0개짜리가
+ *    남으면 화면이 «있는데 아무것도 없다»고 말한다.
+ *
+ * @param grouped 시·군·구 → 읍·면·동 이름들 (`getCityRegionsWithRadius` 의 `grouped` 모양)
+ * @param excluded 제외 키 목록 — `S|도` · `R|시군구` · `D|시군구|동`
+ */
+export function pruneExcludedRegions(
+    grouped: Readonly<Record<string, readonly string[]>>,
+    excluded: readonly string[],
+): { flat: string[]; grouped: Record<string, string[]> } {
+    const out: Record<string, string[]> = {};
+    const flat = new Set<string>();
+    for (const region of Object.keys(grouped)) {
+        if (isWholeRegionExcluded(excluded, region)) continue;
+        const names = grouped[region].filter(n => !isRegionExcluded(excluded, region, n));
+        if (!names.length) continue;
+        out[region] = [...names];
+        for (const n of names) flat.add(n);
+    }
+    return { flat: [...flat].sort(), grouped: out };
+}
+
 /** ⛔ 제외 키를 사람이 읽는 이름으로 — 칩·아웃풋이 같은 말을 쓰게 */
 export function excludedLabel(key: string): string {
     if (key.startsWith('S|')) return `${key.slice(2)} 전체`;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildNet, netForGoal, lineZoneOf, quadTesterOf, buildFirstLegDemo, judgeTwoStage, judgeGoals, orderStopsGreedy, orderStopsInsert, cityCenter, dongList, buildLineNet, sggList, sidoList, sidoOf, isRegionExcluded, isWholeRegionExcluded, excludedLabel, mergeGoalNets, isLocalPhase, WAIT_PRESET, NET_SRC, NET_DST, GONJIAM_DROP, DONGWON_DROP, BORAM_DROP, ICHEON_DROP , legSound, foldChainOrder } from './callNet';
+import { pruneExcludedRegions, buildNet, netForGoal, lineZoneOf, quadTesterOf, buildFirstLegDemo, judgeTwoStage, judgeGoals, orderStopsGreedy, orderStopsInsert, cityCenter, dongList, buildLineNet, sggList, sidoList, sidoOf, isRegionExcluded, isWholeRegionExcluded, excludedLabel, mergeGoalNets, isLocalPhase, WAIT_PRESET, NET_SRC, NET_DST, GONJIAM_DROP, DONGWON_DROP, BORAM_DROP, ICHEON_DROP , legSound, foldChainOrder } from './callNet';
 
 /**
  * 🧪 **그물 셋업의 계산이 ⑭ 검산과 같은가**
@@ -923,5 +923,69 @@ describe('foldChainOrder — 순번을 chain 으로 접는다 (수술 4단계 ·
     it('cut 이 범위 밖이면 null', () => {
         expect(foldChainOrder(labels, calls, [], -1)).toBeNull();
         expect(foldChainOrder(labels, calls, [], 7)).toBeNull();
+    });
+});
+
+/**
+ * 🚫 **제외 지역을 빼는 자리는 하나다** (이식 C2 · 2026-09-11 · 명세 §3).
+ *
+ * 실험실은 `buildAppFilterOutput` 안에서 직접 걸렀고, 서버는 아예 제외를 몰랐다.
+ * 실물에 칸을 파면서 **판별 규칙을 또 쓰지 않게** 빼는 일 자체를 여기로 모은다 (규칙 ③) —
+ * «화면은 뺐는데 판정은 안 뺐다» 는 이 레포가 이미 한 번 당한 모양이다.
+ */
+describe('pruneExcludedRegions — 제외를 빼는 자리는 한 곳 (이식 C2)', () => {
+    const GROUPED = {
+        '파주시': ['금촌동', '문산읍', '조리읍'],
+        '고양시': ['행신동', '화정동'],
+        '강화군': ['강화읍'],
+    };
+
+    it('제외가 없으면 그대로 낸다 (없는 일을 하지 않는다)', () => {
+        const r = pruneExcludedRegions(GROUPED, []);
+        expect(r.grouped).toEqual(GROUPED);
+        expect(r.flat).toEqual(['강화읍', '금촌동', '문산읍', '조리읍', '행신동', '화정동']);
+    });
+
+    it('동 하나 제외 — 그 동만 빠지고 나머지는 남는다', () => {
+        const r = pruneExcludedRegions(GROUPED, ['D|파주시|금촌동']);
+        expect(r.grouped['파주시']).toEqual(['문산읍', '조리읍']);
+        expect(r.flat).not.toContain('금촌동');
+        expect(r.flat).toContain('문산읍');
+    });
+
+    it('시·군·구 통째 제외 — 그 묶음이 통째로 사라진다 (빈 배열로 남기지 않는다)', () => {
+        const r = pruneExcludedRegions(GROUPED, ['R|강화군']);
+        expect(r.grouped['강화군']).toBeUndefined();
+        expect(r.flat).not.toContain('강화읍');
+    });
+
+    /** 🔴 도 한 층이 없어서 기사님이 **서울 구 25개를 하나씩** 누르고 계셨다 (2026-09-09) */
+    it('도 제외 — 그 도의 시·군·구가 전부 빠진다', () => {
+        const anySeoulSgg = sggList('서울')[0];
+        expect(anySeoulSgg).toBeTruthy();
+        const withSeoul = { ...GROUPED, [anySeoulSgg]: ['어느동'] };
+        const r = pruneExcludedRegions(withSeoul, ['S|서울']);
+        expect(r.grouped[anySeoulSgg]).toBeUndefined();
+        expect(r.grouped['파주시']).toEqual(GROUPED['파주시']);   // 다른 도는 그대로
+    });
+
+    it('한 시·군·구의 동을 다 빼면 그 묶음도 사라진다 (빈 묶음을 남기지 않는다)', () => {
+        const r = pruneExcludedRegions(GROUPED, ['D|고양시|행신동', 'D|고양시|화정동']);
+        expect(r.grouped['고양시']).toBeUndefined();
+    });
+
+    /** 🔴 같은 이름의 동이 여러 시에 있다 — 시군구까지 봐야 한다 (수도권에만 97개) */
+    it('동명이인은 시·군·구로 가른다', () => {
+        const two = { '파주시': ['신촌동'], '서대문구': ['신촌동'] };
+        const r = pruneExcludedRegions(two, ['D|서대문구|신촌동']);
+        expect(r.grouped['파주시']).toEqual(['신촌동']);
+        expect(r.grouped['서대문구']).toBeUndefined();
+        expect(r.flat).toEqual(['신촌동']);
+    });
+
+    it('flat 은 중복 없이 정렬된다 (앱이 그대로 읽는 목록이다)', () => {
+        const dup = { '가시': ['같은동'], '나시': ['같은동', '다른동'] };
+        const r = pruneExcludedRegions(dup, []);
+        expect(r.flat).toEqual(['같은동', '다른동']);
     });
 });

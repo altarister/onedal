@@ -763,6 +763,16 @@ export interface AutoDispatchFilter {
     dstAngleDeg?: number;
     quadRadiusKm?: number;
 
+    /**
+     * 🚫 **제외 지역 — 국면 밖 한 벌** (이식 C2 · 2026-09-11 · 명세 §3).
+     *    *"거긴 안 간다"* 는 그 지역이지 그 국면의 사정이 아니다. DB 자리는 `user_filters`.
+     *    키 문법은 `S|도` · `R|시군구` · `D|시군구|동` — 규칙은 `shared/callNet.ts` 하나다.
+     *
+     * ⚠️ **앱에는 안 내려간다** (`scrap.ts` 가 뗀다). 서버가 `destinationKeywords` 를
+     *    만들 때 이미 뺐으므로 앱은 제외를 몰라도 된다.
+     */
+    excludedRegions?: string[];
+
     // ── 단가 판정 모델 (2026-08-13 확정 · docs/지금/필터.md) ──
     // 셋 다 optional: 구버전 앱은 이 키들을 파싱하지 않으므로 무시된다 (호환).
     // minFare/maxFare 는 구버전 앱 호환용으로 유지 — 새 앱은 ratePerKm 이 있으면 그걸 쓴다.

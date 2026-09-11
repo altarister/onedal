@@ -14,6 +14,7 @@
     "scenario": "node scripts/scenario.mjs",
     "drive": "node scripts/drive.mjs",
     "lab": "node scripts/lab.mjs",
+    "net:compare": "cd server && npx tsx net-compare.ts",
     "lab:both": "node scripts/lab-both.mjs",
     "e2e:app": "node scripts/appLoop.mjs",
     "lifecycle": "node scripts/lifecycle.mjs",

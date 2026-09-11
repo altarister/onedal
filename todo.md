@@ -33,8 +33,8 @@
 
 - [ ] **먼저 «서버가 이 목록으로 무슨 질문에 답하나»를 적는다** (규칙 ⑤-4 ⑤ — 읽는 곳).
       `destinationKeywords` 는 앱의 2단계 필터가 읽는다. 그물로 바꾸면 **앱이 거르는 범위가 바뀐다**
-- [ ] 잣대는 `scratchpad/net-two-copies.ts` — `cd onedal-web/server && npx tsx <경로>` 로 잰다.
-      🔴 `geo.initGeoService()` 를 먼저 불러야 한다 (안 부르면 조용히 «0개»가 나온다)
+- [ ] 잣대는 **`cd onedal-web && pnpm net:compare`** (`server/net-compare.ts`).
+      🔴 `initGeoService()` 를 먼저 불러야 한다 — 안 부르면 서버 쪽이 조용히 «0개»를 낸다
 - [ ] 🔴 **기사님 운행에 직접 닿는 판이다** — 앱이 잡는 콜의 범위가 달라진다. 옆에 계실 때 한다
 
 ## 🎛️ 이식 C3-3 — 남은 국면 칸을 한 벌로 접을까 (2026-09-11 · **기사님 결정 대기**)

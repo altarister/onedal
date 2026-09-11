@@ -263,6 +263,18 @@ export interface UserSession {
 
 const sessions = new Map<string, UserSession>();
 
+/**
+ * 🚫 제외 지역 칸은 JSON 배열 문자열이다. 깨져 있으면 **«없음»으로 본다** —
+ *    세션 생성을 막지 않고, 없는 제외를 지어내지도 않는다 (규칙 ④).
+ */
+function safeJsonArray(v: unknown): string[] {
+    if (typeof v !== 'string' || !v) return [];
+    try {
+        const p = JSON.parse(v);
+        return Array.isArray(p) ? p.filter((x): x is string => typeof x === 'string') : [];
+    } catch { return []; }
+}
+
 function createDefaultSession(userId: string): UserSession {
     return {
         userId,
@@ -385,6 +397,8 @@ export function getUserSession(userId: string): UserSession {
                     ),
                     // 📐 마름모의 모양 — 국면 밖 한 벌 (이식 C3-2). 칸이 비었으면 기본값 110/110/25
                     ...quadShapeFrom(filterRow as any),
+                    /* 🚫 제외 지역 — 국면 밖 한 벌 (이식 C2). 깨진 JSON 은 «없음»으로 (규칙 ④) */
+                    excludedRegions: safeJsonArray(filterRow.excluded_regions),
                 } as AutoDispatchFilter;
 
                 // [완전 격리] activeFilter = baseFilter의 독립 복사본 (로그인 시 1회만)

@@ -265,8 +265,9 @@ describe('경유 갱신 — 구현은 하나여야 한다', () => {
 
     it('🔴 셋을 한 벌로 넣는다 — 별칭이 빠지면 앱의 2단계 필터가 조용히 꺼진다', () => {
         const fn = fm.slice(fm.indexOf('function refreshDetourIfNeeded'), fm.indexOf('function applyPhaseSettingsIfChanged'));
-        expect(fn).toMatch(/destinationKeywords = regions\.destinationKeywords/);
-        expect(fn).toMatch(/destinationGroups = regions\.destinationGroups/);
+        /* 🚫 앞 둘은 제외를 뺀 `kept` 에서 온다 (이식 C2) — 셋이 **함께** 들어간다는 것이 요점이다 */
+        expect(fn).toMatch(/destinationKeywords = kept\.flat/);
+        expect(fn).toMatch(/destinationGroups = kept\.grouped/);
         expect(fn).toMatch(/customCityFilters = regions\.customCityFilters/);
     });
 
@@ -288,5 +289,51 @@ describe('경유 갱신 — 구현은 하나여야 한다', () => {
          */
         const engine = codeOnly(read(join(SERVER, 'services/dispatchEngine.ts')));
         expect((engine.match(/getDetourRegions\(/g) || []).length).toBe(0);
+    });
+});
+
+/**
+ * 🚫 **제외 지역 — 국면 밖 한 벌** (이식 C2 · 2026-09-11 · 명세 §3).
+ *
+ * *"거긴 안 간다"* 는 그 지역이지 그 국면의 사정이 아니다. 마름모와 같은 자리에 산다.
+ * 걸러지는 곳은 **`destinationKeywords` 를 만들 때** — 그래서 앱은 제외를 몰라도 된다.
+ */
+describe('제외 지역 — 국면 밖 한 벌, 빼는 자리는 하나', () => {
+
+    const fm2 = codeOnly(read(join(SERVER, 'state/filterManager.ts')));
+
+    it('🔴 DB 자리는 user_filters 다 (국면 행이 아니다)', () => {
+        const db = codeOnly(read(join(SERVER, 'db.ts')));
+        const table = db.slice(db.indexOf('CREATE TABLE IF NOT EXISTS user_filters'), db.indexOf('CREATE TABLE IF NOT EXISTS user_filter_phases'));
+        expect(table).toMatch(/excluded_regions/);
+        const { FILTER_FIELDS } = require("@onedal/shared");
+        expect(FILTER_FIELDS.find((f: any) => f.col === 'excluded_regions')).toBeUndefined();
+    });
+
+    it('🔴 평면 DTO 에 칸이 있다 — 관제웹이 읽고 고칠 자리', () => {
+        const dto = codeOnly(readFileSync(join(__dirname, '../../../shared/src/index.ts'), 'utf8'));
+        expect(dto).toMatch(/excludedRegions\?: string\[\]/);
+    });
+
+    /**
+     * 🔴 **빼는 자리가 둘이면 갈라진다.** 서버는 지역 목록을 두 길로 만든다 —
+     *    도시 둘레(`getCityRegionsWithRadius`)와 경로 주변(`getDetourRegions`).
+     *    둘 다 `pruneExcludedRegions` 를 거쳐야 한다. 한쪽만 거치면
+     *    «첫짐에선 빠지는데 합짐에선 들어온다» 가 된다.
+     */
+    it('🔴 두 파생 길이 모두 pruneExcludedRegions 를 거친다', () => {
+        expect((fm2.match(/pruneExcludedRegions\(/g) || []).length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('🔴 판별 규칙을 서버가 또 쓰지 않는다 (shared 함수 하나로만)', () => {
+        // `S|`·`R|`·`D|` 키 문법을 서버가 직접 뜯어보면 그 순간 규칙이 두 벌이다
+        expect(fm2).not.toMatch(/startsWith\('[SRD]\|'\)/);
+        expect(fm2).not.toMatch(/`D\|\$\{/);
+    });
+
+    it('제외 지역은 앱에 안 내려간다 — 서버가 목록에서 이미 뺐다 (명세 §3)', () => {
+        const scrap = codeOnly(read(join(SERVER, 'routes/scrap.ts')));
+        const strip = scrap.slice(scrap.indexOf('...appFilter } = session.activeFilter') - 600, scrap.indexOf('...appFilter } = session.activeFilter'));
+        expect(strip).toMatch(/excludedRegions/);
     });
 });
