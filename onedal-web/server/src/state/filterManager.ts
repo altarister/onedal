@@ -25,7 +25,7 @@ import type { } from "@onedal/shared";
 // ─────────────────────────────────────────────────────────────
 // 🎛️ 국면 옵션 (필터 확정안 v2 · 2026-08-21 전환 완료)
 //
-// **국면 옵션의 유일한 원천은 user_filter_phases 행이다.**
+// **값 다섯의 유일한 원천은 user_filters 한 행이고, 컬럼·라벨의 원천은 FILTER_FIELDS 표다** (C3-3b · 2026-09-11).
 // 옛 blob(user_filters.phase_settings)과 평면 4칸은 ④에서 손으로 철거했다 —
 // 병행 절차: 새 그릇 → 이중 쓰기+비교(전수 스모크 일치) → 읽기 전환 → 철거.
 // ⚠️ 실서버 data.db 는 배포 때 같은 손 순서 (배포 절차는 todo.md 🚀 절).
@@ -224,7 +224,7 @@ import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { getCityRegionsWithRadius, cityAliases, getDetourRegions, unionRegions, getActivePolyline, progressAlongPolyline, trapsForKeywords, haversineKm } from "../services/geoService";
 
 // ━━━ Prepared Statement 캐싱 (모듈 로드 시 1회만 실행) ━━━
-// 노선·반경·할인율 평면 칸은 ④에서 철거 — 그 값들은 user_filter_phases 행에 산다.
+// 노선·반경·할인율은 user_filters 의 평면 칸에 산다 (④에서 철거했다가 C3-3b 에서 한 벌로 돌아왔다).
 // min_fare·max_fare 는 보류 칸 (앱 피기백 — 화물24 단가식 뒤 3단계 강등, 확정안 ①-삭제 #3)
 /**
  * 📐 마름모 셋도 여기 산다 — **국면 밖 한 벌** (이식 C3-2 · 2026-09-11).
@@ -274,8 +274,8 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
      * 차종별 하한 단가표는 **콜할인율에서만 파생된다** (docs/지금/필터.md §4).
      *
      * 관제웹은 `callDiscountPct` 하나만 보내고 표는 만들지 않는다 — 같은 표를 두 곳에서
-     * 만들면 한쪽만 고쳐진다(경유 4벌·상태목록 3벌과 같은 사고). 원천은 국면별
-     * `discount_pct`(user_filter_phases) 이고, 여기가 그것을 표로 펼치는 유일한 자리다.
+     * 만들면 한쪽만 고쳐진다(경유 4벌·상태목록 3벌과 같은 사고). 원천은
+     * `user_filters.call_discount_pct` 한 벌이고, 여기가 그것을 표로 펼치는 유일한 자리다.
      */
     if ('callDiscountPct' in changes) {
         // 요율·수수료의 원천은 DB 다 (설정 화면에서 기사님이 바꾼다).
@@ -387,8 +387,9 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
          *    KEEP → `syncDetourFilter` 는 **경로 기반**으로 꽂는다 (도시를 안 본다)
          *    그 뒤 아무 변경 → 여기서 *"도시가 비었네"* → 전멸
          *
-         * 그리고 장부상 **합짐 국면은 목적지 도시가 원래 비어 있다**(`user_filter_phases`).
+         * 그리고 당시 장부(`user_filter_phases`)에선 **합짐 국면은 목적지 도시가 원래 비어 있었다** —
          * 즉 첫짐을 KEEP 해서 합짐으로 넘어가는 **정상 흐름이 곧 그 조건**이었다.
+         * (지금은 행이 하나라 그 조건이 성립하지 않는다 — 사고 기록으로 남긴다 · C3-3b)
          * 경유가 0개가 되면 앱은 아무 콜도 안 올린다 — 화면엔 에러가 없고 **조용히 멈춘다.**
          * (CLAUDE.md: *"빈 필터는 '제한 없음'이 아니라 고장이다"*)
          *

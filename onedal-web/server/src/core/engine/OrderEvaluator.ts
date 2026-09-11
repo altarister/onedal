@@ -450,7 +450,7 @@ export class OrderEvaluator {
         logRoadmapEvent("서버", "경로 폴리라인 및 최종 수익성(콜/꿀/똥) 라벨링 연산");
         securedOrder.kakaoTimeExt = timeExt;
 
-        // Stage 3. 요율 판정 — 콜할인율은 현 국면 값 (원천: user_filter_phases)
+        // Stage 3. 요율 판정 — 콜할인율은 activeFilter.callDiscountPct 한 벌 (원천: user_filters)
         this.runStage3Pricing(securedOrder, userId, session.activeFilter.callDiscountPct, reasons, pros);
 
         // 최종 평가 합산

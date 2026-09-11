@@ -179,7 +179,7 @@ export default function GeneralSettingsTab({ onClose }: Props) {
           onChange={(e) => setPickerAlarmMinFare(parseInt(e.target.value) || 0)}
           className="w-full h-9 px-2 rounded border border-border bg-surface text-sm"
         />
-        <p className="text-[10px] text-text-muted">이 금액 이상인 픽커 콜만 알람이 울립니다. 상차 반경은 필터 국면 탭의 값을 함께 씁니다.</p>
+        <p className="text-[10px] text-text-muted">이 금액 이상인 픽커 콜만 알람이 울립니다. 현위반경은 🔍 필터의 값을 함께 씁니다.</p>
       </div>
 
       {/* 🎭 새 화면 미리보기 (화면개편 2단계) — 켜면 지도 배경+3단 시트 무대, 끄면 즉시 옛 화면 */}

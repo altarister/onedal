@@ -124,7 +124,15 @@ say('② 사라진 식별자', '문서가 말하는 상수·상태값·칸이 �
      */
     const reFn = /`([A-Za-z_$][\w$]*)\(\)`/g;
     /** 우리 코드가 아닌 것 — 이유 없는 예외는 만들지 않는다 */
-    const NOT_OURS = [
+    /**
+ * 🪦 **걷힌 이름 — 역사 문서에 묘비로 남는다.** 코드에서 사라졌으니 ②가 «없는 식별자»로 잡는데,
+ *    버그 대장·용어집이 «그때 그 표»를 말하는 것은 낡은 서술이 아니라 **기록**이다.
+ *    ⚠️ 여기 넣기 전에 «지금» 문서가 그 이름을 **현재형**으로 쓰는지 먼저 훑는다 — 그건 고쳐야 한다.
+ *    (2026-09-12: `user_filter_phases` 는 C3-3b 에서 걷혔다. `filter-show.ts` 가 그 표를 읽던
+ *     SQL 을 한 벌로 고치자 코드에서 완전히 사라져 여기로 왔다)
+ */
+const RETIRED = new Set(['user_filter_phases']);
+const NOT_OURS = [
         /^ACCESS_|^TYPE_VIEW_|^FLAG_/,          // 안드로이드 SDK 상수
         /^VITE_|^EC2_|^GOOGLE_|^ALLOW_|_KEY$|_SECRET$/,  // 환경변수·시크릿 (코드에 문자열로 안 산다)
         /^worker_threads$|^child_process$/,     // Node 내장 모듈
@@ -140,7 +148,7 @@ say('② 사라진 식별자', '문서가 말하는 상수·상태값·칸이 �
         const names = new Set([...s.matchAll(re)].map(x => x[1]));
         for (const m of [...s.matchAll(reFn)].map(x => x[1])) names.add(m);
         for (const m of names) {
-            if (CODE.includes(m) || NOT_OURS.some(p => p.test(m))) continue;
+            if (CODE.includes(m) || RETIRED.has(m) || NOT_OURS.some(p => p.test(m))) continue;
             // 대응표·역사 서술·«앞으로 만들 것»·«지울 것» 은 코드에 없는 게 맞다.
             // 그 이름이 나오는 줄이 **전부** 그런 문맥이면 문서가 맞는 것이다
             const lines = s.split('\n').filter(l => l.includes(m));

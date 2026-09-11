@@ -7,7 +7,7 @@ import { buildAppFilterOutput, type LabFilterInputs } from './labFilterOutput';
  *
  * 키의 «오타·없는 키»는 labFilterOutput.ts 의 `satisfies Partial<AutoDispatchFilter>` 가
  * 컴파일에서 잡는다. 여기서는 반대 방향을 잠근다 — **있어야 할 요소가 실제로 실리는가.**
- * 요소 목록의 원천: 실물 필터 설정 모달(관제웹) + AutoDispatchFilter + user_filter_phases.
+ * 요소 목록의 원천: 실물 필터 설정 모달(관제웹) + AutoDispatchFilter + user_filters.
  */
 
 const BASE: LabFilterInputs = {
@@ -71,8 +71,7 @@ describe('구조·요소 — 실물 필터 설정의 요소가 아웃풋에 다 
  * 잠그고 있었다. 값이 **한 벌**이 되며 둘 다 뜻이 없어졌다 —
  * 기사님: *"이제 우리에게 국면이라는 것이 없어진 것 같은데.. 원칙이 바뀐 거 아냐?"*
  *
- * ⚠️ 실물(`user_filter_phases` · `PHASE_FIELDS`)은 아직 다섯 벌이라 **여기서 갈린다.**
- *    그 차이는 `docs/기획/이식_계획.md` 에 적혀 있다.
+ * ✅ 실물도 한 벌이라 **이제 안 갈린다** (C3-3b · 2026-09-11).
  */
 describe('값은 한 벌 — 어느 칸도 «국면»으로 빠지지 않는다', () => {
     it('첫짐이든 합짐이든 네 칸이 다 실린다 — 안 쓰는 값은 그냥 안 읽힐 뿐이다', () => {

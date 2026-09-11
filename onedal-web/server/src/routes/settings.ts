@@ -19,7 +19,7 @@ router.get("/", requireAuth, (req, res) => {
         // [중요] 조회 전에 세션을 먼저 가져와서, 신규 유저인 경우 DB에 권장 기본값을 강제 생성하게 함
         getUserSession(userId);
 
-        // ④ 철거 — 노선·반경은 국면 탭(user_filter_phases)이 원천이라 여기서 안 내린다
+        // ④ 철거 — 노선·반경은 🔍 필터(user_filters)가 원천이라 여기서 안 내린다
         let row = db.prepare(`
             SELECT s.*, f.is_active
             FROM user_settings s
@@ -302,7 +302,7 @@ router.get("/pricing", requireAuth, (req, res) => {
         // [중요] 조회 전에 세션을 먼저 가져와서, 신규 유저인 경우 DB에 권장 기본값(3만/100만/10km)을 강제 생성하게 함
         getUserSession(userId);
 
-        // ④ 철거 — 콜할인율·반경은 국면 탭(user_filter_phases)이 원천이라 여기 없다.
+        // ④ 철거 — 콜할인율·반경은 🔍 필터(user_filters)가 원천이라 여기 없다.
         //    남는 것: 금액 축의 원천(단가표·수수료)과 블랙리스트, 보류 칸(min/max_fare)
         const row = db.prepare(
             "SELECT vehicle_rates, agency_fee_percent, excluded_keywords, min_fare, max_fare FROM user_filters WHERE user_id = ?"

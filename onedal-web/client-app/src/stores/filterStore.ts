@@ -20,8 +20,6 @@ interface FilterState {
     filter: AutoDispatchFilter | null;
     /** 기본 필터 (DB 저장 원본, 런타임 오버라이드 전) */
     baseFilter: AutoDispatchFilter | null;
-    /** 국면별 설정 — 오늘 (§2-4). 탭이 이걸 편집한다 */
-    /** 국면별 설정 — 평소 (DB). "평소값" 버튼이 이걸 불러온다 */
 
     /**
      * 🧾 **지도가 실제로 그린 그물의 읍·면·동 수** (이식 C4-11b · 2026-09-12).

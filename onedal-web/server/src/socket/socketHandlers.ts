@@ -783,7 +783,7 @@ export function registerSocketHandlers(io: Server) {
          */
 
         /**
-         * 🧭 국면 전환 — 요약줄 스와이프 (DEST → LOCAL → HOME).
+         * 🧭 타겟 전환 — 필터의 복귀 토글 (DEST ↔ HOME · 관내는 파생).
          *
          * 옛 `start-two-track` 을 대체한다. 그 핸들러는 전환하면서 **활성 콜을 전부
          * 완료 처리**했다 — 기사님: *"콜은 무조건 배달을 해서 완료되어야 한다."*

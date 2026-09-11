@@ -156,9 +156,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
      *    그 기준을 기사님이 바꾸셨다. 다섯 벌이 실제로 하던 일은 **감추기**였고, 목업은
      *    감추는 대신 **다 꺼내 두고 흐리게** 한다.
      *
-     * 🔴 **그릇(`user_filter_phases` 다섯 행)은 아직 그대로다** — 저장할 때 다섯에 **같은 값**을
-     *    쓴다. 다섯이 늘 같으면 국면이 바뀌어도 평면 필터가 안 움직여 동작이 한 벌과 같다.
-     *    행을 실제로 걷어내는 것은 **C3-3b** (서버 19곳·검사 8개라 따로 선다).
+     * ✅ 그릇도 한 벌이 됐다 (C3-3b · 2026-09-11) — 자리는 `user_filters` 한 행.
      */
     const [cur, setForm] = useState<ValueForm>(() => toForm(DEFAULT_FILTER_VALUES));
     /**
@@ -211,7 +209,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
      * 화면이 말하는 국면이 갈라질 수 있었다.
      *
      * 🔴 **이제 고르는 것이 아니라 «지금»이다** (C3-3a). 탭이 사라졌으므로 이 값이 곧
-     *    화면 문구(무엇을 찾는 중인가·지역 카드가 무엇의 목록인가)를 정한다.
+     *    화면 문구(무엇을 찾는 중인가 · 요약줄의 «N 읍면동»)를 정한다.
      *    **값을 고르지는 않는다** — 값은 한 벌이다.
      */
     const activePhase: PhaseKey = filter
@@ -709,7 +707,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                 {/**
                   * 🔴 **탭 다섯이 있던 자리다** (이식 C3-3a · 기사님 확정 2026-09-11 *"그 기준은 바꿔"*).
                   *    값이 한 벌이 되었으니 고를 것이 없다. 「지금 무엇을 하나」는 위 제목줄의
-                  *    배지가 말하고, 아래 문구들(무엇을 찾는 중인가 · 지역 카드)이 그것을 따라간다.
+                  *    배지가 말하고, 아래 문구들(무엇을 찾는 중인가 · 요약줄의 «N 읍면동»)이 그것을 따라간다.
                   */}
                 {/**
                      * 🔴 `flex-1 min-h-0` — **`min-h-0` 이 없으면 스크롤이 안 걸린다.**
@@ -896,8 +894,8 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                         {/**
                           * 🎚️ **반경 셋 — 숫자판이 아니라 슬라이더 레이어** (C4-1 과 같은 부품).
                           *
-                          * 🔴 **감추지 않고 흐리게 둔다.** `PHASE_FIELDS` 가 «지금 이 칸이 쓰이나»를
-                          *    답하고, 그 답은 **`dim` 으로만** 간다 — 감추면 «이 값이 어디 갔나»가 되고
+                          * 🔴 **감추지 않고 흐리게 둔다.** «지금 이 칸이 쓰이나»는 **상태에서 파생**하고(노선일 때만 라인반경 · 자동이면 반경 넷),
+                          *    그 그 답은 **`dim` 으로만** 간다 — 감추면 «이 값이 어디 갔나»가 되고
                           *    그냥 두면 «지금 쓰이는 값»으로 읽힌다 (기사님 2026-09-09 *"모두 꺼내 두고"*).
                           */}
                         {/**

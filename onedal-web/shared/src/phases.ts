@@ -34,18 +34,17 @@ export const PHASE_LABEL: Record<PhaseKey, string> = {
 /**
  * **국면은 두 축의 조합이다.**
  *
- *   `callTarget`     기사님이 버튼으로 고른다 (DEST · LOCAL · HOME)
+ *   `callTarget`     기사님이 복귀 토글로 고른다 (DEST · HOME) — 관내는 파생(`localMode`)
  *   `dispatchPhase` 콜 상태에서 파생된다 (STANDBY · GATHERING · DELIVERING)
  *
  * | callTarget | dispatchPhase | 탭     |
  * |-----------|---------------|--------|
  * | DEST      | STANDBY       | first  |
- * | LOCAL     | STANDBY       | local  |
  * | HOME      | STANDBY       | home   |
  * | *any*     | GATHERING     | merge  |
  * | *any*     | DELIVERING    | drive  |
  *
- * 🔴 **관내·복귀는 "첫짐의 자리"다** — *어디서 첫 콜을 찾는가*.
+ * 🔴 **복귀는 "첫짐의 자리"다** — *어디서 첫 콜을 찾는가*.
  *    콜을 잡으면 어느 쪽에서 출발했든 똑같이 합짐 → 운행중으로 흐른다.
  *    기사님: *"첫짐-합짐-운행중-관내-합짐-운행중-복귀-합짐-운행중"*
  *
@@ -63,8 +62,6 @@ export function resolvePhaseKey(callTarget: string, dispatchPhase: string): Phas
      * 🔴 **관내(`'LOCAL'`)가 여기서 사라졌다** (이식 C4-8b-2 · 2026-09-11).
      *    기사님: *"우린 집으로 갈건지 말껀지만 있어."* 관내는 고르는 것이 아니라
      *    **파생**이 되었다 (`AutoDispatchFilter.localMode`).
-     * ⚠️ `PhaseKey` 의 `'local'` 자체는 아직 남아 있다 — `user_filter_phases` 다섯 행과
-     *    묶여 있어서 **그릇을 걷을 때 함께 간다** (C3-3b).
      */
     return callTarget === 'HOME' ? 'home' : 'first';
 }
@@ -335,7 +332,8 @@ export const DEFAULT_FILTER_VALUES: Record<FlatValueKey, string | number> = {
  *
  * 근거는 기사님 확정 2026-09-09: *"모두 꺼내 두고 노선이면 라인값을 사용하고 동선이면
  * 사용 안 하면 되니까."* — 다섯 벌이 하던 일은 «값을 여러 벌 두는 것»이 아니라
- * **«지금 안 쓰는 칸을 감추는 것»**이었고, 감추는 일은 `PHASE_FIELDS` 가 계속 한다.
+ * **«지금 안 쓰는 칸을 감추는 것»**이었고, 지금은 감추지 않고 **상태에서 파생해 흐리게** 한다
+ * (라인반경은 노선일 때만 · 자동이면 반경 넷).
  */
 export interface QuadShape {
     /** 출발 쪽 각도(전체 °) — 내 자리에서 얼마나 돌아가도 되나 */
@@ -439,7 +437,7 @@ export const HOME_RADIUS_KM = 5;
  * 🧭 **타겟 자동 순환** — 사이클이 끝나면 다음 타겟을 **미리 눌러 둔다** (기사님이 스와이프로 뒤집는다).
  *
  *   노선(DEST) 끝 → 복귀(HOME)      단, 마지막 하차지가 집 반경 안이면 유지 (복귀 무의미)
- *   관내(LOCAL) 끝 → 복귀(HOME)     관내는 보통 시간 채우기 뒤 귀가다
+ *   관내(파생) 끝 → 복귀(HOME)      관내는 보통 시간 채우기 뒤 귀가다
  *   복귀(HOME) 끝  → 노선(DEST)     집에 왔다 — 다음 왕복
  *
  * 🔴 **하차 완료로 끝난 사이클에만** 발동한다 — 취소·방출로 0건이 된 것은
@@ -458,5 +456,5 @@ export function decideNextTargetAfterCycle(
     if (cur === 'HOME') return 'DEST';                    // 집에 왔다 — 거리 몰라도 성립
     if (distToHomeKm === null) return null;               // 집을 모르면 제안하지 않는다
     if (cur === 'DEST' && distToHomeKm <= HOME_RADIUS_KM) return null;   // 이미 집 근처
-    return 'HOME';                                        // DEST(먼 곳) · LOCAL → 복귀 제안
+    return 'HOME';                                        // DEST(먼 곳) → 복귀 제안 (관내는 파생이라 여기 없다)
 }

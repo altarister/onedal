@@ -113,7 +113,7 @@ const NET_EDGE_W = 2;
  * 🔴 `useState` 초기값에 흩어져 있으면 «지금 기본이 얼마인가»를 찾으러 파일을 훑어야 한다.
  *    값이 태어난 근거도 그 자리에 흩어진다 — 한 곳에 두고 근거를 옆에 적는다.
  *
- * 실물에서는 이 자리가 **DB**(`user_filter_phases` 등)다. 실험실은 DB 를 안 쓰므로
+ * 실물에서는 이 자리가 **DB**(`user_filters` 한 행)다. 실험실은 DB 를 안 쓰므로
  * 이 상수가 그 노릇을 한다 — 이식 때 여기 값이 DB 기본값으로 간다.
  */
 const LAB_DEFAULTS = {
@@ -725,7 +725,7 @@ export default function MapMockup() {
      * 🔴 **지금 안 쓰는 값은 그냥 안 읽힐 뿐이다.** 라인 반경은 노선일 때만 쓰이고,
      *    상차 반경은 콜을 쥐면 라인이 대신 판단한다 — 값을 감추거나 벌을 나눌 이유가 없다.
      *
-     * ⚠️ 실물(`user_filter_phases`)은 아직 다섯 벌이다. 그 차이는 이식 계획에 적어 뒀다.
+     * ✅ 실물도 한 벌이 됐다 (C3-3b · 2026-09-11) — `user_filters` 한 행.
      */
     const [knobs, setKnobs] = useState({
         srcAngleDeg: LAB_DEFAULTS.srcAngleDeg, dstAngleDeg: LAB_DEFAULTS.dstAngleDeg,
@@ -788,7 +788,7 @@ export default function MapMockup() {
      */
     /**
      * 🎛️ 필터 옵션 (기사님 2026-09-07: 오른쪽 사이드바 — **실물 필터에 있는 요소만**, 값은 목업).
-     * 국면 규칙은 실물 원천(`PHASE_FIELDS`)을 그대로 import — 여기 다시 적지 않는다 (규칙 ③).
+     * 값은 한 벌 — 실물 원천(`FILTER_FIELDS`·`QUAD_FIELDS`)과 나란히 간다. 여기 다시 적지 않는다 (규칙 ③).
      * 상차 반경·하차지 주변은 왼쪽 손잡이(knobs)와 **같은 상태**를 읽는다 — 원천 하나.
      */
     // callTarget 은 행선·도착 인지에서 파생된다 — 아래 localMode 뒤에서 계산
