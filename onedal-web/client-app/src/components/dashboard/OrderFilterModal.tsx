@@ -5,7 +5,7 @@ import { NET_RATE_PER_KM, VEHICLE_CAPACITY, TRUCK_CAPACITY_SLOTS, CAPACITY_CONFI
          FILTER_FIELDS, PHASE_AUTO_SOURCE, filterValuesFrom, DEFAULT_FILTER_VALUES,
          QUAD_FIELDS, quadShapeFrom,
          sidoList, sggList, dongList, excludedLabel,
-         resolvePhaseKey, reachRadiusKm, CALL_TARGET_LABEL } from "@onedal/shared";
+         resolvePhaseKey, reachRadiusKm, CALL_TARGET_LABEL, effectiveRadii } from "@onedal/shared";
 import type { PhaseKey, FlatValueKey, CallTarget } from "@onedal/shared";
 import { socket } from "../../lib/socket";
 import { apiClient } from "../../api/apiClient";
@@ -214,6 +214,15 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
      * 🔴 **감추지 않고 흐리게** 둔다 (기사님 2026-09-09: *"모두 꺼내 두고"*).
      */
     const inUse = (path: FlatValueKey) => path !== 'detourRadiusKm' || routeMode;
+
+    /**
+     * 📐 **반경을 거리에 맞춰 자동으로 줄이나** (이식 C4-12 · 2026-09-12).
+     *    배율은 **서버가 재서 실어 보낸다**(`radiusScale`) — 이 화면은 «내 위치 → 목적지»
+     *    거리를 모른다. 못 받았으면 `1`(손대지 않음)이다 — 지어내지 않는다 (규칙 ④).
+     */
+    const radiusAuto = !!filter?.radiusAuto;
+    /** 🔴 **지금 실제로 쓰이는 반경** — 무대 지도가 부르는 **그 함수**다 (규칙 ③) */
+    const shownRadii = effectiveRadii(filter);
 
     /**
      * 🎯 **국면 전환 — 요약줄에서 이사해 왔다** (이식 C4-5 · 2026-09-11).
@@ -737,16 +746,30 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                               * 제 손으로 판단하면 표와 갈라진다 (규칙 ③).
                               */}
                             <KnobGrid open={openKnob} onOpen={setOpenKnob}
-                                knobs={QUAD_FIELDS.map(f => ({
-                                    key: f.path,
-                                    label: f.label,
-                                    unit: f.unit,
-                                    value: Number(quadForm[f.path] ?? 0),
-                                    min: f.min,
-                                    max: f.max,
-                                    step: f.step,
-                                    set: (v: number) => { setQuadForm(q => ({ ...q, [f.path]: String(v) })); setQuadDirty(true); },
-                                }))} />
+                                knobs={QUAD_FIELDS.map(f => {
+                                    /**
+                                     * 📐 **마름모반경도 자동을 따른다** (이식 C4-12 · 2026-09-12).
+                                     *    각도 둘은 «방향 허용폭»이라 거리와 무관 — **안 건드린다.**
+                                     * 🔴 안 고쳤더니 실측에서 **서버와 지도는 6.2km 로 줄였는데
+                                     *    이 칸만 25km 라고 적고 있었다** (규칙 ⑤-4 ④ — 화면이 조용히 거짓말).
+                                     */
+                                    const isRadius = f.path === 'quadRadiusKm';
+                                    const auto = radiusAuto && isRadius;
+                                    return {
+                                        key: f.path,
+                                        label: f.label,
+                                        unit: f.unit,
+                                        value: auto
+                                            ? Math.round(shownRadii.quadRadiusKm * 10) / 10
+                                            : Number(quadForm[f.path] ?? 0),
+                                        min: f.min,
+                                        max: f.max,
+                                        step: f.step,
+                                        dim: auto,
+                                        set: auto ? () => {}
+                                            : (v: number) => { setQuadForm(q => ({ ...q, [f.path]: String(v) })); setQuadDirty(true); },
+                                    };
+                                })} />
                         </div>
 
                         {/**
@@ -756,23 +779,60 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                           *    답하고, 그 답은 **`dim` 으로만** 간다 — 감추면 «이 값이 어디 갔나»가 되고
                           *    그냥 두면 «지금 쓰이는 값»으로 읽힌다 (기사님 2026-09-09 *"모두 꺼내 두고"*).
                           */}
+                        {/**
+                          * 📐 **[자동 | 수동]** (이식 C4-12 · 2026-09-12).
+                          *    기사님: *"목적지와의 거리에 따라 … **자동으로 바뀌어 주면 좋겠다.
+                          *    그래서 자동, 수동으로** 만들어 주는 거야."*
+                          *
+                          * 🔴 실측: 초월→성남은 15.6km 인데 현위 10 + 목적 15 = **25km** —
+                          *    원 둘이 서로를 덮어 **마름모·각도가 아무 일도 안 한다**(폭 0).
+                          *    기준 40km 의 근거는 `shared` 의 `RADIUS_BASE_KM_DEFAULT` 주석에.
+                          */}
+                        <div className="flex items-center justify-between gap-2 px-0.5 pb-1">
+                            <span className="text-[10px] font-black text-text-muted">📐 반경</span>
+                            <div className="flex rounded-lg border border-border-card overflow-hidden">
+                                {([true, false] as const).map(on => (
+                                    <button key={String(on)} type="button"
+                                        onClick={() => updateFilter({ radiusAuto: on })}
+                                        className={`px-2.5 py-0.5 text-[10.5px] font-bold ${
+                                            radiusAuto === on ? 'bg-info text-white' : 'text-text-muted'}`}>
+                                        {on ? '자동' : '수동'}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
                         <KnobGrid open={openKnob} onOpen={setOpenKnob}
                             knobs={KNOB_FIELDS.map(path => {
                                 const f = FILTER_FIELDS.find(x => x.path === path)!;
+                                /**
+                                 * 🔴 **자동이면 «줄인 값»을 보여 준다** — 기사님이 정한 원값에
+                                 *    서버가 실어 보낸 배율을 곱한다. 원값은 **안 건드린다** (규칙 ④):
+                                 *    수동으로 돌리면 그 값이 그대로 살아 있다.
+                                 */
+                                const raw = Number(cur[path] ?? 0);
+                                const KEY = { pickupRadiusKm: 'pickupRadiusKm', destinationRadiusKm: 'destinationRadiusKm',
+                                              detourRadiusKm: 'detourRadiusKm' } as const;
+                                const shown = radiusAuto
+                                    ? Math.round(shownRadii[KEY[path as keyof typeof KEY]] * 10) / 10
+                                    : raw;
                                 return {
                                     key: path,
                                     label: f.label,
                                     unit: f.unit,
-                                    value: Number(cur[path] ?? 0),
+                                    value: shown,
                                     min: f.min,
                                     max: f.max,
                                     step: f.step,
-                                    dim: !inUse(path),
-                                    set: (v: number) => setField(path, String(v)),
+                                    /* 🔴 **감추지 않고 흐리게** — 자동이거나 지금 안 쓰이는 칸 */
+                                    dim: !inUse(path) || radiusAuto,
+                                    /* 🔴 자동이면 **손으로 못 민다** — 밀면 화면과 값이 갈라진다 */
+                                    set: radiusAuto ? () => {} : (v: number) => setField(path, String(v)),
                                     /* 🔴 끄는 동안은 **지도까지** 따라 온다 — 소켓은 안 탄다 (C4-11) */
-                                    onPreview: (v: number) => previewValues({ ...cur, [path]: String(v) }),
+                                    onPreview: radiusAuto ? undefined
+                                        : (v: number) => previewValues({ ...cur, [path]: String(v) }),
                                     /* 🔴 **뗄 때** 서버로 (C4-10) */
-                                    onCommit: (v: number) => pickField(path, String(v)),
+                                    onCommit: radiusAuto ? undefined
+                                        : (v: number) => pickField(path, String(v)),
                                 };
                             })} />
 

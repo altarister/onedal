@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useFilterStore } from '../../stores/filterStore';
 import type { SecuredOrder, RouteStopInfo } from '@onedal/shared';
-import { hasVisitedStop } from '@onedal/shared';
+import { hasVisitedStop, effectiveRadii } from '@onedal/shared';
 import { useRouteDerivations } from '../../hooks/useRouteDerivations';
 import { getAddressLabel } from '../../lib/routeUtils';
 import PinnedRouteCanvas from '../dashboard/PinnedRouteCanvas';
@@ -115,16 +115,24 @@ export default function StageView(props: Props) {
      *    «첫짐에서 상속»으로 가렸는데, 다섯 행에 값이 계속 써지는 구조가 남아
      *    **합짐 행에는 손 안 댄 110° 가 앉아 있었다** — 화면은 「첫짐에서 120°」라고 적으면서.
      */
+    /**
+     * 📐 **자동이면 «줄인 값»으로 그린다** (이식 C4-12 · 2026-09-12).
+     *
+     * 🔴 **곱하는 자리를 만들지 않는다** — `shared` 의 `effectiveRadii` 하나가 답한다.
+     *    필터 화면도 같은 함수를 부른다. 2026-09-12 실측에서 **서버는 줄였는데 지도는
+     *    안 줄어** 요약줄이 164동 그대로였다 — 곱셈이 두 곳이 되려던 순간이었다 (규칙 ③).
+     */
+    const radii = effectiveRadii(filter);
     const netShape = { srcAngleDeg: filter?.srcAngleDeg, dstAngleDeg: filter?.dstAngleDeg,
-                       quadRadiusKm: filter?.quadRadiusKm };
+                       quadRadiusKm: radii.quadRadiusKm };
     const callNet = useCallNet({
         shape: netShape,
         routeMode,
         destinationCity: filter?.destinationCity,
         myLocation,
-        pickupRadiusKm: filter?.pickupRadiusKm,
-        destinationRadiusKm: filter?.destinationRadiusKm,
-        lineRadiusKm: filter?.detourRadiusKm,
+        pickupRadiusKm: radii.pickupRadiusKm,
+        destinationRadiusKm: radii.destinationRadiusKm,
+        lineRadiusKm: radii.detourRadiusKm,
         /* 🚫 지도도 서버와 **같은 제외 목록**을 본다 — 한쪽만 빼면 화면이 거짓말한다 (이식 C2) */
         excludedRegions: filter?.excludedRegions,
         routeHolder: derived.drawHolder,

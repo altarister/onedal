@@ -1,6 +1,6 @@
 import type { CallOption } from '@onedal/shared';
 import { dwellRatesOf, JUDGMENT_FIELDS, judgmentDefaults, CALL_OPTION_COLUMNS, buildDefaultCallOptions,
-         STEP_TABLES, FILTER_FIELDS, QUAD_FIELDS } from "@onedal/shared";
+         STEP_TABLES, FILTER_FIELDS, QUAD_FIELDS, RADIUS_BASE_KM_DEFAULT } from "@onedal/shared";
 import Database from "better-sqlite3";
 import path from "path";
 
@@ -222,9 +222,19 @@ db.exec(`
 const FILTER_VALUE_COLS: Record<string, string> = Object.fromEntries(
     FILTER_FIELDS.map(f => [f.col, f.text ? 'TEXT' : (f.int ? 'INTEGER' : 'REAL')])
 );
+/**
+ * 📐 **반경 자동 맞춤의 자리** (이식 C4-12 · 2026-09-12).
+ *    🔴 **반경 넷은 여기 없다 — 파생이다** (규칙 ③). 사는 것은 «자동인가»와 «기준 거리» 둘.
+ *    기본값 40 의 근거는 `shared` 의 `RADIUS_BASE_KM_DEFAULT` 주석에 있다 (실측 역산).
+ */
+const RADIUS_AUTO_COLS: Record<string, string> = {
+    radius_auto: 'INTEGER DEFAULT 0',
+    radius_base_km: `REAL DEFAULT ${RADIUS_BASE_KM_DEFAULT}`,
+};
 ensureColumns('user_filters', {
     ...QUAD_COLS,
     ...FILTER_VALUE_COLS,
+    ...RADIUS_AUTO_COLS,
     excluded_regions: "TEXT DEFAULT '[]'",
 });
 

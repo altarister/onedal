@@ -184,6 +184,133 @@ export const FILTER_FIELDS: readonly FilterField<FlatValueKey>[] = [
 ] as const;
 
 /** 값 다섯의 **기본값** — DB 가 비었을 때 (기사님이 화면에서 바꾸신다) */
+/**
+ * 📐 **반경 자동 맞춤 — 목적지가 가까우면 손잡이가 죽는다** (이식 C4-12 · 2026-09-12).
+ *
+ * 기사님: *"필터의 목적지와의 거리에 따라 마름모 반경·현위반경·목적반경·라인반경이
+ * **자동으로 바뀌어 주면 좋겠다**. 그래서 **자동, 수동**으로 만들어 주는 거야."* ·
+ * *"지금 초월과 성남 이렇게 하려니까 **너무 가까워서 문제가 발생한다**."*
+ *
+ * 🔴 **실측이 그대로 보여 준다.** 손잡이를 절반↔두 배로 움직였을 때 그물에 드는
+ *    읍·면·동 수의 «폭»이다. 폭이 0 이면 화면에 있어도 **아무 일도 안 한다**:
+ *
+ *    | 목적지 | 거리 | 목적반경 | 마름모반경 | 출발각 |
+ *    |---|---|---|---|---|
+ *    | 성남 | 16km | **624** | **0** | **9** |
+ *    | 파주 | 62km | 90 | 214 | 127 |
+ *
+ *    초월→성남은 15.6km 인데 현위 10 + 목적 15 = **25km** — 원 둘이 서로를 덮어
+ *    마름모가 설 자리가 없다. 그래서 **목적반경 하나가 전부를 정한다**(15→30km 에서
+ *    163동 → 699동, 네 배).
+ *
+ * 🔴 **마름모반경은 «얼마나 멀리»가 아니라 «축에서 좌우로»다**(`callNet.makeInQuad` 의
+ *    `distToLineKm ≤ r`). 마름모의 폭은 **각도와 거리**가 먼저 정하므로, 거리가 짧으면
+ *    각도로 이미 좁아져 반경이 그 바깥에 있어 안 걸린다.
+ */
+export interface RadiusSet {
+    pickupRadiusKm: number;
+    destinationRadiusKm: number;
+    quadRadiusKm: number;
+    detourRadiusKm: number;
+}
+
+/**
+ * 📏 **기준 거리 — «지금 값이 몇 km 갈 때 맞춘 것인가»** (기사님이 맡기심 2026-09-12:
+ *    *"필터는 너가 하자는 대로 할께"*).
+ *
+ * 🔴 **지어내지 않고 역산했다.** 지금 값(10·15·25·6)으로 **거리만** 바꿔 가며 마름모반경의
+ *    폭을 재니 이랬다:
+ *
+ *    ```
+ *    15km  0      25km  6      35km  36      45km 219
+ *    20km  1      30km 19      40km 106      60km 276
+ *    ```
+ *
+ *    **35km 부터 일하기 시작하고 40km 에서 폭이 106 으로 뛴다.** 곧 이 값들은
+ *    40km 안팎에 맞춰진 값이므로, 거기서 **배율 1.0**(아무것도 안 바뀜)이 되는 것이 맞다.
+ */
+export const RADIUS_BASE_KM_DEFAULT = 40;
+
+/**
+ * 거리에 맞춘 반경 넷을 낸다. **각도는 안 건드린다** — 거리와 무관한 «방향 허용폭»이다.
+ *
+ * ```
+ * 배율 = min(1, 목적지까지 거리 ÷ 기준 거리)
+ * ```
+ *
+ * 🔴 **상한(`min(1, …)`)을 두는 이유** — 순수 비례면 파주(62km)가 676 → **778동**으로
+ *    되레 넓어진다. 멀리 갈 때는 지금도 넷이 다 일하고 있어 고칠 이유가 없다.
+ *    **가까울 때만 줄인다.**
+ * 🔴 **기준이 되는 값은 «기사님이 맞춰 두신 평소값»이다** — 코드 상수가 아니다.
+ *    평소값을 바꾸시면 자동도 그 비율을 그대로 옮긴다.
+ * ⚠️ **모르면 손대지 않는다** (규칙 ④). 거리가 없거나·0 이거나·기준이 이상하면
+ *    받은 값을 **그대로** 돌려준다 — 그 판은 «자동이 아직 판단할 수 없는» 판이다.
+ */
+/**
+ * 📏 **배율 하나** — `autoRadii` 가 쓰는 그 값이다 (규칙 ③ — 원천 하나).
+ *
+ * 🔴 **화면이 이것만 있으면 넷을 다 안다.** 관제웹 필터 화면은 «내 위치 → 목적지» 거리를
+ *    모르므로(모달은 `myLocation` 을 안 쥔다), 서버가 **이 한 숫자**를 파생해 실어 보낸다.
+ *    반경 넷을 각각 실어 보내면 칸이 넷 늘고 **기사님이 정한 원값이 가려진다** (규칙 ④).
+ * ⚠️ 못 재면 `1` 이다 — «손대지 않는다»는 뜻이지 «0» 이 아니다.
+ */
+export function radiusScaleOf(
+    distanceKm: number | null | undefined,
+    baseKm: number = RADIUS_BASE_KM_DEFAULT,
+): number {
+    if (!Number.isFinite(distanceKm as number) || (distanceKm as number) <= 0) return 1;
+    if (!Number.isFinite(baseKm) || baseKm <= 0) return 1;
+    return Math.min(1, (distanceKm as number) / baseKm);
+}
+
+/**
+ * 📐 **지금 실제로 쓰이는 반경 넷** — 자동이면 줄인 값, 수동이면 기사님 값 (이식 C4-12).
+ *
+ * 🔴 **여기가 유일한 곳이다** (규칙 ③). 필터 화면·무대 지도·서버가 **전부** 이것을 부른다.
+ *    2026-09-12 실측에서 **서버는 줄였는데 지도는 안 줄어** 요약줄이 164동 그대로였다 —
+ *    곱하는 코드가 두 곳이 되려는 순간이었다. 그때 이 함수를 만들었다.
+ * ⚠️ 배율은 **서버가 재서 실어 보낸다**(`radiusScale`) — 화면은 «내 위치 → 목적지» 거리를
+ *    모른다. 못 받았으면 `1`(손대지 않음)이다.
+ */
+export function effectiveRadii(f: {
+    pickupRadiusKm?: number | null;
+    destinationRadiusKm?: number | null;
+    quadRadiusKm?: number | null;
+    detourRadiusKm?: number | null;
+    radiusAuto?: boolean;
+    radiusScale?: number;
+} | null | undefined): RadiusSet {
+    const base: RadiusSet = {
+        pickupRadiusKm: f?.pickupRadiusKm ?? (DEFAULT_FILTER_VALUES.pickupRadiusKm as number),
+        destinationRadiusKm: f?.destinationRadiusKm ?? (DEFAULT_FILTER_VALUES.destinationRadiusKm as number),
+        quadRadiusKm: f?.quadRadiusKm ?? quadShapeFrom(null).quadRadiusKm,
+        detourRadiusKm: f?.detourRadiusKm ?? (DEFAULT_FILTER_VALUES.detourRadiusKm as number),
+    };
+    if (!f?.radiusAuto) return base;
+    const scale = Number.isFinite(f.radiusScale as number) ? (f.radiusScale as number) : 1;
+    return {
+        pickupRadiusKm: base.pickupRadiusKm * scale,
+        destinationRadiusKm: base.destinationRadiusKm * scale,
+        quadRadiusKm: base.quadRadiusKm * scale,
+        detourRadiusKm: base.detourRadiusKm * scale,
+    };
+}
+
+export function autoRadii(
+    distanceKm: number | null | undefined,
+    base: RadiusSet,
+    baseKm: number = RADIUS_BASE_KM_DEFAULT,
+): RadiusSet {
+    const scale = radiusScaleOf(distanceKm, baseKm);
+    if (scale === 1) return { ...base };
+    return {
+        pickupRadiusKm: base.pickupRadiusKm * scale,
+        destinationRadiusKm: base.destinationRadiusKm * scale,
+        quadRadiusKm: base.quadRadiusKm * scale,
+        detourRadiusKm: base.detourRadiusKm * scale,
+    };
+}
+
 export const DEFAULT_FILTER_VALUES: Record<FlatValueKey, string | number> = {
     destinationCity: '',
     pickupRadiusKm: 10,

@@ -18,7 +18,7 @@ import { OrderRepository } from "../repositories/OrderRepository";
 import { SettingsRepository } from "../repositories/SettingsRepository";
 import { getUserSession } from "./userSessionStore";
 import type { AutoDispatchFilter, FlatValueKey } from "@onedal/shared";
-import { DEFAULT_DETOUR_RADIUS_KM, isDeliveredCall, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, FILTER_FIELDS, filterValuesFrom, QUAD_FIELDS, quadShapeFrom, pruneExcludedRegions, netForGoal, cityCenter,
+import { DEFAULT_DETOUR_RADIUS_KM, isDeliveredCall, getEligibleVehicleTypes, getRemainingCapacityTypesByPoints, deriveDispatchPhase, businessDayKey, resetToBaseFilter, rateFloorsFrom, TRUCK_CAPACITY_SLOTS, FILTER_FIELDS, filterValuesFrom, QUAD_FIELDS, quadShapeFrom, pruneExcludedRegions, netForGoal, cityCenter, autoRadii, radiusScaleOf, RADIUS_BASE_KM_DEFAULT,
          EVALUATING_STATUSES, isLocalPhase } from "@onedal/shared";
 import type { } from "@onedal/shared";
 
@@ -76,10 +76,38 @@ function netKeywordsOf(
     if (!line && !me) return fallback();        // 첫짐인데 꼭짓점이 없다
 
     const quad = quadShapeFrom(session.activeFilter as any);
+    /**
+     * 📐 **반경 자동 맞춤** (이식 C4-12 · 2026-09-12 · 계획서 §C4-12 에 규칙 ⑤-4 다섯).
+     *
+     * 기사님: *"목적지와의 거리에 따라 … **자동으로 바뀌어 주면 좋겠다. 그래서 자동, 수동으로.**"*
+     *
+     * 🔴 **재는 축이 «마름모의 축»과 같아야 한다.** 마름모반경은 **축에서 좌우로** 재는
+     *    값이니(`callNet.makeInQuad`), 자동이 맞출 거리도 그 축이다 —
+     *    첫짐은 «내 위치 → 목적지», 합짐은 «마지막 하차지 → 목적지».
+     *    다른 축을 재면 «맞췄다는데 안 맞는» 값이 된다.
+     * 🔴 **계산은 `shared` 한 곳이다** — 관제웹 지도(`useCallNet`)가 **같은 함수**를 부른다.
+     *    두 벌이면 «지도는 든다는데 판정은 탈락»이 된다 (규칙 ③).
+     * ⚠️ **수동이면 손대지 않는다.** 그리고 거리를 못 재면 자동도 **받은 값 그대로** 둔다
+     *    (`autoRadii` 안에서 걸러진다 · 규칙 ④).
+     */
+    const quadStart = line && line.length >= 2
+        ? { lng: line[line.length - 1][0], lat: line[line.length - 1][1] }
+        : me ? { lng: me.x, lat: me.y } : null;
+    const distanceKm = quadStart
+        ? haversineKm(quadStart.lat, quadStart.lng, goal.lat, goal.lng) : null;
+    const auto = session.activeFilter.radiusAuto
+        ? autoRadii(distanceKm, {
+            pickupRadiusKm: session.activeFilter.pickupRadiusKm ?? 10,
+            destinationRadiusKm: radiusKm,
+            quadRadiusKm: quad.quadRadiusKm,
+            detourRadiusKm: session.activeFilter.detourRadiusKm ?? DEFAULT_DETOUR_RADIUS_KM,
+        }, session.activeFilter.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT)
+        : null;
     const params = {
         ...quad,
-        srcDiamKm: (session.activeFilter.pickupRadiusKm ?? 10) * 2,
-        dstDiamKm: radiusKm * 2,
+        ...(auto ? { quadRadiusKm: auto.quadRadiusKm } : {}),
+        srcDiamKm: (auto ? auto.pickupRadiusKm : (session.activeFilter.pickupRadiusKm ?? 10)) * 2,
+        dstDiamKm: (auto ? auto.destinationRadiusKm : radiusKm) * 2,
     };
     /**
      * 🏘️ **관내 — 목적지에 다 왔고 집에서는 멀어졌다** (이식 C4-8b · 2026-09-11 · 명세 §5).
@@ -106,13 +134,21 @@ function netKeywordsOf(
            하차지가 같은 시도에 있으면"*). 그물에서 «방향»은 마름모의 각도이니 **360°**,
            곧 원이다. 라인(경로 양옆)도 방향이라 함께 끈다. */
         line: localMode ? null : line,
-        lineRadiusKm: session.activeFilter.detourRadiusKm ?? DEFAULT_DETOUR_RADIUS_KM,
+        lineRadiusKm: auto ? auto.detourRadiusKm : (session.activeFilter.detourRadiusKm ?? DEFAULT_DETOUR_RADIUS_KM),
         lastDrop,
         params: localMode ? { ...params, srcAngleDeg: 360, dstAngleDeg: 360 } : params,
         anchor: me ? { name: '내 위치', lng: me.x, lat: me.y } : { name: '내 위치', lng: goal.lng, lat: goal.lat },
     });
     /* 🩺 화면이 «지금 관내로 재고 있다»를 알아야 한다 — 판정이 달라진 이유다 (규칙 ⑤-4 ④) */
     session.activeFilter.localMode = localMode;
+    /**
+     * 📏 **자동이 지금 얼마로 줄였나** — 화면이 손잡이에 그 값을 적을 수 있게 (이식 C4-12).
+     *    🔴 기사님이 정한 원값(`pickupRadiusKm` 등)은 **안 건드린다** (규칙 ④) —
+     *       배율만 따로 실어 보내고 곱하는 것은 화면이 한다.
+     */
+    session.activeFilter.radiusScale = auto
+        ? radiusScaleOf(distanceKm, session.activeFilter.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT)
+        : undefined;
     /* 🔴 그물이 아무것도 못 담으면 그것도 «고장»이다 — 물러선다 */
     if (!net.pass.length) return fallback();
 
@@ -148,7 +184,7 @@ export function loadFilterValues(userId: string): Record<FlatValueKey, any> {
 }
 
 import { logRoadmapEvent } from "../utils/roadmapLogger";
-import { getCityRegionsWithRadius, cityAliases, getDetourRegions, unionRegions, getActivePolyline, progressAlongPolyline, trapsForKeywords } from "../services/geoService";
+import { getCityRegionsWithRadius, cityAliases, getDetourRegions, unionRegions, getActivePolyline, progressAlongPolyline, trapsForKeywords, haversineKm } from "../services/geoService";
 
 // ━━━ Prepared Statement 캐싱 (모듈 로드 시 1회만 실행) ━━━
 // 노선·반경·할인율 평면 칸은 ④에서 철거 — 그 값들은 user_filter_phases 행에 산다.
@@ -229,6 +265,10 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
         'destinationCity' in changes ||
         'destinationRadiusKm' in changes ||
         'excludedRegions' in changes ||
+        /* 📐 **모드를 바꾸면 반경이 통째로 달라진다** — 그물을 다시 그려야 한다 (이식 C4-12).
+              안 넣었다가 실측에서 «자동을 눌렀는데 164동 그대로»가 났다 (규칙 ⑤-4 ④). */
+        'radiusAuto' in changes ||
+        'radiusBaseKm' in changes ||
         (!session.activeFilter.destinationKeywords || session.activeFilter.destinationKeywords.length === 0);
 
     if (changes.destinationKeywords) {

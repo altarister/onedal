@@ -564,8 +564,17 @@ describe('관내 — 목적지를 안 잃는 파생 (C4-8b)', () => {
          */
         const net = fm.slice(fm.indexOf('function netKeywordsOf'), fm.indexOf('function netKeywordsOf') + 3000);
         expect(net).toMatch(/isLocalPhase\(/);
-        // 서버가 «목적지 근처인가»를 제 손으로 다시 재지 않는다
-        expect(net).not.toMatch(/haversineKm\(/);
+        /**
+         * 서버가 «목적지 근처인가»를 제 손으로 다시 재지 않는다.
+         *
+         * ⚠️ **«그 판단을 내리는 줄»만 본다** (2026-09-12 좁힘). 전에는 함수 전체에
+         *    `haversineKm(` 이 없기를 봤는데, C4-12 가 **다른 질문**을 답하려고 그 함수를
+         *    부르자 빨간불이 났다 — 반경 자동이 재는 것은 «마름모 축이 몇 km 인가»이지
+         *    «관내인가»가 아니다. 한 낱말을 금지하는 대신 **그 자리**를 지킨다.
+         */
+        const decide = net.slice(net.indexOf('const localMode'), net.indexOf(';', net.indexOf('const localMode')));
+        expect(decide).toMatch(/isLocalPhase\(/);
+        expect(decide).not.toMatch(/haversineKm\(/);
     });
 
     /** 🔴 ① 스키마 — 파생값이라 **저장하지 않는다**. 저장하면 두 벌이 된다 */
