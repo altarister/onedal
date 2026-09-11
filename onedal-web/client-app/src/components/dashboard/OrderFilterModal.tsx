@@ -812,12 +812,20 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                             </p>
                         )}
 
-                        {/* 경유 허용이 무슨 뜻인지 — 기사님 정의를 그대로 (§3).
-                            "카카오 지도에서 총 100km 였는데 경유를 하니 총 거리가 105km 가 되는 경우" */}
+                        {/**
+                          * 📏 **라인반경이 무슨 뜻인지** (목업 이름 · 기사님 확정 2026-09-09).
+                          *
+                          * 🔴 **여기 있던 설명이 거짓말이었다** (2026-09-11 정정).
+                          *    *"경유 허용 = 카카오 총거리가 늘어나는 만큼 (100km → 105km 면 5km)"* 이라 적어
+                          *    뒀는데, 이 값은 실제로 **길 양옆 폭**으로 쓰인다. 목업이 그 사고를 미리
+                          *    경고해 뒀다 — *"둘 다 km 라 한 이름으로 부르면 조용히 섞인다."*
+                          *    기사님이 «5» 를 넣을 때 **화면이 말하는 뜻과 실제가 달랐다** (규칙 ⑤-4 ④).
+                          */}
                         {shown.detourAllowKm === 'input' && (
                             <p className="text-[10px] text-text-muted leading-relaxed">
-                                <b className={TAB_STYLE[tab].text}>경유 허용</b> = 카카오 <b className="text-text-primary">총거리가 늘어나는 만큼</b> (100km → 105km 면 5km).
-                                {cur.detourAllowKm === '0' && ' 0 이면 가는 길 위의 콜만 잡습니다 — 콜 잡기를 멈추는 게 아닙니다.'}
+                                <b className={TAB_STYLE[tab].text}>라인반경</b> = 지금 경로의 <b className="text-text-primary">길 중심선에서 한쪽으로</b> 몇 km 까지 콜을 받나.
+                                {' '}노선일 때만 쓰입니다 — 콜을 안 쥐었으면 마름모가 판단합니다.
+                                {cur.detourAllowKm === '0' && ' 0 이면 길 위의 콜만 잡습니다 — 콜 잡기를 멈추는 게 아닙니다.'}
                             </p>
                         )}
 

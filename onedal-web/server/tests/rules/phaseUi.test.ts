@@ -436,3 +436,49 @@ describe('그물 계산 — 서버도 실험실 것을 쓴다 (이식 C1-2)', ()
         expect((fm3.match(/pruneExcludedRegions\(/g) || []).length).toBeGreaterThanOrEqual(2);
     });
 });
+
+/**
+ * 📏 **「라인반경」은 「우회 허용」과 다른 값이다** (이식 · 2026-09-11 · 목업 경고).
+ *
+ * 목업(`MapMockup.tsx`)이 그 자리에 **경고를 적어 뒀다**:
+ *   *"📏 라인 반경 km — 길 중심선에서 **한쪽으로** 몇 km 까지 콜을 받나
+ *     (기사님 이름 확정 2026-09-09: «라인 반경»).
+ *     🔴 실물의 «우회 허용»(`detour_allow_km` — 카카오가 재는 **총거리 증가분**)과
+ *     **다른 값이다.** 둘 다 km 라 한 이름으로 부르면 이식할 때 **조용히 섞인다.**"*
+ *
+ * 🔴 **정확히 그 사고가 실물에 나 있었다.** 화면은 *"카카오 총거리가 늘어나는 만큼
+ *    (100km → 105km 면 5km)"* 이라 설명하는데, 그 값은 서버에서 **길 양옆 폭**
+ *    (turf 버퍼 반경 · `netKeywordsOf` 의 `lineRadiusKm`)으로 쓰인다.
+ *    기사님이 «5» 를 넣을 때 **화면이 말하는 뜻과 실제 동작이 다르다** — 규칙 ⑤-4 ④.
+ *
+ * ⚠️ **칸 이름(`detourAllowKm`)은 이 판에서 안 바꾼다** — DB 컬럼·평면 이름이 얽혀 있어
+ *    별도 판이다. 지금 고치는 것은 **화면이 하는 말**이다. 값이 하는 일은 그대로다.
+ */
+describe('라인반경 — 화면이 하는 말과 값이 하는 일이 같아야 한다', () => {
+
+    const { FILTER_FIELDS } = require("@onedal/shared");
+    const f = FILTER_FIELDS.find((x: any) => x.path === 'detourAllowKm');
+
+    it('🔴 라벨이 「라인반경」이다 (목업 이름 · 기사님 확정 2026-09-09)', () => {
+        expect(f.label).toBe('라인반경');
+    });
+
+    it('🔴 설명이 «총거리 증가분» 이라고 말하지 않는다', () => {
+        expect(f.why).not.toMatch(/총거리/);
+        expect(f.why).toMatch(/길|라인|중심선/);
+    });
+
+    it('🔴 화면 문단도 «총거리가 늘어나는 만큼» 이라고 안 적는다', () => {
+        expect(modal).not.toMatch(/총거리가 늘어나는 만큼/);
+    });
+
+    it('범위는 목업과 같다 — 최대 50km', () => {
+        expect(f.max).toBe(50);
+    });
+
+    /** 🔴 국면 라벨 표도 같은 말을 해야 한다 — 두 곳이 다른 이름을 쓰면 그게 또 갈라짐이다 */
+    it('국면 라벨 표도 「라인반경」이다', () => {
+        const { PHASE_FIELD_LABEL } = require("@onedal/shared");
+        expect(PHASE_FIELD_LABEL.detourAllowKm).toBe('라인반경');
+    });
+});

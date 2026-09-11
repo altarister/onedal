@@ -143,7 +143,7 @@ export const PHASE_FIELDS: Record<PhaseKey, Record<keyof PhaseSettings, FieldMod
 export const PHASE_FIELD_LABEL: Record<keyof PhaseSettings, string> = {
     destinationCity: '도착 목표',
     pickupRadiusKm: '상차 반경',
-    detourAllowKm: '우회 허용',
+    detourAllowKm: '라인반경',
     dropoffRadiusKm: '하차지 주변',
     discountPct: '콜할인율',
 };
@@ -208,9 +208,22 @@ export const FILTER_FIELDS: readonly FilterField<keyof PhaseSettings>[] = [
     { col: 'pickup_radius_km', path: 'pickupRadiusKm',
       label: '상차 반경', unit: 'km', min: 0, max: 100, int: false,
       why: '내 위치에서 상차지까지. ⚠️ 축 개편 예정 — 도달 시간(분)에서 파생 (확정안 구현 4)' },
+    /**
+     * 📏 **라인반경** — 길 중심선에서 **한쪽으로** 몇 km 까지 콜을 받나
+     *    (기사님 이름 확정 2026-09-09 · 목업 `MapMockup.tsx`).
+     *
+     * 🔴 **2026-09-11 까지 이 칸이 화면에서 거짓말했다.** 라벨은 「우회 허용」, 설명은
+     *    *"카카오 총거리가 늘어나는 만큼(100km → 105km 면 5km)"* 이었는데, 값은 실제로
+     *    **길 양옆 폭**으로 쓰인다 (`netKeywordsOf` 의 `lineRadiusKm` · turf 버퍼 반경).
+     *    목업이 그 사고를 미리 경고해 뒀다 — *"둘 다 km 라 한 이름으로 부르면 이식할 때
+     *    조용히 섞인다."* 기사님이 «5» 를 넣을 때 **화면이 말하는 뜻과 실제가 달랐다.**
+     *
+     * ⚠️ **칸 이름(`detourAllowKm`·`detour_allow_km`)은 아직 옛말이다** — DB 컬럼과 평면
+     *    이름이 얽혀 있어 별도 판이다. 고친 것은 **화면이 하는 말**이고, 값이 하는 일은 그대로다.
+     */
     { col: 'detour_allow_km', path: 'detourAllowKm',
-      label: '우회 허용', unit: 'km', min: 0, max: 200, int: false,
-      why: '카카오 총거리 증가분 — 길 위의 짐을 최대한 (정의서 1장③). 경유 반경은 서버가 파생' },
+      label: '라인반경', unit: 'km', min: 0, max: 50, int: false,
+      why: '길 중심선에서 한쪽으로 몇 km 까지 콜을 받나 — 노선일 때만 쓰인다 (동선이면 마름모가 판단)' },
     { col: 'dropoff_radius_km', path: 'dropoffRadiusKm',
       label: '하차지 주변', unit: 'km', min: 0, max: 100, int: false,
       why: '도착 지점 주변 탐색 반경' },
