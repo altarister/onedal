@@ -26,7 +26,7 @@
  * 자리: 무대는 `max-w-2xl`(672px) 가운데 고정이라 **왼쪽 여백이 늘 비어 있다.**
  *       거기에 `fixed` 로 띄우므로 지도·시트는 한 픽셀도 안 움직인다.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { APP_FILTER_KEYS } from '@onedal/shared';
 import { useFilterConfig } from '../../hooks/useFilterConfig';
 /* 🔴 서버 주소를 손으로 적지 않는다 — `apiBase()` 를 거친다.
@@ -34,11 +34,14 @@ import { useFilterConfig } from '../../hooks/useFilterConfig';
 import { apiBase } from '../../lib/serverTarget';
 
 /**
- * 칸 하나의 폭. 🔴 **한 칸이 온전히 보이게** 잡는다 (1440px 에서 왼쪽 여백은 384px).
- *    두 칸을 억지로 밀어 넣으면 둘 다 잘려서 **읽을 수가 없다** — 잘린 글자는 없는 것과 같다.
- *    둘째 칸부터는 **가로로 흘러** 밀어서 본다 (기사님 지시: *"왼쪽 영역만 가로스크롤"*).
+ * 칸의 **최소** 폭. 실제 폭은 **남은 자리에 맞춰 늘린다** (아래 `colWidth`).
+ *
+ * 🔴 **애매하게 잘리지 않게 한다** (기사님 화면 실측 2026-09-11). 폭을 못박았더니
+ *    창 2078px 에서 패널이 703px 이 되어 **두 칸(704px)이 1px 넘쳐** 둘째 칸 오른쪽이
+ *    잘렸다 — **잘린 글자는 없는 것과 같다.** 들어갈 수 있는 칸 수를 세서 그만큼 나눈다.
  */
-const COL_W = 352;
+const COL_MIN = 320;
+const GAP = 8, PAD = 16;
 
 interface Health {
     bootedAt?: string;
@@ -78,6 +81,24 @@ function Card({ title, note, children }: { title: string; note?: string; childre
 export default function SidePanel() {
     const { filter, baseFilter, phaseSettings } = useFilterConfig();
     const [health, setHealth] = useState<Health | null>(null);
+    /**
+     * 📏 **패널이 실제로 몇 px 인지 재서 칸 폭을 정한다.** 창이 바뀌면 따라 바뀐다 —
+     *    `calc()` 로만 두면 «몇 칸이 들어가나»를 CSS 가 모르므로 잘림이 생긴다.
+     */
+    const boxRef = useRef<HTMLDivElement>(null);
+    const [boxW, setBoxW] = useState(0);
+    useEffect(() => {
+        const el = boxRef.current;
+        if (!el) return;
+        const measure = () => setBoxW(el.clientWidth);
+        measure();
+        /* 🔴 **둘 다 듣는다** — 창을 끄는 것은 `resize`, 레이아웃이 바뀌는 것은 관찰자가 잡는다.
+           하나만 두면 한쪽 길에서 칸 폭이 옛 값으로 굳는다 (실측에서 367px 로 굳는 것을 봤다). */
+        const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
+        ro?.observe(el);
+        window.addEventListener('resize', measure);
+        return () => { ro?.disconnect(); window.removeEventListener('resize', measure); };
+    }, []);
 
     /**
      * 🖥️ **지금 무엇이 돌고 있나** — 이 레포가 반복해서 잃은 시간의 원인이다
@@ -168,6 +189,11 @@ export default function SidePanel() {
         },
     ];
 
+    /** 들어갈 수 있는 칸 수만큼 **꽉 채워 나눈다** — 남는 여백도 칸이 먹으므로 잘림이 없다 */
+    const usable = Math.max(0, boxW - PAD);
+    const fit = Math.max(1, Math.floor((usable + GAP) / (COL_MIN + GAP)));
+    const colWidth = boxW > 0 ? (usable - GAP * (fit - 1)) / fit : COL_MIN;
+
     return (
         <aside
             /* 🔴 무대(가운데 672px)를 한 픽셀도 안 건드린다 — 왼쪽 빈 자리에 얹을 뿐이다 */
@@ -181,10 +207,10 @@ export default function SidePanel() {
                 </div>
                 {/* 🔴 **가로로 흐른다** (기사님: *"왼쪽 영역만 가로스크롤을 주면 항상 프로젝트 화면을 볼수 있겠다"*) —
                     칸이 늘어도 지도를 덮지 않는다. 칸 **안**은 세로로 흐른다. */}
-                <div className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden">
-                    <div className="h-full flex gap-2 p-2">
+                <div ref={boxRef} className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden">
+                    <div className="h-full flex p-2" style={{ gap: GAP }}>
                         {COLUMNS.map(c => (
-                            <div key={c.key} className="h-full shrink-0 overflow-y-auto" style={{ width: COL_W }}>
+                            <div key={c.key} className="h-full shrink-0 overflow-y-auto" style={{ width: colWidth }}>
                                 {c.node}
                             </div>
                         ))}
