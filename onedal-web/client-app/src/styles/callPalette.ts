@@ -104,3 +104,37 @@ export function callNodeText(_stop: StopKind, _theme: UiTheme): string {
 export function callNodeStroke(visited: boolean, fill: string): string {
     return visited ? 'rgb(255, 255, 255)' : fill;
 }
+
+/**
+ * ☎️ **통화로 정한 약속의 색** (기사님 확정 2026-09-10:
+ * *"아이콘을 넣으면 그리드가 깨진다. 그냥 직접 통화한 건 **시간을 보라색**으로 해 줘"*).
+ *
+ * 🔴 판정색 넷(파랑·초록·노랑·빨강)과 안 겹치는 유일한 색이라 **다른 층의 말**로 읽힌다.
+ * 🔴 기호를 안 쓴 이유가 그것이다 — 한 글자가 붙는 순간 칸 너비가 흔들려 **격자가 깨진다.**
+ *    색은 **폭을 0 만큼** 쓴다.
+ */
+export const PROMISE_CALLED = '#a78bfa';
+
+/**
+ * 🎨 **정거장 칸의 바탕** — 콜 색을 옅게 깔아 «한 콜의 상·하차»가 한 덩어리로 읽히게 한다.
+ * 지나간 정거장(`gone`)은 **무채색**이다 — 시선을 안 뺏는다 (기사님 2026-09-10).
+ * 🔴 2026-09-11 에 목업(`MapMockup`)에서 여기로 옮겼다 — 시트 타이틀과 실험실이 **한 벌**을 쓴다.
+ */
+export function stopBoxBg(callNo: number, stop: StopKind, theme: UiTheme, gone: boolean): string {
+    if (gone) return 'color-mix(in srgb, var(--color-text-primary) 7%, transparent)';
+    const t = callTone(callNo);
+    const [sat] = stop === 'pickup' ? t.pick : t.drop;
+    const light = theme === 'dark' ? (stop === 'pickup' ? 58 : 46) : (stop === 'pickup' ? 62 : 52);
+    const alpha = stop === 'pickup' ? 0.22 : 0.16;   // 상차가 조금 더 진하다 — 밝기 차와 같은 방향
+    return `hsl(${t.hue} ${sat}% ${light}% / ${alpha})`;
+}
+
+/** 🎨 그 칸 **글자**의 색 — 옅은 바탕 위에서 읽히도록 밝기만 테마별로 민다 */
+export function callTextColor(callNo: number, stop: StopKind, theme: UiTheme): string {
+    const t = callTone(callNo);
+    const [sat] = stop === 'pickup' ? t.pick : t.drop;
+    const light = theme === 'dark'
+        ? (stop === 'pickup' ? 70 : 58)    // 어두운 바탕 — 올려서 읽히게
+        : (stop === 'pickup' ? 42 : 32);   // 밝은 바탕 — 내려서 읽히게
+    return `hsl(${t.hue} ${sat}% ${light}%)`;
+}

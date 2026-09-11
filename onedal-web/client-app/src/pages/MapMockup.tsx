@@ -24,7 +24,7 @@ import JudgmentSeat from '../components/dashboard/JudgmentSeat';
  * 🔴 공간을 아끼는 것보다 큰 것이 있다 — **지도 마커가 이미 이 색을 쓴다.**
  *    타이틀 줄이 같은 색을 쓰면 시트와 지도가 **같은 말**을 한다 (상차는 밝고 선명, 하차는 깊게).
  */
-import { callNodeFill, callNodeText, callTone } from '../styles/callPalette';
+import { callNodeFill, callNodeText, stopBoxBg, callTextColor, PROMISE_CALLED } from '../styles/callPalette';
 import { useTheme } from '../contexts/ThemeContext';
 import type { SecuredOrder } from '@onedal/shared';
 // 🎨 판정 사실을 실물 모양으로 옮기는 곳 — 채점은 실물 엔진(judge)이 한다
@@ -267,7 +267,8 @@ const VEHICLE_SHORT: Record<string, string> = { 오토바이: '오', 승용차: 
  * ☎️ **통화로 정한 약속의 색** — 보라 (기사님 지정 2026-09-10).
  * 판정색 넷(파랑·초록·노랑·빨강)과 안 겹치는 유일한 색이라 **다른 층의 말**로 읽힌다.
  */
-const PROMISE_CALLED = '#a78bfa';
+// 🔴 `PROMISE_CALLED` 는 `styles/callPalette` 로 옮겼다 (2026-09-11) — 실물 타이틀과 한 벌이다
+
 
 /**
  * ▒ **정거장 상자의 바탕 — 콜의 색** (기사님 확정 2026-09-10:
@@ -279,14 +280,7 @@ const PROMISE_CALLED = '#a78bfa';
  *    한 콜 안에서도 두 상자가 갈린다. 글자를 덮으면 안 되므로 **투명도로만** 깐다.
  * 🔴 **지나간 정거장은 회색 상자다** — 색이 남으면 눈이 그리로 간다(흑백 원칙).
  */
-function stopBoxBg(callNo: number, stop: 'pickup' | 'dropoff', theme: 'dark' | 'light', gone: boolean): string {
-    if (gone) return 'color-mix(in srgb, var(--color-text-primary) 7%, transparent)';
-    const t = callTone(callNo);
-    const [sat] = stop === 'pickup' ? t.pick : t.drop;
-    const light = theme === 'dark' ? (stop === 'pickup' ? 58 : 46) : (stop === 'pickup' ? 62 : 52);
-    const alpha = stop === 'pickup' ? 0.22 : 0.16;   // 상차가 조금 더 진하다 — 밝기 차와 같은 방향
-    return `hsl(${t.hue} ${sat}% ${light}% / ${alpha})`;
-}
+// 🔴 `stopBoxBg` 도 `styles/callPalette` 로 옮겼다 — 같은 이유
 
 const CALL_COLORS = ['#e11d48', '#a78bfa', '#2dd4bf', '#fb923c', '#facc15', '#34d399', '#60a5fa', '#f472b6'];
 
@@ -446,14 +440,7 @@ function NumRow({ label, value, onChange, min = 0, max = 999, mode = 'input', au
  * 🔴 그래서 **색조와 채도는 그대로 두고 밝기만 올린다** — 원천은 같은 `callTone` 하나라
  *    색이 갈라지지 않는다 (규칙 ③). 「상차는 밝고 하차는 깊게」도 그대로 산다.
  */
-function callTextColor(callNo: number, stop: 'pickup' | 'dropoff', theme: 'dark' | 'light'): string {
-    const t = callTone(callNo);
-    const [sat] = stop === 'pickup' ? t.pick : t.drop;
-    const light = theme === 'dark'
-        ? (stop === 'pickup' ? 70 : 58)    // 어두운 바탕 — 올려서 읽히게
-        : (stop === 'pickup' ? 42 : 32);   // 밝은 바탕 — 내려서 읽히게
-    return `hsl(${t.hue} ${sat}% ${light}%)`;
-}
+// 🔴 `callTextColor` 도 `styles/callPalette` 로 옮겼다 — 같은 이유
 
 function SheetJudgeCard({ seat, impacts, confirmedCount, safeCancelLeft, driveMin }: {
     seat: (SecuredOrder & { soloMin?: number | null }) | null;

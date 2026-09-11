@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import type { SecuredOrder } from '@onedal/shared';
 import { deriveCallStep, CALL_STEPS, deriveCallTiming, derivationInputsOf, isEvaluating } from '@onedal/shared';
 import type { RouteTimelineEntry } from '@onedal/shared';
@@ -7,7 +7,7 @@ import { getAddressLabel, hhmm } from '../../lib/routeUtils';
 import { useTheme } from '../../contexts/ThemeContext';
 import { MAP_THEME_COLORS } from '../../styles/themes';
 /* 🌈 지도와 **같은 색표**를 읽는다 — 두 벌이면 지도와 목록이 다른 말을 한다 (규칙 ③) */
-import { callNodeFill, callNodeStroke, callNodeText } from '../../styles/callPalette';
+import { callNodeFill, callNodeStroke, callNodeText, stopBoxBg, callTextColor, PROMISE_CALLED } from '../../styles/callPalette';
 import type { CallRecords } from '../../hooks/records';
 import { EMPTY_RECORDS } from '../../hooks/records';
 import { useJudgmentStore } from '../../stores/judgmentStore';
@@ -100,6 +100,7 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
      *    그래도 id 로 기억하는 것은 유지한다 — 콜이 끝나 중간에서 빠질 때
      *    인덱스는 여전히 어긋나고, 그때 어느 카드를 보고 있었는지는 id 만 안다.
      */
+    const { theme } = useTheme();          // 🎨 격자 칸의 콜 색은 테마를 탄다
     const [curId, setCurId] = useState<string | null>(null);
     const idx = orders.findIndex(o => o.id === curId);
     /* 🪗 밖에서 정해 주면 그것이 이긴다 — 여는 일과 높이를 한 손이 정한다 */
@@ -250,6 +251,16 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
      * 이 값이 곧 «몇 px 위에 붙는가»라서, 줄 높이를 CSS 로만 바꾸면 층이 어긋난다.
      */
     const ROW_H = 32;
+    /**
+     * 🪧 **타이틀의 모양 — 되돌릴 자리** (2026-09-11 · 이식 A2 · 낱말 계약의 「바꾼다」).
+     *
+     *   `'격자'` 지도 실험실 모양 — `[번호][지명][약속][±][예상]` ×2 (기사님: *"그냥 목업처럼 해"*)
+     *   `'옛줄'` 0905 모양 — 번호 + `StopMark`(기호 ▲▼) ×2 + 6단계 점
+     *
+     * 🔴 **옛 줄을 지우지 않았다.** 저번 이식(`f7aaa36`→`8de47d6`)에서 «목업에 없으니 내린다»로
+     *    읽고 지웠다가 11분 만에 되살린 일이 있다. 이 글자 하나를 바꾸면 통째로 돌아온다.
+     */
+    const TITLE_STYLE = '격자' as '격자' | '옛줄';
 
     /**
      * 콜 한 줄(요약 줄)을 만든다 — **두 모드가 이 함수 하나를 쓴다.**
@@ -311,55 +322,104 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
                               : (accordion ? 'bg-surface border-border/60' : 'bg-surface-alt/30 border-border/60')
                     }`}
                 >
-                    {/* 🔴 2026-08-12 — 1건일 때 번호와 경로를 뺐다가 되돌렸다.
-                        "카드 헤더가 이미 경로를 말하니 중복"이라 봤는데, 기사님:
-                        *"진행과 하차지 통화로만 나오고 있는데 **어떤 콜이었는지 알 수 있는**
-                          이전 버전이 그 부분은 더 좋은 것 같아."*
-                        맞다. 이 줄은 **어느 콜인지 고르는 자리**라 이름이 없으면 고를 수가 없다.
-                        그리고 1건과 2건의 생김새가 다르면, 합짐이 붙는 순간 화면이 또 바뀐다 —
-                        영역을 항상 띄우기로 한 이유(화면이 튀지 않게)와 같은 이야기다. */}
-                    {/* 🔍 크기: 기사님 2026-08-19 — "~(추정 물결)가 마이너스로 읽힐 만큼 작다. 키워 달라" */}
-                    {/* 🔤 목업과 같은 크기 — 번호·지명·화살표가 한 벌이다 (재서 맞춤 0905) */}
-                    <span className={`w-3 text-[13.5px] font-black shrink-0 tabular-nums ${
-                        isCur ? 'text-info' : 'text-text-muted'
-                    }`}>{i + 1}</span>
-                    {/* 🔴 2026-08-19 — 정거장마다 **몇 번째로, 몇 시까지 가기로 했는가**.
-                        예전엔 여기에 `(87.2km·64분·1t)` 가 있었는데, 그건 이 콜 **혼자** 갔을 때의
-                        값이라 여러 콜을 엮은 지금 순서에 대해서는 아무 말도 못 한다. */}
-                    {/* 순서: **⑴ 지명 시각** (기사님 2026-08-19) — 번호가 지명 앞에 와야
-                        "몇 번째로 어디" 로 읽힌다. 예전엔 지명 뒤에 붙어 시각과 엉겼다 */}
-                    <span className="text-[13.5px] font-bold text-text-primary truncate min-w-0 flex-1">
-                        <StopMark at={vo?.pickupIdx} kind="pickup" evaluating={isEvaluating(o.status)}
-                            /* 🌈 색은 **콜 번호**로 — 지도가 쓰는 것과 같은 입력이다 */
-                            callNo={callNoOf?.(o.id)} visited={confirmed('pickup')}
-                            time={promiseOf('pickup')} confirmed={confirmed('pickup')}
-                            late={lateOf('pickup')} shift={shiftOf('pickup')}
-                            name={getAddressLabel(o.pickup)} />
-                        <span className="text-text-muted font-normal mx-1">→</span>
-                        <StopMark at={vo?.dropoffIdx} kind="dropoff" evaluating={isEvaluating(o.status)}
-                            callNo={callNoOf?.(o.id)} visited={confirmed('dropoff')}
-                            time={promiseOf('dropoff')} confirmed={confirmed('dropoff')}
-                            late={lateOf('dropoff')} shift={shiftOf('dropoff')}
-                            name={getAddressLabel(o.dropoff)} />
+                    {TITLE_STYLE === '격자' && <>
+                    {/**
+                      * 🧮 **격자 — 칸마다 뜻이 정해져 자리가 곧 이름이다** (기사님 2026-09-11: *"그냥 목업처럼 해"*).
+                      *    원천은 `docs/지금/시각_표시.md` 의 「개정 2026-09-11」 절이다.
+                      *
+                      *    `[번호][지명][약속][±][예상]` × 상·하차, 가운데 10px 틈으로 가른다.
+                      * 🔴 **0905 의 「안 C」(기호 ▲▼)는 폐기됐다** — 기사님이 실험실에서
+                      *    «약속 → ± → 예상»이 **한 문장으로 읽힌다**고 확정했다
+                      *    (*"22:14에 도착해야 하는데 +24가 걸려서 22:37에 도착 예정"*).
+                      * 🔴 **화살표(→)도 뺐다** — 10px 틈이 그 일을 한다. 글자는 칸을 먹는다.
+                      */}
+                    <span className="grid items-center flex-1 min-w-0 text-[11.5px] font-black tabular-nums"
+                        style={{ gridTemplateColumns: '15px minmax(0,1fr) 41px 28px 41px 10px 15px minmax(0,1fr) 41px 28px 41px' }}>
+                        {(['pickup', 'dropoff'] as const).map(stop => {
+                            const tl = tle(stop);
+                            const seq = stop === 'pickup' ? vo?.pickupIdx : vo?.dropoffIdx;
+                            /** 👣 지나갔나 — 지났으면 색을 죽인다 (시선을 안 뺏는다) */
+                            const goneAt = stop === 'pickup' ? o.arrivedPickupAt : o.arrivedDropoffAt;
+                            const gone = tl?.arrived === true || goneAt != null;
+                            const promised = promiseOf(stop);
+                            /** 🏁 마지막 칸은 **결론**이다 — 지났으면 도착(사실), 아직이면 예상 */
+                            const real = gone ? (goneAt ? Date.parse(goneAt) : null) : (tl?.etaMs ?? null);
+                            /** ± 는 **약속과 견준 값** 하나다 — 지났든 아니든 같은 셈법이다 (규칙 ③) */
+                            const diff = real != null && promised != null
+                                ? Math.round((real - Date.parse(promised)) / 60000) : null;
+                            const no = callNoOf?.(o.id) ?? 1;
+                            const box = stopBoxBg(no, stop, theme, gone);
+                            return (
+                                <Fragment key={stop}>
+                                    {stop === 'dropoff' && <span />}
+                                    <span className={`rounded-l-md pl-1 py-0.5 text-[12px] ${gone ? 'text-text-muted' : ''}`}
+                                        style={{ background: box, ...(gone ? null : { color: callTextColor(no, stop, theme) }) }}>
+                                        {seq ?? '?'}
+                                    </span>
+                                    <span className={`truncate px-1 py-0.5 ${gone ? 'text-text-muted' : 'text-text-primary'}`}
+                                        style={{ background: box }}>
+                                        {getAddressLabel(stop === 'pickup' ? o.pickup : o.dropoff)}
+                                    </span>
+                                    {/* ☎️ 통화로 정한 약속은 **보라** — 글자를 더하면 격자가 깨진다 (폭 0인 신호) */}
+                                    <span className="text-right px-1 py-0.5"
+                                        style={{ background: box, color: confirmed(stop) ? PROMISE_CALLED : 'var(--color-text-muted)' }}>
+                                        {hhmm(promised)}
+                                    </span>
+                                    {/* ± — **늦음만 노랑**이다. 초록·빨강은 판정 색과 겨루므로 안 쓴다 (§4) */}
+                                    <span className={`text-right px-1 py-0.5 ${diff != null && diff > 0 && !gone ? 'text-warning' : 'text-text-muted'}`}
+                                        style={{ background: box }}>
+                                        {diff == null ? '' : diff > 0 ? `+${diff}` : `${diff}`}
+                                    </span>
+                                    <span className={`text-right rounded-r-md pr-1 py-0.5 ${gone ? 'text-text-muted' : ''}`}
+                                        style={{ background: box }}>
+                                        {real != null ? hhmm(new Date(real).toISOString()) : '--:--'}
+                                    </span>
+                                </Fragment>
+                            );
+                        })}
                     </span>
 
-                    {/* 6단계를 한눈에 — 카드 안 진행 점과 같은 규칙 */}
-                    {/* 🔤 목업 치수 — 점이 크면 지명이 잘린다 (400px 실측 0905) */}
-                    <span className="flex gap-[2px] shrink-0" aria-hidden>
-                        {CALL_STEPS.map((st, k) => (
-                            <span key={st.id} className={`block h-[5px] w-[7px] rounded-full ${
-                                k === p.index ? 'bg-info'
-                                : p.done[k] ? 'bg-success'
-                                : k < p.index ? 'bg-success/35'
-                                : st.optional ? 'ring-1 ring-inset ring-border'
-                                : 'bg-surface-hover'
-                            }`} />
-                        ))}
-                    </span>
-
-                    {/* 🔴 금액은 여기서 뺐다 (기사님 2026-08-19) — 아래 `콜잡은시간` 줄
-                        오른쪽으로 옮겼다. 이 줄은 **어느 콜이 어디까지 갔나**를 보는 자리이고,
-                        폭을 비워야 경로명·시각이 잘리지 않는다. */}
+                    {/**
+                      * 🔵 **6단계 점 — 내려 뒀다** (2026-09-11 · 이식 A2).
+                      *
+                      * 🔴 **지운 것이 아니다.** 기사님이 *"그냥 목업처럼 해"* 라 하셨고 지도 실험실
+                      *    타이틀에는 점이 없다. 400px 에서 격자만으로도 꽉 차서 점을 같은 줄에 두면
+                      *    **지명이 잘린다** (실측). 그래서 **플래그 뒤로 내렸다** — 한 줄이면 돌아온다.
+                      * 🟢 6단계는 **펼친 카드 안에도 그대로 있다** (`PinnedRouteCard` 스텝 판) —
+                      *    사라진 정보가 아니라 **자리를 옮긴 것**이다.
+                      */}
+                    </>}
+                    {/* 🪧 **옛 줄 (0905)** — `TITLE_STYLE` 을 `'옛줄'` 로 바꾸면 이것이 그려진다.
+                        기호(▲▼)로 «틀어졌나»만 말하고, 오른쪽에 6단계 점이 붙는다. */}
+                    {TITLE_STYLE === '옛줄' && <>
+                        <span className={`w-3 text-[13.5px] font-black shrink-0 tabular-nums ${
+                            isCur ? 'text-info' : 'text-text-muted'
+                        }`}>{i + 1}</span>
+                        <span className="text-[13.5px] font-bold text-text-primary truncate min-w-0 flex-1">
+                            <StopMark at={vo?.pickupIdx} kind="pickup" evaluating={isEvaluating(o.status)}
+                                callNo={callNoOf?.(o.id)} visited={confirmed('pickup')}
+                                time={promiseOf('pickup')} confirmed={confirmed('pickup')}
+                                late={lateOf('pickup')} shift={shiftOf('pickup')}
+                                name={getAddressLabel(o.pickup)} />
+                            <span className="text-text-muted font-normal mx-1">→</span>
+                            <StopMark at={vo?.dropoffIdx} kind="dropoff" evaluating={isEvaluating(o.status)}
+                                callNo={callNoOf?.(o.id)} visited={confirmed('dropoff')}
+                                time={promiseOf('dropoff')} confirmed={confirmed('dropoff')}
+                                late={lateOf('dropoff')} shift={shiftOf('dropoff')}
+                                name={getAddressLabel(o.dropoff)} />
+                        </span>
+                        <span className="flex gap-[2px] shrink-0" aria-hidden>
+                            {CALL_STEPS.map((st, k) => (
+                                <span key={st.id} className={`block h-[5px] w-[7px] rounded-full ${
+                                    k === p.index ? 'bg-info'
+                                    : p.done[k] ? 'bg-success'
+                                    : k < p.index ? 'bg-success/35'
+                                    : st.optional ? 'ring-1 ring-inset ring-border'
+                                    : 'bg-surface-hover'
+                                }`} />
+                            ))}
+                        </span>
+                    </>}
                 </button>
             );
     };

@@ -37,29 +37,35 @@ import { stopTimeOfRecords } from '@onedal/shared';
 
 describe('🕐 접힌 줄 — 안 C (기호로만)', () => {
     /** 🔴 이게 안 C 와 안 B 를 가르는 줄이다 */
-    it('🔴 밀린 분(숫자)을 접힌 줄에 안 적는다 — 달리며 필요한 답은 「틀어졌나」 하나다', () => {
-        expect(덱).not.toMatch(/shift > 0 \? '\+' : ''/);      // 옛 안 B 모양
-        expect(덱).not.toMatch(/\{shift\}분/);
+    /**
+     * 🔄 **개정 2026-09-11 — 「기호」에서 「격자」로** (기사님: *"그냥 목업처럼 해"* · 이식 A2).
+     *    원천은 `docs/지금/시각_표시.md` 의 개정 절이다. 0905 의 «밀린 분을 안 적는다»는
+     *    폐기됐다 — 기사님이 실험실에서 «약속 → ± → 예상»이 **한 문장으로 읽힌다**고 확정했다.
+     */
+    it('🔴 타이틀은 **격자**다 — 칸마다 뜻이 정해져 자리가 곧 이름이다', () => {
+        expect(덱).toMatch(/gridTemplateColumns/);
     });
 
-    it('🔴 밀림·당겨짐을 기호로 말한다 (▲▼)', () => {
-        expect(덱).toMatch(/▲/);
-        expect(덱).toMatch(/▼/);
+    it('🔴 ± 를 **숫자로** 적는다 — 되돌아보지 않게 (0905 의 기호 규칙은 폐기)', () => {
+        expect(덱).toMatch(/diff > 0 \? `\+\$\{diff\}`/);
     });
 
-    it('🔴 예측대로면 아무것도 안 그린다 — 적을 말이 없다', () => {
-        expect(덱).toMatch(/shift !== 0/);
+    it('🔴 약속과 견준 값이다 — 지났든 아니든 **같은 셈법** (규칙 ③)', () => {
+        expect(덱).toMatch(/real[\s\S]{0,80}promised[\s\S]{0,80}60000/);
     });
 
-    /** 통화 전 추정은 물결 — 이미 쓰던 문법이고 바꾸지 않는다 */
-    it('추정에는 물결을 붙이고 확정에는 안 붙인다', () => {
-        expect(덱).toMatch(/confirmed \?/);
-        expect(덱).toMatch(/~\$\{hhmm\(time\)\}/);
+    it('🔴 통화로 정한 약속은 **색**이 말한다 — 글자를 더하면 격자가 깨진다', () => {
+        expect(덱).toMatch(/confirmed\('pickup'\)|promiseConfirmed|confirmed\(/);
+        expect(덱).toMatch(/PROMISE_CALLED|text-accent-alt/);
     });
 
-    it('지각은 분까지 적는다 — 행동을 바꾸는 신호라서', () => {
-        expect(덱).toMatch(/late > 0/);
-        expect(덱).toMatch(/⚠️/);
+    it('🔴 지나간 정거장은 **회색**이다 — 시선을 안 뺏는다', () => {
+        expect(덱).toMatch(/gone/);
+        expect(덱).toMatch(/text-text-muted/);
+    });
+
+    it('🔴 마지막 칸이 **결론**이다 — 지났으면 도착, 아직이면 예상', () => {
+        expect(덱).toMatch(/passedAt|goneAt|arrivedAt/);
     });
 });
 
@@ -68,29 +74,26 @@ describe('🕐 색은 판정·지도와 겨루지 않는다', () => {
      * 🔴 지도가 이미 상차=초록 · 하차=빨강을 쓰고, 판정이 🔵🟢🟡🔴 을 쓴다.
      *    시각의 **움직임**에까지 초록·빨강을 쓰면 무엇의 색인지 헷갈린다 (규칙 ⑤-3).
      */
-    it('🔴 밀림·당겨짐에 초록/빨강을 쓰지 않는다 — 기호로만 말한다', () => {
-        const 조각 = 덱.slice(덱.indexOf('shift !== 0'), 덱.indexOf('shift !== 0') + 320);
+    /** 🔄 0911 — ± 칸이 기호를 대신한다. **색 규칙은 그대로다** (초록·빨강 금지) */
+    it('🔴 ± 에 초록/빨강을 쓰지 않는다 — 늦음만 노랑이다', () => {
+        const i = 덱.indexOf('diff > 0 ?');
+        const 조각 = 덱.slice(Math.max(0, i - 320), i + 320);
         expect(조각).not.toMatch(/text-success/);
         expect(조각).not.toMatch(/text-danger/);
-    });
-
-    it('지각에는 빨강을 허용한다 — 뜻이 다르다', () => {
-        expect(덱).toMatch(/late > 0 \? 'text-danger'/);
+        expect(조각).toMatch(/text-warning/);
     });
 });
 
 describe('🕐 문서와 코드가 같은 말을 한다', () => {
-    it('문서가 안 C·안 A 로 확정돼 있다', () => {
-        expect(문서).toMatch(/접힌 줄\s+안 C/);
-        expect(문서).toMatch(/펼친 카드\s+안 A/);
+    it('문서에 0911 개정(격자)이 적혀 있다 — 화면만 바꾸고 원천을 안 고치는 것을 막는다', () => {
+        expect(문서).toMatch(/개정 2026-09-11[\s\S]{0,200}격자/);
+        expect(문서).toMatch(/\[번호\]\[지명\]\[약속\]\[±\]\[예상\]/);
     });
 
-    /** 🔴 문서가 기호를 바꾸면 이 줄이 알려 준다 (문서만 고치고 코드를 안 고치는 것) */
-    it('문서의 기호 어휘가 코드에 그대로 있다', () => {
-        for (const 기호 of ['▲', '▼']) {
-            expect(문서).toContain(기호);
-            expect(덱).toContain(기호);
-        }
+    /** 🔴 문서가 칸을 바꾸면 이 줄이 알려 준다 (문서만 고치고 코드를 안 고치는 것) */
+    it('문서가 말한 다섯 칸이 코드에도 있다', () => {
+        expect(문서).toMatch(/±/);
+        expect(덱).toMatch(/diff/);
     });
 });
 
