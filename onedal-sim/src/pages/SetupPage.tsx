@@ -152,7 +152,15 @@ export function SetupPage() {
         </div>
       </header>
 
-      <div className="flex-1 min-h-0 overflow-y-auto p-3 flex flex-col gap-2.5">
+      {/**
+        * 🔴 **넘치면 «문제지 목록»만 줄어든다** (기사님 2026-09-11).
+        *
+        * 문제지는 늘어난다 — 지금 넷이지만 한때 여덟이었다. 본문 전체가 스크롤이면
+        * 문제지가 늘어난 만큼 **간격·채움·시작이 화면 밖으로 밀린다.**
+        * 그래서 목록에만 `min-h-0` 를 주어 **줄어드는 쪽을 목록으로 못박는다** —
+        * 나머지는 `shrink-0` 이라 몇 개가 되든 제자리를 지킨다.
+        */}
+      <div className="flex-1 min-h-0 overflow-hidden p-3 flex flex-col gap-2.5">
 
         {/* 탭 — 어느 쪽 판인지 한 줄로 말한다 */}
         <div className="flex gap-1.5">
@@ -169,9 +177,9 @@ export function SetupPage() {
               *    전에는 고른 문제지의 설명 전문이 그 자리에서 펼쳐져 화면이 길어졌다.
               *    **고르는 것은 줄 전체, 내용을 보는 것은 ⓘ** — 덮개로 올라온다.
               */}
-            <div>
+            <div className="min-h-0 flex flex-col">
               <SectionLabel>📋 문제지<span className="ml-auto font-normal text-slate-500">ⓘ 를 누르면 내용</span></SectionLabel>
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-1 min-h-0 overflow-y-auto">
                 {PRESET_MENU.map(m => (
                   <PresetRow
                     key={m.key}
@@ -188,11 +196,11 @@ export function SetupPage() {
               </div>
             </div>
 
-            <Preflight presetKey={presetKey} onOpen={setVeil}
+            <div className="shrink-0"><Preflight presetKey={presetKey} onOpen={setVeil}
                        api={new URLSearchParams(window.location.search).get('api')
-                            || `http://${window.location.hostname}:4000`} />
+                            || `http://${window.location.hostname}:4000`} /></div>
 
-            <div>
+            <div className="shrink-0">
               <SectionLabel>⏱ 콜 수신 간격</SectionLabel>
               <Chips
                 options={INTERVAL_CHOICES.map(v => ({ label: `${v / 1000}초`, value: v }))}
@@ -200,7 +208,7 @@ export function SetupPage() {
               />
             </div>
 
-            <div>
+            <div className="shrink-0">
               <SectionLabel>🧱 채움 콜 수<span className="ml-auto font-normal text-slate-500">못 잡는 콜로 시간을 만든다</span></SectionLabel>
               <Chips
                 options={FILLER_CHOICES.map(v => ({
@@ -214,7 +222,7 @@ export function SetupPage() {
             <button
               onClick={() => setLoop(v => !v)}
               aria-pressed={loop}
-              className={`flex items-center gap-2 w-full rounded-lg border px-2.5 py-2 text-[11.5px] transition ${
+              className={`shrink-0 flex items-center gap-2 w-full rounded-lg border px-2.5 py-2 text-[11.5px] transition ${
                 loop ? 'border-emerald-500 bg-emerald-600/15 text-emerald-300'
                      : 'border-slate-600 bg-slate-700/40 text-slate-300'
               }`}

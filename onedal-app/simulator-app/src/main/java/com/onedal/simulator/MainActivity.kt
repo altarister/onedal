@@ -14,6 +14,8 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.EditText
 import android.widget.Toast
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 
 /**
  * 🚚 **배차망 시뮬레이터 WebView 래퍼**
@@ -40,7 +42,8 @@ class MainActivity : Activity() {
         // 붙을 곳은 둘 중 하나다 (기사님 확정 2026-08-24):
         //   · 로컬  http://<개발용 PC IP>:5173  — 레포의 onedal-sim (배포 없이 바로 본다)
         //   · 서버  https://rehearsal.altari.com — 리허설 배차망 (실주행·차 안에서)
-        // 어느 쪽이든 /inseong · /hwamul24 설정 화면으로 들어가 문제지를 고른다.
+        // 어느 쪽이든 루트(/) 설정 한 장이 열린다 — 거기서 배차망·문제지·옵션을 고르고 시작한다
+        // (2026-09-11 이전에는 /inseong · /hwamul24 로 설정이 두 벌이었다)
         private const val REHEARSAL_BASE = "https://rehearsal.altari.com"
         private const val DEFAULT_IP = "172.30.1.58"
         private const val SIM_PORT = 5173
@@ -90,11 +93,58 @@ class MainActivity : Activity() {
             loadUrl(currentUrl())
         }
 
+        applySystemBarInsets()
+
         // 📍 위치 권한이 없으면 한 번 청한다 — 거부해도 시뮬은 돈다 (서버·고정 좌표로 폴백)
         if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 1001)
         }
+    }
+
+    /**
+     * 📏 **시스템 바 안쪽으로 들인다 — 안 하면 화면 위아래가 먹힌다** (2026-09-11 실측).
+     *
+     * `targetSdk 35`(안드로이드 15)부터 창이 **가장자리까지 확장**된다(edge-to-edge).
+     * 그런데 이 앱에는 인셋을 먹는 코드가 **한 줄도 없어서** WebView 가 상태바·내비게이션 바
+     * **뒤까지** 깔렸다. 실측(A24 · 1080x2340 · 450dpi = 384x832dp):
+     *
+     *   · 위  — 헤더(배차망 스위치가 사는 줄)가 **상태바에 가려 안 보였다**
+     *   · 아래 — 「시작」 버튼이 **삼성 내비게이션 바 뒤**에 깔려 파란 조각만 보였다
+     *
+     * 웹에서 `100dvh` 는 **창 전체**라, 화면에 딱 맞춘 레이아웃일수록 양 끝이 잘린다.
+     * 웹 쪽에서 `env(safe-area-inset-*)` 로 때울 수도 있지만 **화면마다** 챙겨야 하고
+     * 껍데기는 그대로라 다른 화면에서 또 잘린다 — **껍데기에서 한 번 먹는 것이 맞다.**
+     *
+     * 🔴 **뷰 구조는 그대로다** — 패딩만 준다. 원달 앱이 이 화면을 접근성 트리로 읽으므로
+     *    («화면에 버튼을 얹지 않는다»와 같은 이유) 노드를 늘리는 방식은 쓰지 않는다.
+     */
+    private fun applySystemBarInsets() {
+        /**
+         * 🔴 **리스너는 `decorView` 에 건다 — WebView 에 걸면 첫 배달을 놓친다** (2026-09-11 실측).
+         *
+         * 처음엔 `webView` 에 걸었는데 **화면이 그대로 잘렸다.** 인셋은 뷰가 창에 붙는
+         * 순간 한 번 내려오는데, `onCreate` 에서 거는 시점이 그보다 늦으면 콜백이
+         * **영영 안 온다** (그 뒤로 인셋이 변할 일이 없다 — 세로 고정 화면이다).
+         * `decorView` 는 창 자신이라 항상 받고, `requestApplyInsets` 로 한 번 더 청한다.
+         */
+        /**
+         * 🔴 **패딩은 «부모」가 먹는다 — WebView 에 주면 그림에 반영되지 않는다** (2026-09-11 실측).
+         *
+         * 인셋 값은 제대로 왔다(`top=77 bottom=135`). 그런데 `webView.setPadding` 으로는
+         * **웹 콘텐츠가 여전히 상태바·내비바 자리에 그려졌다.** 그래서 감싼 `FrameLayout`
+         * 에 패딩을 줘 **WebView 자체를 안쪽으로 줄인다** — 그러면 웹의 `100dvh` 도 그만큼
+         * 줄어 화면 위아래가 안 먹힌다. 드러나는 테두리는 `@id/root` 의 검은 배경이다.
+         */
+        val frame = findViewById<android.view.View>(R.id.root)
+        ViewCompat.setOnApplyWindowInsetsListener(window.decorView) { _, insets ->
+            val bars = insets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+            )
+            frame.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+            insets
+        }
+        ViewCompat.requestApplyInsets(window.decorView)
     }
 
     private fun currentUrl(): String = prefs.getString(KEY_URL, DEFAULT_URL) ?: DEFAULT_URL
@@ -112,7 +162,7 @@ class MainActivity : Activity() {
     private fun showUrlPicker() {
         val ip = localIp()
         // 🔴 로컬 ↔ 서버, 둘뿐이다 (기사님 확정 2026-08-24).
-        //    홈(`/`)이 인성·화물24 분기 페이지라, 여기서는 어디로 붙을지만 고른다.
+        //    홈(`/`)이 설정 한 장이라, 여기서는 어디로 붙을지만 고른다.
         val labels = arrayOf(
             "🏠 로컬  (http://$ip:$SIM_PORT)",
             "☁️ 서버  (rehearsal.altari.com)",

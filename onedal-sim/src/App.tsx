@@ -2,40 +2,51 @@
  * 🚚 **1DAL 배차망 시뮬레이터** — 앱폰이 읽을 가짜 배차망 화면
  *
  * 사업자가 없어 실 배차망 앱을 설치할 수 없는 동안, **이것이 이 제품의 유일한 배차망**이다.
- * 앱폰(AccessibilityService)이 크롬으로 이 페이지를 읽고 → 필터를 걸고 → 자동 터치한다.
+ * 앱폰(AccessibilityService)이 이 페이지를 읽고 → 필터를 걸고 → 자동 터치한다.
  * `~/reps/map/map`(지도 암기 게임)에서 배차 시뮬레이터 부분만 옮겨 왔다 (2026-08-22).
- * 게임 쪽은 그대로 두고, 여기는 **화면과 파서가 한 레포에서 짝을 이루도록** 하는 것이 목적이다.
  *
- * 회사를 늘리는 법: `packages/ui-simulators/<회사>/` 에 화면을 만들고 아래에 라우트 두 줄.
- * 앱 쪽은 이미 플러그인 구조(IScrapParser)라 파서만 붙이면 된다.
+ * 🔴 **배차망은 더 이상 라우트로 갈리지 않는다** (기사님 확정 2026-09-11).
+ *
+ * 예전에는 `/` 가 «인성이냐 화물24시냐» 고르는 분기 페이지였고 그 아래에 설정이 한 벌씩
+ * 있었다. 그래서 **설정이 두 벌**이 됐고 한쪽만 자랐다 — 화물24시에는 문제지 탭도,
+ * 판 점검도 없었고, `fillers` 를 안 읽어 **채움 콜이 전부 흘렀다.**
+ * 문제지·주소·콜 생성은 처음부터 공용이었으니, 갈려야 했던 것은 **그리는 화면 한 장**뿐이다.
+ *
+ *   /                       설정 한 장 (배차망은 헤더의 스위치)
+ *   /dispatch?net=inseong   화면만 갈아 끼운다
+ *
+ * ⚠️ 옛 주소(`/inseong` · `/hwamul24`)는 **리다이렉트로 남긴다** — 폰·북마크·문서에 적힌
+ *    주소가 조용히 죽으면 «왜 안 뜨지»로 반나절이 간다. 쿼리(`?preset=…`)도 함께 옮긴다.
+ *
+ * 회사를 늘리는 법: `packages/ui-simulators/<회사>/` 에 화면을 만들고
+ * `DispatchPage` 의 분기와 `SetupPage` 의 `NETS` 에 한 줄씩. 앱 쪽은 이미 플러그인
+ * 구조(IScrapParser)라 파서만 붙이면 된다.
  */
-import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom';
-import { InseongSetupPage } from './pages/InseongSetupPage';
-import { InseongDispatchPage } from './pages/InseongDispatchPage';
-import { Hwamul24SetupPage } from './pages/Hwamul24SetupPage';
-import { Hwamul24DispatchPage } from './pages/Hwamul24DispatchPage';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { SetupPage } from './pages/SetupPage';
+import { DispatchPage } from './pages/DispatchPage';
 
-/** 어느 배차망을 띄울지 고르는 첫 화면 — 폰에서 크롬으로 열었을 때의 입구 */
-function Home() {
-    return (
-        <div className="min-h-screen bg-gray-900 text-white p-6 flex flex-col gap-4">
-            <h1 className="text-xl font-bold">🚚 1DAL 배차망 시뮬레이터</h1>
-            <p className="text-sm text-gray-400">앱폰이 읽을 화면입니다. 배차망을 고르세요.</p>
-            <Link to="/inseong" className="block bg-blue-600 rounded-lg p-4 font-bold">인성콜</Link>
-            <Link to="/hwamul24" className="block bg-emerald-600 rounded-lg p-4 font-bold">화물24시</Link>
-        </div>
-    );
+/** 옛 배차 주소 → 새 주소. 쿼리를 그대로 들고 간다 (문제지·간격을 잃지 않는다) */
+function LegacyDispatchRedirect({ net }: { net: 'inseong' | 'hwamul24' }) {
+    const { search } = useLocation();
+    const params = new URLSearchParams(search);
+    params.set('net', net);
+    return <Navigate to={`/dispatch?${params.toString()}`} replace />;
 }
 
 export default function App() {
     return (
         <BrowserRouter>
             <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/inseong" element={<InseongSetupPage />} />
-                <Route path="/inseong/dispatch" element={<InseongDispatchPage />} />
-                <Route path="/hwamul24" element={<Hwamul24SetupPage />} />
-                <Route path="/hwamul24/dispatch" element={<Hwamul24DispatchPage />} />
+                <Route path="/" element={<SetupPage />} />
+                <Route path="/dispatch" element={<DispatchPage />} />
+
+                {/* 옛 주소 — 설정은 한 장이므로 둘 다 루트로 보낸다 */}
+                <Route path="/inseong" element={<Navigate to="/" replace />} />
+                <Route path="/hwamul24" element={<Navigate to="/" replace />} />
+                <Route path="/inseong/dispatch" element={<LegacyDispatchRedirect net="inseong" />} />
+                <Route path="/hwamul24/dispatch" element={<LegacyDispatchRedirect net="hwamul24" />} />
+
                 <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
         </BrowserRouter>

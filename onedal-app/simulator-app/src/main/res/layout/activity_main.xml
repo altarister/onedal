@@ -1,10 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root"
+    android:background="#000000"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
+    <!-- 🔴 배경이 검정이라야 한다 — 인셋만큼 준 패딩 영역은 **WebView 제 배경**으로 칠해진다.
+         기본값(흰색)이면 상태바 자리에 흰 띠가 생기고, 흰 아이콘이 그 위에서 안 보인다.
+         웹 페이지는 언제나 제 배경을 칠하므로(bg-slate-900 · bg-gray-100) 본문은 가리지 않는다. -->
     <WebView
         android:id="@+id/webView"
+        android:background="#000000"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
