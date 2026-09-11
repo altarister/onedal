@@ -165,7 +165,106 @@ describe('마름모 모양 — 국면 밖 한 벌', () => {
         expect(quadGrid.slice(0, 1200)).not.toMatch(/>KM</);
         // 각 그리드가 제 표의 unit 을 읽는다
         expect(geoGrid).toMatch(/FILTER_FIELDS\.find/);
-        expect(quadGrid.slice(0, 1200)).toMatch(/f\.unit/);
+    });
+});
+
+/**
+ * 🎚️ **숫자 입력칸을 걷어낸다 — 누르면 슬라이더가 «레이어»로 뜬다** (이식 C4-1 · 2026-09-11).
+ *
+ * 기사님 2026-09-09 (목업에서 이 부품을 만들며):
+ *   · *"**클릭하면 슬라이더가 보이는 건 어때?**"*
+ *   · *"**밀리는 것 없이 레이어로** 처리하는 것이 좋을 것 같아"*
+ *   · *"한 줄에 3개도 넣을 수 있을 듯"*
+ *   · 🔴 *"**커서 확인하고 숫자 지우고 입력하고 힘들어.**"*
+ *
+ * 🔴 **내가 그 지시를 어긴 자리가 여기다.** 2026-09-11 오전에 마름모 셋을 파면서
+ *    `type="number"` 로 만들었다 — 기사님이 두 달 전에 «폰에서 나쁘다»고 못박은 바로 그 모양이다.
+ *    목업에는 이미 답(`KnobGrid`)이 있었는데 실물에 손으로 새 칸을 판 것이다.
+ *
+ * ⚠️ **국면 칸 그리드(`GEO_FIELDS`)는 아직 숫자칸이다** — C3-3 에서 국면이 한 벌로 접히며
+ *    같이 바뀐다. 지금 달았다가 다시 떼면 두 번 일이라 **마름모부터** 한다.
+ */
+describe('마름모 칸 — 숫자판이 아니라 슬라이더 레이어 (C4-1)', () => {
+
+    const { QUAD_FIELDS } = require("@onedal/shared");
+    const knob = codeOnly(read(join(CLIENT, 'components/ui/KnobGrid.tsx')));
+    const lab = codeOnly(read(join(CLIENT, 'pages/MapMockup.tsx')));
+
+    /**
+     * 🔴 **한 벌이다** — `PickLayer`(C2-2)·`JudgmentSeat` 과 같은 이유. 손맛이 갈리면
+     *    기사님이 목업에서 맞춰 둔 것이 실물에서 다른 물건이 된다 (규칙 ③).
+     */
+    it('🔴 KnobGrid 는 한 벌 — 실물도 목업도 같은 파일을 부른다', () => {
+        expect(modal).toMatch(/from "\.\.\/ui\/KnobGrid"/);
+        expect(lab).toMatch(/from '\.\.\/components\/ui\/KnobGrid'/);
+        // 목업 안에 사본이 남아 있지 않다
+        expect(lab).not.toMatch(/function KnobGrid\(/);
+    });
+
+    /** 🔴 기사님이 «힘들어»라고 하신 그 칸이 마름모 그리드에서 사라졌다 */
+    it('🔴 마름모 칸에 숫자 입력칸이 없다 — KnobGrid 로 그린다', () => {
+        const quadGrid = modal.slice(modal.indexOf('📐'), modal.indexOf('const TABS = PHASE_KEYS'));
+        expect(quadGrid).not.toMatch(/type="number"/);
+        expect(modal).toMatch(/<KnobGrid/);
+        // 라벨·단위·범위는 여전히 표 하나에서 온다 (규칙 ③)
+        expect(modal).toMatch(/QUAD_FIELDS\.map/);
+    });
+
+    /**
+     * 🔴 **손가락으로 크게 옮기고 ± 로 한 칸씩 다듬는다** (기사님 2026-09-09).
+     *    슬라이더만 있으면 1° 를 맞출 수 없고, ± 만 있으면 110° 까지 백 번 눌러야 한다.
+     */
+    it('🔴 끄는 것(슬라이더)과 다듬는 것(±)이 둘 다 있다', () => {
+        expect(knob).toMatch(/type="range"/);
+        expect(knob).toMatch(/−/);          // 한 칸 내리기
+        expect(knob).toMatch(/\+/);         // 한 칸 올리기
+        // 숫자판을 띄우지 않는다
+        expect(knob).not.toMatch(/type="number"/);
+    });
+
+    /**
+     * 🔴 **펼쳐도 아래가 안 밀린다** (기사님 2026-09-09 *"밀리는 것 없이 레이어로"*).
+     *    아래로 밀면 폰에서 보던 자리가 사라진다. 그리고 레이어는 **셀이 아니라 묶음 전체 폭**을
+     *    쓴다 — 셀(1/3) 안에 슬라이더를 넣으면 좁아서 못 끈다.
+     */
+    it('🔴 레이어가 겹쳐 뜬다 — 아래를 밀지 않고, 묶음 전체 폭을 쓴다', () => {
+        expect(knob).toMatch(/absolute/);
+        expect(knob).toMatch(/inset-x-0/);   // 셀이 아니라 묶음 전체 폭
+        expect(knob).toMatch(/relative/);    // 겹칠 기준이 제 안에 있다
+    });
+
+    /**
+     * 🔴 **닫는 길 셋** (기사님 2026-09-09 *"닫히는 것도 해줘"* · *"지금 오작동하는 거 같아"*):
+     *    ① 레이어의 «✕» ② 바깥 아무 데나 ③ Esc.
+     *    레이어가 값 버튼을 덮으므로 «같은 버튼 다시 누르기»만으로는 못 닫는다.
+     *    ②③ 은 `useCloseOnOutside` 한 곳이 한다 — 여기서 또 적지 않는다 (규칙 ③).
+     */
+    it('🔴 닫는 길이 셋이다 — ✕ · 바깥 · Esc', () => {
+        expect(knob).toMatch(/✕/);
+        expect(knob).toMatch(/useCloseOnOutside/);
+        // 덮개(fixed inset-0)로 온 화면을 막지 않는다 — 다른 칸 클릭을 삼켰던 모양이다
+        expect(knob).not.toMatch(/fixed inset-0/);
+    });
+
+    /**
+     * 🔴 **한 칸이 얼마인가도 표가 정한다** (규칙 ③). 각도를 1° 씩 끌게 두면
+     *    110° 까지 가는 데 화면을 백 번 훑어야 한다 — 목업은 10° 씩 간다.
+     *    화면이 «각도면 10» 을 제 손으로 판단하면 표와 갈라진다.
+     */
+    it('🔴 step 은 표(QUAD_FIELDS)에서 온다 — 화면이 각도인지 따지지 않는다', () => {
+        for (const f of QUAD_FIELDS) expect(typeof f.step).toBe('number');
+        expect(QUAD_FIELDS.find((f: any) => f.path === 'srcAngleDeg').step).toBe(10);
+        expect(QUAD_FIELDS.find((f: any) => f.path === 'quadRadiusKm').step).toBe(1);
+        expect(modal).toMatch(/step: f\.step/);
+        expect(modal).not.toMatch(/unit === '°' \? 10/);
+    });
+
+    /** 🔴 표의 `min`·`max` 를 넘겨 슬라이더가 표 밖으로 못 가게 한다 */
+    it('🔴 슬라이더 범위도 표에서 온다', () => {
+        expect(modal).toMatch(/min: f\.min/);
+        expect(modal).toMatch(/max: f\.max/);
+        expect(knob).toMatch(/min=\{/);
+        expect(knob).toMatch(/max=\{/);
     });
 });
 

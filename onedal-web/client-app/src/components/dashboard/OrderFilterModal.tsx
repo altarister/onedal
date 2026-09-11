@@ -18,6 +18,7 @@ import { useJudgmentStore } from "../../stores/judgmentStore";
 import { Badge } from "../ui/badge";
 /* 🎛️ 고르기 칸은 목업과 **같은 부품**이다 (이식 C2-2 · 규칙 ③) */
 import { PickLayer } from "../ui/PickLayer";
+import { KnobGrid } from "../ui/KnobGrid";
 
 /**
  * 콜할인율 단계 — 시세 대비 허용 할인 %.
@@ -163,6 +164,11 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
     const [quadForm, setQuadForm] = useState<Record<string, string>>(
         () => Object.fromEntries(QUAD_FIELDS.map(f => [f.path, String(quadShapeFrom(null)[f.path])])));
     const [quadDirty, setQuadDirty] = useState(false);
+    /**
+     * 🎚️ **지금 펼쳐진 손잡이 하나** (이식 C4-1 · 2026-09-11). 하나뿐이라 다른 칸을 열면
+     *    이 칸은 저절로 닫힌다 — 그래서 온 화면 덮개가 필요 없다 (`KnobGrid` 주석 참조).
+     */
+    const [openKnob, setOpenKnob] = useState<string | null>(null);
     /**
      * 🚫 **제외 지역 — 국면 밖 한 벌** (이식 C2-2 · 2026-09-11 · 명세 §3).
      *
@@ -559,24 +565,28 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                         <span className="text-[10px] font-black text-text-primary">📐 그물의 모양</span>
                         <span className="text-[9px] text-text-muted">국면과 무관 · 지도에 바로 보입니다</span>
                     </div>
-                    <div className="grid grid-cols-3 gap-2">
-                        {QUAD_FIELDS.map(f => (
-                            <div key={f.path} className="space-y-1">
-                                <label className="block text-[10px] font-bold text-text-muted pl-1">{f.label}</label>
-                                <div className="relative">
-                                    <Input
-                                        type="number"
-                                        value={quadForm[f.path] ?? ''}
-                                        onChange={(e) => { setQuadForm(q => ({ ...q, [f.path]: e.target.value })); setQuadDirty(true); }}
-                                        className="bg-surface-alt/50 border-border pr-8 text-text-primary font-bold h-9 text-center"
-                                    />
-                                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted font-black pointer-events-none text-[9px]">
-                                        {f.unit === 'km' ? 'KM' : f.unit}
-                                    </span>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                    {/**
+                      * 🎚️ **숫자판이 아니라 슬라이더 레이어다** (이식 C4-1 · 2026-09-11).
+                      *
+                      * 🔴 **아침에 이 칸을 `type="number"` 로 팠던 것이 지시 위반이었다.**
+                      *    기사님 2026-09-09: *"커서 확인하고 숫자 지우고 입력하고 힘들어"* ·
+                      *    *"클릭하면 슬라이더가 보이는 건 어때?"* · *"밀리는 것 없이 레이어로"*.
+                      *    목업에 이미 답(`KnobGrid`)이 있었는데 실물에 새 칸을 손으로 판 것이다.
+                      *
+                      * 라벨·단위·범위에 더해 **한 칸(step)도 표에서 온다** — 화면이 «각도면 10»을
+                      * 제 손으로 판단하면 표와 갈라진다 (규칙 ③).
+                      */}
+                    <KnobGrid open={openKnob} onOpen={setOpenKnob}
+                        knobs={QUAD_FIELDS.map(f => ({
+                            key: f.path,
+                            label: f.label,
+                            unit: f.unit,
+                            value: Number(quadForm[f.path] ?? 0),
+                            min: f.min,
+                            max: f.max,
+                            step: f.step,
+                            set: (v: number) => { setQuadForm(q => ({ ...q, [f.path]: String(v) })); setQuadDirty(true); },
+                        }))} />
                 </div>
 
                 {/* 탭 다섯 — 하루의 다섯 국면. 지금 어디인지는 초록 점으로만 */}

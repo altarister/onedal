@@ -198,6 +198,13 @@ export interface FilterField<P extends string = string> {
     min: number;
     max: number;
     int: boolean;
+    /**
+     * 🎚️ **한 칸이 얼마인가** — 슬라이더와 ± 가 한 번에 움직이는 폭 (이식 C4-1 · 2026-09-11).
+     *
+     * 🔴 **화면이 «각도면 10» 을 제 손으로 판단하면 표와 갈라진다** (규칙 ③).
+     *    각도는 0~360 이라 1° 씩 끌면 110° 까지 가는 데 화면을 백 번 훑어야 한다.
+     *    목업이 10° 로 맞춰 두었고, 그 값이 여기로 왔다.
+     */ step?: number;
     /** 왜 이 값인가 — 폼의 칸 아래 그대로 뜬다 */ why: string;
 }
 
@@ -267,13 +274,13 @@ export const QUAD_SHAPE_KEYS: QuadShapeKey[] = ['srcAngleDeg', 'dstAngleDeg', 'q
  */
 export const QUAD_FIELDS: readonly FilterField<QuadShapeKey>[] = [
     { col: 'src_angle_deg', path: 'srcAngleDeg',
-      label: '출발각', unit: '°', min: 0, max: 360, int: true,
+      label: '출발각', unit: '°', min: 0, max: 360, int: true, step: 10,
       why: '내 자리에서 얼마나 돌아가도 되나. 넓히면 뒤쪽 콜까지 들어온다 — 지도의 마름모가 그만큼 벌어진다' },
     { col: 'dst_angle_deg', path: 'dstAngleDeg',
-      label: '목적각', unit: '°', min: 0, max: 360, int: true,
+      label: '목적각', unit: '°', min: 0, max: 360, int: true, step: 10,
       why: '목적지 둘레를 얼마나 넓게 볼까. 좁히면 «정확히 그쪽»만 남는다' },
     { col: 'quad_radius_km', path: 'quadRadiusKm',
-      label: '마름모반경', unit: 'km', min: 0, max: 200, int: false,
+      label: '마름모반경', unit: 'km', min: 0, max: 200, int: false, step: 1,
       why: '내 위치→목적지 직선에서 좌우로 몇 km 까지. 각도가 좁아도 이만큼은 담는다' },
 ] as const;
 
