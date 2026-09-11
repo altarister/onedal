@@ -17,15 +17,47 @@ import { join } from 'path';
  */
 
 const CLIENT = join(__dirname, '../../../client-app/src');
-const PANEL = join(CLIENT, 'components/stage/SidePanel.tsx');
+const BOARD_DIR = join(CLIENT, 'statusboard');
+const PANEL = join(BOARD_DIR, 'StatusBoard.tsx');
 const read = (abs: string) => readFileSync(abs, 'utf8');
 /** 주석을 걷어낸 코드만 — 주석의 역사 기록에 걸리지 않게 */
 const codeOnly = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 
 describe('곁 패널 — 지우기 쉬운 모양으로 둔다', () => {
 
-    it('🔴 파일 하나다 — 지울 때 이것만 지우면 된다', () => {
+    /**
+     * 🔴 **폴더 하나다** (기사님 지시 2026-09-11: *"불러오는 폴더와 파일만이라도
+     *    분리 해야 할꺼 같은데"*).
+     *
+     * ⚠️ 전에는 `components/stage/SidePanel.tsx` 파일 **하나**였다. 그때도 «한 방에»는
+     *    됐지만, **여럿이 함께 일하면서 뜻이 하나 늘었다** — 현황판이 제 폴더를 가지면
+     *    그 폴더만 만지는 에이전트와 나머지를 만지는 에이전트가 **같은 파일을 안 연다.**
+     * 🔴 «한 방에 지운다»도 그대로다 — 이제 **폴더째** 지우면 끝이다.
+     */
+    it('🔴 폴더 하나다 — 지울 때 이것만 지우면 된다', () => {
+        expect(existsSync(BOARD_DIR)).toBe(true);
         expect(existsSync(PANEL)).toBe(true);
+    });
+
+    /**
+     * 🔴 **현황판은 제 폴더 밖으로 안 나간다** — 나가는 순간 «폴더째 지우기»가 깨지고,
+     *    다른 에이전트와 같은 파일을 열게 된다.
+     *    ⚠️ `Dashboard` 의 **부르는 한 줄**은 예외다 (그게 유일한 접점이다).
+     */
+    it('🔴 현황판 조각이 폴더 밖에 흩어져 있지 않다', () => {
+        const outside = ['components/stage/SidePanel.tsx', 'components/SidePanel.tsx'];
+        for (const rel of outside) expect(`${rel}: ${existsSync(join(CLIENT, rel)) ? '있다' : '없다'}`).toBe(`${rel}: 없다`);
+    });
+
+    /**
+     * 🪪 **두 영역에 이름표를 붙인다** (기사님 지시 2026-09-11: *"그 div에 프로젝트와,
+     *    현황판 뭐 이런 영어 이름으로 아이디 하나씩 만들어줘"*).
+     *    화면에서 «여기가 누구 영역인가»가 보여야 셋이 나눠 일할 때 헷갈리지 않는다.
+     */
+    it('🪪 왼쪽은 project · 오른쪽은 statusboard 로 이름표가 있다', () => {
+        const dash = codeOnly(read(join(CLIENT, 'pages/Dashboard.tsx')));
+        expect(dash).toMatch(/id="project"/);
+        expect(dash).toMatch(/id="statusboard"/);
     });
 
     /**
@@ -34,8 +66,8 @@ describe('곁 패널 — 지우기 쉬운 모양으로 둔다', () => {
      */
     it('🔴 부르는 곳이 한 곳뿐이다', () => {
         const dash = codeOnly(read(join(CLIENT, 'pages/Dashboard.tsx')));
-        expect((dash.match(/<SidePanel/g) || []).length).toBe(1);
-        expect((dash.match(/from ["'].*SidePanel["']/g) || []).length).toBe(1);
+        expect((dash.match(/<StatusBoard/g) || []).length).toBe(1);
+        expect((dash.match(/from ["'].*statusboard\/StatusBoard["']/g) || []).length).toBe(1);
     });
 
     /**

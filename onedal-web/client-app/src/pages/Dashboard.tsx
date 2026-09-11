@@ -6,7 +6,7 @@ import OrderFilterStatus from "../components/dashboard/OrderFilterStatus";
 import JudgmentSeat from "../components/dashboard/JudgmentSeat";
 import StageView from "../components/stage/StageView";
 /* 🔬 곁 패널 — 지울 때 이 줄과 아래 호출 한 줄만 지운다 (2026-09-11) */
-import SidePanel from "../components/stage/SidePanel";
+import StatusBoard from "../statusboard/StatusBoard";
 import OrderFilterModal from "../components/dashboard/OrderFilterModal";
 import PinnedRoute from "../components/dashboard/PinnedRoute";
 import { ErrorBoundary } from "../components/common/ErrorBoundary";
@@ -449,10 +449,18 @@ export default function Dashboard() {
 
     return (
         <div className="flex h-dvh overflow-hidden">
+            {/**
+              * 🪪 **두 영역에 이름표를 붙였다** (기사님 지시 2026-09-11:
+              *    *"그 div에 프로젝트와, 현황판 뭐 이런 영어 이름으로 아이디 하나씩 만들어줘"*).
+              *
+              * 🔴 **여럿이 함께 일하기 때문이다.** 화면에서 «여기가 누구 영역인가»가 보여야
+              *    셋이 나눠 일할 때 헷갈리지 않는다. 다만 **id 는 표시일 뿐이고, 충돌을
+              *    실제로 막는 것은 «폴더»다** — 현황판은 `src/statusboard/` 한 폴더에 산다.
+              */}
             {/* 🖥️ 왼쪽 — **원본 붙박이.** 폭만 정해 주고 안쪽은 손대지 않는다 */}
-            <div className="shrink-0 w-[42rem] h-full overflow-hidden border-r border-border">{body}</div>
-            {/* 🔬 오른쪽 — 곁 패널. 원본과 형제라 서로 밀지 않는다 */}
-            <div className="flex-1 min-w-0 h-full"><SidePanel activeRoute={activeRoute} /></div>
+            <div id="project" className="shrink-0 w-[42rem] h-full overflow-hidden border-r border-border">{body}</div>
+            {/* 🔬 오른쪽 — 현황판. 원본과 형제라 서로 밀지 않는다 */}
+            <div id="statusboard" className="flex-1 min-w-0 h-full"><StatusBoard activeRoute={activeRoute} /></div>
         </div>
     );
 }
