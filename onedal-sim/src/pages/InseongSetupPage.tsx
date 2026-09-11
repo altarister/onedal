@@ -120,9 +120,13 @@ export function InseongSetupPage() {
     </button>
   );
 
+  /**
+   * 🔴 `items-center` 를 뺐다 — 가운데로 모으면 카드가 창보다 길 때 **위가 잘린다.**
+   *    그리고 `overflow-hidden` 은 **sticky 를 죽인다** (자르는 상자 안에서는 못 붙는다).
+   */
   return (
-    <div className="w-full min-h-dvh bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-slate-800/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-700/50 overflow-hidden">
+    <div className="w-full min-h-dvh bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex justify-center p-4">
+      <div className="w-full max-w-md self-start bg-slate-800/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-700/50">
         {/* 헤더 */}
         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-5">
           <h1 className="text-white text-xl font-bold tracking-tight">🚚 배차 시뮬레이터</h1>
@@ -155,13 +159,44 @@ export function InseongSetupPage() {
                             : 'bg-slate-700/50 border-slate-600 hover:bg-slate-700'
                         }`}
                       >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className={`text-sm font-bold ${on ? 'text-blue-300' : 'text-slate-200'}`}>
-                            {m.title}
+                        {/**
+                          * 🔴 **닫히면 한 줄, 고르면 전부** (기사님 2026-09-11: *"엄청 스크롤을
+                          *    해야 하고 문제도 정확히 뽑기 어렵다"*).
+                          *
+                          * 전에는 **여덟 문제지가 전부 설명 전문을 펴 두어** 설정 화면이
+                          * 폰 넉 장(2599px)이었다. 고르려면 긴 글 여덟 덩이를 지나쳐야 했고,
+                          * 「문제지 시작」은 맨 아래라 매번 끝까지 스크롤해야 했다.
+                          *
+                          * 기사님이 목업에서 정하신 문법 그대로다 —
+                          * *"결과물을 첫 줄만 보여 주고 클릭하면 다"* (2026-09-09).
+                          */}
+                        <div className="flex items-center gap-2">
+                          {/**
+                            * 🔴 **날짜를 제목에서 떼어 낸다** — 제목 끝의 `(2026-09-06)` 때문에
+                            *    정작 **무슨 문제인지가 «...»로 잘렸다** (기사님: *"문제도 정확히
+                            *    뽑기 어렵다"*). 날짜는 «언제 만든 판인가»라 뒤로 물러서도 된다.
+                            * ⚠️ 쓰는 쪽(`presets.ts`)은 안 고친다 — 거기 제목은 커밋·문서와 함께 쓰는
+                            *    이름이다. **읽는 쪽이 갈라서 그린다** (`Desc` 와 같은 원칙).
+                            */}
+                          <span className={`text-[13px] font-bold truncate ${on ? 'text-blue-300' : 'text-slate-200'}`}>
+                            {m.title.replace(/\s*\(\d{4}-\d{2}-\d{2}[^)]*\)\s*$/, '')}
                           </span>
-                          <span className="text-[11px] text-slate-400 flex-shrink-0">{count}문제</span>
+                          <span className="ml-auto text-[11px] text-slate-400 flex-shrink-0">{count}문제</span>
+                          {/* 🔴 고른 것이 **한눈에** 보여야 한다 — 테두리 색만으로는 여덟 중에서 안 띈다 */}
+                          <span className={`text-[11px] font-black flex-shrink-0 ${on ? 'text-blue-400' : 'text-slate-600'}`}>
+                            {on ? '●' : '○'}
+                          </span>
                         </div>
-                        <div className="text-[11px] text-slate-400 mt-1 leading-snug">{m.desc}</div>
+                        {on && (
+                          <>
+                            {/* 떼어 낸 날짜는 펼쳤을 때 여기서 말한다 — 없애지 않는다 */}
+                            {(m.title.match(/\((\d{4}-\d{2}-\d{2}[^)]*)\)\s*$/) || [])[1] &&
+                              <div className="text-[10px] text-slate-500 mt-1">
+                                🗓 {(m.title.match(/\((\d{4}-\d{2}-\d{2}[^)]*)\)\s*$/) || [])[1]}
+                              </div>}
+                            <Desc text={m.desc} />
+                          </>
+                        )}
                       </button>
                     );
                   })}
@@ -307,10 +342,17 @@ export function InseongSetupPage() {
             </div>
           )}
 
-          {/* 시작 */}
+        </div>
+
+        {/**
+          * 🔴 **시작 버튼은 아래에 붙어 있다** (기사님 2026-09-11: *"엄청 스크롤을 해야 하고"*).
+          *    전에는 설정 맨 끝이라 **고칠 때마다 바닥까지 스크롤**해야 눌렀다.
+          *    이제 위에서 문제지를 고르고 **그 자리에서 바로** 시작한다.
+          */}
+        <div className="sticky bottom-0 px-6 py-3 bg-slate-800/95 backdrop-blur-xl border-t border-slate-700/50">
           <button
             onClick={tab === 'scenario' ? handleStartScenario : handleStartRandom}
-            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold py-4 rounded-xl text-lg shadow-lg shadow-blue-600/30 hover:shadow-xl hover:from-blue-500 hover:to-indigo-500 active:scale-[0.98] transition-all"
+            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold py-3.5 rounded-xl text-base shadow-lg shadow-blue-600/30 hover:shadow-xl hover:from-blue-500 hover:to-indigo-500 active:scale-[0.98] transition-all"
           >
             {tab === 'scenario' ? '문제지 시작 →' : '시뮬레이션 시작 →'}
           </button>
@@ -335,6 +377,25 @@ export function InseongSetupPage() {
  * 문제지 설명에 *"도착 목표를 «인천»으로"* 라고 **글로만** 적혀 있던 것을
  * **기계가 대조**하게 한다. `pnpm preflight` 는 «비우기»고 이건 «맞는가»다.
  */
+/**
+ * 📝 **`**굵게**` 를 진짜 굵게** (2026-09-11).
+ *
+ * 🔴 문제지 설명은 커밋 메시지처럼 마크다운으로 적혀 있는데 화면이 **글자 그대로** 찍었다 —
+ *    `**오직 지도만 본다**` 가 별 네 개를 달고 나왔다. 읽는 속도를 그만큼 깎는다.
+ *    쓰는 쪽(`presets.ts`)을 고치지 않는다 — 그 글은 **기사님이 읽는 문제 설명**이고
+ *    강조가 뜻을 나른다. 읽는 쪽이 제대로 그리면 된다.
+ */
+function Desc({ text }: { text: string }) {
+    return (
+        <div className="text-[11px] text-slate-400 mt-1.5 leading-snug">
+            {text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
+                part.startsWith('**') && part.endsWith('**')
+                    ? <b key={i} className="text-slate-200">{part.slice(2, -2)}</b>
+                    : <span key={i}>{part}</span>)}
+        </div>
+    );
+}
+
 function Preflight({ presetKey, api }: { presetKey: string; api: string }) {
     const req = PRESET_REQUIRES[presetKey];
     const [now, setNow] = useState<any>(null);
