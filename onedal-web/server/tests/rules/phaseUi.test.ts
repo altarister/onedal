@@ -390,6 +390,91 @@ describe('목적지 — 도 · 시 2단 (C4-2)', () => {
 });
 
 /**
+ * 🗂️ **디자인을 목업처럼 — 순서와 3칸 격자** (이식 C4-6 · 2026-09-11).
+ *
+ * 기사님 지시 2026-09-11: *"**디자인은 목업처럼 해주면 되고**"* (목업 왼쪽 패널 스크린샷과 함께).
+ * 원본은 `MapMockup.tsx:3145~3402` 다.
+ */
+describe('필터 디자인 — 목업 순서 (C4-6)', () => {
+
+    /** 🔴 기사님 2026-09-09: *"적재는 상태값이니 필요 없고"* — 요약줄이 이미 `📦 90/100` 을 말한다 */
+    it('🔴 적재 패널이 없다 (상태값이라 손잡이가 아니다)', () => {
+        expect(modal).not.toMatch(/📦 적재/);            // 조작판 제목
+        expect(modal).not.toMatch(/i < slotsUsed/);      // 칸 막대 그래프
+        expect(modal).not.toMatch(/만재로 추정/);         // 추정 안내
+        /**
+         * ⚠️ `capacityConfidence` 는 맨 아래 🩺 **모니터**에 남아 있다 — 그건 손잡이가 아니라
+         *    «지금 앱에 내려가 있는 값»을 그대로 비추는 **확인창**이라 걷을 것에 안 든다.
+         *    그래서 **개수가 아니라 «자리»로** 본다: 조작판 구역(저장 버튼 앞)에 없으면 된다.
+         */
+        const body = modal.slice(0, modal.indexOf('🟢 오늘만'));
+        expect(body).not.toMatch(/capacityConfidence/);
+    });
+
+    /**
+     * 🔴 **콜할인율도 같은 고르기 칸이다** (기사님 2026-09-09: *"이 부분도 디자인에 맞춰
+     *    이쁘게 바꿔줘"*). 차종별 하한표는 **레이어 «안»**으로 들어갔다 —
+     *    늘 펴 두면 폰에서 필터가 화면을 다 먹는다.
+     * ⚠️ 없애지는 않았다 (기사님: *"읽을 수 있게 통로를 열어 줘야지"*).
+     */
+    it('🔴 콜할인율이 고르기 칸 하나다 — 단가표는 레이어 안', () => {
+        expect(modal).toMatch(/<PickLayer label="💰 콜할인율"/);
+        // 버튼 다섯을 늘 펴 두던 옛 격자가 없다
+        expect(modal).not.toMatch(/CALL_DISCOUNT_STEPS\.filter/);
+        /**
+         * 🔴 **그 칸 «안»을 본다.** `RATE_TABLE_ORDER.map` 은 아래 🩺 모니터에도 있어서
+         *    화면 전체를 훑으면 하한표를 통째로 지워도 초록불이다 (변이로 확인했다).
+         */
+        const dial = modal.slice(modal.indexOf('<PickLayer label="💰 콜할인율"'),
+                                 modal.indexOf('<PickLayer label="🚫 제외 단어"'));
+        expect(dial).toMatch(/RATE_TABLE_ORDER\.map/);
+        expect(dial).toMatch(/FLOOR_TITLE\[tab\]/);
+        expect(dial).toMatch(/foot=\{/);
+    });
+
+    /**
+     * 🔴 **제외 단어를 1칸으로 접되 «자유 입력»을 없애지 않는다.**
+     *    목업의 여섯 개는 목업이라 고정이고, 실물은 기사님이 **아무 말이나** 넣으실 수 있어야 한다 —
+     *    목록만 남기면 **기능이 준다**. 기사님 2026-09-09: *"제외 단어는 입력이 필요하다."*
+     * 🔴 그릇은 그대로 하나다 (쉼표 문자열) — 칩을 눌러도 손으로 쳐도 **같은 곳**에 쓴다 (규칙 ③).
+     */
+    it('🔴 제외 단어는 1칸이되 자유 입력이 살아 있다', () => {
+        expect(modal).toMatch(/<PickLayer label="🚫 제외 단어"/);
+        /**
+         * 🔴 **그 칸 «안»을 본다.** `handleBlacklistChange` 는 **선언부**에도 있어서
+         *    화면 전체를 훑으면 입력칸을 떼어 내도 초록불이다 (변이로 확인했다).
+         */
+        const words = modal.slice(modal.indexOf('<PickLayer label="🚫 제외 단어"'),
+                                  modal.indexOf('제외 지역 — 탭 위다'));
+        expect(words).toMatch(/onChange=\{handleBlacklistChange\}/);   // 손으로 치는 길
+        expect(words).toMatch(/COMMON_EXCLUDED_WORDS/);                 // 자주 쓰는 것은 눌러서
+        // 저장 그릇은 여전히 하나 — 목록은 거기서 파생된다
+        expect(modal).toMatch(/const blacklistWords = blacklist\.split/);
+    });
+
+    /**
+     * 🔴 **순서가 목업이다** — «어디로 가나»부터 정하고 «무엇을 뺄까»로 끝난다.
+     *    전에는 제외 단어·제외 지역이 **맨 위**, 목적지·반경이 **맨 아래**라 거꾸로였다.
+     */
+    it('🔴 순서가 목업 그대로다 — 목적지 → 그물 → 반경 → 값 → 제외지역', () => {
+        const at = (re: RegExp) => { const m = modal.match(re); return m ? modal.indexOf(m[0]) : -1; };
+        const 국면 = at(/TARGETS\.map/);
+        const 노선동선 = at(/🛣️ 노선/);
+        const 목적지 = at(/<PickLayer label="🎯 도"/);
+        /* 🔴 `QUAD_FIELDS.map` 은 폼 초기화에도 나온다 — **그리는 쪽**을 집는다 */
+        const 그물 = at(/knobs=\{QUAD_FIELDS\.map/);
+        const 반경 = at(/KNOB_FIELDS\.map/);
+        const 값 = at(/<PickLayer label="💰 콜할인율"/);
+        const 제외지역 = at(/<PickLayer label="⛔ 제외 도"/);
+        for (const [name, v] of Object.entries({ 국면, 노선동선, 목적지, 그물, 반경, 값, 제외지역 })) {
+            expect(`${name}: ${v >= 0 ? '있다' : '없다'}`).toBe(`${name}: 있다`);
+        }
+        const order = [국면, 노선동선, 목적지, 그물, 반경, 값, 제외지역];
+        expect(order.join(' < ')).toBe([...order].sort((a, b) => a - b).join(' < '));
+    });
+});
+
+/**
  * 🪗 **팝업을 걷어냈다 — 한 줄과 열림만 남는다** (이식 C4-3 · 2026-09-11).
  *
  * 기사님 2026-09-09 (목업을 만들며 그 **이유**를 통째로 말씀하셨다):

@@ -31,6 +31,13 @@ const CALL_DISCOUNT_STEPS = [
     { value: 100, label: '전부' },
 ] as const;
 
+/**
+ * 🚫 **자주 쓰는 제외 단어** — 목업 목록 그대로 (`MapMockup.tsx:3272`).
+ *    🔴 **이것이 전부는 아니다** — 기사님이 아무 말이나 넣으실 수 있게 레이어 안에
+ *    자유 입력칸을 함께 둔다 (목록만 남기면 기능이 준다).
+ */
+const COMMON_EXCLUDED_WORDS = ['착불', '수거', '까대기', '직접운반', '왕복', '대기'];
+
 /** 하한표에 보여줄 차종 — 내 차(1t)로 수행 가능한 등급만, 칸이 작은 순 */
 const RATE_TABLE_ORDER = ['오토바이', '다마스', '승용차', '라보', '1t'];
 
@@ -65,15 +72,6 @@ const SECTION: Record<PhaseKey, { title: string; hint: string }> = {
     drive: { title: '가는 길만',              hint: '우회를 끊는다' },
     local: { title: '같은 시 안에서 끝나는 콜', hint: '복귀 전 시간 때우기' },
     home:  { title: '집 방향',                hint: '최종 하차지 → 집' },
-};
-
-/** 콜할인율 줄의 설명 — 목업 문구 그대로 (운행 중은 목업에 없어 기존 문구 유지) */
-const DIAL_LABEL: Record<PhaseKey, string> = {
-    first: '콜할인율 — 시세 대비 허용 할인',
-    merge: '콜할인율 — 합짐은 “전부”까지 내려간다',
-    drive: '콜할인율 — 이미 가는 길이라 “전부”까지 내려간다',
-    local: '콜할인율 — 관내도 같은 판정식',
-    home:  '콜할인율 — 복귀도 같은 판정식',
 };
 
 /** 지역 카드 문구 — 목업 그대로. 국면마다 "무엇의 목록인가"가 다르다 */
@@ -514,6 +512,13 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
     /** 지금 탭의 콜할인율(단가 할인율) — 국면마다 따로 기억한다 */
     const callDiscount = parseFloat(cur.discountPct);
 
+    /**
+     * 🚫 **저장은 쉼표 문자열 하나, 화면은 말 목록** (이식 C4-6).
+     *    그릇을 바꾸지 않는다 — 칩을 눌러도 자유 입력칸을 고쳐도 **같은 한 곳**에 쓴다 (규칙 ③).
+     */
+    const blacklistWords = blacklist.split(',').map(t => t.trim()).filter(Boolean);
+    const setBlacklistWords = (words: string[]) => { setBlacklist(words.join(', ')); setBlacklistDirty(true); };
+
     const handleBlacklistChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         let val = e.target.value;
         // 다중 엔터 방지 (줄바꿈을 콤마로 치환)
@@ -610,111 +615,6 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                     ))}
                 </div>
 
-                {/* 🔴 제외 단어는 **탭 위**다 (v6 목업). 다섯 탭 공통인 값이 탭 **안**에 있으면
-                    "이 탭에만 적용되나?" 를 화면이 잘못 말한다 — 실제로는 전부에 걸린다 */}
-                <div className="flex items-center gap-2 relative z-10">
-                    <label className="text-[10px] font-black text-danger whitespace-nowrap">제외 단어</label>
-                    <Input
-                        type="text"
-                        value={blacklist}
-                        onChange={handleBlacklistChange}
-                        placeholder="착불, 수거"
-                        className="flex-1 bg-surface-alt/60 border-danger/30 text-danger font-medium focus-visible:ring-danger/50 shadow-inner h-9"
-                    />
-                </div>
-
-                {/**
-                  * 🚫 **제외 지역 — 탭 위다** (이식 C2-2 · 2026-09-11 · 명세 §3).
-                  *    *"거긴 안 간다"* 는 그 지역이지 그 국면의 사정이 아니다.
-                  *
-                  * 🔴 **고르기 칸은 목업과 같은 부품**(`PickLayer`)이다 — 손맛이 갈리면
-                  *    두 화면이 다른 물건이 된다. 도 한 층이 있는 이유는 기사님이
-                  *    서울을 빼려고 **구 25개를 하나씩** 누르고 계셨기 때문이다 (2026-09-09).
-                  * 🔴 **💾 를 눌러야 저장 대상이 된다** — 칩 하나 잘못 눌러 그 지역이
-                  *    곧장 살아나면 안 된다.
-                  */}
-                <div className="relative z-20 rounded-lg border border-danger/25 bg-surface-alt/30 p-2 space-y-1.5">
-                    <div className="flex items-baseline justify-between">
-                        <span className="text-[10px] font-black text-danger">🚫 제외 지역</span>
-                        <span className="text-[9px] text-text-muted">
-                            {exDraft.length ? `${exDraft.length}곳` : '없음'} · 국면과 무관
-                        </span>
-                    </div>
-                    <div className="relative grid grid-cols-3 gap-1">
-                        <PickLayer label="⛔ 제외 도" options={sidoList()} tone="danger"
-                            value={`${exSido}${exDraft.includes(`S|${exSido}`) ? ' ⛔' : ''}`}
-                            selected={sidoList().filter(v => exDraft.includes(`S|${v}`))}
-                            open={exOpen === 'sido'} onToggle={() => setExOpen(o => o === 'sido' ? null : 'sido')}
-                            onPick={v => { setExSido(v); setExSgg(null); }}
-                            foot={
-                                <button type="button" onClick={() => toggleEx(`S|${exSido}`)}
-                                    className={`w-full px-2 py-1.5 rounded-md border text-[11px] font-black ${exDraft.includes(`S|${exSido}`)
-                                        ? 'bg-danger/15 border-danger/55 text-danger' : 'border-border bg-surface text-text-muted hover:border-danger'}`}>
-                                    ◼ {exSido} 통째로 제외 {exDraft.includes(`S|${exSido}`) ? '⛔ 켬' : '끔'}
-                                </button>} />
-                        <PickLayer label="시·군·구 ⛔ 통째" keepOpen tone="danger" options={sggList(exSido)}
-                            value={(() => { const n = sggList(exSido).filter(g => exDraft.includes(`R|${g}`)).length; return n ? `${n}곳 제외` : (exSgg ?? '고르기'); })()}
-                            selected={sggList(exSido).filter(g => exDraft.includes(`R|${g}`))}
-                            open={exOpen === 'sgg'} onToggle={() => setExOpen(o => o === 'sgg' ? null : 'sgg')}
-                            onPick={v => { setExSgg(v); toggleEx(`R|${v}`); }}
-                            foot={<span className="text-[9.5px] font-bold text-text-muted leading-snug">
-                                누르면 <b className="text-danger">그 시·군·구가 통째로</b> 빠집니다 · 다시 누르면 되살아납니다 ·
-                                마지막에 누른 곳이 <b>읍·면·동 칸</b>의 대상이 됩니다
-                            </span>} />
-                        <PickLayer label="읍·면·동" keepOpen tone="danger" options={exSgg ? dongList(exSgg) : []}
-                            value={exSgg ? (() => { const n = dongList(exSgg).filter(d => exDraft.includes(`D|${exSgg}|${d}`)).length; return n ? `${n}개 제외` : '전부 봄'; })() : '—'}
-                            selected={exSgg ? dongList(exSgg).filter(d => exDraft.includes(`D|${exSgg}|${d}`)) : []}
-                            open={exOpen === 'dong'} onToggle={() => setExOpen(o => o === 'dong' ? null : 'dong')}
-                            onPick={v => { if (exSgg) toggleEx(`D|${exSgg}|${v}`); }}
-                            foot={!exSgg ? <span className="text-[9.5px] font-bold text-text-muted">시·군·구를 먼저 고르세요</span> : null} />
-                    </div>
-                    {/* 🔴 «지금 무엇이 빠져 있나»는 늘 보인다 — 레이어를 열어야 알면 화면이 조용히 거짓말한다 */}
-                    {exDraft.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                            {exDraft.map(k => (
-                                <button key={k} type="button" onClick={() => toggleEx(k)} title="누르면 되살립니다"
-                                    className="px-1.5 py-0.5 rounded-md bg-danger/15 text-danger text-[10.5px] font-black">
-                                    ⛔ {excludedLabel(k)} ✕
-                                </button>
-                            ))}
-                        </div>
-                    )}
-                </div>
-
-                {/* 📐 **마름모의 모양 — 탭 위다** (이식 C3-2 · 2026-09-11 · 명세 §3).
-                    제외 단어와 같은 이유다 — 국면과 무관한 한 벌인데 탭 **안**에 두면
-                    화면이 "이 국면의 값" 이라고 잘못 말한다. 아침(C3-1)에 탭 안에 뒀다가
-                    합짐 행에 손 안 댄 110° 가 앉는 것을 실측하고 옮겼다.
-                    라벨·단위·범위는 `QUAD_FIELDS` 한 곳에서 온다 (규칙 ③). */}
-                <div className="relative z-10 rounded-lg border border-border bg-surface-alt/30 p-2 space-y-1.5">
-                    <div className="flex items-baseline justify-between">
-                        <span className="text-[10px] font-black text-text-primary">📐 그물의 모양</span>
-                        <span className="text-[9px] text-text-muted">국면과 무관 · 지도에 바로 보입니다</span>
-                    </div>
-                    {/**
-                      * 🎚️ **숫자판이 아니라 슬라이더 레이어다** (이식 C4-1 · 2026-09-11).
-                      *
-                      * 🔴 **아침에 이 칸을 `type="number"` 로 팠던 것이 지시 위반이었다.**
-                      *    기사님 2026-09-09: *"커서 확인하고 숫자 지우고 입력하고 힘들어"* ·
-                      *    *"클릭하면 슬라이더가 보이는 건 어때?"* · *"밀리는 것 없이 레이어로"*.
-                      *    목업에 이미 답(`KnobGrid`)이 있었는데 실물에 새 칸을 손으로 판 것이다.
-                      *
-                      * 라벨·단위·범위에 더해 **한 칸(step)도 표에서 온다** — 화면이 «각도면 10»을
-                      * 제 손으로 판단하면 표와 갈라진다 (규칙 ③).
-                      */}
-                    <KnobGrid open={openKnob} onOpen={setOpenKnob}
-                        knobs={QUAD_FIELDS.map(f => ({
-                            key: f.path,
-                            label: f.label,
-                            unit: f.unit,
-                            value: Number(quadForm[f.path] ?? 0),
-                            min: f.min,
-                            max: f.max,
-                            step: f.step,
-                            set: (v: number) => { setQuadForm(q => ({ ...q, [f.path]: String(v) })); setQuadDirty(true); },
-                        }))} />
-                </div>
-
                 {/**
                   * 🔴 **탭 다섯이 있던 자리다** (이식 C3-3a · 기사님 확정 2026-09-11 *"그 기준은 바꿔"*).
                   *    값이 한 벌이 되었으니 고를 것이 없다. 「지금 무엇을 하나」는 위 제목줄의
@@ -727,108 +627,18 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                      */}
                     <div className="flex-1 min-h-0 space-y-3 overflow-y-auto pr-1 pb-1 custom-scrollbar relative z-10">
                     <div>
-                        {/* ── 적재 칸 — 내 트럭 5칸 중 얼마나 찼나 (명세 §2-2) ──
-                            서버가 내려준 slotsUsed(박스)를 그대로 쓴다. 여기서 다시 세지 않는다 —
-                            차종으로 다시 세면 통화로 확인한 실제 짐 양이 화면에 반영되지 않는다. */}
-                        <div className="bg-surface-alt/50 rounded-md px-3 py-2 mb-3">
-                            <div className="flex items-center justify-between mb-1.5">
-                                <span className="text-[11px] font-bold text-text-muted">
-                                    📦 적재 <span className="font-mono text-text-primary">{slotsUsed}/{TRUCK_CAPACITY_SLOTS}박스</span>
-                                    <span className="text-text-muted/60 font-normal ml-1">· 남은 {remainSlots}박스</span>
-                                </span>
-                                {filter.capacityConfidence && (
-                                    <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${
-                                        filter.capacityConfidence === 'CONFIRMED' ? 'bg-success/15 text-success'
-                                        : filter.capacityConfidence === 'DECLARED' ? 'bg-info/15 text-info'
-                                        : 'bg-warning/15 text-warning'}`}>
-                                        {CAPACITY_CONFIDENCE_LABEL[filter.capacityConfidence]}
-                                    </span>
-                                )}
-                            </div>
-                            <div className="flex gap-1">
-                                {Array.from({ length: TRUCK_CAPACITY_SLOTS }).map((_, i) => (
-                                    <span key={i} className={`flex-1 h-2.5 rounded-sm ${i < slotsUsed ? 'bg-info/60' : 'bg-surface-hover'}`} />
-                                ))}
-                            </div>
-                            {filter.capacityConfidence === 'ESTIMATED' && slotsUsed > 0 && (
-                                <p className="text-[10px] text-warning/80 mt-1.5">
-                                    차종만 보고 <b>만재로 추정</b>한 값입니다 — <b>통화로 실제 짐을 확인</b>하면 자리가 더 나옵니다
-                                </p>
-                            )}
-                        </div>
-
-                        {/* ── 콜할인율 — 시세 대비 허용 할인 (docs/지금/필터.md §4) ──
-                            금액을 입력하지 않는다. 차종별 하한 단가는 콜할인율에서 파생된다.
-                            기사님: "처음에는 시세로 찾고, 콜이 없으면 여기 와서 조금씩 낮춘다" */}
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-text-muted">{DIAL_LABEL[tab]}</label>
-                            <div className={`grid gap-1.5 ${tab === 'first' ? 'grid-cols-4' : 'grid-cols-5'}`}>
-                                {CALL_DISCOUNT_STEPS.filter(st => !(tab === 'first' && st.value >= 100)).map(step => {
-                                    const on = callDiscount === step.value;
-                                    return (
-                                        <Button
-                                            key={step.value}
-                                            type="button"
-                                            variant="outline"
-                                            onClick={() => setField('discountPct', String(step.value))}
-                                            className={`h-9 text-xs font-black ${on
-                                                ? 'bg-info/20 border-info text-info'
-                                                : 'bg-surface-alt/60 border-border text-text-muted'}`}
-                                        >
-                                            {step.label}
-                                        </Button>
-                                    );
-                                })}
-                            </div>
-                            {/* 차종별 하한 단가 — 자동 계산, 읽기 전용.
-                                남은 용량에 안 들어가는 차종은 흐리게 (잡아도 못 싣는다) */}
-                            <div className="bg-surface-alt/50 rounded-md px-3 py-2 space-y-1">
-                                <div className="flex items-start justify-between gap-2 pb-1 mb-1 border-b border-border/50">
-                                    <span className="text-[11px] font-black text-text-primary">{FLOOR_TITLE[tab]}</span>
-                                    <span className="text-[9px] text-text-muted/70 text-right whitespace-nowrap">통과 = 요금 ≥ 배송거리 × 단가</span>
-                                </div>
-                                {RATE_TABLE_ORDER.map(v => {
-                                    const floor = Math.round((NET_RATE_PER_KM[v] ?? 0) * Math.max(0, 1 - callDiscount / 100));
-                                    const slot = VEHICLE_CAPACITY[v] ?? 0;   // 이 차종 콜의 짐 = 몇 박스
-                                    const fits = slot <= remainSlots;
-                                    return (
-                                        <div key={v} className={`flex items-center justify-between text-[11px] ${fits ? '' : 'opacity-35'}`}>
-                                            <span className="text-text-muted font-bold">
-                                                {v}
-                                                <span className="text-text-muted/60 font-normal ml-1">
-                                                    시세 {NET_RATE_PER_KM[v]}원/km · 짐 {slot}박스
-                                                </span>
-                                            </span>
-                                            <span className="font-mono font-black text-success whitespace-nowrap">
-                                                {!fits ? <span className="text-text-muted font-normal">용량 부족</span>
-                                                 : callDiscount >= 100 ? '전부'
-                                                 : <>≥ {floor.toLocaleString()}원/km
-                                                     <span className="text-text-muted/60 font-normal ml-1.5">
-                                                        {exampleKm}km면 {(floor * exampleKm).toLocaleString()}
-                                                     </span>
-                                                   </>}
-                                            </span>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-
-                    </div>
-
-                    {/* ── 국면 설정 — **무엇을 보여줄지는 PHASE_FIELDS 가 정한다** (§2-4) ──
-                        다섯 탭이 같은 5개 키를 갖고, 탭마다 표시만 다르다.
-                        기사님: *"모든 탭마다 키를 가지고 있고 탭마다 디스플레이만 달리해서 숨기고 노출."*
-                        🔴 여기에 탭별 if 를 다시 쓰지 말 것 — 표가 유일한 원천이다 */}
-                    <div className={`bg-surface/60 backdrop-blur-md p-3 rounded-xl border ${TAB_STYLE[tab].box} shadow-lg space-y-2.5`}>
-                        <div className="flex items-start justify-between gap-2">
-                            <span className={`text-[12px] font-black ${TAB_STYLE[tab].text}`}>{SECTION[tab].title}</span>
-                            <span className="text-[10px] text-text-muted/70 text-right leading-tight">
-                                {SECTION[tab].hint}
-                                {tab !== activePhase && <><br /><span className="text-[9px]">이 국면이 되면 적용됩니다</span></>}
-                            </span>
-                        </div>
-
+                        {/**
+                          * 🗂️ **순서는 목업 그대로다** (기사님 지시 2026-09-11:
+                          *    *"디자인은 목업처럼 해주면 되고"* · `MapMockup.tsx:3145~3402`).
+                          *
+                          *    국면 셋 → 노선/동선 → **목적지 → 그물의 모양 → 반경 → 값 둘 → ⛔ 제외지역**
+                          *
+                          * ⚠️ 전에는 제외 단어·제외 지역이 **맨 위**, 목적지·반경이 **맨 아래**라
+                          *    목업과 거꾸로였다. «어디로 가나»부터 정하고 «무엇을 뺄까»로 끝나는 것이
+                          *    기사님이 실제로 만지시는 순서다.
+                          * 🔴 **적재 패널은 걷었다** (기사님 2026-09-09: *"적재는 상태값이니 필요 없고"*).
+                          *    요약줄이 이미 `📦 90/100` 을 말한다 — 두 번 적을 자리가 아니다.
+                          */}
                         {/**
                           * 🎯 **목적지 — 도를 고르고 시를 고른다** (이식 C4-2 · 2026-09-11).
                           *
@@ -885,6 +695,40 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                             </div>
                         </div>
 
+                        {/* 📐 **마름모의 모양 — 탭 위다** (이식 C3-2 · 2026-09-11 · 명세 §3).
+                            제외 단어와 같은 이유다 — 국면과 무관한 한 벌인데 탭 **안**에 두면
+                            화면이 "이 국면의 값" 이라고 잘못 말한다. 아침(C3-1)에 탭 안에 뒀다가
+                            합짐 행에 손 안 댄 110° 가 앉는 것을 실측하고 옮겼다.
+                            라벨·단위·범위는 `QUAD_FIELDS` 한 곳에서 온다 (규칙 ③). */}
+                        <div className="relative z-10 rounded-lg border border-border bg-surface-alt/30 p-2 space-y-1.5">
+                            <div className="flex items-baseline justify-between">
+                                <span className="text-[10px] font-black text-text-primary">📐 그물의 모양</span>
+                                <span className="text-[9px] text-text-muted">국면과 무관 · 지도에 바로 보입니다</span>
+                            </div>
+                            {/**
+                              * 🎚️ **숫자판이 아니라 슬라이더 레이어다** (이식 C4-1 · 2026-09-11).
+                              *
+                              * 🔴 **아침에 이 칸을 `type="number"` 로 팠던 것이 지시 위반이었다.**
+                              *    기사님 2026-09-09: *"커서 확인하고 숫자 지우고 입력하고 힘들어"* ·
+                              *    *"클릭하면 슬라이더가 보이는 건 어때?"* · *"밀리는 것 없이 레이어로"*.
+                              *    목업에 이미 답(`KnobGrid`)이 있었는데 실물에 새 칸을 손으로 판 것이다.
+                              *
+                              * 라벨·단위·범위에 더해 **한 칸(step)도 표에서 온다** — 화면이 «각도면 10»을
+                              * 제 손으로 판단하면 표와 갈라진다 (규칙 ③).
+                              */}
+                            <KnobGrid open={openKnob} onOpen={setOpenKnob}
+                                knobs={QUAD_FIELDS.map(f => ({
+                                    key: f.path,
+                                    label: f.label,
+                                    unit: f.unit,
+                                    value: Number(quadForm[f.path] ?? 0),
+                                    min: f.min,
+                                    max: f.max,
+                                    step: f.step,
+                                    set: (v: number) => { setQuadForm(q => ({ ...q, [f.path]: String(v) })); setQuadDirty(true); },
+                                }))} />
+                        </div>
+
                         {/**
                           * 🎚️ **반경 셋 — 숫자판이 아니라 슬라이더 레이어** (C4-1 과 같은 부품).
                           *
@@ -907,6 +751,157 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                     set: (v: number) => setField(path, String(v)),
                                 };
                             })} />
+
+                        {/**
+                          * 💰🚫 **값 둘도 같은 고르기 칸으로** (기사님 2026-09-09:
+                          *    *"[콜할인율] 이 부분도 디자인에 맞춰 이쁘게 바꿔줘"*).
+                          *    위의 목적지·손잡이들과 **같은 자리·같은 방식**이라야 조작이 하나다.
+                          *
+                          * 🔴 **차종별 하한표는 레이어 «안»으로 들어갔다** — 늘 펴 두면 폰에서 필터가
+                          *    화면을 다 먹는다 (기사님: *"작은 면적에 필요한 것만 잘 디스플레이"*).
+                          *    기사님 2026-09-09: *"읽을 수 있게 통로를 열어 줘야지"* — 없애지 않고 접었다.
+                          *
+                          * ⚠️ **목업의 «🚚 받을 짐»은 아직 없다.** 기사님이 원하신 손잡이지만
+                          *    (*"내 차가 1톤이지만 라보 다마스 짐만 받겠다 … 합짐을 위해 필요"*),
+                          *    실물에서 `allowedVehicleTypes` 는 **지금 실린 짐에서 파생**된다 —
+                          *    손으로 보내면 서버가 제 계산을 건너뛴다 (2026-08-10 사고).
+                          *    새 손잡이라 규칙 ⑤-4 의 다섯(스키마·값·시점·화면·읽는 곳)이 먼저다. C4-6b.
+                          */}
+                        <div className="relative grid grid-cols-2 gap-1">
+                            <PickLayer label="💰 콜할인율"
+                                value={callDiscount >= 100 ? '전부' : callDiscount === 0 ? '시세' : `-${callDiscount}%`}
+                                options={CALL_DISCOUNT_STEPS.map(st => st.label)}
+                                open={openKnob === 'discount'}
+                                onToggle={() => setOpenKnob(o => o === 'discount' ? null : 'discount')}
+                                onPick={(v) => {
+                                    const st = CALL_DISCOUNT_STEPS.find(x => x.label === v);
+                                    if (st) setField('discountPct', String(st.value));
+                                }}
+                                foot={
+                                    <div className="flex flex-col gap-0.5">
+                                        <div className="flex items-start justify-between gap-2 pb-1 border-b border-border/50">
+                                            <span className="text-[10px] font-black text-text-primary">{FLOOR_TITLE[tab]}</span>
+                                            <span className="text-[9px] text-text-muted/70 text-right whitespace-nowrap">통과 = 요금 ≥ 배송거리 × 단가</span>
+                                        </div>
+                                        {/* 남은 용량에 안 들어가는 차종은 흐리게 — 잡아도 못 싣는다 */}
+                                        {RATE_TABLE_ORDER.map(v => {
+                                            const floor = Math.round((NET_RATE_PER_KM[v] ?? 0) * Math.max(0, 1 - callDiscount / 100));
+                                            const slot = VEHICLE_CAPACITY[v] ?? 0;
+                                            const fits = slot <= remainSlots;
+                                            return (
+                                                <div key={v} className={`flex items-center justify-between text-[10px] ${fits ? '' : 'opacity-35'}`}>
+                                                    <span className="text-text-muted font-bold">
+                                                        {v}<span className="text-text-muted/60 font-normal ml-1">시세 {NET_RATE_PER_KM[v]}원/km · 짐 {slot}박스</span>
+                                                    </span>
+                                                    <span className="font-mono font-black text-success whitespace-nowrap">
+                                                        {!fits ? <span className="text-text-muted font-normal">용량 부족</span>
+                                                         : callDiscount >= 100 ? '전부'
+                                                         : <>≥ {floor.toLocaleString()}원/km
+                                                             <span className="text-text-muted/60 font-normal ml-1.5">{exampleKm}km면 {(floor * exampleKm).toLocaleString()}</span>
+                                                           </>}
+                                                    </span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>} />
+                            {/**
+                              * 🚫 **제외 단어 — 자주 쓰는 것은 눌러서, 나머지는 손으로** (C4-6).
+                              *
+                              * 🔴 **목업처럼 1칸으로 접되 자유 입력을 없애지 않는다.** 목업의 여섯은
+                              *    목업이라 고정이고, 실물은 기사님이 **아무 단어나** 넣으실 수 있어야 한다 —
+                              *    목록만 남기면 기능이 준다. 그래서 레이어 «안»에 입력칸을 그대로 둔다.
+                              * 🔴 기사님 2026-09-09: *"제외 단어는 입력이 필요하다. 펼치면 내용을 볼 수 있다."*
+                              */}
+                            <PickLayer label="🚫 제외 단어" tone="warning" keepOpen
+                                value={blacklistWords.length ? `${blacklistWords.length}개` : '없음'}
+                                options={COMMON_EXCLUDED_WORDS}
+                                selected={blacklistWords}
+                                open={openKnob === 'words'}
+                                onToggle={() => setOpenKnob(o => o === 'words' ? null : 'words')}
+                                onPick={(v) => setBlacklistWords(
+                                    blacklistWords.includes(v) ? blacklistWords.filter(w => w !== v) : [...blacklistWords, v])}
+                                foot={
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-[9.5px] font-bold text-text-muted">목록에 없는 말은 여기에 — 쉼표로 나눕니다</span>
+                                        <Input type="text" value={blacklist} onChange={handleBlacklistChange}
+                                            placeholder="착불, 수거"
+                                            className="h-8 bg-surface-alt/50 border-border text-[12px] text-text-primary font-bold" />
+                                    </div>} />
+                        </div>
+
+                        {/**
+                          * 🚫 **제외 지역 — 탭 위다** (이식 C2-2 · 2026-09-11 · 명세 §3).
+                          *    *"거긴 안 간다"* 는 그 지역이지 그 국면의 사정이 아니다.
+                          *
+                          * 🔴 **고르기 칸은 목업과 같은 부품**(`PickLayer`)이다 — 손맛이 갈리면
+                          *    두 화면이 다른 물건이 된다. 도 한 층이 있는 이유는 기사님이
+                          *    서울을 빼려고 **구 25개를 하나씩** 누르고 계셨기 때문이다 (2026-09-09).
+                          * 🔴 **💾 를 눌러야 저장 대상이 된다** — 칩 하나 잘못 눌러 그 지역이
+                          *    곧장 살아나면 안 된다.
+                          */}
+                        <div className="relative z-20 rounded-lg border border-danger/25 bg-surface-alt/30 p-2 space-y-1.5">
+                            <div className="flex items-baseline justify-between">
+                                <span className="text-[10px] font-black text-danger">🚫 제외 지역</span>
+                                <span className="text-[9px] text-text-muted">
+                                    {exDraft.length ? `${exDraft.length}곳` : '없음'} · 국면과 무관
+                                </span>
+                            </div>
+                            <div className="relative grid grid-cols-3 gap-1">
+                                <PickLayer label="⛔ 제외 도" options={sidoList()} tone="danger"
+                                    value={`${exSido}${exDraft.includes(`S|${exSido}`) ? ' ⛔' : ''}`}
+                                    selected={sidoList().filter(v => exDraft.includes(`S|${v}`))}
+                                    open={exOpen === 'sido'} onToggle={() => setExOpen(o => o === 'sido' ? null : 'sido')}
+                                    onPick={v => { setExSido(v); setExSgg(null); }}
+                                    foot={
+                                        <button type="button" onClick={() => toggleEx(`S|${exSido}`)}
+                                            className={`w-full px-2 py-1.5 rounded-md border text-[11px] font-black ${exDraft.includes(`S|${exSido}`)
+                                                ? 'bg-danger/15 border-danger/55 text-danger' : 'border-border bg-surface text-text-muted hover:border-danger'}`}>
+                                            ◼ {exSido} 통째로 제외 {exDraft.includes(`S|${exSido}`) ? '⛔ 켬' : '끔'}
+                                        </button>} />
+                                <PickLayer label="시·군·구 ⛔ 통째" keepOpen tone="danger" options={sggList(exSido)}
+                                    value={(() => { const n = sggList(exSido).filter(g => exDraft.includes(`R|${g}`)).length; return n ? `${n}곳 제외` : (exSgg ?? '고르기'); })()}
+                                    selected={sggList(exSido).filter(g => exDraft.includes(`R|${g}`))}
+                                    open={exOpen === 'sgg'} onToggle={() => setExOpen(o => o === 'sgg' ? null : 'sgg')}
+                                    onPick={v => { setExSgg(v); toggleEx(`R|${v}`); }}
+                                    foot={<span className="text-[9.5px] font-bold text-text-muted leading-snug">
+                                        누르면 <b className="text-danger">그 시·군·구가 통째로</b> 빠집니다 · 다시 누르면 되살아납니다 ·
+                                        마지막에 누른 곳이 <b>읍·면·동 칸</b>의 대상이 됩니다
+                                    </span>} />
+                                <PickLayer label="읍·면·동" keepOpen tone="danger" options={exSgg ? dongList(exSgg) : []}
+                                    value={exSgg ? (() => { const n = dongList(exSgg).filter(d => exDraft.includes(`D|${exSgg}|${d}`)).length; return n ? `${n}개 제외` : '전부 봄'; })() : '—'}
+                                    selected={exSgg ? dongList(exSgg).filter(d => exDraft.includes(`D|${exSgg}|${d}`)) : []}
+                                    open={exOpen === 'dong'} onToggle={() => setExOpen(o => o === 'dong' ? null : 'dong')}
+                                    onPick={v => { if (exSgg) toggleEx(`D|${exSgg}|${v}`); }}
+                                    foot={!exSgg ? <span className="text-[9.5px] font-bold text-text-muted">시·군·구를 먼저 고르세요</span> : null} />
+                            </div>
+                            {/* 🔴 «지금 무엇이 빠져 있나»는 늘 보인다 — 레이어를 열어야 알면 화면이 조용히 거짓말한다 */}
+                            {exDraft.length > 0 && (
+                                <div className="flex flex-wrap gap-1">
+                                    {exDraft.map(k => (
+                                        <button key={k} type="button" onClick={() => toggleEx(k)} title="누르면 되살립니다"
+                                            className="px-1.5 py-0.5 rounded-md bg-danger/15 text-danger text-[10.5px] font-black">
+                                            ⛔ {excludedLabel(k)} ✕
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+
+                    </div>
+
+                    {/* ── 국면 설정 — **무엇을 보여줄지는 PHASE_FIELDS 가 정한다** (§2-4) ──
+                        다섯 탭이 같은 5개 키를 갖고, 탭마다 표시만 다르다.
+                        기사님: *"모든 탭마다 키를 가지고 있고 탭마다 디스플레이만 달리해서 숨기고 노출."*
+                        🔴 여기에 탭별 if 를 다시 쓰지 말 것 — 표가 유일한 원천이다 */}
+                    <div className={`bg-surface/60 backdrop-blur-md p-3 rounded-xl border ${TAB_STYLE[tab].box} shadow-lg space-y-2.5`}>
+                        <div className="flex items-start justify-between gap-2">
+                            <span className={`text-[12px] font-black ${TAB_STYLE[tab].text}`}>{SECTION[tab].title}</span>
+                            <span className="text-[10px] text-text-muted/70 text-right leading-tight">
+                                {SECTION[tab].hint}
+                                {tab !== activePhase && <><br /><span className="text-[9px]">이 국면이 되면 적용됩니다</span></>}
+                            </span>
+                        </div>
 
                         {/* ⏱️ 시간 축 예고 (필터 확정안 v2 구현 4 — 계측 단계).
                             상차 반경의 축은 km → 도달 시간(분)으로 개편 예정이다. 계수(분/km)가
