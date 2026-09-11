@@ -1,5 +1,6 @@
 import { getDistanceKm } from '../lib/routeUtils';
 import { nearestIndex } from './useMockGpsSimulator';
+import { driveStep } from '../lib/driveStep';
 
 interface PolylinePoint { x: number; y: number }
 
@@ -21,8 +22,10 @@ interface PolylinePoint { x: number; y: number }
  * 순수 함수라 폰·타이머 없이 검사된다 (`tests/simStep.test.ts`).
  */
 export interface SimState {
-    /** 폴리라인 위 현재 인덱스 */
+    /** 폴리라인 위 **다음에 밟을** 점의 인덱스 */
     idx: number;
+    /** 📍 지금 서 있는 자리 — 점과 점 «사이»일 수 있다 (`driveStep` 이 보간한다) */
+    at: PolylinePoint | null;
     phase: 'cruise' | 'dwell';
     /** dwell 남은 틱 (1틱 = 실제 1초) */
     dwellLeft: number;
@@ -33,7 +36,14 @@ export interface SimState {
 }
 
 export const initialSimState = (idx = 0): SimState =>
-    ({ idx, phase: 'cruise', dwellLeft: 0, dwellAt: null, visited: new Set() });
+    ({ idx, at: null, phase: 'cruise', dwellLeft: 0, dwellAt: null, visited: new Set() });
+
+/**
+ * 🛣️ **한 틱(1초)의 기본 걸음(km)** — 배속을 곱한다 (2026-09-12).
+ *    예전엔 `idx += 배속` 으로 **폴리라인 점을 건너뛰어** 카카오 곡선이 직선으로 펴졌다
+ *    (기사님: *"궤적이 엉망이야"*). 이제 목업과 **같은 함수**(`lib/driveStep`)로 거리를 간다.
+ */
+export const KM_PER_TICK = 0.1;
 
 /** 정거장 접근으로 치는 반경(km) — 이 안에서는 감속 연기 */
 export const APPROACH_KM = 1;
@@ -45,7 +55,7 @@ export function simStep(
     path: PolylinePoint[],
     stops: PolylinePoint[],
     multiplier: number,
-): { loc: PolylinePoint | null; finished: boolean; stoppedAt?: PolylinePoint } {
+): { loc: PolylinePoint | null; finished: boolean; stoppedAt?: PolylinePoint; via?: PolylinePoint[] } {
     // ── 정차 연기 중 — 같은 자리를 다시 낸다 (속도 0 이 측정되게)
     if (st.phase === 'dwell' && st.dwellAt) {
         st.dwellLeft -= 1;
@@ -56,16 +66,27 @@ export function simStep(
 
     if (!path.length || st.idx >= path.length) return { loc: null, finished: true };
 
-    const herePt = path[Math.min(st.idx, path.length - 1)];
+    const herePt = st.at ?? path[Math.min(st.idx, path.length - 1)];
     const unvisited = stops.filter(s => !st.visited.has(`${s.x},${s.y}`));
 
     // ── 접근 감속 — 다음 정거장이 1km 안이면 걸음을 ¼로
     const nearKm = unvisited.reduce((m, s) =>
         Math.min(m, getDistanceKm(herePt.y, herePt.x, s.y, s.x)), Infinity);
-    const step = nearKm <= APPROACH_KM ? Math.max(1, Math.round(multiplier / 4)) : multiplier;
+    const full = KM_PER_TICK * multiplier;
+    const stepKm = nearKm <= APPROACH_KM ? full / 4 : full;
+
+    /**
+     * 🚗 **걸음은 목업과 같은 함수가 낸다** (`lib/driveStep` · 2026-09-12).
+     *    점을 다 밟고, 지나온 점을 `via` 로 돌려준다 — 궤적이 카카오 곡선 그대로 남는다.
+     */
+    const walked = driveStep(
+        { lng: herePt.x, lat: herePt.y },
+        path.map(p => ({ lng: p.x, lat: p.y })),
+        st.idx, stepKm);
+    const via = walked.via.map(v => ({ x: v.lng, y: v.lat }));
 
     // ── 이번 걸음에 지나치는 정거장이 있으면 거기 서서 정차 연기를 시작한다
-    const from = st.idx, to = Math.min(from + step, path.length);
+    const from = st.idx, to = walked.idx;
     const due = unvisited.find(s => {
         const i = nearestIndex(path, s);
         return i >= from && i < to;
@@ -75,11 +96,12 @@ export function simStep(
         st.phase = 'dwell';
         st.dwellLeft = DWELL_TICKS;
         st.dwellAt = due;
+        st.at = due;
         st.idx = to;   // 정거장 앞 구간은 지난 것으로 — 되돌지 않는다
-        return { loc: due, finished: false, stoppedAt: due };
+        return { loc: due, finished: false, stoppedAt: due, via };
     }
 
-    const loc = path[st.idx];
-    st.idx += step;
-    return { loc, finished: false };
+    st.idx = walked.idx;
+    st.at = { x: walked.at.lng, y: walked.at.lat };
+    return { loc: st.at, finished: walked.finished && st.idx >= path.length, via };
 }

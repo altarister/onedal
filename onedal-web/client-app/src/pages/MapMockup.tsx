@@ -1,6 +1,7 @@
 import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 /* 🎛️ 고르기 칸은 실물과 **같은 부품**을 쓴다 (이식 C2-2 · 규칙 ③) */
 import { PickLayer } from '../components/ui/PickLayer';
+import { driveStep, pushTrail } from '../lib/driveStep';
 import { KnobGrid } from '../components/ui/KnobGrid';
 import {
     rateFloorsFrom,
@@ -936,13 +937,8 @@ export default function MapMockup() {
      */
     const trailRef = useRef<Pt[][]>([]);
     useEffect(() => {
-        const segs = trailRef.current;
-        const seg = segs[segs.length - 1];
-        const last = seg?.[seg.length - 1];
-        const jumpKm = last ? Math.hypot((myPos.lng - last.lng) * 88.6, (myPos.lat - last.lat) * 110.574) : Infinity;
-        if (jumpKm < 0.05) return;                    // 제자리 — 점을 안 쌓는다
-        if (jumpKm > 2 || !seg) segs.push([myPos]);   // 순간이동 — 새 구간
-        else seg.push(myPos);
+        /* 👣 쌓는 규칙도 **공용 한 벌** (`lib/driveStep.pushTrail`) — 실물 궤적도 같은 것을 쓴다 */
+        trailRef.current = pushTrail(trailRef.current, myPos);
     }, [myPos]);
     useEffect(() => {
         setConfirmed([]); setPickup(null); setDrop(null); setDriving(false); setPausedForCall(false);
@@ -2331,15 +2327,15 @@ export default function MapMockup() {
             simMinRef.current += STEP_KM / paceRef.current;   // 🕒 나아간 거리만큼 «모의 분»을 쌓는다
             setSimMin(simMinRef.current);
             setMyPos(pos => {
+                /* 🚗 걸음 계산은 **공용 한 벌**이다 (`lib/driveStep`) — 실물 모의 주행도 같은 것을
+                   부른다 (2026-09-12 · 규칙 ③). 여기 있던 while 루프를 그대로 꺼냈다. */
+                const walked = driveStep(pos, drivePath, targetIdxRef.current, STEP_KM);
                 let ti = targetIdxRef.current;
-                let remain: number = STEP_KM;
-                let cur = pos;
-                // 실도로 점은 촘촘하다 — 한 틱 걸음이 남는 만큼 여러 점을 이어 삼킨다
-                while (remain > 0 && ti < drivePath.length) {
+                const cur = walked.at;
+                // 삼킨 점마다 «지나왔다»를 셈한다 — 걸음은 위에서 끝났고 여기는 그 뒷일이다
+                for (; ti < walked.idx; ti++) {
                     const t = drivePath[ti];
-                    const dx = (t.lng - cur.lng) * 88.6, dy = (t.lat - cur.lat) * 110.574;
-                    const d = Math.hypot(dx, dy);
-                    if (d <= remain) { cur = { lng: t.lng, lat: t.lat }; remain -= d; ti++; setTargetSeq(t.seq);
+                    { setTargetSeq(t.seq);
                         // 🔴 `seq` 는 **향하는** 정거장이다 — 그걸 «지나왔다»고 세면 한 칸 앞서 잠긴다.
                         //    (2026-09-08 실측: 양벌동으로 가는 중인데 주교동까지 방문으로 잠겨
                         //     방문 순서가 양벌→주교→신장→의정부 로 굳었다. 실제 최적은 양벌→신장→의정부→주교)
@@ -2362,7 +2358,6 @@ export default function MapMockup() {
                             }));
                             visitedCountRef.current = passed;
                         } }
-                    else { cur = { lng: cur.lng + dx / d * remain / 88.6, lat: cur.lat + dy / d * remain / 110.574 }; remain = 0; }
                 }
                 targetIdxRef.current = ti;
                 if (ti >= drivePath.length) setDriving(false);   // 경로 끝 — 대기로

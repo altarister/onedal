@@ -120,7 +120,11 @@ interface Props {
     /** 🖐️ 마커 탭 — 그 콜 카드로 (S6 문법: 지나온 곳은 확인·수정) */
     onStopTap?: (orderId: string) => void;
     /** 👣 이번 사이클에 실제로 달린 자취 — 연한 선으로 남는다 (표시 전용) */
-    drivenTrail?: Array<{ x: number; y: number }>;
+    /**
+     * 👣 **구간 배열이다** — `[[점,점…], [점,점…]]`. GPS 가 끊겼다 이어진 자리를
+     *    한 줄로 이으면 지도를 가로지르는 직선이 생긴다 (`drivenTrailStore` · `pushTrail`).
+     */
+    drivenTrail?: Array<Array<{ x: number; y: number }>>;
     /** 🧭 경로를 든 콜 — 서버가 고른 답. 여기서 다시 찾지 않는다 (0831 잔상 수리) */
     routeHolder?: SecuredOrder | null;
     /**
@@ -284,7 +288,10 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
 
         const validPolyline = currentPolyline.filter((p: any) => typeof p.x === 'number' && typeof p.y === 'number' && !isNaN(p.x) && !isNaN(p.y));
         const trail = (visitedTrail ?? []).filter(p => Number.isFinite(p.x) && Number.isFinite(p.y));
-        const driven = (drivenTrail ?? []).filter(p => Number.isFinite(p.x) && Number.isFinite(p.y));
+        const drivenSegs = (drivenTrail ?? [])
+            .map(seg => seg.filter(p => Number.isFinite(p.x) && Number.isFinite(p.y)))
+            .filter(seg => seg.length > 1);
+        const driven = drivenSegs.flat();
         const allCoords = [...validPoints, ...validPolyline, ...trail, ...driven] as { x: number, y: number }[];
         if (myLocation) allCoords.push(myLocation);
         /* 🔺 그물을 켜면 그 삼각형까지 보이게 — 안 그러면 현위치만 확대돼 선 하나만 스쳐 간다 */
@@ -695,9 +702,9 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         }
 
         // ② 위 — 내가 «실제로 간 길». 얇고 밝다. 파란 길 밖으로 나가면 그게 이탈이다
-        if (layers.trail && driven.length > 1) {   // 🧅 «동선» 레이어
+        if (layers.trail) {   // 🧅 «동선» 레이어 — 🔴 구간마다 **따로** 긋는다 (목업과 한 벌)
             ctx.strokeStyle = mapColors.drivenLine;
-            drawPath(driven, 0.55);
+            for (const seg of drivenSegs) drawPath(seg, 0.55);
         }
 
         /**

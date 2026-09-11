@@ -691,7 +691,7 @@ export type MockPlan = {
     legMinutes: Record<number, number>;
     polyline: Array<{ x: number; y: number }>;
     /** 👣 그 판으로 **실제 달린** 자취. 달린 적이 없으면 빈 배열이다 */
-    drivenTrail: Array<{ x: number; y: number }>;
+    drivenTrail: Array<Array<{ x: number; y: number }>>;
     totalKm: number; totalMin: number; toll: number;
     callList: Call[];
     /** 이 판의 값이 **어디서 왔는가** — 화면이 그대로 적는다 */
@@ -712,7 +712,7 @@ export const MOCK_PLANS: Record<3 | 4 | 5 | 7, MockPlan> = {
     },
     3: {
         calls: 3, stops: PLAN3_STOPS, legMinutes: PLAN3_LEG, polyline: PLAN3_LINE,
-        drivenTrail: PLAN3_TRAIL, totalKm: 68.0, totalMin: 106, toll: 1900,
+        drivenTrail: [PLAN3_TRAIL], totalKm: 68.0, totalMin: 106, toll: 1900,
         callList: callsFor(PLAN3_STOPS),
         source: '2026-09-03 실주행 그대로 — 경로선·궤적·요금·적요가 전부 그날 값이다',
     },
@@ -1063,7 +1063,7 @@ export function scenarioPlan(grabbed: number): MockPlan {
         stops,
         legMinutes,
         polyline: empty ? [] : PLAN3_LINE,
-        drivenTrail: empty ? [] : PLAN3_TRAIL,
+        drivenTrail: empty ? [] : [PLAN3_TRAIL],
         totalKm: empty ? 0 : MOCK_PLANS[3].totalKm,
         totalMin: empty ? 0 : MOCK_PLANS[3].totalMin,
         toll: empty ? 0 : MOCK_PLANS[3].toll,

@@ -153,7 +153,14 @@ export function useRouteDerivations(
     const gpsFocus = useGpsFocusStore(st => st.gpsFocus);
 
     /** 👣 이번 사이클의 주행 자취 — 사이클이 끝나면(덱이 비면) 접는다 */
-    const drivenTrail = useDrivenTrailStore(st => st.points);
+    const drivenSegments = useDrivenTrailStore(st => st.segments);
+    /**
+     * 🔁 목업과 **같은 함수**(`pushTrail`)가 쌓기 때문에 스토어는 목업 말(`lng`·`lat`)을 쓴다.
+     *    관제웹 지도는 `x`·`y` 로 읽으므로 여기서 **한 번만** 옮긴다 (규칙 ③ — 두 벌로 두지 않는다).
+     */
+    const drivenTrail = useMemo(
+        () => drivenSegments.map(seg => seg.map(p => ({ x: p.lng, y: p.lat }))),
+        [drivenSegments]);
     useEffect(() => { if (cycleDeck.length === 0) clearDrivenTrail(); }, [cycleDeck.length]);
 
     const safeRoute = activeRoute || [];

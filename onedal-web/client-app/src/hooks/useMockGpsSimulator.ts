@@ -65,7 +65,8 @@ export function useMockGpsSimulator({
     speedMultiplier = 15,
     onFinished,
 }: MockGpsSimulatorProps) {
-    const [mockLocation, setMockLocation] = useState<{ x: number; y: number } | null>(null);
+    /** 👣 `via` — 이번 틱에 **지나온** 폴리라인 점들. 궤적이 카카오 곡선 그대로 남는다 */
+    const [mockLocation, setMockLocation] = useState<{ x: number; y: number; via?: Array<{ x: number; y: number }> } | null>(null);
     /**
      * 👁️ **보이는 탭에서만 달린다** (2026-08-31 실측). 숨은 탭의 setInterval 은 브라우저가
      * 분당 1회로 조여서 절뚝이는 좌표를 쏘고, 다른 탭의 시뮬과 섞인다 — 관제웹 두 개가
@@ -187,7 +188,7 @@ export function useMockGpsSimulator({
             else if (simRef.current.phase === 'dwell') { /* 정차 중 — 같은 자리 재송신 */ }
             else console.log(`📍 [Mock GPS] 이동 중: x=${r.loc.x}, y=${r.loc.y} (진척도: ${simRef.current.idx}/${path.length})`);
             hereRef.current = { x: r.loc.x, y: r.loc.y };
-            setMockLocation({ x: r.loc.x, y: r.loc.y });
+            setMockLocation({ x: r.loc.x, y: r.loc.y, via: r.via });
         }, 1000);
 
         return () => {

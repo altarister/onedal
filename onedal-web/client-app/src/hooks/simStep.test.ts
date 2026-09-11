@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { simStep, initialSimState, DWELL_TICKS } from './simStep';
+import { simStep, initialSimState, DWELL_TICKS, KM_PER_TICK } from './simStep';
+
+/** 위도 1도 ≈ 110.574km — `lib/driveStep` 과 같은 자 */
+const KM_PER_LAT = 110.574;
 
 /**
  * 🎭 모의 주행 «연기» 검사 — 정거장 앞 감속 · 도착 정차(실초) · 재출발.
@@ -13,17 +16,32 @@ const path = Array.from({ length: 200 }, (_, i) => ({ x: 127.3, y: 37.3 + i * 0.
 const M = 15;   // 기본 배속
 
 describe('모의 주행 연기 — simStep', () => {
-    it('정거장이 멀면 배속 그대로 달린다', () => {
+    it('정거장이 멀면 한 틱에 «배속 × 기본 걸음»만큼의 **거리**를 간다', () => {
         const st = initialSimState();
         simStep(st, path, [], M);
-        expect(st.idx).toBe(M);
+        const km = (st.at!.y - path[0].y) * KM_PER_LAT;
+        expect(km).toBeCloseTo(KM_PER_TICK * M, 3);
+    });
+
+    it('🔴 지나온 점을 하나도 건너뛰지 않는다 — 카카오 곡선이 직선으로 펴지던 자리', () => {
+        /**
+         * 예전엔 `st.idx += 배속` 이라 **점 15개를 한 번에 뛰어넘었다.**
+         * 궤적은 지나온 좌표만 잇는데, 밟지 않은 점은 남길 수도 없어
+         * 카카오가 준 곡선이 **직선 토막**으로 그려졌다 (기사님: *"궤적이 엉망이야"*).
+         * 지금은 목업과 같은 `driveStep` 이 점을 다 밟고 `via` 로 돌려준다.
+         */
+        const st = initialSimState();
+        const r = simStep(st, path, [], M);
+        const walked = Math.floor(KM_PER_TICK * M / (0.001 * KM_PER_LAT));   // ≈13칸
+        expect(r.via!.length).toBeGreaterThan(walked);
+        for (let i = 0; i <= walked; i++) expect(r.via![i]).toEqual(path[i]);
     });
 
     it('정거장 1km 안에서는 걸음이 ¼로 준다 — 감속 연기', () => {
         const stop = path[30];                       // 경로 위 정거장
         const st = initialSimState(25);              // 약 550m 앞
         simStep(st, path, [stop], M);
-        expect(st.idx).toBeLessThanOrEqual(25 + Math.round(M / 4));
+        expect(st.idx).toBeLessThanOrEqual(25 + Math.ceil(M / 4));
     });
 
     it('정거장에 닿으면 그 좌표를 찍고, 실초 정차 연기가 시작된다', () => {

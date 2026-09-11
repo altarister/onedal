@@ -48,7 +48,7 @@ export function publishLocation(
     lat: number,
     lng: number,
     source: GpsSource,
-    extra?: { accuracy?: number },
+    extra?: { accuracy?: number; via?: Array<{ lat: number; lng: number }> },
 ): PublishResult {
     const now = Date.now();
 
@@ -69,7 +69,14 @@ export function publishLocation(
      * 🔴 정지는 «사건이 없는 것»이 아니라 **«같은 자리에 있다»는 사실**이다 (규칙 ④).
      * ⚠️ 실 GPS 는 좌표가 미세하게 흔들려 이 거르기에 걸리지 않는다 — 모의 주행에서만 났다.
      */
-    window.dispatchEvent(new CustomEvent('local-gps-update', { detail: { lat, lng, source } }));
+    /**
+     * 👣 **`via` 는 «이번 걸음에 **지나온** 좌표들»이다** (2026-09-12).
+     *    1초에 한 번 좌표를 내는데 배속을 걸면 그 사이에 카카오 폴리라인 점 열 몇 개를
+     *    지난다. 끝점만 알리면 궤적이 **그 점들을 건너뛴 직선**이 되어 곡선이 펴졌다
+     *    (기사님: *"궤적이 엉망이야. 카카오 궤적이 아닌 것 같아"*).
+     *    🔴 **서버로는 끝점만 간다** — 서버가 아는 것은 «지금 어디»지 «어떻게 왔나»가 아니다.
+     */
+    window.dispatchEvent(new CustomEvent('local-gps-update', { detail: { lat, lng, source, via: extra?.via } }));
 
     // 서버로는 같은 자리를 다시 보내지 않는다
     if (lastSent && lastSent.lat === lat && lastSent.lng === lng) {

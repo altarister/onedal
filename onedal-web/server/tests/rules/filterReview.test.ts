@@ -635,3 +635,76 @@ describe('8단계 · 상차지까지도 모의 주행으로 간다 (현황판 �
         expect(body).toMatch(/driverLocation = null/);
     });
 });
+
+describe('8단계 · 궤적이 카카오 길을 따라간다 (기사님 "궤적이 엉망이야")', () => {
+    /**
+     * 기사님 2026-09-12: *"궤적이 엉망이야. **카카오 궤적이 아닌 것 같아.** 목업에서는
+     * 지나간 자리를 그려줄 건데 이렇게 그리면 안 되지"* · *"목업에서는 이쁘게 나왔어"* ·
+     * *"진짜 GPS로 찍은 건 아니지만 말이지."*
+     *
+     * 🔴 **원인 둘** (목업과 견줘 찾았다):
+     *   ① **그릇** — 목업은 구간 배열(`Pt[][]`)이라 2km 넘게 튀면 **끊고 새 구간**을 연다.
+     *      실물은 한 줄이라 **점프가 그대로 직선**으로 남았다. 모의 주행은 정거장에서
+     *      도로 밖 좌표를 그대로 찍는데(물류센터 601m), 구간을 안 끊으니 **정거장마다
+     *      도로 밖으로 튀었다 돌아오는 직선 둘**이 남았다.
+     *   ② **걸음** — 목업은 거리로 보간해 폴리라인 점을 **다 밟는다**. 실물은 `idx += 15` 로
+     *      **15개씩 건너뛰어** 카카오 곡선이 직선으로 펴졌다.
+     *
+     * 🔴 가짜 좌표라도 **그럴듯한 자취**여야 한다 — 목업이 경로선과 궤적을 겹쳐 두는 이유가
+     *    *"경로와 지나간 길의 오차를 확인하기 위해"* 라서, 궤적이 엉뚱하면 그 목적이 사라진다.
+     */
+    const store = readClient('stores/drivenTrailStore.ts');
+    const canvas = codeOnly(readClient('components/dashboard/PinnedRouteCanvas.tsx'));
+    const sim = codeOnly(readClient('hooks/simStep.ts'));
+    /** 👣 쌓는 규칙이 사는 곳 — 목업과 실물이 **같이** 부른다 */
+    const trailRule = codeOnly(readClient('lib/driveStep.ts'));
+    const mockup = codeOnly(readClient('pages/MapMockup.tsx'));
+
+    it('🔴 궤적은 구간 배열이다 — 쌓는 규칙이 목업과 **한 벌**이다', () => {
+        expect(store).toMatch(/segments/);
+        /**
+         * 🔴 **규칙을 여기에 다시 쓰지 않는다** — 목업과 실물이 같은 함수를 부른다
+         *    (`lib/driveStep` 의 `pushTrail`). 베껴 두면 한쪽만 고쳐진다 (규칙 ③).
+         */
+        /* 🔴 **부르는 자리**를 본다 — `import` 줄만 보면 손으로 베낀 구현도 초록이 된다 */
+        const sub = store.slice(store.indexOf('ensureDrivenTrailSubscribed'));
+        expect(sub).toMatch(/pushTrail\(/);
+        expect(mockup).toMatch(/pushTrail\(/);
+        /* 2km 넘게 튀면 새 구간 — 순간이동은 주행이 아니다 */
+        expect(trailRule).toMatch(/TRAIL_JUMP_KM/);
+    });
+
+    it('🔴 캔버스가 구간마다 따로 긋는다 — 구간을 이으면 점프가 직선으로 남는다', () => {
+        const i = canvas.indexOf('layers.trail');
+        expect(i).toBeGreaterThan(-1);
+        const body = canvas.slice(i, i + 400);
+        expect(body).toMatch(/for \(const seg of|\.forEach\(seg|drivenTrail\.map/);
+    });
+
+    it('🔴 **지나온 점이 다리를 건넌다** — 시뮬 → 관제 → 알림 세 이음매', () => {
+        /**
+         * 🔴 이 셋 중 **하나만 빠져도** 궤적은 조용히 끝점만 잇는다 — 화면은 «그려지긴 하는»
+         *    상태라 아무도 못 본다. 스토어 검사(`drivenTrailStore.test.ts`)는 알림이 온 뒤만
+         *    보므로 **여기까지는 못 지킨다** (변이로 확인했다 · 2026-09-12).
+         */
+        const sim = codeOnly(readClient('hooks/useMockGpsSimulator.ts'));
+        expect(sim.slice(sim.indexOf('setMockLocation({ x: r.loc'))).toMatch(/via: r\.via/);
+
+        const master = codeOnly(readClient('hooks/useMasterGps.ts'));
+        const call = master.slice(master.indexOf("publishLocation(loc.lat, loc.lng, 'mock'"));
+        expect(call.slice(0, 160)).toMatch(/via:/);
+
+        const bridge = codeOnly(readClient('lib/gpsBridge.ts'));
+        const evt = bridge.slice(bridge.indexOf("new CustomEvent('local-gps-update'"));
+        expect(evt.slice(0, 160)).toMatch(/via/);
+    });
+
+    it('🔴 걸음은 거리로 간다 — 폴리라인 점을 건너뛰지 않는다', () => {
+        /* `idx += step` 으로 점을 건너뛰면 카카오 곡선이 직선으로 펴진다 */
+        expect(sim).toMatch(/stepKm|KM_PER_TICK/);
+        expect(sim).not.toMatch(/st\.idx \+= step/);
+        /* 🔴 걸음도 목업과 **같은 함수**가 낸다 — 지나온 점을 `via` 로 돌려준다 */
+        expect(sim.slice(sim.indexOf('export function simStep'))).toMatch(/driveStep\(/);
+        expect(mockup).toMatch(/driveStep\(/);
+    });
+});
