@@ -18,7 +18,7 @@ import { RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, restoreWindow, isEvaluating,
 import db from "../db";
 import { getUserSession } from "../state/userSessionStore";
 import { forceCancelEvaluatingOrder, handleDecision } from "../services/dispatchEngine";
-import { parsePolyline, parseSectionEnds } from "../services/routeComposer";
+import { parsePolyline, parseSectionEnds, parseSectionStops } from "../services/routeComposer";
 import { updateActiveFilter } from "../state/filterManager";
 import { requireAuth } from "../middlewares/authMiddleware";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
@@ -71,6 +71,8 @@ router.get("/", requireAuth, (req, res) => {
                 routePolyline: parsePolyline(r.routePolyline),
                 /** 🎨 구간 경계도 함께 편다 — 궤적과 같은 운명이라야 지도가 색을 잃지 않는다 (이식 B1) */
                 sectionEnds: parseSectionEnds(r.sectionEnds),
+                /** 🧭 구간 주인도 함께 편다 — 셋이 같이 살아야 지도가 색을 낸다 (이식 B2) */
+                sectionStops: parseSectionStops(r.sectionStops),
             })),
         });
     } catch (error) {

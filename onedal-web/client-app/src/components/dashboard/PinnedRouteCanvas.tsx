@@ -1,3 +1,4 @@
+import { sectionLinesOf } from '@onedal/shared';
 import React, { useRef, useCallback, useEffect } from 'react';
 import type { SecuredOrder } from "@onedal/shared";
 import { isEvaluating } from "@onedal/shared";
@@ -539,11 +540,33 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             ctx.restore();
         };
 
-        // ① 아래 — 카카오가 준 «가야 할 길». 굵고 파랗다
+        /**
+         * ① 아래 — 카카오가 준 «가야 할 길».
+         *
+         * 🌈 **구간마다 그 콜의 색으로 칠한다** (2026-09-11 · 이식 B2 · 지도 실험실 모양).
+         *    서버가 구간 경계(`sectionEnds`)와 구간 주인(`sectionStops`)을 함께 보낸다 —
+         *    실측으로 **둘의 길이가 같고**, 구간 i 는 «정거장 i 에 닿는 길»이다
+         *    (`ends [66,175,912,1432]` ↔ `stops 4개`). 그래서 색은 그 정거장의 콜 색이다.
+         * 🔴 **재료가 어긋나면 한 색으로 물러난다** — 길이가 다르거나 색표가 없으면 옛 모양 그대로.
+         *    색이 밀려 그려지는 것보다 한 색이 낫다 (규칙 ④: 지어내지 않는다).
+         * ⚠️ 미리보기(결재 전)는 **노란 점선 한 색**을 지킨다 — «아직 내 콜이 아니다»가 색의 뜻이다.
+         */
         if (hasPolyline && validPolyline.length > 0) {
-            ctx.strokeStyle = isPreviewRoute ? '#e6b422' : mapColors.routeLine;
-            // 노란 점선 = 아직 결재 전 (v23 Ⅱ)
-            drawPath(validPolyline, 1, isPreviewRoute ? [10, 8] : undefined);
+            const secStops = routeHolder?.sectionStops;
+            const secLines = isPreviewRoute ? [] : sectionLinesOf(validPolyline, routeHolder?.sectionEnds);
+            const canPaintPerSection = !!callColors && !!secStops
+                && secLines.length > 1 && secLines.length === secStops.length
+                && validPolyline.length === currentPolyline.length;   // 걸러진 점이 있으면 경계가 어긋난다
+            if (canPaintPerSection) {
+                secLines.forEach((line, i) => {
+                    ctx.strokeStyle = callColors!.get(secStops![i].orderId) ?? mapColors.routeLine;
+                    drawPath(line, 1);
+                });
+            } else {
+                ctx.strokeStyle = isPreviewRoute ? '#e6b422' : mapColors.routeLine;
+                // 노란 점선 = 아직 결재 전 (v23 Ⅱ)
+                drawPath(validPolyline, 1, isPreviewRoute ? [10, 8] : undefined);
+            }
         }
 
         // ② 위 — 내가 «실제로 간 길». 얇고 밝다. 파란 길 밖으로 나가면 그게 이탈이다

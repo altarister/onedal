@@ -157,6 +157,16 @@ export function parseSectionEnds(raw: unknown): number[] | undefined {
     } catch { return undefined; }
 }
 
+/** 🧭 **구간 주인을 되돌린다** — 모양이 다르면 `undefined` (그러면 지도가 한 색으로 물러난다) */
+export function parseSectionStops(raw: unknown): Array<{ orderId: string; stopType: 'pickup' | 'dropoff' }> | undefined {
+    if (raw == null) return undefined;
+    try {
+        const v = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        return Array.isArray(v) && v.every(s => s && typeof s.orderId === 'string'
+            && (s.stopType === 'pickup' || s.stopType === 'dropoff')) ? v : undefined;
+    } catch { return undefined; }
+}
+
 /** 지금 모습을 그대로 뜬다 (덮어쓰기 직전에 부른다) */
 export function snapshotRoute(holder: RouteHolder & { id: string }, at: { x: number; y: number } | null): RouteSnapshot {
     return {

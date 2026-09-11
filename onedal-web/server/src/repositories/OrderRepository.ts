@@ -10,7 +10,7 @@ export class OrderRepository {
         const stmtOrder = db.prepare(`
             INSERT INTO orders (
                 id, type, pickup, dropoff, fare, timestamp, status, userId, capturedAt, capturedDeviceId,
-                vehicleType, distanceKm, deliveryDistance, totalDistanceKm, totalDurationMin, kakaoSoloDistanceKm, kakaoSoloDurationMin, kakaoTimeExt, routeComputedAt, routePolyline, sectionEnds,
+                vehicleType, distanceKm, deliveryDistance, totalDistanceKm, totalDurationMin, kakaoSoloDistanceKm, kakaoSoloDurationMin, kakaoTimeExt, routeComputedAt, routePolyline, sectionEnds, sectionStops,
                 paymentType, billingType, commissionRate, tollFare, tripType, orderForm, itemDescription, detailMemo,
                 dispatcherName, dispatcherPhone, isShared, isExpress,
                 -- [2026-08-10] 앱은 예전부터 보내고 DB에도 컬럼이 있는데 이 목록에만 빠져 있어
@@ -18,7 +18,7 @@ export class OrderRepository {
                 -- 예약 표기의 원문이라, 이게 없으면 시간창 경로 최적화의 입력 자체가 없다.
                 scheduleText, postTime, targetApp, capturedVia
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET 
                 status = 'ORDER_CONFIRMED', 
                 userId = excluded.userId, 
@@ -30,7 +30,8 @@ export class OrderRepository {
                 capturedVia = COALESCE(excluded.capturedVia, capturedVia),
                 -- 🗺️ 재확정 때 궤적이 비어 오면 기존 것을 지우지 않는다 (위 규약과 같다)
                 routePolyline = COALESCE(excluded.routePolyline, routePolyline),
-                sectionEnds  = COALESCE(excluded.sectionEnds, sectionEnds)
+                sectionEnds  = COALESCE(excluded.sectionEnds, sectionEnds),
+                sectionStops = COALESCE(excluded.sectionStops, sectionStops)
         `);
         
         stmtOrder.run(
@@ -67,6 +68,9 @@ export class OrderRepository {
             /** 🎨 구간 경계도 궤적과 **함께** 남긴다 — 선만 살고 경계가 없으면 지도가 한 색이 된다 (이식 B1) */
             (cachedOrder as any).sectionEnds?.length
                 ? JSON.stringify((cachedOrder as any).sectionEnds) : null,
+            /** 🧭 구간 주인도 함께 — 셋(궤적·경계·주인)이 갈라지면 지도가 색을 잃는다 (이식 B2) */
+            (cachedOrder as any).sectionStops?.length
+                ? JSON.stringify((cachedOrder as any).sectionStops) : null,
             cachedOrder.paymentType || null,
             cachedOrder.billingType || null,
             cachedOrder.commissionRate || null,

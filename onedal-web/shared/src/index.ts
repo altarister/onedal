@@ -687,6 +687,8 @@ export interface SecuredOrder extends OfficeOrder {
     routePolyline?: Array<{ x: number; y: number }>;
     /** 🎨 구간이 끝나는 자리 — `routePolyline` 을 콜 색으로 칠하려면 이 경계가 필요하다 (이식 B1) */
     sectionEnds?: number[];
+    /** 🧭 구간마다 어느 정거장인가 — `sectionEnds` 와 같은 길이. 구간의 **색 주인**이다 (이식 B2) */
+    sectionStops?: Array<{ orderId: string; stopType: 'pickup' | 'dropoff' }>;
     totalDistanceKm?: number;
     totalDurationMin?: number;
     kakaoSoloDistanceKm?: number;
