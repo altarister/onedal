@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatHwamul24Region } from '@altari/core-simulator';
+import { formatHwamul24Region, formatHwamul24Vehicle } from '@altari/core-simulator';
 import type { CallItem } from '@altari/core-simulator';
 
 interface BoardProps {
@@ -29,7 +29,8 @@ const Hwamul24CallCard = React.memo(({
 }) => {
   const pickupRegion = formatHwamul24Region(call.pickups[0].fullName);
   const dropoffRegion = formatHwamul24Region(call.dropoffs[0].fullName);
-  const tonnage = call.tonnage || '1톤';
+  // 🔴 문제지는 차종을 한 번만 적는다 — 여기서 화물24시 말로 옮긴다 (승용차 → 승용)
+  const tonnage = call.tonnage || formatHwamul24Vehicle(call.vehicleType);
   const vehicleSpec = call.vehicleSpec || '전체';
   const loadingType = call.loadingType || '독차';
   const receiptType = call.receiptType || call.billingType || '인수증';

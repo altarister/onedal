@@ -124,7 +124,6 @@ const toSettings = (f: PhaseForm, prev: PhaseSettings): PhaseSettings => {
  */
 const TARGET_HINT: Record<CallTarget, string> = {
     DEST:  '목적지로 가는 콜 — 첫짐·합짐',
-    LOCAL: '같은 시 안에서 끝나는 콜',
     HOME:  '집 방향 콜 — 합짐 최대한',
 };
 

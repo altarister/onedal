@@ -15,21 +15,23 @@ import type { PhaseKey, PhaseSettings } from "@onedal/shared";
  */
 describe('국면 결정 — 두 축의 조합 (§2-4-1)', () => {
 
-    it('첫짐 3종: 콜 0건일 때 callTarget 가 국면을 정한다', () => {
+    /** 🔄 개정 2026-09-11 — 관내가 파생이 되어 **둘**이다 (이식 C4-8b-2 · 위 진리표 주석 참조) */
+    it('🔄 첫짐 2종: 콜 0건일 때 callTarget 가 국면을 정한다', () => {
         expect(resolvePhaseKey('DEST',  'STANDBY')).toBe('first');
-        expect(resolvePhaseKey('LOCAL', 'STANDBY')).toBe('local');
         expect(resolvePhaseKey('HOME',  'STANDBY')).toBe('home');
+        // 관내는 이제 국면이 아니다 — 옛 값이 들어와도 노선행으로 본다 (안전 기본값)
+        expect(resolvePhaseKey('LOCAL' as any, 'STANDBY')).toBe('first');
     });
 
     it('🔴 콜을 잡으면 어디서 출발했든 **합짐**이다 — 관내·복귀는 "첫짐의 자리"', () => {
         // 기사님: "첫짐-합짐-운행중-관내-합짐-운행중-복귀-합짐-운행중"
-        for (const target of ['DEST', 'LOCAL', 'HOME']) {
+        for (const target of ['DEST', 'HOME']) {
             expect(resolvePhaseKey(target, 'GATHERING')).toBe('merge');
         }
     });
 
     it('🔴 출발하면 어디서 출발했든 **운행중**이다', () => {
-        for (const target of ['DEST', 'LOCAL', 'HOME']) {
+        for (const target of ['DEST', 'HOME']) {
             expect(resolvePhaseKey(target, 'DELIVERING')).toBe('drive');
         }
     });
@@ -39,14 +41,22 @@ describe('국면 결정 — 두 축의 조합 (§2-4-1)', () => {
         expect(resolvePhaseKey('???', 'STANDBY')).toBe('first');
     });
 
-    it('진리표 9칸이 전부 정의돼 있다', () => {
+    /**
+     * 🔄 **개정 2026-09-11 — 9칸에서 «6칸»으로** (이식 C4-8b-2).
+     *    `callTarget` 에서 `'LOCAL'` 을 걷었다 (기사님: *"우린 집으로 갈건지 말껀지만 있어"*) —
+     *    관내는 고르는 것이 아니라 **파생**(`localMode`)이 되었다.
+     *
+     * ⚠️ **`PhaseKey` 의 `'local'` 자체는 아직 남아 있다** — `user_filter_phases` 다섯 행과
+     *    묶여 있어 **그릇을 걷을 때 함께 간다** (C3-3b). 지금은 **아무도 그 국면을 못 만든다.**
+     */
+    it('🔄 진리표 6칸이 전부 정의돼 있다 (관내는 파생으로 빠졌다)', () => {
         const seen = new Set<PhaseKey>();
-        for (const h of ['DEST', 'LOCAL', 'HOME']) {
+        for (const h of ['DEST', 'HOME']) {
             for (const d of ['STANDBY', 'GATHERING', 'DELIVERING']) {
                 seen.add(resolvePhaseKey(h, d));
             }
         }
-        expect([...seen].sort()).toEqual(['drive', 'first', 'home', 'local', 'merge']);
+        expect([...seen].sort()).toEqual(['drive', 'first', 'home', 'merge']);
     });
 });
 

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { CallItem } from '@altari/core-simulator';
-import { formatHwamul24Region } from '@altari/core-simulator';
+import { formatHwamul24Region, formatHwamul24Vehicle } from '@altari/core-simulator';
 
 interface DetailProps {
   call: CallItem;
@@ -25,7 +25,8 @@ export const Hwamul24CallDetailScreen = ({ call, onClose, onAccept }: DetailProp
   const dropoffFull = call.dropoffDetails?.[0]?.addressDetail || formatHwamul24Region(call.dropoffs[0].fullName);
   const pickupPhone = call.pickupDetails?.[0]?.phone1 || mockPhone();
   const dropoffPhone = call.dropoffDetails?.[0]?.phone1 || mockPhone();
-  const tonnage = call.tonnage || '1톤';
+  // 🔴 문제지는 차종을 한 번만 적는다 — 여기서 화물24시 말로 옮긴다 (승용차 → 승용)
+  const tonnage = call.tonnage || formatHwamul24Vehicle(call.vehicleType);
   const vehicleSpec = call.vehicleSpec || '전체';
   const loadingType = call.loadingType || '독차';
   const tripType = call.tripType || '편도';

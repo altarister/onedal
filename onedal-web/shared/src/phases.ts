@@ -48,13 +48,20 @@ export const PHASE_LABEL: Record<PhaseKey, string> = {
  * 기사님: *"합짐·운행중은 무조건 **경로가 생기고 난 이후**에 발생하니까."*
  * 경로가 있으면 경유가 그 경로에서 파생되므로 어디서 출발했든 같은 기준이면 된다.
  *
- * @param callTarget     'DEST' | 'LOCAL' | 'HOME'
+ * @param callTarget     'DEST' | 'HOME'
  * @param dispatchPhase 'STANDBY' | 'GATHERING' | 'DELIVERING'
  */
 export function resolvePhaseKey(callTarget: string, dispatchPhase: string): PhaseKey {
     if (dispatchPhase === 'DELIVERING') return 'drive';
     if (dispatchPhase === 'GATHERING') return 'merge';
-    return callTarget === 'LOCAL' ? 'local' : callTarget === 'HOME' ? 'home' : 'first';
+    /**
+     * 🔴 **관내(`'LOCAL'`)가 여기서 사라졌다** (이식 C4-8b-2 · 2026-09-11).
+     *    기사님: *"우린 집으로 갈건지 말껀지만 있어."* 관내는 고르는 것이 아니라
+     *    **파생**이 되었다 (`AutoDispatchFilter.localMode`).
+     * ⚠️ `PhaseKey` 의 `'local'` 자체는 아직 남아 있다 — `user_filter_phases` 다섯 행과
+     *    묶여 있어서 **그릇을 걷을 때 함께 간다** (C3-3b).
+     */
+    return callTarget === 'HOME' ? 'home' : 'first';
 }
 
 // ─────────────────────────────────────────────────────────────

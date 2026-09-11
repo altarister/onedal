@@ -26,8 +26,8 @@ export const SOAK: Record<VerdictColor, { tint: string; bar: string; text: strin
 };
 // 테마를 따른다 — 다크 고정색은 라이트 테마에서 이질적이었다 (기사님 0831)
 const CARD_BG = 'linear-gradient(180deg, var(--color-surface-alt), var(--color-surface))';
-/** 호칭의 타겟명 — 용어집 조합 규칙 (노선/관내/복귀) */
-const TARGET_NAME: Record<CallTarget, string> = { DEST: '노선', LOCAL: '관내', HOME: '복귀' };
+/** 호칭의 타겟명 — 용어집 조합 규칙. 🔴 관내는 파생이라 여기 없다 (C4-8b-2) */
+const TARGET_NAME: Record<CallTarget, string> = { DEST: '노선', HOME: '복귀' };
 
 const cleanRoute = (t?: string) => (t ?? '')
     .replace(/'(꿀|똥|콜|보통|사고)'/g, '').replace(/\[(추천|최단거리|최단시간)\]/g, '')

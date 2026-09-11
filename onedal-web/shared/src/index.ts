@@ -856,11 +856,22 @@ export const APP_FILTER_KEYS = [
  *    기사님: *"콜은 무조건 배달을 해서 완료되어야 한다."* 배달하지 않은 콜이
  *    완료로 기록되면 정산·운행일지가 통째로 틀어진다.
  */
-export type CallTarget = 'DEST' | 'LOCAL' | 'HOME';
+/**
+ * 🧭 **콜을 어디로 향해 찾나** — 기사님이 고르는 것은 **둘뿐**이다.
+ *
+ * 기사님 2026-09-11: *"우린 **집으로 갈건지 말껀지만** 있어."*
+ *
+ * 🔴 **`'LOCAL'`(관내)을 걷었다** (이식 C4-8b-2). 관내는 고르는 것이 아니라 **파생**이다 —
+ *    `isLocalPhase()` 가 «목적지에 다 왔고 집에서는 멀어졌다»를 보고
+ *    `AutoDispatchFilter.localMode` 로 알린다. 목업이 그 모양이다.
+ * 🔴 **같은 일을 하는 길을 둘 두지 않는다** (규칙 ③) — 그러면 언젠가 갈라진다.
+ *    이 레포가 경유 4벌 · 상태목록 3벌 · 시별칭으로 이미 당한 모양이다.
+ * ⚠️ 걷어도 안전한 근거: `callTarget` 은 **DB 에 없고**(메모리뿐) **앱이 안 읽는다.**
+ */
+export type CallTarget = 'DEST' | 'HOME';
 
 export const CALL_TARGET_LABEL: Record<CallTarget, string> = {
     DEST: '노선행',
-    LOCAL: '이 동네에서 찾기',
     HOME: '복귀행',
 };
 

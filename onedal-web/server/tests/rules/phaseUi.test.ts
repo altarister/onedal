@@ -506,13 +506,30 @@ describe('관내 — 목적지를 안 잃는 파생 (C4-8b)', () => {
     });
 
     /**
-     * ⚠️ **`callTarget` 의 `'LOCAL'` 은 아직 남아 있다** (C4-8b-2 로 미룬다).
-     *    타입에서 걷으면 앱(Kotlin)·DB 까지 내려간다 — 이 판은 «관내로 들어가는 길»을
-     *    되살리는 데까지다. 다만 **두 길이 같은 일을 하지는 않는다**:
-     *    이제 관내는 그물이 판단하고, `setCallTarget('LOCAL')` 은 화면에서 못 부른다(C4-8a).
+     * 🔴 **관내로 가는 길은 하나다** (이식 C4-8b-2 · 2026-09-11).
+     *
+     * 기사님 2026-09-11: *"개선되어 중복인건 그냥 삭제 할꺼야."*
+     * C4-8b 가 파생을 만들었는데 옛 길(`setCallTarget('LOCAL')`)을 남겨 두었다 —
+     * **같은 일을 하는 길이 둘이면 언젠가 갈라진다.** 이 레포가 여러 번 당한 모양이다
+     * (경유 4벌 · 상태목록 3벌 · 시별칭).
+     *
+     * ⚠️ 걷어도 안전한 근거: `callTarget` 은 **DB 에 없다**(메모리뿐 · 실측 2026-09-11),
+     *    그리고 **앱(Kotlin)이 안 읽는다**. 지울 때 남는 옛 값이 없다.
      */
-    it('⚠️ 옛 LOCAL 전환은 화면에서 부르지 않는다 (타입 철거는 C4-8b-2)', () => {
+    it('🔴 고르는 국면은 둘뿐이다 — 노선 ↔ 복귀', () => {
+        const shared = require("@onedal/shared");
+        /* 타입은 런타임에 없으니 «그 값을 쓰는 코드»가 없는지로 본다 */
+        const idx = codeOnly(read(join(CLIENT, '../../shared/src/index.ts')));
+        expect(idx).toMatch(/export type CallTarget = 'DEST' \| 'HOME';/);
+        expect(shared.CALL_TARGET_LABEL.LOCAL).toBeUndefined();
+    });
+
+    /** 🔴 관내로 가는 길이 **파생 하나**다 — 손으로 바꾸던 길이 없다 */
+    it('🔴 옛 LOCAL 전환 길이 없다', () => {
         expect(modal).not.toMatch(/'LOCAL'/);
+        expect(engine).not.toMatch(/'LOCAL'/);
+        const ph = codeOnly(read(join(CLIENT, '../../shared/src/phases.ts')));
+        expect(ph).not.toMatch(/=== 'LOCAL'/);
     });
 });
 

@@ -30,7 +30,6 @@ import type { CallTarget } from "@onedal/shared";
 
 const PHASE_STYLE: Record<CallTarget, { icon: string; accent: string; hint: string }> = {
     DEST:  { icon: '🎯', accent: 'text-info',       hint: '목적지로 가는 콜 — 첫짐·합짐' },
-    LOCAL: { icon: '🏘️', accent: 'text-accent-alt', hint: '같은 시 안에서 끝나는 콜' },
     HOME:  { icon: '🏠', accent: 'text-accent',     hint: '집 방향 콜 — 합짐 최대한' },
 };
 
@@ -99,7 +98,6 @@ export default function OrderFilterStatus({ onOpenFilter, budgetToast }:
     /** v14 국면 색·라벨 — 노선(파랑) · 관내(민트) · 복귀(주황). 지역 라벨도 국면 따라 */
     const V14: Record<CallTarget, { c: string; chipBg: string; chipBd: string; on: string; onBd: string; onGlow: string; region: string }> = {
         DEST:  { c: '#4f8df9', chipBg: 'rgba(79,141,249,.14)', chipBd: 'rgba(79,141,249,.35)', on: '#cfe0ff', onBd: 'rgba(79,141,249,.55)', onGlow: 'rgba(79,141,249,.18)', region: '도착목표' },
-        LOCAL: { c: '#35c3a9', chipBg: 'rgba(53,195,169,.13)', chipBd: 'rgba(53,195,169,.4)',  on: '#c8f3ea', onBd: 'rgba(53,195,169,.6)',  onGlow: 'rgba(53,195,169,.2)',  region: '관내' },
         HOME:  { c: '#e8a15c', chipBg: 'rgba(232,161,92,.13)', chipBd: 'rgba(232,161,92,.4)',  on: '#fbe3c8', onBd: 'rgba(232,161,92,.6)',  onGlow: 'rgba(232,161,92,.2)',  region: '귀갓길' },
     };
     const v14 = V14[phase];

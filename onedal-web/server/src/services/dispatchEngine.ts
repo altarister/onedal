@@ -1407,21 +1407,18 @@ export async function setCallTarget(
             city = session.phaseSettings.first.destinationCity
                 || session.baseFilter.destinationCity
                 || null;
-        } else if (phase === 'LOCAL') {
             /**
-             * 이 동네 = **지금 있는 곳의 시**. 반경은 관내 국면 설정이 정한다(기본 0) —
-             * 그 시 안에서 끝나는 콜만.
-             * 기사님: *"관내콜은 거리로 하지 말자. 그냥 상차지와 하차지가 같은 시도에 있으면."*
+             * 🔴 **관내 분기가 여기 있었다** (걷어냄 · 이식 C4-8b-2 · 2026-09-11).
              *
-             * 기점은 GPS 다. 없으면 전환할 수 없다 — **없는 위치를 지어내지 않는다.**
+             * *"이 동네 = 지금 있는 곳의 시"* 라며 **`destinationCity` 를 갈아치웠다** —
+             * 기사님이 정한 김포시가 성남시가 됐다. 기사님 2026-09-11:
+             * *"우린 집으로 갈건지 말껀지만 있어"* · *"개선되어 중복인건 그냥 삭제 할꺼야."*
+             *
+             * 관내는 이제 **파생**이다 — `netKeywordsOf` 가 `isLocalPhase()` 로 보고
+             * **목적지는 그대로 둔 채** 그물의 방향만 끈다 (각도 360°).
+             * 기사님 규칙은 그대로 산다: *"관내콜은 거리로 하지 말자.
+             * 그냥 상차지와 하차지가 같은 시도에 있으면."*
              */
-            if (!session.driverLocation) {
-                return { success: false, phase, message: '현재 위치를 아직 못 잡았습니다. 잠시 후 다시 시도해 주세요' };
-            }
-            city = reverseGeocodeToRegion(session.driverLocation.y, session.driverLocation.x);
-            if (!city) {
-                return { success: false, phase, message: '지금 위치가 어느 시인지 알 수 없습니다' };
-            }
         } else {
             /**
              * 복귀행 = **집이 있는 시**. 집 주소는 설정에 있다.

@@ -974,8 +974,15 @@ export default function MapMockup() {
         srcDiamKm: knobs.pickupRadiusKm * 2, dstDiamKm: knobs.dropoffRadiusKm * 2,
         quadRadiusKm: knobs.quadRadiusKm,
     }, NET_SRC, dst, myPos);
-    /** 콜 타겟 — 행선·도착 인지에서 **파생** (수동 버튼 없음): 복귀행 / 관내 / 노선행 */
-    const callTarget: 'DEST' | 'LOCAL' | 'HOME' = homeOn ? 'HOME' : localMode ? 'LOCAL' : 'DEST';
+    /**
+     * 콜 타겟 — **파생**이다 (수동 버튼 없음): 복귀행 / 노선행.
+     *
+     * 🔴 **관내(`'LOCAL'`)가 여기서 빠졌다** (이식 C4-8b-2 · 2026-09-11).
+     *    기사님: *"우린 집으로 갈건지 말껀지만 있어."* 관내는 «어디로 가나»가 아니라
+     *    «지금 거기에 와 있나»라 **`localMode` 가 따로 말한다** — 실물과 같은 이름·같은 뜻이다.
+     *    한 값에 두 사실을 담으면 읽는 쪽이 갈린다 (규칙 ⑤-4 ⑤).
+     */
+    const callTarget: 'DEST' | 'HOME' = homeOn ? 'HOME' : 'DEST';
     /** 운행 상태 — 실험실 상태에서 파생: 콜 0 = 대기 · 콜 쥠 = 합짐 수집 · 주행 = 운행 중 */
     const dispatchPhaseSim = confirmed.length > 0 ? (driving ? 'DELIVERING' as const : 'GATHERING' as const) : 'STANDBY' as const;
     const params = useMemo(() => ({
@@ -1521,7 +1528,7 @@ export default function MapMockup() {
      * «실험실 아웃풋 ↔ 서버 아웃풋» 대조만으로 끝나게. 제외지역은 여기서 이미 빠져 있다.
      */
     const appFilterOutput = useMemo(() => buildAppFilterOutput({
-        callTarget, dispatchPhase: dispatchPhaseSim, driving,
+        callTarget, localMode, dispatchPhase: dispatchPhaseSim, driving,
         /**
          * 🔴 **제외지역은 노선·동선 공통이다** (기사님 확정 2026-09-09).
          *    예전엔 `routeMode ? [] : excluded` 였다 — 노선이면 «길이 곧 선별»이라 안 썼다(09-08).
@@ -1534,7 +1541,7 @@ export default function MapMockup() {
         vehicles, excludedWords, slotsUsed, capacityConfirmed,
         // 🔴 «무엇으로 재는가»만 적는다 — 관내 여부는 콜마다 갈리므로(목적지별) 여기서 말하지 않는다
         modeDesc: `🎯 ${goals.map(g => g.name).join(' ∪ ')} · ` + (lineOn ? `노선 — 잡은 콜 경로 ±${lineRadiusKm}km` : routeMode ? '노선 (경로 대기 — 마름모로 판단)' : `동선 마름모 ${params.srcAngleDeg}°/${params.dstAngleDeg}°`),
-    }), [callTarget, dispatchPhaseSim, driving, dst, areaNet, excluded, knobs, vehicles, excludedWords, slotsUsed, capacityConfirmed, lineOn, routeMode, lineRadiusKm, params, goals]);
+    }), [callTarget, localMode, dispatchPhaseSim, driving, dst, areaNet, excluded, knobs, vehicles, excludedWords, slotsUsed, capacityConfirmed, lineOn, routeMode, lineRadiusKm, params, goals]);
     /**
      * 🔴 **«짐을 실은 목적지» — 원천 하나** (2026-09-08 리뷰: 화면과 판정이 다른 답을 냈다).
      * ∩(상차 조이기)를 거는 기준이다. 판정(judgeGoals)·그리기·판정 칩이 **모두 이걸** 읽는다 —
@@ -3085,7 +3092,7 @@ export default function MapMockup() {
                     {/* 🎯 요약줄 — 실물 규격 그대로 (OrderFilterStatus: «🎯 노선행 · 여기서 10km → 서울 1km · 📦 90/100»).
                         라벨은 shared CALL_TARGET_LABEL, 값은 지금 필터 상태에서 파생 (기사님 2026-09-07) */}
                     <div className="rounded-[8px] border border-border-card bg-background px-2 py-1.5 text-[11px] font-black leading-snug">
-                        🎯 {CALL_TARGET_LABEL[callTarget]} · 여기서 {knobs.pickupRadiusKm}km → {goals.map(g => g.name).join(' ∪ ')} {knobs.dropoffRadiusKm}km
+                        🎯 {localMode ? '🏘️ 관내' : CALL_TARGET_LABEL[callTarget]} · 여기서 {knobs.pickupRadiusKm}km → {goals.map(g => g.name).join(' ∪ ')} {knobs.dropoffRadiusKm}km
                         {' · 📦 '}{slotsUsed}/{TRUCK_CAPACITY_SLOTS}
                     </div>
 

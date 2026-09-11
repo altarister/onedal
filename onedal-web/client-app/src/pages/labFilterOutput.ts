@@ -32,7 +32,10 @@ export interface LabProposedFields {
 
 export interface LabFilterInputs {
     /** 실물 요약줄의 노선/관내/복귀 */
-    callTarget: 'DEST' | 'LOCAL' | 'HOME';
+    /** 🔴 관내는 **파생**이라 여기 없다 (C4-8b-2) — 아래 `localMode` 가 말한다 */
+    callTarget: 'DEST' | 'HOME';
+    /** 🏘️ 지금 관내로 재고 있나 — 실물과 같은 이름·같은 뜻 (`AutoDispatchFilter.localMode`) */
+    localMode: boolean;
     /** 실험실 상태에서 파생: 콜 0 = STANDBY · 콜 쥠 = GATHERING · 주행 = DELIVERING */
     dispatchPhase: 'STANDBY' | 'GATHERING' | 'DELIVERING';
     driving: boolean;
@@ -75,6 +78,7 @@ export function buildAppFilterOutput(i: LabFilterInputs) {
     return {
         // ── 상태 축 — 실물 키 그대로. 🔴 «국면»은 여기서 안 푼다: 값이 한 벌이라 «어느 벌인가»가 없다 ──
         callTarget: i.callTarget,
+        localMode: i.localMode,
         dispatchPhase: i.dispatchPhase,
         driverAction: i.driving ? 'DRIVING' : 'WAITING',
         isActive: true,

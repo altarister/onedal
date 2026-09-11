@@ -11,7 +11,7 @@ import { buildAppFilterOutput, type LabFilterInputs } from './labFilterOutput';
  */
 
 const BASE: LabFilterInputs = {
-    callTarget: 'DEST', dispatchPhase: 'STANDBY', driving: false,
+    callTarget: 'DEST' as const, localMode: false, dispatchPhase: 'STANDBY', driving: false,
     dstName: '파주 시내',
     groups: [
         { region: '광주시', names: ['초월읍', '곤지암읍'] },
