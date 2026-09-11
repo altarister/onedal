@@ -331,6 +331,44 @@ describe('제외 지역 — 국면 밖 한 벌, 빼는 자리는 하나', () => 
         expect(fm2).not.toMatch(/`D\|\$\{/);
     });
 
+    /**
+     * 🔴 **제외를 고쳐도 목록이 안 줄면 화면이 거짓말한다** (2026-09-11 실측).
+     *
+     * 지리 연산은 무거워서 «도시·반경이 바뀔 때만» 다시 돈다. 제외 지역은 그 조건에 없어서,
+     * 서울을 통째로 빼고 저장했는데 **「도착목표 298개 동」이 그대로였다.** DB 에는 남았고
+     * 화면 칩도 생겼는데 판정이 쓰는 목록만 옛것이었다 — 규칙 ⑤-4 ④ 가 금지하는 모양이다.
+     */
+    it('🔴 제외 지역이 바뀌면 지역 목록을 다시 만든다 — 두 길 모두', () => {
+        // ① 도시 둘레 (첫짐)
+        const geoCond = fm2.slice(fm2.indexOf('const needsGeoRecalc'), fm2.indexOf('const needsGeoRecalc') + 500);
+        expect(geoCond).toMatch(/'excludedRegions' in changes/);
+        // ② 경로 주변 (합짐) — 반경만 보면 «첫짐엔 빠지는데 합짐엔 들어온다» 가 된다
+        const detour = fm2.slice(fm2.indexOf('function refreshDetourIfNeeded'), fm2.indexOf('function applyPhaseSettingsIfChanged'));
+        expect(detour).toMatch(/exBefore === exNow/);
+    });
+
+    it('🔴 화면에 고칠 자리가 있다 — 그릇만 파고 안 띄우면 기사님은 못 고치신다', () => {
+        // 3단(도·시군구·읍면동) 전부 — 도 층이 없으면 서울을 빼려고 구 25개를 눌러야 한다
+        expect(modal).toMatch(/sidoList\(\)/);
+        expect(modal).toMatch(/sggList\(exSido\)/);
+        expect(modal).toMatch(/dongList\(exSgg\)/);
+        // 지금 무엇이 빠져 있나는 늘 보인다 (레이어를 열어야 알면 화면이 거짓말한다)
+        expect(modal).toMatch(/excludedLabel\(k\)/);
+    });
+
+    /**
+     * 🔴 **고르기 칸은 목업과 같은 부품이다** — 손맛이 갈리면 두 화면이 다른 물건이 된다.
+     *    `JudgmentSeat` 을 목업이 **부르는** 것과 같은 이유다 (규칙 ③).
+     */
+    it('🔴 PickLayer 는 한 벌 — 실물도 목업도 같은 파일을 부른다', () => {
+        expect(modal).toMatch(/from "\.\.\/ui\/PickLayer"/);
+        const lab = codeOnly(read(join(CLIENT, 'pages/MapMockup.tsx')));
+        expect(lab).toMatch(/from '\.\.\/components\/ui\/PickLayer'/);
+        // 목업 안에 사본이 남아 있지 않다
+        expect(lab).not.toMatch(/function PickLayer\(/);
+        expect(lab).not.toMatch(/function useCloseOnOutside\(/);
+    });
+
     it('제외 지역은 앱에 안 내려간다 — 서버가 목록에서 이미 뺐다 (명세 §3)', () => {
         const scrap = codeOnly(read(join(SERVER, 'routes/scrap.ts')));
         const strip = scrap.slice(scrap.indexOf('...appFilter } = session.activeFilter') - 600, scrap.indexOf('...appFilter } = session.activeFilter'));

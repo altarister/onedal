@@ -145,9 +145,16 @@ function recalculateDerivedFields(session: ReturnType<typeof getUserSession>, ch
      * 7초는 부팅 때 `f.simplified`(200m) 캐시를 넣기 **전** 숫자다(1415ms → 13ms 기록 참조).
      * 낡은 경고를 믿고 판단하면 **없는 위험 때문에 기능을 포기**하게 된다 — 실제로 그랬다.
      */
+    /**
+     * 🚫 **제외 지역이 바뀌어도 다시 만든다** (이식 C2-2 · 2026-09-11 실측).
+     *    처음엔 이 조건에 없어서 서울을 통째로 빼고 저장했는데 **「도착목표 298개 동」이
+     *    그대로였다** — DB 에도 남고 화면 칩도 생겼는데 판정이 쓰는 목록만 옛것이었다.
+     *    규칙 ⑤-4 ④ 가 금지하는 «화면이 조용히 거짓말하는» 모양이다.
+     */
     const needsGeoRecalc =
         'destinationCity' in changes ||
         'destinationRadiusKm' in changes ||
+        'excludedRegions' in changes ||
         (!session.activeFilter.destinationKeywords || session.activeFilter.destinationKeywords.length === 0);
 
     if (changes.destinationKeywords) {
@@ -454,12 +461,19 @@ export function applyTraveledTrim(session: ReturnType<typeof getUserSession>): b
 function refreshDetourIfNeeded(
     session: ReturnType<typeof getUserSession>,
     userId: string,
-    before: { detourRadiusKm?: number, destinationRadiusKm?: number },
+    before: { detourRadiusKm?: number, destinationRadiusKm?: number, excludedRegions?: string[] },
 ) {
     if (!session.activeFilter.isSharedMode) return;
     const cRadius = session.activeFilter.detourRadiusKm ?? DEFAULT_DETOUR_RADIUS_KM;
     const dRadius = session.activeFilter.destinationRadiusKm ?? 10;
-    if (cRadius === before.detourRadiusKm && dRadius === before.destinationRadiusKm) return;
+    /**
+     * 🚫 **제외 지역이 바뀌어도 다시 그린다** (이식 C2-2 · 2026-09-11).
+     *    반경만 보면 합짐 국면에서 «제외했는데 경로 주변 목록은 그대로»가 된다 —
+     *    첫짐에선 빠지는데 합짐에선 들어오는, 국면마다 다른 말을 하는 모양이다.
+     */
+    const exBefore = JSON.stringify(before.excludedRegions ?? []);
+    const exNow = JSON.stringify(session.activeFilter.excludedRegions ?? []);
+    if (cRadius === before.detourRadiusKm && dRadius === before.destinationRadiusKm && exBefore === exNow) return;
 
     const regions = recalculateDetourFilter(userId, cRadius, dRadius);
     if (!regions) return;   // 경로가 아직 없다 — 없는 값을 지어내지 않는다
@@ -498,6 +512,7 @@ function applyPhaseSettingsIfChanged(
         detourRadiusKm: session.activeFilter.detourRadiusKm,
         destinationRadiusKm: session.activeFilter.destinationRadiusKm,
         destinationCity: session.activeFilter.destinationCity,
+        excludedRegions: session.activeFilter.excludedRegions,
     };
 
     const patch = applyPhaseToFilter(key, session.phaseSettings[key]);
@@ -582,6 +597,7 @@ export function savePhaseSettings(
         const before = {
             detourRadiusKm: session.activeFilter.detourRadiusKm,
             destinationRadiusKm: session.activeFilter.destinationRadiusKm,
+            excludedRegions: session.activeFilter.excludedRegions,
         };
         /**
          * 🔴 평면 이름 매핑은 여기서 하지 않는다 — `applyPhaseToFilter` 가 유일한 지점.

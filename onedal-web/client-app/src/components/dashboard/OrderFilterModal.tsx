@@ -4,6 +4,7 @@ import { logRoadmapEvent } from "../../lib/roadmapLogger";
 import { NET_RATE_PER_KM, VEHICLE_CAPACITY, TRUCK_CAPACITY_SLOTS, CAPACITY_CONFIDENCE_LABEL,
          PHASE_KEYS, PHASE_LABEL, PHASE_FIELDS, FILTER_FIELDS, fieldLabel, PHASE_AUTO_SOURCE,
          QUAD_FIELDS, quadShapeFrom,
+         sidoList, sggList, dongList, excludedLabel,
          DEFAULT_PHASE_SETTINGS, resolvePhaseKey, reachRadiusKm } from "@onedal/shared";
 import type { PhaseKey, PhaseSettings } from "@onedal/shared";
 import { socket } from "../../lib/socket";
@@ -15,6 +16,8 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { useJudgmentStore } from "../../stores/judgmentStore";
 import { Badge } from "../ui/badge";
+/* 🎛️ 고르기 칸은 목업과 **같은 부품**이다 (이식 C2-2 · 규칙 ③) */
+import { PickLayer } from "../ui/PickLayer";
 
 /**
  * 콜할인율 단계 — 시세 대비 허용 할인 %.
@@ -160,6 +163,19 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
     const [quadForm, setQuadForm] = useState<Record<string, string>>(
         () => Object.fromEntries(QUAD_FIELDS.map(f => [f.path, String(quadShapeFrom(null)[f.path])])));
     const [quadDirty, setQuadDirty] = useState(false);
+    /**
+     * 🚫 **제외 지역 — 국면 밖 한 벌** (이식 C2-2 · 2026-09-11 · 명세 §3).
+     *
+     * 🔴 **초안(`exDraft`)과 적용본이 갈라져 있다** — 목업과 같다. 칩 하나 잘못 눌러
+     *    그 지역이 곧장 살아나면 안 되므로 **💾 를 눌러야** 저장 대상이 된다.
+     *    키 문법(`S|도`·`R|시군구`·`D|시군구|동`)은 `shared/callNet.ts` 하나가 안다.
+     */
+    const [exDraft, setExDraft] = useState<string[]>([]);
+    const [exDirty, setExDirty] = useState(false);
+    const [exSido, setExSido] = useState<string>('경기');
+    const [exSgg, setExSgg] = useState<string | null>(null);
+    const [exOpen, setExOpen] = useState<string | null>(null);
+    const toggleEx = (key: string) => { setExDraft(x => x.includes(key) ? x.filter(k => k !== key) : [...x, key]); setExDirty(true); };
     const fillQuad = (src: unknown) => setQuadForm(Object.fromEntries(
         QUAD_FIELDS.map(f => [f.path, String(quadShapeFrom(src as any)[f.path])])));
     const shown = PHASE_FIELDS[tab];
@@ -274,6 +290,8 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
             /* 📐 마름모는 평면 필터에 실려 온다 — 국면 밖 한 벌이라 (이식 C3-2) */
             fillQuad(filter);
             setQuadDirty(false);
+            setExDraft(filter.excludedRegions ?? []);
+            setExDirty(false);
             // 지금 상황에 맞는 탭을 열어 준다 — 국면 판정은 shared 의 resolvePhaseKey 하나로
             setTab(activePhase);
             setBlacklist(filter.excludedKeywords ? filter.excludedKeywords.join(',') : "");
@@ -294,6 +312,8 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
         if (basePhaseSettings) setForms(mapToForm(basePhaseSettings));
         fillQuad(baseFilter);
         setQuadDirty(true);
+        setExDraft(baseFilter.excludedRegions ?? []);
+        setExDirty(true);
         setBlacklist(baseFilter.excludedKeywords ? baseFilter.excludedKeywords.join(',') : "");
         // 폼과 서버가 달라진 상태다 — 저장을 눌러야 반영된다는 뜻으로 전부 dirty
         setDirtyTabs(new Set(PHASE_KEYS));
@@ -371,6 +391,8 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
          *    `savePhase` 에 섞으면 다시 국면마다 한 벌씩 앉는다 — 그게 아침에 갈라진 이유다.
          */
         if (quadDirty) updateFilter(quadShapeFrom(quadForm), saveAsDefault);
+        /* 🚫 제외 지역도 국면 밖 한 벌이라 평면 통로로 간다 (이식 C2-2) */
+        if (exDirty) updateFilter({ excludedRegions: exDraft, userOverrides: true }, saveAsDefault);
 
         // 제외 키워드만 다섯 탭 공통이라 평면 필터로 간다
         if (blacklistDirty) {
@@ -467,6 +489,64 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                         placeholder="착불, 수거"
                         className="flex-1 bg-surface-alt/60 border-danger/30 text-danger font-medium focus-visible:ring-danger/50 shadow-inner h-9"
                     />
+                </div>
+
+                {/**
+                  * 🚫 **제외 지역 — 탭 위다** (이식 C2-2 · 2026-09-11 · 명세 §3).
+                  *    *"거긴 안 간다"* 는 그 지역이지 그 국면의 사정이 아니다.
+                  *
+                  * 🔴 **고르기 칸은 목업과 같은 부품**(`PickLayer`)이다 — 손맛이 갈리면
+                  *    두 화면이 다른 물건이 된다. 도 한 층이 있는 이유는 기사님이
+                  *    서울을 빼려고 **구 25개를 하나씩** 누르고 계셨기 때문이다 (2026-09-09).
+                  * 🔴 **💾 를 눌러야 저장 대상이 된다** — 칩 하나 잘못 눌러 그 지역이
+                  *    곧장 살아나면 안 된다.
+                  */}
+                <div className="relative z-20 rounded-lg border border-danger/25 bg-surface-alt/30 p-2 space-y-1.5">
+                    <div className="flex items-baseline justify-between">
+                        <span className="text-[10px] font-black text-danger">🚫 제외 지역</span>
+                        <span className="text-[9px] text-text-muted">
+                            {exDraft.length ? `${exDraft.length}곳` : '없음'} · 국면과 무관
+                        </span>
+                    </div>
+                    <div className="relative grid grid-cols-3 gap-1">
+                        <PickLayer label="⛔ 제외 도" options={sidoList()} tone="danger"
+                            value={`${exSido}${exDraft.includes(`S|${exSido}`) ? ' ⛔' : ''}`}
+                            selected={sidoList().filter(v => exDraft.includes(`S|${v}`))}
+                            open={exOpen === 'sido'} onToggle={() => setExOpen(o => o === 'sido' ? null : 'sido')}
+                            onPick={v => { setExSido(v); setExSgg(null); }}
+                            foot={
+                                <button type="button" onClick={() => toggleEx(`S|${exSido}`)}
+                                    className={`w-full px-2 py-1.5 rounded-md border text-[11px] font-black ${exDraft.includes(`S|${exSido}`)
+                                        ? 'bg-danger/15 border-danger/55 text-danger' : 'border-border bg-surface text-text-muted hover:border-danger'}`}>
+                                    ◼ {exSido} 통째로 제외 {exDraft.includes(`S|${exSido}`) ? '⛔ 켬' : '끔'}
+                                </button>} />
+                        <PickLayer label="시·군·구 ⛔ 통째" keepOpen tone="danger" options={sggList(exSido)}
+                            value={(() => { const n = sggList(exSido).filter(g => exDraft.includes(`R|${g}`)).length; return n ? `${n}곳 제외` : (exSgg ?? '고르기'); })()}
+                            selected={sggList(exSido).filter(g => exDraft.includes(`R|${g}`))}
+                            open={exOpen === 'sgg'} onToggle={() => setExOpen(o => o === 'sgg' ? null : 'sgg')}
+                            onPick={v => { setExSgg(v); toggleEx(`R|${v}`); }}
+                            foot={<span className="text-[9.5px] font-bold text-text-muted leading-snug">
+                                누르면 <b className="text-danger">그 시·군·구가 통째로</b> 빠집니다 · 다시 누르면 되살아납니다 ·
+                                마지막에 누른 곳이 <b>읍·면·동 칸</b>의 대상이 됩니다
+                            </span>} />
+                        <PickLayer label="읍·면·동" keepOpen tone="danger" options={exSgg ? dongList(exSgg) : []}
+                            value={exSgg ? (() => { const n = dongList(exSgg).filter(d => exDraft.includes(`D|${exSgg}|${d}`)).length; return n ? `${n}개 제외` : '전부 봄'; })() : '—'}
+                            selected={exSgg ? dongList(exSgg).filter(d => exDraft.includes(`D|${exSgg}|${d}`)) : []}
+                            open={exOpen === 'dong'} onToggle={() => setExOpen(o => o === 'dong' ? null : 'dong')}
+                            onPick={v => { if (exSgg) toggleEx(`D|${exSgg}|${v}`); }}
+                            foot={!exSgg ? <span className="text-[9.5px] font-bold text-text-muted">시·군·구를 먼저 고르세요</span> : null} />
+                    </div>
+                    {/* 🔴 «지금 무엇이 빠져 있나»는 늘 보인다 — 레이어를 열어야 알면 화면이 조용히 거짓말한다 */}
+                    {exDraft.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                            {exDraft.map(k => (
+                                <button key={k} type="button" onClick={() => toggleEx(k)} title="누르면 되살립니다"
+                                    className="px-1.5 py-0.5 rounded-md bg-danger/15 text-danger text-[10.5px] font-black">
+                                    ⛔ {excludedLabel(k)} ✕
+                                </button>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
                 {/* 📐 **마름모의 모양 — 탭 위다** (이식 C3-2 · 2026-09-11 · 명세 §3).
