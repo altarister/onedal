@@ -482,3 +482,48 @@ describe('라인반경 — 화면이 하는 말과 값이 하는 일이 같아�
         expect(PHASE_FIELD_LABEL.detourAllowKm).toBe('라인반경');
     });
 });
+
+/**
+ * 🛣️ **노선 ↔ 🔷 동선 — 그물의 모양을 기사님이 고른다** (이식 · 2026-09-11 · 명세 §5).
+ *
+ * 기사님이 «현위치 범위가 안 보인다» 하신 것의 답이다 — 콜을 쥐면 그물이 라인으로 바뀌어
+ * 현위치 원이 사라지는데, 실물에는 **되돌아볼 길이 없었다.** 목업에는 그 토글이 있다.
+ *
+ * 🔴 **버튼이 바꾸는 것과 화면이 읽는 것이 다르다** (목업이 못박은 갈림):
+ *      버튼      → `routeMode`   기사님이 «고른 것»
+ *      화면·판정 → `lineOn = routeMode && 경로가 실제로 있나`
+ *    예전 목업은 단추만 보고 그려서, **노선을 누르면 라인이 없어도 마름모가 화면에서
+ *    사라졌는데 판정은 그 마름모로 하고 있었다** (기사님 지적 2026-09-09).
+ */
+describe('노선 ↔ 동선 — 고른 것과 실제를 가른다 (이식)', () => {
+
+    const stage = codeOnly(read(join(CLIENT, 'components/stage/StageView.tsx')));
+    const hook = codeOnly(read(join(CLIENT, 'hooks/useCallNet.ts')));
+
+    it('🔴 기사님이 고르는 손잡이가 있다 (파생이 아니다)', () => {
+        expect(stage).toMatch(/routeMode/);
+        expect(stage).toMatch(/동선/);
+        expect(stage).toMatch(/노선/);
+    });
+
+    it('🔴 동선이면 라인을 끈다 — 그물이 마름모로 돌아온다', () => {
+        expect(hook).toMatch(/routeMode/);
+    });
+
+    /**
+     * 🔴 **직선으로 지어내지 않는다** (규칙 ④). 경로가 아직 없으면 마름모로 보되
+     *    화면이 **그렇게 말해야 한다** — 안 그러면 «노선인데 마름모»가 조용한 거짓말이 된다.
+     */
+    it('🔴 노선인데 경로가 아직이면 화면이 그렇게 말한다', () => {
+        expect(stage).toMatch(/경로를 기다립니다|경로 대기/);
+    });
+
+    /**
+     * 🔴 **기억하지 않는다** — 레이어(🧅)는 «보기»라 `localStorage` 에 남기지만
+     *    이것은 **판정을 바꾸는 값**이다. 어제 상태가 오늘 되살아나면 안 된다 (규칙 ③).
+     */
+    it('🔴 새로고침하면 기본(노선)으로 돌아간다', () => {
+        const decl = stage.slice(stage.indexOf('routeMode'), stage.indexOf('routeMode') + 260);
+        expect(decl).not.toMatch(/localStorage/);
+    });
+});

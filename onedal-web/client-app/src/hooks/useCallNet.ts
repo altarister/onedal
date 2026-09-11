@@ -50,6 +50,15 @@ export interface CallNetInput {
     /** 🧭 경로를 든 콜 — 있으면 «노선»(라인 그물), 없으면 «동선»(마름모 하나) */
     routeHolder?: SecuredOrder | null;
     /**
+     * 🛣️ **기사님이 고른 모양** — `false`(동선)면 경로가 있어도 **라인을 안 쓴다**
+     *    (이식 · 2026-09-11 · 명세 §5).
+     *
+     * 🔴 **«고른 것»과 «실제»는 다르다.** 노선을 골라도 경로가 아직 없으면 마름모로 본다 —
+     *    그때 `usedLine` 이 `false` 로 나오므로 **화면이 그렇게 말할 수 있다.**
+     *    직선으로 지어내지 않는다 (규칙 ④).
+     */
+    routeMode?: boolean;
+    /**
      * 📐 **마름모의 모양** — 기사님이 필터에서 고친 값 (이식 C3 · 2026-09-11).
      *    안 주면 `NET_SHAPE_DEFAULTS` 를 쓴다 — 필터가 아직 안 온 첫 순간뿐이다.
      */
@@ -72,12 +81,15 @@ export interface CallNet {
 
 export function useCallNet(i: CallNetInput): CallNet | null {
     const { destinationCity, myLocation, pickupRadiusKm, destinationRadiusKm, lineRadiusKm, routeHolder, shape } = i;
+    /** 🛣️ 안 주면 «노선» — 목업 기본값과 같다 (기사님 확정 2026-09-09) */
+    const routeMode = i.routeMode ?? true;
     /** 🔴 배열을 문자로 굳혀 의존성으로 삼는다 — 매 렌더 새 배열이면 그물을 매번 다시 만든다 */
     const excludedKey = (i.excludedRegions ?? []).join('|');
     const srcAngleDeg = shape?.srcAngleDeg ?? NET_SHAPE_DEFAULTS.srcAngleDeg;
     const dstAngleDeg = shape?.dstAngleDeg ?? NET_SHAPE_DEFAULTS.dstAngleDeg;
     const quadRadiusKm = shape?.quadRadiusKm ?? NET_SHAPE_DEFAULTS.quadRadiusKm;
-    const polyline = routeHolder?.routePolyline;
+    /* 🔷 **동선이면 경로를 안 본다** — 그물이 «내 위치 → 목적지» 마름모로 돌아온다 */
+    const polyline = routeMode ? routeHolder?.routePolyline : undefined;
 
     /** 🔴 점열을 **문자로 굳혀** 의존성으로 삼는다 — 매 렌더 새 배열이면 그물을 매번 다시 만든다 */
     const lineKey = useMemo(
@@ -121,5 +133,5 @@ export function useCallNet(i: CallNetInput): CallNet | null {
         return { net: { ...net, pass: merged.pass, groups: merged.groups, count: merged.count }, usedLine: !!line, goal };
         // eslint-disable-next-line react-hooks/exhaustive-deps -- polyline 은 lineKey 로 굳혀 본다 (위 주석)
     }, [destinationCity, myLocation?.x, myLocation?.y, pickupRadiusKm, destinationRadiusKm, lineRadiusKm, lineKey,
-        srcAngleDeg, dstAngleDeg, quadRadiusKm, excludedKey]);
+        srcAngleDeg, dstAngleDeg, quadRadiusKm, excludedKey, routeMode]);
 }
