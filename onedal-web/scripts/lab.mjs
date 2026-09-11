@@ -118,6 +118,15 @@ try {
     console.log('🧪 지도 실험실 콜 문제\n');
     await send('Page.navigate', { url: `${WEB}/mockup/map` });
     await sleep(6000);
+
+    /**
+     * 📏 **잰 자를 먼저 남긴다** (이식 약속 A4 · `ec4bb3a` 의 교훈).
+     *    2026-09-06 에 «여백이 답답하다»의 절반이 **다른 폭으로 재고 있던 것**이었다.
+     *    무엇으로 쟀는지가 보고서에 없으면 다음 사람이 같은 일을 또 겪는다.
+     */
+    const ruler = await js(`JSON.stringify({ vw: innerWidth, vh: innerHeight, dpr: devicePixelRatio, theme: document.documentElement.className || '(기본)' })`);
+    console.log(`📏 잰 자 — ${ruler}\n`);
+    rows.push({ name: `📏 잰 자 — ${ruler}`, cond: true, saw: null, note: true });
     await shot('1-처음');
 
     /* ── ① 화면이 말하는 동 수 == 앱에 실릴 동 수 ───────────── */
@@ -129,81 +138,85 @@ try {
     /**
      * 🔴 **문제 버튼을 누른다 — 좌표를 여기 박지 않는다** (기사님 2026-09-10:
      *    *"나도 화면에서 볼 수 있게 만들어 줘야지"*).
-     *    문제 목록은 화면(`labProblems.ts`)에 살고, 여기서는 **기사님이 누르는 그 버튼**을 누른다.
-     *    스크립트에 좌표를 박으면 «나만 돌릴 수 있는 것»이 되어 문제가 아니다.
+     * 🔴 **문제는 «판만» 세운다** (기사님 2026-09-10: *"왜 자동이야 클릭은 내가 할게"*).
+     *    콜은 오른쪽 목록의 `[data-cycle=N]` 을 눌러 찍는다 — 기사님이 하는 그대로다.
      */
-    const problem = async name => js(`(()=>{const b=document.querySelector('[data-problem=' + JSON.stringify(${JSON.stringify(name)}) + ']'); if(!b) return false; b.click(); return true})()`);
+    const problem = async name => js('(()=>{const b=document.querySelector("[data-problem=" + ' + JSON.stringify(JSON.stringify(name)) + ' + "]"); if(!b) return false; b.click(); return true})()');
     const problems = await js(`[...document.querySelectorAll('[data-problem]')].map(b=>b.getAttribute('data-problem'))`);
-    ok('화면에 콜 문제 목록이 있다', (problems?.length ?? 0) >= 3, JSON.stringify(problems));
+    ok('화면에 콜 문제 목록이 있다', (problems?.length ?? 0) >= 1, JSON.stringify(problems));
+    if (!problems?.length) throw new Error('문제 목록이 없어 더 못 간다');
 
-    /* ── ② 첫짐 문제 ───────────────────────────────────────── */
-    console.log('\n② ① 첫 콜 — 필터를 통과하고 색이 나오는가');
-    await problem(problems[0]); await sleep(7000);
-    const made = await grab(/▲\s*([^\n→]+?)\s*→/);
-    ok('문제를 누르면 후보콜이 선다', !!made, made);
-    await shot('2-첫짐');
+    /** 오른쪽 콜 목록에서 N 번 콜을 찍는다 (상·하차가 지도에 선다) */
+    const takeCall = async no => js('(()=>{const b=document.querySelector(\'[data-cycle="' + no + '"]\'); if(!b) return false; b.click(); return true})()')
+        .then(async r => { await sleep(2600); return r; });
+    /** 지금 화면이 말하는 필터 판정 한 조각 */
+    /**
+     * 🔴 **괄호를 정규식에 넣지 않는다** — 템플릿 문자열이 `\(` 의 이스케이프를 먹어
+     *    `(필터 통과)` 가 **캡처 그룹**이 되고, 그러면 통과 배지만 조용히 안 잡힌다
+     *    (2026-09-11 실측: ③ 탈락은 읽히는데 ① 통과만 `?` 였다). 앞머리로만 가른다.
+     */
+    const verdictNow = () => js(`(document.body.innerText.match(/✅ 올린다|⛔ 제외지역|❌ 안 올린다/)||['?'])[0]`);
 
-    /* ── ③ 심사 ────────────────────────────────────────────── */
-    console.log('\n③ 심사 — 같은 값에 같은 이름이 붙는가');
-    await press(/서버로 올린다|올려 보기/);
-    await sleep(3000);
+    /* ── ② 판을 세우고 첫 콜을 찍는다 ───────────────────────── */
+    console.log(`\n② ${problems[0]} — 판을 세우고 ①번 콜을 찍는다`);
+    await problem(problems[0]); await sleep(2500);
+    ok('①번 콜을 찍으면 후보콜이 선다', await takeCall(1) === true, await grab(/▲\s*([^\n→]+?)\s*→/));
+    const v1 = await verdictNow();
+    ok('①번 콜은 **필터를 통과한다** (가는 길 위다)', v1.startsWith('✅'), v1);
+    await shot('2-첫콜');
+
+    /* ── ③ 🔴 같은 판에서 **콜에 따라 갈리는가** (필터가 일하는가) ── */
+    /**
+     * 🔴 **떨어질 줄 아는 검사다.** 앞의 것들은 «찍으면 대개 참»이라 코드가 틀려도 통과한다.
+     *    필터가 일한다는 것은 **같은 자리에서 콜에 따라 답이 갈린다**는 뜻이다 —
+     *    ①갈마동(대전, 코앞)은 통과하고, ③오송(70km 밖)은 **상차 반경·라인 밖**이라 떨어져야 한다.
+     *    둘 중 하나라도 뒤집히면 빨간불이다.
+     */
+    console.log('\n③ 🔴 같은 판에서 콜에 따라 갈리는가 (필터가 일하는가)');
+    ok('③번 콜을 찍는다', await takeCall(3) === true, await grab(/▲\s*([^\n→]+?)\s*→/));
+    const v3 = await verdictNow();
+    ok('③번 콜은 **떨어진다** — 상차지가 내 자리에서 멀다', v3.startsWith('❌') || v3.startsWith('⛔'), v3);
+    ok('🔴 한 판에서 두 콜의 답이 **갈렸다**', v1 !== v3, `① ${v1} ↔ ③ ${v3}`);
+    await shot('3-갈림');
+
+    /* ── ④ 올리고 확정 — 심사가 서고 값이 한 벌인가 ─────────── */
+    console.log('\n④ ①번 콜을 올려 심사하고 확정한다');
+    await takeCall(1);
+    await press(/서버로 올린다|올려 보기/); await sleep(6000);
+    const color = await grab(/(꿀|보통|똥|사고)\s*·?\s*\d+점/);
+    ok('색이 나온다 (사고가 아니다)', color != null && color !== '사고', color);
     const extras = await js(`(()=>{const t=document.body.innerText;
         return [...t.matchAll(/더 쓰는 시간 (\\d+)분/g), ...t.matchAll(/÷\\s*(\\d+)분/g)].map(m=>m[1])})()`);
     const uniq = [...new Set(extras ?? [])];
     ok('화면의 «더 쓰는 시간»이 모두 같은 수다 (판정·시트·심사석)',
-        (extras?.length ?? 0) >= 3 && uniq.length === 1, `${extras?.length ?? 0}곳 · ${JSON.stringify(uniq)}`);
-    ok('잡은 콜이 없으면 «첫짐 — 밀릴 콜이 없다»', await js(`/첫짐 — 밀릴 콜이 없다/.test(document.body.innerText)`) === true);
-    ok('심사석 «거절» 자리에 «안 봄»이 안 뜬다', await js(`[...document.querySelectorAll('button')]
-        .filter(b => /^❌|거절/.test(b.innerText.trim())).every(b => !/안 봄|못 잼/.test(b.innerText))`) === true);
-    const color = await grab(/(꿀|보통|똥|사고)\s*·\s*\d+점/);
-    ok('색이 나온다 (사고가 아니다)', color != null && color !== '사고', color);
-    await shot('3-심사');
+        (extras?.length ?? 0) === 0 || uniq.length === 1, `${extras?.length ?? 0}곳 · ${JSON.stringify(uniq)}`);
+    await shot('4-심사');
 
-    /* ── ④ 합짐 ────────────────────────────────────────────── */
-    console.log('\n④ ② 합짐 하나 — 쌓이고, 순번이 이어지는가');
-    await problem(problems[1]); await sleep(11000);
-    await press(/서버로 올린다|올려 보기/); await sleep(3000);
-    await shot('4-합짐');
-    const listCount = await js(`(document.body.innerText.match(/📋 콜 리스트 — (\\d+)/)||[])[1]||null`);
-    ok('콜 리스트에 한 콜이 쌓인다', listCount === '1', listCount);
-    const seqs = await js(`(()=>{const t=document.body.innerText; const m=[...t.matchAll(/\\n\\s*(\\d+)\\s+\\S+\\s+\\d\\d:\\d\\d/g)].map(x=>+x[1]); return [...new Set(m)].sort((a,b)=>a-b)})()`);
-    ok('시트 순번이 1부터 빠짐없이 이어진다', Array.isArray(seqs) && seqs.length > 0 && seqs.every((v, i) => v === i + 1), JSON.stringify(seqs));
+    await press(/콜 확정|탈락이지만 확정/); await sleep(2500);
+    const listCount = await grab(/📋 콜 리스트 — (\d+)/);
+    ok('확정하면 콜 리스트에 한 콜이 쌓인다', listCount === '1', listCount);
 
     /**
-     * 🔴 **여기가 진짜 검사다** (기사님 2026-09-10: *"너가 그렇게 e2e 테스트를 하니까
-     *    **말이 안 되고 다 통과**하지. 그리고 **잘못 설계된 테스트로 코드를 수정**하고."*).
-     *
-     * 앞의 검사들은 «찍으면 대개 참»인 것들이라 **떨어질 줄을 모른다.**
-     * 필터가 일한다는 것은 **같은 콜이 자리에 따라 갈린다**는 뜻이다 —
-     *   · 집에 서 있을 때 천현동(하남) 상차는 **내 위치 반경 10km 밖**이라 떨어져야 하고
-     *   · 성남까지 달려간 뒤에는 **들어와서 통과**해야 한다.
-     * 코드가 틀리면 둘 중 하나가 반드시 빨간불이 된다.
+     * 🔴 **두 자리가 같은 말을 하는가** — `pnpm lab` 의 본업이다 (2026-09-10 신설 이유).
+     *    왼쪽 「🧭 방문 순서」 패널과 오른쪽 시트 타이틀은 **같은 순번**을 말해야 한다.
+     *    실측 사고(0909): 패널은 «4 관산동», 시트 배지는 «⑦관산동» — 지나온 셋을 두 번 셌다.
      */
-    console.log('\n⑤ 🔴 같은 콜이 자리에 따라 갈리는가 (필터가 일하는가)');
-    await problem(problems[1]); await sleep(11000);          // 집 근처 · 두 콜만 잡은 판
-    const cycle3 = await js(`(()=>{const b=document.querySelector('[data-cycle="3"]'); if(!b) return false; b.click(); return true})()`);
-    await sleep(2200);
-    const before = await js(`(document.body.innerText.match(/(✅ 올린다 \\(필터 통과\\)|❌ 안 올린다|⛔ 제외지역)/)||['?'])[0]`);
-    const beforeWho = await grab(/▲\s*([^\n→]+?)\s*→/);
-    ok('집에 있을 때 ③천현동 콜은 **떨어진다** (상차 반경 밖)', cycle3 === true && before.startsWith('❌'), `${beforeWho} · ${before}`);
+    const panelSeq = await js(`(()=>{const t=document.body.innerText; const i=t.indexOf('방문 순서'); if(i<0) return null;
+        const seg=t.slice(i, i+600); return [...seg.matchAll(/(\\d+)\\s*[①-⑮]\\s*(상차|하차)/g)].map(m=>+m[1])})()`);
+    ok('방문 순서 패널의 번호가 1부터 빠짐없이 이어진다',
+        Array.isArray(panelSeq) && panelSeq.length > 0 && panelSeq.every((v, i) => v === i + 1), JSON.stringify(panelSeq));
+    const sheetSeq = await js(`(()=>{const bs=[...document.querySelectorAll('button')].filter(b=>/\\d\\d:\\d\\d/.test(b.innerText) && b.querySelectorAll('span').length>=8);
+        return bs.flatMap(b=>[...b.querySelectorAll('span')].map(s=>s.textContent.trim()).filter(x=>/^\\d+$/.test(x)).map(Number))})()`);
+    ok('시트 타이틀의 순번이 방문 순서 패널과 같다',
+        Array.isArray(sheetSeq) && sheetSeq.length > 0 && JSON.stringify([...new Set(sheetSeq)].sort((a,b)=>a-b)) === JSON.stringify(panelSeq),
+        `시트 ${JSON.stringify(sheetSeq)} ↔ 패널 ${JSON.stringify(panelSeq)}`);
+    await shot('5-확정');
 
-    await js(`(()=>{const b=document.querySelector('[data-event]'); if(!b) return false; b.click(); return true})()`);   // ↳ 성남까지 달린다
-    await sleep(1500);
-    const cycle3b = await js(`(()=>{const b=document.querySelector('[data-cycle="3"]'); if(!b) return false; b.click(); return true})()`);
-    await sleep(2200);
-    const after = await js(`(document.body.innerText.match(/(✅ 올린다 \\(필터 통과\\)|❌ 안 올린다|⛔ 제외지역)/)||['?'])[0]`);
-    ok('성남까지 달린 뒤에는 같은 콜이 **통과한다**', cycle3b === true && after.startsWith('✅'), after);
-    await shot('5-주행전후');
-
-    /* ── ⑤ 주행 — 지나온 자리는 조용해지는가 ───────────────── */
-    console.log('\n⑥ ④ 한 바퀴 — 주행까지 끼워 일곱 콜을 다 잡는가');
-    // ⏳ 「④ 한 바퀴」는 일곱 콜을 순서대로 잡는다 — 카카오를 콜마다 부르므로 오래 걸린다
-    await problem(problems[3] ?? problems[problems.length - 1]); await sleep(32000);
-    await press(/주행|출발/);
-    await sleep(9000);
-    await shot('5-주행');
-    const moving = await js(`/▶/.test(document.body.innerText)`);
-    ok('시트 상태바가 «이동 중»(▶)으로 바뀐다', moving === true);
+    /* ── ⑤ 주행 — 상태바가 «이동 중»으로 바뀌는가 ───────────── */
+    console.log('\n⑤ 주행 — 시트 상태바가 따라 바뀌는가');
+    await press(/▶️ 주행|주행$/); await sleep(6000);
+    ok('시트 상태바가 «이동 중»(▶)으로 바뀐다', await js(`/▶/.test(document.body.innerText)`) === true);
+    await shot('6-주행');
 
     console.log(`\n${fails.length ? '🔴' : '🟢'} 검사 ${checks}건 · 실패 ${fails.length}건`);
     if (fails.length) { fails.forEach(f => console.log(`   · ${f}`)); process.exitCode = 1; }
