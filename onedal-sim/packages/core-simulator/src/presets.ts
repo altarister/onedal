@@ -244,6 +244,66 @@ const OSAN_JIGOT: MockEntry = {
     lon: 127.025937, lat: 37.176599,
 };
 
+/* ───────────────────────────────────────────────────────────────
+   🚚 **볼트 하루 판 — 오전·저녁** (2026-09-11 · 지도 실험실에서 옮겨 왔다)
+
+   🔴 **상·하차지는 동사무소·읍사무소다** (기사님 확정 2026-09-10:
+      *"상하차지는 동사무소 읍사무소로 하자"*). 동 무게중심은 **산속에 찍히는 곳**이 있어
+      카카오가 길을 못 낸다 — 행정복지센터는 시가지 한복판이라 도로에 붙는다.
+   좌표 원천: `client-app/src/pages/labProblems.ts` (목업 문제지) 그대로.
+   ─────────────────────────────────────────────────────────────── */
+
+const BD_SAMPYEONG: MockEntry = {
+    customerName: '분당 삼평동 하차지', contactName: '담당', phone1: '010-0000-0401',
+    region: '삼평동', addressDetail: '경기 성남시 분당구 삼평동',
+    lon: 127.11115, lat: 37.39593,
+};
+const PANGYO_SW: MockEntry = {
+    customerName: '판교 소프트웨어드림센터', contactName: '담당', phone1: '010-0000-0402',
+    region: '삼평동', addressDetail: '경기 성남시 분당구 판교 소프트웨어드림센터',
+    lon: 127.09471, lat: 37.41297,
+};
+const GP_YANGCHON: MockEntry = {
+    customerName: '김포 양촌읍 상차지', contactName: '담당', phone1: '010-0000-0403',
+    region: '양촌읍', addressDetail: '경기 김포시 양촌읍',
+    lon: 126.62550, lat: 37.65713,
+};
+const SEOUL_GASAN: MockEntry = {
+    customerName: '서울 가산동 하차지', contactName: '담당', phone1: '010-0000-0404',
+    region: '가산동', addressDetail: '서울 금천구 가산동',
+    lon: 126.89178, lat: 37.47688,
+};
+const GP_ORYU: MockEntry = {
+    customerName: '김포 오류동 상차지', contactName: '담당', phone1: '010-0000-0405',
+    region: '오류동', addressDetail: '경기 김포시 고촌읍 오류동',
+    lon: 126.63762, lat: 37.59704,
+};
+const YI_WONSAM: MockEntry = {
+    customerName: '용인 원삼면 하차지', contactName: '담당', phone1: '010-0000-0406',
+    region: '원삼면', addressDetail: '경기 용인시 처인구 원삼면',
+    lon: 127.31321, lat: 37.16661,
+};
+const IC_BULLO: MockEntry = {
+    customerName: '인천 불로동 상차지', contactName: '담당', phone1: '010-0000-0407',
+    region: '불로동', addressDetail: '인천 서해구 불로동',
+    lon: 126.68895, lat: 37.61709,
+};
+const AY_BAKDAL: MockEntry = {
+    customerName: '안양 박달동 하차지', contactName: '담당', phone1: '010-0000-0408',
+    region: '박달동', addressDetail: '경기 안양시 만안구 박달동',
+    lon: 126.90913, lat: 37.40367,
+};
+const IC_SINGEOMDAN: MockEntry = {
+    customerName: '신검단중앙역 상차지', contactName: '담당', phone1: '010-0000-0409',
+    region: '원당동', addressDetail: '인천 서해구 원당동 신검단중앙역',
+    lon: 126.69848, lat: 37.60265,
+};
+const AY_ANYANG: MockEntry = {
+    customerName: '안양동 하차지', contactName: '담당', phone1: '010-0000-0410',
+    region: '안양동', addressDetail: '경기 안양시 만안구 안양동',
+    lon: 126.91783, lat: 37.40510,
+};
+
 export const PRESETS: Record<string, PresetProblem[]> = {
     /**
      * 🗺️ **지도 확장 시험 — 오직 지도만 본다** (기사님 질문 2026-09-06)
@@ -373,6 +433,113 @@ export const PRESETS: Record<string, PresetProblem[]> = {
      *   ③ 07 — 볼첨지는 **잡았다가 취소**했다(패널티). 첫짐이면 우리도 PASS 가 맞다 —
      *      역주행은 경로가 생긴 뒤에만 보이기 때문이다. **합짐 국면에서 돌리면 BLOCK 이어야 한다.**
      */
+    /**
+     * 🌅 **볼트 오전 — 하루가 한 판으로** (2026-09-11 · 지도 실험실에서 옮겨 왔다)
+     *
+     * 8/10(월) 대전에서 시작해 김포(집)로 올라오며 **일곱 콜**을 모은 판.
+     * 그동안 시뮬에는 이 콜들이 `볼첨지대전`·`볼첨지오송`·`볼첨지천안` 셋으로 **흩어져** 있어
+     * «하루가 어떻게 흐르는가»를 못 봤다. 목업(`labProblems.ts`)이 한 판으로 묶어 두었고,
+     * 폰으로 같은 판을 밟으려면 시뮬에도 그 묶음이 있어야 한다.
+     *
+     * 🔴 **출발 자리는 진차이나 대전점** (127.43654, 36.35187) — 「📍 내 위치 찍기」로 맞춘다.
+     * 🔴 **도착 목표는 김포시** · 주행은 기사님이 직접 하신다 (목업과 같다 — 이벤트를 안 적는다).
+     * ⚠️ **요금은 전부 20만원이다** — 실측 운임을 그대로 쓰면 단가 축에 걸려 «지도가 통과했는가»를
+     *    못 본다 (`볼첨지*` 문제지들이 같은 이유로 그렇게 한다). 실제 운임은 라벨에 남겼다.
+     * ⚠️ **그날 취소된 콜(7번)은 없다** — 상차지가 «대전 (구체 미상)»이라 좌표가 없다.
+     */
+    '볼트오전': [
+        {
+            label: '① 대전 갈마동 → 천안 성거읍 · 200,000 (실측 50,050)',
+            pickup: '대전 갈마동 상차지', dropoff: '천안 성거읍 물류',
+            pickupFallback: DJ_GALMA, dropoffFallback: CA_SEONGGEO,
+            fare: 200000, vehicleType: '다마스',
+            why: '🚚 그날의 첫짐. 하차 주변이 넉넉해야 천안 성거읍이 그물에 든다',
+        },
+        {
+            label: '② 대전 문지로 188 → 오산 황새로 211 · 200,000 (실측 38,500)',
+            pickup: '대전 문지동 상차지', dropoff: '오산 가수동 하차지',
+            pickupFallback: DJ_MUNJI, dropoffFallback: OSAN_GASU,
+            fare: 200000, vehicleType: '다마스',
+            why: '🚚 첫짐을 잡은 자리 근처에서 하나 더 — 합짐 1',
+        },
+        {
+            label: '③ 오송 정중리 → 인천 논현동 · 200,000 (실측 38,500)',
+            pickup: '청주 오송읍 상차지', dropoff: '인천 논현동 하차지',
+            pickupFallback: CJ_OSONG, dropoffFallback: IC_NONHYEON,
+            fare: 200000, vehicleType: '다마스',
+            why: '🚚 북상 길목의 오송 — 세 콜이 **같은 상차지**에서 갈린다 (버그 대장 #104 의 그 자리)',
+        },
+        {
+            label: '④ 오송 정중리 → 안산 성곡동 · 200,000 (실측 38,500)',
+            pickup: '청주 오송읍 상차지', dropoff: '안산 성곡동 하차지',
+            pickupFallback: CJ_OSONG, dropoffFallback: AS_SEONGGOK,
+            fare: 200000, vehicleType: '다마스',
+            why: '🚚 같은 오송에서 다른 곳으로 — 0km 구간이 생기는 판',
+        },
+        {
+            label: '⑤ 오송 정중리 → 분당 삼평동 · 200,000 (실측 60,000)',
+            pickup: '청주 오송읍 상차지', dropoff: '분당 삼평동 하차지',
+            pickupFallback: CJ_OSONG, dropoffFallback: BD_SAMPYEONG,
+            fare: 200000, vehicleType: '다마스',
+            why: '🚚 오송 셋째. 그날 최고 단가(6만)이고 하차지가 다음 상차지가 된다',
+        },
+        {
+            label: '⑥ 천안 성거읍 → 인천 경서동 · 200,000 (실측 46,200)',
+            pickup: '천안 성거읍 물류', dropoff: '인천 경서동 하차지',
+            pickupFallback: CA_SEONGGEO, dropoffFallback: IC_GYEONGSEO,
+            fare: 200000, vehicleType: '다마스',
+            why: '🚚 ①을 내린 자리에서 바로 실었다 — 하차지가 다음 상차지가 되는 흐름',
+        },
+        {
+            label: '⑦ 판교 → 인천 송도 · 200,000 (실측 34,650)',
+            pickup: '판교 소프트웨어드림센터', dropoff: '인천 송도동 하차지',
+            pickupFallback: PANGYO_SW, dropoffFallback: IC_SONGDO,
+            fare: 200000, vehicleType: '다마스',
+            why: '🚚 **일곱째다** — 자막은 «여섯 개»라 했지만 ⑤를 분당에 내리는 중에 하나 더 잡았다 (13:05 잡고 13:30 상차)',
+        },
+    ],
+
+    /**
+     * 🌆 **볼트 저녁 — 앉은 채로 셋, 달리며 하나** (2026-09-11 · 목업에서 옮겨 왔다)
+     *
+     * 8/10(월) 저녁, 김포 두원타워(본업 자리)에서 시작해 용인 원삼까지 한 줄로 흘린 하루.
+     *
+     * 🔴 **잡은 자리가 둘이다** — 앞 셋은 **두원타워에 앉은 채로 17:46 동시에**,
+     *    넷째는 **검단양촌 나들목에서 달리며 18:10** 에 잡았다. 그래서 ④ 전에 주행이 하나 들어간다.
+     * 🔴 **출발 자리는 김포 두원타워** (126.62448, 37.64492) — 「📍 내 위치 찍기」로 맞춘다.
+     * ⚠️ **도착 목표는 용인 처인구**(마지막 하차지) — 자막이 선언하지 않아 흐름의 끝으로 잡았다.
+     */
+    '볼트저녁': [
+        {
+            label: '① 김포 양촌읍 → 서울 가산동 · 200,000 (실측 34,650)',
+            pickup: '김포 양촌읍 상차지', dropoff: '서울 가산동 하차지',
+            pickupFallback: GP_YANGCHON, dropoffFallback: SEOUL_GASAN,
+            fare: 200000, vehicleType: '다마스',
+            why: '🚚 두원타워에 **앉은 채로** 잡은 셋 중 하나 (17:46)',
+        },
+        {
+            label: '② 김포 오류동 → 용인 원삼면 · 200,000 (실측 46,200)',
+            pickup: '김포 오류동 상차지', dropoff: '용인 원삼면 하차지',
+            pickupFallback: GP_ORYU, dropoffFallback: YI_WONSAM,
+            fare: 200000, vehicleType: '다마스',
+            why: '🚚 그날의 끝까지 가는 콜 — 도착 목표가 여기서 나온다',
+        },
+        {
+            label: '③ 인천 불로동 → 안양 박달동 · 200,000 (실측 34,650)',
+            pickup: '인천 불로동 상차지', dropoff: '안양 박달동 하차지',
+            pickupFallback: IC_BULLO, dropoffFallback: AY_BAKDAL,
+            fare: 200000, vehicleType: '다마스',
+            why: '🚚 앉은 채로 잡은 셋째 — 여기까지가 17:46 한 묶음이다',
+        },
+        {
+            label: '④ 신검단중앙역 → 안양동 · 200,000 (실측 38,000)',
+            pickup: '신검단중앙역 상차지', dropoff: '안양동 하차지',
+            pickupFallback: IC_SINGEOMDAN, dropoffFallback: AY_ANYANG,
+            fare: 200000, vehicleType: '다마스',
+            why: '🚚 **달리며 주운 콜** (18:10 · 검단양촌 나들목) — 앞 셋과 달리 주행 중 합짐이다',
+        },
+    ],
+
     '볼첨지대전': [
         {
             label: '03 ⭕ · 대전 갈마동 → 천안 성거읍 · 200,000 (실측 50,050)',
@@ -1055,6 +1222,23 @@ export const PRESET_REQUIRES: Record<string, PresetRequires> = {
      *    0km → 1/3 · 40km → 2/3 · **80km → 3/3**. 볼트와 같아지는 지점이 80 이다.
      *    이 숫자를 바꾸려면 그 검사부터 바꾼다 (규칙 ③ — 값은 한 곳에서 나온다).
      */
+    /**
+     * 🌅 **볼트 오전 — 하루를 통째로 밟는 판** (2026-09-11).
+     *
+     * 🔴 **`firstLoadOnly` 가 아니다.** `볼첨지*` 넷은 «첫짐 한 개의 정답»을 채점하는 판이라
+     *    콜을 잡으면 정답이 달라졌다. 이 판은 반대로 **일곱을 이어 잡아 하루가 어떻게 흐르는지**
+     *    보는 것이라, 잡는 것이 곧 판의 내용이다.
+     * ⚠️ **집 주소는 안 건다** — 목업과 같이 기사님이 「📍 내 위치 찍기」로 출발 자리를 정하신다
+     *    (진차이나 대전점 · 127.43654, 36.35187). 시뮬은 서버에 «지금 어디»를 물어 거리를 잰다.
+     */
+    '볼트오전': {
+        destinationCity: '김포', destinationRadiusKm: 80,
+        mapSido: ['30', '43', '44'],   // 대전 · 충북(오송) · 충남(성거읍)
+    },
+    /** 🌆 볼트 저녁 — 출발 자리는 김포 두원타워 (126.62448, 37.64492). 목적지는 흐름의 끝인 용인 */
+    '볼트저녁': {
+        destinationCity: '용인', destinationRadiusKm: 80,
+    },
     '볼첨지대전': {
         destinationCity: '인천', destinationRadiusKm: 80,
         homeAddress: '대전 유성구 대덕대로 480', firstLoadOnly: true,
@@ -1099,6 +1283,16 @@ export const PRESET_MENU: Array<{ key: string; title: string; desc: string }> = 
             '요금 20만 고정이라 요금 축이 안 걸린다. 🔴 **도착 목표 «청주» · 내 주소 «인천 남동구 남촌동»**. ' +
             '충청 확장 전에는 「청주」로 동이 0개라 넷 다 떨어졌다 — ①이 올라오면 지도가 통과한 것이다. ' +
             '볼첨지는 넷 다 잡아 242,800원을 만들었지만 음성·오산은 «청주 가는 길»이라 우리 도착 목표의 일이 아니다' },
+    /* 🚚 **하루 한 판** — 흩어진 볼첨지 네 조각과 달리 «오전/저녁»을 통째로 밟는다 (2026-09-11) */
+    { key: '볼트오전', title: '🌅 볼트 오전 — 대전에서 김포까지 일곱 콜 (2026-08-10)',
+      desc: '7문제 · 요금 20만 고정(지도·흐름을 본다). 🔴 **「📍 내 위치 찍기」로 진차이나 대전점** ' +
+            '(127.43654, 36.35187) · **도착 목표 «김포시»**. 주행은 기사님이 직접 하신다. ' +
+            '③④⑤ 는 **같은 오송 상차지**에서 갈린다 — 0km 구간이 생기는 자리다(버그 대장 #104). ' +
+            '⑥ 은 ①을 내린 성거읍에서 바로 싣고, ⑦ 은 ⑤를 분당에 내리는 중에 주운 **일곱째**다' },
+    { key: '볼트저녁', title: '🌆 볼트 저녁 — 앉은 채로 셋, 달리며 하나 (2026-08-10)',
+      desc: '4문제 · 요금 20만 고정. 🔴 **「📍 내 위치 찍기」로 김포 두원타워** (126.62448, 37.64492) · ' +
+            '**도착 목표 «용인시 처인구»**. ①②③ 은 두원타워에 **앉은 채로 17:46 동시에** 잡은 것이고, ' +
+            '④ 는 **검단양촌 나들목에서 달리며 18:10** 에 주웠다 — 사이에 주행이 하나 들어간다' },
     { key: '볼첨지대전', title: '🚚 볼첨지 ① 대전 아침 · 갈마동·문지동 상차 (2026-08-10)',
       desc: '3문제 · PASS 1(07) · BLOCK 2(03·04). 🔴 **내 주소를 «대전 유성구 대덕대로 480»** 로 두고 ' +
             '도착 목표는 «인천». 03·04 는 **볼첨지가 잡았는데 우리는 BLOCK 이 맞다** — ' +
