@@ -55,8 +55,11 @@ export function PickLayer({ label, value, options, open, onToggle, onPick, selec
                 <span className="text-[9.5px] font-bold text-text-muted leading-tight">{label}</span>
                 <span className="w-full truncate text-[13px] font-black text-text-primary leading-tight">{value}</span>
             </button>
+            {/* 🔴 아래 레이어는 **z-30 이다** — `relative z-20` 인 제외지역 블록과 같은 층이면
+                **뒤에 오는 그쪽이 이긴다.** 2026-09-12 실측에서 「받을 짐」 레이어 안 하한표가
+                제외지역 칸에 가렸다 (콜할인율 레이어도 같은 자리다). */}
             {open && (
-                <div data-pick className="absolute left-0 right-0 top-0 z-20 rounded-xl border border-info/55 bg-surface shadow-lg p-1.5">
+                <div data-pick className="absolute left-0 right-0 top-0 z-30 rounded-xl border border-info/55 bg-surface shadow-lg p-1.5">
                     <div className="flex items-center justify-between px-0.5 pb-1">
                         <span className="text-[10px] font-black text-text-muted">{label}</span>
                         <button type="button" onClick={onToggle} className="text-[10px] font-black text-text-muted px-1">✕</button>

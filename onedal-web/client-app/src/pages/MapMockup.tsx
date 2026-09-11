@@ -6,6 +6,7 @@ import {
     rateFloorsFrom,
     NET_RATE_PER_KM, VEHICLE_CAPACITY, CALL_TARGET_LABEL,
     dwellMinutes, judge, CRITERIA, DEFAULT_JUDGMENT, toSnapshot,
+    VEHICLE_SHORT, VEHICLE_PICKS,
 } from '@onedal/shared';
 import { buildAppFilterOutput, TRUCK_CAPACITY_SLOTS } from './labFilterOutput';
 /**
@@ -262,7 +263,7 @@ const DEFAULT_SIDO = '경기', DEFAULT_SGG = '파주시';
  * 칸이 화면의 1/3 이라 «1t · 다마스»가 벌써 잘린다 — **닫힌 줄에서만** 줄이고,
  * 레이어를 열면 온전한 이름이 보인다.
  */
-const VEHICLE_SHORT: Record<string, string> = { 오토바이: '오', 승용차: '승', 다마스: '다', 라보: '라', '1t': '1t' };
+/* 🚚 차종 짧은 이름은 **`shared` 한 벌**이다 — 실물 필터가 같은 글자를 쓴다 (이식 C4-6b · 규칙 ③) */
 
 /** 콜 번호별 경로 색 — ①은 프리셋 경로의 기본색과 같은 장미로 잇는다 */
 /**
@@ -3212,7 +3213,7 @@ export default function MapMockup() {
                                     ))}
                                 </div>} />
                         <PickLayer label="🚚 받을 짐" value={vehicles.length ? vehicles.map(v => VEHICLE_SHORT[v] ?? v).join('·') : '모두'}
-                            options={['오토바이', '승용차', '다마스', '라보', '1t']} keepOpen selected={vehicles}
+                            options={[...VEHICLE_PICKS]} keepOpen selected={vehicles}
                             open={openKnob === 'vehicles'} onToggle={() => setOpenKnob(o => o === 'vehicles' ? null : 'vehicles')}
                             onPick={v => setVehicles(x => x.includes(v) ? x.filter(o => o !== v) : [...x, v])} />
                         <PickLayer label="🚫 제외 단어" value={excludedWords.length ? `${excludedWords.length}개` : '없음'}

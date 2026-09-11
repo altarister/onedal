@@ -202,3 +202,15 @@ export function slotsUsedOf(vehicleTypes: Array<string | null | undefined>): num
         return sum + (boxes !== undefined ? boxes : VEHICLE_CAPACITY['1t']);
     }, 0);
 }
+
+/**
+ * 🚚 **차종 짧은 이름** — 좁은 칸에 여럿을 적을 때 (`1t·다` · 이식 C4-6b · 2026-09-12).
+ *    목업(`MapMockup.tsx:265`)에 있던 것을 **한 벌로** 올렸다 — 실물 필터가 같은 글자를
+ *    써야 기사님이 목업에서 맞춰 두신 손맛이 실물에서 다른 물건이 되지 않는다 (규칙 ③).
+ */
+export const VEHICLE_SHORT: Record<string, string> = {
+    오토바이: '오', 승용차: '승', 다마스: '다', 라보: '라', '1t': '1t',
+};
+
+/** 🚚 **받을 짐에서 고를 수 있는 차종** — 목업과 같은 다섯, 같은 순서 */
+export const VEHICLE_PICKS = ['오토바이', '승용차', '다마스', '라보', '1t'] as const;

@@ -71,14 +71,66 @@ describe('받을 짐 — 고른 것과 막힌 것 (C4-6b)', () => {
         expect(modal).not.toMatch(/updateFilter\([^)]*allowedVehicleTypes/);
     });
 
-    /** 🔴 ④ 화면 — 감추지 않고 **막힌 것을 보여 준다** (규칙 ⑤-2) */
-    it('🔴 용량으로 막힌 차종은 흐리게 남는다 — 감추지 않는다', () => {
+    /**
+     * 🔴 ④ 화면 — **목업 그대로다.**
+     *
+     * 기사님 2026-09-12: *"**디자인도 보여주고 목업에 코드도 다 있는데. 왜 이렇게
+     * 만드는거니?**"* — 처음에 별도 줄에 버튼 다섯을 **새로 그렸다.** 목업에는
+     * `PickLayer label="🚚 받을 짐"` 이 이미 있었고(`MapMockup.tsx:3214`),
+     * 콜할인율·받을 짐·제외 단어가 **3칸 한 줄**이며 값은 `1t·다` 로 짧다.
+     * 걷어내고 목업 것을 옮겼다.
+     */
+    it('🔴 목업과 같은 부품·같은 자리 — PickLayer 3칸', () => {
         const modal = readClient('components/dashboard/OrderFilterModal.tsx');
-        const i = modal.indexOf('🚚 받을 짐');
+        /* ⚠️ `🚚 받을 짐` 첫 등장은 **주석**이다 — `label=` 이 붙은 «그 칸»을 집는다 */
+        const i = modal.indexOf('label="🚚 받을 짐"');
         expect(i).toBeGreaterThan(-1);
-        const body = modal.slice(i, i + 2200);
+        /* 목업과 같은 부품이라야 손맛이 한 벌이다 (규칙 ③) */
+        expect(modal.slice(Math.max(0, i - 200), i)).toMatch(/PickLayer/);
+        expect(modal).toMatch(/grid-cols-3 gap-1/);
+        /* 여럿 고르기 — 고른 뒤에도 레이어가 안 닫힌다 */
+        const body = modal.slice(i, i + 1800);
+        expect(body).toMatch(/keepOpen/);
+        expect(body).toMatch(/selected=\{accepted\}/);
+        /* 값은 짧은 이름으로 — 「1t·다」 */
+        expect(body).toMatch(/VEHICLE_SHORT/);
+    });
+
+    /** 🔴 짧은 이름·차종 목록은 **목업과 한 벌**이다 (규칙 ③) */
+    it('🔴 차종 표기가 두 벌이 아니다', () => {
+        const mock = codeOnly(readClient('pages/MapMockup.tsx'));
+        /* 목업이 제 손으로 또 적으면 손맛이 갈린다 */
+        expect(mock).not.toMatch(/const VEHICLE_SHORT/);
+        expect(mock).toMatch(/VEHICLE_PICKS/);
+    });
+
+    /**
+     * 🔴 **열린 레이어가 아래 블록에 안 가린다** (2026-09-12 실측에서 잡았다).
+     *
+     * 「받을 짐」 레이어 안 하한표가 **제외지역 칸에 가려 반쯤 지워져 있었다.**
+     * 레이어(`PickLayer`·`KnobGrid`)와 제외지역 블록이 **둘 다 `z-20`** 이라
+     * 같은 층에서는 **뒤에 오는 쪽이 이긴다.** 콜할인율 레이어도 같은 자리다.
+     */
+    it('🔴 고르기 레이어가 제외지역 블록보다 위다', () => {
+        const pick = readClient('components/ui/PickLayer.tsx');
+        const knob = readClient('components/ui/KnobGrid.tsx');
+        const modal = readClient('components/dashboard/OrderFilterModal.tsx');
+        /* 레이어 둘은 같은 층이어야 한다 — 하나만 올리면 다른 하나가 또 가린다 */
+        expect(pick).toMatch(/z-30/);
+        expect(knob).toMatch(/z-30/);
+        /* 제외지역 블록이 그보다 낮아야 한다 */
+        const i = modal.indexOf('🚫 제외 지역');
+        expect(i).toBeGreaterThan(-1);
+        expect(modal.slice(Math.max(0, i - 400), i)).not.toMatch(/z-3\d/);
+    });
+
+    /** 🔴 감추지 않고 **막힌 것을 보여 준다** (규칙 ⑤-2) */
+    it('🔴 지금 못 받는 차종이 화면에 남는다 — 감추지 않는다', () => {
+        const modal = readClient('components/dashboard/OrderFilterModal.tsx');
+        const i = modal.indexOf('label="🚚 받을 짐"');
+        const body = modal.slice(i, i + 1800);
         /* 「왜 이 콜이 안 올라오나」가 화면에서 읽혀야 한다 */
-        expect(body).toMatch(/allowedVehicleTypes/);
-        expect(body).toMatch(/line-through|opacity/);
+        expect(body).toMatch(/blockedNow/);
+        expect(body).toMatch(/✕/);
     });
 });

@@ -87,8 +87,10 @@ export function KnobGrid({ knobs, open, onOpen, cols = 3 }: {
                     </button>
                 ))}
             </div>
+            {/* 🔴 아래 레이어는 **z-30** — `PickLayer` 와 같은 층이다. 제외지역 블록이
+                `relative z-20` 이라 같은 층이면 뒤에 오는 그쪽이 이긴다 (2026-09-12 실측) */}
             {cur && (
-                <div data-pick className="absolute inset-x-0 top-1/2 -translate-y-1/2 z-20 flex items-center gap-1.5
+                <div data-pick className="absolute inset-x-0 top-1/2 -translate-y-1/2 z-30 flex items-center gap-1.5
                                 rounded-xl border border-info/55 bg-surface shadow-lg px-1.5 py-2">
                     <button type="button" onClick={() => onOpen(null)}
                         className="shrink-0 text-[10px] font-black text-text-muted px-0.5">{cur.label} ✕</button>

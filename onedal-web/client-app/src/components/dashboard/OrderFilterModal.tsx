@@ -5,7 +5,8 @@ import { NET_RATE_PER_KM, VEHICLE_CAPACITY, TRUCK_CAPACITY_SLOTS, CAPACITY_CONFI
          FILTER_FIELDS, PHASE_AUTO_SOURCE, filterValuesFrom, DEFAULT_FILTER_VALUES,
          QUAD_FIELDS, quadShapeFrom,
          sidoList, sggList, dongList, excludedLabel,
-         resolvePhaseKey, reachRadiusKm, CALL_TARGET_LABEL, effectiveRadii } from "@onedal/shared";
+         resolvePhaseKey, reachRadiusKm, CALL_TARGET_LABEL, effectiveRadii,
+         VEHICLE_SHORT, VEHICLE_PICKS } from "@onedal/shared";
 import type { PhaseKey, FlatValueKey, CallTarget } from "@onedal/shared";
 import { socket } from "../../lib/socket";
 import { apiClient } from "../../api/apiClient";
@@ -119,11 +120,6 @@ const TARGET_HINT: Record<CallTarget, string> = {
  */
 /* 🔴 순서도 목업 그대로 — 현위 → 목적 → 라인 (`MapMockup.tsx:3229~3232`) */
 const KNOB_FIELDS: FlatValueKey[] = ['pickupRadiusKm', 'destinationRadiusKm', 'detourRadiusKm'];
-/**
- * 🚚 **받을 짐 — 고를 수 있는 차종** (이식 C4-6b · 목업 `MapMockup.tsx` 와 같은 다섯).
- *    작은 것부터 — 남은 칸이 줄면 **오른쪽부터 막힌다**는 것이 눈에 보이게.
- */
-const VEHICLE_PICKS = ['오토바이', '승용차', '다마스', '라보', '1t'] as const;
 
 interface OrderFilterModalProps {
     isOpen: boolean;
@@ -238,7 +234,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
     const accepted = filter?.acceptedVehicleTypes ?? [];
     const toggleVehicle = (v: string) => {
         /* 아무것도 안 고른 상태(=전부)에서 하나를 끄면 «나머지 전부»가 된다 */
-        const base = accepted.length === 0 ? [...VEHICLE_PICKS] : accepted;
+        const base: string[] = accepted.length === 0 ? [...VEHICLE_PICKS] : accepted;
         const next = base.includes(v) ? base.filter(x => x !== v) : [...base, v];
         /* 전부 고른 것과 아무것도 안 고른 것은 같은 뜻이다 — 빈 배열로 되돌린다 */
         updateFilter({ acceptedVehicleTypes: next.length === VEHICLE_PICKS.length ? [] : next });
@@ -530,6 +526,16 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
     // ── 적재 칸 (서버 파생값을 그대로 쓴다) ──
     const slotsUsed = Math.round(filter.slotsUsed ?? 0);
     const remainSlots = Math.max(0, TRUCK_CAPACITY_SLOTS - slotsUsed);
+    /**
+     * 🔴 **지금 적재로 못 받는 차종** — 남은 칸으로 직접 잰다.
+     *
+     * ⚠️ 처음엔 서버가 낸 `allowedVehicleTypes` 에 없는 것으로 봤는데 **틀렸다**:
+     *    그 목록은 이미 «고른 것 ∩ 적재»라, 기사님이 **일부러 뺀 차종**까지 ✕ 가 붙어
+     *    **나누려던 두 사실이 화면에서 다시 한 덩어리**가 됐다 (2026-09-12 실측).
+     *    여기가 답할 질문은 «내가 안 골랐나»가 아니라 **«지금 실을 자리가 있나»** 다.
+     */
+    const blockedNow = VEHICLE_PICKS.filter(v => (VEHICLE_CAPACITY[v] ?? 0) > remainSlots);
+
     /** 하한표 예시 금액용 거리 — 지금 탭이 보는 대표 거리 */
     /* 하한표 예시 거리 — 관내면 시 안이라 짧게 본다 (관내는 파생이다 · C4-8b) */
     const exampleKm = filter.localMode ? 15 : (parseInt(cur.destinationRadiusKm, 10) || 0) + 50;
@@ -868,51 +874,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                           * ✅ **«🚚 받을 짐»이 아래에 들어왔다** (이식 C4-6b · 2026-09-12).
                           */}
 
-                        {/**
-                          * 🚚 **받을 짐 — 「고른 것」과 「막힌 것」을 나눈다** (이식 C4-6b · 2026-09-12).
-                          *
-                          * 기사님: *"내 차가 1톤이지만 **라보 다마스 짐만 받겠다** … 합짐을 위해 필요."*
-                          *
-                          * 🔴 **보내는 것은 «고른 것»뿐이다** (`acceptedVehicleTypes`).
-                          *    허용 목록(`allowedVehicleTypes`)을 손으로 보내면 서버가
-                          *    `if (!changes.allowedVehicleTypes)` 에 걸려 **제 계산을 통째로
-                          *    건너뛴다** (2026-08-10 사고).
-                          * 🔴 **용량으로 막힌 것은 감추지 않고 취소선으로 남긴다** (규칙 ⑤-2) —
-                          *    「왜 이 콜이 안 올라오나」가 화면에서 읽혀야 한다.
-                          * ⚠️ 아무것도 안 고르면 **제한 없음**이다. 새 칸이 생겨도 아무것도
-                          *    안 바뀌는 것이 기본이다.
-                          */}
-                        <div className="pt-1">
-                            <div className="flex items-center justify-between gap-2 px-0.5 pb-1">
-                                <span className="text-[10px] font-black text-text-muted">🚚 받을 짐</span>
-                                <span className="text-[9.5px] font-bold text-text-muted">
-                                    {accepted.length === 0 ? '전부' : `${accepted.length}종`}
-                                    <span className="opacity-60"> · 남은 칸 {remainSlots}</span>
-                                </span>
-                            </div>
-                            <div className="grid grid-cols-5 gap-1">
-                                {VEHICLE_PICKS.map(v => {
-                                    const on = accepted.length === 0 || accepted.includes(v);
-                                    /* 🔴 서버가 낸 허용 목록에 없으면 **지금 실을 수 없는 것**이다 */
-                                    const blocked = !(filter?.allowedVehicleTypes ?? []).includes(v);
-                                    return (
-                                        <button key={v} type="button"
-                                            onClick={() => toggleVehicle(v)}
-                                            title={blocked ? '지금 적재로는 받을 수 없습니다' : undefined}
-                                            className={`flex flex-col items-center gap-0 px-1 py-1 rounded-lg border ${
-                                                on ? 'border-info/55 bg-info/10' : 'border-border-card bg-background'
-                                            } ${blocked ? 'opacity-45' : ''}`}>
-                                            <span className={`text-[10px] font-bold ${
-                                                blocked ? 'line-through text-text-muted' : 'text-text-primary'}`}>{v}</span>
-                                            <span className="text-[9px] font-bold text-text-muted tabular-nums">
-                                                {VEHICLE_CAPACITY[v] ?? 0}
-                                            </span>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                        <div className="relative grid grid-cols-2 gap-1">
+                        <div className="relative grid grid-cols-3 gap-1">
                             <PickLayer label="💰 콜할인율"
                                 value={callDiscount >= 100 ? '전부' : callDiscount === 0 ? '시세' : `-${callDiscount}%`}
                                 options={CALL_DISCOUNT_STEPS.map(st => st.label)}
@@ -957,6 +919,41 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                               *    목록만 남기면 기능이 준다. 그래서 레이어 «안»에 입력칸을 그대로 둔다.
                               * 🔴 기사님 2026-09-09: *"제외 단어는 입력이 필요하다. 펼치면 내용을 볼 수 있다."*
                               */}
+                            {/**
+                              * 🚚 **받을 짐 — 목업 그대로** (이식 C4-6b · `MapMockup.tsx:3214`).
+                              *
+                              * 기사님 2026-09-12: *"**디자인도 보여주고 목업에 코드도 다 있는데.**"* —
+                              * 처음에 별도 줄에 버튼 다섯을 새로 그렸다가 걷어냈다.
+                              * 목업은 **콜할인율·받을 짐·제외 단어 3칸**이고 값은 `1t·다` 로 짧다.
+                              *
+                              * 🔴 **보내는 것은 «고른 것»뿐이다** (`acceptedVehicleTypes`).
+                              *    허용 목록(`allowedVehicleTypes`)을 손으로 보내면 서버가
+                              *    `if (!changes.allowedVehicleTypes)` 에 걸려 **제 계산을 건너뛴다**
+                              *    (2026-08-10 사고).
+                              * 🔴 **지금 적재로 막힌 차종은 이름 뒤에 «✕»를 붙여 남긴다** —
+                              *    감추지 않는다 (규칙 ⑤-2). 「왜 이 콜이 안 올라오나」가 읽혀야 한다.
+                              */}
+                            <PickLayer label="🚚 받을 짐"
+                                value={accepted.length ? accepted.map(v => VEHICLE_SHORT[v] ?? v).join('·') : '모두'}
+                                options={VEHICLE_PICKS.map(v => blockedNow.includes(v) ? `${v} ✕` : v)}
+                                keepOpen selected={accepted}
+                                open={openKnob === 'vehicles'}
+                                onToggle={() => setOpenKnob(o => o === 'vehicles' ? null : 'vehicles')}
+                                onPick={(v) => toggleVehicle(v.replace(' ✕', ''))}
+                                foot={
+                                    <div className="flex flex-col gap-0.5 text-[10px] tabular-nums">
+                                        <span className="text-[9.5px] font-bold text-text-muted">
+                                            지금 남은 칸 <b className="text-text-primary">{remainSlots}</b> — ✕ 는 지금 적재로 못 받는 것
+                                        </span>
+                                        {VEHICLE_PICKS.map(v => (
+                                            <div key={v} className="flex justify-between gap-1">
+                                                <span><b>{v}</b> <span className="text-text-muted">짐 {VEHICLE_CAPACITY[v] ?? '?'}박스</span></span>
+                                                <b className={blockedNow.includes(v) ? 'text-text-muted' : 'text-info'}>
+                                                    {blockedNow.includes(v) ? '지금 못 받음' : '받는다'}
+                                                </b>
+                                            </div>
+                                        ))}
+                                    </div>} />
                             <PickLayer label="🚫 제외 단어" tone="warning" keepOpen
                                 value={blacklistWords.length ? `${blacklistWords.length}개` : '없음'}
                                 options={COMMON_EXCLUDED_WORDS}
