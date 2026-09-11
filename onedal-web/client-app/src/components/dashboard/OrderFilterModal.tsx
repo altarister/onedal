@@ -222,6 +222,24 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
      */
     const cityGroups = useCityOptions();
     const knownCities = cityGroups.flatMap(g => g.cities);
+    /** 그 도에 속한 시·군 목록 (이식 C4-2) — 목록의 원천은 `cityGroups` 하나다 (규칙 ③) */
+    const citiesOf = (sido: string) => cityGroups.find(g => g.sido === sido)?.cities ?? [];
+    /**
+     * 🎯 **지금 고른 도** (이식 C4-2). 저장되는 것은 **시 하나**(`destinationCity`)이고,
+     *    도는 «어느 목록을 보여줄까»일 뿐이라 화면에만 산다.
+     *
+     * 🔴 그래서 **저장값에서 거꾸로 찾아 세운다** — 필터를 열 때 「김포시」가 들어 있으면
+     *    도 칸이 「경기」를 가리켜야 한다. 안 그러면 도가 비어 시 목록도 비고,
+     *    **저장된 목적지가 화면에서 사라진 것처럼 보인다.**
+     */
+    const [dstSido, setDstSido] = useState<string>('');
+    useEffect(() => {
+        if (!cityGroups.length) return;
+        const owner = cityGroups.find(g => g.cities.includes(cur.destinationCity));
+        if (owner) { if (owner.sido !== dstSido) setDstSido(owner.sido); return; }
+        // 목록에 없는 값(옛 `파주`)이면 도를 건드리지 않는다 — 지어내지 않는다 (규칙 ④)
+        if (!dstSido) setDstSido(cityGroups[0].sido);
+    }, [cityGroups, cur.destinationCity]); // eslint-disable-line react-hooks/exhaustive-deps
     /** 목록에 없는 저장값(옛 `파주`)을 정식 이름으로 끌어올린다 — 못 찾으면 건드리지 않는다 */
     const firstCity = cur.destinationCity;
     useEffect(() => {
@@ -721,13 +739,25 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                         </div>
 
                         {/**
-                          * 🎯 **목적지 — 한 칸.** 다섯 행 중 **첫짐만** 이 값을 입력으로 가지고,
-                          *    나머지는 서버가 경로·GPS·집 주소에서 파생한다. 그래서 여기는
-                          *    늘 «첫짐의 목적지»를 고치는 자리다.
+                          * 🎯 **목적지 — 도를 고르고 시를 고른다** (이식 C4-2 · 2026-09-11).
                           *
-                          * ⚠️ 도·시 2단 + ↩️ 복귀 토글로 바꾸는 것은 **C4-2** 다
-                          *    (기사님 2026-09-09: *"선택이 어려우니 도를 선택하고 시를 선택하게 할까?"* ·
-                          *     *"복귀도 목적지와 같은 뎁스니까 목적지 옆에 있는 것이 맞을 것 같아"*).
+                          * 기사님 확정 2026-09-09: *"**선택이 어려우니 도를 선택하고 시를
+                          * 선택하게 할까?**"* — 전국 시·군이 든 `<select>` 하나를 폰에서
+                          * 스크롤해 집는 것은 **운전 중에 불가능하다.**
+                          *
+                          * 🔴 **다섯 행 중 첫짐만 이 값을 입력으로 가진다** — 나머지는 서버가
+                          *    경로·GPS·집 주소에서 파생한다. 그래서 여기는 늘 «첫짐의 목적지»다.
+                          *
+                          * 🔴 **목록의 원천은 `cityGroups` 하나다** (서버가 콜을 검색할 수 있는 시).
+                          *    바로 아래 제외 지역이 쓰는 `sidoList()` 는 **지도 데이터(행정동)** 라
+                          *    다른 질문에 답한다 — 섞으면 2026-08-12 사고가 되돌아온다
+                          *    (화면이 `파주` 를 못 찾고 첫 항목 «용인시»를 그렸다).
+                          *
+                          * ⚠️ **↩️ 복귀 칸은 여기 없다.** 기사님은 *"복귀도 목적지와 같은 뎁스"*
+                          *    라고 하셨지만, 목업의 복귀는 «목적지를 하나 더 얹기»(공짜로 되돌림)인 반면
+                          *    실물의 복귀는 **`callTarget` 전환**(명세 §4-2 가 팝업에서 금지 —
+                          *    기사님 *"필터가 쉽게 바뀌면 오작동"*)이거나 **귀가콜 오더 생성**이다.
+                          *    토글로 켰다 끌 물건이 아니라 **따로 선다** (C4-2b).
                           */}
                         <div className="space-y-1">
                             <label className="block text-[10px] font-bold text-text-muted pl-1">
@@ -740,24 +770,28 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                     </span>
                                 )}
                             </label>
-                            <select
-                                value={cur.destinationCity}
-                                onChange={(e) => setField('destinationCity', e.target.value)}
-                                className={`w-full h-9 bg-surface-alt/50 border ${TAB_STYLE[tab].input} rounded-md px-2 text-[13px] ${TAB_STYLE[tab].text} font-bold outline-none shadow-inner appearance-none`}
-                            >
-                                {/* 아직 안 골랐거나, 목록에 없는 값이 저장돼 있을 때.
-                                    여기서 다른 도시를 대신 보여주면 화면이 필터를 잘못 말하게 된다 */}
-                                {!knownCities.includes(cur.destinationCity) && (
-                                    <option value={cur.destinationCity}>
-                                        {cur.destinationCity ? `⚠️ ${cur.destinationCity} (목록에 없음)` : '— 선택 —'}
-                                    </option>
-                                )}
-                                {cityGroups.map(g => (
-                                    <optgroup key={g.sido} label={g.sido}>
-                                        {g.cities.map(c => <option key={c} value={c}>{c}</option>)}
-                                    </optgroup>
-                                ))}
-                            </select>
+                            <div className="relative grid grid-cols-2 gap-1">
+                                <PickLayer label="🎯 도" value={dstSido || '— 선택 —'}
+                                    options={cityGroups.map(g => g.sido)}
+                                    open={openKnob === 'dstSido'}
+                                    onToggle={() => setOpenKnob(o => o === 'dstSido' ? null : 'dstSido')}
+                                    onPick={(v) => {
+                                        setDstSido(v);
+                                        /* 🔴 도를 옮기면 시도 그 도의 것으로 따라간다 —
+                                           안 그러면 «경기 + 김포시» 같은 짝이 화면에 남는다 */
+                                        setField('destinationCity', citiesOf(v)[0] ?? '');
+                                    }} />
+                                <PickLayer label="시·군·구"
+                                    value={cur.destinationCity
+                                        ? (knownCities.includes(cur.destinationCity)
+                                            ? cur.destinationCity
+                                            : `⚠️ ${cur.destinationCity} (목록에 없음)`)
+                                        : '— 선택 —'}
+                                    options={citiesOf(dstSido)}
+                                    open={openKnob === 'dstCity'}
+                                    onToggle={() => setOpenKnob(o => o === 'dstCity' ? null : 'dstCity')}
+                                    onPick={(v) => setField('destinationCity', v)} />
+                            </div>
                         </div>
 
                         {/**
