@@ -1050,6 +1050,28 @@ export function processDriverMovement(
      *    · 한 정거장당 발화 1회 (`arrivalFired`) · 점프 틱은 판단하지 않는다
      *    · DELIVERING 게이트 밖이다 — 출발 버튼 전에 상차지에 닿는 경우도 실재한다
      */
+    /**
+     * ⏸️ **같은 자리 재전송은 도착 감지에게 «새 정보»가 아니다** (기사님 실측 2026-09-12 · 넷째).
+     *
+     * 🔴 **내가 낸 사고다.** 정차를 궤적에 남기려고 «서 있는 동안 매초 보내기»로 바꿨더니,
+     *    그 좌표를 **도착 감지도 같이 먹었다.** 모의 주행은 500m 근접만으로 즉시 발화하고
+     *    `nextStopOf` 는 «아직 안 찍힌 다음 정거장»을 주므로, 한 자리에서
+     *
+     *        틱1 정거장A 도착 → 틱2 next=B(도 500m 안) → 틱3 next=C …
+     *
+     *    이 **연쇄로 터졌다.** 기사님 콜은 2.5~5.6km 짜리 시내 콜이라 정거장들이 서로
+     *    500m 안에 겹쳐 있었다 — 잡은 콜 여섯이 20초~2분 만에 전부 하차 완료로 끝났다.
+     *    예전에는 6초에 한 번 와서 그 사이 15배속으로 9km 를 움직였으니 안 터졌을 뿐,
+     *    **원래 있던 구멍**이다.
+     *
+     * 🔴 **한 값을 두 곳이 다른 질문으로 읽는다** (규칙 ⑤-4 ⑤) —
+     *    궤적은 *«거기 있었나»*, 도착 감지는 *«새로 왔나»*. 같은 자리는 **뒤 질문의 답이 아니다.**
+     * ⚠️ 정거장에 **닿는** 그 틱은 좌표가 새 자리라 그대로 통과한다 — 도착은 정상으로 찍힌다.
+     * ⚠️ 실 GPS 는 좌표가 미세하게 흔들려 여기 안 걸린다 (모의 주행에서만 완전히 같다).
+     */
+    const samePlace = !!prev && prev.x === currentGPS.x && prev.y === currentGPS.y;
+    if (samePlace) return;
+
     watchArrival(userId, session, currentGPS, speedKmh, jumped, src, applyFilterCb, onArrival, onApproaching, onDeparted, onPassed);
 }
 
