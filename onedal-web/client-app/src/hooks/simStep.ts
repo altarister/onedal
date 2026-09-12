@@ -69,6 +69,13 @@ export interface DriveDial {
 /** 도착 정차 연기(실초) — 정차 감지 10초 + 시트가 올라온 것을 «볼» 여유 */
 export const DWELL_TICKS = 18;
 
+/**
+ * 🏭 **정거장이 도로에서 벗어나 있는 폭** — 실측 곤지암 물류센터 **601m** (2026-08-25).
+ *    이번 걸음에 이 여유를 더해 «지나쳤나»를 본다. 0 으로 두면 도로에서 떨어진 정거장을
+ *    영영 못 밟고, 크게 두면 **멀리 있는 새 정거장으로 순간이동**한다 (10.9km 점프).
+ */
+export const STOP_OFF_ROAD_KM = 0.7;
+
 export function simStep(
     st: SimState,
     path: PolylinePoint[],
@@ -106,11 +113,30 @@ export function simStep(
         st.idx, stepKm);
     const via = walked.via.map(v => ({ x: v.lng, y: v.lat }));
 
-    // ── 이번 걸음에 지나치는 정거장이 있으면 거기 서서 정차 연기를 시작한다
+    /**
+     * ── 이번 걸음에 **지나친** 정거장이 있으면 거기 서서 정차 연기를 시작한다 ──
+     *
+     * 🔴 **인덱스만으로는 «먼 것»과 «지나친 것»을 못 가른다** (기사님 실측 2026-09-12
+     *    21:36:11 — 한 틱에 **10,916m**).
+     *
+     *    `nearestIndex` 는 «경로에서 가장 가까운 점»을 고를 뿐 **얼마나 가까운지는 안 본다.**
+     *    그래서 **새 콜이 들어와 그 상차지가 `stops` 에 붙으면**, 그 점이 경로 **옆으로**
+     *    10km 밖에 있어도 최근접 인덱스가 이번 구간에 들 수 있고 — 그 순간 «지나쳤다»고
+     *    보고 `loc = due` 로 **그 자리에 찍었다.** 방아쇠는 경로 갈아타기가 아니라
+     *    **새 정거장**이라, 경로 지문(`routeSignature`)을 조여도 안 잡힌다.
+     *
+     * 🟢 **그래서 실제 거리도 함께 본다** — 이번 걸음으로 닿을 수 있는 거리 안이라야
+     *    «지나친» 것이다.
+     * 🔴 **정거장 좌표를 찍는 동작 자체는 남긴다.** 물류센터가 도로에서 떨어져 있어
+     *    (실측 곤지암 **601m**) 넣은 것이고, 그게 없으면 도착 감지가 영영 안 걸린다.
+     *    그래서 걸음에 **그 이탈폭만큼 여유**를 더해 본다.
+     */
     const from = st.idx, to = walked.idx;
+    const reach = stepKm + STOP_OFF_ROAD_KM;
     const due = unvisited.find(s => {
         const i = nearestIndex(path, s);
-        return i >= from && i < to;
+        if (i < from || i >= to) return false;
+        return getDistanceKm(herePt.y, herePt.x, s.y, s.x) <= reach;
     });
     if (due) {
         st.visited.add(`${due.x},${due.y}`);
