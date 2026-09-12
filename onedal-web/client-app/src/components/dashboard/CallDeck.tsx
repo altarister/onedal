@@ -315,11 +315,24 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
                     onClick={() => goTo(i)}
                     aria-current={isCur}
                     style={stick}
-                    className={`w-full flex items-center gap-1.5 px-2.5 rounded-md border text-left transition-colors ${
+                    /**
+                     * 📏 **껍데기를 목업에 맞춘다** (기사님 2026-09-12: *"마진 패딩이 있어서
+                     *    **좌우 영역을 손해** 보고 있어. 시트 스타일을 가져올 수 없나?"*).
+                     *
+                     * 🔴 격자 칸은 이미 목업과 한 벌인데(`callPalette`·같은 `gridTemplateColumns`)
+                     *    **바깥이 달랐다** — `px-2.5`(10px) + `gap-1.5`(6px) + 테두리(2px)로
+                     *    한 줄에서 **16px** 을 더 먹었다. 400px 폰에서는 지명 두 자다.
+                     *    목업은 `px-1.5` 에 테두리가 없다.
+                     * 🔴 **배경은 남긴다** — 아코디언에서 줄이 붙박이라 **불투명 바닥**이 없으면
+                     *    아래 글자가 비쳐 겹친다 (기사님 0903 설계). 테두리만 걷는다.
+                     * 🔴 «지금 고른 콜»은 **왼쪽 굵은 띠**로 말한다 — 테두리는 사방을 먹지만
+                     *    띠는 2px 한 변이다.
+                     */
+                    className={`w-full flex items-center px-1.5 rounded-md text-left transition-colors border-l-2 ${
                         accordion ? 'shrink-0' : 'py-1.5'
                     } ${
-                        isCur ? (accordion ? 'bg-info/20 border-info/60' : 'bg-info/10 border-info/45')
-                              : (accordion ? 'bg-surface border-border/60' : 'bg-surface-alt/30 border-border/60')
+                        isCur ? (accordion ? 'bg-info/20 border-info' : 'bg-info/10 border-info')
+                              : (accordion ? 'bg-surface border-transparent' : 'bg-surface-alt/30 border-transparent')
                     }`}
                 >
                     {TITLE_STYLE === '격자' && <>
@@ -363,7 +376,15 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
                                     {/* ☎️ 통화로 정한 약속은 **보라** — 글자를 더하면 격자가 깨진다 (폭 0인 신호) */}
                                     <span className="text-right px-1 py-0.5"
                                         style={{ background: box, color: confirmed(stop) ? PROMISE_CALLED : 'var(--color-text-muted)' }}>
-                                        {hhmm(promised)}
+                                        {/**
+                                          * 🔴 **없으면 «--:--» 다 — 빈칸으로 두지 않는다** (기사님 2026-09-12:
+                                          *    *"값이 없을 때 **잘려 보일 때**가 있어"*).
+                                          *    칸마다 콜 색 띠가 깔리는데 글자가 없으면 **띠만 길게 남아**
+                                          *    «무언가 잘렸다»로 읽힌다. 오른쪽 «예상» 칸은 이미 `--:--` 를 쓴다 —
+                                          *    같은 줄에서 한 칸만 비면 그게 더 어색하다.
+                                          * 🟢 규칙 ⑤-2 그대로다 — **모르면 모른다고 적는다.**
+                                          */}
+                                        {promised ? hhmm(promised) : '--:--'}
                                     </span>
                                     {/* ± — **늦음만 노랑**이다. 초록·빨강은 판정 색과 겨루므로 안 쓴다 (§4) */}
                                     <span className={`text-right px-1 py-0.5 ${diff != null && diff > 0 && !gone ? 'text-warning' : 'text-text-muted'}`}

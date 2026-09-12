@@ -726,3 +726,46 @@ describe('8단계 · 궤적이 카카오 길을 따라간다 (기사님 "궤적�
         expect(mockup).toMatch(/driveStep\(/);
     });
 });
+
+/**
+ * 🪧 **시트 콜 줄 — 목업과 «껍데기까지» 한 벌이다** (기사님 실측 2026-09-12)
+ *
+ * 기사님: *"시트에 있는 콜 리스트 보면 목업과 디자인이 많이 다르고 **마진 패딩이 있어서
+ * 좌우영역을 손해** 보고 있어. 시트 스타일을 가져올 수 없나?"* ·
+ * *"상차지 하차지 영역에 색이 폰트에 있는 건지 **값이 없을 때 잘려 보일 때**가 있어"*
+ *
+ * 🔴 **격자 칸은 이미 한 벌이었다** — 같은 `gridTemplateColumns`, 같은 `callPalette`.
+ *    다른 것은 **바깥**이었다: `px-2.5` + `gap-1.5` + 테두리로 한 줄에서 **16px** 을 더 먹어
+ *    400px 폰에서 지명이 두 자 일찍 잘렸다 (화면으로 확인하고 고쳤다).
+ */
+describe('시트 콜 줄 — 목업과 껍데기까지 같다', () => {
+    const deck = codeOnly(readClient('components/dashboard/CallDeck.tsx'));
+    const mock = codeOnly(readClient('pages/MapMockup.tsx'));
+
+    it('🔴 격자 폭이 한 벌이다 — 실물과 목업이 같은 칸을 쓴다', () => {
+        const cols = /gridTemplateColumns: '15px minmax\(0,1fr\) 41px 28px 41px 10px 15px minmax\(0,1fr\) 41px 28px 41px'/;
+        expect(deck).toMatch(cols);
+        expect(mock).toMatch(cols);
+    });
+
+    it('🔴 바깥 여백이 목업과 같다 — 테두리로 좌우를 먹지 않는다', () => {
+        const i = deck.indexOf('const rowOf');
+        const btn = deck.slice(i, deck.indexOf('gridTemplateColumns', i));
+        expect(btn).toMatch(/px-1\.5/);
+        /* 사방 테두리는 좌우를 먹는다 — «지금 고른 콜»은 왼쪽 띠 한 변으로 말한다 */
+        expect(btn).toMatch(/border-l-2/);
+        expect(btn).not.toMatch(/rounded-md border /);
+    });
+
+    it('🔴 값이 없어도 칸을 비우지 않는다 — 색 띠만 남으면 «잘렸다»로 읽힌다', () => {
+        /* 약속·예상 두 칸 모두 «모르면 모른다»를 적는다 (규칙 ⑤-2) */
+        expect(deck).toMatch(/promised \? hhmm\(promised\) : '--:--'/);
+        expect(mock).toMatch(/st\.promisedAt \? hhmm\(st\.promisedAt\) : '--:--'/);
+    });
+
+    it('🔴 색은 **칸 배경**이고 글자색은 따로다 — 폰트에 든 색이 아니다', () => {
+        /* 기사님이 «색이 폰트에 있는 건지» 물으신 자리 — 배경은 `stopBoxBg`, 글자는 `callTextColor` */
+        expect(deck).toMatch(/background: box/);
+        expect(deck).toMatch(/callTextColor\(no, stop, theme\)/);
+    });
+});

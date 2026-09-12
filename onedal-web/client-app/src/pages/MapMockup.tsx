@@ -4134,7 +4134,8 @@ export default function MapMockup() {
                                                       */}
                                                     <span className="text-right px-1 py-0.5"
                                                         style={{ background: box, color: st.promiseBy === '통화' ? PROMISE_CALLED : 'var(--color-text-muted)' }}>
-                                                        {hhmm(st.promisedAt)}
+                                                        {/* 🔴 없으면 «--:--» — 빈칸이면 색 띠만 남아 «잘렸다»로 읽힌다 (기사님 0912) */}
+                                                        {st.promisedAt ? hhmm(st.promisedAt) : '--:--'}
                                                     </span>
                                                     {/**
                                                       * 🔴 **약속 → 차이 → 결과 순으로 읽힌다** (기사님 2026-09-10:
