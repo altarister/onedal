@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { reportedPaneOf, PANE_SNAP_TOLERANCE_PX } from './paneReport';
 
 /**
  * 🌱 **여섯 단계를 «가로로 넘기는» 트랙** (기사님 2026-09-05: *"스텝도 시트처럼 보이게"*)
@@ -29,18 +30,44 @@ export default function StepSwipeTrack({ count, shownIdx, onShow, renderPane }: 
 }) {
     const ref = useRef<HTMLDivElement>(null);
 
-    /** 🎯 보는 장이 바뀌면 따라간다 (점을 눌렀을 때). 이미 그 자리면 아무 일도 안 난다 */
+    /**
+     * 🎯 보는 장이 바뀌면 따라간다 (점을 눌렀을 때·도착이 열었을 때).
+     *    이미 그 자리면 아무 일도 안 난다.
+     *
+     * 🔴 **«스르륵»(`smooth`)을 버렸다** (기사님 확정 2026-09-12 밤).
+     *    애니메이션이 돌면 **중간 자리**가 생기고, 그 자리의 스크롤 이벤트가 아래
+     *    `onScroll` 을 통해 **옛 번호를 부모에게 알렸다.** 부모는 그 말을 믿고 장을
+     *    되돌리고, 둘이 서로를 밀며 엉뚱한 장에서 멈췄다 — 실측 254ms 안에 네 번
+     *    (`4 → 5 → 4 → 0 → 1`). 즉 **자기 이동이 자기 알림을 덮었다.**
+     *
+     *    이 파일 머리가 처음부터 *"애니메이션을 얹지 않는다"* 고 적어 두었고, 아래
+     *    «열릴 때»는 이미 `auto` 였다. 그 규칙을 여기만 안 지키고 있었다.
+     *    ⚠️ 손으로 넘기는 부드러움은 그대로다 — 그건 `scroll-snap` 이 한다.
+     */
     useEffect(() => {
         const t = ref.current;
         if (!t?.clientWidth) return;
         const want = shownIdx * t.clientWidth;
-        if (Math.abs(t.scrollLeft - want) < 4) return;
-        t.scrollTo({ left: want, behavior: 'smooth' });
+        if (Math.abs(t.scrollLeft - want) < PANE_SNAP_TOLERANCE_PX) return;
+        t.scrollTo({ left: want });
     }, [shownIdx]);
 
     /**
+     * 🔴 **낡은 값에 갇히지 않게 ref 로 든다** (2026-09-12 밤 · 관제웹 CLAUDE.md 의 그 사고).
+     *
+     * 아래 감시자는 딱 한 번만 붙어야 하는데(재구독하면 «열린 순간»을 놓친다) 그 안에서
+     * `shownIdx` 를 그냥 읽으면 **첫 렌더 값에 갇힌다** — 열리는 순간 늘 «0번 장»으로
+     * 데려갔다. `useDriveMotion` 의 `holdMs` 가 첫 렌더의 10초에 갇혀 주행 판정이 한 번도
+     * 안 뜬 것과 **같은 클래스**이고, 처방도 그때와 같다.
+     * ⚠️ `exhaustive-deps` 는 꺼 둔 규칙이라 **기계가 안 잡는다** — 이 자리를 늘 의심한다.
+     */
+    const shownRef = useRef(shownIdx);
+    useEffect(() => { shownRef.current = shownIdx; }, [shownIdx]);
+
+    /**
      * 👀 폭이 0 → 있음으로 바뀌는 순간이 «열렸다»다 — 그때 지금 할 단계로 데려간다.
-     * 🔴 열릴 때는 `auto` 다 — 접혀 있던 판이 스르륵 넘어가는 것을 보여 줄 이유가 없다.
+     *    ⚠️ 감시자는 **한 번만** 붙는다 (재구독하면 «열린 순간»을 놓친다). 그래서 안에서
+     *       `shownIdx` 를 **ref 로** 읽는다 — 위 참조.
      */
     useEffect(() => {
         const t = ref.current;
@@ -48,22 +75,25 @@ export default function StepSwipeTrack({ count, shownIdx, onShow, renderPane }: 
         let wasHidden = true;
         const ob = new ResizeObserver(() => {
             const w = t.clientWidth;
-            if (w && wasHidden) t.scrollTo({ left: shownIdx * w, behavior: 'auto' });
+            if (w && wasHidden) t.scrollTo({ left: shownRef.current * w });
             wasHidden = !w;
         });
         ob.observe(t);
         return () => ob.disconnect();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     return (
         <div
             ref={ref}
+            /**
+             * 👆 **손으로 넘긴 것만 알린다** — 판단은 `paneReport` 한 곳이다 (규칙 ③).
+             *    🔴 스크롤 이벤트는 «누가 움직였나»를 말해 주지 않으므로, 원인이 아니라
+             *       **자리**로 가른다 — 장 경계에 붙었으면 «멈춘 것», 사이면 «움직이는 중».
+             */
             onScroll={e => {
                 const t = e.currentTarget;
-                if (!t.clientWidth) return;
-                const k = Math.round(t.scrollLeft / t.clientWidth);
-                if (k !== shownIdx) onShow(k);
+                const k = reportedPaneOf(t.scrollLeft, t.clientWidth, count, shownIdx);
+                if (k != null) onShow(k);
             }}
             /**
              * 📏 **트랙이 높이를 스스로 정한다** (목업 이식 2026-09-05 · 재서 잡았다).
