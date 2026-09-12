@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { GpsSource } from './gpsBridge';
 
 /**
  * 📡 **보내는 문이 실제로 무엇을 내보내는가** (기사님 실측 2026-09-12 · 셋째 판).
@@ -73,5 +74,72 @@ describe('gpsBridge — 같은 자리라도 «서 있다»는 나간다', () => 
         publishLocation(37.4001, 127.4, 'mock', { stopped: false });
         expect(sentPoints().length).toBe(1);
         expect(sentPoints()[0].stopped).toBe(false);
+    });
+});
+
+/**
+ * 📍 **손으로 찍은 좌표는 «찍었다»고 나가야 한다** (서버 지적 2026-09-12).
+ *
+ * ── 무엇이 틀렸나 ──
+ * 현황판의 「📍 위치 찍기」(🏠 집 · 주소로 찾기)가 좌표를 **`'mock'` 으로** 내보냈다.
+ * 서버는 `manual` 을 이미 알아듣는데(`originOf` 의 `source` · `gps_tracks.source`,
+ * 소켓 문에 화이트리스트가 없어 **온 그대로 통과한다**), 클라의 `GpsSource` 에 그
+ * 낱말이 없어서 보낼 수가 없었다.
+ *
+ * 🔴 **그래서 궤적이 거짓말했다.** 🎭 모의 주행이 생긴 뒤로 «배속으로 달린 가상 좌표»와
+ *    «기사님이 손으로 찍은 자리»가 **한 이름(`mock`)으로 섞였다.** 사후에 궤적을 열면
+ *    어느 점이 주행이고 어느 점이 찍은 것인지 **가를 수가 없다** — 2026-08-14 파주
+ *    156km 사고가 정확히 «가짜를 진짜로 읽어서» 난 것이라, 출처가 섞이는 것은 그
+ *    사고의 씨앗이다.
+ * ⚠️ 화면은 그 사실을 적고는 있었다 (*"서버는 🧪 모의 주행으로 적는다"*) — 규칙 ④는
+ *    지켰지만 **값이 여전히 틀린 채**였다. 적어 두는 것은 고치는 것이 아니다.
+ *
+ * 🔬 **이 검사의 빨간불은 타입에서 난다.** 아래 `ALL_SOURCES` 는 `tsc -b` 가 무는 줄이라
+ *    `'manual'` 이 낱말에 없으면 **게이트가 컴파일에서 막는다.** 런타임만 보면
+ *    문자열이 그대로 실려 나가 **초록불이 난다** — 고장이 타입 층에 있기 때문이다.
+ *    부르는 자리가 실제로 `'manual'` 을 넘기는지는 `statusboard/locationPick.test.ts` 가 문다.
+ */
+const ALL_SOURCES: GpsSource[] = ['native', 'browser', 'mock', 'manual'];
+
+/** 소켓으로 나간 좌표 — 출처까지 본다 */
+const sentWithSource = () => emit.mock.calls
+    .filter(c => c[0] === 'dashboard-gps-update')
+    .map(c => c[1] as { lat: number; lng: number; source?: string });
+
+describe('gpsBridge — 손으로 찍은 좌표', () => {
+    /* 🕐 앞 검사들이 실제 시계로 `lastMockAt` 을 남겨 두므로, 아주 먼 시각을 «지금»으로
+       잡아 모의 주행 억제(5초)와 무관한 자리에서 시작한다 */
+    beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date('2099-01-01T00:00:00Z')); });
+    afterEach(() => { vi.useRealTimers(); });
+
+    it("🔴 낱말에 'manual' 이 있다 — 없으면 tsc 가 막는다", () => {
+        expect(ALL_SOURCES).toContain('manual');
+    });
+
+    it("🔴 출처가 'manual' 그대로 서버에 간다 — 모의 주행으로 적히지 않는다", () => {
+        const r = publishLocation(37.51, 127.51, 'manual');
+        expect(r.sent).toBe(true);
+        expect(sentWithSource().at(-1)!.source).toBe('manual');
+    });
+
+    /**
+     * 🔴 **모의 주행이 도는 동안에는 안 나간다.** 찍은 점을 끼워 넣어도 1초 뒤 시뮬 좌표가
+     *    덮으므로, 궤적에 «어디서 왔는지 모를 한 점»만 남는다 (2026-08-14 의 섞임).
+     *    ⚠️ `'mock'` 으로 보내던 예전에는 **이 문이 열려 있었다** — 출처를 바로잡으면서
+     *       막힌 것이라, 그 사실을 여기 적어 둔다. 화면은 «모의 주행 중 — 안 나갔다»를 쓴다.
+     */
+    it('🔴 모의 주행 중에는 찍어도 안 나간다', () => {
+        publishLocation(37.60, 127.60, 'mock');
+        emit.mockClear();
+        const r = publishLocation(37.61, 127.61, 'manual');
+        expect(r.sent).toBe(false);
+        expect(r.reason).toBe('mock-running');
+        expect(sentWithSource().length).toBe(0);
+    });
+
+    it('모의 주행이 5초 넘게 조용하면 다시 나간다', () => {
+        publishLocation(37.70, 127.70, 'mock');
+        vi.advanceTimersByTime(5_001);
+        expect(publishLocation(37.71, 127.71, 'manual').sent).toBe(true);
     });
 });

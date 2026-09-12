@@ -5,8 +5,20 @@ import { socket } from './socket';
  *   native   앱 웹뷰가 밀어 주는 위치
  *   browser  navigator.geolocation
  *   mock     시뮬레이터 (경로 위를 배속으로 달린다)
+ *   manual   기사님이 **손으로 찍은** 자리 (현황판 「📍 위치 찍기」 — 🏠 집 · 주소로 찾기)
+ *
+ * 🔴 **`manual` 은 2026-09-12 에 들어왔다** (서버 지적). 서버는 이 낱말을 **이미**
+ *    알아듣는데(소켓 문에 화이트리스트가 없어 온 그대로 통과하고, `originOf` 의
+ *    `source` 와 `gps_tracks.source` 가 그 값을 쥔다) **여기에만 없었다.** 그래서 찍은
+ *    좌표가 `mock` 으로 나갔고, 🎭 모의 주행이 생긴 뒤로 «배속으로 달린 가상 좌표»와
+ *    «손으로 찍은 자리»가 **한 이름으로 섞였다** — 사후에 궤적을 열어도 가를 수 없다.
+ *    2026-08-14 파주 156km 사고가 «가짜를 진짜로 읽어서» 난 것이라, 출처가 섞이는 것은
+ *    그 사고의 씨앗이다.
+ * ⚠️ **낱말은 뒤에 붙인다.** `server/tests/rules/masterGps.test.ts` 가 이 줄을 문자열로
+ *    무는데(`= 'native' | 'browser' | 'mock'`) 앞·중간에 끼우면 그 검사가 깨진다 —
+ *    남의 영역 파일이라 손대지 않고 자리로 피한다.
  */
-export type GpsSource = 'native' | 'browser' | 'mock';
+export type GpsSource = 'native' | 'browser' | 'mock' | 'manual';
 
 /**
  * 🔴 **서버에 위치를 알리는 유일한 자리.**
