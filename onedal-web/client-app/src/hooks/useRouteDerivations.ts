@@ -6,7 +6,7 @@ import { useStepRecords } from './useStepRecords';
 import { useJudgmentStore } from '../stores/judgmentStore';
 import { useGpsFocusStore, ensureGpsFocusSubscribed } from '../stores/gpsFocusStore';
 import { loadScreenSettings } from '../stores/settingsStore';
-import { useDrivenTrailStore, ensureDrivenTrailSubscribed, clearDrivenTrail } from '../stores/drivenTrailStore';
+import { useDrivenTrailStore, ensureDrivenTrailSubscribed, clearDrivenTrail, restoreDrivenTrail } from '../stores/drivenTrailStore';
 /* 📍 서버가 아는 «내 자리» — 화면이 제 손으로 정하지 않는다 (2026-09-12) */
 /* 📍 구독은 현황판 쪽에서 건다 — 지도는 이 값을 아직 안 쓴다 (위 🗑️ 주석) */
 import { useFilterConfig } from './useFilterConfig';
@@ -192,6 +192,16 @@ export function useRouteDerivations(
         () => drivenSegments.map(seg => seg.map(p => ({ x: p.lng, y: p.lat }))),
         [drivenSegments]);
     useEffect(() => { if (cycleDeck.length === 0) clearDrivenTrail(); }, [cycleDeck.length]);
+    /**
+     * 👣 **새로고침 뒤에는 장부에서 자취를 되살린다** (2026-09-12 밤).
+     *    스토어가 메모리 전용이라 새로고침하면 0 이 된다 — 그래서 사이클을 처음 알게 된
+     *    순간 한 번 물어본다. **한 번만** 읽는 것은 스토어가 지킨다.
+     *    ⚠️ 사이클이 끝나면 위 줄이 비우므로, 늦게 온 응답이 죽은 자취를 남기지 않는다.
+     */
+    useEffect(() => {
+        if (cycleDeck.length === 0) return;
+        void restoreDrivenTrail(cycleDeck.map(r => r.id));
+    }, [cycleDeck]);
 
     const safeRoute = activeRoute || [];
     const allEvaluating = safeRoute.some(r => isEvaluating(r.status));

@@ -75,3 +75,29 @@ export function pushTrail(segments: DrivePoint[][], p: DrivePoint): DrivePoint[]
     if (jumpKm > TRAIL_JUMP_KM || !seg) return [...segments, [p]];   // 순간이동 — 새 구간
     return [...segments.slice(0, -1), [...seg, p]];
 }
+
+/**
+ * 👣 **장부의 점을 자취로 되살린다** (기사님 2026-09-12 밤:
+ *    *"카카오라인과 내 궤적이 같이 있어야 얼마나 잘못갔는지 확인할 수 있을 것 같아"*).
+ *
+ * ── 왜 ──
+ * `drivenTrailStore` 는 **브라우저 메모리에만** 쌓는다(`local-gps-update` 를 듣는다).
+ * 그래서 새로고침하면 자취가 **0** 이 되고 겹쳐 볼 것이 아예 없었다 — 장부(`gps_tracks`)에
+ * 그날 점이 다 남아 있는데 화면이 안 읽었다.
+ *
+ * 🔴 **쌓는 규칙을 여기서 새로 짜지 않는다** — 위 `pushTrail` 을 그대로 접는다 (규칙 ③).
+ *    되살린 자취가 라이브와 다른 모양이면 **같은 주행이 새로고침 전후로 다른 선**이 된다.
+ * ⚠️ 장부는 **콜별로** 읽히므로(`?orderId=`) 여러 벌이 섞여 온다 — **시각으로 다시 줄을
+ *    세운다.** 안 그러면 콜 경계에서 선이 되돌아가는 지그재그가 생긴다.
+ * ⚠️ 좌표가 없는 행은 버린다 — 지어내지 않는다 (규칙 ④).
+ *
+ * 🔬 검사는 `trailFromPoints.test.ts`.
+ */
+export function trailFromPoints(
+    points: Array<{ atMs: number; x: number; y: number }>,
+): DrivePoint[][] {
+    return [...points]
+        .filter(p => Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.atMs))
+        .sort((a, b) => a.atMs - b.atMs)
+        .reduce<DrivePoint[][]>((segs, p) => pushTrail(segs, { lng: p.x, lat: p.y }), []);
+}
