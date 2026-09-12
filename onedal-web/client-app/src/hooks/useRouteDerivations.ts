@@ -20,6 +20,13 @@ import type { RoutePoint } from '../components/dashboard/PinnedRouteCanvas';
 import type { EtaCell } from '../components/dashboard/PinnedRouteCard';
 
 /**
+ * 🕐 **계측 로그용 «분:초»** — 한 판이 몇 분이라 시각까지 안 적어도 궤적과 맞댈 수 있다.
+ *    🔴 화면에 쓰는 값이 아니다. 로그 한 줄이 길어지면 아무도 안 읽는다.
+ *    ⚠️ 시각을 모르면 «시각없음» 이라고 적는 것은 부르는 쪽 일이다 — 여기서 0 을 짜내지 않는다.
+ */
+const mmssOf = (t: number) => (Number.isFinite(t) ? new Date(t).toTimeString().slice(3, 8) : '시각없음');
+
+/**
  * 🏭 **경로 파생 제조소** (기사님 확정 2026-08-31 · 화면개편 1단계 · v24).
  *
  * PinnedRoute 안에 살던 파생 전부를 한 곳으로 — 지도·덱·카드·카운트다운·(개편 후) 시트가
@@ -416,17 +423,70 @@ export function useRouteDerivations(
             `${b.firm ? ' (확정)' : ' (추정)'}`, "진행중경로");
     }, [routeTimeline, liveRoute]);
 
+    /**
+     * 🔬 **계측 — 번호가 «어느 목록»에서 왔는지 함께 찍는다** (2026-09-12).
+     *
+     * ── 왜 ──
+     * 번호는 **두 목록을 이어 붙인 것**이다 (다녀온 것 → 남은 것). 그런데 로그가
+     * 완성된 문자열 하나만 남겨서, 흔들릴 때 **어느 쪽이 흔들렸는지 못 가렸다.**
+     * 오늘 로그에서 두 모양이 나왔는데 둘 다 원인을 못 짚었다:
+     *
+     *   부팅 직후 0.1초   `사음동상 4↔5 관고동하`  — 둘 다 **다녀온** 정거장이다
+     *   후보콜 선점 순간  `초월읍상 1→4`           — **다녀온** 정거장이 번호를 잃었다
+     *
+     * 🔴 뒤엣것은 **이 코드가 스스로 적어 둔 약속을 깬 것**이다 —
+     *    *"다녀온 것: 한 번 받은 번호가 그대로 남는다"* (위 `stopNoOf` 머리).
+     *    그러니 «흔들렸다»가 아니라 «어겼다»이고, 어긴 자리를 찍어야 고칠 수 있다.
+     *
+     * 🟢 **✓ 와 도착 시각을 함께 적는다.** 그러면 한 줄로 셋이 갈린다:
+     *    · ✓ 무리의 **순서만** 바뀌었다      → 발자취 정렬(`visitedTrail`)이 흔들렸다
+     *    · ✓ 인데 **시각없음** 이 찍혔다     → 도착 시각이 늦게 도착해 맨 뒤로 갔다
+     *    · ✓ **가 사라졌다**(`✓1… → 4…`)   → `hasVisitedStop` 이 거짓이 됐다 (아래 `[다녀옴]`)
+     *
+     * ⚠️ 계측이다. 원인이 확정되면 지우거나 정식 로그로 승격한다 (`logRouteStops` 와 같은 규약).
+     */
     useEffect(() => {
         if (stopNoOf.size === 0) return;
+        const keyOf = (orderId: string, kind: '상차' | '하차') =>
+            `${orderId}:${kind === '상차' ? 'pickup' : 'dropoff'}`;
+        /* 🕐 «다녀온 것»의 정렬 열쇠 — 이 값이 `null` 이면 맨 뒤로 간다 (0831 결정) */
+        const visitedAt = new Map(visitedTrail.map(v => [keyOf(v.orderId, v.type), v.at] as const));
         const nameOf = (k: string) => {
             const [id, kind] = [k.slice(0, k.lastIndexOf(':')), k.slice(k.lastIndexOf(':') + 1)];
             const o = cycleDeck.find(r => r.id === id);
             return o ? `${getAddressLabel(kind === 'pickup' ? o.pickup : o.dropoff)}${kind === 'pickup' ? '상' : '하'}` : id.slice(-6);
         };
         logStateChange("번호",
-            [...stopNoOf.entries()].sort((a, b) => a[1] - b[1]).map(([k, n]) => `${n}${nameOf(k)}`).join(' · '),
+            [...stopNoOf.entries()].sort((a, b) => a[1] - b[1]).map(([k, n]) => {
+                if (!visitedAt.has(k)) return `${n}${nameOf(k)}`;
+                const at = visitedAt.get(k);
+                return `✓${n}${nameOf(k)}(${at == null ? '시각없음' : mmssOf(at)})`;
+            }).join(' · '),
             "진행중경로");
-    }, [stopNoOf, cycleDeck]);
+    }, [stopNoOf, cycleDeck, visitedTrail]);
+
+    /**
+     * 🔬 **계측 — «다녀왔나»의 재료를 그대로 찍는다** (2026-09-12).
+     *
+     * `hasVisitedStop` 은 둘 중 하나만 참이면 참이다 — `arrivedPickupAt` **또는** 상태.
+     * ✓ 가 사라지는 순간 **둘 다 거짓**이 된 것이니, 어느 쪽이 사라졌는지 봐야 한다.
+     * 봉투가 둘로 갈라져 오는 판(부팅 직후 두 번 푸시 · 후보콜 선점)에서 한쪽이 늦게
+     * 오는 것을 의심하고 있다 — 그 가설을 이 줄이 증명하거나 기각한다.
+     *
+     *   📡 [다녀옴] 1cd50b PICKED_UP 상05:49 하— · 00d261 SECURED 상— 하—
+     *
+     * ⚠️ **값이 바뀔 때만** 찍는다 (`logStateChange`) — 초당 재그림에 로그가 안 밀린다.
+     */
+    useEffect(() => {
+        if (cycleDeck.length === 0) return;
+        logStateChange("다녀옴",
+            cycleDeck.map(r =>
+                `${r.id.slice(-6)} ${(r.status ?? '없음').replace('ORDER_', '')} ` +
+                `상${r.arrivedPickupAt ? mmssOf(Date.parse(r.arrivedPickupAt)) : '—'} ` +
+                `하${r.arrivedDropoffAt ? mmssOf(Date.parse(r.arrivedDropoffAt)) : '—'}`
+            ).join(' · '),
+            "진행중경로");
+    }, [cycleDeck]);
 
     const chronologicalIds = useMemo(() => {
         return [...safeRoute]
