@@ -1,4 +1,5 @@
 import { sectionLinesOf } from '@onedal/shared';
+import { logStateChange } from '../../lib/roadmapLogger';
 import React, { useRef, useCallback, useEffect } from 'react';
 import type { SecuredOrder } from "@onedal/shared";
 import { isEvaluating } from "@onedal/shared";
@@ -309,6 +310,27 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
             .map(seg => seg.filter(p => Number.isFinite(p.x) && Number.isFinite(p.y)))
             .filter(seg => seg.length > 1);
         const driven = drivenSegs.flat();
+
+        /**
+         * 🔬 **계측 — «왜 선이 없나»** (기사님 실측 2026-09-12 밤: *"새로고침하고 나면
+         *    경로가 사라져 있어"*).
+         *
+         * 🔴 **그리는 조건이 셋인데 화면이 어느 것에 걸렸는지 아무 데도 안 적었다.**
+         *    그래서 「다 돌아서 없는 것」과 「홀더가 비어서 없는 것」과 「레이어가 꺼진 것」을
+         *    가릴 수 없었다. 재료 쪽은 `[경로재료]`(`useRouteDerivations`)가 답한다 —
+         *    이 줄은 **그렸나**만 답한다 (한 줄이 두 질문에 답하지 않게 · 규칙 ⑤-4 ⑤).
+         * ⚠️ `logStateChange` 는 값이 바뀔 때만 찍는다 — 손짓마다 다시 그려도 로그가 안 밀린다.
+         * ⚠️ 계측이다. 원인이 확정되면 지우거나 정식 로그로 승격한다.
+         */
+        logStateChange("경로그림",
+            `레이어 ${layers.route ? '켜짐' : '꺼짐'}` +
+            ` · 카카오 ${currentPolyline.length}점(성한 것 ${validPolyline.length})` +
+            ` · 자취 ${drivenSegs.length}구간` +
+            ` → ${!layers.route ? '안 그림 — 레이어 꺼짐'
+                : !hasPolyline ? '안 그림 — 홀더에 궤적이 없다'
+                    : validPolyline.length === 0 ? '안 그림 — 좌표가 다 깨졌다'
+                        : '그렸다'}`,
+            "진행중경로");
         const allCoords = [...validPoints, ...validPolyline, ...trail, ...driven] as { x: number, y: number }[];
         if (myLocation) allCoords.push(myLocation);
         /* 🔺 그물을 켜면 그 삼각형까지 보이게 — 안 그러면 현위치만 확대돼 선 하나만 스쳐 간다 */

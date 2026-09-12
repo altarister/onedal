@@ -463,6 +463,34 @@ export function useRouteDerivations(
      *
      * ⚠️ **값이 바뀔 때만** 찍는다 (`logStateChange`) — 초당 재그림에 로그가 안 밀린다.
      */
+    /**
+     * 🔬 **계측 — 「그릴 재료가 있나」** (기사님 실측 2026-09-12 밤: *"새로고침하고 나면
+     *    경로가 사라져 있어"*).
+     *
+     * 🔴 **홀더를 둘로 갈라 적는다.** 지도가 그리는 값은 `drawHolder = routeHolder ??
+     *    previewHolder` 다. 하나만 적으면 **어느 쪽으로 그렸는지 못 가른다** — 그리고 그
+     *    둘이 갈라진 이유가 바로 이 사고 계열이다(심사 중 30초 · 서버 재기동 · `helpers.ts`
+     *    의 «`sectionDriveMin` 칸이 없다» 주석).
+     * 🔴 **자취 점 수를 같은 줄에 적는다** (기사님: *"카카오라인과 내 궤적이 같이 있어야
+     *    얼마나 잘못갔는지 확인할 수 있을 것 같아"*). 어느 쪽이 없는지 한 줄로 보인다 —
+     *    카카오는 있는데 자취가 0 이면 **새로고침에 자취만 날아간 것**이다(메모리 전용).
+     * ⚠️ `routeComputedAt` 은 **안 적는다** — 그리기 판단에 안 쓰인다(캔버스에 그 낱말이
+     *    없고, 조건은 레이어·궤적 유무·좌표 성함 셋뿐이다). 적으면 없는 인과를 좇게 된다.
+     *    ⚠️ 그 값이 진행 중 콜에 저장되지 않는 것은 **별건으로 진짜 결함**이다(예상 시각이
+     *       폴백으로 돈다) — 서버가 고치는 중이다.
+     * ⚠️ 계측이다. 원인이 확정되면 지우거나 정식 로그로 승격한다.
+     */
+    useEffect(() => {
+        const kind = routeHolder ? '확정' : previewHolder ? '미리보기' : '없음';
+        const pts = drawHolder?.routePolyline?.length ?? 0;
+        const trailPts = drivenTrail.reduce((n, seg) => n + seg.length, 0);
+        logStateChange("경로재료",
+            `홀더 ${kind}${drawHolder ? ` ${drawHolder.id.slice(-6)}` : ''}` +
+            ` · 카카오 ${pts}점 · 자취 ${drivenTrail.length}구간 ${trailPts}점` +
+            ` · 진행중 ${liveRoute.length}건`,
+            "진행중경로");
+    }, [drawHolder, routeHolder, previewHolder, drivenTrail, liveRoute.length]);
+
     useEffect(() => {
         if (cycleDeck.length === 0) return;
         logStateChange("다녀옴",
