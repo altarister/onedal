@@ -3,7 +3,7 @@ import { useFilterStore } from '../../stores/filterStore';
 import type { SecuredOrder, RouteStopInfo } from '@onedal/shared';
 import { hasVisitedStop, effectiveRadii } from '@onedal/shared';
 import { useRouteDerivations } from '../../hooks/useRouteDerivations';
-import { getAddressLabel } from '../../lib/routeUtils';
+import { getAddressLabel, getDistanceKm } from '../../lib/routeUtils';
 import PinnedRouteCanvas from '../dashboard/PinnedRouteCanvas';
 import StageSheet, { type SheetSnap } from './StageSheet';
 import { stageStep, initialStageMemory, type StageEvent } from './stageRules';
@@ -11,6 +11,13 @@ import { stageStep, initialStageMemory, type StageEvent } from './stageRules';
 import { sheetTransition } from './sheetTransition';
 /* 🎬 상태바 문구는 여기 한 곳이 정한다 — 화면은 그리기만 한다 (규칙 ③) */
 import { sheetStatus } from '../../lib/sheetStatus';
+import { remainOnRouteKm } from '../../lib/remainOnRoute';
+/**
+ * ✅ **«도착»이라고 말할 반경** (기사님 안 2026-09-13 — *"기준점반경 100m"*).
+ *    🔴 서버가 도착을 **찍는** 조건(500m + 정지 30초)과 **다른 값이다.** 이것은 «화면이
+ *       도착이라고 말할 자리»이고, 그쪽은 «장부에 도착을 적을 자리»다 (규칙 ⑤-4 ⑤).
+ */
+const ARRIVED_HERE_M = 100;
 import { callNodeFill, callNodeText } from '../../styles/callPalette';
 import { useTheme } from '../../contexts/ThemeContext';
 import { PinnedRouteBody } from '../dashboard/PinnedRoute';
@@ -411,6 +418,46 @@ export default function StageView(props: Props) {
      * 🔴 거리(km)가 아니라 **주행 분**이다 — 기사님이 읽는 값은 «얼마나 걸리나»다.
      *    직선 km 는 도로를 안 따르므로 이 줄에서 뺐다.
      */
+    /**
+     * ✅ **지금 곁에 서 있는 «다녀온 정거장»** — «도착» 경우의 방아쇠 (기사님 안 2026-09-13).
+     *    🔴 **타이머가 아니라 위치다.** 떠나면 저절로 다음 경우로 넘어가므로 «끄는 것을
+     *       잊는» 일이 없다 (관제웹 CLAUDE.md — 깃발을 끄는 걸 잊어 화면이 거짓말한 그 모양).
+     *    ⚠️ 좌표를 모르는 발자취(이력만 남은 행)는 건너뛴다 — 거리를 못 잰다.
+     */
+    const arrivedHere = (() => {
+        if (!myLocation) return null;
+        for (const v of derived.visitedTrail) {
+            if (v.x == null || v.y == null) continue;
+            if (getDistanceKm(myLocation.y, myLocation.x, v.y, v.x) * 1000 > ARRIVED_HERE_M) continue;
+            return { visitNo: v.no, name: v.name, stop: v.type as '상차' | '하차',
+                     callNo: derived.callNoOf(v.orderId) };
+        }
+        return null;
+    })();
+
+    /**
+     * 🔍 **다음 정거장까지 직선 m** — «찾기» 경우가 쓴다.
+     *    🔴 **근접은 직선이 맞다** — 눈으로 찾는 거리이고 서버 도착 감지도 직선이다.
+     *       먼 거리는 아래 `remainKm`(길을 따라)이 답한다 — 둘은 다른 질문이다 (규칙 ⑤-4 ⑤).
+     */
+    const nearMeters = myLocation && next?.x != null && next?.y != null
+        ? getDistanceKm(myLocation.y, myLocation.x, next.y, next.x) * 1000 : null;
+
+    /**
+     * 🛣️ **길을 따라 남은 km** — «정차» 경우가 쓴다 (기사님 지적: *"frontend에서 다 알고
+     *    있는 값일껀데."*). 카카오 폴리라인이 곧 도로이고 재는 함수도 `shared` 에 있었다 —
+     *    서버에 더 달라고 할 것이 없었다 (`lib/remainOnRoute` 머리 참조).
+     */
+    const remainKm = remainOnRouteKm(derived.drawHolder?.routePolyline, myLocation,
+        next?.x != null && next?.y != null ? { x: next.x, y: next.y } : null);
+
+    /** 🕐 다음 정거장 도착 예정 시각 — 타임라인이 이미 낸 값을 읽는다 (규칙 ③) */
+    const nextEta = next
+        ? (next.stopLabel === '상차'
+            ? derived.etaMap.get(next.orderId)?.pickupEta
+            : derived.etaMap.get(next.orderId)?.dropoffEta) ?? null
+        : null;
+
     const bar = sheetStatus({
         idle: liveRoute.length === 0,
         judging: !!judging,
@@ -419,6 +466,10 @@ export default function StageView(props: Props) {
             visitNo: next.visitNo, name: next.name,
             callNo: next.callNo, stop: next.stopLabel as '상차' | '하차',
         } : null,
+        arrivedHere,
+        nearMeters,
+        remainKm: remainKm != null ? Math.round(remainKm * 10) / 10 : null,
+        etaHhmm: nextEta,
         driveMinutes: next?.driveMinutes ?? null,
     });
 
@@ -629,9 +680,11 @@ export default function StageView(props: Props) {
                                 ) : (
                                     <>
                                         <span className="shrink-0 w-[19px] h-[19px] rounded-full grid place-items-center text-[12px] font-black leading-none"
-                                            style={next?.callNo ? {
-                                                background: callNodeFill(next.callNo, next.stopLabel === '상차' ? 'pickup' : 'dropoff', theme),
-                                                color: callNodeText(next.stopLabel === '상차' ? 'pickup' : 'dropoff', theme),
+                                            /* 🎨 **색도 번호도 `bar` 에서 온다** — «도착» 경우엔 번호가
+                                                 다녀온 정거장인데 색이 다음 콜이면 «색 = 번호»가 깨진다 (규칙 ⑤-3) */
+                                            style={bar.callNo != null && bar.stopKind ? {
+                                                background: callNodeFill(bar.callNo, bar.stopKind, theme),
+                                                color: callNodeText(bar.stopKind, theme),
                                             } : { background: 'var(--color-info)', color: '#fff' }}>
                                             {bar.no}
                                         </span>
