@@ -1,5 +1,6 @@
 import { verdictOf, BUTTON_BG } from '../../lib/verdict';
 import { useState, useEffect } from 'react';
+import { useGpsFocusStore } from '../../stores/gpsFocusStore';
 import { isEvaluating, isTerminal, isManualLineage, isDeliveredCall, minRouteBuffer, derivationInputsOf, stopTimeOfRecords } from "@onedal/shared";
 import type { SecuredOrder, StepViewRow } from "@onedal/shared";
 import { socket } from "../../lib/socket";
@@ -150,6 +151,8 @@ export default function PinnedRouteCard({
     const [seededSteps, setSeededSteps] = useState<StepViewRow[] | null>(null);
     /** 🌱 단계 네비게이션 — 기존 카드와 같은 문법: null 이면 현재 단계, 숫자면 되돌아보는 중 */
     const [stepNav, setStepNav] = useState<number | null>(null);
+    /* 🎯 «방금 도착»을 본다 — 듣는 곳은 스토어 하나다 (2026-09-12 · 아래 효과가 쓴다) */
+    const arrival = useGpsFocusStore(st => st.arrival);
     useEffect(() => {
         const onSynced = (p: { orderId: string; steps: StepViewRow[] }) => {
             if (p.orderId === route.id) setSeededSteps(p.steps);
@@ -176,6 +179,35 @@ export default function PinnedRouteCard({
         return Math.min(last + 1, seededSteps.length - 1);
     })();
     useEffect(() => { setStepNav(null); }, [stepCurIdx, route.id]);
+
+    /**
+     * 🎯 **도착하면 «그 도착 단계»를 보여 준다** (기사님 지시 2026-09-12 · v23 `focus={콜, 단계}`).
+     *
+     * 기사님: *"**스텝과 아코디언을 구분해야지** 그걸 뭉뚱그려 하니까 안 되는 거야.
+     * KEEP 은 시트(다)와 생성된 아코디언(**상차지 통화**) 이렇게 정의되어야 하는 거 아냐?"*
+     *
+     * ── 왜 필요했나 ──
+     * 사건은 **높이**와 **어느 콜**만 정하고, «어느 단계»는 아무도 안 정했다.
+     * 스텝은 장부가 정했다 — `stepCurIdx` 는 «끝난 단계의 **다음**»이다.
+     * 그래서 GPS 도착이 찍히는 순간 그 단계가 **같은 밀리초에 끝나** 다음으로 넘어갔고,
+     * 기사님은 도착 스텝을 **한 프레임도 못 보셨다**
+     * (`🌱 [출생] 상차지 도착 — 지나친 단계 채움` → `상차 완료 ← 상차지 도착 끝`).
+     *
+     * ── 고침 ──
+     * 🔴 **장부는 안 건드린다** — 도착은 실제로 끝난 일이다 (규칙 ④).
+     *    **화면이 무엇을 보여줄지**만 사건이 정한다. 그 장치는 이미 있었다(`stepNav`) —
+     *    손으로 되돌아볼 때 쓰던 것이고, 여기서는 **경로가 낸 사건**이 그 자리에 값을 넣는다.
+     * 🔴 **어느 쪽 도착인지는 경로가 안다** — `auto-arrived` 가 `stopType` 을 싣고 오고
+     *    (`planArrivalStops` 가 정거장 목록에서 뽑는다), 단계표도 `stop` 을 들고 있다.
+     *    여기서 다시 판단하지 않는다 (규칙 ③).
+     */
+    useEffect(() => {
+        if (!arrival || arrival.orderId !== route.id || !arrival.stopType || !seededSteps) return;
+        const want = arrival.stopType === 'pickup' ? 'ARRIVE_PICKUP' : 'ARRIVE_DROPOFF';
+        const i = seededSteps.findIndex(x => x.step === want);
+        if (i >= 0) setStepNav(i);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [arrival?.tick, seededSteps?.length]);
 
     /* 🏗️ deriveCallStep(옛 진행도)도 옛 시트와 함께 철거 — 현재 단계는 stepCurIdx(단계 행의 status)가 정한다 */
 

@@ -122,4 +122,33 @@ describe('S13·S14·S15 — 마중은 «그 콜의 그 단계»까지다', () =>
         /* 🔴 높이는 안 건드린다 — 정하는 손은 하나다 (S6) */
         expect(view.slice(i, i + 400)).not.toMatch(/setSnap\(/);
     });
+
+    /**
+     * 🎯 **스텝과 아코디언은 다른 것이다** (기사님 지시 2026-09-12).
+     *
+     * 기사님: *"**스텝과 아코디언을 구분해야지** 그걸 뭉뚱그려 하니까 안 되는 거야.
+     * KEEP 은 시트(다)와 생성된 아코디언(**상차지 통화**) 이렇게 정의되어야 하는 거 아냐?"*
+     *
+     * 사건은 셋을 정한다 — **높이 · 어느 콜 · 어느 단계**. 그런데 코드는 앞의 둘만 정했고,
+     * 스텝은 **장부**가 정했다(`stepCurIdx` = 끝난 단계의 다음). 그래서 GPS 도착이 찍히는
+     * 순간 그 단계가 **같은 밀리초에 끝나** 기사님은 도착 스텝을 한 프레임도 못 보셨다.
+     */
+    it('🔴 도착하면 «그 도착 단계»를 보여 준다 — 장부는 안 건드린다', () => {
+        const card = codeOnly(read('components/dashboard/PinnedRouteCard.tsx'));
+        /* 경로가 낸 «어느 쪽»을 그대로 쓴다 — 여기서 다시 판단하지 않는다 */
+        expect(card).toMatch(/arrival\.stopType === 'pickup' \? 'ARRIVE_PICKUP' : 'ARRIVE_DROPOFF'/);
+        /* 화면이 보여줄 단계만 옮긴다 — 장부(stepCurIdx)는 그대로다 */
+        expect(card).toMatch(/setStepNav\(i\)/);
+        /* 그 효과 **안**에서 장부를 안 건드린다 — 화면이 볼 자리만 옮긴다 */
+        const i = card.indexOf('if (!arrival || arrival.orderId !== route.id');
+        expect(i).toBeGreaterThan(-1);
+        expect(card.slice(i, card.indexOf('}, [arrival', i))).not.toMatch(/setSeededSteps|stepCurIdx\s*=/);
+    });
+
+    it('🔴 «어느 쪽 도착인가»는 경로가 낸다 — 단계표가 그 말을 안다', () => {
+        /* 서버가 `stopType` 을 싣고(planArrivalStops), 단계표도 `stop` 을 들고 있다 */
+        const tables = readFileSync(join(__dirname, '../../../shared/src/stepTables.ts'), 'utf8');
+        expect(tables).toMatch(/step: 'ARRIVE_PICKUP'[\s\S]{0,80}stop: 'pickup'/);
+        expect(tables).toMatch(/step: 'ARRIVE_DROPOFF'[\s\S]{0,80}stop: 'dropoff'/);
+    });
 });

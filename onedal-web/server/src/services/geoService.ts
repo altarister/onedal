@@ -971,6 +971,9 @@ export function processDriverMovement(
         } else if (movedKm >= GPS_LOG_MIN_KM) {
             console.log(`📍 [위치] ${currentGPS.x.toFixed(4)},${currentGPS.y.toFixed(4)} ` +
                 `· ${(movedKm * 1000).toFixed(0)}m 이동 · ${Math.round(kmh)}km/h · 출처 ${src}`);
+        } else if (stopped) {
+            /* ⏸️ 서 있는 것도 «사실»이라 남긴다 — 안 찍으면 «좌표가 왔는지»를 되짚을 수 없다 */
+            console.log(`⏸️ [정차] ${currentGPS.x.toFixed(4)},${currentGPS.y.toFixed(4)} · 같은 자리 · 출처 ${src}`);
         }
     }
     /**
