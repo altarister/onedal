@@ -48,8 +48,15 @@ describe('buildOrderSync — 진행/종료 분리', () => {
 
     it('빈 세션도 안전하다', () => {
         // 0831 — 경로 홀더 이름이 봉투에 들어왔다 (빈 세션이면 null · 잔상 수리)
+        /**
+         * 🧭 **2026-09-12 — 경로 기점 한 칸이 늘었다.** 관제웹이 서버 위치를 받을 문이 하나도
+         *    없어서 지도가 제 손으로 위치를 정했고, 서버가 아는 자리와 17.6km 어긋난 판이
+         *    있었다. 정거장 순서를 짠 그 기점과 **한 벌**로 보낸다 (`helpers.ts` 주석 참조).
+         *    빈 세션이면 좌표를 받은 적이 없으니 **둘 다 null** 이다 — 지어내지 않는다 (규칙 ④).
+         */
         expect(buildOrderSync(makeSession([]))).toEqual({ active: [], terminated: [], routeStops: [], routeComputedAt: null, routeHolderId: null,
-            previewRouteHolderId: null, cancelCounts: {}, cancelRounds: {} });
+            previewRouteHolderId: null, cancelCounts: {}, cancelRounds: {},
+            routeOrigin: null });
     });
 });
 

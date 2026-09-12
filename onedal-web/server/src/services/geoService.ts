@@ -836,6 +836,54 @@ export function originOf(
 }
 
 /**
+ * 📍 **마지막으로 아는 자리 — «내가 지금 어디 있나»의 답** (2026-09-12 · 기사님 확정).
+ *
+ * ── `originOf` 와 무엇이 다른가 ──
+ * 한 값이 **두 질문에 답하고 있었다** (규칙 ⑤-4 ⑤):
+ *
+ * | 질문 | 답하는 함수 | 모를 때 |
+ * |---|---|---|
+ * | 경로를 **어디서부터 짤까** | `originOf` | **집**을 넣는다 — 출발점이 없으면 계산이 안 된다 |
+ * | 내가 **지금 어디 있나** | 이 함수 | **모른다**(`null`) — 지어내지 않는다 (규칙 ④) |
+ *
+ * 🔴 **낡아도 집으로 바꾸지 않는다.** 터널·주차장에서 5분 끊긴 것뿐인데 지도가 집으로
+ *    날아가면, 운전 중 1~2초 흘끗 보는 화면이 통째로 튄다. **그물은 더 심하다** —
+ *    이천에 있는데 파주 콜이 올라온다 (기사님 확정: 지도·그물 둘 다 «마지막 실제 위치»).
+ * 🔴 **낡았다는 사실은 버리지 않고 «표시»로 싣는다** — `isStale`·`ageMs`.
+ *    화면이 «12분 전 위치»라고 적을 수 있어야 숫자가 거짓말을 안 한다 (규칙 ⑤-2).
+ * ⚠️ **`originOf` 의 5분 규칙은 그대로다.** 그것은 실제 사고에서 나온 방어이고
+ *    (여주 4시간 25분 · `staleDriverLocation.test.ts`), 그 질문에는 옳은 답이다.
+ */
+export interface LastKnownPosition {
+    x: number; y: number;
+    /** 받은 시각 (ms) */ at: number;
+    /** 얼마나 묵었나 (ms) — 화면이 «N분 전»을 적는 재료 */ ageMs: number;
+    /** `originOf` 가 «기점으로 쓰기엔 낡았다»고 볼 만큼인가 */ isStale: boolean;
+    source: 'gps' | 'mock' | 'manual';
+}
+
+export function lastKnownPositionOf(
+    session: {
+        lastFix: { x: number; y: number } | null;
+        lastFixAt: number | null;
+        lastFixSource?: 'gps' | 'mock' | 'manual';
+    },
+    nowMs: number = Date.now(),
+): LastKnownPosition | null {
+    const fix = session.lastFix;
+    /* 🔴 **시각을 모르면 없는 것으로 본다** — 나이를 못 재면 «신선하다»고 우길 수 없다 */
+    if (!fix || session.lastFixAt == null) return null;
+    const ageMs = nowMs - session.lastFixAt;
+    return {
+        x: fix.x, y: fix.y,
+        at: session.lastFixAt,
+        ageMs,
+        isStale: ageMs > DRIVER_LOCATION_STALE_MS,
+        source: session.lastFixSource ?? 'gps',
+    };
+}
+
+/**
  * 도착 판정 한 틱 — **순수 함수** (L2 검증용).
  * 속도를 모르면(null) 정지로 치지 않는다 — 없는 숫자를 지어내지 않는다 (규칙 ④).
  */

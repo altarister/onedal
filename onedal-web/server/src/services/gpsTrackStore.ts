@@ -1,3 +1,4 @@
+import { restoreWindow } from '@onedal/shared';
 import db from '../db';
 import { haversineKm } from './geoService';
 
@@ -230,6 +231,30 @@ export function trackOfOrder(userId: string, orderId: string): TrackPoint[] {
         SELECT at_ms, x, y, source, speed_kmh, speed_multiplier, order_id, stop_type
         FROM gps_tracks WHERE user_id = ? AND order_id = ? ORDER BY at_ms
     `).all(userId, orderId).map(rowToPoint);
+}
+
+/**
+ * 📍 **마지막으로 찍힌 점 — 서버가 다시 떴을 때 «내가 어디 있었나»를 되살린다** (2026-09-12).
+ *
+ * ── 왜 ──
+ * 세션의 `lastFix` 는 **메모리에만 산다.** 18:56 에 이천에서 주행이 끝나고 20:11 에 서버가
+ * 다시 뜨자 «좌표를 한 번도 받은 적 없는» 상태가 됐고, PC 지도의 「현위치」가 **집**을
+ * 가리켰다 — 차는 이천에 있는데. **점은 이 표에 그대로 있었다.**
+ *
+ * 🔴 **영업일 밖은 안 준다** — 어제 자리에서 오늘 콜을 재면 그물이 통째로 어긋난다
+ *    (규칙 ③: 어제 상태가 오늘 되살아나지 않는다). 경계는 콜 복구가 쓰는 `restoreWindow`
+ *    와 **같은 것**을 쓴다 — 판단을 두 벌로 두지 않는다.
+ * ⚠️ **부르는 쪽에 «오늘인가»를 미루지 않는다.** 미루면 한 곳이 잊는다.
+ */
+export function lastTrackPointOf(userId: string, nowMs: number = Date.now()): TrackPoint | null {
+    const { todayStartIso } = restoreWindow(nowMs);
+    const since = Date.parse(todayStartIso);
+    const row = db.prepare(`
+        SELECT at_ms, x, y, source, speed_kmh, speed_multiplier, order_id, stop_type
+        FROM gps_tracks WHERE user_id = ? AND at_ms >= ?
+        ORDER BY at_ms DESC LIMIT 1
+    `).get(userId, since);
+    return row ? rowToPoint(row) : null;
 }
 
 /** 궤적이 붙은 콜 목록 — 콜별 점 수·구간. 어느 콜의 궤적을 열어 볼지 고르는 입구다 */

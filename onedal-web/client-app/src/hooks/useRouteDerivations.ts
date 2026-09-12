@@ -7,6 +7,8 @@ import { useJudgmentStore } from '../stores/judgmentStore';
 import { useGpsFocusStore, ensureGpsFocusSubscribed } from '../stores/gpsFocusStore';
 import { loadScreenSettings } from '../stores/settingsStore';
 import { useDrivenTrailStore, ensureDrivenTrailSubscribed, clearDrivenTrail } from '../stores/drivenTrailStore';
+/* 📍 서버가 아는 «내 자리» — 화면이 제 손으로 정하지 않는다 (2026-09-12) */
+/* 📍 구독은 현황판 쪽에서 건다 — 지도는 이 값을 아직 안 쓴다 (위 🗑️ 주석) */
 import { useFilterConfig } from './useFilterConfig';
 import { useMasterGps } from './useMasterGps';
 import { callLineColor } from '../styles/callPalette';
@@ -142,6 +144,27 @@ export function useRouteDerivations(
     useEffect(() => {
         if (currentGps) setMyLocation({ x: currentGps.lng, y: currentGps.lat });
     }, [currentGps]);
+
+    /**
+     * 🗑️ **«서버가 아는 자리를 지도가 따른다»를 껐다** (2026-09-12 · 기사님 지시).
+     *
+     * ── 무엇이 났나 ──
+     * PC 지도가 집을 가리키는 것(서버와 17.6km 어긋남)을 고치려고 `myPosition` 을 따르게
+     * 했더니 **모의 주행이 멈췄다.** 위치는 1초마다 바뀌는데 봉투는 «콜이 바뀔 때»만 와서,
+     * 봉투가 올 때마다 옛 좌표가 내 점을 뒤로 당겼다. 가벼운 이벤트(`driver-position`)로
+     * 옮겨 그건 풀렸지만, 이번엔 **그물 재계산**이 걸렸다 — 이 값은 `useCallNet` 도 먹는다.
+     *
+     * 🔴 **위치 하나를 여섯이 읽는다** (지도·그물·도착 감지·지나온 구간·궤적·경로 기점).
+     *    하나를 건드리면 여섯이 흔들린다 — 그런데 고치려던 것(«PC 지도가 집을 가리킨다»)은
+     *    **운행에 당장 지장이 없는 일**이었다. 가장 위험한 자리를 가장 안 급한 이유로
+     *    건드린 것이라, 잇는 것을 뒤로 미룬다.
+     *
+     * ── 지금 상태 ──
+     * 서버는 **준비된 채 조용하다** — `driver-position` 을 쏘고 봉투에 `routeOrigin` 을
+     * 싣지만 **지도·그물은 안 듣는다.** 현황판만 «서버가 아는 내 자리»를 **보여준다**(읽기 전용).
+     * 🔴 **다시 이을 때는 화면에서 그 값을 하루 보고 나서** 잇는다 — 오늘 문제는 값이
+     *    틀려서가 아니라 **검증 없이 지도에 이어서** 났다.
+     */
 
     /**
      * 🖥️ 다음 정거장에 가까워지면 그 콜 화면으로 (기사님 2026-08-19).

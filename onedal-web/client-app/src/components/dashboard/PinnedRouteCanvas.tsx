@@ -167,6 +167,13 @@ interface Props {
      *  계약을 좁히면 거르기를 잊을 자리가 없어진다 (2026-08-10 전수조사) */
     liveRoute: SecuredOrder[];
     myLocation: { x: number, y: number } | null;
+    /**
+     * 📍 **이 자리를 언제·무엇으로 받았나** (2026-09-12 · 기사님 확정).
+     *    낡았으면 **흐리게** 그린다 — 지우지도, 집으로 옮기지도 않는다.
+     *    *"GPS 가 30초 끊겼다고 지도가 집으로 날아가면 최악"* — 운전 중 1~2초 흘끗 보는
+     *    화면이 통째로 튄다. 마지막 자리는 몇 km 어긋날 뿐이고 집보다 비교가 안 되게 가깝다.
+     */
+    myLocationStale?: boolean;
     children?: React.ReactNode;
     /** 🎭 무대 배경일 때 — 부모를 가득 채운다 (기본 h-64는 옛 화면용) */
     fill?: boolean;
@@ -200,7 +207,7 @@ interface Props {
     rainbowNodes?: boolean;
 }
 
-export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLocation, children, fill, visitedTrail, callColors, onStopTap, drivenTrail, routeHolder, coneOverlay, netOverlay, occludedPx, rainbowNodes = true }: Props) {
+export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLocation, myLocationStale, children, fill, visitedTrail, callColors, onStopTap, drivenTrail, routeHolder, coneOverlay, netOverlay, occludedPx, rainbowNodes = true }: Props) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const { theme } = useTheme();
     const mapColors = MAP_THEME_COLORS[theme];
@@ -792,18 +799,31 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         if (myLocation) {
             const { cx, cy } = getScreenPt(myLocation);
 
+            /**
+             * 📍 **낡은 자리는 흐리게 — 옮기지도 지우지도 않는다** (기사님 확정 2026-09-12).
+             *
+             * 🔴 **맥박(퍼지는 원)은 «지금 여기 있다»는 말**이다. 낡았으면 그 말을 멈춘다 —
+             *    숨 쉬는 마커가 12분 전 자리에서 뛰고 있으면 화면이 거짓말한다 (규칙 ⑤-2).
+             * ⚠️ 그래도 **점은 남긴다.** 지우면 «어디 있는지 아무 단서가 없는» 화면이 되고,
+             *    마지막 자리는 집보다 비교가 안 되게 가깝다.
+             */
             const time = Date.now() / 1000;
             const pulseRadius = 15 + Math.sin(time * 3) * 5;
 
-            ctx.beginPath();
-            ctx.arc(cx, cy, pulseRadius, 0, 2 * Math.PI);
-            ctx.fillStyle = withAlpha(mapColors.myLocationPulse, 0.2);
-            ctx.fill();
+            if (!myLocationStale) {
+                ctx.beginPath();
+                ctx.arc(cx, cy, pulseRadius, 0, 2 * Math.PI);
+                ctx.fillStyle = withAlpha(mapColors.myLocationPulse, 0.2);
+                ctx.fill();
+            }
 
             ctx.beginPath();
             ctx.arc(cx, cy, 6, 0, 2 * Math.PI);
-            ctx.fillStyle = mapColors.myLocationPulse;
-            ctx.strokeStyle = mapColors.myLocationStroke;
+            ctx.fillStyle = myLocationStale
+                ? withAlpha(mapColors.myLocationPulse, 0.45)   // 흐리게 — «여기 있었다»
+                : mapColors.myLocationPulse;
+            ctx.strokeStyle = myLocationStale
+                ? withAlpha(mapColors.myLocationStroke, 0.5) : mapColors.myLocationStroke;
             ctx.lineWidth = 1.5;
             ctx.fill();
             ctx.stroke();

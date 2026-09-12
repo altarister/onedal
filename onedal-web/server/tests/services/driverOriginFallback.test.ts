@@ -155,8 +155,15 @@ describe('가상 좌표는 운행 국면을 벗어나면 «지금 위치»가 �
  *    비우고 채우는 손이 있었기 때문이다. 지금은 **비울 것도 채울 것도 없다** —
  *    `originOf` 가 물을 때마다 고르므로 그 짝을 맞출 일이 사라졌다 (기사님 지시).
  *
- * 🔴 대신 이것을 문다: **원자료를 기점으로 곧장 쓰지 않는다.** `session.lastFix` 를
+ * 🔴 대신 이것을 문다: **원자료를 기점으로 곧장 «읽지» 않는다.** `session.lastFix` 를
  *    그대로 읽으면 낡은 좌표·빈 차의 가짜 좌표가 그대로 경로 기점이 된다.
+ *
+ * ⚠️ **읽기와 쓰기는 다르다** (2026-09-12 — 이 검사가 오탐을 냈다).
+ *    서버가 다시 뜰 때 `gps_tracks` 의 마지막 점으로 `session.lastFix` 를 **되살리는**
+ *    코드가 들어오자 이 검사가 빨간불을 냈다. 그건 **채우는 손**이지 «기점으로 읽는 손»이
+ *    아니다 — 되살린 좌표도 결국 `originOf` 가 5분 문턱으로 다시 거른다.
+ *    🔴 **느슨하게 풀지 않는다.** «= 로 채우는 줄»만 빼고 나머지는 그대로 문다 —
+ *       풀어 버리면 진짜 위반(원자료를 그대로 기점 삼기)도 함께 통과한다.
  */
 import fs from 'fs';
 import path from 'path';
@@ -167,8 +174,15 @@ describe('규칙: 기점은 originOf 로만 읽는다', () => {
             const code = fs.readFileSync(path.join(SRC, rel), 'utf-8')
                 .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
             expect(code).toContain('originOf(');
-            /* 🔴 원자료를 기점으로 곧장 쓰지 않는다 */
-            expect(code).not.toMatch(/session\.lastFix(?!\w)/);
+            /**
+             * 🔴 원자료를 기점으로 곧장 **읽지** 않는다.
+             *    «`session.lastFixXxx = …`» 처럼 **채우는 줄은 뺀다** — 복구가 그 자리다.
+             *    (`===`·`!==` 같은 비교는 채우기가 아니므로 `=` 뒤에 `=` 가 오면 안 센다)
+             */
+            const reads = code.split('\n')
+                .filter(l => /session\.lastFix(?!\w)/.test(l))
+                .filter(l => !/session\.lastFix\w*\s*=[^=]/.test(l));
+            expect(reads).toEqual([]);
         });
     }
 });

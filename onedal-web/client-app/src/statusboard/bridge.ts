@@ -38,6 +38,11 @@ export { useFilterConfig } from '../hooks/useFilterConfig';
 export { useDeviceStore } from '../stores/deviceStore';
 export { summarizeTally } from '../lib/filterTally';
 export { apiBase } from '../lib/serverTarget';
+/**
+ * 📍 **서버가 아는 «내 자리»** (2026-09-12) — 화면이 제 손으로 정한 값과 대조해
+ *    «지도와 서버가 다른 곳을 본다»를 잡는다. 그 어긋남이 실제로 17.6km 였다.
+ */
+export { useDriverPositionStore, ensureDriverPositionSubscribed } from '../stores/driverPositionStore';
 /* ── 🧪 **여기부터 셋은 «테스트용»이다 — 어드민으로 갈 때 함께 걷는다** ──
    (기사님 지시 2026-09-12: *"모의 주행과 내 위치의 주소찾기, 집주소 이렇게 3개의 모듈은
     어드민때는 없어져야 하는것들이야"*)

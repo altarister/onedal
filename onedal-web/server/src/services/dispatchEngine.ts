@@ -9,13 +9,15 @@ import { geocodeAddress, calculateSoloRoute, calculateDetourRoute, compareDirect
 import { fetchRealWorldRoute } from "../routes/osrmUtil";
 import { getUserSession, clearOrderTimers } from "../state/userSessionStore";
 import { updateActiveFilter, rememberDetourProgress, recalculateDetourFilter, goalCityOf, homeCityOf } from "../state/filterManager";
-import { getDetourRegions, getCityRegionsWithRadius, reverseGeocodeToRegion, haversineKm, originOf } from "../services/geoService";
+import { getDetourRegions, getCityRegionsWithRadius, reverseGeocodeToRegion, haversineKm, originOf, lastKnownPositionOf } from "../services/geoService";
 import { composeMergedRoute, applyRoute, applySoloRoute, measureSoloDelivery, pickRouteHolder, toKm, toMin, hasVisitedStop, snapshotRoute, restoreRouteSnapshot, parsePolyline } from "./routeComposer";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { DISPATCH_CONFIG } from "../config/dispatchConfig";
 import db from "../db";
 import { countCancel, countKeep } from "../core/cancelCount";
 import { OrderRepository } from "../repositories/OrderRepository";
+/* 📍 서버가 다시 떠도 «내가 어디 있었나»를 잃지 않는다 (2026-09-12) */
+import { lastTrackPointOf } from "./gpsTrackStore";
 import { PlaceRepository } from "../repositories/PlaceRepository";
 import { SettingsRepository } from "../repositories/SettingsRepository";
 import { PricingEngine } from "../core/engine/PricingEngine";
@@ -775,6 +777,32 @@ export async function bootstrapUserSession(userId: string, io: any): Promise<voi
          * **GPS 가 들어오면 그 값이 언제나 이긴다** (dashboard-gps-update).
          * 추정으로 계산했다는 사실은 `originIsFallbackLEGACY` 으로 숨기지 않는다.
          */
+
+        /**
+         * 📍 **«내가 어디 있었나»도 되살린다** (2026-09-12 실측).
+         *
+         * ── 왜 ──
+         * 세션의 `lastFix` 는 **메모리에만 산다.** 18:56 에 이천에서 주행이 끝나고
+         * 20:11 에 서버가 다시 뜨자 «좌표를 한 번도 받은 적 없는» 상태가 됐고,
+         * PC 지도의 「현위치」가 **광주 초월읍(집)** 을 가리켰다 — 차는 이천에 있는데.
+         * **점은 `gps_tracks` 에 그대로 있었다** (「칸은 있는데 안 읽는다」 · 이 레포의 단골).
+         *
+         * 🔴 **경로 기점은 이걸로 안 바뀐다.** `originOf` 는 5분 문턱을 그대로 보므로
+         *    낡은 좌표면 여전히 집을 고른다 (여주 4시간 25분 사고 방어).
+         *    되살리는 것은 **«내가 어디 있나»의 답**이고, 그건 지도·그물이 읽는다.
+         * ⚠️ 영업일 밖 점은 `lastTrackPointOf` 가 안 준다 — 어제 자리가 오늘 살아나지 않는다.
+         */
+        const lastPt = lastTrackPointOf(userId);
+        /* 🔴 «이미 아는 자리가 있나»도 **파생 함수로 묻는다** — 원자료(`lastFix`)를 직접
+           읽으면 «기점은 `originOf` 로만 읽는다» 규칙과 구분이 안 된다 (그 검사가 잡았다) */
+        if (lastPt && !lastKnownPositionOf(session)) {
+            session.lastFix = { x: lastPt.x, y: lastPt.y };
+            session.lastFixAt = lastPt.atMs;
+            session.lastFixIsMock = lastPt.source === 'mock';
+            session.lastFixSource = (lastPt.source as 'gps' | 'mock' | 'manual') ?? 'gps';
+            console.log(`📍 [위치 복구] ${new Date(lastPt.atMs).toLocaleTimeString('ko-KR')} 의 마지막 점 — `
+                + `${lastPt.x.toFixed(5)}, ${lastPt.y.toFixed(5)} (출처 ${lastPt.source})`);
+        }
 
         await restoreAndRecalculateSession(userId, io);   // ②③④ (DB 로드 → 카카오 노선 → 상태 파생)
         rebuildDestinationKeywords(userId, io);           // ⑤ (활성 콜 유무로 경유/도시 분기)

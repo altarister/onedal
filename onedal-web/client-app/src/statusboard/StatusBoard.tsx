@@ -33,10 +33,11 @@ import { APP_FILTER_KEYS, FILTER_FIELDS, isEvaluating, isTerminal, workStageLabe
 import type { SecuredOrder, DeviceSession, DeviceModeType } from '@onedal/shared';
 /* 🌉 관제웹 안쪽은 **다리 하나**로만 본다 — 옮길 때 `bridge.ts` 만 새로 쓰면 된다 */
 import { useFilterConfig, useDeviceStore, summarizeTally, apiBase,
-         useMockDriveStore, MOCK_DRIVE_SPEEDS, MOCK_DRIVE_DEFAULTS, publishLocation, apiClient } from './bridge';
+         useMockDriveStore, MOCK_DRIVE_SPEEDS, MOCK_DRIVE_DEFAULTS, publishLocation, apiClient,
+         useDriverPositionStore, ensureDriverPositionSubscribed } from './bridge';
 /* ⚖️ **앱이 내린 판정을 읽는다** — 여기서 다시 재지 않는다 (`callVerdict.ts` 머리 참조).
    2026-09-12 에 사본(`recheck.ts`)을 지우고 이것으로 갈아탔다 */
-import { viewOfVerdict, tallyMarks, MARK_SIGN } from './callVerdict';
+import { viewAll, tallyMarks, MARK_SIGN } from './callVerdict';
 /* 🔴 서버 주소를 손으로 적지 않는다 — `apiBase()` 를 거친다.
    2026-09-07 에 `/api` 가 두 번 붙어 실경로가 늘 직선으로 그려진 사고가 있었다 */
 
@@ -159,6 +160,14 @@ function Card({ title, note, children, tall, fold = true, defaultOpen = true }: 
             {(!fold || open) && <div className={tall ? 'max-h-[228px] overflow-y-auto' : ''}>{children}</div>}
         </section>
     );
+}
+
+/** 📏 두 점 사이 km — **판정이 아니라 «얼마나 다른가»를 적으려는 표시다** */
+function haversineKmOf(a: { x: number; y: number }, b: { x: number; y: number }): number {
+    const R = 6371, rad = (d: number) => d * Math.PI / 180;
+    const dLat = rad(b.y - a.y), dLon = rad(b.x - a.x);
+    const s = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.y)) * Math.cos(rad(b.y)) * Math.sin(dLon / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(s));
 }
 
 /** 🕐 시각을 사람이 읽는 모양으로 — **표시**일 뿐 값을 만드는 것이 아니다 */
@@ -617,7 +626,8 @@ function ScrapIntelCard({ activeRoute }: { activeRoute?: SecuredOrder[] }) {
      * 🔴 **여기서 다시 재지 않는다.** 2026-09-12 까지는 사본이 있었고 앱과 갈라졌다.
      */
     const shown = (rows ?? []).filter(r => sinceId == null || (r.id ?? 0) > sinceId);
-    const judged = shown.map(r => ({ r, v: viewOfVerdict(r, activeRoute ?? []) }));
+    /* 🔴 **한 번에 본다** — 쥔 콜을 한 줄에만 붙이려면 목록 전체를 함께 봐야 한다 */
+    const judged = viewAll(shown, activeRoute ?? []).map(({ row, v }) => ({ r: row, v }));
     const sum = tallyMarks(judged.map(j => j.v.mark));
 
     return (
@@ -866,6 +876,14 @@ export default function StatusBoard({ activeRoute }: Props) {
     const devices = useDeviceStore(st => st.devices);
     const [health, setHealth] = useState<Health | null>(null);
     const driverLoc = useDriverLocation();
+    /**
+     * 📍 **서버가 아는 «내 자리»를 보여 준다 — 읽기만 한다** (2026-09-12).
+     *    🔴 지도·그물은 이 값을 **아직 안 쓴다** — 이으려다 모의 주행이 멈췄고, 그물 재계산
+     *       위험도 걸렸다 (`useRouteDerivations` 의 🗑️ 주석). **여기서 하루 보고 나서** 잇는다.
+     *    ⚠️ 구독을 여기서 건다 — 지도 쪽이 손을 뗐으므로 듣는 곳이 이 한 곳이다.
+     */
+    useEffect(() => { ensureDriverPositionSubscribed(); }, []);
+    const driverPos = useDriverPositionStore();
 
     /**
      * 📐 **두 쪽을 나란히 둘 자리가 되나** — 재는 것은 **패널 제 폭**이다.
@@ -928,7 +946,29 @@ export default function StatusBoard({ activeRoute }: Props) {
             key: 'mismatch',
             side: 'server',
             node: (() => {
+                /* 📢 **고장이 아닌데 알아야 하는 것** — 빨간 줄과 섞지 않는다 (오탐이 쌓이면 아무도 안 본다) */
+                const note: { k: string; v: string }[] = [];
                 const bad: { k: string; v: string }[] = [];
+                /**
+                 * 📍 **경로 기점과 내 자리가 왜 다른가** (2026-09-12).
+                 *
+                 * 🔴 **둘이 다른 것은 고장이 아닐 수 있다.** `originOf` 는 좌표가 5분 넘게
+                 *    낡으면 **집**을 고른다 — 콜 없이 모의 주행을 돌리면 «기점은 집,
+                 *    내 자리는 이천»이 **정상**이다. 그걸 거리로 재서 빨간 줄을 띄우면
+                 *    **오탐이 반복되고, 그러면 진짜 어긋남이 왔을 때 아무도 안 본다.**
+                 * 🔴 그래서 **`isFallback` 이면 어긋남이 아니라 «알림»**으로 적는다 —
+                 *    «경로를 집에서 짜는 중»은 알아야 하는 사실이지 고장이 아니다.
+                 */
+                const pos = driverPos.myPosition, org = driverPos.routeOrigin;
+                if (org?.isFallback) {
+                    note.push({ k: '경로 기점', v: '🏠 집에서 짜는 중 — 좌표가 5분 넘게 안 왔다' });
+                } else if (pos && org) {
+                    const km = haversineKmOf(pos, org);
+                    if (km > 1) bad.push({ k: '지도 ↔ 경로', v: `${km.toFixed(1)}km 어긋났다` });
+                }
+                if (pos?.isStale) {
+                    note.push({ k: '내 위치', v: `${Math.round(pos.ageMs / 60000)}분 전 자리 — 흐리게 그린다` });
+                }
                 if (!health) bad.push({ k: '서버', v: '못 붙었다 — 로그가 조용하면 다른 서버를 보는 것' });
                 if (!filter) bad.push({ k: '필터', v: '소켓으로 아직 안 왔다' });
                 else {
@@ -964,6 +1004,8 @@ export default function StatusBoard({ activeRoute }: Props) {
                         {bad.length === 0
                             ? <Row k="지금" v="서버 · 필터 · 폰 모두 짝이 맞는다" tone="ok" />
                             : bad.map((b, i) => <Row key={`${b.k}${i}`} k={b.k} v={b.v} tone="warn" />)}
+                        {/* 📢 알림 — 고장은 아니지만 «왜 이런가»를 설명하는 줄 */}
+                        {note.map((n, i) => <Row key={`n${n.k}${i}`} k={n.k} v={n.v} />)}
                     </Card>
                 );
             })(),

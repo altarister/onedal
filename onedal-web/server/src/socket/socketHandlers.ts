@@ -10,6 +10,7 @@ import { cargoMismatchRatio, DEFAULT_DETOUR_RADIUS_KM, PHASE_KEYS, judgmentFromR
 import db, { forgetCallOptions, loadCallOptions } from "../db";
 import { OrderRepository } from "../repositories/OrderRepository";
 import { PlaceRepository } from "../repositories/PlaceRepository";
+import { lastKnownPositionOf } from "../services/geoService";
 import { getUserSession, getAllActiveUserIds } from "../state/userSessionStore";
 import { buildOrderSync } from "../core/helpers";
 import { recalculateDetourFilter, handleDecision, recalculateKakaoRoute, bootstrapUserSession, reportMilestone, undoMilestone, setCallTarget, createHomeReturn } from "../services/dispatchEngine";
@@ -500,6 +501,26 @@ export function registerSocketHandlers(io: Server) {
                 /* ⏸️ «지금 서 있다» — 궤적이 정차를 남길 수 있게 (문턱을 안 본다) */
                 loc.stopped,
             );
+
+            /**
+             * 📍 **위치만 나르는 가벼운 길** (2026-09-12 · 기사님 지시로 되돌려 다시 놓음).
+             *
+             * ── 왜 따로 내나 ──
+             * 처음엔 `sync-active-orders` 봉투에 얹었다. **그게 틀렸다** — 그 봉투는
+             * «콜이 바뀔 때» 나가는데 위치는 **1초마다** 바뀐다. 화면이 봉투의 값을 따르게
+             * 해 놓으니, 봉투가 올 때마다 **옛 좌표가 내 점을 뒤로 당겨** 모의 주행이
+             * 멈춘 것처럼 보였다 (기사님 실측). **값마다 제 시점이 있다** (규칙 ⑤-4 ③).
+             *
+             * 🔴 **봉투를 1초마다 보내지 않는다** — 그 페이로드는 초당 474KB 로 무거웠던
+             *    이력이 있다(종료 콜 폴리라인을 떼어 고쳤다). 여기 싣는 것은 숫자 몇 개뿐이라
+             *    **한 번에 100바이트도 안 된다.**
+             * 🔴 **여기서 emit 한다** — 좌표가 서버로 들어오는 문은 이 핸들러 **하나**다.
+             *    다른 자리에서 또 쏘면 «두 곳에서 쏘던» 사고가 되살아난다.
+             * ⚠️ `routeOrigin` 은 봉투에 그대로 둔다 — 그건 **정거장 순서를 짠 기점**이라
+             *    경로와 한 벌이다. 위치와 시점이 다르다.
+             */
+            const pos = lastKnownPositionOf(session);
+            if (pos) io.to(userId).emit("driver-position", pos);
         });
 
         // 배차 심사 수락/거절

@@ -109,6 +109,24 @@ export function useCallNet(i: CallNetInput): CallNet | null {
         () => (polyline?.length ?? 0) >= 2 ? `${polyline!.length}:${polyline![0].x},${polyline![polyline!.length - 1].y}` : '',
         [polyline]);
 
+    /**
+     * 📍 **내 위치를 ~300m 격자로 굳힌다 — 목업이 이미 쓰는 방어다** (이식 2026-09-12).
+     *
+     * ── 왜 지금 필요해졌나 ──
+     * 여태 실물에서는 이 값이 거의 안 바뀌었다 — 클라 GPS 가 없으면 **집 좌표로 고정**이라
+     * 재계산이 아예 없었다. 2026-09-12 에 위치가 **서버에서 1초마다** 오게 되면서
+     * 그 전제가 깨졌다. 좌표가 매초 바뀌면 아래 `useMemo` 가 매초 통째로 다시 돈다 —
+     * `buildLineNet` 은 라인이 길면(대전~김포) **수천만 연산**이다.
+     *
+     * 🔴 **어제 목업에서 그 사고가 실측됐다** (`f7a5564`): 앵커가 매 틱 새 값이라
+     *    그물 만들기가 매 틱 재실행 → 프레임 p95 **183ms**. 격자 스냅으로 **50ms** 가 됐다.
+     *    그 고침은 `MapMockup.tsx` 에만 들어갔고 **여기에는 없었다** — 지금 옮긴다.
+     * ⚠️ **판정이 거칠어지지 않는다.** 그물 반경은 km 단위라 300m 눈금은 경계에 못 미친다.
+     *    정밀 좌표가 필요한 곳(거리 재기·지도 마커)은 `myLocation` 을 그대로 쓴다.
+     */
+    const gridX = myLocation ? Math.round(myLocation.x * 300) / 300 : null;
+    const gridY = myLocation ? Math.round(myLocation.y * 300) / 300 : null;
+
     return useMemo(() => {
         if (!destinationCity || !myLocation) return null;
         const goal = cityCenter(destinationCity);
@@ -148,6 +166,7 @@ export function useCallNet(i: CallNetInput): CallNet | null {
         });
         return { net: { ...net, pass: merged.pass, groups: merged.groups, count: merged.count }, usedLine: !!line, goal };
         // eslint-disable-next-line react-hooks/exhaustive-deps -- polyline 은 lineKey 로 굳혀 본다 (위 주석)
-    }, [destinationCity, myLocation?.x, myLocation?.y, pickupRadiusKm, destinationRadiusKm, lineRadiusKm, lineKey,
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- 내 위치는 격자(gridX·gridY)로 굳혀 본다 (위 주석)
+    }, [destinationCity, gridX, gridY, pickupRadiusKm, destinationRadiusKm, lineRadiusKm, lineKey,
         srcAngleDeg, dstAngleDeg, quadRadiusKm, excludedKey, routeMode, localMode]);
 }

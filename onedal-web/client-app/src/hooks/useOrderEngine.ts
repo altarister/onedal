@@ -1,5 +1,6 @@
 import { verdictOf } from '../lib/verdict';
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { setRouteOrigin } from '../stores/driverPositionStore';
 import { socket } from "../lib/socket";
 import { apiBase } from "../lib/serverTarget";   // 🎯 주소를 정하는 곳은 하나다 (규칙 ③)
 import type { SecuredOrder, OrderSyncPayload, RouteStopInfo } from "@onedal/shared";
@@ -315,6 +316,13 @@ export function useOrderEngine() {
             setRouteComputedAt(payload.routeComputedAt ?? null);
             setRouteHolderId(payload.routeHolderId ?? null);
             setPreviewRouteHolderId(payload.previewRouteHolderId ?? null);
+            /**
+             * 🧭 **경로 기점만 여기서 받는다** — `routeStops` 를 짠 그 기점이라 **한 벌**이다.
+             *    ⚠️ 위치(`myPosition`)는 **여기 안 온다.** 봉투는 «콜이 바뀔 때» 나가는데 위치는
+             *       1초마다 바뀐다 — 그래서 `driver-position` 가벼운 이벤트로 따로 온다
+             *       (`driverPositionStore`). 시점이 다르면 길도 다르다 (규칙 ⑤-4 ③).
+             */
+            setRouteOrigin(payload.routeOrigin ?? null);
             if (payload.cancelCounts) setCancelCounts(payload.cancelCounts);
             if (payload.cancelRounds) setCancelRounds(payload.cancelRounds);
 

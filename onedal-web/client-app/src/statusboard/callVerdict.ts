@@ -84,18 +84,49 @@ function isSameCall(row: VerdictInput, held: HeldCall): boolean {
     return row.fare === held.fare;
 }
 
-/** 한 행을 네 갈래로 가른다 — **판정은 앱이 했고 여기는 옮겨 적는다.** */
-export function viewOfVerdict(row: VerdictInput, held: readonly HeldCall[] = []): VerdictView {
-    /* 🟢 먼저 «이미 쥔 콜인가» — 잡은 것과 놓친 것이 한 기호로 섞이면 볼 이유가 없다.
-       이것만은 앱이 모른다 (앱은 제가 올린 뒤의 일을 못 본다) */
-    if (held.some(h => isSameCall(row, h))) return { mark: 'kept' };
-
+/**
+ * 한 행을 네 갈래로 가른다 — **판정은 앱이 했고 여기는 옮겨 적는다.**
+ *
+ * 🔴 **`verdict` 를 «잡았나»보다 먼저 본다** (2026-09-12 실측으로 바로잡음).
+ *    전에는 쥔 콜 매칭을 먼저 봐서, 앱이 **`locked`(잠겨서 안 봤다)** 라고 한 콜까지
+ *    🟢 «잡음»으로 떴다. 화면이 여섯 줄 내리 🟢 였는데 **앱은 그중 둘을 보지도 않았다.**
+ *    판정이 있는 값이 먼저다 — 그것이 사실이고, 매칭은 **추정**이다.
+ *
+ * @param heldPool 아직 짝이 안 지어진 쥔 콜들. **짝이 지어지면 호출자가 빼낸다** —
+ *                 한 콜에 여러 줄이 붙는 것을 막는다 (`viewAll` 참조).
+ */
+export function viewOfVerdict(row: VerdictInput, heldPool: HeldCall[] = []): VerdictView {
     const v = row.verdict;
     if (v == null || v === '') return { mark: 'unknown', why: '앱이 판정을 안 실었다' };
     /* ❔ **잠긴 것은 걸러진 것과 다르다** (답신 ①) — 축 이름으로 적으면 거짓말이 된다 */
     if (v === 'locked') return { mark: 'unknown', why: '필터가 잠겨 안 봤다' };
-    if (v === 'pass') return { mark: 'missed', why: '앱은 통과라 했다' };
-    return { mark: 'dropped', why: VERDICT_AXIS_LABEL[v] ?? v };
+    /* ❌ 앱이 떨어뜨렸으면 잡았을 리 없다 — 매칭을 볼 이유가 없다 */
+    if (v !== 'pass') return { mark: 'dropped', why: VERDICT_AXIS_LABEL[v] ?? v };
+
+    /**
+     * 🟢 **통과한 콜만 «잡았나»를 본다** — 이것만은 앱이 모른다
+     *    (앱은 제가 올린 뒤의 일을 못 본다).
+     * 🔴 **짝이 지어지면 그 쥔 콜을 빼낸다** — 2026-09-12 실측에서 «마장면 → 마장면 · 200천»
+     *    같은 줄이 **여러 건 동시에** 쥔 콜 하나에 붙어 전부 🟢 였다. 한 번 잡은 콜은
+     *    한 줄만 설명한다.
+     */
+    const i = heldPool.findIndex(h => isSameCall(row, h));
+    if (i >= 0) { heldPool.splice(i, 1); return { mark: 'kept' }; }
+    return { mark: 'missed', why: '앱은 통과라 했다' };
+}
+
+/**
+ * 여러 줄을 한 번에 — **쥔 콜을 한 줄에만 붙인다.**
+ *
+ * 🔴 목록이 **최신순**이므로 최신 줄이 먼저 짝을 가져간다. 같은 구간·같은 요금이 여러 번
+ *    떴을 때 «어느 것이 그 콜이었나»는 `intel` 만으로 알 수 없다 — 콜에 식별자가 없다.
+ *    그래서 이것은 **추정**이고, 화면이 그 사실을 적는다.
+ */
+export function viewAll<T extends VerdictInput>(
+    rows: readonly T[], held: readonly HeldCall[] = [],
+): Array<{ row: T; v: VerdictView }> {
+    const pool = [...held];
+    return rows.map(row => ({ row, v: viewOfVerdict(row, pool) }));
 }
 
 /** 🔢 한눈에 보는 요약 — 제목에 얹는다 */

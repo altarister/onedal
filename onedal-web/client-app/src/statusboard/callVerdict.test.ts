@@ -6,15 +6,46 @@
  *    **«앱이 준 낱말을 삼키지 않는가»** 하나다.
  */
 import { describe, it, expect } from 'vitest';
-import { viewOfVerdict, tallyMarks, MARK_SIGN, VERDICT_AXIS_LABEL } from './callVerdict';
+import { viewOfVerdict, viewAll, tallyMarks, MARK_SIGN, VERDICT_AXIS_LABEL } from './callVerdict';
 
 const HELD = [{ pickup: '경기 광주시 초월읍 경충대로', dropoff: '경기 성남시 분당구 구미동', fare: 100_000 }];
 
 describe('버린 콜 — 앱 판정을 옮겨 적는다', () => {
 
-    it('🟢 이미 쥔 콜이면 «잡음» — 판정보다 먼저 본다', () => {
-        const r = viewOfVerdict({ pickup: '초월읍', dropoff: '구미동', fare: 100_000, verdict: 'pass' }, HELD);
+    it('🟢 통과한 콜이 쥔 콜에 있으면 «잡음»', () => {
+        const r = viewOfVerdict({ pickup: '초월읍', dropoff: '구미동', fare: 100_000, verdict: 'pass' }, [...HELD]);
         expect(r.mark).toBe('kept');
+    });
+
+    /**
+     * 🔴 **판정이 매칭보다 먼저다** (2026-09-12 실측으로 바로잡음).
+     *    전에는 매칭을 먼저 봐서, 앱이 **보지도 않은**(`locked`) 콜이 🟢 로 떴다.
+     *    화면 여섯 줄이 내리 🟢 였는데 그중 둘이 그것이었다.
+     */
+    it('❔ 쥔 콜과 같아 보여도 locked 면 «못 잼»이다', () => {
+        const r = viewOfVerdict({ pickup: '초월읍', dropoff: '구미동', fare: 100_000, verdict: 'locked' }, [...HELD]);
+        expect(r.mark).toBe('unknown');
+    });
+
+    it('❌ 쥔 콜과 같아 보여도 앱이 떨어뜨렸으면 «탈락»이다', () => {
+        const r = viewOfVerdict({ pickup: '초월읍', dropoff: '구미동', fare: 100_000, verdict: 'fare' }, [...HELD]);
+        expect(r.mark).toBe('dropped');
+    });
+
+    /**
+     * 🔴 **한 번 잡은 콜은 한 줄만 설명한다** (2026-09-12 실측).
+     *    «마장면 → 마장면 · 200천» 같은 줄이 여러 건 뜨자 **전부** 쥔 콜 하나에 붙어
+     *    죄다 🟢 였다. 짝이 지어지면 그 콜을 빼낸다.
+     */
+    it('같은 구간·같은 요금이 여러 건이면 한 줄만 «잡음»', () => {
+        const rows = [
+            { pickup: '초월읍', dropoff: '구미동', fare: 100_000, verdict: 'pass' },
+            { pickup: '초월읍', dropoff: '구미동', fare: 100_000, verdict: 'pass' },
+            { pickup: '초월읍', dropoff: '구미동', fare: 100_000, verdict: 'pass' },
+        ];
+        const marks = viewAll(rows, HELD).map(x => x.v.mark);
+        expect(marks.filter(m => m === 'kept')).toHaveLength(1);
+        expect(marks.filter(m => m === 'missed')).toHaveLength(2);
     });
 
     /** 🔴 **이 한 건이 이 화면의 존재 이유다** — 앱은 통과라 했는데 안 잡힌 콜 */
@@ -55,12 +86,12 @@ describe('버린 콜 — 앱 판정을 옮겨 적는다', () => {
 
     /** ⚠️ `intel` 주소는 짧은 이름이다 — 긴 주소에 드는지로 맞춘다 */
     it('짧은 주소가 긴 주소에 들면 같은 콜로 본다', () => {
-        const r = viewOfVerdict({ pickup: '초월읍', dropoff: '구미동', fare: 100_000, verdict: 'fare' }, HELD);
+        const r = viewOfVerdict({ pickup: '초월읍', dropoff: '구미동', fare: 100_000, verdict: 'pass' }, [...HELD]);
         expect(r.mark).toBe('kept');
     });
 
     it('요금이 다르면 다른 콜이다 (같은 구간이 하루에 여러 번 뜬다)', () => {
-        const r = viewOfVerdict({ pickup: '초월읍', dropoff: '구미동', fare: 50_000, verdict: 'pass' }, HELD);
+        const r = viewOfVerdict({ pickup: '초월읍', dropoff: '구미동', fare: 50_000, verdict: 'pass' }, [...HELD]);
         expect(r.mark).toBe('missed');
     });
 

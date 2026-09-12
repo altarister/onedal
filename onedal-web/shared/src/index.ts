@@ -1793,9 +1793,49 @@ export const ARRIVAL_REASONS = Array.from(new Set(
     Object.keys(REASON_GROUPS_BY_STEP).flatMap(arrivalReasonsFor),
 ));
 
+/**
+ * 📍 **마지막으로 아는 자리 — «내가 지금 어디 있나»의 답** (2026-09-12).
+ *
+ * 🔴 **낡아도 집으로 바꾸지 않는다.** 터널·주차장에서 5분 끊긴 것뿐인데 지도가 집으로
+ *    날아가면, 운전 중 1~2초 흘끗 보는 화면이 통째로 튄다. **그물은 더 심하다** —
+ *    이천에 있는데 파주 콜이 올라온다 (기사님 확정: 지도·그물 둘 다 «마지막 실제 위치»).
+ * 🔴 모르면 **`null`** 이다 — 집을 지어내지 않는다 (규칙 ④).
+ */
+export interface DriverPositionDto {
+    x: number; y: number;
+    /** 받은 시각 (ms) */ at: number;
+    /** 얼마나 묵었나 (ms) — 화면이 «N분 전»을 적는 재료 */ ageMs: number;
+    /** 기점으로 쓰기엔 낡았나 (서버 문턱 5분) */ isStale: boolean;
+    source: 'gps' | 'mock' | 'manual';
+}
+
+/**
+ * 🧭 **경로를 어디서부터 짰나 — 위와 다른 질문이다** (규칙 ⑤-4 ⑤).
+ *    출발점이 없으면 계산 자체가 안 되므로 낡으면 **집**을 넣는다. 그 규칙은 실제
+ *    사고에서 나왔다 (여주에서 4시간 25분 뒤 광주 콜의 경로가 40km 뒤에서 그려졌다).
+ *    🔴 **이 값으로 «내 위치» 마커를 찍지 않는다** — 그러면 화면이 «집에 있다»고 거짓말한다.
+ */
+export interface RouteOriginDto {
+    x: number; y: number;
+    source: 'gps' | 'mock' | 'manual' | 'home';
+    /** 🏠 «집 주소로 대신했다» — 화면이 그 사실을 말할 수 있게 */
+    isFallback: boolean;
+}
+
 export interface OrderSyncPayload {
     active: SecuredOrder[];
     terminated: SecuredOrder[];
+    /**
+     * 🧭 **경로 기점 — 정거장 순서(`routeStops`)를 짠 그 자리** (2026-09-12).
+     *    같이 와야 «1번 정거장이 내 뒤에 있다» 같은 화면이 안 난다.
+     *
+     * ⚠️ **«내 위치»는 여기 없다** — 이 봉투는 «콜이 바뀔 때» 나가는데 위치는 1초마다
+     *    바뀐다. 한때 함께 실었다가 **옛 좌표가 내 점을 뒤로 당겨** 모의 주행이 멈춘 것처럼
+     *    보였다 (기사님 실측). 위치는 `driver-position` 이벤트로 따로 간다 (규칙 ⑤-4 ③).
+     *    🔴 이 봉투를 1초마다 보내는 길은 막혀 있다 — **초당 474KB 사고 자리**다.
+     * ⚠️ 옛 서버는 안 싣는다 — `undefined` 면 화면이 «모른다»로 그린다.
+     */
+    routeOrigin?: RouteOriginDto | null;
     /**
      * 🚫 취소 카운터 — **한 판(10회)에서 몇 번 썼나** (기사님 개정 2026-08-23).
      * 망별(targetApp) SAFE_CANCEL 건수. 파생값이라 저장하지 않고 서버가 장부에서 센다.
