@@ -24,13 +24,15 @@
  * | `summarizeTally`  | 순수 함수 (앱 성적표 → 문구) | **그대로 쓴다** |
  * | `apiBase`         | 지금 보는 서버 주소 | 어드민 주소로 |
  * | `useMockDriveStore` | 모의 주행 스위치 (개발 전용) | 어드민에서도 같은 스위치 |
+ * | `publishLocation` | 소켓 `dashboard-gps-update` 로 좌표를 낸다 | 기사 id 를 얹어 같은 소켓으로 |
+ * | `apiClient`       | 토큰을 붙여 주는 axios (집 주소·주소 찾기) | 어드민 토큰으로 |
  *
- * 🗑️ **한때 둘이 더 있었다** (2026-09-11 → 09-12 에 걷었다) — `publishLocation`(좌표 보내기)과
- *    `apiClient`(설정 읽기). 현황판의 «찍어서 내 위치 찾기»가 쓰던 것인데 기사님이
- *    *"자리가 모자란다 … 버리자"* 하셔서 화면과 함께 걷었다.
- *    🔴 되살릴 때는 **`publishLocation` 을 다시 얹는다** — 위치를 서버로 보내는 문은 그것
- *       하나뿐이고, 여기서 `socket.emit` 을 새로 내면 2026-08-14 의 «두 곳에서 쏘던» 사고가
- *       되살아난다 (`lib/gpsBridge.ts` 머리 참조).
+ * 🔴 **위치는 `socket.emit` 을 직접 하지 않고 `publishLocation` 을 지난다** — 그 함수가
+ *    **서버에 위치를 알리는 유일한 자리**다. 2026-08-14 에 두 훅이 각각 쏘다가 시뮬 좌표와
+ *    실제 좌표가 섞여 경로가 156km 로 튄 적이 있어 문을 하나로 모았다 (`lib/gpsBridge.ts`).
+ * ⚠️ 둘은 2026-09-12 에 **한 번 걷었다가 되살렸다** — 기사님이 *"자리가 모자란다 … 버리자"*
+ *    하신 것은 **지도**였고(*"내 위치에서 지도만 빼라고 한거야.. 주소찾기하고 집은 그냥두고"*),
+ *    주소 찾기와 집 버튼은 남는 것이었다. 지도만 빠졌다.
  */
 export { useFilterConfig } from '../hooks/useFilterConfig';
 export { useDeviceStore } from '../stores/deviceStore';
@@ -41,4 +43,7 @@ export { apiBase } from '../lib/serverTarget';
  *    그때 버튼을 활성화해서 클릭하도록"*). 현황판은 `available` 을 보고 버튼을 켜고,
  *    `start()`·`stop()`·`setSpeed()` 를 부른다. **«경로가 있나»를 제 손으로 다시 보지 않는다.**
  */
-export { useMockDriveStore, MOCK_DRIVE_SPEEDS } from '../stores/mockDriveStore';
+export { useMockDriveStore, MOCK_DRIVE_SPEEDS, MOCK_DRIVE_DEFAULTS } from '../stores/mockDriveStore';
+export { publishLocation } from '../lib/gpsBridge';
+/* 🔴 **인증이 필요한 문은 이걸로 연다** — 토큰을 손으로 붙이면 갱신(리프레시)을 놓친다 */
+export { apiClient } from '../api/apiClient';

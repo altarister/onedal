@@ -47,6 +47,25 @@ export const KM_PER_TICK = 0.1;
 
 /** 정거장 접근으로 치는 반경(km) — 이 안에서는 감속 연기 */
 export const APPROACH_KM = 1;
+
+/**
+ * 🎭 **연기 눈금 — 시뮬이 «어떻게 달리는가»** (기사님 지시 2026-09-12).
+ *
+ * 기사님: *"모의 주행의 정차시간, 서행하는 거 오른쪽 어드민에서 설정하면 좋겠는데..
+ * 코드에 상수로 들어가 있는 거지?"* — 그렇다. 이제 **현황판이 돌릴 수 있게** 인자로 받는다.
+ *
+ * 🔴 **순수 함수는 스토어를 안 읽는다** — 값은 부르는 쪽이 넘긴다 (검사가 이 함수만 먹인다).
+ * 🔴 **브라우저에만 산다**(localStorage · `mockDriveStore`). 개발 빌드에서만 도는
+ *    **시험 도구의 눈금**이라 DB 까지 갈 값이 아니다 (기사님 확정).
+ */
+export interface DriveDial {
+    /** ⏸️ 정거장에서 서 있는 **실초** — 배속을 곱하지 않는다 */
+    dwellSec: number;
+    /** 🐢 이 반경(km) 안에 들면 서행한다 */
+    approachKm: number;
+    /** 🐢 서행할 때 걸음을 몇 분의 일로 — 4 면 ¼ */
+    slowFactor: number;
+}
 /** 도착 정차 연기(실초) — 정차 감지 10초 + 시트가 올라온 것을 «볼» 여유 */
 export const DWELL_TICKS = 18;
 
@@ -55,6 +74,8 @@ export function simStep(
     path: PolylinePoint[],
     stops: PolylinePoint[],
     multiplier: number,
+    /** 🎭 연기 눈금 — 안 주면 지금까지 쓰던 수 그대로 (`DWELL_TICKS`·`APPROACH_KM`·¼) */
+    dial: DriveDial = { dwellSec: DWELL_TICKS, approachKm: APPROACH_KM, slowFactor: 4 },
 ): { loc: PolylinePoint | null; finished: boolean; stoppedAt?: PolylinePoint; via?: PolylinePoint[] } {
     // ── 정차 연기 중 — 같은 자리를 다시 낸다 (속도 0 이 측정되게)
     if (st.phase === 'dwell' && st.dwellAt) {
@@ -73,7 +94,7 @@ export function simStep(
     const nearKm = unvisited.reduce((m, s) =>
         Math.min(m, getDistanceKm(herePt.y, herePt.x, s.y, s.x)), Infinity);
     const full = KM_PER_TICK * multiplier;
-    const stepKm = nearKm <= APPROACH_KM ? full / 4 : full;
+    const stepKm = nearKm <= dial.approachKm ? full / Math.max(1, dial.slowFactor) : full;
 
     /**
      * 🚗 **걸음은 목업과 같은 함수가 낸다** (`lib/driveStep` · 2026-09-12).
@@ -94,7 +115,7 @@ export function simStep(
     if (due) {
         st.visited.add(`${due.x},${due.y}`);
         st.phase = 'dwell';
-        st.dwellLeft = DWELL_TICKS;
+        st.dwellLeft = dial.dwellSec;
         st.dwellAt = due;
         st.at = due;
         st.idx = to;   // 정거장 앞 구간은 지난 것으로 — 되돌지 않는다

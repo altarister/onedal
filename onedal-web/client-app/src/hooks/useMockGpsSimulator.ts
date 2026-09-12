@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { simStep, initialSimState, type SimState } from './simStep';
+import { useMockDriveStore } from '../stores/mockDriveStore';
 
 /**
  * 폴리라인에서 **지금 자리와 가장 가까운 지점**의 인덱스.
@@ -170,7 +171,10 @@ export function useMockGpsSimulator({
              * 10초가 진짜로 발화) · 재출발. 배속은 순항에만 곱한다 — 정차는 실초.
              * 정거장 좌표 찍기(도로에서 떨어진 물류센터 601m)도 각본 안에 있다.
              */
-            const r = simStep(simRef.current, path, stopsRef.current ?? [], speedMultiplier);
+            /* 🎭 연기 눈금은 **현황판이 돌린다** — 스토어에서 «지금 값»을 읽는다 (클로저에 안 가둔다) */
+            const { dwellSec, approachKm, slowFactor } = useMockDriveStore.getState();
+            const r = simStep(simRef.current, path, stopsRef.current ?? [], speedMultiplier,
+                { dwellSec, approachKm, slowFactor });
             indexRef.current = simRef.current.idx;
 
             if (r.finished) {

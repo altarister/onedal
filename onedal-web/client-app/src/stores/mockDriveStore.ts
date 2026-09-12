@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { DWELL_TICKS, APPROACH_KM, type DriveDial } from '../hooks/simStep';
 
 /**
  * 🎭 **모의 주행 — 손으로 켜고 끈다** (기사님 확정 2026-09-12).
@@ -37,11 +38,56 @@ interface MockDriveState {
      */
     speed: number;
 
+    /**
+     * 🎭 **연기 눈금 — 시뮬이 «어떻게 달리는가»** (기사님 지시 2026-09-12:
+     *    *"모의 주행의 정차시간, 서행하는 거 오른쪽 어드민에서 설정하면 좋겠는데"*).
+     *
+     * 🔴 **브라우저에만 산다**(localStorage). 개발 빌드에서만 도는 **시험 도구의 눈금**이라
+     *    DB 까지 갈 값이 아니다 — 넣으면 라이브 스키마에 시험용 칸이 남는다 (기사님 확정).
+     *    ⚠️ 「주행·정차로 굳는 시간」(`user_settings.motion_hold_sec`)과 **다른 층이다** —
+     *       저것은 실운행에서도 쓰는 **제품 규칙**이라 DB 에 산다 (규칙 ⑤-4 ⑤).
+     */
+    /** ⏸️ 정거장에서 서 있는 **실초** — 배속을 곱하지 않는다 */
+    dwellSec: number;
+    /** 🐢 이 반경(km) 안에 들면 서행한다 */
+    approachKm: number;
+    /** 🐢 서행할 때 걸음을 몇 분의 일로 — 4 면 ¼ */
+    slowFactor: number;
+
     setAvailable: (v: boolean) => void;
     start: () => void;
     stop: () => void;
     setSpeed: (n: number) => void;
+    setDwellSec: (n: number) => void;
+    setApproachKm: (n: number) => void;
+    setSlowFactor: (n: number) => void;
 }
+
+/**
+ * 🎭 **연기 눈금의 기본값** — 지금까지 코드에 박혀 있던 수 그대로다.
+ *
+ * ⚠️ **정차 18초를 줄이면 정차 규칙을 못 본다** — 그 시간은 «5km/h↓ 가 이어져야 정차»가
+ *    실제로 발화할 길이를 주려는 것이다. 줄이려면 「굳는 시간」(⚙️ 설정)도 함께 줄여야 한다.
+ */
+export const MOCK_DRIVE_DEFAULTS: DriveDial = { dwellSec: DWELL_TICKS, approachKm: APPROACH_KM, slowFactor: 4 };
+
+/** 💾 브라우저에 남긴다 — 판을 새로 열어도 맞춰 둔 눈금이 그대로다 */
+const LS_KEY = 'mockDriveDial';
+const loadDial = () => {
+    try {
+        const raw = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+        const num = (v: unknown, lo: number, hi: number, dft: number) =>
+            typeof v === 'number' && Number.isFinite(v) && v >= lo && v <= hi ? v : dft;
+        return {
+            dwellSec: num(raw.dwellSec, 0, 120, MOCK_DRIVE_DEFAULTS.dwellSec),
+            approachKm: num(raw.approachKm, 0, 20, MOCK_DRIVE_DEFAULTS.approachKm),
+            slowFactor: num(raw.slowFactor, 1, 20, MOCK_DRIVE_DEFAULTS.slowFactor),
+        };
+    } catch { return { ...MOCK_DRIVE_DEFAULTS }; }
+};
+const saveDial = (d: { dwellSec: number; approachKm: number; slowFactor: number }) => {
+    try { localStorage.setItem(LS_KEY, JSON.stringify(d)); } catch { /* 사생활 모드 등 — 화면은 그대로 돈다 */ }
+};
 
 /** 🐢🚗🚀 **속도 셋** — 목업과 같은 세 단 (`MapMockup.tsx` 의 `SPEEDS`) */
 export const MOCK_DRIVE_SPEEDS = [
@@ -68,4 +114,15 @@ export const useMockDriveStore = create<MockDriveState>((set) => ({
     start: () => set(s => (s.available ? { running: true } : s)),
     stop: () => set({ running: false }),
     setSpeed: (n) => set({ speed: n }),
+
+    ...loadDial(),
+    /* 🔴 고치면 **그 자리에서** 남긴다 — 「저장」 버튼을 따로 두지 않는다 (눈금은 돌리는 것이다) */
+    setDwellSec: (n) => set(s => { const d = { ...dialOf(s), dwellSec: n }; saveDial(d); return d; }),
+    setApproachKm: (n) => set(s => { const d = { ...dialOf(s), approachKm: n }; saveDial(d); return d; }),
+    setSlowFactor: (n) => set(s => { const d = { ...dialOf(s), slowFactor: n }; saveDial(d); return d; }),
 }));
+
+/** 🎭 상태에서 «눈금 셋»만 추린다 — 저장할 때 다른 것이 섞이지 않게 */
+function dialOf(s: MockDriveState) {
+    return { dwellSec: s.dwellSec, approachKm: s.approachKm, slowFactor: s.slowFactor };
+}

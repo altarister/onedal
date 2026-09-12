@@ -75,4 +75,45 @@ describe('모의 주행 연기 — simStep', () => {
         simStep(st, path, [], M);
         expect(simStep(st, path, [], M).finished).toBe(true);
     });
+
+    /**
+     * 🎭 **연기 눈금을 돌리면 시뮬이 따른다** (기사님 지시 2026-09-12:
+     *    *"모의 주행의 정차시간, 서행하는 거 오른쪽 어드민에서 설정하면 좋겠는데"*).
+     *
+     * 🔴 인자로 받게만 해 두고 **안 쓰면 조용히 기본값으로 돈다** — 그 모양을 오늘 한 번
+     *    당했다(설정 10초가 클로저에 갇힌 것). 그래서 «돌리면 정말 달라지는가»를 문다.
+     */
+    it('🔴 정차 시간을 줄이면 그만큼만 선다', () => {
+        const stop = path[30];
+        const st = initialSimState(28);
+        simStep(st, path, [stop], M, { dwellSec: 3, approachKm: 1, slowFactor: 4 });
+        expect(st.phase).toBe('dwell');
+        for (let i = 0; i < 3; i++) simStep(st, path, [stop], M, { dwellSec: 3, approachKm: 1, slowFactor: 4 });
+        expect(st.phase).toBe('cruise');   // 3초면 끝난다 — 18초가 아니다
+    });
+
+    /**
+     * ⚠️ 배속을 **2** 로 낮춰 잰다 — 15 이면 한 틱에 1.5km 라 정거장을 **지나쳐 정차**해 버려
+     *    «감속했는가»를 못 잰다 (처음 이 검사를 그렇게 짰다가 그 자리에서 드러났다).
+     */
+    const SLOW_M = 2;                      // 한 틱 0.2km
+    const STOP_AT = 67;                    // 시작(58)에서 약 1.0km — 감속 반경 언저리
+
+    it('🔴 서행 배수를 키우면 더 천천히 간다', () => {
+        const stop = path[STOP_AT];
+        const walked = (slowFactor: number) => {
+            const st = initialSimState(58);
+            simStep(st, path, [stop], SLOW_M, { dwellSec: 18, approachKm: 2, slowFactor });
+            return (st.at!.y - path[58].y) * KM_PER_LAT;
+        };
+        expect(walked(8)).toBeLessThan(walked(2));
+    });
+
+    it('🔴 서행 반경을 0 으로 두면 감속하지 않는다 — 눈금이 실제로 읽힌다', () => {
+        const stop = path[STOP_AT];
+        const st = initialSimState(58);
+        simStep(st, path, [stop], SLOW_M, { dwellSec: 18, approachKm: 0, slowFactor: 4 });
+        const km = (st.at!.y - path[58].y) * KM_PER_LAT;
+        expect(km).toBeCloseTo(KM_PER_TICK * SLOW_M, 3);   // 온전한 걸음
+    });
 });
