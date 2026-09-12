@@ -5,7 +5,7 @@ import { isEvaluating, isTerminal, isManualLineage, isDeliveredCall, minRouteBuf
 import type { SecuredOrder, StepViewRow } from "@onedal/shared";
 import { socket } from "../../lib/socket";
 import { getAddressLabel, getMinuteDiff , telHref } from "../../lib/routeUtils";
-import { logRoadmapEvent } from '../../lib/roadmapLogger';
+import { logRoadmapEvent, logStateChange } from '../../lib/roadmapLogger';
 
 
 import { Badge } from "../ui/badge";
@@ -208,6 +208,32 @@ export default function PinnedRouteCard({
         if (i >= 0) setStepNav(i);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [arrival?.tick, seededSteps?.length]);
+
+    /**
+     * 📡 **화면이 «지금 어느 단계»를 보여주는가 — 로그로 남긴다** (기사님 지시 2026-09-12 밤).
+     *
+     * 기사님: *"순식간에 열었다 닫았다 스텝은 모두 비슷하고. 어떻게 알아 —
+     * 너가 콘솔 로그를 찍으면 되지."*
+     *
+     * ── 왜 필요한가 ──
+     * 지금 로그로 알 수 있는 것은 **시트가 몇 단인가**(`[시트]`)와 **어느 콜을 열었나**
+     * (`[시트연콜]`)까지다. 그 안에서 **어느 단계가 펼쳐졌는지는 아무 데도 안 남는다** —
+     * 아침에 기사님이 *"도착 스텝을 못 본 거 같아"* 라고 하신 그 자리인데, 고치고도
+     * **확인할 수단이 없었다.** 한 판을 더 돌려도 또 못 본다.
+     *
+     * 🔴 **«누가 열었나»를 함께 적는다.** 값이 같아도 원인이 다르면 다른 사건이다 —
+     *    도착 사건이 연 것인지, 장부가 앞으로 가서 현재 단계로 돌아온 것인지.
+     *    그 둘이 **0.2초 안에 엇갈리면** 화면에서는 «열렸다 닫혔다»로만 보인다.
+     * ⚠️ `logStateChange` 는 **바뀔 때만** 남긴다 — 초당 재그림에 로그가 안 밀린다.
+     *    키에 콜을 넣어 카드가 여럿이어도 서로 안 섞인다.
+     */
+    const shownStepIdx = stepNav ?? stepCurIdx;
+    useEffect(() => {
+        const sv = seededSteps?.[shownStepIdx];
+        logStateChange(`스텝 ${route.id.slice(0, 8)}`,
+            sv ? `${shownStepIdx} ${sv.step} · ${stepNav != null ? '사건이 연 것' : '현재 단계'}` : '없음',
+            '무대');
+    }, [shownStepIdx, stepNav, seededSteps, route.id]);
 
     /* 🏗️ deriveCallStep(옛 진행도)도 옛 시트와 함께 철거 — 현재 단계는 stepCurIdx(단계 행의 status)가 정한다 */
 
@@ -998,7 +1024,8 @@ export default function PinnedRouteCard({
                                                 하니 처음 UI 가 더 좋다"*) — 아코디언을 접고, 기존 카드와 **같은 문법**으로:
                                                 진행 막대(누르면 그 단계) + 시트는 **한 번에 하나**. 시퀀스가 데려간다. */}
                                             {seededSteps && (() => {
-                                                const shownIdx = stepNav ?? stepCurIdx;
+                                                /* 🔴 위에서 만든 값을 그대로 쓴다 — 두 벌이면 로그와 화면이 다른 말을 한다 (규칙 ③) */
+                                                const shownIdx = shownStepIdx;
                                                 const sv = seededSteps[shownIdx];
                                                 if (!sv) return null;
                                                 const r = sv.row || {};
