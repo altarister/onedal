@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { simStep, initialSimState, DWELL_TICKS, KM_PER_TICK } from './simStep';
+import { simStep, initialSimState, DWELL_TICKS, KM_PER_TICK, STOP_OFF_ROAD_KM } from './simStep';
 
 /** 위도 1도 ≈ 110.574km — `lib/driveStep` 과 같은 자 */
 const KM_PER_LAT = 110.574;
@@ -161,5 +161,39 @@ describe('모의 주행 연기 — simStep', () => {
         const r = simStep(st, path, [near], M);
         expect(r.stoppedAt).toEqual(near);
         expect(st.phase).toBe('dwell');
+    });
+
+    /**
+     * 🔴 **이탈폭은 배속에 딸려 줄지 않는다** (기사님 지시 2026-09-12).
+     *
+     * 처음엔 닿는 거리가 `stepKm + 이탈폭` 이었다. 그러면 **1배속에서 0.74km ·
+     * 서행이면 0.71km** 로 쪼그라들어 **601m 짜리가 겨우 통과**한다 — 표본보다 조금만
+     * 먼 곳이 나오면 저배속에서 못 밟는다. 이탈폭은 **물리 상수**(정거장이 도로에서
+     * 떨어진 거리)이지 속도의 함수가 아니다.
+     */
+    it('🔴 1배속에서도 도로 밖 정거장을 밟는다 — 이탈폭이 배속을 안 탄다', () => {
+        const st = initialSimState(0);
+        /**
+         * 도로에서 **옆으로 601m** 떨어진 정거장 — 곤지암 물류센터 실측.
+         * ⚠️ 위도는 출발점과 같게 둔다 — 1배속 서행은 한 틱에 **한 칸(111m)도 못 가서**,
+         *    앞쪽에 두면 애초에 «지나치는» 구간에 안 든다 (그건 이 검사가 볼 것이 아니다).
+         *    여기서 보려는 것은 **거리 문턱이 배속에 딸려 줄지 않는가** 하나다.
+         */
+        const off = { x: 127.3 + 0.00683, y: 37.3 };   // 경도 0.00683° ≈ 601m
+        const r = simStep(st, path, [off], 1, { dwellSec: 18, approachKm: 1, slowFactor: 4 });
+        expect(r.stoppedAt).toEqual(off);
+    });
+
+    /**
+     * 🔇 **못 밟고 지나치면 «지나쳤다»를 실어 보낸다** — 조용히 넘어가면 콜이 안 끝나는데
+     *    화면에도 로그에도 흔적이 없다. 순수 함수라 여기서 찍지 않고 사실만 돌려준다.
+     */
+    it('🔴 너무 멀어 못 밟으면 passedBy 로 알린다', () => {
+        const st = initialSimState(0);
+        const far = { x: 127.3 + 0.12, y: 37.3 };     // 옆으로 ≈10.6km
+        const r = simStep(st, path, [far], M);
+        expect(r.stoppedAt).toBeUndefined();
+        expect(r.passedBy?.distKm).toBeGreaterThan(STOP_OFF_ROAD_KM);
+        expect(r.passedBy?.reachKm).toBeGreaterThan(0);
     });
 });

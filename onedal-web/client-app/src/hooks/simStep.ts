@@ -70,9 +70,13 @@ export interface DriveDial {
 export const DWELL_TICKS = 18;
 
 /**
- * 🏭 **정거장이 도로에서 벗어나 있는 폭** — 실측 곤지암 물류센터 **601m** (2026-08-25).
- *    이번 걸음에 이 여유를 더해 «지나쳤나»를 본다. 0 으로 두면 도로에서 떨어진 정거장을
- *    영영 못 밟고, 크게 두면 **멀리 있는 새 정거장으로 순간이동**한다 (10.9km 점프).
+ * 🏭 **정거장이 도로에서 벗어나 있는 폭** — 이번 걸음에 이 여유를 더해 «지나쳤나»를 본다.
+ *
+ * ⚠️ **근거는 표본 둘뿐이다** — 곤지암 물류센터 **601m**(2026-08-25 실측)와 **525m**.
+ *    둘의 최대에 얼마쯤 얹은 값이고, **더 먼 곳이 나오면 이 값이 가장 먼저 의심받아야 한다**
+ *    (도착 감지가 조용히 안 걸리는 모양으로 드러난다 — 아래 `passedBy` 가 그것을 말해 준다).
+ * 🔴 0 으로 두면 도로에서 떨어진 정거장을 **영영 못 밟고**, 크게 두면 **멀리 있는 새 정거장으로
+ *    순간이동**한다 (10.9km 점프). 양쪽 다 검사가 문다.
  */
 export const STOP_OFF_ROAD_KM = 0.7;
 
@@ -83,7 +87,15 @@ export function simStep(
     multiplier: number,
     /** 🎭 연기 눈금 — 안 주면 지금까지 쓰던 수 그대로 (`DWELL_TICKS`·`APPROACH_KM`·¼) */
     dial: DriveDial = { dwellSec: DWELL_TICKS, approachKm: APPROACH_KM, slowFactor: 4 },
-): { loc: PolylinePoint | null; finished: boolean; stoppedAt?: PolylinePoint; via?: PolylinePoint[] } {
+): {
+    loc: PolylinePoint | null; finished: boolean; stoppedAt?: PolylinePoint; via?: PolylinePoint[];
+    /**
+     * 🔇 **인덱스로는 걸렸는데 너무 멀어 못 밟은 정거장** (2026-09-12 · 기사님 지시).
+     *    조용히 지나가면 «콜이 안 끝나는데 화면에도 로그에도 흔적이 없다» —
+     *    순수 함수라 여기서 로그를 찍지 않고 **사실만 실어 보낸다.** 찍는 것은 부르는 쪽이다.
+     */
+    passedBy?: { stop: PolylinePoint; distKm: number; reachKm: number };
+} {
     // ── 정차 연기 중 — 같은 자리를 다시 낸다 (속도 0 이 측정되게)
     if (st.phase === 'dwell' && st.dwellAt) {
         st.dwellLeft -= 1;
@@ -132,11 +144,32 @@ export function simStep(
      *    그래서 걸음에 **그 이탈폭만큼 여유**를 더해 본다.
      */
     const from = st.idx, to = walked.idx;
-    const reach = stepKm + STOP_OFF_ROAD_KM;
+    /**
+     * 📏 **닿을 수 있는 거리 — 이탈폭은 배속에 딸려 줄지 않는다.**
+     *
+     * ⚠️ 처음엔 `stepKm + 이탈폭` 이었다. 그러면 **1배속에서 0.74km · 서행이면 0.71km** 로
+     *    쪼그라들어 **601m 짜리가 겨우 통과**한다 — 표본보다 조금만 먼 곳이 나오면 저배속에서
+     *    못 밟는다. **이탈폭은 물리 상수**(정거장이 도로에서 떨어진 거리)이지 속도의 함수가 아니다.
+     * 🟢 그래서 걸음이 이탈폭보다 작아도 **최소한 이탈폭만큼은** 본다.
+     *    · 저배속·서행 → 0.7 + 0.7 = **1.4km**
+     *    · 빠른 걸음(1.5km) → 1.5 + 0.7 = **2.2km**
+     *    10.9km 는 어느 쪽에서도 안 걸린다 (그게 이 판정의 목적이다).
+     */
+    const reach = Math.max(stepKm, STOP_OFF_ROAD_KM) + STOP_OFF_ROAD_KM;
+    /** 🔇 **못 밟고 지나친 정거장** — 조용히 넘어가면 «콜이 안 끝나는데 흔적이 없다» (아래 참조) */
+    let passedBy = null as { stop: PolylinePoint; distKm: number } | null;
     const due = unvisited.find(s => {
         const i = nearestIndex(path, s);
         if (i < from || i >= to) return false;
-        return getDistanceKm(herePt.y, herePt.x, s.y, s.x) <= reach;
+        const d = getDistanceKm(herePt.y, herePt.x, s.y, s.x);
+        if (d <= reach) return true;
+        /**
+         * 🔴 **여기서 조용히 지나가면 안 된다** (기사님 지시 2026-09-12).
+         *    인덱스로는 걸렸는데 거리로 막힌 자리다 — 이탈폭(`STOP_OFF_ROAD_KM`)이 모자라면
+         *    **콜이 영영 안 끝나는데 화면에도 로그에도 흔적이 없다.** 사실을 실어 보낸다.
+         */
+        if (!passedBy || d < passedBy.distKm) passedBy = { stop: s, distKm: d };
+        return false;
     });
     if (due) {
         st.visited.add(`${due.x},${due.y}`);
@@ -150,5 +183,5 @@ export function simStep(
 
     st.idx = walked.idx;
     st.at = { x: walked.at.lng, y: walked.at.lat };
-    return { loc: st.at, finished: walked.finished && st.idx >= path.length, via };
+    return { ...(passedBy ? { passedBy: { ...passedBy, reachKm: reach } } : {}), loc: st.at, finished: walked.finished && st.idx >= path.length, via };
 }

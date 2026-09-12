@@ -88,6 +88,8 @@ export function useMockGpsSimulator({
         return () => document.removeEventListener('visibilitychange', onVis);
     }, []);
     const indexRef = useRef(0);
+    /** 🚏 못 밟고 지나쳤다고 이미 말한 정거장 — 같은 말을 매 틱 되풀이하지 않는다 */
+    const passedLoggedRef = useRef<Set<string>>(new Set());
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const routeRef = useRef(routePolyline);
     /** 이 경로를 끝까지 달렸나 — **끝났으면 다시 출발하지 않는다** */
@@ -213,6 +215,25 @@ export function useMockGpsSimulator({
             const r = simStep(simRef.current, path, stopsRef.current ?? [], speedMultiplier,
                 { dwellSec, approachKm, slowFactor });
             indexRef.current = simRef.current.idx;
+
+            /**
+             * 🔇 **못 밟고 지나친 정거장을 말한다** (기사님 지시 2026-09-12).
+             *
+             * 인덱스로는 이번 걸음에 걸렸는데 **너무 멀어** 못 선 자리다. 조용히 넘어가면
+             * **콜이 안 끝나는데 화면에도 로그에도 흔적이 없다** — 「왜 도착이 안 찍히지」를
+             * 몇 시간 헤매게 된다. `STOP_OFF_ROAD_KM`(표본 둘: 601m·525m)이 모자라다는
+             * 신호이기도 하다.
+             * 🔴 **정거장마다 한 번만** 찍는다 — 매 틱 찍으면 그 자체가 소음이 되어 안 읽힌다.
+             */
+            if (r.passedBy) {
+                const key = `${r.passedBy.stop.x},${r.passedBy.stop.y}`;
+                if (!passedLoggedRef.current.has(key)) {
+                    passedLoggedRef.current.add(key);
+                    console.warn(`🚏 [Mock GPS] 정거장을 ${r.passedBy.distKm.toFixed(2)}km 로 지나쳤다 `
+                        + `(닿는 거리 ${r.passedBy.reachKm.toFixed(2)}km) — 도착이 안 찍힐 수 있다. `
+                        + `정거장이 도로에서 그만큼 떨어져 있다면 STOP_OFF_ROAD_KM 을 의심한다`);
+                }
+            }
 
             if (r.finished) {
                 clearInterval(intervalRef.current!);
