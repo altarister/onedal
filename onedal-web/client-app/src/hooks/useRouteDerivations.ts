@@ -131,16 +131,13 @@ export function useRouteDerivations(
         return () => { alive = false; };
     }, []);
     /**
-     * 🧹 **모의 주행이 끝나면 화면의 현위치도 집으로** (기사님 실측 2026-08-31).
-     *    서버는 이미 가상 위치를 걷어내고 내 주소로 돌아간다(`clearMockLocation`).
-     *    화면만 마지막 모의 좌표를 들고 있으면 **같은 사실을 두 곳이 다르게 말한다** —
-     *    다음 판의 기점이 이천으로 보이고, 시뮬 문제지도 그 좌표로 출제된다.
+     * 🔄 **«모의 주행이 끝나면 화면도 집으로» 를 걷었다** (기사님 지시 2026-09-12).
+     *
+     * 그 규칙은 **서버가 가상 좌표를 지웠기 때문에** 필요했다 — 화면만 이천에 남으면
+     * 두 곳이 다른 말을 하니까. 🔴 **이제 서버는 지우지 않는다.** `originOf` 가 물을
+     * 때마다 고르고, **콜을 쥔 동안에는 그 자리를 그대로 기점으로 쓴다.**
+     * 그러니 화면도 그대로 두는 것이 «같은 말»이다 (규칙 ③).
      */
-    useEffect(() => {
-        const onMockEnd = () => { if (homeLocation.current) setMyLocation(homeLocation.current); };
-        window.addEventListener('mock-driving-ended', onMockEnd);
-        return () => window.removeEventListener('mock-driving-ended', onMockEnd);
-    }, []);
     useEffect(() => {
         if (currentGps) setMyLocation({ x: currentGps.lng, y: currentGps.lat });
     }, [currentGps]);

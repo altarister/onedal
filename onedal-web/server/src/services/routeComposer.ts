@@ -16,7 +16,7 @@ import { optimizeWaypoints } from "../utils/routeOptimizer";
  *     → 재탐색해도 지도가 안 바뀌던 이슈 BB-③
  *   - 거리 단위가 제각각 (Math.round / 나눗셈 그대로 / toFixed)
  *     → 합짐 104.7km, 단독 105.0km 로 표기가 튀던 이슈 DD
- *   - TSP 시작점이 제각각 (driverLocation 유무)
+ *   - TSP 시작점이 제각각 (origin 유무)
  *   - 좌표가 없는 콜을 거르는 곳과 안 거르는 곳
  *
  * 이제 규약은 여기 한 곳뿐이다.
@@ -243,7 +243,7 @@ export interface ComposeMergedRouteParams {
     calls: RouteHolder[];
     /** 아직 `calls`에 들어가지 않은 후보 콜 (합짐 사전 평가용) */
     extra?: RouteHolder | null;
-    driverLocation?: Coord | null;
+    origin?: Coord | null;
     priority: string;
     carType: any;
 }
@@ -379,9 +379,9 @@ function rememberBase(key: string | null, origin: Coord | null | undefined, base
 export function clearBaseRouteCache(): void { baseRouteCache.length = 0; }
 
 export async function composeMergedRoute(params: ComposeMergedRouteParams) {
-    const { calls, extra, driverLocation, priority, carType } = params;
+    const { calls, extra, origin, priority, carType } = params;
 
-    const plan = planMergedStops(calls, extra, driverLocation);
+    const plan = planMergedStops(calls, extra, origin);
     if (!plan) return null;
 
     /**
@@ -398,24 +398,24 @@ export async function composeMergedRoute(params: ComposeMergedRouteParams) {
     if (plan.skippedPickups > 0) {
         console.log(`🛣️ [경로] 이미 상차한 콜 ${plan.skippedPickups}건의 상차지를 경유지에서 제외 (다녀온 곳을 다시 가지 않는다)`);
     }
-    const basePlan = planMergedStops(calls, null, driverLocation);
+    const basePlan = planMergedStops(calls, null, origin);
 
     // 🗄️ 같은 질문·같은 자리면 base 를 다시 묻지 않는다 (C단계)
     const bKey = baseCacheKey(basePlan, priority, carType);
-    const cachedBase = reusableBase(bKey, driverLocation);
+    const cachedBase = reusableBase(bKey, origin);
 
     const result = await calculateDetourRoute(
         plan.origin.dropoff.x, plan.origin.dropoff.y,
         plan.origin.pickup.x, plan.origin.pickup.y,
         plan.mergedDest.x, plan.mergedDest.y,
         plan.waypoints,
-        driverLocation,
+        origin,
         priority,
         carType,
         basePlan ? { waypoints: basePlan.waypoints, dest: basePlan.mergedDest } : null,
         cachedBase,
     );
-    if (!cachedBase) rememberBase(bKey, driverLocation, result?.base);
+    if (!cachedBase) rememberBase(bKey, origin, result?.base);
     /**
      * 🧭 **구간의 주인 — 방금 카카오에 보낸 그 순서다** (`plan.orderedStops`).
      *
@@ -534,7 +534,8 @@ function orderByNearest<T extends Coord & { orderId: string; stopType: 'pickup' 
 export function planMergedStops(
     calls: RouteHolder[],
     extra: RouteHolder | null | undefined,
-    driverLocation: Coord | null | undefined,
+    /** 📍 어디서 출발하나 — «지금 기점»(`originOf`)이 들어온다. 반환의 `from` 과 다른 것이다 */
+    from: Coord | null | undefined,
 ): {
     origin: { pickup: Coord; dropoff: Coord };
     mergedDest: Coord;
@@ -618,12 +619,12 @@ export function planMergedStops(
     if (allDropoffs.length === 0) return null;   // 갈 곳이 없다 — 사이클 끝 (경로를 지어내지 않는다)
 
     // TSP 시작점: 기사님 현위치를 알면 거기서부터 최적화한다.
-    // 예전에는 4곳 중 2곳만 driverLocation을 쓰고 나머지는 첫 상차지를 썼는데,
+    // 예전에는 4곳 중 2곳만 origin을 쓰고 나머지는 첫 상차지를 썼는데,
     // 같은 콜 조합인데도 어디서 호출했느냐에 따라 경유지 순서가 달라졌다.
     //
     // ⚠️ 짐을 다 싣고 하차만 남았으면 `allPickups` 가 **비어 있다**. 그때는 첫 하차지에서 시작한다.
     //    (GPS 가 없고 상차지도 없는데 `allPickups[0]` 을 쓰면 undefined 가 그대로 흘러간다)
-    const startLoc = driverLocation || allPickups[0] || allDropoffs[0];
+    const startLoc = from || allPickups[0] || allDropoffs[0];
 
     /**
      * 🔴 **상차를 전부 앞에 몰지 않는다 — 지나가는 길목부터 들른다** (기사님 실측 2026-08-25).
@@ -654,7 +655,7 @@ export function planMergedStops(
     const waypoints = ordered;
     /**
      * 🧭 **구간의 주인** — 카카오가 받는 정거장 순서 그대로다.
-     *    현위치를 알면 `origin` 은 현위치이므로 정거장은 `waypoints + mergedDest` 다
+     *    현위치를 알면 `from` 은 현위치이므로 정거장은 `waypoints + mergedDest` 다
      *    (`kakaoService.calculateDetourRoute` 의 requestBody 참조).
      */
     const orderedStops = [...waypoints, mergedDest]
@@ -665,8 +666,8 @@ export function planMergedStops(
     /**
      * ⚖️ **비교 기준(base)도 다녀온 곳을 뺀다** (2026-08-19 실측).
      *
-     * `origin.pickup` 은 우회 비용을 재는 base 경로의 경유지가 된다
-     * (`현위치 → origin.pickup → origin.dropoff`). ①에서 merged 만 다녀온 상차지를
+     * `from.pickup` 은 우회 비용을 재는 base 경로의 경유지가 된다
+     * (`현위치 → from.pickup → from.dropoff`). ①에서 merged 만 다녀온 상차지를
      * 뺐더니 **base 가 부풀어** 우회 비용이 음수로 나왔다 —
      * `추가 주행 +-13분 · 우회 거리 +-23.4km`. 합짐을 붙였는데 거리가 줄 리 없다.
      * 그 부푼 값과 비교하면 **모든 합짐이 과대평가**되고, 색이 곧 결정이므로(규칙 ⑤-3)
@@ -718,9 +719,9 @@ export interface ArrivalStop {
  */
 export function planArrivalStops(
     calls: RouteHolder[],
-    driverLocation: Coord | null | undefined,
+    origin: Coord | null | undefined,
 ): ArrivalStop[] {
-    const plan = planMergedStops(calls, null, driverLocation);
+    const plan = planMergedStops(calls, null, origin);
     if (!plan) return [];
 
     // 좌표는 콜에서 다시 집는다 — `orderedStops` 는 이름표만 나른다

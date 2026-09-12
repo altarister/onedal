@@ -760,122 +760,79 @@ export const DRIVER_LOCATION_STALE_MS = 5 * 60 * 1000;
  * 낡은 현위치를 **비운다** — 판단하는 곳은 여기 하나뿐이다 (규칙 ③).
  *
  * 비우면 이미 있는 «내 주소로 메우기» 길이 받고, 화면이 «내 주소 기준»이라고 말한다
- * (`driverLocationIsFallback`). 없는 값을 지어내지 않는다 (규칙 ④).
+ * (`originIsFallbackLEGACY`). 없는 값을 지어내지 않는다 (규칙 ④).
  *
  * ⚠️ **타이머를 두지 않는다.** 읽는 순간 빼기 한 번이다 — 타이머는 좀비가 되고(규칙 ②),
  *    5분마다 깨어나도 «4분 59초»와 «9분 59초»를 똑같이 취급해 오히려 부정확하다.
  * ⚠️ **받은 시각을 모르면 건드리지 않는다** — 없는 값으로 지우지 않는다 (규칙 ④).
  */
-export function dropStaleLocation(
-    session: { driverLocation: { x: number; y: number } | null; driverLocationAt: number | null; driverLocationIsMock?: boolean },
-    nowMs: number = Date.now(),
-): void {
-    if (!session.driverLocation || session.driverLocationAt == null) return;
-    if (nowMs - session.driverLocationAt <= DRIVER_LOCATION_STALE_MS) return;
-    const age = Math.round((nowMs - session.driverLocationAt) / 60000);
-    console.log(`📍 [현위치 낡음] ${age}분 전 좌표라 «지금 위치»로 쓰지 않습니다 — 내 주소 기준으로 계산합니다`);
-    session.driverLocation = null;
-    session.driverLocationAt = null;
-    session.driverLocationIsMock = false;   // 좌표를 지웠으면 그 좌표의 표식도 함께 지운다
+/**
+ * 📍 **«지금 기점» — 저장하지 않고 물을 때 고른다** (기사님 지시 2026-09-12).
+ *
+ * 기사님: *"함수가 함수를 부르는 것이 이상해. **상태가 바뀌면 거기에 따라 알아서
+ * 바뀌어야 하는 거 아냐?** 함수가 여러 가지 일을 하는 것이 별로야."*
+ *
+ * ── 전에는 어땠나 ──
+ * 세션에 «지금 위치»를 **써 두고**, 조건이 어긋나면 **지웠다.** 지우는 손이 넷이었다:
+ * 낡았을 때(`dropStaleLocation`) · 빈 차인데 가짜일 때(`dropOffDutyMockLocation`) ·
+ * 주행이 끝났을 때(`clearMockLocation` ← 소켓 `mock-driving-ended`) ·
+ * 그리고 비운 뒤 메우는 손(`ensureDriverOrigin`). 넷이 같은 질문에 각자 답했다.
+ *
+ * 🔴 **그래서 2026-09-12 에 «반만 고침»이 났다.** 아침에 「콜 쥔 동안엔 안 걷는다」로
+ *    조건을 바꾸며 읽는 자리만 고치고 주행이 끝나는 자리를 놓쳤다. 콜 셋을 쥔 채
+ *    경로 끝에 닿자 위치가 집으로 튀어 **경로 순서가 뒤집히고 버퍼가 −23분**이 됐다
+ *    (실측 14:38 · `1초월읍상·2곤지암읍상` → `1사음동상·2중리동하`).
+ *
+ * ── 지금은 ──
+ * 세션에는 **«마지막으로 받은 좌표»(`lastFix`)만** 남는다. 아무도 안 지운다.
+ * «지금 기점»은 물을 때마다 여기서 고른다 — 상태가 바뀌면 **다음 답이 저절로 달라진다.**
+ * 「언제 지울까」라는 질문이 사라졌으므로 반만 고칠 자리도 없다 (규칙 ③).
+ *
+ * 🔴 **셋 중 하나라도 어긋나면 집 주소를 쓴다** — 그리고 `isFallback` 으로 **그 사실을 말한다.**
+ *    추정으로 계산했다는 것을 숨기지 않는다 (규칙 ⑤-2).
+ *   ① 좌표가 없다
+ *   ② 낡았다 — 5분 넘은 좌표는 «지금»이 아니다 (2026-08-25 실측: 4시간 25분 전 여주
+ *      좌표를 «지금»으로 믿어 접근 구간을 40km 뒤로 그렸다)
+ *   ③ **빈 차(STANDBY)인데 가짜다** — 모의 좌표는 콜을 쥔 동안에만 «지금 위치»다.
+ *      2026-08-14 에 시뮬이 파주에서 멈춘 뒤 남은 좌표로 다음 콜 경로가
+ *      «파주 → 광주 → 파주» 156km 로 그려졌다.
+ *      ⚠️ **실 GPS 에는 이 제한이 없다** — 차를 세워 둬도 기사님은 진짜 거기 계신다.
+ */
+export interface DriverOrigin {
+    x: number;
+    y: number;
+    /** 📍 이 좌표가 어디서 왔나 — 화면이 적을 말 (`home` 은 «대신 쓰는 중»이다) */
+    source: 'gps' | 'mock' | 'manual' | 'home';
+    /** 🏠 집 주소로 대신한 것인가 — «추정으로 쟀다»를 화면이 말할 수 있게 */
+    isFallback: boolean;
 }
 
-/**
- * 📍 **비움과 메움은 한 몸이다** (버그: 합짐 전부 빨강 · 2026-08-31).
- *
- * `dropStaleLocation` 은 «비우면 내 주소 폴백이 받는다»고 약속했지만, 메우기는
- * **로그인 부트스트랩에만** 있었다. 그래서 세션 중간에 좌표가 낡아 비워지면(실측 251분)
- * 심사가 origin 없이 카카오를 불렀고 — 구간 주행분 전부 null → 도착예상 없음 →
- * 버퍼 못 잼 → 약속 축 «잴 수 없음» → **합짐 후보 전부 🔴 사고**로 나왔다.
- *
- * 그래서 경로·심사가 현위치를 읽기 전에는 이 함수 하나만 부른다 (규칙 ③ — 입력 한 곳).
- * **GPS 가 들어오면 그 값이 언제나 이긴다** — 싱싱하면 DB 도 안 읽는다.
- * 내 주소조차 없으면 null 로 둔다 — 없는 숫자를 지어내지 않는다 (규칙 ④).
- */
-/**
- * 🧹 **모의 주행 종료 — 되돌릴 실좌표가 없을 때** (2026-08-31 · 개발 빌드만 부른다).
- * 가상 위치를 계속 «지금 위치»로 믿으면 다음 첫짐 경로가 직전 하차지에서 빙 둘러
- * 그려진다 (기사님 실측 — 중리동 기점). 걷어내고 내 주소로 메운다.
- * 🔴 소켓 핸들러가 세션 위치를 직접 만지지 않도록 여기(위치의 집)에 산다 (workUnit 규칙).
- */
-export function clearMockLocation(
-    userId: string,
-    session: Parameters<typeof ensureDriverOrigin>[1],
-): void {
-    if (!session.driverLocation || session.driverLocationIsFallback) return;
-    console.log(`🧹 [모의 종료] 가상 위치를 걷어냅니다 — 내 주소 기준으로 복귀`);
-    session.driverLocation = null;
-    session.driverLocationAt = null;
-    session.driverLocationIsMock = false;
-    ensureDriverOrigin(userId, session);
-}
-
-/**
- * 🧟 **가상 좌표는 운행 국면 안에서만 «지금 위치»다** (기사님 실측 2026-09-01).
- *
- * 판이 끝나고 2분 뒤 잡은 첫짐의 경로가 집(초월읍)이 아니라 **이천에서** 시작했다.
- * 지난 판 마지막에 흘러든 가상 좌표 하나가 세션에 남아 기점 노릇을 하고 있었다 —
- * 낡음(5분)에 걸리기엔 싱싱했고(1분 48초), 걷어내는 손은 시뮬이 폴리라인 끝에 닿는
- * **한 갈래에만** 달려 있었다(`clearMockLocation` ← `mock-driving-ended`).
- * 실제로 판이 끝나는 길은 여럿이다 — 마지막 하차로 활성 콜이 0건이 되거나, 탭을 닫거나,
- * 새로고침하거나. 그 길들에는 손이 없었다.
- *
- * 🔴 **끝났다는 «사건»을 기다리지 않고, 읽는 자리에서 «아직 유효한가»를 묻는다** (규칙 ③).
- *    모의 GPS 가 도는 조건이 곧 유효 조건이다 — 관제웹 `useMasterGps` 의 `useMock` 은
- *    `isDriving`(= `dispatchPhase === 'DELIVERING'`) 없이는 한 좌표도 만들지 않는다.
- *    그러니 국면이 그걸 벗어났다면 남은 가상 좌표는 **정의상** 지난 판의 것이다.
- *    시각을 재는 추측이 아니라 만드는 조건 그대로라, 어느 길로 끝나도 함께 걷힌다.
- *
- * 🔴 **실 GPS 는 건드리지 않는다.** 차를 세워 국면이 STANDBY 여도 기사님은 진짜 거기 계신다.
- *    걷어내는 이유는 «가짜라서»지 «안 달려서»가 아니다.
- */
-function dropOffDutyMockLocation(session: {
-    driverLocation: { x: number; y: number } | null;
-    driverLocationAt: number | null;
-    driverLocationIsMock?: boolean;
-    activeFilter?: { dispatchPhase?: string | null };
-}): void {
-    if (!session.driverLocation || !session.driverLocationIsMock) return;
-    /**
-     * 🔴 **콜을 쥔 동안에는 안 걷는다** (2026-09-12 · 기사님 *"출발을 해야 상차를 하지"*).
-     *    전에는 `DELIVERING` 만 살려 뒀는데, 그러면 **상차지로 가는 구간(GATHERING)에서
-     *    모의 좌표가 매번 지워져** 모의 주행이 아무 일도 못 했다 — 테스트에서 가장 필요한
-     *    구간이 그것이다.
-     * 🔴 **빈 차(STANDBY)에서는 여전히 걷는다.** 그게 이 장치의 원래 목적이다 —
-     *    2026-08-14 에 시뮬이 파주에서 멈춘 뒤 가상 좌표가 남아 다음 콜 경로가
-     *    «파주 → 광주 → 파주» 156km 로 그려졌다.
-     */
-    const phase = session.activeFilter?.dispatchPhase;
-    if (phase === 'DELIVERING' || phase === 'GATHERING') return;
-    console.log(`🧟 [가상 좌표 만료] 빈 차(STANDBY)인데 시뮬 좌표가 남아 있습니다 — 걷어내고 내 주소 기준으로 계산합니다`);
-    session.driverLocation = null;
-    session.driverLocationAt = null;
-    session.driverLocationIsMock = false;
-}
-
-export function ensureDriverOrigin(
-    userId: string,
+export function originOf(
     session: {
-        driverLocation: { x: number; y: number } | null;
-        driverLocationAt: number | null;
-        driverLocationIsFallback: boolean;
-        driverLocationIsMock?: boolean;
-        driverLocationSource?: 'gps' | 'mock' | 'manual' | 'home';
+        /** 🔑 세션이 제 주인을 안다 — 부르는 쪽이 userId 를 또 들고 다니지 않게 (규칙 ③) */
+        userId: string;
+        lastFix: { x: number; y: number } | null;
+        lastFixAt: number | null;
+        lastFixIsMock?: boolean;
+        lastFixSource?: 'gps' | 'mock' | 'manual';
         activeFilter?: { dispatchPhase?: string | null };
     },
     nowMs: number = Date.now(),
-): void {
-    dropStaleLocation(session, nowMs);
-    dropOffDutyMockLocation(session);
-    if (session.driverLocation) return;
-    const home = SettingsRepository.getHomeLocation(userId);
-    if (home) {
-        session.driverLocation = { x: home.x, y: home.y };
-        session.driverLocationIsFallback = true;
-        session.driverLocationSource = 'home';   // 📍 화면이 «집 주소로 대신» 을 말할 수 있게 (현황판 ①)
-        console.log(`📍 [출발지 대체] GPS 미수신 — 내 주소(${home.address}) 기준으로 경로를 계산합니다`);
-    } else {
-        console.warn(`⚠️ [출발지 없음] GPS 도 내 주소도 없습니다 — 접근 구간을 계산할 수 없습니다 (설정에서 내 주소를 넣어 주세요)`);
+): DriverOrigin | null {
+    const fix = session.lastFix;
+    const fresh = !!fix && session.lastFixAt != null && nowMs - session.lastFixAt <= DRIVER_LOCATION_STALE_MS;
+    /* 🔴 가짜 좌표는 **콜을 쥔 동안에만** «지금 위치»다 (기사님 *"출발을 해야 상차를 하지"*) */
+    const phase = session.activeFilter?.dispatchPhase;
+    const onDuty = phase === 'DELIVERING' || phase === 'GATHERING';
+    const mockUsable = !session.lastFixIsMock || onDuty;
+
+    if (fix && fresh && mockUsable) {
+        return { x: fix.x, y: fix.y, source: session.lastFixSource ?? 'gps', isFallback: false };
     }
+
+    const home = SettingsRepository.getHomeLocation(session.userId);
+    if (!home) return null;   // 🔴 지어내지 않는다 — 없으면 없다고 답한다 (규칙 ④)
+    return { x: home.x, y: home.y, source: 'home', isFallback: true };
 }
 
 /**
@@ -965,7 +922,7 @@ export function processDriverMovement(
      * 기사님 결정: **이동이 있을 때만** 남긴다(㉮). 매초 찍으면 파일이 부푼다.
      * 다만 **말이 안 되는 점프는 조용해도 남긴다** — 그게 찾으려는 바로 그 사건이다.
      */
-    const prev = session.driverLocation;
+    const prev = session.lastFix;
     const prevAt = session.lastGpsAt;
     const src = source || '알수없음';
     /** 도착 감지가 같이 쓴다 — 속도를 모르면 null (지어내지 않는다) */
@@ -1016,15 +973,15 @@ export function processDriverMovement(
 
     session.lastGpsAt = Date.now();
 
-    session.driverLocation = currentGPS;
-    session.driverLocationAt = Date.now();   // 낡음을 재려면 «언제 받았나»가 있어야 한다
-    session.driverLocationIsMock = src === 'mock';   // 가짜는 운행 국면 밖에서 못 산다
+    session.lastFix = currentGPS;
+    session.lastFixAt = Date.now();   // 낡음을 재려면 «언제 받았나»가 있어야 한다
+    session.lastFixIsMock = src === 'mock';   // 가짜는 운행 국면 밖에서 못 산다
     /**
      * 📍 **온 그대로 적는다** (2026-09-12 · 현황판 담당 요청 ①).
      *    여기가 좌표가 들어오는 **유일한 문**이라 출처도 여기서 남긴다 (규칙 ③).
      *    ⚠️ 모르는 말이 오면 «모른다»로 둔다 — `gps` 로 지어내면 화면이 거짓말한다 (규칙 ④).
      */
-    session.driverLocationSource =
+    session.lastFixSource =
         src === 'mock' || src === 'manual' ? src
         : src === 'native' || src === 'browser' || src === 'real' ? 'gps'
         : undefined;

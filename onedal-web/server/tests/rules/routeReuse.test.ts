@@ -82,7 +82,7 @@ describe('↩️ 나 — 취소하면 직전 경로를 되살린다', () => {
      */
     it('🔴 현위치가 그대로일 때만 되살린다', () => {
         const src = code(read('services/routeComposer.ts')) + code(read('services/dispatchEngine.ts'));
-        expect(src).toMatch(/driverLocation/);
+        expect(src).toMatch(/origin/);
     });
 });
 

@@ -40,7 +40,7 @@ function makeSession(orders: any[]): any {
         pendingOrdersData: new Map<string, any>(),
         pendingDecisions: new Map<string, any>(),
         activeFilter: { dispatchPhase: 'STANDBY' },
-        driverLocation: { x: 127.387, y: 36.377 },
+        origin: { x: 127.387, y: 36.377 },
         driverLocationAt: null,
         driverLocationIsFallback: true,
     };

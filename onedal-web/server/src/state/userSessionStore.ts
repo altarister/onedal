@@ -24,7 +24,7 @@ export interface UserSession {
     userId: string;
     /**
      * 🛰️ **궤적에 마지막으로 남긴 점** — 솎기 기준 (2026-08-26).
-     *    `driverLocation` 과 다르다: 저것은 «지금 위치»(매 좌표 갱신),
+     *    `lastFix` 과 다르다: 저것은 «지금 위치»(매 좌표 갱신),
      *    이것은 «디스크에 남긴 마지막 점»이다. 50m·15초 문턱을 이걸로 잰다.
      */
     lastTrackPoint?: { x: number; y: number; atMs: number } | null;
@@ -71,51 +71,45 @@ export interface UserSession {
     judgment: JudgmentConfig;
     /** 🎛️ 화면의 선택지와 그 값 — 정차 분의 원천 ([[dwellRatesOf]]) */
     callOptions: CallOption[];
-    driverLocation: { x: number; y: number } | null;
     /**
-     * `driverLocation` 이 **GPS 가 아니라 설정의 '내 주소'** 에서 온 값인가.
-     * 화면이 "내 주소 기준"이라고 말할 수 있어야 한다 — 추정으로 계산했다는 사실을 숨기지 않는다.
-     * GPS 가 들어오면 false 로 돌아간다 (진짜 위치가 언제나 이긴다).
-     */
-    driverLocationIsFallback: boolean;
-    /**
-     * `driverLocation` 이 **시뮬레이터가 만든 가상 좌표**인가 (2026-09-01 신설).
+     * 📍 **마지막으로 «받은» 좌표 — 원자료다. 아무도 지우지 않는다** (2026-09-12 개편).
      *
-     * 가상 좌표는 «지금 위치»로 쓸 수 있는 기간이 **운행 국면 안»으로 한정된다 —
-     * 관제웹 시뮬은 `dispatchPhase === 'DELIVERING'` 일 때만 도므로, 국면이 그걸
-     * 벗어난 순간 남은 가상 좌표는 정의상 지난 판의 잔상이다 (`ensureDriverOrigin`).
-     * 실 GPS 에는 이 제한이 없다 — 세워 둬도 기사님은 진짜 거기 계신다.
+     * 🔴 **«지금 기점»이 아니다.** 기점은 `originOf(session)` 이 물을 때마다 고른다 —
+     *    낡았나 · 빈 차인데 가짜인가 · 집 주소로 대신할까. 전에는 그 판단 결과를 이 칸에
+     *    **써 두고** 조건이 어긋나면 **지웠는데**, 지우는 손이 넷이라 그중 하나를 놓쳐
+     *    2026-09-12 에 사고가 났다 (콜을 쥔 채 위치가 집으로 튀어 경로 순서가 뒤집힘).
+     *    지금은 **지울 일이 없다** — 상태가 바뀌면 다음 답이 저절로 달라진다 (규칙 ③).
      */
-    driverLocationIsMock: boolean;
+    lastFix: { x: number; y: number } | null;
     /**
-     * 📍 **이 좌표가 «어디서 왔나»** (2026-09-12 · 현황판 담당 요청 ①).
+     * 🎭 이 좌표가 **시뮬레이터가 만든 것**인가 (원자료 — 어떻게 받았나).
+     *    가짜는 «콜을 쥔 동안»에만 기점이 된다. 그 판단은 `originOf` 한 곳에 있다.
+     */
+    lastFixIsMock: boolean;
+    /**
+     * 📍 **이 좌표가 어디서 왔나** (원자료 · 2026-09-12 현황판 요청 ①).
      *
-     * 🔴 **`driverLocationIsMock` 과 답하는 질문이 다르다** (규칙 ⑤-4 ⑤).
-     *      · `driverLocationIsMock`   «지어낸 좌표인가» — 모의 주행이 끝나면 **걷어낼지**를 정한다
-     *      · `driverLocationSource`   «어디서 왔나»     — **화면이 적을 말**을 정한다
-     *    한 칸으로 둘을 답하다가, 시뮬레이터로 달리는 중인데 화면이
-     *    **«손으로 찍음»** 이라고 말했다. 이름이 거짓말을 한 것이다.
+     * 🔴 **`home` 이 없다** — 집 주소는 «받은 좌표»가 아니라 **없을 때 대신 쓰는 것**이라
+     *    파생이다 (`originOf` 의 `source`). 한 칸에 섞으면 «받은 적 없음»과
+     *    «집에서 왔음»을 구별할 수 없다 (규칙 ⑤-4 ⑤).
      *
      *   `gps`    폰이 보낸 진짜 위치
      *   `mock`   시뮬레이터 모의 주행
-     *   `manual` 사람이 현황판에서 **손으로 찍은** 위치 (그 칸은 아직 만드는 중)
-     *   `home`   아무것도 없어 **설정의 집 주소로 대신**한 것
+     *   `manual` 사람이 현황판에서 **손으로 찍은** 위치
      */
-    driverLocationSource?: 'gps' | 'mock' | 'manual' | 'home';
+    lastFixSource?: 'gps' | 'mock' | 'manual';
     /** 🔒 모의 GPS 임자 소켓 — 관제웹 둘이 시뮬을 겹쳐 쏘면 궤적이 섞인다 (2026-08-31) */
     mockGpsOwner?: { socketId: string; at: number; warned: boolean } | null;
     /**
-     * 📍 **`driverLocation` 을 받은 시각** (epoch ms · 2026-08-25 신설).
+     * 📍 **`lastFix` 를 받은 시각** (epoch ms · 2026-08-25 신설).
      *
      * 좌표만 들고 있으면 **얼마나 낡았는지 알 수가 없다.** 2026-08-25 실측:
      * 14:24 에 모의 주행이 여주에서 끝났고, 4시간 25분 뒤 광주에서 콜을 잡는데도
      * 서버가 그 여주 좌표를 «지금 내 위치»로 믿어 접근 구간을 **40km 뒤로** 그렸다.
-     * 실 운행에서도 터널·실내에서 GPS 가 끊기면 같은 형태로 난다.
      *
-     * 🔴 **낡음은 저장하는 상태가 아니라 시각 차이에서 파생된다** (규칙 ③).
-     *    타이머를 두지 않고 읽는 순간 잰다 (`dropStaleLocation`).
+     * 🔴 **낡음은 저장하는 상태가 아니라 시각 차이에서 파생된다** (규칙 ③) — `originOf` 가 잰다.
      */
-    driverLocationAt: number | null;
+    lastFixAt: number | null;
     userVehicleType: string; // user_settings의 내 차종 (동적 허용 차종 생성용)
     isRestored: boolean;     // [방안 1] 서버 재시작 복구 로직 1회 실행 여부 플래그
     /**
@@ -300,12 +294,11 @@ function createDefaultSession(userId: string): UserSession {
         // 실제 값은 아래 부트스트랩이 DB 에서 읽어 덮는다. 여기선 기본값으로 시작한다
         judgment: JSON.parse(JSON.stringify(DEFAULT_JUDGMENT)) as JudgmentConfig,
         callOptions: [],
-        driverLocation: null,
-        driverLocationIsFallback: false,
-        driverLocationIsMock: false,
-        driverLocationSource: undefined,
+        lastFix: null,
+        lastFixIsMock: false,
+        lastFixSource: undefined,
         mockGpsOwner: null,
-        driverLocationAt: null,
+        lastFixAt: null,
         userVehicleType: '1t',
         capacityConfidence: 'ESTIMATED',
         businessDay: businessDayKey(Date.now()),

@@ -237,14 +237,22 @@ describe('가상 위치는 남지 않는다', () => {
         expect(fn).toMatch(/publishLocation\(lastReal\.lat, lastReal\.lng/);
     });
 
-    it('🔴 실제 좌표가 없으면 가짜로 채우지 않는다 — 대신 걷어내라고 알린다 (0831)', () => {
+    it('🔴 실제 좌표가 없으면 **아무 일도 하지 않는다** — 가짜로 채우지도, 되돌리지도 않는다', () => {
+        /**
+         * 🔄 **2026-09-12 개편 — «걷어내라고 알린다»가 사라졌다** (기사님 지시).
+         *
+         * 예전에는 여기서 서버에 `mock-driving-ended` 를 쏘고 화면도 집으로 되돌렸다.
+         * 서버가 **가상 좌표를 지웠기 때문에** 화면이 따라가야 했던 것이다.
+         * 🔴 이제 서버는 지우지 않는다 — `originOf` 가 물을 때마다 고르고,
+         *    **콜을 쥔 동안에는 그 자리를 그대로 기점으로 쓴다.** 그러니 화면도 그대로
+         *    두는 것이 «같은 말»이다 (규칙 ③). 되돌리면 두 곳이 갈라진다.
+         */
         const fn = bridge.slice(bridge.indexOf('export function endMockDriving'));
-        // 되돌릴 실좌표가 없으면 publishLocation 없이 서버에 정리 신호만 — 가상 위치가
-        // 서버에 잔류해 다음 첫짐이 직전 하차지에서 빙 돌던 사고의 수리 형태다
         const noReal = fn.slice(fn.indexOf('if (!lastReal)'), fn.indexOf('lastSent = null'));
-        expect(noReal).toMatch(/socket\.emit\('mock-driving-ended'\)/);
         expect(noReal).toMatch(/return/);
         expect(noReal).not.toMatch(/publishLocation\(/);
+        /* 🔴 옛 신호가 되살아나면 서버·화면이 다시 갈라진다 */
+        expect(noReal).not.toMatch(/mock-driving-ended/);
     });
 
     it('시뮬레이터가 경로 끝에 닿으면 알린다', () => {

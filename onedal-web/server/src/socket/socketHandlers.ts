@@ -38,7 +38,7 @@ function routeTlOf(userId: string): RouteTl | undefined {
     } catch { return undefined; }
 }
 import { updateActiveFilter, ensureBusinessDay, saveBaseFilter, trimTraveled } from "../state/filterManager";
-import { processDriverMovement, getCityRegionsWithRadius, GPS_ARRIVAL, clearMockLocation } from "../services/geoService";
+import { processDriverMovement, getCityRegionsWithRadius, GPS_ARRIVAL } from "../services/geoService";
 
 
 
@@ -332,22 +332,23 @@ export function registerSocketHandlers(io: Server) {
         // 프론트에서 현재 위치 전송 시 (지도 등 활용 및 Master GPS 용도)
         /**
          * 🔴 **`update-my-location` 을 지웠다** (2026-08-14).
-         *    `session.driverLocation` 을 **직접** 덮어써 `processDriverMovement` 를 우회했다 —
+         *    `session.lastFix` 을 **직접** 덮어써 `processDriverMovement` 를 우회했다 —
          *    지나온 구간 제거도 도착 감지도 안 돌았을 것이다. 그런데 **쏘는 곳이 한 곳도 없었다**
          *    (git 전체 이력에서 관제웹·앱 어디에도 없다. 태어날 때부터 죽어 있었다).
          *    위치가 서버로 들어오는 문은 아래 `dashboard-gps-update` **하나뿐**이다.
          */
 
         /**
-         * 🧹 **모의 주행 종료 — 되돌릴 실좌표가 없을 때** (2026-08-31 · 개발 빌드만 쏜다).
-         * 가상 위치를 계속 «지금 위치»로 믿으면 다음 첫짐 경로가 직전 하차지에서
-         * 빙 둘러 그려진다 (기사님 실측). 걷어내고 내 주소로 메운다 — 비움+메움 한 몸.
-         */
-        socket.on("mock-driving-ended", () => {
-            // 🔴 클라가 개발 빌드에서만 쏘지만 서버도 한 겹 막는다 (규칙 ② — 겹쳐 둔다)
-            if (isLiveServer()) return;
-            clearMockLocation(userId, session);
-        });
+ * 🧹 **«모의 주행 종료» 수신을 걷었다** (기사님 지시 2026-09-12).
+ *
+ * 기사님: *"함수가 함수를 부르는 것이 이상해. 상태가 바뀌면 거기에 따라 알아서
+ * 바뀌어야 하는 거 아냐?"*
+ *
+ * 주행이 끝났다는 **사건을 기다려** 가상 좌표를 걷어냈는데, 그러면 «끝나는 길»마다
+ * 손이 필요하고 하나를 놓치면 그날처럼 «반만 고침»이 난다 (14:38 · 경로 순서 뒤집힘).
+ * 지금은 `originOf` 가 **물을 때마다** 「이 좌표를 지금 기점으로 쓸까」를 고르므로
+ * 끝났다고 알릴 일이 없다 — 상태가 바뀌면 다음 답이 저절로 달라진다 (규칙 ③).
+ */
 
         // ━━━ [관제웹 Master GPS 수신부] ━━━
         socket.on("dashboard-gps-update", (loc: { lat: number, lng: number, source?: string }) => {
@@ -369,7 +370,8 @@ export function registerSocketHandlers(io: Server) {
                 }
                 session.mockGpsOwner = { socketId: socket.id, at: now, warned: owner?.warned ?? false };
             }
-            session.driverLocationIsFallback = false;   // 진짜 GPS 가 임시 출발지를 이긴다
+            /* 🔴 예전엔 여기서 «임시 출발지» 플래그를 껐다 — 이제 `originOf` 가 고르므로 끌 것이 없다.
+               진짜 GPS 가 들어오면 그 좌표가 싱싱하다는 사실만으로 집 주소를 이긴다 (파생) */
             processDriverMovement(userId, loc.lat, loc.lng, session,
                 (uid, filterUpdate) => updateActiveFilter(uid, filterUpdate, io),
                 // 지나온 구간 제거는 전용 통로 — 파생 재계산을 거치지 않는다

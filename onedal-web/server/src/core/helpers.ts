@@ -6,6 +6,7 @@ import { isTerminal, cargoPoints, VEHICLE_CAPACITY, normalizeVehicleType,
          computeStopTiming, recordsOfSteps } from '@onedal/shared';
 import type { MyOrder, CargoReport, CapacityConfidence, DwellUnknown, StopTiming, JudgmentConfig } from '@onedal/shared';
 import { OrderRepository } from '../repositories/OrderRepository';
+import { originOf } from '../services/geoService';
 import db from '../db';
 import { planArrivalStops } from '../services/routeComposer';
 import type { RouteSnapshot } from '../services/routeComposer';
@@ -273,8 +274,13 @@ function logRouteStops(
  * ⚠️ 페이로드를 만드는 곳은 **여기 하나뿐**이어야 한다.
  *    (예전에는 네 군데가 각자 `Array.from(...)` 을 했다)
  */
-export function buildOrderSync(session: { userId?: string; myOrders: MyOrder[]; pendingOrdersData: Map<string, any>;
-                                          driverLocation?: { x: number; y: number } | null;
+export function buildOrderSync(session: { userId: string; myOrders: MyOrder[]; pendingOrdersData: Map<string, any>;
+                                          /* 📍 기점을 «고르는» 데 드는 것들 — 저장된 «지금 위치»가 아니다 (originOf) */
+                                          lastFix: { x: number; y: number } | null;
+                                          lastFixAt: number | null;
+                                          lastFixIsMock?: boolean;
+                                          lastFixSource?: 'gps' | 'mock' | 'manual';
+                                          activeFilter?: { dispatchPhase?: string | null };
                                           /** ↩️ 후보를 붙이며 덮기 직전에 떠 둔 경로 — 확정 경로의 주행분이 여기 있다 */
                                           routeSnapshot?: RouteSnapshot | null }) {
     // 🔴 세션은 같은 콜을 **두 곳**에 들고 있다.
@@ -321,7 +327,7 @@ export function buildOrderSync(session: { userId?: string; myOrders: MyOrder[]; 
      */
     const activeCalls = session.myOrders.filter(o => !isTerminal(o.status));
     const stops = activeCalls.length
-        ? planArrivalStops(activeCalls, session.driverLocation ?? null) : [];
+        ? planArrivalStops(activeCalls, originOf(session)) : [];
     /**
      * 🔴 **경로는 "마지막 콜"이 아니라 "값이 있는 마지막 콜"에서 읽는다** (2026-08-19 실측).
      *

@@ -34,7 +34,7 @@ const CALL = {
 const session = (over: object = {}) => ({
     myOrders: [{ ...CALL, ...over }],
     pendingOrdersData: new Map(),
-    driverLocation: { x: 127.1, y: 37.4 },
+    origin: { x: 127.1, y: 37.4 },
 }) as any;
 
 describe('경로 순서 — 지나간 정거장 뒤에도 주행분이 산다', () => {
@@ -64,7 +64,7 @@ describe('경로 순서 — 지나간 정거장 뒤에도 주행분이 산다', 
 
     it('sectionStops 가 없는 옛 홀더는 예전 규칙 그대로 — 길이가 맞으면 인덱스로', () => {
         const { sectionStops, ...noStops } = CALL as any;
-        const s = { myOrders: [noStops], pendingOrdersData: new Map(), driverLocation: { x: 127.1, y: 37.4 } } as any;
+        const s = { myOrders: [noStops], pendingOrdersData: new Map(), origin: { x: 127.1, y: 37.4 } } as any;
         const { routeStops } = buildOrderSync(s);
         expect(routeStops.map(x => x.driveMinutes)).toEqual([10, 84]);
     });

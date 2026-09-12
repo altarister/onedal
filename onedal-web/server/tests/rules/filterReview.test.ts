@@ -624,15 +624,21 @@ describe('8단계 · 상차지까지도 모의 주행으로 간다 (현황판 �
         expect(decl).not.toMatch(/isDriving/);
     });
 
-    it('🔴 서버가 콜을 쥔 동안에는 가짜 좌표를 안 걷는다 — 빈 차일 때만 걷는다', () => {
-        const i = geo.indexOf('function dropOffDutyMockLocation');
+    it('🔴 서버가 콜을 쥔 동안에는 가짜 좌표를 기점으로 쓴다 — 빈 차일 때만 집으로 물러난다', () => {
+        /**
+         * 🔄 **2026-09-12 개편 — «걷어낸다»가 «고른다»로 바뀌었다** (기사님 지시).
+         *    전에는 조건이 어긋나면 세션의 좌표를 **지웠고**(`dropOffDutyMockLocation`),
+         *    지우는 손이 넷이라 그중 하나를 놓쳐 사고가 났다. 지금은 `originOf` 가
+         *    **물을 때마다 고르므로** 지우는 손이 없다 — 그래서 검사도 «고르는 자리»를 본다.
+         */
+        const i = geo.indexOf('export function originOf');
         expect(i).toBeGreaterThan(-1);
-        /* ⚠️ 매개변수 타입이 `}` 로 닫혀 `\n}` 에서 끊긴다 — 다음 export 까지 본다 */
-        const body = geo.slice(i, geo.indexOf('\nexport ', i));
+        const body = geo.slice(i, geo.indexOf('\n}', i));
         expect(body).toMatch(/GATHERING/);
         expect(body).toMatch(/DELIVERING/);
-        /* 빈 차(STANDBY)에서는 여전히 걷는다 — 2026-08-14 사고 */
-        expect(body).toMatch(/driverLocation = null/);
+        /* 빈 차(STANDBY)에서는 집 주소가 대신한다 — 2026-08-14 사고 */
+        expect(body).toMatch(/getHomeLocation/);
+        expect(body).toMatch(/isFallback: true/);
     });
 });
 

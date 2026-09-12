@@ -9,7 +9,9 @@ import { buildOrderSync, getActiveCalls, setOrderStatus } from '../../src/core/h
  */
 function makeSession(statuses: string[]) {
     const orders = statuses.map((status, i) => ({ id: `o${i}`, status } as any));
-    return { myOrders: orders, pendingOrdersData: new Map(orders.map(o => [o.id, o])) };
+    /* 📍 기점은 파생이라(originOf) 세션이 «마지막 받은 좌표»를 들고 있어야 한다 — 없으면 집 주소가 대신한다 */
+    return { userId: 'u1', myOrders: orders, pendingOrdersData: new Map(orders.map(o => [o.id, o])),
+             lastFix: null, lastFixAt: null };
 }
 
 describe('buildOrderSync — 진행/종료 분리', () => {

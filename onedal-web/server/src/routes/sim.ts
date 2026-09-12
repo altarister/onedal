@@ -2,6 +2,7 @@ import { Router } from "express";
 import db from "../db";
 import { getAllActiveUserIds, getUserSession } from "../state/userSessionStore";
 import { isLiveServer, PROBE_EMAIL } from "../config/env";
+import { originOf } from "../services/geoService";
 import { getActiveCalls } from "../core/helpers";
 import { mapCoverage } from "../services/geoService";
 import { SettingsRepository } from "../repositories/SettingsRepository";
@@ -60,22 +61,27 @@ router.get("/driver-location", (_req, res) => {
         return res.json({ ok: false, reason: userIds.length ? "세션이 여럿입니다" : "접속한 세션이 없습니다" });
     }
     const session = getUserSession(userIds[0]);
-    const loc = session.driverLocation;
+    /**
+     * 📍 **화면이 보는 것은 «지금 기점»이다** — 서버가 경로를 그릴 때 쓰는 바로 그 값
+     *    (2026-09-12 개편). 저장된 칸을 읽는 게 아니라 `originOf` 가 **지금 고른다**.
+     *    그래야 «화면은 이천인데 서버는 집»이 생기지 않는다 (규칙 ③).
+     */
+    const loc = originOf(session);
     if (!loc) return res.json({ ok: false, reason: "현위치를 아직 모릅니다" });
 
     return res.json({
         ok: true,
         x: loc.x, y: loc.y,
         /** GPS 가 아니라 «내 주소»로 메운 값인가 — 시뮬이 화면에 그대로 밝힌다 */
-        isFallback: !!session.driverLocationIsFallback,
-        at: session.driverLocationAt ?? null,
+        isFallback: loc.isFallback,
+        at: session.lastFixAt ?? null,
         /**
          * 📍 **이 위치가 «어디서 왔나»** (2026-09-11 · 기사님 지시로 신설).
          *
          * 기사님: *"GPS 가 안 오는 건 PC 에서 테스트할 때 말고는 없는 상황이야.
          * 그럼 오른쪽에 내 위치 넣을 수 있게 할까?"*
          *
-         * 🔴 **값은 한 칸(`driverLocation`)이고 문만 셋이다** — 읽는 쪽은 늘 그 한 칸만 본다.
+         * 🔴 **값은 한 칸(`lastFix`)이고 문만 셋이다** — 읽는 쪽은 늘 그 한 칸만 본다.
          *    갈라지는 것을 막는 것은 **«어디서 왔는지 화면이 말하는 것»**이다 (규칙 ⑤-2).
          *    지금까지는 «집 주소로 대신»이 **로그에만** 찍혀서, 기사님이 *"내 위치가
          *    대전으로 박혀있나봐"* 하고 한참 헤매셨다 (2026-09-11).
@@ -86,14 +92,13 @@ router.get("/driver-location", (_req, res) => {
          *   `home`   아무것도 없어 **설정의 집 주소로 대신**한 것
          *
          * 🔴 **여기서 다시 판단하지 않는다** (2026-09-12 · 현황판 담당 요청 ①).
-         *    예전엔 `driverLocationIsMock ? 'manual' : 'gps'` 로 **파생**했는데,
+         *    예전엔 `lastFixIsMock ? 'manual' : 'gps'` 로 **파생**했는데,
          *    그 플래그는 «지어낸 좌표인가»를 답하는 칸이라 **시뮬레이터로 달리는 중에도
          *    화면이 «손으로 찍음»이라고 말했다.** 한 칸이 두 사실을 답한 것이다 (규칙 ⑤-4 ⑤).
-         *    이제 `driverLocationSource` 가 **온 그대로** 들고 있고 여기는 그것을 옮긴다 (규칙 ③).
+         *    이제 `lastFixSource` 가 **온 그대로** 들고 있고 여기는 그것을 옮긴다 (규칙 ③).
          * ⚠️ «집 주소로 대신»은 여전히 먼저다 — **좌표가 없다는 사실**이 출처보다 앞선다.
          */
-        source: session.driverLocationIsFallback ? 'home'
-              : session.driverLocationSource ?? 'gps',
+        source: loc.source,
     });
 });
 
@@ -193,11 +198,8 @@ router.get("/preflight", (_req, res) => {
         isSharedMode: !!f?.isSharedMode,
         dispatchPhase: f?.dispatchPhase ?? null,
         activeCalls: getActiveCalls(session).length,
-        /** 시뮬이 거리를 재는 기준 — 여기가 틀리면 상차 반경이 통째로 헛것이 된다 */
-        driverLocation: session.driverLocation
-            ? { x: session.driverLocation.x, y: session.driverLocation.y,
-                isFallback: !!session.driverLocationIsFallback }
-            : null,
+        /** 시뮬이 거리를 재는 기준 — 여기가 틀리면 상차 반경이 통째로 헛것이 된다 (파생: originOf) */
+        lastFix: (() => { const o = originOf(session); return o ? { x: o.x, y: o.y, isFallback: o.isFallback } : null; })(),
         homeAddress: home?.address ?? null,
         /** 충청 확장이 실렸는가 — 1,968 이면 실렸고 1,239 면 옛 지도다 */
         map: mapCoverage(),

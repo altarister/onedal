@@ -39,8 +39,8 @@ const NUDGED = { x: 127.3010, y: 37.37 };
 /** 200m 를 넘어 움직인 지점 (≈1.7km) */
 const AWAY = { x: 127.32, y: 37.37 };
 
-const compose = (driverLocation: any, extra: any = null) =>
-    composeMergedRoute({ calls: calls(), extra, driverLocation, priority: 'RECOMMEND', carType: 1 } as any);
+const compose = (origin: any, extra: any = null) =>
+    composeMergedRoute({ calls: calls(), extra, origin, priority: 'RECOMMEND', carType: 1 } as any);
 
 /**
  * 그 호출이 «되쓴 base» 를 들고 갔는가.
@@ -73,7 +73,7 @@ describe('base 캐시 — 같은 질문·같은 자리에서만 되쓴다', () =
         await compose(HERE);
         mockedDetour.mockClear();
         await composeMergedRoute({
-            calls: [calls()[0]], driverLocation: NUDGED, priority: 'RECOMMEND', carType: 1,
+            calls: [calls()[0]], origin: NUDGED, priority: 'RECOMMEND', carType: 1,
         } as any);
         expect(usedCache(0)).toBeNull();
     });
@@ -82,7 +82,7 @@ describe('base 캐시 — 같은 질문·같은 자리에서만 되쓴다', () =
         await compose(HERE);
         mockedDetour.mockClear();
         await composeMergedRoute({
-            calls: calls(), driverLocation: NUDGED, priority: 'RECOMMEND', carType: 7,
+            calls: calls(), origin: NUDGED, priority: 'RECOMMEND', carType: 7,
         } as any);
         expect(usedCache(0)).toBeNull();
     });

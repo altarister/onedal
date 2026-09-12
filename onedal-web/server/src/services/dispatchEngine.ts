@@ -9,7 +9,7 @@ import { geocodeAddress, calculateSoloRoute, calculateDetourRoute, compareDirect
 import { fetchRealWorldRoute } from "../routes/osrmUtil";
 import { getUserSession, clearOrderTimers } from "../state/userSessionStore";
 import { updateActiveFilter, rememberDetourProgress, recalculateDetourFilter, goalCityOf, homeCityOf } from "../state/filterManager";
-import { getDetourRegions, getCityRegionsWithRadius, reverseGeocodeToRegion, haversineKm, ensureDriverOrigin } from "../services/geoService";
+import { getDetourRegions, getCityRegionsWithRadius, reverseGeocodeToRegion, haversineKm, originOf } from "../services/geoService";
 import { composeMergedRoute, applyRoute, applySoloRoute, measureSoloDelivery, pickRouteHolder, toKm, toMin, hasVisitedStop, snapshotRoute, restoreRouteSnapshot, parsePolyline } from "./routeComposer";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
 import { DISPATCH_CONFIG } from "../config/dispatchConfig";
@@ -75,7 +75,7 @@ export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: 
     if (snap && snap.orderId !== orderId) {
         const holder = session.myOrders.find(o => o.id === snap.orderId);
         if (holder) {
-            const ok = restoreRouteSnapshot(holder, snap, session.driverLocation ?? null);
+            const ok = restoreRouteSnapshot(holder, snap, originOf(session));
             console.log(ok
                 ? `↩️ [경로 복원] ${snap.orderId} — 덮이기 전 궤적(${snap.routePolyline?.length ?? 0}점)을 되살렸습니다 (카카오 호출 없음)`
                 : `↩️ [경로 복원 안 함] ${snap.orderId} — 현위치가 달라져 다시 재야 합니다`);
@@ -142,7 +142,6 @@ export async function recalculateActiveKakaoRoute(userId: string, io: any) {
      * 📍 낡은 현위치는 «지금 위치»가 아니다 — 비우고 «내 주소»로 메운다 (2026-08-31).
      *    비움 단독은 금지 — 메우는 길이 부트스트랩에만 있어 심사가 origin 없이 돌았다.
      */
-    ensureDriverOrigin(userId, session);
 
     // 완료되지 않은 활성 콜만 추출 (On-the-fly 필터링)
     const activeCalls = getActiveCalls(session);
@@ -170,7 +169,7 @@ export async function recalculateActiveKakaoRoute(userId: string, io: any) {
             const res = await calculateSoloRoute(
                 activeMain.pickupX!, activeMain.pickupY!,
                 activeMain.dropoffX!, activeMain.dropoffY!,
-                session.driverLocation,
+                originOf(session),
                 routingOptions.defaultPriority,
                 routingOptions.carType,
                 hasVisitedStop(activeMain, 'pickup'),
@@ -184,7 +183,7 @@ export async function recalculateActiveKakaoRoute(userId: string, io: any) {
             // 다중 오더 라우팅 (TSP) — 조립 규약은 routeComposer 한 곳에만 있다
             const result = await composeMergedRoute({
                 calls: activeCalls,
-                driverLocation: session.driverLocation,
+                origin: originOf(session),
                 priority: routingOptions.defaultPriority,
                 carType: routingOptions.carType,
             });
@@ -240,7 +239,7 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
             const result = await calculateSoloRoute(
                 securedOrder.pickupX!, securedOrder.pickupY!,
                 securedOrder.dropoffX!, securedOrder.dropoffY!,
-                session.driverLocation,
+                originOf(session),
                 priority || routingOptions.defaultPriority,
                 routingOptions.carType,
                 hasVisitedStop(securedOrder, 'pickup'),
@@ -278,7 +277,7 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
             const result = await composeMergedRoute({
                 calls: existingActive,
                 extra: securedOrder,
-                driverLocation: session.driverLocation,
+                origin: originOf(session),
                 priority: priority || routingOptions.defaultPriority,
                 carType: routingOptions.carType,
             });
@@ -294,7 +293,7 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
              * `applyRoute` **바로 앞**에서 뜬다.
              */
             if ((routeHolder as any).id && routeHolder !== (securedOrder as any)) {
-                session.routeSnapshot = snapshotRoute(routeHolder as any, session.driverLocation ?? null);
+                session.routeSnapshot = snapshotRoute(routeHolder as any, originOf(session));
             }
             applyRoute(routeHolder, result.merged);
             mergedRouteHolder = routeHolder;
@@ -367,7 +366,6 @@ export const syncDetourFilter = (userId: string, io: any) => {
      * 📍 낡은 현위치는 «지금 위치»가 아니다 — 비우고 «내 주소»로 메운다 (2026-08-31).
      *    비움 단독은 금지 — 메우는 길이 부트스트랩에만 있어 심사가 origin 없이 돌았다.
      */
-    ensureDriverOrigin(userId, session);
     let polylineToUse = null;
 
     // 완료되지 않은 활성 콜만 추출하여 최신 폴리라인을 가져옵니다.
@@ -519,7 +517,7 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
                         if (activeSubs.length > 0) {
                             const calcResult = await composeMergedRoute({
                                 calls: activeCalls,
-                                driverLocation: session.driverLocation,
+                                origin: originOf(session),
                                 priority: routingOptions.defaultPriority,
                                 carType: routingOptions.carType,
                             });
@@ -775,9 +773,8 @@ export async function bootstrapUserSession(userId: string, io: any): Promise<voi
          * 있는 값을 쓰면 임시 코드가 필요 없고, 이사하면 설정만 바꾸면 된다.
          *
          * **GPS 가 들어오면 그 값이 언제나 이긴다** (dashboard-gps-update).
-         * 추정으로 계산했다는 사실은 `driverLocationIsFallback` 으로 숨기지 않는다.
+         * 추정으로 계산했다는 사실은 `originIsFallbackLEGACY` 으로 숨기지 않는다.
          */
-        ensureDriverOrigin(userId, session);   // 비움+메움 한 곳 (geoService)
 
         await restoreAndRecalculateSession(userId, io);   // ②③④ (DB 로드 → 카카오 노선 → 상태 파생)
         rebuildDestinationKeywords(userId, io);           // ⑤ (활성 콜 유무로 경유/도시 분기)
@@ -1009,7 +1006,7 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
                 const res = await calculateSoloRoute(
                     activeMain.pickupX, activeMain.pickupY!,
                     activeMain.dropoffX, activeMain.dropoffY!,
-                    session.driverLocation,
+                    originOf(session),
                     routingOptions.defaultPriority,
                     routingOptions.carType,
                     hasVisitedStop(activeMain, 'pickup'),
@@ -1026,7 +1023,7 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
                 applySoloRoute(activeMain, res);   // sectionEtas 도 여기서 함께 기록된다
 
                 if (res.approachDuration) {
-                    console.log(`🗺️ [복구 - 접근 구간] ${session.driverLocationIsFallback ? '임시 출발지' : '현위치'} → 상차지 ` +
+                    console.log(`🗺️ [복구 - 접근 구간] ${originOf(session)?.isFallback ? '임시 출발지' : '현위치'} → 상차지 ` +
                         `${toKm(res.approachDistance || 0)}km / ${toMin(res.approachDuration)}분`);
                 }
             } catch(e) {
@@ -1039,7 +1036,7 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
             try {
                 const calcResult = await composeMergedRoute({
                     calls: activeCalls,
-                    driverLocation: session.driverLocation,
+                    origin: originOf(session),
                     priority: routingOptions.defaultPriority,
                     carType: routingOptions.carType,
                 });
@@ -1485,7 +1482,7 @@ export async function createHomeReturn(
             return { success: false, message: "집 주소의 좌표가 없습니다. 설정에서 📍위치 확인 후 다시 저장해주세요." };
         }
 
-        const currentLoc = session.driverLocation;
+        const currentLoc = originOf(session);
         const pickupX = currentLoc?.x || settings.home_x;
         const pickupY = currentLoc?.y || settings.home_y;
 

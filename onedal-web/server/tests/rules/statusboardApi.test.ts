@@ -26,7 +26,7 @@ const codeOnly = (src: string) =>
 /**
  * 📍 **한 플래그가 두 사실을 답하고 있었다** (규칙 ⑤-4 ⑤ · 2026-09-12).
  *
- * 현황판 담당: *"sim.ts 는 `driverLocationIsMock` 을 보고 `manual` 을 답하는데
+ * 현황판 담당: *"sim.ts 는 `lastFixIsMock` 을 보고 `manual` 을 답하는데
  * … **시뮬은 그대로 mock 으로 보내므로 문제는 남아 있습니다.**"*
  *
  * 🔴 **실측으로 확인한 것** (소켓에 좌표를 직접 쏴 봤다):
@@ -34,8 +34,8 @@ const codeOnly = (src: string) =>
  *    **켜는 자리는 있었다.** 진짜 문제는 **이름이 거짓말하는 것**이다 —
  *    `manual`(손으로 찍음)이라 적히는데 실제로 오는 것은 **시뮬레이터**다.
  *
- * 🔴 그래서 `driverLocationIsMock`(«지어낸 좌표인가» — 걷어낼지 판단) 과
- *    `driverLocationSource`(«어디서 왔나» — 화면이 적을 말) 를 **가른다.**
+ * 🔴 그래서 `lastFixIsMock`(«지어낸 좌표인가» — 걷어낼지 판단) 과
+ *    `lastFixSource`(«어디서 왔나» — 화면이 적을 말) 를 **가른다.**
  *    「손으로 찍기」는 현황판에 앞으로 생길 기능이라 자리를 미리 가려 둔다.
  */
 describe('① 내 위치의 출처를 그대로 남긴다 (현황판 ①)', () => {
@@ -44,26 +44,41 @@ describe('① 내 위치의 출처를 그대로 남긴다 (현황판 ①)', () =
     const sim = codeOnly(read('routes/sim.ts'));
 
     it('🔴 세션에 «출처» 칸이 따로 있다 — 모의와 손찍기를 가른다', () => {
-        expect(store).toMatch(/driverLocationSource/);
-        /* 네 갈래가 타입으로 못박혀 있어야 한다 — 문자열을 아무거나 넣으면 화면이 조용히 빈다 */
-        expect(store).toMatch(/'gps'\s*\|\s*'mock'\s*\|\s*'manual'\s*\|\s*'home'/);
+        expect(store).toMatch(/lastFixSource/);
+        /**
+         * 🔄 **2026-09-12 — `home` 이 세션에서 빠졌다.** 집 주소는 «받은 좌표»가 아니라
+         *    **없을 때 대신 쓰는 것**이라 파생이다 (`originOf` 의 `source`). 한 칸에 섞으면
+         *    «받은 적 없음»과 «집에서 왔음»을 구별할 수 없다 (규칙 ⑤-4 ⑤).
+         */
+        expect(store).toMatch(/'gps'\s*\|\s*'mock'\s*\|\s*'manual'/);
+        expect(codeOnly(store)).not.toMatch(/lastFixSource\??:[^;]*'home'/);
+        /* 네 갈래를 «고르는» 자리에는 넷이 다 있다 */
+        expect(geo).toMatch(/'gps'\s*\|\s*'mock'\s*\|\s*'manual'\s*\|\s*'home'/);
     });
 
     it('🔴 좌표가 들어오는 문에서 그 자리에 «온 그대로» 적는다', () => {
-        expect(geo).toMatch(/session\.driverLocationSource\s*=/);
+        expect(geo).toMatch(/session\.lastFixSource\s*=/);
     });
 
-    it('🔴 sim 이 그 칸을 그대로 답한다 — 제 손으로 다시 판단하지 않는다', () => {
-        expect(sim).toMatch(/driverLocationSource/);
+    it('🔴 sim 이 «고른 것»을 그대로 답한다 — 제 손으로 다시 판단하지 않는다', () => {
+        /**
+         * 🔄 **2026-09-12 — 화면이 보는 것은 «지금 기점»이다.** 서버가 경로를 그릴 때 쓰는
+         *    바로 그 값을 `originOf` 가 골라 내려 준다. 여기서 또 고르면 «화면은 이천인데
+         *    서버는 집»이 생긴다 (규칙 ③).
+         */
+        expect(sim).toMatch(/originOf\(session\)/);
         /* ⚠️ 옛 파생식이 남아 있으면 «시뮬인데 손찍음»이라고 또 말한다 */
-        expect(sim).not.toMatch(/driverLocationIsMock\s*\?\s*'manual'/);
+        expect(sim).not.toMatch(/lastFixIsMock\s*\?\s*'manual'/);
+        expect(sim).not.toMatch(/isFallback\s*\?\s*'home'/);
     });
 
     it('🔴 «집 주소로 대신»은 여전히 이긴다 — 좌표가 없다는 사실이 먼저다', () => {
-        const i = sim.indexOf('source:');
+        const i = geo.indexOf('export function originOf');
         expect(i).toBeGreaterThan(-1);
-        const line = sim.slice(i, sim.indexOf('\n', sim.indexOf('\n', i) + 1));
-        expect(line).toMatch(/driverLocationIsFallback/);
+        const body = geo.slice(i, geo.indexOf('\n}', i));
+        /* 고르는 자리에서 «집이면 그렇게 말한다» — 추정으로 쟀다는 것을 숨기지 않는다 */
+        expect(body).toMatch(/source: 'home'/);
+        expect(body).toMatch(/isFallback: true/);
     });
 });
 

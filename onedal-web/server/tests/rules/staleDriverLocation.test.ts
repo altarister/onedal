@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { getUserSession } from '../../src/state/userSessionStore';
-import { dropStaleLocation, DRIVER_LOCATION_STALE_MS } from '../../src/services/geoService';
+import { originOf, DRIVER_LOCATION_STALE_MS } from '../../src/services/geoService';
 
 /**
  * 📍 **낡은 좌표는 «지금 위치»가 아니다** (기사님 실측 2026-08-25)
@@ -23,9 +23,12 @@ import { dropStaleLocation, DRIVER_LOCATION_STALE_MS } from '../../src/services/
  *    콜을 잡으면, 서버는 **끊기기 직전 자리**를 현위치로 쓴다.
  *
  * ── 고침 ──
- *   좌표에 **받은 시각**을 달고, 경로를 그리기 직전에 낡았으면 **비운다.**
- *   비우면 이미 있는 «내 주소로 메우기» 길이 받고, 화면이 «내 주소 기준»이라고 말한다
- *   (`driverLocationIsFallback`). 없는 값을 지어내지 않는다 (규칙 ④).
+ *   좌표에 **받은 시각**을 달고, 기점을 물을 때 낡았으면 **집 주소를 고른다.**
+ *
+ * 🔄 **2026-09-12 개편 — «비운다»가 «고른다»로 바뀌었다** (기사님 지시).
+ *    전에는 낡으면 세션에서 **지웠는데**, 지우는 손이 넷으로 불어나 그중 하나를 놓쳐
+ *    사고가 났다. 지금은 **원자료(`lastFix`)를 그대로 두고** `originOf` 가 물을 때마다
+ *    고른다 — 그래서 이 검사도 «지워졌나»가 아니라 «무엇을 골랐나»를 본다.
  *
  * ⚠️ **타이머를 두지 않는다.** 읽는 순간 빼기 한 번이다 —
  *    타이머는 좀비가 되고(규칙 ②), 5분마다 깨어나도 «4분 59초»와 «9분 59초»를
@@ -37,9 +40,9 @@ const 여주 = { x: 127.58473548568698, y: 37.29198716004579 };
 
 function session(over: { at?: number | null } = {}) {
     const s = getUserSession(USER);
-    s.driverLocation = { ...여주 };
-    s.driverLocationAt = 'at' in over ? over.at! : Date.now();
-    s.driverLocationIsFallback = false;
+    s.lastFix = { ...여주 };
+    s.lastFixAt = 'at' in over ? over.at! : Date.now();
+    s.lastFixIsMock = false;
     return s;
 }
 
@@ -53,31 +56,31 @@ describe('낡은 현위치 — 경로 기점으로 쓰지 않는다', () => {
         const 콜잡은시각 = Date.parse('2026-08-25T09:49:00.000Z'); // 18:49 KST
         const s = session({ at: 받은시각 });
 
-        dropStaleLocation(s, 콜잡은시각);
 
-        expect(s.driverLocation).toBeNull();
-        expect(s.driverLocationAt).toBeNull();
+        /* 🔴 집 주소가 없는 판이라 «모른다»(null)로 답한다 — 여주를 쓰지 않는 것이 요점 */
+        expect(originOf(s, 콜잡은시각)).toBeNull();
+        /* 🔴 **원자료는 그대로 있다** — 아무도 지우지 않는다 (2026-09-12 개편) */
+        expect(s.lastFix).toEqual(여주);
     });
 
     it('5분 안이면 그대로 쓴다 — 신호가 잠깐 끊겨도 접근 구간을 잃지 않는다', () => {
         const now = Date.now();
         const s = session({ at: now - 4 * 60 * 1000 });
-        dropStaleLocation(s, now);
-        expect(s.driverLocation).toEqual(여주);
+        expect(originOf(s, now)).toMatchObject({ ...여주, isFallback: false });
     });
 
     it('경계에서 버리지 않는다 — 딱 5분은 아직 쓴다', () => {
         const now = Date.now();
         const s = session({ at: now - DRIVER_LOCATION_STALE_MS });
-        dropStaleLocation(s, now);
-        expect(s.driverLocation).not.toBeNull();
+        expect(originOf(s, now)).toMatchObject({ ...여주, isFallback: false });
     });
 
-    it('받은 시각을 모르면 건드리지 않는다 — 없는 값으로 지우지 않는다 (규칙 ④)', () => {
+    it('받은 시각을 모르면 기점으로 쓰지 않는다 — 없는 값으로 판단하지 않는다 (규칙 ④)', () => {
         const now = Date.now();
         const s = session({ at: null });
-        dropStaleLocation(s, now);
-        expect(s.driverLocation).toEqual(여주);
+        expect(originOf(s, now)).toBeNull();
+        /* 🔴 원자료는 그대로다 — 판단이 아니라 고르기다 */
+        expect(s.lastFix).toEqual(여주);
     });
 
     /** 판단이 두 벌이 되면 한쪽만 고쳐진다 (규칙 ③ — 이 레포가 반복해 당한 형태) */
@@ -85,16 +88,14 @@ describe('낡은 현위치 — 경로 기점으로 쓰지 않는다', () => {
         const code = (rel: string) => readFileSync(join(__dirname, rel), 'utf8')
             .split('\n').filter(l => !/^\s*(\/\/|\/\*|\*)/.test(l)).join('\n');
         for (const f of ['../../src/services/dispatchEngine.ts', '../../src/core/engine/OrderEvaluator.ts']) {
-            expect(code(f)).not.toMatch(/driverLocationAt\s*[<>]/);   // 직접 비교 금지
+            expect(code(f)).not.toMatch(/lastFixAt\s*[<>]/);   // 직접 비교 금지
         }
-        // 2026-08-31 — 비움 단독(dropStaleLocation)은 «내 주소 메우기»가 안 따라와
-        //   합짐이 전부 🔴 로 나왔다. 호출부는 비움+메움 한 몸(ensureDriverOrigin)만 부른다.
-        //   불변식은 그대로다 — 낡음 판단은 여전히 dropStaleLocation 안 한 곳뿐이다.
-        expect(code('../../src/services/dispatchEngine.ts')).toMatch(/ensureDriverOrigin\(/);
+        /* 🔄 2026-09-12 — 호출부는 «고르는 함수»(originOf) 하나만 부른다. 비우고 채우는 손은 없다 */
+        expect(code('../../src/services/dispatchEngine.ts')).toMatch(/originOf\(/);
     });
 
     it('🔴 좌표를 받을 때 시각을 남긴다', () => {
         const geo = readFileSync(join(__dirname, '../../src/services/geoService.ts'), 'utf8');
-        expect(geo).toMatch(/driverLocationAt\s*=/);
+        expect(geo).toMatch(/lastFixAt\s*=/);
     });
 });

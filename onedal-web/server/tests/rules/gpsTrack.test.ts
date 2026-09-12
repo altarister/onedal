@@ -155,7 +155,7 @@ describe('궤적에 콜을 붙인다 — 경로 대조의 열쇠', () => {
         fare: 50000, ...over,
     }) as any;
     const sess = (calls: any[], fired: string[] = []) => ({
-        myOrders: calls, arrivalFired: new Set(fired), driverLocation: null,
+        myOrders: calls, arrivalFired: new Set(fired), origin: null,
     }) as any;
     const GPS = { x: 127.00, y: 37.50 };
 

@@ -51,7 +51,7 @@ describe('매출은 업무 단위로 센다', () => {
  * 🔴 **아무도 안 쏘는데 열려 있던 문 둘** (2026-08-14)
  *
  * `update-my-location` · `dispatch-complete` — git 전체 이력에서 관제웹·앱 어디도 쏜 적이 없다.
- * 그런데 각각 `session.driverLocation` 을 직접 덮어쓰고(→ 지나온 구간 제거·도착 감지 우회)
+ * 그런데 각각 `session.origin` 을 직접 덮어쓰고(→ 지나온 구간 제거·도착 감지 우회)
  * 콜을 완료 처리했다(→ 마일스톤 시퀀스 우회).
  *
  * `pnpm audit:socket` 이 **세 방향만 보고 네 번째(서버 on → 아무도 emit 안 함)를 안 봐서**
@@ -68,7 +68,7 @@ describe('열린 문 — 상태를 바꾸는 통로는 하나뿐이다', () => {
     });
 
     it('🔴 위치가 들어오는 문은 하나 — 반드시 processDriverMovement 를 탄다', () => {
-        const sets = [...handlers.matchAll(/session\.driverLocation\s*=/g)];
+        const sets = [...handlers.matchAll(/session\.origin\s*=/g)];
         expect(sets.length).toBe(0);                       // 핸들러가 직접 쓰지 않는다
         expect(handlers).toMatch(/dashboard-gps-update/);
         expect(handlers).toMatch(/processDriverMovement\(/);

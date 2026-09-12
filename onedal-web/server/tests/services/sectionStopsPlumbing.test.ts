@@ -69,7 +69,7 @@ describe('sectionStops 배선 — 경로 연산 → 홀더', () => {
 
         const calls = [call('A', 127.0, 126.9), call('B', 127.1, 126.8)];
         const result = await composeMergedRoute({
-            calls, driverLocation: { x: 127.05, y: 37.45 }, priority: 'RECOMMEND', carType: null,
+            calls, origin: { x: 127.05, y: 37.45 }, priority: 'RECOMMEND', carType: null,
         });
 
         expect(result).not.toBeNull();
@@ -95,7 +95,7 @@ describe('sectionStops 배선 — 경로 연산 → 홀더', () => {
 
         const calls = [call('A', 127.0, 126.9), call('B', 127.1, 126.8)];
         const result = await composeMergedRoute({
-            calls, driverLocation: { x: 127.05, y: 37.45 }, priority: 'RECOMMEND', carType: null,
+            calls, origin: { x: 127.05, y: 37.45 }, priority: 'RECOMMEND', carType: null,
         });
         const holder = calls[1];
         applyRoute(holder, result!.merged as any);

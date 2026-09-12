@@ -1363,7 +1363,7 @@ describe('그물 계산 — 서버도 실험실 것을 쓴다 (이식 C1-2)', ()
      */
     it('🔴 내 위치가 없으면 도시 둘레로 물러선다 (비우지 않는다)', () => {
         const fn = fm3.slice(fm3.indexOf('function netKeywordsOf'), fm3.indexOf('function netKeywordsOf') + 1400);
-        expect(fn).toMatch(/driverLocation/);
+        expect(fn).toMatch(/origin/);
         expect(fn).toMatch(/getCityRegionsWithRadius/);   // 물러설 자리
     });
 

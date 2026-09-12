@@ -25,7 +25,7 @@ describe('routeStops — 서버가 순서를 명시해 내려준다', () => {
 
     it('🔴 sync 페이로드에 routeStops 가 있고, 순서가 planArrivalStops 와 같다', () => {
         const calls = [order('A'), order('B')];
-        const session = { myOrders: calls, pendingOrdersData: new Map(), driverLocation: null } as any;
+        const session = { myOrders: calls, pendingOrdersData: new Map(), origin: null } as any;
         const sync = buildOrderSync(session);
 
         const expected = planArrivalStops(calls, null)
@@ -36,7 +36,7 @@ describe('routeStops — 서버가 순서를 명시해 내려준다', () => {
 
     it('주행분은 경로 연산 결과(sectionDriveMin)에서만 온다 — 없으면 null, 지어내지 않는다', () => {
         const calls = [order('A')];
-        const session = { myOrders: calls, pendingOrdersData: new Map(), driverLocation: null } as any;
+        const session = { myOrders: calls, pendingOrdersData: new Map(), origin: null } as any;
         const sync = buildOrderSync(session) as any;
         expect(sync.routeStops).toHaveLength(2);            // 상차 + 하차
         for (const s of sync.routeStops) expect(s.driveMinutes).toBeNull();
@@ -46,21 +46,21 @@ describe('routeStops — 서버가 순서를 명시해 내려준다', () => {
         // 평가 중 후보까지 넣고 계산한 경로(정거장 4개분)가 홀더에 남은 상태에서
         // 확정 콜은 1건(정거장 2개)뿐인 경우
         const a = order('A', { sectionDriveMin: [10, 20, 35, 50] });
-        const session = { myOrders: [a], pendingOrdersData: new Map(), driverLocation: null } as any;
+        const session = { myOrders: [a], pendingOrdersData: new Map(), origin: null } as any;
         const sync = buildOrderSync(session) as any;
         for (const s of sync.routeStops) expect(s.driveMinutes).toBeNull();
     });
 
     it('길이가 맞으면 누적 주행분이 정거장 순서대로 붙는다', () => {
         const a = order('A', { sectionDriveMin: [12, 77] });
-        const session = { myOrders: [a], pendingOrdersData: new Map(), driverLocation: null } as any;
+        const session = { myOrders: [a], pendingOrdersData: new Map(), origin: null } as any;
         const sync = buildOrderSync(session) as any;
         expect(sync.routeStops.map((s: any) => s.driveMinutes)).toEqual([12, 77]);
     });
 
     it('이미 상차한 콜은 하차 정거장만 남는다 (다녀온 곳을 경로에 남기지 않는다)', () => {
         const a = order('A', { status: 'ORDER_PICKED_UP' });
-        const session = { myOrders: [a], pendingOrdersData: new Map(), driverLocation: null } as any;
+        const session = { myOrders: [a], pendingOrdersData: new Map(), origin: null } as any;
         const sync = buildOrderSync(session) as any;
         expect(sync.routeStops).toEqual([
             { orderId: 'A', stopType: 'dropoff', driveMinutes: null },
@@ -96,7 +96,7 @@ describe('계측 로그 — 값이 안 바뀌면 다시 안 찍는다', () => {
         pickupX: 127.2, pickupY: 37.4, dropoffX: 126.8, dropoffY: 37.7, fare: 50000, ...over,
     }) as any;
     const sessionOf = (userId: string, calls: any[]) =>
-        ({ userId, myOrders: calls, pendingOrdersData: new Map(), driverLocation: null }) as any;
+        ({ userId, myOrders: calls, pendingOrdersData: new Map(), origin: null }) as any;
 
     /** 찍힌 `🧭 [경로 순서]` 줄만 모은다 */
     const linesWhile = (fn: () => void): string[] => {
@@ -203,7 +203,7 @@ describe('경로 홀더 — 값이 있는 콜을 찾는다', () => {
             withRoute('A', { sectionDriveMin: [10, 20, 30, 40], routeComputedAt: '2026-08-19T01:00:00Z' }),
             withRoute('B'),   // 나중에 확정돼 경로가 안 실린 콜
         ];
-        const sync = buildOrderSync({ myOrders: calls, pendingOrdersData: new Map(), driverLocation: null } as any) as any;
+        const sync = buildOrderSync({ myOrders: calls, pendingOrdersData: new Map(), origin: null } as any) as any;
         expect(sync.routeComputedAt).toBe('2026-08-19T01:00:00Z');
         expect(sync.routeStops.map((s: any) => s.driveMinutes)).toEqual([10, 20, 30, 40]);
     });

@@ -26,7 +26,7 @@ describe('OrderEvaluator', () => {
             userId: 'test-user',
             myOrders: [],
             pendingOrdersData: new Map(),
-            driverLocation: { x: 127.0, y: 37.0 },
+            origin: { x: 127.0, y: 37.0 },
             activeFilter: {
                 allowedVehicleTypes: ['1t'],
                 minFare: 5000,

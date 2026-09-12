@@ -11,7 +11,7 @@ import db, { dwellRatesFor } from "../../db";
 import { stepRecordsOf, dwellLedgerFor } from "../../services/stepSeeder";
 import { getUserSession } from "../../state/userSessionStore";
 import { findLoadConflicts, totalDetourCost } from "../helpers";
-import { haversineKm, ensureDriverOrigin } from "../../services/geoService";
+import { haversineKm, originOf } from "../../services/geoService";
 import { geocodeAddress, calculateSoloRoute } from "../../services/kakaoService";
 import { logRoadmapEvent } from "../../utils/roadmapLogger";
 import { DISPATCH_CONFIG } from "../../config/dispatchConfig";
@@ -58,7 +58,6 @@ export class OrderEvaluator {
         const session = getUserSession(userId);
         // 📍 낡은 현위치로 우회 비용을 재면 색이 틀린다 (규칙 ⑤-3) — 비우면 내 주소로 메운다.
         //    비움만 부르면 origin 없는 카카오 호출이 되어 합짐이 전부 🔴 로 나온다 (0831 실측)
-        ensureDriverOrigin(userId, session);
         // 판정 기준 — 원천은 DB(세션에 로그인 때 실림). 없으면(검사·초기화 전) 기본표로 폴백
         const judgmentCfg = session.judgment ?? DEFAULT_JUDGMENT;
         const reasons: string[] = [];
@@ -125,7 +124,7 @@ export class OrderEvaluator {
                         const result = await calculateSoloRoute(
                             securedOrder.pickupX!, securedOrder.pickupY!,
                             securedOrder.dropoffX!, securedOrder.dropoffY!,
-                            session.driverLocation,
+                            originOf(session),
                             routingOptions.defaultPriority,
                             routingOptions.carType
                         );
@@ -142,9 +141,10 @@ export class OrderEvaluator {
                          * 심사마다 (직선거리, 카카오 접근 분) 쌍을 `reach_samples` 장부에
                          * 남긴다 — 로그는 3일 순환이라 표본이 증발한다. 역산은 `pnpm reach`.
                          */
-                        if (session.driverLocation && securedOrder.pickupX && securedOrder.pickupY
+                        const me = originOf(session);
+                        if (me && securedOrder.pickupX && securedOrder.pickupY
                             && securedOrder.approachDurationMin != null) {
-                            const lineKm = haversineKm(session.driverLocation.y, session.driverLocation.x,
+                            const lineKm = haversineKm(me.y, me.x,
                                 securedOrder.pickupY, securedOrder.pickupX);
                             if (lineKm > 0.3) {
                                 console.log(
@@ -263,7 +263,7 @@ export class OrderEvaluator {
                         const result = await composeMergedRoute({
                             calls: activeCalls,
                             extra: securedOrder,
-                            driverLocation: session.driverLocation,
+                            origin: originOf(session),
                             priority: routingOptions.defaultPriority,
                             carType: routingOptions.carType,
                         });

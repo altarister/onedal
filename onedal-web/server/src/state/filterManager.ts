@@ -108,7 +108,8 @@ function netKeywordsOf(
     const goal = cityCenter(city);
     if (!Number.isFinite(goal.lng) || !Number.isFinite(goal.lat)) return fallback();
 
-    const me = session.driverLocation;
+    /* 📍 그물의 꼭짓점은 «지금 기점» — 낡거나 빈 차의 가짜면 집 주소가 대신한다 (파생) */
+    const me = originOf(session as Parameters<typeof originOf>[0]);
     if (!line && !me) return fallback();        // 첫짐인데 꼭짓점이 없다
 
     const quad = quadShapeFrom(session.activeFilter as any);
@@ -221,7 +222,7 @@ export function loadFilterValues(userId: string): Record<FlatValueKey, any> {
 }
 
 import { logRoadmapEvent } from "../utils/roadmapLogger";
-import { getCityRegionsWithRadius, cityAliases, getDetourRegions, unionRegions, getActivePolyline, progressAlongPolyline, trapsForKeywords, haversineKm } from "../services/geoService";
+import { getCityRegionsWithRadius, cityAliases, getDetourRegions, unionRegions, getActivePolyline, progressAlongPolyline, trapsForKeywords, haversineKm, originOf } from "../services/geoService";
 
 // ━━━ Prepared Statement 캐싱 (모듈 로드 시 1회만 실행) ━━━
 // 노선·반경·할인율은 user_filters 의 평면 칸에 산다 (④에서 철거했다가 C3-3b 에서 한 벌로 돌아왔다).
@@ -600,7 +601,7 @@ export function applyTraveledTrim(session: ReturnType<typeof getUserSession>): b
     if (!progress) return false;
 
     const polyline = getActivePolyline(session);
-    const gps = session.driverLocation;
+    const gps = session.lastFix;
     if (!polyline || !gps) return false;
 
     const at = progressAlongPolyline(polyline, gps);
