@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useFilterStore } from '../../stores/filterStore';
 import type { SecuredOrder, RouteStopInfo } from '@onedal/shared';
-import { hasVisitedStop, effectiveRadii } from '@onedal/shared';
+import { hasVisitedStop, effectiveRadii, isDeliveredCall } from '@onedal/shared';
 import { useRouteDerivations } from '../../hooks/useRouteDerivations';
 import { getAddressLabel, getDistanceKm } from '../../lib/routeUtils';
 import PinnedRouteCanvas from '../dashboard/PinnedRouteCanvas';
@@ -12,6 +12,8 @@ import { sheetTransition } from './sheetTransition';
 /* 🎬 상태바 문구는 여기 한 곳이 정한다 — 화면은 그리기만 한다 (규칙 ③) */
 import { sheetStatus } from '../../lib/sheetStatus';
 import { remainOnRouteKm } from '../../lib/remainOnRoute';
+import { hiddenPastIds } from '../../lib/pastCalls';
+import { deckOrder } from '../../lib/deckFocus';
 /**
  * ✅ **«도착»이라고 말할 반경** (기사님 안 2026-09-13 — *"기준점반경 100m"*).
  *    🔴 서버가 도착을 **찍는** 조건(500m + 정지 30초)과 **다른 값이다.** 이것은 «화면이
@@ -68,6 +70,21 @@ export default function StageView(props: Props) {
     const derived = useRouteDerivations(activeRoute, routeStops, routeComputedAt, routeHolderId, previewRouteHolderId);
     const { liveRoute, cycleDeck, unifiedRoutePoints, myLocation, visitOrderMap } = derived;
     const [snap, setSnap] = useState<SheetSnap>('list');
+    /**
+     * 🙈 **지나간 콜 숨기기** (기사님 지시 2026-09-13: *"오른쪽 끝에 지나간 콜 숨기기가
+     *    있으면 좋겠는데"*). 상태바 오른쪽 끝 버튼이 이 값을 뒤집는다.
+     *
+     * 🔴 **고른 것은 기억한다** — 숨겼는데 다음 판에 다시 보이면 또 숨겨야 한다
+     *    (지도 레이어와 같은 규칙·같은 이유). 브라우저에만 남는 편의값이라 못 읽어도 그만이다.
+     */
+    const [hidePast, setHidePast] = useState<boolean>(() => {
+        try { return localStorage.getItem('hidePastCalls') === '1'; } catch { return false; }
+    });
+    const toggleHidePast = () => setHidePast(prev => {
+        const next = !prev;
+        try { localStorage.setItem('hidePastCalls', next ? '1' : '0'); } catch { /* 못 적어도 화면은 돈다 */ }
+        return next;
+    });
     /**
      * 🗺️ **시트가 아래를 몇 px 덮고 있나** — 시트가 재서 알려 준다 (2026-09-05).
      *    지도는 «시트»를 모르고 이 숫자만 받는다 — 부품끼리 얽히지 않게 (규칙 ③).
@@ -458,6 +475,13 @@ export default function StageView(props: Props) {
             : derived.etaMap.get(next.orderId)?.dropoffEta) ?? null
         : null;
 
+    /**
+     * 🙈 **덱에 실제로 그려지는 목록** — 숨길 id 를 고르는 자리와 «몇 번째가 열렸나»가
+     *    **같은 배열**을 봐야 한다 (규칙 ③). `PinnedRoute` 가 넘기는 것과 글자까지 같다.
+     */
+    const deckList = deckOrder(cycleDeck).filter(o => o.id !== judging?.id);
+    const pastCount = deckList.filter(isDeliveredCall).length;
+
     const bar = sheetStatus({
         idle: liveRoute.length === 0,
         judging: !!judging,
@@ -664,6 +688,9 @@ export default function StageView(props: Props) {
                          *    자동으로 안 올리는 것과 다르다 — **손이 시킨 것**이다.
                          */
                         peekBar={
+                          /* 🔴 **버튼 안에 버튼을 넣지 않는다** — 줄 전체가 «시트를 여는 버튼»
+                             이었는데 오른쪽에 숨기기 버튼이 붙으므로 형제로 나눈다 */
+                          <div className="w-full flex items-center gap-1">
                             <button type="button"
                                 onClick={() => {
                                     if (!next) return;
@@ -695,6 +722,20 @@ export default function StageView(props: Props) {
                                     </>
                                 )}
                             </button>
+                            {/**
+                              * 🙈 **지나간 콜 숨기기** (기사님 지시 2026-09-13).
+                              *    🔴 **끝난 콜이 있을 때만 뜬다** — 없을 때 떠 있으면 한 줄(56칸)을
+                              *       괜히 먹는다. 사이클 초반에는 줄이 예전 그대로다.
+                              *    ⚠️ ▾ 는 «보이는 중», ▸ 는 «접힌 중» — 아코디언과 같은 문법이다.
+                              */}
+                            {pastCount > 0 && (
+                                <button type="button" onClick={toggleHidePast}
+                                    title={hidePast ? '지나간 콜 보기' : '지나간 콜 숨기기'}
+                                    className="shrink-0 ml-auto px-1.5 py-0.5 rounded-md text-[11px] font-bold text-text-muted active:opacity-70">
+                                    {hidePast ? '▸' : '▾'} 지난 {pastCount}
+                                </button>
+                            )}
+                          </div>
                         }
                         /**
                          * 🪧 **판정석은 시트 맨 아래다** (기사님 확정 2026-09-05 · 안 ⓑ).
@@ -716,6 +757,9 @@ export default function StageView(props: Props) {
                             />
                         ) : undefined}>
                 <PinnedRouteBody {...props} sheetOnly d={derived}
+                    /* 🙈 지나간 콜 — 배열에서 빼지 않고 가린다 (`lib/pastCalls` 머리 참조).
+                       열어 둔 콜은 끝났어도 안 가린다 — 손이 고른 것이 규칙보다 세다 */
+                    hiddenIds={hiddenPastIds(deckList, hidePast, deckList[openIdx]?.id ?? null)}
                     /* 📏 «내용만큼» 서는 판인가 — 아코디언의 높이 문법이 갈린다 */
                     fit={snap === 'list'}
                     openIdx={openIdx}

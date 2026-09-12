@@ -37,7 +37,9 @@ vi.mock('./socket', () => ({ socket: { emit: (...a: unknown[]) => emit(...a) } }
  * ⚠️ 그래서 «없는 칸만» 채운다. `location` 은 이 검사가 안 쓰지만 남이 쓴다.
  */
 {
-    const g = globalThis as { window?: Record<string, unknown> };
+    /* ⚠️ `globalThis.window` 는 DOM 타입이라 곧바로 좁힐 수 없다 — 한 번 `unknown` 을 지난다
+       (2026-09-13 · `tsc -b` 가 증분이라 이 오류를 놓치고 커밋됐다) */
+    const g = globalThis as unknown as { window?: Record<string, unknown> };
     g.window = {
         ...(g.window ?? {}),
         dispatchEvent: () => true,

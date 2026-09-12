@@ -84,9 +84,20 @@ interface Props {
      * ⚠️ 옛 화면(토글 꺼짐)은 스와이프 덱 그대로다 — 기사님 지적은 «폰 시트»에 대한 것이다.
      */
     accordion?: boolean;
+    /**
+     * 🙈 **숨길 콜** — 배열에서 **빼지 않고** 이 집합으로 가린다 (기사님 지시 2026-09-13).
+     *
+     * 🔴 아코디언은 **목록 자리(`openIdx`)로 열린다.** 배열을 걸러내면 그 자리가 다른 콜을
+     *    가리킨다 — 화면규칙 L3 가 못박은 사고다. 그래서 자리를 안 건드린다.
+     * 🔴 **언마운트하지 않는다** — 아래 «접힌 콜도 마운트한 채 숨긴다»(#95)와 같은 이유다.
+     *    가리는 것은 **CSS** 로 한다.
+     * ⚠️ `hidden` **속성**으로는 안 가려진다 — 이 줄의 그릇이 `flex` 라 UA 의 `display:none`
+     *    을 이긴다. 그래서 클래스를 바꿔 가린다.
+     */
+    hiddenIds?: ReadonlySet<string>;
 }
 
-export default function CallDeck({ orders, renderCard, records, visitOrderMap, timeline, gpsFocus, accordion, callNoOf, openIdx, onOpenIdx, fit }: Props) {
+export default function CallDeck({ orders, renderCard, records, visitOrderMap, timeline, gpsFocus, accordion, callNoOf, openIdx, onOpenIdx, fit, hiddenIds }: Props) {
     const trackRef = useRef<HTMLDivElement>(null);
 
     /**
@@ -478,9 +489,11 @@ export default function CallDeck({ orders, renderCard, records, visitOrderMap, t
                 <div className={`flex flex-col gap-1.5 px-2.5 pt-1 pb-2.5 overflow-hidden min-h-0 ${fit ? "" : "flex-1"}`}>
                     {orders.map((o, i) => {
                         const open = !noneOpen && i === cur;
+                        /* 🙈 지나간 콜 — **자리는 그대로 두고** 가린다 (`lib/pastCalls` 머리 참조) */
+                        const veiled = hiddenIds?.has(o.id) ?? false;
                         return (
                         /* 🔴 닫힌 콜은 **자기 높이만**(flex-none) · 펼친 콜이 남는 자리를 다 먹는다 */
-                        <div key={o.id} className={`flex flex-col min-h-0 ${
+                        <div key={o.id} className={`${veiled ? 'hidden' : 'flex'} flex-col min-h-0 ${
                             open ? (fit ? 'flex-auto' : 'flex-1') : 'flex-none'}`}>
                             {rowOf(o, i)}
                             {/* 🔴 접힌 콜도 **마운트한 채** 숨긴다 — 언마운트하면 통화 중 적던

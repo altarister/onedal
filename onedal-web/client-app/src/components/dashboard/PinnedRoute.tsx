@@ -34,11 +34,13 @@ interface Props {
     /** 📏 시트가 «내용만큼» 서는가 — 아코디언의 높이 문법이 갈린다 */
     fit?: boolean;
     openIdx?: number | null;
+    /** 🙈 숨길 콜 — 배열에서 빼지 않고 가린다 (`lib/pastCalls` · 기사님 지시 2026-09-13) */
+    hiddenIds?: ReadonlySet<string>;
     onOpenIdx?: (i: number) => void;
 }
 
 /** 몸통 — 파생은 밖(기본 내보내기 또는 무대)에서 받아온다. 훅을 안 부르므로 어디에도 담길 수 있다 */
-export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDecision, onRecalculate, viewFilter, setViewFilter, sheetOnly, fit, openIdx, onOpenIdx, d }: Props & { d: ReturnType<typeof useRouteDerivations> }) {
+export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDecision, onRecalculate, viewFilter, setViewFilter, sheetOnly, fit, openIdx, onOpenIdx, hiddenIds, d }: Props & { d: ReturnType<typeof useRouteDerivations> }) {
     /**
      * 🪗 **시트에는 «진행 중»만 산다** (기사님 확정 2026-09-03 실주행 뒤):
      * *"올라오는 시트에 진행중, 완료됨.. 그 라인은 거의 필요 없는 것 같아.
@@ -336,6 +338,7 @@ export function PinnedRouteBody({ activeRoute, routeStops, routeComputedAt, onDe
                     accordion={sheetOnly}
                     callNoOf={callNoOf}
                     openIdx={openIdx} onOpenIdx={onOpenIdx} fit={fit}
+                    hiddenIds={hiddenIds}
                     records={stepRecords}
                     /* 🗺️ 타임라인은 여기서 만든 것 하나 (새 장부 stepRecords 기반) — 덱이
                        옛 장부로 한 벌 더 파생하면 정차가 갈라져 두 데드라인이 된다 (2026-08-21) */
