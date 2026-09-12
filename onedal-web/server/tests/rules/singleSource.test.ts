@@ -97,9 +97,29 @@ describe('도착은 사건이라 덮이지 않는다', () => {
      * 바뀌면서 **도착을 덮어썼다.** KEEP 이 한 번도 안 틀린 이유는 소켓을 직접 듣기 때문이다.
      */
     const view = codeOnly(read('client-app/src/components/stage/StageView.tsx'));
+    const store = codeOnly(read('client-app/src/stores/gpsFocusStore.ts'));
 
-    it('🔴 도착 마중은 소켓(auto-arrived)에서 직접 받는다', () => {
-        expect(view).toMatch(/socket\.on\('auto-arrived'/);
+    /**
+     * 🔄 **2026-09-12 — 같은 것을 «다른 수단»으로 지킨다** (기사님 지시).
+     *
+     * 이 검사는 원래 *"소켓에서 **직접** 받는다"* 를 물었다. 덮이지 않게 하려면 그 길밖에
+     * 없다고 본 것이다. 그런데 그러면 **듣는 곳이 둘**이 되어(스토어·시트) 이번엔
+     * «덱이 가리킨 콜»과 «시트가 연 콜»이 갈라졌다 (기사님: *"지금 그걸 각자 하고 있어서
+     * 문제 같은데"*).
+     *
+     * 🟢 **칸을 가르면 둘 다 풀린다** — 듣는 곳은 스토어 하나이고, 도착은 근접과 **다른 칸**
+     *    (`arrival`)에 담긴다. 근접이 아무리 와도 그 칸을 안 건드리므로 덮이지 않는다.
+     *    **무는 것은 «수단»이 아니라 «덮이지 않는다»는 사실이다.**
+     */
+    it('🔴 도착은 근접과 **다른 칸**에 담긴다 — 덮일 수가 없다', () => {
+        expect(store).toMatch(/arrival:\s*Arrival\s*\|\s*null/);
+        /* 도착일 때만 그 칸을 쓴다 — 근접(approach)은 손대지 않는다 */
+        expect(store).toMatch(/kind === 'arrive' \?/);
+    });
+
+    it('🔴 시트는 그 칸을 본다 — 제 손으로 또 듣지 않는다', () => {
+        expect(view).toMatch(/st\.arrival/);
+        expect(view).not.toMatch(/socket\.on\(['"]auto-arrived/);
     });
 
     it('🔴 포커스 그릇의 kind 로 시트를 올리지 않는다', () => {

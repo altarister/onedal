@@ -251,34 +251,33 @@ export default function StageView(props: Props) {
     }, []);
 
     /**
-     * 🏁 S7 — 정거장 도착: 시트 전체로 마중 (v23 Ⅲ · 신고 시트가 기다린다).
+     * 🏁 S7 — 정거장 도착: 시트 전체로 마중 (v23 Ⅲ-S7 · 화면규칙 S13).
      *
-     * 🔴 **도착은 «사건»이라 소켓에서 직접 받는다** (기사님 실측 2026-08-31 · 도착 6번 중
-     *    시트가 2번만 올라감). 예전엔 포커스 그릇(gpsFocus)의 `kind` 를 보고 알았는데,
-     *    같은 그릇에 «달리는 중 덱 따라가기»(approach)도 담긴다. 도착 직후 다음 정거장이
-     *    바뀌면서 그 신호가 **도착을 덮어써** 효과가 읽기도 전에 사라졌다.
-     *    KEEP(order-confirmed)이 늘 정확했던 이유가 소켓을 직접 듣기 때문이다 — 같게 만든다.
+     * 🔴 **소켓을 여기서 직접 듣지 않는다** (기사님 지시 2026-09-12: *"지금 그걸 각자
+     *    하고 있어서 문제 같은데"*). 듣는 곳은 `gpsFocusStore` 하나이고, 이 화면은
+     *    그 스토어가 남긴 «방금 도착»(`arrival`)을 **본다.**
+     *
+     * ⚠️ 2026-08-31 에는 반대로 갔다 — 그때는 포커스 한 칸에 근접·도착이 섞여
+     *    **도착이 덮여 사라졌고**(도착 6번 중 시트 2번), 그래서 «소켓을 따로 듣는» 것으로
+     *    갈랐다. 그러면 듣는 곳이 둘이 되어 이번엔 «덱이 가리킨 콜»과 «시트가 연 콜»이
+     *    갈라졌다. 🟢 **칸을 가르되(`arrival`) 듣는 곳은 하나** — 둘 다 푼다.
      */
+    const arrival = useGpsFocusStore(st => st.arrival);
     useEffect(() => {
-        const onArrived = (d: { orderId?: string; stopType?: 'pickup' | 'dropoff' }) => {
-            if (!d?.orderId) return;
-            /* 🪜 «그 콜의 그 단계»를 함께 싣는다 (v23 Ⅲ-S7 · 화면규칙 S13) */
-            const r = feed({ type: 'arrive', orderId: d.orderId, stopType: d.stopType });
-            if (!r.snap) return;                       // 손 유예 중이면 마중도 미룬다
-            useGpsFocusStore.setState({ gpsFocus: { orderId: d.orderId, tick: Date.now(), kind: 'focus', stopType: d.stopType } });
-            /**
-             * 🪜 마중은 «그 콜의 지금 단계»를 보여 주는 것까지다 (기사님 수순 ⑥).
-             *    단계 블록은 카드 안에서 늘 열려 있으므로 맨 위로 올리면 덱·단계가 함께 보인다.
-             */
-            requestAnimationFrame(() => {
-                const sc = document.querySelector('[data-sheet-scroll]') as HTMLElement | null;
-                if (sc) sc.scrollTop = 0;
-            });
-        };
-        socket.on('auto-arrived', onArrived);
-        return () => { socket.off('auto-arrived', onArrived); };
+        if (!arrival) return;
+        /* 🪜 «그 콜의 그 단계»를 함께 싣는다 — 시트가 무엇을 열지 알아야 한다 */
+        const r = feed({ type: 'arrive', orderId: arrival.orderId, stopType: arrival.stopType });
+        if (!r.snap) return;                       // 손 유예 중이면 마중도 미룬다
+        /**
+         * 🪜 마중은 «그 콜의 지금 단계»를 보여 주는 것까지다 (기사님 수순 ⑥).
+         *    단계 블록은 카드 안에서 늘 열려 있으므로 맨 위로 올리면 덱·단계가 함께 보인다.
+         */
+        requestAnimationFrame(() => {
+            const sc = document.querySelector('[data-sheet-scroll]') as HTMLElement | null;
+            if (sc) sc.scrollTop = 0;
+        });
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [arrival?.tick]);
 
     /**
      * 🚪 **완료 행동이 문을 닫는다** (v23 Ⅳ · 화면규칙 S14 · 기사님 실측 2026-09-12).

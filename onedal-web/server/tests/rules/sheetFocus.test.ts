@@ -47,11 +47,36 @@ describe('S13·S14·S15 — 마중은 «그 콜의 그 단계»까지다', () =>
 
     it('🔴 S13 도착이 «어느 콜인지»를 시트에 싣는다 — KEEP 만 싣고 있었다', () => {
         const view = codeOnly(read('components/stage/StageView.tsx'));
-        const i = view.indexOf("socket.on('auto-arrived'");
-        expect(i).toBeGreaterThan(-1);
-        /* 도착 처리에서 시트에 넘기는 사건이 orderId 를 들고 있어야 한다 */
-        const fn = view.slice(view.lastIndexOf('const onArrived', i), i);
-        expect(fn).toMatch(/type: 'arrive'[^}]*orderId/);
+        expect(view).toMatch(/type: 'arrive'[^}]*orderId/);
+    });
+
+    it('🔴 S15 정거장 사건을 듣는 곳은 **하나**다 — 각자 들으면 각자 판단한다', () => {
+        /**
+         * 기사님 2026-09-12: *"gps 관리하는 거 하나 만들고 경로 관리하는 거 만들고 …
+         * **지금 그걸 각자 하고 있어서 문제** 같은데"*
+         *
+         * 🔴 `auto-arrived` 를 **세 곳**이 각자 들었다 (`gpsFocusStore`·`StageView`·`Dashboard`).
+         *    한 사건에 세 판단이 나오니 «덱이 가리킨 콜»과 «시트가 연 콜»이 갈라졌다.
+         * ⚠️ `Dashboard` 는 **알림 한 줄**만 띄우므로 판단이 아니다 — 갈라짐과 무관하다.
+         *    무는 것은 «시트가 제 손으로 또 듣는가»다.
+         */
+        const view = codeOnly(read('components/stage/StageView.tsx'));
+        expect(view).not.toMatch(/socket\.on\(['"]auto-arrived/);
+        expect(view).not.toMatch(/socket\.on\(['"]next-stop-approaching/);
+        /* 대신 스토어가 남긴 «방금 도착»을 본다 */
+        expect(view).toMatch(/st\.arrival/);
+    });
+
+    it('🔴 S15 «지금 보는 콜»과 «방금 도착»은 다른 칸이다 — 근접이 도착을 덮지 못한다', () => {
+        /**
+         * 2026-08-31 실측: 한 칸으로 겸했더니 도착 직후 다음 정거장 근접이 그 칸을
+         * **덮어써** 시트가 읽기도 전에 사라졌다 (도착 6번 중 시트 2번).
+         * 🔴 답하는 질문이 다르면 칸도 다르다 (규칙 ⑤-4 ⑤).
+         */
+        const store = codeOnly(read('stores/gpsFocusStore.ts'));
+        expect(store).toMatch(/arrival:\s*Arrival\s*\|\s*null/);
+        /* 도착일 때만 그 칸을 남긴다 — 근접은 안 건드린다 */
+        expect(store).toMatch(/kind === 'arrive' \?/);
     });
 
     it('🔴 S13 사건이 가리킨 콜이 이긴다 — 이미 열린 것이 있어도 바꾼다', () => {

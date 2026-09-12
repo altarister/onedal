@@ -32,17 +32,57 @@ interface GpsFocus {
     /** 🪜 그 콜의 **어느 쪽**인가 — 상차 단계인가 하차 단계인가 */
     stopType?: 'pickup' | 'dropoff';
 }
-export const useGpsFocusStore = create<{ gpsFocus: GpsFocus | null }>(() => ({ gpsFocus: null }));
+/**
+ * 🏁 **방금 도착한 정거장** — 시트가 마중 나갈 자리 (v23 Ⅲ-S7 · 화면규칙 S13).
+ *
+ * 🔴 **`gpsFocus` 와 답하는 질문이 다르다 — 한 칸에 넣지 않는다** (규칙 ⑤-4 ⑤).
+ *      · `gpsFocus` «지금 보는 콜»   — 덱이 따라간다 (근접·탭·KEEP 이 바꾼다)
+ *      · `arrival`  «방금 도착했다»  — 시트가 마중 나간다 (도착만 쓴다)
+ *    2026-08-31 에 한 칸으로 겸했다가 **도착 여섯 중 시트가 둘만 올라갔다** —
+ *    도착 직후 다음 정거장 근접(approach)이 같은 칸을 **덮어써** 시트가 읽기도 전에
+ *    사라졌다. 그래서 그때는 «소켓을 따로 듣는» 것으로 갈랐는데, 그러면 **듣는 곳이
+ *    둘**이 되어 이번엔 «도착이 가리킨 콜»과 «시트가 연 콜»이 갈라졌다 (2026-09-12).
+ *    🟢 **칸을 가르되 듣는 곳은 하나** — 그것이 둘 다 푸는 자리다.
+ */
+export interface Arrival {
+    orderId: string;
+    stopType?: 'pickup' | 'dropoff';
+    tick: number;
+}
+
+export const useGpsFocusStore = create<{
+    gpsFocus: GpsFocus | null;
+    arrival: Arrival | null;
+}>(() => ({ gpsFocus: null, arrival: null }));
 
 let subscribed = false;
+/**
+ * 📡 **서버가 내는 정거장 사건을 듣는 곳 — 여기 하나다** (기사님 지시 2026-09-12).
+ *
+ * 기사님: *"gps 관리하는 거 하나 만들고 경로 관리하는 거 만들고 gps 가 이동하면
+ * 경로 관리하는 것이 이벤트 발생 … **지금 그걸 각자 하고 있어서 문제** 같은데"*
+ *
+ * 🔴 예전엔 `auto-arrived` 를 **세 곳**이 각자 들었다 (이 스토어 · `StageView` · `Dashboard`).
+ *    한 사건에 세 판단이 나오니 «덱이 가리킨 콜»과 «시트가 연 콜»이 갈라졌다.
+ *    지금은 여기서만 듣고 **화면들은 이 값을 본다** — 갈라질 자리가 없다.
+ *
+ * 🔴 **좌표가 실 GPS 인지 모의인지 여기서는 묻지 않는다** (기사님: *"그것도 모두 몰라도
+ *    될 것 같은데"*). 그 판단은 **좌표를 고르는 곳**(`useMasterGps`·서버 `originOf`)에
+ *    갇혀 있고, 여기부터 아래는 **사건만** 흐른다.
+ */
 export function ensureGpsFocusSubscribed() {
     if (subscribed) return;
     subscribed = true;
     // 예고(2km)와 도착은 다른 일이다 — 예고는 카드만 따라가고, 도착(S7)은 시트가 마중 나간다
     const focus = (kind: 'approach' | 'arrive') => (d: { orderId?: string; stopType?: 'pickup' | 'dropoff' }) => {
+        if (!d?.orderId) return;
         /* 🪜 서버가 실어 보낸 «그 단계»를 그대로 든다 — 여기서 지어내지 않는다 (규칙 ④) */
-        if (d?.orderId) useGpsFocusStore.setState({
-            gpsFocus: { orderId: d.orderId, tick: Date.now(), kind, stopType: d.stopType } });
+        const now = Date.now();
+        useGpsFocusStore.setState({
+            gpsFocus: { orderId: d.orderId, tick: now, kind, stopType: d.stopType },
+            /* 🏁 도착일 때만 «마중해야 할 것»을 따로 남긴다 — 근접이 덮지 못한다 */
+            ...(kind === 'arrive' ? { arrival: { orderId: d.orderId, stopType: d.stopType, tick: now } } : {}),
+        });
     };
     socket.on('next-stop-approaching', focus('approach'));
     socket.on('auto-arrived', focus('arrive'));
