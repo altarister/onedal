@@ -18,7 +18,7 @@ import { RESTORABLE_STATUSES, IN_PROGRESS_STATUSES, restoreWindow, isEvaluating,
 import db from "../db";
 import { getUserSession } from "../state/userSessionStore";
 import { forceCancelEvaluatingOrder, handleDecision } from "../services/dispatchEngine";
-import { parsePolyline, parseSectionEnds, parseSectionStops } from "../services/routeComposer";
+import { parsePolyline, parseSectionEnds, parseSectionStops, parseSectionDriveMin } from "../services/routeComposer";
 import { updateActiveFilter } from "../state/filterManager";
 import { requireAuth } from "../middlewares/authMiddleware";
 import { logRoadmapEvent } from "../utils/roadmapLogger";
@@ -73,6 +73,12 @@ router.get("/", requireAuth, (req, res) => {
                 sectionEnds: parseSectionEnds(r.sectionEnds),
                 /** 🧭 구간 주인도 함께 편다 — 셋이 같이 살아야 지도가 색을 낸다 (이식 B2) */
                 sectionStops: parseSectionStops(r.sectionStops),
+                /**
+                 * ⏱️ **구간 주행분** — 2026-09-12 밤에 칸이 생겼다. 이것이 없으면 화면이
+                 *    경로 홀더를 못 골라 **지도가 직선으로 물러난다** (2026-09-06 주석).
+                 *    넷은 한 운명이라 **같이** 편다.
+                 */
+                sectionDriveMin: parseSectionDriveMin(r.sectionDriveMin),
             })),
         });
     } catch (error) {

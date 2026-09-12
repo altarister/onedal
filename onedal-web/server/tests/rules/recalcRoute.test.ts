@@ -17,9 +17,11 @@ describe('경로 재탐색 — 두 기억 동시 갱신', () => {
 
     it('🔴 단독 재계산이 myOrders 쌍둥이에도 경로를 쓴다', () => {
         const solo = fn.slice(0, fn.indexOf('} else {'));
-        expect(solo).toMatch(/applySoloRoute\(securedOrder, result\)/);
+        /* 🔄 2026-09-12 밤 — 싣는 일과 **장부에 적는 일**을 한 이름으로 묶으며 개명했다
+             (`applySoloRouteAndSave` · `routeSaved.test.ts`). 두 곳에 쓰는 규칙은 그대로다 */
+        expect(solo).toMatch(/applySoloRouteAndSave\(securedOrder, result\)/);
         expect(solo).toMatch(/myOrders\.find\(c => c\.id === orderId\)/);
-        expect(solo).toMatch(/applySoloRoute\(activeTwin as any, result\)/);
+        expect(solo).toMatch(/applySoloRouteAndSave\(activeTwin as any, result\)/);
     });
 
     it('재탐색 문구(kakaoTimeExt)도 쌍둥이에 반영 — 주기 sync 가 옛 문구로 되돌리지 않게', () => {

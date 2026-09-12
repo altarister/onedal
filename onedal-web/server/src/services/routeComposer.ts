@@ -167,6 +167,20 @@ export function parseSectionStops(raw: unknown): Array<{ orderId: string; stopTy
     } catch { return undefined; }
 }
 
+/**
+ * ⏱️ **구간 주행분을 되돌린다** — `sectionEnds`·`sectionStops` 와 같은 규약 (2026-09-12 밤).
+ *    🔴 «못 잰 구간»은 `null` 로 산다 — 숫자만 받으면 그 구간이 통째로 사라져
+ *       `sectionStops` 와 길이가 어긋나고, 그러면 주행분이 **남의 이름에 붙는다** (#60).
+ */
+export function parseSectionDriveMin(raw: unknown): Array<number | null> | undefined {
+    if (raw == null) return undefined;
+    try {
+        const v = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        return Array.isArray(v) && v.every(n => n === null || (typeof n === 'number' && Number.isFinite(n)))
+            ? v : undefined;
+    } catch { return undefined; }
+}
+
 /** 지금 모습을 그대로 뜬다 (덮어쓰기 직전에 부른다) */
 export function snapshotRoute(holder: RouteHolder & { id: string }, at: { x: number; y: number } | null): RouteSnapshot {
     return {

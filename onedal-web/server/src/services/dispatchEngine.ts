@@ -37,6 +37,32 @@ export const normalizePlaceName = (name?: string) => {
 
 
 
+
+/**
+ * 🗺️ **경로를 홀더에 싣고 «장부에도» 되쓴다 — 둘은 한 벌이다** (2026-09-12 밤).
+ *
+ * 🔴 **여태 메모리에만 실었다.** `applyRoute`·`applySoloRoute` 는 세션의 홀더만 채우고,
+ *    장부는 `insertOrder`(콜 확정 때 **한 번**)만 썼다. 경로는 그 뒤에 계산되고 합짐이
+ *    붙을 때마다 다시 계산되므로, **나중에 홀더가 된 콜은 값이 영영 장부에 안 들어갔다** —
+ *    실측: 사이클마다 **첫 콜만** `routeComputedAt`·`sectionStops` 가 있었다.
+ *    그래서 새로고침·재기동하면 예상 시각·상차버퍼가 폴백으로 돌고 지도가 직선으로 물러났다.
+ *
+ * 🔴 **부르는 자리가 여덟이라 «잊으면 조용히 실패»한다.** 그래서 싣는 일과 적는 일을
+ *    한 이름으로 묶는다 — `applyRoute` 를 직접 부르면 장부가 안 따라온다
+ *    (`routeSaved.test.ts` 가 그 직접 호출을 막는다).
+ * ⚠️ `routeComposer` 는 `db` 를 모르는 채로 지켜 온 자리다 — 저장을 그 안에 넣지 않는다.
+ */
+function applyRouteAndSave(holder: Parameters<typeof applyRoute>[0], merged: Parameters<typeof applyRoute>[1]): void {
+    applyRoute(holder, merged);
+    OrderRepository.saveRouteFields(holder as any);
+}
+
+/** 🗺️ 단독 경로도 같은 규칙 — 실은 값은 장부까지 간다 (위 주석) */
+function applySoloRouteAndSave(holder: Parameters<typeof applySoloRoute>[0], r: Parameters<typeof applySoloRoute>[1]): void {
+    applySoloRoute(holder, r);
+    OrderRepository.saveRouteFields(holder as any);
+}
+
 /** 기존 평가 중이던 콜을 외부에서 강제 삭제할 때 호출 */
 export function forceCancelEvaluatingOrder(userId: string, orderId: string, io: any) {
     const session = getUserSession(userId);
@@ -176,7 +202,7 @@ export async function recalculateActiveKakaoRoute(userId: string, io: any) {
                 routingOptions.carType,
                 hasVisitedStop(activeMain, 'pickup'),
             );
-            applySoloRoute(activeMain, res);
+            applySoloRouteAndSave(activeMain, res);
 
             if (res.approachDistance && res.approachDuration) {
                 console.log(`🗺️ [사후 재계산 - 첫짐] 현위치 접근: ${res.approachDistance}m (${res.approachDuration}초) / 총 이동: ${res.distance}m`);
@@ -191,7 +217,7 @@ export async function recalculateActiveKakaoRoute(userId: string, io: any) {
             });
             if (!result) return;
 
-            applyRoute(pickRouteHolder(activeCalls, activeMain), result.merged);
+            applyRouteAndSave(pickRouteHolder(activeCalls, activeMain), result.merged);
 
             if (result.merged.approachDistance && result.merged.approachDuration) {
                 console.log(`🗺️ [사후 재계산 - 합짐] 현위치 접근: ${result.merged.approachDistance}m (${result.merged.approachDuration}초) / 총 이동: ${result.merged.distance}m`);
@@ -253,7 +279,7 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
 
             // routeComposer 규약으로 기록한다. 손으로 채우면 접근 구간이 또 버려진다
             // (이 파일에만 같은 기록 로직이 여섯 벌 있었다 — OrderEvaluator 포함)
-            applySoloRoute(securedOrder, result);
+            applySoloRouteAndSave(securedOrder, result);
 
             /**
              * 🔴 **두 기억을 함께 갱신한다** (2026-08-17 실측 사고).
@@ -266,7 +292,7 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
              */
             const activeTwin = session.myOrders.find(c => c.id === orderId);
             if (activeTwin && (activeTwin as any) !== (securedOrder as any)) {
-                applySoloRoute(activeTwin as any, result);
+                applySoloRouteAndSave(activeTwin as any, result);
             }
 
             // [재탐색 ②] 예전에는 "[최단시간] 재탐색 완료" 만 표시해, 눌러도 무엇이 달라졌는지
@@ -297,7 +323,7 @@ export async function recalculateKakaoRoute(userId: string, orderId: string, pri
             if ((routeHolder as any).id && routeHolder !== (securedOrder as any)) {
                 session.routeSnapshot = snapshotRoute(routeHolder as any, originOf(session));
             }
-            applyRoute(routeHolder, result.merged);
+            applyRouteAndSave(routeHolder, result.merged);
             mergedRouteHolder = routeHolder;
 
             let signDist = Number(result.distDiffKm) > 0 ? "+" : "";
@@ -524,7 +550,7 @@ export async function handleDecision(userId: string, orderId: string, status: 'O
                                 carType: routingOptions.carType,
                             });
                             if (calcResult) {
-                                applyRoute(pickRouteHolder(activeCalls, activeMain), calcResult.merged);
+                                applyRouteAndSave(pickRouteHolder(activeCalls, activeMain), calcResult.merged);
                             }
                         }
 
@@ -1048,7 +1074,7 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
                 //    2026-08-10 에 같은 실수(QQ)를 OrderEvaluator·재탐색에서 고치면서
                 //    기록 규약을 `applySoloRoute` 한 곳으로 모았는데, **복구 경로만 빠져 있었다.**
                 //    손으로 쓰지 않는다.
-                applySoloRoute(activeMain, res);   // sectionEtas 도 여기서 함께 기록된다
+                applySoloRouteAndSave(activeMain, res);   // sectionEtas 도 여기서 함께 기록된다
 
                 if (res.approachDuration) {
                     console.log(`🗺️ [복구 - 접근 구간] ${originOf(session)?.isFallback ? '임시 출발지' : '현위치'} → 상차지 ` +
@@ -1069,7 +1095,7 @@ export async function restoreAndRecalculateSession(userId: string, io: any) {
                     carType: routingOptions.carType,
                 });
                 // myOrders 에는 종료된 콜도 함께 로드되므로 반드시 활성 콜 기준으로 잡아야 한다.
-                if (calcResult) applyRoute(pickRouteHolder(activeCalls, activeMain), calcResult.merged);
+                if (calcResult) applyRouteAndSave(pickRouteHolder(activeCalls, activeMain), calcResult.merged);
             } catch(e) {
                 console.error('🗺️ [합짐 복구 연산 실패]', e);
             }

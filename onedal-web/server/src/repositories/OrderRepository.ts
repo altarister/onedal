@@ -158,6 +158,66 @@ export class OrderRepository {
     }
 
     /**
+     * 🗺️ **잰 경로를 장부에 되쓴다 — 콜을 넣을 때 한 번이 아니라 잴 때마다** (2026-09-12 밤).
+     *
+     * ── 무엇이 틀렸나 ──
+     * 경로 칸들은 `insertOrder` 가 **콜을 확정할 때 한 번** 저장한다. 그런데 경로는
+     * **그 뒤에** 계산되고, 합짐이 붙을 때마다 **다시** 계산된다. 그래서 나중에 홀더가 된
+     * 콜은 그 값이 **영영 장부에 안 들어갔다.**
+     *
+     * 실측(어드민 2026-09-12): 사이클마다 **첫 콜만** 값이 있었다.
+     *
+     *     0ea556  DELIVERED   routeComputedAt ✓  sectionStops ✓    ← 사이클 첫 콜
+     *     78a121  DELIVERED                  ✗              ✗
+     *     fa5de7  PICKED_UP                  ✗              ✗     ← 지금 홀더인데 비었다
+     *
+     * 그 결과 새로고침·재기동하면 **예상 시각·상차버퍼가 폴백으로 돌고**, 주행분이 없어
+     * 홀더가 비면 지도가 직선으로 물러난다 (2026-09-06 주석이 그 증상을 적어 뒀다).
+     *
+     * 🔴 **넷은 한 운명이다** — 궤적(`routePolyline`)만 살아남고 나머지가 없으면 지도가
+     *    색을 잃고 주행분이 남의 이름에 붙는다 (버그 대장 #60). 그래서 **한 번에** 쓴다.
+     * ⚠️ 실패해도 삼킨다 — 장부에 못 적는다고 진행 중인 콜을 멈출 이유가 없다.
+     *    메모리 세션은 이미 옳은 값을 들고 있다.
+     */
+    public static saveRouteFields(holder: {
+        id: string;
+        routePolyline?: unknown;
+        sectionEnds?: unknown;
+        sectionStops?: unknown;
+        sectionDriveMin?: unknown;
+        routeComputedAt?: string;
+        totalDistanceKm?: number;
+        totalDurationMin?: number;
+    }): void {
+        try {
+            db.prepare(`
+                UPDATE orders SET
+                    routePolyline    = COALESCE(?, routePolyline),
+                    sectionEnds      = COALESCE(?, sectionEnds),
+                    sectionStops     = COALESCE(?, sectionStops),
+                    sectionDriveMin  = COALESCE(?, sectionDriveMin),
+                    routeComputedAt  = COALESCE(?, routeComputedAt),
+                    totalDistanceKm  = COALESCE(?, totalDistanceKm),
+                    totalDurationMin = COALESCE(?, totalDurationMin)
+                WHERE id = ?
+            `).run(
+                /* 🔴 **모르는 값으로 아는 값을 덮지 않는다** — `COALESCE` 가 그 일을 한다.
+                   예컨대 주행분 없이 다시 잰 판이 옛 주행분을 지우면 화면이 폴백으로 돈다 */
+                holder.routePolyline ? JSON.stringify(holder.routePolyline) : null,
+                holder.sectionEnds ? JSON.stringify(holder.sectionEnds) : null,
+                holder.sectionStops ? JSON.stringify(holder.sectionStops) : null,
+                holder.sectionDriveMin ? JSON.stringify(holder.sectionDriveMin) : null,
+                holder.routeComputedAt ?? null,
+                holder.totalDistanceKm ?? null,
+                holder.totalDurationMin ?? null,
+                holder.id,
+            );
+        } catch (e) {
+            console.error(`🗺️ [경로 저장 실패] ${holder.id.slice(0, 8)} — ${(e as Error).message}`);
+        }
+    }
+
+    /**
      * 수동 취소 등 상태값을 변경합니다.
      */
     public static updateOrderStatus(orderId: string, userId: string, status: string) {
