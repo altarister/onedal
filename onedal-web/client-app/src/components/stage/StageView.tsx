@@ -183,11 +183,20 @@ export default function StageView(props: Props) {
              *
              * `preferIdx` 는 **방금 KEEP 한 콜**이다 — 포커스와 같은 콜을 연다.
              */
-            const want = ev.type === 'keep' && keepFocusRef.current
-                ? cycleDeck.findIndex(o => o.id === keepFocusRef.current) : -1;
+            /**
+             * 🪜 **사건이 가리킨 콜을 «강한 지시»로 넘긴다** (화면규칙 S13 · 2026-09-12).
+             *
+             * 🔴 예전엔 **KEEP 만** 실었고 도착은 빈손이었다. 그래서 도착하면 시트는
+             *    올라오는데 **열려 있던 딴 콜이 그대로 남았다** — 기사님: *"시트가 올라갔어
+             *    근데 그 스텝이 열리지는 않았어"*. v23 Ⅲ-S7 은 **«그 콜의 그 단계»** 다.
+             * ⚠️ `preferIdx`(약한 추천)로 넘기면 안 된다 — 열린 것에 밀린다.
+             */
+            const eventId = ev.type === 'keep' ? keepFocusRef.current
+                          : ev.type === 'arrive' ? ev.orderId : null;
+            const want = eventId ? cycleDeck.findIndex(o => o.id === eventId) : -1;
             const mv = sheetTransition(r.snap, {
                 openIdx, callCount: cycleDeck.length,
-                preferIdx: want >= 0 ? want : undefined,
+                focusIdx: want >= 0 ? want : undefined,
             });
             setSnap(mv.snap);
             setOpenIdx(mv.openIdx);
@@ -251,11 +260,12 @@ export default function StageView(props: Props) {
      *    KEEP(order-confirmed)이 늘 정확했던 이유가 소켓을 직접 듣기 때문이다 — 같게 만든다.
      */
     useEffect(() => {
-        const onArrived = (d: { orderId?: string }) => {
+        const onArrived = (d: { orderId?: string; stopType?: 'pickup' | 'dropoff' }) => {
             if (!d?.orderId) return;
-            const r = feed({ type: 'arrive' });
+            /* 🪜 «그 콜의 그 단계»를 함께 싣는다 (v23 Ⅲ-S7 · 화면규칙 S13) */
+            const r = feed({ type: 'arrive', orderId: d.orderId, stopType: d.stopType });
             if (!r.snap) return;                       // 손 유예 중이면 마중도 미룬다
-            useGpsFocusStore.setState({ gpsFocus: { orderId: d.orderId, tick: Date.now(), kind: 'focus' } });
+            useGpsFocusStore.setState({ gpsFocus: { orderId: d.orderId, tick: Date.now(), kind: 'focus', stopType: d.stopType } });
             /**
              * 🪜 마중은 «그 콜의 지금 단계»를 보여 주는 것까지다 (기사님 수순 ⑥).
              *    단계 블록은 카드 안에서 늘 열려 있으므로 맨 위로 올리면 덱·단계가 함께 보인다.
@@ -267,6 +277,28 @@ export default function StageView(props: Props) {
         };
         socket.on('auto-arrived', onArrived);
         return () => { socket.off('auto-arrived', onArrived); };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    /**
+     * 🚪 **완료 행동이 문을 닫는다** (v23 Ⅳ · 화면규칙 S14 · 기사님 실측 2026-09-12).
+     *
+     * v23 원문: *"통화 완료·시트 저장 → focus 해제 + **시트 자동 복귀**
+     * (뒤로가기를 찾을 일 없음)"*.
+     *
+     * 🔴 **이 길이 없어서 기사님이 손으로 내리셨다.** 도착 마중으로 시트가 100% 로
+     *    올라오는데 닫는 길이 «손»뿐이었고, 그 손이 S11 유예(30초)를 걸어
+     *    **다음 도착 마중까지 먹었다** (도착 여섯 중 셋만 마중 · 간격 23초 ↔ 유예 30초).
+     *    손은 «내 뜻»이지만 **완료는 일을 마친 것**이라 유예를 걸지 않는다.
+     *
+     * 🔴 **보내는 곳이 아니라 «받는 곳»에서 잡는다** (규칙 ③) — `report-milestone` 은
+     *    스텝 시트 여러 자리에서 나가지만, 서버가 확인해 주는 `milestone-result` 는
+     *    한 곳이다. 도착(`auto-arrived`)과 **같은 문법**이다.
+     */
+    useEffect(() => {
+        const onDone = () => { feed({ type: 'done' }); };
+        socket.on('milestone-result', onDone);
+        return () => { socket.off('milestone-result', onDone); };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 

@@ -25,7 +25,24 @@ export interface SheetMove {
 
 export function sheetTransition(
     next: SheetSnap,
-    now: { openIdx: number; callCount: number; preferIdx?: number },
+    now: {
+        openIdx: number;
+        callCount: number;
+        /**
+         * 🫱 **약한 추천 — «열린 것이 없으면» 이것을 연다** (다음 갈 콜).
+         *    열려 있는 것이 있으면 **뺏지 않는다** — 기사님이 골라 둔 자리다.
+         */
+        preferIdx?: number;
+        /**
+         * 🪜 **강한 지시 — «그 사건이 가리킨 콜»** (도착·KEEP · 화면규칙 S13).
+         *
+         * 🔴 **`preferIdx` 와 답하는 질문이 다르다** (규칙 ⑤-4 ⑤). 하나로 겸하다가
+         *    2026-09-12 에 사고가 났다 — 도착이 가리킨 콜이 «약한 추천»으로 들어가
+         *    **열려 있던 딴 콜에 밀렸고**, 기사님은 «시트는 올라왔는데 그 스텝이 안 열린»
+         *    화면을 보셨다. v23 Ⅲ-S6/S7 이 정한 것은 **«그 콜의 그 단계»** 다.
+         */
+        focusIdx?: number;
+    },
 ): SheetMove {
     const { openIdx, callCount } = now;
 
@@ -40,11 +57,23 @@ export function sheetTransition(
          * 그러니 «다»의 정의는 «**콜이 있으면** 하나 열린 상태»로 좁혀진다.
          */
         if (callCount <= 0) return { snap: 'full', openIdx: -1 };
+        /**
+         * 🔴 **사건이 가리킨 콜이 이긴다** (화면규칙 S13 · 2026-09-12).
+         *
+         * 예전엔 `if (openIdx >= 0) return …` 가 **먼저** 있어서, 아무 콜이나 열려 있으면
+         * `preferIdx` 를 **먹었다.** 그래서 도착해도 **열려 있던 딴 콜이 그대로 남았고**,
+         * 기사님은 «시트는 올라왔는데 그 스텝이 안 열린» 화면을 보셨다.
+         * KEEP 때 같은 병을 2026-09-06 에 한 번 고쳤는데, 이 순서 때문에 되살아나 있었다.
+         *
+         * v23 Ⅲ-S6/S7 이 정한 것은 «하나 열린»이 아니라 **«그 콜의 그 단계»** 다.
+         */
+        const inRange = (i?: number) => i != null && i >= 0 && i < callCount;
+        /* ① 사건이 가리킨 콜이 이긴다 — 도착·KEEP 은 «지금 이걸 보셔야 한다»는 뜻이다 */
+        if (inRange(now.focusIdx)) return { snap: 'full', openIdx: now.focusIdx! };
+        /* ② 열려 있던 것은 지킨다 — 기사님이 골라 둔 자리를 뺏지 않는다 */
         if (openIdx >= 0) return { snap: 'full', openIdx };
-        /* 열린 것이 없으면 **다음 갈 콜**을 연다 — 없으면 첫 콜 */
-        const pick = now.preferIdx != null && now.preferIdx >= 0 && now.preferIdx < callCount
-            ? now.preferIdx : 0;
-        return { snap: 'full', openIdx: pick };
+        /* ③ 열린 것이 없으면 «다음 갈 콜», 그것도 모르면 첫 콜 */
+        return { snap: 'full', openIdx: inRange(now.preferIdx) ? now.preferIdx! : 0 };
     }
 
     /* 🔴 «가»·«나»는 **열린 것이 없는** 단이다 — 열린 채로 내려오면 시트 안 것이

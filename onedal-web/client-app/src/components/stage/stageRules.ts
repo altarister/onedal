@@ -53,8 +53,23 @@ export type StageEvent =
     | { type: 'signal' }
     /** KEEP 직후 — 바로 통화해야 한다 (S5) */
     | { type: 'keep' }
-    /** 정거장 도착 — 신고 시트가 마중 나간다 (S7) */
-    | { type: 'arrive' }
+    /**
+     * 정거장 도착 — 신고 시트가 마중 나간다 (v23 Ⅲ-S7 · 화면규칙 S13).
+     *
+     * 🔴 **«그 콜»과 «그 단계»를 함께 든다** — v23 원문이 *"focus={그 콜, 그 단계}"* 다.
+     *    이것이 없으면 시트만 올라오고 **무엇을 열지 아무도 모른다** (2026-09-12 사고).
+     */
+    | { type: 'arrive'; orderId?: string; stopType?: 'pickup' | 'dropoff' }
+    /**
+     * 🚪 **완료 행동 — 문을 닫는다** (v23 Ⅳ · 화면규칙 S14).
+     *
+     * v23 원문: *"통화 완료·시트 저장 → focus 해제 + 시트 자동 복귀
+     * **(뒤로가기를 찾을 일 없음)**"*.
+     * 🔴 이 길이 없으면 기사님이 **손으로 내리게 되고**, 그 순간 S11 유예(30초)가 걸려
+     *    **다음 도착 마중이 조용히 사라진다** (기사님 실측: 도착 여섯 중 셋만 마중).
+     *    손은 «내 뜻»이지만 **도착은 차가 한 일**이다 — 둘을 같은 것으로 치면 안 된다.
+     */
+    | { type: 'done' }
     /** 출발(버튼 또는 국면 전환) — 이제 달린다 */
     | { type: 'depart' }
     /** 지도 정거장·이름표 탭 (S6) */
@@ -104,6 +119,14 @@ export function stageStep(mem: StageMemory, sig: StageSignals, ev: StageEvent): 
             if (holding) return out(mem, null, '도착(손 유예 중)', true);
             // 신고하는 동안 정차 전환이 못 끌어내린다 — 달리기 시작하면 내려간다 (S7)
             return out({ ...mem, autoRaised: true }, 'full', '도착');
+
+        case 'done':
+            /**
+             * 🚪 **완료 행동이 문을 닫는다** (v23 Ⅳ · S14) — 통화 완료·저장을 누르면
+             *    시트가 스스로 내려간다. 🔴 **유예를 걸지 않는다** — 손으로 끈 것이 아니라
+             *    «일을 마친 것»이라, 다음 정거장 도착은 여전히 마중 나가야 한다.
+             */
+            return out({ ...mem, autoRaised: false }, 'list', '완료');
 
         case 'depart':
             if (holding) return out(mem, null, '출발(손 유예 중)', true);
