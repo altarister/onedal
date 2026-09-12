@@ -459,4 +459,13 @@ class Hwamul24Parser(private val context: Context) : IScrapParser {
         }
         return groups
     }
+
+    /**
+     * 🗳️ **판정을 안 싣는다 — 24시는 아직 축을 안 옮겼다** (2026-09-12).
+     *    🔴 **«안 함»도 제 손으로 적는다** — 인터페이스에 기본값을 두었더니 위임 누락을
+     *       컴파일러가 못 잡아 `verdict` 가 내리 `null` 이었다 (#84 와 같은 병).
+     *    실으려면 `InsungParser.withVerdict` 처럼 **판정 함수가 고른 축**을 그대로 넣는다 —
+     *    성적표와 같은 분기를 써야 «성적표는 요금, 화면은 지역»으로 갈라지지 않는다.
+     */
+    override fun withVerdict(order: SimplifiedOfficeOrder, tally: FilterTally?): SimplifiedOfficeOrder = order
 }

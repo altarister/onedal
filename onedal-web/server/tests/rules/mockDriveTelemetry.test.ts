@@ -30,14 +30,25 @@ const codeOnly = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/
 
 describe('모의 주행 — 서버까지 사실이 간다', () => {
 
-    it('🔴 ① 같은 자리라도 주기적으로 보낸다 — 정차도 «사실»이다', () => {
+    /**
+     * 🔄 **이 조항은 `client-app/src/lib/gpsBridge.test.ts` 로 옮겼다** (2026-09-12 셋째 판).
+     *
+     * 여기 있던 검사는 억제문을 **글자로 잘라** 물었다 —
+     * `bridge.lastIndexOf('if (lastSent', i)` 로 시작을 찾는 식이다.
+     * 그런데 억제에 조건 하나를 **앞에** 더하자(`if (!extra?.stopped && lastSent …`)
+     * 그 글자가 사라져 **멀쩡한 코드에서 빨간불**이 났다. 동시에 더 나쁜 것도 했다:
+     * 억제가 6초라 정차가 그보다 짧으면 **정차 좌표가 한 점도 안 나가는데**
+     * 이 검사는 **초록**이었다 (기사님 판 실측: 0m 점 0건).
+     *
+     * 🔴 «보내는가»는 소스로 알 수 없다 — **함수를 불러 봐야 안다.**
+     *    옮긴 검사는 `publishLocation` 을 직접 먹이고 소켓으로 나간 점을 센다.
+     * 아래 검사들은 **배선**(칸이 이어졌나)을 보므로 소스 검사가 제자리다 —
+     * 둘은 다른 질문에 답한다.
+     */
+    it('🔴 ① 같은 자리 거르기는 남아 있다 — 2026-08-14 중복 발신은 막은 채로', () => {
         const bridge = codeOnly(read(join(CLIENT, 'lib/gpsBridge.ts')));
-        /* 거르기 자체는 남는다 (2026-08-14 중복 발신) — 다만 시간 예외가 있어야 한다 */
         expect(bridge).toMatch(/same-position/);
         expect(bridge).toMatch(/SAME_SPOT_RESEND_MS/);
-        const i = bridge.indexOf("reason: 'same-position'");
-        const guard = bridge.slice(bridge.lastIndexOf('if (lastSent', i), i);
-        expect(guard).toMatch(/now - lastSent\.at < SAME_SPOT_RESEND_MS/);
     });
 
     /**

@@ -38,6 +38,14 @@ export { useFilterConfig } from '../hooks/useFilterConfig';
 export { useDeviceStore } from '../stores/deviceStore';
 export { summarizeTally } from '../lib/filterTally';
 export { apiBase } from '../lib/serverTarget';
+/* ── 🧪 **여기부터 셋은 «테스트용»이다 — 어드민으로 갈 때 함께 걷는다** ──
+   (기사님 지시 2026-09-12: *"모의 주행과 내 위치의 주소찾기, 집주소 이렇게 3개의 모듈은
+    어드민때는 없어져야 하는것들이야"*)
+
+   🔴 **셋의 성질이 같다 — 전부 «서버로 보내는» 것**이다. 위의 넷은 읽기만 한다.
+      화면에서도 맨 위 **🧪 테스트용 구역** 하나에 모여 있다 (`TestOnlySection`).
+   🔴 **걷는 법** — 아래 세 줄 + 그 구역 + `<TestOnlySection/>` 호출 한 줄. 그게 전부다. */
+
 /**
  * 🎭 **모의 주행 스위치** (기사님 2026-09-12 — *"경로가 생기면 현황판도 알게 될 거고
  *    그때 버튼을 활성화해서 클릭하도록"*). 현황판은 `available` 을 보고 버튼을 켜고,

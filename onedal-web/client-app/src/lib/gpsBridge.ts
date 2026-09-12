@@ -90,8 +90,25 @@ export function publishLocation(
      */
     window.dispatchEvent(new CustomEvent('local-gps-update', { detail: { lat, lng, source, via: extra?.via } }));
 
-    /* 🛑 같은 자리는 아껴 보낸다 — 다만 **정차도 사실이라** 주기적으로는 알린다 (위 주석) */
-    if (lastSent && lastSent.lat === lat && lastSent.lng === lng
+    /**
+     * 🛑 같은 자리는 아껴 보낸다 — **단, «서 있다»는 사실이면 아끼지 않는다** (실측 2026-09-12 셋째).
+     *
+     * 🔴 **두 숫자가 서로를 알아야 하는 관계였다.** 아래 억제는 6초인데, 정차가 그보다
+     *    짧으면 **정차 좌표가 한 점도 안 나간다** — 6초째 재전송 순간엔 이미 떠나 있다.
+     *    기사님 판에서 정확히 그 모양이 나왔다 (`gps_tracks` 88점 · 5배속):
+     *
+     *        18:32:45   88m   서행 끝 — 정거장에 닿음
+     *        18:32:51  408m   🔴 6초 공백. 그 사이 서 있었는데 점이 없다
+     *        ⇒ 같은 자리(0m) 점 **0건**
+     *
+     *    지난 판의 «재전송 주기 ↔ 서버 저장 문턱»과 **같은 병**이다 (버그 대장 #110).
+     *    그때 서버 쪽 관계를 없앴는데, **클라 쪽에 같은 관계가 하나 더 남아 있었다.**
+     * 🟢 그래서 **관계를 없앤다** — 정차 눈금을 몇 초로 돌리든 정차는 궤적에 남는다.
+     * ⚠️ `stopped` 는 **모의 주행만** 싣는다. 실 GPS 궤적은 예전 그대로다
+     *    (실좌표는 미세하게 흔들려 애초에 이 억제에 걸리지 않는다).
+     */
+    if (!extra?.stopped
+        && lastSent && lastSent.lat === lat && lastSent.lng === lng
         && now - lastSent.at < SAME_SPOT_RESEND_MS) {
         return { sent: false, reason: 'same-position' };
     }

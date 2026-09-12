@@ -33,10 +33,19 @@ interface IScrapParser {
      * 한 번 갈라졌다 (앱은 요율 모델이 서면 `minFare` 를 안 보는데 사본은 그것만 봐서
      * **가짜 «통과»**). 값을 실어 보내면 사본이 통째로 사라진다.
      *
-     * 🔴 **기본은 «안 싣는다»(null)** — 배차망마다 판정 축이 달라, 옮길 준비가 된 파서만
-     *    덮어쓴다. 안 실으면 화면이 «못 잼»으로 그린다 (규칙 ④: 지어내지 않는다).
+     * 🔴 **기본 구현을 두지 않는다 — `alarmBandHalfPx` 와 같은 병을 겪었다** (#84 · 2026-09-12).
+     *
+     *    처음엔 «기본은 안 싣는다»로 `= order` 를 달았다. 그랬더니 **위임자(`ScrapParser`)가
+     *    이 메서드를 안 넘기는 것을 컴파일러가 못 잡았고**, 인성 파서가 멀쩡히 판정하는데도
+     *    `verdict` 가 **77건 내리 `null`** 로 나갔다. 화면에는 「앱이 판정을 안 실었다」로만
+     *    보여서 어디가 끊겼는지 알 수 없었다 — **fail-open 은 조용하다.**
+     *
+     *    `alarmBandHalfPx` 가 기본값 `0` 때문에 픽커 테두리를 반 토막 냈을 때(#84)
+     *    **«기본값을 없애 컴파일러가 누락을 잡는다»** 로 끝냈는데, 여기서 같은 편의를 또 썼다.
+     *    🔴 **같은 병이 두 번이면 인스턴스가 아니라 그 클래스를 없앤다** (루트 CLAUDE.md).
+     *    그래서 기본값을 지운다 — 안 싣는 파서도 **제 손으로 «안 싣는다»고 적는다.**
      */
-    fun withVerdict(order: SimplifiedOfficeOrder, tally: FilterTally? = null): SimplifiedOfficeOrder = order
+    fun withVerdict(order: SimplifiedOfficeOrder, tally: FilterTally? = null): SimplifiedOfficeOrder
 
     /**
      * rawText에서 상차지 직선거리(숫자)만 파싱합니다.
