@@ -591,10 +591,23 @@ class HijackService : AccessibilityService(), ScanContext {
          *   ③ **직전 화면이 «수락 전 상세»였을 때만** — 한 프레임으로 정하지 않는다
          *   ④ 미리보기를 올린 적이 있어야 한다 (`reportPickerAccepted` 안에서 본다)
          */
-        if (!TargetApp.supportsCatching(currentTargetApp)
-            && previous == ScreenContext.DETAIL_PRE_CONFIRM
-            && !com.onedal.app.plugins.kakaopicker.KakaoPickerParser.isDetailResidue(screenTexts)) {
-            reportPickerAccepted(rawScreenStr)
+        /**
+         * 📡 **막히면 «어디서» 막혔는지 말한다** (2026-09-13 새벽).
+         *
+         * 🔴 조건이 넷인데 **조용히 빠졌다.** 승격이 안 되면 로그가 한 줄도 안 남아,
+         *    «수락했는데 콜이 안 잡혔다»가 되면 넷 중 무엇이 걸렸는지 알 방법이 없었다.
+         *    그날 판을 한 번 더 돌려야 하는데 픽커는 **하루 5번**뿐이다 — 되돌릴 창이
+         *    없는 판에서 «한 번 더 해 보자»는 비싼 말이다.
+         * ⚠️ 조건이 **다 맞을 때는 안 찍는다** — 그때는 `reportPickerAccepted` 가 제 말을 한다.
+         *    직전이 상세가 아닌 경우도 안 찍는다 (화면이 바뀔 때마다 울린다).
+         */
+        if (!TargetApp.supportsCatching(currentTargetApp) && previous == ScreenContext.DETAIL_PRE_CONFIRM) {
+            val residue = com.onedal.app.plugins.kakaopicker.KakaoPickerParser.isDetailResidue(screenTexts)
+            if (residue) {
+                AppLogger.i("1DAL_PICKER", "↩️ [승격 보류] 상세 잔상이 남은 판이다 — 이 판은 버린다")
+            } else {
+                reportPickerAccepted(rawScreenStr)
+            }
         }
 
 
