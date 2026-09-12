@@ -69,6 +69,25 @@ describe('S16 — 주행·정차로 굳는 시간은 고칠 수 있다', () => {
         expect(body).not.toMatch(/>= 10_000/);
     });
 
+    it('🔴 **설정을 바꾸면 그 자리에서 따른다** — 클로저에 가두지 않는다', () => {
+        /**
+         * 🔴 **기사님 실측 2026-09-12** — 1초로 바꾸고 한 판을 도셨는데 주행 판정이
+         *    한 번도 안 떴다. 속도는 수천 km/h 였다.
+         *    원인: `holdMs` 를 빈 의존성 `useEffect` 안에서 읽어 **첫 렌더의 10초가 갇혔다.**
+         *    설정은 바뀌는데 판정은 옛 값으로 돌았다 — 화면이 조용히 거짓말한 것이다.
+         *
+         * ⚠️ **`lint:gate` 는 이 종류를 안 잡는다** (`exhaustive-deps` 를 꺼 뒀다).
+         *    그래서 검사가 문다 — 설정값은 **ref 로 들거나 의존성에 넣어야** 한다.
+         */
+        const panel = codeOnly(read(join(CLIENT, 'components/dashboard/VehicleStatusPanel.tsx')));
+        /* 판정 안에서는 «지금 값»을 본다 — 렌더 때 잡힌 숫자가 아니라 */
+        expect(panel).toMatch(/holdRef\.current/);
+        expect(panel).toMatch(/holdRef\.current = holdMs;\s*\}, \[holdMs\]\)/);
+        /* 🔴 계산 자리에 생값이 남아 있으면 그것이 갇힌다 */
+        const i = panel.indexOf('setInterval');
+        expect(panel.slice(i, i + 500)).not.toMatch(/>= holdMs/);
+    });
+
     it('🔴 읽는 곳은 하나다 — 여럿이 각자 읽으면 화면마다 다른 답이 나온다', () => {
         /* 설정을 담는 그릇은 스토어 하나이고, 판정은 그것만 본다 (규칙 ③) */
         const store = codeOnly(read(join(CLIENT, 'stores/settingsStore.ts')));

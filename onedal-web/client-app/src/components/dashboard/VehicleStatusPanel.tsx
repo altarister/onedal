@@ -38,6 +38,20 @@ export function useDriveMotion(): 'drive' | 'idle' {
      *    «주행 중»이 **한 번도 성립하지 않는다** (기사님 실측). 그때는 설정에서 줄인다.
      */
     const holdMs = useSettingsStore(st => st.motionHoldSec) * 1000;
+    /**
+     * 🔴 **ref 로 든다 — 클로저에 가두면 설정을 바꿔도 안 따른다** (기사님 실측 2026-09-12).
+     *
+     * 처음엔 `holdMs` 를 그냥 썼는데 아래 `useEffect` 의 의존성이 `[]` 라 **첫 렌더의
+     * 10초가 그대로 갇혔다.** 기사님이 1초로 바꾸고 한 판을 도셨는데 여전히 10초로 돌아
+     * 주행 판정이 한 번도 안 떴다 (속도는 수천 km/h 였는데 달리는 구간이 8초였다).
+     *
+     * ⚠️ 의존성에 `[holdMs]` 를 넣으면 값이 바뀔 때마다 **측정 상태(speed·last)가 초기화**된다 —
+     *    그러면 설정을 만지는 순간 속도가 0부터 다시 쌓인다. ref 면 재구독 없이 최신 값을 본다.
+     * ⚠️ `lint:gate` 는 `exhaustive-deps` 를 꺼 뒀으므로 **이 종류는 기계가 안 잡는다** —
+     *    설정값을 effect 안에서 읽을 때는 늘 이 자리를 의심한다.
+     */
+    const holdRef = useRef(holdMs);
+    useEffect(() => { holdRef.current = holdMs; }, [holdMs]);
     useEffect(() => {
         let speed = 0;
         let last: { lat: number; lng: number; time: number } | null = null;
@@ -82,9 +96,9 @@ export function useDriveMotion(): 'drive' | 'idle' {
             const now = Date.now();
             const fast = speed >= 20;
             const slow = speed <= 5;
-            if (fast) { idleSince = 0; if (!driveSince) driveSince = now; if (now - driveSince >= holdMs) apply('drive'); }
+            if (fast) { idleSince = 0; if (!driveSince) driveSince = now; if (now - driveSince >= holdRef.current) apply('drive'); }
             else driveSince = 0;
-            if (slow) { if (!idleSince) idleSince = now; if (now - idleSince >= holdMs) apply('idle'); }
+            if (slow) { if (!idleSince) idleSince = now; if (now - idleSince >= holdRef.current) apply('idle'); }
             else idleSince = 0;
         }, 1_000);
         window.addEventListener('local-gps-update', onGps);
