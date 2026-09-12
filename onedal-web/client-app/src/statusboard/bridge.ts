@@ -43,6 +43,16 @@ export { apiBase } from '../lib/serverTarget';
  *    «지도와 서버가 다른 곳을 본다»를 잡는다. 그 어긋남이 실제로 17.6km 였다.
  */
 export { useDriverPositionStore, ensureDriverPositionSubscribed } from '../stores/driverPositionStore';
+/**
+ * ⚙️ **「주행·정차로 굳는 시간」 — 기사님이 ⚙️ 설정에서 정한 초** (2026-09-12).
+ *
+ * 🔴 **읽기만 한다.** 현황판이 이 값을 쓰는 까닭은 하나다 — 모의 주행의 **정차 눈금이
+ *    이 시간보다 짧으면 «정차» 상태가 한 번도 안 굳는다.** 그런데 화면이 그걸 말해 주지
+ *    않아서 기사님이 정차 5초로 한 판을 도셨고, 정차 규칙이 통째로 안 보였다.
+ * 🔴 **기본값을 여기 또 적지 않는다** — 원천은 `shared` 의 `MOTION_HOLD_SEC_DEFAULT` 고,
+ *    서버 값을 읽어 오는 것은 `loadScreenSettings`(관제웹)가 이미 한다 (규칙 ③).
+ */
+export { useSettingsStore } from '../stores/settingsStore';
 /* ── 🧪 **여기부터 셋은 «테스트용»이다 — 어드민으로 갈 때 함께 걷는다** ──
    (기사님 지시 2026-09-12: *"모의 주행과 내 위치의 주소찾기, 집주소 이렇게 3개의 모듈은
     어드민때는 없어져야 하는것들이야"*)
@@ -60,3 +70,9 @@ export { useMockDriveStore, MOCK_DRIVE_SPEEDS, MOCK_DRIVE_DEFAULTS } from '../st
 export { publishLocation } from '../lib/gpsBridge';
 /* 🔴 **인증이 필요한 문은 이걸로 연다** — 토큰을 손으로 붙이면 갱신(리프레시)을 놓친다 */
 export { apiClient } from '../api/apiClient';
+/**
+ * 🎭 **연기 눈금이 실제로 몇 km 를 걷는가 — 그 수의 원천** (2026-09-12).
+ *    화면이 「한 걸음」·「닿는 거리」를 적으려면 필요하다. **계산식은 `simStep` 이 갖는다** —
+ *    여기서 다시 짜면 «화면이 말하는 걸음»과 «시뮬이 걷는 걸음»이 갈린다 (규칙 ③).
+ */
+export { KM_PER_TICK, STOP_OFF_ROAD_KM } from '../hooks/simStep';

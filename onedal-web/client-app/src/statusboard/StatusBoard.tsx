@@ -34,10 +34,13 @@ import type { SecuredOrder, DeviceSession, DeviceModeType } from '@onedal/shared
 /* 🌉 관제웹 안쪽은 **다리 하나**로만 본다 — 옮길 때 `bridge.ts` 만 새로 쓰면 된다 */
 import { useFilterConfig, useDeviceStore, summarizeTally, apiBase,
          useMockDriveStore, MOCK_DRIVE_SPEEDS, MOCK_DRIVE_DEFAULTS, publishLocation, apiClient,
-         useDriverPositionStore, ensureDriverPositionSubscribed } from './bridge';
+         useDriverPositionStore, ensureDriverPositionSubscribed,
+         useSettingsStore, KM_PER_TICK, STOP_OFF_ROAD_KM } from './bridge';
 /* ⚖️ **앱이 내린 판정을 읽는다** — 여기서 다시 재지 않는다 (`callVerdict.ts` 머리 참조).
    2026-09-12 에 사본(`recheck.ts`)을 지우고 이것으로 갈아탔다 */
 import { viewAll, tallyMarks, MARK_SIGN } from './callVerdict';
+/* 🎚️ **눈금이 무엇을 못 보게 하나 — 판단은 순수 함수가 한다** (`dialEffect.ts` 머리 참조) */
+import { dialEffectOf } from './dialEffect';
 /* 🔴 서버 주소를 손으로 적지 않는다 — `apiBase()` 를 거친다.
    2026-09-07 에 `/api` 가 두 번 붙어 실경로가 늘 직선으로 그려진 사고가 있었다 */
 
@@ -320,6 +323,40 @@ function DialInput({ label, unit, value, min, max, onChange }: {
     );
 }
 
+/**
+ * 🔎 **이 눈금으로 무엇을 못 보나** (기사님 물음 2026-09-12: *"그럼 앞으로 그 설정을
+ *    바꾸면 안되는거야?"*).
+ *
+ * 답은 «바꿔도 된다»다 — 눈금은 돌리는 것이다. 다만 **잘못 두면 못 보는 것이 생기는데
+ * 화면이 그걸 말해 주지 않았다.** 기사님이 정차 5초로 한 판을 도셨고, 그 판에서는
+ * «정차» 상태가 구조적으로 한 번도 안 나온다 — 그런데 어디에도 그 사실이 없었다.
+ *
+ * 🔴 **판단은 여기 없다** — `dialEffect.ts`(순수 함수)가 한다. 이 칸은 **적기만** 한다.
+ *    문턱(⚙️ 굳는 시간)과 걸음식(`KM_PER_TICK`·`STOP_OFF_ROAD_KM`)은 **넘겨주는 값**이라
+ *    한 곳만 고치면 둘이 같이 따라온다 (규칙 ③).
+ */
+function DialEffect({ dwellSec, approachKm, slowFactor, speed }: {
+    dwellSec: number; approachKm: number; slowFactor: number; speed: number;
+}) {
+    const holdSec = useSettingsStore(st => st.motionHoldSec);
+    const e = dialEffectOf({ dwellSec, approachKm, slowFactor, speed, holdSec,
+                             kmPerTick: KM_PER_TICK, offRoadKm: STOP_OFF_ROAD_KM });
+    return (
+        <div className="pt-1 text-[10px] font-bold leading-[1.45]">
+            {e.dwellShort && (
+                <p className="text-warning">
+                    ⚠️ 정차 {dwellSec}초로는 «정차»가 안 굳는다 — ⚙️ 굳는 시간 {holdSec}초라
+                    정차는 {e.requiredDwellSec}초 이상이어야 한다
+                </p>
+            )}
+            <p className="text-text-muted">
+                한 걸음 {e.cruiseKm.toFixed(1)}km{e.slows ? ` (서행 ${e.slowKm.toFixed(2)}km)` : ' · 서행 없음'}
+                {' · '}정거장에 닿는 거리 {e.reachKm.toFixed(1)}km
+            </p>
+        </div>
+    );
+}
+
 function MockDriveCard({ phase }: { phase?: string }) {
     const { available, running, speed, start, stop, setSpeed,
             dwellSec, approachKm, slowFactor, setDwellSec, setApproachKm, setSlowFactor } = useMockDriveStore();
@@ -375,6 +412,7 @@ function MockDriveCard({ phase }: { phase?: string }) {
                     </button>
                 )}
             </div>
+            <DialEffect dwellSec={dwellSec} approachKm={approachKm} slowFactor={slowFactor} speed={speed} />
             {!available && <>
                 {/**
                   * ✅ **순환이 풀렸다** (관제웹 `d1a3cc0`) — 기사님이 *"출발을 해야 상차를 하지"*
