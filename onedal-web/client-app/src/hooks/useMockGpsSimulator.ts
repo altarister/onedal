@@ -123,9 +123,25 @@ export function useMockGpsSimulator({
     }, [stops]);
 
     useEffect(() => {
-        if (routeRef.current?.length !== routePolyline?.length) {
+        /**
+         * 🔀 **경로가 갈리면 «지금 자리»에서 다시 잡는다** (현황판 실측 2026-09-12).
+         *
+         * 현황판: *"한 점이 **1초에 10.9km** 뛰었습니다 … 경로 인덱스를 건너뛴 자리로
+         * 의심됩니다."* — 맞았다. 콜을 더 잡아 경로가 다시 짜인 그 순간이었다
+         * (`🧭 [경로 순서]` 로그가 7초 뒤에 있다).
+         *
+         * 🔴 **예전엔 `length` 로만 견줬다.** 점 수가 같으면 «같은 경로»로 보고 옛 인덱스를
+         *    그대로 썼는데, 경로가 통째로 달라져도 점 수는 얼마든지 같을 수 있다 —
+         *    그러면 새 경로의 그 번째 점은 **전혀 다른 자리**라 화면이 순간이동한다.
+         *    지금은 **참조가 다르면** 다시 잡는다. 카카오가 준 배열은 갈아탈 때마다 새 것이다.
+         * 🔴 **`at`(지금 서 있는 자리)도 함께 비운다** — 안 비우면 옛 경로의 보간 좌표가
+         *    새 경로의 걸음 기점이 되어 같은 점프를 낸다 (2026-09-12 에 `at` 을 들이면서 생긴 자리).
+         * ⚠️ `visited`(들른 정거장)는 **유지한다** — 경로가 바뀌어도 이미 들른 곳은 들른 것이다.
+         */
+        if (routeRef.current !== routePolyline) {
             indexRef.current = nearestIndex(routePolyline, hereRef.current);
             simRef.current.idx = indexRef.current;   // 갈아탄 경로에서도 이어 달린다 (visited 는 유지)
+            simRef.current.at = hereRef.current ? { ...hereRef.current } : null;
             finishedRef.current = false;
         }
         routeRef.current = routePolyline;

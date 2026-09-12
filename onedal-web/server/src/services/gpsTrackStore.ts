@@ -65,6 +65,8 @@ export interface GpsPoint {
     atMs: number;
     source?: string;
     speedKmh?: number | null;
+    /** 🎭 모의 배속 — 위 속도는 이미 나눈 «실제 속도»다. 실 GPS 는 1 (현황판 실측 2026-09-12) */
+    speedMultiplier?: number | null;
     /** 그때 어느 콜을 향하고 있었나 — 경로 대조의 열쇠 (모르면 비운다) */
     orderId?: string | null;
     /**
@@ -116,8 +118,8 @@ export function bufferGpsPoint(userId: string, p: GpsPoint): void {
 }
 
 const insertStmt = () => db.prepare(`
-    INSERT INTO gps_tracks (user_id, at_ms, x, y, source, speed_kmh, order_id, stop_type)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO gps_tracks (user_id, at_ms, x, y, source, speed_kmh, speed_multiplier, order_id, stop_type)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 `);
 
 /**
@@ -135,7 +137,8 @@ export function flushGpsBuffer(): void {
         db.transaction(() => {
             for (const p of batch) {
                 st.run(p.userId, Math.round(p.atMs), p.x, p.y,
-                    p.source ?? null, p.speedKmh ?? null, p.orderId ?? null, p.stopType ?? null);
+                    p.source ?? null, p.speedKmh ?? null, p.speedMultiplier ?? 1,
+                    p.orderId ?? null, p.stopType ?? null);
             }
         })();
     } catch (e) {
@@ -157,6 +160,8 @@ export interface TrackPoint {
     y: number;
     source: string | null;
     speedKmh: number | null;
+    /** 🎭 모의 배속 — 위 속도는 이미 나눈 값이다 */
+    speedMultiplier?: number | null;
     orderId: string | null;
     stopType: 'pickup' | 'dropoff' | null;
 }
@@ -201,14 +206,14 @@ export function summarizeTrack(
 
 const rowToPoint = (r: any): TrackPoint => ({
     atMs: r.at_ms, x: r.x, y: r.y,
-    source: r.source ?? null, speedKmh: r.speed_kmh ?? null,
+    source: r.source ?? null, speedKmh: r.speed_kmh ?? null, speedMultiplier: r.speed_multiplier ?? 1,
     orderId: r.order_id ?? null, stopType: r.stop_type ?? null,
 });
 
 /** «이 콜의 궤적» — 시각 오름차순 */
 export function trackOfOrder(userId: string, orderId: string): TrackPoint[] {
     return db.prepare(`
-        SELECT at_ms, x, y, source, speed_kmh, order_id, stop_type
+        SELECT at_ms, x, y, source, speed_kmh, speed_multiplier, order_id, stop_type
         FROM gps_tracks WHERE user_id = ? AND order_id = ? ORDER BY at_ms
     `).all(userId, orderId).map(rowToPoint);
 }

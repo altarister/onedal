@@ -903,6 +903,19 @@ export function processDriverMovement(
     onDeparted?: (uid: string, orderId: string) => void,
     /** 🚚 정거장을 **지나쳤을** 때 — 도착·완료를 순차로 찍는다 (2026-09-03) */
     onPassed?: (uid: string, stop: ArrivalStop) => void,
+    /**
+     * 🎭 **모의 주행 배속** — 궤적에 «실제 속도»를 남기려고 받는다 (현황판 실측 2026-09-12).
+     *
+     * 현황판: *"**배속이 차의 속도로 기록되고 있습니다.** 마지막 판 속도 최저 0 · 최고
+     * 39,415 · 평균 4,251 km/h … 나중에 궤적을 다시 읽을 때 아무 판단도 못 합니다 —
+     * 「여기서 막혔나」를 속도로 보는데 전부 4,000km/h입니다."*
+     *
+     * 🔴 **배속은 «시간을 빨리 돌리는 것»이지 «차가 빨라지는 것»이 아니다.** 그래서
+     *    궤적에는 나눈 값을 남긴다. 안 오면 1 — 실 GPS 는 그대로다.
+     * ⚠️ **도착 감지가 쓰는 `speedKmh` 는 안 건드린다** — 그 값은 판정 입력이고, 모의는
+     *    애초에 속도를 안 본다(`source === 'mock'` 이면 바로 발화). 나누는 것은 **기록뿐**이다.
+     */
+    speedMultiplier?: number,
 ) {
     if (!lat || !lng) return;
     
@@ -966,7 +979,10 @@ export function processDriverMovement(
         const nowPt = { x: currentGPS.x, y: currentGPS.y, atMs: Date.now() };
         if (shouldStoreGpsPoint(lastPt, nowPt)) {
             // 🧭 «그때 어느 콜을 향하고 있었나»를 함께 싣는다 — 경로 대조의 열쇠
-            bufferGpsPoint(userId, gpsPointOf(session, currentGPS, nowPt.atMs, src, speedKmh));
+            /* 🎭 배속으로 나눈 «실제 속도»를 남긴다 — 판정이 쓰는 `speedKmh` 는 그대로다 */
+            const mult = speedMultiplier && speedMultiplier > 0 ? speedMultiplier : 1;
+            const realSpeed = speedKmh != null ? Math.round(speedKmh / mult) : null;
+            bufferGpsPoint(userId, gpsPointOf(session, currentGPS, nowPt.atMs, src, realSpeed, mult));
             session.lastTrackPoint = nowPt;
         }
     }
@@ -1064,11 +1080,16 @@ export function gpsPointOf(
     atMs: number,
     src: string,
     speedKmh: number | null,
+    /** 🎭 모의 배속 — 위 속도는 **이미 나눈 값**이고, 이것은 «얼마로 돌렸나»를 남긴다 */
+    speedMultiplier: number = 1,
 ): GpsPoint & { stopType: 'pickup' | 'dropoff' | null } {
     const next = nextStopOf(session, gps);
     return {
         x: gps.x, y: gps.y, atMs, source: src,
         speedKmh: speedKmh != null && Number.isFinite(speedKmh) ? Math.round(speedKmh) : null,
+        /* 🔴 **속도와 배속을 한 칸에 섞지 않는다** — «실제로 얼마로 달렸나»와 «얼마로 돌렸나»는
+           다른 질문이다 (규칙 ⑤-4 ⑤). 실 GPS 는 늘 1 이다 */
+        speedMultiplier,
         orderId: next?.orderId ?? null,
         stopType: next?.stopType ?? null,
     };

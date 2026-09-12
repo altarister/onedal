@@ -128,9 +128,13 @@ describe('GPS 시뮬레이터 — 반복하지 않는다', () => {
      *    → 완료 표시는 그대로 풀고, 출발 자리만 **가장 가까운 지점**으로 바꿨다.
      */
     it('경로가 바뀌면 완료 표시를 푼다 · 다만 처음부터가 아니라 가까운 자리에서', () => {
-        const onRoute = sim.slice(sim.indexOf('routeRef.current?.length !== routePolyline?.length'));
-        // 2026-08-31 연기 각본에서 simRef.idx 동기화 한 줄이 끼어 창을 넓혔다 — 불변식은 그대로
-        const body = onRoute.slice(0, 320);
+        /**
+         * 🔄 **2026-09-12 — 견주는 법이 «길이»에서 «참조»로 바뀌었다** (현황판 실측).
+         *    점 수가 같으면 «같은 경로»로 보고 옛 인덱스를 그대로 써 **1초에 10.9km** 뛰었다.
+         *    불변식은 그대로다 — 완료를 풀고, 가까운 자리에서 잇는다.
+         */
+        const onRoute = sim.slice(sim.indexOf('routeRef.current !== routePolyline'));
+        const body = onRoute.slice(0, 420);
         expect(body).toMatch(/finishedRef\.current = false/);
         expect(body).toMatch(/nearestIndex\(/);
         expect(body).not.toMatch(/indexRef\.current = 0/);
@@ -174,7 +178,10 @@ describe('GPS 브리지 — 송신은 한 곳', () => {
     });
 
     it('좌표에 **출처**를 싣는다 — 받는 쪽이 알아야 거짓말을 안 한다', () => {
-        expect(bridge).toMatch(/socket\.emit\('dashboard-gps-update', \{ lat, lng, source/);
+        /* ⚠️ 2026-09-12 에 배속이 함께 실리며 줄이 바뀌었다 — 무는 것은 «출처를 싣는가»다 */
+        expect(bridge).toMatch(/socket\.emit\('dashboard-gps-update'/);
+        const i = bridge.indexOf("socket.emit('dashboard-gps-update'");
+        expect(bridge.slice(i, i + 240)).toMatch(/lat, lng, source/);
         expect(bridge).toMatch(/type GpsSource = 'native' \| 'browser' \| 'mock'/);
     });
 
@@ -278,8 +285,9 @@ describe('시뮬레이터 — 경로가 갈리면 가장 가까운 자리에서 
 
     const src = codeOnly(readFileSync(join(CLIENT, 'hooks/useMockGpsSimulator.ts'), 'utf8'));
 
-    it('🔴 길이가 달라져도 0 으로 되돌리지 않는다', () => {
-        const eff = src.slice(src.indexOf('routeRef.current?.length !== routePolyline?.length'));
+    it('🔴 경로가 달라져도 0 으로 되돌리지 않는다', () => {
+        /* 🔄 2026-09-12 — «길이»가 아니라 «참조»로 견준다 (점 수가 같아도 다른 경로다) */
+        const eff = src.slice(src.indexOf('routeRef.current !== routePolyline'));
         const body = eff.slice(0, eff.indexOf('}, [routePolyline])'));
         expect(body).toMatch(/indexRef\.current = nearestIndex\(/);
         expect(body).not.toMatch(/indexRef\.current = 0/);

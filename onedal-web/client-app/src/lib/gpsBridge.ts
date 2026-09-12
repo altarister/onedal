@@ -28,7 +28,19 @@ let lastMockAt = 0;
 /** 시뮬레이터가 도는 동안 실제 좌표를 막아 두는 시간. 시뮬레이터는 1초마다 낸다 */
 const MOCK_HOLD_MS = 5_000;
 
-let lastSent: { lat: number; lng: number } | null = null;
+let lastSent: { lat: number; lng: number; at: number } | null = null;
+/**
+ * ⏱️ **같은 자리라도 이 간격이면 다시 보낸다** (현황판 실측 2026-09-12).
+ *
+ * 🔴 정차 18초 동안 좌표가 한 톨도 안 변해 **서버로 한 번도 안 나갔다.** 그래서
+ *    «5km/h↓ 가 이어지면 정차»가 **발화할 입력 자체가 없었다** — 18초를 둔 목적이
+ *    서버 쪽에서는 이룰 수 없었다. 궤적에도 정차 흔적이 **0건**이었다
+ *    (현황판이 `gps_tracks` 로 재 줬다: 마지막 판의 최장 간격이 7초).
+ * 🔴 **중복 발신 사고(2026-08-14)의 원인은 «두 곳에서 쏘던 것»이지 «같은 자리를 주기적으로
+ *    알리는 것»이 아니다.** 보내는 문은 이 함수 하나로 이미 모았다.
+ * ⚠️ 서버 저장 규칙이 「50m 이상 or 15초 경과」라, 이 주기면 정차가 궤적에 한두 점으로 남는다.
+ */
+const SAME_SPOT_RESEND_MS = 6_000;
 /** 마지막 **실제** 좌표. 시뮬레이션이 끝나면 여기로 되돌린다 */
 let lastReal: { lat: number; lng: number; source: GpsSource } | null = null;
 
@@ -48,7 +60,7 @@ export function publishLocation(
     lat: number,
     lng: number,
     source: GpsSource,
-    extra?: { accuracy?: number; via?: Array<{ lat: number; lng: number }> },
+    extra?: { accuracy?: number; via?: Array<{ lat: number; lng: number }>; speedMultiplier?: number },
 ): PublishResult {
     const now = Date.now();
 
@@ -78,13 +90,16 @@ export function publishLocation(
      */
     window.dispatchEvent(new CustomEvent('local-gps-update', { detail: { lat, lng, source, via: extra?.via } }));
 
-    // 서버로는 같은 자리를 다시 보내지 않는다
-    if (lastSent && lastSent.lat === lat && lastSent.lng === lng) {
+    /* 🛑 같은 자리는 아껴 보낸다 — 다만 **정차도 사실이라** 주기적으로는 알린다 (위 주석) */
+    if (lastSent && lastSent.lat === lat && lastSent.lng === lng
+        && now - lastSent.at < SAME_SPOT_RESEND_MS) {
         return { sent: false, reason: 'same-position' };
     }
-    lastSent = { lat, lng };
+    lastSent = { lat, lng, at: now };
 
-    socket.emit('dashboard-gps-update', { lat, lng, source, accuracy: extra?.accuracy, timestamp: now });
+    /* 🎭 배속을 함께 보낸다 — 궤적에 «실제 속도»를 남기려면 서버가 나눌 수를 알아야 한다 */
+    socket.emit('dashboard-gps-update',
+        { lat, lng, source, accuracy: extra?.accuracy, speedMultiplier: extra?.speedMultiplier, timestamp: now });
     return { sent: true };
 }
 

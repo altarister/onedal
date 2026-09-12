@@ -351,7 +351,7 @@ export function registerSocketHandlers(io: Server) {
  */
 
         // ━━━ [관제웹 Master GPS 수신부] ━━━
-        socket.on("dashboard-gps-update", (loc: { lat: number, lng: number, source?: string }) => {
+        socket.on("dashboard-gps-update", (loc: { lat: number, lng: number, source?: string, speedMultiplier?: number }) => {
             /**
              * 🔒 **모의 GPS 는 한 소켓만** (2026-08-31 실측). 관제웹이 두 개 붙어 있으면
              * (폰 + 데스크톱) 시뮬 두 대가 좌표를 섞어 쏜다 — 옛 번들 탭이 끼면 정차 연기
@@ -495,6 +495,8 @@ export function registerSocketHandlers(io: Server) {
                         message: `${label}를 지나쳐 도착·완료로 기록했습니다 (GPS)`,
                     });
                 },
+                /* 🎭 모의 배속 — 궤적에 «실제 속도»를 남기려고 넘긴다 (현황판 실측 2026-09-12) */
+                loc.speedMultiplier,
             );
         });
 
