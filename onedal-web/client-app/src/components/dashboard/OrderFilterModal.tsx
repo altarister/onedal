@@ -651,14 +651,12 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                   * 🔴 «지금 무엇을 하나»가 사라진 것이 아니다 — 요약줄이 그 일을 한다.
                   *    한 화면에 같은 말이 두 번 있으면 **그게 거짓말이 될 자리**를 만든다 (규칙 ③).
                   *
-                  * ✕ 만 남겨 **줄을 안 먹게** 띄운다 — 팝업이 아니라 «바깥 누르기»가 없으므로
-                  * 닫는 길은 눈에 보여야 한다.
+                  * 🔴 **✕ 도 걷었다** (기사님 2026-09-12: *"팝업이 아니니 x 버튼은 지워"*).
+                  *    한동안 «바깥 누르기가 없으니 닫는 길은 보여야 한다»는 이유로 남겨 뒀는데,
+                  *    **닫는 길은 이미 있다** — 요약줄이 토글이라 다시 누르면 접힌다
+                  *    (`Dashboard.tsx` `onOpenFilter={() => setIsFilterOpen(o => !o)}`).
+                  *    ✕ 는 «이건 팝업이다»라고 말하는 표시라, 팝업을 걷은 판에서는 거짓말이다.
                   */}
-                <button type="button" onClick={onClose} title="접기"
-                    className="absolute top-2 right-2 z-30 w-7 h-7 rounded-lg text-text-muted
-                               hover:bg-surface-hover/60 text-[14px] font-black">
-                    ✕
-                </button>
 
                 {/**
                   * 🛣️ **노선 ↔ 🔷 동선 — 지도에서 이사해 왔다**

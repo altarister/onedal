@@ -85,10 +85,27 @@ describe('국면별 설정 — 화면은 표를 읽는다', () => {
         expect(modal).not.toMatch(/key:\s*'first',\s*label:/);
     });
 
-    /** 🔴 닫는 길은 남는다 — 팝업이 아니라 «바깥 누르기»가 없다 */
-    it('🔴 닫는 ✕ 가 남아 있다', () => {
-        expect(modal).toMatch(/onClick=\{onClose\}/);
-        expect(modal).toMatch(/✕/);
+    /**
+     * 🔴 **닫는 ✕ 를 걷었다** (기사님 2026-09-12: *"팝업이 아니니 x 버튼은 지워"*).
+     *
+     * 이 검사는 원래 반대를 물었다 — 머리줄을 걷을 때 *"바깥 누르기가 없으니 닫는 길은
+     * 눈에 보여야 한다"* 는 이유로 ✕ 를 **남기라고** 잠갔다. 그런데 **닫는 길은 이미 있었다**:
+     * 요약줄이 토글이라 다시 누르면 접힌다. ✕ 는 «이건 팝업이다»라고 말하는 표시라,
+     * 팝업을 걷은 판(C4-3)에서는 **화면이 거짓말을 하는 자리**가 된다.
+     *
+     * 🔴 **닫는 길 자체는 계속 지킨다** — 검사가 무는 것은 «✕ 가 있나»가 아니라
+     *    «접을 수 있나»다. 요약줄의 토글이 그 답이라 `Dashboard` 쪽을 본다.
+     */
+    it('🔴 필터 판에 닫는 ✕ 가 없다 — 팝업이 아니다', () => {
+        const closeBtn = modal.slice(modal.indexOf('onClick={onClose}'));
+        expect(modal).not.toMatch(/onClick=\{onClose\} title="접기"/);
+        /* ✕ 자체는 다른 뜻으로 산다 (막힌 차종·제외 칩) — 「닫기 버튼」만 없어야 한다 */
+        expect(closeBtn.slice(0, 200)).not.toMatch(/>\s*✕\s*</);
+    });
+
+    it('🔴 접는 길은 남아 있다 — 요약줄이 토글이다', () => {
+        const dash = codeOnly(read(join(CLIENT, "pages/Dashboard.tsx")));
+        expect(dash).toMatch(/onOpenFilter=\{\(\) => setIsFilterOpen\(o => !o\)\}/);
     });
 
     /** 🔴 폼이 하나다 — 국면마다 따로 두면 그것이 곧 다섯 벌이다 */
