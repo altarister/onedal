@@ -67,7 +67,7 @@ router.post("/", (req, res) => {
         // 2. 비동기 Write Queue를 통해 밀려들어오는 데이터를 오류 없이 INSERT
         data.forEach(item => {
             dbQueue.runAsync(
-                "INSERT INTO intel (user_id, device_id, type, pickup, dropoff, fare, timestamp, targetApp, itemSize, pickupDistanceKm, tagsText) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO intel (user_id, device_id, type, pickup, dropoff, fare, timestamp, targetApp, itemSize, pickupDistanceKm, tagsText, vehicleType, deliveryDistanceKm, scheduleText, postTime, rawText, pickupX, pickupY, dropoffX, dropoffY) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 userId === "ADMIN_USER" ? null : userId,
                 deviceId || null,
                 "INTEL_BULK",
@@ -79,7 +79,24 @@ router.post("/", (req, res) => {
                 // 🌐 픽커 수집 필드 셋 — 인성·24시 콜은 안 보내므로 null (픽커_수집.md §5-①)
                 (item as any).itemSize ?? null,
                 (item as any).pickupDistance ?? null,
-                (item as any).tagsText ?? null
+                (item as any).tagsText ?? null,
+                /**
+                 * 📋 **리스트 화면이 주는 것을 버리지 않는다** (기사님 지시 2026-09-12).
+                 *    앱은 여섯 칸을 다 읽어 올리는데 여기서 **아홉 칸을 버리고 있었다** —
+                 *    그래서 검산이 차종·배송거리를 «못 잰 축»으로 적었다. 자세한 것은
+                 *    `db.ts` 의 intel `vehicleType` 주석에 있다 (칸을 판 자리가 원천).
+                 * 🔴 **망마다 분기하지 않는다** — 안 주는 망은 그 칸이 null 이고,
+                 *    어느 망인지는 `targetApp` 이 답한다.
+                 */
+                (item as any).vehicleType ?? null,
+                (item as any).deliveryDistance ?? null,
+                (item as any).scheduleText ?? null,
+                (item as any).postTime ?? null,
+                (item as any).rawText ?? null,
+                (item as any).pickupX ?? null,
+                (item as any).pickupY ?? null,
+                (item as any).dropoffX ?? null,
+                (item as any).dropoffY ?? null
             );
         });
 

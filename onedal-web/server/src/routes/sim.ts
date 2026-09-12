@@ -125,8 +125,18 @@ router.get("/intel", (req, res) => {
     const limit = Math.min(200, Math.max(1, Number.isFinite(asked) ? asked : 40));
 
     const rows = db.prepare(
+        /**
+         * 📋 **리스트 화면이 준 것을 그대로 낸다** (기사님 지시 2026-09-12).
+         *    검산이 «못 잰 축»으로 적던 **차종·배송거리**가 여기서 나간다 —
+         *    앱은 늘 보내고 있었고 서버 INSERT 가 버리던 것이다 (`db.ts` intel 주석).
+         * 🔴 **망마다 다른 칸을 만들지 않는다** — 안 주는 망은 null 이고 `targetApp` 이 답한다.
+         *    `scheduleText` 는 «급송·낼09시» 원문 그대로다. **여기서 해석하지 않는다** —
+         *    무엇으로 나눌지는 실제로 오는 말을 세어 본 뒤 정한다 (규칙 ⑤-4 ②).
+         */
         `SELECT id, type, pickup, dropoff, fare, timestamp, device_id, targetApp,
-                itemSize, pickupDistanceKm, tagsText
+                itemSize, pickupDistanceKm, tagsText,
+                vehicleType, deliveryDistanceKm, scheduleText, postTime, rawText,
+                pickupX, pickupY, dropoffX, dropoffY
            FROM intel
           ORDER BY id DESC
           LIMIT ?`
