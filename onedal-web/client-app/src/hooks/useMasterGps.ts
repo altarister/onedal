@@ -149,7 +149,7 @@ export function useMasterGps(
         const loc = { lat: mockGps.y, lng: mockGps.x };
         setSource('mock');
         setCurrentGps(loc);
-        publishLocation(loc.lat, loc.lng, 'mock', { via: mockGps.via?.map(v => ({ lat: v.y, lng: v.x })), speedMultiplier: mockSpeed });
+        publishLocation(loc.lat, loc.lng, 'mock', { via: mockGps.via?.map(v => ({ lat: v.y, lng: v.x })), speedMultiplier: mockSpeed, stopped: mockGps.stopped });
     }, [mockGps, useMock]);
 
     // 출처가 바뀌는 순간만 알린다 (매 좌표마다 찍으면 로그가 묻힌다)

@@ -84,8 +84,22 @@ export interface GpsPoint {
 export function shouldStoreGpsPoint(
     prev: { x: number; y: number; atMs: number } | null | undefined,
     now: { x: number; y: number; atMs: number },
+    /**
+     * ⏸️ **«지금 서 있다»는 사실** — 오면 문턱을 안 본다 (현황판 실측 2026-09-12).
+     *
+     * 🔴 **정지는 «사건이 없는 것»이 아니라 «같은 자리에 있다»는 사실이다** —
+     *    `gpsBridge` 에 이미 그렇게 적혀 있었는데, **서버 저장에는 그 논리가 없었다.**
+     *    그래서 정차 18초 동안 좌표를 6초마다 보내도 «50m 미만 + 15초 미만»에 걸려
+     *    **한 점도 안 남았다**(현황판 실측: 제자리 구간 0건 · 최소 걸음 51m).
+     *
+     * 🔴 **문턱을 5초로 낮추는 길(나안)은 안 골랐다** — 정차와 무관한 점까지 늘고,
+     *    재전송 주기(6초)와 문턱이 **서로를 알아야** 해서 나중에 한쪽만 바뀌면
+     *    조용히 또 깨진다 (현황판 지적). 사실을 실어 보내는 쪽이 관계를 안 만든다.
+     */
+    stopped?: boolean,
 ): boolean {
     if (!prev) return true;
+    if (stopped) return true;
     const movedKm = haversineKm(prev.y, prev.x, now.y, now.x);
     if (movedKm >= GPS_TRACK.MIN_MOVE_KM) return true;
     return (now.atMs - prev.atMs) >= GPS_TRACK.MIN_GAP_MS;

@@ -916,6 +916,14 @@ export function processDriverMovement(
      *    애초에 속도를 안 본다(`source === 'mock'` 이면 바로 발화). 나누는 것은 **기록뿐**이다.
      */
     speedMultiplier?: number,
+    /**
+     * ⏸️ **«지금 서 있다»** (현황판 실측 2026-09-12). 오면 궤적 문턱(50m·15초)을 건너뛴다.
+     *
+     * 🔴 정지는 «사건이 없는 것»이 아니라 «같은 자리에 있다»는 **사실**이다.
+     *    그 논리가 `gpsBridge` 에만 있고 **저장에는 없어서**, 정차 18초 동안 6초마다
+     *    좌표를 보내도 **한 점도 안 남았다** (제자리 구간 0건 · 최소 걸음 51m).
+     */
+    stopped?: boolean,
 ) {
     if (!lat || !lng) return;
     
@@ -977,7 +985,7 @@ export function processDriverMovement(
     {
         const lastPt = session.lastTrackPoint ?? null;
         const nowPt = { x: currentGPS.x, y: currentGPS.y, atMs: Date.now() };
-        if (shouldStoreGpsPoint(lastPt, nowPt)) {
+        if (shouldStoreGpsPoint(lastPt, nowPt, stopped)) {
             // 🧭 «그때 어느 콜을 향하고 있었나»를 함께 싣는다 — 경로 대조의 열쇠
             /* 🎭 배속으로 나눈 «실제 속도»를 남긴다 — 판정이 쓰는 `speedKmh` 는 그대로다 */
             const mult = speedMultiplier && speedMultiplier > 0 ? speedMultiplier : 1;

@@ -40,13 +40,37 @@ describe('모의 주행 — 서버까지 사실이 간다', () => {
         expect(guard).toMatch(/now - lastSent\.at < SAME_SPOT_RESEND_MS/);
     });
 
-    it('🔴 ① 그 주기는 서버 저장 문턱(15초)보다 짧다 — 안 그러면 한 점도 안 남는다', () => {
-        const bridge = read(join(CLIENT, 'lib/gpsBridge.ts'));
-        const m = bridge.match(/SAME_SPOT_RESEND_MS = ([\d_]+)/);
-        expect(m).not.toBeNull();
-        const ms = Number(m![1].replace(/_/g, ''));
-        expect(ms).toBeGreaterThan(0);
-        expect(ms).toBeLessThan(15_000);
+    /**
+     * 🔴 **이 검사는 처음에 «거꾸로» 였다** (현황판이 잡아 줬다 · 2026-09-12).
+     *
+     * 처음엔 *"재전송 주기가 서버 문턱(15초)보다 짧다"* 를 물었다. **방향이 반대다** —
+     * 짧아서 **더 버려진다.** 6초·12초 재전송이 «50m 미만 + 15초 미만»에 걸려 전부
+     * 버려지고, 18초째에야 문턱을 넘는데 그때는 이미 출발한 뒤다. 그래서
+     * **검사는 초록인데 정차는 0건**이었다 — 소스만 보는 검사의 전형적인 거짓 초록이다.
+     *
+     * 🟢 **관계를 없앴다.** 두 숫자가 서로를 알 필요가 없게, «서 있다»는 **사실**을 실어
+     *    보내고 그 점은 문턱을 안 본다 (현황판 (가)안). 이제 물 것은 **그 길이 이어졌는가**다.
+     */
+    it('🔴 ① «서 있다»가 클라에서 서버까지 간다 — 주기와 문턱이 서로를 몰라도 된다', () => {
+        const bridge = codeOnly(read(join(CLIENT, 'lib/gpsBridge.ts')));
+        expect(bridge).toMatch(/stopped: extra\?\.stopped/);
+        const master = codeOnly(read(join(CLIENT, 'hooks/useMasterGps.ts')));
+        expect(master).toMatch(/stopped: mockGps\.stopped/);
+        const sim = codeOnly(read(join(CLIENT, 'hooks/useMockGpsSimulator.ts')));
+        expect(sim).toMatch(/stopped: simRef\.current\.phase === 'dwell'/);
+        const sock = codeOnly(read(join(SERVER, 'socket/socketHandlers.ts')));
+        expect(sock).toMatch(/loc\.stopped/);
+    });
+
+    it('🔴 ① 서 있으면 궤적 문턱을 안 본다 — «같은 자리에 있다»도 사실이다', () => {
+        const store = codeOnly(read(join(SERVER, 'services/gpsTrackStore.ts')));
+        const i = store.indexOf('export function shouldStoreGpsPoint');
+        const body = store.slice(i, store.indexOf('\n}', i));
+        /* 🔴 «서 있다»가 **거리·시간 문턱보다 먼저** 와야 한다 — 뒤에 두면 이미 걸러진다 */
+        expect(body.indexOf('if (stopped) return true')).toBeGreaterThan(-1);
+        expect(body.indexOf('if (stopped) return true')).toBeLessThan(body.indexOf('MIN_MOVE_KM'));
+        const geo = codeOnly(read(join(SERVER, 'services/geoService.ts')));
+        expect(geo).toMatch(/shouldStoreGpsPoint\(lastPt, nowPt, stopped\)/);
     });
 
     it('🔴 ② 배속을 서버까지 실어 보낸다', () => {

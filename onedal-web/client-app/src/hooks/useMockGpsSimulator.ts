@@ -67,7 +67,12 @@ export function useMockGpsSimulator({
     onFinished,
 }: MockGpsSimulatorProps) {
     /** 👣 `via` — 이번 틱에 **지나온** 폴리라인 점들. 궤적이 카카오 곡선 그대로 남는다 */
-    const [mockLocation, setMockLocation] = useState<{ x: number; y: number; via?: Array<{ x: number; y: number }> } | null>(null);
+    const [mockLocation, setMockLocation] = useState<{
+        x: number; y: number;
+        via?: Array<{ x: number; y: number }>;
+        /** ⏸️ **지금 서 있나** — 정차 연기 중이면 참. 궤적이 그 사실을 남길 수 있게 (2026-09-12) */
+        stopped?: boolean;
+    } | null>(null);
     /**
      * 👁️ **보이는 탭에서만 달린다** (2026-08-31 실측). 숨은 탭의 setInterval 은 브라우저가
      * 분당 1회로 조여서 절뚝이는 좌표를 쏘고, 다른 탭의 시뮬과 섞인다 — 관제웹 두 개가
@@ -219,7 +224,8 @@ export function useMockGpsSimulator({
             else if (simRef.current.phase === 'dwell') { /* 정차 중 — 같은 자리 재송신 */ }
             else console.log(`📍 [Mock GPS] 이동 중: x=${r.loc.x}, y=${r.loc.y} (진척도: ${simRef.current.idx}/${path.length})`);
             hereRef.current = { x: r.loc.x, y: r.loc.y };
-            setMockLocation({ x: r.loc.x, y: r.loc.y, via: r.via });
+            /* ⏸️ 정차 연기 중이면 «서 있다»를 함께 낸다 — 서버가 문턱 없이 그 점을 남긴다 */
+            setMockLocation({ x: r.loc.x, y: r.loc.y, via: r.via, stopped: simRef.current.phase === 'dwell' });
         }, 1000);
 
         return () => {

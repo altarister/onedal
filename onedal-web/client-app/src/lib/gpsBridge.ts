@@ -60,7 +60,7 @@ export function publishLocation(
     lat: number,
     lng: number,
     source: GpsSource,
-    extra?: { accuracy?: number; via?: Array<{ lat: number; lng: number }>; speedMultiplier?: number },
+    extra?: { accuracy?: number; via?: Array<{ lat: number; lng: number }>; speedMultiplier?: number; stopped?: boolean },
 ): PublishResult {
     const now = Date.now();
 
@@ -98,8 +98,15 @@ export function publishLocation(
     lastSent = { lat, lng, at: now };
 
     /* 🎭 배속을 함께 보낸다 — 궤적에 «실제 속도»를 남기려면 서버가 나눌 수를 알아야 한다 */
+    /**
+     * ⏸️ **«서 있다»도 함께 보낸다** (현황판 실측 2026-09-12).
+     *    정지는 «사건이 없는 것»이 아니라 «같은 자리에 있다»는 **사실**이다 —
+     *    위에서 화면에는 이미 그렇게 알리고 있었는데 **서버 저장에는 그 논리가 없어**
+     *    정차가 궤적에 한 점도 안 남았다.
+     */
     socket.emit('dashboard-gps-update',
-        { lat, lng, source, accuracy: extra?.accuracy, speedMultiplier: extra?.speedMultiplier, timestamp: now });
+        { lat, lng, source, accuracy: extra?.accuracy, speedMultiplier: extra?.speedMultiplier,
+          stopped: extra?.stopped, timestamp: now });
     return { sent: true };
 }
 
