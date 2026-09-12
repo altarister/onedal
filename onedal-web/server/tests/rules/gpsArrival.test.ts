@@ -73,7 +73,9 @@ describe('감시 구조 (L1 — 코드 모양)', () => {
         const fn = geo.slice(geo.indexOf('function watchArrival'));
         const guard = fn.slice(0, fn.indexOf('planArrivalStops'));
         expect(guard).toMatch(/if \(jumped\)/);
-        expect(guard).toMatch(/heldSinceMs = null/);
+        /* 🔄 2026-09-12 — 스톱워치가 **정거장별 Map** 이 되어(`arrivalHeld`) 끊는 법도 바뀌었다.
+             예전엔 하나뿐이라 `heldSinceMs = null` 이었다 (`userSessionStore` 주석 참조). */
+        expect(guard).toMatch(/arrivalHeld\.clear\(\)/);
     });
 
     /**
@@ -133,7 +135,8 @@ describe('감시 구조 (L1 — 코드 모양)', () => {
         const after = geo.slice(i, i + 2000);
         expect(after).toMatch(/passWatch\.set/);
         // 하차 전용 가지(departWatch) 안이 아니라 **밖**이어야 한다
-        const dropIdx = after.indexOf("next.stopType === 'dropoff'");
+        /* 🔄 2026-09-12 — 도착을 **후보 루프**로 돌리면서 이름이 `next` → `st` 가 됐다 */
+        const dropIdx = after.indexOf("st.stopType === 'dropoff'");
         const passIdx = after.indexOf('passWatch.set');
         expect(passIdx).toBeGreaterThan(dropIdx);
         expect(after.slice(dropIdx, passIdx)).toMatch(/\n\s*\}/);   // 가지가 닫힌 뒤다
@@ -169,7 +172,7 @@ describe('감시 구조 (L1 — 코드 모양)', () => {
 
     it('🚚 떠남은 하차지에서만 본다 — 상차지는 감시하지 않는다', () => {
         // departWatch 에 넣는 자리가 dropoff 가지 안에 있어야 한다
-        const i = geo.indexOf("next.stopType === 'dropoff'");
+        const i = geo.indexOf("st.stopType === 'dropoff'");   // 🔄 후보 루프로 바뀌며 개명
         expect(i).toBeGreaterThan(-1);
         expect(geo.slice(i, i + 400)).toMatch(/departWatch\.set/);
         // 되돌아와도 다시 안 걸린다 — 한 번 발화하면 지운다
@@ -183,7 +186,9 @@ describe('감시 구조 (L1 — 코드 모양)', () => {
     });
 
     it('근접 예고도 정거장당 1회다', () => {
-        expect(geo).toMatch(/session\.arrivalNoticed\.has\(key\)/);
-        expect(geo).toMatch(/session\.arrivalNoticed\.add\(key\)/);
+        /* 🔄 2026-09-12 — 근접 예고만 «순서»를 보게 갈라져 키 이름이 `nKey` 가 됐다
+             (도착·지나침은 거리가 정한다 — `arrivalCandidates`) */
+        expect(geo).toMatch(/session\.arrivalNoticed\.has\(nKey\)/);
+        expect(geo).toMatch(/session\.arrivalNoticed\.add\(nKey\)/);
     });
 });

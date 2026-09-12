@@ -1124,7 +1124,59 @@ export function processDriverMovement(
 }
 
 /** 정거장 키 — 발화·예고 플래그의 단위 */
-const stopKeyOf = (st: ArrivalStop) => `${st.orderId}:${st.stopType}`;
+export const stopKeyOf = (st: ArrivalStop) => `${st.orderId}:${st.stopType}`;
+
+/**
+ * 🎯 **지금 «도착»으로 찍을 수 있는 정거장들 — 순서를 보지 않는다** (2026-09-12 밤).
+ *
+ * ── 왜 갈랐나 ──
+ * `nextStopOf` 하나가 **성질이 다른 두 질문**에 답하고 있었다 (규칙 ⑤-4 ⑤):
+ *
+ * | 질문 | 순서가 필요한가 |
+ * |---|---|
+ * | «어디로 **가고 있나**» — 궤적 이름표 · 근접 예고 | **필요하다** |
+ * | «지금 어디에 **닿았나**» — 도착 감지 · 지나침 감시 | **필요 없다.** 거리만 있으면 된다 |
+ *
+ * 뒤엣것이 순서에 매여 있어서, 순서가 흔들리면 **도착이 통째로 흔들렸다.**
+ * 기사님 실측 2026-09-12: 한 정거장이 36초 사이에 ⑴ → ⑷ → ⑴ 로 오갔다
+ * (굽은 길에서 직선거리 탐욕법이 뒤집힌다 — `orderByNearest` 주석).
+ *
+ * 🔴 **가장 위험한 것은 스톱워치다.** 실 GPS 는 «500m 안 + 5km/h↓» 가 **30초** 이어져야
+ *    도착으로 찍는데, 보는 정거장이 바뀌면 그 30초가 0으로 되돌아갔다. 정거장 앞에서
+ *    순서가 2초마다 흔들리면 **30초가 영영 안 찬다.**
+ *    ⚠️ **모의 주행으로는 절대 못 본다** — `evaluateArrivalTick` 이 `source === 'mock'`
+ *       이면 근접만으로 즉시 발화한다. 게이트가 아무리 초록이어도 이 갈래는 안 돈다.
+ *       **실 GPS 에서만 드러나는 결함**이라 판을 나가기 전에 없앤다.
+ * 🔴 **2026-09-01 의 실패도 여기서 풀린다.** 그때 순서를 얼렸더니 «도착 하나가 아예
+ *    안 찍혔다» — 얼리기가 나빠서가 아니라 **도착 감시가 순서에 매여 있어서**
+ *    그 정거장이 «다음»이 될 차례가 안 왔던 것이다. 순서를 떼면 그 문이 열린다.
+ *
+ * ── 🔒 떼지 않는 것: «제 짐을 싣기 전에는 못 내린다» ──
+ * 이것은 **순서에서 오는 규칙이 아니라 물리에서 오는 규칙**이다. 지금까지는
+ * `orderByNearest` 가 그 하차지를 아예 후보에서 빼 주어 덤으로 지켜졌는데,
+ * 순서를 떼면 그 보호도 함께 떨어진다 — **짐도 없이 하차지를 스쳐 지난 것이
+ * 도착으로 찍히고, 이어서 지나침이 완료까지 찍는다.**
+ *
+ * 실측(어드민 2026-09-12 · 오늘 궤적 1,294점): **아직 안 실은 콜의 하차지가 500m 안이던
+ * 점이 22개** 있었고 그중 셋은 **0m**(시뮬이 거기 정차)였다. 지금 코드가 그것을 옳게
+ * 막고 있었고, 그 콜들은 나중에 제대로 하차 도착이 찍혔다. 그래서 그 규칙만 여기 옮긴다.
+ *
+ * 판단은 목록 자체가 답한다 — `planArrivalStops` 는 **다녀온 정거장을 빼고** 주므로,
+ * 같은 콜의 `pickup` 이 목록에 **남아 있으면** 아직 안 실은 것이다 (규칙 ③ — 따로 세지 않는다).
+ */
+export function arrivalCandidates(
+    /** `planArrivalStops` 결과 — **목록만** 쓴다. 순서는 보지 않는다 */
+    stops: ArrivalStop[],
+    /** 이미 찍은 정거장 (`arrivalFired`) */
+    fired: ReadonlySet<string>,
+): ArrivalStop[] {
+    /** 🔒 아직 상차지가 목록에 남아 있는 콜 = 짐을 안 실었다 */
+    const notLoaded = new Set(
+        stops.filter(s => s.stopType === 'pickup').map(s => s.orderId));
+    return stops.filter(st =>
+        !fired.has(stopKeyOf(st))
+        && (st.stopType === 'pickup' || !notLoaded.has(st.orderId)));
+}
 
 /**
  * 🧭 **«지금 향하는 정거장» — 원천은 여기 하나다** (2026-08-28).
@@ -1195,7 +1247,7 @@ function watchArrival(
     if (active.length === 0) return;
     if (jumped) {
         // 위치를 못 믿는 틱 — 정지 유지도 끊는다 (점프 후 좌표로 30초를 세면 거짓 도착이 된다)
-        if (session.arrivalWatch) session.arrivalWatch.heldSinceMs = null;
+        session.arrivalHeld.clear();
         return;
     }
 
@@ -1241,77 +1293,99 @@ function watchArrival(
         }
     }
 
-    // 🧭 궤적 저장과 **같은 함수**에서 온다 — 두 벌이 되면 답이 갈라진다 (규칙 ③)
-    const next = nextStopOf(session, gps);
-    if (!next) return;
-
-    const key = stopKeyOf(next);
-    const distKm = haversineKm(gps.y, gps.x, next.y, next.x);
-    const label = next.stopType === 'pickup' ? '상차지' : '하차지';
+    /**
+     * 🧭 **정거장 목록은 한 번만 만든다** — 순서를 쓰는 쪽과 거리를 쓰는 쪽이 **같은 목록**을
+     *    본다 (규칙 ③). 이 함수는 GPS 매 틱이 부르므로 두 번 만들면 값도 비용도 두 벌이 된다.
+     */
+    const stops = planArrivalStops(getActiveCalls(session), gps);
+    if (stops.length === 0) return;
 
     /**
-     * 🚚 **지나침 판정** — 안 서고 지나쳐도 도착·완료를 대신 찍는다 (기사님 확정 2026-09-03).
+     * 📣 **근접 예고는 «어디로 가고 있나»의 답이라 순서를 본다** (도착전 통화 시점).
+     *    도착·지나침과 달리 이쪽은 **다음에 갈 곳 하나**를 가리켜야 뜻이 있다.
+     */
+    const next = stops.find(st => !session.arrivalFired.has(stopKeyOf(st))) ?? null;
+    if (next) {
+        const nKey = stopKeyOf(next);
+        const nDist = haversineKm(gps.y, gps.x, next.y, next.x);
+        if (nDist < GPS_ARRIVAL.NOTICE_KM && !session.arrivalNoticed.has(nKey)) {
+            session.arrivalNoticed.add(nKey);
+            console.log(`📣 [근접 예고] 다음 정거장(${next.stopType === 'pickup' ? '상차지' : '하차지'}) ` +
+                `${nDist.toFixed(1)}km 앞 — 도착전 통화 시점`);
+            onApproaching?.(userId, next, nDist);
+        }
+    }
+
+    /**
+     * 🎯 **도착·지나침은 «거리»가 정한다 — 순서를 보지 않는다** (2026-09-12 밤 · 1단계).
      *
-     * 🔴 도착(500m + 정지 30초)과 **무관하게 혼자 선다.** 실 업무에서는 안 서고 지나치는 일이
-     *    흔한데, 그러면 도착이 안 찍히고 → 떠남 감시도 안 걸려 → 사슬이 통째로 멈춘다.
-     * 🔴 거리 둘은 **판정 기준 탭에서 고친다** (`user_judgment.pass_near_m`·`pass_away_m`).
-     *    코드에 상수로 박지 않는다 (규칙 ③ — 기본값의 원천은 DB).
+     * 🔴 예전에는 «순서상 첫 정거장» 하나만 봤다. 그런데 그 순서는 굽은 길에서 뒤집히므로
+     *    (`orderByNearest` — 직선거리 탐욕법), **순서가 흔들리면 도착이 통째로 흔들렸다.**
+     *    500m 안에 들어왔으면 목록에서 몇 번째든 도착이다 — 거리는 순서를 안 본다.
+     * 🔴 **2026-09-01 의 실패가 여기서 풀린다.** 그때 순서를 얼렸더니 «도착 하나가 아예
+     *    안 찍혔다» — 얼리기가 나빠서가 아니라 **도착 감시가 순서에 매여** 그 정거장이
+     *    «다음»이 될 차례가 안 왔던 것이다. 이 고침이 ③(순서 잣대 교체)의 문을 연다.
+     * 🔒 **적재 규칙만은 그대로 지킨다** — 짐을 안 실은 콜의 하차지는 후보가 아니다
+     *    (`arrivalCandidates`). 그건 순서에서 오는 규칙이 아니라 **물리**다.
+     *    어드민 실측(오늘 궤적 1,294점): 그런 점이 **22개**, 그중 셋은 **0m**(거기 정차)였다.
      */
     const pass = session.judgment?.pass ?? DEFAULT_JUDGMENT.pass;
-    if (evaluatePassTick(distKm, pass.nearM / 1000, pass.awayM / 1000, false).entered
-        && !session.passWatch.has(key)) {
-        session.passWatch.set(key, { orderId: next.orderId, stopType: next.stopType, x: next.x, y: next.y, entered: true });
-        console.log(`👣 [지나침 감시 시작] ${label} ${(distKm * 1000).toFixed(0)}m — ` +
-            `${pass.awayM}m 벗어나면 도착·완료를 찍습니다 (${next.orderId.slice(0, 8)})`);
-    }
+    for (const st of arrivalCandidates(stops, session.arrivalFired)) {
+        const key = stopKeyOf(st);
+        const distKm = haversineKm(gps.y, gps.x, st.y, st.x);
+        const label = st.stopType === 'pickup' ? '상차지' : '하차지';
 
-    // 근접 예고 — 도착전 통화 시점 (정거장당 1회)
-    if (distKm < GPS_ARRIVAL.NOTICE_KM && !session.arrivalNoticed.has(key)) {
-        session.arrivalNoticed.add(key);
-        console.log(`📣 [근접 예고] 다음 정거장(${label}) ${distKm.toFixed(1)}km 앞 — 도착전 통화 시점`);
-        onApproaching?.(userId, next, distKm);
-    }
-
-    if (session.arrivalWatch?.stopKey !== key) session.arrivalWatch = { stopKey: key, heldSinceMs: null };
-    const tick = evaluateArrivalTick(session.arrivalWatch.heldSinceMs, distKm, speedKmh, src, Date.now());
-    session.arrivalWatch.heldSinceMs = tick.heldSinceMs;
-    if (!tick.fire) return;
-
-    session.arrivalFired.add(key);          // 🔴 한 번 찍으면 이 정거장은 끝 — 4연발의 해답
-    session.arrivalWatch = null;
-    console.log(`🏁 [도착 감지] ${label} ${GPS_ARRIVAL.RADIUS_KM * 1000}m 이내 (출처 ${src}) — 1회 발화`);
-
-    if (next.stopType === 'dropoff') {
-        applyFilterCb(userId, {
-            driverAction: 'UNLOADING',    // 하차 중으로 자동 전환 (이제 1회만)
-        });
-        // 🚚 여기서부터 «멀어지는지»를 본다 — 2km 벗어나면 내리고 간 것으로 친다 (옛 규칙·예비)
-        session.departWatch.set(key, { orderId: next.orderId, x: next.x, y: next.y });
-    }
-    /**
-     * 🚚 **도착이 찍힌 정거장도 지나침 감시에 넣는다** (2026-09-03 실측으로 메운 구멍).
-     *
-     * 🔴 진입(300m) 등록은 «다음 정거장»을 볼 때만 일어난다. 그런데 도착이 먼저 찍히면
-     *    그 정거장은 그 순간 **«다녀온 곳»이 되어 다음 정거장에서 빠진다** — 등록 기회를
-     *    영영 잃는다. 시뮬(mock)은 500m 근접만으로 도착이 찍히므로 **늘 그렇게 된다**
-     *    (12:34~12:36 실측: 상차지 도착 3건이 다 찍혔는데 지나침은 한 번도 안 걸렸다).
-     *
-     * 도착이 찍혔든 아니든 «떠나면 완료»는 같다 — 그래서 여기서도 건다.
-     */
-    if (!session.passWatch.has(key)) {
         /**
-         * 🔴 **`entered` 를 지금 거리로 정직하게 적는다.** 도착 반경(500m)이 진입(300m)보다
-         *    넓어서, 도착만으로 «들어왔다»로 치면 450m 에서 도착한 콜이 **다음 틱에 400m
-         *    이탈**로 곧바로 완료가 된다 — 짐을 싣기도 전에. 아직 안 들어왔으면 감시만
-         *    걸어 두고, 진짜로 300m 안에 들어올 때 이탈 루프가 표시를 올린다.
+         * 🚚 **지나침 판정** — 안 서고 지나쳐도 도착·완료를 대신 찍는다 (기사님 확정 2026-09-03).
+         *
+         * 🔴 도착(500m + 정지 30초)과 **무관하게 혼자 선다.** 실 업무에서는 안 서고 지나치는
+         *    일이 흔한데, 그러면 도착이 안 찍히고 → 떠남 감시도 안 걸려 → 사슬이 통째로 멈춘다.
+         * 🔴 거리 둘은 **판정 기준 탭에서 고친다** (`user_judgment.pass_near_m`·`pass_away_m`).
          */
-        const passNearKm = (session.judgment?.pass ?? DEFAULT_JUDGMENT.pass).nearM / 1000;
-        session.passWatch.set(key, {
-            orderId: next.orderId, stopType: next.stopType, x: next.x, y: next.y,
-            entered: distKm <= passNearKm,
-        });
+        if (evaluatePassTick(distKm, pass.nearM / 1000, pass.awayM / 1000, false).entered
+            && !session.passWatch.has(key)) {
+            session.passWatch.set(key, { orderId: st.orderId, stopType: st.stopType, x: st.x, y: st.y, entered: true });
+            console.log(`👣 [지나침 감시 시작] ${label} ${(distKm * 1000).toFixed(0)}m — ` +
+                `${pass.awayM}m 벗어나면 도착·완료를 찍습니다 (${st.orderId.slice(0, 8)})`);
+        }
+
+        /* ⏱️ 스톱워치는 **정거장마다** — 다른 곳이 끼어들어도 이 30초가 안 끊긴다 */
+        const tick = evaluateArrivalTick(session.arrivalHeld.get(key) ?? null, distKm, speedKmh, src, Date.now());
+        session.arrivalHeld.set(key, tick.heldSinceMs);
+        if (!tick.fire) continue;
+
+        session.arrivalFired.add(key);      // 🔴 한 번 찍으면 이 정거장은 끝 — 4연발의 해답
+        session.arrivalHeld.delete(key);    //    찍힌 뒤에는 «서 있던 시간»을 들고 있을 이유가 없다
+        console.log(`🏁 [도착 감지] ${label} ${GPS_ARRIVAL.RADIUS_KM * 1000}m 이내 (출처 ${src}) — 1회 발화`);
+
+        if (st.stopType === 'dropoff') {
+            applyFilterCb(userId, {
+                driverAction: 'UNLOADING',    // 하차 중으로 자동 전환 (이제 1회만)
+            });
+            // 🚚 여기서부터 «멀어지는지»를 본다 — 2km 벗어나면 내리고 간 것으로 친다 (옛 규칙·예비)
+            session.departWatch.set(key, { orderId: st.orderId, x: st.x, y: st.y });
+        }
+        /**
+         * 🚚 **도착이 찍힌 정거장도 지나침 감시에 넣는다** (2026-09-03 실측으로 메운 구멍).
+         *
+         * 🔴 진입(300m) 등록은 위 조건이 볼 때만 일어난다. 그런데 도착이 먼저 찍히면
+         *    그 정거장은 그 순간 **«다녀온 곳»이 되어 후보에서 빠진다** — 등록 기회를
+         *    영영 잃는다. 시뮬(mock)은 500m 근접만으로 도착이 찍히므로 **늘 그렇게 된다**
+         *    (12:34~12:36 실측: 상차지 도착 3건이 다 찍혔는데 지나침은 한 번도 안 걸렸다).
+         */
+        if (!session.passWatch.has(key)) {
+            /**
+             * 🔴 **`entered` 를 지금 거리로 정직하게 적는다.** 도착 반경(500m)이 진입(300m)보다
+             *    넓어서, 도착만으로 «들어왔다»로 치면 450m 에서 도착한 콜이 **다음 틱에 400m
+             *    이탈**로 곧바로 완료가 된다 — 짐을 싣기도 전에.
+             */
+            session.passWatch.set(key, {
+                orderId: st.orderId, stopType: st.stopType, x: st.x, y: st.y,
+                entered: distKm <= pass.nearM / 1000,
+            });
+        }
+        onArrival?.(userId, st);
     }
-    onArrival?.(userId, next);
 }
 
 /**

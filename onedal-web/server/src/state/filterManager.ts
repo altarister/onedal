@@ -935,7 +935,7 @@ export function updateActiveFilter(
         session.arrivalNoticed.clear();    // 어제 찍은 정거장이 오늘 되살아나지 않는다
         // 👣 지나침 감시도 함께 비운다 — 남으면 다음 사이클 첫 틱에 **죽은 콜**로 발화한다
         session.passWatch.clear();
-        session.arrivalWatch = null;
+        session.arrivalHeld.clear();
         recalculateDerivedFields(session, {}, userId);
         console.log(`[FilterManager] STANDBY 복귀: 합짐 파생값만 되돌림 ` +
             `(오늘 필터 유지 — 도착 ${session.activeFilter.destinationCity}, 최저 ${session.activeFilter.minFare}원)`);

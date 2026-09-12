@@ -170,12 +170,28 @@ export interface UserSession {
     /**
      * 도착 감지 상태 (근거: docs/기록/결정_이력.md «도착은 GPS 가 찍는다»)
      * · arrivalFired    한 번 찍은 정거장(`orderId:stopType`) — **한 정거장당 발화 1회**의 근거
-     * · arrivalWatch    지금 감시 중인 "다음 정거장"의 정지 유지 상태 (실 GPS 만)
+     * · arrivalHeld     **정거장마다** «언제부터 서 있나» (실 GPS 만)
      * · arrivalNoticed  근접 예고(3km)를 이미 보낸 정거장
      * 사이클이 끝나면 셋 다 비운다 (지나온 구간 진행도와 같은 수명).
      */
     arrivalFired: Set<string>;
-    arrivalWatch: { stopKey: string; heldSinceMs: number | null } | null;
+    /**
+     * ⏱️ **정거장마다 스톱워치를 따로 든다** (2026-09-12 밤 · 어드민 지적).
+     *
+     * 🔴 **예전에는 하나뿐이었다** (`arrivalWatch: { stopKey, heldSinceMs }`). 보는 정거장이
+     *    바뀌면 `heldSinceMs` 가 **0으로 되돌아갔다** — 실 GPS 는 «500m 안 + 5km/h↓» 가
+     *    **30초** 이어져야 도착으로 찍는데, 정거장 순서가 2초마다 흔들리면
+     *    **그 30초가 영영 안 찬다.** 기사님 실측 2026-09-12: 한 정거장이 36초 사이에
+     *    ⑴ → ⑷ → ⑴ 로 오갔다.
+     * 🔴 **«서 있었다»는 사실이지, «지금 그 정거장을 보고 있나»에 딸린 값이 아니다** —
+     *    한 값이 두 질문에 답하고 있었다 (규칙 ⑤-4 ⑤).
+     * ⚠️ **모의 주행으로는 못 본다** — `source === 'mock'` 이면 근접만으로 즉시 발화해서
+     *    30초 갈래가 검사에서 한 번도 안 돈다. 실 GPS 에서만 드러나는 결함이다.
+     *
+     * 키는 `orderId:stopType`, 값은 «언제부터 서 있나»(ms) 또는 아직 안 섰으면 null.
+     * 도착이 찍히면 그 키를 지운다 (`arrivalFired` 가 대신 기억한다).
+     */
+    arrivalHeld: Map<string, number | null>;
     arrivalNoticed: Set<string>;
 
     /**
@@ -316,7 +332,7 @@ function createDefaultSession(userId: string): UserSession {
         arrivalFired: new Set(),
         departWatch: new Map(),
         passWatch: new Map(),
-        arrivalWatch: null,
+        arrivalHeld: new Map(),
         arrivalNoticed: new Set(),
     };
 }
