@@ -480,6 +480,29 @@ const STOP_ORDER_TIE_KM = 0.5;
  *    (도착 감시는 «안 찍힌 첫 정거장» 하나만 보므로, 얼린 순서가 실제 동선과 어긋나면
  *    그 정거장이 «다음»이 될 차례가 안 온다). 그래서 편들되 **넘어서면 진다.**
  */
+/**
+ * 📡 **순서를 왜 그렇게 정했나 — 바뀔 때만 남긴다** (기사님 실측 2026-09-12 밤).
+ *
+ * 기사님: *"순서가 주행 중에 바뀌는 문제가 있는 것 같아. 이거 그냥 수정하지 말고
+ * **원인을 찾아야 해.**"*
+ *
+ * 그날 로그가 증상은 보여 줬다 — 카카오를 다시 안 불렀는데(`카카오호출시점` 동일)
+ * 한 정거장이 **⑴ → ⑷ → ⑴** 로 36초 사이에 오갔다. 그런데 **왜**는 못 봤다:
+ * 히스테리시스가 발동했는지, 직전 순서(`previous`)가 아예 없었는지, 거리 차가
+ * 정말 커서 정상 재정렬이었는지 — `[경로 순서]` 는 **결과만** 찍는다.
+ *
+ * 🔴 **이 함수는 1초 동기화와 GPS 매 틱이 부른다** — 매번 찍으면 로그가 묻힌다.
+ *    그래서 «판단이 바뀔 때만» 남긴다 (관제웹 `logStateChange` 와 같은 규칙).
+ * 🔴 **첫 정거장만 본다.** 번호가 춤추는 것은 언제나 ⑴ 이 뒤집히는 것으로 드러나고,
+ *    전부 찍으면 한 줄이 길어져 되짚기가 더 어렵다.
+ */
+let lastOrderTrace = '';
+function logOrderDecision(line: string): void {
+    if (line === lastOrderTrace) return;
+    lastOrderTrace = line;
+    console.log(`🧭 [순서 판단] ${line}`);
+}
+
 function orderByNearest<T extends Coord & { orderId: string; stopType: 'pickup' | 'dropoff' }>(
     startLoc: Coord, pickups: T[], dropoffs: T[],
     /** 직전에 정한 순서 (`holder.sectionStops`) — 없으면 예전 그대로 «가장 가까운 곳부터» */
@@ -514,6 +537,21 @@ function orderByNearest<T extends Coord & { orderId: string; stopType: 'pickup' 
             && incD <= bestD * STOP_ORDER_HYSTERESIS
             && incD - bestD <= STOP_ORDER_TIE_KM;
         const pick = tie ? incIdx : bestIdx;
+        /* 📡 **첫 정거장을 왜 그렇게 골랐나** — 번호 춤은 늘 ⑴ 이 뒤집히는 것으로 드러난다 */
+        if (out.length === 0) {
+            const nameOf = (s: T) => `${s.orderId.slice(0, 6)}${s.stopType === 'pickup' ? '상차' : '하차'}`;
+            logOrderDecision(
+                !previous?.length
+                    ? `직전순서 없음 — 편들 재료가 없다 · ⑴ ${nameOf(pool[bestIdx])} (${bestD.toFixed(2)}km)`
+                : incIdx < 0
+                    ? `⑴ ${nameOf(pool[bestIdx])} (${bestD.toFixed(2)}km) — 직전순서에 갈 수 있는 곳이 없다`
+                : tie
+                    ? `⑴ ${nameOf(pool[incIdx])} 유지 — 직전순서를 편들었다 ` +
+                      `(${incD.toFixed(2)}km vs 최근접 ${bestD.toFixed(2)}km · 차 ${(incD - bestD).toFixed(2)}km)`
+                    : `⑴ ${nameOf(pool[bestIdx])} ← ${nameOf(pool[incIdx])} 를 밀어냈다 ` +
+                      `(${bestD.toFixed(2)}km vs ${incD.toFixed(2)}km · 차 ${(incD - bestD).toFixed(2)}km ` +
+                      `> 문턱 ${STOP_ORDER_TIE_KM}km 또는 ${Math.round((STOP_ORDER_HYSTERESIS - 1) * 100)}%)`);
+        }
         const best = pool.splice(pick, 1)[0];
         if (best.stopType === 'pickup') notLoaded.delete(best.orderId);
         out.push(best);
