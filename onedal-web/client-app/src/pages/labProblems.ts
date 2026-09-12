@@ -120,6 +120,140 @@ export const LAB_MORNING: LabStep[] = [
         from: { lng: 127.09471, lat: 37.41297 }, to: { lng: 126.64776, lat: 37.38551 } },
 ];
 
+/* ═════════════════════════════════════════════════════════════════════════
+   🛣️ 경충대로·서이천로 한 줄 길 — 집(초월) ↔ 롯데아울렛 이천 (2026-09-12)
+   ═════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * 🔽🔼 **가는 방향과 오는 방향은 다른 지점이다** (기사님 지시 2026-09-12:
+ * *"가는 방향과 오는방향이 다르다. **따로 기억해야해**"*).
+ *
+ * 🔴 경충대로·서이천로는 왕복이 갈려 있어 **마주 보는 주유소는 «가까운 같은 곳»이 아니다.**
+ *    카카오 길찾기 실측이 그렇게 말한다 (2026-09-12):
+ *
+ *    | 마주 보는 쌍 | 직선 | 남행지→북행지 | 실제/직선 |
+ *    |---|---|---|---|
+ *    | HD현대 서이천 ↔ 바디프랜드 | 0.57km | **2.9km** | **5.1배** |
+ *    | HD현대 서이천 ↔ HD현대 신둔 | 1.64km | 4.5km | 2.7배 |
+ *    | 승승장구 ↔ 마장주유소 | 1.12km | 2.9km | 2.6배 |
+ *    | 곤지암IC 스벅 ↔ 곤지암스타 | 0.67km | 1.5km | 2.2배 |
+ *    | 금강에너지 ↔ 선경오일 | 0.63km | 1.4km | 2.2배 |
+ *
+ * 🔴 **그래서 방향을 «값»으로 따로 든다** (규칙 ⑤-4 ⑤: 한 값이 두 질문을 답하면 안 된다).
+ *    좌표는 «어디인가»만 답하고, «어느 방향에서 들를 수 있나»는 `heading` 이 답한다.
+ *    그물이 방향을 안 보면 «길 옆 600m»라며 반대편 콜을 꿀콜로 올린다 — 잡고 나면 U턴이다.
+ */
+export type LabHeading = 'SB' | 'NB' | 'BOTH';   // 남행(가는 길) · 북행(오는 길) · 이 길의 두 끝
+
+export interface LabPlace extends LabPt {
+    /** 화면에 적히는 이름 — 콜 목록 한 줄이 좁아서 짧게 든다 */
+    name: string;
+    /** 도로명 주소 — **방향이 다르다는 근거**다 (같은 도로, 다른 번지) */
+    addr: string;
+    heading: LabHeading;
+}
+
+/**
+ * 🏪 이 길 위의 지점들 — 좌표는 전부 **카카오 장소검색 실값**이다 (동 중심점으로 바꾸지 않았다).
+ * 집·아울렛만 `BOTH` 다 — 이 길의 두 끝이라 가는 길의 출발이자 오는 길의 도착이다.
+ */
+export const ROAD_PLACES = {
+    /* ⓪ 두 끝 */
+    home: { name: '집(초월)', addr: '경기 광주시 초월읍', heading: 'BOTH', lng: 127.29400, lat: 37.37718 },
+    outlet: { name: '롯데아울렛 이천', addr: '경기 이천시 호법면 프리미엄아울렛로 177-74', heading: 'BOTH', lng: 127.40048, lat: 37.24236 },
+
+    /* 🔽 남행 — 가는 길 (집 → 아울렛). 누적 1.5 · 4.1 · 6.9 · 11.3 · 16.4 · 17.7 · 20.6km */
+    cjExpress: { name: 'CJ경기고속', addr: '경기 광주시 초월읍 경충대로 1021 (CJ대한통운 경기고속주유소)', heading: 'SB', lng: 127.30277, lat: 37.37010 },
+    sbGonjiamIc: { name: '곤지암IC 스벅', addr: '경기 광주시 곤지암읍 경충대로 765 (스타벅스 곤지암IC DT점)', heading: 'SB', lng: 127.32524, lat: 37.35565 },
+    geumgang: { name: '금강에너지', addr: '경기 광주시 곤지암읍 경충대로 487', heading: 'SB', lng: 127.35158, lat: 37.34365 },
+    seominHappy: { name: '서민행복', addr: '경기 광주시 곤지암읍 경충대로 41', heading: 'SB', lng: 127.39493, lat: 37.32814 },
+    seoIcheon: { name: 'HD현대 서이천', addr: '경기 이천시 신둔면 서이천로 811 (HD현대오일뱅크직영)', heading: 'SB', lng: 127.39548, lat: 37.29264 },
+    seungseung: { name: '승승장구', addr: '경기 이천시 마장면 서이천로 683', heading: 'SB', lng: 127.39829, lat: 37.28175 },
+    newMajang: { name: 'SK 뉴마장', addr: '경기 이천시 마장면 서이천로 393 (SK에너지)', heading: 'SB', lng: 127.39426, lat: 37.25936 },
+
+    /* 🔼 북행 — 오는 길 (아울렛 → 집). 누적 4.4 · 7.5 · 9.1 · 10.7 · 13.9 · 15.9 · 18.6km */
+    majang: { name: '마장주유소', addr: '경기 이천시 마장면 서이천로 564', heading: 'NB', lng: 127.40176, lat: 37.27208 },
+    bodyfriend: { name: '바디프랜드 이천', addr: '경기 이천시 신둔면 서이천로 878 (바디프랜드 이천라운지)', heading: 'NB', lng: 127.39960, lat: 37.29654 },
+    sindun: { name: 'HD현대 신둔', addr: '경기 이천시 신둔면 경충대로 3126 (HD현대오일뱅크직영)', heading: 'NB', lng: 127.40410, lat: 37.30574 },
+    woori: { name: '우리주유소', addr: '경기 이천시 신둔면 경충대로 3282', heading: 'NB', lng: 127.39719, lat: 37.31740 },
+    dongwonJjajang: { name: '동원옛날짜장', addr: '경기 광주시 곤지암읍 경충대로 222', heading: 'NB', lng: 127.37733, lat: 37.33385 },
+    seongyeong: { name: '선경오일', addr: '경기 광주시 곤지암읍 경충대로 426', heading: 'NB', lng: 127.35852, lat: 37.34244 },
+    gonjiamStar: { name: '곤지암스타', addr: '경기 광주시 곤지암읍 경충대로 698', heading: 'NB', lng: 127.33209, lat: 37.35310 },
+} as const satisfies Record<string, LabPlace>;
+
+/**
+ * 콜 한 줄 — **방향이 문구에 그대로 보이게** 한다.
+ * 🔴 상차·하차의 `heading` 이 지금 달리는 방향과 어긋나면 문구 앞에 🔴 를 단다.
+ *    «이 콜이 반대편이다»를 화면에서 눈으로 먼저 알아야, 판정이 그걸 잡았는지 대조할 수 있다.
+ */
+const roadCall = (running: LabHeading, from: LabPlace, to: LabPlace, km: string): LabStep => {
+    const against = [from, to].some(p => p.heading !== 'BOTH' && p.heading !== running);
+    const mark = against ? `🔴 ${from.heading === 'NB' ? '북행' : '남행'} · ` : '';
+    return {
+        kind: 'call', confirm: true,
+        where: `${mark}${from.name} → ${to.name} (${km})`,
+        from: { lng: from.lng, lat: from.lat },
+        to: { lng: to.lng, lat: to.lat },
+    };
+};
+const C = ROAD_PLACES;
+
+/**
+ * 🔽✅ **이천행 · 순행** — 남행 지점만. 우회가 거의 없는 «잘 되는 판».
+ * 거리는 전부 카카오 실측이다. ④는 ③(서이천→아울렛) 구간 **안에 포개지는 공짜 합짐**이다.
+ */
+export const LAB_ICHEON_CLEAN: LabStep[] = [
+    roadCall('SB', C.cjExpress, C.sbGonjiamIc, '2.6km'),
+    roadCall('SB', C.geumgang, C.seominHappy, '4.4km'),
+    roadCall('SB', C.seoIcheon, C.outlet, '6.9km'),
+    roadCall('SB', C.seungseung, C.newMajang, '2.9km'),
+];
+
+/**
+ * 🔽🔴 **이천행 · 반대편 차선 섞임** — ①② 는 남행인데 ③④ 의 상차가 **북행 지점**이다.
+ *
+ * 🔴 **③④ 는 좌표만 보면 나무랄 데 없는 콜이다** — 상차가 내 반경 안(5.4km · 8.2km),
+ *    하차는 목적지(이천) 쪽으로 전진한다. 그런데 **상차지가 반대편 차선**이라 실제로는
+ *    중앙분리대를 돌아 들어가야 한다. 거리·방향 식으로는 **잡을 방법이 없다.**
+ * 🔴 **처음엔 ③ 을 바디프랜드로 뒀다가 걷어냈다** (2026-09-12 화면 실측) —
+ *    상차가 집에서 18km 라 «상차 반경 10km 밖»으로 **거리 때문에** 떨어졌다.
+ *    방향을 보려는 판인데 거리가 먼저 떨어뜨리면 **아무것도 시험하지 못한다.**
+ * ⚠️ 그래서 **넷 다 통과하는 것이 지금의 정상**이다 — 그 사실이 곧 «그물이 방향을 안 본다».
+ */
+export const LAB_ICHEON_WRONGWAY: LabStep[] = [
+    roadCall('SB', C.cjExpress, C.seominHappy, '9.8km'),
+    roadCall('SB', C.geumgang, C.outlet, '16.4km'),
+    roadCall('SB', C.gonjiamStar, C.woori, '10.5km'),
+    roadCall('SB', C.seongyeong, C.bodyfriend, '9.3km'),
+];
+
+/**
+ * 🔼✅ **복귀 · 순행** — 아울렛에서 집으로. 북행 지점만.
+ * ④는 ③(동원옛날짜장→집) 구간 안에 포개진다 — 남행 순행의 ③④ 와 **같은 모양**이다.
+ */
+export const LAB_RETURN_CLEAN: LabStep[] = [
+    roadCall('NB', C.majang, C.bodyfriend, '3.1km'),
+    roadCall('NB', C.sindun, C.woori, '1.6km'),
+    roadCall('NB', C.dongwonJjajang, C.home, '9.4km'),
+    roadCall('NB', C.seongyeong, C.gonjiamStar, '2.7km'),
+];
+
+/**
+ * 🔼🔴 **복귀 · 반대편 차선 섞임** — 집으로 오는 중인데 ③④ 의 상차가 **남행 지점**이다.
+ *
+ * 🔴 이천행 함정과 **같은 모양**이다 — 상차가 내 반경 안(4.4km · 6.0km), 하차는 집 쪽으로
+ *    전진한다. 좌표로는 꿀콜인데 상차지가 반대편 차선이다.
+ * ⚠️ **되돌아가는 콜(좌표 역주행)은 지금도 잡힌다** — 화면 실측에서 「서이천→아울렛」·
+ *    「금강→서민행복」은 **❌ 하차 역주행**으로 떨어졌다. 그건 이미 되는 것이라 이 판에서 뺐다.
+ *    판이 시험할 것은 **아직 못 잡는 것** 하나다.
+ */
+export const LAB_RETURN_WRONGWAY: LabStep[] = [
+    roadCall('NB', C.majang, C.sindun, '4.7km'),
+    roadCall('NB', C.woori, C.home, '12.6km'),
+    roadCall('NB', C.newMajang, C.dongwonJjajang, '12.7km'),
+    roadCall('NB', C.seungseung, C.woori, '5.4km'),
+];
+
 export const LAB_PROBLEMS: LabProblem[] = [
     {
         name: '🌅 볼트 오전',
@@ -130,5 +264,34 @@ export const LAB_PROBLEMS: LabProblem[] = [
         name: '🌆 볼트 저녁',
         why: '🌆 김포 두원타워에 **앉은 채로 셋을 동시에** 잡고, 검단양촌 IC 에서 달리며 넷째를 줍는다 — 볼트 8/10 저녁 그대로',
         dst: { sido: '경기', sgg: '용인시 처인구' }, start: LAB_EVENING_START, steps: LAB_EVENING,
+    },
+    /**
+     * 🛣️ **경충대로 한 줄 길 넷** (기사님 2026-09-12: *"아울렛갈때 가장 좋은거 2세트하고,
+     * 복귀때 2셋트 이렇게 4문제"* · *"**잘되는거 하나 이슈있는거 하나** 이렇게 하는 것이 좋을 것 같다"*).
+     *
+     * 🔴 **방향마다 짝이다** — 잘 되는 판 하나로 «좋은 콜을 안 떨어뜨리나»를 보고,
+     *    이슈 있는 판 하나로 «반대편 콜을 잡아내나»를 본다. 한 판만으로는 둘 중 하나를 못 본다.
+     * 🔴 **한자리에서 다 잡히지 않는다** — 상차 반경 10km 인데 길이 23km 다.
+     *    콜 사이사이에 「📍 내 위치 찍기」로 달려야 뒤 콜이 반경에 들어온다 (문제는 판만 세운다).
+     */
+    {
+        name: '🔽 이천행 ✅',
+        why: '🔽 남행 지점만 — 네 콜이 경충대로 한 줄에 얹힌다 (전체 23.3km/40분/톨0, 우회 ≈ 0). ④는 ③ 안에 포개지는 공짜 합짐. ⚠️ 앉은 자리에서는 ①② 만 통과한다 — ③④ 는 상차가 16~18km 라 **📍 내 위치를 옮겨 가며** 잡는다. **달리면 넷 다 통과해야 정상**',
+        dst: { sido: '경기', sgg: '이천시' }, start: ROAD_PLACES.home, steps: LAB_ICHEON_CLEAN,
+    },
+    {
+        name: '🔽 이천행 🔴',
+        why: '🔽 남행 중인데 ③④의 **상차지가 북행 차선**이다 — 좌표로는 상차가 반경 안(5.4·8.2km)이고 하차도 이천 쪽 전진이라 **흠잡을 데가 없다.** 그런데 들어가려면 중앙분리대를 돌아야 한다. 🔴 **앉은 자리에서 넷 다 통과한다** (실측 2026-09-12) — ✅판은 달려야 넷이 되는데 이 판은 앉아서도 넷이다. 그물이 방향을 안 본다는 뜻이다',
+        dst: { sido: '경기', sgg: '이천시' }, start: ROAD_PLACES.home, steps: LAB_ICHEON_WRONGWAY,
+    },
+    {
+        name: '🔼 복귀 ✅',
+        why: '🔼 아울렛에서 집으로 — 북행 지점만 (전체 23.3km/45분/톨0). ④는 ③(동원옛날짜장→집) 안에 포개진다. ⚠️ 앉은 자리에서는 ①② 만 통과한다 — ③④ 는 상차가 13~14km 라 **📍 내 위치를 옮겨 가며** 잡는다. **달리면 넷 다 통과해야 정상**',
+        dst: { sido: '경기', sgg: '광주시' }, start: ROAD_PLACES.outlet, steps: LAB_RETURN_CLEAN,
+    },
+    {
+        name: '🔼 복귀 🔴',
+        why: '🔼 집으로 오는 중인데 ③④의 **상차지가 남행 차선**이다 — 상차 4.4·6.0km, 하차는 집 쪽 전진. 좌표로는 꿀콜이라 🔴 **앉은 자리에서 넷 다 통과한다** (실측 2026-09-12). ⚠️ 되돌아가는 콜(좌표 역주행)은 지금도 ❌ 하차 역주행으로 잡혀서 이 판에서 뺐다 — **아직 못 잡는 것** 하나만 본다',
+        dst: { sido: '경기', sgg: '광주시' }, start: ROAD_PLACES.outlet, steps: LAB_RETURN_WRONGWAY,
     },
 ];
