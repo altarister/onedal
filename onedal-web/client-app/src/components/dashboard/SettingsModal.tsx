@@ -8,6 +8,7 @@ import { Button } from "../ui/button";
 import GeneralSettingsTab from "./settings/GeneralSettingsTab";
 import PricingSettingsTab from "./settings/PricingSettingsTab";
 import JudgmentSettingsTab from './settings/JudgmentSettingsTab';
+import ScreenSettingsTab from "./settings/ScreenSettingsTab";
 import DeviceSettingsTab from "./settings/DeviceSettingsTab";
 
 interface SettingsModalProps {
@@ -15,7 +16,7 @@ interface SettingsModalProps {
   onClose: () => void;
 }
 
-type TabType = "settings" | "dispatch" | "devices" | 'judgment';
+type TabType = "settings" | "dispatch" | "devices" | 'judgment' | "screen";
 
 export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const { logout } = useAuth();
@@ -52,11 +53,13 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               🔍 필터 팝업 = 콜을 **집기 전** 조건 · 여기 = **집은 뒤** 색을 매기는 기준.
               화면이 갈리는 것 자체가 그 구분을 몸으로 가르쳐 준다.
               이름을 `판정/필터` 로 하지 않은 이유: `요율/필터` 와 한 글자 차이라 헷갈린다 */}
-          <TabsList className="grid w-full grid-cols-4 mb-4">
+          <TabsList className="grid w-full grid-cols-5 mb-4">
             <TabsTrigger value="settings">기본 설정</TabsTrigger>
             <TabsTrigger value="dispatch">요율/필터</TabsTrigger>
             <TabsTrigger value="judgment">판정 기준</TabsTrigger>
             <TabsTrigger value="devices">기기 설정</TabsTrigger>
+            {/* 🖥️ «화면이 어떻게 움직이나» — 콜을 고르는 축(요율·판정)과 답하는 질문이 다르다 */}
+            <TabsTrigger value="screen">화면 설정</TabsTrigger>
           </TabsList>
 
           <TabsContent value="settings" className="space-y-4 outline-none flex-1 min-h-0 overflow-y-auto pr-1">
@@ -73,6 +76,10 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
           <TabsContent value="devices" className="space-y-4 outline-none">
             <DeviceSettingsTab onClose={onClose} />
+          </TabsContent>
+
+          <TabsContent value="screen" className="space-y-4 outline-none flex-1 min-h-0 overflow-y-auto pr-1">
+            <ScreenSettingsTab />
           </TabsContent>
         </Tabs>
       </DialogContent>

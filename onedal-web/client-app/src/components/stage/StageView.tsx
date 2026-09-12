@@ -200,6 +200,19 @@ export default function StageView(props: Props) {
             });
             setSnap(mv.snap);
             setOpenIdx(mv.openIdx);
+            /**
+             * 🪜 **«어느 콜을 열었나»를 함께 남긴다** (기사님 실측 2026-09-12:
+             *    *"시트가 열렸는데 아코디언이 열리지 않은 곳이 있어"*).
+             *
+             * 🔴 시트 «높이»만 찍고 «연 콜»은 안 찍어서, 안 열린 판을 로그로 되짚을 수가
+             *    없었다. 도착 통보가 그 콜이 덱에서 빠진 **뒤**에 오면 열 대상이 없는데,
+             *    그 사실이 화면에도 로그에도 안 남았다.
+             */
+            if (mv.openIdx !== openIdx) {
+                const who = mv.openIdx >= 0 ? (cycleDeck[mv.openIdx]?.dropoff ?? '?') : '없음';
+                const miss = eventId && want < 0 ? ` 🔴 가리킨 콜이 덱에 없다(${eventId.slice(-6)})` : '';
+                logStateChange("시트연콜", `${mv.openIdx} ${who}${miss}`, "무대");
+            }
         }
         /**
          * 🔁 미룬 결정은 **유예가 끝나면 다시 묻는다** — 안 그러면 유예 중에 온 전환이

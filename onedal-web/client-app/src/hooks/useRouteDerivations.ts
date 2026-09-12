@@ -5,6 +5,7 @@ import { EMPTY_RECORDS } from './records';
 import { useStepRecords } from './useStepRecords';
 import { useJudgmentStore } from '../stores/judgmentStore';
 import { useGpsFocusStore, ensureGpsFocusSubscribed } from '../stores/gpsFocusStore';
+import { loadScreenSettings } from '../stores/settingsStore';
 import { useDrivenTrailStore, ensureDrivenTrailSubscribed, clearDrivenTrail } from '../stores/drivenTrailStore';
 import { useFilterConfig } from './useFilterConfig';
 import { useMasterGps } from './useMasterGps';
@@ -146,7 +147,8 @@ export function useRouteDerivations(
      * 🖥️ 다음 정거장에 가까워지면 그 콜 화면으로 (기사님 2026-08-19).
      * 구독은 스토어 모듈에서 한 번 — 훅 호출자가 몇이어도 안 늘어난다 (ghostCard 규칙).
      */
-    useEffect(() => { ensureGpsFocusSubscribed(); ensureDrivenTrailSubscribed(); }, []);
+    /* ⚙️ 화면이 쓰는 설정도 여기서 한 번 읽는다 — «주행·정차로 굳는 초» (화면규칙 S16) */
+    useEffect(() => { ensureGpsFocusSubscribed(); ensureDrivenTrailSubscribed(); void loadScreenSettings(); }, []);
     const gpsFocus = useGpsFocusStore(st => st.gpsFocus);
 
     /** 👣 이번 사이클의 주행 자취 — 사이클이 끝나면(덱이 비면) 접는다 */

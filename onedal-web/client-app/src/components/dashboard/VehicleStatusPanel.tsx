@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { useSettingsStore } from '../../stores/settingsStore';
 import { socket } from "../../lib/socket";
 import { useFilterConfig } from "../../hooks/useFilterConfig";
 import type { SecuredOrder } from "@onedal/shared";
@@ -28,6 +29,15 @@ import { Badge } from "../ui/badge";
  */
 export function useDriveMotion(): 'drive' | 'idle' {
     const [mode, setMode] = useState<'drive' | 'idle'>('idle');
+    /**
+     * ⏱️ **«몇 초 이어져야 그렇다고 믿나» — 기사님이 정한다** (화면규칙 S16 · 2026-09-12).
+     *
+     * 🔴 **읽는 곳은 여기 하나다** (규칙 ⑤-4 ⑤). 이 값이 여러 곳에 흩어지면
+     *    «화면은 주행인데 배지는 정차»가 난다.
+     * 🔴 모의 주행은 배속이 빨라 정거장 사이를 2~7초에 지나간다 — 기본 10초로는
+     *    «주행 중»이 **한 번도 성립하지 않는다** (기사님 실측). 그때는 설정에서 줄인다.
+     */
+    const holdMs = useSettingsStore(st => st.motionHoldSec) * 1000;
     useEffect(() => {
         let speed = 0;
         let last: { lat: number; lng: number; time: number } | null = null;
@@ -72,9 +82,9 @@ export function useDriveMotion(): 'drive' | 'idle' {
             const now = Date.now();
             const fast = speed >= 20;
             const slow = speed <= 5;
-            if (fast) { idleSince = 0; if (!driveSince) driveSince = now; if (now - driveSince >= 10_000) apply('drive'); }
+            if (fast) { idleSince = 0; if (!driveSince) driveSince = now; if (now - driveSince >= holdMs) apply('drive'); }
             else driveSince = 0;
-            if (slow) { if (!idleSince) idleSince = now; if (now - idleSince >= 10_000) apply('idle'); }
+            if (slow) { if (!idleSince) idleSince = now; if (now - idleSince >= holdMs) apply('idle'); }
             else idleSince = 0;
         }, 1_000);
         window.addEventListener('local-gps-update', onGps);

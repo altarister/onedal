@@ -52,6 +52,8 @@ router.get("/", requireAuth, (req, res) => {
             homeY: row.home_y || null,
             alarmVolume: row.alarm_volume ?? 50,
             pickerAlarmMinFare: row.picker_alarm_min_fare ?? 10000,
+            /* ⏱️ «주행·정차»로 굳는 초 — 모의 주행에서는 줄여 쓴다 (화면규칙 S16) */
+            motionHoldSec: row.motion_hold_sec ?? 10,
             isActive: Boolean(row.is_active),
         });
     } catch (e) {
@@ -100,6 +102,7 @@ router.put("/", requireAuth, async (req, res) => {
                 default_priority = COALESCE(@defaultPriority, default_priority),
                 avoid_toll = COALESCE(@avoidToll, avoid_toll),
                 alarm_volume = COALESCE(@alarmVolume, alarm_volume),
+                motion_hold_sec = COALESCE(@motionHoldSec, motion_hold_sec),
                 picker_alarm_min_fare = COALESCE(@pickerAlarmMinFare, picker_alarm_min_fare)
             WHERE user_id = @userId
         `);
@@ -114,7 +117,8 @@ router.put("/", requireAuth, async (req, res) => {
             defaultPriority: payload.defaultPriority ?? null,
             avoidToll: payload.avoidToll !== undefined ? (payload.avoidToll ? 1 : 0) : null,
             alarmVolume: payload.alarmVolume ?? null,
-            pickerAlarmMinFare: payload.pickerAlarmMinFare ?? null
+            pickerAlarmMinFare: payload.pickerAlarmMinFare ?? null,
+            motionHoldSec: payload.motionHoldSec ?? null
         });
 
         if (result.changes === 0) {
@@ -128,7 +132,8 @@ router.put("/", requireAuth, async (req, res) => {
                 fuelEfficiency: payload.fuelEfficiency ?? null,
                 defaultPriority: payload.defaultPriority ?? null,
                 avoidToll: payload.avoidToll !== undefined ? (payload.avoidToll ? 1 : 0) : null,
-                alarmVolume: payload.alarmVolume ?? null
+                alarmVolume: payload.alarmVolume ?? null,
+                motionHoldSec: payload.motionHoldSec ?? null
             });
         }
 
