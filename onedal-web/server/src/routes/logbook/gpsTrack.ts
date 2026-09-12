@@ -16,7 +16,7 @@
 import { Router } from "express";
 import { requireAuth } from "../../middlewares/authMiddleware";
 import db from "../../db";
-import { trackOfOrder, trackSegmentsOf, summarizeTrack } from "../../services/gpsTrackStore";
+import { trackOfOrder, trackOfToday, trackSegmentsOf, summarizeTrack } from "../../services/gpsTrackStore";
 
 const router = Router();
 
@@ -26,6 +26,19 @@ router.get("/", requireAuth, (req, res) => {
         if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
         const orderIdParam = String(req.query.orderId ?? "").trim();
+
+        /**
+         * 🛣️ **오늘 달린 자취를 한 번에** (`?today=1` · 어드민 요청 2026-09-13).
+         *
+         * 🔴 콜별로 물으면 **`order_id` 가 빈 점 7~9% 가 빠져 자취가 토막 난다** —
+         *    콜을 안 쥔 채 움직인 실제 구간이다 (어드민 실측 972점 중 90점).
+         * 🔴 `offRouteM`·`progressKm` 이 함께 온다 — 화면이 **«얼마나 잘못 갔나»로
+         *    자취를 칠할 수 있게** (기사님: *"카카오 라인과 내 궤적이 같이 있어야"*).
+         */
+        if (String(req.query.today ?? "") === "1") {
+            const points = trackOfToday(userId);
+            return res.json({ points, summary: summarizeTrack(points) });
+        }
 
         // ── 목록 — 어느 콜의 궤적이 있나 ──
         if (!orderIdParam) {

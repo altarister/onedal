@@ -188,6 +188,14 @@ export interface TrackPoint {
     speedMultiplier?: number | null;
     orderId: string | null;
     stopType: 'pickup' | 'dropoff' | null;
+    /**
+     * 🛣️ **부여받은 경로에서 얼마나 벗어났나 (m)** — 기사님 지시 2026-09-12 밤:
+     *    *"카카오 라인과 내 궤적이 같이 있어야 **얼마나 잘못 갔는지** 확인할 수 있을 것 같아."*
+     *    🔴 경로를 몰랐으면 `null` 이다 — 0 은 «경로 위에 정확히 있었다»는 뜻이라 섞으면 안 된다.
+     */
+    offRouteM?: number | null;
+    /** 🛣️ 그 경로의 몇 km 지점이었나 — 벗어난 자리를 경로 위에서 짚는다 */
+    progressKm?: number | null;
 }
 
 export interface TrackGap { fromMs: number; toMs: number; minutes: number }
@@ -232,14 +240,40 @@ const rowToPoint = (r: any): TrackPoint => ({
     atMs: r.at_ms, x: r.x, y: r.y,
     source: r.source ?? null, speedKmh: r.speed_kmh ?? null, speedMultiplier: r.speed_multiplier ?? 1,
     orderId: r.order_id ?? null, stopType: r.stop_type ?? null,
+    /* 🛣️ 쌓아만 두고 안 읽던 둘 — 화면이 자취를 «이탈 크기»로 칠할 수 있게 함께 준다 */
+    offRouteM: r.off_route_m ?? null, progressKm: r.progress_km ?? null,
 });
 
 /** «이 콜의 궤적» — 시각 오름차순 */
 export function trackOfOrder(userId: string, orderId: string): TrackPoint[] {
     return db.prepare(`
-        SELECT at_ms, x, y, source, speed_kmh, speed_multiplier, order_id, stop_type
+        SELECT at_ms, x, y, source, speed_kmh, speed_multiplier, order_id, stop_type,
+               off_route_m, progress_km
         FROM gps_tracks WHERE user_id = ? AND order_id = ? ORDER BY at_ms
     `).all(userId, orderId).map(rowToPoint);
+}
+
+/**
+ * 🛣️ **오늘 달린 자취를 한 번에 — 콜에 안 붙은 점까지** (어드민 요청 2026-09-13).
+ *
+ * ── 왜 필요한가 ──
+ * `trackOfOrder` 는 **콜별로** 묻는다. 그런데 `order_id` 가 빈 점이 **7~9%** 있다
+ * (어드민 실측: 972점 중 90점). 그것은 «옛 사고의 잔재»가 아니라 **콜을 안 쥔 채 움직인
+ * 실제 구간**이다 — 시각 분포가 하루에 고르게 퍼져 있다. 콜별로만 물으면 그 구간이
+ * 통째로 빠져 **자취가 토막 난다.**
+ *
+ * 🔴 **영업일 밖은 안 준다** — `lastTrackPointOf` 와 **같은 창**(`restoreWindow`)을 쓴다.
+ *    어제 자취가 오늘 화면에 섞이면 «어디까지 달렸나»가 거짓이 된다 (규칙 ③).
+ * ⚠️ 하루치라 최대 6,400점(문턱 50m·15초 기준 실측)이다. 좌표 둘과 숫자 몇이라
+ *    폴리라인 한 벌(2,384점)보다 가볍다 — 474KB 사고의 그 덩치가 아니다.
+ */
+export function trackOfToday(userId: string, nowMs: number = Date.now()): TrackPoint[] {
+    const { todayStartIso } = restoreWindow(nowMs);
+    return db.prepare(`
+        SELECT at_ms, x, y, source, speed_kmh, speed_multiplier, order_id, stop_type,
+               off_route_m, progress_km
+        FROM gps_tracks WHERE user_id = ? AND at_ms >= ? ORDER BY at_ms
+    `).all(userId, Date.parse(todayStartIso)).map(rowToPoint);
 }
 
 /**
