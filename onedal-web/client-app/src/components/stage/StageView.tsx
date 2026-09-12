@@ -481,6 +481,27 @@ export default function StageView(props: Props) {
      */
     const deckList = deckOrder(cycleDeck).filter(o => o.id !== judging?.id);
     const pastCount = deckList.filter(isDeliveredCall).length;
+    /**
+     * 🙈 **숨길 콜은 한 벌이다** — 시트와 **지도가 같은 집합**을 본다 (규칙 ③).
+     *
+     * 🔴 예전엔 이 계산이 시트를 넘기는 JSX 안에 있었다. 지도까지 숨기려면 그 식이
+     *    두 곳이 되고, 한쪽에 조건이 붙는 순간 **«목록에선 접혔는데 지도엔 남는»** 상태가
+     *    된다 — 이 레포가 반복해 당한 «파생 두 벌» 이다 (기사님 지시 2026-09-13:
+     *    *"지도에 있는 역인 부분과 순번도 같이 숨겨줘"*).
+     */
+    const hiddenIds = hiddenPastIds(deckList, hidePast, deckList[openIdx]?.id ?? null);
+    /**
+     * 🗺️ **지도의 발자취도 같이 접는다** — 정거장 동그라미와 그 안의 순번이 함께 사라진다.
+     *
+     * 🟢 **번호는 안 밀린다** — 순번은 위(`stopNoOf`)에서 이미 박아 넣은 값이라, 목록에서
+     *    빼도 남은 것들의 번호가 그대로다 (규칙 ③ — 세는 곳이 하나다).
+     * ⚠️ **지도 맞춤(zoom)도 남은 것만 본다** — 숨긴 자리까지 품지 않으므로 남은 경로가
+     *    크게 보인다. 접는 목적에 맞다.
+     * ⚠️ 하차를 마치지 **않은** 콜의 «다녀온 상차지»는 그대로 남는다 — 그 콜은 진행 중이다.
+     */
+    const shownTrail = hiddenIds.size === 0
+        ? derived.visitedTrail
+        : derived.visitedTrail.filter(v => !hiddenIds.has(v.orderId));
 
     const bar = sheetStatus({
         idle: liveRoute.length === 0,
@@ -538,7 +559,7 @@ export default function StageView(props: Props) {
                     unifiedRoutePoints={unifiedRoutePoints}
                     liveRoute={liveRoute}
                     myLocation={myLocation}
-                    visitedTrail={derived.visitedTrail}
+                    visitedTrail={shownTrail}
                     drivenTrail={derived.drivenTrail}
                     routeHolder={derived.drawHolder}
                     callColors={derived.callColors}
@@ -759,7 +780,7 @@ export default function StageView(props: Props) {
                 <PinnedRouteBody {...props} sheetOnly d={derived}
                     /* 🙈 지나간 콜 — 배열에서 빼지 않고 가린다 (`lib/pastCalls` 머리 참조).
                        열어 둔 콜은 끝났어도 안 가린다 — 손이 고른 것이 규칙보다 세다 */
-                    hiddenIds={hiddenPastIds(deckList, hidePast, deckList[openIdx]?.id ?? null)}
+                    hiddenIds={hiddenIds}
                     /* 📏 «내용만큼» 서는 판인가 — 아코디언의 높이 문법이 갈린다 */
                     fit={snap === 'list'}
                     openIdx={openIdx}

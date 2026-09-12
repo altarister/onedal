@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { pushTrail, trailFromPoints, type DrivePoint } from '../lib/driveStep';
-import { apiClient } from '../api/apiClient';
 
 /**
  * 👣 **이번 사이클의 주행 궤적 — 표시 전용** (기사님 확정 2026-08-31).
@@ -65,6 +64,16 @@ export async function restoreDrivenTrail(orderIds: string[]): Promise<void> {
     if (restoreTried || orderIds.length === 0) return;
     restoreTried = true;
     try {
+        /**
+         * 🔴 **`apiClient` 를 모듈 최상단에서 들이지 않는다** (2026-09-13 · 제가 당했다).
+         *
+         * 그 모듈은 불려 오는 순간 `window.location.origin` 을 읽는다(`serverTarget`).
+         * 최상단에 두었더니 **이 스토어를 import 하는 검사 파일이 `window` 가 없는 판에서
+         * 통째로 죽었다** — `Tests:` 숫자는 멀쩡한데 스위트 하나가 «없는 것»이 됐다
+         * (onedal-web/CLAUDE.md: *"있는 검사가 안 불리면 없는 것이다"*).
+         * 🟢 쓰는 자리에서 들이면 스토어는 **브라우저 없이도 불려 온다.**
+         */
+        const { apiClient } = await import('../api/apiClient');
         const perCall = await Promise.all(orderIds.map(id =>
             apiClient.get(`/logbook/gps-track?orderId=${encodeURIComponent(id)}`)
                 .then(r => (r.data?.points ?? []) as Array<{ atMs: number; x: number; y: number }>)

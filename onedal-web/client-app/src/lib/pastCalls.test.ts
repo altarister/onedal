@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { hiddenPastIds } from './pastCalls';
 
 /**
@@ -51,5 +53,39 @@ describe('🙈 지나간 콜 숨기기', () => {
     /** ⚠️ 취소·방출은 애초에 덱에 없다 (`deckOfCycle`) — 여기서 다시 가르지 않는다 */
     it('빈 목록이면 빈 집합이다', () => {
         expect([...hiddenPastIds([], true, null)]).toEqual([]);
+    });
+});
+
+/**
+ * 🗺️ **시트와 지도가 «같은 집합»을 본다** (기사님 지시 2026-09-13:
+ *    *"지도에 있는 역인 부분과 순번도 같이 숨겨줘"*).
+ *
+ * 🔴 처음엔 숨길 id 를 **시트를 넘기는 JSX 안에서** 만들었다. 지도까지 숨기려면 그 식이
+ *    **두 곳**이 되고, 한쪽에 조건이 붙는 순간 **«목록에선 접혔는데 지도엔 남는»** 상태가
+ *    된다 — 이 레포가 반복해 당한 «파생 두 벌»(경유 4벌 · 상태목록 3벌 · 시별칭)이다.
+ * 🟢 그래서 `hiddenIds` 를 **한 번 만들어** 시트와 지도가 그것만 본다 (규칙 ③).
+ *
+ * 🔬 **소스를 읽는 검사인 이유** — 고장은 «두 곳에서 각자 계산한다»이고 그건 배선이다.
+ *    순수 함수 검사로는 못 잡는다 (둘 다 같은 함수를 부르니 결과가 같다).
+ */
+const STAGE = readFileSync(join(__dirname, '../components/stage/StageView.tsx'), 'utf8');
+const codeOnly = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+const stage = codeOnly(STAGE);
+
+describe('🗺️ 시트와 지도가 같은 집합을 본다', () => {
+
+    it('🔴 숨길 id 를 만드는 자리가 한 곳뿐이다', () => {
+        expect((stage.match(/hiddenPastIds\(/g) || []).length).toBe(1);
+    });
+
+    it('🔴 시트와 지도가 그 한 벌을 받는다', () => {
+        expect(stage).toMatch(/hiddenIds=\{hiddenIds\}/);          // 시트(덱)
+        expect(stage).toMatch(/visitedTrail=\{shownTrail\}/);      // 지도 발자취
+        expect(stage).toMatch(/hiddenIds\.has\(v\.orderId\)/);   // 그 집합으로 걸렀다
+    });
+
+    /** 🔴 지도가 걸러지지 않은 목록을 그대로 받으면 «지도엔 남는» 상태가 된다 */
+    it('🔴 지도가 걸러지지 않은 발자취를 받지 않는다', () => {
+        expect(stage).not.toMatch(/visitedTrail=\{derived\.visitedTrail\}/);
     });
 });
