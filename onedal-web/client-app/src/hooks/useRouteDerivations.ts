@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
-import { isEvaluating, isTerminal, hasVisitedStop, isDeliveredCall, judgingCallOf, deriveRouteTimeline, derivationInputsOf, deckOfCycle, minRouteBuffer } from '@onedal/shared';
+import { isEvaluating, isTerminal, hasVisitedStop, judgingCallOf, deriveRouteTimeline, derivationInputsOf, deckOfCycle, minRouteBuffer } from '@onedal/shared';
 import type { SecuredOrder, RouteStopInfo } from '@onedal/shared';
 import { EMPTY_RECORDS } from './records';
 import { useStepRecords } from './useStepRecords';
@@ -16,6 +16,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { apiClient } from '../api/apiClient';
 import { getAddressLabel } from '../lib/routeUtils';
 import { logStateChange } from '../lib/roadmapLogger';
+import { visitedSequenceOf } from '../lib/visitedSequence';
 import type { RoutePoint } from '../components/dashboard/PinnedRouteCanvas';
 import type { EtaCell } from '../components/dashboard/PinnedRouteCard';
 
@@ -263,34 +264,19 @@ export function useRouteDerivations(
     }, [routeTimeline]);
 
     /**
-     * 👣 **지나온 발자취 — 사이클이 끝날 때까지 지도에 남는다** (기사님 2026-08-31).
+     * 👣 **지나온 발자취 — 사이클이 끝날 때까지 남는다** (기사님 2026-08-31).
      *    다녀온 정거장은 경로·순번에서 빠지는 게 맞지만(다시 안 간다), 화면에서
-     *    통째로 사라지니 «내가 어디를 돌았는지»를 잃었다. 경로 재료가 아니라
-     *    **표시 전용** 목록이다 — 방문 시각(arrivedAt)순으로 ✓1 ✓2 … 를 단다.
-     *    취소·방출은 없던 일이라 안 남는다 (deckOfCycle 과 같은 기준).
+     *    통째로 사라지니 «내가 어디를 돌았는지»를 잃었다.
+     *    방문 시각(arrivedAt)순으로 ✓1 ✓2 … 를 단다. 취소·방출은 없던 일이라 안 남는다.
+     *
+     * 🔴 **셈은 `visitedSequenceOf` 한 곳이다** (2026-09-12 밤 · 실측으로 옮겼다).
+     *    여기 있던 판단이 **좌표를 요구했고**, 이력만 남아 좌표가 빈 렌더에서 목록이
+     *    통째로 비어 **번호 여섯이 하나로 줄었다** (계측 `[번호]`·`[다녀옴]` 이 짚었다).
+     *    번호를 세는 데 좌표는 필요 없다 — 좌표가 필요한 것은 **지도 마커**이고,
+     *    지도는 제 쪽에서 이미 걸러 낸다 (`PinnedRouteCanvas` 의 `Number.isFinite`).
      */
-    const visitedTrail = useMemo(() => {
-        /**
-         * 🔴 `at` 이 `null` 인 것 — 버튼으로만 보고해 **도착 시각을 모르는** 정거장이다.
-         *    예전엔 0 을 넣었는데, 0 은 «아주 옛날»이라 정렬 맨 앞으로 가서 ✓1 을 훔쳤다
-         *    (규칙 ④ — 0 이 아니라 null · 0831 리뷰에서 잡힘). 시각을 모르면 **뒤로** 놓는다.
-         */
-        const out: Array<{ x: number; y: number; type: '상차' | '하차'; at: number | null;
-                           orderId: string; name: string; no: number }> = [];
-        for (const r of cycleDeck) {
-            if (isTerminal(r.status) && !isDeliveredCall(r)) continue;
-            if (hasVisitedStop(r, 'pickup') && r.pickupX != null && r.pickupY != null)
-                out.push({ x: r.pickupX, y: r.pickupY, type: '상차', orderId: r.id, no: 0,
-                           name: getAddressLabel(r.pickup),
-                           at: r.arrivedPickupAt ? Date.parse(r.arrivedPickupAt) : null });
-            if (hasVisitedStop(r, 'dropoff') && r.dropoffX != null && r.dropoffY != null)
-                out.push({ x: r.dropoffX, y: r.dropoffY, type: '하차', orderId: r.id, no: 0,
-                           name: getAddressLabel(r.dropoff),
-                           at: r.arrivedDropoffAt ? Date.parse(r.arrivedDropoffAt) : null });
-        }
-        out.sort((a, b) => (a.at ?? Infinity) - (b.at ?? Infinity));
-        return out;   // 번호는 아래 stopNoOf 가 붙인다 — 세는 곳은 한 곳이다 (규칙 ③)
-    }, [cycleDeck]);
+    const visitedTrail = useMemo(
+        () => visitedSequenceOf(cycleDeck, getAddressLabel), [cycleDeck]);
 
     /**
      * 🔢 **정거장 번호 = 가는 순서다** (기사님 확정 2026-09-01).

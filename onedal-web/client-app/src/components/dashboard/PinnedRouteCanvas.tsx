@@ -109,9 +109,16 @@ export interface RoutePoint {
 }
 
 interface Props {
-    /** 👣 지나온 발자취 — 표시 전용. no = 방문 순서로 동결된 사이클 번호표 (①) */
+    /**
+     * 👣 지나온 발자취 — 표시 전용. no = 방문 순서로 동결된 사이클 번호표 (①)
+     *
+     * 🔴 **좌표는 `null` 일 수 있다** (2026-09-12 밤). 이력(`GET /api/orders`)에는 좌표 칸이
+     *    없어서, 소켓이 그 콜을 안 실어 준 렌더에서는 좌표를 모른다. 그래도 **번호는 살아야**
+     *    하므로 목록은 그 정거장을 담는다 — **못 그리는 것은 지도의 사정**이고, 아래에서 거른다.
+     *    (예전엔 목록이 좌표를 요구해, 그런 렌더에서 번호 여섯이 하나로 줄었다)
+     */
     visitedTrail?: Array<{
-        x: number; y: number; type: '상차' | '하차'; orderId: string; name: string; no: number;
+        x: number | null; y: number | null; type: '상차' | '하차'; orderId: string; name: string; no: number;
         /** 🌈 몇 번 콜인가 — 색표를 켜면 남은 정거장과 같은 규칙으로 그린다 */
         callNo?: number;
     }>;
@@ -294,7 +301,10 @@ export default function PinnedRouteCanvas({ unifiedRoutePoints, liveRoute, myLoc
         const hasPolyline = currentPolyline.length > 0;
 
         const validPolyline = currentPolyline.filter((p: any) => typeof p.x === 'number' && typeof p.y === 'number' && !isNaN(p.x) && !isNaN(p.y));
-        const trail = (visitedTrail ?? []).filter(p => Number.isFinite(p.x) && Number.isFinite(p.y));
+        /* 🗺️ 좌표를 모르는 발자취는 **그릴 수 없다** — 번호는 살아 있고 지도만 건너뛴다.
+           술어로 걸러야 뒤에서 좌표를 «있는 것»으로 쓸 수 있다 (지어내지 않는다 · 규칙 ④) */
+        const trail = (visitedTrail ?? []).filter(
+            (p): p is typeof p & { x: number; y: number } => Number.isFinite(p.x) && Number.isFinite(p.y));
         const drivenSegs = (drivenTrail ?? [])
             .map(seg => seg.filter(p => Number.isFinite(p.x) && Number.isFinite(p.y)))
             .filter(seg => seg.length > 1);
