@@ -62,14 +62,33 @@ describe('📊 수집 — 잡은 콜도 센다', () => {
      * 🔴 잡은 콜은 `break` 로 루프를 나가므로 아래의 `enqueue` 에 못 닿는다.
      *    **나가기 전에** 세야 한다.
      */
+    /**
+     * ⚠️ **변수 이름을 물지 않는다** (2026-09-12 개정). 예전엔 `enqueue(order)` 를 그대로
+     *    찾았는데, 앱이 판정을 실어 보내게 되면서 올리는 값이 `judged`(= 판정을 실은 콜)로
+     *    바뀌자 **멀쩡한 코드에서 빨간불**이 났다. 무는 것은 «무엇을 올리나»가 아니라
+     *    **«올리는가 · 두 번 세지 않는가»** 다.
+     */
+    const ENQUEUE = /telemetryManager\.enqueue\(/g;
+
     it('🔴 AUTO 로 잡은 콜도 텔레메트리에 실린다 (break 전에 센다)', () => {
         const fn = scan();
         const beforeBreak = fn.split('break')[0] ?? '';
-        expect(beforeBreak).toMatch(/telemetryManager\.enqueue\(order\)/);
+        expect(beforeBreak).toMatch(ENQUEUE);
     });
 
     it('🔴 그래도 두 번 세지 않는다 (잡은 콜은 아래에서 또 담기지 않는다)', () => {
-        const hits = (scan().match(/telemetryManager\.enqueue\(order\)/g) ?? []).length;
+        const hits = (scan().match(ENQUEUE) ?? []).length;
         expect(hits).toBe(2);   // 잡은 갈래 1 + 탈락 갈래 1 — 갈래가 갈리므로 한 콜은 한 번만
+    });
+
+    it('🔴 올리는 것은 **판정을 실은 콜**이다 — 화면이 다시 재지 않게 (현황판 의뢰)', () => {
+        /**
+         * 🔴 `enqueue(order)` 로 되돌리면 `verdict` 가 안 실려 **현황판이 사본으로 다시 잰다.**
+         *    그 사본은 이미 한 번 갈라졌다 (요율 모델이 서면 `minFare` 를 안 보는데 사본은
+         *    그것만 봐서 «가짜 통과»). 그래서 «판정을 실은 콜을 올린다»를 문다.
+         */
+        const fn = scan();
+        expect(fn).toMatch(/val judged = scrapParser\.withVerdict\(order\)/);
+        expect(fn).not.toMatch(/telemetryManager\.enqueue\(order\)/);
     });
 });

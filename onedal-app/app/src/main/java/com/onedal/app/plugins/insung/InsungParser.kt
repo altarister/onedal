@@ -159,11 +159,29 @@ class InsungParser(private val context: Context) : IScrapParser {
             return if (Regex("""^\d+(\.\d+)?$""").matches(v)) "${v}t" else v
         }
 
-        fun decide(order: SimplifiedOfficeOrder, filter: FilterConfig, tally: FilterTally? = null): Boolean {
+        /**
+         * 🗳️ **판정 결과 — «통과했나»와 «어느 축에서 걸렸나»** (현황판 의뢰 2026-09-12).
+         *
+         * 현황판: *"그 판정이 **앱 로직의 사본**이라는 것입니다. `InsungParser.decide()` 의
+         * 여섯 축을 제가 TS 로 옮겨 적었습니다 … 오늘 실제로 갈라진 것도 찾았습니다"* —
+         * 앱은 요율 모델이 서면 `minFare` 를 안 보는데 사본은 그것만 봐서 **가짜 ⭕** 를 냈다.
+         *
+         * 🔴 **사본을 없애려면 앱이 «제 판정»을 실어 보내야 한다.** 그 값을 여기서 낸다.
+         * 🔴 **분기는 한 곳뿐이다** — 성적표(`tally`)를 채우는 그 `when` 이 곧 축 이름이다.
+         *    따로 세면 그 순간 또 두 벌이 된다 (규칙 ③).
+         */
+        data class Verdict(val passed: Boolean, val axis: String)
+
+        /** 판정하고 **어느 축에서 걸렸는지**까지 돌려준다 — `decide` 는 이것을 감싼 것이다 */
+        fun decide(order: SimplifiedOfficeOrder, filter: FilterConfig, tally: FilterTally? = null): Boolean =
+            judge(order, filter, tally).passed
+
+        fun judge(order: SimplifiedOfficeOrder, filter: FilterConfig, tally: FilterTally? = null): Verdict {
 
             // ── 조건 0: 전체 필터 활성화 여부 (스캔 정지 상태면 무조건 클릭 안함) ──
             if (!filter.isActive) {
-                return false
+                /* 🔴 «잠겨서 안 본 것»은 «걸러진 것»이 아니다 — 축 이름을 지어내지 않는다 (규칙 ④) */
+                return Verdict(false, "locked")
             }
 
             val rawText = order.rawText ?: ""
@@ -321,20 +339,34 @@ class InsungParser(private val context: Context) : IScrapParser {
              * 들어오나"* 를 못 읽는다 — 그게 이 숫자의 쓸모다.
              * 순서는 화면의 판정 순서와 같다: 차종 → 도착지 → 요금 → 상차지 → 블랙 → 경로순서.
              */
+            /**
+             * 🗳️ **걸린 축을 한 번만 고른다** — 성적표와 `verdict` 가 **같은 분기**를 쓴다.
+             *    따로 세면 «성적표는 요금, 화면은 지역» 처럼 갈라진다 (규칙 ③).
+             */
+            val axis = when {
+                result           -> "pass"
+                !vehicleMatch    -> "vehicle"
+                !regionMatch     -> "region"
+                !fareMatch       -> "fare"
+                !distanceMatch   -> "pickup"
+                !blacklistClear  -> "blacklist"
+                else             -> "routeOrder"
+            }
+
             tally?.let { t ->
                 t.seen++
-                when {
-                    result           -> t.passed++
-                    !vehicleMatch    -> t.vehicle++
-                    !regionMatch     -> t.region++
-                    !fareMatch       -> t.fare++
-                    !distanceMatch   -> t.pickup++
-                    !blacklistClear  -> t.blacklist++
-                    else             -> t.routeOrder++
+                when (axis) {
+                    "pass"       -> t.passed++
+                    "vehicle"    -> t.vehicle++
+                    "region"     -> t.region++
+                    "fare"       -> t.fare++
+                    "pickup"     -> t.pickup++
+                    "blacklist"  -> t.blacklist++
+                    else         -> t.routeOrder++
                 }
             }
 
-            return result
+            return Verdict(result, axis)
         }
     }
 
@@ -577,6 +609,13 @@ class InsungParser(private val context: Context) : IScrapParser {
      */
     override fun shouldClick(order: SimplifiedOfficeOrder, tally: FilterTally?): Boolean =
         decide(order, loadCurrentFilter(), tally)
+
+    /**
+     * 🗳️ **판정을 콜에 실어 돌려준다** (현황판 의뢰 2026-09-12).
+     *    스크랩이 서버로 올릴 때 이 값이 함께 가고, 현황판이 **제 손으로 다시 재지 않는다.**
+     */
+    override fun withVerdict(order: SimplifiedOfficeOrder, tally: FilterTally?): SimplifiedOfficeOrder =
+        order.copy(verdict = judge(order, loadCurrentFilter(), tally).axis)
 
     /**
      * 🧪 **판정 본체 — 필터를 인자로 받는다** (2026-08-25 신설).

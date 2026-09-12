@@ -27,6 +27,18 @@ interface IScrapParser {
     fun shouldClick(order: SimplifiedOfficeOrder, tally: FilterTally? = null): Boolean
 
     /**
+     * 🗳️ **판정을 콜에 실어 돌려준다** (현황판 의뢰 2026-09-12).
+     *
+     * 현황판이 앱 판정식을 TS 로 **옮겨 적은 사본**으로 화면을 그리고 있었고, 그것이 이미
+     * 한 번 갈라졌다 (앱은 요율 모델이 서면 `minFare` 를 안 보는데 사본은 그것만 봐서
+     * **가짜 «통과»**). 값을 실어 보내면 사본이 통째로 사라진다.
+     *
+     * 🔴 **기본은 «안 싣는다»(null)** — 배차망마다 판정 축이 달라, 옮길 준비가 된 파서만
+     *    덮어쓴다. 안 실으면 화면이 «못 잼»으로 그린다 (규칙 ④: 지어내지 않는다).
+     */
+    fun withVerdict(order: SimplifiedOfficeOrder, tally: FilterTally? = null): SimplifiedOfficeOrder = order
+
+    /**
      * rawText에서 상차지 직선거리(숫자)만 파싱합니다.
      */
     fun parsePickupDistance(rawText: String): Double?

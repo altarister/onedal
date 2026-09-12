@@ -459,6 +459,14 @@ export interface SimplifiedOfficeOrder {
     itemSize?: string | null;
     /** 🌐 픽커 전용 — 태그 원문(급송·예약 17:00·준비 29분…) */
     tagsText?: string | null;
+    /**
+     * 🗳️ **앱이 이 콜을 어떻게 판정했나** (현황판 의뢰 2026-09-12).
+     *    `pass` · `vehicle` · `region` · `fare` · `pickup` · `blacklist` · `routeOrder` · `locked`
+     *
+     * 🔴 화면이 판정을 **다시 계산하지 않게** 하려는 것이다 — 사본은 이미 한 번 갈라졌다.
+     * ⚠️ 못 정하면 `null` — 화면은 «못 잼»으로 그린다 (규칙 ④).
+     */
+    verdict?: string | null;
     id: string;                       // 스캐너 앱 쪽 고유 ID
     type: EventType;                  // NEW_ORDER 등 통신 규격
     pickup: string;                   // 예: "경기 광주 오포"

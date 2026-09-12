@@ -141,7 +141,7 @@ router.get("/intel", (req, res) => {
         `SELECT id, type, pickup, dropoff, fare, timestamp, device_id, targetApp,
                 itemSize, pickupDistanceKm, tagsText,
                 vehicleType, deliveryDistanceKm, scheduleText, postTime, rawText,
-                pickupX, pickupY, dropoffX, dropoffY
+                pickupX, pickupY, dropoffX, dropoffY, verdict
            FROM intel
           ORDER BY id DESC
           LIMIT ?`

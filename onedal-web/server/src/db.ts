@@ -780,7 +780,22 @@ ensureColumns('intel', { targetApp: 'TEXT',
     /** 📄 리스트 한 줄 원문 — «왜 이렇게 판정했나»를 나중에 되짚는 유일한 증거 */
     rawText: 'TEXT',
     /** 📍 좌표 넷 — 시뮬이 주는 값. 실콜에는 없다(null) */
-    pickupX: 'REAL', pickupY: 'REAL', dropoffX: 'REAL', dropoffY: 'REAL' });
+    pickupX: 'REAL', pickupY: 'REAL', dropoffX: 'REAL', dropoffY: 'REAL',
+    /**
+     * 🗳️ **앱이 이 콜을 어떻게 판정했나** (현황판 의뢰 2026-09-12).
+     *
+     *   `pass` 통과 · `vehicle` 차종 · `region` 도착지 · `fare` 요금/단가 ·
+     *   `pickup` 상차거리 · `blacklist` 제외어 · `routeOrder` 경로순서 · `locked` 잠김
+     *
+     * 🔴 **화면이 판정을 다시 계산하지 않게 하려는 것이다.** 현황판이 앱 판정식을 TS 로
+     *    옮겨 적은 **사본**으로 「🗑️ 버린 콜」을 그리고 있었고, 그것이 이미 갈라졌다 —
+     *    앱은 요율 모델이 서면 `minFare` 를 안 보는데 사본은 그것만 봐서 **가짜 «통과»**.
+     *    값이 오면 그 사본이 통째로 사라진다.
+     *
+     * ⚠️ **못 정하면 null** (구필터·값 없음 · 판정을 안 싣는 배차망). 화면은 «못 잼»으로
+     *    그린다 — 지어내지 않는다 (규칙 ④).
+     */
+    verdict: 'TEXT' });
 
 // ═══════════════════════════════════════
 // [8] 카카오 지오코딩 영구 캐시 (장소 사전)

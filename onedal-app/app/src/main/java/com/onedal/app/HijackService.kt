@@ -822,6 +822,21 @@ class HijackService : AccessibilityService(), ScanContext {
             val wasEvaluated = tally.seen > seenBefore
 
             /**
+             * 🗳️ **판정을 콜에 실어 보낸다** (현황판 의뢰 2026-09-12).
+             *
+             * 현황판이 「🗑️ 버린 콜」 목록을 그릴 때 앱 판정식을 **TS 로 옮겨 적은 사본**으로
+             * 다시 재고 있었고, 그것이 이미 한 번 갈라졌다 — 앱은 요율 모델이 서면
+             * `minFare` 를 안 보는데 사본은 그것만 봐서 **가짜 «통과»** 를 냈다.
+             * 값이 함께 가면 그 사본이 통째로 사라진다.
+             *
+             * 🔴 **성적표는 다시 세지 않는다** — `tally` 를 안 넘긴다. 위에서 이미 셌고,
+             *    두 번 세면 «이 축을 풀면 몇 개가 들어오나»가 두 배로 읽힌다 (#79 와 같은 병).
+             * ⚠️ 판정 계산 자체는 한 번 더 돈다 — 순수 계산이라 싸고, **같은 함수**라
+             *    갈라지지 않는다. 결과를 둘러 나르는 것보다 이쪽이 읽기 쉽다.
+             */
+            val judged = scrapParser.withVerdict(order)
+
+            /**
              * 🔔 **알람 모드 — 앱은 수락을 안 누르고, 그 콜을 가리킨다** (기사님 확정 2026-08-30 · 2단계).
              *
              * 소리 두 번 + 강한 진동 + 통과한 콜 줄에 테두리. 수락은 기사님이다.
@@ -867,16 +882,16 @@ class HijackService : AccessibilityService(), ScanContext {
                      * 필터가 잘 돌고 있는지 알 수가 없어 답답하다."*
                      * **본 콜을 다 세야** 그 숫자가 "필터가 도는가"의 답이 된다.
                      */
-                    telemetryManager.enqueue(order)
-                    recentListOrders.add(order)
+                    telemetryManager.enqueue(judged)
+                    recentListOrders.add(judged)
                     break // 첫 번째 발각콜 클릭 후 이 루프는 종료 (관제 보고 생략)
                 }
             }
 
             // 4) 신규 콜 → 서버에 텔레메트리 보고 — **보고는 콜당 한 번** (평가와 딴 그릇 · #79)
             if (callMemory.markReportedOnce(orderHash)) {
-                telemetryManager.enqueue(order)
-                recentListOrders.add(order)
+                telemetryManager.enqueue(judged)
+                recentListOrders.add(judged)
             }
             /**
              * 🔒 평가가 안 돈 콜(선점 잠금·대기)은 **기억에 남기지 않는다** (#79).
