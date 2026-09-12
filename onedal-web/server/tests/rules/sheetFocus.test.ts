@@ -101,4 +101,25 @@ describe('S13·S14·S15 — 마중은 «그 콜의 그 단계»까지다', () =>
         const view = codeOnly(read('components/stage/StageView.tsx'));
         expect(view).toMatch(/type: 'done'/);
     });
+
+    it('🔴 S13 KEEP 한 콜이 **덱에 늦게 들어와도** 연다 — 시트만 올라가던 것', () => {
+        /**
+         * 기사님 실측 2026-09-12: *"특히 **콜 잡고 난 화면에서 아코디언이 열리지 않아서
+         * 스텝이 안 보였어**"*
+         *
+         * 🔴 KEEP 사건은 서버가 `order-confirmed` 를 쏘는 **그 순간** 오는데, 그 콜이
+         *    덱에 들어오는 것은 `sync-active-orders` 가 온 **뒤**다. `findIndex` 가 -1 이라
+         *    **시트는 올라가는데 열린 것이 없었다.** 도착은 이미 덱에 있는 콜이라 잘 됐다 —
+         *    그래서 이 병이 도착 뒤에 숨어 있었다.
+         */
+        const view = codeOnly(read('components/stage/StageView.tsx'));
+        expect(view).toMatch(/pendingOpenRef/);
+        /* 못 열었으면 남겨 두고, 덱이 갱신될 때 마저 연다 */
+        expect(view).toMatch(/if \(eventId && want < 0\) pendingOpenRef\.current = eventId/);
+        const i = view.indexOf('const want = pendingOpenRef.current');
+        expect(i).toBeGreaterThan(-1);
+        expect(view.slice(i, i + 400)).toMatch(/setOpenIdx\(i\)/);
+        /* 🔴 높이는 안 건드린다 — 정하는 손은 하나다 (S6) */
+        expect(view.slice(i, i + 400)).not.toMatch(/setSnap\(/);
+    });
 });

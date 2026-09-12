@@ -138,7 +138,18 @@ export function useMockGpsSimulator({
          *    새 경로의 걸음 기점이 되어 같은 점프를 낸다 (2026-09-12 에 `at` 을 들이면서 생긴 자리).
          * ⚠️ `visited`(들른 정거장)는 **유지한다** — 경로가 바뀌어도 이미 들른 곳은 들른 것이다.
          */
-        if (routeRef.current !== routePolyline) {
+        /**
+         * 🔴 **«내용»으로 견준다 — 참조도 길이도 아니다** (기사님 실측 2026-09-12 두 번째).
+         *
+         * ⓐ `length` 만 보면 **점 수가 같은 다른 경로**에 옛 인덱스를 그대로 써 10.9km 뛴다
+         * ⓑ **참조**로 보면 `sync-active-orders` 가 올 때마다 새 배열이라 **매번 다시 잡는다** —
+         *    걸음(`at`)이 그때마다 끊겨 경로를 엉뚱하게 돌았다 (기사님: *"이번에는 경로도
+         *    잘못 돌았어"*). 내가 ⓐ 를 고치며 낸 것이다.
+         * 🟢 **양 끝과 길이**면 충분하다 — 카카오가 준 폴리라인은 그 셋이 같으면 같은 길이다.
+         */
+        const sig = (p?: PolylinePoint[] | null) =>
+            p?.length ? `${p.length}:${p[0].x},${p[0].y}:${p[p.length - 1].x},${p[p.length - 1].y}` : '';
+        if (sig(routeRef.current) !== sig(routePolyline)) {
             indexRef.current = nearestIndex(routePolyline, hereRef.current);
             simRef.current.idx = indexRef.current;   // 갈아탄 경로에서도 이어 달린다 (visited 는 유지)
             simRef.current.at = hereRef.current ? { ...hereRef.current } : null;

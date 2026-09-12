@@ -85,6 +85,8 @@ export default function StageView(props: Props) {
     const [openIdx, setOpenIdx] = useState<number>(-1);
     /** 📞 방금 KEEP 한 콜 — 시트가 「다」로 올라갈 때 **그 콜을 연다** (2026-09-06) */
     const keepFocusRef = useRef<string | null>(null);
+    /** 🕰️ 사건이 가리켰는데 **아직 덱에 없어** 못 연 콜 — 덱이 갱신되면 그때 연다 */
+    const pendingOpenRef = useRef<string | null>(null);
     const NAVI_KEY = import.meta.env.VITE_KAKAO_JS_KEY as string | undefined;
     const NAVI_ORIGIN = (import.meta.env.VITE_KAKAO_JS_ORIGIN as string | undefined)
         ?? 'https://1dal.altari.com';
@@ -194,6 +196,18 @@ export default function StageView(props: Props) {
             const eventId = ev.type === 'keep' ? keepFocusRef.current
                           : ev.type === 'arrive' ? ev.orderId : null;
             const want = eventId ? cycleDeck.findIndex(o => o.id === eventId) : -1;
+            /**
+             * 🕰️ **KEEP 한 콜이 아직 덱에 없으면 «열 것»으로 남겨 둔다** (기사님 실측 2026-09-12:
+             *    *"특히 **콜 잡고 난 화면에서 아코디언이 열리지 않아서 스텝이 안 보였어**"*).
+             *
+             * 🔴 KEEP 사건은 서버가 `order-confirmed` 를 쏘는 **그 순간** 오는데, 그 콜이
+             *    덱(`cycleDeck`)에 들어오는 것은 `sync-active-orders` 가 온 **뒤**다.
+             *    그래서 `findIndex` 가 -1 이 되어 **시트는 올라가는데 열린 것이 없었다.**
+             *    도착(`arrive`)은 이미 덱에 있는 콜이라 늘 잘 됐다 — 그래서 안 보였다.
+             * 🟢 못 열었으면 ref 를 **비우지 않는다** — 덱이 갱신되는 아래 효과가 다시 연다.
+             */
+            if (eventId && want < 0) pendingOpenRef.current = eventId;
+            else if (ev.type === 'keep') pendingOpenRef.current = null;
             const mv = sheetTransition(r.snap, {
                 openIdx, callCount: cycleDeck.length,
                 focusIdx: want >= 0 ? want : undefined,
@@ -291,6 +305,25 @@ export default function StageView(props: Props) {
         });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [arrival?.tick]);
+
+    /**
+     * 🕰️ **덱이 갖춰지면 «못 연 콜»을 연다** (기사님 실측 2026-09-12).
+     *
+     * KEEP 사건은 콜이 덱에 들어오기 **전에** 오므로 그 자리에서는 열 수가 없다 —
+     * 시트만 올라가고 스텝이 안 보였다. 여기서 한 박자 뒤에 마저 연다.
+     * 🔴 **높이는 안 건드린다** — 이미 「다」로 올라가 있고, 여기서 또 정하면
+     *    높이를 정하는 손이 둘이 된다 (S6 — 높이를 바꾸는 길은 하나다).
+     */
+    useEffect(() => {
+        const want = pendingOpenRef.current;
+        if (!want) return;
+        const i = cycleDeck.findIndex(o => o.id === want);
+        if (i < 0) return;
+        pendingOpenRef.current = null;
+        setOpenIdx(i);
+        logStateChange("시트연콜", `${i} ${cycleDeck[i]?.dropoff ?? '?'} (덱을 기다려 열었다)`, "무대");
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [cycleDeck.length]);
 
     /**
      * 🚪 **완료 행동이 문을 닫는다** (v23 Ⅳ · 화면규칙 S14 · 기사님 실측 2026-09-12).

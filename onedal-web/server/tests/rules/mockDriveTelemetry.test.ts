@@ -78,10 +78,17 @@ describe('모의 주행 — 서버까지 사실이 간다', () => {
          *    새 경로의 그 번째 점은 전혀 다른 자리다.
          */
         const sim = codeOnly(read(join(CLIENT, 'hooks/useMockGpsSimulator.ts')));
-        expect(sim).toMatch(/routeRef\.current !== routePolyline/);
+        /**
+         * 🔴 **«내용»으로 견준다 — 참조도 길이도 아니다** (기사님 실측 2026-09-12 두 번째).
+         *    ⓐ `length` 만 보면 점 수가 같은 다른 경로에 옛 인덱스를 써 10.9km 뛴다
+         *    ⓑ **참조**로 보면 `sync-active-orders` 마다 새 배열이라 **매번 다시 잡아**
+         *       걸음이 끊긴다 (*"이번에는 경로도 잘못 돌았어"*) — ⓐ 를 고치며 낸 것이다
+         */
+        expect(sim).toMatch(/sig\(routeRef\.current\) !== sig\(routePolyline\)/);
         expect(sim).not.toMatch(/routeRef\.current\?\.length !== routePolyline\?\.length/);
+        expect(sim).not.toMatch(/if \(routeRef\.current !== routePolyline\)/);
         /* 🔴 «지금 서 있는 자리»도 함께 비운다 — 안 그러면 옛 보간 좌표가 기점이 된다 */
-        const i = sim.indexOf('routeRef.current !== routePolyline');
+        const i = sim.indexOf('sig(routeRef.current) !== sig(routePolyline)');
         expect(sim.slice(i, i + 400)).toMatch(/simRef\.current\.at =/);
     });
 });
