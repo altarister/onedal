@@ -133,7 +133,10 @@ describe('GPS 시뮬레이터 — 반복하지 않는다', () => {
          *    점 수가 같으면 «같은 경로»로 보고 옛 인덱스를 그대로 써 **1초에 10.9km** 뛰었다.
          *    불변식은 그대로다 — 완료를 풀고, 가까운 자리에서 잇는다.
          */
-        const onRoute = sim.slice(sim.indexOf('sig(routeRef.current) !== sig(routePolyline)'));
+        /* 🧬 **지문 함수가 바뀌면 여기 이름도 바뀐다** — 2026-09-12 에 `sig()`(양끝+길이)에서
+           `routeSignature()`(모든 점 해시)로 갈았다. 양끝·점 수가 같은 다른 경로를 못 잡아
+           한 틱에 10.9km 뛰던 것을 고친 자리다. **무엇을 보는지**는 `routeSignature.test.ts` 가 문다 */
+        const onRoute = sim.slice(sim.indexOf('routeSignature(routeRef.current) !== routeSignature(routePolyline)'));
         const body = onRoute.slice(0, 420);
         expect(body).toMatch(/finishedRef\.current = false/);
         expect(body).toMatch(/nearestIndex\(/);
@@ -287,7 +290,7 @@ describe('시뮬레이터 — 경로가 갈리면 가장 가까운 자리에서 
 
     it('🔴 경로가 달라져도 0 으로 되돌리지 않는다', () => {
         /* 🔄 2026-09-12 — «길이»가 아니라 «참조»로 견준다 (점 수가 같아도 다른 경로다) */
-        const eff = src.slice(src.indexOf('sig(routeRef.current) !== sig(routePolyline)'));
+        const eff = src.slice(src.indexOf('routeSignature(routeRef.current) !== routeSignature(routePolyline)'));
         const body = eff.slice(0, eff.indexOf('}, [routePolyline])'));
         expect(body).toMatch(/indexRef\.current = nearestIndex\(/);
         expect(body).not.toMatch(/indexRef\.current = 0/);

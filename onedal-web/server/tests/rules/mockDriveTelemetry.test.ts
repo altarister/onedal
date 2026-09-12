@@ -119,11 +119,14 @@ describe('모의 주행 — 서버까지 사실이 간다', () => {
          *    ⓑ **참조**로 보면 `sync-active-orders` 마다 새 배열이라 **매번 다시 잡아**
          *       걸음이 끊긴다 (*"이번에는 경로도 잘못 돌았어"*) — ⓐ 를 고치며 낸 것이다
          */
-        expect(sim).toMatch(/sig\(routeRef\.current\) !== sig\(routePolyline\)/);
+        expect(sim).toMatch(/routeSignature\(routeRef\.current\) !== routeSignature\(routePolyline\)/);
         expect(sim).not.toMatch(/routeRef\.current\?\.length !== routePolyline\?\.length/);
         expect(sim).not.toMatch(/if \(routeRef\.current !== routePolyline\)/);
         /* 🔴 «지금 서 있는 자리»도 함께 비운다 — 안 그러면 옛 보간 좌표가 기점이 된다 */
-        const i = sim.indexOf('sig(routeRef.current) !== sig(routePolyline)');
+        /* 🧬 **지문 함수가 바뀌면 여기 이름도 바뀐다** — 2026-09-12 에 `sig()`(양끝+길이)에서
+           `routeSignature()`(모든 점 해시)로 갈았다. 양끝·점 수가 같은 다른 경로를 못 잡아
+           한 틱에 10.9km 뛰던 것을 고친 자리다. **무엇을 보는지**는 `routeSignature.test.ts` 가 문다 */
+        const i = sim.indexOf('routeSignature(routeRef.current) !== routeSignature(routePolyline)');
         expect(sim.slice(i, i + 400)).toMatch(/simRef\.current\.at =/);
     });
 });

@@ -1,3 +1,5 @@
+/* 🧬 경로가 갈렸나 — 값으로 보는 지문 (양끝·길이로는 못 잡는다 · 2026-09-12) */
+import { routeSignature } from './routeSignature';
 import { useEffect, useRef, useState } from 'react';
 import { simStep, initialSimState, type SimState } from './simStep';
 import { useMockDriveStore } from '../stores/mockDriveStore';
@@ -150,11 +152,14 @@ export function useMockGpsSimulator({
          * ⓑ **참조**로 보면 `sync-active-orders` 가 올 때마다 새 배열이라 **매번 다시 잡는다** —
          *    걸음(`at`)이 그때마다 끊겨 경로를 엉뚱하게 돌았다 (기사님: *"이번에는 경로도
          *    잘못 돌았어"*). 내가 ⓐ 를 고치며 낸 것이다.
-         * 🟢 **양 끝과 길이**면 충분하다 — 카카오가 준 폴리라인은 그 셋이 같으면 같은 길이다.
+         * ⓒ **양 끝과 길이**도 느슨했다 — *"그 셋이 같으면 같은 길"* 이라고 봤는데,
+         *    **콜 하나가 끝나 경유가 빠지면** 출발지·목적지·점 수가 그대로인 채 가운데만
+         *    바뀐다. 그래서 또 뛰었다 (실측 2026-09-12 21:36:11 — 한 틱에 **10,916m**).
+         * 🟢 **지금은 모든 점을 해시로 접어 본다** (`routeSignature`).
+         *    값이 같으면 같은 지문이라 ⓑ 로 돌아가지 않고, 가운데 한 점이 달라도 잡는다.
+         *    점당 곱셈 둘이라 싸고, 이 자리는 매 틱이 아니라 **경로가 올 때만** 돈다.
          */
-        const sig = (p?: PolylinePoint[] | null) =>
-            p?.length ? `${p.length}:${p[0].x},${p[0].y}:${p[p.length - 1].x},${p[p.length - 1].y}` : '';
-        if (sig(routeRef.current) !== sig(routePolyline)) {
+        if (routeSignature(routeRef.current) !== routeSignature(routePolyline)) {
             indexRef.current = nearestIndex(routePolyline, hereRef.current);
             simRef.current.idx = indexRef.current;   // 갈아탄 경로에서도 이어 달린다 (visited 는 유지)
             simRef.current.at = hereRef.current ? { ...hereRef.current } : null;
