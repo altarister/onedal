@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isPriorityLocked, ROUTE_PRIORITIES, PRIORITY_SAMPLE, PRIORITY_LABEL } from './routePriority';
+import { isPriorityLocked, isPriorityLockedByGoals, ROUTE_PRIORITIES, PRIORITY_SAMPLE, PRIORITY_LABEL } from './routePriority';
 
 /**
  * 🧪 **경로 방침 — 언제 잠기나** (2026-09-05)
@@ -92,5 +92,50 @@ describe('🔴 합짐이 화면에 오르는 순간부터 잠긴다 (기사님 2
     it('콜이 없거나 하나뿐이면 열려 있다', () => {
         expect(isPriorityLocked(0)).toBe(false);
         expect(isPriorityLocked(1)).toBe(false);
+    });
+});
+
+/**
+ * 🆕 **R7 — 판이 바뀐 콜이 들어오면 다시 열린다** (기사님 확정 2026-09-13).
+ *
+ * 기사님: *"**몇 개가 남아 있든 간에 목적지가 바뀐 콜이 있으면**이 맞아."*
+ *
+ * 잠그는 근거(R2)는 «합짐은 **첫짐 경로 위에서 산출된 콜**»인데, 새 목적지 콜은
+ * **새 그물에서 온 것**이라 옛 경로에 매일 이유가 없다. 목업이 그 화면을 이미 그린다:
+ *
+ *     ① 송정동 → ③ 내유동   🎯 파주시
+ *     ② 장암동 → ④ 송정동   🎯 복귀(집)     ← 판이 다른 첫짐
+ */
+describe('🎯 R7 — 판이 섞이면 다시 열린다', () => {
+
+    it('첫 콜 심사 — 판이 하나여도 열려 있다 (R3)', () => {
+        expect(isPriorityLockedByGoals(['파주시'])).toBe(false);
+        expect(isPriorityLockedByGoals([])).toBe(false);
+    });
+
+    it('같은 판 둘 — 잠긴다 (R2 그대로)', () => {
+        expect(isPriorityLockedByGoals(['파주시', '파주시'])).toBe(true);
+        expect(isPriorityLockedByGoals(['파주시', '파주시', '파주시'])).toBe(true);
+    });
+
+    /** 🔴 **이 한 건이 R7 이다** — 콜이 몇이든 판이 섞이면 열린다 */
+    it('🔴 판이 둘 — 콜이 몇이든 열린다', () => {
+        expect(isPriorityLockedByGoals(['파주시', '복귀(집)'])).toBe(false);
+        expect(isPriorityLockedByGoals(['파주시', '파주시', '복귀(집)'])).toBe(false);
+        expect(isPriorityLockedByGoals(['파주시', '파주시', '파주시', '복귀(집)'])).toBe(false);
+    });
+
+    /**
+     * ⚠️ **모르는 판은 세지 않되, 하나도 모르면 잠근다** — 모른다고 열어 주면 R2 가
+     *    통째로 풀린다. 칸이 생기기 전에 잡은 옛 콜이 섞여도 안전한 쪽으로 기운다 (규칙 ④).
+     */
+    it('판을 모르는 콜 — 섞여 있으면 아는 것만 센다', () => {
+        expect(isPriorityLockedByGoals(['파주시', null])).toBe(true);          // 아는 판이 하나뿐
+        expect(isPriorityLockedByGoals(['파주시', null, '복귀(집)'])).toBe(false);
+    });
+
+    it('🔴 판을 하나도 모르면 잠근다 — 열어 주면 규칙이 통째로 풀린다', () => {
+        expect(isPriorityLockedByGoals([null, undefined])).toBe(true);
+        expect(isPriorityLockedByGoals([null, null, null])).toBe(true);
     });
 });

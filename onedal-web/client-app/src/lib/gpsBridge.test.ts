@@ -26,7 +26,24 @@ const emit = vi.fn();
 vi.mock('./socket', () => ({ socket: { emit: (...a: unknown[]) => emit(...a) } }));
 
 /* 화면 알림은 이 검사의 관심이 아니다 — 받아만 주고 버린다 (브라우저 없이 돌게) */
-(globalThis as { window?: unknown }).window = { dispatchEvent: () => true };
+/**
+ * 🔴 **통째로 덮지 않는다 — 있는 것에 얹는다** (2026-09-13 실측으로 배웠다).
+ *
+ * 처음엔 `globalThis.window = { dispatchEvent }` 로 **갈아치웠다.** 그랬더니 같은 프로세스에서
+ * 도는 **다른 검사 파일이 `window.location.origin` 을 못 읽고 죽었다**
+ * (`drivenTrailStore.test.ts` → `serverTarget.ts:47`). 전역은 파일 사이에 새어 나간다 —
+ * 이 파일만 보면 초록이고, **전체를 돌려야 드러난다.**
+ *
+ * ⚠️ 그래서 «없는 칸만» 채운다. `location` 은 이 검사가 안 쓰지만 남이 쓴다.
+ */
+{
+    const g = globalThis as { window?: Record<string, unknown> };
+    g.window = {
+        ...(g.window ?? {}),
+        dispatchEvent: () => true,
+        location: (g.window?.location as object) ?? { origin: 'http://localhost:3000' },
+    };
+}
 
 const { publishLocation } = await import('./gpsBridge');
 
