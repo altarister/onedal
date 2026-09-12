@@ -1,5 +1,5 @@
 import { verdictOf, BUTTON_BG } from '../../lib/verdict';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useGpsFocusStore } from '../../stores/gpsFocusStore';
 import { isEvaluating, isTerminal, isManualLineage, isDeliveredCall, minRouteBuffer, derivationInputsOf, stopTimeOfRecords } from "@onedal/shared";
 import type { SecuredOrder, StepViewRow } from "@onedal/shared";
@@ -151,6 +151,17 @@ export default function PinnedRouteCard({
     const [seededSteps, setSeededSteps] = useState<StepViewRow[] | null>(null);
     /** 🌱 단계 네비게이션 — 기존 카드와 같은 문법: null 이면 현재 단계, 숫자면 되돌아보는 중 */
     const [stepNav, setStepNav] = useState<number | null>(null);
+    /**
+     * 🏷️ **이 장을 «누가» 열었나** — 로그에만 쓴다 (기사님 실측 2026-09-12 밤).
+     *
+     * 🔴 라벨이 둘뿐이라 **셋째 원인이 숨었다.** 트랙이 제 이동을 손짓으로 오인해
+     *    옛 장으로 되돌리던 것(`StepSwipeTrack` 의 `smooth`)도 `stepNav != null` 이라
+     *    「사건이 연 것」으로 찍혔다 — 도착이 연 것과 **구별이 안 됐다.**
+     *    값이 같아도 **원인이 다르면 다른 사건**이고, 갈라 찍어야 다음에 바로 보인다
+     *    (어드민의 `[번호]`·`[다녀옴]` 이 한 판에 답을 낸 것과 같은 이유다).
+     * ⚠️ 화면은 이 값을 안 읽는다 — 상태가 아니라 **기록용 꼬리표**라 ref 로 둔다.
+     */
+    const navByRef = useRef<'도착이 연 것' | '손으로 넘긴 것' | '되돌린 것'>('도착이 연 것');
     /* 🎯 «방금 도착»을 본다 — 듣는 곳은 스토어 하나다 (2026-09-12 · 아래 효과가 쓴다) */
     const arrival = useGpsFocusStore(st => st.arrival);
     useEffect(() => {
@@ -205,7 +216,7 @@ export default function PinnedRouteCard({
         if (!arrival || arrival.orderId !== route.id || !arrival.stopType || !seededSteps) return;
         const want = arrival.stopType === 'pickup' ? 'ARRIVE_PICKUP' : 'ARRIVE_DROPOFF';
         const i = seededSteps.findIndex(x => x.step === want);
-        if (i >= 0) setStepNav(i);
+        if (i >= 0) { navByRef.current = '도착이 연 것'; setStepNav(i); }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [arrival?.tick, seededSteps?.length]);
 
@@ -231,7 +242,7 @@ export default function PinnedRouteCard({
     useEffect(() => {
         const sv = seededSteps?.[shownStepIdx];
         logStateChange(`스텝 ${route.id.slice(0, 8)}`,
-            sv ? `${shownStepIdx} ${sv.step} · ${stepNav != null ? '사건이 연 것' : '현재 단계'}` : '없음',
+            sv ? `${shownStepIdx} ${sv.step} · ${stepNav != null ? navByRef.current : '현재 단계'}` : '없음',
             '무대');
     }, [shownStepIdx, stepNav, seededSteps, route.id]);
 
@@ -1065,7 +1076,7 @@ export default function PinnedRouteCard({
                                                             <span className="flex gap-1 justify-self-center">
                                                                 {seededSteps.map((x, i) => (
                                                                     <button key={x.step} type="button" title={x.label} aria-label={x.label}
-                                                                        onClick={() => setStepNav(i === stepCurIdx ? null : i)}
+                                                                        onClick={() => { navByRef.current = '손으로 넘긴 것'; setStepNav(i === stepCurIdx ? null : i); }}
                                                                         className={`w-4 h-1.5 rounded-full transition-colors ${
                                                                             i === shownIdx ? 'bg-info'
                                                                             : x.row?.status === 'SKIPPED' ? 'bg-warning/70'
@@ -1092,7 +1103,7 @@ export default function PinnedRouteCard({
                                                                 </span>
                                                             )}
                                                             {stepNav !== null && stepNav !== stepCurIdx && (
-                                                                <button type="button" onClick={() => setStepNav(null)}
+                                                                <button type="button" onClick={() => { navByRef.current = '되돌린 것'; setStepNav(null); }}
                                                                     className="text-text-muted underline underline-offset-2 text-[10px]">
                                                                     되돌아보는 중 · 현재 단계로</button>
                                                             )}
@@ -1105,7 +1116,7 @@ export default function PinnedRouteCard({
                                                         <StepSwipeTrack
                                                             count={seededSteps.length}
                                                             shownIdx={shownIdx}
-                                                            onShow={k => setStepNav(k === stepCurIdx ? null : k)}
+                                                            onShow={k => { navByRef.current = '손으로 넘긴 것'; setStepNav(k === stepCurIdx ? null : k); }}
                                                             renderPane={(k) => {
                                                                 const x = seededSteps[k];
                                                                 /* 헤더·문장 재료 — 행에 없는 값(장소·전화·구간 주행)은 경로·타임라인이 준다 */
