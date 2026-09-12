@@ -49,17 +49,24 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         {/* 🔴 `min-h-0` 이 없으면 flex 자식이 안 줄어들어 스크롤이 안 걸린다 */}
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabType)}
               className="w-full flex-1 min-h-0 flex flex-col">
-          {/* 🎯 「판정 기준」은 **콜 필터와 다른 층**이다 (기사님 2026-08-16).
-              🔍 필터 팝업 = 콜을 **집기 전** 조건 · 여기 = **집은 뒤** 색을 매기는 기준.
-              화면이 갈리는 것 자체가 그 구분을 몸으로 가르쳐 준다.
-              이름을 `판정/필터` 로 하지 않은 이유: `요율/필터` 와 한 글자 차이라 헷갈린다 */}
+          {/**
+            * 🗂️ **탭 순서와 이름 — 기사님 확정 2026-09-12**: 기본 · 화면 · 필터 · 판정 · 기기.
+            *
+            * 🔴 **이름을 한 낱말로 줄였다.** 「요율/필터」·「판정 기준」·「기기 설정」처럼
+            *    길면 다섯 칸에서 줄바꿈이 나고, 「설정」이 탭마다 붙어 있어 봐야 소용이 없다
+            *    (창 제목이 이미 «사용자 설정»이다).
+            * 🔴 **「필터」와 「판정」은 다른 층이다** (기사님 2026-08-16) —
+            *    🔍 필터 = 콜을 **집기 전** 조건 · 판정 = **집은 뒤** 색을 매기는 기준.
+            *    화면이 갈리는 것 자체가 그 구분을 몸으로 가르쳐 준다.
+            * 🖥️ **「화면」이 앞쪽에 온다** — «내가 보는 화면이 어떻게 움직이나»라
+            *    기본 다음으로 자주 여는 자리다 (기사님 순서).
+            */}
           <TabsList className="grid w-full grid-cols-5 mb-4">
-            <TabsTrigger value="settings">기본 설정</TabsTrigger>
-            <TabsTrigger value="dispatch">요율/필터</TabsTrigger>
-            <TabsTrigger value="judgment">판정 기준</TabsTrigger>
-            <TabsTrigger value="devices">기기 설정</TabsTrigger>
-            {/* 🖥️ «화면이 어떻게 움직이나» — 콜을 고르는 축(요율·판정)과 답하는 질문이 다르다 */}
-            <TabsTrigger value="screen">화면 설정</TabsTrigger>
+            <TabsTrigger value="settings">기본</TabsTrigger>
+            <TabsTrigger value="screen">화면</TabsTrigger>
+            <TabsTrigger value="dispatch">필터</TabsTrigger>
+            <TabsTrigger value="judgment">판정</TabsTrigger>
+            <TabsTrigger value="devices">기기</TabsTrigger>
           </TabsList>
 
           <TabsContent value="settings" className="space-y-4 outline-none flex-1 min-h-0 overflow-y-auto pr-1">

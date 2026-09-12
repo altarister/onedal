@@ -913,12 +913,26 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                         onClick={() => updateFilter({ radiusAuto: on })}
                                         className={`px-2.5 py-0.5 text-[10.5px] font-bold ${
                                             radiusAuto === on ? 'bg-info/15 border-info/55 text-info font-black' : 'text-text-muted'}`}>
-                                        {on ? '자동' : '수동'}
+                                        {/**
+                                          * 📏 **자동 쪽이 «무엇을 기준으로»를 말한다** (기사님 2026-09-12:
+                                          *    *"자동 버튼 안에 들어가는 것이 어떨까? '40km 기준 반경' | '수동'"*).
+                                          *
+                                          * 🔴 예전엔 기준거리가 **일곱 번째 손잡이**로 따로 있었다. 그런데 그것은
+                                          *    «한 번 정하면 두는 값»이고 나머지 셋은 «오늘 조이는 값»이라 **층이 다르다** —
+                                          *    한 그리드에 섞여 있어 «자동이면 이것만 살고 나머지가 흐려지는» 규칙이 생겼다.
+                                          *    이제 고치는 자리는 ⚙️ 설정 → 필터이고, 여기서는 **지금 무엇으로 재는지**만 말한다.
+                                          */}
+                                        {on ? `${filter?.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT}km 기준 반경` : '수동'}
                                     </button>
                                 ))}
                             </div>
                         </div>
-                        <KnobGrid open={openKnob} onOpen={setOpenKnob} cols={4}
+                        {/**
+                          * 📐 **셋이 한 줄** (기사님 2026-09-12: *"필터 남은 것들은 다시 정렬해 주고"*).
+                          *    기준거리가 ⚙️ 설정으로 가면서 넷이 셋이 됐다 — 4칸 격자면 **한 칸이 빈다.**
+                          *    남은 셋은 현위·목적·라인으로 **같은 «반경»**이라 한 줄이 맞다.
+                          */}
+                        <KnobGrid open={openKnob} onOpen={setOpenKnob} cols={3}
                             knobs={[...KNOB_FIELDS.map(path => {
                                 const f = FILTER_FIELDS.find(x => x.path === path)!;
                                 /**
@@ -951,26 +965,7 @@ export default function OrderFilterModal({ isOpen, onClose, hasHomeReturnActive 
                                     onCommit: radiusAuto ? undefined
                                         : (v: number) => pickField(path, String(v)),
                                 };
-                            }), {
-                                /**
-                                 * 📏 **기준 거리 — «지금 값이 몇 km 갈 때 맞춘 것인가»** (기사님 2026-09-12:
-                                 *    *"7번 칸을 만들어줘"* · 조사 ①-7). DB·서버·재계산 조건까지 있는데
-                                 *    **화면에 칸이 없어** 고아였다 — 늘 40 으로만 돌았다.
-                                 * 🔴 **자동일 때만 산다.** 수동이면 흐리고, 자동이면 반대로 나머지 셋이 흐리다.
-                                 * ⚠️ 폼(`cur`)에 없는 값이다 — 끄는 동안은 `previewFilter`, 뗄 때 `updateFilter`.
-                                 */
-                                key: 'radiusBaseKm',
-                                label: '기준거리',
-                                unit: 'km',
-                                value: filter?.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT,
-                                min: 10,
-                                max: 100,
-                                step: 5,
-                                dim: !radiusAuto,
-                                set: radiusAuto ? (v: number) => previewFilter({ radiusBaseKm: v }) : () => {},
-                                onPreview: radiusAuto ? (v: number) => previewFilter({ radiusBaseKm: v }) : undefined,
-                                onCommit: radiusAuto ? (v: number) => updateFilter({ radiusBaseKm: v }) : undefined,
-                            }]} />
+                            })]} />
 
                         {/**
                           * 💰🚫 **값 둘도 같은 고르기 칸으로** (기사님 2026-09-09:

@@ -195,11 +195,24 @@ describe('콜 필터 ↔ 판정 기준 — 화면까지 갈라져 있다', () =>
         expect(rc('stores/judgmentStore.ts')).not.toMatch(/saveAsDefault|오늘만/);
     });
 
-    it('설정 모달에 「판정 기준」 탭이 있다 (「판정/필터」가 아니다 — 「요율/필터」와 헷갈린다)', () => {
+    it('설정 모달에서 「필터」와 「판정」이 **다른 탭**이다 — 층이 다르다', () => {
+        /**
+         * 🔄 **2026-09-12 — 탭 이름을 한 낱말로 줄였다** (기사님 확정):
+         *    기본 · 화면 · 필터 · 판정 · 기기. 다섯 칸에서 「요율/필터」·「판정 기준」은
+         *    줄바꿈이 나고, 「설정」이 탭마다 붙어 있어 봐야 소용이 없다
+         *    (창 제목이 이미 «사용자 설정»이다).
+         *
+         * 🔴 **무는 것은 이름이 아니라 «갈려 있다»는 사실이다** — 🔍 필터는 콜을 **집기 전**
+         *    조건, 판정은 **집은 뒤** 색을 매기는 기준이다 (기사님 2026-08-16).
+         *    한 탭에 합치면 그 구분이 화면에서 사라진다.
+         */
         const m = rc('components/dashboard/SettingsModal.tsx');
         expect(m).toMatch(/value="judgment"/);
-        expect(m).toMatch(/판정 기준<\/TabsTrigger>/);
-        expect(m).not.toMatch(/판정\/필터/);
+        expect(m).toMatch(/value="dispatch"/);
+        expect(m).toMatch(/>판정</);
+        expect(m).toMatch(/>필터</);
+        /* 한 탭이 둘을 겸하면 안 된다 */
+        expect(m).not.toMatch(/판정\/필터|필터\/판정/);
     });
 });
 

@@ -112,29 +112,41 @@ describe('1단계 · 받을 짐이 목업과 같은 뜻이다 (조사 ①-6)', (
 describe('1단계 · 기준 거리 칸 (조사 ①-7 · 기사님: "7번 칸을 만들어줘")', () => {
     const modal = readClient('components/dashboard/OrderFilterModal.tsx');
 
-    it('🔴 반경 줄이 넷이다 — 현위·목적·라인·기준', () => {
-        const i = modal.indexOf('knobs={[...KNOB_FIELDS.map(');
+    it('🔴 반경 줄이 셋이다 — 현위·목적·라인 (기준거리는 ⚙️ 설정으로 갔다)', () => {
+        /**
+         * 🔄 **2026-09-12 — 넷에서 셋으로** (기사님 지시). 기준거리가 ⚙️ 설정 → 필터로
+         *    옮겨 갔다. 남은 셋은 «오늘 조이는 값»이라 성격이 같고, 4칸 격자면 한 칸이 빈다.
+         */
+        /* ⚠️ 앞에 마름모 격자(QUAD_FIELDS)가 하나 더 있다 — **반경 쪽**을 집는다 */
+        const i = modal.indexOf('knobs={[...KNOB_FIELDS');
         expect(i).toBeGreaterThan(-1);
-        /* 그 KnobGrid 의 여는 태그 안에 cols={4} 가 있어야 한다 */
         const open = modal.lastIndexOf('<KnobGrid', i);
-        const tag = modal.slice(open, i);
-        expect(tag).toMatch(/cols=\{4\}/);
+        expect(modal.slice(open, i)).toMatch(/cols=\{3\}/);
         const body = modal.slice(i, i + 3000);
-        expect(body).toMatch(/radiusBaseKm/);
+        expect(body).toMatch(/radiusAuto/);
     });
 
-    it('🔴 기준 거리는 자동일 때만 산다 — 수동이면 흐리고, 자동이면 나머지 셋이 흐리다', () => {
-        const i = modal.indexOf('key: \'radiusBaseKm\'');
-        expect(i).toBeGreaterThan(-1);
-        const body = modal.slice(i, modal.indexOf('}]}', i));
-        expect(body).toMatch(/dim: !radiusAuto/);
+    /**
+     * 🔄 **2026-09-12 — 기준거리가 필터에서 ⚙️ 설정 → 필터로 옮겼다** (기사님 지시).
+     *
+     * 🔴 필터의 반경 셋(현위·목적·라인)은 «오늘 조이는 값»이고 기준거리는 «한 번 정하면
+     *    두는 값»이라 **층이 다르다.** 한 그리드에 섞여 있어 «자동이면 이것만 살고 나머지가
+     *    흐려지는» 규칙이 생겼다 — 성격이 다른 값을 한 자리에 둬서 난 일이다.
+     *
+     * 기사님: *"자동 버튼 안에 들어가는 것이 어떨까? **'40km 기준 반경' | '수동'**"* —
+     * 필터 화면은 이제 **말하기만** 하고, 고치는 자리는 설정 하나다.
+     */
+    it('🔴 자동 버튼이 «무엇을 기준으로»를 말한다 — 손잡이 칸은 없다', () => {
+        expect(modal).toMatch(/km 기준 반경/);
+        /* 일곱 번째 손잡이는 걷었다 — 고치는 자리가 둘이면 또 갈라진다 */
+        expect(modal).not.toMatch(/key: 'radiusBaseKm'/);
     });
 
-    it('🔴 기준 거리를 끌면 서버로 간다 — 재계산 조건에 이미 들어 있다', () => {
-        const i = modal.indexOf('key: \'radiusBaseKm\'');
-        /* 주석이 길다 — 그 knob 객체가 닫히는 `}]}` 까지 본다 */
-        const body = modal.slice(i, modal.indexOf('}]}', i));
-        expect(body).toMatch(/updateFilter\(\{ radiusBaseKm/);
+    it('🔴 고치는 자리는 ⚙️ 설정 → 필터 하나다 — 평소값으로 저장한다', () => {
+        const tab = codeOnly(readClient('components/dashboard/settings/PricingSettingsTab.tsx'));
+        expect(tab).toMatch(/radiusBaseKm/);
+        /* 🔴 «오늘만»이 없다 — `saveAsDefault` 가 참이라야 평소값이 된다 */
+        expect(tab).toMatch(/updateFilter\(\{ radiusBaseKm: v \}, true\)/);
     });
 });
 

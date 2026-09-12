@@ -64,17 +64,6 @@ export default function ScreenSettingsTab() {
                     5km/h 아래로 이 시간만큼 있으면 <b className="text-text-primary">정차</b>로 봅니다.
                     주행 중에는 시트가 내려가 지도가 넓어집니다.
                 </p>
-                {/**
-                 * 🔴 **왜 고칠 수 있어야 하나** (기사님 지시 2026-09-12).
-                 *    모의 주행은 배속이 빨라 정거장 사이를 2~7초에 지나간다 — 10초를
-                 *    **채울 수가 없어** «주행 중»이 한 번도 성립하지 않았다.
-                 *    기사님: *"모의주행할 때는 그걸 줄이고 시험하고 진짜 때는 10으로"*
-                 */}
-                <p className="text-[11px] font-bold text-warning leading-relaxed">
-                    🎭 모의 주행으로 시험할 때는 <b>2~3초</b>로 줄이십시오 — 배속이 빨라
-                    정거장 사이를 몇 초에 지나가므로 {MOTION_HOLD_SEC_DEFAULT}초로는 주행이
-                    한 번도 성립하지 않습니다. <b>실제 운행은 {MOTION_HOLD_SEC_DEFAULT}초</b>가 맞습니다.
-                </p>
             </div>
 
             <div className="flex items-center gap-2">

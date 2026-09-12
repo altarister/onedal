@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { apiClient } from "../../../api/apiClient";
-import { VEHICLE_OPTIONS } from "@onedal/shared";
+import { VEHICLE_OPTIONS, RADIUS_BASE_KM_DEFAULT } from "@onedal/shared";
+import { useFilterConfig } from "../../../hooks/useFilterConfig";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 
@@ -21,6 +22,8 @@ interface Props {
  *   · 평면 콜할인율 — `user_filters.call_discount_pct` 한 벌이 원천 (여기서는 안 고친다).
  */
 export default function PricingSettingsTab({ onClose }: Props) {
+  /* 📏 기준거리는 **필터 값**이라 필터 훅을 지난다 — 설정 API 가 아니다 (규칙 ③) */
+  const { filter, updateFilter } = useFilterConfig();
   const [vehicleRates, setVehicleRates] = useState<Record<string, number>>({});
   const [agencyFeePercent, setAgencyFeePercent] = useState(23);
   const [excludedKeywords, setExcludedKeywords] = useState<string[]>([]);
@@ -71,6 +74,34 @@ export default function PricingSettingsTab({ onClose }: Props) {
 
   return (
     <div className="flex flex-col gap-4">
+      {/**
+        * 📏 **기준거리 — «반경을 몇 km 갈 때에 맞출 것인가»** (기사님 지시 2026-09-12).
+        *
+        * 🔴 **🔍 필터에서 여기로 옮겼다.** 필터의 반경 셋(현위·목적·라인)은 «오늘 조이는 값»이고
+        *    기준거리는 «한 번 정하면 두는 값»이라 **층이 다르다** — 한 그리드에 섞여 있어
+        *    «자동이면 이것만 살고 나머지가 흐려지는» 규칙이 생겼다.
+        * 🔴 **필터 화면은 이 값을 «말하기만» 한다** — 자동 버튼이 `40km 기준 반경` 으로 뜬다
+        *    (기사님: *"자동 버튼 안에 들어가는 것이 어떨까?"*). 고치는 자리는 여기 하나다.
+        * 🔴 **«오늘만»이 없다** — 설정에서 고치면 곧 평소값이다(`saveAsDefault`).
+        *    «오늘만 기준거리»는 말이 안 된다.
+        */}
+      <div className="space-y-1.5">
+        <label htmlFor="radius-base" className="text-sm font-semibold text-text-muted">📏 반경 기준거리 (km)</label>
+        <div className="flex items-center gap-2">
+          <Input id="radius-base" type="number" min={10} max={100} step={5}
+            value={filter?.radiusBaseKm ?? RADIUS_BASE_KM_DEFAULT}
+            onChange={(e) => {
+              const v = Math.max(10, Math.min(100, Number(e.target.value) || RADIUS_BASE_KM_DEFAULT));
+              updateFilter({ radiusBaseKm: v }, true);
+            }}
+            className="h-8 w-24 text-right" />
+          <p className="text-[11px] text-text-muted leading-relaxed">
+            반경이 <b className="text-text-primary">자동</b>일 때, 목적지가 이 거리보다 가까우면
+            그만큼 반경을 줄입니다. 멀면 정한 값 그대로 씁니다.
+          </p>
+        </div>
+      </div>
+
       {/* 차종별 단가 — 금액 축의 원천 (정의서 3장: 통과 = 요금 ≥ 거리 × 단가 × (1−콜할인율)) */}
       <div className="space-y-1.5">
         <label className="text-sm font-semibold text-text-muted">💰 차종별 km당 적정 단가 (원)</label>
