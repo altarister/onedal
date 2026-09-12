@@ -49,8 +49,15 @@ describe('Ⅲ표 — 신호가 정하는 높이', () => {
             expect(r.snap).toBe('list');
             expect(r.reason).toBe('판정중');
         }
-        // 손으로 「다」까지 올려 두셨으면 안 내린다
-        expect(tick(initialStageMemory(), sig({ judging: true, snap: 'full' })).snap).toBe('full');
+        /**
+         * 🔄 **2026-09-12 — 「다」도 「나」로 내려온다** (기사님 실측).
+         *    예전엔 *"손으로 「다」까지 올려 두셨으면 안 내린다"* 였는데, KEEP 으로 올라간
+         *    「다」에서 후보콜이 뜨면 **지도가 통째로 가려진 채** 결재하게 됐다.
+         *    기사님: *"콜의 판정 화면은 **「나」** 여야만 해."*
+         * 🔴 **손 유예는 위의 `holding` 이 이미 막는다** — 손으로 만지신 30초 안에는
+         *    판정 신호 자체가 안 온다. 여기서 또 봐주면 규칙이 두 곳에 갈린다.
+         */
+        expect(tick(initialStageMemory(), sig({ judging: true, snap: 'full' })).snap).toBe('list');
     });
 });
 
