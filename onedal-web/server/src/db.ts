@@ -688,7 +688,20 @@ ensureColumns('gps_tracks', { stop_type: 'TEXT',
      * 🔴 **한 칸에 섞지 않는다** — «얼마로 달렸나»와 «얼마로 돌렸나»는 다른 질문이다
      *    (규칙 ⑤-4 ⑤). 실 GPS 는 늘 1 이다.
      */
-    speed_multiplier: 'REAL DEFAULT 1' });
+    speed_multiplier: 'REAL DEFAULT 1',
+    /**
+     * 🛣️ **부여받은 경로에서 얼마나 벗어났나 (m)** — 기사님 지시 2026-09-12 밤.
+     *
+     * 기사님: *"카카오 라인과 내 궤적이 같이 있어야 얼마나 잘못 갔는지 확인할 수 있을 것 같아."*
+     * 이 칸이 이 표의 **원래 목적**이다 (2026-08-26 신설 이유: *"경로를 놓쳐서 지나치면
+     * 얼마나 우회하게 되는 건지… 부여받은 경로와 현실의 주행 궤적을 매칭"*).
+     *
+     * 🔴 **경로를 모르면 `null` 이다** — 0 이 아니다. 0 은 «경로 위에 정확히 있다»는 뜻이라
+     *    «경로가 없었다»와 섞이면 나중에 못 가른다 (규칙 ④).
+     */
+    off_route_m: 'REAL',
+    /** 🛣️ 그 경로의 **몇 km 지점**이었나 — 벗어난 자리를 경로 위에서 짚는 좌표 */
+    progress_km: 'REAL' });
 // 정리(부팅 때 7일 넘은 것 삭제)와 조회(주행 구간 뽑기)가 둘 다 시각으로 훑는다
 db.exec(`CREATE INDEX IF NOT EXISTS idx_gps_tracks_at ON gps_tracks(at_ms)`);
 db.exec(`CREATE INDEX IF NOT EXISTS idx_gps_tracks_user_at ON gps_tracks(user_id, at_ms)`);

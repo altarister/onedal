@@ -406,11 +406,38 @@ export function progressAlongPolyline(
     polyline: Array<{ x: number; y: number }>,
     gps: { x: number; y: number },
 ): number | null {
+    return snapToRoute(polyline, gps)?.progressKm ?? null;
+}
+
+/**
+ * 🛣️ **부여받은 경로에 지금 자리를 대 본다 — «어디쯤»과 «얼마나 벗어났나»를 함께 낸다.**
+ *
+ * 기사님(2026-09-12 밤): *"카카오 라인과 내 궤적이 같이 있어야 **얼마나 잘못 갔는지**
+ * 확인할 수 있을 것 같아."* — `gps_tracks` 를 만든 원래 이유가 그것이다
+ * (2026-08-26: *"네비게이션이 가리키는 경로를 놓쳐서 지나치면 얼마나 우회하게 되는 건지…
+ * 부여받은 경로와 현실의 주행 궤적을 매칭해야 차이를 확인할 수 있을 듯"*).
+ *
+ * 🔴 **재료는 이미 있었고 절반을 버리고 있었다.** `nearestPointOnLine` 은 스냅한 점의
+ *    **진행도(`location`)와 떨어진 거리(`dist`)를 한 번에** 준다. 그런데 위 함수가
+ *    진행도만 꺼내 쓰고 거리를 버렸다 — 「얼마나 벗어났나」를 답할 값이 매 좌표마다
+ *    손에 들어왔다가 사라진 셈이다. 한 번 계산해서 둘 다 돌려준다 (규칙 ③).
+ *
+ * ⚠️ **경로를 벗어나도 값은 늘 나온다** — 가장 가까운 점으로 스냅되기 때문이다.
+ *    그래서 «벗어났나»는 `offRouteKm` 이 답하지 `progressKm` 이 답하지 않는다.
+ * ⚠️ 실측 0.14ms. 이동할 때마다 도는 유일한 지리 연산이다.
+ */
+export function snapToRoute(
+    polyline: Array<{ x: number; y: number }> | null | undefined,
+    gps: { x: number; y: number },
+): { progressKm: number; offRouteKm: number } | null {
     if (!polyline || polyline.length < 2) return null;
     try {
         const line = turf.lineString(polyline.map(p => [p.x, p.y]));
         const snapped = turf.nearestPointOnLine(line, turf.point([gps.x, gps.y]));
-        return (snapped.properties?.location as number) ?? null;
+        const progressKm = snapped.properties?.location as number | undefined;
+        const offRouteKm = snapped.properties?.dist as number | undefined;
+        if (progressKm == null || offRouteKm == null) return null;   // 모르면 모른다 (규칙 ④)
+        return { progressKm, offRouteKm };
     } catch {
         return null;
     }
@@ -1217,6 +1244,16 @@ export function gpsPointOf(
     speedMultiplier: number = 1,
 ): GpsPoint & { stopType: 'pickup' | 'dropoff' | null } {
     const next = nextStopOf(session, gps);
+    /**
+     * 🛣️ **부여받은 경로에 대 본다 — «얼마나 벗어났나»를 점마다 남긴다** (기사님 지시 2026-09-12 밤).
+     *
+     * 기사님: *"카카오 라인과 내 궤적이 같이 있어야 **얼마나 잘못 갔는지** 확인할 수 있을 것 같아."*
+     * 🔴 **경로를 모르면 `null` 이다** — 0 은 «경로 위에 정확히 있다»는 뜻이라 «경로가
+     *    없었다»와 섞이면 나중에 못 가른다 (규칙 ④).
+     * ⚠️ 여기서 재는 이유: 이 함수는 **궤적을 남길 때만** 불린다(50m·15초 문턱 뒤).
+     *    매 좌표마다 지리 연산을 더하지 않는다.
+     */
+    const snapped = snapToRoute(getActivePolyline(session), gps);
     return {
         x: gps.x, y: gps.y, atMs, source: src,
         speedKmh: speedKmh != null && Number.isFinite(speedKmh) ? Math.round(speedKmh) : null,
@@ -1225,6 +1262,8 @@ export function gpsPointOf(
         speedMultiplier,
         orderId: next?.orderId ?? null,
         stopType: next?.stopType ?? null,
+        offRouteM: snapped ? Math.round(snapped.offRouteKm * 1000) : null,
+        progressKm: snapped ? Math.round(snapped.progressKm * 100) / 100 : null,
     };
 }
 

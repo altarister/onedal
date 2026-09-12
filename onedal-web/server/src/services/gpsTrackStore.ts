@@ -75,6 +75,13 @@ export interface GpsPoint {
      * 콜 하나가 두 구간을 만드므로, `orderId` 만으로는 궤적을 반으로 못 가른다.
      */
     stopType?: 'pickup' | 'dropoff' | null;
+    /**
+     * 🛣️ **부여받은 경로에서 얼마나 벗어났나 (m)** — 기사님 지시 2026-09-12 밤.
+     *    이 표를 만든 원래 이유가 «경로 ↔ 궤적 대조»다. 경로를 모르면 **null**(0 이 아니다 · 규칙 ④).
+     */
+    offRouteM?: number | null;
+    /** 🛣️ 그 경로의 몇 km 지점이었나 — 벗어난 자리를 경로 위에서 짚는다 */
+    progressKm?: number | null;
 }
 
 /**
@@ -133,8 +140,9 @@ export function bufferGpsPoint(userId: string, p: GpsPoint): void {
 }
 
 const insertStmt = () => db.prepare(`
-    INSERT INTO gps_tracks (user_id, at_ms, x, y, source, speed_kmh, speed_multiplier, order_id, stop_type)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO gps_tracks (user_id, at_ms, x, y, source, speed_kmh, speed_multiplier, order_id, stop_type,
+                            off_route_m, progress_km)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `);
 
 /**
@@ -153,7 +161,8 @@ export function flushGpsBuffer(): void {
             for (const p of batch) {
                 st.run(p.userId, Math.round(p.atMs), p.x, p.y,
                     p.source ?? null, p.speedKmh ?? null, p.speedMultiplier ?? 1,
-                    p.orderId ?? null, p.stopType ?? null);
+                    p.orderId ?? null, p.stopType ?? null,
+                    p.offRouteM ?? null, p.progressKm ?? null);
             }
         })();
     } catch (e) {
