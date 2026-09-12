@@ -135,6 +135,60 @@ report('═ 관제웹이 듣는데 서버가 안 보내는 이벤트 ═', new S
 report('═ 서버가 받는데 **아무도 안 보내는** 이벤트 (죽은 문) ═',
     new Set([...srvOn].filter(e => !cliEmit.has(e))), server.get('on'));
 
+/**
+ * 🍝 **다섯 번째 방향 — «한 사건을 여러 곳이 판단하는가»** (기사님 지시 2026-09-12).
+ *
+ * 기사님: *"gps 관리하는 거 하나 만들고 경로 관리하는 거 만들고 … **지금 그걸 각자
+ * 하고 있어서 문제** 같은데"* · *"우리 프로젝트는 경우의 수가 많아서 이런 관리를 잘해야 해.
+ * 아니면 **코드가 스파게티처럼 엉킬 수 있어**"*
+ *
+ * 🔴 **실제로 그 모양으로 사고가 났다** — `auto-arrived` 를 세 곳이 각자 듣고 각자
+ *    판단해서 «덱이 가리킨 콜»과 «시트가 연 콜»이 갈라졌다. 기사님이 화면에서 잡으셨다
+ *    (*"1, 3, 5는 시트가 올라갔어 근데 그 스텝이 열리지는 않았어"*).
+ *
+ * 🟢 **여럿이 듣는 것 자체는 죄가 아니다** — 역할이 다르면 오히려 옳다:
+ *      · `useOrderEngine`(데이터) + `useSystemAlerts`(알림)  — 의도된 분리
+ *      · 스토어(판단) + `Dashboard`(알림 한 줄)              — 판단은 하나
+ *      · 카드(제 콜 하나) + 훅(전체 파생)                     — 보는 범위가 다르다
+ *    **갈라지는 것은 «같은 질문에 둘이 답할 때»뿐이다.**
+ *
+ * ⚠️ 기계가 «판단인가 알림인가»를 스스로 가릴 수는 없다. 그래서 **지금 상태를 기준선으로
+ *    적어 두고, 거기서 늘어나면 알린다** — `audit:dead` 의 `KEEP` 목록과 같은 방식이다.
+ *    새로 겹치면 사람이 «역할이 다른가»를 보고 판단해 이 목록에 넣거나 합친다.
+ *
+ * 🔴 **«곳 수»까지 적는다.** 이름만 적어 두면 **네 번째가 붙어도 조용히 통과한다** —
+ *    처음 만들 때 그렇게 짰다가 변이(세 번째가 도착을 또 듣게)로 그 자리에서 드러났다.
+ *    허용한 수보다 늘면 빨간불이다.
+ */
+const ALLOWED_MULTI = new Map([
+    ['order-canceled',        [2, '엔진(이력 다시 읽기) + 알림(배너 지우기) — 역할이 다르다']],
+    ['order-confirmed',       [3, '엔진(이력) + 알림(배너) + 시트(KEEP 마중) — ⏭️ 시트 몫은 스토어로 모으는 중']],
+    ['safecancel-warning',    [2, '엔진(카운트) + 알림(경고 배너)']],
+    ['order-evaluating',      [2, '엔진(상태) + 대시보드(탭 전환)']],
+    ['auto-arrived',          [2, '스토어(판단 한 곳) + 대시보드(알림 한 줄)']],
+    ['next-stop-approaching', [2, '스토어(판단 한 곳) + 대시보드(알림 한 줄)']],
+    ['steps-synced',          [2, '카드(제 콜 하나) + 훅(전체 모아 파생) — 보는 범위가 다르다']],
+    ['milestone-result',      [2, '오류 표시(useServerErrors) + 시트(성공했을 때만 문을 닫는다) — 보는 것이 다르다']],
+    ['connect',               [2, '재연결 때 각자 제 것을 다시 요청한다']],
+]);
+
+const multi = [...(client.get('on') ?? new Map())]
+    .map(([ev, files]) => [ev, [...new Set(files)]])
+    .filter(([, files]) => files.length > 1);
+
+console.log('\n═ 한 사건을 **여러 곳이** 듣는다 (판단이 둘이면 갈라진다) ═');
+if (!multi.length) console.log('  없음 ✅');
+for (const [ev, files] of multi.sort((a, b) => b[1].length - a[1].length)) {
+    const allowed = ALLOWED_MULTI.get(ev);
+    const [max, why] = allowed ?? [0, null];
+    const ok = allowed && files.length <= max;
+    const note = !allowed ? '← 역할이 다른가? 같으면 한 곳으로 모은다'
+               : ok ? why
+               : `🔴 **${max}곳까지 적어 뒀는데 ${files.length}곳이다** — 늘어난 자리가 «판단»인지 보라 (${why})`;
+    console.log(`  ${ok ? '✅' : '🔴'} ${ev.padEnd(24)} ${files.length}곳  ${note}`);
+    if (!ok) { for (const f of files) console.log(`       ${f}`); problems.push(`${ev}(여러 곳이 듣는다)`); }
+}
+
 console.log(`\n검사한 이벤트: 서버 emit ${srvEmit.size} · on ${srvOn.size} / 관제웹 emit ${cliEmit.size} · on ${cliOn.size}`);
 if (problems.length) {
     console.log(`\n❌ 계약이 끊긴 이벤트 ${problems.length}개: ${problems.join(', ')}`);

@@ -295,7 +295,15 @@ export default function StageView(props: Props) {
      *    한 곳이다. 도착(`auto-arrived`)과 **같은 문법**이다.
      */
     useEffect(() => {
-        const onDone = () => { feed({ type: 'done' }); };
+        /**
+         * 🔴 **실패한 보고로는 문을 닫지 않는다** — 서버가 `success: false` 를 돌려주면
+         *    그 일은 안 끝난 것이다. 닫아 버리면 기사님이 «했다»고 믿고 지나간다 (규칙 ④).
+         *    ⚠️ 실패 «표시»는 `useServerErrors` 가 맡는다 — 여기는 «문을 닫을까»만 본다.
+         */
+        const onDone = (r?: { success?: boolean }) => {
+            if (r?.success === false) return;
+            feed({ type: 'done' });
+        };
         socket.on('milestone-result', onDone);
         return () => { socket.off('milestone-result', onDone); };
         // eslint-disable-next-line react-hooks/exhaustive-deps
