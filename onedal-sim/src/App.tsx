@@ -19,7 +19,7 @@
  *    주소가 조용히 죽으면 «왜 안 뜨지»로 반나절이 간다. 쿼리(`?preset=…`)도 함께 옮긴다.
  *
  * 회사를 늘리는 법: `packages/ui-simulators/<회사>/` 에 화면을 만들고
- * `DispatchPage` 의 분기와 `SetupPage` 의 `NETS` 에 한 줄씩. 앱 쪽은 이미 플러그인
+ * `packages/ui-simulators/src/nets.ts` 의 `SIM_NETS` 에 한 줄 (예전엔 `DispatchPage` 의 분기와 `SetupPage` 의 `NETS` 에 한 줄씩이었다). 앱 쪽은 이미 플러그인
  * 구조(IScrapParser)라 파서만 붙이면 된다.
  */
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';

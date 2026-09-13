@@ -1,0 +1,109 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { renderToStaticMarkup } from 'react-dom/server';
+import type { ReactElement } from 'react';
+import {
+    Hwamul24CallDetailScreen,
+    Hwamul24DispatchBoard,
+    Hwamul24SimScreen,
+    InseongCallDetailScreen,
+    InseongDispatchBoard,
+    InseongOngoingDetailScreen,
+    InsungSimScreen,
+    SIM_NETS,
+    SIM_NET_LIST,
+    simNetOf,
+    toHwamul24Call,
+    toInsungCall,
+} from '@altari/ui-simulators';
+import type { NetScreenProps } from '@altari/ui-simulators';
+import { callA, callB } from './fixtures';
+import { FIXED_NOW, seededRandom } from './seededRandom';
+
+/**
+ * 🧩 **배차망 화면이 예전 DispatchPage 갈래와 같은 부품을 그리나** (2026-09-14 · 카카오픽커_시뮬레이터.md 0단계 0-2 ⑤)
+ *
+ * ⑤ 에서 DispatchPage 의 `net` 갈래(리스트·상세·수락 뒤)를 배차망 화면(InsungSimScreen · Hwamul24SimScreen)으로 옮겼다.
+ * 그 갈래가 고르던 부품을 **직접** 그린 것과, 배차망 화면이 그린 것이 **글자 하나까지 같은지** 대조한다.
+ * (배차 화면의 첫 그림은 `dispatchPage.test.tsx` 가 옮기기 전에 뜬 스냅숏으로 따로 문다)
+ */
+const noop = () => {};
+/** 같은 난수로 그린다 — 화물24시 화면은 잔액·ID 에 Math.random 을 쓴다 */
+const markup = (el: ReactElement) => {
+    const spy = vi.spyOn(Math, 'random').mockImplementation(seededRandom(33));
+    try { return renderToStaticMarkup(el); } finally { spy.mockRestore(); }
+};
+const base: NetScreenProps = {
+    streamingCalls: [callA, callB], confirmedCalls: [], activeTab: 'ALL', setActiveTab: noop,
+    selectedCall: null, selectedCallId: null, openCall: noop, closeDetail: noop,
+    acceptCall: noop, cancelCall: noop, completeCall: noop,
+    isTimerPaused: false, toggleTimer: noop, isFetchingOrder: false, maxPickupKm: 15, goSetup: noop,
+};
+
+describe('배차망 화면 = 예전 DispatchPage 갈래가 고르던 부품', () => {
+    beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(FIXED_NOW); });
+    afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
+
+    it('인성 리스트', () => {
+        expect(markup(<InsungSimScreen {...base} />)).toBe(markup(
+            <div className="relative w-full h-full">
+                <InseongDispatchBoard streamingCalls={[callA, callB]} confirmedCalls={[]} activeTab="ALL" onTabSelect={noop} onCallClick={noop}
+                    onStartClick={noop} onSettingsClick={noop} onMenuClick={noop} isTimerPaused={false} onToggleTimer={noop}
+                    isFetchingOrder={false} selectedCallId={null} maxPickupKm={15} />
+            </div>,
+        ));
+    });
+
+    it('인성 상세 — 안 잡은 콜은 수락 전 상세', () => {
+        expect(markup(<InsungSimScreen {...base} selectedCall={callA} />))
+            .toBe(markup(<InseongCallDetailScreen call={callA} feedback={null} isConfirmed={false} onClose={noop} onAccept={noop} />));
+    });
+
+    it('인성 상세 — 잡은 콜은 진행 중 상세', () => {
+        expect(markup(<InsungSimScreen {...base} confirmedCalls={[callA]} selectedCall={callA} />))
+            .toBe(markup(<InseongOngoingDetailScreen call={callA} onClose={noop} onConfirm={noop} onCancel={noop} />));
+    });
+
+    it('화물24시 리스트', () => {
+        expect(markup(<Hwamul24SimScreen {...base} />)).toBe(markup(
+            <div className="relative w-full h-full">
+                <Hwamul24DispatchBoard streamingCalls={[callA, callB]} confirmedCalls={[]} activeTab="ALL" onTabSelect={noop} onCallClick={noop}
+                    onSettingsClick={noop} isTimerPaused={false} onToggleTimer={noop} isFetchingOrder={false} />
+            </div>,
+        ));
+    });
+
+    it('화물24시 상세', () => {
+        expect(markup(<Hwamul24SimScreen {...base} selectedCall={callB} />))
+            .toBe(markup(<Hwamul24CallDetailScreen call={callB} onClose={noop} onAccept={noop} />));
+    });
+
+    it('🔴 화물24시 수락 뒤 — 잡은 콜에 넣고 → 상세를 닫고 → «배차내역» 탭 (예전 순서 그대로)', () => {
+        const order: string[] = [];
+        const el = Hwamul24SimScreen({
+            ...base, selectedCall: callA,
+            acceptCall: () => order.push('accept'),
+            closeDetail: () => order.push('close'),
+            setActiveTab: (t) => order.push(`tab:${t}`),
+        }) as ReactElement<{ onAccept: (c: typeof callA) => void }>;
+        el.props.onAccept(callA);
+        expect(order).toEqual(['accept', 'close', 'tab:CONFIRMED']);
+    });
+});
+
+describe('배차망 목록 — 한 곳에서만', () => {
+    it('입히기 함수는 각 배차망 폴더의 것', () => {
+        expect(SIM_NETS.inseong.toCall).toBe(toInsungCall);
+        expect(SIM_NETS.hwamul24.toCall).toBe(toHwamul24Call);
+    });
+
+    it('설정 화면 순서와 이름 — 인성콜 · 화물24시 (예전 목록 그대로)', () => {
+        expect(SIM_NET_LIST.map(n => [n.key, n.label])).toEqual([['inseong', '인성콜'], ['hwamul24', '화물24시']]);
+    });
+
+    it('⏳ ?net= 해석 — 모르는 값·없는 값은 지금은 인성 (예전 동작 · 0-4 에서 멈춤으로 바꾼다)', () => {
+        expect(simNetOf('hwamul24').key).toBe('hwamul24');
+        expect(simNetOf('inseong').key).toBe('inseong');
+        expect(simNetOf(null).key).toBe('inseong');
+        expect(simNetOf('abc').key).toBe('inseong');
+    });
+});

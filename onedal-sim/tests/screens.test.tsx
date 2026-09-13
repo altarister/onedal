@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { ReactElement } from 'react';
-import type { SimCall } from '@altari/ui-simulators';
 import {
     Hwamul24CallDetailScreen,
     Hwamul24DispatchBoard,
@@ -13,6 +12,7 @@ import {
     InseongOngoingDetailScreen,
 } from '@altari/ui-simulators';
 import { FIXED_NOW, seededRandom } from './seededRandom';
+import { callA, callB } from './fixtures';
 
 /**
  * 🔒 **인성·화물24시 화면 글자를 그대로 잠근다** (2026-09-14 · 카카오픽커_시뮬레이터.md 0단계 0-1 ③)
@@ -24,43 +24,6 @@ import { FIXED_NOW, seededRandom } from './seededRandom';
  * 글자만 본다(태그를 걷는다) — 원달앱이 읽는 것이 글자이기 때문이다.
  */
 const noop = () => {};
-
-const callA: SimCall = {
-    id: 'fixed_a',
-    pickups: [{ code: '', name: '초월읍', fullName: '경기 / 광주시 / 초월읍', centroid: [127.294, 37.3772] }],
-    dropoffs: [{ code: '', name: '정자동', fullName: '경기 / 성남시 / 정자동', centroid: [127.1113, 37.3595] }],
-    pickupDetails: [{ customerName: '초월 물류창고', contactName: '김반장', phone1: '010-0000-0001', region: '초월읍', addressDetail: '경기 광주시 초월읍 도평리 1' }],
-    dropoffDetails: [{ customerName: '정자 사무실', contactName: '이과장', phone1: '010-0000-0002', region: '정자동', addressDetail: '경기 성남시 분당구 정자동 2' }],
-    pickupDistanceKm: 2.4,
-    distanceKm: 21.7,
-    status: '신규',
-    isShared: false,
-    isExpress: true,
-    paymentType: '신용',
-    billingType: '계산서',
-    vehicleType: '다마스',
-    itemDescription: '박스 1개',
-    callCategory: '급송',
-    companyName: '하나로유통',
-    pickupTime: '09:30',
-    deliveryTime: '11:00',
-    fare: 45000,
-    isMatchingRoute: true,
-};
-const callB: SimCall = {
-    ...callA,
-    id: 'fixed_b',
-    pickups: [{ code: '', name: '경안동', fullName: '경기 / 광주시 / 경안동', centroid: [127.2553, 37.4095] }],
-    dropoffs: [{ code: '', name: '관고동', fullName: '경기 / 이천시 / 관고동', centroid: [127.435, 37.272] }],
-    pickupDetails: undefined,
-    dropoffDetails: undefined,
-    isExpress: false,
-    callCategory: '예약',
-    vehicleType: '1t',
-    paymentType: '착불',
-    pickupTime: '14:30',
-    fare: 70000,
-};
 
 /** 태그를 걷고 공백을 하나로 — 원달앱이 읽는 «글자»만 남긴다 */
 const textOf = (el: ReactElement) =>

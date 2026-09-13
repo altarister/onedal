@@ -74,10 +74,12 @@ http://<PC IP>:5173/dispatch?net=hwamul24&preset=병원복귀      ← 한글도
 
 ## 배차망 회사를 늘리려면
 
-1. `packages/ui-simulators/<회사>/` 에 화면 컴포넌트
-2. `packages/ui-simulators/src/index.ts` 에 export
-3. `src/pages/SetupPage.tsx` 의 `NETS` 에 한 줄, `src/pages/DispatchPage.tsx` 에 분기 한 갈래
-4. 앱 쪽은 이미 플러그인 구조(`IScrapParser`)라 파서만 붙이면 된다
+1. `packages/ui-simulators/src/<회사>/` 에 화면 부품 · `<회사>Call.ts`(그 배차망 콜 타입 · 칸을 입히는 함수) · `<회사>SimScreen.tsx`(리스트·상세·수락 뒤를 무엇으로 그릴지)
+2. `packages/ui-simulators/src/nets.ts` 의 `SIM_NETS` 에 한 줄 — `SimNet`(이름 · 입히기 함수 · 겉 테두리 · 화면)을 채운다. 칸을 빠뜨리면 타입 검사가 잡는다
+3. `packages/ui-simulators/src/index.ts` 에 export
+4. 원달앱 쪽은 파서와 **화면 표식 글자**(`NETWORK_MARKERS` — 원달앱이 화면 글자로 배차망을 가른다)를 붙인다 — [배차망_통합.md](../docs/기획/배차망_통합.md) §8
+
+설정 화면(`SetupPage`)과 배차 화면(`DispatchPage`)은 **안 고친다** (2026-09-14 · 0단계 0-2 ⑤ 에서 배차망 갈래를 `nets.ts` 로 모았다).
 
 > 🔴 **설정 화면을 새로 만들지 않는다** — 그렇게 해서 두 벌이 됐고 한쪽만 자랐다.
 > 갈라지는 것은 **그리는 화면**뿐이다 (앱 파서가 화면 글자를 읽기 때문).

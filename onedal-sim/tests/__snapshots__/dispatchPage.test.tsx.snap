@@ -1,0 +1,36 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`배차 화면 — 배차망마다 고르는 부품 (첫 그림) > net 없음 1`] = `
+{
+  "frame": "w-full h-dvh py-10 bg-[#111] overflow-hidden relative font-sans text-black",
+  "text": "신규 완료(0) 메시지함 GPS 원터치 그룹공지 장터게시판 잠금 빠른설정 거리 출발지 도착지 차종 요금 대기 중인 오더가 없습니다. ◀ 1 / 1 ▶ 15km 전체 리셋 시작 설정 메뉴 정산",
+}
+`;
+
+exports[`배차 화면 — 배차망마다 고르는 부품 (첫 그림) > 모르는 net 1`] = `
+{
+  "frame": "w-full h-dvh py-10 bg-[#111] overflow-hidden relative font-sans text-black",
+  "text": "신규 완료(0) 메시지함 GPS 원터치 그룹공지 장터게시판 잠금 빠른설정 거리 출발지 도착지 차종 요금 대기 중인 오더가 없습니다. ◀ 1 / 1 ▶ 15km 전체 리셋 시작 설정 메뉴 정산",
+}
+`;
+
+exports[`배차 화면 — 배차망마다 고르는 부품 (첫 그림) > 없는 문제지 1`] = `
+{
+  "frame": "w-full h-dvh bg-gray-100 overflow-hidden relative font-sans text-black",
+  "text": "🎯 문제지 «없는문제지» 가 없습니다 이름을 못 찾아서 콜을 흘리지 않습니다. 그대로 두면 랜덤 콜이 섞여 채점이 통째로 헛것이 됩니다. 쓸 수 있는 이름 병원복귀 병원방면 이천행 이천행반대 집복귀 집복귀반대 볼트오전 볼트저녁 칠지점",
+}
+`;
+
+exports[`배차 화면 — 배차망마다 고르는 부품 (첫 그림) > 인성 1`] = `
+{
+  "frame": "w-full h-dvh py-10 bg-[#111] overflow-hidden relative font-sans text-black",
+  "text": "신규 완료(0) 메시지함 GPS 원터치 그룹공지 장터게시판 잠금 빠른설정 거리 출발지 도착지 차종 요금 대기 중인 오더가 없습니다. ◀ 1 / 1 ▶ 15km 전체 리셋 시작 설정 메뉴 정산",
+}
+`;
+
+exports[`배차 화면 — 배차망마다 고르는 부품 (첫 그림) > 화물24시 1`] = `
+{
+  "frame": "w-full h-dvh bg-gray-100 overflow-hidden relative font-sans text-black",
+  "text": "‹ 화물정보 자동새로고침 ID : 93194 오더검색 🔍 잔액 : 322,641 원 자동터치 OFF ❓ 성공 0 건/최대 15 건 오더가 없습니다. 🏠 홈 🔍 화물정보 🚚 배차내역 ⚙️ 환경설정",
+}
+`;

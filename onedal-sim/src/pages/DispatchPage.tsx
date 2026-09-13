@@ -13,14 +13,12 @@ import { useState, useCallback, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { SimulationProvider, useSimulationContext } from '@altari/ui-simulators';
 import { useSimStreaming } from '@altari/ui-simulators';
-import { InseongDispatchBoard, InseongCallDetailScreen, InseongOngoingDetailScreen, InseongDropdownMenu } from '@altari/ui-simulators';
-import { Hwamul24DispatchBoard, Hwamul24CallDetailScreen } from '@altari/ui-simulators';
-import { toInsungCall, toHwamul24Call } from '@altari/ui-simulators';
+import { simNetOf } from '@altari/ui-simulators';
 import { getPreset, PRESET_KEYS } from '@altari/core-simulator';
 import type { SimCall } from '@altari/ui-simulators';
-import type { NetKey } from './SetupPage';
+import type { SimNet } from '@altari/ui-simulators';
 
-function DispatchContent({ net }: { net: NetKey }) {
+function DispatchContent({ simNet }: { simNet: SimNet }) {
   const navigate = useNavigate();
   const {
     streamingCalls, confirmedCalls, setConfirmedCalls,
@@ -32,7 +30,6 @@ function DispatchContent({ net }: { net: NetKey }) {
   } = useSimulationContext();
 
   const [selectedCall, setSelectedCall] = useState<SimCall | null>(null);
-  const [showMenu, setShowMenu] = useState(false);
 
   // 스트리밍 엔진 가동
   const generatorConfig = useMemo(() => ({
@@ -83,8 +80,8 @@ function DispatchContent({ net }: { net: NetKey }) {
 
   useSimStreaming({
     config: generatorConfig,
-    // 🎨 공통 칸만 만드는 생성기에 배차망 칸을 입힌다 (0단계 0-2 ④) — 배차망을 전부 아는 곳은 ⑤ 에서 nets.ts 로 모은다
-    toCall: net === 'hwamul24' ? toHwamul24Call : toInsungCall,
+    // 🎨 공통 칸만 만드는 생성기에 배차망 칸을 입힌다 — 무엇으로 입힐지는 배차망이 안다 (nets.ts)
+    toCall: simNet.toCall,
     appendCall,
     setIsFetchingOrder,
     isTimerPaused,
@@ -112,12 +109,8 @@ function DispatchContent({ net }: { net: NetKey }) {
       return [...prev, call];
     });
     setSelectedCallId(call.id);
-    // 화물24시는 신청하면 그 자리에서 «배차» 탭으로 넘어간다 (실 화면이 그렇다)
-    if (net === 'hwamul24') {
-      handleCloseDetail();
-      setActiveTab('CONFIRMED');
-    }
-  }, [net, setStreamingCalls, setConfirmedCalls, setSelectedCallId, setActiveTab, handleCloseDetail]);
+    // 수락 뒤에 무엇을 보일지는 배차망 화면이 정한다 — 화물24시는 «배차내역» 탭으로 넘어간다 (Hwamul24SimScreen)
+  }, [setStreamingCalls, setConfirmedCalls, setSelectedCallId]);
 
   const handleCancelCall = useCallback((call: SimCall) => {
     setConfirmedCalls(prev => prev.filter(c => c.id !== call.id));
@@ -129,41 +122,9 @@ function DispatchContent({ net }: { net: NetKey }) {
     handleCloseDetail();
   }, [setConfirmedCalls, handleCloseDetail]);
 
-  // ── 상세 보기 ──
-  if (selectedCall) {
-    if (net === 'hwamul24') {
-      return (
-        <Hwamul24CallDetailScreen
-          call={selectedCall}
-          onClose={handleCloseDetail}
-          onAccept={handleAcceptCall}
-        />
-      );
-    }
-    const isConfirmed = confirmedCalls.some(c => c.id === selectedCall.id);
-    if (isConfirmed) {
-      return (
-        <InseongOngoingDetailScreen
-          call={selectedCall}
-          onClose={handleCloseDetail}
-          onConfirm={handleCompleteDelivery}
-          onCancel={handleCancelCall}
-        />
-      );
-    }
-    return (
-      <InseongCallDetailScreen
-        call={selectedCall}
-        feedback={null}
-        isConfirmed={false}
-        onClose={handleCloseDetail}
-        onAccept={handleAcceptCall}
-      />
-    );
-  }
-
   // 🔴 문제지 이름을 못 찾았다 — 랜덤으로 흘리지 않고 멈춘다 (위 주석 참조)
-  if (presetMissing) {
+  // 콜을 고른 상태면 상세가 먼저다 — 예전 순서(상세 → 문제지 없음 → 리스트) 그대로
+  if (!selectedCall && presetMissing) {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center gap-3 bg-red-50 p-6 text-center">
         <div className="text-3xl">🎯</div>
@@ -184,50 +145,33 @@ function DispatchContent({ net }: { net: NetKey }) {
     );
   }
 
-  // ── 리스트 ──
-  if (net === 'hwamul24') {
-    return (
-      <div className="relative w-full h-full">
-        <Hwamul24DispatchBoard
-          streamingCalls={streamingCalls}
-          confirmedCalls={confirmedCalls}
-          activeTab={activeTab}
-          onTabSelect={setActiveTab}
-          onCallClick={handleCallClick}
-          onSettingsClick={() => navigate('/')}
-          isTimerPaused={isTimerPaused}
-          onToggleTimer={() => setIsTimerPaused(!isTimerPaused)}
-          isFetchingOrder={isFetchingOrder}
-        />
-      </div>
-    );
-  }
-
+  // ── 배차망 화면 — 리스트·상세·수락 뒤를 무엇으로 그릴지는 배차망이 정한다 (nets.ts · 0단계 0-2 ⑤) ──
+  const Screen = simNet.Screen;
   return (
-    <div className="relative w-full h-full">
-      <InseongDispatchBoard
-        streamingCalls={streamingCalls}
-        confirmedCalls={confirmedCalls}
-        activeTab={activeTab}
-        onTabSelect={setActiveTab}
-        onCallClick={handleCallClick}
-        onStartClick={() => navigate('/')}
-        onSettingsClick={() => navigate('/')}
-        onMenuClick={() => setShowMenu(true)}
-        isTimerPaused={isTimerPaused}
-        onToggleTimer={() => setIsTimerPaused(!isTimerPaused)}
-        isFetchingOrder={isFetchingOrder}
-        selectedCallId={selectedCallId}
-        maxPickupKm={simConfig.maxPickupKm}
-      />
-      {showMenu && <InseongDropdownMenu onClose={() => setShowMenu(false)} />}
-    </div>
+    <Screen
+      streamingCalls={streamingCalls}
+      confirmedCalls={confirmedCalls}
+      activeTab={activeTab}
+      setActiveTab={setActiveTab}
+      selectedCall={selectedCall}
+      selectedCallId={selectedCallId}
+      openCall={handleCallClick}
+      closeDetail={handleCloseDetail}
+      acceptCall={handleAcceptCall}
+      cancelCall={handleCancelCall}
+      completeCall={handleCompleteDelivery}
+      isTimerPaused={isTimerPaused}
+      toggleTimer={() => setIsTimerPaused(!isTimerPaused)}
+      isFetchingOrder={isFetchingOrder}
+      maxPickupKm={simConfig.maxPickupKm}
+      goSetup={() => navigate('/')}
+    />
   );
 }
 
 export function DispatchPage() {
   const [searchParams] = useSearchParams();
-  const net: NetKey = searchParams.get('net') === 'hwamul24' ? 'hwamul24' : 'inseong';
+  const simNet = simNetOf(searchParams.get('net'));
 
   const driverLocation = {
     lon: Number(searchParams.get('lon') || '127.2553'),
@@ -249,11 +193,9 @@ export function DispatchPage() {
 
   return (
     <SimulationProvider initialDriver={driverLocation} initialConfig={simConfig}>
-      {/* 인성은 검은 테두리 안의 창, 화물24시는 흰 바탕 — 각 실 화면을 흉내 낸다 */}
-      <div className={net === 'hwamul24'
-        ? 'w-full h-dvh bg-gray-100 overflow-hidden relative font-sans text-black'
-        : 'w-full h-dvh py-10 bg-[#111] overflow-hidden relative font-sans text-black'}>
-        <DispatchContent net={net} />
+      {/* 겉 테두리도 배차망마다 다르다 — 인성은 검은 테두리 안의 창, 화물24시는 흰 바탕 (nets.ts) */}
+      <div className={simNet.frameClassName}>
+        <DispatchContent simNet={simNet} />
       </div>
     </SimulationProvider>
   );

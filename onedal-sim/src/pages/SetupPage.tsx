@@ -18,14 +18,14 @@ import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PRESET_MENU, PRESETS, PRESET_REQUIRES } from '@altari/core-simulator';
 import type { PresetRequires } from '@altari/core-simulator';
+import { SIM_NET_LIST } from '@altari/ui-simulators';
+import type { NetKey } from '@altari/ui-simulators';
 
-/** 어느 배차망 화면으로 볼 것인가 — 갈라지는 것은 이것 하나다 */
-export type NetKey = 'inseong' | 'hwamul24';
-
-const NETS: Array<{ key: NetKey; name: string }> = [
-  { key: 'inseong', name: '인성콜' },
-  { key: 'hwamul24', name: '화물24시' },
-];
+/**
+ * 어느 배차망 화면으로 볼 것인가 — 목록은 `nets.ts` 한 곳에 있다 (0단계 0-2 ⑤).
+ * 예전엔 여기 따로 적혀 있었다 — 배차망을 붙일 때 이 파일을 안 고친다.
+ */
+const NETS: Array<{ key: NetKey; name: string }> = SIM_NET_LIST.map(n => ({ key: n.key, name: n.label }));
 
 // 주요 시/군/구 프리셋 (mockLocationData.json 기반) — 랜덤콜 전용
 const LOCATION_PRESETS = [
