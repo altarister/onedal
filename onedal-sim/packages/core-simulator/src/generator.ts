@@ -66,7 +66,13 @@ const RESERVED_RATE = 0.15;      // 예약콜 비율
 const RESERVED_MIN = 120;        // 예약콜 — 지금 + 2~5시간
 const RESERVED_SPAN = 180;
 
-const pick = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+/**
+ * 🎲 난수를 밖에서 받는다 (2026-09-14 · 카카오픽커_시뮬레이터.md 0단계 0-1).
+ * 기본값은 지금처럼 `Math.random` 이라 **동작은 바뀌지 않는다.** 검사가 씨앗 있는 난수를 넣어
+ * «같은 입력이면 같은 콜»을 만들고, 공통 코드를 떼어내기 전과 후를 대조한다.
+ */
+export type RandomSource = () => number;
+const pickWith = (rng: RandomSource) => <T>(arr: T[]): T => arr[Math.floor(rng() * arr.length)];
 
 export interface SimGeneratorConfig {
   driverLon: number;
@@ -80,7 +86,8 @@ export interface SimGeneratorConfig {
  * mockLocationData.json에서 기사 반경 내 항목을 필터링하고
  * 상차지/하차지를 선택하여 CallItem을 생성합니다.
  */
-export function generateSimCall(config: SimGeneratorConfig, forced?: ForcedPair): CallItem | null {
+export function generateSimCall(config: SimGeneratorConfig, forced?: ForcedPair, rng: RandomSource = Math.random): CallItem | null {
+  const pick = pickWith(rng);
   const { driverLon, driverLat, maxPickupKm, minFare, targetRegion } = config;
   const driverCoord: [number, number] = [driverLon, driverLat];
 
@@ -103,7 +110,7 @@ export function generateSimCall(config: SimGeneratorConfig, forced?: ForcedPair)
   }
 
   // 가까운 곳이 더 자주 선택되도록 제곱 편향
-  const randSkew = Math.pow(Math.random(), 2.0);
+  const randSkew = Math.pow(rng(), 2.0);
   let pickupItem = pickupCandidates[Math.floor(randSkew * pickupCandidates.length)];
   // 🎯 문제지 모드 — 정해진 상차지로 갈아 끼운다 (반경 밖이어도 그대로 낸다: 문제지는 조건을 시험한다)
   if (forced) pickupItem = { entry: forced.pickup, dist: calculateDistanceKm(driverCoord, [forced.pickup.lon, forced.pickup.lat]) };
@@ -130,25 +137,25 @@ export function generateSimCall(config: SimGeneratorConfig, forced?: ForcedPair)
   const pickupDistanceKm = calculateDistanceKm(driverCoord, pickupCoord);
   const distanceKm = calculateDistanceKm(pickupCoord, dropoffCoord);
 
-  let fare = BASE_FARE + (distanceKm * FARE_PER_KM) + (Math.random() * FARE_RANDOM_EXTRA);
+  let fare = BASE_FARE + (distanceKm * FARE_PER_KM) + (rng() * FARE_RANDOM_EXTRA);
   fare = Math.max(fare, minFare);
   // 문제지는 요금까지 고정한다 — 같은 콜이 매번 같아야 채점이 성립한다
   const finalFare = forced?.fare ?? Math.floor(fare / 1000) * 1000;
 
   // 5. 메타 데이터 부여
-  const isShared = Math.random() < 0.3;
-  const isExpress = Math.random() < 0.15;
+  const isShared = rng() < 0.3;
+  const isExpress = rng() < 0.15;
 
   /**
    * 상차는 지금부터 재고, 하차는 그 상차에서 잰다 — 둘의 간격이 뒤집히지 않는다.
    * 자정을 넘기면 시각만 남으므로(«01:20상차») 날짜 없이도 읽는 쪽 해석이 흔들리지 않는다.
    */
-  const isReserved = Math.random() < RESERVED_RATE;
+  const isReserved = rng() < RESERVED_RATE;
   const pickupOffsetMin = isReserved
-    ? RESERVED_MIN + Math.floor(Math.random() * RESERVED_SPAN)
-    : PICKUP_SOON_MIN + Math.floor(Math.random() * PICKUP_SOON_SPAN);
+    ? RESERVED_MIN + Math.floor(rng() * RESERVED_SPAN)
+    : PICKUP_SOON_MIN + Math.floor(rng() * PICKUP_SOON_SPAN);
   const pickupAt = new Date(Date.now() + pickupOffsetMin * 60_000);
-  const dropoffAt = new Date(pickupAt.getTime() + (60 + Math.floor(Math.random() * 120)) * 60_000);
+  const dropoffAt = new Date(pickupAt.getTime() + (60 + Math.floor(rng() * 120)) * 60_000);
   const hhmm = (d: Date) =>
     `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
 
@@ -184,7 +191,7 @@ export function generateSimCall(config: SimGeneratorConfig, forced?: ForcedPair)
   });
 
   return {
-    id: `sim_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+    id: `sim_${Date.now()}_${rng().toString(36).substr(2, 5)}`,
     pickups: [makePoint(pickupItem.entry)],
     dropoffs: [makePoint(dropoffItem.entry)],
     pickupDetails: [makeDetail(pickupItem.entry)],
