@@ -6,7 +6,7 @@
 export type {
   LocationPoint,
   LocationDetailInfo,
-  CallItem,
+  BaseCall,
   AutoDispatchFilter,
   RegionIntel,
   OrderVolume,
@@ -14,7 +14,7 @@ export type {
 
 // 콜 생성기
 export { generateSimCall, findMockEntry, MOCK_DATA } from './generator';
-export type { SimGeneratorConfig, ForcedPair, MockEntry } from './generator';
+export type { SimGeneratorConfig, ForcedPair, MockEntry, GeneratedCall, RandomSource } from './generator';
 
 // 🎯 문제지 — 정해진 콜을 순서대로 (조건을 시험하려고 랜덤을 기다리지 않는다)
 export { PRESETS, PRESET_MENU, PRESET_KEYS, PRESET_REQUIRES, getPreset, toForcedPair } from './presets';

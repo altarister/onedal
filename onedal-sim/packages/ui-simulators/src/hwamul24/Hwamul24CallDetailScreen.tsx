@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import type { CallItem } from '@altari/core-simulator';
+import type { Hwamul24Call } from './hwamul24Call';
 import { formatHwamul24Region, formatHwamul24Vehicle } from './hwamul24Call';
 
 interface DetailProps {
-  call: CallItem;
+  call: Hwamul24Call;
   onClose: () => void;
-  onAccept: (call: CallItem) => void;
+  onAccept: (call: Hwamul24Call) => void;
 }
 
 type DetailTab = 'cargo' | 'shipper' | 'payment';
@@ -347,7 +347,7 @@ const ShipperInfoTab = ({ companyName }: { companyName: string }) => {
 // ═══════════════════════════════════════════════════════════════
 // 03 결제정보 탭 (스크린샷 22)
 // ═══════════════════════════════════════════════════════════════
-const PaymentInfoTab = ({ call }: { call: CallItem }) => {
+const PaymentInfoTab = ({ call }: { call: Hwamul24Call }) => {
   const baseFare = call.fare;
   const receiptStatus = call.receiptType || '인수증';
   const billingStatus = call.billingType || '계산서';

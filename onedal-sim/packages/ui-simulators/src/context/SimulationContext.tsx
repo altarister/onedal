@@ -6,7 +6,7 @@
  */
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import type { ReactNode } from 'react';
-import type { CallItem } from '@altari/core-simulator';
+import type { SimCall } from '../nets';
 
 const MAX_STREAMING_CALLS = 50;
 
@@ -24,15 +24,15 @@ export interface SimulationConfig {
 }
 
 interface SimulationContextType {
-  streamingCalls: CallItem[];
-  setStreamingCalls: React.Dispatch<React.SetStateAction<CallItem[]>>;
-  confirmedCalls: CallItem[];
-  setConfirmedCalls: React.Dispatch<React.SetStateAction<CallItem[]>>;
+  streamingCalls: SimCall[];
+  setStreamingCalls: React.Dispatch<React.SetStateAction<SimCall[]>>;
+  confirmedCalls: SimCall[];
+  setConfirmedCalls: React.Dispatch<React.SetStateAction<SimCall[]>>;
   selectedCallId: string | null;
   setSelectedCallId: (id: string | null) => void;
   activeTab: 'ALL' | 'CONFIRMED';
   setActiveTab: (tab: 'ALL' | 'CONFIRMED') => void;
-  appendCall: (call: CallItem) => void;
+  appendCall: (call: SimCall) => void;
   isFetchingOrder: boolean;
   setIsFetchingOrder: (fetching: boolean) => void;
   isTimerPaused: boolean;
@@ -52,8 +52,8 @@ interface SimulationProviderProps {
 }
 
 export const SimulationProvider = ({ children, initialDriver, initialConfig }: SimulationProviderProps) => {
-  const [streamingCalls, setStreamingCalls] = useState<CallItem[]>([]);
-  const [confirmedCalls, setConfirmedCalls] = useState<CallItem[]>([]);
+  const [streamingCalls, setStreamingCalls] = useState<SimCall[]>([]);
+  const [confirmedCalls, setConfirmedCalls] = useState<SimCall[]>([]);
   const [selectedCallId, setSelectedCallId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'ALL' | 'CONFIRMED'>('ALL');
   const [isFetchingOrder, setIsFetchingOrder] = useState(false);
@@ -110,7 +110,7 @@ export const SimulationProvider = ({ children, initialDriver, initialConfig }: S
     return () => { alive = false; clearInterval(t); };
   }, []);
 
-  const appendCall = useCallback((call: CallItem) => {
+  const appendCall = useCallback((call: SimCall) => {
     setStreamingCalls(prev => {
       const next = [call, ...prev];
       return next.length > MAX_STREAMING_CALLS ? next.slice(0, MAX_STREAMING_CALLS) : next;

@@ -16,7 +16,7 @@ import { useSimStreaming } from '@altari/ui-simulators';
 import { InseongDispatchBoard, InseongCallDetailScreen, InseongOngoingDetailScreen, InseongDropdownMenu } from '@altari/ui-simulators';
 import { Hwamul24DispatchBoard, Hwamul24CallDetailScreen } from '@altari/ui-simulators';
 import { getPreset, PRESET_KEYS } from '@altari/core-simulator';
-import type { CallItem } from '@altari/core-simulator';
+import type { SimCall } from '@altari/ui-simulators';
 import type { NetKey } from './SetupPage';
 
 function DispatchContent({ net }: { net: NetKey }) {
@@ -30,7 +30,7 @@ function DispatchContent({ net }: { net: NetKey }) {
     driverLocation, simConfig,
   } = useSimulationContext();
 
-  const [selectedCall, setSelectedCall] = useState<CallItem | null>(null);
+  const [selectedCall, setSelectedCall] = useState<SimCall | null>(null);
   const [showMenu, setShowMenu] = useState(false);
 
   // 스트리밍 엔진 가동
@@ -91,7 +91,7 @@ function DispatchContent({ net }: { net: NetKey }) {
     loop,
   });
 
-  const handleCallClick = useCallback((call: CallItem) => {
+  const handleCallClick = useCallback((call: SimCall) => {
     setSelectedCall(call);
     setSelectedCallId(call.id);
   }, [setSelectedCallId]);
@@ -102,7 +102,7 @@ function DispatchContent({ net }: { net: NetKey }) {
   }, [setSelectedCallId]);
 
   /** 콜 수락 — 인성은 «탁송», 화물24시는 «배차신청» 이라 부른다 */
-  const handleAcceptCall = useCallback((call: CallItem) => {
+  const handleAcceptCall = useCallback((call: SimCall) => {
     setStreamingCalls(prev => prev.filter(c => c.id !== call.id));
     setConfirmedCalls(prev => {
       if (prev.find(c => c.id === call.id)) return prev;
@@ -116,12 +116,12 @@ function DispatchContent({ net }: { net: NetKey }) {
     }
   }, [net, setStreamingCalls, setConfirmedCalls, setSelectedCallId, setActiveTab, handleCloseDetail]);
 
-  const handleCancelCall = useCallback((call: CallItem) => {
+  const handleCancelCall = useCallback((call: SimCall) => {
     setConfirmedCalls(prev => prev.filter(c => c.id !== call.id));
     handleCloseDetail();
   }, [setConfirmedCalls, handleCloseDetail]);
 
-  const handleCompleteDelivery = useCallback((call: CallItem) => {
+  const handleCompleteDelivery = useCallback((call: SimCall) => {
     setConfirmedCalls(prev => prev.filter(c => c.id !== call.id));
     handleCloseDetail();
   }, [setConfirmedCalls, handleCloseDetail]);

@@ -40,8 +40,12 @@ export interface LocationDetailInfo {
     memo?: string;
 }
 
-// CallItem (배차 콜 아이템 — 모든 시뮬레이터 앱의 공통 데이터 구조)
-export interface CallItem {
+// BaseCall — 어느 배차망이든 함께 쓰는 콜 칸 (2026-09-14 · 카카오픽커_시뮬레이터.md 0단계 0-2 ③)
+//
+// 예전 이름 CallItem 은 인성 칸·화물24시 칸이 한 그릇에 섞여 있었다. 배차망마다 쓰는 칸은 이제
+// 그 배차망 폴더가 적는다 — 인성 `InsungCall`(inseong/insungCall.ts) · 화물24시 `Hwamul24Call`(hwamul24/hwamul24Call.ts).
+// 칸을 가른 기준은 «어느 화면이 읽나» 코드 검색이다. 🔴 이 파일은 배차망 이름을 모른다.
+export interface BaseCall {
     id: string;
     pickups: LocationPoint[];
     dropoffs: LocationPoint[];
@@ -49,35 +53,13 @@ export interface CallItem {
     dropoffDetails?: LocationDetailInfo[];
     pickupDistanceKm?: number;
     distanceKm: number;
-    status?: string;
-    isShared?: boolean;
-    isExpress?: boolean;
-    paymentType?: '신용' | '선불' | '착불' | '카드';
-    billingType?: '계산서' | '인수증' | '무과세';
-    vehicleType?: string;
-    itemDescription?: string;
-    callCategory?: string;
-    companyName?: string;
     pickupTime?: string;
     deliveryTime?: string;
     fare: number;
-    freightFee?: number;
-    recipientName?: string;
+    /** ⚠️ 읽는 화면이 없다 — 지도 게임에서 가져올 때 딸려 온 칸으로 보인다 (지우지 않고 둔다) */
     isMatchingRoute: boolean;
+    /** ⚠️ 읽는 화면이 없다 (위와 같다) */
     violation?: 'BAD_FARE' | 'WRONG_DEST';
-
-    // ── 화물24시 전용 필드 (Optional, 인성앱에서는 무시됨) ──
-    tonnage?: string;
-    vehicleSpec?: string;
-    loadingType?: '독차' | '혼적';
-    tripType?: '편도' | '왕복';
-    loadingMethod?: '당상' | '지상';
-    unloadingMethod?: '당착' | '지착';
-    freightId?: string;
-    registeredAt?: string;
-    receiptType?: '인수증' | '계산서';
-    loadingWeight?: string;
-    itemSummary?: string;
 }
 
 // AutoDispatchFilter (자동배차 설정)

@@ -6,14 +6,14 @@
  */
 import React from 'react';
 import { formatRegionName, formatInsungVehicle } from './insungCall';
-import type { CallItem } from '@altari/core-simulator';
+import type { InsungCall } from './insungCall';
 
 interface SimBoardProps {
-  streamingCalls: CallItem[];
-  confirmedCalls: CallItem[];
+  streamingCalls: InsungCall[];
+  confirmedCalls: InsungCall[];
   activeTab: 'ALL' | 'CONFIRMED';
   onTabSelect: (tab: 'ALL' | 'CONFIRMED') => void;
-  onCallClick: (call: CallItem) => void;
+  onCallClick: (call: InsungCall) => void;
   onStartClick: () => void;
   onSettingsClick: () => void;
   onMenuClick: () => void;
@@ -30,7 +30,7 @@ const formatFare = (fare: number) => {
 };
 
 // 시간/조건 접두어 생성 헬퍼
-const formatTimePrefix = (call: CallItem) => {
+const formatTimePrefix = (call: InsungCall) => {
   if (call.callCategory === '예약' && call.pickupTime) {
     const [hStr, mStr] = call.pickupTime.split(':');
     if (!hStr || !mStr) return null;
@@ -77,11 +77,11 @@ const CallRow = React.memo(({
   activeTab,
   onRowClick
 }: {
-  call: CallItem,
+  call: InsungCall,
   idx: number,
   isSelected: boolean,
   activeTab: 'ALL' | 'CONFIRMED',
-  onRowClick: (call: CallItem) => void
+  onRowClick: (call: InsungCall) => void
 }) => {
   let bgColor = idx % 2 === 0 ? 'bg-white' : 'bg-[#fcfcfa]';
   let isExpressTheme = false;
@@ -195,7 +195,7 @@ export const SimDispatchBoard = ({
   // 탭에 따라 전체 콜을 보여줄지 확정(내 장부) 콜을 보여줄지 분기
   const calls = activeTab === 'ALL' ? streamingCalls : confirmedCalls;
 
-  const handleRowClick = React.useCallback((call: CallItem) => {
+  const handleRowClick = React.useCallback((call: InsungCall) => {
     if (onCallClick) onCallClick(call);
   }, [onCallClick]);
 

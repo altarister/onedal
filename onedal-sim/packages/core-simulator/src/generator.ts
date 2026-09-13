@@ -5,7 +5,23 @@
  * mockLocationData.json(좌표 내장)만으로 작동.
  */
 import { calculateDistanceKm } from './geo';
-import type { CallItem, LocationDetailInfo } from './types';
+import type { BaseCall, LocationDetailInfo } from './types';
+
+/**
+ * ⏳ **옮기는 중인 모양** (0단계 0-2 ③) — 이 생성기는 아직 인성·화물24시 칸까지 함께 채운다.
+ * 0-2 ④ 에서 공통 칸만 만들고, 나머지는 배차망별 입히기 함수로 옮기면 이 타입은 사라진다.
+ */
+export type GeneratedCall = BaseCall & {
+    status?: string;
+    isShared?: boolean;
+    isExpress?: boolean;
+    paymentType?: '신용' | '선불' | '착불' | '카드';
+    billingType?: '계산서' | '인수증' | '무과세';
+    vehicleType?: string;
+    itemDescription?: string;
+    callCategory?: string;
+    companyName?: string;
+};
 import mockDataRaw from './data/mockLocationData.json';
 
 // 좌표가 포함된 모의 데이터
@@ -84,9 +100,9 @@ export interface SimGeneratorConfig {
 
 /**
  * mockLocationData.json에서 기사 반경 내 항목을 필터링하고
- * 상차지/하차지를 선택하여 CallItem을 생성합니다.
+ * 상차지/하차지를 선택하여 콜(GeneratedCall)을 생성합니다.
  */
-export function generateSimCall(config: SimGeneratorConfig, forced?: ForcedPair, rng: RandomSource = Math.random): CallItem | null {
+export function generateSimCall(config: SimGeneratorConfig, forced?: ForcedPair, rng: RandomSource = Math.random): GeneratedCall | null {
   const pick = pickWith(rng);
   const { driverLon, driverLat, maxPickupKm, minFare, targetRegion } = config;
   const driverCoord: [number, number] = [driverLon, driverLat];

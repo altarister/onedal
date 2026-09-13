@@ -1,13 +1,13 @@
 import React from 'react';
 import { formatHwamul24Region, formatHwamul24Vehicle } from './hwamul24Call';
-import type { CallItem } from '@altari/core-simulator';
+import type { Hwamul24Call } from './hwamul24Call';
 
 interface BoardProps {
-  streamingCalls: CallItem[];
-  confirmedCalls: CallItem[];
+  streamingCalls: Hwamul24Call[];
+  confirmedCalls: Hwamul24Call[];
   activeTab: 'ALL' | 'CONFIRMED';
   onTabSelect: (tab: 'ALL' | 'CONFIRMED') => void;
-  onCallClick: (call: CallItem) => void;
+  onCallClick: (call: Hwamul24Call) => void;
   onSettingsClick: () => void;
   isTimerPaused: boolean;
   onToggleTimer: () => void;
@@ -24,8 +24,8 @@ const Hwamul24CallCard = React.memo(({
   call,
   onCardClick
 }: {
-  call: CallItem;
-  onCardClick: (call: CallItem) => void;
+  call: Hwamul24Call;
+  onCardClick: (call: Hwamul24Call) => void;
 }) => {
   const pickupRegion = formatHwamul24Region(call.pickups[0].fullName);
   const dropoffRegion = formatHwamul24Region(call.dropoffs[0].fullName);
@@ -121,7 +121,7 @@ export const Hwamul24DispatchBoard = ({
 
   const calls = activeTab === 'ALL' ? streamingCalls : confirmedCalls;
 
-  const handleCardClick = React.useCallback((call: CallItem) => {
+  const handleCardClick = React.useCallback((call: Hwamul24Call) => {
     if (onCallClick) onCallClick(call);
   }, [onCallClick]);
 

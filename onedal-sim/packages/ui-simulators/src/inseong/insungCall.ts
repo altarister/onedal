@@ -6,6 +6,24 @@
  * 화면 글자 스냅숏(`tests/screens.test.tsx`)이 그대로 초록인 것이 그 증거다.
  */
 
+import type { BaseCall } from '@altari/core-simulator';
+
+/** 🚚 인성 화면이 읽는 콜 — 공통 칸(`BaseCall`) + 인성 칸 (0단계 0-2 ③ · 칸은 «어느 화면이 읽나» 코드 검색으로 갈랐다) */
+export type InsungCall = BaseCall & {
+    // 화물 배차망 둘(인성·화물24시)이 함께 읽는 칸 — 값은 각자 입힌다 (0-2 ④)
+    paymentType?: '신용' | '선불' | '착불' | '카드';
+    billingType?: '계산서' | '인수증' | '무과세';
+    vehicleType?: string;
+    itemDescription?: string;
+    companyName?: string;
+    status?: string;
+    isShared?: boolean;
+    isExpress?: boolean;
+    callCategory?: string;
+    freightFee?: number;
+    recipientName?: string;
+};
+
 /** 인성 전용: fullName에서 마지막 세그먼트(동 단위)만 추출 */
 export const formatRegionName = (name: string): string => {
   if (!name) return '';

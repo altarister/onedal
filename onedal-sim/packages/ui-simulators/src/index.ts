@@ -7,6 +7,11 @@ export { SimulationProvider, useSimulationContext } from './context/SimulationCo
 export { useSimStreaming } from './context/useSimStreaming';
 export type { SimulationConfig, DriverLocation } from './context/SimulationContext';
 
+// 🌐 배차망을 전부 아는 곳 — 콜 타입 묶음 (0단계 0-2 ③)
+export type { SimCall } from './nets';
+export type { InsungCall } from './inseong/insungCall';
+export type { Hwamul24Call } from './hwamul24/hwamul24Call';
+
 // 인성 UI
 export { SimDispatchBoard as InseongDispatchBoard } from './inseong/SimDispatchBoard';
 export { InseongCallDetailScreen } from './inseong/InseongCallDetailScreen';

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { ReactElement } from 'react';
-import type { CallItem } from '@altari/core-simulator';
+import type { SimCall } from '@altari/ui-simulators';
 import {
     Hwamul24CallDetailScreen,
     Hwamul24DispatchBoard,
@@ -25,7 +25,7 @@ import { FIXED_NOW, seededRandom } from './seededRandom';
  */
 const noop = () => {};
 
-const callA: CallItem = {
+const callA: SimCall = {
     id: 'fixed_a',
     pickups: [{ code: '', name: '초월읍', fullName: '경기 / 광주시 / 초월읍', centroid: [127.294, 37.3772] }],
     dropoffs: [{ code: '', name: '정자동', fullName: '경기 / 성남시 / 정자동', centroid: [127.1113, 37.3595] }],
@@ -47,7 +47,7 @@ const callA: CallItem = {
     fare: 45000,
     isMatchingRoute: true,
 };
-const callB: CallItem = {
+const callB: SimCall = {
     ...callA,
     id: 'fixed_b',
     pickups: [{ code: '', name: '경안동', fullName: '경기 / 광주시 / 경안동', centroid: [127.2553, 37.4095] }],

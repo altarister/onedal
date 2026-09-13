@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { CallItem } from '@altari/core-simulator';
+import type { InsungCall } from './insungCall';
 import type { LocationDetailInfo } from '@altari/core-simulator';
 import { formatRegionName, formatRegionFullName } from './insungCall';
 import { InseongLocationDetailScreen } from './InseongLocationDetailScreen';
@@ -8,13 +8,13 @@ import { getNextPickupDetail, getNextDropoffDetail } from './insungContacts';
 
 
 interface Props {
-  call: CallItem;
+  call: InsungCall;
   feedback?: { isCorrect?: boolean; message?: string } | null;
   isConfirmed?: boolean;
   onClose: () => void;
-  onAccept?: (call: CallItem) => void;
-  onConfirm?: (call: CallItem) => void;
-  onCancel?: (call: CallItem) => void;
+  onAccept?: (call: InsungCall) => void;
+  onConfirm?: (call: InsungCall) => void;
+  onCancel?: (call: InsungCall) => void;
 }
 
 export const InseongOngoingDetailScreen = ({ call, onClose, onConfirm, onCancel }: Props) => {

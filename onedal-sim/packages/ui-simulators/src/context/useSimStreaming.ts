@@ -5,11 +5,12 @@
  */
 import { useEffect, useRef } from 'react';
 import { generateSimCall, toForcedPair } from '@altari/core-simulator';
-import type { SimGeneratorConfig, CallItem, PresetProblem } from '@altari/core-simulator';
+import type { SimGeneratorConfig, PresetProblem } from '@altari/core-simulator';
+import type { SimCall } from '../nets';
 
 interface UseSimStreamingProps {
   config: SimGeneratorConfig;
-  appendCall: (call: CallItem) => void;
+  appendCall: (call: SimCall) => void;
   setIsFetchingOrder: (fetching: boolean) => void;
   isTimerPaused: boolean;
   intervalMs?: number;

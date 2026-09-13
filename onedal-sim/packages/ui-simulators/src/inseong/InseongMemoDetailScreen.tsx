@@ -1,7 +1,7 @@
-import type { CallItem } from '@altari/core-simulator';
+import type { InsungCall } from './insungCall';
 
 interface Props {
-  call: CallItem;
+  call: InsungCall;
   distPickup: string;
   distDelivery: string;
   onClose: () => void;

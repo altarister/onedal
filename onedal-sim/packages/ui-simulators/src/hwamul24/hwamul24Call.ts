@@ -5,6 +5,29 @@
  * 화면 글자 스냅숏(`tests/screens.test.tsx`)이 그대로 초록인 것이 그 증거다.
  */
 
+import type { BaseCall } from '@altari/core-simulator';
+
+/** 🚚 화물24시 화면이 읽는 콜 — 공통 칸(`BaseCall`) + 화물24시 칸 (0단계 0-2 ③ · 예전엔 공통 CallItem 의 «화물24시 전용 필드»였다) */
+export type Hwamul24Call = BaseCall & {
+    // 화물 배차망 둘(인성·화물24시)이 함께 읽는 칸 — 값은 각자 입힌다 (0-2 ④)
+    paymentType?: '신용' | '선불' | '착불' | '카드';
+    billingType?: '계산서' | '인수증' | '무과세';
+    vehicleType?: string;
+    itemDescription?: string;
+    companyName?: string;
+    tonnage?: string;
+    vehicleSpec?: string;
+    loadingType?: '독차' | '혼적';
+    tripType?: '편도' | '왕복';
+    loadingMethod?: '당상' | '지상';
+    unloadingMethod?: '당착' | '지착';
+    freightId?: string;
+    registeredAt?: string;
+    receiptType?: '인수증' | '계산서';
+    loadingWeight?: string;
+    itemSummary?: string;
+};
+
 /**
  * 🔴 **화물24시 차종 표기** — 같은 값을 **자기 말로 옮겨 적는다** (2026-09-11 신설).
  *
