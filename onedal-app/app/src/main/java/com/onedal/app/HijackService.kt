@@ -19,6 +19,7 @@ import com.onedal.app.plugins.insung.advanceCollect
 import com.onedal.app.plugins.insung.handleDropoffPopup
 import com.onedal.app.plugins.insung.handlePickupPopup
 import com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords
+import com.onedal.app.plugins.kakaopicker.KakaoPickerParser
 import com.onedal.app.core.AlarmSignaler
 import com.onedal.app.core.NetworkSwitchGate
 import com.onedal.app.core.WorkStage
@@ -265,6 +266,14 @@ class HijackService : AccessibilityService(), ScanContext {
 
     override fun onServiceConnected() {
         super.onServiceConnected()
+
+        /**
+         * 📝 **가장 먼저 로그 파일을 연다** — 이 아래에서 무슨 일이 나든 남게 한다.
+         *    logcat 은 우리 로그를 세 시간도 못 지킨다 (09-13 조사: 08:22 의 앱 로그 0줄).
+         *    자리: `/sdcard/Android/data/com.onedal.app/files/logs/1dal-YYYY-MM-DD.log`
+         */
+        AppLogger.attachFile(this)
+        AppLogger.i(TAG, "📝 [로그 파일] 여기에 쌓는다 — ${AppLogger.filePath ?: "열지 못했다"}")
 
         val prefs = getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
         val targetApp = prefs.getString("targetApp", "인성콜") ?: "인성콜"
@@ -959,11 +968,28 @@ class HijackService : AccessibilityService(), ScanContext {
         if (bestIdx >= 0) {
             val (order, fareNode, orderHash) = alarmHits[bestIdx]
             alarmSignaler.fire(fareNode.rect, scrapParser.alarmBandHalfPx(), orderHash)
-            // 🔴 «수락»이 보이는 카드는 손대지 않는다 — 그 글자가 곧 계약 버튼이다 (clickSafe)
+            /**
+             * 🔴 **머리줄 위의 요금은 오더카드다 — 누르면 그 자리에서 계약이다**
+             *    (2026-09-13 · 라이브 오배차 조사에서 신설).
+             *
+             * 09-13 새벽 기사님이 주무시는 사이 이 자리가 픽커 카드를 눌러 두 건이 배차됐다.
+             * 종전 방어는 `clickSafe` 하나였는데 그건 요금 중심 **±60픽셀** 안의 글자만 본다 —
+             * 오더카드의 「수락」은 요금 **약 70픽셀 아래**라 **띠 밖이고 그대로 통과했다.**
+             * 이제 **「리스트 설정」 머리줄보다 아래인가**를 함께 본다 (`isListCardAnchor`).
+             * 머리줄을 못 읽은 판은 **손대지 않는다** (규칙 ④ — 모르면 고장으로 친다).
+             */
+            val listHeaderY = KakaoPickerParser.listHeaderCenterY(
+                allNodes.map { it.text to it.rect.centerY() }
+            )
+            val onListCard = KakaoPickerParser.isListCardAnchor(fareNode.rect.centerY(), listHeaderY)
+            val cardKind = if (onListCard) "리스트카드" else "오더카드/미상"
             if (!TargetApp.supportsCatching(currentTargetApp)
-                && com.onedal.app.plugins.kakaopicker.KakaoPickerParser.clickSafe(order.rawText)) {
-                AppLogger.i("1DAL_ALARM", "🚪 [알람 상세] ${order.fare}원 (${order.pickup.take(10)}→${order.dropoff.take(10)}) " +
-                    "상세로 이동 — 수락은 기사님 · 30초 무응답 시 자동 복귀")
+                && com.onedal.app.plugins.kakaopicker.KakaoPickerParser.clickSafe(order.rawText)
+                && onListCard) {
+                AppLogger.i("1DAL_ALARM", "🚪 [알람 상세] ${order.fare}원 [$cardKind] " +
+                    "(${order.pickup.take(10)}→${order.dropoff.take(10)}) " +
+                    "닻(${fareNode.rect.centerX()},${fareNode.rect.centerY()}) 머리줄 Y=$listHeaderY — " +
+                    "상세로 이동 · 수락은 기사님 · 30초 무응답 시 자동 복귀")
                 /**
                  * 📎 **리스트에서 읽은 원본을 쥐고 들어간다** (2026-09-02).
                  * AUTO 가 인성에서 하는 것과 **같은 수단**이다(`lastDetailOrder`) — 상세 화면
@@ -973,6 +999,15 @@ class HijackService : AccessibilityService(), ScanContext {
                 session.lastDetailOrder = order
                 touchManager.performSimulatedTouch(fareNode.node)
                 scheduleAlarmDetailBack()
+            } else if (!TargetApp.supportsCatching(currentTargetApp)) {
+                /**
+                 * 🔴 **안 누른 것도 남긴다.** 조용히 건너뛰면 다음 조사에서 또 «왜 안 눌렀나»를
+                 *    못 본다 — 09-13 조사가 이틀 걸린 이유가 로그의 침묵이었다.
+                 */
+                val why = if (!onListCard) "머리줄 아래가 아니다 (오더카드이거나 머리줄을 못 읽었다)"
+                          else "카드에 「수락」이 보인다"
+                AppLogger.w("1DAL_ALARM", "🛑 [알람 상세 보류] ${order.fare}원 [$cardKind] " +
+                    "닻(${fareNode.rect.centerX()},${fareNode.rect.centerY()}) 머리줄 Y=$listHeaderY — $why · 손대지 않는다")
             }
         }
         // 🔔 알람 테두리 — 가리키던 콜이 이번 스캔에 없으면 걷는다 (잡혔거나 남이 가져감 · §6-③)

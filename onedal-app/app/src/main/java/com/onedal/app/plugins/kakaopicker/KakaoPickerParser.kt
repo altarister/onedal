@@ -79,6 +79,41 @@ class KakaoPickerParser(private val context: Context?) : IScrapParser {
          */
         fun clickSafe(rawText: String?): Boolean = rawText?.contains("수락") != true
 
+        /** 리스트 머리줄의 낱말 — 오더카드(위)와 리스트 카드(아래)를 가르는 경계 (NOISE_WORDS 에도 있다) */
+        private const val LIST_HEADER_WORD = "리스트 설정"
+
+        /**
+         * 📏 「리스트 설정」 머리줄의 중심 Y — 없으면 **null** (0 이 아니다 · 규칙 ④).
+         * 입력은 `(글자, 중심Y)` 짝이다 — 순수 함수라 JVM 검사에서 그대로 돈다.
+         */
+        fun listHeaderCenterY(nodes: List<Pair<String, Int>>): Int? =
+            nodes.firstOrNull { it.first.contains(LIST_HEADER_WORD) }?.second
+
+        /**
+         * 🔴 **이 요금 닻을 눌러도 되는가** (2026-09-13 · 라이브 오배차 조사에서 신설).
+         *
+         * 09-13 새벽, 기사님이 주무시는 사이 앱이 픽커 카드를 눌러 두 건이 배차됐다.
+         * 앱은 낱말을 안 보고 **«쉼표 든 숫자 + 화면 오른쪽»** 만 보고 그 **정중앙**을 찍는다
+         * (`isFareAnchor` → `performSimulatedTouch`). 그런데 **오더카드**(리스트 맨 위
+         * 제안 띠)는 **요금 숫자가 「수락」 버튼 안에 있어서**, 그 요금을 찍으면 상세로
+         * 가는 게 아니라 **그 자리에서 계약이 성립한다.**
+         *
+         * 종전 방어는 `clickSafe` 하나였고 그것은 요금 중심 **±60픽셀**(`CARD_BAND_PX`)
+         * 안의 글자만 본다. 실물에서 「수락」은 요금 **약 70픽셀 아래**라 **띠 밖이고
+         * 그대로 통과한다** — 계약이 문자열 한 개에 걸려 있었다.
+         *
+         * 🟢 그래서 **구조로 가른다.** 「리스트 설정」 머리줄 **위면 오더카드, 아래면 리스트
+         *    카드**다. 실물 덤프 8장에서 요금 닻은 전부 머리줄보다 **166픽셀 아래**였고
+         *    (`log/카카오픽커/화면덤프` 8장), 오더카드 요금은 머리줄 **위**였다
+         *    (`ex_images/카카오픽커/실물_2026/04_오더카드_리스트상단띠_픽업배송km.jpeg`).
+         *
+         * ⚠️ **머리줄을 못 찾으면 false** — 리스트인지 아닌지 모르는 판이다. 규칙 ④
+         *    (*"빈 필터는 «제한 없음»이 아니라 «고장»이다"*)를 그대로 따른다.
+         * ⚠️ 같은 높이도 false — 경계는 닫아 둔다. 계약 쪽으로 기울지 않는다.
+         */
+        fun isListCardAnchor(fareCenterY: Int, listHeaderCenterY: Int?): Boolean =
+            listHeaderCenterY != null && fareCenterY > listHeaderCenterY
+
         /**
          * 👻 이 리스트 스캔이 **상세 화면 잔상**인가 (0830 23:04 실측 — 복귀 직후 첫 스캔에
          * 상세 글자가 남아 카드 도착지에 «픽업지 경기 성남시…»가 섞였다).

@@ -22,6 +22,23 @@ class AutoTouchManager(private val service: AccessibilityService) {
      * @return 성패 여부
      */
     fun performSimulatedTouch(node: AccessibilityNodeInfo): Boolean {
+        /**
+         * 🔴 **찍기 직전에 다시 잰다** (2026-09-13 · 라이브 오배차 조사에서 신설).
+         *
+         * `AccessibilityNodeInfo` 는 **만들어질 때의 사각형을 품고 다니는 사본**이다 —
+         * `getBoundsInScreen` 은 앱에 다시 묻지 않고 그 품은 값을 돌려준다. 스캔은 노드
+         * 트리를 통째로 훑느라 수백 밀리초가 걸리고, 그동안 리스트가 갱신되면 **잰 자리와
+         * 누르는 자리가 달라진다.** 09-13 실측에서 알람이 456밀리초 간격으로 두 번 울렸다 —
+         * 그 사이에 카드가 움직인다.
+         *
+         * `refresh()` 는 앱에 지금 값을 다시 묻는다. 실패하면 **그 노드는 이미 사라진 것**이라
+         * 누르지 않는다 — 사라진 카드 자리에는 다른 것이 와 있다 (규칙 ④).
+         */
+        if (!node.refresh()) {
+            AppLogger.w(TAG, "🛑 [터치 보류] 노드가 사라졌다 — 잰 자리와 누를 자리가 다르다. 누르지 않는다")
+            return false
+        }
+
         val rect = Rect()
         node.getBoundsInScreen(rect)
 
@@ -32,6 +49,13 @@ class AutoTouchManager(private val service: AccessibilityService) {
             AppLogger.e(TAG, "❌ [터치 실패] 화면 좌표를 구할 수 없습니다. (X:$x, Y:$y)")
             return false
         }
+
+        /**
+         * 🔴 **보내는 순간에 남긴다** — 아래 `onCompleted` 는 **2~4초 늦게** 온다
+         *    (09-13 실측: 12:00:10.387 에 보낸 것이 12:00:12.676 에 찍혔다). 콜백이
+         *    서비스 메인 핸들러에 줄을 서기 때문이다. 완료 로그만 보면 **시각이 거짓말한다.**
+         */
+        AppLogger.i(TAG, "👉 [터치 발사] (X:$x, Y:$y) \"${node.text?.toString()?.take(20) ?: ""}\"")
 
         val clickPath = Path().apply { moveTo(x, y) }
         val clickStroke = GestureDescription.StrokeDescription(clickPath, 0, 50)
