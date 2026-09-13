@@ -21,6 +21,12 @@ object TargetApp {
     /** 실제 카카오T픽커 앱의 이름 (0830 실측) — 배차망을 정하는 데는 쓰지 않는다 (`isKakaoPickerApp`) */
     private const val KAKAOPICKER_PACKAGE = "com.kakaomobility.flexer"
 
+    /**
+     * 🧪 배차망 시뮬레이터 앱의 이름 — 설정 화면 «테스트 가상 콜 화면 열기»가 켠다.
+     * 🔴 배차망을 정하는 데 쓰지 않는다 — 시뮬레이터는 세 배차망을 한 앱으로 띄운다 (`networksOnScreen`).
+     */
+    const val SIMULATOR_PACKAGE = "com.onedal.simulator"
+
     /** 저장된 라벨 → 서버 코드. 모르는 라벨은 인성 — 오프라인 안전망과 같은 결 */
     fun codeOf(label: String?): String = when (label) {
         "24시" -> HWAMUL24

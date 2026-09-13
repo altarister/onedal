@@ -1,8 +1,8 @@
 package com.onedal.app.ui
 
 import android.content.Intent
-import android.net.Uri
 import android.provider.Settings
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -15,11 +15,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.onedal.app.R
 import com.onedal.app.api.ApiClient
+import com.onedal.app.core.TargetApp
 
 /**
  * 설정 탭 화면
  *
- * PIN 연동, 서버 환경, 타겟 앱, 안전취소 타이머 등을 설정합니다.
+ * PIN 연동, 서버 환경, 안전취소 타이머 등을 설정합니다. (배차망 선택 칸은 2026-09-14 에 지웠다 — 화면 글자로 안다)
  */
 @Composable
 fun SettingsScreen(viewModel: MainViewModel) {
@@ -158,9 +159,12 @@ fun SettingsScreen(viewModel: MainViewModel) {
         Spacer(modifier = Modifier.height(16.dp))
 
         // ── 테스트 가상 콜 화면 열기 ──
+        // 🧪 배차망 시뮬레이터 앱을 켠다 (2026-09-14). 예전엔 브라우저로 옛 주소를 열었는데 거기는
+        //    다른 프로젝트의 지도 게임이다. 그리고 브라우저로 연 시뮬레이터는 원달앱이 글자를 못 읽는다.
         Button(onClick = {
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://map.altari.com/inseong"))
-            context.startActivity(intent)
+            val intent = context.packageManager.getLaunchIntentForPackage(TargetApp.SIMULATOR_PACKAGE)
+            if (intent != null) context.startActivity(intent)
+            else Toast.makeText(context, "배차망 시뮬레이터 앱이 설치되어 있지 않습니다", Toast.LENGTH_LONG).show()
         }) {
             Text("테스트 가상 콜 화면 열기")
         }

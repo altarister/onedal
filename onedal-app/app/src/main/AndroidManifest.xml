@@ -9,6 +9,12 @@
     <!-- 🔔 알람 모드의 강한 진동 (기기_모드.md 2단계). 설치 시 자동 승인 — 기사님이 켤 것 없음 -->
     <uses-permission android:name="android.permission.VIBRATE" />
 
+    <!-- 🧪 설정 화면 «테스트 가상 콜 화면 열기»가 켜는 배차망 시뮬레이터 앱 (2026-09-14).
+         안드로이드 11 이상은 다른 앱을 여기 적어 둬야 찾을 수 있다 — 안 적으면 버튼이 조용히 먹통이다 -->
+    <queries>
+        <package android:name="com.onedal.simulator" />
+    </queries>
+
     <application
         android:allowBackup="true"
         android:label="@string/app_name"
