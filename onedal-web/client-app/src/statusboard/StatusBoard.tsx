@@ -32,13 +32,15 @@ import { APP_FILTER_KEYS, FILTER_FIELDS, isEvaluating, isTerminal, workStageLabe
          DEVICE_MODE_LABEL } from '@onedal/shared';
 import type { SecuredOrder, DeviceSession, DeviceModeType } from '@onedal/shared';
 /* 🌉 관제웹 안쪽은 **다리 하나**로만 본다 — 옮길 때 `bridge.ts` 만 새로 쓰면 된다 */
-import { useFilterConfig, useDeviceStore, summarizeTally, apiBase,
+import { LAB_EVENING,
+         useFilterConfig, useDeviceStore, summarizeTally, apiBase,
          useMockDriveStore, MOCK_DRIVE_SPEEDS, MOCK_DRIVE_DEFAULTS, publishLocation, apiClient,
          useDriverPositionStore, ensureDriverPositionSubscribed,
          useSettingsStore, KM_PER_TICK, STOP_OFF_ROAD_KM } from './bridge';
 /* ⚖️ **앱이 내린 판정을 읽는다** — 여기서 다시 재지 않는다 (`callVerdict.ts` 머리 참조).
    2026-09-12 에 사본(`recheck.ts`)을 지우고 이것으로 갈아탔다 */
 import { viewAll, tallyMarks, MARK_SIGN } from './callVerdict';
+import { callStepsOf, handmadeOrderFrom, isHandmade } from './handmadeCall';
 /* 🎚️ **눈금이 무엇을 못 보게 하나 — 판단은 순수 함수가 한다** (`dialEffect.ts` 머리 참조) */
 import { dialEffectOf } from './dialEffect';
 /* 🔴 서버 주소를 손으로 적지 않는다 — `apiBase()` 를 거친다.
@@ -646,6 +648,13 @@ function ScrapIntelCard({ activeRoute }: { activeRoute?: SecuredOrder[] }) {
         } catch { /* 못 남겨도 이번 판에서는 지워진다 */ }
     };
     const [why, setWhy] = useState<string | null>(null);
+    /** 🔁 버튼이 올린 직후 **바로** 다시 묻는 길 — 10초를 기다리면 «안 올라갔나»로 읽힌다 */
+    const [tick, setTick] = useState(0);
+    /** 🖐️ 손으로 올리는 중 · 그 결과 한 줄 */
+    const [making, setMaking] = useState(false);
+    const [madeNote, setMadeNote] = useState<string | null>(null);
+    /** 누를 때마다 문제지의 다음 콜로 간다 — 같은 콜만 쌓이면 견줄 것이 없다 */
+    const [seq, setSeq] = useState(0);
 
     useEffect(() => {
         let alive = true;
@@ -661,7 +670,44 @@ function ScrapIntelCard({ activeRoute }: { activeRoute?: SecuredOrder[] }) {
         void ask();
         const t = setInterval(() => { void ask(); }, 10_000);
         return () => { alive = false; clearInterval(t); };
-    }, []);
+    }, [tick]);
+
+    /**
+     * 🖐️ **콜 하나를 손으로 올린다** (기사님 지시 2026-09-13:
+     *    *"콜 생성 하면 앱에서 콜을 서버로 올리는 것과 같은 효과를 주면 된다"*).
+     *
+     * 🔴 **앱이 쓰는 문을 그대로 쓴다** — `POST /api/scrap`. 다른 문을 새로 파면
+     *    «앱으로는 되는데 버튼으로는 안 된다»가 생긴다 (규칙 ③).
+     * 🔴 **기기는 등록된 것을 빌린다** — 그 문은 등록된 `deviceId` 가 아니면 401 이다.
+     *    없으면 **없다고 말한다** — 아무 값이나 지어 보내지 않는다 (규칙 ④).
+     * ⚠️ **이것은 «콜을 잡는 것»이 아니다** — 결재 카드가 아니라 이 줄에 뜬다.
+     */
+    const makeOne = async () => {
+        setMaking(true); setMadeNote(null);
+        try {
+            const { data } = await apiClient.get('/devices/registered');
+            const deviceId = (data?.devices ?? [])[0]?.device_id as string | undefined;
+            if (!deviceId) { setMadeNote('— 등록된 기기가 없다. ⚙️ 설정에서 PIN 연동을 먼저 한다'); return; }
+
+            const calls = callStepsOf(LAB_EVENING);
+            const order = handmadeOrderFrom(calls[seq % calls.length], new Date(), seq);
+            if (!order) { setMadeNote('— 문제지 줄을 못 읽었다 (labProblems 의 꼴이 바뀌었다)'); return; }
+
+            const r = await fetch(`${apiBase()}/scrap`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ deviceId, data: [order], screenContext: 'LIST', isHolding: false }),
+            });
+            if (!r.ok) { setMadeNote(`— 서버가 안 받았다 (HTTP ${r.status})`); return; }
+
+            setSeq(n => n + 1);
+            setMadeNote(`✅ ${order.pickup} → ${order.dropoff} · ${order.fare.toLocaleString()}원`);
+            setTick(n => n + 1);
+        } catch {
+            setMadeNote('— 서버에 못 닿았다');
+        } finally {
+            setMaking(false);
+        }
+    };
 
     /**
      * ⚖️ **판정은 앱이 했다** — 화면은 그 낱말을 한국어로 옮기고, «이미 쥔 콜인가»만 맞춰 본다
@@ -713,7 +759,7 @@ function ScrapIntelCard({ activeRoute }: { activeRoute?: SecuredOrder[] }) {
                     <IntelLine key={r.id ?? i}
                                sign={MARK_SIGN[v.mark]}
                                at={(r.timestamp ?? '').slice(11, 16) || '—'}
-                               call={`${r.pickup ?? '—'} → ${r.dropoff ?? '—'}${r.fare ? ` · ${Math.round(r.fare / 1000)}천` : ''}`
+                               call={`${isHandmade(r.rawText) ? '🖐️ ' : ''}${r.pickup ?? '—'} → ${r.dropoff ?? '—'}${r.fare ? ` · ${Math.round(r.fare / 1000)}천` : ''}`
                                    + (r.deliveryDistanceKm != null ? ` · ${r.deliveryDistanceKm}km` : '')
                                    + (r.vehicleType ? ` · ${r.vehicleType}` : '')
                                    /* ⏱️ 급송·«낼09시» 원문 — 판정 축은 아직 아니다. 눈으로 본다 */
@@ -722,6 +768,21 @@ function ScrapIntelCard({ activeRoute }: { activeRoute?: SecuredOrder[] }) {
                                tone={tone} />
                 );
             })}
+
+            {/* 🖐️ **콜 생성 — 이 칸의 맨 아래** (기사님 지시 2026-09-13 *"오른쪽 버린콜 하단에"*).
+                🔴 값은 지어내지 않는다 — `labProblems` 의 «볼트 저녁 판», 기사님이 실제로 도신 콜이다. */}
+            <div className="mt-1.5 pt-1.5 border-t border-border-card flex items-center gap-2">
+                <button type="button" onClick={() => { void makeOne(); }} disabled={making}
+                    className={`px-2 py-1 rounded-md border text-[10.5px] font-black shrink-0 ${making
+                        ? 'border-border-card/50 text-text-muted/40'
+                        : 'border-info/40 bg-info/10 text-info hover:bg-info/20'}`}>
+                    {making ? '올리는 중…' : '🖐️ 콜 생성'}
+                </button>
+                <span className={`min-w-0 flex-1 truncate text-[10.5px] font-bold ${
+                    madeNote?.startsWith('✅') ? 'text-success' : madeNote ? 'text-warning' : 'text-text-muted'}`}>
+                    {madeNote ?? '앱이 쓰는 문으로 한 건 올린다 (콜을 «잡는» 것은 아니다)'}
+                </span>
+            </div>
         </Card>
     );
 }

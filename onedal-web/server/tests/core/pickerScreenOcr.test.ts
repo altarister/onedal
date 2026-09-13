@@ -7,7 +7,7 @@ import { parsePickerDetailOcr, OcrLine } from '../../src/core/plugins/kakaopicke
  * 기사님이 A24 에서 픽커 상세를 열어 두시고, 내가 `adb exec-out screencap` 으로 찍어
  * 가로 540px·JPEG60(29KB)으로 줄인 뒤 macOS Vision 으로 읽은 **그 출력 그대로**다.
  * 🔬 **문제지를 만든 그림이 레포에 있다** —
- *    `ex_images/카카오픽커/실물_2026/33_상세_예약콜_위례_삼성2동_보낼크기.jpg` (29KB).
+ *    `ex_images/카카오픽커/실물_20260913_내가찍음/33_상세_예약콜_위례_삼성2동_보낼크기.jpg` (29KB).
  *    줄이기 전 원본(722KB)과 **읽힌 글자가 한 자도 다르지 않아서** 줄인 쪽만 담았다.
  * 🔴 **지어낸 줄이 하나도 없다** — 오타(`세 변의`→`세 번의`)까지 OCR 이 낸 그대로 둔다.
  *
