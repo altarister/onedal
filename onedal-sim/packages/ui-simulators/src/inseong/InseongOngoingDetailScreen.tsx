@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { CallItem } from '@altari/core-simulator';
 import type { LocationDetailInfo } from '@altari/core-simulator';
-import { formatRegionName, formatRegionFullName } from '@altari/core-simulator';
+import { formatRegionName, formatRegionFullName } from './insungCall';
 import { InseongLocationDetailScreen } from './InseongLocationDetailScreen';
 import { InseongMemoDetailScreen } from './InseongMemoDetailScreen';
 import { getNextPickupDetail, getNextDropoffDetail } from '@altari/core-simulator';

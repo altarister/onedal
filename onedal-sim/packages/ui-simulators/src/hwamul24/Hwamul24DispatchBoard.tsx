@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatHwamul24Region, formatHwamul24Vehicle } from '@altari/core-simulator';
+import { formatHwamul24Region, formatHwamul24Vehicle } from './hwamul24Call';
 import type { CallItem } from '@altari/core-simulator';
 
 interface BoardProps {

@@ -5,7 +5,7 @@
  * 유일한 차이: useGame()/useDispatchContext() 대신 모든 데이터를 props로 받음.
  */
 import React from 'react';
-import { formatRegionName, formatInsungVehicle } from '@altari/core-simulator';
+import { formatRegionName, formatInsungVehicle } from './insungCall';
 import type { CallItem } from '@altari/core-simulator';
 
 interface SimBoardProps {

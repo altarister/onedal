@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { CallItem } from '@altari/core-simulator';
-import { formatHwamul24Region, formatHwamul24Vehicle } from '@altari/core-simulator';
+import { formatHwamul24Region, formatHwamul24Vehicle } from './hwamul24Call';
 
 interface DetailProps {
   call: CallItem;

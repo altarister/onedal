@@ -5,17 +5,17 @@ import {
     formatInsungVehicle,
     formatRegionFullName,
     formatRegionName,
-} from '@altari/core-simulator';
+} from '@altari/ui-simulators';
 
 /**
  * 🔒 **지금 동작을 그대로 잠근다** — 배차망별 표기 함수 (2026-09-14 · 카카오픽커_시뮬레이터.md 0단계)
  *
- * 이 함수들은 지금 공통 코드(`core-simulator/src/format.ts`)에 있지만 **한 배차망 화면만** 쓴다.
- * 0단계에서 배차망 폴더로 옮긴다. 옮기기 전에 **지금 무엇을 내는지**를 적어 둬야
- * 옮긴 뒤에도 같은지 알 수 있다 — 그래서 고칠 점이 보여도 여기서는 고치지 않는다.
+ * 이 함수들은 **한 배차망 화면만** 쓴다. 공통 코드(옛 `core-simulator/src/format.ts`)에 있던 것을 0단계 0-2 에서
+ * 배차망 폴더(`inseong/insungCall.ts` · `hwamul24/hwamul24Call.ts`)로 옮겼다. 옮기기 전에 적어 둔 기대값을
+ * 한 글자도 안 고치고 그대로 문다 — 그래서 고칠 점이 보여도 여기서는 고치지 않는다.
  *
  * 원달앱 파서가 이 글자를 읽는다 — 인성은 차종 약자(오·다·라)를 닻 삼아 요금을 읽는다
- * (format.ts 주석 · 2026-08-24 실측: 풀네임을 뿌리면 요금을 못 읽었다).
+ * (insungCall.ts 주석 · 2026-08-24 실측: 풀네임을 뿌리면 요금을 못 읽었다).
  */
 describe('인성 차종 약자 — 원달앱 인성 파서가 읽는 글자', () => {
     it('차종 풀네임을 인성 약자로', () => {

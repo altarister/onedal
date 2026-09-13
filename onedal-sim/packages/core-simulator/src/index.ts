@@ -23,5 +23,4 @@ export type { PresetProblem } from './presets';
 
 // 유틸리티
 export { calculateDistanceKm } from './geo';
-export { formatRegionName, formatRegionFullName, formatHwamul24Region, formatInsungVehicle, formatHwamul24Vehicle } from './format';
 export { getNextPickupDetail, getNextDropoffDetail } from './data/mockLocationDetails';
