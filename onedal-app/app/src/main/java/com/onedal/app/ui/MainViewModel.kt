@@ -53,7 +53,6 @@ class MainViewModel {
 
     // ── 설정값 ──
     var isLiveMode by mutableStateOf(false)
-    var targetApp by mutableStateOf("인성콜")
     var safeCancelTimeout by mutableStateOf(30000L)
 
     /**
@@ -65,7 +64,6 @@ class MainViewModel {
         // 초기값 로드
         deviceId = prefs.getString("deviceId", null) ?: "(서비스 시작 시 자동 생성됨)"
         isLiveMode = prefs.getBoolean("isLiveMode", false)
-        targetApp = prefs.getString("targetApp", "인성콜") ?: "인성콜"
         safeCancelTimeout = prefs.getLong("safeCancelTimeout", 30000L)
 
         scope.launch {
@@ -122,12 +120,6 @@ class MainViewModel {
         isLiveMode = checked
         context.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
             .edit().putBoolean("isLiveMode", checked).apply()
-    }
-
-    fun saveTargetApp(context: Context, app: String) {
-        targetApp = app
-        context.getSharedPreferences("OneDalPrefs", Context.MODE_PRIVATE)
-            .edit().putString("targetApp", app).apply()
     }
 
     fun saveSafeCancelTimeout(context: Context, ms: Long) {

@@ -66,20 +66,16 @@ class CapturedViaAndTargetAppTest {
 }
 
 /**
- * 🌐 화면 패키지 → 배차망 — «어느 배차망인가»의 진짜 원천은 라디오가 아니라
- * **지금 보고 있는 화면**이다 (기사님 확정 2026-08-31 · 규칙 ③ 파생).
- * 어긋나면 파서가 남의 화면을 읽어 쓰레기 콜을 만든다 — 그 사고를 여기서 막는다.
+ * 📝 **실제 픽커 앱인가 — 로그 조건 하나에만 쓴다** (기사님 확정 2026-09-14 ㉯).
+ * 배차망은 화면 글자로 정한다(`NetworkByScreenTest`). 옛 이름 `PackageToNetworkTest` 는
+ * 앱 이름으로 배차망을 정하던 검사였고, 그 길을 지우며 이 검사로 바뀌었다.
  */
-class PackageToNetworkTest {
+class PickerAppLogConditionTest {
     @org.junit.Test
-    fun `아는 패키지는 배차망으로 파생된다`() {
-        org.junit.Assert.assertEquals(TargetApp.KAKAOPICKER, TargetApp.codeOfPackage("com.kakaomobility.flexer"))
-        org.junit.Assert.assertEquals(TargetApp.INSUNG, TargetApp.codeOfPackage("com.onedal.simulator"))
-    }
-
-    @org.junit.Test
-    fun `모르는 패키지는 null - 지어내지 않는다 (규칙 4)`() {
-        org.junit.Assert.assertNull(TargetApp.codeOfPackage("com.kakao.talk"))
-        org.junit.Assert.assertNull(TargetApp.codeOfPackage(null))
+    fun `실제 픽커 앱 이름만 픽커 앱이다 - 시뮬레이터는 아니다`() {
+        org.junit.Assert.assertTrue(TargetApp.isKakaoPickerApp("com.kakaomobility.flexer"))
+        org.junit.Assert.assertFalse(TargetApp.isKakaoPickerApp("com.onedal.simulator"))
+        org.junit.Assert.assertFalse(TargetApp.isKakaoPickerApp("com.kakao.talk"))
+        org.junit.Assert.assertFalse(TargetApp.isKakaoPickerApp(null))
     }
 }

@@ -214,4 +214,13 @@ object KakaoPickerKeywords {
         appLabel = "픽커",
         cancelKeyword = "넘기기"
     )
+
+    /**
+     * 🖥️ **이 배차망 화면에만 있는 글자 묶음** — 스캔앱이 화면 글자로 배차망을 가를 때 쓴다
+     * (기사님 확정 2026-09-14 · `TargetApp.networksOnScreen`). 묶음 안 글자가 **전부** 보여야 이 배차망이다.
+     * 🔴 새로 적지 않는다 — 위 화면 판별 글자에서 만든다 (두 곳에 적으면 갈라진다 · 규칙 ③).
+     */
+    /* 픽커는 리스트·상세 말고도 홈·수락 뒤 단계마다 글자가 따로 있다 — `STAGE_WORDS` 는 «그중 하나라도»라서 낱말 하나가 한 묶음이다 */
+    val NETWORK_MARKERS: List<List<String>> =
+        listOf(PICKER.listRequired, PICKER.detailKeywords) + STAGE_WORDS.flatMap { (_, words) -> words.map { listOf(it) } }
 }

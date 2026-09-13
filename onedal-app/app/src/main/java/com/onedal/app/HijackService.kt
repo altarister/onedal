@@ -108,7 +108,7 @@ class HijackService : AccessibilityService(), ScanContext {
     override var currentTargetApp = "insung"
 
     /**
-     * 🎯 배차망 적용 — 라디오(부팅)와 자동 전환(2단계)이 **같은 길**을 탄다.
+     * 🎯 배차망 적용 — 부팅(마지막으로 알아낸 배차망)과 화면을 따른 자동 전환이 **같은 길**을 탄다.
      * 파서·키워드·코드가 한 번에 갈아타고, 전환이면 지문·세션도 새로 시작한다
      * (남의 배차망 지문이 남으면 «이미 본 콜»로 삼킨다).
      */
@@ -141,7 +141,7 @@ class HijackService : AccessibilityService(), ScanContext {
          * (`onAccessibilityEvent` 첫머리의 지문 비교) — 갈아타고도 영영 안 읽는다.
          */
         lastScreenFingerprint = 0
-        AppLogger.i(TAG, "🔄 [배차망 자동 전환] 화면을 따라 $label 판으로 — 라디오는 표시만 따라온다")
+        AppLogger.i(TAG, "🔄 [배차망 자동 전환] 화면 글자를 따라 $label 로 — 마지막으로 알아낸 배차망으로 저장한다")
         refreshScreenContextAfterSwitch()
     }
 
@@ -622,11 +622,19 @@ class HijackService : AccessibilityService(), ScanContext {
 
         /**
          * 🌐 **배차망 불일치 관문** (기사님 확정 2026-08-31 · 1단계).
-         * 보는 화면(패키지)이 아는 배차망인데 선택(라디오)과 다르면 — 이 판을 통째로 버린다.
+         * 화면이 가리키는 배차망이 지금 읽는 배차망과 다르면 — 이 판을 통째로 버리고 갈아탄다.
          * 안 버리면 남의 화면을 남의 파서로 읽어 쓰레기 콜이 올라간다 (잔상 사고와 같은 계열).
-         * 모르는 패키지(카톡 등)는 관문 대상이 아니다 — 어차피 UNKNOWN 화면으로 흐른다.
+         *
+         * 🖥️ **화면이 가리키는 배차망은 화면 글자로 안다** (기사님 확정 2026-09-14 · 원달앱 계획서 ③).
+         *    예전엔 앱 이름(패키지)으로 갈랐는데, 시뮬레이터는 세 배차망을 한 앱으로 띄워
+         *    픽커·24시 화면도 늘 «인성»으로 읽었다. 배차망 글자가 없는 화면(카톡·잠금화면)은
+         *    null 이라 관문 대상이 아니다 — 직전 배차망 그대로 흐른다.
          */
-        val screenNetwork = TargetApp.codeOfPackage(rootNode.packageName?.toString())
+        val screenNetworks = TargetApp.networksOnScreen(screenTexts)
+        if (screenNetworks.size > 1) {
+            AppLogger.w(TAG, "🌐 [망 판별] 두 배차망 글자가 함께 보인다 $screenNetworks — 바꾸지 않는다")
+        }
+        val screenNetwork = screenNetworks.singleOrNull()
         NetworkSwitchGate.switchTargetFor(screenNetwork, currentTargetApp)?.let { target ->
             // 🔄 **기다리지 않는다** (기사님 확정 2026-09-02: "4초 지워").
             //    기다리는 동안 앱은 판을 버려 콜을 한 건도 안 읽는데, 얻는 것이 없었다.
@@ -654,9 +662,12 @@ class HijackService : AccessibilityService(), ScanContext {
          * 「모르는 화면」으로 찍혔다(`잠금해제 패턴을 그리세요` · `셀 1 추가됨…`).
          * 저녁에 볼 로그가 그걸로 덮인다 — 「어느 낱말이 빠졌나」를 못 고른다.
          *
-         * «지금 보는 화면이 어느 배차망인가»는 이미 한 곳이 안다 (`codeOfPackage` · 규칙 ③).
+         * ✅ **이 조건에 한해서만 앱 이름을 본다** (기사님 확정 2026-09-14 ㉯). 배차망은 화면 글자로
+         *    정하지만(위 관문), 이 로그의 목적은 **처음 보는 픽커 화면** — 곧 픽커 글자가 없는 화면 —
+         *    의 글자를 모으는 것이라 화면 글자로는 «픽커 화면인가»를 알 수 없다.
+         *    «직전 배차망이 픽커면»으로 걸면 잠금화면이 다시 찍힌다 (위 09-02 사고).
          */
-        if (screenNetwork == TargetApp.KAKAOPICKER && detected != ScreenContext.LIST) {
+        if (TargetApp.isKakaoPickerApp(rootNode.packageName?.toString()) && detected != ScreenContext.LIST) {
             val stage = com.onedal.app.plugins.kakaopicker.KakaoPickerKeywords.stageOf(rawScreenStr)
             if (stage != null) {
                 if (stage != lastPickerStage) {

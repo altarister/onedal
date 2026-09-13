@@ -128,37 +128,8 @@ fun SettingsScreen(viewModel: MainViewModel) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // ── 타겟 앱 선택 ──
-        Card(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0))
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text("🎯 타겟 스크래핑 앱 선택", fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(
-                        selected = viewModel.targetApp == "인성콜",
-                        onClick = { viewModel.saveTargetApp(context, "인성콜") }
-                    )
-                    Text("인성콜 (기본)")
-                    Spacer(modifier = Modifier.width(16.dp))
-                    RadioButton(
-                        selected = viewModel.targetApp == "24시",
-                        onClick = { viewModel.saveTargetApp(context, "24시") }
-                    )
-                    Text("24시 (준비중)")
-                    Spacer(modifier = Modifier.width(16.dp))
-                    RadioButton(
-                        selected = viewModel.targetApp == "픽커",
-                        onClick = { viewModel.saveTargetApp(context, "픽커") }
-                    )
-                    Text("픽커 (수집만)")
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
+        // 🖥️ 배차망 선택 칸은 지웠다 (기사님 확정 2026-09-14) — 스캔앱이 화면 글자로 배차망을 알고,
+        //    알아낸 배차망은 관제앱 폰 영역 배지로 본다 (docs/기획/원달앱_시뮬레이터_낱말사전_정리.md ③)
 
         // ── 안전취소 타이머 설정 ──
         Card(
