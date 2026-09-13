@@ -5,16 +5,18 @@
 
 ## 구성
 
-| 앱                          | 역할                                                           | 스택                                                 |
-| --------------------------- | -------------------------------------------------------------- | ---------------------------------------------------- |
-| `onedal-app/app/`           | 안드로이드 스캐너 — 배차앱 화면 스크래핑 + 자동 터치           | Kotlin, AccessibilityService, HttpURLConnection      |
-| `onedal-app/simulator-app/` | 배차망 시뮬레이터의 안드로이드 껍데기 (`com.onedal.simulator`) | Kotlin, WebView                                      |
-| `onedal-web/server/`        | 판정 엔진 — 파싱·카카오 경로·요율 연산                         | Express 5, better-sqlite3, Socket.IO (port 4000)     |
-| `onedal-web/client-app/`    | 관제탑 — 기사님이 KEEP/CANCEL 결재                             | Vite 6, React 19, Tailwind v4, Capacitor (port 3000) |
-| `onedal-web/logbook/`       | 운행일지 대시보드                                              | Vite + React                                         |
-| `onedal-web/shared/`        | 서버·관제웹·운행일지가 함께 쓰는 규격과 순수 계산 (의존 0)     | TypeScript                                           |
-| `onedal-sim/`               | 배차망 시뮬레이터 — 앱폰이 읽을 가짜 배차망 화면               | Vite 7, React 19 (port 5173)                         |
-| `onedal-map/`               | 지도 공장 — 콜 필터 그물이 쓰는 읍면동 폴리곤을 만든다         | Node · Python 스크립트                               |
+| 앱                          | 역할                                                           | 스택                                            |
+| --------------------------- | -------------------------------------------------------------- | ----------------------------------------------- |
+| `onedal-app/app/`           | 안드로이드 스캐너 — 배차앱 화면 스크래핑 + 자동 터치           | Kotlin, AccessibilityService, HttpURLConnection |
+| `onedal-app/simulator-app/` | 배차망 시뮬레이터의 안드로이드 껍데기 (`com.onedal.simulator`) | Kotlin, WebView                                 |
+| `onedal-web/server/`        | 판정 엔진 — 파싱·카카오 경로·요율 연산                         | Express 5, better-sqlite3, Socket.IO            |
+| `onedal-web/client-app/`    | 관제탑 — 기사님이 KEEP/CANCEL 결재                             | Vite 6, React 19, Tailwind v4, Capacitor        |
+| `onedal-web/logbook/`       | 운행일지 대시보드                                              | Vite + React                                    |
+| `onedal-web/shared/`        | 서버·관제웹·운행일지가 함께 쓰는 규격과 순수 계산 (의존 0)     | TypeScript                                      |
+| `onedal-sim/`               | 배차망 시뮬레이터 — 앱폰이 읽을 가짜 배차망 화면               | Vite 7, React 19                                |
+| `onedal-map/`               | 지도 공장 — 콜 필터 그물이 쓰는 읍면동 폴리곤을 만든다         | Node · Python 스크립트                          |
+
+앱이 아닌 자리: `docs/` 문서 · `ex_images/` 실물 캡처 · `log/` 주행 로그 백업
 
 통신: 앱 → 서버는 REST(`POST /api/scrap`), 서버 → 앱은 **응답 꼬리에 명령을 싣는 피기백**.
 서버 ↔ 관제탑만 Socket.IO. (모바일 웹소켓 끊김을 피하려는 의도된 설계)
@@ -24,6 +26,28 @@
 > [onedal-app](onedal-app/CLAUDE.md) · [server](onedal-web/server/CLAUDE.md) ·
 > [client-app](onedal-web/client-app/CLAUDE.md) · [shared](onedal-web/shared/CLAUDE.md) ·
 > [onedal-web](onedal-web/CLAUDE.md)(검증 스크립트)
+
+## 포트
+
+🔴 **포트의 원천은 이 표다** (기사님 지시 2026-09-14). 번호를 한 파일로 모을 수는 없다 —
+앱 Kotlin · vite 설정 · 배포 yml · PM2 설정이 각자 적어야 돈다. 그래서
+`onedal-web/server/tests/rules/portsListed.test.ts` 가 **코드에 박힌 번호를 이 표와 대조한다** —
+표에 없는 번호 · 표와 다른 범위 · 서로 겹치는 자리 · 코드가 안 쓰는 번호가 빨간불이다.
+
+**번호를 바꿀 때**: 이 표를 먼저 고치고 `cd onedal-web/server && npx jest tests/rules/portsListed` 를 돌린다 —
+옛 번호가 남은 곳이 전부 나온다.
+
+| 포트 | 누가 듣나 | 정하는 곳 | 알아둘 것 |
+|---|---|---|---|
+| `4000` | 서버 (api) | `onedal-web/server/src/index.ts` | `PORT` 환경변수로 바꿀 수 있다 · 배포에서는 80 → 4000 으로 넘긴다 |
+| `3000` | 관제웹 (vite 개발 서버) | `onedal-web/client-app/vite.config.ts` | `/api` 를 4000 으로 넘긴다 |
+| `3001` | 운행일지 (vite 개발 서버) | `onedal-web/logbook/vite.config.ts` | `pnpm dev` 가 함께 띄운다 |
+| `5173` | 배차망 시뮬레이터 | `onedal-sim/vite.config.ts` | 🔴 바꾸지 않는다 — 시뮬 앱(Kotlin)이 이 번호로 붙는다 |
+| `4173` | 관제웹 `vite preview` (빌드 미리보기) | vite 기본값 | 개발에서는 안 띄운다 · 관제웹이 이 주소를 «개발 주소»로 안다 |
+| `4012` | `pnpm scenario` 전용 서버 | `onedal-web/scripts/scenario.mjs` | 전용 DB · 끝나면 내린다 |
+| `4014` | `pnpm drive` 전용 서버 | `onedal-web/scripts/drive.mjs` | 전용 DB · 끝나면 내린다 |
+| `9300-9599` | `pnpm lab` 이 띄우는 크롬 조종 | `onedal-web/scripts/lab.mjs` | 판마다 번호가 다르다 (`9300 + pid % 300`) · `shot` 과 안 겹치게 뗐다 |
+| `9600-9899` | `pnpm shot` 이 띄우는 크롬 조종 | `onedal-web/scripts/shot.mjs` | 판마다 번호가 다르다 (`9600 + pid % 300`) · `lab` 과 안 겹치게 뗐다 |
 
 ## 명령
 
@@ -127,6 +151,70 @@
 > 2026-08-22 에 `pnpm dev` 가 `a & b & c` 라 **Ctrl+C 가 서버에 닿지 않았고**(백그라운드),
 > 기사님이 껐다고 믿은 서버가 4시간 40분 더 돌며 지워진 콜을 화면에 보냈다 (버그 대장 #40).
 > 지금은 `trap 'kill 0' … & wait` 라 Ctrl+C 가 함께 죽인다. **끄고 나서도 `bootedAt` 으로 확인한다.**
+
+## 짝이 있는 것 — 이걸 건드리면 저것도 본다
+
+한쪽만 고치면 갈라지는 것들의 **색인**이다 (2026-09-14 전수 조사 · 기사님 지시).
+기사님: *"뭘 수정하면 거기에 대응되는 것이 2개라 뭐가 안 된다고 자꾸 그러고, 서버를 닫았다 열면
+트래킹하는 부모가 오류라 하고… 그런 것들의 정리를 한 번 하고 CLAUDE.md 에 있어야 할 것 같다."*
+
+**확인 칸**: ✅ 검사가 문다 · 🟡 명령이나 사람이 확인한다 · ❌ 확인 수단이 없다
+
+🔴 **짝을 새로 만들거나 발견하면 이 표에 한 줄 더한다.** 확인 칸에는 검사가 있으면 검사 이름,
+없으면 사람이 할 확인을 적는다. ❌ 이면 검사를 만들 수 있는지 먼저 본다.
+🔴 **일부러 둔 두 벌이면 짝 칸에 «일부러»와 까닭을 적는다** — 이 레포에서 비대칭은 대개 결정이다
+(「이건 버그가 아니라 규칙이다」). 까닭이 안 적힌 두 벌은 복사로 보고 합칠 후보로 올린다.
+
+### 원천이 한 곳이어야 하는 것
+
+| 이걸 건드리면 | 짝 (같이 볼 것) | 안 맞으면 | 확인 |
+|---|---|---|---|
+| 포트 번호 | 「포트」 표 | 여러 곳 중 일부만 바뀐다 | ✅ `portsListed` 검사 |
+| `onedal-web/scripts/*.mjs` | `package.json` 명령 · `onedal-web/CLAUDE.md` 스크립트 표 | 이름 없는 도구 · 같은 도구가 둘로 자란다 | ✅ `scriptsListed` 검사 · 🟡 새로 만들기 전에 표에서 찾는다 |
+| 새 폴더 | 「구성」 표 | 이 문서가 틀린 구성을 가르친다 | ✅ `layoutListed` 검사 · 🟡 만들기 전에 묻는다 |
+| 소켓 이벤트 이름 | 서버 등록(`socket.on`·`safeOn`) ↔ 관제웹 `on` | 한쪽만 바뀌어 조용히 안 온다 | ✅ `pnpm audit:socket` |
+| 앱에 내려가는 필터 키 | 서버 `APP_FILTER_KEYS` ↔ 앱 Kotlin 이 읽는 키 | 앱이 빈 값으로 거른다 | ✅ `appFilterKeys` 검사 |
+| 앱이 올리는 콜 칸 | 앱 `SharedModels.kt` ↔ 서버 `intel` INSERT | 서버가 칸을 조용히 버린다 | ✅ `intelColumns` 검사 |
+| 앱 콜 규격 칸 | 앱 `SharedModels.kt` ↔ shared `SimplifiedOfficeOrder` — **일부러 두 벌** (Kotlin 은 TS 를 못 읽는다) | 한쪽 칸만 바뀐다 | ❌ 검사 없음 — 칸을 바꾸면 양쪽을 grep 한다 |
+| 콜 상태 목록 | `ALL_ORDER_STATUSES` 한 곳에서 파생 | 목록끼리 갈라져 상차한 콜이 사라진다 | ✅ 새 상태의 갈래를 안 정하면 검사가 깨진다 |
+| 단계 → 마일스톤 대응 | `STEP_MILESTONE` 한 벌 (`onedal-web/shared/src/callSteps.ts`) | 장부 복원과 단계 표가 다른 말을 한다 | 🟡 사본을 만들지 않는다 (2026-09-14 사본 하나를 걷었다) |
+| 콜 색 | `onedal-web/client-app/src/styles/callPalette.ts` 한 벌 | 「색 = 콜 번호」가 깨진다 | 🟡 색 배열을 따로 박지 않는다 |
+| 시간 계산 | `onedal-web/shared/src/timing.ts` 한 곳 | 카운트다운과 통화 화면이 다른 시각을 말한다 | 🟡 `shared/CLAUDE.md` |
+| 그물 계산 | 목적지 그물은 shared `callNet` · **경유 그물은 아직 서버 turf** (두 벌 · [todo.md](todo.md)) | 화면엔 드는데 판정은 탈락한다 | 🟡 `pnpm net:compare` |
+| 필터 | DB 기본값 ↔ 메모리 «오늘만» — **일부러 두 그릇** | 새로고침하면 설정과 필터가 갈라진다 | 🟡 `onedal-web/server/CLAUDE.md` |
+| 목적지 키워드 | 도시 별칭 필터를 **같이** 넘긴다 | 옛 별칭이 남아 멀쩡한 콜을 거른다 | 🟡 `onedal-web/server/CLAUDE.md` |
+| 서버 낱말 사전 (`server/config/keywords_*.json`) | 앱 파서의 `FALLBACK_NOISE_WORDS` — **일부러** (서버가 죽었을 때의 안전망) | — | 🟡 사전을 바꿔도 폴백은 일부만 둔다 |
+| 배차망 이름 | 앱 곳곳의 리터럴 · `TargetApp.kt` 대응표 | 새 배차망을 붙일 때 한 곳을 빠뜨린다 | 🟡 [todo.md](todo.md) 에 자리 목록 |
+
+### 고쳤는데 떠 있는 것은 옛것 — 자세한 사연은 「"무엇이 실제로 돌고 있는가" 확인」
+
+| 이걸 하면 | 짝 (같이 볼 것) | 안 맞으면 | 확인 |
+|---|---|---|---|
+| `shared/` 를 고침 | 떠 있는 서버 | 옛 규칙으로 돈다 | 🟡 `/api/health` 의 `bootedAt` 이 고친 시각보다 늦은가 |
+| 서버를 껐다 켬 | 감시자(`tsx watch`) 부모 | 부모가 살아서 옛 코드로 자식을 되살린다 | 🟡 `pnpm dev` 가 막고 죽일 PID 를 알려 준다 · `bootedAt` |
+| `pnpm reset:calls` | 떠 있는 서버 메모리 | DB 는 비었는데 화면에 콜이 남는다 | 🟡 감시자까지 내리고 다시 띄운다 |
+| 훅 추가 · props 모양 변경 | Vite 가 갈아끼운 옛 모듈 | 코드는 멀쩡한데 화면이 죽는다 | 🟡 ⌘+Shift+R (`onedal-web/client-app/CLAUDE.md`) |
+| 관제웹을 4000번으로 엶 | 서버가 내주는 옛 빌드 | 옛 화면을 보고 판단한다 | 🟡 3000번으로 연다 |
+| 관제웹이 보는 서버 | 로컬 ↔ 라이브 | 로컬을 고치며 라이브를 본다 | 🟡 서버 로그에 `🔌 [소켓 연결]` 이 찍히는가 |
+| 앱 코드 | 폰에 깔린 APK | 옛 앱이 돈다 | 🟡 `📦 v…` · `dumpsys versionName` |
+| 서버 로그 파일을 지움 | 열려 있던 쓰기 스트림 | 재기동까지 안 쌓인다 | 🟡 지웠으면 재기동 |
+| `client-app/.env` 의 `VITE_API_URL` | Vite 프록시 | 로컬에서 프록시가 깨진다 | 🟡 로컬에서는 비워 둔다 |
+
+### 빈 DB 와 기존 DB
+
+| 이걸 하면 | 짝 (같이 볼 것) | 안 맞으면 | 확인 |
+|---|---|---|---|
+| 테이블에 칸 추가 · 상태값 추가 | 기존 DB (`CREATE TABLE IF NOT EXISTS` 는 칸을 안 붙이고, 낡은 `CHECK` 가 새 값을 거부) | 런타임에서만 `no such column` | 🟡 **기존 DB 사본**으로 부팅 · `ensureColumns` · `dropStaleCheck` |
+| 스키마 진화 코드 | 빈 DB 첫 부팅 | 빈 DB 에서만 터진다 | 🟡 빈 DB 로도 부팅 |
+
+### 검사 도구 자신
+
+| 이걸 하면 | 짝 (같이 볼 것) | 안 맞으면 | 확인 |
+|---|---|---|---|
+| 검사 파일을 만듦 | 게이트가 부르는가 | 있는 검사가 안 불리면 없는 것이다 | ✅ 게이트를 전부 돌린다 |
+| `jest` 결과를 읽음 | `Tests:` 가 아니라 `Test Suites:` | 컴파일 안 되는 스위트가 조용히 사라진다 | 🟡 passed 와 total 이 같은가 |
+| `audit:dead` 초록 | 검사 파일도 «쓰는 곳»으로 센다 | 제품이 안 쓰는 export 가 초록으로 남는다 | 🟡 제품 코드에서 부르는 곳을 따로 센다 |
+| 식별자 이름 | 감사는 ASCII 로만 훑는다 | 한글 이름은 죽어도 안 걸린다 | ✅ `identifierAscii` 검사 |
 
 ## 도메인 용어
 
@@ -514,3 +602,14 @@ URL 규약이나 이름을 바꾸면 **남의 영역 문서·주석이 그 자�
   「~겠지?」·「~가능한가?」·「~맞아?」·「~가능한가?」 로 끝나면 **묻는 것**이다.
   **한두 문장으로 답하고 「~할까요?」로 되묻는다.** 답 대신 작업 보고를 내밀지 않는다.
   ⚠️ 혼자 «할까 말까»를 토론하지 않는다. 고를 일이면 **고르시게 내놓는다.**
+- 🔴 **맡기신 일을 마치고 보고할 때는 «물으신 것 → 결과 → 남은 것» 순서로 쓴다** (기사님 2026-09-14)
+  일이 길어지면 기사님은 어느 질문 때문에 시작한 일인지 잊으신다. 한 일 목록부터 쓰면 거꾸로 찾게 된다.
+  - **시작할 때**: 일을 맡기신 직전의 기사님 질문을 원문 그대로 기억한다. 더 큰 작업 도중이었으면 그것도.
+  - **보고할 때**: ① 그 질문 인용 (+ 큰 작업 한 줄) ② 결과 한두 줄 ③ 남은 것
+  > 예: ① "스크립트 기준을 어떻게 정리하는 게 좋을까?" (CLAUDE.md 한 줄씩 검토 중)
+  >     ② 표에 «못 잡는 것·검수» 칸 + 표에 없으면 빨간불 뜨는 검사 ③ 스킬로 뺄지 · 검토는 구성 절 다음부터
+- 🔴 **새 폴더를 만들기 전에 기사님께 묻는다 — 「구성」과 실제 폴더가 늘 같아야 한다** (기사님 2026-09-14)
+  「구성」과 폴더가 갈라지면 이 문서가 매 세션 틀린 구성을 가르친다 (2026-09-14 대조: 표에 없는 폴더 셋).
+  - **묻는다**: 지금 없는 폴더를 새로 만들 때 (최상위 · 앱 안 · `docs/` 안 전부)
+  - **안 묻는다**: 이미 있는 폴더에 파일을 더할 때 (예: `docs/기획/` 에 계획서 한 장)
+  - 만들라고 하시면 **같은 커밋에서 「구성」에 한 줄 더한다** — `tests/rules/layoutListed.test.ts` 가 문다

@@ -21,6 +21,8 @@ const sh = (cmd) => { try { return execSync(cmd, { encoding: 'utf8' }).trim(); }
 const PORTS = [
     { port: 4000, who: '서버(api)' },
     { port: 3000, who: '관제웹' },
+    /* 🔌 `pnpm dev` 가 함께 띄운다 — 전에는 이 자리를 안 봤다 (2026-09-14 · 루트 CLAUDE.md 「포트」) */
+    { port: 3001, who: '운행일지' },
 ];
 
 const busy = [];

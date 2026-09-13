@@ -155,6 +155,14 @@ dropIn = 라인 띠 ∪ 목적지 원 ∪ 마름모(마지막 하차지 → 목�
       🔴 **판정과 그림을 함께 고치지 않으면 화면이 거짓말한다** — 원만 그리고 판정이 안 담으면
       «든다고 그려 놓고 탈락»이 된다 (이 레포가 이미 여러 번 당한 모양)
 
+## 🕸️ ⬜ 경유 그물은 아직 서버 turf 다 (2026-09-14 전수 조사)
+
+목적지 그물은 C1-2 로 `shared/callNet` 의 `netForGoal` 을 쓰게 됐지만, **경유 지역은 서버가 여전히
+turf 폴리곤 버퍼로 만든다** — `filterManager` 의 `getDetourRegions` (`dispatchEngine` 도 부른다).
+Q1 확정 «(나) 실험실 계산을 서버가 쓴다» 에 따르면 이것도 옮겨야 한다.
+- 🔴 **판정 색이 바뀔 수 있다** (규칙 ⑤-3) — 따로 한 판으로 한다
+- 옮기기 전후로 `pnpm net:compare` 를 돌려 통과 동 목록이 얼마나 달라지는지 먼저 잰다
+
 ## 🕸️ 이식 C1-2 — ✅ 끝났다 (2026-09-11 · `netKeywordsOf` 가 `netForGoal` 을 부른다) — 아래는 그날의 실측 기록
 
 기사님 Q1 확정은 **(나) 실험실 계산을 `shared` 로 올려 서버가 그걸 쓴다** 였다.
@@ -282,7 +290,12 @@ ratePerKm = 콜할인율 × user_filters.vehicle_rates × agency_fee_percent   (
 > ⚠️ 그때 쓰던 `pnpm lab:both` 는 2026-09-13 에 지웠다 (지어낸 콜로 대조하던 것 ·
 > 이유는 `onedal-web/CLAUDE.md`). **지금은 셋을 세울 손쉬운 길이 없다.**
 
-### ⬜ ③ 🔴 **콜 색이 세 벌** — 같은 콜을 지도와 목록이 **다른 색**으로 말한다
+### ✅ ③ ~~콜 색이 세 벌~~ — 한 벌이 됐다 (2026-09-14 전수 조사로 확인)
+
+지도 선은 `20de6df`(2026-09-11 · 기사님 확정)로, 목업 실험실 선은 2026-09-14 에 옮겨
+**셋 다 `callPalette` 의 `callLineColor` 한 벌**을 쓴다. 아래는 그때의 기록이다.
+
+#### (기록) 콜 색이 세 벌 — 같은 콜을 지도와 목록이 **다른 색**으로 말했다
 
 B2(지도 구간 색칠) 뒤 화면에서 바로 드러났다 — **지도의 콜① 은 파랑, 콜 리스트의 콜① 은 빨강.**
 
@@ -589,9 +602,10 @@ sqlite> select distinct tollFare from orders where tollFare is not null and toll
 셋 다 고쳤고 `tests/rules/screenTruth.test.ts` (6건)가 소스에서 잠근다.
 ①과 ③은 **한 화면 안에** 있었다 — 윗줄 Parser 는 파생인데 아랫줄만 리터럴이었다.
 
-- [ ] **남은 인스턴스: 배차망 이름 문자열이 «고르는 자리» 네 벌에 흩어져 있다**
-      (`HijackService:235` 기본값 · `MainViewModel:56,68` · `SettingsScreen:141~154` ·
-      `ScrapParser:23~24`). 이건 «지금 무엇인가»를 답하는 자리가 아니라 **고르는 자리**라
+- [ ] **남은 인스턴스: 배차망 이름 문자열이 «고르는 자리»에 흩어져 있다** — 네 벌로 적었는데
+      2026-09-14 전수 조사에서 **여덟 파일**이었다: `MainViewModel:56,68` · `SettingsScreen:141~154` ·
+      `HijackService:119,279` · `ApiClient:400` · `ScrapParser:23~24` · `TargetApp:20~28` ·
+      세 배차망 `…Keywords` 의 `appLabel`. 🔴 코드↔이름 대응표(`TargetApp.kt`)가 있는데 **나머지가 안 쓴다** 이건 «지금 무엇인가»를 답하는 자리가 아니라 **고르는 자리**라
       리터럴이 정당하다 — 다만 **새 배차망을 붙일 때 네 곳을 다 찾아야 한다.**
       → `docs/기획/배차망_통합.md` §8 체크리스트와 대조해 빠진 자리가 없는지 확인할 것.
       🔴 앱 기본값은 오프라인 안전망이라 **DB 중앙화 대상이 아니다** (CLAUDE.md 규칙 ③)
@@ -1663,7 +1677,7 @@ extras = {"KA":"sdk/… os/javascript lang/ko-KR origin/https://1dal.altari.com"
 
 콜 옵션(단위·방법·보호·후작업·성질과 그 분)을 **갈래별로 묶어 화면에 그리려던** 함수다.
 화면은 있지만 **DB 표(`call_options`)를 안 쓴다** — 시트는 `shared` 상수와 판정 기준 탭에서
-값을 읽고, 그 표는 `pnpm options` 로 터미널에서만 본다.
+값을 읽고, 그 표는 `pnpm db options` 로 터미널에서만 본다.
 
 ✅ **2026-08-29 저녁에 정했다** — 그릇을 이 선으로 갈랐다 (버그 대장 #72):
 > 판정 기준 탭 = «어떻게 잴 것인가» · 콜 옵션 표 = «무엇을 고를 수 있고 몇 분인가».
@@ -1739,9 +1753,9 @@ stop_type 있는 점    568      ← order_id 와 정확히 일치 ✅ (둘을 �
   공백 문턱 `GAP_ALERT_MS = 5분` — 저장 조건이 «50m **또는** 15초»라 폰이 살아 있으면 정차
   중에도 점이 오므로, 이만큼 비면 **폰이 좌표를 안 보낸 것**이다
 - **라우트** — `GET /api/logbook/gps-track` (콜 목록) · `?orderId=<앞 8자+>` (점+요약). requireAuth
-- **CLI** — `pnpm track [id 앞부분]` — 콜별 점 수 · 5분+ 공백 · **상하차지 최접근 거리**
+- **CLI** — `pnpm db track [id 앞부분]` — 콜별 점 수 · 5분+ 공백 · **상하차지 최접근 거리**
   (도착 감지 500m 가 발화할 수 있었는지가 바로 보인다). 라이브는 `ssh onedal-live` 후
-  `DB_FILE=data.db pnpm track` (서버와 같은 DB 선택 규칙)
+  `DB_FILE=data.db pnpm db track` (서버와 같은 DB 선택 규칙)
 - 검사 6건 추가 (`gpsTrack.test.ts` — 공백·상하차 구분·DB 왕복) · 라이브 실물 검증함
   (75feff35: 최접근 5.38km · 공백 7회가 그대로 재현)
 - ⚠️ `toLocaleString` 에 `timeZone: 'Asia/Seoul'` 필수 — EC2 는 TZ 가 UTC 라 9시간 어긋난다 (실측)
@@ -2498,6 +2512,8 @@ val fareMatch = if (useRateModel) {
       화면 문구를 용어집대로. 서버 로그의 "무인서핑"도 **상세 수집**으로
 - [ ] **[정리]** 마일스톤 이름 두 벌 — DB `PICKED_UP` ↔ 6단계 화면 id `LOADED` 가 같은 개념.
       한 벌로 통일 (매핑 `MILESTONE_TO_STATUS` 근처)
+      ⚠️ 2026-09-14 전수 조사: 그 사이의 **대응표도 두 벌**이었다(`stepRecords` 사본 ↔ `callSteps.STEP_MILESTONE`,
+      제품은 사본을 쓰고 원본은 검사만 썼다) — 대응표는 `STEP_MILESTONE` 한 벌로 합쳤다. 남은 것은 이름 두 벌 자체다
 - [x] ~~[서버·문구] 합짐 차단 문구~~ — 2026-08-17 완료 ("이 합짐을 붙이면 … 못 지킵니다")
 - [ ] **[관제웹·GPS]** 속도 표시에 점프 가드가 없다 — 시뮬 종료 순간 실 GPS 복귀 점프(68.7km)가
       헤더에 `76005 km/h` 로 표시된 채 남음 (2026-08-17 실측). 서버는 IMPLAUSIBLE_SPEED 가드로

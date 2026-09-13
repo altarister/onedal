@@ -123,6 +123,6 @@ describe('저장 — 사유가 장부에 남는다', () => {
     });
 
     it('🔴 장부 보기(pnpm ledger)에도 나온다 — 쓰기만 하고 안 읽으면 죽은 데이터다', () => {
-        expect(read('../../../scripts/ledger.mjs')).toMatch(/reasons/);
+        expect(read('../../../scripts/lib/db-ledger.mjs')).toMatch(/reasons/);
     });
 });

@@ -1,3 +1,4 @@
+import { STEP_MILESTONE } from './callSteps';
 /**
  * 🔄 **단계 행 → 옛 장부 모양 어댑터** (파생 치환 ① · 2026-08-21)
  *
@@ -46,10 +47,12 @@ const parse = (v?: string | null): string[] | undefined => {
     catch { return undefined; }
 };
 
-const MILESTONE_OF: Record<string, string> = {
-    ARRIVE_PICKUP: 'ARRIVED_PICKUP', LOADED: 'PICKED_UP',
-    ARRIVE_DROPOFF: 'ARRIVED_DROPOFF', DELIVERED: 'DELIVERED',
-};
+/**
+ * 🔗 **단계 → 마일스톤 대응표는 `callSteps.ts` 의 `STEP_MILESTONE` 한 벌이다** (2026-09-14 전수 조사).
+ *    여기 똑같은 네 줄의 사본(`MILESTONE_OF`)이 따로 있었다 — 제품은 사본을 쓰고 원본은 검사만 썼다.
+ *    한쪽만 고치면 장부 복원과 단계 표가 다른 마일스톤을 말하게 된다.
+ */
+const MILESTONE_OF: Readonly<Record<string, string | undefined>> = STEP_MILESTONE;
 
 export function recordsOfSteps(steps: StepViewRow[]): StepRecords {
     const reports: any[] = [];

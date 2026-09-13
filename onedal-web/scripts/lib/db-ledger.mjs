@@ -7,14 +7,14 @@
  * 장부는 DB 에 있어서, 둘이 갈라진 사고가 여러 번 났다 (버그 대장 #4·#6·#8·#15).
  * **눈으로 직접 볼 수 있어야 그 갈라짐을 기사님이 먼저 잡는다.**
  *
- *   cd onedal-web && pnpm ledger          오늘 콜 전부
- *   cd onedal-web && pnpm ledger 3        최근 3건만
+ *   cd onedal-web && pnpm db ledger          오늘 콜 전부
+ *   cd onedal-web && pnpm db ledger 3        최근 3건만
  */
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 
 // better-sqlite3 는 서버 워크스페이스에 있다 — 다른 스크립트와 같은 방식으로 부른다
-const ROOT = new URL('..', import.meta.url).pathname;
+const ROOT = new URL('../..', import.meta.url).pathname;   // 📦 scripts/lib/ 에서 두 칸 위가 onedal-web
 const require = createRequire(join(ROOT, 'server/index.js'));
 const Database = require('better-sqlite3');
 

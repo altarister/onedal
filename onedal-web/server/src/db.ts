@@ -510,7 +510,7 @@ relaxScoreNotNull();
  *
  * 컬럼 목록은 `shared/src/callOptions.ts` 의 `CALL_OPTION_COLUMNS` 가 유일한 원천이다.
  * 🔴 **화면·판정은 아직 안 읽는다** — 옛 상수로 돈다. 채워만 두고 다음 단계에서 잇는다.
- *    (지금 읽는 것은 `pnpm options` 하나다 — scripts/options.mjs)
+ *    (터미널에서는 `pnpm db options` 로 본다 — scripts/lib/db-options.mjs · 관제웹은 `call-options-init` 소켓으로 받는다)
  */
 db.exec(`
     CREATE TABLE IF NOT EXISTS call_options (

@@ -53,6 +53,14 @@ class InsungParser(private val context: Context) : IScrapParser {
         private val VEHICLE_WITH_FARE = Regex("($VEHICLE_TOKENS)\\s*(\\d+(?:\\.\\d+)?)")
 
         /**
+         * 🔇 **서버 낱말 사전을 못 받았을 때의 기본 소음 낱말** — 오프라인 안전망 (onedal-app/CLAUDE.md).
+         * 원천은 서버 `keywords_inseong.json` 의 `uiNoiseWords` 이고 이것은 그 일부다.
+         * 🔴 **한 벌이다** (2026-09-14 전수 조사) — 같은 함수 안에 값이 다른 사본이 셋 있었다
+         *    (예외 갈래만 「콜상세」가 빠져 있었다).
+         */
+        private val FALLBACK_NOISE_WORDS = setOf("거리", "출발지", "도착지", "차종", "요금", "설정", "콜상세")
+
+        /**
          * 📏 **같은 줄인가** — 카드를 묶는 유일한 판정 (2026-08-25 계측용으로 떼어냈다).
          *
          * 인성 리스트는 한 줄이 콜 하나다. 차종 글자를 닻으로 잡고 **세로로 겹치는**
@@ -526,12 +534,12 @@ class InsungParser(private val context: Context) : IScrapParser {
                 val arr = keywordsObj.optJSONArray("uiNoiseWords")
                 if (arr != null) {
                     (0 until arr.length()).map { arr.getString(it) }.toSet()
-                } else setOf("거리", "출발지", "도착지", "차종", "요금", "설정", "콜상세")
+                } else FALLBACK_NOISE_WORDS
             } else {
-                setOf("거리", "출발지", "도착지", "차종", "요금", "설정", "콜상세")
+                FALLBACK_NOISE_WORDS
             }
         } catch(e: Exception) {
-            setOf("거리", "출발지", "도착지", "차종", "요금", "설정")
+            FALLBACK_NOISE_WORDS
         }
 
         // ── 2. 지역명 및 예약일정 파싱 (LocationTextAnalyzer 활용) ──

@@ -13,14 +13,14 @@
  *    밤에만 돌리면 낮 운행보다 빠르게 나온다. 주간(운행 시간)에도 한 번 돌릴 것.
  *    `pnpm reach` 가 주간/야간을 나눠 보여준다.
  *
- * ══ 실행 ══     pnpm reach:sweep        (카카오 호출 ~24건 · 1초 간격)
+ * ══ 실행 ══     pnpm reach sweep        (카카오 호출 ~24건 · 1초 간격)
  */
 import { createRequire } from 'node:module';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../..');   // 📦 scripts/lib/ 에서 두 칸 위가 onedal-web
 const require = createRequire(join(ROOT, 'server/package.json'));
 const Database = require('better-sqlite3');
 

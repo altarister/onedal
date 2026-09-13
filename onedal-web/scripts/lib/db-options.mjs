@@ -3,17 +3,17 @@
  *
  * 기사님(2026-08-20): *"db 를 터미널에서 보려니 너무 복잡하다."*
  *
- * `pnpm ledger` 가 **콜이 어떻게 저장됐나**를 보여준다면, 이건 **그 계산의 재료**를 본다.
+ * `pnpm db ledger` 가 **콜이 어떻게 저장됐나**를 보여준다면, 이건 **그 계산의 재료**를 본다.
  * 화면 값이 이상할 때 가장 먼저 확인할 자리다 — 단위 환산·상하차 분·보호 시간이
  * 여기서 나오기 때문이다.
  *
- *   cd onedal-web && pnpm options          전부
- *   cd onedal-web && pnpm options unit     한 갈래만
+ *   cd onedal-web && pnpm db options          전부
+ *   cd onedal-web && pnpm db options unit     한 갈래만
  */
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 
-const ROOT = new URL('..', import.meta.url).pathname;
+const ROOT = new URL('../..', import.meta.url).pathname;   // 📦 scripts/lib/ 에서 두 칸 위가 onedal-web
 const require = createRequire(join(ROOT, 'server/index.js'));
 const Database = require('better-sqlite3');
 const db = new Database(join(ROOT, 'server/local.db'), { readonly: true });
@@ -39,7 +39,7 @@ if (rows.length === 0) {
 const num = (v) => v == null ? '—' : (Number.isInteger(v) ? String(v) : v.toFixed(2));
 
 console.log(`\n🎛️  콜 옵션 (${rows.length}건)`);
-console.log(`   ⚠️  아직 화면·판정은 이 표를 안 읽습니다 — 코드 상수로 돌고 있습니다\n`);
+console.log(`   ℹ️  관제웹이 이 표를 받아 쓴다 (소켓 call-options-init) — 여기 값이 화면에 나온다\n`);
 
 for (const [cat, title, hint] of GROUPS) {
     if (only && only !== cat) continue;
@@ -64,4 +64,4 @@ for (const [cat, title, hint] of GROUPS) {
     console.log('');
 }
 
-console.log(`\x1b[90m   ✓ 는 통화 시트에서 미리 눌려 있는 것 · pnpm options unit 처럼 갈래만 볼 수 있습니다\x1b[0m\n`);
+console.log(`\x1b[90m   ✓ 는 통화 시트에서 미리 눌려 있는 것 · pnpm db options unit 처럼 갈래만 볼 수 있습니다\x1b[0m\n`);

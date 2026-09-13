@@ -24,6 +24,26 @@ import { createRequire } from 'node:module';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+/**
+ * 🔀 **`pnpm reach sweep` — 표본 쌓기는 같은 입구의 갈래다** (2026-09-14 · 기사님 지시로 묶음).
+ *    예전엔 `pnpm reach:sweep` 이 따로 있었다. «표본 쌓기 → 역산» 한 흐름이라 입구를 하나로 둔다.
+ *    🔴 카카오를 부르는 것은 `sweep` 뿐이다 — 인자 없는 `pnpm reach` 는 쌓인 표본을 읽기만 한다.
+ */
+{
+    const sub = process.argv[2];
+    if (sub === 'sweep') {
+        const { spawnSync } = await import('node:child_process');
+        const r = spawnSync(process.execPath, [join(dirname(fileURLToPath(import.meta.url)), 'lib/reach-sweep.mjs'), ...process.argv.slice(3)], { stdio: 'inherit', env: process.env });
+        process.exit(r.status ?? 1);
+    }
+    if (sub) {
+        console.error(`🔴 모르는 갈래: ${sub}\n`);
+        console.log('   pnpm reach          쌓인 표본으로 도달 계수 역산 (읽기만)');
+        console.log('   pnpm reach sweep    기준점 쌍을 카카오로 재 표본을 쌓는다 (카카오 비용)');
+        process.exit(1);
+    }
+}
+
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 // better-sqlite3 는 서버 워크스페이스에 있다 — 다른 스크립트와 같은 방식으로 부른다
 const require = createRequire(join(ROOT, 'server/package.json'));
@@ -36,7 +56,7 @@ const rows = db.prepare(
 db.close();
 
 if (rows.length === 0) {
-    console.log('표본이 없습니다 — 심사(자동) 또는 pnpm reach:sweep 으로 모입니다.');
+    console.log('표본이 없습니다 — 심사(자동) 또는 pnpm reach sweep 으로 모입니다.');
     process.exit(0);
 }
 
@@ -82,7 +102,7 @@ console.log(`  잔차 산포 ±${all.sd.toFixed(1)}분 · 표본 ${all.n}건${al
 const day = fit(rows.filter(isDay)), night = fit(rows.filter(r => !isDay(r)));
 if (day) console.log(`  주간(07~19시): ${day.base.toFixed(1)}분 + ${day.perKm.toFixed(2)}분/km  (${day.n}건 · ±${day.sd.toFixed(1)}분)`);
 if (night) console.log(`  야간 🌙:       ${night.base.toFixed(1)}분 + ${night.perKm.toFixed(2)}분/km  (${night.n}건 · ±${night.sd.toFixed(1)}분)`);
-if (!day) console.log(`  ⚠️ 주간(운행 시간대) 표본이 아직 없다 — 낮에 pnpm reach:sweep 한 번 돌릴 것`);
+if (!day) console.log(`  ⚠️ 주간(운행 시간대) 표본이 아직 없다 — 낮에 pnpm reach sweep 한 번 돌릴 것`);
 
 // ── 시계 → 반경 환산 비교 (잠정 1.5분/km vs 1차식) ──────
 const ref = day ?? all;   // 확정에 쓸 기준은 운행 시간대 — 없으면 전체

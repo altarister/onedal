@@ -28,7 +28,7 @@ import JudgmentSeat from '../components/dashboard/JudgmentSeat';
  * 🔴 공간을 아끼는 것보다 큰 것이 있다 — **지도 마커가 이미 이 색을 쓴다.**
  *    타이틀 줄이 같은 색을 쓰면 시트와 지도가 **같은 말**을 한다 (상차는 밝고 선명, 하차는 깊게).
  */
-import { callNodeFill, callNodeText, stopBoxBg, callTextColor, PROMISE_CALLED } from '../styles/callPalette';
+import { callNodeFill, callNodeText, stopBoxBg, callTextColor, callLineColor, PROMISE_CALLED } from '../styles/callPalette';
 import { useTheme } from '../contexts/ThemeContext';
 import type { SecuredOrder } from '@onedal/shared';
 // 🎨 판정 사실을 실물 모양으로 옮기는 곳 — 채점은 실물 엔진(judge)이 한다
@@ -286,7 +286,9 @@ const DEFAULT_SIDO = '경기', DEFAULT_SGG = '파주시';
  */
 // 🔴 `stopBoxBg` 도 `styles/callPalette` 로 옮겼다 — 같은 이유
 
-const CALL_COLORS = ['#e11d48', '#a78bfa', '#2dd4bf', '#fb923c', '#facc15', '#34d399', '#60a5fa', '#f472b6'];
+/* 🎨 **콜 선 색은 `callPalette.callLineColor` 한 벌이다** (2026-09-14 전수 조사).
+   여기 따로 박힌 8색(`CALL_COLORS`)이 있어 실험실 선만 로즈·보라로 그렸다 — 실물 지도·목록·마커는
+   `callPalette` 를 쓴다 (기사님 확정 2026-09-11 · `20de6df`). 「색 = 콜 번호」 가 목업에서만 깨져 있었다. */
 
 /* ── 웹 메르카토르 — OSM 타일과 같은 투영이라야 배경과 도형이 어긋나지 않는다 ── */
 const TILE = 256;
@@ -1273,11 +1275,11 @@ export default function MapMockup() {
             ...ordered.map((s, i) => ({
                 x: s.pt.lng, y: s.pt.lat, seq: i + 1, call: s.call,
                 label: `${circled(s.call)} ${s.kind} · ${nearestDong(s.pt).name}`,
-                color: CALL_COLORS[(s.call - 1) % CALL_COLORS.length],
+                color: callLineColor(s.call, theme),
             })),
         ];
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [presetCalls, confirmed, departed, dst.name, orderStart, routeChain]);
+    }, [presetCalls, confirmed, departed, dst.name, orderStart, routeChain, theme]);
 
     const anchor: NetPoint = useMemo(() => ({ name: '내 위치', ...myPos }), [myPos]);
     /**
@@ -2629,7 +2631,7 @@ export default function MapMockup() {
             const legColor = (i: number) => {
                 const from = effPath[i]?.call, to = effPath[i + 1]?.call;
                 const call = Math.max(from ?? to ?? 0, to ?? 0);
-                return call > 0 ? CALL_COLORS[(call - 1) % CALL_COLORS.length] : (effPath[i + 1]?.color ?? '#e11d48');
+                return call > 0 ? callLineColor(call, theme) : (effPath[i + 1]?.color ?? '#e11d48');
             };
             // 잡은 콜 경로 — 구간 색 + 이름표 (레이어: 내 경로). 실도로 곡선이 오면 그걸로 잇는다
             /**
@@ -2649,7 +2651,7 @@ export default function MapMockup() {
                     const no = l.to ? (l.to.codePointAt(0)! - 0x2460 + 1) : 0;
                     ctx.beginPath();
                     l.line.forEach((p, j) => { const [px, py] = S(p.x, p.y); j === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py); });
-                    ctx.strokeStyle = no >= 1 && no <= 40 ? CALL_COLORS[(no - 1) % CALL_COLORS.length] : '#e11d48';
+                    ctx.strokeStyle = no >= 1 && no <= 40 ? callLineColor(no, theme) : '#e11d48';
                     ctx.lineWidth = 5; ctx.lineJoin = 'round'; ctx.stroke();
                 }
             } else if (layers.route) {
@@ -2780,7 +2782,7 @@ export default function MapMockup() {
         };
         drawRef.current = draw;
         draw();
-    }, [net, areaNet, goalNets, loadedGoalNames, legFailed, approachLeg, chainPreview, safeCancelLeft, nowTick, finalPass, uploadedLeg, effPath, anchor, pickup, drop, verdict, size, params, dst, routeStarted, dstSgg, view, layers, routeMode, lineOn, routeLine, lineRadiusKm, knobs, myPos, drawLegs, excluded]);
+    }, [net, areaNet, goalNets, loadedGoalNames, legFailed, approachLeg, chainPreview, safeCancelLeft, nowTick, finalPass, uploadedLeg, effPath, anchor, pickup, drop, verdict, size, params, dst, routeStarted, dstSgg, view, layers, routeMode, lineOn, routeLine, lineRadiusKm, knobs, myPos, drawLegs, excluded, theme]);
 
     /** 클릭 한 점을 콜/내위치로 배치 */
     const placeAt = (pt: Pt) => {
@@ -3765,7 +3767,7 @@ export default function MapMockup() {
                                 <ol className="flex flex-col gap-1 text-[11px]">
                                     {confirmed.map((c, i) => {
                                         const n = baseCallCount + i + 1;
-                                        const color = CALL_COLORS[(n - 1) % CALL_COLORS.length];
+                                        const color = callLineColor(n, theme);
                                         return (
                                             <li key={c.id} className="rounded-[8px] border border-border-card bg-background px-1.5 py-1 flex flex-col gap-0.5">
                                                 <span className="flex items-start gap-1.5 min-w-0 flex-wrap">

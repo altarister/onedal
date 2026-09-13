@@ -48,7 +48,8 @@ async function devToken() {
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-const PORT = 9222 + (process.pid % 500);
+/* 🔌 크롬 조종 포트 — 루트 CLAUDE.md 「포트」 표의 자리 (lab 과 안 겹치게 9600~9899) */
+const PORT = 9600 + (process.pid % 300);
 const chrome = spawn(CHROME, [
     '--headless=new', '--disable-gpu', '--hide-scrollbars', '--no-first-run',
     `--remote-debugging-port=${PORT}`, `--window-size=${WIDTH},${HEIGHT}`,

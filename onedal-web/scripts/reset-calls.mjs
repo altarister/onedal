@@ -17,7 +17,7 @@ import { dirname, join } from 'node:path';
 import { existsSync } from 'node:fs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-// better-sqlite3 는 서버 워크스페이스에 있다 — 다른 스크립트(ledger.mjs 등)와 같은 방식.
+// better-sqlite3 는 서버 워크스페이스에 있다 — 다른 스크립트(lib/db-ledger.mjs 등)와 같은 방식.
 const require = createRequire(join(__dirname, '..', 'server/index.js'));
 const Database = require('better-sqlite3');
 const dbFile = process.env.DB_FILE || 'local.db';

@@ -8,8 +8,8 @@
  *     «50m 또는 15초»라 폰이 살아 있으면 정차 중에도 점이 온다)
  *   · 상차지·하차지에 실제로 얼마나 가까이 갔나 (도착 감지 500m 의 검증 재료)
  *
- *   cd onedal-web && pnpm track              콜별 요약 + 미부착 점 수
- *   cd onedal-web && pnpm track 75feff35     «이 콜의 궤적» 상세 (id 앞부분)
+ *   cd onedal-web && pnpm db track              콜별 요약 + 미부착 점 수
+ *   cd onedal-web && pnpm db track 75feff35     «이 콜의 궤적» 상세 (id 앞부분)
  *
  * 라이브에서: ssh onedal-live 후 서버 폴더에서 DB_FILE=data.db 로 같은 명령.
  * (서버와 같은 규칙 — DB_FILE 이 없으면 local.db)
@@ -17,7 +17,7 @@
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 
-const ROOT = new URL('..', import.meta.url).pathname;
+const ROOT = new URL('../..', import.meta.url).pathname;   // 📦 scripts/lib/ 에서 두 칸 위가 onedal-web
 const require = createRequire(join(ROOT, 'server/index.js'));
 const Database = require('better-sqlite3');
 
@@ -67,7 +67,7 @@ if (!arg) {
         console.log(`${s.id.slice(0, 8)}  ${o ? `${short(o.pickup)} → ${short(o.dropoff)} · ${(o.fare || 0).toLocaleString()}원` : '(orders 에 없음)'}`);
         console.log(`  ${o?.status ?? '—'}   ${s.n}점 (상차행 ${s.pu} · 하차행 ${s.doff})   ${kst(s.a)} ~ ${kst(s.b)}`);
     }
-    console.log(`\n상세: pnpm track <id 앞부분>\n`);
+    console.log(`\n상세: pnpm db track <id 앞부분>\n`);
     process.exit(0);
 }
 
