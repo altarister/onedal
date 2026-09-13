@@ -5,6 +5,7 @@
 
 ```bash
 cd onedal-sim && pnpm install && pnpm dev     # http://<PC IP>:5173
+cd onedal-sim && pnpm test                    # 검사 (vitest · 2026-09-14 신설) — 시뮬레이터 코드를 고치면 돌린다
 ```
 
 ## 폰에서 여는 법 — 실전과 같은 순서

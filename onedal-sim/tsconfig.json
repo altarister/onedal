@@ -14,5 +14,5 @@
     "verbatimModuleSyntax": true,
     "types": ["vite/client"]
   },
-  "include": ["src", "packages/*/src"]
+  "include": ["src", "packages/*/src", "tests"]
 }
