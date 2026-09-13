@@ -1,8 +1,15 @@
-import type { LocationDetailInfo } from '../types';
-import mockDataRaw from './mockLocationData.json';
+/**
+ * 📇 **인성 상세 팝업의 연락처** — 인성 화면만 쓴다 (2026-09-14 · 카카오픽커_시뮬레이터.md 0단계 0-2 ②)
+ *
+ * 예전엔 공통 코드(`core-simulator/src/data/mockLocationDetails.ts`)에 있었다. 인성 상세 화면 둘만 부른다.
+ * **본문은 한 글자도 안 고치고 옮겼다.** 바뀐 것은 주소 데이터를 가져오는 길 하나 — 같은 JSON 을
+ * 공통 코드가 이미 내보내는 `MOCK_DATA` 로 받는다 (같은 배열이다). `tests/contacts.test.ts` 가 옮기기 전 결과를 문다.
+ */
+import type { LocationDetailInfo } from '@altari/core-simulator';
+import { MOCK_DATA } from '@altari/core-simulator';
 
 // 138개의 리얼 주소 데이터 연동 (경기도 중심, 서울/인천/기타 포함)
-const MOCK_LOCATION_DETAILS = mockDataRaw as LocationDetailInfo[];
+const MOCK_LOCATION_DETAILS = MOCK_DATA as LocationDetailInfo[];
 
 // 순차적으로 꺼내 쓰기 위한 인덱스 카운터 (하차지 전용)
 let dropoffIdx = 50; // 도착지는 배열 중간부터 시작하여 다양성 확보

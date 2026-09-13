@@ -17,6 +17,7 @@ export { InseongDropdownMenu } from './inseong/InseongDropdownMenu';
 
 // 인성 표기 — 인성 화면만 쓴다 (0단계 0-2 에서 공통 코드에서 옮겨 왔다)
 export { formatRegionName, formatRegionFullName, formatInsungVehicle } from './inseong/insungCall';
+export { getNextPickupDetail, getNextDropoffDetail } from './inseong/insungContacts';
 
 // 화물24 UI
 export { Hwamul24DispatchBoard } from './hwamul24/Hwamul24DispatchBoard';
