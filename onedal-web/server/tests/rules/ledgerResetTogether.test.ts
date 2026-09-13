@@ -23,21 +23,13 @@ import { join } from 'path';
 const WEB = join(__dirname, '../../..');
 const read = (p: string) => readFileSync(join(WEB, p), 'utf8');
 
-describe('🧹 리허설 초기화 — 장부와 메모리는 한 동작이다', () => {
-    it('🔴 초기화가 서버 재기동까지 스스로 한다 — 사람에게 넘기지 않는다', () => {
-        const src = read('scripts/rehearsal.mjs');
-        // 장부를 비우는 자리
-        expect(src).toMatch(/DELETE FROM/);
-        // 비운 뒤 **스스로** 서버를 다시 띄우는 자리 (감시자를 깨우는 touch)
-        expect(src).toMatch(/restartServer|bumpEntry/);
-    });
-
-    it('🔴 "재기동해 주세요" 하고 기다리기만 하지 않는다', () => {
-        const src = read('scripts/rehearsal.mjs');
-        // 사람에게 시키고 무한 대기하던 문장이 남아 있으면 안 된다
-        expect(src).not.toMatch(/Ctrl\+C 후 pnpm dev 로 재기동해 주세요/);
-    });
-});
+/*
+ * 🗑️ **「리허설 초기화 — 장부와 메모리는 한 동작이다」 두 건은 2026-09-14 에 걷었다.**
+ *    그 구조(장부를 비우면 도구가 서버 재기동까지 스스로 한다)는 `pnpm rehearsal`·`pnpm preflight`
+ *    안에만 있었고, 기사님 지시로 둘을 지웠다. 🔴 **남은 `pnpm reset:calls` 는 DB 만 비운다** —
+ *    #40 과 같은 사고를 막는 것은 지금 루트 CLAUDE.md 「짝이 있는 것」의 «감시자까지 내리고
+ *    다시 띄운다» 한 줄뿐이다 (구조가 아니라 사람의 기억이다).
+ */
 
 /**
  * 🔴 **`pnpm dev` 는 Ctrl+C 로 함께 죽어야 한다.**

@@ -37,15 +37,11 @@ describe('capacityFullHold — 실을 수 있는 차종이 없으면 멈춘다',
     });
 });
 
-describe('연결 — 앱 응답과 리허설이 같은 규칙을 탄다', () => {
+describe('연결 — 앱 응답이 만석 홀드를 탄다', () => {
     it('🔴 scrap 응답이 만석 홀드를 거친다', () => {
         const scrap = readFileSync(join(__dirname, '../../src/routes/scrap.ts'), 'utf8');
         expect(scrap).toContain('capacityFullHold');
     });
 
-    it('🔴 리허설 사전검사가 차종·요금 필터도 본다 — 경로 순서만 보지 않는다', () => {
-        const rehearsal = readFileSync(join(__dirname, '../../../scripts/rehearsal.mjs'), 'utf8');
-        expect(rehearsal).toContain('allowedVehicleTypes');
-        expect(rehearsal).toContain('minFare');
-    });
+    /* 🗑️ 리허설 사전검사 검사는 2026-09-14 에 `pnpm rehearsal` 을 지우며 함께 걷었다 (기사님 지시) */
 });
